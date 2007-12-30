@@ -2210,7 +2210,7 @@ unsigned int ata_scsiop_read_cap(struct ata_scsi_args *args, u8 *rbuf,
 
 		/* sector size */
 		ATA_SCSI_RBUF_SET(6, ATA_SECT_SIZE >> 8);
-		ATA_SCSI_RBUF_SET(7, ATA_SECT_SIZE);
+		ATA_SCSI_RBUF_SET(7, ATA_SECT_SIZE & 0xff);
 	} else {
 		/* sector count, 64-bit */
 		ATA_SCSI_RBUF_SET(0, last_lba >> (8 * 7));
@@ -2224,7 +2224,7 @@ unsigned int ata_scsiop_read_cap(struct ata_scsi_args *args, u8 *rbuf,
 
 		/* sector size */
 		ATA_SCSI_RBUF_SET(10, ATA_SECT_SIZE >> 8);
-		ATA_SCSI_RBUF_SET(11, ATA_SECT_SIZE);
+		ATA_SCSI_RBUF_SET(11, ATA_SECT_SIZE & 0xff);
 	}
 
 	return 0;

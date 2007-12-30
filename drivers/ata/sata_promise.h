@@ -46,7 +46,7 @@ static inline unsigned int pdc_pkt_header(struct ata_taskfile *tf,
 					  unsigned int devno, u8 *buf)
 {
 	u8 dev_reg;
-	u32 *buf32 = (u32 *) buf;
+	__le32 *buf32 = (__le32 *) buf;
 
 	/* set control bits (byte 0), zero delay seq id (byte 3),
 	 * and seq id (byte 2)

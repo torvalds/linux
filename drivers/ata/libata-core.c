@@ -4949,7 +4949,7 @@ unsigned int ata_data_xfer(struct ata_device *dev, unsigned char *buf,
 
 	/* Transfer trailing 1 byte, if any. */
 	if (unlikely(buflen & 0x01)) {
-		u16 align_buf[1] = { 0 };
+		__le16 align_buf[1] = { 0 };
 		unsigned char *trailing_buf = buf + buflen - 1;
 
 		if (rw == READ) {

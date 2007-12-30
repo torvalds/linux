@@ -334,7 +334,7 @@ static inline void pdc20621_ata_sg(struct ata_taskfile *tf, u8 *buf,
 {
 	u32 addr;
 	unsigned int dw = PDC_DIMM_APKT_PRD >> 2;
-	u32 *buf32 = (u32 *) buf;
+	__le32 *buf32 = (__le32 *) buf;
 
 	/* output ATA packet S/G table */
 	addr = PDC_20621_DIMM_BASE + PDC_20621_DIMM_DATA +
@@ -356,7 +356,7 @@ static inline void pdc20621_host_sg(struct ata_taskfile *tf, u8 *buf,
 {
 	u32 addr;
 	unsigned int dw = PDC_DIMM_HPKT_PRD >> 2;
-	u32 *buf32 = (u32 *) buf;
+	__le32 *buf32 = (__le32 *) buf;
 
 	/* output Host DMA packet S/G table */
 	addr = PDC_20621_DIMM_BASE + PDC_20621_DIMM_DATA +
@@ -377,7 +377,7 @@ static inline unsigned int pdc20621_ata_pkt(struct ata_taskfile *tf,
 					    unsigned int portno)
 {
 	unsigned int i, dw;
-	u32 *buf32 = (u32 *) buf;
+	__le32 *buf32 = (__le32 *) buf;
 	u8 dev_reg;
 
 	unsigned int dimm_sg = PDC_20621_DIMM_BASE +
@@ -429,7 +429,8 @@ static inline void pdc20621_host_pkt(struct ata_taskfile *tf, u8 *buf,
 				     unsigned int portno)
 {
 	unsigned int dw;
-	u32 tmp, *buf32 = (u32 *) buf;
+	u32 tmp;
+	__le32 *buf32 = (__le32 *) buf;
 
 	unsigned int host_sg = PDC_20621_DIMM_BASE +
 			       (PDC_DIMM_WINDOW_STEP * portno) +

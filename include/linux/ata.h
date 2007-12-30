@@ -354,8 +354,8 @@ enum ata_ioctls {
 /* core structures */
 
 struct ata_prd {
-	u32			addr;
-	u32			flags_len;
+	__le32			addr;
+	__le32			flags_len;
 };
 
 struct ata_taskfile {

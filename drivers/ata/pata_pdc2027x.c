@@ -348,7 +348,7 @@ static unsigned long pdc2027x_mode_filter(struct ata_device *adev, unsigned long
 	ata_id_c_string(pair->id, model_num, ATA_ID_PROD,
 			  ATA_ID_PROD_LEN + 1);
 	/* If the master is a maxtor in UDMA6 then the slave should not use UDMA 6 */
-	if (strstr(model_num, "Maxtor") == 0 && pair->dma_mode == XFER_UDMA_6)
+	if (strstr(model_num, "Maxtor") == NULL && pair->dma_mode == XFER_UDMA_6)
 		mask &= ~ (1 << (6 + ATA_SHIFT_UDMA));
 
 	return ata_pci_default_filter(adev, mask);
