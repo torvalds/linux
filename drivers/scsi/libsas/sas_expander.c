@@ -96,7 +96,7 @@ static int smp_execute_task(struct domain_device *dev, void *req, int req_size,
 		}
 
 		wait_for_completion(&task->completion);
-		res = -ETASK;
+		res = -ECOMM;
 		if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
 			SAS_DPRINTK("smp task timed out or aborted\n");
 			i->dft->lldd_abort_task(task);

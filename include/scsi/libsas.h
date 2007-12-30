@@ -91,8 +91,6 @@ enum discover_event {
 
 /* ---------- Expander Devices ---------- */
 
-#define ETASK 0xFA
-
 #define to_dom_device(_obj) container_of(_obj, struct domain_device, dev_obj)
 #define to_dev_attr(_attr)  container_of(_attr, struct domain_dev_attribute,\
                                          attr)
