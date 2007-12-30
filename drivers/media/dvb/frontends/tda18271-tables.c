@@ -273,6 +273,7 @@ int tda18271_lookup_pll_map(enum tda18271_map_type map_type,
 	struct tda18271_pll_map *map = NULL;
 	unsigned int i = 0;
 	char *map_name;
+	int ret = 0;
 
 	switch (map_type) {
 	case MAIN_PLL:
@@ -291,12 +292,17 @@ int tda18271_lookup_pll_map(enum tda18271_map_type map_type,
 
 	if (!map) {
 		tda_warn("%s map is not set!\n", map_name);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto fail;
 	}
 
 	while ((map[i].lomax * 1000) < *freq) {
-		if (map[i + 1].lomax == 0)
+		if (map[i].lomax == 0) {
+			tda_map("%s: frequency (%d) out of range\n",
+				map_name, *freq);
+			ret = -ERANGE;
 			break;
+		}
 		i++;
 	}
 	*post_div = map[i].pd;
@@ -304,8 +310,8 @@ int tda18271_lookup_pll_map(enum tda18271_map_type map_type,
 
 	tda_map("%s: post div = 0x%02x, div = 0x%02x\n",
 		map_name, *post_div, *div);
-
-	return 0;
+fail:
+	return ret;
 }
 
 int tda18271_lookup_map(enum tda18271_map_type map_type, u32 *freq, u8 *val)
@@ -313,6 +319,7 @@ int tda18271_lookup_map(enum tda18271_map_type map_type, u32 *freq, u8 *val)
 	struct tda18271_map *map = NULL;
 	unsigned int i = 0;
 	char *map_name;
+	int ret = 0;
 
 	switch (map_type) {
 	case BP_FILTER:
@@ -347,19 +354,24 @@ int tda18271_lookup_map(enum tda18271_map_type map_type, u32 *freq, u8 *val)
 
 	if (!map) {
 		tda_warn("%s map is not set!\n", map_name);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto fail;
 	}
 
 	while ((map[i].rfmax * 1000) < *freq) {
-		if (map[i + 1].rfmax == 0)
+		if (map[i].rfmax == 0) {
+			tda_map("%s: frequency (%d) out of range\n",
+				map_name, *freq);
+			ret = -ERANGE;
 			break;
+		}
 		i++;
 	}
 	*val = map[i].val;
 
 	tda_map("%s: 0x%02x\n", map_name, *val);
-
-	return 0;
+fail:
+	return ret;
 }
 
 /*

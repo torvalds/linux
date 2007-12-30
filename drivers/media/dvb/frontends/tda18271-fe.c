@@ -502,11 +502,6 @@ static int tda18271_calc_rf_cal(struct dvb_frontend *fe, u32 *freq)
 	if (ret < 0)
 		goto fail;
 
-	/* VHF_Low band only */
-	if (0 == val) {
-		ret = -ERANGE;
-		goto fail;
-	}
 	regs[R_EB14] = val;
 fail:
 	return ret;
