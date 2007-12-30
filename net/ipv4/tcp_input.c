@@ -2765,8 +2765,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, s32 *seq_rtt_p,
 	u32 now = tcp_time_stamp;
 	int fully_acked = 1;
 	int flag = 0;
-	int prior_packets = tp->packets_out;
-	u32 cnt = 0;
+	u32 pkts_acked = 0;
 	u32 reord = tp->packets_out;
 	s32 seq_rtt = -1;
 	s32 ca_seq_rtt = -1;
@@ -2775,7 +2774,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, s32 *seq_rtt_p,
 	while ((skb = tcp_write_queue_head(sk)) && skb != tcp_send_head(sk)) {
 		struct tcp_skb_cb *scb = TCP_SKB_CB(skb);
 		u32 end_seq;
-		u32 packets_acked;
+		u32 acked_pcount;
 		u8 sacked = scb->sacked;
 
 		/* Determine how many packets and what bytes were acked, tso and else */
@@ -2784,14 +2783,14 @@ static int tcp_clean_rtx_queue(struct sock *sk, s32 *seq_rtt_p,
 			    !after(tp->snd_una, scb->seq))
 				break;
 
-			packets_acked = tcp_tso_acked(sk, skb);
-			if (!packets_acked)
+			acked_pcount = tcp_tso_acked(sk, skb);
+			if (!acked_pcount)
 				break;
 
 			fully_acked = 0;
 			end_seq = tp->snd_una;
 		} else {
-			packets_acked = tcp_skb_pcount(skb);
+			acked_pcount = tcp_skb_pcount(skb);
 			end_seq = scb->end_seq;
 		}
 
@@ -2803,12 +2802,12 @@ static int tcp_clean_rtx_queue(struct sock *sk, s32 *seq_rtt_p,
 
 		if (sacked & TCPCB_RETRANS) {
 			if (sacked & TCPCB_SACKED_RETRANS)
-				tp->retrans_out -= packets_acked;
+				tp->retrans_out -= acked_pcount;
 			flag |= FLAG_RETRANS_DATA_ACKED;
 			ca_seq_rtt = -1;
 			seq_rtt = -1;
 			if ((flag & FLAG_DATA_ACKED) ||
-			    (packets_acked > 1))
+			    (acked_pcount > 1))
 				flag |= FLAG_NONHEAD_RETRANS_ACKED;
 		} else {
 			ca_seq_rtt = now - scb->when;
@@ -2817,20 +2816,20 @@ static int tcp_clean_rtx_queue(struct sock *sk, s32 *seq_rtt_p,
 				seq_rtt = ca_seq_rtt;
 			}
 			if (!(sacked & TCPCB_SACKED_ACKED))
-				reord = min(cnt, reord);
+				reord = min(pkts_acked, reord);
 		}
 
 		if (sacked & TCPCB_SACKED_ACKED)
-			tp->sacked_out -= packets_acked;
+			tp->sacked_out -= acked_pcount;
 		if (sacked & TCPCB_LOST)
-			tp->lost_out -= packets_acked;
+			tp->lost_out -= acked_pcount;
 
 		if (unlikely((sacked & TCPCB_URG) && tp->urg_mode &&
 			     !before(end_seq, tp->snd_up)))
 			tp->urg_mode = 0;
 
-		tp->packets_out -= packets_acked;
-		cnt += packets_acked;
+		tp->packets_out -= acked_pcount;
+		pkts_acked += acked_pcount;
 
 		/* Initial outgoing SYN's get put onto the write_queue
 		 * just like anything else we transmit.  It is not
@@ -2855,7 +2854,6 @@ static int tcp_clean_rtx_queue(struct sock *sk, s32 *seq_rtt_p,
 	}
 
 	if (flag & FLAG_ACKED) {
-		u32 pkts_acked = prior_packets - tp->packets_out;
 		const struct tcp_congestion_ops *ca_ops
 			= inet_csk(sk)->icsk_ca_ops;
 
