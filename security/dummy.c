@@ -225,11 +225,6 @@ static void dummy_sb_post_remount (struct vfsmount *mnt, unsigned long flags,
 }
 
 
-static void dummy_sb_post_mountroot (void)
-{
-	return;
-}
-
 static void dummy_sb_post_addmount (struct vfsmount *mnt, struct nameidata *nd)
 {
 	return;
@@ -1017,7 +1012,6 @@ void security_fixup_ops (struct security_operations *ops)
 	set_to_dummy_if_null(ops, sb_umount_close);
 	set_to_dummy_if_null(ops, sb_umount_busy);
 	set_to_dummy_if_null(ops, sb_post_remount);
-	set_to_dummy_if_null(ops, sb_post_mountroot);
 	set_to_dummy_if_null(ops, sb_post_addmount);
 	set_to_dummy_if_null(ops, sb_pivotroot);
 	set_to_dummy_if_null(ops, sb_post_pivotroot);

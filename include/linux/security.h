@@ -249,9 +249,6 @@ struct request_sock;
  *	@mnt contains the mounted file system.
  *	@flags contains the new filesystem flags.
  *	@data contains the filesystem-specific data.
- * @sb_post_mountroot:
- *	Update the security module's state when the root filesystem is mounted.
- *	This hook is only called if the mount was successful.
  * @sb_post_addmount:
  *	Update the security module's state when a filesystem is mounted.
  *	This hook is called any time a mount is successfully grafetd to
@@ -1257,7 +1254,6 @@ struct security_operations {
 	void (*sb_umount_busy) (struct vfsmount * mnt);
 	void (*sb_post_remount) (struct vfsmount * mnt,
 				 unsigned long flags, void *data);
-	void (*sb_post_mountroot) (void);
 	void (*sb_post_addmount) (struct vfsmount * mnt,
 				  struct nameidata * mountpoint_nd);
 	int (*sb_pivotroot) (struct nameidata * old_nd,
@@ -1524,7 +1520,6 @@ int security_sb_umount(struct vfsmount *mnt, int flags);
 void security_sb_umount_close(struct vfsmount *mnt);
 void security_sb_umount_busy(struct vfsmount *mnt);
 void security_sb_post_remount(struct vfsmount *mnt, unsigned long flags, void *data);
-void security_sb_post_mountroot(void);
 void security_sb_post_addmount(struct vfsmount *mnt, struct nameidata *mountpoint_nd);
 int security_sb_pivotroot(struct nameidata *old_nd, struct nameidata *new_nd);
 void security_sb_post_pivotroot(struct nameidata *old_nd, struct nameidata *new_nd);
@@ -1811,9 +1806,6 @@ static inline void security_sb_umount_busy (struct vfsmount *mnt)
 
 static inline void security_sb_post_remount (struct vfsmount *mnt,
 					     unsigned long flags, void *data)
-{ }
-
-static inline void security_sb_post_mountroot (void)
 { }
 
 static inline void security_sb_post_addmount (struct vfsmount *mnt,

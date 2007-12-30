@@ -288,11 +288,6 @@ void security_sb_post_remount(struct vfsmount *mnt, unsigned long flags, void *d
 	security_ops->sb_post_remount(mnt, flags, data);
 }
 
-void security_sb_post_mountroot(void)
-{
-	security_ops->sb_post_mountroot();
-}
-
 void security_sb_post_addmount(struct vfsmount *mnt, struct nameidata *mountpoint_nd)
 {
 	security_ops->sb_post_addmount(mnt, mountpoint_nd);
