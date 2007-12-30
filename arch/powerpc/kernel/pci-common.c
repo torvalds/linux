@@ -1035,7 +1035,7 @@ clear_resource:
 	}
 }
 
-static inline int __devinit alloc_resource(struct pci_dev *dev, int idx)
+static inline void __devinit alloc_resource(struct pci_dev *dev, int idx)
 {
 	struct resource *pr, *r = &dev->resource[idx];
 
@@ -1059,10 +1059,7 @@ static inline int __devinit alloc_resource(struct pci_dev *dev, int idx)
 		r->flags |= IORESOURCE_UNSET;
 		r->end -= r->start;
 		r->start = 0;
-
-		return -EBUSY;
 	}
-	return 0;
 }
 
 static void __init pcibios_allocate_resources(int pass)
@@ -1084,12 +1081,8 @@ static void __init pcibios_allocate_resources(int pass)
 				disabled = !(command & PCI_COMMAND_IO);
 			else
 				disabled = !(command & PCI_COMMAND_MEMORY);
-			if (pass == disabled && alloc_resource(dev, idx)) {
-				command &= ~(r->flags & (IORESOURCE_IO |
-							 IORESOURCE_MEM));
-				pci_write_config_word(dev,
-						      PCI_COMMAND, command);
-			}
+			if (pass == disabled)
+				alloc_resource(dev, idx);
 		}
 		if (pass)
 			continue;
