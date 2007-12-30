@@ -890,11 +890,10 @@ struct page *gva_to_page(struct kvm_vcpu *vcpu, gva_t gva)
 static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *shadow_pte,
 			 unsigned pt_access, unsigned pte_access,
 			 int user_fault, int write_fault, int dirty,
-			 int *ptwrite, gfn_t gfn)
+			 int *ptwrite, gfn_t gfn, struct page *page)
 {
 	u64 spte;
 	int was_rmapped = is_rmap_pte(*shadow_pte);
-	struct page *page;
 
 	pgprintk("%s: spte %llx access %x write_fault %d"
 		 " user_fault %d gfn %lx\n",
@@ -911,8 +910,6 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *shadow_pte,
 		pte_access &= ~ACC_WRITE_MASK;
 	if (!(pte_access & ACC_EXEC_MASK))
 		spte |= PT64_NX_MASK;
-
-	page = gfn_to_page(vcpu->kvm, gfn);
 
 	spte |= PT_PRESENT_MASK;
 	if (pte_access & ACC_USER_MASK)
@@ -979,6 +976,11 @@ static int __nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, int write, gfn_t gfn)
 	int level = PT32E_ROOT_LEVEL;
 	hpa_t table_addr = vcpu->arch.mmu.root_hpa;
 	int pt_write = 0;
+	struct page *page;
+
+	down_read(&current->mm->mmap_sem);
+	page = gfn_to_page(vcpu->kvm, gfn);
+	up_read(&current->mm->mmap_sem);
 
 	for (; ; level--) {
 		u32 index = PT64_INDEX(v, level);
@@ -989,7 +991,7 @@ static int __nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, int write, gfn_t gfn)
 
 		if (level == 1) {
 			mmu_set_spte(vcpu, &table[index], ACC_ALL, ACC_ALL,
-				     0, write, 1, &pt_write, gfn);
+				     0, write, 1, &pt_write, gfn, page);
 			return pt_write || is_io_pte(table[index]);
 		}
 
@@ -1005,6 +1007,7 @@ static int __nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, int write, gfn_t gfn)
 						     NULL);
 			if (!new_table) {
 				pgprintk("nonpaging_map: ENOMEM\n");
+				kvm_release_page_clean(page);
 				return -ENOMEM;
 			}
 
@@ -1347,6 +1350,43 @@ static bool last_updated_pte_accessed(struct kvm_vcpu *vcpu)
 	return !!(spte && (*spte & PT_ACCESSED_MASK));
 }
 
+static void mmu_guess_page_from_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
+					  const u8 *new, int bytes)
+{
+	gfn_t gfn;
+	int r;
+	u64 gpte = 0;
+
+	if (bytes != 4 && bytes != 8)
+		return;
+
+	/*
+	 * Assume that the pte write on a page table of the same type
+	 * as the current vcpu paging mode.  This is nearly always true
+	 * (might be false while changing modes).  Note it is verified later
+	 * by update_pte().
+	 */
+	if (is_pae(vcpu)) {
+		/* Handle a 32-bit guest writing two halves of a 64-bit gpte */
+		if ((bytes == 4) && (gpa % 4 == 0)) {
+			r = kvm_read_guest(vcpu->kvm, gpa & ~(u64)7, &gpte, 8);
+			if (r)
+				return;
+			memcpy((void *)&gpte + (gpa % 8), new, 4);
+		} else if ((bytes == 8) && (gpa % 8 == 0)) {
+			memcpy((void *)&gpte, new, 8);
+		}
+	} else {
+		if ((bytes == 4) && (gpa % 4 == 0))
+			memcpy((void *)&gpte, new, 4);
+	}
+	if (!is_present_pte(gpte))
+		return;
+	gfn = (gpte & PT64_BASE_ADDR_MASK) >> PAGE_SHIFT;
+	vcpu->arch.update_pte.gfn = gfn;
+	vcpu->arch.update_pte.page = gfn_to_page(vcpu->kvm, gfn);
+}
+
 void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 		       const u8 *new, int bytes)
 {
@@ -1367,6 +1407,7 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 	int npte;
 
 	pgprintk("%s: gpa %llx bytes %d\n", __FUNCTION__, gpa, bytes);
+	mmu_guess_page_from_pte_write(vcpu, gpa, new, bytes);
 	mutex_lock(&vcpu->kvm->lock);
 	++vcpu->kvm->stat.mmu_pte_write;
 	kvm_mmu_audit(vcpu, "pre pte write");
@@ -1437,6 +1478,10 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 	}
 	kvm_mmu_audit(vcpu, "post pte write");
 	mutex_unlock(&vcpu->kvm->lock);
+	if (vcpu->arch.update_pte.page) {
+		kvm_release_page_clean(vcpu->arch.update_pte.page);
+		vcpu->arch.update_pte.page = NULL;
+	}
 }
 
 int kvm_mmu_unprotect_page_virt(struct kvm_vcpu *vcpu, gva_t gva)

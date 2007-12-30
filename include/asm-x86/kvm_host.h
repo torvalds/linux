@@ -224,6 +224,11 @@ struct kvm_vcpu_arch {
 	int   last_pt_write_count;
 	u64  *last_pte_updated;
 
+	struct {
+		gfn_t gfn;          /* presumed gfn during guest pte update */
+		struct page *page;  /* page corresponding to that gfn */
+	} update_pte;
+
 	struct i387_fxsave_struct host_fx_image;
 	struct i387_fxsave_struct guest_fx_image;
 
