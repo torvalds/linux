@@ -31,9 +31,9 @@
 /*
  * Ease the printing of nsec fields:
  */
-static long long nsec_high(long long nsec)
+static long long nsec_high(unsigned long long nsec)
 {
-	if (nsec < 0) {
+	if ((long long)nsec < 0) {
 		nsec = -nsec;
 		do_div(nsec, 1000000);
 		return -nsec;
@@ -43,9 +43,9 @@ static long long nsec_high(long long nsec)
 	return nsec;
 }
 
-static unsigned long nsec_low(long long nsec)
+static unsigned long nsec_low(unsigned long long nsec)
 {
-	if (nsec < 0)
+	if ((long long)nsec < 0)
 		nsec = -nsec;
 
 	return do_div(nsec, 1000000);
