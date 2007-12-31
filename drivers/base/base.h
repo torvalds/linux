@@ -81,7 +81,7 @@ extern int devres_release_all(struct device *dev);
 
 extern struct kset *devices_kset;
 
-#ifdef CONFIG_MODULES
+#if defined(CONFIG_MODULES) && defined(CONFIG_SYSFS)
 extern void module_add_driver(struct module *mod, struct device_driver *drv);
 extern void module_remove_driver(struct device_driver *drv);
 #else
