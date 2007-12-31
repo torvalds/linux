@@ -1125,6 +1125,7 @@ static void xs_tcp_state_change(struct sock *sk)
 		set_bit(XPRT_CLOSING, &xprt->state);
 		smp_mb__before_clear_bit();
 		clear_bit(XPRT_CONNECTED, &xprt->state);
+		clear_bit(XPRT_CLOSE_WAIT, &xprt->state);
 		smp_mb__after_clear_bit();
 		break;
 	case TCP_CLOSE_WAIT:
@@ -1139,6 +1140,7 @@ static void xs_tcp_state_change(struct sock *sk)
 		break;
 	case TCP_CLOSE:
 		smp_mb__before_clear_bit();
+		clear_bit(XPRT_CLOSE_WAIT, &xprt->state);
 		clear_bit(XPRT_CLOSING, &xprt->state);
 		smp_mb__after_clear_bit();
 		/* Mark transport as closed and wake up all pending tasks */
