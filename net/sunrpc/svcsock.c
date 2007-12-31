@@ -75,7 +75,7 @@
  *
  */
 
-#define RPCDBG_FACILITY	RPCDBG_SVCSOCK
+#define RPCDBG_FACILITY	RPCDBG_SVCXPRT
 
 
 static struct svc_sock *svc_setup_socket(struct svc_serv *, struct socket *,
@@ -900,12 +900,21 @@ svc_udp_sendto(struct svc_rqst *rqstp)
 	return error;
 }
 
+static struct svc_xprt_ops svc_udp_ops = {
+};
+
+static struct svc_xprt_class svc_udp_class = {
+	.xcl_name = "udp",
+	.xcl_ops = &svc_udp_ops,
+};
+
 static void
 svc_udp_init(struct svc_sock *svsk)
 {
 	int one = 1;
 	mm_segment_t oldfs;
 
+	svc_xprt_init(&svc_udp_class, &svsk->sk_xprt);
 	svsk->sk_sk->sk_data_ready = svc_udp_data_ready;
 	svsk->sk_sk->sk_write_space = svc_write_space;
 	svsk->sk_recvfrom = svc_udp_recvfrom;
@@ -1344,12 +1353,33 @@ svc_tcp_sendto(struct svc_rqst *rqstp)
 	return sent;
 }
 
+static struct svc_xprt_ops svc_tcp_ops = {
+};
+
+static struct svc_xprt_class svc_tcp_class = {
+	.xcl_name = "tcp",
+	.xcl_ops = &svc_tcp_ops,
+};
+
+void svc_init_xprt_sock(void)
+{
+	svc_reg_xprt_class(&svc_tcp_class);
+	svc_reg_xprt_class(&svc_udp_class);
+}
+
+void svc_cleanup_xprt_sock(void)
+{
+	svc_unreg_xprt_class(&svc_tcp_class);
+	svc_unreg_xprt_class(&svc_udp_class);
+}
+
 static void
 svc_tcp_init(struct svc_sock *svsk)
 {
 	struct sock	*sk = svsk->sk_sk;
 	struct tcp_sock *tp = tcp_sk(sk);
 
+	svc_xprt_init(&svc_tcp_class, &svsk->sk_xprt);
 	svsk->sk_recvfrom = svc_tcp_recvfrom;
 	svsk->sk_sendto = svc_tcp_sendto;
 

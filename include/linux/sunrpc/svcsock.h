@@ -10,11 +10,13 @@
 #define SUNRPC_SVCSOCK_H
 
 #include <linux/sunrpc/svc.h>
+#include <linux/sunrpc/svc_xprt.h>
 
 /*
  * RPC server socket.
  */
 struct svc_sock {
+	struct svc_xprt		sk_xprt;
 	struct list_head	sk_ready;	/* list of ready sockets */
 	struct list_head	sk_list;	/* list of all sockets */
 	struct socket *		sk_sock;	/* berkeley socket layer */
@@ -78,6 +80,8 @@ int		svc_addsock(struct svc_serv *serv,
 			    int fd,
 			    char *name_return,
 			    int *proto);
+void		svc_init_xprt_sock(void);
+void		svc_cleanup_xprt_sock(void);
 
 /*
  * svc_makesock socket characteristics

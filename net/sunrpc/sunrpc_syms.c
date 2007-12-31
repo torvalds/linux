@@ -85,7 +85,8 @@ init_sunrpc(void)
 #endif
 	cache_register(&ip_map_cache);
 	cache_register(&unix_gid_cache);
-	init_socket_xprt();
+	svc_init_xprt_sock();	/* svc sock transport */
+	init_socket_xprt();	/* clnt sock transport */
 	rpcauth_init_module();
 out:
 	return err;
@@ -96,6 +97,7 @@ cleanup_sunrpc(void)
 {
 	rpcauth_remove_module();
 	cleanup_socket_xprt();
+	svc_cleanup_xprt_sock();
 	unregister_rpc_pipefs();
 	rpc_destroy_mempool();
 	cache_unregister(&ip_map_cache);
