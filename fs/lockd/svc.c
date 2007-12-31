@@ -219,18 +219,6 @@ lockd(struct svc_rqst *rqstp)
 	module_put_and_exit(0);
 }
 
-static int find_xprt(struct svc_serv *serv, char *proto)
-{
-	struct svc_xprt *xprt;
-	int found = 0;
-	list_for_each_entry(xprt, &serv->sv_permsocks, xpt_list)
-		if (strcmp(xprt->xpt_class->xcl_name, proto) == 0) {
-			found = 1;
-			break;
-		}
-	return found;
-}
-
 /*
  * Make any sockets that are needed but not present.
  * If nlm_udpport or nlm_tcpport were set as module
@@ -242,11 +230,11 @@ static int make_socks(struct svc_serv *serv, int proto)
 	int err = 0;
 
 	if (proto == IPPROTO_UDP || nlm_udpport)
-		if (!find_xprt(serv, "udp"))
+		if (!svc_find_xprt(serv, "udp", 0, 0))
 			err = svc_create_xprt(serv, "udp", nlm_udpport,
 					      SVC_SOCK_DEFAULTS);
 	if (err >= 0 && (proto == IPPROTO_TCP || nlm_tcpport))
-		if (!find_xprt(serv, "tcp"))
+		if (!svc_find_xprt(serv, "tcp", 0, 0))
 			err = svc_create_xprt(serv, "tcp", nlm_tcpport,
 					      SVC_SOCK_DEFAULTS);
 

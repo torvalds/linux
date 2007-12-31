@@ -977,3 +977,38 @@ static struct svc_deferred_req *svc_deferred_dequeue(struct svc_xprt *xprt)
 	spin_unlock(&xprt->xpt_lock);
 	return dr;
 }
+
+/*
+ * Return the transport instance pointer for the endpoint accepting
+ * connections/peer traffic from the specified transport class,
+ * address family and port.
+ *
+ * Specifying 0 for the address family or port is effectively a
+ * wild-card, and will result in matching the first transport in the
+ * service's list that has a matching class name.
+ */
+struct svc_xprt *svc_find_xprt(struct svc_serv *serv, char *xcl_name,
+			       int af, int port)
+{
+	struct svc_xprt *xprt;
+	struct svc_xprt *found = NULL;
+
+	/* Sanity check the args */
+	if (!serv || !xcl_name)
+		return found;
+
+	spin_lock_bh(&serv->sv_lock);
+	list_for_each_entry(xprt, &serv->sv_permsocks, xpt_list) {
+		if (strcmp(xprt->xpt_class->xcl_name, xcl_name))
+			continue;
+		if (af != AF_UNSPEC && af != xprt->xpt_local.ss_family)
+			continue;
+		if (port && port != svc_xprt_local_port(xprt))
+			continue;
+		found = xprt;
+		break;
+	}
+	spin_unlock_bh(&serv->sv_lock);
+	return found;
+}
+EXPORT_SYMBOL_GPL(svc_find_xprt);
