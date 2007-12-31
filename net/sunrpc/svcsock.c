@@ -901,6 +901,8 @@ svc_udp_sendto(struct svc_rqst *rqstp)
 }
 
 static struct svc_xprt_ops svc_udp_ops = {
+	.xpo_recvfrom = svc_udp_recvfrom,
+	.xpo_sendto = svc_udp_sendto,
 };
 
 static struct svc_xprt_class svc_udp_class = {
@@ -918,8 +920,6 @@ svc_udp_init(struct svc_sock *svsk)
 	svc_xprt_init(&svc_udp_class, &svsk->sk_xprt);
 	svsk->sk_sk->sk_data_ready = svc_udp_data_ready;
 	svsk->sk_sk->sk_write_space = svc_write_space;
-	svsk->sk_recvfrom = svc_udp_recvfrom;
-	svsk->sk_sendto = svc_udp_sendto;
 
 	/* initialise setting must have enough space to
 	 * receive and respond to one request.
@@ -1355,6 +1355,8 @@ svc_tcp_sendto(struct svc_rqst *rqstp)
 }
 
 static struct svc_xprt_ops svc_tcp_ops = {
+	.xpo_recvfrom = svc_tcp_recvfrom,
+	.xpo_sendto = svc_tcp_sendto,
 };
 
 static struct svc_xprt_class svc_tcp_class = {
@@ -1382,8 +1384,6 @@ svc_tcp_init(struct svc_sock *svsk)
 	struct tcp_sock *tp = tcp_sk(sk);
 
 	svc_xprt_init(&svc_tcp_class, &svsk->sk_xprt);
-	svsk->sk_recvfrom = svc_tcp_recvfrom;
-	svsk->sk_sendto = svc_tcp_sendto;
 
 	if (sk->sk_state == TCP_LISTEN) {
 		dprintk("setting up TCP socket for listening\n");
@@ -1531,7 +1531,7 @@ svc_recv(struct svc_rqst *rqstp, long timeout)
 
 	dprintk("svc: server %p, pool %u, socket %p, inuse=%d\n",
 		 rqstp, pool->sp_id, svsk, atomic_read(&svsk->sk_inuse));
-	len = svsk->sk_recvfrom(rqstp);
+	len = svsk->sk_xprt.xpt_ops->xpo_recvfrom(rqstp);
 	dprintk("svc: got len=%d\n", len);
 
 	/* No data, incomplete (TCP) read, or accept() */
@@ -1591,7 +1591,7 @@ svc_send(struct svc_rqst *rqstp)
 	if (test_bit(SK_DEAD, &svsk->sk_flags))
 		len = -ENOTCONN;
 	else
-		len = svsk->sk_sendto(rqstp);
+		len = svsk->sk_xprt.xpt_ops->xpo_sendto(rqstp);
 	mutex_unlock(&svsk->sk_mutex);
 	svc_sock_release(rqstp);
 

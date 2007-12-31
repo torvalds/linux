@@ -10,6 +10,8 @@
 #include <linux/sunrpc/svc.h>
 
 struct svc_xprt_ops {
+	int		(*xpo_recvfrom)(struct svc_rqst *);
+	int		(*xpo_sendto)(struct svc_rqst *);
 };
 
 struct svc_xprt_class {
