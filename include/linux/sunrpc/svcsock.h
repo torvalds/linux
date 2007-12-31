@@ -20,8 +20,6 @@ struct svc_sock {
 	struct socket *		sk_sock;	/* berkeley socket layer */
 	struct sock *		sk_sk;		/* INET layer */
 
-	atomic_t    	    	sk_reserved;	/* space on outq that is reserved */
-
 	spinlock_t		sk_lock;	/* protects sk_deferred and
 						 * sk_info_authunix */
 	struct list_head	sk_deferred;	/* deferred requests that need to

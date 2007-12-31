@@ -53,6 +53,7 @@ struct svc_xprt {
 
 	struct svc_pool		*xpt_pool;	/* current pool iff queued */
 	struct svc_serv		*xpt_server;	/* service for transport */
+	atomic_t    	    	xpt_reserved;	/* space on outq that is rsvd */
 };
 
 int	svc_reg_xprt_class(struct svc_xprt_class *);

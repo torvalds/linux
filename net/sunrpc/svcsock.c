@@ -288,7 +288,7 @@ svc_sock_enqueue(struct svc_sock *svsk)
 		rqstp->rq_sock = svsk;
 		svc_xprt_get(&svsk->sk_xprt);
 		rqstp->rq_reserved = serv->sv_max_mesg;
-		atomic_add(rqstp->rq_reserved, &svsk->sk_reserved);
+		atomic_add(rqstp->rq_reserved, &svsk->sk_xprt.xpt_reserved);
 		BUG_ON(svsk->sk_xprt.xpt_pool != pool);
 		wake_up(&rqstp->rq_wait);
 	} else {
@@ -353,7 +353,7 @@ void svc_reserve(struct svc_rqst *rqstp, int space)
 
 	if (space < rqstp->rq_reserved) {
 		struct svc_sock *svsk = rqstp->rq_sock;
-		atomic_sub((rqstp->rq_reserved - space), &svsk->sk_reserved);
+		atomic_sub((rqstp->rq_reserved - space), &svsk->sk_xprt.xpt_reserved);
 		rqstp->rq_reserved = space;
 
 		svc_sock_enqueue(svsk);
@@ -881,7 +881,7 @@ static int svc_udp_has_wspace(struct svc_xprt *xprt)
 	 * sock space.
 	 */
 	set_bit(SOCK_NOSPACE, &svsk->sk_sock->flags);
-	required = atomic_read(&svsk->sk_reserved) + serv->sv_max_mesg;
+	required = atomic_read(&svsk->sk_xprt.xpt_reserved) + serv->sv_max_mesg;
 	if (required*2 > sock_wspace(svsk->sk_sk))
 		return 0;
 	clear_bit(SOCK_NOSPACE, &svsk->sk_sock->flags);
@@ -1327,7 +1327,7 @@ static int svc_tcp_has_wspace(struct svc_xprt *xprt)
 	 * sock space.
 	 */
 	set_bit(SOCK_NOSPACE, &svsk->sk_sock->flags);
-	required = atomic_read(&svsk->sk_reserved) + serv->sv_max_mesg;
+	required = atomic_read(&svsk->sk_xprt.xpt_reserved) + serv->sv_max_mesg;
 	wspace = sk_stream_wspace(svsk->sk_sk);
 
 	if (wspace < sk_stream_min_wspace(svsk->sk_sk))
@@ -1544,7 +1544,7 @@ svc_recv(struct svc_rqst *rqstp, long timeout)
 		rqstp->rq_sock = svsk;
 		svc_xprt_get(&svsk->sk_xprt);
 		rqstp->rq_reserved = serv->sv_max_mesg;
-		atomic_add(rqstp->rq_reserved, &svsk->sk_reserved);
+		atomic_add(rqstp->rq_reserved, &svsk->sk_xprt.xpt_reserved);
 	} else {
 		/* No data pending. Go to sleep */
 		svc_thread_enqueue(pool, rqstp);
