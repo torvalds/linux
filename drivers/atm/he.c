@@ -1637,6 +1637,8 @@ he_stop(struct he_dev *he_dev)
 
 	if (he_dev->rbpl_base) {
 #ifdef USE_RBPL_POOL
+		int i;
+
 		for (i = 0; i < CONFIG_RBPL_SIZE; ++i) {
 			void *cpuaddr = he_dev->rbpl_virt[i].virt;
 			dma_addr_t dma_handle = he_dev->rbpl_base[i].phys;
@@ -1659,6 +1661,8 @@ he_stop(struct he_dev *he_dev)
 #ifdef USE_RBPS
 	if (he_dev->rbps_base) {
 #ifdef USE_RBPS_POOL
+		int i;
+
 		for (i = 0; i < CONFIG_RBPS_SIZE; ++i) {
 			void *cpuaddr = he_dev->rbps_virt[i].virt;
 			dma_addr_t dma_handle = he_dev->rbps_base[i].phys;
