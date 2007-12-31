@@ -1126,9 +1126,6 @@ static void fib6_del_route(struct fib6_node *fn, struct rt6_info **rtp,
 
 	rt->u.dst.rt6_next = NULL;
 
-	if (fn->leaf == NULL && fn->fn_flags&RTN_TL_ROOT)
-		fn->leaf = &ip6_null_entry;
-
 	/* If it was last route, expunge its radix tree node */
 	if (fn->leaf == NULL) {
 		fn->fn_flags &= ~RTN_RTINFO;
