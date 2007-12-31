@@ -1022,8 +1022,8 @@ config HUGETLB_PAGE
 	def_bool HUGETLBFS
 
 config CONFIGFS_FS
-	tristate "Userspace-driven configuration filesystem (EXPERIMENTAL)"
-	depends on SYSFS && EXPERIMENTAL
+	tristate "Userspace-driven configuration filesystem"
+	depends on SYSFS
 	help
 	  configfs is a ram-based filesystem that provides the converse
 	  of sysfs's functionality. Where sysfs is a filesystem-based
