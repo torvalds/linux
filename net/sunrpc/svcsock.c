@@ -623,33 +623,13 @@ svc_recvfrom(struct svc_rqst *rqstp, struct kvec *iov, int nr, int buflen)
 	struct msghdr msg = {
 		.msg_flags	= MSG_DONTWAIT,
 	};
-	struct sockaddr *sin;
 	int len;
 
 	len = kernel_recvmsg(svsk->sk_sock, &msg, iov, nr, buflen,
 				msg.msg_flags);
 
-	/* sock_recvmsg doesn't fill in the name/namelen, so we must..
-	 */
-	memcpy(&rqstp->rq_addr, &svsk->sk_remote, svsk->sk_remotelen);
-	rqstp->rq_addrlen = svsk->sk_remotelen;
-
-	/* Destination address in request is needed for binding the
-	 * source address in RPC callbacks later.
-	 */
-	sin = (struct sockaddr *)&svsk->sk_local;
-	switch (sin->sa_family) {
-	case AF_INET:
-		rqstp->rq_daddr.addr = ((struct sockaddr_in *)sin)->sin_addr;
-		break;
-	case AF_INET6:
-		rqstp->rq_daddr.addr6 = ((struct sockaddr_in6 *)sin)->sin6_addr;
-		break;
-	}
-
 	dprintk("svc: socket %p recvfrom(%p, %Zu) = %d\n",
 		svsk, iov[0].iov_base, iov[0].iov_len, len);
-
 	return len;
 }
 
@@ -719,8 +699,15 @@ svc_write_space(struct sock *sk)
 	}
 }
 
-static inline void svc_udp_get_dest_address(struct svc_rqst *rqstp,
-					    struct cmsghdr *cmh)
+/*
+ * Copy the UDP datagram's destination address to the rqstp structure.
+ * The 'destination' address in this case is the address to which the
+ * peer sent the datagram, i.e. our local address. For multihomed
+ * hosts, this can change from msg to msg. Note that only the IP
+ * address changes, the port number should remain the same.
+ */
+static void svc_udp_get_dest_address(struct svc_rqst *rqstp,
+				     struct cmsghdr *cmh)
 {
 	switch (rqstp->rq_sock->sk_sk->sk_family) {
 	case AF_INET: {
@@ -787,7 +774,10 @@ svc_udp_recvfrom(struct svc_rqst *rqstp)
 		svc_xprt_received(&svsk->sk_xprt);
 		return -EAGAIN;
 	}
-	rqstp->rq_addrlen = sizeof(rqstp->rq_addr);
+	len = svc_addr_len(svc_addr(rqstp));
+	if (len < 0)
+		return len;
+	rqstp->rq_addrlen = len;
 	if (skb->tstamp.tv64 == 0) {
 		skb->tstamp = ktime_get_real();
 		/* Don't enable netstamp, sunrpc doesn't
@@ -1097,14 +1087,13 @@ static struct svc_xprt *svc_tcp_accept(struct svc_xprt *xprt)
 	if (!(newsvsk = svc_setup_socket(serv, newsock, &err,
 				 (SVC_SOCK_ANONYMOUS | SVC_SOCK_TEMPORARY))))
 		goto failed;
-	memcpy(&newsvsk->sk_remote, sin, slen);
-	newsvsk->sk_remotelen = slen;
+	svc_xprt_set_remote(&newsvsk->sk_xprt, sin, slen);
 	err = kernel_getsockname(newsock, sin, &slen);
 	if (unlikely(err < 0)) {
 		dprintk("svc_tcp_accept: kernel_getsockname error %d\n", -err);
 		slen = offsetof(struct sockaddr, sa_data);
 	}
-	memcpy(&newsvsk->sk_local, sin, slen);
+	svc_xprt_set_local(&newsvsk->sk_xprt, sin, slen);
 
 	if (serv->sv_stats)
 		serv->sv_stats->nettcpconn++;
@@ -1245,6 +1234,7 @@ svc_tcp_recvfrom(struct svc_rqst *rqstp)
 	svsk->sk_reclen = 0;
 	svsk->sk_tcplen = 0;
 
+	svc_xprt_copy_addrs(rqstp, &svsk->sk_xprt);
 	svc_xprt_received(&svsk->sk_xprt);
 	if (serv->sv_stats)
 		serv->sv_stats->nettcpcnt++;
@@ -1805,6 +1795,11 @@ int svc_addsock(struct svc_serv *serv,
 	else {
 		svsk = svc_setup_socket(serv, so, &err, SVC_SOCK_DEFAULTS);
 		if (svsk) {
+			struct sockaddr_storage addr;
+			struct sockaddr *sin = (struct sockaddr *)&addr;
+			int salen;
+			if (kernel_getsockname(svsk->sk_sock, sin, &salen) == 0)
+				svc_xprt_set_local(&svsk->sk_xprt, sin, salen);
 			svc_xprt_received(&svsk->sk_xprt);
 			err = 0;
 		}
@@ -1831,6 +1826,9 @@ static struct svc_xprt *svc_create_socket(struct svc_serv *serv,
 	int		error;
 	int		type;
 	char		buf[RPC_MAX_ADDRBUFLEN];
+	struct sockaddr_storage addr;
+	struct sockaddr *newsin = (struct sockaddr *)&addr;
+	int		newlen;
 
 	dprintk("svc: svc_create_socket(%s, %d, %s)\n",
 			serv->sv_program->pg_name, protocol,
@@ -1855,12 +1853,18 @@ static struct svc_xprt *svc_create_socket(struct svc_serv *serv,
 	if (error < 0)
 		goto bummer;
 
+	newlen = len;
+	error = kernel_getsockname(sock, newsin, &newlen);
+	if (error < 0)
+		goto bummer;
+
 	if (protocol == IPPROTO_TCP) {
 		if ((error = kernel_listen(sock, 64)) < 0)
 			goto bummer;
 	}
 
 	if ((svsk = svc_setup_socket(serv, sock, &error, flags)) != NULL) {
+		svc_xprt_set_local(&svsk->sk_xprt, newsin, newlen);
 		svc_xprt_received(&svsk->sk_xprt);
 		return (struct svc_xprt *)svsk;
 	}

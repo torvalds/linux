@@ -125,7 +125,6 @@ int svc_create_xprt(struct svc_serv *serv, char *xprt_name, unsigned short port,
 			spin_unlock(&svc_xprt_class_lock);
 			if (try_module_get(xcl->xcl_owner)) {
 				struct svc_xprt *newxprt;
-				ret = 0;
 				newxprt = xcl->xcl_ops->xpo_create
 					(serv,
 					 (struct sockaddr *)&sin, sizeof(sin),
@@ -133,7 +132,8 @@ int svc_create_xprt(struct svc_serv *serv, char *xprt_name, unsigned short port,
 				if (IS_ERR(newxprt)) {
 					module_put(xcl->xcl_owner);
 					ret = PTR_ERR(newxprt);
-				}
+				} else
+					ret = svc_xprt_local_port(newxprt);
 			}
 			goto out;
 		}
@@ -144,3 +144,30 @@ int svc_create_xprt(struct svc_serv *serv, char *xprt_name, unsigned short port,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(svc_create_xprt);
+
+/*
+ * Copy the local and remote xprt addresses to the rqstp structure
+ */
+void svc_xprt_copy_addrs(struct svc_rqst *rqstp, struct svc_xprt *xprt)
+{
+	struct sockaddr *sin;
+
+	memcpy(&rqstp->rq_addr, &xprt->xpt_remote, xprt->xpt_remotelen);
+	rqstp->rq_addrlen = xprt->xpt_remotelen;
+
+	/*
+	 * Destination address in request is needed for binding the
+	 * source address in RPC replies/callbacks later.
+	 */
+	sin = (struct sockaddr *)&xprt->xpt_local;
+	switch (sin->sa_family) {
+	case AF_INET:
+		rqstp->rq_daddr.addr = ((struct sockaddr_in *)sin)->sin_addr;
+		break;
+	case AF_INET6:
+		rqstp->rq_daddr.addr6 = ((struct sockaddr_in6 *)sin)->sin6_addr;
+		break;
+	}
+}
+EXPORT_SYMBOL_GPL(svc_xprt_copy_addrs);
+

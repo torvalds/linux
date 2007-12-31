@@ -28,10 +28,6 @@ struct svc_sock {
 	/* private TCP part */
 	int			sk_reclen;	/* length of record */
 	int			sk_tcplen;	/* current read length */
-
-	struct sockaddr_storage	sk_local;	/* local address */
-	struct sockaddr_storage	sk_remote;	/* remote peer's address */
-	int			sk_remotelen;	/* length of address */
 };
 
 /*

@@ -61,6 +61,10 @@ struct svc_xprt {
 	void			*xpt_auth_cache;/* auth cache */
 	struct list_head	xpt_deferred;	/* deferred requests that need
 						 * to be revisted */
+	struct sockaddr_storage	xpt_local;	/* local address */
+	size_t			xpt_locallen;	/* length of address */
+	struct sockaddr_storage	xpt_remote;	/* remote peer's address */
+	size_t			xpt_remotelen;	/* length of address */
 };
 
 int	svc_reg_xprt_class(struct svc_xprt_class *);
@@ -70,9 +74,56 @@ void	svc_xprt_init(struct svc_xprt_class *, struct svc_xprt *,
 int	svc_create_xprt(struct svc_serv *, char *, unsigned short, int);
 void	svc_xprt_received(struct svc_xprt *);
 void	svc_xprt_put(struct svc_xprt *xprt);
+void	svc_xprt_copy_addrs(struct svc_rqst *rqstp, struct svc_xprt *xprt);
 static inline void svc_xprt_get(struct svc_xprt *xprt)
 {
 	kref_get(&xprt->xpt_ref);
+}
+static inline void svc_xprt_set_local(struct svc_xprt *xprt,
+				      struct sockaddr *sa, int salen)
+{
+	memcpy(&xprt->xpt_local, sa, salen);
+	xprt->xpt_locallen = salen;
+}
+static inline void svc_xprt_set_remote(struct svc_xprt *xprt,
+				       struct sockaddr *sa, int salen)
+{
+	memcpy(&xprt->xpt_remote, sa, salen);
+	xprt->xpt_remotelen = salen;
+}
+static inline unsigned short svc_addr_port(struct sockaddr *sa)
+{
+	unsigned short ret = 0;
+	switch (sa->sa_family) {
+	case AF_INET:
+		ret = ntohs(((struct sockaddr_in *)sa)->sin_port);
+		break;
+	case AF_INET6:
+		ret = ntohs(((struct sockaddr_in6 *)sa)->sin6_port);
+		break;
+	}
+	return ret;
+}
+
+static inline size_t svc_addr_len(struct sockaddr *sa)
+{
+	switch (sa->sa_family) {
+	case AF_INET:
+		return sizeof(struct sockaddr_in);
+	case AF_INET6:
+		return sizeof(struct sockaddr_in6);
+	}
+	return -EAFNOSUPPORT;
+}
+
+static inline unsigned short svc_xprt_local_port(struct svc_xprt *xprt)
+{
+	return svc_addr_port((struct sockaddr *)&xprt->xpt_local);
+}
+
+static inline unsigned short svc_xprt_remote_port(struct svc_xprt *xprt)
+{
+	return svc_addr_port((struct sockaddr *)&xprt->xpt_remote);
 }
 
 #endif /* SUNRPC_SVC_XPRT_H */
