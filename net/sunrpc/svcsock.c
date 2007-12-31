@@ -1106,8 +1106,6 @@ static struct svc_xprt *svc_tcp_accept(struct svc_xprt *xprt)
 	}
 	memcpy(&newsvsk->sk_local, sin, slen);
 
-	svc_xprt_received(&newsvsk->sk_xprt);
-
 	if (serv->sv_stats)
 		serv->sv_stats->nettcpconn++;
 
@@ -1591,6 +1589,7 @@ svc_recv(struct svc_rqst *rqstp, long timeout)
 			 */
 			__module_get(newxpt->xpt_class->xcl_owner);
 			svc_check_conn_limits(svsk->sk_xprt.xpt_server);
+			svc_xprt_received(newxpt);
 		}
 		svc_xprt_received(&svsk->sk_xprt);
 	} else {
