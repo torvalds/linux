@@ -51,7 +51,11 @@ int xfrm4_transport_finish(struct sk_buff *skb, int async)
 
 	iph->protocol = XFRM_MODE_SKB_CB(skb)->protocol;
 
-#ifdef CONFIG_NETFILTER
+#ifndef CONFIG_NETFILTER
+	if (!async)
+		return -iph->protocol;
+#endif
+
 	__skb_push(skb, skb->data - skb_network_header(skb));
 	iph->tot_len = htons(skb->len);
 	ip_send_check(iph);
@@ -59,12 +63,6 @@ int xfrm4_transport_finish(struct sk_buff *skb, int async)
 	NF_HOOK(PF_INET, NF_INET_PRE_ROUTING, skb, skb->dev, NULL,
 		xfrm4_rcv_encap_finish);
 	return 0;
-#else
-	if (async)
-		return xfrm4_rcv_encap_finish(skb);
-
-	return -iph->protocol;
-#endif
 }
 
 /* If it's a keepalive packet, then just eat it.

@@ -34,19 +34,17 @@ int xfrm6_transport_finish(struct sk_buff *skb, int async)
 	skb_network_header(skb)[IP6CB(skb)->nhoff] =
 		XFRM_MODE_SKB_CB(skb)->protocol;
 
-#ifdef CONFIG_NETFILTER
+#ifndef CONFIG_NETFILTER
+	if (!async)
+		return 1;
+#endif
+
 	ipv6_hdr(skb)->payload_len = htons(skb->len);
 	__skb_push(skb, skb->data - skb_network_header(skb));
 
 	NF_HOOK(PF_INET6, NF_INET_PRE_ROUTING, skb, skb->dev, NULL,
 		ip6_rcv_finish);
 	return -1;
-#else
-	if (async)
-		return ip6_rcv_finish(skb);
-
-	return 1;
-#endif
 }
 
 int xfrm6_rcv(struct sk_buff *skb)
