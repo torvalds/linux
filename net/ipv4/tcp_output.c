@@ -995,9 +995,8 @@ unsigned int tcp_current_mss(struct sock *sk, int large_allowed)
 static void tcp_cwnd_validate(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	__u32 packets_out = tp->packets_out;
 
-	if (packets_out >= tp->snd_cwnd) {
+	if (tp->packets_out >= tp->snd_cwnd) {
 		/* Network is feed fully. */
 		tp->snd_cwnd_used = 0;
 		tp->snd_cwnd_stamp = tcp_time_stamp;
