@@ -888,6 +888,15 @@ void tcp_mtup_init(struct sock *sk)
 	icsk->icsk_mtup.probe_size = 0;
 }
 
+/* Bound MSS / TSO packet size with the half of the window */
+static int tcp_bound_to_half_wnd(struct tcp_sock *tp, int pktsize)
+{
+	if (tp->max_window && pktsize > (tp->max_window >> 1))
+		return max(tp->max_window >> 1, 68U - tp->tcp_header_len);
+	else
+		return pktsize;
+}
+
 /* This function synchronize snd mss to current pmtu/exthdr set.
 
    tp->rx_opt.user_mss is mss set by user by TCP_MAXSEG. It does NOT counts
@@ -920,10 +929,7 @@ unsigned int tcp_sync_mss(struct sock *sk, u32 pmtu)
 		icsk->icsk_mtup.search_high = pmtu;
 
 	mss_now = tcp_mtu_to_mss(sk, pmtu);
-
-	/* Bound mss with half of window */
-	if (tp->max_window && mss_now > (tp->max_window >> 1))
-		mss_now = max((tp->max_window >> 1), 68U - tp->tcp_header_len);
+	mss_now = tcp_bound_to_half_wnd(tp, mss_now);
 
 	/* And store cached results */
 	icsk->icsk_pmtu_cookie = pmtu;
@@ -977,10 +983,7 @@ unsigned int tcp_current_mss(struct sock *sk, int large_allowed)
 				  inet_csk(sk)->icsk_ext_hdr_len -
 				  tp->tcp_header_len);
 
-		if (tp->max_window && (xmit_size_goal > (tp->max_window >> 1)))
-			xmit_size_goal = max((tp->max_window >> 1),
-					     68U - tp->tcp_header_len);
-
+		xmit_size_goal = tcp_bound_to_half_wnd(tp, xmit_size_goal);
 		xmit_size_goal -= (xmit_size_goal % mss_now);
 	}
 	tp->xmit_size_goal = xmit_size_goal;
