@@ -113,12 +113,16 @@ static inline void svc_reclassify_socket(struct socket *sock)
 	switch (sk->sk_family) {
 	case AF_INET:
 		sock_lock_init_class_and_name(sk, "slock-AF_INET-NFSD",
-		    &svc_slock_key[0], "sk_lock-AF_INET-NFSD", &svc_key[0]);
+					      &svc_slock_key[0],
+					      "sk_xprt.xpt_lock-AF_INET-NFSD",
+					      &svc_key[0]);
 		break;
 
 	case AF_INET6:
 		sock_lock_init_class_and_name(sk, "slock-AF_INET6-NFSD",
-		    &svc_slock_key[1], "sk_lock-AF_INET6-NFSD", &svc_key[1]);
+					      &svc_slock_key[1],
+					      "sk_xprt.xpt_lock-AF_INET6-NFSD",
+					      &svc_key[1]);
 		break;
 
 	default:
@@ -930,6 +934,7 @@ static void svc_udp_init(struct svc_sock *svsk, struct svc_serv *serv)
 	mm_segment_t oldfs;
 
 	svc_xprt_init(&svc_udp_class, &svsk->sk_xprt, serv);
+	clear_bit(XPT_CACHE_AUTH, &svsk->sk_xprt.xpt_flags);
 	svsk->sk_sk->sk_data_ready = svc_udp_data_ready;
 	svsk->sk_sk->sk_write_space = svc_write_space;
 
@@ -1385,7 +1390,7 @@ static void svc_tcp_init(struct svc_sock *svsk, struct svc_serv *serv)
 	struct tcp_sock *tp = tcp_sk(sk);
 
 	svc_xprt_init(&svc_tcp_class, &svsk->sk_xprt, serv);
-
+	set_bit(XPT_CACHE_AUTH, &svsk->sk_xprt.xpt_flags);
 	if (sk->sk_state == TCP_LISTEN) {
 		dprintk("setting up TCP socket for listening\n");
 		set_bit(XPT_LISTENER, &svsk->sk_xprt.xpt_flags);
@@ -1753,7 +1758,6 @@ static struct svc_sock *svc_setup_socket(struct svc_serv *serv,
 	svsk->sk_ostate = inet->sk_state_change;
 	svsk->sk_odata = inet->sk_data_ready;
 	svsk->sk_owspace = inet->sk_write_space;
-	spin_lock_init(&svsk->sk_lock);
 	INIT_LIST_HEAD(&svsk->sk_deferred);
 
 	/* Initialize the socket */
@@ -1898,8 +1902,6 @@ static void svc_sock_free(struct svc_xprt *xprt)
 	struct svc_sock *svsk = container_of(xprt, struct svc_sock, sk_xprt);
 	dprintk("svc: svc_sock_free(%p)\n", svsk);
 
-	if (svsk->sk_info_authunix != NULL)
-		svcauth_unix_info_release(svsk->sk_info_authunix);
 	if (svsk->sk_sock->file)
 		sockfd_put(svsk->sk_sock);
 	else
@@ -1984,9 +1986,9 @@ static void svc_revisit(struct cache_deferred_req *dreq, int too_many)
 	dprintk("revisit queued\n");
 	svsk = dr->svsk;
 	dr->svsk = NULL;
-	spin_lock(&svsk->sk_lock);
+	spin_lock(&svsk->sk_xprt.xpt_lock);
 	list_add(&dr->handle.recent, &svsk->sk_deferred);
-	spin_unlock(&svsk->sk_lock);
+	spin_unlock(&svsk->sk_xprt.xpt_lock);
 	set_bit(XPT_DEFERRED, &svsk->sk_xprt.xpt_flags);
 	svc_xprt_enqueue(&svsk->sk_xprt);
 	svc_xprt_put(&svsk->sk_xprt);
@@ -2052,7 +2054,7 @@ static struct svc_deferred_req *svc_deferred_dequeue(struct svc_sock *svsk)
 
 	if (!test_bit(XPT_DEFERRED, &svsk->sk_xprt.xpt_flags))
 		return NULL;
-	spin_lock(&svsk->sk_lock);
+	spin_lock(&svsk->sk_xprt.xpt_lock);
 	clear_bit(XPT_DEFERRED, &svsk->sk_xprt.xpt_flags);
 	if (!list_empty(&svsk->sk_deferred)) {
 		dr = list_entry(svsk->sk_deferred.next,
@@ -2061,6 +2063,6 @@ static struct svc_deferred_req *svc_deferred_dequeue(struct svc_sock *svsk)
 		list_del_init(&dr->handle.recent);
 		set_bit(XPT_DEFERRED, &svsk->sk_xprt.xpt_flags);
 	}
-	spin_unlock(&svsk->sk_lock);
+	spin_unlock(&svsk->sk_xprt.xpt_lock);
 	return dr;
 }

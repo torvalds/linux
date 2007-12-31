@@ -75,6 +75,9 @@ static void svc_xprt_free(struct kref *kref)
 	struct svc_xprt *xprt =
 		container_of(kref, struct svc_xprt, xpt_ref);
 	struct module *owner = xprt->xpt_class->xcl_owner;
+	if (test_bit(XPT_CACHE_AUTH, &xprt->xpt_flags)
+	    && xprt->xpt_auth_cache != NULL)
+		svcauth_unix_info_release(xprt->xpt_auth_cache);
 	xprt->xpt_ops->xpo_free(xprt);
 	module_put(owner);
 }
@@ -100,6 +103,7 @@ void svc_xprt_init(struct svc_xprt_class *xcl, struct svc_xprt *xprt,
 	INIT_LIST_HEAD(&xprt->xpt_list);
 	INIT_LIST_HEAD(&xprt->xpt_ready);
 	mutex_init(&xprt->xpt_mutex);
+	spin_lock_init(&xprt->xpt_lock);
 }
 EXPORT_SYMBOL_GPL(svc_xprt_init);
 
