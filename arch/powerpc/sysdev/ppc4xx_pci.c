@@ -533,7 +533,7 @@ static void __init ppc4xx_probe_pcix_bridge(struct device_node *np)
  *
  */
 
-#define MAX_PCIE_BUS_MAPPED	0x10
+#define MAX_PCIE_BUS_MAPPED	0x40
 
 struct ppc4xx_pciex_port
 {
