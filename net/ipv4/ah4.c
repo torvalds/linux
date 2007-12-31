@@ -179,10 +179,8 @@ static int ah_input(struct xfrm_state *x, struct sk_buff *skb)
 		err = ah_mac_digest(ahp, skb, ah->auth_data);
 		if (err)
 			goto unlock;
-		if (memcmp(ahp->work_icv, auth_data, ahp->icv_trunc_len)) {
-			xfrm_audit_state_icvfail(x, skb, IPPROTO_AH);
+		if (memcmp(ahp->work_icv, auth_data, ahp->icv_trunc_len))
 			err = -EBADMSG;
-		}
 	}
 unlock:
 	spin_unlock(&x->lock);
