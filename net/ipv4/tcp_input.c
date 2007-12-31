@@ -105,6 +105,7 @@ int sysctl_tcp_abc __read_mostly;
 #define FLAG_SND_UNA_ADVANCED	0x400 /* Snd_una was changed (!= FLAG_DATA_ACKED) */
 #define FLAG_DSACKING_ACK	0x800 /* SACK blocks contained D-SACK info */
 #define FLAG_NONHEAD_RETRANS_ACKED	0x1000 /* Non-head rexmitted data was ACKed */
+#define FLAG_SACK_RENEGING	0x2000 /* snd_una advanced to a sacked seq */
 
 #define FLAG_ACKED		(FLAG_DATA_ACKED|FLAG_SYN_ACKED)
 #define FLAG_NOT_DUP		(FLAG_DATA|FLAG_WIN_UPDATE|FLAG_ACKED)
@@ -1918,18 +1919,15 @@ void tcp_enter_loss(struct sock *sk, int how)
 	tp->frto_counter = 0;
 }
 
-static int tcp_check_sack_reneging(struct sock *sk)
+/* If ACK arrived pointing to a remembered SACK, it means that our
+ * remembered SACKs do not reflect real state of receiver i.e.
+ * receiver _host_ is heavily congested (or buggy).
+ *
+ * Do processing similar to RTO timeout.
+ */
+static int tcp_check_sack_reneging(struct sock *sk, int flag)
 {
-	struct sk_buff *skb;
-
-	/* If ACK arrived pointing to a remembered SACK,
-	 * it means that our remembered SACKs do not reflect
-	 * real state of receiver i.e.
-	 * receiver _host_ is heavily congested (or buggy).
-	 * Do processing similar to RTO timeout.
-	 */
-	if ((skb = tcp_write_queue_head(sk)) != NULL &&
-	    (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_ACKED)) {
+	if (flag & FLAG_SACK_RENEGING) {
 		struct inet_connection_sock *icsk = inet_csk(sk);
 		NET_INC_STATS_BH(LINUX_MIB_TCPSACKRENEGING);
 
@@ -2515,7 +2513,7 @@ tcp_fastretrans_alert(struct sock *sk, int pkts_acked, int flag)
 		tp->prior_ssthresh = 0;
 
 	/* B. In all the states check for reneging SACKs. */
-	if (tp->sacked_out && tcp_check_sack_reneging(sk))
+	if (tcp_check_sack_reneging(sk, flag))
 		return;
 
 	/* C. Process data loss notification, provided it is valid. */
@@ -2851,6 +2849,9 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets)
 		sk_wmem_free_skb(sk, skb);
 		tcp_clear_all_retrans_hints(tp);
 	}
+
+	if (skb && (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_ACKED))
+		flag |= FLAG_SACK_RENEGING;
 
 	if (flag & FLAG_ACKED) {
 		const struct tcp_congestion_ops *ca_ops
