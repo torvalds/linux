@@ -204,7 +204,10 @@ union svc_addr_u {
 struct svc_rqst {
 	struct list_head	rq_list;	/* idle list */
 	struct list_head	rq_all;		/* all threads list */
-	struct svc_sock *	rq_sock;	/* socket */
+	union {
+		struct svc_xprt *	rq_xprt;	/* transport ptr */
+		struct svc_sock *	rq_sock; 	/* socket ptr */
+	};
 	struct sockaddr_storage	rq_addr;	/* peer address */
 	size_t			rq_addrlen;
 
