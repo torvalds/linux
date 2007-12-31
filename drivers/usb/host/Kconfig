@@ -29,15 +29,6 @@ config USB_EHCI_HCD
 	  To compile this driver as a module, choose M here: the
 	  module will be called ehci-hcd.
 
-config USB_EHCI_SPLIT_ISO
-	bool "Full speed ISO transactions (EXPERIMENTAL)"
-	depends on USB_EHCI_HCD && EXPERIMENTAL
-	default n
-	---help---
-	  This code is new and hasn't been used with many different
-	  EHCI or USB 2.0 transaction translator implementations.
-	  It should work for ISO-OUT transfers, like audio.
-
 config USB_EHCI_ROOT_HUB_TT
 	bool "Root Hub Transaction Translators (EXPERIMENTAL)"
 	depends on USB_EHCI_HCD && EXPERIMENTAL

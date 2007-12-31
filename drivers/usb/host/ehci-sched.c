@@ -1630,16 +1630,12 @@ itd_complete (
 		BUG_ON (itd->urb == urb);
 	 */
 
-	/* give urb back to the driver ... can be out-of-order */
+	/* give urb back to the driver; completion often (re)submits */
 	dev = urb->dev;
 	ehci_urb_done(ehci, urb, 0);
 	retval = true;
 	urb = NULL;
-
-	/* defer stopping schedule; completion can submit */
 	ehci->periodic_sched--;
-	if (unlikely (!ehci->periodic_sched))
-		(void) disable_periodic (ehci);
 	ehci_to_hcd(ehci)->self.bandwidth_isoc_reqs--;
 
 	if (unlikely (list_empty (&stream->td_list))) {
@@ -1724,8 +1720,6 @@ done:
 		iso_stream_put (ehci, stream);
 	return status;
 }
-
-#ifdef CONFIG_USB_EHCI_SPLIT_ISO
 
 /*-------------------------------------------------------------------------*/
 
@@ -2016,16 +2010,12 @@ sitd_complete (
 		BUG_ON (sitd->urb == urb);
 	 */
 
-	/* give urb back to the driver */
+	/* give urb back to the driver; completion often (re)submits */
 	dev = urb->dev;
 	ehci_urb_done(ehci, urb, 0);
 	retval = true;
 	urb = NULL;
-
-	/* defer stopping schedule; completion can submit */
 	ehci->periodic_sched--;
-	if (!ehci->periodic_sched)
-		(void) disable_periodic (ehci);
 	ehci_to_hcd(ehci)->self.bandwidth_isoc_reqs--;
 
 	if (list_empty (&stream->td_list)) {
@@ -2107,26 +2097,6 @@ done:
 		iso_stream_put (ehci, stream);
 	return status;
 }
-
-#else
-
-static inline int
-sitd_submit (struct ehci_hcd *ehci, struct urb *urb, gfp_t mem_flags)
-{
-	ehci_dbg (ehci, "split iso support is disabled\n");
-	return -ENOSYS;
-}
-
-static inline unsigned
-sitd_complete (
-	struct ehci_hcd		*ehci,
-	struct ehci_sitd	*sitd
-) {
-	ehci_err (ehci, "sitd_complete %p?\n", sitd);
-	return 0;
-}
-
-#endif /* USB_EHCI_SPLIT_ISO */
 
 /*-------------------------------------------------------------------------*/
 
@@ -2252,8 +2222,14 @@ restart:
 			}
 
 			/* assume completion callbacks modify the queue */
-			if (unlikely (modified))
-				goto restart;
+			if (unlikely (modified)) {
+				if (likely(ehci->periodic_sched > 0))
+					goto restart;
+				/* maybe we can short-circuit this scan! */
+				disable_periodic(ehci);
+				now_uframe = clock;
+				break;
+			}
 		}
 
 		/* stop when we catch up to the HC */
@@ -2269,7 +2245,8 @@ restart:
 		if (now_uframe == clock) {
 			unsigned	now;
 
-			if (!HC_IS_RUNNING (ehci_to_hcd(ehci)->state))
+			if (!HC_IS_RUNNING (ehci_to_hcd(ehci)->state)
+					|| ehci->periodic_sched == 0)
 				break;
 			ehci->next_uframe = now_uframe;
 			now = ehci_readl(ehci, &ehci->regs->frame_index) % mod;
