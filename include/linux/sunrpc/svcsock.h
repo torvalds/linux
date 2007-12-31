@@ -24,19 +24,6 @@ struct svc_sock {
 
 	struct svc_pool *	sk_pool;	/* current pool iff queued */
 	struct svc_serv *	sk_server;	/* service for this socket */
-	unsigned long		sk_flags;
-#define	SK_BUSY		0			/* enqueued/receiving */
-#define	SK_CONN		1			/* conn pending */
-#define	SK_CLOSE	2			/* dead or dying */
-#define	SK_DATA		3			/* data pending */
-#define	SK_TEMP		4			/* temp (TCP) socket */
-#define	SK_DEAD		6			/* socket closed */
-#define	SK_CHNGBUF	7			/* need to change snd/rcv buffer sizes */
-#define	SK_DEFERRED	8			/* request on sk_deferred */
-#define	SK_OLD		9			/* used for temp socket aging mark+sweep */
-#define	SK_DETACHED	10			/* detached from tempsocks list */
-#define SK_LISTENER	11			/* listening endpoint */
-
 	atomic_t    	    	sk_reserved;	/* space on outq that is reserved */
 
 	spinlock_t		sk_lock;	/* protects sk_deferred and

@@ -36,6 +36,18 @@ struct svc_xprt {
 	struct svc_xprt_class	*xpt_class;
 	struct svc_xprt_ops	*xpt_ops;
 	struct kref		xpt_ref;
+	unsigned long		xpt_flags;
+#define	XPT_BUSY	0		/* enqueued/receiving */
+#define	XPT_CONN	1		/* conn pending */
+#define	XPT_CLOSE	2		/* dead or dying */
+#define	XPT_DATA	3		/* data pending */
+#define	XPT_TEMP	4		/* connected transport */
+#define	XPT_DEAD	6		/* transport closed */
+#define	XPT_CHNGBUF	7		/* need to change snd/rcv buf sizes */
+#define	XPT_DEFERRED	8		/* deferred request pending */
+#define	XPT_OLD		9		/* used for xprt aging mark+sweep */
+#define	XPT_DETACHED	10		/* detached from tempsocks list */
+#define XPT_LISTENER	11		/* listening endpoint */
 };
 
 int	svc_reg_xprt_class(struct svc_xprt_class *);
