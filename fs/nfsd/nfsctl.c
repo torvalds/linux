@@ -540,7 +540,7 @@ static ssize_t write_ports(struct file *file, char *buf, size_t size)
 		}
 		return err < 0 ? err : 0;
 	}
-	if (buf[0] == '-') {
+	if (buf[0] == '-' && isdigit(buf[1])) {
 		char *toclose = kstrdup(buf+1, GFP_KERNEL);
 		int len = 0;
 		if (!toclose)
@@ -553,6 +553,53 @@ static ssize_t write_ports(struct file *file, char *buf, size_t size)
 			lockd_down();
 		kfree(toclose);
 		return len;
+	}
+	/*
+	 * Add a transport listener by writing it's transport name
+	 */
+	if (isalpha(buf[0])) {
+		int err;
+		char transport[16];
+		int port;
+		if (sscanf(buf, "%15s %4d", transport, &port) == 2) {
+			err = nfsd_create_serv();
+			if (!err) {
+				err = svc_create_xprt(nfsd_serv,
+						      transport, port,
+						      SVC_SOCK_ANONYMOUS);
+				if (err == -ENOENT)
+					/* Give a reasonable perror msg for
+					 * bad transport string */
+					err = -EPROTONOSUPPORT;
+			}
+			return err < 0 ? err : 0;
+		}
+	}
+	/*
+	 * Remove a transport by writing it's transport name and port number
+	 */
+	if (buf[0] == '-' && isalpha(buf[1])) {
+		struct svc_xprt *xprt;
+		int err = -EINVAL;
+		char transport[16];
+		int port;
+		if (sscanf(&buf[1], "%15s %4d", transport, &port) == 2) {
+			if (port == 0)
+				return -EINVAL;
+			lock_kernel();
+			if (nfsd_serv) {
+				xprt = svc_find_xprt(nfsd_serv, transport,
+						     AF_UNSPEC, port);
+				if (xprt) {
+					svc_close_xprt(xprt);
+					svc_xprt_put(xprt);
+					err = 0;
+				} else
+					err = -ENOTCONN;
+			}
+			unlock_kernel();
+			return err < 0 ? err : 0;
+		}
 	}
 	return -EINVAL;
 }

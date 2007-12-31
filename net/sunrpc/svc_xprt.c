@@ -842,6 +842,7 @@ void svc_close_xprt(struct svc_xprt *xprt)
 	clear_bit(XPT_BUSY, &xprt->xpt_flags);
 	svc_xprt_put(xprt);
 }
+EXPORT_SYMBOL_GPL(svc_close_xprt);
 
 void svc_close_all(struct list_head *xprt_list)
 {
@@ -1006,6 +1007,7 @@ struct svc_xprt *svc_find_xprt(struct svc_serv *serv, char *xcl_name,
 		if (port && port != svc_xprt_local_port(xprt))
 			continue;
 		found = xprt;
+		svc_xprt_get(xprt);
 		break;
 	}
 	spin_unlock_bh(&serv->sv_lock);

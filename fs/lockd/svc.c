@@ -227,17 +227,25 @@ lockd(struct svc_rqst *rqstp)
 static int make_socks(struct svc_serv *serv, int proto)
 {
 	static int warned;
+	struct svc_xprt *xprt;
 	int err = 0;
 
-	if (proto == IPPROTO_UDP || nlm_udpport)
-		if (!svc_find_xprt(serv, "udp", 0, 0))
+	if (proto == IPPROTO_UDP || nlm_udpport) {
+		xprt = svc_find_xprt(serv, "udp", 0, 0);
+		if (!xprt)
 			err = svc_create_xprt(serv, "udp", nlm_udpport,
 					      SVC_SOCK_DEFAULTS);
-	if (err >= 0 && (proto == IPPROTO_TCP || nlm_tcpport))
-		if (!svc_find_xprt(serv, "tcp", 0, 0))
+		else
+			svc_xprt_put(xprt);
+	}
+	if (err >= 0 && (proto == IPPROTO_TCP || nlm_tcpport)) {
+		xprt = svc_find_xprt(serv, "tcp", 0, 0);
+		if (!xprt)
 			err = svc_create_xprt(serv, "tcp", nlm_tcpport,
 					      SVC_SOCK_DEFAULTS);
-
+		else
+			svc_xprt_put(xprt);
+	}
 	if (err >= 0) {
 		warned = 0;
 		err = 0;
