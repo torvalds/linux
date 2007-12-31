@@ -320,7 +320,7 @@ static inline void svc_free_res_pages(struct svc_rqst *rqstp)
 
 struct svc_deferred_req {
 	u32			prot;	/* protocol (UDP or TCP) */
-	struct svc_sock		*svsk;
+	struct svc_xprt		*xprt;
 	struct sockaddr_storage	addr;	/* where reply must go */
 	size_t			addrlen;
 	union svc_addr_u	daddr;	/* where reply must come from */

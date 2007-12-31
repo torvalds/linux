@@ -59,6 +59,8 @@ struct svc_xprt {
 	spinlock_t		xpt_lock;	/* protects sk_deferred
 						 * and xpt_auth_cache */
 	void			*xpt_auth_cache;/* auth cache */
+	struct list_head	xpt_deferred;	/* deferred requests that need
+						 * to be revisted */
 };
 
 int	svc_reg_xprt_class(struct svc_xprt_class *);

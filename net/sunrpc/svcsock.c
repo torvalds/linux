@@ -89,7 +89,7 @@ static void		svc_close_xprt(struct svc_xprt *xprt);
 static void		svc_sock_detach(struct svc_xprt *);
 static void		svc_sock_free(struct svc_xprt *);
 
-static struct svc_deferred_req *svc_deferred_dequeue(struct svc_sock *svsk);
+static struct svc_deferred_req *svc_deferred_dequeue(struct svc_xprt *xprt);
 static int svc_deferred_recv(struct svc_rqst *rqstp);
 static struct cache_deferred_req *svc_defer(struct cache_req *req);
 static struct svc_xprt *svc_create_socket(struct svc_serv *, int,
@@ -771,11 +771,6 @@ svc_udp_recvfrom(struct svc_rqst *rqstp)
 				(serv->sv_nrthreads+3) * serv->sv_max_mesg,
 				(serv->sv_nrthreads+3) * serv->sv_max_mesg);
 
-	if ((rqstp->rq_deferred = svc_deferred_dequeue(svsk))) {
-		svc_xprt_received(&svsk->sk_xprt);
-		return svc_deferred_recv(rqstp);
-	}
-
 	clear_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags);
 	skb = NULL;
 	err = kernel_recvmsg(svsk->sk_sock, &msg, NULL,
@@ -1137,11 +1132,6 @@ svc_tcp_recvfrom(struct svc_rqst *rqstp)
 		svsk, test_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags),
 		test_bit(XPT_CONN, &svsk->sk_xprt.xpt_flags),
 		test_bit(XPT_CLOSE, &svsk->sk_xprt.xpt_flags));
-
-	if ((rqstp->rq_deferred = svc_deferred_dequeue(svsk))) {
-		svc_xprt_received(&svsk->sk_xprt);
-		return svc_deferred_recv(rqstp);
-	}
 
 	if (test_and_clear_bit(XPT_CHNGBUF, &svsk->sk_xprt.xpt_flags))
 		/* sndbuf needs to have room for one request
@@ -1601,7 +1591,12 @@ svc_recv(struct svc_rqst *rqstp, long timeout)
 		dprintk("svc: server %p, pool %u, socket %p, inuse=%d\n",
 			rqstp, pool->sp_id, svsk,
 			atomic_read(&svsk->sk_xprt.xpt_ref.refcount));
-		len = svsk->sk_xprt.xpt_ops->xpo_recvfrom(rqstp);
+		rqstp->rq_deferred = svc_deferred_dequeue(&svsk->sk_xprt);
+		if (rqstp->rq_deferred) {
+			svc_xprt_received(&svsk->sk_xprt);
+			len = svc_deferred_recv(rqstp);
+		} else
+			len = svsk->sk_xprt.xpt_ops->xpo_recvfrom(rqstp);
 		dprintk("svc: got len=%d\n", len);
 	}
 
@@ -1758,7 +1753,6 @@ static struct svc_sock *svc_setup_socket(struct svc_serv *serv,
 	svsk->sk_ostate = inet->sk_state_change;
 	svsk->sk_odata = inet->sk_data_ready;
 	svsk->sk_owspace = inet->sk_write_space;
-	INIT_LIST_HEAD(&svsk->sk_deferred);
 
 	/* Initialize the socket */
 	if (sock->type == SOCK_DGRAM)
@@ -1976,22 +1970,21 @@ void svc_close_all(struct list_head *xprt_list)
 static void svc_revisit(struct cache_deferred_req *dreq, int too_many)
 {
 	struct svc_deferred_req *dr = container_of(dreq, struct svc_deferred_req, handle);
-	struct svc_sock *svsk;
+	struct svc_xprt *xprt = dr->xprt;
 
 	if (too_many) {
-		svc_xprt_put(&dr->svsk->sk_xprt);
+		svc_xprt_put(xprt);
 		kfree(dr);
 		return;
 	}
 	dprintk("revisit queued\n");
-	svsk = dr->svsk;
-	dr->svsk = NULL;
-	spin_lock(&svsk->sk_xprt.xpt_lock);
-	list_add(&dr->handle.recent, &svsk->sk_deferred);
-	spin_unlock(&svsk->sk_xprt.xpt_lock);
-	set_bit(XPT_DEFERRED, &svsk->sk_xprt.xpt_flags);
-	svc_xprt_enqueue(&svsk->sk_xprt);
-	svc_xprt_put(&svsk->sk_xprt);
+	dr->xprt = NULL;
+	spin_lock(&xprt->xpt_lock);
+	list_add(&dr->handle.recent, &xprt->xpt_deferred);
+	spin_unlock(&xprt->xpt_lock);
+	set_bit(XPT_DEFERRED, &xprt->xpt_flags);
+	svc_xprt_enqueue(xprt);
+	svc_xprt_put(xprt);
 }
 
 static struct cache_deferred_req *
@@ -2022,7 +2015,7 @@ svc_defer(struct cache_req *req)
 		memcpy(dr->args, rqstp->rq_arg.head[0].iov_base-skip, dr->argslen<<2);
 	}
 	svc_xprt_get(rqstp->rq_xprt);
-	dr->svsk = rqstp->rq_sock;
+	dr->xprt = rqstp->rq_xprt;
 
 	dr->handle.revisit = svc_revisit;
 	return &dr->handle;
@@ -2048,21 +2041,21 @@ static int svc_deferred_recv(struct svc_rqst *rqstp)
 }
 
 
-static struct svc_deferred_req *svc_deferred_dequeue(struct svc_sock *svsk)
+static struct svc_deferred_req *svc_deferred_dequeue(struct svc_xprt *xprt)
 {
 	struct svc_deferred_req *dr = NULL;
 
-	if (!test_bit(XPT_DEFERRED, &svsk->sk_xprt.xpt_flags))
+	if (!test_bit(XPT_DEFERRED, &xprt->xpt_flags))
 		return NULL;
-	spin_lock(&svsk->sk_xprt.xpt_lock);
-	clear_bit(XPT_DEFERRED, &svsk->sk_xprt.xpt_flags);
-	if (!list_empty(&svsk->sk_deferred)) {
-		dr = list_entry(svsk->sk_deferred.next,
+	spin_lock(&xprt->xpt_lock);
+	clear_bit(XPT_DEFERRED, &xprt->xpt_flags);
+	if (!list_empty(&xprt->xpt_deferred)) {
+		dr = list_entry(xprt->xpt_deferred.next,
 				struct svc_deferred_req,
 				handle.recent);
 		list_del_init(&dr->handle.recent);
-		set_bit(XPT_DEFERRED, &svsk->sk_xprt.xpt_flags);
+		set_bit(XPT_DEFERRED, &xprt->xpt_flags);
 	}
-	spin_unlock(&svsk->sk_xprt.xpt_lock);
+	spin_unlock(&xprt->xpt_lock);
 	return dr;
 }
