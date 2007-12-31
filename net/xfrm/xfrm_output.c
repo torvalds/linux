@@ -78,6 +78,8 @@ static int xfrm_output_one(struct sk_buff *skb, int err)
 		spin_unlock_bh(&x->lock);
 
 		err = x->type->output(x, skb);
+		if (err == -EINPROGRESS)
+			goto out_exit;
 
 resume:
 		if (err) {
