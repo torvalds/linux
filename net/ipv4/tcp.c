@@ -497,7 +497,6 @@ static inline void tcp_mark_urg(struct tcp_sock *tp, int flags,
 	if (flags & MSG_OOB) {
 		tp->urg_mode = 1;
 		tp->snd_up = tp->write_seq;
-		TCP_SKB_CB(skb)->sacked |= TCPCB_URG;
 	}
 }
 

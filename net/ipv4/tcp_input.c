@@ -2821,8 +2821,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets)
 		if (sacked & TCPCB_LOST)
 			tp->lost_out -= acked_pcount;
 
-		if (unlikely((sacked & TCPCB_URG) && tp->urg_mode &&
-			     !before(end_seq, tp->snd_up)))
+		if (unlikely(tp->urg_mode && !before(end_seq, tp->snd_up)))
 			tp->urg_mode = 0;
 
 		tp->packets_out -= acked_pcount;
