@@ -1606,7 +1606,6 @@ svc_recv(struct svc_rqst *rqstp, long timeout)
 		svc_sock_release(rqstp);
 		return -EAGAIN;
 	}
-	svsk->sk_lastrecv = get_seconds();
 	clear_bit(XPT_OLD, &svsk->sk_xprt.xpt_flags);
 
 	rqstp->rq_secure = svc_port_is_privileged(svc_addr(rqstp));
@@ -1706,8 +1705,7 @@ svc_age_temp_sockets(unsigned long closure)
 		list_del_init(le);
 		svsk = list_entry(le, struct svc_sock, sk_xprt.xpt_list);
 
-		dprintk("queuing svsk %p for closing, %lu seconds old\n",
-			svsk, get_seconds() - svsk->sk_lastrecv);
+		dprintk("queuing svsk %p for closing\n", svsk);
 
 		/* a thread will dequeue and close it soon */
 		svc_xprt_enqueue(&svsk->sk_xprt);
@@ -1755,7 +1753,6 @@ static struct svc_sock *svc_setup_socket(struct svc_serv *serv,
 	svsk->sk_ostate = inet->sk_state_change;
 	svsk->sk_odata = inet->sk_data_ready;
 	svsk->sk_owspace = inet->sk_write_space;
-	svsk->sk_lastrecv = get_seconds();
 	spin_lock_init(&svsk->sk_lock);
 	INIT_LIST_HEAD(&svsk->sk_deferred);
 

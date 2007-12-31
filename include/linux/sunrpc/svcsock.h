@@ -33,7 +33,6 @@ struct svc_sock {
 	/* private TCP part */
 	int			sk_reclen;	/* length of record */
 	int			sk_tcplen;	/* current read length */
-	time_t			sk_lastrecv;	/* time of last received request */
 
 	/* cache of various info for TCP sockets */
 	void			*sk_info_authunix;
