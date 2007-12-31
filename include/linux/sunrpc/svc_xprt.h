@@ -72,9 +72,14 @@ void	svc_unreg_xprt_class(struct svc_xprt_class *);
 void	svc_xprt_init(struct svc_xprt_class *, struct svc_xprt *,
 		      struct svc_serv *);
 int	svc_create_xprt(struct svc_serv *, char *, unsigned short, int);
+void	svc_xprt_enqueue(struct svc_xprt *xprt);
 void	svc_xprt_received(struct svc_xprt *);
 void	svc_xprt_put(struct svc_xprt *xprt);
 void	svc_xprt_copy_addrs(struct svc_rqst *rqstp, struct svc_xprt *xprt);
+void	svc_close_xprt(struct svc_xprt *xprt);
+void	svc_delete_xprt(struct svc_xprt *xprt);
+int	svc_port_is_privileged(struct sockaddr *sin);
+
 static inline void svc_xprt_get(struct svc_xprt *xprt)
 {
 	kref_get(&xprt->xpt_ref);
@@ -126,4 +131,26 @@ static inline unsigned short svc_xprt_remote_port(struct svc_xprt *xprt)
 	return svc_addr_port((struct sockaddr *)&xprt->xpt_remote);
 }
 
+static inline char *__svc_print_addr(struct sockaddr *addr,
+				     char *buf, size_t len)
+{
+	switch (addr->sa_family) {
+	case AF_INET:
+		snprintf(buf, len, "%u.%u.%u.%u, port=%u",
+			NIPQUAD(((struct sockaddr_in *) addr)->sin_addr),
+			ntohs(((struct sockaddr_in *) addr)->sin_port));
+		break;
+
+	case AF_INET6:
+		snprintf(buf, len, "%x:%x:%x:%x:%x:%x:%x:%x, port=%u",
+			NIP6(((struct sockaddr_in6 *) addr)->sin6_addr),
+			ntohs(((struct sockaddr_in6 *) addr)->sin6_port));
+		break;
+
+	default:
+		snprintf(buf, len, "unknown address type: %d", addr->sa_family);
+		break;
+	}
+	return buf;
+}
 #endif /* SUNRPC_SVC_XPRT_H */
