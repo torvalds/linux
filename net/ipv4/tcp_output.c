@@ -61,29 +61,22 @@ int sysctl_tcp_base_mss __read_mostly = 512;
 /* By default, RFC2861 behavior.  */
 int sysctl_tcp_slow_start_after_idle __read_mostly = 1;
 
-static inline void tcp_packets_out_inc(struct sock *sk,
-				       const struct sk_buff *skb)
+static void tcp_event_new_data_sent(struct sock *sk, struct sk_buff *skb)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	int orig = tp->packets_out;
-
-	tp->packets_out += tcp_skb_pcount(skb);
-	if (!orig)
-		inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
-					  inet_csk(sk)->icsk_rto, TCP_RTO_MAX);
-}
-
-static void update_send_head(struct sock *sk, struct sk_buff *skb)
-{
-	struct tcp_sock *tp = tcp_sk(sk);
+	unsigned int prior_packets = tp->packets_out;
 
 	tcp_advance_send_head(sk, skb);
 	tp->snd_nxt = TCP_SKB_CB(skb)->end_seq;
-	tcp_packets_out_inc(sk, skb);
 
 	/* Don't override Nagle indefinately with F-RTO */
 	if (tp->frto_counter == 2)
 		tp->frto_counter = 3;
+
+	tp->packets_out += tcp_skb_pcount(skb);
+	if (!prior_packets)
+		inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
+					  inet_csk(sk)->icsk_rto, TCP_RTO_MAX);
 }
 
 /* SND.NXT, if window was not shrunk.
@@ -1410,7 +1403,7 @@ static int tcp_mtu_probe(struct sock *sk)
 		/* Decrement cwnd here because we are sending
 		* effectively two packets. */
 		tp->snd_cwnd--;
-		update_send_head(sk, nskb);
+		tcp_event_new_data_sent(sk, nskb);
 
 		icsk->icsk_mtup.probe_size = tcp_mss_to_mtu(sk, nskb->len);
 		tp->mtu_probe.probe_seq_start = TCP_SKB_CB(nskb)->seq;
@@ -1494,7 +1487,7 @@ static int tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle)
 		/* Advance the send_head.  This one is sent out.
 		 * This call will increment packets_out.
 		 */
-		update_send_head(sk, skb);
+		tcp_event_new_data_sent(sk, skb);
 
 		tcp_minshall_update(tp, mss_now, skb);
 		sent_pkts++;
@@ -1553,7 +1546,7 @@ void tcp_push_one(struct sock *sk, unsigned int mss_now)
 		TCP_SKB_CB(skb)->when = tcp_time_stamp;
 
 		if (likely(!tcp_transmit_skb(sk, skb, 1, sk->sk_allocation))) {
-			update_send_head(sk, skb);
+			tcp_event_new_data_sent(sk, skb);
 			tcp_cwnd_validate(sk);
 			return;
 		}
@@ -2528,9 +2521,8 @@ int tcp_write_wakeup(struct sock *sk)
 			TCP_SKB_CB(skb)->flags |= TCPCB_FLAG_PSH;
 			TCP_SKB_CB(skb)->when = tcp_time_stamp;
 			err = tcp_transmit_skb(sk, skb, 1, GFP_ATOMIC);
-			if (!err) {
-				update_send_head(sk, skb);
-			}
+			if (!err)
+				tcp_event_new_data_sent(sk, skb);
 			return err;
 		} else {
 			if (tp->urg_mode &&
