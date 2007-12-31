@@ -1988,28 +1988,6 @@ void svc_force_close_socket(struct svc_sock *svsk)
 	svc_close_socket(svsk);
 }
 
-/**
- * svc_makesock - Make a socket for nfsd and lockd
- * @serv: RPC server structure
- * @protocol: transport protocol to use
- * @port: port to use
- * @flags: requested socket characteristics
- *
- */
-int svc_makesock(struct svc_serv *serv, int protocol, unsigned short port,
-			int flags)
-{
-	dprintk("svc: creating socket proto = %d\n", protocol);
-	switch (protocol) {
-	case IPPROTO_TCP:
-		return svc_create_xprt(serv, "tcp", port, flags);
-	case IPPROTO_UDP:
-		return svc_create_xprt(serv, "udp", port, flags);
-	default:
-		return -EINVAL;
-	}
-}
-
 /*
  * Handle defer and revisit of requests
  */
