@@ -48,7 +48,6 @@ struct flowi {
 
 	__u8	proto;
 	__u8	flags;
-#define FLOWI_FLAG_MULTIPATHOLDROUTE 0x01
 	union {
 		struct {
 			__be16	sport;
