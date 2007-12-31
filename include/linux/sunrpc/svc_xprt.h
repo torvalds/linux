@@ -48,11 +48,15 @@ struct svc_xprt {
 #define	XPT_OLD		9		/* used for xprt aging mark+sweep */
 #define	XPT_DETACHED	10		/* detached from tempsocks list */
 #define XPT_LISTENER	11		/* listening endpoint */
+
+	struct svc_pool		*xpt_pool;	/* current pool iff queued */
+	struct svc_serv		*xpt_server;	/* service for transport */
 };
 
 int	svc_reg_xprt_class(struct svc_xprt_class *);
 void	svc_unreg_xprt_class(struct svc_xprt_class *);
-void	svc_xprt_init(struct svc_xprt_class *, struct svc_xprt *);
+void	svc_xprt_init(struct svc_xprt_class *, struct svc_xprt *,
+		      struct svc_serv *);
 int	svc_create_xprt(struct svc_serv *, char *, unsigned short, int);
 void	svc_xprt_put(struct svc_xprt *xprt);
 
