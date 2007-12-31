@@ -760,6 +760,30 @@ void blk_queue_dma_alignment(struct request_queue *q, int mask)
 EXPORT_SYMBOL(blk_queue_dma_alignment);
 
 /**
+ * blk_queue_update_dma_alignment - update dma length and memory alignment
+ * @q:     the request queue for the device
+ * @mask:  alignment mask
+ *
+ * description:
+ *    update required memory and length aligment for direct dma transactions.
+ *    If the requested alignment is larger than the current alignment, then
+ *    the current queue alignment is updated to the new value, otherwise it
+ *    is left alone.  The design of this is to allow multiple objects
+ *    (driver, device, transport etc) to set their respective
+ *    alignments without having them interfere.
+ *
+ **/
+void blk_queue_update_dma_alignment(struct request_queue *q, int mask)
+{
+	BUG_ON(mask > PAGE_SIZE);
+
+	if (mask > q->dma_alignment)
+		q->dma_alignment = mask;
+}
+
+EXPORT_SYMBOL(blk_queue_update_dma_alignment);
+
+/**
  * blk_queue_find_tag - find a request by its tag and queue
  * @q:	 The request queue for the device
  * @tag: The tag of the request
