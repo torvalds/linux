@@ -70,6 +70,21 @@ void svc_unreg_xprt_class(struct svc_xprt_class *xcl)
 }
 EXPORT_SYMBOL_GPL(svc_unreg_xprt_class);
 
+static void svc_xprt_free(struct kref *kref)
+{
+	struct svc_xprt *xprt =
+		container_of(kref, struct svc_xprt, xpt_ref);
+	struct module *owner = xprt->xpt_class->xcl_owner;
+	xprt->xpt_ops->xpo_free(xprt);
+	module_put(owner);
+}
+
+void svc_xprt_put(struct svc_xprt *xprt)
+{
+	kref_put(&xprt->xpt_ref, svc_xprt_free);
+}
+EXPORT_SYMBOL_GPL(svc_xprt_put);
+
 /*
  * Called by transport drivers to initialize the transport independent
  * portion of the transport instance.
@@ -79,6 +94,7 @@ void svc_xprt_init(struct svc_xprt_class *xcl, struct svc_xprt *xprt)
 	memset(xprt, 0, sizeof(*xprt));
 	xprt->xpt_class = xcl;
 	xprt->xpt_ops = xcl->xcl_ops;
+	kref_init(&xprt->xpt_ref);
 }
 EXPORT_SYMBOL_GPL(svc_xprt_init);
 

@@ -8,6 +8,7 @@
 #define SUNRPC_SVC_XPRT_H
 
 #include <linux/sunrpc/svc.h>
+#include <linux/module.h>
 
 struct svc_xprt_ops {
 	struct svc_xprt	*(*xpo_create)(struct svc_serv *,
@@ -34,11 +35,18 @@ struct svc_xprt_class {
 struct svc_xprt {
 	struct svc_xprt_class	*xpt_class;
 	struct svc_xprt_ops	*xpt_ops;
+	struct kref		xpt_ref;
 };
 
 int	svc_reg_xprt_class(struct svc_xprt_class *);
 void	svc_unreg_xprt_class(struct svc_xprt_class *);
 void	svc_xprt_init(struct svc_xprt_class *, struct svc_xprt *);
 int	svc_create_xprt(struct svc_serv *, char *, unsigned short, int);
+void	svc_xprt_put(struct svc_xprt *xprt);
+
+static inline void svc_xprt_get(struct svc_xprt *xprt)
+{
+	kref_get(&xprt->xpt_ref);
+}
 
 #endif /* SUNRPC_SVC_XPRT_H */

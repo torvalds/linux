@@ -66,8 +66,8 @@
  *		after a clear, the socket must be read/accepted
  *		 if this succeeds, it must be set again.
  *	SK_CLOSE can set at any time. It is never cleared.
- *      sk_inuse contains a bias of '1' until SK_DEAD is set.
- *             so when sk_inuse hits zero, we know the socket is dead
+ *      xpt_ref contains a bias of '1' until SK_DEAD is set.
+ *             so when xprt_ref hits zero, we know the transport is dead
  *             and no-one is using it.
  *      SK_DEAD can only be set while SK_BUSY is held which ensures
  *             no other thread will be using the socket or will try to
@@ -285,7 +285,7 @@ svc_sock_enqueue(struct svc_sock *svsk)
 				"svc_sock_enqueue: server %p, rq_sock=%p!\n",
 				rqstp, rqstp->rq_sock);
 		rqstp->rq_sock = svsk;
-		atomic_inc(&svsk->sk_inuse);
+		svc_xprt_get(&svsk->sk_xprt);
 		rqstp->rq_reserved = serv->sv_max_mesg;
 		atomic_add(rqstp->rq_reserved, &svsk->sk_reserved);
 		BUG_ON(svsk->sk_pool != pool);
@@ -316,7 +316,7 @@ svc_sock_dequeue(struct svc_pool *pool)
 	list_del_init(&svsk->sk_ready);
 
 	dprintk("svc: socket %p dequeued, inuse=%d\n",
-		svsk->sk_sk, atomic_read(&svsk->sk_inuse));
+		svsk->sk_sk, atomic_read(&svsk->sk_xprt.xpt_ref.refcount));
 
 	return svsk;
 }
@@ -359,19 +359,6 @@ void svc_reserve(struct svc_rqst *rqstp, int space)
 	}
 }
 
-/*
- * Release a socket after use.
- */
-static inline void
-svc_sock_put(struct svc_sock *svsk)
-{
-	if (atomic_dec_and_test(&svsk->sk_inuse)) {
-		BUG_ON(!test_bit(SK_DEAD, &svsk->sk_flags));
-		module_put(svsk->sk_xprt.xpt_class->xcl_owner);
-		svsk->sk_xprt.xpt_ops->xpo_free(&svsk->sk_xprt);
-	}
-}
-
 static void
 svc_sock_release(struct svc_rqst *rqstp)
 {
@@ -398,7 +385,7 @@ svc_sock_release(struct svc_rqst *rqstp)
 	svc_reserve(rqstp, 0);
 	rqstp->rq_sock = NULL;
 
-	svc_sock_put(svsk);
+	svc_xprt_put(&svsk->sk_xprt);
 }
 
 /*
@@ -1128,50 +1115,6 @@ failed:
 }
 
 /*
- * Make sure that we don't have too many active connections.  If we
- * have, something must be dropped.
- *
- * There's no point in trying to do random drop here for DoS
- * prevention. The NFS clients does 1 reconnect in 15 seconds. An
- * attacker can easily beat that.
- *
- * The only somewhat efficient mechanism would be if drop old
- * connections from the same IP first. But right now we don't even
- * record the client IP in svc_sock.
- */
-static void svc_check_conn_limits(struct svc_serv *serv)
-{
-	if (serv->sv_tmpcnt > (serv->sv_nrthreads+3)*20) {
-		struct svc_sock *svsk = NULL;
-		spin_lock_bh(&serv->sv_lock);
-		if (!list_empty(&serv->sv_tempsocks)) {
-			if (net_ratelimit()) {
-				/* Try to help the admin */
-				printk(KERN_NOTICE "%s: too many open TCP "
-				       "sockets, consider increasing the "
-				       "number of nfsd threads\n",
-				       serv->sv_name);
-			}
-			/*
-			 * Always select the oldest socket. It's not fair,
-			 * but so is life
-			 */
-			svsk = list_entry(serv->sv_tempsocks.prev,
-					  struct svc_sock,
-					  sk_list);
-			set_bit(SK_CLOSE, &svsk->sk_flags);
-			atomic_inc(&svsk->sk_inuse);
-		}
-		spin_unlock_bh(&serv->sv_lock);
-
-		if (svsk) {
-			svc_sock_enqueue(svsk);
-			svc_sock_put(svsk);
-		}
-	}
-}
-
-/*
  * Receive data from a TCP socket.
  */
 static int
@@ -1497,6 +1440,50 @@ svc_sock_update_bufs(struct svc_serv *serv)
 }
 
 /*
+ * Make sure that we don't have too many active connections.  If we
+ * have, something must be dropped.
+ *
+ * There's no point in trying to do random drop here for DoS
+ * prevention. The NFS clients does 1 reconnect in 15 seconds. An
+ * attacker can easily beat that.
+ *
+ * The only somewhat efficient mechanism would be if drop old
+ * connections from the same IP first. But right now we don't even
+ * record the client IP in svc_sock.
+ */
+static void svc_check_conn_limits(struct svc_serv *serv)
+{
+	if (serv->sv_tmpcnt > (serv->sv_nrthreads+3)*20) {
+		struct svc_sock *svsk = NULL;
+		spin_lock_bh(&serv->sv_lock);
+		if (!list_empty(&serv->sv_tempsocks)) {
+			if (net_ratelimit()) {
+				/* Try to help the admin */
+				printk(KERN_NOTICE "%s: too many open TCP "
+				       "sockets, consider increasing the "
+				       "number of nfsd threads\n",
+				       serv->sv_name);
+			}
+			/*
+			 * Always select the oldest socket. It's not fair,
+			 * but so is life
+			 */
+			svsk = list_entry(serv->sv_tempsocks.prev,
+					  struct svc_sock,
+					  sk_list);
+			set_bit(SK_CLOSE, &svsk->sk_flags);
+			svc_xprt_get(&svsk->sk_xprt);
+		}
+		spin_unlock_bh(&serv->sv_lock);
+
+		if (svsk) {
+			svc_sock_enqueue(svsk);
+			svc_xprt_put(&svsk->sk_xprt);
+		}
+	}
+}
+
+/*
  * Receive the next request on any socket.  This code is carefully
  * organised not to touch any cachelines in the shared svc_serv
  * structure, only cachelines in the local svc_pool.
@@ -1556,7 +1543,7 @@ svc_recv(struct svc_rqst *rqstp, long timeout)
 	spin_lock_bh(&pool->sp_lock);
 	if ((svsk = svc_sock_dequeue(pool)) != NULL) {
 		rqstp->rq_sock = svsk;
-		atomic_inc(&svsk->sk_inuse);
+		svc_xprt_get(&svsk->sk_xprt);
 		rqstp->rq_reserved = serv->sv_max_mesg;
 		atomic_add(rqstp->rq_reserved, &svsk->sk_reserved);
 	} else {
@@ -1605,7 +1592,8 @@ svc_recv(struct svc_rqst *rqstp, long timeout)
 		svc_sock_received(svsk);
 	} else {
 		dprintk("svc: server %p, pool %u, socket %p, inuse=%d\n",
-			rqstp, pool->sp_id, svsk, atomic_read(&svsk->sk_inuse));
+			rqstp, pool->sp_id, svsk,
+			atomic_read(&svsk->sk_xprt.xpt_ref.refcount));
 		len = svsk->sk_xprt.xpt_ops->xpo_recvfrom(rqstp);
 		dprintk("svc: got len=%d\n", len);
 	}
@@ -1702,9 +1690,10 @@ svc_age_temp_sockets(unsigned long closure)
 
 		if (!test_and_set_bit(SK_OLD, &svsk->sk_flags))
 			continue;
-		if (atomic_read(&svsk->sk_inuse) > 1 || test_bit(SK_BUSY, &svsk->sk_flags))
+		if (atomic_read(&svsk->sk_xprt.xpt_ref.refcount) > 1
+		    || test_bit(SK_BUSY, &svsk->sk_flags))
 			continue;
-		atomic_inc(&svsk->sk_inuse);
+		svc_xprt_get(&svsk->sk_xprt);
 		list_move(le, &to_be_aged);
 		set_bit(SK_CLOSE, &svsk->sk_flags);
 		set_bit(SK_DETACHED, &svsk->sk_flags);
@@ -1722,7 +1711,7 @@ svc_age_temp_sockets(unsigned long closure)
 
 		/* a thread will dequeue and close it soon */
 		svc_sock_enqueue(svsk);
-		svc_sock_put(svsk);
+		svc_xprt_put(&svsk->sk_xprt);
 	}
 
 	mod_timer(&serv->sv_temptimer, jiffies + svc_conn_age_period * HZ);
@@ -1767,7 +1756,6 @@ static struct svc_sock *svc_setup_socket(struct svc_serv *serv,
 	svsk->sk_odata = inet->sk_data_ready;
 	svsk->sk_owspace = inet->sk_write_space;
 	svsk->sk_server = serv;
-	atomic_set(&svsk->sk_inuse, 1);
 	svsk->sk_lastrecv = get_seconds();
 	spin_lock_init(&svsk->sk_lock);
 	INIT_LIST_HEAD(&svsk->sk_deferred);
@@ -1953,10 +1941,10 @@ svc_delete_socket(struct svc_sock *svsk)
 	 * is about to be destroyed (in svc_destroy).
 	 */
 	if (!test_and_set_bit(SK_DEAD, &svsk->sk_flags)) {
-		BUG_ON(atomic_read(&svsk->sk_inuse)<2);
-		atomic_dec(&svsk->sk_inuse);
+		BUG_ON(atomic_read(&svsk->sk_xprt.xpt_ref.refcount) < 2);
 		if (test_bit(SK_TEMP, &svsk->sk_flags))
 			serv->sv_tmpcnt--;
+		svc_xprt_put(&svsk->sk_xprt);
 	}
 
 	spin_unlock_bh(&serv->sv_lock);
@@ -1969,10 +1957,10 @@ static void svc_close_socket(struct svc_sock *svsk)
 		/* someone else will have to effect the close */
 		return;
 
-	atomic_inc(&svsk->sk_inuse);
+	svc_xprt_get(&svsk->sk_xprt);
 	svc_delete_socket(svsk);
 	clear_bit(SK_BUSY, &svsk->sk_flags);
-	svc_sock_put(svsk);
+	svc_xprt_put(&svsk->sk_xprt);
 }
 
 void svc_force_close_socket(struct svc_sock *svsk)
@@ -1998,7 +1986,7 @@ static void svc_revisit(struct cache_deferred_req *dreq, int too_many)
 	struct svc_sock *svsk;
 
 	if (too_many) {
-		svc_sock_put(dr->svsk);
+		svc_xprt_put(&dr->svsk->sk_xprt);
 		kfree(dr);
 		return;
 	}
@@ -2010,7 +1998,7 @@ static void svc_revisit(struct cache_deferred_req *dreq, int too_many)
 	spin_unlock(&svsk->sk_lock);
 	set_bit(SK_DEFERRED, &svsk->sk_flags);
 	svc_sock_enqueue(svsk);
-	svc_sock_put(svsk);
+	svc_xprt_put(&svsk->sk_xprt);
 }
 
 static struct cache_deferred_req *
@@ -2040,7 +2028,7 @@ svc_defer(struct cache_req *req)
 		dr->argslen = rqstp->rq_arg.len >> 2;
 		memcpy(dr->args, rqstp->rq_arg.head[0].iov_base-skip, dr->argslen<<2);
 	}
-	atomic_inc(&rqstp->rq_sock->sk_inuse);
+	svc_xprt_get(rqstp->rq_xprt);
 	dr->svsk = rqstp->rq_sock;
 
 	dr->handle.revisit = svc_revisit;
