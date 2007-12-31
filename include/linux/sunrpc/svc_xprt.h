@@ -36,6 +36,8 @@ struct svc_xprt {
 	struct svc_xprt_class	*xpt_class;
 	struct svc_xprt_ops	*xpt_ops;
 	struct kref		xpt_ref;
+	struct list_head	xpt_list;
+	struct list_head	xpt_ready;
 	unsigned long		xpt_flags;
 #define	XPT_BUSY	0		/* enqueued/receiving */
 #define	XPT_CONN	1		/* conn pending */

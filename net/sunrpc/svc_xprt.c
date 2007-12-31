@@ -97,6 +97,8 @@ void svc_xprt_init(struct svc_xprt_class *xcl, struct svc_xprt *xprt,
 	xprt->xpt_ops = xcl->xcl_ops;
 	kref_init(&xprt->xpt_ref);
 	xprt->xpt_server = serv;
+	INIT_LIST_HEAD(&xprt->xpt_list);
+	INIT_LIST_HEAD(&xprt->xpt_ready);
 }
 EXPORT_SYMBOL_GPL(svc_xprt_init);
 

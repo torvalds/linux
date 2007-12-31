@@ -221,10 +221,10 @@ lockd(struct svc_rqst *rqstp)
 
 static int find_xprt(struct svc_serv *serv, char *proto)
 {
-	struct svc_sock *svsk;
+	struct svc_xprt *xprt;
 	int found = 0;
-	list_for_each_entry(svsk, &serv->sv_permsocks, sk_list)
-		if (strcmp(svsk->sk_xprt.xpt_class->xcl_name, proto) == 0) {
+	list_for_each_entry(xprt, &serv->sv_permsocks, xpt_list)
+		if (strcmp(xprt->xpt_class->xcl_name, proto) == 0) {
 			found = 1;
 			break;
 		}

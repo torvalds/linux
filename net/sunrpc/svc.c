@@ -459,9 +459,6 @@ svc_create_pooled(struct svc_program *prog, unsigned int bufsize,
 void
 svc_destroy(struct svc_serv *serv)
 {
-	struct svc_sock	*svsk;
-	struct svc_sock *tmp;
-
 	dprintk("svc: svc_destroy(%s, %d)\n",
 				serv->sv_program->pg_name,
 				serv->sv_nrthreads);
@@ -476,14 +473,12 @@ svc_destroy(struct svc_serv *serv)
 
 	del_timer_sync(&serv->sv_temptimer);
 
-	list_for_each_entry_safe(svsk, tmp, &serv->sv_tempsocks, sk_list)
-		svc_force_close_socket(svsk);
+	svc_close_all(&serv->sv_tempsocks);
 
 	if (serv->sv_shutdown)
 		serv->sv_shutdown(serv);
 
-	list_for_each_entry_safe(svsk, tmp, &serv->sv_permsocks, sk_list)
-		svc_force_close_socket(svsk);
+	svc_close_all(&serv->sv_permsocks);
 
 	BUG_ON(!list_empty(&serv->sv_permsocks));
 	BUG_ON(!list_empty(&serv->sv_tempsocks));

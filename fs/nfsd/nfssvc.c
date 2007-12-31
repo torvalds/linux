@@ -155,8 +155,8 @@ static int killsig;	/* signal that was used to kill last nfsd */
 static void nfsd_last_thread(struct svc_serv *serv)
 {
 	/* When last nfsd thread exits we need to do some clean-up */
-	struct svc_sock *svsk;
-	list_for_each_entry(svsk, &serv->sv_permsocks, sk_list)
+	struct svc_xprt *xprt;
+	list_for_each_entry(xprt, &serv->sv_permsocks, xpt_list)
 		lockd_down();
 	nfsd_serv = NULL;
 	nfsd_racache_shutdown();

@@ -17,8 +17,6 @@
  */
 struct svc_sock {
 	struct svc_xprt		sk_xprt;
-	struct list_head	sk_ready;	/* list of ready sockets */
-	struct list_head	sk_list;	/* list of all sockets */
 	struct socket *		sk_sock;	/* berkeley socket layer */
 	struct sock *		sk_sk;		/* INET layer */
 
@@ -51,7 +49,7 @@ struct svc_sock {
 /*
  * Function prototypes.
  */
-void		svc_force_close_socket(struct svc_sock *);
+void		svc_close_all(struct list_head *);
 int		svc_recv(struct svc_rqst *, long);
 int		svc_send(struct svc_rqst *);
 void		svc_drop(struct svc_rqst *);
