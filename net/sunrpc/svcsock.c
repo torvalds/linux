@@ -94,6 +94,7 @@ static int svc_deferred_recv(struct svc_rqst *rqstp);
 static struct cache_deferred_req *svc_defer(struct cache_req *req);
 static struct svc_xprt *svc_create_socket(struct svc_serv *, int,
 					  struct sockaddr *, int, int);
+static void svc_age_temp_xprts(unsigned long closure);
 
 /* apparently the "standard" is that clients close
  * idle connections after 5 minutes, servers after
@@ -1573,6 +1574,19 @@ svc_recv(struct svc_rqst *rqstp, long timeout)
 			 */
 			__module_get(newxpt->xpt_class->xcl_owner);
 			svc_check_conn_limits(xprt->xpt_server);
+			spin_lock_bh(&serv->sv_lock);
+			set_bit(XPT_TEMP, &newxpt->xpt_flags);
+			list_add(&newxpt->xpt_list, &serv->sv_tempsocks);
+			serv->sv_tmpcnt++;
+			if (serv->sv_temptimer.function == NULL) {
+				/* setup timer to age temp sockets */
+				setup_timer(&serv->sv_temptimer,
+					    svc_age_temp_xprts,
+					    (unsigned long)serv);
+				mod_timer(&serv->sv_temptimer,
+					  jiffies + svc_conn_age_period * HZ);
+			}
+			spin_unlock_bh(&serv->sv_lock);
 			svc_xprt_received(newxpt);
 		}
 		svc_xprt_received(xprt);
@@ -1716,7 +1730,6 @@ static struct svc_sock *svc_setup_socket(struct svc_serv *serv,
 	struct svc_sock	*svsk;
 	struct sock	*inet;
 	int		pmap_register = !(flags & SVC_SOCK_ANONYMOUS);
-	int		is_temporary = flags & SVC_SOCK_TEMPORARY;
 
 	dprintk("svc: svc_setup_socket %p\n", sock);
 	if (!(svsk = kzalloc(sizeof(*svsk), GFP_KERNEL))) {
@@ -1736,7 +1749,6 @@ static struct svc_sock *svc_setup_socket(struct svc_serv *serv,
 		return NULL;
 	}
 
-	set_bit(XPT_BUSY, &svsk->sk_xprt.xpt_flags);
 	inet->sk_user_data = svsk;
 	svsk->sk_sock = sock;
 	svsk->sk_sk = inet;
@@ -1749,24 +1761,6 @@ static struct svc_sock *svc_setup_socket(struct svc_serv *serv,
 		svc_udp_init(svsk, serv);
 	else
 		svc_tcp_init(svsk, serv);
-
-	spin_lock_bh(&serv->sv_lock);
-	if (is_temporary) {
-		set_bit(XPT_TEMP, &svsk->sk_xprt.xpt_flags);
-		list_add(&svsk->sk_xprt.xpt_list, &serv->sv_tempsocks);
-		serv->sv_tmpcnt++;
-		if (serv->sv_temptimer.function == NULL) {
-			/* setup timer to age temp sockets */
-			setup_timer(&serv->sv_temptimer, svc_age_temp_xprts,
-					(unsigned long)serv);
-			mod_timer(&serv->sv_temptimer,
-					jiffies + svc_conn_age_period * HZ);
-		}
-	} else {
-		clear_bit(XPT_TEMP, &svsk->sk_xprt.xpt_flags);
-		list_add(&svsk->sk_xprt.xpt_list, &serv->sv_permsocks);
-	}
-	spin_unlock_bh(&serv->sv_lock);
 
 	dprintk("svc: svc_setup_socket created %p (inet %p)\n",
 				svsk, svsk->sk_sk);
@@ -1800,6 +1794,10 @@ int svc_addsock(struct svc_serv *serv,
 			int salen;
 			if (kernel_getsockname(svsk->sk_sock, sin, &salen) == 0)
 				svc_xprt_set_local(&svsk->sk_xprt, sin, salen);
+			clear_bit(XPT_TEMP, &svsk->sk_xprt.xpt_flags);
+			spin_lock_bh(&serv->sv_lock);
+			list_add(&svsk->sk_xprt.xpt_list, &serv->sv_permsocks);
+			spin_unlock_bh(&serv->sv_lock);
 			svc_xprt_received(&svsk->sk_xprt);
 			err = 0;
 		}
@@ -1865,7 +1863,6 @@ static struct svc_xprt *svc_create_socket(struct svc_serv *serv,
 
 	if ((svsk = svc_setup_socket(serv, sock, &error, flags)) != NULL) {
 		svc_xprt_set_local(&svsk->sk_xprt, newsin, newlen);
-		svc_xprt_received(&svsk->sk_xprt);
 		return (struct svc_xprt *)svsk;
 	}
 
