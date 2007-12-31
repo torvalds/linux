@@ -1673,75 +1673,77 @@ static void tcp_retrans_try_collapse(struct sock *sk, struct sk_buff *skb, int m
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *next_skb = tcp_write_queue_next(sk, skb);
+	int skb_size, next_skb_size;
+	u16 flags;
 
 	/* The first test we must make is that neither of these two
 	 * SKB's are still referenced by someone else.
 	 */
-	if (!skb_cloned(skb) && !skb_cloned(next_skb)) {
-		int skb_size = skb->len, next_skb_size = next_skb->len;
-		u16 flags = TCP_SKB_CB(skb)->flags;
+	if (skb_cloned(skb) || skb_cloned(next_skb))
+		return;
 
-		/* Also punt if next skb has been SACK'd. */
-		if (TCP_SKB_CB(next_skb)->sacked & TCPCB_SACKED_ACKED)
-			return;
+	skb_size = skb->len;
+	next_skb_size = next_skb->len;
+	flags = TCP_SKB_CB(skb)->flags;
 
-		/* Next skb is out of window. */
-		if (after(TCP_SKB_CB(next_skb)->end_seq, tcp_wnd_end(tp)))
-			return;
+	/* Also punt if next skb has been SACK'd. */
+	if (TCP_SKB_CB(next_skb)->sacked & TCPCB_SACKED_ACKED)
+		return;
 
-		/* Punt if not enough space exists in the first SKB for
-		 * the data in the second, or the total combined payload
-		 * would exceed the MSS.
-		 */
-		if ((next_skb_size > skb_tailroom(skb)) ||
-		    ((skb_size + next_skb_size) > mss_now))
-			return;
+	/* Next skb is out of window. */
+	if (after(TCP_SKB_CB(next_skb)->end_seq, tcp_wnd_end(tp)))
+		return;
 
-		BUG_ON(tcp_skb_pcount(skb) != 1 ||
-		       tcp_skb_pcount(next_skb) != 1);
+	/* Punt if not enough space exists in the first SKB for
+	 * the data in the second, or the total combined payload
+	 * would exceed the MSS.
+	 */
+	if ((next_skb_size > skb_tailroom(skb)) ||
+	    ((skb_size + next_skb_size) > mss_now))
+		return;
 
-		tcp_highest_sack_combine(sk, next_skb, skb);
+	BUG_ON(tcp_skb_pcount(skb) != 1 || tcp_skb_pcount(next_skb) != 1);
 
-		/* Ok.	We will be able to collapse the packet. */
-		tcp_unlink_write_queue(next_skb, sk);
+	tcp_highest_sack_combine(sk, next_skb, skb);
 
-		skb_copy_from_linear_data(next_skb,
-					  skb_put(skb, next_skb_size),
-					  next_skb_size);
+	/* Ok.	We will be able to collapse the packet. */
+	tcp_unlink_write_queue(next_skb, sk);
 
-		if (next_skb->ip_summed == CHECKSUM_PARTIAL)
-			skb->ip_summed = CHECKSUM_PARTIAL;
+	skb_copy_from_linear_data(next_skb, skb_put(skb, next_skb_size),
+				  next_skb_size);
 
-		if (skb->ip_summed != CHECKSUM_PARTIAL)
-			skb->csum = csum_block_add(skb->csum, next_skb->csum, skb_size);
+	if (next_skb->ip_summed == CHECKSUM_PARTIAL)
+		skb->ip_summed = CHECKSUM_PARTIAL;
 
-		/* Update sequence range on original skb. */
-		TCP_SKB_CB(skb)->end_seq = TCP_SKB_CB(next_skb)->end_seq;
+	if (skb->ip_summed != CHECKSUM_PARTIAL)
+		skb->csum = csum_block_add(skb->csum, next_skb->csum, skb_size);
 
-		/* Merge over control information. */
-		flags |= TCP_SKB_CB(next_skb)->flags; /* This moves PSH/FIN etc. over */
-		TCP_SKB_CB(skb)->flags = flags;
+	/* Update sequence range on original skb. */
+	TCP_SKB_CB(skb)->end_seq = TCP_SKB_CB(next_skb)->end_seq;
 
-		/* All done, get rid of second SKB and account for it so
-		 * packet counting does not break.
-		 */
-		TCP_SKB_CB(skb)->sacked |= TCP_SKB_CB(next_skb)->sacked & TCPCB_EVER_RETRANS;
-		if (TCP_SKB_CB(next_skb)->sacked&TCPCB_SACKED_RETRANS)
-			tp->retrans_out -= tcp_skb_pcount(next_skb);
-		if (TCP_SKB_CB(next_skb)->sacked&TCPCB_LOST)
-			tp->lost_out -= tcp_skb_pcount(next_skb);
-		/* Reno case is special. Sigh... */
-		if (tcp_is_reno(tp) && tp->sacked_out)
-			tcp_dec_pcount_approx(&tp->sacked_out, next_skb);
+	/* Merge over control information. */
+	flags |= TCP_SKB_CB(next_skb)->flags; /* This moves PSH/FIN etc. over */
+	TCP_SKB_CB(skb)->flags = flags;
 
-		tcp_adjust_fackets_out(sk, next_skb, tcp_skb_pcount(next_skb));
-		tp->packets_out -= tcp_skb_pcount(next_skb);
+	/* All done, get rid of second SKB and account for it so
+	 * packet counting does not break.
+	 */
+	TCP_SKB_CB(skb)->sacked |= TCP_SKB_CB(next_skb)->sacked & TCPCB_EVER_RETRANS;
+	if (TCP_SKB_CB(next_skb)->sacked & TCPCB_SACKED_RETRANS)
+		tp->retrans_out -= tcp_skb_pcount(next_skb);
+	if (TCP_SKB_CB(next_skb)->sacked & TCPCB_LOST)
+		tp->lost_out -= tcp_skb_pcount(next_skb);
+	/* Reno case is special. Sigh... */
+	if (tcp_is_reno(tp) && tp->sacked_out)
+		tcp_dec_pcount_approx(&tp->sacked_out, next_skb);
 
-		/* changed transmit queue under us so clear hints */
-		tcp_clear_retrans_hints_partial(tp);
+	tcp_adjust_fackets_out(sk, next_skb, tcp_skb_pcount(next_skb));
+	tp->packets_out -= tcp_skb_pcount(next_skb);
 
-		sk_wmem_free_skb(sk, next_skb);
-	}
+	/* changed transmit queue under us so clear hints */
+	tcp_clear_retrans_hints_partial(tp);
+
+	sk_wmem_free_skb(sk, next_skb);
 }
 
 /* Do a simple retransmit without using the backoff mechanisms in
@@ -2416,37 +2418,38 @@ void tcp_send_delayed_ack(struct sock *sk)
 /* This routine sends an ack and also updates the window. */
 void tcp_send_ack(struct sock *sk)
 {
+	struct sk_buff *buff;
+
 	/* If we have been reset, we may not send again. */
-	if (sk->sk_state != TCP_CLOSE) {
-		struct sk_buff *buff;
+	if (sk->sk_state == TCP_CLOSE)
+		return;
 
-		/* We are not putting this on the write queue, so
-		 * tcp_transmit_skb() will set the ownership to this
-		 * sock.
-		 */
-		buff = alloc_skb(MAX_TCP_HEADER, GFP_ATOMIC);
-		if (buff == NULL) {
-			inet_csk_schedule_ack(sk);
-			inet_csk(sk)->icsk_ack.ato = TCP_ATO_MIN;
-			inet_csk_reset_xmit_timer(sk, ICSK_TIME_DACK,
-						  TCP_DELACK_MAX, TCP_RTO_MAX);
-			return;
-		}
-
-		/* Reserve space for headers and prepare control bits. */
-		skb_reserve(buff, MAX_TCP_HEADER);
-		buff->csum = 0;
-		TCP_SKB_CB(buff)->flags = TCPCB_FLAG_ACK;
-		TCP_SKB_CB(buff)->sacked = 0;
-		skb_shinfo(buff)->gso_segs = 1;
-		skb_shinfo(buff)->gso_size = 0;
-		skb_shinfo(buff)->gso_type = 0;
-
-		/* Send it off, this clears delayed acks for us. */
-		TCP_SKB_CB(buff)->seq = TCP_SKB_CB(buff)->end_seq = tcp_acceptable_seq(sk);
-		TCP_SKB_CB(buff)->when = tcp_time_stamp;
-		tcp_transmit_skb(sk, buff, 0, GFP_ATOMIC);
+	/* We are not putting this on the write queue, so
+	 * tcp_transmit_skb() will set the ownership to this
+	 * sock.
+	 */
+	buff = alloc_skb(MAX_TCP_HEADER, GFP_ATOMIC);
+	if (buff == NULL) {
+		inet_csk_schedule_ack(sk);
+		inet_csk(sk)->icsk_ack.ato = TCP_ATO_MIN;
+		inet_csk_reset_xmit_timer(sk, ICSK_TIME_DACK,
+					  TCP_DELACK_MAX, TCP_RTO_MAX);
+		return;
 	}
+
+	/* Reserve space for headers and prepare control bits. */
+	skb_reserve(buff, MAX_TCP_HEADER);
+	buff->csum = 0;
+	TCP_SKB_CB(buff)->flags = TCPCB_FLAG_ACK;
+	TCP_SKB_CB(buff)->sacked = 0;
+	skb_shinfo(buff)->gso_segs = 1;
+	skb_shinfo(buff)->gso_size = 0;
+	skb_shinfo(buff)->gso_type = 0;
+
+	/* Send it off, this clears delayed acks for us. */
+	TCP_SKB_CB(buff)->seq = TCP_SKB_CB(buff)->end_seq = tcp_acceptable_seq(sk);
+	TCP_SKB_CB(buff)->when = tcp_time_stamp;
+	tcp_transmit_skb(sk, buff, 0, GFP_ATOMIC);
 }
 
 /* This routine sends a packet with an out of date sequence
@@ -2491,46 +2494,46 @@ static int tcp_xmit_probe_skb(struct sock *sk, int urgent)
 
 int tcp_write_wakeup(struct sock *sk)
 {
-	if (sk->sk_state != TCP_CLOSE) {
-		struct tcp_sock *tp = tcp_sk(sk);
-		struct sk_buff *skb;
+	struct tcp_sock *tp = tcp_sk(sk);
+	struct sk_buff *skb;
 
-		if ((skb = tcp_send_head(sk)) != NULL &&
-		    before(TCP_SKB_CB(skb)->seq, tcp_wnd_end(tp))) {
-			int err;
-			unsigned int mss = tcp_current_mss(sk, 0);
-			unsigned int seg_size = tcp_wnd_end(tp) - TCP_SKB_CB(skb)->seq;
+	if (sk->sk_state == TCP_CLOSE)
+		return -1;
 
-			if (before(tp->pushed_seq, TCP_SKB_CB(skb)->end_seq))
-				tp->pushed_seq = TCP_SKB_CB(skb)->end_seq;
+	if ((skb = tcp_send_head(sk)) != NULL &&
+	    before(TCP_SKB_CB(skb)->seq, tcp_wnd_end(tp))) {
+		int err;
+		unsigned int mss = tcp_current_mss(sk, 0);
+		unsigned int seg_size = tcp_wnd_end(tp) - TCP_SKB_CB(skb)->seq;
 
-			/* We are probing the opening of a window
-			 * but the window size is != 0
-			 * must have been a result SWS avoidance ( sender )
-			 */
-			if (seg_size < TCP_SKB_CB(skb)->end_seq - TCP_SKB_CB(skb)->seq ||
-			    skb->len > mss) {
-				seg_size = min(seg_size, mss);
-				TCP_SKB_CB(skb)->flags |= TCPCB_FLAG_PSH;
-				if (tcp_fragment(sk, skb, seg_size, mss))
-					return -1;
-			} else if (!tcp_skb_pcount(skb))
-				tcp_set_skb_tso_segs(sk, skb, mss);
+		if (before(tp->pushed_seq, TCP_SKB_CB(skb)->end_seq))
+			tp->pushed_seq = TCP_SKB_CB(skb)->end_seq;
 
+		/* We are probing the opening of a window
+		 * but the window size is != 0
+		 * must have been a result SWS avoidance ( sender )
+		 */
+		if (seg_size < TCP_SKB_CB(skb)->end_seq - TCP_SKB_CB(skb)->seq ||
+		    skb->len > mss) {
+			seg_size = min(seg_size, mss);
 			TCP_SKB_CB(skb)->flags |= TCPCB_FLAG_PSH;
-			TCP_SKB_CB(skb)->when = tcp_time_stamp;
-			err = tcp_transmit_skb(sk, skb, 1, GFP_ATOMIC);
-			if (!err)
-				tcp_event_new_data_sent(sk, skb);
-			return err;
-		} else {
-			if (tp->urg_mode &&
-			    between(tp->snd_up, tp->snd_una+1, tp->snd_una+0xFFFF))
-				tcp_xmit_probe_skb(sk, 1);
-			return tcp_xmit_probe_skb(sk, 0);
-		}
+			if (tcp_fragment(sk, skb, seg_size, mss))
+				return -1;
+		} else if (!tcp_skb_pcount(skb))
+			tcp_set_skb_tso_segs(sk, skb, mss);
+
+		TCP_SKB_CB(skb)->flags |= TCPCB_FLAG_PSH;
+		TCP_SKB_CB(skb)->when = tcp_time_stamp;
+		err = tcp_transmit_skb(sk, skb, 1, GFP_ATOMIC);
+		if (!err)
+			tcp_event_new_data_sent(sk, skb);
+		return err;
+	} else {
+		if (tp->urg_mode &&
+		    between(tp->snd_up, tp->snd_una + 1, tp->snd_una + 0xFFFF))
+			tcp_xmit_probe_skb(sk, 1);
+		return tcp_xmit_probe_skb(sk, 0);
 	}
-	return -1;
 }
 
 /* A window probe timeout has occurred.  If window is not closed send
