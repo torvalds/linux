@@ -1656,49 +1656,50 @@ svc_send(struct svc_rqst *rqstp)
  * Timer function to close old temporary sockets, using
  * a mark-and-sweep algorithm.
  */
-static void
-svc_age_temp_sockets(unsigned long closure)
+static void svc_age_temp_xprts(unsigned long closure)
 {
 	struct svc_serv *serv = (struct svc_serv *)closure;
-	struct svc_sock *svsk;
+	struct svc_xprt *xprt;
 	struct list_head *le, *next;
 	LIST_HEAD(to_be_aged);
 
-	dprintk("svc_age_temp_sockets\n");
+	dprintk("svc_age_temp_xprts\n");
 
 	if (!spin_trylock_bh(&serv->sv_lock)) {
 		/* busy, try again 1 sec later */
-		dprintk("svc_age_temp_sockets: busy\n");
+		dprintk("svc_age_temp_xprts: busy\n");
 		mod_timer(&serv->sv_temptimer, jiffies + HZ);
 		return;
 	}
 
 	list_for_each_safe(le, next, &serv->sv_tempsocks) {
-		svsk = list_entry(le, struct svc_sock, sk_xprt.xpt_list);
+		xprt = list_entry(le, struct svc_xprt, xpt_list);
 
-		if (!test_and_set_bit(XPT_OLD, &svsk->sk_xprt.xpt_flags))
+		/* First time through, just mark it OLD. Second time
+		 * through, close it. */
+		if (!test_and_set_bit(XPT_OLD, &xprt->xpt_flags))
 			continue;
-		if (atomic_read(&svsk->sk_xprt.xpt_ref.refcount) > 1
-		    || test_bit(XPT_BUSY, &svsk->sk_xprt.xpt_flags))
+		if (atomic_read(&xprt->xpt_ref.refcount) > 1
+		    || test_bit(XPT_BUSY, &xprt->xpt_flags))
 			continue;
-		svc_xprt_get(&svsk->sk_xprt);
+		svc_xprt_get(xprt);
 		list_move(le, &to_be_aged);
-		set_bit(XPT_CLOSE, &svsk->sk_xprt.xpt_flags);
-		set_bit(XPT_DETACHED, &svsk->sk_xprt.xpt_flags);
+		set_bit(XPT_CLOSE, &xprt->xpt_flags);
+		set_bit(XPT_DETACHED, &xprt->xpt_flags);
 	}
 	spin_unlock_bh(&serv->sv_lock);
 
 	while (!list_empty(&to_be_aged)) {
 		le = to_be_aged.next;
-		/* fiddling the sk_xprt.xpt_list node is safe 'cos we're XPT_DETACHED */
+		/* fiddling the xpt_list node is safe 'cos we're XPT_DETACHED */
 		list_del_init(le);
-		svsk = list_entry(le, struct svc_sock, sk_xprt.xpt_list);
+		xprt = list_entry(le, struct svc_xprt, xpt_list);
 
-		dprintk("queuing svsk %p for closing\n", svsk);
+		dprintk("queuing xprt %p for closing\n", xprt);
 
 		/* a thread will dequeue and close it soon */
-		svc_xprt_enqueue(&svsk->sk_xprt);
-		svc_xprt_put(&svsk->sk_xprt);
+		svc_xprt_enqueue(xprt);
+		svc_xprt_put(xprt);
 	}
 
 	mod_timer(&serv->sv_temptimer, jiffies + svc_conn_age_period * HZ);
@@ -1756,7 +1757,7 @@ static struct svc_sock *svc_setup_socket(struct svc_serv *serv,
 		serv->sv_tmpcnt++;
 		if (serv->sv_temptimer.function == NULL) {
 			/* setup timer to age temp sockets */
-			setup_timer(&serv->sv_temptimer, svc_age_temp_sockets,
+			setup_timer(&serv->sv_temptimer, svc_age_temp_xprts,
 					(unsigned long)serv);
 			mod_timer(&serv->sv_temptimer,
 					jiffies + svc_conn_age_period * HZ);
