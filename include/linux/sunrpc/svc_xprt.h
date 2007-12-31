@@ -10,6 +10,9 @@
 #include <linux/sunrpc/svc.h>
 
 struct svc_xprt_ops {
+	struct svc_xprt	*(*xpo_create)(struct svc_serv *,
+				       struct sockaddr *, int,
+				       int);
 	struct svc_xprt	*(*xpo_accept)(struct svc_xprt *);
 	int		(*xpo_has_wspace)(struct svc_xprt *);
 	int		(*xpo_recvfrom)(struct svc_rqst *);
@@ -36,5 +39,6 @@ struct svc_xprt {
 int	svc_reg_xprt_class(struct svc_xprt_class *);
 void	svc_unreg_xprt_class(struct svc_xprt_class *);
 void	svc_xprt_init(struct svc_xprt_class *, struct svc_xprt *);
+int	svc_create_xprt(struct svc_serv *, char *, unsigned short, int);
 
 #endif /* SUNRPC_SVC_XPRT_H */

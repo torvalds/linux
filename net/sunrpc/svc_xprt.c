@@ -81,3 +81,40 @@ void svc_xprt_init(struct svc_xprt_class *xcl, struct svc_xprt *xprt)
 	xprt->xpt_ops = xcl->xcl_ops;
 }
 EXPORT_SYMBOL_GPL(svc_xprt_init);
+
+int svc_create_xprt(struct svc_serv *serv, char *xprt_name, unsigned short port,
+		    int flags)
+{
+	struct svc_xprt_class *xcl;
+	int ret = -ENOENT;
+	struct sockaddr_in sin = {
+		.sin_family		= AF_INET,
+		.sin_addr.s_addr	= INADDR_ANY,
+		.sin_port		= htons(port),
+	};
+	dprintk("svc: creating transport %s[%d]\n", xprt_name, port);
+	spin_lock(&svc_xprt_class_lock);
+	list_for_each_entry(xcl, &svc_xprt_class_list, xcl_list) {
+		if (strcmp(xprt_name, xcl->xcl_name) == 0) {
+			spin_unlock(&svc_xprt_class_lock);
+			if (try_module_get(xcl->xcl_owner)) {
+				struct svc_xprt *newxprt;
+				ret = 0;
+				newxprt = xcl->xcl_ops->xpo_create
+					(serv,
+					 (struct sockaddr *)&sin, sizeof(sin),
+					 flags);
+				if (IS_ERR(newxprt)) {
+					module_put(xcl->xcl_owner);
+					ret = PTR_ERR(newxprt);
+				}
+			}
+			goto out;
+		}
+	}
+	spin_unlock(&svc_xprt_class_lock);
+	dprintk("svc: transport %s not found\n", xprt_name);
+ out:
+	return ret;
+}
+EXPORT_SYMBOL_GPL(svc_create_xprt);

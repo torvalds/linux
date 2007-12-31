@@ -91,6 +91,8 @@ static void		svc_sock_free(struct svc_xprt *);
 static struct svc_deferred_req *svc_deferred_dequeue(struct svc_sock *svsk);
 static int svc_deferred_recv(struct svc_rqst *rqstp);
 static struct cache_deferred_req *svc_defer(struct cache_req *req);
+static struct svc_xprt *svc_create_socket(struct svc_serv *, int,
+					  struct sockaddr *, int, int);
 
 /* apparently the "standard" is that clients close
  * idle connections after 5 minutes, servers after
@@ -365,6 +367,7 @@ svc_sock_put(struct svc_sock *svsk)
 {
 	if (atomic_dec_and_test(&svsk->sk_inuse)) {
 		BUG_ON(!test_bit(SK_DEAD, &svsk->sk_flags));
+		module_put(svsk->sk_xprt.xpt_class->xcl_owner);
 		svsk->sk_xprt.xpt_ops->xpo_free(&svsk->sk_xprt);
 	}
 }
@@ -902,7 +905,15 @@ static struct svc_xprt *svc_udp_accept(struct svc_xprt *xprt)
 	return NULL;
 }
 
+static struct svc_xprt *svc_udp_create(struct svc_serv *serv,
+				       struct sockaddr *sa, int salen,
+				       int flags)
+{
+	return svc_create_socket(serv, IPPROTO_UDP, sa, salen, flags);
+}
+
 static struct svc_xprt_ops svc_udp_ops = {
+	.xpo_create = svc_udp_create,
 	.xpo_recvfrom = svc_udp_recvfrom,
 	.xpo_sendto = svc_udp_sendto,
 	.xpo_release_rqst = svc_release_skb,
@@ -915,6 +926,7 @@ static struct svc_xprt_ops svc_udp_ops = {
 
 static struct svc_xprt_class svc_udp_class = {
 	.xcl_name = "udp",
+	.xcl_owner = THIS_MODULE,
 	.xcl_ops = &svc_udp_ops,
 	.xcl_max_payload = RPCSVC_MAXPAYLOAD_UDP,
 };
@@ -1384,7 +1396,15 @@ static int svc_tcp_has_wspace(struct svc_xprt *xprt)
 	return 1;
 }
 
+static struct svc_xprt *svc_tcp_create(struct svc_serv *serv,
+				       struct sockaddr *sa, int salen,
+				       int flags)
+{
+	return svc_create_socket(serv, IPPROTO_TCP, sa, salen, flags);
+}
+
 static struct svc_xprt_ops svc_tcp_ops = {
+	.xpo_create = svc_tcp_create,
 	.xpo_recvfrom = svc_tcp_recvfrom,
 	.xpo_sendto = svc_tcp_sendto,
 	.xpo_release_rqst = svc_release_skb,
@@ -1397,6 +1417,7 @@ static struct svc_xprt_ops svc_tcp_ops = {
 
 static struct svc_xprt_class svc_tcp_class = {
 	.xcl_name = "tcp",
+	.xcl_owner = THIS_MODULE,
 	.xcl_ops = &svc_tcp_ops,
 	.xcl_max_payload = RPCSVC_MAXPAYLOAD_TCP,
 };
@@ -1573,8 +1594,14 @@ svc_recv(struct svc_rqst *rqstp, long timeout)
 	} else if (test_bit(SK_LISTENER, &svsk->sk_flags)) {
 		struct svc_xprt *newxpt;
 		newxpt = svsk->sk_xprt.xpt_ops->xpo_accept(&svsk->sk_xprt);
-		if (newxpt)
+		if (newxpt) {
+			/*
+			 * We know this module_get will succeed because the
+			 * listener holds a reference too
+			 */
+			__module_get(newxpt->xpt_class->xcl_owner);
 			svc_check_conn_limits(svsk->sk_server);
+		}
 		svc_sock_received(svsk);
 	} else {
 		dprintk("svc: server %p, pool %u, socket %p, inuse=%d\n",
@@ -1814,8 +1841,10 @@ EXPORT_SYMBOL_GPL(svc_addsock);
 /*
  * Create socket for RPC service.
  */
-static int svc_create_socket(struct svc_serv *serv, int protocol,
-				struct sockaddr *sin, int len, int flags)
+static struct svc_xprt *svc_create_socket(struct svc_serv *serv,
+					  int protocol,
+					  struct sockaddr *sin, int len,
+					  int flags)
 {
 	struct svc_sock	*svsk;
 	struct socket	*sock;
@@ -1830,13 +1859,13 @@ static int svc_create_socket(struct svc_serv *serv, int protocol,
 	if (protocol != IPPROTO_UDP && protocol != IPPROTO_TCP) {
 		printk(KERN_WARNING "svc: only UDP and TCP "
 				"sockets supported\n");
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 	}
 	type = (protocol == IPPROTO_UDP)? SOCK_DGRAM : SOCK_STREAM;
 
 	error = sock_create_kern(sin->sa_family, type, protocol, &sock);
 	if (error < 0)
-		return error;
+		return ERR_PTR(error);
 
 	svc_reclassify_socket(sock);
 
@@ -1853,13 +1882,13 @@ static int svc_create_socket(struct svc_serv *serv, int protocol,
 
 	if ((svsk = svc_setup_socket(serv, sock, &error, flags)) != NULL) {
 		svc_sock_received(svsk);
-		return ntohs(inet_sk(svsk->sk_sk)->sport);
+		return (struct svc_xprt *)svsk;
 	}
 
 bummer:
 	dprintk("svc: svc_create_socket error = %d\n", -error);
 	sock_release(sock);
-	return error;
+	return ERR_PTR(error);
 }
 
 /*
@@ -1970,15 +1999,15 @@ void svc_force_close_socket(struct svc_sock *svsk)
 int svc_makesock(struct svc_serv *serv, int protocol, unsigned short port,
 			int flags)
 {
-	struct sockaddr_in sin = {
-		.sin_family		= AF_INET,
-		.sin_addr.s_addr	= INADDR_ANY,
-		.sin_port		= htons(port),
-	};
-
 	dprintk("svc: creating socket proto = %d\n", protocol);
-	return svc_create_socket(serv, protocol, (struct sockaddr *) &sin,
-							sizeof(sin), flags);
+	switch (protocol) {
+	case IPPROTO_TCP:
+		return svc_create_xprt(serv, "tcp", port, flags);
+	case IPPROTO_UDP:
+		return svc_create_xprt(serv, "udp", port, flags);
+	default:
+		return -EINVAL;
+	}
 }
 
 /*
