@@ -315,6 +315,8 @@ static int svc_recvfrom(struct svc_rqst *rqstp, struct kvec *iov, int nr,
 	};
 	int len;
 
+	rqstp->rq_xprt_hlen = 0;
+
 	len = kernel_recvmsg(svsk->sk_sock, &msg, iov, nr, buflen,
 				msg.msg_flags);
 

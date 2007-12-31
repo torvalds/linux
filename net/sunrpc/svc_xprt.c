@@ -29,7 +29,6 @@
 #include <linux/sunrpc/types.h>
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/xdr.h>
-#include <linux/sunrpc/svcsock.h>
 #include <linux/sunrpc/stats.h>
 #include <linux/sunrpc/svc_xprt.h>
 
@@ -859,10 +858,18 @@ static void svc_revisit(struct cache_deferred_req *dreq, int too_many)
 	svc_xprt_put(xprt);
 }
 
+/*
+ * Save the request off for later processing. The request buffer looks
+ * like this:
+ *
+ * <xprt-header><rpc-header><rpc-pagelist><rpc-tail>
+ *
+ * This code can only handle requests that consist of an xprt-header
+ * and rpc-header.
+ */
 static struct cache_deferred_req *svc_defer(struct cache_req *req)
 {
 	struct svc_rqst *rqstp = container_of(req, struct svc_rqst, rq_chandle);
-	int size = sizeof(struct svc_deferred_req) + (rqstp->rq_arg.len);
 	struct svc_deferred_req *dr;
 
 	if (rqstp->rq_arg.page_len)
@@ -871,8 +878,10 @@ static struct cache_deferred_req *svc_defer(struct cache_req *req)
 		dr = rqstp->rq_deferred;
 		rqstp->rq_deferred = NULL;
 	} else {
-		int skip  = rqstp->rq_arg.len - rqstp->rq_arg.head[0].iov_len;
+		size_t skip;
+		size_t size;
 		/* FIXME maybe discard if size too large */
+		size = sizeof(struct svc_deferred_req) + rqstp->rq_arg.len;
 		dr = kmalloc(size, GFP_KERNEL);
 		if (dr == NULL)
 			return NULL;
@@ -883,8 +892,12 @@ static struct cache_deferred_req *svc_defer(struct cache_req *req)
 		dr->addrlen = rqstp->rq_addrlen;
 		dr->daddr = rqstp->rq_daddr;
 		dr->argslen = rqstp->rq_arg.len >> 2;
-		memcpy(dr->args, rqstp->rq_arg.head[0].iov_base-skip,
-		       dr->argslen<<2);
+		dr->xprt_hlen = rqstp->rq_xprt_hlen;
+
+		/* back up head to the start of the buffer and copy */
+		skip = rqstp->rq_arg.len - rqstp->rq_arg.head[0].iov_len;
+		memcpy(dr->args, rqstp->rq_arg.head[0].iov_base - skip,
+		       dr->argslen << 2);
 	}
 	svc_xprt_get(rqstp->rq_xprt);
 	dr->xprt = rqstp->rq_xprt;
@@ -900,16 +913,21 @@ static int svc_deferred_recv(struct svc_rqst *rqstp)
 {
 	struct svc_deferred_req *dr = rqstp->rq_deferred;
 
-	rqstp->rq_arg.head[0].iov_base = dr->args;
-	rqstp->rq_arg.head[0].iov_len = dr->argslen<<2;
+	/* setup iov_base past transport header */
+	rqstp->rq_arg.head[0].iov_base = dr->args + (dr->xprt_hlen>>2);
+	/* The iov_len does not include the transport header bytes */
+	rqstp->rq_arg.head[0].iov_len = (dr->argslen<<2) - dr->xprt_hlen;
 	rqstp->rq_arg.page_len = 0;
-	rqstp->rq_arg.len = dr->argslen<<2;
+	/* The rq_arg.len includes the transport header bytes */
+	rqstp->rq_arg.len     = dr->argslen<<2;
 	rqstp->rq_prot        = dr->prot;
 	memcpy(&rqstp->rq_addr, &dr->addr, dr->addrlen);
 	rqstp->rq_addrlen     = dr->addrlen;
+	/* Save off transport header len in case we get deferred again */
+	rqstp->rq_xprt_hlen   = dr->xprt_hlen;
 	rqstp->rq_daddr       = dr->daddr;
 	rqstp->rq_respages    = rqstp->rq_pages;
-	return dr->argslen<<2;
+	return (dr->argslen<<2) - dr->xprt_hlen;
 }
 
 

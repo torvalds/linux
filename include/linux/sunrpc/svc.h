@@ -217,6 +217,7 @@ struct svc_rqst {
 	void *			rq_xprt_ctxt;	/* transport specific context ptr */
 	struct svc_deferred_req*rq_deferred;	/* deferred request we are replaying */
 
+	size_t			rq_xprt_hlen;	/* xprt header len */
 	struct xdr_buf		rq_arg;
 	struct xdr_buf		rq_res;
 	struct page *		rq_pages[RPCSVC_MAXPAGES];
@@ -322,6 +323,7 @@ struct svc_deferred_req {
 	size_t			addrlen;
 	union svc_addr_u	daddr;	/* where reply must come from */
 	struct cache_deferred_req handle;
+	size_t			xprt_hlen;
 	int			argslen;
 	__be32			args[0];
 };
