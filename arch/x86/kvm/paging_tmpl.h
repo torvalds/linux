@@ -402,6 +402,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 	page = gfn_to_page(vcpu->kvm, walker.gfn);
 
 	spin_lock(&vcpu->kvm->mmu_lock);
+	kvm_mmu_free_some_pages(vcpu);
 	shadow_pte = FNAME(fetch)(vcpu, addr, &walker, user_fault, write_fault,
 				  &write_pt, page);
 	pgprintk("%s: shadow pte %p %llx ptwrite %d\n", __FUNCTION__,
