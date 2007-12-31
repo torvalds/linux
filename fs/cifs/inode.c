@@ -1607,7 +1607,13 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
 	else if (attrs->ia_valid & ATTR_MODE) {
 		rc = 0;
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL)
+			rc = mode_to_acl(direntry->d_inode, full_path, mode);
+		else if ((mode & S_IWUGO) == 0) /* not writeable */ {
+#else
 		if ((mode & S_IWUGO) == 0) /* not writeable */ {
+#endif
 			if ((cifsInode->cifsAttrs & ATTR_READONLY) == 0) {
 				set_dosattr = TRUE;
 				time_buf.Attributes =
@@ -1626,10 +1632,10 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 			if (time_buf.Attributes == 0)
 				time_buf.Attributes |= cpu_to_le32(ATTR_NORMAL);
 		}
-		/* BB to be implemented -
-		   via Windows security descriptors or streams */
-		/* CIFSSMBWinSetPerms(xid, pTcon, full_path, mode, uid, gid,
-				      cifs_sb->local_nls); */
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL)
+			mode_to_acl(direntry->d_inode, full_path, mode);
+#endif
 	}
 
 	if (attrs->ia_valid & ATTR_ATIME) {
