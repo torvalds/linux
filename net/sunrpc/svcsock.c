@@ -896,6 +896,12 @@ static int svc_udp_has_wspace(struct svc_xprt *xprt)
 	return 1;
 }
 
+static struct svc_xprt *svc_udp_accept(struct svc_xprt *xprt)
+{
+	BUG();
+	return NULL;
+}
+
 static struct svc_xprt_ops svc_udp_ops = {
 	.xpo_recvfrom = svc_udp_recvfrom,
 	.xpo_sendto = svc_udp_sendto,
@@ -904,6 +910,7 @@ static struct svc_xprt_ops svc_udp_ops = {
 	.xpo_free = svc_sock_free,
 	.xpo_prep_reply_hdr = svc_udp_prep_reply_hdr,
 	.xpo_has_wspace = svc_udp_has_wspace,
+	.xpo_accept = svc_udp_accept,
 };
 
 static struct svc_xprt_class svc_udp_class = {
@@ -1028,9 +1035,9 @@ static inline int svc_port_is_privileged(struct sockaddr *sin)
 /*
  * Accept a TCP connection
  */
-static void
-svc_tcp_accept(struct svc_sock *svsk)
+static struct svc_xprt *svc_tcp_accept(struct svc_xprt *xprt)
 {
+	struct svc_sock *svsk = container_of(xprt, struct svc_sock, sk_xprt);
 	struct sockaddr_storage addr;
 	struct sockaddr	*sin = (struct sockaddr *) &addr;
 	struct svc_serv	*serv = svsk->sk_server;
@@ -1042,7 +1049,7 @@ svc_tcp_accept(struct svc_sock *svsk)
 
 	dprintk("svc: tcp_accept %p sock %p\n", svsk, sock);
 	if (!sock)
-		return;
+		return NULL;
 
 	clear_bit(SK_CONN, &svsk->sk_flags);
 	err = kernel_accept(sock, &newsock, O_NONBLOCK);
@@ -1053,7 +1060,7 @@ svc_tcp_accept(struct svc_sock *svsk)
 		else if (err != -EAGAIN && net_ratelimit())
 			printk(KERN_WARNING "%s: accept failed (err %d)!\n",
 				   serv->sv_name, -err);
-		return;
+		return NULL;
 	}
 
 	set_bit(SK_CONN, &svsk->sk_flags);
@@ -1147,11 +1154,11 @@ svc_tcp_accept(struct svc_sock *svsk)
 	if (serv->sv_stats)
 		serv->sv_stats->nettcpconn++;
 
-	return;
+	return &newsvsk->sk_xprt;
 
 failed:
 	sock_release(newsock);
-	return;
+	return NULL;
 }
 
 /*
@@ -1174,12 +1181,6 @@ svc_tcp_recvfrom(struct svc_rqst *rqstp)
 	if ((rqstp->rq_deferred = svc_deferred_dequeue(svsk))) {
 		svc_sock_received(svsk);
 		return svc_deferred_recv(rqstp);
-	}
-
-	if (svsk->sk_sk->sk_state == TCP_LISTEN) {
-		svc_tcp_accept(svsk);
-		svc_sock_received(svsk);
-		return 0;
 	}
 
 	if (test_and_clear_bit(SK_CHNGBUF, &svsk->sk_flags))
@@ -1393,6 +1394,7 @@ static struct svc_xprt_ops svc_tcp_ops = {
 	.xpo_free = svc_sock_free,
 	.xpo_prep_reply_hdr = svc_tcp_prep_reply_hdr,
 	.xpo_has_wspace = svc_tcp_has_wspace,
+	.xpo_accept = svc_tcp_accept,
 };
 
 static struct svc_xprt_class svc_tcp_class = {
@@ -1423,6 +1425,7 @@ svc_tcp_init(struct svc_sock *svsk)
 
 	if (sk->sk_state == TCP_LISTEN) {
 		dprintk("setting up TCP socket for listening\n");
+		set_bit(SK_LISTENER, &svsk->sk_flags);
 		sk->sk_data_ready = svc_tcp_listen_data_ready;
 		set_bit(SK_CONN, &svsk->sk_flags);
 	} else {
@@ -1569,6 +1572,10 @@ svc_recv(struct svc_rqst *rqstp, long timeout)
 	if (test_bit(SK_CLOSE, &svsk->sk_flags)) {
 		dprintk("svc_recv: found SK_CLOSE\n");
 		svc_delete_socket(svsk);
+	} else if (test_bit(SK_LISTENER, &svsk->sk_flags)) {
+		struct svc_xprt *newxpt;
+		newxpt = svsk->sk_xprt.xpt_ops->xpo_accept(&svsk->sk_xprt);
+		svc_sock_received(svsk);
 	} else {
 		dprintk("svc: server %p, pool %u, socket %p, inuse=%d\n",
 			rqstp, pool->sp_id, svsk, atomic_read(&svsk->sk_inuse));
