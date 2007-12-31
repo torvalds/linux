@@ -9,7 +9,10 @@
 # gcc-2.95.3, `030301' for gcc-3.3.1, etc.
 #
 
-if [[ $1 = "-p" ]] ; then with_patchlevel=1; shift; fi
+if [ "$1" = "-p" ] ; then
+	with_patchlevel=1;
+	shift;
+fi
 
 compiler="$*"
 
