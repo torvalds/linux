@@ -1964,7 +1964,15 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 
 	if (existingCifsSes) {
 		pSesInfo = existingCifsSes;
-		cFYI(1, ("Existing smb sess found"));
+		cFYI(1, ("Existing smb sess found (status=%d)",
+			pSesInfo->status));
+		if (pSesInfo->status == CifsNeedReconnect) {
+			cFYI(1, ("Session needs reconnect"));
+			down(&pSesInfo->sesSem);
+			rc = cifs_setup_session(xid, pSesInfo,
+						cifs_sb->local_nls);
+			up(&pSesInfo->sesSem);
+		}
 	} else if (!rc) {
 		cFYI(1, ("Existing smb sess not found"));
 		pSesInfo = sesInfoAlloc();
