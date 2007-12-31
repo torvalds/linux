@@ -1064,7 +1064,6 @@ static struct svc_xprt *svc_tcp_accept(struct svc_xprt *xprt)
 	}
 
 	set_bit(SK_CONN, &svsk->sk_flags);
-	svc_sock_enqueue(svsk);
 
 	err = kernel_getpeername(newsock, sin, &slen);
 	if (err < 0) {
