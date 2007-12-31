@@ -1152,16 +1152,8 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		}
 	}
 
-	i = netxen_get_cmd_desc_totallength(&hw->cmd_desc_head[saved_producer]);
-
-	hw->cmd_desc_head[saved_producer].flags_opcode =
-		cpu_to_le16(hw->cmd_desc_head[saved_producer].flags_opcode);
-	hw->cmd_desc_head[saved_producer].num_of_buffers_total_length =
-	  cpu_to_le32(hw->cmd_desc_head[saved_producer].
-			  num_of_buffers_total_length);
-
 	spin_lock_bh(&adapter->tx_lock);
-	adapter->stats.txbytes += i;
+	adapter->stats.txbytes += skb->len;
 
 	/* Code to update the adapter considering how many producer threads
 	   are currently working */
