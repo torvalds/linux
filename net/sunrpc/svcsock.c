@@ -1448,31 +1448,31 @@ svc_sock_update_bufs(struct svc_serv *serv)
 static void svc_check_conn_limits(struct svc_serv *serv)
 {
 	if (serv->sv_tmpcnt > (serv->sv_nrthreads+3)*20) {
-		struct svc_sock *svsk = NULL;
+		struct svc_xprt *xprt = NULL;
 		spin_lock_bh(&serv->sv_lock);
 		if (!list_empty(&serv->sv_tempsocks)) {
 			if (net_ratelimit()) {
 				/* Try to help the admin */
-				printk(KERN_NOTICE "%s: too many open TCP "
-				       "sockets, consider increasing the "
+				printk(KERN_NOTICE "%s: too many open  "
+				       "connections, consider increasing the "
 				       "number of nfsd threads\n",
 				       serv->sv_name);
 			}
 			/*
-			 * Always select the oldest socket. It's not fair,
+			 * Always select the oldest connection. It's not fair,
 			 * but so is life
 			 */
-			svsk = list_entry(serv->sv_tempsocks.prev,
-					  struct svc_sock,
-					  sk_xprt.xpt_list);
-			set_bit(XPT_CLOSE, &svsk->sk_xprt.xpt_flags);
-			svc_xprt_get(&svsk->sk_xprt);
+			xprt = list_entry(serv->sv_tempsocks.prev,
+					  struct svc_xprt,
+					  xpt_list);
+			set_bit(XPT_CLOSE, &xprt->xpt_flags);
+			svc_xprt_get(xprt);
 		}
 		spin_unlock_bh(&serv->sv_lock);
 
-		if (svsk) {
-			svc_xprt_enqueue(&svsk->sk_xprt);
-			svc_xprt_put(&svsk->sk_xprt);
+		if (xprt) {
+			svc_xprt_enqueue(xprt);
+			svc_xprt_put(xprt);
 		}
 	}
 }
