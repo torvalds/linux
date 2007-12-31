@@ -591,7 +591,7 @@ static void tcp_event_data_recv(struct sock *sk, struct sk_buff *skb)
 			 * restart window, so that we send ACKs quickly.
 			 */
 			tcp_incr_quickack(sk);
-			sk_stream_mem_reclaim(sk);
+			sk_mem_reclaim(sk);
 		}
 	}
 	icsk->icsk_ack.lrcvtime = now;
@@ -2851,7 +2851,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets)
 			break;
 
 		tcp_unlink_write_queue(skb, sk);
-		sk_stream_free_skb(sk, skb);
+		sk_wmem_free_skb(sk, skb);
 		tcp_clear_all_retrans_hints(tp);
 	}
 
@@ -3567,7 +3567,7 @@ static void tcp_fin(struct sk_buff *skb, struct sock *sk, struct tcphdr *th)
 	__skb_queue_purge(&tp->out_of_order_queue);
 	if (tcp_is_sack(tp))
 		tcp_sack_reset(&tp->rx_opt);
-	sk_stream_mem_reclaim(sk);
+	sk_mem_reclaim(sk);
 
 	if (!sock_flag(sk, SOCK_DEAD)) {
 		sk->sk_state_change(sk);
@@ -3850,12 +3850,12 @@ static void tcp_data_queue(struct sock *sk, struct sk_buff *skb)
 queue_and_out:
 			if (eaten < 0 &&
 			    (atomic_read(&sk->sk_rmem_alloc) > sk->sk_rcvbuf ||
-			     !sk_stream_rmem_schedule(sk, skb))) {
+			     !sk_rmem_schedule(sk, skb->truesize))) {
 				if (tcp_prune_queue(sk) < 0 ||
-				    !sk_stream_rmem_schedule(sk, skb))
+				    !sk_rmem_schedule(sk, skb->truesize))
 					goto drop;
 			}
-			sk_stream_set_owner_r(skb, sk);
+			skb_set_owner_r(skb, sk);
 			__skb_queue_tail(&sk->sk_receive_queue, skb);
 		}
 		tp->rcv_nxt = TCP_SKB_CB(skb)->end_seq;
@@ -3924,9 +3924,9 @@ drop:
 	TCP_ECN_check_ce(tp, skb);
 
 	if (atomic_read(&sk->sk_rmem_alloc) > sk->sk_rcvbuf ||
-	    !sk_stream_rmem_schedule(sk, skb)) {
+	    !sk_rmem_schedule(sk, skb->truesize)) {
 		if (tcp_prune_queue(sk) < 0 ||
-		    !sk_stream_rmem_schedule(sk, skb))
+		    !sk_rmem_schedule(sk, skb->truesize))
 			goto drop;
 	}
 
@@ -3937,7 +3937,7 @@ drop:
 	SOCK_DEBUG(sk, "out of order segment: rcv_next %X seq %X - %X\n",
 		   tp->rcv_nxt, TCP_SKB_CB(skb)->seq, TCP_SKB_CB(skb)->end_seq);
 
-	sk_stream_set_owner_r(skb, sk);
+	skb_set_owner_r(skb, sk);
 
 	if (!skb_peek(&tp->out_of_order_queue)) {
 		/* Initial out of order segment, build 1 SACK. */
@@ -4079,7 +4079,7 @@ tcp_collapse(struct sock *sk, struct sk_buff_head *list,
 		memcpy(nskb->cb, skb->cb, sizeof(skb->cb));
 		TCP_SKB_CB(nskb)->seq = TCP_SKB_CB(nskb)->end_seq = start;
 		__skb_insert(nskb, skb->prev, skb, list);
-		sk_stream_set_owner_r(nskb, sk);
+		skb_set_owner_r(nskb, sk);
 
 		/* Copy data, releasing collapsed skbs. */
 		while (copy > 0) {
@@ -4177,7 +4177,7 @@ static int tcp_prune_queue(struct sock *sk)
 		     sk->sk_receive_queue.next,
 		     (struct sk_buff*)&sk->sk_receive_queue,
 		     tp->copied_seq, tp->rcv_nxt);
-	sk_stream_mem_reclaim(sk);
+	sk_mem_reclaim(sk);
 
 	if (atomic_read(&sk->sk_rmem_alloc) <= sk->sk_rcvbuf)
 		return 0;
@@ -4197,7 +4197,7 @@ static int tcp_prune_queue(struct sock *sk)
 		 */
 		if (tcp_is_sack(tp))
 			tcp_sack_reset(&tp->rx_opt);
-		sk_stream_mem_reclaim(sk);
+		sk_mem_reclaim(sk);
 	}
 
 	if (atomic_read(&sk->sk_rmem_alloc) <= sk->sk_rcvbuf)
@@ -4699,7 +4699,7 @@ int tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 				/* Bulk data transfer: receiver */
 				__skb_pull(skb,tcp_header_len);
 				__skb_queue_tail(&sk->sk_receive_queue, skb);
-				sk_stream_set_owner_r(skb, sk);
+				skb_set_owner_r(skb, sk);
 				tp->rcv_nxt = TCP_SKB_CB(skb)->end_seq;
 			}
 

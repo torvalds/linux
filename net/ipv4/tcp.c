@@ -308,7 +308,7 @@ struct tcp_splice_state {
 /*
  * Pressure flag: try to collapse.
  * Technical note: it is used by multiple contexts non atomically.
- * All the sk_stream_mem_schedule() is of this nature: accounting
+ * All the __sk_mem_schedule() is of this nature: accounting
  * is strict, actions are advisory and have some latency.
  */
 int tcp_memory_pressure __read_mostly;
@@ -485,7 +485,8 @@ static inline void skb_entail(struct sock *sk, struct sk_buff *skb)
 	tcb->sacked  = 0;
 	skb_header_release(skb);
 	tcp_add_write_queue_tail(sk, skb);
-	sk_charge_skb(sk, skb);
+	sk->sk_wmem_queued += skb->truesize;
+	sk_mem_charge(sk, skb->truesize);
 	if (tp->nonagle & TCP_NAGLE_PUSH)
 		tp->nonagle &= ~TCP_NAGLE_PUSH;
 }
@@ -638,7 +639,7 @@ struct sk_buff *sk_stream_alloc_skb(struct sock *sk, int size, gfp_t gfp)
 
 	skb = alloc_skb_fclone(size + sk->sk_prot->max_header, gfp);
 	if (skb) {
-		if (sk_stream_wmem_schedule(sk, skb->truesize)) {
+		if (sk_wmem_schedule(sk, skb->truesize)) {
 			/*
 			 * Make sure that we have exactly size bytes
 			 * available to the caller, no more, no less.
@@ -707,7 +708,7 @@ new_segment:
 			tcp_mark_push(tp, skb);
 			goto new_segment;
 		}
-		if (!sk_stream_wmem_schedule(sk, copy))
+		if (!sk_wmem_schedule(sk, copy))
 			goto wait_for_memory;
 
 		if (can_coalesce) {
@@ -721,7 +722,7 @@ new_segment:
 		skb->data_len += copy;
 		skb->truesize += copy;
 		sk->sk_wmem_queued += copy;
-		sk->sk_forward_alloc -= copy;
+		sk_mem_charge(sk, copy);
 		skb->ip_summed = CHECKSUM_PARTIAL;
 		tp->write_seq += copy;
 		TCP_SKB_CB(skb)->end_seq += copy;
@@ -928,7 +929,7 @@ new_segment:
 				if (copy > PAGE_SIZE - off)
 					copy = PAGE_SIZE - off;
 
-				if (!sk_stream_wmem_schedule(sk, copy))
+				if (!sk_wmem_schedule(sk, copy))
 					goto wait_for_memory;
 
 				if (!page) {
@@ -1019,7 +1020,7 @@ do_fault:
 		 * reset, where we can be unlinking the send_head.
 		 */
 		tcp_check_send_head(sk, skb);
-		sk_stream_free_skb(sk, skb);
+		sk_wmem_free_skb(sk, skb);
 	}
 
 do_error:
@@ -1738,7 +1739,7 @@ void tcp_close(struct sock *sk, long timeout)
 		__kfree_skb(skb);
 	}
 
-	sk_stream_mem_reclaim(sk);
+	sk_mem_reclaim(sk);
 
 	/* As outlined in RFC 2525, section 2.17, we send a RST here because
 	 * data was lost. To witness the awful effects of the old behavior of
@@ -1841,7 +1842,7 @@ adjudge_to_death:
 		}
 	}
 	if (sk->sk_state != TCP_CLOSE) {
-		sk_stream_mem_reclaim(sk);
+		sk_mem_reclaim(sk);
 		if (tcp_too_many_orphans(sk,
 				atomic_read(sk->sk_prot->orphan_count))) {
 			if (net_ratelimit())
@@ -2658,11 +2659,11 @@ void __init tcp_init(void)
 	limit = ((unsigned long)sysctl_tcp_mem[1]) << (PAGE_SHIFT - 7);
 	max_share = min(4UL*1024*1024, limit);
 
-	sysctl_tcp_wmem[0] = SK_STREAM_MEM_QUANTUM;
+	sysctl_tcp_wmem[0] = SK_MEM_QUANTUM;
 	sysctl_tcp_wmem[1] = 16*1024;
 	sysctl_tcp_wmem[2] = max(64*1024, max_share);
 
-	sysctl_tcp_rmem[0] = SK_STREAM_MEM_QUANTUM;
+	sysctl_tcp_rmem[0] = SK_MEM_QUANTUM;
 	sysctl_tcp_rmem[1] = 87380;
 	sysctl_tcp_rmem[2] = max(87380, max_share);
 

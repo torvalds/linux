@@ -1196,8 +1196,8 @@ static inline void tcp_write_queue_purge(struct sock *sk)
 	struct sk_buff *skb;
 
 	while ((skb = __skb_dequeue(&sk->sk_write_queue)) != NULL)
-		sk_stream_free_skb(sk, skb);
-	sk_stream_mem_reclaim(sk);
+		sk_wmem_free_skb(sk, skb);
+	sk_mem_reclaim(sk);
 }
 
 static inline struct sk_buff *tcp_write_queue_head(struct sock *sk)

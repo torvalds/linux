@@ -460,25 +460,6 @@ static inline int sk_stream_memory_free(struct sock *sk)
 	return sk->sk_wmem_queued < sk->sk_sndbuf;
 }
 
-extern void sk_stream_rfree(struct sk_buff *skb);
-
-static inline void sk_stream_set_owner_r(struct sk_buff *skb, struct sock *sk)
-{
-	skb->sk = sk;
-	skb->destructor = sk_stream_rfree;
-	atomic_add(skb->truesize, &sk->sk_rmem_alloc);
-	sk->sk_forward_alloc -= skb->truesize;
-}
-
-static inline void sk_stream_free_skb(struct sock *sk, struct sk_buff *skb)
-{
-	skb_truesize_check(skb);
-	sock_set_flag(sk, SOCK_QUEUE_SHRUNK);
-	sk->sk_wmem_queued   -= skb->truesize;
-	sk->sk_forward_alloc += skb->truesize;
-	__kfree_skb(skb);
-}
-
 /* The per-socket spinlock must be held here. */
 static inline void sk_add_backlog(struct sock *sk, struct sk_buff *skb)
 {
@@ -576,7 +557,7 @@ struct proto {
 	/*
 	 * Pressure flag: try to collapse.
 	 * Technical note: it is used by multiple contexts non atomically.
-	 * All the sk_stream_mem_schedule() is of this nature: accounting
+	 * All the __sk_mem_schedule() is of this nature: accounting
 	 * is strict, actions are advisory and have some latency.
 	 */
 	int			*memory_pressure;
@@ -712,33 +693,73 @@ static inline struct inode *SOCK_INODE(struct socket *socket)
 	return &container_of(socket, struct socket_alloc, socket)->vfs_inode;
 }
 
-extern void __sk_stream_mem_reclaim(struct sock *sk);
-extern int sk_stream_mem_schedule(struct sock *sk, int size, int kind);
+/*
+ * Functions for memory accounting
+ */
+extern int __sk_mem_schedule(struct sock *sk, int size, int kind);
+extern void __sk_mem_reclaim(struct sock *sk);
 
-#define SK_STREAM_MEM_QUANTUM ((int)PAGE_SIZE)
-#define SK_STREAM_MEM_QUANTUM_SHIFT ilog2(SK_STREAM_MEM_QUANTUM)
+#define SK_MEM_QUANTUM ((int)PAGE_SIZE)
+#define SK_MEM_QUANTUM_SHIFT ilog2(SK_MEM_QUANTUM)
+#define SK_MEM_SEND	0
+#define SK_MEM_RECV	1
 
-static inline int sk_stream_pages(int amt)
+static inline int sk_mem_pages(int amt)
 {
-	return (amt + SK_STREAM_MEM_QUANTUM - 1) >> SK_STREAM_MEM_QUANTUM_SHIFT;
+	return (amt + SK_MEM_QUANTUM - 1) >> SK_MEM_QUANTUM_SHIFT;
 }
 
-static inline void sk_stream_mem_reclaim(struct sock *sk)
+static inline int sk_has_account(struct sock *sk)
 {
-	if (sk->sk_forward_alloc >= SK_STREAM_MEM_QUANTUM)
-		__sk_stream_mem_reclaim(sk);
+	/* return true if protocol supports memory accounting */
+	return !!sk->sk_prot->memory_allocated;
 }
 
-static inline int sk_stream_rmem_schedule(struct sock *sk, struct sk_buff *skb)
+static inline int sk_wmem_schedule(struct sock *sk, int size)
 {
-	return (int)skb->truesize <= sk->sk_forward_alloc ||
-		sk_stream_mem_schedule(sk, skb->truesize, 1);
-}
-
-static inline int sk_stream_wmem_schedule(struct sock *sk, int size)
-{
+	if (!sk_has_account(sk))
+		return 1;
 	return size <= sk->sk_forward_alloc ||
-	       sk_stream_mem_schedule(sk, size, 0);
+		__sk_mem_schedule(sk, size, SK_MEM_SEND);
+}
+
+static inline int sk_rmem_schedule(struct sock *sk, int size)
+{
+	if (!sk_has_account(sk))
+		return 1;
+	return size <= sk->sk_forward_alloc ||
+		__sk_mem_schedule(sk, size, SK_MEM_RECV);
+}
+
+static inline void sk_mem_reclaim(struct sock *sk)
+{
+	if (!sk_has_account(sk))
+		return;
+	if (sk->sk_forward_alloc >= SK_MEM_QUANTUM)
+		__sk_mem_reclaim(sk);
+}
+
+static inline void sk_mem_charge(struct sock *sk, int size)
+{
+	if (!sk_has_account(sk))
+		return;
+	sk->sk_forward_alloc -= size;
+}
+
+static inline void sk_mem_uncharge(struct sock *sk, int size)
+{
+	if (!sk_has_account(sk))
+		return;
+	sk->sk_forward_alloc += size;
+}
+
+static inline void sk_wmem_free_skb(struct sock *sk, struct sk_buff *skb)
+{
+	skb_truesize_check(skb);
+	sock_set_flag(sk, SOCK_QUEUE_SHRUNK);
+	sk->sk_wmem_queued -= skb->truesize;
+	sk_mem_uncharge(sk, skb->truesize);
+	__kfree_skb(skb);
 }
 
 /* Used by processes to "lock" a socket state, so that
@@ -1076,12 +1097,6 @@ static inline int sk_can_gso(const struct sock *sk)
 
 extern void sk_setup_caps(struct sock *sk, struct dst_entry *dst);
 
-static inline void sk_charge_skb(struct sock *sk, struct sk_buff *skb)
-{
-	sk->sk_wmem_queued   += skb->truesize;
-	sk->sk_forward_alloc -= skb->truesize;
-}
-
 static inline int skb_copy_to_page(struct sock *sk, char __user *from,
 				   struct sk_buff *skb, struct page *page,
 				   int off, int copy)
@@ -1101,7 +1116,7 @@ static inline int skb_copy_to_page(struct sock *sk, char __user *from,
 	skb->data_len	     += copy;
 	skb->truesize	     += copy;
 	sk->sk_wmem_queued   += copy;
-	sk->sk_forward_alloc -= copy;
+	sk_mem_charge(sk, copy);
 	return 0;
 }
 
@@ -1127,6 +1142,7 @@ static inline void skb_set_owner_r(struct sk_buff *skb, struct sock *sk)
 	skb->sk = sk;
 	skb->destructor = sock_rfree;
 	atomic_add(skb->truesize, &sk->sk_rmem_alloc);
+	sk_mem_charge(sk, skb->truesize);
 }
 
 extern void sk_reset_timer(struct sock *sk, struct timer_list* timer,

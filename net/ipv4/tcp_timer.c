@@ -186,7 +186,7 @@ static void tcp_delack_timer(unsigned long data)
 		goto out_unlock;
 	}
 
-	sk_stream_mem_reclaim(sk);
+	sk_mem_reclaim(sk);
 
 	if (sk->sk_state == TCP_CLOSE || !(icsk->icsk_ack.pending & ICSK_ACK_TIMER))
 		goto out;
@@ -226,7 +226,7 @@ static void tcp_delack_timer(unsigned long data)
 
 out:
 	if (tcp_memory_pressure)
-		sk_stream_mem_reclaim(sk);
+		sk_mem_reclaim(sk);
 out_unlock:
 	bh_unlock_sock(sk);
 	sock_put(sk);
@@ -420,7 +420,7 @@ static void tcp_write_timer(unsigned long data)
 	TCP_CHECK_TIMER(sk);
 
 out:
-	sk_stream_mem_reclaim(sk);
+	sk_mem_reclaim(sk);
 out_unlock:
 	bh_unlock_sock(sk);
 	sock_put(sk);
@@ -514,7 +514,7 @@ static void tcp_keepalive_timer (unsigned long data)
 	}
 
 	TCP_CHECK_TIMER(sk);
-	sk_stream_mem_reclaim(sk);
+	sk_mem_reclaim(sk);
 
 resched:
 	inet_csk_reset_keepalive_timer (sk, elapsed);

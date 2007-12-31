@@ -1109,7 +1109,7 @@ SCTP_STATIC __init int sctp_init(void)
 	sysctl_sctp_rmem[1] = (1500 *(sizeof(struct sk_buff) + 1));
 	sysctl_sctp_rmem[2] = max(sysctl_sctp_rmem[1], max_share);
 
-	sysctl_sctp_wmem[0] = SK_STREAM_MEM_QUANTUM;
+	sysctl_sctp_wmem[0] = SK_MEM_QUANTUM;
 	sysctl_sctp_wmem[1] = 16*1024;
 	sysctl_sctp_wmem[2] = max(64*1024, max_share);
 

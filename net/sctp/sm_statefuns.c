@@ -5844,7 +5844,7 @@ static int sctp_eat_data(const struct sctp_association *asoc,
 	/*
 	 * Also try to renege to limit our memory usage in the event that
 	 * we are under memory pressure
-	 * If we can't renege, don't worry about it, the sk_stream_rmem_schedule
+	 * If we can't renege, don't worry about it, the sk_rmem_schedule
 	 * in sctp_ulpevent_make_rcvmsg will drop the frame if we grow our
 	 * memory usage too much
 	 */

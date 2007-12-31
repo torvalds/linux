@@ -174,7 +174,8 @@ static inline void sctp_set_owner_w(struct sctp_chunk *chunk)
 				sizeof(struct sctp_chunk);
 
 	atomic_add(sizeof(struct sctp_chunk), &sk->sk_wmem_alloc);
-	sk_charge_skb(sk, chunk->skb);
+	sk->sk_wmem_queued += chunk->skb->truesize;
+	sk_mem_charge(sk, chunk->skb->truesize);
 }
 
 /* Verify that this is a valid address. */
@@ -6035,10 +6036,10 @@ static void sctp_wfree(struct sk_buff *skb)
 	atomic_sub(sizeof(struct sctp_chunk), &sk->sk_wmem_alloc);
 
 	/*
-	 * This undoes what is done via sk_charge_skb
+	 * This undoes what is done via sctp_set_owner_w and sk_mem_charge
 	 */
 	sk->sk_wmem_queued   -= skb->truesize;
-	sk->sk_forward_alloc += skb->truesize;
+	sk_mem_uncharge(sk, skb->truesize);
 
 	sock_wfree(skb);
 	__sctp_write_space(asoc);
@@ -6059,9 +6060,9 @@ void sctp_sock_rfree(struct sk_buff *skb)
 	atomic_sub(event->rmem_len, &sk->sk_rmem_alloc);
 
 	/*
-	 * Mimic the behavior of sk_stream_rfree
+	 * Mimic the behavior of sock_rfree
 	 */
-	sk->sk_forward_alloc += event->rmem_len;
+	sk_mem_uncharge(sk, event->rmem_len);
 }
 
 

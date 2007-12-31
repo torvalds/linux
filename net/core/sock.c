@@ -282,6 +282,11 @@ int sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	if (err)
 		goto out;
 
+	if (!sk_rmem_schedule(sk, skb->truesize)) {
+		err = -ENOBUFS;
+		goto out;
+	}
+
 	skb->dev = NULL;
 	skb_set_owner_r(skb, sk);
 
@@ -1107,7 +1112,9 @@ void sock_rfree(struct sk_buff *skb)
 {
 	struct sock *sk = skb->sk;
 
+	skb_truesize_check(skb);
 	atomic_sub(skb->truesize, &sk->sk_rmem_alloc);
+	sk_mem_uncharge(skb->sk, skb->truesize);
 }
 
 
@@ -1383,6 +1390,103 @@ int sk_wait_data(struct sock *sk, long *timeo)
 }
 
 EXPORT_SYMBOL(sk_wait_data);
+
+/**
+ *	__sk_mem_schedule - increase sk_forward_alloc and memory_allocated
+ *	@sk: socket
+ *	@size: memory size to allocate
+ *	@kind: allocation type
+ *
+ *	If kind is SK_MEM_SEND, it means wmem allocation. Otherwise it means
+ *	rmem allocation. This function assumes that protocols which have
+ *	memory_pressure use sk_wmem_queued as write buffer accounting.
+ */
+int __sk_mem_schedule(struct sock *sk, int size, int kind)
+{
+	struct proto *prot = sk->sk_prot;
+	int amt = sk_mem_pages(size);
+	int allocated;
+
+	sk->sk_forward_alloc += amt * SK_MEM_QUANTUM;
+	allocated = atomic_add_return(amt, prot->memory_allocated);
+
+	/* Under limit. */
+	if (allocated <= prot->sysctl_mem[0]) {
+		if (prot->memory_pressure && *prot->memory_pressure)
+			*prot->memory_pressure = 0;
+		return 1;
+	}
+
+	/* Under pressure. */
+	if (allocated > prot->sysctl_mem[1])
+		if (prot->enter_memory_pressure)
+			prot->enter_memory_pressure();
+
+	/* Over hard limit. */
+	if (allocated > prot->sysctl_mem[2])
+		goto suppress_allocation;
+
+	/* guarantee minimum buffer size under pressure */
+	if (kind == SK_MEM_RECV) {
+		if (atomic_read(&sk->sk_rmem_alloc) < prot->sysctl_rmem[0])
+			return 1;
+	} else { /* SK_MEM_SEND */
+		if (sk->sk_type == SOCK_STREAM) {
+			if (sk->sk_wmem_queued < prot->sysctl_wmem[0])
+				return 1;
+		} else if (atomic_read(&sk->sk_wmem_alloc) <
+			   prot->sysctl_wmem[0])
+				return 1;
+	}
+
+	if (prot->memory_pressure) {
+		if (!*prot->memory_pressure ||
+		    prot->sysctl_mem[2] > atomic_read(prot->sockets_allocated) *
+		    sk_mem_pages(sk->sk_wmem_queued +
+				 atomic_read(&sk->sk_rmem_alloc) +
+				 sk->sk_forward_alloc))
+			return 1;
+	}
+
+suppress_allocation:
+
+	if (kind == SK_MEM_SEND && sk->sk_type == SOCK_STREAM) {
+		sk_stream_moderate_sndbuf(sk);
+
+		/* Fail only if socket is _under_ its sndbuf.
+		 * In this case we cannot block, so that we have to fail.
+		 */
+		if (sk->sk_wmem_queued + size >= sk->sk_sndbuf)
+			return 1;
+	}
+
+	/* Alas. Undo changes. */
+	sk->sk_forward_alloc -= amt * SK_MEM_QUANTUM;
+	atomic_sub(amt, prot->memory_allocated);
+	return 0;
+}
+
+EXPORT_SYMBOL(__sk_mem_schedule);
+
+/**
+ *	__sk_reclaim - reclaim memory_allocated
+ *	@sk: socket
+ */
+void __sk_mem_reclaim(struct sock *sk)
+{
+	struct proto *prot = sk->sk_prot;
+
+	atomic_sub(sk->sk_forward_alloc / SK_MEM_QUANTUM,
+		   prot->memory_allocated);
+	sk->sk_forward_alloc &= SK_MEM_QUANTUM - 1;
+
+	if (prot->memory_pressure && *prot->memory_pressure &&
+	    (atomic_read(prot->memory_allocated) < prot->sysctl_mem[0]))
+		*prot->memory_pressure = 0;
+}
+
+EXPORT_SYMBOL(__sk_mem_reclaim);
+
 
 /*
  * Set of default routines for initialising struct proto_ops when
