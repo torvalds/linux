@@ -602,7 +602,6 @@ struct ehci_itd {
 	unsigned		frame;		/* where scheduled */
 	unsigned		pg;
 	unsigned		index[8];	/* in urb->iso_frame_desc */
-	u8			usecs[8];
 } __attribute__ ((aligned (32)));
 
 /*-------------------------------------------------------------------------*/

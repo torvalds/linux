@@ -119,7 +119,8 @@ periodic_usecs (struct ehci_hcd *ehci, unsigned frame, unsigned uframe)
 			q = &q->fstn->fstn_next;
 			break;
 		case Q_TYPE_ITD:
-			usecs += q->itd->usecs [uframe];
+			if (q->itd->hw_transaction[uframe])
+				usecs += q->itd->stream->usecs;
 			hw_p = &q->itd->hw_next;
 			q = &q->itd->itd_next;
 			break;
@@ -1536,7 +1537,6 @@ itd_link_urb (
 		uframe = next_uframe & 0x07;
 		frame = next_uframe >> 3;
 
-		itd->usecs [uframe] = stream->usecs;
 		itd_patch(ehci, itd, iso_sched, packet, uframe);
 
 		next_uframe += stream->interval;
