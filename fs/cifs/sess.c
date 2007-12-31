@@ -542,7 +542,7 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 
 		if (ses->capabilities & CAP_UNICODE) {
 			/* unicode strings must be word aligned */
-			if (iov[0].iov_len % 2) {
+			if ((iov[0].iov_len + iov[1].iov_len) % 2) {
 				*bcc_ptr = 0;
 				bcc_ptr++;
 			}
