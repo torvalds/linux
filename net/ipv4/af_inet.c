@@ -139,6 +139,8 @@ void inet_sock_destruct(struct sock *sk)
 	__skb_queue_purge(&sk->sk_receive_queue);
 	__skb_queue_purge(&sk->sk_error_queue);
 
+	sk_mem_reclaim(sk);
+
 	if (sk->sk_type == SOCK_STREAM && sk->sk_state != TCP_CLOSE) {
 		printk("Attempt to release TCP socket in state %d %p\n",
 		       sk->sk_state, sk);
@@ -1416,6 +1418,9 @@ static int __init inet_init(void)
 
 	/* Setup TCP slab cache for open requests. */
 	tcp_init();
+
+	/* Setup UDP memory threshold */
+	udp_init();
 
 	/* Add UDP-Lite (RFC 3828) */
 	udplite4_register();

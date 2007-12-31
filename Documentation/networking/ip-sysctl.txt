@@ -446,6 +446,33 @@ tcp_dma_copybreak - INTEGER
 	and CONFIG_NET_DMA is enabled.
 	Default: 4096
 
+UDP variables:
+
+udp_mem - vector of 3 INTEGERs: min, pressure, max
+	Number of pages allowed for queueing by all UDP sockets.
+
+	min: Below this number of pages UDP is not bothered about its
+	memory appetite. When amount of memory allocated by UDP exceeds
+	this number, UDP starts to moderate memory usage.
+
+	pressure: This value was introduced to follow format of tcp_mem.
+
+	max: Number of pages allowed for queueing by all UDP sockets.
+
+	Default is calculated at boot time from amount of available memory.
+
+udp_rmem_min - INTEGER
+	Minimal size of receive buffer used by UDP sockets in moderation.
+	Each UDP socket is able to use the size for receiving data, even if
+	total pages of UDP sockets exceed udp_mem pressure. The unit is byte.
+	Default: 4096
+
+udp_wmem_min - INTEGER
+	Minimal size of send buffer used by UDP sockets in moderation.
+	Each UDP socket is able to use the size for sending data, even if
+	total pages of UDP sockets exceed udp_mem pressure. The unit is byte.
+	Default: 4096
+
 CIPSOv4 Variables:
 
 cipso_cache_enable - BOOLEAN

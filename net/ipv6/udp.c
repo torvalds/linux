@@ -204,13 +204,17 @@ try_again:
 		err = ulen;
 
 out_free:
+	lock_sock(sk);
 	skb_free_datagram(sk, skb);
+	release_sock(sk);
 out:
 	return err;
 
 csum_copy_err:
+	lock_sock(sk);
 	if (!skb_kill_datagram(sk, skb, flags))
 		UDP6_INC_STATS_USER(UDP_MIB_INERRORS, is_udplite);
+	release_sock(sk);
 
 	if (flags & MSG_DONTWAIT)
 		return -EAGAIN;
@@ -366,10 +370,21 @@ static int __udp6_lib_mcast_deliver(struct sk_buff *skb, struct in6_addr *saddr,
 	while ((sk2 = udp_v6_mcast_next(sk_next(sk2), uh->dest, daddr,
 					uh->source, saddr, dif))) {
 		struct sk_buff *buff = skb_clone(skb, GFP_ATOMIC);
-		if (buff)
-			udpv6_queue_rcv_skb(sk2, buff);
+		if (buff) {
+			bh_lock_sock_nested(sk2);
+			if (!sock_owned_by_user(sk2))
+				udpv6_queue_rcv_skb(sk2, buff);
+			else
+				sk_add_backlog(sk2, buff);
+			bh_unlock_sock(sk2);
+		}
 	}
-	udpv6_queue_rcv_skb(sk, skb);
+	bh_lock_sock_nested(sk);
+	if (!sock_owned_by_user(sk))
+		udpv6_queue_rcv_skb(sk, skb);
+	else
+		sk_add_backlog(sk, skb);
+	bh_unlock_sock(sk);
 out:
 	read_unlock(&udp_hash_lock);
 	return 0;
@@ -482,7 +497,12 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct hlist_head udptable[],
 
 	/* deliver */
 
-	udpv6_queue_rcv_skb(sk, skb);
+	bh_lock_sock_nested(sk);
+	if (!sock_owned_by_user(sk))
+		udpv6_queue_rcv_skb(sk, skb);
+	else
+		sk_add_backlog(sk, skb);
+	bh_unlock_sock(sk);
 	sock_put(sk);
 	return 0;
 
@@ -994,6 +1014,10 @@ struct proto udpv6_prot = {
 	.hash		   = udp_lib_hash,
 	.unhash		   = udp_lib_unhash,
 	.get_port	   = udp_v6_get_port,
+	.memory_allocated  = &udp_memory_allocated,
+	.sysctl_mem	   = sysctl_udp_mem,
+	.sysctl_wmem	   = &sysctl_udp_wmem_min,
+	.sysctl_rmem	   = &sysctl_udp_rmem_min,
 	.obj_size	   = sizeof(struct udp6_sock),
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt = compat_udpv6_setsockopt,

@@ -82,6 +82,7 @@
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/ioctls.h>
+#include <linux/bootmem.h>
 #include <linux/types.h>
 #include <linux/fcntl.h>
 #include <linux/module.h>
@@ -117,6 +118,17 @@ EXPORT_SYMBOL(udp_stats_in6);
 
 struct hlist_head udp_hash[UDP_HTABLE_SIZE];
 DEFINE_RWLOCK(udp_hash_lock);
+
+int sysctl_udp_mem[3] __read_mostly;
+int sysctl_udp_rmem_min __read_mostly;
+int sysctl_udp_wmem_min __read_mostly;
+
+EXPORT_SYMBOL(sysctl_udp_mem);
+EXPORT_SYMBOL(sysctl_udp_rmem_min);
+EXPORT_SYMBOL(sysctl_udp_wmem_min);
+
+atomic_t udp_memory_allocated;
+EXPORT_SYMBOL(udp_memory_allocated);
 
 static inline int __udp_lib_lport_inuse(__u16 num,
 					const struct hlist_head udptable[])
@@ -901,13 +913,17 @@ try_again:
 		err = ulen;
 
 out_free:
+	lock_sock(sk);
 	skb_free_datagram(sk, skb);
+	release_sock(sk);
 out:
 	return err;
 
 csum_copy_err:
+	lock_sock(sk);
 	if (!skb_kill_datagram(sk, skb, flags))
 		UDP_INC_STATS_USER(UDP_MIB_INERRORS, is_udplite);
+	release_sock(sk);
 
 	if (noblock)
 		return -EAGAIN;
@@ -1072,7 +1088,15 @@ static int __udp4_lib_mcast_deliver(struct sk_buff *skb,
 				skb1 = skb_clone(skb, GFP_ATOMIC);
 
 			if (skb1) {
-				int ret = udp_queue_rcv_skb(sk, skb1);
+				int ret = 0;
+
+				bh_lock_sock_nested(sk);
+				if (!sock_owned_by_user(sk))
+					ret = udp_queue_rcv_skb(sk, skb1);
+				else
+					sk_add_backlog(sk, skb1);
+				bh_unlock_sock(sk);
+
 				if (ret > 0)
 					/* we should probably re-process instead
 					 * of dropping packets here. */
@@ -1165,7 +1189,13 @@ int __udp4_lib_rcv(struct sk_buff *skb, struct hlist_head udptable[],
 			       inet_iif(skb), udptable);
 
 	if (sk != NULL) {
-		int ret = udp_queue_rcv_skb(sk, skb);
+		int ret = 0;
+		bh_lock_sock_nested(sk);
+		if (!sock_owned_by_user(sk))
+			ret = udp_queue_rcv_skb(sk, skb);
+		else
+			sk_add_backlog(sk, skb);
+		bh_unlock_sock(sk);
 		sock_put(sk);
 
 		/* a return value > 0 means to resubmit the input, but
@@ -1460,6 +1490,10 @@ struct proto udp_prot = {
 	.hash		   = udp_lib_hash,
 	.unhash		   = udp_lib_unhash,
 	.get_port	   = udp_v4_get_port,
+	.memory_allocated  = &udp_memory_allocated,
+	.sysctl_mem	   = sysctl_udp_mem,
+	.sysctl_wmem	   = &sysctl_udp_wmem_min,
+	.sysctl_rmem	   = &sysctl_udp_rmem_min,
 	.obj_size	   = sizeof(struct udp_sock),
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt = compat_udp_setsockopt,
@@ -1654,6 +1688,25 @@ void udp4_proc_exit(void)
 	udp_proc_unregister(&udp4_seq_afinfo);
 }
 #endif /* CONFIG_PROC_FS */
+
+void __init udp_init(void)
+{
+	unsigned long limit;
+
+	/* Set the pressure threshold up by the same strategy of TCP. It is a
+	 * fraction of global memory that is up to 1/2 at 256 MB, decreasing
+	 * toward zero with the amount of memory, with a floor of 128 pages.
+	 */
+	limit = min(nr_all_pages, 1UL<<(28-PAGE_SHIFT)) >> (20-PAGE_SHIFT);
+	limit = (limit * (nr_all_pages >> (20-PAGE_SHIFT))) >> (PAGE_SHIFT-11);
+	limit = max(limit, 128UL);
+	sysctl_udp_mem[0] = limit / 4 * 3;
+	sysctl_udp_mem[1] = limit;
+	sysctl_udp_mem[2] = sysctl_udp_mem[0] * 2;
+
+	sysctl_udp_rmem_min = SK_MEM_QUANTUM;
+	sysctl_udp_wmem_min = SK_MEM_QUANTUM;
+}
 
 EXPORT_SYMBOL(udp_disconnect);
 EXPORT_SYMBOL(udp_hash);

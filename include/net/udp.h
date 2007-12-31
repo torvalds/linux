@@ -65,6 +65,13 @@ extern rwlock_t udp_hash_lock;
 
 extern struct proto udp_prot;
 
+extern atomic_t udp_memory_allocated;
+
+/* sysctl variables for udp */
+extern int sysctl_udp_mem[3];
+extern int sysctl_udp_rmem_min;
+extern int sysctl_udp_wmem_min;
+
 struct sk_buff;
 
 /*
@@ -198,4 +205,6 @@ extern void udp_proc_unregister(struct udp_seq_afinfo *afinfo);
 extern int  udp4_proc_init(void);
 extern void udp4_proc_exit(void);
 #endif
+
+extern void udp_init(void);
 #endif	/* _UDP_H */
