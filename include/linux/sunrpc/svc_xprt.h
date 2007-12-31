@@ -79,6 +79,7 @@ void	svc_xprt_copy_addrs(struct svc_rqst *rqstp, struct svc_xprt *xprt);
 void	svc_close_xprt(struct svc_xprt *xprt);
 void	svc_delete_xprt(struct svc_xprt *xprt);
 int	svc_port_is_privileged(struct sockaddr *sin);
+int	svc_print_xprts(char *buf, int maxlen);
 
 static inline void svc_xprt_get(struct svc_xprt *xprt)
 {
