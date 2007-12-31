@@ -1632,15 +1632,13 @@ svc_drop(struct svc_rqst *rqstp)
 int
 svc_send(struct svc_rqst *rqstp)
 {
-	struct svc_sock	*svsk;
+	struct svc_xprt	*xprt;
 	int		len;
 	struct xdr_buf	*xb;
 
-	if ((svsk = rqstp->rq_sock) == NULL) {
-		printk(KERN_WARNING "NULL socket pointer in %s:%d\n",
-				__FILE__, __LINE__);
+	xprt = rqstp->rq_xprt;
+	if (!xprt)
 		return -EFAULT;
-	}
 
 	/* release the receive skb before sending the reply */
 	rqstp->rq_xprt->xpt_ops->xpo_release_rqst(rqstp);
@@ -1651,13 +1649,13 @@ svc_send(struct svc_rqst *rqstp)
 		xb->page_len +
 		xb->tail[0].iov_len;
 
-	/* Grab svsk->sk_mutex to serialize outgoing data. */
-	mutex_lock(&svsk->sk_mutex);
-	if (test_bit(XPT_DEAD, &svsk->sk_xprt.xpt_flags))
+	/* Grab mutex to serialize outgoing data. */
+	mutex_lock(&xprt->xpt_mutex);
+	if (test_bit(XPT_DEAD, &xprt->xpt_flags))
 		len = -ENOTCONN;
 	else
-		len = svsk->sk_xprt.xpt_ops->xpo_sendto(rqstp);
-	mutex_unlock(&svsk->sk_mutex);
+		len = xprt->xpt_ops->xpo_sendto(rqstp);
+	mutex_unlock(&xprt->xpt_mutex);
 	svc_sock_release(rqstp);
 
 	if (len == -ECONNREFUSED || len == -ENOTCONN || len == -EAGAIN)
@@ -1759,7 +1757,6 @@ static struct svc_sock *svc_setup_socket(struct svc_serv *serv,
 	svsk->sk_lastrecv = get_seconds();
 	spin_lock_init(&svsk->sk_lock);
 	INIT_LIST_HEAD(&svsk->sk_deferred);
-	mutex_init(&svsk->sk_mutex);
 
 	/* Initialize the socket */
 	if (sock->type == SOCK_DGRAM)

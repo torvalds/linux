@@ -24,7 +24,6 @@ struct svc_sock {
 						 * sk_info_authunix */
 	struct list_head	sk_deferred;	/* deferred requests that need to
 						 * be revisted */
-	struct mutex		sk_mutex;	/* to serialize sending data */
 
 	/* We keep the old state_change and data_ready CB's here */
 	void			(*sk_ostate)(struct sock *);
