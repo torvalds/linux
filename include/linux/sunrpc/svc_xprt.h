@@ -81,6 +81,7 @@ void	svc_delete_xprt(struct svc_xprt *xprt);
 int	svc_port_is_privileged(struct sockaddr *sin);
 int	svc_print_xprts(char *buf, int maxlen);
 struct	svc_xprt *svc_find_xprt(struct svc_serv *, char *, int, int);
+int	svc_xprt_names(struct svc_serv *serv, char *buf, int buflen);
 
 static inline void svc_xprt_get(struct svc_xprt *xprt)
 {
