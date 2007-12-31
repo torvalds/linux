@@ -785,6 +785,12 @@ static __inline__ __u32 tcp_max_burst(const struct tcp_sock *tp)
 	return 3;
 }
 
+/* Returns end sequence number of the receiver's advertised window */
+static inline u32 tcp_wnd_end(const struct tcp_sock *tp)
+{
+	return tp->snd_una + tp->snd_wnd;
+}
+
 /* RFC2861 Check whether we are limited by application or congestion window
  * This is the inverse of cwnd check in tcp_tso_should_defer
  */
