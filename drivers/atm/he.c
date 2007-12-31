@@ -1,5 +1,3 @@
-/* $Id: he.c,v 1.18 2003/05/06 22:57:15 chas Exp $ */
-
 /*
 
   he.c
@@ -98,10 +96,6 @@
 #else /* !HE_DEBUG */
 #define HPRINTK(fmt,args...)	do { } while (0)
 #endif /* HE_DEBUG */
-
-/* version definition */
-
-static char *version = "$Id: he.c,v 1.18 2003/05/06 22:57:15 chas Exp $";
 
 /* declarations */
 
@@ -366,7 +360,7 @@ he_init_one(struct pci_dev *pci_dev, const struct pci_device_id *pci_ent)
 	struct he_dev *he_dev = NULL;
 	int err = 0;
 
-	printk(KERN_INFO "he: %s\n", version);
+	printk(KERN_INFO "ATM he driver\n");
 
 	if (pci_enable_device(pci_dev))
 		return -EIO;
@@ -2933,7 +2927,7 @@ he_proc_read(struct atm_dev *dev, loff_t *pos, char *page)
 
 	left = *pos;
 	if (!left--)
-		return sprintf(page, "%s\n", version);
+		return sprintf(page, "ATM he driver\n");
 
 	if (!left--)
 		return sprintf(page, "%s%s\n\n",
