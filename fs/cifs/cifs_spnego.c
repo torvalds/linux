@@ -122,11 +122,13 @@ cifs_get_spnego_key(struct cifsSesInfo *sesInfo)
 	cFYI(1, ("key description = %s", description));
 	spnego_key = request_key(&cifs_spnego_key_type, description, "");
 
+#ifdef CONFIG_CIFS_DEBUG2
 	if (cifsFYI && !IS_ERR(spnego_key)) {
 		struct cifs_spnego_msg *msg = spnego_key->payload.data;
-		cifs_dump_mem("SPNEGO reply blob:", msg->data,
-				msg->secblob_len + msg->sesskey_len);
+		cifs_dump_mem("SPNEGO reply blob:", msg->data, min(1024,
+				msg->secblob_len + msg->sesskey_len));
 	}
+#endif /* CONFIG_CIFS_DEBUG2 */
 
 out:
 	kfree(description);
