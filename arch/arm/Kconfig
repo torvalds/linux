@@ -894,6 +894,13 @@ config KEXEC
 	  initially work for you.  It may help to enable device hotplugging
 	  support.
 
+config ATAGS_PROC
+	bool "Export atags in procfs"
+	default n
+	help
+	  Should the atags used to boot the kernel be exported in an "atags"
+	  file in procfs. Useful with kexec.
+
 endmenu
 
 if (ARCH_SA1100 || ARCH_INTEGRATOR || ARCH_OMAP || ARCH_IMX || ARCH_PXA)
