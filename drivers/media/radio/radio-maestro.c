@@ -423,7 +423,7 @@ static int __devinit maestro_probe(struct pci_dev *pdev,
 errunr:
 	video_unregister_device(maestro_radio_inst);
 errfr1:
-	kfree(maestro_radio_inst);
+	video_device_release(maestro_radio_inst);
 errfr:
 	kfree(radio_unit);
 err:
