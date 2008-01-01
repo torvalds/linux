@@ -307,7 +307,8 @@ static struct crypto_instance *xcbc_alloc(struct rtattr **tb)
 	case 16:
 		break;
 	default:
-		return ERR_PTR(PTR_ERR(alg));
+		inst = ERR_PTR(-EINVAL);
+		goto out_put_alg;
 	}
 
 	inst = crypto_alloc_instance("xcbc", alg);
