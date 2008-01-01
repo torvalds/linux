@@ -1608,9 +1608,15 @@ static void do_test(void)
 		test_hash("hmac(sha512)", hmac_sha512_tv_template,
 			  HMAC_SHA512_TEST_VECTORS);
 		break;
+
 	case 105:
 		test_hash("hmac(sha224)", hmac_sha224_tv_template,
 			  HMAC_SHA224_TEST_VECTORS);
+		break;
+
+	case 106:
+		test_hash("xcbc(aes)", aes_xcbc128_tv_template,
+			  XCBC_AES_TEST_VECTORS);
 		break;
 
 	case 200:
