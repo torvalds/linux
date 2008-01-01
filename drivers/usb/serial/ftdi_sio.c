@@ -309,12 +309,12 @@ struct ftdi_sio_quirk {
 	void (*port_probe)(struct ftdi_private *); /* Special settings for probed ports. */
 };
 
-static int   ftdi_olimex_probe		(struct usb_serial *serial);
+static int   ftdi_jtag_probe		(struct usb_serial *serial);
 static void  ftdi_USB_UIRT_setup	(struct ftdi_private *priv);
 static void  ftdi_HE_TIRA1_setup	(struct ftdi_private *priv);
 
-static struct ftdi_sio_quirk ftdi_olimex_quirk = {
-	.probe	= ftdi_olimex_probe,
+static struct ftdi_sio_quirk ftdi_jtag_quirk = {
+	.probe	= ftdi_jtag_probe,
 };
 
 static struct ftdi_sio_quirk ftdi_USB_UIRT_quirk = {
@@ -570,7 +570,11 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(TML_VID, TML_USB_SERIAL_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_ELSTER_UNICOM_PID) },
 	{ USB_DEVICE(OLIMEX_VID, OLIMEX_ARM_USB_OCD_PID),
-		.driver_info = (kernel_ulong_t)&ftdi_olimex_quirk },
+		.driver_info = (kernel_ulong_t)&ftdi_jtag_quirk },
+	{ USB_DEVICE(FIC_VID, FIC_NEO1973_DEBUG_PID),
+		.driver_info = (kernel_ulong_t)&ftdi_jtag_quirk },
+	{ USB_DEVICE(FTDI_VID, FTDI_OOCDLINK_PID),
+		.driver_info = (kernel_ulong_t)&ftdi_jtag_quirk },
 	{ },					/* Optional parameter entry */
 	{ }					/* Terminating entry */
 };
@@ -1283,10 +1287,11 @@ static void ftdi_HE_TIRA1_setup (struct ftdi_private *priv)
 } /* ftdi_HE_TIRA1_setup */
 
 /*
- * First port on Olimex arm-usb-ocd is reserved for JTAG interface
- * and can be accessed from userspace using openocd.
+ * First port on JTAG adaptors such as Olimex arm-usb-ocd or the FIC/OpenMoko
+ * Neo1973 Debug Board is reserved for JTAG interface and can be accessed from
+ * userspace using openocd.
  */
-static int ftdi_olimex_probe(struct usb_serial *serial)
+static int ftdi_jtag_probe(struct usb_serial *serial)
 {
 	struct usb_device *udev = serial->dev;
 	struct usb_interface *interface = serial->interface;
@@ -1294,7 +1299,7 @@ static int ftdi_olimex_probe(struct usb_serial *serial)
 	dbg("%s",__FUNCTION__);
 
 	if (interface == udev->actconfig->interface[0]) {
-		info("Ignoring reserved serial port on Olimex arm-usb-ocd\n");
+		info("Ignoring serial port reserved for JTAG");
 		return -ENODEV;
 	}
 

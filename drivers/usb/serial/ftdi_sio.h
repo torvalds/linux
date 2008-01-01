@@ -98,6 +98,10 @@
 #define FTDI_MTXORB_5_PID      0xFA05  /* Matrix Orbital Product Id */
 #define FTDI_MTXORB_6_PID      0xFA06  /* Matrix Orbital Product Id */
 
+/* OOCDlink by Joern Kaipf <joernk@web.de>
+ * (http://www.joernonline.de/dw/doku.php?id=start&idx=projects:oocdlink) */
+#define FTDI_OOCDLINK_PID	0xbaf8	/* Amontec JTAGkey */
+
 /* Interbiometrics USB I/O Board */
 /* Developed for Interbiometrics by Rudolf Gugler */
 #define INTERBIOMETRICS_VID              0x1209
@@ -558,6 +562,13 @@
 #define FTDI_SIO_SET_LATENCY_TIMER	9 /* Set the latency timer */
 #define FTDI_SIO_GET_LATENCY_TIMER	10 /* Get the latency timer */
 
+
+/*
+ * FIC / OpenMoko, Inc. http://wiki.openmoko.org/wiki/Neo1973_Debug_Board_v3
+ * Submitted by Harald Welte <laforge@openmoko.org>
+ */
+#define	FIC_VID			0x1457
+#define	FIC_NEO1973_DEBUG_PID	0x5118
 
 /*
  *   BmRequestType:  1100 0000b
