@@ -321,10 +321,7 @@ static struct crypto_instance *xcbc_alloc(struct rtattr **tb)
 	inst->alg.cra_alignmask = alg->cra_alignmask;
 	inst->alg.cra_type = &crypto_hash_type;
 
-	inst->alg.cra_hash.digestsize =
-		(alg->cra_flags & CRYPTO_ALG_TYPE_MASK) ==
-		CRYPTO_ALG_TYPE_HASH ? alg->cra_hash.digestsize :
-				       alg->cra_blocksize;
+	inst->alg.cra_hash.digestsize = alg->cra_blocksize;
 	inst->alg.cra_ctxsize = sizeof(struct crypto_xcbc_ctx) +
 				ALIGN(inst->alg.cra_blocksize * 3, sizeof(void *));
 	inst->alg.cra_init = xcbc_init_tfm;
