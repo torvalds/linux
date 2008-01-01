@@ -836,12 +836,7 @@ static inline int bdev_hardsect_size(struct block_device *bdev)
 
 static inline int queue_dma_alignment(struct request_queue *q)
 {
-	int retval = 511;
-
-	if (q && q->dma_alignment)
-		retval = q->dma_alignment;
-
-	return retval;
+	return q ? q->dma_alignment : 511;
 }
 
 /* assumes size > 256 */
