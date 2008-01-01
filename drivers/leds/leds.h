@@ -14,6 +14,7 @@
 #define __LEDS_H_INCLUDED
 
 #include <linux/device.h>
+#include <linux/rwsem.h>
 #include <linux/leds.h>
 
 static inline void led_set_brightness(struct led_classdev *led_cdev,
@@ -26,7 +27,7 @@ static inline void led_set_brightness(struct led_classdev *led_cdev,
 		led_cdev->brightness_set(led_cdev, value);
 }
 
-extern rwlock_t leds_list_lock;
+extern struct rw_semaphore leds_list_lock;
 extern struct list_head leds_list;
 
 #ifdef CONFIG_LEDS_TRIGGERS

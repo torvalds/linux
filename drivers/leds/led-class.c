@@ -106,9 +106,9 @@ int led_classdev_register(struct device *parent, struct led_classdev *led_cdev)
 		goto err_out;
 
 	/* add to the list of leds */
-	write_lock(&leds_list_lock);
+	down_write(&leds_list_lock);
 	list_add_tail(&led_cdev->node, &leds_list);
-	write_unlock(&leds_list_lock);
+	up_write(&leds_list_lock);
 
 #ifdef CONFIG_LEDS_TRIGGERS
 	init_rwsem(&led_cdev->trigger_lock);
@@ -155,9 +155,9 @@ void led_classdev_unregister(struct led_classdev *led_cdev)
 
 	device_unregister(led_cdev->dev);
 
-	write_lock(&leds_list_lock);
+	down_write(&leds_list_lock);
 	list_del(&led_cdev->node);
-	write_unlock(&leds_list_lock);
+	up_write(&leds_list_lock);
 }
 EXPORT_SYMBOL_GPL(led_classdev_unregister);
 

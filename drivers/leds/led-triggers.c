@@ -169,7 +169,7 @@ int led_trigger_register(struct led_trigger *trigger)
 	up_write(&triggers_list_lock);
 
 	/* Register with any LEDs that have this as a default trigger */
-	read_lock(&leds_list_lock);
+	down_read(&leds_list_lock);
 	list_for_each_entry(led_cdev, &leds_list, node) {
 		down_write(&led_cdev->trigger_lock);
 		if (!led_cdev->trigger && led_cdev->default_trigger &&
@@ -177,7 +177,7 @@ int led_trigger_register(struct led_trigger *trigger)
 			led_trigger_set(led_cdev, trigger);
 		up_write(&led_cdev->trigger_lock);
 	}
-	read_unlock(&leds_list_lock);
+	up_read(&leds_list_lock);
 
 	return 0;
 }
@@ -212,14 +212,14 @@ void led_trigger_unregister(struct led_trigger *trigger)
 	up_write(&triggers_list_lock);
 
 	/* Remove anyone actively using this trigger */
-	read_lock(&leds_list_lock);
+	down_read(&leds_list_lock);
 	list_for_each_entry(led_cdev, &leds_list, node) {
 		down_write(&led_cdev->trigger_lock);
 		if (led_cdev->trigger == trigger)
 			led_trigger_set(led_cdev, NULL);
 		up_write(&led_cdev->trigger_lock);
 	}
-	read_unlock(&leds_list_lock);
+	up_read(&leds_list_lock);
 }
 
 void led_trigger_unregister_simple(struct led_trigger *trigger)
