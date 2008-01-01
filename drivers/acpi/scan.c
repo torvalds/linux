@@ -59,7 +59,7 @@ static int create_modalias(struct acpi_device *acpi_dev, char *modalias,
 			count = snprintf(&modalias[len], size, "%s:",
 					 cid_list->id[i].value);
 			if (count < 0 || count >= size) {
-				printk(KERN_ERR "acpi: %s cid[%i] exceeds event buffer size",
+				printk(KERN_ERR PREFIX "%s cid[%i] exceeds event buffer size",
 				       acpi_dev->pnp.device_name, i);
 				break;
 			}
@@ -453,7 +453,7 @@ static int acpi_device_register(struct acpi_device *device,
 	device->dev.release = &acpi_device_release;
 	result = device_add(&device->dev);
 	if(result) {
-		printk("Error adding device %s", device->dev.bus_id);
+		printk(KERN_ERR PREFIX "Error adding device %s", device->dev.bus_id);
 		goto end;
 	}
 
@@ -956,7 +956,7 @@ static void acpi_device_set_id(struct acpi_device *device,
 	case ACPI_BUS_TYPE_DEVICE:
 		status = acpi_get_object_info(handle, &buffer);
 		if (ACPI_FAILURE(status)) {
-			printk("%s: Error reading device info\n", __FUNCTION__);
+			printk(KERN_ERR PREFIX "%s: Error reading device info\n", __FUNCTION__);
 			return;
 		}
 
@@ -1026,7 +1026,7 @@ static void acpi_device_set_id(struct acpi_device *device,
 		if (device->pnp.cid_list)
 			memcpy(device->pnp.cid_list, cid_list, cid_list->size);
 		else
-			printk(KERN_ERR "Memory allocation error\n");
+			printk(KERN_ERR PREFIX "Memory allocation error\n");
 	}
 
 	kfree(buffer.pointer);
@@ -1050,7 +1050,7 @@ static int acpi_device_set_context(struct acpi_device *device, int type)
 					  acpi_bus_data_handler, device);
 
 		if (ACPI_FAILURE(status)) {
-			printk("Error attaching device data\n");
+			printk(KERN_ERR PREFIX "Error attaching device data\n");
 			result = -ENODEV;
 		}
 	}
