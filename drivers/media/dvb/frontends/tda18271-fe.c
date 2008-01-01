@@ -662,7 +662,6 @@ static int tda18271_set_params(struct dvb_frontend *fe,
 	struct tda18271_priv *priv = fe->tuner_priv;
 	u8 std;
 	u32 bw, sgIF = 0;
-
 	u32 freq = params->frequency;
 
 	priv->mode = TDA18271_DIGITAL;
@@ -722,54 +721,50 @@ static int tda18271_set_analog_params(struct dvb_frontend *fe,
 				      struct analog_parameters *params)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
-	u8 std;
-	unsigned int sgIF;
 	char *mode;
+	u8 std;
+	u32 sgIF, freq = params->frequency * 62500;
 
 	priv->mode = TDA18271_ANALOG;
 
 	/* see table 22 */
 	if (params->std & V4L2_STD_MN) {
 		std = 0x0d;
-		sgIF =  92;
+		sgIF =  5750000;
 		mode = "MN";
 	} else if (params->std & V4L2_STD_B) {
 		std = 0x0e;
-		sgIF =  108;
+		sgIF =  6750000;
 		mode = "B";
 	} else if (params->std & V4L2_STD_GH) {
 		std = 0x0f;
-		sgIF =  124;
+		sgIF =  7750000;
 		mode = "GH";
 	} else if (params->std & V4L2_STD_PAL_I) {
 		std = 0x0f;
-		sgIF =  124;
+		sgIF =  7750000;
 		mode = "I";
 	} else if (params->std & V4L2_STD_DK) {
 		std = 0x0f;
-		sgIF =  124;
+		sgIF =  7750000;
 		mode = "DK";
 	} else if (params->std & V4L2_STD_SECAM_L) {
 		std = 0x0f;
-		sgIF =  124;
+		sgIF =  7750000;
 		mode = "L";
 	} else if (params->std & V4L2_STD_SECAM_LC) {
 		std = 0x0f;
-		sgIF =  20;
-		mode = "LC";
+		sgIF =  1250000;
+		mode = "L'";
 	} else {
 		std = 0x0f;
-		sgIF =  124;
+		sgIF =  7750000;
 		mode = "xx";
 	}
 
-	if (params->mode == V4L2_TUNER_RADIO)
-		sgIF =  88; /* if frequency is 5.5 MHz */
-
 	tda_dbg("setting tda18271 to system %s\n", mode);
 
-	return tda18271_tune(fe, sgIF * 62500, params->frequency * 62500,
-			     0, std);
+	return tda18271_tune(fe, sgIF, freq, 0, std);
 }
 
 static int tda18271_release(struct dvb_frontend *fe)
