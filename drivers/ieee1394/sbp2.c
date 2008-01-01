@@ -1963,6 +1963,12 @@ static int sbp2scsi_slave_alloc(struct scsi_device *sdev)
 	lu->sdev = sdev;
 	sdev->allow_restart = 1;
 
+	/*
+	 * Update the dma alignment (minimum alignment requirements for
+	 * start and end of DMA transfers) to be a sector
+	 */
+	blk_queue_update_dma_alignment(sdev->request_queue, 511);
+
 	if (lu->workarounds & SBP2_WORKAROUND_INQUIRY_36)
 		sdev->inquiry_len = 36;
 	return 0;

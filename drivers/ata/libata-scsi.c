@@ -824,6 +824,9 @@ static void ata_scsi_sdev_config(struct scsi_device *sdev)
 	 * requests.
 	 */
 	sdev->max_device_blocked = 1;
+
+	/* set the min alignment */
+	blk_queue_update_dma_alignment(sdev->request_queue, ATA_DMA_PAD_SZ - 1);
 }
 
 static void ata_scsi_dev_config(struct scsi_device *sdev,
@@ -878,7 +881,7 @@ int ata_scsi_slave_config(struct scsi_device *sdev)
 	if (dev)
 		ata_scsi_dev_config(sdev, dev);
 
-	return 0;	/* scsi layer doesn't check return value, sigh */
+	return 0;
 }
 
 /**
