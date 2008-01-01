@@ -178,13 +178,19 @@ static void pxa25x_cpu_pm_save(unsigned long *sleep_save)
 	SAVE(GAFR1_L); SAVE(GAFR1_U);
 	SAVE(GAFR2_L); SAVE(GAFR2_U);
 
-	SAVE(ICMR);
+	SAVE(ICMR); ICMR = 0;
 	SAVE(CKEN);
 	SAVE(PSTR);
+
+	/* Clear GPIO transition detect bits */
+	GEDR0 = GEDR0; GEDR1 = GEDR1; GEDR2 = GEDR2;
 }
 
 static void pxa25x_cpu_pm_restore(unsigned long *sleep_save)
 {
+	/* ensure not to come back here if it wasn't intended */
+	PSPR = 0;
+
 	/* restore registers */
 	RESTORE_GPLEVEL(0); RESTORE_GPLEVEL(1); RESTORE_GPLEVEL(2);
 	RESTORE(GPDR0); RESTORE(GPDR1); RESTORE(GPDR2);
@@ -195,7 +201,12 @@ static void pxa25x_cpu_pm_restore(unsigned long *sleep_save)
 	RESTORE(GFER0); RESTORE(GFER1); RESTORE(GFER2);
 	RESTORE(PGSR0); RESTORE(PGSR1); RESTORE(PGSR2);
 
+	PSSR = PSSR_RDH | PSSR_PH;
+
 	RESTORE(CKEN);
+
+	ICLR = 0;
+	ICCR = 1;
 	RESTORE(ICMR);
 	RESTORE(PSTR);
 }
