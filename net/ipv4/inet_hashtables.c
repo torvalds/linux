@@ -96,6 +96,7 @@ EXPORT_SYMBOL(inet_put_port);
  * exclusive lock release). It should be ifdefed really.
  */
 void inet_listen_wlock(struct inet_hashinfo *hashinfo)
+	__acquires(hashinfo->lhash_lock)
 {
 	write_lock(&hashinfo->lhash_lock);
 

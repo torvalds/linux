@@ -171,6 +171,7 @@ static void netlink_sock_destruct(struct sock *sk)
  */
 
 static void netlink_table_grab(void)
+	__acquires(nl_table_lock)
 {
 	write_lock_irq(&nl_table_lock);
 
@@ -193,6 +194,7 @@ static void netlink_table_grab(void)
 }
 
 static inline void netlink_table_ungrab(void)
+	__releases(nl_table_lock)
 {
 	write_unlock_irq(&nl_table_lock);
 	wake_up(&nl_table_wait);
@@ -1728,6 +1730,7 @@ static struct sock *netlink_seq_socket_idx(struct seq_file *seq, loff_t pos)
 }
 
 static void *netlink_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(nl_table_lock)
 {
 	read_lock(&nl_table_lock);
 	return *pos ? netlink_seq_socket_idx(seq, *pos - 1) : SEQ_START_TOKEN;
@@ -1776,6 +1779,7 @@ static void *netlink_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void netlink_seq_stop(struct seq_file *seq, void *v)
+	__releases(nl_table_lock)
 {
 	read_unlock(&nl_table_lock);
 }

@@ -211,6 +211,7 @@ static struct xfrm_state_afinfo *xfrm_state_lock_afinfo(unsigned int family)
 }
 
 static void xfrm_state_unlock_afinfo(struct xfrm_state_afinfo *afinfo)
+	__releases(xfrm_state_afinfo_lock)
 {
 	write_unlock_bh(&xfrm_state_afinfo_lock);
 }
@@ -1909,6 +1910,7 @@ static struct xfrm_state_afinfo *xfrm_state_get_afinfo(unsigned int family)
 }
 
 static void xfrm_state_put_afinfo(struct xfrm_state_afinfo *afinfo)
+	__releases(xfrm_state_afinfo_lock)
 {
 	read_unlock(&xfrm_state_afinfo_lock);
 }

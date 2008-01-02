@@ -2025,6 +2025,7 @@ EXPORT_SYMBOL(proto_unregister);
 
 #ifdef CONFIG_PROC_FS
 static void *proto_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(proto_list_lock)
 {
 	read_lock(&proto_list_lock);
 	return seq_list_start_head(&proto_list, *pos);
@@ -2036,6 +2037,7 @@ static void *proto_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void proto_seq_stop(struct seq_file *seq, void *v)
+	__releases(proto_list_lock)
 {
 	read_unlock(&proto_list_lock);
 }

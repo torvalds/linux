@@ -936,6 +936,7 @@ static struct fib_alias *fib_get_idx(struct seq_file *seq, loff_t pos)
 }
 
 static void *fib_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(fib_hash_lock)
 {
 	void *v = NULL;
 
@@ -952,6 +953,7 @@ static void *fib_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void fib_seq_stop(struct seq_file *seq, void *v)
+	__releases(fib_hash_lock)
 {
 	read_unlock(&fib_hash_lock);
 }

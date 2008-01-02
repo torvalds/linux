@@ -186,6 +186,7 @@ EXPORT_SYMBOL(dev_mc_unsync);
 
 #ifdef CONFIG_PROC_FS
 static void *dev_mc_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(dev_base_lock)
 {
 	struct net *net = seq_file_net(seq);
 	struct net_device *dev;
@@ -206,6 +207,7 @@ static void *dev_mc_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void dev_mc_seq_stop(struct seq_file *seq, void *v)
+	__releases(dev_base_lock)
 {
 	read_unlock(&dev_base_lock);
 }

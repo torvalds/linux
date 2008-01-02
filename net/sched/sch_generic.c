@@ -40,12 +40,16 @@
  */
 
 void qdisc_lock_tree(struct net_device *dev)
+	__acquires(dev->queue_lock)
+	__acquires(dev->ingress_lock)
 {
 	spin_lock_bh(&dev->queue_lock);
 	spin_lock(&dev->ingress_lock);
 }
 
 void qdisc_unlock_tree(struct net_device *dev)
+	__releases(dev->ingress_lock)
+	__releases(dev->queue_lock)
 {
 	spin_unlock(&dev->ingress_lock);
 	spin_unlock_bh(&dev->queue_lock);

@@ -2033,6 +2033,7 @@ static struct sock *unix_seq_idx(struct unix_iter_state *iter, loff_t pos)
 
 
 static void *unix_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(unix_table_lock)
 {
 	struct unix_iter_state *iter = seq->private;
 	spin_lock(&unix_table_lock);
@@ -2055,6 +2056,7 @@ static void *unix_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void unix_seq_stop(struct seq_file *seq, void *v)
+	__releases(unix_table_lock)
 {
 	spin_unlock(&unix_table_lock);
 }

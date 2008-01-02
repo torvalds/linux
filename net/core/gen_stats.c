@@ -55,6 +55,7 @@ rtattr_failure:
 int
 gnet_stats_start_copy_compat(struct sk_buff *skb, int type, int tc_stats_type,
 	int xstats_type, spinlock_t *lock, struct gnet_dump *d)
+	__acquires(lock)
 {
 	memset(d, 0, sizeof(*d));
 

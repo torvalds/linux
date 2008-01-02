@@ -629,6 +629,7 @@ static struct ip6_flowlabel *ip6fl_get_idx(struct seq_file *seq, loff_t pos)
 }
 
 static void *ip6fl_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(ip6_fl_lock)
 {
 	read_lock_bh(&ip6_fl_lock);
 	return *pos ? ip6fl_get_idx(seq, *pos - 1) : SEQ_START_TOKEN;
@@ -647,6 +648,7 @@ static void *ip6fl_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void ip6fl_seq_stop(struct seq_file *seq, void *v)
+	__releases(ip6_fl_lock)
 {
 	read_unlock_bh(&ip6_fl_lock);
 }

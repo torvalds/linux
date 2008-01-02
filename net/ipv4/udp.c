@@ -1550,6 +1550,7 @@ static struct sock *udp_get_idx(struct seq_file *seq, loff_t pos)
 }
 
 static void *udp_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(udp_hash_lock)
 {
 	read_lock(&udp_hash_lock);
 	return *pos ? udp_get_idx(seq, *pos-1) : (void *)1;
@@ -1569,6 +1570,7 @@ static void *udp_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void udp_seq_stop(struct seq_file *seq, void *v)
+	__releases(udp_hash_lock)
 {
 	read_unlock(&udp_hash_lock);
 }
