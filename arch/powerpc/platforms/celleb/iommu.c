@@ -92,9 +92,6 @@ static struct notifier_block celleb_of_bus_notifier = {
 
 static int __init celleb_init_iommu(void)
 {
-	if (!machine_is(celleb_beat))
-		return -ENODEV;
-
 	celleb_init_direct_mapping();
 	set_pci_dma_ops(&dma_direct_ops);
 	bus_register_notifier(&of_platform_bus_type, &celleb_of_bus_notifier);
@@ -102,4 +99,4 @@ static int __init celleb_init_iommu(void)
 	return 0;
 }
 
-arch_initcall(celleb_init_iommu);
+machine_arch_initcall(celleb_beat, celleb_init_iommu);

@@ -381,9 +381,6 @@ static int __init cbe_init_pm_irq(void)
 	unsigned int irq;
 	int rc, node;
 
-	if (!machine_is(cell))
-		return 0;
-
 	for_each_node(node) {
 		irq = irq_create_mapping(NULL, IIC_IRQ_IOEX_PMI |
 					       (node << IIC_IRQ_NODE_SHIFT));
@@ -404,7 +401,7 @@ static int __init cbe_init_pm_irq(void)
 
 	return 0;
 }
-arch_initcall(cbe_init_pm_irq);
+machine_arch_initcall(cell, cbe_init_pm_irq);
 
 void cbe_sync_irq(int node)
 {

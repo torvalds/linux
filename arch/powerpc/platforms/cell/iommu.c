@@ -700,10 +700,6 @@ static int __init cell_iommu_init(void)
 {
 	struct device_node *np;
 
-	if (!machine_is(cell) &&
-	    !machine_is(celleb_native))
-		return -ENODEV;
-
 	/* If IOMMU is disabled or we have little enough RAM to not need
 	 * to enable it, we setup a direct mapping.
 	 *
@@ -746,5 +742,6 @@ static int __init cell_iommu_init(void)
 
 	return 0;
 }
-arch_initcall(cell_iommu_init);
+machine_arch_initcall(cell, cell_iommu_init);
+machine_arch_initcall(celleb_native, cell_iommu_init);
 

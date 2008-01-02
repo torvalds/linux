@@ -111,10 +111,6 @@ static struct of_device_id celleb_bus_ids[] __initdata = {
 
 static int __init celleb_publish_devices(void)
 {
-	if (!machine_is(celleb_beat) &&
-	    !machine_is(celleb_native))
-		return -ENODEV;
-
 	/* Publish OF platform devices for southbridge IOs */
 	of_platform_bus_probe(NULL, celleb_bus_ids, NULL);
 
@@ -122,7 +118,8 @@ static int __init celleb_publish_devices(void)
 
 	return 0;
 }
-device_initcall(celleb_publish_devices);
+machine_device_initcall(celleb_beat, celleb_publish_devices);
+machine_device_initcall(celleb_native, celleb_publish_devices);
 
 
 /*

@@ -309,9 +309,6 @@ static int __init spider_pci_workaround_init(void)
 {
 	struct pci_controller *phb;
 
-	if (!machine_is(cell))
-		return 0;
-
 	/* Find spider bridges. We assume they have been all probed
 	 * in setup_arch(). If that was to change, we would need to
 	 * update this code to cope with dynamically added busses
@@ -343,4 +340,4 @@ static int __init spider_pci_workaround_init(void)
 
 	return 0;
 }
-arch_initcall(spider_pci_workaround_init);
+machine_arch_initcall(cell, spider_pci_workaround_init);
