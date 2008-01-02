@@ -102,10 +102,10 @@ static int pcmcia_set_mode_8bit(struct ata_link *link,
 
 /**
  *	ata_data_xfer_8bit	 -	Transfer data by 8bit PIO
- *	@adev: device to target
+ *	@dev: device to target
  *	@buf: data buffer
  *	@buflen: buffer length
- *	@write_data: read/write
+ *	@rw: read/write
  *
  *	Transfer data from/to the device data register by 8 bit PIO.
  *
@@ -113,14 +113,17 @@ static int pcmcia_set_mode_8bit(struct ata_link *link,
  *	Inherited from caller.
  */
 
-static void ata_data_xfer_8bit(struct ata_device *adev, unsigned char *buf,
-		   unsigned int buflen, int write_data)
+static unsigned int ata_data_xfer_8bit(struct ata_device *dev,
+				unsigned char *buf, unsigned int buflen, int rw)
 {
-	struct ata_port *ap = adev->link->ap;
-	if (write_data)
-		iowrite8_rep(ap->ioaddr.data_addr, buf, buflen);
-	else
+	struct ata_port *ap = dev->link->ap;
+
+	if (rw == READ)
 		ioread8_rep(ap->ioaddr.data_addr, buf, buflen);
+	else
+		iowrite8_rep(ap->ioaddr.data_addr, buf, buflen);
+
+	return buflen;
 }
 
 
