@@ -397,17 +397,13 @@ static int initializing = 1;
 
 static int pmac_late_init(void)
 {
-	if (!machine_is(powermac))
-		return -ENODEV;
-
 	initializing = 0;
 	/* this is udbg (which is __init) and we can later use it during
 	 * cpu hotplug (in smp_core99_kick_cpu) */
 	ppc_md.progress = NULL;
 	return 0;
 }
-
-late_initcall(pmac_late_init);
+machine_late_initcall(powermac, pmac_late_init);
 
 /*
  * This is __init_refok because we check for "initializing" before
@@ -534,9 +530,6 @@ static int __init pmac_declare_of_platform_devices(void)
 	if (machine_is(chrp))
 		return -1;
 
-	if (!machine_is(powermac))
-		return 0;
-
 	np = of_find_node_by_name(NULL, "valkyrie");
 	if (np)
 		of_platform_device_create(np, "valkyrie", NULL);
@@ -551,8 +544,7 @@ static int __init pmac_declare_of_platform_devices(void)
 
 	return 0;
 }
-
-device_initcall(pmac_declare_of_platform_devices);
+machine_device_initcall(powermac, pmac_declare_of_platform_devices);
 
 /*
  * Called very early, MMU is off, device-tree isn't unflattened

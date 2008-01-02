@@ -690,6 +690,5 @@ static int __init init_pmacpic_sysfs(void)
 	sysdev_driver_register(&pmacpic_sysclass, &driver_pmacpic);
 	return 0;
 }
-
-subsys_initcall(init_pmacpic_sysfs);
+machine_subsys_initcall(powermac, init_pmacpic_sysfs);
 
