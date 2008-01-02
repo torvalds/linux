@@ -69,9 +69,52 @@
 
 /*---------------------------------------------------------------------*/
 
+struct tda18271_rf_tracking_filter_cal {
+	u32 rfmax;
+	u8  rfband;
+	u32 rf1_def;
+	u32 rf2_def;
+	u32 rf3_def;
+	u32 rf1;
+	u32 rf2;
+	u32 rf3;
+	int rf_a1;
+	int rf_b1;
+	int rf_a2;
+	int rf_b2;
+};
+
+struct tda18271_std_map_item {
+	u32 if_freq;
+	u8 std_bits;
+};
+
+struct tda18271_std_map {
+	struct tda18271_std_map_item atv_b;
+	struct tda18271_std_map_item atv_dk;
+	struct tda18271_std_map_item atv_gh;
+	struct tda18271_std_map_item atv_i;
+	struct tda18271_std_map_item atv_l;
+	struct tda18271_std_map_item atv_lc;
+	struct tda18271_std_map_item atv_mn;
+	struct tda18271_std_map_item atsc_6;
+	struct tda18271_std_map_item dvbt_6;
+	struct tda18271_std_map_item dvbt_7;
+	struct tda18271_std_map_item dvbt_8;
+	struct tda18271_std_map_item qam_6;
+	struct tda18271_std_map_item qam_8;
+};
+
 enum tda18271_mode {
 	TDA18271_ANALOG,
 	TDA18271_DIGITAL,
+};
+
+struct tda18271_map_layout;
+
+enum tda18271_ver {
+	TDA18271HDC1,
+	TDA18271HDC2,
 };
 
 struct tda18271_priv {
@@ -81,6 +124,16 @@ struct tda18271_priv {
 
 	enum tda18271_mode mode;
 	enum tda18271_i2c_gate gate;
+	enum tda18271_ver id;
+
+	unsigned int cal_initialized:1;
+
+	struct tda18271_std_map *std;
+	struct tda18271_map_layout *maps;
+	struct tda18271_rf_tracking_filter_cal rf_cal_state[8];
+
+	int (*tune) (struct dvb_frontend *fe,
+		     u32 ifc, u32 freq, u32 bw, u8 std);
 
 	u32 frequency;
 	u32 bandwidth;
@@ -93,6 +146,7 @@ extern int tda18271_debug;
 #define DBG_INFO 1
 #define DBG_MAP  2
 #define DBG_REG  4
+#define DBG_ADV  8
 
 #define tda_printk(kern, fmt, arg...) \
 	printk(kern "%s: " fmt, __FUNCTION__, ##arg)
@@ -117,16 +171,30 @@ enum tda18271_map_type {
 	/* tda18271_map */
 	RF_CAL,
 	RF_CAL_KMCO,
+	RF_CAL_DC_OVER_DT,
 	BP_FILTER,
 	RF_BAND,
 	GAIN_TAPER,
 	IR_MEASURE,
 };
 
-extern int tda18271_lookup_pll_map(enum tda18271_map_type map_type,
+extern int tda18271_lookup_pll_map(struct dvb_frontend *fe,
+				   enum tda18271_map_type map_type,
 				   u32 *freq, u8 *post_div, u8 *div);
-extern int tda18271_lookup_map(enum tda18271_map_type map_type,
+extern int tda18271_lookup_map(struct dvb_frontend *fe,
+			       enum tda18271_map_type map_type,
 			       u32 *freq, u8 *val);
+
+extern int tda18271_lookup_thermometer(struct dvb_frontend *fe);
+
+extern int tda18271_lookup_rf_band(struct dvb_frontend *fe,
+				   u32 *freq, u8 *rf_band);
+
+extern int tda18271_lookup_cid_target(struct dvb_frontend *fe,
+				      u32 *freq, u8 *cid_target,
+				      u16 *count_limit);
+
+extern int tda18271_assign_map_layout(struct dvb_frontend *fe);
 
 #endif /* __TDA18271_PRIV_H__ */
 
