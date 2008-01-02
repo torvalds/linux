@@ -300,15 +300,12 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 		bool new_page = 0;
 
 		shadow_ent = ((u64 *)__va(shadow_addr)) + index;
+		if (level == PT_PAGE_TABLE_LEVEL)
+			break;
 		if (is_shadow_present_pte(*shadow_ent)) {
-			if (level == PT_PAGE_TABLE_LEVEL)
-				break;
 			shadow_addr = *shadow_ent & PT64_BASE_ADDR_MASK;
 			continue;
 		}
-
-		if (level == PT_PAGE_TABLE_LEVEL)
-			break;
 
 		if (level - 1 == PT_PAGE_TABLE_LEVEL
 		    && walker->level == PT_DIRECTORY_LEVEL) {
