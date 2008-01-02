@@ -78,7 +78,6 @@ MODULE_ALIAS_SCSI_DEVICE(TYPE_WORM);
 
 static int sr_probe(struct device *);
 static int sr_remove(struct device *);
-static int sr_done(struct scsi_cmnd *);
 
 static struct scsi_driver sr_template = {
 	.owner			= THIS_MODULE,
@@ -87,7 +86,6 @@ static struct scsi_driver sr_template = {
 		.probe		= sr_probe,
 		.remove		= sr_remove,
 	},
-	.done			= sr_done,
 };
 
 static unsigned long sr_index_bits[SR_DISKS / BITS_PER_LONG];
@@ -210,12 +208,12 @@ static int sr_media_change(struct cdrom_device_info *cdi, int slot)
 }
  
 /*
- * sr_done is the interrupt routine for the device driver.
+ * rw_intr is the interrupt routine for the device driver.
  *
- * It will be notified on the end of a SCSI read / write, and will take one
+ * It will be notified on the end of a SCSI read / write, and will take on
  * of several actions based on success or failure.
  */
-static int sr_done(struct scsi_cmnd *SCpnt)
+static void rw_intr(struct scsi_cmnd * SCpnt)
 {
 	int result = SCpnt->result;
 	int this_count = SCpnt->request_bufflen;
@@ -288,7 +286,12 @@ static int sr_done(struct scsi_cmnd *SCpnt)
 		}
 	}
 
-	return good_bytes;
+	/*
+	 * This calls the generic completion function, now that we know
+	 * how many actual sectors finished, and how many sectors we need
+	 * to say have failed.
+	 */
+	scsi_io_completion(SCpnt, good_bytes);
 }
 
 static int sr_prep_fn(struct request_queue *q, struct request *rq)
@@ -423,6 +426,12 @@ static int sr_prep_fn(struct request_queue *q, struct request *rq)
 	SCpnt->underflow = this_count << 9;
 	SCpnt->allowed = MAX_RETRIES;
 	SCpnt->timeout_per_command = timeout;
+
+	/*
+	 * This is the completion routine we use.  This is matched in terms
+	 * of capability to this function.
+	 */
+	SCpnt->done = rw_intr;
 
 	/*
 	 * This indicates that the command is ready from our end to be
