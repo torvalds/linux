@@ -419,20 +419,6 @@ unsigned long pxa3xx_mfp_read(int mfp);
 void pxa3xx_mfp_write(int mfp, unsigned long mfpr_val);
 
 /*
- * pxa3xx_mfp_set_afds - set MFP alternate function and drive strength
- * pxa3xx_mfp_set_rdh  - set MFP release delay hold on/off
- * pxa3xx_mfp_set_lpm  - set MFP low power mode state
- * pxa3xx_mfp_set_edge - set MFP edge detection in low power mode
- *
- * use these functions to override/change the default configuration
- * done by pxa3xx_mfp_set_config(s)
- */
-void pxa3xx_mfp_set_afds(int mfp, int af, int ds);
-void pxa3xx_mfp_set_rdh(int mfp, int rdh);
-void pxa3xx_mfp_set_lpm(int mfp, int lpm);
-void pxa3xx_mfp_set_edge(int mfp, int edge);
-
-/*
  * pxa3xx_mfp_config - configure the MFPR registers
  *
  * used by board specific initialization code
