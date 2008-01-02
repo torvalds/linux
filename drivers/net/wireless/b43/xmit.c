@@ -531,21 +531,32 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 	switch (chanstat & B43_RX_CHAN_PHYTYPE) {
 	case B43_PHYTYPE_A:
 		status.phymode = MODE_IEEE80211A;
-		status.freq = chanid;
-		status.channel = b43_freq_to_channel_a(chanid);
-		break;
-	case B43_PHYTYPE_B:
-		status.phymode = MODE_IEEE80211B;
-		status.freq = chanid + 2400;
-		status.channel = b43_freq_to_channel_bg(chanid + 2400);
+		B43_WARN_ON(1);
+		/* FIXME: We don't really know which value the "chanid" contains.
+		 *        So the following assignment might be wrong. */
+		status.channel = chanid;
+		status.freq = b43_channel_to_freq_5ghz(status.channel);
 		break;
 	case B43_PHYTYPE_G:
 		status.phymode = MODE_IEEE80211G;
+		/* chanid is the radio channel cookie value as used
+		 * to tune the radio. */
 		status.freq = chanid + 2400;
-		status.channel = b43_freq_to_channel_bg(chanid + 2400);
+		status.channel = b43_freq_to_channel_2ghz(status.freq);
+		break;
+	case B43_PHYTYPE_N:
+		status.phymode = 0xDEAD /*FIXME MODE_IEEE80211N*/;
+		/* chanid is the SHM channel cookie. Which is the plain
+		 * channel number in b43. */
+		status.channel = chanid;
+		if (chanstat & B43_RX_CHAN_5GHZ)
+			status.freq = b43_freq_to_channel_5ghz(status.freq);
+		else
+			status.freq = b43_freq_to_channel_2ghz(status.freq);
 		break;
 	default:
 		B43_WARN_ON(1);
+		goto drop;
 	}
 
 	dev->stats.last_rx = jiffies;

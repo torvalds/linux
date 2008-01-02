@@ -273,6 +273,8 @@ enum {
 #define B43_PHYTYPE_A			0x00
 #define B43_PHYTYPE_B			0x01
 #define B43_PHYTYPE_G			0x02
+#define B43_PHYTYPE_N			0x04
+#define B43_PHYTYPE_LP			0x05
 
 /* PHYRegisters */
 #define B43_PHY_ILT_A_CTRL		0x0072
