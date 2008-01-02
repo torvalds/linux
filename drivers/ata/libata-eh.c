@@ -61,12 +61,11 @@ enum {
 	ATA_ECAT_ATA_BUS		= 1,
 	ATA_ECAT_TOUT_HSM		= 2,
 	ATA_ECAT_UNK_DEV		= 3,
-	ATA_ECAT_DUBIOUS_ATA_BUS	= 4,
-	ATA_ECAT_DUBIOUS_TOUT_HSM	= 5,
-	ATA_ECAT_DUBIOUS_UNK_DEV	= 6,
-	ATA_ECAT_NR			= 7,
-
-	ATA_ECAT_DUBIOUS_BASE		= ATA_ECAT_DUBIOUS_ATA_BUS,
+	ATA_ECAT_DUBIOUS_NONE		= 4,
+	ATA_ECAT_DUBIOUS_ATA_BUS	= 5,
+	ATA_ECAT_DUBIOUS_TOUT_HSM	= 6,
+	ATA_ECAT_DUBIOUS_UNK_DEV	= 7,
+	ATA_ECAT_NR			= 8,
 };
 
 /* Waiting in ->prereset can never be reliable.  It's sometimes nice
@@ -1499,7 +1498,7 @@ static int ata_eh_categorize_error(unsigned int eflags, unsigned int err_mask,
 		*xfer_ok = 1;
 
 	if (!*xfer_ok)
-		base = ATA_ECAT_DUBIOUS_BASE;
+		base = ATA_ECAT_DUBIOUS_NONE;
 
 	if (err_mask & AC_ERR_ATA_BUS)
 		return base + ATA_ECAT_ATA_BUS;
