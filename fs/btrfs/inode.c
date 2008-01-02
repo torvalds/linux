@@ -2058,7 +2058,7 @@ int btrfs_page_mkwrite(struct vm_area_struct *vma, struct page *page)
 
 	mutex_lock(&root->fs_info->fs_mutex);
 	ret = btrfs_check_free_space(root, PAGE_CACHE_SIZE, 0);
-	mutex_lock(&root->fs_info->fs_mutex);
+	mutex_unlock(&root->fs_info->fs_mutex);
 	if (ret)
 		goto out;
 

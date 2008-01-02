@@ -1630,11 +1630,11 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 	struct btrfs_path *path;
 
 	btrfs_set_stack_extent_refs(&extent_item, 1);
-#if 0
-	new_hint = max(hint_byte, 16ULL * 1024 * 1024 * 1024);
+
+	new_hint = max(hint_byte, root->fs_info->alloc_start);
 	if (new_hint < btrfs_super_total_bytes(&info->super_copy))
 		hint_byte = new_hint;
-#endif
+
 	WARN_ON(num_bytes < root->sectorsize);
 	ret = find_free_extent(trans, root, num_bytes, empty_size,
 			       search_start, search_end, hint_byte, ins,
@@ -2239,7 +2239,7 @@ static int relocate_one_reference(struct btrfs_root *extent_root,
 		free_extent_buffer(eb);
 
 		path->lowest_level = level;
-		path->reada = 0;
+		path->reada = 2;
 		ret = btrfs_search_slot(trans, found_root, &found_key, path,
 					0, 1);
 		path->lowest_level = 0;
@@ -2372,6 +2372,7 @@ int btrfs_shrink_extent_tree(struct btrfs_root *root, u64 new_size)
 	block_group_cache = &info->block_group_cache;
 	path = btrfs_alloc_path();
 	root = root->fs_info->extent_root;
+	path->reada = 2;
 
 again:
 	total_found = 0;

@@ -63,7 +63,8 @@ static void btrfs_put_super (struct super_block * sb)
 }
 
 enum {
-	Opt_subvol, Opt_nodatasum, Opt_nodatacow, Opt_max_extent, Opt_err,
+	Opt_subvol, Opt_nodatasum, Opt_nodatacow, Opt_max_extent,
+	Opt_alloc_start, Opt_err,
 };
 
 static match_table_t tokens = {
@@ -71,6 +72,7 @@ static match_table_t tokens = {
 	{Opt_nodatasum, "nodatasum"},
 	{Opt_nodatacow, "nodatacow"},
 	{Opt_max_extent, "max_extent=%s"},
+	{Opt_alloc_start, "alloc_start=%s"},
 	{Opt_err, NULL}
 };
 
@@ -159,6 +161,18 @@ static int parse_options (char * options,
 							 root->sectorsize);
 					printk("btrfs: max_extent at %Lu\n",
 					       info->max_extent);
+				}
+			}
+			break;
+		case Opt_alloc_start:
+			if (info) {
+				char *num = match_strdup(&args[0]);
+				if (num) {
+					info->alloc_start =
+						btrfs_parse_size(num);
+					kfree(num);
+					printk("btrfs: allocations start at "
+					       "%Lu\n", info->alloc_start);
 				}
 			}
 			break;

@@ -2654,9 +2654,9 @@ int btrfs_del_item(struct btrfs_trans_handle *trans, struct btrfs_root *root,
  */
 int btrfs_prev_leaf(struct btrfs_root *root, struct btrfs_path *path)
 {
+	u64 bytenr;
 	int slot;
 	int level = 1;
-	u64 bytenr;
 	struct extent_buffer *c;
 	struct extent_buffer *next = NULL;
 
@@ -2687,11 +2687,14 @@ int btrfs_prev_leaf(struct btrfs_root *root, struct btrfs_path *path)
 		level--;
 		c = path->nodes[level];
 		free_extent_buffer(c);
+		slot = btrfs_header_nritems(next);
+		if (slot != 0)
+			slot--;
 		path->nodes[level] = next;
-		path->slots[level] = 0;
+		path->slots[level] = slot;
 		if (!level)
 			break;
-		next = read_tree_block(root, btrfs_node_blockptr(next, 0),
+		next = read_tree_block(root, btrfs_node_blockptr(next, slot),
 				       btrfs_level_size(root, level - 1));
 	}
 	return 0;
