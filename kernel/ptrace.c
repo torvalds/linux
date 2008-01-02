@@ -196,7 +196,7 @@ repeat:
 	/* the same process cannot be attached many times */
 	if (task->ptrace & PT_PTRACED)
 		goto bad;
-	retval = may_attach(task);
+	retval = __ptrace_may_attach(task);
 	if (retval)
 		goto bad;
 
