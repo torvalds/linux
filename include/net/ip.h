@@ -82,8 +82,6 @@ struct packet_type;
 struct rtable;
 struct sockaddr;
 
-extern void		ip_mc_dropsocket(struct sock *);
-extern void		ip_mc_dropdevice(struct net_device *dev);
 extern int		igmp_mc_proc_init(void);
 
 /*
@@ -321,7 +319,7 @@ static __inline__ void inet_reset_saddr(struct sock *sk)
 extern int	ip_call_ra_chain(struct sk_buff *skb);
 
 /*
- *	Functions provided by ip_fragment.o
+ *	Functions provided by ip_fragment.c
  */
 
 enum ip_defrag_users
@@ -344,7 +342,6 @@ int ip_frag_nqueues(void);
  */
  
 extern int ip_forward(struct sk_buff *skb);
-extern int ip_net_unreachable(struct sk_buff *skb);
  
 /*
  *	Functions provided by ip_options.c
