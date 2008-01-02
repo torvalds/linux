@@ -306,6 +306,8 @@ static void __init pxa27x_init_pm(void)
 {
 	pxa_cpu_pm_fns = &pxa27x_cpu_pm_fns;
 }
+#else
+static inline void pxa27x_init_pm(void) {}
 #endif
 
 /* PXA27x:  Various gpios can issue wakeup events.  This logic only
@@ -415,9 +417,9 @@ static int __init pxa27x_init(void)
 
 		if ((ret = pxa_init_dma(32)))
 			return ret;
-#ifdef CONFIG_PM
+
 		pxa27x_init_pm();
-#endif
+
 		ret = platform_add_devices(devices, ARRAY_SIZE(devices));
 	}
 	return ret;

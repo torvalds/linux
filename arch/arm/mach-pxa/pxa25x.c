@@ -239,6 +239,8 @@ static void __init pxa25x_init_pm(void)
 {
 	pxa_cpu_pm_fns = &pxa25x_cpu_pm_fns;
 }
+#else
+static inline void pxa25x_init_pm(void) {}
 #endif
 
 /* PXA25x: supports wakeup from GPIO0..GPIO15 and RTC alarm
@@ -310,9 +312,9 @@ static int __init pxa25x_init(void)
 
 		if ((ret = pxa_init_dma(16)))
 			return ret;
-#ifdef CONFIG_PM
+
 		pxa25x_init_pm();
-#endif
+
 		ret = platform_add_devices(pxa25x_devices,
 					   ARRAY_SIZE(pxa25x_devices));
 	}
