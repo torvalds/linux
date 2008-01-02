@@ -66,6 +66,7 @@ static int xfrm_output_one(struct sk_buff *skb, int err)
 			if (unlikely(x->replay.oseq == 0)) {
 				x->replay.oseq--;
 				xfrm_audit_state_replay_overflow(x, skb);
+				err = -EOVERFLOW;
 				goto error;
 			}
 			if (xfrm_aevent_is_on())
