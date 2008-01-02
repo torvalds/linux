@@ -676,7 +676,6 @@ extern const char *ip_vs_proto_name(unsigned proto);
 extern void ip_vs_init_hash_table(struct list_head *table, int rows);
 #define IP_VS_INIT_HASH_TABLE(t) ip_vs_init_hash_table(t, sizeof(t)/sizeof(t[0]))
 
-#define IP_VS_APP_TYPE_UNSPEC	0
 #define IP_VS_APP_TYPE_FTP	1
 
 /*
@@ -735,7 +734,6 @@ extern const char * ip_vs_state_name(__u16 proto, int state);
 
 extern void ip_vs_tcp_conn_listen(struct ip_vs_conn *cp);
 extern int ip_vs_check_template(struct ip_vs_conn *ct);
-extern void ip_vs_secure_tcp_set(int on);
 extern void ip_vs_random_dropentry(void);
 extern int ip_vs_conn_init(void);
 extern void ip_vs_conn_cleanup(void);
