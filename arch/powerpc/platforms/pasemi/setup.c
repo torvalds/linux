@@ -264,7 +264,7 @@ static int pas_machine_check_handler(struct pt_regs *regs)
 	srr0 = regs->nip;
 	srr1 = regs->msr;
 
-	if (mpic_get_mcirq() == nmi_virq) {
+	if (nmi_virq != NO_IRQ && mpic_get_mcirq() == nmi_virq) {
 		printk(KERN_ERR "NMI delivered\n");
 		debugger(regs);
 		mpic_end_irq(nmi_virq);
