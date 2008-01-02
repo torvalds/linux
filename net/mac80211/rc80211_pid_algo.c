@@ -12,7 +12,7 @@
 #include <linux/netdevice.h>
 #include <linux/types.h>
 #include <linux/skbuff.h>
-
+#include <linux/debugfs.h>
 #include <net/mac80211.h>
 #include "ieee80211_rate.h"
 
@@ -492,7 +492,7 @@ static void rate_control_pid_free_sta(void *priv, void *priv_sta)
 	kfree(spinfo);
 }
 
-struct rate_control_ops mac80211_rcpid = {
+static struct rate_control_ops mac80211_rcpid = {
 	.name = "pid",
 	.tx_status = rate_control_pid_tx_status,
 	.get_rate = rate_control_pid_get_rate,
@@ -507,3 +507,23 @@ struct rate_control_ops mac80211_rcpid = {
 	.remove_sta_debugfs = rate_control_pid_remove_sta_debugfs,
 #endif
 };
+
+MODULE_DESCRIPTION("PID controller based rate control algorithm");
+MODULE_AUTHOR("Stefano Brivio");
+MODULE_AUTHOR("Mattias Nissler");
+MODULE_LICENSE("GPL");
+
+int __init rc80211_pid_init(void)
+{
+	return ieee80211_rate_control_register(&mac80211_rcpid);
+}
+
+void __exit rc80211_pid_exit(void)
+{
+	ieee80211_rate_control_unregister(&mac80211_rcpid);
+}
+
+#ifdef CONFIG_MAC80211_RC_PID_MODULE
+module_init(rc80211_pid_init);
+module_exit(rc80211_pid_exit);
+#endif

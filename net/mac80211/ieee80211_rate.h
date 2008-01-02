@@ -58,12 +58,6 @@ struct rate_control_ref {
 	struct kref kref;
 };
 
-/* default 'simple' algorithm */
-extern struct rate_control_ops mac80211_rcsimple;
-
-/* 'PID' algorithm */
-extern struct rate_control_ops mac80211_rcpid;
-
 int ieee80211_rate_control_register(struct rate_control_ops *ops);
 void ieee80211_rate_control_unregister(struct rate_control_ops *ops);
 
@@ -169,5 +163,37 @@ rate_lowest(struct ieee80211_local *local, struct ieee80211_hw_mode *mode,
 int ieee80211_init_rate_ctrl_alg(struct ieee80211_local *local,
 				 const char *name);
 void rate_control_deinitialize(struct ieee80211_local *local);
+
+
+/* Rate control algorithms */
+#if defined(RC80211_SIMPLE_COMPILE) || \
+	(defined(CONFIG_MAC80211_RC_SIMPLE) && \
+	 !defined(CONFIG_MAC80211_RC_SIMPLE_MODULE))
+extern int rc80211_simple_init(void);
+extern void rc80211_simple_exit(void);
+#else
+static inline int rc80211_simple_init(void)
+{
+	return 0;
+}
+static inline void rc80211_simple_exit(void)
+{
+}
+#endif
+
+#if defined(RC80211_PID_COMPILE) || \
+	(defined(CONFIG_MAC80211_RC_PID) && \
+	 !defined(CONFIG_MAC80211_RC_PID_MODULE))
+extern int rc80211_pid_init(void);
+extern void rc80211_pid_exit(void);
+#else
+static inline int rc80211_pid_init(void)
+{
+	return 0;
+}
+static inline void rc80211_pid_exit(void)
+{
+}
+#endif
 
 #endif /* IEEE80211_RATE_H */

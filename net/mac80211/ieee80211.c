@@ -1323,23 +1323,19 @@ static int __init ieee80211_init(void)
 
 	BUILD_BUG_ON(sizeof(struct ieee80211_tx_packet_data) > sizeof(skb->cb));
 
-#ifdef CONFIG_MAC80211_RC_SIMPLE
-	ret = ieee80211_rate_control_register(&mac80211_rcsimple);
+	ret = rc80211_simple_init();
 	if (ret)
 		goto fail;
-#endif
 
-#ifdef CONFIG_MAC80211_RC_PID
-	ret = ieee80211_rate_control_register(&mac80211_rcpid);
+	ret = rc80211_pid_init();
 	if (ret)
-		goto fail;
-#endif
+		goto fail_simple;
 
 	ret = ieee80211_wme_register();
 	if (ret) {
 		printk(KERN_DEBUG "ieee80211_init: failed to "
 		       "initialize WME (err=%d)\n", ret);
-		goto fail;
+		goto fail_pid;
 	}
 
 	ieee80211_debugfs_netdev_init();
@@ -1347,26 +1343,18 @@ static int __init ieee80211_init(void)
 
 	return 0;
 
-fail:
-
-#ifdef CONFIG_MAC80211_RC_SIMPLE
-	ieee80211_rate_control_unregister(&mac80211_rcsimple);
-#endif
-#ifdef CONFIG_MAC80211_RC_PID
-	ieee80211_rate_control_unregister(&mac80211_rcpid);
-#endif
-
+ fail_pid:
+	rc80211_simple_exit();
+ fail_simple:
+	rc80211_pid_exit();
+ fail:
 	return ret;
 }
 
 static void __exit ieee80211_exit(void)
 {
-#ifdef CONFIG_MAC80211_RC_SIMPLE
-	ieee80211_rate_control_unregister(&mac80211_rcsimple);
-#endif
-#ifdef CONFIG_MAC80211_RC_PID
-	ieee80211_rate_control_unregister(&mac80211_rcpid);
-#endif
+	rc80211_simple_exit();
+	rc80211_pid_exit();
 
 	ieee80211_wme_unregister();
 	ieee80211_debugfs_netdev_exit();
