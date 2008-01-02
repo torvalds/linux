@@ -741,10 +741,10 @@ static void nfs4_open_confirm_done(struct rpc_task *task, void *calldata)
 	if (data->rpc_status == 0) {
 		memcpy(data->o_res.stateid.data, data->c_res.stateid.data,
 				sizeof(data->o_res.stateid.data));
+		nfs_confirm_seqid(&data->owner->so_seqid, 0);
 		renew_lease(data->o_res.server, data->timestamp);
 		data->rpc_done = 1;
 	}
-	nfs_confirm_seqid(&data->owner->so_seqid, data->rpc_status);
 	nfs_increment_open_seqid(data->rpc_status, data->c_arg.seqid);
 }
 
@@ -759,7 +759,6 @@ static void nfs4_open_confirm_release(void *calldata)
 	/* In case of error, no cleanup! */
 	if (!data->rpc_done)
 		goto out_free;
-	nfs_confirm_seqid(&data->owner->so_seqid, 0);
 	state = nfs4_opendata_to_nfs4_state(data);
 	if (!IS_ERR(state))
 		nfs4_close_state(&data->path, state, data->o_arg.open_flags);
@@ -886,7 +885,6 @@ static void nfs4_open_release(void *calldata)
 	/* In case we need an open_confirm, no cleanup! */
 	if (data->o_res.rflags & NFS4_OPEN_RESULT_CONFIRM)
 		goto out_free;
-	nfs_confirm_seqid(&data->owner->so_seqid, 0);
 	state = nfs4_opendata_to_nfs4_state(data);
 	if (!IS_ERR(state))
 		nfs4_close_state(&data->path, state, data->o_arg.open_flags);
