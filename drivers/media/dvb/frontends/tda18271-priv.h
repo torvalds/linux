@@ -1,7 +1,7 @@
 /*
     tda18271-priv.h - private header for the NXP TDA18271 silicon tuner
 
-    Copyright (C) 2007 Michael Krufky (mkrufky@linuxtv.org)
+    Copyright (C) 2007, 2008 Michael Krufky <mkrufky@linuxtv.org>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -195,6 +195,23 @@ extern int tda18271_lookup_cid_target(struct dvb_frontend *fe,
 				      u16 *count_limit);
 
 extern int tda18271_assign_map_layout(struct dvb_frontend *fe);
+
+/*---------------------------------------------------------------------*/
+
+extern int tda18271_read_regs(struct dvb_frontend *fe);
+extern int tda18271_read_extended(struct dvb_frontend *fe);
+extern int tda18271_write_regs(struct dvb_frontend *fe, int idx, int len);
+extern int tda18271_init_regs(struct dvb_frontend *fe);
+
+extern int tda18271_calc_main_pll(struct dvb_frontend *fe, u32 freq);
+extern int tda18271_calc_cal_pll(struct dvb_frontend *fe, u32 freq);
+
+extern int tda18271_calc_bp_filter(struct dvb_frontend *fe, u32 *freq);
+extern int tda18271_calc_km(struct dvb_frontend *fe, u32 *freq);
+extern int tda18271_calc_rf_band(struct dvb_frontend *fe, u32 *freq);
+extern int tda18271_calc_gain_taper(struct dvb_frontend *fe, u32 *freq);
+extern int tda18271_calc_ir_measure(struct dvb_frontend *fe, u32 *freq);
+extern int tda18271_calc_rf_cal(struct dvb_frontend *fe, u32 *freq);
 
 #endif /* __TDA18271_PRIV_H__ */
 

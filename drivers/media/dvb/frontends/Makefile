@@ -5,7 +5,7 @@
 EXTRA_CFLAGS += -Idrivers/media/dvb/dvb-core/
 EXTRA_CFLAGS += -Idrivers/media/video/
 
-tda18271-objs := tda18271-tables.o tda18271-fe.o
+tda18271-objs := tda18271-tables.o tda18271-common.o tda18271-fe.o
 
 obj-$(CONFIG_DVB_PLL) += dvb-pll.o
 obj-$(CONFIG_DVB_STV0299) += stv0299.o

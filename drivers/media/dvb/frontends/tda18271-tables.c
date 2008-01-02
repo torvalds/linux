@@ -1,7 +1,7 @@
 /*
     tda18271-tables.c - driver for the Philips / NXP TDA18271 silicon tuner
 
-    Copyright (C) 2007 Michael Krufky (mkrufky@linuxtv.org)
+    Copyright (C) 2007, 2008 Michael Krufky <mkrufky@linuxtv.org>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
