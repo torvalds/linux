@@ -38,7 +38,7 @@ static int __init sequoia_device_probe(void)
 
 	return 0;
 }
-machien_device_initcall(sequoia, sequoia_device_probe);
+machine_device_initcall(sequoia, sequoia_device_probe);
 
 static int __init sequoia_probe(void)
 {
