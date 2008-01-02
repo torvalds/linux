@@ -183,6 +183,16 @@ static struct tda829x_config tda829x_no_probe = {
 	.probe_tuner = TDA829X_DONT_PROBE,
 };
 
+static struct tda18271_std_map hauppauge_tda18271_std_map = {
+	.atsc_6   = { .if_freq = 5380000, .std_bits = 0x1b },
+	.qam_6    = { .if_freq = 4000000, .std_bits = 0x18 },
+};
+
+static struct tda18271_config hauppauge_tda18271_config = {
+	.std_map = &hauppauge_tda18271_std_map,
+	.gate    = TDA18271_GATE_ANALOG,
+};
+
 static int cx23885_hvr1500_xc3028_callback(void *ptr, int command, int arg)
 {
 	struct cx23885_tsport *port = ptr;
@@ -248,7 +258,7 @@ static int dvb_register(struct cx23885_tsport *port)
 					   &tda829x_no_probe);
 				dvb_attach(tda18271_attach, port->dvb.frontend,
 					   0x60, &dev->i2c_bus[1].i2c_adap,
-					   TDA18271_GATE_ANALOG);
+					   &hauppauge_tda18271_config);
 			}
 			break;
 		case 0:

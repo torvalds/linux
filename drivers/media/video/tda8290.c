@@ -509,6 +509,10 @@ static void tda829x_release(struct dvb_frontend *fe)
 	fe->analog_demod_priv = NULL;
 }
 
+static struct tda18271_config tda829x_tda18271_config = {
+	.gate    = TDA18271_GATE_ANALOG,
+};
+
 static int tda829x_find_tuner(struct dvb_frontend *fe)
 {
 	struct tda8290_priv *priv = fe->analog_demod_priv;
@@ -574,7 +578,7 @@ static int tda829x_find_tuner(struct dvb_frontend *fe)
 		priv->ver |= TDA18271;
 		tda18271_attach(fe, priv->tda827x_addr,
 				priv->i2c_props.adap,
-				TDA18271_GATE_ANALOG);
+				&tda829x_tda18271_config);
 	} else {
 		if ((data & 0x3c) == 0)
 			priv->ver |= TDA8275;

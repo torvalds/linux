@@ -84,27 +84,6 @@ struct tda18271_rf_tracking_filter_cal {
 	int rf_b2;
 };
 
-struct tda18271_std_map_item {
-	u32 if_freq;
-	u8 std_bits;
-};
-
-struct tda18271_std_map {
-	struct tda18271_std_map_item atv_b;
-	struct tda18271_std_map_item atv_dk;
-	struct tda18271_std_map_item atv_gh;
-	struct tda18271_std_map_item atv_i;
-	struct tda18271_std_map_item atv_l;
-	struct tda18271_std_map_item atv_lc;
-	struct tda18271_std_map_item atv_mn;
-	struct tda18271_std_map_item atsc_6;
-	struct tda18271_std_map_item dvbt_6;
-	struct tda18271_std_map_item dvbt_7;
-	struct tda18271_std_map_item dvbt_8;
-	struct tda18271_std_map_item qam_6;
-	struct tda18271_std_map_item qam_8;
-};
-
 enum tda18271_mode {
 	TDA18271_ANALOG,
 	TDA18271_DIGITAL,
@@ -128,8 +107,8 @@ struct tda18271_priv {
 
 	unsigned int cal_initialized:1;
 
-	struct tda18271_std_map *std;
 	struct tda18271_map_layout *maps;
+	struct tda18271_std_map std;
 	struct tda18271_rf_tracking_filter_cal rf_cal_state[8];
 
 	int (*tune) (struct dvb_frontend *fe,

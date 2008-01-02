@@ -24,21 +24,47 @@
 #include <linux/i2c.h>
 #include "dvb_frontend.h"
 
+struct tda18271_std_map_item {
+	u32 if_freq;
+	u8 std_bits;
+};
+
+struct tda18271_std_map {
+	struct tda18271_std_map_item atv_b;
+	struct tda18271_std_map_item atv_dk;
+	struct tda18271_std_map_item atv_gh;
+	struct tda18271_std_map_item atv_i;
+	struct tda18271_std_map_item atv_l;
+	struct tda18271_std_map_item atv_lc;
+	struct tda18271_std_map_item atv_mn;
+	struct tda18271_std_map_item atsc_6;
+	struct tda18271_std_map_item dvbt_6;
+	struct tda18271_std_map_item dvbt_7;
+	struct tda18271_std_map_item dvbt_8;
+	struct tda18271_std_map_item qam_6;
+	struct tda18271_std_map_item qam_8;
+};
+
 enum tda18271_i2c_gate {
 	TDA18271_GATE_AUTO = 0,
 	TDA18271_GATE_ANALOG,
 	TDA18271_GATE_DIGITAL,
 };
 
+struct tda18271_config {
+	struct tda18271_std_map *std_map;
+	enum tda18271_i2c_gate gate;
+};
+
 #if defined(CONFIG_DVB_TDA18271) || (defined(CONFIG_DVB_TDA18271_MODULE) && defined(MODULE))
 extern struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 					    struct i2c_adapter *i2c,
-					    enum tda18271_i2c_gate gate);
+					    struct tda18271_config *cfg);
 #else
 static inline struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe,
 						   u8 addr,
 						   struct i2c_adapter *i2c,
-						   enum tda18271_i2c_gate gate)
+						   struct tda18271_config *cfg)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __FUNCTION__);
 	return NULL;

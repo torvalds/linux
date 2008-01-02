@@ -768,12 +768,12 @@ static int tda18271_set_params(struct dvb_frontend *fe,
 			       struct dvb_frontend_parameters *params)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
-	struct tda18271_std_map *std_map = priv->std;
+	struct tda18271_std_map *std_map = &priv->std;
 	u8 std;
 	u32 bw, sgIF = 0;
 	u32 freq = params->frequency;
 
-	BUG_ON(!priv->tune || !priv->std);
+	BUG_ON(!priv->tune);
 
 	priv->mode = TDA18271_DIGITAL;
 
@@ -832,12 +832,12 @@ static int tda18271_set_analog_params(struct dvb_frontend *fe,
 				      struct analog_parameters *params)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
-	struct tda18271_std_map *std_map = priv->std;
+	struct tda18271_std_map *std_map = &priv->std;
 	char *mode;
 	u8 std;
 	u32 sgIF, freq = params->frequency * 62500;
 
-	BUG_ON(!priv->tune || !priv->std);
+	BUG_ON(!priv->tune);
 
 	priv->mode = TDA18271_ANALOG;
 
@@ -901,6 +901,69 @@ static int tda18271_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 	return 0;
 }
 
+/* ------------------------------------------------------------------ */
+
+#define tda18271_update_std(std_cfg, name) do {				\
+	if (map->std_cfg.if_freq + map->std_cfg.std_bits > 0) {		\
+		tda_dbg("Using custom std config for %s\n", name);	\
+		memcpy(&std->std_cfg, &map->std_cfg,			\
+			sizeof(struct tda18271_std_map_item));		\
+	} } while (0)
+
+#define tda18271_dump_std_item(std_cfg, name) do {			\
+	tda_dbg("(%s) if freq = %d, std bits = 0x%02x\n",		\
+		name, std->std_cfg.if_freq, std->std_cfg.std_bits);	\
+	} while (0)
+
+static int tda18271_dump_std_map(struct dvb_frontend *fe)
+{
+	struct tda18271_priv *priv = fe->tuner_priv;
+	struct tda18271_std_map *std = &priv->std;
+
+	tda_dbg("========== STANDARD MAP SETTINGS ==========\n");
+	tda18271_dump_std_item(atv_b,  "pal b");
+	tda18271_dump_std_item(atv_dk, "pal dk");
+	tda18271_dump_std_item(atv_gh, "pal gh");
+	tda18271_dump_std_item(atv_i,  "pal i");
+	tda18271_dump_std_item(atv_l,  "pal l");
+	tda18271_dump_std_item(atv_lc, "pal l'");
+	tda18271_dump_std_item(atv_mn, "atv mn");
+	tda18271_dump_std_item(atsc_6, "atsc 6");
+	tda18271_dump_std_item(dvbt_6, "dvbt 6");
+	tda18271_dump_std_item(dvbt_7, "dvbt 7");
+	tda18271_dump_std_item(dvbt_8, "dvbt 8");
+	tda18271_dump_std_item(qam_6,  "qam 6");
+	tda18271_dump_std_item(qam_8,  "qam 8");
+
+	return 0;
+}
+
+static int tda18271_update_std_map(struct dvb_frontend *fe,
+				   struct tda18271_std_map *map)
+{
+	struct tda18271_priv *priv = fe->tuner_priv;
+	struct tda18271_std_map *std = &priv->std;
+
+	if (!map)
+		return -EINVAL;
+
+	tda18271_update_std(atv_b,  "atv b");
+	tda18271_update_std(atv_dk, "atv dk");
+	tda18271_update_std(atv_gh, "atv gh");
+	tda18271_update_std(atv_i,  "atv i");
+	tda18271_update_std(atv_l,  "atv l");
+	tda18271_update_std(atv_lc, "atv l'");
+	tda18271_update_std(atv_mn, "atv mn");
+	tda18271_update_std(atsc_6, "atsc 6");
+	tda18271_update_std(dvbt_6, "dvbt 6");
+	tda18271_update_std(dvbt_7, "dvbt 7");
+	tda18271_update_std(dvbt_8, "dvbt 8");
+	tda18271_update_std(qam_6,  "qam 6");
+	tda18271_update_std(qam_8,  "qam 8");
+
+	return 0;
+}
+
 static int tda18271_get_id(struct dvb_frontend *fe)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
@@ -951,7 +1014,7 @@ static struct dvb_tuner_ops tda18271_tuner_ops = {
 
 struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 				     struct i2c_adapter *i2c,
-				     enum tda18271_i2c_gate gate)
+				     struct tda18271_config *cfg)
 {
 	struct tda18271_priv *priv = NULL;
 
@@ -961,7 +1024,7 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 
 	priv->i2c_addr = addr;
 	priv->i2c_adap = i2c;
-	priv->gate = gate;
+	priv->gate = (cfg) ? cfg->gate : TDA18271_GATE_AUTO;
 	priv->cal_initialized = false;
 
 	fe->tuner_priv = priv;
@@ -974,6 +1037,13 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 
 	memcpy(&fe->ops.tuner_ops, &tda18271_tuner_ops,
 	       sizeof(struct dvb_tuner_ops));
+
+	/* override default std map with values in config struct */
+	if ((cfg) && (cfg->std_map))
+		tda18271_update_std_map(fe, cfg->std_map);
+
+	if (tda18271_debug & DBG_MAP)
+		tda18271_dump_std_map(fe);
 
 	tda18271_init_regs(fe);
 

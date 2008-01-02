@@ -1194,11 +1194,11 @@ static struct tda18271_std_map tda18271c1_std_map = {
 	.atv_l    = { .if_freq = 7750000, .std_bits = 0x0f },
 	.atv_lc   = { .if_freq = 1250000, .std_bits = 0x0f },
 	.atv_mn   = { .if_freq = 5750000, .std_bits = 0x0d },
-	.atsc_6   = { .if_freq = 5380000, .std_bits = 0x1b },
-	.dvbt_6   = { .if_freq = 3300000, .std_bits = 0x1b },
-	.dvbt_7   = { .if_freq = 3800000, .std_bits = 0x19 },
-	.dvbt_8   = { .if_freq = 4300000, .std_bits = 0x1a },
-	.qam_6    = { .if_freq = 4000000, .std_bits = 0x18 },
+	.atsc_6   = { .if_freq = 3250000, .std_bits = 0x1c },
+	.dvbt_6   = { .if_freq = 3300000, .std_bits = 0x1c },
+	.dvbt_7   = { .if_freq = 3800000, .std_bits = 0x1d },
+	.dvbt_8   = { .if_freq = 4300000, .std_bits = 0x1e },
+	.qam_6    = { .if_freq = 4000000, .std_bits = 0x1d },
 	.qam_8    = { .if_freq = 5000000, .std_bits = 0x1f },
 };
 
@@ -1210,7 +1210,7 @@ static struct tda18271_std_map tda18271c2_std_map = {
 	.atv_l    = { .if_freq = 6900000, .std_bits = 0x0e },
 	.atv_lc   = { .if_freq = 1250000, .std_bits = 0x0e },
 	.atv_mn   = { .if_freq = 5400000, .std_bits = 0x0c },
-	.atsc_6   = { .if_freq = 5380000, .std_bits = 0x1b },
+	.atsc_6   = { .if_freq = 3250000, .std_bits = 0x1c },
 	.dvbt_6   = { .if_freq = 3300000, .std_bits = 0x1c },
 	.dvbt_7   = { .if_freq = 3500000, .std_bits = 0x1c },
 	.dvbt_8   = { .if_freq = 4000000, .std_bits = 0x1d },
@@ -1256,11 +1256,13 @@ int tda18271_assign_map_layout(struct dvb_frontend *fe)
 	switch (priv->id) {
 	case TDA18271HDC1:
 		priv->maps = &tda18271c1_map_layout;
-		priv->std  = &tda18271c1_std_map;
+		memcpy(&priv->std, &tda18271c1_std_map,
+		       sizeof(struct tda18271_std_map));
 		break;
 	case TDA18271HDC2:
 		priv->maps = &tda18271c2_map_layout;
-		priv->std  = &tda18271c2_std_map;
+		memcpy(&priv->std, &tda18271c2_std_map,
+		       sizeof(struct tda18271_std_map));
 		break;
 	default:
 		ret = -EINVAL;
