@@ -7,7 +7,7 @@
 target = $(target_compressed_dir)
 src    = $(src_compressed_dir)
 
-CC = gcc-cris -mlinux -march=v32 -I $(TOPDIR)/include
+CC = gcc-cris -mlinux -march=v32 $(LINUXINCLUDE)
 CFLAGS = -O2
 LD = gcc-cris -mlinux -march=v32 -nostdlib
 OBJCOPY = objcopy-cris
