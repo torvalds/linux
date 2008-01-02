@@ -415,8 +415,10 @@ enum emulation_result {
 	EMULATE_FAIL,         /* can't emulate this instruction */
 };
 
+#define EMULTYPE_NO_DECODE	    (1 << 0)
+#define EMULTYPE_TRAP_UD	    (1 << 1)
 int emulate_instruction(struct kvm_vcpu *vcpu, struct kvm_run *run,
-			unsigned long cr2, u16 error_code, int no_decode);
+			unsigned long cr2, u16 error_code, int emulation_type);
 void kvm_report_emulation_failure(struct kvm_vcpu *cvpu, const char *context);
 void realmode_lgdt(struct kvm_vcpu *vcpu, u16 size, unsigned long address);
 void realmode_lidt(struct kvm_vcpu *vcpu, u16 size, unsigned long address);

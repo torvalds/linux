@@ -1840,9 +1840,10 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 			struct kvm_run *run,
 			unsigned long cr2,
 			u16 error_code,
-			int no_decode)
+			int emulation_type)
 {
 	int r;
+	struct decode_cache *c;
 
 	vcpu->arch.mmio_fault_cr2 = cr2;
 	kvm_x86_ops->cache_regs(vcpu);
@@ -1850,7 +1851,7 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 	vcpu->mmio_is_write = 0;
 	vcpu->arch.pio.string = 0;
 
-	if (!no_decode) {
+	if (!(emulation_type & EMULTYPE_NO_DECODE)) {
 		int cs_db, cs_l;
 		kvm_x86_ops->get_cs_db_l_bits(vcpu, &cs_db, &cs_l);
 
@@ -1884,6 +1885,16 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 					get_segment_base(vcpu, VCPU_SREG_FS);
 
 		r = x86_decode_insn(&vcpu->arch.emulate_ctxt, &emulate_ops);
+
+		/* Reject the instructions other than VMCALL/VMMCALL when
+		 * try to emulate invalid opcode */
+		c = &vcpu->arch.emulate_ctxt.decode;
+		if ((emulation_type & EMULTYPE_TRAP_UD) &&
+		    (!(c->twobyte && c->b == 0x01 &&
+		      (c->modrm_reg == 0 || c->modrm_reg == 3) &&
+		       c->modrm_mod == 3 && c->modrm_rm == 1)))
+			return EMULATE_FAIL;
+
 		++vcpu->stat.insn_emulation;
 		if (r)  {
 			++vcpu->stat.insn_emulation_fail;
@@ -2640,7 +2651,8 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		vcpu->mmio_read_completed = 1;
 		vcpu->mmio_needed = 0;
 		r = emulate_instruction(vcpu, kvm_run,
-					vcpu->arch.mmio_fault_cr2, 0, 1);
+					vcpu->arch.mmio_fault_cr2, 0,
+					EMULTYPE_NO_DECODE);
 		if (r == EMULATE_DO_MMIO) {
 			/*
 			 * Read-modify-write.  Back to userspace.
