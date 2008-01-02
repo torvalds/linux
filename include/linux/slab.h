@@ -271,5 +271,10 @@ static inline void *kzalloc(size_t size, gfp_t flags)
 	return kmalloc(size, flags | __GFP_ZERO);
 }
 
+#ifdef CONFIG_SLABINFO
+extern const struct seq_operations slabinfo_op;
+ssize_t slabinfo_write(struct file *, const char __user *, size_t, loff_t *);
+#endif
+
 #endif	/* __KERNEL__ */
 #endif	/* _LINUX_SLAB_H */

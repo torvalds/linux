@@ -200,6 +200,4 @@ static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
 }
 #endif
 
-extern const struct seq_operations slabinfo_op;
-
 #endif /* _LINUX_SLUB_DEF_H */

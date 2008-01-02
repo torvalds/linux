@@ -410,7 +410,7 @@ static const struct file_operations proc_modules_operations = {
 };
 #endif
 
-#ifdef CONFIG_SLAB
+#ifdef CONFIG_SLABINFO
 static int slabinfo_open(struct inode *inode, struct file *file)
 {
 	return seq_open(file, &slabinfo_op);
@@ -449,20 +449,6 @@ static const struct file_operations proc_slabstats_operations = {
 	.release	= seq_release_private,
 };
 #endif
-#endif
-
-#ifdef CONFIG_SLUB
-static int slabinfo_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &slabinfo_op);
-}
-
-static const struct file_operations proc_slabinfo_operations = {
-	.open		= slabinfo_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
 #endif
 
 static int show_stat(struct seq_file *p, void *v)
@@ -742,14 +728,11 @@ void __init proc_misc_init(void)
 #endif
 	create_seq_entry("stat", 0, &proc_stat_operations);
 	create_seq_entry("interrupts", 0, &proc_interrupts_operations);
-#ifdef CONFIG_SLAB
+#ifdef CONFIG_SLABINFO
 	create_seq_entry("slabinfo",S_IWUSR|S_IRUGO,&proc_slabinfo_operations);
 #ifdef CONFIG_DEBUG_SLAB_LEAK
 	create_seq_entry("slab_allocators", 0 ,&proc_slabstats_operations);
 #endif
-#endif
-#ifdef CONFIG_SLUB
-	create_seq_entry("slabinfo", S_IWUSR|S_IRUGO, &proc_slabinfo_operations);
 #endif
 	create_seq_entry("buddyinfo",S_IRUGO, &fragmentation_file_operations);
 	create_seq_entry("pagetypeinfo", S_IRUGO, &pagetypeinfo_file_ops);

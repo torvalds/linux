@@ -4105,7 +4105,7 @@ out:
 	schedule_delayed_work(work, round_jiffies_relative(REAPTIMEOUT_CPUC));
 }
 
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_SLABINFO
 
 static void print_slabinfo_header(struct seq_file *m)
 {

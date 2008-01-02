@@ -658,6 +658,12 @@ endchoice
 
 endmenu		# General setup
 
+config SLABINFO
+	bool
+	depends on PROC_FS
+	depends on SLAB || SLUB
+	default y
+
 config RT_MUTEXES
 	boolean
 	select PLIST

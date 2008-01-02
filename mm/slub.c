@@ -4127,7 +4127,14 @@ __initcall(slab_sysfs_init);
 /*
  * The /proc/slabinfo ABI
  */
-#ifdef CONFIG_PROC_FS
+#ifdef CONFIG_SLABINFO
+
+ssize_t slabinfo_write(struct file *file, const char __user * buffer,
+                       size_t count, loff_t *ppos)
+{
+	return -EINVAL;
+}
+
 
 static void print_slabinfo_header(struct seq_file *m)
 {
@@ -4201,4 +4208,4 @@ const struct seq_operations slabinfo_op = {
 	.show = s_show,
 };
 
-#endif /* CONFIG_PROC_FS */
+#endif /* CONFIG_SLABINFO */
