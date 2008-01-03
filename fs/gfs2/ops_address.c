@@ -1098,6 +1098,7 @@ static const struct address_space_operations gfs2_writeback_aops = {
 	.invalidatepage = gfs2_invalidatepage,
 	.releasepage = gfs2_releasepage,
 	.direct_IO = gfs2_direct_IO,
+	.migratepage = buffer_migrate_page,
 };
 
 static const struct address_space_operations gfs2_ordered_aops = {
@@ -1112,6 +1113,7 @@ static const struct address_space_operations gfs2_ordered_aops = {
 	.invalidatepage = gfs2_invalidatepage,
 	.releasepage = gfs2_releasepage,
 	.direct_IO = gfs2_direct_IO,
+	.migratepage = buffer_migrate_page,
 };
 
 static const struct address_space_operations gfs2_jdata_aops = {
