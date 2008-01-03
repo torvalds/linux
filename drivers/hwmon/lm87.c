@@ -171,7 +171,6 @@ static struct i2c_driver lm87_driver = {
 	.driver = {
 		.name	= "lm87",
 	},
-	.id		= I2C_DRIVERID_LM87,
 	.attach_adapter	= lm87_attach_adapter,
 	.detach_client	= lm87_detach_client,
 };

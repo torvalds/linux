@@ -141,7 +141,6 @@ static struct i2c_driver adm9240_driver = {
 	.driver = {
 		.name	= "adm9240",
 	},
-	.id		= I2C_DRIVERID_ADM9240,
 	.attach_adapter	= adm9240_attach_adapter,
 	.detach_client	= adm9240_detach_client,
 };
