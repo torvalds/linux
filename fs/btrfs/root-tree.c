@@ -75,7 +75,14 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 	ret = btrfs_search_slot(trans, root, key, path, 0, 1);
 	if (ret < 0)
 		goto out;
-	BUG_ON(ret != 0);
+
+	if (ret != 0) {
+		btrfs_print_leaf(root, path->nodes[0]);
+		printk("unable to update root key %Lu %u %Lu\n",
+		       key->objectid, key->type, key->offset);
+		BUG_ON(1);
+	}
+
 	l = path->nodes[0];
 	slot = path->slots[0];
 	ptr = btrfs_item_ptr_offset(l, slot);

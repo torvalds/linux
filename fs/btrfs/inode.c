@@ -2701,7 +2701,7 @@ static int btrfs_getattr(struct vfsmount *mnt,
 {
 	struct inode *inode = dentry->d_inode;
 	generic_fillattr(inode, stat);
-	stat->blksize = 256 * 1024;
+	stat->blksize = PAGE_CACHE_SIZE;
 	return 0;
 }
 
