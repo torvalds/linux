@@ -97,6 +97,7 @@ config EARLY_PRINTK
 config COMPAT
 	bool
 	default y if PPC64
+	select COMPAT_BINFMT_ELF
 
 config SYSVIPC_COMPAT
 	bool
