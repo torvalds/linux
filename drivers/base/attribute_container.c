@@ -320,8 +320,13 @@ attribute_container_add_attrs(struct class_device *classdev)
 	struct class_device_attribute **attrs =	cont->attrs;
 	int i, error;
 
-	if (!attrs)
+	BUG_ON(attrs && cont->grp);
+
+	if (!attrs && !cont->grp)
 		return 0;
+
+	if (cont->grp)
+		return sysfs_create_group(&classdev->kobj, cont->grp);
 
 	for (i = 0; attrs[i]; i++) {
 		error = class_device_create_file(classdev, attrs[i]);
@@ -378,8 +383,13 @@ attribute_container_remove_attrs(struct class_device *classdev)
 	struct class_device_attribute **attrs =	cont->attrs;
 	int i;
 
-	if (!attrs)
+	if (!attrs && !cont->grp)
 		return;
+
+	if (cont->grp) {
+		sysfs_remove_group(&classdev->kobj, cont->grp);
+		return ;
+	}
 
 	for (i = 0; attrs[i]; i++)
 		class_device_remove_file(classdev, attrs[i]);
