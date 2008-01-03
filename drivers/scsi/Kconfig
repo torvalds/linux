@@ -1578,45 +1578,6 @@ config GVP11_SCSI
 	  To compile this driver as a module, choose M here: the
 	  module will be called gvp11.
 
-config CYBERSTORM_SCSI
-	tristate "CyberStorm SCSI support"
-	depends on ZORRO && SCSI
-	help
-	  If you have an Amiga with an original (MkI) Phase5 Cyberstorm
-	  accelerator board and the optional Cyberstorm SCSI controller,
-	  answer Y. Otherwise, say N.
-
-config CYBERSTORMII_SCSI
-	tristate "CyberStorm Mk II SCSI support"
-	depends on ZORRO && SCSI
-	help
-	  If you have an Amiga with a Phase5 Cyberstorm MkII accelerator board
-	  and the optional Cyberstorm SCSI controller, say Y. Otherwise,
-	  answer N.
-
-config BLZ2060_SCSI
-	tristate "Blizzard 2060 SCSI support"
-	depends on ZORRO && SCSI
-	help
-	  If you have an Amiga with a Phase5 Blizzard 2060 accelerator board
-	  and want to use the onboard SCSI controller, say Y. Otherwise,
-	  answer N.
-
-config BLZ1230_SCSI
-	tristate "Blizzard 1230IV/1260 SCSI support"
-	depends on ZORRO && SCSI
-	help
-	  If you have an Amiga 1200 with a Phase5 Blizzard 1230IV or Blizzard
-	  1260 accelerator, and the optional SCSI module, say Y. Otherwise,
-	  say N.
-
-config FASTLANE_SCSI
-	tristate "Fastlane SCSI support"
-	depends on ZORRO && SCSI
-	help
-	  If you have the Phase5 Fastlane Z3 SCSI controller, or plan to use
-	  one in the near future, say Y to this question. Otherwise, say N.
-
 config SCSI_A4000T
 	tristate "A4000T NCR53c710 SCSI support (EXPERIMENTAL)"
 	depends on AMIGA && SCSI && EXPERIMENTAL
@@ -1643,15 +1604,6 @@ config SCSI_ZORRO7XX
 	    - the SCSI controller on the Phase5 Blizzard PowerUP 603e+
 	      accelerator card for the Amiga 1200,
 	    - the SCSI controller on the GVP Turbo 040/060 accelerator.
-
-config OKTAGON_SCSI
-	tristate "BSC Oktagon SCSI support (EXPERIMENTAL)"
-	depends on ZORRO && SCSI && EXPERIMENTAL
-	help
-	  If you have the BSC Oktagon SCSI disk controller for the Amiga, say
-	  Y to this question.  If you're in doubt about whether you have one,
-	  see the picture at
-	  <http://amiga.resource.cx/exp/search.pl?product=oktagon>.
 
 config ATARI_SCSI
 	tristate "Atari native SCSI support"
@@ -1704,18 +1656,6 @@ config MAC_SCSI
 	  based Macintoshes.  If you have one of these say Y and read the
 	  SCSI-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>.
-
-config SCSI_MAC_ESP
-	tristate "Macintosh NCR53c9[46] SCSI"
-	depends on MAC && SCSI
-	help
-	  This is the NCR 53c9x SCSI controller found on most of the 68040
-	  based Macintoshes.  If you have one of these say Y and read the
-	  SCSI-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called mac_esp.
 
 config MVME147_SCSI
 	bool "WD33C93 SCSI driver for MVME147"
