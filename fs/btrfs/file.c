@@ -251,7 +251,6 @@ static int noinline dirty_and_release_pages(struct btrfs_trans_handle *trans,
 	num_bytes = (write_bytes + pos - start_pos +
 		    root->sectorsize - 1) & ~((u64)root->sectorsize - 1);
 
-	down_read(&BTRFS_I(inode)->root->snap_sem);
 	end_of_last_block = start_pos + num_bytes - 1;
 
 	lock_extent(em_tree, start_pos, end_of_last_block, GFP_NOFS);
@@ -356,7 +355,6 @@ out_unlock:
 	mutex_unlock(&root->fs_info->fs_mutex);
 	unlock_extent(em_tree, start_pos, end_of_last_block, GFP_NOFS);
 	free_extent_map(em);
-	up_read(&BTRFS_I(inode)->root->snap_sem);
 	return err;
 }
 
@@ -726,6 +724,8 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 
 	pages = kmalloc(nrptrs * sizeof(struct page *), GFP_KERNEL);
 
+	down_read(&BTRFS_I(inode)->root->snap_sem);
+
 	mutex_lock(&inode->i_mutex);
 	first_index = pos >> PAGE_CACHE_SHIFT;
 	last_index = (pos + count) >> PAGE_CACHE_SHIFT;
@@ -804,6 +804,8 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 	}
 out:
 	mutex_unlock(&inode->i_mutex);
+	up_read(&BTRFS_I(inode)->root->snap_sem);
+
 out_nolock:
 	kfree(pages);
 	if (pinned[0])
