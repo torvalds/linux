@@ -581,7 +581,7 @@ static const struct user_regset compat_regsets[] = {
 #endif
 #ifdef CONFIG_SPE
 	[REGSET_SPE] = {
-		.n = 35,
+		.core_note_type = NT_PPC_SPE, .n = 35,
 		.size = sizeof(u32), .align = sizeof(u32),
 		.active = evr_active, .get = evr_get, .set = evr_set
 	},
