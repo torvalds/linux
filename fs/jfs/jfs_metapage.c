@@ -360,6 +360,7 @@ static int metapage_writepage(struct page *page, struct writeback_control *wbc)
 	struct metapage *mp;
 	int redirty = 0;
 	sector_t lblock;
+	int nr_underway = 0;
 	sector_t pblock;
 	sector_t next_block = 0;
 	sector_t page_start;
@@ -371,6 +372,7 @@ static int metapage_writepage(struct page *page, struct writeback_control *wbc)
 		     (PAGE_CACHE_SHIFT - inode->i_blkbits);
 	BUG_ON(!PageLocked(page));
 	BUG_ON(PageWriteback(page));
+	set_page_writeback(page);
 
 	for (offset = 0; offset < PAGE_CACHE_SIZE; offset += PSIZE) {
 		mp = page_to_mp(page, offset);
@@ -413,11 +415,10 @@ static int metapage_writepage(struct page *page, struct writeback_control *wbc)
 			if (!bio->bi_size)
 				goto dump_bio;
 			submit_bio(WRITE, bio);
+			nr_underway++;
 			bio = NULL;
-		} else {
-			set_page_writeback(page);
+		} else
 			inc_io(page);
-		}
 		xlen = (PAGE_CACHE_SIZE - offset) >> inode->i_blkbits;
 		pblock = metapage_get_blocks(inode, lblock, &xlen);
 		if (!pblock) {
@@ -449,11 +450,15 @@ static int metapage_writepage(struct page *page, struct writeback_control *wbc)
 			goto dump_bio;
 
 		submit_bio(WRITE, bio);
+		nr_underway++;
 	}
 	if (redirty)
 		redirty_page_for_writepage(wbc, page);
 
 	unlock_page(page);
+
+	if (nr_underway == 0)
+		end_page_writeback(page);
 
 	return 0;
 add_failed:
