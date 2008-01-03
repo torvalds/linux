@@ -107,8 +107,6 @@ static struct platform_device at91sam9261_udc_device = {
 
 void __init at91_add_device_udc(struct at91_udc_data *data)
 {
-	unsigned long x;
-
 	if (!data)
 		return;
 
@@ -117,9 +115,7 @@ void __init at91_add_device_udc(struct at91_udc_data *data)
 		at91_set_deglitch(data->vbus_pin, 1);
 	}
 
-	/* Pullup pin is handled internally */
-	x = at91_sys_read(AT91_MATRIX_USBPUCR);
-	at91_sys_write(AT91_MATRIX_USBPUCR, x | AT91_MATRIX_USBPUCR_PUON);
+	/* Pullup pin is handled internally by USB device peripheral */
 
 	udc_data = *data;
 	platform_device_register(&at91sam9261_udc_device);
