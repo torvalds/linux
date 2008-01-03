@@ -162,10 +162,11 @@ struct btrfs_block_group_cache *btrfs_lookup_block_group(struct
 		return block_group;
 	return NULL;
 }
-static u64 find_search_start(struct btrfs_root *root,
-			     struct btrfs_block_group_cache **cache_ret,
-			     u64 search_start, int num,
-			     int data, int full_scan)
+
+static u64 noinline find_search_start(struct btrfs_root *root,
+			      struct btrfs_block_group_cache **cache_ret,
+			      u64 search_start, int num,
+			      int data, int full_scan)
 {
 	int ret;
 	struct btrfs_block_group_cache *cache = *cache_ret;
@@ -393,11 +394,12 @@ static int match_extent_ref(struct extent_buffer *leaf,
 	return ret == 0;
 }
 
-static int lookup_extent_backref(struct btrfs_trans_handle *trans,
-				 struct btrfs_root *root,
-				 struct btrfs_path *path, u64 bytenr,
-				 u64 root_objectid, u64 ref_generation,
-				 u64 owner, u64 owner_offset, int del)
+static int noinline lookup_extent_backref(struct btrfs_trans_handle *trans,
+					  struct btrfs_root *root,
+					  struct btrfs_path *path, u64 bytenr,
+					  u64 root_objectid,
+					  u64 ref_generation, u64 owner,
+					  u64 owner_offset, int del)
 {
 	u64 hash;
 	struct btrfs_key key;
@@ -1116,8 +1118,8 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
-static int finish_current_insert(struct btrfs_trans_handle *trans, struct
-				 btrfs_root *extent_root)
+static int finish_current_insert(struct btrfs_trans_handle *trans,
+				 struct btrfs_root *extent_root)
 {
 	u64 start;
 	u64 end;
@@ -1360,11 +1362,13 @@ static u64 stripe_align(struct btrfs_root *root, u64 val)
  * ins->offset == number of blocks
  * Any available blocks before search_start are skipped.
  */
-static int find_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
-			    *orig_root, u64 num_bytes, u64 empty_size,
-			    u64 search_start, u64 search_end, u64 hint_byte,
-			    struct btrfs_key *ins, u64 exclude_start,
-			    u64 exclude_nr, int data)
+static int noinline find_free_extent(struct btrfs_trans_handle *trans,
+				     struct btrfs_root *orig_root,
+				     u64 num_bytes, u64 empty_size,
+				     u64 search_start, u64 search_end,
+				     u64 hint_byte, struct btrfs_key *ins,
+				     u64 exclude_start, u64 exclude_nr,
+				     int data)
 {
 	struct btrfs_path *path;
 	struct btrfs_key key;
@@ -1760,8 +1764,9 @@ struct extent_buffer *__btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 	return buf;
 }
 
-static int drop_leaf_ref(struct btrfs_trans_handle *trans,
-			 struct btrfs_root *root, struct extent_buffer *leaf)
+static int noinline drop_leaf_ref(struct btrfs_trans_handle *trans,
+				  struct btrfs_root *root,
+				  struct extent_buffer *leaf)
 {
 	u64 leaf_owner;
 	u64 leaf_generation;
@@ -1802,8 +1807,8 @@ static int drop_leaf_ref(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
-static void reada_walk_down(struct btrfs_root *root,
-			    struct extent_buffer *node)
+static void noinline reada_walk_down(struct btrfs_root *root,
+				     struct extent_buffer *node)
 {
 	int i;
 	u32 nritems;
@@ -1835,8 +1840,9 @@ static void reada_walk_down(struct btrfs_root *root,
  * helper function for drop_snapshot, this walks down the tree dropping ref
  * counts as it goes.
  */
-static int walk_down_tree(struct btrfs_trans_handle *trans, struct btrfs_root
-			  *root, struct btrfs_path *path, int *level)
+static int noinline walk_down_tree(struct btrfs_trans_handle *trans,
+				   struct btrfs_root *root,
+				   struct btrfs_path *path, int *level)
 {
 	u64 root_owner;
 	u64 root_gen;
@@ -1955,8 +1961,9 @@ out:
  * to find the first node higher up where we haven't yet gone through
  * all the slots
  */
-static int walk_up_tree(struct btrfs_trans_handle *trans, struct btrfs_root
-			*root, struct btrfs_path *path, int *level)
+static int noinline walk_up_tree(struct btrfs_trans_handle *trans,
+				 struct btrfs_root *root,
+				 struct btrfs_path *path, int *level)
 {
 	u64 root_owner;
 	u64 root_gen;
@@ -2100,7 +2107,8 @@ int btrfs_free_block_groups(struct btrfs_fs_info *info)
 	return 0;
 }
 
-static int relocate_inode_pages(struct inode *inode, u64 start, u64 len)
+static int noinline relocate_inode_pages(struct inode *inode, u64 start,
+					 u64 len)
 {
 	u64 page_start;
 	u64 page_end;
@@ -2169,7 +2177,7 @@ out_unlock:
 /*
  * note, this releases the path
  */
-static int relocate_one_reference(struct btrfs_root *extent_root,
+static int noinline relocate_one_reference(struct btrfs_root *extent_root,
 				  struct btrfs_path *path,
 				  struct btrfs_key *extent_key)
 {
@@ -2268,9 +2276,9 @@ out:
 	return 0;
 }
 
-static int relocate_one_extent(struct btrfs_root *extent_root,
-			       struct btrfs_path *path,
-			       struct btrfs_key *extent_key)
+static int noinline relocate_one_extent(struct btrfs_root *extent_root,
+					struct btrfs_path *path,
+					struct btrfs_key *extent_key)
 {
 	struct btrfs_key key;
 	struct btrfs_key found_key;

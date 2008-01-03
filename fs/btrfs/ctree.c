@@ -548,8 +548,8 @@ static int check_leaf(struct btrfs_root *root, struct btrfs_path *path,
 	return 0;
 }
 
-static int check_block(struct btrfs_root *root, struct btrfs_path *path,
-			int level)
+static int noinline check_block(struct btrfs_root *root,
+				struct btrfs_path *path, int level)
 {
 	return 0;
 #if 0
@@ -676,8 +676,9 @@ static struct extent_buffer *read_node_slot(struct btrfs_root *root,
 		       btrfs_level_size(root, btrfs_header_level(parent) - 1));
 }
 
-static int balance_level(struct btrfs_trans_handle *trans, struct btrfs_root
-			 *root, struct btrfs_path *path, int level)
+static int balance_level(struct btrfs_trans_handle *trans,
+			 struct btrfs_root *root,
+			 struct btrfs_path *path, int level)
 {
 	struct extent_buffer *right = NULL;
 	struct extent_buffer *mid;
@@ -868,9 +869,9 @@ enospc:
 }
 
 /* returns zero if the push worked, non-zero otherwise */
-static int push_nodes_for_insert(struct btrfs_trans_handle *trans,
-				struct btrfs_root *root,
-				struct btrfs_path *path, int level)
+static int noinline push_nodes_for_insert(struct btrfs_trans_handle *trans,
+					  struct btrfs_root *root,
+					  struct btrfs_path *path, int level)
 {
 	struct extent_buffer *right = NULL;
 	struct extent_buffer *mid;
@@ -1207,8 +1208,8 @@ static int fixup_low_keys(struct btrfs_trans_handle *trans,
  * returns 0 if some ptrs were pushed left, < 0 if there was some horrible
  * error, and > 0 if there was no room in the left hand block.
  */
-static int push_node_left(struct btrfs_trans_handle *trans, struct btrfs_root
-			  *root, struct extent_buffer *dst,
+static int push_node_left(struct btrfs_trans_handle *trans,
+			  struct btrfs_root *root, struct extent_buffer *dst,
 			  struct extent_buffer *src)
 {
 	int push_items = 0;
@@ -1309,7 +1310,7 @@ static int balance_node_right(struct btrfs_trans_handle *trans,
  *
  * returns zero on success or < 0 on failure.
  */
-static int insert_new_root(struct btrfs_trans_handle *trans,
+static int noinline insert_new_root(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root,
 			   struct btrfs_path *path, int level)
 {

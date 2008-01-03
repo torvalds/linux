@@ -80,7 +80,7 @@ static void btrfs_drop_pages(struct page **pages, size_t num_pages)
 	}
 }
 
-static int insert_inline_extent(struct btrfs_trans_handle *trans,
+static int noinline insert_inline_extent(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root, struct inode *inode,
 				u64 offset, size_t size,
 				struct page **pages, size_t page_offset,
@@ -221,7 +221,7 @@ fail:
 	return err;
 }
 
-static int dirty_and_release_pages(struct btrfs_trans_handle *trans,
+static int noinline dirty_and_release_pages(struct btrfs_trans_handle *trans,
 				   struct btrfs_root *root,
 				   struct file *file,
 				   struct page **pages,
@@ -653,14 +653,10 @@ out:
 /*
  * this gets pages into the page cache and locks them down
  */
-static int prepare_pages(struct btrfs_root *root,
-			 struct file *file,
-			 struct page **pages,
-			 size_t num_pages,
-			 loff_t pos,
-			 unsigned long first_index,
-			 unsigned long last_index,
-			 size_t write_bytes)
+static int prepare_pages(struct btrfs_root *root, struct file *file,
+			 struct page **pages, size_t num_pages,
+			 loff_t pos, unsigned long first_index,
+			 unsigned long last_index, size_t write_bytes)
 {
 	int i;
 	unsigned long index = pos >> PAGE_CACHE_SHIFT;
