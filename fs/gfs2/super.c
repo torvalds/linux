@@ -387,6 +387,7 @@ int gfs2_jindex_hold(struct gfs2_sbd *sdp, struct gfs2_holder *ji_gh)
 		if (!jd)
 			break;
 
+		INIT_LIST_HEAD(&jd->extent_list);
 		jd->jd_inode = gfs2_lookupi(sdp->sd_jindex, &name, 1, NULL);
 		if (!jd->jd_inode || IS_ERR(jd->jd_inode)) {
 			if (!jd->jd_inode)
