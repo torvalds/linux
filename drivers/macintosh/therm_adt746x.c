@@ -553,6 +553,7 @@ thermostat_init(void)
 	struct device_node* np;
 	const u32 *prop;
 	int i = 0, offset = 0;
+	int err;
 	
 	np = of_find_node_by_name(NULL, "fan");
 	if (!np)
@@ -612,17 +613,20 @@ thermostat_init(void)
 		return -ENODEV;
 	}
 	
-	device_create_file(&of_dev->dev, &dev_attr_sensor1_temperature);
-	device_create_file(&of_dev->dev, &dev_attr_sensor2_temperature);
-	device_create_file(&of_dev->dev, &dev_attr_sensor1_limit);
-	device_create_file(&of_dev->dev, &dev_attr_sensor2_limit);
-	device_create_file(&of_dev->dev, &dev_attr_sensor1_location);
-	device_create_file(&of_dev->dev, &dev_attr_sensor2_location);
-	device_create_file(&of_dev->dev, &dev_attr_limit_adjust);
-	device_create_file(&of_dev->dev, &dev_attr_specified_fan_speed);
-	device_create_file(&of_dev->dev, &dev_attr_sensor1_fan_speed);
+	err = device_create_file(&of_dev->dev, &dev_attr_sensor1_temperature);
+	err |= device_create_file(&of_dev->dev, &dev_attr_sensor2_temperature);
+	err |= device_create_file(&of_dev->dev, &dev_attr_sensor1_limit);
+	err |= device_create_file(&of_dev->dev, &dev_attr_sensor2_limit);
+	err |= device_create_file(&of_dev->dev, &dev_attr_sensor1_location);
+	err |= device_create_file(&of_dev->dev, &dev_attr_sensor2_location);
+	err |= device_create_file(&of_dev->dev, &dev_attr_limit_adjust);
+	err |= device_create_file(&of_dev->dev, &dev_attr_specified_fan_speed);
+	err |= device_create_file(&of_dev->dev, &dev_attr_sensor1_fan_speed);
 	if(therm_type == ADT7460)
-		device_create_file(&of_dev->dev, &dev_attr_sensor2_fan_speed);
+		err |= device_create_file(&of_dev->dev, &dev_attr_sensor2_fan_speed);
+	if (err)
+		printk(KERN_WARNING
+			"Failed to create tempertaure attribute file(s).\n");
 
 #ifndef CONFIG_I2C_POWERMAC
 	request_module("i2c-powermac");
