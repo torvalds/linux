@@ -688,7 +688,7 @@ u32 btrfs_count_snapshots_in_path(struct btrfs_root *root,
 	struct btrfs_path *path;
 	u64 bytenr;
 	u64 found_objectid;
-	u64 root_objectid = 0;
+	u64 root_objectid = root->root_key.objectid;
 	u32 total_count = 0;
 	u32 cur_count;
 	u32 refs;
@@ -749,15 +749,11 @@ again:
 					  struct btrfs_extent_ref);
 		found_objectid = btrfs_ref_root(l, ref_item);
 
-		if (found_objectid != root_objectid)
-			total_count++;
-
-		if (total_count > 1)
-			goto out;
-
-		if (root_objectid == 0)
-			root_objectid = found_objectid;
-
+		if (found_objectid != root_objectid) {
+			total_count = 2;
+			break;
+		}
+		total_count = 1;
 		path->slots[0]++;
 	}
 	if (cur_count == 0) {

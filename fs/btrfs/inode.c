@@ -1770,6 +1770,11 @@ struct extent_map *btrfs_get_extent(struct inode *inode, struct page *page,
 again:
 	em = lookup_extent_mapping(em_tree, start, end);
 	if (em) {
+		if (em->start > start) {
+			printk("get_extent start %Lu em start %Lu\n",
+			       start, em->start);
+			WARN_ON(1);
+		}
 		goto out;
 	}
 	if (!em) {
@@ -1952,23 +1957,6 @@ static sector_t btrfs_bmap(struct address_space *mapping, sector_t iblock)
 	return extent_bmap(mapping, iblock, btrfs_get_extent);
 }
 
-static int btrfs_prepare_write(struct file *file, struct page *page,
-			       unsigned from, unsigned to)
-{
-	struct btrfs_root *root = BTRFS_I(page->mapping->host)->root;
-	int err;
-
-	mutex_lock(&root->fs_info->fs_mutex);
-	err = btrfs_check_free_space(root, PAGE_CACHE_SIZE, 0);
-	mutex_unlock(&root->fs_info->fs_mutex);
-	if (err)
-		return -ENOSPC;
-
-	return extent_prepare_write(&BTRFS_I(page->mapping->host)->extent_tree,
-				    page->mapping->host, page, from, to,
-				    btrfs_get_extent);
-}
-
 int btrfs_readpage(struct file *file, struct page *page)
 {
 	struct extent_map_tree *tree;
@@ -2118,21 +2106,6 @@ static void btrfs_truncate(struct inode *inode)
 	BUG_ON(ret);
 	mutex_unlock(&root->fs_info->fs_mutex);
 	btrfs_btree_balance_dirty(root, nr);
-}
-
-int btrfs_commit_write(struct file *file, struct page *page,
-		       unsigned from, unsigned to)
-{
-	loff_t pos = ((loff_t)page->index << PAGE_CACHE_SHIFT) + to;
-	struct inode *inode = page->mapping->host;
-
-	btrfs_cow_one_page(inode, page, PAGE_CACHE_SIZE);
-
-	if (pos > inode->i_size) {
-		i_size_write(inode, pos);
-		mark_inode_dirty(inode);
-	}
-	return 0;
 }
 
 static int create_subvol(struct btrfs_root *root, char *name, int namelen)
@@ -2930,8 +2903,6 @@ static struct address_space_operations btrfs_aops = {
 	.writepages	= btrfs_writepages,
 	.readpages	= btrfs_readpages,
 	.sync_page	= block_sync_page,
-	.prepare_write	= btrfs_prepare_write,
-	.commit_write	= btrfs_commit_write,
 	.bmap		= btrfs_bmap,
 	.invalidatepage = btrfs_invalidatepage,
 	.releasepage	= btrfs_releasepage,
