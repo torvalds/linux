@@ -280,10 +280,7 @@ void __init find_and_init_phbs(void)
 	struct pci_controller *phb;
 	struct device_node *root = of_find_node_by_path("/");
 
-	for (node = of_get_next_child(root, NULL);
-	     node != NULL;
-	     node = of_get_next_child(root, node)) {
-
+	for_each_child_of_node(root, node) {
 		if (node->type == NULL || (strcmp(node->type, "pci") != 0 &&
 					   strcmp(node->type, "pciex") != 0))
 			continue;

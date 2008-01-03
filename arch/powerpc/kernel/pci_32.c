@@ -276,11 +276,11 @@ scan_OF_pci_childs(struct device_node *parent, pci_OF_scan_iterator filter, void
 static struct device_node *scan_OF_for_pci_dev(struct device_node *parent,
 					       unsigned int devfn)
 {
-	struct device_node *np = NULL;
+	struct device_node *np;
 	const u32 *reg;
 	unsigned int psize;
 
-	while ((np = of_get_next_child(parent, np)) != NULL) {
+	for_each_child_of_node(parent, np) {
 		reg = of_get_property(np, "reg", &psize);
 		if (reg == NULL || psize < 4)
 			continue;

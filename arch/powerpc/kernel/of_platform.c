@@ -109,7 +109,7 @@ static int of_platform_bus_create(const struct device_node *bus,
 	struct of_device *dev;
 	int rc = 0;
 
-	for (child = NULL; (child = of_get_next_child(bus, child)); ) {
+	for_each_child_of_node(bus, child) {
 		pr_debug("   create child: %s\n", child->full_name);
 		dev = of_platform_device_create(child, NULL, parent);
 		if (dev == NULL)
@@ -171,7 +171,7 @@ int of_platform_bus_probe(struct device_node *root,
 		rc = of_platform_bus_create(root, matches, &dev->dev);
 		goto bail;
 	}
-	for (child = NULL; (child = of_get_next_child(root, child)); ) {
+	for_each_child_of_node(root, child) {
 		if (!of_match_node(matches, child))
 			continue;
 

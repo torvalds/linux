@@ -227,7 +227,7 @@ EXPORT_SYMBOL(of_create_pci_dev);
 void __devinit of_scan_bus(struct device_node *node,
 			   struct pci_bus *bus)
 {
-	struct device_node *child = NULL;
+	struct device_node *child;
 	const u32 *reg;
 	int reglen, devfn;
 	struct pci_dev *dev;
@@ -235,7 +235,7 @@ void __devinit of_scan_bus(struct device_node *node,
 	DBG("of_scan_bus(%s) bus no %d... \n", node->full_name, bus->number);
 
 	/* Scan direct children */
-	while ((child = of_get_next_child(node, child)) != NULL) {
+	for_each_child_of_node(node, child) {
 		DBG("  * %s\n", child->full_name);
 		reg = of_get_property(child, "reg", &reglen);
 		if (reg == NULL || reglen < 20)
