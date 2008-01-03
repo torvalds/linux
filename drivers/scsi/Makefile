@@ -95,7 +95,6 @@ obj-$(CONFIG_SCSI_SYM53C8XX_2)	+= sym53c8xx_2/
 obj-$(CONFIG_SCSI_ZALON)	+= zalon7xx.o
 obj-$(CONFIG_SCSI_EATA_PIO)	+= eata_pio.o
 obj-$(CONFIG_SCSI_7000FASST)	+= wd7000.o
-obj-$(CONFIG_SCSI_MCA_53C9X)	+= NCR53C9x.o	mca_53c9x.o
 obj-$(CONFIG_SCSI_IBMMCA)	+= ibmmca.o
 obj-$(CONFIG_SCSI_EATA)		+= eata.o
 obj-$(CONFIG_SCSI_DC395x)	+= dc395x.o

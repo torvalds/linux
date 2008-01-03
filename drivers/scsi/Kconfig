@@ -1263,17 +1263,6 @@ config SCSI_NCR53C8XX_NO_DISCONNECT
 	  not allow targets to disconnect is not reasonable if there is more
 	  than 1 device on a SCSI bus. The normal answer therefore is N.
 
-config SCSI_MCA_53C9X
-	tristate "NCR MCA 53C9x SCSI support"
-	depends on MCA_LEGACY && SCSI && BROKEN_ON_SMP
-	help
-	  Some MicroChannel machines, notably the NCR 35xx line, use a SCSI
-	  controller based on the NCR 53C94.  This driver will allow use of
-	  the controller on the 3550, and very possibly others.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called mca_53c9x.
-
 config SCSI_PAS16
 	tristate "PAS16 SCSI support"
 	depends on ISA && SCSI
