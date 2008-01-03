@@ -303,7 +303,7 @@ static int noinline dirty_and_release_pages(struct btrfs_trans_handle *trans,
 	 */
 	inline_size = end_pos;
 	if (isize >= BTRFS_MAX_INLINE_DATA_SIZE(root) ||
-	    inline_size > 32768 ||
+	    inline_size > 8192 ||
 	    inline_size >= BTRFS_MAX_INLINE_DATA_SIZE(root)) {
 		u64 last_end;
 		u64 existing_delalloc = 0;
