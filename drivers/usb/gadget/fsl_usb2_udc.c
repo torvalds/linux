@@ -776,7 +776,7 @@ fsl_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 		VDBG("%s, bad params\n", __FUNCTION__);
 		return -EINVAL;
 	}
-	if (!_ep || (!ep->desc && ep_index(ep))) {
+	if (unlikely(!_ep || !ep->desc)) {
 		VDBG("%s, bad ep\n", __FUNCTION__);
 		return -EINVAL;
 	}
