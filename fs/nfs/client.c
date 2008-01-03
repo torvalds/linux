@@ -100,6 +100,7 @@ struct nfs_client_initdata {
 	const struct sockaddr *addr;
 	size_t addrlen;
 	const struct nfs_rpc_ops *rpc_ops;
+	int proto;
 };
 
 /*
@@ -137,6 +138,8 @@ static struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_
 
 	INIT_LIST_HEAD(&clp->cl_superblocks);
 	clp->cl_rpcclient = ERR_PTR(-EINVAL);
+
+	clp->cl_proto = cl_init->proto;
 
 #ifdef CONFIG_NFS_V4
 	init_rwsem(&clp->cl_sem);
@@ -289,6 +292,9 @@ static struct nfs_client *nfs_match_client(const struct nfs_client_initdata *dat
 		if (clp->rpc_ops != data->rpc_ops)
 			continue;
 
+		if (clp->cl_proto != data->proto)
+			continue;
+
 		/* Match the full socket address */
 		if (memcmp(&clp->cl_addr, data->addr, sizeof(clp->cl_addr)) != 0)
 			continue;
@@ -414,14 +420,14 @@ static void nfs_init_timeout_values(struct rpc_timeout *to, int proto,
 /*
  * Create an RPC client handle
  */
-static int nfs_create_rpc_client(struct nfs_client *clp, int proto,
+static int nfs_create_rpc_client(struct nfs_client *clp,
 				 const struct rpc_timeout *timeparms,
 				 rpc_authflavor_t flavor,
 				 int flags)
 {
 	struct rpc_clnt		*clnt = NULL;
 	struct rpc_create_args args = {
-		.protocol	= proto,
+		.protocol	= clp->cl_proto,
 		.address	= (struct sockaddr *)&clp->cl_addr,
 		.addrsize	= clp->cl_addrlen,
 		.timeout	= timeparms,
@@ -565,8 +571,7 @@ static int nfs_init_client(struct nfs_client *clp,
 	 * Create a client RPC handle for doing FSSTAT with UNIX auth only
 	 * - RFC 2623, sec 2.3.2
 	 */
-	error = nfs_create_rpc_client(clp, data->nfs_server.protocol,
-				timeparms, RPC_AUTH_UNIX, 0);
+	error = nfs_create_rpc_client(clp, timeparms, RPC_AUTH_UNIX, 0);
 	if (error < 0)
 		goto error;
 	nfs_mark_client_ready(clp, NFS_CS_READY);
@@ -589,6 +594,7 @@ static int nfs_init_server(struct nfs_server *server,
 		.addr = (const struct sockaddr *)&data->nfs_server.address,
 		.addrlen = data->nfs_server.addrlen,
 		.rpc_ops = &nfs_v2_clientops,
+		.proto = data->nfs_server.protocol,
 	};
 	struct rpc_timeout timeparms;
 	struct nfs_client *clp;
@@ -894,7 +900,6 @@ error:
  * Initialise an NFS4 client record
  */
 static int nfs4_init_client(struct nfs_client *clp,
-		int proto,
 		const struct rpc_timeout *timeparms,
 		const char *ip_addr,
 		rpc_authflavor_t authflavour)
@@ -910,7 +915,7 @@ static int nfs4_init_client(struct nfs_client *clp,
 	/* Check NFS protocol revision and initialize RPC op vector */
 	clp->rpc_ops = &nfs_v4_clientops;
 
-	error = nfs_create_rpc_client(clp, proto, timeparms, authflavour,
+	error = nfs_create_rpc_client(clp, timeparms, authflavour,
 					RPC_CLNT_CREATE_DISCRTRY);
 	if (error < 0)
 		goto error;
@@ -949,6 +954,7 @@ static int nfs4_set_client(struct nfs_server *server,
 		.addr = addr,
 		.addrlen = addrlen,
 		.rpc_ops = &nfs_v4_clientops,
+		.proto = proto,
 	};
 	struct nfs_client *clp;
 	int error;
@@ -961,7 +967,7 @@ static int nfs4_set_client(struct nfs_server *server,
 		error = PTR_ERR(clp);
 		goto error;
 	}
-	error = nfs4_init_client(clp, proto, timeparms, ip_addr, authflavour);
+	error = nfs4_init_client(clp, timeparms, ip_addr, authflavour);
 	if (error < 0)
 		goto error_put;
 

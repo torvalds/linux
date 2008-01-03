@@ -29,6 +29,7 @@ struct nfs_client {
 
 	struct rpc_clnt *	cl_rpcclient;
 	const struct nfs_rpc_ops *rpc_ops;	/* NFS protocol vector */
+	int			cl_proto;	/* Network transport protocol */
 
 #ifdef CONFIG_NFS_V4
 	u64			cl_clientid;	/* constant */
