@@ -25,7 +25,7 @@
 #include "dvb_frontend.h"
 
 struct tda18271_std_map_item {
-	u32 if_freq;
+	u16 if_freq;
 	u8 std_bits;
 };
 

@@ -770,8 +770,8 @@ static int tda18271_set_params(struct dvb_frontend *fe,
 	struct tda18271_priv *priv = fe->tuner_priv;
 	struct tda18271_std_map *std_map = &priv->std;
 	u8 std;
-	u32 bw, sgIF = 0;
-	u32 freq = params->frequency;
+	u16 sgIF;
+	u32 bw, freq = params->frequency;
 
 	BUG_ON(!priv->tune);
 
@@ -825,7 +825,7 @@ static int tda18271_set_params(struct dvb_frontend *fe,
 		return -EINVAL;
 	}
 
-	return priv->tune(fe, sgIF, freq, bw, std);
+	return priv->tune(fe, sgIF * 1000, freq, bw, std);
 }
 
 static int tda18271_set_analog_params(struct dvb_frontend *fe,
@@ -835,7 +835,8 @@ static int tda18271_set_analog_params(struct dvb_frontend *fe,
 	struct tda18271_std_map *std_map = &priv->std;
 	char *mode;
 	u8 std;
-	u32 sgIF, freq = params->frequency * 62500;
+	u16 sgIF;
+	u32 freq = params->frequency * 62500;
 
 	BUG_ON(!priv->tune);
 
@@ -877,7 +878,7 @@ static int tda18271_set_analog_params(struct dvb_frontend *fe,
 
 	tda_dbg("setting tda18271 to system %s\n", mode);
 
-	return priv->tune(fe, sgIF, freq, 0, std);
+	return priv->tune(fe, sgIF * 1000, freq, 0, std);
 }
 
 static int tda18271_release(struct dvb_frontend *fe)
