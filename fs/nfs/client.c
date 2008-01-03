@@ -34,6 +34,8 @@
 #include <linux/nfs_idmap.h>
 #include <linux/vfs.h>
 #include <linux/inet.h>
+#include <linux/in6.h>
+#include <net/ipv6.h>
 #include <linux/nfs_xdr.h>
 
 #include <asm/system.h>
@@ -208,16 +210,44 @@ void nfs_put_client(struct nfs_client *clp)
 	}
 }
 
+static int nfs_sockaddr_match_ipaddr4(const struct sockaddr_in *sa1,
+				 const struct sockaddr_in *sa2)
+{
+	return sa1->sin_addr.s_addr == sa2->sin_addr.s_addr;
+}
+
+static int nfs_sockaddr_match_ipaddr6(const struct sockaddr_in6 *sa1,
+				 const struct sockaddr_in6 *sa2)
+{
+	return ipv6_addr_equal(&sa1->sin6_addr, &sa2->sin6_addr);
+}
+
+static int nfs_sockaddr_match_ipaddr(const struct sockaddr *sa1,
+				 const struct sockaddr *sa2)
+{
+	switch (sa1->sa_family) {
+	case AF_INET:
+		return nfs_sockaddr_match_ipaddr4((const struct sockaddr_in *)sa1,
+				(const struct sockaddr_in *)sa2);
+	case AF_INET6:
+		return nfs_sockaddr_match_ipaddr6((const struct sockaddr_in6 *)sa1,
+				(const struct sockaddr_in6 *)sa2);
+	}
+	BUG();
+}
+
 /*
  * Find a client by IP address and protocol version
  * - returns NULL if no such client
  */
-struct nfs_client *nfs_find_client(const struct sockaddr_in *addr, int nfsversion)
+struct nfs_client *_nfs_find_client(const struct sockaddr *addr, int nfsversion)
 {
 	struct nfs_client *clp;
 
 	spin_lock(&nfs_client_lock);
 	list_for_each_entry(clp, &nfs_client_list, cl_share_link) {
+		struct sockaddr *clap = (struct sockaddr *)&clp->cl_addr;
+
 		/* Don't match clients that failed to initialise properly */
 		if (clp->cl_cons_state != NFS_CS_READY)
 			continue;
@@ -226,8 +256,10 @@ struct nfs_client *nfs_find_client(const struct sockaddr_in *addr, int nfsversio
 		if (clp->rpc_ops->version != nfsversion)
 			continue;
 
+		if (addr->sa_family != clap->sa_family)
+			continue;
 		/* Match only the IP address, not the port number */
-		if (clp->cl_addr.sin_addr.s_addr != addr->sin_addr.s_addr)
+		if (!nfs_sockaddr_match_ipaddr(addr, clap))
 			continue;
 
 		atomic_inc(&clp->cl_count);
@@ -236,6 +268,11 @@ struct nfs_client *nfs_find_client(const struct sockaddr_in *addr, int nfsversio
 	}
 	spin_unlock(&nfs_client_lock);
 	return NULL;
+}
+
+struct nfs_client *nfs_find_client(const struct sockaddr_in *addr, int nfsversion)
+{
+	return _nfs_find_client((const struct sockaddr *)addr, nfsversion);
 }
 
 /*
