@@ -223,6 +223,7 @@ static void
 setup_hardware( void )
 {
 	int val;
+	int err;
 
 	/* save registers (if we unload the module) */
 	x.r0 = read_reg( x.fan, 0x00, 1 );
@@ -265,8 +266,11 @@ setup_hardware( void )
 	x.upind = -1;
 	/* tune_fan( fan_up_table[x.upind].fan_setting ); */
 
-	device_create_file( &x.of_dev->dev, &dev_attr_cpu_temperature );
-	device_create_file( &x.of_dev->dev, &dev_attr_case_temperature );
+	err = device_create_file( &x.of_dev->dev, &dev_attr_cpu_temperature );
+	err |= device_create_file( &x.of_dev->dev, &dev_attr_case_temperature );
+	if (err)
+		printk(KERN_WARNING
+			"Failed to create temperature attribute file(s).\n");
 }
 
 static void
