@@ -33,6 +33,28 @@ static int finish_current_insert(struct btrfs_trans_handle *trans, struct
 				 btrfs_root *extent_root);
 static int del_pending_extents(struct btrfs_trans_handle *trans, struct
 			       btrfs_root *extent_root);
+static int find_previous_extent(struct btrfs_root *root,
+				struct btrfs_path *path)
+{
+	struct btrfs_key found_key;
+	struct extent_buffer *leaf;
+	int ret;
+
+	while(1) {
+		if (path->slots[0] == 0) {
+			ret = btrfs_prev_leaf(root, path);
+			if (ret != 0)
+				return ret;
+		} else {
+			path->slots[0]--;
+		}
+		leaf = path->nodes[0];
+		btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
+		if (found_key.type == BTRFS_EXTENT_ITEM_KEY)
+			return 0;
+	}
+	return 1;
+}
 
 static int cache_block_group(struct btrfs_root *root,
 			     struct btrfs_block_group_cache *block_group)
@@ -65,16 +87,19 @@ static int cache_block_group(struct btrfs_root *root,
 	first_free = block_group->key.objectid;
 	key.objectid = block_group->key.objectid;
 	key.offset = 0;
-
 	btrfs_set_key_type(&key, BTRFS_EXTENT_ITEM_KEY);
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
-
 	if (ret < 0)
 		return ret;
-
-	if (ret && path->slots[0] > 0)
-		path->slots[0]--;
-
+	ret = find_previous_extent(root, path);
+	if (ret < 0)
+		return ret;
+	if (ret == 0) {
+		leaf = path->nodes[0];
+		btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
+		if (key.objectid + key.offset > first_free)
+			first_free = key.objectid + key.offset;
+	}
 	while(1) {
 		leaf = path->nodes[0];
 		slot = path->slots[0];
@@ -88,15 +113,10 @@ static int cache_block_group(struct btrfs_root *root,
 				break;
 			}
 		}
-
 		btrfs_item_key_to_cpu(leaf, &key, slot);
 		if (key.objectid < block_group->key.objectid) {
-			if (btrfs_key_type(&key) != BTRFS_EXTENT_REF_KEY &&
-			    key.objectid + key.offset > first_free)
-				first_free = key.objectid + key.offset;
 			goto next;
 		}
-
 		if (key.objectid >= block_group->key.objectid +
 		    block_group->key.offset) {
 			break;
@@ -162,11 +182,9 @@ struct btrfs_block_group_cache *btrfs_lookup_block_group(struct
 		return block_group;
 	return NULL;
 }
-
 static u64 noinline find_search_start(struct btrfs_root *root,
 			      struct btrfs_block_group_cache **cache_ret,
-			      u64 search_start, int num,
-			      int data, int full_scan)
+			      u64 search_start, int num, int data)
 {
 	int ret;
 	struct btrfs_block_group_cache *cache = *cache_ret;
@@ -771,9 +789,7 @@ again:
 out:
 	btrfs_free_path(path);
 	return total_count;
-
 }
-
 int btrfs_inc_root_ref(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root, u64 owner_objectid)
 {
@@ -1422,7 +1438,7 @@ check_failed:
 						       orig_search_start);
 	}
 	search_start = find_search_start(root, &block_group, search_start,
-					 total_needed, data, full_scan);
+					 total_needed, data);
 	search_start = stripe_align(root, search_start);
 	cached_start = search_start;
 	btrfs_init_path(path);
@@ -1434,35 +1450,11 @@ check_failed:
 	ret = btrfs_search_slot(trans, root, ins, path, 0, 0);
 	if (ret < 0)
 		goto error;
-
-	if (path->slots[0] > 0) {
-		path->slots[0]--;
-	}
-
+	ret = find_previous_extent(root, path);
+	if (ret < 0)
+		goto error;
 	l = path->nodes[0];
 	btrfs_item_key_to_cpu(l, &key, path->slots[0]);
-
-	/*
-	 * walk backwards to find the first extent item key
-	 */
-	while(btrfs_key_type(&key) != BTRFS_EXTENT_ITEM_KEY) {
-		if (path->slots[0] == 0) {
-			ret = btrfs_prev_leaf(root, path);
-			if (ret != 0) {
-				ret = btrfs_search_slot(trans, root, ins,
-							path, 0, 0);
-				if (ret < 0)
-					goto error;
-				if (path->slots[0] > 0)
-					path->slots[0]--;
-				break;
-			}
-		} else {
-			path->slots[0]--;
-		}
-		l = path->nodes[0];
-		btrfs_item_key_to_cpu(l, &key, path->slots[0]);
-	}
 	while (1) {
 		l = path->nodes[0];
 		slot = path->slots[0];
