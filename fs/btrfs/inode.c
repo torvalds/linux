@@ -208,7 +208,7 @@ again:
 		}
 
 		start = extent_end;
-	} else if (found_type == BTRFS_FILE_EXTENT_INLINE) {
+	} else {
 		goto not_found;
 	}
 loop:

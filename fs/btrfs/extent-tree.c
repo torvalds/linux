@@ -693,7 +693,6 @@ u32 btrfs_count_snapshots_in_path(struct btrfs_root *root,
 	u64 root_objectid = root->root_key.objectid;
 	u32 total_count = 0;
 	u32 cur_count;
-	u32 refs;
 	u32 nritems;
 	int ret;
 	struct btrfs_key key;
@@ -729,8 +728,8 @@ again:
 	}
 
 	item = btrfs_item_ptr(l, path->slots[0], struct btrfs_extent_item);
-	refs = btrfs_extent_refs(l, item);
 	while (1) {
+		l = path->nodes[0];
 		nritems = btrfs_header_nritems(l);
 		if (path->slots[0] >= nritems) {
 			ret = btrfs_next_leaf(extent_root, path);
@@ -741,6 +740,7 @@ again:
 		btrfs_item_key_to_cpu(l, &found_key, path->slots[0]);
 		if (found_key.objectid != bytenr)
 			break;
+
 		if (found_key.type != BTRFS_EXTENT_REF_KEY) {
 			path->slots[0]++;
 			continue;
