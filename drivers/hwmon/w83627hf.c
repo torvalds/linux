@@ -1515,6 +1515,11 @@ static void __devinit w83627hf_init_device(struct platform_device *pdev)
 			    (w83627hf_read_value(data,
 						W83781D_REG_CONFIG) & 0xf7)
 			    | 0x01);
+
+	/* Enable VBAT monitoring if needed */
+	tmp = w83627hf_read_value(data, W83781D_REG_VBAT);
+	if (!(tmp & 0x01))
+		w83627hf_write_value(data, W83781D_REG_VBAT, tmp | 0x01);
 }
 
 static void w83627hf_update_fan_div(struct w83627hf_data *data)
