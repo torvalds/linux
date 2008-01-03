@@ -2317,36 +2317,6 @@ out:
 	return ret;
 }
 
-static int find_overlapping_extent(struct btrfs_root *root,
-				   struct btrfs_path *path, u64 new_size)
-{
-	struct btrfs_key found_key;
-	struct extent_buffer *leaf;
-	int ret;
-
-	while(1) {
-		if (path->slots[0] == 0) {
-			ret = btrfs_prev_leaf(root, path);
-			if (ret == 1) {
-				return 1;
-			}
-			if (ret < 0)
-				return ret;
-		} else {
-			path->slots[0]--;
-		}
-		leaf = path->nodes[0];
-		btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
-		if (found_key.type == BTRFS_EXTENT_ITEM_KEY) {
-			if (found_key.objectid + found_key.offset > new_size)
-				return 0;
-			else
-				return 1;
-		}
-	}
-	return 1;
-}
-
 int btrfs_shrink_extent_tree(struct btrfs_root *root, u64 new_size)
 {
 	struct btrfs_trans_handle *trans;
@@ -2357,11 +2327,10 @@ int btrfs_shrink_extent_tree(struct btrfs_root *root, u64 new_size)
 	struct btrfs_fs_info *info = root->fs_info;
 	struct extent_map_tree *block_group_cache;
 	struct btrfs_key key;
-	struct btrfs_key found_key = { 0, 0, 0 };
+	struct btrfs_key found_key;
 	struct extent_buffer *leaf;
 	u32 nritems;
 	int ret;
-	int slot;
 
 	btrfs_set_super_total_bytes(&info->super_copy, new_size);
 	block_group_cache = &info->block_group_cache;
@@ -2372,48 +2341,54 @@ int btrfs_shrink_extent_tree(struct btrfs_root *root, u64 new_size)
 again:
 	total_found = 0;
 	key.objectid = new_size;
-	cur_byte = key.objectid;
 	key.offset = 0;
 	key.type = 0;
-	while(1) {
+	cur_byte = key.objectid;
 
+	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
+	if (ret < 0)
+		goto out;
+
+	ret = find_previous_extent(root, path);
+	if (ret < 0)
+		goto out;
+	if (ret == 0) {
+		leaf = path->nodes[0];
+		btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
+		if (found_key.objectid + found_key.offset > new_size) {
+			cur_byte = found_key.objectid;
+			key.objectid = cur_byte;
+		}
+	}
+	btrfs_release_path(root, path);
+
+	while(1) {
 		ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 		if (ret < 0)
 			goto out;
-next:
+
 		leaf = path->nodes[0];
-		if (key.objectid == new_size - 1) {
-			ret = find_overlapping_extent(root, path, new_size);
-			if (ret != 0) {
-				btrfs_release_path(root, path);
-				ret = btrfs_search_slot(NULL, root, &key,
-							path, 0, 0);
-				if (ret < 0)
-					goto out;
-			}
-		}
 		nritems = btrfs_header_nritems(leaf);
-		ret = 0;
-		slot = path->slots[0];
-		if (slot < nritems)
-			btrfs_item_key_to_cpu(leaf, &found_key, slot);
-		if (slot == nritems ||
-		    btrfs_key_type(&found_key) != BTRFS_EXTENT_ITEM_KEY) {
-			path->slots[0]++;
-			if (path->slots[0] >= nritems) {
-				ret = btrfs_next_leaf(root, path);
-				if (ret < 0)
-					goto out;
-				if (ret == 1) {
-					ret = 0;
-					break;
-				}
+next:
+		if (path->slots[0] >= nritems) {
+			ret = btrfs_next_leaf(root, path);
+			if (ret < 0)
+				goto out;
+			if (ret == 1) {
+				ret = 0;
+				break;
 			}
+			leaf = path->nodes[0];
+			nritems = btrfs_header_nritems(leaf);
+		}
+
+		btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
+		if (btrfs_key_type(&found_key) != BTRFS_EXTENT_ITEM_KEY ||
+		    found_key.objectid + found_key.offset <= cur_byte) {
+			path->slots[0]++;
 			goto next;
 		}
-		btrfs_item_key_to_cpu(leaf, &found_key, slot);
-		if (found_key.objectid + found_key.offset <= cur_byte)
-			continue;
+
 		total_found++;
 		cur_byte = found_key.objectid + found_key.offset;
 		key.objectid = cur_byte;
@@ -2446,33 +2421,30 @@ next:
 		ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
 		if (ret < 0)
 			goto out;
-bg_next:
+
 		leaf = path->nodes[0];
 		nritems = btrfs_header_nritems(leaf);
-		ret = 0;
-		slot = path->slots[0];
-		if (slot < nritems)
-			btrfs_item_key_to_cpu(leaf, &found_key, slot);
-		if (slot == nritems ||
-		    btrfs_key_type(&found_key) != BTRFS_BLOCK_GROUP_ITEM_KEY) {
-			if (slot < nritems) {
-				printk("shrinker found key %Lu %u %Lu\n",
-				       found_key.objectid, found_key.type,
-				       found_key.offset);
-				path->slots[0]++;
+bg_next:
+		if (path->slots[0] >= nritems) {
+			ret = btrfs_next_leaf(root, path);
+			if (ret < 0)
+				break;
+			if (ret == 1) {
+				ret = 0;
+				break;
 			}
-			if (path->slots[0] >= nritems) {
-				ret = btrfs_next_leaf(root, path);
-				if (ret < 0)
-					break;
-				if (ret == 1) {
-					ret = 0;
-					break;
-				}
-			}
+			leaf = path->nodes[0];
+			nritems = btrfs_header_nritems(leaf);
+		}
+
+		btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
+		if (btrfs_key_type(&found_key) != BTRFS_BLOCK_GROUP_ITEM_KEY) {
+			printk("shrinker found key %Lu %u %Lu\n",
+				found_key.objectid, found_key.type,
+				found_key.offset);
+			path->slots[0]++;
 			goto bg_next;
 		}
-		btrfs_item_key_to_cpu(leaf, &found_key, slot);
 		ret = get_state_private(&info->block_group_cache,
 					found_key.objectid, &ptr);
 		if (!ret)
