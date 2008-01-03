@@ -1966,13 +1966,13 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		pSesInfo = existingCifsSes;
 		cFYI(1, ("Existing smb sess found (status=%d)",
 			pSesInfo->status));
+		down(&pSesInfo->sesSem);
 		if (pSesInfo->status == CifsNeedReconnect) {
 			cFYI(1, ("Session needs reconnect"));
-			down(&pSesInfo->sesSem);
 			rc = cifs_setup_session(xid, pSesInfo,
 						cifs_sb->local_nls);
-			up(&pSesInfo->sesSem);
 		}
+		up(&pSesInfo->sesSem);
 	} else if (!rc) {
 		cFYI(1, ("Existing smb sess not found"));
 		pSesInfo = sesInfoAlloc();
@@ -3522,7 +3522,7 @@ cifs_umount(struct super_block *sb, struct cifs_sb_info *cifs_sb)
 		sesInfoFree(ses);
 
 	FreeXid(xid);
-	return rc;	/* BB check if we should always return zero here */
+	return rc;
 }
 
 int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
