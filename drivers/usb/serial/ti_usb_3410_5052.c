@@ -581,7 +581,7 @@ static int ti_open(struct usb_serial_port *port, struct file *file)
 		}
 	}
 
-	ti_set_termios(port, NULL);
+	ti_set_termios(port, port->tty->termios);
 
 	dbg("%s - sending TI_OPEN_PORT", __FUNCTION__);
 	status = ti_command_out_sync(tdev, TI_OPEN_PORT,
@@ -618,7 +618,7 @@ static int ti_open(struct usb_serial_port *port, struct file *file)
 	usb_clear_halt(dev, port->write_urb->pipe);
 	usb_clear_halt(dev, port->read_urb->pipe);
 
-	ti_set_termios(port, NULL);
+	ti_set_termios(port, port->tty->termios);
 
 	dbg("%s - sending TI_OPEN_PORT (2)", __FUNCTION__);
 	status = ti_command_out_sync(tdev, TI_OPEN_PORT,
@@ -897,24 +897,11 @@ static void ti_set_termios(struct usb_serial_port *port,
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
-	if (!tty || !tty->termios) {
-		dbg("%s - no tty or termios", __FUNCTION__);
-		return;
-	}
-
 	cflag = tty->termios->c_cflag;
 	iflag = tty->termios->c_iflag;
 
-	if (old_termios && cflag == old_termios->c_cflag
-	&& iflag == old_termios->c_iflag) {
-		dbg("%s - nothing to change", __FUNCTION__);
-		return;
-	}
-
-	dbg("%s - clfag %08x, iflag %08x", __FUNCTION__, cflag, iflag);
-
-	if (old_termios)
-		dbg("%s - old clfag %08x, old iflag %08x", __FUNCTION__, old_termios->c_cflag, old_termios->c_iflag);
+	dbg("%s - cflag %08x, iflag %08x", __FUNCTION__, cflag, iflag);
+	dbg("%s - old clfag %08x, old iflag %08x", __FUNCTION__, old_termios->c_cflag, old_termios->c_iflag);
 
 	if (tport == NULL)
 		return;
@@ -947,6 +934,9 @@ static void ti_set_termios(struct usb_serial_port *port,
 			    config->bDataBits = TI_UART_8_DATA_BITS;
 			    break;
 	}
+
+	/* CMSPAR isn't supported by this driver */
+	tty->termios->c_cflag &= ~CMSPAR;
 
 	if (cflag & PARENB) {
 		if (cflag & PARODD) {
@@ -990,11 +980,16 @@ static void ti_set_termios(struct usb_serial_port *port,
 	}
 
 	baud = tty_get_baud_rate(tty);
-	if (!baud) baud = 9600;
+	if (!baud)
+		baud = 9600;
 	if (tport->tp_tdev->td_is_3410)
 		config->wBaudRate = (__u16)((923077 + baud/2) / baud);
 	else
 		config->wBaudRate = (__u16)((461538 + baud/2) / baud);
+
+	/* FIXME: Should calculate resulting baud here and report it back */
+	if ((cflag & CBAUD) != B0)
+		tty_encode_baud_rate(tty, baud, baud);
 
 	dbg("%s - BaudRate=%d, wBaudRate=%d, wFlags=0x%04X, bDataBits=%d, bParity=%d, bStopBits=%d, cXon=%d, cXoff=%d, bUartMode=%d",
 	__FUNCTION__, baud, config->wBaudRate, config->wFlags, config->bDataBits, config->bParity, config->bStopBits, config->cXon, config->cXoff, config->bUartMode);
