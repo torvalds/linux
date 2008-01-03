@@ -73,6 +73,9 @@ extern struct request_queue *scsi_alloc_queue(struct scsi_device *sdev);
 extern void scsi_free_queue(struct request_queue *q);
 extern int scsi_init_queue(void);
 extern void scsi_exit_queue(void);
+struct request_queue;
+struct request;
+extern int scsi_prep_fn(struct request_queue *, struct request *);
 
 /* scsi_proc.c */
 #ifdef CONFIG_SCSI_PROC_FS

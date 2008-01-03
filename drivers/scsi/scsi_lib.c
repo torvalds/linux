@@ -1346,7 +1346,7 @@ int scsi_prep_return(struct request_queue *q, struct request *req, int ret)
 }
 EXPORT_SYMBOL(scsi_prep_return);
 
-static int scsi_prep_fn(struct request_queue *q, struct request *req)
+int scsi_prep_fn(struct request_queue *q, struct request *req)
 {
 	struct scsi_device *sdev = q->queuedata;
 	int ret = BLKPREP_KILL;
