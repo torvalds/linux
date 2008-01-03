@@ -2108,7 +2108,8 @@ static void btrfs_truncate(struct inode *inode)
 	btrfs_btree_balance_dirty(root, nr);
 }
 
-static int create_subvol(struct btrfs_root *root, char *name, int namelen)
+static int noinline create_subvol(struct btrfs_root *root, char *name,
+				  int namelen)
 {
 	struct btrfs_trans_handle *trans;
 	struct btrfs_key key;
@@ -2492,7 +2493,8 @@ out:
 	return ret;
 }
 
-static int btrfs_ioctl_snap_create(struct btrfs_root *root, void __user *arg)
+static int noinline btrfs_ioctl_snap_create(struct btrfs_root *root,
+					    void __user *arg)
 {
 	struct btrfs_ioctl_vol_args *vol_args;
 	struct btrfs_dir_item *di;

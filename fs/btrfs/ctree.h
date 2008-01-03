@@ -386,6 +386,7 @@ struct btrfs_root {
 	int defrag_running;
 	int defrag_level;
 	char *name;
+	int in_sysfs;
 };
 
 /*

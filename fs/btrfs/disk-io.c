@@ -374,6 +374,7 @@ static int __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	root->highest_inode = 0;
 	root->last_inode_alloc = 0;
 	root->name = NULL;
+	root->in_sysfs = 0;
 	memset(&root->root_key, 0, sizeof(root->root_key));
 	memset(&root->root_item, 0, sizeof(root->root_item));
 	memset(&root->defrag_progress, 0, sizeof(root->defrag_progress));
@@ -516,6 +517,9 @@ struct btrfs_root *btrfs_read_fs_root(struct btrfs_fs_info *fs_info,
 	if (!root)
 		return NULL;
 
+	if (root->in_sysfs)
+		return root;
+
 	ret = btrfs_set_root_name(root, name, namelen);
 	if (ret) {
 		free_extent_buffer(root->node);
@@ -530,6 +534,7 @@ struct btrfs_root *btrfs_read_fs_root(struct btrfs_fs_info *fs_info,
 		kfree(root);
 		return ERR_PTR(ret);
 	}
+	root->in_sysfs = 1;
 	return root;
 }
 #if 0

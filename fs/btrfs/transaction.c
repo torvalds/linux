@@ -481,12 +481,10 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	struct btrfs_transaction *cur_trans;
 	struct btrfs_transaction *prev_trans = NULL;
 	struct list_head dirty_fs_roots;
-	struct extent_map_tree pinned_copy;
+	struct extent_map_tree *pinned_copy;
 	DEFINE_WAIT(wait);
 	int ret;
 
-	extent_map_tree_init(&pinned_copy,
-			     root->fs_info->btree_inode->i_mapping, GFP_NOFS);
 	INIT_LIST_HEAD(&dirty_fs_roots);
 
 	mutex_lock(&root->fs_info->trans_mutex);
@@ -507,6 +505,14 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 		mutex_lock(&root->fs_info->fs_mutex);
 		return 0;
 	}
+
+	pinned_copy = kmalloc(sizeof(*pinned_copy), GFP_NOFS);
+	if (!pinned_copy)
+		return -ENOMEM;
+
+	extent_map_tree_init(pinned_copy,
+			     root->fs_info->btree_inode->i_mapping, GFP_NOFS);
+
 	trans->transaction->in_commit = 1;
 	cur_trans = trans->transaction;
 	if (cur_trans->list.prev != &root->fs_info->trans_list) {
@@ -568,16 +574,20 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 			    &root->fs_info->super_copy, 0,
 			    sizeof(root->fs_info->super_copy));
 
-	btrfs_copy_pinned(root, &pinned_copy);
+	btrfs_copy_pinned(root, pinned_copy);
 
 	mutex_unlock(&root->fs_info->trans_mutex);
 	mutex_unlock(&root->fs_info->fs_mutex);
 	ret = btrfs_write_and_wait_transaction(trans, root);
 	BUG_ON(ret);
 	write_ctree_super(trans, root);
+
 	mutex_lock(&root->fs_info->fs_mutex);
-	btrfs_finish_extent_commit(trans, root, &pinned_copy);
+	btrfs_finish_extent_commit(trans, root, pinned_copy);
 	mutex_lock(&root->fs_info->trans_mutex);
+
+	kfree(pinned_copy);
+
 	cur_trans->commit_done = 1;
 	root->fs_info->last_trans_committed = cur_trans->transid;
 	wake_up(&cur_trans->commit_wait);

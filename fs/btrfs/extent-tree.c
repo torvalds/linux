@@ -751,7 +751,7 @@ again:
 
 		if (found_objectid != root_objectid) {
 			total_count = 2;
-			break;
+			goto out;
 		}
 		total_count = 1;
 		path->slots[0]++;
@@ -760,8 +760,6 @@ again:
 		total_count = 0;
 		goto out;
 	}
-	if (total_count > 1)
-		goto out;
 	if (level >= 0 && root->node == count_path->nodes[level])
 		goto out;
 	level++;
@@ -2109,22 +2107,23 @@ static int relocate_inode_pages(struct inode *inode, u64 start, u64 len)
 	u64 delalloc_start;
 	u64 existing_delalloc;
 	unsigned long last_index;
-	unsigned long first_index;
 	unsigned long i;
 	struct page *page;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
-	struct file_ra_state ra;
+	struct file_ra_state *ra;
+
+	ra = kzalloc(sizeof(*ra), GFP_NOFS);
 
 	mutex_lock(&inode->i_mutex);
-	first_index = start >> PAGE_CACHE_SHIFT;
+	i = start >> PAGE_CACHE_SHIFT;
 	last_index = (start + len - 1) >> PAGE_CACHE_SHIFT;
 
-	memset(&ra, 0, sizeof(ra));
-	file_ra_state_init(&ra, inode->i_mapping);
-	btrfs_force_ra(inode->i_mapping, &ra, NULL, first_index, last_index);
+	file_ra_state_init(ra, inode->i_mapping);
+	btrfs_force_ra(inode->i_mapping, ra, NULL, i, last_index);
+	kfree(ra);
 
-	for (i = first_index; i <= last_index; i++) {
+	for (; i <= last_index; i++) {
 		page = grab_cache_page(inode->i_mapping, i);
 		if (!page)
 			goto out_unlock;
@@ -2167,27 +2166,43 @@ out_unlock:
 	return 0;
 }
 
+/*
+ * note, this releases the path
+ */
 static int relocate_one_reference(struct btrfs_root *extent_root,
 				  struct btrfs_path *path,
-				  struct btrfs_key *extent_key,
-				  u64 ref_root, u64 ref_gen, u64 ref_objectid,
-				  u64 ref_offset)
+				  struct btrfs_key *extent_key)
 {
 	struct inode *inode;
 	struct btrfs_root *found_root;
-	struct btrfs_key root_location;
+	struct btrfs_key *root_location;
+	struct btrfs_extent_ref *ref;
+	u64 ref_root;
+	u64 ref_gen;
+	u64 ref_objectid;
+	u64 ref_offset;
 	int ret;
 
-	root_location.objectid = ref_root;
+	ref = btrfs_item_ptr(path->nodes[0], path->slots[0],
+			     struct btrfs_extent_ref);
+	ref_root = btrfs_ref_root(path->nodes[0], ref);
+	ref_gen = btrfs_ref_generation(path->nodes[0], ref);
+	ref_objectid = btrfs_ref_objectid(path->nodes[0], ref);
+	ref_offset = btrfs_ref_offset(path->nodes[0], ref);
+	btrfs_release_path(extent_root, path);
+
+	root_location = kmalloc(sizeof(*root_location), GFP_NOFS);
+	root_location->objectid = ref_root;
 	if (ref_gen == 0)
-		root_location.offset = 0;
+		root_location->offset = 0;
 	else
-		root_location.offset = (u64)-1;
-	root_location.type = BTRFS_ROOT_ITEM_KEY;
+		root_location->offset = (u64)-1;
+	root_location->type = BTRFS_ROOT_ITEM_KEY;
 
 	found_root = btrfs_read_fs_root_no_name(extent_root->fs_info,
-						&root_location);
+						root_location);
 	BUG_ON(!found_root);
+	kfree(root_location);
 
 	if (ref_objectid >= BTRFS_FIRST_FREE_OBJECTID) {
 		mutex_unlock(&extent_root->fs_info->fs_mutex);
@@ -2259,12 +2274,7 @@ static int relocate_one_extent(struct btrfs_root *extent_root,
 {
 	struct btrfs_key key;
 	struct btrfs_key found_key;
-	struct btrfs_extent_ref *ref;
 	struct extent_buffer *leaf;
-	u64 ref_root;
-	u64 ref_gen;
-	u64 ref_objectid;
-	u64 ref_offset;
 	u32 nritems;
 	u32 item_size;
 	int ret = 0;
@@ -2297,17 +2307,7 @@ static int relocate_one_extent(struct btrfs_root *extent_root,
 		key.offset = found_key.offset + 1;
 		item_size = btrfs_item_size_nr(leaf, path->slots[0]);
 
-		ref = btrfs_item_ptr(leaf, path->slots[0],
-				     struct btrfs_extent_ref);
-		ref_root = btrfs_ref_root(leaf, ref);
-		ref_gen = btrfs_ref_generation(leaf, ref);
-		ref_objectid = btrfs_ref_objectid(leaf, ref);
-		ref_offset = btrfs_ref_offset(leaf, ref);
-		btrfs_release_path(extent_root, path);
-
-		ret = relocate_one_reference(extent_root, path,
-					     extent_key, ref_root, ref_gen,
-					     ref_objectid, ref_offset);
+		ret = relocate_one_reference(extent_root, path, extent_key);
 		if (ret)
 			goto out;
 	}
@@ -2354,7 +2354,6 @@ int btrfs_shrink_extent_tree(struct btrfs_root *root, u64 new_size)
 	struct btrfs_path *path;
 	u64 cur_byte;
 	u64 total_found;
-	u64 ptr;
 	struct btrfs_fs_info *info = root->fs_info;
 	struct extent_map_tree *block_group_cache;
 	struct btrfs_key key;
@@ -2377,6 +2376,7 @@ again:
 	key.offset = 0;
 	key.type = 0;
 	while(1) {
+
 		ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 		if (ret < 0)
 			goto out;
@@ -2441,6 +2441,8 @@ next:
 	key.offset = 0;
 	key.type = 0;
 	while(1) {
+		u64 ptr;
+
 		ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
 		if (ret < 0)
 			goto out;
