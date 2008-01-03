@@ -1979,7 +1979,7 @@ static int edge_open (struct usb_serial_port *port, struct file * filp)
 	}
 	
 	/* set up the port settings */
-	edge_set_termios (port, NULL);
+	edge_set_termios (port, port->tty->termios);
 
 	/* open up the port */
 
@@ -2394,11 +2394,6 @@ static void change_port_settings (struct edgeport_port *edge_port, struct ktermi
 	dbg("%s - port %d", __FUNCTION__, edge_port->port->number);
 
 	tty = edge_port->port->tty;
-	if ((!tty) ||
-	    (!tty->termios)) {
-		dbg("%s - no tty structures", __FUNCTION__);
-		return;
-	}
 
 	config = kmalloc (sizeof (*config), GFP_KERNEL);
 	if (!config) {
@@ -2493,14 +2488,20 @@ static void change_port_settings (struct edgeport_port *edge_port, struct ktermi
 		}
 	}
 
+	tty->termios->c_cflag &= ~CMSPAR;
+
 	/* Round the baud rate */
 	baud = tty_get_baud_rate(tty);
 	if (!baud) {
 		/* pick a default, any default... */
 		baud = 9600;
-	}
+	} else
+		tty_encode_baud_rate(tty, baud, baud);
+
 	edge_port->baud_rate = baud;
 	config->wBaudRate = (__u16)((461550L + baud/2) / baud);
+
+	/* FIXME: Recompute actual baud from divisor here */
 
 	dbg ("%s - baud rate = %d, wBaudRate = %d", __FUNCTION__, baud, config->wBaudRate);
 
@@ -2539,19 +2540,12 @@ static void edge_set_termios (struct usb_serial_port *port, struct ktermios *old
 	struct tty_struct *tty = port->tty;
 	unsigned int cflag;
 
-	if (!port->tty || !port->tty->termios) {
-		dbg ("%s - no tty or termios", __FUNCTION__);
-		return;
-	}
-
 	cflag = tty->termios->c_cflag;
 
 	dbg("%s - clfag %08x iflag %08x", __FUNCTION__, 
 	    tty->termios->c_cflag, tty->termios->c_iflag);
-	if (old_termios) {
-		dbg("%s - old clfag %08x old iflag %08x", __FUNCTION__,
-		    old_termios->c_cflag, old_termios->c_iflag);
-	}
+	dbg("%s - old clfag %08x old iflag %08x", __FUNCTION__,
+	    old_termios->c_cflag, old_termios->c_iflag);
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
