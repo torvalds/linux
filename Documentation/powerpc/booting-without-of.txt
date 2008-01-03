@@ -671,10 +671,10 @@ device or bus to be described by the device tree.
 
 In general, the format of an address for a device is defined by the
 parent bus type, based on the #address-cells and #size-cells
-property. In the absence of such a property, the parent's parent
-values are used, etc... The kernel requires the root node to have
-those properties defining addresses format for devices directly mapped
-on the processor bus.
+properties.  Note that the parent's parent definitions of #address-cells
+and #size-cells are not inhereted so every node with children must specify
+them.  The kernel requires the root node to have those properties defining
+addresses format for devices directly mapped on the processor bus.
 
 Those 2 properties define 'cells' for representing an address and a
 size. A "cell" is a 32-bit number. For example, if both contain 2
