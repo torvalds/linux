@@ -235,6 +235,10 @@ static void input_handle_event(struct input_dev *dev,
 		if (value >= 0)
 			disposition = INPUT_PASS_TO_ALL;
 		break;
+
+	case EV_PWR:
+		disposition = INPUT_PASS_TO_ALL;
+		break;
 	}
 
 	if (type != EV_SYN)
