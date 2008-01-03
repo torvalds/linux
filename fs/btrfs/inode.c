@@ -81,9 +81,11 @@ int btrfs_check_free_space(struct btrfs_root *root, u64 num_required,
 	int ret = 0;
 
 	if (for_del)
-		thresh = (total * 90) / 100;
+		thresh = total * 90;
 	else
-		thresh = (total * 85) / 100;
+		thresh = total * 85;
+
+	do_div(thresh, 100);
 
 	spin_lock(&root->fs_info->delalloc_lock);
 	if (used + root->fs_info->delalloc_bytes + num_required > thresh)
@@ -2475,7 +2477,9 @@ static int btrfs_ioctl_resize(struct btrfs_root *root, void __user *arg)
 		ret = -EFBIG;
 		goto out_unlock;
 	}
-	new_size = (new_size / root->sectorsize) * root->sectorsize;
+
+	do_div(new_size, root->sectorsize);
+	new_size *= root->sectorsize;
 
 printk("new size is %Lu\n", new_size);
 	if (new_size > old_size) {

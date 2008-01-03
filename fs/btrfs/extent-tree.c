@@ -2501,6 +2501,7 @@ int btrfs_grow_extent_tree(struct btrfs_trans_handle *trans,
 	u64 nr = 0;
 	u64 cur_byte;
 	u64 old_size;
+	unsigned long rem;
 	struct btrfs_block_group_cache *cache;
 	struct btrfs_block_group_item *item;
 	struct btrfs_fs_info *info = root->fs_info;
@@ -2538,7 +2539,8 @@ int btrfs_grow_extent_tree(struct btrfs_trans_handle *trans,
 				      struct btrfs_block_group_item);
 
 		btrfs_set_disk_block_group_used(leaf, item, 0);
-		if (nr % 3) {
+		div_long_long_rem(nr, 3, &rem);
+		if (rem) {
 			btrfs_set_disk_block_group_flags(leaf, item,
 						 BTRFS_BLOCK_GROUP_DATA);
 		} else {
