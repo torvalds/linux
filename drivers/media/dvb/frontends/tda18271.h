@@ -52,7 +52,10 @@ enum tda18271_i2c_gate {
 };
 
 struct tda18271_config {
+	/* override default if freq / std settings (optional) */
 	struct tda18271_std_map *std_map;
+
+	/* use i2c gate provided by analog or digital demod */
 	enum tda18271_i2c_gate gate;
 };
 
