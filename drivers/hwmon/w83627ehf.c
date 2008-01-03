@@ -1202,8 +1202,7 @@ static void w83627ehf_device_remove_files(struct device *dev)
 		device_remove_file(dev, &sda_temp[i].dev_attr);
 
 	device_remove_file(dev, &dev_attr_name);
-	if (data->vid != 0x3f)
-		device_remove_file(dev, &dev_attr_cpu0_vid);
+	device_remove_file(dev, &dev_attr_cpu0_vid);
 }
 
 /* Get the monitoring functions started */
@@ -1303,11 +1302,16 @@ static int __devinit w83627ehf_probe(struct platform_device *pdev)
 			}
 		}
 
-		data->vid = superio_inb(sio_data->sioreg, SIO_REG_VID_DATA) & 0x3f;
+		data->vid = superio_inb(sio_data->sioreg, SIO_REG_VID_DATA);
+		if (sio_data->kind == w83627ehf) /* 6 VID pins only */
+			data->vid &= 0x3f;
+
+		err = device_create_file(dev, &dev_attr_cpu0_vid);
+		if (err)
+			goto exit_release;
 	} else {
 		dev_info(dev, "VID pins in output mode, CPU VID not "
 			 "available\n");
-		data->vid = 0x3f;
 	}
 
 	/* fan4 and fan5 share some pins with the GPIO and serial flash */
@@ -1389,12 +1393,6 @@ static int __devinit w83627ehf_probe(struct platform_device *pdev)
 	err = device_create_file(dev, &dev_attr_name);
 	if (err)
 		goto exit_remove;
-
-	if (data->vid != 0x3f) {
-		err = device_create_file(dev, &dev_attr_cpu0_vid);
-		if (err)
-			goto exit_remove;
-	}
 
 	data->hwmon_dev = hwmon_device_register(dev);
 	if (IS_ERR(data->hwmon_dev)) {
