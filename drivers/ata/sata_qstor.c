@@ -270,7 +270,7 @@ static int qs_scr_read(struct ata_port *ap, unsigned int sc_reg, u32 *val)
 static void qs_error_handler(struct ata_port *ap)
 {
 	qs_enter_reg_mode(ap);
-	ata_do_eh(ap, qs_prereset, ata_std_softreset, NULL,
+	ata_do_eh(ap, qs_prereset, NULL, sata_std_hardreset,
 		  ata_std_postreset);
 }
 
