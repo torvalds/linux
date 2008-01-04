@@ -112,7 +112,6 @@ struct cn_queue_dev {
 	struct list_head queue_list;
 	spinlock_t queue_lock;
 
-	int netlink_groups;
 	struct sock *nls;
 };
 

@@ -146,7 +146,6 @@ struct cn_queue_dev *cn_queue_alloc_dev(char *name, struct sock *nls)
 	spin_lock_init(&dev->queue_lock);
 
 	dev->nls = nls;
-	dev->netlink_groups = 0;
 
 	dev->cn_queue = create_workqueue(dev->name);
 	if (!dev->cn_queue) {
