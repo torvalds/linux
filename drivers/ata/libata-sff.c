@@ -551,7 +551,7 @@ int ata_pci_init_bmdma(struct ata_host *host)
 		return rc;
 
 	/* request and iomap DMA region */
-	rc = pcim_iomap_regions(pdev, 1 << 4, DRV_NAME);
+	rc = pcim_iomap_regions(pdev, 1 << 4, dev_driver_string(gdev));
 	if (rc) {
 		dev_printk(KERN_ERR, gdev, "failed to request/iomap BAR4\n");
 		return -ENOMEM;
@@ -621,7 +621,8 @@ int ata_pci_init_sff_host(struct ata_host *host)
 			continue;
 		}
 
-		rc = pcim_iomap_regions(pdev, 0x3 << base, DRV_NAME);
+		rc = pcim_iomap_regions(pdev, 0x3 << base,
+					dev_driver_string(gdev));
 		if (rc) {
 			dev_printk(KERN_WARNING, gdev,
 				   "failed to request/iomap BARs for port %d "
@@ -741,6 +742,7 @@ int ata_pci_init_one(struct pci_dev *pdev,
 	struct device *dev = &pdev->dev;
 	const struct ata_port_info *pi = NULL;
 	struct ata_host *host = NULL;
+	const char *drv_name = dev_driver_string(&pdev->dev);
 	u8 mask;
 	int legacy_mode = 0;
 	int i, rc;
@@ -813,7 +815,7 @@ int ata_pci_init_one(struct pci_dev *pdev,
 		   shouldn't happen on a sane system but robustness is cheap
 		   in this case */
 		rc = devm_request_irq(dev, pdev->irq, pi->port_ops->irq_handler,
-				      IRQF_SHARED, DRV_NAME, host);
+				      IRQF_SHARED, drv_name, host);
 		if (rc)
 			goto err_out;
 
@@ -823,7 +825,7 @@ int ata_pci_init_one(struct pci_dev *pdev,
 		if (!ata_port_is_dummy(host->ports[0])) {
 			rc = devm_request_irq(dev, ATA_PRIMARY_IRQ(pdev),
 					      pi->port_ops->irq_handler,
-					      IRQF_SHARED, DRV_NAME, host);
+					      IRQF_SHARED, drv_name, host);
 			if (rc)
 				goto err_out;
 
@@ -834,7 +836,7 @@ int ata_pci_init_one(struct pci_dev *pdev,
 		if (!ata_port_is_dummy(host->ports[1])) {
 			rc = devm_request_irq(dev, ATA_SECONDARY_IRQ(pdev),
 					      pi->port_ops->irq_handler,
-					      IRQF_SHARED, DRV_NAME, host);
+					      IRQF_SHARED, drv_name, host);
 			if (rc)
 				goto err_out;
 
