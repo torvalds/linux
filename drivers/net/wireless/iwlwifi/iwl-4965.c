@@ -3616,7 +3616,7 @@ static void iwl4965_add_radiotap(struct iwl4965_priv *priv,
 	if (skb_headroom(skb) < sizeof(*iwl4965_rt)) {
 		if (net_ratelimit())
 			printk(KERN_ERR "not enough headroom [%d] for "
-			       "radiotap head [%d]\n",
+			       "radiotap head [%zd]\n",
 			       skb_headroom(skb), sizeof(*iwl4965_rt));
 		return;
 	}
