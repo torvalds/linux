@@ -1749,6 +1749,7 @@ void km_policy_expired(struct xfrm_policy *pol, int dir, int hard, u32 pid)
 }
 EXPORT_SYMBOL(km_policy_expired);
 
+#ifdef CONFIG_XFRM_MIGRATE
 int km_migrate(struct xfrm_selector *sel, u8 dir, u8 type,
 	       struct xfrm_migrate *m, int num_migrate)
 {
@@ -1768,6 +1769,7 @@ int km_migrate(struct xfrm_selector *sel, u8 dir, u8 type,
 	return err;
 }
 EXPORT_SYMBOL(km_migrate);
+#endif
 
 int km_report(u8 proto, struct xfrm_selector *sel, xfrm_address_t *addr)
 {
