@@ -2331,6 +2331,7 @@ int btrfs_shrink_extent_tree(struct btrfs_root *root, u64 new_size)
 	struct extent_buffer *leaf;
 	u32 nritems;
 	int ret;
+	int progress = 0;
 
 	btrfs_set_super_total_bytes(&info->super_copy, new_size);
 	block_group_cache = &info->block_group_cache;
@@ -2383,6 +2384,19 @@ next:
 		}
 
 		btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
+
+		if (progress && need_resched()) {
+			memcpy(&key, &found_key, sizeof(key));
+			mutex_unlock(&root->fs_info->fs_mutex);
+			cond_resched();
+			mutex_lock(&root->fs_info->fs_mutex);
+			btrfs_release_path(root, path);
+			btrfs_search_slot(NULL, root, &key, path, 0, 0);
+			progress = 0;
+			goto next;
+		}
+		progress = 1;
+
 		if (btrfs_key_type(&found_key) != BTRFS_EXTENT_ITEM_KEY ||
 		    found_key.objectid + found_key.offset <= cur_byte) {
 			path->slots[0]++;
@@ -2442,7 +2456,7 @@ bg_next:
 			 */
 			memcpy(&key, &found_key, sizeof(key));
 			btrfs_release_path(root, path);
-			continue;
+			goto resched_check;
 		}
 
 		btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
@@ -2465,6 +2479,12 @@ bg_next:
 		key.objectid = found_key.objectid + 1;
 		btrfs_del_item(trans, root, path);
 		btrfs_release_path(root, path);
+resched_check:
+		if (need_resched()) {
+			mutex_unlock(&root->fs_info->fs_mutex);
+			cond_resched();
+			mutex_lock(&root->fs_info->fs_mutex);
+		}
 	}
 	clear_extent_dirty(&info->free_space_cache, new_size, (u64)-1,
 			   GFP_NOFS);
