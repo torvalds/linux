@@ -196,7 +196,7 @@ static struct map_desc standard_io_desc[] __initdata = {
 	}, {	/* Mem Ctl */
 		.virtual	=  0xf6000000,
 		.pfn		= __phys_to_pfn(0x48000000),
-		.length		= 0x00100000,
+		.length		= 0x00200000,
 		.type		= MT_DEVICE
 	}, {	/* USB host */
 		.virtual	=  0xf8000000,
