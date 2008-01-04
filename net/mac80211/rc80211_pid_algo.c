@@ -108,10 +108,6 @@ static void rate_control_pid_adjust_rate(struct ieee80211_local *local,
 	int back = (adj > 0) ? 1 : -1;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(sta->dev);
-	if (sdata->bss && sdata->bss->force_unicast_rateidx > -1) {
-		/* forced unicast rate - do not change STA rate */
-		return;
-	}
 
 	mode = local->oper_hw_mode;
 	maxrate = sdata->bss ? sdata->bss->max_ratectrl_rateidx : -1;
@@ -241,6 +237,7 @@ static void rate_control_pid_tx_status(void *priv, struct net_device *dev,
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	struct ieee80211_sub_if_data *sdata;
 	struct rc_pid_info *pinfo = priv;
 	struct sta_info *sta;
 	struct rc_pid_sta_info *spinfo;
@@ -250,6 +247,13 @@ static void rate_control_pid_tx_status(void *priv, struct net_device *dev,
 
 	if (!sta)
 		return;
+
+	/* Don't update the state if we're not controlling the rate. */
+	sdata = IEEE80211_DEV_TO_SUB_IF(sta->dev);
+	if (sdata->bss && sdata->bss->force_unicast_rateidx > -1) {
+		sta->txrate = sdata->bss->max_ratectrl_rateidx;
+		return;
+	}
 
 	/* Ignore all frames that were sent with a different rate than the rate
 	 * we currently advise mac80211 to use. */
