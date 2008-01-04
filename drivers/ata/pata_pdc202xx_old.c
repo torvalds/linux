@@ -215,8 +215,8 @@ static void pdc2026x_bmdma_stop(struct ata_queued_cmd *qc)
 	/* Flip back to 33Mhz for PIO */
 	if (adev->dma_mode >= XFER_UDMA_2)
 		iowrite8(ioread8(clock) & ~sel66, clock);
-
 	ata_bmdma_stop(qc);
+	pdc202xx_set_piomode(ap, adev);
 }
 
 /**
@@ -231,6 +231,17 @@ static void pdc2026x_bmdma_stop(struct ata_queued_cmd *qc)
 static void pdc2026x_dev_config(struct ata_device *adev)
 {
 	adev->max_sectors = 256;
+}
+
+static int pdc2026x_port_start(struct ata_port *ap)
+{
+	void __iomem *bmdma = ap->ioaddr.bmdma_addr;
+	if (bmdma) {
+		/* Enable burst mode */
+		u8 burst = ioread8(bmdma + 0x1f);
+		iowrite8(burst | 0x01, bmdma + 0x1f);
+	}
+	return ata_sff_port_start(ap);
 }
 
 static struct scsi_host_template pdc202xx_sht = {
@@ -313,7 +324,7 @@ static struct ata_port_operations pdc2026x_port_ops = {
 	.irq_clear	= ata_bmdma_irq_clear,
 	.irq_on		= ata_irq_on,
 
-	.port_start	= ata_sff_port_start,
+	.port_start	= pdc2026x_port_start,
 };
 
 static int pdc202xx_init_one(struct pci_dev *dev, const struct pci_device_id *id)
