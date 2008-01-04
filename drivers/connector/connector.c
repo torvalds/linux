@@ -88,6 +88,7 @@ int cn_netlink_send(struct cn_msg *msg, u32 __group, gfp_t gfp_mask)
 			if (cn_cb_equal(&__cbq->id.id, &msg->id)) {
 				found = 1;
 				group = __cbq->group;
+				break;
 			}
 		}
 		spin_unlock_bh(&dev->cbdev->queue_lock);
