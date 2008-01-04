@@ -2488,7 +2488,7 @@ static int tcp_xmit_probe_skb(struct sock *sk, int urgent)
 	 * end to send an ack.  Don't queue or clone SKB, just
 	 * send it.
 	 */
-	TCP_SKB_CB(skb)->seq = urgent ? tp->snd_una : tp->snd_una - 1;
+	TCP_SKB_CB(skb)->seq = tp->snd_una - !urgent;
 	TCP_SKB_CB(skb)->end_seq = TCP_SKB_CB(skb)->seq;
 	TCP_SKB_CB(skb)->when = tcp_time_stamp;
 	return tcp_transmit_skb(sk, skb, 0, GFP_ATOMIC);
