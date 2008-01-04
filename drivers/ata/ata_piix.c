@@ -102,18 +102,11 @@ enum {
 	ICH5_PCS		= 0x92,	/* port control and status */
 	PIIX_SCC		= 0x0A, /* sub-class code register */
 
-	PIIX_FLAG_SCR		= (1 << 26), /* SCR available */
 	PIIX_FLAG_AHCI		= (1 << 27), /* AHCI possible */
 	PIIX_FLAG_CHECKINTR	= (1 << 28), /* make sure PCI INTx enabled */
 
 	PIIX_PATA_FLAGS		= ATA_FLAG_SLAVE_POSS,
 	PIIX_SATA_FLAGS		= ATA_FLAG_SATA | PIIX_FLAG_CHECKINTR,
-
-	/* combined mode.  if set, PATA is channel 0.
-	 * if clear, PATA is channel 1.
-	 */
-	PIIX_PORT_ENABLED	= (1 << 0),
-	PIIX_PORT_PRESENT	= (1 << 4),
 
 	PIIX_80C_PRI		= (1 << 5) | (1 << 4),
 	PIIX_80C_SEC		= (1 << 7) | (1 << 6),
@@ -588,7 +581,7 @@ static struct ata_port_info piix_port_info[] = {
 	[ich6_sata] =
 	{
 		.sht		= &piix_sht,
-		.flags		= PIIX_SATA_FLAGS | PIIX_FLAG_SCR,
+		.flags		= PIIX_SATA_FLAGS,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.udma_mask	= ATA_UDMA6,
@@ -598,8 +591,7 @@ static struct ata_port_info piix_port_info[] = {
 	[ich6_sata_ahci] =
 	{
 		.sht		= &piix_sht,
-		.flags		= PIIX_SATA_FLAGS | PIIX_FLAG_SCR |
-				  PIIX_FLAG_AHCI,
+		.flags		= PIIX_SATA_FLAGS | PIIX_FLAG_AHCI,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.udma_mask	= ATA_UDMA6,
@@ -609,8 +601,7 @@ static struct ata_port_info piix_port_info[] = {
 	[ich6m_sata_ahci] =
 	{
 		.sht		= &piix_sht,
-		.flags		= PIIX_SATA_FLAGS | PIIX_FLAG_SCR |
-				  PIIX_FLAG_AHCI,
+		.flags		= PIIX_SATA_FLAGS | PIIX_FLAG_AHCI,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.udma_mask	= ATA_UDMA6,
@@ -620,8 +611,7 @@ static struct ata_port_info piix_port_info[] = {
 	[ich8_sata_ahci] =
 	{
 		.sht		= &piix_sht,
-		.flags		= PIIX_SATA_FLAGS | PIIX_FLAG_SCR |
-				  PIIX_FLAG_AHCI,
+		.flags		= PIIX_SATA_FLAGS | PIIX_FLAG_AHCI,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.udma_mask	= ATA_UDMA6,
@@ -631,8 +621,7 @@ static struct ata_port_info piix_port_info[] = {
 	[ich8_2port_sata] =
 	{
 		.sht		= &piix_sht,
-		.flags		= PIIX_SATA_FLAGS | PIIX_FLAG_SCR |
-				  PIIX_FLAG_AHCI,
+		.flags		= PIIX_SATA_FLAGS | PIIX_FLAG_AHCI,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.udma_mask	= ATA_UDMA6,
@@ -642,8 +631,7 @@ static struct ata_port_info piix_port_info[] = {
 	[tolapai_sata_ahci] =
 	{
 		.sht		= &piix_sht,
-		.flags		= PIIX_SATA_FLAGS | PIIX_FLAG_SCR |
-				  PIIX_FLAG_AHCI,
+		.flags		= PIIX_SATA_FLAGS | PIIX_FLAG_AHCI,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.udma_mask	= ATA_UDMA6,
@@ -653,8 +641,7 @@ static struct ata_port_info piix_port_info[] = {
 	[ich8m_apple_sata_ahci] =
 	{
 		.sht		= &piix_sht,
-		.flags		= PIIX_SATA_FLAGS | PIIX_FLAG_SCR |
-				  PIIX_FLAG_AHCI,
+		.flags		= PIIX_SATA_FLAGS | PIIX_FLAG_AHCI,
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.udma_mask	= ATA_UDMA6,
