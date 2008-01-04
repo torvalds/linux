@@ -142,8 +142,8 @@
 
 #define DRV_MODULE_NAME		"cassini"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.4"
-#define DRV_MODULE_RELDATE	"1 July 2004"
+#define DRV_MODULE_VERSION	"1.5"
+#define DRV_MODULE_RELDATE	"4 Jan 2008"
 
 #define CAS_DEF_MSG_ENABLE	  \
 	(NETIF_MSG_DRV		| \
