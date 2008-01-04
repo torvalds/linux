@@ -41,13 +41,9 @@ led-$(CONFIG_MACH_TRIZEPS4)	+= leds-trizeps4.o
 obj-$(CONFIG_LEDS)		+= $(led-y)
 
 # Misc features
-obj-$(CONFIG_PM)		+= pm.o sleep.o
+obj-$(CONFIG_PM)		+= pm.o sleep.o standby.o
 obj-$(CONFIG_CPU_FREQ)		+= cpu-pxa.o
 obj-$(CONFIG_PXA_SSP)		+= ssp.o
-
-ifeq ($(CONFIG_PXA27x),y)
-obj-$(CONFIG_PM)		+= standby.o
-endif
 
 ifeq ($(CONFIG_PCI),y)
 obj-$(CONFIG_MACH_ARMCORE) += cm-x270-pci.o

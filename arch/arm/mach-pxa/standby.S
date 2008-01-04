@@ -17,6 +17,7 @@
 
 		.text
 
+#ifdef CONFIG_PXA27x
 ENTRY(pxa_cpu_standby)
 	ldr	r0, =PSSR
 	mov	r1, #(PSSR_PH | PSSR_STS)
@@ -29,3 +30,5 @@ ENTRY(pxa_cpu_standby)
 1:	mcr	p14, 0, r2, c7, c0, 0	@ put the system into Standby
 	str	r1, [r0]		@ make sure PSSR_PH/STS are clear
 	mov	pc, lr
+
+#endif
