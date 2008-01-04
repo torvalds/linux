@@ -145,6 +145,8 @@ static int cn_call_callback(struct cn_msg *msg, void (*destruct_data)(void *), v
 				if (queue_work(dev->cbdev->cn_queue,
 							&__cbq->work))
 					err = 0;
+				else
+					err = -EINVAL;
 			} else {
 				struct cn_callback_data *d;
 				
