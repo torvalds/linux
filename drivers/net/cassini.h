@@ -4122,8 +4122,8 @@ cas_saturn_patch_t cas_saturn_patch[] = {
 							     inserted into
 							     outgoing frame. */
 struct cas_tx_desc {
-	u64     control;
-	u64     buffer;
+	__le64     control;
+	__le64     buffer;
 };
 
 /* descriptor ring for free buffers contains page-sized buffers. the index
@@ -4131,8 +4131,8 @@ struct cas_tx_desc {
  * the completion ring.
  */
 struct cas_rx_desc {
-	u64     index;
-	u64     buffer;
+	__le64     index;
+	__le64     buffer;
 };
 
 /* received packets are put on the completion ring. */
@@ -4210,10 +4210,10 @@ struct cas_rx_desc {
 #define RX_INDEX_RELEASE                  0x0000000000002000ULL
 
 struct cas_rx_comp {
-	u64     word1;
-	u64     word2;
-	u64     word3;
-	u64     word4;
+	__le64     word1;
+	__le64     word2;
+	__le64     word3;
+	__le64     word4;
 };
 
 enum link_state {
@@ -4252,7 +4252,7 @@ struct cas_init_block {
 	struct cas_rx_comp rxcs[N_RX_COMP_RINGS][INIT_BLOCK_RX_COMP];
 	struct cas_rx_desc rxds[N_RX_DESC_RINGS][INIT_BLOCK_RX_DESC];
 	struct cas_tx_desc txds[N_TX_RINGS][INIT_BLOCK_TX];
-	u64 tx_compwb;
+	__le64 tx_compwb;
 };
 
 /* tiny buffers to deal with target abort issue. we allocate a bit
