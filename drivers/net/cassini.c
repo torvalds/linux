@@ -2586,7 +2586,7 @@ static int cas_poll(struct napi_struct *napi, int budget)
 {
 	struct cas *cp = container_of(napi, struct cas, napi);
 	struct net_device *dev = cp->dev;
-	int i, enable_intr, todo, credits;
+	int i, enable_intr, credits;
 	u32 status = readl(cp->regs + REG_INTR_STATUS);
 	unsigned long flags;
 
@@ -4350,7 +4350,7 @@ static int cas_close(struct net_device *dev)
 	struct cas *cp = netdev_priv(dev);
 
 #ifdef USE_NAPI
-	napi_enable(&cp->napi);
+	napi_disable(&cp->napi);
 #endif
 	/* Make sure we don't get distracted by suspend/resume */
 	mutex_lock(&cp->pm_mutex);
