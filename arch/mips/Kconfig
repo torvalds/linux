@@ -602,6 +602,7 @@ config SNI_RM
 	bool "SNI RM200/300/400"
 	select ARC if CPU_LITTLE_ENDIAN
 	select ARC32 if CPU_LITTLE_ENDIAN
+	select SNIPROM if CPU_BIG_ENDIAN
 	select ARCH_MAY_HAVE_PC_FDC
 	select BOOT_ELF32
 	select CEVT_R4K
@@ -1001,6 +1002,9 @@ config DEFAULT_SGI_PARTITION
 	bool
 
 config ARC32
+	bool
+
+config SNIPROM
 	bool
 
 config BOOT_ELF32

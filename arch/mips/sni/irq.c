@@ -35,14 +35,14 @@ static irqreturn_t sni_isa_irq_handler(int dummy, void *p)
 	if (unlikely(irq < 0))
 		return IRQ_NONE;
 
-	do_IRQ(irq);
+	generic_handle_irq(irq);
 	return IRQ_HANDLED;
 }
 
 struct irqaction sni_isa_irq = {
 	.handler = sni_isa_irq_handler,
 	.name = "ISA",
-	.flags = IRQF_SHARED
+	.flags = IRQF_SHARED | IRQF_DISABLED
 };
 
 /*

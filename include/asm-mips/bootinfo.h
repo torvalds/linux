@@ -96,6 +96,7 @@
 
 #define CL_SIZE			COMMAND_LINE_SIZE
 
+extern char *system_type;
 const char *get_system_type(void);
 
 extern unsigned long mips_machtype;
