@@ -734,8 +734,12 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum ieee80211_if_types op_mode,
 		if (ret)
 			return ret;
 
-		/* Write rate duration table */
-		if (ah->ah_version == AR5K_AR5212)
+		/* Write rate duration table only on AR5212 and if
+		 * virtual interface has already been brought up
+		 * XXX: rethink this after new mode changes to
+		 * mac80211 are integrated */
+		if (ah->ah_version == AR5K_AR5212 &&
+			ah->ah_sc->vif != NULL)
 			ath5k_hw_write_rate_duration(ah, driver_mode);
 
 		/*
