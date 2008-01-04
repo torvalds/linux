@@ -85,6 +85,8 @@ isdn_tty_try_read(modem_info * info, struct sk_buff *skb)
 								tty_insert_flip_char(tty, DLE, 0);
 							tty_insert_flip_char(tty, *dp++, 0);
 						}
+						if (*dp == DLE)
+							tty_insert_flip_char(tty, DLE, 0);
 						last = *dp;
 					} else {
 #endif
