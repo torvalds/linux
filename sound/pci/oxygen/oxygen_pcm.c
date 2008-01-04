@@ -168,6 +168,12 @@ static struct snd_pcm_hardware oxygen_hardware[PCM_COUNT] = {
 	},
 };
 
+static inline unsigned int
+oxygen_substream_channel(struct snd_pcm_substream *substream)
+{
+	return (unsigned int)(uintptr_t)substream->runtime->private_data;
+}
+
 static int oxygen_open(struct snd_pcm_substream *substream,
 		       unsigned int channel)
 {
@@ -175,7 +181,7 @@ static int oxygen_open(struct snd_pcm_substream *substream,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
 
-	runtime->private_data = (void *)channel;
+	runtime->private_data = (void *)(uintptr_t)channel;
 	runtime->hw = oxygen_hardware[channel];
 	err = snd_pcm_hw_constraint_step(runtime, 0,
 					 SNDRV_PCM_HW_PARAM_PERIOD_BYTES, 32);
@@ -248,7 +254,7 @@ static int oxygen_ac97_open(struct snd_pcm_substream *substream)
 static int oxygen_close(struct snd_pcm_substream *substream)
 {
 	struct oxygen *chip = snd_pcm_substream_chip(substream);
-	unsigned int channel = (unsigned int)substream->runtime->private_data;
+	unsigned int channel = oxygen_substream_channel(substream);
 
 	mutex_lock(&chip->mutex);
 	chip->pcm_active &= ~(1 << channel);
@@ -337,7 +343,7 @@ static int oxygen_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *hw_params)
 {
 	struct oxygen *chip = snd_pcm_substream_chip(substream);
-	unsigned int channel = (unsigned int)substream->runtime->private_data;
+	unsigned int channel = oxygen_substream_channel(substream);
 	int err;
 
 	err = snd_pcm_lib_malloc_pages(substream,
@@ -516,7 +522,7 @@ static int oxygen_ac97_hw_params(struct snd_pcm_substream *substream,
 static int oxygen_hw_free(struct snd_pcm_substream *substream)
 {
 	struct oxygen *chip = snd_pcm_substream_chip(substream);
-	unsigned int channel = (unsigned int)substream->runtime->private_data;
+	unsigned int channel = oxygen_substream_channel(substream);
 
 	spin_lock_irq(&chip->reg_lock);
 	chip->interrupt_mask &= ~(1 << channel);
@@ -540,7 +546,7 @@ static int oxygen_spdif_hw_free(struct snd_pcm_substream *substream)
 static int oxygen_prepare(struct snd_pcm_substream *substream)
 {
 	struct oxygen *chip = snd_pcm_substream_chip(substream);
-	unsigned int channel = (unsigned int)substream->runtime->private_data;
+	unsigned int channel = oxygen_substream_channel(substream);
 	unsigned int channel_mask = 1 << channel;
 
 	spin_lock_irq(&chip->reg_lock);
@@ -575,7 +581,7 @@ static int oxygen_trigger(struct snd_pcm_substream *substream, int cmd)
 
 	snd_pcm_group_for_each_entry(s, substream) {
 		if (snd_pcm_substream_chip(s) == chip) {
-			mask |= 1 << (unsigned int)s->runtime->private_data;
+			mask |= 1 << oxygen_substream_channel(s);
 			snd_pcm_trigger_done(s, substream);
 		}
 	}
@@ -594,7 +600,7 @@ static snd_pcm_uframes_t oxygen_pointer(struct snd_pcm_substream *substream)
 {
 	struct oxygen *chip = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	unsigned int channel = (unsigned int)runtime->private_data;
+	unsigned int channel = oxygen_substream_channel(substream);
 	u32 curr_addr;
 
 	/* no spinlock, this read should be atomic */
