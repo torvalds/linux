@@ -2434,7 +2434,15 @@ bg_next:
 				break;
 			}
 			leaf = path->nodes[0];
-			nritems = btrfs_header_nritems(leaf);
+			btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
+
+			/*
+			 * btrfs_next_leaf doesn't cow buffers, we have to
+			 * do the search again
+			 */
+			memcpy(&key, &found_key, sizeof(key));
+			btrfs_release_path(root, path);
+			continue;
 		}
 
 		btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
