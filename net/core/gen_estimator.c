@@ -135,7 +135,7 @@ skip:
 	}
 
 	if (!list_empty(&elist[idx].list))
-		mod_timer(&elist[idx].timer, jiffies + ((HZ<<idx)/4));
+		mod_timer(&elist[idx].timer, jiffies + ((HZ/4) << idx));
 	rcu_read_unlock();
 }
 
@@ -191,7 +191,7 @@ int gen_new_estimator(struct gnet_stats_basic *bstats,
 	}
 
 	if (list_empty(&elist[idx].list))
-		mod_timer(&elist[idx].timer, jiffies + ((HZ<<idx)/4));
+		mod_timer(&elist[idx].timer, jiffies + ((HZ/4) << idx));
 
 	list_add_rcu(&est->list, &elist[idx].list);
 	return 0;
