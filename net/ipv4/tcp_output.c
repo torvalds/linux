@@ -327,6 +327,26 @@ static inline void TCP_ECN_send(struct sock *sk, struct sk_buff *skb,
 	}
 }
 
+/* Constructs common control bits of non-data skb. If SYN/FIN is present,
+ * auto increment end seqno.
+ */
+static void tcp_init_nondata_skb(struct sk_buff *skb, u32 seq, u8 flags)
+{
+	skb->csum = 0;
+
+	TCP_SKB_CB(skb)->flags = flags;
+	TCP_SKB_CB(skb)->sacked = 0;
+
+	skb_shinfo(skb)->gso_segs = 1;
+	skb_shinfo(skb)->gso_size = 0;
+	skb_shinfo(skb)->gso_type = 0;
+
+	TCP_SKB_CB(skb)->seq = seq;
+	if (flags & (TCPCB_FLAG_SYN | TCPCB_FLAG_FIN))
+		seq++;
+	TCP_SKB_CB(skb)->end_seq = seq;
+}
+
 static void tcp_build_and_update_options(__be32 *ptr, struct tcp_sock *tp,
 					 __u32 tstamp, __u8 **md5_hash)
 {
@@ -1864,12 +1884,10 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 	    (TCP_SKB_CB(skb)->flags & TCPCB_FLAG_FIN) &&
 	    tp->snd_una == (TCP_SKB_CB(skb)->end_seq - 1)) {
 		if (!pskb_trim(skb, 0)) {
-			TCP_SKB_CB(skb)->seq = TCP_SKB_CB(skb)->end_seq - 1;
-			skb_shinfo(skb)->gso_segs = 1;
-			skb_shinfo(skb)->gso_size = 0;
-			skb_shinfo(skb)->gso_type = 0;
+			/* Reuse, even though it does some unnecessary work */
+			tcp_init_nondata_skb(skb, TCP_SKB_CB(skb)->end_seq - 1,
+					     TCP_SKB_CB(skb)->flags);
 			skb->ip_summed = CHECKSUM_NONE;
-			skb->csum = 0;
 		}
 	}
 
@@ -2068,16 +2086,9 @@ void tcp_send_fin(struct sock *sk)
 
 		/* Reserve space for headers and prepare control bits. */
 		skb_reserve(skb, MAX_TCP_HEADER);
-		skb->csum = 0;
-		TCP_SKB_CB(skb)->flags = (TCPCB_FLAG_ACK | TCPCB_FLAG_FIN);
-		TCP_SKB_CB(skb)->sacked = 0;
-		skb_shinfo(skb)->gso_segs = 1;
-		skb_shinfo(skb)->gso_size = 0;
-		skb_shinfo(skb)->gso_type = 0;
-
 		/* FIN eats a sequence byte, write_seq advanced by tcp_queue_skb(). */
-		TCP_SKB_CB(skb)->seq = tp->write_seq;
-		TCP_SKB_CB(skb)->end_seq = TCP_SKB_CB(skb)->seq + 1;
+		tcp_init_nondata_skb(skb, tp->write_seq,
+				     TCPCB_FLAG_ACK | TCPCB_FLAG_FIN);
 		tcp_queue_skb(sk, skb);
 	}
 	__tcp_push_pending_frames(sk, mss_now, TCP_NAGLE_OFF);
@@ -2101,16 +2112,9 @@ void tcp_send_active_reset(struct sock *sk, gfp_t priority)
 
 	/* Reserve space for headers and prepare control bits. */
 	skb_reserve(skb, MAX_TCP_HEADER);
-	skb->csum = 0;
-	TCP_SKB_CB(skb)->flags = (TCPCB_FLAG_ACK | TCPCB_FLAG_RST);
-	TCP_SKB_CB(skb)->sacked = 0;
-	skb_shinfo(skb)->gso_segs = 1;
-	skb_shinfo(skb)->gso_size = 0;
-	skb_shinfo(skb)->gso_type = 0;
-
+	tcp_init_nondata_skb(skb, tcp_acceptable_seq(sk),
+			     TCPCB_FLAG_ACK | TCPCB_FLAG_RST);
 	/* Send it off. */
-	TCP_SKB_CB(skb)->seq = tcp_acceptable_seq(sk);
-	TCP_SKB_CB(skb)->end_seq = TCP_SKB_CB(skb)->seq;
 	TCP_SKB_CB(skb)->when = tcp_time_stamp;
 	if (tcp_transmit_skb(sk, skb, 0, priority))
 		NET_INC_STATS(LINUX_MIB_TCPABORTFAILED);
@@ -2198,12 +2202,11 @@ struct sk_buff *tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 	TCP_ECN_make_synack(req, th);
 	th->source = inet_sk(sk)->sport;
 	th->dest = ireq->rmt_port;
-	TCP_SKB_CB(skb)->seq = tcp_rsk(req)->snt_isn;
-	TCP_SKB_CB(skb)->end_seq = TCP_SKB_CB(skb)->seq + 1;
-	TCP_SKB_CB(skb)->sacked = 0;
-	skb_shinfo(skb)->gso_segs = 1;
-	skb_shinfo(skb)->gso_size = 0;
-	skb_shinfo(skb)->gso_type = 0;
+	/* Setting of flags are superfluous here for callers (and ECE is
+	 * not even correctly set)
+	 */
+	tcp_init_nondata_skb(skb, tcp_rsk(req)->snt_isn,
+			     TCPCB_FLAG_SYN | TCPCB_FLAG_ACK);
 	th->seq = htonl(TCP_SKB_CB(skb)->seq);
 	th->ack_seq = htonl(tcp_rsk(req)->rcv_isn + 1);
 	if (req->rcv_wnd == 0) { /* ignored for retransmitted syns */
@@ -2235,7 +2238,6 @@ struct sk_buff *tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 			       NULL)
 			      );
 
-	skb->csum = 0;
 	th->doff = (tcp_header_size >> 2);
 	TCP_INC_STATS(TCP_MIB_OUTSEGS);
 
@@ -2327,16 +2329,9 @@ int tcp_connect(struct sock *sk)
 	/* Reserve space for headers. */
 	skb_reserve(buff, MAX_TCP_HEADER);
 
-	TCP_SKB_CB(buff)->flags = TCPCB_FLAG_SYN;
-	TCP_ECN_send_syn(sk, buff);
-	TCP_SKB_CB(buff)->sacked = 0;
-	skb_shinfo(buff)->gso_segs = 1;
-	skb_shinfo(buff)->gso_size = 0;
-	skb_shinfo(buff)->gso_type = 0;
-	buff->csum = 0;
 	tp->snd_nxt = tp->write_seq;
-	TCP_SKB_CB(buff)->seq = tp->write_seq++;
-	TCP_SKB_CB(buff)->end_seq = tp->write_seq;
+	tcp_init_nondata_skb(buff, tp->write_seq++, TCPCB_FLAG_SYN);
+	TCP_ECN_send_syn(sk, buff);
 
 	/* Send it off. */
 	TCP_SKB_CB(buff)->when = tcp_time_stamp;
@@ -2441,15 +2436,9 @@ void tcp_send_ack(struct sock *sk)
 
 	/* Reserve space for headers and prepare control bits. */
 	skb_reserve(buff, MAX_TCP_HEADER);
-	buff->csum = 0;
-	TCP_SKB_CB(buff)->flags = TCPCB_FLAG_ACK;
-	TCP_SKB_CB(buff)->sacked = 0;
-	skb_shinfo(buff)->gso_segs = 1;
-	skb_shinfo(buff)->gso_size = 0;
-	skb_shinfo(buff)->gso_type = 0;
+	tcp_init_nondata_skb(buff, tcp_acceptable_seq(sk), TCPCB_FLAG_ACK);
 
 	/* Send it off, this clears delayed acks for us. */
-	TCP_SKB_CB(buff)->seq = TCP_SKB_CB(buff)->end_seq = tcp_acceptable_seq(sk);
 	TCP_SKB_CB(buff)->when = tcp_time_stamp;
 	tcp_transmit_skb(sk, buff, 0, GFP_ATOMIC);
 }
@@ -2477,19 +2466,11 @@ static int tcp_xmit_probe_skb(struct sock *sk, int urgent)
 
 	/* Reserve space for headers and set control bits. */
 	skb_reserve(skb, MAX_TCP_HEADER);
-	skb->csum = 0;
-	TCP_SKB_CB(skb)->flags = TCPCB_FLAG_ACK;
-	TCP_SKB_CB(skb)->sacked = 0;
-	skb_shinfo(skb)->gso_segs = 1;
-	skb_shinfo(skb)->gso_size = 0;
-	skb_shinfo(skb)->gso_type = 0;
-
 	/* Use a previous sequence.  This should cause the other
 	 * end to send an ack.  Don't queue or clone SKB, just
 	 * send it.
 	 */
-	TCP_SKB_CB(skb)->seq = tp->snd_una - !urgent;
-	TCP_SKB_CB(skb)->end_seq = TCP_SKB_CB(skb)->seq;
+	tcp_init_nondata_skb(skb, tp->snd_una - !urgent, TCPCB_FLAG_ACK);
 	TCP_SKB_CB(skb)->when = tcp_time_stamp;
 	return tcp_transmit_skb(sk, skb, 0, GFP_ATOMIC);
 }
