@@ -61,6 +61,16 @@ config B43_PCMCIA
 
 	  If unsure, say N.
 
+config B43_NPHY
+	bool "Pre IEEE 802.11n support (BROKEN)"
+	depends on B43 && EXPERIMENTAL && BROKEN
+	---help---
+	  Support for the IEEE 802.11n draft.
+
+	  THIS IS BROKEN AND DOES NOT WORK YET.
+
+	  SAY N.
+
 # This config option automatically enables b43 LEDS support,
 # if it's possible.
 config B43_LEDS
