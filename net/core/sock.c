@@ -1913,7 +1913,7 @@ int proto_register(struct proto *prot, int alloc_slab)
 	char *request_sock_slab_name = NULL;
 	char *timewait_sock_slab_name;
 
-	if (pcounter_alloc(&prot->inuse) != 0) {
+	if (sock_prot_inuse_init(prot) != 0) {
 		printk(KERN_CRIT "%s: Can't alloc inuse counters!\n", prot->name);
 		goto out;
 	}
@@ -1984,7 +1984,7 @@ out_free_sock_slab:
 	kmem_cache_destroy(prot->slab);
 	prot->slab = NULL;
 out_free_inuse:
-	pcounter_free(&prot->inuse);
+	sock_prot_inuse_free(prot);
 out:
 	return -ENOBUFS;
 }
@@ -1997,7 +1997,7 @@ void proto_unregister(struct proto *prot)
 	list_del(&prot->node);
 	write_unlock(&proto_list_lock);
 
-	pcounter_free(&prot->inuse);
+	sock_prot_inuse_free(prot);
 
 	if (prot->slab != NULL) {
 		kmem_cache_destroy(prot->slab);

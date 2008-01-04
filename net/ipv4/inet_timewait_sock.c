@@ -91,7 +91,7 @@ void __inet_twsk_hashdance(struct inet_timewait_sock *tw, struct sock *sk,
 
 	/* Step 2: Remove SK from established hash. */
 	if (__sk_del_node_init(sk))
-		sock_prot_dec_use(sk->sk_prot);
+		sock_prot_inuse_add(sk->sk_prot, -1);
 
 	/* Step 3: Hash TW into TIMEWAIT chain. */
 	inet_twsk_add_node(tw, &ehead->twchain);

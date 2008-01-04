@@ -548,7 +548,9 @@ struct proto {
 	int			(*get_port)(struct sock *sk, unsigned short snum);
 
 	/* Keeping track of sockets in use */
+#ifdef CONFIG_PROC_FS
 	struct pcounter		inuse;
+#endif
 
 	/* Memory pressure */
 	void			(*enter_memory_pressure)(void);
@@ -584,9 +586,6 @@ struct proto {
 #endif
 };
 
-#define DEFINE_PROTO_INUSE(NAME) DEFINE_PCOUNTER(NAME)
-#define REF_PROTO_INUSE(NAME) PCOUNTER_MEMBER_INITIALIZER(NAME, .inuse)
-
 extern int proto_register(struct proto *prot, int alloc_slab);
 extern void proto_unregister(struct proto *prot);
 
@@ -615,21 +614,42 @@ static inline void sk_refcnt_debug_release(const struct sock *sk)
 #define sk_refcnt_debug_release(sk) do { } while (0)
 #endif /* SOCK_REFCNT_DEBUG */
 
+
+#ifdef CONFIG_PROC_FS
+# define DEFINE_PROTO_INUSE(NAME) DEFINE_PCOUNTER(NAME)
+# define REF_PROTO_INUSE(NAME) PCOUNTER_MEMBER_INITIALIZER(NAME, .inuse)
 /* Called with local bh disabled */
-static __inline__ void sock_prot_inc_use(struct proto *prot)
+static inline void sock_prot_inuse_add(struct proto *prot, int inc)
 {
-	pcounter_add(&prot->inuse, 1);
+	pcounter_add(&prot->inuse, inc);
 }
-
-static __inline__ void sock_prot_dec_use(struct proto *prot)
+static inline int sock_prot_inuse_init(struct proto *proto)
 {
-	pcounter_add(&prot->inuse, -1);
+	return pcounter_alloc(&proto->inuse);
 }
-
-static __inline__ int sock_prot_inuse(struct proto *proto)
+static inline int sock_prot_inuse_get(struct proto *proto)
 {
 	return pcounter_getval(&proto->inuse);
 }
+static inline void sock_prot_inuse_free(struct proto *proto)
+{
+	pcounter_free(&proto->inuse);
+}
+#else
+# define DEFINE_PROTO_INUSE(NAME)
+# define REF_PROTO_INUSE(NAME)
+static void inline sock_prot_inuse_add(struct proto *prot, int inc)
+{
+}
+static int inline sock_prot_inuse_init(struct proto *proto)
+{
+	return 0;
+}
+static void inline sock_prot_inuse_free(struct proto *proto)
+{
+}
+#endif
+
 
 /* With per-bucket locks this operation is not-atomic, so that
  * this version is not worse.

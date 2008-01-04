@@ -293,7 +293,7 @@ static inline void inet_unhash(struct inet_hashinfo *hashinfo, struct sock *sk)
 	}
 
 	if (__sk_del_node_init(sk))
-		sock_prot_dec_use(sk->sk_prot);
+		sock_prot_inuse_add(sk->sk_prot, -1);
 	write_unlock_bh(lock);
 out:
 	if (sk->sk_state == TCP_LISTEN)

@@ -278,7 +278,7 @@ unique:
 	sk->sk_hash = hash;
 	BUG_TRAP(sk_unhashed(sk));
 	__sk_add_node(sk, &head->chain);
-	sock_prot_inc_use(sk->sk_prot);
+	sock_prot_inuse_add(sk->sk_prot, 1);
 	write_unlock(lock);
 
 	if (twp) {
@@ -321,7 +321,7 @@ void __inet_hash_nolisten(struct inet_hashinfo *hashinfo, struct sock *sk)
 
 	write_lock(lock);
 	__sk_add_node(sk, list);
-	sock_prot_inc_use(sk->sk_prot);
+	sock_prot_inuse_add(sk->sk_prot, 1);
 	write_unlock(lock);
 }
 EXPORT_SYMBOL_GPL(__inet_hash_nolisten);
@@ -342,7 +342,7 @@ void __inet_hash(struct inet_hashinfo *hashinfo, struct sock *sk)
 
 	inet_listen_wlock(hashinfo);
 	__sk_add_node(sk, list);
-	sock_prot_inc_use(sk->sk_prot);
+	sock_prot_inuse_add(sk->sk_prot, 1);
 	write_unlock(lock);
 	wake_up(&hashinfo->lhash_wait);
 }

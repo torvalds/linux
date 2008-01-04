@@ -43,7 +43,7 @@ void __inet6_hash(struct inet_hashinfo *hashinfo,
 	}
 
 	__sk_add_node(sk, list);
-	sock_prot_inc_use(sk->sk_prot);
+	sock_prot_inuse_add(sk->sk_prot, 1);
 	write_unlock(lock);
 }
 EXPORT_SYMBOL(__inet6_hash);
@@ -216,7 +216,7 @@ unique:
 	BUG_TRAP(sk_unhashed(sk));
 	__sk_add_node(sk, &head->chain);
 	sk->sk_hash = hash;
-	sock_prot_inc_use(sk->sk_prot);
+	sock_prot_inuse_add(sk->sk_prot, 1);
 	write_unlock(lock);
 
 	if (twp != NULL) {
