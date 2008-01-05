@@ -597,6 +597,20 @@ static inline void __iomem *ahci_port_base(struct ata_port *ap)
 	return __ahci_port_base(ap->host, ap->port_no);
 }
 
+static void ahci_enable_ahci(void __iomem *mmio)
+{
+	u32 tmp;
+
+	/* turn on AHCI_EN */
+	tmp = readl(mmio + HOST_CTL);
+	if (!(tmp & HOST_AHCI_EN)) {
+		tmp |= HOST_AHCI_EN;
+		writel(tmp, mmio + HOST_CTL);
+		tmp = readl(mmio + HOST_CTL);	/* flush && sanity check */
+		WARN_ON(!(tmp & HOST_AHCI_EN));
+	}
+}
+
 /**
  *	ahci_save_initial_config - Save and fixup initial config values
  *	@pdev: target PCI device
@@ -618,6 +632,9 @@ static void ahci_save_initial_config(struct pci_dev *pdev,
 	void __iomem *mmio = pcim_iomap_table(pdev)[AHCI_PCI_BAR];
 	u32 cap, port_map;
 	int i;
+
+	/* make sure AHCI mode is enabled before accessing CAP */
+	ahci_enable_ahci(mmio);
 
 	/* Values prefixed with saved_ are written back to host after
 	 * reset.  Values without are used for driver operation.
@@ -1043,13 +1060,10 @@ static int ahci_reset_controller(struct ata_host *host)
 	/* we must be in AHCI mode, before using anything
 	 * AHCI-specific, such as HOST_RESET.
 	 */
-	tmp = readl(mmio + HOST_CTL);
-	if (!(tmp & HOST_AHCI_EN)) {
-		tmp |= HOST_AHCI_EN;
-		writel(tmp, mmio + HOST_CTL);
-	}
+	ahci_enable_ahci(mmio);
 
 	/* global controller reset */
+	tmp = readl(mmio + HOST_CTL);
 	if ((tmp & HOST_RESET) == 0) {
 		writel(tmp | HOST_RESET, mmio + HOST_CTL);
 		readl(mmio + HOST_CTL); /* flush */
@@ -1068,8 +1082,7 @@ static int ahci_reset_controller(struct ata_host *host)
 	}
 
 	/* turn on AHCI mode */
-	writel(HOST_AHCI_EN, mmio + HOST_CTL);
-	(void) readl(mmio + HOST_CTL);	/* flush */
+	ahci_enable_ahci(mmio);
 
 	/* some registers might be cleared on reset.  restore initial values */
 	ahci_restore_initial_config(host);
