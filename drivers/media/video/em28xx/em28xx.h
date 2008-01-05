@@ -191,6 +191,7 @@ struct em28xx_board {
 	enum em28xx_decoder decoder;
 
 	struct em28xx_input       input[MAX_EM28XX_INPUT];
+	struct em28xx_input	  radio;
 };
 
 struct em28xx_eeprom {
@@ -307,6 +308,7 @@ struct em28xx {
 	struct list_head inqueue, outqueue;
 	wait_queue_head_t open, wait_frame, wait_stream;
 	struct video_device *vbi_dev;
+	struct video_device *radio_dev;
 
 	unsigned char eedata[256];
 
