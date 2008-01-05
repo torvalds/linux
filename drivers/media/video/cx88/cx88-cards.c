@@ -1375,6 +1375,32 @@ static const struct cx88_board cx88_boards[] = {
 			.gpio0  = 0x07fa,
 		}},
 	},
+	[CX88_BOARD_PINNACLE_PCTV_HD_800i] = {
+		.name           = "Pinnacle PCTV HD 800i",
+		.tuner_type     = TUNER_XC5000,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.input          = {{
+			.type   = CX88_VMUX_TELEVISION,
+			.vmux   = 0,
+			.gpio0  = 0x04fb,
+			.gpio1  = 0x10ff,
+		},{
+			.type   = CX88_VMUX_COMPOSITE1,
+			.vmux   = 1,
+			.gpio0  = 0x04fb,
+			.gpio1  = 0x10ef,
+			.audioroute = 1,
+		},{
+			.type   = CX88_VMUX_SVIDEO,
+			.vmux   = 2,
+			.gpio0  = 0x04fb,
+			.gpio1  = 0x10ef,
+			.audioroute = 1,
+		}},
+		.mpeg           = CX88_MPEG_DVB,
+	},
 };
 
 /* ------------------------------------------------------------------ */
@@ -1684,6 +1710,10 @@ static const struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x1421,
 		.subdevice = 0x0390,
 		.card      = CX88_BOARD_ADSTECH_PTV_390,
+	},{
+		.subvendor = 0x11bd,
+		.subdevice = 0x0051,
+		.card      = CX88_BOARD_PINNACLE_PCTV_HD_800i,
 	},
 };
 
@@ -1849,6 +1879,39 @@ static void dvico_fusionhdtv_hybrid_init(struct cx88_core *core)
 		}
 	}
 }
+
+/* ----------------------------------------------------------------------- */
+/* Tuner callback function. Currently only needed for the Pinnacle 	   *
+ * PCTV HD 800i with an xc5000 sillicon tuner. This is used for both	   *
+ * analog tuner attach (tuner-core.c) and dvb tuner attach (cx88-dvb.c)    */
+
+int cx88_tuner_callback(void *i2c_algo, int command, int arg)
+{
+	struct i2c_algo_bit_data *algo = i2c_algo;
+	struct cx88_core *core = algo->data;
+
+	switch(core->boardnr) {
+	case CX88_BOARD_PINNACLE_PCTV_HD_800i:
+		if(command == 0) { /* This is the reset command from xc5000 */
+			/* Reset XC5000 tuner via GPIO pin #2 */
+			cx_set(MO_GP0_IO, 0x00000400);
+			cx_clear(MO_GP0_IO, 0x00000004);
+			mdelay(200);
+			cx_set(MO_GP0_IO, 0x00000004);
+			printk(KERN_ERR "xc5000: in reset for xc5000\n");
+			mdelay(200);
+			return 0;
+		}
+		else {
+			printk(KERN_ERR
+				"xc5000: unknown tuner callback command.\n");
+			return -EINVAL;
+		}
+		break;
+	}
+	return 0; /* Should never be here */
+}
+EXPORT_SYMBOL(cx88_tuner_callback);
 
 /* ----------------------------------------------------------------------- */
 

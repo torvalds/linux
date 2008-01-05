@@ -102,7 +102,7 @@ static int cx8802_start_dma(struct cx8802_dev    *dev,
 		cx_write(TS_GEN_CNTRL, 0x0040 | dev->ts_gen_cntrl);
 		udelay(100);
 		cx_write(MO_PINMUX_IO, 0x00);
-		cx_write(TS_HW_SOP_CNTRL,0x47<<16|188<<4|0x01);
+		cx_write(TS_HW_SOP_CNTRL, 0x47<<16|188<<4|0x01);
 		switch (core->boardnr) {
 		case CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_Q:
 		case CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_T:
@@ -116,6 +116,11 @@ static int cx8802_start_dma(struct cx8802_dev    *dev,
 			udelay(100);
 			break;
 		case CX88_BOARD_HAUPPAUGE_HVR1300:
+			break;
+		case CX88_BOARD_PINNACLE_PCTV_HD_800i:
+			/* Enable MPEG parallel port */
+			cx_write(MO_PINMUX_IO, 0x80);
+			udelay(100);
 			break;
 		default:
 			cx_write(TS_SOP_STAT, 0x00);
