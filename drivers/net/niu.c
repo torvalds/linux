@@ -33,8 +33,8 @@
 
 #define DRV_MODULE_NAME		"niu"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"0.5"
-#define DRV_MODULE_RELDATE	"October 5, 2007"
+#define DRV_MODULE_VERSION	"0.6"
+#define DRV_MODULE_RELDATE	"January 5, 2008"
 
 static char version[] __devinitdata =
 	DRV_MODULE_NAME ".c:v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
