@@ -1098,7 +1098,7 @@ int tda18271_lookup_pll_map(struct dvb_frontend *fe,
 	}
 
 	while ((map[i].lomax * 1000) < *freq) {
-		if (map[i].lomax == 0) {
+		if (map[i + 1].lomax == 0) {
 			tda_map("%s: frequency (%d) out of range\n",
 				map_name, *freq);
 			ret = -ERANGE;
@@ -1169,7 +1169,7 @@ int tda18271_lookup_map(struct dvb_frontend *fe,
 	}
 
 	while ((map[i].rfmax * 1000) < *freq) {
-		if (map[i].rfmax == 0) {
+		if (map[i + 1].rfmax == 0) {
 			tda_map("%s: frequency (%d) out of range\n",
 				map_name, *freq);
 			ret = -ERANGE;
