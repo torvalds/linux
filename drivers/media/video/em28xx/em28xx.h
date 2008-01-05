@@ -151,10 +151,17 @@ enum enum28xx_itype {
 	EM28XX_RADIO,
 };
 
+enum em28xx_amux {
+	EM28XX_AMUX_VIDEO,
+	EM28XX_AMUX_LINE_IN,
+	EM28XX_AMUX_AC97_VIDEO,
+	EM28XX_AMUX_AC97_LINE_IN,
+};
+
 struct em28xx_input {
 	enum enum28xx_itype type;
 	unsigned int vmux;
-	unsigned int amux;
+	enum em28xx_amux amux;
 };
 
 #define INPUT(nr) (&em28xx_boards[dev->model].input[nr])
@@ -321,8 +328,9 @@ int em28xx_write_regs_req(struct em28xx *dev, u8 req, u16 reg, char *buf,
 int em28xx_write_regs(struct em28xx *dev, u16 reg, char *buf, int len);
 int em28xx_write_reg_bits(struct em28xx *dev, u16 reg, u8 val,
 			  u8 bitmask);
-int em28xx_write_ac97(struct em28xx *dev, u8 reg, u8 * val);
+int em28xx_set_audio_source(struct em28xx *dev);
 int em28xx_audio_analog_set(struct em28xx *dev);
+
 int em28xx_colorlevels_set_default(struct em28xx *dev);
 int em28xx_capture_start(struct em28xx *dev, int start);
 int em28xx_outfmt_set_yuv422(struct em28xx *dev);
@@ -394,6 +402,7 @@ extern const unsigned int em28xx_bcount;
 
 /* em202 registers */
 #define MASTER_AC97	0x02
+#define LINE_IN_AC97    0x10
 #define VIDEO_AC97	0x14
 
 /* register settings */
@@ -417,28 +426,6 @@ extern const unsigned int em28xx_bcount;
 #define em28xx_warn(fmt, arg...) do {\
 	printk(KERN_WARNING "%s: "fmt,\
 			dev->name , ##arg); } while (0)
-
-inline static int em28xx_audio_source(struct em28xx *dev, int input)
-{
-	if(dev->is_em2800){
-		u8 tmp = EM2800_AUDIO_SRC_TUNER;
-		if(input == EM28XX_AUDIO_SRC_LINE)
-			tmp = EM2800_AUDIO_SRC_LINE;
-		em28xx_write_regs(dev, EM2800_AUDIOSRC_REG, &tmp, 1);
-	}
-	return em28xx_write_reg_bits(dev, AUDIOSRC_REG, input, 0xc0);
-}
-
-inline static int em28xx_audio_usb_mute(struct em28xx *dev, int mute)
-{
-	return em28xx_write_reg_bits(dev, XCLK_REG, mute ? 0x00 : 0x80, 0x80);
-}
-
-inline static int em28xx_audio_analog_setup(struct em28xx *dev)
-{
-	/* unmute video mixer with default volume level */
-	return em28xx_write_ac97(dev, VIDEO_AC97, "\x08\x08");
-}
 
 inline static int em28xx_compression_disable(struct em28xx *dev)
 {

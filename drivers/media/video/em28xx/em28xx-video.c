@@ -122,11 +122,13 @@ static int em28xx_config(struct em28xx *dev)
 /*	em28xx_write_regs_req(dev,0x00,0x0f,"\x80",1); clk register */
 	em28xx_write_regs_req(dev,0x00,0x11,"\x51",1);
 
-	em28xx_audio_usb_mute(dev, 1);
 	dev->mute = 1;		/* maybe not the right place... */
 	dev->volume = 0x1f;
+
+	/* Init XCLK_REG, audio muted */
+	dev->em28xx_write_regs(dev, XCLK_REG, "\x87", 1);
+
 	em28xx_audio_analog_set(dev);
-	em28xx_audio_analog_setup(dev);
 	em28xx_outfmt_set_yuv422(dev);
 	em28xx_colorlevels_set_default(dev);
 	em28xx_compression_disable(dev);
@@ -168,7 +170,6 @@ static void em28xx_empty_framequeues(struct em28xx *dev)
 
 static void video_mux(struct em28xx *dev, int index)
 {
-	int ainput;
 	struct v4l2_routing route;
 
 	route.input = INPUT(index)->vmux;
@@ -185,18 +186,9 @@ static void video_mux(struct em28xx *dev, int index)
 		route.output = MSP_OUTPUT(MSP_SC_IN_DSP_SCART1);
 		/* Note: this is msp3400 specific */
 		em28xx_i2c_call_clients(dev, VIDIOC_INT_S_AUDIO_ROUTING, &route);
-		ainput = EM28XX_AUDIO_SRC_TUNER;
-		em28xx_audio_source(dev, ainput);
-	} else {
-		switch (dev->ctl_ainput) {
-			case 0:
-				ainput = EM28XX_AUDIO_SRC_TUNER;
-				break;
-			default:
-				ainput = EM28XX_AUDIO_SRC_LINE;
-		}
-		em28xx_audio_source(dev, ainput);
 	}
+
+	em28xx_set_audio_source(dev);
 }
 
 /* Usage lock check functions */
@@ -292,7 +284,6 @@ static int em28xx_set_ctrl(struct em28xx *dev, const struct v4l2_control *ctrl)
 	case V4L2_CID_AUDIO_MUTE:
 		if (ctrl->value != dev->mute) {
 			dev->mute = ctrl->value;
-			em28xx_audio_usb_mute(dev, ctrl->value);
 			return em28xx_audio_analog_set(dev);
 		}
 		return 0;
