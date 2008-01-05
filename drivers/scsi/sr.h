@@ -20,6 +20,9 @@
 #include <linux/genhd.h>
 #include <linux/kref.h>
 
+#define MAX_RETRIES	3
+#define SR_TIMEOUT	(30 * HZ)
+
 struct scsi_device;
 
 /* The CDROM is fairly slow, so we need a little extra time */
