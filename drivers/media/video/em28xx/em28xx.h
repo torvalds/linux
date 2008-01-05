@@ -178,12 +178,13 @@ struct em28xx_board {
 	int tuner_type;
 
 	/* i2c flags */
-	unsigned int is_em2800;
 	unsigned int tda9887_conf;
 
+	unsigned int is_em2800:1;
 	unsigned int has_tuner:1;
 	unsigned int has_msp34xx:1;
 	unsigned int mts_firmware:1;
+	unsigned int analog_gpio;
 
 	enum em28xx_decoder decoder;
 
@@ -217,14 +218,15 @@ struct em28xx {
 	char name[30];		/* name (including minor) of the device */
 	int model;		/* index in the device_data struct */
 	int devno;		/* marks the number of this device */
-	unsigned int is_em2800;
-	int video_inputs;	/* number of video inputs */
-	struct list_head	devlist;
+	unsigned int analog_gpio;
+	unsigned int is_em2800:1;
 	unsigned int has_tuner:1;
 	unsigned int has_msp34xx:1;
 	unsigned int has_tda9887:1;
-
 	unsigned int stream_on:1;	/* Locks streams */
+
+	int video_inputs;	/* number of video inputs */
+	struct list_head	devlist;
 
 	u32 i2s_speed;		/* I2S speed for audio digital stream */
 
@@ -351,6 +353,7 @@ extern const unsigned int em28xx_bcount;
 #define EM2800_AUDIOSRC_REG 0x08
 
 /* em28xx registers */
+#define I2C_CLK_REG	0x06
 #define CHIPID_REG	0x0a
 #define USBSUSP_REG	0x0c	/* */
 

@@ -179,6 +179,7 @@ struct em28xx_board em28xx_boards[] = {
 		.tda9887_conf = TDA9887_PRESENT,
 		.tuner_type   = TUNER_XC2028,
 		.has_tuner    = 1,
+		.mts_firmware = 1,
 		.decoder      = EM28XX_TVP5150,
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
@@ -193,6 +194,9 @@ struct em28xx_board em28xx_boards[] = {
 			.vmux     = TVP5150_SVIDEO,
 			.amux     = 1,
 		} },
+
+		/* gpio's 4, 1, 0 */
+		.analog_gpio = 0x003d2d,
 	},
 	[EM2880_BOARD_TERRATEC_HYBRID_XS] = {
 		.name         = "Terratec Hybrid XS",
@@ -453,8 +457,18 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950:
 	case EM2880_BOARD_TERRATEC_HYBRID_XS:
-		/* reset through GPIO? */
-		em28xx_write_regs_req(dev, 0x00, 0x08, "\x7d", 1);
+		em28xx_write_regs(dev, XCLK_REG, "\x27", 1);
+		em28xx_write_regs(dev, I2C_CLK_REG, "\x40", 1);
+		em28xx_write_regs(dev, 0x08, "\xff", 1);
+		em28xx_write_regs(dev, 0x04, "\x00", 1);
+		msleep(100);
+		em28xx_write_regs(dev, 0x04, "\x08", 1);
+		msleep(100);
+		em28xx_write_regs(dev, 0x08, "\xff", 1);
+		msleep(50);
+		em28xx_write_regs(dev, 0x08, "\x2d", 1);
+		msleep(50);
+		em28xx_write_regs(dev, 0x08, "\x3d", 1);
 		break;
 	}
 }
@@ -469,12 +483,30 @@ static int em28xx_tuner_callback(void *ptr, int command, int arg)
 
 	switch (command) {
 	case XC2028_TUNER_RESET:
-		/* FIXME: This is device-dependent */
+	{
+		char gpio0, gpio1, gpio4;
+
+		/* GPIO and initialization codes for analog TV */
+		gpio0 = dev->analog_gpio & 0xff;
+		gpio1 = (dev->analog_gpio >> 8) & 0xff;
+		gpio4 = dev->analog_gpio >> 24;
+
 		dev->em28xx_write_regs_req(dev, 0x00, 0x48, "\x00", 1);
 		dev->em28xx_write_regs_req(dev, 0x00, 0x12, "\x67", 1);
 
-		msleep(140);
+		if (gpio4) {
+			dev->em28xx_write_regs(dev, 0x04, &gpio4, 1);
+			msleep(140);
+		}
+
+		msleep(6);
+		dev->em28xx_write_regs(dev, 0x08, &gpio0, 1);
+		msleep(10);
+		dev->em28xx_write_regs(dev, 0x08, &gpio1, 1);
+		msleep(5);
+
 		break;
+	}
 	}
 	return rc;
 }
@@ -608,6 +640,7 @@ static void em28xx_set_model(struct em28xx *dev)
 	dev->tda9887_conf = em28xx_boards[dev->model].tda9887_conf;
 	dev->decoder = em28xx_boards[dev->model].decoder;
 	dev->video_inputs = em28xx_boards[dev->model].vchannels;
+	dev->analog_gpio = em28xx_boards[dev->model].analog_gpio;
 
 	if (!em28xx_boards[dev->model].has_tuner)
 		dev->tuner_type = UNSET;
@@ -643,7 +676,9 @@ void em28xx_card_setup(struct em28xx *dev)
 		if (tv.has_ir)
 			request_module("ir-kbd-i2c");
 #endif
-		/* FIXME: Should also retrieve decoder processor type */
+		/* enable audio 12 mhz i2s */
+		em28xx_write_regs(dev, XCLK_REG, "\xa7", 1);
+		msleep(10);
 
 		break;
 	}
