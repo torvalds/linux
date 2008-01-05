@@ -31,7 +31,7 @@ config IWL4965_QOS
 	depends on IWL4965
 	---help---
 	  This option will enable wireless quality of service (QoS) for the
-	  iw4965 driver.
+	  iwl4965 driver.
 
 config IWL4965_HT
 	bool "Enable 802.11n HT features in iwl4965 driver"
@@ -43,7 +43,7 @@ config IWL4965_HT
 	  for the iwl4965 driver.
 
 config IWL4965_SPECTRUM_MEASUREMENT
-	bool "Enable Spectrum Measurement in iw4965 driver"
+	bool "Enable Spectrum Measurement in iwl4965 driver"
 	depends on IWL4965
 	---help---
 	  This option will enable spectrum measurement for the iwl4965 driver.
