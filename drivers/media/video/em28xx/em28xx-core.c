@@ -332,6 +332,7 @@ int em28xx_audio_analog_set(struct em28xx *dev)
 {
 	int ret;
 	char s[2] = { 0x00, 0x00 };
+	u8 xclk = 0x07;
 
 	s[0] |= 0x1f - dev->volume;
 	s[1] |= 0x1f - dev->volume;
@@ -342,10 +343,16 @@ int em28xx_audio_analog_set(struct em28xx *dev)
 	if (ret < 0)
 		return ret;
 
-	ret = em28xx_write_reg_bits(dev, XCLK_REG,
-				    dev->mute ? 0x00 : 0x80, 0x80);
+	if (dev->has_12mhz_i2s)
+		xclk |= 0x20;
+
+	if (!dev->mute)
+		xclk |= 0x80;
+
+	ret = em28xx_write_reg_bits(dev, XCLK_REG, xclk, 0xa7);
 	if (ret < 0)
 		return ret;
+	msleep(10);
 
 	/* Selects the proper audio input */
 	ret = em28xx_set_audio_source(dev);

@@ -174,13 +174,14 @@ struct em28xx_board em28xx_boards[] = {
 		} },
 	},
 	[EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950] = {
-		.name         = "Hauppauge WinTV HVR 950",
-		.vchannels    = 3,
-		.tda9887_conf = TDA9887_PRESENT,
-		.tuner_type   = TUNER_XC2028,
-		.has_tuner    = 1,
-		.mts_firmware = 1,
-		.decoder      = EM28XX_TVP5150,
+		.name           = "Hauppauge WinTV HVR 950",
+		.vchannels      = 3,
+		.tda9887_conf   = TDA9887_PRESENT,
+		.tuner_type     = TUNER_XC2028,
+		.has_tuner      = 1,
+		.mts_firmware   = 1,
+		.has_12mhz_i2s  = 1,
+		.decoder        = EM28XX_TVP5150,
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
@@ -641,6 +642,7 @@ static void em28xx_set_model(struct em28xx *dev)
 	dev->decoder = em28xx_boards[dev->model].decoder;
 	dev->video_inputs = em28xx_boards[dev->model].vchannels;
 	dev->analog_gpio = em28xx_boards[dev->model].analog_gpio;
+	dev->has_12mhz_i2s = em28xx_boards[dev->model].has_12mhz_i2s;
 
 	if (!em28xx_boards[dev->model].has_tuner)
 		dev->tuner_type = UNSET;
@@ -676,10 +678,6 @@ void em28xx_card_setup(struct em28xx *dev)
 		if (tv.has_ir)
 			request_module("ir-kbd-i2c");
 #endif
-		/* enable audio 12 mhz i2s */
-		em28xx_write_regs(dev, XCLK_REG, "\xa7", 1);
-		msleep(10);
-
 		break;
 	}
 	case EM2820_BOARD_KWORLD_PVRTV2800RF:

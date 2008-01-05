@@ -184,6 +184,8 @@ struct em28xx_board {
 	unsigned int has_tuner:1;
 	unsigned int has_msp34xx:1;
 	unsigned int mts_firmware:1;
+	unsigned int has_12mhz_i2s:1;
+
 	unsigned int analog_gpio;
 
 	enum em28xx_decoder decoder;
@@ -247,6 +249,7 @@ struct em28xx {
 	unsigned int has_tda9887:1;
 	unsigned int stream_on:1;	/* Locks streams */
 	unsigned int has_audio_class:1;
+	unsigned int has_12mhz_i2s:1;
 
 	int video_inputs;	/* number of video inputs */
 	struct list_head	devlist;

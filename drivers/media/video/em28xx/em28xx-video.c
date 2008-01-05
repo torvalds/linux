@@ -125,10 +125,6 @@ static int em28xx_config(struct em28xx *dev)
 	dev->mute = 1;		/* maybe not the right place... */
 	dev->volume = 0x1f;
 
-	/* Init XCLK_REG, audio muted */
-	dev->em28xx_write_regs(dev, XCLK_REG, "\x87", 1);
-
-	em28xx_audio_analog_set(dev);
 	em28xx_outfmt_set_yuv422(dev);
 	em28xx_colorlevels_set_default(dev);
 	em28xx_compression_disable(dev);
@@ -1687,6 +1683,9 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 
 	/* Do board specific init and eeprom reading */
 	em28xx_card_setup(dev);
+
+	/* Configure audio */
+	em28xx_audio_analog_set(dev);
 
 	/* configure the device */
 	em28xx_config_i2c(dev);
