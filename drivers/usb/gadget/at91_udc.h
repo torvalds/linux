@@ -158,7 +158,7 @@ struct at91_request {
 
 /*-------------------------------------------------------------------------*/
 
-#ifdef VERBOSE
+#ifdef VERBOSE_DEBUG
 #    define VDBG		DBG
 #else
 #    define VDBG(stuff...)	do{}while(0)
