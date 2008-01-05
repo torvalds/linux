@@ -663,7 +663,7 @@ static int check_firmware(struct dvb_frontend *fe, unsigned int type,
 			return rc;
 	}
 
-	if (priv->ctrl.mts)
+	if (priv->ctrl.mts && !(type & FM))
 		type |= MTS;
 
 retry:
