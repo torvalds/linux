@@ -426,7 +426,6 @@ static void ip32_irq0(void)
 
 	crime_int = crime->istat & crime_mask;
 	irq = MACE_VID_IN1_IRQ + __ffs(crime_int);
-	crime_int = 1 << irq;
 
 	if (crime_int & CRIME_MACEISA_INT_MASK) {
 		unsigned long mace_int = mace->perif.ctrl.istat;
