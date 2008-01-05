@@ -385,7 +385,6 @@ static struct s5h1409_config pinnacle_pctv_hd_800i_config = {
 static struct xc5000_config pinnacle_pctv_hd_800i_tuner_config = {
 	.i2c_address	= 0x64,
 	.if_khz		= 5380,
-	/* cannot set .video_dev here, do it right before attach */
 	.tuner_callback	= cx88_tuner_callback,
 };
 
@@ -654,7 +653,7 @@ static int dvb_register(struct cx8802_dev *dev)
 			/* tuner_config.video_dev must point to
 			 * i2c_adap.algo_data
 			 */
-			pinnacle_pctv_hd_800i_tuner_config.video_dev =
+			pinnacle_pctv_hd_800i_tuner_config.priv =
 						dev->core->i2c_adap.algo_data;
 			dvb_attach(xc5000_attach, dev->dvb.frontend,
 				   &dev->core->i2c_adap,

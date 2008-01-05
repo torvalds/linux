@@ -156,7 +156,6 @@ static struct s5h1409_config hauppauge_hvr1500q_config = {
 static struct xc5000_config hauppauge_hvr1500q_tunerconfig = {
 	.i2c_address      = 0x61,
 	.if_khz           = 5380,
-	/* cannot set .video_dev here, do it before attach. */
 	.tuner_callback   = cx23885_tuner_callback
 };
 
@@ -282,11 +281,7 @@ static int dvb_register(struct cx23885_tsport *port)
 						&hauppauge_hvr1500q_config,
 						&dev->i2c_bus[0].i2c_adap);
 		if (port->dvb.frontend != NULL) {
-			/* tunerconfig.video_dev must point to
-			 * i2c_adap.algo_data
-			 */
-			hauppauge_hvr1500q_tunerconfig.video_dev =
-				i2c_bus->i2c_adap.algo_data;
+			hauppauge_hvr1500q_tunerconfig.priv = i2c_bus;
 			dvb_attach(xc5000_attach, port->dvb.frontend,
 				&i2c_bus->i2c_adap,
 				&hauppauge_hvr1500q_tunerconfig);

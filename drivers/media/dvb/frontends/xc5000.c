@@ -22,7 +22,7 @@
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/videodev2.h>
+#include <linux/videodev.h>
 #include <linux/delay.h>
 #include <linux/dvb/frontend.h>
 #include <linux/i2c.h>
@@ -212,7 +212,7 @@ static void xc5000_TunerReset(struct dvb_frontend *fe)
 	dprintk(1, "%s()\n", __FUNCTION__);
 
 	if (priv->cfg->tuner_callback) {
-		ret = priv->cfg->tuner_callback(priv->cfg->video_dev,
+		ret = priv->cfg->tuner_callback(priv->cfg->priv,
 						XC5000_TUNER_RESET, 0);
 		if (ret)
 			printk(KERN_ERR "xc5000: reset failed\n");

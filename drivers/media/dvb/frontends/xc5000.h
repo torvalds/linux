@@ -30,8 +30,16 @@ struct i2c_adapter;
 struct xc5000_config {
 	u8   i2c_address;
 	u32  if_khz;
-	void *video_dev;
-	int  (*tuner_callback) (void *dev, int command, int arg);
+
+	/* For each bridge framework, when it attaches either analog or digital,
+	 * it has to store a reference back to its _core equivalent structure,
+	 * so that it can service the hardware by steering gpio's etc.
+	 * Each bridge implementation is different so cast priv accordingly.
+	 * The xc5000 driver cares not for this value, other than ensuring
+	 * it's passed back to a bridge during tuner_callback().
+	 */
+	void *priv;
+	int  (*tuner_callback) (void *priv, int command, int arg);
 };
 
 /* xc5000 callback command */

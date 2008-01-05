@@ -1885,10 +1885,10 @@ static void dvico_fusionhdtv_hybrid_init(struct cx88_core *core)
  * PCTV HD 800i with an xc5000 sillicon tuner. This is used for both	   *
  * analog tuner attach (tuner-core.c) and dvb tuner attach (cx88-dvb.c)    */
 
-int cx88_tuner_callback(void *i2c_algo, int command, int arg)
+int cx88_tuner_callback(void *priv, int command, int arg)
 {
-	struct i2c_algo_bit_data *algo = i2c_algo;
-	struct cx88_core *core = algo->data;
+	struct i2c_algo_bit_data *i2c_algo = priv;
+	struct cx88_core *core = i2c_algo->data;
 
 	switch(core->boardnr) {
 	case CX88_BOARD_PINNACLE_PCTV_HD_800i:
@@ -1898,7 +1898,6 @@ int cx88_tuner_callback(void *i2c_algo, int command, int arg)
 			cx_clear(MO_GP0_IO, 0x00000004);
 			mdelay(200);
 			cx_set(MO_GP0_IO, 0x00000004);
-			printk(KERN_ERR "xc5000: in reset for xc5000\n");
 			mdelay(200);
 			return 0;
 		}

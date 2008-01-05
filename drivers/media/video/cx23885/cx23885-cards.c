@@ -247,9 +247,9 @@ static void hauppauge_eeprom(struct cx23885_dev *dev, u8 *eeprom_data)
 /* Tuner callback function for cx23885 boards. Currently only needed
  * for HVR1500Q, which has an xc5000 tuner.
  */
-int cx23885_tuner_callback(void *i2c_bus, int command, int arg)
+int cx23885_tuner_callback(void *priv, int command, int arg)
 {
-	struct cx23885_i2c *bus = i2c_bus;
+	struct cx23885_i2c *bus = priv;
 	struct cx23885_dev *dev = bus->dev;
 
 	switch(dev->board) {
@@ -271,7 +271,7 @@ int cx23885_tuner_callback(void *i2c_bus, int command, int arg)
 
 	return 0; /* Should never be here */
 }
-EXPORT_SYMBOL(cx23885_tuner_callback);
+
 void cx23885_gpio_setup(struct cx23885_dev *dev)
 {
 	switch(dev->board) {

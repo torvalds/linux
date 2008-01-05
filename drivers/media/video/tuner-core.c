@@ -434,7 +434,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 	case TUNER_XC5000:
 		xc5000_cfg.i2c_address	  = t->i2c->addr;
 		xc5000_cfg.if_khz	  = 5380;
-		xc5000_cfg.video_dev	  = c->adapter->algo_data;
+		xc5000_cfg.priv           = c->adapter->algo_data;
 		xc5000_cfg.tuner_callback = t->tuner_callback;
 		if (!xc5000_attach(&t->fe, t->i2c->adapter, &xc5000_cfg)) {
 			t->type = TUNER_ABSENT;
