@@ -87,32 +87,6 @@ static void dvb_buf_release(struct videobuf_queue *q,
 	cx23885_free_buffer(q, (struct cx23885_buffer*)vb);
 }
 
-static int cx23885_request_firmware(struct dvb_frontend *fe,
-	const struct firmware **fw, char *name)
-{
-	struct cx23885_tsport *port = fe->dvb->priv;
-	struct cx23885_dev *dev = port->dev;
-
-	dprintk(1, "%s(?,?,%s)\n", __FUNCTION__, name);
-
-	return request_firmware(fw, name, &dev->pci->dev);
-}
-
-static int hauppauge_hvr1500q_tuner_reset(struct dvb_frontend *fe)
-{
-	struct cx23885_tsport *port = fe->dvb->priv;
-	struct cx23885_dev *dev = port->dev;
-
-	dprintk(1, "%s()\n", __FUNCTION__);
-
-	/* Drive the tuner into reset back back */
-	cx_clear(GP0_IO, 0x00000004);
-	mdelay(200);
-	cx_set(GP0_IO, 0x00000004);
-
-	return 0;
-}
-
 static struct videobuf_queue_ops dvb_qops = {
 	.buf_setup    = dvb_buf_setup,
 	.buf_prepare  = dvb_buf_prepare,
@@ -182,8 +156,8 @@ static struct s5h1409_config hauppauge_hvr1500q_config = {
 static struct xc5000_config hauppauge_hvr1500q_tunerconfig = {
 	.i2c_address      = 0x61,
 	.if_khz           = 5380,
-	.request_firmware = cx23885_request_firmware,
-	.tuner_reset      = hauppauge_hvr1500q_tuner_reset
+	/* cannot set .video_dev here, do it before attach. */
+	.tuner_callback   = cx23885_tuner_callback
 };
 
 static struct tda829x_config tda829x_no_probe = {
@@ -308,6 +282,11 @@ static int dvb_register(struct cx23885_tsport *port)
 						&hauppauge_hvr1500q_config,
 						&dev->i2c_bus[0].i2c_adap);
 		if (port->dvb.frontend != NULL) {
+			/* tunerconfig.video_dev must point to
+			 * i2c_adap.algo_data
+			 */
+			hauppauge_hvr1500q_tunerconfig.video_dev =
+				i2c_bus->i2c_adap.algo_data;
 			dvb_attach(xc5000_attach, port->dvb.frontend,
 				&i2c_bus->i2c_adap,
 				&hauppauge_hvr1500q_tunerconfig);
