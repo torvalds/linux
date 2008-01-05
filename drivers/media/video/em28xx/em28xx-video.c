@@ -1599,8 +1599,47 @@ static const struct video_device em28xx_video_template = {
 	.current_norm               = V4L2_STD_PAL,
 };
 
-
 /******************************** usb interface *****************************************/
+
+
+static LIST_HEAD(em28xx_extension_devlist);
+static DEFINE_MUTEX(em28xx_extension_devlist_lock);
+
+int em28xx_register_extension(struct em28xx_ops *ops)
+{
+	struct em28xx *h, *dev = NULL;
+
+	list_for_each_entry(h, &em28xx_devlist, devlist)
+		dev = h;
+
+	mutex_lock(&em28xx_extension_devlist_lock);
+	list_add_tail(&ops->next, &em28xx_extension_devlist);
+	if (dev)
+		ops->init(dev);
+
+	printk(KERN_INFO "Em28xx: Initialized (%s) extension\n", ops->name);
+	mutex_unlock(&em28xx_extension_devlist_lock);
+
+	return 0;
+}
+EXPORT_SYMBOL(em28xx_register_extension);
+
+void em28xx_unregister_extension(struct em28xx_ops *ops)
+{
+	struct em28xx *h, *dev = NULL;
+
+	list_for_each_entry(h, &em28xx_devlist, devlist)
+		dev = h;
+
+	if (dev)
+		ops->fini(dev);
+
+	mutex_lock(&em28xx_extension_devlist_lock);
+	printk(KERN_INFO "Em28xx: Removed (%s) extension\n", ops->name);
+	list_del(&ops->next);
+	mutex_unlock(&em28xx_extension_devlist_lock);
+}
+EXPORT_SYMBOL(em28xx_unregister_extension);
 
 /*
  * em28xx_init_dev()
@@ -1609,6 +1648,7 @@ static const struct video_device em28xx_video_template = {
 static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 			   int minor)
 {
+	struct em28xx_ops *ops = NULL;
 	struct em28xx *dev = *devhandle;
 	int retval = -ENOMEM;
 	int errCode;
@@ -1742,6 +1782,15 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 				dev->vdev->minor-MINOR_VFL_TYPE_GRABBER_MIN,
 				dev->vbi_dev->minor-MINOR_VFL_TYPE_VBI_MIN);
 
+	mutex_lock(&em28xx_extension_devlist_lock);
+	if (!list_empty(&em28xx_extension_devlist)) {
+		list_for_each_entry(ops, &em28xx_extension_devlist, next) {
+			if (ops->id)
+				ops->init(dev);
+		}
+	}
+	mutex_unlock(&em28xx_extension_devlist_lock);
+
 	return 0;
 }
 
@@ -1862,6 +1911,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 static void em28xx_usb_disconnect(struct usb_interface *interface)
 {
 	struct em28xx *dev;
+	struct em28xx_ops *ops = NULL;
 
 	dev = usb_get_intfdata(interface);
 	usb_set_intfdata(interface, NULL);
@@ -1891,15 +1941,20 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 		dev->state |= DEV_DISCONNECTED;
 		em28xx_release_resources(dev);
 	}
-
-
 	mutex_unlock(&dev->lock);
+
+	mutex_lock(&em28xx_extension_devlist_lock);
+	if (!list_empty(&em28xx_extension_devlist)) {
+		list_for_each_entry(ops, &em28xx_extension_devlist, next) {
+			ops->fini(dev);
+		}
+	}
+	mutex_unlock(&em28xx_extension_devlist_lock);
 
 	if (!dev->users) {
 		kfree(dev->alt_max_pkt_size);
 		kfree(dev);
 	}
-
 }
 
 static struct usb_driver em28xx_usb_driver = {

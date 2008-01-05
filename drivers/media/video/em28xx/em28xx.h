@@ -212,6 +212,28 @@ enum em28xx_dev_state {
 	DEV_MISCONFIGURED = 0x04,
 };
 
+#define EM28XX_AUDIO_BUFS 5
+#define EM28XX_NUM_AUDIO_PACKETS 64
+#define EM28XX_AUDIO_MAX_PACKET_SIZE 196 /* static value */
+#define EM28XX_CAPTURE_STREAM_EN 1
+#define EM28XX_AUDIO   0x10
+
+struct em28xx_audio {
+	char name[50];
+	char *transfer_buffer[EM28XX_AUDIO_BUFS];
+	struct urb *urb[EM28XX_AUDIO_BUFS];
+	struct usb_device *udev;
+	unsigned int capture_transfer_done;
+	struct snd_pcm_substream   *capture_pcm_substream;
+
+	unsigned int hwptr_done_capture;
+	struct snd_card            *sndcard;
+
+	int users, shutdown;
+	enum em28xx_stream_state capture_stream;
+	spinlock_t slock;
+};
+
 /* main device struct */
 struct em28xx {
 	/* generic device properties */
@@ -266,6 +288,8 @@ struct em28xx {
 	unsigned long hash;	/* eeprom hash - for boards with generic ID */
 	unsigned long i2c_hash;	/* i2c devicelist hash - for boards with generic ID */
 
+	struct em28xx_audio *adev;
+
 	/* states */
 	enum em28xx_dev_state state;
 	enum em28xx_stream_state stream;
@@ -302,6 +326,15 @@ struct em28xx {
 struct em28xx_fh {
 	struct em28xx *dev;
 	unsigned int  stream_on:1;	/* Locks streams */
+	int           radio;
+};
+
+struct em28xx_ops {
+	struct list_head next;
+	char *name;
+	int id;
+	int (*init)(struct em28xx *);
+	int (*fini)(struct em28xx *);
 };
 
 /* Provided by em28xx-i2c.c */
@@ -340,6 +373,10 @@ int em28xx_resolution_set(struct em28xx *dev);
 int em28xx_init_isoc(struct em28xx *dev);
 void em28xx_uninit_isoc(struct em28xx *dev);
 int em28xx_set_alternate(struct em28xx *dev);
+
+/* Provided by em28xx-video.c */
+int em28xx_register_extension(struct em28xx_ops *dev);
+void em28xx_unregister_extension(struct em28xx_ops *dev);
 
 /* Provided by em28xx-cards.c */
 extern int em2800_variant_detect(struct usb_device* udev,int model);
