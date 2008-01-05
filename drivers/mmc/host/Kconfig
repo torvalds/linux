@@ -25,8 +25,8 @@ config MMC_PXA
 	  If unsure, say N.
 
 config MMC_SDHCI
-	tristate "Secure Digital Host Controller Interface support  (EXPERIMENTAL)"
-	depends on PCI && EXPERIMENTAL
+	tristate "Secure Digital Host Controller Interface support"
+	depends on PCI
 	help
 	  This select the generic Secure Digital Host Controller Interface.
 	  It is used by manufacturers such as Texas Instruments(R), Ricoh(R)
@@ -118,8 +118,8 @@ config MMC_TIFM_SD
 	  module will be called tifm_sd.
 
 config MMC_SPI
-	tristate "MMC/SD over SPI (EXPERIMENTAL)"
-	depends on MMC && SPI_MASTER && !HIGHMEM && EXPERIMENTAL
+	tristate "MMC/SD over SPI"
+	depends on MMC && SPI_MASTER && !HIGHMEM
 	select CRC7
 	select CRC_ITU_T
 	help
