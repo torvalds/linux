@@ -247,7 +247,7 @@ static void set_radio_freq(struct i2c_client *c, unsigned int freq)
 		tuner_warn ("tuner type not set\n");
 		return;
 	}
-	if (analog_ops->set_params) {
+	if (NULL == analog_ops->set_params) {
 		tuner_warn ("tuner has no way to set radio frequency\n");
 		return;
 	}
