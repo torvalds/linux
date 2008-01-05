@@ -105,6 +105,7 @@ struct tda18271_priv {
 	enum tda18271_i2c_gate gate;
 	enum tda18271_ver id;
 
+	unsigned int tm_rfcal;
 	unsigned int cal_initialized:1;
 
 	struct tda18271_map_layout *maps;

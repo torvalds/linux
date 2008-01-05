@@ -29,7 +29,7 @@ MODULE_PARM_DESC(debug, "set debug level "
 
 /*---------------------------------------------------------------------*/
 
-static int tda18271_init(struct dvb_frontend *fe)
+static int tda18271_ir_cal_init(struct dvb_frontend *fe)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
 	unsigned char *regs = priv->tda18271_regs;
@@ -184,7 +184,7 @@ static int tda18271_read_thermometer(struct dvb_frontend *fe)
 }
 
 static int tda18271_rf_tracking_filters_correction(struct dvb_frontend *fe,
-						   u32 freq, int tm_rfcal)
+						   u32 freq)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
 	struct tda18271_rf_tracking_filter_cal *map = priv->rf_cal_state;
@@ -224,7 +224,7 @@ static int tda18271_rf_tracking_filters_correction(struct dvb_frontend *fe,
 	tda18271_lookup_map(fe, RF_CAL_DC_OVER_DT, &freq, &dc_over_dt);
 
 	/* calculate temperature compensation */
-	rfcal_comp = dc_over_dt * (tm_current - tm_rfcal);
+	rfcal_comp = dc_over_dt * (tm_current - priv->tm_rfcal);
 
 	regs[R_EB14] = approx + rfcal_comp;
 	tda18271_write_regs(fe, R_EB14, 1);
@@ -554,8 +554,7 @@ static int tda18271_rf_tracking_filters_init(struct dvb_frontend *fe, u32 freq)
 	return 0;
 }
 
-static int tda18271_calc_rf_filter_curve(struct dvb_frontend *fe,
-					 int *tm_rfcal)
+static int tda18271_calc_rf_filter_curve(struct dvb_frontend *fe)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
 	unsigned int i;
@@ -572,24 +571,21 @@ static int tda18271_calc_rf_filter_curve(struct dvb_frontend *fe,
 		tda18271_rf_tracking_filters_init(fe, 1000 *
 						  priv->rf_cal_state[i].rfmax);
 
-	*tm_rfcal = tda18271_read_thermometer(fe);
+	priv->tm_rfcal = tda18271_read_thermometer(fe);
 
 	return 0;
 }
 
 /* ------------------------------------------------------------------ */
 
-static int tda18271_init_cal(struct dvb_frontend *fe, int *tm)
+static int tda18271_rf_cal_init(struct dvb_frontend *fe)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
 
 	if (priv->cal_initialized)
 		return 0;
 
-	/* initialization */
-	tda18271_init(fe);
-
-	tda18271_calc_rf_filter_curve(fe, tm);
+	tda18271_calc_rf_filter_curve(fe);
 
 	tda18271_por(fe);
 
@@ -598,16 +594,27 @@ static int tda18271_init_cal(struct dvb_frontend *fe, int *tm)
 	return 0;
 }
 
+static int tda18271_init(struct dvb_frontend *fe)
+{
+	struct tda18271_priv *priv = fe->tuner_priv;
+
+	/* initialization */
+	tda18271_ir_cal_init(fe);
+
+	if (priv->id == TDA18271HDC2)
+		tda18271_rf_cal_init(fe);
+
+	return 0;
+}
+
 static int tda18271c2_tune(struct dvb_frontend *fe,
 			   u32 ifc, u32 freq, u32 bw, u8 std)
 {
-	int tm = 0;
-
 	tda_dbg("freq = %d, ifc = %d\n", freq, ifc);
 
-	tda18271_init_cal(fe, &tm);
+	tda18271_init(fe);
 
-	tda18271_rf_tracking_filters_correction(fe, freq, tm);
+	tda18271_rf_tracking_filters_correction(fe, freq);
 
 	tda18271_channel_configuration(fe, ifc, freq, bw, std);
 
