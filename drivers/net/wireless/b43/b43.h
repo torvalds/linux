@@ -328,17 +328,22 @@ enum {
 #define B43_MACCMD_CCA			0x00000008	/* Clear channel assessment */
 #define B43_MACCMD_BGNOISE		0x00000010	/* Background noise */
 
-/* 802.11 core specific TM State Low flags */
+/* 802.11 core specific TM State Low (SSB_TMSLOW) flags */
 #define B43_TMSLOW_GMODE		0x20000000	/* G Mode Enable */
-#define B43_TMSLOW_PLLREFSEL		0x00200000	/* PLL Frequency Reference Select */
+#define B43_TMSLOW_PHYCLKSPEED		0x00C00000	/* PHY clock speed mask (N-PHY only) */
+#define  B43_TMSLOW_PHYCLKSPEED_40MHZ	0x00000000	/* 40 MHz PHY */
+#define  B43_TMSLOW_PHYCLKSPEED_80MHZ	0x00400000	/* 80 MHz PHY */
+#define  B43_TMSLOW_PHYCLKSPEED_160MHZ	0x00800000	/* 160 MHz PHY */
+#define B43_TMSLOW_PLLREFSEL		0x00200000	/* PLL Frequency Reference Select (rev >= 5) */
 #define B43_TMSLOW_MACPHYCLKEN		0x00100000	/* MAC PHY Clock Control Enable (rev >= 5) */
 #define B43_TMSLOW_PHYRESET		0x00080000	/* PHY Reset */
 #define B43_TMSLOW_PHYCLKEN		0x00040000	/* PHY Clock Enable */
 
-/* 802.11 core specific TM State High flags */
+/* 802.11 core specific TM State High (SSB_TMSHIGH) flags */
+#define B43_TMSHIGH_DUALBAND_PHY	0x00080000	/* Dualband PHY available */
 #define B43_TMSHIGH_FCLOCK		0x00040000	/* Fast Clock Available (rev >= 5) */
-#define B43_TMSHIGH_APHY		0x00020000	/* A-PHY available (rev >= 5) */
-#define B43_TMSHIGH_GPHY		0x00010000	/* G-PHY available (rev >= 5) */
+#define B43_TMSHIGH_HAVE_5GHZ_PHY	0x00020000	/* 5 GHz PHY available (rev >= 5) */
+#define B43_TMSHIGH_HAVE_2GHZ_PHY	0x00010000	/* 2.4 GHz PHY available (rev >= 5) */
 
 /* Generic-Interrupt reasons. */
 #define B43_IRQ_MAC_SUSPENDED		0x00000001

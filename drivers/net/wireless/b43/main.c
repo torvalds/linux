@@ -132,7 +132,7 @@ static struct ieee80211_rate __b43_ratetable[] = {
 		.power_level	= 0xFF,				\
 		.antenna_max	= 0xFF,				\
 	}
-static struct ieee80211_channel b43_bg_chantable[] = {
+static struct ieee80211_channel b43_2ghz_chantable[] = {
 	CHANTAB_ENT(1, 2412),
 	CHANTAB_ENT(2, 2417),
 	CHANTAB_ENT(3, 2422),
@@ -148,9 +148,10 @@ static struct ieee80211_channel b43_bg_chantable[] = {
 	CHANTAB_ENT(13, 2472),
 	CHANTAB_ENT(14, 2484),
 };
+#define b43_2ghz_chantable_size	ARRAY_SIZE(b43_2ghz_chantable)
 
-#define b43_bg_chantable_size	ARRAY_SIZE(b43_bg_chantable)
-static struct ieee80211_channel b43_a_chantable[] = {
+#if 0
+static struct ieee80211_channel b43_5ghz_chantable[] = {
 	CHANTAB_ENT(36, 5180),
 	CHANTAB_ENT(40, 5200),
 	CHANTAB_ENT(44, 5220),
@@ -165,8 +166,8 @@ static struct ieee80211_channel b43_a_chantable[] = {
 	CHANTAB_ENT(161, 5805),
 	CHANTAB_ENT(165, 5825),
 };
-
-#define b43_a_chantable_size	ARRAY_SIZE(b43_a_chantable)
+#define b43_5ghz_chantable_size	ARRAY_SIZE(b43_5ghz_chantable)
+#endif
 
 static void b43_wireless_core_exit(struct b43_wldev *dev);
 static int b43_wireless_core_init(struct b43_wldev *dev);
@@ -1614,7 +1615,7 @@ static int b43_request_firmware(struct b43_wldev *dev)
 		switch (dev->phy.type) {
 		case B43_PHYTYPE_A:
 			if ((rev >= 5) && (rev <= 10)) {
-				if (tmshigh & B43_TMSHIGH_GPHY)
+				if (tmshigh & B43_TMSHIGH_HAVE_2GHZ_PHY)
 					filename = "a0g1initvals5";
 				else
 					filename = "a0g0initvals5";
@@ -1640,7 +1641,7 @@ static int b43_request_firmware(struct b43_wldev *dev)
 		switch (dev->phy.type) {
 		case B43_PHYTYPE_A:
 			if ((rev >= 5) && (rev <= 10)) {
-				if (tmshigh & B43_TMSHIGH_GPHY)
+				if (tmshigh & B43_TMSHIGH_HAVE_2GHZ_PHY)
 					filename = "a0g1bsinitvals5";
 				else
 					filename = "a0g0bsinitvals5";
@@ -3090,6 +3091,8 @@ static int b43_phy_versioning(struct b43_wldev *dev)
 	radio_manuf = (tmp & 0x00000FFF);
 	radio_ver = (tmp & 0x0FFFF000) >> 12;
 	radio_rev = (tmp & 0xF0000000) >> 28;
+	if (radio_manuf != 0x17F /* Broadcom */)
+		unsupported = 1;
 	switch (phy_type) {
 	case B43_PHYTYPE_A:
 		if (radio_ver != 0x2060)
@@ -3105,6 +3108,10 @@ static int b43_phy_versioning(struct b43_wldev *dev)
 		break;
 	case B43_PHYTYPE_G:
 		if (radio_ver != 0x2050)
+			unsupported = 1;
+		break;
+	case B43_PHYTYPE_N:
+		if (radio_ver != 5)
 			unsupported = 1;
 		break;
 	default:
@@ -3610,72 +3617,30 @@ static void b43_chip_reset(struct work_struct *work)
 }
 
 static int b43_setup_modes(struct b43_wldev *dev,
-			   int have_aphy, int have_bphy, int have_gphy)
+			   bool have_2ghz_phy, bool have_5ghz_phy)
 {
 	struct ieee80211_hw *hw = dev->wl->hw;
 	struct ieee80211_hw_mode *mode;
 	struct b43_phy *phy = &dev->phy;
-	int cnt = 0;
 	int err;
 
-/*FIXME: Don't tell ieee80211 about an A-PHY, because we currently don't support A-PHY. */
-	have_aphy = 0;
+	/* XXX: This function will go away soon, when mac80211
+	 *      band stuff is rewritten. So this is just a hack.
+	 *      For now we always claim GPHY mode, as there is no
+	 *      support for NPHY and APHY in the device, yet.
+	 *      This assumption is OK, as any B, N or A PHY will already
+	 *      have died a horrible sanity check death earlier. */
 
-	phy->possible_phymodes = 0;
-	for (; 1; cnt++) {
-		if (have_aphy) {
-			B43_WARN_ON(cnt >= B43_MAX_PHYHWMODES);
-			mode = &phy->hwmodes[cnt];
-
-			mode->mode = MODE_IEEE80211A;
-			mode->num_channels = b43_a_chantable_size;
-			mode->channels = b43_a_chantable;
-			mode->num_rates = b43_a_ratetable_size;
-			mode->rates = b43_a_ratetable;
-			err = ieee80211_register_hwmode(hw, mode);
-			if (err)
-				return err;
-
-			phy->possible_phymodes |= B43_PHYMODE_A;
-			have_aphy = 0;
-			continue;
-		}
-		if (have_bphy) {
-			B43_WARN_ON(cnt >= B43_MAX_PHYHWMODES);
-			mode = &phy->hwmodes[cnt];
-
-			mode->mode = MODE_IEEE80211B;
-			mode->num_channels = b43_bg_chantable_size;
-			mode->channels = b43_bg_chantable;
-			mode->num_rates = b43_b_ratetable_size;
-			mode->rates = b43_b_ratetable;
-			err = ieee80211_register_hwmode(hw, mode);
-			if (err)
-				return err;
-
-			phy->possible_phymodes |= B43_PHYMODE_B;
-			have_bphy = 0;
-			continue;
-		}
-		if (have_gphy) {
-			B43_WARN_ON(cnt >= B43_MAX_PHYHWMODES);
-			mode = &phy->hwmodes[cnt];
-
-			mode->mode = MODE_IEEE80211G;
-			mode->num_channels = b43_bg_chantable_size;
-			mode->channels = b43_bg_chantable;
-			mode->num_rates = b43_g_ratetable_size;
-			mode->rates = b43_g_ratetable;
-			err = ieee80211_register_hwmode(hw, mode);
-			if (err)
-				return err;
-
-			phy->possible_phymodes |= B43_PHYMODE_G;
-			have_gphy = 0;
-			continue;
-		}
-		break;
-	}
+	mode = &phy->hwmodes[0];
+	mode->mode = MODE_IEEE80211G;
+	mode->num_channels = b43_2ghz_chantable_size;
+	mode->channels = b43_2ghz_chantable;
+	mode->num_rates = b43_g_ratetable_size;
+	mode->rates = b43_g_ratetable;
+	err = ieee80211_register_hwmode(hw, mode);
+	if (err)
+		return err;
+	phy->possible_phymodes |= B43_PHYMODE_G;
 
 	return 0;
 }
@@ -3693,7 +3658,7 @@ static int b43_wireless_core_attach(struct b43_wldev *dev)
 	struct ssb_bus *bus = dev->dev->bus;
 	struct pci_dev *pdev = bus->host_pci;
 	int err;
-	int have_aphy = 0, have_bphy = 0, have_gphy = 0;
+	bool have_2ghz_phy = 0, have_5ghz_phy = 0;
 	u32 tmp;
 
 	/* Do NOT do any device initialization here.
@@ -3713,17 +3678,12 @@ static int b43_wireless_core_attach(struct b43_wldev *dev)
 		u32 tmshigh;
 
 		tmshigh = ssb_read32(dev->dev, SSB_TMSHIGH);
-		have_aphy = !!(tmshigh & B43_TMSHIGH_APHY);
-		have_gphy = !!(tmshigh & B43_TMSHIGH_GPHY);
-		if (!have_aphy && !have_gphy)
-			have_bphy = 1;
-	} else if (dev->dev->id.revision == 4) {
-		have_gphy = 1;
-		have_aphy = 1;
+		have_2ghz_phy = !!(tmshigh & B43_TMSHIGH_HAVE_2GHZ_PHY);
+		have_5ghz_phy = !!(tmshigh & B43_TMSHIGH_HAVE_5GHZ_PHY);
 	} else
-		have_bphy = 1;
+		B43_WARN_ON(1);
 
-	dev->phy.gmode = (have_gphy || have_bphy);
+	dev->phy.gmode = have_2ghz_phy;
 	tmp = dev->phy.gmode ? B43_TMSLOW_GMODE : 0;
 	b43_wireless_core_reset(dev, tmp);
 
@@ -3735,31 +3695,34 @@ static int b43_wireless_core_attach(struct b43_wldev *dev)
 	    (pdev->device != 0x4312 &&
 	     pdev->device != 0x4319 && pdev->device != 0x4324)) {
 		/* No multiband support. */
-		have_aphy = 0;
-		have_bphy = 0;
-		have_gphy = 0;
+		have_2ghz_phy = 0;
+		have_5ghz_phy = 0;
 		switch (dev->phy.type) {
 		case B43_PHYTYPE_A:
-			have_aphy = 1;
-			break;
-		case B43_PHYTYPE_B:
-			have_bphy = 1;
+			have_5ghz_phy = 1;
 			break;
 		case B43_PHYTYPE_G:
-			have_gphy = 1;
+		case B43_PHYTYPE_N:
+			have_2ghz_phy = 1;
 			break;
 		default:
 			B43_WARN_ON(1);
 		}
 	}
-	dev->phy.gmode = (have_gphy || have_bphy);
+	if (dev->phy.type == B43_PHYTYPE_A) {
+		/* FIXME */
+		b43err(wl, "IEEE 802.11a devices are unsupported\n");
+		err = -EOPNOTSUPP;
+		goto err_powerdown;
+	}
+	dev->phy.gmode = have_2ghz_phy;
 	tmp = dev->phy.gmode ? B43_TMSLOW_GMODE : 0;
 	b43_wireless_core_reset(dev, tmp);
 
 	err = b43_validate_chipaccess(dev);
 	if (err)
 		goto err_powerdown;
-	err = b43_setup_modes(dev, have_aphy, have_bphy, have_gphy);
+	err = b43_setup_modes(dev, have_2ghz_phy, have_5ghz_phy);
 	if (err)
 		goto err_powerdown;
 
