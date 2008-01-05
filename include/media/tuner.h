@@ -121,6 +121,7 @@
 #define TUNER_SAMSUNG_TCPG_6121P30A     73 	/* Hauppauge PVR-500 PAL */
 #define TUNER_TDA9887                   74      /* This tuner should be used only internally */
 #define TUNER_TEA5761			75	/* Only FM Radio Tuner */
+#define TUNER_XC5000			76	/* Xceive Silicon Tuner */
 
 /* tv card specific */
 #define TDA9887_PRESENT 		(1<<0)

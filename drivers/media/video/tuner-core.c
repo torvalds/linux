@@ -27,6 +27,7 @@
 #include "tuner-xc2028.h"
 #include "tuner-simple.h"
 #include "tda9887.h"
+#include "xc5000.h"
 
 #define UNSET (-1U)
 
@@ -329,6 +330,8 @@ static void attach_tda829x(struct tuner *t)
 	tda829x_attach(&t->fe, t->i2c->adapter, t->i2c->addr, &cfg);
 }
 
+static struct xc5000_config xc5000_cfg;
+
 static void set_type(struct i2c_client *c, unsigned int type,
 		     unsigned int new_mode_mask, unsigned int new_config,
 		     int (*tuner_callback) (void *dev, int command,int arg))
@@ -427,6 +430,23 @@ static void set_type(struct i2c_client *c, unsigned int type,
 	}
 	case TUNER_TDA9887:
 		tda9887_attach(&t->fe, t->i2c->adapter, t->i2c->addr);
+		break;
+	case TUNER_XC5000:
+		xc5000_cfg.i2c_address	  = t->i2c->addr;
+		xc5000_cfg.if_khz	  = 5380;
+		xc5000_cfg.video_dev	  = c->adapter->algo_data;
+		xc5000_cfg.tuner_callback = t->tuner_callback;
+		if (!xc5000_attach(&t->fe, t->i2c->adapter, &xc5000_cfg)) {
+			t->type = TUNER_ABSENT;
+			t->mode_mask = T_UNINITIALIZED;
+			return;
+		}
+		{
+		struct dvb_tuner_ops *xc_tuner_ops;
+		xc_tuner_ops = &t->fe.ops.tuner_ops;
+		if(xc_tuner_ops->init != NULL)
+			xc_tuner_ops->init(&t->fe);
+		}
 		break;
 	default:
 		attach_simple_tuner(t);

@@ -28,12 +28,14 @@ struct dvb_frontend;
 struct i2c_adapter;
 
 struct xc5000_config {
-	u8  i2c_address;
-	u32 if_khz;
-	int (*request_firmware)(struct dvb_frontend *fe,
-		const struct firmware **fw, char *name);
-	int (*tuner_reset)(struct dvb_frontend* fe);
+	u8   i2c_address;
+	u32  if_khz;
+	void *video_dev;
+	int  (*tuner_callback) (void *dev, int command, int arg);
 };
+
+/* xc5000 callback command */
+#define XC5000_TUNER_RESET		0
 
 #if defined(CONFIG_DVB_TUNER_XC5000) || defined(CONFIG_DVB_TUNER_XC5000_MODULE)
 extern struct dvb_frontend* xc5000_attach(struct dvb_frontend *fe,

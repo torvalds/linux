@@ -22,6 +22,7 @@
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/videodev2.h>
 #include <linux/delay.h>
 #include <linux/dvb/frontend.h>
 #include <linux/i2c.h>
@@ -55,6 +56,10 @@ MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
 #define XC_RESULT_I2C_WRITE_FAILURE	2
 #define XC_RESULT_I2C_READ_FAILURE	3
 #define XC_RESULT_OUT_OF_RANGE		5
+
+/* Product id */
+#define XC_PRODUCT_ID_FW_NOT_LOADED	0x2000
+#define XC_PRODUCT_ID_FW_LOADED 	0x1388
 
 /* Registers */
 #define XREG_INIT         0x00
@@ -122,7 +127,29 @@ typedef struct {
 } XC_TV_STANDARD;
 
 /* Tuner standards */
-#define DTV6	17
+#define MN_NTSC_PAL_BTSC	0
+#define MN_NTSC_PAL_A2		1
+#define MN_NTSC_PAL_EIAJ	2
+#define MN_NTSC_PAL_Mono	3
+#define BG_PAL_A2		4
+#define BG_PAL_NICAM		5
+#define BG_PAL_MONO		6
+#define I_PAL_NICAM		7
+#define I_PAL_NICAM_MONO	8
+#define DK_PAL_A2		9
+#define DK_PAL_NICAM		10
+#define DK_PAL_MONO		11
+#define DK_SECAM_A2DK1		12
+#define DK_SECAM_A2LDK3 	13
+#define DK_SECAM_A2MONO 	14
+#define L_SECAM_NICAM		15
+#define LC_SECAM_NICAM		16
+#define DTV6			17
+#define DTV8			18
+#define DTV7_8			19
+#define DTV7			20
+#define FM_Radio_INPUT2 	21
+#define FM_Radio_INPUT1 	22
 
 XC_TV_STANDARD XC5000_Standard[MAX_TV_STANDARD] = {
 	{"M/N-NTSC/PAL-BTSC", 0x0400, 0x8020},
@@ -184,12 +211,13 @@ static void xc5000_TunerReset(struct dvb_frontend *fe)
 
 	dprintk(1, "%s()\n", __FUNCTION__);
 
-	if (priv->cfg->tuner_reset) {
-		ret = priv->cfg->tuner_reset(fe);
+	if (priv->cfg->tuner_callback) {
+		ret = priv->cfg->tuner_callback(priv->cfg->video_dev,
+						XC5000_TUNER_RESET, 0);
 		if (ret)
 			printk(KERN_ERR "xc5000: reset failed\n");
 	} else
-		printk(KERN_ERR "xc5000: no tuner reset function, fatal\n");
+		printk(KERN_ERR "xc5000: no tuner reset callback function, fatal\n");
 }
 
 static int xc_write_reg(struct xc5000_priv *priv, u16 regAddr, u16 i2cData)
@@ -259,7 +287,6 @@ static int xc_load_i2c_sequence(struct dvb_frontend *fe, u8 i2c_sequence[])
 
 	index=0;
 	while ((i2c_sequence[index]!=0xFF) || (i2c_sequence[index+1]!=0xFF)) {
-
 		len = i2c_sequence[index]* 256 + i2c_sequence[index+1];
 		if (len == 0x0000) {
 			/* RESET command */
@@ -311,7 +338,7 @@ static int xc_SetTVStandard(struct xc5000_priv *priv,
 	u16 VideoMode, u16 AudioMode)
 {
 	int ret;
-	dprintk(1, "%s(%d,%d)\n", __FUNCTION__, VideoMode, AudioMode);
+	dprintk(1, "%s(0x%04x,0x%04x)\n", __FUNCTION__, VideoMode, AudioMode);
 	dprintk(1, "%s() Standard = %s\n",
 		__FUNCTION__,
 		XC5000_Standard[priv->video_standard].Name);
@@ -325,7 +352,11 @@ static int xc_SetTVStandard(struct xc5000_priv *priv,
 
 static int xc_shutdown(struct xc5000_priv *priv)
 {
-	return xc_write_reg(priv, XREG_POWER_DOWN, 0);
+	return 0;
+	/* Fixme: cannot bring tuner back alive once shutdown
+	 *        without reloading the driver modules.
+	 *    return xc_write_reg(priv, XREG_POWER_DOWN, 0);
+	 */
 }
 
 static int xc_SetSignalSource(struct xc5000_priv *priv, u16 rf_mode)
@@ -349,7 +380,7 @@ static int xc_set_RF_frequency(struct xc5000_priv *priv, u32 freq_hz)
 {
 	u16 freq_code;
 
-	dprintk(1, "%s(%d)\n", __FUNCTION__, freq_hz);
+	dprintk(1, "%s(%u)\n", __FUNCTION__, freq_hz);
 
 	if ((freq_hz > xc5000_tuner_ops.info.frequency_max) ||
 		(freq_hz < xc5000_tuner_ops.info.frequency_min))
@@ -457,7 +488,7 @@ static int xc_tune_channel(struct xc5000_priv *priv, u32 freq_hz)
 {
 	int found = 0;
 
-	dprintk(1, "%s(%d)\n", __FUNCTION__, freq_hz);
+	dprintk(1, "%s(%u)\n", __FUNCTION__, freq_hz);
 
 	if (xc_set_RF_frequency(priv, freq_hz) != XC_RESULT_SUCCESS)
 		return 0;
@@ -480,7 +511,7 @@ static int xc5000_readreg(struct xc5000_priv *priv, u16 reg, u16 *val)
 	};
 
 	if (i2c_transfer(priv->i2c, msg, 2) != 2) {
-		printk(KERN_WARNING "xc5000 I2C read failed\n");
+		printk(KERN_WARNING "xc5000: I2C read failed\n");
 		return -EREMOTEIO;
 	}
 
@@ -494,7 +525,7 @@ static int xc5000_writeregs(struct xc5000_priv *priv, u8 *buf, u8 len)
 		.flags = 0, .buf = buf, .len = len };
 
 	if (i2c_transfer(priv->i2c, &msg, 1) != 1) {
-		printk(KERN_ERR "xc5000 I2C write failed (len=%i)\n",
+		printk(KERN_ERR "xc5000: I2C write failed (len=%i)\n",
 			(int)len);
 		return -EREMOTEIO;
 	}
@@ -519,16 +550,11 @@ static int xc5000_fwupload(struct dvb_frontend* fe)
 	const struct firmware *fw;
 	int ret;
 
-	if (!priv->cfg->request_firmware) {
-		printk(KERN_ERR "xc5000: no firmware callback, fatal\n");
-		return -EIO;
-	}
-
 	/* request the firmware, this will block and timeout */
 	printk(KERN_INFO "xc5000: waiting for firmware upload (%s)...\n",
 		XC5000_DEFAULT_FIRMWARE);
 
-	ret = priv->cfg->request_firmware(fe, &fw, XC5000_DEFAULT_FIRMWARE);
+	ret = request_firmware(&fw, XC5000_DEFAULT_FIRMWARE, &priv->i2c->dev);
 	if (ret) {
 		printk(KERN_ERR "xc5000: Upload failed. (file not found?)\n");
 		ret = XC_RESULT_RESET_FAILURE;
@@ -601,7 +627,6 @@ static int xc5000_set_params(struct dvb_frontend *fe,
 
 	dprintk(1, "%s() frequency=%d (Hz)\n", __FUNCTION__, params->frequency);
 
-
 	switch(params->u.vsb.modulation) {
 	case VSB_8:
 	case VSB_16:
@@ -658,6 +683,93 @@ static int xc5000_set_params(struct dvb_frontend *fe,
 	return 0;
 }
 
+static int xc_load_fw_and_init_tuner(struct dvb_frontend *fe);
+
+static int xc5000_set_analog_params(struct dvb_frontend *fe,
+	struct analog_parameters *params)
+{
+	struct xc5000_priv *priv = fe->tuner_priv;
+	int ret;
+
+	if(priv->fwloaded == 0)
+		xc_load_fw_and_init_tuner(fe);
+
+	dprintk(1, "%s() frequency=%d (in units of 62.5khz)\n",
+		__FUNCTION__, params->frequency);
+
+	priv->rf_mode = XC_RF_MODE_CABLE; /* Fix me: it could be air. */
+
+	/* params->frequency is in units of 62.5khz */
+	priv->freq_hz = params->frequency * 62500;
+
+	/* FIX ME: Some video standards may have several possible audio
+		   standards. We simply default to one of them here.
+	 */
+	if(params->std & V4L2_STD_MN) {
+		/* default to BTSC audio standard */
+		priv->video_standard = MN_NTSC_PAL_BTSC;
+		goto tune_channel;
+	}
+
+	if(params->std & V4L2_STD_PAL_BG) {
+		/* default to NICAM audio standard */
+		priv->video_standard = BG_PAL_NICAM;
+		goto tune_channel;
+	}
+
+	if(params->std & V4L2_STD_PAL_I) {
+		/* default to NICAM audio standard */
+		priv->video_standard = I_PAL_NICAM;
+		goto tune_channel;
+	}
+
+	if(params->std & V4L2_STD_PAL_DK) {
+		/* default to NICAM audio standard */
+		priv->video_standard = DK_PAL_NICAM;
+		goto tune_channel;
+	}
+
+	if(params->std & V4L2_STD_SECAM_DK) {
+		/* default to A2 DK1 audio standard */
+		priv->video_standard = DK_SECAM_A2DK1;
+		goto tune_channel;
+	}
+
+	if(params->std & V4L2_STD_SECAM_L) {
+		priv->video_standard = L_SECAM_NICAM;
+		goto tune_channel;
+	}
+
+	if(params->std & V4L2_STD_SECAM_LC) {
+		priv->video_standard = LC_SECAM_NICAM;
+		goto tune_channel;
+	}
+
+tune_channel:
+	ret = xc_SetSignalSource(priv, priv->rf_mode);
+	if (ret != XC_RESULT_SUCCESS) {
+	printk(KERN_ERR
+			"xc5000: xc_SetSignalSource(%d) failed\n",
+			priv->rf_mode);
+		return -EREMOTEIO;
+	}
+
+	ret = xc_SetTVStandard(priv,
+		XC5000_Standard[priv->video_standard].VideoMode,
+		XC5000_Standard[priv->video_standard].AudioMode);
+	if (ret != XC_RESULT_SUCCESS) {
+		printk(KERN_ERR "xc5000: xc_SetTVStandard failed\n");
+		return -EREMOTEIO;
+	}
+
+	xc_tune_channel(priv, priv->freq_hz);
+
+	if (debug)
+		xc_debug_dump(priv);
+
+	return 0;
+}
+
 static int xc5000_get_frequency(struct dvb_frontend *fe, u32 *freq)
 {
 	struct xc5000_priv *priv = fe->tuner_priv;
@@ -670,6 +782,7 @@ static int xc5000_get_bandwidth(struct dvb_frontend *fe, u32 *bw)
 {
 	struct xc5000_priv *priv = fe->tuner_priv;
 	dprintk(1, "%s()\n", __FUNCTION__);
+
 	*bw = priv->bandwidth;
 	return 0;
 }
@@ -691,13 +804,12 @@ static int xc5000_get_status(struct dvb_frontend *fe, u32 *status)
 static int xc_load_fw_and_init_tuner(struct dvb_frontend *fe)
 {
 	struct xc5000_priv *priv = fe->tuner_priv;
-	int ret;
+	int ret = 0;
 
 	if (priv->fwloaded == 0) {
 		ret = xc5000_fwupload(fe);
 		if (ret != XC_RESULT_SUCCESS)
 			return ret;
-
 		priv->fwloaded = 1;
 	}
 
@@ -720,9 +832,27 @@ static int xc_load_fw_and_init_tuner(struct dvb_frontend *fe)
 static int xc5000_sleep(struct dvb_frontend *fe)
 {
 	struct xc5000_priv *priv = fe->tuner_priv;
+	int ret;
+
 	dprintk(1, "%s()\n", __FUNCTION__);
 
-	return xc_shutdown(priv);
+	/* On Pinnacle PCTV HD 800i, the tuner cannot be reinitialized
+	 * once shutdown without reloading the driver. Maybe I am not
+	 * doing something right.
+	 *
+	 */
+
+	ret = xc_shutdown(priv);
+	if(ret != XC_RESULT_SUCCESS) {
+		printk(KERN_ERR
+			"xc5000: %s() unable to shutdown tuner\n",
+			__FUNCTION__);
+		return -EREMOTEIO;
+	}
+	else {
+		/* priv->fwloaded = 0; */
+		return XC_RESULT_SUCCESS;
+	}
 }
 
 static int xc5000_init(struct dvb_frontend *fe)
@@ -757,14 +887,15 @@ static const struct dvb_tuner_ops xc5000_tuner_ops = {
 		.frequency_step =      50000,
 	},
 
-	.release       = xc5000_release,
-	.init          = xc5000_init,
-	.sleep         = xc5000_sleep,
+	.release	   = xc5000_release,
+	.init		   = xc5000_init,
+	.sleep		   = xc5000_sleep,
 
-	.set_params    = xc5000_set_params,
-	.get_frequency = xc5000_get_frequency,
-	.get_bandwidth = xc5000_get_bandwidth,
-	.get_status    = xc5000_get_status
+	.set_params	   = xc5000_set_params,
+	.set_analog_params = xc5000_set_analog_params,
+	.get_frequency	   = xc5000_get_frequency,
+	.get_bandwidth	   = xc5000_get_bandwidth,
+	.get_status	   = xc5000_get_status
 };
 
 struct dvb_frontend * xc5000_attach(struct dvb_frontend *fe,
@@ -783,23 +914,39 @@ struct dvb_frontend * xc5000_attach(struct dvb_frontend *fe,
 	priv->cfg = cfg;
 	priv->bandwidth = BANDWIDTH_6_MHZ;
 	priv->i2c = i2c;
-	priv->fwloaded = 0;
 
+	/* Check if firmware has been loaded. It is possible that another
+	   instance of the driver has loaded the firmware.
+	 */
 	if (xc5000_readreg(priv, XREG_PRODUCT_ID, &id) != 0) {
 		kfree(priv);
 		return NULL;
 	}
 
-	if ((id != 0x2000) && (id != 0x1388)) {
+	switch(id) {
+	case XC_PRODUCT_ID_FW_LOADED:
+		printk(KERN_INFO
+			"xc5000: Successfully identified at address 0x%02x\n",
+			cfg->i2c_address);
+		printk(KERN_INFO
+			"xc5000: Firmware has been loaded previously\n");
+		priv->fwloaded = 1;
+		break;
+	case XC_PRODUCT_ID_FW_NOT_LOADED:
+		printk(KERN_INFO
+			"xc5000: Successfully identified at address 0x%02x\n",
+			cfg->i2c_address);
+		printk(KERN_INFO
+			"xc5000: Firmware has not been loaded previously\n");
+		priv->fwloaded = 0;
+		break;
+	default:
 		printk(KERN_ERR
 			"xc5000: Device not found at addr 0x%02x (0x%x)\n",
 			cfg->i2c_address, id);
 		kfree(priv);
 		return NULL;
 	}
-
-	printk(KERN_INFO "xc5000: successfully identified at address 0x%02x\n",
-		cfg->i2c_address);
 
 	memcpy(&fe->ops.tuner_ops, &xc5000_tuner_ops,
 		sizeof(struct dvb_tuner_ops));

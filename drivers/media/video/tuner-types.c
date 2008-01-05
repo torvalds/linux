@@ -1475,6 +1475,10 @@ struct tunertype tuners[] = {
 		.name   = "Philips TEA5761 FM Radio",
 		/* see tea5767.c for details */
 	},
+	[TUNER_XC5000] = { /* Xceive 5000 */
+		.name   = "Xceive 5000 tuner",
+		/* see xc5000.c for details */
+	},
 };
 
 unsigned const int tuner_count = ARRAY_SIZE(tuners);
