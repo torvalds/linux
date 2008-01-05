@@ -1018,6 +1018,7 @@ int scsi_sysfs_add_host(struct Scsi_Host *shost)
 	}
 
 	transport_register_device(&shost->shost_gendev);
+	transport_configure_device(&shost->shost_gendev);
 	return 0;
 }
 

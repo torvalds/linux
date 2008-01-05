@@ -1489,6 +1489,7 @@ struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
 	if (scsi_host_scan_allowed(shost))
 		scsi_probe_and_add_lun(starget, lun, NULL, &sdev, 1, hostdata);
 	mutex_unlock(&shost->scan_mutex);
+	transport_configure_device(&starget->dev);
 	scsi_target_reap(starget);
 	put_device(&starget->dev);
 
@@ -1569,6 +1570,7 @@ static void __scsi_scan_target(struct device *parent, unsigned int channel,
  out_reap:
 	/* now determine if the target has any children at all
 	 * and if not, nuke it */
+	transport_configure_device(&starget->dev);
 	scsi_target_reap(starget);
 
 	put_device(&starget->dev);
