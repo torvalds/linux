@@ -2241,6 +2241,8 @@ static int niu_process_rx_pkt(struct niu *np, struct rx_ring_info *rp)
 	skb->protocol = eth_type_trans(skb, np->dev);
 	netif_receive_skb(skb);
 
+	np->dev->last_rx = jiffies;
+
 	return num_rcr;
 }
 
