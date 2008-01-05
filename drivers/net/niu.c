@@ -5208,7 +5208,8 @@ static int niu_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 		kfree_skb(skb);
 		skb = skb_new;
-	}
+	} else
+		skb_orphan(skb);
 
 	align = ((unsigned long) skb->data & (16 - 1));
 	headroom = align + sizeof(struct tx_pkt_hdr);
