@@ -246,6 +246,7 @@ struct em28xx {
 	unsigned int has_msp34xx:1;
 	unsigned int has_tda9887:1;
 	unsigned int stream_on:1;	/* Locks streams */
+	unsigned int has_audio_class:1;
 
 	int video_inputs;	/* number of video inputs */
 	struct list_head	devlist;
@@ -294,6 +295,8 @@ struct em28xx {
 	enum em28xx_dev_state state;
 	enum em28xx_stream_state stream;
 	enum em28xx_io_method io;
+
+	struct work_struct         request_module_wk;
 
 	/* locks */
 	struct mutex lock;

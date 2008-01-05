@@ -472,7 +472,6 @@ static struct em28xx_ops audio_ops = {
 
 static int __init em28xx_alsa_register(void)
 {
-	request_module("em28xx");
 	return em28xx_register_extension(&audio_ops);
 }
 

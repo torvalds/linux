@@ -1668,6 +1668,10 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	dev->em28xx_read_reg_req = em28xx_read_reg_req;
 	dev->is_em2800 = em28xx_boards[dev->model].is_em2800;
 
+	errCode = em28xx_read_reg(dev, CHIPID_REG);
+	if (errCode >= 0)
+		em28xx_info("em28xx chip ID = %d\n", errCode);
+
 	em28xx_pre_card_setup(dev);
 
 	errCode = em28xx_config(dev);
@@ -1794,6 +1798,25 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	return 0;
 }
 
+#if defined(CONFIG_MODULES) && defined(MODULE)
+static void request_module_async(struct work_struct *work)
+{
+	struct em28xx *dev = container_of(work,
+			     struct em28xx, request_module_wk);
+
+	if (!dev->has_audio_class)
+		request_module("em28xx-alsa");
+}
+
+static void request_modules(struct em28xx *dev)
+{
+	INIT_WORK(&dev->request_module_wk, request_module_async);
+	schedule_work(&dev->request_module_wk);
+}
+#else
+#define request_modules(dev)
+#endif /* CONFIG_MODULES */
+
 /*
  * em28xx_usb_probe()
  * checks for supported devices
@@ -1864,6 +1887,18 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	dev->devno = nr;
 	dev->model = id->driver_info;
 
+	/* Checks if audio is provided by some interface */
+	for (i = 0; i < udev->config->desc.bNumInterfaces; i++) {
+		uif = udev->config->interface[i];
+		if (uif->altsetting[0].desc.bInterfaceClass == USB_CLASS_AUDIO) {
+			dev->has_audio_class = 1;
+			break;
+		}
+	}
+
+	printk(KERN_INFO DRIVER_NAME " %s usb audio class\n",
+		   dev->has_audio_class ? "Has" : "Doesn't have");
+
 	/* compute alternate max packet sizes */
 	uif = udev->actconfig->interface[0];
 
@@ -1900,6 +1935,9 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 
 	/* save our data pointer in this interface device */
 	usb_set_intfdata(interface, dev);
+
+	request_modules(dev);
+
 	return 0;
 }
 
