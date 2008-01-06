@@ -327,7 +327,8 @@ static void rt2500usb_config_type(struct rt2x00_dev *rt2x00dev, const int type,
 
 	rt2500usb_register_read(rt2x00dev, TXRX_CSR19, &reg);
 	rt2x00_set_field16(&reg, TXRX_CSR19_TSF_COUNT, 1);
-	rt2x00_set_field16(&reg, TXRX_CSR19_TBCN, 1);
+	rt2x00_set_field16(&reg, TXRX_CSR19_TBCN,
+			   (tsf_sync == TSF_SYNC_BEACON));
 	rt2x00_set_field16(&reg, TXRX_CSR19_BEACON_GEN, 0);
 	rt2x00_set_field16(&reg, TXRX_CSR19_TSF_SYNC, tsf_sync);
 	rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg);

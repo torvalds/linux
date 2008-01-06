@@ -317,7 +317,8 @@ static void rt61pci_config_type(struct rt2x00_dev *rt2x00dev, const int type,
 	 */
 	rt2x00pci_register_read(rt2x00dev, TXRX_CSR9, &reg);
 	rt2x00_set_field32(&reg, TXRX_CSR9_TSF_TICKING, 1);
-	rt2x00_set_field32(&reg, TXRX_CSR9_TBTT_ENABLE, 1);
+	rt2x00_set_field32(&reg, TXRX_CSR9_TBTT_ENABLE,
+			  (tsf_sync == TSF_SYNC_BEACON));
 	rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_GEN, 0);
 	rt2x00_set_field32(&reg, TXRX_CSR9_TSF_SYNC, tsf_sync);
 	rt2x00pci_register_write(rt2x00dev, TXRX_CSR9, reg);
