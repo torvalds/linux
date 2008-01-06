@@ -97,7 +97,7 @@ static inline u64 rfc3390_initial_rate(struct sock *sk)
 /*
  * Recalculate t_ipi and delta (should be called whenever X changes)
  */
-static inline void ccid3_update_send_interval(struct ccid3_hc_tx_sock *hctx)
+static void ccid3_update_send_interval(struct ccid3_hc_tx_sock *hctx)
 {
 	/* Calculate new t_ipi = s / X_inst (X_inst is in 64 * bytes/second) */
 	hctx->ccid3hctx_t_ipi = scaled_div32(((u64)hctx->ccid3hctx_s) << 6,
