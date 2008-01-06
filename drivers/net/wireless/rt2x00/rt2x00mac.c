@@ -139,41 +139,11 @@ EXPORT_SYMBOL_GPL(rt2x00mac_tx);
 int rt2x00mac_start(struct ieee80211_hw *hw)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
-	int status;
 
-	if (!test_bit(DEVICE_PRESENT, &rt2x00dev->flags) ||
-	    test_bit(DEVICE_STARTED, &rt2x00dev->flags))
+	if (!test_bit(DEVICE_PRESENT, &rt2x00dev->flags))
 		return 0;
 
-	/*
-	 * If this is the first interface which is added,
-	 * we should load the firmware now.
-	 */
-	if (test_bit(DRIVER_REQUIRE_FIRMWARE, &rt2x00dev->flags)) {
-		status = rt2x00lib_load_firmware(rt2x00dev);
-		if (status)
-			return status;
-	}
-
-	/*
-	 * Initialize the device.
-	 */
-	status = rt2x00lib_initialize(rt2x00dev);
-	if (status)
-		return status;
-
-	/*
-	 * Enable radio.
-	 */
-	status = rt2x00lib_enable_radio(rt2x00dev);
-	if (status) {
-		rt2x00lib_uninitialize(rt2x00dev);
-		return status;
-	}
-
-	__set_bit(DEVICE_STARTED, &rt2x00dev->flags);
-
-	return 0;
+	return rt2x00lib_start(rt2x00dev);
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_start);
 
@@ -184,13 +154,7 @@ void rt2x00mac_stop(struct ieee80211_hw *hw)
 	if (!test_bit(DEVICE_PRESENT, &rt2x00dev->flags))
 		return;
 
-	/*
-	 * Perhaps we can add something smarter here,
-	 * but for now just disabling the radio should do.
-	 */
-	rt2x00lib_disable_radio(rt2x00dev);
-
-	__clear_bit(DEVICE_STARTED, &rt2x00dev->flags);
+	rt2x00lib_stop(rt2x00dev);
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_stop);
 

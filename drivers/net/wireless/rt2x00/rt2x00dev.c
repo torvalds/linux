@@ -1046,7 +1046,7 @@ static void rt2x00lib_free_ring_entries(struct rt2x00_dev *rt2x00dev)
 	}
 }
 
-void rt2x00lib_uninitialize(struct rt2x00_dev *rt2x00dev)
+static void rt2x00lib_uninitialize(struct rt2x00_dev *rt2x00dev)
 {
 	if (!__test_and_clear_bit(DEVICE_INITIALIZED, &rt2x00dev->flags))
 		return;
@@ -1067,7 +1067,7 @@ void rt2x00lib_uninitialize(struct rt2x00_dev *rt2x00dev)
 	rt2x00lib_free_ring_entries(rt2x00dev);
 }
 
-int rt2x00lib_initialize(struct rt2x00_dev *rt2x00dev)
+static int rt2x00lib_initialize(struct rt2x00_dev *rt2x00dev)
 {
 	int status;
 
@@ -1108,6 +1108,58 @@ exit:
 	rt2x00lib_free_ring_entries(rt2x00dev);
 
 	return status;
+}
+
+int rt2x00lib_start(struct rt2x00_dev *rt2x00dev)
+{
+	int retval;
+
+	if (test_bit(DEVICE_STARTED, &rt2x00dev->flags))
+		return 0;
+
+	/*
+	 * If this is the first interface which is added,
+	 * we should load the firmware now.
+	 */
+	if (test_bit(DRIVER_REQUIRE_FIRMWARE, &rt2x00dev->flags)) {
+		retval = rt2x00lib_load_firmware(rt2x00dev);
+		if (retval)
+			return retval;
+	}
+
+	/*
+	 * Initialize the device.
+	 */
+	retval = rt2x00lib_initialize(rt2x00dev);
+	if (retval)
+		return retval;
+
+	/*
+	 * Enable radio.
+	 */
+	retval = rt2x00lib_enable_radio(rt2x00dev);
+	if (retval) {
+		rt2x00lib_uninitialize(rt2x00dev);
+		return retval;
+	}
+
+	__set_bit(DEVICE_STARTED, &rt2x00dev->flags);
+
+	return 0;
+}
+
+void rt2x00lib_stop(struct rt2x00_dev *rt2x00dev)
+{
+	if (!test_bit(DEVICE_STARTED, &rt2x00dev->flags))
+		return;
+
+	/*
+	 * Perhaps we can add something smarter here,
+	 * but for now just disabling the radio should do.
+	 */
+	rt2x00lib_disable_radio(rt2x00dev);
+
+	__clear_bit(DEVICE_STARTED, &rt2x00dev->flags);
 }
 
 /*
@@ -1295,7 +1347,7 @@ int rt2x00lib_suspend(struct rt2x00_dev *rt2x00dev, pm_message_t state)
 	 * Disable radio and unitialize all items
 	 * that must be recreated on resume.
 	 */
-	rt2x00mac_stop(rt2x00dev->hw);
+	rt2x00lib_stop(rt2x00dev);
 	rt2x00lib_uninitialize(rt2x00dev);
 	rt2x00debug_deregister(rt2x00dev);
 
@@ -1317,7 +1369,6 @@ int rt2x00lib_resume(struct rt2x00_dev *rt2x00dev)
 	int retval;
 
 	NOTICE(rt2x00dev, "Waking up.\n");
-	__set_bit(DEVICE_PRESENT, &rt2x00dev->flags);
 
 	/*
 	 * Open the debugfs entry.
@@ -1333,7 +1384,7 @@ int rt2x00lib_resume(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Reinitialize device and all active interfaces.
 	 */
-	retval = rt2x00mac_start(rt2x00dev->hw);
+	retval = rt2x00lib_start(rt2x00dev);
 	if (retval)
 		goto exit;
 
@@ -1347,6 +1398,11 @@ int rt2x00lib_resume(struct rt2x00_dev *rt2x00dev)
 	rt2x00lib_config_mac_addr(rt2x00dev, intf->mac);
 	rt2x00lib_config_bssid(rt2x00dev, intf->bssid);
 	rt2x00lib_config_type(rt2x00dev, intf->type);
+
+	/*
+	 * We are ready again to receive requests from mac80211.
+	 */
+	__set_bit(DEVICE_PRESENT, &rt2x00dev->flags);
 
 	/*
 	 * It is possible that during that mac80211 has attempted

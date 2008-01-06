@@ -44,8 +44,8 @@ void rt2x00lib_reset_link_tuner(struct rt2x00_dev *rt2x00dev);
 /*
  * Initialization handlers.
  */
-int rt2x00lib_initialize(struct rt2x00_dev *rt2x00dev);
-void rt2x00lib_uninitialize(struct rt2x00_dev *rt2x00dev);
+int rt2x00lib_start(struct rt2x00_dev *rt2x00dev);
+void rt2x00lib_stop(struct rt2x00_dev *rt2x00dev);
 
 /*
  * Configuration handlers.
