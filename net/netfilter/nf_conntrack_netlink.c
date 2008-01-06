@@ -95,7 +95,7 @@ nla_put_failure:
 	return -1;
 }
 
-static inline int
+static int
 ctnetlink_dump_tuples(struct sk_buff *skb,
 		      const struct nf_conntrack_tuple *tuple)
 {
@@ -205,7 +205,7 @@ nla_put_failure:
 }
 
 #ifdef CONFIG_NF_CT_ACCT
-static inline int
+static int
 ctnetlink_dump_counters(struct sk_buff *skb, const struct nf_conn *ct,
 			enum ip_conntrack_dir dir)
 {
@@ -284,7 +284,7 @@ nla_put_failure:
 }
 
 #ifdef CONFIG_NF_NAT_NEEDED
-static inline int
+static int
 dump_nat_seq_adj(struct sk_buff *skb, const struct nf_nat_seq *natseq, int type)
 {
 	struct nlattr *nest_parms;
@@ -648,7 +648,7 @@ ctnetlink_parse_tuple_proto(struct nlattr *attr,
 	return ret;
 }
 
-static inline int
+static int
 ctnetlink_parse_tuple(struct nlattr *cda[], struct nf_conntrack_tuple *tuple,
 		      enum ctattr_tuple type, u_int8_t l3num)
 {
@@ -888,7 +888,7 @@ out:
 	return err;
 }
 
-static inline int
+static int
 ctnetlink_change_status(struct nf_conn *ct, struct nlattr *cda[])
 {
 	unsigned long d;
@@ -1349,7 +1349,7 @@ nla_put_failure:
 	return -1;
 }
 
-static inline int
+static int
 ctnetlink_exp_dump_expect(struct sk_buff *skb,
 			  const struct nf_conntrack_expect *exp)
 {
