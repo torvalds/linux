@@ -1341,8 +1341,6 @@ static int ip_reply_glue_bits(void *dptr, char *to, int offset,
  *
  *	Should run single threaded per socket because it uses the sock
  *     	structure to pass arguments.
- *
- *	LATER: switch from ip_build_xmit to ip_append_*
  */
 void ip_send_reply(struct sock *sk, struct sk_buff *skb, struct ip_reply_arg *arg,
 		   unsigned int len)
