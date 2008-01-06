@@ -124,7 +124,10 @@ void rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev)
 	struct data_entry *entry;
 	struct data_desc *rxd;
 	struct sk_buff *skb;
+	struct ieee80211_hdr *hdr;
 	struct rxdata_entry_desc desc;
+	int header_size;
+	int align;
 	u32 word;
 
 	while (1) {
@@ -138,17 +141,26 @@ void rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev)
 		memset(&desc, 0x00, sizeof(desc));
 		rt2x00dev->ops->lib->fill_rxdone(entry, &desc);
 
+		hdr = (struct ieee80211_hdr *)entry->data_addr;
+		header_size =
+		    ieee80211_get_hdrlen(le16_to_cpu(hdr->frame_control));
+
+		/*
+		 * The data behind the ieee80211 header must be
+		 * aligned on a 4 byte boundary.
+		 */
+		align = NET_IP_ALIGN + (2 * (header_size % 4 == 0));
+
 		/*
 		 * Allocate the sk_buffer, initialize it and copy
 		 * all data into it.
 		 */
-		skb = dev_alloc_skb(desc.size + NET_IP_ALIGN);
+		skb = dev_alloc_skb(desc.size + align);
 		if (!skb)
 			return;
 
-		skb_reserve(skb, NET_IP_ALIGN);
-		skb_put(skb, desc.size);
-		memcpy(skb->data, entry->data_addr, desc.size);
+		skb_reserve(skb, align);
+		memcpy(skb_put(skb, desc.size), entry->data_addr, desc.size);
 
 		/*
 		 * Send the frame to rt2x00lib for further processing.
