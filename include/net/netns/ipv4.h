@@ -8,7 +8,9 @@ struct ctl_table_header;
 struct ipv4_devconf;
 
 struct netns_ipv4 {
+#ifdef CONFIG_SYSCTL
 	struct ctl_table_header	*forw_hdr;
+#endif
 	struct ipv4_devconf	*devconf_all;
 	struct ipv4_devconf	*devconf_dflt;
 };
