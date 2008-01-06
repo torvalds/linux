@@ -145,6 +145,7 @@ ip=<client-ip>:<server-ip>:<gw-ip>:<netmask>:<hostname>:<device>:<autoconf>
 		this option.
 
                   off or none: don't use autoconfiguration
+				(do static IP assignment instead)
 		  on or any:   use any protocol available in the kernel
 			       (default)
 		  dhcp:        use DHCP
