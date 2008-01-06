@@ -1979,7 +1979,9 @@ static void request_module_async(struct work_struct *work)
 	struct em28xx *dev = container_of(work,
 			     struct em28xx, request_module_wk);
 
-	if (!dev->has_audio_class)
+	if (dev->has_audio_class)
+		request_module("snd-usb-audio");
+	else
 		request_module("em28xx-alsa");
 }
 
