@@ -130,10 +130,11 @@ static struct ata_port_operations ixp4xx_port_ops = {
 	.port_start		= ata_port_start,
 };
 
-static void ixp4xx_setup_port(struct ata_ioports *ioaddr,
+static void ixp4xx_setup_port(struct ata_port *ap,
 			      struct ixp4xx_pata_data *data,
 			      unsigned long raw_cs0, unsigned long raw_cs1)
 {
+	struct ata_ioports *ioaddr = &ap->ioaddr;
 	unsigned long raw_cmd = raw_cs0;
 	unsigned long raw_ctl = raw_cs1 + 0x06;
 
