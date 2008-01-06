@@ -1113,6 +1113,7 @@ static void rt2500usb_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
 static void rt2500usb_fill_rxdone(struct data_entry *entry,
 				  struct rxdata_entry_desc *desc)
 {
+	struct skb_desc *skbdesc = get_skb_desc(entry->skb);
 	struct urb *urb = entry->priv;
 	__le32 *rxd = (__le32 *)(entry->skb->data +
 				 (urb->actual_length - entry->ring->desc_size));
@@ -1137,6 +1138,17 @@ static void rt2500usb_fill_rxdone(struct data_entry *entry,
 	desc->ofdm = rt2x00_get_field32(word0, RXD_W0_OFDM);
 	desc->size = rt2x00_get_field32(word0, RXD_W0_DATABYTE_COUNT);
 	desc->my_bss = !!rt2x00_get_field32(word0, RXD_W0_MY_BSS);
+
+	/*
+	 * Trim the skb to clear the descriptor area.
+	 */
+	skb_pull(entry->skb, entry->ring->desc_size);
+
+	/*
+	 * Set descriptor and data pointer.
+	 */
+	skbdesc->desc = entry->skb->data + skbdesc->data_len;
+	skbdesc->data = entry->skb->data;
 }
 
 /*

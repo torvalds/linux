@@ -1376,6 +1376,7 @@ static int rt73usb_agc_to_rssi(struct rt2x00_dev *rt2x00dev, int rxd_w1)
 static void rt73usb_fill_rxdone(struct data_entry *entry,
 			        struct rxdata_entry_desc *desc)
 {
+	struct skb_desc *skbdesc = get_skb_desc(entry->skb);
 	__le32 *rxd = (__le32 *)entry->skb->data;
 	u32 word0;
 	u32 word1;
@@ -1400,6 +1401,12 @@ static void rt73usb_fill_rxdone(struct data_entry *entry,
 	 * Pull the skb to clear the descriptor area.
 	 */
 	skb_pull(entry->skb, entry->ring->desc_size);
+
+	/*
+	 * Set descriptor and data pointer.
+	 */
+	skbdesc->desc = entry->skb->data - skbdesc->desc_len;
+	skbdesc->data = entry->skb->data;
 }
 
 /*
