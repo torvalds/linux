@@ -179,17 +179,14 @@ int rt2x00usb_write_tx_data(struct rt2x00_dev *rt2x00dev,
 	struct skb_desc *desc;
 	u32 length;
 
-	if (rt2x00_ring_full(ring)) {
-		ieee80211_stop_queue(rt2x00dev->hw, control->queue);
+	if (rt2x00_ring_full(ring))
 		return -EINVAL;
-	}
 
 	if (test_bit(ENTRY_OWNER_NIC, &entry->flags)) {
 		ERROR(rt2x00dev,
 		      "Arrived at non-free entry in the non-full queue %d.\n"
 		      "Please file bug report to %s.\n",
 		      control->queue, DRV_PROJECT);
-		ieee80211_stop_queue(rt2x00dev->hw, control->queue);
 		return -EINVAL;
 	}
 
@@ -228,9 +225,6 @@ int rt2x00usb_write_tx_data(struct rt2x00_dev *rt2x00dev,
 	usb_submit_urb(entry->priv, GFP_ATOMIC);
 
 	rt2x00_ring_index_inc(ring);
-
-	if (rt2x00_ring_full(ring))
-		ieee80211_stop_queue(rt2x00dev->hw, control->queue);
 
 	return 0;
 }

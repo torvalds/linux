@@ -84,7 +84,7 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	 */
 	if (!test_bit(DEVICE_PRESENT, &rt2x00dev->flags)) {
 		ieee80211_stop_queues(hw);
-		return 0;
+		return NETDEV_TX_OK;
 	}
 
 	/*
@@ -110,15 +110,24 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	if (!is_rts_frame(frame_control) && !is_cts_frame(frame_control) &&
 	    (control->flags & (IEEE80211_TXCTL_USE_RTS_CTS |
 			       IEEE80211_TXCTL_USE_CTS_PROTECT))) {
-		if (rt2x00_ring_free(ring) <= 1)
+		if (rt2x00_ring_free(ring) <= 1) {
+			ieee80211_stop_queue(rt2x00dev->hw, control->queue);
 			return NETDEV_TX_BUSY;
+		}
 
-		if (rt2x00mac_tx_rts_cts(rt2x00dev, ring, skb, control))
+		if (rt2x00mac_tx_rts_cts(rt2x00dev, ring, skb, control)) {
+			ieee80211_stop_queue(rt2x00dev->hw, control->queue);
 			return NETDEV_TX_BUSY;
+		}
 	}
 
-	if (rt2x00dev->ops->lib->write_tx_data(rt2x00dev, ring, skb, control))
+	if (rt2x00dev->ops->lib->write_tx_data(rt2x00dev, ring, skb, control)) {
+		ieee80211_stop_queue(rt2x00dev->hw, control->queue);
 		return NETDEV_TX_BUSY;
+	}
+
+	if (rt2x00_ring_full(ring))
+		ieee80211_stop_queue(rt2x00dev->hw, control->queue);
 
 	if (rt2x00dev->ops->lib->kick_tx_queue)
 		rt2x00dev->ops->lib->kick_tx_queue(rt2x00dev, control->queue);
