@@ -95,11 +95,14 @@ static inline void load_eaddr(struct net_device *dev)
 {
 	int i;
 	DECLARE_MAC_BUF(mac);
+	u64 macaddr;
 
-	for (i = 0; i < 6; i++)
-		dev->dev_addr[i] = o2meth_eaddr[i];
 	DPRINTK("Loading MAC Address: %s\n", print_mac(mac, dev->dev_addr));
-	mace->eth.mac_addr = (*(unsigned long*)o2meth_eaddr) >> 16;
+	macaddr = 0;
+	for (i = 0; i < 6; i++)
+		macaddr |= dev->dev_addr[i] << ((5 - i) * 8);
+
+	mace->eth.mac_addr = macaddr;
 }
 
 /*
@@ -794,6 +797,7 @@ static int __init meth_probe(struct platform_device *pdev)
 #endif
 	dev->irq	     = MACE_ETHERNET_IRQ;
 	dev->base_addr	     = (unsigned long)&mace->eth;
+	memcpy(dev->dev_addr, o2meth_eaddr, 6);
 
 	priv = netdev_priv(dev);
 	spin_lock_init(&priv->meth_lock);
