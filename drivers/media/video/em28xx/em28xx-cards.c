@@ -485,26 +485,30 @@ static int em28xx_tuner_callback(void *ptr, int command, int arg)
 	switch (command) {
 	case XC2028_TUNER_RESET:
 	{
-		char gpio0, gpio1, gpio4;
-
-		/* GPIO and initialization codes for analog TV */
-		gpio0 = dev->analog_gpio & 0xff;
-		gpio1 = (dev->analog_gpio >> 8) & 0xff;
-		gpio4 = dev->analog_gpio >> 24;
+		/* GPIO and initialization codes for analog TV and radio
+		   This code should be complemented for DTV, since reset
+		   codes are different.
+		 */
 
 		dev->em28xx_write_regs_req(dev, 0x00, 0x48, "\x00", 1);
 		dev->em28xx_write_regs_req(dev, 0x00, 0x12, "\x67", 1);
 
-		if (gpio4) {
-			dev->em28xx_write_regs(dev, 0x04, &gpio4, 1);
-			msleep(140);
-		}
+		if (dev->analog_gpio) {
+			char gpio0 = dev->analog_gpio & 0xff;
+			char gpio1 = (dev->analog_gpio >> 8) & 0xff;
+			char gpio4 = dev->analog_gpio >> 24;
 
-		msleep(6);
-		dev->em28xx_write_regs(dev, 0x08, &gpio0, 1);
-		msleep(10);
-		dev->em28xx_write_regs(dev, 0x08, &gpio1, 1);
-		msleep(5);
+			if (gpio4) {
+				dev->em28xx_write_regs(dev, 0x04, &gpio4, 1);
+				msleep(140);
+			}
+
+			msleep(6);
+			dev->em28xx_write_regs(dev, 0x08, &gpio0, 1);
+			msleep(10);
+			dev->em28xx_write_regs(dev, 0x08, &gpio1, 1);
+			msleep(5);
+		}
 
 		break;
 	}
