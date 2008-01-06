@@ -1751,7 +1751,6 @@ static void rt2500pci_configure_filter(struct ieee80211_hw *hw,
 				       struct dev_addr_list *mc_list)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
-	struct interface *intf = &rt2x00dev->interface;
 	u32 reg;
 
 	/*
@@ -1770,22 +1769,19 @@ static void rt2500pci_configure_filter(struct ieee80211_hw *hw,
 	 * Apply some rules to the filters:
 	 * - Some filters imply different filters to be set.
 	 * - Some things we can't filter out at all.
-	 * - Some filters are set based on interface type.
 	 */
 	if (mc_count)
 		*total_flags |= FIF_ALLMULTI;
 	if (*total_flags & FIF_OTHER_BSS ||
 	    *total_flags & FIF_PROMISC_IN_BSS)
 		*total_flags |= FIF_PROMISC_IN_BSS | FIF_OTHER_BSS;
-	if (is_interface_type(intf, IEEE80211_IF_TYPE_AP))
-		*total_flags |= FIF_PROMISC_IN_BSS;
 
 	/*
 	 * Check if there is any work left for us.
 	 */
-	if (intf->filter == *total_flags)
+	if (rt2x00dev->packet_filter == *total_flags)
 		return;
-	intf->filter = *total_flags;
+	rt2x00dev->packet_filter = *total_flags;
 
 	/*
 	 * Start configuration steps.

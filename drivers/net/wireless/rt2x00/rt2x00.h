@@ -388,11 +388,6 @@ struct interface {
 	 * BBSID of the AP to associate with.
 	 */
 	u8 bssid[ETH_ALEN];
-
-	/*
-	 * Store the packet filter mode for the current interface.
-	 */
-	unsigned int filter;
 };
 
 static inline int is_interface_present(struct interface *intf)
@@ -674,6 +669,13 @@ struct rt2x00_dev {
 	 * time one of the writes could silently fail.
 	 */
 	struct mutex usb_cache_mutex;
+
+	/*
+	 * Current packet filter configuration for the device.
+	 * This contains all currently active FIF_* flags send
+	 * to us by mac80211 during configure_filter().
+	 */
+	unsigned int packet_filter;
 
 	/*
 	 * Interface configuration.
