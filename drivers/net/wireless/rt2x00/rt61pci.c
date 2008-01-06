@@ -1533,12 +1533,12 @@ static int rt61pci_set_device_state(struct rt2x00_dev *rt2x00dev,
  * TX descriptor initialization
  */
 static void rt61pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
-				  __le32 *txd,
-				  struct txdata_entry_desc *desc,
-				  struct ieee80211_hdr *ieee80211hdr,
-				  unsigned int length,
-				  struct ieee80211_tx_control *control)
+				    struct sk_buff *skb,
+				    struct txdata_entry_desc *desc,
+				    struct ieee80211_tx_control *control)
 {
+	struct skb_desc *skbdesc = get_skb_desc(skb);
+	__le32 *txd = skbdesc->desc;
 	u32 word;
 
 	/*
@@ -1567,7 +1567,7 @@ static void rt61pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	rt2x00_desc_write(txd, 5, word);
 
 	rt2x00_desc_read(txd, 11, &word);
-	rt2x00_set_field32(&word, TXD_W11_BUFFER_LENGTH0, length);
+	rt2x00_set_field32(&word, TXD_W11_BUFFER_LENGTH0, skbdesc->data_len);
 	rt2x00_desc_write(txd, 11, word);
 
 	rt2x00_desc_read(txd, 0, &word);
@@ -1586,7 +1586,7 @@ static void rt61pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 			   !!(control->flags &
 			      IEEE80211_TXCTL_LONG_RETRY_LIMIT));
 	rt2x00_set_field32(&word, TXD_W0_TKIP_MIC, 0);
-	rt2x00_set_field32(&word, TXD_W0_DATABYTE_COUNT, length);
+	rt2x00_set_field32(&word, TXD_W0_DATABYTE_COUNT, skbdesc->data_len);
 	rt2x00_set_field32(&word, TXD_W0_BURST,
 			   test_bit(ENTRY_TXD_BURST, &desc->flags));
 	rt2x00_set_field32(&word, TXD_W0_CIPHER_ALG, CIPHER_NONE);

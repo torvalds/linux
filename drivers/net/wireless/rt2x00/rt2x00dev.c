@@ -601,7 +601,6 @@ void rt2x00lib_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	struct txdata_entry_desc desc;
 	struct skb_desc *skbdesc = get_skb_desc(skb);
 	struct ieee80211_hdr *ieee80211hdr = skbdesc->data;
-	__le32 *txd = skbdesc->desc;
 	int tx_rate;
 	int bitrate;
 	int length;
@@ -729,8 +728,7 @@ void rt2x00lib_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 			desc.signal |= 0x08;
 	}
 
-	rt2x00dev->ops->lib->write_tx_desc(rt2x00dev, txd, &desc, ieee80211hdr,
-					   skbdesc->data_len, control);
+	rt2x00dev->ops->lib->write_tx_desc(rt2x00dev, skb, &desc, control);
 
 	/*
 	 * Update ring entry.

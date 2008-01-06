@@ -1012,19 +1012,19 @@ static int rt2400pci_set_device_state(struct rt2x00_dev *rt2x00dev,
  * TX descriptor initialization
  */
 static void rt2400pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
-				    __le32 *txd,
+				    struct sk_buff *skb,
 				    struct txdata_entry_desc *desc,
-				    struct ieee80211_hdr *ieee80211hdr,
-				    unsigned int length,
 				    struct ieee80211_tx_control *control)
 {
+	struct skb_desc *skbdesc = get_skb_desc(skb);
+	__le32 *txd = skbdesc->desc;
 	u32 word;
 
 	/*
 	 * Start writing the descriptor words.
 	 */
 	rt2x00_desc_read(txd, 2, &word);
-	rt2x00_set_field32(&word, TXD_W2_DATABYTE_COUNT, length);
+	rt2x00_set_field32(&word, TXD_W2_DATABYTE_COUNT, skbdesc->data_len);
 	rt2x00_desc_write(txd, 2, word);
 
 	rt2x00_desc_read(txd, 3, &word);
