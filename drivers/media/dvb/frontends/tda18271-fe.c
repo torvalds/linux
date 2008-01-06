@@ -27,6 +27,9 @@ module_param_named(debug, tda18271_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debug level "
 		 "(info=1, map=2, reg=4, adv=8 (or-able))");
 
+static LIST_HEAD(tda18271_list);
+static DEFINE_MUTEX(tda18271_list_mutex);
+
 /*---------------------------------------------------------------------*/
 
 static int tda18271_ir_cal_init(struct dvb_frontend *fe)
@@ -936,8 +939,24 @@ fail:
 
 static int tda18271_release(struct dvb_frontend *fe)
 {
-	kfree(fe->tuner_priv);
+	struct tda18271_priv *priv = fe->tuner_priv;
+
+	mutex_lock(&tda18271_list_mutex);
+
+	priv->count--;
+
+	if (!priv->count) {
+		tda_dbg("destroying instance @ %d-%04x\n",
+			i2c_adapter_id(priv->i2c_adap),
+			priv->i2c_addr);
+		list_del(&priv->tda18271_list);
+
+		kfree(priv);
+	}
+	mutex_unlock(&tda18271_list_mutex);
+
 	fe->tuner_priv = NULL;
+
 	return 0;
 }
 
@@ -1071,43 +1090,73 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 				     struct tda18271_config *cfg)
 {
 	struct tda18271_priv *priv = NULL;
+	int state_found = 0;
 
-	priv = kzalloc(sizeof(struct tda18271_priv), GFP_KERNEL);
-	if (priv == NULL)
-		return NULL;
+	mutex_lock(&tda18271_list_mutex);
 
-	priv->i2c_addr = addr;
-	priv->i2c_adap = i2c;
-	priv->gate = (cfg) ? cfg->gate : TDA18271_GATE_AUTO;
-	priv->cal_initialized = false;
-	mutex_init(&priv->lock);
+	list_for_each_entry(priv, &tda18271_list, tda18271_list) {
+		if ((i2c_adapter_id(priv->i2c_adap) == i2c_adapter_id(i2c)) &&
+		    (priv->i2c_addr == addr)) {
+			tda_dbg("attaching existing tuner @ %d-%04x\n",
+				i2c_adapter_id(priv->i2c_adap),
+				priv->i2c_addr);
+			priv->count++;
+			fe->tuner_priv = priv;
+			state_found = 1;
+			/* allow dvb driver to override i2c gate setting */
+			if ((cfg) && (cfg->gate != TDA18271_GATE_ANALOG))
+				priv->gate = cfg->gate;
+			break;
+		}
+	}
+	if (state_found == 0) {
+		tda_dbg("creating new tuner instance @ %d-%04x\n",
+			i2c_adapter_id(i2c), addr);
 
-	fe->tuner_priv = priv;
+		priv = kzalloc(sizeof(struct tda18271_priv), GFP_KERNEL);
+		if (priv == NULL) {
+			mutex_unlock(&tda18271_list_mutex);
+			return NULL;
+		}
 
-	if (tda18271_get_id(fe) < 0)
-		goto fail;
+		priv->i2c_addr = addr;
+		priv->i2c_adap = i2c;
+		priv->gate = (cfg) ? cfg->gate : TDA18271_GATE_AUTO;
+		priv->cal_initialized = false;
+		mutex_init(&priv->lock);
+		priv->count++;
 
-	if (tda18271_assign_map_layout(fe) < 0)
-		goto fail;
+		fe->tuner_priv = priv;
 
-	memcpy(&fe->ops.tuner_ops, &tda18271_tuner_ops,
-	       sizeof(struct dvb_tuner_ops));
+		list_add_tail(&priv->tda18271_list, &tda18271_list);
+
+		if (tda18271_get_id(fe) < 0)
+			goto fail;
+
+		if (tda18271_assign_map_layout(fe) < 0)
+			goto fail;
+
+		mutex_lock(&priv->lock);
+		tda18271_init_regs(fe);
+		mutex_unlock(&priv->lock);
+	}
 
 	/* override default std map with values in config struct */
 	if ((cfg) && (cfg->std_map))
 		tda18271_update_std_map(fe, cfg->std_map);
 
+	mutex_unlock(&tda18271_list_mutex);
+
+	memcpy(&fe->ops.tuner_ops, &tda18271_tuner_ops,
+	       sizeof(struct dvb_tuner_ops));
+
 	if (tda18271_debug & DBG_MAP)
 		tda18271_dump_std_map(fe);
 
-	mutex_lock(&priv->lock);
-
-	tda18271_init_regs(fe);
-
-	mutex_unlock(&priv->lock);
-
 	return fe;
 fail:
+	mutex_unlock(&tda18271_list_mutex);
+
 	tda18271_release(fe);
 	return NULL;
 }

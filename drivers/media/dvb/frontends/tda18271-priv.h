@@ -102,10 +102,13 @@ struct tda18271_priv {
 	struct i2c_adapter *i2c_adap;
 	unsigned char tda18271_regs[TDA18271_NUM_REGS];
 
+	struct list_head tda18271_list;
+
 	enum tda18271_mode mode;
 	enum tda18271_i2c_gate gate;
 	enum tda18271_ver id;
 
+	unsigned int count;
 	unsigned int tm_rfcal;
 	unsigned int cal_initialized:1;
 
