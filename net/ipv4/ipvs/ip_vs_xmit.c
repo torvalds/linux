@@ -59,7 +59,7 @@ __ip_vs_dst_check(struct ip_vs_dest *dest, u32 rtos, u32 cookie)
 	return dst;
 }
 
-static inline struct rtable *
+static struct rtable *
 __ip_vs_get_out_rt(struct ip_vs_conn *cp, u32 rtos)
 {
 	struct rtable *rt;			/* Route to the other host */
