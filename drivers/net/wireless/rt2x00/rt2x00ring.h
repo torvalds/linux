@@ -143,6 +143,11 @@ struct data_entry {
 	 */
 	void *data_addr;
 	dma_addr_t data_dma;
+
+	/*
+	 * Entry identification number (index).
+	 */
+	unsigned int entry_idx;
 };
 
 /*
@@ -179,6 +184,13 @@ struct data_ring {
 	 */
 	dma_addr_t data_dma;
 	void *data_addr;
+
+	/*
+	 * Queue identification number:
+	 * RX: 0
+	 * TX: IEEE80211_TX_*
+	 */
+	unsigned int queue_idx;
 
 	/*
 	 * Index variables.

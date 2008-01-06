@@ -796,12 +796,6 @@ struct rt2x00_dev {
 	ring_loop(__entry, (__dev)->tx, ring_end(__dev))
 
 /*
- * Compute an array index from a pointer to an element and the base pointer.
- */
-#define ARRAY_INDEX(__elem, __base) \
-	( ((char *)(__elem) - (char *)(__base)) / sizeof(*(__elem)) )
-
-/*
  * Generic RF access.
  * The RF is being accessed by word index.
  */

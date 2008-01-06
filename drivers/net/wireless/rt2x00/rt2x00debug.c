@@ -120,12 +120,8 @@ void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
 	struct sk_buff *skbcopy;
 	struct rt2x00dump_hdr *dump_hdr;
 	struct timeval timestamp;
-	unsigned int ring_index;
-	unsigned int entry_index;
 
 	do_gettimeofday(&timestamp);
-	ring_index = ARRAY_INDEX(desc->ring, rt2x00dev->rx);
-	entry_index = ARRAY_INDEX(desc->entry, desc->ring->entry);
 
 	if (!test_bit(FRAME_DUMP_FILE_OPEN, &intf->frame_dump_flags))
 		return;
@@ -151,8 +147,8 @@ void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
 	dump_hdr->chip_rf = cpu_to_le16(rt2x00dev->chip.rf);
 	dump_hdr->chip_rev = cpu_to_le32(rt2x00dev->chip.rev);
 	dump_hdr->type = cpu_to_le16(desc->frame_type);
-	dump_hdr->ring_index = ring_index;
-	dump_hdr->entry_index = entry_index;
+	dump_hdr->ring_index = desc->ring->queue_idx;
+	dump_hdr->entry_index = desc->entry->entry_idx;
 	dump_hdr->timestamp_sec = cpu_to_le32(timestamp.tv_sec);
 	dump_hdr->timestamp_usec = cpu_to_le32(timestamp.tv_usec);
 

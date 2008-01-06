@@ -988,6 +988,7 @@ static int rt2x00lib_alloc_entries(struct data_ring *ring,
 		entry[i].flags = 0;
 		entry[i].ring = ring;
 		entry[i].skb = NULL;
+		entry[i].entry_idx = i;
 	}
 
 	ring->entry = entry;
@@ -1115,6 +1116,7 @@ exit:
 static int rt2x00lib_alloc_rings(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_ring *ring;
+	unsigned int index;
 
 	/*
 	 * We need the following rings:
@@ -1145,8 +1147,10 @@ static int rt2x00lib_alloc_rings(struct rt2x00_dev *rt2x00dev)
 	 * cw_min: 2^5 = 32.
 	 * cw_max: 2^10 = 1024.
 	 */
+	index = 0;
 	ring_for_each(rt2x00dev, ring) {
 		ring->rt2x00dev = rt2x00dev;
+		ring->queue_idx = index++;
 		ring->tx_params.aifs = 2;
 		ring->tx_params.cw_min = 5;
 		ring->tx_params.cw_max = 10;

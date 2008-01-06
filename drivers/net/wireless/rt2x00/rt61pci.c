@@ -1031,8 +1031,10 @@ static void rt61pci_init_txring(struct rt2x00_dev *rt2x00dev, const int queue)
 		rt2x00_desc_write(txd, 1, word);
 
 		rt2x00_desc_read(txd, 5, &word);
-		rt2x00_set_field32(&word, TXD_W5_PID_TYPE, queue);
-		rt2x00_set_field32(&word, TXD_W5_PID_SUBTYPE, i);
+		rt2x00_set_field32(&word, TXD_W5_PID_TYPE,
+				   ring->queue_idx);
+		rt2x00_set_field32(&word, TXD_W5_PID_SUBTYPE,
+				   ring->entry[i].entry_idx);
 		rt2x00_desc_write(txd, 5, word);
 
 		rt2x00_desc_read(txd, 6, &word);
