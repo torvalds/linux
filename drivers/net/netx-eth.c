@@ -169,8 +169,8 @@ static void netx_eth_receive(struct net_device *ndev)
 	ndev->last_rx = jiffies;
 	skb->protocol = eth_type_trans(skb, ndev);
 	netif_rx(skb);
-	dev->stats.rx_packets++;
-	dev->stats.rx_bytes += len;
+	ndev->stats.rx_packets++;
+	ndev->stats.rx_bytes += len;
 }
 
 static irqreturn_t
