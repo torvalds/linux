@@ -1136,8 +1136,6 @@ static int rt73usb_enable_radio(struct rt2x00_dev *rt2x00dev)
 		return -EIO;
 	}
 
-	rt2x00usb_enable_radio(rt2x00dev);
-
 	/*
 	 * Enable LED
 	 */
@@ -2033,6 +2031,8 @@ static const struct rt2x00lib_ops rt73usb_rt2x00_ops = {
 	.load_firmware		= rt73usb_load_firmware,
 	.initialize		= rt2x00usb_initialize,
 	.uninitialize		= rt2x00usb_uninitialize,
+	.init_rxentry		= rt2x00usb_init_rxentry,
+	.init_txentry		= rt2x00usb_init_txentry,
 	.set_device_state	= rt73usb_set_device_state,
 	.link_stats		= rt73usb_link_stats,
 	.reset_tuner		= rt73usb_reset_tuner,

@@ -333,43 +333,6 @@ skip_entry:
 /*
  * Radio handlers
  */
-void rt2x00usb_enable_radio(struct rt2x00_dev *rt2x00dev)
-{
-	struct usb_device *usb_dev =
-	    interface_to_usbdev(rt2x00dev_usb(rt2x00dev));
-	struct data_ring *ring;
-	struct data_entry *entry;
-	unsigned int i;
-
-	/*
-	 * Initialize the TX rings
-	 */
-	txringall_for_each(rt2x00dev, ring) {
-		for (i = 0; i < ring->stats.limit; i++)
-			ring->entry[i].flags = 0;
-
-		rt2x00_ring_index_clear(ring);
-	}
-
-	/*
-	 * Initialize and start the RX ring.
-	 */
-	rt2x00_ring_index_clear(rt2x00dev->rx);
-
-	for (i = 0; i < rt2x00dev->rx->stats.limit; i++) {
-		entry = &rt2x00dev->rx->entry[i];
-
-		usb_fill_bulk_urb(entry->priv, usb_dev,
-				  usb_rcvbulkpipe(usb_dev, 1),
-				  entry->skb->data, entry->skb->len,
-				  rt2x00usb_interrupt_rxdone, entry);
-
-		__set_bit(ENTRY_OWNER_NIC, &entry->flags);
-		usb_submit_urb(entry->priv, GFP_ATOMIC);
-	}
-}
-EXPORT_SYMBOL_GPL(rt2x00usb_enable_radio);
-
 void rt2x00usb_disable_radio(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_ring *ring;
@@ -391,6 +354,29 @@ EXPORT_SYMBOL_GPL(rt2x00usb_disable_radio);
 /*
  * Device initialization handlers.
  */
+void rt2x00usb_init_rxentry(struct rt2x00_dev *rt2x00dev,
+			    struct data_entry *entry)
+{
+	struct usb_device *usb_dev =
+	     interface_to_usbdev(rt2x00dev_usb(rt2x00dev));
+
+	usb_fill_bulk_urb(entry->priv, usb_dev,
+			  usb_rcvbulkpipe(usb_dev, 1),
+			  entry->skb->data, entry->skb->len,
+			  rt2x00usb_interrupt_rxdone, entry);
+
+	__set_bit(ENTRY_OWNER_NIC, &entry->flags);
+	usb_submit_urb(entry->priv, GFP_ATOMIC);
+}
+EXPORT_SYMBOL_GPL(rt2x00usb_init_rxentry);
+
+void rt2x00usb_init_txentry(struct rt2x00_dev *rt2x00dev,
+			    struct data_entry *entry)
+{
+	entry->flags = 0;
+}
+EXPORT_SYMBOL_GPL(rt2x00usb_init_txentry);
+
 static int rt2x00usb_alloc_urb(struct rt2x00_dev *rt2x00dev,
 			       struct data_ring *ring)
 {

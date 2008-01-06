@@ -154,7 +154,6 @@ static inline int rt2x00usb_eeprom_read(struct rt2x00_dev *rt2x00dev,
 /*
  * Radio handlers
  */
-void rt2x00usb_enable_radio(struct rt2x00_dev *rt2x00dev);
 void rt2x00usb_disable_radio(struct rt2x00_dev *rt2x00dev);
 
 /*
@@ -167,6 +166,10 @@ int rt2x00usb_write_tx_data(struct rt2x00_dev *rt2x00dev,
 /*
  * Device initialization handlers.
  */
+void rt2x00usb_init_rxentry(struct rt2x00_dev *rt2x00dev,
+			    struct data_entry *entry);
+void rt2x00usb_init_txentry(struct rt2x00_dev *rt2x00dev,
+			    struct data_entry *entry);
 int rt2x00usb_initialize(struct rt2x00_dev *rt2x00dev);
 void rt2x00usb_uninitialize(struct rt2x00_dev *rt2x00dev);
 

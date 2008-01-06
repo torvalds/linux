@@ -474,6 +474,14 @@ struct rt2x00lib_ops {
 	void (*uninitialize) (struct rt2x00_dev *rt2x00dev);
 
 	/*
+	 * Ring initialization handlers
+	 */
+	void (*init_rxentry) (struct rt2x00_dev *rt2x00dev,
+			      struct data_entry *entry);
+	void (*init_txentry) (struct rt2x00_dev *rt2x00dev,
+			      struct data_entry *entry);
+
+	/*
 	 * Radio control handlers.
 	 */
 	int (*set_device_state) (struct rt2x00_dev *rt2x00dev,

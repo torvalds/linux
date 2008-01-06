@@ -103,6 +103,46 @@ void rt2x00lib_reset_link_tuner(struct rt2x00_dev *rt2x00dev)
 }
 
 /*
+ * Ring initialization
+ */
+static void rt2x00lib_init_rxrings(struct rt2x00_dev *rt2x00dev)
+{
+	struct data_ring *ring = rt2x00dev->rx;
+	unsigned int i;
+
+	if (!rt2x00dev->ops->lib->init_rxentry)
+		return;
+
+	if (ring->data_addr)
+		memset(ring->data_addr, 0, rt2x00_get_ring_size(ring));
+
+	for (i = 0; i < ring->stats.limit; i++)
+		rt2x00dev->ops->lib->init_rxentry(rt2x00dev, &ring->entry[i]);
+
+	rt2x00_ring_index_clear(ring);
+}
+
+static void rt2x00lib_init_txrings(struct rt2x00_dev *rt2x00dev)
+{
+	struct data_ring *ring;
+	unsigned int i;
+
+	if (!rt2x00dev->ops->lib->init_txentry)
+		return;
+
+	txringall_for_each(rt2x00dev, ring) {
+		if (ring->data_addr)
+			memset(ring->data_addr, 0, rt2x00_get_ring_size(ring));
+
+		for (i = 0; i < ring->stats.limit; i++)
+			rt2x00dev->ops->lib->init_txentry(rt2x00dev,
+							  &ring->entry[i]);
+
+		rt2x00_ring_index_clear(ring);
+	}
+}
+
+/*
  * Radio control handlers.
  */
 int rt2x00lib_enable_radio(struct rt2x00_dev *rt2x00dev)
@@ -116,6 +156,12 @@ int rt2x00lib_enable_radio(struct rt2x00_dev *rt2x00dev)
 	if (test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags) ||
 	    test_bit(DEVICE_DISABLED_RADIO_HW, &rt2x00dev->flags))
 		return 0;
+
+	/*
+	 * Initialize all data rings.
+	 */
+	rt2x00lib_init_rxrings(rt2x00dev);
+	rt2x00lib_init_txrings(rt2x00dev);
 
 	/*
 	 * Enable radio.

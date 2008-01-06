@@ -989,81 +989,51 @@ static int rt61pci_load_firmware(struct rt2x00_dev *rt2x00dev, void *data,
 	return 0;
 }
 
-static void rt61pci_init_rxring(struct rt2x00_dev *rt2x00dev)
+static void rt61pci_init_rxentry(struct rt2x00_dev *rt2x00dev,
+				 struct data_entry *entry)
 {
-	struct data_ring *ring = rt2x00dev->rx;
-	__le32 *rxd;
-	unsigned int i;
+	__le32 *rxd = entry->priv;
 	u32 word;
 
-	memset(ring->data_addr, 0x00, rt2x00_get_ring_size(ring));
+	rt2x00_desc_read(rxd, 5, &word);
+	rt2x00_set_field32(&word, RXD_W5_BUFFER_PHYSICAL_ADDRESS,
+			   entry->data_dma);
+	rt2x00_desc_write(rxd, 5, word);
 
-	for (i = 0; i < ring->stats.limit; i++) {
-		rxd = ring->entry[i].priv;
-
-		rt2x00_desc_read(rxd, 5, &word);
-		rt2x00_set_field32(&word, RXD_W5_BUFFER_PHYSICAL_ADDRESS,
-				   ring->entry[i].data_dma);
-		rt2x00_desc_write(rxd, 5, word);
-
-		rt2x00_desc_read(rxd, 0, &word);
-		rt2x00_set_field32(&word, RXD_W0_OWNER_NIC, 1);
-		rt2x00_desc_write(rxd, 0, word);
-	}
-
-	rt2x00_ring_index_clear(rt2x00dev->rx);
+	rt2x00_desc_read(rxd, 0, &word);
+	rt2x00_set_field32(&word, RXD_W0_OWNER_NIC, 1);
+	rt2x00_desc_write(rxd, 0, word);
 }
 
-static void rt61pci_init_txring(struct rt2x00_dev *rt2x00dev, const int queue)
+static void rt61pci_init_txentry(struct rt2x00_dev *rt2x00dev,
+				 struct data_entry *entry)
 {
-	struct data_ring *ring = rt2x00lib_get_ring(rt2x00dev, queue);
-	__le32 *txd;
-	unsigned int i;
+	__le32 *txd = entry->priv;
 	u32 word;
 
-	memset(ring->data_addr, 0x00, rt2x00_get_ring_size(ring));
+	rt2x00_desc_read(txd, 1, &word);
+	rt2x00_set_field32(&word, TXD_W1_BUFFER_COUNT, 1);
+	rt2x00_desc_write(txd, 1, word);
 
-	for (i = 0; i < ring->stats.limit; i++) {
-		txd = ring->entry[i].priv;
+	rt2x00_desc_read(txd, 5, &word);
+	rt2x00_set_field32(&word, TXD_W5_PID_TYPE, entry->ring->queue_idx);
+	rt2x00_set_field32(&word, TXD_W5_PID_SUBTYPE, entry->entry_idx);
+	rt2x00_desc_write(txd, 5, word);
 
-		rt2x00_desc_read(txd, 1, &word);
-		rt2x00_set_field32(&word, TXD_W1_BUFFER_COUNT, 1);
-		rt2x00_desc_write(txd, 1, word);
+	rt2x00_desc_read(txd, 6, &word);
+	rt2x00_set_field32(&word, TXD_W6_BUFFER_PHYSICAL_ADDRESS,
+			   entry->data_dma);
+	rt2x00_desc_write(txd, 6, word);
 
-		rt2x00_desc_read(txd, 5, &word);
-		rt2x00_set_field32(&word, TXD_W5_PID_TYPE,
-				   ring->queue_idx);
-		rt2x00_set_field32(&word, TXD_W5_PID_SUBTYPE,
-				   ring->entry[i].entry_idx);
-		rt2x00_desc_write(txd, 5, word);
-
-		rt2x00_desc_read(txd, 6, &word);
-		rt2x00_set_field32(&word, TXD_W6_BUFFER_PHYSICAL_ADDRESS,
-				   ring->entry[i].data_dma);
-		rt2x00_desc_write(txd, 6, word);
-
-		rt2x00_desc_read(txd, 0, &word);
-		rt2x00_set_field32(&word, TXD_W0_VALID, 0);
-		rt2x00_set_field32(&word, TXD_W0_OWNER_NIC, 0);
-		rt2x00_desc_write(txd, 0, word);
-	}
-
-	rt2x00_ring_index_clear(ring);
+	rt2x00_desc_read(txd, 0, &word);
+	rt2x00_set_field32(&word, TXD_W0_VALID, 0);
+	rt2x00_set_field32(&word, TXD_W0_OWNER_NIC, 0);
+	rt2x00_desc_write(txd, 0, word);
 }
 
 static int rt61pci_init_rings(struct rt2x00_dev *rt2x00dev)
 {
 	u32 reg;
-
-	/*
-	 * Initialize rings.
-	 */
-	rt61pci_init_rxring(rt2x00dev);
-	rt61pci_init_txring(rt2x00dev, IEEE80211_TX_QUEUE_DATA0);
-	rt61pci_init_txring(rt2x00dev, IEEE80211_TX_QUEUE_DATA1);
-	rt61pci_init_txring(rt2x00dev, IEEE80211_TX_QUEUE_DATA2);
-	rt61pci_init_txring(rt2x00dev, IEEE80211_TX_QUEUE_DATA3);
-	rt61pci_init_txring(rt2x00dev, IEEE80211_TX_QUEUE_DATA4);
 
 	/*
 	 * Initialize registers.
@@ -2486,6 +2456,8 @@ static const struct rt2x00lib_ops rt61pci_rt2x00_ops = {
 	.load_firmware		= rt61pci_load_firmware,
 	.initialize		= rt2x00pci_initialize,
 	.uninitialize		= rt2x00pci_uninitialize,
+	.init_rxentry		= rt61pci_init_rxentry,
+	.init_txentry		= rt61pci_init_txentry,
 	.set_device_state	= rt61pci_set_device_state,
 	.rfkill_poll		= rt61pci_rfkill_poll,
 	.link_stats		= rt61pci_link_stats,
