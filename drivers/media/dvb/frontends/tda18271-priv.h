@@ -112,9 +112,6 @@ struct tda18271_priv {
 	struct tda18271_std_map std;
 	struct tda18271_rf_tracking_filter_cal rf_cal_state[8];
 
-	int (*tune) (struct dvb_frontend *fe,
-		     u32 ifc, u32 freq, u32 bw, u8 std);
-
 	u32 frequency;
 	u32 bandwidth;
 };

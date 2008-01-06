@@ -770,6 +770,23 @@ static int tda18271c1_tune(struct dvb_frontend *fe,
 	return 0;
 }
 
+static inline int tda18271_tune(struct dvb_frontend *fe,
+				u32 ifc, u32 freq, u32 bw, u8 std)
+{
+	struct tda18271_priv *priv = fe->tuner_priv;
+	int ret = -EINVAL;
+
+	switch (priv->id) {
+	case TDA18271HDC1:
+		ret = tda18271c1_tune(fe, ifc, freq, bw, std);
+		break;
+	case TDA18271HDC2:
+		ret = tda18271c2_tune(fe, ifc, freq, bw, std);
+		break;
+	}
+	return ret;
+}
+
 /* ------------------------------------------------------------------ */
 
 static int tda18271_set_params(struct dvb_frontend *fe,
@@ -777,11 +794,10 @@ static int tda18271_set_params(struct dvb_frontend *fe,
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
 	struct tda18271_std_map *std_map = &priv->std;
+	int ret;
 	u8 std;
 	u16 sgIF;
 	u32 bw, freq = params->frequency;
-
-	BUG_ON(!priv->tune);
 
 	priv->mode = TDA18271_DIGITAL;
 
@@ -833,7 +849,16 @@ static int tda18271_set_params(struct dvb_frontend *fe,
 		return -EINVAL;
 	}
 
-	return priv->tune(fe, sgIF * 1000, freq, bw, std);
+	ret = tda18271_tune(fe, sgIF * 1000, freq, bw, std);
+
+	if (ret < 0)
+		goto fail;
+
+	priv->frequency = freq;
+	priv->bandwidth = (fe->ops.info.type == FE_OFDM) ?
+		params->u.ofdm.bandwidth : 0;
+fail:
+	return ret;
 }
 
 static int tda18271_set_analog_params(struct dvb_frontend *fe,
@@ -842,11 +867,10 @@ static int tda18271_set_analog_params(struct dvb_frontend *fe,
 	struct tda18271_priv *priv = fe->tuner_priv;
 	struct tda18271_std_map *std_map = &priv->std;
 	char *mode;
+	int ret;
 	u8 std;
 	u16 sgIF;
 	u32 freq = params->frequency * 62500;
-
-	BUG_ON(!priv->tune);
 
 	priv->mode = TDA18271_ANALOG;
 
@@ -886,7 +910,15 @@ static int tda18271_set_analog_params(struct dvb_frontend *fe,
 
 	tda_dbg("setting tda18271 to system %s\n", mode);
 
-	return priv->tune(fe, sgIF * 1000, freq, 0, std);
+	ret = tda18271_tune(fe, sgIF * 1000, freq, 0, std);
+
+	if (ret < 0)
+		goto fail;
+
+	priv->frequency = freq;
+	priv->bandwidth = 0;
+fail:
+	return ret;
 }
 
 static int tda18271_release(struct dvb_frontend *fe)
@@ -986,12 +1018,10 @@ static int tda18271_get_id(struct dvb_frontend *fe)
 	case 3:
 		name = "TDA18271HD/C1";
 		priv->id = TDA18271HDC1;
-		priv->tune = tda18271c1_tune;
 		break;
 	case 4:
 		name = "TDA18271HD/C2";
 		priv->id = TDA18271HDC2;
-		priv->tune = tda18271c2_tune;
 		break;
 	default:
 		name = "Unknown device";
