@@ -598,11 +598,15 @@ static int tda18271_init(struct dvb_frontend *fe)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
 
+	mutex_lock(&priv->lock);
+
 	/* initialization */
 	tda18271_ir_cal_init(fe);
 
 	if (priv->id == TDA18271HDC2)
 		tda18271_rf_cal_init(fe);
+
+	mutex_unlock(&priv->lock);
 
 	return 0;
 }
@@ -610,13 +614,19 @@ static int tda18271_init(struct dvb_frontend *fe)
 static int tda18271c2_tune(struct dvb_frontend *fe,
 			   u32 ifc, u32 freq, u32 bw, u8 std)
 {
+	struct tda18271_priv *priv = fe->tuner_priv;
+
 	tda_dbg("freq = %d, ifc = %d\n", freq, ifc);
 
 	tda18271_init(fe);
 
+	mutex_lock(&priv->lock);
+
 	tda18271_rf_tracking_filters_correction(fe, freq);
 
 	tda18271_channel_configuration(fe, ifc, freq, bw, std);
+
+	mutex_unlock(&priv->lock);
 
 	return 0;
 }
@@ -631,6 +641,8 @@ static int tda18271c1_tune(struct dvb_frontend *fe,
 	u32 N = 0;
 
 	tda18271_init(fe);
+
+	mutex_lock(&priv->lock);
 
 	tda_dbg("freq = %d, ifc = %d\n", freq, ifc);
 
@@ -766,6 +778,7 @@ static int tda18271c1_tune(struct dvb_frontend *fe,
 
 	tda18271_write_regs(fe, R_TM, 15);
 	msleep(5);
+	mutex_unlock(&priv->lock);
 
 	return 0;
 }
@@ -1012,7 +1025,9 @@ static int tda18271_get_id(struct dvb_frontend *fe)
 	char *name;
 	int ret = 0;
 
+	mutex_lock(&priv->lock);
 	tda18271_read_regs(fe);
+	mutex_unlock(&priv->lock);
 
 	switch (regs[R_ID] & 0x7f) {
 	case 3:
@@ -1065,6 +1080,7 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 	priv->i2c_adap = i2c;
 	priv->gate = (cfg) ? cfg->gate : TDA18271_GATE_AUTO;
 	priv->cal_initialized = false;
+	mutex_init(&priv->lock);
 
 	fe->tuner_priv = priv;
 
@@ -1084,7 +1100,11 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 	if (tda18271_debug & DBG_MAP)
 		tda18271_dump_std_map(fe);
 
+	mutex_lock(&priv->lock);
+
 	tda18271_init_regs(fe);
+
+	mutex_unlock(&priv->lock);
 
 	return fe;
 fail:

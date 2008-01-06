@@ -23,6 +23,7 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
+#include <linux/mutex.h>
 #include "tda18271.h"
 
 #define R_ID     0x00	/* ID byte                */
@@ -111,6 +112,8 @@ struct tda18271_priv {
 	struct tda18271_map_layout *maps;
 	struct tda18271_std_map std;
 	struct tda18271_rf_tracking_filter_cal rf_cal_state[8];
+
+	struct mutex lock;
 
 	u32 frequency;
 	u32 bandwidth;
