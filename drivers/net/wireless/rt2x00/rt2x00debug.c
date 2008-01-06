@@ -417,6 +417,7 @@ static struct dentry *rt2x00debug_create_file_chipset(const char *name,
 	if (!data)
 		return NULL;
 
+	blob->data = data;
 	data += sprintf(data, "rt chip: %04x\n", intf->rt2x00dev->chip.rt);
 	data += sprintf(data, "rf chip: %04x\n", intf->rt2x00dev->chip.rf);
 	data += sprintf(data, "revision:%08x\n", intf->rt2x00dev->chip.rev);
@@ -425,9 +426,7 @@ static struct dentry *rt2x00debug_create_file_chipset(const char *name,
 	data += sprintf(data, "eeprom length: %d\n", debug->eeprom.word_count);
 	data += sprintf(data, "bbp length: %d\n", debug->bbp.word_count);
 	data += sprintf(data, "rf length: %d\n", debug->rf.word_count);
-
-	blob->data = data;
-	blob->size = strlen(data);
+	blob->size = strlen(blob->data);
 
 	return debugfs_create_blob(name, S_IRUGO, intf->driver_folder, blob);
 }
