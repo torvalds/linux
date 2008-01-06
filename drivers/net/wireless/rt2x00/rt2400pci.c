@@ -1117,6 +1117,7 @@ static void rt2400pci_fill_rxdone(struct data_entry *entry,
 	    entry->ring->rt2x00dev->rssi_offset;
 	desc->ofdm = 0;
 	desc->size = rt2x00_get_field32(word0, RXD_W0_DATABYTE_COUNT);
+	desc->my_bss = !!rt2x00_get_field32(word0, RXD_W0_MY_BSS);
 }
 
 /*

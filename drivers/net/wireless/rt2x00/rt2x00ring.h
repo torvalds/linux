@@ -59,6 +59,7 @@ struct rxdata_entry_desc {
 	int ofdm;
 	int size;
 	int flags;
+	int my_bss;
 };
 
 /*

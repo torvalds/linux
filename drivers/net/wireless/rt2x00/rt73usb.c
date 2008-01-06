@@ -1396,13 +1396,12 @@ static void rt73usb_fill_rxdone(struct data_entry *entry,
 	desc->rssi = rt73usb_agc_to_rssi(entry->ring->rt2x00dev, word1);
 	desc->ofdm = rt2x00_get_field32(word0, RXD_W0_OFDM);
 	desc->size = rt2x00_get_field32(word0, RXD_W0_DATABYTE_COUNT);
+	desc->my_bss = !!rt2x00_get_field32(word0, RXD_W0_MY_BSS);
 
 	/*
 	 * Pull the skb to clear the descriptor area.
 	 */
 	skb_pull(entry->skb, entry->ring->desc_size);
-
-	return;
 }
 
 /*
