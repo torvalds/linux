@@ -86,6 +86,19 @@ MODULE_ALIAS_SCSI_DEVICE(TYPE_DISK);
 MODULE_ALIAS_SCSI_DEVICE(TYPE_MOD);
 MODULE_ALIAS_SCSI_DEVICE(TYPE_RBC);
 
+static int  sd_revalidate_disk(struct gendisk *);
+static int  sd_probe(struct device *);
+static int  sd_remove(struct device *);
+static void sd_shutdown(struct device *);
+static int sd_suspend(struct device *, pm_message_t state);
+static int sd_resume(struct device *);
+static void sd_rescan(struct device *);
+static int sd_done(struct scsi_cmnd *);
+static void sd_read_capacity(struct scsi_disk *sdkp, unsigned char *buffer);
+static void scsi_disk_release(struct class_device *cdev);
+static void sd_print_sense_hdr(struct scsi_disk *, struct scsi_sense_hdr *);
+static void sd_print_result(struct scsi_disk *, int);
+
 static DEFINE_IDR(sd_index_idr);
 static DEFINE_SPINLOCK(sd_index_lock);
 
@@ -240,6 +253,7 @@ static struct scsi_driver sd_template = {
 		.shutdown	= sd_shutdown,
 	},
 	.rescan			= sd_rescan,
+	.done			= sd_done,
 };
 
 /*
@@ -507,12 +521,6 @@ static int sd_prep_fn(struct request_queue *q, struct request *rq)
 	SCpnt->underflow = this_count << 9;
 	SCpnt->allowed = SD_MAX_RETRIES;
 	SCpnt->timeout_per_command = timeout;
-
-	/*
-	 * This is the completion routine we use.  This is matched in terms
-	 * of capability to this function.
-	 */
-	SCpnt->done = sd_rw_intr;
 
 	/*
 	 * This indicates that the command is ready from our end to be
@@ -887,13 +895,13 @@ static struct block_device_operations sd_fops = {
 };
 
 /**
- *	sd_rw_intr - bottom half handler: called when the lower level
+ *	sd_done - bottom half handler: called when the lower level
  *	driver has completed (successfully or otherwise) a scsi command.
  *	@SCpnt: mid-level's per command structure.
  *
  *	Note: potentially run from within an ISR. Must not block.
  **/
-static void sd_rw_intr(struct scsi_cmnd * SCpnt)
+static int sd_done(struct scsi_cmnd *SCpnt)
 {
 	int result = SCpnt->result;
  	unsigned int xfer_size = SCpnt->request_bufflen;
@@ -914,7 +922,7 @@ static void sd_rw_intr(struct scsi_cmnd * SCpnt)
 	SCSI_LOG_HLCOMPLETE(1, scsi_print_result(SCpnt));
 	if (sense_valid) {
 		SCSI_LOG_HLCOMPLETE(1, scmd_printk(KERN_INFO, SCpnt,
-						   "sd_rw_intr: sb[respc,sk,asc,"
+						   "sd_done: sb[respc,sk,asc,"
 						   "ascq]=%x,%x,%x,%x\n",
 						   sshdr.response_code,
 						   sshdr.sense_key, sshdr.asc,
@@ -986,7 +994,7 @@ static void sd_rw_intr(struct scsi_cmnd * SCpnt)
 		break;
 	}
  out:
-	scsi_io_completion(SCpnt, good_bytes);
+	return good_bytes;
 }
 
 static int media_not_present(struct scsi_disk *sdkp,

@@ -59,6 +59,7 @@
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_dbg.h>
 #include <scsi/scsi_device.h>
+#include <scsi/scsi_driver.h>
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_tcq.h>
@@ -367,9 +368,8 @@ void scsi_log_send(struct scsi_cmnd *cmd)
 			scsi_print_command(cmd);
 			if (level > 3) {
 				printk(KERN_INFO "buffer = 0x%p, bufflen = %d,"
-				       " done = 0x%p, queuecommand 0x%p\n",
+				       " queuecommand 0x%p\n",
 					scsi_sglist(cmd), scsi_bufflen(cmd),
-					cmd->done,
 					cmd->device->host->hostt->queuecommand);
 
 			}
@@ -654,6 +654,12 @@ void __scsi_done(struct scsi_cmnd *cmd)
 	blk_complete_request(rq);
 }
 
+/* Move this to a header if it becomes more generally useful */
+static struct scsi_driver *scsi_cmd_to_driver(struct scsi_cmnd *cmd)
+{
+	return *(struct scsi_driver **)cmd->request->rq_disk->private_data;
+}
+
 /*
  * Function:    scsi_finish_command
  *
@@ -665,6 +671,8 @@ void scsi_finish_command(struct scsi_cmnd *cmd)
 {
 	struct scsi_device *sdev = cmd->device;
 	struct Scsi_Host *shost = sdev->host;
+	struct scsi_driver *drv;
+	unsigned int good_bytes;
 
 	scsi_device_unbusy(sdev);
 
@@ -690,7 +698,13 @@ void scsi_finish_command(struct scsi_cmnd *cmd)
 				"Notifying upper driver of completion "
 				"(result %x)\n", cmd->result));
 
-	cmd->done(cmd);
+	good_bytes = cmd->request_bufflen;
+        if (cmd->request->cmd_type != REQ_TYPE_BLOCK_PC) {
+		drv = scsi_cmd_to_driver(cmd);
+		if (drv->done)
+			good_bytes = drv->done(cmd);
+	}
+	scsi_io_completion(cmd, good_bytes);
 }
 EXPORT_SYMBOL(scsi_finish_command);
 

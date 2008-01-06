@@ -1699,7 +1699,6 @@ scsi_reset_provider(struct scsi_device *dev, int flag)
 	memset(&scmd->cmnd, '\0', sizeof(scmd->cmnd));
     
 	scmd->scsi_done		= scsi_reset_provider_done_command;
-	scmd->done			= NULL;
 	scmd->request_buffer		= NULL;
 	scmd->request_bufflen		= 0;
 
