@@ -2010,8 +2010,8 @@ void __init xfrm_state_init(void)
 }
 
 #ifdef CONFIG_AUDITSYSCALL
-static inline void xfrm_audit_helper_sainfo(struct xfrm_state *x,
-					    struct audit_buffer *audit_buf)
+static void xfrm_audit_helper_sainfo(struct xfrm_state *x,
+				     struct audit_buffer *audit_buf)
 {
 	struct xfrm_sec_ctx *ctx = x->security;
 	u32 spi = ntohl(x->id.spi);
@@ -2038,8 +2038,8 @@ static inline void xfrm_audit_helper_sainfo(struct xfrm_state *x,
 	audit_log_format(audit_buf, " spi=%u(0x%x)", spi, spi);
 }
 
-static inline void xfrm_audit_helper_pktinfo(struct sk_buff *skb, u16 family,
-					     struct audit_buffer *audit_buf)
+static void xfrm_audit_helper_pktinfo(struct sk_buff *skb, u16 family,
+				      struct audit_buffer *audit_buf)
 {
 	struct iphdr *iph4;
 	struct ipv6hdr *iph6;
