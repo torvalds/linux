@@ -265,6 +265,12 @@ config CPU_SUBTYPE_SH4_202
 
 # SH-4A Processor Support
 
+config CPU_SUBTYPE_SH7763
+	bool "Support SH7763 processor"
+	select CPU_SH4A
+	help
+	  Select SH7763 if you have a SH4A SH7763(R5S77631) CPU.
+
 config CPU_SUBTYPE_SH7770
 	bool "Support SH7770 processor"
 	select CPU_SH4A
@@ -551,7 +557,8 @@ config SH_MTU2
 
 config SH_TIMER_IRQ
 	int
-	default "28" if CPU_SUBTYPE_SH7780 || CPU_SUBTYPE_SH7785
+	default "28" if CPU_SUBTYPE_SH7780 || CPU_SUBTYPE_SH7785 || \
+			CPU_SUBTYPE_SH7763
 	default "86" if CPU_SUBTYPE_SH7619
 	default "140" if CPU_SUBTYPE_SH7206
 	default "16"

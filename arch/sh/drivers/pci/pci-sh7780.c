@@ -58,6 +58,7 @@ static int __init sh7780_pci_init(void)
 	id = pci_read_reg(SH7780_PCIVID);
 	if ((id & 0xffff) == SH7780_VENDOR_ID) {
 		switch ((id >> 16) & 0xffff) {
+		case SH7763_DEVICE_ID:
 		case SH7780_DEVICE_ID:
 		case SH7781_DEVICE_ID:
 		case SH7785_DEVICE_ID:

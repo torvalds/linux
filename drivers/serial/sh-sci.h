@@ -120,6 +120,12 @@
 # define SCSCR_INIT(port)          0x30 /* TIE=0,RIE=0,TE=1,RE=1 */
 # define SCI_ONLY
 # define H8300_SCI_DR(ch) *(volatile char *)(P1DR + h8300_sci_pins[ch].port)
+#elif defined(CONFIG_CPU_SUBTYPE_SH7763)
+# define SCSPTR0 0xffe00024 /* 16 bit SCIF */
+# define SCSPTR1 0xffe08024 /* 16 bit SCIF */
+# define SCIF_ORER 0x0001  /* overrun error bit */
+# define SCSCR_INIT(port)	0x3a	/* TIE=0,RIE=0,TE=1,RE=1,REIE=1 */
+# define SCIF_ONLY
 #elif defined(CONFIG_CPU_SUBTYPE_SH7770)
 # define SCSPTR0 0xff923020 /* 16 bit SCIF */
 # define SCSPTR1 0xff924020 /* 16 bit SCIF */
@@ -419,6 +425,7 @@ SCIx_FNS(SCxSR,  0x08,  8, 0x10,  8, 0x08, 16, 0x10, 16, 0x04,  8)
 SCIx_FNS(SCxRDR, 0x0a,  8, 0x14,  8, 0x0A,  8, 0x14,  8, 0x05,  8)
 SCIF_FNS(SCFCR,                      0x0c,  8, 0x18, 16)
 #if defined(CONFIG_CPU_SUBTYPE_SH7760) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7763) || \
     defined(CONFIG_CPU_SUBTYPE_SH7780) || \
     defined(CONFIG_CPU_SUBTYPE_SH7785)
 SCIF_FNS(SCFDR,			     0x0e, 16, 0x1C, 16)
@@ -588,6 +595,15 @@ static inline int sci_rxd_in(struct uart_port *port)
 	int ch = (port->mapbase - SMR0) >> 3;
 	return (H8300_SCI_DR(ch) & h8300_sci_pins[ch].rx) ? 1 : 0;
 }
+#elif defined(CONFIG_CPU_SUBTYPE_SH7763)
+static inline int sci_rxd_in(struct uart_port *port)
+{
+	if (port->mapbase == 0xffe00000)
+		return ctrl_inw(SCSPTR0) & 0x0001 ? 1 : 0; /* SCIF */
+	if (port->mapbase == 0xffe08000)
+		return ctrl_inw(SCSPTR1) & 0x0001 ? 1 : 0; /* SCIF */
+	return 1;
+}
 #elif defined(CONFIG_CPU_SUBTYPE_SH7770)
 static inline int sci_rxd_in(struct uart_port *port)
 {
@@ -698,7 +714,8 @@ static inline int sci_rxd_in(struct uart_port *port)
  * -- Mitch Davis - 15 Jul 2000
  */
 
-#if defined(CONFIG_CPU_SUBTYPE_SH7780) || \
+#if defined(CONFIG_CPU_SUBTYPE_SH7763) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7780) || \
     defined(CONFIG_CPU_SUBTYPE_SH7785)
 #define SCBRR_VALUE(bps, clk) ((clk+16*bps)/(16*bps)-1)
 #elif defined(CONFIG_CPU_SUBTYPE_SH7705) || \
