@@ -1442,6 +1442,8 @@ static int __devinit snd_es18xx_initialize(struct snd_es18xx *chip)
 		snd_es18xx_write(chip, 0xB2, 0x50);
 		/* Enable MPU and hardware volume interrupt */
 		snd_es18xx_mixer_write(chip, 0x64, 0x42);
+		/* Enable ESS wavetable input */
+		snd_es18xx_mixer_bits(chip, 0x48, 0x10, 0x10);
 	}
 	else {
 		int irqmask, dma1mask, dma2mask;
