@@ -634,8 +634,9 @@ void free_guest_pagetable(struct lguest *lg)
  * Guest (and not the pages for other CPUs).  We have the appropriate PTE pages
  * for each CPU already set up, we just need to hook them in now we know which
  * Guest is about to run on this CPU. */
-void map_switcher_in_guest(struct lguest *lg, struct lguest_pages *pages)
+void map_switcher_in_guest(struct lg_cpu *cpu, struct lguest_pages *pages)
 {
+	struct lguest *lg = cpu->lg;
 	pte_t *switcher_pte_page = __get_cpu_var(switcher_pte_pages);
 	pgd_t switcher_pgd;
 	pte_t regs_pte;

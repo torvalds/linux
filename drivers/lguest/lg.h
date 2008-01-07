@@ -168,7 +168,7 @@ void guest_pagetable_clear_all(struct lguest *lg);
 void guest_pagetable_flush_user(struct lguest *lg);
 void guest_set_pte(struct lguest *lg, unsigned long gpgdir,
 		   unsigned long vaddr, pte_t val);
-void map_switcher_in_guest(struct lguest *lg, struct lguest_pages *pages);
+void map_switcher_in_guest(struct lg_cpu *cpu, struct lguest_pages *pages);
 int demand_page(struct lguest *info, unsigned long cr2, int errcode);
 void pin_page(struct lguest *lg, unsigned long vaddr);
 unsigned long guest_pa(struct lguest *lg, unsigned long vaddr);

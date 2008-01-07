@@ -91,7 +91,7 @@ static void copy_in_guest_info(struct lg_cpu *cpu, struct lguest_pages *pages)
 	pages->state.host_cr3 = __pa(current->mm->pgd);
 	/* Set up the Guest's page tables to see this CPU's pages (and no
 	 * other CPU's pages). */
-	map_switcher_in_guest(lg, pages);
+	map_switcher_in_guest(cpu, pages);
 	/* Set up the two "TSS" members which tell the CPU what stack to use
 	 * for traps which do directly into the Guest (ie. traps at privilege
 	 * level 1). */
