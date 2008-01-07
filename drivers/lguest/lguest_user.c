@@ -88,6 +88,18 @@ static ssize_t read(struct file *file, char __user *user, size_t size,loff_t*o)
 	return run_guest(lg, (unsigned long __user *)user);
 }
 
+static int lg_cpu_start(struct lg_cpu *cpu, unsigned id, unsigned long start_ip)
+{
+	if (id >= NR_CPUS)
+		return -EINVAL;
+
+	cpu->id = id;
+	cpu->lg = container_of((cpu - id), struct lguest, cpus[0]);
+	cpu->lg->nr_cpus++;
+
+	return 0;
+}
+
 /*L:020 The initialization write supplies 4 pointer sized (32 or 64 bit)
  * values (in addition to the LHREQ_INITIALIZE value).  These are:
  *
@@ -133,6 +145,11 @@ static int initialize(struct file *file, const unsigned long __user *input)
 	/* Populate the easy fields of our "struct lguest" */
 	lg->mem_base = (void __user *)(long)args[0];
 	lg->pfn_limit = args[1];
+
+	/* This is the first cpu */
+	err = cpu_start(&lg->cpus[0], 0, args[3]);
+	if (err)
+		goto release_guest;
 
 	/* We need a complete page for the Guest registers: they are accessible
 	 * to the Guest and we can only grant it access to whole pages. */
