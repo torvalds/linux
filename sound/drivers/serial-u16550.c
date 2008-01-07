@@ -43,6 +43,7 @@
 #include <sound/initval.h>
 
 #include <linux/serial_reg.h>
+#include <linux/jiffies.h>
 
 #include <asm/io.h>
 
@@ -694,7 +695,7 @@ static void snd_uart16550_output_write(struct snd_rawmidi_substream *substream)
 			    (uart->adaptor == SNDRV_SERIAL_SOUNDCANVAS ||
 			     uart->adaptor == SNDRV_SERIAL_GENERIC) &&
 			    (uart->prev_out != substream->number ||
-			     jiffies-lasttime > 3*HZ)) {
+			     time_after(jiffies, lasttime + 3*HZ))) {
 
 				if (snd_uart16550_buffer_can_write(uart, 3)) {
 					/* Roland Soundcanvas part selection */
