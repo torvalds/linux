@@ -948,7 +948,7 @@ static int audit_log_pid_context(struct audit_context *context, pid_t pid,
 
 	ab = audit_log_start(context, GFP_KERNEL, AUDIT_OBJ_PID);
 	if (!ab)
-		return 1;
+		return rc;
 
 	audit_log_format(ab, "opid=%d oauid=%d ouid=%d oses=%d", pid, auid,
 			 uid, sessionid);
