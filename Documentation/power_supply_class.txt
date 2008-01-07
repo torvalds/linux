@@ -87,6 +87,10 @@ batteries use voltage for very approximated calculation of capacity.
 Battery driver also can use this attribute just to inform userspace
 about maximal and minimal voltage thresholds of a given battery.
 
+VOLTAGE_MAX, VOLTAGE_MIN - same as _DESIGN voltage values except that
+these ones should be used if hardware could only guess (measure and
+retain) the thresholds of a given power supply.
+
 CHARGE_FULL_DESIGN, CHARGE_EMPTY_DESIGN - design charge values, when
 battery considered full/empty.
 
