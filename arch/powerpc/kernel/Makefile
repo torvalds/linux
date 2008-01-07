@@ -91,3 +91,13 @@ obj-$(CONFIG_PPC64)		+= $(obj64-y)
 
 extra-$(CONFIG_PPC_FPU)		+= fpu.o
 extra-$(CONFIG_PPC64)		+= entry_64.o
+
+extra-y				+= systbl_chk.i
+$(obj)/systbl.o:		systbl_chk
+
+quiet_cmd_systbl_chk = CALL    $<
+      cmd_systbl_chk = $(CONFIG_SHELL) $< $(obj)/systbl_chk.i
+
+PHONY += systbl_chk
+systbl_chk: $(src)/systbl_chk.sh $(obj)/systbl_chk.i
+	$(call cmd,systbl_chk)
