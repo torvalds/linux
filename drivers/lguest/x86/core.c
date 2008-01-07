@@ -218,8 +218,9 @@ void lguest_arch_run_guest(struct lg_cpu *cpu)
  * When the Guest uses one of these instructions, we get a trap (General
  * Protection Fault) and come here.  We see if it's one of those troublesome
  * instructions and skip over it.  We return true if we did. */
-static int emulate_insn(struct lguest *lg)
+static int emulate_insn(struct lg_cpu *cpu)
 {
+	struct lguest *lg = cpu->lg;
 	u8 insn;
 	unsigned int insnlen = 0, in = 0, shift = 0;
 	/* The eip contains the *virtual* address of the Guest's instruction:
@@ -292,7 +293,7 @@ void lguest_arch_handle_trap(struct lg_cpu *cpu)
 		 * instructions which we need to emulate.  If so, we just go
 		 * back into the Guest after we've done it. */
 		if (lg->regs->errcode == 0) {
-			if (emulate_insn(lg))
+			if (emulate_insn(cpu))
 				return;
 		}
 		break;
