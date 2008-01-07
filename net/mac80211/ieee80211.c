@@ -219,6 +219,7 @@ static int ieee80211_open(struct net_device *dev)
 		if (res)
 			return res;
 		ieee80211_hw_config(local);
+		ieee80211_led_radio(local, local->hw.conf.radio_enabled);
 	}
 
 	switch (sdata->type) {
@@ -391,6 +392,8 @@ static int ieee80211_stop(struct net_device *dev)
 
 		if (local->ops->stop)
 			local->ops->stop(local_to_hw(local));
+
+		ieee80211_led_radio(local, 0);
 
 		tasklet_disable(&local->tx_pending_tasklet);
 		tasklet_disable(&local->tasklet);

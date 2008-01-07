@@ -21,6 +21,7 @@
 
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
+#include "ieee80211_led.h"
 #include "ieee80211_rate.h"
 #include "wpa.h"
 #include "aes_ccm.h"
@@ -652,6 +653,7 @@ static int ieee80211_ioctl_siwtxpower(struct net_device *dev,
 	if (local->hw.conf.radio_enabled != !(data->txpower.disabled)) {
 		local->hw.conf.radio_enabled = !(data->txpower.disabled);
 		need_reconfig = 1;
+		ieee80211_led_radio(local, local->hw.conf.radio_enabled);
 	}
 
 	if (need_reconfig) {

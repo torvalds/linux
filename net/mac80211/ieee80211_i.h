@@ -500,8 +500,9 @@ struct ieee80211_local {
 
 #ifdef CONFIG_MAC80211_LEDS
 	int tx_led_counter, rx_led_counter;
-	struct led_trigger *tx_led, *rx_led, *assoc_led;
-	char tx_led_name[32], rx_led_name[32], assoc_led_name[32];
+	struct led_trigger *tx_led, *rx_led, *assoc_led, *radio_led;
+	char tx_led_name[32], rx_led_name[32],
+	     assoc_led_name[32], radio_led_name[32];
 #endif
 
 	u32 channel_use;
