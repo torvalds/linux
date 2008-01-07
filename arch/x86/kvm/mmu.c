@@ -559,7 +559,7 @@ static void kvm_mmu_free_page(struct kvm *kvm, struct kvm_mmu_page *sp)
 
 static unsigned kvm_page_table_hashfn(gfn_t gfn)
 {
-	return gfn;
+	return gfn & ((1 << KVM_MMU_HASH_SHIFT) - 1);
 }
 
 static struct kvm_mmu_page *kvm_mmu_alloc_page(struct kvm_vcpu *vcpu,
@@ -663,7 +663,7 @@ static struct kvm_mmu_page *kvm_mmu_lookup_page(struct kvm *kvm, gfn_t gfn)
 	struct hlist_node *node;
 
 	pgprintk("%s: looking for gfn %lx\n", __FUNCTION__, gfn);
-	index = kvm_page_table_hashfn(gfn) % KVM_NUM_MMU_PAGES;
+	index = kvm_page_table_hashfn(gfn);
 	bucket = &kvm->arch.mmu_page_hash[index];
 	hlist_for_each_entry(sp, node, bucket, hash_link)
 		if (sp->gfn == gfn && !sp->role.metaphysical) {
@@ -701,7 +701,7 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 	}
 	pgprintk("%s: looking gfn %lx role %x\n", __FUNCTION__,
 		 gfn, role.word);
-	index = kvm_page_table_hashfn(gfn) % KVM_NUM_MMU_PAGES;
+	index = kvm_page_table_hashfn(gfn);
 	bucket = &vcpu->kvm->arch.mmu_page_hash[index];
 	hlist_for_each_entry(sp, node, bucket, hash_link)
 		if (sp->gfn == gfn && sp->role.word == role.word) {
@@ -840,7 +840,7 @@ static int kvm_mmu_unprotect_page(struct kvm *kvm, gfn_t gfn)
 
 	pgprintk("%s: looking for gfn %lx\n", __FUNCTION__, gfn);
 	r = 0;
-	index = kvm_page_table_hashfn(gfn) % KVM_NUM_MMU_PAGES;
+	index = kvm_page_table_hashfn(gfn);
 	bucket = &kvm->arch.mmu_page_hash[index];
 	hlist_for_each_entry_safe(sp, node, n, bucket, hash_link)
 		if (sp->gfn == gfn && !sp->role.metaphysical) {
@@ -1450,7 +1450,7 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 		vcpu->arch.last_pt_write_count = 1;
 		vcpu->arch.last_pte_updated = NULL;
 	}
-	index = kvm_page_table_hashfn(gfn) % KVM_NUM_MMU_PAGES;
+	index = kvm_page_table_hashfn(gfn);
 	bucket = &vcpu->kvm->arch.mmu_page_hash[index];
 	hlist_for_each_entry_safe(sp, node, n, bucket, hash_link) {
 		if (sp->gfn != gfn || sp->role.metaphysical)
