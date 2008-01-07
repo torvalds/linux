@@ -319,17 +319,16 @@ int scsi_setup_command_freelist(struct Scsi_Host *shost)
 			GFP_KERNEL | shost->cmd_pool->gfp_mask);
 	if (!cmd)
 		goto fail2;
-	list_add(&cmd->list, &shost->free_list);		
+	list_add(&cmd->list, &shost->free_list);
 	return 0;
 
  fail2:
+	mutex_lock(&host_cmd_pool_mutex);
 	if (!--pool->users)
 		kmem_cache_destroy(pool->slab);
-	return -ENOMEM;
  fail:
 	mutex_unlock(&host_cmd_pool_mutex);
 	return -ENOMEM;
-
 }
 
 /**
