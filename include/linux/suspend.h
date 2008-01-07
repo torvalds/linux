@@ -136,13 +136,16 @@ extern void mark_free_pages(struct zone *zone);
 /**
  * struct platform_hibernation_ops - hibernation platform support
  *
- * The methods in this structure allow a platform to override the default
- * mechanism of shutting down the machine during a hibernation transition.
+ * The methods in this structure allow a platform to carry out special
+ * operations required by it during a hibernation transition.
  *
- * All three methods must be assigned.
+ * All the methods below must be implemented.
  *
- * @start: Tell the platform driver that we're starting hibernation.
+ * @begin: Tell the platform driver that we're starting hibernation.
  *	Called right after shrinking memory and before freezing devices.
+ *
+ * @end: Called by the PM core right after resuming devices, to indicate to
+ *	the platform that the system has returned to the working state.
  *
  * @pre_snapshot: Prepare the platform for creating the hibernation image.
  *	Called right after devices have been frozen and before the nonboot
@@ -178,7 +181,8 @@ extern void mark_free_pages(struct zone *zone);
  *	thawing devices (runs with IRQs on).
  */
 struct platform_hibernation_ops {
-	int (*start)(void);
+	int (*begin)(void);
+	void (*end)(void);
 	int (*pre_snapshot)(void);
 	void (*finish)(void);
 	int (*prepare)(void);
