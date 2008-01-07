@@ -3846,6 +3846,7 @@ static int waiter_needs_recovery(struct dlm_ls *ls, struct dlm_lkb *lkb)
 void dlm_recover_waiters_pre(struct dlm_ls *ls)
 {
 	struct dlm_lkb *lkb, *safe;
+	int wait_type, stub_unlock_result, stub_cancel_result;
 
 	mutex_lock(&ls->ls_waiters_mutex);
 
@@ -3864,7 +3865,33 @@ void dlm_recover_waiters_pre(struct dlm_ls *ls)
 		if (!waiter_needs_recovery(ls, lkb))
 			continue;
 
-		switch (lkb->lkb_wait_type) {
+		wait_type = lkb->lkb_wait_type;
+		stub_unlock_result = -DLM_EUNLOCK;
+		stub_cancel_result = -DLM_ECANCEL;
+
+		/* Main reply may have been received leaving a zero wait_type,
+		   but a reply for the overlapping op may not have been
+		   received.  In that case we need to fake the appropriate
+		   reply for the overlap op. */
+
+		if (!wait_type) {
+			if (is_overlap_cancel(lkb)) {
+				wait_type = DLM_MSG_CANCEL;
+				if (lkb->lkb_grmode == DLM_LOCK_IV)
+					stub_cancel_result = 0;
+			}
+			if (is_overlap_unlock(lkb)) {
+				wait_type = DLM_MSG_UNLOCK;
+				if (lkb->lkb_grmode == DLM_LOCK_IV)
+					stub_unlock_result = -ENOENT;
+			}
+
+			log_debug(ls, "rwpre overlap %x %x %d %d %d",
+				  lkb->lkb_id, lkb->lkb_flags, wait_type,
+				  stub_cancel_result, stub_unlock_result);
+		}
+
+		switch (wait_type) {
 
 		case DLM_MSG_REQUEST:
 			lkb->lkb_flags |= DLM_IFL_RESEND;
@@ -3877,7 +3904,7 @@ void dlm_recover_waiters_pre(struct dlm_ls *ls)
 		case DLM_MSG_UNLOCK:
 			hold_lkb(lkb);
 			ls->ls_stub_ms.m_type = DLM_MSG_UNLOCK_REPLY;
-			ls->ls_stub_ms.m_result = -DLM_EUNLOCK;
+			ls->ls_stub_ms.m_result = stub_unlock_result;
 			ls->ls_stub_ms.m_flags = lkb->lkb_flags;
 			_receive_unlock_reply(lkb, &ls->ls_stub_ms);
 			dlm_put_lkb(lkb);
@@ -3886,15 +3913,15 @@ void dlm_recover_waiters_pre(struct dlm_ls *ls)
 		case DLM_MSG_CANCEL:
 			hold_lkb(lkb);
 			ls->ls_stub_ms.m_type = DLM_MSG_CANCEL_REPLY;
-			ls->ls_stub_ms.m_result = -DLM_ECANCEL;
+			ls->ls_stub_ms.m_result = stub_cancel_result;
 			ls->ls_stub_ms.m_flags = lkb->lkb_flags;
 			_receive_cancel_reply(lkb, &ls->ls_stub_ms);
 			dlm_put_lkb(lkb);
 			break;
 
 		default:
-			log_error(ls, "invalid lkb wait_type %d",
-				  lkb->lkb_wait_type);
+			log_error(ls, "invalid lkb wait_type %d %d",
+				  lkb->lkb_wait_type, wait_type);
 		}
 		schedule();
 	}
