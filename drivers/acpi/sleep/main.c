@@ -26,6 +26,21 @@ u8 sleep_states[ACPI_S_STATE_COUNT];
 
 #ifdef CONFIG_PM_SLEEP
 static u32 acpi_target_sleep_state = ACPI_STATE_S0;
+static bool acpi_sleep_finish_wake_up;
+
+/*
+ * ACPI 2.0 and later want us to execute _PTS after suspending devices, so we
+ * allow the user to request that behavior by using the 'acpi_new_pts_ordering'
+ * kernel command line option that causes the following variable to be set.
+ */
+static bool new_pts_ordering;
+
+static int __init acpi_new_pts_ordering(char *str)
+{
+	new_pts_ordering = true;
+	return 1;
+}
+__setup("acpi_new_pts_ordering", acpi_new_pts_ordering);
 #endif
 
 int acpi_sleep_prepare(u32 acpi_state)
@@ -74,6 +89,14 @@ static int acpi_pm_begin(suspend_state_t pm_state)
 
 	if (sleep_states[acpi_state]) {
 		acpi_target_sleep_state = acpi_state;
+		if (new_pts_ordering)
+			return 0;
+
+		error = acpi_sleep_prepare(acpi_state);
+		if (error)
+			acpi_target_sleep_state = ACPI_STATE_S0;
+		else
+			acpi_sleep_finish_wake_up = true;
 	} else {
 		printk(KERN_ERR "ACPI does not support this state: %d\n",
 			pm_state);
@@ -91,15 +114,17 @@ static int acpi_pm_begin(suspend_state_t pm_state)
 
 static int acpi_pm_prepare(void)
 {
-	int error;
+	if (new_pts_ordering) {
+		int error = acpi_sleep_prepare(acpi_target_sleep_state);
 
-	error = acpi_sleep_prepare(acpi_target_sleep_state);
-	if (error)
-		acpi_target_sleep_state = ACPI_STATE_S0;
-	else if (!ACPI_SUCCESS(acpi_hw_disable_all_gpes()))
-		error = -EFAULT;
+		if (error) {
+			acpi_target_sleep_state = ACPI_STATE_S0;
+			return error;
+		}
+		acpi_sleep_finish_wake_up = true;
+	}
 
-	return error;
+	return ACPI_SUCCESS(acpi_hw_disable_all_gpes()) ? 0 : -EFAULT;
 }
 
 /**
@@ -123,10 +148,8 @@ static int acpi_pm_enter(suspend_state_t pm_state)
 	if (acpi_state == ACPI_STATE_S3) {
 		int error = acpi_save_state_mem();
 
-		if (error) {
-			acpi_target_sleep_state = ACPI_STATE_S0;
+		if (error)
 			return error;
-		}
 	}
 
 	local_irq_save(flags);
@@ -187,6 +210,7 @@ static void acpi_pm_finish(void)
 	acpi_set_firmware_waking_vector((acpi_physical_address) 0);
 
 	acpi_target_sleep_state = ACPI_STATE_S0;
+	acpi_sleep_finish_wake_up = false;
 
 #ifdef CONFIG_X86
 	if (init_8259A_after_S1) {
@@ -203,10 +227,11 @@ static void acpi_pm_finish(void)
 static void acpi_pm_end(void)
 {
 	/*
-	 * This is necessary in case acpi_pm_finish() is not called during a
-	 * failing transition to a sleep state.
+	 * This is necessary in case acpi_pm_finish() is not called directly
+	 * during a failing transition to a sleep state.
 	 */
-	acpi_target_sleep_state = ACPI_STATE_S0;
+	if (acpi_sleep_finish_wake_up)
+		acpi_pm_finish();
 }
 
 static int acpi_pm_state_valid(suspend_state_t pm_state)
