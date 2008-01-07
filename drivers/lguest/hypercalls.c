@@ -91,7 +91,7 @@ static void do_hcall(struct lg_cpu *cpu, struct hcall_args *args)
 		cpu->halted = 1;
 		break;
 	case LHCALL_NOTIFY:
-		lg->pending_notify = args->arg1;
+		cpu->pending_notify = args->arg1;
 		break;
 	default:
 		/* It should be an architecture-specific hypercall. */
@@ -154,7 +154,7 @@ static void do_async_hcalls(struct lg_cpu *cpu)
 
 		/* Stop doing hypercalls if they want to notify the Launcher:
 		 * it needs to service this first. */
-		if (lg->pending_notify)
+		if (cpu->pending_notify)
 			break;
 	}
 }
@@ -219,7 +219,7 @@ void do_hypercalls(struct lg_cpu *cpu)
 	/* If we stopped reading the hypercall ring because the Guest did a
 	 * NOTIFY to the Launcher, we want to return now.  Otherwise we do
 	 * the hypercall. */
-	if (!cpu->lg->pending_notify) {
+	if (!cpu->pending_notify) {
 		do_hcall(cpu, cpu->hcall);
 		/* Tricky point: we reset the hcall pointer to mark the
 		 * hypercall as "done".  We use the hcall pointer rather than

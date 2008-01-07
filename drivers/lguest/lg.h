@@ -51,6 +51,8 @@ struct lg_cpu {
 	u32 esp1;
 	u8 ss1;
 
+	unsigned long pending_notify; /* pfn from LHCALL_NOTIFY */
+
 	/* At end of a page shared mapped over lguest_pages in guest.  */
 	unsigned long regs_page;
 	struct lguest_regs *regs;
@@ -95,7 +97,6 @@ struct lguest
 	struct pgdir pgdirs[4];
 
 	unsigned long noirq_start, noirq_end;
-	unsigned long pending_notify; /* pfn from LHCALL_NOTIFY */
 
 	unsigned int stack_pages;
 	u32 tsc_khz;

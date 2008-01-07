@@ -186,10 +186,10 @@ int run_guest(struct lg_cpu *cpu, unsigned long __user *user)
 
 		/* It's possible the Guest did a NOTIFY hypercall to the
 		 * Launcher, in which case we return from the read() now. */
-		if (lg->pending_notify) {
-			if (put_user(lg->pending_notify, user))
+		if (cpu->pending_notify) {
+			if (put_user(cpu->pending_notify, user))
 				return -EFAULT;
-			return sizeof(lg->pending_notify);
+			return sizeof(cpu->pending_notify);
 		}
 
 		/* Check for signals */
