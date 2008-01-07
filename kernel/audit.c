@@ -1438,7 +1438,8 @@ void audit_log_end(struct audit_buffer *ab)
 			ab->skb = NULL;
 			wake_up_interruptible(&kauditd_wait);
 		} else {
-			printk(KERN_NOTICE "%s\n", ab->skb->data + NLMSG_SPACE(0));
+			struct nlmsghdr *nlh = nlmsg_hdr(ab->skb);
+			printk(KERN_NOTICE "type=%d %s\n", nlh->nlmsg_type, ab->skb->data + NLMSG_SPACE(0));
 		}
 	}
 	audit_buffer_free(ab);
