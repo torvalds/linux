@@ -229,10 +229,6 @@ acpi_status acpi_enter_sleep_state_prep(u8 sleep_state)
 				"While executing method _SST"));
 	}
 
-	/* Disable/Clear all GPEs */
-
-	status = acpi_hw_disable_all_gpes();
-
 	return_ACPI_STATUS(status);
 }
 
