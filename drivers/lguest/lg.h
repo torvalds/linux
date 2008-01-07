@@ -38,6 +38,13 @@ struct lguest_pages
 #define CHANGED_GDT_TLS		4 /* Actually a subset of CHANGED_GDT */
 #define CHANGED_ALL	        3
 
+struct lguest;
+
+struct lg_cpu {
+	unsigned int id;
+	struct lguest *lg;
+};
+
 /* The private info the thread maintains about the guest. */
 struct lguest
 {
@@ -47,6 +54,9 @@ struct lguest
 	struct lguest_data __user *lguest_data;
 	struct task_struct *tsk;
 	struct mm_struct *mm; 	/* == tsk->mm, but that becomes NULL on exit */
+	struct lg_cpu cpus[NR_CPUS];
+	unsigned int nr_cpus;
+
 	u32 pfn_limit;
 	/* This provides the offset to the base of guest-physical
 	 * memory in the Launcher. */
