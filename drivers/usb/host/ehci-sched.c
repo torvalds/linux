@@ -2123,17 +2123,9 @@ scan_periodic (struct ehci_hcd *ehci)
 	for (;;) {
 		union ehci_shadow	q, *q_p;
 		__hc32			type, *hw_p;
-		unsigned		uframes;
+		unsigned		incomplete = false;
 
-		/* don't scan past the live uframe */
 		frame = now_uframe >> 3;
-		if (frame == (clock >> 3))
-			uframes = now_uframe & 0x07;
-		else {
-			/* safe to scan the whole frame at once */
-			now_uframe |= 0x07;
-			uframes = 8;
-		}
 
 restart:
 		/* scan each element in frame's queue for completions */
@@ -2171,12 +2163,15 @@ restart:
 				q = q.fstn->fstn_next;
 				break;
 			case Q_TYPE_ITD:
-				/* skip itds for later in the frame */
+				/* If this ITD is still active, leave it for
+				 * later processing ... check the next entry.
+				 */
 				rmb ();
-				for (uf = live ? uframes : 8; uf < 8; uf++) {
+				for (uf = 0; uf < 8 && live; uf++) {
 					if (0 == (q.itd->hw_transaction [uf]
 							& ITD_ACTIVE(ehci)))
 						continue;
+					incomplete = true;
 					q_p = &q.itd->itd_next;
 					hw_p = &q.itd->hw_next;
 					type = Q_NEXT_TYPE(ehci,
@@ -2184,10 +2179,12 @@ restart:
 					q = *q_p;
 					break;
 				}
-				if (uf != 8)
+				if (uf < 8 && live)
 					break;
 
-				/* this one's ready ... HC won't cache the
+				/* Take finished ITDs out of the schedule
+				 * and process them:  recycle, maybe report
+				 * URB completion.  HC won't cache the
 				 * pointer for much longer, if at all.
 				 */
 				*q_p = q.itd->itd_next;
@@ -2198,8 +2195,12 @@ restart:
 				q = *q_p;
 				break;
 			case Q_TYPE_SITD:
+				/* If this SITD is still active, leave it for
+				 * later processing ... check the next entry.
+				 */
 				if ((q.sitd->hw_results & SITD_ACTIVE(ehci))
 						&& live) {
+					incomplete = true;
 					q_p = &q.sitd->sitd_next;
 					hw_p = &q.sitd->hw_next;
 					type = Q_NEXT_TYPE(ehci,
@@ -2207,6 +2208,11 @@ restart:
 					q = *q_p;
 					break;
 				}
+
+				/* Take finished SITDs out of the schedule
+				 * and process them:  recycle, maybe report
+				 * URB completion.
+				 */
 				*q_p = q.sitd->sitd_next;
 				*hw_p = q.sitd->hw_next;
 				type = Q_NEXT_TYPE(ehci, q.sitd->hw_next);
@@ -2232,7 +2238,14 @@ restart:
 			}
 		}
 
-		/* stop when we catch up to the HC */
+		/* If we can tell we caught up to the hardware, stop now.
+		 * We can't advance our scan without collecting the ISO
+		 * transfers that are still pending in this frame.
+		 */
+		if (incomplete && HC_IS_RUNNING(ehci_to_hcd(ehci)->state)) {
+			ehci->next_uframe = now_uframe;
+			break;
+		}
 
 		// FIXME:  this assumes we won't get lapped when
 		// latencies climb; that should be rare, but...
