@@ -227,14 +227,21 @@ static ssize_t write(struct file *file, const char __user *in,
 	struct lguest *lg = file->private_data;
 	const unsigned long __user *input = (const unsigned long __user *)in;
 	unsigned long req;
+	struct lg_cpu *cpu;
+	unsigned int cpu_id = *off;
 
 	if (get_user(req, input) != 0)
 		return -EFAULT;
 	input++;
 
 	/* If you haven't initialized, you must do that first. */
-	if (req != LHREQ_INITIALIZE && !lg)
-		return -EINVAL;
+	if (req != LHREQ_INITIALIZE) {
+		if (!lg || (cpu_id >= lg->nr_cpus))
+			return -EINVAL;
+		cpu = &lg->cpus[cpu_id];
+		if (!cpu)
+			return -EINVAL;
+	}
 
 	/* Once the Guest is dead, all you can do is read() why it died. */
 	if (lg && lg->dead)
