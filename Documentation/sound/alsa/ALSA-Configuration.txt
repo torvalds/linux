@@ -744,9 +744,12 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 		VIA VT8251/VT8237A,
 		SIS966, ULI M5461
 
+    [Multiple options for each card instance]
     model	- force the model name
     position_fix - Fix DMA pointer (0 = auto, 1 = none, 2 = POSBUF, 3 = FIFO size)
     probe_mask  - Bitmask to probe codecs (default = -1, meaning all slots)
+    
+    [Single (global) options]
     single_cmd  - Use single immediate commands to communicate with
 		codecs (for debugging only)
     enable_msi	- Enable Message Signaled Interrupt (MSI) (default = off)
@@ -755,8 +758,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     power_save_controller - Reset HD-audio controller in power-saving mode
 		(default = on)
 
-    This module supports one card and autoprobe.
-
+    This module supports multiple cards and autoprobe.
+    
     Each codec may have a model table for different configurations.
     If your machine isn't listed there, the default (usually minimal)
     configuration is set up.  You can pass "model=<name>" option to

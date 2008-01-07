@@ -50,29 +50,32 @@
 #include "hda_codec.h"
 
 
-static int index = SNDRV_DEFAULT_IDX1;
-static char *id = SNDRV_DEFAULT_STR1;
-static char *model;
-static int position_fix;
-static int probe_mask = -1;
+static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
+static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;
+static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
+static char *model[SNDRV_CARDS];
+static int position_fix[SNDRV_CARDS];
+static int probe_mask[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS-1)] = -1};
 static int single_cmd;
 static int enable_msi;
 
-module_param(index, int, 0444);
+module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for Intel HD audio interface.");
-module_param(id, charp, 0444);
+module_param_array(id, charp, NULL, 0444);
 MODULE_PARM_DESC(id, "ID string for Intel HD audio interface.");
-module_param(model, charp, 0444);
+module_param_array(enable, bool, NULL, 0444);
+MODULE_PARM_DESC(enable, "Enable Intel HD audio interface.");
+module_param_array(model, charp, NULL, 0444);
 MODULE_PARM_DESC(model, "Use the given board model.");
-module_param(position_fix, int, 0444);
+module_param_array(position_fix, int, NULL, 0444);
 MODULE_PARM_DESC(position_fix, "Fix DMA pointer "
 		 "(0 = auto, 1 = none, 2 = POSBUF, 3 = FIFO size).");
-module_param(probe_mask, int, 0444);
+module_param_array(probe_mask, int, NULL, 0444);
 MODULE_PARM_DESC(probe_mask, "Bitmask to probe codecs (default = -1).");
 module_param(single_cmd, bool, 0444);
 MODULE_PARM_DESC(single_cmd, "Use single command to communicate with codecs "
 		 "(for debugging only).");
-module_param(enable_msi, int, 0);
+module_param(enable_msi, int, 0444);
 MODULE_PARM_DESC(enable_msi, "Enable Message Signaled Interrupt (MSI)");
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
@@ -86,10 +89,6 @@ static int power_save_controller = 1;
 module_param(power_save_controller, bool, 0644);
 MODULE_PARM_DESC(power_save_controller, "Reset controller in power save mode.");
 #endif
-
-/* just for backward compatibility */
-static int enable;
-module_param(enable, bool, 0444);
 
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{Intel, ICH6},"
@@ -1038,7 +1037,8 @@ static unsigned int azx_max_codecs[] __devinitdata = {
 	[AZX_DRIVER_NVIDIA] = 3,	/* FIXME: correct? */
 };
 
-static int __devinit azx_codec_create(struct azx *chip, const char *model)
+static int __devinit azx_codec_create(struct azx *chip, const char *model,
+				      unsigned int codec_probe_mask)
 {
 	struct hda_bus_template bus_temp;
 	int c, codecs, audio_codecs, err;
@@ -1059,7 +1059,7 @@ static int __devinit azx_codec_create(struct azx *chip, const char *model)
 
 	codecs = audio_codecs = 0;
 	for (c = 0; c < AZX_MAX_CODECS; c++) {
-		if ((chip->codec_mask & (1 << c)) & probe_mask) {
+		if ((chip->codec_mask & (1 << c)) & codec_probe_mask) {
 			struct hda_codec *codec;
 			err = snd_hda_codec_new(chip->bus, c, &codec);
 			if (err < 0)
@@ -1072,7 +1072,7 @@ static int __devinit azx_codec_create(struct azx *chip, const char *model)
 	if (!audio_codecs) {
 		/* probe additional slots if no codec is found */
 		for (; c < azx_max_codecs[chip->driver_type]; c++) {
-			if ((chip->codec_mask & (1 << c)) & probe_mask) {
+			if ((chip->codec_mask & (1 << c)) & codec_probe_mask) {
 				err = snd_hda_codec_new(chip->bus, c, NULL);
 				if (err < 0)
 					continue;
@@ -1683,18 +1683,18 @@ static struct snd_pci_quirk probe_mask_list[] __devinitdata = {
 	{}
 };
 
-static void __devinit check_probe_mask(struct azx *chip)
+static void __devinit check_probe_mask(struct azx *chip, int dev)
 {
 	const struct snd_pci_quirk *q;
 
-	if (probe_mask == -1) {
+	if (probe_mask[dev] == -1) {
 		q = snd_pci_quirk_lookup(chip->pci, probe_mask_list);
 		if (q) {
 			printk(KERN_INFO
 			       "hda_intel: probe_mask set to 0x%x "
 			       "for device %04x:%04x\n",
 			       q->value, q->subvendor, q->subdevice);
-			probe_mask = q->value;
+			probe_mask[dev] = q->value;
 		}
 	}
 }
@@ -1704,7 +1704,7 @@ static void __devinit check_probe_mask(struct azx *chip)
  * constructor
  */
 static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
-				int driver_type,
+				int dev, int driver_type,
 				struct azx **rchip)
 {
 	struct azx *chip;
@@ -1734,8 +1734,8 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 	chip->driver_type = driver_type;
 	chip->msi = enable_msi;
 
-	chip->position_fix = check_position_fix(chip, position_fix);
-	check_probe_mask(chip);
+	chip->position_fix = check_position_fix(chip, position_fix[dev]);
+	check_probe_mask(chip, dev);
 
 	chip->single_cmd = single_cmd;
 
@@ -1876,17 +1876,25 @@ static void power_down_all_codecs(struct azx *chip)
 static int __devinit azx_probe(struct pci_dev *pci,
 			       const struct pci_device_id *pci_id)
 {
+	static int dev;
 	struct snd_card *card;
 	struct azx *chip;
 	int err;
 
-	card = snd_card_new(index, id, THIS_MODULE, 0);
+	if (dev >= SNDRV_CARDS)
+		return -ENODEV;
+	if (!enable[dev]) {
+		dev++;
+		return -ENOENT;
+	}
+
+	card = snd_card_new(index[dev], id[dev], THIS_MODULE, 0);
 	if (!card) {
 		snd_printk(KERN_ERR SFX "Error creating card!\n");
 		return -ENOMEM;
 	}
 
-	err = azx_create(card, pci, pci_id->driver_data, &chip);
+	err = azx_create(card, pci, dev, pci_id->driver_data, &chip);
 	if (err < 0) {
 		snd_card_free(card);
 		return err;
@@ -1894,7 +1902,7 @@ static int __devinit azx_probe(struct pci_dev *pci,
 	card->private_data = chip;
 
 	/* create codec instances */
-	err = azx_codec_create(chip, model);
+	err = azx_codec_create(chip, model[dev], probe_mask[dev]);
 	if (err < 0) {
 		snd_card_free(card);
 		return err;
