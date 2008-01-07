@@ -126,7 +126,7 @@ void __lgwrite(struct lguest *, unsigned long, const void *, unsigned);
 	} while(0)
 /* (end of memory access helper routines) :*/
 
-int run_guest(struct lguest *lg, unsigned long __user *user);
+int run_guest(struct lg_cpu *cpu, unsigned long __user *user);
 
 /* Helper macros to obtain the first 12 or the last 20 bits, this is only the
  * first step in the migration to the kernel types.  pte_pfn is already defined
@@ -177,7 +177,7 @@ void page_table_guest_data_init(struct lguest *lg);
 /* <arch>/core.c: */
 void lguest_arch_host_init(void);
 void lguest_arch_host_fini(void);
-void lguest_arch_run_guest(struct lguest *lg);
+void lguest_arch_run_guest(struct lg_cpu *cpu);
 void lguest_arch_handle_trap(struct lguest *lg);
 int lguest_arch_init_hypercalls(struct lguest *lg);
 int lguest_arch_do_hcall(struct lguest *lg, struct hcall_args *args);

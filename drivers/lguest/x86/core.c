@@ -73,8 +73,9 @@ static DEFINE_PER_CPU(struct lguest *, last_guest);
  * since it last ran.  We saw this set in interrupts_and_traps.c and
  * segments.c.
  */
-static void copy_in_guest_info(struct lguest *lg, struct lguest_pages *pages)
+static void copy_in_guest_info(struct lg_cpu *cpu, struct lguest_pages *pages)
 {
+	struct lguest *lg = cpu->lg;
 	/* Copying all this data can be quite expensive.  We usually run the
 	 * same Guest we ran last time (and that Guest hasn't run anywhere else
 	 * meanwhile).  If that's not the case, we pretend everything in the
@@ -113,14 +114,15 @@ static void copy_in_guest_info(struct lguest *lg, struct lguest_pages *pages)
 }
 
 /* Finally: the code to actually call into the Switcher to run the Guest. */
-static void run_guest_once(struct lguest *lg, struct lguest_pages *pages)
+static void run_guest_once(struct lg_cpu *cpu, struct lguest_pages *pages)
 {
 	/* This is a dummy value we need for GCC's sake. */
 	unsigned int clobber;
+	struct lguest *lg = cpu->lg;
 
 	/* Copy the guest-specific information into this CPU's "struct
 	 * lguest_pages". */
-	copy_in_guest_info(lg, pages);
+	copy_in_guest_info(cpu, pages);
 
 	/* Set the trap number to 256 (impossible value).  If we fault while
 	 * switching to the Guest (bad segment registers or bug), this will
@@ -161,8 +163,10 @@ static void run_guest_once(struct lguest *lg, struct lguest_pages *pages)
 
 /*H:040 This is the i386-specific code to setup and run the Guest.  Interrupts
  * are disabled: we own the CPU. */
-void lguest_arch_run_guest(struct lguest *lg)
+void lguest_arch_run_guest(struct lg_cpu *cpu)
 {
+	struct lguest *lg = cpu->lg;
+
 	/* Remember the awfully-named TS bit?  If the Guest has asked to set it
 	 * we set it now, so we can trap and pass that trap to the Guest if it
 	 * uses the FPU. */
@@ -180,7 +184,7 @@ void lguest_arch_run_guest(struct lguest *lg)
 	/* Now we actually run the Guest.  It will return when something
 	 * interesting happens, and we can examine its registers to see what it
 	 * was doing. */
-	run_guest_once(lg, lguest_pages(raw_smp_processor_id()));
+	run_guest_once(cpu, lguest_pages(raw_smp_processor_id()));
 
 	/* Note that the "regs" pointer contains two extra entries which are
 	 * not really registers: a trap number which says what interrupt or

@@ -55,10 +55,18 @@ static int user_send_irq(struct lguest *lg, const unsigned long __user *input)
 static ssize_t read(struct file *file, char __user *user, size_t size,loff_t*o)
 {
 	struct lguest *lg = file->private_data;
+	struct lg_cpu *cpu;
+	unsigned int cpu_id = *o;
 
 	/* You must write LHREQ_INITIALIZE first! */
 	if (!lg)
 		return -EINVAL;
+
+	/* Watch out for arbitrary vcpu indexes! */
+	if (cpu_id >= lg->nr_cpus)
+		return -EINVAL;
+
+	cpu = &lg->cpus[cpu_id];
 
 	/* If you're not the task which owns the Guest, go away. */
 	if (current != lg->tsk)
@@ -85,7 +93,7 @@ static ssize_t read(struct file *file, char __user *user, size_t size,loff_t*o)
 		lg->pending_notify = 0;
 
 	/* Run the Guest until something interesting happens. */
-	return run_guest(lg, (unsigned long __user *)user);
+	return run_guest(cpu, (unsigned long __user *)user);
 }
 
 static int lg_cpu_start(struct lg_cpu *cpu, unsigned id, unsigned long start_ip)
@@ -147,7 +155,7 @@ static int initialize(struct file *file, const unsigned long __user *input)
 	lg->pfn_limit = args[1];
 
 	/* This is the first cpu */
-	err = cpu_start(&lg->cpus[0], 0, args[3]);
+	err = lg_cpu_start(&lg->cpus[0], 0, args[3]);
 	if (err)
 		goto release_guest;
 

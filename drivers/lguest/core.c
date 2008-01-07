@@ -174,8 +174,10 @@ void __lgwrite(struct lguest *lg, unsigned long addr, const void *b,
 /*H:030 Let's jump straight to the the main loop which runs the Guest.
  * Remember, this is called by the Launcher reading /dev/lguest, and we keep
  * going around and around until something interesting happens. */
-int run_guest(struct lguest *lg, unsigned long __user *user)
+int run_guest(struct lg_cpu *cpu, unsigned long __user *user)
 {
+	struct lguest *lg = cpu->lg;
+
 	/* We stop running once the Guest is dead. */
 	while (!lg->dead) {
 		/* First we run any hypercalls the Guest wants done. */
@@ -226,7 +228,7 @@ int run_guest(struct lguest *lg, unsigned long __user *user)
 		local_irq_disable();
 
 		/* Actually run the Guest until something happens. */
-		lguest_arch_run_guest(lg);
+		lguest_arch_run_guest(cpu);
 
 		/* Now we're ready to be interrupted or moved to other CPUs */
 		local_irq_enable();
