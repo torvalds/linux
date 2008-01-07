@@ -625,14 +625,6 @@ static int __devinit ns_init_card(int i, struct pci_dev *pcidev)
    if (mac[i] == NULL)
       nicstar_init_eprom(card->membase);
 
-   if (request_irq(pcidev->irq, &ns_irq_handler, IRQF_DISABLED | IRQF_SHARED, "nicstar", card) != 0)
-   {
-      printk("nicstar%d: can't allocate IRQ %d.\n", i, pcidev->irq);
-      error = 9;
-      ns_init_card_error(card, error);
-      return error;
-   }
-
    /* Set the VPI/VCI MSb mask to zero so we can receive OAM cells */
    writel(0x00000000, card->membase + VPM);
       
@@ -858,8 +850,6 @@ static int __devinit ns_init_card(int i, struct pci_dev *pcidev)
       card->iovpool.count++;
    }
 
-   card->intcnt = 0;
-
    /* Configure NICStAR */
    if (card->rct_size == 4096)
       ns_cfg_rctsize = NS_CFG_RCTSIZE_4096_ENTRIES;
@@ -867,6 +857,15 @@ static int __devinit ns_init_card(int i, struct pci_dev *pcidev)
       ns_cfg_rctsize = NS_CFG_RCTSIZE_16384_ENTRIES;
 
    card->efbie = 1;
+
+   card->intcnt = 0;
+   if (request_irq(pcidev->irq, &ns_irq_handler, IRQF_DISABLED | IRQF_SHARED, "nicstar", card) != 0)
+   {
+      printk("nicstar%d: can't allocate IRQ %d.\n", i, pcidev->irq);
+      error = 9;
+      ns_init_card_error(card, error);
+      return error;
+   }
 
    /* Register device */
    card->atmdev = atm_dev_register("nicstar", &atm_ops, -1, NULL);
