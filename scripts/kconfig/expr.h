@@ -45,9 +45,9 @@ struct expr {
 	union expr_data left, right;
 };
 
-#define E_OR(dep1, dep2)	(((dep1)>(dep2))?(dep1):(dep2))
-#define E_AND(dep1, dep2)	(((dep1)<(dep2))?(dep1):(dep2))
-#define E_NOT(dep)		(2-(dep))
+#define EXPR_OR(dep1, dep2)	(((dep1)>(dep2))?(dep1):(dep2))
+#define EXPR_AND(dep1, dep2)	(((dep1)<(dep2))?(dep1):(dep2))
+#define EXPR_NOT(dep)		(2-(dep))
 
 struct expr_value {
 	struct expr *expr;
