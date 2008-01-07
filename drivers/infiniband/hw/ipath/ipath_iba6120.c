@@ -535,7 +535,7 @@ static void ipath_pe_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 
 	if (hwerrs & INFINIPATH_HWE_SERDESPLLFAILED) {
 		/*
-		 * If it occurs, it is left masked since the eternal
+		 * If it occurs, it is left masked since the external
 		 * interface is unused
 		 */
 		dd->ipath_hwerrmask &= ~INFINIPATH_HWE_SERDESPLLFAILED;

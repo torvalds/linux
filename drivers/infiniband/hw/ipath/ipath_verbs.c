@@ -943,7 +943,7 @@ bail:
  * ipath_verbs_send - send a packet
  * @qp: the QP to send on
  * @hdr: the packet header
- * @hdrwords: the number of words in the header
+ * @hdrwords: the number of 32-bit words in the header
  * @ss: the SGE to send
  * @len: the length of the packet in bytes
  */
@@ -955,7 +955,10 @@ int ipath_verbs_send(struct ipath_qp *qp, struct ipath_ib_header *hdr,
 	int ret;
 	u32 dwords = (len + 3) >> 2;
 
-	/* +1 is for the qword padding of pbc */
+	/*
+	 * Calculate the send buffer trigger address.
+	 * The +1 counts for the pbc control dword following the pbc length.
+	 */
 	plen = hdrwords + dwords + 1;
 
 	/* Drop non-VL15 packets if we are not in the active state */

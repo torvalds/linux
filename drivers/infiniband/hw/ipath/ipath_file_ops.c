@@ -1050,11 +1050,6 @@ static int mmap_piobufs(struct vm_area_struct *vma,
 
 	phys = dd->ipath_physaddr + piobufs;
 
-	/*
-	 * Don't mark this as non-cached, or we don't get the
-	 * write combining behavior we want on the PIO buffers!
-	 */
-
 #if defined(__powerpc__)
 	/* There isn't a generic way to specify writethrough mappings */
 	pgprot_val(vma->vm_page_prot) |= _PAGE_NO_CACHE;

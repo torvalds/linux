@@ -1022,7 +1022,8 @@ static int ipath_setup_ht_config(struct ipath_devdata *dd,
 	do {
 		u8 cap_type;
 
-		/* the HT capability type byte is 3 bytes after the
+		/*
+		 * The HT capability type byte is 3 bytes after the
 		 * capability byte.
 		 */
 		if (pci_read_config_byte(pdev, pos + 3, &cap_type)) {

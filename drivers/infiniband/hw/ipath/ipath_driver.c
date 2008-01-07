@@ -1196,7 +1196,7 @@ reloop:
 				  be32_to_cpu(hdr->bth[0]) & 0xff);
 		else {
 			/*
-			 * error packet, type of error	unknown.
+			 * error packet, type of error unknown.
 			 * Probably type 3, but we don't know, so don't
 			 * even try to print the opcode, etc.
 			 */
