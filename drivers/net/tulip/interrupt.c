@@ -151,7 +151,8 @@ int tulip_poll(struct napi_struct *napi, int budget)
                        if (tulip_debug > 5)
                                printk(KERN_DEBUG "%s: In tulip_rx(), entry %d %8.8x.\n",
                                       dev->name, entry, status);
-		       if (work_done++ >= budget)
+
+		       if (++work_done >= budget)
                                goto not_done;
 
                        if ((status & 0x38008300) != 0x0300) {
