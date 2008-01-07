@@ -243,8 +243,7 @@ err:
 }
 
 static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *page,
-			      u64 *spte, const void *pte, int bytes,
-			      int offset_in_pte)
+			      u64 *spte, const void *pte)
 {
 	pt_element_t gpte;
 	unsigned pte_access;
@@ -252,12 +251,10 @@ static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *page,
 
 	gpte = *(const pt_element_t *)pte;
 	if (~gpte & (PT_PRESENT_MASK | PT_ACCESSED_MASK)) {
-		if (!offset_in_pte && !is_present_pte(gpte))
+		if (!is_present_pte(gpte))
 			set_shadow_pte(spte, shadow_notrap_nonpresent_pte);
 		return;
 	}
-	if (bytes < sizeof(pt_element_t))
-		return;
 	pgprintk("%s: gpte %llx spte %p\n", __FUNCTION__, (u64)gpte, spte);
 	pte_access = page->role.access & FNAME(gpte_access)(vcpu, gpte);
 	if (gpte_to_gfn(gpte) != vcpu->arch.update_pte.gfn)
