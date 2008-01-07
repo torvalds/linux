@@ -60,7 +60,7 @@ static void do_hcall(struct lg_cpu *cpu, struct hcall_args *args)
 		/* FLUSH_TLB comes in two flavors, depending on the
 		 * argument: */
 		if (args->arg1)
-			guest_pagetable_clear_all(lg);
+			guest_pagetable_clear_all(cpu);
 		else
 			guest_pagetable_flush_user(lg);
 		break;
@@ -68,10 +68,10 @@ static void do_hcall(struct lg_cpu *cpu, struct hcall_args *args)
 	/* All these calls simply pass the arguments through to the right
 	 * routines. */
 	case LHCALL_NEW_PGTABLE:
-		guest_new_pagetable(lg, args->arg1);
+		guest_new_pagetable(cpu, args->arg1);
 		break;
 	case LHCALL_SET_STACK:
-		guest_set_stack(lg, args->arg1, args->arg2, args->arg3);
+		guest_set_stack(cpu, args->arg1, args->arg2, args->arg3);
 		break;
 	case LHCALL_SET_PTE:
 		guest_set_pte(lg, args->arg1, args->arg2, __pte(args->arg3));
@@ -84,7 +84,7 @@ static void do_hcall(struct lg_cpu *cpu, struct hcall_args *args)
 		break;
 	case LHCALL_TS:
 		/* This sets the TS flag, as we saw used in run_guest(). */
-		lg->ts = args->arg1;
+		cpu->ts = args->arg1;
 		break;
 	case LHCALL_HALT:
 		/* Similarly, this sets the halted flag for run_guest(). */
@@ -191,7 +191,7 @@ static void initialize(struct lg_cpu *cpu)
 	 * first write to a Guest page.  This may have caused a copy-on-write
 	 * fault, but the old page might be (read-only) in the Guest
 	 * pagetable. */
-	guest_pagetable_clear_all(lg);
+	guest_pagetable_clear_all(cpu);
 }
 
 /*H:100

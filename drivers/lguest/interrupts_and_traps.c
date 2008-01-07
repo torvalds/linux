@@ -73,8 +73,8 @@ static void set_guest_interrupt(struct lg_cpu *cpu, u32 lo, u32 hi, int has_err)
 	if ((cpu->regs->ss&0x3) != GUEST_PL) {
 		/* The Guest told us their kernel stack with the SET_STACK
 		 * hypercall: both the virtual address and the segment */
-		virtstack = lg->esp1;
-		ss = lg->ss1;
+		virtstack = cpu->esp1;
+		ss = cpu->ss1;
 
 		origstack = gstack = guest_pa(lg, virtstack);
 		/* We push the old stack segment and pointer onto the new
@@ -311,10 +311,11 @@ static int direct_trap(unsigned int num)
  * the Guest.
  *
  * Which is deeply unfair, because (literally!) it wasn't the Guests' fault. */
-void pin_stack_pages(struct lguest *lg)
+void pin_stack_pages(struct lg_cpu *cpu)
 {
 	unsigned int i;
 
+	struct lguest *lg = cpu->lg;
 	/* Depending on the CONFIG_4KSTACKS option, the Guest can have one or
 	 * two pages of stack space. */
 	for (i = 0; i < lg->stack_pages; i++)
@@ -322,7 +323,7 @@ void pin_stack_pages(struct lguest *lg)
 		 * start of the page after the kernel stack.  Subtract one to
 		 * get back onto the first stack page, and keep subtracting to
 		 * get to the rest of the stack pages. */
-		pin_page(lg, lg->esp1 - 1 - i * PAGE_SIZE);
+		pin_page(lg, cpu->esp1 - 1 - i * PAGE_SIZE);
 }
 
 /* Direct traps also mean that we need to know whenever the Guest wants to use
@@ -333,21 +334,21 @@ void pin_stack_pages(struct lguest *lg)
  *
  * In Linux each process has its own kernel stack, so this happens a lot: we
  * change stacks on each context switch. */
-void guest_set_stack(struct lguest *lg, u32 seg, u32 esp, unsigned int pages)
+void guest_set_stack(struct lg_cpu *cpu, u32 seg, u32 esp, unsigned int pages)
 {
 	/* You are not allowed have a stack segment with privilege level 0: bad
 	 * Guest! */
 	if ((seg & 0x3) != GUEST_PL)
-		kill_guest(lg, "bad stack segment %i", seg);
+		kill_guest(cpu->lg, "bad stack segment %i", seg);
 	/* We only expect one or two stack pages. */
 	if (pages > 2)
-		kill_guest(lg, "bad stack pages %u", pages);
+		kill_guest(cpu->lg, "bad stack pages %u", pages);
 	/* Save where the stack is, and how many pages */
-	lg->ss1 = seg;
-	lg->esp1 = esp;
-	lg->stack_pages = pages;
+	cpu->ss1 = seg;
+	cpu->esp1 = esp;
+	cpu->lg->stack_pages = pages;
 	/* Make sure the new stack pages are mapped */
-	pin_stack_pages(lg);
+	pin_stack_pages(cpu);
 }
 
 /* All this reference to mapping stacks leads us neatly into the other complex

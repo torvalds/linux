@@ -46,6 +46,11 @@ struct lg_cpu {
 	struct task_struct *tsk;
 	struct mm_struct *mm; 	/* == tsk->mm, but that becomes NULL on exit */
 
+	u32 cr2;
+	int ts;
+	u32 esp1;
+	u8 ss1;
+
 	/* At end of a page shared mapped over lguest_pages in guest.  */
 	unsigned long regs_page;
 	struct lguest_regs *regs;
@@ -80,10 +85,6 @@ struct lguest
 	 * memory in the Launcher. */
 	void __user *mem_base;
 	unsigned long kernel_address;
-	u32 cr2;
-	int ts;
-	u32 esp1;
-	u8 ss1;
 
 	/* Bitmap of what has changed: see CHANGED_* above. */
 	int changed;
@@ -141,8 +142,8 @@ void maybe_do_interrupt(struct lg_cpu *cpu);
 int deliver_trap(struct lg_cpu *cpu, unsigned int num);
 void load_guest_idt_entry(struct lg_cpu *cpu, unsigned int i,
 			  u32 low, u32 hi);
-void guest_set_stack(struct lguest *lg, u32 seg, u32 esp, unsigned int pages);
-void pin_stack_pages(struct lguest *lg);
+void guest_set_stack(struct lg_cpu *cpu, u32 seg, u32 esp, unsigned int pages);
+void pin_stack_pages(struct lg_cpu *cpu);
 void setup_default_idt_entries(struct lguest_ro_state *state,
 			       const unsigned long *def);
 void copy_traps(const struct lg_cpu *cpu, struct desc_struct *idt,
@@ -164,9 +165,9 @@ void copy_gdt_tls(const struct lg_cpu *cpu, struct desc_struct *gdt);
 /* page_tables.c: */
 int init_guest_pagetable(struct lguest *lg, unsigned long pgtable);
 void free_guest_pagetable(struct lguest *lg);
-void guest_new_pagetable(struct lguest *lg, unsigned long pgtable);
+void guest_new_pagetable(struct lg_cpu *cpu, unsigned long pgtable);
 void guest_set_pmd(struct lguest *lg, unsigned long gpgdir, u32 i);
-void guest_pagetable_clear_all(struct lguest *lg);
+void guest_pagetable_clear_all(struct lg_cpu *cpu);
 void guest_pagetable_flush_user(struct lguest *lg);
 void guest_set_pte(struct lguest *lg, unsigned long gpgdir,
 		   unsigned long vaddr, pte_t val);

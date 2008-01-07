@@ -432,9 +432,10 @@ static unsigned int new_pgdir(struct lguest *lg,
  * Now we've seen all the page table setting and manipulation, let's see what
  * what happens when the Guest changes page tables (ie. changes the top-level
  * pgdir).  This occurs on almost every context switch. */
-void guest_new_pagetable(struct lguest *lg, unsigned long pgtable)
+void guest_new_pagetable(struct lg_cpu *cpu, unsigned long pgtable)
 {
 	int newpgdir, repin = 0;
+	struct lguest *lg = cpu->lg;
 
 	/* Look to see if we have this one already. */
 	newpgdir = find_pgdir(lg, pgtable);
@@ -446,7 +447,7 @@ void guest_new_pagetable(struct lguest *lg, unsigned long pgtable)
 	lg->pgdidx = newpgdir;
 	/* If it was completely blank, we map in the Guest kernel stack */
 	if (repin)
-		pin_stack_pages(lg);
+		pin_stack_pages(cpu);
 }
 
 /*H:470 Finally, a routine which throws away everything: all PGD entries in all
@@ -468,11 +469,11 @@ static void release_all_pagetables(struct lguest *lg)
  * mapping.  Since kernel mappings are in every page table, it's easiest to
  * throw them all away.  This traps the Guest in amber for a while as
  * everything faults back in, but it's rare. */
-void guest_pagetable_clear_all(struct lguest *lg)
+void guest_pagetable_clear_all(struct lg_cpu *cpu)
 {
-	release_all_pagetables(lg);
+	release_all_pagetables(cpu->lg);
 	/* We need the Guest kernel stack mapped again. */
-	pin_stack_pages(lg);
+	pin_stack_pages(cpu);
 }
 /*:*/
 /*M:009 Since we throw away all mappings when a kernel mapping changes, our

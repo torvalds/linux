@@ -95,8 +95,8 @@ static void copy_in_guest_info(struct lg_cpu *cpu, struct lguest_pages *pages)
 	/* Set up the two "TSS" members which tell the CPU what stack to use
 	 * for traps which do directly into the Guest (ie. traps at privilege
 	 * level 1). */
-	pages->state.guest_tss.esp1 = lg->esp1;
-	pages->state.guest_tss.ss1 = lg->ss1;
+	pages->state.guest_tss.esp1 = cpu->esp1;
+	pages->state.guest_tss.ss1 = cpu->ss1;
 
 	/* Copy direct-to-Guest trap entries. */
 	if (lg->changed & CHANGED_IDT)
@@ -165,12 +165,10 @@ static void run_guest_once(struct lg_cpu *cpu, struct lguest_pages *pages)
  * are disabled: we own the CPU. */
 void lguest_arch_run_guest(struct lg_cpu *cpu)
 {
-	struct lguest *lg = cpu->lg;
-
 	/* Remember the awfully-named TS bit?  If the Guest has asked to set it
 	 * we set it now, so we can trap and pass that trap to the Guest if it
 	 * uses the FPU. */
-	if (lg->ts)
+	if (cpu->ts)
 		lguest_set_ts();
 
 	/* SYSENTER is an optimized way of doing system calls.  We can't allow
@@ -325,7 +323,7 @@ void lguest_arch_handle_trap(struct lg_cpu *cpu)
 		/* If the Guest doesn't want to know, we already restored the
 		 * Floating Point Unit, so we just continue without telling
 		 * it. */
-		if (!lg->ts)
+		if (!cpu->ts)
 			return;
 		break;
 	case 32 ... 255:
