@@ -168,66 +168,74 @@ static int pda_power_probe(struct platform_device *pdev)
 		pda_power_supplies[1].num_supplicants = pdata->num_supplicants;
 	}
 
-	ret = power_supply_register(&pdev->dev, &pda_power_supplies[0]);
-	if (ret) {
-		dev_err(dev, "failed to register %s power supply\n",
-			pda_power_supplies[0].name);
-		goto supply0_failed;
-	}
-
-	ret = power_supply_register(&pdev->dev, &pda_power_supplies[1]);
-	if (ret) {
-		dev_err(dev, "failed to register %s power supply\n",
-			pda_power_supplies[1].name);
-		goto supply1_failed;
-	}
-
-	if (ac_irq) {
-		ret = request_irq(ac_irq->start, power_changed_isr,
-				  get_irq_flags(ac_irq), ac_irq->name,
-				  &pda_power_supplies[0]);
+	if (pdata->is_ac_online) {
+		ret = power_supply_register(&pdev->dev, &pda_power_supplies[0]);
 		if (ret) {
-			dev_err(dev, "request ac irq failed\n");
-			goto ac_irq_failed;
+			dev_err(dev, "failed to register %s power supply\n",
+				pda_power_supplies[0].name);
+			goto ac_supply_failed;
+		}
+
+		if (ac_irq) {
+			ret = request_irq(ac_irq->start, power_changed_isr,
+					  get_irq_flags(ac_irq), ac_irq->name,
+					  &pda_power_supplies[0]);
+			if (ret) {
+				dev_err(dev, "request ac irq failed\n");
+				goto ac_irq_failed;
+			}
 		}
 	}
 
-	if (usb_irq) {
-		ret = request_irq(usb_irq->start, power_changed_isr,
-				  get_irq_flags(usb_irq), usb_irq->name,
-				  &pda_power_supplies[1]);
+	if (pdata->is_usb_online) {
+		ret = power_supply_register(&pdev->dev, &pda_power_supplies[1]);
 		if (ret) {
-			dev_err(dev, "request usb irq failed\n");
-			goto usb_irq_failed;
+			dev_err(dev, "failed to register %s power supply\n",
+				pda_power_supplies[1].name);
+			goto usb_supply_failed;
+		}
+
+		if (usb_irq) {
+			ret = request_irq(usb_irq->start, power_changed_isr,
+					  get_irq_flags(usb_irq),
+					  usb_irq->name,
+					  &pda_power_supplies[1]);
+			if (ret) {
+				dev_err(dev, "request usb irq failed\n");
+				goto usb_irq_failed;
+			}
 		}
 	}
 
-	goto success;
+	return 0;
 
 usb_irq_failed:
-	if (ac_irq)
+	if (pdata->is_usb_online)
+		power_supply_unregister(&pda_power_supplies[1]);
+usb_supply_failed:
+	if (pdata->is_ac_online && ac_irq)
 		free_irq(ac_irq->start, &pda_power_supplies[0]);
 ac_irq_failed:
-	power_supply_unregister(&pda_power_supplies[1]);
-supply1_failed:
-	power_supply_unregister(&pda_power_supplies[0]);
-supply0_failed:
+	if (pdata->is_ac_online)
+		power_supply_unregister(&pda_power_supplies[0]);
+ac_supply_failed:
 noirqs:
 wrongid:
-success:
 	return ret;
 }
 
 static int pda_power_remove(struct platform_device *pdev)
 {
-	if (usb_irq)
+	if (pdata->is_usb_online && usb_irq)
 		free_irq(usb_irq->start, &pda_power_supplies[1]);
-	if (ac_irq)
+	if (pdata->is_ac_online && ac_irq)
 		free_irq(ac_irq->start, &pda_power_supplies[0]);
 	del_timer_sync(&charger_timer);
 	del_timer_sync(&supply_timer);
-	power_supply_unregister(&pda_power_supplies[1]);
-	power_supply_unregister(&pda_power_supplies[0]);
+	if (pdata->is_usb_online)
+		power_supply_unregister(&pda_power_supplies[1]);
+	if (pdata->is_ac_online)
+		power_supply_unregister(&pda_power_supplies[0]);
 	return 0;
 }
 
