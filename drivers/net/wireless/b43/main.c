@@ -1674,6 +1674,12 @@ static int b43_request_firmware(struct b43_wldev *dev)
 			else
 				goto err_no_initvals;
 			break;
+		case B43_PHYTYPE_N:
+			if ((rev >= 11) && (rev <= 12))
+				filename = "n0initvals11";
+			else
+				goto err_no_initvals;
+			break;
 		default:
 			goto err_no_initvals;
 		}
@@ -1699,6 +1705,12 @@ static int b43_request_firmware(struct b43_wldev *dev)
 				filename = "b0g0bsinitvals5";
 			else if (rev >= 11)
 				filename = NULL;
+			else
+				goto err_no_initvals;
+			break;
+		case B43_PHYTYPE_N:
+			if ((rev >= 11) && (rev <= 12))
+				filename = "n0bsinitvals11";
 			else
 				goto err_no_initvals;
 			break;
