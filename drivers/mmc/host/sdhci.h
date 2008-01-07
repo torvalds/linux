@@ -208,6 +208,7 @@ struct sdhci_chip {
 
 	unsigned long		quirks;
 
+	int			index;		/* Index for chip0, chip1 ...*/
 	int			num_slots;	/* Slots on controller */
 	struct sdhci_host	*hosts[0];	/* Pointers to hosts */
 };
