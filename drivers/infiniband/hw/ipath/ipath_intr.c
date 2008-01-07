@@ -883,7 +883,7 @@ static noinline void ipath_bad_intr(struct ipath_devdata *dd, u32 *unexpectp)
 				dd->ipath_f_free_irq(dd);
 			}
 		}
-		if (ipath_read_kreg32(dd, dd->ipath_kregs->kr_intmask)) {
+		if (ipath_read_ireg(dd, dd->ipath_kregs->kr_intmask)) {
 			ipath_dev_err(dd, "%u unexpected interrupts, "
 				      "disabling interrupts completely\n",
 				      *unexpectp);
@@ -1034,7 +1034,7 @@ irqreturn_t ipath_intr(int irq, void *data)
 		goto bail;
 	}
 
-	istat = ipath_read_kreg32(dd, dd->ipath_kregs->kr_intstatus);
+	istat = ipath_read_ireg(dd, dd->ipath_kregs->kr_intstatus);
 
 	if (unlikely(!istat)) {
 		ipath_stats.sps_nullintr++;

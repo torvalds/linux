@@ -753,6 +753,8 @@ int ipath_set_rx_pol_inv(struct ipath_devdata *dd, u8 new_pol_inv);
 		 * are 64bit */
 #define IPATH_32BITCOUNTERS 0x20000
 		/* can miss port0 rx interrupts */
+		/* Interrupt register is 64 bits */
+#define IPATH_INTREG_64     0x40000
 #define IPATH_DISABLED      0x80000 /* administratively disabled */
 		/* Use GPIO interrupts for new counters */
 #define IPATH_GPIO_ERRINTRS 0x100000
@@ -956,6 +958,12 @@ static inline u32 ipath_get_rcvhdrtail(const struct ipath_portdata *pd)
 {
 	return (u32) le64_to_cpu(*((volatile __le64 *)
 				pd->port_rcvhdrtail_kvaddr));
+}
+
+static inline u64 ipath_read_ireg(const struct ipath_devdata *dd, ipath_kreg r)
+{
+	return (dd->ipath_flags & IPATH_INTREG_64) ?
+		ipath_read_kreg64(dd, r) : ipath_read_kreg32(dd, r);
 }
 
 /*
