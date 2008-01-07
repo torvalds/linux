@@ -334,6 +334,7 @@ static int attach_inform(struct i2c_client *client)
 		case 0x7a:
 		case 0x47:
 		case 0x71:
+		case 0x2d:
 		{
 			struct IR_i2c *ir = i2c_get_clientdata(client);
 			d1printk("%s i2c IR detected (%s).\n",
@@ -439,6 +440,7 @@ static char *i2c_devs[128] = {
 	[ 0xa0 >> 1 ] = "eeprom",
 	[ 0xc0 >> 1 ] = "tuner (analog)",
 	[ 0x86 >> 1 ] = "tda9887",
+	[ 0x5a >> 1 ] = "remote control",
 };
 
 static void do_i2c_scan(char *name, struct i2c_client *c)
