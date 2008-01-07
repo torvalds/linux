@@ -269,7 +269,7 @@ static void __init bootmem_init(void)
 
 static void __init bootmem_init(void)
 {
-	unsigned long init_begin, reserved_end;
+	unsigned long reserved_end;
 	unsigned long mapstart = ~0UL;
 	unsigned long bootmap_size;
 	int i;
@@ -344,7 +344,6 @@ static void __init bootmem_init(void)
 					 min_low_pfn, max_low_pfn);
 
 
-	init_begin = PFN_UP(__pa_symbol(&__init_begin));
 	for (i = 0; i < boot_mem_map.nr_map; i++) {
 		unsigned long start, end;
 
@@ -352,8 +351,8 @@ static void __init bootmem_init(void)
 		end = PFN_DOWN(boot_mem_map.map[i].addr
 				+ boot_mem_map.map[i].size);
 
-		if (start <= init_begin)
-			start = init_begin;
+		if (start <= min_low_pfn)
+			start = min_low_pfn;
 		if (start >= end)
 			continue;
 
