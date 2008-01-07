@@ -62,7 +62,7 @@ static void do_hcall(struct lg_cpu *cpu, struct hcall_args *args)
 		if (args->arg1)
 			guest_pagetable_clear_all(cpu);
 		else
-			guest_pagetable_flush_user(lg);
+			guest_pagetable_flush_user(cpu);
 		break;
 
 	/* All these calls simply pass the arguments through to the right

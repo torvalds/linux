@@ -57,6 +57,8 @@ struct lg_cpu {
 	unsigned long regs_page;
 	struct lguest_regs *regs;
 
+	int cpu_pgd; /* which pgd this cpu is currently using */
+
 	/* If a hypercall was asked for, this points to the arguments. */
 	struct hcall_args *hcall;
 	u32 next_hcall;
@@ -92,8 +94,6 @@ struct lguest
 	int changed;
 	struct lguest_pages *last_pages;
 
-	/* We keep a small number of these. */
-	u32 pgdidx;
 	struct pgdir pgdirs[4];
 
 	unsigned long noirq_start, noirq_end;
@@ -169,13 +169,13 @@ void free_guest_pagetable(struct lguest *lg);
 void guest_new_pagetable(struct lg_cpu *cpu, unsigned long pgtable);
 void guest_set_pmd(struct lguest *lg, unsigned long gpgdir, u32 i);
 void guest_pagetable_clear_all(struct lg_cpu *cpu);
-void guest_pagetable_flush_user(struct lguest *lg);
+void guest_pagetable_flush_user(struct lg_cpu *cpu);
 void guest_set_pte(struct lguest *lg, unsigned long gpgdir,
 		   unsigned long vaddr, pte_t val);
 void map_switcher_in_guest(struct lg_cpu *cpu, struct lguest_pages *pages);
-int demand_page(struct lguest *info, unsigned long cr2, int errcode);
-void pin_page(struct lguest *lg, unsigned long vaddr);
-unsigned long guest_pa(struct lguest *lg, unsigned long vaddr);
+int demand_page(struct lg_cpu *cpu, unsigned long cr2, int errcode);
+void pin_page(struct lg_cpu *cpu, unsigned long vaddr);
+unsigned long guest_pa(struct lg_cpu *cpu, unsigned long vaddr);
 void page_table_guest_data_init(struct lguest *lg);
 
 /* <arch>/core.c: */

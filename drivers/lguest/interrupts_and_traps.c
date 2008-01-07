@@ -76,7 +76,7 @@ static void set_guest_interrupt(struct lg_cpu *cpu, u32 lo, u32 hi, int has_err)
 		virtstack = cpu->esp1;
 		ss = cpu->ss1;
 
-		origstack = gstack = guest_pa(lg, virtstack);
+		origstack = gstack = guest_pa(cpu, virtstack);
 		/* We push the old stack segment and pointer onto the new
 		 * stack: when the Guest does an "iret" back from the interrupt
 		 * handler the CPU will notice they're dropping privilege
@@ -88,7 +88,7 @@ static void set_guest_interrupt(struct lg_cpu *cpu, u32 lo, u32 hi, int has_err)
 		virtstack = cpu->regs->esp;
 		ss = cpu->regs->ss;
 
-		origstack = gstack = guest_pa(lg, virtstack);
+		origstack = gstack = guest_pa(cpu, virtstack);
 	}
 
 	/* Remember that we never let the Guest actually disable interrupts, so
@@ -323,7 +323,7 @@ void pin_stack_pages(struct lg_cpu *cpu)
 		 * start of the page after the kernel stack.  Subtract one to
 		 * get back onto the first stack page, and keep subtracting to
 		 * get to the rest of the stack pages. */
-		pin_page(lg, cpu->esp1 - 1 - i * PAGE_SIZE);
+		pin_page(cpu, cpu->esp1 - 1 - i * PAGE_SIZE);
 }
 
 /* Direct traps also mean that we need to know whenever the Guest wants to use

@@ -145,7 +145,7 @@ static void run_guest_once(struct lg_cpu *cpu, struct lguest_pages *pages)
 		      * 0-th argument above, ie "a").  %ebx contains the
 		      * physical address of the Guest's top-level page
 		      * directory. */
-		     : "0"(pages), "1"(__pa(lg->pgdirs[lg->pgdidx].pgdir))
+		     : "0"(pages), "1"(__pa(lg->pgdirs[cpu->cpu_pgd].pgdir))
 		     /* We tell gcc that all these registers could change,
 		      * which means we don't have to save and restore them in
 		      * the Switcher. */
@@ -223,7 +223,7 @@ static int emulate_insn(struct lg_cpu *cpu)
 	unsigned int insnlen = 0, in = 0, shift = 0;
 	/* The eip contains the *virtual* address of the Guest's instruction:
 	 * guest_pa just subtracts the Guest's page_offset. */
-	unsigned long physaddr = guest_pa(lg, cpu->regs->eip);
+	unsigned long physaddr = guest_pa(cpu, cpu->regs->eip);
 
 	/* This must be the Guest kernel trying to do something, not userspace!
 	 * The bottom two bits of the CS segment register are the privilege
@@ -305,7 +305,8 @@ void lguest_arch_handle_trap(struct lg_cpu *cpu)
 		 *
 		 * The errcode tells whether this was a read or a write, and
 		 * whether kernel or userspace code. */
-		if (demand_page(lg,cpu->arch.last_pagefault,cpu->regs->errcode))
+		if (demand_page(cpu, cpu->arch.last_pagefault,
+				cpu->regs->errcode))
 			return;
 
 		/* OK, it's really not there (or not OK): the Guest needs to

@@ -94,10 +94,10 @@ static pte_t *spte_addr(struct lguest *lg, pgd_t spgd, unsigned long vaddr)
 
 /* These two functions just like the above two, except they access the Guest
  * page tables.  Hence they return a Guest address. */
-static unsigned long gpgd_addr(struct lguest *lg, unsigned long vaddr)
+static unsigned long gpgd_addr(struct lg_cpu *cpu, unsigned long vaddr)
 {
 	unsigned int index = vaddr >> (PGDIR_SHIFT);
-	return lg->pgdirs[lg->pgdidx].gpgdir + index * sizeof(pgd_t);
+	return cpu->lg->pgdirs[cpu->cpu_pgd].gpgdir + index * sizeof(pgd_t);
 }
 
 static unsigned long gpte_addr(struct lguest *lg,
@@ -200,22 +200,23 @@ static void check_gpgd(struct lguest *lg, pgd_t gpgd)
  *
  * If we fixed up the fault (ie. we mapped the address), this routine returns
  * true.  Otherwise, it was a real fault and we need to tell the Guest. */
-int demand_page(struct lguest *lg, unsigned long vaddr, int errcode)
+int demand_page(struct lg_cpu *cpu, unsigned long vaddr, int errcode)
 {
 	pgd_t gpgd;
 	pgd_t *spgd;
 	unsigned long gpte_ptr;
 	pte_t gpte;
 	pte_t *spte;
+	struct lguest *lg = cpu->lg;
 
 	/* First step: get the top-level Guest page table entry. */
-	gpgd = lgread(lg, gpgd_addr(lg, vaddr), pgd_t);
+	gpgd = lgread(lg, gpgd_addr(cpu, vaddr), pgd_t);
 	/* Toplevel not present?  We can't map it in. */
 	if (!(pgd_flags(gpgd) & _PAGE_PRESENT))
 		return 0;
 
 	/* Now look at the matching shadow entry. */
-	spgd = spgd_addr(lg, lg->pgdidx, vaddr);
+	spgd = spgd_addr(lg, cpu->cpu_pgd, vaddr);
 	if (!(pgd_flags(*spgd) & _PAGE_PRESENT)) {
 		/* No shadow entry: allocate a new shadow PTE page. */
 		unsigned long ptepage = get_zeroed_page(GFP_KERNEL);
@@ -297,19 +298,19 @@ int demand_page(struct lguest *lg, unsigned long vaddr, int errcode)
  *
  * This is a quick version which answers the question: is this virtual address
  * mapped by the shadow page tables, and is it writable? */
-static int page_writable(struct lguest *lg, unsigned long vaddr)
+static int page_writable(struct lg_cpu *cpu, unsigned long vaddr)
 {
 	pgd_t *spgd;
 	unsigned long flags;
 
 	/* Look at the current top level entry: is it present? */
-	spgd = spgd_addr(lg, lg->pgdidx, vaddr);
+	spgd = spgd_addr(cpu->lg, cpu->cpu_pgd, vaddr);
 	if (!(pgd_flags(*spgd) & _PAGE_PRESENT))
 		return 0;
 
 	/* Check the flags on the pte entry itself: it must be present and
 	 * writable. */
-	flags = pte_flags(*(spte_addr(lg, *spgd, vaddr)));
+	flags = pte_flags(*(spte_addr(cpu->lg, *spgd, vaddr)));
 
 	return (flags & (_PAGE_PRESENT|_PAGE_RW)) == (_PAGE_PRESENT|_PAGE_RW);
 }
@@ -317,10 +318,10 @@ static int page_writable(struct lguest *lg, unsigned long vaddr)
 /* So, when pin_stack_pages() asks us to pin a page, we check if it's already
  * in the page tables, and if not, we call demand_page() with error code 2
  * (meaning "write"). */
-void pin_page(struct lguest *lg, unsigned long vaddr)
+void pin_page(struct lg_cpu *cpu, unsigned long vaddr)
 {
-	if (!page_writable(lg, vaddr) && !demand_page(lg, vaddr, 2))
-		kill_guest(lg, "bad stack page %#lx", vaddr);
+	if (!page_writable(cpu, vaddr) && !demand_page(cpu, vaddr, 2))
+		kill_guest(cpu->lg, "bad stack page %#lx", vaddr);
 }
 
 /*H:450 If we chase down the release_pgd() code, it looks like this: */
@@ -358,28 +359,28 @@ static void flush_user_mappings(struct lguest *lg, int idx)
  *
  * The Guest has a hypercall to throw away the page tables: it's used when a
  * large number of mappings have been changed. */
-void guest_pagetable_flush_user(struct lguest *lg)
+void guest_pagetable_flush_user(struct lg_cpu *cpu)
 {
 	/* Drop the userspace part of the current page table. */
-	flush_user_mappings(lg, lg->pgdidx);
+	flush_user_mappings(cpu->lg, cpu->cpu_pgd);
 }
 /*:*/
 
 /* We walk down the guest page tables to get a guest-physical address */
-unsigned long guest_pa(struct lguest *lg, unsigned long vaddr)
+unsigned long guest_pa(struct lg_cpu *cpu, unsigned long vaddr)
 {
 	pgd_t gpgd;
 	pte_t gpte;
 
 	/* First step: get the top-level Guest page table entry. */
-	gpgd = lgread(lg, gpgd_addr(lg, vaddr), pgd_t);
+	gpgd = lgread(cpu->lg, gpgd_addr(cpu, vaddr), pgd_t);
 	/* Toplevel not present?  We can't map it in. */
 	if (!(pgd_flags(gpgd) & _PAGE_PRESENT))
-		kill_guest(lg, "Bad address %#lx", vaddr);
+		kill_guest(cpu->lg, "Bad address %#lx", vaddr);
 
-	gpte = lgread(lg, gpte_addr(lg, gpgd, vaddr), pte_t);
+	gpte = lgread(cpu->lg, gpte_addr(cpu->lg, gpgd, vaddr), pte_t);
 	if (!(pte_flags(gpte) & _PAGE_PRESENT))
-		kill_guest(lg, "Bad address %#lx", vaddr);
+		kill_guest(cpu->lg, "Bad address %#lx", vaddr);
 
 	return pte_pfn(gpte) * PAGE_SIZE | (vaddr & ~PAGE_MASK);
 }
@@ -399,11 +400,12 @@ static unsigned int find_pgdir(struct lguest *lg, unsigned long pgtable)
 /*H:435 And this is us, creating the new page directory.  If we really do
  * allocate a new one (and so the kernel parts are not there), we set
  * blank_pgdir. */
-static unsigned int new_pgdir(struct lguest *lg,
+static unsigned int new_pgdir(struct lg_cpu *cpu,
 			      unsigned long gpgdir,
 			      int *blank_pgdir)
 {
 	unsigned int next;
+	struct lguest *lg = cpu->lg;
 
 	/* We pick one entry at random to throw out.  Choosing the Least
 	 * Recently Used might be better, but this is easy. */
@@ -413,7 +415,7 @@ static unsigned int new_pgdir(struct lguest *lg,
 		lg->pgdirs[next].pgdir = (pgd_t *)get_zeroed_page(GFP_KERNEL);
 		/* If the allocation fails, just keep using the one we have */
 		if (!lg->pgdirs[next].pgdir)
-			next = lg->pgdidx;
+			next = cpu->cpu_pgd;
 		else
 			/* This is a blank page, so there are no kernel
 			 * mappings: caller must map the stack! */
@@ -442,9 +444,9 @@ void guest_new_pagetable(struct lg_cpu *cpu, unsigned long pgtable)
 	/* If not, we allocate or mug an existing one: if it's a fresh one,
 	 * repin gets set to 1. */
 	if (newpgdir == ARRAY_SIZE(lg->pgdirs))
-		newpgdir = new_pgdir(lg, pgtable, &repin);
+		newpgdir = new_pgdir(cpu, pgtable, &repin);
 	/* Change the current pgd index to the new one. */
-	lg->pgdidx = newpgdir;
+	cpu->cpu_pgd = newpgdir;
 	/* If it was completely blank, we map in the Guest kernel stack */
 	if (repin)
 		pin_stack_pages(cpu);
@@ -591,11 +593,11 @@ int init_guest_pagetable(struct lguest *lg, unsigned long pgtable)
 {
 	/* We start on the first shadow page table, and give it a blank PGD
 	 * page. */
-	lg->pgdidx = 0;
-	lg->pgdirs[lg->pgdidx].gpgdir = pgtable;
-	lg->pgdirs[lg->pgdidx].pgdir = (pgd_t*)get_zeroed_page(GFP_KERNEL);
-	if (!lg->pgdirs[lg->pgdidx].pgdir)
+	lg->pgdirs[0].gpgdir = pgtable;
+	lg->pgdirs[0].pgdir = (pgd_t *)get_zeroed_page(GFP_KERNEL);
+	if (!lg->pgdirs[0].pgdir)
 		return -ENOMEM;
+	lg->cpus[0].cpu_pgd = 0;
 	return 0;
 }
 
@@ -607,7 +609,7 @@ void page_table_guest_data_init(struct lguest *lg)
 	    /* We tell the Guest that it can't use the top 4MB of virtual
 	     * addresses used by the Switcher. */
 	    || put_user(4U*1024*1024, &lg->lguest_data->reserve_mem)
-	    || put_user(lg->pgdirs[lg->pgdidx].gpgdir,&lg->lguest_data->pgdir))
+	    || put_user(lg->pgdirs[0].gpgdir, &lg->lguest_data->pgdir))
 		kill_guest(lg, "bad guest page %p", lg->lguest_data);
 
 	/* In flush_user_mappings() we loop from 0 to
@@ -637,7 +639,6 @@ void free_guest_pagetable(struct lguest *lg)
  * Guest is about to run on this CPU. */
 void map_switcher_in_guest(struct lg_cpu *cpu, struct lguest_pages *pages)
 {
-	struct lguest *lg = cpu->lg;
 	pte_t *switcher_pte_page = __get_cpu_var(switcher_pte_pages);
 	pgd_t switcher_pgd;
 	pte_t regs_pte;
@@ -647,7 +648,7 @@ void map_switcher_in_guest(struct lg_cpu *cpu, struct lguest_pages *pages)
 	 * page for this CPU (with appropriate flags). */
 	switcher_pgd = __pgd(__pa(switcher_pte_page) | _PAGE_KERNEL);
 
-	lg->pgdirs[lg->pgdidx].pgdir[SWITCHER_PGD_INDEX] = switcher_pgd;
+	cpu->lg->pgdirs[cpu->cpu_pgd].pgdir[SWITCHER_PGD_INDEX] = switcher_pgd;
 
 	/* We also change the Switcher PTE page.  When we're running the Guest,
 	 * we want the Guest's "regs" page to appear where the first Switcher
