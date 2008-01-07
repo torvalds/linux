@@ -79,6 +79,9 @@ static void *guest_base;
 /* The maximum guest physical address allowed, and maximum possible. */
 static unsigned long guest_limit, guest_max;
 
+/* a per-cpu variable indicating whose vcpu is currently running */
+static unsigned int __thread cpu_id;
+
 /* This is our list of devices. */
 struct device_list
 {
@@ -557,7 +560,7 @@ static void wake_parent(int pipefd, int lguest_fd)
 			else
 				FD_CLR(-fd - 1, &devices.infds);
 		} else /* Send LHREQ_BREAK command. */
-			write(lguest_fd, args, sizeof(args));
+			pwrite(lguest_fd, args, sizeof(args), cpu_id);
 	}
 }
 
@@ -1530,7 +1533,8 @@ static void __attribute__((noreturn)) run_guest(int lguest_fd)
 		int readval;
 
 		/* We read from the /dev/lguest device to run the Guest. */
-		readval = read(lguest_fd, &notify_addr, sizeof(notify_addr));
+		readval = pread(lguest_fd, &notify_addr,
+				sizeof(notify_addr), cpu_id);
 
 		/* One unsigned long means the Guest did HCALL_NOTIFY */
 		if (readval == sizeof(notify_addr)) {
@@ -1540,7 +1544,7 @@ static void __attribute__((noreturn)) run_guest(int lguest_fd)
 		/* ENOENT means the Guest died.  Reading tells us why. */
 		} else if (errno == ENOENT) {
 			char reason[1024] = { 0 };
-			read(lguest_fd, reason, sizeof(reason)-1);
+			pread(lguest_fd, reason, sizeof(reason)-1, cpu_id);
 			errx(1, "%s", reason);
 		/* ERESTART means that we need to reboot the guest */
 		} else if (errno == ERESTART) {
@@ -1550,9 +1554,13 @@ static void __attribute__((noreturn)) run_guest(int lguest_fd)
 		} else if (errno != EAGAIN)
 			err(1, "Running guest failed");
 
+		/* Only service input on thread for CPU 0. */
+		if (cpu_id != 0)
+			continue;
+
 		/* Service input, then unset the BREAK to release the Waker. */
 		handle_input(lguest_fd);
-		if (write(lguest_fd, args, sizeof(args)) < 0)
+		if (pwrite(lguest_fd, args, sizeof(args), cpu_id) < 0)
 			err(1, "Resetting break");
 	}
 }
@@ -1610,6 +1618,7 @@ int main(int argc, char *argv[])
 	devices.lastdev = &devices.dev;
 	devices.next_irq = 1;
 
+	cpu_id = 0;
 	/* We need to know how much memory so we can set up the device
 	 * descriptor and memory pages for the devices as we parse the command
 	 * line.  So we quickly look through the arguments to find the amount
