@@ -98,6 +98,7 @@
 #define AUDIT_FD_PAIR		1317    /* audit record for pipe/socketpair */
 #define AUDIT_OBJ_PID		1318	/* ptrace target */
 #define AUDIT_TTY		1319	/* Input on an administrative TTY */
+#define AUDIT_EOE		1320	/* End of multi-record event */
 
 #define AUDIT_AVC		1400	/* SE Linux avc denial or grant */
 #define AUDIT_SELINUX_ERR	1401	/* Internal SE Linux Errors */

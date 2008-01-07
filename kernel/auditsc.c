@@ -1270,6 +1270,11 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 
 		audit_log_end(ab);
 	}
+
+	/* Send end of event record to help user space know we are finished */
+	ab = audit_log_start(context, GFP_KERNEL, AUDIT_EOE);
+	if (ab)
+		audit_log_end(ab);
 	if (call_panic)
 		audit_panic("error converting sid to string");
 }
