@@ -992,8 +992,6 @@ config BOOT_ELF64
 
 menu "CPU selection"
 
-source "kernel/time/Kconfig"
-
 choice
 	prompt "CPU type"
 	default CPU_R4X00
@@ -1767,6 +1765,8 @@ config NR_CPUS
 	  approximately eight kilobytes to the kernel image.  For best
 	  performance should round up your number of processors to the next
 	  power of two.
+
+source "kernel/time/Kconfig"
 
 #
 # Timer Interrupt Frequency Configuration
