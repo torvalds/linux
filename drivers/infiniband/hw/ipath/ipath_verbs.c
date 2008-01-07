@@ -1641,6 +1641,7 @@ int ipath_register_ib_device(struct ipath_devdata *dd)
 		cntrs.local_link_integrity_errors;
 	idev->z_excessive_buffer_overrun_errors =
 		cntrs.excessive_buffer_overrun_errors;
+	idev->z_vl15_dropped = cntrs.vl15_dropped;
 
 	/*
 	 * The system image GUID is supposed to be the same for all

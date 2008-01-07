@@ -469,6 +469,20 @@ struct ipath_cregs {
 	ipath_creg cr_unsupvlcnt;
 	ipath_creg cr_wordrcvcnt;
 	ipath_creg cr_wordsendcnt;
+	ipath_creg cr_vl15droppedpktcnt;
+	ipath_creg cr_rxotherlocalphyerrcnt;
+	ipath_creg cr_excessbufferovflcnt;
+	ipath_creg cr_locallinkintegrityerrcnt;
+	ipath_creg cr_rxvlerrcnt;
+	ipath_creg cr_rxdlidfltrcnt;
+	ipath_creg cr_psstat;
+	ipath_creg cr_psstart;
+	ipath_creg cr_psinterval;
+	ipath_creg cr_psrcvdatacount;
+	ipath_creg cr_psrcvpktscount;
+	ipath_creg cr_psxmitdatacount;
+	ipath_creg cr_psxmitpktscount;
+	ipath_creg cr_psxmitwaitcount;
 };
 
 #endif				/* _IPATH_REGISTERS_H */

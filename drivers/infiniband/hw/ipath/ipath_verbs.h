@@ -554,6 +554,7 @@ struct ipath_ibdev {
 	u32 z_pkey_violations;			/* starting count for PMA */
 	u32 z_local_link_integrity_errors;	/* starting count for PMA */
 	u32 z_excessive_buffer_overrun_errors;	/* starting count for PMA */
+	u32 z_vl15_dropped;			/* starting count for PMA */
 	u32 n_rc_resends;
 	u32 n_rc_acks;
 	u32 n_rc_qacks;
@@ -598,6 +599,7 @@ struct ipath_verbs_counters {
 	u64 port_rcv_packets;
 	u32 local_link_integrity_errors;
 	u32 excessive_buffer_overrun_errors;
+	u32 vl15_dropped;
 };
 
 static inline struct ipath_mr *to_imr(struct ib_mr *ibmr)

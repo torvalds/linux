@@ -930,6 +930,15 @@ static inline u32 ipath_read_creg32(const struct ipath_devdata *dd,
 		      (char __iomem *)dd->ipath_kregbase));
 }
 
+static inline void ipath_write_creg(const struct ipath_devdata *dd,
+				    ipath_creg regno, u64 value)
+{
+	if (dd->ipath_kregbase)
+		writeq(value, regno + (u64 __iomem *)
+		       (dd->ipath_cregbase +
+			(char __iomem *)dd->ipath_kregbase));
+}
+
 static inline void ipath_clear_rcvhdrtail(const struct ipath_portdata *pd)
 {
 	*((u64 *) pd->port_rcvhdrtail_kvaddr) = 0ULL;
