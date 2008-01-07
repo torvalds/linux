@@ -756,6 +756,7 @@ int ipath_set_rx_pol_inv(struct ipath_devdata *dd, u8 new_pol_inv);
 #define IPATH_DISABLED      0x80000 /* administratively disabled */
 		/* Use GPIO interrupts for new counters */
 #define IPATH_GPIO_ERRINTRS 0x100000
+#define IPATH_SWAP_PIOBUFS  0x200000
 
 /* Bits in GPIO for the added interrupts */
 #define IPATH_GPIO_PORT0_BIT 2

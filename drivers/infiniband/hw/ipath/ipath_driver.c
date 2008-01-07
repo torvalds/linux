@@ -1340,14 +1340,9 @@ static void ipath_update_pio_bufs(struct ipath_devdata *dd)
 		/*
 		 * Chip Errata: bug 6641; even and odd qwords>3 are swapped
 		 */
-		if (i > 3) {
-			if (i & 1)
-				piov = le64_to_cpu(
-					dd->ipath_pioavailregs_dma[i - 1]);
-			else
-				piov = le64_to_cpu(
-					dd->ipath_pioavailregs_dma[i + 1]);
-		} else
+		if (i > 3 && (dd->ipath_flags & IPATH_SWAP_PIOBUFS))
+			piov = le64_to_cpu(dd->ipath_pioavailregs_dma[i ^ 1]);
+		else
 			piov = le64_to_cpu(dd->ipath_pioavailregs_dma[i]);
 		pchg = _IPATH_ALL_CHECKBITS &
 			~(dd->ipath_pioavailshadow[i] ^ piov);

@@ -1043,6 +1043,8 @@ static int ipath_setup_ht_config(struct ipath_devdata *dd,
 	} while ((pos = pci_find_next_capability(pdev, pos,
 						 PCI_CAP_ID_HT)));
 
+	dd->ipath_flags |= IPATH_SWAP_PIOBUFS;
+
 bail:
 	return ret;
 }

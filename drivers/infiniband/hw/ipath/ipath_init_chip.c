@@ -528,12 +528,8 @@ static void enable_chip(struct ipath_devdata *dd,
 		/*
 		 * Chip Errata bug 6641; even and odd qwords>3 are swapped.
 		 */
-		if (i > 3) {
-			if (i & 1)
-				val = dd->ipath_pioavailregs_dma[i - 1];
-			else
-				val = dd->ipath_pioavailregs_dma[i + 1];
-		}
+		if (i > 3 && (dd->ipath_flags & IPATH_SWAP_PIOBUFS))
+			val = dd->ipath_pioavailregs_dma[i ^ 1];
 		else
 			val = dd->ipath_pioavailregs_dma[i];
 		dd->ipath_pioavailshadow[i] = le64_to_cpu(val);
