@@ -541,7 +541,7 @@ static const struct i2c_algo_bit_data ivtv_i2c_algo_template = {
 	.setscl		= ivtv_setscl_old,
 	.getsda		= ivtv_getsda_old,
 	.getscl		= ivtv_getscl_old,
-	.udelay		= 5,
+	.udelay		= 10,
 	.timeout	= 200,
 };
 
@@ -718,9 +718,6 @@ int init_ivtv_i2c(struct ivtv *itv)
 		       sizeof(struct i2c_adapter));
 		memcpy(&itv->i2c_algo, &ivtv_i2c_algo_template,
 		       sizeof(struct i2c_algo_bit_data));
-		/* The mspx4xx chips need a longer delay for some reason */
-		if (itv->hw_flags & IVTV_HW_MSP34XX)
-			itv->i2c_algo.udelay = 10;
 		itv->i2c_algo.data = itv;
 		itv->i2c_adap.algo_data = &itv->i2c_algo;
 	}
