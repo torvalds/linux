@@ -3344,6 +3344,9 @@ static int patch_stac927x(struct hda_codec *codec)
 		spec->mixer = stac927x_mixer;
 		break;
 	case STAC_DELL_BIOS:
+		/* correct the front input jack as a mic */
+		stac92xx_set_config_reg(codec, 0x0e, 0x02a79130);
+		/* fallthru */
 	case STAC_DELL_3ST:
 		/* GPIO2 High = Enable EAPD */
 		spec->gpio_mask = spec->gpio_data = 0x00000004;
