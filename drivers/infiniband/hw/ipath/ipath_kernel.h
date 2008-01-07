@@ -395,6 +395,8 @@ struct ipath_devdata {
 	void *ipath_dummy_hdrq;	/* used after port close */
 	dma_addr_t ipath_dummy_hdrq_phys;
 
+	unsigned long ipath_ureg_align; /* user register alignment */
+
 	/*
 	 * Shadow copies of registers; size indicates read access size.
 	 * Most of them are readonly, but some are write-only register,
@@ -865,7 +867,7 @@ static inline u32 ipath_read_ureg32(const struct ipath_devdata *dd,
 	return readl(regno + (u64 __iomem *)
 		     (dd->ipath_uregbase +
 		      (char __iomem *)dd->ipath_kregbase +
-		      dd->ipath_palign * port));
+		      dd->ipath_ureg_align * port));
 }
 
 /**
@@ -882,7 +884,7 @@ static inline void ipath_write_ureg(const struct ipath_devdata *dd,
 {
 	u64 __iomem *ubase = (u64 __iomem *)
 		(dd->ipath_uregbase + (char __iomem *) dd->ipath_kregbase +
-		 dd->ipath_palign * port);
+		 dd->ipath_ureg_align * port);
 	if (dd->ipath_kregbase)
 		writeq(value, &ubase[regno]);
 }

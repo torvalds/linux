@@ -739,6 +739,13 @@ static int ipath_ht_boardname(struct ipath_devdata *dd, char *name,
 			      dd->ipath_htspeed);
 	ret = 0;
 
+	/*
+	 * set here, not in ipath_init_*_funcs because we have to do
+	 * it after we can read chip registers.
+	 */
+	dd->ipath_ureg_align =
+		ipath_read_kreg32(dd, dd->ipath_kregs->kr_pagealign);
+
 bail:
 	return ret;
 }

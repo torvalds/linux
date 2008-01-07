@@ -169,7 +169,7 @@ static int ipath_get_base_info(struct file *fp,
 		kinfo->spi_piocnt = dd->ipath_pbufsport;
 		kinfo->spi_piobufbase = (u64) pd->port_piobufs;
 		kinfo->__spi_uregbase = (u64) dd->ipath_uregbase +
-			dd->ipath_palign * pd->port_port;
+			dd->ipath_ureg_align * pd->port_port;
 	} else if (master) {
 		kinfo->spi_piocnt = (dd->ipath_pbufsport / subport_cnt) +
 				    (dd->ipath_pbufsport % subport_cnt);
@@ -186,7 +186,7 @@ static int ipath_get_base_info(struct file *fp,
 	}
 	if (shared) {
 		kinfo->spi_port_uregbase = (u64) dd->ipath_uregbase +
-			dd->ipath_palign * pd->port_port;
+			dd->ipath_ureg_align * pd->port_port;
 		kinfo->spi_port_rcvegrbuf = kinfo->spi_rcv_egrbufs;
 		kinfo->spi_port_rcvhdr_base = kinfo->spi_rcvhdr_base;
 		kinfo->spi_port_rcvhdr_tailaddr = kinfo->spi_rcvhdr_tailaddr;
@@ -1271,7 +1271,7 @@ static int ipath_mmap(struct file *fp, struct vm_area_struct *vma)
 		goto bail;
 	}
 
-	ureg = dd->ipath_uregbase + dd->ipath_palign * pd->port_port;
+	ureg = dd->ipath_uregbase + dd->ipath_ureg_align * pd->port_port;
 	if (!pd->port_subport_cnt) {
 		/* port is not shared */
 		piocnt = dd->ipath_pbufsport;
