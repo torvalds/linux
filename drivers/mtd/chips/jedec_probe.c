@@ -1676,8 +1676,7 @@ static inline u32 jedec_read_id(struct map_info *map, uint32_t base,
 	return result.x[0] & mask;
 }
 
-static inline void jedec_reset(u32 base, struct map_info *map,
-	struct cfi_private *cfi)
+static void jedec_reset(u32 base, struct map_info *map, struct cfi_private *cfi)
 {
 	/* Reset */
 
