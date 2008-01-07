@@ -579,7 +579,7 @@ struct ipath_flash {
 struct infinipath_counters {
 	__u64 LBIntCnt;
 	__u64 LBFlowStallCnt;
-	__u64 Reserved1;
+	__u64 TxSDmaDescCnt;	/* was Reserved1 */
 	__u64 TxUnsupVLErrCnt;
 	__u64 TxDataPktCnt;
 	__u64 TxFlowPktCnt;
@@ -615,12 +615,26 @@ struct infinipath_counters {
 	__u64 RxP6HdrEgrOvflCnt;
 	__u64 RxP7HdrEgrOvflCnt;
 	__u64 RxP8HdrEgrOvflCnt;
-	__u64 Reserved6;
-	__u64 Reserved7;
+	__u64 RxP9HdrEgrOvflCnt;	/* was Reserved6 */
+	__u64 RxP10HdrEgrOvflCnt;	/* was Reserved7 */
+	__u64 RxP11HdrEgrOvflCnt;	/* new for IBA7220 */
+	__u64 RxP12HdrEgrOvflCnt;	/* new for IBA7220 */
+	__u64 RxP13HdrEgrOvflCnt;	/* new for IBA7220 */
+	__u64 RxP14HdrEgrOvflCnt;	/* new for IBA7220 */
+	__u64 RxP15HdrEgrOvflCnt;	/* new for IBA7220 */
+	__u64 RxP16HdrEgrOvflCnt;	/* new for IBA7220 */
 	__u64 IBStatusChangeCnt;
 	__u64 IBLinkErrRecoveryCnt;
 	__u64 IBLinkDownedCnt;
 	__u64 IBSymbolErrCnt;
+	/* The following are new for IBA7220 */
+	__u64 RxVL15DroppedPktCnt;
+	__u64 RxOtherLocalPhyErrCnt;
+	__u64 PcieRetryBufDiagQwordCnt;
+	__u64 ExcessBufferOvflCnt;
+	__u64 LocalLinkIntegrityErrCnt;
+	__u64 RxVlErrCnt;
+	__u64 RxDlidFltrCnt;
 };
 
 /*

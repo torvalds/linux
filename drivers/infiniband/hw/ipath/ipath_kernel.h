@@ -253,6 +253,8 @@ struct ipath_devdata {
 	int (*ipath_f_get_base_info)(struct ipath_portdata *, void *);
 	/* free irq */
 	void (*ipath_f_free_irq)(struct ipath_devdata *);
+	void (*ipath_f_read_counters)(struct ipath_devdata *,
+				      struct infinipath_counters *);
 	struct ipath_ibdev *verbs_dev;
 	struct timer_list verbs_timer;
 	/* total dwords sent (summed from counter) */

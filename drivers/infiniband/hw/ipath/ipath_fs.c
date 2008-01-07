@@ -108,21 +108,16 @@ static const struct file_operations atomic_stats_ops = {
 	.read = atomic_stats_read,
 };
 
-#define NUM_COUNTERS sizeof(struct infinipath_counters) / sizeof(u64)
-
 static ssize_t atomic_counters_read(struct file *file, char __user *buf,
 				    size_t count, loff_t *ppos)
 {
-	u64 counters[NUM_COUNTERS];
-	u16 i;
+	struct infinipath_counters counters;
 	struct ipath_devdata *dd;
 
 	dd = file->f_path.dentry->d_inode->i_private;
+	dd->ipath_f_read_counters(dd, &counters);
 
-	for (i = 0; i < NUM_COUNTERS; i++)
-		counters[i] = ipath_snap_cntr(dd, i);
-
-	return simple_read_from_buffer(buf, count, ppos, counters,
+	return simple_read_from_buffer(buf, count, ppos, &counters,
 				       sizeof counters);
 }
 

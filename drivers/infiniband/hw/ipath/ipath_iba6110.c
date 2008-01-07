@@ -148,10 +148,57 @@ struct _infinipath_do_not_use_kernel_regs {
 	unsigned long long ReservedSW2[4];
 };
 
-#define IPATH_KREG_OFFSET(field) (offsetof(struct \
-    _infinipath_do_not_use_kernel_regs, field) / sizeof(u64))
+struct _infinipath_do_not_use_counters {
+	__u64 LBIntCnt;
+	__u64 LBFlowStallCnt;
+	__u64 Reserved1;
+	__u64 TxUnsupVLErrCnt;
+	__u64 TxDataPktCnt;
+	__u64 TxFlowPktCnt;
+	__u64 TxDwordCnt;
+	__u64 TxLenErrCnt;
+	__u64 TxMaxMinLenErrCnt;
+	__u64 TxUnderrunCnt;
+	__u64 TxFlowStallCnt;
+	__u64 TxDroppedPktCnt;
+	__u64 RxDroppedPktCnt;
+	__u64 RxDataPktCnt;
+	__u64 RxFlowPktCnt;
+	__u64 RxDwordCnt;
+	__u64 RxLenErrCnt;
+	__u64 RxMaxMinLenErrCnt;
+	__u64 RxICRCErrCnt;
+	__u64 RxVCRCErrCnt;
+	__u64 RxFlowCtrlErrCnt;
+	__u64 RxBadFormatCnt;
+	__u64 RxLinkProblemCnt;
+	__u64 RxEBPCnt;
+	__u64 RxLPCRCErrCnt;
+	__u64 RxBufOvflCnt;
+	__u64 RxTIDFullErrCnt;
+	__u64 RxTIDValidErrCnt;
+	__u64 RxPKeyMismatchCnt;
+	__u64 RxP0HdrEgrOvflCnt;
+	__u64 RxP1HdrEgrOvflCnt;
+	__u64 RxP2HdrEgrOvflCnt;
+	__u64 RxP3HdrEgrOvflCnt;
+	__u64 RxP4HdrEgrOvflCnt;
+	__u64 RxP5HdrEgrOvflCnt;
+	__u64 RxP6HdrEgrOvflCnt;
+	__u64 RxP7HdrEgrOvflCnt;
+	__u64 RxP8HdrEgrOvflCnt;
+	__u64 Reserved6;
+	__u64 Reserved7;
+	__u64 IBStatusChangeCnt;
+	__u64 IBLinkErrRecoveryCnt;
+	__u64 IBLinkDownedCnt;
+	__u64 IBSymbolErrCnt;
+};
+
+#define IPATH_KREG_OFFSET(field) (offsetof( \
+	struct _infinipath_do_not_use_kernel_regs, field) / sizeof(u64))
 #define IPATH_CREG_OFFSET(field) (offsetof( \
-    struct infinipath_counters, field) / sizeof(u64))
+	struct _infinipath_do_not_use_counters, field) / sizeof(u64))
 
 static const struct ipath_kregs ipath_ht_kregs = {
 	.kr_control = IPATH_KREG_OFFSET(Control),
@@ -1614,6 +1661,111 @@ static void ipath_ht_free_irq(struct ipath_devdata *dd)
 	dd->ipath_intconfig = 0;
 }
 
+static void ipath_ht_read_counters(struct ipath_devdata *dd,
+				   struct infinipath_counters *cntrs)
+{
+	cntrs->LBIntCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(LBIntCnt));
+	cntrs->LBFlowStallCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(LBFlowStallCnt));
+	cntrs->TxSDmaDescCnt = 0;
+	cntrs->TxUnsupVLErrCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(TxUnsupVLErrCnt));
+	cntrs->TxDataPktCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(TxDataPktCnt));
+	cntrs->TxFlowPktCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(TxFlowPktCnt));
+	cntrs->TxDwordCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(TxDwordCnt));
+	cntrs->TxLenErrCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(TxLenErrCnt));
+	cntrs->TxMaxMinLenErrCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(TxMaxMinLenErrCnt));
+	cntrs->TxUnderrunCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(TxUnderrunCnt));
+	cntrs->TxFlowStallCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(TxFlowStallCnt));
+	cntrs->TxDroppedPktCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(TxDroppedPktCnt));
+	cntrs->RxDroppedPktCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(RxDroppedPktCnt));
+	cntrs->RxDataPktCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(RxDataPktCnt));
+	cntrs->RxFlowPktCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(RxFlowPktCnt));
+	cntrs->RxDwordCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(RxDwordCnt));
+	cntrs->RxLenErrCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(RxLenErrCnt));
+	cntrs->RxMaxMinLenErrCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(RxMaxMinLenErrCnt));
+	cntrs->RxICRCErrCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(RxICRCErrCnt));
+	cntrs->RxVCRCErrCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(RxVCRCErrCnt));
+	cntrs->RxFlowCtrlErrCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(RxFlowCtrlErrCnt));
+	cntrs->RxBadFormatCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(RxBadFormatCnt));
+	cntrs->RxLinkProblemCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(RxLinkProblemCnt));
+	cntrs->RxEBPCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(RxEBPCnt));
+	cntrs->RxLPCRCErrCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(RxLPCRCErrCnt));
+	cntrs->RxBufOvflCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(RxBufOvflCnt));
+	cntrs->RxTIDFullErrCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(RxTIDFullErrCnt));
+	cntrs->RxTIDValidErrCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(RxTIDValidErrCnt));
+	cntrs->RxPKeyMismatchCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(RxPKeyMismatchCnt));
+	cntrs->RxP0HdrEgrOvflCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(RxP0HdrEgrOvflCnt));
+	cntrs->RxP1HdrEgrOvflCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(RxP1HdrEgrOvflCnt));
+	cntrs->RxP2HdrEgrOvflCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(RxP2HdrEgrOvflCnt));
+	cntrs->RxP3HdrEgrOvflCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(RxP3HdrEgrOvflCnt));
+	cntrs->RxP4HdrEgrOvflCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(RxP4HdrEgrOvflCnt));
+	cntrs->RxP5HdrEgrOvflCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(RxP5HdrEgrOvflCnt));
+	cntrs->RxP6HdrEgrOvflCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(RxP6HdrEgrOvflCnt));
+	cntrs->RxP7HdrEgrOvflCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(RxP7HdrEgrOvflCnt));
+	cntrs->RxP8HdrEgrOvflCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(RxP8HdrEgrOvflCnt));
+	cntrs->RxP9HdrEgrOvflCnt = 0;
+	cntrs->RxP10HdrEgrOvflCnt = 0;
+	cntrs->RxP11HdrEgrOvflCnt = 0;
+	cntrs->RxP12HdrEgrOvflCnt = 0;
+	cntrs->RxP13HdrEgrOvflCnt = 0;
+	cntrs->RxP14HdrEgrOvflCnt = 0;
+	cntrs->RxP15HdrEgrOvflCnt = 0;
+	cntrs->RxP16HdrEgrOvflCnt = 0;
+	cntrs->IBStatusChangeCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(IBStatusChangeCnt));
+	cntrs->IBLinkErrRecoveryCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(IBLinkErrRecoveryCnt));
+	cntrs->IBLinkDownedCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(IBLinkDownedCnt));
+	cntrs->IBSymbolErrCnt =
+		ipath_snap_cntr(dd, IPATH_CREG_OFFSET(IBSymbolErrCnt));
+	cntrs->RxVL15DroppedPktCnt = 0;
+	cntrs->RxOtherLocalPhyErrCnt = 0;
+	cntrs->PcieRetryBufDiagQwordCnt = 0;
+	cntrs->ExcessBufferOvflCnt = dd->ipath_overrun_thresh_errs;
+	cntrs->LocalLinkIntegrityErrCnt =
+		(dd->ipath_flags & IPATH_GPIO_ERRINTRS) ?
+		dd->ipath_lli_errs : dd->ipath_lli_errors;
+	cntrs->RxVlErrCnt = 0;
+	cntrs->RxDlidFltrCnt = 0;
+}
+
 /**
  * ipath_init_iba6110_funcs - set up the chip-specific function pointers
  * @dd: the infinipath device
@@ -1638,6 +1790,7 @@ void ipath_init_iba6110_funcs(struct ipath_devdata *dd)
 	dd->ipath_f_setextled = ipath_setup_ht_setextled;
 	dd->ipath_f_get_base_info = ipath_ht_get_base_info;
 	dd->ipath_f_free_irq = ipath_ht_free_irq;
+	dd->ipath_f_read_counters = ipath_ht_read_counters;
 
 	/*
 	 * initialize chip-specific variables
