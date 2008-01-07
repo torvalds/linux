@@ -152,8 +152,10 @@ struct audit_buffer {
 
 static void audit_set_pid(struct audit_buffer *ab, pid_t pid)
 {
-	struct nlmsghdr *nlh = nlmsg_hdr(ab->skb);
-	nlh->nlmsg_pid = pid;
+	if (ab) {
+		struct nlmsghdr *nlh = nlmsg_hdr(ab->skb);
+		nlh->nlmsg_pid = pid;
+	}
 }
 
 void audit_panic(const char *message)
@@ -511,6 +513,33 @@ static int audit_netlink_ok(struct sk_buff *skb, u16 msg_type)
 	return err;
 }
 
+static int audit_log_common_recv_msg(struct audit_buffer **ab, u16 msg_type,
+				     u32 pid, u32 uid, uid_t auid, u32 sid)
+{
+	int rc = 0;
+	char *ctx = NULL;
+	u32 len;
+
+	if (!audit_enabled) {
+		*ab = NULL;
+		return rc;
+	}
+
+	*ab = audit_log_start(NULL, GFP_KERNEL, msg_type);
+	audit_log_format(*ab, "user pid=%d uid=%u auid=%u",
+			 pid, uid, auid);
+	if (sid) {
+		rc = selinux_sid_to_string(sid, &ctx, &len);
+		if (rc)
+			audit_log_format(*ab, " ssid=%u", sid);
+		else
+			audit_log_format(*ab, " subj=%s", ctx);
+		kfree(ctx);
+	}
+
+	return rc;
+}
+
 static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	u32			uid, pid, seq, sid;
@@ -521,7 +550,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	u16			msg_type = nlh->nlmsg_type;
 	uid_t			loginuid; /* loginuid of sender */
 	struct audit_sig_info   *sig_data;
-	char			*ctx;
+	char			*ctx = NULL;
 	u32			len;
 
 	err = audit_netlink_ok(skb, msg_type);
@@ -602,36 +631,22 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 				if (err)
 					break;
 			}
-			ab = audit_log_start(NULL, GFP_KERNEL, msg_type);
-			if (ab) {
-				audit_log_format(ab,
-						 "user pid=%d uid=%u auid=%u",
-						 pid, uid, loginuid);
-				if (sid) {
-					if (selinux_sid_to_string(
-							sid, &ctx, &len)) {
-						audit_log_format(ab,
-							" ssid=%u", sid);
-						/* Maybe call audit_panic? */
-					} else
-						audit_log_format(ab,
-							" subj=%s", ctx);
-					kfree(ctx);
-				}
-				if (msg_type != AUDIT_USER_TTY)
-					audit_log_format(ab, " msg='%.1024s'",
-							 (char *)data);
-				else {
-					int size;
+			audit_log_common_recv_msg(&ab, msg_type, pid, uid,
+						  loginuid, sid);
 
-					audit_log_format(ab, " msg=");
-					size = nlmsg_len(nlh);
-					audit_log_n_untrustedstring(ab, size,
-								    data);
-				}
-				audit_set_pid(ab, pid);
-				audit_log_end(ab);
+			if (msg_type != AUDIT_USER_TTY)
+				audit_log_format(ab, " msg='%.1024s'",
+						 (char *)data);
+			else {
+				int size;
+
+				audit_log_format(ab, " msg=");
+				size = nlmsg_len(nlh);
+				audit_log_n_untrustedstring(ab, size,
+							    data);
 			}
+			audit_set_pid(ab, pid);
+			audit_log_end(ab);
 		}
 		break;
 	case AUDIT_ADD:
@@ -639,27 +654,12 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		if (nlmsg_len(nlh) < sizeof(struct audit_rule))
 			return -EINVAL;
 		if (audit_enabled == AUDIT_LOCKED) {
-			ab = audit_log_start(NULL, GFP_KERNEL,
-					AUDIT_CONFIG_CHANGE);
-			if (ab) {
-				audit_log_format(ab,
-						 "pid=%d uid=%u auid=%u",
-						 pid, uid, loginuid);
-				if (sid) {
-					if (selinux_sid_to_string(
-							sid, &ctx, &len)) {
-						audit_log_format(ab,
-							" ssid=%u", sid);
-						/* Maybe call audit_panic? */
-					} else
-						audit_log_format(ab,
-							" subj=%s", ctx);
-					kfree(ctx);
-				}
-				audit_log_format(ab, " audit_enabled=%d res=0",
-					audit_enabled);
-				audit_log_end(ab);
-			}
+			audit_log_common_recv_msg(&ab, AUDIT_CONFIG_CHANGE, pid,
+						  uid, loginuid, sid);
+
+			audit_log_format(ab, " audit_enabled=%d res=0",
+					 audit_enabled);
+			audit_log_end(ab);
 			return -EPERM;
 		}
 		/* fallthrough */
@@ -673,27 +673,12 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		if (nlmsg_len(nlh) < sizeof(struct audit_rule_data))
 			return -EINVAL;
 		if (audit_enabled == AUDIT_LOCKED) {
-			ab = audit_log_start(NULL, GFP_KERNEL,
-					AUDIT_CONFIG_CHANGE);
-			if (ab) {
-				audit_log_format(ab,
-						 "pid=%d uid=%u auid=%u",
-						 pid, uid, loginuid);
-				if (sid) {
-					if (selinux_sid_to_string(
-							sid, &ctx, &len)) {
-						audit_log_format(ab,
-							" ssid=%u", sid);
-						/* Maybe call audit_panic? */
-					} else
-						audit_log_format(ab,
-							" subj=%s", ctx);
-					kfree(ctx);
-				}
-				audit_log_format(ab, " audit_enabled=%d res=0",
-					audit_enabled);
-				audit_log_end(ab);
-			}
+			audit_log_common_recv_msg(&ab, AUDIT_CONFIG_CHANGE, pid,
+						  uid, loginuid, sid);
+
+			audit_log_format(ab, " audit_enabled=%d res=0",
+					 audit_enabled);
+			audit_log_end(ab);
 			return -EPERM;
 		}
 		/* fallthrough */
@@ -704,19 +689,10 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		break;
 	case AUDIT_TRIM:
 		audit_trim_trees();
-		ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE);
-		if (!ab)
-			break;
-		audit_log_format(ab, "auid=%u", loginuid);
-		if (sid) {
-			u32 len;
-			ctx = NULL;
-			if (selinux_sid_to_string(sid, &ctx, &len))
-				audit_log_format(ab, " ssid=%u", sid);
-			else
-				audit_log_format(ab, " subj=%s", ctx);
-			kfree(ctx);
-		}
+
+		audit_log_common_recv_msg(&ab, AUDIT_CONFIG_CHANGE, pid,
+					  uid, loginuid, sid);
+
 		audit_log_format(ab, " op=trim res=1");
 		audit_log_end(ab);
 		break;
@@ -746,22 +722,9 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		/* OK, here comes... */
 		err = audit_tag_tree(old, new);
 
-		ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE);
-		if (!ab) {
-			kfree(old);
-			kfree(new);
-			break;
-		}
-		audit_log_format(ab, "auid=%u", loginuid);
-		if (sid) {
-			u32 len;
-			ctx = NULL;
-			if (selinux_sid_to_string(sid, &ctx, &len))
-				audit_log_format(ab, " ssid=%u", sid);
-			else
-				audit_log_format(ab, " subj=%s", ctx);
-			kfree(ctx);
-		}
+		audit_log_common_recv_msg(&ab, AUDIT_CONFIG_CHANGE, pid,
+					  uid, loginuid, sid);
+
 		audit_log_format(ab, " op=make_equiv old=");
 		audit_log_untrustedstring(ab, old);
 		audit_log_format(ab, " new=");
