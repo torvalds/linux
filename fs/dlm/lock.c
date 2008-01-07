@@ -4678,6 +4678,7 @@ void dlm_clear_proc_locks(struct dlm_ls *ls, struct dlm_user_proc *proc)
 	}
 
 	list_for_each_entry_safe(lkb, safe, &proc->asts, lkb_astqueue) {
+		lkb->lkb_ast_type = 0;
 		list_del(&lkb->lkb_astqueue);
 		dlm_put_lkb(lkb);
 	}
