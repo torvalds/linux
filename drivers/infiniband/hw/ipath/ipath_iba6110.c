@@ -1595,8 +1595,7 @@ static int ipath_ht_early_init(struct ipath_devdata *dd)
 	}
 
 	ipath_get_eeprom_info(dd);
-	if (dd->ipath_boardrev == 5 && dd->ipath_serial[0] == '1' &&
-		dd->ipath_serial[1] == '2' && dd->ipath_serial[2] == '8') {
+	if (dd->ipath_boardrev == 5) {
 		/*
 		 * Later production QHT7040 has same changes as QHT7140, so
 		 * can use GPIO interrupts.  They have serial #'s starting
