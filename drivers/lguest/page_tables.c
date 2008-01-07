@@ -640,6 +640,7 @@ void map_switcher_in_guest(struct lg_cpu *cpu, struct lguest_pages *pages)
 	pte_t *switcher_pte_page = __get_cpu_var(switcher_pte_pages);
 	pgd_t switcher_pgd;
 	pte_t regs_pte;
+	unsigned long pfn;
 
 	/* Make the last PGD entry for this Guest point to the Switcher's PTE
 	 * page for this CPU (with appropriate flags). */
@@ -654,7 +655,8 @@ void map_switcher_in_guest(struct lg_cpu *cpu, struct lguest_pages *pages)
 	 * CPU's "struct lguest_pages": if we make sure the Guest's register
 	 * page is already mapped there, we don't have to copy them out
 	 * again. */
-	regs_pte = pfn_pte (__pa(lg->regs_page) >> PAGE_SHIFT, __pgprot(_PAGE_KERNEL));
+	pfn = __pa(cpu->regs_page) >> PAGE_SHIFT;
+	regs_pte = pfn_pte(pfn, __pgprot(_PAGE_KERNEL));
 	switcher_pte_page[(unsigned long)pages/PAGE_SIZE%PTRS_PER_PTE] = regs_pte;
 }
 /*:*/

@@ -70,7 +70,7 @@ static void set_guest_interrupt(struct lg_cpu *cpu, u32 lo, u32 hi, int has_err)
 	/* There are two cases for interrupts: one where the Guest is already
 	 * in the kernel, and a more complex one where the Guest is in
 	 * userspace.  We check the privilege level to find out. */
-	if ((lg->regs->ss&0x3) != GUEST_PL) {
+	if ((cpu->regs->ss&0x3) != GUEST_PL) {
 		/* The Guest told us their kernel stack with the SET_STACK
 		 * hypercall: both the virtual address and the segment */
 		virtstack = lg->esp1;
@@ -81,12 +81,12 @@ static void set_guest_interrupt(struct lg_cpu *cpu, u32 lo, u32 hi, int has_err)
 		 * stack: when the Guest does an "iret" back from the interrupt
 		 * handler the CPU will notice they're dropping privilege
 		 * levels and expect these here. */
-		push_guest_stack(lg, &gstack, lg->regs->ss);
-		push_guest_stack(lg, &gstack, lg->regs->esp);
+		push_guest_stack(lg, &gstack, cpu->regs->ss);
+		push_guest_stack(lg, &gstack, cpu->regs->esp);
 	} else {
 		/* We're staying on the same Guest (kernel) stack. */
-		virtstack = lg->regs->esp;
-		ss = lg->regs->ss;
+		virtstack = cpu->regs->esp;
+		ss = cpu->regs->ss;
 
 		origstack = gstack = guest_pa(lg, virtstack);
 	}
@@ -95,7 +95,7 @@ static void set_guest_interrupt(struct lg_cpu *cpu, u32 lo, u32 hi, int has_err)
 	 * the "Interrupt Flag" bit is always set.  We copy that bit from the
 	 * Guest's "irq_enabled" field into the eflags word: we saw the Guest
 	 * copy it back in "lguest_iret". */
-	eflags = lg->regs->eflags;
+	eflags = cpu->regs->eflags;
 	if (get_user(irq_enable, &lg->lguest_data->irq_enabled) == 0
 	    && !(irq_enable & X86_EFLAGS_IF))
 		eflags &= ~X86_EFLAGS_IF;
@@ -104,19 +104,19 @@ static void set_guest_interrupt(struct lg_cpu *cpu, u32 lo, u32 hi, int has_err)
 	 * "eflags" word, the old code segment, and the old instruction
 	 * pointer. */
 	push_guest_stack(lg, &gstack, eflags);
-	push_guest_stack(lg, &gstack, lg->regs->cs);
-	push_guest_stack(lg, &gstack, lg->regs->eip);
+	push_guest_stack(lg, &gstack, cpu->regs->cs);
+	push_guest_stack(lg, &gstack, cpu->regs->eip);
 
 	/* For the six traps which supply an error code, we push that, too. */
 	if (has_err)
-		push_guest_stack(lg, &gstack, lg->regs->errcode);
+		push_guest_stack(lg, &gstack, cpu->regs->errcode);
 
 	/* Now we've pushed all the old state, we change the stack, the code
 	 * segment and the address to execute. */
-	lg->regs->ss = ss;
-	lg->regs->esp = virtstack + (gstack - origstack);
-	lg->regs->cs = (__KERNEL_CS|GUEST_PL);
-	lg->regs->eip = idt_address(lo, hi);
+	cpu->regs->ss = ss;
+	cpu->regs->esp = virtstack + (gstack - origstack);
+	cpu->regs->cs = (__KERNEL_CS|GUEST_PL);
+	cpu->regs->eip = idt_address(lo, hi);
 
 	/* There are two kinds of interrupt handlers: 0xE is an "interrupt
 	 * gate" which expects interrupts to be disabled on entry. */
@@ -157,7 +157,7 @@ void maybe_do_interrupt(struct lg_cpu *cpu)
 
 	/* They may be in the middle of an iret, where they asked us never to
 	 * deliver interrupts. */
-	if (lg->regs->eip >= lg->noirq_start && lg->regs->eip < lg->noirq_end)
+	if (cpu->regs->eip >= lg->noirq_start && cpu->regs->eip < lg->noirq_end)
 		return;
 
 	/* If they're halted, interrupts restart them. */

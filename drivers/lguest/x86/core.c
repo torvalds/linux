@@ -127,7 +127,7 @@ static void run_guest_once(struct lg_cpu *cpu, struct lguest_pages *pages)
 	/* Set the trap number to 256 (impossible value).  If we fault while
 	 * switching to the Guest (bad segment registers or bug), this will
 	 * cause us to abort the Guest. */
-	lg->regs->trapnum = 256;
+	cpu->regs->trapnum = 256;
 
 	/* Now: we push the "eflags" register on the stack, then do an "lcall".
 	 * This is how we change from using the kernel code segment to using
@@ -195,11 +195,11 @@ void lguest_arch_run_guest(struct lg_cpu *cpu)
 	 * bad virtual address.  We have to grab this now, because once we
 	 * re-enable interrupts an interrupt could fault and thus overwrite
 	 * cr2, or we could even move off to a different CPU. */
-	if (lg->regs->trapnum == 14)
+	if (cpu->regs->trapnum == 14)
 		lg->arch.last_pagefault = read_cr2();
 	/* Similarly, if we took a trap because the Guest used the FPU,
 	 * we have to restore the FPU it expects to see. */
-	else if (lg->regs->trapnum == 7)
+	else if (cpu->regs->trapnum == 7)
 		math_state_restore();
 
 	/* Restore SYSENTER if it's supposed to be on. */
@@ -225,12 +225,12 @@ static int emulate_insn(struct lg_cpu *cpu)
 	unsigned int insnlen = 0, in = 0, shift = 0;
 	/* The eip contains the *virtual* address of the Guest's instruction:
 	 * guest_pa just subtracts the Guest's page_offset. */
-	unsigned long physaddr = guest_pa(lg, lg->regs->eip);
+	unsigned long physaddr = guest_pa(lg, cpu->regs->eip);
 
 	/* This must be the Guest kernel trying to do something, not userspace!
 	 * The bottom two bits of the CS segment register are the privilege
 	 * level. */
-	if ((lg->regs->cs & 3) != GUEST_PL)
+	if ((cpu->regs->cs & 3) != GUEST_PL)
 		return 0;
 
 	/* Decoding x86 instructions is icky. */
@@ -273,12 +273,12 @@ static int emulate_insn(struct lg_cpu *cpu)
 	if (in) {
 		/* Lower bit tells is whether it's a 16 or 32 bit access */
 		if (insn & 0x1)
-			lg->regs->eax = 0xFFFFFFFF;
+			cpu->regs->eax = 0xFFFFFFFF;
 		else
-			lg->regs->eax |= (0xFFFF << shift);
+			cpu->regs->eax |= (0xFFFF << shift);
 	}
 	/* Finally, we've "done" the instruction, so move past it. */
-	lg->regs->eip += insnlen;
+	cpu->regs->eip += insnlen;
 	/* Success! */
 	return 1;
 }
@@ -287,12 +287,12 @@ static int emulate_insn(struct lg_cpu *cpu)
 void lguest_arch_handle_trap(struct lg_cpu *cpu)
 {
 	struct lguest *lg = cpu->lg;
-	switch (lg->regs->trapnum) {
+	switch (cpu->regs->trapnum) {
 	case 13: /* We've intercepted a General Protection Fault. */
 		/* Check if this was one of those annoying IN or OUT
 		 * instructions which we need to emulate.  If so, we just go
 		 * back into the Guest after we've done it. */
-		if (lg->regs->errcode == 0) {
+		if (cpu->regs->errcode == 0) {
 			if (emulate_insn(cpu))
 				return;
 		}
@@ -307,7 +307,7 @@ void lguest_arch_handle_trap(struct lg_cpu *cpu)
 		 *
 		 * The errcode tells whether this was a read or a write, and
 		 * whether kernel or userspace code. */
-		if (demand_page(lg, lg->arch.last_pagefault, lg->regs->errcode))
+		if (demand_page(lg, lg->arch.last_pagefault, cpu->regs->errcode))
 			return;
 
 		/* OK, it's really not there (or not OK): the Guest needs to
@@ -338,19 +338,19 @@ void lguest_arch_handle_trap(struct lg_cpu *cpu)
 	case LGUEST_TRAP_ENTRY:
 		/* Our 'struct hcall_args' maps directly over our regs: we set
 		 * up the pointer now to indicate a hypercall is pending. */
-		cpu->hcall = (struct hcall_args *)lg->regs;
+		cpu->hcall = (struct hcall_args *)cpu->regs;
 		return;
 	}
 
 	/* We didn't handle the trap, so it needs to go to the Guest. */
-	if (!deliver_trap(cpu, lg->regs->trapnum))
+	if (!deliver_trap(cpu, cpu->regs->trapnum))
 		/* If the Guest doesn't have a handler (either it hasn't
 		 * registered any yet, or it's one of the faults we don't let
 		 * it handle), it dies with a cryptic error message. */
 		kill_guest(lg, "unhandled trap %li at %#lx (%#lx)",
-			   lg->regs->trapnum, lg->regs->eip,
-			   lg->regs->trapnum == 14 ? lg->arch.last_pagefault
-			   : lg->regs->errcode);
+			   cpu->regs->trapnum, cpu->regs->eip,
+			   cpu->regs->trapnum == 14 ? lg->arch.last_pagefault
+			   : cpu->regs->errcode);
 }
 
 /* Now we can look at each of the routines this calls, in increasing order of
@@ -557,9 +557,9 @@ int lguest_arch_init_hypercalls(struct lg_cpu *cpu)
  *
  * Most of the Guest's registers are left alone: we used get_zeroed_page() to
  * allocate the structure, so they will be 0. */
-void lguest_arch_setup_regs(struct lguest *lg, unsigned long start)
+void lguest_arch_setup_regs(struct lg_cpu *cpu, unsigned long start)
 {
-	struct lguest_regs *regs = lg->regs;
+	struct lguest_regs *regs = cpu->regs;
 
 	/* There are four "segment" registers which the Guest needs to boot:
 	 * The "code segment" register (cs) refers to the kernel code segment
@@ -586,5 +586,5 @@ void lguest_arch_setup_regs(struct lguest *lg, unsigned long start)
 
 	/* There are a couple of GDT entries the Guest expects when first
 	 * booting. */
-	setup_guest_gdt(lg);
+	setup_guest_gdt(cpu->lg);
 }

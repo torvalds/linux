@@ -44,6 +44,10 @@ struct lg_cpu {
 	unsigned int id;
 	struct lguest *lg;
 
+	/* At end of a page shared mapped over lguest_pages in guest.  */
+	unsigned long regs_page;
+	struct lguest_regs *regs;
+
 	/* If a hypercall was asked for, this points to the arguments. */
 	struct hcall_args *hcall;
 	u32 next_hcall;
@@ -58,9 +62,6 @@ struct lg_cpu {
 /* The private info the thread maintains about the guest. */
 struct lguest
 {
-	/* At end of a page shared mapped over lguest_pages in guest.  */
-	unsigned long regs_page;
-	struct lguest_regs *regs;
 	struct lguest_data __user *lguest_data;
 	struct task_struct *tsk;
 	struct mm_struct *mm; 	/* == tsk->mm, but that becomes NULL on exit */
@@ -181,7 +182,7 @@ void lguest_arch_run_guest(struct lg_cpu *cpu);
 void lguest_arch_handle_trap(struct lg_cpu *cpu);
 int lguest_arch_init_hypercalls(struct lg_cpu *cpu);
 int lguest_arch_do_hcall(struct lg_cpu *cpu, struct hcall_args *args);
-void lguest_arch_setup_regs(struct lguest *lg, unsigned long start);
+void lguest_arch_setup_regs(struct lg_cpu *cpu, unsigned long start);
 
 /* <arch>/switcher.S: */
 extern char start_switcher_text[], end_switcher_text[], switch_to_guest[];
