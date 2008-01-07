@@ -173,7 +173,7 @@ static int get_key_beholdm6xx(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 
 	gpio = saa_readl(SAA7134_GPIO_GPSTATUS0 >> 2);
 
-	if (0x400000 &~ gpio)
+	if (0x400000 & ~gpio)
 		return 0; /* No button press */
 
 	ir->c.addr = 0x5a >> 1;
