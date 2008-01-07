@@ -882,7 +882,7 @@ static int ipath_create_user_egr(struct ipath_portdata *pd)
 
 	egrcnt = dd->ipath_rcvegrcnt;
 	/* TID number offset for this port */
-	egroff = pd->port_port * egrcnt;
+	egroff = (pd->port_port - 1) * egrcnt + dd->ipath_p0_rcvegrcnt;
 	egrsize = dd->ipath_rcvegrbufsize;
 	ipath_cdbg(VERBOSE, "Allocating %d egr buffers, at egrtid "
 		   "offset %x, egrsize %u\n", egrcnt, egroff, egrsize);

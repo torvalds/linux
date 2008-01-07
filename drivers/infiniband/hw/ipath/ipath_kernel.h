@@ -253,6 +253,7 @@ struct ipath_devdata {
 	int (*ipath_f_get_base_info)(struct ipath_portdata *, void *);
 	/* free irq */
 	void (*ipath_f_free_irq)(struct ipath_devdata *);
+	void (*ipath_f_config_ports)(struct ipath_devdata *, ushort);
 	void (*ipath_f_read_counters)(struct ipath_devdata *,
 				      struct infinipath_counters *);
 	struct ipath_ibdev *verbs_dev;
@@ -326,6 +327,8 @@ struct ipath_devdata {
 	u32 ipath_cfgports;
 	/* count of port 0 hdrqfull errors */
 	u32 ipath_p0_hdrqfull;
+	/* port 0 number of receive eager buffers */
+	u32 ipath_p0_rcvegrcnt;
 
 	/*
 	 * index of last piobuffer we used.  Speeds up searching, by

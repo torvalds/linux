@@ -1669,6 +1669,14 @@ static void ipath_ht_free_irq(struct ipath_devdata *dd)
 	dd->ipath_intconfig = 0;
 }
 
+static void ipath_ht_config_ports(struct ipath_devdata *dd, ushort cfgports)
+{
+	dd->ipath_portcnt =
+		ipath_read_kreg32(dd, dd->ipath_kregs->kr_portcnt);
+	dd->ipath_p0_rcvegrcnt =
+		ipath_read_kreg32(dd, dd->ipath_kregs->kr_rcvegrcnt);
+}
+
 static void ipath_ht_read_counters(struct ipath_devdata *dd,
 				   struct infinipath_counters *cntrs)
 {
@@ -1798,6 +1806,7 @@ void ipath_init_iba6110_funcs(struct ipath_devdata *dd)
 	dd->ipath_f_setextled = ipath_setup_ht_setextled;
 	dd->ipath_f_get_base_info = ipath_ht_get_base_info;
 	dd->ipath_f_free_irq = ipath_ht_free_irq;
+	dd->ipath_f_config_ports = ipath_ht_config_ports;
 	dd->ipath_f_read_counters = ipath_ht_read_counters;
 
 	/*

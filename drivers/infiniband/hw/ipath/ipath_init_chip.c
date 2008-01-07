@@ -91,7 +91,7 @@ static int create_port0_egr(struct ipath_devdata *dd)
 	struct ipath_skbinfo *skbinfo;
 	int ret;
 
-	egrcnt = dd->ipath_rcvegrcnt;
+	egrcnt = dd->ipath_p0_rcvegrcnt;
 
 	skbinfo = vmalloc(sizeof(*dd->ipath_port0_skbinfo) * egrcnt);
 	if (skbinfo == NULL) {
@@ -244,8 +244,7 @@ static int init_chip_first(struct ipath_devdata *dd,
 	 * cfgports.  We do still check and report a difference, if
 	 * not same (should be impossible).
 	 */
-	dd->ipath_portcnt =
-		ipath_read_kreg32(dd, dd->ipath_kregs->kr_portcnt);
+	dd->ipath_f_config_ports(dd, ipath_cfgports);
 	if (!ipath_cfgports)
 		dd->ipath_cfgports = dd->ipath_portcnt;
 	else if (ipath_cfgports <= dd->ipath_portcnt) {

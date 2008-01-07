@@ -1423,6 +1423,14 @@ static void ipath_pe_free_irq(struct ipath_devdata *dd)
 	dd->ipath_irq = 0;
 }
 
+static void ipath_pe_config_ports(struct ipath_devdata *dd, ushort cfgports)
+{
+	dd->ipath_portcnt =
+		ipath_read_kreg32(dd, dd->ipath_kregs->kr_portcnt);
+	dd->ipath_p0_rcvegrcnt =
+		ipath_read_kreg32(dd, dd->ipath_kregs->kr_rcvegrcnt);
+}
+
 static void ipath_pe_read_counters(struct ipath_devdata *dd,
 				   struct infinipath_counters *cntrs)
 {
@@ -1581,6 +1589,7 @@ void ipath_init_iba6120_funcs(struct ipath_devdata *dd)
 
 	/* initialize chip-specific variables */
 	dd->ipath_f_tidtemplate = ipath_pe_tidtemplate;
+	dd->ipath_f_config_ports = ipath_pe_config_ports;
 	dd->ipath_f_read_counters = ipath_pe_read_counters;
 
 	/*
