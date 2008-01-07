@@ -121,7 +121,7 @@
 120 -> Beholder BeholdTV 403 FM                 [1131:0000,0000:4037]
 121 -> Beholder BeholdTV 405                    [0000:4050]
 122 -> Beholder BeholdTV 405 FM                 [0000:4051]
-123 ->                                          [0000:4070]
+123 -> Beholder BeholdTV 407                    [0000:4070]
 124 -> Beholder BeholdTV 407 FM                 [0000:4071]
 125 -> Beholder BeholdTV 409                    [0000:4090]
 126 -> Beholder BeholdTV 505 FM/RDS             [0000:5051,0000:505B,5ace:5050]

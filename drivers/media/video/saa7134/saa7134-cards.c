@@ -3687,6 +3687,33 @@ struct saa7134_board saa7134_boards[] = {
 			.amux = LINE2,
 		},
 	},
+	[SAA7134_BOARD_BEHOLD_407] = {
+		.name 		= "Beholder BeholdTV 407",
+		.audio_clock 	= 0x00187de7,
+		.tuner_type 	= TUNER_PHILIPS_FM1216ME_MK3,
+		.radio_type 	= UNSET,
+		.tuner_addr 	= ADDR_UNSET,
+		.radio_addr 	= ADDR_UNSET,
+		.tda9887_conf 	= TDA9887_PRESENT,
+		.gpiomask = 0xc0c000,
+		.inputs = {{
+			.name = name_svideo,
+			.vmux = 8,
+			.amux = LINE1,
+			.gpio = 0xc0c000,
+		},{
+			.name = name_comp1,
+			.vmux = 1,
+			.amux = LINE1,
+			.gpio = 0xc0c000,
+		},{
+			.name = name_tv,
+			.vmux = 3,
+			.amux = TV,
+			.tv = 1,
+			.gpio = 0xc0c000,
+		}},
+	},
 	[SAA7134_BOARD_BEHOLD_407FM] = {
 		.name 		= "Beholder BeholdTV 407 FM",
 		.audio_clock 	= 0x00187de7,
