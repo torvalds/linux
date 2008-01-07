@@ -132,6 +132,7 @@ enum {
 	ich8_2port_sata,
 	ich8m_apple_sata_ahci,		/* locks up on second port enable */
 	tolapai_sata_ahci,
+	piix_pata_vmw,			/* PIIX4 for VMware, spurious DMA_ERR */
 
 	/* constants for mapping table */
 	P0			= 0,  /* port 0 */
@@ -165,6 +166,7 @@ static void piix_set_piomode(struct ata_port *ap, struct ata_device *adev);
 static void piix_set_dmamode(struct ata_port *ap, struct ata_device *adev);
 static void ich_set_dmamode(struct ata_port *ap, struct ata_device *adev);
 static int ich_pata_cable_detect(struct ata_port *ap);
+static u8 piix_vmw_bmdma_status(struct ata_port *ap);
 #ifdef CONFIG_PM
 static int piix_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg);
 static int piix_pci_device_resume(struct pci_dev *pdev);
@@ -175,6 +177,8 @@ static unsigned int in_module_init = 1;
 static const struct pci_device_id piix_pci_tbl[] = {
 	/* Intel PIIX3 for the 430HX etc */
 	{ 0x8086, 0x7010, PCI_ANY_ID, PCI_ANY_ID, 0, 0, piix_pata_mwdma },
+	/* VMware ICH4 */
+	{ 0x8086, 0x7111, 0x15ad, 0x1976, 0, 0, piix_pata_vmw },
 	/* Intel PIIX4 for the 430TX/440BX/MX chipset: UDMA 33 */
 	/* Also PIIX4E (fn3 rev 2) and PIIX4M (fn3 rev 3) */
 	{ 0x8086, 0x7111, PCI_ANY_ID, PCI_ANY_ID, 0, 0, piix_pata_33 },
@@ -375,6 +379,38 @@ static const struct ata_port_operations piix_sata_ops = {
 	.thaw			= ata_bmdma_thaw,
 	.error_handler		= ata_bmdma_error_handler,
 	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
+
+	.irq_handler		= ata_interrupt,
+	.irq_clear		= ata_bmdma_irq_clear,
+	.irq_on			= ata_irq_on,
+
+	.port_start		= ata_port_start,
+};
+
+static const struct ata_port_operations piix_vmw_ops = {
+	.set_piomode		= piix_set_piomode,
+	.set_dmamode		= piix_set_dmamode,
+	.mode_filter		= ata_pci_default_filter,
+
+	.tf_load		= ata_tf_load,
+	.tf_read		= ata_tf_read,
+	.check_status		= ata_check_status,
+	.exec_command		= ata_exec_command,
+	.dev_select		= ata_std_dev_select,
+
+	.bmdma_setup		= ata_bmdma_setup,
+	.bmdma_start		= ata_bmdma_start,
+	.bmdma_stop		= ata_bmdma_stop,
+	.bmdma_status		= piix_vmw_bmdma_status,
+	.qc_prep		= ata_qc_prep,
+	.qc_issue		= ata_qc_issue_prot,
+	.data_xfer		= ata_data_xfer,
+
+	.freeze			= ata_bmdma_freeze,
+	.thaw			= ata_bmdma_thaw,
+	.error_handler		= piix_pata_error_handler,
+	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
+	.cable_detect		= ata_cable_40wire,
 
 	.irq_handler		= ata_interrupt,
 	.irq_clear		= ata_bmdma_irq_clear,
@@ -621,6 +657,16 @@ static struct ata_port_info piix_port_info[] = {
 		.mwdma_mask	= 0x07, /* mwdma0-2 */
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &piix_sata_ops,
+	},
+
+	[piix_pata_vmw] =
+	{
+		.sht		= &piix_sht,
+		.flags		= PIIX_PATA_FLAGS,
+		.pio_mask	= 0x1f,	/* pio0-4 */
+		.mwdma_mask	= 0x06, /* mwdma1-2 ?? CHECK 0 should be ok but slow */
+		.udma_mask	= ATA_UDMA_MASK_40C,
+		.port_ops	= &piix_vmw_ops,
 	},
 
 };
@@ -1134,6 +1180,11 @@ static int piix_pci_device_resume(struct pci_dev *pdev)
 	return rc;
 }
 #endif
+
+static u8 piix_vmw_bmdma_status(struct ata_port *ap)
+{
+	return ata_bmdma_status(ap) & ~ATA_DMA_ERR;
+}
 
 #define AHCI_PCI_BAR 5
 #define AHCI_GLOBAL_CTL 0x04
