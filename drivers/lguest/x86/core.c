@@ -342,7 +342,7 @@ void lguest_arch_handle_trap(struct lg_cpu *cpu)
 	}
 
 	/* We didn't handle the trap, so it needs to go to the Guest. */
-	if (!deliver_trap(lg, lg->regs->trapnum))
+	if (!deliver_trap(cpu, lg->regs->trapnum))
 		/* If the Guest doesn't have a handler (either it hasn't
 		 * registered any yet, or it's one of the faults we don't let
 		 * it handle), it dies with a cryptic error message. */

@@ -60,11 +60,12 @@ static void push_guest_stack(struct lguest *lg, unsigned long *gstack, u32 val)
  * We set up the stack just like the CPU does for a real interrupt, so it's
  * identical for the Guest (and the standard "iret" instruction will undo
  * it). */
-static void set_guest_interrupt(struct lguest *lg, u32 lo, u32 hi, int has_err)
+static void set_guest_interrupt(struct lg_cpu *cpu, u32 lo, u32 hi, int has_err)
 {
 	unsigned long gstack, origstack;
 	u32 eflags, ss, irq_enable;
 	unsigned long virtstack;
+	struct lguest *lg = cpu->lg;
 
 	/* There are two cases for interrupts: one where the Guest is already
 	 * in the kernel, and a more complex one where the Guest is in
@@ -129,9 +130,10 @@ static void set_guest_interrupt(struct lguest *lg, u32 lo, u32 hi, int has_err)
  *
  * maybe_do_interrupt() gets called before every entry to the Guest, to see if
  * we should divert the Guest to running an interrupt handler. */
-void maybe_do_interrupt(struct lguest *lg)
+void maybe_do_interrupt(struct lg_cpu *cpu)
 {
 	unsigned int irq;
+	struct lguest *lg = cpu->lg;
 	DECLARE_BITMAP(blk, LGUEST_IRQS);
 	struct desc_struct *idt;
 
@@ -145,7 +147,7 @@ void maybe_do_interrupt(struct lguest *lg)
 			   sizeof(blk)))
 		return;
 
-	bitmap_andnot(blk, lg->irqs_pending, blk, LGUEST_IRQS);
+	bitmap_andnot(blk, cpu->irqs_pending, blk, LGUEST_IRQS);
 
 	/* Find the first interrupt. */
 	irq = find_first_bit(blk, LGUEST_IRQS);
@@ -180,11 +182,11 @@ void maybe_do_interrupt(struct lguest *lg)
 	/* If they don't have a handler (yet?), we just ignore it */
 	if (idt_present(idt->a, idt->b)) {
 		/* OK, mark it no longer pending and deliver it. */
-		clear_bit(irq, lg->irqs_pending);
+		clear_bit(irq, cpu->irqs_pending);
 		/* set_guest_interrupt() takes the interrupt descriptor and a
 		 * flag to say whether this interrupt pushes an error code onto
 		 * the stack as well: virtual interrupts never do. */
-		set_guest_interrupt(lg, idt->a, idt->b, 0);
+		set_guest_interrupt(cpu, idt->a, idt->b, 0);
 	}
 
 	/* Every time we deliver an interrupt, we update the timestamp in the
@@ -245,19 +247,19 @@ static int has_err(unsigned int trap)
 }
 
 /* deliver_trap() returns true if it could deliver the trap. */
-int deliver_trap(struct lguest *lg, unsigned int num)
+int deliver_trap(struct lg_cpu *cpu, unsigned int num)
 {
 	/* Trap numbers are always 8 bit, but we set an impossible trap number
 	 * for traps inside the Switcher, so check that here. */
-	if (num >= ARRAY_SIZE(lg->arch.idt))
+	if (num >= ARRAY_SIZE(cpu->lg->arch.idt))
 		return 0;
 
 	/* Early on the Guest hasn't set the IDT entries (or maybe it put a
 	 * bogus one in): if we fail here, the Guest will be killed. */
-	if (!idt_present(lg->arch.idt[num].a, lg->arch.idt[num].b))
+	if (!idt_present(cpu->lg->arch.idt[num].a, cpu->lg->arch.idt[num].b))
 		return 0;
-	set_guest_interrupt(lg, lg->arch.idt[num].a, lg->arch.idt[num].b,
-			    has_err(num));
+	set_guest_interrupt(cpu, cpu->lg->arch.idt[num].a,
+			    cpu->lg->arch.idt[num].b, has_err(num));
 	return 1;
 }
 
@@ -493,7 +495,7 @@ static enum hrtimer_restart clockdev_fn(struct hrtimer *timer)
 	struct lg_cpu *cpu = container_of(timer, struct lg_cpu, hrt);
 
 	/* Remember the first interrupt is the timer interrupt. */
-	set_bit(0, cpu->lg->irqs_pending);
+	set_bit(0, cpu->irqs_pending);
 	/* If the Guest is actually stopped, we need to wake it up. */
 	if (cpu->lg->halted)
 		wake_up_process(cpu->lg->tsk);

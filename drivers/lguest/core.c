@@ -203,7 +203,7 @@ int run_guest(struct lg_cpu *cpu, unsigned long __user *user)
 		/* Check if there are any interrupts which can be delivered
 		 * now: if so, this sets up the hander to be executed when we
 		 * next run the Guest. */
-		maybe_do_interrupt(lg);
+		maybe_do_interrupt(cpu);
 
 		/* All long-lived kernel loops need to check with this horrible
 		 * thing called the freezer.  If the Host is trying to suspend,

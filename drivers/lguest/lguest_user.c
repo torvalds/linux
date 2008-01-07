@@ -36,7 +36,7 @@ static int break_guest_out(struct lguest *lg, const unsigned long __user *input)
 
 /*L:050 Sending an interrupt is done by writing LHREQ_IRQ and an interrupt
  * number to /dev/lguest. */
-static int user_send_irq(struct lguest *lg, const unsigned long __user *input)
+static int user_send_irq(struct lg_cpu *cpu, const unsigned long __user *input)
 {
 	unsigned long irq;
 
@@ -46,7 +46,7 @@ static int user_send_irq(struct lguest *lg, const unsigned long __user *input)
 		return -EINVAL;
 	/* Next time the Guest runs, the core code will see if it can deliver
 	 * this interrupt. */
-	set_bit(irq, lg->irqs_pending);
+	set_bit(irq, cpu->irqs_pending);
 	return 0;
 }
 
@@ -225,7 +225,7 @@ static ssize_t write(struct file *file, const char __user *in,
 	struct lguest *lg = file->private_data;
 	const unsigned long __user *input = (const unsigned long __user *)in;
 	unsigned long req;
-	struct lg_cpu *cpu;
+	struct lg_cpu *uninitialized_var(cpu);
 	unsigned int cpu_id = *off;
 
 	if (get_user(req, input) != 0)
@@ -253,7 +253,7 @@ static ssize_t write(struct file *file, const char __user *in,
 	case LHREQ_INITIALIZE:
 		return initialize(file, input);
 	case LHREQ_IRQ:
-		return user_send_irq(lg, input);
+		return user_send_irq(cpu, input);
 	case LHREQ_BREAK:
 		return break_guest_out(lg, input);
 	default:

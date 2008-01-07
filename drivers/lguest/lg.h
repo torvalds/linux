@@ -50,6 +50,9 @@ struct lg_cpu {
 
 	/* Virtual clock device */
 	struct hrtimer hrt;
+
+	/* Pending virtual interrupts */
+	DECLARE_BITMAP(irqs_pending, LGUEST_IRQS);
 };
 
 /* The private info the thread maintains about the guest. */
@@ -97,9 +100,6 @@ struct lguest
 	const char *dead;
 
 	struct lguest_arch arch;
-
-	/* Pending virtual interrupts */
-	DECLARE_BITMAP(irqs_pending, LGUEST_IRQS);
 };
 
 extern struct mutex lguest_lock;
@@ -136,8 +136,8 @@ int run_guest(struct lg_cpu *cpu, unsigned long __user *user);
 #define pgd_pfn(x)	(pgd_val(x) >> PAGE_SHIFT)
 
 /* interrupts_and_traps.c: */
-void maybe_do_interrupt(struct lguest *lg);
-int deliver_trap(struct lguest *lg, unsigned int num);
+void maybe_do_interrupt(struct lg_cpu *cpu);
+int deliver_trap(struct lg_cpu *cpu, unsigned int num);
 void load_guest_idt_entry(struct lguest *lg, unsigned int i, u32 low, u32 hi);
 void guest_set_stack(struct lguest *lg, u32 seg, u32 esp, unsigned int pages);
 void pin_stack_pages(struct lguest *lg);
