@@ -63,11 +63,11 @@ static u32 acpi_suspend_states[] = {
 static int init_8259A_after_S1;
 
 /**
- *	acpi_pm_set_target - Set the target system sleep state to the state
+ *	acpi_pm_begin - Set the target system sleep state to the state
  *		associated with given @pm_state, if supported.
  */
 
-static int acpi_pm_set_target(suspend_state_t pm_state)
+static int acpi_pm_begin(suspend_state_t pm_state)
 {
 	u32 acpi_state = acpi_suspend_states[pm_state];
 	int error = 0;
@@ -164,7 +164,7 @@ static int acpi_pm_enter(suspend_state_t pm_state)
 }
 
 /**
- *	acpi_pm_finish - Finish up suspend sequence.
+ *	acpi_pm_finish - Instruct the platform to leave a sleep state.
  *
  *	This is called after we wake back up (or if entering the sleep state
  *	failed). 
@@ -190,6 +190,19 @@ static void acpi_pm_finish(void)
 #endif
 }
 
+/**
+ *	acpi_pm_end - Finish up suspend sequence.
+ */
+
+static void acpi_pm_end(void)
+{
+	/*
+	 * This is necessary in case acpi_pm_finish() is not called during a
+	 * failing transition to a sleep state.
+	 */
+	acpi_target_sleep_state = ACPI_STATE_S0;
+}
+
 static int acpi_pm_state_valid(suspend_state_t pm_state)
 {
 	u32 acpi_state;
@@ -208,10 +221,11 @@ static int acpi_pm_state_valid(suspend_state_t pm_state)
 
 static struct platform_suspend_ops acpi_pm_ops = {
 	.valid = acpi_pm_state_valid,
-	.set_target = acpi_pm_set_target,
+	.begin = acpi_pm_begin,
 	.prepare = acpi_pm_prepare,
 	.enter = acpi_pm_enter,
 	.finish = acpi_pm_finish,
+	.end = acpi_pm_end,
 };
 
 /*

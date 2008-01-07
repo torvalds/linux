@@ -258,10 +258,10 @@ int suspend_devices_and_enter(suspend_state_t state)
 	if (!suspend_ops)
 		return -ENOSYS;
 
-	if (suspend_ops->set_target) {
-		error = suspend_ops->set_target(state);
+	if (suspend_ops->begin) {
+		error = suspend_ops->begin(state);
 		if (error)
-			return error;
+			goto Close;
 	}
 	suspend_console();
 	error = device_suspend(PMSG_SUSPEND);
@@ -294,6 +294,9 @@ int suspend_devices_and_enter(suspend_state_t state)
 	device_resume();
  Resume_console:
 	resume_console();
+ Close:
+	if (suspend_ops->end)
+		suspend_ops->end();
 	return error;
 }
 
