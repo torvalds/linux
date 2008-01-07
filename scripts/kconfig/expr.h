@@ -25,7 +25,6 @@ struct file {
 
 #define FILE_BUSY		0x0001
 #define FILE_SCANNED		0x0002
-#define FILE_PRINTED		0x0004
 
 typedef enum tristate {
 	no, mod, yes
@@ -86,7 +85,6 @@ struct symbol {
 #define SYMBOL_CHECK		0x0008
 #define SYMBOL_CHOICE		0x0010
 #define SYMBOL_CHOICEVAL	0x0020
-#define SYMBOL_PRINTED		0x0040
 #define SYMBOL_VALID		0x0080
 #define SYMBOL_OPTIONAL		0x0100
 #define SYMBOL_WRITE		0x0200
