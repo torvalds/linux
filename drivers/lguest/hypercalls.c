@@ -88,7 +88,7 @@ static void do_hcall(struct lg_cpu *cpu, struct hcall_args *args)
 		break;
 	case LHCALL_HALT:
 		/* Similarly, this sets the halted flag for run_guest(). */
-		lg->halted = 1;
+		cpu->halted = 1;
 		break;
 	case LHCALL_NOTIFY:
 		lg->pending_notify = args->arg1;

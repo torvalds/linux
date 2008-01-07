@@ -13,7 +13,7 @@
  * LHREQ_BREAK and the value "1" to /dev/lguest to do this.  Once the Launcher
  * has done whatever needs attention, it writes LHREQ_BREAK and "0" to release
  * the Waker. */
-static int break_guest_out(struct lguest *lg, const unsigned long __user *input)
+static int break_guest_out(struct lg_cpu *cpu, const unsigned long __user*input)
 {
 	unsigned long on;
 
@@ -22,14 +22,14 @@ static int break_guest_out(struct lguest *lg, const unsigned long __user *input)
 		return -EFAULT;
 
 	if (on) {
-		lg->break_out = 1;
+		cpu->break_out = 1;
 		/* Pop it out of the Guest (may be running on different CPU) */
-		wake_up_process(lg->tsk);
+		wake_up_process(cpu->tsk);
 		/* Wait for them to reset it */
-		return wait_event_interruptible(lg->break_wq, !lg->break_out);
+		return wait_event_interruptible(cpu->break_wq, !cpu->break_out);
 	} else {
-		lg->break_out = 0;
-		wake_up(&lg->break_wq);
+		cpu->break_out = 0;
+		wake_up(&cpu->break_wq);
 		return 0;
 	}
 }
@@ -69,7 +69,7 @@ static ssize_t read(struct file *file, char __user *user, size_t size,loff_t*o)
 	cpu = &lg->cpus[cpu_id];
 
 	/* If you're not the task which owns the Guest, go away. */
-	if (current != lg->tsk)
+	if (current != cpu->tsk)
 		return -EPERM;
 
 	/* If the guest is already dead, we indicate why */
@@ -118,6 +118,18 @@ static int lg_cpu_start(struct lg_cpu *cpu, unsigned id, unsigned long start_ip)
 	/* Now we initialize the Guest's registers, handing it the start
 	 * address. */
 	lguest_arch_setup_regs(cpu, start_ip);
+
+	/* Initialize the queue for the waker to wait on */
+	init_waitqueue_head(&cpu->break_wq);
+
+	/* We keep a pointer to the Launcher task (ie. current task) for when
+	 * other Guests want to wake this one (inter-Guest I/O). */
+	cpu->tsk = current;
+
+	/* We need to keep a pointer to the Launcher's memory map, because if
+	 * the Launcher dies we need to clean it up.  If we don't keep a
+	 * reference, it is destroyed before close() is called. */
+	cpu->mm = get_task_mm(cpu->tsk);
 
 	return 0;
 }
@@ -180,17 +192,6 @@ static int initialize(struct file *file, const unsigned long __user *input)
 	if (err)
 		goto free_regs;
 
-	/* We keep a pointer to the Launcher task (ie. current task) for when
-	 * other Guests want to wake this one (inter-Guest I/O). */
-	lg->tsk = current;
-	/* We need to keep a pointer to the Launcher's memory map, because if
-	 * the Launcher dies we need to clean it up.  If we don't keep a
-	 * reference, it is destroyed before close() is called. */
-	lg->mm = get_task_mm(lg->tsk);
-
-	/* Initialize the queue for the waker to wait on */
-	init_waitqueue_head(&lg->break_wq);
-
 	/* We remember which CPU's pages this Guest used last, for optimization
 	 * when the same Guest runs on the same CPU twice. */
 	lg->last_pages = NULL;
@@ -246,7 +247,7 @@ static ssize_t write(struct file *file, const char __user *in,
 		return -ENOENT;
 
 	/* If you're not the task which owns the Guest, you can only break */
-	if (lg && current != lg->tsk && req != LHREQ_BREAK)
+	if (lg && current != cpu->tsk && req != LHREQ_BREAK)
 		return -EPERM;
 
 	switch (req) {
@@ -255,7 +256,7 @@ static ssize_t write(struct file *file, const char __user *in,
 	case LHREQ_IRQ:
 		return user_send_irq(cpu, input);
 	case LHREQ_BREAK:
-		return break_guest_out(lg, input);
+		return break_guest_out(cpu, input);
 	default:
 		return -EINVAL;
 	}
@@ -280,17 +281,19 @@ static int close(struct inode *inode, struct file *file)
 	/* We need the big lock, to protect from inter-guest I/O and other
 	 * Launchers initializing guests. */
 	mutex_lock(&lguest_lock);
+
+	/* Free up the shadow page tables for the Guest. */
+	free_guest_pagetable(lg);
+
 	for (i = 0; i < lg->nr_cpus; i++) {
 		/* Cancels the hrtimer set via LHCALL_SET_CLOCKEVENT. */
 		hrtimer_cancel(&lg->cpus[i].hrt);
 		/* We can free up the register page we allocated. */
 		free_page(lg->cpus[i].regs_page);
+		/* Now all the memory cleanups are done, it's safe to release
+		 * the Launcher's memory management structure. */
+		mmput(lg->cpus[i].mm);
 	}
-	/* Free up the shadow page tables for the Guest. */
-	free_guest_pagetable(lg);
-	/* Now all the memory cleanups are done, it's safe to release the
-	 * Launcher's memory management structure. */
-	mmput(lg->mm);
 	/* If lg->dead doesn't contain an error code it will be NULL or a
 	 * kmalloc()ed string, either of which is ok to hand to kfree(). */
 	if (!IS_ERR(lg->dead))

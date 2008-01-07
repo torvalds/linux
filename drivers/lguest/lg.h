@@ -43,6 +43,8 @@ struct lguest;
 struct lg_cpu {
 	unsigned int id;
 	struct lguest *lg;
+	struct task_struct *tsk;
+	struct mm_struct *mm; 	/* == tsk->mm, but that becomes NULL on exit */
 
 	/* At end of a page shared mapped over lguest_pages in guest.  */
 	unsigned long regs_page;
@@ -55,6 +57,11 @@ struct lg_cpu {
 	/* Virtual clock device */
 	struct hrtimer hrt;
 
+	/* Do we need to stop what we're doing and return to userspace? */
+	int break_out;
+	wait_queue_head_t break_wq;
+	int halted;
+
 	/* Pending virtual interrupts */
 	DECLARE_BITMAP(irqs_pending, LGUEST_IRQS);
 
@@ -65,8 +72,6 @@ struct lg_cpu {
 struct lguest
 {
 	struct lguest_data __user *lguest_data;
-	struct task_struct *tsk;
-	struct mm_struct *mm; 	/* == tsk->mm, but that becomes NULL on exit */
 	struct lg_cpu cpus[NR_CPUS];
 	unsigned int nr_cpus;
 
@@ -76,14 +81,9 @@ struct lguest
 	void __user *mem_base;
 	unsigned long kernel_address;
 	u32 cr2;
-	int halted;
 	int ts;
 	u32 esp1;
 	u8 ss1;
-
-	/* Do we need to stop what we're doing and return to userspace? */
-	int break_out;
-	wait_queue_head_t break_wq;
 
 	/* Bitmap of what has changed: see CHANGED_* above. */
 	int changed;

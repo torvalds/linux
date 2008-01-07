@@ -161,11 +161,11 @@ void maybe_do_interrupt(struct lg_cpu *cpu)
 		return;
 
 	/* If they're halted, interrupts restart them. */
-	if (lg->halted) {
+	if (cpu->halted) {
 		/* Re-enable interrupts. */
 		if (put_user(X86_EFLAGS_IF, &lg->lguest_data->irq_enabled))
 			kill_guest(lg, "Re-enabling interrupts");
-		lg->halted = 0;
+		cpu->halted = 0;
 	} else {
 		/* Otherwise we check if they have interrupts disabled. */
 		u32 irq_enabled;
@@ -497,8 +497,8 @@ static enum hrtimer_restart clockdev_fn(struct hrtimer *timer)
 	/* Remember the first interrupt is the timer interrupt. */
 	set_bit(0, cpu->irqs_pending);
 	/* If the Guest is actually stopped, we need to wake it up. */
-	if (cpu->lg->halted)
-		wake_up_process(cpu->lg->tsk);
+	if (cpu->halted)
+		wake_up_process(cpu->tsk);
 	return HRTIMER_NORESTART;
 }
 
