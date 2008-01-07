@@ -181,8 +181,8 @@ int run_guest(struct lg_cpu *cpu, unsigned long __user *user)
 	/* We stop running once the Guest is dead. */
 	while (!lg->dead) {
 		/* First we run any hypercalls the Guest wants done. */
-		if (lg->hcall)
-			do_hypercalls(lg);
+		if (cpu->hcall)
+			do_hypercalls(cpu);
 
 		/* It's possible the Guest did a NOTIFY hypercall to the
 		 * Launcher, in which case we return from the read() now. */
@@ -234,7 +234,7 @@ int run_guest(struct lg_cpu *cpu, unsigned long __user *user)
 		local_irq_enable();
 
 		/* Now we deal with whatever happened to the Guest. */
-		lguest_arch_handle_trap(lg);
+		lguest_arch_handle_trap(cpu);
 	}
 
 	if (lg->dead == ERR_PTR(-ERESTART))

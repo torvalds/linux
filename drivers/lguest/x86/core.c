@@ -283,8 +283,9 @@ static int emulate_insn(struct lguest *lg)
 }
 
 /*H:050 Once we've re-enabled interrupts, we look at why the Guest exited. */
-void lguest_arch_handle_trap(struct lguest *lg)
+void lguest_arch_handle_trap(struct lg_cpu *cpu)
 {
+	struct lguest *lg = cpu->lg;
 	switch (lg->regs->trapnum) {
 	case 13: /* We've intercepted a General Protection Fault. */
 		/* Check if this was one of those annoying IN or OUT
@@ -336,7 +337,7 @@ void lguest_arch_handle_trap(struct lguest *lg)
 	case LGUEST_TRAP_ENTRY:
 		/* Our 'struct hcall_args' maps directly over our regs: we set
 		 * up the pointer now to indicate a hypercall is pending. */
-		lg->hcall = (struct hcall_args *)lg->regs;
+		cpu->hcall = (struct hcall_args *)lg->regs;
 		return;
 	}
 
@@ -491,8 +492,10 @@ void __exit lguest_arch_host_fini(void)
 
 
 /*H:122 The i386-specific hypercalls simply farm out to the right functions. */
-int lguest_arch_do_hcall(struct lguest *lg, struct hcall_args *args)
+int lguest_arch_do_hcall(struct lg_cpu *cpu, struct hcall_args *args)
 {
+	struct lguest *lg = cpu->lg;
+
 	switch (args->arg0) {
 	case LHCALL_LOAD_GDT:
 		load_guest_gdt(lg, args->arg1, args->arg2);
@@ -511,13 +514,14 @@ int lguest_arch_do_hcall(struct lguest *lg, struct hcall_args *args)
 }
 
 /*H:126 i386-specific hypercall initialization: */
-int lguest_arch_init_hypercalls(struct lguest *lg)
+int lguest_arch_init_hypercalls(struct lg_cpu *cpu)
 {
 	u32 tsc_speed;
+	struct lguest *lg = cpu->lg;
 
 	/* The pointer to the Guest's "struct lguest_data" is the only
 	 * argument.  We check that address now. */
-	if (!lguest_address_ok(lg, lg->hcall->arg1, sizeof(*lg->lguest_data)))
+	if (!lguest_address_ok(lg, cpu->hcall->arg1, sizeof(*lg->lguest_data)))
 		return -EFAULT;
 
 	/* Having checked it, we simply set lg->lguest_data to point straight
@@ -525,7 +529,7 @@ int lguest_arch_init_hypercalls(struct lguest *lg)
 	 * copy_to_user/from_user from now on, instead of lgread/write.  I put
 	 * this in to show that I'm not immune to writing stupid
 	 * optimizations. */
-	lg->lguest_data = lg->mem_base + lg->hcall->arg1;
+	lg->lguest_data = lg->mem_base + cpu->hcall->arg1;
 
 	/* We insist that the Time Stamp Counter exist and doesn't change with
 	 * cpu frequency.  Some devious chip manufacturers decided that TSC

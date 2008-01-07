@@ -43,6 +43,10 @@ struct lguest;
 struct lg_cpu {
 	unsigned int id;
 	struct lguest *lg;
+
+	/* If a hypercall was asked for, this points to the arguments. */
+	struct hcall_args *hcall;
+	u32 next_hcall;
 };
 
 /* The private info the thread maintains about the guest. */
@@ -65,12 +69,8 @@ struct lguest
 	u32 cr2;
 	int halted;
 	int ts;
-	u32 next_hcall;
 	u32 esp1;
 	u8 ss1;
-
-	/* If a hypercall was asked for, this points to the arguments. */
-	struct hcall_args *hcall;
 
 	/* Do we need to stop what we're doing and return to userspace? */
 	int break_out;
@@ -178,9 +178,9 @@ void page_table_guest_data_init(struct lguest *lg);
 void lguest_arch_host_init(void);
 void lguest_arch_host_fini(void);
 void lguest_arch_run_guest(struct lg_cpu *cpu);
-void lguest_arch_handle_trap(struct lguest *lg);
-int lguest_arch_init_hypercalls(struct lguest *lg);
-int lguest_arch_do_hcall(struct lguest *lg, struct hcall_args *args);
+void lguest_arch_handle_trap(struct lg_cpu *cpu);
+int lguest_arch_init_hypercalls(struct lg_cpu *cpu);
+int lguest_arch_do_hcall(struct lg_cpu *cpu, struct hcall_args *args);
 void lguest_arch_setup_regs(struct lguest *lg, unsigned long start);
 
 /* <arch>/switcher.S: */
@@ -191,7 +191,7 @@ int lguest_device_init(void);
 void lguest_device_remove(void);
 
 /* hypercalls.c: */
-void do_hypercalls(struct lguest *lg);
+void do_hypercalls(struct lg_cpu *cpu);
 void write_timestamp(struct lguest *lg);
 
 /*L:035
