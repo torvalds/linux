@@ -597,6 +597,8 @@ static int tda18271_rf_cal_init(struct dvb_frontend *fe)
 
 	tda18271_por(fe);
 
+	tda_info("tda18271: RF tracking filter calibration complete\n");
+
 	priv->cal_initialized = true;
 
 	return 0;
