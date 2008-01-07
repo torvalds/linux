@@ -280,7 +280,9 @@ static inline struct sockaddr_in6 *xs_addr_in6(struct rpc_xprt *xprt)
 	return (struct sockaddr_in6 *) &xprt->addr;
 }
 
-static void xs_format_ipv4_peer_addresses(struct rpc_xprt *xprt)
+static void xs_format_ipv4_peer_addresses(struct rpc_xprt *xprt,
+					  const char *protocol,
+					  const char *netid)
 {
 	struct sockaddr_in *addr = xs_addr_in(xprt);
 	char *buf;
@@ -299,21 +301,14 @@ static void xs_format_ipv4_peer_addresses(struct rpc_xprt *xprt)
 	}
 	xprt->address_strings[RPC_DISPLAY_PORT] = buf;
 
-	buf = kzalloc(8, GFP_KERNEL);
-	if (buf) {
-		if (xprt->prot == IPPROTO_UDP)
-			snprintf(buf, 8, "udp");
-		else
-			snprintf(buf, 8, "tcp");
-	}
-	xprt->address_strings[RPC_DISPLAY_PROTO] = buf;
+	xprt->address_strings[RPC_DISPLAY_PROTO] = protocol;
 
 	buf = kzalloc(48, GFP_KERNEL);
 	if (buf) {
 		snprintf(buf, 48, "addr="NIPQUAD_FMT" port=%u proto=%s",
 			NIPQUAD(addr->sin_addr.s_addr),
 			ntohs(addr->sin_port),
-			xprt->prot == IPPROTO_UDP ? "udp" : "tcp");
+			protocol);
 	}
 	xprt->address_strings[RPC_DISPLAY_ALL] = buf;
 
@@ -340,12 +335,12 @@ static void xs_format_ipv4_peer_addresses(struct rpc_xprt *xprt)
 	}
 	xprt->address_strings[RPC_DISPLAY_UNIVERSAL_ADDR] = buf;
 
-	xprt->address_strings[RPC_DISPLAY_NETID] =
-		kstrdup(xprt->prot == IPPROTO_UDP ?
-			RPCBIND_NETID_UDP : RPCBIND_NETID_TCP, GFP_KERNEL);
+	xprt->address_strings[RPC_DISPLAY_NETID] = netid;
 }
 
-static void xs_format_ipv6_peer_addresses(struct rpc_xprt *xprt)
+static void xs_format_ipv6_peer_addresses(struct rpc_xprt *xprt,
+					  const char *protocol,
+					  const char *netid)
 {
 	struct sockaddr_in6 *addr = xs_addr_in6(xprt);
 	char *buf;
@@ -364,21 +359,14 @@ static void xs_format_ipv6_peer_addresses(struct rpc_xprt *xprt)
 	}
 	xprt->address_strings[RPC_DISPLAY_PORT] = buf;
 
-	buf = kzalloc(8, GFP_KERNEL);
-	if (buf) {
-		if (xprt->prot == IPPROTO_UDP)
-			snprintf(buf, 8, "udp");
-		else
-			snprintf(buf, 8, "tcp");
-	}
-	xprt->address_strings[RPC_DISPLAY_PROTO] = buf;
+	xprt->address_strings[RPC_DISPLAY_PROTO] = protocol;
 
 	buf = kzalloc(64, GFP_KERNEL);
 	if (buf) {
 		snprintf(buf, 64, "addr="NIP6_FMT" port=%u proto=%s",
 				NIP6(addr->sin6_addr),
 				ntohs(addr->sin6_port),
-				xprt->prot == IPPROTO_UDP ? "udp" : "tcp");
+				protocol);
 	}
 	xprt->address_strings[RPC_DISPLAY_ALL] = buf;
 
@@ -405,17 +393,17 @@ static void xs_format_ipv6_peer_addresses(struct rpc_xprt *xprt)
 	}
 	xprt->address_strings[RPC_DISPLAY_UNIVERSAL_ADDR] = buf;
 
-	xprt->address_strings[RPC_DISPLAY_NETID] =
-		kstrdup(xprt->prot == IPPROTO_UDP ?
-			RPCBIND_NETID_UDP6 : RPCBIND_NETID_TCP6, GFP_KERNEL);
+	xprt->address_strings[RPC_DISPLAY_NETID] = netid;
 }
 
 static void xs_free_peer_addresses(struct rpc_xprt *xprt)
 {
-	int i;
-
-	for (i = 0; i < RPC_DISPLAY_MAX; i++)
-		kfree(xprt->address_strings[i]);
+	kfree(xprt->address_strings[RPC_DISPLAY_ADDR]);
+	kfree(xprt->address_strings[RPC_DISPLAY_PORT]);
+	kfree(xprt->address_strings[RPC_DISPLAY_ALL]);
+	kfree(xprt->address_strings[RPC_DISPLAY_HEX_ADDR]);
+	kfree(xprt->address_strings[RPC_DISPLAY_HEX_PORT]);
+	kfree(xprt->address_strings[RPC_DISPLAY_UNIVERSAL_ADDR]);
 }
 
 #define XS_SENDMSG_FLAGS	(MSG_DONTWAIT | MSG_NOSIGNAL)
@@ -1939,7 +1927,7 @@ static struct rpc_xprt *xs_setup_udp(struct xprt_create *args)
 
 		INIT_DELAYED_WORK(&transport->connect_worker,
 					xs_udp_connect_worker4);
-		xs_format_ipv4_peer_addresses(xprt);
+		xs_format_ipv4_peer_addresses(xprt, "udp", RPCBIND_NETID_UDP);
 		break;
 	case AF_INET6:
 		if (((struct sockaddr_in6 *)addr)->sin6_port != htons(0))
@@ -1947,7 +1935,7 @@ static struct rpc_xprt *xs_setup_udp(struct xprt_create *args)
 
 		INIT_DELAYED_WORK(&transport->connect_worker,
 					xs_udp_connect_worker6);
-		xs_format_ipv6_peer_addresses(xprt);
+		xs_format_ipv6_peer_addresses(xprt, "udp", RPCBIND_NETID_UDP6);
 		break;
 	default:
 		kfree(xprt);
@@ -2005,14 +1993,14 @@ static struct rpc_xprt *xs_setup_tcp(struct xprt_create *args)
 			xprt_set_bound(xprt);
 
 		INIT_DELAYED_WORK(&transport->connect_worker, xs_tcp_connect_worker4);
-		xs_format_ipv4_peer_addresses(xprt);
+		xs_format_ipv4_peer_addresses(xprt, "tcp", RPCBIND_NETID_TCP);
 		break;
 	case AF_INET6:
 		if (((struct sockaddr_in6 *)addr)->sin6_port != htons(0))
 			xprt_set_bound(xprt);
 
 		INIT_DELAYED_WORK(&transport->connect_worker, xs_tcp_connect_worker6);
-		xs_format_ipv6_peer_addresses(xprt);
+		xs_format_ipv6_peer_addresses(xprt, "tcp", RPCBIND_NETID_TCP6);
 		break;
 	default:
 		kfree(xprt);

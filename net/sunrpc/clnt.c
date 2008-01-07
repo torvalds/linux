@@ -679,7 +679,8 @@ EXPORT_SYMBOL_GPL(rpc_peeraddr);
  * @format: address format
  *
  */
-char *rpc_peeraddr2str(struct rpc_clnt *clnt, enum rpc_display_format_t format)
+const char *rpc_peeraddr2str(struct rpc_clnt *clnt,
+			     enum rpc_display_format_t format)
 {
 	struct rpc_xprt *xprt = clnt->cl_xprt;
 

@@ -183,7 +183,7 @@ struct rpc_xprt {
 					bklog_u;	/* backlog queue utilization */
 	} stat;
 
-	char *			address_strings[RPC_DISPLAY_MAX];
+	const char		*address_strings[RPC_DISPLAY_MAX];
 };
 
 struct xprt_create {

@@ -143,7 +143,7 @@ void		rpc_setbufsize(struct rpc_clnt *, unsigned int, unsigned int);
 size_t		rpc_max_payload(struct rpc_clnt *);
 void		rpc_force_rebind(struct rpc_clnt *);
 size_t		rpc_peeraddr(struct rpc_clnt *, struct sockaddr *, size_t);
-char *		rpc_peeraddr2str(struct rpc_clnt *, enum rpc_display_format_t);
+const char	*rpc_peeraddr2str(struct rpc_clnt *, enum rpc_display_format_t);
 
 #endif /* __KERNEL__ */
 #endif /* _LINUX_SUNRPC_CLNT_H */
