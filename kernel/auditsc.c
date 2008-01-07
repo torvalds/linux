@@ -176,7 +176,10 @@ struct audit_aux_data_fd_pair {
 struct audit_aux_data_pids {
 	struct audit_aux_data	d;
 	pid_t			target_pid[AUDIT_AUX_PIDS];
+	uid_t			target_auid[AUDIT_AUX_PIDS];
+	uid_t			target_uid[AUDIT_AUX_PIDS];
 	u32			target_sid[AUDIT_AUX_PIDS];
+	char 			target_comm[AUDIT_AUX_PIDS][TASK_COMM_LEN];
 	int			pid_count;
 };
 
@@ -214,7 +217,10 @@ struct audit_context {
 	int		    arch;
 
 	pid_t		    target_pid;
+	uid_t		    target_auid;
+	uid_t		    target_uid;
 	u32		    target_sid;
+	char		    target_comm[TASK_COMM_LEN];
 
 	struct audit_tree_refs *trees, *first_trees;
 	int tree_count;
@@ -930,7 +936,7 @@ static void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk
 }
 
 static int audit_log_pid_context(struct audit_context *context, pid_t pid,
-				 u32 sid)
+				 uid_t auid, uid_t uid, u32 sid, char *comm)
 {
 	struct audit_buffer *ab;
 	char *s = NULL;
@@ -941,11 +947,14 @@ static int audit_log_pid_context(struct audit_context *context, pid_t pid,
 	if (!ab)
 		return 1;
 
+	audit_log_format(ab, "opid=%d oauid=%d ouid=%d", pid, auid, uid);
 	if (selinux_sid_to_string(sid, &s, &len)) {
-		audit_log_format(ab, "opid=%d obj=(none)", pid);
+		audit_log_format(ab, " obj=(none)");
 		rc = 1;
 	} else
-		audit_log_format(ab, "opid=%d  obj=%s", pid, s);
+		audit_log_format(ab, " obj=%s", s);
+	audit_log_format(ab, " ocomm=");
+	audit_log_untrustedstring(ab, comm);
 	audit_log_end(ab);
 	kfree(s);
 
@@ -1176,13 +1185,17 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 
 		for (i = 0; i < axs->pid_count; i++)
 			if (audit_log_pid_context(context, axs->target_pid[i],
-						  axs->target_sid[i]))
+						  axs->target_auid[i],
+						  axs->target_uid[i],
+						  axs->target_sid[i],
+						  axs->target_comm[i]))
 				call_panic = 1;
 	}
 
 	if (context->target_pid &&
 	    audit_log_pid_context(context, context->target_pid,
-				  context->target_sid))
+				  context->target_auid, context->target_uid,
+				  context->target_sid, context->target_comm))
 			call_panic = 1;
 
 	if (context->pwd && context->pwdmnt) {
@@ -2185,7 +2198,10 @@ void __audit_ptrace(struct task_struct *t)
 	struct audit_context *context = current->audit_context;
 
 	context->target_pid = t->pid;
+	context->target_auid = audit_get_loginuid(t);
+	context->target_uid = t->uid;
 	selinux_get_task_sid(t, &context->target_sid);
+	memcpy(context->target_comm, t->comm, TASK_COMM_LEN);
 }
 
 /**
@@ -2222,7 +2238,10 @@ int __audit_signal_info(int sig, struct task_struct *t)
 	 * in audit_context */
 	if (!ctx->target_pid) {
 		ctx->target_pid = t->tgid;
+		ctx->target_auid = audit_get_loginuid(t);
+		ctx->target_uid = t->uid;
 		selinux_get_task_sid(t, &ctx->target_sid);
+		memcpy(ctx->target_comm, t->comm, TASK_COMM_LEN);
 		return 0;
 	}
 
@@ -2239,7 +2258,10 @@ int __audit_signal_info(int sig, struct task_struct *t)
 	BUG_ON(axp->pid_count >= AUDIT_AUX_PIDS);
 
 	axp->target_pid[axp->pid_count] = t->tgid;
+	axp->target_auid[axp->pid_count] = audit_get_loginuid(t);
+	axp->target_uid[axp->pid_count] = t->uid;
 	selinux_get_task_sid(t, &axp->target_sid[axp->pid_count]);
+	memcpy(axp->target_comm[axp->pid_count], t->comm, TASK_COMM_LEN);
 	axp->pid_count++;
 
 	return 0;
