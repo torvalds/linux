@@ -1646,14 +1646,6 @@ static const struct amd_flash_info jedec_table[] = {
 	}
 };
 
-
-static int cfi_jedec_setup(struct cfi_private *p_cfi, int index);
-
-static int jedec_probe_chip(struct map_info *map, uint32_t base,
-			    unsigned long *chip_map, struct cfi_private *cfi);
-
-static struct mtd_info *jedec_probe(struct map_info *map);
-
 static inline u32 jedec_read_mfr(struct map_info *map, uint32_t base,
 	struct cfi_private *cfi)
 {
