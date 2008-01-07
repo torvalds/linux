@@ -100,14 +100,14 @@ static void copy_in_guest_info(struct lg_cpu *cpu, struct lguest_pages *pages)
 
 	/* Copy direct-to-Guest trap entries. */
 	if (lg->changed & CHANGED_IDT)
-		copy_traps(lg, pages->state.guest_idt, default_idt_entries);
+		copy_traps(cpu, pages->state.guest_idt, default_idt_entries);
 
 	/* Copy all GDT entries which the Guest can change. */
 	if (lg->changed & CHANGED_GDT)
-		copy_gdt(lg, pages->state.guest_gdt);
+		copy_gdt(cpu, pages->state.guest_gdt);
 	/* If only the TLS entries have changed, copy them. */
 	else if (lg->changed & CHANGED_GDT_TLS)
-		copy_gdt_tls(lg, pages->state.guest_gdt);
+		copy_gdt_tls(cpu, pages->state.guest_gdt);
 
 	/* Mark the Guest as unchanged for next time. */
 	lg->changed = 0;
@@ -196,7 +196,7 @@ void lguest_arch_run_guest(struct lg_cpu *cpu)
 	 * re-enable interrupts an interrupt could fault and thus overwrite
 	 * cr2, or we could even move off to a different CPU. */
 	if (cpu->regs->trapnum == 14)
-		lg->arch.last_pagefault = read_cr2();
+		cpu->arch.last_pagefault = read_cr2();
 	/* Similarly, if we took a trap because the Guest used the FPU,
 	 * we have to restore the FPU it expects to see. */
 	else if (cpu->regs->trapnum == 7)
@@ -307,7 +307,7 @@ void lguest_arch_handle_trap(struct lg_cpu *cpu)
 		 *
 		 * The errcode tells whether this was a read or a write, and
 		 * whether kernel or userspace code. */
-		if (demand_page(lg, lg->arch.last_pagefault, cpu->regs->errcode))
+		if (demand_page(lg,cpu->arch.last_pagefault,cpu->regs->errcode))
 			return;
 
 		/* OK, it's really not there (or not OK): the Guest needs to
@@ -318,7 +318,7 @@ void lguest_arch_handle_trap(struct lg_cpu *cpu)
 		 * happen before it's done the LHCALL_LGUEST_INIT hypercall, so
 		 * lg->lguest_data could be NULL */
 		if (lg->lguest_data &&
-		    put_user(lg->arch.last_pagefault, &lg->lguest_data->cr2))
+		    put_user(cpu->arch.last_pagefault, &lg->lguest_data->cr2))
 			kill_guest(lg, "Writing cr2");
 		break;
 	case 7: /* We've intercepted a Device Not Available fault. */
@@ -349,7 +349,7 @@ void lguest_arch_handle_trap(struct lg_cpu *cpu)
 		 * it handle), it dies with a cryptic error message. */
 		kill_guest(lg, "unhandled trap %li at %#lx (%#lx)",
 			   cpu->regs->trapnum, cpu->regs->eip,
-			   cpu->regs->trapnum == 14 ? lg->arch.last_pagefault
+			   cpu->regs->trapnum == 14 ? cpu->arch.last_pagefault
 			   : cpu->regs->errcode);
 }
 
@@ -495,17 +495,15 @@ void __exit lguest_arch_host_fini(void)
 /*H:122 The i386-specific hypercalls simply farm out to the right functions. */
 int lguest_arch_do_hcall(struct lg_cpu *cpu, struct hcall_args *args)
 {
-	struct lguest *lg = cpu->lg;
-
 	switch (args->arg0) {
 	case LHCALL_LOAD_GDT:
-		load_guest_gdt(lg, args->arg1, args->arg2);
+		load_guest_gdt(cpu, args->arg1, args->arg2);
 		break;
 	case LHCALL_LOAD_IDT_ENTRY:
-		load_guest_idt_entry(lg, args->arg1, args->arg2, args->arg3);
+		load_guest_idt_entry(cpu, args->arg1, args->arg2, args->arg3);
 		break;
 	case LHCALL_LOAD_TLS:
-		guest_load_tls(lg, args->arg1);
+		guest_load_tls(cpu, args->arg1);
 		break;
 	default:
 		/* Bad Guest.  Bad! */
@@ -586,5 +584,5 @@ void lguest_arch_setup_regs(struct lg_cpu *cpu, unsigned long start)
 
 	/* There are a couple of GDT entries the Guest expects when first
 	 * booting. */
-	setup_guest_gdt(cpu->lg);
+	setup_guest_gdt(cpu);
 }

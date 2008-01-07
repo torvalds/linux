@@ -57,6 +57,8 @@ struct lg_cpu {
 
 	/* Pending virtual interrupts */
 	DECLARE_BITMAP(irqs_pending, LGUEST_IRQS);
+
+	struct lg_cpu_arch arch;
 };
 
 /* The private info the thread maintains about the guest. */
@@ -99,8 +101,6 @@ struct lguest
 
 	/* Dead? */
 	const char *dead;
-
-	struct lguest_arch arch;
 };
 
 extern struct mutex lguest_lock;
@@ -139,12 +139,13 @@ int run_guest(struct lg_cpu *cpu, unsigned long __user *user);
 /* interrupts_and_traps.c: */
 void maybe_do_interrupt(struct lg_cpu *cpu);
 int deliver_trap(struct lg_cpu *cpu, unsigned int num);
-void load_guest_idt_entry(struct lguest *lg, unsigned int i, u32 low, u32 hi);
+void load_guest_idt_entry(struct lg_cpu *cpu, unsigned int i,
+			  u32 low, u32 hi);
 void guest_set_stack(struct lguest *lg, u32 seg, u32 esp, unsigned int pages);
 void pin_stack_pages(struct lguest *lg);
 void setup_default_idt_entries(struct lguest_ro_state *state,
 			       const unsigned long *def);
-void copy_traps(const struct lguest *lg, struct desc_struct *idt,
+void copy_traps(const struct lg_cpu *cpu, struct desc_struct *idt,
 		const unsigned long *def);
 void guest_set_clockevent(struct lg_cpu *cpu, unsigned long delta);
 void init_clockdev(struct lg_cpu *cpu);
@@ -154,11 +155,11 @@ void free_interrupts(void);
 
 /* segments.c: */
 void setup_default_gdt_entries(struct lguest_ro_state *state);
-void setup_guest_gdt(struct lguest *lg);
-void load_guest_gdt(struct lguest *lg, unsigned long table, u32 num);
-void guest_load_tls(struct lguest *lg, unsigned long tls_array);
-void copy_gdt(const struct lguest *lg, struct desc_struct *gdt);
-void copy_gdt_tls(const struct lguest *lg, struct desc_struct *gdt);
+void setup_guest_gdt(struct lg_cpu *cpu);
+void load_guest_gdt(struct lg_cpu *cpu, unsigned long table, u32 num);
+void guest_load_tls(struct lg_cpu *cpu, unsigned long tls_array);
+void copy_gdt(const struct lg_cpu *cpu, struct desc_struct *gdt);
+void copy_gdt_tls(const struct lg_cpu *cpu, struct desc_struct *gdt);
 
 /* page_tables.c: */
 int init_guest_pagetable(struct lguest *lg, unsigned long pgtable);

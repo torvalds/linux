@@ -56,7 +56,7 @@ struct lguest_ro_state
 	struct desc_struct guest_gdt[GDT_ENTRIES];
 };
 
-struct lguest_arch
+struct lg_cpu_arch
 {
 	/* The GDT entries copied into lguest_ro_state when running. */
 	struct desc_struct gdt[GDT_ENTRIES];

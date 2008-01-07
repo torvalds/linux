@@ -178,7 +178,7 @@ void maybe_do_interrupt(struct lg_cpu *cpu)
 	/* Look at the IDT entry the Guest gave us for this interrupt.  The
 	 * first 32 (FIRST_EXTERNAL_VECTOR) entries are for traps, so we skip
 	 * over them. */
-	idt = &lg->arch.idt[FIRST_EXTERNAL_VECTOR+irq];
+	idt = &cpu->arch.idt[FIRST_EXTERNAL_VECTOR+irq];
 	/* If they don't have a handler (yet?), we just ignore it */
 	if (idt_present(idt->a, idt->b)) {
 		/* OK, mark it no longer pending and deliver it. */
@@ -251,15 +251,15 @@ int deliver_trap(struct lg_cpu *cpu, unsigned int num)
 {
 	/* Trap numbers are always 8 bit, but we set an impossible trap number
 	 * for traps inside the Switcher, so check that here. */
-	if (num >= ARRAY_SIZE(cpu->lg->arch.idt))
+	if (num >= ARRAY_SIZE(cpu->arch.idt))
 		return 0;
 
 	/* Early on the Guest hasn't set the IDT entries (or maybe it put a
 	 * bogus one in): if we fail here, the Guest will be killed. */
-	if (!idt_present(cpu->lg->arch.idt[num].a, cpu->lg->arch.idt[num].b))
+	if (!idt_present(cpu->arch.idt[num].a, cpu->arch.idt[num].b))
 		return 0;
-	set_guest_interrupt(cpu, cpu->lg->arch.idt[num].a,
-			    cpu->lg->arch.idt[num].b, has_err(num));
+	set_guest_interrupt(cpu, cpu->arch.idt[num].a,
+			    cpu->arch.idt[num].b, has_err(num));
 	return 1;
 }
 
@@ -385,7 +385,7 @@ static void set_trap(struct lguest *lg, struct desc_struct *trap,
  *
  * We saw the Guest setting Interrupt Descriptor Table (IDT) entries with the
  * LHCALL_LOAD_IDT_ENTRY hypercall before: that comes here. */
-void load_guest_idt_entry(struct lguest *lg, unsigned int num, u32 lo, u32 hi)
+void load_guest_idt_entry(struct lg_cpu *cpu, unsigned int num, u32 lo, u32 hi)
 {
 	/* Guest never handles: NMI, doublefault, spurious interrupt or
 	 * hypercall.  We ignore when it tries to set them. */
@@ -394,13 +394,13 @@ void load_guest_idt_entry(struct lguest *lg, unsigned int num, u32 lo, u32 hi)
 
 	/* Mark the IDT as changed: next time the Guest runs we'll know we have
 	 * to copy this again. */
-	lg->changed |= CHANGED_IDT;
+	cpu->lg->changed |= CHANGED_IDT;
 
 	/* Check that the Guest doesn't try to step outside the bounds. */
-	if (num >= ARRAY_SIZE(lg->arch.idt))
-		kill_guest(lg, "Setting idt entry %u", num);
+	if (num >= ARRAY_SIZE(cpu->arch.idt))
+		kill_guest(cpu->lg, "Setting idt entry %u", num);
 	else
-		set_trap(lg, &lg->arch.idt[num], num, lo, hi);
+		set_trap(cpu->lg, &cpu->arch.idt[num], num, lo, hi);
 }
 
 /* The default entry for each interrupt points into the Switcher routines which
@@ -436,14 +436,14 @@ void setup_default_idt_entries(struct lguest_ro_state *state,
 /*H:240 We don't use the IDT entries in the "struct lguest" directly, instead
  * we copy them into the IDT which we've set up for Guests on this CPU, just
  * before we run the Guest.  This routine does that copy. */
-void copy_traps(const struct lguest *lg, struct desc_struct *idt,
+void copy_traps(const struct lg_cpu *cpu, struct desc_struct *idt,
 		const unsigned long *def)
 {
 	unsigned int i;
 
 	/* We can simply copy the direct traps, otherwise we use the default
 	 * ones in the Switcher: they will return to the Host. */
-	for (i = 0; i < ARRAY_SIZE(lg->arch.idt); i++) {
+	for (i = 0; i < ARRAY_SIZE(cpu->arch.idt); i++) {
 		/* If no Guest can ever override this trap, leave it alone. */
 		if (!direct_trap(i))
 			continue;
@@ -452,8 +452,8 @@ void copy_traps(const struct lguest *lg, struct desc_struct *idt,
 		 * Interrupt gates (type 14) disable interrupts as they are
 		 * entered, which we never let the Guest do.  Not present
 		 * entries (type 0x0) also can't go direct, of course. */
-		if (idt_type(lg->arch.idt[i].a, lg->arch.idt[i].b) == 0xF)
-			idt[i] = lg->arch.idt[i];
+		if (idt_type(cpu->arch.idt[i].a, cpu->arch.idt[i].b) == 0xF)
+			idt[i] = cpu->arch.idt[i];
 		else
 			/* Reset it to the default. */
 			default_idt_entry(&idt[i], i, def[i]);
