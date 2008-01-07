@@ -80,7 +80,7 @@ static void do_hcall(struct lg_cpu *cpu, struct hcall_args *args)
 		guest_set_pmd(lg, args->arg1, args->arg2);
 		break;
 	case LHCALL_SET_CLOCKEVENT:
-		guest_set_clockevent(lg, args->arg1);
+		guest_set_clockevent(cpu, args->arg1);
 		break;
 	case LHCALL_TS:
 		/* This sets the TS flag, as we saw used in run_guest(). */

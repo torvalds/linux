@@ -104,6 +104,7 @@ static int lg_cpu_start(struct lg_cpu *cpu, unsigned id, unsigned long start_ip)
 	cpu->id = id;
 	cpu->lg = container_of((cpu - id), struct lguest, cpus[0]);
 	cpu->lg->nr_cpus++;
+	init_clockdev(cpu);
 
 	return 0;
 }
@@ -179,9 +180,6 @@ static int initialize(struct file *file, const unsigned long __user *input)
 	/* Now we initialize the Guest's registers, handing it the start
 	 * address. */
 	lguest_arch_setup_regs(lg, args[3]);
-
-	/* The timer for lguest's clock needs initialization. */
-	init_clockdev(lg);
 
 	/* We keep a pointer to the Launcher task (ie. current task) for when
 	 * other Guests want to wake this one (inter-Guest I/O). */
@@ -273,6 +271,7 @@ static ssize_t write(struct file *file, const char __user *in,
 static int close(struct inode *inode, struct file *file)
 {
 	struct lguest *lg = file->private_data;
+	unsigned int i;
 
 	/* If we never successfully initialized, there's nothing to clean up */
 	if (!lg)
@@ -281,8 +280,9 @@ static int close(struct inode *inode, struct file *file)
 	/* We need the big lock, to protect from inter-guest I/O and other
 	 * Launchers initializing guests. */
 	mutex_lock(&lguest_lock);
-	/* Cancels the hrtimer set via LHCALL_SET_CLOCKEVENT. */
-	hrtimer_cancel(&lg->hrt);
+	for (i = 0; i < lg->nr_cpus; i++)
+		/* Cancels the hrtimer set via LHCALL_SET_CLOCKEVENT. */
+		hrtimer_cancel(&lg->cpus[i].hrt);
 	/* Free up the shadow page tables for the Guest. */
 	free_guest_pagetable(lg);
 	/* Now all the memory cleanups are done, it's safe to release the

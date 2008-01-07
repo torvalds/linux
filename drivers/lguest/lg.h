@@ -47,6 +47,9 @@ struct lg_cpu {
 	/* If a hypercall was asked for, this points to the arguments. */
 	struct hcall_args *hcall;
 	u32 next_hcall;
+
+	/* Virtual clock device */
+	struct hrtimer hrt;
 };
 
 /* The private info the thread maintains about the guest. */
@@ -95,9 +98,6 @@ struct lguest
 
 	struct lguest_arch arch;
 
-	/* Virtual clock device */
-	struct hrtimer hrt;
-
 	/* Pending virtual interrupts */
 	DECLARE_BITMAP(irqs_pending, LGUEST_IRQS);
 };
@@ -145,8 +145,8 @@ void setup_default_idt_entries(struct lguest_ro_state *state,
 			       const unsigned long *def);
 void copy_traps(const struct lguest *lg, struct desc_struct *idt,
 		const unsigned long *def);
-void guest_set_clockevent(struct lguest *lg, unsigned long delta);
-void init_clockdev(struct lguest *lg);
+void guest_set_clockevent(struct lg_cpu *cpu, unsigned long delta);
+void init_clockdev(struct lg_cpu *cpu);
 bool check_syscall_vector(struct lguest *lg);
 int init_interrupts(void);
 void free_interrupts(void);

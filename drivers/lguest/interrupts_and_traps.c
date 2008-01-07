@@ -470,13 +470,13 @@ void copy_traps(const struct lguest *lg, struct desc_struct *idt,
  * infrastructure to set a callback at that time.
  *
  * 0 means "turn off the clock". */
-void guest_set_clockevent(struct lguest *lg, unsigned long delta)
+void guest_set_clockevent(struct lg_cpu *cpu, unsigned long delta)
 {
 	ktime_t expires;
 
 	if (unlikely(delta == 0)) {
 		/* Clock event device is shutting down. */
-		hrtimer_cancel(&lg->hrt);
+		hrtimer_cancel(&cpu->hrt);
 		return;
 	}
 
@@ -484,25 +484,25 @@ void guest_set_clockevent(struct lguest *lg, unsigned long delta)
 	 * all the time between now and the timer interrupt it asked for.  This
 	 * is almost always the right thing to do. */
 	expires = ktime_add_ns(ktime_get_real(), delta);
-	hrtimer_start(&lg->hrt, expires, HRTIMER_MODE_ABS);
+	hrtimer_start(&cpu->hrt, expires, HRTIMER_MODE_ABS);
 }
 
 /* This is the function called when the Guest's timer expires. */
 static enum hrtimer_restart clockdev_fn(struct hrtimer *timer)
 {
-	struct lguest *lg = container_of(timer, struct lguest, hrt);
+	struct lg_cpu *cpu = container_of(timer, struct lg_cpu, hrt);
 
 	/* Remember the first interrupt is the timer interrupt. */
-	set_bit(0, lg->irqs_pending);
+	set_bit(0, cpu->lg->irqs_pending);
 	/* If the Guest is actually stopped, we need to wake it up. */
-	if (lg->halted)
-		wake_up_process(lg->tsk);
+	if (cpu->lg->halted)
+		wake_up_process(cpu->lg->tsk);
 	return HRTIMER_NORESTART;
 }
 
 /* This sets up the timer for this Guest. */
-void init_clockdev(struct lguest *lg)
+void init_clockdev(struct lg_cpu *cpu)
 {
-	hrtimer_init(&lg->hrt, CLOCK_REALTIME, HRTIMER_MODE_ABS);
-	lg->hrt.function = clockdev_fn;
+	hrtimer_init(&cpu->hrt, CLOCK_REALTIME, HRTIMER_MODE_ABS);
+	cpu->hrt.function = clockdev_fn;
 }
