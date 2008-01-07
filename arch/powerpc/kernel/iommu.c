@@ -278,6 +278,7 @@ int iommu_map_sg(struct iommu_table *tbl, struct scatterlist *sglist,
 	unsigned long flags;
 	struct scatterlist *s, *outs, *segstart;
 	int outcount, incount, i;
+	unsigned int align;
 	unsigned long handle;
 
 	BUG_ON(direction == DMA_NONE);
@@ -309,7 +310,12 @@ int iommu_map_sg(struct iommu_table *tbl, struct scatterlist *sglist,
 		/* Allocate iommu entries for that segment */
 		vaddr = (unsigned long) sg_virt(s);
 		npages = iommu_num_pages(vaddr, slen);
-		entry = iommu_range_alloc(tbl, npages, &handle, mask >> IOMMU_PAGE_SHIFT, 0);
+		align = 0;
+		if (IOMMU_PAGE_SHIFT < PAGE_SHIFT && slen >= PAGE_SIZE &&
+		    (vaddr & ~PAGE_MASK) == 0)
+			align = PAGE_SHIFT - IOMMU_PAGE_SHIFT;
+		entry = iommu_range_alloc(tbl, npages, &handle,
+					  mask >> IOMMU_PAGE_SHIFT, align);
 
 		DBG("  - vaddr: %lx, size: %lx\n", vaddr, slen);
 
@@ -572,7 +578,7 @@ dma_addr_t iommu_map_single(struct iommu_table *tbl, void *vaddr,
 {
 	dma_addr_t dma_handle = DMA_ERROR_CODE;
 	unsigned long uaddr;
-	unsigned int npages;
+	unsigned int npages, align;
 
 	BUG_ON(direction == DMA_NONE);
 
@@ -580,8 +586,13 @@ dma_addr_t iommu_map_single(struct iommu_table *tbl, void *vaddr,
 	npages = iommu_num_pages(uaddr, size);
 
 	if (tbl) {
+		align = 0;
+		if (IOMMU_PAGE_SHIFT < PAGE_SHIFT && size >= PAGE_SIZE &&
+		    ((unsigned long)vaddr & ~PAGE_MASK) == 0)
+			align = PAGE_SHIFT - IOMMU_PAGE_SHIFT;
+
 		dma_handle = iommu_alloc(tbl, vaddr, npages, direction,
-					 mask >> IOMMU_PAGE_SHIFT, 0);
+					 mask >> IOMMU_PAGE_SHIFT, align);
 		if (dma_handle == DMA_ERROR_CODE) {
 			if (printk_ratelimit())  {
 				printk(KERN_INFO "iommu_alloc failed, "
