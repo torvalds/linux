@@ -113,8 +113,18 @@ static struct dentry *gfs2_lookup(struct inode *dir, struct dentry *dentry,
 	if (inode && IS_ERR(inode))
 		return ERR_PTR(PTR_ERR(inode));
 
-	if (inode)
+	if (inode) {
+		struct gfs2_glock *gl = GFS2_I(inode)->i_gl;
+		struct gfs2_holder gh;
+		int error;
+		error = gfs2_glock_nq_init(gl, LM_ST_SHARED, LM_FLAG_ANY, &gh);
+		if (error) {
+			iput(inode);
+			return ERR_PTR(error);
+		}
+		gfs2_glock_dq_uninit(&gh);
 		return d_splice_alias(inode, dentry);
+	}
 	d_add(dentry, inode);
 
 	return NULL;

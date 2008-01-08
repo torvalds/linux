@@ -848,14 +848,11 @@ static int gfs2_write_end(struct file *file, struct address_space *mapping,
 
 	ret = generic_write_end(file, mapping, pos, len, copied, page, fsdata);
 
-	if (likely(ret >= 0)) {
-		copied = ret;
-		if  ((pos + copied) > inode->i_size) {
-			di = (struct gfs2_dinode *)dibh->b_data;
-			ip->i_di.di_size = inode->i_size;
-			di->di_size = cpu_to_be64(inode->i_size);
-			mark_inode_dirty(inode);
-		}
+	if (likely(ret >= 0) && (inode->i_size > ip->i_di.di_size)) {
+		di = (struct gfs2_dinode *)dibh->b_data;
+		ip->i_di.di_size = inode->i_size;
+		di->di_size = cpu_to_be64(inode->i_size);
+		mark_inode_dirty(inode);
 	}
 
 	if (inode == sdp->sd_rindex)
