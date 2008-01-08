@@ -1794,7 +1794,7 @@ ixgb_clean(struct napi_struct *napi, int budget)
 	ixgb_clean_rx_irq(adapter, &work_done, budget);
 
 	/* if no Tx and not enough Rx work done, exit the polling mode */
-	if((!tx_cleaned && (work_done == 0)) || !netif_running(netdev)) {
+	if((!tx_cleaned && (work_done == 0))) {
 		netif_rx_complete(netdev, napi);
 		ixgb_irq_enable(adapter);
 	}

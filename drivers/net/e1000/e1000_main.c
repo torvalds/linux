@@ -3924,10 +3924,6 @@ e1000_clean(struct napi_struct *napi, int budget)
 	/* Must NOT use netdev_priv macro here. */
 	adapter = poll_dev->priv;
 
-	/* Keep link state information with original netdev */
-	if (!netif_carrier_ok(poll_dev))
-		goto quit_polling;
-
 	/* e1000_clean is called per-cpu.  This lock protects
 	 * tx_ring[0] from being cleaned by multiple cpus
 	 * simultaneously.  A failure obtaining the lock means
@@ -3942,9 +3938,7 @@ e1000_clean(struct napi_struct *napi, int budget)
 	                  &work_done, budget);
 
 	/* If no Tx and not enough Rx work done, exit the polling mode */
-	if ((!tx_cleaned && (work_done == 0)) ||
-	   !netif_running(poll_dev)) {
-quit_polling:
+	if ((!tx_cleaned && (work_done == 0))) {
 		if (likely(adapter->itr_setting & 3))
 			e1000_set_itr(adapter);
 		netif_rx_complete(poll_dev, napi);

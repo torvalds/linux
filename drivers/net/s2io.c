@@ -2704,9 +2704,6 @@ static int s2io_poll(struct napi_struct *napi, int budget)
 	struct XENA_dev_config __iomem *bar0 = nic->bar0;
 	int i;
 
-	if (!is_s2io_card_up(nic))
-		return 0;
-
 	mac_control = &nic->mac_control;
 	config = &nic->config;
 

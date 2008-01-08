@@ -2320,14 +2320,9 @@ static int ql_poll(struct napi_struct *napi, int budget)
 	unsigned long hw_flags;
 	struct ql3xxx_port_registers __iomem *port_regs = qdev->mem_map_registers;
 
-	if (!netif_carrier_ok(ndev))
-		goto quit_polling;
-
 	ql_tx_rx_clean(qdev, &tx_cleaned, &rx_cleaned, budget);
 
-	if (tx_cleaned + rx_cleaned != budget ||
-	    !netif_running(ndev)) {
-quit_polling:
+	if (tx_cleaned + rx_cleaned != budget) {
 		spin_lock_irqsave(&qdev->hw_lock, hw_flags);
 		__netif_rx_complete(ndev, napi);
 		ql_update_small_bufq_prod_index(qdev);

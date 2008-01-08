@@ -852,11 +852,6 @@ static int xennet_poll(struct napi_struct *napi, int budget)
 
 	spin_lock(&np->rx_lock);
 
-	if (unlikely(!netif_carrier_ok(dev))) {
-		spin_unlock(&np->rx_lock);
-		return 0;
-	}
-
 	skb_queue_head_init(&rxq);
 	skb_queue_head_init(&errq);
 	skb_queue_head_init(&tmpq);
