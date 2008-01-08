@@ -2250,13 +2250,10 @@ fail_commit:
 
 static int create_snapshot(struct btrfs_root *root, char *name, int namelen)
 {
+	struct btrfs_pending_snapshot *pending_snapshot;
 	struct btrfs_trans_handle *trans;
-	struct btrfs_key key;
-	struct btrfs_root_item new_root_item;
-	struct extent_buffer *tmp;
 	int ret;
 	int err;
-	u64 objectid;
 	unsigned long nr = 0;
 
 	if (!root->ref_cows)
@@ -2267,72 +2264,26 @@ static int create_snapshot(struct btrfs_root *root, char *name, int namelen)
 	if (ret)
 		goto fail_unlock;
 
+	pending_snapshot = kmalloc(sizeof(*pending_snapshot), GFP_NOFS);
+	if (!pending_snapshot) {
+		ret = -ENOMEM;
+		goto fail_unlock;
+	}
+	pending_snapshot->name = kstrndup(name, namelen, GFP_NOFS);
+	if (!pending_snapshot->name) {
+		ret = -ENOMEM;
+		kfree(pending_snapshot);
+		goto fail_unlock;
+	}
 	trans = btrfs_start_transaction(root, 1);
 	BUG_ON(!trans);
-	err = btrfs_commit_transaction(trans, root);
 
-	trans = btrfs_start_transaction(root, 1);
-
+	pending_snapshot->root = root;
+	list_add(&pending_snapshot->list,
+		 &trans->transaction->pending_snapshots);
 	ret = btrfs_update_inode(trans, root, root->inode);
-	if (ret)
-		goto fail;
-
-	ret = btrfs_find_free_objectid(trans, root->fs_info->tree_root,
-				       0, &objectid);
-	if (ret)
-		goto fail; memcpy(&new_root_item, &root->root_item,
-	       sizeof(new_root_item));
-
-	key.objectid = objectid;
-	key.offset = 1;
-	btrfs_set_key_type(&key, BTRFS_ROOT_ITEM_KEY);
-
-	extent_buffer_get(root->node);
-	btrfs_cow_block(trans, root, root->node, NULL, 0, &tmp);
-	free_extent_buffer(tmp);
-
-	/* write the ordered inodes to force all delayed allocations to
-	 * be filled.  Once this is done, we can copy the root
-	 */
-	mutex_lock(&root->fs_info->trans_mutex);
-	btrfs_write_ordered_inodes(trans, root);
-	mutex_unlock(&root->fs_info->trans_mutex);
-
-	btrfs_copy_root(trans, root, root->node, &tmp, objectid);
-
-	btrfs_set_root_bytenr(&new_root_item, tmp->start);
-	btrfs_set_root_level(&new_root_item, btrfs_header_level(tmp));
-	ret = btrfs_insert_root(trans, root->fs_info->tree_root, &key,
-				&new_root_item);
-printk("new root %Lu node %Lu\n", objectid, tmp->start);
-	free_extent_buffer(tmp);
-	if (ret)
-		goto fail;
-
-	/*
-	 * insert the directory item
-	 */
-	key.offset = (u64)-1;
-	ret = btrfs_insert_dir_item(trans, root->fs_info->tree_root,
-				    name, namelen,
-				    root->fs_info->sb->s_root->d_inode->i_ino,
-				    &key, BTRFS_FT_DIR);
-
-	if (ret)
-		goto fail;
-
-	ret = btrfs_insert_inode_ref(trans, root->fs_info->tree_root,
-			     name, namelen, objectid,
-			     root->fs_info->sb->s_root->d_inode->i_ino);
-
-	if (ret)
-		goto fail;
-fail:
-	nr = trans->blocks_used;
 	err = btrfs_commit_transaction(trans, root);
 
-	if (err && !ret)
-		ret = err;
 fail_unlock:
 	mutex_unlock(&root->fs_info->fs_mutex);
 	btrfs_btree_balance_dirty(root, nr);

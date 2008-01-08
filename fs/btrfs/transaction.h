@@ -34,6 +34,7 @@ struct btrfs_transaction {
 	struct btrfs_ordered_inode_tree ordered_inode_tree;
 	wait_queue_head_t writer_wait;
 	wait_queue_head_t commit_wait;
+	struct list_head pending_snapshots;
 };
 
 struct btrfs_trans_handle {
@@ -44,6 +45,12 @@ struct btrfs_trans_handle {
 	struct btrfs_block_group_cache *block_group;
 	u64 alloc_exclude_start;
 	u64 alloc_exclude_nr;
+};
+
+struct btrfs_pending_snapshot {
+	struct btrfs_root *root;
+	char *name;
+	struct list_head list;
 };
 
 

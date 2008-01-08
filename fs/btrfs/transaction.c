@@ -66,6 +66,7 @@ static int join_transaction(struct btrfs_root *root)
 		cur_trans->use_count = 1;
 		cur_trans->commit_done = 0;
 		cur_trans->start_time = get_seconds();
+		INIT_LIST_HEAD(&cur_trans->pending_snapshots);
 		list_add_tail(&cur_trans->list, &root->fs_info->trans_list);
 		btrfs_ordered_inode_tree_init(&cur_trans->ordered_inode_tree);
 		extent_map_tree_init(&cur_trans->dirty_pages,
@@ -481,10 +482,8 @@ int btrfs_write_ordered_inodes(struct btrfs_trans_handle *trans,
 	struct inode *inode;
 	u64 root_objectid = 0;
 	u64 objectid = 0;
-	u64 transid = trans->transid;
 	int ret;
 
-printk("write ordered trans %Lu\n", transid);
 	while(1) {
 		ret = btrfs_find_first_ordered_inode(
 				&cur_trans->ordered_inode_tree,
@@ -524,7 +523,80 @@ printk("write ordered trans %Lu\n", transid);
 		mutex_lock(&root->fs_info->fs_mutex);
 		mutex_lock(&root->fs_info->trans_mutex);
 	}
-printk("done write ordered trans %Lu\n", transid);
+	return 0;
+}
+
+static int create_pending_snapshot(struct btrfs_trans_handle *trans,
+				   struct btrfs_fs_info *fs_info,
+				   struct btrfs_pending_snapshot *pending)
+{
+	struct btrfs_key key;
+	struct btrfs_root_item new_root_item;
+	struct btrfs_root *tree_root = fs_info->tree_root;
+	struct btrfs_root *root = pending->root;
+	struct extent_buffer *tmp;
+	int ret;
+	u64 objectid;
+
+	ret = btrfs_find_free_objectid(trans, tree_root, 0, &objectid);
+	if (ret)
+		goto fail;
+
+	memcpy(&new_root_item, &root->root_item, sizeof(new_root_item));
+
+	key.objectid = objectid;
+	key.offset = 1;
+	btrfs_set_key_type(&key, BTRFS_ROOT_ITEM_KEY);
+
+	extent_buffer_get(root->node);
+	btrfs_cow_block(trans, root, root->node, NULL, 0, &tmp);
+	free_extent_buffer(tmp);
+
+	btrfs_copy_root(trans, root, root->node, &tmp, objectid);
+
+	btrfs_set_root_bytenr(&new_root_item, tmp->start);
+	btrfs_set_root_level(&new_root_item, btrfs_header_level(tmp));
+	ret = btrfs_insert_root(trans, root->fs_info->tree_root, &key,
+				&new_root_item);
+	free_extent_buffer(tmp);
+	if (ret)
+		goto fail;
+
+	/*
+	 * insert the directory item
+	 */
+	key.offset = (u64)-1;
+	ret = btrfs_insert_dir_item(trans, root->fs_info->tree_root,
+				    pending->name, strlen(pending->name),
+				    root->fs_info->sb->s_root->d_inode->i_ino,
+				    &key, BTRFS_FT_DIR);
+
+	if (ret)
+		goto fail;
+
+	ret = btrfs_insert_inode_ref(trans, root->fs_info->tree_root,
+			     pending->name, strlen(pending->name), objectid,
+			     root->fs_info->sb->s_root->d_inode->i_ino);
+fail:
+	return ret;
+}
+
+static int create_pending_snapshots(struct btrfs_trans_handle *trans,
+				   struct btrfs_fs_info *fs_info)
+{
+	struct btrfs_pending_snapshot *pending;
+	struct list_head *head = &trans->transaction->pending_snapshots;
+	int ret;
+
+	while(!list_empty(head)) {
+		pending = list_entry(head->next,
+				     struct btrfs_pending_snapshot, list);
+		ret = create_pending_snapshot(trans, fs_info, pending);
+		BUG_ON(ret);
+		list_del(&pending->list);
+		kfree(pending->name);
+		kfree(pending);
+	}
 	return 0;
 }
 
@@ -609,6 +681,9 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 
 	} while (cur_trans->num_writers > 1 ||
 		 (cur_trans->num_joined != joined));
+
+	ret = create_pending_snapshots(trans, root->fs_info);
+	BUG_ON(ret);
 
 	WARN_ON(cur_trans != trans->transaction);
 
