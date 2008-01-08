@@ -90,13 +90,11 @@
 #define CRYPTO_MINALIGN ARCH_KMALLOC_MINALIGN
 #elif defined(ARCH_SLAB_MINALIGN)
 #define CRYPTO_MINALIGN ARCH_SLAB_MINALIGN
+#else
+#define CRYPTO_MINALIGN __alignof__(unsigned long long)
 #endif
 
-#ifdef CRYPTO_MINALIGN
 #define CRYPTO_MINALIGN_ATTR __attribute__ ((__aligned__(CRYPTO_MINALIGN)))
-#else
-#define CRYPTO_MINALIGN_ATTR
-#endif
 
 struct scatterlist;
 struct crypto_ablkcipher;
