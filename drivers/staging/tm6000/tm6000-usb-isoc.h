@@ -19,6 +19,8 @@
 
 #include <linux/videodev2.h>
 
+#define TM6000_URB_MSG_LEN 180
+
 struct usb_isoc_ctl {
 		/* max packet size of isoc transaction */
 	int				max_pkt_size;
@@ -32,16 +34,16 @@ struct usb_isoc_ctl {
 		/* transfer buffers for isoc transfer */
 	char				**transfer_buffer;
 
-		/* Last buffer command and region */
-	u8				cmd;
-	int				pos, size, pktsize;
+		/* Last buffer control */
+	int				pending;
+	int				pos;
 
 		/* Last field: ODD or EVEN? */
 	int				field;
 
 		/* Stores incomplete commands */
-	u32				tmp_buf;
-	int				tmp_buf_len;
+	u8				tbuf[TM6000_URB_MSG_LEN+4];
+	size_t				len;
 
 		/* Stores already requested buffers */
 	struct tm6000_buffer    	*buf;

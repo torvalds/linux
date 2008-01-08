@@ -77,7 +77,6 @@
  * Define TV Master TM5600/TM6000 URB message codes and length
  */
 
-#define TM6000_URB_MSG_LEN 180
 enum {
 	TM6000_URB_MSG_VIDEO=1,
 	TM6000_URB_MSG_AUDIO,
