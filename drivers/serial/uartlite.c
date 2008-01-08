@@ -17,10 +17,21 @@
 #include <linux/tty.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/init.h>
 #include <asm/io.h>
 #if defined(CONFIG_OF)
+#include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
+
+/* Match table for of_platform binding */
+static struct of_device_id ulite_of_match[] __devinitdata = {
+	{ .compatible = "xlnx,opb-uartlite-1.00.b", },
+	{ .compatible = "xlnx,xps-uartlite-1.00.a", },
+	{}
+};
+MODULE_DEVICE_TABLE(of, ulite_of_match);
+
 #endif
 
 #define ULITE_NAME		"ttyUL"
@@ -275,6 +286,9 @@ static void ulite_release_port(struct uart_port *port)
 
 static int ulite_request_port(struct uart_port *port)
 {
+	pr_debug("ulite console: port=%p; port->mapbase=%x\n",
+		 port, port->mapbase);
+
 	if (!request_mem_region(port->mapbase, ULITE_REGION, "uartlite")) {
 		dev_err(port->dev, "Memory region busy\n");
 		return -EBUSY;
@@ -383,7 +397,7 @@ static inline void __init ulite_console_of_find_device(int id)
 	const unsigned int *of_id;
 	int rc;
 
-	for_each_compatible_node(np, NULL, "xilinx,uartlite") {
+	for_each_matching_node(np, ulite_of_match) {
 		of_id = of_get_property(np, "port-number", NULL);
 		if ((!of_id) || (*of_id != id))
 			continue;
@@ -616,13 +630,6 @@ static int __devexit ulite_of_remove(struct of_device *op)
 {
 	return ulite_release(&op->dev);
 }
-
-/* Match table for of_platform binding */
-static struct of_device_id ulite_of_match[] __devinitdata = {
-	{ .type = "serial", .compatible = "xilinx,uartlite", },
-	{},
-};
-MODULE_DEVICE_TABLE(of, ulite_of_match);
 
 static struct of_platform_driver ulite_of_driver = {
 	.owner = THIS_MODULE,
