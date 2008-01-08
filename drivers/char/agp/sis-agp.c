@@ -214,6 +214,26 @@ static void __devexit agp_sis_remove(struct pci_dev *pdev)
 	agp_put_bridge(bridge);
 }
 
+#ifdef CONFIG_PM
+
+static int agp_sis_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	pci_save_state(pdev);
+	pci_set_power_state(pdev, pci_choose_state(pdev, state));
+
+	return 0;
+}
+
+static int agp_sis_resume(struct pci_dev *pdev)
+{
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+
+	return sis_driver.configure();
+}
+
+#endif /* CONFIG_PM */
+
 static struct pci_device_id agp_sis_pci_table[] = {
 	{
 		.class		= (PCI_CLASS_BRIDGE_HOST << 8),
@@ -393,6 +413,10 @@ static struct pci_driver agp_sis_pci_driver = {
 	.id_table	= agp_sis_pci_table,
 	.probe		= agp_sis_probe,
 	.remove		= agp_sis_remove,
+#ifdef CONFIG_PM
+	.suspend	= agp_sis_suspend,
+	.resume		= agp_sis_resume,
+#endif
 };
 
 static int __init agp_sis_init(void)
