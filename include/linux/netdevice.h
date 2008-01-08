@@ -1277,7 +1277,6 @@ static inline int netif_rx_schedule_prep(struct net_device *dev,
 static inline void __netif_rx_schedule(struct net_device *dev,
 				       struct napi_struct *napi)
 {
-	dev_hold(dev);
 	__napi_schedule(napi);
 }
 
@@ -1308,7 +1307,6 @@ static inline void __netif_rx_complete(struct net_device *dev,
 				       struct napi_struct *napi)
 {
 	__napi_complete(napi);
-	dev_put(dev);
 }
 
 /* Remove interface from poll list: it must be in the poll list
