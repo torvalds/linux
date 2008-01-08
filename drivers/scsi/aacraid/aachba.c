@@ -1325,10 +1325,9 @@ int aac_get_adapter_info(struct aac_dev* dev)
 			  (int)sizeof(dev->supplement_adapter_info.VpdInfo.Tsid),
 			  dev->supplement_adapter_info.VpdInfo.Tsid);
 		}
-		if (!aac_check_reset ||
-		    ((aac_check_reset != 1) &&
-		     (dev->supplement_adapter_info.SupportedOptions2 &
-		      cpu_to_le32(AAC_OPTION_IGNORE_RESET)))) {
+		if (!aac_check_reset || ((aac_check_reset != 1) &&
+		  (dev->supplement_adapter_info.SupportedOptions2 &
+		  AAC_OPTION_IGNORE_RESET))) {
 			printk(KERN_INFO "%s%d: Reset Adapter Ignored\n",
 			  dev->name, dev->id);
 		}

@@ -869,9 +869,9 @@ struct aac_supplement_adapter_info
 	__le32	SupportedOptions2;
 	__le32	ReservedGrowth[1];
 };
-#define AAC_FEATURE_FALCON	0x00000010
-#define AAC_OPTION_MU_RESET	0x00000001
-#define AAC_OPTION_IGNORE_RESET	0x00000002
+#define AAC_FEATURE_FALCON	cpu_to_le32(0x00000010)
+#define AAC_OPTION_MU_RESET	cpu_to_le32(0x00000001)
+#define AAC_OPTION_IGNORE_RESET	cpu_to_le32(0x00000002)
 #define AAC_SIS_VERSION_V3	3
 #define AAC_SIS_SLOT_UNKNOWN	0xFF
 

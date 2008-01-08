@@ -614,11 +614,11 @@ static int aac_eh_reset(struct scsi_cmnd* cmd)
 	 * support a register, instead of a commanded, reset.
 	 */
 	if ((aac->supplement_adapter_info.SupportedOptions2 &
-	     cpu_to_le32(AAC_OPTION_MU_RESET)) &&
-	    aac_check_reset &&
-	    ((aac_check_reset != 1) ||
-	     (aac->supplement_adapter_info.SupportedOptions2 &
-	      cpu_to_le32(AAC_OPTION_IGNORE_RESET))))
+	   AAC_OPTION_MU_RESET) &&
+	  aac_check_reset &&
+	  ((aac_check_reset != 1) ||
+	   (aac->supplement_adapter_info.SupportedOptions2 &
+	    AAC_OPTION_IGNORE_RESET)))
 		aac_reset_adapter(aac, 2); /* Bypass wait for command quiesce */
 	return SUCCESS; /* Cause an immediate retry of the command with a ten second delay after successful tur */
 }

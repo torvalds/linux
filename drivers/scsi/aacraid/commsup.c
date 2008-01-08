@@ -1343,11 +1343,11 @@ int aac_check_health(struct aac_dev * aac)
 			fib->data = hw_fib->data;
 			aif = (struct aac_aifcmd *)hw_fib->data;
 			aif->command = cpu_to_le32(AifCmdEventNotify);
-		 	aif->seqnum = cpu_to_le32(0xFFFFFFFF);
-			aif->data[0] = AifEnExpEvent;
-			aif->data[1] = AifExeFirmwarePanic;
-			aif->data[2] = AifHighPriority;
-			aif->data[3] = BlinkLED;
+			aif->seqnum = cpu_to_le32(0xFFFFFFFF);
+			((__le32 *)aif->data)[0] = cpu_to_le32(AifEnExpEvent);
+			((__le32 *)aif->data)[1] = cpu_to_le32(AifExeFirmwarePanic);
+			((__le32 *)aif->data)[2] = cpu_to_le32(AifHighPriority);
+			((__le32 *)aif->data)[3] = cpu_to_le32(BlinkLED);
 
 			/*
 			 * Put the FIB onto the
@@ -1377,10 +1377,9 @@ int aac_check_health(struct aac_dev * aac)
 
 	printk(KERN_ERR "%s: Host adapter BLINK LED 0x%x\n", aac->name, BlinkLED);
 
-	if (!aac_check_reset ||
-	    ((aac_check_reset != 1) &&
-	     (aac->supplement_adapter_info.SupportedOptions2 &
-	      cpu_to_le32(AAC_OPTION_IGNORE_RESET))))
+	if (!aac_check_reset || ((aac_check_reset != 1) &&
+		(aac->supplement_adapter_info.SupportedOptions2 &
+			AAC_OPTION_IGNORE_RESET)))
 		goto out;
 	host = aac->scsi_host_ptr;
 	if (aac->thread->pid != current->pid)
