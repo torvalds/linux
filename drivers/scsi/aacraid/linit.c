@@ -401,16 +401,14 @@ static int aac_biosparm(struct scsi_device *sdev, struct block_device *bdev,
 
 static int aac_slave_configure(struct scsi_device *sdev)
 {
+	struct aac_dev *aac = (struct aac_dev *)sdev->host->hostdata;
 	if ((sdev->type == TYPE_DISK) &&
-			(sdev_channel(sdev) != CONTAINER_CHANNEL)) {
+			(sdev_channel(sdev) != CONTAINER_CHANNEL) &&
+			(!aac->raid_scsi_mode || (sdev_channel(sdev) != 2))) {
 		if (expose_physicals == 0)
 			return -ENXIO;
-		if (expose_physicals < 0) {
-			struct aac_dev *aac =
-				(struct aac_dev *)sdev->host->hostdata;
-			if (!aac->raid_scsi_mode || (sdev_channel(sdev) != 2))
-				sdev->no_uld_attach = 1;
-		}
+		if (expose_physicals < 0)
+			sdev->no_uld_attach = 1;
 	}
 	if (sdev->tagged_supported && (sdev->type == TYPE_DISK) &&
 			(sdev_channel(sdev) == CONTAINER_CHANNEL)) {
@@ -419,6 +417,7 @@ static int aac_slave_configure(struct scsi_device *sdev)
 		unsigned num_lsu = 0;
 		unsigned num_one = 0;
 		unsigned depth;
+		unsigned cid;
 
 		/*
 		 * Firmware has an individual device recovery time typically
@@ -426,11 +425,15 @@ static int aac_slave_configure(struct scsi_device *sdev)
 		 */
 		if (sdev->timeout < (45 * HZ))
 			sdev->timeout = 45 * HZ;
+		for (cid = 0; cid < aac->maximum_num_containers; ++cid)
+			if (aac->fsa_dev[cid].valid)
+				++num_lsu;
 		__shost_for_each_device(dev, host) {
 			if (dev->tagged_supported && (dev->type == TYPE_DISK) &&
-				(sdev_channel(dev) == CONTAINER_CHANNEL))
-				++num_lsu;
-			else
+				(sdev_channel(dev) == CONTAINER_CHANNEL)) {
+				if (!aac->fsa_dev[sdev_id(dev)].valid)
+					++num_lsu;
+			} else
 				++num_one;
 		}
 		if (num_lsu == 0)
