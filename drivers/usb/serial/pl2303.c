@@ -483,6 +483,13 @@ static void pl2303_set_termios(struct usb_serial_port *port,
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
 
+	/* The PL2303 is reported to lose bytes if you change
+	   serial settings even to the same values as before. Thus
+	   we actually need to filter in this specific case */
+
+	if (!tty_termios_hw_change(port->tty->termios, old_termios))
+		return;
+
 	cflag = port->tty->termios->c_cflag;
 
 	buf = kzalloc(7, GFP_KERNEL);
