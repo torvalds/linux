@@ -647,7 +647,7 @@ int ipath_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	attr->port_num = 1;
 	attr->timeout = qp->timeout;
 	attr->retry_cnt = qp->s_retry_cnt;
-	attr->rnr_retry = qp->s_rnr_retry;
+	attr->rnr_retry = qp->s_rnr_retry_cnt;
 	attr->alt_port_num = 0;
 	attr->alt_timeout = 0;
 
