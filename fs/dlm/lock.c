@@ -1,7 +1,7 @@
 /******************************************************************************
 *******************************************************************************
 **
-**  Copyright (C) 2005-2007 Red Hat, Inc.  All rights reserved.
+**  Copyright (C) 2005-2008 Red Hat, Inc.  All rights reserved.
 **
 **  This copyrighted material is made available to anyone wishing to use,
 **  modify, copy, or redistribute it subject to the terms and conditions
@@ -3643,6 +3643,13 @@ static void receive_lookup_reply(struct dlm_ls *ls, struct dlm_message *ms)
 
 static void _receive_message(struct dlm_ls *ls, struct dlm_message *ms)
 {
+	if (!dlm_is_member(ls, ms->m_header.h_nodeid)) {
+		log_debug(ls, "ignore non-member message %d from %d %x %x %d",
+			  ms->m_type, ms->m_header.h_nodeid, ms->m_lkid,
+			  ms->m_remid, ms->m_result);
+		return;
+	}
+
 	switch (ms->m_type) {
 
 	/* messages sent to a master node */
