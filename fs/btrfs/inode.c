@@ -243,9 +243,9 @@ static int run_delalloc_range(struct inode *inode, u64 start, u64 end)
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	u64 num_bytes;
 	int ret;
-
 	mutex_lock(&root->fs_info->fs_mutex);
-	if (btrfs_test_opt(root, NODATACOW))
+	if (btrfs_test_opt(root, NODATACOW) ||
+	    btrfs_test_flag(inode, NODATACOW))
 		ret = run_delalloc_nocow(inode, start, end);
 	else
 		ret = cow_file_range(inode, start, end);
@@ -273,10 +273,9 @@ int btrfs_writepage_io_hook(struct page *page, u64 start, u64 end)
 	int ret = 0;
 	u64 page_start = (u64)page->index << PAGE_CACHE_SHIFT;
 	size_t offset = start - page_start;
-
-	if (btrfs_test_opt(root, NODATASUM))
+	if (btrfs_test_opt(root, NODATASUM) ||
+	    btrfs_test_flag(inode, NODATASUM))
 		return 0;
-
 	mutex_lock(&root->fs_info->fs_mutex);
 	trans = btrfs_start_transaction(root, 1);
 	btrfs_set_trans_block_group(trans, inode);
@@ -299,10 +298,9 @@ int btrfs_readpage_io_hook(struct page *page, u64 start, u64 end)
 	struct btrfs_csum_item *item;
 	struct btrfs_path *path = NULL;
 	u32 csum;
-
-	if (btrfs_test_opt(root, NODATASUM))
+	if (btrfs_test_opt(root, NODATASUM) ||
+	    btrfs_test_flag(inode, NODATASUM))
 		return 0;
-
 	mutex_lock(&root->fs_info->fs_mutex);
 	path = btrfs_alloc_path();
 	item = btrfs_lookup_csum(NULL, root, path, inode->i_ino, start, 0);
@@ -335,10 +333,9 @@ int btrfs_readpage_end_io_hook(struct page *page, u64 start, u64 end)
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	u32 csum = ~(u32)0;
 	unsigned long flags;
-
-	if (btrfs_test_opt(root, NODATASUM))
+	if (btrfs_test_opt(root, NODATASUM) ||
+	    btrfs_test_flag(inode, NODATASUM))
 		return 0;
-
 	ret = get_state_private(em_tree, start, &private);
 	local_irq_save(flags);
 	kaddr = kmap_atomic(page, KM_IRQ0);
@@ -415,7 +412,7 @@ void btrfs_read_locked_inode(struct inode *inode)
 	alloc_group_block = btrfs_inode_block_group(leaf, inode_item);
 	BTRFS_I(inode)->block_group = btrfs_lookup_block_group(root->fs_info,
 						       alloc_group_block);
-
+	BTRFS_I(inode)->flags = btrfs_inode_flags(leaf, inode_item);
 	if (!BTRFS_I(inode)->block_group) {
 		BTRFS_I(inode)->block_group = btrfs_find_block_group(root,
 						         NULL, 0, 0, 0);
@@ -484,6 +481,7 @@ static void fill_inode_item(struct extent_buffer *leaf,
 	btrfs_set_inode_nblocks(leaf, item, inode->i_blocks);
 	btrfs_set_inode_generation(leaf, item, inode->i_generation);
 	btrfs_set_inode_rdev(leaf, item, inode->i_rdev);
+	btrfs_set_inode_flags(leaf, item, BTRFS_I(inode)->flags);
 	btrfs_set_inode_block_group(leaf, item,
 				    BTRFS_I(inode)->block_group->key.objectid);
 }
@@ -1454,7 +1452,7 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 		owner = 1;
 	group = btrfs_find_block_group(root, group, 0, 0, owner);
 	BTRFS_I(inode)->block_group = group;
-
+	BTRFS_I(inode)->flags = 0;
 	ret = btrfs_insert_empty_inode(trans, root, path, objectid);
 	if (ret)
 		goto fail;

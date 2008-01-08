@@ -34,6 +34,7 @@ struct btrfs_inode {
 	 * transid of the trans_handle that last modified this inode
 	 */
 	u64 last_trans;
+	u32 flags;
 };
 static inline struct btrfs_inode *BTRFS_I(struct inode *inode)
 {

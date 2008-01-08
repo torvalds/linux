@@ -447,7 +447,18 @@ struct btrfs_root {
 #define btrfs_set_opt(o, opt)		((o) |= BTRFS_MOUNT_##opt)
 #define btrfs_test_opt(root, opt)	((root)->fs_info->mount_opt & \
 					 BTRFS_MOUNT_##opt)
+/*
+ * Inode flags
+ */
+#define BTRFS_INODE_NODATASUM 		0x1
+#define BTRFS_INODE_NODATACOW 		0x2
 
+#define btrfs_clear_flag(inode, flag)	(BTRFS_I(inode)->flags &= \
+					 ~BTRFS_INODE_##flag)
+#define btrfs_set_flag(inode, flag)	(BTRFS_I(inode)->flags |= \
+					 BTRFS_INODE_##flag)
+#define btrfs_test_flag(inode, flag)	(BTRFS_I(inode)->flags & \
+					 BTRFS_INODE_##flag)
 /* some macros to generate set/get funcs for the struct fields.  This
  * assumes there is a lefoo_to_cpu for every type, so lets make a simple
  * one for u8:
