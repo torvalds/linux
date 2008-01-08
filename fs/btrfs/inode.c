@@ -148,6 +148,7 @@ static int run_delalloc_nocow(struct inode *inode, u64 start, u64 end)
 	u64 bytenr;
 	u64 cow_end;
 	u64 loops = 0;
+	u64 total_fs_bytes;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct extent_buffer *leaf;
 	int found_type;
@@ -157,6 +158,7 @@ static int run_delalloc_nocow(struct inode *inode, u64 start, u64 end)
 	int err;
 	struct btrfs_key found_key;
 
+	total_fs_bytes = btrfs_super_total_bytes(&root->fs_info->super_copy);
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
 again:
@@ -189,8 +191,10 @@ again:
 	found_type = btrfs_file_extent_type(leaf, item);
 	extent_start = found_key.offset;
 	if (found_type == BTRFS_FILE_EXTENT_REG) {
-		extent_end = extent_start +
-		       btrfs_file_extent_num_bytes(leaf, item);
+		u64 extent_num_bytes;
+
+		extent_num_bytes = btrfs_file_extent_num_bytes(leaf, item);
+		extent_end = extent_start + extent_num_bytes;
 		err = 0;
 
 		if (loops && start != extent_start)
@@ -202,6 +206,13 @@ again:
 		cow_end = min(end, extent_end - 1);
 		bytenr = btrfs_file_extent_disk_bytenr(leaf, item);
 		if (bytenr == 0)
+			goto not_found;
+
+		/*
+		 * we may be called by the resizer, make sure we're inside
+		 * the limits of the FS
+		 */
+		if (bytenr + extent_num_bytes > total_fs_bytes)
 			goto not_found;
 
 		if (btrfs_count_snapshots_in_path(root, path, bytenr) != 1) {

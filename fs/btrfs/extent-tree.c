@@ -192,11 +192,13 @@ static u64 noinline find_search_start(struct btrfs_root *root,
 	u64 start = 0;
 	u64 end = 0;
 	u64 cache_miss = 0;
+	u64 total_fs_bytes;
 	int wrapped = 0;
 
 	if (!cache) {
 		goto out;
 	}
+	total_fs_bytes = btrfs_super_total_bytes(&root->fs_info->super_copy);
 again:
 	ret = cache_block_group(root, cache);
 	if (ret)
@@ -223,6 +225,8 @@ again:
 		if (data != BTRFS_BLOCK_GROUP_MIXED &&
 		    start + num > cache->key.objectid + cache->key.offset)
 			goto new_group;
+		if (start + num  > total_fs_bytes)
+			goto new_group;
 		return start;
 	}
 out:
@@ -239,7 +243,7 @@ new_group:
 	last = cache->key.objectid + cache->key.offset;
 wrapped:
 	cache = btrfs_lookup_block_group(root->fs_info, last);
-	if (!cache) {
+	if (!cache || cache->key.objectid >= total_fs_bytes) {
 no_cache:
 		if (!wrapped) {
 			wrapped = 1;
@@ -287,6 +291,7 @@ struct btrfs_block_group_cache *btrfs_find_block_group(struct btrfs_root *root,
 	u64 end;
 	u64 free_check;
 	u64 ptr;
+	u64 total_fs_bytes;
 	int bit;
 	int ret;
 	int full_search = 0;
@@ -294,6 +299,7 @@ struct btrfs_block_group_cache *btrfs_find_block_group(struct btrfs_root *root,
 	int data_swap = 0;
 
 	block_group_cache = &info->block_group_cache;
+	total_fs_bytes = btrfs_super_total_bytes(&root->fs_info->super_copy);
 
 	if (!owner)
 		factor = 8;
@@ -306,7 +312,7 @@ struct btrfs_block_group_cache *btrfs_find_block_group(struct btrfs_root *root,
 	else
 		bit = BLOCK_GROUP_METADATA;
 
-	if (search_start) {
+	if (search_start && search_start < total_fs_bytes) {
 		struct btrfs_block_group_cache *shint;
 		shint = btrfs_lookup_block_group(info, search_start);
 		if (shint && (shint->data == data ||
@@ -318,8 +324,8 @@ struct btrfs_block_group_cache *btrfs_find_block_group(struct btrfs_root *root,
 			}
 		}
 	}
-	if (hint && (hint->data == data ||
-		     hint->data == BTRFS_BLOCK_GROUP_MIXED)) {
+	if (hint && hint->key.objectid < total_fs_bytes &&
+	    (hint->data == data || hint->data == BTRFS_BLOCK_GROUP_MIXED)) {
 		used = btrfs_block_group_used(&hint->item);
 		if (used + hint->pinned <
 		    div_factor(hint->key.offset, factor)) {
@@ -333,6 +339,8 @@ struct btrfs_block_group_cache *btrfs_find_block_group(struct btrfs_root *root,
 		else
 			hint_last = search_start;
 
+		if (hint_last >= total_fs_bytes)
+			hint_last = search_start;
 		last = hint_last;
 	}
 again:
@@ -349,6 +357,9 @@ again:
 		cache = (struct btrfs_block_group_cache *)(unsigned long)ptr;
 		last = cache->key.objectid + cache->key.offset;
 		used = btrfs_block_group_used(&cache->item);
+
+		if (cache->key.objectid > total_fs_bytes)
+			break;
 
 		if (full_search)
 			free_check = cache->key.offset;
@@ -1420,8 +1431,8 @@ static int noinline find_free_extent(struct btrfs_trans_handle *trans,
 		data = BTRFS_BLOCK_GROUP_MIXED;
 	}
 
-	if (search_end == (u64)-1)
-		search_end = btrfs_super_total_bytes(&info->super_copy);
+	search_end = min(search_end,
+			 btrfs_super_total_bytes(&info->super_copy));
 	if (hint_byte) {
 		block_group = btrfs_lookup_block_group(info, hint_byte);
 		if (!block_group)
@@ -1617,7 +1628,8 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 {
 	int ret;
 	int pending_ret;
-	u64 super_used, root_used;
+	u64 super_used;
+	u64 root_used;
 	u64 search_start = 0;
 	u64 new_hint;
 	struct btrfs_fs_info *info = root->fs_info;
@@ -1636,6 +1648,8 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 			       search_start, search_end, hint_byte, ins,
 			       trans->alloc_exclude_start,
 			       trans->alloc_exclude_nr, data);
+if (ret)
+printk("find free extent returns %d\n", ret);
 	BUG_ON(ret);
 	if (ret)
 		return ret;
@@ -2292,8 +2306,6 @@ static int noinline relocate_one_extent(struct btrfs_root *extent_root,
 	while(1) {
 		ret = btrfs_search_slot(NULL, extent_root, &key, path, 0, 0);
 
-		BUG_ON(ret == 0);
-
 		if (ret < 0)
 			goto out;
 
@@ -2340,6 +2352,8 @@ int btrfs_shrink_extent_tree(struct btrfs_root *root, u64 new_size)
 	int progress = 0;
 
 	btrfs_set_super_total_bytes(&info->super_copy, new_size);
+	clear_extent_dirty(&info->free_space_cache, new_size, (u64)-1,
+			   GFP_NOFS);
 	block_group_cache = &info->block_group_cache;
 	path = btrfs_alloc_path();
 	root = root->fs_info->extent_root;
