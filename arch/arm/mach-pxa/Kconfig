@@ -130,6 +130,15 @@ config MACH_PCM027
 
 endchoice
 
+choice
+	prompt "Used baseboard"
+	depends on MACH_PCM027
+
+config MACH_PCM990_BASEBOARD
+	bool "PHYTEC PCM-990 development board"
+
+endchoice
+
 if PXA_SHARPSL
 
 choice
