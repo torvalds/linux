@@ -1151,6 +1151,7 @@ static int verify_halted (int ep, struct urb *urb)
 		dbg ("ep %02x couldn't get halt status, %d", ep, retval);
 		return retval;
 	}
+	le16_to_cpus(&status);
 	if (status != 1) {
 		dbg ("ep %02x bogus status: %04x != 1", ep, status);
 		return -EINVAL;
