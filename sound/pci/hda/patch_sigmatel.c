@@ -463,9 +463,6 @@ static struct hda_verb stac92hd73xx_6ch_core_init[] = {
 	/* setup adcs to point to mixer */
 	{ 0x20, AC_VERB_SET_CONNECT_SEL, 0x0b},
 	{ 0x21, AC_VERB_SET_CONNECT_SEL, 0x0b},
-	{ 0x0b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80}, /* Front Mic */
-	{ 0x0c, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80}, /* Mic */
-	{ 0x0e, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80}, /* Line In */
 	{ 0x0f, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
 	{ 0x10, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
 	{ 0x11, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
@@ -490,9 +487,6 @@ static struct hda_verb stac92hd73xx_8ch_core_init[] = {
 	/* setup adcs to point to mixer */
 	{ 0x20, AC_VERB_SET_CONNECT_SEL, 0x0b},
 	{ 0x21, AC_VERB_SET_CONNECT_SEL, 0x0b},
-	{ 0x0b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80}, /* Front Mic */
-	{ 0x0c, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80}, /* Mic */
-	{ 0x0e, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80}, /* Line In */
 	{ 0x0f, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
 	{ 0x10, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
 	{ 0x11, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
@@ -519,9 +513,6 @@ static struct hda_verb stac92hd73xx_10ch_core_init[] = {
 	/* setup adcs to point to mixer */
 	{ 0x20, AC_VERB_SET_CONNECT_SEL, 0x0b},
 	{ 0x21, AC_VERB_SET_CONNECT_SEL, 0x0b},
-	{ 0x0b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80}, /* Front Mic */
-	{ 0x0c, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80}, /* Mic */
-	{ 0x0e, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80}, /* Line In */
 	{ 0x0f, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
 	{ 0x10, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
 	{ 0x11, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
@@ -635,10 +626,6 @@ static struct snd_kcontrol_new stac9200_mixer[] = {
 static struct snd_kcontrol_new stac92hd73xx_6ch_mixer[] = {
 	STAC_ANALOG_LOOPBACK(0xFA0, 0x7A1, 3),
 
-	/* hardware gain controls */
-	HDA_CODEC_VOLUME_IDX("Digital Mic Volume", 0x0, 0x13, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME_IDX("Digital Mic Volume", 0x1, 0x14, 0x0, HDA_INPUT),
-
 	HDA_CODEC_VOLUME_IDX("Capture Volume", 0x0, 0x20, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE_IDX("Capture Switch", 0x0, 0x20, 0x0, HDA_OUTPUT),
 
@@ -664,10 +651,6 @@ static struct snd_kcontrol_new stac92hd73xx_6ch_mixer[] = {
 
 static struct snd_kcontrol_new stac92hd73xx_8ch_mixer[] = {
 	STAC_ANALOG_LOOPBACK(0xFA0, 0x7A1, 4),
-
-	/* hardware gain controls */
-	HDA_CODEC_VOLUME_IDX("Digital Mic Volume", 0x0, 0x13, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME_IDX("Digital Mic Volume", 0x1, 0x14, 0x0, HDA_INPUT),
 
 	HDA_CODEC_VOLUME_IDX("Capture Volume", 0x0, 0x20, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE_IDX("Capture Switch", 0x0, 0x20, 0x0, HDA_OUTPUT),
@@ -695,10 +678,6 @@ static struct snd_kcontrol_new stac92hd73xx_8ch_mixer[] = {
 static struct snd_kcontrol_new stac92hd73xx_10ch_mixer[] = {
 	STAC_ANALOG_LOOPBACK(0xFA0, 0x7A1, 5),
 
-	/* hardware gain controls */
-	HDA_CODEC_VOLUME_IDX("Digital Mic Volume", 0x0, 0x13, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME_IDX("Digital Mic Volume", 0x1, 0x14, 0x0, HDA_INPUT),
-
 	HDA_CODEC_VOLUME_IDX("Capture Volume", 0x0, 0x20, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE_IDX("Capture Switch", 0x0, 0x20, 0x0, HDA_OUTPUT),
 
@@ -725,10 +704,6 @@ static struct snd_kcontrol_new stac92hd73xx_10ch_mixer[] = {
 static struct snd_kcontrol_new stac92hd71bxx_analog_mixer[] = {
 	STAC_INPUT_SOURCE(2),
 
-	/* hardware gain controls */
-	HDA_CODEC_VOLUME_IDX("Digital Mic Volume", 0x0, 0x18, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME_IDX("Digital Mic Volume", 0x1, 0x19, 0x0, HDA_OUTPUT),
-
 	HDA_CODEC_VOLUME_IDX("Capture Volume", 0x0, 0x1c, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE_IDX("Capture Switch", 0x0, 0x1c, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME_IDX("Capture Mux Volume", 0x0, 0x1a, 0x0, HDA_OUTPUT),
@@ -745,10 +720,6 @@ static struct snd_kcontrol_new stac92hd71bxx_analog_mixer[] = {
 static struct snd_kcontrol_new stac92hd71bxx_mixer[] = {
 	STAC_INPUT_SOURCE(2),
 	STAC_ANALOG_LOOPBACK(0xFA0, 0x7A0, 2),
-
-	/* hardware gain controls */
-	HDA_CODEC_VOLUME_IDX("Digital Mic Volume", 0x0, 0x18, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME_IDX("Digital Mic Volume", 0x1, 0x19, 0x0, HDA_OUTPUT),
 
 	HDA_CODEC_VOLUME_IDX("Capture Volume", 0x0, 0x1c, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE_IDX("Capture Switch", 0x0, 0x1c, 0x0, HDA_OUTPUT),
@@ -2313,15 +2284,18 @@ static int stac92xx_auto_create_dmic_input_ctls(struct hda_codec *codec,
 	struct sigmatel_spec *spec = codec->spec;
 	struct hda_input_mux *dimux = &spec->private_dimux;
 	hda_nid_t con_lst[HDA_MAX_NUM_INPUTS];
-	int i, j;
+	int err, i, j;
+	char name[32];
 
 	dimux->items[dimux->num_items].label = stac92xx_dmic_labels[0];
 	dimux->items[dimux->num_items].index = 0;
 	dimux->num_items++;
 
 	for (i = 0; i < spec->num_dmics; i++) {
+		hda_nid_t nid;
 		int index;
 		int num_cons;
+		unsigned int wcaps;
 		unsigned int def_conf;
 
 		def_conf = snd_hda_codec_read(codec,
@@ -2332,17 +2306,32 @@ static int stac92xx_auto_create_dmic_input_ctls(struct hda_codec *codec,
 		if (get_defcfg_connect(def_conf) == AC_JACK_PORT_NONE)
 			continue;
 
+		nid = spec->dmic_nids[i];
 		num_cons = snd_hda_get_connections(codec,
 				spec->dmux_nids[0],
 				con_lst,
 				HDA_MAX_NUM_INPUTS);
 		for (j = 0; j < num_cons; j++)
-			if (con_lst[j] == spec->dmic_nids[i]) {
+			if (con_lst[j] == nid) {
 				index = j;
 				goto found;
 			}
 		continue;
 found:
+		wcaps = get_wcaps(codec, nid);
+
+		if (wcaps & AC_WCAP_OUT_AMP) {
+			sprintf(name, "%s Capture Volume",
+				stac92xx_dmic_labels[dimux->num_items]);
+
+			err = stac92xx_add_control(spec,
+				STAC_CTL_WIDGET_VOL,
+				name,
+				HDA_COMPOSE_AMP_VAL(nid, 3, 0, HDA_OUTPUT));
+			if (err < 0)
+				return err;
+		}
+
 		dimux->items[dimux->num_items].label =
 			stac92xx_dmic_labels[dimux->num_items];
 		dimux->items[dimux->num_items].index = index;
