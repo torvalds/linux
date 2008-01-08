@@ -1655,8 +1655,11 @@ static snd_pcm_sframes_t snd_pcm_lib_write1(struct snd_pcm_substream *substream,
 		if (runtime->sleep_min == 0 && runtime->status->state == SNDRV_PCM_STATE_RUNNING)
 			snd_pcm_update_hw_ptr(substream);
 		avail = snd_pcm_playback_avail(runtime);
-		if (((avail < runtime->control->avail_min && size > avail) ||
-		   (size >= runtime->xfer_align && avail < runtime->xfer_align))) {
+		if (!avail ||
+		    (snd_pcm_running(substream) &&
+		     ((avail < runtime->control->avail_min && size > avail) ||
+		      (size >= runtime->xfer_align &&
+		       avail < runtime->xfer_align)))) {
 			wait_queue_t wait;
 			enum { READY, SIGNALED, ERROR, SUSPENDED, EXPIRED, DROPPED } state;
 			long tout;
