@@ -1510,8 +1510,10 @@ restart:
 		policy = flow_cache_lookup(fl, dst_orig->ops->family,
 					   dir, xfrm_policy_lookup);
 		err = PTR_ERR(policy);
-		if (IS_ERR(policy))
+		if (IS_ERR(policy)) {
+			XFRM_INC_STATS(LINUX_MIB_XFRMOUTPOLERROR);
 			goto dropdst;
+		}
 	}
 
 	if (!policy)
@@ -1603,6 +1605,7 @@ restart:
 				/* EREMOTE tells the caller to generate
 				 * a one-shot blackhole route.
 				 */
+				XFRM_INC_STATS(LINUX_MIB_XFRMOUTNOSTATES);
 				xfrm_pol_put(policy);
 				return -EREMOTE;
 			}
