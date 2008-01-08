@@ -555,8 +555,7 @@ static unsigned int azx_rirb_get_response(struct hda_codec *codec)
 		}
 		if (!chip->rirb.cmds)
 			return chip->rirb.res; /* the last value */
-		udelay(10);
-		cond_resched();
+		schedule_timeout_uninterruptible(1);
 	} while (time_after_eq(timeout, jiffies));
 
 	if (chip->msi) {
