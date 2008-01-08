@@ -396,14 +396,13 @@ struct ipath_devdata {
 	unsigned long ipath_wc_len;
 	/* ref count for each pkey */
 	atomic_t ipath_pkeyrefs[4];
-	/* shadow copy of all exptids physaddr; used only by funcsim */
-	u64 *ipath_tidsimshadow;
 	/* shadow copy of struct page *'s for exp tid pages */
 	struct page **ipath_pageshadow;
 	/* shadow copy of dma handles for exp tid pages */
 	dma_addr_t *ipath_physshadow;
 	u64 __iomem *ipath_egrtidbase;
-	/* lock to workaround chip bug 9437 */
+	/* lock to workaround chip bug 9437 and others */
+	spinlock_t ipath_kernel_tid_lock;
 	spinlock_t ipath_tid_lock;
 	spinlock_t ipath_sendctrl_lock;
 

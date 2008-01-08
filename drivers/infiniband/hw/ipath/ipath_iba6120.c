@@ -373,9 +373,27 @@ static const struct ipath_hwerror_msgs ipath_6120_hwerror_msgs[] = {
 		        INFINIPATH_HWE_TXEMEMPARITYERR_PIOPBC) \
 		        << INFINIPATH_HWE_TXEMEMPARITYERR_SHIFT)
 
-static int ipath_pe_txe_recover(struct ipath_devdata *);
 static void ipath_pe_put_tid_2(struct ipath_devdata *, u64 __iomem *,
 			       u32, unsigned long);
+
+/*
+ * On platforms using this chip, and not having ordered WC stores, we
+ * can get TXE parity errors due to speculative reads to the PIO buffers,
+ * and this, due to a chip bug can result in (many) false parity error
+ * reports.  So it's a debug print on those, and an info print on systems
+ * where the speculative reads don't occur.
+ */
+static void ipath_pe_txe_recover(struct ipath_devdata *dd)
+{
+	if (ipath_unordered_wc())
+		ipath_dbg("Recovering from TXE PIO parity error\n");
+	else {
+		++ipath_stats.sps_txeparity;
+		dev_info(&dd->pcidev->dev,
+			"Recovering from TXE PIO parity error\n");
+	}
+}
+
 
 /**
  * ipath_pe_handle_hwerrors - display hardware errors.
@@ -456,35 +474,11 @@ static void ipath_pe_handle_hwerrors(struct ipath_devdata *dd, char *msg,
 		 * occur if a processor speculative read is done to the PIO
 		 * buffer while we are sending a packet, for example.
 		 */
-		if ((hwerrs & TXE_PIO_PARITY) && ipath_pe_txe_recover(dd))
+		if (hwerrs & TXE_PIO_PARITY) {
+			ipath_pe_txe_recover(dd);
 			hwerrs &= ~TXE_PIO_PARITY;
-		if (hwerrs) {
-			/*
-			 * if any set that we aren't ignoring only make the
-			 * complaint once, in case it's stuck or recurring,
-			 * and we get here multiple times
-			 * Force link down, so switch knows, and
-			 * LEDs are turned off
-			 */
-			if (dd->ipath_flags & IPATH_INITTED) {
-				ipath_set_linkstate(dd, IPATH_IB_LINKDOWN);
-				ipath_setup_pe_setextled(dd,
-					INFINIPATH_IBCS_L_STATE_DOWN,
-					INFINIPATH_IBCS_LT_STATE_DISABLED);
-				ipath_dev_err(dd, "Fatal Hardware Error (freeze "
-					      "mode), no longer usable, SN %.16s\n",
-						  dd->ipath_serial);
-				isfatal = 1;
-			}
-			/*
-			 * Mark as having had an error for driver, and also
-			 * for /sys and status word mapped to user programs.
-			 * This marks unit as not usable, until reset
-			 */
-			*dd->ipath_statusp &= ~IPATH_STATUS_IB_READY;
-			*dd->ipath_statusp |= IPATH_STATUS_HWERROR;
-			dd->ipath_flags &= ~IPATH_INITTED;
-		} else {
+		}
+		if (!hwerrs) {
 			static u32 freeze_cnt;
 
 			freeze_cnt++;
@@ -1569,33 +1563,6 @@ static void ipath_pe_read_counters(struct ipath_devdata *dd,
 	cntrs->RxDlidFltrCnt = 0;
 }
 
-/*
- * On platforms using this chip, and not having ordered WC stores, we
- * can get TXE parity errors due to speculative reads to the PIO buffers,
- * and this, due to a chip bug can result in (many) false parity error
- * reports.  So it's a debug print on those, and an info print on systems
- * where the speculative reads don't occur.
- * Because we can get lots of false errors, we have no upper limit
- * on recovery attempts on those platforms.
- */
-static int ipath_pe_txe_recover(struct ipath_devdata *dd)
-{
-	if (ipath_unordered_wc())
-		ipath_dbg("Recovering from TXE PIO parity error\n");
-	else {
-		int cnt = ++ipath_stats.sps_txeparity;
-		if (cnt >= IPATH_MAX_PARITY_ATTEMPTS)  {
-			if (cnt == IPATH_MAX_PARITY_ATTEMPTS)
-				ipath_dev_err(dd,
-					"Too many attempts to recover from "
-					"TXE parity, giving up\n");
-			return 0;
-		}
-		dev_info(&dd->pcidev->dev,
-			"Recovering from TXE PIO parity error\n");
-	}
-	return 1;
-}
 
 /* no interrupt fallback for these chips */
 static int ipath_pe_nointr_fallback(struct ipath_devdata *dd)
