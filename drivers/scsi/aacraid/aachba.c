@@ -144,6 +144,7 @@ static char *aac_get_status_string(u32 status);
  */	
  
 static int nondasd = -1;
+static int aac_cache = 0;
 static int dacmode = -1;
 
 int aac_commit = -1;
@@ -152,6 +153,8 @@ int aif_timeout = 120;
 
 module_param(nondasd, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(nondasd, "Control scanning of hba for nondasd devices. 0=off, 1=on");
+module_param_named(cache, aac_cache, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(cache, "Disable Queue Flush commands:\n\tbit 0 - Disable FUA in WRITE SCSI commands\n\tbit 1 - Disable SYNCHRONIZE_CACHE SCSI command\n\tbit 2 - Disable only if Battery not protecting Cache");
 module_param(dacmode, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(dacmode, "Control whether dma addressing is using 64 bit DAC. 0=off, 1=on");
 module_param_named(commit, aac_commit, int, S_IRUGO|S_IWUSR);
@@ -1013,7 +1016,8 @@ static int aac_write_raw_io(struct fib * fib, struct scsi_cmnd * cmd, u64 lba, u
 	writecmd->block[1] = cpu_to_le32((u32)((lba&0xffffffff00000000LL)>>32));
 	writecmd->count = cpu_to_le32(count<<9);
 	writecmd->cid = cpu_to_le16(scmd_id(cmd));
-	writecmd->flags = fua ?
+	writecmd->flags = (fua && ((aac_cache & 5) != 1) &&
+	  (((aac_cache & 5) != 5) || !fib->dev->cache_protected)) ?
 		cpu_to_le16(IO_TYPE_WRITE|IO_SUREWRITE) :
 		cpu_to_le16(IO_TYPE_WRITE);
 	writecmd->bpTotal = 0;
@@ -1325,11 +1329,11 @@ int aac_get_adapter_info(struct aac_dev* dev)
 		}
 	}
 
+	dev->cache_protected = 0;
 	dev->nondasd_support = 0;
 	dev->raid_scsi_mode = 0;
-	if(dev->adapter_info.options & AAC_OPT_NONDASD){
+	if(dev->adapter_info.options & AAC_OPT_NONDASD)
 		dev->nondasd_support = 1;
-	}
 
 	/*
 	 * If the firmware supports ROMB RAID/SCSI mode and we are currently
@@ -1351,10 +1355,9 @@ int aac_get_adapter_info(struct aac_dev* dev)
 		printk(KERN_INFO "%s%d: ROMB RAID/SCSI mode enabled\n",
 				dev->name, dev->id);
 		
-	if(nondasd != -1) {  
+	if (nondasd != -1)
 		dev->nondasd_support = (nondasd!=0);
-	}
-	if(dev->nondasd_support != 0){
+	if(dev->nondasd_support != 0) {
 		printk(KERN_INFO "%s%d: Non-DASD support enabled.\n",dev->name, dev->id);
 	}
 
@@ -2106,7 +2109,7 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 		mode_buf[2] = 0;	/* Device-specific param,
 					   bit 8: 0/1 = write enabled/protected
 					   bit 4: 0/1 = FUA enabled */
-		if (dev->raw_io_interface)
+		if (dev->raw_io_interface && ((aac_cache & 5) != 1))
 			mode_buf[2] = 0x10;
 		mode_buf[3] = 0;	/* Block descriptor length */
 		if (((scsicmd->cmnd[2] & 0x3f) == 8) ||
@@ -2114,7 +2117,8 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 			mode_buf[0] = 6;
 			mode_buf[4] = 8;
 			mode_buf[5] = 1;
-			mode_buf[6] = 0x04; /* WCE */
+			mode_buf[6] = ((aac_cache & 6) == 2)
+				? 0 : 0x04; /* WCE */
 			mode_buf_length = 7;
 			if (mode_buf_length > scsicmd->cmnd[4])
 				mode_buf_length = scsicmd->cmnd[4];
@@ -2137,7 +2141,7 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 		mode_buf[3] = 0;	/* Device-specific param,
 					   bit 8: 0/1 = write enabled/protected
 					   bit 4: 0/1 = FUA enabled */
-		if (dev->raw_io_interface)
+		if (dev->raw_io_interface && ((aac_cache & 5) != 1))
 			mode_buf[3] = 0x10;
 		mode_buf[4] = 0;	/* reserved */
 		mode_buf[5] = 0;	/* reserved */
@@ -2148,7 +2152,8 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 			mode_buf[1] = 9;
 			mode_buf[8] = 8;
 			mode_buf[9] = 1;
-			mode_buf[10] = 0x04; /* WCE */
+			mode_buf[10] = ((aac_cache & 6) == 2)
+				? 0 : 0x04; /* WCE */
 			mode_buf_length = 11;
 			if (mode_buf_length > scsicmd->cmnd[8])
 				mode_buf_length = scsicmd->cmnd[8];
@@ -2224,9 +2229,16 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 			return aac_write(scsicmd);
 
 		case SYNCHRONIZE_CACHE:
+			if (((aac_cache & 6) == 6) && dev->cache_protected) {
+				scsicmd->result = DID_OK << 16 |
+					COMMAND_COMPLETE << 8 | SAM_STAT_GOOD;
+				scsicmd->scsi_done(scsicmd);
+				return 0;
+			}
 			/* Issue FIB to tell Firmware to flush it's cache */
-			return aac_synchronize(scsicmd);
-			
+			if ((aac_cache & 6) != 2)
+				return aac_synchronize(scsicmd);
+			/* FALLTHRU */
 		default:
 			/*
 			 *	Unhandled commands

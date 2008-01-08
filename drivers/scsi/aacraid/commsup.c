@@ -849,6 +849,10 @@ static void aac_handle_aif(struct aac_dev * dev, struct fib * fibptr)
 
 	case AifCmdEventNotify:
 		switch (le32_to_cpu(((__le32 *)aifcmd->data)[0])) {
+		case AifEnBatteryEvent:
+			dev->cache_protected =
+				(((__le32 *)aifcmd->data)[1] == cpu_to_le32(3));
+			break;
 		/*
 		 *	Add an Array.
 		 */

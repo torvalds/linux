@@ -1016,6 +1016,7 @@ struct aac_dev
 	 * lets break them out so we don't have to do an AND to check them
 	 */
 	u8			nondasd_support; 
+	u8			cache_protected;
 	u8			dac_support;
 	u8			raid_scsi_mode;
 	u8			comm_interface;
@@ -1770,6 +1771,7 @@ extern struct aac_common aac_config;
 #define			AifEnConfigChange	3	/* Adapter configuration change */
 #define			AifEnContainerChange	4	/* Container configuration change */
 #define			AifEnDeviceFailure	5	/* SCSI device failed */
+#define			AifEnBatteryEvent	14	/* Change in Battery State */
 #define			AifEnAddContainer	15	/* A new array was created */
 #define			AifEnDeleteContainer	16	/* A container was deleted */
 #define			AifEnExpEvent		23	/* Firmware Event Log */
