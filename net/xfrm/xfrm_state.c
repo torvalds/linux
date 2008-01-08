@@ -1100,7 +1100,7 @@ out:
 EXPORT_SYMBOL(xfrm_state_add);
 
 #ifdef CONFIG_XFRM_MIGRATE
-struct xfrm_state *xfrm_state_clone(struct xfrm_state *orig, int *errp)
+static struct xfrm_state *xfrm_state_clone(struct xfrm_state *orig, int *errp)
 {
 	int err = -ENOMEM;
 	struct xfrm_state *x = xfrm_state_alloc();
@@ -1175,7 +1175,6 @@ struct xfrm_state *xfrm_state_clone(struct xfrm_state *orig, int *errp)
 	kfree(x);
 	return NULL;
 }
-EXPORT_SYMBOL(xfrm_state_clone);
 
 /* xfrm_state_lock is held */
 struct xfrm_state * xfrm_migrate_state_find(struct xfrm_migrate *m)
