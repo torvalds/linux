@@ -21,7 +21,7 @@
  *  02110-1301, USA.
  */
 
-#define IBM_VERSION "0.17"
+#define IBM_VERSION "0.18"
 #define TPACPI_SYSFS_VERSION 0x020101
 
 /*
