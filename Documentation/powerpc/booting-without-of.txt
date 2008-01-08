@@ -2292,7 +2292,7 @@ platforms are moved over to use the flattened-device-tree model.
    properties of the device node.  In general, device nodes for IP-cores
    will take the following form:
 
-	(name)@(base-address) {
+	(name): (generic-name)@(base-address) {
 		compatible = "xlnx,(ip-core-name)-(HW_VER)"
 			     [, (list of compatible devices), ...];
 		reg = <(baseaddr) (size)>;
@@ -2302,6 +2302,9 @@ platforms are moved over to use the flattened-device-tree model.
 		xlnx,(parameter2) = <(int-value)>;
 	};
 
+	(generic-name):   an open firmware-style name that describes the
+			generic class of device.  Preferably, this is one word, such
+			as 'serial' or 'ethernet'.
 	(ip-core-name):	the name of the ip block (given after the BEGIN
 			directive in system.mhs).  Should be in lowercase
 			and all underscores '_' converted to dashes '-'.
@@ -2310,9 +2313,9 @@ platforms are moved over to use the flattened-device-tree model.
 			dropped from the parameter name, the name is converted
 			to lowercase and all underscore '_' characters are
 			converted to dashes '-'.
-	(baseaddr):	the C_BASEADDR parameter.
+	(baseaddr):	the baseaddr parameter value (often named C_BASEADDR).
 	(HW_VER):	from the HW_VER parameter.
-	(size):		equals C_HIGHADDR - C_BASEADDR + 1
+	(size):		the address range size (often C_HIGHADDR - C_BASEADDR + 1).
 
    Typically, the compatible list will include the exact IP core version
    followed by an older IP core version which implements the same
@@ -2342,11 +2345,11 @@ platforms are moved over to use the flattened-device-tree model.
 
    becomes the following device tree node:
 
-	opb-uartlite-0@ec100000 {
+	opb_uartlite_0: serial@ec100000 {
 		device_type = "serial";
 		compatible = "xlnx,opb-uartlite-1.00.b";
 		reg = <ec100000 10000>;
-		interrupt-parent = <&opb-intc>;
+		interrupt-parent = <&opb_intc_0>;
 		interrupts = <1 0>; // got this from the opb_intc parameters
 		current-speed = <d#115200>;	// standard serial device prop
 		clock-frequency = <d#50000000>;	// standard serial device prop
@@ -2355,16 +2358,19 @@ platforms are moved over to use the flattened-device-tree model.
 		xlnx,use-parity = <0>;
 	};
 
-   Some IP cores actually implement 2 or more logical devices.  In this case,
-   the device should still describe the whole IP core with a single node
-   and add a child node for each logical device.  The ranges property can
-   be used to translate from parent IP-core to the registers of each device.
-   (Note: this makes the assumption that both logical devices have the same
-   bus binding.  If this is not true, then separate nodes should be used for
-   each logical device).  The 'cell-index' property can be used to enumerate
-   logical devices within an IP core.  For example, the following is the
-   system.mhs entry for the dual ps2 controller found on the ml403 reference
-   design.
+   Some IP cores actually implement 2 or more logical devices.  In
+   this case, the device should still describe the whole IP core with
+   a single node and add a child node for each logical device.  The
+   ranges property can be used to translate from parent IP-core to the
+   registers of each device.  In addition, the parent node should be
+   compatible with the bus type 'xlnx,compound', and should contain
+   #address-cells and #size-cells, as with any other bus.  (Note: this
+   makes the assumption that both logical devices have the same bus
+   binding.  If this is not true, then separate nodes should be used
+   for each logical device).  The 'cell-index' property can be used to
+   enumerate logical devices within an IP core.  For example, the
+   following is the system.mhs entry for the dual ps2 controller found
+   on the ml403 reference design.
 
 	BEGIN opb_ps2_dual_ref
 		PARAMETER INSTANCE = opb_ps2_dual_ref_0
@@ -2386,21 +2392,24 @@ platforms are moved over to use the flattened-device-tree model.
 
    It would result in the following device tree nodes:
 
-	opb_ps2_dual_ref_0@a9000000 {
+	opb_ps2_dual_ref_0: opb-ps2-dual-ref@a9000000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "xlnx,compound";
 		ranges = <0 a9000000 2000>;
 		// If this device had extra parameters, then they would
 		// go here.
 		ps2@0 {
 			compatible = "xlnx,opb-ps2-dual-ref-1.00.a";
 			reg = <0 40>;
-			interrupt-parent = <&opb-intc>;
+			interrupt-parent = <&opb_intc_0>;
 			interrupts = <3 0>;
 			cell-index = <0>;
 		};
 		ps2@1000 {
 			compatible = "xlnx,opb-ps2-dual-ref-1.00.a";
 			reg = <1000 40>;
-			interrupt-parent = <&opb-intc>;
+			interrupt-parent = <&opb_intc_0>;
 			interrupts = <3 0>;
 			cell-index = <0>;
 		};
@@ -2463,17 +2472,18 @@ platforms are moved over to use the flattened-device-tree model.
 
    Gives this device tree (some properties removed for clarity):
 
-	plb-v34-0 {
+	plb@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
+		compatible = "xlnx,plb-v34-1.02.a";
 		device_type = "ibm,plb";
 		ranges; // 1:1 translation
 
-		plb-bram-if-cntrl-0@ffff0000 {
+		plb_bram_if_cntrl_0: bram@ffff0000 {
 			reg = <ffff0000 10000>;
 		}
 
-		opb-v20-0 {
+		opb@20000000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <20000000 20000000 20000000
@@ -2481,11 +2491,11 @@ platforms are moved over to use the flattened-device-tree model.
 				  80000000 80000000 40000000
 				  c0000000 c0000000 20000000>;
 
-			opb-uart16550-0@a0000000 {
+			opb_uart16550_0: serial@a0000000 {
 				reg = <a00000000 2000>;
 			};
 
-			opb-intc-0@d1000fc0 {
+			opb_intc_0: interrupt-controller@d1000fc0 {
 				reg = <d1000fc0 20>;
 			};
 		};
