@@ -2167,13 +2167,11 @@ int ata_eh_reset(struct ata_link *link, int classify,
 		if (ata_link_offline(link))
 			continue;
 
-		/* apply class override and convert UNKNOWN to NONE */
+		/* apply class override */
 		if (lflags & ATA_LFLAG_ASSUME_ATA)
 			classes[dev->devno] = ATA_DEV_ATA;
 		else if (lflags & ATA_LFLAG_ASSUME_SEMB)
 			classes[dev->devno] = ATA_DEV_SEMB_UNSUP; /* not yet */
-		else if (classes[dev->devno] == ATA_DEV_UNKNOWN)
-			classes[dev->devno] = ATA_DEV_NONE;
 	}
 
 	/* record current link speed */
