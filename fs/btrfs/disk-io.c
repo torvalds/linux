@@ -145,10 +145,25 @@ static int csum_tree_block(struct btrfs_root *root, struct extent_buffer *buf,
 	btrfs_csum_final(crc, result);
 
 	if (verify) {
-		if (memcmp_extent_buffer(buf, result, 0, BTRFS_CRC32_SIZE)) {
-			printk("btrfs: %s checksum verify failed on %llu\n",
+		int from_this_trans = 0;
+
+		if (root->fs_info->running_transaction &&
+		    btrfs_header_generation(buf) ==
+		    root->fs_info->running_transaction->transid)
+			from_this_trans = 1;
+
+		/* FIXME, this is not good */
+		if (from_this_trans == 0 &&
+		    memcmp_extent_buffer(buf, result, 0, BTRFS_CRC32_SIZE)) {
+			u32 val;
+			u32 found = 0;
+			memcpy(&found, result, BTRFS_CRC32_SIZE);
+
+			read_extent_buffer(buf, &val, 0, BTRFS_CRC32_SIZE);
+			printk("btrfs: %s checksum verify failed on %llu "
+			       "wanted %X found %X from_this_trans %d\n",
 			       root->fs_info->sb->s_id,
-			       buf->start);
+			       buf->start, val, found, from_this_trans);
 			return 1;
 		}
 	} else {
@@ -313,6 +328,7 @@ struct extent_buffer *read_tree_block(struct btrfs_root *root, u64 bytenr,
 	struct extent_buffer *buf = NULL;
 	struct inode *btree_inode = root->fs_info->btree_inode;
 	struct extent_map_tree *extent_tree;
+	u64 end;
 	int ret;
 
 	extent_tree = &BTRFS_I(btree_inode)->extent_tree;
@@ -322,19 +338,29 @@ struct extent_buffer *read_tree_block(struct btrfs_root *root, u64 bytenr,
 		return NULL;
 	read_extent_buffer_pages(&BTRFS_I(btree_inode)->extent_tree,
 				 buf, 0, 1);
-	if (buf->flags & EXTENT_CSUM) {
+
+	if (buf->flags & EXTENT_CSUM)
 		return buf;
-	}
-	if (test_range_bit(extent_tree, buf->start, buf->start + buf->len - 1,
-			   EXTENT_CSUM, 1)) {
+
+	end = buf->start + PAGE_CACHE_SIZE - 1;
+	if (test_range_bit(extent_tree, buf->start, end, EXTENT_CSUM, 1)) {
 		buf->flags |= EXTENT_CSUM;
 		return buf;
 	}
+
+	lock_extent(extent_tree, buf->start, end, GFP_NOFS);
+
+	if (test_range_bit(extent_tree, buf->start, end, EXTENT_CSUM, 1)) {
+		buf->flags |= EXTENT_CSUM;
+		goto out_unlock;
+	}
+
 	ret = csum_tree_block(root, buf, 1);
-	set_extent_bits(extent_tree, buf->start,
-			buf->start + buf->len - 1,
-			EXTENT_CSUM, GFP_NOFS);
+	set_extent_bits(extent_tree, buf->start, end, EXTENT_CSUM, GFP_NOFS);
 	buf->flags |= EXTENT_CSUM;
+
+out_unlock:
+	unlock_extent(extent_tree, buf->start, end, GFP_NOFS);
 	return buf;
 }
 
