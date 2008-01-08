@@ -49,7 +49,8 @@ static int tda18271_ir_cal_init(struct dvb_frontend *fe)
 /* ------------------------------------------------------------------ */
 
 static int tda18271_channel_configuration(struct dvb_frontend *fe,
-					  u32 ifc, u32 freq, u32 bw, u8 std)
+					  u32 ifc, u32 freq, u32 bw, u8 std,
+					  int radio)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
 	unsigned char *regs = priv->tda18271_regs;
@@ -76,7 +77,11 @@ static int tda18271_channel_configuration(struct dvb_frontend *fe,
 		regs[R_MPD]  |= 0x80; /* IF notch = 1 */
 		break;
 	}
-	regs[R_EP4]  &= ~0x80; /* FM_RFn: turn this bit on only for fm radio */
+
+	if (radio)
+		regs[R_EP4]  |=  0x80;
+	else
+		regs[R_EP4]  &= ~0x80;
 
 	/* update RF_TOP / IF_TOP */
 	switch (priv->mode) {
@@ -615,7 +620,7 @@ static int tda18271_init(struct dvb_frontend *fe)
 }
 
 static int tda18271c2_tune(struct dvb_frontend *fe,
-			   u32 ifc, u32 freq, u32 bw, u8 std)
+			   u32 ifc, u32 freq, u32 bw, u8 std, int radio)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
 
@@ -627,7 +632,7 @@ static int tda18271c2_tune(struct dvb_frontend *fe,
 
 	tda18271_rf_tracking_filters_correction(fe, freq);
 
-	tda18271_channel_configuration(fe, ifc, freq, bw, std);
+	tda18271_channel_configuration(fe, ifc, freq, bw, std, radio);
 
 	mutex_unlock(&priv->lock);
 
@@ -637,7 +642,7 @@ static int tda18271c2_tune(struct dvb_frontend *fe,
 /* ------------------------------------------------------------------ */
 
 static int tda18271c1_tune(struct dvb_frontend *fe,
-			   u32 ifc, u32 freq, u32 bw, u8 std)
+			   u32 ifc, u32 freq, u32 bw, u8 std, int radio)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
 	unsigned char *regs = priv->tda18271_regs;
@@ -769,7 +774,10 @@ static int tda18271c1_tune(struct dvb_frontend *fe,
 		break;
 	}
 
-	regs[R_EP4]  &= ~0x80; /* turn this bit on only for fm */
+	if (radio)
+		regs[R_EP4]  |=  0x80;
+	else
+		regs[R_EP4]  &= ~0x80;
 
 	/* image rejection validity */
 	tda18271_calc_ir_measure(fe, &freq);
@@ -787,17 +795,17 @@ static int tda18271c1_tune(struct dvb_frontend *fe,
 }
 
 static inline int tda18271_tune(struct dvb_frontend *fe,
-				u32 ifc, u32 freq, u32 bw, u8 std)
+				u32 ifc, u32 freq, u32 bw, u8 std, int radio)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
 	int ret = -EINVAL;
 
 	switch (priv->id) {
 	case TDA18271HDC1:
-		ret = tda18271c1_tune(fe, ifc, freq, bw, std);
+		ret = tda18271c1_tune(fe, ifc, freq, bw, std, radio);
 		break;
 	case TDA18271HDC2:
-		ret = tda18271c2_tune(fe, ifc, freq, bw, std);
+		ret = tda18271c2_tune(fe, ifc, freq, bw, std, radio);
 		break;
 	}
 	return ret;
@@ -865,7 +873,7 @@ static int tda18271_set_params(struct dvb_frontend *fe,
 		return -EINVAL;
 	}
 
-	ret = tda18271_tune(fe, sgIF * 1000, freq, bw, std);
+	ret = tda18271_tune(fe, sgIF * 1000, freq, bw, std, 0);
 
 	if (ret < 0)
 		goto fail;
@@ -883,14 +891,20 @@ static int tda18271_set_analog_params(struct dvb_frontend *fe,
 	struct tda18271_priv *priv = fe->tuner_priv;
 	struct tda18271_std_map *std_map = &priv->std;
 	char *mode;
-	int ret;
+	int ret, radio = 0;
 	u8 std;
 	u16 sgIF;
 	u32 freq = params->frequency * 62500;
 
 	priv->mode = TDA18271_ANALOG;
 
-	if (params->std & V4L2_STD_MN) {
+	if (params->mode == V4L2_TUNER_RADIO) {
+		radio = 1;
+		freq = freq / 1000;
+		std  = std_map->fm_radio.std_bits;
+		sgIF = std_map->fm_radio.if_freq;
+		mode = "fm";
+	} else if (params->std & V4L2_STD_MN) {
 		std  = std_map->atv_mn.std_bits;
 		sgIF = std_map->atv_mn.if_freq;
 		mode = "MN";
@@ -926,7 +940,7 @@ static int tda18271_set_analog_params(struct dvb_frontend *fe,
 
 	tda_dbg("setting tda18271 to system %s\n", mode);
 
-	ret = tda18271_tune(fe, sgIF * 1000, freq, 0, std);
+	ret = tda18271_tune(fe, sgIF * 1000, freq, 0, std, radio);
 
 	if (ret < 0)
 		goto fail;
@@ -994,6 +1008,7 @@ static int tda18271_dump_std_map(struct dvb_frontend *fe)
 	struct tda18271_std_map *std = &priv->std;
 
 	tda_dbg("========== STANDARD MAP SETTINGS ==========\n");
+	tda18271_dump_std_item(fm_radio, "fm");
 	tda18271_dump_std_item(atv_b,  "pal b");
 	tda18271_dump_std_item(atv_dk, "pal dk");
 	tda18271_dump_std_item(atv_gh, "pal gh");
@@ -1020,6 +1035,7 @@ static int tda18271_update_std_map(struct dvb_frontend *fe,
 	if (!map)
 		return -EINVAL;
 
+	tda18271_update_std(fm_radio, "fm");
 	tda18271_update_std(atv_b,  "atv b");
 	tda18271_update_std(atv_dk, "atv dk");
 	tda18271_update_std(atv_gh, "atv gh");

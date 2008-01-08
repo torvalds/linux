@@ -30,6 +30,7 @@ struct tda18271_std_map_item {
 };
 
 struct tda18271_std_map {
+	struct tda18271_std_map_item fm_radio;
 	struct tda18271_std_map_item atv_b;
 	struct tda18271_std_map_item atv_dk;
 	struct tda18271_std_map_item atv_gh;

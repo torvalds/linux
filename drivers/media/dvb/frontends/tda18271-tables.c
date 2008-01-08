@@ -1187,6 +1187,7 @@ fail:
 /*---------------------------------------------------------------------*/
 
 static struct tda18271_std_map tda18271c1_std_map = {
+	.fm_radio = { .if_freq = 1250, .std_bits = 0x18 },
 	.atv_b    = { .if_freq = 6750, .std_bits = 0x0e },
 	.atv_dk   = { .if_freq = 7750, .std_bits = 0x0f },
 	.atv_gh   = { .if_freq = 7750, .std_bits = 0x0f },
@@ -1203,6 +1204,7 @@ static struct tda18271_std_map tda18271c1_std_map = {
 };
 
 static struct tda18271_std_map tda18271c2_std_map = {
+	.fm_radio = { .if_freq = 1250, .std_bits = 0x18 },
 	.atv_b    = { .if_freq = 6000, .std_bits = 0x0d },
 	.atv_dk   = { .if_freq = 6900, .std_bits = 0x0e },
 	.atv_gh   = { .if_freq = 7100, .std_bits = 0x0e },
