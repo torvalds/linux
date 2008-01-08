@@ -188,6 +188,7 @@ struct ibm_struct {
 	int (*write) (char *);
 	void (*exit) (void);
 	void (*resume) (void);
+	void (*suspend) (pm_message_t state);
 
 	struct list_head all_drivers;
 
@@ -658,6 +659,21 @@ static struct input_dev *tpacpi_inputdev;
 static struct mutex tpacpi_inputdev_send_mutex;
 static LIST_HEAD(tpacpi_all_drivers);
 
+static int tpacpi_suspend_handler(struct platform_device *pdev,
+				  pm_message_t state)
+{
+	struct ibm_struct *ibm, *itmp;
+
+	list_for_each_entry_safe(ibm, itmp,
+				 &tpacpi_all_drivers,
+				 all_drivers) {
+		if (ibm->suspend)
+			(ibm->suspend)(state);
+	}
+
+	return 0;
+}
+
 static int tpacpi_resume_handler(struct platform_device *pdev)
 {
 	struct ibm_struct *ibm, *itmp;
@@ -677,6 +693,7 @@ static struct platform_driver tpacpi_pdriver = {
 		.name = TPACPI_DRVR_NAME,
 		.owner = THIS_MODULE,
 	},
+	.suspend = tpacpi_suspend_handler,
 	.resume = tpacpi_resume_handler,
 };
 
