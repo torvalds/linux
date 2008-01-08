@@ -1378,6 +1378,7 @@ define xtags
 	if $1 --version 2>&1 | grep -iq exuberant; then \
 	    $(all-sources) | xargs $1 -a \
 		-I __initdata,__exitdata,__acquires,__releases \
+		-I __read_mostly,____cacheline_aligned,____cacheline_aligned_in_smp,____cacheline_internodealigned_in_smp \
 		-I EXPORT_SYMBOL,EXPORT_SYMBOL_GPL \
 		--extra=+f --c-kinds=+px \
 		--regex-asm='/^ENTRY\(([^)]*)\).*/\1/'; \
