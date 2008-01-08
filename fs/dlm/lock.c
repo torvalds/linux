@@ -1940,8 +1940,11 @@ static void confirm_master(struct dlm_rsb *r, int error)
 		break;
 
 	case -EAGAIN:
-		/* the remote master didn't queue our NOQUEUE request;
-		   make a waiting lkb the first_lkid */
+	case -EBADR:
+	case -ENOTBLK:
+		/* the remote request failed and won't be retried (it was
+		   a NOQUEUE, or has been canceled/unlocked); make a waiting
+		   lkb the first_lkid */
 
 		r->res_first_lkid = 0;
 
@@ -3382,6 +3385,7 @@ static void receive_request_reply(struct dlm_ls *ls, struct dlm_message *ms)
 		if (is_overlap(lkb)) {
 			/* we'll ignore error in cancel/unlock reply */
 			queue_cast_overlap(r, lkb);
+			confirm_master(r, result);
 			unhold_lkb(lkb); /* undoes create_lkb() */
 		} else
 			_request_lock(r, lkb);
