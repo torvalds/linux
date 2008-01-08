@@ -241,7 +241,6 @@
 		};
 
 		usb@6c0 {
-			device_type = "usb";
 			compatible = "qe_udc";
 			reg = <6c0 40 8B00 100>;
 			interrupts = <b>;

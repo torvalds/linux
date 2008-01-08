@@ -41,7 +41,7 @@ int mpc834x_usb_cfg(void)
 	sicrl = in_be32(immap + MPC83XX_SICRL_OFFS) & ~MPC834X_SICRL_USB_MASK;
 	sicrh = in_be32(immap + MPC83XX_SICRH_OFFS) & ~MPC834X_SICRH_USB_UTMI;
 
-	np = of_find_compatible_node(NULL, "usb", "fsl-usb2-dr");
+	np = of_find_compatible_node(NULL, NULL, "fsl-usb2-dr");
 	if (np) {
 		sccr |= MPC83XX_SCCR_USB_DRCM_11;  /* 1:3 */
 
@@ -67,7 +67,7 @@ int mpc834x_usb_cfg(void)
 		port0_is_dr = 1;
 		of_node_put(np);
 	}
-	np = of_find_compatible_node(NULL, "usb", "fsl-usb2-mph");
+	np = of_find_compatible_node(NULL, NULL, "fsl-usb2-mph");
 	if (np) {
 		sccr |= MPC83XX_SCCR_USB_MPHCM_11; /* 1:3 */
 
@@ -111,7 +111,7 @@ int mpc831x_usb_cfg(void)
 	const void *dr_mode;
 #endif
 
-	np = of_find_compatible_node(NULL, "usb", "fsl-usb2-dr");
+	np = of_find_compatible_node(NULL, NULL, "fsl-usb2-dr");
 	if (!np)
 		return -ENODEV;
 	prop = of_get_property(np, "phy_type", NULL);
@@ -188,7 +188,7 @@ int mpc837x_usb_cfg(void)
 	const void *prop;
 	int ret = 0;
 
-	np = of_find_compatible_node(NULL, "usb", "fsl-usb2-dr");
+	np = of_find_compatible_node(NULL, NULL, "fsl-usb2-dr");
 	if (!np)
 		return -ENODEV;
 	prop = of_get_property(np, "phy_type", NULL);

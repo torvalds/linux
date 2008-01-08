@@ -91,7 +91,6 @@
 		};
 
 		usb@22000 {
-			device_type = "usb";
 			compatible = "fsl-usb2-mph";
 			reg = <22000 1000>;
 			#address-cells = <1>;
@@ -103,7 +102,6 @@
 		};
 
 		usb@23000 {
-			device_type = "usb";
 			compatible = "fsl-usb2-dr";
 			reg = <23000 1000>;
 			#address-cells = <1>;

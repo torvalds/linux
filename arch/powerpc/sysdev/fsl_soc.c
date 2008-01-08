@@ -531,14 +531,12 @@ static enum fsl_usb2_phy_modes determine_usb_phy(const char *phy_type)
 static int __init fsl_usb_of_init(void)
 {
 	struct device_node *np;
-	unsigned int i;
+	unsigned int i = 0;
 	struct platform_device *usb_dev_mph = NULL, *usb_dev_dr_host = NULL,
 		*usb_dev_dr_client = NULL;
 	int ret;
 
-	for (np = NULL, i = 0;
-	     (np = of_find_compatible_node(np, "usb", "fsl-usb2-mph")) != NULL;
-	     i++) {
+	for_each_compatible_node(np, NULL, "fsl-usb2-mph") {
 		struct resource r[2];
 		struct fsl_usb2_platform_data usb_data;
 		const unsigned char *prop = NULL;
@@ -581,11 +579,10 @@ static int __init fsl_usb_of_init(void)
 						    fsl_usb2_platform_data));
 		if (ret)
 			goto unreg_mph;
+		i++;
 	}
 
-	for (np = NULL;
-	     (np = of_find_compatible_node(np, "usb", "fsl-usb2-dr")) != NULL;
-	     i++) {
+	for_each_compatible_node(np, NULL, "fsl-usb2-dr") {
 		struct resource r[2];
 		struct fsl_usb2_platform_data usb_data;
 		const unsigned char *prop = NULL;
@@ -657,6 +654,7 @@ static int __init fsl_usb_of_init(void)
 						fsl_usb2_platform_data))))
 				goto unreg_dr;
 		}
+		i++;
 	}
 	return 0;
 

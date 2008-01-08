@@ -1411,7 +1411,6 @@ platforms are moved over to use the flattened-device-tree model.
 
    Example multi port host USB controller device node :
 	usb@22000 {
-	        device_type = "usb";
 		compatible = "fsl-usb2-mph";
 		reg = <22000 1000>;
 		#address-cells = <1>;
@@ -1425,7 +1424,6 @@ platforms are moved over to use the flattened-device-tree model.
 
    Example dual role USB controller device node :
 	usb@23000 {
-		device_type = "usb";
 		compatible = "fsl-usb2-dr";
 		reg = <23000 1000>;
 		#address-cells = <1>;
@@ -1589,7 +1587,6 @@ platforms are moved over to use the flattened-device-tree model.
    iii) USB (Universal Serial Bus Controller)
 
    Required properties:
-   - device_type : should be "usb".
    - compatible : could be "qe_udc" or "fhci-hcd".
    - mode : the could be "host" or "slave".
    - reg : Offset and length of the register set for the device
@@ -1603,7 +1600,6 @@ platforms are moved over to use the flattened-device-tree model.
 
    Example(slave):
 	usb@6c0 {
-		device_type = "usb";
 		compatible = "qe_udc";
 		reg = <6c0 40>;
 		interrupts = <8b 0>;
