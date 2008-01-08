@@ -664,7 +664,7 @@ struct hifn_context
 	atomic_t		sg_num;
 };
 
-#define crypto_alg_to_hifn(alg)	container_of(alg, struct hifn_crypto_alg, alg)
+#define crypto_alg_to_hifn(a)	container_of(a, struct hifn_crypto_alg, alg)
 
 static inline u32 hifn_read_0(struct hifn_device *dev, u32 reg)
 {
