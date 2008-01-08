@@ -22,7 +22,7 @@
  */
 
 #define TPACPI_VERSION "0.18"
-#define TPACPI_SYSFS_VERSION 0x020101
+#define TPACPI_SYSFS_VERSION 0x020200
 
 /*
  *  Changelog:
@@ -1643,7 +1643,7 @@ static struct device_attribute dev_attr_hotkey_poll_freq =
 
 #endif /* CONFIG_THINKPAD_ACPI_HOTKEY_POLL */
 
-/* sysfs hotkey radio_sw ----------------------------------------------- */
+/* sysfs hotkey radio_sw (pollable) ------------------------------------ */
 static ssize_t hotkey_radio_sw_show(struct device *dev,
 			   struct device_attribute *attr,
 			   char *buf)
@@ -1659,6 +1659,13 @@ static ssize_t hotkey_radio_sw_show(struct device *dev,
 static struct device_attribute dev_attr_hotkey_radio_sw =
 	__ATTR(hotkey_radio_sw, S_IRUGO, hotkey_radio_sw_show, NULL);
 
+static void hotkey_radio_sw_notify_change(void)
+{
+	if (tp_features.hotkey_wlsw)
+		sysfs_notify(&tpacpi_pdev->dev.kobj, NULL,
+			     "hotkey_radio_sw");
+}
+
 /* sysfs hotkey report_mode -------------------------------------------- */
 static ssize_t hotkey_report_mode_show(struct device *dev,
 			   struct device_attribute *attr,
@@ -1671,7 +1678,7 @@ static ssize_t hotkey_report_mode_show(struct device *dev,
 static struct device_attribute dev_attr_hotkey_report_mode =
 	__ATTR(hotkey_report_mode, S_IRUGO, hotkey_report_mode_show, NULL);
 
-/* sysfs wakeup reason ------------------------------------------------- */
+/* sysfs wakeup reason (pollable) -------------------------------------- */
 static ssize_t hotkey_wakeup_reason_show(struct device *dev,
 			   struct device_attribute *attr,
 			   char *buf)
@@ -1682,7 +1689,14 @@ static ssize_t hotkey_wakeup_reason_show(struct device *dev,
 static struct device_attribute dev_attr_hotkey_wakeup_reason =
 	__ATTR(wakeup_reason, S_IRUGO, hotkey_wakeup_reason_show, NULL);
 
-/* sysfs wakeup hotunplug_complete ------------------------------------- */
+void hotkey_wakeup_reason_notify_change(void)
+{
+	if (tp_features.hotkey_mask)
+		sysfs_notify(&tpacpi_pdev->dev.kobj, NULL,
+			     "wakeup_reason");
+}
+
+/* sysfs wakeup hotunplug_complete (pollable) -------------------------- */
 static ssize_t hotkey_wakeup_hotunplug_complete_show(struct device *dev,
 			   struct device_attribute *attr,
 			   char *buf)
@@ -1693,6 +1707,13 @@ static ssize_t hotkey_wakeup_hotunplug_complete_show(struct device *dev,
 static struct device_attribute dev_attr_hotkey_wakeup_hotunplug_complete =
 	__ATTR(wakeup_hotunplug_complete, S_IRUGO,
 	       hotkey_wakeup_hotunplug_complete_show, NULL);
+
+void hotkey_wakeup_hotunplug_complete_notify_change(void)
+{
+	if (tp_features.hotkey_mask)
+		sysfs_notify(&tpacpi_pdev->dev.kobj, NULL,
+			     "wakeup_hotunplug_complete");
+}
 
 /* --------------------------------------------------------------------- */
 
@@ -2106,6 +2127,7 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 				printk(TPACPI_INFO
 				       "woke up due to a hot-unplug "
 				       "request...\n");
+				hotkey_wakeup_reason_notify_change();
 			}
 			break;
 		case 3:
@@ -2114,6 +2136,7 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 				hotkey_autosleep_ack = 1;
 				printk(TPACPI_INFO
 				       "bay ejected\n");
+				hotkey_wakeup_hotunplug_complete_notify_change();
 			} else {
 				unk_ev = 1;
 			}
@@ -2124,6 +2147,7 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 				hotkey_autosleep_ack = 1;
 				printk(TPACPI_INFO
 				       "undocked\n");
+				hotkey_wakeup_hotunplug_complete_notify_change();
 			} else {
 				unk_ev = 1;
 			}
@@ -2150,6 +2174,7 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 			/* 0x7000-0x7FFF: misc */
 			if (tp_features.hotkey_wlsw && hkey == 0x7000) {
 				tpacpi_input_send_radiosw();
+				hotkey_radio_sw_notify_change();
 				send_acpi_ev = 0;
 				break;
 			}
@@ -2193,6 +2218,9 @@ static void hotkey_resume(void)
 		       "error while trying to read hot key mask "
 		       "from firmware\n");
 	tpacpi_input_send_radiosw();
+	hotkey_radio_sw_notify_change();
+	hotkey_wakeup_reason_notify_change();
+	hotkey_wakeup_hotunplug_complete_notify_change();
 #ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
 	hotkey_poll_setup_safe(0);
 #endif

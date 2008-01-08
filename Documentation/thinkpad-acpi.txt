@@ -311,6 +311,8 @@ sysfs notes:
 		disabled" postition, and 1 if the switch is in the
 		"radios enabled" position.
 
+		This attribute has poll()/select() support.
+
 	hotkey_report_mode:
 		Returns the state of the procfs ACPI event report mode
 		filter for hot keys.  If it is set to 1 (the default),
@@ -332,6 +334,8 @@ sysfs notes:
 		undock.  Set to zero for normal wake-ups or wake-ups
 		due to unknown reasons.
 
+		This attribute has poll()/select() support.
+
 	wakeup_hotunplug_complete:
 		Set to 1 if the system was waken up because of an
 		undock or bay ejection request, and that request
@@ -339,6 +343,8 @@ sysfs notes:
 		be useful to send the system back to sleep, at the
 		user's choice.  Refer to HKEY events 0x4003 and
 		0x3003, below.
+
+		This attribute has poll()/select() support.
 
 input layer notes:
 
@@ -1354,3 +1360,6 @@ Sysfs interface changelog:
 		NVRAM polling patch).  Some development snapshots of
 		0.18 had an earlier version that did strange things
 		to hotkey_mask.
+
+0x020200:	Add poll()/select() support to the following attributes:
+		hotkey_radio_sw, wakeup_hotunplug_complete, wakeup_reason
