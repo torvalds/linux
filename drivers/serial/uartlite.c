@@ -539,7 +539,7 @@ static int __devinit ulite_assign(struct device *dev, int id, u32 base, int irq)
  *
  * @dev: pointer to device structure
  */
-static int __devinit ulite_release(struct device *dev)
+static int __devexit ulite_release(struct device *dev)
 {
 	struct uart_port *port = dev_get_drvdata(dev);
 	int rc = 0;
@@ -572,14 +572,14 @@ static int __devinit ulite_probe(struct platform_device *pdev)
 	return ulite_assign(&pdev->dev, pdev->id, res->start, res2->start);
 }
 
-static int ulite_remove(struct platform_device *pdev)
+static int __devexit ulite_remove(struct platform_device *pdev)
 {
 	return ulite_release(&pdev->dev);
 }
 
 static struct platform_driver ulite_platform_driver = {
 	.probe	= ulite_probe,
-	.remove	= ulite_remove,
+	.remove	= __devexit_p(ulite_remove),
 	.driver	= {
 		   .owner = THIS_MODULE,
 		   .name  = "uartlite",
