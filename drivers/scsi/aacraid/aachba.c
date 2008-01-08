@@ -1240,24 +1240,24 @@ int aac_get_adapter_info(struct aac_dev* dev)
 	memcpy(&dev->adapter_info, info, sizeof(*info));
 
 	if (dev->adapter_info.options & AAC_OPT_SUPPLEMENT_ADAPTER_INFO) {
-		struct aac_supplement_adapter_info * info;
+		struct aac_supplement_adapter_info * sinfo;
 
 		aac_fib_init(fibptr);
 
-		info = (struct aac_supplement_adapter_info *) fib_data(fibptr);
+		sinfo = (struct aac_supplement_adapter_info *) fib_data(fibptr);
 
-		memset(info,0,sizeof(*info));
+		memset(sinfo,0,sizeof(*sinfo));
 
 		rcode = aac_fib_send(RequestSupplementAdapterInfo,
 				 fibptr,
-				 sizeof(*info),
+				 sizeof(*sinfo),
 				 FsaNormal,
 				 1, 1,
 				 NULL,
 				 NULL);
 
 		if (rcode >= 0)
-			memcpy(&dev->supplement_adapter_info, info, sizeof(*info));
+			memcpy(&dev->supplement_adapter_info, sinfo, sizeof(*sinfo));
 	}
 
 
