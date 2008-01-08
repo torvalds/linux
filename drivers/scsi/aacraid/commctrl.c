@@ -275,7 +275,6 @@ static int next_getadapter_fib(struct aac_dev * dev, void __user *arg)
 	 */
 return_fib:
 	if (!list_empty(&fibctx->fib_list)) {
-		struct list_head * entry;
 		/*
 		 *	Pull the next fib from the fibs
 		 */
@@ -582,7 +581,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 				void* p;
 				/* Does this really need to be GFP_DMA? */
 				p = kmalloc(upsg->sg[i].count,GFP_KERNEL|__GFP_DMA);
-				if(p == 0) {
+				if(!p) {
 					dprintk((KERN_DEBUG"aacraid: Could not allocate SG buffer - size = %d buffer number %d of %d\n",
 					  upsg->sg[i].count,i,upsg->count));
 					rcode = -ENOMEM;
@@ -626,7 +625,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 				void* p;
 				/* Does this really need to be GFP_DMA? */
 				p = kmalloc(usg->sg[i].count,GFP_KERNEL|__GFP_DMA);
-				if(p == 0) {
+				if(!p) {
 					kfree (usg);
 					dprintk((KERN_DEBUG"aacraid: Could not allocate SG buffer - size = %d buffer number %d of %d\n",
 					  usg->sg[i].count,i,usg->count));
@@ -668,7 +667,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 				void* p;
 				/* Does this really need to be GFP_DMA? */
 				p = kmalloc(usg->sg[i].count,GFP_KERNEL|__GFP_DMA);
-				if(p == 0) {
+				if(!p) {
 					dprintk((KERN_DEBUG"aacraid: Could not allocate SG buffer - size = %d buffer number %d of %d\n",
 					  usg->sg[i].count,i,usg->count));
 					rcode = -ENOMEM;
@@ -698,7 +697,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 				dma_addr_t addr;
 				void* p;
 				p = kmalloc(upsg->sg[i].count, GFP_KERNEL);
-				if(p == 0) {
+				if (!p) {
 					dprintk((KERN_DEBUG"aacraid: Could not allocate SG buffer - size = %d buffer number %d of %d\n",
 					  upsg->sg[i].count, i, upsg->count));
 					rcode = -ENOMEM;
