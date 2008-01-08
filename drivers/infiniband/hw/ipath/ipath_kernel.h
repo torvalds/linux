@@ -824,6 +824,9 @@ int ipath_set_rx_pol_inv(struct ipath_devdata *dd, u8 new_pol_inv);
 		/* Use GPIO interrupts for new counters */
 #define IPATH_GPIO_ERRINTRS 0x100000
 #define IPATH_SWAP_PIOBUFS  0x200000
+		/* Suppress heartbeat, even if turning off loopback */
+#define IPATH_NO_HRTBT      0x1000000
+#define IPATH_HAS_MULT_IB_SPEED 0x8000000
 
 /* Bits in GPIO for the added interrupts */
 #define IPATH_GPIO_PORT0_BIT 2
