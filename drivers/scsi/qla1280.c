@@ -3041,7 +3041,6 @@ qla1280_32bit_start_scsi(struct scsi_qla_host *ha, struct srb * sp)
 	int cnt;
 	int req_cnt;
 	int seg_cnt;
-	dma_addr_t dma_handle;
 	u8 dir;
 
 	ENTER("qla1280_32bit_start_scsi");
@@ -3050,6 +3049,7 @@ qla1280_32bit_start_scsi(struct scsi_qla_host *ha, struct srb * sp)
 		cmd->cmnd[0]);
 
 	/* Calculate number of entries and segments required. */
+	req_cnt = 1;
 	seg_cnt = scsi_dma_map(cmd);
 	if (seg_cnt) {
 		/*
