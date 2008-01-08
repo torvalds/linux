@@ -1451,112 +1451,13 @@ int snd_pcm_lib_ioctl(struct snd_pcm_substream *substream,
 
 EXPORT_SYMBOL(snd_pcm_lib_ioctl);
 
-/*
- *  Conditions
- */
-
-static void snd_pcm_system_tick_set(struct snd_pcm_substream *substream, 
-				    unsigned long ticks)
-{
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	if (ticks == 0)
-		del_timer(&runtime->tick_timer);
-	else {
-		ticks += (1000000 / HZ) - 1;
-		ticks /= (1000000 / HZ);
-		mod_timer(&runtime->tick_timer, jiffies + ticks);
-	}
-}
-
-/* Temporary alias */
-void snd_pcm_tick_set(struct snd_pcm_substream *substream, unsigned long ticks)
-{
-	snd_pcm_system_tick_set(substream, ticks);
-}
-
-void snd_pcm_tick_prepare(struct snd_pcm_substream *substream)
-{
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	snd_pcm_uframes_t frames = ULONG_MAX;
-	snd_pcm_uframes_t avail, dist;
-	unsigned int ticks;
-	u_int64_t n;
-	u_int32_t r;
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		if (runtime->silence_size >= runtime->boundary) {
-			frames = 1;
-		} else if (runtime->silence_size > 0 &&
-			   runtime->silence_filled < runtime->buffer_size) {
-			snd_pcm_sframes_t noise_dist;
-			noise_dist = snd_pcm_playback_hw_avail(runtime) + runtime->silence_filled;
-			if (noise_dist > (snd_pcm_sframes_t)runtime->silence_threshold)
-				frames = noise_dist - runtime->silence_threshold;
-		}
-		avail = snd_pcm_playback_avail(runtime);
-	} else {
-		avail = snd_pcm_capture_avail(runtime);
-	}
-	if (avail < runtime->control->avail_min) {
-		snd_pcm_sframes_t to_avail_min =
-			runtime->control->avail_min - avail;
-		if (to_avail_min > 0 &&
-		    frames > (snd_pcm_uframes_t)to_avail_min)
-			frames = to_avail_min;
-	}
-	if (avail < runtime->buffer_size) {
-		snd_pcm_sframes_t to_buffer_size =
-			runtime->buffer_size - avail;
-		if (to_buffer_size > 0 &&
-		    frames > (snd_pcm_uframes_t)to_buffer_size)
-			frames = to_buffer_size;
-	}
-	if (frames == ULONG_MAX) {
-		snd_pcm_tick_set(substream, 0);
-		return;
-	}
-	dist = runtime->status->hw_ptr - runtime->hw_ptr_base;
-	/* Distance to next interrupt */
-	dist = runtime->period_size - dist % runtime->period_size;
-	if (dist <= frames) {
-		snd_pcm_tick_set(substream, 0);
-		return;
-	}
-	/* the base time is us */
-	n = frames;
-	n *= 1000000;
-	div64_32(&n, runtime->tick_time * runtime->rate, &r);
-	ticks = n + (r > 0 ? 1 : 0);
-	if (ticks < runtime->sleep_min)
-		ticks = runtime->sleep_min;
-	snd_pcm_tick_set(substream, (unsigned long) ticks);
-}
-
-void snd_pcm_tick_elapsed(struct snd_pcm_substream *substream)
-{
-	struct snd_pcm_runtime *runtime;
-	unsigned long flags;
-	
-	snd_assert(substream != NULL, return);
-	runtime = substream->runtime;
-	snd_assert(runtime != NULL, return);
-
-	snd_pcm_stream_lock_irqsave(substream, flags);
-	if (!snd_pcm_running(substream) ||
-	    snd_pcm_update_hw_ptr(substream) < 0)
-		goto _end;
-	if (runtime->sleep_min)
-		snd_pcm_tick_prepare(substream);
- _end:
-	snd_pcm_stream_unlock_irqrestore(substream, flags);
-}
-
 /**
  * snd_pcm_period_elapsed - update the pcm status for the next period
  * @substream: the pcm substream instance
  *
  * This function is called from the interrupt handler when the
  * PCM has processed the period size.  It will update the current
- * pointer, set up the tick, wake up sleepers, etc.
+ * pointer, wake up sleepers, etc.
  *
  * Even if more than one periods have elapsed since the last call, you
  * have to call this only once.
@@ -1580,8 +1481,6 @@ void snd_pcm_period_elapsed(struct snd_pcm_substream *substream)
 
 	if (substream->timer_running)
 		snd_timer_interrupt(substream->timer, 1);
-	if (runtime->sleep_min)
-		snd_pcm_tick_prepare(substream);
  _end:
 	snd_pcm_stream_unlock_irqrestore(substream, flags);
 	if (runtime->transfer_ack_end)
@@ -1715,7 +1614,7 @@ static snd_pcm_sframes_t snd_pcm_lib_write1(struct snd_pcm_substream *substream,
 		snd_pcm_uframes_t frames, appl_ptr, appl_ofs;
 		snd_pcm_uframes_t avail;
 		snd_pcm_uframes_t cont;
-		if (runtime->sleep_min == 0 && runtime->status->state == SNDRV_PCM_STATE_RUNNING)
+		if (runtime->status->state == SNDRV_PCM_STATE_RUNNING)
 			snd_pcm_update_hw_ptr(substream);
 		avail = snd_pcm_playback_avail(runtime);
 		if (!avail) {
@@ -1764,9 +1663,6 @@ static snd_pcm_sframes_t snd_pcm_lib_write1(struct snd_pcm_substream *substream,
 			if (err < 0)
 				goto _end_unlock;
 		}
-		if (runtime->sleep_min &&
-		    runtime->status->state == SNDRV_PCM_STATE_RUNNING)
-			snd_pcm_tick_prepare(substream);
 	}
  _end_unlock:
 	snd_pcm_stream_unlock_irq(substream);
@@ -1923,7 +1819,7 @@ static snd_pcm_sframes_t snd_pcm_lib_read1(struct snd_pcm_substream *substream,
 		snd_pcm_uframes_t frames, appl_ptr, appl_ofs;
 		snd_pcm_uframes_t avail;
 		snd_pcm_uframes_t cont;
-		if (runtime->sleep_min == 0 && runtime->status->state == SNDRV_PCM_STATE_RUNNING)
+		if (runtime->status->state == SNDRV_PCM_STATE_RUNNING)
 			snd_pcm_update_hw_ptr(substream);
 		avail = snd_pcm_capture_avail(runtime);
 		if (!avail) {
@@ -1973,9 +1869,6 @@ static snd_pcm_sframes_t snd_pcm_lib_read1(struct snd_pcm_substream *substream,
 		offset += frames;
 		size -= frames;
 		xfer += frames;
-		if (runtime->sleep_min &&
-		    runtime->status->state == SNDRV_PCM_STATE_RUNNING)
-			snd_pcm_tick_prepare(substream);
 	}
  _end_unlock:
 	snd_pcm_stream_unlock_irq(substream);

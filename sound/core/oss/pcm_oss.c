@@ -985,7 +985,6 @@ static int snd_pcm_oss_change_params(struct snd_pcm_substream *substream)
 		sw_params->stop_threshold = runtime->buffer_size;
 	sw_params->tstamp_mode = SNDRV_PCM_TSTAMP_NONE;
 	sw_params->period_step = 1;
-	sw_params->sleep_min = 0;
 	sw_params->avail_min = substream->stream == SNDRV_PCM_STREAM_PLAYBACK ?
 		1 : runtime->period_size;
 	if (atomic_read(&substream->mmap_count) ||

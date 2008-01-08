@@ -274,7 +274,6 @@ struct snd_pcm_runtime {
 	snd_pcm_uframes_t period_size;	/* period size */
 	unsigned int periods;		/* periods */
 	snd_pcm_uframes_t buffer_size;	/* buffer size */
-	unsigned int tick_time;		/* tick time */
 	snd_pcm_uframes_t min_align;	/* Min alignment for the format */
 	size_t byte_align;
 	unsigned int frame_bits;
@@ -286,7 +285,6 @@ struct snd_pcm_runtime {
 	/* -- SW params -- */
 	int tstamp_mode;		/* mmap timestamp is updated */
   	unsigned int period_step;
-	unsigned int sleep_min;		/* min ticks to sleep */
 	snd_pcm_uframes_t start_threshold;
 	snd_pcm_uframes_t stop_threshold;
 	snd_pcm_uframes_t silence_threshold; /* Silence filling happens when
@@ -305,7 +303,6 @@ struct snd_pcm_runtime {
 
 	/* -- locking / scheduling -- */
 	wait_queue_head_t sleep;
-	struct timer_list tick_timer;
 	struct fasync_struct *fasync;
 
 	/* -- private section -- */
@@ -810,7 +807,6 @@ static inline const struct snd_interval *hw_param_interval_c(const struct snd_pc
 #define params_periods(p) hw_param_interval((p), SNDRV_PCM_HW_PARAM_PERIODS)->min
 #define params_buffer_size(p) hw_param_interval((p), SNDRV_PCM_HW_PARAM_BUFFER_SIZE)->min
 #define params_buffer_bytes(p) hw_param_interval((p), SNDRV_PCM_HW_PARAM_BUFFER_BYTES)->min
-#define params_tick_time(p) hw_param_interval((p), SNDRV_PCM_HW_PARAM_TICK_TIME)->min
 
 
 int snd_interval_refine(struct snd_interval *i, const struct snd_interval *v);
@@ -908,9 +904,6 @@ int snd_pcm_capture_xrun_check(struct snd_pcm_substream *substream);
 int snd_pcm_playback_xrun_asap(struct snd_pcm_substream *substream);
 int snd_pcm_capture_xrun_asap(struct snd_pcm_substream *substream);
 void snd_pcm_playback_silence(struct snd_pcm_substream *substream, snd_pcm_uframes_t new_hw_ptr);
-void snd_pcm_tick_prepare(struct snd_pcm_substream *substream);
-void snd_pcm_tick_set(struct snd_pcm_substream *substream, unsigned long ticks);
-void snd_pcm_tick_elapsed(struct snd_pcm_substream *substream);
 void snd_pcm_period_elapsed(struct snd_pcm_substream *substream);
 snd_pcm_sframes_t snd_pcm_lib_write(struct snd_pcm_substream *substream,
 				    const void __user *buf,
