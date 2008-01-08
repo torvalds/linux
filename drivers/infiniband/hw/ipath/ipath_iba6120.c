@@ -329,6 +329,9 @@ static const struct ipath_cregs ipath_pe_cregs = {
 #define INFINIPATH_HWE_PCIE0PLLFAILED       0x0800000000000000ULL
 #define INFINIPATH_HWE_SERDESPLLFAILED      0x1000000000000000ULL
 
+#define IBA6120_IBCS_LINKTRAININGSTATE_MASK 0xf
+#define IBA6120_IBCS_LINKSTATE_SHIFT 4
+
 /* kr_extstatus bits */
 #define INFINIPATH_EXTS_FREQSEL 0x2
 #define INFINIPATH_EXTS_SERDESSEL 0x4
@@ -936,11 +939,26 @@ static int ipath_setup_pe_config(struct ipath_devdata *dd,
 	else
 		ipath_dev_err(dd, "Can't find PCI Express "
 			      "capability!\n");
+
+	dd->ipath_link_width_supported = IB_WIDTH_1X | IB_WIDTH_4X;
+	dd->ipath_link_speed_supported = IPATH_IB_SDR;
+	dd->ipath_link_width_enabled = IB_WIDTH_4X;
+	dd->ipath_link_speed_enabled = dd->ipath_link_speed_supported;
+	/* these can't change for this chip, so set once */
+	dd->ipath_link_width_active = dd->ipath_link_width_enabled;
+	dd->ipath_link_speed_active = dd->ipath_link_speed_enabled;
 	return 0;
 }
 
 static void ipath_init_pe_variables(struct ipath_devdata *dd)
 {
+	/*
+	 * setup the register offsets, since they are different for each
+	 * chip
+	 */
+	dd->ipath_kregs = &ipath_pe_kregs;
+	dd->ipath_cregs = &ipath_pe_cregs;
+
 	/*
 	 * bits for selecting i2c direction and values,
 	 * used for I2C serial flash
@@ -949,6 +967,37 @@ static void ipath_init_pe_variables(struct ipath_devdata *dd)
 	dd->ipath_gpio_scl_num = _IPATH_GPIO_SCL_NUM;
 	dd->ipath_gpio_sda = IPATH_GPIO_SDA;
 	dd->ipath_gpio_scl = IPATH_GPIO_SCL;
+
+	/*
+	 * Fill in data for field-values that change in newer chips.
+	 * We dynamically specify only the mask for LINKTRAININGSTATE
+	 * and only the shift for LINKSTATE, as they are the only ones
+	 * that change.  Also precalculate the 3 link states of interest
+	 * and the combined mask.
+	 */
+	dd->ibcs_ls_shift = IBA6120_IBCS_LINKSTATE_SHIFT;
+	dd->ibcs_lts_mask = IBA6120_IBCS_LINKTRAININGSTATE_MASK;
+	dd->ibcs_mask = (INFINIPATH_IBCS_LINKSTATE_MASK <<
+		dd->ibcs_ls_shift) | dd->ibcs_lts_mask;
+	dd->ib_init = (INFINIPATH_IBCS_LT_STATE_LINKUP <<
+		INFINIPATH_IBCS_LINKTRAININGSTATE_SHIFT) |
+		(INFINIPATH_IBCS_L_STATE_INIT << dd->ibcs_ls_shift);
+	dd->ib_arm = (INFINIPATH_IBCS_LT_STATE_LINKUP <<
+		INFINIPATH_IBCS_LINKTRAININGSTATE_SHIFT) |
+		(INFINIPATH_IBCS_L_STATE_ARM << dd->ibcs_ls_shift);
+	dd->ib_active = (INFINIPATH_IBCS_LT_STATE_LINKUP <<
+		INFINIPATH_IBCS_LINKTRAININGSTATE_SHIFT) |
+		(INFINIPATH_IBCS_L_STATE_ACTIVE << dd->ibcs_ls_shift);
+
+	/*
+	 * Fill in data for ibcc field-values that change in newer chips.
+	 * We dynamically specify only the mask for LINKINITCMD
+	 * and only the shift for LINKCMD and MAXPKTLEN, as they are
+	 * the only ones that change.
+	 */
+	dd->ibcc_lic_mask = INFINIPATH_IBCC_LINKINITCMD_MASK;
+	dd->ibcc_lc_shift = INFINIPATH_IBCC_LINKCMD_SHIFT;
+	dd->ibcc_mpl_shift = INFINIPATH_IBCC_MAXPKTLEN_SHIFT;
 
 	/* Fill in shifts for RcvCtrl. */
 	dd->ipath_r_portenable_shift = INFINIPATH_R_PORTENABLE_SHIFT;
@@ -1003,6 +1052,8 @@ static void ipath_init_pe_variables(struct ipath_devdata *dd)
 
 	dd->ipath_i_rcvavail_mask = INFINIPATH_I_RCVAVAIL_MASK;
 	dd->ipath_i_rcvurg_mask = INFINIPATH_I_RCVURG_MASK;
+	dd->ipath_i_rcvavail_shift = INFINIPATH_I_RCVAVAIL_SHIFT;
+	dd->ipath_i_rcvurg_shift = INFINIPATH_I_RCVURG_SHIFT;
 
 	/*
 	 * EEPROM error log 0 is TXE Parity errors. 1 is RXE Parity.
@@ -1024,6 +1075,7 @@ static void ipath_init_pe_variables(struct ipath_devdata *dd)
 		INFINIPATH_E_INVALIDADDR | INFINIPATH_E_RESET;
 
 
+	dd->delay_mult = 2; /* SDR, 4X, can't change */
 }
 
 /* setup the MSI stuff again after a reset.  I'd like to just call
@@ -1329,6 +1381,9 @@ static int ipath_pe_early_init(struct ipath_devdata *dd)
 	 */
 	dd->ipath_rcvhdrentsize = 24;
 	dd->ipath_rcvhdrsize = IPATH_DFLT_RCVHDRSIZE;
+	dd->ipath_rhf_offset = 0;
+	dd->ipath_egrtidbase = (u64 __iomem *)
+		((char __iomem *) dd->ipath_kregbase + dd->ipath_rcvegrbase);
 
 	/*
 	 * To truly support a 4KB MTU (for usermode), we need to
@@ -1397,6 +1452,14 @@ static void ipath_pe_free_irq(struct ipath_devdata *dd)
 {
 	free_irq(dd->ipath_irq, dd);
 	dd->ipath_irq = 0;
+}
+
+
+static struct ipath_message_header *
+ipath_pe_get_msgheader(struct ipath_devdata *dd, __le32 *rhf_addr)
+{
+	return (struct ipath_message_header *)
+		&rhf_addr[sizeof(u64) / sizeof(u32)];
 }
 
 static void ipath_pe_config_ports(struct ipath_devdata *dd, ushort cfgports)
@@ -1534,6 +1597,88 @@ static int ipath_pe_txe_recover(struct ipath_devdata *dd)
 	return 1;
 }
 
+/* no interrupt fallback for these chips */
+static int ipath_pe_nointr_fallback(struct ipath_devdata *dd)
+{
+	return 0;
+}
+
+
+/*
+ * reset the XGXS (between serdes and IBC).  Slightly less intrusive
+ * than resetting the IBC or external link state, and useful in some
+ * cases to cause some retraining.  To do this right, we reset IBC
+ * as well.
+ */
+static void ipath_pe_xgxs_reset(struct ipath_devdata *dd)
+{
+	u64 val, prev_val;
+
+	prev_val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_xgxsconfig);
+	val = prev_val | INFINIPATH_XGXS_RESET;
+	prev_val &= ~INFINIPATH_XGXS_RESET; /* be sure */
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_control,
+			 dd->ipath_control & ~INFINIPATH_C_LINKENABLE);
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_xgxsconfig, val);
+	ipath_read_kreg32(dd, dd->ipath_kregs->kr_scratch);
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_xgxsconfig, prev_val);
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_control,
+			 dd->ipath_control);
+}
+
+
+static int ipath_pe_get_ib_cfg(struct ipath_devdata *dd, int which)
+{
+	int ret;
+
+	switch (which) {
+	case IPATH_IB_CFG_LWID:
+		ret = dd->ipath_link_width_active;
+		break;
+	case IPATH_IB_CFG_SPD:
+		ret = dd->ipath_link_speed_active;
+		break;
+	case IPATH_IB_CFG_LWID_ENB:
+		ret = dd->ipath_link_width_enabled;
+		break;
+	case IPATH_IB_CFG_SPD_ENB:
+		ret = dd->ipath_link_speed_enabled;
+		break;
+	default:
+		ret =  -ENOTSUPP;
+		break;
+	}
+	return ret;
+}
+
+
+/* we assume range checking is already done, if needed */
+static int ipath_pe_set_ib_cfg(struct ipath_devdata *dd, int which, u32 val)
+{
+	int ret = 0;
+
+	if (which == IPATH_IB_CFG_LWID_ENB)
+		dd->ipath_link_width_enabled = val;
+	else if (which == IPATH_IB_CFG_SPD_ENB)
+		dd->ipath_link_speed_enabled = val;
+	else
+		ret = -ENOTSUPP;
+	return ret;
+}
+
+static void ipath_pe_config_jint(struct ipath_devdata *dd, u16 a, u16 b)
+{
+}
+
+
+static int ipath_pe_ib_updown(struct ipath_devdata *dd, int ibup, u64 ibcs)
+{
+	ipath_setup_pe_setextled(dd, ipath_ib_linkstate(dd, ibcs),
+		ipath_ib_linktrstate(dd, ibcs));
+	return 0;
+}
+
+
 /**
  * ipath_init_iba6120_funcs - set up the chip-specific function pointers
  * @dd: the infinipath device
@@ -1554,7 +1699,7 @@ void ipath_init_iba6120_funcs(struct ipath_devdata *dd)
 	dd->ipath_f_bringup_serdes = ipath_pe_bringup_serdes;
 	dd->ipath_f_clear_tids = ipath_pe_clear_tids;
 	/*
-	 * this may get changed after we read the chip revision,
+	 * _f_put_tid may get changed after we read the chip revision,
 	 * but we start with the safe version for all revs
 	 */
 	dd->ipath_f_put_tid = ipath_pe_put_tid;
@@ -1562,19 +1707,19 @@ void ipath_init_iba6120_funcs(struct ipath_devdata *dd)
 	dd->ipath_f_setextled = ipath_setup_pe_setextled;
 	dd->ipath_f_get_base_info = ipath_pe_get_base_info;
 	dd->ipath_f_free_irq = ipath_pe_free_irq;
-
-	/* initialize chip-specific variables */
 	dd->ipath_f_tidtemplate = ipath_pe_tidtemplate;
+	dd->ipath_f_intr_fallback = ipath_pe_nointr_fallback;
+	dd->ipath_f_xgxs_reset = ipath_pe_xgxs_reset;
+	dd->ipath_f_get_msgheader = ipath_pe_get_msgheader;
 	dd->ipath_f_config_ports = ipath_pe_config_ports;
 	dd->ipath_f_read_counters = ipath_pe_read_counters;
+	dd->ipath_f_get_ib_cfg = ipath_pe_get_ib_cfg;
+	dd->ipath_f_set_ib_cfg = ipath_pe_set_ib_cfg;
+	dd->ipath_f_config_jint = ipath_pe_config_jint;
+	dd->ipath_f_ib_updown = ipath_pe_ib_updown;
 
-	/*
-	 * setup the register offsets, since they are different for each
-	 * chip
-	 */
-	dd->ipath_kregs = &ipath_pe_kregs;
-	dd->ipath_cregs = &ipath_pe_cregs;
 
+	/* initialize chip-specific variables */
 	ipath_init_pe_variables(dd);
 }
 

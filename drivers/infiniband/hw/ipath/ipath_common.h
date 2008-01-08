@@ -82,6 +82,16 @@
 #define IPATH_IB_LINK_EXTERNAL	7 /* normal, disable local loopback */
 
 /*
+ * These 3 values (SDR and DDR may be ORed for auto-speed
+ * negotiation) are used for the 3rd argument to path_f_set_ib_cfg
+ * with cmd IPATH_IB_CFG_SPD_ENB, by direct calls or via sysfs.  They
+ * are also the the possible values for ipath_link_speed_enabled and active
+ * The values were chosen to match values used within the IB spec.
+ */
+#define IPATH_IB_SDR 1
+#define IPATH_IB_DDR 2
+
+/*
  * stats maintained by the driver.  For now, at least, this is global
  * to all minor devices.
  */

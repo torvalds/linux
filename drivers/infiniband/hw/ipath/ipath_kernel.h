@@ -191,6 +191,22 @@ struct ipath_skbinfo {
 	dma_addr_t phys;
 };
 
+/*
+ * Possible IB config parameters for ipath_f_get/set_ib_cfg()
+ */
+#define IPATH_IB_CFG_LIDLMC 0 /* Get/set LID (LS16b) and Mask (MS16b) */
+#define IPATH_IB_CFG_HRTBT 1 /* Get/set Heartbeat off/enable/auto */
+#define IPATH_IB_HRTBT_ON 3 /* Heartbeat enabled, sent every 100msec */
+#define IPATH_IB_HRTBT_OFF 0 /* Heartbeat off */
+#define IPATH_IB_CFG_LWID_ENB 2 /* Get/set allowed Link-width */
+#define IPATH_IB_CFG_LWID 3 /* Get currently active Link-width */
+#define IPATH_IB_CFG_SPD_ENB 4 /* Get/set allowed Link speeds */
+#define IPATH_IB_CFG_SPD 5 /* Get current Link spd */
+#define IPATH_IB_CFG_RXPOL_ENB 6 /* Get/set Auto-RX-polarity enable */
+#define IPATH_IB_CFG_LREV_ENB 7 /* Get/set Auto-Lane-reversal enable */
+#define IPATH_IB_CFG_LINKLATENCY 8 /* Get Auto-Lane-reversal enable */
+
+
 struct ipath_devdata {
 	struct list_head ipath_list;
 
@@ -231,6 +247,8 @@ struct ipath_devdata {
 	struct _ipath_layer ipath_layer;
 	/* setup intr */
 	int (*ipath_f_intrsetup)(struct ipath_devdata *);
+	/* fallback to alternate interrupt type if possible */
+	int (*ipath_f_intr_fallback)(struct ipath_devdata *);
 	/* setup on-chip bus config */
 	int (*ipath_f_bus)(struct ipath_devdata *, struct pci_dev *);
 	/* hard reset chip */
@@ -253,9 +271,18 @@ struct ipath_devdata {
 	int (*ipath_f_get_base_info)(struct ipath_portdata *, void *);
 	/* free irq */
 	void (*ipath_f_free_irq)(struct ipath_devdata *);
+	struct ipath_message_header *(*ipath_f_get_msgheader)
+					(struct ipath_devdata *, __le32 *);
 	void (*ipath_f_config_ports)(struct ipath_devdata *, ushort);
+	int (*ipath_f_get_ib_cfg)(struct ipath_devdata *, int);
+	int (*ipath_f_set_ib_cfg)(struct ipath_devdata *, int, u32);
+	void (*ipath_f_config_jint)(struct ipath_devdata *, u16 , u16);
 	void (*ipath_f_read_counters)(struct ipath_devdata *,
-				      struct infinipath_counters *);
+					struct infinipath_counters *);
+	void (*ipath_f_xgxs_reset)(struct ipath_devdata *);
+	/* per chip actions needed for IB Link up/down changes */
+	int (*ipath_f_ib_updown)(struct ipath_devdata *, int, u64);
+
 	struct ipath_ibdev *verbs_dev;
 	struct timer_list verbs_timer;
 	/* total dwords sent (summed from counter) */
@@ -375,6 +402,7 @@ struct ipath_devdata {
 	struct page **ipath_pageshadow;
 	/* shadow copy of dma handles for exp tid pages */
 	dma_addr_t *ipath_physshadow;
+	u64 __iomem *ipath_egrtidbase;
 	/* lock to workaround chip bug 9437 */
 	spinlock_t ipath_tid_lock;
 	spinlock_t ipath_sendctrl_lock;
@@ -565,6 +593,14 @@ struct ipath_devdata {
 	u8 ipath_pci_cacheline;
 	/* LID mask control */
 	u8 ipath_lmc;
+	/* link width supported */
+	u8 ipath_link_width_supported;
+	/* link speed supported */
+	u8 ipath_link_speed_supported;
+	u8 ipath_link_width_enabled;
+	u8 ipath_link_speed_enabled;
+	u8 ipath_link_width_active;
+	u8 ipath_link_speed_active;
 	/* Rx Polarity inversion (compensate for ~tx on partner) */
 	u8 ipath_rx_pol_inv;
 
@@ -599,6 +635,8 @@ struct ipath_devdata {
 	 */
 	u32 ipath_i_rcvavail_mask;
 	u32 ipath_i_rcvurg_mask;
+	u16 ipath_i_rcvurg_shift;
+	u16 ipath_i_rcvavail_shift;
 
 	/*
 	 * Register bits for selecting i2c direction and values, used for
@@ -611,6 +649,29 @@ struct ipath_devdata {
 
 	/* lock for doing RMW of shadows/regs for ExtCtrl and GPIO */
 	spinlock_t ipath_gpio_lock;
+
+	/*
+	 * IB link and linktraining states and masks that vary per chip in
+	 * some way.  Set at init, to avoid each IB status change interrupt
+	 */
+	u8 ibcs_ls_shift;
+	u8 ibcs_lts_mask;
+	u32 ibcs_mask;
+	u32 ib_init;
+	u32 ib_arm;
+	u32 ib_active;
+
+	u16 ipath_rhf_offset; /* offset of RHF within receive header entry */
+
+	/*
+	 * shift/mask for linkcmd, linkinitcmd, maxpktlen in ibccontol
+	 * reg. Changes for IBA7220
+	 */
+	u8 ibcc_lic_mask; /* LinkInitCmd */
+	u8 ibcc_lc_shift; /* LinkCmd */
+	u8 ibcc_mpl_shift; /* Maxpktlen */
+
+	u8 delay_mult;
 
 	/* used to override LED behavior */
 	u8 ipath_led_override;  /* Substituted for normal value, if non-zero */
@@ -639,6 +700,10 @@ struct ipath_devdata {
 	 * each of the counters to increment.
 	 */
 	struct ipath_eep_log_mask ipath_eep_st_masks[IPATH_EEP_LOG_CNT];
+
+	/* interrupt mitigation reload register info */
+	u16 ipath_jint_idle_ticks;	/* idle clock ticks */
+	u16 ipath_jint_max_packets;	/* max packets across all ports */
 };
 
 /* Private data for file operations */
@@ -935,6 +1000,27 @@ static inline u64 ipath_read_ireg(const struct ipath_devdata *dd, ipath_kreg r)
 {
 	return (dd->ipath_flags & IPATH_INTREG_64) ?
 		ipath_read_kreg64(dd, r) : ipath_read_kreg32(dd, r);
+}
+
+/*
+ * from contents of IBCStatus (or a saved copy), return linkstate
+ * Report ACTIVE_DEFER as ACTIVE, because we treat them the same
+ * everywhere, anyway (and should be, for almost all purposes).
+ */
+static inline u32 ipath_ib_linkstate(struct ipath_devdata *dd, u64 ibcs)
+{
+	u32 state = (u32)(ibcs >> dd->ibcs_ls_shift) &
+		INFINIPATH_IBCS_LINKSTATE_MASK;
+	if (state == INFINIPATH_IBCS_L_STATE_ACT_DEFER)
+		state = INFINIPATH_IBCS_L_STATE_ACTIVE;
+	return state;
+}
+
+/* from contents of IBCStatus (or a saved copy), return linktrainingstate */
+static inline u32 ipath_ib_linktrstate(struct ipath_devdata *dd, u64 ibcs)
+{
+	return (u32)(ibcs >> INFINIPATH_IBCS_LINKTRAININGSTATE_SHIFT) &
+		dd->ibcs_lts_mask;
 }
 
 /*
