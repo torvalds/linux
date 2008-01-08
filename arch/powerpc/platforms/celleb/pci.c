@@ -31,6 +31,7 @@
 #include <linux/init.h>
 #include <linux/bootmem.h>
 #include <linux/pci_regs.h>
+#include <linux/of.h>
 #include <linux/of_device.h>
 
 #include <asm/io.h>

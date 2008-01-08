@@ -10,35 +10,6 @@
 #include <asm/errno.h>
 
 /**
- * of_match_node - Tell if an device_node has a matching of_match structure
- * @ids: array of of device match structures to search in
- * @node: the of device structure to match against
- *
- * Low level utility function used by device matching.
- */
-const struct of_device_id *of_match_node(const struct of_device_id *matches,
-					 const struct device_node *node)
-{
-	while (matches->name[0] || matches->type[0] || matches->compatible[0]) {
-		int match = 1;
-		if (matches->name[0])
-			match &= node->name
-				&& !strcmp(matches->name, node->name);
-		if (matches->type[0])
-			match &= node->type
-				&& !strcmp(matches->type, node->type);
-		if (matches->compatible[0])
-			match &= of_device_is_compatible(node,
-						matches->compatible);
-		if (match)
-			return matches;
-		matches++;
-	}
-	return NULL;
-}
-EXPORT_SYMBOL(of_match_node);
-
-/**
  * of_match_device - Tell if an of_device structure has a matching
  * of_match structure
  * @ids: array of of device match structures to search in

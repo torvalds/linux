@@ -72,7 +72,8 @@
 #include <asm/io.h>
 
 #if defined(CONFIG_PPC_MERGE)
-#include <asm/of_platform.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
 #else
 #include <linux/platform_device.h>
 #endif
