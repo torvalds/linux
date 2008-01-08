@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/sysdev.h>
 
 #include <asm/hardware.h>
 #include <asm/arch/mfp.h>
@@ -87,8 +88,13 @@ static inline void __mfp_config_run(struct pxa3xx_mfp_pin *p)
 
 static inline void __mfp_config_lpm(struct pxa3xx_mfp_pin *p)
 {
-	if (mfp_configured(p) && p->mfpr_lpm != p->mfpr_run)
-		mfpr_writel(p->mfpr_off, p->mfpr_lpm);
+	if (mfp_configured(p)) {
+		unsigned long mfpr_clr = (p->mfpr_run & ~MFPR_EDGE_BOTH) | MFPR_EDGE_CLEAR;
+		if (mfpr_clr != p->mfpr_run)
+			mfpr_writel(p->mfpr_off, mfpr_clr);
+		if (p->mfpr_lpm != mfpr_clr)
+			mfpr_writel(p->mfpr_off, p->mfpr_lpm);
+	}
 }
 
 void pxa3xx_mfp_config(unsigned long *mfp_cfgs, int num)
@@ -189,3 +195,52 @@ void __init pxa3xx_init_mfp(void)
 	for (i = 0; i < ARRAY_SIZE(mfp_table); i++)
 		mfp_table[i].config = -1;
 }
+
+#ifdef CONFIG_PM
+/*
+ * Configure the MFPs appropriately for suspend/resume.
+ * FIXME: this should probably depend on which system state we're
+ * entering - for instance, we might not want to place MFP pins in
+ * a pull-down mode if they're an active low chip select, and we're
+ * just entering standby.
+ */
+static int pxa3xx_mfp_suspend(struct sys_device *d, pm_message_t state)
+{
+	int pin;
+
+	for (pin = 0; pin < ARRAY_SIZE(mfp_table); pin++) {
+		struct pxa3xx_mfp_pin *p = &mfp_table[pin];
+		__mfp_config_lpm(p);
+	}
+	return 0;
+}
+
+static int pxa3xx_mfp_resume(struct sys_device *d)
+{
+	int pin;
+
+	for (pin = 0; pin < ARRAY_SIZE(mfp_table); pin++) {
+		struct pxa3xx_mfp_pin *p = &mfp_table[pin];
+		__mfp_config_run(p);
+	}
+	return 0;
+}
+
+static struct sysdev_class mfp_sysclass = {
+	set_kset_name("mfp"),
+	.suspend	= pxa3xx_mfp_suspend,
+	.resume 	= pxa3xx_mfp_resume,
+};
+
+static struct sys_device mfp_device = {
+	.id		= 0,
+	.cls		= &mfp_sysclass,
+};
+
+static int __init mfp_init_devicefs(void)
+{
+	sysdev_class_register(&mfp_sysclass);
+	return sysdev_register(&mfp_device);
+}
+device_initcall(mfp_init_devicefs);
+#endif
