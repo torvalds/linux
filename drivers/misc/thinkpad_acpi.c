@@ -2127,10 +2127,13 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 			}
 			break;
 		case 5:
-			/* 0x5000-0x5FFF: On screen display helpers */
+			/* 0x5000-0x5FFF: human interface helpers */
 			switch (hkey) {
-			case 0x5010:
-				/* Lenovo Vista BIOS: brightness changed */
+			case 0x5010: /* Lenovo new BIOS: brightness changed */
+			case 0x5009: /* X61t: swivel up (tablet mode) */
+			case 0x500a: /* X61t: swivel down (normal mode) */
+			case 0x500b: /* X61t: tablet pen inserted into bay */
+			case 0x500c: /* X61t: tablet pen removed from bay */
 				break;
 			case 0x5001:
 			case 0x5002:
