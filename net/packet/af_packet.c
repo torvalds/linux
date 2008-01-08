@@ -1870,6 +1870,7 @@ static inline struct sock *packet_seq_idx(struct net *net, loff_t off)
 }
 
 static void *packet_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(seq_file_net(seq)->packet.sklist_lock)
 {
 	struct net *net = seq_file_net(seq);
 	read_lock(&net->packet.sklist_lock);
@@ -1886,6 +1887,7 @@ static void *packet_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void packet_seq_stop(struct seq_file *seq, void *v)
+	__releases(seq_file_net(seq)->packet.sklist_lock)
 {
 	struct net *net = seq_file_net(seq);
 	read_unlock(&net->packet.sklist_lock);
