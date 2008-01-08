@@ -120,6 +120,7 @@ unsigned int aac_response_normal(struct aac_queue * q)
 			 *	NOTE:  we cannot touch the fib after this
 			 *	    call, because it may have been deallocated.
 			 */
+			fib->flags = 0;
 			fib->callback(fib->callback_data, fib);
 		} else {
 			unsigned long flagv;
@@ -229,7 +230,7 @@ unsigned int aac_command_normal(struct aac_queue *q)
  *	all QE there are and wake up all the waiters before exiting.
  */
 
-unsigned int aac_intr_normal(struct aac_dev *dev, u32 index)
+unsigned int aac_intr_normal(struct aac_dev * dev, u32 index)
 {
 	dprintk((KERN_INFO "aac_intr_normal(%p,%x)\n", dev, index));
 	if ((index & 0x00000002L)) {
@@ -313,6 +314,7 @@ unsigned int aac_intr_normal(struct aac_dev *dev, u32 index)
 			 *	NOTE:  we cannot touch the fib after this
 			 *	    call, because it may have been deallocated.
 			 */
+			fib->flags = 0;
 			fib->callback(fib->callback_data, fib);
 		} else {
 			unsigned long flagv;

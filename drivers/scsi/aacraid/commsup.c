@@ -171,6 +171,7 @@ struct fib *aac_fib_alloc(struct aac_dev *dev)
 	 *	each I/O
 	 */
 	fibptr->hw_fib_va->header.XferState = 0;
+	fibptr->flags = 0;
 	fibptr->callback = NULL;
 	fibptr->callback_data = NULL;
 
@@ -402,6 +403,7 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 	 *	will have a debug mode where the adapter can notify the host
 	 *	it had a problem and the host can log that fact.
 	 */
+	fibptr->flags = 0;
 	if (wait && !reply) {
 		return -EINVAL;
 	} else if (!wait && reply) {
@@ -450,10 +452,10 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 	if (!wait) {
 		fibptr->callback = callback;
 		fibptr->callback_data = callback_data;
+		fibptr->flags = FIB_CONTEXT_FLAG;
 	}
 
 	fibptr->done = 0;
-	fibptr->flags = 0;
 
 	FIB_COUNTER_INCREMENT(aac_config.FibsSent);
 

@@ -1073,6 +1073,7 @@ struct aac_dev
 	(dev)->a_ops.adapter_comm(dev, comm)
 
 #define FIB_CONTEXT_FLAG_TIMED_OUT		(0x00000001)
+#define FIB_CONTEXT_FLAG			(0x00000002)
 
 /*
  *	Define the command values
