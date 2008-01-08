@@ -27,8 +27,8 @@ static int sis_fetch_size(void)
 	values = A_SIZE_8(agp_bridge->driver->aperture_sizes);
 	for (i = 0; i < agp_bridge->driver->num_aperture_sizes; i++) {
 		if ((temp_size == values[i].size_value) ||
-		    ((temp_size & ~(0x03)) ==
-		     (values[i].size_value & ~(0x03)))) {
+		    ((temp_size & ~(0x07)) ==
+		     (values[i].size_value & ~(0x07)))) {
 			agp_bridge->previous_size =
 			    agp_bridge->current_size = (void *) (values + i);
 
