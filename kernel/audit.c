@@ -70,6 +70,7 @@ static int	audit_initialized;
 #define AUDIT_ON	1
 #define AUDIT_LOCKED	2
 int		audit_enabled;
+int		audit_ever_enabled;
 
 /* Default state when kernel boots without any parameters. */
 static int	audit_default;
@@ -310,11 +311,17 @@ static int audit_set_backlog_limit(int limit, uid_t loginuid, u32 sid)
 
 static int audit_set_enabled(int state, uid_t loginuid, u32 sid)
 {
+	int rc;
 	if (state < AUDIT_OFF || state > AUDIT_LOCKED)
 		return -EINVAL;
 
-	return audit_do_config_change("audit_enabled", &audit_enabled, state,
-				      loginuid, sid);
+	rc =  audit_do_config_change("audit_enabled", &audit_enabled, state,
+				     loginuid, sid);
+
+	if (!rc)
+		audit_ever_enabled |= !!state;
+
+	return rc;
 }
 
 static int audit_set_failure(int state, uid_t loginuid, u32 sid)
@@ -857,6 +864,7 @@ static int __init audit_init(void)
 	skb_queue_head_init(&audit_skb_queue);
 	audit_initialized = 1;
 	audit_enabled = audit_default;
+	audit_ever_enabled |= !!audit_default;
 
 	/* Register the callback with selinux.  This callback will be invoked
 	 * when a new policy is loaded. */
@@ -884,8 +892,10 @@ static int __init audit_enable(char *str)
 	printk(KERN_INFO "audit: %s%s\n",
 	       audit_default ? "enabled" : "disabled",
 	       audit_initialized ? "" : " (after initialization)");
-	if (audit_initialized)
+	if (audit_initialized) {
 		audit_enabled = audit_default;
+		audit_ever_enabled |= !!audit_default;
+	}
 	return 1;
 }
 

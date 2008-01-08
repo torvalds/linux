@@ -70,6 +70,7 @@
 #include "audit.h"
 
 extern struct list_head audit_filter_list[];
+extern int audit_ever_enabled;
 
 /* AUDIT_NAMES is the number of slots we reserve in the audit_context
  * for saving names from getname(). */
@@ -838,7 +839,7 @@ int audit_alloc(struct task_struct *tsk)
 	struct audit_context *context;
 	enum audit_state     state;
 
-	if (likely(!audit_enabled))
+	if (likely(!audit_ever_enabled))
 		return 0; /* Return if not auditing. */
 
 	state = audit_filter_task(tsk);
