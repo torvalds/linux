@@ -414,6 +414,7 @@ static int acpi_ec_write(int i, u8 v)
 	return 1;
 }
 
+#if defined(CONFIG_THINKPAD_ACPI_DOCK) || defined(CONFIG_THINKPAD_ACPI_BAY)
 static int _sta(acpi_handle handle)
 {
 	int status;
@@ -423,6 +424,7 @@ static int _sta(acpi_handle handle)
 
 	return status;
 }
+#endif
 
 static int issue_thinkpad_cmos_command(int cmos_cmd)
 {
