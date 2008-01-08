@@ -31,6 +31,9 @@
 #include <linux/string.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
+#include <linux/kthread.h>
+#include <linux/freezer.h>
+#include <linux/delay.h>
 
 #include <linux/nvram.h>
 #include <linux/proc_fs.h>
@@ -82,10 +85,31 @@
 #define TP_CMOS_BRIGHTNESS_UP	4
 #define TP_CMOS_BRIGHTNESS_DOWN	5
 
-/* ThinkPad CMOS NVRAM constants */
-#define TP_NVRAM_ADDR_BRIGHTNESS       0x5e
-#define TP_NVRAM_MASK_LEVEL_BRIGHTNESS 0x0f
-#define TP_NVRAM_POS_LEVEL_BRIGHTNESS 0
+/* NVRAM Addresses */
+enum tp_nvram_addr {
+	TP_NVRAM_ADDR_HK2		= 0x57,
+	TP_NVRAM_ADDR_THINKLIGHT	= 0x58,
+	TP_NVRAM_ADDR_VIDEO		= 0x59,
+	TP_NVRAM_ADDR_BRIGHTNESS	= 0x5e,
+	TP_NVRAM_ADDR_MIXER		= 0x60,
+};
+
+/* NVRAM bit masks */
+enum {
+	TP_NVRAM_MASK_HKT_THINKPAD	= 0x08,
+	TP_NVRAM_MASK_HKT_ZOOM		= 0x20,
+	TP_NVRAM_MASK_HKT_DISPLAY	= 0x40,
+	TP_NVRAM_MASK_HKT_HIBERNATE	= 0x80,
+	TP_NVRAM_MASK_THINKLIGHT	= 0x10,
+	TP_NVRAM_MASK_HKT_DISPEXPND	= 0x30,
+	TP_NVRAM_MASK_HKT_BRIGHTNESS	= 0x20,
+	TP_NVRAM_MASK_LEVEL_BRIGHTNESS	= 0x0f,
+	TP_NVRAM_POS_LEVEL_BRIGHTNESS	= 0,
+	TP_NVRAM_MASK_MUTE		= 0x40,
+	TP_NVRAM_MASK_HKT_VOLUME	= 0x80,
+	TP_NVRAM_MASK_LEVEL_VOLUME	= 0x0f,
+	TP_NVRAM_POS_LEVEL_VOLUME	= 0,
+};
 
 #define onoff(status,bit) ((status) & (1 << (bit)) ? "on" : "off")
 #define enabled(status,bit) ((status) & (1 << (bit)) ? "enabled" : "disabled")
@@ -255,6 +279,7 @@ static struct {
 	u32 sensors_pdrv_registered:1;
 	u32 sensors_pdrv_attrs_registered:1;
 	u32 sensors_pdev_attrs_registered:1;
+	u32 hotkey_poll_active:1;
 } tp_features;
 
 struct thinkpad_id_data {
@@ -453,6 +478,33 @@ static int fan_write_cmd_watchdog(const char *cmd, int *rc);
 /*
  * Hotkey subdriver
  */
+
+enum {	/* hot key scan codes (derived from ACPI DSDT) */
+	TP_ACPI_HOTKEYSCAN_FNF1		= 0,
+	TP_ACPI_HOTKEYSCAN_FNF2,
+	TP_ACPI_HOTKEYSCAN_FNF3,
+	TP_ACPI_HOTKEYSCAN_FNF4,
+	TP_ACPI_HOTKEYSCAN_FNF5,
+	TP_ACPI_HOTKEYSCAN_FNF6,
+	TP_ACPI_HOTKEYSCAN_FNF7,
+	TP_ACPI_HOTKEYSCAN_FNF8,
+	TP_ACPI_HOTKEYSCAN_FNF9,
+	TP_ACPI_HOTKEYSCAN_FNF10,
+	TP_ACPI_HOTKEYSCAN_FNF11,
+	TP_ACPI_HOTKEYSCAN_FNF12,
+	TP_ACPI_HOTKEYSCAN_FNBACKSPACE,
+	TP_ACPI_HOTKEYSCAN_FNINSERT,
+	TP_ACPI_HOTKEYSCAN_FNDELETE,
+	TP_ACPI_HOTKEYSCAN_FNHOME,
+	TP_ACPI_HOTKEYSCAN_FNEND,
+	TP_ACPI_HOTKEYSCAN_FNPAGEUP,
+	TP_ACPI_HOTKEYSCAN_FNPAGEDOWN,
+	TP_ACPI_HOTKEYSCAN_FNSPACE,
+	TP_ACPI_HOTKEYSCAN_VOLUMEUP,
+	TP_ACPI_HOTKEYSCAN_VOLUMEDOWN,
+	TP_ACPI_HOTKEYSCAN_MUTE,
+	TP_ACPI_HOTKEYSCAN_THINKPAD,
+};
 
 static int hotkey_orig_status;
 static u32 hotkey_orig_mask;

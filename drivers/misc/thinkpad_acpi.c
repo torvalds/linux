@@ -22,7 +22,7 @@
  */
 
 #define IBM_VERSION "0.17"
-#define TPACPI_SYSFS_VERSION 0x020000
+#define TPACPI_SYSFS_VERSION 0x020101
 
 /*
  *  Changelog:
@@ -773,6 +773,67 @@ static struct ibm_struct thinkpad_acpi_driver_data = {
  * Hotkey subdriver
  */
 
+enum {	/* Keys available through NVRAM polling */
+	TPACPI_HKEY_NVRAM_KNOWN_MASK = 0x00fb88c0U,
+	TPACPI_HKEY_NVRAM_GOOD_MASK  = 0x00fb8000U,
+};
+
+enum {	/* Positions of some of the keys in hotkey masks */
+	TP_ACPI_HKEY_DISPSWTCH_MASK	= 1 << TP_ACPI_HOTKEYSCAN_FNF7,
+	TP_ACPI_HKEY_DISPXPAND_MASK	= 1 << TP_ACPI_HOTKEYSCAN_FNF8,
+	TP_ACPI_HKEY_HIBERNATE_MASK	= 1 << TP_ACPI_HOTKEYSCAN_FNF12,
+	TP_ACPI_HKEY_BRGHTUP_MASK	= 1 << TP_ACPI_HOTKEYSCAN_FNHOME,
+	TP_ACPI_HKEY_BRGHTDWN_MASK	= 1 << TP_ACPI_HOTKEYSCAN_FNEND,
+	TP_ACPI_HKEY_THNKLGHT_MASK	= 1 << TP_ACPI_HOTKEYSCAN_FNPAGEUP,
+	TP_ACPI_HKEY_ZOOM_MASK		= 1 << TP_ACPI_HOTKEYSCAN_FNSPACE,
+	TP_ACPI_HKEY_VOLUP_MASK		= 1 << TP_ACPI_HOTKEYSCAN_VOLUMEUP,
+	TP_ACPI_HKEY_VOLDWN_MASK	= 1 << TP_ACPI_HOTKEYSCAN_VOLUMEDOWN,
+	TP_ACPI_HKEY_MUTE_MASK		= 1 << TP_ACPI_HOTKEYSCAN_MUTE,
+	TP_ACPI_HKEY_THINKPAD_MASK	= 1 << TP_ACPI_HOTKEYSCAN_THINKPAD,
+};
+
+enum {	/* NVRAM to ACPI HKEY group map */
+	TP_NVRAM_HKEY_GROUP_HK2		= TP_ACPI_HKEY_THINKPAD_MASK |
+					  TP_ACPI_HKEY_ZOOM_MASK |
+					  TP_ACPI_HKEY_DISPSWTCH_MASK |
+					  TP_ACPI_HKEY_HIBERNATE_MASK,
+	TP_NVRAM_HKEY_GROUP_BRIGHTNESS	= TP_ACPI_HKEY_BRGHTUP_MASK |
+					  TP_ACPI_HKEY_BRGHTDWN_MASK,
+	TP_NVRAM_HKEY_GROUP_VOLUME	= TP_ACPI_HKEY_VOLUP_MASK |
+					  TP_ACPI_HKEY_VOLDWN_MASK |
+					  TP_ACPI_HKEY_MUTE_MASK,
+};
+
+#ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
+struct tp_nvram_state {
+       u16 thinkpad_toggle:1;
+       u16 zoom_toggle:1;
+       u16 display_toggle:1;
+       u16 thinklight_toggle:1;
+       u16 hibernate_toggle:1;
+       u16 displayexp_toggle:1;
+       u16 display_state:1;
+       u16 brightness_toggle:1;
+       u16 volume_toggle:1;
+       u16 mute:1;
+
+       u8 brightness_level;
+       u8 volume_level;
+};
+
+static struct task_struct *tpacpi_hotkey_task;
+static u32 hotkey_source_mask;		/* bit mask 0=ACPI,1=NVRAM */
+static int hotkey_poll_freq = 10;	/* Hz */
+static struct mutex hotkey_thread_mutex;
+static struct mutex hotkey_thread_data_mutex;
+static unsigned int hotkey_config_change;
+
+#else /* CONFIG_THINKPAD_ACPI_HOTKEY_POLL */
+
+#define hotkey_source_mask 0U
+
+#endif /* CONFIG_THINKPAD_ACPI_HOTKEY_POLL */
+
 static int hotkey_orig_status;
 static u32 hotkey_orig_mask;
 static u32 hotkey_all_mask;
@@ -782,6 +843,17 @@ static u32 hotkey_mask;
 static u16 *hotkey_keycode_map;
 
 static struct attribute_set *hotkey_dev_attributes;
+
+#ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
+#define HOTKEY_CONFIG_CRITICAL_START \
+	mutex_lock(&hotkey_thread_data_mutex); \
+	hotkey_config_change++;
+#define HOTKEY_CONFIG_CRITICAL_END \
+	mutex_unlock(&hotkey_thread_data_mutex);
+#else
+#define HOTKEY_CONFIG_CRITICAL_START
+#define HOTKEY_CONFIG_CRITICAL_END
+#endif /* CONFIG_THINKPAD_ACPI_HOTKEY_POLL */
 
 static int hotkey_get_wlsw(int *status)
 {
@@ -795,10 +867,13 @@ static int hotkey_get_wlsw(int *status)
  */
 static int hotkey_mask_get(void)
 {
+	u32 m = 0;
+
 	if (tp_features.hotkey_mask) {
-		if (!acpi_evalf(hkey_handle, &hotkey_mask, "DHKN", "d"))
+		if (!acpi_evalf(hkey_handle, &m, "DHKN", "d"))
 			return -EIO;
 	}
+	hotkey_mask = m | (hotkey_source_mask & hotkey_mask);
 
 	return 0;
 }
@@ -812,25 +887,50 @@ static int hotkey_mask_set(u32 mask)
 	int rc = 0;
 
 	if (tp_features.hotkey_mask) {
+		HOTKEY_CONFIG_CRITICAL_START
 		for (i = 0; i < 32; i++) {
 			u32 m = 1 << i;
+			/* enable in firmware mask only keys not in NVRAM
+			 * mode, but enable the key in the cached hotkey_mask
+			 * regardless of mode, or the key will end up
+			 * disabled by hotkey_mask_get() */
 			if (!acpi_evalf(hkey_handle,
 					NULL, "MHKM", "vdd", i + 1,
-					!!(mask & m))) {
+					!!((mask & ~hotkey_source_mask) & m))) {
 				rc = -EIO;
 				break;
 			} else {
 				hotkey_mask = (hotkey_mask & ~m) | (mask & m);
 			}
 		}
+		HOTKEY_CONFIG_CRITICAL_END
 
 		/* hotkey_mask_get must be called unconditionally below */
-		if (!hotkey_mask_get() && !rc && hotkey_mask != mask) {
+		if (!hotkey_mask_get() && !rc &&
+		    (hotkey_mask & ~hotkey_source_mask) !=
+		     (mask & ~hotkey_source_mask)) {
 			printk(IBM_NOTICE
 			       "requested hot key mask 0x%08x, but "
 			       "firmware forced it to 0x%08x\n",
 			       mask, hotkey_mask);
 		}
+	} else {
+#ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
+		HOTKEY_CONFIG_CRITICAL_START
+		hotkey_mask = mask & hotkey_source_mask;
+		HOTKEY_CONFIG_CRITICAL_END
+		hotkey_mask_get();
+		if (hotkey_mask != mask) {
+			printk(IBM_NOTICE
+			       "requested hot key mask 0x%08x, "
+			       "forced to 0x%08x (NVRAM poll mask is "
+			       "0x%08x): no firmware mask support\n",
+			       mask, hotkey_mask, hotkey_source_mask);
+		}
+#else
+		hotkey_mask_get();
+		rc = -ENXIO;
+#endif /* CONFIG_THINKPAD_ACPI_HOTKEY_POLL */
 	}
 
 	return rc;
@@ -891,6 +991,256 @@ static void tpacpi_input_send_key(unsigned int scancode)
 		mutex_unlock(&tpacpi_inputdev_send_mutex);
 	}
 }
+
+#ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
+static struct tp_acpi_drv_struct ibm_hotkey_acpidriver;
+
+static void tpacpi_hotkey_send_key(unsigned int scancode)
+{
+	tpacpi_input_send_key(scancode);
+	if (hotkey_report_mode < 2) {
+		acpi_bus_generate_proc_event(ibm_hotkey_acpidriver.device,
+						0x80, 0x1001 + scancode);
+	}
+}
+
+static void hotkey_read_nvram(struct tp_nvram_state *n, u32 m)
+{
+	u8 d;
+
+	if (m & TP_NVRAM_HKEY_GROUP_HK2) {
+		d = nvram_read_byte(TP_NVRAM_ADDR_HK2);
+		n->thinkpad_toggle = !!(d & TP_NVRAM_MASK_HKT_THINKPAD);
+		n->zoom_toggle = !!(d & TP_NVRAM_MASK_HKT_ZOOM);
+		n->display_toggle = !!(d & TP_NVRAM_MASK_HKT_DISPLAY);
+		n->hibernate_toggle = !!(d & TP_NVRAM_MASK_HKT_HIBERNATE);
+	}
+	if (m & TP_ACPI_HKEY_THNKLGHT_MASK) {
+		d = nvram_read_byte(TP_NVRAM_ADDR_THINKLIGHT);
+		n->thinklight_toggle = !!(d & TP_NVRAM_MASK_THINKLIGHT);
+	}
+	if (m & TP_ACPI_HKEY_DISPXPAND_MASK) {
+		d = nvram_read_byte(TP_NVRAM_ADDR_VIDEO);
+		n->displayexp_toggle =
+				!!(d & TP_NVRAM_MASK_HKT_DISPEXPND);
+	}
+	if (m & TP_NVRAM_HKEY_GROUP_BRIGHTNESS) {
+		d = nvram_read_byte(TP_NVRAM_ADDR_BRIGHTNESS);
+		n->brightness_level = (d & TP_NVRAM_MASK_LEVEL_BRIGHTNESS)
+				>> TP_NVRAM_POS_LEVEL_BRIGHTNESS;
+		n->brightness_toggle =
+				!!(d & TP_NVRAM_MASK_HKT_BRIGHTNESS);
+	}
+	if (m & TP_NVRAM_HKEY_GROUP_VOLUME) {
+		d = nvram_read_byte(TP_NVRAM_ADDR_MIXER);
+		n->volume_level = (d & TP_NVRAM_MASK_LEVEL_VOLUME)
+				>> TP_NVRAM_POS_LEVEL_VOLUME;
+		n->mute = !!(d & TP_NVRAM_MASK_MUTE);
+		n->volume_toggle = !!(d & TP_NVRAM_MASK_HKT_VOLUME);
+	}
+}
+
+#define TPACPI_COMPARE_KEY(__scancode, __member) \
+	do { if ((mask & (1 << __scancode)) && oldn->__member != newn->__member) \
+		tpacpi_hotkey_send_key(__scancode); } while (0)
+
+#define TPACPI_MAY_SEND_KEY(__scancode) \
+	do { if (mask & (1 << __scancode)) \
+		tpacpi_hotkey_send_key(__scancode); } while (0)
+
+static void hotkey_compare_and_issue_event(struct tp_nvram_state *oldn,
+                                           struct tp_nvram_state *newn,
+					   u32 mask)
+{
+	TPACPI_COMPARE_KEY(TP_ACPI_HOTKEYSCAN_THINKPAD, thinkpad_toggle);
+	TPACPI_COMPARE_KEY(TP_ACPI_HOTKEYSCAN_FNSPACE, zoom_toggle);
+	TPACPI_COMPARE_KEY(TP_ACPI_HOTKEYSCAN_FNF7, display_toggle);
+	TPACPI_COMPARE_KEY(TP_ACPI_HOTKEYSCAN_FNF12, hibernate_toggle);
+
+	TPACPI_COMPARE_KEY(TP_ACPI_HOTKEYSCAN_FNPAGEUP, thinklight_toggle);
+
+	TPACPI_COMPARE_KEY(TP_ACPI_HOTKEYSCAN_FNF8, displayexp_toggle);
+
+	/* handle volume */
+	if (oldn->volume_toggle != newn->volume_toggle) {
+		if (oldn->mute != newn->mute) {
+			TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_MUTE);
+		}
+		if (oldn->volume_level > newn->volume_level) {
+			TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_VOLUMEDOWN);
+		} else if (oldn->volume_level < newn->volume_level) {
+			TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_VOLUMEUP);
+		} else if (oldn->mute == newn->mute) {
+			/* repeated key presses that didn't change state */
+			if (newn->mute) {
+				TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_MUTE);
+			} else if (newn->volume_level != 0) {
+				TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_VOLUMEUP);
+			} else {
+				TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_VOLUMEDOWN);
+			}
+		}
+	}
+
+	/* handle brightness */
+	if (oldn->brightness_toggle != newn->brightness_toggle) {
+		if (oldn->brightness_level < newn->brightness_level) {
+			TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_FNHOME);
+		} else if (oldn->brightness_level > newn->brightness_level) {
+			TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_FNEND);
+		} else {
+			/* repeated key presses that didn't change state */
+			if (newn->brightness_level != 0) {
+				TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_FNHOME);
+			} else {
+				TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_FNEND);
+			}
+		}
+	}
+}
+
+#undef TPACPI_COMPARE_KEY
+#undef TPACPI_MAY_SEND_KEY
+
+static int hotkey_kthread(void *data)
+{
+	struct tp_nvram_state s[2];
+	u32 mask;
+	unsigned int si, so;
+	unsigned long t;
+	unsigned int change_detector, must_reset;
+
+	mutex_lock(&hotkey_thread_mutex);
+
+	if (tpacpi_lifecycle == TPACPI_LIFE_EXITING)
+		goto exit;
+
+	set_freezable();
+
+	so = 0;
+	si = 1;
+	t = 0;
+
+	/* Initial state for compares */
+	mutex_lock(&hotkey_thread_data_mutex);
+	change_detector = hotkey_config_change;
+	mask = hotkey_source_mask & hotkey_mask;
+	mutex_unlock(&hotkey_thread_data_mutex);
+	hotkey_read_nvram(&s[so], mask);
+
+	while (!kthread_should_stop() && hotkey_poll_freq) {
+		if (t == 0)
+			t = 1000/hotkey_poll_freq;
+		t = msleep_interruptible(t);
+		if (unlikely(kthread_should_stop()))
+			break;
+		must_reset = try_to_freeze();
+		if (t > 0 && !must_reset)
+			continue;
+
+		mutex_lock(&hotkey_thread_data_mutex);
+		if (must_reset || hotkey_config_change != change_detector) {
+			/* forget old state on thaw or config change */
+			si = so;
+			t = 0;
+			change_detector = hotkey_config_change;
+		}
+		mask = hotkey_source_mask & hotkey_mask;
+		mutex_unlock(&hotkey_thread_data_mutex);
+
+		if (likely(mask)) {
+			hotkey_read_nvram(&s[si], mask);
+			if (likely(si != so)) {
+				hotkey_compare_and_issue_event(&s[so], &s[si],
+				                               mask);
+			}
+		}
+
+		so = si;
+		si ^= 1;
+	}
+
+exit:
+	mutex_unlock(&hotkey_thread_mutex);
+	return 0;
+}
+
+static void hotkey_poll_stop_sync(void)
+{
+	if (tpacpi_hotkey_task) {
+		if (frozen(tpacpi_hotkey_task) ||
+		    freezing(tpacpi_hotkey_task))
+			thaw_process(tpacpi_hotkey_task);
+
+		kthread_stop(tpacpi_hotkey_task);
+		tpacpi_hotkey_task = NULL;
+		mutex_lock(&hotkey_thread_mutex);
+		/* at this point, the thread did exit */
+		mutex_unlock(&hotkey_thread_mutex);
+	}
+}
+
+/* call with hotkey_mutex held */
+static void hotkey_poll_setup(int may_warn)
+{
+	if ((hotkey_source_mask & hotkey_mask) != 0 &&
+	    hotkey_poll_freq > 0 &&
+	    (tpacpi_inputdev->users > 0 || hotkey_report_mode < 2)) {
+		if (!tpacpi_hotkey_task) {
+			tpacpi_hotkey_task = kthread_run(hotkey_kthread,
+			                       NULL, IBM_FILE "d");
+			if (IS_ERR(tpacpi_hotkey_task)) {
+				tpacpi_hotkey_task = NULL;
+				printk(IBM_ERR "could not create kernel thread "
+				       "for hotkey polling\n");
+			}
+		}
+	} else {
+		hotkey_poll_stop_sync();
+		if (may_warn &&
+		    hotkey_source_mask != 0 && hotkey_poll_freq == 0) {
+			printk(IBM_NOTICE "hot keys 0x%08x require polling, "
+				"which is currently disabled\n",
+				hotkey_source_mask);
+		}
+	}
+}
+
+static void hotkey_poll_setup_safe(int may_warn)
+{
+	mutex_lock(&hotkey_mutex);
+	hotkey_poll_setup(may_warn);
+	mutex_unlock(&hotkey_mutex);
+}
+
+static int hotkey_inputdev_open(struct input_dev *dev)
+{
+	switch (tpacpi_lifecycle) {
+	case TPACPI_LIFE_INIT:
+		/*
+		 * hotkey_init will call hotkey_poll_setup_safe
+		 * at the appropriate moment
+		 */
+		return 0;
+	case TPACPI_LIFE_EXITING:
+		return -EBUSY;
+	case TPACPI_LIFE_RUNNING:
+		hotkey_poll_setup_safe(0);
+		return 0;
+	}
+
+	/* Should only happen if tpacpi_lifecycle is corrupt */
+	BUG();
+	return -EBUSY;
+}
+
+static void hotkey_inputdev_close(struct input_dev *dev)
+{
+	/* disable hotkey polling when possible */
+	if (tpacpi_lifecycle == TPACPI_LIFE_RUNNING)
+		hotkey_poll_setup_safe(0);
+}
+#endif /* CONFIG_THINKPAD_ACPI_HOTKEY_POLL */
 
 /* sysfs hotkey enable ------------------------------------------------- */
 static ssize_t hotkey_enable_show(struct device *dev,
@@ -955,6 +1305,11 @@ static ssize_t hotkey_mask_store(struct device *dev,
 		return -ERESTARTSYS;
 
 	res = hotkey_mask_set(t);
+
+#ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
+	hotkey_poll_setup(1);
+#endif
+
 	mutex_unlock(&hotkey_mutex);
 
 	return (res) ? res : count;
@@ -991,7 +1346,8 @@ static ssize_t hotkey_all_mask_show(struct device *dev,
 			   struct device_attribute *attr,
 			   char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "0x%08x\n", hotkey_all_mask);
+	return snprintf(buf, PAGE_SIZE, "0x%08x\n",
+				hotkey_all_mask | hotkey_source_mask);
 }
 
 static struct device_attribute dev_attr_hotkey_all_mask =
@@ -1003,12 +1359,85 @@ static ssize_t hotkey_recommended_mask_show(struct device *dev,
 					    char *buf)
 {
 	return snprintf(buf, PAGE_SIZE, "0x%08x\n",
-			hotkey_all_mask & ~hotkey_reserved_mask);
+			(hotkey_all_mask | hotkey_source_mask)
+			& ~hotkey_reserved_mask);
 }
 
 static struct device_attribute dev_attr_hotkey_recommended_mask =
 	__ATTR(hotkey_recommended_mask, S_IRUGO,
 		hotkey_recommended_mask_show, NULL);
+
+#ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
+
+/* sysfs hotkey hotkey_source_mask ------------------------------------- */
+static ssize_t hotkey_source_mask_show(struct device *dev,
+			   struct device_attribute *attr,
+			   char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "0x%08x\n", hotkey_source_mask);
+}
+
+static ssize_t hotkey_source_mask_store(struct device *dev,
+			    struct device_attribute *attr,
+			    const char *buf, size_t count)
+{
+	unsigned long t;
+
+	if (parse_strtoul(buf, 0xffffffffUL, &t) ||
+		((t & ~TPACPI_HKEY_NVRAM_KNOWN_MASK) != 0))
+		return -EINVAL;
+
+	if (mutex_lock_interruptible(&hotkey_mutex))
+		return -ERESTARTSYS;
+
+	HOTKEY_CONFIG_CRITICAL_START
+	hotkey_source_mask = t;
+	HOTKEY_CONFIG_CRITICAL_END
+
+	hotkey_poll_setup(1);
+
+	mutex_unlock(&hotkey_mutex);
+
+	return count;
+}
+
+static struct device_attribute dev_attr_hotkey_source_mask =
+	__ATTR(hotkey_source_mask, S_IWUSR | S_IRUGO,
+		hotkey_source_mask_show, hotkey_source_mask_store);
+
+/* sysfs hotkey hotkey_poll_freq --------------------------------------- */
+static ssize_t hotkey_poll_freq_show(struct device *dev,
+			   struct device_attribute *attr,
+			   char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", hotkey_poll_freq);
+}
+
+static ssize_t hotkey_poll_freq_store(struct device *dev,
+			    struct device_attribute *attr,
+			    const char *buf, size_t count)
+{
+	unsigned long t;
+
+	if (parse_strtoul(buf, 25, &t))
+		return -EINVAL;
+
+	if (mutex_lock_interruptible(&hotkey_mutex))
+		return -ERESTARTSYS;
+
+	hotkey_poll_freq = t;
+
+	hotkey_poll_setup(1);
+	mutex_unlock(&hotkey_mutex);
+
+	return count;
+}
+
+static struct device_attribute dev_attr_hotkey_poll_freq =
+	__ATTR(hotkey_poll_freq, S_IWUSR | S_IRUGO,
+		hotkey_poll_freq_show, hotkey_poll_freq_store);
+
+#endif /* CONFIG_THINKPAD_ACPI_HOTKEY_POLL */
 
 /* sysfs hotkey radio_sw ----------------------------------------------- */
 static ssize_t hotkey_radio_sw_show(struct device *dev,
@@ -1042,15 +1471,24 @@ static struct device_attribute dev_attr_hotkey_report_mode =
 
 static struct attribute *hotkey_attributes[] __initdata = {
 	&dev_attr_hotkey_enable.attr,
+	&dev_attr_hotkey_bios_enabled.attr,
 	&dev_attr_hotkey_report_mode.attr,
+#ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
+	&dev_attr_hotkey_mask.attr,
+	&dev_attr_hotkey_all_mask.attr,
+	&dev_attr_hotkey_recommended_mask.attr,
+	&dev_attr_hotkey_source_mask.attr,
+	&dev_attr_hotkey_poll_freq.attr,
+#endif
 };
 
 static struct attribute *hotkey_mask_attributes[] __initdata = {
-	&dev_attr_hotkey_mask.attr,
-	&dev_attr_hotkey_bios_enabled.attr,
 	&dev_attr_hotkey_bios_mask.attr,
+#ifndef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
+	&dev_attr_hotkey_mask.attr,
 	&dev_attr_hotkey_all_mask.attr,
 	&dev_attr_hotkey_recommended_mask.attr,
+#endif
 };
 
 static int __init hotkey_init(struct ibm_init_struct *iibm)
@@ -1172,9 +1610,16 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 	vdbg_printk(TPACPI_DBG_INIT, "initializing hotkey subdriver\n");
 
 	BUG_ON(!tpacpi_inputdev);
+	BUG_ON(tpacpi_inputdev->open != NULL ||
+	       tpacpi_inputdev->close != NULL);
 
 	IBM_ACPIHANDLE_INIT(hkey);
 	mutex_init(&hotkey_mutex);
+
+#ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
+	mutex_init(&hotkey_thread_mutex);
+	mutex_init(&hotkey_thread_data_mutex);
+#endif
 
 	/* hotkey not supported on 570 */
 	tp_features.hotkey = hkey_handle != NULL;
@@ -1183,7 +1628,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		str_supported(tp_features.hotkey));
 
 	if (tp_features.hotkey) {
-		hotkey_dev_attributes = create_attr_set(8, NULL);
+		hotkey_dev_attributes = create_attr_set(10, NULL);
 		if (!hotkey_dev_attributes)
 			return -ENOMEM;
 		res = add_many_to_attr_set(hotkey_dev_attributes,
@@ -1205,7 +1650,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 				/*
 				 * MHKV 0x100 in A31, R40, R40e,
 				 * T4x, X31, and later
-				 * */
+				 */
 				tp_features.hotkey_mask = 1;
 			}
 		}
@@ -1224,6 +1669,8 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 			}
 		}
 
+		/* hotkey_source_mask *must* be zero for
+		 * the first hotkey_mask_get */
 		res = hotkey_status_get(&hotkey_orig_status);
 		if (!res && tp_features.hotkey_mask) {
 			res = hotkey_mask_get();
@@ -1235,6 +1682,19 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 					ARRAY_SIZE(hotkey_mask_attributes));
 			}
 		}
+
+#ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
+		if (tp_features.hotkey_mask) {
+			hotkey_source_mask = TPACPI_HKEY_NVRAM_GOOD_MASK
+						& ~hotkey_all_mask;
+		} else {
+			hotkey_source_mask = TPACPI_HKEY_NVRAM_GOOD_MASK;
+		}
+
+		vdbg_printk(TPACPI_DBG_INIT,
+			    "hotkey source mask 0x%08x, polling freq %d\n",
+			    hotkey_source_mask, hotkey_poll_freq);
+#endif
 
 		/* Not all thinkpads have a hardware radio switch */
 		if (!res && acpi_evalf(hkey_handle, &status, "WLSW", "qd")) {
@@ -1300,15 +1760,23 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		res = hotkey_status_set(1);
 		if (res)
 			return res;
-		res = hotkey_mask_set((hotkey_all_mask & ~hotkey_reserved_mask)
+		res = hotkey_mask_set(((hotkey_all_mask | hotkey_source_mask)
+					& ~hotkey_reserved_mask)
 					| hotkey_orig_mask);
-		if (res)
+		if (res < 0 && res != -ENXIO)
 			return res;
 
 		dbg_printk(TPACPI_DBG_INIT,
 				"legacy hot key reporting over procfs %s\n",
 				(hotkey_report_mode < 2) ?
 					"enabled" : "disabled");
+
+#ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
+		tpacpi_inputdev->open = &hotkey_inputdev_open;
+		tpacpi_inputdev->close = &hotkey_inputdev_close;
+
+		hotkey_poll_setup_safe(1);
+#endif
 	}
 
 	return (tp_features.hotkey)? 0 : 1;
@@ -1316,6 +1784,10 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 
 static void hotkey_exit(void)
 {
+#ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
+	hotkey_poll_stop_sync();
+#endif
+
 	if (tp_features.hotkey) {
 		dbg_printk(TPACPI_DBG_EXIT, "restoring original hot key mask\n");
 		/* no short-circuit boolean operator below! */
@@ -1366,7 +1838,11 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 			scancode = hkey & 0xfff;
 			if (scancode > 0 && scancode < 0x21) {
 				scancode--;
-				tpacpi_input_send_key(scancode);
+				if (!(hotkey_source_mask & (1 << scancode))) {
+					tpacpi_input_send_key(scancode);
+				} else {
+					ignore_acpi_ev = 1;
+				}
 			} else {
 				printk(IBM_ERR
 				       "hotkey 0x%04x out of range for keyboard map\n",
@@ -1422,6 +1898,9 @@ static void hotkey_resume(void)
 	if (hotkey_mask_get())
 		printk(IBM_ERR "error while trying to read hot key mask from firmware\n");
 	tpacpi_input_send_radiosw();
+#ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
+	hotkey_poll_setup_safe(0);
+#endif
 }
 
 /* procfs -------------------------------------------------------------- */
