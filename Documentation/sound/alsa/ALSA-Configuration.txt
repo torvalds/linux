@@ -801,6 +801,9 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  will		Will laptops (PB V7900)
 	  replacer	Replacer 672V
 	  basic		fixed pin assignment (old default model)
+	  test		for testing/debugging purpose, almost all controls can
+			adjusted.  Appearing only when compiled with
+			$CONFIG_SND_DEBUG=y
 	  auto		auto-config reading BIOS (default)
 
 	ALC262
@@ -821,6 +824,9 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  3stack	3-stack model
 	  toshiba	Toshiba A205
 	  acer		Acer laptops
+	  test		for testing/debugging purpose, almost all controls can
+			adjusted.  Appearing only when compiled with
+			$CONFIG_SND_DEBUG=y
 	  auto		auto-config reading BIOS (default)
 
 	ALC662
