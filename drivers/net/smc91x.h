@@ -196,7 +196,8 @@
 #elif	defined(CONFIG_ARCH_INNOKOM) || \
 	defined(CONFIG_MACH_MAINSTONE) || \
 	defined(CONFIG_ARCH_PXA_IDP) || \
-	defined(CONFIG_ARCH_RAMSES)
+	defined(CONFIG_ARCH_RAMSES) || \
+	defined(CONFIG_ARCH_PCM027)
 
 #define SMC_CAN_USE_8BIT	1
 #define SMC_CAN_USE_16BIT	1
