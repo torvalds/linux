@@ -345,6 +345,7 @@ struct btrfs_fs_info {
 	struct completion kobj_unregister;
 	int do_barriers;
 	int closing;
+	unsigned long throttles;
 
 	u64 total_pinned;
 	spinlock_t delalloc_lock;

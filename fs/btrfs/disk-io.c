@@ -631,6 +631,7 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	fs_info->tree_root = tree_root;
 	fs_info->extent_root = extent_root;
 	fs_info->sb = sb;
+	fs_info->throttles = 0;
 	fs_info->mount_opt = 0;
 	fs_info->max_extent = (u64)-1;
 	fs_info->delalloc_bytes = 0;
@@ -887,6 +888,12 @@ void btrfs_mark_buffer_dirty(struct extent_buffer *buf)
 		WARN_ON(1);
 	}
 	set_extent_buffer_dirty(&BTRFS_I(btree_inode)->extent_tree, buf);
+}
+
+void btrfs_throttle(struct btrfs_root *root)
+{
+	if (root->fs_info->throttles)
+		congestion_wait(WRITE, HZ/10);
 }
 
 void btrfs_btree_balance_dirty(struct btrfs_root *root, unsigned long nr)

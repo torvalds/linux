@@ -610,6 +610,7 @@ static int btrfs_unlink(struct inode *dir, struct dentry *dentry)
 fail:
 	mutex_unlock(&root->fs_info->fs_mutex);
 	btrfs_btree_balance_dirty(root, nr);
+	btrfs_throttle(root);
 	return ret;
 }
 
@@ -644,6 +645,7 @@ static int btrfs_rmdir(struct inode *dir, struct dentry *dentry)
 fail:
 	mutex_unlock(&root->fs_info->fs_mutex);
 	btrfs_btree_balance_dirty(root, nr);
+	btrfs_throttle(root);
 
 	if (ret && !err)
 		err = ret;
@@ -1010,6 +1012,7 @@ void btrfs_delete_inode(struct inode *inode)
 	btrfs_end_transaction(trans, root);
 	mutex_unlock(&root->fs_info->fs_mutex);
 	btrfs_btree_balance_dirty(root, nr);
+	btrfs_throttle(root);
 	return;
 
 no_delete_lock:
@@ -1017,6 +1020,7 @@ no_delete_lock:
 	btrfs_end_transaction(trans, root);
 	mutex_unlock(&root->fs_info->fs_mutex);
 	btrfs_btree_balance_dirty(root, nr);
+	btrfs_throttle(root);
 no_delete:
 	clear_inode(inode);
 }
@@ -1574,6 +1578,7 @@ fail:
 		iput(inode);
 	}
 	btrfs_btree_balance_dirty(root, nr);
+	btrfs_throttle(root);
 	return err;
 }
 
@@ -1633,6 +1638,7 @@ fail:
 		iput(inode);
 	}
 	btrfs_btree_balance_dirty(root, nr);
+	btrfs_throttle(root);
 	return err;
 }
 
@@ -1684,6 +1690,7 @@ fail:
 		iput(inode);
 	}
 	btrfs_btree_balance_dirty(root, nr);
+	btrfs_throttle(root);
 	return err;
 }
 
@@ -1752,6 +1759,7 @@ out_unlock:
 	if (drop_on_err)
 		iput(inode);
 	btrfs_btree_balance_dirty(root, nr);
+	btrfs_throttle(root);
 	return err;
 }
 
@@ -2117,6 +2125,7 @@ static void btrfs_truncate(struct inode *inode)
 	BUG_ON(ret);
 	mutex_unlock(&root->fs_info->fs_mutex);
 	btrfs_btree_balance_dirty(root, nr);
+	btrfs_throttle(root);
 }
 
 static int noinline create_subvol(struct btrfs_root *root, char *name,
@@ -2245,6 +2254,7 @@ fail:
 fail_commit:
 	mutex_unlock(&root->fs_info->fs_mutex);
 	btrfs_btree_balance_dirty(root, nr);
+	btrfs_throttle(root);
 	return ret;
 }
 
@@ -2287,6 +2297,7 @@ static int create_snapshot(struct btrfs_root *root, char *name, int namelen)
 fail_unlock:
 	mutex_unlock(&root->fs_info->fs_mutex);
 	btrfs_btree_balance_dirty(root, nr);
+	btrfs_throttle(root);
 	return ret;
 }
 
@@ -2827,6 +2838,7 @@ out_fail:
 		iput(inode);
 	}
 	btrfs_btree_balance_dirty(root, nr);
+	btrfs_throttle(root);
 	return err;
 }
 

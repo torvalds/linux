@@ -64,4 +64,5 @@ int btrfs_clear_buffer_defrag_done(struct extent_buffer *buf);
 int btrfs_read_buffer(struct extent_buffer *buf);
 u32 btrfs_csum_data(struct btrfs_root *root, char *data, u32 seed, size_t len);
 void btrfs_csum_final(u32 crc, char *result);
+void btrfs_throttle(struct btrfs_root *root);
 #endif

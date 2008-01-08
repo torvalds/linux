@@ -424,6 +424,7 @@ static int drop_dirty_roots(struct btrfs_root *tree_root,
 
 		num_bytes = btrfs_root_used(&dirty->root->root_item);
 		root = dirty->latest_root;
+		root->fs_info->throttles++;
 
 		while(1) {
 			trans = btrfs_start_transaction(tree_root, 1);
@@ -447,6 +448,7 @@ static int drop_dirty_roots(struct btrfs_root *tree_root,
 			mutex_lock(&tree_root->fs_info->fs_mutex);
 		}
 		BUG_ON(ret);
+		root->fs_info->throttles--;
 
 		num_bytes -= btrfs_root_used(&dirty->root->root_item);
 		bytes_used = btrfs_root_used(&root->root_item);
@@ -484,6 +486,7 @@ int btrfs_write_ordered_inodes(struct btrfs_trans_handle *trans,
 	u64 objectid = 0;
 	int ret;
 
+	root->fs_info->throttles++;
 	while(1) {
 		ret = btrfs_find_first_ordered_inode(
 				&cur_trans->ordered_inode_tree,
@@ -523,6 +526,7 @@ int btrfs_write_ordered_inodes(struct btrfs_trans_handle *trans,
 		mutex_lock(&root->fs_info->fs_mutex);
 		mutex_lock(&root->fs_info->trans_mutex);
 	}
+	root->fs_info->throttles--;
 	return 0;
 }
 
