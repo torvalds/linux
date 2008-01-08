@@ -2754,10 +2754,11 @@ static void __dev_set_promiscuity(struct net_device *dev, int inc)
 							       "left");
 		audit_log(current->audit_context, GFP_ATOMIC,
 			AUDIT_ANOM_PROMISCUOUS,
-			"dev=%s prom=%d old_prom=%d auid=%u",
+			"dev=%s prom=%d old_prom=%d auid=%u ses=%u",
 			dev->name, (dev->flags & IFF_PROMISC),
 			(old_flags & IFF_PROMISC),
-			audit_get_loginuid(current));
+			audit_get_loginuid(current),
+			audit_get_sessionid(current));
 
 		if (dev->change_rx_flags)
 			dev->change_rx_flags(dev, IFF_PROMISC);
