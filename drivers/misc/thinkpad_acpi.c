@@ -1018,6 +1018,14 @@ static unsigned int hotkey_config_change;
 
 static struct mutex hotkey_mutex;
 
+static enum {	/* Reasons for waking up */
+	TP_ACPI_WAKEUP_NONE = 0,	/* None or unknown */
+	TP_ACPI_WAKEUP_BAYEJ,		/* Bay ejection request */
+	TP_ACPI_WAKEUP_UNDOCK,		/* Undock request */
+} hotkey_wakeup_reason;
+
+static int hotkey_autosleep_ack;
+
 static int hotkey_orig_status;
 static u32 hotkey_orig_mask;
 static u32 hotkey_all_mask;
@@ -1661,6 +1669,29 @@ static ssize_t hotkey_report_mode_show(struct device *dev,
 static struct device_attribute dev_attr_hotkey_report_mode =
 	__ATTR(hotkey_report_mode, S_IRUGO, hotkey_report_mode_show, NULL);
 
+/* sysfs wakeup reason ------------------------------------------------- */
+static ssize_t hotkey_wakeup_reason_show(struct device *dev,
+			   struct device_attribute *attr,
+			   char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", hotkey_wakeup_reason);
+}
+
+static struct device_attribute dev_attr_hotkey_wakeup_reason =
+	__ATTR(wakeup_reason, S_IRUGO, hotkey_wakeup_reason_show, NULL);
+
+/* sysfs wakeup hotunplug_complete ------------------------------------- */
+static ssize_t hotkey_wakeup_hotunplug_complete_show(struct device *dev,
+			   struct device_attribute *attr,
+			   char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", hotkey_autosleep_ack);
+}
+
+static struct device_attribute dev_attr_hotkey_wakeup_hotunplug_complete =
+	__ATTR(wakeup_hotunplug_complete, S_IRUGO,
+	       hotkey_wakeup_hotunplug_complete_show, NULL);
+
 /* --------------------------------------------------------------------- */
 
 static struct attribute *hotkey_attributes[] __initdata = {
@@ -1683,6 +1714,8 @@ static struct attribute *hotkey_mask_attributes[] __initdata = {
 	&dev_attr_hotkey_all_mask.attr,
 	&dev_attr_hotkey_recommended_mask.attr,
 #endif
+	&dev_attr_hotkey_wakeup_reason.attr,
+	&dev_attr_hotkey_wakeup_hotunplug_complete.attr,
 };
 
 static int __init hotkey_init(struct ibm_init_struct *iibm)
@@ -1822,7 +1855,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		str_supported(tp_features.hotkey));
 
 	if (tp_features.hotkey) {
-		hotkey_dev_attributes = create_attr_set(10, NULL);
+		hotkey_dev_attributes = create_attr_set(12, NULL);
 		if (!hotkey_dev_attributes)
 			return -ENOMEM;
 		res = add_many_to_attr_set(hotkey_dev_attributes,
@@ -2051,6 +2084,48 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 				unk_ev = 1;
 			}
 			break;
+		case 2:
+			/* Wakeup reason */
+			switch (hkey) {
+			case 0x2304: /* suspend, undock */
+			case 0x2404: /* hibernation, undock */
+				hotkey_wakeup_reason = TP_ACPI_WAKEUP_UNDOCK;
+				ignore_acpi_ev = 1;
+				break;
+			case 0x2305: /* suspend, bay eject */
+			case 0x2405: /* hibernation, bay eject */
+				hotkey_wakeup_reason = TP_ACPI_WAKEUP_BAYEJ;
+				ignore_acpi_ev = 1;
+				break;
+			default:
+				unk_ev = 1;
+			}
+			if (hotkey_wakeup_reason != TP_ACPI_WAKEUP_NONE) {
+				printk(TPACPI_INFO
+				       "woke up due to a hot-unplug "
+				       "request...\n");
+			}
+			break;
+		case 3:
+			/* bay-related wakeups */
+			if (hkey == 0x3003) {
+				hotkey_autosleep_ack = 1;
+				printk(TPACPI_INFO
+				       "bay ejected\n");
+			} else {
+				unk_ev = 1;
+			}
+			break;
+		case 4:
+			/* dock-related wakeups */
+			if (hkey == 0x4003) {
+				hotkey_autosleep_ack = 1;
+				printk(TPACPI_INFO
+				       "undocked\n");
+			} else {
+				unk_ev = 1;
+			}
+			break;
 		case 5:
 			/* 0x5000-0x5FFF: On screen display helpers */
 			switch (hkey) {
@@ -2075,12 +2150,6 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 			}
 			/* fallthrough to default */
 		default:
-			/* case 2: dock-related */
-			/*	0x2305 - T43 waking up due to bay lever
-			 *	         eject while aslept */
-			/* case 3: ultra-bay related. maybe bay in dock? */
-			/*	0x3003 - T43 after wake up by bay lever
-			 *	         eject (0x2305) */
 			unk_ev = 1;
 		}
 		if (unk_ev) {
@@ -2103,6 +2172,13 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 					event, hkey);
 		}
 	}
+}
+
+static void hotkey_suspend(pm_message_t state)
+{
+	/* Do these on suspend, we get the events on early resume! */
+	hotkey_wakeup_reason = TP_ACPI_WAKEUP_NONE;
+	hotkey_autosleep_ack = 0;
 }
 
 static void hotkey_resume(void)
@@ -2212,6 +2288,7 @@ static struct ibm_struct hotkey_driver_data = {
 	.write = hotkey_write,
 	.exit = hotkey_exit,
 	.resume = hotkey_resume,
+	.suspend = hotkey_suspend,
 	.acpi = &ibm_hotkey_acpidriver,
 };
 

@@ -325,6 +325,21 @@ sysfs notes:
 		May return -EPERM (write access locked out by module
 		parameter) or -EACCES (read-only).
 
+	wakeup_reason:
+		Set to 1 if the system is waking up because the user
+		requested a bay ejection.  Set to 2 if the system is
+		waking up because the user requested the system to
+		undock.  Set to zero for normal wake-ups or wake-ups
+		due to unknown reasons.
+
+	wakeup_hotunplug_complete:
+		Set to 1 if the system was waken up because of an
+		undock or bay ejection request, and that request
+		was sucessfully completed.  At this point, it might
+		be useful to send the system back to sleep, at the
+		user's choice.  Refer to HKEY events 0x4003 and
+		0x3003, below.
+
 input layer notes:
 
 A Hot key is mapped to a single input layer EV_KEY event, possibly
@@ -475,6 +490,15 @@ Non hot-key ACPI HKEY event map:
 The above events are not propagated by the driver, except for legacy
 compatibility purposes when hotkey_report_mode is set to 1.
 
+0x2304		System is waking up from suspend to undock
+0x2305		System is waking up from suspend to eject bay
+0x2404		System is waking up from hibernation to undock
+0x2405		System is waking up from hibernation to eject bay
+
+The above events are never propagated by the driver.
+
+0x3003		Bay ejection (see 0x2x05) complete, can sleep again
+0x4003		Undocked (see 0x2x04), can sleep again
 0x5010		Brightness level changed (newer Lenovo BIOSes)
 
 The above events are propagated by the driver.
