@@ -34,11 +34,12 @@
 #define TM6000_BOARD_UNKNOWN			0
 #define TM5600_BOARD_GENERIC			1
 #define TM6000_BOARD_GENERIC			2
-#define TM5600_BOARD_10MOONS_UT821		3
-#define TM5600_BOARD_10MOONS_UT330		4
-#define TM6000_BOARD_ADSTECH_DUAL_TV		5
-#define TM6000_BOARD_FREECOM_AND_SIMILAR	6
-#define TM6000_BOARD_ADSTECH_MINI_DUAL_TV	7
+#define TM6010_BOARD_GENERIC			3
+#define TM5600_BOARD_10MOONS_UT821		4
+#define TM5600_BOARD_10MOONS_UT330		5
+#define TM6000_BOARD_ADSTECH_DUAL_TV		6
+#define TM6000_BOARD_FREECOM_AND_SIMILAR	7
+#define TM6000_BOARD_ADSTECH_MINI_DUAL_TV	8
 
 #define TM6000_MAXBOARDS        16
 static unsigned int card[]     = {[0 ... (TM6000_MAXBOARDS - 1)] = UNSET };
@@ -53,6 +54,7 @@ struct tm6000_board {
 
 	struct tm6000_capabilities caps;
 
+	enum		tm6000_devtype type;	/* variant of the chipset */
 	int             tuner_type;     /* type of the tuner */
 	int             tuner_addr;     /* tuner address */
 	int             demod_addr;     /* demodulator address */
@@ -69,6 +71,7 @@ struct tm6000_board tm6000_boards[] = {
 	},
 	[TM5600_BOARD_GENERIC] = {
 		.name         = "Generic tm5600 board",
+		.type         = TM5600,
 		.tuner_type   = TUNER_XC2028,
 		.tuner_addr   = 0xc2,
 		.caps = {
@@ -86,9 +89,21 @@ struct tm6000_board tm6000_boards[] = {
 		},
 		.gpio_addr_tun_reset = TM6000_GPIO_1,
 	},
+	[TM6010_BOARD_GENERIC] = {
+		.name         = "Generic tm6010 board",
+		.type         = TM6010,
+		.tuner_type   = TUNER_XC2028,
+		.tuner_addr   = 0xc2,
+		.caps = {
+			.has_tuner	= 1,
+			.has_dvb	= 1,
+		},
+		.gpio_addr_tun_reset = TM6010_GPIO_4,
+	},
 	[TM5600_BOARD_10MOONS_UT821] = {
 		.name         = "10Moons UT 821",
 		.tuner_type   = TUNER_XC2028,
+		.type         = TM5600,
 		.tuner_addr   = 0xc2,
 		.caps = {
 			.has_tuner    = 1,
@@ -151,6 +166,7 @@ struct tm6000_board tm6000_boards[] = {
 /* table of devices that work with this driver */
 struct usb_device_id tm6000_id_table [] = {
 	{ USB_DEVICE(0x6000, 0x0001), .driver_info = TM5600_BOARD_10MOONS_UT821 },
+	{ USB_DEVICE(0x6000, 0x0002), .driver_info = TM6010_BOARD_GENERIC },
 	{ USB_DEVICE(0x06e1, 0xf332), .driver_info = TM6000_BOARD_ADSTECH_DUAL_TV },
 	{ USB_DEVICE(0x14aa, 0x0620), .driver_info = TM6000_BOARD_FREECOM_AND_SIMILAR },
 	{ USB_DEVICE(0x06e1, 0xb339), .driver_info = TM6000_BOARD_ADSTECH_MINI_DUAL_TV },
@@ -167,7 +183,11 @@ static void tm6000_config_tuner (struct tm6000_core *dev)
 	request_module ("tuner");
 
 	if (dev->tuner_type == TUNER_XC2028) {
-		ctl.fname = "tm6000-xc3028.fw";
+		if (dev->dev_type == TM6010)
+			ctl.fname = "xc3028-v27.fw";
+		else
+			ctl.fname = "tm6000-xc3028.fw";
+
 		ctl.mts   = 1;
 
 		xc2028_cfg.tuner = TUNER_XC2028;
@@ -189,6 +209,7 @@ static int tm6000_init_dev(struct tm6000_core *dev)
 	mutex_lock(&dev->lock);
 
 	/* Initializa board-specific data */
+	dev->dev_type   = tm6000_boards[dev->model].type;
 	dev->tuner_type = tm6000_boards[dev->model].tuner_type;
 	dev->tuner_addr = tm6000_boards[dev->model].tuner_addr;
 	dev->tuner_reset_gpio = tm6000_boards[dev->model].gpio_addr_tun_reset;

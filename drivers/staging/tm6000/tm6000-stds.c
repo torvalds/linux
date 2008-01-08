@@ -781,12 +781,9 @@ static int tm6000_load_std(struct tm6000_core *dev,
 		if (!set[i].req)
 			return 0;
 
-		/* FIXME: REQ 8 settings are for tm6010
-			not tested yet
-			This doesn't work with tm5600
-		*/
-		if (set[i].req == REQ_08_SET_GET_AVREG_BIT)
-			continue;
+		if ((dev->dev_type != TM6010) &&
+		    (set[i].req == REQ_08_SET_GET_AVREG_BIT))
+				continue;
 
 		rc = tm6000_set_reg(dev, set[i].req, set[i].reg, set[i].value);
 		if (rc < 0) {
@@ -870,6 +867,7 @@ ret:
 		return rc;
 
 	msleep(40);
+
 
 	return 0;
 }

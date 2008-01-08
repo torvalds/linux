@@ -54,6 +54,7 @@
 
 #define TM6000_GPIO_CLK		0x101
 #define TM6000_GPIO_DATA	0x100
+
 #define TM6000_GPIO_1		0x102
 #define TM6000_GPIO_2		0x103
 #define TM6000_GPIO_3		0x104
@@ -62,6 +63,16 @@
 #define TM6000_GPIO_6		0x304
 #define TM6000_GPIO_7		0x305
 
+/* tm6010 defines GPIO with different values */
+#define TM6010_GPIO_0      0x0102
+#define TM6010_GPIO_1      0x0103
+#define TM6010_GPIO_2      0x0104
+#define TM6010_GPIO_3      0x0105
+#define TM6010_GPIO_4      0x0106
+#define TM6010_GPIO_5      0x0107
+#define TM6010_GPIO_6      0x0300
+#define TM6010_GPIO_7      0x0301
+#define TM6010_GPIO_9      0x0305
 /*
  * Define TV Master TM5600/TM6000 URB message codes and length
  */

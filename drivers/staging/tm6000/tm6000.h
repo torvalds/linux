@@ -45,6 +45,11 @@ enum tm6000_itype {
 	TM6000_INPUT_SVIDEO,
 };
 
+enum tm6000_devtype {
+	TM6000 = 0,
+	TM5600,
+	TM6010,
+};
 
 /* ------------------------------------------------------------------
 	Basic structures
@@ -121,6 +126,7 @@ struct tm6000_core {
 	char				name[30];	/* name (including minor) of the device */
 	int				model;		/* index in the device_data struct */
 	int				devno;		/* marks the number of this device */
+	enum tm6000_devtype		dev_type;	/* type of device */
 
 	v4l2_std_id                     norm;           /* Current norm */
 	int				width,height;	/* Selected resolution */
