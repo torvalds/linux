@@ -3331,15 +3331,12 @@ static struct nfs4_lockdata *nfs4_alloc_lockdata(struct file_lock *fl,
 
 	p->arg.fh = NFS_FH(inode);
 	p->arg.fl = &p->fl;
-	if (!(lsp->ls_seqid.flags & NFS_SEQID_CONFIRMED)) {
-		p->arg.open_seqid = nfs_alloc_seqid(&lsp->ls_state->owner->so_seqid);
-		if (p->arg.open_seqid == NULL)
-			goto out_free;
-
-	}
+	p->arg.open_seqid = nfs_alloc_seqid(&lsp->ls_state->owner->so_seqid);
+	if (p->arg.open_seqid == NULL)
+		goto out_free;
 	p->arg.lock_seqid = nfs_alloc_seqid(&lsp->ls_seqid);
 	if (p->arg.lock_seqid == NULL)
-		goto out_free;
+		goto out_free_seqid;
 	p->arg.lock_stateid = &lsp->ls_stateid;
 	p->arg.lock_owner.clientid = server->nfs_client->cl_clientid;
 	p->arg.lock_owner.id = lsp->ls_id.id;
@@ -3348,9 +3345,9 @@ static struct nfs4_lockdata *nfs4_alloc_lockdata(struct file_lock *fl,
 	p->ctx = get_nfs_open_context(ctx);
 	memcpy(&p->fl, fl, sizeof(p->fl));
 	return p;
+out_free_seqid:
+	nfs_free_seqid(p->arg.open_seqid);
 out_free:
-	if (p->arg.open_seqid != NULL)
-		nfs_free_seqid(p->arg.open_seqid);
 	kfree(p);
 	return NULL;
 }
@@ -3368,20 +3365,16 @@ static void nfs4_lock_prepare(struct rpc_task *task, void *calldata)
 	};
 
 	dprintk("%s: begin!\n", __FUNCTION__);
+	if (nfs_wait_on_sequence(data->arg.lock_seqid, task) != 0)
+		return;
 	/* Do we need to do an open_to_lock_owner? */
 	if (!(data->arg.lock_seqid->sequence->flags & NFS_SEQID_CONFIRMED)) {
 		if (nfs_wait_on_sequence(data->arg.open_seqid, task) != 0)
 			return;
 		data->arg.open_stateid = &state->stateid;
 		data->arg.new_lock_owner = 1;
-		/* Retest in case we raced... */
-		if (!(data->arg.lock_seqid->sequence->flags & NFS_SEQID_CONFIRMED))
-			goto do_rpc;
-	}
-	if (nfs_wait_on_sequence(data->arg.lock_seqid, task) != 0)
-		return;
-	data->arg.new_lock_owner = 0;
-do_rpc:	
+	} else
+		data->arg.new_lock_owner = 0;
 	data->timestamp = jiffies;
 	rpc_call_setup(task, &msg, 0);
 	dprintk("%s: done!, ret = %d\n", __FUNCTION__, data->rpc_status);
@@ -3419,6 +3412,7 @@ static void nfs4_lock_release(void *calldata)
 	struct nfs4_lockdata *data = calldata;
 
 	dprintk("%s: begin!\n", __FUNCTION__);
+	nfs_free_seqid(data->arg.open_seqid);
 	if (data->cancelled != 0) {
 		struct rpc_task *task;
 		task = nfs4_do_unlck(&data->fl, data->ctx, data->lsp,
@@ -3428,8 +3422,6 @@ static void nfs4_lock_release(void *calldata)
 		dprintk("%s: cancelling lock!\n", __FUNCTION__);
 	} else
 		nfs_free_seqid(data->arg.lock_seqid);
-	if (data->arg.open_seqid != NULL)
-		nfs_free_seqid(data->arg.open_seqid);
 	nfs4_put_lock_state(data->lsp);
 	put_nfs_open_context(data->ctx);
 	kfree(data);
