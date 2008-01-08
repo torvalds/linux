@@ -28,6 +28,8 @@
 #define HFS_MAX_NAMELEN		128
 #define HFS_MAX_VALENCE		32767U
 
+#define HFS_BAD_KEYLEN		0xFF
+
 /* Meanings of the drAtrb field of the MDB,
  * Reference: _Inside Macintosh: Files_ p. 2-61
  */
@@ -166,6 +168,9 @@ typedef union hfs_btree_key {
 	struct hfs_cat_key cat;
 	struct hfs_ext_key ext;
 } hfs_btree_key;
+
+#define HFS_MAX_CAT_KEYLEN	(sizeof(struct hfs_cat_key) - sizeof(u8))
+#define HFS_MAX_EXT_KEYLEN	(sizeof(struct hfs_ext_key) - sizeof(u8))
 
 typedef union hfs_btree_key btree_key;
 
