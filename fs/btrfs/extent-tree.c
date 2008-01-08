@@ -630,6 +630,7 @@ int btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 	if (!path)
 		return -ENOMEM;
 
+	path->reada = 0;
 	key.objectid = bytenr;
 	btrfs_set_key_type(&key, BTRFS_EXTENT_ITEM_KEY);
 	key.offset = num_bytes;
@@ -649,6 +650,7 @@ int btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 
 	btrfs_release_path(root->fs_info->extent_root, path);
 
+	path->reada = 0;
 	ret = btrfs_insert_extent_backref(trans, root->fs_info->extent_root,
 					  path, bytenr, root_objectid,
 					  ref_generation, owner, owner_offset);
@@ -680,6 +682,7 @@ static int lookup_extent_ref(struct btrfs_trans_handle *trans,
 
 	WARN_ON(num_bytes < root->sectorsize);
 	path = btrfs_alloc_path();
+	path->reada = 0;
 	key.objectid = bytenr;
 	key.offset = num_bytes;
 	btrfs_set_key_type(&key, BTRFS_EXTENT_ITEM_KEY);
@@ -1240,6 +1243,7 @@ static int __free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 	if (!path)
 		return -ENOMEM;
 
+	path->reada = 0;
 	ret = lookup_extent_backref(trans, extent_root, path,
 				    bytenr, root_objectid,
 				    ref_generation,
