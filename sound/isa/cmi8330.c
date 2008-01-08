@@ -43,7 +43,6 @@
  *  full control over both mixers.
  */
 
-#include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/err.h>
 #include <linux/isa.h>

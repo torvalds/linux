@@ -26,7 +26,6 @@
  *
  */
 
-#include <sound/driver.h>
 #include <linux/bitops.h>
 #include <linux/init.h>
 #include <linux/list.h>

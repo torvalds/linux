@@ -25,8 +25,6 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-/* #dependency of sound/core.h# */
-#include <sound/driver.h>
 /* snd_printk/d() */
 #include <sound/core.h>
 /* struct snd_pcm_substream, struct snd_pcm_runtime, snd_pcm_uframes_t

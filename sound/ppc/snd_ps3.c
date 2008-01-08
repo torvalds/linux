@@ -22,7 +22,6 @@
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/interrupt.h>
-#include <sound/driver.h>
 #include <sound/core.h>
 #include <sound/initval.h>
 #include <sound/pcm.h>

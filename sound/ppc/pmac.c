@@ -20,7 +20,6 @@
  */
 
 
-#include <sound/driver.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <linux/init.h>

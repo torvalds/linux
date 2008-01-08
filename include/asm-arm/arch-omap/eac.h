@@ -31,7 +31,6 @@
 #include <asm/arch/hardware.h>
 #include <asm/irq.h>
 
-#include <sound/driver.h>
 #include <sound/core.h>
 
 /* master codec clock source */

@@ -30,7 +30,6 @@
  * GPIO 8 -> ? (amps enable?)
  */
 
-#include <sound/driver.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <sound/control.h>

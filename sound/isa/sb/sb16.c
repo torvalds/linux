@@ -19,7 +19,6 @@
  *
  */
 
-#include <sound/driver.h>
 #include <asm/dma.h>
 #include <linux/init.h>
 #include <linux/slab.h>

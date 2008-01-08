@@ -1,7 +1,6 @@
 #ifndef __ASM_ARCH_AUDIO_H__
 #define __ASM_ARCH_AUDIO_H__
 
-#include <sound/driver.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 

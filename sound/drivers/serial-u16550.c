@@ -30,7 +30,6 @@
  *      More documentation can be found in serial-u16550.txt.
  */
 
-#include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/err.h>

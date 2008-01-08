@@ -37,7 +37,6 @@
  *      - ported from alsa 0.5 to 1.0
  */
 
-#include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/parport.h>

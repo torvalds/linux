@@ -8,9 +8,6 @@
 
 #include <asm/io.h>
 #include <linux/delay.h>
-/* So apparently there's a reason for requiring driver.h
- * to be included first, even if I don't know it... */
-#include <sound/driver.h>
 #include <sound/core.h>
 #include <asm/macio.h>
 #include <linux/pci.h>

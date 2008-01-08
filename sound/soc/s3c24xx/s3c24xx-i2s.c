@@ -25,7 +25,6 @@
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/jiffies.h>
-#include <sound/driver.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>

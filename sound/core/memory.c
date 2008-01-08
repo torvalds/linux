@@ -20,9 +20,9 @@
  *
  */
 
-#include <linux/module.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
+#include <sound/core.h>
 
 /**
  * copy_to_user_fromio - copy data from mmio-space to user-space

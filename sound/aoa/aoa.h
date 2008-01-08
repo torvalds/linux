@@ -10,8 +10,6 @@
 #define __AOA_H
 #include <asm/prom.h>
 #include <linux/module.h>
-/* So apparently there's a reason for requiring driver.h to be included first! */
-#include <sound/driver.h>
 #include <sound/core.h>
 #include <sound/asound.h>
 #include <sound/control.h>

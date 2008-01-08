@@ -47,7 +47,6 @@
 #define BX_NUM		chip->bx_num
 
 
-#include <sound/driver.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>

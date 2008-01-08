@@ -28,7 +28,6 @@
  * GPIO 1 -> DFS1 of AK5385
  */
 
-#include <sound/driver.h>
 #include <linux/pci.h>
 #include <sound/core.h>
 #include <sound/initval.h>

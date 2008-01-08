@@ -33,7 +33,6 @@
  *		CDTI may be completely blocked by 74HCT125's gate #1 controlled by GPIO 3
  */
 
-#include <sound/driver.h>
 #include <asm/io.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>

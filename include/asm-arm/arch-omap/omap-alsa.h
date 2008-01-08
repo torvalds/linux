@@ -40,7 +40,6 @@
 #ifndef __OMAP_ALSA_H
 #define __OMAP_ALSA_H
 
-#include <sound/driver.h>
 #include <asm/arch/dma.h>
 #include <sound/core.h>
 #include <sound/pcm.h>

@@ -46,7 +46,6 @@
  *	- Optimize position calculation for the 823x chips. 
  */
 
-#include <sound/driver.h>
 #include <asm/io.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>

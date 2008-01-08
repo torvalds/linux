@@ -40,7 +40,6 @@
 #include <linux/compiler.h>
 #include <linux/delay.h>
 
-#include <sound/driver.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/initval.h>

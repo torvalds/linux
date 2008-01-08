@@ -29,7 +29,6 @@
  * code in here.  If there is it should be reported as a bug.
  */
 
-#include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/string.h>

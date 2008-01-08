@@ -33,7 +33,6 @@
  *   But there might still be some ...
  */
 
-#include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/moduleparam.h>
 

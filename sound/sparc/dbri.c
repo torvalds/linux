@@ -53,7 +53,6 @@
  * other	DBRI low-level stuff
  */
 
-#include <sound/driver.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/irq.h>

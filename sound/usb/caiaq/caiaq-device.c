@@ -26,7 +26,6 @@
 #include <linux/usb.h>
 #include <linux/input.h>
 #include <linux/spinlock.h>
-#include <sound/driver.h>
 #include <sound/core.h>
 #include <sound/initval.h>
 #include <sound/pcm.h>

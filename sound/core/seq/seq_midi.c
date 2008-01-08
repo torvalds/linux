@@ -26,7 +26,6 @@ Possible options for midisynth module:
 */
 
 
-#include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/errno.h>

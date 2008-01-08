@@ -51,19 +51,16 @@
  *
  */
 
-#include "driver.h"
-#include <linux/time.h>
-#include <linux/mutex.h>
-#include "core.h"
-#include "hwdep.h"
-#include "timer.h"
-#include "seq_midi_emul.h"
+#include <sound/core.h>
+#include <sound/hwdep.h>
+#include <sound/timer.h>
+#include <sound/seq_midi_emul.h>
 #ifdef CONFIG_SND_SEQUENCER_OSS
-#include "seq_oss.h"
-#include "seq_oss_legacy.h"
+#include <sound/seq_oss.h>
+#include <sound/seq_oss_legacy.h>
 #endif
-#include "seq_device.h"
-#include "asound_fm.h"
+#include <sound/seq_device.h>
+#include <sound/asound_fm.h>
 
 /*
  *    Register numbers for the global registers
