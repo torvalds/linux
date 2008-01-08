@@ -94,6 +94,58 @@ unsigned long qe_muram_alloc_fixed(unsigned long offset, int size);
 void qe_muram_dump(void);
 void *qe_muram_addr(unsigned long offset);
 
+/* Structure that defines QE firmware binary files.
+ *
+ * See Documentation/powerpc/qe-firmware.txt for a description of these
+ * fields.
+ */
+struct qe_firmware {
+	struct qe_header {
+		__be32 length;  /* Length of the entire structure, in bytes */
+		u8 magic[3];    /* Set to { 'Q', 'E', 'F' } */
+		u8 version;     /* Version of this layout. First ver is '1' */
+	} header;
+	u8 id[62];      /* Null-terminated identifier string */
+	u8 split;	/* 0 = shared I-RAM, 1 = split I-RAM */
+	u8 count;       /* Number of microcode[] structures */
+	struct {
+		__be16 model;   	/* The SOC model  */
+		u8 major;       	/* The SOC revision major */
+		u8 minor;       	/* The SOC revision minor */
+	} __attribute__ ((packed)) soc;
+	u8 padding[4];			/* Reserved, for alignment */
+	__be64 extended_modes;		/* Extended modes */
+	__be32 vtraps[8];		/* Virtual trap addresses */
+	u8 reserved[4];			/* Reserved, for future expansion */
+	struct qe_microcode {
+		u8 id[32];      	/* Null-terminated identifier */
+		__be32 traps[16];       /* Trap addresses, 0 == ignore */
+		__be32 eccr;    	/* The value for the ECCR register */
+		__be32 iram_offset;     /* Offset into I-RAM for the code */
+		__be32 count;   	/* Number of 32-bit words of the code */
+		__be32 code_offset;     /* Offset of the actual microcode */
+		u8 major;       	/* The microcode version major */
+		u8 minor;       	/* The microcode version minor */
+		u8 revision;		/* The microcode version revision */
+		u8 padding;		/* Reserved, for alignment */
+		u8 reserved[4];		/* Reserved, for future expansion */
+	} __attribute__ ((packed)) microcode[1];
+	/* All microcode binaries should be located here */
+	/* CRC32 should be located here, after the microcode binaries */
+} __attribute__ ((packed));
+
+struct qe_firmware_info {
+	char id[64];		/* Firmware name */
+	u32 vtraps[8];		/* Virtual trap addresses */
+	u64 extended_modes;	/* Extended modes */
+};
+
+/* Upload a firmware to the QE */
+int qe_upload_firmware(const struct qe_firmware *firmware);
+
+/* Obtain information on the uploaded firmware */
+struct qe_firmware_info *qe_get_firmware_info(void);
+
 /* Buffer descriptors */
 struct qe_bd {
 	__be16 status;
@@ -328,6 +380,15 @@ enum comm_dir {
 #define QE_SDTM_MSNUM_SHIFT	24
 
 #define QE_SDEBCR_BA_MASK	0x01FFFFFF
+
+/* Communication Processor */
+#define QE_CP_CERCR_MEE		0x8000	/* Multi-user RAM ECC enable */
+#define QE_CP_CERCR_IEE		0x4000	/* Instruction RAM ECC enable */
+#define QE_CP_CERCR_CIR		0x0800	/* Common instruction RAM */
+
+/* I-RAM */
+#define QE_IRAM_IADD_AIE	0x80000000	/* Auto Increment Enable */
+#define QE_IRAM_IADD_BADDR	0x00080000	/* Base Address */
 
 /* UPC */
 #define UPGCR_PROTOCOL	0x80000000	/* protocol ul2 or pl2 */

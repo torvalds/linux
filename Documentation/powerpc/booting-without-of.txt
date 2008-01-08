@@ -52,7 +52,10 @@ Table of Contents
       i) Freescale QUICC Engine module (QE)
       j) CFI or JEDEC memory-mapped NOR flash
       k) Global Utilities Block
-      l) Xilinx IP cores
+      l) Freescale Communications Processor Module
+      m) Chipselect/Local Bus
+      n) 4xx/Axon EMAC ethernet nodes
+      o) Xilinx IP cores
 
   VII - Specifying interrupt information for devices
     1) interrupts property
@@ -1788,6 +1791,32 @@ platforms are moved over to use the flattened-device-tree model.
 		};
 	};
 
+   viii) Uploaded QE firmware
+
+	 If a new firwmare has been uploaded to the QE (usually by the
+	 boot loader), then a 'firmware' child node should be added to the QE
+	 node.  This node provides information on the uploaded firmware that
+	 device drivers may need.
+
+	 Required properties:
+	 - id: The string name of the firmware.  This is taken from the 'id'
+	       member of the qe_firmware structure of the uploaded firmware.
+	       Device drivers can search this string to determine if the
+	       firmware they want is already present.
+	 - extended-modes: The Extended Modes bitfield, taken from the
+			   firmware binary.  It is a 64-bit number represented
+			   as an array of two 32-bit numbers.
+	 - virtual-traps: The virtual traps, taken from the firmware binary.
+			  It is an array of 8 32-bit numbers.
+
+	 Example:
+
+		firmware {
+			id = "Soft-UART";
+			extended-modes = <0 0>;
+			virtual-traps = <0 0 0 0 0 0 0 0>;
+		}
+
    j) CFI or JEDEC memory-mapped NOR flash
 
     Flash chips (Memory Technology Devices) are often used for solid state
@@ -2269,7 +2298,7 @@ platforms are moved over to use the flattened-device-tree model.
 			   available.
 			   For Axon: 0x0000012a
 
-   l) Xilinx IP cores
+   o) Xilinx IP cores
 
    The Xilinx EDK toolchain ships with a set of IP cores (devices) for use
    in Xilinx Spartan and Virtex FPGAs.  The devices cover the whole range
