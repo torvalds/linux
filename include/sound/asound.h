@@ -696,7 +696,7 @@ struct snd_timer_tread {
  *                                                                          *
  ****************************************************************************/
 
-#define SNDRV_CTL_VERSION		SNDRV_PROTOCOL_VERSION(2, 0, 4)
+#define SNDRV_CTL_VERSION		SNDRV_PROTOCOL_VERSION(2, 0, 5)
 
 struct snd_ctl_card_info {
 	int card;			/* card number */
@@ -745,8 +745,7 @@ typedef int __bitwise snd_ctl_elem_iface_t;
 #define SNDRV_CTL_ELEM_ACCESS_OWNER		(1<<10)	/* write lock owner */
 #define SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK	(1<<28)	/* kernel use a TLV callback */ 
 #define SNDRV_CTL_ELEM_ACCESS_USER		(1<<29) /* user space element */
-#define SNDRV_CTL_ELEM_ACCESS_DINDIRECT		(1<<30)	/* indirect access for matrix dimensions in the info structure */
-#define SNDRV_CTL_ELEM_ACCESS_INDIRECT		(1<<31)	/* indirect access for element value in the value structure */
+/* bits 30 and 31 are obsoleted (for indirect access) */
 
 /* for further details see the ACPI and PCI power management specification */
 #define SNDRV_CTL_POWER_D0		0x0000	/* full On */
@@ -800,30 +799,30 @@ struct snd_ctl_elem_info {
 	} value;
 	union {
 		unsigned short d[4];		/* dimensions */
-		unsigned short *d_ptr;		/* indirect */
+		unsigned short *d_ptr;		/* indirect - obsoleted */
 	} dimen;
 	unsigned char reserved[64-4*sizeof(unsigned short)];
 };
 
 struct snd_ctl_elem_value {
 	struct snd_ctl_elem_id id;	/* W: element ID */
-	unsigned int indirect: 1;	/* W: use indirect pointer (xxx_ptr member) */
+	unsigned int indirect: 1;	/* W: indirect access - obsoleted */
         union {
 		union {
 			long value[128];
-			long *value_ptr;
+			long *value_ptr;	/* obsoleted */
 		} integer;
 		union {
 			long long value[64];
-			long long *value_ptr;
+			long long *value_ptr;	/* obsoleted */
 		} integer64;
 		union {
 			unsigned int item[128];
-			unsigned int *item_ptr;
+			unsigned int *item_ptr;	/* obsoleted */
 		} enumerated;
 		union {
 			unsigned char data[512];
-			unsigned char *data_ptr;
+			unsigned char *data_ptr;	/* obsoleted */
 		} bytes;
 		struct snd_aes_iec958 iec958;
         } value;                /* RO */
