@@ -852,6 +852,46 @@ static int hotkey_status_set(int status)
 	return 0;
 }
 
+static void tpacpi_input_send_radiosw(void)
+{
+	int wlsw;
+
+	mutex_lock(&tpacpi_inputdev_send_mutex);
+
+	if (tp_features.hotkey_wlsw && !hotkey_get_wlsw(&wlsw)) {
+		input_report_switch(tpacpi_inputdev,
+				    SW_RADIO, !!wlsw);
+		input_sync(tpacpi_inputdev);
+	}
+
+	mutex_unlock(&tpacpi_inputdev_send_mutex);
+}
+
+static void tpacpi_input_send_key(unsigned int scancode)
+{
+	unsigned int keycode;
+
+	keycode = hotkey_keycode_map[scancode];
+
+	if (keycode != KEY_RESERVED) {
+		mutex_lock(&tpacpi_inputdev_send_mutex);
+
+		input_report_key(tpacpi_inputdev, keycode, 1);
+		if (keycode == KEY_UNKNOWN)
+			input_event(tpacpi_inputdev, EV_MSC, MSC_SCAN,
+				    scancode);
+		input_sync(tpacpi_inputdev);
+
+		input_report_key(tpacpi_inputdev, keycode, 0);
+		if (keycode == KEY_UNKNOWN)
+			input_event(tpacpi_inputdev, EV_MSC, MSC_SCAN,
+				    scancode);
+		input_sync(tpacpi_inputdev);
+
+		mutex_unlock(&tpacpi_inputdev_send_mutex);
+	}
+}
+
 /* sysfs hotkey enable ------------------------------------------------- */
 static ssize_t hotkey_enable_show(struct device *dev,
 			   struct device_attribute *attr,
@@ -1290,47 +1330,10 @@ static void hotkey_exit(void)
 	}
 }
 
-static void tpacpi_input_send_key(unsigned int scancode,
-				  unsigned int keycode)
-{
-	if (keycode != KEY_RESERVED) {
-		mutex_lock(&tpacpi_inputdev_send_mutex);
-
-		input_report_key(tpacpi_inputdev, keycode, 1);
-		if (keycode == KEY_UNKNOWN)
-			input_event(tpacpi_inputdev, EV_MSC, MSC_SCAN,
-				    scancode);
-		input_sync(tpacpi_inputdev);
-
-		input_report_key(tpacpi_inputdev, keycode, 0);
-		if (keycode == KEY_UNKNOWN)
-			input_event(tpacpi_inputdev, EV_MSC, MSC_SCAN,
-				    scancode);
-		input_sync(tpacpi_inputdev);
-
-		mutex_unlock(&tpacpi_inputdev_send_mutex);
-	}
-}
-
-static void tpacpi_input_send_radiosw(void)
-{
-	int wlsw;
-
-	mutex_lock(&tpacpi_inputdev_send_mutex);
-
-	if (tp_features.hotkey_wlsw && !hotkey_get_wlsw(&wlsw)) {
-		input_report_switch(tpacpi_inputdev,
-				    SW_RADIO, !!wlsw);
-		input_sync(tpacpi_inputdev);
-	}
-
-	mutex_unlock(&tpacpi_inputdev_send_mutex);
-}
-
 static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 {
 	u32 hkey;
-	unsigned int keycode, scancode;
+	unsigned int scancode;
 	int send_acpi_ev;
 	int ignore_acpi_ev;
 
@@ -1363,8 +1366,7 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 			scancode = hkey & 0xfff;
 			if (scancode > 0 && scancode < 0x21) {
 				scancode--;
-				keycode = hotkey_keycode_map[scancode];
-				tpacpi_input_send_key(scancode, keycode);
+				tpacpi_input_send_key(scancode);
 			} else {
 				printk(IBM_ERR
 				       "hotkey 0x%04x out of range for keyboard map\n",
