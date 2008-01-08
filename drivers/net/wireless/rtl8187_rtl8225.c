@@ -283,8 +283,8 @@ static void rtl8225_rf_set_tx_power(struct ieee80211_hw *dev, int channel)
 	u32 reg;
 	int i;
 
-	cck_power = priv->channels[channel - 1].val & 0xFF;
-	ofdm_power = priv->channels[channel - 1].val >> 8;
+	cck_power = priv->channels[channel - 1].val & 0xF;
+	ofdm_power = priv->channels[channel - 1].val >> 4;
 
 	cck_power = min(cck_power, (u8)11);
 	ofdm_power = min(ofdm_power, (u8)35);
@@ -500,8 +500,8 @@ static void rtl8225z2_rf_set_tx_power(struct ieee80211_hw *dev, int channel)
 	u32 reg;
 	int i;
 
-	cck_power = priv->channels[channel - 1].val & 0xFF;
-	ofdm_power = priv->channels[channel - 1].val >> 8;
+	cck_power = priv->channels[channel - 1].val & 0xF;
+	ofdm_power = priv->channels[channel - 1].val >> 4;
 
 	cck_power = min(cck_power, (u8)15);
 	cck_power += priv->txpwr_base & 0xF;
