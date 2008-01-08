@@ -34,6 +34,7 @@
 #include "disk-io.h"
 #include "transaction.h"
 #include "btrfs_inode.h"
+#include "ordered-data.h"
 #include "ioctl.h"
 #include "print-tree.h"
 
@@ -329,6 +330,7 @@ static int noinline dirty_and_release_pages(struct btrfs_trans_handle *trans,
 		root->fs_info->delalloc_bytes += (end_of_last_block + 1 -
 					  start_pos) - existing_delalloc;
 		spin_unlock(&root->fs_info->delalloc_lock);
+		btrfs_add_ordered_inode(inode);
 	} else {
 		u64 aligned_end;
 		/* step one, delete the existing extents in this range */
@@ -724,8 +726,6 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 
 	pages = kmalloc(nrptrs * sizeof(struct page *), GFP_KERNEL);
 
-	down_read(&BTRFS_I(inode)->root->snap_sem);
-
 	mutex_lock(&inode->i_mutex);
 	first_index = pos >> PAGE_CACHE_SHIFT;
 	last_index = (pos + count) >> PAGE_CACHE_SHIFT;
@@ -804,7 +804,6 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 	}
 out:
 	mutex_unlock(&inode->i_mutex);
-	up_read(&BTRFS_I(inode)->root->snap_sem);
 
 out_nolock:
 	kfree(pages);

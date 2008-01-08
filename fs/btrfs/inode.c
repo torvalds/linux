@@ -135,6 +135,7 @@ static int cow_file_range(struct inode *inode, u64 start, u64 end)
 		alloc_hint = ins.objectid + ins.offset;
 		start += cur_alloc_size;
 	}
+	btrfs_add_ordered_inode(inode);
 out:
 	btrfs_end_transaction(trans, root);
 	return ret;
@@ -367,8 +368,8 @@ void btrfs_read_locked_inode(struct inode *inode)
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
 	mutex_lock(&root->fs_info->fs_mutex);
-
 	memcpy(&location, &BTRFS_I(inode)->location, sizeof(location));
+
 	ret = btrfs_lookup_inode(NULL, root, path, &location, 0);
 	if (ret)
 		goto make_bad;
@@ -898,7 +899,6 @@ static int btrfs_truncate_page(struct address_space *mapping, loff_t from)
 	if ((offset & (blocksize - 1)) == 0)
 		goto out;
 
-	down_read(&root->snap_sem);
 	ret = -ENOMEM;
 	page = grab_cache_page(mapping, index);
 	if (!page)
@@ -917,7 +917,6 @@ static int btrfs_truncate_page(struct address_space *mapping, loff_t from)
 
 	unlock_page(page);
 	page_cache_release(page);
-	up_read(&BTRFS_I(inode)->root->snap_sem);
 out:
 	return ret;
 }
@@ -1146,6 +1145,19 @@ static int btrfs_find_actor(struct inode *inode, void *opaque)
 		args->root == BTRFS_I(inode)->root);
 }
 
+struct inode *btrfs_ilookup(struct super_block *s, u64 objectid,
+			    u64 root_objectid)
+{
+	struct btrfs_iget_args args;
+	args.ino = objectid;
+	args.root = btrfs_lookup_fs_root(btrfs_sb(s)->fs_info, root_objectid);
+
+	if (!args.root)
+		return NULL;
+
+	return ilookup5(s, objectid, btrfs_find_actor, (void *)&args);
+}
+
 struct inode *btrfs_iget_locked(struct super_block *s, u64 objectid,
 				struct btrfs_root *root)
 {
@@ -1336,7 +1348,6 @@ read_dir_items:
 
 			d_type = btrfs_filetype_table[btrfs_dir_type(leaf, di)];
 			btrfs_dir_item_key_to_cpu(leaf, di, &location);
-
 			over = filldir(dirent, name_ptr, name_len,
 				       found_key.offset,
 				       location.objectid,
@@ -2054,7 +2065,6 @@ int btrfs_page_mkwrite(struct vm_area_struct *vma, struct page *page)
 
 	ret = -EINVAL;
 
-	down_read(&BTRFS_I(inode)->root->snap_sem);
 	lock_page(page);
 	wait_on_page_writeback(page);
 	size = i_size_read(inode);
@@ -2075,7 +2085,6 @@ int btrfs_page_mkwrite(struct vm_area_struct *vma, struct page *page)
 	ret = btrfs_cow_one_page(inode, page, end);
 
 out_unlock:
-	up_read(&BTRFS_I(inode)->root->snap_sem);
 	unlock_page(page);
 out:
 	return ret;
@@ -2118,7 +2127,7 @@ static int noinline create_subvol(struct btrfs_root *root, char *name,
 	struct btrfs_root_item root_item;
 	struct btrfs_inode_item *inode_item;
 	struct extent_buffer *leaf;
-	struct btrfs_root *new_root;
+	struct btrfs_root *new_root = root;
 	struct inode *inode;
 	struct inode *dir;
 	int ret;
@@ -2230,7 +2239,7 @@ static int noinline create_subvol(struct btrfs_root *root, char *name,
 		goto fail;
 fail:
 	nr = trans->blocks_used;
-	err = btrfs_commit_transaction(trans, root);
+	err = btrfs_commit_transaction(trans, new_root);
 	if (err && !ret)
 		ret = err;
 fail_commit:
@@ -2253,10 +2262,6 @@ static int create_snapshot(struct btrfs_root *root, char *name, int namelen)
 	if (!root->ref_cows)
 		return -EINVAL;
 
-	down_write(&root->snap_sem);
-	freeze_bdev(root->fs_info->sb->s_bdev);
-	thaw_bdev(root->fs_info->sb->s_bdev, root->fs_info->sb);
-
 	mutex_lock(&root->fs_info->fs_mutex);
 	ret = btrfs_check_free_space(root, 1, 0);
 	if (ret)
@@ -2264,6 +2269,9 @@ static int create_snapshot(struct btrfs_root *root, char *name, int namelen)
 
 	trans = btrfs_start_transaction(root, 1);
 	BUG_ON(!trans);
+	err = btrfs_commit_transaction(trans, root);
+
+	trans = btrfs_start_transaction(root, 1);
 
 	ret = btrfs_update_inode(trans, root, root->inode);
 	if (ret)
@@ -2272,9 +2280,7 @@ static int create_snapshot(struct btrfs_root *root, char *name, int namelen)
 	ret = btrfs_find_free_objectid(trans, root->fs_info->tree_root,
 				       0, &objectid);
 	if (ret)
-		goto fail;
-
-	memcpy(&new_root_item, &root->root_item,
+		goto fail; memcpy(&new_root_item, &root->root_item,
 	       sizeof(new_root_item));
 
 	key.objectid = objectid;
@@ -2285,12 +2291,20 @@ static int create_snapshot(struct btrfs_root *root, char *name, int namelen)
 	btrfs_cow_block(trans, root, root->node, NULL, 0, &tmp);
 	free_extent_buffer(tmp);
 
+	/* write the ordered inodes to force all delayed allocations to
+	 * be filled.  Once this is done, we can copy the root
+	 */
+	mutex_lock(&root->fs_info->trans_mutex);
+	btrfs_write_ordered_inodes(trans, root);
+	mutex_unlock(&root->fs_info->trans_mutex);
+
 	btrfs_copy_root(trans, root, root->node, &tmp, objectid);
 
 	btrfs_set_root_bytenr(&new_root_item, tmp->start);
 	btrfs_set_root_level(&new_root_item, btrfs_header_level(tmp));
 	ret = btrfs_insert_root(trans, root->fs_info->tree_root, &key,
 				&new_root_item);
+printk("new root %Lu node %Lu\n", objectid, tmp->start);
 	free_extent_buffer(tmp);
 	if (ret)
 		goto fail;
@@ -2321,7 +2335,6 @@ fail:
 		ret = err;
 fail_unlock:
 	mutex_unlock(&root->fs_info->fs_mutex);
-	up_write(&root->snap_sem);
 	btrfs_btree_balance_dirty(root, nr);
 	return ret;
 }
@@ -2608,6 +2621,7 @@ struct inode *btrfs_alloc_inode(struct super_block *sb)
 	if (!ei)
 		return NULL;
 	ei->last_trans = 0;
+	ei->ordered_trans = 0;
 	return &ei->vfs_inode;
 }
 

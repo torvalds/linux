@@ -221,7 +221,9 @@ int btrfs_cow_block(struct btrfs_trans_handle *trans,
 		    struct extent_buffer **cow_ret)
 {
 	u64 search_start;
+	u64 header_trans;
 	int ret;
+
 	if (trans->transaction != root->fs_info->running_transaction) {
 		printk(KERN_CRIT "trans %Lu running %Lu\n", trans->transid,
 		       root->fs_info->running_transaction->transid);
@@ -232,7 +234,9 @@ int btrfs_cow_block(struct btrfs_trans_handle *trans,
 		       root->fs_info->generation);
 		WARN_ON(1);
 	}
-	if (btrfs_header_generation(buf) == trans->transid) {
+
+	header_trans = btrfs_header_generation(buf);
+	if (header_trans == trans->transid) {
 		*cow_ret = buf;
 		return 0;
 	}

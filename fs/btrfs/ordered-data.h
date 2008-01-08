@@ -16,28 +16,24 @@
  * Boston, MA 021110-1307, USA.
  */
 
-#ifndef __BTRFS_I__
-#define __BTRFS_I__
+#ifndef __BTRFS_ORDERED_DATA__
+#define __BTRFS_ORDERED_DATA__
 
-#include "extent_map.h"
-
-/* in memory btrfs inode */
-struct btrfs_inode {
-	struct btrfs_root *root;
-	struct btrfs_block_group_cache *block_group;
-	struct btrfs_key location;
-	struct extent_map_tree extent_tree;
-	struct inode vfs_inode;
-
-	u64 ordered_trans;
-	/*
-	 * transid of the trans_handle that last modified this inode
-	 */
-	u64 last_trans;
+struct btrfs_ordered_inode_tree {
+	rwlock_t lock;
+	struct rb_root tree;
 };
-static inline struct btrfs_inode *BTRFS_I(struct inode *inode)
+
+static inline void
+btrfs_ordered_inode_tree_init(struct btrfs_ordered_inode_tree *t)
 {
-	return container_of(inode, struct btrfs_inode, vfs_inode);
+	rwlock_init(&t->lock);
+	t->tree.rb_node = NULL;
 }
 
+int btrfs_add_ordered_inode(struct inode *inode);
+int btrfs_find_del_first_ordered_inode(struct btrfs_ordered_inode_tree *tree,
+				       u64 *root_objectid, u64 *objectid);
+int btrfs_find_first_ordered_inode(struct btrfs_ordered_inode_tree *tree,
+				       u64 *root_objectid, u64 *objectid);
 #endif

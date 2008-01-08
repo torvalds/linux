@@ -16,8 +16,8 @@
  * Boston, MA 021110-1307, USA.
  */
 
-#ifndef __BTRFS__
-#define __BTRFS__
+#ifndef __BTRFS_CTREE__
+#define __BTRFS_CTREE__
 
 #include <linux/version.h>
 #include <linux/mm.h>
@@ -363,7 +363,6 @@ struct btrfs_root {
 	struct inode *inode;
 	struct kobject root_kobj;
 	struct completion kobj_unregister;
-	struct rw_semaphore snap_sem;
 	u64 objectid;
 	u64 last_trans;
 
@@ -1142,6 +1141,8 @@ void btrfs_destroy_cachep(void);
 long btrfs_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 struct inode *btrfs_iget_locked(struct super_block *s, u64 objectid,
 				struct btrfs_root *root);
+struct inode *btrfs_ilookup(struct super_block *s, u64 objectid,
+			    u64 root_objectid);
 int btrfs_commit_write(struct file *file, struct page *page,
 		       unsigned from, unsigned to);
 struct extent_map *btrfs_get_extent(struct inode *inode, struct page *page,

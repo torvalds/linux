@@ -406,7 +406,6 @@ static int __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	memset(&root->defrag_progress, 0, sizeof(root->defrag_progress));
 	memset(&root->root_kobj, 0, sizeof(root->root_kobj));
 	init_completion(&root->kobj_unregister);
-	init_rwsem(&root->snap_sem);
 	root->defrag_running = 0;
 	root->defrag_level = 0;
 	root->root_key.objectid = objectid;
@@ -495,6 +494,21 @@ insert:
 		root->highest_inode = highest_inode;
 		root->last_inode_alloc = highest_inode;
 	}
+	return root;
+}
+
+struct btrfs_root *btrfs_lookup_fs_root(struct btrfs_fs_info *fs_info,
+					u64 root_objectid)
+{
+	struct btrfs_root *root;
+
+	if (root_objectid == BTRFS_ROOT_TREE_OBJECTID)
+		return fs_info->tree_root;
+	if (root_objectid == BTRFS_EXTENT_TREE_OBJECTID)
+		return fs_info->extent_root;
+
+	root = radix_tree_lookup(&fs_info->fs_roots_radix,
+				 (unsigned long)root_objectid);
 	return root;
 }
 

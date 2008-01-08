@@ -67,6 +67,7 @@ static int join_transaction(struct btrfs_root *root)
 		cur_trans->commit_done = 0;
 		cur_trans->start_time = get_seconds();
 		list_add_tail(&cur_trans->list, &root->fs_info->trans_list);
+		btrfs_ordered_inode_tree_init(&cur_trans->ordered_inode_tree);
 		extent_map_tree_init(&cur_trans->dirty_pages,
 				     root->fs_info->btree_inode->i_mapping,
 				     GFP_NOFS);
@@ -473,6 +474,60 @@ static int drop_dirty_roots(struct btrfs_root *tree_root,
 	return ret;
 }
 
+int btrfs_write_ordered_inodes(struct btrfs_trans_handle *trans,
+				struct btrfs_root *root)
+{
+	struct btrfs_transaction *cur_trans = trans->transaction;
+	struct inode *inode;
+	u64 root_objectid = 0;
+	u64 objectid = 0;
+	u64 transid = trans->transid;
+	int ret;
+
+printk("write ordered trans %Lu\n", transid);
+	while(1) {
+		ret = btrfs_find_first_ordered_inode(
+				&cur_trans->ordered_inode_tree,
+				&root_objectid, &objectid);
+		if (!ret)
+			break;
+
+		mutex_unlock(&root->fs_info->trans_mutex);
+		mutex_unlock(&root->fs_info->fs_mutex);
+		inode = btrfs_ilookup(root->fs_info->sb, objectid,
+				      root_objectid);
+		if (inode) {
+			if (S_ISREG(inode->i_mode))
+				filemap_fdatawrite(inode->i_mapping);
+			iput(inode);
+		}
+		mutex_lock(&root->fs_info->fs_mutex);
+		mutex_lock(&root->fs_info->trans_mutex);
+	}
+	while(1) {
+		root_objectid = 0;
+		objectid = 0;
+		ret = btrfs_find_del_first_ordered_inode(
+				&cur_trans->ordered_inode_tree,
+				&root_objectid, &objectid);
+		if (!ret)
+			break;
+		mutex_unlock(&root->fs_info->trans_mutex);
+		mutex_unlock(&root->fs_info->fs_mutex);
+		inode = btrfs_ilookup(root->fs_info->sb, objectid,
+				      root_objectid);
+		if (inode) {
+			if (S_ISREG(inode->i_mode))
+				filemap_write_and_wait(inode->i_mapping);
+			iput(inode);
+		}
+		mutex_lock(&root->fs_info->fs_mutex);
+		mutex_lock(&root->fs_info->trans_mutex);
+	}
+printk("done write ordered trans %Lu\n", transid);
+	return 0;
+}
+
 int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root)
 {
@@ -550,10 +605,13 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 		mutex_lock(&root->fs_info->fs_mutex);
 		mutex_lock(&root->fs_info->trans_mutex);
 		finish_wait(&cur_trans->writer_wait, &wait);
+		ret = btrfs_write_ordered_inodes(trans, root);
+
 	} while (cur_trans->num_writers > 1 ||
 		 (cur_trans->num_joined != joined));
 
 	WARN_ON(cur_trans != trans->transaction);
+
 	ret = add_dirty_roots(trans, &root->fs_info->fs_roots_radix,
 			      &dirty_fs_roots);
 	BUG_ON(ret);
