@@ -475,6 +475,10 @@ Non hot-key ACPI HKEY event map:
 The above events are not propagated by the driver, except for legacy
 compatibility purposes when hotkey_report_mode is set to 1.
 
+0x5010		Brightness level changed (newer Lenovo BIOSes)
+
+The above events are propagated by the driver.
+
 Compatibility notes:
 
 ibm-acpi and thinkpad-acpi 0.15 (mainline kernels before 2.6.23) never

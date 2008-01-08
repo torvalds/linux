@@ -2007,6 +2007,7 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 	unsigned int scancode;
 	int send_acpi_ev;
 	int ignore_acpi_ev;
+	int unk_ev;
 
 	if (event != 0x80) {
 		printk(TPACPI_ERR
@@ -2030,8 +2031,9 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 			return;
 		}
 
-		send_acpi_ev = 0;
+		send_acpi_ev = 1;
 		ignore_acpi_ev = 0;
+		unk_ev = 0;
 
 		switch (hkey >> 12) {
 		case 1:
@@ -2041,33 +2043,34 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 				scancode--;
 				if (!(hotkey_source_mask & (1 << scancode))) {
 					tpacpi_input_send_key(scancode);
+					send_acpi_ev = 0;
 				} else {
 					ignore_acpi_ev = 1;
 				}
 			} else {
-				printk(TPACPI_ERR
-				       "hotkey 0x%04x out of range "
-				       "for keyboard map\n", hkey);
-				send_acpi_ev = 1;
+				unk_ev = 1;
 			}
 			break;
 		case 5:
-			/* 0x5000-0x5FFF: LID */
-			/* we don't handle it through this path, just
-			 * eat up known LID events */
-			if (hkey != 0x5001 && hkey != 0x5002) {
-				printk(TPACPI_ERR
-				       "unknown LID-related HKEY event: "
-				       "0x%04x\n", hkey);
-				send_acpi_ev = 1;
-			} else {
+			/* 0x5000-0x5FFF: On screen display helpers */
+			switch (hkey) {
+			case 0x5010:
+				/* Lenovo Vista BIOS: brightness changed */
+				break;
+			case 0x5001:
+			case 0x5002:
+				/* LID switch events.  Do not propagate */
 				ignore_acpi_ev = 1;
+				break;
+			default:
+				unk_ev = 1;
 			}
 			break;
 		case 7:
 			/* 0x7000-0x7FFF: misc */
 			if (tp_features.hotkey_wlsw && hkey == 0x7000) {
 				tpacpi_input_send_radiosw();
+				send_acpi_ev = 0;
 				break;
 			}
 			/* fallthrough to default */
@@ -2078,9 +2081,11 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 			/* case 3: ultra-bay related. maybe bay in dock? */
 			/*	0x3003 - T43 after wake up by bay lever
 			 *	         eject (0x2305) */
+			unk_ev = 1;
+		}
+		if (unk_ev) {
 			printk(TPACPI_NOTICE
 			       "unhandled HKEY event 0x%04x\n", hkey);
-			send_acpi_ev = 1;
 		}
 
 		/* Legacy events */
