@@ -33,6 +33,7 @@ enum firmware_type {
 struct xc2028_ctrl {
 	char			*fname;
 	int			max_len;
+	int			msleep;
 	unsigned int		scode_table;
 	unsigned int		mts   :1;
 	unsigned int		input1:1;
