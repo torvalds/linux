@@ -64,7 +64,10 @@ struct page {
 #if NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS
 	    spinlock_t ptl;
 #endif
-	    struct kmem_cache *slab;	/* SLUB: Pointer to slab */
+	    struct {
+		   struct kmem_cache *slab;	/* SLUB: Pointer to slab */
+		   void *end;			/* SLUB: end marker */
+	    };
 	    struct page *first_page;	/* Compound tail pages */
 	};
 	union {
