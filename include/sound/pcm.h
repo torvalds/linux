@@ -287,7 +287,6 @@ struct snd_pcm_runtime {
 	int tstamp_mode;		/* mmap timestamp is updated */
   	unsigned int period_step;
 	unsigned int sleep_min;		/* min ticks to sleep */
-	snd_pcm_uframes_t xfer_align;	/* xfer size need to be a multiple */
 	snd_pcm_uframes_t start_threshold;
 	snd_pcm_uframes_t stop_threshold;
 	snd_pcm_uframes_t silence_threshold; /* Silence filling happens when

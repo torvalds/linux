@@ -1628,8 +1628,6 @@ static snd_pcm_sframes_t snd_pcm_lib_write1(struct snd_pcm_substream *substream,
 
 	if (size == 0)
 		return 0;
-	if (size > runtime->xfer_align)
-		size -= size % runtime->xfer_align;
 
 	snd_pcm_stream_lock_irq(substream);
 	switch (runtime->status->state) {
@@ -1657,9 +1655,7 @@ static snd_pcm_sframes_t snd_pcm_lib_write1(struct snd_pcm_substream *substream,
 		avail = snd_pcm_playback_avail(runtime);
 		if (!avail ||
 		    (snd_pcm_running(substream) &&
-		     ((avail < runtime->control->avail_min && size > avail) ||
-		      (size >= runtime->xfer_align &&
-		       avail < runtime->xfer_align)))) {
+		     (avail < runtime->control->avail_min && size > avail))) {
 			wait_queue_t wait;
 			enum { READY, SIGNALED, ERROR, SUSPENDED, EXPIRED, DROPPED } state;
 			long tout;
@@ -1731,8 +1727,6 @@ static snd_pcm_sframes_t snd_pcm_lib_write1(struct snd_pcm_substream *substream,
 				break;
 			}
 		}
-		if (avail > runtime->xfer_align)
-			avail -= avail % runtime->xfer_align;
 		frames = size > avail ? avail : size;
 		cont = runtime->buffer_size - runtime->control->appl_ptr % runtime->buffer_size;
 		if (frames > cont)
@@ -1900,8 +1894,6 @@ static snd_pcm_sframes_t snd_pcm_lib_read1(struct snd_pcm_substream *substream,
 
 	if (size == 0)
 		return 0;
-	if (size > runtime->xfer_align)
-		size -= size % runtime->xfer_align;
 
 	snd_pcm_stream_lock_irq(substream);
 	switch (runtime->status->state) {
@@ -1936,12 +1928,12 @@ static snd_pcm_sframes_t snd_pcm_lib_read1(struct snd_pcm_substream *substream,
 	      __draining:
 		avail = snd_pcm_capture_avail(runtime);
 		if (runtime->status->state == SNDRV_PCM_STATE_DRAINING) {
-			if (avail < runtime->xfer_align) {
+			if (!avail) {
 				err = -EPIPE;
 				goto _end_unlock;
 			}
-		} else if ((avail < runtime->control->avail_min && size > avail) ||
-			   (size >= runtime->xfer_align && avail < runtime->xfer_align)) {
+		} else if (avail < runtime->control->avail_min &&
+			   size > avail) {
 			wait_queue_t wait;
 			enum { READY, SIGNALED, ERROR, SUSPENDED, EXPIRED, DROPPED } state;
 			long tout;
@@ -2014,8 +2006,6 @@ static snd_pcm_sframes_t snd_pcm_lib_read1(struct snd_pcm_substream *substream,
 				break;
 			}
 		}
-		if (avail > runtime->xfer_align)
-			avail -= avail % runtime->xfer_align;
 		frames = size > avail ? avail : size;
 		cont = runtime->buffer_size - runtime->control->appl_ptr % runtime->buffer_size;
 		if (frames > cont)

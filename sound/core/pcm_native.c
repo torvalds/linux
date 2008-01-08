@@ -435,7 +435,6 @@ static int snd_pcm_hw_params(struct snd_pcm_substream *substream,
 	runtime->period_step = 1;
 	runtime->sleep_min = 0;
 	runtime->control->avail_min = runtime->period_size;
-	runtime->xfer_align = runtime->period_size;
 	runtime->start_threshold = 1;
 	runtime->stop_threshold = runtime->buffer_size;
 	runtime->silence_threshold = 0;
@@ -532,9 +531,6 @@ static int snd_pcm_sw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	if (params->avail_min == 0)
 		return -EINVAL;
-	if (params->xfer_align == 0 ||
-	    params->xfer_align % runtime->min_align != 0)
-		return -EINVAL;
 	if (params->silence_size >= runtime->boundary) {
 		if (params->silence_threshold != 0)
 			return -EINVAL;
@@ -553,7 +549,6 @@ static int snd_pcm_sw_params(struct snd_pcm_substream *substream,
 	runtime->stop_threshold = params->stop_threshold;
 	runtime->silence_threshold = params->silence_threshold;
 	runtime->silence_size = params->silence_size;
-	runtime->xfer_align = params->xfer_align;
         params->boundary = runtime->boundary;
 	if (snd_pcm_running(substream)) {
 		if (runtime->sleep_min)
@@ -2239,8 +2234,6 @@ static snd_pcm_sframes_t snd_pcm_playback_rewind(struct snd_pcm_substream *subst
 	}
 	if (frames > (snd_pcm_uframes_t)hw_avail)
 		frames = hw_avail;
-	else
-		frames -= frames % runtime->xfer_align;
 	appl_ptr = runtime->control->appl_ptr - frames;
 	if (appl_ptr < 0)
 		appl_ptr += runtime->boundary;
@@ -2289,8 +2282,6 @@ static snd_pcm_sframes_t snd_pcm_capture_rewind(struct snd_pcm_substream *substr
 	}
 	if (frames > (snd_pcm_uframes_t)hw_avail)
 		frames = hw_avail;
-	else
-		frames -= frames % runtime->xfer_align;
 	appl_ptr = runtime->control->appl_ptr - frames;
 	if (appl_ptr < 0)
 		appl_ptr += runtime->boundary;
@@ -2340,8 +2331,6 @@ static snd_pcm_sframes_t snd_pcm_playback_forward(struct snd_pcm_substream *subs
 	}
 	if (frames > (snd_pcm_uframes_t)avail)
 		frames = avail;
-	else
-		frames -= frames % runtime->xfer_align;
 	appl_ptr = runtime->control->appl_ptr + frames;
 	if (appl_ptr >= (snd_pcm_sframes_t)runtime->boundary)
 		appl_ptr -= runtime->boundary;
@@ -2391,8 +2380,6 @@ static snd_pcm_sframes_t snd_pcm_capture_forward(struct snd_pcm_substream *subst
 	}
 	if (frames > (snd_pcm_uframes_t)avail)
 		frames = avail;
-	else
-		frames -= frames % runtime->xfer_align;
 	appl_ptr = runtime->control->appl_ptr + frames;
 	if (appl_ptr >= (snd_pcm_sframes_t)runtime->boundary)
 		appl_ptr -= runtime->boundary;

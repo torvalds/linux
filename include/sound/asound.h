@@ -363,7 +363,7 @@ struct snd_pcm_sw_params {
 	unsigned int period_step;
 	unsigned int sleep_min;			/* min ticks to sleep */
 	snd_pcm_uframes_t avail_min;		/* min avail frames for wakeup */
-	snd_pcm_uframes_t xfer_align;		/* xfer size need to be a multiple */
+	snd_pcm_uframes_t xfer_align;		/* obsolete: xfer size need to be a multiple */
 	snd_pcm_uframes_t start_threshold;	/* min hw_avail frames for automatic start */
 	snd_pcm_uframes_t stop_threshold;	/* min avail frames for automatic stop */
 	snd_pcm_uframes_t silence_threshold;	/* min distance from noise for silence filling */

@@ -389,7 +389,6 @@ static void snd_pcm_substream_proc_sw_params_read(struct snd_info_entry *entry,
 	snd_iprintf(buffer, "period_step: %u\n", runtime->period_step);
 	snd_iprintf(buffer, "sleep_min: %u\n", runtime->sleep_min);
 	snd_iprintf(buffer, "avail_min: %lu\n", runtime->control->avail_min);
-	snd_iprintf(buffer, "xfer_align: %lu\n", runtime->xfer_align);
 	snd_iprintf(buffer, "start_threshold: %lu\n", runtime->start_threshold);
 	snd_iprintf(buffer, "stop_threshold: %lu\n", runtime->stop_threshold);
 	snd_iprintf(buffer, "silence_threshold: %lu\n", runtime->silence_threshold);
