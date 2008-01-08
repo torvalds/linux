@@ -221,7 +221,7 @@ EXPORT_SYMBOL(xfrm_policy_alloc);
 
 /* Destroy xfrm_policy: descendant resources must be released to this moment. */
 
-void __xfrm_policy_destroy(struct xfrm_policy *policy)
+void xfrm_policy_destroy(struct xfrm_policy *policy)
 {
 	BUG_ON(!policy->dead);
 
@@ -233,7 +233,7 @@ void __xfrm_policy_destroy(struct xfrm_policy *policy)
 	security_xfrm_policy_free(policy);
 	kfree(policy);
 }
-EXPORT_SYMBOL(__xfrm_policy_destroy);
+EXPORT_SYMBOL(xfrm_policy_destroy);
 
 static void xfrm_policy_gc_kill(struct xfrm_policy *policy)
 {

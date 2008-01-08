@@ -626,12 +626,12 @@ static inline void xfrm_pol_hold(struct xfrm_policy *policy)
 		atomic_inc(&policy->refcnt);
 }
 
-extern void __xfrm_policy_destroy(struct xfrm_policy *policy);
+extern void xfrm_policy_destroy(struct xfrm_policy *policy);
 
 static inline void xfrm_pol_put(struct xfrm_policy *policy)
 {
 	if (atomic_dec_and_test(&policy->refcnt))
-		__xfrm_policy_destroy(policy);
+		xfrm_policy_destroy(policy);
 }
 
 #ifdef CONFIG_XFRM_SUB_POLICY
