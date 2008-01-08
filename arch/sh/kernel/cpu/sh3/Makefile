@@ -22,5 +22,6 @@ clock-$(CONFIG_CPU_SUBTYPE_SH7706)	:= clock-sh7706.o
 clock-$(CONFIG_CPU_SUBTYPE_SH7709)	:= clock-sh7709.o
 clock-$(CONFIG_CPU_SUBTYPE_SH7710)	:= clock-sh7710.o
 clock-$(CONFIG_CPU_SUBTYPE_SH7720)	:= clock-sh7710.o
+clock-$(CONFIG_CPU_SUBTYPE_SH7712)	:= clock-sh7712.o
 
 obj-y	+= $(clock-y)
