@@ -487,6 +487,30 @@ static int aac_change_queue_depth(struct scsi_device *sdev, int depth)
 	return sdev->queue_depth;
 }
 
+static ssize_t aac_show_raid_level(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct scsi_device * sdev = to_scsi_device(dev);
+	if (sdev_channel(sdev) != CONTAINER_CHANNEL)
+		return snprintf(buf, PAGE_SIZE, sdev->no_uld_attach
+		  ? "Hidden\n" : "JBOD");
+	return snprintf(buf, PAGE_SIZE, "%s\n",
+	  get_container_type(((struct aac_dev *)(sdev->host->hostdata))
+	    ->fsa_dev[sdev_id(sdev)].type));
+}
+
+static struct device_attribute aac_raid_level_attr = {
+	.attr = {
+		.name = "level",
+		.mode = S_IRUGO,
+	},
+	.show = aac_show_raid_level
+};
+
+static struct device_attribute *aac_dev_attrs[] = {
+	&aac_raid_level_attr,
+	NULL,
+};
+
 static int aac_ioctl(struct scsi_device *sdev, int cmd, void __user * arg)
 {
 	struct aac_dev *dev = (struct aac_dev *)sdev->host->hostdata;
@@ -941,6 +965,7 @@ static struct scsi_host_template aac_driver_template = {
 	.shost_attrs			= aac_attrs,
 	.slave_configure		= aac_slave_configure,
 	.change_queue_depth		= aac_change_queue_depth,
+	.sdev_attrs			= aac_dev_attrs,
 	.eh_abort_handler		= aac_eh_abort,
 	.eh_host_reset_handler		= aac_eh_reset,
 	.can_queue      		= AAC_NUM_IO_FIB,	

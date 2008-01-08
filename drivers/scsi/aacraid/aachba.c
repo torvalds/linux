@@ -690,7 +690,12 @@ static char *container_types[] = {
         "Unknown"
 };
 
-
+char * get_container_type(unsigned tindex)
+{
+	if (tindex >= ARRAY_SIZE(container_types))
+		tindex = ARRAY_SIZE(container_types) - 1;
+	return container_types[tindex];
+}
 
 /* Function: setinqstr
  *
