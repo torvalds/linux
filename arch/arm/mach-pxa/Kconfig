@@ -123,6 +123,11 @@ config MACH_MAGICIAN
 	select PXA27x
 	select IWMMXT
 
+config MACH_PCM027
+	bool "Phytec phyCORE-PXA270 CPU module (PCM-027)"
+	select PXA27x
+	select IWMMXT
+
 endchoice
 
 if PXA_SHARPSL
