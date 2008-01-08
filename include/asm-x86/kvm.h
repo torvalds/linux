@@ -114,6 +114,21 @@ struct kvm_sregs {
 	__u64 interrupt_bitmap[(KVM_NR_INTERRUPTS + 63) / 64];
 };
 
+/* for KVM_GET_FPU and KVM_SET_FPU */
+struct kvm_fpu {
+	__u8  fpr[8][16];
+	__u16 fcw;
+	__u16 fsw;
+	__u8  ftwx;  /* in fxsave format */
+	__u8  pad1;
+	__u16 last_opcode;
+	__u64 last_ip;
+	__u64 last_dp;
+	__u8  xmm[16][16];
+	__u32 mxcsr;
+	__u32 pad2;
+};
+
 struct kvm_msr_entry {
 	__u32 index;
 	__u32 reserved;
