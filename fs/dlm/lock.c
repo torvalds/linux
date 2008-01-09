@@ -2110,17 +2110,18 @@ static int validate_unlock_args(struct dlm_lkb *lkb, struct dlm_args *args)
 	/* an lkb may be waiting for an rsb lookup to complete where the
 	   lookup was initiated by another lock */
 
-	if (args->flags & (DLM_LKF_CANCEL | DLM_LKF_FORCEUNLOCK)) {
-		if (!list_empty(&lkb->lkb_rsb_lookup)) {
+	if (!list_empty(&lkb->lkb_rsb_lookup)) {
+		if (args->flags & (DLM_LKF_CANCEL | DLM_LKF_FORCEUNLOCK)) {
 			log_debug(ls, "unlock on rsb_lookup %x", lkb->lkb_id);
 			list_del_init(&lkb->lkb_rsb_lookup);
 			queue_cast(lkb->lkb_resource, lkb,
 				   args->flags & DLM_LKF_CANCEL ?
 				   -DLM_ECANCEL : -DLM_EUNLOCK);
 			unhold_lkb(lkb); /* undoes create_lkb() */
-			rv = -EBUSY;
-			goto out;
 		}
+		/* caller changes -EBUSY to 0 for CANCEL and FORCEUNLOCK */
+		rv = -EBUSY;
+		goto out;
 	}
 
 	/* cancel not allowed with another cancel/unlock in progress */
