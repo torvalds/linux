@@ -222,8 +222,6 @@ out:
 static int txpower_g_write_file(struct b43_wldev *dev,
 				const char *buf, size_t count)
 {
-	unsigned long phy_flags;
-
 	if (dev->phy.type != B43_PHYTYPE_G)
 		return -ENODEV;
 	if ((count >= 4) && (memcmp(buf, "auto", 4) == 0)) {
@@ -247,12 +245,12 @@ static int txpower_g_write_file(struct b43_wldev *dev,
 			dev->phy.tx_control |= B43_TXCTL_PA2DB;
 		if (pa3db)
 			dev->phy.tx_control |= B43_TXCTL_PA3DB;
-		b43_phy_lock(dev, phy_flags);
+		b43_phy_lock(dev);
 		b43_radio_lock(dev);
 		b43_set_txpower_g(dev, &dev->phy.bbatt,
 				  &dev->phy.rfatt, dev->phy.tx_control);
 		b43_radio_unlock(dev);
-		b43_phy_unlock(dev, phy_flags);
+		b43_phy_unlock(dev);
 	}
 
 	return 0;

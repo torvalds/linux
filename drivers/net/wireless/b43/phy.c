@@ -228,42 +228,30 @@ static void b43_shm_clear_tssi(struct b43_wldev *dev)
 	}
 }
 
-void b43_raw_phy_lock(struct b43_wldev *dev)
+/* Lock the PHY registers against concurrent access from the microcode.
+ * This lock is nonrecursive. */
+void b43_phy_lock(struct b43_wldev *dev)
 {
-	struct b43_phy *phy = &dev->phy;
+#if B43_DEBUG
+	B43_WARN_ON(dev->phy.phy_locked);
+	dev->phy.phy_locked = 1;
+#endif
+	B43_WARN_ON(dev->dev->id.revision < 3);
 
-	B43_WARN_ON(!irqs_disabled());
-
-	/* We had a check for MACCTL==0 here, but I think that doesn't
-	 * make sense, as MACCTL is never 0 when this is called.
-	 *      --mb */
-	B43_WARN_ON(b43_read32(dev, B43_MMIO_MACCTL) == 0);
-
-	if (dev->dev->id.revision < 3) {
-		b43_mac_suspend(dev);
-		spin_lock(&phy->lock);
-	} else {
-		if (!b43_is_mode(dev->wl, IEEE80211_IF_TYPE_AP))
-			b43_power_saving_ctl_bits(dev, B43_PS_AWAKE);
-	}
-	phy->locked = 1;
+	if (!b43_is_mode(dev->wl, IEEE80211_IF_TYPE_AP))
+		b43_power_saving_ctl_bits(dev, B43_PS_AWAKE);
 }
 
-void b43_raw_phy_unlock(struct b43_wldev *dev)
+void b43_phy_unlock(struct b43_wldev *dev)
 {
-	struct b43_phy *phy = &dev->phy;
+#if B43_DEBUG
+	B43_WARN_ON(!dev->phy.phy_locked);
+	dev->phy.phy_locked = 0;
+#endif
+	B43_WARN_ON(dev->dev->id.revision < 3);
 
-	B43_WARN_ON(!irqs_disabled());
-	if (dev->dev->id.revision < 3) {
-		if (phy->locked) {
-			spin_unlock(&phy->lock);
-			b43_mac_enable(dev);
-		}
-	} else {
-		if (!b43_is_mode(dev->wl, IEEE80211_IF_TYPE_AP))
-			b43_power_saving_ctl_bits(dev, 0);
-	}
-	phy->locked = 0;
+	if (!b43_is_mode(dev->wl, IEEE80211_IF_TYPE_AP))
+		b43_power_saving_ctl_bits(dev, 0);
 }
 
 /* Different PHYs require different register routing flags.
@@ -1730,7 +1718,6 @@ void b43_phy_xmitpower(struct b43_wldev *dev)
 			int rfatt_delta, bbatt_delta;
 			int rfatt, bbatt;
 			u8 tx_control;
-			unsigned long phylock_flags;
 
 			tmp = b43_shm_read16(dev, B43_SHM_SHARED, 0x0058);
 			v0 = (s8) (tmp & 0x00FF);
@@ -1861,13 +1848,13 @@ void b43_phy_xmitpower(struct b43_wldev *dev)
 			phy->bbatt.att = bbatt;
 
 			/* Adjust the hardware */
-			b43_phy_lock(dev, phylock_flags);
+			b43_phy_lock(dev);
 			b43_radio_lock(dev);
 			b43_set_txpower_g(dev, &phy->bbatt, &phy->rfatt,
 					  phy->tx_control);
 			b43_lo_g_ctl_mark_cur_used(dev);
 			b43_radio_unlock(dev);
-			b43_phy_unlock(dev, phylock_flags);
+			b43_phy_unlock(dev);
 			break;
 		}
 	default:
@@ -2158,6 +2145,7 @@ void b43_radio_lock(struct b43_wldev *dev)
 	u32 macctl;
 
 	macctl = b43_read32(dev, B43_MMIO_MACCTL);
+	B43_WARN_ON(macctl & B43_MACCTL_RADIOLOCK);
 	macctl |= B43_MACCTL_RADIOLOCK;
 	b43_write32(dev, B43_MMIO_MACCTL, macctl);
 	/* Commit the write and wait for the device
@@ -2174,6 +2162,7 @@ void b43_radio_unlock(struct b43_wldev *dev)
 	b43_read16(dev, B43_MMIO_PHY_VER);
 	/* unlock */
 	macctl = b43_read32(dev, B43_MMIO_MACCTL);
+	B43_WARN_ON(!(macctl & B43_MACCTL_RADIOLOCK));
 	macctl &= ~B43_MACCTL_RADIOLOCK;
 	b43_write32(dev, B43_MMIO_MACCTL, macctl);
 }
@@ -2355,12 +2344,11 @@ u8 b43_radio_aci_scan(struct b43_wldev * dev)
 	u8 ret[13];
 	unsigned int channel = phy->channel;
 	unsigned int i, j, start, end;
-	unsigned long phylock_flags;
 
 	if (!((phy->type == B43_PHYTYPE_G) && (phy->rev > 0)))
 		return 0;
 
-	b43_phy_lock(dev, phylock_flags);
+	b43_phy_lock(dev);
 	b43_radio_lock(dev);
 	b43_phy_write(dev, 0x0802, b43_phy_read(dev, 0x0802) & 0xFFFC);
 	b43_phy_write(dev, B43_PHY_G_CRS,
@@ -2389,7 +2377,7 @@ u8 b43_radio_aci_scan(struct b43_wldev * dev)
 			ret[j] = 1;
 	}
 	b43_radio_unlock(dev);
-	b43_phy_unlock(dev, phylock_flags);
+	b43_phy_unlock(dev);
 
 	return ret[channel - 1];
 }

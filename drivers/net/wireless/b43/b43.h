@@ -476,7 +476,6 @@ struct b43_phy {
 	u16 radio_ver;		/* Radio version */
 	u8 radio_rev;		/* Radio revision */
 
-	bool locked;		/* Only used in b43_phy_{un}lock() */
 	bool dyn_tssi_tbl;	/* tssi2dbm is kmalloc()ed. */
 
 	/* ACI (adjacent channel interference) flags. */
@@ -513,11 +512,6 @@ struct b43_phy {
 	s16 lna_gain;		/* LNA */
 	s16 pga_gain;		/* PGA */
 
-	/* PHY lock for core.rev < 3
-	 * This lock is only used by b43_phy_{un}lock()
-	 */
-	spinlock_t lock;
-
 	/* Desired TX power level (in dBm).
 	 * This is set by the user and adjusted in b43_phy_xmitpower(). */
 	u8 power_level;
@@ -528,9 +522,7 @@ struct b43_phy {
 	struct b43_bbatt bbatt;
 	struct b43_rfatt rfatt;
 	u8 tx_control;		/* B43_TXCTL_XXX */
-#ifdef CONFIG_B43_DEBUG
-	bool manual_txpower_control;	/* Manual TX-power control enabled? */
-#endif
+
 	/* Hardware Power Control enabled? */
 	bool hardware_power_control;
 
@@ -571,6 +563,13 @@ struct b43_phy {
 		B43_OFDMTAB_DIRECTION_READ,
 		B43_OFDMTAB_DIRECTION_WRITE,
 	} ofdmtab_addr_direction;
+
+#if B43_DEBUG
+	/* Manual TX-power control enabled? */
+	bool manual_txpower_control;
+	/* PHY registers locked by b43_phy_lock()? */
+	bool phy_locked;
+#endif /* B43_DEBUG */
 };
 
 /* Data structures for DMA transmission, per 80211 core. */

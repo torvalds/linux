@@ -3146,9 +3146,6 @@ static void setup_struct_phy_for_init(struct b43_wldev *dev,
 	memset(phy->minlowsig, 0xFF, sizeof(phy->minlowsig));
 	memset(phy->minlowsigpos, 0, sizeof(phy->minlowsigpos));
 
-	/* Flags */
-	phy->locked = 0;
-
 	phy->aci_enable = 0;
 	phy->aci_wlan_automatic = 0;
 	phy->aci_hw_rssi = 0;
@@ -3175,7 +3172,6 @@ static void setup_struct_phy_for_init(struct b43_wldev *dev,
 	phy->lofcal = 0xFFFF;
 	phy->initval = 0xFFFF;
 
-	spin_lock_init(&phy->lock);
 	phy->interfmode = B43_INTERFMODE_NONE;
 	phy->channel = 0xFF;
 

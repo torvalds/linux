@@ -199,18 +199,8 @@ enum {
 #define B43_PHYVER_TYPE_SHIFT		8
 #define B43_PHYVER_VERSION		0x00FF
 
-void b43_raw_phy_lock(struct b43_wldev *dev);
-#define b43_phy_lock(dev, flags) \
-	do {					\
-		local_irq_save(flags);		\
-		b43_raw_phy_lock(dev);	\
-	} while (0)
-void b43_raw_phy_unlock(struct b43_wldev *dev);
-#define b43_phy_unlock(dev, flags) \
-	do {					\
-		b43_raw_phy_unlock(dev);	\
-		local_irq_restore(flags);	\
-	} while (0)
+void b43_phy_lock(struct b43_wldev *dev);
+void b43_phy_unlock(struct b43_wldev *dev);
 
 u16 b43_phy_read(struct b43_wldev *dev, u16 offset);
 void b43_phy_write(struct b43_wldev *dev, u16 offset, u16 val);
