@@ -410,15 +410,6 @@ static int tm6000_usb_probe(struct usb_interface *interface,
 		}
 	}
 
-	if (interface->altsetting->desc.bAlternateSetting) {
-		printk("selecting alt setting %d\n",
-		       interface->altsetting->desc.bAlternateSetting);
-		rc = usb_set_interface (usbdev,
-				interface->altsetting->desc.bInterfaceNumber,
-				interface->altsetting->desc.bAlternateSetting);
-		if (rc<0)
-			goto err;
-	}
 
 	printk("tm6000: New video device @ %s Mbps (%04x:%04x, ifnum %d)\n",
 		speed,

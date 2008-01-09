@@ -50,4 +50,8 @@ struct usb_isoc_ctl {
 
 		/* Stores the number of received fields */
 	int				nfields;
+
+		/* Checks if a complete field were received */
+	int				last_line;
+	unsigned int			fields:2;
 };

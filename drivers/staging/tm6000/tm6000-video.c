@@ -257,6 +257,22 @@ static int copy_packet (struct urb *urb, u32 header, u8 **ptr, u8 *endp,
 			" line=%d, field=%d\n",
 			size, block, line, field);
 
+	/* Checks if a complete set of frame0 + frame 1 were received */
+	if (dev->isoc_ctl.last_line > line) {
+		if (dev->isoc_ctl.fields == 3) {
+			/* Announces that a new buffer were filled */
+			buffer_filled(dev, dma_q, *buf);
+			dprintk(dev, V4L2_DEBUG_ISOC,
+					"new buffer filled\n");
+			rc = get_next_buf(dma_q, buf);
+
+			dev->isoc_ctl.fields = 0;
+		} else {
+			dev->isoc_ctl.fields |= 1 << field;
+		}
+	}
+	dev->isoc_ctl.last_line = line;
+
 	if ((last_line!=line)&&(last_line+1!=line) &&
 		(cmd != TM6000_URB_MSG_ERR) )  {
 		if (cmd != TM6000_URB_MSG_VIDEO)  {
@@ -277,12 +293,6 @@ static int copy_packet (struct urb *urb, u32 header, u8 **ptr, u8 *endp,
 			dev->isoc_ctl.nfields++;
 			if (dev->isoc_ctl.nfields>=2) {
 				dev->isoc_ctl.nfields=0;
-
-				/* Announces that a new buffer were filled */
-				buffer_filled (dev, dma_q, *buf);
-				dprintk(dev, V4L2_DEBUG_ISOC,
-						"new buffer filled\n");
-				rc=get_next_buf (dma_q, buf);
 			}
 		}
 
@@ -631,10 +641,16 @@ static int tm6000_prepare_isoc(struct tm6000_core *dev,
 		     int max_packets, int num_bufs)
 {
 	struct tm6000_dmaqueue *dma_q = &dev->vidq;
-	int i;
+	int i, rc;
 	int sb_size, pipe;
 	struct urb *urb;
 	int j, k;
+
+	dprintk(dev, V4L2_DEBUG_QUEUE, "Allocating %dx%d packets"
+		    " of %d bytes each to handle %u size\n",
+		    max_packets, num_bufs,
+		    dev->max_isoc_in, dev->isoc_ctl.max_pkt_size);
+
 
 	/* De-allocates all pending stuff */
 	tm6000_uninit_isoc(dev);
@@ -683,6 +699,7 @@ static int tm6000_prepare_isoc(struct tm6000_core *dev,
 			return -ENOMEM;
 		}
 		memset(dev->isoc_ctl.transfer_buffer[i], 0, sb_size);
+
 
 		pipe=usb_rcvisocpipe(dev->udev,
 					dev->isoc_in->desc.bEndpointAddress &
@@ -862,7 +879,7 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 	struct tm6000_fh     *fh  = vq->priv_data;
 	struct tm6000_buffer *buf = container_of(vb,struct tm6000_buffer,vb);
 	struct tm6000_core   *dev = fh->dev;
-	int rc=0, urbsize, urb_init=0, npackets=1;
+	int rc = 0, urb_init = 0;
 
 	BUG_ON(NULL == fh->fmt);
 
@@ -890,50 +907,11 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 		urb_init=1;
 	}
 
-
 	if (!dev->isoc_ctl.num_bufs)
 		urb_init=1;
 
 	if (urb_init) {
-		/* memory for video
-		   Should be at least
-		   Vres x Vres x 2 bytes/pixel by frame */
-		urbsize=buf->vb.size;
-
-		/* Need also one PTS */
-		urbsize+=180;
-
-		 /* memory for audio
-		    Should be at least
-		    bitrate * 2 channels * 2 bytes / frame rate */
-		if (dev->norm & V4L2_STD_525_60) {
-			urbsize+=(dev->audio_bitrate*4+29)/30;
-		} else {
-			urbsize+=(dev->audio_bitrate*4+24)/25;
-		}
-
-		/* each audio frame seeems to have a frame number
-		   with 2 bytes */
-		urbsize+=2;
-
-		/* Add 4 bytes by each 180 bytes frame */
-		urbsize+=((urbsize+179)/180)*4;
-
-		/* Round to an enough number of URBs */
-		urbsize=(urbsize+dev->max_isoc_in-1)/dev->max_isoc_in;
-
-		/* Avoids allocating big memory areas for URB */
-		while ((urbsize*dev->max_isoc_in)/npackets>65535) {
-			npackets++;
-		}
-		urbsize/=(urbsize+npackets-1)/npackets;
-
-		dprintk(dev, V4L2_DEBUG_QUEUE, "Allocating %dx%d packets"
-				" of %d bytes each to handle %lu size\n",
-				npackets,urbsize,dev->max_isoc_in,buf->vb.size);
-
-		rc = tm6000_prepare_isoc(dev, urbsize, npackets);
-
+		rc = tm6000_prepare_isoc(dev, 128, 1);
 		if (rc<0)
 			goto fail;
 	}
