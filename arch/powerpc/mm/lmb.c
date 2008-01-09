@@ -342,3 +342,16 @@ void __init lmb_enforce_memory_limit(unsigned long memory_limit)
 		}
 	}
 }
+
+int __init lmb_is_reserved(unsigned long addr)
+{
+	int i;
+
+	for (i = 0; i < lmb.reserved.cnt; i++) {
+		unsigned long upper = lmb.reserved.region[i].base +
+				      lmb.reserved.region[i].size - 1;
+		if ((addr >= lmb.reserved.region[i].base) && (addr <= upper))
+			return 1;
+	}
+	return 0;
+}
