@@ -25,7 +25,7 @@
 int tda18271_debug;
 module_param_named(debug, tda18271_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debug level "
-		 "(info=1, map=2, reg=4, adv=8 (or-able))");
+		 "(info=1, map=2, reg=4, adv=8, cal=16 (or-able))");
 
 static LIST_HEAD(tda18271_list);
 static DEFINE_MUTEX(tda18271_list_mutex);
@@ -459,7 +459,7 @@ static int tda18271_powerscan(struct dvb_frontend *fe,
 	} else
 		bcal = 0;
 
-	tda_dbg("bcal = %d, freq_in = %d, freq_out = %d (freq = %d)\n",
+	tda_cal("bcal = %d, freq_in = %d, freq_out = %d (freq = %d)\n",
 		bcal, *freq_in, *freq_out, freq);
 
 	return bcal;
@@ -522,7 +522,7 @@ static int tda18271_rf_tracking_filters_init(struct dvb_frontend *fe, u32 freq)
 	for (rf = RF1; rf <= RF3; rf++) {
 		if (0 == rf_default[rf])
 			return 0;
-		tda_dbg("freq = %d, rf = %d\n", freq, rf);
+		tda_cal("freq = %d, rf = %d\n", freq, rf);
 
 		/* look for optimized calibration frequency */
 		bcal = tda18271_powerscan(fe, &rf_default[rf], &rf_freq[rf]);

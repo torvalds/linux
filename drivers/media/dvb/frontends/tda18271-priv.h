@@ -130,6 +130,7 @@ extern int tda18271_debug;
 #define DBG_MAP  2
 #define DBG_REG  4
 #define DBG_ADV  8
+#define DBG_CAL  16
 
 #define tda_printk(kern, fmt, arg...) \
 	printk(kern "%s: " fmt, __FUNCTION__, ##arg)
@@ -144,6 +145,7 @@ extern int tda18271_debug;
 #define tda_dbg(fmt, arg...)  dprintk(KERN_DEBUG, DBG_INFO, fmt, ##arg)
 #define tda_map(fmt, arg...)  dprintk(KERN_DEBUG, DBG_MAP,  fmt, ##arg)
 #define tda_reg(fmt, arg...)  dprintk(KERN_DEBUG, DBG_REG,  fmt, ##arg)
+#define tda_cal(fmt, arg...)  dprintk(KERN_DEBUG, DBG_CAL,  fmt, ##arg)
 
 /*---------------------------------------------------------------------*/
 
