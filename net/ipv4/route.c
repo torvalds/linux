@@ -1768,7 +1768,7 @@ static inline int __mkroute_input(struct sk_buff *skb,
 	if (err)
 		flags |= RTCF_DIRECTSRC;
 
-	if (out_dev == in_dev && err && !(flags & (RTCF_NAT | RTCF_MASQ)) &&
+	if (out_dev == in_dev && err && !(flags & RTCF_MASQ) &&
 	    (IN_DEV_SHARED_MEDIA(out_dev) ||
 	     inet_addr_onlink(out_dev, saddr, FIB_RES_GW(*res))))
 		flags |= RTCF_DOREDIRECT;
@@ -1777,7 +1777,7 @@ static inline int __mkroute_input(struct sk_buff *skb,
 		/* Not IP (i.e. ARP). Do not create route, if it is
 		 * invalid for proxy arp. DNAT routes are always valid.
 		 */
-		if (out_dev == in_dev && !(flags & RTCF_DNAT)) {
+		if (out_dev == in_dev) {
 			err = -EINVAL;
 			goto cleanup;
 		}
