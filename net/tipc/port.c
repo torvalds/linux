@@ -340,7 +340,7 @@ int tipc_portunreliable(u32 ref, unsigned int *isunreliable)
 	if (!p_ptr)
 		return -EINVAL;
 	*isunreliable = port_unreliable(p_ptr);
-	spin_unlock_bh(p_ptr->publ.lock);
+	tipc_port_unlock(p_ptr);
 	return TIPC_OK;
 }
 
@@ -369,7 +369,7 @@ int tipc_portunreturnable(u32 ref, unsigned int *isunrejectable)
 	if (!p_ptr)
 		return -EINVAL;
 	*isunrejectable = port_unreturnable(p_ptr);
-	spin_unlock_bh(p_ptr->publ.lock);
+	tipc_port_unlock(p_ptr);
 	return TIPC_OK;
 }
 
@@ -843,7 +843,7 @@ static void port_dispatcher_sigh(void *dummy)
 				u32 peer_port = port_peerport(p_ptr);
 				u32 peer_node = port_peernode(p_ptr);
 
-				spin_unlock_bh(p_ptr->publ.lock);
+				tipc_port_unlock(p_ptr);
 				if (unlikely(!connected)) {
 					if (unlikely(published))
 						goto reject;
@@ -867,7 +867,7 @@ static void port_dispatcher_sigh(void *dummy)
 		case TIPC_DIRECT_MSG:{
 				tipc_msg_event cb = up_ptr->msg_cb;
 
-				spin_unlock_bh(p_ptr->publ.lock);
+				tipc_port_unlock(p_ptr);
 				if (unlikely(connected))
 					goto reject;
 				if (unlikely(!cb))
@@ -882,7 +882,7 @@ static void port_dispatcher_sigh(void *dummy)
 		case TIPC_NAMED_MSG:{
 				tipc_named_msg_event cb = up_ptr->named_msg_cb;
 
-				spin_unlock_bh(p_ptr->publ.lock);
+				tipc_port_unlock(p_ptr);
 				if (unlikely(connected))
 					goto reject;
 				if (unlikely(!cb))
@@ -913,7 +913,7 @@ err:
 				u32 peer_port = port_peerport(p_ptr);
 				u32 peer_node = port_peernode(p_ptr);
 
-				spin_unlock_bh(p_ptr->publ.lock);
+				tipc_port_unlock(p_ptr);
 				if (!connected || !cb)
 					break;
 				if (msg_origport(msg) != peer_port)
@@ -929,7 +929,7 @@ err:
 		case TIPC_DIRECT_MSG:{
 				tipc_msg_err_event cb = up_ptr->err_cb;
 
-				spin_unlock_bh(p_ptr->publ.lock);
+				tipc_port_unlock(p_ptr);
 				if (connected || !cb)
 					break;
 				skb_pull(buf, msg_hdr_sz(msg));
@@ -942,7 +942,7 @@ err:
 				tipc_named_msg_err_event cb =
 					up_ptr->named_err_cb;
 
-				spin_unlock_bh(p_ptr->publ.lock);
+				tipc_port_unlock(p_ptr);
 				if (connected || !cb)
 					break;
 				dseq.type =  msg_nametype(msg);
@@ -1107,7 +1107,7 @@ int tipc_portimportance(u32 ref, unsigned int *importance)
 	if (!p_ptr)
 		return -EINVAL;
 	*importance = (unsigned int)msg_importance(&p_ptr->publ.phdr);
-	spin_unlock_bh(p_ptr->publ.lock);
+	tipc_port_unlock(p_ptr);
 	return TIPC_OK;
 }
 
@@ -1122,7 +1122,7 @@ int tipc_set_portimportance(u32 ref, unsigned int imp)
 	if (!p_ptr)
 		return -EINVAL;
 	msg_set_importance(&p_ptr->publ.phdr, (u32)imp);
-	spin_unlock_bh(p_ptr->publ.lock);
+	tipc_port_unlock(p_ptr);
 	return TIPC_OK;
 }
 
