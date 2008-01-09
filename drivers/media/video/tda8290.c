@@ -504,9 +504,9 @@ static void tda829x_release(struct dvb_frontend *fe)
 {
 	struct tda8290_priv *priv = fe->analog_demod_priv;
 
-	/* dont try to release the tuner
-	 * if we didn't attach it from this module */
-	if ((priv->ver > TDA8290) && (priv->ver > TDA8295))
+	/* only try to release the tuner if we've
+	 * attached it from within this module */
+	if (priv->ver & (TDA18271 | TDA8275 | TDA8275A))
 		if (fe->ops.tuner_ops.release)
 			fe->ops.tuner_ops.release(fe);
 
