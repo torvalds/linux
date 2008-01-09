@@ -725,17 +725,8 @@ static int ipath_pe_bringup_serdes(struct ipath_devdata *dd)
 
 	val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_xgxsconfig);
 	prev_val = val;
-	if (((val >> INFINIPATH_XGXS_MDIOADDR_SHIFT) &
-	     INFINIPATH_XGXS_MDIOADDR_MASK) != 3) {
-		val &=
-			~(INFINIPATH_XGXS_MDIOADDR_MASK <<
-			  INFINIPATH_XGXS_MDIOADDR_SHIFT);
-		/* MDIO address 3 */
-		val |= 3ULL << INFINIPATH_XGXS_MDIOADDR_SHIFT;
-	}
-	if (val & INFINIPATH_XGXS_RESET) {
+	if (val & INFINIPATH_XGXS_RESET)
 		val &= ~INFINIPATH_XGXS_RESET;
-	}
 	if (((val >> INFINIPATH_XGXS_RX_POL_SHIFT) &
 	     INFINIPATH_XGXS_RX_POL_MASK) != dd->ipath_rx_pol_inv ) {
 		/* need to compensate for Tx inversion in partner */
@@ -764,21 +755,6 @@ static int ipath_pe_bringup_serdes(struct ipath_devdata *dd)
 		   ipath_read_kreg64(dd, dd->ipath_kregs->kr_serdesstatus),
 		   (unsigned long long)
 		   ipath_read_kreg64(dd, dd->ipath_kregs->kr_xgxsconfig));
-
-	if (!ipath_waitfor_mdio_cmdready(dd)) {
-		ipath_write_kreg(
-			dd, dd->ipath_kregs->kr_mdio,
-			ipath_mdio_req(IPATH_MDIO_CMD_READ, 31,
-				       IPATH_MDIO_CTRL_XGXS_REG_8, 0));
-		if (ipath_waitfor_complete(dd, dd->ipath_kregs->kr_mdio,
-					   IPATH_MDIO_DATAVALID, &val))
-			ipath_dbg("Never got MDIO data for XGXS "
-				  "status read\n");
-		else
-			ipath_cdbg(VERBOSE, "MDIO Read reg8, "
-				   "'bank' 31 %x\n", (u32) val);
-	} else
-		ipath_dbg("Never got MDIO cmdready for XGXS status read\n");
 
 	return ret;
 }

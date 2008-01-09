@@ -1274,8 +1274,7 @@ static void ipath_ht_init_hwerrors(struct ipath_devdata *dd)
 	val &= ~INFINIPATH_HWE_HTCMISCERR4;
 
 	/*
-	 * PLL ignored because MDIO interface has a logic problem
-	 * for reads, on Comstock and Ponderosa.  BRINGUP
+	 * PLL ignored because unused MDIO interface has a logic problem
 	 */
 	if (dd->ipath_boardrev == 4 || dd->ipath_boardrev == 9)
 		val &= ~INFINIPATH_HWE_SERDESPLLFAILED;
@@ -1353,16 +1352,6 @@ static int ipath_ht_bringup_serdes(struct ipath_devdata *dd)
 	}
 
 	val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_xgxsconfig);
-	if (((val >> INFINIPATH_XGXS_MDIOADDR_SHIFT) &
-	     INFINIPATH_XGXS_MDIOADDR_MASK) != 3) {
-		val &= ~(INFINIPATH_XGXS_MDIOADDR_MASK <<
-			 INFINIPATH_XGXS_MDIOADDR_SHIFT);
-		/*
-		 * we use address 3
-		 */
-		val |= 3ULL << INFINIPATH_XGXS_MDIOADDR_SHIFT;
-		change = 1;
-	}
 	if (val & INFINIPATH_XGXS_RESET) {
 		/* normally true after boot */
 		val &= ~INFINIPATH_XGXS_RESET;
@@ -1397,21 +1386,6 @@ static int ipath_ht_bringup_serdes(struct ipath_devdata *dd)
 		   ipath_read_kreg64(dd, dd->ipath_kregs->kr_serdesstatus),
 		   (unsigned long long)
 		   ipath_read_kreg64(dd, dd->ipath_kregs->kr_xgxsconfig));
-
-	if (!ipath_waitfor_mdio_cmdready(dd)) {
-		ipath_write_kreg(dd, dd->ipath_kregs->kr_mdio,
-				 ipath_mdio_req(IPATH_MDIO_CMD_READ, 31,
-						IPATH_MDIO_CTRL_XGXS_REG_8,
-						0));
-		if (ipath_waitfor_complete(dd, dd->ipath_kregs->kr_mdio,
-					   IPATH_MDIO_DATAVALID, &val))
-			ipath_dbg("Never got MDIO data for XGXS status "
-				  "read\n");
-		else
-			ipath_cdbg(VERBOSE, "MDIO Read reg8, "
-				   "'bank' 31 %x\n", (u32) val);
-	} else
-		ipath_dbg("Never got MDIO cmdready for XGXS status read\n");
 
 	return ret;		/* for now, say we always succeeded */
 }

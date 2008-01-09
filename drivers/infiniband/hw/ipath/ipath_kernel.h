@@ -777,8 +777,6 @@ int ipath_set_rx_pol_inv(struct ipath_devdata *dd, u8 new_pol_inv);
 
 /* free up any allocated data at closes */
 void ipath_free_data(struct ipath_portdata *dd);
-int ipath_waitfor_mdio_cmdready(struct ipath_devdata *);
-int ipath_waitfor_complete(struct ipath_devdata *, ipath_kreg, u64, u64 *);
 u32 __iomem *ipath_getpiobuf(struct ipath_devdata *, u32 *);
 void ipath_init_iba6120_funcs(struct ipath_devdata *);
 void ipath_init_iba6110_funcs(struct ipath_devdata *);
@@ -801,33 +799,6 @@ void ipath_set_led_override(struct ipath_devdata *dd, unsigned int val);
  * number of words used for protocol header if not set by ipath_userinit();
  */
 #define IPATH_DFLT_RCVHDRSIZE 9
-
-#define IPATH_MDIO_CMD_WRITE   1
-#define IPATH_MDIO_CMD_READ    2
-#define IPATH_MDIO_CLD_DIV     25	/* to get 2.5 Mhz mdio clock */
-#define IPATH_MDIO_CMDVALID    0x40000000	/* bit 30 */
-#define IPATH_MDIO_DATAVALID   0x80000000	/* bit 31 */
-#define IPATH_MDIO_CTRL_STD    0x0
-
-static inline u64 ipath_mdio_req(int cmd, int dev, int reg, int data)
-{
-	return (((u64) IPATH_MDIO_CLD_DIV) << 32) |
-		(cmd << 26) |
-		(dev << 21) |
-		(reg << 16) |
-		(data & 0xFFFF);
-}
-
-		/* signal and fifo status, in bank 31 */
-#define IPATH_MDIO_CTRL_XGXS_REG_8  0x8
-		/* controls loopback, redundancy */
-#define IPATH_MDIO_CTRL_8355_REG_1  0x10
-		/* premph, encdec, etc. */
-#define IPATH_MDIO_CTRL_8355_REG_2  0x11
-		/* Kchars, etc. */
-#define IPATH_MDIO_CTRL_8355_REG_6  0x15
-#define IPATH_MDIO_CTRL_8355_REG_9  0x18
-#define IPATH_MDIO_CTRL_8355_REG_10 0x1D
 
 int ipath_get_user_pages(unsigned long, size_t, struct page **);
 void ipath_release_user_pages(struct page **, size_t);
