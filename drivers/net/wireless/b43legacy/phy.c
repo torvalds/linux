@@ -91,40 +91,36 @@ void b43legacy_voluntary_preempt(void)
 #endif /* CONFIG_PREEMPT */
 }
 
-void b43legacy_raw_phy_lock(struct b43legacy_wldev *dev)
+/* Lock the PHY registers against concurrent access from the microcode.
+ * This lock is nonrecursive. */
+void b43legacy_phy_lock(struct b43legacy_wldev *dev)
 {
-	struct b43legacy_phy *phy = &dev->phy;
+#if B43legacy_DEBUG
+	B43legacy_WARN_ON(dev->phy.phy_locked);
+	dev->phy.phy_locked = 1;
+#endif
 
-	B43legacy_WARN_ON(!irqs_disabled());
-	if (b43legacy_read32(dev, B43legacy_MMIO_STATUS_BITFIELD) == 0) {
-		phy->locked = 0;
-		return;
-	}
 	if (dev->dev->id.revision < 3) {
 		b43legacy_mac_suspend(dev);
-		spin_lock(&phy->lock);
 	} else {
 		if (!b43legacy_is_mode(dev->wl, IEEE80211_IF_TYPE_AP))
 			b43legacy_power_saving_ctl_bits(dev, -1, 1);
 	}
-	phy->locked = 1;
 }
 
-void b43legacy_raw_phy_unlock(struct b43legacy_wldev *dev)
+void b43legacy_phy_unlock(struct b43legacy_wldev *dev)
 {
-	struct b43legacy_phy *phy = &dev->phy;
+#if B43legacy_DEBUG
+	B43legacy_WARN_ON(!dev->phy.phy_locked);
+	dev->phy.phy_locked = 0;
+#endif
 
-	B43legacy_WARN_ON(!irqs_disabled());
 	if (dev->dev->id.revision < 3) {
-		if (phy->locked) {
-			spin_unlock(&phy->lock);
-			b43legacy_mac_enable(dev);
-		}
+		b43legacy_mac_enable(dev);
 	} else {
 		if (!b43legacy_is_mode(dev->wl, IEEE80211_IF_TYPE_AP))
 			b43legacy_power_saving_ctl_bits(dev, -1, -1);
 	}
-	phy->locked = 0;
 }
 
 u16 b43legacy_phy_read(struct b43legacy_wldev *dev, u16 offset)
@@ -1789,7 +1785,6 @@ void b43legacy_phy_xmitpower(struct b43legacy_wldev *dev)
 	s16 baseband_att_delta;
 	s16 radio_attenuation;
 	s16 baseband_attenuation;
-	unsigned long phylock_flags;
 
 	if (phy->savedpctlreg == 0xFFFF)
 		return;
@@ -1944,13 +1939,13 @@ void b43legacy_phy_xmitpower(struct b43legacy_wldev *dev)
 	phy->bbatt = baseband_attenuation;
 
 	/* Adjust the hardware */
-	b43legacy_phy_lock(dev, phylock_flags);
+	b43legacy_phy_lock(dev);
 	b43legacy_radio_lock(dev);
 	b43legacy_radio_set_txpower_bg(dev, baseband_attenuation,
 				       radio_attenuation, txpower);
 	b43legacy_phy_lo_mark_current_used(dev);
 	b43legacy_radio_unlock(dev);
-	b43legacy_phy_unlock(dev, phylock_flags);
+	b43legacy_phy_unlock(dev);
 }
 
 static inline

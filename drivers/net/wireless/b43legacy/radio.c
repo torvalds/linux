@@ -92,6 +92,7 @@ void b43legacy_radio_lock(struct b43legacy_wldev *dev)
 	u32 status;
 
 	status = b43legacy_read32(dev, B43legacy_MMIO_STATUS_BITFIELD);
+	B43legacy_WARN_ON(status & B43legacy_SBF_RADIOREG_LOCK);
 	status |= B43legacy_SBF_RADIOREG_LOCK;
 	b43legacy_write32(dev, B43legacy_MMIO_STATUS_BITFIELD, status);
 	mmiowb();
@@ -104,6 +105,7 @@ void b43legacy_radio_unlock(struct b43legacy_wldev *dev)
 
 	b43legacy_read16(dev, B43legacy_MMIO_PHY_VER); /* dummy read */
 	status = b43legacy_read32(dev, B43legacy_MMIO_STATUS_BITFIELD);
+	B43legacy_WARN_ON(!(status & B43legacy_SBF_RADIOREG_LOCK));
 	status &= ~B43legacy_SBF_RADIOREG_LOCK;
 	b43legacy_write32(dev, B43legacy_MMIO_STATUS_BITFIELD, status);
 	mmiowb();
@@ -284,12 +286,11 @@ u8 b43legacy_radio_aci_scan(struct b43legacy_wldev *dev)
 	unsigned int j;
 	unsigned int start;
 	unsigned int end;
-	unsigned long phylock_flags;
 
 	if (!((phy->type == B43legacy_PHYTYPE_G) && (phy->rev > 0)))
 		return 0;
 
-	b43legacy_phy_lock(dev, phylock_flags);
+	b43legacy_phy_lock(dev);
 	b43legacy_radio_lock(dev);
 	b43legacy_phy_write(dev, 0x0802,
 			    b43legacy_phy_read(dev, 0x0802) & 0xFFFC);
@@ -323,7 +324,7 @@ u8 b43legacy_radio_aci_scan(struct b43legacy_wldev *dev)
 			ret[j] = 1;
 	}
 	b43legacy_radio_unlock(dev);
-	b43legacy_phy_unlock(dev, phylock_flags);
+	b43legacy_phy_unlock(dev);
 
 	return ret[channel - 1];
 }

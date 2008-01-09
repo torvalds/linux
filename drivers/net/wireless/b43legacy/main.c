@@ -2847,8 +2847,6 @@ static void setup_struct_phy_for_init(struct b43legacy_wldev *dev,
 	memset(phy->minlowsig, 0xFF, sizeof(phy->minlowsig));
 	memset(phy->minlowsigpos, 0, sizeof(phy->minlowsigpos));
 
-	/* Flags */
-	phy->locked = 0;
 	/* Assume the radio is enabled. If it's not enabled, the state will
 	 * immediately get fixed on the first periodic work run. */
 	dev->radio_hw_enable = 1;
@@ -2881,7 +2879,6 @@ static void setup_struct_phy_for_init(struct b43legacy_wldev *dev,
 	phy->lofcal = 0xFFFF;
 	phy->initval = 0xFFFF;
 
-	spin_lock_init(&phy->lock);
 	phy->interfmode = B43legacy_INTERFMODE_NONE;
 	phy->channel = 0xFF;
 }
@@ -3013,7 +3010,6 @@ static void prepare_phy_data_for_init(struct b43legacy_wldev *dev)
 
 	/* Flags */
 	phy->calibrated = 0;
-	phy->locked = 0;
 
 	if (phy->_lo_pairs)
 		memset(phy->_lo_pairs, 0,

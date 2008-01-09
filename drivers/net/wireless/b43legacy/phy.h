@@ -171,18 +171,8 @@ void b43legacy_put_attenuation_into_ranges(int *_bbatt, int *_rfatt);
 
 struct b43legacy_wldev;
 
-void b43legacy_raw_phy_lock(struct b43legacy_wldev *dev);
-#define b43legacy_phy_lock(bcm, flags) 		\
-	do {					\
-		local_irq_save(flags);		\
-		b43legacy_raw_phy_lock(bcm);	\
-	} while (0)
-void b43legacy_raw_phy_unlock(struct b43legacy_wldev *dev);
-#define b43legacy_phy_unlock(bcm, flags)	\
-	do {					\
-		b43legacy_raw_phy_unlock(bcm);	\
-		local_irq_restore(flags);	\
-	} while (0)
+void b43legacy_phy_lock(struct b43legacy_wldev *dev);
+void b43legacy_phy_unlock(struct b43legacy_wldev *dev);
 
 /* Card uses the loopback gain stuff */
 #define has_loopback_gain(phy)			 \

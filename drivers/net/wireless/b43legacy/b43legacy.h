@@ -415,7 +415,6 @@ struct b43legacy_phy {
 	u8 calibrated:1;
 	u8 radio_rev;		/* Radio revision */
 
-	bool locked;		/* Only used in b43legacy_phy_{un}lock() */
 	bool dyn_tssi_tbl;	/* tssi2dbm is kmalloc()ed. */
 
 	/* ACI (adjacent channel interference) flags. */
@@ -458,11 +457,6 @@ struct b43legacy_phy {
 	s16 lna_gain;		/* LNA */
 	s16 pga_gain;		/* PGA */
 
-	/* PHY lock for core.rev < 3
-	 * This lock is only used by b43legacy_phy_{un}lock()
-	 */
-	spinlock_t lock;
-
 	/* Desired TX power level (in dBm). This is set by the user and
 	 * adjusted in b43legacy_phy_xmitpower(). */
 	u8 power_level;
@@ -486,9 +480,6 @@ struct b43legacy_phy {
 		u16 txpwr_offset;
 	};
 
-#ifdef CONFIG_B43LEGACY_DEBUG
-	bool manual_txpower_control; /* Manual TX-power control enabled? */
-#endif
 	/* Current Interference Mitigation mode */
 	int interfmode;
 	/* Stack of saved values from the Interference Mitigation code.
@@ -516,6 +507,13 @@ struct b43legacy_phy {
 
 	/* PHY TX errors counter. */
 	atomic_t txerr_cnt;
+
+#if B43legacy_DEBUG
+	/* Manual TX-power control enabled? */
+	bool manual_txpower_control;
+	/* PHY registers locked by b43legacy_phy_lock()? */
+	bool phy_locked;
+#endif /* B43legacy_DEBUG */
 };
 
 /* Data structures for DMA transmission, per 80211 core. */
