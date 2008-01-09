@@ -1437,6 +1437,8 @@ void dlm_lowcomms_stop(void)
 		con = __nodeid2con(i, 0);
 		if (con) {
 			close_connection(con, true);
+			if (con->othercon)
+				kmem_cache_free(con_cache, con->othercon);
 			kmem_cache_free(con_cache, con);
 		}
 	}
