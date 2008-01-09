@@ -1321,7 +1321,7 @@ static int netxen_nic_poll(struct napi_struct *napi, int budget)
 						     budget / MAX_RCV_CTX);
 	}
 
-	if (work_done >= budget && netxen_nic_rx_has_work(adapter) != 0)
+	if (work_done >= budget)
 		done = 0;
 
 	if (netxen_process_cmd_ring((unsigned long)adapter) == 0)

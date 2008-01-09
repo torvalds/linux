@@ -142,49 +142,56 @@ struct b43_rxhdr_fw4 {
 } __attribute__ ((__packed__));
 
 /* PHY RX Status 0 */
-#define B43_RX_PHYST0_GAINCTL	0x4000	/* Gain Control */
-#define B43_RX_PHYST0_PLCPHCF	0x0200
-#define B43_RX_PHYST0_PLCPFV	0x0100
-#define B43_RX_PHYST0_SHORTPRMBL	0x0080	/* Received with Short Preamble */
+#define B43_RX_PHYST0_GAINCTL		0x4000 /* Gain Control */
+#define B43_RX_PHYST0_PLCPHCF		0x0200
+#define B43_RX_PHYST0_PLCPFV		0x0100
+#define B43_RX_PHYST0_SHORTPRMBL	0x0080 /* Received with Short Preamble */
 #define B43_RX_PHYST0_LCRS		0x0040
-#define B43_RX_PHYST0_ANT		0x0020	/* Antenna */
-#define B43_RX_PHYST0_UNSRATE	0x0010
+#define B43_RX_PHYST0_ANT		0x0020 /* Antenna */
+#define B43_RX_PHYST0_UNSRATE		0x0010
 #define B43_RX_PHYST0_CLIP		0x000C
 #define B43_RX_PHYST0_CLIP_SHIFT	2
-#define B43_RX_PHYST0_FTYPE		0x0003	/* Frame type */
-#define  B43_RX_PHYST0_CCK		0x0000	/* Frame type: CCK */
-#define  B43_RX_PHYST0_OFDM		0x0001	/* Frame type: OFDM */
-#define  B43_RX_PHYST0_PRE_N	0x0002	/* Pre-standard N-PHY frame */
-#define  B43_RX_PHYST0_STD_N	0x0003	/* Standard N-PHY frame */
+#define B43_RX_PHYST0_FTYPE		0x0003 /* Frame type */
+#define  B43_RX_PHYST0_CCK		0x0000 /* Frame type: CCK */
+#define  B43_RX_PHYST0_OFDM		0x0001 /* Frame type: OFDM */
+#define  B43_RX_PHYST0_PRE_N		0x0002 /* Pre-standard N-PHY frame */
+#define  B43_RX_PHYST0_STD_N		0x0003 /* Standard N-PHY frame */
 
 /* PHY RX Status 2 */
-#define B43_RX_PHYST2_LNAG		0xC000	/* LNA Gain */
+#define B43_RX_PHYST2_LNAG		0xC000 /* LNA Gain */
 #define B43_RX_PHYST2_LNAG_SHIFT	14
-#define B43_RX_PHYST2_PNAG		0x3C00	/* PNA Gain */
+#define B43_RX_PHYST2_PNAG		0x3C00 /* PNA Gain */
 #define B43_RX_PHYST2_PNAG_SHIFT	10
-#define B43_RX_PHYST2_FOFF		0x03FF	/* F offset */
+#define B43_RX_PHYST2_FOFF		0x03FF /* F offset */
 
 /* PHY RX Status 3 */
-#define B43_RX_PHYST3_DIGG		0x1800	/* DIG Gain */
+#define B43_RX_PHYST3_DIGG		0x1800 /* DIG Gain */
 #define B43_RX_PHYST3_DIGG_SHIFT	11
-#define B43_RX_PHYST3_TRSTATE	0x0400	/* TR state */
+#define B43_RX_PHYST3_TRSTATE		0x0400 /* TR state */
 
 /* MAC RX Status */
-#define B43_RX_MAC_BEACONSENT	0x00008000	/* Beacon send flag */
-#define B43_RX_MAC_KEYIDX		0x000007E0	/* Key index */
-#define B43_RX_MAC_KEYIDX_SHIFT	5
-#define B43_RX_MAC_DECERR		0x00000010	/* Decrypt error */
-#define B43_RX_MAC_DEC		0x00000008	/* Decryption attempted */
-#define B43_RX_MAC_PADDING		0x00000004	/* Pad bytes present */
-#define B43_RX_MAC_RESP		0x00000002	/* Response frame transmitted */
-#define B43_RX_MAC_FCSERR		0x00000001	/* FCS error */
+#define B43_RX_MAC_RXST_VALID		0x01000000 /* PHY RXST valid */
+#define B43_RX_MAC_TKIP_MICERR		0x00100000 /* TKIP MIC error */
+#define B43_RX_MAC_TKIP_MICATT		0x00080000 /* TKIP MIC attempted */
+#define B43_RX_MAC_AGGTYPE		0x00060000 /* Aggregation type */
+#define B43_RX_MAC_AGGTYPE_SHIFT	17
+#define B43_RX_MAC_AMSDU		0x00010000 /* A-MSDU mask */
+#define B43_RX_MAC_BEACONSENT		0x00008000 /* Beacon sent flag */
+#define B43_RX_MAC_KEYIDX		0x000007E0 /* Key index */
+#define B43_RX_MAC_KEYIDX_SHIFT		5
+#define B43_RX_MAC_DECERR		0x00000010 /* Decrypt error */
+#define B43_RX_MAC_DEC			0x00000008 /* Decryption attempted */
+#define B43_RX_MAC_PADDING		0x00000004 /* Pad bytes present */
+#define B43_RX_MAC_RESP			0x00000002 /* Response frame transmitted */
+#define B43_RX_MAC_FCSERR		0x00000001 /* FCS error */
 
 /* RX channel */
-#define B43_RX_CHAN_GAIN		0xFC00	/* Gain */
-#define B43_RX_CHAN_GAIN_SHIFT	10
-#define B43_RX_CHAN_ID		0x03FC	/* Channel ID */
-#define B43_RX_CHAN_ID_SHIFT	2
-#define B43_RX_CHAN_PHYTYPE		0x0003	/* PHY type */
+#define B43_RX_CHAN_40MHZ		0x1000 /* 40 Mhz channel width */
+#define B43_RX_CHAN_5GHZ		0x0800 /* 5 Ghz band */
+#define B43_RX_CHAN_ID			0x07F8 /* Channel ID */
+#define B43_RX_CHAN_ID_SHIFT		3
+#define B43_RX_CHAN_PHYTYPE		0x0007 /* PHY type */
+
 
 u8 b43_plcp_get_ratecode_cck(const u8 bitrate);
 u8 b43_plcp_get_ratecode_ofdm(const u8 bitrate);

@@ -416,16 +416,17 @@ static struct sk_buff *__skb_clone(struct sk_buff *n, struct sk_buff *skb)
 	C(len);
 	C(data_len);
 	C(mac_len);
-	n->cloned = 1;
 	n->hdr_len = skb->nohdr ? skb_headroom(skb) : skb->hdr_len;
+	n->cloned = 1;
 	n->nohdr = 0;
 	n->destructor = NULL;
-	C(truesize);
-	atomic_set(&n->users, 1);
-	C(head);
-	C(data);
+	C(iif);
 	C(tail);
 	C(end);
+	C(head);
+	C(data);
+	C(truesize);
+	atomic_set(&n->users, 1);
 
 	atomic_inc(&(skb_shinfo(skb)->dataref));
 	skb->cloned = 1;

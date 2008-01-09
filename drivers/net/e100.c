@@ -1991,13 +1991,12 @@ static int e100_poll(struct napi_struct *napi, int budget)
 	struct nic *nic = container_of(napi, struct nic, napi);
 	struct net_device *netdev = nic->netdev;
 	unsigned int work_done = 0;
-	int tx_cleaned;
 
 	e100_rx_clean(nic, &work_done, budget);
-	tx_cleaned = e100_tx_clean(nic);
+	e100_tx_clean(nic);
 
-	/* If no Rx and Tx cleanup work was done, exit polling mode. */
-	if((!tx_cleaned && (work_done == 0)) || !netif_running(netdev)) {
+	/* If budget not fully consumed, exit the polling mode */
+	if (work_done < budget) {
 		netif_rx_complete(netdev, napi);
 		e100_enable_irq(nic);
 	}

@@ -1404,8 +1404,7 @@ static int __init ic_proto_name(char *name)
 		return 1;
 	}
 	if (!strcmp(name, "off") || !strcmp(name, "none")) {
-		ic_enable = 0;
-		return 1;
+		return 0;
 	}
 #ifdef CONFIG_IP_PNP_DHCP
 	else if (!strcmp(name, "dhcp")) {
@@ -1442,10 +1441,22 @@ static int __init ip_auto_config_setup(char *addrs)
 	ic_set_manually = 1;
 	ic_enable = 1;
 
+	/*
+	 * If any dhcp, bootp etc options are set, leave autoconfig on
+	 * and skip the below static IP processing.
+	 */
 	if (ic_proto_name(addrs))
 		return 1;
 
-	/* Parse the whole string */
+	/* If no static IP is given, turn off autoconfig and bail.  */
+	if (*addrs == 0 ||
+	    strcmp(addrs, "off") == 0 ||
+	    strcmp(addrs, "none") == 0) {
+		ic_enable = 0;
+		return 1;
+	}
+
+	/* Parse string for static IP assignment.  */
 	ip = addrs;
 	while (ip && *ip) {
 		if ((cp = strchr(ip, ':')))
@@ -1483,7 +1494,10 @@ static int __init ip_auto_config_setup(char *addrs)
 				strlcpy(user_dev_name, ip, sizeof(user_dev_name));
 				break;
 			case 6:
-				ic_proto_name(ip);
+				if (ic_proto_name(ip) == 0 &&
+				    ic_myaddr == NONE) {
+					ic_enable = 0;
+				}
 				break;
 			}
 		}

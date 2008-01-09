@@ -1984,29 +1984,27 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 
 INTEL PRO/100 ETHERNET SUPPORT
-P:	John Ronciak
-M:	john.ronciak@intel.com
+P:	Auke Kok
+M:	auke-jan.h.kok@intel.com
 P:	Jesse Brandeburg
 M:	jesse.brandeburg@intel.com
 P:	Jeff Kirsher
 M:	jeffrey.t.kirsher@intel.com
-P:	Auke Kok
-M:	auke-jan.h.kok@intel.com
+P:	John Ronciak
+M:	john.ronciak@intel.com
 L:	e1000-devel@lists.sourceforge.net
 W:	http://sourceforge.net/projects/e1000/
 S:	Supported
 
 INTEL PRO/1000 GIGABIT ETHERNET SUPPORT
-P:	Jeb Cramer
-M:	cramerj@intel.com
-P:	John Ronciak
-M:	john.ronciak@intel.com
+P:	Auke Kok
+M:	auke-jan.h.kok@intel.com
 P:	Jesse Brandeburg
 M:	jesse.brandeburg@intel.com
 P:	Jeff Kirsher
 M:	jeffrey.t.kirsher@intel.com
-P:	Auke Kok
-M:	auke-jan.h.kok@intel.com
+P:	John Ronciak
+M:	john.ronciak@intel.com
 L:	e1000-devel@lists.sourceforge.net
 W:	http://sourceforge.net/projects/e1000/
 S:	Supported

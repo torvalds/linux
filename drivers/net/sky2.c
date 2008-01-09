@@ -1168,6 +1168,7 @@ static void sky2_vlan_rx_register(struct net_device *dev, struct vlan_group *grp
 			     TX_VLAN_TAG_OFF);
 	}
 
+	sky2_read32(hw, B0_Y2_SP_LISR);
 	napi_enable(&hw->napi);
 	netif_tx_unlock_bh(dev);
 }
@@ -2043,6 +2044,7 @@ static int sky2_change_mtu(struct net_device *dev, int new_mtu)
 	err = sky2_rx_start(sky2);
 	sky2_write32(hw, B0_IMSK, imask);
 
+	sky2_read32(hw, B0_Y2_SP_LISR);
 	napi_enable(&hw->napi);
 
 	if (err)
@@ -3861,6 +3863,7 @@ static int sky2_debug_show(struct seq_file *seq, void *v)
 		   last = sky2_read16(hw, Y2_QADDR(rxqaddr[port], PREF_UNIT_PUT_IDX)),
 		   sky2_read16(hw, Y2_QADDR(rxqaddr[port], PREF_UNIT_LAST_IDX)));
 
+	sky2_read32(hw, B0_Y2_SP_LISR);
 	napi_enable(&hw->napi);
 	return 0;
 }

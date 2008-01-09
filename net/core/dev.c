@@ -2207,8 +2207,12 @@ static void net_rx_action(struct softirq_action *h)
 		 * still "owns" the NAPI instance and therefore can
 		 * move the instance around on the list at-will.
 		 */
-		if (unlikely(work == weight))
-			list_move_tail(&n->poll_list, list);
+		if (unlikely(work == weight)) {
+			if (unlikely(napi_disable_pending(n)))
+				__napi_complete(n);
+			else
+				list_move_tail(&n->poll_list, list);
+		}
 
 		netpoll_poll_unlock(have);
 	}

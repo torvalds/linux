@@ -210,6 +210,9 @@ struct sctp_chunk *sctp_make_init(const struct sctp_association *asoc,
 	chunksize = sizeof(init) + addrs_len + SCTP_SAT_LEN(num_types);
 	chunksize += sizeof(ecap_param);
 
+	if (sctp_prsctp_enable)
+		chunksize += sizeof(prsctp_param);
+
 	/* ADDIP: Section 4.2.7:
 	 *  An implementation supporting this extension [ADDIP] MUST list
 	 *  the ASCONF,the ASCONF-ACK, and the AUTH  chunks in its INIT and
@@ -368,6 +371,9 @@ struct sctp_chunk *sctp_make_init_ack(const struct sctp_association *asoc,
 	/* Tell peer that we'll do ECN only if peer advertised such cap.  */
 	if (asoc->peer.ecn_capable)
 		chunksize += sizeof(ecap_param);
+
+	if (sctp_prsctp_enable)
+		chunksize += sizeof(prsctp_param);
 
 	if (sctp_addip_enable) {
 		extensions[num_ext] = SCTP_CID_ASCONF;

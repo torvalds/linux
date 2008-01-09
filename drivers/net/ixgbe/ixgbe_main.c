@@ -1468,21 +1468,15 @@ static int ixgbe_clean(struct napi_struct *napi, int budget)
 	struct ixgbe_adapter *adapter = container_of(napi,
 					struct ixgbe_adapter, napi);
 	struct net_device *netdev = adapter->netdev;
-	int tx_cleaned = 0, work_done = 0;
-
-	/* Keep link state information with original netdev */
-	if (!netif_carrier_ok(adapter->netdev))
-		goto quit_polling;
+	int work_done = 0;
 
 	/* In non-MSIX case, there is no multi-Tx/Rx queue */
-	tx_cleaned = ixgbe_clean_tx_irq(adapter, adapter->tx_ring);
+	ixgbe_clean_tx_irq(adapter, adapter->tx_ring);
 	ixgbe_clean_rx_irq(adapter, &adapter->rx_ring[0], &work_done,
 			   budget);
 
-	/* If no Tx and not enough Rx work done, exit the polling mode */
-	if ((!tx_cleaned && (work_done < budget)) ||
-	    !netif_running(adapter->netdev)) {
-quit_polling:
+	/* If budget not fully consumed, exit the polling mode */
+	if (work_done < budget) {
 		netif_rx_complete(netdev, napi);
 		ixgbe_irq_enable(adapter);
 	}

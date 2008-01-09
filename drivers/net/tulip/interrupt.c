@@ -117,9 +117,6 @@ int tulip_poll(struct napi_struct *napi, int budget)
 	int received = 0;
 #endif
 
-	if (!netif_running(dev))
-		goto done;
-
 #ifdef CONFIG_TULIP_NAPI_HW_MITIGATION
 
 /* that one buffer is needed for mit activation; or might be a
@@ -151,7 +148,8 @@ int tulip_poll(struct napi_struct *napi, int budget)
                        if (tulip_debug > 5)
                                printk(KERN_DEBUG "%s: In tulip_rx(), entry %d %8.8x.\n",
                                       dev->name, entry, status);
-		       if (work_done++ >= budget)
+
+		       if (++work_done >= budget)
                                goto not_done;
 
                        if ((status & 0x38008300) != 0x0300) {
@@ -259,8 +257,6 @@ int tulip_poll(struct napi_struct *napi, int budget)
                 * tomorrow (night 011029). If it will not fail, we won
                 * finally: amount of IO did not increase at all. */
        } while ((ioread32(tp->base_addr + CSR5) & RxIntr));
-
-done:
 
  #ifdef CONFIG_TULIP_NAPI_HW_MITIGATION
 

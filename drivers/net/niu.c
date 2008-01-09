@@ -33,8 +33,8 @@
 
 #define DRV_MODULE_NAME		"niu"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"0.5"
-#define DRV_MODULE_RELDATE	"October 5, 2007"
+#define DRV_MODULE_VERSION	"0.6"
+#define DRV_MODULE_RELDATE	"January 5, 2008"
 
 static char version[] __devinitdata =
 	DRV_MODULE_NAME ".c:v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
@@ -2241,6 +2241,8 @@ static int niu_process_rx_pkt(struct niu *np, struct rx_ring_info *rp)
 	skb->protocol = eth_type_trans(skb, np->dev);
 	netif_receive_skb(skb);
 
+	np->dev->last_rx = jiffies;
+
 	return num_rcr;
 }
 
@@ -2508,14 +2510,18 @@ static int niu_rx_error(struct niu *np, struct rx_ring_info *rp)
 	u64 stat = nr64(RX_DMA_CTL_STAT(rp->rx_channel));
 	int err = 0;
 
-	dev_err(np->device, PFX "%s: RX channel %u error, stat[%llx]\n",
-		np->dev->name, rp->rx_channel, (unsigned long long) stat);
-
-	niu_log_rxchan_errors(np, rp, stat);
 
 	if (stat & (RX_DMA_CTL_STAT_CHAN_FATAL |
 		    RX_DMA_CTL_STAT_PORT_FATAL))
 		err = -EINVAL;
+
+	if (err) {
+		dev_err(np->device, PFX "%s: RX channel %u error, stat[%llx]\n",
+			np->dev->name, rp->rx_channel,
+			(unsigned long long) stat);
+
+		niu_log_rxchan_errors(np, rp, stat);
+	}
 
 	nw64(RX_DMA_CTL_STAT(rp->rx_channel),
 	     stat & RX_DMA_CTL_WRITE_CLEAR_ERRS);
@@ -2749,12 +2755,15 @@ static int niu_device_error(struct niu *np)
 	return -ENODEV;
 }
 
-static int niu_slowpath_interrupt(struct niu *np, struct niu_ldg *lp)
+static int niu_slowpath_interrupt(struct niu *np, struct niu_ldg *lp,
+			      u64 v0, u64 v1, u64 v2)
 {
-	u64 v0 = lp->v0;
-	u64 v1 = lp->v1;
-	u64 v2 = lp->v2;
+
 	int i, err = 0;
+
+	lp->v0 = v0;
+	lp->v1 = v1;
+	lp->v2 = v2;
 
 	if (v1 & 0x00000000ffffffffULL) {
 		u32 rx_vec = (v1 & 0xffffffff);
@@ -2764,8 +2773,13 @@ static int niu_slowpath_interrupt(struct niu *np, struct niu_ldg *lp)
 
 			if (rx_vec & (1 << rp->rx_channel)) {
 				int r = niu_rx_error(np, rp);
-				if (r)
+				if (r) {
 					err = r;
+				} else {
+					if (!v0)
+						nw64(RX_DMA_CTL_STAT(rp->rx_channel),
+						     RX_DMA_CTL_STAT_MEX);
+				}
 			}
 		}
 	}
@@ -2803,7 +2817,7 @@ static int niu_slowpath_interrupt(struct niu *np, struct niu_ldg *lp)
 	if (err)
 		niu_enable_interrupts(np, 0);
 
-	return -EINVAL;
+	return err;
 }
 
 static void niu_rxchan_intr(struct niu *np, struct rx_ring_info *rp,
@@ -2905,7 +2919,7 @@ static irqreturn_t niu_interrupt(int irq, void *dev_id)
 	}
 
 	if (unlikely((v0 & ((u64)1 << LDN_MIF)) || v1 || v2)) {
-		int err = niu_slowpath_interrupt(np, lp);
+		int err = niu_slowpath_interrupt(np, lp, v0, v1, v2);
 		if (err)
 			goto out;
 	}
@@ -5194,7 +5208,8 @@ static int niu_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 		kfree_skb(skb);
 		skb = skb_new;
-	}
+	} else
+		skb_orphan(skb);
 
 	align = ((unsigned long) skb->data & (16 - 1));
 	headroom = align + sizeof(struct tx_pkt_hdr);

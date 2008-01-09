@@ -1787,14 +1787,13 @@ ixgb_clean(struct napi_struct *napi, int budget)
 {
 	struct ixgb_adapter *adapter = container_of(napi, struct ixgb_adapter, napi);
 	struct net_device *netdev = adapter->netdev;
-	int tx_cleaned;
 	int work_done = 0;
 
-	tx_cleaned = ixgb_clean_tx_irq(adapter);
+	ixgb_clean_tx_irq(adapter);
 	ixgb_clean_rx_irq(adapter, &work_done, budget);
 
-	/* if no Tx and not enough Rx work done, exit the polling mode */
-	if((!tx_cleaned && (work_done == 0)) || !netif_running(netdev)) {
+	/* If budget not fully consumed, exit the polling mode */
+	if (work_done < budget) {
 		netif_rx_complete(netdev, napi);
 		ixgb_irq_enable(adapter);
 	}
