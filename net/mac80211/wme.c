@@ -28,6 +28,7 @@ struct ieee80211_sched_data
 	struct sk_buff_head requeued[TC_80211_MAX_QUEUES];
 };
 
+static const char llc_ip_hdr[8] = {0xAA, 0xAA, 0x3, 0, 0, 0, 0x08, 0};
 
 /* given a data frame determine the 802.1p/1d tag to use */
 static inline unsigned classify_1d(struct sk_buff *skb, struct Qdisc *qd)
@@ -54,12 +55,12 @@ static inline unsigned classify_1d(struct sk_buff *skb, struct Qdisc *qd)
 		return skb->priority - 256;
 
 	/* check there is a valid IP header present */
-	offset = ieee80211_get_hdrlen_from_skb(skb) + 8 /* LLC + proto */;
-	if (skb->protocol != htons(ETH_P_IP) ||
-	    skb->len < offset + sizeof(*ip))
+	offset = ieee80211_get_hdrlen_from_skb(skb);
+	if (skb->len < offset + sizeof(llc_ip_hdr) + sizeof(*ip) ||
+	    memcmp(skb->data + offset, llc_ip_hdr, sizeof(llc_ip_hdr)))
 		return 0;
 
-	ip = (struct iphdr *) (skb->data + offset);
+	ip = (struct iphdr *) (skb->data + offset + sizeof(llc_ip_hdr));
 
 	dscp = ip->tos & 0xfc;
 	if (dscp & 0x1c)
