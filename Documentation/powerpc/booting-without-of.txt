@@ -1619,7 +1619,7 @@ platforms are moved over to use the flattened-device-tree model.
 
    Required properties:
    - device_type : should be "network", "hldc", "uart", "transparent"
-    "bisync" or "atm".
+     "bisync", "atm", or "serial".
    - compatible : could be "ucc_geth" or "fsl_atm" and so on.
    - model : should be "UCC".
    - device-id : the ucc number(1-8), corresponding to UCCx in UM.
@@ -1632,6 +1632,13 @@ platforms are moved over to use the flattened-device-tree model.
    - interrupt-parent : the phandle for the interrupt controller that
      services interrupts for this device.
    - pio-handle : The phandle for the Parallel I/O port configuration.
+   - port-number : for UART drivers, the port number to use, between 0 and 3.
+     This usually corresponds to the /dev/ttyQE device, e.g. <0> = /dev/ttyQE0.
+     The port number is added to the minor number of the device.  Unlike the
+     CPM UART driver, the port-number is required for the QE UART driver.
+   - soft-uart : for UART drivers, if specified this means the QE UART device
+     driver should use "Soft-UART" mode, which is needed on some SOCs that have
+     broken UART hardware.  Soft-UART is provided via a microcode upload.
    - rx-clock-name: the UCC receive clock source
      "none": clock source is disabled
      "brg1" through "brg16": clock source is BRG1-BRG16, respectively
