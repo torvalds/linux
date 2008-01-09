@@ -257,7 +257,7 @@ static const struct rt2x00debug rt2500usb_rt2x00debug = {
 static void rt2500usb_config_mac_addr(struct rt2x00_dev *rt2x00dev,
 				      __le32 *mac)
 {
-	rt2500usb_register_multiwrite(rt2x00dev, MAC_CSR2, &mac,
+	rt2500usb_register_multiwrite(rt2x00dev, MAC_CSR2, mac,
 				      (3 * sizeof(__le16)));
 }
 
