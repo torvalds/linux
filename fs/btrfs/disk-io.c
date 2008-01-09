@@ -762,10 +762,15 @@ int write_ctree_super(struct btrfs_trans_handle *trans, struct btrfs_root
 	int ret;
 	struct extent_buffer *super = root->fs_info->sb_buffer;
 	struct inode *btree_inode = root->fs_info->btree_inode;
+	struct super_block *sb = root->fs_info->sb;
 
+	if (!btrfs_test_opt(root, NOBARRIER))
+		blkdev_issue_flush(sb->s_bdev, NULL);
 	set_extent_buffer_dirty(&BTRFS_I(btree_inode)->extent_tree, super);
 	ret = sync_page_range_nolock(btree_inode, btree_inode->i_mapping,
 				     super->start, super->len);
+	if (!btrfs_test_opt(root, NOBARRIER))
+		blkdev_issue_flush(sb->s_bdev, NULL);
 	return ret;
 }
 

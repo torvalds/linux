@@ -440,8 +440,9 @@ struct btrfs_root {
  */
 #define BTRFS_STRING_ITEM_KEY	253
 
-#define BTRFS_MOUNT_NODATASUM		0x1
-#define BTRFS_MOUNT_NODATACOW		0x2
+#define BTRFS_MOUNT_NODATASUM		(1 << 0)
+#define BTRFS_MOUNT_NODATACOW		(1 << 1)
+#define BTRFS_MOUNT_NOBARRIER		(1 << 2)
 
 #define btrfs_clear_opt(o, opt)		((o) &= ~BTRFS_MOUNT_##opt)
 #define btrfs_set_opt(o, opt)		((o) |= BTRFS_MOUNT_##opt)
