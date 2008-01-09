@@ -846,17 +846,18 @@ static struct ctl_table ipv4_table[] = {
 	{ .ctl_name = 0 }
 };
 
-static __initdata struct ctl_path net_ipv4_path[] = {
+struct ctl_path net_ipv4_ctl_path[] = {
 	{ .procname = "net", .ctl_name = CTL_NET, },
 	{ .procname = "ipv4", .ctl_name = NET_IPV4, },
 	{ },
 };
+EXPORT_SYMBOL_GPL(net_ipv4_ctl_path);
 
 static __init int sysctl_ipv4_init(void)
 {
 	struct ctl_table_header *hdr;
 
-	hdr = register_sysctl_paths(net_ipv4_path, ipv4_table);
+	hdr = register_sysctl_paths(net_ipv4_ctl_path, ipv4_table);
 	return hdr == NULL ? -ENOMEM : 0;
 }
 

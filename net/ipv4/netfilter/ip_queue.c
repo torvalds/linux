@@ -29,6 +29,7 @@
 #include <net/sock.h>
 #include <net/route.h>
 #include <net/netfilter/nf_queue.h>
+#include <net/ip.h>
 
 #define IPQ_QMAX_DEFAULT 1024
 #define IPQ_PROC_FS_NAME "ip_queue"
@@ -525,26 +526,6 @@ static ctl_table ipq_table[] = {
 	{ .ctl_name = 0 }
 };
 
-static ctl_table ipq_dir_table[] = {
-	{
-		.ctl_name	= NET_IPV4,
-		.procname	= "ipv4",
-		.mode		= 0555,
-		.child		= ipq_table
-	},
-	{ .ctl_name = 0 }
-};
-
-static ctl_table ipq_root_table[] = {
-	{
-		.ctl_name	= CTL_NET,
-		.procname	= "net",
-		.mode		= 0555,
-		.child		= ipq_dir_table
-	},
-	{ .ctl_name = 0 }
-};
-
 static int ip_queue_show(struct seq_file *m, void *v)
 {
 	read_lock_bh(&queue_lock);
@@ -610,7 +591,7 @@ static int __init ip_queue_init(void)
 	}
 
 	register_netdevice_notifier(&ipq_dev_notifier);
-	ipq_sysctl_header = register_sysctl_table(ipq_root_table);
+	ipq_sysctl_header = register_sysctl_paths(net_ipv4_ctl_path, ipq_table);
 
 	status = nf_register_queue_handler(PF_INET, &nfqh);
 	if (status < 0) {

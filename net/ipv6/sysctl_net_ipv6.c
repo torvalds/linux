@@ -82,17 +82,19 @@ static ctl_table ipv6_table[] = {
 	{ .ctl_name = 0 }
 };
 
-static struct ctl_path ipv6_ctl_path[] = {
+struct ctl_path net_ipv6_ctl_path[] = {
 	{ .procname = "net", .ctl_name = CTL_NET, },
 	{ .procname = "ipv6", .ctl_name = NET_IPV6, },
 	{ },
 };
+EXPORT_SYMBOL_GPL(net_ipv6_ctl_path);
 
 static struct ctl_table_header *ipv6_sysctl_header;
 
 void ipv6_sysctl_register(void)
 {
-	ipv6_sysctl_header = register_sysctl_paths(ipv6_ctl_path, ipv6_table);
+	ipv6_sysctl_header = register_sysctl_paths(net_ipv6_ctl_path,
+			ipv6_table);
 }
 
 void ipv6_sysctl_unregister(void)

@@ -383,15 +383,11 @@ static ctl_table nf_ct_netfilter_table[] = {
 	{ .ctl_name = 0 }
 };
 
-static ctl_table nf_ct_net_table[] = {
-	{
-		.ctl_name	= CTL_NET,
-		.procname	= "net",
-		.mode		= 0555,
-		.child		= nf_ct_netfilter_table,
-	},
-	{ .ctl_name = 0 }
+struct ctl_path nf_ct_path[] = {
+	{ .procname = "net", .ctl_name = CTL_NET, },
+	{ }
 };
+
 EXPORT_SYMBOL_GPL(nf_ct_log_invalid);
 #endif /* CONFIG_SYSCTL */
 
@@ -418,7 +414,8 @@ static int __init nf_conntrack_standalone_init(void)
 	proc_stat->owner = THIS_MODULE;
 #endif
 #ifdef CONFIG_SYSCTL
-	nf_ct_sysctl_header = register_sysctl_table(nf_ct_net_table);
+	nf_ct_sysctl_header = register_sysctl_paths(nf_ct_path,
+			nf_ct_netfilter_table);
 	if (nf_ct_sysctl_header == NULL) {
 		printk("nf_conntrack: can't register to sysctl.\n");
 		ret = -ENOMEM;

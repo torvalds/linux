@@ -177,6 +177,8 @@ extern void inet_get_local_port_range(int *low, int *high);
 extern int sysctl_ip_default_ttl;
 extern int sysctl_ip_nonlocal_bind;
 
+extern struct ctl_path net_ipv4_ctl_path[];
+
 /* From ip_fragment.c */
 struct inet_frags_ctl;
 extern struct inet_frags_ctl ip4_frags_ctl;

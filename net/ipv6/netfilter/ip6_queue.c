@@ -529,26 +529,6 @@ static ctl_table ipq_table[] = {
 	{ .ctl_name = 0 }
 };
 
-static ctl_table ipq_dir_table[] = {
-	{
-		.ctl_name	= NET_IPV6,
-		.procname	= "ipv6",
-		.mode		= 0555,
-		.child		= ipq_table
-	},
-	{ .ctl_name = 0 }
-};
-
-static ctl_table ipq_root_table[] = {
-	{
-		.ctl_name	= CTL_NET,
-		.procname	= "net",
-		.mode		= 0555,
-		.child		= ipq_dir_table
-	},
-	{ .ctl_name = 0 }
-};
-
 static int ip6_queue_show(struct seq_file *m, void *v)
 {
 	read_lock_bh(&queue_lock);
@@ -614,7 +594,7 @@ static int __init ip6_queue_init(void)
 	}
 
 	register_netdevice_notifier(&ipq_dev_notifier);
-	ipq_sysctl_header = register_sysctl_table(ipq_root_table);
+	ipq_sysctl_header = register_sysctl_paths(net_ipv6_ctl_path, ipq_table);
 
 	status = nf_register_queue_handler(PF_INET6, &nfqh);
 	if (status < 0) {
