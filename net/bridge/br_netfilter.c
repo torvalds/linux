@@ -967,24 +967,10 @@ static ctl_table brnf_table[] = {
 	{ .ctl_name = 0 }
 };
 
-static ctl_table brnf_bridge_table[] = {
-	{
-		.ctl_name	= NET_BRIDGE,
-		.procname	= "bridge",
-		.mode		= 0555,
-		.child		= brnf_table,
-	},
-	{ .ctl_name = 0 }
-};
-
-static ctl_table brnf_net_table[] = {
-	{
-		.ctl_name	= CTL_NET,
-		.procname	= "net",
-		.mode		= 0555,
-		.child		= brnf_bridge_table,
-	},
-	{ .ctl_name = 0 }
+static struct ctl_path brnf_path[] = {
+	{ .procname = "net", .ctl_name = CTL_NET, },
+	{ .procname = "bridge", .ctl_name = NET_BRIDGE, },
+	{ }
 };
 #endif
 
@@ -996,7 +982,7 @@ int __init br_netfilter_init(void)
 	if (ret < 0)
 		return ret;
 #ifdef CONFIG_SYSCTL
-	brnf_sysctl_header = register_sysctl_table(brnf_net_table);
+	brnf_sysctl_header = register_sysctl_paths(brnf_path, brnf_table);
 	if (brnf_sysctl_header == NULL) {
 		printk(KERN_WARNING
 		       "br_netfilter: can't register to sysctl.\n");

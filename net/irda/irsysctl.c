@@ -234,28 +234,10 @@ static ctl_table irda_table[] = {
 	{ .ctl_name = 0 }
 };
 
-/* One directory */
-static ctl_table irda_net_table[] = {
-	{
-		.ctl_name	= NET_IRDA,
-		.procname	= "irda",
-		.maxlen		= 0,
-		.mode		= 0555,
-		.child		= irda_table
-	},
-	{ .ctl_name = 0 }
-};
-
-/* The parent directory */
-static ctl_table irda_root_table[] = {
-	{
-		.ctl_name	= CTL_NET,
-		.procname	= "net",
-		.maxlen		= 0,
-		.mode		= 0555,
-		.child		= irda_net_table
-	},
-	{ .ctl_name = 0 }
+static struct ctl_path irda_path[] = {
+	{ .procname = "net", .ctl_name = CTL_NET, },
+	{ .procname = "irda", .ctl_name = NET_IRDA, },
+	{ }
 };
 
 static struct ctl_table_header *irda_table_header;
@@ -268,7 +250,7 @@ static struct ctl_table_header *irda_table_header;
  */
 int __init irda_sysctl_register(void)
 {
-	irda_table_header = register_sysctl_table(irda_root_table);
+	irda_table_header = register_sysctl_paths(irda_path, irda_table);
 	if (!irda_table_header)
 		return -ENOMEM;
 
