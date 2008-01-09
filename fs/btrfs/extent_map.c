@@ -273,7 +273,6 @@ int add_extent_mapping(struct extent_map_tree *tree,
 	rb = tree_insert(&tree->map, em->end, &em->rb_node);
 	if (rb) {
 		prev = rb_entry(rb, struct extent_map, rb_node);
-		printk("found extent map %Lu %Lu on insert of %Lu %Lu\n", prev->start, prev->end, em->start, em->end);
 		ret = -EEXIST;
 		goto out;
 	}
