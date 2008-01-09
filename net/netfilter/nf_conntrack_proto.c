@@ -36,11 +36,11 @@ static DEFINE_MUTEX(nf_ct_proto_mutex);
 
 #ifdef CONFIG_SYSCTL
 static int
-nf_ct_register_sysctl(struct ctl_table_header **header, struct ctl_table *path,
+nf_ct_register_sysctl(struct ctl_table_header **header, struct ctl_path *path,
 		      struct ctl_table *table, unsigned int *users)
 {
 	if (*header == NULL) {
-		*header = nf_register_sysctl_table(path, table);
+		*header = register_sysctl_paths(path, table);
 		if (*header == NULL)
 			return -ENOMEM;
 	}
@@ -55,7 +55,8 @@ nf_ct_unregister_sysctl(struct ctl_table_header **header,
 {
 	if (users != NULL && --*users > 0)
 		return;
-	nf_unregister_sysctl_table(*header, table);
+
+	unregister_sysctl_table(*header);
 	*header = NULL;
 }
 #endif
