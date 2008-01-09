@@ -486,7 +486,6 @@ EXPORT_SYMBOL_GPL(xfrm_ealg_get_byidx);
  */
 void xfrm_probe_algs(void)
 {
-#ifdef CONFIG_CRYPTO
 	int i, status;
 
 	BUG_ON(in_softirq());
@@ -511,7 +510,6 @@ void xfrm_probe_algs(void)
 		if (calg_list[i].available != status)
 			calg_list[i].available = status;
 	}
-#endif
 }
 EXPORT_SYMBOL_GPL(xfrm_probe_algs);
 

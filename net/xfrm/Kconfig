@@ -3,6 +3,7 @@
 #
 config XFRM
        bool
+       select CRYPTO
        depends on NET
 
 config XFRM_USER
