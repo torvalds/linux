@@ -69,6 +69,15 @@ static int SwitchSVideoInput = 0;			// To help people with Black and White outpu
 module_param(SwitchSVideoInput, int, 0444);
 MODULE_PARM_DESC(SwitchSVideoInput, " Set the S-Video input.  Some cables and input device are wired differently. Default: 0 (Off)");
 
+static unsigned int adjust_X_Offset = -1;
+module_param(adjust_X_Offset, int, 0644);
+MODULE_PARM_DESC(adjust_X_Offset, "adjust X offset display [core]");
+
+static unsigned int adjust_Y_Offset = -1;
+module_param(adjust_Y_Offset, int, 0644);
+MODULE_PARM_DESC(adjust_Y_Offset, "adjust Y offset display [core]");
+
+
 #define	ENABLE_HEXDUMP	0	/* Enable if you need it */
 
 
@@ -2097,9 +2106,19 @@ int usbvision_set_input(struct usb_usbvision *usbvision)
 		value[5]=(usbvision_device_data[usbvision->DevModel].X_Offset & 0x0300) >> 8;
 	}
 
+	if (adjust_X_Offset != -1) {
+		value[4] = adjust_X_Offset & 0xff;
+		value[5] = (adjust_X_Offset & 0x0300) >> 8;
+	}
+
 	if (usbvision_device_data[usbvision->DevModel].Y_Offset >= 0) {
 		value[6]=usbvision_device_data[usbvision->DevModel].Y_Offset & 0xff;
 		value[7]=(usbvision_device_data[usbvision->DevModel].Y_Offset & 0x0300) >> 8;
+	}
+
+	if (adjust_Y_Offset != -1) {
+		value[6] = adjust_Y_Offset & 0xff;
+		value[7] = (adjust_Y_Offset & 0x0300) >> 8;
 	}
 
 	rc = usb_control_msg(usbvision->dev, usb_sndctrlpipe(usbvision->dev, 1),
