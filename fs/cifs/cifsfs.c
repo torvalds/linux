@@ -44,6 +44,7 @@
 #include "cifs_fs_sb.h"
 #include <linux/mm.h>
 #include <linux/key-type.h>
+#include "dns_resolve.h"
 #include "cifs_spnego.h"
 #define CIFS_MAGIC_NUMBER 0xFF534D42	/* the first four bytes of SMB PDUs */
 
@@ -1015,11 +1016,16 @@ init_cifs(void)
 	if (rc)
 		goto out_unregister_filesystem;
 #endif
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	rc = register_key_type(&key_type_dns_resolver);
+	if (rc)
+		goto out_unregister_key_type;
+#endif
 	oplockThread = kthread_run(cifs_oplock_thread, NULL, "cifsoplockd");
 	if (IS_ERR(oplockThread)) {
 		rc = PTR_ERR(oplockThread);
 		cERROR(1, ("error %d create oplock thread", rc));
-		goto out_unregister_key_type;
+		goto out_unregister_dfs_key_type;
 	}
 
 	dnotifyThread = kthread_run(cifs_dnotify_thread, NULL, "cifsdnotifyd");
@@ -1033,7 +1039,11 @@ init_cifs(void)
 
  out_stop_oplock_thread:
 	kthread_stop(oplockThread);
+ out_unregister_dfs_key_type:
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	unregister_key_type(&key_type_dns_resolver);
  out_unregister_key_type:
+#endif
 #ifdef CONFIG_CIFS_UPCALL
 	unregister_key_type(&cifs_spnego_key_type);
  out_unregister_filesystem:
@@ -1058,6 +1068,9 @@ exit_cifs(void)
 	cFYI(0, ("exit_cifs"));
 #ifdef CONFIG_PROC_FS
 	cifs_proc_clean();
+#endif
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	unregister_key_type(&key_type_dns_resolver);
 #endif
 #ifdef CONFIG_CIFS_UPCALL
 	unregister_key_type(&cifs_spnego_key_type);
