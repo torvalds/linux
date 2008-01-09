@@ -1336,11 +1336,11 @@ ENTRY(_spill_registers)
 
 	wsr	a2, DEPC		# preserve a2
 	rsr	a2, WINDOWBASE
-	rsr	a3, WINDOWSTART
+	rsr	a3, WINDOWSTART		# a3 = xxxwww1yy
 	ssr	a2			# holds WB
 	slli	a2, a3, WSBITS
-	or	a3, a3, a2		# a2 = xxxwww1yyxxxwww1yy
-	srl	a3, a3
+	or	a3, a3, a2		# a3 = xxxwww1yyxxxwww1yy
+	srl	a3, a3			# a3 = 00xxxwww1yyxxxwww1
 
 	/* We are done if there are no more than the current register frame. */
 
@@ -1395,8 +1395,8 @@ ENTRY(_spill_registers)
 	j	.Lc12c
 
 .Lnospill:
-	rsr	a2, DEPC	# restore a2 and 'return'
-	jx	a0
+	rsr	a2, DEPC
+	ret
 
 .Lloop: _bbsi.l	a3, 1, .Lc4
 	_bbci.l	a3, 2, .Lc12
@@ -1423,7 +1423,7 @@ ENTRY(_spill_registers)
 	movi	a3, 1
 	sll	a3, a3
 	wsr	a3, WINDOWSTART
-	jx	a0
+	ret
 
 .Lc4:	s32e	a4, a9, -16
 	s32e	a5, a9, -12
