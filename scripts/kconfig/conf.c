@@ -375,7 +375,7 @@ static int conf_choice(struct menu *menu)
 			break;
 		case set_random:
 			if (is_new)
-				def = (random() % cnt) + 1;
+				def = (rand() % cnt) + 1;
 		case set_default:
 		case set_yes:
 		case set_mod:
@@ -526,7 +526,7 @@ int main(int ac, char **av)
 			break;
 		case 'r':
 			input_mode = set_random;
-			srandom(time(NULL));
+			srand(time(NULL));
 			break;
 		case 'h':
 			printf("See README for usage info\n");
