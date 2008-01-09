@@ -9,17 +9,21 @@ struct b43_phy;
 /*** PHY Registers ***/
 
 /* Routing */
-#define B43_PHYROUTE_OFDM_GPHY		0x0400 /* OFDM register routing for G-PHYs */
-#define B43_PHYROUTE_EXT_GPHY		0x0800 /* Extended G-PHY registers */
-#define B43_PHYROUTE_N_BMODE		0x3000 /* N-PHY BMODE registers */
+#define B43_PHYROUTE			0x0C00 /* PHY register routing bits mask */
+#define  B43_PHYROUTE_BASE		0x0000 /* Base registers */
+#define  B43_PHYROUTE_OFDM_GPHY		0x0400 /* OFDM register routing for G-PHYs */
+#define  B43_PHYROUTE_EXT_GPHY		0x0800 /* Extended G-PHY registers */
+#define  B43_PHYROUTE_N_BMODE		0x0C00 /* N-PHY BMODE registers */
 
-/* Base registers. */
-#define B43_PHY_BASE(reg)		(reg)
+/* CCK (B-PHY) registers. */
+#define B43_PHY_CCK(reg)		((reg) | B43_PHYROUTE_BASE)
 /* N-PHY registers. */
-#define B43_PHY_N(reg)			(reg)
-/* OFDM (A) registers of a G-PHY */
+#define B43_PHY_N(reg)			((reg) | B43_PHYROUTE_BASE)
+/* N-PHY BMODE registers. */
+#define B43_PHY_N_BMODE(reg)		((reg) | B43_PHYROUTE_N_BMODE)
+/* OFDM (A-PHY) registers. */
 #define B43_PHY_OFDM(reg)		((reg) | B43_PHYROUTE_OFDM_GPHY)
-/* Extended G-PHY registers */
+/* Extended G-PHY registers. */
 #define B43_PHY_EXTG(reg)		((reg) | B43_PHYROUTE_EXT_GPHY)
 
 /* OFDM (A) PHY Registers */
@@ -79,20 +83,20 @@ struct b43_phy;
 #define B43_PHY_GAIN_LTBASE		B43_PHY_OFDM(0x3C0)	/* Gain lookup table base */
 
 /* CCK (B) PHY Registers */
-#define B43_PHY_VERSION_CCK		B43_PHY_BASE(0x00)	/* Versioning register for B-PHY */
-#define B43_PHY_CCKBBANDCFG		B43_PHY_BASE(0x01)	/* Contains antenna 0/1 control bit */
-#define B43_PHY_PGACTL			B43_PHY_BASE(0x15)	/* PGA control */
+#define B43_PHY_VERSION_CCK		B43_PHY_CCK(0x00)	/* Versioning register for B-PHY */
+#define B43_PHY_CCKBBANDCFG		B43_PHY_CCK(0x01)	/* Contains antenna 0/1 control bit */
+#define B43_PHY_PGACTL			B43_PHY_CCK(0x15)	/* PGA control */
 #define  B43_PHY_PGACTL_LPF		0x1000	/* Low pass filter (?) */
 #define  B43_PHY_PGACTL_LOWBANDW	0x0040	/* Low bandwidth flag */
 #define  B43_PHY_PGACTL_UNKNOWN		0xEFA0
-#define B43_PHY_FBCTL1			B43_PHY_BASE(0x18)	/* Frequency bandwidth control 1 */
-#define B43_PHY_ITSSI			B43_PHY_BASE(0x29)	/* Idle TSSI */
-#define B43_PHY_LO_LEAKAGE		B43_PHY_BASE(0x2D)	/* Measured LO leakage */
-#define B43_PHY_ENERGY			B43_PHY_BASE(0x33)	/* Energy */
-#define B43_PHY_SYNCCTL			B43_PHY_BASE(0x35)
-#define B43_PHY_FBCTL2			B43_PHY_BASE(0x38)	/* Frequency bandwidth control 2 */
-#define B43_PHY_DACCTL			B43_PHY_BASE(0x60)	/* DAC control */
-#define B43_PHY_RCCALOVER		B43_PHY_BASE(0x78)	/* RC calibration override */
+#define B43_PHY_FBCTL1			B43_PHY_CCK(0x18)	/* Frequency bandwidth control 1 */
+#define B43_PHY_ITSSI			B43_PHY_CCK(0x29)	/* Idle TSSI */
+#define B43_PHY_LO_LEAKAGE		B43_PHY_CCK(0x2D)	/* Measured LO leakage */
+#define B43_PHY_ENERGY			B43_PHY_CCK(0x33)	/* Energy */
+#define B43_PHY_SYNCCTL			B43_PHY_CCK(0x35)
+#define B43_PHY_FBCTL2			B43_PHY_CCK(0x38)	/* Frequency bandwidth control 2 */
+#define B43_PHY_DACCTL			B43_PHY_CCK(0x60)	/* DAC control */
+#define B43_PHY_RCCALOVER		B43_PHY_CCK(0x78)	/* RC calibration override */
 
 /* Extended G-PHY Registers */
 #define B43_PHY_CLASSCTL		B43_PHY_EXTG(0x02)	/* Classify control */
