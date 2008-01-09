@@ -762,7 +762,7 @@ efi_mem_attribute (unsigned long phys_addr, unsigned long size)
 		if (!md || (md->attribute & ~EFI_MEMORY_RUNTIME) != attr)
 			return 0;
 	} while (md);
-	return 0;
+	return 0;	/* never reached */
 }
 
 u64
@@ -798,7 +798,7 @@ kern_mem_attribute (unsigned long phys_addr, unsigned long size)
 		if (!md || md->attribute != attr)
 			return 0;
 	} while (md);
-	return 0;
+	return 0;	/* never reached */
 }
 EXPORT_SYMBOL(kern_mem_attribute);
 
