@@ -31,11 +31,6 @@
 #include <linux/in6.h>
 #endif
 
-static inline int alg_len(struct xfrm_algo *alg)
-{
-	return sizeof(*alg) + ((alg->alg_key_len + 7) / 8);
-}
-
 static int verify_one_alg(struct nlattr **attrs, enum xfrm_attr_type_t type)
 {
 	struct nlattr *rt = attrs[type];
@@ -45,7 +40,7 @@ static int verify_one_alg(struct nlattr **attrs, enum xfrm_attr_type_t type)
 		return 0;
 
 	algp = nla_data(rt);
-	if (nla_len(rt) < alg_len(algp))
+	if (nla_len(rt) < xfrm_alg_len(algp))
 		return -EINVAL;
 
 	switch (type) {
@@ -204,7 +199,7 @@ static int attach_one_algo(struct xfrm_algo **algpp, u8 *props,
 		return -ENOSYS;
 	*props = algo->desc.sadb_alg_id;
 
-	p = kmemdup(ualg, alg_len(ualg), GFP_KERNEL);
+	p = kmemdup(ualg, xfrm_alg_len(ualg), GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
 
@@ -516,9 +511,9 @@ static int copy_to_user_state_extra(struct xfrm_state *x,
 		NLA_PUT_U64(skb, XFRMA_LASTUSED, x->lastused);
 
 	if (x->aalg)
-		NLA_PUT(skb, XFRMA_ALG_AUTH, alg_len(x->aalg), x->aalg);
+		NLA_PUT(skb, XFRMA_ALG_AUTH, xfrm_alg_len(x->aalg), x->aalg);
 	if (x->ealg)
-		NLA_PUT(skb, XFRMA_ALG_CRYPT, alg_len(x->ealg), x->ealg);
+		NLA_PUT(skb, XFRMA_ALG_CRYPT, xfrm_alg_len(x->ealg), x->ealg);
 	if (x->calg)
 		NLA_PUT(skb, XFRMA_ALG_COMP, sizeof(*(x->calg)), x->calg);
 
@@ -1978,9 +1973,9 @@ static inline size_t xfrm_sa_len(struct xfrm_state *x)
 {
 	size_t l = 0;
 	if (x->aalg)
-		l += nla_total_size(alg_len(x->aalg));
+		l += nla_total_size(xfrm_alg_len(x->aalg));
 	if (x->ealg)
-		l += nla_total_size(alg_len(x->ealg));
+		l += nla_total_size(xfrm_alg_len(x->ealg));
 	if (x->calg)
 		l += nla_total_size(sizeof(*x->calg));
 	if (x->encap)
