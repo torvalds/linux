@@ -197,9 +197,23 @@ int csum_dirty_buffer(struct btrfs_root *root, struct page *page)
 	if (found_start != start) {
 		printk("warning: eb start incorrect %Lu buffer %Lu len %lu\n",
 		       start, found_start, len);
+		WARN_ON(1);
+		goto err;
+	}
+	if (eb->first_page != page) {
+		printk("bad first page %lu %lu\n", eb->first_page->index,
+		       page->index);
+		WARN_ON(1);
+		goto err;
+	}
+	if (!PageUptodate(page)) {
+		printk("csum not up to date page %lu\n", page->index);
+		WARN_ON(1);
+		goto err;
 	}
 	found_level = btrfs_header_level(eb);
 	csum_tree_block(root, eb, 0);
+err:
 	free_extent_buffer(eb);
 out:
 	return 0;
@@ -368,7 +382,10 @@ int clean_tree_block(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		     struct extent_buffer *buf)
 {
 	struct inode *btree_inode = root->fs_info->btree_inode;
-	clear_extent_buffer_dirty(&BTRFS_I(btree_inode)->extent_tree, buf);
+	if (btrfs_header_generation(buf) ==
+	    root->fs_info->running_transaction->transid)
+		clear_extent_buffer_dirty(&BTRFS_I(btree_inode)->extent_tree,
+					  buf);
 	return 0;
 }
 
@@ -897,8 +914,11 @@ void btrfs_mark_buffer_dirty(struct extent_buffer *buf)
 
 void btrfs_throttle(struct btrfs_root *root)
 {
-	if (root->fs_info->throttles)
-		congestion_wait(WRITE, HZ/10);
+	struct backing_dev_info *bdi;
+
+	bdi = root->fs_info->sb->s_bdev->bd_inode->i_mapping->backing_dev_info;
+	if (root->fs_info->throttles && bdi_write_congested(bdi))
+		congestion_wait(WRITE, HZ/20);
 }
 
 void btrfs_btree_balance_dirty(struct btrfs_root *root, unsigned long nr)

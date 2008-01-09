@@ -1212,6 +1212,7 @@ static int pin_down_bytes(struct btrfs_root *root, u64 bytenr, u32 num_bytes,
 				u64 header_transid =
 					btrfs_header_generation(buf);
 				if (header_transid == transid) {
+					clean_tree_block(NULL, root, buf);
 					free_extent_buffer(buf);
 					return 1;
 				}
@@ -1249,7 +1250,6 @@ static int __free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 	key.objectid = bytenr;
 	btrfs_set_key_type(&key, BTRFS_EXTENT_ITEM_KEY);
 	key.offset = num_bytes;
-
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
@@ -1648,8 +1648,6 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 			       search_start, search_end, hint_byte, ins,
 			       trans->alloc_exclude_start,
 			       trans->alloc_exclude_nr, data);
-if (ret)
-printk("find free extent returns %d\n", ret);
 	BUG_ON(ret);
 	if (ret)
 		return ret;
@@ -1764,7 +1762,16 @@ struct extent_buffer *__btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 				  0, 0, 0);
 		return ERR_PTR(-ENOMEM);
 	}
+	btrfs_set_header_generation(buf, trans->transid);
+	clean_tree_block(trans, root, buf);
+	wait_on_tree_block_writeback(root, buf);
 	btrfs_set_buffer_uptodate(buf);
+
+	if (PageDirty(buf->first_page)) {
+		printk("page %lu dirty\n", buf->first_page->index);
+		WARN_ON(1);
+	}
+
 	set_extent_dirty(&trans->transaction->dirty_pages, buf->start,
 			 buf->start + buf->len - 1, GFP_NOFS);
 	set_extent_bits(&BTRFS_I(root->fs_info->btree_inode)->extent_tree,

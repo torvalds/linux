@@ -1663,6 +1663,13 @@ void set_page_extent_mapped(struct page *page)
 	}
 }
 
+void set_page_extent_head(struct page *page, unsigned long len)
+{
+	WARN_ON(page->private && page->private == EXTENT_PAGE_PRIVATE &&
+		PageDirty(page));
+	set_page_private(page, EXTENT_PAGE_PRIVATE_FIRST_PAGE | len << 2);
+}
+
 /*
  * basic readpage implementation.  Locked extent state structs are inserted
  * into the tree that are removed when the IO is done (by the end_io
@@ -2490,8 +2497,7 @@ struct extent_buffer *alloc_extent_buffer(struct extent_map_tree *tree,
 		mark_page_accessed(page0);
 		set_page_extent_mapped(page0);
 		WARN_ON(!PageUptodate(page0));
-		set_page_private(page0, EXTENT_PAGE_PRIVATE_FIRST_PAGE |
-				 len << 2);
+		set_page_extent_head(page0, len);
 	} else {
 		i = 0;
 	}
@@ -2505,8 +2511,7 @@ struct extent_buffer *alloc_extent_buffer(struct extent_map_tree *tree,
 		mark_page_accessed(p);
 		if (i == 0) {
 			eb->first_page = p;
-			set_page_private(p, EXTENT_PAGE_PRIVATE_FIRST_PAGE |
-					 len << 2);
+			set_page_extent_head(p, len);
 		} else {
 			set_page_private(p, EXTENT_PAGE_PRIVATE);
 		}
@@ -2569,8 +2574,7 @@ struct extent_buffer *find_extent_buffer(struct extent_map_tree *tree,
 
 		if (i == 0) {
 			eb->first_page = p;
-			set_page_private(p, EXTENT_PAGE_PRIVATE_FIRST_PAGE |
-					 len << 2);
+			set_page_extent_head(p, len);
 		} else {
 			set_page_private(p, EXTENT_PAGE_PRIVATE);
 		}
@@ -2643,6 +2647,11 @@ int clear_extent_buffer_dirty(struct extent_map_tree *tree,
 	for (i = 0; i < num_pages; i++) {
 		page = extent_buffer_page(eb, i);
 		lock_page(page);
+		if (i == 0)
+			set_page_extent_head(page, eb->len);
+		else
+			set_page_private(page, EXTENT_PAGE_PRIVATE);
+
 		/*
 		 * if we're on the last page or the first page and the
 		 * block isn't aligned on a page boundary, do extra checks
@@ -2697,9 +2706,12 @@ int set_extent_buffer_dirty(struct extent_map_tree *tree,
 		 */
 		if (i == 0) {
 			lock_page(page);
-			set_page_private(page,
-					 EXTENT_PAGE_PRIVATE_FIRST_PAGE |
-					 eb->len << 2);
+			set_page_extent_head(page, eb->len);
+		} else if (PagePrivate(page) &&
+			   page->private != EXTENT_PAGE_PRIVATE) {
+			lock_page(page);
+			set_page_extent_mapped(page);
+			unlock_page(page);
 		}
 		__set_page_dirty_nobuffers(extent_buffer_page(eb, i));
 		if (i == 0)
