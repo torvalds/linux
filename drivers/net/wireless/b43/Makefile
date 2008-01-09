@@ -1,6 +1,7 @@
 b43-y				+= main.o
 b43-y				+= tables.o
 b43-y				+= phy.o
+b43-y				+= nphy.o
 b43-y				+= sysfs.o
 b43-y				+= xmit.o
 b43-y				+= lo.o

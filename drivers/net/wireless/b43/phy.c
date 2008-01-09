@@ -31,6 +31,7 @@
 
 #include "b43.h"
 #include "phy.h"
+#include "nphy.h"
 #include "main.h"
 #include "tables.h"
 #include "lo.h"
@@ -1974,41 +1975,44 @@ int b43_phy_init_tssi2dbm_table(struct b43_wldev *dev)
 int b43_phy_init(struct b43_wldev *dev)
 {
 	struct b43_phy *phy = &dev->phy;
-	int err = -ENODEV;
+	bool unsupported = 0;
+	int err = 0;
 
 	switch (phy->type) {
 	case B43_PHYTYPE_A:
-		if (phy->rev == 2 || phy->rev == 3) {
+		if (phy->rev == 2 || phy->rev == 3)
 			b43_phy_inita(dev);
-			err = 0;
-		}
+		else
+			unsupported = 1;
 		break;
 	case B43_PHYTYPE_B:
 		switch (phy->rev) {
 		case 2:
 			b43_phy_initb2(dev);
-			err = 0;
 			break;
 		case 4:
 			b43_phy_initb4(dev);
-			err = 0;
 			break;
 		case 5:
 			b43_phy_initb5(dev);
-			err = 0;
 			break;
 		case 6:
 			b43_phy_initb6(dev);
-			err = 0;
 			break;
+		default:
+			unsupported = 1;
 		}
 		break;
 	case B43_PHYTYPE_G:
 		b43_phy_initg(dev);
-		err = 0;
 		break;
+	case B43_PHYTYPE_N:
+		err = b43_phy_initn(dev);
+		break;
+	default:
+		unsupported = 1;
 	}
-	if (err)
+	if (unsupported)
 		b43err(dev->wl, "Unknown PHYTYPE found\n");
 
 	return err;

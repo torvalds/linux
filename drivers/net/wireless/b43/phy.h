@@ -9,11 +9,14 @@ struct b43_phy;
 /*** PHY Registers ***/
 
 /* Routing */
-#define B43_PHYROUTE_OFDM_GPHY		0x400
-#define B43_PHYROUTE_EXT_GPHY		0x800
+#define B43_PHYROUTE_OFDM_GPHY		0x0400 /* OFDM register routing for G-PHYs */
+#define B43_PHYROUTE_EXT_GPHY		0x0800 /* Extended G-PHY registers */
+#define B43_PHYROUTE_N_BMODE		0x3000 /* N-PHY BMODE registers */
 
 /* Base registers. */
 #define B43_PHY_BASE(reg)		(reg)
+/* N-PHY registers. */
+#define B43_PHY_N(reg)			(reg)
 /* OFDM (A) registers of a G-PHY */
 #define B43_PHY_OFDM(reg)		((reg) | B43_PHYROUTE_OFDM_GPHY)
 /* Extended G-PHY registers */
