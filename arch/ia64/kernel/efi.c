@@ -311,7 +311,7 @@ walk (efi_freemem_callback_t callback, void *arg, u64 attr)
 }
 
 /*
- * Walks the EFI memory map and calls CALLBACK once for each EFI memory
+ * Walk the EFI memory map and call CALLBACK once for each EFI memory
  * descriptor that has memory that is available for OS use.
  */
 void
@@ -321,7 +321,7 @@ efi_memmap_walk (efi_freemem_callback_t callback, void *arg)
 }
 
 /*
- * Walks the EFI memory map and calls CALLBACK once for each EFI memory
+ * Walk the EFI memory map and call CALLBACK once for each EFI memory
  * descriptor that has memory that is available for uncached allocator.
  */
 void
@@ -331,7 +331,7 @@ efi_memmap_walk_uc (efi_freemem_callback_t callback, void *arg)
 }
 
 /*
- * Look for the PAL_CODE region reported by EFI and maps it using an
+ * Look for the PAL_CODE region reported by EFI and map it using an
  * ITR to enable safe PAL calls in virtual mode.  See IA-64 Processor
  * Abstraction Layer chapter 11 in ADAG
  */
@@ -385,7 +385,7 @@ efi_get_pal_addr (void)
 		}
 
 		if (efi_md_size(md) > IA64_GRANULE_SIZE)
-			panic("Woah!  PAL code size bigger than a granule!");
+			panic("Whoa!  PAL code size bigger than a granule!");
 
 #if EFI_DEBUG
 		mask  = ~((1 << IA64_GRANULE_SHIFT) - 1);
@@ -435,7 +435,7 @@ efi_init (void)
 	int i;
 
 	/*
-	 * it's too early to be able to use the standard kernel command line
+	 * It's too early to be able to use the standard kernel command line
 	 * support...
 	 */
 	for (cp = boot_command_line; *cp; ) {
@@ -465,9 +465,9 @@ efi_init (void)
 	 * Verify the EFI Table
 	 */
 	if (efi.systab == NULL)
-		panic("Woah! Can't find EFI system table.\n");
+		panic("Whoa! Can't find EFI system table.\n");
 	if (efi.systab->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE)
-		panic("Woah! EFI system table signature incorrect\n");
+		panic("Whoa! EFI system table signature incorrect\n");
 	if ((efi.systab->hdr.revision >> 16) == 0)
 		printk(KERN_WARNING "Warning: EFI system table version "
 		       "%d.%02d, expected 1.00 or greater\n",
@@ -1195,7 +1195,7 @@ efi_initialize_iomem_resources(struct resource *code_resource,
 		if ((res = kzalloc(sizeof(struct resource),
 				   GFP_KERNEL)) == NULL) {
 			printk(KERN_ERR
-			       "failed to alocate resource for iomem\n");
+			       "failed to allocate resource for iomem\n");
 			return;
 		}
 
