@@ -470,28 +470,15 @@ static ctl_table dn_table[] = {
 	{0}
 };
 
-static ctl_table dn_dir_table[] = {
-	{
-		.ctl_name = NET_DECNET,
-		.procname = "decnet",
-		.mode = 0555,
-		.child = dn_table},
-	{0}
-};
-
-static ctl_table dn_root_table[] = {
-	{
-		.ctl_name = CTL_NET,
-		.procname = "net",
-		.mode = 0555,
-		.child = dn_dir_table
-	},
-	{0}
+static struct ctl_path dn_path[] = {
+	{ .procname = "net", .ctl_name = CTL_NET, },
+	{ .procname = "decnet", .ctl_name = NET_DECNET, },
+	{ }
 };
 
 void dn_register_sysctl(void)
 {
-	dn_table_header = register_sysctl_table(dn_root_table);
+	dn_table_header = register_sysctl_paths(dn_path, dn_table);
 }
 
 void dn_unregister_sysctl(void)
