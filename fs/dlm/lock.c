@@ -1851,7 +1851,7 @@ static void send_blocking_asts_all(struct dlm_rsb *r, struct dlm_lkb *lkb)
 static int set_master(struct dlm_rsb *r, struct dlm_lkb *lkb)
 {
 	struct dlm_ls *ls = r->res_ls;
-	int error, dir_nodeid, ret_nodeid, our_nodeid = dlm_our_nodeid();
+	int i, error, dir_nodeid, ret_nodeid, our_nodeid = dlm_our_nodeid();
 
 	if (rsb_flag(r, RSB_MASTER_UNCERTAIN)) {
 		rsb_clear_flag(r, RSB_MASTER_UNCERTAIN);
@@ -1885,7 +1885,7 @@ static int set_master(struct dlm_rsb *r, struct dlm_lkb *lkb)
 		return 1;
 	}
 
-	for (;;) {
+	for (i = 0; i < 2; i++) {
 		/* It's possible for dlm_scand to remove an old rsb for
 		   this same resource from the toss list, us to create
 		   a new one, look up the master locally, and find it
@@ -1899,6 +1899,8 @@ static int set_master(struct dlm_rsb *r, struct dlm_lkb *lkb)
 		log_debug(ls, "dir_lookup error %d %s", error, r->res_name);
 		schedule();
 	}
+	if (error && error != -EEXIST)
+		return error;
 
 	if (ret_nodeid == our_nodeid) {
 		r->res_first_lkid = 0;
