@@ -1238,6 +1238,18 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.machine_check		= machine_check_4xx,
 		.platform		= "ppc440",
 	},
+	{ /* Matches both physical and logical PVR for 440EP (logical pvr = pvr | 0x8) */
+		.pvr_mask		= 0xf0000ff7,
+		.pvr_value		= 0x400008d4,
+		.cpu_name		= "440EP Rev. C",
+		.cpu_features		= CPU_FTRS_44X,
+		.cpu_user_features	= COMMON_USER_BOOKE | PPC_FEATURE_HAS_FPU,
+		.icache_bsize		= 32,
+		.dcache_bsize		= 32,
+		.cpu_setup		= __setup_cpu_440ep,
+		.machine_check		= machine_check_4xx,
+		.platform		= "ppc440",
+	},
 	{ /* Use logical PVR for 440EP (logical pvr = pvr | 0x8) */
 		.pvr_mask		= 0xf0000fff,
 		.pvr_value		= 0x400008db,
