@@ -21,7 +21,7 @@
 #include <sound/control.h>
 #include <sound/ac97_codec.h>
 
-#define SND_SOC_VERSION "0.13.1"
+#define SND_SOC_VERSION "0.13.2"
 
 /*
  * Convenience kcontrol builders
