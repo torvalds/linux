@@ -783,6 +783,7 @@ struct fib_table *fib_hash_init(u32 id)
 #ifdef CONFIG_PROC_FS
 
 struct fib_iter_state {
+	struct seq_net_private p;
 	struct fn_zone	*zone;
 	int		bucket;
 	struct hlist_head *hash_head;
@@ -796,8 +797,11 @@ struct fib_iter_state {
 static struct fib_alias *fib_get_first(struct seq_file *seq)
 {
 	struct fib_iter_state *iter = seq->private;
-	struct fib_table *main_table = fib_get_table(&init_net, RT_TABLE_MAIN);
-	struct fn_hash *table = (struct fn_hash *)main_table->tb_data;
+	struct fib_table *main_table;
+	struct fn_hash *table;
+
+	main_table = fib_get_table(iter->p.net, RT_TABLE_MAIN);
+	table = (struct fn_hash *)main_table->tb_data;
 
 	iter->bucket    = 0;
 	iter->hash_head = NULL;
@@ -934,10 +938,11 @@ static struct fib_alias *fib_get_idx(struct seq_file *seq, loff_t pos)
 static void *fib_seq_start(struct seq_file *seq, loff_t *pos)
 	__acquires(fib_hash_lock)
 {
+	struct fib_iter_state *iter = seq->private;
 	void *v = NULL;
 
 	read_lock(&fib_hash_lock);
-	if (fib_get_table(&init_net, RT_TABLE_MAIN))
+	if (fib_get_table(iter->p.net, RT_TABLE_MAIN))
 		v = *pos ? fib_get_idx(seq, *pos - 1) : SEQ_START_TOKEN;
 	return v;
 }
@@ -1025,8 +1030,8 @@ static const struct seq_operations fib_seq_ops = {
 
 static int fib_seq_open(struct inode *inode, struct file *file)
 {
-	return seq_open_private(file, &fib_seq_ops,
-			sizeof(struct fib_iter_state));
+	return seq_open_net(inode, file, &fib_seq_ops,
+			    sizeof(struct fib_iter_state));
 }
 
 static const struct file_operations fib_seq_fops = {
@@ -1034,7 +1039,7 @@ static const struct file_operations fib_seq_fops = {
 	.open           = fib_seq_open,
 	.read           = seq_read,
 	.llseek         = seq_lseek,
-	.release	= seq_release_private,
+	.release	= seq_release_net,
 };
 
 int __net_init fib_proc_init(struct net *net)
