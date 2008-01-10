@@ -50,38 +50,33 @@
 #define FFprint(a...) printk(KERN_DEBUG a)
 
 static struct sock *fibnl;
+struct hlist_head fib_table_hash[FIB_TABLE_HASHSZ];
 
 #ifndef CONFIG_IP_MULTIPLE_TABLES
 
-struct fib_table *ip_fib_local_table;
-struct fib_table *ip_fib_main_table;
-
-#define FIB_TABLE_HASHSZ 1
-static struct hlist_head fib_table_hash[FIB_TABLE_HASHSZ];
-
 static int __net_init fib4_rules_init(struct net *net)
 {
-	ip_fib_local_table = fib_hash_init(RT_TABLE_LOCAL);
-	if (ip_fib_local_table == NULL)
+	struct fib_table *local_table, *main_table;
+
+	local_table = fib_hash_init(RT_TABLE_LOCAL);
+	if (local_table == NULL)
 		return -ENOMEM;
 
-	ip_fib_main_table  = fib_hash_init(RT_TABLE_MAIN);
-	if (ip_fib_main_table == NULL)
+	main_table  = fib_hash_init(RT_TABLE_MAIN);
+	if (main_table == NULL)
 		goto fail;
 
-	hlist_add_head_rcu(&ip_fib_local_table->tb_hlist, &fib_table_hash[0]);
-	hlist_add_head_rcu(&ip_fib_main_table->tb_hlist, &fib_table_hash[0]);
+	hlist_add_head_rcu(&local_table->tb_hlist,
+				&fib_table_hash[TABLE_LOCAL_INDEX]);
+	hlist_add_head_rcu(&main_table->tb_hlist,
+				&fib_table_hash[TABLE_MAIN_INDEX]);
 	return 0;
 
 fail:
-	kfree(ip_fib_local_table);
-	ip_fib_local_table = NULL;
+	kfree(local_table);
 	return -ENOMEM;
 }
 #else
-
-#define FIB_TABLE_HASHSZ 256
-static struct hlist_head fib_table_hash[FIB_TABLE_HASHSZ];
 
 struct fib_table *fib_new_table(u32 id)
 {

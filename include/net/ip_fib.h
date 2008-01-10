@@ -120,15 +120,21 @@ struct fib_result_nl {
 	int             err;      
 };
 
+extern struct hlist_head fib_table_hash[];
+
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 
 #define FIB_RES_NH(res)		((res).fi->fib_nh[(res).nh_sel])
 #define FIB_RES_RESET(res)	((res).nh_sel = 0)
 
+#define FIB_TABLE_HASHSZ 2
+
 #else /* CONFIG_IP_ROUTE_MULTIPATH */
 
 #define FIB_RES_NH(res)		((res).fi->fib_nh[0])
 #define FIB_RES_RESET(res)
+
+#define FIB_TABLE_HASHSZ 256
 
 #endif /* CONFIG_IP_ROUTE_MULTIPATH */
 
@@ -156,14 +162,17 @@ struct fib_table {
 
 #ifndef CONFIG_IP_MULTIPLE_TABLES
 
-extern struct fib_table *ip_fib_local_table;
-extern struct fib_table *ip_fib_main_table;
+#define TABLE_LOCAL_INDEX	0
+#define TABLE_MAIN_INDEX	1
 
 static inline struct fib_table *fib_get_table(u32 id)
 {
-	if (id != RT_TABLE_LOCAL)
-		return ip_fib_main_table;
-	return ip_fib_local_table;
+	struct hlist_head *ptr;
+
+	ptr = id == RT_TABLE_LOCAL ?
+		&fib_table_hash[TABLE_LOCAL_INDEX] :
+		&fib_table_hash[TABLE_MAIN_INDEX];
+	return hlist_entry(ptr->first, struct fib_table, tb_hlist);
 }
 
 static inline struct fib_table *fib_new_table(u32 id)
@@ -173,16 +182,24 @@ static inline struct fib_table *fib_new_table(u32 id)
 
 static inline int fib_lookup(const struct flowi *flp, struct fib_result *res)
 {
-	if (ip_fib_local_table->tb_lookup(ip_fib_local_table, flp, res) &&
-	    ip_fib_main_table->tb_lookup(ip_fib_main_table, flp, res))
-		return -ENETUNREACH;
-	return 0;
+	struct fib_table *table;
+
+	table = fib_get_table(RT_TABLE_LOCAL);
+	if (!table->tb_lookup(table, flp, res))
+		return 0;
+
+	table = fib_get_table(RT_TABLE_MAIN);
+	if (!table->tb_lookup(table, flp, res))
+		return 0;
+	return -ENETUNREACH;
 }
 
-static inline void fib_select_default(const struct flowi *flp, struct fib_result *res)
+static inline void fib_select_default(const struct flowi *flp,
+				      struct fib_result *res)
 {
+	struct fib_table *table = fib_get_table(RT_TABLE_MAIN);
 	if (FIB_RES_GW(*res) && FIB_RES_NH(*res).nh_scope == RT_SCOPE_LINK)
-		ip_fib_main_table->tb_select_default(ip_fib_main_table, flp, res);
+		table->tb_select_default(table, flp, res);
 }
 
 #else /* CONFIG_IP_MULTIPLE_TABLES */
