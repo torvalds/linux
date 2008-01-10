@@ -202,10 +202,10 @@ static int asix_read_cmd(struct usbnet *dev, u8 cmd, u16 value, u16 index,
 		buf,
 		size,
 		USB_CTRL_GET_TIMEOUT);
-	if (err >= 0 && err < size)
-		err = -EINVAL;
-	if (!err)
+	if (err == size)
 		memcpy(data, buf, size);
+	else if (err >= 0)
+		err = -EINVAL;
 	kfree(buf);
 
 out:
