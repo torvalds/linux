@@ -78,6 +78,11 @@ struct ad198x_spec {
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	struct hda_loopback_check loopback;
 #endif
+	/* for virtual master */
+	hda_nid_t vmaster_nid;
+	u32 vmaster_tlv[4];
+	const char **slave_vols;
+	const char **slave_sws;
 };
 
 /*
@@ -125,6 +130,28 @@ static int ad198x_init(struct hda_codec *codec)
 	return 0;
 }
 
+static const char *ad_slave_vols[] = {
+	"Front Playback Volume",
+	"Surround Playback Volume",
+	"Center Playback Volume",
+	"LFE Playback Volume",
+	"Side Playback Volume",
+	"Headphone Playback Volume",
+	"Mono Playback Volume",
+	NULL
+};
+
+static const char *ad_slave_sws[] = {
+	"Front Playback Switch",
+	"Surround Playback Switch",
+	"Center Playback Switch",
+	"LFE Playback Switch",
+	"Side Playback Switch",
+	"Headphone Playback Switch",
+	"Mono Playback Switch",
+	NULL
+};
+
 static int ad198x_build_controls(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec = codec->spec;
@@ -146,6 +173,27 @@ static int ad198x_build_controls(struct hda_codec *codec)
 		if (err < 0)
 			return err;
 	}
+
+	/* if we have no master control, let's create it */
+	if (!snd_hda_find_mixer_ctl(codec, "Master Playback Volume")) {
+		snd_hda_set_vmaster_tlv(codec, spec->vmaster_nid,
+					HDA_OUTPUT, spec->vmaster_tlv);
+		err = snd_hda_add_vmaster(codec, "Master Playback Volume",
+					  spec->vmaster_tlv,
+					  (spec->slave_vols ?
+					   spec->slave_vols : ad_slave_vols));
+		if (err < 0)
+			return err;
+	}
+	if (!snd_hda_find_mixer_ctl(codec, "Master Playback Switch")) {
+		err = snd_hda_add_vmaster(codec, "Master Playback Switch",
+					  NULL,
+					  (spec->slave_sws ?
+					   spec->slave_sws : ad_slave_sws));
+		if (err < 0)
+			return err;
+	}
+
 	return 0;
 }
 
@@ -899,6 +947,7 @@ static int patch_ad1986a(struct hda_codec *codec)
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = ad1986a_loopbacks;
 #endif
+	spec->vmaster_nid = 0x1b;
 
 	codec->patch_ops = ad198x_patch_ops;
 
@@ -1141,6 +1190,7 @@ static int patch_ad1983(struct hda_codec *codec)
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = ad1983_loopbacks;
 #endif
+	spec->vmaster_nid = 0x05;
 
 	codec->patch_ops = ad198x_patch_ops;
 
@@ -1537,6 +1587,7 @@ static int patch_ad1981(struct hda_codec *codec)
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = ad1981_loopbacks;
 #endif
+	spec->vmaster_nid = 0x05;
 
 	codec->patch_ops = ad198x_patch_ops;
 
@@ -2850,6 +2901,7 @@ static int patch_ad1988(struct hda_codec *codec)
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = ad1988_loopbacks;
 #endif
+	spec->vmaster_nid = 0x04;
 
 	return 0;
 }
@@ -3016,6 +3068,19 @@ static struct hda_amp_list ad1884_loopbacks[] = {
 };
 #endif
 
+static const char *ad1884_slave_vols[] = {
+	"PCM Playback Volume",
+	"Mic Playback Volume",
+	"Mono Playback Volume",
+	"Front Mic Playback Volume",
+	"Mic Playback Volume",
+	"CD Playback Volume",
+	"Internal Mic Playback Volume",
+	"Docking Mic Playback Volume"
+	"Beep Playback Volume",
+	NULL
+};
+
 static int patch_ad1884(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec;
@@ -3043,6 +3108,9 @@ static int patch_ad1884(struct hda_codec *codec)
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = ad1884_loopbacks;
 #endif
+	spec->vmaster_nid = 0x04;
+	/* we need to cover all playback volumes */
+	spec->slave_vols = ad1884_slave_vols;
 
 	codec->patch_ops = ad198x_patch_ops;
 
@@ -3485,6 +3553,7 @@ static int patch_ad1882(struct hda_codec *codec)
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = ad1882_loopbacks;
 #endif
+	spec->vmaster_nid = 0x04;
 
 	codec->patch_ops = ad198x_patch_ops;
 

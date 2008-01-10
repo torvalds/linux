@@ -170,6 +170,9 @@ struct sigmatel_spec {
 	struct snd_kcontrol_new *kctl_alloc;
 	struct hda_input_mux private_dimux;
 	struct hda_input_mux private_imux;
+
+	/* virtual master */
+	unsigned int vmaster_tlv[4];
 };
 
 static hda_nid_t stac9200_adc_nids[1] = {
@@ -794,6 +797,34 @@ static struct snd_kcontrol_new stac_dmux_mixer = {
 	.put = stac92xx_dmux_enum_put,
 };
 
+static const char *slave_vols[] = {
+	"Front Playback Volume",
+	"Surround Playback Volume",
+	"Center Playback Volume",
+	"LFE Playback Volume",
+	"Side Playback Volume",
+	"Headphone Playback Volume",
+	"Headphone Playback Volume",
+	"Speaker Playback Volume",
+	"External Speaker Playback Volume",
+	"Speaker2 Playback Volume",
+	NULL
+};
+
+static const char *slave_sws[] = {
+	"Front Playback Switch",
+	"Surround Playback Switch",
+	"Center Playback Switch",
+	"LFE Playback Switch",
+	"Side Playback Switch",
+	"Headphone Playback Switch",
+	"Headphone Playback Switch",
+	"Speaker Playback Switch",
+	"External Speaker Playback Switch",
+	"Speaker2 Playback Switch",
+	NULL
+};
+
 static int stac92xx_build_controls(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
@@ -827,6 +858,23 @@ static int stac92xx_build_controls(struct hda_codec *codec)
 		if (err < 0)
 			return err;
 	}
+
+	/* if we have no master control, let's create it */
+	if (!snd_hda_find_mixer_ctl(codec, "Master Playback Volume")) {
+		snd_hda_set_vmaster_tlv(codec, spec->multiout.dac_nids[0],
+					HDA_OUTPUT, spec->vmaster_tlv);
+		err = snd_hda_add_vmaster(codec, "Master Playback Volume",
+					  spec->vmaster_tlv, slave_vols);
+		if (err < 0)
+			return err;
+	}
+	if (!snd_hda_find_mixer_ctl(codec, "Master Playback Switch")) {
+		err = snd_hda_add_vmaster(codec, "Master Playback Switch",
+					  NULL, slave_sws);
+		if (err < 0)
+			return err;
+	}
+
 	return 0;	
 }
 
