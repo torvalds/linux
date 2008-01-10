@@ -289,7 +289,7 @@ struct snd_soc_dapm_widget {
 
 	/* external events */
 	unsigned short event_flags;		/* flags to specify event types */
-	int (*event)(struct snd_soc_dapm_widget*, int);
+	int (*event)(struct snd_soc_dapm_widget*, struct snd_kcontrol *, int);
 
 	/* kcontrols that relate to this widget */
 	int num_kcontrols;

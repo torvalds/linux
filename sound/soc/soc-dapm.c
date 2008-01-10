@@ -523,11 +523,13 @@ static int dapm_power_widgets(struct snd_soc_codec *codec, int event)
 					continue;
 
 				if (event == SND_SOC_DAPM_STREAM_START) {
-					ret = w->event(w, SND_SOC_DAPM_PRE_PMU);
+					ret = w->event(w,
+						NULL, SND_SOC_DAPM_PRE_PMU);
 					if (ret < 0)
 						return ret;
 				} else if (event == SND_SOC_DAPM_STREAM_STOP) {
-					ret = w->event(w, SND_SOC_DAPM_PRE_PMD);
+					ret = w->event(w,
+						NULL, SND_SOC_DAPM_PRE_PMD);
 					if (ret < 0)
 						return ret;
 				}
@@ -538,11 +540,13 @@ static int dapm_power_widgets(struct snd_soc_codec *codec, int event)
 					continue;
 
 				if (event == SND_SOC_DAPM_STREAM_START) {
-					ret = w->event(w, SND_SOC_DAPM_POST_PMU);
+					ret = w->event(w,
+						NULL, SND_SOC_DAPM_POST_PMU);
 					if (ret < 0)
 						return ret;
 				} else if (event == SND_SOC_DAPM_STREAM_STOP) {
-					ret = w->event(w, SND_SOC_DAPM_POST_PMD);
+					ret = w->event(w,
+						NULL, SND_SOC_DAPM_POST_PMD);
 					if (ret < 0)
 						return ret;
 				}
@@ -566,26 +570,30 @@ static int dapm_power_widgets(struct snd_soc_codec *codec, int event)
 					if (power) {
 						/* power up event */
 						if (w->event_flags & SND_SOC_DAPM_PRE_PMU) {
-							ret = w->event(w, SND_SOC_DAPM_PRE_PMU);
+							ret = w->event(w,
+								NULL, SND_SOC_DAPM_PRE_PMU);
 							if (ret < 0)
 								return ret;
 						}
 						dapm_update_bits(w);
 						if (w->event_flags & SND_SOC_DAPM_POST_PMU){
-							ret = w->event(w, SND_SOC_DAPM_POST_PMU);
+							ret = w->event(w,
+								NULL, SND_SOC_DAPM_POST_PMU);
 							if (ret < 0)
 								return ret;
 						}
 					} else {
 						/* power down event */
 						if (w->event_flags & SND_SOC_DAPM_PRE_PMD) {
-							ret = w->event(w, SND_SOC_DAPM_PRE_PMD);
+							ret = w->event(w,
+								NULL, SND_SOC_DAPM_PRE_PMD);
 							if (ret < 0)
 								return ret;
 						}
 						dapm_update_bits(w);
 						if (w->event_flags & SND_SOC_DAPM_POST_PMD) {
-							ret = w->event(w, SND_SOC_DAPM_POST_PMD);
+							ret = w->event(w,
+								NULL, SND_SOC_DAPM_POST_PMD);
 							if (ret < 0)
 								return ret;
 						}
@@ -1095,13 +1103,17 @@ int snd_soc_dapm_put_volsw(struct snd_kcontrol *kcontrol,
 	dapm_mixer_update_power(widget, kcontrol, reg, val_mask, val, invert);
 	if (widget->event) {
 		if (widget->event_flags & SND_SOC_DAPM_PRE_REG) {
-			ret = widget->event(widget, SND_SOC_DAPM_PRE_REG);
-			if (ret < 0)
+			ret = widget->event(widget, kcontrol,
+						SND_SOC_DAPM_PRE_REG);
+			if (ret < 0) {
+				ret = 1;
 				goto out;
+			}
 		}
 		ret = snd_soc_update_bits(widget->codec, reg, val_mask, val);
 		if (widget->event_flags & SND_SOC_DAPM_POST_REG)
-			ret = widget->event(widget, SND_SOC_DAPM_POST_REG);
+			ret = widget->event(widget, kcontrol,
+						SND_SOC_DAPM_POST_REG);
 	} else
 		ret = snd_soc_update_bits(widget->codec, reg, val_mask, val);
 
@@ -1176,13 +1188,15 @@ int snd_soc_dapm_put_enum_double(struct snd_kcontrol *kcontrol,
 	dapm_mux_update_power(widget, kcontrol, mask, mux, e);
 	if (widget->event) {
 		if (widget->event_flags & SND_SOC_DAPM_PRE_REG) {
-			ret = widget->event(widget, SND_SOC_DAPM_PRE_REG);
+			ret = widget->event(widget,
+				kcontrol, SND_SOC_DAPM_PRE_REG);
 			if (ret < 0)
 				goto out;
 		}
 		ret = snd_soc_update_bits(widget->codec, e->reg, mask, val);
 		if (widget->event_flags & SND_SOC_DAPM_POST_REG)
-			ret = widget->event(widget, SND_SOC_DAPM_POST_REG);
+			ret = widget->event(widget,
+				kcontrol, SND_SOC_DAPM_POST_REG);
 	} else
 		ret = snd_soc_update_bits(widget->codec, e->reg, mask, val);
 
