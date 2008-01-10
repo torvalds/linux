@@ -622,7 +622,7 @@ static inline int snmp6_unregister_dev(struct inet6_dev *idev)
 extern ctl_table ipv6_route_table[];
 extern ctl_table ipv6_icmp_table[];
 
-extern void ipv6_sysctl_register(void);
+extern int ipv6_sysctl_register(void);
 extern void ipv6_sysctl_unregister(void);
 #endif
 

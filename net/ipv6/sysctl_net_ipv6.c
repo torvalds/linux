@@ -91,10 +91,15 @@ EXPORT_SYMBOL_GPL(net_ipv6_ctl_path);
 
 static struct ctl_table_header *ipv6_sysctl_header;
 
-void ipv6_sysctl_register(void)
+int ipv6_sysctl_register(void)
 {
 	ipv6_sysctl_header = register_sysctl_paths(net_ipv6_ctl_path,
-			ipv6_table);
+						   ipv6_table);
+	if (!ipv6_sysctl_header)
+		return -ENOMEM;
+
+	return 0;
+
 }
 
 void ipv6_sysctl_unregister(void)
