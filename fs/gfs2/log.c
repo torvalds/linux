@@ -757,7 +757,7 @@ void __gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl)
 static void log_refund(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 {
 	unsigned int reserved;
-	unsigned int old;
+	unsigned int unused;
 
 	gfs2_log_lock(sdp);
 
@@ -769,14 +769,11 @@ static void log_refund(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 	sdp->sd_log_commited_revoke += tr->tr_num_revoke - tr->tr_num_revoke_rm;
 	gfs2_assert_withdraw(sdp, ((int)sdp->sd_log_commited_revoke) >= 0);
 	reserved = calc_reserved(sdp);
-	old = atomic_read(&sdp->sd_log_blks_free);
-	atomic_add(tr->tr_reserved - (reserved - sdp->sd_log_blks_reserved),
-		   &sdp->sd_log_blks_free);
-
-	gfs2_assert_withdraw(sdp, atomic_read(&sdp->sd_log_blks_free) >= old);
+	unused = sdp->sd_log_blks_reserved - reserved + tr->tr_reserved;
+	gfs2_assert_withdraw(sdp, unused >= 0);
+	atomic_add(unused, &sdp->sd_log_blks_free);
 	gfs2_assert_withdraw(sdp, atomic_read(&sdp->sd_log_blks_free) <=
 			     sdp->sd_jdesc->jd_blocks);
-
 	sdp->sd_log_blks_reserved = reserved;
 
 	gfs2_log_unlock(sdp);
