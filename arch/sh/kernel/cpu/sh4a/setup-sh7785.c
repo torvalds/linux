@@ -178,15 +178,6 @@ static struct intc_group groups[] __initdata = {
 	INTC_GROUP(GPIO, GPIOI0, GPIOI1, GPIOI2, GPIOI3),
 };
 
-static struct intc_prio priorities[] __initdata = {
-	INTC_PRIO(SCIF0, 3),
-	INTC_PRIO(SCIF1, 3),
-	INTC_PRIO(SCIF2, 3),
-	INTC_PRIO(SCIF3, 3),
-	INTC_PRIO(SCIF4, 3),
-	INTC_PRIO(SCIF5, 3),
-};
-
 static struct intc_mask_reg mask_registers[] __initdata = {
 	{ 0xffd00044, 0xffd00064, 32, /* INTMSK0 / INTMSKCLR0 */
 	  { IRQ0, IRQ1, IRQ2, IRQ3, IRQ4, IRQ5, IRQ6, IRQ7 } },
@@ -227,7 +218,7 @@ static struct intc_prio_reg prio_registers[] __initdata = {
 	{ 0xffd40024, 0, 32, 8, /* INT2PRI9 */ { DU, GDTA, } },
 };
 
-static DECLARE_INTC_DESC(intc_desc, "sh7785", vectors, groups, priorities,
+static DECLARE_INTC_DESC(intc_desc, "sh7785", vectors, groups,
 			 mask_registers, prio_registers, NULL);
 
 /* Support for external interrupt pins in IRQ mode */
@@ -248,11 +239,11 @@ static struct intc_sense_reg sense_registers[] __initdata = {
 };
 
 static DECLARE_INTC_DESC(intc_desc_irq0123, "sh7785-irq0123", vectors_irq0123,
-			 NULL, NULL, mask_registers, prio_registers,
+			 NULL, mask_registers, prio_registers,
 			 sense_registers);
 
 static DECLARE_INTC_DESC(intc_desc_irq4567, "sh7785-irq4567", vectors_irq4567,
-			 NULL, NULL, mask_registers, prio_registers,
+			 NULL, mask_registers, prio_registers,
 			 sense_registers);
 
 /* External interrupt pins in IRL mode */
@@ -280,10 +271,10 @@ static struct intc_vect vectors_irl4567[] __initdata = {
 };
 
 static DECLARE_INTC_DESC(intc_desc_irl0123, "sh7785-irl0123", vectors_irl0123,
-			 NULL, NULL, mask_registers, NULL, NULL);
+			 NULL, mask_registers, NULL, NULL);
 
 static DECLARE_INTC_DESC(intc_desc_irl4567, "sh7785-irl4567", vectors_irl4567,
-			 NULL, NULL, mask_registers, NULL, NULL);
+			 NULL, mask_registers, NULL, NULL);
 
 #define INTC_ICR0	0xffd00000
 #define INTC_INTMSK0	0xffd00044

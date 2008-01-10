@@ -167,7 +167,7 @@ static struct intc_mask_reg mask_registers[] __initdata = {
 };
 
 static DECLARE_INTC_DESC(intc_desc, "sh7206", vectors, groups,
-			 NULL, mask_registers, prio_registers, NULL);
+			 mask_registers, prio_registers, NULL);
 
 static struct plat_sci_port sci_platform_data[] = {
 	{

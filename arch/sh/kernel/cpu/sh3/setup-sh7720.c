@@ -156,16 +156,6 @@ static struct intc_group groups[] __initdata = {
 	INTC_GROUP(MMC, MMCI0, MMCI1, MMCI2, MMCI3),
 };
 
-static struct intc_prio priorities[] __initdata = {
-	INTC_PRIO(SCIF0, 2),
-	INTC_PRIO(SCIF1, 2),
-	INTC_PRIO(DMAC1, 1),
-	INTC_PRIO(DMAC2, 1),
-	INTC_PRIO(RTC, 2),
-	INTC_PRIO(TMU, 2),
-	INTC_PRIO(TPU, 2),
-};
-
 static struct intc_prio_reg prio_registers[] __initdata = {
 	{ 0xA414FEE2UL, 0, 16, 4, /* IPRA */ { TMU0, TMU1, TMU2, RTC } },
 	{ 0xA414FEE4UL, 0, 16, 4, /* IPRB */ { WDT, REF_RCMI, SIM, 0 } },
@@ -184,7 +174,7 @@ static struct intc_prio_reg prio_registers[] __initdata = {
 };
 
 static DECLARE_INTC_DESC(intc_desc, "sh7720", vectors, groups,
-		priorities, NULL, prio_registers, NULL);
+		NULL, prio_registers, NULL);
 
 static struct intc_sense_reg sense_registers[] __initdata = {
 	{ INTC_ICR1, 16, 2, { 0, 0, IRQ5, IRQ4, IRQ3, IRQ2, IRQ1, IRQ0 } },
@@ -197,7 +187,7 @@ static struct intc_vect vectors_irq[] __initdata = {
 };
 
 static DECLARE_INTC_DESC(intc_irq_desc, "sh7720-irq", vectors_irq,
-		NULL, priorities, NULL, prio_registers, sense_registers);
+		NULL, NULL, prio_registers, sense_registers);
 
 void __init plat_irq_setup_pins(int mode)
 {

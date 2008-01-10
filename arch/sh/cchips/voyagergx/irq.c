@@ -58,7 +58,7 @@ static struct intc_mask_reg mask_registers[] __initdata = {
 };
 
 static DECLARE_INTC_DESC(intc_desc, "voyagergx", vectors,
-			 NULL, NULL, mask_registers, NULL, NULL);
+			 NULL, mask_registers, NULL, NULL);
 
 static unsigned int voyagergx_stat2irq[32] = {
 	IRQ_SM501_CI, IRQ_SM501_PV, IRQ_SM501_ZD, IRQ_SM501_2D,
