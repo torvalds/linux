@@ -125,6 +125,7 @@ static int ipv6_sysctl_net_init(struct net *net)
 	ipv6_route_table[8].data = &net->ipv6.sysctl.ip6_rt_min_advmss;
 	ipv6_table[0].child = ipv6_route_table;
 
+	ipv6_icmp_table[0].data = &net->ipv6.sysctl.icmpv6_time;
 	ipv6_table[1].child = ipv6_icmp_table;
 
 	ipv6_table[2].data = &net->ipv6.sysctl.bindv6only;

@@ -734,6 +734,7 @@ static int inet6_net_init(struct net *net)
 	net->ipv6.sysctl.ip6_rt_gc_elasticity = 9;
 	net->ipv6.sysctl.ip6_rt_mtu_expires = 10*60*HZ;
 	net->ipv6.sysctl.ip6_rt_min_advmss = IPV6_MIN_MTU - 20 - 40;
+	net->ipv6.sysctl.icmpv6_time = 1*HZ;
 	ipv6_frag_sysctl_init(net);
 
 	return 0;

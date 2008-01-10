@@ -23,6 +23,7 @@ struct netns_sysctl_ipv6 {
 	int ip6_rt_gc_elasticity;
 	int ip6_rt_mtu_expires;
 	int ip6_rt_min_advmss;
+	int icmpv6_time;
 };
 
 struct netns_ipv6 {
