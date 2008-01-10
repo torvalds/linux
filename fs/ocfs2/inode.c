@@ -57,7 +57,10 @@ struct ocfs2_find_inode_args
 	u64		fi_blkno;
 	unsigned long	fi_ino;
 	unsigned int	fi_flags;
+	unsigned int	fi_sysfile_type;
 };
+
+static struct lock_class_key ocfs2_sysfile_lock_key[NUM_SYSTEM_INODES];
 
 static int ocfs2_read_locked_inode(struct inode *inode,
 				   struct ocfs2_find_inode_args *args);
@@ -106,7 +109,8 @@ void ocfs2_get_inode_flags(struct ocfs2_inode_info *oi)
 		oi->ip_attr |= OCFS2_DIRSYNC_FL;
 }
 
-struct inode *ocfs2_iget(struct ocfs2_super *osb, u64 blkno, int flags)
+struct inode *ocfs2_iget(struct ocfs2_super *osb, u64 blkno, unsigned flags,
+			 int sysfile_type)
 {
 	struct inode *inode = NULL;
 	struct super_block *sb = osb->sb;
@@ -126,6 +130,7 @@ struct inode *ocfs2_iget(struct ocfs2_super *osb, u64 blkno, int flags)
 	args.fi_blkno = blkno;
 	args.fi_flags = flags;
 	args.fi_ino = ino_from_blkno(sb, blkno);
+	args.fi_sysfile_type = sysfile_type;
 
 	inode = iget5_locked(sb, args.fi_ino, ocfs2_find_actor,
 			     ocfs2_init_locked_inode, &args);
@@ -200,6 +205,9 @@ static int ocfs2_init_locked_inode(struct inode *inode, void *opaque)
 
 	inode->i_ino = args->fi_ino;
 	OCFS2_I(inode)->ip_blkno = args->fi_blkno;
+	if (args->fi_sysfile_type != 0)
+		lockdep_set_class(&inode->i_mutex,
+			&ocfs2_sysfile_lock_key[args->fi_sysfile_type]);
 
 	mlog_exit(0);
 	return 0;

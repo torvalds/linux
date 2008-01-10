@@ -1244,7 +1244,7 @@ static int ocfs2_orphan_filldir(void *priv, const char *name, int name_len,
 
 	/* Skip bad inodes so that recovery can continue */
 	iter = ocfs2_iget(p->osb, ino,
-			  OCFS2_FI_FLAG_ORPHAN_RECOVERY);
+			  OCFS2_FI_FLAG_ORPHAN_RECOVERY, 0);
 	if (IS_ERR(iter))
 		return 0;
 

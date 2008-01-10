@@ -220,7 +220,7 @@ static int ocfs2_init_global_system_inodes(struct ocfs2_super *osb)
 
 	mlog_entry_void();
 
-	new = ocfs2_iget(osb, osb->root_blkno, OCFS2_FI_FLAG_SYSFILE);
+	new = ocfs2_iget(osb, osb->root_blkno, OCFS2_FI_FLAG_SYSFILE, 0);
 	if (IS_ERR(new)) {
 		status = PTR_ERR(new);
 		mlog_errno(status);
@@ -228,7 +228,7 @@ static int ocfs2_init_global_system_inodes(struct ocfs2_super *osb)
 	}
 	osb->root_inode = new;
 
-	new = ocfs2_iget(osb, osb->system_dir_blkno, OCFS2_FI_FLAG_SYSFILE);
+	new = ocfs2_iget(osb, osb->system_dir_blkno, OCFS2_FI_FLAG_SYSFILE, 0);
 	if (IS_ERR(new)) {
 		status = PTR_ERR(new);
 		mlog_errno(status);
