@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/smp_lock.h>
 #include <linux/capability.h>
 #include <asm/uaccess.h>
 #include <asm/byteorder.h>
@@ -202,14 +203,17 @@ struct pci_filp_private {
 	int write_combine;
 };
 
-static int proc_bus_pci_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
+static long proc_bus_pci_ioctl(struct file *file, unsigned int cmd,
+			       unsigned long arg)
 {
-	const struct proc_dir_entry *dp = PDE(inode);
+	const struct proc_dir_entry *dp = PDE(file->f_dentry->d_inode);
 	struct pci_dev *dev = dp->data;
 #ifdef HAVE_PCI_MMAP
 	struct pci_filp_private *fpriv = file->private_data;
 #endif /* HAVE_PCI_MMAP */
 	int ret = 0;
+
+	lock_kernel();
 
 	switch (cmd) {
 	case PCIIOC_CONTROLLER:
@@ -239,6 +243,7 @@ static int proc_bus_pci_ioctl(struct inode *inode, struct file *file, unsigned i
 		break;
 	};
 
+	unlock_kernel();
 	return ret;
 }
 
@@ -291,7 +296,7 @@ static const struct file_operations proc_bus_pci_operations = {
 	.llseek		= proc_bus_pci_lseek,
 	.read		= proc_bus_pci_read,
 	.write		= proc_bus_pci_write,
-	.ioctl		= proc_bus_pci_ioctl,
+	.unlocked_ioctl	= proc_bus_pci_ioctl,
 #ifdef HAVE_PCI_MMAP
 	.open		= proc_bus_pci_open,
 	.release	= proc_bus_pci_release,
