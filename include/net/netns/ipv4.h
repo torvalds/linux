@@ -9,6 +9,7 @@ struct ctl_table_header;
 struct ipv4_devconf;
 struct fib_rules_ops;
 struct hlist_head;
+struct sock;
 
 struct netns_ipv4 {
 #ifdef CONFIG_SYSCTL
@@ -20,5 +21,6 @@ struct netns_ipv4 {
 	struct fib_rules_ops	*rules_ops;
 #endif
 	struct hlist_head	*fib_table_hash;
+	struct sock		*fibnl;
 };
 #endif
