@@ -681,13 +681,15 @@ static __inline__ void fib6_start_gc(struct rt6_info *rt)
 {
 	if (ip6_fib_timer.expires == 0 &&
 	    (rt->rt6i_flags & (RTF_EXPIRES|RTF_CACHE)))
-		mod_timer(&ip6_fib_timer, jiffies + ip6_rt_gc_interval);
+		mod_timer(&ip6_fib_timer, jiffies +
+			  init_net.ipv6.sysctl.ip6_rt_gc_interval);
 }
 
 void fib6_force_start_gc(void)
 {
 	if (ip6_fib_timer.expires == 0)
-		mod_timer(&ip6_fib_timer, jiffies + ip6_rt_gc_interval);
+		mod_timer(&ip6_fib_timer, jiffies +
+			  init_net.ipv6.sysctl.ip6_rt_gc_interval);
 }
 
 /*
@@ -1447,7 +1449,8 @@ void fib6_run_gc(unsigned long dummy)
 {
 	if (dummy != ~0UL) {
 		spin_lock_bh(&fib6_gc_lock);
-		gc_args.timeout = dummy ? (int)dummy : ip6_rt_gc_interval;
+		gc_args.timeout = dummy ? (int)dummy :
+			init_net.ipv6.sysctl.ip6_rt_gc_interval;
 	} else {
 		local_bh_disable();
 		if (!spin_trylock(&fib6_gc_lock)) {
@@ -1455,7 +1458,7 @@ void fib6_run_gc(unsigned long dummy)
 			local_bh_enable();
 			return;
 		}
-		gc_args.timeout = ip6_rt_gc_interval;
+		gc_args.timeout = init_net.ipv6.sysctl.ip6_rt_gc_interval;
 	}
 	gc_args.more = 0;
 
@@ -1463,7 +1466,8 @@ void fib6_run_gc(unsigned long dummy)
 	fib6_clean_all(fib6_age, 0, NULL);
 
 	if (gc_args.more)
-		mod_timer(&ip6_fib_timer, jiffies + ip6_rt_gc_interval);
+		mod_timer(&ip6_fib_timer, jiffies +
+			  init_net.ipv6.sysctl.ip6_rt_gc_interval);
 	else {
 		del_timer(&ip6_fib_timer);
 		ip6_fib_timer.expires = 0;

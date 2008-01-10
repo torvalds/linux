@@ -73,14 +73,6 @@
 
 #define CLONE_OFFLINK_ROUTE 0
 
-static int ip6_rt_max_size = 4096;
-static int ip6_rt_gc_min_interval = HZ / 2;
-static int ip6_rt_gc_timeout = 60*HZ;
-int ip6_rt_gc_interval = 30*HZ;
-static int ip6_rt_gc_elasticity = 9;
-static int ip6_rt_mtu_expires = 10*60*HZ;
-static int ip6_rt_min_advmss = IPV6_MIN_MTU - 20 - 40;
-
 static struct rt6_info * ip6_rt_copy(struct rt6_info *ort);
 static struct dst_entry	*ip6_dst_check(struct dst_entry *dst, u32 cookie);
 static struct dst_entry *ip6_negative_advice(struct dst_entry *);
@@ -894,8 +886,8 @@ static inline unsigned int ipv6_advmss(unsigned int mtu)
 {
 	mtu -= sizeof(struct ipv6hdr) + sizeof(struct tcphdr);
 
-	if (mtu < ip6_rt_min_advmss)
-		mtu = ip6_rt_min_advmss;
+	if (mtu < init_net.ipv6.sysctl.ip6_rt_min_advmss)
+		mtu = init_net.ipv6.sysctl.ip6_rt_min_advmss;
 
 	/*
 	 * Maximal non-jumbo IPv6 payload is IPV6_MAXPLEN and
@@ -995,19 +987,19 @@ static int ip6_dst_gc(void)
 	static unsigned long last_gc;
 	unsigned long now = jiffies;
 
-	if (time_after(last_gc + ip6_rt_gc_min_interval, now) &&
-	    atomic_read(&ip6_dst_ops.entries) <= ip6_rt_max_size)
+	if (time_after(last_gc + init_net.ipv6.sysctl.ip6_rt_gc_min_interval, now) &&
+	    atomic_read(&ip6_dst_ops.entries) <= init_net.ipv6.sysctl.ip6_rt_max_size)
 		goto out;
 
 	expire++;
 	fib6_run_gc(expire);
 	last_gc = now;
 	if (atomic_read(&ip6_dst_ops.entries) < ip6_dst_ops.gc_thresh)
-		expire = ip6_rt_gc_timeout>>1;
+		expire = init_net.ipv6.sysctl.ip6_rt_gc_timeout>>1;
 
 out:
-	expire -= expire>>ip6_rt_gc_elasticity;
-	return (atomic_read(&ip6_dst_ops.entries) > ip6_rt_max_size);
+	expire -= expire>>init_net.ipv6.sysctl.ip6_rt_gc_elasticity;
+	return (atomic_read(&ip6_dst_ops.entries) > init_net.ipv6.sysctl.ip6_rt_max_size);
 }
 
 /* Clean host part of a prefix. Not necessary in radix tree,
@@ -1513,7 +1505,7 @@ void rt6_pmtu_discovery(struct in6_addr *daddr, struct in6_addr *saddr,
 		rt->u.dst.metrics[RTAX_MTU-1] = pmtu;
 		if (allfrag)
 			rt->u.dst.metrics[RTAX_FEATURES-1] |= RTAX_FEATURE_ALLFRAG;
-		dst_set_expires(&rt->u.dst, ip6_rt_mtu_expires);
+		dst_set_expires(&rt->u.dst, init_net.ipv6.sysctl.ip6_rt_mtu_expires);
 		rt->rt6i_flags |= RTF_MODIFIED|RTF_EXPIRES;
 		goto out;
 	}
@@ -1539,7 +1531,7 @@ void rt6_pmtu_discovery(struct in6_addr *daddr, struct in6_addr *saddr,
 		 * which is 10 mins. After 10 mins the decreased pmtu is expired
 		 * and detecting PMTU increase will be automatically happened.
 		 */
-		dst_set_expires(&nrt->u.dst, ip6_rt_mtu_expires);
+		dst_set_expires(&nrt->u.dst, init_net.ipv6.sysctl.ip6_rt_mtu_expires);
 		nrt->rt6i_flags |= RTF_DYNAMIC|RTF_EXPIRES;
 
 		ip6_ins_rt(nrt);
@@ -2395,15 +2387,14 @@ static inline void ipv6_route_proc_fini(struct net *net)
 
 #ifdef CONFIG_SYSCTL
 
-static int flush_delay;
-
 static
 int ipv6_sysctl_rtcache_flush(ctl_table *ctl, int write, struct file * filp,
 			      void __user *buffer, size_t *lenp, loff_t *ppos)
 {
+	int delay = init_net.ipv6.sysctl.flush_delay;
 	if (write) {
 		proc_dointvec(ctl, write, filp, buffer, lenp, ppos);
-		fib6_run_gc(flush_delay <= 0 ? ~0UL : (unsigned long)flush_delay);
+		fib6_run_gc(delay <= 0 ? ~0UL : (unsigned long)delay);
 		return 0;
 	} else
 		return -EINVAL;
@@ -2412,7 +2403,7 @@ int ipv6_sysctl_rtcache_flush(ctl_table *ctl, int write, struct file * filp,
 ctl_table ipv6_route_table_template[] = {
 	{
 		.procname	=	"flush",
-		.data		=	&flush_delay,
+		.data		=	&init_net.ipv6.sysctl.flush_delay,
 		.maxlen		=	sizeof(int),
 		.mode		=	0200,
 		.proc_handler	=	&ipv6_sysctl_rtcache_flush
@@ -2428,7 +2419,7 @@ ctl_table ipv6_route_table_template[] = {
 	{
 		.ctl_name	=	NET_IPV6_ROUTE_MAX_SIZE,
 		.procname	=	"max_size",
-		.data		=	&ip6_rt_max_size,
+		.data		=	&init_net.ipv6.sysctl.ip6_rt_max_size,
 		.maxlen		=	sizeof(int),
 		.mode		=	0644,
 		.proc_handler	=	&proc_dointvec,
@@ -2436,7 +2427,7 @@ ctl_table ipv6_route_table_template[] = {
 	{
 		.ctl_name	=	NET_IPV6_ROUTE_GC_MIN_INTERVAL,
 		.procname	=	"gc_min_interval",
-		.data		=	&ip6_rt_gc_min_interval,
+		.data		=	&init_net.ipv6.sysctl.ip6_rt_gc_min_interval,
 		.maxlen		=	sizeof(int),
 		.mode		=	0644,
 		.proc_handler	=	&proc_dointvec_jiffies,
@@ -2445,7 +2436,7 @@ ctl_table ipv6_route_table_template[] = {
 	{
 		.ctl_name	=	NET_IPV6_ROUTE_GC_TIMEOUT,
 		.procname	=	"gc_timeout",
-		.data		=	&ip6_rt_gc_timeout,
+		.data		=	&init_net.ipv6.sysctl.ip6_rt_gc_timeout,
 		.maxlen		=	sizeof(int),
 		.mode		=	0644,
 		.proc_handler	=	&proc_dointvec_jiffies,
@@ -2454,7 +2445,7 @@ ctl_table ipv6_route_table_template[] = {
 	{
 		.ctl_name	=	NET_IPV6_ROUTE_GC_INTERVAL,
 		.procname	=	"gc_interval",
-		.data		=	&ip6_rt_gc_interval,
+		.data		=	&init_net.ipv6.sysctl.ip6_rt_gc_interval,
 		.maxlen		=	sizeof(int),
 		.mode		=	0644,
 		.proc_handler	=	&proc_dointvec_jiffies,
@@ -2463,7 +2454,7 @@ ctl_table ipv6_route_table_template[] = {
 	{
 		.ctl_name	=	NET_IPV6_ROUTE_GC_ELASTICITY,
 		.procname	=	"gc_elasticity",
-		.data		=	&ip6_rt_gc_elasticity,
+		.data		=	&init_net.ipv6.sysctl.ip6_rt_gc_elasticity,
 		.maxlen		=	sizeof(int),
 		.mode		=	0644,
 		.proc_handler	=	&proc_dointvec_jiffies,
@@ -2472,7 +2463,7 @@ ctl_table ipv6_route_table_template[] = {
 	{
 		.ctl_name	=	NET_IPV6_ROUTE_MTU_EXPIRES,
 		.procname	=	"mtu_expires",
-		.data		=	&ip6_rt_mtu_expires,
+		.data		=	&init_net.ipv6.sysctl.ip6_rt_mtu_expires,
 		.maxlen		=	sizeof(int),
 		.mode		=	0644,
 		.proc_handler	=	&proc_dointvec_jiffies,
@@ -2481,7 +2472,7 @@ ctl_table ipv6_route_table_template[] = {
 	{
 		.ctl_name	=	NET_IPV6_ROUTE_MIN_ADVMSS,
 		.procname	=	"min_adv_mss",
-		.data		=	&ip6_rt_min_advmss,
+		.data		=	&init_net.ipv6.sysctl.ip6_rt_min_advmss,
 		.maxlen		=	sizeof(int),
 		.mode		=	0644,
 		.proc_handler	=	&proc_dointvec_jiffies,
@@ -2490,7 +2481,7 @@ ctl_table ipv6_route_table_template[] = {
 	{
 		.ctl_name	=	NET_IPV6_ROUTE_GC_MIN_INTERVAL_MS,
 		.procname	=	"gc_min_interval_ms",
-		.data		=	&ip6_rt_gc_min_interval,
+		.data		=	&init_net.ipv6.sysctl.ip6_rt_gc_min_interval,
 		.maxlen		=	sizeof(int),
 		.mode		=	0644,
 		.proc_handler	=	&proc_dointvec_ms_jiffies,
