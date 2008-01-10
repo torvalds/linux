@@ -966,6 +966,13 @@ config VFPv3
 	depends on VFP
 	default y if CPU_V7
 
+config NEON
+	bool "Advanced SIMD (NEON) Extension support"
+	depends on VFPv3 && CPU_V7
+	help
+	  Say Y to include support code for NEON, the ARMv7 Advanced SIMD
+	  Extension.
+
 endmenu
 
 menu "Userspace binary formats"
