@@ -601,7 +601,9 @@ static int __ip6_ins_rt(struct rt6_info *rt, struct nl_info *info)
 
 int ip6_ins_rt(struct rt6_info *rt)
 {
-	struct nl_info info = {};
+	struct nl_info info = {
+		.nl_net = &init_net,
+	};
 	return __ip6_ins_rt(rt, &info);
 }
 
@@ -1259,7 +1261,9 @@ static int __ip6_del_rt(struct rt6_info *rt, struct nl_info *info)
 
 int ip6_del_rt(struct rt6_info *rt)
 {
-	struct nl_info info = {};
+	struct nl_info info = {
+		.nl_net = &init_net,
+	};
 	return __ip6_del_rt(rt, &info);
 }
 

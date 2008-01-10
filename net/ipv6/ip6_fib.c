@@ -1314,7 +1314,9 @@ static int fib6_walk(struct fib6_walker_t *w)
 
 static int fib6_clean_node(struct fib6_walker_t *w)
 {
-	struct nl_info info = {};
+	struct nl_info info = {
+		.nl_net = &init_net,
+	};
 	int res;
 	struct rt6_info *rt;
 	struct fib6_cleaner_t *c = container_of(w, struct fib6_cleaner_t, w);

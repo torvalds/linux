@@ -217,6 +217,7 @@ struct nla_policy {
  */
 struct nl_info {
 	struct nlmsghdr		*nlh;
+	struct net		*nl_net;
 	u32			pid;
 };
 
