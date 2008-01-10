@@ -270,11 +270,13 @@ void cx23885_video_wakeup(struct cx23885_dev *dev,
 			break;
 		buf = list_entry(q->active.next,
 				 struct cx23885_buffer, vb.queue);
+
 		/* count comes from the hw and is is 16bit wide --
 		 * this trick handles wrap-arounds correctly for
 		 * up to 32767 buffers in flight... */
 		if ((s16) (count - buf->count) < 0)
 			break;
+
 		do_gettimeofday(&buf->vb.ts);
 		dprintk(2, "[%p/%d] wakeup reg=%d buf=%d\n", buf, buf->vb.i,
 			count, buf->count);
@@ -300,7 +302,6 @@ int cx23885_set_tvnorm(struct cx23885_dev *dev, v4l2_std_id norm)
 		v4l2_norm_to_name(norm));
 
 	dev->tvnorm = norm;
-
 
 	/* Tell the analog tuner/demods */
 	cx23885_call_i2c_clients(&dev->i2c_bus[1], VIDIOC_S_STD, &norm);
@@ -455,20 +456,6 @@ static int cx23885_start_video_dma(struct cx23885_dev *dev,
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int cx23885_stop_video_dma(struct cx23885_dev *dev)
-{
-	dprintk(1, "%s()\n", __FUNCTION__);
-	/* stop dma */
-	cx_clear(VID_A_DMA_CTL, 0x11);
-
-	/* disable irqs */
-	cx_clear(PCI_INT_MSK, 0x000001);
-	cx_clear(VID_A_INT_MSK, 0x000011);
-
-	return 0;
-}
-#endif
 
 static int cx23885_restart_video_queue(struct cx23885_dev *dev,
 			       struct cx23885_dmaqueue *q)
@@ -877,6 +864,10 @@ static int video_release(struct inode *inode, struct file *file)
 	file->private_data = NULL;
 	kfree(fh);
 
+	/* We are not putting the tuner to sleep here on exit, because
+	 * we want to use the mpeg encoder in another session to capture
+	 * tuner video. Closing this will result in no video to the encoder.
+	 */
 
 	return 0;
 }
@@ -1337,6 +1328,9 @@ static int vidioc_g_register(struct file *file, void *fh,
 {
 	struct cx23885_dev *dev = ((struct cx23885_fh *)fh)->dev;
 
+	if (!v4l2_chip_match_host(reg->match_type, reg->match_chip))
+		return -EINVAL;
+
 	cx23885_call_i2c_clients(&dev->i2c_bus[2], VIDIOC_DBG_G_REGISTER, reg);
 
 	return 0;
@@ -1347,108 +1341,14 @@ static int vidioc_s_register(struct file *file, void *fh,
 {
 	struct cx23885_dev *dev = ((struct cx23885_fh *)fh)->dev;
 
+	if (!v4l2_chip_match_host(reg->match_type, reg->match_chip))
+		return -EINVAL;
+
 	cx23885_call_i2c_clients(&dev->i2c_bus[2], VIDIOC_DBG_S_REGISTER, reg);
+
 	return 0;
 }
 #endif
-
-/* ----------------------------------------------------------- */
-/* RADIO ESPECIFIC IOCTLS                                      */
-/* ----------------------------------------------------------- */
-
-static int radio_querycap(struct file *file, void  *priv,
-					struct v4l2_capability *cap)
-{
-	struct cx23885_dev *dev = ((struct cx23885_fh *)priv)->dev;
-
-	strcpy(cap->driver, "cx23885");
-	strlcpy(cap->card, cx23885_boards[dev->board].name,
-		sizeof(cap->card));
-	sprintf(cap->bus_info, "PCIe:%s", pci_name(dev->pci));
-	cap->version = CX23885_VERSION_CODE;
-	cap->capabilities = V4L2_CAP_TUNER;
-	return 0;
-}
-
-static int radio_g_tuner(struct file *file, void *priv,
-				struct v4l2_tuner *t)
-{
-	struct cx23885_dev *dev = ((struct cx23885_fh *)priv)->dev;
-
-	if (unlikely(t->index > 0))
-		return -EINVAL;
-
-	strcpy(t->name, "Radio");
-	t->type = V4L2_TUNER_RADIO;
-
-	cx23885_call_i2c_clients(&dev->i2c_bus[1], VIDIOC_G_TUNER, t);
-	return 0;
-}
-
-static int radio_enum_input(struct file *file, void *priv,
-				struct v4l2_input *i)
-{
-	if (i->index != 0)
-		return -EINVAL;
-	strcpy(i->name, "Radio");
-	i->type = V4L2_INPUT_TYPE_TUNER;
-
-	return 0;
-}
-
-static int radio_g_audio(struct file *file, void *priv, struct v4l2_audio *a)
-{
-	if (unlikely(a->index))
-		return -EINVAL;
-
-	memset(a, 0, sizeof(*a));
-	strcpy(a->name, "Radio");
-	return 0;
-}
-
-/* FIXME: Should add a standard for radio */
-
-static int radio_s_tuner(struct file *file, void *priv,
-				struct v4l2_tuner *t)
-{
-	struct cx23885_dev *dev = ((struct cx23885_fh *)priv)->dev;
-
-	if (0 != t->index)
-		return -EINVAL;
-
-	cx23885_call_i2c_clients(&dev->i2c_bus[1], VIDIOC_S_TUNER, t);
-
-	return 0;
-}
-
-static int radio_s_audio(struct file *file, void *fh,
-			  struct v4l2_audio *a)
-{
-	return 0;
-}
-
-static int radio_s_input(struct file *file, void *fh, unsigned int i)
-{
-	return 0;
-}
-
-static int radio_queryctrl(struct file *file, void *priv,
-			    struct v4l2_queryctrl *c)
-{
-	int i;
-
-	if (c->id <  V4L2_CID_BASE ||
-		c->id >= V4L2_CID_LASTP1)
-		return -EINVAL;
-	if (c->id == V4L2_CID_AUDIO_MUTE) {
-		for (i = 0; i < CX23885_CTLS; i++)
-			if (cx23885_ctls[i].v.id == c->id)
-				break;
-		*c = cx23885_ctls[i].v;
-	} else
-		*c = no_ctl;
-	return 0;
-}
 
 /* ----------------------------------------------------------- */
 
@@ -1516,7 +1416,6 @@ int cx23885_video_irq(struct cx23885_dev *dev, u32 status)
 
 	return handled;
 }
-
 
 /* ----------------------------------------------------------- */
 /* exported stuff                                              */
@@ -1625,6 +1524,7 @@ int cx23885_video_register(struct cx23885_dev *dev)
 	cx23885_risc_stopper(dev->pci, &dev->vidq.stopper,
 		VID_A_DMA_CTL, 0x11, 0x00);
 
+	/* Don't enable VBI yet */
 	cx_set(PCI_INT_MSK, 1);
 
 
@@ -1646,8 +1546,6 @@ int cx23885_video_register(struct cx23885_dev *dev)
 	init_controls(dev);
 	cx23885_video_mux(dev, 0);
 	mutex_unlock(&dev->lock);
-
-	/* FIXME start tvaudio thread */
 
 	return 0;
 
