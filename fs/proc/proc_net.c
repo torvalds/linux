@@ -96,6 +96,17 @@ static struct proc_dir_entry *proc_net_shadow(struct task_struct *task,
 	return task->nsproxy->net_ns->proc_net;
 }
 
+struct proc_dir_entry *proc_net_mkdir(struct net *net, const char *name,
+		struct proc_dir_entry *parent)
+{
+	struct proc_dir_entry *pde;
+	pde = proc_mkdir_mode(name, S_IRUGO | S_IXUGO, parent);
+	if (pde != NULL)
+		pde->data = net;
+	return pde;
+}
+EXPORT_SYMBOL_GPL(proc_net_mkdir);
+
 static __net_init int proc_net_ns_init(struct net *net)
 {
 	struct proc_dir_entry *root, *netd, *net_statd;
@@ -107,18 +118,16 @@ static __net_init int proc_net_ns_init(struct net *net)
 		goto out;
 
 	err = -EEXIST;
-	netd = proc_mkdir("net", root);
+	netd = proc_net_mkdir(net, "net", root);
 	if (!netd)
 		goto free_root;
 
 	err = -EEXIST;
-	net_statd = proc_mkdir("stat", netd);
+	net_statd = proc_net_mkdir(net, "stat", netd);
 	if (!net_statd)
 		goto free_net;
 
 	root->data = net;
-	netd->data = net;
-	net_statd->data = net;
 
 	net->proc_net_root = root;
 	net->proc_net = netd;

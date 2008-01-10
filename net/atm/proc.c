@@ -476,7 +476,7 @@ static void atm_proc_dirs_remove(void)
 		if (e->dirent)
 			remove_proc_entry(e->name, atm_proc_root);
 	}
-	remove_proc_entry("atm", init_net.proc_net);
+	proc_net_remove(&init_net, "atm");
 }
 
 int __init atm_proc_init(void)
@@ -484,7 +484,7 @@ int __init atm_proc_init(void)
 	static struct atm_proc_entry *e;
 	int ret;
 
-	atm_proc_root = proc_mkdir("atm", init_net.proc_net);
+	atm_proc_root = proc_net_mkdir(&init_net, "atm", init_net.proc_net);
 	if (!atm_proc_root)
 		goto err_out;
 	for (e = atm_proc_ents; e->name; e++) {
