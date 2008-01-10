@@ -741,7 +741,21 @@ struct request *elv_next_request(struct request_queue *q)
 			q->boundary_rq = NULL;
 		}
 
-		if ((rq->cmd_flags & REQ_DONTPREP) || !q->prep_rq_fn)
+		if (rq->cmd_flags & REQ_DONTPREP)
+			break;
+
+		if (q->dma_drain_size && rq->data_len) {
+			/*
+			 * make sure space for the drain appears we
+			 * know we can do this because max_hw_segments
+			 * has been adjusted to be one fewer than the
+			 * device can handle
+			 */
+			rq->nr_phys_segments++;
+			rq->nr_hw_segments++;
+		}
+
+		if (!q->prep_rq_fn)
 			break;
 
 		ret = q->prep_rq_fn(q, rq);
@@ -754,6 +768,16 @@ struct request *elv_next_request(struct request_queue *q)
 			 * avoid resource deadlock.  REQ_STARTED will
 			 * prevent other fs requests from passing this one.
 			 */
+			if (q->dma_drain_size && rq->data_len &&
+			    !(rq->cmd_flags & REQ_DONTPREP)) {
+				/*
+				 * remove the space for the drain we added
+				 * so that we don't add it again
+				 */
+				--rq->nr_phys_segments;
+				--rq->nr_hw_segments;
+			}
+
 			rq = NULL;
 			break;
 		} else if (ret == BLKPREP_KILL) {
