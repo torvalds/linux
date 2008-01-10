@@ -832,16 +832,31 @@ static int sil24_qc_defer(struct ata_queued_cmd *qc)
 	struct ata_link *link = qc->dev->link;
 	struct ata_port *ap = link->ap;
 	u8 prot = qc->tf.protocol;
-	int is_atapi = (prot == ATA_PROT_ATAPI ||
-			prot == ATA_PROT_ATAPI_NODATA ||
-			prot == ATA_PROT_ATAPI_DMA);
 
-	/* ATAPI commands completing with CHECK_SENSE cause various
-	 * weird problems if other commands are active.  PMP DMA CS
-	 * errata doesn't cover all and HSM violation occurs even with
-	 * only one other device active.  Always run an ATAPI command
-	 * by itself.
-	 */
+	/*
+	 * There is a bug in the chip:
+	 * Port LRAM Causes the PRB/SGT Data to be Corrupted
+	 * If the host issues a read request for LRAM and SActive registers
+	 * while active commands are available in the port, PRB/SGT data in
+	 * the LRAM can become corrupted. This issue applies only when
+	 * reading from, but not writing to, the LRAM.
+	 *
+	 * Therefore, reading LRAM when there is no particular error [and
+	 * other commands may be outstanding] is prohibited.
+	 *
+	 * To avoid this bug there are two situations where a command must run
+	 * exclusive of any other commands on the port:
+	 *
+	 * - ATAPI commands which check the sense data
+	 * - Passthrough ATA commands which always have ATA_QCFLAG_RESULT_TF
+	 *   set.
+	 *
+ 	 */
+	int is_excl = (prot == ATA_PROT_ATAPI ||
+		       prot == ATA_PROT_ATAPI_NODATA ||
+		       prot == ATA_PROT_ATAPI_DMA ||
+		       (qc->flags & ATA_QCFLAG_RESULT_TF));
+
 	if (unlikely(ap->excl_link)) {
 		if (link == ap->excl_link) {
 			if (ap->nr_active_links)
@@ -849,7 +864,7 @@ static int sil24_qc_defer(struct ata_queued_cmd *qc)
 			qc->flags |= ATA_QCFLAG_CLEAR_EXCL;
 		} else
 			return ATA_DEFER_PORT;
-	} else if (unlikely(is_atapi)) {
+	} else if (unlikely(is_excl)) {
 		ap->excl_link = link;
 		if (ap->nr_active_links)
 			return ATA_DEFER_PORT;
