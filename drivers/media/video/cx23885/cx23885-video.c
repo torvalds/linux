@@ -288,7 +288,7 @@ void cx23885_video_wakeup(struct cx23885_dev *dev,
 		mod_timer(&q->timeout, jiffies+BUFFER_TIMEOUT);
 	}
 	if (bc != 1)
-		printk(KERN_WARN "%s: %d buffers handled (should be 1)\n",
+		printk(KERN_ERR "%s: %d buffers handled (should be 1)\n",
 			__FUNCTION__, bc);
 }
 
