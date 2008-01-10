@@ -750,6 +750,7 @@ struct dvb_frontend* s5h1409_attach(const struct s5h1409_config* config,
 				    struct i2c_adapter* i2c)
 {
 	struct s5h1409_state* state = NULL;
+	u16 reg;
 
 	/* allocate memory for the internal state */
 	state = kmalloc(sizeof(struct s5h1409_state), GFP_KERNEL);
@@ -763,7 +764,8 @@ struct dvb_frontend* s5h1409_attach(const struct s5h1409_config* config,
 	state->if_freq = S5H1409_VSB_IF_FREQ;
 
 	/* check if the demod exists */
-	if (s5h1409_readreg(state, 0x04) != 0x0066)
+	reg = s5h1409_readreg(state, 0x04);
+	if ((reg != 0x0066) && (reg != 0x007f))
 		goto error;
 
 	/* create dvb_frontend */
@@ -771,8 +773,14 @@ struct dvb_frontend* s5h1409_attach(const struct s5h1409_config* config,
 	       sizeof(struct dvb_frontend_ops));
 	state->frontend.demodulator_priv = state;
 
+	if (s5h1409_init(&state->frontend) != 0) {
+		printk(KERN_ERR "%s: Failed to initialize correctly\n",
+			__FUNCTION__);
+		goto error;
+	}
+
 	/* Note: Leaving the I2C gate open here. */
-	s5h1409_writereg(state, 0xf3, 1);
+	s5h1409_i2c_gate_ctrl(&state->frontend, 1);
 
 	return &state->frontend;
 
