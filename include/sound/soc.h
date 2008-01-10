@@ -447,6 +447,9 @@ struct snd_soc_dai_link  {
 
 	/* codec/machine specific init - e.g. add machine controls */
 	int (*init)(struct snd_soc_codec *codec);
+
+	/* DAI pcm */
+	struct snd_pcm *pcm;
 };
 
 /* SoC machine */
