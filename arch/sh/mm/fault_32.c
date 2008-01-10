@@ -172,7 +172,7 @@ no_context:
 	bust_spinlocks(1);
 
 	if (oops_may_print()) {
-		__typeof__(pte_val(__pte(0))) page;
+		unsigned long page;
 
 		if (address < PAGE_SIZE)
 			printk(KERN_ALERT "Unable to handle kernel NULL "
