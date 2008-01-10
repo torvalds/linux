@@ -572,9 +572,6 @@ static int inet_rtm_delroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *ar
 	struct fib_table *tb;
 	int err;
 
-	if (net != &init_net)
-		return -EINVAL;
-
 	err = rtm_to_fib_config(net, skb, nlh, &cfg);
 	if (err < 0)
 		goto errout;
@@ -596,9 +593,6 @@ static int inet_rtm_newroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *ar
 	struct fib_config cfg;
 	struct fib_table *tb;
 	int err;
-
-	if (net != &init_net)
-		return -EINVAL;
 
 	err = rtm_to_fib_config(net, skb, nlh, &cfg);
 	if (err < 0)
@@ -624,9 +618,6 @@ static int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 	struct hlist_node *node;
 	struct hlist_head *head;
 	int dumped = 0;
-
-	if (net != &init_net)
-		return 0;
 
 	if (nlmsg_len(cb->nlh) >= sizeof(struct rtmsg) &&
 	    ((struct rtmsg *) nlmsg_data(cb->nlh))->rtm_flags & RTM_F_CLONED)
@@ -934,9 +925,6 @@ static int fib_netdev_event(struct notifier_block *this, unsigned long event, vo
 	struct net_device *dev = ptr;
 	struct in_device *in_dev = __in_dev_get_rtnl(dev);
 
-	if (dev->nd_net != &init_net)
-		return NOTIFY_DONE;
-
 	if (event == NETDEV_UNREGISTER) {
 		fib_disable_ip(dev, 2);
 		return NOTIFY_DONE;
@@ -1015,10 +1003,6 @@ static void __net_exit ip_fib_net_exit(struct net *net)
 static int __net_init fib_net_init(struct net *net)
 {
 	int error;
-
-	error = 0;
-	if (net != &init_net)
-		goto out;
 
 	error = ip_fib_net_init(net);
 	if (error < 0)
