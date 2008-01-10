@@ -429,8 +429,8 @@ static inline void padlock_xcrypt(const u8 *input, u8 *output, void *key,
 
 static void aes_crypt_copy(const u8 *in, u8 *out, u32 *key, struct cword *cword)
 {
-	u8 tmp[AES_BLOCK_SIZE * 2]
-		__attribute__ ((__aligned__(PADLOCK_ALIGNMENT)));
+	u8 buf[AES_BLOCK_SIZE * 2 + PADLOCK_ALIGNMENT - 1];
+	u8 *tmp = PTR_ALIGN(&buf[0], PADLOCK_ALIGNMENT);
 
 	memcpy(tmp, in, AES_BLOCK_SIZE);
 	padlock_xcrypt(tmp, out, key, cword);
