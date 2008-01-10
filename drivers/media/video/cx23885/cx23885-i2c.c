@@ -270,13 +270,40 @@ static int i2c_xfer(struct i2c_adapter *i2c_adap,
 
 static int attach_inform(struct i2c_client *client)
 {
-	struct cx23885_dev *dev = i2c_get_adapdata(client->adapter);
+	struct cx23885_i2c *bus = i2c_get_adapdata(client->adapter);
+	struct cx23885_dev *dev = bus->dev;
+	struct tuner_setup tun_setup;
 
 	dprintk(1, "%s i2c attach [addr=0x%x,client=%s]\n",
 		client->driver->driver.name, client->addr, client->name);
 
 	if (!client->driver->command)
 		return 0;
+
+	if (dev->tuner_type != UNSET) {
+
+		dprintk(1, "%s  (tuner) i2c attach [addr=0x%x,client=%s]\n",
+			client->driver->driver.name, client->addr,
+			client->name);
+
+		if ((dev->tuner_addr == ADDR_UNSET) ||
+			(dev->tuner_addr == client->addr)) {
+
+			dprintk(1, "%s (tuner || addr UNSET)\n",
+				client->driver->driver.name);
+
+			dprintk(1, "%s i2c attach [addr=0x%x,client=%s]\n",
+				client->driver->driver.name,
+				client->addr, client->name);
+
+			tun_setup.mode_mask = T_ANALOG_TV;
+			tun_setup.type = dev->tuner_type;
+			tun_setup.addr = dev->tuner_addr;
+
+			client->driver->command(client, TUNER_SET_TYPE_ADDR,
+				&tun_setup);
+		}
+	}
 
 	return 0;
 }
@@ -316,6 +343,7 @@ static struct i2c_adapter cx23885_i2c_adap_template = {
 	.owner             = THIS_MODULE,
 	.id                = I2C_HW_B_CX23885,
 	.algo              = &cx23885_i2c_algo_template,
+	.class             = I2C_CLASS_TV_ANALOG,
 	.client_register   = attach_inform,
 	.client_unregister = detach_inform,
 };
@@ -371,6 +399,7 @@ int cx23885_i2c_register(struct cx23885_i2c *bus)
 
 	bus->i2c_algo.data = bus;
 	bus->i2c_adap.algo_data = bus;
+	i2c_set_adapdata(&bus->i2c_adap, bus);
 	i2c_add_adapter(&bus->i2c_adap);
 
 	bus->i2c_client.adapter = &bus->i2c_adap;
