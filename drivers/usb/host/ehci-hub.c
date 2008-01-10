@@ -172,6 +172,10 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 		}
 	}
 
+	/* Apparently some devices need a >= 1-uframe delay here */
+	if (ehci->bus_suspended)
+		udelay(150);
+
 	/* turn off now-idle HC */
 	ehci_halt (ehci);
 	hcd->state = HC_STATE_SUSPENDED;
