@@ -11,6 +11,7 @@
 #include <net/netns/unix.h>
 #include <net/netns/packet.h>
 #include <net/netns/ipv4.h>
+#include <net/netns/ipv6.h>
 
 struct proc_dir_entry;
 struct net_device;
@@ -48,6 +49,9 @@ struct net {
 	struct netns_packet	packet;
 	struct netns_unix	unx;
 	struct netns_ipv4	ipv4;
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	struct netns_ipv6	ipv6;
+#endif
 };
 
 #ifdef CONFIG_NET
