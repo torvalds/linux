@@ -495,14 +495,12 @@ static void sata_pmp_quirks(struct ata_port *ap)
 			/* SError.N need a kick in the ass to get working */
 			link->flags |= ATA_LFLAG_HRST_TO_RESUME;
 
-			/* class code report is unreliable */
-			if (link->pmp < 5)
-				link->flags |= ATA_LFLAG_ASSUME_ATA;
-
-			/* The config device, which can be either at
-			 * port 0 or 5, locks up on SRST.
+			/* Class code report is unreliable and SRST
+			 * times out under certain configurations.
+			 * Config device can be at port 0 or 5 and
+			 * locks up on SRST.
 			 */
-			if (link->pmp == 0 || link->pmp == 5)
+			if (link->pmp <= 5)
 				link->flags |= ATA_LFLAG_NO_SRST |
 					       ATA_LFLAG_ASSUME_ATA;
 

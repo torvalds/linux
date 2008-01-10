@@ -883,6 +883,14 @@ and is between 256 and 4096 characters. It is defined in the file
 	lapic_timer_c2_ok	[X86-32,x86-64,APIC] trust the local apic timer in
 			C2 power state.
 
+	libata.dma=	[LIBATA] DMA control
+			libata.dma=0	  Disable all PATA and SATA DMA
+			libata.dma=1	  PATA and SATA Disk DMA only
+			libata.dma=2	  ATAPI (CDROM) DMA only
+			libata.dma=4	  Compact Flash DMA only 
+			Combinations also work, so libata.dma=3 enables DMA
+			for disks and CDROMs, but not CFs.
+
 	libata.noacpi	[LIBATA] Disables use of ACPI in libata suspend/resume
 			when set.
 			Format: <int>
