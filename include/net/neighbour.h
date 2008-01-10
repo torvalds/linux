@@ -223,7 +223,7 @@ extern void __neigh_for_each_release(struct neigh_table *tbl, int (*cb)(struct n
 extern void pneigh_for_each(struct neigh_table *tbl, void (*cb)(struct pneigh_entry *));
 
 struct neigh_seq_state {
-	struct net *net;
+	struct seq_net_private p;
 	struct neigh_table *tbl;
 	void *(*neigh_sub_iter)(struct neigh_seq_state *state,
 				struct neighbour *n, loff_t *pos);
