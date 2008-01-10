@@ -100,6 +100,17 @@ typedef enum {
 struct cx23885_board {
 	char                    *name;
 	port_t			portb, portc;
+
+	/* Vendors can and do run the PCIe bridge at different
+	 * clock rates, driven physically by crystals on the PCBs.
+	 * The core has to accomodate this. This allows the user
+	 * to add new boards with new frequencys. The value is
+	 * expressed in Hz.
+	 *
+	 * The core framework will default this value based on
+	 * current designs, but it can vary.
+	 */
+	u32			clk_freq;
 	struct cx23885_input    input[MAX_CX23885_INPUT];
 };
 
@@ -192,6 +203,10 @@ struct cx23885_dev {
 	u8                         __iomem *bmmio;
 	int                        pci_irqmask;
 	int                        hwrevision;
+
+	/* This valud is board specific and is used to configure the
+	 * AV core so we see nice clean and stable video and audio. */
+	u32                        clk_freq;
 
 	/* I2C adapters: Master 1 & 2 (External) & Master 3 (Internal only) */
 	struct cx23885_i2c         i2c_bus[3];

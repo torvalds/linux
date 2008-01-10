@@ -759,10 +759,14 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 	if(dev->pci->device == 0x8880) {
 		dev->bridge = CX23885_BRIDGE_887;
 		dev->sram_channels = cx23887_sram_channels;
+		/* Apply a sensible clock frequency for the PCIe bridge */
+		dev->clk_freq = 25000000;
 	} else
 	if(dev->pci->device == 0x8852) {
 		dev->bridge = CX23885_BRIDGE_885;
 		dev->sram_channels = cx23885_sram_channels;
+		/* Apply a sensible clock frequency for the PCIe bridge */
+		dev->clk_freq = 28000000;
 	} else
 		BUG();
 
@@ -781,6 +785,10 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 		dev->board = CX23885_BOARD_UNKNOWN;
 		cx23885_card_list(dev);
 	}
+
+	/* If the user specific a clk freq override, apply it */
+	if (cx23885_boards[dev->board].clk_freq > 0)
+		dev->clk_freq = cx23885_boards[dev->board].clk_freq;
 
 	dev->pci_bus  = dev->pci->bus->number;
 	dev->pci_slot = PCI_SLOT(dev->pci->devfn);

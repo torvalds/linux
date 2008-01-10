@@ -32,6 +32,8 @@
 struct cx23885_board cx23885_boards[] = {
 	[CX23885_BOARD_UNKNOWN] = {
 		.name		= "UNKNOWN/GENERIC",
+		/* Ensure safe default for unknown boards */
+		.clk_freq       = 0,
 		.input          = {{
 			.type   = CX23885_VMUX_COMPOSITE1,
 			.vmux   = 0,
