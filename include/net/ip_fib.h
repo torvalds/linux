@@ -165,7 +165,7 @@ struct fib_table {
 #define TABLE_LOCAL_INDEX	0
 #define TABLE_MAIN_INDEX	1
 
-static inline struct fib_table *fib_get_table(u32 id)
+static inline struct fib_table *fib_get_table(struct net *net, u32 id)
 {
 	struct hlist_head *ptr;
 
@@ -175,20 +175,20 @@ static inline struct fib_table *fib_get_table(u32 id)
 	return hlist_entry(ptr->first, struct fib_table, tb_hlist);
 }
 
-static inline struct fib_table *fib_new_table(u32 id)
+static inline struct fib_table *fib_new_table(struct net *net, u32 id)
 {
-	return fib_get_table(id);
+	return fib_get_table(net, id);
 }
 
 static inline int fib_lookup(const struct flowi *flp, struct fib_result *res)
 {
 	struct fib_table *table;
 
-	table = fib_get_table(RT_TABLE_LOCAL);
+	table = fib_get_table(&init_net, RT_TABLE_LOCAL);
 	if (!table->tb_lookup(table, flp, res))
 		return 0;
 
-	table = fib_get_table(RT_TABLE_MAIN);
+	table = fib_get_table(&init_net, RT_TABLE_MAIN);
 	if (!table->tb_lookup(table, flp, res))
 		return 0;
 	return -ENETUNREACH;
@@ -197,7 +197,7 @@ static inline int fib_lookup(const struct flowi *flp, struct fib_result *res)
 static inline void fib_select_default(const struct flowi *flp,
 				      struct fib_result *res)
 {
-	struct fib_table *table = fib_get_table(RT_TABLE_MAIN);
+	struct fib_table *table = fib_get_table(&init_net, RT_TABLE_MAIN);
 	if (FIB_RES_GW(*res) && FIB_RES_NH(*res).nh_scope == RT_SCOPE_LINK)
 		table->tb_select_default(table, flp, res);
 }
@@ -212,8 +212,8 @@ extern u32 fib_rules_tclass(struct fib_result *res);
 
 extern int fib_lookup(struct flowi *flp, struct fib_result *res);
 
-extern struct fib_table *fib_new_table(u32 id);
-extern struct fib_table *fib_get_table(u32 id);
+extern struct fib_table *fib_new_table(struct net *net, u32 id);
+extern struct fib_table *fib_get_table(struct net *net, u32 id);
 extern void fib_select_default(const struct flowi *flp, struct fib_result *res);
 
 #endif /* CONFIG_IP_MULTIPLE_TABLES */

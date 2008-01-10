@@ -93,7 +93,7 @@ static int fib4_rule_action(struct fib_rule *rule, struct flowi *flp,
 		goto errout;
 	}
 
-	if ((tbl = fib_get_table(rule->table)) == NULL)
+	if ((tbl = fib_get_table(&init_net, rule->table)) == NULL)
 		goto errout;
 
 	err = tbl->tb_lookup(tbl, flp, (struct fib_result *) arg->result);
@@ -109,7 +109,7 @@ void fib_select_default(const struct flowi *flp, struct fib_result *res)
 	if (res->r && res->r->action == FR_ACT_TO_TBL &&
 	    FIB_RES_GW(*res) && FIB_RES_NH(*res).nh_scope == RT_SCOPE_LINK) {
 		struct fib_table *tb;
-		if ((tb = fib_get_table(res->r->table)) != NULL)
+		if ((tb = fib_get_table(&init_net, res->r->table)) != NULL)
 			tb->tb_select_default(tb, flp, res);
 	}
 }
@@ -130,13 +130,13 @@ static int fib4_rule_match(struct fib_rule *rule, struct flowi *fl, int flags)
 	return 1;
 }
 
-static struct fib_table *fib_empty_table(void)
+static struct fib_table *fib_empty_table(struct net *net)
 {
 	u32 id;
 
 	for (id = 1; id <= RT_TABLE_MAX; id++)
-		if (fib_get_table(id) == NULL)
-			return fib_new_table(id);
+		if (fib_get_table(net, id) == NULL)
+			return fib_new_table(net, id);
 	return NULL;
 }
 
@@ -159,7 +159,7 @@ static int fib4_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 		if (rule->action == FR_ACT_TO_TBL) {
 			struct fib_table *table;
 
-			table = fib_empty_table();
+			table = fib_empty_table(&init_net);
 			if (table == NULL) {
 				err = -ENOBUFS;
 				goto errout;

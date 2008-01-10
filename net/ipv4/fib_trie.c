@@ -2167,12 +2167,12 @@ static int fib_triestat_seq_show(struct seq_file *seq, void *v)
 	struct fib_table *tb;
 
 	trie_local = NULL;
-	tb = fib_get_table(RT_TABLE_LOCAL);
+	tb = fib_get_table(&init_net, RT_TABLE_LOCAL);
 	if (tb)
 		trie_local = (struct trie *) tb->tb_data;
 
 	trie_main = NULL;
-	tb = fib_get_table(RT_TABLE_MAIN);
+	tb = fib_get_table(&init_net, RT_TABLE_MAIN);
 	if (tb)
 		trie_main = (struct trie *) tb->tb_data;
 
@@ -2239,12 +2239,12 @@ static void *fib_trie_seq_start(struct seq_file *seq, loff_t *pos)
 	struct fib_table *tb;
 
 	if (!iter->trie_local) {
-		tb = fib_get_table(RT_TABLE_LOCAL);
+		tb = fib_get_table(&init_net, RT_TABLE_LOCAL);
 		if (tb)
 			iter->trie_local = (struct trie *) tb->tb_data;
 	}
 	if (!iter->trie_main) {
-		tb = fib_get_table(RT_TABLE_MAIN);
+		tb = fib_get_table(&init_net, RT_TABLE_MAIN);
 		if (tb)
 			iter->trie_main = (struct trie *) tb->tb_data;
 	}

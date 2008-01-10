@@ -78,14 +78,14 @@ fail:
 }
 #else
 
-struct fib_table *fib_new_table(u32 id)
+struct fib_table *fib_new_table(struct net *net, u32 id)
 {
 	struct fib_table *tb;
 	unsigned int h;
 
 	if (id == 0)
 		id = RT_TABLE_MAIN;
-	tb = fib_get_table(id);
+	tb = fib_get_table(net, id);
 	if (tb)
 		return tb;
 	tb = fib_hash_init(id);
@@ -96,7 +96,7 @@ struct fib_table *fib_new_table(u32 id)
 	return tb;
 }
 
-struct fib_table *fib_get_table(u32 id)
+struct fib_table *fib_get_table(struct net *net, u32 id)
 {
 	struct fib_table *tb;
 	struct hlist_node *node;
@@ -148,7 +148,7 @@ struct net_device * ip_dev_find(__be32 addr)
 	res.r = NULL;
 #endif
 
-	local_table = fib_get_table(RT_TABLE_LOCAL);
+	local_table = fib_get_table(&init_net, RT_TABLE_LOCAL);
 	if (!local_table || local_table->tb_lookup(local_table, &fl, &res))
 		return NULL;
 	if (res.type != RTN_LOCAL)
@@ -183,7 +183,7 @@ static inline unsigned __inet_dev_addr_type(const struct net_device *dev,
 	res.r = NULL;
 #endif
 
-	local_table = fib_get_table(RT_TABLE_LOCAL);
+	local_table = fib_get_table(&init_net, RT_TABLE_LOCAL);
 	if (local_table) {
 		ret = RTN_UNICAST;
 		if (!local_table->tb_lookup(local_table, &fl, &res)) {
@@ -453,13 +453,13 @@ int ip_rt_ioctl(unsigned int cmd, void __user *arg)
 			struct fib_table *tb;
 
 			if (cmd == SIOCDELRT) {
-				tb = fib_get_table(cfg.fc_table);
+				tb = fib_get_table(&init_net, cfg.fc_table);
 				if (tb)
 					err = tb->tb_delete(tb, &cfg);
 				else
 					err = -ESRCH;
 			} else {
-				tb = fib_new_table(cfg.fc_table);
+				tb = fib_new_table(&init_net, cfg.fc_table);
 				if (tb)
 					err = tb->tb_insert(tb, &cfg);
 				else
@@ -573,7 +573,7 @@ static int inet_rtm_delroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *ar
 	if (err < 0)
 		goto errout;
 
-	tb = fib_get_table(cfg.fc_table);
+	tb = fib_get_table(net, cfg.fc_table);
 	if (tb == NULL) {
 		err = -ESRCH;
 		goto errout;
@@ -598,7 +598,7 @@ static int inet_rtm_newroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *ar
 	if (err < 0)
 		goto errout;
 
-	tb = fib_new_table(cfg.fc_table);
+	tb = fib_new_table(&init_net, cfg.fc_table);
 	if (tb == NULL) {
 		err = -ENOBUFS;
 		goto errout;
@@ -671,9 +671,9 @@ static void fib_magic(int cmd, int type, __be32 dst, int dst_len, struct in_ifad
 	};
 
 	if (type == RTN_UNICAST)
-		tb = fib_new_table(RT_TABLE_MAIN);
+		tb = fib_new_table(&init_net, RT_TABLE_MAIN);
 	else
-		tb = fib_new_table(RT_TABLE_LOCAL);
+		tb = fib_new_table(&init_net, RT_TABLE_LOCAL);
 
 	if (tb == NULL)
 		return;
@@ -848,7 +848,7 @@ static void nl_fib_input(struct sk_buff *skb)
 	nlh = nlmsg_hdr(skb);
 
 	frn = (struct fib_result_nl *) NLMSG_DATA(nlh);
-	tb = fib_get_table(frn->tb_id_in);
+	tb = fib_get_table(&init_net, frn->tb_id_in);
 
 	nl_fib_lookup(frn, tb);
 

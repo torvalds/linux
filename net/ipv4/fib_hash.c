@@ -796,7 +796,7 @@ struct fib_iter_state {
 static struct fib_alias *fib_get_first(struct seq_file *seq)
 {
 	struct fib_iter_state *iter = seq->private;
-	struct fib_table *main_table = fib_get_table(RT_TABLE_MAIN);
+	struct fib_table *main_table = fib_get_table(&init_net, RT_TABLE_MAIN);
 	struct fn_hash *table = (struct fn_hash *)main_table->tb_data;
 
 	iter->bucket    = 0;
@@ -937,7 +937,7 @@ static void *fib_seq_start(struct seq_file *seq, loff_t *pos)
 	void *v = NULL;
 
 	read_lock(&fib_hash_lock);
-	if (fib_get_table(RT_TABLE_MAIN))
+	if (fib_get_table(&init_net, RT_TABLE_MAIN))
 		v = *pos ? fib_get_idx(seq, *pos - 1) : SEQ_START_TOKEN;
 	return v;
 }
