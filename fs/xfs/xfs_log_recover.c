@@ -2912,7 +2912,12 @@ xlog_recover_process_data(
 				xlog_recover_new_tid(&rhash[hash], tid,
 					be64_to_cpu(rhead->h_lsn));
 		} else {
-			ASSERT(dp + be32_to_cpu(ohead->oh_len) <= lp);
+			if (dp + be32_to_cpu(ohead->oh_len) > lp) {
+				xlog_warn(
+			"XFS: xlog_recover_process_data: bad length");
+				WARN_ON(1);
+				return (XFS_ERROR(EIO));
+			}
 			flags = ohead->oh_flags & ~XLOG_END_TRANS;
 			if (flags & XLOG_WAS_CONT_TRANS)
 				flags &= ~XLOG_CONTINUE_TRANS;
