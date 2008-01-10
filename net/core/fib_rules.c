@@ -285,7 +285,7 @@ static int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 	rule->table = frh_get_table(frh, tb);
 
 	if (!rule->pref && ops->default_pref)
-		rule->pref = ops->default_pref();
+		rule->pref = ops->default_pref(ops);
 
 	err = -EINVAL;
 	if (tb[FRA_GOTO]) {
