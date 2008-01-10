@@ -1297,9 +1297,9 @@ int snd_soc_dapm_device_event(struct snd_soc_device *socdev, int event)
 	struct snd_soc_machine *machine = socdev->machine;
 
 	if (machine->dapm_event)
-				machine->dapm_event(machine, event);
+		machine->dapm_event(machine, event);
 	if (codec->dapm_event)
-				codec->dapm_event(codec, event);
+		codec->dapm_event(codec, event);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_device_event);
