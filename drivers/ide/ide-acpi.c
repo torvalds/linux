@@ -16,6 +16,7 @@
 #include <acpi/acpi.h>
 #include <linux/ide.h>
 #include <linux/pci.h>
+#include <linux/dmi.h>
 
 #include <acpi/acpi_bus.h>
 #include <acpi/acnames.h>
@@ -64,6 +65,37 @@ struct ide_acpi_hwif_link {
 extern int ide_noacpi;
 extern int ide_noacpitfs;
 extern int ide_noacpionboot;
+
+static bool ide_noacpi_psx;
+static int no_acpi_psx(const struct dmi_system_id *id)
+{
+	ide_noacpi_psx = true;
+	printk(KERN_NOTICE"%s detected - disable ACPI _PSx.\n", id->ident);
+	return 0;
+}
+
+static const struct dmi_system_id ide_acpi_dmi_table[] = {
+	/* Bug 9673. */
+	/* We should check if this is because ACPI NVS isn't save/restored. */
+	{
+		.callback = no_acpi_psx,
+		.ident    = "HP nx9005",
+		.matches  = {
+			DMI_MATCH(DMI_BIOS_VENDOR, "Phoenix Technologies Ltd."),
+			DMI_MATCH(DMI_BIOS_VERSION, "KAM1.60")
+		},
+	},
+};
+
+static int ide_acpi_blacklist(void)
+{
+	static int done;
+	if (done)
+		return 0;
+	done = 1;
+	dmi_check_system(ide_acpi_dmi_table);
+	return 0;
+}
 
 /**
  * ide_get_dev_handle - finds acpi_handle and PCI device.function
@@ -623,7 +655,7 @@ void ide_acpi_set_state(ide_hwif_t *hwif, int on)
 {
 	int unit;
 
-	if (ide_noacpi)
+	if (ide_noacpi || ide_noacpi_psx)
 		return;
 
 	DEBPRINT("ENTER:\n");
@@ -667,6 +699,8 @@ void ide_acpi_init(ide_hwif_t *hwif)
 	int			err;
 	struct ide_acpi_drive_link	*master;
 	struct ide_acpi_drive_link	*slave;
+
+	ide_acpi_blacklist();
 
 	hwif->acpidata = kzalloc(sizeof(struct ide_acpi_hwif_link), GFP_KERNEL);
 	if (!hwif->acpidata)
