@@ -287,6 +287,14 @@ static void close_delayed_work(struct work_struct *work)
 		/* are we waiting on this codec DAI stream */
 		if (codec_dai->pop_wait == 1) {
 
+			/* power down the codec to D1 if no longer active */
+			if (codec->active == 0) {
+				dbg("pop wq D1 %s %s\n", codec->name,
+					codec_dai->playback.stream_name);
+				snd_soc_dapm_device_event(socdev,
+					SNDRV_CTL_POWER_D1);
+			}
+
 			codec_dai->pop_wait = 0;
 			snd_soc_dapm_stream_event(codec,
 				codec_dai->playback.stream_name,
