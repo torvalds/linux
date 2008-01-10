@@ -33,9 +33,6 @@
 #include <linux/version.h>
 #include <linux/usb.h>
 #include <linux/videodev2.h>
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-#include <linux/videodev.h>
-#endif
 #include <linux/interrupt.h>
 #include <linux/kthread.h>
 #include <linux/highmem.h>
@@ -93,7 +90,7 @@ static struct v4l2_queryctrl tm6000_qctrl[] = {
 		.minimum       = -128,
 		.maximum       = 127,
 		.step          = 0x1,
-		.default_value = 0,		//4 ?
+		.default_value = 0,
 		.flags         = 0,
 	}
 };
@@ -105,11 +102,11 @@ static struct tm6000_fmt format[] = {
 		.name     = "4:2:2, packed, YVY2",
 		.fourcc   = V4L2_PIX_FMT_YUYV,
 		.depth    = 16,
-	},{
+	}, {
 		.name     = "4:2:2, packed, UYVY",
 		.fourcc   = V4L2_PIX_FMT_UYVY,
 		.depth    = 16,
-	},{
+	}, {
 		.name     = "A/V + VBI mux packet",
 		.fourcc   = V4L2_PIX_FMT_TM6000,
 		.depth    = 16,
@@ -125,20 +122,19 @@ static LIST_HEAD(tm6000_corelist);
 #define norm_maxw(a) 720
 #define norm_maxh(a) 576
 
-//#define norm_minw(a) norm_maxw(a)
 #define norm_minw(a) norm_maxw(a)
 #define norm_minh(a) norm_maxh(a)
 
 /*
  * video-buf generic routine to get the next available buffer
  */
-static int inline get_next_buf (struct tm6000_dmaqueue *dma_q,
-					  struct tm6000_buffer    **buf)
+static inline int get_next_buf(struct tm6000_dmaqueue *dma_q,
+			       struct tm6000_buffer   **buf)
 {
-	struct tm6000_core *dev= container_of(dma_q,struct tm6000_core,vidq);
+	struct tm6000_core *dev = container_of(dma_q, struct tm6000_core, vidq);
 
 	if (list_empty(&dma_q->active)) {
-		dprintk(dev, V4L2_DEBUG_QUEUE,"No active queue to serve\n");
+		dprintk(dev, V4L2_DEBUG_QUEUE, "No active queue to serve\n");
 		return 0;
 	}
 
@@ -151,9 +147,9 @@ static int inline get_next_buf (struct tm6000_dmaqueue *dma_q,
 /*
  * Announces that a buffer were filled and request the next
  */
-static void inline buffer_filled (struct tm6000_core *dev,
-				  struct tm6000_dmaqueue *dma_q,
-				  struct tm6000_buffer *buf)
+static inline void buffer_filled(struct tm6000_core *dev,
+				 struct tm6000_dmaqueue *dma_q,
+				 struct tm6000_buffer *buf)
 {
 	/* Nobody is waiting something to be done, just return */
 	if (!waitqueue_active(&buf->vb.done)) {
@@ -166,7 +162,7 @@ static void inline buffer_filled (struct tm6000_core *dev,
 	}
 
 	/* Advice that buffer was filled */
-	dprintk(dev, V4L2_DEBUG_ISOC, "[%p/%d] wakeup\n",buf,buf->vb.i);
+	dprintk(dev, V4L2_DEBUG_ISOC, "[%p/%d] wakeup\n", buf, buf->vb.i);
 	buf->vb.state = VIDEOBUF_DONE;
 	buf->vb.field_count++;
 	do_gettimeofday(&buf->vb.ts);
@@ -175,72 +171,61 @@ static void inline buffer_filled (struct tm6000_core *dev,
 	wake_up(&buf->vb.done);
 }
 
-/*
- * Macro to allow copying data into the proper memory type
- */
-
-#define bufcpy(buf,out_ptr,in_ptr,size) 				\
-	{								\
-		if (__copy_to_user(out_ptr,in_ptr,size)!=0)		\
-			tm6000_err("copy_to_user failed.\n");		\
-	}
-
-
-const char *tm6000_msg_type[]= {
-	"unknown(0)",   //0
-	"video",        //1
-	"audio",        //2
-	"vbi",          //3
-	"pts",          //4
-	"err",          //5
-	"unknown(6)",   //6
-	"unknown(7)",   //7
+const char *tm6000_msg_type[] = {
+	"unknown(0)",   /* 0 */
+	"video",        /* 1 */
+	"audio",        /* 2 */
+	"vbi",          /* 3 */
+	"pts",          /* 4 */
+	"err",          /* 5 */
+	"unknown(6)",   /* 6 */
+	"unknown(7)",   /* 7 */
 };
 
 /*
  * Identify the tm5600/6000 buffer header type and properly handles
  */
-static int copy_packet (struct urb *urb, u32 header, u8 **ptr, u8 *endp,
+static int copy_packet(struct urb *urb, u32 header, u8 **ptr, u8 *endp,
 			u8 *out_p, struct tm6000_buffer **buf)
 {
 	struct tm6000_dmaqueue  *dma_q = urb->context;
-	struct tm6000_core *dev= container_of(dma_q,struct tm6000_core,vidq);
+	struct tm6000_core *dev = container_of(dma_q, struct tm6000_core, vidq);
 	u8 c;
-	unsigned int cmd, cpysize, pktsize, size, field, block, line, pos=0;
-	int rc=0;
+	unsigned int cmd, cpysize, pktsize, size, field, block, line, pos = 0;
+	int rc = 0;
 	/* FIXME: move to tm6000-isoc */
-	static int last_line=-2, start_line=-2, last_field=-2;
+	static int last_line = -2, start_line = -2, last_field = -2;
 
 	/* FIXME: this is the hardcoded window size
 	 */
-	unsigned int linewidth=(*buf)->vb.width<<1;
+	unsigned int linewidth = (*buf)->vb.width << 1;
 
-	c=(header>>24) & 0xff;
+	c = (header >> 24) & 0xff;
 
 	/* split the header fields */
-	size  = (((header & 0x7e)<<1) -1) *4;
-	block = (header>>7) & 0xf;
-	field = (header>>11) & 0x1;
-	line  = (header>>12) & 0x1ff;
-	cmd   = (header>>21) & 0x7;
+	size  = (((header & 0x7e) << 1) - 1) * 4;
+	block = (header >> 7) & 0xf;
+	field = (header >> 11) & 0x1;
+	line  = (header >> 12) & 0x1ff;
+	cmd   = (header >> 21) & 0x7;
 
 	/* Validates header fields */
-	if(size>TM6000_URB_MSG_LEN)
+	if (size > TM6000_URB_MSG_LEN)
 		size = TM6000_URB_MSG_LEN;
 
 	if (cmd == TM6000_URB_MSG_VIDEO) {
-		if ((block+1)*TM6000_URB_MSG_LEN>linewidth)
+		if ((block + 1) * TM6000_URB_MSG_LEN > linewidth)
 			cmd = TM6000_URB_MSG_ERR;
 
 		/* FIXME: Mounts the image as field0+field1
 			* It should, instead, check if the user selected
 			* entrelaced or non-entrelaced mode
 			*/
-		pos= ((line<<1)+field)*linewidth +
-			block*TM6000_URB_MSG_LEN;
+		pos = ((line << 1) + field) * linewidth +
+			block * TM6000_URB_MSG_LEN;
 
 		/* Don't allow to write out of the buffer */
-		if (pos+TM6000_URB_MSG_LEN > (*buf)->vb.size) {
+		if (pos + TM6000_URB_MSG_LEN > (*buf)->vb.size) {
 			dprintk(dev, V4L2_DEBUG_ISOC,
 				"ERR: size=%d, num=%d, line=%d, "
 				"field=%d\n",
@@ -249,7 +234,7 @@ static int copy_packet (struct urb *urb, u32 header, u8 **ptr, u8 *endp,
 			cmd = TM6000_URB_MSG_ERR;
 		}
 	} else {
-		pos=0;
+		pos = 0;
 	}
 
 	/* Prints debug info */
@@ -273,60 +258,59 @@ static int copy_packet (struct urb *urb, u32 header, u8 **ptr, u8 *endp,
 	}
 	dev->isoc_ctl.last_line = line;
 
-	if ((last_line!=line)&&(last_line+1!=line) &&
-		(cmd != TM6000_URB_MSG_ERR) )  {
+	if ((last_line != line) && (last_line + 1 != line) &&
+		(cmd != TM6000_URB_MSG_ERR))  {
 		if (cmd != TM6000_URB_MSG_VIDEO)  {
 			dprintk(dev, V4L2_DEBUG_ISOC,  "cmd=%d, "
 				"size=%d, num=%d, line=%d, field=%d\n",
 				cmd, size, block, line, field);
 		}
-		if (start_line<0)
-			start_line=last_line;
+		if (start_line < 0)
+			start_line = last_line;
 		/* Prints debug info */
 		dprintk(dev, V4L2_DEBUG_ISOC, "lines= %d-%d, "
 				"field=%d\n",
 				start_line, last_line, field);
 
-		if ((start_line<6 && last_line>200) &&
-			(last_field != field) ) {
+		if ((start_line < 6 && last_line > 200) &&
+			(last_field != field)) {
 
 			dev->isoc_ctl.nfields++;
-			if (dev->isoc_ctl.nfields>=2) {
-				dev->isoc_ctl.nfields=0;
-			}
+			if (dev->isoc_ctl.nfields >= 2)
+				dev->isoc_ctl.nfields = 0;
 		}
 
-		start_line=line;
-		last_field=field;
+		start_line = line;
+		last_field = field;
 	}
-	last_line=line;
+	last_line = line;
 
 	pktsize = TM6000_URB_MSG_LEN;
 
-	cpysize=(endp-(*ptr)>size)?size:endp-(*ptr);
+	cpysize = (endp-(*ptr) > size) ? size : endp - *ptr;
 
 	if (cpysize) {
 		/* handles each different URB message */
-		switch(cmd) {
+		switch (cmd) {
 		case TM6000_URB_MSG_VIDEO:
 			/* Fills video buffer */
-			if (__copy_to_user(&out_p[pos],*ptr,cpysize)!=0)
+			if (__copy_to_user(&out_p[pos], *ptr, cpysize) != 0)
 				tm6000_err("copy_to_user failed.\n");
 
 			break;
 		case TM6000_URB_MSG_PTS:
 			break;
 		case TM6000_URB_MSG_AUDIO:
-/* Need some code to process audio */
-printk ("%ld: cmd=%s, size=%d\n", jiffies,
-				tm6000_msg_type[cmd],size);
+			/* Need some code to process audio */
+			printk(KERN_INFO "%ld: cmd=%s, size=%d\n", jiffies,
+				tm6000_msg_type[cmd], size);
 			break;
 		default:
-			dprintk (dev, V4L2_DEBUG_ISOC, "cmd=%s, size=%d\n",
-						tm6000_msg_type[cmd],size);
+			dprintk(dev, V4L2_DEBUG_ISOC, "cmd=%s, size=%d\n",
+						tm6000_msg_type[cmd], size);
 		}
 	}
-	(*ptr)+=cpysize;
+	(*ptr) += cpysize;
 
 	return rc;
 }
@@ -335,10 +319,10 @@ static int copy_streams(u8 *data, u8 *out_p, unsigned long len,
 			struct urb *urb, struct tm6000_buffer **buf)
 {
 	struct tm6000_dmaqueue  *dma_q = urb->context;
-	struct tm6000_core *dev= container_of(dma_q,struct tm6000_core,vidq);
+	struct tm6000_core *dev = container_of(dma_q, struct tm6000_core, vidq);
 	u8 *ptr, *endp;
-	unsigned long header=0;
-	int rc=0, size;
+	unsigned long header = 0;
+	int rc = 0, size;
 
 	/* Process pending data */
 	if (dev->isoc_ctl.pending) {
@@ -347,26 +331,26 @@ static int copy_streams(u8 *data, u8 *out_p, unsigned long len,
 
 		/* Seek for sync */
 		endp = dev->isoc_ctl.tbuf + sizeof(dev->isoc_ctl.tbuf);
-		for (ptr = dev->isoc_ctl.tbuf;ptr < endp - 3;ptr++) {
+		for (ptr = dev->isoc_ctl.tbuf; ptr < endp - 3; ptr++) {
 			if (*(ptr + 3) == 0x47)
 				break;
 		}
-		header=*(unsigned long *)ptr;
-		size  = (((header & 0x7e) << 1) - 1) * 4;
-		if(size > TM6000_URB_MSG_LEN)
+		header = *(unsigned long *)ptr;
+		size   = (((header & 0x7e) << 1) - 1) * 4;
+		if (size > TM6000_URB_MSG_LEN)
 			size = TM6000_URB_MSG_LEN;
 
-		if (ptr+3+size >= endp) {
+		if (ptr + 3 + size >= endp) {
 			printk(KERN_ERR "tm6000: broken data\n");
 			ptr = data;
 			goto process_new_uri;
 		}
-		ptr+=4;
+		ptr += 4;
 
 		/* Copy or continue last copy */
-		rc=copy_packet(urb, header, &ptr, endp, out_p, buf);
-		if (rc<0) {
-			buf=NULL;
+		rc = copy_packet(urb, header, &ptr, endp, out_p, buf);
+		if (rc < 0) {
+			buf = NULL;
 			printk(KERN_ERR "tm6000: buffer underrun at %ld\n",
 					jiffies);
 			return rc;
@@ -378,33 +362,33 @@ static int copy_streams(u8 *data, u8 *out_p, unsigned long len,
 
 process_new_uri:
 	endp = data + len;
-	while (ptr<endp) {
+	while (ptr < endp) {
 		if (!dev->isoc_ctl.pending) {
 			/* Seek for sync */
-			for (;ptr<endp-3;ptr++) {
-				if (*(ptr+3)==0x47)
+			for (; ptr < endp - 3; ptr++) {
+				if (*(ptr + 3) == 0x47)
 					break;
 			}
-			header=*(unsigned long *)ptr;
-			size  = (((header & 0x7e)<<1) -1) *4;
-			if(size>TM6000_URB_MSG_LEN)
+			header = *(unsigned long *)ptr;
+			size   = (((header & 0x7e) << 1) - 1) * 4;
+			if (size > TM6000_URB_MSG_LEN)
 				size = TM6000_URB_MSG_LEN;
 
-			if (ptr+3+size >= endp) {
+			if (ptr + 3 + size >= endp) {
 				int len = endp - ptr;
 
-				memcpy (dev->isoc_ctl.tbuf, ptr, len);
+				memcpy(dev->isoc_ctl.tbuf, ptr, len);
 				dev->isoc_ctl.len = len;
 				dev->isoc_ctl.pending = 1;
 				return rc;
 			}
-			ptr+=4;
+			ptr += 4;
 		}
 
 		/* Copy or continue last copy */
-		rc=copy_packet(urb, header, &ptr, endp, out_p, buf);
-		if (rc<0) {
-			buf=NULL;
+		rc = copy_packet(urb, header, &ptr, endp, out_p, buf);
+		if (rc < 0) {
+			buf = NULL;
 			printk(KERN_ERR "tm6000: buffer underrun at %ld\n",
 					jiffies);
 			return rc;
@@ -420,40 +404,42 @@ static int copy_multiplexed(u8 *ptr, u8 *out_p, unsigned long len,
 			struct urb *urb, struct tm6000_buffer **buf)
 {
 	struct tm6000_dmaqueue  *dma_q = urb->context;
-	struct tm6000_core *dev= container_of(dma_q,struct tm6000_core,vidq);
-	unsigned int pos=dev->isoc_ctl.pos,cpysize;
-	int rc=1;
+	struct tm6000_core *dev = container_of(dma_q, struct tm6000_core, vidq);
+	unsigned int pos = dev->isoc_ctl.pos, cpysize;
+	int rc = 1;
 
-	while (len>0) {
-		cpysize=min(len,(*buf)->vb.size-pos);
-//printk("Copying %d bytes (max=%lu) from %p to %p[%u]\n",cpysize,(*buf)->vb.size,ptr,out_p,pos);
-		bufcpy(*buf,&out_p[pos],ptr,cpysize);
-		pos+=cpysize;
-		ptr+=cpysize;
-		len-=cpysize;
+	while (len > 0) {
+		cpysize = min(len, (*buf)->vb.size-pos);
+
+		if (__copy_to_user(&out_p[pos], ptr, cpysize) != 0)
+			tm6000_err("copy_to_user failed.\n");
+
+		pos += cpysize;
+		ptr += cpysize;
+		len -= cpysize;
 		if (pos >= (*buf)->vb.size) {
-			pos=0;
+			pos = 0;
 			/* Announces that a new buffer were filled */
-			buffer_filled (dev, dma_q, *buf);
+			buffer_filled(dev, dma_q, *buf);
 			dprintk(dev, V4L2_DEBUG_ISOC, "new buffer filled\n");
-			rc=get_next_buf (dma_q, buf);
-			if (rc<=0) {
-				*buf=NULL;
+			rc = get_next_buf(dma_q, buf);
+			if (rc <= 0) {
+				*buf = NULL;
 				break;
 			}
 		}
 	}
 
-	dev->isoc_ctl.pos=pos;
+	dev->isoc_ctl.pos = pos;
 	return rc;
 }
 
-static void inline print_err_status (struct tm6000_core *dev,
-				     int packet, int status)
+static inline void print_err_status(struct tm6000_core *dev,
+				   int packet, int status)
 {
 	char *errmsg = "Unknown";
 
-	switch(status) {
+	switch (status) {
 	case -ENOENT:
 		errmsg = "unlinked synchronuously";
 		break;
@@ -479,11 +465,12 @@ static void inline print_err_status (struct tm6000_core *dev,
 		errmsg = "Device does not respond";
 		break;
 	}
-	if (packet<0) {
+	if (packet < 0) {
 		dprintk(dev, V4L2_DEBUG_QUEUE, "URB status %d [%s].\n",
 			status, errmsg);
 	} else {
-		dprintk(dev, V4L2_DEBUG_QUEUE, "URB packet %d, status %d [%s].\n",
+		dprintk(dev, V4L2_DEBUG_QUEUE,
+			"URB packet %d, status %d [%s].\n",
 			packet, status, errmsg);
 	}
 }
@@ -495,45 +482,40 @@ static void inline print_err_status (struct tm6000_core *dev,
 static inline int tm6000_isoc_copy(struct urb *urb, struct tm6000_buffer **buf)
 {
 	struct tm6000_dmaqueue  *dma_q = urb->context;
-	struct tm6000_core *dev= container_of(dma_q,struct tm6000_core,vidq);
-	void *outp=videobuf_to_vmalloc (&((*buf)->vb));
-	int i, len=0, rc=1;
-	int size=(*buf)->vb.size;
+	struct tm6000_core *dev = container_of(dma_q, struct tm6000_core, vidq);
+	void *outp = videobuf_to_vmalloc(&((*buf)->vb));
+	int i, len = 0, rc = 1;
+	int size = (*buf)->vb.size;
 	char *p;
-	unsigned long copied;
+	unsigned long copied = 0;
 
-	copied=0;
-
-	if (urb->status<0) {
-		print_err_status (dev,-1,urb->status);
+	if (urb->status < 0) {
+		print_err_status(dev, -1, urb->status);
 		return 0;
 	}
 
 	for (i = 0; i < urb->number_of_packets; i++) {
 		int status = urb->iso_frame_desc[i].status;
 
-		if (status<0) {
-			print_err_status (dev,i,status);
+		if (status < 0) {
+			print_err_status(dev, i, status);
 			continue;
 		}
 
-		len=urb->iso_frame_desc[i].actual_length;
+		len = urb->iso_frame_desc[i].actual_length;
 
-//		if (len>=TM6000_URB_MSG_LEN) {
-			p=urb->transfer_buffer + urb->iso_frame_desc[i].offset;
-			if (!urb->iso_frame_desc[i].status) {
-				if (((*buf)->fmt->fourcc)==V4L2_PIX_FMT_TM6000) {
-					rc=copy_multiplexed(p,outp,len,urb,buf);
-					if (rc<=0)
-						return rc;
-				} else {
-					copy_streams(p,outp,len,urb,buf);
-				}
-			}
-			copied += len;
-			if (copied>=size)
-				break;
-//		}
+		p = urb->transfer_buffer + urb->iso_frame_desc[i].offset;
+		if (!urb->iso_frame_desc[i].status) {
+			if (((*buf)->fmt->fourcc) == V4L2_PIX_FMT_TM6000) {
+				rc = copy_multiplexed(p, outp, len, urb, buf);
+				if (rc <= 0)
+					return rc;
+			} else
+				copy_streams(p, outp, len, urb, buf);
+		}
+		copied += len;
+		if (copied >= size)
+			break;
 	}
 	return rc;
 }
@@ -549,43 +531,41 @@ static void tm6000_irq_callback(struct urb *urb)
 {
 	struct tm6000_buffer    *buf;
 	struct tm6000_dmaqueue  *dma_q = urb->context;
-	struct tm6000_core *dev= container_of(dma_q,struct tm6000_core,vidq);
-	int rc,i;
+	struct tm6000_core *dev = container_of(dma_q, struct tm6000_core, vidq);
+	int rc, i;
 	unsigned long flags;
 
-	spin_lock_irqsave(&dev->slock,flags);
+	spin_lock_irqsave(&dev->slock, flags);
 
-	buf=dev->isoc_ctl.buf;
+	buf = dev->isoc_ctl.buf;
 
 	if (!buf) {
-		rc=get_next_buf (dma_q, &buf);
-		if (rc<=0)
+		rc = get_next_buf(dma_q, &buf);
+		if (rc <= 0)
 			goto ret;
 	}
 
 	/* Copy data from URB */
-	rc=tm6000_isoc_copy(urb, &buf);
+	rc = tm6000_isoc_copy(urb, &buf);
 
-	dev->isoc_ctl.buf=buf;
+	dev->isoc_ctl.buf = buf;
 ret:
 	/* Reset urb buffers */
 	for (i = 0; i < urb->number_of_packets; i++) {
 		urb->iso_frame_desc[i].status = 0;
 		urb->iso_frame_desc[i].actual_length = 0;
 	}
-	urb->status = 0;
 
-	if ((urb->status = usb_submit_urb(urb, GFP_ATOMIC))) {
+	urb->status = usb_submit_urb(urb, GFP_ATOMIC);
+	if (urb->status)
 		tm6000_err("urb resubmit failed (error=%i)\n",
 			urb->status);
-	}
 
-	if (rc>=0) {
-			/* Data filled, reset watchdog */
-			mod_timer(&dma_q->timeout, jiffies+BUFFER_TIMEOUT);
-//		}
-	}
-	spin_unlock_irqrestore(&dev->slock,flags);
+	/* Data filled, reset watchdog */
+	if (rc >= 0)
+		mod_timer(&dma_q->timeout, jiffies+BUFFER_TIMEOUT);
+
+	spin_unlock_irqrestore(&dev->slock, flags);
 }
 
 /*
@@ -641,7 +621,7 @@ static int tm6000_prepare_isoc(struct tm6000_core *dev,
 		     int max_packets, int num_bufs)
 {
 	struct tm6000_dmaqueue *dma_q = &dev->vidq;
-	int i, rc;
+	int i;
 	int sb_size, pipe;
 	struct urb *urb;
 	int j, k;
@@ -699,7 +679,6 @@ static int tm6000_prepare_isoc(struct tm6000_core *dev,
 			return -ENOMEM;
 		}
 		memset(dev->isoc_ctl.transfer_buffer[i], 0, sb_size);
-
 
 		pipe=usb_rcvisocpipe(dev->udev,
 					dev->isoc_in->desc.bEndpointAddress &
