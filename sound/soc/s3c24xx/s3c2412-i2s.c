@@ -79,6 +79,10 @@ struct s3c2412_i2s_info {
 	struct clk	*iis_clk;
 	struct clk	*iis_pclk;
 	struct clk	*iis_cclk;
+
+	u32		 suspend_iismod;
+	u32		 suspend_iiscon;
+	u32		 suspend_iispsr;
 };
 
 static struct s3c2412_i2s_info s3c2412_i2s;
@@ -641,6 +645,63 @@ static int s3c2412_i2s_probe(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int s3c2412_i2s_suspend(struct platform_device *dev,
+			      struct snd_soc_cpu_dai *dai)
+{
+	struct s3c2412_i2s_info *i2s = &s3c2412_i2s;
+	u32 iismod;
+
+	if (dai->active) {
+		i2s->suspend_iismod = readl(i2s->regs + S3C2412_IISMOD);
+		i2s->suspend_iiscon = readl(i2s->regs + S3C2412_IISCON);
+		i2s->suspend_iispsr = readl(i2s->regs + S3C2412_IISPSR);
+
+		/* some basic suspend checks */
+
+		iismod = readl(i2s->regs + S3C2412_IISMOD);
+
+		if (iismod & S3C2412_IISCON_RXDMA_ACTIVE)
+			dev_warn(&dev->dev, "%s: RXDMA active?\n", __func__);
+
+		if (iismod & S3C2412_IISCON_TXDMA_ACTIVE)
+			dev_warn(&dev->dev, "%s: TXDMA active?\n", __func__);
+
+		if (iismod & S3C2412_IISCON_IIS_ACTIVE)
+			dev_warn(&dev->dev, "%s: IIS active\n", __func__);
+	}
+
+	return 0;
+}
+
+static int s3c2412_i2s_resume(struct platform_device *pdev,
+			      struct snd_soc_cpu_dai *dai)
+{
+	struct s3c2412_i2s_info *i2s = &s3c2412_i2s;
+
+	dev_info(&pdev->dev, "dai_active %d, IISMOD %08x, IISCON %08x\n",
+		 dai->active, i2s->suspend_iismod, i2s->suspend_iiscon);
+
+	if (dai->active) {
+		writel(i2s->suspend_iiscon, i2s->regs + S3C2412_IISCON);
+		writel(i2s->suspend_iismod, i2s->regs + S3C2412_IISMOD);
+		writel(i2s->suspend_iispsr, i2s->regs + S3C2412_IISPSR);
+
+		writel(S3C2412_IISFIC_RXFLUSH | S3C2412_IISFIC_TXFLUSH,
+		       i2s->regs + S3C2412_IISFIC);
+
+		ndelay(250);
+		writel(0x0, i2s->regs + S3C2412_IISFIC);
+
+	}
+
+	return 0;
+}
+#else
+#define s3c2412_i2s_suspend NULL
+#define s3c2412_i2s_resume  NULL
+#endif /* CONFIG_PM */
+
 #define S3C2412_I2S_RATES \
 	(SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 | SNDRV_PCM_RATE_16000 | \
 	SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 | \
@@ -651,6 +712,8 @@ struct snd_soc_cpu_dai s3c2412_i2s_dai = {
 	.id	= 0,
 	.type	= SND_SOC_DAI_I2S,
 	.probe	= s3c2412_i2s_probe,
+	.suspend = s3c2412_i2s_suspend,
+	.resume = s3c2412_i2s_resume,
 	.playback = {
 		.channels_min	= 2,
 		.channels_max	= 2,
