@@ -201,9 +201,9 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	/* TODO: check to see if we are in some sort of deferred HWERR
 	 * that we should be able to recover from, not kernel panic
 	 */
-	if ((bfin_read_IPEND() & 0xFFC0)
+	if ((bfin_read_IPEND() & 0xFFC0) && (trapnr != VEC_STEP)
 #ifdef CONFIG_KGDB
-		&& trapnr != VEC_EXCPT02
+		&& (trapnr != VEC_EXCPT02)
 #endif
 	){
 		console_verbose();
