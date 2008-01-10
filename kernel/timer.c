@@ -978,7 +978,7 @@ asmlinkage long sys_getppid(void)
 	int pid;
 
 	rcu_read_lock();
-	pid = task_ppid_nr_ns(current, current->nsproxy->pid_ns);
+	pid = task_tgid_nr_ns(current->real_parent, current->nsproxy->pid_ns);
 	rcu_read_unlock();
 
 	return pid;

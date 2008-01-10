@@ -1255,13 +1255,6 @@ struct pid_namespace;
  *
  * set_task_vxid()   : assigns a virtual id to a task;
  *
- * task_ppid_nr_ns() : the parent's id as seen from the namespace specified.
- *                     the result depends on the namespace and whether the
- *                     task in question is the namespace's init. e.g. for the
- *                     namespace's init this will return 0 when called from
- *                     the namespace of this init, or appropriate id otherwise.
- *
- *
  * see also pid_nr() etc in include/linux/pid.h
  */
 
@@ -1316,12 +1309,6 @@ static inline pid_t task_session_vnr(struct task_struct *tsk)
 	return pid_vnr(task_session(tsk));
 }
 
-
-static inline pid_t task_ppid_nr_ns(struct task_struct *tsk,
-		struct pid_namespace *ns)
-{
-	return pid_nr_ns(task_pid(rcu_dereference(tsk->real_parent)), ns);
-}
 
 /**
  * pid_alive - check that a task structure is not stale
