@@ -82,13 +82,6 @@ struct frag_queue
 	__u16			nhoffset;
 };
 
-struct inet_frags_ctl ip6_frags_ctl __read_mostly = {
-	.high_thresh 	 = 256 * 1024,
-	.low_thresh	 = 192 * 1024,
-	.timeout	 = IPV6_FRAG_TIMEOUT,
-	.secret_interval = 10 * 60 * HZ,
-};
-
 static struct inet_frags ip6_frags;
 
 int ip6_frag_nqueues(void)
@@ -605,7 +598,7 @@ static int ipv6_frag_rcv(struct sk_buff *skb)
 		return 1;
 	}
 
-	if (atomic_read(&ip6_frags.mem) > ip6_frags_ctl.high_thresh)
+	if (atomic_read(&ip6_frags.mem) > init_net.ipv6.sysctl.frags.high_thresh)
 		ip6_evictor(ip6_dst_idev(skb->dst));
 
 	if ((fq = fq_find(fhdr->identification, &hdr->saddr, &hdr->daddr,
@@ -632,6 +625,11 @@ static struct inet6_protocol frag_protocol =
 	.flags		=	INET6_PROTO_NOPOLICY,
 };
 
+void ipv6_frag_sysctl_init(struct net *net)
+{
+	ip6_frags.ctl = &net->ipv6.sysctl.frags;
+}
+
 int __init ipv6_frag_init(void)
 {
 	int ret;
@@ -639,7 +637,7 @@ int __init ipv6_frag_init(void)
 	ret = inet6_add_protocol(&frag_protocol, IPPROTO_FRAGMENT);
 	if (ret)
 		goto out;
-	ip6_frags.ctl = &ip6_frags_ctl;
+
 	ip6_frags.hashfn = ip6_hashfn;
 	ip6_frags.constructor = ip6_frag_init;
 	ip6_frags.destructor = NULL;

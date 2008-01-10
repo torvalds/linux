@@ -72,6 +72,8 @@ MODULE_LICENSE("GPL");
 static struct list_head inetsw6[SOCK_MAX];
 static DEFINE_SPINLOCK(inetsw6_lock);
 
+void ipv6_frag_sysctl_init(struct net *net);
+
 static __inline__ struct ipv6_pinfo *inet6_sk_generic(struct sock *sk)
 {
 	const int offset = sk->sk_prot->obj_size - sizeof(struct ipv6_pinfo);
@@ -720,6 +722,12 @@ static void cleanup_ipv6_mibs(void)
 static int inet6_net_init(struct net *net)
 {
 	net->ipv6.sysctl.bindv6only = 0;
+	net->ipv6.sysctl.frags.high_thresh = 256 * 1024;
+	net->ipv6.sysctl.frags.low_thresh = 192 * 1024;
+	net->ipv6.sysctl.frags.timeout = IPV6_FRAG_TIMEOUT;
+	net->ipv6.sysctl.frags.secret_interval = 10 * 60 * HZ;
+	ipv6_frag_sysctl_init(net);
+
 	return 0;
 }
 
