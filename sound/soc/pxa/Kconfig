@@ -53,3 +53,12 @@ config SND_PXA2XX_SOC_TOSA
 	help
 	  Say Y if you want to add support for SoC audio on Sharp
 	  Zaurus SL-C6000x models (Tosa).
+
+config SND_PXA2XX_SOC_E800
+	tristate "SoC AC97 Audio support for e800"
+	depends on SND_PXA2XX_SOC && MACH_E800
+	select SND_SOC_WM9712
+	select SND_PXA2XX_SOC_AC97
+	help
+	  Say Y if you want to add support for SoC audio on the
+	  Toshiba e800 PDA
