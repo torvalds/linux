@@ -314,5 +314,5 @@ static int __init fib_default_rules_init(void)
 void __init fib4_rules_init(void)
 {
 	BUG_ON(fib_default_rules_init());
-	fib_rules_register(&fib4_rules_ops);
+	fib_rules_register(&init_net, &fib4_rules_ops);
 }
