@@ -1041,15 +1041,15 @@ static const struct file_operations fib_seq_fops = {
 	.release	= seq_release_private,
 };
 
-int __init fib_proc_init(void)
+int __net_init fib_proc_init(struct net *net)
 {
-	if (!proc_net_fops_create(&init_net, "route", S_IRUGO, &fib_seq_fops))
+	if (!proc_net_fops_create(net, "route", S_IRUGO, &fib_seq_fops))
 		return -ENOMEM;
 	return 0;
 }
 
-void __init fib_proc_exit(void)
+void __net_exit fib_proc_exit(struct net *net)
 {
-	proc_net_remove(&init_net, "route");
+	proc_net_remove(net, "route");
 }
 #endif /* CONFIG_PROC_FS */

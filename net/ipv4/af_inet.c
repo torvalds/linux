@@ -1475,14 +1475,14 @@ static int __init ipv4_proc_init(void)
 		goto out_tcp;
 	if (udp4_proc_init())
 		goto out_udp;
-	if (fib_proc_init())
+	if (fib_proc_init(&init_net))
 		goto out_fib;
 	if (ip_misc_proc_init())
 		goto out_misc;
 out:
 	return rc;
 out_misc:
-	fib_proc_exit();
+	fib_proc_exit(&init_net);
 out_fib:
 	udp4_proc_exit();
 out_udp:
