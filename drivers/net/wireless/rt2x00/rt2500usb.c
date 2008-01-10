@@ -1140,15 +1140,12 @@ static void rt2500usb_fill_rxdone(struct data_entry *entry,
 	desc->my_bss = !!rt2x00_get_field32(word0, RXD_W0_MY_BSS);
 
 	/*
-	 * Trim the skb to clear the descriptor area.
-	 */
-	skb_pull(entry->skb, entry->ring->desc_size);
-
-	/*
 	 * Set descriptor and data pointer.
 	 */
-	skbdesc->desc = entry->skb->data + skbdesc->data_len;
+	skbdesc->desc = entry->skb->data + desc->size;
+	skbdesc->desc_len = entry->ring->desc_size;
 	skbdesc->data = entry->skb->data;
+	skbdesc->data_len = desc->size;
 }
 
 /*

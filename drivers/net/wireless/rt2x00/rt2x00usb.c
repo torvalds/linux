@@ -257,6 +257,13 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	if (urb->actual_length < entry->ring->desc_size || urb->status)
 		goto skip_entry;
 
+	/*
+	 * Fill in skb descriptor
+	 */
+	skbdesc = get_skb_desc(entry->skb);
+	skbdesc->ring = ring;
+	skbdesc->entry = entry;
+
 	memset(&desc, 0, sizeof(desc));
 	rt2x00dev->ops->lib->fill_rxdone(entry, &desc);
 
@@ -283,9 +290,6 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	/*
 	 * The data behind the ieee80211 header must be
 	 * aligned on a 4 byte boundary.
-	 * After that trim the entire buffer down to only
-	 * contain the valid frame data excluding the device
-	 * descriptor.
 	 */
 	hdr = (struct ieee80211_hdr *)entry->skb->data;
 	header_size =
@@ -295,16 +299,17 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 		skb_push(entry->skb, 2);
 		memmove(entry->skb->data, entry->skb->data + 2, skb->len - 2);
 	}
-	skb_trim(entry->skb, desc.size);
 
 	/*
-	 * Fill in skb descriptor
+	 * Trim the entire buffer down to only contain the valid frame data
+	 * excluding the device descriptor. The position of the descriptor
+	 * varies. This means that we should check where the descriptor is
+	 * and decide if we need to pull the data pointer to exclude the
+	 * device descriptor.
 	 */
-	skbdesc = get_skb_desc(entry->skb);
-	skbdesc->desc_len = entry->ring->desc_size;
-	skbdesc->data_len = entry->skb->len;
-	skbdesc->ring = ring;
-	skbdesc->entry = entry;
+	if (skbdesc->data > skbdesc->desc)
+		skb_pull(entry->skb, skbdesc->desc_len);
+	skb_trim(entry->skb, desc.size);
 
 	/*
 	 * Send the frame to rt2x00lib for further processing.

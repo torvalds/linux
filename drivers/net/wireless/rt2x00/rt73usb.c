@@ -1398,15 +1398,12 @@ static void rt73usb_fill_rxdone(struct data_entry *entry,
 	desc->my_bss = !!rt2x00_get_field32(word0, RXD_W0_MY_BSS);
 
 	/*
-	 * Pull the skb to clear the descriptor area.
-	 */
-	skb_pull(entry->skb, entry->ring->desc_size);
-
-	/*
 	 * Set descriptor and data pointer.
 	 */
-	skbdesc->desc = entry->skb->data - skbdesc->desc_len;
-	skbdesc->data = entry->skb->data;
+	skbdesc->desc = entry->skb->data;
+	skbdesc->desc_len = entry->ring->desc_size;
+	skbdesc->data = entry->skb->data + entry->ring->desc_size;
+	skbdesc->data_len = desc->size;
 }
 
 /*
