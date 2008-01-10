@@ -4,7 +4,7 @@
  *  This is used to handle HID-input mappings for devices violating
  *  HUT 1.12 specification.
  *
- * Copyright (c) 2007 Jiri Kosina
+ * Copyright (c) 2007-2008 Jiri Kosina
  */
 
 /*
@@ -296,7 +296,8 @@ static int quirk_btc_8193(struct hid_usage *usage, struct input_dev *input,
 #define VENDOR_ID_MICROSOFT			0x045e
 #define DEVICE_ID_MS4K				0x00db
 #define DEVICE_ID_MS6K				0x00f9
-#define DEVICE_ID_MS_PRESENTER_8K		0x0713
+#define DEVICE_IS_MS_PRESENTER_8K_BT		0x0701
+#define DEVICE_ID_MS_PRESENTER_8K_USB		0x0713
 
 #define VENDOR_ID_MONTEREY			0x0566
 #define DEVICE_ID_GENIUS_KB29E			0x3004
@@ -324,7 +325,8 @@ static const struct hid_input_blacklist {
 
 	{ VENDOR_ID_MICROSOFT, DEVICE_ID_MS4K, quirk_microsoft_ergonomy_kb },
 	{ VENDOR_ID_MICROSOFT, DEVICE_ID_MS6K, quirk_microsoft_ergonomy_kb },
-	{ VENDOR_ID_MICROSOFT, DEVICE_ID_MS_PRESENTER_8K, quirk_microsoft_presenter_8k },
+	{ VENDOR_ID_MICROSOFT, DEVICE_IS_MS_PRESENTER_8K_BT, quirk_microsoft_presenter_8k },
+	{ VENDOR_ID_MICROSOFT, DEVICE_ID_MS_PRESENTER_8K_USB, quirk_microsoft_presenter_8k },
 
 	{ VENDOR_ID_MONTEREY, DEVICE_ID_GENIUS_KB29E, quirk_cherry_genius_29e },
 
