@@ -832,7 +832,17 @@ unsigned ipath_get_pkey(struct ipath_devdata *, unsigned);
 
 extern const enum ib_wc_opcode ib_ipath_wc_opcode[];
 
+/*
+ * Below converts HCA-specific LinkTrainingState to IB PhysPortState
+ * values.
+ */
 extern const u8 ipath_cvt_physportstate[];
+#define IB_PHYSPORTSTATE_SLEEP 1
+#define IB_PHYSPORTSTATE_POLL 2
+#define IB_PHYSPORTSTATE_DISABLED 3
+#define IB_PHYSPORTSTATE_CFG_TRAIN 4
+#define IB_PHYSPORTSTATE_LINKUP 5
+#define IB_PHYSPORTSTATE_LINK_ERR_RECOVER 6
 
 extern const int ib_ipath_state_ops[];
 
