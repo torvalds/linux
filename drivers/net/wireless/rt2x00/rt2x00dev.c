@@ -1239,11 +1239,16 @@ static int rt2x00lib_alloc_rings(struct rt2x00_dev *rt2x00dev)
 
 	/*
 	 * Initialize ring parameters.
-	 * cw_min: 2^5 = 32.
-	 * cw_max: 2^10 = 1024.
+	 * RX: queue_idx = 0
+	 * TX: queue_idx = IEEE80211_TX_QUEUE_DATA0 + index
+	 * TX: cw_min: 2^5 = 32.
+	 * TX: cw_max: 2^10 = 1024.
 	 */
-	index = 0;
-	ring_for_each(rt2x00dev, ring) {
+	rt2x00dev->rx->rt2x00dev = rt2x00dev;
+	rt2x00dev->rx->queue_idx = 0;
+
+	index = IEEE80211_TX_QUEUE_DATA0;
+	txring_for_each(rt2x00dev, ring) {
 		ring->rt2x00dev = rt2x00dev;
 		ring->queue_idx = index++;
 		ring->tx_params.aifs = 2;
