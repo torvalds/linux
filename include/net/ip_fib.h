@@ -120,8 +120,6 @@ struct fib_result_nl {
 	int             err;      
 };
 
-extern struct hlist_head fib_table_hash[];
-
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 
 #define FIB_RES_NH(res)		((res).fi->fib_nh[(res).nh_sel])
@@ -170,8 +168,8 @@ static inline struct fib_table *fib_get_table(struct net *net, u32 id)
 	struct hlist_head *ptr;
 
 	ptr = id == RT_TABLE_LOCAL ?
-		&fib_table_hash[TABLE_LOCAL_INDEX] :
-		&fib_table_hash[TABLE_MAIN_INDEX];
+		&net->ipv4.fib_table_hash[TABLE_LOCAL_INDEX] :
+		&net->ipv4.fib_table_hash[TABLE_MAIN_INDEX];
 	return hlist_entry(ptr->first, struct fib_table, tb_hlist);
 }
 
