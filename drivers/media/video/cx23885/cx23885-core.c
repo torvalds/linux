@@ -702,6 +702,44 @@ static int cx23885_init_tsport(struct cx23885_dev *dev, struct cx23885_tsport *p
 	return 0;
 }
 
+static void cx23885_dev_checkrevision(struct cx23885_dev *dev)
+{
+	switch (cx_read(RDR_CFG2) & 0xff) {
+	case 0x00:
+		/* cx23885 */
+		dev->hwrevision = 0xa0;
+		break;
+	case 0x01:
+		/* CX23885-12Z */
+		dev->hwrevision = 0xa1;
+		break;
+	case 0x02:
+		/* CX23885-13Z */
+		dev->hwrevision = 0xb0;
+		break;
+	case 0x03:
+		/* CX23888-22Z */
+		dev->hwrevision = 0xc0;
+		break;
+	case 0x0e:
+		/* CX23887-15Z */
+		dev->hwrevision = 0xc0;
+	case 0x0f:
+		/* CX23887-14Z */
+		dev->hwrevision = 0xb1;
+		break;
+	default:
+		printk(KERN_ERR "%s() New hardware revision found 0x%x\n",
+			__FUNCTION__, dev->hwrevision);
+	}
+	if (dev->hwrevision)
+		printk(KERN_INFO "%s() Hardware revision = 0x%02x\n",
+			__FUNCTION__, dev->hwrevision);
+	else
+		printk(KERN_ERR "%s() Hardware revision unknown 0x%x\n",
+			__FUNCTION__, dev->hwrevision);
+}
+
 static int cx23885_dev_setup(struct cx23885_dev *dev)
 {
 	int i;
@@ -831,6 +869,8 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 			       __FUNCTION__);
 		}
 	}
+
+	cx23885_dev_checkrevision(dev);
 
 	return 0;
 }
