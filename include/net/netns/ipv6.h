@@ -11,6 +11,7 @@ struct netns_sysctl_ipv6 {
 #ifdef CONFIG_SYSCTL
 	struct ctl_table_header *table;
 #endif
+	int bindv6only;
 };
 
 struct netns_ipv6 {

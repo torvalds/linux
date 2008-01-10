@@ -66,8 +66,6 @@ MODULE_AUTHOR("Cast of dozens");
 MODULE_DESCRIPTION("IPv6 protocol stack for Linux");
 MODULE_LICENSE("GPL");
 
-int sysctl_ipv6_bindv6only __read_mostly;
-
 /* The inetsw6 table contains everything that inet6_create needs to
  * build a new socket.
  */
@@ -193,7 +191,7 @@ lookup_protocol:
 	np->mcast_hops	= -1;
 	np->mc_loop	= 1;
 	np->pmtudisc	= IPV6_PMTUDISC_WANT;
-	np->ipv6only	= sysctl_ipv6_bindv6only;
+	np->ipv6only	= init_net.ipv6.sysctl.bindv6only;
 
 	/* Init the ipv4 part of the socket since we can have sockets
 	 * using v6 API for ipv4.
@@ -721,6 +719,7 @@ static void cleanup_ipv6_mibs(void)
 
 static int inet6_net_init(struct net *net)
 {
+	net->ipv6.sysctl.bindv6only = 0;
 	return 0;
 }
 

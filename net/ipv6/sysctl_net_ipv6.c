@@ -35,7 +35,7 @@ static ctl_table ipv6_table_template[] = {
 	{
 		.ctl_name	= NET_IPV6_BINDV6ONLY,
 		.procname	= "bindv6only",
-		.data		= &sysctl_ipv6_bindv6only,
+		.data		= &init_net.ipv6.sysctl.bindv6only,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec
@@ -115,6 +115,8 @@ static int ipv6_sysctl_net_init(struct net *net)
 
 	ipv6_table[0].child = ipv6_route_table;
 	ipv6_table[1].child = ipv6_icmp_table;
+
+	ipv6_table[2].data = &net->ipv6.sysctl.bindv6only;
 
 	net->ipv6.sysctl.table = register_net_sysctl_table(net, net_ipv6_ctl_path,
 							   ipv6_table);

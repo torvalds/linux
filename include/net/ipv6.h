@@ -109,7 +109,6 @@ struct frag_hdr {
 #include <net/sock.h>
 
 /* sysctls */
-extern int sysctl_ipv6_bindv6only;
 extern int sysctl_mld_max_msf;
 
 extern struct ctl_path net_ipv6_ctl_path[];
