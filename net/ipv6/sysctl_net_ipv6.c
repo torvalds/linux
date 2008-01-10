@@ -122,6 +122,12 @@ static int ipv6_sysctl_net_init(struct net *net)
 	ipv6_table[5].data = &net->ipv6.sysctl.frags.timeout;
 	ipv6_table[6].data = &net->ipv6.sysctl.frags.secret_interval;
 
+	/* We don't want this value to be per namespace, it should be global
+	   to all namespaces, so make it read-only when we are not in the
+	   init network namespace */
+	if (net != &init_net)
+		ipv6_table[7].mode = 0444;
+
 	net->ipv6.sysctl.table = register_net_sysctl_table(net, net_ipv6_ctl_path,
 							   ipv6_table);
 	if (!net->ipv6.sysctl.table)
