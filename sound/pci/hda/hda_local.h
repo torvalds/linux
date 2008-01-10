@@ -398,4 +398,11 @@ int snd_hda_check_amp_list_power(struct hda_codec *codec,
 				 hda_nid_t nid);
 #endif /* CONFIG_SND_HDA_POWER_SAVE */
 
+/*
+ * virtual master control
+ */
+struct snd_kcontrol *snd_ctl_make_virtual_master(char *name,
+						 const unsigned int *tlv);
+int snd_ctl_add_slave(struct snd_kcontrol *master, struct snd_kcontrol *slave);
+		      
 #endif /* __SOUND_HDA_LOCAL_H */
