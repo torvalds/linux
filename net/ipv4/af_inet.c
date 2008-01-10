@@ -795,7 +795,7 @@ int inet_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		case SIOCADDRT:
 		case SIOCDELRT:
 		case SIOCRTMSG:
-			err = ip_rt_ioctl(cmd, (void __user *)arg);
+			err = ip_rt_ioctl(sk->sk_net, cmd, (void __user *)arg);
 			break;
 		case SIOCDARP:
 		case SIOCGARP:
