@@ -2409,7 +2409,7 @@ int ipv6_sysctl_rtcache_flush(ctl_table *ctl, int write, struct file * filp,
 		return -EINVAL;
 }
 
-ctl_table ipv6_route_table[] = {
+ctl_table ipv6_route_table_template[] = {
 	{
 		.procname	=	"flush",
 		.data		=	&flush_delay,
@@ -2499,6 +2499,15 @@ ctl_table ipv6_route_table[] = {
 	{ .ctl_name = 0 }
 };
 
+struct ctl_table *ipv6_route_sysctl_init(struct net *net)
+{
+	struct ctl_table *table;
+
+	table = kmemdup(ipv6_route_table_template,
+			sizeof(ipv6_route_table_template),
+			GFP_KERNEL);
+	return table;
+}
 #endif
 
 int __init ip6_route_init(void)

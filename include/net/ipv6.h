@@ -619,8 +619,8 @@ static inline int snmp6_unregister_dev(struct inet6_dev *idev)
 #endif
 
 #ifdef CONFIG_SYSCTL
-extern ctl_table ipv6_route_table[];
-extern ctl_table ipv6_icmp_table[];
+extern ctl_table ipv6_route_table_template[];
+extern ctl_table ipv6_icmp_table_template[];
 
 extern int ipv6_sysctl_register(void);
 extern void ipv6_sysctl_unregister(void);

@@ -907,7 +907,7 @@ int icmpv6_err_convert(int type, int code, int *err)
 EXPORT_SYMBOL(icmpv6_err_convert);
 
 #ifdef CONFIG_SYSCTL
-ctl_table ipv6_icmp_table[] = {
+ctl_table ipv6_icmp_table_template[] = {
 	{
 		.ctl_name	= NET_IPV6_ICMP_RATELIMIT,
 		.procname	= "ratelimit",
@@ -918,5 +918,15 @@ ctl_table ipv6_icmp_table[] = {
 	},
 	{ .ctl_name = 0 },
 };
+
+struct ctl_table *ipv6_icmp_sysctl_init(struct net *net)
+{
+	struct ctl_table *table;
+
+	table = kmemdup(ipv6_icmp_table_template,
+			sizeof(ipv6_icmp_table_template),
+			GFP_KERNEL);
+	return table;
+}
 #endif
 

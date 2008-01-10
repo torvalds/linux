@@ -14,20 +14,23 @@
 #include <net/addrconf.h>
 #include <net/inet_frag.h>
 
-static ctl_table ipv6_table[] = {
+extern struct ctl_table *ipv6_route_sysctl_init(struct net *net);
+extern struct ctl_table *ipv6_icmp_sysctl_init(struct net *net);
+
+static ctl_table ipv6_table_template[] = {
 	{
 		.ctl_name	= NET_IPV6_ROUTE,
 		.procname	= "route",
 		.maxlen		= 0,
 		.mode		= 0555,
-		.child		= ipv6_route_table
+		.child		= ipv6_route_table_template
 	},
 	{
 		.ctl_name	= NET_IPV6_ICMP,
 		.procname	= "icmp",
 		.maxlen		= 0,
 		.mode		= 0555,
-		.child		= ipv6_icmp_table
+		.child		= ipv6_icmp_table_template
 	},
 	{
 		.ctl_name	= NET_IPV6_BINDV6ONLY,
@@ -89,22 +92,66 @@ struct ctl_path net_ipv6_ctl_path[] = {
 };
 EXPORT_SYMBOL_GPL(net_ipv6_ctl_path);
 
-static struct ctl_table_header *ipv6_sysctl_header;
-
 static int ipv6_sysctl_net_init(struct net *net)
 {
-	ipv6_sysctl_header = register_net_sysctl_table(net, net_ipv6_ctl_path,
-						       ipv6_table);
-	if (!ipv6_sysctl_header)
+	struct ctl_table *ipv6_table;
+	struct ctl_table *ipv6_route_table;
+	struct ctl_table *ipv6_icmp_table;
+	int err;
+
+	err = -ENOMEM;
+	ipv6_table = kmemdup(ipv6_table_template, sizeof(ipv6_table_template),
+			     GFP_KERNEL);
+	if (!ipv6_table)
+		goto out;
+
+	ipv6_route_table = ipv6_route_sysctl_init(net);
+	if (!ipv6_route_table)
+		goto out_ipv6_table;
+
+	ipv6_icmp_table = ipv6_icmp_sysctl_init(net);
+	if (!ipv6_icmp_table)
+		goto out_ipv6_route_table;
+
+	ipv6_table[0].child = ipv6_route_table;
+	ipv6_table[1].child = ipv6_icmp_table;
+
+	net->ipv6.sysctl.table = register_net_sysctl_table(net, net_ipv6_ctl_path,
+							   ipv6_table);
+	if (!net->ipv6.sysctl.table)
 		return -ENOMEM;
 
-	return 0;
+	if (!net->ipv6.sysctl.table)
+		goto out_ipv6_icmp_table;
 
+	err = 0;
+out:
+	return err;
+
+out_ipv6_icmp_table:
+	kfree(ipv6_icmp_table);
+out_ipv6_route_table:
+	kfree(ipv6_route_table);
+out_ipv6_table:
+	kfree(ipv6_table);
+	goto out;
 }
 
 static void ipv6_sysctl_net_exit(struct net *net)
 {
-	unregister_net_sysctl_table(ipv6_sysctl_header);
+	struct ctl_table *ipv6_table;
+	struct ctl_table *ipv6_route_table;
+	struct ctl_table *ipv6_icmp_table;
+
+	ipv6_table = net->ipv6.sysctl.table->ctl_table_arg;
+	ipv6_route_table = ipv6_table[0].child;
+	ipv6_icmp_table = ipv6_table[1].child;
+
+	unregister_net_sysctl_table(net->ipv6.sysctl.table);
+
+	kfree(ipv6_table);
+	kfree(ipv6_route_table);
+	kfree(ipv6_icmp_table);
 }
 
 static struct pernet_operations ipv6_sysctl_net_ops = {
