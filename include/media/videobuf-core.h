@@ -164,6 +164,8 @@ struct videobuf_queue {
 
 	unsigned int               streaming:1;
 	unsigned int               reading:1;
+	unsigned int		   is_mmapped:1;
+
 	/* capture via mmap() + ioctl(QBUF/DQBUF) */
 	struct list_head           stream;
 

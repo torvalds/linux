@@ -98,13 +98,15 @@ int videobuf_iolock(struct videobuf_queue *q, struct videobuf_buffer *vb,
 	MAGIC_CHECK(vb->magic, MAGIC_BUFFER);
 	MAGIC_CHECK(q->int_ops->magic, MAGIC_QTYPE_OPS);
 
-	/* FIXME: This is required to avoid OOPS on some cases,
+	/* This is required to avoid OOPS on some cases,
 	   since mmap_mapper() method should be called before _iolock.
 	   On some cases, the mmap_mapper() is called only after scheduling.
-
-	   However, this way is just too dirty! Better to wait for some event.
 	 */
-	schedule_timeout(HZ);
+	wait_event_timeout(vb->done, q->is_mmapped, msecs_to_jiffies(100));
+	if (!q->is_mmapped) {
+		printk(KERN_ERR "Error: mmap_mapper() never called!\n");
+		return -EINVAL;
+	}
 
 	return CALL(q, iolock, q, vb, fbuf);
 }
@@ -300,7 +302,11 @@ static int __videobuf_mmap_free(struct videobuf_queue *q)
 
 	MAGIC_CHECK(q->int_ops->magic, MAGIC_QTYPE_OPS);
 
+
 	rc  = CALL(q, mmap_free, q);
+
+	q->is_mmapped = 0;
+
 	if (rc < 0)
 		return rc;
 
@@ -1022,6 +1028,7 @@ int videobuf_mmap_mapper(struct videobuf_queue *q,
 
 	mutex_lock(&q->lock);
 	retval = CALL(q, mmap_mapper, q, vma);
+	q->is_mmapped = 1;
 	mutex_unlock(&q->lock);
 
 	return retval;
