@@ -633,25 +633,29 @@ static enum ParseState usbvision_parse_lines_422(struct usb_usbvision *usbvision
 
 			YUV_TO_RGB_BY_THE_BOOK(yuyv[0], yuyv[1], yuyv[3], rv, gv, bv);
 			switch (frame->v4l2_format.format) {
-				case V4L2_PIX_FMT_RGB565:
-					*f++ = (0x1F & (bv >> 3)) | (0xE0 & (gv << 3));
-					*f++ = (0x07 & (gv >> 5)) | (0xF8 &  rv);
-					break;
-				case V4L2_PIX_FMT_RGB24:
-					*f++ = bv;
-					*f++ = gv;
-					*f++ = rv;
-					break;
-				case V4L2_PIX_FMT_RGB32:
-					*f++ = bv;
-					*f++ = gv;
-					*f++ = rv;
-					f++;
-					break;
-				case V4L2_PIX_FMT_RGB555:
-					*f++ = (0x1F & (bv >> 3)) | (0xE0 & (gv << 2));
-					*f++ = (0x03 & (gv >> 6)) | (0x7C & (rv >> 1));
-					break;
+			case V4L2_PIX_FMT_RGB565:
+				*f++ = (0x1F & rv) |
+					(0xE0 & (gv << 5));
+				*f++ = (0x07 & (gv >> 3)) |
+					(0xF8 &  bv);
+				break;
+			case V4L2_PIX_FMT_RGB24:
+				*f++ = rv;
+				*f++ = gv;
+				*f++ = bv;
+				break;
+			case V4L2_PIX_FMT_RGB32:
+				*f++ = rv;
+				*f++ = gv;
+				*f++ = bv;
+				f++;
+				break;
+			case V4L2_PIX_FMT_RGB555:
+				*f++ = (0x1F & rv) |
+					(0xE0 & (gv << 5));
+				*f++ = (0x03 & (gv >> 3)) |
+					(0x7C & (bv << 2));
+				break;
 			}
 		}
 		clipmask_index += clipmask_add;
@@ -665,25 +669,29 @@ static enum ParseState usbvision_parse_lines_422(struct usb_usbvision *usbvision
 
 			YUV_TO_RGB_BY_THE_BOOK(yuyv[2], yuyv[1], yuyv[3], rv, gv, bv);
 			switch (frame->v4l2_format.format) {
-				case V4L2_PIX_FMT_RGB565:
-					*f++ = (0x1F & (bv >> 3)) | (0xE0 & (gv << 3));
-					*f++ = (0x07 & (gv >> 5)) | (0xF8 &  rv);
-					break;
-				case V4L2_PIX_FMT_RGB24:
-					*f++ = bv;
-					*f++ = gv;
-					*f++ = rv;
-					break;
-				case V4L2_PIX_FMT_RGB32:
-					*f++ = bv;
-					*f++ = gv;
-					*f++ = rv;
-					f++;
-					break;
-				case V4L2_PIX_FMT_RGB555:
-					*f++ = (0x1F & (bv >> 3)) | (0xE0 & (gv << 2));
-					*f++ = (0x03 & (gv >> 6)) | (0x7C & (rv >> 1));
-					break;
+			case V4L2_PIX_FMT_RGB565:
+				*f++ = (0x1F & rv) |
+					(0xE0 & (gv << 5));
+				*f++ = (0x07 & (gv >> 3)) |
+					(0xF8 &  bv);
+				break;
+			case V4L2_PIX_FMT_RGB24:
+				*f++ = rv;
+				*f++ = gv;
+				*f++ = bv;
+				break;
+			case V4L2_PIX_FMT_RGB32:
+				*f++ = rv;
+				*f++ = gv;
+				*f++ = bv;
+				f++;
+				break;
+			case V4L2_PIX_FMT_RGB555:
+				*f++ = (0x1F & rv) |
+					(0xE0 & (gv << 5));
+				*f++ = (0x03 & (gv >> 3)) |
+					(0x7C & (bv << 2));
+				break;
 			}
 		}
 		clipmask_index += clipmask_add;
@@ -951,22 +959,26 @@ static enum ParseState usbvision_parse_compress(struct usb_usbvision *usbvision,
 					*f++ = Y[Idx];
 					break;
 				case V4L2_PIX_FMT_RGB555:
-					*f++ = (0x1F & (bv >> 3)) | (0xE0 & (gv << 2));
-					*f++ = (0x03 & (gv >> 6)) | (0x7C & (rv >> 1));
+					*f++ = (0x1F & rv) |
+						(0xE0 & (gv << 5));
+					*f++ = (0x03 & (gv >> 3)) |
+						(0x7C & (bv << 2));
 					break;
 				case V4L2_PIX_FMT_RGB565:
-					*f++ = (0x1F & (bv >> 3)) | (0xE0 & (gv << 3));
-					*f++ = (0x07 & (gv >> 5)) | (0xF8 &  rv);
+					*f++ = (0x1F & rv) |
+						(0xE0 & (gv << 5));
+					*f++ = (0x07 & (gv >> 3)) |
+						(0xF8 &  bv);
 					break;
 				case V4L2_PIX_FMT_RGB24:
-					*f++ = bv;
-					*f++ = gv;
 					*f++ = rv;
+					*f++ = gv;
+					*f++ = bv;
 					break;
 				case V4L2_PIX_FMT_RGB32:
-					*f++ = bv;
-					*f++ = gv;
 					*f++ = rv;
+					*f++ = gv;
+					*f++ = bv;
 					f++;
 					break;
 			}
@@ -1080,28 +1092,33 @@ static enum ParseState usbvision_parse_lines_420(struct usb_usbvision *usbvision
 				r_ = (y_ + ur) >> 16;
 
 				switch (frame->v4l2_format.format) {
-					case V4L2_PIX_FMT_RGB565:
-						g = LIMIT_RGB(g_);
-						*f_even++ = (0x1F & (LIMIT_RGB(b_) >> 3)) | (0xE0 & (g << 3));
-						*f_even++ = (0x07 & (          g   >> 5)) | (0xF8 & LIMIT_RGB(r_));
-						break;
-					case V4L2_PIX_FMT_RGB24:
-						*f_even++ = LIMIT_RGB(b_);
-						*f_even++ = LIMIT_RGB(g_);
-						*f_even++ = LIMIT_RGB(r_);
-						break;
-					case V4L2_PIX_FMT_RGB32:
-						*f_even++ = LIMIT_RGB(b_);
-						*f_even++ = LIMIT_RGB(g_);
-						*f_even++ = LIMIT_RGB(r_);
-						f_even++;
-						break;
-					case V4L2_PIX_FMT_RGB555:
-						g = LIMIT_RGB(g_);
-						*f_even++ = (0x1F & (LIMIT_RGB(b_) >> 3)) | (0xE0 & (g << 2));
-						*f_even++ = (0x03 & (          g   >> 6)) |
-							    (0x7C & (LIMIT_RGB(r_) >> 1));
-						break;
+				case V4L2_PIX_FMT_RGB565:
+					g = LIMIT_RGB(g_);
+					*f_even++ =
+						(0x1F & LIMIT_RGB(r_)) |
+						(0xE0 & (g << 5));
+					*f_even++ =
+						(0x07 & (g >> 3)) |
+						(0xF8 &  LIMIT_RGB(b_));
+					break;
+				case V4L2_PIX_FMT_RGB24:
+					*f_even++ = LIMIT_RGB(r_);
+					*f_even++ = LIMIT_RGB(g_);
+					*f_even++ = LIMIT_RGB(b_);
+					break;
+				case V4L2_PIX_FMT_RGB32:
+					*f_even++ = LIMIT_RGB(r_);
+					*f_even++ = LIMIT_RGB(g_);
+					*f_even++ = LIMIT_RGB(b_);
+					f_even++;
+					break;
+				case V4L2_PIX_FMT_RGB555:
+					g = LIMIT_RGB(g_);
+					*f_even++ = (0x1F & LIMIT_RGB(r_)) |
+						(0xE0 & (g << 5));
+					*f_even++ = (0x03 & (g >> 3)) |
+						(0x7C & (LIMIT_RGB(b_) << 2));
+					break;
 				}
 			}
 			clipmask_even_index += clipmask_add;
@@ -1119,28 +1136,33 @@ static enum ParseState usbvision_parse_lines_420(struct usb_usbvision *usbvision
 				r_ = (y_ + ur) >> 16;
 
 				switch (frame->v4l2_format.format) {
-					case V4L2_PIX_FMT_RGB565:
-						g = LIMIT_RGB(g_);
-						*f_even++ = (0x1F & (LIMIT_RGB(b_) >> 3)) | (0xE0 & (g << 3));
-						*f_even++ = (0x07 & (          g   >> 5)) | (0xF8 & LIMIT_RGB(r_));
-						break;
-					case V4L2_PIX_FMT_RGB24:
-						*f_even++ = LIMIT_RGB(b_);
-						*f_even++ = LIMIT_RGB(g_);
-						*f_even++ = LIMIT_RGB(r_);
-						break;
-					case V4L2_PIX_FMT_RGB32:
-						*f_even++ = LIMIT_RGB(b_);
-						*f_even++ = LIMIT_RGB(g_);
-						*f_even++ = LIMIT_RGB(r_);
-						f_even++;
-						break;
-					case V4L2_PIX_FMT_RGB555:
-						g = LIMIT_RGB(g_);
-						*f_even++ = (0x1F & (LIMIT_RGB(b_) >> 3)) | (0xE0 & (g << 2));
-						*f_even++ = (0x03 & (          g   >> 6)) |
-							    (0x7C & (LIMIT_RGB(r_) >> 1));
-						break;
+				case V4L2_PIX_FMT_RGB565:
+					g = LIMIT_RGB(g_);
+					*f_even++ =
+						(0x1F & LIMIT_RGB(r_)) |
+						(0xE0 & (g << 5));
+					*f_even++ =
+						(0x07 & (g >> 3)) |
+						(0xF8 &  LIMIT_RGB(b_));
+					break;
+				case V4L2_PIX_FMT_RGB24:
+					*f_even++ = LIMIT_RGB(r_);
+					*f_even++ = LIMIT_RGB(g_);
+					*f_even++ = LIMIT_RGB(b_);
+					break;
+				case V4L2_PIX_FMT_RGB32:
+					*f_even++ = LIMIT_RGB(r_);
+					*f_even++ = LIMIT_RGB(g_);
+					*f_even++ = LIMIT_RGB(b_);
+					f_even++;
+					break;
+				case V4L2_PIX_FMT_RGB555:
+					g = LIMIT_RGB(g_);
+					*f_even++ = (0x1F & LIMIT_RGB(r_)) |
+						(0xE0 & (g << 5));
+					*f_even++ = (0x03 & (g >> 3)) |
+						(0x7C & (LIMIT_RGB(b_) << 2));
+					break;
 				}
 			}
 			clipmask_even_index += clipmask_add;
@@ -1160,28 +1182,33 @@ static enum ParseState usbvision_parse_lines_420(struct usb_usbvision *usbvision
 				r_ = (y_ + ur) >> 16;
 
 				switch (frame->v4l2_format.format) {
-					case V4L2_PIX_FMT_RGB565:
-						g = LIMIT_RGB(g_);
-						*f_odd++ = (0x1F & (LIMIT_RGB(b_) >> 3)) | (0xE0 & (g << 3));
-						*f_odd++ = (0x07 & (          g   >> 5)) | (0xF8 & LIMIT_RGB(r_));
-						break;
-					case V4L2_PIX_FMT_RGB24:
-						*f_odd++ = LIMIT_RGB(b_);
-						*f_odd++ = LIMIT_RGB(g_);
-						*f_odd++ = LIMIT_RGB(r_);
-						break;
-					case V4L2_PIX_FMT_RGB32:
-						*f_odd++ = LIMIT_RGB(b_);
-						*f_odd++ = LIMIT_RGB(g_);
-						*f_odd++ = LIMIT_RGB(r_);
-						f_odd++;
-						break;
-					case V4L2_PIX_FMT_RGB555:
-						g = LIMIT_RGB(g_);
-						*f_odd++ = (0x1F & (LIMIT_RGB(b_) >> 3)) | (0xE0 & (g << 2));
-						*f_odd++ = (0x03 & (          g   >> 6)) |
-							   (0x7C & (LIMIT_RGB(r_) >> 1));
-						break;
+				case V4L2_PIX_FMT_RGB565:
+					g = LIMIT_RGB(g_);
+					*f_odd++ =
+						(0x1F & LIMIT_RGB(r_)) |
+						(0xE0 & (g << 5));
+					*f_odd++ =
+						(0x07 & (g >> 3)) |
+						(0xF8 &  LIMIT_RGB(b_));
+					break;
+				case V4L2_PIX_FMT_RGB24:
+					*f_odd++ = LIMIT_RGB(r_);
+					*f_odd++ = LIMIT_RGB(g_);
+					*f_odd++ = LIMIT_RGB(b_);
+					break;
+				case V4L2_PIX_FMT_RGB32:
+					*f_odd++ = LIMIT_RGB(r_);
+					*f_odd++ = LIMIT_RGB(g_);
+					*f_odd++ = LIMIT_RGB(b_);
+					f_odd++;
+					break;
+				case V4L2_PIX_FMT_RGB555:
+					g = LIMIT_RGB(g_);
+					*f_odd++ = (0x1F & LIMIT_RGB(r_)) |
+						(0xE0 & (g << 5));
+					*f_odd++ = (0x03 & (g >> 3)) |
+						(0x7C & (LIMIT_RGB(b_) << 2));
+					break;
 				}
 			}
 			clipmask_odd_index += clipmask_add;
@@ -1199,28 +1226,33 @@ static enum ParseState usbvision_parse_lines_420(struct usb_usbvision *usbvision
 				r_ = (y_ + ur) >> 16;
 
 				switch (frame->v4l2_format.format) {
-					case V4L2_PIX_FMT_RGB565:
-						g = LIMIT_RGB(g_);
-						*f_odd++ = (0x1F & (LIMIT_RGB(b_) >> 3)) | (0xE0 & (g << 3));
-						*f_odd++ = (0x07 & (          g   >> 5)) | (0xF8 & LIMIT_RGB(r_));
-						break;
-					case V4L2_PIX_FMT_RGB24:
-						*f_odd++ = LIMIT_RGB(b_);
-						*f_odd++ = LIMIT_RGB(g_);
-						*f_odd++ = LIMIT_RGB(r_);
-						break;
-					case V4L2_PIX_FMT_RGB32:
-						*f_odd++ = LIMIT_RGB(b_);
-						*f_odd++ = LIMIT_RGB(g_);
-						*f_odd++ = LIMIT_RGB(r_);
-						f_odd++;
-						break;
-					case V4L2_PIX_FMT_RGB555:
-						g = LIMIT_RGB(g_);
-						*f_odd++ = (0x1F & (LIMIT_RGB(b_) >> 3)) | (0xE0 & (g << 2));
-						*f_odd++ = (0x03 & (          g   >> 6)) |
-							   (0x7C & (LIMIT_RGB(r_) >> 1));
-						break;
+				case V4L2_PIX_FMT_RGB565:
+					g = LIMIT_RGB(g_);
+					*f_odd++ =
+						(0x1F & LIMIT_RGB(r_)) |
+						(0xE0 & (g << 5));
+					*f_odd++ =
+						(0x07 & (g >> 3)) |
+						(0xF8 &  LIMIT_RGB(b_));
+					break;
+				case V4L2_PIX_FMT_RGB24:
+					*f_odd++ = LIMIT_RGB(r_);
+					*f_odd++ = LIMIT_RGB(g_);
+					*f_odd++ = LIMIT_RGB(b_);
+					break;
+				case V4L2_PIX_FMT_RGB32:
+					*f_odd++ = LIMIT_RGB(r_);
+					*f_odd++ = LIMIT_RGB(g_);
+					*f_odd++ = LIMIT_RGB(b_);
+					f_odd++;
+					break;
+				case V4L2_PIX_FMT_RGB555:
+					g = LIMIT_RGB(g_);
+					*f_odd++ = (0x1F & LIMIT_RGB(r_)) |
+						(0xE0 & (g << 5));
+					*f_odd++ = (0x03 & (g >> 3)) |
+						(0x7C & (LIMIT_RGB(b_) << 2));
+					break;
 				}
 			}
 			clipmask_odd_index += clipmask_add;
