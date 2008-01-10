@@ -604,7 +604,7 @@ static int inet_rtm_newroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *ar
 	if (err < 0)
 		goto errout;
 
-	tb = fib_new_table(&init_net, cfg.fc_table);
+	tb = fib_new_table(net, cfg.fc_table);
 	if (tb == NULL) {
 		err = -ENOBUFS;
 		goto errout;
@@ -794,7 +794,7 @@ static void fib_del_ifaddr(struct in_ifaddr *ifa)
 		fib_magic(RTM_DELROUTE, RTN_LOCAL, ifa->ifa_local, 32, prim);
 
 		/* Check, that this local address finally disappeared. */
-		if (inet_addr_type(&init_net, ifa->ifa_local) != RTN_LOCAL) {
+		if (inet_addr_type(dev->nd_net, ifa->ifa_local) != RTN_LOCAL) {
 			/* And the last, but not the least thing.
 			   We must flush stray FIB entries.
 
@@ -802,7 +802,7 @@ static void fib_del_ifaddr(struct in_ifaddr *ifa)
 			   for stray nexthop entries, then ignite fib_flush.
 			*/
 			if (fib_sync_down(ifa->ifa_local, NULL, 0))
-				fib_flush(&init_net);
+				fib_flush(dev->nd_net);
 		}
 	}
 #undef LOCAL_OK
@@ -897,7 +897,7 @@ static void nl_fib_lookup_exit(struct net *net)
 static void fib_disable_ip(struct net_device *dev, int force)
 {
 	if (fib_sync_down(0, dev, force))
-		fib_flush(&init_net);
+		fib_flush(dev->nd_net);
 	rt_cache_flush(0);
 	arp_ifdown(dev);
 }
