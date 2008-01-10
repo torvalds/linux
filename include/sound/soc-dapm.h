@@ -199,6 +199,7 @@ void snd_soc_dapm_free(struct snd_soc_device *socdev);
 /* dapm events */
 int snd_soc_dapm_stream_event(struct snd_soc_codec *codec, char *stream,
 	int event);
+int snd_soc_dapm_device_event(struct snd_soc_device *socdev, int event);
 
 /* dapm sys fs - used by the core */
 int snd_soc_dapm_sys_add(struct device *dev);

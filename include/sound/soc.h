@@ -425,6 +425,9 @@ struct snd_soc_machine {
 	int (*resume_pre)(struct platform_device *pdev);
 	int (*resume_post)(struct platform_device *pdev);
 
+	/* callbacks */
+	int (*dapm_event)(struct snd_soc_machine *, int event);
+
 	/* CPU <--> Codec DAI links  */
 	struct snd_soc_dai_link *dai_link;
 	int num_links;

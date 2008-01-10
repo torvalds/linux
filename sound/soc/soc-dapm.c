@@ -1279,6 +1279,29 @@ int snd_soc_dapm_stream_event(struct snd_soc_codec *codec,
 EXPORT_SYMBOL_GPL(snd_soc_dapm_stream_event);
 
 /**
+ * snd_soc_dapm_device_event - send a device event to the dapm core
+ * @socdev: audio device
+ * @event: device event
+ *
+ * Sends a device event to the dapm core. The core then makes any
+ * necessary machine or codec power changes..
+ *
+ * Returns 0 for success else error.
+ */
+int snd_soc_dapm_device_event(struct snd_soc_device *socdev, int event)
+{
+	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_machine *machine = socdev->machine;
+
+	if (machine->dapm_event)
+				machine->dapm_event(machine, event);
+	if (codec->dapm_event)
+				codec->dapm_event(codec, event);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dapm_device_event);
+
+/**
  * snd_soc_dapm_set_endpoint - set audio endpoint status
  * @codec: audio codec
  * @endpoint: audio signal endpoint (or start point)
