@@ -47,6 +47,8 @@
 #define TM6000_MIN_BUF 4
 #define TM6000_DEF_BUF 8
 
+#define TM6000_MAX_ISO_PACKETS	40	/* Max number of ISO packets */
+
 /* Declare static vars that will be used as parameters */
 static unsigned int vid_limit = 16;	/* Video memory limit, in Mb */
 static int video_nr = -1;		/* /dev/videoN, -1 for autodetect */
@@ -532,7 +534,7 @@ static void tm6000_irq_callback(struct urb *urb)
 	struct tm6000_buffer    *buf;
 	struct tm6000_dmaqueue  *dma_q = urb->context;
 	struct tm6000_core *dev = container_of(dma_q, struct tm6000_core, vidq);
-	int rc, i;
+	int rc;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->slock, flags);
@@ -550,11 +552,6 @@ static void tm6000_irq_callback(struct urb *urb)
 
 	dev->isoc_ctl.buf = buf;
 ret:
-	/* Reset urb buffers */
-	for (i = 0; i < urb->number_of_packets; i++) {
-		urb->iso_frame_desc[i].status = 0;
-		urb->iso_frame_desc[i].actual_length = 0;
-	}
 
 	urb->status = usb_submit_urb(urb, GFP_ATOMIC);
 	if (urb->status)
@@ -576,8 +573,8 @@ static void tm6000_uninit_isoc(struct tm6000_core *dev)
 	struct urb *urb;
 	int i;
 
-	dev->isoc_ctl.nfields=-1;
-	dev->isoc_ctl.buf=NULL;
+	dev->isoc_ctl.nfields = -1;
+	dev->isoc_ctl.buf = NULL;
 	for (i = 0; i < dev->isoc_ctl.num_bufs; i++) {
 		urb=dev->isoc_ctl.urb[i];
 		if (urb) {
@@ -613,38 +610,47 @@ static void tm6000_stop_thread(struct tm6000_dmaqueue  *dma_q)
 	tm6000_uninit_isoc(dev);
 }
 
-
 /*
  * Allocate URBs and start IRQ
  */
-static int tm6000_prepare_isoc(struct tm6000_core *dev,
-		     int max_packets, int num_bufs)
+static int tm6000_prepare_isoc(struct tm6000_core *dev, unsigned int framesize)
 {
 	struct tm6000_dmaqueue *dma_q = &dev->vidq;
-	int i;
-	int sb_size, pipe;
+	int i, j, sb_size, pipe, size, max_packets, num_bufs = 5;
 	struct urb *urb;
-	int j, k;
-
-	dprintk(dev, V4L2_DEBUG_QUEUE, "Allocating %dx%d packets"
-		    " of %d bytes each to handle %u size\n",
-		    max_packets, num_bufs,
-		    dev->max_isoc_in, dev->isoc_ctl.max_pkt_size);
-
 
 	/* De-allocates all pending stuff */
 	tm6000_uninit_isoc(dev);
 
-	dev->isoc_ctl.num_bufs=num_bufs;
 
-	dev->isoc_ctl.urb=kmalloc(sizeof(void *)*num_bufs,
-				   GFP_KERNEL);
+	pipe = usb_rcvisocpipe(dev->udev,
+			       dev->isoc_in->desc.bEndpointAddress &
+			       USB_ENDPOINT_NUMBER_MASK);
+
+	size = usb_maxpacket(dev->udev, pipe, usb_pipeout(pipe));
+
+	if (size > dev->max_isoc_in)
+		size = dev->max_isoc_in;
+
+	dev->isoc_ctl.max_pkt_size = size;
+
+	max_packets = ( framesize + size - 1) / size;
+
+	if (max_packets > TM6000_MAX_ISO_PACKETS)
+		max_packets = TM6000_MAX_ISO_PACKETS;
+
+	sb_size = max_packets * size;
+
+	dev->isoc_ctl.num_bufs = num_bufs;
+
+	dev->isoc_ctl.urb = kmalloc(sizeof(void *)*num_bufs,
+				    GFP_KERNEL);
 	if (!dev->isoc_ctl.urb) {
 		tm6000_err("cannot alloc memory for usb buffers\n");
 		return -ENOMEM;
 	}
 
-	dev->isoc_ctl.transfer_buffer=kmalloc(sizeof(void *)*num_bufs,
+	dev->isoc_ctl.transfer_buffer = kmalloc(sizeof(void *)*num_bufs,
 				   GFP_KERNEL);
 	if (!dev->isoc_ctl.urb) {
 		tm6000_err("cannot allocate memory for usbtransfer\n");
@@ -652,9 +658,10 @@ static int tm6000_prepare_isoc(struct tm6000_core *dev,
 		return -ENOMEM;
 	}
 
-	dev->isoc_ctl.max_pkt_size=dev->max_isoc_in;
-
-	sb_size = max_packets * dev->isoc_ctl.max_pkt_size;
+	dprintk(dev, V4L2_DEBUG_QUEUE, "Allocating %d x %d packets"
+		    " (%d bytes) of %d bytes each to handle %u size\n",
+		    max_packets, num_bufs, sb_size,
+		    dev->max_isoc_in, size);
 
 
 	/* allocate urbs and transfer buffers */
@@ -680,23 +687,17 @@ static int tm6000_prepare_isoc(struct tm6000_core *dev,
 		}
 		memset(dev->isoc_ctl.transfer_buffer[i], 0, sb_size);
 
-		pipe=usb_rcvisocpipe(dev->udev,
-					dev->isoc_in->desc.bEndpointAddress &
-					USB_ENDPOINT_NUMBER_MASK);
-		usb_fill_int_urb(urb, dev->udev, pipe,
-					dev->isoc_ctl.transfer_buffer[i],sb_size,
-					tm6000_irq_callback, dma_q,
-					dev->isoc_in->desc.bInterval);
-
+		usb_fill_bulk_urb(urb, dev->udev, pipe,
+				  dev->isoc_ctl.transfer_buffer[i], sb_size,
+				  tm6000_irq_callback, dma_q);
+//		urb->interval = dev->isoc_in->desc.bInterval;
+		urb->interval = 2;
 		urb->number_of_packets = max_packets;
-		urb->transfer_flags = URB_ISO_ASAP;
+		urb->transfer_flags = URB_ISO_ASAP | URB_NO_TRANSFER_DMA_MAP;
 
-		k = 0;
 		for (j = 0; j < max_packets; j++) {
-			urb->iso_frame_desc[j].offset = k;
-			urb->iso_frame_desc[j].length =
-						dev->isoc_ctl.max_pkt_size;
-			k += dev->isoc_ctl.max_pkt_size;
+			urb->iso_frame_desc[j].offset = size * j;
+			urb->iso_frame_desc[j].length = size;
 		}
 	}
 
@@ -881,17 +882,18 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 	}
 
 	if (VIDEOBUF_NEEDS_INIT == buf->vb.state) {
-		if (0 != (rc = videobuf_iolock(vq,&buf->vb,NULL)))
+		if (0 != (rc = videobuf_iolock(vq, &buf->vb, NULL)))
 			goto fail;
-		urb_init=1;
+		urb_init = 1;
 	}
 
 	if (!dev->isoc_ctl.num_bufs)
-		urb_init=1;
+		urb_init = 1;
 
 	if (urb_init) {
-		rc = tm6000_prepare_isoc(dev, 128, 1);
-		if (rc<0)
+		rc = tm6000_prepare_isoc(dev, buf->vb.size);
+
+		if (rc < 0)
 			goto fail;
 	}
 
@@ -899,7 +901,7 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 	return 0;
 
 fail:
-	free_buffer(vq,buf);
+	free_buffer(vq, buf);
 	return rc;
 }
 
