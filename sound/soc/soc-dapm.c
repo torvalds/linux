@@ -971,7 +971,6 @@ int snd_soc_dapm_new_widgets(struct snd_soc_codec *codec)
 {
 	struct snd_soc_dapm_widget *w;
 
-	mutex_lock(&codec->mutex);
 	list_for_each_entry(w, &codec->dapm_widgets, list)
 	{
 		if (w->new)
@@ -1006,7 +1005,6 @@ int snd_soc_dapm_new_widgets(struct snd_soc_codec *codec)
 	}
 
 	dapm_power_widgets(codec, SND_SOC_DAPM_STREAM_NOP);
-	mutex_unlock(&codec->mutex);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_new_widgets);
