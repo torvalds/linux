@@ -91,10 +91,10 @@ EXPORT_SYMBOL_GPL(net_ipv6_ctl_path);
 
 static struct ctl_table_header *ipv6_sysctl_header;
 
-int ipv6_sysctl_register(void)
+static int ipv6_sysctl_net_init(struct net *net)
 {
-	ipv6_sysctl_header = register_sysctl_paths(net_ipv6_ctl_path,
-						   ipv6_table);
+	ipv6_sysctl_header = register_net_sysctl_table(net, net_ipv6_ctl_path,
+						       ipv6_table);
 	if (!ipv6_sysctl_header)
 		return -ENOMEM;
 
@@ -102,7 +102,22 @@ int ipv6_sysctl_register(void)
 
 }
 
+static void ipv6_sysctl_net_exit(struct net *net)
+{
+	unregister_net_sysctl_table(ipv6_sysctl_header);
+}
+
+static struct pernet_operations ipv6_sysctl_net_ops = {
+	.init = ipv6_sysctl_net_init,
+	.exit = ipv6_sysctl_net_exit,
+};
+
+int ipv6_sysctl_register(void)
+{
+	return register_pernet_subsys(&ipv6_sysctl_net_ops);
+}
+
 void ipv6_sysctl_unregister(void)
 {
-	unregister_sysctl_table(ipv6_sysctl_header);
+	unregister_pernet_subsys(&ipv6_sysctl_net_ops);
 }
