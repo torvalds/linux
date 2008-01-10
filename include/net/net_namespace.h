@@ -40,6 +40,10 @@ struct net {
 	struct hlist_head 	*dev_name_head;
 	struct hlist_head	*dev_index_head;
 
+	/* core fib_rules */
+	struct list_head	rules_ops;
+	spinlock_t		rules_mod_lock;
+
 	struct sock 		*rtnl;			/* rtnetlink socket */
 
 	/* core sysctls */
