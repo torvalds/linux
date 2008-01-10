@@ -903,6 +903,8 @@ static void *clip_seq_sub_iter(struct neigh_seq_state *_state,
 
 static void *clip_seq_start(struct seq_file *seq, loff_t * pos)
 {
+	struct clip_seq_state *state = seq->private;
+	state->ns.neigh_sub_iter = clip_seq_sub_iter;
 	return neigh_seq_start(seq, pos, &clip_tbl, NEIGH_SEQ_NEIGH_ONLY);
 }
 
@@ -932,49 +934,15 @@ static const struct seq_operations arp_seq_ops = {
 
 static int arp_seq_open(struct inode *inode, struct file *file)
 {
-	struct clip_seq_state *state;
-	struct seq_file *seq;
-	int rc = -EAGAIN;
-
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
-	if (!state) {
-		rc = -ENOMEM;
-		goto out_kfree;
-	}
-	state->ns.neigh_sub_iter = clip_seq_sub_iter;
-
-	rc = seq_open(file, &arp_seq_ops);
-	if (rc)
-		goto out_kfree;
-
-	seq = file->private_data;
-	seq->private = state;
-	state->ns.net = get_proc_net(inode);
-	if (!state->ns.net) {
-		seq_release_private(inode, file);
-		rc = -ENXIO;
-	}
-out:
-	return rc;
-
-out_kfree:
-	kfree(state);
-	goto out;
-}
-
-static int arp_seq_release(struct inode *inode, struct file *file)
-{
-	struct seq_file *seq = file->private_data;
-	struct clip_seq_state *state = seq->private;
-	put_net(state->ns.net);
-	return seq_release_private(inode, file);
+	return seq_open_net(inode, file, &arp_seq_ops,
+			    sizeof(struct clip_seq_state));
 }
 
 static const struct file_operations arp_seq_fops = {
 	.open		= arp_seq_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= arp_seq_release,
+	.release	= seq_release_net,
 	.owner		= THIS_MODULE
 };
 #endif
