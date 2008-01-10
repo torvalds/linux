@@ -311,11 +311,11 @@ static int __init fib_default_rules_init(void)
 	return 0;
 }
 
-int __init fib4_rules_init()
+int __net_init fib4_rules_init(struct net *net)
 {
 	int err;
 
-	fib_rules_register(&init_net, &fib4_rules_ops);
+	fib_rules_register(net, &fib4_rules_ops);
 	err = fib_default_rules_init();
 	if (err < 0)
 		goto fail;
@@ -323,6 +323,11 @@ int __init fib4_rules_init()
 
 fail:
 	/* also cleans all rules already added */
-	fib_rules_unregister(&init_net, &fib4_rules_ops);
+	fib_rules_unregister(net, &fib4_rules_ops);
 	return err;
+}
+
+void __net_exit fib4_rules_exit(struct net *net)
+{
+	fib_rules_unregister(net, &fib4_rules_ops);
 }

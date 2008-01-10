@@ -59,7 +59,7 @@ struct fib_table *ip_fib_main_table;
 #define FIB_TABLE_HASHSZ 1
 static struct hlist_head fib_table_hash[FIB_TABLE_HASHSZ];
 
-static int __init fib4_rules_init(void)
+static int __net_init fib4_rules_init(struct net *net)
 {
 	ip_fib_local_table = fib_hash_init(RT_TABLE_LOCAL);
 	if (ip_fib_local_table == NULL)
@@ -863,10 +863,18 @@ static void nl_fib_input(struct sk_buff *skb)
 	netlink_unicast(fibnl, skb, pid, MSG_DONTWAIT);
 }
 
-static void nl_fib_lookup_init(void)
+static int nl_fib_lookup_init(struct net *net)
 {
-	fibnl = netlink_kernel_create(&init_net, NETLINK_FIB_LOOKUP, 0,
+	fibnl = netlink_kernel_create(net, NETLINK_FIB_LOOKUP, 0,
 				      nl_fib_input, NULL, THIS_MODULE);
+	if (fibnl == NULL)
+		return -EAFNOSUPPORT;
+	return 0;
+}
+
+static void nl_fib_lookup_exit(struct net *net)
+{
+	sock_put(fibnl);
 }
 
 static void fib_disable_ip(struct net_device *dev, int force)
@@ -949,22 +957,86 @@ static struct notifier_block fib_netdev_notifier = {
 	.notifier_call =fib_netdev_event,
 };
 
-void __init ip_fib_init(void)
+static int __net_init ip_fib_net_init(struct net *net)
 {
 	unsigned int i;
 
 	for (i = 0; i < FIB_TABLE_HASHSZ; i++)
 		INIT_HLIST_HEAD(&fib_table_hash[i]);
 
-	BUG_ON(fib4_rules_init());
+	return fib4_rules_init(net);
+}
 
-	register_netdevice_notifier(&fib_netdev_notifier);
-	register_inetaddr_notifier(&fib_inetaddr_notifier);
-	nl_fib_lookup_init();
+static void __net_exit ip_fib_net_exit(struct net *net)
+{
+	unsigned int i;
 
+#ifdef CONFIG_IP_MULTIPLE_TABLES
+	fib4_rules_exit(net);
+#endif
+
+	for (i = 0; i < FIB_TABLE_HASHSZ; i++) {
+		struct fib_table *tb;
+		struct hlist_head *head;
+		struct hlist_node *node, *tmp;
+
+		head = &fib_table_hash[i];
+		hlist_for_each_entry_safe(tb, node, tmp, head, tb_hlist) {
+			hlist_del(node);
+			tb->tb_flush(tb);
+			kfree(tb);
+		}
+	}
+}
+
+static int __net_init fib_net_init(struct net *net)
+{
+	int error;
+
+	error = 0;
+	if (net != &init_net)
+		goto out;
+
+	error = ip_fib_net_init(net);
+	if (error < 0)
+		goto out;
+	error = nl_fib_lookup_init(net);
+	if (error < 0)
+		goto out_nlfl;
+	error = fib_proc_init(net);
+	if (error < 0)
+		goto out_proc;
+out:
+	return error;
+
+out_proc:
+	nl_fib_lookup_exit(net);
+out_nlfl:
+	ip_fib_net_exit(net);
+	goto out;
+}
+
+static void __net_exit fib_net_exit(struct net *net)
+{
+	fib_proc_exit(net);
+	nl_fib_lookup_exit(net);
+	ip_fib_net_exit(net);
+}
+
+static struct pernet_operations fib_net_ops = {
+	.init = fib_net_init,
+	.exit = fib_net_exit,
+};
+
+void __init ip_fib_init(void)
+{
 	rtnl_register(PF_INET, RTM_NEWROUTE, inet_rtm_newroute, NULL);
 	rtnl_register(PF_INET, RTM_DELROUTE, inet_rtm_delroute, NULL);
 	rtnl_register(PF_INET, RTM_GETROUTE, NULL, inet_dump_fib);
+
+	register_pernet_subsys(&fib_net_ops);
+	register_netdevice_notifier(&fib_netdev_notifier);
+	register_inetaddr_notifier(&fib_inetaddr_notifier);
 }
 
 EXPORT_SYMBOL(inet_addr_type);
