@@ -704,7 +704,7 @@ __ip_vs_update_dest(struct ip_vs_service *svc,
 	conn_flags = udest->conn_flags | IP_VS_CONN_F_INACTIVE;
 
 	/* check if local node and update the flags */
-	if (inet_addr_type(udest->addr) == RTN_LOCAL) {
+	if (inet_addr_type(&init_net, udest->addr) == RTN_LOCAL) {
 		conn_flags = (conn_flags & ~IP_VS_CONN_F_FWD_MASK)
 			| IP_VS_CONN_F_LOCALNODE;
 	}
@@ -756,7 +756,7 @@ ip_vs_new_dest(struct ip_vs_service *svc, struct ip_vs_dest_user *udest,
 
 	EnterFunction(2);
 
-	atype = inet_addr_type(udest->addr);
+	atype = inet_addr_type(&init_net, udest->addr);
 	if (atype != RTN_LOCAL && atype != RTN_UNICAST)
 		return -EINVAL;
 

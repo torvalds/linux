@@ -590,7 +590,7 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 		if (xfrm_decode_session_reverse(skb_in, &fl, AF_INET))
 			goto out_unlock;
 
-		if (inet_addr_type(fl.fl4_src) == RTN_LOCAL)
+		if (inet_addr_type(&init_net, fl.fl4_src) == RTN_LOCAL)
 			err = __ip_route_output_key(&rt2, &fl);
 		else {
 			struct flowi fl2 = {};
@@ -733,7 +733,7 @@ static void icmp_unreach(struct sk_buff *skb)
 	 */
 
 	if (!sysctl_icmp_ignore_bogus_error_responses &&
-	    inet_addr_type(iph->daddr) == RTN_BROADCAST) {
+	    inet_addr_type(&init_net, iph->daddr) == RTN_BROADCAST) {
 		if (net_ratelimit())
 			printk(KERN_WARNING "%u.%u.%u.%u sent an invalid ICMP "
 					    "type %u, code %u "

@@ -235,7 +235,7 @@ static int arp_constructor(struct neighbour *neigh)
 	struct in_device *in_dev;
 	struct neigh_parms *parms;
 
-	neigh->type = inet_addr_type(addr);
+	neigh->type = inet_addr_type(&init_net, addr);
 
 	rcu_read_lock();
 	in_dev = __in_dev_get_rcu(dev);
@@ -341,14 +341,14 @@ static void arp_solicit(struct neighbour *neigh, struct sk_buff *skb)
 	switch (IN_DEV_ARP_ANNOUNCE(in_dev)) {
 	default:
 	case 0:		/* By default announce any local IP */
-		if (skb && inet_addr_type(ip_hdr(skb)->saddr) == RTN_LOCAL)
+		if (skb && inet_addr_type(&init_net, ip_hdr(skb)->saddr) == RTN_LOCAL)
 			saddr = ip_hdr(skb)->saddr;
 		break;
 	case 1:		/* Restrict announcements of saddr in same subnet */
 		if (!skb)
 			break;
 		saddr = ip_hdr(skb)->saddr;
-		if (inet_addr_type(saddr) == RTN_LOCAL) {
+		if (inet_addr_type(&init_net, saddr) == RTN_LOCAL) {
 			/* saddr should be known to target */
 			if (inet_addr_onlink(in_dev, target, saddr))
 				break;
@@ -479,7 +479,7 @@ int arp_find(unsigned char *haddr, struct sk_buff *skb)
 
 	paddr = ((struct rtable*)skb->dst)->rt_gateway;
 
-	if (arp_set_predefined(inet_addr_type(paddr), haddr, paddr, dev))
+	if (arp_set_predefined(inet_addr_type(&init_net, paddr), haddr, paddr, dev))
 		return 0;
 
 	n = __neigh_lookup(&arp_tbl, &paddr, dev, 1);
@@ -806,7 +806,7 @@ static int arp_process(struct sk_buff *skb)
 	/* Special case: IPv4 duplicate address detection packet (RFC2131) */
 	if (sip == 0) {
 		if (arp->ar_op == htons(ARPOP_REQUEST) &&
-		    inet_addr_type(tip) == RTN_LOCAL &&
+		    inet_addr_type(&init_net, tip) == RTN_LOCAL &&
 		    !arp_ignore(in_dev,dev,sip,tip))
 			arp_send(ARPOP_REPLY, ETH_P_ARP, sip, dev, tip, sha,
 				 dev->dev_addr, sha);
@@ -866,7 +866,7 @@ static int arp_process(struct sk_buff *skb)
 		 */
 		if (n == NULL &&
 		    arp->ar_op == htons(ARPOP_REPLY) &&
-		    inet_addr_type(sip) == RTN_UNICAST)
+		    inet_addr_type(&init_net, sip) == RTN_UNICAST)
 			n = __neigh_lookup(&arp_tbl, &sip, dev, 1);
 	}
 

@@ -19,7 +19,7 @@ int ip_route_me_harder(struct sk_buff *skb, unsigned addr_type)
 	unsigned int hh_len;
 	unsigned int type;
 
-	type = inet_addr_type(iph->saddr);
+	type = inet_addr_type(&init_net, iph->saddr);
 	if (addr_type == RTN_UNSPEC)
 		addr_type = type;
 

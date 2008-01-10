@@ -531,7 +531,7 @@ static int fib_check_nh(struct fib_config *cfg, struct fib_info *fi,
 
 			if (cfg->fc_scope >= RT_SCOPE_LINK)
 				return -EINVAL;
-			if (inet_addr_type(nh->nh_gw) != RTN_UNICAST)
+			if (inet_addr_type(&init_net, nh->nh_gw) != RTN_UNICAST)
 				return -EINVAL;
 			if ((dev = __dev_get_by_index(&init_net, nh->nh_oif)) == NULL)
 				return -ENODEV;
@@ -809,7 +809,7 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 	if (fi->fib_prefsrc) {
 		if (cfg->fc_type != RTN_LOCAL || !cfg->fc_dst ||
 		    fi->fib_prefsrc != cfg->fc_dst)
-			if (inet_addr_type(fi->fib_prefsrc) != RTN_LOCAL)
+			if (inet_addr_type(&init_net, fi->fib_prefsrc) != RTN_LOCAL)
 				goto err_inval;
 	}
 

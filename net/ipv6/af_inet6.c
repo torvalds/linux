@@ -280,7 +280,7 @@ int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	/* Check if the address belongs to the host. */
 	if (addr_type == IPV6_ADDR_MAPPED) {
 		v4addr = addr->sin6_addr.s6_addr32[3];
-		if (inet_addr_type(v4addr) != RTN_LOCAL) {
+		if (inet_addr_type(&init_net, v4addr) != RTN_LOCAL) {
 			err = -EADDRNOTAVAIL;
 			goto out;
 		}

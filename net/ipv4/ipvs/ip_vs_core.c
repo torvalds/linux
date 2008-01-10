@@ -423,7 +423,7 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 	   and the destination is RTN_UNICAST (and not local), then create
 	   a cache_bypass connection entry */
 	if (sysctl_ip_vs_cache_bypass && svc->fwmark
-	    && (inet_addr_type(iph->daddr) == RTN_UNICAST)) {
+	    && (inet_addr_type(&init_net, iph->daddr) == RTN_UNICAST)) {
 		int ret, cs;
 		struct ip_vs_conn *cp;
 

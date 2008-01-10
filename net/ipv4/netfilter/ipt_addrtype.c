@@ -26,7 +26,7 @@ MODULE_DESCRIPTION("iptables addrtype match");
 static inline bool match_type(const struct net_device *dev, __be32 addr,
 			      u_int16_t mask)
 {
-	return !!(mask & (1 << inet_dev_addr_type(dev, addr)));
+	return !!(mask & (1 << inet_dev_addr_type(&init_net, dev, addr)));
 }
 
 static bool

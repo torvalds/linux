@@ -372,7 +372,7 @@ static int sctp_v4_addr_valid(union sctp_addr *addr,
 /* Should this be available for binding?   */
 static int sctp_v4_available(union sctp_addr *addr, struct sctp_sock *sp)
 {
-	int ret = inet_addr_type(addr->v4.sin_addr.s_addr);
+	int ret = inet_addr_type(&init_net, addr->v4.sin_addr.s_addr);
 
 
 	if (addr->v4.sin_addr.s_addr != INADDR_ANY &&

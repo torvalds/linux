@@ -285,7 +285,7 @@ static int clip_constructor(struct neighbour *neigh)
 	struct neigh_parms *parms;
 
 	pr_debug("clip_constructor (neigh %p, entry %p)\n", neigh, entry);
-	neigh->type = inet_addr_type(entry->ip);
+	neigh->type = inet_addr_type(&init_net, entry->ip);
 	if (neigh->type != RTN_UNICAST)
 		return -EINVAL;
 
