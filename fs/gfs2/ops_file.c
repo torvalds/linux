@@ -364,9 +364,11 @@ static int gfs2_page_mkwrite(struct vm_area_struct *vma, struct page *page)
 	ret = gfs2_write_alloc_required(ip, pos, PAGE_CACHE_SIZE, &alloc_required);
 	if (ret || !alloc_required)
 		goto out_unlock;
-
-	ip->i_alloc.al_requested = 0;
+	ret = -ENOMEM;
 	al = gfs2_alloc_get(ip);
+	if (al == NULL)
+		goto out_unlock;
+
 	ret = gfs2_quota_lock(ip, NO_QUOTA_CHANGE, NO_QUOTA_CHANGE);
 	if (ret)
 		goto out_alloc_put;

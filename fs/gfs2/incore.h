@@ -264,7 +264,7 @@ struct gfs2_inode {
 	struct gfs2_glock *i_gl; /* Move into i_gh? */
 	struct gfs2_holder i_iopen_gh;
 	struct gfs2_holder i_gh; /* for prepare/commit_write only */
-	struct gfs2_alloc i_alloc;
+	struct gfs2_alloc *i_alloc;
 	u64 i_last_rg_alloc;
 
 	spinlock_t i_spin;

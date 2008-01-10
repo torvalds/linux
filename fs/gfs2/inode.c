@@ -711,9 +711,10 @@ static int alloc_dinode(struct gfs2_inode *dip, u64 *no_addr, u64 *generation)
 	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
 	int error;
 
-	gfs2_alloc_get(dip);
+	if (gfs2_alloc_get(dip) == NULL)
+		return -ENOMEM;
 
-	dip->i_alloc.al_requested = RES_DINODE;
+	dip->i_alloc->al_requested = RES_DINODE;
 	error = gfs2_inplace_reserve(dip);
 	if (error)
 		goto out;
@@ -900,7 +901,7 @@ fail_end_trans:
 	gfs2_trans_end(sdp);
 
 fail_ipreserv:
-	if (dip->i_alloc.al_rgd)
+	if (dip->i_alloc->al_rgd)
 		gfs2_inplace_release(dip);
 
 fail_quota_locks:
