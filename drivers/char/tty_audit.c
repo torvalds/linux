@@ -105,8 +105,7 @@ static void tty_audit_buf_push(struct task_struct *tsk, uid_t loginuid,
  */
 static void tty_audit_buf_push_current(struct tty_audit_buf *buf)
 {
-	tty_audit_buf_push(current, audit_get_loginuid(current->audit_context),
-			   buf);
+	tty_audit_buf_push(current, audit_get_loginuid(current), buf);
 }
 
 /**

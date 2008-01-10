@@ -1909,7 +1909,7 @@ int security_set_bools(int len, int *values)
 				policydb.p_bool_val_to_name[i],
 				!!values[i],
 				policydb.bool_val_to_struct[i]->state,
-				audit_get_loginuid(current->audit_context));
+				audit_get_loginuid(current));
 		}
 		if (values[i]) {
 			policydb.bool_val_to_struct[i]->state = 1;

@@ -1804,8 +1804,9 @@ int audit_set_loginuid(struct task_struct *task, uid_t loginuid)
  *
  * Returns the context's loginuid or -1 if @ctx is NULL.
  */
-uid_t audit_get_loginuid(struct audit_context *ctx)
+uid_t audit_get_loginuid(struct task_struct *task)
 {
+	struct audit_context *ctx = task->audit_context;
 	return ctx ? ctx->loginuid : -1;
 }
 
@@ -2273,7 +2274,7 @@ void audit_core_dumps(long signr)
 
 	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_ANOM_ABEND);
 	audit_log_format(ab, "auid=%u uid=%u gid=%u",
-			audit_get_loginuid(current->audit_context),
+			audit_get_loginuid(current),
 			current->uid, current->gid);
 	selinux_get_task_sid(current, &sid);
 	if (sid) {

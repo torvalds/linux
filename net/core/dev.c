@@ -2757,7 +2757,7 @@ static void __dev_set_promiscuity(struct net_device *dev, int inc)
 			"dev=%s prom=%d old_prom=%d auid=%u",
 			dev->name, (dev->flags & IFF_PROMISC),
 			(old_flags & IFF_PROMISC),
-			audit_get_loginuid(current->audit_context));
+			audit_get_loginuid(current));
 
 		if (dev->change_rx_flags)
 			dev->change_rx_flags(dev, IFF_PROMISC);
