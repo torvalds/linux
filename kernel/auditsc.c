@@ -192,7 +192,6 @@ struct audit_context {
 	enum audit_state    state;
 	unsigned int	    serial;     /* serial number for record */
 	struct timespec	    ctime;      /* time of syscall entry */
-	uid_t		    loginuid;   /* login uid (identity) */
 	int		    major;      /* syscall number */
 	unsigned long	    argv[4];    /* syscall arguments */
 	int		    return_valid; /* return code is valid */
@@ -506,7 +505,7 @@ static int audit_filter_rules(struct task_struct *tsk,
 		case AUDIT_LOGINUID:
 			result = 0;
 			if (ctx)
-				result = audit_comparator(ctx->loginuid, f->op, f->val);
+				result = audit_comparator(tsk->loginuid, f->op, f->val);
 			break;
 		case AUDIT_SUBJ_USER:
 		case AUDIT_SUBJ_ROLE:
@@ -783,11 +782,8 @@ static inline void audit_free_aux(struct audit_context *context)
 static inline void audit_zero_context(struct audit_context *context,
 				      enum audit_state state)
 {
-	uid_t loginuid = context->loginuid;
-
 	memset(context, 0, sizeof(*context));
 	context->state      = state;
-	context->loginuid   = loginuid;
 }
 
 static inline struct audit_context *audit_alloc_context(enum audit_state state)
@@ -825,11 +821,6 @@ int audit_alloc(struct task_struct *tsk)
 		audit_log_lost("out of memory in audit_alloc");
 		return -ENOMEM;
 	}
-
-				/* Preserve login uid */
-	context->loginuid = -1;
-	if (current->audit_context)
-		context->loginuid = current->audit_context->loginuid;
 
 	tsk->audit_context  = context;
 	set_tsk_thread_flag(tsk, TIF_SYSCALL_AUDIT);
@@ -1047,7 +1038,7 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 		  context->name_count,
 		  context->ppid,
 		  context->pid,
-		  context->loginuid,
+		  tsk->loginuid,
 		  context->uid,
 		  context->gid,
 		  context->euid, context->suid, context->fsuid,
@@ -1779,38 +1770,21 @@ int audit_set_loginuid(struct task_struct *task, uid_t loginuid)
 {
 	struct audit_context *context = task->audit_context;
 
-	if (context) {
-		/* Only log if audit is enabled */
-		if (context->in_syscall) {
-			struct audit_buffer *ab;
+	if (context && context->in_syscall) {
+		struct audit_buffer *ab;
 
-			ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_LOGIN);
-			if (ab) {
-				audit_log_format(ab, "login pid=%d uid=%u "
-					"old auid=%u new auid=%u",
-					task->pid, task->uid,
-					context->loginuid, loginuid);
-				audit_log_end(ab);
-			}
+		ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_LOGIN);
+		if (ab) {
+			audit_log_format(ab, "login pid=%d uid=%u "
+				"old auid=%u new auid=%u",
+				task->pid, task->uid,
+				task->loginuid, loginuid);
+			audit_log_end(ab);
 		}
-		context->loginuid = loginuid;
 	}
+	task->loginuid = loginuid;
 	return 0;
 }
-
-/**
- * audit_get_loginuid - get the loginuid for an audit_context
- * @ctx: the audit_context
- *
- * Returns the context's loginuid or -1 if @ctx is NULL.
- */
-uid_t audit_get_loginuid(struct task_struct *task)
-{
-	struct audit_context *ctx = task->audit_context;
-	return ctx ? ctx->loginuid : -1;
-}
-
-EXPORT_SYMBOL(audit_get_loginuid);
 
 /**
  * __audit_mq_open - record audit data for a POSIX MQ open
@@ -2217,8 +2191,8 @@ int __audit_signal_info(int sig, struct task_struct *t)
 	if (audit_pid && t->tgid == audit_pid) {
 		if (sig == SIGTERM || sig == SIGHUP || sig == SIGUSR1) {
 			audit_sig_pid = tsk->pid;
-			if (ctx)
-				audit_sig_uid = ctx->loginuid;
+			if (tsk->loginuid != -1)
+				audit_sig_uid = tsk->loginuid;
 			else
 				audit_sig_uid = tsk->uid;
 			selinux_get_task_sid(tsk, &audit_sig_sid);

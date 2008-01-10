@@ -1139,6 +1139,9 @@ struct task_struct {
 	void *security;
 #endif
 	struct audit_context *audit_context;
+#ifdef CONFIG_AUDITSYSCALL
+	uid_t loginuid;
+#endif
 	seccomp_t seccomp;
 
 /* Thread group tracking */
