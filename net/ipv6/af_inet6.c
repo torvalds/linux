@@ -719,6 +719,21 @@ static void cleanup_ipv6_mibs(void)
 	snmp_mib_free((void **)udplite_stats_in6);
 }
 
+static int inet6_net_init(struct net *net)
+{
+	return 0;
+}
+
+static void inet6_net_exit(struct net *net)
+{
+	return;
+}
+
+static struct pernet_operations inet6_net_ops = {
+	.init = inet6_net_init,
+	.exit = inet6_net_exit,
+};
+
 static int __init inet6_init(void)
 {
 	struct sk_buff *dummy_skb;
@@ -781,6 +796,10 @@ static int __init inet6_init(void)
 	 *	in a host availiable by both INET and INET6 APIs and
 	 *	able to communicate via both network protocols.
 	 */
+
+	err = register_pernet_subsys(&inet6_net_ops);
+	if (err)
+		goto register_pernet_fail;
 
 #ifdef CONFIG_SYSCTL
 	err = ipv6_sysctl_register();
@@ -901,6 +920,8 @@ icmp_fail:
 	ipv6_sysctl_unregister();
 sysctl_fail:
 #endif
+	unregister_pernet_subsys(&inet6_net_ops);
+register_pernet_fail:
 	cleanup_ipv6_mibs();
 out_unregister_sock:
 	sock_unregister(PF_INET6);
@@ -956,6 +977,7 @@ static void __exit inet6_exit(void)
 #ifdef CONFIG_SYSCTL
 	ipv6_sysctl_unregister();
 #endif
+	unregister_pernet_subsys(&inet6_net_ops);
 	cleanup_ipv6_mibs();
 	proto_unregister(&rawv6_prot);
 	proto_unregister(&udplitev6_prot);
