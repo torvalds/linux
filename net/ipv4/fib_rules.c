@@ -311,8 +311,18 @@ static int __init fib_default_rules_init(void)
 	return 0;
 }
 
-void __init fib4_rules_init(void)
+int __init fib4_rules_init()
 {
-	BUG_ON(fib_default_rules_init());
+	int err;
+
 	fib_rules_register(&init_net, &fib4_rules_ops);
+	err = fib_default_rules_init();
+	if (err < 0)
+		goto fail;
+	return 0;
+
+fail:
+	/* also cleans all rules already added */
+	fib_rules_unregister(&init_net, &fib4_rules_ops);
+	return err;
 }

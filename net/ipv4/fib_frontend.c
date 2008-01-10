@@ -59,12 +59,24 @@ struct fib_table *ip_fib_main_table;
 #define FIB_TABLE_HASHSZ 1
 static struct hlist_head fib_table_hash[FIB_TABLE_HASHSZ];
 
-static void __init fib4_rules_init(void)
+static int __init fib4_rules_init(void)
 {
 	ip_fib_local_table = fib_hash_init(RT_TABLE_LOCAL);
-	hlist_add_head_rcu(&ip_fib_local_table->tb_hlist, &fib_table_hash[0]);
+	if (ip_fib_local_table == NULL)
+		return -ENOMEM;
+
 	ip_fib_main_table  = fib_hash_init(RT_TABLE_MAIN);
+	if (ip_fib_main_table == NULL)
+		goto fail;
+
+	hlist_add_head_rcu(&ip_fib_local_table->tb_hlist, &fib_table_hash[0]);
 	hlist_add_head_rcu(&ip_fib_main_table->tb_hlist, &fib_table_hash[0]);
+	return 0;
+
+fail:
+	kfree(ip_fib_local_table);
+	ip_fib_local_table = NULL;
+	return -ENOMEM;
 }
 #else
 
@@ -944,7 +956,7 @@ void __init ip_fib_init(void)
 	for (i = 0; i < FIB_TABLE_HASHSZ; i++)
 		INIT_HLIST_HEAD(&fib_table_hash[i]);
 
-	fib4_rules_init();
+	BUG_ON(fib4_rules_init());
 
 	register_netdevice_notifier(&fib_netdev_notifier);
 	register_inetaddr_notifier(&fib_inetaddr_notifier);
