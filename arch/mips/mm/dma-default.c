@@ -45,7 +45,7 @@ static gfp_t massage_gfp_flags(const struct device *dev, gfp_t gfp)
 	/* ignore region specifiers */
 	gfp &= ~(__GFP_DMA | __GFP_DMA32 | __GFP_HIGHMEM);
 
-#ifdef CONFIG_ZONE_DMA32
+#ifdef CONFIG_ZONE_DMA
 	if (dev == NULL)
 		gfp |= __GFP_DMA;
 	else if (dev->coherent_dma_mask < DMA_BIT_MASK(24))
