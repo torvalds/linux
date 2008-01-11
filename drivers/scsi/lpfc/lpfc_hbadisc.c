@@ -149,7 +149,10 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 		return;
 
 	spin_lock_irq(&phba->hbalock);
-	evtp->evt_arg1  = ndlp;
+	/* We need to hold the node by incrementing the reference
+	 * count until this queued work is done
+	 */
+	evtp->evt_arg1  = lpfc_nlp_get(ndlp);
 	evtp->evt       = LPFC_EVT_DEV_LOSS;
 	list_add_tail(&evtp->evt_listp, &phba->work_list);
 	if (phba->work_wait)
@@ -300,12 +303,18 @@ lpfc_work_list_done(struct lpfc_hba *phba)
 			ndlp = (struct lpfc_nodelist *) (evtp->evt_arg1);
 			lpfc_els_retry_delay_handler(ndlp);
 			free_evt = 0; /* evt is part of ndlp */
+			/* decrement the node reference count held
+			 * for this queued work
+			 */
+			lpfc_nlp_put(ndlp);
 			break;
 		case LPFC_EVT_DEV_LOSS:
 			ndlp = (struct lpfc_nodelist *)(evtp->evt_arg1);
-			lpfc_nlp_get(ndlp);
 			lpfc_dev_loss_tmo_handler(ndlp);
 			free_evt = 0;
+			/* decrement the node reference count held for
+			 * this queued work
+			 */
 			lpfc_nlp_put(ndlp);
 			break;
 		case LPFC_EVT_ONLINE:
@@ -1176,6 +1185,9 @@ lpfc_mbx_cmpl_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	lpfc_mbuf_free(phba, mp->virt, mp->phys);
 	kfree(mp);
 	mempool_free(pmb, phba->mbox_mem_pool);
+	/* decrement the node reference count held for this callback
+	 * function.
+	 */
 	lpfc_nlp_put(ndlp);
 
 	return;
@@ -1363,6 +1375,9 @@ lpfc_mbx_cmpl_ns_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 
 	if (mb->mbxStatus) {
 out:
+		/* decrement the node reference count held for this
+		 * callback function.
+		 */
 		lpfc_nlp_put(ndlp);
 		lpfc_mbuf_free(phba, mp->virt, mp->phys);
 		kfree(mp);
@@ -1414,6 +1429,9 @@ out:
 		goto out;
 	}
 
+	/* decrement the node reference count held for this
+	 * callback function.
+	 */
 	lpfc_nlp_put(ndlp);
 	lpfc_mbuf_free(phba, mp->virt, mp->phys);
 	kfree(mp);
@@ -1661,13 +1679,14 @@ void
 lpfc_drop_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 {
 	/*
-	 * Use of lpfc_drop_node and UNUSED list. lpfc_drop_node should
+	 * Use of lpfc_drop_node and UNUSED list: lpfc_drop_node should
 	 * be used if we wish to issue the "last" lpfc_nlp_put() to remove
-	 * the ndlp from the vport.  The ndlp resides on the UNUSED list
-	 * until ALL other outstanding threads have completed. Thus, if a
-	 * ndlp is on the UNUSED list already, we should never do another
-	 * lpfc_drop_node() on it.
+	 * the ndlp from the vport. The ndlp marked as UNUSED on the list
+	 * until ALL other outstanding threads have completed. We check
+	 * that the ndlp not already in the UNUSED state before we proceed.
 	 */
+	if (ndlp->nlp_state == NLP_STE_UNUSED_NODE)
+		return;
 	lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNUSED_NODE);
 	lpfc_nlp_put(ndlp);
 	return;
@@ -2767,7 +2786,9 @@ lpfc_mbx_cmpl_fdmi_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	else
 		mod_timer(&vport->fc_fdmitmo, jiffies + HZ * 60);
 
-				/* Mailbox took a reference to the node */
+	/* decrement the node reference count held for this callback
+	 * function.
+	 */
 	lpfc_nlp_put(ndlp);
 	lpfc_mbuf_free(phba, mp->virt, mp->phys);
 	kfree(mp);

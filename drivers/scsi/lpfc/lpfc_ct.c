@@ -561,7 +561,6 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	if (vport->load_flag & FC_UNLOADING)
 		goto out;
 
-
 	if (lpfc_els_chk_latt(vport) || lpfc_error_lost_link(irsp)) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 				 "0216 Link event during NS query\n");

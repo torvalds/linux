@@ -922,6 +922,9 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_vport *vport,
 					   NLP_STE_REG_LOGIN_ISSUE);
 			return ndlp->nlp_state;
 		}
+		/* decrement node reference count to the failed mbox
+		 * command
+		 */
 		lpfc_nlp_put(ndlp);
 		mp = (struct lpfc_dmabuf *) mbox->context1;
 		lpfc_mbuf_free(phba, mp->virt, mp->phys);

@@ -2605,7 +2605,7 @@ lpfc_sli_issue_mbox(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox, uint32_t flag)
 					"1806 Mbox x%x failed. No vport\n",
 					pmbox->mb.mbxCommand);
 			dump_stack();
-			return MBXERR_ERROR;
+			return MBX_NOT_FINISHED;
 		}
 	}
 
