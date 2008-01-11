@@ -42,7 +42,8 @@ extern struct nlm_host *nlmclnt_init(const char *server_name,
 					u32 nfs_version);
 extern void	nlmclnt_done(struct nlm_host *host);
 
-extern int	nlmclnt_proc(struct inode *, int, struct file_lock *);
+extern int	nlmclnt_proc(struct nlm_host *host, int cmd,
+					struct file_lock *fl);
 extern int	lockd_up(int proto);
 extern void	lockd_down(void);
 
