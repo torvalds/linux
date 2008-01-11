@@ -149,7 +149,8 @@ static void ipv6_ifa_notify(int event, struct inet6_ifaddr *ifa);
 
 static void inet6_prefix_notify(int event, struct inet6_dev *idev,
 				struct prefix_info *pinfo);
-static int ipv6_chk_same_addr(const struct in6_addr *addr, struct net_device *dev);
+static int ipv6_chk_same_addr(struct net *net, const struct in6_addr *addr,
+			      struct net_device *dev);
 
 static ATOMIC_NOTIFIER_HEAD(inet6addr_chain);
 
@@ -560,7 +561,7 @@ ipv6_add_addr(struct inet6_dev *idev, const struct in6_addr *addr, int pfxlen,
 	write_lock(&addrconf_hash_lock);
 
 	/* Ignore adding duplicate addresses on an interface */
-	if (ipv6_chk_same_addr(addr, idev->dev)) {
+	if (ipv6_chk_same_addr(&init_net, addr, idev->dev)) {
 		ADBG(("ipv6_add_addr: already assigned\n"));
 		err = -EEXIST;
 		goto out;
@@ -1229,12 +1230,15 @@ int ipv6_chk_addr(struct net *net, struct in6_addr *addr,
 EXPORT_SYMBOL(ipv6_chk_addr);
 
 static
-int ipv6_chk_same_addr(const struct in6_addr *addr, struct net_device *dev)
+int ipv6_chk_same_addr(struct net *net, const struct in6_addr *addr,
+		       struct net_device *dev)
 {
 	struct inet6_ifaddr * ifp;
 	u8 hash = ipv6_addr_hash(addr);
 
 	for(ifp = inet6_addr_lst[hash]; ifp; ifp=ifp->lst_next) {
+		if (ifp->idev->dev->nd_net != net)
+			continue;
 		if (ipv6_addr_equal(&ifp->addr, addr)) {
 			if (dev == NULL || ifp->idev->dev == dev)
 				break;
