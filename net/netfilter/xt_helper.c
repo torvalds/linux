@@ -56,8 +56,8 @@ match(const struct sk_buff *skb,
 	if (info->name[0] == '\0')
 		ret = !ret;
 	else
-		ret ^= !strncmp(master_help->helper->name, info->name,
-				strlen(master_help->helper->name));
+		ret ^= !strncmp(helper->name, info->name,
+				strlen(helper->name));
 	return ret;
 }
 
