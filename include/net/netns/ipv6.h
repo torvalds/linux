@@ -28,5 +28,7 @@ struct netns_sysctl_ipv6 {
 
 struct netns_ipv6 {
 	struct netns_sysctl_ipv6 sysctl;
+	struct ipv6_devconf	*devconf_all;
+	struct ipv6_devconf	*devconf_dflt;
 };
 #endif
