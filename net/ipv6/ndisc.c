@@ -556,7 +556,7 @@ static void ndisc_send_na(struct net_device *dev, struct neighbour *neigh,
 	};
 
 	/* for anycast or proxy, solicited_addr != src_addr */
-	ifp = ipv6_get_ifaddr(solicited_addr, dev, 1);
+	ifp = ipv6_get_ifaddr(&init_net, solicited_addr, dev, 1);
 	if (ifp) {
 		src_addr = solicited_addr;
 		if (ifp->flags & IFA_F_OPTIMISTIC)
@@ -616,7 +616,8 @@ void ndisc_send_rs(struct net_device *dev, struct in6_addr *saddr,
 	 * suppress the inclusion of the sllao.
 	 */
 	if (send_sllao) {
-		struct inet6_ifaddr *ifp = ipv6_get_ifaddr(saddr, dev, 1);
+		struct inet6_ifaddr *ifp = ipv6_get_ifaddr(&init_net, saddr,
+							   dev, 1);
 		if (ifp) {
 			if (ifp->flags & IFA_F_OPTIMISTIC)  {
 				send_sllao = 0;
@@ -741,7 +742,7 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 
 	inc = ipv6_addr_is_multicast(daddr);
 
-	if ((ifp = ipv6_get_ifaddr(&msg->target, dev, 1)) != NULL) {
+	if ((ifp = ipv6_get_ifaddr(&init_net, &msg->target, dev, 1)) != NULL) {
 
 		if (ifp->flags & (IFA_F_TENTATIVE|IFA_F_OPTIMISTIC)) {
 			if (dad) {
@@ -899,7 +900,7 @@ static void ndisc_recv_na(struct sk_buff *skb)
 			return;
 		}
 	}
-	if ((ifp = ipv6_get_ifaddr(&msg->target, dev, 1))) {
+	if ((ifp = ipv6_get_ifaddr(&init_net, &msg->target, dev, 1))) {
 		if (ifp->flags & IFA_F_TENTATIVE) {
 			addrconf_dad_failure(ifp);
 			return;

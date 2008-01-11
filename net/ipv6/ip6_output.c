@@ -936,7 +936,8 @@ static int ip6_dst_lookup_tail(struct sock *sk,
 			struct flowi fl_gw;
 			int redirect;
 
-			ifp = ipv6_get_ifaddr(&fl->fl6_src, (*dst)->dev, 1);
+			ifp = ipv6_get_ifaddr(&init_net, &fl->fl6_src,
+					      (*dst)->dev, 1);
 
 			redirect = (ifp && ifp->flags & IFA_F_OPTIMISTIC);
 			if (ifp)

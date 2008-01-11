@@ -1247,13 +1247,16 @@ int ipv6_chk_same_addr(struct net *net, const struct in6_addr *addr,
 	return ifp != NULL;
 }
 
-struct inet6_ifaddr * ipv6_get_ifaddr(struct in6_addr *addr, struct net_device *dev, int strict)
+struct inet6_ifaddr *ipv6_get_ifaddr(struct net *net, struct in6_addr *addr,
+				     struct net_device *dev, int strict)
 {
 	struct inet6_ifaddr * ifp;
 	u8 hash = ipv6_addr_hash(addr);
 
 	read_lock_bh(&addrconf_hash_lock);
 	for(ifp = inet6_addr_lst[hash]; ifp; ifp=ifp->lst_next) {
+		if (ifp->idev->dev->nd_net != net)
+			continue;
 		if (ipv6_addr_equal(&ifp->addr, addr)) {
 			if (dev == NULL || ifp->idev->dev == dev ||
 			    !(ifp->scope&(IFA_LINK|IFA_HOST) || strict)) {
@@ -1739,7 +1742,7 @@ void addrconf_prefix_rcv(struct net_device *dev, u8 *opt, int len)
 
 ok:
 
-		ifp = ipv6_get_ifaddr(&addr, dev, 1);
+		ifp = ipv6_get_ifaddr(&init_net, &addr, dev, 1);
 
 		if (ifp == NULL && valid_lft) {
 			int max_addresses = in6_dev->cnf.max_addresses;
@@ -3135,7 +3138,7 @@ inet6_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	/* We ignore other flags so far. */
 	ifa_flags = ifm->ifa_flags & (IFA_F_NODAD | IFA_F_HOMEADDRESS);
 
-	ifa = ipv6_get_ifaddr(pfx, dev, 1);
+	ifa = ipv6_get_ifaddr(net, pfx, dev, 1);
 	if (ifa == NULL) {
 		/*
 		 * It would be best to check for !NLM_F_CREATE here but
@@ -3442,7 +3445,7 @@ static int inet6_rtm_getaddr(struct sk_buff *in_skb, struct nlmsghdr* nlh,
 	if (ifm->ifa_index)
 		dev = __dev_get_by_index(&init_net, ifm->ifa_index);
 
-	if ((ifa = ipv6_get_ifaddr(addr, dev, 1)) == NULL) {
+	if ((ifa = ipv6_get_ifaddr(net, addr, dev, 1)) == NULL) {
 		err = -EADDRNOTAVAIL;
 		goto errout;
 	}
