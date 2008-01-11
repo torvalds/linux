@@ -13,6 +13,7 @@ config EBONY
 	default y
 	select 440GP
 	select PCI
+	select OF_RTC
 	help
 	  This option enables support for the IBM PPC440GP evaluation board.
 
