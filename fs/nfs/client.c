@@ -458,7 +458,7 @@ static int nfs_create_rpc_client(struct nfs_client *clp,
 static void nfs_destroy_server(struct nfs_server *server)
 {
 	if (!(server->flags & NFS_MOUNT_NONLM))
-		lockd_down();	/* release rpc.lockd */
+		nlmclnt_done(server->nlm_host);
 }
 
 /*
@@ -466,20 +466,26 @@ static void nfs_destroy_server(struct nfs_server *server)
  */
 static int nfs_start_lockd(struct nfs_server *server)
 {
-	int error = 0;
+	struct nlm_host *host;
+	struct nfs_client *clp = server->nfs_client;
+	u32 nfs_version = clp->rpc_ops->version;
+	unsigned short protocol = server->flags & NFS_MOUNT_TCP ?
+						IPPROTO_TCP : IPPROTO_UDP;
 
-	if (server->nfs_client->rpc_ops->version > 3)
-		goto out;
+	if (nfs_version > 3)
+		return 0;
 	if (server->flags & NFS_MOUNT_NONLM)
-		goto out;
-	error = lockd_up((server->flags & NFS_MOUNT_TCP) ?
-			IPPROTO_TCP : IPPROTO_UDP);
-	if (error < 0)
-		server->flags |= NFS_MOUNT_NONLM;
-	else
-		server->destroy = nfs_destroy_server;
-out:
-	return error;
+		return 0;
+
+	host = nlmclnt_init(clp->cl_hostname,
+			    (struct sockaddr *)&clp->cl_addr,
+			    clp->cl_addrlen, protocol, nfs_version);
+	if (IS_ERR(host))
+		return PTR_ERR(host);
+
+	server->nlm_host = host;
+	server->destroy = nfs_destroy_server;
+	return 0;
 }
 
 /*
