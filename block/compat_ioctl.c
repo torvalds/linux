@@ -545,6 +545,7 @@ static int compat_blk_trace_setup(struct block_device *bdev, char __user *arg)
 	struct blk_user_trace_setup buts;
 	struct compat_blk_user_trace_setup cbuts;
 	struct request_queue *q;
+	char b[BDEVNAME_SIZE];
 	int ret;
 
 	q = bdev_get_queue(bdev);
@@ -553,6 +554,8 @@ static int compat_blk_trace_setup(struct block_device *bdev, char __user *arg)
 
 	if (copy_from_user(&cbuts, arg, sizeof(cbuts)))
 		return -EFAULT;
+
+	strcpy(b, bdevname(bdev, b));
 
 	buts = (struct blk_user_trace_setup) {
 		.act_mask = cbuts.act_mask,
@@ -565,7 +568,7 @@ static int compat_blk_trace_setup(struct block_device *bdev, char __user *arg)
 	memcpy(&buts.name, &cbuts.name, 32);
 
 	mutex_lock(&bdev->bd_mutex);
-	ret = do_blk_trace_setup(q, bdev, &buts);
+	ret = do_blk_trace_setup(q, b, bdev->bd_dev, &buts);
 	mutex_unlock(&bdev->bd_mutex);
 	if (ret)
 		return ret;

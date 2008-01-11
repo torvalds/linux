@@ -148,7 +148,7 @@ extern int blk_trace_ioctl(struct block_device *, unsigned, char __user *);
 extern void blk_trace_shutdown(struct request_queue *);
 extern void __blk_add_trace(struct blk_trace *, sector_t, int, int, u32, int, int, void *);
 extern int do_blk_trace_setup(struct request_queue *q,
-	struct block_device *bdev, struct blk_user_trace_setup *buts);
+	char *name, dev_t dev, struct blk_user_trace_setup *buts);
 
 
 /**
@@ -282,6 +282,11 @@ static inline void blk_add_trace_remap(struct request_queue *q, struct bio *bio,
 	__blk_add_trace(bt, from, bio->bi_size, bio->bi_rw, BLK_TA_REMAP, !bio_flagged(bio, BIO_UPTODATE), sizeof(r), &r);
 }
 
+extern int blk_trace_setup(request_queue_t *q, char *name, dev_t dev,
+			   char __user *arg);
+extern int blk_trace_startstop(request_queue_t *q, int start);
+extern int blk_trace_remove(request_queue_t *q);
+
 #else /* !CONFIG_BLK_DEV_IO_TRACE */
 #define blk_trace_ioctl(bdev, cmd, arg)		(-ENOTTY)
 #define blk_trace_shutdown(q)			do { } while (0)
@@ -290,7 +295,10 @@ static inline void blk_add_trace_remap(struct request_queue *q, struct bio *bio,
 #define blk_add_trace_generic(q, rq, rw, what)	do { } while (0)
 #define blk_add_trace_pdu_int(q, what, bio, pdu)	do { } while (0)
 #define blk_add_trace_remap(q, bio, dev, f, t)	do {} while (0)
-#define do_blk_trace_setup(q, bdev, buts)	(-ENOTTY)
+#define do_blk_trace_setup(q, name, dev, buts)	(-ENOTTY)
+#define blk_trace_setup(q, name, dev, arg)	(-ENOTTY)
+#define blk_trace_startstop(q, start)		(-ENOTTY)
+#define blk_trace_remove(q)			(-ENOTTY)
 #endif /* CONFIG_BLK_DEV_IO_TRACE */
 #endif /* __KERNEL__ */
 #endif
