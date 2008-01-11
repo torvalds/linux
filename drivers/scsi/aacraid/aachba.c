@@ -716,16 +716,21 @@ static void setinqstr(struct aac_dev *dev, void *data, int tindex)
 
 	if (dev->supplement_adapter_info.AdapterTypeText[0]) {
 		char * cp = dev->supplement_adapter_info.AdapterTypeText;
-		int c = sizeof(str->vid);
-		while (*cp && *cp != ' ' && --c)
-			++cp;
-		c = *cp;
-		*cp = '\0';
-		inqstrcpy (dev->supplement_adapter_info.AdapterTypeText,
-		  str->vid); 
-		*cp = c;
-		while (*cp && *cp != ' ')
-			++cp;
+		int c;
+		if ((cp[0] == 'A') && (cp[1] == 'O') && (cp[2] == 'C'))
+			inqstrcpy("SMC", str->vid);
+		else {
+			c = sizeof(str->vid);
+			while (*cp && *cp != ' ' && --c)
+				++cp;
+			c = *cp;
+			*cp = '\0';
+			inqstrcpy (dev->supplement_adapter_info.AdapterTypeText,
+				   str->vid);
+			*cp = c;
+			while (*cp && *cp != ' ')
+				++cp;
+		}
 		while (*cp == ' ')
 			++cp;
 		/* last six chars reserved for vol type */
