@@ -227,7 +227,7 @@ static char *snd_pcm_subformat_names[] = {
 
 static char *snd_pcm_tstamp_mode_names[] = {
 	TSTAMP(NONE),
-	TSTAMP(MMAP),
+	TSTAMP(ENABLE),
 };
 
 static const char *snd_pcm_stream_name(int stream)

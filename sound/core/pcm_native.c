@@ -580,9 +580,15 @@ int snd_pcm_status(struct snd_pcm_substream *substream,
 	if (status->state == SNDRV_PCM_STATE_OPEN)
 		goto _end;
 	status->trigger_tstamp = runtime->trigger_tstamp;
-	if (snd_pcm_running(substream))
+	if (snd_pcm_running(substream)) {
 		snd_pcm_update_hw_ptr(substream);
+		if (runtime->tstamp_mode == SNDRV_PCM_TSTAMP_ENABLE) {
+			status->tstamp = runtime->status->tstamp;
+			goto _tstamp_end;
+		}
+	}
 	snd_pcm_gettime(runtime, &status->tstamp);
+ _tstamp_end:
 	status->appl_ptr = runtime->control->appl_ptr;
 	status->hw_ptr = runtime->status->hw_ptr;
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {

@@ -144,6 +144,8 @@ static inline snd_pcm_uframes_t snd_pcm_update_hw_ptr_pos(struct snd_pcm_substre
 {
 	snd_pcm_uframes_t pos;
 
+	if (runtime->tstamp_mode == SNDRV_PCM_TSTAMP_ENABLE)
+		snd_pcm_gettime(runtime, (struct timespec *)&runtime->status->tstamp);
 	pos = substream->ops->pointer(substream);
 	if (pos == SNDRV_PCM_POS_XRUN)
 		return pos; /* XRUN */
@@ -186,8 +188,6 @@ static inline int snd_pcm_update_hw_ptr_interrupt(struct snd_pcm_substream *subs
 	snd_pcm_uframes_t new_hw_ptr, hw_ptr_interrupt;
 	snd_pcm_sframes_t delta;
 
-	if (runtime->tstamp_mode == SNDRV_PCM_TSTAMP_MMAP)
-		snd_pcm_gettime(runtime, (struct timespec *)&runtime->status->tstamp);
 	pos = snd_pcm_update_hw_ptr_pos(substream, runtime);
 	if (pos == SNDRV_PCM_POS_XRUN) {
 		xrun(substream);
