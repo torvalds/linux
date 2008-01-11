@@ -4044,7 +4044,7 @@ static struct addrconf_sysctl_table
 	},
 };
 
-static void __addrconf_sysctl_register(char *dev_name, int ctl_name,
+static int __addrconf_sysctl_register(char *dev_name, int ctl_name,
 		struct inet6_dev *idev, struct ipv6_devconf *p)
 {
 	int i;
@@ -4088,14 +4088,14 @@ static void __addrconf_sysctl_register(char *dev_name, int ctl_name,
 		goto free_procname;
 
 	p->sysctl = t;
-	return;
+	return 0;
 
 free_procname:
 	kfree(t->dev_name);
 free:
 	kfree(t);
 out:
-	return;
+	return -ENOBUFS;
 }
 
 static void __addrconf_sysctl_unregister(struct ipv6_devconf *p)
