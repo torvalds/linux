@@ -2736,6 +2736,7 @@ static void addrconf_dad_run(struct inet6_dev *idev) {
 
 #ifdef CONFIG_PROC_FS
 struct if6_iter_state {
+	struct seq_net_private p;
 	int bucket;
 };
 
@@ -2743,9 +2744,13 @@ static struct inet6_ifaddr *if6_get_first(struct seq_file *seq)
 {
 	struct inet6_ifaddr *ifa = NULL;
 	struct if6_iter_state *state = seq->private;
+	struct net *net = state->p.net;
 
 	for (state->bucket = 0; state->bucket < IN6_ADDR_HSIZE; ++state->bucket) {
 		ifa = inet6_addr_lst[state->bucket];
+
+		while (ifa && ifa->idev->dev->nd_net != net)
+			ifa = ifa->lst_next;
 		if (ifa)
 			break;
 	}
@@ -2755,13 +2760,22 @@ static struct inet6_ifaddr *if6_get_first(struct seq_file *seq)
 static struct inet6_ifaddr *if6_get_next(struct seq_file *seq, struct inet6_ifaddr *ifa)
 {
 	struct if6_iter_state *state = seq->private;
+	struct net *net = state->p.net;
 
 	ifa = ifa->lst_next;
 try_again:
+	if (ifa) {
+		if (ifa->idev->dev->nd_net != net) {
+			ifa = ifa->lst_next;
+			goto try_again;
+		}
+	}
+
 	if (!ifa && ++state->bucket < IN6_ADDR_HSIZE) {
 		ifa = inet6_addr_lst[state->bucket];
 		goto try_again;
 	}
+
 	return ifa;
 }
 
@@ -2818,8 +2832,8 @@ static const struct seq_operations if6_seq_ops = {
 
 static int if6_seq_open(struct inode *inode, struct file *file)
 {
-	return seq_open_private(file, &if6_seq_ops,
-			sizeof(struct if6_iter_state));
+	return seq_open_net(inode, file, &if6_seq_ops,
+			    sizeof(struct if6_iter_state));
 }
 
 static const struct file_operations if6_fops = {
@@ -2827,19 +2841,34 @@ static const struct file_operations if6_fops = {
 	.open		= if6_seq_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release_private,
+	.release	= seq_release_net,
 };
 
-int __init if6_proc_init(void)
+static int if6_proc_net_init(struct net *net)
 {
-	if (!proc_net_fops_create(&init_net, "if_inet6", S_IRUGO, &if6_fops))
+	if (!proc_net_fops_create(net, "if_inet6", S_IRUGO, &if6_fops))
 		return -ENOMEM;
 	return 0;
 }
 
+static void if6_proc_net_exit(struct net *net)
+{
+       proc_net_remove(net, "if_inet6");
+}
+
+static struct pernet_operations if6_proc_net_ops = {
+       .init = if6_proc_net_init,
+       .exit = if6_proc_net_exit,
+};
+
+int __init if6_proc_init(void)
+{
+	return register_pernet_subsys(&if6_proc_net_ops);
+}
+
 void if6_proc_exit(void)
 {
-	proc_net_remove(&init_net, "if_inet6");
+	unregister_pernet_subsys(&if6_proc_net_ops);
 }
 #endif	/* CONFIG_PROC_FS */
 
