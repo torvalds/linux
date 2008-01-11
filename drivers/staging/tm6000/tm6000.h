@@ -252,6 +252,10 @@ unsigned int tm6000_v4l2_poll(struct file *file,
 			      struct poll_table_struct *wait);
 int tm6000_queue_init(struct tm6000_core *dev);
 
+/* In tm6000-alsa.c */
+int tm6000_audio_init(struct tm6000_core *dev, int idx);
+
+
 /* Debug stuff */
 
 extern int tm6000_debug;

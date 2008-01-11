@@ -333,20 +333,11 @@ static int __devinit snd_tm6000_pcm(struct snd_tm6000_card *chip,
 			Basic Flow for Sound Devices
  ****************************************************************************/
 
-
-/*
- * Component Destructor
- */
-static void snd_tm6000_dev_free(struct snd_card *card)
-{
-}
-
-
 /*
  * Alsa Constructor - Component probe
  */
 
-static int tm6000_audio_init(struct tm6000_core *dev, int idx)
+int tm6000_audio_init(struct tm6000_core *dev, int idx)
 {
 	struct snd_card         *card;
 	struct snd_tm6000_card  *chip;
@@ -419,4 +410,5 @@ error:
 	snd_card_free(card);
 	return rc;
 }
+EXPORT_SYMBOL_GPL(tm6000_audio_init);
 
