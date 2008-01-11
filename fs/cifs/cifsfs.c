@@ -97,6 +97,9 @@ cifs_read_super(struct super_block *sb, void *data,
 {
 	struct inode *inode;
 	struct cifs_sb_info *cifs_sb;
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	int len;
+#endif
 	int rc = 0;
 
 	/* BB should we make this contingent on mount parm? */
@@ -105,6 +108,25 @@ cifs_read_super(struct super_block *sb, void *data,
 	cifs_sb = CIFS_SB(sb);
 	if (cifs_sb == NULL)
 		return -ENOMEM;
+
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	/* copy mount params to sb for use in submounts */
+	/* BB: should we move this after the mount so we
+	 * do not have to do the copy on failed mounts?
+	 * BB: May be it is better to do simple copy before
+	 * complex operation (mount), and in case of fail
+	 * just exit instead of doing mount and attempting
+	 * undo it if this copy fails?*/
+	len = strlen(data);
+	cifs_sb->mountdata = kzalloc(len + 1, GFP_KERNEL);
+	if (cifs_sb->mountdata == NULL) {
+		kfree(sb->s_fs_info);
+		sb->s_fs_info = NULL;
+		return -ENOMEM;
+	}
+	strncpy(cifs_sb->mountdata, data, len + 1);
+	cifs_sb->mountdata[len] = '\0';
+#endif
 
 	rc = cifs_mount(sb, cifs_sb, data, devname);
 
@@ -155,6 +177,12 @@ out_no_root:
 
 out_mount_failed:
 	if (cifs_sb) {
+#ifdef CONFIG_CIFS_DFS_UPCALL
+		if (cifs_sb->mountdata) {
+			kfree(cifs_sb->mountdata);
+			cifs_sb->mountdata = NULL;
+		}
+#endif
 		if (cifs_sb->local_nls)
 			unload_nls(cifs_sb->local_nls);
 		kfree(cifs_sb);
@@ -178,6 +206,13 @@ cifs_put_super(struct super_block *sb)
 	if (rc) {
 		cERROR(1, ("cifs_umount failed with return code %d", rc));
 	}
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	if (cifs_sb->mountdata) {
+		kfree(cifs_sb->mountdata);
+		cifs_sb->mountdata = NULL;
+	}
+#endif
+
 	unload_nls(cifs_sb->local_nls);
 	kfree(cifs_sb);
 	return;
@@ -553,7 +588,7 @@ static loff_t cifs_llseek(struct file *file, loff_t offset, int origin)
 	return remote_llseek(file, offset, origin);
 }
 
-static struct file_system_type cifs_fs_type = {
+struct file_system_type cifs_fs_type = {
 	.owner = THIS_MODULE,
 	.name = "cifs",
 	.get_sb = cifs_get_sb,

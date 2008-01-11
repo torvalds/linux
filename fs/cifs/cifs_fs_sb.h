@@ -43,6 +43,9 @@ struct cifs_sb_info {
 	mode_t	mnt_dir_mode;
 	int     mnt_cifs_flags;
 	int	prepathlen;
-	char   *prepath;
+	char   *prepath; /* relative path under the share to mount to */
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	char   *mountdata; /* mount options received at mount time */
+#endif
 };
 #endif				/* _CIFS_FS_SB_H */

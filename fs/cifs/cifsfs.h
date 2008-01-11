@@ -32,6 +32,7 @@
 #define TRUE 1
 #endif
 
+extern struct file_system_type cifs_fs_type;
 extern const struct address_space_operations cifs_addr_ops;
 extern const struct address_space_operations cifs_addr_ops_smallbuf;
 
