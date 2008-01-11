@@ -381,14 +381,19 @@ static void setup_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	err |= setup_sigcontext(frame, regs);
 	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
 
-	/* Create sys_rt_sigreturn syscall in stack frame */
+	if (ka->sa.sa_flags & SA_RESTORER) {
+		ra = (unsigned long)ka->sa.sa_restorer;
+	} else {
 
-	err |= gen_return_code(frame->retcode);
+		/* Create sys_rt_sigreturn syscall in stack frame */
 
-	if (err) {
-		goto give_sigsegv;
+		err |= gen_return_code(frame->retcode);
+
+		if (err) {
+			goto give_sigsegv;
+		}
+		ra = (unsigned long) frame->retcode;
 	}
-		
 
 	/* 
 	 * Create signal handler execution context.
@@ -402,7 +407,6 @@ static void setup_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	/* Set up a stack frame for a call4
 	 * Note: PS.CALLINC is set to one by start_thread
 	 */
-	ra = (unsigned long) frame->retcode;
 	regs->areg[4] = (((unsigned long) ra) & 0x3fffffff) | 0x40000000;
 	regs->areg[6] = (unsigned long) signal;
 	regs->areg[7] = (unsigned long) &frame->info;
