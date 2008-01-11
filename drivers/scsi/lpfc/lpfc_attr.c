@@ -45,6 +45,10 @@
 #define LPFC_MIN_DEVLOSS_TMO 1
 #define LPFC_MAX_DEVLOSS_TMO 255
 
+#define LPFC_MAX_LINK_SPEED 8
+#define LPFC_LINK_SPEED_BITMAP 0x00000117
+#define LPFC_LINK_SPEED_STRING "0, 1, 2, 4, 8"
+
 static void
 lpfc_jedec_to_ascii(int incr, char hdw[])
 {
@@ -258,8 +262,7 @@ lpfc_issue_lip(struct Scsi_Host *shost)
 	int mbxstatus = MBXERR_ERROR;
 
 	if ((vport->fc_flag & FC_OFFLINE_MODE) ||
-	    (phba->sli.sli_flag & LPFC_BLOCK_MGMT_IO) ||
-	    (vport->port_state != LPFC_VPORT_READY))
+	    (phba->sli.sli_flag & LPFC_BLOCK_MGMT_IO))
 		return -EPERM;
 
 	pmboxq = mempool_alloc(phba->mbox_mem_pool,GFP_KERNEL);
@@ -1405,7 +1408,33 @@ LPFC_VPORT_ATTR_R(scan_down, 1, 0, 1,
 # Set loop mode if you want to run as an NL_Port. Value range is [0,0x6].
 # Default value is 0.
 */
-LPFC_ATTR_RW(topology, 0, 0, 6, "Select Fibre Channel topology");
+static int
+lpfc_topology_set(struct lpfc_hba *phba, int val)
+{
+	int err;
+	uint32_t prev_val;
+	if (val >= 0 && val <= 6) {
+		prev_val = phba->cfg_topology;
+		phba->cfg_topology = val;
+		err = lpfc_issue_lip(lpfc_shost_from_vport(phba->pport));
+		if (err)
+			phba->cfg_topology = prev_val;
+		return err;
+	}
+	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		"%d:0467 lpfc_topology attribute cannot be set to %d, "
+		"allowed range is [0, 6]\n",
+		phba->brd_no, val);
+	return -EINVAL;
+}
+static int lpfc_topology = 0;
+module_param(lpfc_topology, int, 0);
+MODULE_PARM_DESC(lpfc_topology, "Select Fibre Channel topology");
+lpfc_param_show(topology)
+lpfc_param_init(topology, 0, 0, 6)
+lpfc_param_store(topology)
+static CLASS_DEVICE_ATTR(lpfc_topology, S_IRUGO | S_IWUSR,
+		lpfc_topology_show, lpfc_topology_store);
 
 /*
 # lpfc_link_speed: Link speed selection for initializing the Fibre Channel
@@ -1417,7 +1446,59 @@ LPFC_ATTR_RW(topology, 0, 0, 6, "Select Fibre Channel topology");
 #       8  = 8 Gigabaud
 # Value range is [0,8]. Default value is 0.
 */
-LPFC_ATTR_R(link_speed, 0, 0, 8, "Select link speed");
+static int
+lpfc_link_speed_set(struct lpfc_hba *phba, int val)
+{
+	int err;
+	uint32_t prev_val;
+
+	if (((val == LINK_SPEED_1G) && !(phba->lmt & LMT_1Gb)) ||
+		((val == LINK_SPEED_2G) && !(phba->lmt & LMT_2Gb)) ||
+		((val == LINK_SPEED_4G) && !(phba->lmt & LMT_4Gb)) ||
+		((val == LINK_SPEED_8G) && !(phba->lmt & LMT_8Gb)) ||
+		((val == LINK_SPEED_10G) && !(phba->lmt & LMT_10Gb)))
+		return -EINVAL;
+
+	if ((val >= 0 && val <= LPFC_MAX_LINK_SPEED)
+		&& (LPFC_LINK_SPEED_BITMAP & (1 << val))) {
+		prev_val = phba->cfg_link_speed;
+		phba->cfg_link_speed = val;
+		err = lpfc_issue_lip(lpfc_shost_from_vport(phba->pport));
+		if (err)
+			phba->cfg_link_speed = prev_val;
+		return err;
+	}
+
+	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		"%d:0469 lpfc_link_speed attribute cannot be set to %d, "
+		"allowed range is [0, 8]\n",
+		phba->brd_no, val);
+	return -EINVAL;
+}
+
+static int lpfc_link_speed = 0;
+module_param(lpfc_link_speed, int, 0);
+MODULE_PARM_DESC(lpfc_link_speed, "Select link speed");
+lpfc_param_show(link_speed)
+static int
+lpfc_link_speed_init(struct lpfc_hba *phba, int val)
+{
+	if ((val >= 0 && val <= LPFC_MAX_LINK_SPEED)
+		&& (LPFC_LINK_SPEED_BITMAP & (1 << val))) {
+		phba->cfg_link_speed = val;
+		return 0;
+	}
+	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			"0454 lpfc_link_speed attribute cannot "
+			"be set to %d, allowed values are "
+			"["LPFC_LINK_SPEED_STRING"]\n", val);
+	phba->cfg_link_speed = 0;
+	return -EINVAL;
+}
+
+lpfc_param_store(link_speed)
+static CLASS_DEVICE_ATTR(lpfc_link_speed, S_IRUGO | S_IWUSR,
+		lpfc_link_speed_show, lpfc_link_speed_store);
 
 /*
 # lpfc_fcp_class:  Determines FC class to use for the FCP protocol.
@@ -1531,6 +1612,15 @@ LPFC_ATTR_R(enable_hba_reset, 1, 0, 1, "Enable HBA resets from the driver.");
 */
 LPFC_ATTR_R(enable_hba_heartbeat, 1, 0, 1, "Enable HBA Heartbeat.");
 
+/*
+ * lpfc_sg_seg_cnt: Initial Maximum DMA Segment Count
+ * This value can be set to values between 64 and 256. The default value is
+ * 64, but may be increased to allow for larger Max I/O sizes. The scsi layer
+ * will be allowed to request I/Os of sizes up to (MAX_SEG_COUNT * SEG_SIZE).
+ */
+LPFC_ATTR_R(sg_seg_cnt, LPFC_DEFAULT_SG_SEG_CNT, LPFC_DEFAULT_SG_SEG_CNT,
+	    LPFC_MAX_SG_SEG_CNT, "Max Scatter Gather Segment Count");
+
 struct class_device_attribute *lpfc_hba_attrs[] = {
 	&class_device_attr_info,
 	&class_device_attr_serialnum,
@@ -1583,6 +1673,7 @@ struct class_device_attribute *lpfc_hba_attrs[] = {
 	&class_device_attr_lpfc_soft_wwn_enable,
 	&class_device_attr_lpfc_enable_hba_reset,
 	&class_device_attr_lpfc_enable_hba_heartbeat,
+	&class_device_attr_lpfc_sg_seg_cnt,
 	NULL,
 };
 
@@ -2490,18 +2581,18 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	phba->cfg_poll = lpfc_poll;
 	phba->cfg_soft_wwnn = 0L;
 	phba->cfg_soft_wwpn = 0L;
-	/*
-	 * The total number of segments is the configuration value plus 2
-	 * since the IOCB need a command and response bde.
-	 */
-	phba->cfg_sg_seg_cnt = LPFC_SG_SEG_CNT + 2;
+	lpfc_sg_seg_cnt_init(phba, lpfc_sg_seg_cnt);
+	/* Also reinitialize the host templates with new values. */
+	lpfc_vport_template.sg_tablesize = phba->cfg_sg_seg_cnt;
+	lpfc_template.sg_tablesize = phba->cfg_sg_seg_cnt;
 	/*
 	 * Since the sg_tablesize is module parameter, the sg_dma_buf_size
-	 * used to create the sg_dma_buf_pool must be dynamically calculated
+	 * used to create the sg_dma_buf_pool must be dynamically calculated.
+	 * 2 segments are added since the IOCB needs a command and response bde.
 	 */
 	phba->cfg_sg_dma_buf_size = sizeof(struct fcp_cmnd) +
 			sizeof(struct fcp_rsp) +
-			(phba->cfg_sg_seg_cnt * sizeof(struct ulp_bde64));
+			((phba->cfg_sg_seg_cnt + 2) * sizeof(struct ulp_bde64));
 	lpfc_hba_queue_depth_init(phba, lpfc_hba_queue_depth);
 	return;
 }

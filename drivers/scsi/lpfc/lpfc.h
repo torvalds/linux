@@ -29,7 +29,8 @@ struct lpfc_sli2_slim;
 #define LPFC_MAX_NS_RETRY	3	/* Number of retry attempts to contact
 					   the NameServer  before giving up. */
 #define LPFC_CMD_PER_LUN	3	/* max outstanding cmds per lun */
-#define LPFC_SG_SEG_CNT		64	/* sg element count per scsi cmnd */
+#define LPFC_DEFAULT_SG_SEG_CNT	64	/* sg element count per scsi cmnd */
+#define LPFC_MAX_SG_SEG_CNT	256	/* sg element count per scsi cmnd */
 #define LPFC_IOCB_LIST_CNT	2250	/* list of IOCBs for fast-path usage. */
 #define LPFC_Q_RAMP_UP_INTERVAL 120     /* lun q_depth ramp up interval */
 
