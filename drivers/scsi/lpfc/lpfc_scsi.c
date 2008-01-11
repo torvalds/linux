@@ -130,7 +130,7 @@ lpfc_ramp_down_queue_handler(struct lpfc_hba *phba)
 
 	vports = lpfc_create_vport_work_array(phba);
 	if (vports != NULL)
-		for(i = 0; i < LPFC_MAX_VPORTS && vports[i] != NULL; i++) {
+		for(i = 0; i <= phba->max_vpi && vports[i] != NULL; i++) {
 			shost = lpfc_shost_from_vport(vports[i]);
 			shost_for_each_device(sdev, shost) {
 				new_queue_depth =
@@ -151,7 +151,7 @@ lpfc_ramp_down_queue_handler(struct lpfc_hba *phba)
 							new_queue_depth);
 			}
 		}
-	lpfc_destroy_vport_work_array(vports);
+	lpfc_destroy_vport_work_array(phba, vports);
 	atomic_set(&phba->num_rsrc_err, 0);
 	atomic_set(&phba->num_cmd_success, 0);
 }
@@ -166,7 +166,7 @@ lpfc_ramp_up_queue_handler(struct lpfc_hba *phba)
 
 	vports = lpfc_create_vport_work_array(phba);
 	if (vports != NULL)
-		for(i = 0; i < LPFC_MAX_VPORTS && vports[i] != NULL; i++) {
+		for(i = 0; i <= phba->max_vpi && vports[i] != NULL; i++) {
 			shost = lpfc_shost_from_vport(vports[i]);
 			shost_for_each_device(sdev, shost) {
 				if (sdev->ordered_tags)
@@ -179,7 +179,7 @@ lpfc_ramp_up_queue_handler(struct lpfc_hba *phba)
 							sdev->queue_depth+1);
 			}
 		}
-	lpfc_destroy_vport_work_array(vports);
+	lpfc_destroy_vport_work_array(phba, vports);
 	atomic_set(&phba->num_rsrc_err, 0);
 	atomic_set(&phba->num_cmd_success, 0);
 }
@@ -380,7 +380,7 @@ lpfc_scsi_prep_dma_buf(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 		(num_bde * sizeof (struct ulp_bde64));
 	iocb_cmd->ulpBdeCount = 1;
 	iocb_cmd->ulpLe = 1;
-	fcp_cmnd->fcpDl = be32_to_cpu(scsi_bufflen(scsi_cmnd));
+	fcp_cmnd->fcpDl = cpu_to_be32(scsi_bufflen(scsi_cmnd));
 	return 0;
 }
 
@@ -763,6 +763,8 @@ lpfc_scsi_prep_cmnd(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 	piocbq->iocb.ulpContext = pnode->nlp_rpi;
 	if (pnode->nlp_fcp_info & NLP_FCP_2_DEVICE)
 		piocbq->iocb.ulpFCP2Rcvy = 1;
+	else
+		piocbq->iocb.ulpFCP2Rcvy = 0;
 
 	piocbq->iocb.ulpClass = (pnode->nlp_fcp_info & 0x0f);
 	piocbq->context1  = lpfc_cmd;

@@ -559,8 +559,7 @@ struct lpfc_hba {
 	struct list_head port_list;
 	struct lpfc_vport *pport;	/* physical lpfc_vport pointer */
 	uint16_t max_vpi;		/* Maximum virtual nports */
-#define LPFC_MAX_VPI 100		/* Max number of VPI supported */
-#define LPFC_MAX_VPORTS (LPFC_MAX_VPI+1)/* Max number of VPorts supported */
+#define LPFC_MAX_VPI 0xFFFF		/* Max number of VPI supported */
 	unsigned long *vpi_bmask;	/* vpi allocation table */
 
 	/* Data structure used by fabric iocb scheduler */

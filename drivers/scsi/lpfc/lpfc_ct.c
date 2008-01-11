@@ -19,7 +19,7 @@
  *******************************************************************/
 
 /*
- * Fibre Channel SCSI LAN Device Driver CT support
+ * Fibre Channel SCSI LAN Device Driver CT support: FC Generic Services FC-GS
  */
 
 #include <linux/blkdev.h>
@@ -203,7 +203,7 @@ lpfc_alloc_ct_rsp(struct lpfc_hba *phba, int cmdcode, struct ulp_bde64 *bpl,
 	struct lpfc_dmabuf *mp;
 	int cnt, i = 0;
 
-	/* We get chucks of FCELSSIZE */
+	/* We get chunks of FCELSSIZE */
 	cnt = size > FCELSSIZE ? FCELSSIZE: size;
 
 	while (size) {
@@ -1175,7 +1175,7 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 	case SLI_CTNS_GFF_ID:
 		CtReq->CommandResponse.bits.CmdRsp =
 			be16_to_cpu(SLI_CTNS_GFF_ID);
-		CtReq->un.gff.PortId = be32_to_cpu(context);
+		CtReq->un.gff.PortId = cpu_to_be32(context);
 		cmpl = lpfc_cmpl_ct_cmd_gff_id;
 		break;
 
@@ -1183,7 +1183,7 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 		vport->ct_flags &= ~FC_CT_RFT_ID;
 		CtReq->CommandResponse.bits.CmdRsp =
 		    be16_to_cpu(SLI_CTNS_RFT_ID);
-		CtReq->un.rft.PortId = be32_to_cpu(vport->fc_myDID);
+		CtReq->un.rft.PortId = cpu_to_be32(vport->fc_myDID);
 		CtReq->un.rft.fcpReg = 1;
 		cmpl = lpfc_cmpl_ct_cmd_rft_id;
 		break;
@@ -1192,7 +1192,7 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 		vport->ct_flags &= ~FC_CT_RNN_ID;
 		CtReq->CommandResponse.bits.CmdRsp =
 		    be16_to_cpu(SLI_CTNS_RNN_ID);
-		CtReq->un.rnn.PortId = be32_to_cpu(vport->fc_myDID);
+		CtReq->un.rnn.PortId = cpu_to_be32(vport->fc_myDID);
 		memcpy(CtReq->un.rnn.wwnn,  &vport->fc_nodename,
 		       sizeof (struct lpfc_name));
 		cmpl = lpfc_cmpl_ct_cmd_rnn_id;
@@ -1202,7 +1202,7 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 		vport->ct_flags &= ~FC_CT_RSPN_ID;
 		CtReq->CommandResponse.bits.CmdRsp =
 		    be16_to_cpu(SLI_CTNS_RSPN_ID);
-		CtReq->un.rspn.PortId = be32_to_cpu(vport->fc_myDID);
+		CtReq->un.rspn.PortId = cpu_to_be32(vport->fc_myDID);
 		size = sizeof(CtReq->un.rspn.symbname);
 		CtReq->un.rspn.len =
 			lpfc_vport_symbolic_port_name(vport,
@@ -1225,14 +1225,14 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 		/* Implement DA_ID Nameserver request */
 		CtReq->CommandResponse.bits.CmdRsp =
 			be16_to_cpu(SLI_CTNS_DA_ID);
-		CtReq->un.da_id.port_id = be32_to_cpu(vport->fc_myDID);
+		CtReq->un.da_id.port_id = cpu_to_be32(vport->fc_myDID);
 		cmpl = lpfc_cmpl_ct_cmd_da_id;
 		break;
 	case SLI_CTNS_RFF_ID:
 		vport->ct_flags &= ~FC_CT_RFF_ID;
 		CtReq->CommandResponse.bits.CmdRsp =
 		    be16_to_cpu(SLI_CTNS_RFF_ID);
-		CtReq->un.rff.PortId = be32_to_cpu(vport->fc_myDID);;
+		CtReq->un.rff.PortId = cpu_to_be32(vport->fc_myDID);;
 		CtReq->un.rff.fbits = FC4_FEATURE_INIT;
 		CtReq->un.rff.type_code = FC_FCP_DATA;
 		cmpl = lpfc_cmpl_ct_cmd_rff_id;

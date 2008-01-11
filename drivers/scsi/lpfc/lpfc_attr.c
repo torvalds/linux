@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2007 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2008 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -311,12 +311,14 @@ lpfc_do_offline(struct lpfc_hba *phba, uint32_t type)
 
 	psli = &phba->sli;
 
+	/* Wait a little for things to settle down, but not
+	 * long enough for dev loss timeout to expire.
+	 */
 	for (i = 0; i < psli->num_rings; i++) {
 		pring = &psli->ring[i];
-		/* The linkdown event takes 30 seconds to timeout. */
 		while (pring->txcmplq_cnt) {
 			msleep(10);
-			if (cnt++ > 3000) {
+			if (cnt++ > 500) {  /* 5 secs */
 				lpfc_printf_log(phba,
 					KERN_WARNING, LOG_INIT,
 					"0466 Outstanding IO when "
@@ -989,7 +991,7 @@ lpfc_soft_wwpn_store(struct class_device *cdev, const char *buf, size_t count)
 	spin_lock_irq(&phba->hbalock);
 	if (phba->over_temp_state == HBA_OVER_TEMP) {
 		spin_unlock_irq(&phba->hbalock);
-		return -EPERM;
+		return -EACCES;
 	}
 	spin_unlock_irq(&phba->hbalock);
 	/* count may include a LF at end of string */
@@ -1782,7 +1784,7 @@ sysfs_mbox_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 	if (phba->over_temp_state == HBA_OVER_TEMP) {
 		sysfs_mbox_idle(phba);
 		spin_unlock_irq(&phba->hbalock);
-		return  -EPERM;
+		return  -EACCES;
 	}
 
 	if (off == 0 &&
@@ -1801,9 +1803,7 @@ sysfs_mbox_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 		case MBX_DUMP_CONTEXT:
 		case MBX_RUN_DIAGS:
 		case MBX_RESTART:
-		case MBX_FLASH_WR_ULA:
 		case MBX_SET_MASK:
-		case MBX_SET_SLIM:
 		case MBX_SET_DEBUG:
 			if (!(vport->fc_flag & FC_OFFLINE_MODE)) {
 				printk(KERN_WARNING "mbox_read:Command 0x%x "
@@ -1831,6 +1831,8 @@ sysfs_mbox_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 		case MBX_LOAD_EXP_ROM:
 		case MBX_BEACON:
 		case MBX_DEL_LD_ENTRY:
+		case MBX_SET_VARIABLE:
+		case MBX_WRITE_WWN:
 			break;
 		case MBX_READ_SPARM64:
 		case MBX_READ_LA:
@@ -1847,6 +1849,17 @@ sysfs_mbox_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 		default:
 			printk(KERN_WARNING "mbox_read: Unknown Command 0x%x\n",
 			       phba->sysfs_mbox.mbox->mb.mbxCommand);
+			sysfs_mbox_idle(phba);
+			spin_unlock_irq(&phba->hbalock);
+			return -EPERM;
+		}
+
+		/* If HBA encountered an error attention, allow only DUMP
+		 * mailbox command until the HBA is restarted.
+		 */
+		if ((phba->pport->stopped) &&
+			(phba->sysfs_mbox.mbox->mb.mbxCommand
+				!= MBX_DUMP_MEMORY)) {
 			sysfs_mbox_idle(phba);
 			spin_unlock_irq(&phba->hbalock);
 			return -EPERM;
@@ -2052,7 +2065,8 @@ lpfc_get_host_speed(struct Scsi_Host *shost)
 				fc_host_speed(shost) = FC_PORTSPEED_UNKNOWN;
 			break;
 		}
-	}
+	} else
+		fc_host_speed(shost) = FC_PORTSPEED_UNKNOWN;
 
 	spin_unlock_irq(shost->host_lock);
 }
@@ -2072,7 +2086,7 @@ lpfc_get_host_fabric_name (struct Scsi_Host *shost)
 		node_name = wwn_to_u64(phba->fc_fabparam.nodeName.u.wwn);
 	else
 		/* fabric is local port if there is no F/FL_Port */
-		node_name = wwn_to_u64(vport->fc_nodename.u.wwn);
+		node_name = 0;
 
 	spin_unlock_irq(shost->host_lock);
 

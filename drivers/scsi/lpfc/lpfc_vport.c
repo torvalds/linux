@@ -562,7 +562,7 @@ lpfc_create_vport_work_array(struct lpfc_hba *phba)
 	struct lpfc_vport *port_iterator;
 	struct lpfc_vport **vports;
 	int index = 0;
-	vports = kzalloc(LPFC_MAX_VPORTS * sizeof(struct lpfc_vport *),
+	vports = kzalloc((phba->max_vpi + 1) * sizeof(struct lpfc_vport *),
 			 GFP_KERNEL);
 	if (vports == NULL)
 		return NULL;
@@ -581,12 +581,12 @@ lpfc_create_vport_work_array(struct lpfc_hba *phba)
 }
 
 void
-lpfc_destroy_vport_work_array(struct lpfc_vport **vports)
+lpfc_destroy_vport_work_array(struct lpfc_hba *phba, struct lpfc_vport **vports)
 {
 	int i;
 	if (vports == NULL)
 		return;
-	for (i=0; vports[i] != NULL && i < LPFC_MAX_VPORTS; i++)
+	for (i=0; vports[i] != NULL && i <= phba->max_vpi; i++)
 		scsi_host_put(lpfc_shost_from_vport(vports[i]));
 	kfree(vports);
 }

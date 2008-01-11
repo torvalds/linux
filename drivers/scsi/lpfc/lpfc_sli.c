@@ -716,7 +716,7 @@ lpfc_sli_chk_mbx_command(uint8_t mbxCommand)
 	case MBX_DEL_LD_ENTRY:
 	case MBX_RUN_PROGRAM:
 	case MBX_SET_MASK:
-	case MBX_SET_SLIM:
+	case MBX_SET_VARIABLE:
 	case MBX_UNREG_D_ID:
 	case MBX_KILL_BOARD:
 	case MBX_CONFIG_FARP:
@@ -728,7 +728,7 @@ lpfc_sli_chk_mbx_command(uint8_t mbxCommand)
 	case MBX_READ_RPI64:
 	case MBX_REG_LOGIN64:
 	case MBX_READ_LA64:
-	case MBX_FLASH_WR_ULA:
+	case MBX_WRITE_WWN:
 	case MBX_SET_DEBUG:
 	case MBX_LOAD_EXP_ROM:
 	case MBX_ASYNCEVT_ENABLE:
@@ -2182,7 +2182,10 @@ lpfc_sli_chipset_init(struct lpfc_hba *phba)
 			   <status> */
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"0436 Adapter failed to init, "
-					"timeout, status reg x%x\n", status);
+					"timeout, status reg x%x, "
+					"FW Data: A8 x%x AC x%x\n", status,
+					readl(phba->MBslimaddr + 0xa8),
+					readl(phba->MBslimaddr + 0xac));
 			phba->link_state = LPFC_HBA_ERROR;
 			return -ETIMEDOUT;
 		}
@@ -2194,7 +2197,10 @@ lpfc_sli_chipset_init(struct lpfc_hba *phba)
 			   <status> */
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"0437 Adapter failed to init, "
-					"chipset, status reg x%x\n", status);
+					"chipset, status reg x%x, "
+					"FW Data: A8 x%x AC x%x\n", status,
+					readl(phba->MBslimaddr + 0xa8),
+					readl(phba->MBslimaddr + 0xac));
 			phba->link_state = LPFC_HBA_ERROR;
 			return -EIO;
 		}
@@ -2222,7 +2228,10 @@ lpfc_sli_chipset_init(struct lpfc_hba *phba)
 		/* Adapter failed to init, chipset, status reg <status> */
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0438 Adapter failed to init, chipset, "
-				"status reg x%x\n", status);
+				"status reg x%x, "
+				"FW Data: A8 x%x AC x%x\n", status,
+				readl(phba->MBslimaddr + 0xa8),
+				readl(phba->MBslimaddr + 0xac));
 		phba->link_state = LPFC_HBA_ERROR;
 		return -EIO;
 	}
@@ -2581,6 +2590,7 @@ lpfc_sli_issue_mbox(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox, uint32_t flag)
 	uint32_t status, evtctr;
 	uint32_t ha_copy;
 	int i;
+	unsigned long timeout;
 	unsigned long drvr_flag = 0;
 	volatile uint32_t word0, ldata;
 	void __iomem *to_slim;
@@ -2756,18 +2766,24 @@ lpfc_sli_issue_mbox(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox, uint32_t flag)
 	}
 
 	wmb();
-	/* interrupt board to doit right away */
-	writel(CA_MBATT, phba->CAregaddr);
-	readl(phba->CAregaddr); /* flush */
 
 	switch (flag) {
 	case MBX_NOWAIT:
-		/* Don't wait for it to finish, just return */
+		/* Set up reference to mailbox command */
 		psli->mbox_active = pmbox;
+		/* Interrupt board to do it */
+		writel(CA_MBATT, phba->CAregaddr);
+		readl(phba->CAregaddr); /* flush */
+		/* Don't wait for it to finish, just return */
 		break;
 
 	case MBX_POLL:
+		/* Set up null reference to mailbox command */
 		psli->mbox_active = NULL;
+		/* Interrupt board to do it */
+		writel(CA_MBATT, phba->CAregaddr);
+		readl(phba->CAregaddr); /* flush */
+
 		if (psli->sli_flag & LPFC_SLI2_ACTIVE) {
 			/* First read mbox status word */
 			word0 = *((volatile uint32_t *)&phba->slim2p->mbx);
@@ -2779,15 +2795,15 @@ lpfc_sli_issue_mbox(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox, uint32_t flag)
 
 		/* Read the HBA Host Attention Register */
 		ha_copy = readl(phba->HAregaddr);
-
-		i = lpfc_mbox_tmo_val(phba, mb->mbxCommand);
-		i *= 1000; /* Convert to ms */
-
+		timeout = msecs_to_jiffies(lpfc_mbox_tmo_val(phba,
+							     mb->mbxCommand) *
+					   1000) + jiffies;
+		i = 0;
 		/* Wait for command to complete */
 		while (((word0 & OWN_CHIP) == OWN_CHIP) ||
 		       (!(ha_copy & HA_MBATT) &&
 			(phba->link_state > LPFC_WARM_START))) {
-			if (i-- <= 0) {
+			if (time_after(jiffies, timeout)) {
 				psli->sli_flag &= ~LPFC_SLI_MBOX_ACTIVE;
 				spin_unlock_irqrestore(&phba->hbalock,
 						       drvr_flag);
@@ -2800,12 +2816,12 @@ lpfc_sli_issue_mbox(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox, uint32_t flag)
 			    && (evtctr != psli->slistat.mbox_event))
 				break;
 
-			spin_unlock_irqrestore(&phba->hbalock,
-					       drvr_flag);
-
-			msleep(1);
-
-			spin_lock_irqsave(&phba->hbalock, drvr_flag);
+			if (i++ > 10) {
+				spin_unlock_irqrestore(&phba->hbalock,
+						       drvr_flag);
+				msleep(1);
+				spin_lock_irqsave(&phba->hbalock, drvr_flag);
+			}
 
 			if (psli->sli_flag & LPFC_SLI2_ACTIVE) {
 				/* First copy command data */
@@ -3065,7 +3081,7 @@ lpfc_sli_async_event_handler(struct lpfc_hba * phba,
 	if (evt_code == ASYNC_TEMP_WARN) {
 		temp_event_data.event_code = LPFC_THRESHOLD_TEMP;
 		lpfc_printf_log(phba,
-				KERN_WARNING,
+				KERN_ERR,
 				LOG_TEMP,
 				"0347 Adapter is very hot, please take "
 				"corrective action. temperature : %d Celsius\n",
@@ -3074,7 +3090,7 @@ lpfc_sli_async_event_handler(struct lpfc_hba * phba,
 	if (evt_code == ASYNC_TEMP_SAFE) {
 		temp_event_data.event_code = LPFC_NORMAL_TEMP;
 		lpfc_printf_log(phba,
-				KERN_INFO,
+				KERN_ERR,
 				LOG_TEMP,
 				"0340 Adapter temperature is OK now. "
 				"temperature : %d Celsius\n",
@@ -4047,7 +4063,6 @@ lpfc_intr_handler(int irq, void *dev_id)
 		}
 
 		if (work_ha_copy & HA_ERATT) {
-			phba->link_state = LPFC_HBA_ERROR;
 			/*
 			 * There was a link/board error.  Read the
 			 * status register to retrieve the error event
@@ -4079,7 +4094,7 @@ lpfc_intr_handler(int irq, void *dev_id)
 				 * Stray Mailbox Interrupt, mbxCommand <cmd>
 				 * mbxStatus <status>
 				 */
-				lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX |
+				lpfc_printf_log(phba, KERN_ERR, LOG_MBOX |
 						LOG_SLI,
 						"(%d):0304 Stray Mailbox "
 						"Interrupt mbxCommand x%x "
@@ -4087,51 +4102,60 @@ lpfc_intr_handler(int irq, void *dev_id)
 						(vport ? vport->vpi : 0),
 						pmbox->mbxCommand,
 						pmbox->mbxStatus);
-			}
-			phba->last_completion_time = jiffies;
-			del_timer_sync(&phba->sli.mbox_tmo);
+				/* clear mailbox attention bit */
+				work_ha_copy &= ~HA_MBATT;
+			} else {
+				phba->last_completion_time = jiffies;
+				del_timer(&phba->sli.mbox_tmo);
 
-			phba->sli.mbox_active = NULL;
-			if (pmb->mbox_cmpl) {
-				lpfc_sli_pcimem_bcopy(mbox, pmbox,
-						      MAILBOX_CMD_SIZE);
-			}
-			if (pmb->mbox_flag & LPFC_MBX_IMED_UNREG) {
-				pmb->mbox_flag &= ~LPFC_MBX_IMED_UNREG;
-
-				lpfc_debugfs_disc_trc(vport,
-					LPFC_DISC_TRC_MBOX_VPORT,
-					"MBOX dflt rpi: : status:x%x rpi:x%x",
-					(uint32_t)pmbox->mbxStatus,
-					pmbox->un.varWords[0], 0);
-
-				if ( !pmbox->mbxStatus) {
-					mp = (struct lpfc_dmabuf *)
-						(pmb->context1);
-					ndlp = (struct lpfc_nodelist *)
-						pmb->context2;
-
-					/* Reg_LOGIN of dflt RPI was successful.
-					 * new lets get rid of the RPI using the
-					 * same mbox buffer.
-					 */
-					lpfc_unreg_login(phba, vport->vpi,
-						pmbox->un.varWords[0], pmb);
-					pmb->mbox_cmpl = lpfc_mbx_cmpl_dflt_rpi;
-					pmb->context1 = mp;
-					pmb->context2 = ndlp;
-					pmb->vport = vport;
-					spin_lock(&phba->hbalock);
-					phba->sli.sli_flag &=
-						~LPFC_SLI_MBOX_ACTIVE;
-					spin_unlock(&phba->hbalock);
-					goto send_current_mbox;
+				phba->sli.mbox_active = NULL;
+				if (pmb->mbox_cmpl) {
+					lpfc_sli_pcimem_bcopy(mbox, pmbox,
+							MAILBOX_CMD_SIZE);
 				}
+				if (pmb->mbox_flag & LPFC_MBX_IMED_UNREG) {
+					pmb->mbox_flag &= ~LPFC_MBX_IMED_UNREG;
+
+					lpfc_debugfs_disc_trc(vport,
+						LPFC_DISC_TRC_MBOX_VPORT,
+						"MBOX dflt rpi: : "
+						"status:x%x rpi:x%x",
+						(uint32_t)pmbox->mbxStatus,
+						pmbox->un.varWords[0], 0);
+
+					if (!pmbox->mbxStatus) {
+						mp = (struct lpfc_dmabuf *)
+							(pmb->context1);
+						ndlp = (struct lpfc_nodelist *)
+							pmb->context2;
+
+						/* Reg_LOGIN of dflt RPI was
+						 * successful. new lets get
+						 * rid of the RPI using the
+						 * same mbox buffer.
+						 */
+						lpfc_unreg_login(phba,
+							vport->vpi,
+							pmbox->un.varWords[0],
+							pmb);
+						pmb->mbox_cmpl =
+							lpfc_mbx_cmpl_dflt_rpi;
+						pmb->context1 = mp;
+						pmb->context2 = ndlp;
+						pmb->vport = vport;
+						spin_lock(&phba->hbalock);
+						phba->sli.sli_flag &=
+							~LPFC_SLI_MBOX_ACTIVE;
+						spin_unlock(&phba->hbalock);
+						goto send_current_mbox;
+					}
+				}
+				spin_lock(&phba->pport->work_port_lock);
+				phba->pport->work_port_events &=
+					~WORKER_MBOX_TMO;
+				spin_unlock(&phba->pport->work_port_lock);
+				lpfc_mbox_cmpl_put(phba, pmb);
 			}
-			spin_lock(&phba->pport->work_port_lock);
-			phba->pport->work_port_events &= ~WORKER_MBOX_TMO;
-			spin_unlock(&phba->pport->work_port_lock);
-			lpfc_mbox_cmpl_put(phba, pmb);
 		}
 		if ((work_ha_copy & HA_MBATT) &&
 		    (phba->sli.mbox_active == NULL)) {

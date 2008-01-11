@@ -18,7 +18,7 @@
  * more details, a copy of which can be found in the file COPYING  *
  * included with this package.                                     *
  *******************************************************************/
-
+/* See Fibre Channel protocol T11 FC-LS for details */
 #include <linux/blkdev.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
@@ -392,11 +392,12 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		}
 		if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) {
 			lpfc_mbx_unreg_vpi(vport);
+			spin_lock_irq(shost->host_lock);
 			vport->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
+			spin_unlock_irq(shost->host_lock);
 		}
 	}
 
-	ndlp->nlp_sid = irsp->un.ulpWord[4] & Mask_DID;
 	lpfc_nlp_set_state(vport, ndlp, NLP_STE_REG_LOGIN_ISSUE);
 
 	if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED &&
@@ -483,6 +484,9 @@ lpfc_cmpl_els_flogi_nport(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		/* This side will wait for the PLOGI */
 		lpfc_nlp_put(ndlp);
 	}
+
+	/* If we are pt2pt with another NPort, force NPIV off! */
+	phba->sli3_options &= ~LPFC_SLI3_NPIV_ENABLED;
 
 	spin_lock_irq(shost->host_lock);
 	vport->fc_flag |= FC_PT2PT;
@@ -2068,7 +2072,7 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	return 0;
 }
 
-int
+static int
 lpfc_els_free_data(struct lpfc_hba *phba, struct lpfc_dmabuf *buf_ptr1)
 {
 	struct lpfc_dmabuf *buf_ptr;
@@ -2086,7 +2090,7 @@ lpfc_els_free_data(struct lpfc_hba *phba, struct lpfc_dmabuf *buf_ptr1)
 	return 0;
 }
 
-int
+static int
 lpfc_els_free_bpl(struct lpfc_hba *phba, struct lpfc_dmabuf *buf_ptr)
 {
 	lpfc_mbuf_free(phba, buf_ptr->virt, buf_ptr->phys);
@@ -2976,10 +2980,10 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 			"RCV RSCN defer:  did:x%x/ste:x%x flg:x%x",
 			ndlp->nlp_DID, vport->port_state, ndlp->nlp_flag);
 
+		spin_lock_irq(shost->host_lock);
 		vport->fc_flag |= FC_RSCN_DEFERRED;
 		if ((rscn_cnt < FC_MAX_HOLD_RSCN) &&
 		    !(vport->fc_flag & FC_RSCN_DISCOVERY)) {
-			spin_lock_irq(shost->host_lock);
 			vport->fc_flag |= FC_RSCN_MODE;
 			spin_unlock_irq(shost->host_lock);
 			if (rscn_cnt) {
@@ -3008,7 +3012,6 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 					 vport->fc_rscn_id_cnt, vport->fc_flag,
 					 vport->port_state);
 		} else {
-			spin_lock_irq(shost->host_lock);
 			vport->fc_flag |= FC_RSCN_DISCOVERY;
 			spin_unlock_irq(shost->host_lock);
 			/* ReDiscovery RSCN */
@@ -3023,7 +3026,9 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 
 		/* send RECOVERY event for ALL nodes that match RSCN payload */
 		lpfc_rscn_recovery_check(vport);
+		spin_lock_irq(shost->host_lock);
 		vport->fc_flag &= ~FC_RSCN_DEFERRED;
+		spin_unlock_irq(shost->host_lock);
 		return 0;
 	}
 
@@ -3307,13 +3312,13 @@ lpfc_els_rsp_rps_acc(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		status |= 0x4;
 
 	rps_rsp->rsvd1 = 0;
-	rps_rsp->portStatus = be16_to_cpu(status);
-	rps_rsp->linkFailureCnt = be32_to_cpu(mb->un.varRdLnk.linkFailureCnt);
-	rps_rsp->lossSyncCnt = be32_to_cpu(mb->un.varRdLnk.lossSyncCnt);
-	rps_rsp->lossSignalCnt = be32_to_cpu(mb->un.varRdLnk.lossSignalCnt);
-	rps_rsp->primSeqErrCnt = be32_to_cpu(mb->un.varRdLnk.primSeqErrCnt);
-	rps_rsp->invalidXmitWord = be32_to_cpu(mb->un.varRdLnk.invalidXmitWord);
-	rps_rsp->crcCnt = be32_to_cpu(mb->un.varRdLnk.crcCnt);
+	rps_rsp->portStatus = cpu_to_be16(status);
+	rps_rsp->linkFailureCnt = cpu_to_be32(mb->un.varRdLnk.linkFailureCnt);
+	rps_rsp->lossSyncCnt = cpu_to_be32(mb->un.varRdLnk.lossSyncCnt);
+	rps_rsp->lossSignalCnt = cpu_to_be32(mb->un.varRdLnk.lossSignalCnt);
+	rps_rsp->primSeqErrCnt = cpu_to_be32(mb->un.varRdLnk.primSeqErrCnt);
+	rps_rsp->invalidXmitWord = cpu_to_be32(mb->un.varRdLnk.invalidXmitWord);
+	rps_rsp->crcCnt = cpu_to_be32(mb->un.varRdLnk.crcCnt);
 	/* Xmit ELS RPS ACC response tag <ulpIoTag> */
 	lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_ELS,
 			 "0118 Xmit ELS RPS ACC response tag x%x xri x%x, "
@@ -4276,7 +4281,9 @@ lpfc_cmpl_reg_new_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *) pmb->context2;
 	MAILBOX_t *mb = &pmb->mb;
 
+	spin_lock_irq(shost->host_lock);
 	vport->fc_flag &= ~FC_VPORT_NEEDS_REG_VPI;
+	spin_unlock_irq(shost->host_lock);
 	lpfc_nlp_put(ndlp);
 
 	if (mb->mbxStatus) {
@@ -4297,7 +4304,9 @@ lpfc_cmpl_reg_new_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		default:
 			/* Try to recover from this error */
 			lpfc_mbx_unreg_vpi(vport);
+			spin_lock_irq(shost->host_lock);
 			vport->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
+			spin_unlock_irq(shost->host_lock);
 			lpfc_initial_fdisc(vport);
 			break;
 		}
@@ -4316,6 +4325,7 @@ static void
 lpfc_register_new_vport(struct lpfc_hba *phba, struct lpfc_vport *vport,
 			struct lpfc_nodelist *ndlp)
 {
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	LPFC_MBOXQ_t *mbox;
 
 	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
@@ -4327,7 +4337,9 @@ lpfc_register_new_vport(struct lpfc_hba *phba, struct lpfc_vport *vport,
 		if (lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT)
 		    == MBX_NOT_FINISHED) {
 			mempool_free(mbox, phba->mbox_mem_pool);
+			spin_lock_irq(shost->host_lock);
 			vport->fc_flag &= ~FC_VPORT_NEEDS_REG_VPI;
+			spin_unlock_irq(shost->host_lock);
 
 			lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX,
@@ -4339,7 +4351,9 @@ lpfc_register_new_vport(struct lpfc_hba *phba, struct lpfc_vport *vport,
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX,
 				 "0254 Register VPI: no memory\n");
 
+		spin_lock_irq(shost->host_lock);
 		vport->fc_flag &= ~FC_VPORT_NEEDS_REG_VPI;
+		spin_unlock_irq(shost->host_lock);
 		lpfc_nlp_put(ndlp);
 	}
 }
@@ -4412,7 +4426,9 @@ lpfc_cmpl_els_fdisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				lpfc_unreg_rpi(vport, np);
 			}
 			lpfc_mbx_unreg_vpi(vport);
+			spin_lock_irq(shost->host_lock);
 			vport->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
+			spin_unlock_irq(shost->host_lock);
 		}
 
 		if (vport->fc_flag & FC_VPORT_NEEDS_REG_VPI)

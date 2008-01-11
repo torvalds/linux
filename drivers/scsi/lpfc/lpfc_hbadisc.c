@@ -114,15 +114,8 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 
 	rdata = rport->dd_data;
 	ndlp = rdata->pnode;
-
-	if (!ndlp) {
-		if (rport->scsi_target_id != -1) {
-			printk(KERN_ERR "Cannot find remote node"
-				" for rport in dev_loss_tmo_callbk x%x\n",
-				rport->port_id);
-		}
+	if (!ndlp)
 		return;
-	}
 
 	vport = ndlp->vport;
 	phba  = vport->phba;
@@ -202,6 +195,12 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 	 * appropriately we just need to cleanup the ndlp rport info here.
 	 */
 	if (vport->load_flag & FC_UNLOADING) {
+		if (ndlp->nlp_sid != NLP_NO_SID) {
+			/* flush the target */
+			lpfc_sli_abort_iocb(vport,
+					&phba->sli.ring[phba->sli.fcp_ring],
+					ndlp->nlp_sid, 0, LPFC_CTX_TGT);
+		}
 		put_node = rdata->pnode != NULL;
 		put_rport = ndlp->rport != NULL;
 		rdata->pnode = NULL;
@@ -381,7 +380,7 @@ lpfc_work_done(struct lpfc_hba *phba)
 		lpfc_handle_latt(phba);
 	vports = lpfc_create_vport_work_array(phba);
 	if (vports != NULL)
-		for(i = 0; i < LPFC_MAX_VPORTS; i++) {
+		for(i = 0; i <= phba->max_vpi; i++) {
 			/*
 			 * We could have no vports in array if unloading, so if
 			 * this happens then just use the pport
@@ -413,7 +412,7 @@ lpfc_work_done(struct lpfc_hba *phba)
 			vport->work_port_events &= ~work_port_events;
 			spin_unlock_irq(&vport->work_port_lock);
 		}
-	lpfc_destroy_vport_work_array(vports);
+	lpfc_destroy_vport_work_array(phba, vports);
 
 	pring = &phba->sli.ring[LPFC_ELS_RING];
 	status = (ha_copy & (HA_RXMASK  << (4*LPFC_ELS_RING)));
@@ -552,6 +551,7 @@ lpfc_workq_post_event(struct lpfc_hba *phba, void *arg1, void *arg2,
 void
 lpfc_cleanup_rpis(struct lpfc_vport *vport, int remove)
 {
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_hba  *phba = vport->phba;
 	struct lpfc_nodelist *ndlp, *next_ndlp;
 	int  rc;
@@ -575,7 +575,9 @@ lpfc_cleanup_rpis(struct lpfc_vport *vport, int remove)
 	}
 	if (phba->sli3_options & LPFC_SLI3_VPORT_TEARDOWN) {
 		lpfc_mbx_unreg_vpi(vport);
+		spin_lock_irq(shost->host_lock);
 		vport->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
+		spin_unlock_irq(shost->host_lock);
 	}
 }
 
@@ -629,11 +631,11 @@ lpfc_linkdown(struct lpfc_hba *phba)
 	spin_unlock_irq(&phba->hbalock);
 	vports = lpfc_create_vport_work_array(phba);
 	if (vports != NULL)
-		for(i = 0; i < LPFC_MAX_VPORTS && vports[i] != NULL; i++) {
+		for(i = 0; i <= phba->max_vpi && vports[i] != NULL; i++) {
 			/* Issue a LINK DOWN event to all nodes */
 			lpfc_linkdown_port(vports[i]);
 		}
-	lpfc_destroy_vport_work_array(vports);
+	lpfc_destroy_vport_work_array(phba, vports);
 	/* Clean up any firmware default rpi's */
 	mb = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (mb) {
@@ -738,9 +740,9 @@ lpfc_linkup(struct lpfc_hba *phba)
 
 	vports = lpfc_create_vport_work_array(phba);
 	if (vports != NULL)
-		for(i = 0; i < LPFC_MAX_VPORTS && vports[i] != NULL; i++)
+		for(i = 0; i <= phba->max_vpi && vports[i] != NULL; i++)
 			lpfc_linkup_port(vports[i]);
-	lpfc_destroy_vport_work_array(vports);
+	lpfc_destroy_vport_work_array(phba, vports);
 	if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED)
 		lpfc_issue_clear_la(phba, phba->pport);
 
@@ -1319,7 +1321,7 @@ lpfc_mbx_cmpl_fabric_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		vports = lpfc_create_vport_work_array(phba);
 		if (vports != NULL)
 			for(i = 0;
-			    i < LPFC_MAX_VPORTS && vports[i] != NULL;
+			    i <= phba->max_vpi && vports[i] != NULL;
 			    i++) {
 				if (vports[i]->port_type == LPFC_PHYSICAL_PORT)
 					continue;
@@ -1335,7 +1337,7 @@ lpfc_mbx_cmpl_fabric_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 							"Fabric support\n");
 				}
 			}
-		lpfc_destroy_vport_work_array(vports);
+		lpfc_destroy_vport_work_array(phba, vports);
 		lpfc_do_scr_ns_plogi(phba, vport);
 	}
 
@@ -1902,7 +1904,8 @@ lpfc_unreg_all_rpis(struct lpfc_vport *vport)
 		lpfc_unreg_login(phba, vport->vpi, 0xffff, mbox);
 		mbox->vport = vport;
 		mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-		rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
+		mbox->context1 = NULL;
+		rc = lpfc_sli_issue_mbox_wait(phba, mbox, LPFC_MBOX_TMO);
 		if (rc == MBX_NOT_FINISHED) {
 			mempool_free(mbox, phba->mbox_mem_pool);
 		}
@@ -1921,7 +1924,8 @@ lpfc_unreg_default_rpis(struct lpfc_vport *vport)
 		lpfc_unreg_did(phba, vport->vpi, 0xffffffff, mbox);
 		mbox->vport = vport;
 		mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-		rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
+		mbox->context1 = NULL;
+		rc = lpfc_sli_issue_mbox_wait(phba, mbox, LPFC_MBOX_TMO);
 		if (rc == MBX_NOT_FINISHED) {
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX | LOG_VPORT,
 					 "1815 Could not issue "
@@ -2026,7 +2030,7 @@ lpfc_nlp_remove(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 				mbox->mbox_flag |= LPFC_MBX_IMED_UNREG;
 				mbox->mbox_cmpl = lpfc_mbx_cmpl_dflt_rpi;
 				mbox->vport = vport;
-				mbox->context2 = 0;
+				mbox->context2 = NULL;
 				rc =lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
 				if (rc == MBX_NOT_FINISHED) {
 					mempool_free(mbox, phba->mbox_mem_pool);
@@ -2702,12 +2706,14 @@ restart_disc:
 		clrlaerr = 1;
 		break;
 
+	case LPFC_LINK_UP:
+		lpfc_issue_clear_la(phba, vport);
+		/* Drop thru */
 	case LPFC_LINK_UNKNOWN:
 	case LPFC_WARM_START:
 	case LPFC_INIT_START:
 	case LPFC_INIT_MBX_CMDS:
 	case LPFC_LINK_DOWN:
-	case LPFC_LINK_UP:
 	case LPFC_HBA_ERROR:
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
 				 "0230 Unexpected timeout, hba link "

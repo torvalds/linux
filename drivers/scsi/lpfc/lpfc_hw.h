@@ -1279,7 +1279,7 @@ typedef struct {		/* FireFly BIU registers */
 #define MBX_DEL_LD_ENTRY    0x1D
 #define MBX_RUN_PROGRAM     0x1E
 #define MBX_SET_MASK        0x20
-#define MBX_SET_SLIM        0x21
+#define MBX_SET_VARIABLE    0x21
 #define MBX_UNREG_D_ID      0x23
 #define MBX_KILL_BOARD      0x24
 #define MBX_CONFIG_FARP     0x25
@@ -1301,7 +1301,7 @@ typedef struct {		/* FireFly BIU registers */
 #define MBX_REG_VNPID	    0x96
 #define MBX_UNREG_VNPID	    0x97
 
-#define MBX_FLASH_WR_ULA    0x98
+#define MBX_WRITE_WWN       0x98
 #define MBX_SET_DEBUG       0x99
 #define MBX_LOAD_EXP_ROM    0x9C
 
@@ -3227,6 +3227,8 @@ lpfc_is_LC_HBA(unsigned short device)
 	    (device == PCI_DEVICE_ID_BSMB) ||
 	    (device == PCI_DEVICE_ID_ZMID) ||
 	    (device == PCI_DEVICE_ID_ZSMB) ||
+	    (device == PCI_DEVICE_ID_SAT_MID) ||
+	    (device == PCI_DEVICE_ID_SAT_SMB) ||
 	    (device == PCI_DEVICE_ID_RFLY))
 		return 1;
 	else
