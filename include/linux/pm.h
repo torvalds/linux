@@ -246,6 +246,15 @@ static inline int call_platform_enable_wakeup(struct device *dev, int is_on)
 		device_set_wakeup_enable(dev,val); \
 	} while(0)
 
+/*
+ * Global Power Management flags
+ * Used to keep APM and ACPI from both being active
+ */
+extern unsigned int	pm_flags;
+
+#define PM_APM	1
+#define PM_ACPI	2
+
 #endif /* __KERNEL__ */
 
 #endif /* _LINUX_PM_H */

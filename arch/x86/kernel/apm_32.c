@@ -2256,14 +2256,12 @@ static int __init apm_init(void)
 		apm_info.disabled = 1;
 		return -ENODEV;
 	}
-	if (PM_IS_ACTIVE()) {
+	if (pm_flags & PM_ACPI) {
 		printk(KERN_NOTICE "apm: overridden by ACPI.\n");
 		apm_info.disabled = 1;
 		return -ENODEV;
 	}
-#ifdef CONFIG_PM_LEGACY
-	pm_active = 1;
-#endif
+	pm_flags |= PM_APM;
 
 	/*
 	 * Set up a segment that references the real mode segment 0x40
@@ -2366,9 +2364,7 @@ static void __exit apm_exit(void)
 		kthread_stop(kapmd_task);
 		kapmd_task = NULL;
 	}
-#ifdef CONFIG_PM_LEGACY
-	pm_active = 0;
-#endif
+	pm_flags &= ~PM_APM;
 }
 
 module_init(apm_init);
