@@ -134,6 +134,8 @@ static const struct pci_device_id sky2_id_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x436A) }, /* 88E8058 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x436B) }, /* 88E8071 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x436C) }, /* 88E8072 */
+	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x436D) }, /* 88E8055 */
+	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4370) }, /* 88E8075 */
 	{ 0 }
 };
 
@@ -547,6 +549,7 @@ static void sky2_phy_init(struct sky2_hw *hw, unsigned port)
 
 	case CHIP_ID_YUKON_EC_U:
 	case CHIP_ID_YUKON_EX:
+	case CHIP_ID_YUKON_SUPR:
 		pg = gm_phy_read(hw, port, PHY_MARV_EXT_ADR);
 
 		/* select page 3 to access LED control register */
@@ -713,23 +716,33 @@ static void sky2_set_tx_stfwd(struct sky2_hw *hw, unsigned port)
 {
 	struct net_device *dev = hw->dev[port];
 
-	if (dev->mtu <= ETH_DATA_LEN)
-		sky2_write32(hw, SK_REG(port, TX_GMF_CTRL_T),
-			     TX_JUMBO_DIS | TX_STFW_ENA);
+	if ( (hw->chip_id == CHIP_ID_YUKON_EX &&
+	      hw->chip_rev != CHIP_REV_YU_EX_A0) ||
+	     hw->chip_id == CHIP_ID_YUKON_FE_P ||
+	     hw->chip_id == CHIP_ID_YUKON_SUPR) {
+		/* Yukon-Extreme B0 and further Extreme devices */
+		/* enable Store & Forward mode for TX */
 
-	else if (hw->chip_id != CHIP_ID_YUKON_EC_U)
-		sky2_write32(hw, SK_REG(port, TX_GMF_CTRL_T),
-			     TX_STFW_ENA | TX_JUMBO_ENA);
-	else {
-		/* set Tx GMAC FIFO Almost Empty Threshold */
-		sky2_write32(hw, SK_REG(port, TX_GMF_AE_THR),
-			     (ECU_JUMBO_WM << 16) | ECU_AE_THR);
+		if (dev->mtu <= ETH_DATA_LEN)
+			sky2_write32(hw, SK_REG(port, TX_GMF_CTRL_T),
+				     TX_JUMBO_DIS | TX_STFW_ENA);
 
-		sky2_write32(hw, SK_REG(port, TX_GMF_CTRL_T),
-			     TX_JUMBO_ENA | TX_STFW_DIS);
+		else
+			sky2_write32(hw, SK_REG(port, TX_GMF_CTRL_T),
+				     TX_JUMBO_ENA| TX_STFW_ENA);
+	} else {
+		if (dev->mtu <= ETH_DATA_LEN)
+			sky2_write32(hw, SK_REG(port, TX_GMF_CTRL_T), TX_STFW_ENA);
+		else {
+			/* set Tx GMAC FIFO Almost Empty Threshold */
+			sky2_write32(hw, SK_REG(port, TX_GMF_AE_THR),
+				     (ECU_JUMBO_WM << 16) | ECU_AE_THR);
 
-		/* Can't do offload because of lack of store/forward */
-		dev->features &= ~(NETIF_F_TSO | NETIF_F_SG | NETIF_F_ALL_CSUM);
+			sky2_write32(hw, SK_REG(port, TX_GMF_CTRL_T), TX_STFW_DIS);
+
+			/* Can't do offload because of lack of store/forward */
+			dev->features &= ~(NETIF_F_TSO | NETIF_F_SG | NETIF_F_ALL_CSUM);
+		}
 	}
 }
 
@@ -2660,6 +2673,7 @@ static u32 sky2_mhz(const struct sky2_hw *hw)
 	case CHIP_ID_YUKON_EC:
 	case CHIP_ID_YUKON_EC_U:
 	case CHIP_ID_YUKON_EX:
+	case CHIP_ID_YUKON_SUPR:
 		return 125;
 
 	case CHIP_ID_YUKON_FE:
@@ -2743,6 +2757,15 @@ static int __devinit sky2_init(struct sky2_hw *hw)
 			| SKY2_HW_AUTO_TX_SUM
 			| SKY2_HW_ADV_POWER_CTL;
 		break;
+
+	case CHIP_ID_YUKON_SUPR:
+		hw->flags = SKY2_HW_GIGABIT
+			| SKY2_HW_NEWER_PHY
+			| SKY2_HW_NEW_LE
+			| SKY2_HW_AUTO_TX_SUM
+			| SKY2_HW_ADV_POWER_CTL;
+		break;
+
 	default:
 		dev_err(&hw->pdev->dev, "unsupported chip type 0x%x\n",
 			hw->chip_id);
@@ -2813,7 +2836,8 @@ static void sky2_reset(struct sky2_hw *hw)
 		sky2_write8(hw, SK_REG(i, GMAC_LINK_CTRL), GMLC_RST_SET);
 		sky2_write8(hw, SK_REG(i, GMAC_LINK_CTRL), GMLC_RST_CLR);
 
-		if (hw->chip_id == CHIP_ID_YUKON_EX)
+		if (hw->chip_id == CHIP_ID_YUKON_EX ||
+		    hw->chip_id == CHIP_ID_YUKON_SUPR)
 			sky2_write16(hw, SK_REG(i, GMAC_CTRL),
 				     GMC_BYP_MACSECRX_ON | GMC_BYP_MACSECTX_ON
 				     | GMC_BYP_RETR_ON);
