@@ -186,7 +186,7 @@ static void tcp_delack_timer(unsigned long data)
 		goto out_unlock;
 	}
 
-	sk_mem_reclaim(sk);
+	sk_mem_reclaim_partial(sk);
 
 	if (sk->sk_state == TCP_CLOSE || !(icsk->icsk_ack.pending & ICSK_ACK_TIMER))
 		goto out;

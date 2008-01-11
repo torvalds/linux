@@ -759,6 +759,14 @@ static inline void sk_mem_reclaim(struct sock *sk)
 		__sk_mem_reclaim(sk);
 }
 
+static inline void sk_mem_reclaim_partial(struct sock *sk)
+{
+	if (!sk_has_account(sk))
+		return;
+	if (sk->sk_forward_alloc > SK_MEM_QUANTUM)
+		__sk_mem_reclaim(sk);
+}
+
 static inline void sk_mem_charge(struct sock *sk, int size)
 {
 	if (!sk_has_account(sk))
