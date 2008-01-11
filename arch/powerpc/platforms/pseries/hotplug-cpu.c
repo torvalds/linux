@@ -29,6 +29,7 @@
 #include <asm/vdso_datapage.h>
 #include <asm/pSeries_reconfig.h>
 #include "xics.h"
+#include "plpar_wrappers.h"
 
 /* This version can't take the spinlock, because it never returns */
 static struct rtas_args rtas_stop_self_args = {
@@ -58,6 +59,7 @@ static void pseries_mach_cpu_die(void)
 	local_irq_disable();
 	idle_task_exit();
 	xics_teardown_cpu(0);
+	unregister_slb_shadow(hard_smp_processor_id(), __pa(get_slb_shadow()));
 	rtas_stop_self();
 	/* Should never get here... */
 	BUG();
