@@ -1892,10 +1892,11 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	int error = -ENODEV, retval;
 	int  i, hbq_count;
 	uint16_t iotag;
+	int bars = pci_select_bars(pdev, IORESOURCE_MEM);
 
-	if (pci_enable_device(pdev))
+	if (pci_enable_device_bars(pdev, bars))
 		goto out;
-	if (pci_request_regions(pdev, LPFC_DRIVER_NAME))
+	if (pci_request_selected_regions(pdev, bars, LPFC_DRIVER_NAME))
 		goto out_disable_device;
 
 	phba = kzalloc(sizeof (struct lpfc_hba), GFP_KERNEL);
@@ -2167,7 +2168,7 @@ out_idr_remove:
 out_free_phba:
 	kfree(phba);
 out_release_regions:
-	pci_release_regions(pdev);
+	pci_release_selected_regions(pdev, bars);
 out_disable_device:
 	pci_disable_device(pdev);
 out:
@@ -2183,6 +2184,8 @@ lpfc_pci_remove_one(struct pci_dev *pdev)
 	struct Scsi_Host  *shost = pci_get_drvdata(pdev);
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
+	int bars = pci_select_bars(pdev, IORESOURCE_MEM);
+
 	spin_lock_irq(&phba->hbalock);
 	vport->load_flag |= FC_UNLOADING;
 	spin_unlock_irq(&phba->hbalock);
@@ -2241,7 +2244,7 @@ lpfc_pci_remove_one(struct pci_dev *pdev)
 
 	kfree(phba);
 
-	pci_release_regions(pdev);
+	pci_release_selected_regions(pdev, bars);
 	pci_disable_device(pdev);
 }
 
