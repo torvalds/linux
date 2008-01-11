@@ -261,9 +261,9 @@ xfs_file_readdir(
 #else
 
 struct hack_dirent {
-	int		namlen;
-	loff_t		offset;
 	u64		ino;
+	loff_t		offset;
+	int		namlen;
 	unsigned int	d_type;
 	char		name[];
 };
@@ -285,8 +285,10 @@ xfs_hack_filldir(
 {
 	struct hack_callback *buf = __buf;
 	struct hack_dirent *de = (struct hack_dirent *)(buf->dirent + buf->used);
+	unsigned int reclen;
 
-	if (buf->used + sizeof(struct hack_dirent) + namlen > buf->len)
+	reclen = ALIGN(sizeof(struct hack_dirent) + namlen, sizeof(u64));
+	if (buf->used + reclen > buf->len)
 		return -EINVAL;
 
 	de->namlen = namlen;
@@ -294,7 +296,7 @@ xfs_hack_filldir(
 	de->ino = ino;
 	de->d_type = d_type;
 	memcpy(de->name, name, namlen);
-	buf->used += sizeof(struct hack_dirent) + namlen;
+	buf->used += reclen;
 	return 0;
 }
 
@@ -334,7 +336,8 @@ xfs_file_readdir(
 		offset = filp->f_pos;
 
 	while (!eof) {
-		int reclen;
+		unsigned int reclen;
+
 		start_offset = offset;
 
 		buf.used = 0;
@@ -355,7 +358,8 @@ xfs_file_readdir(
 				goto done;
 			}
 
-			reclen = sizeof(struct hack_dirent) + de->namlen;
+			reclen = ALIGN(sizeof(struct hack_dirent) + de->namlen,
+				       sizeof(u64));
 			size -= reclen;
 			de = (struct hack_dirent *)((char *)de + reclen);
 			curr_offset = de->offset /* & 0x7fffffff */;
