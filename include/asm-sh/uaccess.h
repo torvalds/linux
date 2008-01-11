@@ -73,38 +73,26 @@ static inline int __access_ok(unsigned long addr, unsigned long size)
 /*
  * __access_ok: Check if address with size is OK or not.
  *
- * We do three checks:
- * (1) is it user space?
- * (2) addr + size --> carry?
- * (3) addr + size >= 0x80000000  (PAGE_OFFSET)
+ * Uhhuh, this needs 33-bit arithmetic. We have a carry..
  *
- * (1) (2) (3) | RESULT
- *  0   0   0  |  ok
- *  0   0   1  |  ok
- *  0   1   0  |  bad
- *  0   1   1  |  bad
- *  1   0   0  |  ok
- *  1   0   1  |  bad
- *  1   1   0  |  bad
- *  1   1   1  |  bad
+ * sum := addr + size;  carry? --> flag = true;
+ * if (sum >= addr_limit) flag = true;
  */
 static inline int __access_ok(unsigned long addr, unsigned long size)
 {
-	unsigned long flag, tmp;
+	unsigned long flag, sum;
 
-	__asm__("stc	r7_bank, %0\n\t"
-		"mov.l	@(8,%0), %0\n\t"
-		"clrt\n\t"
-		"addc	%2, %1\n\t"
-		"and	%1, %0\n\t"
-		"rotcl	%0\n\t"
-		"rotcl	%0\n\t"
-		"and	#3, %0"
-		: "=&z" (flag), "=r" (tmp)
-		: "r" (addr), "1" (size)
-		: "t");
-
+	__asm__("clrt\n\t"
+		"addc	%3, %1\n\t"
+		"movt	%0\n\t"
+		"cmp/hi	%4, %1\n\t"
+		"rotcl	%0"
+		:"=&r" (flag), "=r" (sum)
+		:"1" (addr), "r" (size),
+		 "r" (current_thread_info()->addr_limit.seg)
+		:"t");
 	return flag == 0;
+
 }
 #endif /* CONFIG_MMU */
 
