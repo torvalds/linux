@@ -25,8 +25,11 @@ cat << EOF > $2/Makefile
 VERSION = $3
 PATCHLEVEL = $4
 
-KERNELSRC    := $1
-KERNELOUTPUT := $2
+lastword = \$(word \$(words \$(1)),\$(1))
+makedir := \$(dir \$(call lastword,\$(MAKEFILE_LIST)))
+
+MAKEARGS := -C $1
+MAKEARGS += O=\$(if \$(patsubst /%,,\$(makedir)),\$(CURDIR)/)\$(patsubst %/,%,\$(makedir))
 
 MAKEFLAGS += --no-print-directory
 
@@ -35,10 +38,11 @@ MAKEFLAGS += --no-print-directory
 all	:= \$(filter-out all Makefile,\$(MAKECMDGOALS))
 
 all:
-	\$(MAKE) -C \$(KERNELSRC) O=\$(KERNELOUTPUT) \$(all)
+	\$(MAKE) \$(MAKEARGS) \$(all)
 
 Makefile:;
 
 \$(all) %/: all
 	@:
+
 EOF
