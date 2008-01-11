@@ -102,7 +102,15 @@
 
 #ifdef CONFIG_SYSCTL
 static void addrconf_sysctl_register(struct inet6_dev *idev);
-static void addrconf_sysctl_unregister(struct ipv6_devconf *p);
+static void addrconf_sysctl_unregister(struct inet6_dev *idev);
+#else
+static inline void addrconf_sysctl_register(struct inet6_dev *idev)
+{
+}
+
+static inline void addrconf_sysctl_unregister(struct inet6_dev *idev)
+{
+}
 #endif
 
 #ifdef CONFIG_IPV6_PRIVACY
@@ -392,13 +400,7 @@ static struct inet6_dev * ipv6_add_dev(struct net_device *dev)
 
 	ipv6_mc_init_dev(ndev);
 	ndev->tstamp = jiffies;
-#ifdef CONFIG_SYSCTL
-	neigh_sysctl_register(dev, ndev->nd_parms, NET_IPV6,
-			      NET_IPV6_NEIGH, "ipv6",
-			      &ndisc_ifinfo_sysctl_change,
-			      NULL);
 	addrconf_sysctl_register(ndev);
-#endif
 	/* protected by rtnl_lock */
 	rcu_assign_pointer(dev->ip6_ptr, ndev);
 
@@ -2391,15 +2393,8 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 	case NETDEV_CHANGENAME:
 		if (idev) {
 			snmp6_unregister_dev(idev);
-#ifdef CONFIG_SYSCTL
-			addrconf_sysctl_unregister(&idev->cnf);
-			neigh_sysctl_unregister(idev->nd_parms);
-			neigh_sysctl_register(dev, idev->nd_parms,
-					      NET_IPV6, NET_IPV6_NEIGH, "ipv6",
-					      &ndisc_ifinfo_sysctl_change,
-					      NULL);
+			addrconf_sysctl_unregister(idev);
 			addrconf_sysctl_register(idev);
-#endif
 			err = snmp6_register_dev(idev);
 			if (err)
 				return notifier_from_errno(err);
@@ -2523,10 +2518,7 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 	/* Shot the device (if unregistered) */
 
 	if (how == 1) {
-#ifdef CONFIG_SYSCTL
-		addrconf_sysctl_unregister(&idev->cnf);
-		neigh_sysctl_unregister(idev->nd_parms);
-#endif
+		addrconf_sysctl_unregister(idev);
 		neigh_parms_release(&nd_tbl, idev->nd_parms);
 		neigh_ifdown(&nd_tbl, dev);
 		in6_dev_put(idev);
@@ -4106,21 +4098,34 @@ out:
 	return;
 }
 
+static void __addrconf_sysctl_unregister(struct ipv6_devconf *p)
+{
+	struct addrconf_sysctl_table *t;
+
+	if (p->sysctl == NULL)
+		return;
+
+	t = p->sysctl;
+	p->sysctl = NULL;
+	unregister_sysctl_table(t->sysctl_header);
+	kfree(t->dev_name);
+	kfree(t);
+}
+
 static void addrconf_sysctl_register(struct inet6_dev *idev)
 {
+	neigh_sysctl_register(idev->dev, idev->nd_parms, NET_IPV6,
+			      NET_IPV6_NEIGH, "ipv6",
+			      &ndisc_ifinfo_sysctl_change,
+			      NULL);
 	__addrconf_sysctl_register(idev->dev->name, idev->dev->ifindex,
 			idev, &idev->cnf);
 }
 
-static void addrconf_sysctl_unregister(struct ipv6_devconf *p)
+static void addrconf_sysctl_unregister(struct inet6_dev *idev)
 {
-	if (p->sysctl) {
-		struct addrconf_sysctl_table *t = p->sysctl;
-		p->sysctl = NULL;
-		unregister_sysctl_table(t->sysctl_header);
-		kfree(t->dev_name);
-		kfree(t);
-	}
+	__addrconf_sysctl_unregister(&idev->cnf);
+	neigh_sysctl_unregister(idev->nd_parms);
 }
 
 
@@ -4232,8 +4237,8 @@ void addrconf_cleanup(void)
 	unregister_netdevice_notifier(&ipv6_dev_notf);
 
 #ifdef CONFIG_SYSCTL
-	addrconf_sysctl_unregister(&ipv6_devconf_dflt);
-	addrconf_sysctl_unregister(&ipv6_devconf);
+	__addrconf_sysctl_unregister(&ipv6_devconf_dflt);
+	__addrconf_sysctl_unregister(&ipv6_devconf);
 #endif
 
 	rtnl_lock();
