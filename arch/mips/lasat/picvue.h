@@ -4,8 +4,6 @@
  * Brian Murphy <brian.murphy@eicon.com>
  *
  */
-#include <asm/semaphore.h>
-
 struct pvc_defs {
 	volatile u32 *reg;
 	u32 data_shift;
@@ -45,4 +43,3 @@ void pvc_move(u8 cmd);
 void pvc_clear(void);
 void pvc_home(void);
 
-extern struct semaphore pvc_sem;
