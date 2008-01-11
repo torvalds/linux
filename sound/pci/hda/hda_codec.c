@@ -933,7 +933,8 @@ int snd_hda_mixer_amp_volume_info(struct snd_kcontrol *kcontrol,
 	caps = (caps & AC_AMPCAP_NUM_STEPS) >> AC_AMPCAP_NUM_STEPS_SHIFT;
 	if (!caps) {
 		printk(KERN_WARNING "hda_codec: "
-		       "num_steps = 0 for NID=0x%x\n", nid);
+		       "num_steps = 0 for NID=0x%x (ctl = %s)\n", nid,
+		       kcontrol->id.name);
 		return -EINVAL;
 	}
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
