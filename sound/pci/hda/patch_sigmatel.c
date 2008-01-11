@@ -1530,6 +1530,7 @@ static unsigned int ref9205_pin_configs[12] = {
     102801FD
     10280204
     1028021F
+    10280228 (Dell Vostro 1500)
 */
 static unsigned int dell_9205_m42_pin_configs[12] = {
 	0x0321101F, 0x03A11020, 0x400003FA, 0x90170310,
@@ -1613,6 +1614,8 @@ static struct snd_pci_quirk stac9205_cfg_tbl[] = {
 		      "unknown Dell", STAC_9205_DELL_M42),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x021f,
 		      "Dell Inspiron", STAC_9205_DELL_M44),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x0228,
+		      "Dell Vostro 1500", STAC_9205_DELL_M42),
 	{} /* terminator */
 };
 
