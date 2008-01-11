@@ -175,7 +175,7 @@ ENTRY(_sleep_mode)
 	call _set_sic_iwr;
 
 	R0 = 0xFFFF (Z);
-	call _set_rtc_istat
+	call _set_rtc_istat;
 
 	P0.H = hi(PLL_CTL);
 	P0.L = lo(PLL_CTL);
@@ -213,7 +213,7 @@ ENTRY(_hibernate_mode)
 	call _set_sic_iwr;
 
 	R0 = 0xFFFF (Z);
-	call _set_rtc_istat
+	call _set_rtc_istat;
 
 	P0.H = hi(VR_CTL);
 	P0.L = lo(VR_CTL);
@@ -288,23 +288,22 @@ ENTRY(_sleep_deeper)
 	P3 = R0;
 	R0 = IWR_ENABLE(0);
 	call _set_sic_iwr;
-	call _set_dram_srfs;
+	call _set_dram_srfs;	/* Set SDRAM Self Refresh */
 
 	/* Clear all the interrupts,bits sticky */
 	R0 = 0xFFFF (Z);
-	call _set_rtc_istat
-
+	call _set_rtc_istat;
 	P0.H = hi(PLL_DIV);
 	P0.L = lo(PLL_DIV);
 	R6 = W[P0](z);
 	R0.L = 0xF;
-	W[P0] = R0.l;
+	W[P0] = R0.l;		/* Set Max VCO to SCLK divider */
 
 	P0.H = hi(PLL_CTL);
 	P0.L = lo(PLL_CTL);
 	R5 = W[P0](z);
 	R0.L = (CONFIG_MIN_VCO_HZ/CONFIG_CLKIN_HZ) << 9;
-	W[P0] = R0.l;
+	W[P0] = R0.l;		/* Set Min CLKIN to VCO multiplier */
 
 	SSYNC;
 	IDLE;
@@ -320,29 +319,28 @@ ENTRY(_sleep_deeper)
 	R1 = R1|R2;
 
 	R2 = DEPOSIT(R7, R1);
-	W[P0] = R2;
+	W[P0] = R2;		/* Set Min Core Voltage */
 
 	SSYNC;
 	IDLE;
 
 	call _test_pll_locked;
 
+	R0 = P3;
+	call _set_sic_iwr;	/* Set Awake from IDLE */
+
 	P0.H = hi(PLL_CTL);
 	P0.L = lo(PLL_CTL);
 	R0 = W[P0](z);
 	BITSET (R0, 3);
-	W[P0] = R0.L;
-
-	R0 = P3;
-	call _set_sic_iwr;
-
+	W[P0] = R0.L;		/* Turn CCLK OFF */
 	SSYNC;
 	IDLE;
 
 	call _test_pll_locked;
 
 	R0 = IWR_ENABLE(0);
-	call _set_sic_iwr;
+	call _set_sic_iwr;	/* Set Awake from IDLE PLL */
 
 	P0.H = hi(VR_CTL);
 	P0.L = lo(VR_CTL);
@@ -355,15 +353,15 @@ ENTRY(_sleep_deeper)
 
 	P0.H = hi(PLL_DIV);
 	P0.L = lo(PLL_DIV);
-	W[P0]= R6;
+	W[P0]= R6;		/* Restore CCLK and SCLK divider */
 
 	P0.H = hi(PLL_CTL);
 	P0.L = lo(PLL_CTL);
-	w[p0] = R5;
+	w[p0] = R5;		/* Restore VCO multiplier */
 	IDLE;
 	call _test_pll_locked;
 
-	call _unset_dram_srfs;
+	call _unset_dram_srfs;	/* SDRAM Self Refresh Off */
 
 	STI R4;
 
