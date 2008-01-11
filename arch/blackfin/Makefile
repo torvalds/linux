@@ -82,6 +82,8 @@ core-y   += arch/$(ARCH)/mach-$(MACHINE)/
 core-y   += arch/$(ARCH)/mach-$(MACHINE)/boards/
 endif
 
+core-y	 += arch/$(ARCH)/kernel/cplb-nompu/
+
 libs-y   += arch/$(ARCH)/lib/
 
 drivers-$(CONFIG_OPROFILE) += arch/$(ARCH)/oprofile/
