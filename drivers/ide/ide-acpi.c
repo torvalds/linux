@@ -85,6 +85,8 @@ static const struct dmi_system_id ide_acpi_dmi_table[] = {
 			DMI_MATCH(DMI_BIOS_VERSION, "KAM1.60")
 		},
 	},
+
+	{ }	/* terminate list */
 };
 
 static int ide_acpi_blacklist(void)
