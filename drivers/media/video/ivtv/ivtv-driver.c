@@ -1076,10 +1076,6 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 		ivtv_process_eeprom(itv);
 	}
 
-	/* The mspx4xx chips need a longer delay for some reason */
-	if (!(itv->hw_flags & IVTV_HW_MSP34XX))
-		itv->i2c_algo.udelay = 5;
-
 	if (itv->std == 0) {
 		itv->std = V4L2_STD_NTSC_M;
 	}
