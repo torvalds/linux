@@ -1234,12 +1234,6 @@ static int ps3fb_shutdown(struct ps3_system_bus_device *dev)
 	ps3fb_flip_ctl(0, &ps3fb);	/* flip off */
 	ps3fb.dinfo->irq.mask = 0;
 
-	if (info) {
-		unregister_framebuffer(info);
-		fb_dealloc_cmap(&info->cmap);
-		framebuffer_release(info);
-	}
-
 	ps3av_register_flip_ctl(NULL, NULL);
 	if (ps3fb.task) {
 		struct task_struct *task = ps3fb.task;
@@ -1249,6 +1243,12 @@ static int ps3fb_shutdown(struct ps3_system_bus_device *dev)
 	if (ps3fb.irq_no) {
 		free_irq(ps3fb.irq_no, &dev->core);
 		ps3_irq_plug_destroy(ps3fb.irq_no);
+	}
+	if (info) {
+		unregister_framebuffer(info);
+		fb_dealloc_cmap(&info->cmap);
+		framebuffer_release(info);
+		info = dev->core.driver_data = NULL;
 	}
 	iounmap((u8 __iomem *)ps3fb.dinfo);
 
