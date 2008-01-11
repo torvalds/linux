@@ -458,20 +458,13 @@ static void power_down(void)
 	while(1);
 }
 
-static void unprepare_processes(void)
-{
-	thaw_processes();
-	pm_restore_console();
-}
-
 static int prepare_processes(void)
 {
 	int error = 0;
 
-	pm_prepare_console();
 	if (freeze_processes()) {
 		error = -EBUSY;
-		unprepare_processes();
+		thaw_processes();
 	}
 	return error;
 }
@@ -491,6 +484,7 @@ int hibernate(void)
 		goto Unlock;
 	}
 
+	pm_prepare_console();
 	error = pm_notifier_call_chain(PM_HIBERNATION_PREPARE);
 	if (error)
 		goto Exit;
@@ -530,11 +524,12 @@ int hibernate(void)
 		swsusp_free();
 	}
  Thaw:
-	unprepare_processes();
+	thaw_processes();
  Finish:
 	free_basic_memory_bitmaps();
  Exit:
 	pm_notifier_call_chain(PM_POST_HIBERNATION);
+	pm_restore_console();
 	atomic_inc(&snapshot_device_available);
  Unlock:
 	mutex_unlock(&pm_mutex);
@@ -603,6 +598,7 @@ static int software_resume(void)
 		goto Unlock;
 	}
 
+	pm_prepare_console();
 	error = pm_notifier_call_chain(PM_RESTORE_PREPARE);
 	if (error)
 		goto Finish;
@@ -626,11 +622,12 @@ static int software_resume(void)
 
 	printk(KERN_ERR "PM: Restore failed, recovering.\n");
 	swsusp_free();
-	unprepare_processes();
+	thaw_processes();
  Done:
 	free_basic_memory_bitmaps();
  Finish:
 	pm_notifier_call_chain(PM_POST_RESTORE);
+	pm_restore_console();
 	atomic_inc(&snapshot_device_available);
 	/* For success case, the suspend path will release the lock */
  Unlock:
