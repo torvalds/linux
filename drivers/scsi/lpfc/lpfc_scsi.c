@@ -542,6 +542,7 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	int result;
 	struct scsi_device *sdev, *tmp_sdev;
 	int depth = 0;
+	unsigned long flags;
 
 	lpfc_cmd->result = pIocbOut->iocb.un.ulpWord[4];
 	lpfc_cmd->status = pIocbOut->iocb.ulpStatus;
@@ -608,6 +609,15 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	cmd->scsi_done(cmd);
 
 	if (phba->cfg_poll & ENABLE_FCP_RING_POLLING) {
+		/*
+		 * If there is a thread waiting for command completion
+		 * wake up the thread.
+		 */
+		spin_lock_irqsave(sdev->host->host_lock, flags);
+		lpfc_cmd->pCmd = NULL;
+		if (lpfc_cmd->waitq)
+			wake_up(lpfc_cmd->waitq);
+		spin_unlock_irqrestore(sdev->host->host_lock, flags);
 		lpfc_release_scsi_buf(phba, lpfc_cmd);
 		return;
 	}
@@ -668,6 +678,16 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 					 "depth adjusted to %d.\n", depth);
 		}
 	}
+
+	/*
+	 * If there is a thread waiting for command completion
+	 * wake up the thread.
+	 */
+	spin_lock_irqsave(sdev->host->host_lock, flags);
+	lpfc_cmd->pCmd = NULL;
+	if (lpfc_cmd->waitq)
+		wake_up(lpfc_cmd->waitq);
+	spin_unlock_irqrestore(sdev->host->host_lock, flags);
 
 	lpfc_release_scsi_buf(phba, lpfc_cmd);
 }
@@ -1018,8 +1038,8 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 	struct lpfc_iocbq *abtsiocb;
 	struct lpfc_scsi_buf *lpfc_cmd;
 	IOCB_t *cmd, *icmd;
-	unsigned int loop_count = 0;
 	int ret = SUCCESS;
+	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(waitq);
 
 	lpfc_block_error_handler(cmnd);
 	lpfc_cmd = (struct lpfc_scsi_buf *)cmnd->host_scribble;
@@ -1074,17 +1094,15 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 	if (phba->cfg_poll & DISABLE_FCP_RING_INT)
 		lpfc_sli_poll_fcp_ring (phba);
 
+	lpfc_cmd->waitq = &waitq;
 	/* Wait for abort to complete */
-	while (lpfc_cmd->pCmd == cmnd)
-	{
-		if (phba->cfg_poll & DISABLE_FCP_RING_INT)
-			lpfc_sli_poll_fcp_ring (phba);
+	wait_event_timeout(waitq,
+			  (lpfc_cmd->pCmd != cmnd),
+			   (2*vport->cfg_devloss_tmo*HZ));
 
-		schedule_timeout_uninterruptible(LPFC_ABORT_WAIT * HZ);
-		if (++loop_count
-		    > (2 * vport->cfg_devloss_tmo)/LPFC_ABORT_WAIT)
-			break;
-	}
+	spin_lock_irq(shost->host_lock);
+	lpfc_cmd->waitq = NULL;
+	spin_unlock_irq(shost->host_lock);
 
 	if (lpfc_cmd->pCmd == cmnd) {
 		ret = FAILED;
