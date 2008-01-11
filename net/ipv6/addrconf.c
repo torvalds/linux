@@ -334,7 +334,7 @@ static struct inet6_dev * ipv6_add_dev(struct net_device *dev)
 
 	rwlock_init(&ndev->lock);
 	ndev->dev = dev;
-	memcpy(&ndev->cnf, &ipv6_devconf_dflt, sizeof(ndev->cnf));
+	memcpy(&ndev->cnf, dev->nd_net->ipv6.devconf_dflt, sizeof(ndev->cnf));
 	ndev->cnf.mtu6 = dev->mtu;
 	ndev->cnf.sysctl = NULL;
 	ndev->nd_parms = neigh_parms_alloc(dev, &nd_tbl);
@@ -481,11 +481,11 @@ static void addrconf_fixup_forwarding(struct ctl_table *table, int *p, int old)
 	struct net *net;
 
 	net = (struct net *)table->extra2;
-	if (p == &ipv6_devconf_dflt.forwarding)
+	if (p == &net->ipv6.devconf_dflt->forwarding)
 		return;
 
 	if (p == &ipv6_devconf.forwarding) {
-		ipv6_devconf_dflt.forwarding = ipv6_devconf.forwarding;
+		net->ipv6.devconf_dflt->forwarding = ipv6_devconf.forwarding;
 		addrconf_forward_change(net);
 	} else if ((!*p) ^ (!old))
 		dev_forward_change((struct inet6_dev *)table->extra1);
