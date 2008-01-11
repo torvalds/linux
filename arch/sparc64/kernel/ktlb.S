@@ -1,6 +1,6 @@
 /* arch/sparc64/kernel/ktlb.S: Kernel mapping TLB miss handling.
  *
- * Copyright (C) 1995, 1997, 2005 David S. Miller <davem@davemloft.net>
+ * Copyright (C) 1995, 1997, 2005, 2008 David S. Miller <davem@davemloft.net>
  * Copyright (C) 1996 Eddie C. Dost        (ecd@brainaid.de)
  * Copyright (C) 1996 Miguel de Icaza      (miguel@nuclecu.unam.mx)
  * Copyright (C) 1996,98,99 Jakub Jelinek  (jj@sunsite.mff.cuni.cz)
@@ -226,6 +226,7 @@ kvmap_dtlb_load:
 	ba,pt		%xcc, sun4v_dtlb_load
 	 mov		%g5, %g3
 
+#ifdef CONFIG_SPARSEMEM_VMEMMAP
 kvmap_vmemmap:
 	sub		%g4, %g5, %g5
 	srlx		%g5, 22, %g5
@@ -234,6 +235,7 @@ kvmap_vmemmap:
 	or		%g1, %lo(vmemmap_table), %g1
 	ba,pt		%xcc, kvmap_dtlb_load
 	 ldx		[%g1 + %g5], %g5
+#endif
 
 kvmap_dtlb_nonlinear:
 	/* Catch kernel NULL pointer derefs.  */
@@ -242,12 +244,14 @@ kvmap_dtlb_nonlinear:
 	bleu,pn		%xcc, kvmap_dtlb_longpath
 	 nop
 
+#ifdef CONFIG_SPARSEMEM_VMEMMAP
 	/* Do not use the TSB for vmemmap.  */
 	mov		(VMEMMAP_BASE >> 24), %g5
 	sllx		%g5, 24, %g5
 	cmp		%g4,%g5
 	bgeu,pn		%xcc, kvmap_vmemmap
 	 nop
+#endif
 
 	KERN_TSB_LOOKUP_TL1(%g4, %g6, %g5, %g1, %g2, %g3, kvmap_dtlb_load)
 
