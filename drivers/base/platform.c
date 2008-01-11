@@ -360,7 +360,7 @@ EXPORT_SYMBOL_GPL(platform_device_unregister);
  *	the Linux driver model.  In particular, when such drivers are built
  *	as modules, they can't be "hotplugged".
  */
-struct platform_device *platform_device_register_simple(char *name, int id,
+struct platform_device *platform_device_register_simple(const char *name, int id,
 							struct resource *res, unsigned int num)
 {
 	struct platform_device *pdev;
