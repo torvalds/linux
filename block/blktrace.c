@@ -178,7 +178,7 @@ void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 EXPORT_SYMBOL_GPL(__blk_add_trace);
 
 static struct dentry *blk_tree_root;
-static struct mutex blk_tree_mutex;
+static DEFINE_MUTEX(blk_tree_mutex);
 static unsigned int root_users;
 
 static inline void blk_remove_root(void)
@@ -504,13 +504,3 @@ void blk_trace_shutdown(struct request_queue *q)
 		blk_trace_remove(q);
 	}
 }
-
-static __init int blk_trace_init(void)
-{
-	mutex_init(&blk_tree_mutex);
-
-	return 0;
-}
-
-module_init(blk_trace_init);
-
