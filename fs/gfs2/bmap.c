@@ -1224,6 +1224,11 @@ int gfs2_write_alloc_required(struct gfs2_inode *ip, u64 offset,
 		unsigned int shift = sdp->sd_sb.sb_bsize_shift;
 		lblock = offset >> shift;
 		lblock_stop = (offset + len + sdp->sd_sb.sb_bsize - 1) >> shift;
+		if (lblock_stop > ip->i_di.di_blocks) { /* writing past the
+							   last block */
+			*alloc_required = 1;
+			return 0;
+		}
 	}
 
 	for (; lblock < lblock_stop; lblock += extlen) {
