@@ -40,7 +40,9 @@
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
 
+#ifdef CONFIG_ACPI_SYSFS_POWER
 #include <linux/power_supply.h>
+#endif
 
 #define ACPI_BATTERY_VALUE_UNKNOWN 0xFFFFFFFF
 
@@ -86,7 +88,9 @@ MODULE_DEVICE_TABLE(acpi, battery_device_ids);
 
 struct acpi_battery {
 	struct mutex lock;
+#ifdef CONFIG_ACPI_SYSFS_POWER
 	struct power_supply bat;
+#endif
 	struct acpi_device *device;
 	unsigned long update_time;
 	int current_now;
@@ -117,6 +121,7 @@ inline int acpi_battery_present(struct acpi_battery *battery)
 	return battery->device->status.battery_present;
 }
 
+#ifdef CONFIG_ACPI_SYSFS_POWER
 static int acpi_battery_technology(struct acpi_battery *battery)
 {
 	if (!strcasecmp("NiCd", battery->type))
@@ -222,6 +227,7 @@ static enum power_supply_property energy_battery_props[] = {
 	POWER_SUPPLY_PROP_MODEL_NAME,
 	POWER_SUPPLY_PROP_MANUFACTURER,
 };
+#endif
 
 #ifdef CONFIG_ACPI_PROCFS_POWER
 inline char *acpi_battery_units(struct acpi_battery *battery)
@@ -398,6 +404,7 @@ static int acpi_battery_init_alarm(struct acpi_battery *battery)
 	return acpi_battery_set_alarm(battery);
 }
 
+#ifdef CONFIG_ACPI_SYSFS_POWER
 static ssize_t acpi_battery_alarm_show(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
@@ -429,11 +436,6 @@ static int sysfs_add_battery(struct acpi_battery *battery)
 {
 	int result;
 
-	battery->update_time = 0;
-	result = acpi_battery_get_info(battery);
-	acpi_battery_init_alarm(battery);
-	if (result)
-		return result;
 	if (battery->power_unit) {
 		battery->bat.properties = charge_battery_props;
 		battery->bat.num_properties =
@@ -462,18 +464,31 @@ static void sysfs_remove_battery(struct acpi_battery *battery)
 	power_supply_unregister(&battery->bat);
 	battery->bat.dev = NULL;
 }
+#endif
 
 static int acpi_battery_update(struct acpi_battery *battery)
 {
-	int result = acpi_battery_get_status(battery);
+	int result;
+	result = acpi_battery_get_status(battery);
 	if (result)
 		return result;
+#ifdef CONFIG_ACPI_SYSFS_POWER
 	if (!acpi_battery_present(battery)) {
 		sysfs_remove_battery(battery);
+		battery->update_time = 0;
 		return 0;
 	}
+#endif
+	if (!battery->update_time) {
+		result = acpi_battery_get_info(battery);
+		if (result)
+			return result;
+		acpi_battery_init_alarm(battery);
+	}
+#ifdef CONFIG_ACPI_SYSFS_POWER
 	if (!battery->bat.dev)
 		sysfs_add_battery(battery);
+#endif
 	return acpi_battery_get_state(battery);
 }
 
@@ -767,9 +782,11 @@ static void acpi_battery_notify(acpi_handle handle, u32 event, void *data)
 	acpi_bus_generate_netlink_event(device->pnp.device_class,
 					device->dev.bus_id, event,
 					acpi_battery_present(battery));
+#ifdef CONFIG_ACPI_SYSFS_POWER
 	/* acpi_batter_update could remove power_supply object */
 	if (battery->bat.dev)
 		kobject_uevent(&battery->bat.dev->kobj, KOBJ_CHANGE);
+#endif
 }
 
 static int acpi_battery_add(struct acpi_device *device)
@@ -828,7 +845,9 @@ static int acpi_battery_remove(struct acpi_device *device, int type)
 #ifdef CONFIG_ACPI_PROCFS_POWER
 	acpi_battery_remove_fs(device);
 #endif
+#ifdef CONFIG_ACPI_SYSFS_POWER
 	sysfs_remove_battery(battery);
+#endif
 	mutex_destroy(&battery->lock);
 	kfree(battery);
 	return 0;
