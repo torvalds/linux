@@ -609,22 +609,24 @@ static int sym_eh_handler(int op, char *opname, struct scsi_cmnd *cmd)
 	 */
 #define WAIT_FOR_PCI_RECOVERY	35
 	if (pci_channel_offline(pdev)) {
-		struct completion *io_reset;
 		int finished_reset = 0;
 		init_completion(&eh_done);
 		spin_lock_irq(shost->host_lock);
 		/* Make sure we didn't race */
 		if (pci_channel_offline(pdev)) {
-			if (!sym_data->io_reset)
-				sym_data->io_reset = &eh_done;
-			io_reset = sym_data->io_reset;
+			BUG_ON(sym_data->io_reset);
+			sym_data->io_reset = &eh_done;
 		} else {
 			finished_reset = 1;
 		}
 		spin_unlock_irq(shost->host_lock);
 		if (!finished_reset)
-			finished_reset = wait_for_completion_timeout(io_reset,
+			finished_reset = wait_for_completion_timeout
+						(sym_data->io_reset,
 						WAIT_FOR_PCI_RECOVERY*HZ);
+		spin_lock_irq(shost->host_lock);
+		sym_data->io_reset = NULL;
+		spin_unlock_irq(shost->host_lock);
 		if (!finished_reset)
 			return SCSI_FAILED;
 	}
@@ -1879,7 +1881,6 @@ static void sym2_io_resume(struct pci_dev *pdev)
 	spin_lock_irq(shost->host_lock);
 	if (sym_data->io_reset)
 		complete_all(sym_data->io_reset);
-	sym_data->io_reset = NULL;
 	spin_unlock_irq(shost->host_lock);
 }
 
