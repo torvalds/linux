@@ -443,8 +443,6 @@ static int ps3fb_sync(struct fb_info *info, u32 frame)
 	u32 ddr_line_length, xdr_line_length;
 	u64 ddr_base, xdr_base;
 
-	acquire_console_sem();
-
 	if (frame > par->num_frames - 1) {
 		dev_dbg(info->device, "%s: invalid frame number (%u)\n",
 			__func__, frame);
@@ -464,7 +462,6 @@ static int ps3fb_sync(struct fb_info *info, u32 frame)
 			 xdr_line_length);
 
 out:
-	release_console_sem();
 	return error;
 }
 
@@ -479,7 +476,10 @@ static int ps3fb_release(struct fb_info *info, int user)
 	if (atomic_dec_and_test(&ps3fb.f_count)) {
 		if (atomic_read(&ps3fb.ext_flip)) {
 			atomic_set(&ps3fb.ext_flip, 0);
-			ps3fb_sync(info, 0);	/* single buffer */
+			if (!try_acquire_console_sem()) {
+				ps3fb_sync(info, 0);	/* single buffer */
+				release_console_sem();
+			}
 		}
 	}
 	return 0;
@@ -865,7 +865,9 @@ static int ps3fb_ioctl(struct fb_info *info, unsigned int cmd,
 			break;
 
 		dev_dbg(info->device, "PS3FB_IOCTL_FSEL:%d\n", val);
+		acquire_console_sem();
 		retval = ps3fb_sync(info, val);
+		release_console_sem();
 		break;
 
 	default:
@@ -885,7 +887,9 @@ static int ps3fbd(void *arg)
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (ps3fb.is_kicked) {
 			ps3fb.is_kicked = 0;
+			acquire_console_sem();
 			ps3fb_sync(info, 0);	/* single buffer */
+			release_console_sem();
 		}
 		schedule();
 	}
