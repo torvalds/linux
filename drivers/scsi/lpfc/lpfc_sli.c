@@ -1147,6 +1147,12 @@ lpfc_sli_process_sol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 						IOSTAT_LOCAL_REJECT;
 					saveq->iocb.un.ulpWord[4] =
 						IOERR_SLI_ABORTED;
+
+					/* Firmware could still be in progress
+					 * of DMAing payload, so don't free data
+					 * buffer till after a hbeat.
+					 */
+					saveq->iocb_flag |= LPFC_DELAY_MEM_FREE;
 				}
 			}
 			(cmdiocbp->iocb_cmpl) (phba, cmdiocbp, saveq);
@@ -3281,6 +3287,7 @@ lpfc_sli_hba_down(struct lpfc_hba *phba)
 	LIST_HEAD(completions);
 	struct lpfc_sli *psli = &phba->sli;
 	struct lpfc_sli_ring *pring;
+	struct lpfc_dmabuf *buf_ptr;
 	LPFC_MBOXQ_t *pmb;
 	struct lpfc_iocbq *iocb;
 	IOCB_t *cmd = NULL;
@@ -3318,6 +3325,19 @@ lpfc_sli_hba_down(struct lpfc_hba *phba)
 			cmd->un.ulpWord[4] = IOERR_SLI_DOWN;
 			(iocb->iocb_cmpl) (phba, iocb, iocb);
 		}
+	}
+
+	spin_lock_irqsave(&phba->hbalock, flags);
+	list_splice_init(&phba->elsbuf, &completions);
+	phba->elsbuf_cnt = 0;
+	phba->elsbuf_prev_cnt = 0;
+	spin_unlock_irqrestore(&phba->hbalock, flags);
+
+	while (!list_empty(&completions)) {
+		list_remove_head(&completions, buf_ptr,
+			struct lpfc_dmabuf, list);
+		lpfc_mbuf_free(phba, buf_ptr->virt, buf_ptr->phys);
+		kfree(buf_ptr);
 	}
 
 	/* Return any active mbox cmds */
@@ -3489,6 +3509,12 @@ lpfc_sli_abort_els_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			list_del_init(&abort_iocb->list);
 			pring->txcmplq_cnt--;
 			spin_unlock_irq(&phba->hbalock);
+
+			/* Firmware could still be in progress of DMAing
+			 * payload, so don't free data buffer till after
+			 * a hbeat.
+			 */
+			abort_iocb->iocb_flag |= LPFC_DELAY_MEM_FREE;
 
 			abort_iocb->iocb_flag &= ~LPFC_DRIVER_ABORTED;
 			abort_iocb->iocb.ulpStatus = IOSTAT_LOCAL_REJECT;

@@ -2564,6 +2564,7 @@ lpfc_disc_timeout_handler(struct lpfc_vport *vport)
 		}
 		if (vport->port_state != LPFC_FLOGI) {
 			lpfc_initial_flogi(vport);
+			return;
 		}
 		break;
 

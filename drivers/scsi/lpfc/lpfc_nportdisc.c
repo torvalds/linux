@@ -442,7 +442,27 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			spin_lock_irq(shost->host_lock);
 			ndlp->nlp_flag &= ~NLP_NPR_2B_DISC;
 			spin_unlock_irq(shost->host_lock);
-				if (vport->num_disc_nodes) {
+
+			if ((ndlp->nlp_flag & NLP_ADISC_SND) &&
+				(vport->num_disc_nodes)) {
+				/* Check to see if there are more
+				 * ADISCs to be sent
+				 */
+				lpfc_more_adisc(vport);
+
+				if ((vport->num_disc_nodes == 0) &&
+					(vport->fc_npr_cnt))
+					lpfc_els_disc_plogi(vport);
+
+				if (vport->num_disc_nodes == 0) {
+					spin_lock_irq(shost->host_lock);
+					vport->fc_flag &= ~FC_NDISC_ACTIVE;
+					spin_unlock_irq(shost->host_lock);
+					lpfc_can_disctmo(vport);
+					lpfc_end_rscn(vport);
+				}
+			}
+			else if (vport->num_disc_nodes) {
 				/* Check to see if there are more
 				 * PLOGIs to be sent
 				 */
@@ -813,6 +833,7 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_vport *vport,
 			    uint32_t evt)
 {
 	struct lpfc_hba    *phba = vport->phba;
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_iocbq  *cmdiocb, *rspiocb;
 	struct lpfc_dmabuf *pcmd, *prsp, *mp;
 	uint32_t *lp;
@@ -930,8 +951,24 @@ out:
 				 "0261 Cannot Register NameServer login\n");
 	}
 
+	spin_lock_irq(shost->host_lock);
 	ndlp->nlp_flag |= NLP_DEFER_RM;
+	spin_unlock_irq(shost->host_lock);
 	return NLP_STE_FREED_NODE;
+}
+
+static uint32_t
+lpfc_cmpl_logo_plogi_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
+			   void *arg, uint32_t evt)
+{
+	return ndlp->nlp_state;
+}
+
+static uint32_t
+lpfc_cmpl_reglogin_plogi_issue(struct lpfc_vport *vport,
+	struct lpfc_nodelist *ndlp, void *arg, uint32_t evt)
+{
+	return ndlp->nlp_state;
 }
 
 static uint32_t
@@ -2006,9 +2043,9 @@ static uint32_t (*lpfc_disc_action[NLP_STE_MAX_STATE * NLP_EVT_MAX_EVENT])
 	lpfc_rcv_els_plogi_issue,	/* RCV_PRLO        */
 	lpfc_cmpl_plogi_plogi_issue,	/* CMPL_PLOGI      */
 	lpfc_disc_illegal,		/* CMPL_PRLI       */
-	lpfc_disc_illegal,		/* CMPL_LOGO       */
+	lpfc_cmpl_logo_plogi_issue,	/* CMPL_LOGO       */
 	lpfc_disc_illegal,		/* CMPL_ADISC      */
-	lpfc_disc_illegal,		/* CMPL_REG_LOGIN  */
+	lpfc_cmpl_reglogin_plogi_issue,/* CMPL_REG_LOGIN  */
 	lpfc_device_rm_plogi_issue,	/* DEVICE_RM       */
 	lpfc_device_recov_plogi_issue,	/* DEVICE_RECOVERY */
 

@@ -583,6 +583,11 @@ struct lpfc_hba {
 	atomic_t slow_ring_trc_cnt;
 #endif
 
+	/* Used for deferred freeing of ELS data buffers */
+	struct list_head elsbuf;
+	int elsbuf_cnt;
+	int elsbuf_prev_cnt;
+
 	uint8_t temp_sensor_support;
 	/* Fields used for heart beat. */
 	unsigned long last_completion_time;

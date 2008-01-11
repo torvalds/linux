@@ -783,6 +783,8 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 {
 	struct lpfc_vport    *vport = ndlp->vport;
 	struct lpfc_nodelist *new_ndlp;
+	struct lpfc_rport_data *rdata;
+	struct fc_rport *rport;
 	struct serv_parm *sp;
 	uint8_t  name[sizeof(struct lpfc_name)];
 	uint32_t rc;
@@ -819,6 +821,11 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 	lpfc_unreg_rpi(vport, new_ndlp);
 	new_ndlp->nlp_DID = ndlp->nlp_DID;
 	new_ndlp->nlp_prev_state = ndlp->nlp_prev_state;
+
+	if (ndlp->nlp_flag & NLP_NPR_2B_DISC)
+		new_ndlp->nlp_flag |= NLP_NPR_2B_DISC;
+	ndlp->nlp_flag &= ~NLP_NPR_2B_DISC;
+
 	lpfc_nlp_set_state(vport, new_ndlp, ndlp->nlp_state);
 
 	/* Move this back to NPR state */
@@ -826,6 +833,20 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 		/* The new_ndlp is replacing ndlp totally, so we need
 		 * to put ndlp on UNUSED list and try to free it.
 		 */
+
+		/* Fix up the rport accordingly */
+		rport =  ndlp->rport;
+		if (rport) {
+			rdata = rport->dd_data;
+			if (rdata->pnode == ndlp) {
+				lpfc_nlp_put(ndlp);
+				ndlp->rport = NULL;
+				rdata->pnode = lpfc_nlp_get(new_ndlp);
+				new_ndlp->rport = rport;
+			}
+			new_ndlp->nlp_type = ndlp->nlp_type;
+		}
+
 		lpfc_drop_node(vport, ndlp);
 	}
 	else {
@@ -1149,7 +1170,7 @@ lpfc_issue_els_prli(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	return 0;
 }
 
-static void
+void
 lpfc_more_adisc(struct lpfc_vport *vport)
 {
 	int sentadisc;
@@ -2100,8 +2121,35 @@ lpfc_els_free_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *elsiocb)
 	}
 	/* context2  = cmd,  context2->next = rsp, context3 = bpl */
 	if (elsiocb->context2) {
-		buf_ptr1 = (struct lpfc_dmabuf *) elsiocb->context2;
-		lpfc_els_free_data(phba, buf_ptr1);
+		if (elsiocb->iocb_flag & LPFC_DELAY_MEM_FREE) {
+			/* Firmware could still be in progress of DMAing
+			 * payload, so don't free data buffer till after
+			 * a hbeat.
+			 */
+			elsiocb->iocb_flag &= ~LPFC_DELAY_MEM_FREE;
+			buf_ptr = elsiocb->context2;
+			elsiocb->context2 = NULL;
+			if (buf_ptr) {
+				buf_ptr1 = NULL;
+				spin_lock_irq(&phba->hbalock);
+				if (!list_empty(&buf_ptr->list)) {
+					list_remove_head(&buf_ptr->list,
+						buf_ptr1, struct lpfc_dmabuf,
+						list);
+					INIT_LIST_HEAD(&buf_ptr1->list);
+					list_add_tail(&buf_ptr1->list,
+						&phba->elsbuf);
+					phba->elsbuf_cnt++;
+				}
+				INIT_LIST_HEAD(&buf_ptr->list);
+				list_add_tail(&buf_ptr->list, &phba->elsbuf);
+				phba->elsbuf_cnt++;
+				spin_unlock_irq(&phba->hbalock);
+			}
+		} else {
+			buf_ptr1 = (struct lpfc_dmabuf *) elsiocb->context2;
+			lpfc_els_free_data(phba, buf_ptr1);
+		}
 	}
 
 	if (elsiocb->context3) {
@@ -3027,6 +3075,8 @@ lpfc_els_handle_rscn(struct lpfc_vport *vport)
 
 	/* To process RSCN, first compare RSCN data with NameServer */
 	vport->fc_ns_retry = 0;
+	vport->num_disc_nodes = 0;
+
 	ndlp = lpfc_findnode_did(vport, NameServer_DID);
 	if (ndlp && ndlp->nlp_state == NLP_STE_UNMAPPED_NODE) {
 		/* Good ndlp, issue CT Request to NameServer */

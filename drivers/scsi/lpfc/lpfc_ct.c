@@ -426,6 +426,7 @@ lpfc_ns_rsp(struct lpfc_vport *vport, struct lpfc_dmabuf *mp, uint32_t Size)
 
 	lpfc_set_disctmo(vport);
 	vport->num_disc_nodes = 0;
+	vport->fc_ns_retry = 0;
 
 
 	list_add_tail(&head, &mp->list);
@@ -506,7 +507,17 @@ lpfc_ns_rsp(struct lpfc_vport *vport, struct lpfc_dmabuf *mp, uint32_t Size)
 						Did, vport->fc_flag,
 						vport->fc_rscn_id_cnt);
 
-						if (lpfc_ns_cmd(vport,
+						/* This NPortID was previously
+						 * a FCP target, * Don't even
+						 * bother to send GFF_ID.
+						 */
+						ndlp = lpfc_findnode_did(vport,
+							Did);
+						if (ndlp && (ndlp->nlp_type &
+							NLP_FCP_TARGET))
+							lpfc_setup_disc_node
+								(vport, Did);
+						else if (lpfc_ns_cmd(vport,
 							SLI_CTNS_GFF_ID,
 							0, Did) == 0)
 							vport->num_disc_nodes++;
@@ -554,7 +565,7 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	struct lpfc_dmabuf *outp;
 	struct lpfc_sli_ct_request *CTrsp;
 	struct lpfc_nodelist *ndlp;
-	int rc;
+	int rc, retry;
 
 	/* First save ndlp, before we overwrite it */
 	ndlp = cmdiocb->context_un.ndlp;
@@ -585,14 +596,35 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	if (irsp->ulpStatus) {
 		/* Check for retry */
 		if (vport->fc_ns_retry < LPFC_MAX_NS_RETRY) {
-			if ((irsp->ulpStatus != IOSTAT_LOCAL_REJECT) ||
-				(irsp->un.ulpWord[4] != IOERR_NO_RESOURCES))
+			retry = 1;
+			if (irsp->ulpStatus == IOSTAT_LOCAL_REJECT) {
+				switch (irsp->un.ulpWord[4]) {
+				case IOERR_NO_RESOURCES:
+					/* We don't increment the retry
+					 * count for this case.
+					 */
+					break;
+				case IOERR_LINK_DOWN:
+				case IOERR_SLI_ABORTED:
+				case IOERR_SLI_DOWN:
+					retry = 0;
+					break;
+				default:
+					vport->fc_ns_retry++;
+				}
+			}
+			else
 				vport->fc_ns_retry++;
-			/* CT command is being retried */
-			rc = lpfc_ns_cmd(vport, SLI_CTNS_GID_FT,
+
+			if (retry) {
+				/* CT command is being retried */
+				rc = lpfc_ns_cmd(vport, SLI_CTNS_GID_FT,
 					 vport->fc_ns_retry, 0);
-			if (rc == 0)
-				goto out;
+				if (rc == 0) {
+					/* success */
+					goto out;
+				}
+			}
 		}
 		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
@@ -698,7 +730,7 @@ lpfc_cmpl_ct_cmd_gff_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	struct lpfc_dmabuf *inp = (struct lpfc_dmabuf *) cmdiocb->context1;
 	struct lpfc_dmabuf *outp = (struct lpfc_dmabuf *) cmdiocb->context2;
 	struct lpfc_sli_ct_request *CTrsp;
-	int did;
+	int did, rc, retry;
 	uint8_t fbits;
 	struct lpfc_nodelist *ndlp;
 
@@ -729,6 +761,39 @@ lpfc_cmpl_ct_cmd_gff_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		}
 	}
 	else {
+		/* Check for retry */
+		if (cmdiocb->retry < LPFC_MAX_NS_RETRY) {
+			retry = 1;
+			if (irsp->ulpStatus == IOSTAT_LOCAL_REJECT) {
+				switch (irsp->un.ulpWord[4]) {
+				case IOERR_NO_RESOURCES:
+					/* We don't increment the retry
+					 * count for this case.
+					 */
+					break;
+				case IOERR_LINK_DOWN:
+				case IOERR_SLI_ABORTED:
+				case IOERR_SLI_DOWN:
+					retry = 0;
+					break;
+				default:
+					cmdiocb->retry++;
+				}
+			}
+			else
+				cmdiocb->retry++;
+
+			if (retry) {
+				/* CT command is being retried */
+				rc = lpfc_ns_cmd(vport, SLI_CTNS_GFF_ID,
+					 cmdiocb->retry, did);
+				if (rc == 0) {
+					/* success */
+					lpfc_ct_free_iocb(phba, cmdiocb);
+					return;
+				}
+			}
+		}
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
 				 "0267 NameServer GFF Rsp "
 				 "x%x Error (%d %d) Data: x%x x%x\n",

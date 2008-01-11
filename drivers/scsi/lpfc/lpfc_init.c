@@ -547,8 +547,10 @@ void
 lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 {
 	LPFC_MBOXQ_t *pmboxq;
+	struct lpfc_dmabuf *buf_ptr;
 	int retval;
 	struct lpfc_sli *psli = &phba->sli;
+	LIST_HEAD(completions);
 
 	if ((phba->link_state == LPFC_HBA_ERROR) ||
 		(phba->pport->load_flag & FC_UNLOADING) ||
@@ -574,6 +576,24 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 		return;
 	}
 	spin_unlock_irq(&phba->pport->work_port_lock);
+
+	if (phba->elsbuf_cnt &&
+		(phba->elsbuf_cnt == phba->elsbuf_prev_cnt)) {
+		spin_lock_irq(&phba->hbalock);
+		list_splice_init(&phba->elsbuf, &completions);
+		phba->elsbuf_cnt = 0;
+		phba->elsbuf_prev_cnt = 0;
+		spin_unlock_irq(&phba->hbalock);
+
+		while (!list_empty(&completions)) {
+			list_remove_head(&completions, buf_ptr,
+				struct lpfc_dmabuf, list);
+			lpfc_mbuf_free(phba, buf_ptr->virt, buf_ptr->phys);
+			kfree(buf_ptr);
+		}
+	}
+	phba->elsbuf_prev_cnt = phba->elsbuf_cnt;
+
 
 	/* If there is no heart beat outstanding, issue a heartbeat command */
 	if (!phba->hb_outstanding) {
@@ -1998,6 +2018,9 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 
 	/* Initialize list of fabric iocbs */
 	INIT_LIST_HEAD(&phba->fabric_iocb_list);
+
+	/* Initialize list to save ELS buffers */
+	INIT_LIST_HEAD(&phba->elsbuf);
 
 	vport = lpfc_create_port(phba, phba->brd_no, &phba->pcidev->dev);
 	if (!vport)
