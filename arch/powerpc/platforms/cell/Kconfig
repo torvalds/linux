@@ -54,6 +54,13 @@ config SPU_FS_64K_LS
 	  uses 4K pages. This can improve performances of applications
 	  using multiple SPEs by lowering the TLB pressure on them.
 
+config SPU_TRACE
+	tristate "SPU event tracing support"
+	depends on SPU_FS && MARKERS
+	help
+	  This option allows reading a trace of spu-related events through
+	  the sputrace file in procfs.
+
 config SPU_BASE
 	bool
 	default n

@@ -39,6 +39,7 @@
 #include <linux/pid_namespace.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/marker.h>
 
 #include <asm/io.h>
 #include <asm/mmu_context.h>
@@ -216,8 +217,8 @@ void do_notify_spus_active(void)
  */
 static void spu_bind_context(struct spu *spu, struct spu_context *ctx)
 {
-	pr_debug("%s: pid=%d SPU=%d NODE=%d\n", __FUNCTION__, current->pid,
-		 spu->number, spu->node);
+	spu_context_trace(spu_bind_context__enter, ctx, spu);
+
 	spuctx_switch_state(ctx, SPU_UTIL_SYSTEM);
 
 	if (ctx->flags & SPU_CREATE_NOSCHED)
@@ -399,8 +400,8 @@ static int has_affinity(struct spu_context *ctx)
  */
 static void spu_unbind_context(struct spu *spu, struct spu_context *ctx)
 {
-	pr_debug("%s: unbind pid=%d SPU=%d NODE=%d\n", __FUNCTION__,
-		 spu->pid, spu->number, spu->node);
+	spu_context_trace(spu_unbind_context__enter, ctx, spu);
+
 	spuctx_switch_state(ctx, SPU_UTIL_SYSTEM);
 
  	if (spu->ctx->flags & SPU_CREATE_NOSCHED)
@@ -528,6 +529,8 @@ static struct spu *spu_get_idle(struct spu_context *ctx)
 	struct spu *spu, *aff_ref_spu;
 	int node, n;
 
+	spu_context_nospu_trace(spu_get_idle__enter, ctx);
+
 	if (ctx->gang) {
 		mutex_lock(&ctx->gang->aff_mutex);
 		if (has_affinity(ctx)) {
@@ -546,8 +549,7 @@ static struct spu *spu_get_idle(struct spu_context *ctx)
 			if (atomic_dec_and_test(&ctx->gang->aff_sched_count))
 				ctx->gang->aff_ref_spu = NULL;
 			mutex_unlock(&ctx->gang->aff_mutex);
-
-			return NULL;
+			goto not_found;
 		}
 		mutex_unlock(&ctx->gang->aff_mutex);
 	}
@@ -565,12 +567,14 @@ static struct spu *spu_get_idle(struct spu_context *ctx)
 		mutex_unlock(&cbe_spu_info[node].list_mutex);
 	}
 
+ not_found:
+	spu_context_nospu_trace(spu_get_idle__not_found, ctx);
 	return NULL;
 
  found:
 	spu->alloc_state = SPU_USED;
 	mutex_unlock(&cbe_spu_info[node].list_mutex);
-	pr_debug("Got SPU %d %d\n", spu->number, spu->node);
+	spu_context_trace(spu_get_idle__found, ctx, spu);
 	spu_init_channels(spu);
 	return spu;
 }
@@ -586,6 +590,8 @@ static struct spu *find_victim(struct spu_context *ctx)
 	struct spu_context *victim = NULL;
 	struct spu *spu;
 	int node, n;
+
+	spu_context_nospu_trace(spu_find_vitim__enter, ctx);
 
 	/*
 	 * Look for a possible preemption candidate on the local node first.
@@ -639,6 +645,8 @@ static struct spu *find_victim(struct spu_context *ctx)
 				victim = NULL;
 				goto restart;
 			}
+
+			spu_context_trace(__spu_deactivate__unload, ctx, spu);
 
 			mutex_lock(&cbe_spu_info[node].list_mutex);
 			cbe_spu_info[node].nr_active--;
@@ -822,6 +830,7 @@ static int __spu_deactivate(struct spu_context *ctx, int force, int max_prio)
  */
 void spu_deactivate(struct spu_context *ctx)
 {
+	spu_context_nospu_trace(spu_deactivate__enter, ctx);
 	__spu_deactivate(ctx, 1, MAX_PRIO);
 }
 
@@ -835,6 +844,7 @@ void spu_deactivate(struct spu_context *ctx)
  */
 void spu_yield(struct spu_context *ctx)
 {
+	spu_context_nospu_trace(spu_yield__enter, ctx);
 	if (!(ctx->flags & SPU_CREATE_NOSCHED)) {
 		mutex_lock(&ctx->state_mutex);
 		__spu_deactivate(ctx, 0, MAX_PRIO);
@@ -864,11 +874,15 @@ static noinline void spusched_tick(struct spu_context *ctx)
 		goto out;
 
 	spu = ctx->spu;
+
+	spu_context_trace(spusched_tick__preempt, ctx, spu);
+
 	new = grab_runnable_context(ctx->prio + 1, spu->node);
 	if (new) {
 		spu_unschedule(spu, ctx);
 		spu_add_to_rq(ctx);
 	} else {
+		spu_context_nospu_trace(spusched_tick__newslice, ctx);
 		ctx->time_slice++;
 	}
 out:
