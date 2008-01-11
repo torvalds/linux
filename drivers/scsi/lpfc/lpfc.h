@@ -578,7 +578,8 @@ struct lpfc_hba {
 	struct dentry *hba_debugfs_root;
 	atomic_t debugfs_vport_count;
 	struct dentry *debug_hbqinfo;
-	struct dentry *debug_dumpslim;
+	struct dentry *debug_dumpHostSlim;
+	struct dentry *debug_dumpHBASlim;
 	struct dentry *debug_slow_ring_trc;
 	struct lpfc_debugfs_trc *slow_ring_trc;
 	atomic_t slow_ring_trc_cnt;
