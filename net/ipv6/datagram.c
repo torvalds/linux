@@ -549,7 +549,8 @@ int datagram_send_ctl(struct msghdr *msg, struct flowi *fl,
 						return -ENODEV;
 				}
 			}
-			if (!ipv6_chk_addr(&src_info->ipi6_addr, dev, 0)) {
+			if (!ipv6_chk_addr(&init_net, &src_info->ipi6_addr,
+					   dev, 0)) {
 				if (dev)
 					dev_put(dev);
 				err = -EINVAL;

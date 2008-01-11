@@ -298,7 +298,8 @@ static int rawv6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		v4addr = LOOPBACK4_IPV6;
 		if (!(addr_type & IPV6_ADDR_MULTICAST))	{
 			err = -EADDRNOTAVAIL;
-			if (!ipv6_chk_addr(&addr->sin6_addr, dev, 0)) {
+			if (!ipv6_chk_addr(&init_net, &addr->sin6_addr,
+					   dev, 0)) {
 				if (dev)
 					dev_put(dev);
 				goto out;

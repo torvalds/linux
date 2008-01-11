@@ -1206,13 +1206,16 @@ static int ipv6_count_addresses(struct inet6_dev *idev)
 	return cnt;
 }
 
-int ipv6_chk_addr(struct in6_addr *addr, struct net_device *dev, int strict)
+int ipv6_chk_addr(struct net *net, struct in6_addr *addr,
+		  struct net_device *dev, int strict)
 {
 	struct inet6_ifaddr * ifp;
 	u8 hash = ipv6_addr_hash(addr);
 
 	read_lock_bh(&addrconf_hash_lock);
 	for(ifp = inet6_addr_lst[hash]; ifp; ifp=ifp->lst_next) {
+		if (ifp->idev->dev->nd_net != net)
+			continue;
 		if (ipv6_addr_equal(&ifp->addr, addr) &&
 		    !(ifp->flags&IFA_F_TENTATIVE)) {
 			if (dev == NULL || ifp->idev->dev == dev ||
@@ -1223,7 +1226,6 @@ int ipv6_chk_addr(struct in6_addr *addr, struct net_device *dev, int strict)
 	read_unlock_bh(&addrconf_hash_lock);
 	return ifp != NULL;
 }
-
 EXPORT_SYMBOL(ipv6_chk_addr);
 
 static

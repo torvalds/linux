@@ -332,7 +332,7 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 	 */
 	addr_type = ipv6_addr_type(&hdr->daddr);
 
-	if (ipv6_chk_addr(&hdr->daddr, skb->dev, 0))
+	if (ipv6_chk_addr(&init_net, &hdr->daddr, skb->dev, 0))
 		saddr = &hdr->daddr;
 
 	/*

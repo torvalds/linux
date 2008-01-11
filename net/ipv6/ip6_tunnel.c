@@ -653,8 +653,8 @@ static inline int ip6_tnl_rcv_ctl(struct ip6_tnl *t)
 			ldev = dev_get_by_index(&init_net, p->link);
 
 		if ((ipv6_addr_is_multicast(&p->laddr) ||
-		     likely(ipv6_chk_addr(&p->laddr, ldev, 0))) &&
-		    likely(!ipv6_chk_addr(&p->raddr, NULL, 0)))
+		     likely(ipv6_chk_addr(&init_net, &p->laddr, ldev, 0))) &&
+		    likely(!ipv6_chk_addr(&init_net, &p->raddr, NULL, 0)))
 			ret = 1;
 
 		if (ldev)
@@ -788,12 +788,12 @@ static inline int ip6_tnl_xmit_ctl(struct ip6_tnl *t)
 		if (p->link)
 			ldev = dev_get_by_index(&init_net, p->link);
 
-		if (unlikely(!ipv6_chk_addr(&p->laddr, ldev, 0)))
+		if (unlikely(!ipv6_chk_addr(&init_net, &p->laddr, ldev, 0)))
 			printk(KERN_WARNING
 			       "%s xmit: Local address not yet configured!\n",
 			       p->name);
 		else if (!ipv6_addr_is_multicast(&p->raddr) &&
-			 unlikely(ipv6_chk_addr(&p->raddr, NULL, 0)))
+			 unlikely(ipv6_chk_addr(&init_net, &p->raddr, NULL, 0)))
 			printk(KERN_WARNING
 			       "%s xmit: Routing loop! "
 			       "Remote address found on this node!\n",

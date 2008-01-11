@@ -59,9 +59,11 @@ extern int			addrconf_add_ifaddr(void __user *arg);
 extern int			addrconf_del_ifaddr(void __user *arg);
 extern int			addrconf_set_dstaddr(void __user *arg);
 
-extern int			ipv6_chk_addr(struct in6_addr *addr,
+extern int			ipv6_chk_addr(struct net *net,
+					      struct in6_addr *addr,
 					      struct net_device *dev,
 					      int strict);
+
 #if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
 extern int			ipv6_chk_home_addr(struct in6_addr *addr);
 #endif
