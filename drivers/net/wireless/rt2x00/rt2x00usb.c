@@ -245,13 +245,20 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	 * Allocate a new sk buffer to replace the current one.
 	 * If allocation fails, we should drop the current frame
 	 * so we can recycle the existing sk buffer for the new frame.
+	 * As alignment we use 2 and not NET_IP_ALIGN because we need
+	 * to be sure we have 2 bytes room in the head. (NET_IP_ALIGN
+	 * can be 0 on some hardware). We use these 2 bytes for frame
+	 * alignment later, we assume that the chance that
+	 * header_size % 4 == 2 is bigger then header_size % 2 == 0
+	 * and thus optimize alignment by reserving the 2 bytes in
+	 * advance.
 	 */
 	frame_size = entry->ring->data_size + entry->ring->desc_size;
-	skb = dev_alloc_skb(frame_size + NET_IP_ALIGN);
+	skb = dev_alloc_skb(frame_size + 2);
 	if (!skb)
 		goto skip_entry;
 
-	skb_reserve(skb, NET_IP_ALIGN);
+	skb_reserve(skb, 2);
 	skb_put(skb, frame_size);
 
 	/*
