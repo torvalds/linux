@@ -480,7 +480,7 @@ int tm6000_init (struct tm6000_core *dev)
 	return 0;
 }
 
-int tm6000_set_audio_bitrate (struct tm6000_core *dev, int bitrate)
+int tm6000_set_audio_bitrate(struct tm6000_core *dev, int bitrate)
 {
 	int val;
 
@@ -504,3 +504,4 @@ printk("Original value=%d\n",val);
 
 	return val;
 }
+EXPORT_SYMBOL_GPL(tm6000_set_audio_bitrate);

@@ -10,5 +10,6 @@ tm6000-objs += tm6000-dvb.o \
 endif
 
 obj-$(CONFIG_VIDEO_TM6000) += tm6000.o
+obj-$(CONFIG_VIDEO_TM6000_ALSA) += tm6000-alsa.o
 
 EXTRA_CFLAGS = -Idrivers/media/video
