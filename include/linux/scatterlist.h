@@ -191,8 +191,8 @@ static inline void sg_chain(struct scatterlist *prv, unsigned int prv_nents,
 	/*
 	 * offset and length are unused for chain entry.  Clear them.
 	 */
-	prv->offset = 0;
-	prv->length = 0;
+	prv[prv_nents - 1].offset = 0;
+	prv[prv_nents - 1].length = 0;
 
 	/*
 	 * Set lowest bit to indicate a link pointer, and make sure to clear
