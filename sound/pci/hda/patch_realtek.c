@@ -6111,7 +6111,7 @@ static int alc_auto_add_mic_boost(struct hda_codec *codec)
 	hda_nid_t nid;
 
 	nid = spec->autocfg.input_pins[AUTO_PIN_MIC];
-	if (nid) {
+	if (nid && (get_wcaps(codec, nid) & AC_WCAP_IN_AMP)) {
 		err = add_control(spec, ALC_CTL_WIDGET_VOL,
 				  "Mic Boost",
 				  HDA_COMPOSE_AMP_VAL(nid, 3, 0, HDA_INPUT));
@@ -6119,7 +6119,7 @@ static int alc_auto_add_mic_boost(struct hda_codec *codec)
 			return err;
 	}
 	nid = spec->autocfg.input_pins[AUTO_PIN_FRONT_MIC];
-	if (nid) {
+	if (nid && (get_wcaps(codec, nid) & AC_WCAP_IN_AMP)) {
 		err = add_control(spec, ALC_CTL_WIDGET_VOL,
 				  "Front Mic Boost",
 				  HDA_COMPOSE_AMP_VAL(nid, 3, 0, HDA_INPUT));
