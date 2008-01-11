@@ -497,6 +497,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 			dump_bfin_trace_buffer();
 		show_stack(current, &stack);
 		if (oops_in_progress) {
+			print_modules();
 #ifndef CONFIG_ACCESS_CHECK
 			printk(KERN_EMERG "Please turn on "
 			       "CONFIG_ACCESS_CHECK\n");
@@ -761,7 +762,7 @@ void show_regs(struct pt_regs *fp)
 	unsigned int i;
 	unsigned long flags;
 
-	printk(KERN_NOTICE "\n" KERN_NOTICE "SEQUENCER STATUS:\n");
+	printk(KERN_NOTICE "\n" KERN_NOTICE "SEQUENCER STATUS:\t\t%s\n", print_tainted());
 	printk(KERN_NOTICE " SEQSTAT: %08lx  IPEND: %04lx  SYSCFG: %04lx\n",
 		(long)fp->seqstat, fp->ipend, fp->syscfg);
 	printk(KERN_NOTICE "  HWERRCAUSE: 0x%lx\n",
