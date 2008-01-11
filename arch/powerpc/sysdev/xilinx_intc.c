@@ -135,9 +135,15 @@ void __init xilinx_intc_init_tree(void)
 	struct device_node *np;
 
 	/* find top level interrupt controller */
-	for_each_compatible_node(np, NULL, "xilinx,intc") {
+	for_each_compatible_node(np, NULL, "xlnx,opb-intc-1.00.c") {
 		if (!of_get_property(np, "interrupts", NULL))
 			break;
+	}
+	if (!np) {
+		for_each_compatible_node(np, NULL, "xlnx,xps-intc-1.00.a") {
+			if (!of_get_property(np, "interrupts", NULL))
+				break;
+		}
 	}
 
 	/* xilinx interrupt controller needs to be top level */
