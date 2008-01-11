@@ -267,7 +267,6 @@ struct gfs2_inode {
 	struct gfs2_alloc *i_alloc;
 	u64 i_last_rg_alloc;
 
-	spinlock_t i_spin;
 	struct rw_semaphore i_rw_mutex;
 };
 
