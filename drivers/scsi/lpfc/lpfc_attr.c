@@ -342,6 +342,9 @@ lpfc_selective_reset(struct lpfc_hba *phba)
 	struct completion online_compl;
 	int status = 0;
 
+	if (!phba->cfg_enable_hba_reset)
+		return -EIO;
+
 	status = lpfc_do_offline(phba, LPFC_EVT_OFFLINE);
 
 	if (status != 0)
@@ -415,6 +418,8 @@ lpfc_board_mode_store(struct class_device *cdev, const char *buf, size_t count)
 	struct completion online_compl;
 	int status=0;
 
+	if (!phba->cfg_enable_hba_reset)
+		return -EACCES;
 	init_completion(&online_compl);
 
 	if(strncmp(buf, "online", sizeof("online") - 1) == 0) {
@@ -979,6 +984,8 @@ lpfc_soft_wwpn_store(struct class_device *cdev, const char *buf, size_t count)
 	unsigned int i, j, cnt=count;
 	u8 wwpn[8];
 
+	if (!phba->cfg_enable_hba_reset)
+		return -EACCES;
 	spin_lock_irq(&phba->hbalock);
 	if (phba->over_temp_state == HBA_OVER_TEMP) {
 		spin_unlock_irq(&phba->hbalock);
@@ -1506,7 +1513,21 @@ LPFC_ATTR_RW(poll_tmo, 10, 1, 255,
 */
 LPFC_ATTR_R(use_msi, 0, 0, 1, "Use Message Signaled Interrupts, if possible");
 
+/*
+# lpfc_enable_hba_reset: Allow or prevent HBA resets to the hardware.
+#       0  = HBA resets disabled
+#       1  = HBA resets enabled (default)
+# Value range is [0,1]. Default value is 1.
+*/
+LPFC_ATTR_R(enable_hba_reset, 1, 0, 1, "Enable HBA resets from the driver.");
 
+/*
+# lpfc_enable_hba_heartbeat: Enable HBA heartbeat timer..
+#       0  = HBA Heartbeat disabled
+#       1  = HBA Heartbeat enabled (default)
+# Value range is [0,1]. Default value is 1.
+*/
+LPFC_ATTR_R(enable_hba_heartbeat, 1, 0, 1, "Enable HBA Heartbeat.");
 
 struct class_device_attribute *lpfc_hba_attrs[] = {
 	&class_device_attr_info,
@@ -1558,6 +1579,8 @@ struct class_device_attribute *lpfc_hba_attrs[] = {
 	&class_device_attr_lpfc_soft_wwnn,
 	&class_device_attr_lpfc_soft_wwpn,
 	&class_device_attr_lpfc_soft_wwn_enable,
+	&class_device_attr_lpfc_enable_hba_reset,
+	&class_device_attr_lpfc_enable_hba_heartbeat,
 	NULL,
 };
 
@@ -2448,6 +2471,8 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_poll_tmo_init(phba, lpfc_poll_tmo);
 	lpfc_enable_npiv_init(phba, lpfc_enable_npiv);
 	lpfc_use_msi_init(phba, lpfc_use_msi);
+	lpfc_enable_hba_reset_init(phba, lpfc_enable_hba_reset);
+	lpfc_enable_hba_heartbeat_init(phba, lpfc_enable_hba_heartbeat);
 	phba->cfg_poll = lpfc_poll;
 	phba->cfg_soft_wwnn = 0L;
 	phba->cfg_soft_wwpn = 0L;

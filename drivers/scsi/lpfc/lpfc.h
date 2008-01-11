@@ -471,7 +471,8 @@ struct lpfc_hba {
 	uint64_t cfg_soft_wwnn;
 	uint64_t cfg_soft_wwpn;
 	uint32_t cfg_hba_queue_depth;
-
+	uint32_t cfg_enable_hba_reset;
+	uint32_t cfg_enable_hba_heartbeat;
 
 	lpfc_vpd_t vpd;		/* vital product data */
 

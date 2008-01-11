@@ -2559,6 +2559,11 @@ lpfc_mbox_timeout_handler(struct lpfc_hba *phba)
 	 * lpfc_offline calls lpfc_sli_hba_down which will clean up
 	 * on oustanding mailbox commands.
 	 */
+	/* If resets are disabled then set error state and return. */
+	if (!phba->cfg_enable_hba_reset) {
+		phba->link_state = LPFC_HBA_ERROR;
+		return;
+	}
 	lpfc_offline_prep(phba);
 	lpfc_offline(phba);
 	lpfc_sli_brdrestart(phba);

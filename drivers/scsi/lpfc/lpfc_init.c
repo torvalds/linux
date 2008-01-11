@@ -594,49 +594,50 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 	}
 	phba->elsbuf_prev_cnt = phba->elsbuf_cnt;
 
-
 	/* If there is no heart beat outstanding, issue a heartbeat command */
-	if (!phba->hb_outstanding) {
-		pmboxq = mempool_alloc(phba->mbox_mem_pool,GFP_KERNEL);
-		if (!pmboxq) {
+	if (phba->cfg_enable_hba_heartbeat) {
+		if (!phba->hb_outstanding) {
+			pmboxq = mempool_alloc(phba->mbox_mem_pool,GFP_KERNEL);
+			if (!pmboxq) {
+				mod_timer(&phba->hb_tmofunc,
+					  jiffies + HZ * LPFC_HB_MBOX_INTERVAL);
+				return;
+			}
+
+			lpfc_heart_beat(phba, pmboxq);
+			pmboxq->mbox_cmpl = lpfc_hb_mbox_cmpl;
+			pmboxq->vport = phba->pport;
+			retval = lpfc_sli_issue_mbox(phba, pmboxq, MBX_NOWAIT);
+
+			if (retval != MBX_BUSY && retval != MBX_SUCCESS) {
+				mempool_free(pmboxq, phba->mbox_mem_pool);
+				mod_timer(&phba->hb_tmofunc,
+					  jiffies + HZ * LPFC_HB_MBOX_INTERVAL);
+				return;
+			}
 			mod_timer(&phba->hb_tmofunc,
-				jiffies + HZ * LPFC_HB_MBOX_INTERVAL);
+				  jiffies + HZ * LPFC_HB_MBOX_TIMEOUT);
+			phba->hb_outstanding = 1;
 			return;
+		} else {
+			/*
+			* If heart beat timeout called with hb_outstanding set
+			* we need to take the HBA offline.
+			*/
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"0459 Adapter heartbeat failure, "
+					"taking this port offline.\n");
+
+			spin_lock_irq(&phba->hbalock);
+			psli->sli_flag &= ~LPFC_SLI2_ACTIVE;
+			spin_unlock_irq(&phba->hbalock);
+
+			lpfc_offline_prep(phba);
+			lpfc_offline(phba);
+			lpfc_unblock_mgmt_io(phba);
+			phba->link_state = LPFC_HBA_ERROR;
+			lpfc_hba_down_post(phba);
 		}
-
-		lpfc_heart_beat(phba, pmboxq);
-		pmboxq->mbox_cmpl = lpfc_hb_mbox_cmpl;
-		pmboxq->vport = phba->pport;
-		retval = lpfc_sli_issue_mbox(phba, pmboxq, MBX_NOWAIT);
-
-		if (retval != MBX_BUSY && retval != MBX_SUCCESS) {
-			mempool_free(pmboxq, phba->mbox_mem_pool);
-			mod_timer(&phba->hb_tmofunc,
-				jiffies + HZ * LPFC_HB_MBOX_INTERVAL);
-			return;
-		}
-		mod_timer(&phba->hb_tmofunc,
-			jiffies + HZ * LPFC_HB_MBOX_TIMEOUT);
-		phba->hb_outstanding = 1;
-		return;
-	} else {
-		/*
-		 * If heart beat timeout called with hb_outstanding set we
-		 * need to take the HBA offline.
-		 */
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"0459 Adapter heartbeat failure, taking "
-				"this port offline.\n");
-
-		spin_lock_irq(&phba->hbalock);
-		psli->sli_flag &= ~LPFC_SLI2_ACTIVE;
-		spin_unlock_irq(&phba->hbalock);
-
-		lpfc_offline_prep(phba);
-		lpfc_offline(phba);
-		lpfc_unblock_mgmt_io(phba);
-		phba->link_state = LPFC_HBA_ERROR;
-		lpfc_hba_down_post(phba);
 	}
 }
 
@@ -664,6 +665,9 @@ lpfc_handle_eratt(struct lpfc_hba *phba)
 	/* If the pci channel is offline, ignore possible errors,
 	 * since we cannot communicate with the pci card anyway. */
 	if (pci_channel_offline(phba->pcidev))
+		return;
+	/* If resets are disabled then leave the HBA alone and return */
+	if (!phba->cfg_enable_hba_reset)
 		return;
 
 	if (phba->work_hs & HS_FFER6 ||
