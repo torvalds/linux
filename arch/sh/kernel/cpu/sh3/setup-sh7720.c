@@ -85,9 +85,62 @@ static struct platform_device sci_device = {
 	},
 };
 
+static struct resource usb_ohci_resources[] = {
+	[0] = {
+		.start	= 0xA4428000,
+		.end	= 0xA44280FF,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 67,
+		.end	= 67,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static u64 usb_ohci_dma_mask = 0xffffffffUL;
+static struct platform_device usb_ohci_device = {
+	.name		= "sh_ohci",
+	.id		= -1,
+	.dev = {
+		.dma_mask		= &usb_ohci_dma_mask,
+		.coherent_dma_mask	= 0xffffffff,
+	},
+	.num_resources	= ARRAY_SIZE(usb_ohci_resources),
+	.resource	= usb_ohci_resources,
+};
+
+static struct resource usbf_resources[] = {
+	[0] = {
+		.name	= "sh_udc",
+		.start	= 0xA4420000,
+		.end	= 0xA44200FF,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.name	= "sh_udc",
+		.start	= 65,
+		.end	= 65,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device usbf_device = {
+	.name		= "sh_udc",
+	.id		= -1,
+	.dev = {
+		.dma_mask		= NULL,
+		.coherent_dma_mask	= 0xffffffff,
+	},
+	.num_resources	= ARRAY_SIZE(usbf_resources),
+	.resource	= usbf_resources,
+};
+
 static struct platform_device *sh7720_devices[] __initdata = {
 	&rtc_device,
 	&sci_device,
+	&usb_ohci_device,
+	&usbf_device,
 };
 
 static int __init sh7720_devices_setup(void)
