@@ -283,7 +283,7 @@ out_free:
 /* 2nd Level Abstractions */
 
 /* Helper function to store chunks that need to be reassembled.  */
-static inline void sctp_ulpq_store_reasm(struct sctp_ulpq *ulpq,
+static void sctp_ulpq_store_reasm(struct sctp_ulpq *ulpq,
 					 struct sctp_ulpevent *event)
 {
 	struct sk_buff *pos;
@@ -405,7 +405,7 @@ static struct sctp_ulpevent *sctp_make_reassembled_event(struct sk_buff_head *qu
 /* Helper function to check if an incoming chunk has filled up the last
  * missing fragment in a SCTP datagram and return the corresponding event.
  */
-static inline struct sctp_ulpevent *sctp_ulpq_retrieve_reassembled(struct sctp_ulpq *ulpq)
+static struct sctp_ulpevent *sctp_ulpq_retrieve_reassembled(struct sctp_ulpq *ulpq)
 {
 	struct sk_buff *pos;
 	struct sctp_ulpevent *cevent;
@@ -512,7 +512,7 @@ found:
 }
 
 /* Retrieve the next set of fragments of a partial message. */
-static inline struct sctp_ulpevent *sctp_ulpq_retrieve_partial(struct sctp_ulpq *ulpq)
+static struct sctp_ulpevent *sctp_ulpq_retrieve_partial(struct sctp_ulpq *ulpq)
 {
 	struct sk_buff *pos, *last_frag, *first_frag;
 	struct sctp_ulpevent *cevent;
@@ -606,7 +606,7 @@ static struct sctp_ulpevent *sctp_ulpq_reasm(struct sctp_ulpq *ulpq,
 }
 
 /* Retrieve the first part (sequential fragments) for partial delivery.  */
-static inline struct sctp_ulpevent *sctp_ulpq_retrieve_first(struct sctp_ulpq *ulpq)
+static struct sctp_ulpevent *sctp_ulpq_retrieve_first(struct sctp_ulpq *ulpq)
 {
 	struct sk_buff *pos, *last_frag, *first_frag;
 	struct sctp_ulpevent *cevent;
@@ -735,7 +735,7 @@ static void sctp_ulpq_reasm_drain(struct sctp_ulpq *ulpq)
 /* Helper function to gather skbs that have possibly become
  * ordered by an an incoming chunk.
  */
-static inline void sctp_ulpq_retrieve_ordered(struct sctp_ulpq *ulpq,
+static void sctp_ulpq_retrieve_ordered(struct sctp_ulpq *ulpq,
 					      struct sctp_ulpevent *event)
 {
 	struct sk_buff_head *event_list;
@@ -779,7 +779,7 @@ static inline void sctp_ulpq_retrieve_ordered(struct sctp_ulpq *ulpq,
 }
 
 /* Helper function to store chunks needing ordering.  */
-static inline void sctp_ulpq_store_ordered(struct sctp_ulpq *ulpq,
+static void sctp_ulpq_store_ordered(struct sctp_ulpq *ulpq,
 					   struct sctp_ulpevent *event)
 {
 	struct sk_buff *pos;
@@ -867,7 +867,7 @@ static struct sctp_ulpevent *sctp_ulpq_order(struct sctp_ulpq *ulpq,
 /* Helper function to gather skbs that have possibly become
  * ordered by forward tsn skipping their dependencies.
  */
-static inline void sctp_ulpq_reap_ordered(struct sctp_ulpq *ulpq, __u16 sid)
+static void sctp_ulpq_reap_ordered(struct sctp_ulpq *ulpq, __u16 sid)
 {
 	struct sk_buff *pos, *tmp;
 	struct sctp_ulpevent *cevent;
