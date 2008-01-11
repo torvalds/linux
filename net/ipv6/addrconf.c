@@ -456,7 +456,7 @@ static void dev_forward_change(struct inet6_dev *idev)
 }
 
 
-static void addrconf_forward_change(struct net *net)
+static void addrconf_forward_change(struct net *net, __s32 newf)
 {
 	struct net_device *dev;
 	struct inet6_dev *idev;
@@ -466,8 +466,8 @@ static void addrconf_forward_change(struct net *net)
 		rcu_read_lock();
 		idev = __in6_dev_get(dev);
 		if (idev) {
-			int changed = (!idev->cnf.forwarding) ^ (!ipv6_devconf.forwarding);
-			idev->cnf.forwarding = ipv6_devconf.forwarding;
+			int changed = (!idev->cnf.forwarding) ^ (!newf);
+			idev->cnf.forwarding = newf;
 			if (changed)
 				dev_forward_change(idev);
 		}
@@ -484,9 +484,10 @@ static void addrconf_fixup_forwarding(struct ctl_table *table, int *p, int old)
 	if (p == &net->ipv6.devconf_dflt->forwarding)
 		return;
 
-	if (p == &ipv6_devconf.forwarding) {
-		net->ipv6.devconf_dflt->forwarding = ipv6_devconf.forwarding;
-		addrconf_forward_change(net);
+	if (p == &net->ipv6.devconf_all->forwarding) {
+		__s32 newf = net->ipv6.devconf_all->forwarding;
+		net->ipv6.devconf_dflt->forwarding = newf;
+		addrconf_forward_change(net, newf);
 	} else if ((!*p) ^ (!old))
 		dev_forward_change((struct inet6_dev *)table->extra1);
 
