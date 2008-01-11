@@ -33,6 +33,7 @@ typedef enum _lpfc_ctx_cmd {
 struct lpfc_iocbq {
 	/* lpfc_iocbqs are used in double linked lists */
 	struct list_head list;
+	struct list_head clist;
 	uint16_t iotag;         /* pre-assigned IO tag */
 	uint16_t rsvd1;
 
@@ -160,6 +161,7 @@ struct lpfc_sli_ring {
 	struct list_head iocb_continueq;
 	uint16_t iocb_continueq_cnt;	/* current length of queue */
 	uint16_t iocb_continueq_max;	/* max length */
+	struct list_head iocb_continue_saveq;
 
 	struct lpfc_sli_ring_mask prt[LPFC_MAX_RING_MASK];
 	uint32_t num_mask;	/* number of mask entries in prt array */

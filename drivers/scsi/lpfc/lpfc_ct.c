@@ -57,45 +57,27 @@
 
 static char *lpfc_release_version = LPFC_DRIVER_VERSION;
 
-/*
- * lpfc_ct_unsol_event
- */
-static void
-lpfc_ct_unsol_buffer(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq,
-		     struct lpfc_dmabuf *mp, uint32_t size)
-{
-	if (!mp) {
-		printk(KERN_ERR "%s (%d): Unsolited CT, no buffer, "
-		       "piocbq = %p, status = x%x, mp = %p, size = %d\n",
-		       __FUNCTION__, __LINE__,
-		       piocbq, piocbq->iocb.ulpStatus, mp, size);
-	}
-
-	printk(KERN_ERR "%s (%d): Ignoring unsolicted CT piocbq = %p, "
-	       "buffer = %p, size = %d, status = x%x\n",
-	       __FUNCTION__, __LINE__,
-	       piocbq, mp, size,
-	       piocbq->iocb.ulpStatus);
-
-}
-
 static void
 lpfc_ct_ignore_hbq_buffer(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq,
 			  struct lpfc_dmabuf *mp, uint32_t size)
 {
 	if (!mp) {
-		printk(KERN_ERR "%s (%d): Unsolited CT, no "
-		       "HBQ buffer, piocbq = %p, status = x%x\n",
-		       __FUNCTION__, __LINE__,
-		       piocbq, piocbq->iocb.ulpStatus);
-	} else {
-		lpfc_ct_unsol_buffer(phba, piocbq, mp, size);
-		printk(KERN_ERR "%s (%d): Ignoring unsolicted CT "
-		       "piocbq = %p, buffer = %p, size = %d, "
-		       "status = x%x\n",
-		       __FUNCTION__, __LINE__,
-		       piocbq, mp, size, piocbq->iocb.ulpStatus);
+		lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
+				"0146 Ignoring unsolicted CT No HBQ "
+				"status = x%x\n",
+				piocbq->iocb.ulpStatus);
 	}
+	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
+			"0145 Ignoring unsolicted CT HBQ Size:%d "
+			"status = x%x\n",
+			size, piocbq->iocb.ulpStatus);
+}
+
+static void
+lpfc_ct_unsol_buffer(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq,
+		     struct lpfc_dmabuf *mp, uint32_t size)
+{
+	lpfc_ct_ignore_hbq_buffer(phba, piocbq, mp, size);
 }
 
 void
@@ -109,11 +91,8 @@ lpfc_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	struct lpfc_iocbq *iocbq;
 	dma_addr_t paddr;
 	uint32_t size;
-	struct lpfc_dmabuf *bdeBuf1 = piocbq->context2;
-	struct lpfc_dmabuf *bdeBuf2 = piocbq->context3;
-
-	piocbq->context2 = NULL;
-	piocbq->context3 = NULL;
+	struct list_head head;
+	struct lpfc_dmabuf *bdeBuf;
 
 	if (unlikely(icmd->ulpStatus == IOSTAT_NEED_BUFFER)) {
 		lpfc_sli_hbqbuf_add_hbqs(phba, LPFC_ELS_HBQ);
@@ -122,7 +101,7 @@ lpfc_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		/* Not enough posted buffers; Try posting more buffers */
 		phba->fc_stat.NoRcvBuf++;
 		if (!(phba->sli3_options & LPFC_SLI3_HBQ_ENABLED))
-			lpfc_post_buffer(phba, pring, 0, 1);
+			lpfc_post_buffer(phba, pring, 2, 1);
 		return;
 	}
 
@@ -133,38 +112,34 @@ lpfc_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		return;
 
 	if (phba->sli3_options & LPFC_SLI3_HBQ_ENABLED) {
-		list_for_each_entry(iocbq, &piocbq->list, list) {
+		INIT_LIST_HEAD(&head);
+		list_add_tail(&head, &piocbq->list);
+		list_for_each_entry(iocbq, &head, list) {
 			icmd = &iocbq->iocb;
-			if (icmd->ulpBdeCount == 0) {
-				printk(KERN_ERR "%s (%d): Unsolited CT, no "
-				       "BDE, iocbq = %p, status = x%x\n",
-				       __FUNCTION__, __LINE__,
-				       iocbq, iocbq->iocb.ulpStatus);
+			if (icmd->ulpBdeCount == 0)
 				continue;
-			}
-
+			bdeBuf = iocbq->context2;
+			iocbq->context2 = NULL;
 			size  = icmd->un.cont64[0].tus.f.bdeSize;
-			lpfc_ct_ignore_hbq_buffer(phba, piocbq, bdeBuf1, size);
-			lpfc_in_buf_free(phba, bdeBuf1);
+			lpfc_ct_unsol_buffer(phba, piocbq, bdeBuf, size);
+			lpfc_in_buf_free(phba, bdeBuf);
 			if (icmd->ulpBdeCount == 2) {
-				lpfc_ct_ignore_hbq_buffer(phba, piocbq, bdeBuf2,
-							  size);
-				lpfc_in_buf_free(phba, bdeBuf2);
+				bdeBuf = iocbq->context3;
+				iocbq->context3 = NULL;
+				size  = icmd->unsli3.rcvsli3.bde2.tus.f.bdeSize;
+				lpfc_ct_unsol_buffer(phba, piocbq, bdeBuf,
+						     size);
+				lpfc_in_buf_free(phba, bdeBuf);
 			}
 		}
+		list_del(&head);
 	} else {
 		struct lpfc_iocbq  *next;
 
 		list_for_each_entry_safe(iocbq, next, &piocbq->list, list) {
 			icmd = &iocbq->iocb;
-			if (icmd->ulpBdeCount == 0) {
-				printk(KERN_ERR "%s (%d): Unsolited CT, no "
-				       "BDE, iocbq = %p, status = x%x\n",
-				       __FUNCTION__, __LINE__,
-				       iocbq, iocbq->iocb.ulpStatus);
-				continue;
-			}
-
+			if (icmd->ulpBdeCount == 0)
+				lpfc_ct_unsol_buffer(phba, piocbq, NULL, 0);
 			for (i = 0; i < icmd->ulpBdeCount; i++) {
 				paddr = getPaddr(icmd->un.cont64[i].addrHigh,
 						 icmd->un.cont64[i].addrLow);
@@ -176,6 +151,7 @@ lpfc_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			}
 			list_del(&iocbq->list);
 			lpfc_sli_release_iocbq(phba, iocbq);
+			lpfc_post_buffer(phba, pring, i, 1);
 		}
 	}
 }

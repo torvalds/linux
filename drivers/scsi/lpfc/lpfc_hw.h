@@ -2994,6 +2994,34 @@ typedef struct {
 #endif
 } RCV_ELS_REQ64;
 
+/* IOCB Command template for RCV_SEQ64 */
+struct rcv_seq64 {
+	struct ulp_bde64 elsReq;
+	uint32_t hbq_1;
+	uint32_t parmRo;
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t rctl:8;
+	uint32_t type:8;
+	uint32_t dfctl:8;
+	uint32_t ls:1;
+	uint32_t fs:1;
+	uint32_t rsvd2:3;
+	uint32_t si:1;
+	uint32_t bc:1;
+	uint32_t rsvd3:1;
+#else	/*  __LITTLE_ENDIAN_BITFIELD */
+	uint32_t rsvd3:1;
+	uint32_t bc:1;
+	uint32_t si:1;
+	uint32_t rsvd2:3;
+	uint32_t fs:1;
+	uint32_t ls:1;
+	uint32_t dfctl:8;
+	uint32_t type:8;
+	uint32_t rctl:8;
+#endif
+};
+
 /* IOCB Command template for all 64 bit FCP Initiator commands */
 typedef struct {
 	ULP_BDL bdl;
@@ -3085,6 +3113,7 @@ typedef struct _IOCB {	/* IOCB structure */
 		FCPT_FIELDS64 fcpt64;	/* FCP 64 bit target template */
 		ASYNCSTAT_FIELDS asyncstat; /* async_status iocb */
 		QUE_XRI64_CX_FIELDS quexri64cx; /* que_xri64_cx fields */
+		struct rcv_seq64 rcvseq64;	/* RCV_SEQ64 and RCV_CONT64 */
 
 		uint32_t ulpWord[IOCB_WORD_SZ - 2];	/* generic 6 'words' */
 	} un;

@@ -955,6 +955,8 @@ lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	match = 0;
 	irsp = &(saveq->iocb);
 
+	if (irsp->ulpStatus == IOSTAT_NEED_BUFFER)
+		return 1;
 	if (irsp->ulpCommand == CMD_ASYNC_STATUS) {
 		if (pring->lpfc_sli_rcv_async_status)
 			pring->lpfc_sli_rcv_async_status(phba, pring, saveq);
@@ -970,36 +972,7 @@ lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		return 1;
 	}
 
-	if ((irsp->ulpCommand == CMD_RCV_ELS_REQ64_CX)
-	    || (irsp->ulpCommand == CMD_RCV_ELS_REQ_CX)
-	    || (irsp->ulpCommand == CMD_IOCB_RCV_ELS64_CX)
-	    || (irsp->ulpCommand == CMD_IOCB_RCV_CONT64_CX)) {
-		Rctl = FC_ELS_REQ;
-		Type = FC_ELS_DATA;
-	} else {
-		w5p =
-		    (WORD5 *) & (saveq->iocb.un.
-				 ulpWord[5]);
-		Rctl = w5p->hcsw.Rctl;
-		Type = w5p->hcsw.Type;
-
-		/* Firmware Workaround */
-		if ((Rctl == 0) && (pring->ringno == LPFC_ELS_RING) &&
-			(irsp->ulpCommand == CMD_RCV_SEQUENCE64_CX ||
-			 irsp->ulpCommand == CMD_IOCB_RCV_SEQ64_CX)) {
-			Rctl = FC_ELS_REQ;
-			Type = FC_ELS_DATA;
-			w5p->hcsw.Rctl = Rctl;
-			w5p->hcsw.Type = Type;
-		}
-	}
-
 	if (phba->sli3_options & LPFC_SLI3_HBQ_ENABLED) {
-		struct lpfc_hbq_entry *hbqe_1, *hbqe_2;
-		hbqe_1 = (struct lpfc_hbq_entry *) &saveq->iocb.un.ulpWord[0];
-		hbqe_2 = (struct lpfc_hbq_entry *) &saveq->iocb.
-				unsli3.sli3Words[4];
-
 		if (irsp->ulpBdeCount != 0) {
 			saveq->context2 = lpfc_sli_get_buff(phba, pring,
 						irsp->un.ulpWord[3]);
@@ -1011,7 +984,6 @@ lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 					"an unsolicited iocb. tag 0x%x\n",
 					pring->ringno,
 					irsp->un.ulpWord[3]);
-
 		}
 		if (irsp->ulpBdeCount == 2) {
 			saveq->context3 = lpfc_sli_get_buff(phba, pring,
@@ -1026,16 +998,11 @@ lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 					irsp->unsli3.sli3Words[7]);
 		}
 		list_for_each_entry(iocbq, &saveq->list, list) {
-			hbqe_1 = (struct lpfc_hbq_entry *) &iocbq->iocb.
-				un.ulpWord[0];
-			hbqe_2 = (struct lpfc_hbq_entry *) &iocbq->iocb.
-				unsli3.sli3Words[4];
 			irsp = &(iocbq->iocb);
-
 			if (irsp->ulpBdeCount != 0) {
 				iocbq->context2 = lpfc_sli_get_buff(phba, pring,
 							irsp->un.ulpWord[3]);
-				if (!saveq->context2)
+				if (!iocbq->context2)
 					lpfc_printf_log(phba,
 						KERN_ERR,
 						LOG_SLI,
@@ -1047,7 +1014,7 @@ lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			if (irsp->ulpBdeCount == 2) {
 				iocbq->context3 = lpfc_sli_get_buff(phba, pring,
 						irsp->unsli3.sli3Words[7]);
-				if (!saveq->context3)
+				if (!iocbq->context3)
 					lpfc_printf_log(phba,
 						KERN_ERR,
 						LOG_SLI,
@@ -1057,6 +1024,49 @@ lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 						pring->ringno,
 						irsp->unsli3.sli3Words[7]);
 			}
+		}
+	}
+	if (irsp->ulpBdeCount != 0 &&
+	    (irsp->ulpCommand == CMD_IOCB_RCV_CONT64_CX ||
+	     irsp->ulpStatus == IOSTAT_INTERMED_RSP)) {
+		int found = 0;
+
+		/* search continue save q for same XRI */
+		list_for_each_entry(iocbq, &pring->iocb_continue_saveq, clist) {
+			if (iocbq->iocb.ulpContext == saveq->iocb.ulpContext) {
+				list_add_tail(&saveq->list, &iocbq->list);
+				found = 1;
+				break;
+			}
+		}
+		if (!found)
+			list_add_tail(&saveq->clist,
+				      &pring->iocb_continue_saveq);
+		if (saveq->iocb.ulpStatus != IOSTAT_INTERMED_RSP) {
+			list_del_init(&iocbq->clist);
+			saveq = iocbq;
+			irsp = &(saveq->iocb);
+		} else
+			return 0;
+	}
+	if ((irsp->ulpCommand == CMD_RCV_ELS_REQ64_CX) ||
+	    (irsp->ulpCommand == CMD_RCV_ELS_REQ_CX) ||
+	    (irsp->ulpCommand == CMD_IOCB_RCV_ELS64_CX)) {
+		Rctl = FC_ELS_REQ;
+		Type = FC_ELS_DATA;
+	} else {
+		w5p = (WORD5 *)&(saveq->iocb.un.ulpWord[5]);
+		Rctl = w5p->hcsw.Rctl;
+		Type = w5p->hcsw.Type;
+
+		/* Firmware Workaround */
+		if ((Rctl == 0) && (pring->ringno == LPFC_ELS_RING) &&
+			(irsp->ulpCommand == CMD_RCV_SEQUENCE64_CX ||
+			 irsp->ulpCommand == CMD_IOCB_RCV_SEQ64_CX)) {
+			Rctl = FC_ELS_REQ;
+			Type = FC_ELS_DATA;
+			w5p->hcsw.Rctl = Rctl;
+			w5p->hcsw.Type = Type;
 		}
 	}
 
@@ -1069,12 +1079,9 @@ lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	} else {
 		/* We must search, based on rctl / type
 		   for the right routine */
-		for (i = 0; i < pring->num_mask;
-		     i++) {
-			if ((pring->prt[i].rctl ==
-			     Rctl)
-			    && (pring->prt[i].
-				type == Type)) {
+		for (i = 0; i < pring->num_mask; i++) {
+			if ((pring->prt[i].rctl == Rctl)
+			    && (pring->prt[i].type == Type)) {
 				if (pring->prt[i].lpfc_sli_rcv_unsol_event)
 					(pring->prt[i].lpfc_sli_rcv_unsol_event)
 							(phba, pring, saveq);
@@ -1641,12 +1648,7 @@ lpfc_sli_handle_slow_ring_event(struct lpfc_hba *phba,
 
 		writel(pring->rspidx, &phba->host_gp[pring->ringno].rspGetInx);
 
-		if (list_empty(&(pring->iocb_continueq))) {
-			list_add(&rspiocbp->list, &(pring->iocb_continueq));
-		} else {
-			list_add_tail(&rspiocbp->list,
-				      &(pring->iocb_continueq));
-		}
+		list_add_tail(&rspiocbp->list, &(pring->iocb_continueq));
 
 		pring->iocb_continueq_cnt++;
 		if (irsp->ulpLe) {
@@ -1711,17 +1713,17 @@ lpfc_sli_handle_slow_ring_event(struct lpfc_hba *phba,
 			iocb_cmd_type = irsp->ulpCommand & CMD_IOCB_MASK;
 			type = lpfc_sli_iocb_cmd_type(iocb_cmd_type);
 			if (type == LPFC_SOL_IOCB) {
-				spin_unlock_irqrestore(&phba->hbalock,
-						       iflag);
+				spin_unlock_irqrestore(&phba->hbalock, iflag);
 				rc = lpfc_sli_process_sol_iocb(phba, pring,
 							       saveq);
 				spin_lock_irqsave(&phba->hbalock, iflag);
 			} else if (type == LPFC_UNSOL_IOCB) {
-				spin_unlock_irqrestore(&phba->hbalock,
-						       iflag);
+				spin_unlock_irqrestore(&phba->hbalock, iflag);
 				rc = lpfc_sli_process_unsol_iocb(phba, pring,
 								 saveq);
 				spin_lock_irqsave(&phba->hbalock, iflag);
+				if (!rc)
+					free_saveq = 0;
 			} else if (type == LPFC_ABORT_IOCB) {
 				if ((irsp->ulpCommand != CMD_XRI_ABORTED_CX) &&
 				    ((cmdiocbp =
@@ -3238,6 +3240,7 @@ lpfc_sli_queue_setup(struct lpfc_hba *phba)
 		INIT_LIST_HEAD(&pring->txq);
 		INIT_LIST_HEAD(&pring->txcmplq);
 		INIT_LIST_HEAD(&pring->iocb_continueq);
+		INIT_LIST_HEAD(&pring->iocb_continue_saveq);
 		INIT_LIST_HEAD(&pring->postbufq);
 	}
 	spin_unlock_irq(&phba->hbalock);
