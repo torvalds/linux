@@ -31,9 +31,9 @@
 #include <linux/slab.h>
 #include <linux/completion.h>
 #include <linux/blkdev.h>
-#include <linux/dma-mapping.h>
 #include <asm/semaphore.h>
 #include <asm/uaccess.h>
+#include <linux/highmem.h> /* For flush_kernel_dcache_page */
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -366,6 +366,7 @@ static void aac_internal_transfer(struct scsi_cmnd *scsicmd, void *data, unsigne
 	if (buf && transfer_len > 0)
 		memcpy(buf + offset, data, transfer_len);
 
+	flush_kernel_dcache_page(kmap_atomic_to_page(buf - sg->offset));
 	kunmap_atomic(buf - sg->offset, KM_IRQ0);
 
 }
