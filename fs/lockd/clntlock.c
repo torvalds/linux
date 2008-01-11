@@ -41,6 +41,54 @@ struct nlm_wait {
 
 static LIST_HEAD(nlm_blocked);
 
+/**
+ * nlmclnt_init - Set up per-NFS mount point lockd data structures
+ * @server_name: server's hostname
+ * @server_address: server's network address
+ * @server_addrlen: length of server's address
+ * @protocol: transport protocol lockd should use
+ * @nfs_version: NFS protocol version for this mount point
+ *
+ * Returns pointer to an appropriate nlm_host struct,
+ * or an ERR_PTR value.
+ */
+struct nlm_host *nlmclnt_init(const char *server_name,
+			      const struct sockaddr *server_address,
+			      size_t server_addrlen,
+			      unsigned short protocol, u32 nfs_version)
+{
+	struct nlm_host *host;
+	u32 nlm_version = (nfs_version == 2) ? 1 : 4;
+	int status;
+
+	status = lockd_up(protocol);
+	if (status < 0)
+		return ERR_PTR(status);
+
+	host = nlmclnt_lookup_host((struct sockaddr_in *)server_address,
+				   protocol, nlm_version,
+				   server_name, strlen(server_name));
+	if (host == NULL) {
+		lockd_down();
+		return ERR_PTR(-ENOLCK);
+	}
+
+	return host;
+}
+EXPORT_SYMBOL_GPL(nlmclnt_init);
+
+/**
+ * nlmclnt_done - Release resources allocated by nlmclnt_init()
+ * @host: nlm_host structure reserved by nlmclnt_init()
+ *
+ */
+void nlmclnt_done(struct nlm_host *host)
+{
+	nlm_release_host(host);
+	lockd_down();
+}
+EXPORT_SYMBOL_GPL(nlmclnt_done);
+
 /*
  * Queue up a lock for blocking so that the GRANTED request can see it
  */

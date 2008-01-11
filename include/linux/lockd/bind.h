@@ -35,6 +35,13 @@ extern struct nlmsvc_binding *	nlmsvc_ops;
 /*
  * Functions exported by the lockd module
  */
+extern struct nlm_host *nlmclnt_init(const char *server_name,
+					const struct sockaddr *server_address,
+					size_t server_addrlen,
+					unsigned short protocol,
+					u32 nfs_version);
+extern void	nlmclnt_done(struct nlm_host *host);
+
 extern int	nlmclnt_proc(struct inode *, int, struct file_lock *);
 extern int	lockd_up(int proto);
 extern void	lockd_down(void);
