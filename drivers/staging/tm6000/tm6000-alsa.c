@@ -14,7 +14,7 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
-#include <linux/dma-mapping.h>
+#include <linux/usb.h>
 
 #include <asm/delay.h>
 #include <sound/driver.h>
@@ -63,6 +63,7 @@ struct snd_tm6000_card {
  ****************************************************************************/
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
+static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;       /* ID for this card */
 static int enable[SNDRV_CARDS] = {1, [1 ... (SNDRV_CARDS - 1)] = 1};
 
 module_param_array(enable, bool, NULL, 0444);
@@ -345,21 +346,77 @@ static void snd_tm6000_dev_free(struct snd_card *card)
  * Alsa Constructor - Component probe
  */
 
-
-/* FIXME: initialize -alsa driver */
-static int tm6000_audio_init(void)
+static int tm6000_audio_init(struct tm6000_core *dev, int idx)
 {
-	printk("tm6000-alsa not ready yet\n");
+	struct snd_card         *card;
+	struct snd_tm6000_card  *chip;
+	int                     rc, len;
+	char                    component[14];
+
+	if (idx >= SNDRV_CARDS)
+		return -ENODEV;
+
+	if (!enable[idx])
+		return -ENOENT;
+
+	card = snd_card_new(index[idx], id[idx], THIS_MODULE, 0);
+	if (card == NULL) {
+		snd_printk(KERN_ERR "cannot create card instance %d\n", idx);
+		return -ENOMEM;
+	}
+
+	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
+	if (!chip) {
+		rc = -ENOMEM;
+		goto error;
+	}
+
+	chip->core = dev;
+	chip->card = card;
+
+	strcpy(card->driver, "tm6000-alsa");
+	sprintf(component, "USB%04x:%04x",
+		le16_to_cpu(dev->udev->descriptor.idVendor),
+		le16_to_cpu(dev->udev->descriptor.idProduct));
+	snd_component_add(card, component);
+
+	if (dev->udev->descriptor.iManufacturer)
+		len = usb_string(dev->udev,
+				 dev->udev->descriptor.iManufacturer,
+				 card->longname, sizeof(card->longname));
+	else
+		len = 0;
+
+	if (len > 0)
+		strlcat(card->longname, " ", sizeof(card->longname));
+
+	strlcat(card->longname, card->shortname, sizeof(card->longname));
+
+	len = strlcat(card->longname, " at ", sizeof(card->longname));
+
+	if (len < sizeof(card->longname))
+		usb_make_path(dev->udev, card->longname + len,
+			      sizeof(card->longname) - len);
+
+	strlcat(card->longname,
+		dev->udev->speed == USB_SPEED_LOW ? ", low speed" :
+		dev->udev->speed == USB_SPEED_FULL ? ", full speed" :
+							   ", high speed",
+		sizeof(card->longname));
+
+	rc = snd_tm6000_pcm(chip, 0, "tm6000 Digital");
+	if (rc < 0)
+		goto error;
+
+	rc = snd_card_register(card);
+	if (rc < 0)
+		goto error;
+
 
 	return 0;
+
+error:
+	snd_card_free(card);
+	return rc;
 }
 
-/*
- * module remove
- */
-static void tm6000_audio_fini(void)
-{
-}
-
-module_init(tm6000_audio_init);
-module_exit(tm6000_audio_fini);
