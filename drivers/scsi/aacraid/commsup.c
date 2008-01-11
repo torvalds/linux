@@ -775,20 +775,20 @@ static void aac_handle_aif(struct aac_dev * dev, struct fib * fibptr)
 {
 	struct hw_fib * hw_fib = fibptr->hw_fib_va;
 	struct aac_aifcmd * aifcmd = (struct aac_aifcmd *)hw_fib->data;
-	u32 container;
+	u32 channel, id, lun, container;
 	struct scsi_device *device;
 	enum {
 		NOTHING,
 		DELETE,
 		ADD,
 		CHANGE
-	} device_config_needed;
+	} device_config_needed = NOTHING;
 
 	/* Sniff for container changes */
 
 	if (!dev || !dev->fsa_dev)
 		return;
-	container = (u32)-1;
+	container = channel = id = lun = (u32)-1;
 
 	/*
 	 *	We have set this up to try and minimize the number of
@@ -901,6 +901,36 @@ static void aac_handle_aif(struct aac_dev * dev, struct fib * fibptr)
 		case AifEnConfigChange:
 			break;
 
+		case AifEnEnclosureManagement:
+			switch (le32_to_cpu(((__le32 *)aifcmd->data)[3])) {
+			case EM_DRIVE_INSERTION:
+			case EM_DRIVE_REMOVAL:
+				container = le32_to_cpu(
+					((__le32 *)aifcmd->data)[2]);
+				if ((container >> 28))
+					break;
+				channel = (container >> 24) & 0xF;
+				if (channel >= dev->maximum_num_channels)
+					break;
+				id = container & 0xFFFF;
+				lun = (container >> 16) & 0xFF;
+				if (id >= dev->maximum_num_physicals) {
+					/* legacy dev_t ? */
+					if ((0x2000 <= id) || lun || channel ||
+					  ((channel = (id >> 7) & 0x3F) >=
+					  dev->maximum_num_channels))
+						break;
+					lun = (id >> 4) & 7;
+					id &= 0xF;
+				}
+				channel = aac_phys_to_logical(channel);
+				device_config_needed =
+				  (((__le32 *)aifcmd->data)[3]
+				    == cpu_to_le32(EM_DRIVE_INSERTION)) ?
+				  ADD : DELETE;
+				break;
+			}
+			break;
 		}
 
 		/*
@@ -969,7 +999,7 @@ static void aac_handle_aif(struct aac_dev * dev, struct fib * fibptr)
 		break;
 	}
 
-	device_config_needed = NOTHING;
+	if (device_config_needed == NOTHING)
 	for (container = 0; container < dev->maximum_num_containers;
 	    ++container) {
 		if ((dev->fsa_dev[container].config_waiting_on == 0) &&
@@ -978,6 +1008,9 @@ static void aac_handle_aif(struct aac_dev * dev, struct fib * fibptr)
 			device_config_needed =
 				dev->fsa_dev[container].config_needed;
 			dev->fsa_dev[container].config_needed = NOTHING;
+			channel = CONTAINER_TO_CHANNEL(container);
+			id = CONTAINER_TO_ID(container);
+			lun = CONTAINER_TO_LUN(container);
 			break;
 		}
 	}
@@ -1001,34 +1034,56 @@ static void aac_handle_aif(struct aac_dev * dev, struct fib * fibptr)
 	/*
 	 * force reload of disk info via aac_probe_container
 	 */
-	if ((device_config_needed == CHANGE)
-	 && (dev->fsa_dev[container].valid == 1))
-		dev->fsa_dev[container].valid = 2;
-	if ((device_config_needed == CHANGE) ||
-			(device_config_needed == ADD))
+	if ((channel == CONTAINER_CHANNEL) &&
+	  (device_config_needed != NOTHING)) {
+		if (dev->fsa_dev[container].valid == 1)
+			dev->fsa_dev[container].valid = 2;
 		aac_probe_container(dev, container);
-	device = scsi_device_lookup(dev->scsi_host_ptr, 
-		CONTAINER_TO_CHANNEL(container), 
-		CONTAINER_TO_ID(container), 
-		CONTAINER_TO_LUN(container));
+	}
+	device = scsi_device_lookup(dev->scsi_host_ptr, channel, id, lun);
 	if (device) {
 		switch (device_config_needed) {
 		case DELETE:
+			if (scsi_device_online(device)) {
+				scsi_device_set_state(device, SDEV_OFFLINE);
+				sdev_printk(KERN_INFO, device,
+					"Device offlined - %s\n",
+					(channel == CONTAINER_CHANNEL) ?
+						"array deleted" :
+						"enclosure services event");
+			}
+			break;
+		case ADD:
+			if (!scsi_device_online(device)) {
+				sdev_printk(KERN_INFO, device,
+					"Device online - %s\n",
+					(channel == CONTAINER_CHANNEL) ?
+						"array created" :
+						"enclosure services event");
+				scsi_device_set_state(device, SDEV_RUNNING);
+			}
+			/* FALLTHRU */
 		case CHANGE:
+			if ((channel == CONTAINER_CHANNEL)
+			 && (!dev->fsa_dev[container].valid)) {
+				if (!scsi_device_online(device))
+					break;
+				scsi_device_set_state(device, SDEV_OFFLINE);
+				sdev_printk(KERN_INFO, device,
+					"Device offlined - %s\n",
+					"array failed");
+				break;
+			}
 			scsi_rescan_device(&device->sdev_gendev);
 
 		default:
 			break;
 		}
 		scsi_device_put(device);
+		device_config_needed = NOTHING;
 	}
-	if (device_config_needed == ADD) {
-		scsi_add_device(dev->scsi_host_ptr,
-		  CONTAINER_TO_CHANNEL(container),
-		  CONTAINER_TO_ID(container),
-		  CONTAINER_TO_LUN(container));
-	}
-
+	if (device_config_needed == ADD)
+		scsi_add_device(dev->scsi_host_ptr, channel, id, lun);
 }
 
 static int _aac_reset_adapter(struct aac_dev *aac, int forced)
@@ -1469,7 +1524,6 @@ int aac_command_thread(void *data)
 				*(__le32 *)hw_fib->data = cpu_to_le32(ST_OK);
 				aac_fib_adapter_complete(fib, (u16)sizeof(u32));
 			} else {
-				struct list_head *entry;
 				/* The u32 here is important and intended. We are using
 				   32bit wrapping time to fit the adapter field */
 				   

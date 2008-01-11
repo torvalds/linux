@@ -12,7 +12,7 @@
  *----------------------------------------------------------------------------*/
 
 #ifndef AAC_DRIVER_BUILD
-# define AAC_DRIVER_BUILD 2449
+# define AAC_DRIVER_BUILD 2454
 # define AAC_DRIVER_BRANCH "-ms"
 #endif
 #define MAXIMUM_NUM_CONTAINERS	32
@@ -1772,6 +1772,9 @@ extern struct aac_common aac_config;
 #define			AifEnConfigChange	3	/* Adapter configuration change */
 #define			AifEnContainerChange	4	/* Container configuration change */
 #define			AifEnDeviceFailure	5	/* SCSI device failed */
+#define			AifEnEnclosureManagement 13	/* EM_DRIVE_* */
+#define				EM_DRIVE_INSERTION	31
+#define				EM_DRIVE_REMOVAL	32
 #define			AifEnBatteryEvent	14	/* Change in Battery State */
 #define			AifEnAddContainer	15	/* A new array was created */
 #define			AifEnDeleteContainer	16	/* A container was deleted */
