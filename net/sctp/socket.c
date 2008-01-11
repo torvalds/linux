@@ -1911,7 +1911,8 @@ SCTP_STATIC int sctp_recvmsg(struct kiocb *iocb, struct sock *sk,
 		 * rwnd by that amount. If all the data in the skb is read,
 		 * rwnd is updated when the event is freed.
 		 */
-		sctp_assoc_rwnd_increase(event->asoc, copied);
+		if (!sctp_ulpevent_is_notification(event))
+			sctp_assoc_rwnd_increase(event->asoc, copied);
 		goto out;
 	} else if ((event->msg_flags & MSG_NOTIFICATION) ||
 		   (event->msg_flags & MSG_EOR))
