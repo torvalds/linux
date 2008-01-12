@@ -193,7 +193,7 @@ static void netlink_table_grab(void)
 	}
 }
 
-static inline void netlink_table_ungrab(void)
+static void netlink_table_ungrab(void)
 	__releases(nl_table_lock)
 {
 	write_unlock_irq(&nl_table_lock);
