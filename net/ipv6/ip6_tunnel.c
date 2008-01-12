@@ -910,15 +910,13 @@ static int ip6_tnl_xmit2(struct sk_buff *skb,
 	*(__be32*)ipv6h = fl->fl6_flowlabel | htonl(0x60000000);
 	dsfield = INET_ECN_encapsulate(0, dsfield);
 	ipv6_change_dsfield(ipv6h, ~INET_ECN_MASK, dsfield);
-	ipv6h->payload_len = htons(skb->len - sizeof(struct ipv6hdr));
 	ipv6h->hop_limit = t->parms.hop_limit;
 	ipv6h->nexthdr = proto;
 	ipv6_addr_copy(&ipv6h->saddr, &fl->fl6_src);
 	ipv6_addr_copy(&ipv6h->daddr, &fl->fl6_dst);
 	nf_reset(skb);
 	pkt_len = skb->len;
-	err = NF_HOOK(PF_INET6, NF_IP6_LOCAL_OUT, skb, NULL,
-		      skb->dst->dev, dst_output);
+	err = ip6_local_out(skb);
 
 	if (net_xmit_eval(err) == 0) {
 		stats->tx_bytes += pkt_len;

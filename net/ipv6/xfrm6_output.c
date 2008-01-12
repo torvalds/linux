@@ -75,15 +75,11 @@ EXPORT_SYMBOL(xfrm6_prepare_output);
 
 static inline int xfrm6_output_one(struct sk_buff *skb)
 {
-	struct ipv6hdr *iph;
 	int err;
 
 	err = xfrm_output(skb);
 	if (err)
 		goto error_nolock;
-
-	iph = ipv6_hdr(skb);
-	iph->payload_len = htons(skb->len - sizeof(*iph));
 
 	IP6CB(skb)->flags |= IP6SKB_XFRM_TRANSFORMED;
 	err = 0;
@@ -102,8 +98,7 @@ static int xfrm6_output_finish2(struct sk_buff *skb)
 	while (likely((err = xfrm6_output_one(skb)) == 0)) {
 		nf_reset(skb);
 
-		err = nf_hook(PF_INET6, NF_IP6_LOCAL_OUT, skb, NULL,
-			      skb->dst->dev, dst_output);
+		err = __ip6_local_out(skb);
 		if (unlikely(err != 1))
 			break;
 

@@ -29,7 +29,7 @@
  */
 
 #include <linux/errno.h>
-#include <linux/types.h>
+#include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/socket.h>
 #include <linux/net.h>
@@ -69,6 +69,31 @@ static __inline__ void ipv6_select_ident(struct sk_buff *skb, struct frag_hdr *f
 		ipv6_fragmentation_id = 1;
 	spin_unlock_bh(&ip6_id_lock);
 }
+
+int __ip6_local_out(struct sk_buff *skb)
+{
+	int len;
+
+	len = skb->len - sizeof(struct ipv6hdr);
+	if (len > IPV6_MAXPLEN)
+		len = 0;
+	ipv6_hdr(skb)->payload_len = htons(len);
+
+	return nf_hook(PF_INET6, NF_IP6_LOCAL_OUT, skb, NULL, skb->dst->dev,
+		       dst_output);
+}
+
+int ip6_local_out(struct sk_buff *skb)
+{
+	int err;
+
+	err = __ip6_local_out(skb);
+	if (likely(err == 1))
+		err = dst_output(skb);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(ip6_local_out);
 
 static int ip6_output_finish(struct sk_buff *skb)
 {
@@ -1403,10 +1428,6 @@ int ip6_push_pending_frames(struct sock *sk)
 	*(__be32*)hdr = fl->fl6_flowlabel |
 		     htonl(0x60000000 | ((int)np->cork.tclass << 20));
 
-	if (skb->len <= sizeof(struct ipv6hdr) + IPV6_MAXPLEN)
-		hdr->payload_len = htons(skb->len - sizeof(struct ipv6hdr));
-	else
-		hdr->payload_len = 0;
 	hdr->hop_limit = np->cork.hop_limit;
 	hdr->nexthdr = proto;
 	ipv6_addr_copy(&hdr->saddr, &fl->fl6_src);
@@ -1423,7 +1444,7 @@ int ip6_push_pending_frames(struct sock *sk)
 		ICMP6_INC_STATS_BH(idev, ICMP6_MIB_OUTMSGS);
 	}
 
-	err = NF_HOOK(PF_INET6, NF_IP6_LOCAL_OUT, skb, NULL, skb->dst->dev, dst_output);
+	err = ip6_local_out(skb);
 	if (err) {
 		if (err > 0)
 			err = np->recverr ? net_xmit_errno(err) : 0;

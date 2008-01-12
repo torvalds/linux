@@ -509,6 +509,9 @@ extern int			ip6_forward(struct sk_buff *skb);
 extern int			ip6_input(struct sk_buff *skb);
 extern int			ip6_mc_input(struct sk_buff *skb);
 
+extern int			__ip6_local_out(struct sk_buff *skb);
+extern int			ip6_local_out(struct sk_buff *skb);
+
 /*
  *	Extension header (options) processing
  */

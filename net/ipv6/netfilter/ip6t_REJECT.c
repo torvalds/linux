@@ -121,7 +121,6 @@ static void send_reset(struct sk_buff *oldskb)
 	ip6h->version = 6;
 	ip6h->hop_limit = dst_metric(dst, RTAX_HOPLIMIT);
 	ip6h->nexthdr = IPPROTO_TCP;
-	ip6h->payload_len = htons(sizeof(struct tcphdr));
 	ipv6_addr_copy(&ip6h->saddr, &oip6h->daddr);
 	ipv6_addr_copy(&ip6h->daddr, &oip6h->saddr);
 
@@ -159,8 +158,7 @@ static void send_reset(struct sk_buff *oldskb)
 
 	nf_ct_attach(nskb, oldskb);
 
-	NF_HOOK(PF_INET6, NF_IP6_LOCAL_OUT, nskb, NULL, nskb->dst->dev,
-		dst_output);
+	ip6_local_out(nskb);
 }
 
 static inline void
