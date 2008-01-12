@@ -207,6 +207,8 @@ static int pda_power_probe(struct platform_device *pdev)
 		}
 	}
 
+	device_init_wakeup(&pdev->dev, 1);
+
 	return 0;
 
 usb_irq_failed:
@@ -239,12 +241,43 @@ static int pda_power_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int pda_power_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	if (device_may_wakeup(&pdev->dev)) {
+		if (ac_irq)
+			enable_irq_wake(ac_irq->start);
+		if (usb_irq)
+			enable_irq_wake(usb_irq->start);
+	}
+
+	return 0;
+}
+
+static int pda_power_resume(struct platform_device *pdev)
+{
+	if (device_may_wakeup(&pdev->dev)) {
+		if (usb_irq)
+			disable_irq_wake(usb_irq->start);
+		if (ac_irq)
+			disable_irq_wake(ac_irq->start);
+	}
+
+	return 0;
+}
+#else
+#define pda_power_suspend NULL
+#define pda_power_resume NULL
+#endif /* CONFIG_PM */
+
 static struct platform_driver pda_power_pdrv = {
 	.driver = {
 		.name = "pda-power",
 	},
 	.probe = pda_power_probe,
 	.remove = pda_power_remove,
+	.suspend = pda_power_suspend,
+	.resume = pda_power_resume,
 };
 
 static int __init pda_power_init(void)
