@@ -4392,7 +4392,13 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
 		.subvendor    = 0x1462,
-		.subdevice    = 0x6231,
+		.subdevice    = 0x6231, /* tda8275a, ks003 IR */
+		.driver_data  = SAA7134_BOARD_MSI_TVATANYWHERE_PLUS,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x1462,
+		.subdevice    = 0x8624, /* tda8275, ks003 IR */
 		.driver_data  = SAA7134_BOARD_MSI_TVATANYWHERE_PLUS,
 	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
