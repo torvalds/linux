@@ -108,7 +108,7 @@ static void sas_scsi_task_done(struct sas_task *task)
 			break;
 		case SAM_CHECK_COND:
 			memcpy(sc->sense_buffer, ts->buf,
-			       max(SCSI_SENSE_BUFFERSIZE, ts->buf_valid_size));
+			       min(SCSI_SENSE_BUFFERSIZE, ts->buf_valid_size));
 			stat = SAM_CHECK_COND;
 			break;
 		default:
