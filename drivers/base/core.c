@@ -726,11 +726,20 @@ int device_add(struct device *dev)
 {
 	struct device *parent = NULL;
 	struct class_interface *class_intf;
-	int error = -EINVAL;
+	int error;
+
+	error = pm_sleep_lock();
+	if (error) {
+		dev_warn(dev, "Suspicious %s during suspend\n", __FUNCTION__);
+		dump_stack();
+		return error;
+	}
 
 	dev = get_device(dev);
-	if (!dev || !strlen(dev->bus_id))
+	if (!dev || !strlen(dev->bus_id)) {
+		error = -EINVAL;
 		goto Error;
+	}
 
 	pr_debug("DEV: registering device: ID = '%s'\n", dev->bus_id);
 
@@ -795,6 +804,7 @@ int device_add(struct device *dev)
 	}
  Done:
 	put_device(dev);
+	pm_sleep_unlock();
 	return error;
  BusError:
 	device_pm_remove(dev);
@@ -905,6 +915,7 @@ void device_del(struct device * dev)
 	struct device * parent = dev->parent;
 	struct class_interface *class_intf;
 
+	device_pm_remove(dev);
 	if (parent)
 		klist_del(&dev->knode_parent);
 	if (MAJOR(dev->devt))
@@ -981,7 +992,6 @@ void device_del(struct device * dev)
 	if (dev->bus)
 		blocking_notifier_call_chain(&dev->bus->bus_notifier,
 					     BUS_NOTIFY_DEL_DEVICE, dev);
-	device_pm_remove(dev);
 	kobject_uevent(&dev->kobj, KOBJ_REMOVE);
 	kobject_del(&dev->kobj);
 	if (parent)
@@ -1156,14 +1166,11 @@ error:
 EXPORT_SYMBOL_GPL(device_create);
 
 /**
- * device_destroy - removes a device that was created with device_create()
+ * find_device - finds a device that was created with device_create()
  * @class: pointer to the struct class that this device was registered with
  * @devt: the dev_t of the device that was previously registered
- *
- * This call unregisters and cleans up a device that was created with a
- * call to device_create().
  */
-void device_destroy(struct class *class, dev_t devt)
+static struct device *find_device(struct class *class, dev_t devt)
 {
 	struct device *dev = NULL;
 	struct device *dev_tmp;
@@ -1176,11 +1183,53 @@ void device_destroy(struct class *class, dev_t devt)
 		}
 	}
 	up(&class->sem);
+	return dev;
+}
 
+/**
+ * device_destroy - removes a device that was created with device_create()
+ * @class: pointer to the struct class that this device was registered with
+ * @devt: the dev_t of the device that was previously registered
+ *
+ * This call unregisters and cleans up a device that was created with a
+ * call to device_create().
+ */
+void device_destroy(struct class *class, dev_t devt)
+{
+	struct device *dev;
+
+	dev = find_device(class, devt);
 	if (dev)
 		device_unregister(dev);
 }
 EXPORT_SYMBOL_GPL(device_destroy);
+
+#ifdef CONFIG_PM_SLEEP
+/**
+ * destroy_suspended_device - asks the PM core to remove a suspended device
+ * @class: pointer to the struct class that this device was registered with
+ * @devt: the dev_t of the device that was previously registered
+ *
+ * This call notifies the PM core of the necessity to unregister a suspended
+ * device created with a call to device_create() (devices cannot be
+ * unregistered directly while suspended, since the PM core holds their
+ * semaphores at that time).
+ *
+ * It can only be called within the scope of a system sleep transition.  In
+ * practice this means it has to be directly or indirectly invoked either by
+ * a suspend or resume method, or by the PM core (e.g. via
+ * disable_nonboot_cpus() or enable_nonboot_cpus()).
+ */
+void destroy_suspended_device(struct class *class, dev_t devt)
+{
+	struct device *dev;
+
+	dev = find_device(class, devt);
+	if (dev)
+		device_pm_schedule_removal(dev);
+}
+EXPORT_SYMBOL_GPL(destroy_suspended_device);
+#endif /* CONFIG_PM_SLEEP */
 
 /**
  * device_rename - renames a device
