@@ -890,6 +890,7 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *shadow_pte,
 {
 	u64 spte;
 	int was_rmapped = is_rmap_pte(*shadow_pte);
+	int was_writeble = is_writeble_pte(*shadow_pte);
 
 	pgprintk("%s: spte %llx access %x write_fault %d"
 		 " user_fault %d gfn %lx\n",
@@ -956,9 +957,12 @@ unshadowed:
 		rmap_add(vcpu, shadow_pte, gfn);
 		if (!is_rmap_pte(*shadow_pte))
 			kvm_release_page_clean(page);
+	} else {
+		if (was_writeble)
+			kvm_release_page_dirty(page);
+		else
+			kvm_release_page_clean(page);
 	}
-	else
-		kvm_release_page_clean(page);
 	if (!ptwrite || !*ptwrite)
 		vcpu->arch.last_pte_updated = shadow_pte;
 }
