@@ -405,7 +405,7 @@ static inline __u64 tv_to_us(const struct timeval *tv)
 	return us;
 }
 
-static inline __u64 getCurUs(void)
+static __u64 getCurUs(void)
 {
 	struct timeval tv;
 	do_gettimeofday(&tv);
