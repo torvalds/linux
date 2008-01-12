@@ -90,7 +90,6 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 	/* Truncate to length (no data) */
 	tcph->doff = sizeof(struct tcphdr)/4;
 	skb_trim(nskb, ip_hdrlen(nskb) + sizeof(struct tcphdr));
-	niph->tot_len = htons(nskb->len);
 
 	if (tcph->ack) {
 		needs_ack = 0;
@@ -139,18 +138,13 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 	/* Adjust IP TTL */
 	niph->ttl = dst_metric(nskb->dst, RTAX_HOPLIMIT);
 
-	/* Adjust IP checksum */
-	niph->check = 0;
-	niph->check = ip_fast_csum(skb_network_header(nskb), niph->ihl);
-
 	/* "Never happens" */
 	if (nskb->len > dst_mtu(nskb->dst))
 		goto free_nskb;
 
 	nf_ct_attach(nskb, oldskb);
 
-	NF_HOOK(PF_INET, NF_IP_LOCAL_OUT, nskb, NULL, nskb->dst->dev,
-		dst_output);
+	ip_local_out(nskb);
 	return;
 
  free_nskb:

@@ -69,16 +69,11 @@ EXPORT_SYMBOL(xfrm4_prepare_output);
 
 static inline int xfrm4_output_one(struct sk_buff *skb)
 {
-	struct iphdr *iph;
 	int err;
 
 	err = xfrm_output(skb);
 	if (err)
 		goto error_nolock;
-
-	iph = ip_hdr(skb);
-	iph->tot_len = htons(skb->len);
-	ip_send_check(iph);
 
 	IPCB(skb)->flags |= IPSKB_XFRM_TRANSFORMED;
 	err = 0;
@@ -97,8 +92,7 @@ static int xfrm4_output_finish2(struct sk_buff *skb)
 	while (likely((err = xfrm4_output_one(skb)) == 0)) {
 		nf_reset(skb);
 
-		err = nf_hook(PF_INET, NF_IP_LOCAL_OUT, skb, NULL,
-			      skb->dst->dev, dst_output);
+		err = __ip_local_out(skb);
 		if (unlikely(err != 1))
 			break;
 
