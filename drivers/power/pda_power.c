@@ -32,6 +32,8 @@ static struct pda_power_pdata *pdata;
 static struct resource *ac_irq, *usb_irq;
 static struct timer_list charger_timer;
 static struct timer_list supply_timer;
+static struct timer_list polling_timer;
+static int polling;
 
 enum {
 	PDA_PSY_OFFLINE = 0,
@@ -167,6 +169,31 @@ static irqreturn_t power_changed_isr(int irq, void *power_supply)
 	return IRQ_HANDLED;
 }
 
+static void polling_timer_func(unsigned long unused)
+{
+	int changed = 0;
+
+	dev_dbg(dev, "polling...\n");
+
+	update_status();
+
+	if (!ac_irq && new_ac_status != ac_status) {
+		ac_status = PDA_PSY_TO_CHANGE;
+		changed = 1;
+	}
+
+	if (!usb_irq && new_usb_status != usb_status) {
+		usb_status = PDA_PSY_TO_CHANGE;
+		changed = 1;
+	}
+
+	if (changed)
+		psy_changed();
+
+	mod_timer(&polling_timer,
+		  jiffies + msecs_to_jiffies(pdata->polling_interval));
+}
+
 static int pda_power_probe(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -190,6 +217,9 @@ static int pda_power_probe(struct platform_device *pdev)
 
 	if (!pdata->wait_for_charger)
 		pdata->wait_for_charger = 500;
+
+	if (!pdata->polling_interval)
+		pdata->polling_interval = 2000;
 
 	setup_timer(&charger_timer, charger_timer_func, 0);
 	setup_timer(&supply_timer, supply_timer_func, 0);
@@ -220,6 +250,8 @@ static int pda_power_probe(struct platform_device *pdev)
 				dev_err(dev, "request ac irq failed\n");
 				goto ac_irq_failed;
 			}
+		} else {
+			polling = 1;
 		}
 	}
 
@@ -239,10 +271,20 @@ static int pda_power_probe(struct platform_device *pdev)
 				dev_err(dev, "request usb irq failed\n");
 				goto usb_irq_failed;
 			}
+		} else {
+			polling = 1;
 		}
 	}
 
-	device_init_wakeup(&pdev->dev, 1);
+	if (polling) {
+		dev_dbg(dev, "will poll for status\n");
+		setup_timer(&polling_timer, polling_timer_func, 0);
+		mod_timer(&polling_timer,
+			  jiffies + msecs_to_jiffies(pdata->polling_interval));
+	}
+
+	if (ac_irq || usb_irq)
+		device_init_wakeup(&pdev->dev, 1);
 
 	return 0;
 
@@ -267,6 +309,8 @@ static int pda_power_remove(struct platform_device *pdev)
 	if (pdata->is_ac_online && ac_irq)
 		free_irq(ac_irq->start, &pda_psy_ac);
 
+	if (polling)
+		del_timer_sync(&polling_timer);
 	del_timer_sync(&charger_timer);
 	del_timer_sync(&supply_timer);
 
