@@ -806,7 +806,8 @@ static void __devinit __pcibios_fixup_bus(struct pci_bus *bus)
 			 * equal to the pci_mem_offset of the host bridge and
 			 * their size is smaller than 1M.
 			 */
-			if (res->start == hose->pci_mem_offset &&
+			if (res->flags & IORESOURCE_MEM &&
+			    res->start == hose->pci_mem_offset &&
 			    res->end < 0x100000) {
 				printk(KERN_INFO
 				       "PCI: Closing bogus Apple Firmware"
