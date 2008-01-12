@@ -221,7 +221,9 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	struct data_ring *ring = entry->ring;
 	struct rt2x00_dev *rt2x00dev = ring->rt2x00dev;
 	struct sk_buff *skb;
+	struct ieee80211_hdr *hdr;
 	struct rxdata_entry_desc desc;
+	int header_size;
 	int frame_size;
 
 	if (!test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags) ||
@@ -253,9 +255,20 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	skb_put(skb, frame_size);
 
 	/*
-	 * Trim the skb_buffer to only contain the valid
-	 * frame data (so ignore the device's descriptor).
+	 * The data behind the ieee80211 header must be
+	 * aligned on a 4 byte boundary.
+	 * After that trim the entire buffer down to only
+	 * contain the valid frame data excluding the device
+	 * descriptor.
 	 */
+	hdr = (struct ieee80211_hdr *)entry->skb->data;
+	header_size =
+	    ieee80211_get_hdrlen(le16_to_cpu(hdr->frame_control));
+
+	if (header_size % 4 == 0) {
+		skb_push(entry->skb, 2);
+		memmove(entry->skb->data, entry->skb->data + 2, skb->len - 2);
+	}
 	skb_trim(entry->skb, desc.size);
 
 	/*
