@@ -538,6 +538,7 @@ int saa7146_register_device(struct video_device **vid, struct saa7146_dev* dev,
 	// fixme: -1 should be an insmod parameter *for the extension* (like "video_nr");
 	if (video_register_device(vfd, type, -1) < 0) {
 		ERR(("cannot register v4l2 device. skipping.\n"));
+		video_device_release(vfd);
 		return -1;
 	}
 
