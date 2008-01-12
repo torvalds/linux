@@ -193,7 +193,7 @@ static int seeq_init_ring(struct net_device *dev)
 
 	/* And now the rx ring. */
 	for (i = 0; i < SEEQ_RX_BUFFERS; i++) {
-		if (!sp->rx_desc[i].rdma.pbuf) {
+		if (!sp->rx_desc[i].skb) {
 			dma_addr_t dma_addr;
 			struct sk_buff *skb = netdev_alloc_skb(dev, PKT_BUF_SZ);
 
