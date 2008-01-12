@@ -8,6 +8,8 @@ tuner-objs	:=	tuner-core.o tuner-types.o
 
 msp3400-objs	:=	msp3400-driver.o msp3400-kthreads.o
 
+stkwebcam-objs	:=	stk-webcam.o stk-sensor.o
+
 obj-$(CONFIG_VIDEO_DEV) += videodev.o v4l2-common.o compat_ioctl32.o \
 			   v4l2-int-device.o
 
@@ -116,6 +118,7 @@ obj-$(CONFIG_USB_SE401)         += se401.o
 obj-$(CONFIG_USB_STV680)        += stv680.o
 obj-$(CONFIG_USB_W9968CF)       += w9968cf.o
 obj-$(CONFIG_USB_ZR364XX)       += zr364xx.o
+obj-$(CONFIG_USB_STKWEBCAM)     += stkwebcam.o
 
 obj-$(CONFIG_USB_SN9C102)       += sn9c102/
 obj-$(CONFIG_USB_ET61X251)      += et61x251/
