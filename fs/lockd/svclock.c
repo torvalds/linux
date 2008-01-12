@@ -505,12 +505,12 @@ nlmsvc_testlock(struct svc_rqst *rqstp, struct nlm_file *file,
 			goto out;
 		}
 		if (block->b_flags & B_GOT_CALLBACK) {
+			nlmsvc_unlink_block(block);
 			if (block->b_fl != NULL
 					&& block->b_fl->fl_type != F_UNLCK) {
 				lock->fl = *block->b_fl;
 				goto conf_lock;
 			} else {
-				nlmsvc_unlink_block(block);
 				ret = nlm_granted;
 				goto out;
 			}
