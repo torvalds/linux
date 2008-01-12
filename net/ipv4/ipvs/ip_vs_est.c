@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
+#include <linux/sysctl.h>
 
 #include <net/ip_vs.h>
 

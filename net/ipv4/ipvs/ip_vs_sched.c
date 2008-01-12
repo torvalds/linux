@@ -24,6 +24,7 @@
 #include <linux/interrupt.h>
 #include <asm/string.h>
 #include <linux/kmod.h>
+#include <linux/sysctl.h>
 
 #include <net/ip_vs.h>
 
