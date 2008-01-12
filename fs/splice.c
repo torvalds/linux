@@ -908,10 +908,6 @@ static long do_splice_from(struct pipe_inode_info *pipe, struct file *out,
 	if (unlikely(ret < 0))
 		return ret;
 
-	ret = security_file_permission(out, MAY_WRITE);
-	if (unlikely(ret < 0))
-		return ret;
-
 	return out->f_op->splice_write(pipe, out, ppos, len, flags);
 }
 
@@ -931,10 +927,6 @@ static long do_splice_to(struct file *in, loff_t *ppos,
 		return -EBADF;
 
 	ret = rw_verify_area(READ, in, ppos, len);
-	if (unlikely(ret < 0))
-		return ret;
-
-	ret = security_file_permission(in, MAY_READ);
 	if (unlikely(ret < 0))
 		return ret;
 
