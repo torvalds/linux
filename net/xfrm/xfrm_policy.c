@@ -2367,8 +2367,8 @@ void __init xfrm_init(void)
 }
 
 #ifdef CONFIG_AUDITSYSCALL
-static inline void xfrm_audit_common_policyinfo(struct xfrm_policy *xp,
-						struct audit_buffer *audit_buf)
+static void xfrm_audit_common_policyinfo(struct xfrm_policy *xp,
+					 struct audit_buffer *audit_buf)
 {
 	struct xfrm_sec_ctx *ctx = xp->security;
 	struct xfrm_selector *sel = &xp->selector;
