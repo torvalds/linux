@@ -40,10 +40,12 @@
 #include "tuner-xc2028.h"
 #include "tuner-xc2028-types.h"
 
-static unsigned int debug = 0;
+static unsigned int debug;
 
-#define dprintk(level,fmt, arg...)	if (debug >= level) \
-	printk(KERN_DEBUG "%s: " fmt, dev->name, ## arg)
+#define dprintk(level, fmt, arg...)\
+	do { if (debug >= level)\
+		printk(KERN_DEBUG "%s/0: " fmt, dev->name, ## arg);\
+	} while (0)
 
 /* ------------------------------------------------------------------ */
 

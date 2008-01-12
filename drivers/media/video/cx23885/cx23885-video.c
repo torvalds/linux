@@ -57,11 +57,11 @@ MODULE_PARM_DESC(video_nr, "video device numbers");
 MODULE_PARM_DESC(vbi_nr, "vbi device numbers");
 MODULE_PARM_DESC(radio_nr, "radio device numbers");
 
-static unsigned int video_debug = 0;
+static unsigned int video_debug;
 module_param(video_debug, int, 0644);
 MODULE_PARM_DESC(video_debug, "enable debug messages [video]");
 
-static unsigned int irq_debug = 0;
+static unsigned int irq_debug;
 module_param(irq_debug, int, 0644);
 MODULE_PARM_DESC(irq_debug, "enable debug messages [IRQ handler]");
 
@@ -70,8 +70,9 @@ module_param(vid_limit, int, 0644);
 MODULE_PARM_DESC(vid_limit, "capture memory limit in megabytes");
 
 #define dprintk(level, fmt, arg...)\
-	if (video_debug >= level)\
-		printk(KERN_DEBUG "%s/0: " fmt, dev->name, ## arg)
+	do { if (video_debug >= level)\
+		printk(KERN_DEBUG "%s/0: " fmt, dev->name, ## arg);\
+	} while (0)
 
 /* ------------------------------------------------------------------- */
 /* static data                                                         */

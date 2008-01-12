@@ -29,7 +29,7 @@
 
 #include <media/v4l2-common.h>
 
-static unsigned int i2c_debug = 0;
+static unsigned int i2c_debug;
 module_param(i2c_debug, int, 0644);
 MODULE_PARM_DESC(i2c_debug, "enable debug messages [i2c]");
 
@@ -37,9 +37,9 @@ static unsigned int i2c_scan = 0;
 module_param(i2c_scan, int, 0444);
 MODULE_PARM_DESC(i2c_scan, "scan i2c bus at insmod time");
 
-#define dprintk(level, fmt, arg...)	do { \
-	if (i2c_debug >= level) \
-		printk(KERN_DEBUG "%s: " fmt, dev->name , ## arg); \
+#define dprintk(level, fmt, arg...)\
+	do { if (i2c_debug >= level)\
+		printk(KERN_DEBUG "%s/0: " fmt, dev->name, ## arg);\
 	} while (0)
 
 #define I2C_WAIT_DELAY 32

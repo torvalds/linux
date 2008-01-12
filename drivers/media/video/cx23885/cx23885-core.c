@@ -36,7 +36,7 @@ MODULE_DESCRIPTION("Driver for cx23885 based TV cards");
 MODULE_AUTHOR("Steven Toth <stoth@hauppauge.com>");
 MODULE_LICENSE("GPL");
 
-static unsigned int debug = 0;
+static unsigned int debug;
 module_param(debug,int,0644);
 MODULE_PARM_DESC(debug,"enable debug messages");
 
@@ -44,8 +44,10 @@ static unsigned int card[]  = {[0 ... (CX23885_MAXBOARDS - 1)] = UNSET };
 module_param_array(card,  int, NULL, 0444);
 MODULE_PARM_DESC(card,"card type");
 
-#define dprintk(level,fmt, arg...)	if (debug >= level) \
-	printk(KERN_DEBUG "%s/0: " fmt, dev->name , ## arg)
+#define dprintk(level, fmt, arg...)\
+	do { if (debug >= level)\
+		printk(KERN_DEBUG "%s/0: " fmt, dev->name, ## arg);\
+	} while (0)
 
 static unsigned int cx23885_devcount;
 
