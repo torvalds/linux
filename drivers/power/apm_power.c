@@ -133,6 +133,9 @@ static int do_calculate_time(int status, enum apm_source source)
 			return -1;
 	}
 
+	if (!I.intval)
+		return 0;
+
 	switch (source) {
 	case SOURCE_CHARGE:
 		full_prop = POWER_SUPPLY_PROP_CHARGE_FULL;
