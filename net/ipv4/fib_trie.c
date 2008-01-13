@@ -118,8 +118,8 @@ struct leaf_info {
 struct tnode {
 	t_key key;
 	unsigned long parent;
-	unsigned short pos:5;		/* 2log(KEYLENGTH) bits needed */
-	unsigned short bits:5;		/* 2log(KEYLENGTH) bits needed */
+	unsigned char pos;		/* 2log(KEYLENGTH) bits needed */
+	unsigned char bits;		/* 2log(KEYLENGTH) bits needed */
 	unsigned short full_children;	/* KEYLENGTH bits needed */
 	unsigned short empty_children;	/* KEYLENGTH bits needed */
 	struct rcu_head rcu;
