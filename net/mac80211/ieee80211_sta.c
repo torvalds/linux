@@ -1215,9 +1215,6 @@ void ieee80211_sta_stop_rx_ba_session(struct net_device *dev, u8 *ra, u16 tid,
 	if (sta->ampdu_mlme.tid_rx[tid].state
 				!= HT_AGG_STATE_OPERATIONAL) {
 		spin_unlock_bh(&sta->ampdu_mlme.ampdu_rx);
-		if (net_ratelimit())
-			printk(KERN_DEBUG "rx BA session requested to stop on "
-				"inactive tid %d\n", tid);
 		sta_info_put(sta);
 		return;
 	}
