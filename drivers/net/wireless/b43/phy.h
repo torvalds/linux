@@ -204,8 +204,18 @@ enum {
 void b43_phy_lock(struct b43_wldev *dev);
 void b43_phy_unlock(struct b43_wldev *dev);
 
+
+/* Read a value from a PHY register */
 u16 b43_phy_read(struct b43_wldev *dev, u16 offset);
+/* Write a value to a PHY register */
 void b43_phy_write(struct b43_wldev *dev, u16 offset, u16 val);
+/* Mask a PHY register with a mask */
+void b43_phy_mask(struct b43_wldev *dev, u16 offset, u16 mask);
+/* OR a PHY register with a bitmap */
+void b43_phy_set(struct b43_wldev *dev, u16 offset, u16 set);
+/* Mask and OR a PHY register with a mask and bitmap */
+void b43_phy_maskset(struct b43_wldev *dev, u16 offset, u16 mask, u16 set);
+
 
 int b43_phy_init_tssi2dbm_table(struct b43_wldev *dev);
 
@@ -269,8 +279,18 @@ extern const u8 b43_radio_channel_codes_bg[];
 void b43_radio_lock(struct b43_wldev *dev);
 void b43_radio_unlock(struct b43_wldev *dev);
 
+
+/* Read a value from a 16bit radio register */
 u16 b43_radio_read16(struct b43_wldev *dev, u16 offset);
+/* Write a value to a 16bit radio register */
 void b43_radio_write16(struct b43_wldev *dev, u16 offset, u16 val);
+/* Mask a 16bit radio register with a mask */
+void b43_radio_mask(struct b43_wldev *dev, u16 offset, u16 mask);
+/* OR a 16bit radio register with a bitmap */
+void b43_radio_set(struct b43_wldev *dev, u16 offset, u16 set);
+/* Mask and OR a PHY register with a mask and bitmap */
+void b43_radio_maskset(struct b43_wldev *dev, u16 offset, u16 mask, u16 set);
+
 
 u16 b43_radio_init2050(struct b43_wldev *dev);
 void b43_radio_init2060(struct b43_wldev *dev);

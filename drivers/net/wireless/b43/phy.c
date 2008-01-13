@@ -308,6 +308,24 @@ void b43_phy_write(struct b43_wldev *dev, u16 offset, u16 val)
 	b43_write16(dev, B43_MMIO_PHY_DATA, val);
 }
 
+void b43_phy_mask(struct b43_wldev *dev, u16 offset, u16 mask)
+{
+	b43_phy_write(dev, offset,
+		      b43_phy_read(dev, offset) & mask);
+}
+
+void b43_phy_set(struct b43_wldev *dev, u16 offset, u16 set)
+{
+	b43_phy_write(dev, offset,
+		      b43_phy_read(dev, offset) | set);
+}
+
+void b43_phy_maskset(struct b43_wldev *dev, u16 offset, u16 mask, u16 set)
+{
+	b43_phy_write(dev, offset,
+		      (b43_phy_read(dev, offset) & mask) | set);
+}
+
 /* Adjust the transmission power output (G-PHY) */
 void b43_set_txpower_g(struct b43_wldev *dev,
 		       const struct b43_bbatt *bbatt,
@@ -1857,6 +1875,9 @@ void b43_phy_xmitpower(struct b43_wldev *dev)
 			b43_phy_unlock(dev);
 			break;
 		}
+	case B43_PHYTYPE_N:
+		b43_nphy_xmitpower(dev);
+		break;
 	default:
 		B43_WARN_ON(1);
 	}
@@ -2116,6 +2137,9 @@ void b43_set_rx_antenna(struct b43_wldev *dev, int antenna)
 		    << B43_PHY_BBANDCFG_RXANT_SHIFT;
 		b43_phy_write(dev, B43_PHY_CCKBBANDCFG, tmp);
 		break;
+	case B43_PHYTYPE_N:
+		b43_nphy_set_rxantenna(dev, antenna);
+		break;
 	default:
 		B43_WARN_ON(1);
 	}
@@ -2213,6 +2237,24 @@ void b43_radio_write16(struct b43_wldev *dev, u16 offset, u16 val)
 
 	b43_write16(dev, B43_MMIO_RADIO_CONTROL, offset);
 	b43_write16(dev, B43_MMIO_RADIO_DATA_LOW, val);
+}
+
+void b43_radio_mask(struct b43_wldev *dev, u16 offset, u16 mask)
+{
+	b43_radio_write16(dev, offset,
+			  b43_radio_read16(dev, offset) & mask);
+}
+
+void b43_radio_set(struct b43_wldev *dev, u16 offset, u16 set)
+{
+	b43_radio_write16(dev, offset,
+			  b43_radio_read16(dev, offset) | set);
+}
+
+void b43_radio_maskset(struct b43_wldev *dev, u16 offset, u16 mask, u16 set)
+{
+	b43_radio_write16(dev, offset,
+			  (b43_radio_read16(dev, offset) & mask) | set);
 }
 
 static void b43_set_all_gains(struct b43_wldev *dev,
@@ -3852,6 +3894,10 @@ int b43_radio_selectchannel(struct b43_wldev *dev,
 		case B43_PHYTYPE_G:
 			channel = B43_DEFAULT_CHANNEL_BG;
 			break;
+		case B43_PHYTYPE_N:
+			//FIXME check if we are on 2.4GHz or 5GHz and set a default channel.
+			channel = 1;
+			break;
 		default:
 			B43_WARN_ON(1);
 		}
@@ -3861,11 +3907,13 @@ int b43_radio_selectchannel(struct b43_wldev *dev,
 	 * firmware from sending ghost packets.
 	 */
 	channelcookie = channel;
-	if (phy->type == B43_PHYTYPE_A)
+	if (0 /*FIXME on 5Ghz */)
 		channelcookie |= 0x100;
+	//FIXME set 40Mhz flag if required
 	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_CHAN, channelcookie);
 
-	if (phy->type == B43_PHYTYPE_A) {
+	switch (phy->type) {
+	case B43_PHYTYPE_A:
 		if (channel > 200)
 			return -EINVAL;
 		freq = channel2freq_a(channel);
@@ -3914,7 +3962,8 @@ int b43_radio_selectchannel(struct b43_wldev *dev,
 		b43_radio_set_tx_iq(dev);
 		//TODO: TSSI2dbm workaround
 		b43_phy_xmitpower(dev);	//FIXME correct?
-	} else {
+		break;
+	case B43_PHYTYPE_G:
 		if ((channel < 1) || (channel > 14))
 			return -EINVAL;
 
@@ -3939,6 +3988,12 @@ int b43_radio_selectchannel(struct b43_wldev *dev,
 				    b43_read16(dev, B43_MMIO_CHANNEL_EXT)
 				    & 0xF7BF);
 		}
+		break;
+	case B43_PHYTYPE_N:
+		b43_nphy_selectchannel(dev, channel);
+		break;
+	default:
+		B43_WARN_ON(1);
 	}
 
 	phy->channel = channel;
@@ -3985,6 +4040,9 @@ void b43_radio_turn_on(struct b43_wldev *dev)
 		err |= b43_radio_selectchannel(dev, channel, 0);
 		B43_WARN_ON(err);
 		break;
+	case B43_PHYTYPE_N:
+		b43_nphy_radio_turn_on(dev);
+		break;
 	default:
 		B43_WARN_ON(1);
 	}
@@ -3998,13 +4056,17 @@ void b43_radio_turn_off(struct b43_wldev *dev, bool force)
 	if (!phy->radio_on && !force)
 		return;
 
-	if (phy->type == B43_PHYTYPE_A) {
+	switch (phy->type) {
+	case B43_PHYTYPE_N:
+		b43_nphy_radio_turn_off(dev);
+		break;
+	case B43_PHYTYPE_A:
 		b43_radio_write16(dev, 0x0004, 0x00FF);
 		b43_radio_write16(dev, 0x0005, 0x00FB);
 		b43_phy_write(dev, 0x0010, b43_phy_read(dev, 0x0010) | 0x0008);
 		b43_phy_write(dev, 0x0011, b43_phy_read(dev, 0x0011) | 0x0008);
-	}
-	if (phy->type == B43_PHYTYPE_G && dev->dev->id.revision >= 5) {
+		break;
+	case B43_PHYTYPE_G: {
 		u16 rfover, rfoverval;
 
 		rfover = b43_phy_read(dev, B43_PHY_RFOVER);
@@ -4016,7 +4078,10 @@ void b43_radio_turn_off(struct b43_wldev *dev, bool force)
 		}
 		b43_phy_write(dev, B43_PHY_RFOVER, rfover | 0x008C);
 		b43_phy_write(dev, B43_PHY_RFOVERVAL, rfoverval & 0xFF73);
-	} else
-		b43_phy_write(dev, 0x0015, 0xAA00);
+		break;
+	}
+	default:
+		B43_WARN_ON(1);
+	}
 	phy->radio_on = 0;
 }

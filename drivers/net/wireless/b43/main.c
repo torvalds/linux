@@ -2132,6 +2132,7 @@ static void b43_rate_memory_init(struct b43_wldev *dev)
 	switch (dev->phy.type) {
 	case B43_PHYTYPE_A:
 	case B43_PHYTYPE_G:
+	case B43_PHYTYPE_N:
 		b43_rate_memory_write(dev, B43_OFDM_RATE_6MB, 1);
 		b43_rate_memory_write(dev, B43_OFDM_RATE_12MB, 1);
 		b43_rate_memory_write(dev, B43_OFDM_RATE_18MB, 1);
@@ -2320,6 +2321,8 @@ static void b43_periodic_every60sec(struct b43_wldev *dev)
 {
 	struct b43_phy *phy = &dev->phy;
 
+	if (phy->type != B43_PHYTYPE_G)
+		return;
 	if (!b43_has_hardware_pctl(phy))
 		b43_lo_g_ctl_mark_all_unused(dev);
 	if (dev->dev->bus->sprom.boardflags_lo & B43_BFL_RSSI) {

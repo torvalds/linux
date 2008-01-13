@@ -177,6 +177,7 @@
 #define  B43_NPHY_RFCTL_CMD_RXEN		0x0100 /* RX enable */
 #define  B43_NPHY_RFCTL_CMD_TXEN		0x0200 /* TX enable */
 #define  B43_NPHY_RFCTL_CMD_CHIP0PU		0x0400 /* Chip0 PU */
+#define  B43_NPHY_RFCTL_CMD_EN			0x0800 /* Radio enabled */
 #define  B43_NPHY_RFCTL_CMD_SEQENCORE		0xF000 /* Seq en core */
 #define  B43_NPHY_RFCTL_CMD_SEQENCORE_SHIFT	12
 #define B43_NPHY_RFCTL_RSSIO1			B43_PHY_N(0x07A) /* RF control (RSSI others 1) */
@@ -912,5 +913,13 @@
 struct b43_wldev;
 
 int b43_phy_initn(struct b43_wldev *dev);
+
+void b43_nphy_radio_turn_on(struct b43_wldev *dev);
+void b43_nphy_radio_turn_off(struct b43_wldev *dev);
+
+void b43_nphy_selectchannel(struct b43_wldev *dev, u8 channel);
+
+void b43_nphy_xmitpower(struct b43_wldev *dev);
+void b43_nphy_set_rxantenna(struct b43_wldev *dev, int antenna);
 
 #endif /* B43_NPHY_H_ */
