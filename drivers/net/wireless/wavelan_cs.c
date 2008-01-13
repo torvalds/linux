@@ -71,27 +71,6 @@ static void wv_nwid_filter(unsigned char mode, net_local *lp);
  * (wavelan modem or i82593)
  */
 
-#ifdef STRUCT_CHECK
-/*------------------------------------------------------------------*/
-/*
- * Sanity routine to verify the sizes of the various WaveLAN interface
- * structures.
- */
-static char *
-wv_structuct_check(void)
-{
-#define	SC(t,s,n)	if (sizeof(t) != s) return(n);
-
-  SC(psa_t, PSA_SIZE, "psa_t");
-  SC(mmw_t, MMW_SIZE, "mmw_t");
-  SC(mmr_t, MMR_SIZE, "mmr_t");
-
-#undef	SC
-
-  return((char *) NULL);
-} /* wv_structuct_check */
-#endif	/* STRUCT_CHECK */
-
 /******************* MODEM MANAGEMENT SUBROUTINES *******************/
 /*
  * Useful subroutines to manage the modem of the wavelan
@@ -3794,14 +3773,10 @@ wv_hw_config(struct net_device *	dev)
   printk(KERN_DEBUG "%s: ->wv_hw_config()\n", dev->name);
 #endif
 
-#ifdef STRUCT_CHECK
-  if(wv_structuct_check() != (char *) NULL)
-    {
-      printk(KERN_WARNING "%s: wv_hw_config: structure/compiler botch: \"%s\"\n",
-	     dev->name, wv_structuct_check());
-      return FALSE;
-    }
-#endif	/* STRUCT_CHECK == 1 */
+  /* compile-time check the sizes of structures */
+  BUILD_BUG_ON(sizeof(psa_t) != PSA_SIZE);
+  BUILD_BUG_ON(sizeof(mmw_t) != MMW_SIZE);
+  BUILD_BUG_ON(sizeof(mmr_t) != MMR_SIZE);
 
   /* Reset the pcmcia interface */
   if(wv_pcmcia_reset(dev) == FALSE)
