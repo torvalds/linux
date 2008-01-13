@@ -80,6 +80,15 @@ config BACKLIGHT_LOCOMO
 	  If you have a Sharp Zaurus SL-5500 (Collie) or SL-5600 (Poodle) say y to
 	  enable the LCD/backlight driver.
 
+config BACKLIGHT_OMAP1
+	tristate "OMAP1 PWL-based LCD Backlight"
+	depends on BACKLIGHT_CLASS_DEVICE && ARCH_OMAP1
+	default y
+	help
+	  This driver controls the LCD backlight level and power for
+	  the PWL module of OMAP1 processors.  Say Y if your board
+	  uses this hardware.
+
 config BACKLIGHT_HP680
 	tristate "HP Jornada 680 Backlight Driver"
 	depends on BACKLIGHT_CLASS_DEVICE && SH_HP6XX
