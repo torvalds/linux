@@ -364,18 +364,6 @@ enum _mii_anlpar {
 };
 
 /* Auto-Negotiation Expansion Register */
-typedef union t_MII_ANER {
-	u16 image;
-	struct {
-		u16 lp_negotiable:1;	// bit 0
-		u16 page_received:1;	// bit 1
-		u16 nextpagable:1;	// bit 2
-		u16 lp_nextpagable:1;	// bit 3
-		u16 pdetect_fault:1;	// bit 4
-		u16 _bit15_5:11;	// bit 15:5
-	} bits;
-} ANER_t, *PANER_t;
-
 enum _mii_aner {
 	MII_ANER_PAR_DETECT_FAULT = 0x0010,
 	MII_ANER_LP_NEXTPAGABLE = 0x0008,

@@ -1316,9 +1316,10 @@ rio_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 			    ("%02x:cur:%08x next:%08x status:%08x frag1:%08x frag0:%08x",
 			     i,
 			     (u32) (np->tx_ring_dma + i * sizeof (*desc)),
-			     (u32) desc->next_desc,
-			     (u32) desc->status, (u32) (desc->fraginfo >> 32),
-			     (u32) desc->fraginfo);
+			     (u32)le64_to_cpu(desc->next_desc),
+			     (u32)le64_to_cpu(desc->status),
+			     (u32)(le64_to_cpu(desc->fraginfo) >> 32),
+			     (u32)le64_to_cpu(desc->fraginfo));
 			printk ("\n");
 		}
 		printk ("\n");
