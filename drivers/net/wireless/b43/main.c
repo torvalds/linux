@@ -3139,10 +3139,9 @@ static int b43_phy_versioning(struct b43_wldev *dev)
 			tmp = 0x5205017F;
 	} else {
 		b43_write16(dev, B43_MMIO_RADIO_CONTROL, B43_RADIOCTL_ID);
-		tmp = b43_read16(dev, B43_MMIO_RADIO_DATA_HIGH);
-		tmp <<= 16;
+		tmp = b43_read16(dev, B43_MMIO_RADIO_DATA_LOW);
 		b43_write16(dev, B43_MMIO_RADIO_CONTROL, B43_RADIOCTL_ID);
-		tmp |= b43_read16(dev, B43_MMIO_RADIO_DATA_LOW);
+		tmp |= (u32)b43_read16(dev, B43_MMIO_RADIO_DATA_HIGH) << 16;
 	}
 	radio_manuf = (tmp & 0x00000FFF);
 	radio_ver = (tmp & 0x0FFFF000) >> 12;
@@ -3167,7 +3166,7 @@ static int b43_phy_versioning(struct b43_wldev *dev)
 			unsupported = 1;
 		break;
 	case B43_PHYTYPE_N:
-		if (radio_ver != 5)
+		if (radio_ver != 0x2055)
 			unsupported = 1;
 		break;
 	default:
