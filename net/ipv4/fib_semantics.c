@@ -194,6 +194,15 @@ static __inline__ int nh_comp(const struct fib_info *fi, const struct fib_info *
 	return 0;
 }
 
+static inline unsigned int fib_devindex_hashfn(unsigned int val)
+{
+	unsigned int mask = DEVINDEX_HASHSIZE - 1;
+
+	return (val ^
+		(val >> DEVINDEX_HASHBITS) ^
+		(val >> (DEVINDEX_HASHBITS * 2))) & mask;
+}
+
 static inline unsigned int fib_info_hashfn(const struct fib_info *fi)
 {
 	unsigned int mask = (fib_hash_size - 1);
@@ -202,6 +211,9 @@ static inline unsigned int fib_info_hashfn(const struct fib_info *fi)
 	val ^= fi->fib_protocol;
 	val ^= (__force u32)fi->fib_prefsrc;
 	val ^= fi->fib_priority;
+	for_nexthops(fi) {
+		val ^= fib_devindex_hashfn(nh->nh_oif);
+	} endfor_nexthops(fi)
 
 	return (val ^ (val >> 7) ^ (val >> 12)) & mask;
 }
@@ -230,15 +242,6 @@ static struct fib_info *fib_find_info(const struct fib_info *nfi)
 	}
 
 	return NULL;
-}
-
-static inline unsigned int fib_devindex_hashfn(unsigned int val)
-{
-	unsigned int mask = DEVINDEX_HASHSIZE - 1;
-
-	return (val ^
-		(val >> DEVINDEX_HASHBITS) ^
-		(val >> (DEVINDEX_HASHBITS * 2))) & mask;
 }
 
 /* Check, that the gateway is already configured.
