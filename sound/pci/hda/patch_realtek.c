@@ -1080,7 +1080,6 @@ static struct snd_kcontrol_new alc880_capture_mixer[] = {
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		/* The multiple "Capture Source" controls confuse alsamixer
 		 * So call somewhat different..
-		 * FIXME: the controls appear in the "playback" view!
 		 */
 		/* .name = "Capture Source", */
 		.name = "Input Source",
@@ -1102,7 +1101,6 @@ static struct snd_kcontrol_new alc880_capture_alt_mixer[] = {
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		/* The multiple "Capture Source" controls confuse alsamixer
 		 * So call somewhat different..
-		 * FIXME: the controls appear in the "playback" view!
 		 */
 		/* .name = "Capture Source", */
 		.name = "Input Source",
@@ -1297,7 +1295,6 @@ static struct snd_kcontrol_new alc880_z71v_mixer[] = {
 };
 
 
-/* FIXME! */
 /*
  * ALC880 F1734 model
  *
@@ -1323,7 +1320,6 @@ static struct snd_kcontrol_new alc880_f1734_mixer[] = {
 };
 
 
-/* FIXME! */
 /*
  * ALC880 ASUS model
  *
@@ -1360,7 +1356,6 @@ static struct snd_kcontrol_new alc880_asus_mixer[] = {
 	{ } /* end */
 };
 
-/* FIXME! */
 /*
  * ALC880 ASUS W1V model
  *
@@ -1398,7 +1393,6 @@ static struct snd_kcontrol_new alc880_tcl_s700_mixer[] = {
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		/* The multiple "Capture Source" controls confuse alsamixer
 		 * So call somewhat different..
-		 * FIXME: the controls appear in the "playback" view!
 		 */
 		/* .name = "Capture Source", */
 		.name = "Input Source",
@@ -1912,7 +1906,6 @@ static void alc880_uniwill_p53_unsol_event(struct hda_codec *codec,
 		alc880_uniwill_p53_dcvol_automute(codec);
 }
 
-/* FIXME! */
 /*
  * F1734 pin configuration:
  * HP = 0x14, speaker-out = 0x15, mic = 0x18
@@ -1941,7 +1934,6 @@ static struct hda_verb alc880_pin_f1734_init_verbs[] = {
 	{ }
 };
 
-/* FIXME! */
 /*
  * ASUS pin configuration:
  * HP/front = 0x14, surr = 0x15, clfe = 0x16, mic = 0x18, line = 0x1a
@@ -2088,7 +2080,6 @@ static struct hda_channel_mode alc880_lg_ch_modes[3] = {
 };
 
 static struct snd_kcontrol_new alc880_lg_mixer[] = {
-	/* FIXME: it's not really "master" but front channels */
 	HDA_CODEC_VOLUME("Front Playback Volume", 0x0f, 0x0, HDA_OUTPUT),
 	HDA_BIND_MUTE("Front Playback Switch", 0x0f, 2, HDA_INPUT),
 	HDA_CODEC_VOLUME("Surround Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
@@ -3926,7 +3917,6 @@ static struct snd_kcontrol_new alc260_capture_mixer[] = {
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		/* The multiple "Capture Source" controls confuse alsamixer
 		 * So call somewhat different..
-		 * FIXME: the controls appear in the "playback" view!
 		 */
 		/* .name = "Capture Source", */
 		.name = "Input Source",
@@ -3945,7 +3935,6 @@ static struct snd_kcontrol_new alc260_capture_alt_mixer[] = {
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		/* The multiple "Capture Source" controls confuse alsamixer
 		 * So call somewhat different..
-		 * FIXME: the controls appear in the "playback" view!
 		 */
 		/* .name = "Capture Source", */
 		.name = "Input Source",
@@ -5801,7 +5790,6 @@ static struct snd_kcontrol_new alc882_capture_alt_mixer[] = {
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		/* The multiple "Capture Source" controls confuse alsamixer
 		 * So call somewhat different..
-		 * FIXME: the controls appear in the "playback" view!
 		 */
 		/* .name = "Capture Source", */
 		.name = "Input Source",
@@ -5824,7 +5812,6 @@ static struct snd_kcontrol_new alc882_capture_mixer[] = {
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		/* The multiple "Capture Source" controls confuse alsamixer
 		 * So call somewhat different..
-		 * FIXME: the controls appear in the "playback" view!
 		 */
 		/* .name = "Capture Source", */
 		.name = "Input Source",
@@ -7403,7 +7390,6 @@ static struct snd_kcontrol_new alc883_capture_mixer[] = {
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		/* The multiple "Capture Source" controls confuse alsamixer
 		 * So call somewhat different..
-		 * FIXME: the controls appear in the "playback" view!
 		 */
 		/* .name = "Capture Source", */
 		.name = "Input Source",
@@ -9548,7 +9534,6 @@ static struct snd_kcontrol_new alc268_capture_alt_mixer[] = {
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		/* The multiple "Capture Source" controls confuse alsamixer
 		 * So call somewhat different..
-		 * FIXME: the controls appear in the "playback" view!
 		 */
 		/* .name = "Capture Source", */
 		.name = "Input Source",
@@ -9569,7 +9554,6 @@ static struct snd_kcontrol_new alc268_capture_mixer[] = {
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		/* The multiple "Capture Source" controls confuse alsamixer
 		 * So call somewhat different..
-		 * FIXME: the controls appear in the "playback" view!
 		 */
 		/* .name = "Capture Source", */
 		.name = "Input Source",
@@ -10055,7 +10039,6 @@ static struct snd_kcontrol_new alc269_capture_mixer[] = {
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		/* The multiple "Capture Source" controls confuse alsamixer
 		 * So call somewhat different..
-		 * FIXME: the controls appear in the "playback" view!
 		 */
 		/* .name = "Capture Source", */
 		.name = "Input Source",
@@ -11188,7 +11171,6 @@ static struct snd_kcontrol_new alc861_capture_mixer[] = {
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		/* The multiple "Capture Source" controls confuse alsamixer
 		 * So call somewhat different..
-		 *FIXME: the controls appear in the "playback" view!
 		 */
 		/* .name = "Capture Source", */
 		.name = "Input Source",
@@ -11675,7 +11657,6 @@ static struct snd_kcontrol_new alc861vd_capture_mixer[] = {
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		/* The multiple "Capture Source" controls confuse alsamixer
 		 * So call somewhat different..
-		 *FIXME: the controls appear in the "playback" view!
 		 */
 		/* .name = "Capture Source", */
 		.name = "Input Source",
@@ -12916,7 +12897,6 @@ static struct snd_kcontrol_new alc662_capture_mixer[] = {
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		/* The multiple "Capture Source" controls confuse alsamixer
 		 * So call somewhat different..
-		 * FIXME: the controls appear in the "playback" view!
 		 */
 		/* .name = "Capture Source", */
 		.name = "Input Source",
