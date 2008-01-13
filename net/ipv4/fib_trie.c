@@ -980,8 +980,7 @@ static struct node *trie_rebalance(struct trie *t, struct tnode *tn)
 
 /* only used from updater-side */
 
-static  struct list_head *
-fib_insert_node(struct trie *t, int *err, u32 key, int plen)
+static struct list_head *fib_insert_node(struct trie *t, u32 key, int plen)
 {
 	int pos, newpos;
 	struct tnode *tp = NULL, *tn = NULL;
@@ -1043,10 +1042,8 @@ fib_insert_node(struct trie *t, int *err, u32 key, int plen)
 
 		li = leaf_info_new(plen);
 
-		if (!li) {
-			*err = -ENOMEM;
-			goto done;
-		}
+		if (!li)
+			return NULL;
 
 		fa_head = &li->falh;
 		insert_leaf_info(&l->list, li);
@@ -1055,18 +1052,15 @@ fib_insert_node(struct trie *t, int *err, u32 key, int plen)
 	t->size++;
 	l = leaf_new();
 
-	if (!l) {
-		*err = -ENOMEM;
-		goto done;
-	}
+	if (!l)
+		return NULL;
 
 	l->key = key;
 	li = leaf_info_new(plen);
 
 	if (!li) {
 		tnode_free((struct tnode *) l);
-		*err = -ENOMEM;
-		goto done;
+		return NULL;
 	}
 
 	fa_head = &li->falh;
@@ -1102,8 +1096,7 @@ fib_insert_node(struct trie *t, int *err, u32 key, int plen)
 		if (!tn) {
 			free_leaf_info(li);
 			tnode_free((struct tnode *) l);
-			*err = -ENOMEM;
-			goto done;
+			return NULL;
 		}
 
 		node_set_parent((struct node *)tn, tp);
@@ -1262,10 +1255,11 @@ static int fn_trie_insert(struct fib_table *tb, struct fib_config *cfg)
 	 */
 
 	if (!fa_head) {
-		err = 0;
-		fa_head = fib_insert_node(t, &err, key, plen);
-		if (err)
+		fa_head = fib_insert_node(t, key, plen);
+		if (unlikely(!fa_head)) {
+			err = -ENOMEM;
 			goto out_free_new_fa;
+		}
 	}
 
 	list_add_tail_rcu(&new_fa->fa_list,
