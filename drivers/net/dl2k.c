@@ -1453,7 +1453,7 @@ mii_wait_link (struct net_device *dev, int wait)
 static int
 mii_get_media (struct net_device *dev)
 {
-	ANAR_t negotiate;
+	__u16 negotiate;
 	BMSR_t bmsr;
 	MSCR_t mscr;
 	MSSR_t mssr;
@@ -1469,7 +1469,7 @@ mii_get_media (struct net_device *dev)
 			/* Auto-Negotiation not completed */
 			return -1;
 		}
-		negotiate.image = mii_read (dev, phy_addr, MII_ANAR) &
+		negotiate = mii_read (dev, phy_addr, MII_ANAR) &
 			mii_read (dev, phy_addr, MII_ANLPAR);
 		mscr.image = mii_read (dev, phy_addr, MII_MSCR);
 		mssr.image = mii_read (dev, phy_addr, MII_MSSR);
@@ -1481,27 +1481,27 @@ mii_get_media (struct net_device *dev)
 			np->speed = 1000;
 			np->full_duplex = 0;
 			printk (KERN_INFO "Auto 1000 Mbps, Half duplex\n");
-		} else if (negotiate.bits.media_100BX_FD) {
+		} else if (negotiate & MII_ANAR_100BX_FD) {
 			np->speed = 100;
 			np->full_duplex = 1;
 			printk (KERN_INFO "Auto 100 Mbps, Full duplex\n");
-		} else if (negotiate.bits.media_100BX_HD) {
+		} else if (negotiate & MII_ANAR_100BX_HD) {
 			np->speed = 100;
 			np->full_duplex = 0;
 			printk (KERN_INFO "Auto 100 Mbps, Half duplex\n");
-		} else if (negotiate.bits.media_10BT_FD) {
+		} else if (negotiate & MII_ANAR_10BT_FD) {
 			np->speed = 10;
 			np->full_duplex = 1;
 			printk (KERN_INFO "Auto 10 Mbps, Full duplex\n");
-		} else if (negotiate.bits.media_10BT_HD) {
+		} else if (negotiate & MII_ANAR_10BT_HD) {
 			np->speed = 10;
 			np->full_duplex = 0;
 			printk (KERN_INFO "Auto 10 Mbps, Half duplex\n");
 		}
-		if (negotiate.bits.pause) {
+		if (negotiate & MII_ANAR_PAUSE) {
 			np->tx_flow &= 1;
 			np->rx_flow &= 1;
-		} else if (negotiate.bits.asymmetric) {
+		} else if (negotiate & MII_ANAR_ASYMMETRIC) {
 			np->tx_flow = 0;
 			np->rx_flow &= 1;
 		}
@@ -1542,7 +1542,7 @@ mii_set_media (struct net_device *dev)
 	PHY_SCR_t pscr;
 	__u16 bmcr;
 	BMSR_t bmsr;
-	ANAR_t anar;
+	__u16 anar;
 	int phy_addr;
 	struct netdev_private *np;
 	np = netdev_priv(dev);
@@ -1552,15 +1552,24 @@ mii_set_media (struct net_device *dev)
 	if (np->an_enable) {
 		/* Advertise capabilities */
 		bmsr.image = mii_read (dev, phy_addr, MII_BMSR);
-		anar.image = mii_read (dev, phy_addr, MII_ANAR);
-		anar.bits.media_100BX_FD = bmsr.bits.media_100BX_FD;
-		anar.bits.media_100BX_HD = bmsr.bits.media_100BX_HD;
-		anar.bits.media_100BT4 = bmsr.bits.media_100BT4;
-		anar.bits.media_10BT_FD = bmsr.bits.media_10BT_FD;
-		anar.bits.media_10BT_HD = bmsr.bits.media_10BT_HD;
-		anar.bits.pause = 1;
-		anar.bits.asymmetric = 1;
-		mii_write (dev, phy_addr, MII_ANAR, anar.image);
+		anar = mii_read (dev, phy_addr, MII_ANAR) &
+			     ~MII_ANAR_100BX_FD &
+			     ~MII_ANAR_100BX_HD &
+			     ~MII_ANAR_100BT4 &
+			     ~MII_ANAR_10BT_FD &
+			     ~MII_ANAR_10BT_HD;
+		if (bmsr.bits.media_100BX_FD)
+			anar |= MII_ANAR_100BX_FD;
+		if (bmsr.bits.media_100BX_HD)
+			anar |= MII_ANAR_100BX_HD;
+		if (bmsr.bits.media_100BT4)
+			anar |= MII_ANAR_100BT4;
+		if (bmsr.bits.media_10BT_FD)
+			anar |= MII_ANAR_10BT_FD;
+		if (bmsr.bits.media_10BT_HD)
+			anar |= MII_ANAR_10BT_HD;
+		anar |= MII_ANAR_PAUSE | MII_ANAR_ASYMMETRIC;
+		mii_write (dev, phy_addr, MII_ANAR, anar);
 
 		/* Enable Auto crossover */
 		pscr.image = mii_read (dev, phy_addr, MII_PHY_SCR);
@@ -1621,7 +1630,7 @@ mii_set_media (struct net_device *dev)
 static int
 mii_get_media_pcs (struct net_device *dev)
 {
-	ANAR_PCS_t negotiate;
+	__u16 negotiate;
 	BMSR_t bmsr;
 	int phy_addr;
 	struct netdev_private *np;
@@ -1635,20 +1644,20 @@ mii_get_media_pcs (struct net_device *dev)
 			/* Auto-Negotiation not completed */
 			return -1;
 		}
-		negotiate.image = mii_read (dev, phy_addr, PCS_ANAR) &
+		negotiate = mii_read (dev, phy_addr, PCS_ANAR) &
 			mii_read (dev, phy_addr, PCS_ANLPAR);
 		np->speed = 1000;
-		if (negotiate.bits.full_duplex) {
+		if (negotiate & PCS_ANAR_FULL_DUPLEX) {
 			printk (KERN_INFO "Auto 1000 Mbps, Full duplex\n");
 			np->full_duplex = 1;
 		} else {
 			printk (KERN_INFO "Auto 1000 Mbps, half duplex\n");
 			np->full_duplex = 0;
 		}
-		if (negotiate.bits.pause) {
+		if (negotiate & PCS_ANAR_PAUSE) {
 			np->tx_flow &= 1;
 			np->rx_flow &= 1;
-		} else if (negotiate.bits.asymmetric) {
+		} else if (negotiate & PCS_ANAR_ASYMMETRIC) {
 			np->tx_flow = 0;
 			np->rx_flow &= 1;
 		}
@@ -1679,7 +1688,7 @@ mii_set_media_pcs (struct net_device *dev)
 {
 	__u16 bmcr;
 	ESR_t esr;
-	ANAR_PCS_t anar;
+	__u16 anar;
 	int phy_addr;
 	struct netdev_private *np;
 	np = netdev_priv(dev);
@@ -1689,14 +1698,15 @@ mii_set_media_pcs (struct net_device *dev)
 	if (np->an_enable) {
 		/* Advertise capabilities */
 		esr.image = mii_read (dev, phy_addr, PCS_ESR);
-		anar.image = mii_read (dev, phy_addr, MII_ANAR);
-		anar.bits.half_duplex =
-			esr.bits.media_1000BT_HD | esr.bits.media_1000BX_HD;
-		anar.bits.full_duplex =
-			esr.bits.media_1000BT_FD | esr.bits.media_1000BX_FD;
-		anar.bits.pause = 1;
-		anar.bits.asymmetric = 1;
-		mii_write (dev, phy_addr, MII_ANAR, anar.image);
+		anar = mii_read (dev, phy_addr, MII_ANAR) &
+			~PCS_ANAR_HALF_DUPLEX &
+			~PCS_ANAR_FULL_DUPLEX;
+		if (esr.bits.media_1000BT_HD | esr.bits.media_1000BX_HD)
+			anar |= PCS_ANAR_HALF_DUPLEX;
+		if (esr.bits.media_1000BT_FD | esr.bits.media_1000BX_FD)
+			anar |= PCS_ANAR_FULL_DUPLEX;
+		anar |= PCS_ANAR_PAUSE | PCS_ANAR_ASYMMETRIC;
+		mii_write (dev, phy_addr, MII_ANAR, anar);
 
 		/* Soft reset PHY */
 		mii_write (dev, phy_addr, MII_BMCR, MII_BMCR_RESET);

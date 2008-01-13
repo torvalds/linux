@@ -357,24 +357,6 @@ enum _mii_bmsr {
 };
 
 /* ANAR */
-typedef union t_MII_ANAR {
-	u16 image;
-	struct {
-		u16 selector:5;	// bit 4:0
-		u16 media_10BT_HD:1;	// bit 5
-		u16 media_10BT_FD:1;	// bit 6
-		u16 media_100BX_HD:1;	// bit 7
-		u16 media_100BX_FD:1;	// bit 8
-		u16 media_100BT4:1;	// bit 9
-		u16 pause:1;	// bit 10
-		u16 asymmetric:1;	// bit 11
-		u16 _bit12:1;	// bit 12
-		u16 remote_fault:1;	// bit 13
-		u16 _bit14:1;	// bit 14
-		u16 next_page:1;	// bit 15
-	} bits;
-} ANAR_t, *PANAR_t;
-
 enum _mii_anar {
 	MII_ANAR_NEXT_PAGE = 0x8000,
 	MII_ANAR_REMOTE_FAULT = 0x4000,
@@ -390,24 +372,6 @@ enum _mii_anar {
 };
 
 /* ANLPAR */
-typedef union t_MII_ANLPAR {
-	u16 image;
-	struct {
-		u16 selector:5;	// bit 4:0
-		u16 media_10BT_HD:1;	// bit 5
-		u16 media_10BT_FD:1;	// bit 6
-		u16 media_100BX_HD:1;	// bit 7
-		u16 media_100BX_FD:1;	// bit 8
-		u16 media_100BT4:1;	// bit 9
-		u16 pause:1;	// bit 10
-		u16 asymmetric:1;	// bit 11
-		u16 _bit12:1;	// bit 12
-		u16 remote_fault:1;	// bit 13
-		u16 _bit14:1;	// bit 14
-		u16 next_page:1;	// bit 15
-	} bits;
-} ANLPAR_t, *PANLPAR_t;
-
 enum _mii_anlpar {
 	MII_ANLPAR_NEXT_PAGE = MII_ANAR_NEXT_PAGE,
 	MII_ANLPAR_REMOTE_FAULT = MII_ANAR_REMOTE_FAULT,
@@ -539,21 +503,6 @@ typedef enum t_MII_ADMIN_STATUS {
 /* PCS control and status registers bitmap as the same as MII */
 /* PCS Extended Status register bitmap as the same as MII */
 /* PCS ANAR */
-typedef union t_PCS_ANAR {
-	u16 image;
-	struct {
-		u16 _bit_4_0:5;		// bit 4:0
-		u16 full_duplex:1;	// bit 5
-		u16 half_duplex:1;	// bit 6
-		u16 asymmetric:1;	// bit 7
-		u16 pause:1;		// bit 8
-		u16 _bit_11_9:3;	// bit 11:9
-		u16 remote_fault:2;	// bit 13:12
-		u16 _bit_14:1;		// bit 14
-		u16 next_page:1;	// bit 15
-	} bits;
-} ANAR_PCS_t, *PANAR_PCS_t;
-
 enum _pcs_anar {
 	PCS_ANAR_NEXT_PAGE = 0x8000,
 	PCS_ANAR_REMOTE_FAULT = 0x3000,
@@ -563,21 +512,6 @@ enum _pcs_anar {
 	PCS_ANAR_FULL_DUPLEX = 0x0020,
 };
 /* PCS ANLPAR */
-typedef union t_PCS_ANLPAR {
-	u16 image;
-	struct {
-		u16 _bit_4_0:5;		// bit 4:0
-		u16 full_duplex:1;	// bit 5
-		u16 half_duplex:1;	// bit 6
-		u16 asymmetric:1;	// bit 7
-		u16 pause:1;		// bit 8
-		u16 _bit_11_9:3;	// bit 11:9
-		u16 remote_fault:2;	// bit 13:12
-		u16 _bit_14:1;		// bit 14
-		u16 next_page:1;	// bit 15
-	} bits;
-} ANLPAR_PCS_t, *PANLPAR_PCS_t;
-
 enum _pcs_anlpar {
 	PCS_ANLPAR_NEXT_PAGE = PCS_ANAR_NEXT_PAGE,
 	PCS_ANLPAR_REMOTE_FAULT = PCS_ANAR_REMOTE_FAULT,
