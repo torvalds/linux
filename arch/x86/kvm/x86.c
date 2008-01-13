@@ -2187,12 +2187,6 @@ int kvm_arch_init(void *opaque)
 	int r;
 	struct kvm_x86_ops *ops = (struct kvm_x86_ops *)opaque;
 
-	r = kvm_mmu_module_init();
-	if (r)
-		goto out_fail;
-
-	kvm_init_msr_list();
-
 	if (kvm_x86_ops) {
 		printk(KERN_ERR "kvm: already loaded the other module\n");
 		r = -EEXIST;
@@ -2210,13 +2204,17 @@ int kvm_arch_init(void *opaque)
 		goto out;
 	}
 
+	r = kvm_mmu_module_init();
+	if (r)
+		goto out;
+
+	kvm_init_msr_list();
+
 	kvm_x86_ops = ops;
 	kvm_mmu_set_nonpresent_ptes(0ull, 0ull);
 	return 0;
 
 out:
-	kvm_mmu_module_exit();
-out_fail:
 	return r;
 }
 
