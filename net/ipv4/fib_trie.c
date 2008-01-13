@@ -876,19 +876,6 @@ nomem:
 	}
 }
 
-static void trie_init(struct trie *t)
-{
-	if (!t)
-		return;
-
-	t->size = 0;
-	rcu_assign_pointer(t->trie, NULL);
-	t->revision = 0;
-#ifdef CONFIG_IP_FIB_TRIE_STATS
-	memset(&t->stats, 0, sizeof(struct trie_use_stats));
-#endif
-}
-
 /* readside must use rcu_read_lock currently dump routines
  via get_fa_head and dump */
 
@@ -1980,11 +1967,9 @@ struct fib_table *fib_hash_init(u32 id)
 	tb->tb_flush = fn_trie_flush;
 	tb->tb_select_default = fn_trie_select_default;
 	tb->tb_dump = fn_trie_dump;
-	memset(tb->tb_data, 0, sizeof(struct trie));
 
 	t = (struct trie *) tb->tb_data;
-
-	trie_init(t);
+	memset(t, 0, sizeof(*t));
 
 	if (id == RT_TABLE_LOCAL)
 		printk(KERN_INFO "IPv4 FIB: Using LC-trie version %s\n", VERSION);
