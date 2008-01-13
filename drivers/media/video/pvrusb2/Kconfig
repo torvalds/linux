@@ -5,6 +5,10 @@ config VIDEO_PVRUSB2
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
 	select VIDEO_CX2341X
+	select VIDEO_SAA711X
+	select VIDEO_CX25840
+	select VIDEO_MSP3400
+	select VIDEO_WM8775
 	---help---
 	  This is a video4linux driver for Conexant 23416 based
 	  usb2 personal video recorder devices.
