@@ -1435,7 +1435,7 @@ mii_write (struct net_device *dev, int phy_addr, int reg_num, u16 data)
 static int
 mii_wait_link (struct net_device *dev, int wait)
 {
-	BMSR_t bmsr;
+	__u16 bmsr;
 	int phy_addr;
 	struct netdev_private *np;
 
@@ -1443,8 +1443,8 @@ mii_wait_link (struct net_device *dev, int wait)
 	phy_addr = np->phy_addr;
 
 	do {
-		bmsr.image = mii_read (dev, phy_addr, MII_BMSR);
-		if (bmsr.bits.link_status)
+		bmsr = mii_read (dev, phy_addr, MII_BMSR);
+		if (bmsr & MII_BMSR_LINK_STATUS)
 			return 0;
 		mdelay (1);
 	} while (--wait > 0);
@@ -1454,7 +1454,7 @@ static int
 mii_get_media (struct net_device *dev)
 {
 	__u16 negotiate;
-	BMSR_t bmsr;
+	__u16 bmsr;
 	MSCR_t mscr;
 	MSSR_t mssr;
 	int phy_addr;
@@ -1463,9 +1463,9 @@ mii_get_media (struct net_device *dev)
 	np = netdev_priv(dev);
 	phy_addr = np->phy_addr;
 
-	bmsr.image = mii_read (dev, phy_addr, MII_BMSR);
+	bmsr = mii_read (dev, phy_addr, MII_BMSR);
 	if (np->an_enable) {
-		if (!bmsr.bits.an_complete) {
+		if (!(bmsr & MII_BMSR_AN_COMPLETE)) {
 			/* Auto-Negotiation not completed */
 			return -1;
 		}
@@ -1541,7 +1541,7 @@ mii_set_media (struct net_device *dev)
 {
 	PHY_SCR_t pscr;
 	__u16 bmcr;
-	BMSR_t bmsr;
+	__u16 bmsr;
 	__u16 anar;
 	int phy_addr;
 	struct netdev_private *np;
@@ -1551,22 +1551,22 @@ mii_set_media (struct net_device *dev)
 	/* Does user set speed? */
 	if (np->an_enable) {
 		/* Advertise capabilities */
-		bmsr.image = mii_read (dev, phy_addr, MII_BMSR);
+		bmsr = mii_read (dev, phy_addr, MII_BMSR);
 		anar = mii_read (dev, phy_addr, MII_ANAR) &
 			     ~MII_ANAR_100BX_FD &
 			     ~MII_ANAR_100BX_HD &
 			     ~MII_ANAR_100BT4 &
 			     ~MII_ANAR_10BT_FD &
 			     ~MII_ANAR_10BT_HD;
-		if (bmsr.bits.media_100BX_FD)
+		if (bmsr & MII_BMSR_100BX_FD)
 			anar |= MII_ANAR_100BX_FD;
-		if (bmsr.bits.media_100BX_HD)
+		if (bmsr & MII_BMSR_100BX_HD)
 			anar |= MII_ANAR_100BX_HD;
-		if (bmsr.bits.media_100BT4)
+		if (bmsr & MII_BMSR_100BT4)
 			anar |= MII_ANAR_100BT4;
-		if (bmsr.bits.media_10BT_FD)
+		if (bmsr & MII_BMSR_10BT_FD)
 			anar |= MII_ANAR_10BT_FD;
-		if (bmsr.bits.media_10BT_HD)
+		if (bmsr & MII_BMSR_10BT_HD)
 			anar |= MII_ANAR_10BT_HD;
 		anar |= MII_ANAR_PAUSE | MII_ANAR_ASYMMETRIC;
 		mii_write (dev, phy_addr, MII_ANAR, anar);
@@ -1631,16 +1631,16 @@ static int
 mii_get_media_pcs (struct net_device *dev)
 {
 	__u16 negotiate;
-	BMSR_t bmsr;
+	__u16 bmsr;
 	int phy_addr;
 	struct netdev_private *np;
 
 	np = netdev_priv(dev);
 	phy_addr = np->phy_addr;
 
-	bmsr.image = mii_read (dev, phy_addr, PCS_BMSR);
+	bmsr = mii_read (dev, phy_addr, PCS_BMSR);
 	if (np->an_enable) {
-		if (!bmsr.bits.an_complete) {
+		if (!(bmsr & MII_BMSR_AN_COMPLETE)) {
 			/* Auto-Negotiation not completed */
 			return -1;
 		}

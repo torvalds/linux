@@ -316,28 +316,6 @@ enum _mii_bmcr {
 };
 
 /* Basic Mode Status Register */
-typedef union t_MII_BMSR {
-	u16 image;
-	struct {
-		u16 ext_capability:1;	// bit 0
-		u16 japper_detect:1;	// bit 1
-		u16 link_status:1;	// bit 2
-		u16 an_ability:1;	// bit 3
-		u16 remote_fault:1;	// bit 4
-		u16 an_complete:1;	// bit 5
-		u16 preamble_supp:1;	// bit 6
-		u16 _bit_7:1;	// bit 7
-		u16 ext_status:1;	// bit 8
-		u16 media_100BT2_HD:1;	// bit 9
-		u16 media_100BT2_FD:1;	// bit 10
-		u16 media_10BT_HD:1;	// bit 11
-		u16 media_10BT_FD:1;	// bit 12
-		u16 media_100BX_HD:1;	// bit 13
-		u16 media_100BX_FD:1;	// bit 14
-		u16 media_100BT4:1;	// bit 15
-	} bits;
-} BMSR_t, *PBMSR_t;
-
 enum _mii_bmsr {
 	MII_BMSR_100BT4 = 0x8000,
 	MII_BMSR_100BX_FD = 0x4000,
