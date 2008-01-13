@@ -574,7 +574,7 @@ static void hptiop_finish_scsi_req(struct hptiop_hba *hba, u32 tag,
 			scsi_bufflen(scp) - le32_to_cpu(req->dataxfer_length));
 		scp->result = SAM_STAT_CHECK_CONDITION;
 		memcpy(&scp->sense_buffer, &req->sg_list,
-				min_t(size_t, sizeof(scp->sense_buffer),
+				min_t(size_t, SCSI_SENSE_BUFFERSIZE,
 					le32_to_cpu(req->dataxfer_length)));
 		break;
 

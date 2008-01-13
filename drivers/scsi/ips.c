@@ -3433,13 +3433,11 @@ ips_map_status(ips_ha_t * ha, ips_scb_t * scb, ips_stat_t * sp)
 					    (IPS_DCDB_TABLE_TAPE *) & scb->dcdb;
 					memcpy(scb->scsi_cmd->sense_buffer,
 					       tapeDCDB->sense_info,
-					       sizeof (scb->scsi_cmd->
-						       sense_buffer));
+					       SCSI_SENSE_BUFFERSIZE);
 				} else {
 					memcpy(scb->scsi_cmd->sense_buffer,
 					       scb->dcdb.sense_info,
-					       sizeof (scb->scsi_cmd->
-						       sense_buffer));
+					       SCSI_SENSE_BUFFERSIZE);
 				}
 				device_error = 2;	/* check condition */
 			}

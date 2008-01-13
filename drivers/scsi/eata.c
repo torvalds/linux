@@ -1623,9 +1623,9 @@ static void map_dma(unsigned int i, struct hostdata *ha)
 	if (SCpnt->sense_buffer)
 		cpp->sense_addr =
 		    H2DEV(pci_map_single(ha->pdev, SCpnt->sense_buffer,
-			   sizeof SCpnt->sense_buffer, PCI_DMA_FROMDEVICE));
+			   SCSI_SENSE_BUFFERSIZE, PCI_DMA_FROMDEVICE));
 
-	cpp->sense_len = sizeof SCpnt->sense_buffer;
+	cpp->sense_len = SCSI_SENSE_BUFFERSIZE;
 
 	count = scsi_dma_map(SCpnt);
 	BUG_ON(count < 0);

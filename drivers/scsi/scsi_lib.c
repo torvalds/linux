@@ -441,7 +441,7 @@ static void scsi_init_cmd_errh(struct scsi_cmnd *cmd)
 {
 	cmd->serial_number = 0;
 	cmd->resid = 0;
-	memset(cmd->sense_buffer, 0, sizeof cmd->sense_buffer);
+	memset(cmd->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
 	if (cmd->cmd_len == 0)
 		cmd->cmd_len = COMMAND_SIZE(cmd->cmnd[0]);
 }
