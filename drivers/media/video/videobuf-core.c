@@ -102,10 +102,14 @@ int videobuf_iolock(struct videobuf_queue *q, struct videobuf_buffer *vb,
 	   since mmap_mapper() method should be called before _iolock.
 	   On some cases, the mmap_mapper() is called only after scheduling.
 	 */
-	wait_event_timeout(vb->done, q->is_mmapped, msecs_to_jiffies(100));
-	if (!q->is_mmapped) {
-		printk(KERN_ERR "Error: mmap_mapper() never called!\n");
-		return -EINVAL;
+	if (vb->memory == V4L2_MEMORY_MMAP) {
+		wait_event_timeout(vb->done, q->is_mmapped,
+				   msecs_to_jiffies(100));
+		if (!q->is_mmapped) {
+			printk(KERN_ERR
+			       "Error: mmap_mapper() never called!\n");
+			return -EINVAL;
+		}
 	}
 
 	return CALL(q, iolock, q, vb, fbuf);
