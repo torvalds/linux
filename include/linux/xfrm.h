@@ -92,7 +92,7 @@ struct xfrm_replay_state
 
 struct xfrm_algo {
 	char	alg_name[64];
-	int	alg_key_len;    /* in bits */
+	unsigned int	alg_key_len;    /* in bits */
 	char	alg_key[0];
 };
 
