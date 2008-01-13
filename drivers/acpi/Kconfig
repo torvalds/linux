@@ -82,6 +82,12 @@ config ACPI_PROCFS_POWER
 	  and functions, which do not yet exist in /sys
 
 	  Say N to delete power /proc/acpi/ folders that have moved to /sys/
+config ACPI_SYSFS_POWER
+	bool "Future power /sys interface"
+	select POWER_SUPPLY
+	default y
+	---help---
+	  Say N to disable power /sys interface
 config ACPI_PROC_EVENT
 	bool "Deprecated /proc/acpi/event support"
 	depends on PROC_FS
@@ -103,7 +109,6 @@ config ACPI_PROC_EVENT
 config ACPI_AC
 	tristate "AC Adapter"
 	depends on X86
-	select POWER_SUPPLY
 	default y
 	help
 	  This driver adds support for the AC Adapter object, which indicates
@@ -113,7 +118,6 @@ config ACPI_AC
 config ACPI_BATTERY
 	tristate "Battery"
 	depends on X86
-	select POWER_SUPPLY
 	default y
 	help
 	  This driver adds support for battery information through
@@ -368,7 +372,6 @@ config ACPI_HOTPLUG_MEMORY
 config ACPI_SBS
 	tristate "Smart Battery System"
 	depends on X86
-	select POWER_SUPPLY
 	help
 	  This driver adds support for the Smart Battery System, another
 	  type of access to battery information, found on some laptops.

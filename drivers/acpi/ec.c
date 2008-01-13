@@ -892,6 +892,17 @@ static int acpi_ec_stop(struct acpi_device *device, int type)
 	return 0;
 }
 
+int __init acpi_boot_ec_enable(void)
+{
+	if (!boot_ec || boot_ec->handlers_installed)
+		return 0;
+	if (!ec_install_handlers(boot_ec)) {
+		first_ec = boot_ec;
+		return 0;
+	}
+	return -EFAULT;
+}
+
 int __init acpi_ec_ecdt_probe(void)
 {
 	int ret;
@@ -924,9 +935,10 @@ int __init acpi_ec_ecdt_probe(void)
 			goto error;
 		/* We really need to limit this workaround, the only ASUS,
 		 * which needs it, has fake EC._INI method, so use it as flag.
+		 * Keep boot_ec struct as it will be needed soon.
 		 */
 		if (ACPI_FAILURE(acpi_get_handle(boot_ec->handle, "_INI", &x)))
-			goto error;
+			return -ENODEV;
 	}
 
 	ret = ec_install_handlers(boot_ec);

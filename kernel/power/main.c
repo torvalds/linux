@@ -28,6 +28,9 @@ BLOCKING_NOTIFIER_HEAD(pm_chain_head);
 
 DEFINE_MUTEX(pm_mutex);
 
+unsigned int pm_flags;
+EXPORT_SYMBOL(pm_flags);
+
 #ifdef CONFIG_SUSPEND
 
 /* This is just an arbitrary number */

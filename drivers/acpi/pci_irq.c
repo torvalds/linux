@@ -429,6 +429,15 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 					  &polarity, &link,
 					  acpi_pci_allocate_irq);
 
+	if (irq < 0) {
+		/*
+		 * IDE legacy mode controller IRQs are magic. Why do compat
+		 * extensions always make such a nasty mess.
+		 */
+		if (dev->class >> 8 == PCI_CLASS_STORAGE_IDE &&
+				(dev->class & 0x05) == 0)
+			return 0;
+	}
 	/*
 	 * No IRQ known to the ACPI subsystem - maybe the BIOS / 
 	 * driver reported one, then use it. Exit in any case.
