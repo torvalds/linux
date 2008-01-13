@@ -243,14 +243,16 @@ enum eeprom_offset {
 enum Window3 {			/* Window 3: MAC/config bits. */
 	Wn3_Config = 0, Wn3_MAC_Ctrl = 6, Wn3_Options = 8,
 };
-union wn3_config {
-	int i;
-	struct w3_config_fields {
-		unsigned int ram_size:3, ram_width:1, ram_speed:2, rom_size:2;
-		int pad8:8;
-		unsigned int ram_split:2, pad18:2, xcvr:3, pad21:1, autoselect:1;
-		int pad24:7;
-	} u;
+enum wn3_config {
+	Ram_size = 7,
+	Ram_width = 8,
+	Ram_speed = 0x30,
+	Rom_size = 0xc0,
+	Ram_split_shift = 16,
+	Ram_split = 3 << Ram_split_shift,
+	Xcvr_shift = 20,
+	Xcvr = 7 << Xcvr_shift,
+	Autoselect = 0x1000000,
 };
 
 enum Window4 {
@@ -614,7 +616,7 @@ static int corkscrew_setup(struct net_device *dev, int ioaddr,
 	/* Read the station address from the EEPROM. */
 	EL3WINDOW(0);
 	for (i = 0; i < 0x18; i++) {
-		short *phys_addr = (short *) dev->dev_addr;
+		__be16 *phys_addr = (__be16 *) dev->dev_addr;
 		int timer;
 		outw(EEPROM_Read + i, ioaddr + Wn0EepromCmd);
 		/* Pause for at least 162 us. for the read to take place. */
@@ -646,22 +648,22 @@ static int corkscrew_setup(struct net_device *dev, int ioaddr,
 
 	{
 		char *ram_split[] = { "5:3", "3:1", "1:1", "3:5" };
-		union wn3_config config;
+		__u32 config;
 		EL3WINDOW(3);
 		vp->available_media = inw(ioaddr + Wn3_Options);
-		config.i = inl(ioaddr + Wn3_Config);
+		config = inl(ioaddr + Wn3_Config);
 		if (corkscrew_debug > 1)
 			printk(KERN_INFO "  Internal config register is %4.4x, transceivers %#x.\n",
-				config.i, inw(ioaddr + Wn3_Options));
+				config, inw(ioaddr + Wn3_Options));
 		printk(KERN_INFO "  %dK %s-wide RAM %s Rx:Tx split, %s%s interface.\n",
-			8 << config.u.ram_size,
-			config.u.ram_width ? "word" : "byte",
-			ram_split[config.u.ram_split],
-			config.u.autoselect ? "autoselect/" : "",
-			media_tbl[config.u.xcvr].name);
-		dev->if_port = config.u.xcvr;
-		vp->default_media = config.u.xcvr;
-		vp->autoselect = config.u.autoselect;
+			8 << config & Ram_size,
+			config & Ram_width ? "word" : "byte",
+			ram_split[(config & Ram_split) >> Ram_split_shift],
+			config & Autoselect ? "autoselect/" : "",
+			media_tbl[(config & Xcvr) >> Xcvr_shift].name);
+		vp->default_media = (config & Xcvr) >> Xcvr_shift;
+		vp->autoselect = config & Autoselect ? 1 : 0;
+		dev->if_port = vp->default_media;
 	}
 	if (vp->media_override != 7) {
 		printk(KERN_INFO "  Media override to transceiver type %d (%s).\n",
@@ -694,14 +696,14 @@ static int corkscrew_open(struct net_device *dev)
 {
 	int ioaddr = dev->base_addr;
 	struct corkscrew_private *vp = netdev_priv(dev);
-	union wn3_config config;
+	__u32 config;
 	int i;
 
 	/* Before initializing select the active media port. */
 	EL3WINDOW(3);
 	if (vp->full_duplex)
 		outb(0x20, ioaddr + Wn3_MAC_Ctrl);	/* Set the full-duplex bit. */
-	config.i = inl(ioaddr + Wn3_Config);
+	config = inl(ioaddr + Wn3_Config);
 
 	if (vp->media_override != 7) {
 		if (corkscrew_debug > 1)
@@ -727,12 +729,12 @@ static int corkscrew_open(struct net_device *dev)
 	} else
 		dev->if_port = vp->default_media;
 
-	config.u.xcvr = dev->if_port;
-	outl(config.i, ioaddr + Wn3_Config);
+	config = (config & ~Xcvr) | (dev->if_port << Xcvr_shift);
+	outl(config, ioaddr + Wn3_Config);
 
 	if (corkscrew_debug > 1) {
 		printk("%s: corkscrew_open() InternalConfig %8.8x.\n",
-		       dev->name, config.i);
+		       dev->name, config);
 	}
 
 	outw(TxReset, ioaddr + EL3_CMD);
@@ -901,7 +903,7 @@ static void corkscrew_timer(unsigned long data)
 			ok = 1;
 		}
 		if (!ok) {
-			union wn3_config config;
+			__u32 config;
 
 			do {
 				dev->if_port =
@@ -928,9 +930,9 @@ static void corkscrew_timer(unsigned long data)
 			     ioaddr + Wn4_Media);
 
 			EL3WINDOW(3);
-			config.i = inl(ioaddr + Wn3_Config);
-			config.u.xcvr = dev->if_port;
-			outl(config.i, ioaddr + Wn3_Config);
+			config = inl(ioaddr + Wn3_Config);
+			config = (config & ~Xcvr) | (dev->if_port << Xcvr_shift);
+			outl(config, ioaddr + Wn3_Config);
 
 			outw(dev->if_port == 3 ? StartCoax : StopCoax,
 			     ioaddr + EL3_CMD);
