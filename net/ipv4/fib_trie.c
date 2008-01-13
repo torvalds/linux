@@ -2100,13 +2100,13 @@ static void trie_show_stats(struct seq_file *seq, struct trie_stat *stat)
 	else
 		avdepth = 0;
 
-	seq_printf(seq, "\tAver depth:     %d.%02d\n", avdepth / 100, avdepth % 100 );
+	seq_printf(seq, "\tAver depth:     %u.%02d\n", avdepth / 100, avdepth % 100 );
 	seq_printf(seq, "\tMax depth:      %u\n", stat->maxdepth);
 
 	seq_printf(seq, "\tLeaves:         %u\n", stat->leaves);
 
 	bytes = sizeof(struct leaf) * stat->leaves;
-	seq_printf(seq, "\tInternal nodes: %d\n\t", stat->tnodes);
+	seq_printf(seq, "\tInternal nodes: %u\n\t", stat->tnodes);
 	bytes += sizeof(struct tnode) * stat->tnodes;
 
 	max = MAX_STAT_DEPTH;
@@ -2116,15 +2116,15 @@ static void trie_show_stats(struct seq_file *seq, struct trie_stat *stat)
 	pointers = 0;
 	for (i = 1; i <= max; i++)
 		if (stat->nodesizes[i] != 0) {
-			seq_printf(seq, "  %d: %d",  i, stat->nodesizes[i]);
+			seq_printf(seq, "  %u: %u",  i, stat->nodesizes[i]);
 			pointers += (1<<i) * stat->nodesizes[i];
 		}
 	seq_putc(seq, '\n');
-	seq_printf(seq, "\tPointers: %d\n", pointers);
+	seq_printf(seq, "\tPointers: %u\n", pointers);
 
 	bytes += sizeof(struct node *) * pointers;
-	seq_printf(seq, "Null ptrs: %d\n", stat->nullpointers);
-	seq_printf(seq, "Total size: %d  kB\n", (bytes + 1023) / 1024);
+	seq_printf(seq, "Null ptrs: %u\n", stat->nullpointers);
+	seq_printf(seq, "Total size: %u  kB\n", (bytes + 1023) / 1024);
 
 #ifdef CONFIG_IP_FIB_TRIE_STATS
 	seq_printf(seq, "Counters:\n---------\n");
@@ -2321,7 +2321,7 @@ static inline const char *rtn_type(unsigned t)
 
 	if (t < __RTN_MAX && rtn_type_names[t])
 		return rtn_type_names[t];
-	snprintf(buf, sizeof(buf), "type %d", t);
+	snprintf(buf, sizeof(buf), "type %u", t);
 	return buf;
 }
 
