@@ -33,7 +33,7 @@ xt_addr_cmp(const union xt_policy_addr *a1, const union xt_policy_addr *m,
 	return false;
 }
 
-static inline bool
+static bool
 match_xfrm_state(const struct xfrm_state *x, const struct xt_policy_elem *e,
 		 unsigned short family)
 {
