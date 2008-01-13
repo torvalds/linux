@@ -586,6 +586,11 @@ static int tda18271_calc_rf_filter_curve(struct dvb_frontend *fe)
 static int tda18271_rf_cal_init(struct dvb_frontend *fe)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
+	unsigned char *regs = priv->tda18271_regs;
+
+	/* test RF_CAL_OK to see if we need init */
+	if ((regs[R_EP1] & 0x10) == 0)
+		priv->cal_initialized = false;
 
 	if (priv->cal_initialized)
 		return 0;
