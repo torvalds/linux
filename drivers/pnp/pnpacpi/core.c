@@ -183,7 +183,7 @@ static int __init pnpacpi_add_device(struct acpi_device *device)
 	if (ACPI_SUCCESS(status))
 		dev->capabilities |= PNP_CONFIGURABLE;
 	dev->capabilities |= PNP_READ;
-	if (device->flags.dynamic_status)
+	if (device->flags.dynamic_status && (dev->capabilities & PNP_CONFIGURABLE))
 		dev->capabilities |= PNP_WRITE;
 	if (device->flags.removable)
 		dev->capabilities |= PNP_REMOVABLE;
