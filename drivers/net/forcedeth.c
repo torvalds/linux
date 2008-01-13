@@ -277,7 +277,9 @@ enum {
 #define NVREG_MCASTADDRA_FORCE	0x01
 	NvRegMulticastAddrB = 0xB4,
 	NvRegMulticastMaskA = 0xB8,
+#define NVREG_MCASTMASKA_NONE		0xffffffff
 	NvRegMulticastMaskB = 0xBC,
+#define NVREG_MCASTMASKB_NONE		0xffff
 
 	NvRegPhyInterface = 0xC0,
 #define PHY_RGMII		0x10000000
@@ -2693,6 +2695,9 @@ static void nv_set_multicast(struct net_device *dev)
 			addr[1] = alwaysOn[1];
 			mask[0] = alwaysOn[0] | alwaysOff[0];
 			mask[1] = alwaysOn[1] | alwaysOff[1];
+		} else {
+			mask[0] = NVREG_MCASTMASKA_NONE;
+			mask[1] = NVREG_MCASTMASKB_NONE;
 		}
 	}
 	addr[0] |= NVREG_MCASTADDRA_FORCE;
@@ -4803,8 +4808,8 @@ static int nv_open(struct net_device *dev)
 		nv_mac_reset(dev);
 	writel(NVREG_MCASTADDRA_FORCE, base + NvRegMulticastAddrA);
 	writel(0, base + NvRegMulticastAddrB);
-	writel(0, base + NvRegMulticastMaskA);
-	writel(0, base + NvRegMulticastMaskB);
+	writel(NVREG_MCASTMASKA_NONE, base + NvRegMulticastMaskA);
+	writel(NVREG_MCASTMASKB_NONE, base + NvRegMulticastMaskB);
 	writel(0, base + NvRegPacketFilterFlags);
 
 	writel(0, base + NvRegTransmitterControl);
@@ -4898,8 +4903,8 @@ static int nv_open(struct net_device *dev)
 	spin_lock_irq(&np->lock);
 	writel(NVREG_MCASTADDRA_FORCE, base + NvRegMulticastAddrA);
 	writel(0, base + NvRegMulticastAddrB);
-	writel(0, base + NvRegMulticastMaskA);
-	writel(0, base + NvRegMulticastMaskB);
+	writel(NVREG_MCASTMASKA_NONE, base + NvRegMulticastMaskA);
+	writel(NVREG_MCASTMASKB_NONE, base + NvRegMulticastMaskB);
 	writel(NVREG_PFF_ALWAYS|NVREG_PFF_MYADDR, base + NvRegPacketFilterFlags);
 	/* One manual link speed update: Interrupts are enabled, future link
 	 * speed changes cause interrupts and are handled by nv_link_irq().
