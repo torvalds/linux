@@ -761,9 +761,11 @@ int scsi_alloc_sgtable(struct scsi_cmnd *cmd, gfp_t gfp_mask)
 
 	BUG_ON(!cmd->use_sg);
 
-	ret = __sg_alloc_table(&cmd->sg_table, cmd->use_sg, gfp_mask, scsi_sg_alloc);
+	ret = __sg_alloc_table(&cmd->sg_table, cmd->use_sg,
+			       SCSI_MAX_SG_SEGMENTS, gfp_mask, scsi_sg_alloc);
 	if (unlikely(ret))
-		__sg_free_table(&cmd->sg_table, scsi_sg_free);
+		__sg_free_table(&cmd->sg_table, SCSI_MAX_SG_SEGMENTS,
+				scsi_sg_free);
 
 	cmd->request_buffer = cmd->sg_table.sgl;
 	return ret;
@@ -773,7 +775,7 @@ EXPORT_SYMBOL(scsi_alloc_sgtable);
 
 void scsi_free_sgtable(struct scsi_cmnd *cmd)
 {
-	__sg_free_table(&cmd->sg_table, scsi_sg_free);
+	__sg_free_table(&cmd->sg_table, SCSI_MAX_SG_SEGMENTS, scsi_sg_free);
 }
 
 EXPORT_SYMBOL(scsi_free_sgtable);

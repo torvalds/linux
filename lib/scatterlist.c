@@ -130,13 +130,17 @@ static void sg_kfree(struct scatterlist *sg, unsigned int nents)
 /**
  * __sg_free_table - Free a previously mapped sg table
  * @table:	The sg table header to use
+ * @max_ents:	The maximum number of entries per single scatterlist
  * @free_fn:	Free function
  *
  *  Description:
- *    Free an sg table previously allocated and setup with __sg_alloc_table().
+ *    Free an sg table previously allocated and setup with
+ *    __sg_alloc_table().  The @max_ents value must be identical to
+ *    that previously used with __sg_alloc_table().
  *
  **/
-void __sg_free_table(struct sg_table *table, sg_free_fn *free_fn)
+void __sg_free_table(struct sg_table *table, unsigned int max_ents,
+		     sg_free_fn *free_fn)
 {
 	struct scatterlist *sgl, *next;
 
@@ -149,14 +153,14 @@ void __sg_free_table(struct sg_table *table, sg_free_fn *free_fn)
 		unsigned int sg_size;
 
 		/*
-		 * If we have more than SG_MAX_SINGLE_ALLOC segments left,
+		 * If we have more than max_ents segments left,
 		 * then assign 'next' to the sg table after the current one.
 		 * sg_size is then one less than alloc size, since the last
 		 * element is the chain pointer.
 		 */
-		if (alloc_size > SG_MAX_SINGLE_ALLOC) {
-			next = sg_chain_ptr(&sgl[SG_MAX_SINGLE_ALLOC - 1]);
-			alloc_size = SG_MAX_SINGLE_ALLOC;
+		if (alloc_size > max_ents) {
+			next = sg_chain_ptr(&sgl[max_ents - 1]);
+			alloc_size = max_ents;
 			sg_size = alloc_size - 1;
 		} else {
 			sg_size = alloc_size;
@@ -179,7 +183,7 @@ EXPORT_SYMBOL(__sg_free_table);
  **/
 void sg_free_table(struct sg_table *table)
 {
-	__sg_free_table(table, sg_kfree);
+	__sg_free_table(table, SG_MAX_SINGLE_ALLOC, sg_kfree);
 }
 EXPORT_SYMBOL(sg_free_table);
 
@@ -187,22 +191,30 @@ EXPORT_SYMBOL(sg_free_table);
  * __sg_alloc_table - Allocate and initialize an sg table with given allocator
  * @table:	The sg table header to use
  * @nents:	Number of entries in sg list
+ * @max_ents:	The maximum number of entries the allocator returns per call
  * @gfp_mask:	GFP allocation mask
  * @alloc_fn:	Allocator to use
+ *
+ * Description:
+ *   This function returns a @table @nents long. The allocator is
+ *   defined to return scatterlist chunks of maximum size @max_ents.
+ *   Thus if @nents is bigger than @max_ents, the scatterlists will be
+ *   chained in units of @max_ents.
  *
  * Notes:
  *   If this function returns non-0 (eg failure), the caller must call
  *   __sg_free_table() to cleanup any leftover allocations.
  *
  **/
-int __sg_alloc_table(struct sg_table *table, unsigned int nents, gfp_t gfp_mask,
+int __sg_alloc_table(struct sg_table *table, unsigned int nents,
+		     unsigned int max_ents, gfp_t gfp_mask,
 		     sg_alloc_fn *alloc_fn)
 {
 	struct scatterlist *sg, *prv;
 	unsigned int left;
 
 #ifndef ARCH_HAS_SG_CHAIN
-	BUG_ON(nents > SG_MAX_SINGLE_ALLOC);
+	BUG_ON(nents > max_ents);
 #endif
 
 	memset(table, 0, sizeof(*table));
@@ -212,8 +224,8 @@ int __sg_alloc_table(struct sg_table *table, unsigned int nents, gfp_t gfp_mask,
 	do {
 		unsigned int sg_size, alloc_size = left;
 
-		if (alloc_size > SG_MAX_SINGLE_ALLOC) {
-			alloc_size = SG_MAX_SINGLE_ALLOC;
+		if (alloc_size > max_ents) {
+			alloc_size = max_ents;
 			sg_size = alloc_size - 1;
 		} else
 			sg_size = alloc_size;
@@ -232,7 +244,7 @@ int __sg_alloc_table(struct sg_table *table, unsigned int nents, gfp_t gfp_mask,
 		 * If this is not the first mapping, chain previous part.
 		 */
 		if (prv)
-			sg_chain(prv, SG_MAX_SINGLE_ALLOC, sg);
+			sg_chain(prv, max_ents, sg);
 		else
 			table->sgl = sg;
 
@@ -272,9 +284,10 @@ int sg_alloc_table(struct sg_table *table, unsigned int nents, gfp_t gfp_mask)
 {
 	int ret;
 
-	ret = __sg_alloc_table(table, nents, gfp_mask, sg_kmalloc);
+	ret = __sg_alloc_table(table, nents, SG_MAX_SINGLE_ALLOC,
+			       gfp_mask, sg_kmalloc);
 	if (unlikely(ret))
-		__sg_free_table(table, sg_kfree);
+		__sg_free_table(table, SG_MAX_SINGLE_ALLOC, sg_kfree);
 
 	return ret;
 }

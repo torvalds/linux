@@ -207,9 +207,10 @@ void sg_init_one(struct scatterlist *, const void *, unsigned int);
 typedef struct scatterlist *(sg_alloc_fn)(unsigned int, gfp_t);
 typedef void (sg_free_fn)(struct scatterlist *, unsigned int);
 
-void __sg_free_table(struct sg_table *, sg_free_fn *);
+void __sg_free_table(struct sg_table *, unsigned int, sg_free_fn *);
 void sg_free_table(struct sg_table *);
-int __sg_alloc_table(struct sg_table *, unsigned int, gfp_t, sg_alloc_fn *);
+int __sg_alloc_table(struct sg_table *, unsigned int, unsigned int, gfp_t,
+		     sg_alloc_fn *);
 int sg_alloc_table(struct sg_table *, unsigned int, gfp_t);
 
 /*
