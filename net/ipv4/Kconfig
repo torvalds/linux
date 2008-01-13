@@ -85,6 +85,13 @@ endchoice
 config IP_FIB_HASH
 	def_bool ASK_IP_FIB_HASH || !IP_ADVANCED_ROUTER
 
+config IP_FIB_TRIE_STATS
+	bool "FIB TRIE statistics"
+	depends on IP_FIB_TRIE
+	---help---
+	  Keep track of statistics on structure of FIB TRIE table.
+	  Useful for testing and measuring TRIE performance.
+
 config IP_MULTIPLE_TABLES
 	bool "IP: policy routing"
 	depends on IP_ADVANCED_ROUTER

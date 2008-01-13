@@ -82,7 +82,6 @@
 #include <net/ip_fib.h>
 #include "fib_lookup.h"
 
-#undef CONFIG_IP_FIB_TRIE_STATS
 #define MAX_STAT_DEPTH 32
 
 #define KEYLENGTH (8*sizeof(t_key))
@@ -2119,20 +2118,22 @@ static void trie_show_stats(struct seq_file *seq, struct trie_stat *stat)
 	bytes += sizeof(struct node *) * pointers;
 	seq_printf(seq, "Null ptrs: %u\n", stat->nullpointers);
 	seq_printf(seq, "Total size: %u  kB\n", (bytes + 1023) / 1024);
+}
 
 #ifdef CONFIG_IP_FIB_TRIE_STATS
-	seq_printf(seq, "Counters:\n---------\n");
-	seq_printf(seq,"gets = %d\n", t->stats.gets);
-	seq_printf(seq,"backtracks = %d\n", t->stats.backtrack);
-	seq_printf(seq,"semantic match passed = %d\n", t->stats.semantic_match_passed);
-	seq_printf(seq,"semantic match miss = %d\n", t->stats.semantic_match_miss);
-	seq_printf(seq,"null node hit= %d\n", t->stats.null_node_hit);
-	seq_printf(seq,"skipped node resize = %d\n", t->stats.resize_node_skipped);
-#ifdef CLEAR_STATS
-	memset(&(t->stats), 0, sizeof(t->stats));
-#endif
-#endif /*  CONFIG_IP_FIB_TRIE_STATS */
+static void trie_show_usage(struct seq_file *seq,
+			    const struct trie_use_stats *stats)
+{
+	seq_printf(seq, "\nCounters:\n---------\n");
+	seq_printf(seq,"gets = %u\n", stats->gets);
+	seq_printf(seq,"backtracks = %u\n", stats->backtrack);
+	seq_printf(seq,"semantic match passed = %u\n", stats->semantic_match_passed);
+	seq_printf(seq,"semantic match miss = %u\n", stats->semantic_match_miss);
+	seq_printf(seq,"null node hit= %u\n", stats->null_node_hit);
+	seq_printf(seq,"skipped node resize = %u\n\n", stats->resize_node_skipped);
 }
+#endif /*  CONFIG_IP_FIB_TRIE_STATS */
+
 
 static int fib_triestat_seq_show(struct seq_file *seq, void *v)
 {
@@ -2163,12 +2164,18 @@ static int fib_triestat_seq_show(struct seq_file *seq, void *v)
 		seq_printf(seq, "Local:\n");
 		trie_collect_stats(trie_local, stat);
 		trie_show_stats(seq, stat);
+#ifdef CONFIG_IP_FIB_TRIE_STATS
+		trie_show_usage(seq, &trie_local->stats);
+#endif
 	}
 
 	if (trie_main) {
 		seq_printf(seq, "Main:\n");
 		trie_collect_stats(trie_main, stat);
 		trie_show_stats(seq, stat);
+#ifdef CONFIG_IP_FIB_TRIE_STATS
+		trie_show_usage(seq, &trie_main->stats);
+#endif
 	}
 	kfree(stat);
 
