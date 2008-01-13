@@ -286,6 +286,7 @@ extern void hpte_init_iSeries(void);
 extern void hpte_init_beat(void);
 extern void hpte_init_beat_v3(void);
 
+extern void slb_shadow_clear_all(void);
 extern void stabs_alloc(void);
 extern void slb_initialize(void);
 extern void slb_flush_and_rebolt(void);
