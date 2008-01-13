@@ -121,38 +121,32 @@
 
 #define cpu_is_pxa21x()					\
 	({						\
-		unsigned int id = read_cpuid(CPUID_ID);	\
-		__cpu_is_pxa21x(id);			\
+		__cpu_is_pxa21x(read_cpuid_id());	\
 	})
 
 #define cpu_is_pxa25x()					\
 	({						\
-		unsigned int id = read_cpuid(CPUID_ID);	\
-		__cpu_is_pxa25x(id);			\
+		__cpu_is_pxa25x(read_cpuid_id());	\
 	})
 
 #define cpu_is_pxa27x()					\
 	({						\
-		unsigned int id = read_cpuid(CPUID_ID);	\
-		__cpu_is_pxa27x(id);			\
+		__cpu_is_pxa27x(read_cpuid_id());	\
 	})
 
 #define cpu_is_pxa300()					\
 	({						\
-		unsigned int id = read_cpuid(CPUID_ID);	\
-		__cpu_is_pxa300(id);			\
+		__cpu_is_pxa300(read_cpuid_id());	\
 	 })
 
 #define cpu_is_pxa310()					\
 	({						\
-		unsigned int id = read_cpuid(CPUID_ID);	\
-		__cpu_is_pxa310(id);			\
+		__cpu_is_pxa310(read_cpuid_id());	\
 	 })
 
 #define cpu_is_pxa320()					\
 	({						\
-		unsigned int id = read_cpuid(CPUID_ID);	\
-		__cpu_is_pxa320(id);			\
+		__cpu_is_pxa320(read_cpuid_id());	\
 	 })
 
 /*
@@ -174,14 +168,12 @@
 
 #define cpu_is_pxa2xx()					\
 	({						\
-		unsigned int id = read_cpuid(CPUID_ID);	\
-		__cpu_is_pxa2xx(id);			\
+		__cpu_is_pxa2xx(read_cpuid_id());	\
 	 })
 
 #define cpu_is_pxa3xx()					\
 	({						\
-		unsigned int id = read_cpuid(CPUID_ID);	\
-		__cpu_is_pxa3xx(id);			\
+		__cpu_is_pxa3xx(read_cpuid_id());	\
 	 })
 
 /*
