@@ -452,6 +452,42 @@ int tda18271_init_regs(struct dvb_frontend *fe)
 
 /*---------------------------------------------------------------------*/
 
+/*
+ *  Standby modes, EP3 [7:5]
+ *
+ *  | SM  || SM_LT || SM_XT || mode description
+ *  |=====\\=======\\=======\\===================================
+ *  |  0  ||   0   ||   0   || normal mode
+ *  |-----||-------||-------||-----------------------------------
+ *  |     ||       ||       || standby mode w/ slave tuner output
+ *  |  1  ||   0   ||   0   || & loop thru & xtal oscillator on
+ *  |-----||-------||-------||-----------------------------------
+ *  |  1  ||   1   ||   0   || standby mode w/ xtal oscillator on
+ *  |-----||-------||-------||-----------------------------------
+ *  |  1  ||   1   ||   1   || power off
+ *
+ */
+
+int tda18271_set_standby_mode(struct dvb_frontend *fe,
+			      int sm, int sm_lt, int sm_xt)
+{
+	struct tda18271_priv *priv = fe->tuner_priv;
+	unsigned char *regs = priv->tda18271_regs;
+
+	tda_dbg("sm = %d, sm_lt = %d, sm_xt = %d\n", sm, sm_lt, sm_xt);
+
+	regs[R_EP3]  &= ~0xe0; /* clear sm, sm_lt, sm_xt */
+	regs[R_EP3]  |= sm    ? (1 << 7) : 0 |
+			sm_lt ? (1 << 6) : 0 |
+			sm_xt ? (1 << 5) : 0;
+
+	tda18271_write_regs(fe, R_EP3, 1);
+
+	return 0;
+}
+
+/*---------------------------------------------------------------------*/
+
 int tda18271_calc_main_pll(struct dvb_frontend *fe, u32 freq)
 {
 	/* sets main post divider & divider bytes, but does not write them */

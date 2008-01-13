@@ -201,8 +201,7 @@ static int tda18271_rf_tracking_filters_correction(struct dvb_frontend *fe,
 	u8 dc_over_dt, rf_tab;
 
 	/* power up */
-	regs[R_EP3]  &= ~0xe0; /* sm = 0, sm_lt = 0, sm_xt = 0 */
-	tda18271_write_regs(fe, R_EP3, 1);
+	tda18271_set_standby_mode(fe, 0, 0, 0);
 
 	/* read die current temperature */
 	tm_current = tda18271_read_thermometer(fe);
@@ -256,9 +255,7 @@ static int tda18271_por(struct dvb_frontend *fe)
 	regs[R_EB21] |= 0x03; /* set agc2_gain to -6 dB */
 
 	/* POR mode */
-	regs[R_EP3]  &= ~0xe0; /* clear sm, sm_lt, sm_xt */
-	regs[R_EP3]  |= 0x80; /* sm = 1, sm_lt = 0, sm_xt = 0 */
-	tda18271_write_regs(fe, R_EP3, 1);
+	tda18271_set_standby_mode(fe, 1, 0, 0);
 
 	/* disable 1.5 MHz low pass filter */
 	regs[R_EB23] &= ~0x04; /* forcelp_fc2_en = 0 */
@@ -610,6 +607,9 @@ static int tda18271_init(struct dvb_frontend *fe)
 
 	mutex_lock(&priv->lock);
 
+	/* power up */
+	tda18271_set_standby_mode(fe, 0, 0, 0);
+
 	/* initialization */
 	tda18271_ir_cal_init(fe);
 
@@ -953,6 +953,21 @@ fail:
 	return ret;
 }
 
+static int tda18271_sleep(struct dvb_frontend *fe)
+{
+	struct tda18271_priv *priv = fe->tuner_priv;
+
+	mutex_lock(&priv->lock);
+
+	/* standby mode w/ slave tuner output
+	 * & loop thru & xtal oscillator on */
+	tda18271_set_standby_mode(fe, 1, 0, 0);
+
+	mutex_unlock(&priv->lock);
+
+	return 0;
+}
+
 static int tda18271_release(struct dvb_frontend *fe)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
@@ -1096,6 +1111,7 @@ static struct dvb_tuner_ops tda18271_tuner_ops = {
 		.frequency_step =     62500
 	},
 	.init              = tda18271_init,
+	.sleep             = tda18271_sleep,
 	.set_params        = tda18271_set_params,
 	.set_analog_params = tda18271_set_analog_params,
 	.release           = tda18271_release,
