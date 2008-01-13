@@ -1455,8 +1455,8 @@ mii_get_media (struct net_device *dev)
 {
 	__u16 negotiate;
 	__u16 bmsr;
-	MSCR_t mscr;
-	MSSR_t mssr;
+	__u16 mscr;
+	__u16 mssr;
 	int phy_addr;
 	struct netdev_private *np;
 
@@ -1471,13 +1471,13 @@ mii_get_media (struct net_device *dev)
 		}
 		negotiate = mii_read (dev, phy_addr, MII_ANAR) &
 			mii_read (dev, phy_addr, MII_ANLPAR);
-		mscr.image = mii_read (dev, phy_addr, MII_MSCR);
-		mssr.image = mii_read (dev, phy_addr, MII_MSSR);
-		if (mscr.bits.media_1000BT_FD & mssr.bits.lp_1000BT_FD) {
+		mscr = mii_read (dev, phy_addr, MII_MSCR);
+		mssr = mii_read (dev, phy_addr, MII_MSSR);
+		if (mscr & MII_MSCR_1000BT_FD && mssr & MII_MSSR_LP_1000BT_FD) {
 			np->speed = 1000;
 			np->full_duplex = 1;
 			printk (KERN_INFO "Auto 1000 Mbps, Full duplex\n");
-		} else if (mscr.bits.media_1000BT_HD & mssr.bits.lp_1000BT_HD) {
+		} else if (mscr & MII_MSCR_1000BT_HD && mssr & MII_MSSR_LP_1000BT_HD) {
 			np->speed = 1000;
 			np->full_duplex = 0;
 			printk (KERN_INFO "Auto 1000 Mbps, Half duplex\n");
@@ -1539,7 +1539,7 @@ mii_get_media (struct net_device *dev)
 static int
 mii_set_media (struct net_device *dev)
 {
-	PHY_SCR_t pscr;
+	__u16 pscr;
 	__u16 bmcr;
 	__u16 bmsr;
 	__u16 anar;
@@ -1572,9 +1572,9 @@ mii_set_media (struct net_device *dev)
 		mii_write (dev, phy_addr, MII_ANAR, anar);
 
 		/* Enable Auto crossover */
-		pscr.image = mii_read (dev, phy_addr, MII_PHY_SCR);
-		pscr.bits.mdi_crossover_mode = 3;	/* 11'b */
-		mii_write (dev, phy_addr, MII_PHY_SCR, pscr.image);
+		pscr = mii_read (dev, phy_addr, MII_PHY_SCR);
+		pscr |= 3 << 5;	/* 11'b */
+		mii_write (dev, phy_addr, MII_PHY_SCR, pscr);
 
 		/* Soft reset PHY */
 		mii_write (dev, phy_addr, MII_BMCR, MII_BMCR_RESET);
@@ -1584,9 +1584,9 @@ mii_set_media (struct net_device *dev)
 	} else {
 		/* Force speed setting */
 		/* 1) Disable Auto crossover */
-		pscr.image = mii_read (dev, phy_addr, MII_PHY_SCR);
-		pscr.bits.mdi_crossover_mode = 0;
-		mii_write (dev, phy_addr, MII_PHY_SCR, pscr.image);
+		pscr = mii_read (dev, phy_addr, MII_PHY_SCR);
+		pscr &= ~(3 << 5);
+		mii_write (dev, phy_addr, MII_PHY_SCR, pscr);
 
 		/* 2) PHY Reset */
 		bmcr = mii_read (dev, phy_addr, MII_BMCR);
@@ -1617,9 +1617,9 @@ mii_set_media (struct net_device *dev)
 		}
 #if 0
 		/* Set 1000BaseT Master/Slave setting */
-		mscr.image = mii_read (dev, phy_addr, MII_MSCR);
-		mscr.bits.cfg_enable = 1;
-		mscr.bits.cfg_value = 0;
+		mscr = mii_read (dev, phy_addr, MII_MSCR);
+		mscr |= MII_MSCR_CFG_ENABLE;
+		mscr &= ~MII_MSCR_CFG_VALUE = 0;
 #endif
 		mii_write (dev, phy_addr, MII_BMCR, bmcr);
 		mdelay(10);
@@ -1687,7 +1687,7 @@ static int
 mii_set_media_pcs (struct net_device *dev)
 {
 	__u16 bmcr;
-	ESR_t esr;
+	__u16 esr;
 	__u16 anar;
 	int phy_addr;
 	struct netdev_private *np;
@@ -1697,13 +1697,13 @@ mii_set_media_pcs (struct net_device *dev)
 	/* Auto-Negotiation? */
 	if (np->an_enable) {
 		/* Advertise capabilities */
-		esr.image = mii_read (dev, phy_addr, PCS_ESR);
+		esr = mii_read (dev, phy_addr, PCS_ESR);
 		anar = mii_read (dev, phy_addr, MII_ANAR) &
 			~PCS_ANAR_HALF_DUPLEX &
 			~PCS_ANAR_FULL_DUPLEX;
-		if (esr.bits.media_1000BT_HD | esr.bits.media_1000BX_HD)
+		if (esr & (MII_ESR_1000BT_HD | MII_ESR_1000BX_HD))
 			anar |= PCS_ANAR_HALF_DUPLEX;
-		if (esr.bits.media_1000BT_FD | esr.bits.media_1000BX_FD)
+		if (esr & (MII_ESR_1000BT_FD | MII_ESR_1000BX_FD))
 			anar |= PCS_ANAR_FULL_DUPLEX;
 		anar |= PCS_ANAR_PAUSE | PCS_ANAR_ASYMMETRIC;
 		mii_write (dev, phy_addr, MII_ANAR, anar);

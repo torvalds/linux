@@ -385,19 +385,6 @@ enum _mii_aner {
 };
 
 /* MASTER-SLAVE Control Register */
-typedef union t_MII_MSCR {
-	u16 image;
-	struct {
-		u16 _bit_7_0:8;	// bit 7:0
-		u16 media_1000BT_HD:1;	// bit 8
-		u16 media_1000BT_FD:1;	// bit 9
-		u16 port_type:1;	// bit 10
-		u16 cfg_value:1;	// bit 11
-		u16 cfg_enable:1;	// bit 12
-		u16 test_mode:3;	// bit 15:13
-	} bits;
-} MSCR_t, *PMSCR_t;
-
 enum _mii_mscr {
 	MII_MSCR_TEST_MODE = 0xe000,
 	MII_MSCR_CFG_ENABLE = 0x1000,
@@ -408,20 +395,6 @@ enum _mii_mscr {
 };
 
 /* MASTER-SLAVE Status Register */
-typedef union t_MII_MSSR {
-	u16 image;
-	struct {
-		u16 idle_err_count:8;	// bit 7:0
-		u16 _bit_9_8:2;	// bit 9:8
-		u16 lp_1000BT_HD:1;	// bit 10
-		u16 lp_1000BT_FD:1;	// bit 11
-		u16 remote_rcv_status:1;	// bit 12
-		u16 local_rcv_status:1;	// bit 13
-		u16 cfg_resolution:1;	// bit 14
-		u16 cfg_fault:1;	// bit 15
-	} bits;
-} MSSR_t, *PMSSR_t;
-
 enum _mii_mssr {
 	MII_MSSR_CFG_FAULT = 0x8000,
 	MII_MSSR_CFG_RES = 0x4000,
@@ -433,17 +406,6 @@ enum _mii_mssr {
 };
 
 /* IEEE Extened Status Register */
-typedef union t_MII_ESR {
-	u16 image;
-	struct {
-		u16 _bit_11_0:12;	// bit 11:0
-		u16 media_1000BT_HD:2;	// bit 12
-		u16 media_1000BT_FD:1;	// bit 13
-		u16 media_1000BX_HD:1;	// bit 14
-		u16 media_1000BX_FD:1;	// bit 15
-	} bits;
-} ESR_t, *PESR_t;
-
 enum _mii_esr {
 	MII_ESR_1000BX_FD = 0x8000,
 	MII_ESR_1000BX_HD = 0x4000,
@@ -451,6 +413,7 @@ enum _mii_esr {
 	MII_ESR_1000BT_HD = 0x1000,
 };
 /* PHY Specific Control Register */
+#if 0
 typedef union t_MII_PHY_SCR {
 	u16 image;
 	struct {
@@ -468,6 +431,7 @@ typedef union t_MII_PHY_SCR {
 		u16 xmit_fifo_depth:2;	// bit 15:14
 	} bits;
 } PHY_SCR_t, *PPHY_SCR_t;
+#endif
 
 typedef enum t_MII_ADMIN_STATUS {
 	adm_reset,
