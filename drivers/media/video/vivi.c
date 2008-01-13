@@ -173,7 +173,8 @@ struct vivi_dev {
 	struct vivi_dmaqueue       vidq;
 
 	/* Several counters */
-	int                        h, m, s, us, jiffies;
+	int                        h, m, s, ms;
+	unsigned long              jiffies;
 	char                       timestr[13];
 
 	int			   mv_count;	/* Controls bars movement */
@@ -348,10 +349,10 @@ static void vivi_fillbuff(struct vivi_dev *dev, struct vivi_buffer *buf)
 
 	/* Updates stream time */
 
-	dev->us += jiffies_to_usecs(jiffies-dev->jiffies);
+	dev->ms += jiffies_to_msecs(jiffies-dev->jiffies);
 	dev->jiffies = jiffies;
-	if (dev->us >= 1000000) {
-		dev->us -= 1000000;
+	if (dev->ms >= 1000) {
+		dev->ms -= 1000;
 		dev->s++;
 		if (dev->s >= 60) {
 			dev->s -= 60;
@@ -365,7 +366,7 @@ static void vivi_fillbuff(struct vivi_dev *dev, struct vivi_buffer *buf)
 		}
 	}
 	sprintf(dev->timestr, "%02d:%02d:%02d:%03d",
-			dev->h, dev->m, dev->s,  (dev->us + 500) / 1000);
+			dev->h, dev->m, dev->s, dev->ms);
 
 	dprintk(dev, 2, "vivifill at %s: Buffer 0x%08lx size= %d\n",
 			dev->timestr, (unsigned long)tmpbuf, pos);
@@ -1073,11 +1074,11 @@ found:
 	dev->h = 0;
 	dev->m = 0;
 	dev->s = 0;
-	dev->us = 0;
+	dev->ms = 0;
 	dev->mv_count = 0;
 	dev->jiffies = jiffies;
 	sprintf(dev->timestr, "%02d:%02d:%02d:%03d",
-			dev->h, dev->m, dev->s, (dev->us + 500) / 1000);
+			dev->h, dev->m, dev->s, dev->ms);
 
 	videobuf_queue_vmalloc_init(&fh->vb_vidq, &vivi_video_qops,
 			NULL, &dev->slock, fh->type, V4L2_FIELD_INTERLACED,
