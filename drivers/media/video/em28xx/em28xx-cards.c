@@ -42,11 +42,35 @@ static int tuner = -1;
 module_param(tuner, int, 0444);
 MODULE_PARM_DESC(tuner, "tuner type");
 
+static unsigned int disable_ir;
+module_param(disable_ir, int, 0444);
+MODULE_PARM_DESC(disable_ir, "disable infrared remote support");
+
 struct em28xx_hash_table {
 	unsigned long hash;
 	unsigned int  model;
 	unsigned int  tuner;
 };
+
+/* Boards supported by driver */
+
+#define EM2800_BOARD_UNKNOWN			0
+#define EM2820_BOARD_UNKNOWN			1
+#define EM2820_BOARD_TERRATEC_CINERGY_250	2
+#define EM2820_BOARD_PINNACLE_USB_2		3
+#define EM2820_BOARD_HAUPPAUGE_WINTV_USB_2      4
+#define EM2820_BOARD_MSI_VOX_USB_2              5
+#define EM2800_BOARD_TERRATEC_CINERGY_200       6
+#define EM2800_BOARD_LEADTEK_WINFAST_USBII      7
+#define EM2800_BOARD_KWORLD_USB2800             8
+#define EM2820_BOARD_PINNACLE_DVC_90		9
+#define EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900	10
+#define EM2880_BOARD_TERRATEC_HYBRID_XS		11
+#define EM2820_BOARD_KWORLD_PVRTV2800RF		12
+#define EM2880_BOARD_TERRATEC_PRODIGY_XS	13
+#define EM2820_BOARD_PROLINK_PLAYTV_USB2	14
+#define EM2800_BOARD_VGEAR_POCKETTV             15
+#define EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950	16
 
 struct em28xx_board em28xx_boards[] = {
 	[EM2800_BOARD_UNKNOWN] = {
@@ -245,26 +269,28 @@ struct em28xx_board em28xx_boards[] = {
 		} },
 	},
 	[EM2820_BOARD_MSI_VOX_USB_2] = {
-		.name		= "MSI VOX USB 2.0",
-		.vchannels	= 3,
-		.tuner_type	= TUNER_LG_PAL_NEW_TAPC,
-		.tda9887_conf	= TDA9887_PRESENT      |
-				  TDA9887_PORT1_ACTIVE |
-				  TDA9887_PORT2_ACTIVE,
-		.has_tuner	= 1,
-		.decoder        = EM28XX_SAA7114,
-		.input          = { {
-			.type     = EM28XX_VMUX_TELEVISION,
-			.vmux     = SAA7115_COMPOSITE4,
-			.amux     = 0,
+		.name		   = "MSI VOX USB 2.0",
+		.vchannels	   = 3,
+		.tuner_type	   = TUNER_LG_PAL_NEW_TAPC,
+		.tda9887_conf	   = TDA9887_PRESENT      |
+				     TDA9887_PORT1_ACTIVE |
+				     TDA9887_PORT2_ACTIVE,
+		.has_tuner	   = 1,
+		.max_range_640_480 = 1,
+
+		.decoder           = EM28XX_SAA7114,
+		.input             = { {
+			.type      = EM28XX_VMUX_TELEVISION,
+			.vmux      = SAA7115_COMPOSITE4,
+			.amux      = 0,
 		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
-			.vmux     = SAA7115_COMPOSITE0,
-			.amux     = 1,
+			.type      = EM28XX_VMUX_COMPOSITE1,
+			.vmux      = SAA7115_COMPOSITE0,
+			.amux      = 1,
 		}, {
-			.type     = EM28XX_VMUX_SVIDEO,
-			.vmux     = SAA7115_SVIDEO3,
-			.amux     = 1,
+			.type      = EM28XX_VMUX_SVIDEO,
+			.vmux      = SAA7115_SVIDEO3,
+			.amux      = 1,
 		} },
 	},
 	[EM2800_BOARD_TERRATEC_CINERGY_200] = {
@@ -649,9 +675,52 @@ static void em28xx_set_model(struct em28xx *dev)
 	dev->video_inputs = em28xx_boards[dev->model].vchannels;
 	dev->analog_gpio = em28xx_boards[dev->model].analog_gpio;
 	dev->has_12mhz_i2s = em28xx_boards[dev->model].has_12mhz_i2s;
+	dev->max_range_640_480 = em28xx_boards[dev->model].max_range_640_480;
 
 	if (!em28xx_boards[dev->model].has_tuner)
 		dev->tuner_type = UNSET;
+}
+
+/* ----------------------------------------------------------------------- */
+void em28xx_set_ir(struct em28xx *dev, struct IR_i2c *ir)
+{
+	if (disable_ir) {
+		ir->get_key = NULL;
+		return ;
+	}
+
+	/* detect & configure */
+	switch (dev->model) {
+	case (EM2800_BOARD_UNKNOWN):
+		break;
+	case (EM2820_BOARD_UNKNOWN):
+		break;
+	case (EM2800_BOARD_TERRATEC_CINERGY_200):
+	case (EM2820_BOARD_TERRATEC_CINERGY_250):
+		ir->ir_codes = ir_codes_em_terratec;
+		ir->get_key = em28xx_get_key_terratec;
+		snprintf(ir->c.name, sizeof(ir->c.name),
+			 "i2c IR (EM28XX Terratec)");
+		break;
+	case (EM2820_BOARD_PINNACLE_USB_2):
+		ir->ir_codes = ir_codes_pinnacle_grey;
+		ir->get_key = em28xx_get_key_pinnacle_usb_grey;
+		snprintf(ir->c.name, sizeof(ir->c.name),
+			 "i2c IR (EM28XX Pinnacle PCTV)");
+		break;
+	case (EM2820_BOARD_HAUPPAUGE_WINTV_USB_2):
+		ir->ir_codes = ir_codes_hauppauge_new;
+		ir->get_key = em28xx_get_key_em_haup;
+		snprintf(ir->c.name, sizeof(ir->c.name),
+			 "i2c IR (EM2840 Hauppauge)");
+		break;
+	case (EM2820_BOARD_MSI_VOX_USB_2):
+		break;
+	case (EM2800_BOARD_LEADTEK_WINFAST_USBII):
+		break;
+	case (EM2800_BOARD_KWORLD_USB2800):
+		break;
+	}
 }
 
 void em28xx_card_setup(struct em28xx *dev)

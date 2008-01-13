@@ -30,26 +30,6 @@
 #include <linux/mutex.h>
 #include <media/ir-kbd-i2c.h>
 
-/* Boards supported by driver */
-
-#define EM2800_BOARD_UNKNOWN			0
-#define EM2820_BOARD_UNKNOWN			1
-#define EM2820_BOARD_TERRATEC_CINERGY_250	2
-#define EM2820_BOARD_PINNACLE_USB_2		3
-#define EM2820_BOARD_HAUPPAUGE_WINTV_USB_2      4
-#define EM2820_BOARD_MSI_VOX_USB_2              5
-#define EM2800_BOARD_TERRATEC_CINERGY_200       6
-#define EM2800_BOARD_LEADTEK_WINFAST_USBII      7
-#define EM2800_BOARD_KWORLD_USB2800             8
-#define EM2820_BOARD_PINNACLE_DVC_90		9
-#define EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900	10
-#define EM2880_BOARD_TERRATEC_HYBRID_XS		11
-#define EM2820_BOARD_KWORLD_PVRTV2800RF		12
-#define EM2880_BOARD_TERRATEC_PRODIGY_XS	13
-#define EM2820_BOARD_PROLINK_PLAYTV_USB2	14
-#define EM2800_BOARD_VGEAR_POCKETTV             15
-#define EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950	16
-
 #define UNSET -1
 
 /* maximum number of em28xx boards */
@@ -185,6 +165,7 @@ struct em28xx_board {
 	unsigned int has_msp34xx:1;
 	unsigned int mts_firmware:1;
 	unsigned int has_12mhz_i2s:1;
+	unsigned int max_range_640_480:1;
 
 	unsigned int analog_gpio;
 
@@ -251,6 +232,7 @@ struct em28xx {
 	unsigned int stream_on:1;	/* Locks streams */
 	unsigned int has_audio_class:1;
 	unsigned int has_12mhz_i2s:1;
+	unsigned int max_range_640_480:1;
 
 	int video_inputs;	/* number of video inputs */
 	struct list_head	devlist;
@@ -352,10 +334,6 @@ void em28xx_do_i2c_scan(struct em28xx *dev);
 int em28xx_i2c_register(struct em28xx *dev);
 int em28xx_i2c_unregister(struct em28xx *dev);
 
-/* Provided by em28xx-input.c */
-
-void em28xx_set_ir(struct em28xx * dev,struct IR_i2c *ir);
-
 /* Provided by em28xx-core.c */
 
 u32 em28xx_request_buffers(struct em28xx *dev, u32 count);
@@ -393,6 +371,14 @@ extern void em28xx_card_setup(struct em28xx *dev);
 extern struct em28xx_board em28xx_boards[];
 extern struct usb_device_id em28xx_id_table[];
 extern const unsigned int em28xx_bcount;
+void em28xx_set_ir(struct em28xx *dev, struct IR_i2c *ir);
+
+/* Provided by em28xx-input.c */
+/* TODO: Check if the standard get_key handlers on ir-common can be used */
+int em28xx_get_key_terratec(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw);
+int em28xx_get_key_em_haup(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw);
+int em28xx_get_key_pinnacle_usb_grey(struct IR_i2c *ir, u32 *ir_key,
+				     u32 *ir_raw);
 
 /* em2800 registers */
 #define EM2800_AUDIOSRC_REG 0x08
@@ -550,21 +536,17 @@ inline static int em28xx_gamma_set(struct em28xx *dev, s32 val)
 /*FIXME: maxw should be dependent of alt mode */
 inline static unsigned int norm_maxw(struct em28xx *dev)
 {
-	switch (dev->model) {
-	case EM2820_BOARD_MSI_VOX_USB_2:
+	if (dev->max_range_640_480)
 		return 640;
-	default:
+	else
 		return 720;
-	}
 }
 
 inline static unsigned int norm_maxh(struct em28xx *dev)
 {
-	switch (dev->model) {
-	case EM2820_BOARD_MSI_VOX_USB_2:
+	if (dev->max_range_640_480)
 		return 480;
-	default:
+	else
 		return (dev->norm & V4L2_STD_625_50) ? 576 : 480;
-	}
 }
 #endif
