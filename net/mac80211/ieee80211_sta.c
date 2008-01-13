@@ -2787,6 +2787,7 @@ static int ieee80211_sta_join_ibss(struct net_device *dev,
 			       "for IBSS beacon\n", dev->name);
 			break;
 		}
+		control.vif = &sdata->vif;
 		control.tx_rate =
 			(sdata->bss_conf.use_short_preamble &&
 			(ratesel.rate->flags & IEEE80211_RATE_PREAMBLE2)) ?

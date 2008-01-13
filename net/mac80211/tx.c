@@ -1752,6 +1752,7 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 			goto out;
 		}
 
+		control->vif = vif;
 		control->tx_rate =
 			(sdata->bss_conf.use_short_preamble &&
 			(rsel.rate->flags & IEEE80211_RATE_PREAMBLE2)) ?
