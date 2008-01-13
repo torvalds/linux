@@ -214,10 +214,6 @@ static inline struct htb_class *htb_find(u32 handle, struct Qdisc *sch)
  * then finish and return direct queue.
  */
 #define HTB_DIRECT (struct htb_class*)-1
-static inline u32 htb_classid(struct htb_class *cl)
-{
-	return (cl && cl != HTB_DIRECT) ? cl->classid : TC_H_UNSPEC;
-}
 
 static struct htb_class *htb_classify(struct sk_buff *skb, struct Qdisc *sch,
 				      int *qerr)
