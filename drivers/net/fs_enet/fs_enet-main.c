@@ -894,14 +894,21 @@ static void fs_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 static int fs_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
+
+	if (!fep->phydev)
+		return -ENODEV;
+
 	return phy_ethtool_gset(fep->phydev, cmd);
 }
 
 static int fs_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
-	phy_ethtool_sset(fep->phydev, cmd);
-	return 0;
+
+	if (!fep->phydev)
+		return -ENODEV;
+
+	return phy_ethtool_sset(fep->phydev, cmd);
 }
 
 static int fs_nway_reset(struct net_device *dev)

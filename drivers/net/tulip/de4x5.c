@@ -911,7 +911,7 @@ static int     de4x5_init(struct net_device *dev);
 static int     de4x5_sw_reset(struct net_device *dev);
 static int     de4x5_rx(struct net_device *dev);
 static int     de4x5_tx(struct net_device *dev);
-static int     de4x5_ast(struct net_device *dev);
+static void    de4x5_ast(struct net_device *dev);
 static int     de4x5_txur(struct net_device *dev);
 static int     de4x5_rx_ovfc(struct net_device *dev);
 
@@ -984,11 +984,9 @@ static int     test_bad_enet(struct net_device *dev, int status);
 static int     an_exception(struct de4x5_private *lp);
 static char    *build_setup_frame(struct net_device *dev, int mode);
 static void    disable_ast(struct net_device *dev);
-static void    enable_ast(struct net_device *dev, u32 time_out);
 static long    de4x5_switch_mac_port(struct net_device *dev);
 static int     gep_rd(struct net_device *dev);
 static void    gep_wr(s32 data, struct net_device *dev);
-static void    timeout(struct net_device *dev, void (*fn)(u_long data), u_long data, u_long msec);
 static void    yawn(struct net_device *dev, int state);
 static void    de4x5_parse_params(struct net_device *dev);
 static void    de4x5_dbg_open(struct net_device *dev);
@@ -1139,6 +1137,8 @@ de4x5_hw_init(struct net_device *dev, u_long iobase, struct device *gendev)
 	lp->gendev = gendev;
 	spin_lock_init(&lp->lock);
 	init_timer(&lp->timer);
+	lp->timer.function = (void (*)(unsigned long))de4x5_ast;
+	lp->timer.data = (unsigned long)dev;
 	de4x5_parse_params(dev);
 
 	/*
@@ -1311,7 +1311,7 @@ de4x5_open(struct net_device *dev)
     lp->state = OPEN;
     de4x5_dbg_open(dev);
 
-    if (request_irq(dev->irq, (void *)de4x5_interrupt, IRQF_SHARED,
+    if (request_irq(dev->irq, de4x5_interrupt, IRQF_SHARED,
 		                                     lp->adapter_name, dev)) {
 	printk("de4x5_open(): Requested IRQ%d is busy - attemping FAST/SHARE...", dev->irq);
 	if (request_irq(dev->irq, de4x5_interrupt, IRQF_DISABLED | IRQF_SHARED,
@@ -1737,27 +1737,29 @@ de4x5_tx(struct net_device *dev)
     return 0;
 }
 
-static int
+static void
 de4x5_ast(struct net_device *dev)
 {
-    struct de4x5_private *lp = netdev_priv(dev);
-    int next_tick = DE4X5_AUTOSENSE_MS;
+	struct de4x5_private *lp = netdev_priv(dev);
+	int next_tick = DE4X5_AUTOSENSE_MS;
+	int dt;
 
-    disable_ast(dev);
+	if (lp->useSROM)
+		next_tick = srom_autoconf(dev);
+	else if (lp->chipset == DC21140)
+		next_tick = dc21140m_autoconf(dev);
+	else if (lp->chipset == DC21041)
+		next_tick = dc21041_autoconf(dev);
+	else if (lp->chipset == DC21040)
+		next_tick = dc21040_autoconf(dev);
+	lp->linkOK = 0;
 
-    if (lp->useSROM) {
-	next_tick = srom_autoconf(dev);
-    } else if (lp->chipset == DC21140) {
-	next_tick = dc21140m_autoconf(dev);
-    } else if (lp->chipset == DC21041) {
-	next_tick = dc21041_autoconf(dev);
-    } else if (lp->chipset == DC21040) {
-	next_tick = dc21040_autoconf(dev);
-    }
-    lp->linkOK = 0;
-    enable_ast(dev, next_tick);
+	dt = (next_tick * HZ) / 1000;
 
-    return 0;
+	if (!dt)
+		dt = 1;
+
+	mod_timer(&lp->timer, jiffies + dt);
 }
 
 static int
@@ -2174,7 +2176,7 @@ srom_search(struct net_device *dev, struct pci_dev *pdev)
 	for (j=0, i=0; i<ETH_ALEN; i++) {
 	    j += (u_char) *((u_char *)&lp->srom + SROM_HWADD + i);
 	}
-	if ((j != 0) && (j != 0x5fa)) {
+	if (j != 0 && j != 6 * 0xff) {
 	    last.chipset = device;
 	    last.bus = pb;
 	    last.irq = irq;
@@ -2371,30 +2373,19 @@ static struct pci_driver de4x5_pci_driver = {
 static int
 autoconf_media(struct net_device *dev)
 {
-    struct de4x5_private *lp = netdev_priv(dev);
-    u_long iobase = dev->base_addr;
-    int next_tick = DE4X5_AUTOSENSE_MS;
+	struct de4x5_private *lp = netdev_priv(dev);
+	u_long iobase = dev->base_addr;
 
-    lp->linkOK = 0;
-    lp->c_media = AUTO;                     /* Bogus last media */
-    disable_ast(dev);
-    inl(DE4X5_MFC);                         /* Zero the lost frames counter */
-    lp->media = INIT;
-    lp->tcount = 0;
+	disable_ast(dev);
 
-    if (lp->useSROM) {
-	next_tick = srom_autoconf(dev);
-    } else if (lp->chipset == DC21040) {
-	next_tick = dc21040_autoconf(dev);
-    } else if (lp->chipset == DC21041) {
-	next_tick = dc21041_autoconf(dev);
-    } else if (lp->chipset == DC21140) {
-	next_tick = dc21140m_autoconf(dev);
-    }
+	lp->c_media = AUTO;                     /* Bogus last media */
+	inl(DE4X5_MFC);                         /* Zero the lost frames counter */
+	lp->media = INIT;
+	lp->tcount = 0;
 
-    enable_ast(dev, next_tick);
+	de4x5_ast(dev);
 
-    return (lp->media);
+	return lp->media;
 }
 
 /*
@@ -4018,20 +4009,22 @@ DevicePresent(struct net_device *dev, u_long aprom_addr)
 	    outl(0, aprom_addr);       /* Reset Ethernet Address ROM Pointer */
 	}
     } else {                           /* Read new srom */
-	u_short tmp, *p = (short *)((char *)&lp->srom + SROM_HWADD);
+	u_short tmp;
+	__le16 *p = (__le16 *)((char *)&lp->srom + SROM_HWADD);
 	for (i=0; i<(ETH_ALEN>>1); i++) {
 	    tmp = srom_rd(aprom_addr, (SROM_HWADD>>1) + i);
-	    *p = le16_to_cpu(tmp);
-	    j += *p++;
+	    j += tmp;	/* for check for 0:0:0:0:0:0 or ff:ff:ff:ff:ff:ff */
+	    *p = cpu_to_le16(tmp);
 	}
-	if ((j == 0) || (j == 0x2fffd)) {
-	    return;
+	if (j == 0 || j == 3 * 0xffff) {
+		/* could get 0 only from all-0 and 3 * 0xffff only from all-1 */
+		return;
 	}
 
-	p=(short *)&lp->srom;
+	p = (__le16 *)&lp->srom;
 	for (i=0; i<(sizeof(struct de4x5_srom)>>1); i++) {
 	    tmp = srom_rd(aprom_addr, i);
-	    *p++ = le16_to_cpu(tmp);
+	    *p++ = cpu_to_le16(tmp);
 	}
 	de4x5_dbg_srom((struct de4x5_srom *)&lp->srom);
     }
@@ -5161,21 +5154,10 @@ build_setup_frame(struct net_device *dev, int mode)
 }
 
 static void
-enable_ast(struct net_device *dev, u32 time_out)
-{
-    timeout(dev, (void *)&de4x5_ast, (u_long)dev, time_out);
-
-    return;
-}
-
-static void
 disable_ast(struct net_device *dev)
 {
-    struct de4x5_private *lp = netdev_priv(dev);
-
-    del_timer(&lp->timer);
-
-    return;
+	struct de4x5_private *lp = netdev_priv(dev);
+	del_timer_sync(&lp->timer);
 }
 
 static long
@@ -5242,29 +5224,6 @@ gep_rd(struct net_device *dev)
     }
 
     return 0;
-}
-
-static void
-timeout(struct net_device *dev, void (*fn)(u_long data), u_long data, u_long msec)
-{
-    struct de4x5_private *lp = netdev_priv(dev);
-    int dt;
-
-    /* First, cancel any pending timer events */
-    del_timer(&lp->timer);
-
-    /* Convert msec to ticks */
-    dt = (msec * HZ) / 1000;
-    if (dt==0) dt=1;
-
-    /* Set up timer */
-    init_timer(&lp->timer);
-    lp->timer.expires = jiffies + dt;
-    lp->timer.function = fn;
-    lp->timer.data = data;
-    add_timer(&lp->timer);
-
-    return;
 }
 
 static void

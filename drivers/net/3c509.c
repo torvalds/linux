@@ -385,6 +385,7 @@ static int __init el3_probe(int card_idx)
 #if defined(__ISAPNP__)
 	static int pnp_cards;
 	struct pnp_dev *idev = NULL;
+	int pnp_found = 0;
 
 	if (nopnp == 1)
 		goto no_pnp;
@@ -430,6 +431,7 @@ __again:
 			pnp_cards++;
 
 			netdev_boot_setup_check(dev);
+			pnp_found = 1;
 			goto found;
 		}
 	}
@@ -560,6 +562,8 @@ no_pnp:
 	lp = netdev_priv(dev);
 #if defined(__ISAPNP__)
 	lp->dev = &idev->dev;
+	if (pnp_found)
+		lp->type = EL3_PNP;
 #endif
 	err = el3_common_init(dev);
 

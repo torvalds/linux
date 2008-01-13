@@ -1070,16 +1070,17 @@ netxen_process_rcv(struct netxen_adapter *adapter, int ctxid,
 {
 	struct pci_dev *pdev = adapter->pdev;
 	struct net_device *netdev = adapter->netdev;
-	int index = netxen_get_sts_refhandle(desc);
+	u64 sts_data = le64_to_cpu(desc->status_desc_data);
+	int index = netxen_get_sts_refhandle(sts_data);
 	struct netxen_recv_context *recv_ctx = &(adapter->recv_ctx[ctxid]);
 	struct netxen_rx_buffer *buffer;
 	struct sk_buff *skb;
-	u32 length = netxen_get_sts_totallength(desc);
+	u32 length = netxen_get_sts_totallength(sts_data);
 	u32 desc_ctx;
 	struct netxen_rcv_desc_ctx *rcv_desc;
 	int ret;
 
-	desc_ctx = netxen_get_sts_type(desc);
+	desc_ctx = netxen_get_sts_type(sts_data);
 	if (unlikely(desc_ctx >= NUM_RCV_DESC_RINGS)) {
 		printk("%s: %s Bad Rcv descriptor ring\n",
 		       netxen_nic_driver_name, netdev->name);
@@ -1119,7 +1120,7 @@ netxen_process_rcv(struct netxen_adapter *adapter, int ctxid,
 	skb = (struct sk_buff *)buffer->skb;
 
 	if (likely(adapter->rx_csum &&
-				netxen_get_sts_status(desc) == STATUS_CKSUM_OK)) {
+				netxen_get_sts_status(sts_data) == STATUS_CKSUM_OK)) {
 		adapter->stats.csummed++;
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	} else
@@ -1209,7 +1210,6 @@ u32 netxen_process_rcv_ring(struct netxen_adapter *adapter, int ctxid, int max)
 			break;
 		}
 		netxen_process_rcv(adapter, ctxid, desc);
-		netxen_clear_sts_owner(desc);
 		netxen_set_sts_owner(desc, STATUS_OWNER_PHANTOM);
 		consumer = (consumer + 1) & (adapter->max_rx_desc_count - 1);
 		count++;
@@ -1248,7 +1248,6 @@ int netxen_process_cmd_ring(unsigned long data)
 	struct pci_dev *pdev;
 	struct netxen_skb_frag *frag;
 	u32 i;
-	struct sk_buff *skb = NULL;
 	int done;
 
 	spin_lock(&adapter->tx_lock);
@@ -1278,9 +1277,8 @@ int netxen_process_cmd_ring(unsigned long data)
 	while ((last_consumer != consumer) && (count1 < MAX_STATUS_HANDLE)) {
 		buffer = &adapter->cmd_buf_arr[last_consumer];
 		pdev = adapter->pdev;
-		frag = &buffer->frag_array[0];
-		skb = buffer->skb;
-		if (skb && (cmpxchg(&buffer->skb, skb, 0) == skb)) {
+		if (buffer->skb) {
+			frag = &buffer->frag_array[0];
 			pci_unmap_single(pdev, frag->dma, frag->length,
 					 PCI_DMA_TODEVICE);
 			frag->dma = 0ULL;
@@ -1293,8 +1291,8 @@ int netxen_process_cmd_ring(unsigned long data)
 			}
 
 			adapter->stats.skbfreed++;
-			dev_kfree_skb_any(skb);
-			skb = NULL;
+			dev_kfree_skb_any(buffer->skb);
+			buffer->skb = NULL;
 		} else if (adapter->proc_cmd_buf_counter == 1) {
 			adapter->stats.txnullskb++;
 		}
