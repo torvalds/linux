@@ -3883,7 +3883,8 @@ int b43_radio_selectchannel(struct b43_wldev *dev,
 	struct b43_phy *phy = &dev->phy;
 	u16 r8, tmp;
 	u16 freq;
-	u16 channelcookie;
+	u16 channelcookie, savedcookie;
+	int err = 0;
 
 	if (channel == 0xFF) {
 		switch (phy->type) {
@@ -3910,12 +3911,15 @@ int b43_radio_selectchannel(struct b43_wldev *dev,
 	if (0 /*FIXME on 5Ghz */)
 		channelcookie |= 0x100;
 	//FIXME set 40Mhz flag if required
+	savedcookie = b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_CHAN);
 	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_CHAN, channelcookie);
 
 	switch (phy->type) {
 	case B43_PHYTYPE_A:
-		if (channel > 200)
-			return -EINVAL;
+		if (channel > 200) {
+			err = -EINVAL;
+			goto out;
+		}
 		freq = channel2freq_a(channel);
 
 		r8 = b43_radio_read16(dev, 0x0008);
@@ -3964,8 +3968,10 @@ int b43_radio_selectchannel(struct b43_wldev *dev,
 		b43_phy_xmitpower(dev);	//FIXME correct?
 		break;
 	case B43_PHYTYPE_G:
-		if ((channel < 1) || (channel > 14))
-			return -EINVAL;
+		if ((channel < 1) || (channel > 14)) {
+			err = -EINVAL;
+			goto out;
+		}
 
 		if (synthetic_pu_workaround)
 			b43_synth_pu_workaround(dev, channel);
@@ -3990,7 +3996,9 @@ int b43_radio_selectchannel(struct b43_wldev *dev,
 		}
 		break;
 	case B43_PHYTYPE_N:
-		b43_nphy_selectchannel(dev, channel);
+		err = b43_nphy_selectchannel(dev, channel);
+		if (err)
+			goto out;
 		break;
 	default:
 		B43_WARN_ON(1);
@@ -3999,8 +4007,12 @@ int b43_radio_selectchannel(struct b43_wldev *dev,
 	phy->channel = channel;
 	/* Wait for the radio to tune to the channel and stabilize. */
 	msleep(8);
-
-	return 0;
+out:
+	if (err) {
+		b43_shm_write16(dev, B43_SHM_SHARED,
+				B43_SHM_SH_CHAN, savedcookie);
+	}
+	return err;
 }
 
 void b43_radio_turn_on(struct b43_wldev *dev)

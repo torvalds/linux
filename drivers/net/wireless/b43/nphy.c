@@ -35,12 +35,78 @@ void b43_nphy_xmitpower(struct b43_wldev *dev)
 {//TODO
 }
 
+static void b43_chantab_radio_upload(struct b43_wldev *dev,
+				     const struct b43_nphy_channeltab_entry *e)
+{
+	b43_radio_write16(dev, B2055_PLL_REF, e->radio_pll_ref);
+	b43_radio_write16(dev, B2055_RF_PLLMOD0, e->radio_rf_pllmod0);
+	b43_radio_write16(dev, B2055_RF_PLLMOD1, e->radio_rf_pllmod1);
+	b43_radio_write16(dev, B2055_VCO_CAPTAIL, e->radio_vco_captail);
+	b43_radio_write16(dev, B2055_VCO_CAL1, e->radio_vco_cal1);
+	b43_radio_write16(dev, B2055_VCO_CAL2, e->radio_vco_cal2);
+	b43_radio_write16(dev, B2055_PLL_LFC1, e->radio_pll_lfc1);
+	b43_radio_write16(dev, B2055_PLL_LFR1, e->radio_pll_lfr1);
+	b43_radio_write16(dev, B2055_PLL_LFC2, e->radio_pll_lfc2);
+	b43_radio_write16(dev, B2055_LGBUF_CENBUF, e->radio_lgbuf_cenbuf);
+	b43_radio_write16(dev, B2055_LGEN_TUNE1, e->radio_lgen_tune1);
+	b43_radio_write16(dev, B2055_LGEN_TUNE2, e->radio_lgen_tune2);
+	b43_radio_write16(dev, B2055_C1_LGBUF_ATUNE, e->radio_c1_lgbuf_atune);
+	b43_radio_write16(dev, B2055_C1_LGBUF_GTUNE, e->radio_c1_lgbuf_gtune);
+	b43_radio_write16(dev, B2055_C1_RX_RFR1, e->radio_c1_rx_rfr1);
+	b43_radio_write16(dev, B2055_C1_TX_PGAPADTN, e->radio_c1_tx_pgapadtn);
+	b43_radio_write16(dev, B2055_C1_TX_MXBGTRIM, e->radio_c1_tx_mxbgtrim);
+	b43_radio_write16(dev, B2055_C2_LGBUF_ATUNE, e->radio_c2_lgbuf_atune);
+	b43_radio_write16(dev, B2055_C2_LGBUF_GTUNE, e->radio_c2_lgbuf_gtune);
+	b43_radio_write16(dev, B2055_C2_RX_RFR1, e->radio_c2_rx_rfr1);
+	b43_radio_write16(dev, B2055_C2_TX_PGAPADTN, e->radio_c2_tx_pgapadtn);
+	b43_radio_write16(dev, B2055_C2_TX_MXBGTRIM, e->radio_c2_tx_mxbgtrim);
+}
+
+static void b43_chantab_phy_upload(struct b43_wldev *dev,
+				   const struct b43_nphy_channeltab_entry *e)
+{
+	b43_phy_write(dev, B43_NPHY_BW1A, e->phy_bw1a);
+	b43_phy_write(dev, B43_NPHY_BW2, e->phy_bw2);
+	b43_phy_write(dev, B43_NPHY_BW3, e->phy_bw3);
+	b43_phy_write(dev, B43_NPHY_BW4, e->phy_bw4);
+	b43_phy_write(dev, B43_NPHY_BW5, e->phy_bw5);
+	b43_phy_write(dev, B43_NPHY_BW6, e->phy_bw6);
+}
+
+static void b43_nphy_tx_power_fix(struct b43_wldev *dev)
+{
+	//TODO
+}
+
 /* Tune the hardware to a new channel. Don't call this directly.
  * Use b43_radio_selectchannel() */
-void b43_nphy_selectchannel(struct b43_wldev *dev, u8 channel)
+int b43_nphy_selectchannel(struct b43_wldev *dev, u8 channel)
 {
+	const struct b43_nphy_channeltab_entry *tabent;
 
-//TODO
+	tabent = b43_nphy_get_chantabent(dev, channel);
+	if (!tabent)
+		return -ESRCH;
+
+	//FIXME enable/disable band select upper20 in RXCTL
+	if (0 /*FIXME 5Ghz*/)
+		b43_radio_maskset(dev, B2055_MASTER1, 0xFF8F, 0x20);
+	else
+		b43_radio_maskset(dev, B2055_MASTER1, 0xFF8F, 0x50);
+	b43_chantab_radio_upload(dev, tabent);
+	udelay(50);
+	b43_radio_write16(dev, B2055_VCO_CAL10, 5);
+	b43_radio_write16(dev, B2055_VCO_CAL10, 45);
+	b43_radio_write16(dev, B2055_VCO_CAL10, 65);
+	udelay(300);
+	if (0 /*FIXME 5Ghz*/)
+		b43_phy_set(dev, B43_NPHY_BANDCTL, B43_NPHY_BANDCTL_5GHZ);
+	else
+		b43_phy_mask(dev, B43_NPHY_BANDCTL, ~B43_NPHY_BANDCTL_5GHZ);
+	b43_chantab_phy_upload(dev, tabent);
+	b43_nphy_tx_power_fix(dev);
+
+	return 0;
 }
 
 static void b43_radio_init2055_pre(struct b43_wldev *dev)

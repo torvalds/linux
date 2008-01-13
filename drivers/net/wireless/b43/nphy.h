@@ -12,6 +12,7 @@
 #define B43_NPHY_CHANNEL			B43_PHY_N(0x005) /* Channel */
 #define B43_NPHY_TXERR				B43_PHY_N(0x007) /* TX error */
 #define B43_NPHY_BANDCTL			B43_PHY_N(0x009) /* Band control */
+#define  B43_NPHY_BANDCTL_5GHZ			0x0001 /* Use the 5GHz band */
 #define B43_NPHY_4WI_ADDR			B43_PHY_N(0x00B) /* Four-wire bus address */
 #define B43_NPHY_4WI_DATAHI			B43_PHY_N(0x00C) /* Four-wire bus data high */
 #define B43_NPHY_4WI_DATALO			B43_PHY_N(0x00D) /* Four-wire bus data low */
@@ -917,7 +918,7 @@ int b43_phy_initn(struct b43_wldev *dev);
 void b43_nphy_radio_turn_on(struct b43_wldev *dev);
 void b43_nphy_radio_turn_off(struct b43_wldev *dev);
 
-void b43_nphy_selectchannel(struct b43_wldev *dev, u8 channel);
+int b43_nphy_selectchannel(struct b43_wldev *dev, u8 channel);
 
 void b43_nphy_xmitpower(struct b43_wldev *dev);
 void b43_nphy_set_rxantenna(struct b43_wldev *dev, int antenna);
