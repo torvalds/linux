@@ -298,23 +298,6 @@ enum _pcs_reg {
 };
 
 /* Basic Mode Control Register */
-typedef union t_MII_BMCR {
-	u16 image;
-	struct {
-		u16 _bit_5_0:6;	// bit 5:0
-		u16 speed1000:1;	// bit 6
-		u16 col_test_enable:1;	// bit 7
-		u16 duplex_mode:1;	// bit 8
-		u16 restart_an:1;	// bit 9
-		u16 isolate:1;	// bit 10
-		u16 power_down:1;	// bit 11
-		u16 an_enable:1;	// bit 12
-		u16 speed100:1;	// bit 13
-		u16 loopback:1;	// bit 14
-		u16 reset:1;	// bit 15
-	} bits;
-} BMCR_t, *PBMCR_t;
-
 enum _mii_bmcr {
 	MII_BMCR_RESET = 0x8000,
 	MII_BMCR_LOOP_BACK = 0x4000,

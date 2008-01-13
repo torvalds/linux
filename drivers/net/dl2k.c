@@ -1455,7 +1455,6 @@ mii_get_media (struct net_device *dev)
 {
 	ANAR_t negotiate;
 	BMSR_t bmsr;
-	BMCR_t bmcr;
 	MSCR_t mscr;
 	MSSR_t mssr;
 	int phy_addr;
@@ -1508,15 +1507,18 @@ mii_get_media (struct net_device *dev)
 		}
 		/* else tx_flow, rx_flow = user select  */
 	} else {
-		bmcr.image = mii_read (dev, phy_addr, MII_BMCR);
-		if (bmcr.bits.speed100 == 1 && bmcr.bits.speed1000 == 0) {
-			printk (KERN_INFO "Operating at 100 Mbps, ");
-		} else if (bmcr.bits.speed100 == 0 && bmcr.bits.speed1000 == 0) {
-			printk (KERN_INFO "Operating at 10 Mbps, ");
-		} else if (bmcr.bits.speed100 == 0 && bmcr.bits.speed1000 == 1) {
+		__u16 bmcr = mii_read (dev, phy_addr, MII_BMCR);
+		switch (bmcr & (MII_BMCR_SPEED_100 | MII_BMCR_SPEED_1000)) {
+		case MII_BMCR_SPEED_1000:
 			printk (KERN_INFO "Operating at 1000 Mbps, ");
+			break;
+		case MII_BMCR_SPEED_100:
+			printk (KERN_INFO "Operating at 100 Mbps, ");
+			break;
+		case 0:
+			printk (KERN_INFO "Operating at 10 Mbps, ");
 		}
-		if (bmcr.bits.duplex_mode) {
+		if (bmcr & MII_BMCR_DUPLEX_MODE) {
 			printk ("Full duplex\n");
 		} else {
 			printk ("Half duplex\n");
@@ -1538,7 +1540,7 @@ static int
 mii_set_media (struct net_device *dev)
 {
 	PHY_SCR_t pscr;
-	BMCR_t bmcr;
+	__u16 bmcr;
 	BMSR_t bmsr;
 	ANAR_t anar;
 	int phy_addr;
@@ -1567,11 +1569,8 @@ mii_set_media (struct net_device *dev)
 
 		/* Soft reset PHY */
 		mii_write (dev, phy_addr, MII_BMCR, MII_BMCR_RESET);
-		bmcr.image = 0;
-		bmcr.bits.an_enable = 1;
-		bmcr.bits.restart_an = 1;
-		bmcr.bits.reset = 1;
-		mii_write (dev, phy_addr, MII_BMCR, bmcr.image);
+		bmcr = MII_BMCR_AN_ENABLE | MII_BMCR_RESTART_AN | MII_BMCR_RESET;
+		mii_write (dev, phy_addr, MII_BMCR, bmcr);
 		mdelay(1);
 	} else {
 		/* Force speed setting */
@@ -1581,35 +1580,30 @@ mii_set_media (struct net_device *dev)
 		mii_write (dev, phy_addr, MII_PHY_SCR, pscr.image);
 
 		/* 2) PHY Reset */
-		bmcr.image = mii_read (dev, phy_addr, MII_BMCR);
-		bmcr.bits.reset = 1;
-		mii_write (dev, phy_addr, MII_BMCR, bmcr.image);
+		bmcr = mii_read (dev, phy_addr, MII_BMCR);
+		bmcr |= MII_BMCR_RESET;
+		mii_write (dev, phy_addr, MII_BMCR, bmcr);
 
 		/* 3) Power Down */
-		bmcr.image = 0x1940;	/* must be 0x1940 */
-		mii_write (dev, phy_addr, MII_BMCR, bmcr.image);
+		bmcr = 0x1940;	/* must be 0x1940 */
+		mii_write (dev, phy_addr, MII_BMCR, bmcr);
 		mdelay (100);	/* wait a certain time */
 
 		/* 4) Advertise nothing */
 		mii_write (dev, phy_addr, MII_ANAR, 0);
 
 		/* 5) Set media and Power Up */
-		bmcr.image = 0;
-		bmcr.bits.power_down = 1;
+		bmcr = MII_BMCR_POWER_DOWN;
 		if (np->speed == 100) {
-			bmcr.bits.speed100 = 1;
-			bmcr.bits.speed1000 = 0;
+			bmcr |= MII_BMCR_SPEED_100;
 			printk (KERN_INFO "Manual 100 Mbps, ");
 		} else if (np->speed == 10) {
-			bmcr.bits.speed100 = 0;
-			bmcr.bits.speed1000 = 0;
 			printk (KERN_INFO "Manual 10 Mbps, ");
 		}
 		if (np->full_duplex) {
-			bmcr.bits.duplex_mode = 1;
+			bmcr |= MII_BMCR_DUPLEX_MODE;
 			printk ("Full duplex\n");
 		} else {
-			bmcr.bits.duplex_mode = 0;
 			printk ("Half duplex\n");
 		}
 #if 0
@@ -1618,7 +1612,7 @@ mii_set_media (struct net_device *dev)
 		mscr.bits.cfg_enable = 1;
 		mscr.bits.cfg_value = 0;
 #endif
-		mii_write (dev, phy_addr, MII_BMCR, bmcr.image);
+		mii_write (dev, phy_addr, MII_BMCR, bmcr);
 		mdelay(10);
 	}
 	return 0;
@@ -1629,7 +1623,6 @@ mii_get_media_pcs (struct net_device *dev)
 {
 	ANAR_PCS_t negotiate;
 	BMSR_t bmsr;
-	BMCR_t bmcr;
 	int phy_addr;
 	struct netdev_private *np;
 
@@ -1661,9 +1654,9 @@ mii_get_media_pcs (struct net_device *dev)
 		}
 		/* else tx_flow, rx_flow = user select  */
 	} else {
-		bmcr.image = mii_read (dev, phy_addr, PCS_BMCR);
+		__u16 bmcr = mii_read (dev, phy_addr, PCS_BMCR);
 		printk (KERN_INFO "Operating at 1000 Mbps, ");
-		if (bmcr.bits.duplex_mode) {
+		if (bmcr & MII_BMCR_DUPLEX_MODE) {
 			printk ("Full duplex\n");
 		} else {
 			printk ("Half duplex\n");
@@ -1684,7 +1677,7 @@ mii_get_media_pcs (struct net_device *dev)
 static int
 mii_set_media_pcs (struct net_device *dev)
 {
-	BMCR_t bmcr;
+	__u16 bmcr;
 	ESR_t esr;
 	ANAR_PCS_t anar;
 	int phy_addr;
@@ -1707,29 +1700,24 @@ mii_set_media_pcs (struct net_device *dev)
 
 		/* Soft reset PHY */
 		mii_write (dev, phy_addr, MII_BMCR, MII_BMCR_RESET);
-		bmcr.image = 0;
-		bmcr.bits.an_enable = 1;
-		bmcr.bits.restart_an = 1;
-		bmcr.bits.reset = 1;
-		mii_write (dev, phy_addr, MII_BMCR, bmcr.image);
+		bmcr = MII_BMCR_AN_ENABLE | MII_BMCR_RESTART_AN |
+		       MII_BMCR_RESET;
+		mii_write (dev, phy_addr, MII_BMCR, bmcr);
 		mdelay(1);
 	} else {
 		/* Force speed setting */
 		/* PHY Reset */
-		bmcr.image = 0;
-		bmcr.bits.reset = 1;
-		mii_write (dev, phy_addr, MII_BMCR, bmcr.image);
+		bmcr = MII_BMCR_RESET;
+		mii_write (dev, phy_addr, MII_BMCR, bmcr);
 		mdelay(10);
-		bmcr.image = 0;
-		bmcr.bits.an_enable = 0;
 		if (np->full_duplex) {
-			bmcr.bits.duplex_mode = 1;
+			bmcr = MII_BMCR_DUPLEX_MODE;
 			printk (KERN_INFO "Manual full duplex\n");
 		} else {
-			bmcr.bits.duplex_mode = 0;
+			bmcr = 0;
 			printk (KERN_INFO "Manual half duplex\n");
 		}
-		mii_write (dev, phy_addr, MII_BMCR, bmcr.image);
+		mii_write (dev, phy_addr, MII_BMCR, bmcr);
 		mdelay(10);
 
 		/*  Advertise nothing */
