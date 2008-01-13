@@ -1933,6 +1933,7 @@ static int __devinit azx_probe(struct pci_dev *pci,
 	chip->running = 1;
 	power_down_all_codecs(chip);
 
+	dev++;
 	return err;
 }
 
