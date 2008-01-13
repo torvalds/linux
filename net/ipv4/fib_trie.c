@@ -153,7 +153,6 @@ struct trie {
 	struct trie_use_stats stats;
 #endif
 	int size;
-	unsigned int revision;
 };
 
 static void put_child(struct trie *t, struct tnode *tn, int i, struct node *n);
@@ -1046,7 +1045,7 @@ fib_insert_node(struct trie *t, int *err, u32 key, int plen)
 
 		if (!li) {
 			*err = -ENOMEM;
-			goto err;
+			goto done;
 		}
 
 		fa_head = &li->falh;
@@ -1058,7 +1057,7 @@ fib_insert_node(struct trie *t, int *err, u32 key, int plen)
 
 	if (!l) {
 		*err = -ENOMEM;
-		goto err;
+		goto done;
 	}
 
 	l->key = key;
@@ -1067,7 +1066,7 @@ fib_insert_node(struct trie *t, int *err, u32 key, int plen)
 	if (!li) {
 		tnode_free((struct tnode *) l);
 		*err = -ENOMEM;
-		goto err;
+		goto done;
 	}
 
 	fa_head = &li->falh;
@@ -1104,7 +1103,7 @@ fib_insert_node(struct trie *t, int *err, u32 key, int plen)
 			free_leaf_info(li);
 			tnode_free((struct tnode *) l);
 			*err = -ENOMEM;
-			goto err;
+			goto done;
 		}
 
 		node_set_parent((struct node *)tn, tp);
@@ -1130,8 +1129,6 @@ fib_insert_node(struct trie *t, int *err, u32 key, int plen)
 
 	rcu_assign_pointer(t->trie, trie_rebalance(t, tp));
 done:
-	t->revision++;
-err:
 	return fa_head;
 }
 
@@ -1546,7 +1543,6 @@ static int trie_leaf_remove(struct trie *t, t_key key)
 	 * Remove the leaf and rebalance the tree
 	 */
 
-	t->revision++;
 	t->size--;
 
 	tp = node_parent(n);
@@ -1751,8 +1747,6 @@ static int fn_trie_flush(struct fib_table *tb)
 	struct trie *t = (struct trie *) tb->tb_data;
 	struct leaf *ll = NULL, *l = NULL;
 	int found = 0, h;
-
-	t->revision++;
 
 	for (h = 0; (l = nextleaf(t, l)) != NULL; h++) {
 		found += trie_flush_leaf(t, l);
