@@ -369,7 +369,6 @@ static int eata_pio_queue(struct scsi_cmnd *cmd,
 	cp = &hd->ccb[y];
 
 	memset(cp, 0, sizeof(struct eata_ccb));
-	memset(cmd->sense_buffer, 0, sizeof(cmd->sense_buffer));
 
 	cp->status = USED;	/* claim free slot */
 

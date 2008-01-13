@@ -2736,8 +2736,6 @@ ips_next(ips_ha_t * ha, int intr)
 		SC->result = DID_OK;
 		SC->host_scribble = NULL;
 
-		memset(SC->sense_buffer, 0, sizeof (SC->sense_buffer));
-
 		scb->target_id = SC->device->id;
 		scb->lun = SC->device->lun;
 		scb->bus = SC->device->channel;
@@ -3821,7 +3819,6 @@ ips_send_cmd(ips_ha_t * ha, ips_scb_t * scb)
 			/* attempted, a Check Condition occurred, and Sense   */
 			/* Data indicating an Invalid CDB OpCode is returned. */
 			sp = (char *) scb->scsi_cmd->sense_buffer;
-			memset(sp, 0, sizeof (scb->scsi_cmd->sense_buffer));
 
 			sp[0] = 0x70;	/* Error Code               */
 			sp[2] = ILLEGAL_REQUEST;	/* Sense Key 5 Illegal Req. */

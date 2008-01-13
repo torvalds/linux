@@ -148,7 +148,6 @@ static struct sas_task *sas_create_task(struct scsi_cmnd *cmd,
 	if (!task)
 		return NULL;
 
-	*(u32 *)cmd->sense_buffer = 0;
 	task->uldd_task = cmd;
 	ASSIGN_SAS_TASK(cmd, task);
 

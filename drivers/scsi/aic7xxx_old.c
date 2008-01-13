@@ -10293,7 +10293,6 @@ static int aic7xxx_queue(struct scsi_cmnd *cmd, void (*fn)(struct scsi_cmnd *))
   aic7xxx_position(cmd) = scb->hscb->tag;
   cmd->scsi_done = fn;
   cmd->result = DID_OK;
-  memset(cmd->sense_buffer, 0, sizeof(cmd->sense_buffer));
   aic7xxx_error(cmd) = DID_OK;
   aic7xxx_status(cmd) = 0;
   cmd->host_scribble = NULL;
