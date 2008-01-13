@@ -43,6 +43,7 @@ struct ssb_sprom {
 	u8 itssi_a;		/* Idle TSSI Target for A-PHY */
 	u8 itssi_bg;		/* Idle TSSI Target for B/G-PHY */
 	u16 boardflags_lo;	/* Boardflags (low 16 bits) */
+	u16 boardflags_hi;	/* Boardflags (high 16 bits) */
 
 	/* Antenna gain values for up to 4 antennas
 	 * on each band. Values in dBm/4 (Q5.2). Negative gain means the

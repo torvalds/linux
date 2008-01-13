@@ -377,6 +377,8 @@ static void sprom_extract_r123(struct ssb_sprom *out, const u16 *in)
 	     SSB_SPROM1_ITSSI_A_SHIFT);
 	SPEX(itssi_bg, SSB_SPROM1_ITSSI, SSB_SPROM1_ITSSI_BG, 0);
 	SPEX(boardflags_lo, SSB_SPROM1_BFLLO, 0xFFFF, 0);
+	if (out->revision >= 2)
+		SPEX(boardflags_hi, SSB_SPROM2_BFLHI, 0xFFFF, 0);
 
 	/* Extract the antenna gain values. */
 	gain = r123_extract_antgain(out->revision, in,
@@ -418,6 +420,7 @@ static void sprom_extract_r4(struct ssb_sprom *out, const u16 *in)
 	     SSB_SPROM4_ETHPHY_ET1A_SHIFT);
 	SPEX(country_code, SSB_SPROM4_CCODE, 0xFFFF, 0);
 	SPEX(boardflags_lo, SSB_SPROM4_BFLLO, 0xFFFF, 0);
+	SPEX(boardflags_hi, SSB_SPROM4_BFLHI, 0xFFFF, 0);
 	SPEX(ant_available_a, SSB_SPROM4_ANTAVAIL, SSB_SPROM4_ANTAVAIL_A,
 	     SSB_SPROM4_ANTAVAIL_A_SHIFT);
 	SPEX(ant_available_bg, SSB_SPROM4_ANTAVAIL, SSB_SPROM4_ANTAVAIL_BG,
