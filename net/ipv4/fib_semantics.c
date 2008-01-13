@@ -47,8 +47,6 @@
 
 #include "fib_lookup.h"
 
-#define FSprintk(a...)
-
 static DEFINE_SPINLOCK(fib_info_lock);
 static struct hlist_head *fib_info_hash;
 static struct hlist_head *fib_info_laddrhash;
@@ -145,7 +143,7 @@ static const struct
 void free_fib_info(struct fib_info *fi)
 {
 	if (fi->fib_dead == 0) {
-		printk("Freeing alive fib_info %p\n", fi);
+		printk(KERN_WARNING "Freeing alive fib_info %p\n", fi);
 		return;
 	}
 	change_nexthops(fi) {
@@ -914,7 +912,8 @@ int fib_semantic_match(struct list_head *head, const struct flowi *flp,
 				continue;
 
 			default:
-				printk(KERN_DEBUG "impossible 102\n");
+				printk(KERN_WARNING "fib_semantic_match bad type %#x\n",
+					fa->fa_type);
 				return -EINVAL;
 			}
 		}

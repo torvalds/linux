@@ -47,8 +47,6 @@
 #include <net/ip_fib.h>
 #include <net/rtnetlink.h>
 
-#define FFprint(a...) printk(KERN_DEBUG a)
-
 #ifndef CONFIG_IP_MULTIPLE_TABLES
 
 static int __net_init fib4_rules_init(struct net *net)
@@ -706,7 +704,7 @@ void fib_add_ifaddr(struct in_ifaddr *ifa)
 	if (ifa->ifa_flags&IFA_F_SECONDARY) {
 		prim = inet_ifa_byprefix(in_dev, prefix, mask);
 		if (prim == NULL) {
-			printk(KERN_DEBUG "fib_add_ifaddr: bug: prim == NULL\n");
+			printk(KERN_WARNING "fib_add_ifaddr: bug: prim == NULL\n");
 			return;
 		}
 	}
@@ -753,7 +751,7 @@ static void fib_del_ifaddr(struct in_ifaddr *ifa)
 	else {
 		prim = inet_ifa_byprefix(in_dev, any, ifa->ifa_mask);
 		if (prim == NULL) {
-			printk(KERN_DEBUG "fib_del_ifaddr: bug: prim == NULL\n");
+			printk(KERN_WARNING "fib_del_ifaddr: bug: prim == NULL\n");
 			return;
 		}
 	}

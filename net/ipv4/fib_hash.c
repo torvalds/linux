@@ -168,7 +168,8 @@ static void fn_rehash_zone(struct fn_zone *fz)
 	new_hashmask = (new_divisor - 1);
 
 #if RT_CACHE_DEBUG >= 2
-	printk("fn_rehash_zone: hash for zone %d grows from %d\n", fz->fz_order, old_divisor);
+	printk(KERN_DEBUG "fn_rehash_zone: hash for zone %d grows from %d\n",
+	       fz->fz_order, old_divisor);
 #endif
 
 	ht = fz_hash_alloc(new_divisor);
