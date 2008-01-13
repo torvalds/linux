@@ -391,7 +391,6 @@ static struct tnode* tnode_new(t_key key, int pos, int bits)
 	struct tnode *tn = tnode_alloc(sz);
 
 	if (tn) {
-		memset(tn, 0, sz);
 		tn->parent = T_TNODE;
 		tn->pos = pos;
 		tn->bits = bits;
