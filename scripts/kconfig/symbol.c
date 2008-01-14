@@ -247,8 +247,7 @@ static struct symbol *sym_calc_choice(struct symbol *sym)
 
 	/* just get the first visible value */
 	prop = sym_get_choice_prop(sym);
-	for (e = prop->expr; e; e = e->left.expr) {
-		def_sym = e->right.sym;
+	expr_list_for_each_sym(prop->expr, e, def_sym) {
 		sym_calc_visibility(def_sym);
 		if (def_sym->visible != no)
 			return def_sym;
@@ -361,12 +360,14 @@ void sym_calc_value(struct symbol *sym)
 	}
 
 	if (sym_is_choice(sym)) {
+		struct symbol *choice_sym;
 		int flags = sym->flags & (SYMBOL_CHANGED | SYMBOL_WRITE);
+
 		prop = sym_get_choice_prop(sym);
-		for (e = prop->expr; e; e = e->left.expr) {
-			e->right.sym->flags |= flags;
+		expr_list_for_each_sym(prop->expr, e, choice_sym) {
+			choice_sym->flags |= flags;
 			if (flags & SYMBOL_CHANGED)
-				sym_set_changed(e->right.sym);
+				sym_set_changed(choice_sym);
 		}
 	}
 }
@@ -849,7 +850,7 @@ struct property *prop_alloc(enum prop_type type, struct symbol *sym)
 struct symbol *prop_get_symbol(struct property *prop)
 {
 	if (prop->expr && (prop->expr->type == E_SYMBOL ||
-			   prop->expr->type == E_CHOICE))
+			   prop->expr->type == E_LIST))
 		return prop->expr->left.sym;
 	return NULL;
 }

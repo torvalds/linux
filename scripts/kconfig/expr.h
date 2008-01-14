@@ -31,7 +31,7 @@ typedef enum tristate {
 } tristate;
 
 enum expr_type {
-	E_NONE, E_OR, E_AND, E_NOT, E_EQUAL, E_UNEQUAL, E_CHOICE, E_SYMBOL, E_RANGE
+	E_NONE, E_OR, E_AND, E_NOT, E_EQUAL, E_UNEQUAL, E_LIST, E_SYMBOL, E_RANGE
 };
 
 union expr_data {
@@ -47,6 +47,9 @@ struct expr {
 #define EXPR_OR(dep1, dep2)	(((dep1)>(dep2))?(dep1):(dep2))
 #define EXPR_AND(dep1, dep2)	(((dep1)<(dep2))?(dep1):(dep2))
 #define EXPR_NOT(dep)		(2-(dep))
+
+#define expr_list_for_each_sym(l, e, s) \
+	for (e = (l); e && (s = e->right.sym); e = e->left.expr)
 
 struct expr_value {
 	struct expr *expr;
