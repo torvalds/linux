@@ -795,7 +795,8 @@ int btrfs_free_fs_root(struct btrfs_fs_info *fs_info, struct btrfs_root *root)
 {
 	radix_tree_delete(&fs_info->fs_roots_radix,
 			  (unsigned long)root->root_key.objectid);
-	btrfs_sysfs_del_root(root);
+	if (root->in_sysfs)
+		btrfs_sysfs_del_root(root);
 	if (root->inode)
 		iput(root->inode);
 	if (root->node)
