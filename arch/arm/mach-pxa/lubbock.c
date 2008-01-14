@@ -41,6 +41,7 @@
 #include <asm/hardware/sa1111.h>
 
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/pxa2xx-regs.h>
 #include <asm/arch/lubbock.h>
 #include <asm/arch/udc.h>
 #include <asm/arch/irda.h>

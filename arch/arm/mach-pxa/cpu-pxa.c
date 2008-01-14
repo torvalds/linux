@@ -39,6 +39,7 @@
 
 #include <asm/hardware.h>
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/pxa2xx-regs.h>
 
 #ifdef DEBUG
 static unsigned int freq_debug;
