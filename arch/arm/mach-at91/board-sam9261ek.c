@@ -404,25 +404,25 @@ static struct atmel_lcdfb_info __initdata ek_lcdc_data;
 static struct gpio_keys_button ek_buttons[] = {
 	{
 		.gpio		= AT91_PIN_PA27,
-		.keycode	= BTN_0,
+		.code		= BTN_0,
 		.desc		= "Button 0",
 		.active_low	= 1,
 	},
 	{
 		.gpio		= AT91_PIN_PA26,
-		.keycode	= BTN_1,
+		.code		= BTN_1,
 		.desc		= "Button 1",
 		.active_low	= 1,
 	},
 	{
 		.gpio		= AT91_PIN_PA25,
-		.keycode	= BTN_2,
+		.code		= BTN_2,
 		.desc		= "Button 2",
 		.active_low	= 1,
 	},
 	{
 		.gpio		= AT91_PIN_PA24,
-		.keycode	= BTN_3,
+		.code		= BTN_3,
 		.desc		= "Button 3",
 		.active_low	= 1,
 	}

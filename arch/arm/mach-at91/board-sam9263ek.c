@@ -27,6 +27,8 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 #include <linux/fb.h>
+#include <linux/gpio_keys.h>
+#include <linux/input.h>
 
 #include <video/atmel_lcdc.h>
 
@@ -265,6 +267,55 @@ static struct atmel_lcdfb_info __initdata ek_lcdc_data;
 
 
 /*
+ * GPIO Buttons
+ */
+#if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
+static struct gpio_keys_button ek_buttons[] = {
+	{	/* BP1, "leftclic" */
+		.code		= BTN_LEFT,
+		.gpio		= AT91_PIN_PC5,
+		.active_low	= 1,
+		.desc		= "left_click",
+		.wakeup		= 1,
+	},
+	{	/* BP2, "rightclic" */
+		.code		= BTN_RIGHT,
+		.gpio		= AT91_PIN_PC4,
+		.active_low	= 1,
+		.desc		= "right_click",
+		.wakeup		= 1,
+	},
+};
+
+static struct gpio_keys_platform_data ek_button_data = {
+	.buttons	= ek_buttons,
+	.nbuttons	= ARRAY_SIZE(ek_buttons),
+};
+
+static struct platform_device ek_button_device = {
+	.name		= "gpio-keys",
+	.id		= -1,
+	.num_resources	= 0,
+	.dev		= {
+		.platform_data	= &ek_button_data,
+	}
+};
+
+static void __init ek_add_device_buttons(void)
+{
+	at91_set_GPIO_periph(AT91_PIN_PC5, 0);	/* left button */
+	at91_set_deglitch(AT91_PIN_PC5, 1);
+	at91_set_GPIO_periph(AT91_PIN_PC4, 0);	/* right button */
+	at91_set_deglitch(AT91_PIN_PC4, 1);
+
+	platform_device_register(&ek_button_device);
+}
+#else
+static void __init ek_add_device_buttons(void) {}
+#endif
+
+
+/*
  * AC97
  */
 static struct atmel_ac97_data ek_ac97_data = {
@@ -319,6 +370,8 @@ static void __init ek_board_init(void)
 	at91_add_device_i2c(NULL, 0);
 	/* LCD Controller */
 	at91_add_device_lcdc(&ek_lcdc_data);
+	/* Push Buttons */
+	ek_add_device_buttons();
 	/* AC97 */
 	at91_add_device_ac97(&ek_ac97_data);
 	/* LEDs */
