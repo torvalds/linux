@@ -1451,7 +1451,7 @@ static u8 sony_pic_call1(u8 dev)
 	outb(dev, spic_dev.cur_ioport->io1.minimum + 4);
 	v1 = inb_p(spic_dev.cur_ioport->io1.minimum + 4);
 	v2 = inb_p(spic_dev.cur_ioport->io1.minimum);
-	dprintk("sony_pic_call1: 0x%.4x\n", (v2 << 8) | v1);
+	dprintk("sony_pic_call1(0x%.2x): 0x%.4x\n", dev, (v2 << 8) | v1);
 	return v2;
 }
 
@@ -1466,7 +1466,7 @@ static u8 sony_pic_call2(u8 dev, u8 fn)
 			ITERATIONS_LONG);
 	outb(fn, spic_dev.cur_ioport->io1.minimum);
 	v1 = inb_p(spic_dev.cur_ioport->io1.minimum);
-	dprintk("sony_pic_call2: 0x%.4x\n", v1);
+	dprintk("sony_pic_call2(0x%.2x - 0x%.2x): 0x%.4x\n", dev, fn, v1);
 	return v1;
 }
 
@@ -1481,7 +1481,8 @@ static u8 sony_pic_call3(u8 dev, u8 fn, u8 v)
 	wait_on_command(inb_p(spic_dev.cur_ioport->io1.minimum + 4) & 2, ITERATIONS_LONG);
 	outb(v, spic_dev.cur_ioport->io1.minimum);
 	v1 = inb_p(spic_dev.cur_ioport->io1.minimum);
-	dprintk("sony_pic_call3: 0x%.4x\n", v1);
+	dprintk("sony_pic_call3(0x%.2x - 0x%.2x - 0x%.2x): 0x%.4x\n",
+			dev, fn, v, v1);
 	return v1;
 }
 
