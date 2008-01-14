@@ -115,19 +115,17 @@ config TOUCHSCREEN_MK712
 	  module will be called mk712.
 
 config TOUCHSCREEN_HP600
-	tristate "HP Jornada 680/690 touchscreen"
+	tristate "HP Jornada 6xx touchscreen"
 	depends on SH_HP6XX && SH_ADC
 	help
-	  Say Y here if you have a HP Jornada 680 or 690 and want to
+	  Say Y here if you have a HP Jornada 620/660/680/690 and want to
           support the built-in touchscreen.
-
-	  If unsure, say N.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called hp680_ts_input.
 
 config TOUCHSCREEN_HP7XX
-	tristate "HP Jornada 710/720/728 touchscreen"
+	tristate "HP Jornada 7xx touchscreen"
 	depends on SA1100_JORNADA720_SSP
 	help
 	  Say Y here if you have a HP Jornada 710/720/728 and want
