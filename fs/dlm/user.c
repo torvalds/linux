@@ -236,12 +236,12 @@ void dlm_user_add_ast(struct dlm_lkb *lkb, int type)
 	spin_unlock(&proc->asts_spin);
 
 	if (eol) {
-		spin_lock(&ua->proc->locks_spin);
+		spin_lock(&proc->locks_spin);
 		if (!list_empty(&lkb->lkb_ownqueue)) {
 			list_del_init(&lkb->lkb_ownqueue);
 			dlm_put_lkb(lkb);
 		}
-		spin_unlock(&ua->proc->locks_spin);
+		spin_unlock(&proc->locks_spin);
 	}
  out:
 	mutex_unlock(&ls->ls_clear_proc_locks);
