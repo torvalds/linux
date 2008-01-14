@@ -190,25 +190,25 @@ static struct sram_channel cx23887_sram_channels[] = {
 static int cx23885_risc_decode(u32 risc)
 {
 	static char *instr[16] = {
-		[ RISC_SYNC    >> 28 ] = "sync",
-		[ RISC_WRITE   >> 28 ] = "write",
-		[ RISC_WRITEC  >> 28 ] = "writec",
-		[ RISC_READ    >> 28 ] = "read",
-		[ RISC_READC   >> 28 ] = "readc",
-		[ RISC_JUMP    >> 28 ] = "jump",
-		[ RISC_SKIP    >> 28 ] = "skip",
-		[ RISC_WRITERM >> 28 ] = "writerm",
-		[ RISC_WRITECM >> 28 ] = "writecm",
-		[ RISC_WRITECR >> 28 ] = "writecr",
+		[RISC_SYNC    >> 28] = "sync",
+		[RISC_WRITE   >> 28] = "write",
+		[RISC_WRITEC  >> 28] = "writec",
+		[RISC_READ    >> 28] = "read",
+		[RISC_READC   >> 28] = "readc",
+		[RISC_JUMP    >> 28] = "jump",
+		[RISC_SKIP    >> 28] = "skip",
+		[RISC_WRITERM >> 28] = "writerm",
+		[RISC_WRITECM >> 28] = "writecm",
+		[RISC_WRITECR >> 28] = "writecr",
 	};
 	static int incr[16] = {
-		[ RISC_WRITE   >> 28 ] = 3,
-		[ RISC_JUMP    >> 28 ] = 3,
-		[ RISC_SKIP    >> 28 ] = 1,
-		[ RISC_SYNC    >> 28 ] = 1,
-		[ RISC_WRITERM >> 28 ] = 3,
-		[ RISC_WRITECM >> 28 ] = 3,
-		[ RISC_WRITECR >> 28 ] = 4,
+		[RISC_WRITE   >> 28] = 3,
+		[RISC_JUMP    >> 28] = 3,
+		[RISC_SKIP    >> 28] = 1,
+		[RISC_SYNC    >> 28] = 1,
+		[RISC_WRITERM >> 28] = 3,
+		[RISC_WRITECM >> 28] = 3,
+		[RISC_WRITECR >> 28] = 4,
 	};
 	static char *bits[] = {
 		"12",   "13",   "14",   "resync",
@@ -518,6 +518,8 @@ static int cx23885_init_tsport(struct cx23885_dev *dev, struct cx23885_tsport *p
 	/* Transport bus init dma queue  - Common settings */
 	port->dma_ctl_val        = 0x11; /* Enable RISC controller and Fifo */
 	port->ts_int_msk_val     = 0x1111; /* TS port bits for RISC */
+	port->vld_misc_val       = 0x0;
+	port->hw_sop_ctrl_val    = (0x47 << 16 | 188 << 4);
 
 	spin_lock_init(&port->slock);
 	port->dev = dev;
@@ -544,7 +546,7 @@ static int cx23885_init_tsport(struct cx23885_dev *dev, struct cx23885_tsport *p
 		port->reg_ts_clk_en      = VID_B_TS_CLK_EN;
 		port->reg_src_sel        = VID_B_SRC_SEL;
 		port->reg_ts_int_msk     = VID_B_INT_MSK;
-		port->reg_ts_int_stat   = VID_B_INT_STAT;
+		port->reg_ts_int_stat    = VID_B_INT_STAT;
 		port->sram_chno          = SRAM_CH03; /* VID_B */
 		port->pci_irqmask        = 0x02; /* VID_B bit1 */
 		break;
@@ -697,10 +699,12 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 	dev->i2c_bus[2].reg_wdata = I2C3_WDATA;
 	dev->i2c_bus[2].i2c_period = (0x07 << 24); /* 1.95MHz */
 
-	if(cx23885_boards[dev->board].portb == CX23885_MPEG_DVB)
+	if ((cx23885_boards[dev->board].portb == CX23885_MPEG_DVB) ||
+		(cx23885_boards[dev->board].portb == CX23885_MPEG_ENCODER))
 		cx23885_init_tsport(dev, &dev->ts1, 1);
 
-	if(cx23885_boards[dev->board].portc == CX23885_MPEG_DVB)
+	if ((cx23885_boards[dev->board].portc == CX23885_MPEG_DVB) ||
+		(cx23885_boards[dev->board].portc == CX23885_MPEG_ENCODER))
 		cx23885_init_tsport(dev, &dev->ts2, 2);
 
 	if (get_resources(dev) < 0) {
@@ -760,11 +764,26 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 			printk(KERN_ERR "%s() Failed to register dvb adapters on VID_B\n",
 			       __func__);
 		}
+	} else
+	if (cx23885_boards[dev->board].portb == CX23885_MPEG_ENCODER) {
+		if (cx23885_417_register(dev) < 0) {
+			printk(KERN_ERR
+				"%s() Failed to register 417 on VID_B\n",
+			       __func__);
+		}
 	}
 
 	if (cx23885_boards[dev->board].portc == CX23885_MPEG_DVB) {
 		if (cx23885_dvb_register(&dev->ts2) < 0) {
-			printk(KERN_ERR "%s() Failed to register dvb adapters on VID_C\n",
+			printk(KERN_ERR
+				"%s() Failed to register dvb on VID_C\n",
+			       __func__);
+		}
+	} else
+	if (cx23885_boards[dev->board].portc == CX23885_MPEG_ENCODER) {
+		if (cx23885_417_register(dev) < 0) {
+			printk(KERN_ERR
+				"%s() Failed to register 417 on VID_C\n",
 			       __func__);
 		}
 	}
@@ -785,11 +804,17 @@ static void cx23885_dev_unregister(struct cx23885_dev *dev)
 	if (cx23885_boards[dev->board].porta == CX23885_ANALOG_VIDEO)
 		cx23885_video_unregister(dev);
 
-	if(cx23885_boards[dev->board].portb == CX23885_MPEG_DVB)
+	if (cx23885_boards[dev->board].portb == CX23885_MPEG_DVB)
 		cx23885_dvb_unregister(&dev->ts1);
 
-	if(cx23885_boards[dev->board].portc == CX23885_MPEG_DVB)
+	if (cx23885_boards[dev->board].portb == CX23885_MPEG_ENCODER)
+		cx23885_417_unregister(dev);
+
+	if (cx23885_boards[dev->board].portc == CX23885_MPEG_DVB)
 		cx23885_dvb_unregister(&dev->ts2);
+
+	if (cx23885_boards[dev->board].portc == CX23885_MPEG_ENCODER)
+		cx23885_417_unregister(dev);
 
 	cx23885_i2c_unregister(&dev->i2c_bus[2]);
 	cx23885_i2c_unregister(&dev->i2c_bus[1]);
@@ -1043,9 +1068,9 @@ static int cx23885_start_dma(struct cx23885_tsport *port,
 	if(port->reg_src_sel)
 		cx_write(port->reg_src_sel, port->src_sel_val);
 
-	cx_write(port->reg_hw_sop_ctrl, 0x47 << 16 | 188 << 4);
+	cx_write(port->reg_hw_sop_ctrl, port->hw_sop_ctrl_val);
 	cx_write(port->reg_ts_clk_en, port->ts_clk_en_val);
-	cx_write(port->reg_vld_misc, 0x00);
+	cx_write(port->reg_vld_misc, port->vld_misc_val);
 	cx_write(port->reg_gen_ctrl, port->gen_ctrl_val);
 	udelay(100);
 
@@ -1239,6 +1264,16 @@ static void do_cancel_buffers(struct cx23885_tsport *port, char *reason,
 	spin_unlock_irqrestore(&port->slock, flags);
 }
 
+void cx23885_cancel_buffers(struct cx23885_tsport *port)
+{
+	struct cx23885_dev *dev = port->dev;
+	struct cx23885_dmaqueue *q = &port->mpegq;
+
+	dprintk(1, "%s()\n", __FUNCTION__);
+	del_timer_sync(&q->timeout);
+	cx23885_stop_dma(port);
+	do_cancel_buffers(port, "cancel", 0);
+}
 
 static void cx23885_timeout(unsigned long data)
 {
@@ -1254,16 +1289,77 @@ static void cx23885_timeout(unsigned long data)
 	do_cancel_buffers(port, "timeout", 1);
 }
 
+int cx23885_irq_417(struct cx23885_dev *dev, u32 status)
+{
+	/* FIXME: port1 assumption here. */
+	struct cx23885_tsport *port = &dev->ts1;
+	int count = 0;
+	int handled = 0;
+
+	if (status == 0)
+		return handled;
+
+	count = cx_read(port->reg_gpcnt);
+	dprintk(7, "status: 0x%08x  mask: 0x%08x count: 0x%x\n",
+		status, cx_read(port->reg_ts_int_msk), count);
+
+	if ((status & VID_B_MSK_BAD_PKT)         ||
+		(status & VID_B_MSK_OPC_ERR)     ||
+		(status & VID_B_MSK_VBI_OPC_ERR) ||
+		(status & VID_B_MSK_SYNC)        ||
+		(status & VID_B_MSK_VBI_SYNC)    ||
+		(status & VID_B_MSK_OF)          ||
+		(status & VID_B_MSK_VBI_OF)) {
+		printk(KERN_ERR "%s: V4L mpeg risc op code error, status "
+			"= 0x%x\n", dev->name, status);
+		if (status & VID_B_MSK_BAD_PKT)
+			dprintk(1, "        VID_B_MSK_BAD_PKT\n");
+		if (status & VID_B_MSK_OPC_ERR)
+			dprintk(1, "        VID_B_MSK_OPC_ERR\n");
+		if (status & VID_B_MSK_VBI_OPC_ERR)
+			dprintk(1, "        VID_B_MSK_VBI_OPC_ERR\n");
+		if (status & VID_B_MSK_SYNC)
+			dprintk(1, "        VID_B_MSK_SYNC\n");
+		if (status & VID_B_MSK_VBI_SYNC)
+			dprintk(1, "        VID_B_MSK_VBI_SYNC\n");
+		if (status & VID_B_MSK_OF)
+			dprintk(1, "        VID_B_MSK_OF\n");
+		if (status & VID_B_MSK_VBI_OF)
+			dprintk(1, "        VID_B_MSK_VBI_OF\n");
+
+		cx_clear(port->reg_dma_ctl, port->dma_ctl_val);
+		cx23885_sram_channel_dump(dev,
+			&dev->sram_channels[port->sram_chno]);
+		cx23885_417_check_encoder(dev);
+	} else if (status & VID_B_MSK_RISCI1) {
+		dprintk(7, "        VID_B_MSK_RISCI1\n");
+		spin_lock(&port->slock);
+		cx23885_wakeup(port, &port->mpegq, count);
+		spin_unlock(&port->slock);
+	} else if (status & VID_B_MSK_RISCI2) {
+		dprintk(7, "        VID_B_MSK_RISCI2\n");
+		spin_lock(&port->slock);
+		cx23885_restart_queue(port, &port->mpegq);
+		spin_unlock(&port->slock);
+	}
+	if (status) {
+		cx_write(port->reg_ts_int_stat, status);
+		handled = 1;
+	}
+
+	return handled;
+}
+
 static int cx23885_irq_ts(struct cx23885_tsport *port, u32 status)
 {
 	struct cx23885_dev *dev = port->dev;
 	int handled = 0;
 	u32 count;
 
-	if ( (status & VID_BC_MSK_OPC_ERR) ||
-	     (status & VID_BC_MSK_BAD_PKT) ||
-	     (status & VID_BC_MSK_SYNC) ||
-	     (status & VID_BC_MSK_OF))
+	if ((status & VID_BC_MSK_OPC_ERR) ||
+		(status & VID_BC_MSK_BAD_PKT) ||
+		(status & VID_BC_MSK_SYNC) ||
+		(status & VID_BC_MSK_OF))
 	{
 		if (status & VID_BC_MSK_OPC_ERR)
 			dprintk(7, " (VID_BC_MSK_OPC_ERR 0x%08x)\n", VID_BC_MSK_OPC_ERR);
@@ -1277,7 +1373,8 @@ static int cx23885_irq_ts(struct cx23885_tsport *port, u32 status)
 		printk(KERN_ERR "%s: mpeg risc op code error\n", dev->name);
 
 		cx_clear(port->reg_dma_ctl, port->dma_ctl_val);
-		cx23885_sram_channel_dump(dev, &dev->sram_channels[ port->sram_chno ]);
+		cx23885_sram_channel_dump(dev,
+			&dev->sram_channels[port->sram_chno]);
 
 	} else if (status & VID_BC_MSK_RISCI1) {
 
@@ -1378,11 +1475,17 @@ static irqreturn_t cx23885_irq(int irq, void *dev_id)
 	if (ts1_status) {
 		if (cx23885_boards[dev->board].portb == CX23885_MPEG_DVB)
 			handled += cx23885_irq_ts(ts1, ts1_status);
+		else
+		if (cx23885_boards[dev->board].portb == CX23885_MPEG_ENCODER)
+			handled += cx23885_irq_417(dev, ts1_status);
 	}
 
 	if (ts2_status) {
 		if (cx23885_boards[dev->board].portc == CX23885_MPEG_DVB)
 			handled += cx23885_irq_ts(ts2, ts2_status);
+		else
+		if (cx23885_boards[dev->board].portc == CX23885_MPEG_ENCODER)
+			handled += cx23885_irq_417(dev, ts2_status);
 	}
 
 	if (vida_status)
