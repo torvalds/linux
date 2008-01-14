@@ -205,8 +205,7 @@ int rpcb_register(u32 prog, u32 vers, int prot, unsigned short port, int *okay)
  *
  * XXX: Needs to support IPv6, and rpcbind versions 3 and 4
  */
-int rpcb_getport_sync(struct sockaddr_in *sin, __u32 prog,
-		      __u32 vers, int prot)
+int rpcb_getport_sync(struct sockaddr_in *sin, u32 prog, u32 vers, int prot)
 {
 	struct rpcbind_args map = {
 		.r_prog		= prog,
