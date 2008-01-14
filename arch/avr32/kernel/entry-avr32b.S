@@ -74,12 +74,6 @@ exception_vectors:
 	.align	2
 	bral	do_dtlb_modified
 
-	/*
-	 * r0 :	PGD/PT/PTE
-	 * r1 : Offending address
-	 * r2 : Scratch register
-	 * r3 : Cause (5, 12 or 13)
-	 */
 #define	tlbmiss_save	pushm	r0-r3
 #define tlbmiss_restore	popm	r0-r3
 
@@ -108,17 +102,17 @@ tlb_miss_common:
 	bld	r0, 31
 	brcs	handle_vmalloc_miss
 
-	/* First level lookup */
+	/*
+	 * First level lookup: The PGD contains virtual pointers to
+	 * the second-level page tables, but they may be NULL if not
+	 * present.
+	 */
 pgtbl_lookup:
 	lsr	r2, r0, PGDIR_SHIFT
 	ld.w	r3, r1[r2 << 2]
 	bfextu	r1, r0, PAGE_SHIFT, PGDIR_SHIFT - PAGE_SHIFT
-	bld	r3, _PAGE_BIT_PRESENT
-	brcc	page_table_not_present
-
-	/* Translate to virtual address in P1. */
-	andl	r3, 0xf000
-	sbr	r3, 31
+	cp.w	r3, 0
+	breq	page_table_not_present
 
 	/* Second level lookup */
 	ld.w	r2, r3[r1 << 2]
@@ -154,6 +148,19 @@ handle_vmalloc_miss:
 	mov	r1, lo(swapper_pg_dir)
 	orh	r1, hi(swapper_pg_dir)
 	rjmp	pgtbl_lookup
+
+	/* The slow path of the TLB miss handler */
+	.align	2
+page_table_not_present:
+page_not_present:
+	tlbmiss_restore
+	sub	sp, 4
+	stmts	--sp, r0-lr
+	rcall	save_full_context_ex
+	mfsr	r12, SYSREG_ECR
+	mov	r11, sp
+	rcall	do_page_fault
+	rjmp	ret_from_exception
 
 
 	/* ---                    System Call                    --- */
@@ -266,18 +273,6 @@ syscall_exit_work:
 3:	bld	r1, TIF_BREAKPOINT
 	brcc	syscall_exit_cont
 	rjmp	enter_monitor_mode
-
-	/* The slow path of the TLB miss handler */
-page_table_not_present:
-page_not_present:
-	tlbmiss_restore
-	sub	sp, 4
-	stmts	--sp, r0-lr
-	rcall	save_full_context_ex
-	mfsr	r12, SYSREG_ECR
-	mov	r11, sp
-	rcall	do_page_fault
-	rjmp	ret_from_exception
 
 	/* This function expects to find offending PC in SYSREG_RAR_EX */
 	.type	save_full_context_ex, @function

@@ -99,6 +99,10 @@ SECTIONS
 		 */
 		*(.data.init_task)
 
+		/* Then, the page-aligned data */
+		. = ALIGN(PAGE_SIZE);
+		*(.data.page_aligned)
+
 		/* Then, the cacheline aligned data */
 		. = ALIGN(L1_CACHE_BYTES);
 		*(.data.cacheline_aligned)

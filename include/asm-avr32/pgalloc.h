@@ -8,25 +8,27 @@
 #ifndef __ASM_AVR32_PGALLOC_H
 #define __ASM_AVR32_PGALLOC_H
 
-#include <asm/processor.h>
-#include <linux/threads.h>
-#include <linux/slab.h>
 #include <linux/mm.h>
+#include <linux/sched.h>
+#include <linux/slab.h>
 
-#define pmd_populate_kernel(mm, pmd, pte) \
-	set_pmd(pmd, __pmd(_PAGE_TABLE + __pa(pte)))
+static inline void pmd_populate_kernel(struct mm_struct *mm,
+				       pmd_t *pmd, pte_t *pte)
+{
+	set_pmd(pmd, __pmd((unsigned long)pte));
+}
 
-static __inline__ void pmd_populate(struct mm_struct *mm, pmd_t *pmd,
+static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd,
 				    pgtable_t pte)
 {
-	set_pmd(pmd, __pmd(_PAGE_TABLE + page_to_phys(pte)));
+	set_pmd(pmd, __pmd((unsigned long)page_address(pte)));
 }
 #define pmd_pgtable(pmd) pmd_page(pmd)
 
 /*
  * Allocate and free page tables
  */
-static __inline__ pgd_t *pgd_alloc(struct mm_struct *mm)
+static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 {
 	return kcalloc(USER_PTRS_PER_PGD, sizeof(pgd_t), GFP_KERNEL);
 }
