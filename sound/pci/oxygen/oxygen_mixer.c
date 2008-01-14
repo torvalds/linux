@@ -99,7 +99,7 @@ static int dac_mute_put(struct snd_kcontrol *ctl,
 static int upmix_info(struct snd_kcontrol *ctl, struct snd_ctl_elem_info *info)
 {
 	static const char *const names[3] = {
-		"Front", "Front+Rear", "Front+Rear+Side"
+		"Front", "Front+Surround", "Front+Surround+Back"
 	};
 	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	info->count = 1;
@@ -122,20 +122,22 @@ static int upmix_get(struct snd_kcontrol *ctl, struct snd_ctl_elem_value *value)
 
 void oxygen_update_dac_routing(struct oxygen *chip)
 {
-	/*
-	 * hardware channel order: front, side, center/lfe, rear
-	 * ALSA channel order:     front, rear, center/lfe, side
-	 */
 	static const unsigned int reg_values[3] = {
-		0x6c00, 0x2c00, 0x2000
+		0xe100, /* front <- 0, surround <- 1, center <- 2, back <- 3 */
+		0xe000, /* front <- 0, surround <- 0, center <- 2, back <- 3 */
+		0x2000  /* front <- 0, surround <- 0, center <- 2, back <- 0 */
 	};
+	u8 channels;
 	unsigned int reg_value;
 
-	if ((oxygen_read8(chip, OXYGEN_PLAY_CHANNELS) &
-	     OXYGEN_PLAY_CHANNELS_MASK) == OXYGEN_PLAY_CHANNELS_2)
+	channels = oxygen_read8(chip, OXYGEN_PLAY_CHANNELS) &
+		OXYGEN_PLAY_CHANNELS_MASK;
+	if (channels == OXYGEN_PLAY_CHANNELS_2)
 		reg_value = reg_values[chip->dac_routing];
+	else if (channels == OXYGEN_PLAY_CHANNELS_8)
+		reg_value = 0x6c00; /* surround <- 3, back <- 1 */
 	else
-		reg_value = 0x6c00;
+		reg_value = 0xe100;
 	oxygen_write16_masked(chip, OXYGEN_PLAY_ROUTING, reg_value, 0xff00);
 }
 

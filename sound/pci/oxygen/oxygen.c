@@ -19,10 +19,10 @@
 
 /*
  * SPI 0 -> 1st AK4396 (front)
- * SPI 1 -> 2nd AK4396 (side)
+ * SPI 1 -> 2nd AK4396 (surround)
  * SPI 2 -> 3rd AK4396 (center/LFE)
  * SPI 3 -> WM8785
- * SPI 4 -> 4th AK4396 (rear)
+ * SPI 4 -> 4th AK4396 (back)
  *
  * GPIO 0 -> DFS0 of AK5385
  * GPIO 1 -> DFS1 of AK5385
@@ -99,7 +99,7 @@ static void ak4396_write(struct oxygen *chip, unsigned int codec,
 {
 	/* maps ALSA channel pair number to SPI output */
 	static const u8 codec_spi_map[4] = {
-		0, 4, 2, 1
+		0, 1, 2, 4
 	};
 	oxygen_write_spi(chip, OXYGEN_SPI_TRIGGER_WRITE |
 			 OXYGEN_SPI_DATA_LENGTH_2 |

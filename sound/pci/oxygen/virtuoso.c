@@ -19,9 +19,9 @@
 
 /*
  * SPI 0 -> 1st PCM1796 (front)
- * SPI 1 -> 2nd PCM1796 (side)
+ * SPI 1 -> 2nd PCM1796 (surround)
  * SPI 2 -> 3rd PCM1796 (center/LFE)
- * SPI 4 -> 4th PCM1796 (rear)
+ * SPI 4 -> 4th PCM1796 (back)
  *
  * GPIO 2 -> M0 of CS5381
  * GPIO 3 -> M1 of CS5381
@@ -76,7 +76,7 @@ static void pcm1796_write(struct oxygen *chip, unsigned int codec,
 {
 	/* maps ALSA channel pair number to SPI output */
 	static const u8 codec_map[4] = {
-		0, 4, 2, 1
+		0, 1, 2, 4
 	};
 	oxygen_write_spi(chip, OXYGEN_SPI_TRIGGER_WRITE |
 			 OXYGEN_SPI_DATA_LENGTH_2 |

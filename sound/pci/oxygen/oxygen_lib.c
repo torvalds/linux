@@ -193,7 +193,7 @@ static void __devinit oxygen_init(struct oxygen *chip)
 	oxygen_write16(chip, OXYGEN_I2S_C_FORMAT, 0x010a);
 	oxygen_set_bits32(chip, OXYGEN_SPDIF_CONTROL, OXYGEN_SPDIF_MAGIC2);
 	oxygen_write32(chip, OXYGEN_SPDIF_OUTPUT_BITS, chip->spdif_bits);
-	oxygen_write16(chip, OXYGEN_PLAY_ROUTING, 0x6c00);
+	oxygen_write16(chip, OXYGEN_PLAY_ROUTING, 0xe100);
 	oxygen_write8(chip, OXYGEN_REC_ROUTING, 0x10);
 	oxygen_write8(chip, OXYGEN_ADC_MONITOR, 0x00);
 	oxygen_write8(chip, OXYGEN_A_MONITOR_ROUTING, 0xe4);
