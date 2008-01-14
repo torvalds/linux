@@ -665,10 +665,16 @@ S:	Maintained
 
 ATMEL AT91 MCI DRIVER
 P:	Nicolas Ferre
-M:	nicolas.ferre@rfo.atmel.com
+M:	nicolas.ferre@atmel.com
 L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 W:	http://www.atmel.com/products/AT91/
 W:	http://www.at91.com/
+S:	Maintained
+
+ATMEL LCDFB DRIVER
+P:	Nicolas Ferre
+M:	nicolas.ferre@atmel.com
+L:	linux-fbdev-devel@lists.sourceforge.net (subscribers-only)
 S:	Maintained
 
 ATMEL MACB ETHERNET DRIVER

@@ -801,5 +801,5 @@ module_init(atmel_lcdfb_init);
 module_exit(atmel_lcdfb_exit);
 
 MODULE_DESCRIPTION("AT91/AT32 LCD Controller framebuffer driver");
-MODULE_AUTHOR("Nicolas Ferre <nicolas.ferre@rfo.atmel.com>");
+MODULE_AUTHOR("Nicolas Ferre <nicolas.ferre@atmel.com>");
 MODULE_LICENSE("GPL");
