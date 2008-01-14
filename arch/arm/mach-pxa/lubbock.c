@@ -196,7 +196,7 @@ static struct resource smc91x_resources[] = {
 	[1] = {
 		.start	= LUBBOCK_ETH_IRQ,
 		.end	= LUBBOCK_ETH_IRQ,
-		.flags	= IORESOURCE_IRQ,
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
 	},
 	[2] = {
 		.name	= "smc91x-attrib",

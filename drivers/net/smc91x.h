@@ -54,6 +54,7 @@
 #define SMC_outw(v, a, r)	writew(v, (a) + (r))
 #define SMC_insw(a, r, p, l)	readsw((a) + (r), p, l)
 #define SMC_outsw(a, r, p, l)	writesw((a) + (r), p, l)
+#define SMC_IRQ_FLAGS		(-1)	/* from resource */
 
 #elif defined(CONFIG_BLACKFIN)
 
@@ -158,7 +159,7 @@
 #define SMC_outw(v, a, r)	writew(v, (a) + (r))
 #define SMC_outsw(a, r, p, l)	writesw((a) + (r), p, l)
 
-#define SMC_IRQ_FLAGS		(0)
+#define SMC_IRQ_FLAGS		(-1)
 
 #elif defined(CONFIG_SA1100_ASSABET)
 
@@ -177,6 +178,7 @@
 #define SMC_outb(v, a, r)	writeb(v, (a) + (r))
 #define SMC_insb(a, r, p, l)	readsb((a) + (r), p, (l))
 #define SMC_outsb(a, r, p, l)	writesb((a) + (r), p, (l))
+#define SMC_IRQ_FLAGS		(-1)	/* from resource */
 
 #elif	defined(CONFIG_MACH_LOGICPD_PXA270)
 
@@ -210,6 +212,7 @@
 #define SMC_outl(v, a, r)	writel(v, (a) + (r))
 #define SMC_insl(a, r, p, l)	readsl((a) + (r), p, l)
 #define SMC_outsl(a, r, p, l)	writesl((a) + (r), p, l)
+#define SMC_IRQ_FLAGS		(-1)	/* from resource */
 
 /* We actually can't write halfwords properly if not word aligned */
 static inline void
@@ -238,6 +241,7 @@ SMC_outw(u16 val, void __iomem *ioaddr, int reg)
 #define SMC_outsw(a, r, p, l)   outsw((a) + (r), p, l)
 #define SMC_outb(v, a, r)       writeb(v, (a) + (r))
 #define SMC_outw(v, a, r)       writew(v, (a) + (r))
+#define SMC_IRQ_FLAGS		(-1)	/* from resource */
 
 #elif	defined(CONFIG_ARCH_OMAP)
 
@@ -252,17 +256,7 @@ SMC_outw(u16 val, void __iomem *ioaddr, int reg)
 #define SMC_outw(v, a, r)	writew(v, (a) + (r))
 #define SMC_insw(a, r, p, l)	readsw((a) + (r), p, l)
 #define SMC_outsw(a, r, p, l)	writesw((a) + (r), p, l)
-
-#include <asm/mach-types.h>
-#include <asm/arch/cpu.h>
-
-#define	SMC_IRQ_FLAGS (( \
-		   machine_is_omap_h2() \
-		|| machine_is_omap_h3() \
-		|| machine_is_omap_h4() \
-		|| (machine_is_omap_innovator() && !cpu_is_omap1510()) \
-	) ? IRQF_TRIGGER_FALLING : IRQF_TRIGGER_RISING)
-
+#define	SMC_IRQ_FLAGS		(-1)	/* from resource */
 
 #elif	defined(CONFIG_SH_SH4202_MICRODEV)
 
@@ -453,8 +447,7 @@ static inline void LPD7_SMC_outsw (unsigned char* a, int r,
 #define SMC_outl(v, a, r)	writel(v, (a) + (r))
 #define SMC_insl(a, r, p, l)	readsl((a) + (r), p, l)
 #define SMC_outsl(a, r, p, l)	writesl((a) + (r), p, l)
-
-#define SMC_IRQ_FLAGS		(0)
+#define SMC_IRQ_FLAGS		(-1)	/* from resource */
 
 #else
 

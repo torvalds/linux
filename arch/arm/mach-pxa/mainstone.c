@@ -156,7 +156,7 @@ static struct resource smc91x_resources[] = {
 	[1] = {
 		.start	= MAINSTONE_IRQ(3),
 		.end	= MAINSTONE_IRQ(3),
-		.flags	= IORESOURCE_IRQ,
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
 	}
 };
 
