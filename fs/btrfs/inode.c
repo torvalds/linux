@@ -2850,6 +2850,13 @@ out_fail:
 	btrfs_throttle(root);
 	return err;
 }
+static int btrfs_permission(struct inode *inode, int mask,
+			    struct nameidata *nd)
+{
+	if (btrfs_test_flag(inode, READONLY) && (mask & MAY_WRITE))
+		return -EACCES;
+	return generic_permission(inode, mask, NULL);
+}
 
 static struct inode_operations btrfs_dir_inode_operations = {
 	.lookup		= btrfs_lookup,
@@ -2866,12 +2873,12 @@ static struct inode_operations btrfs_dir_inode_operations = {
 	.getxattr	= generic_getxattr,
 	.listxattr	= btrfs_listxattr,
 	.removexattr	= generic_removexattr,
+	.permission	= btrfs_permission,
 };
-
 static struct inode_operations btrfs_dir_ro_inode_operations = {
 	.lookup		= btrfs_lookup,
+	.permission	= btrfs_permission,
 };
-
 static struct file_operations btrfs_dir_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
@@ -2916,15 +2923,16 @@ static struct inode_operations btrfs_file_inode_operations = {
 	.getxattr	= generic_getxattr,
 	.listxattr      = btrfs_listxattr,
 	.removexattr	= generic_removexattr,
+	.permission	= btrfs_permission,
 };
-
 static struct inode_operations btrfs_special_inode_operations = {
 	.getattr	= btrfs_getattr,
 	.setattr	= btrfs_setattr,
+	.permission	= btrfs_permission,
 };
-
 static struct inode_operations btrfs_symlink_inode_operations = {
 	.readlink	= generic_readlink,
 	.follow_link	= page_follow_link_light,
 	.put_link	= page_put_link,
+	.permission	= btrfs_permission,
 };
