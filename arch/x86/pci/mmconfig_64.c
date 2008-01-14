@@ -40,9 +40,7 @@ static char __iomem *get_virt(unsigned int seg, unsigned bus)
 static char __iomem *pci_dev_base(unsigned int seg, unsigned int bus, unsigned int devfn)
 {
 	char __iomem *addr;
-	if (seg == 0 && bus < PCI_MMCFG_MAX_CHECK_BUS &&
-		test_bit(32*bus + PCI_SLOT(devfn), pci_mmcfg_fallback_slots))
-		return NULL;
+
 	addr = get_virt(seg, bus);
 	if (!addr)
 		return NULL;
@@ -56,13 +54,16 @@ static int pci_mmcfg_read(unsigned int seg, unsigned int bus,
 
 	/* Why do we have this when nobody checks it. How about a BUG()!? -AK */
 	if (unlikely((bus > 255) || (devfn > 255) || (reg > 4095))) {
-		*value = -1;
+err:		*value = -1;
 		return -EINVAL;
 	}
 
+	if (reg < 256)
+		return pci_conf1_read(seg,bus,devfn,reg,len,value);
+
 	addr = pci_dev_base(seg, bus, devfn);
 	if (!addr)
-		return pci_conf1_read(seg,bus,devfn,reg,len,value);
+		goto err;
 
 	switch (len) {
 	case 1:
@@ -88,9 +89,12 @@ static int pci_mmcfg_write(unsigned int seg, unsigned int bus,
 	if (unlikely((bus > 255) || (devfn > 255) || (reg > 4095)))
 		return -EINVAL;
 
+	if (reg < 256)
+		return pci_conf1_write(seg,bus,devfn,reg,len,value);
+
 	addr = pci_dev_base(seg, bus, devfn);
 	if (!addr)
-		return pci_conf1_write(seg,bus,devfn,reg,len,value);
+		return -EINVAL;
 
 	switch (len) {
 	case 1:
@@ -124,12 +128,6 @@ static void __iomem * __init mcfg_ioremap(struct acpi_mcfg_allocation *cfg)
 		       cfg->address, cfg->address + size - 1);
 	}
 	return addr;
-}
-
-int __init pci_mmcfg_arch_reachable(unsigned int seg, unsigned int bus,
-				    unsigned int devfn)
-{
-	return pci_dev_base(seg, bus, devfn) != NULL;
 }
 
 int __init pci_mmcfg_arch_init(void)

@@ -22,41 +22,8 @@
 #define MMCONFIG_APER_MIN	(2 * 1024*1024)
 #define MMCONFIG_APER_MAX	(256 * 1024*1024)
 
-DECLARE_BITMAP(pci_mmcfg_fallback_slots, 32*PCI_MMCFG_MAX_CHECK_BUS);
-
 /* Indicate if the mmcfg resources have been placed into the resource table. */
 static int __initdata pci_mmcfg_resources_inserted;
-
-/* K8 systems have some devices (typically in the builtin northbridge)
-   that are only accessible using type1
-   Normally this can be expressed in the MCFG by not listing them
-   and assigning suitable _SEGs, but this isn't implemented in some BIOS.
-   Instead try to discover all devices on bus 0 that are unreachable using MM
-   and fallback for them. */
-static void __init unreachable_devices(void)
-{
-	int i, bus;
-	/* Use the max bus number from ACPI here? */
-	for (bus = 0; bus < PCI_MMCFG_MAX_CHECK_BUS; bus++) {
-		for (i = 0; i < 32; i++) {
-			unsigned int devfn = PCI_DEVFN(i, 0);
-			u32 val1, val2;
-
-			pci_conf1_read(0, bus, devfn, 0, 4, &val1);
-			if (val1 == 0xffffffff)
-				continue;
-
-			if (pci_mmcfg_arch_reachable(0, bus, devfn)) {
-				raw_pci_ops->read(0, bus, devfn, 0, 4, &val2);
-				if (val1 == val2)
-					continue;
-			}
-			set_bit(i + 32 * bus, pci_mmcfg_fallback_slots);
-			printk(KERN_NOTICE "PCI: No mmconfig possible on device"
-			       " %02x:%02x\n", bus, i);
-		}
-	}
-}
 
 static const char __init *pci_mmcfg_e7520(void)
 {
@@ -270,8 +237,6 @@ void __init pci_mmcfg_init(int type)
 		return;
 
 	if (pci_mmcfg_arch_init()) {
-		if (type == 1)
-			unreachable_devices();
 		if (known_bridge)
 			pci_mmcfg_insert_resources(IORESOURCE_BUSY);
 		pci_probe = (pci_probe & ~PCI_PROBE_MASK) | PCI_PROBE_MMCONF;
