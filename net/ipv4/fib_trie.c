@@ -97,13 +97,13 @@ typedef unsigned int t_key;
 #define IS_LEAF(n) (n->parent & T_LEAF)
 
 struct node {
-	t_key key;
 	unsigned long parent;
+	t_key key;
 };
 
 struct leaf {
-	t_key key;
 	unsigned long parent;
+	t_key key;
 	struct hlist_head list;
 	struct rcu_head rcu;
 };
@@ -116,12 +116,12 @@ struct leaf_info {
 };
 
 struct tnode {
-	t_key key;
 	unsigned long parent;
+	t_key key;
 	unsigned char pos;		/* 2log(KEYLENGTH) bits needed */
 	unsigned char bits;		/* 2log(KEYLENGTH) bits needed */
-	unsigned short full_children;	/* KEYLENGTH bits needed */
-	unsigned short empty_children;	/* KEYLENGTH bits needed */
+	unsigned int full_children;	/* KEYLENGTH bits needed */
+	unsigned int empty_children;	/* KEYLENGTH bits needed */
 	struct rcu_head rcu;
 	struct node *child[0];
 };
@@ -329,12 +329,12 @@ static inline void free_leaf_info(struct leaf_info *leaf)
 	call_rcu(&leaf->rcu, __leaf_info_free_rcu);
 }
 
-static struct tnode *tnode_alloc(unsigned int size)
+static struct tnode *tnode_alloc(size_t size)
 {
 	struct page *pages;
 
 	if (size <= PAGE_SIZE)
-		return kcalloc(size, 1, GFP_KERNEL);
+		return kzalloc(size, GFP_KERNEL);
 
 	pages = alloc_pages(GFP_KERNEL|__GFP_ZERO, get_order(size));
 	if (!pages)
@@ -346,8 +346,8 @@ static struct tnode *tnode_alloc(unsigned int size)
 static void __tnode_free_rcu(struct rcu_head *head)
 {
 	struct tnode *tn = container_of(head, struct tnode, rcu);
-	unsigned int size = sizeof(struct tnode) +
-		(1 << tn->bits) * sizeof(struct node *);
+	size_t size = sizeof(struct tnode) +
+		      (sizeof(struct node *) << tn->bits);
 
 	if (size <= PAGE_SIZE)
 		kfree(tn);
@@ -386,8 +386,7 @@ static struct leaf_info *leaf_info_new(int plen)
 
 static struct tnode* tnode_new(t_key key, int pos, int bits)
 {
-	int nchildren = 1<<bits;
-	int sz = sizeof(struct tnode) + nchildren * sizeof(struct node *);
+	size_t sz = sizeof(struct tnode) + (sizeof(struct node *) << bits);
 	struct tnode *tn = tnode_alloc(sz);
 
 	if (tn) {
@@ -399,8 +398,8 @@ static struct tnode* tnode_new(t_key key, int pos, int bits)
 		tn->empty_children = 1<<bits;
 	}
 
-	pr_debug("AT %p s=%u %u\n", tn, (unsigned int) sizeof(struct tnode),
-		 (unsigned int) (sizeof(struct node) * 1<<bits));
+	pr_debug("AT %p s=%u %lu\n", tn, (unsigned int) sizeof(struct tnode),
+		 (unsigned long) (sizeof(struct node) << bits));
 	return tn;
 }
 
