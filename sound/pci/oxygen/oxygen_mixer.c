@@ -586,15 +586,22 @@ static const struct snd_kcontrol_new controls[] = {
 static void oxygen_any_ctl_free(struct snd_kcontrol *ctl)
 {
 	struct oxygen *chip = ctl->private_data;
+	unsigned int i;
 
 	/* I'm too lazy to write a function for each control :-) */
-	chip->spdif_pcm_ctl = NULL;
-	chip->spdif_input_bits_ctl = NULL;
+	for (i = 0; i < ARRAY_SIZE(chip->controls); ++i)
+		chip->controls[i] = NULL;
 }
 
 int oxygen_mixer_init(struct oxygen *chip)
 {
-	unsigned int i;
+	static const char *const known_ctl_names[CONTROL_COUNT] = {
+		[CONTROL_SPDIF_PCM] =
+			SNDRV_CTL_NAME_IEC958("", PLAYBACK, PCM_STREAM),
+		[CONTROL_SPDIF_INPUT_BITS] =
+			SNDRV_CTL_NAME_IEC958("", CAPTURE, DEFAULT),
+	};
+	unsigned int i, j;
 	struct snd_kcontrol *ctl;
 	int err;
 
@@ -610,15 +617,11 @@ int oxygen_mixer_init(struct oxygen *chip)
 		err = snd_ctl_add(chip->card, ctl);
 		if (err < 0)
 			return err;
-		if (!strcmp(ctl->id.name,
-			    SNDRV_CTL_NAME_IEC958("", PLAYBACK, PCM_STREAM))) {
-			chip->spdif_pcm_ctl = ctl;
-			ctl->private_free = oxygen_any_ctl_free;
-		} else if (!strcmp(ctl->id.name,
-				 SNDRV_CTL_NAME_IEC958("", CAPTURE, DEFAULT))) {
-			chip->spdif_input_bits_ctl = ctl;
-			ctl->private_free = oxygen_any_ctl_free;
-		}
+		for (j = 0; j < CONTROL_COUNT; ++j)
+			if (!strcmp(ctl->id.name, known_ctl_names[j])) {
+				chip->controls[j] = ctl;
+				ctl->private_free = oxygen_any_ctl_free;
+			}
 	}
 	return chip->model->mixer_init ? chip->model->mixer_init(chip) : 0;
 }

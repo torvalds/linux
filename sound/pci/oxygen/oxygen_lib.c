@@ -114,7 +114,7 @@ static void oxygen_spdif_input_bits_changed(struct work_struct *work)
 		}
 	}
 
-	if (chip->spdif_input_bits_ctl) {
+	if (chip->controls[CONTROL_SPDIF_INPUT_BITS]) {
 		spin_lock_irq(&chip->reg_lock);
 		chip->interrupt_mask |= OXYGEN_INT_SPDIF_IN_CHANGE;
 		oxygen_write16(chip, OXYGEN_INTERRUPT_MASK,
@@ -122,7 +122,7 @@ static void oxygen_spdif_input_bits_changed(struct work_struct *work)
 		spin_unlock_irq(&chip->reg_lock);
 
 		snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
-			       &chip->spdif_input_bits_ctl->id);
+			       &chip->controls[CONTROL_SPDIF_INPUT_BITS]->id);
 	}
 }
 

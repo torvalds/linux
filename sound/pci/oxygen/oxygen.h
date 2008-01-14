@@ -15,6 +15,12 @@
 #define PCM_AC97	5
 #define PCM_COUNT	6
 
+enum {
+	CONTROL_SPDIF_PCM,
+	CONTROL_SPDIF_INPUT_BITS,
+	CONTROL_COUNT
+};
+
 #define OXYGEN_PCI_SUBID(sv, sd) \
 	.vendor = PCI_VENDOR_ID_CMEDIA, \
 	.device = 0x8788, \
@@ -50,8 +56,7 @@ struct oxygen {
 	u32 spdif_bits;
 	u32 spdif_pcm_bits;
 	struct snd_pcm_substream *streams[PCM_COUNT];
-	struct snd_kcontrol *spdif_pcm_ctl;
-	struct snd_kcontrol *spdif_input_bits_ctl;
+	struct snd_kcontrol *controls[CONTROL_COUNT];
 	struct work_struct spdif_input_bits_work;
 };
 
