@@ -1157,14 +1157,19 @@ find_file(struct inode *ino)
 	return NULL;
 }
 
-static int access_valid(u32 x)
+static inline int access_valid(u32 x)
 {
-	return (x > 0 && x < 4);
+	if (x < NFS4_SHARE_ACCESS_READ)
+		return 0;
+	if (x > NFS4_SHARE_ACCESS_BOTH)
+		return 0;
+	return 1;
 }
 
-static int deny_valid(u32 x)
+static inline int deny_valid(u32 x)
 {
-	return (x >= 0 && x < 5);
+	/* Note: unlike access bits, deny bits may be zero. */
+	return x <= NFS4_SHARE_DENY_BOTH;
 }
 
 static void
