@@ -1,3 +1,11 @@
+config ARCH
+	string
+	option env="ARCH"
+
+config KERNELVERSION
+	string
+	option env="KERNELVERSION"
+
 config DEFCONFIG_LIST
 	string
 	depends on !UML
