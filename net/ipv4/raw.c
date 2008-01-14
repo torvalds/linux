@@ -116,16 +116,15 @@ static void raw_v4_unhash(struct sock *sk)
 	raw_unhash_sk(sk, &raw_v4_hashinfo);
 }
 
-static struct sock *__raw_v4_lookup(struct sock *sk, unsigned short num,
-			     __be32 raddr, __be32 laddr,
-			     int dif)
+static struct sock *__raw_v4_lookup(struct net *net, struct sock *sk,
+		unsigned short num, __be32 raddr, __be32 laddr, int dif)
 {
 	struct hlist_node *node;
 
 	sk_for_each_from(sk, node) {
 		struct inet_sock *inet = inet_sk(sk);
 
-		if (inet->num == num 					&&
+		if (sk->sk_net == net && inet->num == num 		&&
 		    !(inet->daddr && inet->daddr != raddr) 		&&
 		    !(inet->rcv_saddr && inet->rcv_saddr != laddr)	&&
 		    !(sk->sk_bound_dev_if && sk->sk_bound_dev_if != dif))
@@ -169,12 +168,15 @@ static int raw_v4_input(struct sk_buff *skb, struct iphdr *iph, int hash)
 	struct sock *sk;
 	struct hlist_head *head;
 	int delivered = 0;
+	struct net *net;
 
 	read_lock(&raw_v4_hashinfo.lock);
 	head = &raw_v4_hashinfo.ht[hash];
 	if (hlist_empty(head))
 		goto out;
-	sk = __raw_v4_lookup(__sk_head(head), iph->protocol,
+
+	net = skb->dev->nd_net;
+	sk = __raw_v4_lookup(net, __sk_head(head), iph->protocol,
 			     iph->saddr, iph->daddr,
 			     skb->dev->ifindex);
 
@@ -187,7 +189,7 @@ static int raw_v4_input(struct sk_buff *skb, struct iphdr *iph, int hash)
 			if (clone)
 				raw_rcv(sk, clone);
 		}
-		sk = __raw_v4_lookup(sk_next(sk), iph->protocol,
+		sk = __raw_v4_lookup(net, sk_next(sk), iph->protocol,
 				     iph->saddr, iph->daddr,
 				     skb->dev->ifindex);
 	}
@@ -273,6 +275,7 @@ void raw_icmp_error(struct sk_buff *skb, int protocol, u32 info)
 	int hash;
 	struct sock *raw_sk;
 	struct iphdr *iph;
+	struct net *net;
 
 	hash = protocol & (RAW_HTABLE_SIZE - 1);
 
@@ -280,8 +283,10 @@ void raw_icmp_error(struct sk_buff *skb, int protocol, u32 info)
 	raw_sk = sk_head(&raw_v4_hashinfo.ht[hash]);
 	if (raw_sk != NULL) {
 		iph = (struct iphdr *)skb->data;
-		while ((raw_sk = __raw_v4_lookup(raw_sk, protocol, iph->daddr,
-						iph->saddr,
+		net = skb->dev->nd_net;
+
+		while ((raw_sk = __raw_v4_lookup(net, raw_sk, protocol,
+						iph->daddr, iph->saddr,
 						skb->dev->ifindex)) != NULL) {
 			raw_err(raw_sk, skb, info);
 			raw_sk = sk_next(raw_sk);

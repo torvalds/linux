@@ -76,8 +76,9 @@ static void raw_v6_unhash(struct sock *sk)
 }
 
 
-static struct sock *__raw_v6_lookup(struct sock *sk, unsigned short num,
-		struct in6_addr *loc_addr, struct in6_addr *rmt_addr, int dif)
+static struct sock *__raw_v6_lookup(struct net *net, struct sock *sk,
+		unsigned short num, struct in6_addr *loc_addr,
+		struct in6_addr *rmt_addr, int dif)
 {
 	struct hlist_node *node;
 	int is_multicast = ipv6_addr_is_multicast(loc_addr);
@@ -85,6 +86,9 @@ static struct sock *__raw_v6_lookup(struct sock *sk, unsigned short num,
 	sk_for_each_from(sk, node)
 		if (inet_sk(sk)->num == num) {
 			struct ipv6_pinfo *np = inet6_sk(sk);
+
+			if (sk->sk_net != net)
+				continue;
 
 			if (!ipv6_addr_any(&np->daddr) &&
 			    !ipv6_addr_equal(&np->daddr, rmt_addr))
@@ -165,6 +169,7 @@ static int ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
 	struct sock *sk;
 	int delivered = 0;
 	__u8 hash;
+	struct net *net;
 
 	saddr = &ipv6_hdr(skb)->saddr;
 	daddr = saddr + 1;
@@ -182,7 +187,8 @@ static int ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
 	if (sk == NULL)
 		goto out;
 
-	sk = __raw_v6_lookup(sk, nexthdr, daddr, saddr, IP6CB(skb)->iif);
+	net = skb->dev->nd_net;
+	sk = __raw_v6_lookup(net, sk, nexthdr, daddr, saddr, IP6CB(skb)->iif);
 
 	while (sk) {
 		int filtered;
@@ -225,7 +231,7 @@ static int ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
 				rawv6_rcv(sk, clone);
 			}
 		}
-		sk = __raw_v6_lookup(sk_next(sk), nexthdr, daddr, saddr,
+		sk = __raw_v6_lookup(net, sk_next(sk), nexthdr, daddr, saddr,
 				     IP6CB(skb)->iif);
 	}
 out:
@@ -359,6 +365,7 @@ void raw6_icmp_error(struct sk_buff *skb, int nexthdr,
 	struct sock *sk;
 	int hash;
 	struct in6_addr *saddr, *daddr;
+	struct net *net;
 
 	hash = nexthdr & (RAW_HTABLE_SIZE - 1);
 
@@ -367,8 +374,9 @@ void raw6_icmp_error(struct sk_buff *skb, int nexthdr,
 	if (sk != NULL) {
 		saddr = &ipv6_hdr(skb)->saddr;
 		daddr = &ipv6_hdr(skb)->daddr;
+		net = skb->dev->nd_net;
 
-		while ((sk = __raw_v6_lookup(sk, nexthdr, saddr, daddr,
+		while ((sk = __raw_v6_lookup(net, sk, nexthdr, saddr, daddr,
 						IP6CB(skb)->iif))) {
 			rawv6_err(sk, skb, NULL, type, code,
 					inner_offset, info);
