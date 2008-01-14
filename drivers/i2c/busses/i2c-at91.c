@@ -135,7 +135,7 @@ static int xfer_write(struct i2c_adapter *adap, unsigned char *buf, int length)
  * Generic i2c master transfer entrypoint.
  *
  * Note: We do not use Atmel's feature of storing the "internal device address".
- * Instead the "internal device address" has to be written using a seperate
+ * Instead the "internal device address" has to be written using a separate
  * i2c message.
  * http://lists.arm.linux.org.uk/pipermail/linux-arm-kernel/2004-September/024411.html
  */

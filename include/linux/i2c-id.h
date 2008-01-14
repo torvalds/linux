@@ -23,6 +23,10 @@
 #ifndef LINUX_I2C_ID_H
 #define LINUX_I2C_ID_H
 
+/* Please note that I2C driver IDs are optional. They are only needed if a
+   legacy chip driver needs to identify a bus or a bus driver needs to
+   identify a legacy client. If you don't need them, just don't set them. */
+
 /*
  * ---- Driver types -----------------------------------------------------
  */
