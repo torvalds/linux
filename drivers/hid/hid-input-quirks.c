@@ -145,10 +145,11 @@ static int quirk_microsoft_presenter_8k(struct hid_usage *usage, struct input_de
 
 	set_bit(EV_REP, input->evbit);
 	switch(usage->hid & HID_USAGE) {
-		case 0xfd08: map_key_clear(KEY_RIGHT);		break;
-		case 0xfd09: map_key_clear(KEY_LEFT);		break;
-		case 0xfd0b: map_key_clear(KEY_PAUSE);		break;
-		case 0xfd0f: map_key_clear(KEY_F5);		break;
+		case 0xfd08: map_key_clear(KEY_FORWARD);	break;
+		case 0xfd09: map_key_clear(KEY_BACK);		break;
+		case 0xfd0b: map_key_clear(KEY_PLAYPAUSE);	break;
+		case 0xfd0e: map_key_clear(KEY_CLOSE);		break;
+		case 0xfd0f: map_key_clear(KEY_PLAY);		break;
 		default:
 			return 0;
 	}
