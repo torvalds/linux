@@ -554,8 +554,6 @@ static inline int ata_drive_40wire(const u16 *dev_id)
 
 static inline int ata_drive_40wire_relaxed(const u16 *dev_id)
 {
-	if (ata_id_is_sata(dev_id))
-		return 0;	/* SATA */
 	if ((dev_id[93] & 0x2000) == 0x2000)
 		return 0;	/* 80 wire */
 	return 1;
