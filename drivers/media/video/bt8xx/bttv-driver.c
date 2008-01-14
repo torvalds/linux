@@ -3402,8 +3402,10 @@ static struct video_device bttv_video_template =
 	.vidioc_s_frequency             = bttv_s_frequency,
 	.vidioc_log_status		= bttv_log_status,
 	.vidioc_querystd		= bttv_querystd,
+#ifdef CONFIG_VIDEO_ADV_DEBUG
 	.vidioc_g_register		= bttv_g_register,
 	.vidioc_s_register		= bttv_s_register,
+#endif
 	.tvnorms                        = BTTV_NORMS,
 	.current_norm                   = V4L2_STD_PAL,
 };
