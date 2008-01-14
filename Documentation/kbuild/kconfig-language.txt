@@ -127,6 +127,27 @@ applicable everywhere (see syntax).
   used to help visually separate configuration logic from help within
   the file as an aid to developers.
 
+- misc options: "option" <symbol>[=<value>]
+  Various less common options can be defined via this option syntax,
+  which can modify the behaviour of the menu entry and its config
+  symbol. These options are currently possible:
+
+  - "defconfig_list"
+    This declares a list of default entries which can be used when
+    looking for the default configuration (which is used when the main
+    .config doesn't exists yet.)
+
+  - "modules"
+    This declares the symbol to be used as the MODULES symbol, which
+    enables the third modular state for all config symbols.
+
+  - "env"=<value>
+    This imports the environment variable into Kconfig. It behaves like
+    a default, except that the value comes from the environment, this
+    also means that the behaviour when mixing it with normal defaults is
+    undefined at this point. The symbol is currently not exported back
+    to the build environment (if this is desired, it can be done via
+    another symbol).
 
 Menu dependencies
 -----------------

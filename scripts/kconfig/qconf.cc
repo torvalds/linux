@@ -1088,7 +1088,11 @@ QString ConfigInfoView::debug_info(struct symbol *sym)
 			debug += "</a><br>";
 			break;
 		case P_DEFAULT:
-			debug += "default: ";
+		case P_SELECT:
+		case P_RANGE:
+		case P_ENV:
+			debug += prop_get_type_name(prop->type);
+			debug += ": ";
 			expr_print(prop->expr, expr_print_help, &debug, E_NONE);
 			debug += "<br>";
 			break;
@@ -1098,16 +1102,6 @@ QString ConfigInfoView::debug_info(struct symbol *sym)
 				expr_print(prop->expr, expr_print_help, &debug, E_NONE);
 				debug += "<br>";
 			}
-			break;
-		case P_SELECT:
-			debug += "select: ";
-			expr_print(prop->expr, expr_print_help, &debug, E_NONE);
-			debug += "<br>";
-			break;
-		case P_RANGE:
-			debug += "range: ";
-			expr_print(prop->expr, expr_print_help, &debug, E_NONE);
-			debug += "<br>";
 			break;
 		default:
 			debug += "unknown property: ";
