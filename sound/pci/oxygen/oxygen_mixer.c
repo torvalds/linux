@@ -402,6 +402,19 @@ static int ac97_switch_get(struct snd_kcontrol *ctl,
 	return 0;
 }
 
+static void ac97_mute_ctl(struct oxygen *chip, unsigned int control)
+{
+	unsigned int index = chip->controls[control]->private_value & 0xff;
+	u16 value;
+
+	value = oxygen_read_ac97(chip, 0, index);
+	if (!(value & 0x8000)) {
+		oxygen_write_ac97(chip, 0, index, value | 0x8000);
+		snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
+			       &chip->controls[control]->id);
+	}
+}
+
 static int ac97_switch_put(struct snd_kcontrol *ctl,
 			   struct snd_ctl_elem_value *value)
 {
@@ -422,9 +435,20 @@ static int ac97_switch_put(struct snd_kcontrol *ctl,
 	change = newreg != oldreg;
 	if (change) {
 		oxygen_write_ac97(chip, 0, index, newreg);
-		if (index == AC97_LINE)
+		if (index == AC97_LINE) {
 			oxygen_write_ac97_masked(chip, 0, 0x72,
 						 !!(newreg & 0x8000), 0x0001);
+			if (!(newreg & 0x8000)) {
+				ac97_mute_ctl(chip, CONTROL_MIC_CAPTURE_SWITCH);
+				ac97_mute_ctl(chip, CONTROL_CD_CAPTURE_SWITCH);
+				ac97_mute_ctl(chip, CONTROL_AUX_CAPTURE_SWITCH);
+			}
+		} else if ((index == AC97_MIC || index == AC97_CD ||
+			    index == AC97_VIDEO || index == AC97_AUX) &&
+			   bitnr == 15 && !(newreg & 0x8000)) {
+			ac97_mute_ctl(chip, CONTROL_LINE_CAPTURE_SWITCH);
+			oxygen_write_ac97_masked(chip, 0, 0x72, 0x0001, 0x0001);
+		}
 	}
 	mutex_unlock(&chip->mutex);
 	return change;
@@ -600,6 +624,10 @@ int oxygen_mixer_init(struct oxygen *chip)
 			SNDRV_CTL_NAME_IEC958("", PLAYBACK, PCM_STREAM),
 		[CONTROL_SPDIF_INPUT_BITS] =
 			SNDRV_CTL_NAME_IEC958("", CAPTURE, DEFAULT),
+		[CONTROL_MIC_CAPTURE_SWITCH] = "Mic Capture Switch",
+		[CONTROL_LINE_CAPTURE_SWITCH] = "Line Capture Switch",
+		[CONTROL_CD_CAPTURE_SWITCH] = "CD Capture Switch",
+		[CONTROL_AUX_CAPTURE_SWITCH] = "Aux Capture Switch",
 	};
 	unsigned int i, j;
 	struct snd_kcontrol *ctl;
