@@ -108,19 +108,9 @@ void __init paging_init(void)
 	zero_page = alloc_bootmem_low_pages_node(NODE_DATA(0),
 						 PAGE_SIZE);
 
-	{
-		pgd_t *pg_dir;
-		int i;
-
-		pg_dir = swapper_pg_dir;
-		sysreg_write(PTBR, (unsigned long)pg_dir);
-
-		for (i = 0; i < PTRS_PER_PGD; i++)
-			pgd_val(pg_dir[i]) = 0;
-
-		enable_mmu();
-		printk ("CPU: Paging enabled\n");
-	}
+	sysreg_write(PTBR, (unsigned long)swapper_pg_dir);
+	enable_mmu();
+	printk ("CPU: Paging enabled\n");
 
 	for_each_online_node(nid) {
 		pg_data_t *pgdat = NODE_DATA(nid);
