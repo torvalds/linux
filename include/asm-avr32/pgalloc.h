@@ -9,8 +9,6 @@
 #define __ASM_AVR32_PGALLOC_H
 
 #include <linux/mm.h>
-#include <linux/sched.h>
-#include <linux/slab.h>
 
 static inline void pmd_populate_kernel(struct mm_struct *mm,
 				       pmd_t *pmd, pte_t *pte)
@@ -30,12 +28,20 @@ static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd,
  */
 static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 {
-	return kcalloc(USER_PTRS_PER_PGD, sizeof(pgd_t), GFP_KERNEL);
+	pgd_t *pgd;
+
+	pgd = (pgd_t *)get_zeroed_page(GFP_KERNEL | __GFP_REPEAT);
+	if (likely(pgd))
+		memcpy(pgd + USER_PTRS_PER_PGD,
+			swapper_pg_dir + USER_PTRS_PER_PGD,
+			(PTRS_PER_PGD - USER_PTRS_PER_PGD) * sizeof(pgd_t));
+
+	return pgd;
 }
 
 static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 {
-	kfree(pgd);
+	free_page((unsigned long)pgd);
 }
 
 static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,

@@ -98,10 +98,6 @@ tlb_miss_common:
 	mfsr	r0, SYSREG_TLBEAR
 	mfsr	r1, SYSREG_PTBR
 
-	/* Is it the vmalloc space? */
-	bld	r0, 31
-	brcs	handle_vmalloc_miss
-
 	/*
 	 * First level lookup: The PGD contains virtual pointers to
 	 * the second-level page tables, but they may be NULL if not
@@ -143,15 +139,13 @@ pgtbl_lookup:
 	tlbmiss_restore
 	rete
 
-handle_vmalloc_miss:
-	/* Simply do the lookup in init's page table */
-	mov	r1, lo(swapper_pg_dir)
-	orh	r1, hi(swapper_pg_dir)
-	rjmp	pgtbl_lookup
-
 	/* The slow path of the TLB miss handler */
 	.align	2
 page_table_not_present:
+	/* Do we need to synchronize with swapper_pg_dir? */
+	bld	r0, 31
+	brcs	sync_with_swapper_pg_dir
+
 page_not_present:
 	tlbmiss_restore
 	sub	sp, 4
@@ -161,6 +155,34 @@ page_not_present:
 	mov	r11, sp
 	rcall	do_page_fault
 	rjmp	ret_from_exception
+
+	.align	2
+sync_with_swapper_pg_dir:
+	/*
+	 * If swapper_pg_dir contains a non-NULL second-level page
+	 * table pointer, copy it into the current PGD. If not, we
+	 * must handle it as a full-blown page fault.
+	 *
+	 * Jumping back to pgtbl_lookup causes an unnecessary lookup,
+	 * but it is guaranteed to be a cache hit, it won't happen
+	 * very often, and we absolutely do not want to sacrifice any
+	 * performance in the fast path in order to improve this.
+	 */
+	mov	r1, lo(swapper_pg_dir)
+	orh	r1, hi(swapper_pg_dir)
+	ld.w	r3, r1[r2 << 2]
+	cp.w	r3, 0
+	breq	page_not_present
+	mfsr	r1, SYSREG_PTBR
+	st.w	r1[r2 << 2], r3
+	rjmp	pgtbl_lookup
+
+	/*
+	 * We currently have two bytes left at this point until we
+	 * crash into the system call handler...
+	 *
+	 * Don't worry, the assembler will let us know.
+	 */
 
 
 	/* ---                    System Call                    --- */
