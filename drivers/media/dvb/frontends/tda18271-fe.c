@@ -27,6 +27,10 @@ module_param_named(debug, tda18271_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debug level "
 		 "(info=1, map=2, reg=4, adv=8, cal=16 (or-able))");
 
+int tda18271_cal_on_startup;
+module_param_named(cal, tda18271_cal_on_startup, int, 0644);
+MODULE_PARM_DESC(cal, "perform RF tracking filter calibration on startup");
+
 static LIST_HEAD(tda18271_list);
 static DEFINE_MUTEX(tda18271_list_mutex);
 
@@ -1177,6 +1181,10 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 
 		mutex_lock(&priv->lock);
 		tda18271_init_regs(fe);
+
+		if ((tda18271_cal_on_startup) && (priv->id == TDA18271HDC2))
+			tda18271_rf_cal_init(fe);
+
 		mutex_unlock(&priv->lock);
 	}
 
