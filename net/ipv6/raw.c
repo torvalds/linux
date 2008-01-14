@@ -291,7 +291,7 @@ static int rawv6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 			if (!sk->sk_bound_dev_if)
 				goto out;
 
-			dev = dev_get_by_index(&init_net, sk->sk_bound_dev_if);
+			dev = dev_get_by_index(sk->sk_net, sk->sk_bound_dev_if);
 			if (!dev) {
 				err = -ENODEV;
 				goto out;
@@ -304,7 +304,7 @@ static int rawv6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		v4addr = LOOPBACK4_IPV6;
 		if (!(addr_type & IPV6_ADDR_MULTICAST))	{
 			err = -EADDRNOTAVAIL;
-			if (!ipv6_chk_addr(&init_net, &addr->sin6_addr,
+			if (!ipv6_chk_addr(sk->sk_net, &addr->sin6_addr,
 					   dev, 0)) {
 				if (dev)
 					dev_put(dev);
