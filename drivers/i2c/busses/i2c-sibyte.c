@@ -200,11 +200,14 @@ static struct i2c_adapter sibyte_board_adapter[2] = {
 
 static int __init i2c_sibyte_init(void)
 {
-	printk("i2c-swarm.o: i2c SMBus adapter module for SiByte board\n");
+	pr_info("i2c-sibyte: i2c SMBus adapter module for SiByte board\n");
 	if (i2c_sibyte_add_bus(&sibyte_board_adapter[0], K_SMB_FREQ_100KHZ) < 0)
 		return -ENODEV;
-	if (i2c_sibyte_add_bus(&sibyte_board_adapter[1], K_SMB_FREQ_400KHZ) < 0)
+	if (i2c_sibyte_add_bus(&sibyte_board_adapter[1],
+			       K_SMB_FREQ_400KHZ) < 0) {
+		i2c_del_adapter(&sibyte_board_adapter[0]);
 		return -ENODEV;
+	}
 	return 0;
 }
 
