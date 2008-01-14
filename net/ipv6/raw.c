@@ -1270,16 +1270,32 @@ static const struct file_operations raw6_seq_fops = {
 	.release =	seq_release_net,
 };
 
+static int raw6_init_net(struct net *net)
+{
+	if (!proc_net_fops_create(net, "raw6", S_IRUGO, &raw6_seq_fops))
+		return -ENOMEM;
+
+	return 0;
+}
+
+static void raw6_exit_net(struct net *net)
+{
+	proc_net_remove(net, "raw6");
+}
+
+static struct pernet_operations raw6_net_ops = {
+	.init = raw6_init_net,
+	.exit = raw6_exit_net,
+};
+
 int __init raw6_proc_init(void)
 {
-	if (!proc_net_fops_create(&init_net, "raw6", S_IRUGO, &raw6_seq_fops))
-		return -ENOMEM;
-	return 0;
+	return register_pernet_subsys(&raw6_net_ops);
 }
 
 void raw6_proc_exit(void)
 {
-	proc_net_remove(&init_net, "raw6");
+	unregister_pernet_subsys(&raw6_net_ops);
 }
 #endif	/* CONFIG_PROC_FS */
 

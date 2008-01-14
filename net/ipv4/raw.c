@@ -1003,15 +1003,31 @@ static const struct file_operations raw_seq_fops = {
 	.release = seq_release_net,
 };
 
+static __net_init int raw_init_net(struct net *net)
+{
+	if (!proc_net_fops_create(net, "raw", S_IRUGO, &raw_seq_fops))
+		return -ENOMEM;
+
+	return 0;
+}
+
+static __net_exit void raw_exit_net(struct net *net)
+{
+	proc_net_remove(net, "raw");
+}
+
+static __net_initdata struct pernet_operations raw_net_ops = {
+	.init = raw_init_net,
+	.exit = raw_exit_net,
+};
+
 int __init raw_proc_init(void)
 {
-	if (!proc_net_fops_create(&init_net, "raw", S_IRUGO, &raw_seq_fops))
-		return -ENOMEM;
-	return 0;
+	return register_pernet_subsys(&raw_net_ops);
 }
 
 void __init raw_proc_exit(void)
 {
-	proc_net_remove(&init_net, "raw");
+	unregister_pernet_subsys(&raw_net_ops);
 }
 #endif /* CONFIG_PROC_FS */
