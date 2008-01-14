@@ -446,6 +446,7 @@ extern int cx23885_i2c_register(struct cx23885_i2c *bus);
 extern int cx23885_i2c_unregister(struct cx23885_i2c *bus);
 extern void cx23885_call_i2c_clients(struct cx23885_i2c *bus, unsigned int cmd,
 				     void *arg);
+extern void cx23885_av_clk(struct cx23885_dev *dev, int enable);
 
 /* ----------------------------------------------------------- */
 /* cx23885-417.c                                               */

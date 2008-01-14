@@ -1037,6 +1037,7 @@ static int cx23885_start_dma(struct cx23885_tsport *port,
 			     struct cx23885_buffer   *buf)
 {
 	struct cx23885_dev *dev = port->dev;
+	u32 reg;
 
 	dprintk(1, "%s() w: %d, h: %d, f: %d\n", __func__,
 		buf->vb.width, buf->vb.height, buf->vb.field);
@@ -1062,6 +1063,9 @@ static int cx23885_start_dma(struct cx23885_tsport *port,
 		return -EINVAL;
 	}
 
+	if (cx23885_boards[dev->board].portb == CX23885_MPEG_ENCODER)
+		cx23885_av_clk(dev, 0);
+
 	udelay(100);
 
 	/* If the port supports SRC SELECT, configure it */
@@ -1079,6 +1083,21 @@ static int cx23885_start_dma(struct cx23885_tsport *port,
 	cx_write(port->reg_gpcnt_ctl, 3);
 	q->count = 1;
 
+	if (cx23885_boards[dev->board].portb & CX23885_MPEG_ENCODER) {
+
+		reg = cx_read(PAD_CTRL);
+		reg = reg & ~0x1;    /* Clear TS1_OE */
+
+		/* FIXME, bit 2 writing here is questionable */
+		/* set TS1_SOP_OE and TS1_OE_HI */
+		reg = reg | 0xa;
+		cx_write(PAD_CTRL, reg);
+
+		/* FIXME and these two registers should be documented. */
+		cx_write(CLK_DELAY, cx_read(CLK_DELAY) | 0x80000011);
+		cx_write(ALT_PIN_OUT_SEL, 0x10100045);
+	}
+
 	switch(dev->bridge) {
 	case CX23885_BRIDGE_885:
 	case CX23885_BRIDGE_887:
@@ -1094,6 +1113,9 @@ static int cx23885_start_dma(struct cx23885_tsport *port,
 
 	cx_set(DEV_CNTRL2, (1<<5)); /* Enable RISC controller */
 
+	if (cx23885_boards[dev->board].portb == CX23885_MPEG_ENCODER)
+		cx23885_av_clk(dev, 1);
+
 	if (debug > 4)
 		cx23885_tsport_reg_dump(port);
 
@@ -1103,11 +1125,31 @@ static int cx23885_start_dma(struct cx23885_tsport *port,
 static int cx23885_stop_dma(struct cx23885_tsport *port)
 {
 	struct cx23885_dev *dev = port->dev;
+	u32 reg;
+
 	dprintk(1, "%s()\n", __func__);
 
 	/* Stop interrupts and DMA */
 	cx_clear(port->reg_ts_int_msk, port->ts_int_msk_val);
 	cx_clear(port->reg_dma_ctl, port->dma_ctl_val);
+
+	if (cx23885_boards[dev->board].portb & CX23885_MPEG_ENCODER) {
+
+		reg = cx_read(PAD_CTRL);
+
+		/* Set TS1_OE */
+		reg = reg | 0x1;
+
+		/* clear TS1_SOP_OE and TS1_OE_HI */
+		reg = reg & ~0xa;
+		cx_write(PAD_CTRL, reg);
+		cx_write(port->reg_src_sel, 0);
+		cx_write(port->reg_gen_ctrl, 8);
+
+	}
+
+	if (cx23885_boards[dev->board].portb == CX23885_MPEG_ENCODER)
+		cx23885_av_clk(dev, 0);
 
 	return 0;
 }
@@ -1525,7 +1567,8 @@ static int __devinit cx23885_initdev(struct pci_dev *pci_dev,
 	printk(KERN_INFO "%s/0: found at %s, rev: %d, irq: %d, "
 	       "latency: %d, mmio: 0x%llx\n", dev->name,
 	       pci_name(pci_dev), dev->pci_rev, pci_dev->irq,
-	       dev->pci_lat, (unsigned long long)pci_resource_start(pci_dev,0));
+	       dev->pci_lat,
+		(unsigned long long)pci_resource_start(pci_dev, 0));
 
 	pci_set_master(pci_dev);
 	if (!pci_dma_supported(pci_dev, 0xffffffff)) {
