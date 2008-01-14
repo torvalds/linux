@@ -55,10 +55,18 @@ phys_addr_t get_immrbase(void)
 	soc = of_find_node_by_type(NULL, "soc");
 	if (soc) {
 		int size;
-		const void *prop = of_get_property(soc, "reg", &size);
+		u32 naddr;
+		const u32 *prop = of_get_property(soc, "#address-cells", &size);
 
+		if (prop && size == 4)
+			naddr = *prop;
+		else
+			naddr = 2;
+
+		prop = of_get_property(soc, "ranges", &size);
 		if (prop)
-			immrbase = of_translate_address(soc, prop);
+			immrbase = of_translate_address(soc, prop + naddr);
+
 		of_node_put(soc);
 	}
 
