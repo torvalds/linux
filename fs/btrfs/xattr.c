@@ -141,11 +141,6 @@ ssize_t btrfs_xattr_get(struct inode *inode, int name_index,
 
 	if (!handler)
 		return -EOPNOTSUPP;
-
-	/* just in case... */
-	if (*attr_name == '\0')
-		return -EINVAL;
-
 	name = get_name(attr_name, name_index);
 	if (!name)
 		return -ENOMEM;
@@ -201,14 +196,8 @@ int btrfs_xattr_set(struct inode *inode, int name_index,
 	struct xattr_handler *handler = btrfs_xattr_handler(name_index);
 	char *name;
 	int ret = 0, mod = 0;
-
 	if (!handler)
 		return -EOPNOTSUPP;
-
-	/* just in case... */
-	if (*attr_name == '\0')
-		return -EINVAL;
-
 	name = get_name(attr_name, name_index);
 	if (!name)
 		return -ENOMEM;
@@ -454,15 +443,18 @@ static int btrfs_xattr_##name##_get(struct inode *inode,		\
 				    const char *name, void *value,	\
 				    size_t size)			\
 {									\
+	if (*name == '\0')						\
+		return -EINVAL;						\
 	return btrfs_xattr_get(inode, index, name, value, size);	\
 }									\
 static int btrfs_xattr_##name##_set(struct inode *inode,		\
 				    const char *name, const void *value,\
 				    size_t size, int flags)		\
 {									\
+	if (*name == '\0')						\
+		return -EINVAL;						\
 	return btrfs_xattr_set(inode, index, name, value, size, flags);	\
 }									\
-
 BTRFS_XATTR_SETGET_FUNCS(security, BTRFS_XATTR_INDEX_SECURITY);
 BTRFS_XATTR_SETGET_FUNCS(system, BTRFS_XATTR_INDEX_SYSTEM);
 BTRFS_XATTR_SETGET_FUNCS(user, BTRFS_XATTR_INDEX_USER);

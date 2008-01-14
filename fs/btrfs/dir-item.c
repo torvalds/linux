@@ -76,6 +76,9 @@ int btrfs_insert_xattr_item(struct btrfs_trans_handle *trans,
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
+	if (name_len + data_len + sizeof(struct btrfs_dir_item) >
+	    BTRFS_LEAF_DATA_SIZE(root) - sizeof(struct btrfs_item))
+		return -ENOSPC;
 
 	data_size = sizeof(*dir_item) + name_len + data_len;
 	dir_item = insert_with_overflow(trans, root, path, &key, data_size,
