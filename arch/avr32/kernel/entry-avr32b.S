@@ -83,22 +83,23 @@ exception_vectors:
 #define	tlbmiss_save	pushm	r0-r3
 #define tlbmiss_restore	popm	r0-r3
 
-	.section .tlbx.ex.text,"ax",@progbits
+	.org	0x50
 	.global	itlb_miss
 itlb_miss:
 	tlbmiss_save
 	rjmp	tlb_miss_common
 
-	.section .tlbr.ex.text,"ax",@progbits
+	.org	0x60
 dtlb_miss_read:
 	tlbmiss_save
 	rjmp	tlb_miss_common
 
-	.section .tlbw.ex.text,"ax",@progbits
+	.org	0x70
 dtlb_miss_write:
 	tlbmiss_save
 
 	.global	tlb_miss_common
+	.align	2
 tlb_miss_common:
 	mfsr	r0, SYSREG_TLBEAR
 	mfsr	r1, SYSREG_PTBR
@@ -157,7 +158,7 @@ handle_vmalloc_miss:
 
 	/* ---                    System Call                    --- */
 
-	.section .scall.text,"ax",@progbits
+	.org	0x100
 system_call:
 #ifdef CONFIG_PREEMPT
 	mask_interrupts

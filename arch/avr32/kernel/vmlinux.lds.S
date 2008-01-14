@@ -68,14 +68,6 @@ SECTIONS
 		_evba = .;
 		_text = .;
 		*(.ex.text)
-		. = 0x50;
-		*(.tlbx.ex.text)
-		. = 0x60;
-		*(.tlbr.ex.text)
-		. = 0x70;
-		*(.tlbw.ex.text)
-		. = 0x100;
-		*(.scall.text)
 		*(.irq.text)
 		KPROBES_TEXT
 		TEXT_TEXT
