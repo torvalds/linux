@@ -642,7 +642,7 @@ struct net_device *alloc_trdev(int sizeof_priv)
 static int __init rif_init(void)
 {
 	init_timer(&rif_timer);
-	rif_timer.expires  = sysctl_tr_rif_timeout;
+	rif_timer.expires  = jiffies + sysctl_tr_rif_timeout;
 	rif_timer.data     = 0L;
 	rif_timer.function = rif_check_expire;
 	add_timer(&rif_timer);
