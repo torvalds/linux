@@ -220,14 +220,12 @@ int rpcb_getport_sync(struct sockaddr_in *sin, __u32 prog,
 		.rpc_resp	= &map.r_port,
 	};
 	struct rpc_clnt	*rpcb_clnt;
-	char hostname[40];
 	int status;
 
 	dprintk("RPC:       %s(" NIPQUAD_FMT ", %u, %u, %d)\n",
 		__FUNCTION__, NIPQUAD(sin->sin_addr.s_addr), prog, vers, prot);
 
-	sprintf(hostname, NIPQUAD_FMT, NIPQUAD(sin->sin_addr.s_addr));
-	rpcb_clnt = rpcb_create(hostname, (struct sockaddr *)sin,
+	rpcb_clnt = rpcb_create(NULL, (struct sockaddr *)sin,
 				sizeof(sin), prot, 2, 0);
 	if (IS_ERR(rpcb_clnt))
 		return PTR_ERR(rpcb_clnt);
