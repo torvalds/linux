@@ -94,7 +94,7 @@ static s32 i2c_powermac_smbus_xfer(	struct i2c_adapter*	adap,
 	    	break;
 
 	/* Note that these are broken vs. the expected smbus API where
-	 * on reads, the lenght is actually returned from the function,
+	 * on reads, the length is actually returned from the function,
 	 * but I think the current API makes no sense and I don't want
 	 * any driver that I haven't verified for correctness to go
 	 * anywhere near a pmac i2c bus anyway ...
