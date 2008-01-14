@@ -425,6 +425,7 @@ static struct file_system_type btrfs_fs_type = {
 
 static struct super_operations btrfs_super_ops = {
 	.delete_inode	= btrfs_delete_inode,
+	.drop_inode	= btrfs_drop_inode,
 	.put_super	= btrfs_put_super,
 	.read_inode	= btrfs_read_locked_inode,
 	.write_super	= btrfs_write_super,

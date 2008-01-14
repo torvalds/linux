@@ -990,6 +990,25 @@ out:
 fail:
 	return err;
 }
+
+void btrfs_drop_inode(struct inode *inode)
+{
+	struct btrfs_trans_handle *trans;
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+
+	if (!BTRFS_I(inode)->ordered_trans) {
+		generic_drop_inode(inode);
+		return;
+	}
+	/* nasty, but it prevents a deadlock with data=ordered by preventing
+	 * a commit until after this inode is done
+	 */
+	trans = btrfs_start_transaction(root, 1);
+	generic_drop_inode(inode);
+	/* note, the inode is now untouchable */
+	btrfs_end_transaction(trans, root);
+}
+
 void btrfs_delete_inode(struct inode *inode)
 {
 	struct btrfs_trans_handle *trans;
