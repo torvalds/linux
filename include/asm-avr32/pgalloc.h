@@ -8,7 +8,11 @@
 #ifndef __ASM_AVR32_PGALLOC_H
 #define __ASM_AVR32_PGALLOC_H
 
-#include <linux/mm.h>
+#include <linux/quicklist.h>
+#include <asm/page.h>
+#include <asm/pgtable.h>
+
+#define QUICK_PGD	0	/* Preserve kernel mappings over free */
 
 static inline void pmd_populate_kernel(struct mm_struct *mm,
 				       pmd_t *pmd, pte_t *pte)
@@ -23,25 +27,26 @@ static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd,
 }
 #define pmd_pgtable(pmd) pmd_page(pmd)
 
+static inline void pgd_ctor(void *x)
+{
+	pgd_t *pgd = x;
+
+	memcpy(pgd + USER_PTRS_PER_PGD,
+		swapper_pg_dir + USER_PTRS_PER_PGD,
+		(PTRS_PER_PGD - USER_PTRS_PER_PGD) * sizeof(pgd_t));
+}
+
 /*
  * Allocate and free page tables
  */
 static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 {
-	pgd_t *pgd;
-
-	pgd = (pgd_t *)get_zeroed_page(GFP_KERNEL | __GFP_REPEAT);
-	if (likely(pgd))
-		memcpy(pgd + USER_PTRS_PER_PGD,
-			swapper_pg_dir + USER_PTRS_PER_PGD,
-			(PTRS_PER_PGD - USER_PTRS_PER_PGD) * sizeof(pgd_t));
-
-	return pgd;
+	return quicklist_alloc(QUICK_PGD, GFP_KERNEL | __GFP_REPEAT, pgd_ctor);
 }
 
 static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 {
-	free_page((unsigned long)pgd);
+	quicklist_free(QUICK_PGD, NULL, pgd);
 }
 
 static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
@@ -83,6 +88,9 @@ do {							\
 	tlb_remove_page((tlb), pte);			\
 } while (0)
 
-#define check_pgt_cache() do { } while(0)
+static inline void check_pgt_cache(void)
+{
+	quicklist_trim(QUICK_PGD, NULL, 25, 16);
+}
 
 #endif /* __ASM_AVR32_PGALLOC_H */

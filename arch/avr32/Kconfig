@@ -147,6 +147,9 @@ config PHYS_OFFSET
 
 source "kernel/Kconfig.preempt"
 
+config QUICKLIST
+	def_bool y
+
 config HAVE_ARCH_BOOTMEM_NODE
 	def_bool n
 
