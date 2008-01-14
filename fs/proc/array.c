@@ -426,7 +426,6 @@ static int do_task_stat(struct task_struct *task, char *buffer, int whole)
 	cgtime = gtime = cputime_zero;
 
 	rcu_read_lock();
-	ppid = task_tgid_nr_ns(task->real_parent, ns);
 	if (lock_task_sighand(task, &flags)) {
 		struct signal_struct *sig = task->signal;
 
@@ -465,6 +464,7 @@ static int do_task_stat(struct task_struct *task, char *buffer, int whole)
 		}
 
 		sid = task_session_nr_ns(task, ns);
+		ppid = task_tgid_nr_ns(task->real_parent, ns);
 		pgid = task_pgrp_nr_ns(task, ns);
 
 		unlock_task_sighand(task, &flags);
