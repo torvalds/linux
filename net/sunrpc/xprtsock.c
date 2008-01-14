@@ -398,12 +398,16 @@ static void xs_format_ipv6_peer_addresses(struct rpc_xprt *xprt,
 
 static void xs_free_peer_addresses(struct rpc_xprt *xprt)
 {
-	kfree(xprt->address_strings[RPC_DISPLAY_ADDR]);
-	kfree(xprt->address_strings[RPC_DISPLAY_PORT]);
-	kfree(xprt->address_strings[RPC_DISPLAY_ALL]);
-	kfree(xprt->address_strings[RPC_DISPLAY_HEX_ADDR]);
-	kfree(xprt->address_strings[RPC_DISPLAY_HEX_PORT]);
-	kfree(xprt->address_strings[RPC_DISPLAY_UNIVERSAL_ADDR]);
+	unsigned int i;
+
+	for (i = 0; i < RPC_DISPLAY_MAX; i++)
+		switch (i) {
+		case RPC_DISPLAY_PROTO:
+		case RPC_DISPLAY_NETID:
+			continue;
+		default:
+			kfree(xprt->address_strings[i]);
+		}
 }
 
 #define XS_SENDMSG_FLAGS	(MSG_DONTWAIT | MSG_NOSIGNAL)
