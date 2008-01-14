@@ -1665,8 +1665,6 @@ void set_page_extent_mapped(struct page *page)
 
 void set_page_extent_head(struct page *page, unsigned long len)
 {
-	WARN_ON(page->private && page->private == EXTENT_PAGE_PRIVATE &&
-		PageDirty(page));
 	set_page_private(page, EXTENT_PAGE_PRIVATE_FIRST_PAGE | len << 2);
 }
 
