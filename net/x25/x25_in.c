@@ -247,7 +247,7 @@ static int x25_state3_machine(struct sock *sk, struct sk_buff *skb, int frametyp
 					break;
 				}
 				if (atomic_read(&sk->sk_rmem_alloc) >
-				    (sk->sk_rcvbuf / 2))
+				    (sk->sk_rcvbuf >> 1))
 					x25->condition |= X25_COND_OWN_RX_BUSY;
 			}
 			/*
