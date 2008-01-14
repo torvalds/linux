@@ -454,7 +454,8 @@ static int btrfs_xattr_##name##_set(struct inode *inode,		\
 	if (*name == '\0')						\
 		return -EINVAL;						\
 	return btrfs_xattr_set(inode, index, name, value, size, flags);	\
-}									\
+}
+
 BTRFS_XATTR_SETGET_FUNCS(security, BTRFS_XATTR_INDEX_SECURITY);
 BTRFS_XATTR_SETGET_FUNCS(system, BTRFS_XATTR_INDEX_SYSTEM);
 BTRFS_XATTR_SETGET_FUNCS(user, BTRFS_XATTR_INDEX_USER);
