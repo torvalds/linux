@@ -249,6 +249,7 @@ int ax25_rt_ioctl(unsigned int cmd, void __user *arg)
 #ifdef CONFIG_PROC_FS
 
 static void *ax25_rt_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(ax25_route_lock)
 {
 	struct ax25_route *ax25_rt;
 	int i = 1;
@@ -274,6 +275,7 @@ static void *ax25_rt_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void ax25_rt_seq_stop(struct seq_file *seq, void *v)
+	__releases(ax25_route_lock)
 {
 	read_unlock(&ax25_route_lock);
 }

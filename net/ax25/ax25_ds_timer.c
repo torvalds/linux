@@ -130,7 +130,7 @@ void ax25_ds_heartbeat_expiry(ax25_cb *ax25)
 		 */
 		if (sk != NULL) {
 			if (atomic_read(&sk->sk_rmem_alloc) <
-			    (sk->sk_rcvbuf / 2) &&
+			    (sk->sk_rcvbuf >> 1) &&
 			    (ax25->condition & AX25_COND_OWN_RX_BUSY)) {
 				ax25->condition &= ~AX25_COND_OWN_RX_BUSY;
 				ax25->condition &= ~AX25_COND_ACK_PENDING;
