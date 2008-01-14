@@ -1259,7 +1259,7 @@ static const struct seq_operations raw6_seq_ops = {
 
 static int raw6_seq_open(struct inode *inode, struct file *file)
 {
-	return raw_seq_open(file, &raw_v6_hashinfo, PF_INET6);
+	return raw_seq_open(inode, file, &raw_v6_hashinfo, PF_INET6);
 }
 
 static const struct file_operations raw6_seq_fops = {
@@ -1267,7 +1267,7 @@ static const struct file_operations raw6_seq_fops = {
 	.open =		raw6_seq_open,
 	.read =		seq_read,
 	.llseek =	seq_lseek,
-	.release =	seq_release_private,
+	.release =	seq_release_net,
 };
 
 int __init raw6_proc_init(void)

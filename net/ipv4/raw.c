@@ -860,7 +860,8 @@ static struct sock *raw_get_first(struct seq_file *seq)
 		struct hlist_node *node;
 
 		sk_for_each(sk, node, &state->h->ht[state->bucket])
-			if (sk->sk_family == state->family)
+			if (sk->sk_net == state->p.net &&
+					sk->sk_family == state->family)
 				goto found;
 	}
 	sk = NULL;
@@ -876,7 +877,8 @@ static struct sock *raw_get_next(struct seq_file *seq, struct sock *sk)
 		sk = sk_next(sk);
 try_again:
 		;
-	} while (sk && sk->sk_family != state->family);
+	} while (sk && sk->sk_net != state->p.net &&
+			sk->sk_family != state->family);
 
 	if (!sk && ++state->bucket < RAW_HTABLE_SIZE) {
 		sk = sk_head(&state->h->ht[state->bucket]);
@@ -970,16 +972,18 @@ static const struct seq_operations raw_seq_ops = {
 	.show  = raw_seq_show,
 };
 
-int raw_seq_open(struct file *file, struct raw_hashinfo *h,
+int raw_seq_open(struct inode *ino, struct file *file, struct raw_hashinfo *h,
 		unsigned short family)
 {
+	int err;
 	struct raw_iter_state *i;
 
-	i = __seq_open_private(file, &raw_seq_ops,
+	err = seq_open_net(ino, file, &raw_seq_ops,
 			sizeof(struct raw_iter_state));
-	if (i == NULL)
-		return -ENOMEM;
+	if (err < 0)
+		return err;
 
+	i = raw_seq_private((struct seq_file *)file->private_data);
 	i->h = h;
 	i->family = family;
 	return 0;
@@ -988,7 +992,7 @@ EXPORT_SYMBOL_GPL(raw_seq_open);
 
 static int raw_v4_seq_open(struct inode *inode, struct file *file)
 {
-	return raw_seq_open(file, &raw_v4_hashinfo, PF_INET);
+	return raw_seq_open(inode, file, &raw_v4_hashinfo, PF_INET);
 }
 
 static const struct file_operations raw_seq_fops = {
@@ -996,7 +1000,7 @@ static const struct file_operations raw_seq_fops = {
 	.open	 = raw_v4_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
-	.release = seq_release_private,
+	.release = seq_release_net,
 };
 
 int __init raw_proc_init(void)
