@@ -1026,7 +1026,7 @@ static int s3c2410fb_resume(struct platform_device *dev)
 	clk_enable(info->clk);
 	msleep(1);
 
-	s3c2410fb_init_registers(info);
+	s3c2410fb_init_registers(fbinfo);
 
 	return 0;
 }
