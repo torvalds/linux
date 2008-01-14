@@ -200,10 +200,13 @@ int rpcb_register(u32 prog, u32 vers, int prot, unsigned short port, int *okay)
  * @vers: RPC version number to bind
  * @prot: transport protocol to use to make this request
  *
+ * Return value is the requested advertised port number,
+ * or a negative errno value.
+ *
  * Called from outside the RPC client in a synchronous task context.
  * Uses default timeout parameters specified by underlying transport.
  *
- * XXX: Needs to support IPv6, and rpcbind versions 3 and 4
+ * XXX: Needs to support IPv6
  */
 int rpcb_getport_sync(struct sockaddr_in *sin, u32 prog, u32 vers, int prot)
 {
