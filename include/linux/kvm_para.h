@@ -14,12 +14,12 @@
 
 #define KVM_HC_VAPIC_POLL_IRQ            1
 
-#ifdef __KERNEL__
 /*
  * hypercalls use architecture specific
  */
 #include <asm/kvm_para.h>
 
+#ifdef __KERNEL__
 static inline int kvm_para_has_feature(unsigned int feature)
 {
 	if (kvm_arch_para_features() & (1UL << feature))
