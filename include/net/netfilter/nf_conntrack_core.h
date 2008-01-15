@@ -30,16 +30,6 @@ extern void nf_conntrack_cleanup(void);
 extern int nf_conntrack_proto_init(void);
 extern void nf_conntrack_proto_fini(void);
 
-extern int nf_conntrack_helper_init(void);
-extern void nf_conntrack_helper_fini(void);
-
-struct nf_conntrack_l3proto;
-extern struct nf_conntrack_l3proto *nf_ct_find_l3proto(u_int16_t pf);
-/* Like above, but you already have conntrack read lock. */
-extern struct nf_conntrack_l3proto *__nf_ct_find_l3proto(u_int16_t l3proto);
-
-struct nf_conntrack_l4proto;
-
 extern int
 nf_ct_get_tuple(const struct sk_buff *skb,
 		unsigned int nhoff,
@@ -75,8 +65,6 @@ static inline int nf_conntrack_confirm(struct sk_buff *skb)
 	}
 	return ret;
 }
-
-extern void __nf_conntrack_attach(struct sk_buff *nskb, struct sk_buff *skb);
 
 int
 print_tuple(struct seq_file *s, const struct nf_conntrack_tuple *tuple,
