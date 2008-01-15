@@ -188,12 +188,17 @@ static void nfs_direct_req_release(struct nfs_direct_req *dreq)
 static ssize_t nfs_direct_wait(struct nfs_direct_req *dreq)
 {
 	ssize_t result = -EIOCBQUEUED;
+	struct rpc_clnt *clnt;
+	sigset_t oldset;
 
 	/* Async requests don't wait here */
 	if (dreq->iocb)
 		goto out;
 
+	clnt = NFS_CLIENT(dreq->inode);
+	rpc_clnt_sigmask(clnt, &oldset);
 	result = wait_for_completion_interruptible(&dreq->completion);
+	rpc_clnt_sigunmask(clnt, &oldset);
 
 	if (!result)
 		result = dreq->error;
@@ -403,9 +408,7 @@ static ssize_t nfs_direct_read(struct kiocb *iocb, const struct iovec *iov,
 			       unsigned long nr_segs, loff_t pos)
 {
 	ssize_t result = 0;
-	sigset_t oldset;
 	struct inode *inode = iocb->ki_filp->f_mapping->host;
-	struct rpc_clnt *clnt = NFS_CLIENT(inode);
 	struct nfs_direct_req *dreq;
 
 	dreq = nfs_direct_req_alloc();
@@ -417,11 +420,9 @@ static ssize_t nfs_direct_read(struct kiocb *iocb, const struct iovec *iov,
 	if (!is_sync_kiocb(iocb))
 		dreq->iocb = iocb;
 
-	rpc_clnt_sigmask(clnt, &oldset);
 	result = nfs_direct_read_schedule_iovec(dreq, iov, nr_segs, pos);
 	if (!result)
 		result = nfs_direct_wait(dreq);
-	rpc_clnt_sigunmask(clnt, &oldset);
 	nfs_direct_req_release(dreq);
 
 	return result;
@@ -816,9 +817,7 @@ static ssize_t nfs_direct_write(struct kiocb *iocb, const struct iovec *iov,
 				size_t count)
 {
 	ssize_t result = 0;
-	sigset_t oldset;
 	struct inode *inode = iocb->ki_filp->f_mapping->host;
-	struct rpc_clnt *clnt = NFS_CLIENT(inode);
 	struct nfs_direct_req *dreq;
 	size_t wsize = NFS_SERVER(inode)->wsize;
 	int sync = NFS_UNSTABLE;
@@ -836,11 +835,9 @@ static ssize_t nfs_direct_write(struct kiocb *iocb, const struct iovec *iov,
 	if (!is_sync_kiocb(iocb))
 		dreq->iocb = iocb;
 
-	rpc_clnt_sigmask(clnt, &oldset);
 	result = nfs_direct_write_schedule_iovec(dreq, iov, nr_segs, pos, sync);
 	if (!result)
 		result = nfs_direct_wait(dreq);
-	rpc_clnt_sigunmask(clnt, &oldset);
 	nfs_direct_req_release(dreq);
 
 	return result;
