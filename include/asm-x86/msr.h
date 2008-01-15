@@ -3,6 +3,10 @@
 
 #include <asm/msr-index.h>
 
+#ifndef __ASSEMBLY__
+# include <linux/types.h>
+#endif
+
 #ifdef __i386__
 
 #ifdef __KERNEL__
