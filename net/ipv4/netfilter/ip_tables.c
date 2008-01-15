@@ -75,6 +75,7 @@ do {								\
    Hence the start of any table is given by get_table() below.  */
 
 /* Returns whether matches rule or not. */
+/* Performance critical - called for every packet */
 static inline bool
 ip_packet_match(const struct iphdr *ip,
 		const char *indev,
@@ -153,7 +154,7 @@ ip_packet_match(const struct iphdr *ip,
 	return true;
 }
 
-static inline bool
+static bool
 ip_checkentry(const struct ipt_ip *ip)
 {
 	if (ip->flags & ~IPT_F_MASK) {
@@ -183,8 +184,9 @@ ipt_error(struct sk_buff *skb,
 	return NF_DROP;
 }
 
-static inline
-bool do_match(struct ipt_entry_match *m,
+/* Performance critical - called for every packet */
+static inline bool
+do_match(struct ipt_entry_match *m,
 	      const struct sk_buff *skb,
 	      const struct net_device *in,
 	      const struct net_device *out,
@@ -199,6 +201,7 @@ bool do_match(struct ipt_entry_match *m,
 		return false;
 }
 
+/* Performance critical */
 static inline struct ipt_entry *
 get_entry(void *base, unsigned int offset)
 {
@@ -206,6 +209,7 @@ get_entry(void *base, unsigned int offset)
 }
 
 /* All zeroes == unconditional rule. */
+/* Mildly perf critical (only if packet tracing is on) */
 static inline int
 unconditional(const struct ipt_ip *ip)
 {
@@ -221,7 +225,7 @@ unconditional(const struct ipt_ip *ip)
 
 #if defined(CONFIG_NETFILTER_XT_TARGET_TRACE) || \
     defined(CONFIG_NETFILTER_XT_TARGET_TRACE_MODULE)
-static const char *hooknames[] = {
+static const char *const hooknames[] = {
 	[NF_INET_PRE_ROUTING]		= "PREROUTING",
 	[NF_INET_LOCAL_IN]		= "INPUT",
 	[NF_INET_FORWARD]		= "FORWARD",
@@ -235,7 +239,7 @@ enum nf_ip_trace_comments {
 	NF_IP_TRACE_COMMENT_POLICY,
 };
 
-static const char *comments[] = {
+static const char *const comments[] = {
 	[NF_IP_TRACE_COMMENT_RULE]	= "rule",
 	[NF_IP_TRACE_COMMENT_RETURN]	= "return",
 	[NF_IP_TRACE_COMMENT_POLICY]	= "policy",
@@ -251,6 +255,7 @@ static struct nf_loginfo trace_loginfo = {
 	},
 };
 
+/* Mildly perf critical (only if packet tracing is on) */
 static inline int
 get_chainname_rulenum(struct ipt_entry *s, struct ipt_entry *e,
 		      char *hookname, char **chainname,
@@ -567,7 +572,7 @@ mark_source_chains(struct xt_table_info *newinfo,
 	return 1;
 }
 
-static inline int
+static int
 cleanup_match(struct ipt_entry_match *m, unsigned int *i)
 {
 	if (i && (*i)-- == 0)
@@ -579,7 +584,7 @@ cleanup_match(struct ipt_entry_match *m, unsigned int *i)
 	return 0;
 }
 
-static inline int
+static int
 check_entry(struct ipt_entry *e, const char *name)
 {
 	struct ipt_entry_target *t;
@@ -600,7 +605,8 @@ check_entry(struct ipt_entry *e, const char *name)
 	return 0;
 }
 
-static inline int check_match(struct ipt_entry_match *m, const char *name,
+static int
+check_match(struct ipt_entry_match *m, const char *name,
 			      const struct ipt_ip *ip,
 			      unsigned int hookmask, unsigned int *i)
 {
@@ -623,7 +629,7 @@ static inline int check_match(struct ipt_entry_match *m, const char *name,
 	return ret;
 }
 
-static inline int
+static int
 find_check_match(struct ipt_entry_match *m,
 		 const char *name,
 		 const struct ipt_ip *ip,
@@ -652,7 +658,7 @@ err:
 	return ret;
 }
 
-static inline int check_target(struct ipt_entry *e, const char *name)
+static int check_target(struct ipt_entry *e, const char *name)
 {
 	struct ipt_entry_target *t;
 	struct xt_target *target;
@@ -673,7 +679,7 @@ static inline int check_target(struct ipt_entry *e, const char *name)
 	return ret;
 }
 
-static inline int
+static int
 find_check_entry(struct ipt_entry *e, const char *name, unsigned int size,
 		 unsigned int *i)
 {
@@ -717,7 +723,7 @@ find_check_entry(struct ipt_entry *e, const char *name, unsigned int size,
 	return ret;
 }
 
-static inline int
+static int
 check_entry_size_and_hooks(struct ipt_entry *e,
 			   struct xt_table_info *newinfo,
 			   unsigned char *base,
@@ -760,7 +766,7 @@ check_entry_size_and_hooks(struct ipt_entry *e,
 	return 0;
 }
 
-static inline int
+static int
 cleanup_entry(struct ipt_entry *e, unsigned int *i)
 {
 	struct ipt_entry_target *t;
@@ -916,7 +922,7 @@ get_counters(const struct xt_table_info *t,
 	}
 }
 
-static inline struct xt_counters * alloc_counters(struct xt_table *table)
+static struct xt_counters * alloc_counters(struct xt_table *table)
 {
 	unsigned int countersize;
 	struct xt_counters *counters;
@@ -1304,7 +1310,7 @@ do_replace(void __user *user, unsigned int len)
 
 /* We're lazy, and add to the first CPU; overflow works its fey magic
  * and everything is OK. */
-static inline int
+static int
 add_counter_to_entry(struct ipt_entry *e,
 		     const struct xt_counters addme[],
 		     unsigned int *i)
@@ -1465,7 +1471,7 @@ out:
 	return ret;
 }
 
-static inline int
+static int
 compat_find_calc_match(struct ipt_entry_match *m,
 		       const char *name,
 		       const struct ipt_ip *ip,
@@ -1489,7 +1495,7 @@ compat_find_calc_match(struct ipt_entry_match *m,
 	return 0;
 }
 
-static inline int
+static int
 compat_release_match(struct ipt_entry_match *m, unsigned int *i)
 {
 	if (i && (*i)-- == 0)
@@ -1499,7 +1505,7 @@ compat_release_match(struct ipt_entry_match *m, unsigned int *i)
 	return 0;
 }
 
-static inline int
+static int
 compat_release_entry(struct compat_ipt_entry *e, unsigned int *i)
 {
 	struct ipt_entry_target *t;
@@ -1514,7 +1520,7 @@ compat_release_entry(struct compat_ipt_entry *e, unsigned int *i)
 	return 0;
 }
 
-static inline int
+static int
 check_compat_entry_size_and_hooks(struct compat_ipt_entry *e,
 				  struct xt_table_info *newinfo,
 				  unsigned int *size,
@@ -1637,7 +1643,8 @@ compat_copy_entry_from_user(struct compat_ipt_entry *e, void **dstptr,
 	return ret;
 }
 
-static inline int compat_check_entry(struct ipt_entry *e, const char *name,
+static int
+compat_check_entry(struct ipt_entry *e, const char *name,
 				     unsigned int *i)
 {
 	int j, ret;
