@@ -2535,6 +2535,13 @@ again:
 
 	local_irq_disable();
 
+	if (need_resched()) {
+		local_irq_enable();
+		preempt_enable();
+		r = 1;
+		goto out;
+	}
+
 	if (signal_pending(current)) {
 		local_irq_enable();
 		preempt_enable();
