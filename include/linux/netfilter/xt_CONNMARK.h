@@ -22,4 +22,9 @@ struct xt_connmark_target_info {
 	u_int8_t mode;
 };
 
+struct xt_connmark_tginfo1 {
+	u_int32_t ctmark, ctmask, nfmask;
+	u_int8_t mode;
+};
+
 #endif /*_XT_CONNMARK_H_target*/
