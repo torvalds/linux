@@ -252,7 +252,7 @@ static void pdc20230_set_piomode(struct ata_port *ap, struct ata_device *adev)
 static unsigned int pdc_data_xfer_vlb(struct ata_device *dev,
 				unsigned char *buf, unsigned int buflen, int rw)
 {
-	if (ata_id_has_dword_io(adev->id)) {
+	if (ata_id_has_dword_io(dev->id)) {
 		struct ata_port *ap = dev->link->ap;
 		int slop = buflen & 3;
 		unsigned long flags;
