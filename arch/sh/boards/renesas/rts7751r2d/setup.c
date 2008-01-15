@@ -149,6 +149,7 @@ static struct sm501_initdata sm501_initdata = {
 		.set	= 0x00001fe0,
 		.mask	= 0x0,
 	},
+	.devices	= SM501_USE_USB_HOST,
 };
 
 static struct sm501_platdata sm501_platform_data = {
