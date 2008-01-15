@@ -149,7 +149,7 @@ enum tcp_bit_set {
  *	if they are invalid
  *	or we do not support the request (simultaneous open)
  */
-static enum tcp_conntrack tcp_conntracks[2][6][TCP_CONNTRACK_MAX] = {
+static const enum tcp_conntrack tcp_conntracks[2][6][TCP_CONNTRACK_MAX] = {
 	{
 /* ORIGINAL */
 /* 	     sNO, sSS, sSR, sES, sFW, sCW, sLA, sTW, sCL, sLI	*/

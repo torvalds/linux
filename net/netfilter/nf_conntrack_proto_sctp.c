@@ -110,7 +110,7 @@ cookie echoed to closed.
 */
 
 /* SCTP conntrack state transitions */
-static enum sctp_conntrack sctp_conntracks[2][9][SCTP_CONNTRACK_MAX] = {
+static const enum sctp_conntrack sctp_conntracks[2][9][SCTP_CONNTRACK_MAX] = {
 	{
 /*	ORIGINAL	*/
 /*                  sNO, sCL, sCW, sCE, sES, sSS, sSR, sSA */
