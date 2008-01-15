@@ -211,3 +211,13 @@ static void ipv4_netfilter_fini(void)
 
 module_init(ipv4_netfilter_init);
 module_exit(ipv4_netfilter_fini);
+
+#ifdef CONFIG_SYSCTL
+struct ctl_path nf_net_ipv4_netfilter_sysctl_path[] = {
+	{ .procname = "net", .ctl_name = CTL_NET, },
+	{ .procname = "ipv4", .ctl_name = NET_IPV4, },
+	{ .procname = "netfilter", .ctl_name = NET_IPV4_NETFILTER, },
+	{ }
+};
+EXPORT_SYMBOL_GPL(nf_net_ipv4_netfilter_sysctl_path);
+#endif /* CONFIG_SYSCTL */
