@@ -758,10 +758,6 @@ extern int iwl4965_tx_queue_update_wr_ptr(struct iwl4965_priv *priv,
 extern void iwl4965_add_station(struct iwl4965_priv *priv, const u8 *addr,
 				int is_ap);
 extern void iwl4965_set_rxon_chain(struct iwl4965_priv *priv);
-extern int iwl4965_tx_cmd(struct iwl4965_priv *priv, struct iwl4965_cmd *out_cmd,
-			  u8 sta_id, dma_addr_t txcmd_phys,
-			  struct ieee80211_hdr *hdr, u8 hdr_len,
-			  struct ieee80211_tx_control *ctrl, void *sta_in);
 extern int iwl4965_alive_notify(struct iwl4965_priv *priv);
 extern void iwl4965_update_rate_scaling(struct iwl4965_priv *priv, u8 mode);
 extern void iwl4965_chain_noise_reset(struct iwl4965_priv *priv);
@@ -789,6 +785,8 @@ extern int iwl4965_mac_ht_tx_agg_start(struct ieee80211_hw *hw, u8 *da,
 extern int iwl4965_mac_ht_tx_agg_stop(struct ieee80211_hw *hw, u8 *da,
 				  u16 tid, int generator);
 extern void iwl4965_turn_off_agg(struct iwl4965_priv *priv, u8 tid);
+extern void iwl4965_tl_get_stats(struct iwl4965_priv *priv,
+				struct ieee80211_hdr *hdr);
 #endif /* CONFIG_IWL4965_HT_AGG */
 #endif /*CONFIG_IWL4965_HT */
 /* Structures, enum, and defines specific to the 4965 */

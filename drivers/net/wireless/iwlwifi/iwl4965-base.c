@@ -2772,6 +2772,10 @@ static void iwl4965_build_tx_cmd_basic(struct iwl4965_priv *priv,
 		tx_flags |= TX_CMD_FLG_SEQ_CTL_MSK;
 	}
 
+	if (ieee80211_is_back_request(fc))
+		tx_flags |= TX_CMD_FLG_ACK_MSK | TX_CMD_FLG_IMM_BA_RSP_MASK;
+
+
 	cmd->cmd.tx.sta_id = std_id;
 	if (ieee80211_get_morefrag(hdr))
 		tx_flags |= TX_CMD_FLG_MORE_FRAG_MSK;
@@ -2880,6 +2884,7 @@ static int iwl4965_tx_skb(struct iwl4965_priv *priv,
 	struct iwl4965_queue *q = NULL;
 	dma_addr_t phys_addr;
 	dma_addr_t txcmd_phys;
+	dma_addr_t scratch_phys;
 	struct iwl4965_cmd *out_cmd = NULL;
 	u16 len, idx, len_org;
 	u8 id, hdr_len, unicast;
@@ -3053,8 +3058,18 @@ static int iwl4965_tx_skb(struct iwl4965_priv *priv,
 	/* set is_hcca to 0; it probably will never be implemented */
 	iwl4965_hw_build_tx_cmd_rate(priv, out_cmd, ctl, hdr, sta_id, 0);
 
-	iwl4965_tx_cmd(priv, out_cmd, sta_id, txcmd_phys,
-		       hdr, hdr_len, ctl, NULL);
+	scratch_phys = txcmd_phys + sizeof(struct iwl4965_cmd_header) +
+		offsetof(struct iwl4965_tx_cmd, scratch);
+	out_cmd->cmd.tx.dram_lsb_ptr = cpu_to_le32(scratch_phys);
+	out_cmd->cmd.tx.dram_msb_ptr = iwl_get_dma_hi_address(scratch_phys);
+
+#ifdef CONFIG_IWL4965_HT_AGG
+#ifdef CONFIG_IWL4965_HT
+	/* TODO: move this functionality to rate scaling */
+	iwl4965_tl_get_stats(priv, hdr);
+#endif /* CONFIG_IWL4965_HT_AGG */
+#endif /*CONFIG_IWL4965_HT */
+
 
 	if (!ieee80211_get_morefrag(hdr)) {
 		txq->need_update = 1;

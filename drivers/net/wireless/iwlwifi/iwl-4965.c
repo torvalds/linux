@@ -2673,18 +2673,22 @@ void iwl4965_hw_build_tx_cmd_rate(struct iwl4965_priv *priv,
 			      struct ieee80211_hdr *hdr, int sta_id,
 			      int is_hcca)
 {
-	u8 rate;
+	struct iwl4965_tx_cmd *tx = &cmd->cmd.tx;
 	u8 rts_retry_limit = 0;
 	u8 data_retry_limit = 0;
-	__le32 tx_flags;
 	u16 fc = le16_to_cpu(hdr->frame_control);
+	u8 rate_plcp;
+	u16 rate_flags = 0;
+	int rate_idx = min(ctrl->tx_rate & 0xffff, IWL_RATE_COUNT - 1);
 
-	tx_flags = cmd->cmd.tx.tx_flags;
-
-	rate = iwl4965_rates[ctrl->tx_rate].plcp;
+	rate_plcp = iwl4965_rates[rate_idx].plcp;
 
 	rts_retry_limit = (is_hcca) ?
 	    RTS_HCCA_RETRY_LIMIT : RTS_DFAULT_RETRY_LIMIT;
+
+	if ((rate_idx >= IWL_FIRST_CCK_RATE) && (rate_idx <= IWL_LAST_CCK_RATE))
+		rate_flags |= RATE_MCS_CCK_MSK;
+
 
 	if (ieee80211_is_probe_response(fc)) {
 		data_retry_limit = 3;
@@ -2696,26 +2700,38 @@ void iwl4965_hw_build_tx_cmd_rate(struct iwl4965_priv *priv,
 	if (priv->data_retry_limit != -1)
 		data_retry_limit = priv->data_retry_limit;
 
-	if ((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_MGMT) {
+
+	if (ieee80211_is_data(fc)) {
+		tx->initial_rate_index = 0;
+		tx->tx_flags |= TX_CMD_FLG_STA_RATE_MSK;
+	} else {
 		switch (fc & IEEE80211_FCTL_STYPE) {
 		case IEEE80211_STYPE_AUTH:
 		case IEEE80211_STYPE_DEAUTH:
 		case IEEE80211_STYPE_ASSOC_REQ:
 		case IEEE80211_STYPE_REASSOC_REQ:
-			if (tx_flags & TX_CMD_FLG_RTS_MSK) {
-				tx_flags &= ~TX_CMD_FLG_RTS_MSK;
-				tx_flags |= TX_CMD_FLG_CTS_MSK;
+			if (tx->tx_flags & TX_CMD_FLG_RTS_MSK) {
+				tx->tx_flags &= ~TX_CMD_FLG_RTS_MSK;
+				tx->tx_flags |= TX_CMD_FLG_CTS_MSK;
 			}
 			break;
 		default:
 			break;
 		}
+
+		/* Alternate between antenna A and B for successive frames */
+		if (priv->use_ant_b_for_management_frame) {
+			priv->use_ant_b_for_management_frame = 0;
+			rate_flags |= RATE_MCS_ANT_B_MSK;
+		} else {
+			priv->use_ant_b_for_management_frame = 1;
+			rate_flags |= RATE_MCS_ANT_A_MSK;
+		}
 	}
 
-	cmd->cmd.tx.rts_retry_limit = rts_retry_limit;
-	cmd->cmd.tx.data_retry_limit = data_retry_limit;
-	cmd->cmd.tx.rate_n_flags = iwl4965_hw_set_rate_n_flags(rate, 0);
-	cmd->cmd.tx.tx_flags = tx_flags;
+	tx->rts_retry_limit = rts_retry_limit;
+	tx->data_retry_limit = data_retry_limit;
+	tx->rate_n_flags = iwl4965_hw_set_rate_n_flags(rate_plcp, rate_flags);
 }
 
 int iwl4965_hw_get_rx_read(struct iwl4965_priv *priv)
@@ -3254,69 +3270,13 @@ static void iwl4965_bg_agg_work(struct work_struct *work)
 	spin_unlock_irqrestore(&priv->lq_mngr.lock, flags);
 	return;
 }
-#endif /*CONFIG_IWL4965_HT_AGG */
-#endif /* CONFIG_IWL4965_HT */
 
-int iwl4965_tx_cmd(struct iwl4965_priv *priv, struct iwl4965_cmd *out_cmd,
-		   u8 sta_id, dma_addr_t txcmd_phys,
-		   struct ieee80211_hdr *hdr, u8 hdr_len,
-		   struct ieee80211_tx_control *ctrl, void *sta_in)
+/* TODO: move this functionality to rate scaling */
+void iwl4965_tl_get_stats(struct iwl4965_priv *priv,
+		   struct ieee80211_hdr *hdr)
 {
-	struct iwl4965_tx_cmd *tx = &out_cmd->cmd.tx;
-	dma_addr_t scratch_phys;
-	u8 unicast = 0;
-	u8 is_data = 1;
-	u16 fc;
-	u16 rate_flags;
-	int rate_index = min(ctrl->tx_rate & 0xffff, IWL_RATE_COUNT - 1);
-#ifdef CONFIG_IWL4965_HT
-#ifdef CONFIG_IWL4965_HT_AGG
-	__le16 *qc;
-#endif /*CONFIG_IWL4965_HT_AGG */
-#endif /* CONFIG_IWL4965_HT */
+	__le16 *qc = ieee80211_get_qos_ctrl(hdr);
 
-	unicast = !is_multicast_ether_addr(hdr->addr1);
-
-	fc = le16_to_cpu(hdr->frame_control);
-	if ((fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA)
-		is_data = 0;
-
-	scratch_phys = txcmd_phys + sizeof(struct iwl4965_cmd_header) +
-	    offsetof(struct iwl4965_tx_cmd, scratch);
-	tx->dram_lsb_ptr = cpu_to_le32(scratch_phys);
-	tx->dram_msb_ptr = iwl_get_dma_hi_address(scratch_phys);
-
-	/* Hard coded to start at the highest retry fallback position
-	 * until the 4965 specific rate control algorithm is tied in */
-	tx->initial_rate_index = LINK_QUAL_MAX_RETRY_NUM - 1;
-
-	/* Alternate between antenna A and B for successive frames */
-	if (priv->use_ant_b_for_management_frame) {
-		priv->use_ant_b_for_management_frame = 0;
-		rate_flags = RATE_MCS_ANT_B_MSK;
-	} else {
-		priv->use_ant_b_for_management_frame = 1;
-		rate_flags = RATE_MCS_ANT_A_MSK;
-	}
-
-	if (!unicast || !is_data) {
-		if ((rate_index >= IWL_FIRST_CCK_RATE) &&
-		    (rate_index <= IWL_LAST_CCK_RATE))
-			rate_flags |= RATE_MCS_CCK_MSK;
-	} else {
-		tx->initial_rate_index = 0;
-		tx->tx_flags |= TX_CMD_FLG_STA_RATE_MSK;
-	}
-
-	tx->rate_n_flags = iwl4965_hw_set_rate_n_flags(iwl4965_rates[rate_index].plcp,
-						rate_flags);
-
-	if (ieee80211_is_back_request(fc))
-		tx->tx_flags |= TX_CMD_FLG_ACK_MSK |
-			TX_CMD_FLG_IMM_BA_RSP_MASK;
-#ifdef CONFIG_IWL4965_HT
-#ifdef CONFIG_IWL4965_HT_AGG
-	qc = ieee80211_get_qos_ctrl(hdr);
 	if (qc &&
 	    (priv->iw_mode != IEEE80211_IF_TYPE_IBSS)) {
 		u8 tid = 0;
@@ -3334,10 +3294,10 @@ int iwl4965_tx_cmd(struct iwl4965_priv *priv, struct iwl4965_cmd *out_cmd,
 		spin_unlock_irqrestore(&priv->lq_mngr.lock, flags);
 		schedule_work(&priv->agg_work);
 	}
-#endif
-#endif
-	return 0;
 }
+
+#endif /*CONFIG_IWL4965_HT_AGG */
+#endif /* CONFIG_IWL4965_HT */
 
 /**
  * sign_extend - Sign extend a value using specified bit as sign-bit
