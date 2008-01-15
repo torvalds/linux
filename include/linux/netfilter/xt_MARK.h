@@ -18,4 +18,8 @@ struct xt_mark_target_info_v1 {
 	u_int8_t mode;
 };
 
+struct xt_mark_tginfo2 {
+	u_int32_t mark, mask;
+};
+
 #endif /*_XT_MARK_H_target */

@@ -1,10 +1,13 @@
-/* This is a module which is used for setting the NFMARK field of an skb. */
-
-/* (C) 1999-2001 Marc Boucher <marc@mbsi.ca>
+/*
+ *	xt_MARK - Netfilter module to modify the NFMARK field of an skb
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ *	(C) 1999-2001 Marc Boucher <marc@mbsi.ca>
+ *	Copyright © CC Computer Consultants GmbH, 2007 - 2008
+ *	Jan Engelhardt <jengelh@computergmbh.de>
+ *
+ *	This program is free software; you can redistribute it and/or modify
+ *	it under the terms of the GNU General Public License version 2 as
+ *	published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -33,9 +36,9 @@ mark_tg_v0(struct sk_buff *skb, const struct net_device *in,
 }
 
 static unsigned int
-mark_tg(struct sk_buff *skb, const struct net_device *in,
-        const struct net_device *out, unsigned int hooknum,
-        const struct xt_target *target, const void *targinfo)
+mark_tg_v1(struct sk_buff *skb, const struct net_device *in,
+           const struct net_device *out, unsigned int hooknum,
+           const struct xt_target *target, const void *targinfo)
 {
 	const struct xt_mark_target_info_v1 *markinfo = targinfo;
 	int mark = 0;
@@ -58,6 +61,17 @@ mark_tg(struct sk_buff *skb, const struct net_device *in,
 	return XT_CONTINUE;
 }
 
+static unsigned int
+mark_tg(struct sk_buff *skb, const struct net_device *in,
+        const struct net_device *out, unsigned int hooknum,
+        const struct xt_target *target, const void *targinfo)
+{
+	const struct xt_mark_tginfo2 *info = targinfo;
+
+	skb->mark = (skb->mark & ~info->mask) ^ info->mark;
+	return XT_CONTINUE;
+}
+
 static bool
 mark_tg_check_v0(const char *tablename, const void *entry,
                  const struct xt_target *target, void *targinfo,
@@ -73,9 +87,9 @@ mark_tg_check_v0(const char *tablename, const void *entry,
 }
 
 static bool
-mark_tg_check(const char *tablename, const void *entry,
-              const struct xt_target *target, void *targinfo,
-              unsigned int hook_mask)
+mark_tg_check_v1(const char *tablename, const void *entry,
+                 const struct xt_target *target, void *targinfo,
+                 unsigned int hook_mask)
 {
 	const struct xt_mark_target_info_v1 *markinfo = targinfo;
 
@@ -98,7 +112,7 @@ struct compat_xt_mark_target_info {
 	compat_ulong_t	mark;
 };
 
-static void mark_tg_compat_from_user(void *dst, void *src)
+static void mark_tg_compat_from_user_v0(void *dst, void *src)
 {
 	const struct compat_xt_mark_target_info *cm = src;
 	struct xt_mark_target_info m = {
@@ -107,7 +121,7 @@ static void mark_tg_compat_from_user(void *dst, void *src)
 	memcpy(dst, &m, sizeof(m));
 }
 
-static int mark_tg_compat_to_user(void __user *dst, void *src)
+static int mark_tg_compat_to_user_v0(void __user *dst, void *src)
 {
 	const struct xt_mark_target_info *m = src;
 	struct compat_xt_mark_target_info cm = {
@@ -154,8 +168,8 @@ static struct xt_target mark_tg_reg[] __read_mostly = {
 		.targetsize	= sizeof(struct xt_mark_target_info),
 #ifdef CONFIG_COMPAT
 		.compatsize	= sizeof(struct compat_xt_mark_target_info),
-		.compat_from_user = mark_tg_compat_from_user,
-		.compat_to_user	= mark_tg_compat_to_user,
+		.compat_from_user = mark_tg_compat_from_user_v0,
+		.compat_to_user	= mark_tg_compat_to_user_v0,
 #endif
 		.table		= "mangle",
 		.me		= THIS_MODULE,
@@ -164,8 +178,8 @@ static struct xt_target mark_tg_reg[] __read_mostly = {
 		.name		= "MARK",
 		.family		= AF_INET,
 		.revision	= 1,
-		.checkentry	= mark_tg_check,
-		.target		= mark_tg,
+		.checkentry	= mark_tg_check_v1,
+		.target		= mark_tg_v1,
 		.targetsize	= sizeof(struct xt_mark_target_info_v1),
 #ifdef CONFIG_COMPAT
 		.compatsize	= sizeof(struct compat_xt_mark_target_info_v1),
@@ -184,8 +198,8 @@ static struct xt_target mark_tg_reg[] __read_mostly = {
 		.targetsize	= sizeof(struct xt_mark_target_info),
 #ifdef CONFIG_COMPAT
 		.compatsize	= sizeof(struct compat_xt_mark_target_info),
-		.compat_from_user = mark_tg_compat_from_user,
-		.compat_to_user	= mark_tg_compat_to_user,
+		.compat_from_user = mark_tg_compat_from_user_v0,
+		.compat_to_user	= mark_tg_compat_to_user_v0,
 #endif
 		.table		= "mangle",
 		.me		= THIS_MODULE,
@@ -194,8 +208,8 @@ static struct xt_target mark_tg_reg[] __read_mostly = {
 		.name		= "MARK",
 		.family		= AF_INET6,
 		.revision	= 1,
-		.checkentry	= mark_tg_check,
-		.target		= mark_tg,
+		.checkentry	= mark_tg_check_v1,
+		.target		= mark_tg_v1,
 		.targetsize	= sizeof(struct xt_mark_target_info_v1),
 #ifdef CONFIG_COMPAT
 		.compatsize	= sizeof(struct compat_xt_mark_target_info_v1),
@@ -204,6 +218,22 @@ static struct xt_target mark_tg_reg[] __read_mostly = {
 #endif
 		.table		= "mangle",
 		.me		= THIS_MODULE,
+	},
+	{
+		.name           = "MARK",
+		.revision       = 2,
+		.family         = AF_INET,
+		.target         = mark_tg,
+		.targetsize     = sizeof(struct xt_mark_tginfo2),
+		.me             = THIS_MODULE,
+	},
+	{
+		.name           = "MARK",
+		.revision       = 2,
+		.family         = AF_INET6,
+		.target         = mark_tg,
+		.targetsize     = sizeof(struct xt_mark_tginfo2),
+		.me             = THIS_MODULE,
 	},
 };
 
