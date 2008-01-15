@@ -60,12 +60,6 @@ static int ipv6_print_tuple(struct seq_file *s,
 			  NIP6(*((struct in6_addr *)tuple->dst.u3.ip6)));
 }
 
-static int ipv6_print_conntrack(struct seq_file *s,
-				const struct nf_conn *conntrack)
-{
-	return 0;
-}
-
 /*
  * Based on ipv6_skip_exthdr() in net/ipv6/exthdr.c
  *
@@ -376,7 +370,6 @@ struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv6 __read_mostly = {
 	.pkt_to_tuple		= ipv6_pkt_to_tuple,
 	.invert_tuple		= ipv6_invert_tuple,
 	.print_tuple		= ipv6_print_tuple,
-	.print_conntrack	= ipv6_print_conntrack,
 	.get_l4proto		= ipv6_get_l4proto,
 #if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
 	.tuple_to_nlattr	= ipv6_tuple_to_nlattr,

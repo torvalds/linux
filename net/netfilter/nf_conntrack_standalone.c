@@ -142,9 +142,6 @@ static int ct_seq_show(struct seq_file *s, void *v)
 		       ? (long)(conntrack->timeout.expires - jiffies)/HZ : 0) != 0)
 		return -ENOSPC;
 
-	if (l3proto->print_conntrack(s, conntrack))
-		return -ENOSPC;
-
 	if (l4proto->print_conntrack(s, conntrack))
 		return -ENOSPC;
 

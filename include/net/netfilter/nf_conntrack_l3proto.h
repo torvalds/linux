@@ -42,9 +42,6 @@ struct nf_conntrack_l3proto
 	int (*print_tuple)(struct seq_file *s,
 			   const struct nf_conntrack_tuple *);
 
-	/* Print out the private part of the conntrack. */
-	int (*print_conntrack)(struct seq_file *s, const struct nf_conn *);
-
 	/* Returns verdict for packet, or -1 for invalid. */
 	int (*packet)(struct nf_conn *conntrack,
 		      const struct sk_buff *skb,

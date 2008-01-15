@@ -55,12 +55,6 @@ static int generic_print_tuple(struct seq_file *s,
 	return 0;
 }
 
-static int generic_print_conntrack(struct seq_file *s,
-				const struct nf_conn *conntrack)
-{
-	return 0;
-}
-
 static int generic_get_l4proto(const struct sk_buff *skb, unsigned int nhoff,
 			       unsigned int *dataoff, u_int8_t *protonum)
 {
@@ -75,7 +69,6 @@ struct nf_conntrack_l3proto nf_conntrack_l3proto_generic __read_mostly = {
 	.pkt_to_tuple	 = generic_pkt_to_tuple,
 	.invert_tuple	 = generic_invert_tuple,
 	.print_tuple	 = generic_print_tuple,
-	.print_conntrack = generic_print_conntrack,
 	.get_l4proto	 = generic_get_l4proto,
 };
 EXPORT_SYMBOL_GPL(nf_conntrack_l3proto_generic);
