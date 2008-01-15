@@ -7,6 +7,8 @@
 #include <linux/skbuff.h>
 #include <linux/net.h>
 #include <linux/if.h>
+#include <linux/in.h>
+#include <linux/in6.h>
 #include <linux/wait.h>
 #include <linux/list.h>
 #endif
@@ -52,6 +54,8 @@ union nf_inet_addr {
 	u_int32_t	all[4];
 	__be32		ip;
 	__be32		ip6[4];
+	struct in_addr	in;
+	struct in6_addr	in6;
 };
 
 #ifdef __KERNEL__
