@@ -106,6 +106,7 @@ enum {
 	ALC268_3ST,
 	ALC268_TOSHIBA,
 	ALC268_ACER,
+	ALC268_DELL,
 #ifdef CONFIG_SND_DEBUG
 	ALC268_TEST,
 #endif
@@ -9424,6 +9425,49 @@ static void alc268_acer_init_hook(struct hda_codec *codec)
 	alc268_acer_automute(codec, 1);
 }
 
+static struct snd_kcontrol_new alc268_dell_mixer[] = {
+	/* output mixer control */
+	HDA_CODEC_VOLUME("Speaker Playback Volume", 0x02, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Speaker Playback Switch", 0x14, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x03, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Headphone Playback Switch", 0x15, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Mic Boost", 0x18, 0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Internal Mic Boost", 0x19, 0, HDA_INPUT),
+	{ }
+};
+
+static struct hda_verb alc268_dell_verbs[] = {
+	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
+	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
+	{0x15, AC_VERB_SET_UNSOLICITED_ENABLE, ALC880_HP_EVENT | AC_USRSP_EN},
+	{ }
+};
+
+/* mute/unmute internal speaker according to the hp jack and mute state */
+static void alc268_dell_automute(struct hda_codec *codec)
+{
+	unsigned int present;
+	unsigned int mute;
+
+	present = snd_hda_codec_read(codec, 0x15, 0, AC_VERB_GET_PIN_SENSE, 0);
+	if (present & 0x80000000)
+		mute = HDA_AMP_MUTE;
+	else
+		mute = snd_hda_codec_amp_read(codec, 0x15, 0, HDA_OUTPUT, 0);
+	snd_hda_codec_amp_stereo(codec, 0x14, HDA_OUTPUT, 0,
+				 HDA_AMP_MUTE, mute);
+}
+
+static void alc268_dell_unsol_event(struct hda_codec *codec,
+				    unsigned int res)
+{
+	if ((res >> 26) != ALC880_HP_EVENT)
+		return;
+	alc268_dell_automute(codec);
+}
+
+#define alc268_dell_init_hook	alc268_dell_automute
+
 /*
  * generic initialization of ADC, input mixers and output mixers
  */
@@ -9842,6 +9886,7 @@ static const char *alc268_models[ALC268_MODEL_LAST] = {
 	[ALC268_3ST]		= "3stack",
 	[ALC268_TOSHIBA]	= "toshiba",
 	[ALC268_ACER]		= "acer",
+	[ALC268_DELL]		= "dell",
 #ifdef CONFIG_SND_DEBUG
 	[ALC268_TEST]		= "test",
 #endif
@@ -9851,6 +9896,7 @@ static const char *alc268_models[ALC268_MODEL_LAST] = {
 static struct snd_pci_quirk alc268_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1025, 0x0126, "Acer", ALC268_ACER),
 	SND_PCI_QUIRK(0x1025, 0x0130, "Acer Extensa 5210", ALC268_ACER),
+	SND_PCI_QUIRK(0x1028, 0x0253, "Dell OEM", ALC268_DELL),
 	SND_PCI_QUIRK(0x103c, 0x30cc, "TOSHIBA", ALC268_TOSHIBA),
 	SND_PCI_QUIRK(0x1043, 0x1205, "ASUS W7J", ALC268_3ST),
 	SND_PCI_QUIRK(0x1179, 0xff10, "TOSHIBA A205", ALC268_TOSHIBA),
@@ -9902,6 +9948,19 @@ static struct alc_config_preset alc268_presets[] = {
 		.input_mux = &alc268_capture_source,
 		.unsol_event = alc268_acer_unsol_event,
 		.init_hook = alc268_acer_init_hook,
+	},
+	[ALC268_DELL] = {
+		.mixers = { alc268_dell_mixer },
+		.init_verbs = { alc268_base_init_verbs, alc268_eapd_verbs,
+				alc268_dell_verbs },
+		.num_dacs = ARRAY_SIZE(alc268_dac_nids),
+		.dac_nids = alc268_dac_nids,
+		.hp_nid = 0x02,
+		.num_channel_mode = ARRAY_SIZE(alc268_modes),
+		.channel_mode = alc268_modes,
+		.unsol_event = alc268_dell_unsol_event,
+		.init_hook = alc268_dell_init_hook,
+		.input_mux = &alc268_capture_source,
 	},
 #ifdef CONFIG_SND_DEBUG
 	[ALC268_TEST] = {
@@ -9967,28 +10026,24 @@ static int patch_alc268(struct hda_codec *codec)
 	spec->stream_name_digital = "ALC268 Digital";
 	spec->stream_digital_playback = &alc268_pcm_digital_playback;
 
-	if (board_config == ALC268_AUTO) {
-		if (!spec->adc_nids && spec->input_mux) {
-			/* check whether NID 0x07 is valid */
-			unsigned int wcap = get_wcaps(codec, 0x07);
+	if (!spec->adc_nids && spec->input_mux) {
+		/* check whether NID 0x07 is valid */
+		unsigned int wcap = get_wcaps(codec, 0x07);
 
-			/* get type */
-			wcap = (wcap & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
-			if (wcap != AC_WID_AUD_IN) {
-				spec->adc_nids = alc268_adc_nids_alt;
-				spec->num_adc_nids =
-					ARRAY_SIZE(alc268_adc_nids_alt);
-				spec->mixers[spec->num_mixers] =
+		/* get type */
+		wcap = (wcap & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
+		if (wcap != AC_WID_AUD_IN) {
+			spec->adc_nids = alc268_adc_nids_alt;
+			spec->num_adc_nids = ARRAY_SIZE(alc268_adc_nids_alt);
+			spec->mixers[spec->num_mixers] =
 					alc268_capture_alt_mixer;
-				spec->num_mixers++;
-			} else {
-				spec->adc_nids = alc268_adc_nids;
-				spec->num_adc_nids =
-					ARRAY_SIZE(alc268_adc_nids);
-				spec->mixers[spec->num_mixers] =
-					alc268_capture_mixer;
-				spec->num_mixers++;
-			}
+			spec->num_mixers++;
+		} else {
+			spec->adc_nids = alc268_adc_nids;
+			spec->num_adc_nids = ARRAY_SIZE(alc268_adc_nids);
+			spec->mixers[spec->num_mixers] =
+				alc268_capture_mixer;
+			spec->num_mixers++;
 		}
 	}
 
