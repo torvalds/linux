@@ -9,17 +9,15 @@ config IWL4965
 
 	  This driver uses the kernel's mac80211 subsystem.
 
-	  See <file:Documentation/networking/README.iwlwifi> for
-	  information on the capabilities currently enabled in this
-	  driver and for tips for debugging any issues or problems.
-
 	  In order to use this driver, you will need a microcode (uCode)
 	  image for it. You can obtain the microcode from:
 
 	          <http://intellinuxwireless.org/>.
 
-	  See the above referenced README.iwlwifi for information on where
-	  to install the microcode images.
+	  The microcode is typically installed in /lib/firmware. You can
+	  look in the hotplug script /etc/hotplug/firmware.agent to
+	  determine which directory FIRMWARE_DIR is set to when the script
+	  runs.
 
 	  If you want to compile the driver as a module ( = code which can be
 	  inserted in and remvoed from the running kernel whenever you want),
@@ -92,17 +90,15 @@ config IWL3945
 
 	  This driver uses the kernel's mac80211 subsystem.
 
-	  See <file:Documentation/networking/README.iwlwifi> for
-	  information on the capabilities currently enabled in this
-	  driver and for tips for debugging any issues or problems.
-
 	  In order to use this driver, you will need a microcode (uCode)
 	  image for it. You can obtain the microcode from:
 
 	          <http://intellinuxwireless.org/>.
 
-	  See the above referenced README.iwlwifi for information on where
-	  to install the microcode images.
+	  The microcode is typically installed in /lib/firmware. You can
+	  look in the hotplug script /etc/hotplug/firmware.agent to
+	  determine which directory FIRMWARE_DIR is set to when the script
+	  runs.
 
 	  If you want to compile the driver as a module ( = code which can be
 	  inserted in and remvoed from the running kernel whenever you want),
