@@ -5917,48 +5917,12 @@ static int iwl4965_init_geos(struct iwl4965_priv *priv)
 
 static void iwl4965_dealloc_ucode_pci(struct iwl4965_priv *priv)
 {
-	if (priv->ucode_code.v_addr != NULL) {
-		pci_free_consistent(priv->pci_dev,
-				    priv->ucode_code.len,
-				    priv->ucode_code.v_addr,
-				    priv->ucode_code.p_addr);
-		priv->ucode_code.v_addr = NULL;
-	}
-	if (priv->ucode_data.v_addr != NULL) {
-		pci_free_consistent(priv->pci_dev,
-				    priv->ucode_data.len,
-				    priv->ucode_data.v_addr,
-				    priv->ucode_data.p_addr);
-		priv->ucode_data.v_addr = NULL;
-	}
-	if (priv->ucode_data_backup.v_addr != NULL) {
-		pci_free_consistent(priv->pci_dev,
-				    priv->ucode_data_backup.len,
-				    priv->ucode_data_backup.v_addr,
-				    priv->ucode_data_backup.p_addr);
-		priv->ucode_data_backup.v_addr = NULL;
-	}
-	if (priv->ucode_init.v_addr != NULL) {
-		pci_free_consistent(priv->pci_dev,
-				    priv->ucode_init.len,
-				    priv->ucode_init.v_addr,
-				    priv->ucode_init.p_addr);
-		priv->ucode_init.v_addr = NULL;
-	}
-	if (priv->ucode_init_data.v_addr != NULL) {
-		pci_free_consistent(priv->pci_dev,
-				    priv->ucode_init_data.len,
-				    priv->ucode_init_data.v_addr,
-				    priv->ucode_init_data.p_addr);
-		priv->ucode_init_data.v_addr = NULL;
-	}
-	if (priv->ucode_boot.v_addr != NULL) {
-		pci_free_consistent(priv->pci_dev,
-				    priv->ucode_boot.len,
-				    priv->ucode_boot.v_addr,
-				    priv->ucode_boot.p_addr);
-		priv->ucode_boot.v_addr = NULL;
-	}
+	iwl_free_fw_desc(priv->pci_dev, &priv->ucode_code);
+	iwl_free_fw_desc(priv->pci_dev, &priv->ucode_data);
+	iwl_free_fw_desc(priv->pci_dev, &priv->ucode_data_backup);
+	iwl_free_fw_desc(priv->pci_dev, &priv->ucode_init);
+	iwl_free_fw_desc(priv->pci_dev, &priv->ucode_init_data);
+	iwl_free_fw_desc(priv->pci_dev, &priv->ucode_boot);
 }
 
 /**
@@ -6257,11 +6221,6 @@ static void iwl4965_nic_start(struct iwl4965_priv *priv)
 	iwl4965_write32(priv, CSR_RESET, 0);
 }
 
-static int iwl4965_alloc_fw_desc(struct pci_dev *pci_dev, struct fw_desc *desc)
-{
-	desc->v_addr = pci_alloc_consistent(pci_dev, desc->len, &desc->p_addr);
-	return (desc->v_addr != NULL) ? 0 : -ENOMEM;
-}
 
 /**
  * iwl4965_read_ucode - Read uCode images from disk file.
@@ -6372,21 +6331,21 @@ static int iwl4965_read_ucode(struct iwl4965_priv *priv)
 	 * 1) unmodified from disk
 	 * 2) backup cache for save/restore during power-downs */
 	priv->ucode_code.len = inst_size;
-	iwl4965_alloc_fw_desc(priv->pci_dev, &priv->ucode_code);
+	iwl_alloc_fw_desc(priv->pci_dev, &priv->ucode_code);
 
 	priv->ucode_data.len = data_size;
-	iwl4965_alloc_fw_desc(priv->pci_dev, &priv->ucode_data);
+	iwl_alloc_fw_desc(priv->pci_dev, &priv->ucode_data);
 
 	priv->ucode_data_backup.len = data_size;
-	iwl4965_alloc_fw_desc(priv->pci_dev, &priv->ucode_data_backup);
+	iwl_alloc_fw_desc(priv->pci_dev, &priv->ucode_data_backup);
 
 	/* Initialization instructions and data */
 	if (init_size && init_data_size) {
 		priv->ucode_init.len = init_size;
-		iwl4965_alloc_fw_desc(priv->pci_dev, &priv->ucode_init);
+		iwl_alloc_fw_desc(priv->pci_dev, &priv->ucode_init);
 
 		priv->ucode_init_data.len = init_data_size;
-		iwl4965_alloc_fw_desc(priv->pci_dev, &priv->ucode_init_data);
+		iwl_alloc_fw_desc(priv->pci_dev, &priv->ucode_init_data);
 
 		if (!priv->ucode_init.v_addr || !priv->ucode_init_data.v_addr)
 			goto err_pci_alloc;
@@ -6395,7 +6354,7 @@ static int iwl4965_read_ucode(struct iwl4965_priv *priv)
 	/* Bootstrap (instructions only, no data) */
 	if (boot_size) {
 		priv->ucode_boot.len = boot_size;
-		iwl4965_alloc_fw_desc(priv->pci_dev, &priv->ucode_boot);
+		iwl_alloc_fw_desc(priv->pci_dev, &priv->ucode_boot);
 
 		if (!priv->ucode_boot.v_addr)
 			goto err_pci_alloc;
