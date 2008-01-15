@@ -579,9 +579,12 @@ struct rpc_task *rpc_run_task(const struct rpc_task_setup *task_setup_data)
 	}
 	atomic_inc(&task->tk_count);
 	/* Mask signals on synchronous RPC calls and RPCSEC_GSS upcalls */
-	rpc_task_sigmask(task, &oldset);
-	rpc_execute(task);
-	rpc_restore_sigmask(&oldset);
+	if (!RPC_IS_ASYNC(task)) {
+		rpc_task_sigmask(task, &oldset);
+		rpc_execute(task);
+		rpc_restore_sigmask(&oldset);
+	} else
+		rpc_execute(task);
 	ret = task;
 out:
 	return ret;
