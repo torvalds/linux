@@ -142,6 +142,7 @@ static int vcc_seq_release(struct inode *inode, struct file *file)
 }
 
 static void *vcc_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(vcc_sklist_lock)
 {
 	struct vcc_state *state = seq->private;
 	loff_t left = *pos;
@@ -152,6 +153,7 @@ static void *vcc_seq_start(struct seq_file *seq, loff_t *pos)
 }
 
 static void vcc_seq_stop(struct seq_file *seq, void *v)
+	__releases(vcc_sklist_lock)
 {
 	read_unlock(&vcc_sklist_lock);
 }
