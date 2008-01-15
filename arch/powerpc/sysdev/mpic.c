@@ -267,7 +267,7 @@ static inline void _mpic_irq_write(struct mpic *mpic, unsigned int src_no,
  */
 
 
-static void _mpic_map_mmio(struct mpic *mpic, unsigned long phys_addr,
+static void _mpic_map_mmio(struct mpic *mpic, phys_addr_t phys_addr,
 			   struct mpic_reg_bank *rb, unsigned int offset,
 			   unsigned int size)
 {
@@ -287,7 +287,7 @@ static void _mpic_map_dcr(struct mpic *mpic, struct mpic_reg_bank *rb,
 	BUG_ON(!DCR_MAP_OK(rb->dhost));
 }
 
-static inline void mpic_map(struct mpic *mpic, unsigned long phys_addr,
+static inline void mpic_map(struct mpic *mpic, phys_addr_t phys_addr,
 			    struct mpic_reg_bank *rb, unsigned int offset,
 			    unsigned int size)
 {
