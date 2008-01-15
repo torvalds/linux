@@ -1422,7 +1422,6 @@ sg_add(struct class_device *cl_dev, struct class_interface *cl_intf)
 		goto out;
 	}
 
-	class_set_devdata(cl_dev, sdp);
 	error = cdev_add(cdev, MKDEV(SCSI_GENERIC_MAJOR, sdp->index), 1);
 	if (error)
 		goto cdev_add_err;
@@ -1450,6 +1449,8 @@ sg_add(struct class_device *cl_dev, struct class_interface *cl_intf)
 	sdev_printk(KERN_NOTICE, scsidp,
 		    "Attached scsi generic sg%d type %d\n", sdp->index,
 		    scsidp->type);
+
+	class_set_devdata(cl_dev, sdp);
 
 	return 0;
 
