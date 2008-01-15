@@ -291,7 +291,7 @@ static int new_state(enum ip_conntrack_dir dir,
 	return sctp_conntracks[dir][i][cur_state];
 }
 
-/* Returns verdict for packet, or -1 for invalid. */
+/* Returns verdict for packet, or -NF_ACCEPT for invalid. */
 static int sctp_packet(struct nf_conn *ct,
 		       const struct sk_buff *skb,
 		       unsigned int dataoff,
@@ -308,10 +308,10 @@ static int sctp_packet(struct nf_conn *ct,
 
 	sh = skb_header_pointer(skb, dataoff, sizeof(_sctph), &_sctph);
 	if (sh == NULL)
-		return -1;
+		goto out;
 
 	if (do_basic_checks(ct, skb, dataoff, map) != 0)
-		return -1;
+		goto out;
 
 	/* Check the verification tag (Sec 8.5) */
 	if (!test_bit(SCTP_CID_INIT, map) &&
@@ -321,7 +321,7 @@ static int sctp_packet(struct nf_conn *ct,
 	    !test_bit(SCTP_CID_SHUTDOWN_ACK, map) &&
 	    sh->vtag != ct->proto.sctp.vtag[dir]) {
 		pr_debug("Verification tag check failed\n");
-		return -1;
+		goto out;
 	}
 
 	oldsctpstate = newconntrack = SCTP_CONNTRACK_MAX;
@@ -331,31 +331,23 @@ static int sctp_packet(struct nf_conn *ct,
 		/* Special cases of Verification tag check (Sec 8.5.1) */
 		if (sch->type == SCTP_CID_INIT) {
 			/* Sec 8.5.1 (A) */
-			if (sh->vtag != 0) {
-				write_unlock_bh(&sctp_lock);
-				return -1;
-			}
+			if (sh->vtag != 0)
+				goto out_unlock;
 		} else if (sch->type == SCTP_CID_ABORT) {
 			/* Sec 8.5.1 (B) */
 			if (sh->vtag != ct->proto.sctp.vtag[dir] &&
-			    sh->vtag != ct->proto.sctp.vtag[!dir]) {
-				write_unlock_bh(&sctp_lock);
-				return -1;
-			}
+			    sh->vtag != ct->proto.sctp.vtag[!dir])
+				goto out_unlock;
 		} else if (sch->type == SCTP_CID_SHUTDOWN_COMPLETE) {
 			/* Sec 8.5.1 (C) */
 			if (sh->vtag != ct->proto.sctp.vtag[dir] &&
 			    sh->vtag != ct->proto.sctp.vtag[!dir] &&
-			    (sch->flags & 1)) {
-				write_unlock_bh(&sctp_lock);
-				return -1;
-			}
+			    (sch->flags & 1))
+				goto out_unlock;
 		} else if (sch->type == SCTP_CID_COOKIE_ECHO) {
 			/* Sec 8.5.1 (D) */
-			if (sh->vtag != ct->proto.sctp.vtag[dir]) {
-				write_unlock_bh(&sctp_lock);
-				return -1;
-			}
+			if (sh->vtag != ct->proto.sctp.vtag[dir])
+				goto out_unlock;
 		}
 
 		oldsctpstate = ct->proto.sctp.state;
@@ -366,8 +358,7 @@ static int sctp_packet(struct nf_conn *ct,
 			pr_debug("nf_conntrack_sctp: Invalid dir=%i ctype=%u "
 				 "conntrack=%u\n",
 				 dir, sch->type, oldsctpstate);
-			write_unlock_bh(&sctp_lock);
-			return -1;
+			goto out_unlock;
 		}
 
 		/* If it is an INIT or an INIT ACK note down the vtag */
@@ -377,10 +368,8 @@ static int sctp_packet(struct nf_conn *ct,
 
 			ih = skb_header_pointer(skb, offset + sizeof(sctp_chunkhdr_t),
 						sizeof(_inithdr), &_inithdr);
-			if (ih == NULL) {
-				write_unlock_bh(&sctp_lock);
-				return -1;
-			}
+			if (ih == NULL)
+				goto out_unlock;
 			pr_debug("Setting vtag %x for dir %d\n",
 				 ih->init_tag, !dir);
 			ct->proto.sctp.vtag[!dir] = ih->init_tag;
@@ -403,6 +392,11 @@ static int sctp_packet(struct nf_conn *ct,
 	}
 
 	return NF_ACCEPT;
+
+out_unlock:
+	write_unlock_bh(&sctp_lock);
+out:
+	return -NF_ACCEPT;
 }
 
 /* Called when a new connection for this protocol found. */
