@@ -26,7 +26,7 @@
 #include <net/netfilter/nf_log.h>
 
 MODULE_AUTHOR("Jan Rekorajski <baggins@pld.org.pl>");
-MODULE_DESCRIPTION("IP6 tables LOG target module");
+MODULE_DESCRIPTION("Xtables: IPv6 packet logging to syslog");
 MODULE_LICENSE("GPL");
 
 struct in_device;

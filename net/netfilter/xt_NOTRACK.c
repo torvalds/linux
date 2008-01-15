@@ -7,6 +7,7 @@
 #include <linux/netfilter/x_tables.h>
 #include <net/netfilter/nf_conntrack.h>
 
+MODULE_DESCRIPTION("Xtables: Disabling connection tracking for packets");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_NOTRACK");
 MODULE_ALIAS("ip6t_NOTRACK");

@@ -26,7 +26,7 @@
 #include <net/checksum.h>
 
 MODULE_AUTHOR("Henrik Nordstrom <hno@marasystems.com>");
-MODULE_DESCRIPTION("IP tables CONNMARK matching module");
+MODULE_DESCRIPTION("Xtables: connection mark modification");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_CONNMARK");
 MODULE_ALIAS("ip6t_CONNMARK");

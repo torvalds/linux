@@ -197,7 +197,7 @@ static void __exit xt_rateest_tg_fini(void)
 
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("xtables rate estimator");
+MODULE_DESCRIPTION("Xtables: packet rate estimator");
 MODULE_ALIAS("ipt_RATEEST");
 MODULE_ALIAS("ip6t_RATEEST");
 module_init(xt_rateest_tg_init);

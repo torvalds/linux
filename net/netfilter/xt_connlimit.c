@@ -309,7 +309,7 @@ static void __exit connlimit_mt_exit(void)
 module_init(connlimit_mt_init);
 module_exit(connlimit_mt_exit);
 MODULE_AUTHOR("Jan Engelhardt <jengelh@computergmbh.de>");
-MODULE_DESCRIPTION("netfilter xt_connlimit match module");
+MODULE_DESCRIPTION("Xtables: Number of connections matching");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_connlimit");
 MODULE_ALIAS("ip6t_connlimit");

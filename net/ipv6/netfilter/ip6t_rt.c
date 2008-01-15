@@ -21,7 +21,7 @@
 #include <linux/netfilter_ipv6/ip6t_rt.h>
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("IPv6 RT match");
+MODULE_DESCRIPTION("Xtables: IPv6 Routing Header match");
 MODULE_AUTHOR("Andras Kis-Szabo <kisza@sch.bme.hu>");
 
 /* Returns 1 if the id is matched by the range, 0 otherwise */

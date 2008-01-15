@@ -15,7 +15,7 @@
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_ipv6/ip6_tables.h>
 
-MODULE_DESCRIPTION("IPv6 EUI64 address checking match");
+MODULE_DESCRIPTION("Xtables: IPv6 EUI64 address match");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Andras Kis-Szabo <kisza@sch.bme.hu>");
 

@@ -16,7 +16,7 @@
 #include <linux/netfilter_ipv4/ipt_TTL.h>
 
 MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
-MODULE_DESCRIPTION("IP tables TTL modification module");
+MODULE_DESCRIPTION("Xtables: IPv4 TTL field modification target");
 MODULE_LICENSE("GPL");
 
 static unsigned int

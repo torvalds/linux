@@ -21,7 +21,7 @@
 #include <linux/netfilter_ipv6/ip6t_opts.h>
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("IPv6 opts match");
+MODULE_DESCRIPTION("Xtables: IPv6 Hop-By-Hop and Destination Header match");
 MODULE_AUTHOR("Andras Kis-Szabo <kisza@sch.bme.hu>");
 MODULE_ALIAS("ip6t_dst");
 

@@ -21,7 +21,7 @@
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_ipv6/ip6t_mh.h>
 
-MODULE_DESCRIPTION("ip6t_tables match for MH");
+MODULE_DESCRIPTION("Xtables: IPv6 Mobility Header match");
 MODULE_LICENSE("GPL");
 
 #ifdef DEBUG_IP_FIREWALL_USER

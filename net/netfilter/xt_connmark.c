@@ -28,7 +28,7 @@
 #include <linux/netfilter/xt_connmark.h>
 
 MODULE_AUTHOR("Henrik Nordstrom <hno@marasystems.com>");
-MODULE_DESCRIPTION("IP tables connmark match module");
+MODULE_DESCRIPTION("Xtables: connection mark match");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_connmark");
 MODULE_ALIAS("ip6t_connmark");

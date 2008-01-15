@@ -16,7 +16,7 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Yon Uriarte <yon@astaro.de>");
-MODULE_DESCRIPTION("iptables AH SPI match module");
+MODULE_DESCRIPTION("Xtables: IPv4 IPsec-AH SPI match");
 
 #ifdef DEBUG_CONNTRACK
 #define duprintf(format, args...) printk(format , ## args)

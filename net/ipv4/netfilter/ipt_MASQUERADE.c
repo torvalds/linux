@@ -25,7 +25,7 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Netfilter Core Team <coreteam@netfilter.org>");
-MODULE_DESCRIPTION("iptables MASQUERADE target module");
+MODULE_DESCRIPTION("Xtables: automatic-address SNAT");
 
 /* Lock protects masq region inside conntrack */
 static DEFINE_RWLOCK(masq_lock);

@@ -5,6 +5,7 @@
 
 #include <linux/netfilter/x_tables.h>
 
+MODULE_DESCRIPTION("Xtables: packet flow tracing");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_TRACE");
 MODULE_ALIAS("ip6t_TRACE");

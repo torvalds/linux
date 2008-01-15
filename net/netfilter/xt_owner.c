@@ -205,7 +205,7 @@ static void __exit owner_mt_exit(void)
 module_init(owner_mt_init);
 module_exit(owner_mt_exit);
 MODULE_AUTHOR("Jan Engelhardt <jengelh@computergmbh.de>");
-MODULE_DESCRIPTION("netfilter \"owner\" match module");
+MODULE_DESCRIPTION("Xtables: socket owner matching");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_owner");
 MODULE_ALIAS("ip6t_owner");

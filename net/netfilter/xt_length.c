@@ -15,7 +15,7 @@
 #include <linux/netfilter/x_tables.h>
 
 MODULE_AUTHOR("James Morris <jmorris@intercode.com.au>");
-MODULE_DESCRIPTION("IP tables packet length matching module");
+MODULE_DESCRIPTION("Xtables: Packet length (Layer3,4,5) match");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_length");
 MODULE_ALIAS("ip6t_length");

@@ -26,7 +26,7 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("James Morris <jmorris@redhat.com>");
-MODULE_DESCRIPTION("ip[6]tables CONNSECMARK module");
+MODULE_DESCRIPTION("Xtables: target for copying between connection and security mark");
 MODULE_ALIAS("ipt_CONNSECMARK");
 MODULE_ALIAS("ip6t_CONNSECMARK");
 

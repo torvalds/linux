@@ -141,7 +141,7 @@ static void __exit tcpoptstrip_tg_exit(void)
 module_init(tcpoptstrip_tg_init);
 module_exit(tcpoptstrip_tg_exit);
 MODULE_AUTHOR("Sven Schnelle <svens@bitebene.org>, Jan Engelhardt <jengelh@computergmbh.de>");
-MODULE_DESCRIPTION("netfilter \"TCPOPTSTRIP\" target module");
+MODULE_DESCRIPTION("Xtables: TCP option stripping");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_TCPOPTSTRIP");
 MODULE_ALIAS("ip6t_TCPOPTSTRIP");

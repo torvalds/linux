@@ -22,7 +22,7 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
-MODULE_DESCRIPTION("Match for DCCP protocol packets");
+MODULE_DESCRIPTION("Xtables: DCCP protocol packet match");
 MODULE_ALIAS("ipt_dccp");
 MODULE_ALIAS("ip6t_dccp");
 

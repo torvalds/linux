@@ -18,7 +18,7 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Martin Josefsson <gandalf@netfilter.org>");
-MODULE_DESCRIPTION("iptables helper match module");
+MODULE_DESCRIPTION("Xtables: Related connection matching");
 MODULE_ALIAS("ipt_helper");
 MODULE_ALIAS("ip6t_helper");
 

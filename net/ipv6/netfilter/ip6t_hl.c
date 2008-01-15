@@ -16,7 +16,7 @@
 #include <linux/netfilter/x_tables.h>
 
 MODULE_AUTHOR("Maciej Soltysiak <solt@dns.toxicfilms.tv>");
-MODULE_DESCRIPTION("IP tables Hop Limit matching module");
+MODULE_DESCRIPTION("Xtables: IPv6 Hop Limit field match");
 MODULE_LICENSE("GPL");
 
 static bool

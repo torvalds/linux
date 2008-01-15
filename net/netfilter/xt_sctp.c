@@ -11,7 +11,7 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Kiran Kumar Immidi");
-MODULE_DESCRIPTION("Match for SCTP protocol packets");
+MODULE_DESCRIPTION("Xtables: SCTP protocol packet match");
 MODULE_ALIAS("ipt_sctp");
 MODULE_ALIAS("ip6t_sctp");
 

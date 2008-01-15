@@ -10,7 +10,7 @@
 #include <linux/netfilter/xt_comment.h>
 
 MODULE_AUTHOR("Brad Fisher <brad@info-link.net>");
-MODULE_DESCRIPTION("iptables comment match module");
+MODULE_DESCRIPTION("Xtables: No-op match which can be tagged with a comment");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_comment");
 MODULE_ALIAS("ip6t_comment");

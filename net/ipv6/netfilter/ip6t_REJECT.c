@@ -31,7 +31,7 @@
 #include <linux/netfilter_ipv6/ip6t_REJECT.h>
 
 MODULE_AUTHOR("Yasuyuki KOZAKAI <yasuyuki.kozakai@toshiba.co.jp>");
-MODULE_DESCRIPTION("IP6 tables REJECT target module");
+MODULE_DESCRIPTION("Xtables: packet \"rejection\" target for IPv6");
 MODULE_LICENSE("GPL");
 
 /* Send RST reply */

@@ -19,7 +19,7 @@
 #include <linux/netfilter_ipv6/ip6t_frag.h>
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("IPv6 FRAG match");
+MODULE_DESCRIPTION("Xtables: IPv6 fragment match");
 MODULE_AUTHOR("Andras Kis-Szabo <kisza@sch.bme.hu>");
 
 /* Returns 1 if the id is matched by the range, 0 otherwise */

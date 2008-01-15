@@ -15,7 +15,7 @@
 #include <linux/netfilter_ipv6/ip6t_HL.h>
 
 MODULE_AUTHOR("Maciej Soltysiak <solt@dns.toxicfilms.tv>");
-MODULE_DESCRIPTION("IP6 tables Hop Limit modification module");
+MODULE_DESCRIPTION("Xtables: IPv6 Hop Limit field modification target");
 MODULE_LICENSE("GPL");
 
 static unsigned int

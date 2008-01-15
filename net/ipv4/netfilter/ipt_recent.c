@@ -30,7 +30,7 @@
 #include <linux/netfilter_ipv4/ipt_recent.h>
 
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
-MODULE_DESCRIPTION("IP tables recently seen matching module");
+MODULE_DESCRIPTION("Xtables: \"recently-seen\" host matching for IPv4");
 MODULE_LICENSE("GPL");
 
 static unsigned int ip_list_tot = 100;

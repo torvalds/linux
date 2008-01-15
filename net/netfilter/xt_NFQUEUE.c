@@ -17,7 +17,7 @@
 #include <linux/netfilter/xt_NFQUEUE.h>
 
 MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
-MODULE_DESCRIPTION("[ip,ip6,arp]_tables NFQUEUE target");
+MODULE_DESCRIPTION("Xtables: packet forwarding to netlink");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_NFQUEUE");
 MODULE_ALIAS("ip6t_NFQUEUE");

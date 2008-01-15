@@ -20,7 +20,7 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Yon Uriarte <yon@astaro.de>");
-MODULE_DESCRIPTION("x_tables ESP SPI match module");
+MODULE_DESCRIPTION("Xtables: IPsec-ESP packet match");
 MODULE_ALIAS("ipt_esp");
 MODULE_ALIAS("ip6t_esp");
 

@@ -20,7 +20,7 @@
 #include <linux/netfilter_ipv6/ip6t_ah.h>
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("IPv6 AH match");
+MODULE_DESCRIPTION("Xtables: IPv6 IPsec-AH match");
 MODULE_AUTHOR("Andras Kis-Szabo <kisza@sch.bme.hu>");
 
 /* Returns 1 if the spi is matched by the range, 0 otherwise */

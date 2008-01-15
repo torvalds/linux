@@ -15,7 +15,7 @@
 #include <net/netfilter/nf_log.h>
 
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
-MODULE_DESCRIPTION("x_tables NFLOG target");
+MODULE_DESCRIPTION("Xtables: packet logging to netlink using NFLOG");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_NFLOG");
 MODULE_ALIAS("ip6t_NFLOG");
