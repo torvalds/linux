@@ -31,7 +31,7 @@
 
 #define _SELECT	(  XTHAL_SAS_TIE | XTHAL_SAS_OPT \
 		 | XTHAL_SAS_CC \
-		 | XTHAL_SAS_CALR | XTHAL_SAS_CALE | XTHAL_SAS_GLOB )
+		 | XTHAL_SAS_CALR | XTHAL_SAS_CALE )
 
 .macro save_xtregs_opt ptr clb at1 at2 at3 at4 offset
 	.if XTREGS_OPT_SIZE > 0
@@ -112,17 +112,22 @@
  *       CPENABLE bit is set.
  */
 
-#define XCHAL_SA_REG(list,compiler,x,type,y,name,z,align,size,...)	\
-	__REG ## list (compiler, type, name, size, align)
+#define XCHAL_SA_REG(list,cc,abi,type,y,name,z,align,size,...)	\
+	__REG ## list (cc, abi, type, name, size, align)
 
-#define __REG0(compiler,t,name,s,a)	__REG0_ ## compiler (name)
-#define __REG1(compiler,t,name,s,a)	__REG1_ ## compiler (name)
-#define __REG2(c,type,...)		__REG2_ ## type (__VA_ARGS__)
+#define __REG0(cc,abi,t,name,s,a)	__REG0_ ## cc (abi,name)
+#define __REG1(cc,abi,t,name,s,a)	__REG1_ ## cc (name)
+#define __REG2(cc,abi,type,...)		__REG2_ ## type (__VA_ARGS__)
 
-#define __REG0_0(name)
-#define __REG0_1(name)	__u32 name;
+#define __REG0_0(abi,name)
+#define __REG0_1(abi,name)		__REG0_1 ## abi (name)
+#define __REG0_10(name)	__u32 name;
+#define __REG0_11(name)	__u32 name;
+#define __REG0_12(name)
+
 #define __REG1_0(name)	__u32 name;
 #define __REG1_1(name)
+
 #define __REG2_0(n,s,a)	__u32 name;
 #define __REG2_1(n,s,a)	unsigned char n[s] __attribute__ ((aligned(a)));
 #define __REG2_2(n,s,a) unsigned char n[s] __attribute__ ((aligned(a)));
