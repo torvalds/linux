@@ -1004,14 +1004,6 @@ int iwl3945_hw_nic_init(struct iwl3945_priv *priv)
 			    CSR_HW_IF_CONFIG_REG_BIT_ALMAGOR_MM);
 	}
 
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	/* Initialize the EEPROM */
-	rc = iwl3945_eeprom_init(priv);
-	if (rc)
-		return rc;
-
-	spin_lock_irqsave(&priv->lock, flags);
 	if (EEPROM_SKU_CAP_OP_MODE_MRC == priv->eeprom.sku_cap) {
 		IWL_DEBUG_INFO("SKU OP mode is mrc\n");
 		iwl3945_set_bit(priv, CSR_HW_IF_CONFIG_REG,

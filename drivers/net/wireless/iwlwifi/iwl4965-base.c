@@ -6608,31 +6608,12 @@ static void iwl4965_alive_start(struct iwl4965_priv *priv)
 	}
 
 	iwl4965_init_geos(priv);
+	iwl4965_reset_channel_flag(priv);
 
 	if (iwl4965_is_rfkill(priv))
 		return;
 
-	if (!priv->mac80211_registered) {
-		/* Unlock so any user space entry points can call back into
-		 * the driver without a deadlock... */
-		mutex_unlock(&priv->mutex);
-		iwl4965_rate_control_register(priv->hw);
-		rc = ieee80211_register_hw(priv->hw);
-		priv->hw->conf.beacon_int = 100;
-		mutex_lock(&priv->mutex);
-
-		if (rc) {
-			iwl4965_rate_control_unregister(priv->hw);
-			IWL_ERROR("Failed to register network "
-				  "device (error %d)\n", rc);
-			return;
-		}
-
-		priv->mac80211_registered = 1;
-
-		iwl4965_reset_channel_flag(priv);
-	} else
-		ieee80211_start_queues(priv->hw);
+	ieee80211_start_queues(priv->hw);
 
 	priv->active_rate = priv->rates_mask;
 	priv->active_rate_basic = priv->rates_mask & IWL_BASIC_RATES_MASK;
@@ -6663,7 +6644,9 @@ static void iwl4965_alive_start(struct iwl4965_priv *priv)
 	set_bit(STATUS_READY, &priv->status);
 
 	iwl4965_rf_kill_ct_config(priv);
+
 	IWL_DEBUG_INFO("ALIVE processing complete.\n");
+	wake_up_interruptible(&priv->wait_command_queue);
 
 	if (priv->error_recovering)
 		iwl4965_error_recovery(priv);
@@ -6777,7 +6760,6 @@ static void iwl4965_down(struct iwl4965_priv *priv)
 
 static int __iwl4965_up(struct iwl4965_priv *priv)
 {
-	DECLARE_MAC_BUF(mac);
 	int rc, i;
 	u32 hw_rf_kill = 0;
 
@@ -6822,7 +6804,7 @@ static int __iwl4965_up(struct iwl4965_priv *priv)
 	 * This will be used to initialize the on-board processor's
 	 * data SRAM for a clean start when the runtime program first loads. */
 	memcpy(priv->ucode_data_backup.v_addr, priv->ucode_data.v_addr,
-			priv->ucode_data.len);
+	       priv->ucode_data.len);
 
 	/* If platform's RF_KILL switch is set to KILL,
 	 * wait for BIT_INT_RF_KILL interrupt before loading uCode
@@ -6852,13 +6834,6 @@ static int __iwl4965_up(struct iwl4965_priv *priv)
 
 		/* start card; "initialize" will load runtime ucode */
 		iwl4965_nic_start(priv);
-
-		/* MAC Address location in EEPROM is same for 3945/4965 */
-		get_eeprom_mac(priv, priv->mac_addr);
-		IWL_DEBUG_INFO("MAC address: %s\n",
-			       print_mac(mac, priv->mac_addr));
-
-		SET_IEEE80211_PERM_ADDR(priv->hw, priv->mac_addr);
 
 		IWL_DEBUG_INFO(DRV_NAME " is coming up\n");
 
@@ -7365,23 +7340,73 @@ static void iwl4965_bg_scan_completed(struct work_struct *work)
  *
  *****************************************************************************/
 
+#define UCODE_READY_TIMEOUT	(2 * HZ)
+
 static int iwl4965_mac_start(struct ieee80211_hw *hw)
 {
 	struct iwl4965_priv *priv = hw->priv;
+	int ret;
 
 	IWL_DEBUG_MAC80211("enter\n");
+
+	if (pci_enable_device(priv->pci_dev)) {
+		IWL_ERROR("Fail to pci_enable_device\n");
+		return -ENODEV;
+	}
+	pci_restore_state(priv->pci_dev);
+	pci_enable_msi(priv->pci_dev);
+
+	ret = request_irq(priv->pci_dev->irq, iwl4965_isr, IRQF_SHARED,
+			  DRV_NAME, priv);
+	if (ret) {
+		IWL_ERROR("Error allocating IRQ %d\n", priv->pci_dev->irq);
+		goto out_disable_msi;
+	}
 
 	/* we should be verifying the device is ready to be opened */
 	mutex_lock(&priv->mutex);
 
+	memset(&priv->staging_rxon, 0, sizeof(struct iwl4965_rxon_cmd));
+	/* fetch ucode file from disk, alloc and copy to bus-master buffers ...
+	 * ucode filename and max sizes are card-specific. */
+
+	if (!priv->ucode_code.len) {
+		ret = iwl4965_read_ucode(priv);
+		if (ret) {
+			IWL_ERROR("Could not read microcode: %d\n", ret);
+			mutex_unlock(&priv->mutex);
+			goto out_release_irq;
+		}
+	}
+
+	IWL_DEBUG_INFO("Start UP work.\n");
+	__iwl4965_up(priv);
+
 	priv->is_open = 1;
-
-	if (!iwl4965_is_rfkill(priv))
-		ieee80211_start_queues(priv->hw);
-
 	mutex_unlock(&priv->mutex);
+
+	/* Wait for START_ALIVE from ucode. Otherwise callbacks from
+	 * mac80211 will not be run successfully. */
+	ret = wait_event_interruptible_timeout(priv->wait_command_queue,
+			test_bit(STATUS_READY, &priv->status),
+			UCODE_READY_TIMEOUT);
+	if (!ret) {
+		if (!test_bit(STATUS_READY, &priv->status)) {
+			IWL_ERROR("Wait for START_ALIVE timeout after %dms.\n",
+				  jiffies_to_msecs(UCODE_READY_TIMEOUT));
+			ret = -ETIMEDOUT;
+			goto out_release_irq;
+		}
+	}
+
 	IWL_DEBUG_MAC80211("leave\n");
 	return 0;
+
+out_release_irq:
+	free_irq(priv->pci_dev->irq, priv);
+out_disable_msi:
+	pci_disable_msi(priv->pci_dev);
+	return ret;
 }
 
 static void iwl4965_mac_stop(struct ieee80211_hw *hw)
@@ -7390,23 +7415,25 @@ static void iwl4965_mac_stop(struct ieee80211_hw *hw)
 
 	IWL_DEBUG_MAC80211("enter\n");
 
-
-	mutex_lock(&priv->mutex);
 	/* stop mac, cancel any scan request and clear
 	 * RXON_FILTER_ASSOC_MSK BIT
 	 */
 	priv->is_open = 0;
-	if (!iwl4965_is_ready_rf(priv)) {
-		IWL_DEBUG_MAC80211("leave - RF not ready\n");
+
+	if (iwl4965_is_ready_rf(priv)) {
+		mutex_lock(&priv->mutex);
+		iwl4965_scan_cancel_timeout(priv, 100);
+		cancel_delayed_work(&priv->post_associate);
 		mutex_unlock(&priv->mutex);
-		return;
 	}
 
-	iwl4965_scan_cancel_timeout(priv, 100);
-	cancel_delayed_work(&priv->post_associate);
-	priv->staging_rxon.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
-	iwl4965_commit_rxon(priv);
-	mutex_unlock(&priv->mutex);
+	iwl4965_down(priv);
+
+	flush_workqueue(priv->workqueue);
+	free_irq(priv->pci_dev->irq, priv);
+	pci_disable_msi(priv->pci_dev);
+	pci_save_state(priv->pci_dev);
+	pci_disable_device(priv->pci_dev);
 
 	IWL_DEBUG_MAC80211("leave\n");
 }
@@ -7458,11 +7485,13 @@ static int iwl4965_mac_add_interface(struct ieee80211_hw *hw,
 		IWL_DEBUG_MAC80211("Set %s\n", print_mac(mac, conf->mac_addr));
 		memcpy(priv->mac_addr, conf->mac_addr, ETH_ALEN);
 	}
-	iwl4965_set_mode(priv, conf->type);
 
-	IWL_DEBUG_MAC80211("leave\n");
+	if (iwl4965_is_ready(priv))
+		iwl4965_set_mode(priv, conf->type);
+
 	mutex_unlock(&priv->mutex);
 
+	IWL_DEBUG_MAC80211("leave\n");
 	return 0;
 }
 
@@ -7564,9 +7593,9 @@ static int iwl4965_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *co
 
 	IWL_DEBUG_MAC80211("leave\n");
 
-	mutex_unlock(&priv->mutex);
 out:
 	clear_bit(STATUS_CONF_PENDING, &priv->status);
+	mutex_unlock(&priv->mutex);
 	return ret;
 }
 
@@ -7650,6 +7679,9 @@ static int iwl4965_mac_config_interface(struct ieee80211_hw *hw,
 		    ("Leaving in AP mode because HostAPD is not ready.\n");
 		return 0;
 	}
+
+	if (!iwl4965_is_alive(priv))
+		return -EAGAIN;
 
 	mutex_lock(&priv->mutex);
 
@@ -8995,6 +9027,7 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	struct iwl4965_priv *priv;
 	struct ieee80211_hw *hw;
 	int i;
+	DECLARE_MAC_BUF(mac);
 
 	/* Disabling hardware scan means that mac80211 will perform scans
 	 * "the hard way", rather than using device's scan. */
@@ -9136,7 +9169,6 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	/* Device-specific setup */
 	if (iwl4965_hw_set_hw_setting(priv)) {
 		IWL_ERROR("failed to set hw settings\n");
-		mutex_unlock(&priv->mutex);
 		goto out_iounmap;
 	}
 
@@ -9161,50 +9193,53 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 
 	iwl4965_disable_interrupts(priv);
 
-	pci_enable_msi(pdev);
-
-	err = request_irq(pdev->irq, iwl4965_isr, IRQF_SHARED, DRV_NAME, priv);
-	if (err) {
-		IWL_ERROR("Error allocating IRQ %d\n", pdev->irq);
-		goto out_disable_msi;
-	}
-
-	mutex_lock(&priv->mutex);
-
 	err = sysfs_create_group(&pdev->dev.kobj, &iwl4965_attribute_group);
 	if (err) {
 		IWL_ERROR("failed to create sysfs device attributes\n");
-		mutex_unlock(&priv->mutex);
 		goto out_release_irq;
 	}
 
-	/* fetch ucode file from disk, alloc and copy to bus-master buffers ...
-	 * ucode filename and max sizes are card-specific. */
-	err = iwl4965_read_ucode(priv);
+	/* nic init */
+	iwl4965_set_bit(priv, CSR_GIO_CHICKEN_BITS,
+                    CSR_GIO_CHICKEN_BITS_REG_BIT_DIS_L0S_EXIT_TIMER);
+
+        iwl4965_set_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+        err = iwl4965_poll_bit(priv, CSR_GP_CNTRL,
+                          CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
+                          CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY, 25000);
+        if (err < 0) {
+                IWL_DEBUG_INFO("Failed to init the card\n");
+		goto out_remove_sysfs;
+        }
+	/* Read the EEPROM */
+	err = iwl4965_eeprom_init(priv);
 	if (err) {
-		IWL_ERROR("Could not read microcode: %d\n", err);
-		mutex_unlock(&priv->mutex);
-		goto out_pci_alloc;
+		IWL_ERROR("Unable to init EEPROM\n");
+		goto out_remove_sysfs;
+	}
+	/* MAC Address location in EEPROM same for 3945/4965 */
+	get_eeprom_mac(priv, priv->mac_addr);
+	IWL_DEBUG_INFO("MAC address: %s\n", print_mac(mac, priv->mac_addr));
+	SET_IEEE80211_PERM_ADDR(priv->hw, priv->mac_addr);
+
+	iwl4965_rate_control_register(priv->hw);
+	err = ieee80211_register_hw(priv->hw);
+	if (err) {
+		IWL_ERROR("Failed to register network device (error %d)\n", err);
+		goto out_remove_sysfs;
 	}
 
-	mutex_unlock(&priv->mutex);
-
-	IWL_DEBUG_INFO("Queueing UP work.\n");
-
-	queue_work(priv->workqueue, &priv->up);
+	priv->hw->conf.beacon_int = 100;
+	priv->mac80211_registered = 1;
+	pci_save_state(pdev);
+	pci_disable_device(pdev);
 
 	return 0;
 
- out_pci_alloc:
-	iwl4965_dealloc_ucode_pci(priv);
-
+ out_remove_sysfs:
 	sysfs_remove_group(&pdev->dev.kobj, &iwl4965_attribute_group);
 
  out_release_irq:
-	free_irq(pdev->irq, priv);
-
- out_disable_msi:
-	pci_disable_msi(pdev);
 	destroy_workqueue(priv->workqueue);
 	priv->workqueue = NULL;
 	iwl4965_unset_hw_setting(priv);
@@ -9270,8 +9305,6 @@ static void iwl4965_pci_remove(struct pci_dev *pdev)
 	destroy_workqueue(priv->workqueue);
 	priv->workqueue = NULL;
 
-	free_irq(pdev->irq, priv);
-	pci_disable_msi(pdev);
 	pci_iounmap(pdev, priv->hw_base);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);

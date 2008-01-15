@@ -506,11 +506,6 @@ int iwl4965_hw_nic_init(struct iwl4965_priv *priv)
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	/* Read the EEPROM */
-	rc = iwl4965_eeprom_init(priv);
-	if (rc)
-		return rc;
-
 	if (priv->eeprom.calib_version < EEPROM_TX_POWER_VERSION_NEW) {
 		IWL_ERROR("Older EEPROM detected!  Aborting.\n");
 		return -EINVAL;
