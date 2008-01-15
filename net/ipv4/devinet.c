@@ -968,24 +968,19 @@ static __be32 confirm_addr_indev(struct in_device *in_dev, __be32 dst,
 
 /*
  * Confirm that local IP address exists using wildcards:
- * - dev: only on this interface, 0=any interface
+ * - in_dev: only on this interface, 0=any interface
  * - dst: only in the same subnet as dst, 0=any dst
  * - local: address, 0=autoselect the local address
  * - scope: maximum allowed scope value for the local address
  */
-__be32 inet_confirm_addr(const struct net_device *dev, __be32 dst, __be32 local, int scope)
+__be32 inet_confirm_addr(struct in_device *in_dev,
+			 __be32 dst, __be32 local, int scope)
 {
 	__be32 addr = 0;
-	struct in_device *in_dev;
+	struct net_device *dev;
 
-	if (dev) {
-		rcu_read_lock();
-		if ((in_dev = __in_dev_get_rcu(dev)))
-			addr = confirm_addr_indev(in_dev, dst, local, scope);
-		rcu_read_unlock();
-
-		return addr;
-	}
+	if (in_dev != NULL)
+		return confirm_addr_indev(in_dev, dst, local, scope);
 
 	read_lock(&dev_base_lock);
 	rcu_read_lock();
