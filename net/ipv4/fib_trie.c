@@ -1926,18 +1926,18 @@ out:
 	return -1;
 }
 
-/* Fix more generic FIB names for init later */
+void __init fib_hash_init(void)
+{
+	fn_alias_kmem = kmem_cache_create("ip_fib_alias", sizeof(struct fib_alias),
+					  0, SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
+}
 
-struct fib_table *fib_hash_init(u32 id)
+
+/* Fix more generic FIB names for init later */
+struct fib_table *fib_hash_table(u32 id)
 {
 	struct fib_table *tb;
 	struct trie *t;
-
-	if (fn_alias_kmem == NULL)
-		fn_alias_kmem = kmem_cache_create("ip_fib_alias",
-						  sizeof(struct fib_alias),
-						  0, SLAB_HWCACHE_ALIGN,
-						  NULL);
 
 	tb = kmalloc(sizeof(struct fib_table) + sizeof(struct trie),
 		     GFP_KERNEL);

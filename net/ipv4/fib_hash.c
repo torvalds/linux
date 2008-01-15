@@ -747,21 +747,19 @@ static int fn_hash_dump(struct fib_table *tb, struct sk_buff *skb, struct netlin
 	return skb->len;
 }
 
-struct fib_table *fib_hash_init(u32 id)
+void __init fib_hash_init(void)
+{
+	fn_hash_kmem = kmem_cache_create("ip_fib_hash", sizeof(struct fib_node),
+					 0, SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
+
+	fn_alias_kmem = kmem_cache_create("ip_fib_alias", sizeof(struct fib_alias),
+					  0, SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
+
+}
+
+struct fib_table *fib_hash_table(u32 id)
 {
 	struct fib_table *tb;
-
-	if (fn_hash_kmem == NULL)
-		fn_hash_kmem = kmem_cache_create("ip_fib_hash",
-						 sizeof(struct fib_node),
-						 0, SLAB_HWCACHE_ALIGN,
-						 NULL);
-
-	if (fn_alias_kmem == NULL)
-		fn_alias_kmem = kmem_cache_create("ip_fib_alias",
-						  sizeof(struct fib_alias),
-						  0, SLAB_HWCACHE_ALIGN,
-						  NULL);
 
 	tb = kmalloc(sizeof(struct fib_table) + sizeof(struct fn_hash),
 		     GFP_KERNEL);

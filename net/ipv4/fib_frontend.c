@@ -53,11 +53,11 @@ static int __net_init fib4_rules_init(struct net *net)
 {
 	struct fib_table *local_table, *main_table;
 
-	local_table = fib_hash_init(RT_TABLE_LOCAL);
+	local_table = fib_hash_table(RT_TABLE_LOCAL);
 	if (local_table == NULL)
 		return -ENOMEM;
 
-	main_table  = fib_hash_init(RT_TABLE_MAIN);
+	main_table  = fib_hash_table(RT_TABLE_MAIN);
 	if (main_table == NULL)
 		goto fail;
 
@@ -83,7 +83,8 @@ struct fib_table *fib_new_table(struct net *net, u32 id)
 	tb = fib_get_table(net, id);
 	if (tb)
 		return tb;
-	tb = fib_hash_init(id);
+
+	tb = fib_hash_table(id);
 	if (!tb)
 		return NULL;
 	h = id & (FIB_TABLE_HASHSZ - 1);
@@ -1042,6 +1043,8 @@ void __init ip_fib_init(void)
 	register_pernet_subsys(&fib_net_ops);
 	register_netdevice_notifier(&fib_netdev_notifier);
 	register_inetaddr_notifier(&fib_inetaddr_notifier);
+
+	fib_hash_init();
 }
 
 EXPORT_SYMBOL(inet_addr_type);

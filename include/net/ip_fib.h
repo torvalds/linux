@@ -231,8 +231,9 @@ extern int fib_sync_down(__be32 local, struct net_device *dev, int force);
 extern int fib_sync_up(struct net_device *dev);
 extern __be32  __fib_res_prefsrc(struct fib_result *res);
 
-/* Exported by fib_hash.c */
-extern struct fib_table *fib_hash_init(u32 id);
+/* Exported by fib_{hash|trie}.c */
+extern void fib_hash_init(void);
+extern struct fib_table *fib_hash_table(u32 id);
 
 static inline void fib_combine_itag(u32 *itag, struct fib_result *res)
 {
