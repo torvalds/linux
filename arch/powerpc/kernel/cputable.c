@@ -1178,9 +1178,21 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.platform		= "ppc405",
 	},
 	{	/* 405EX */
-		.pvr_mask		= 0xffff0000,
-		.pvr_value		= 0x12910000,
+		.pvr_mask		= 0xffff0004,
+		.pvr_value		= 0x12910004,
 		.cpu_name		= "405EX",
+		.cpu_features		= CPU_FTRS_40X,
+		.cpu_user_features	= PPC_FEATURE_32 |
+			PPC_FEATURE_HAS_MMU | PPC_FEATURE_HAS_4xxMAC,
+		.icache_bsize		= 32,
+		.dcache_bsize		= 32,
+		.machine_check		= machine_check_4xx,
+		.platform		= "ppc405",
+	},
+	{	/* 405EXr */
+		.pvr_mask		= 0xffff0004,
+		.pvr_value		= 0x12910000,
+		.cpu_name		= "405EXr",
 		.cpu_features		= CPU_FTRS_40X,
 		.cpu_user_features	= PPC_FEATURE_32 |
 			PPC_FEATURE_HAS_MMU | PPC_FEATURE_HAS_4xxMAC,
