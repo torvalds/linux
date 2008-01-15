@@ -1489,7 +1489,7 @@ static void sbp2_prep_command_orb_sg(struct sbp2_command_orb *orb,
 
 		/* loop through and fill out our SBP-2 page tables
 		 * (and split up anything too large) */
-		for (i = 0, sg_count = 0 ; i < count; i++, sgpnt++) {
+		for (i = 0, sg_count = 0; i < count; i++, sgpnt = sg_next(sgpnt)) {
 			sg_len = sg_dma_len(sgpnt);
 			sg_addr = sg_dma_address(sgpnt);
 			while (sg_len) {
