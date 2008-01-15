@@ -874,6 +874,7 @@ static void sctp_ulpq_reap_ordered(struct sctp_ulpq *ulpq, __u16 sid)
 	struct sctp_ulpevent *event;
 	struct sctp_stream *in;
 	struct sk_buff_head temp;
+	struct sk_buff_head *lobby = &ulpq->lobby;
 	__u16 csid, cssn;
 
 	in  = &ulpq->asoc->ssnmap->in;
@@ -881,7 +882,7 @@ static void sctp_ulpq_reap_ordered(struct sctp_ulpq *ulpq, __u16 sid)
 	/* We are holding the chunks by stream, by SSN.  */
 	skb_queue_head_init(&temp);
 	event = NULL;
-	sctp_skb_for_each(pos, &ulpq->lobby, tmp) {
+	sctp_skb_for_each(pos, lobby, tmp) {
 		cevent = (struct sctp_ulpevent *) pos->cb;
 		csid = cevent->stream;
 		cssn = cevent->ssn;
@@ -895,16 +896,32 @@ static void sctp_ulpq_reap_ordered(struct sctp_ulpq *ulpq, __u16 sid)
 			continue;
 
 		/* see if this ssn has been marked by skipping */
-		if (!SSN_lte(cssn, sctp_ssn_peek(in, csid)))
+		if (!SSN_lt(cssn, sctp_ssn_peek(in, csid)))
 			break;
 
-		__skb_unlink(pos, &ulpq->lobby);
+		__skb_unlink(pos, lobby);
 		if (!event)
 			/* Create a temporary list to collect chunks on.  */
 			event = sctp_skb2event(pos);
 
 		/* Attach all gathered skbs to the event.  */
 		__skb_queue_tail(&temp, pos);
+	}
+
+	/* If we didn't reap any data, see if the next expected SSN
+	 * is next on the queue and if so, use that.
+	 */
+	if (event == NULL && pos != (struct sk_buff *)lobby) {
+		cevent = (struct sctp_ulpevent *) pos->cb;
+		csid = cevent->stream;
+		cssn = cevent->ssn;
+
+		if (csid == sid && cssn == sctp_ssn_peek(in, csid)) {
+			sctp_ssn_next(in, csid);
+			__skb_unlink(pos, lobby);
+			__skb_queue_tail(&temp, pos);
+			event = sctp_skb2event(pos);
+		}
 	}
 
 	/* Send event to the ULP.  'event' is the sctp_ulpevent for
