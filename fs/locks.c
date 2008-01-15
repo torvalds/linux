@@ -634,33 +634,6 @@ static int flock_locks_conflict(struct file_lock *caller_fl, struct file_lock *s
 	return (locks_conflict(caller_fl, sys_fl));
 }
 
-static int interruptible_sleep_on_locked(wait_queue_head_t *fl_wait, int timeout)
-{
-	int result = 0;
-	DECLARE_WAITQUEUE(wait, current);
-
-	__set_current_state(TASK_INTERRUPTIBLE);
-	add_wait_queue(fl_wait, &wait);
-	if (timeout == 0)
-		schedule();
-	else
-		result = schedule_timeout(timeout);
-	if (signal_pending(current))
-		result = -ERESTARTSYS;
-	remove_wait_queue(fl_wait, &wait);
-	__set_current_state(TASK_RUNNING);
-	return result;
-}
-
-static int locks_block_on_timeout(struct file_lock *blocker, struct file_lock *waiter, int time)
-{
-	int result;
-	locks_insert_block(blocker, waiter);
-	result = interruptible_sleep_on_locked(&waiter->fl_wait, time);
-	__locks_delete_block(waiter);
-	return result;
-}
-
 void
 posix_test_lock(struct file *filp, struct file_lock *fl)
 {
@@ -1266,7 +1239,10 @@ restart:
 		if (break_time == 0)
 			break_time++;
 	}
-	error = locks_block_on_timeout(flock, new_fl, break_time);
+	locks_insert_block(flock, new_fl);
+	error = wait_event_interruptible_timeout(new_fl->fl_wait,
+						!new_fl->fl_next, break_time);
+	__locks_delete_block(new_fl);
 	if (error >= 0) {
 		if (error == 0)
 			time_out_leases(inode);
