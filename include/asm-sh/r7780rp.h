@@ -195,8 +195,18 @@
 #ifndef IRQ_PSW
 #define IRQ_PSW			(HL_FPGA_IRQ_BASE + 2)
 #endif
-#define IRQ_EXT1		(HL_FPGA_IRQ_BASE + 3)
-#define IRQ_EXT4		(HL_FPGA_IRQ_BASE + 4)
+#define IRQ_EXT0		(HL_FPGA_IRQ_BASE + 3)
+#define IRQ_EXT1		(HL_FPGA_IRQ_BASE + 4)
+#define IRQ_EXT2		(HL_FPGA_IRQ_BASE + 5)
+#define IRQ_EXT3		(HL_FPGA_IRQ_BASE + 6)
+#define IRQ_EXT4		(HL_FPGA_IRQ_BASE + 7)
+#define IRQ_EXT5		(HL_FPGA_IRQ_BASE + 8)
+#define IRQ_EXT6		(HL_FPGA_IRQ_BASE + 9)
+#define IRQ_EXT7		(HL_FPGA_IRQ_BASE + 10)
+#define IRQ_SMBUS		(HL_FPGA_IRQ_BASE + 11)
+#define IRQ_TP			(HL_FPGA_IRQ_BASE + 12)
+#define IRQ_RTC			(HL_FPGA_IRQ_BASE + 13)
+#define IRQ_TH_ALERT		(HL_FPGA_IRQ_BASE + 14)
 
 void make_r7780rp_irq(unsigned int irq);
 
