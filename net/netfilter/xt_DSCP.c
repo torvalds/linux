@@ -134,7 +134,7 @@ tos_tg(struct sk_buff *skb, const struct net_device *in,
 		if (!skb_make_writable(skb, sizeof(struct iphdr)))
 			return NF_DROP;
 		iph = ip_hdr(skb);
-		ipv4_change_dsfield(iph, ~0, nv);
+		ipv4_change_dsfield(iph, 0, nv);
 	}
 
 	return XT_CONTINUE;
@@ -156,7 +156,7 @@ tos_tg6(struct sk_buff *skb, const struct net_device *in,
 		if (!skb_make_writable(skb, sizeof(struct iphdr)))
 			return NF_DROP;
 		iph = ipv6_hdr(skb);
-		ipv6_change_dsfield(iph, ~0, nv);
+		ipv6_change_dsfield(iph, 0, nv);
 	}
 
 	return XT_CONTINUE;
