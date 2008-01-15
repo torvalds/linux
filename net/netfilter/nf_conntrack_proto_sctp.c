@@ -195,7 +195,7 @@ for ((offset) = (dataoff) + sizeof(sctp_sctphdr_t), (count) = 0;	\
 static int do_basic_checks(struct nf_conn *conntrack,
 			   const struct sk_buff *skb,
 			   unsigned int dataoff,
-			   char *map)
+			   unsigned long *map)
 {
 	u_int32_t offset, count;
 	sctp_chunkhdr_t _sch, *sch;
@@ -225,7 +225,7 @@ static int do_basic_checks(struct nf_conn *conntrack,
 		}
 
 		if (map)
-			set_bit(sch->type, (void *)map);
+			set_bit(sch->type, map);
 	}
 
 	pr_debug("Basic checks passed\n");
@@ -304,7 +304,7 @@ static int sctp_packet(struct nf_conn *conntrack,
 	sctp_sctphdr_t _sctph, *sh;
 	sctp_chunkhdr_t _sch, *sch;
 	u_int32_t offset, count;
-	char map[256 / sizeof (char)] = {0};
+	unsigned long map[256 / sizeof(unsigned long)] = { 0 };
 
 	sh = skb_header_pointer(skb, dataoff, sizeof(_sctph), &_sctph);
 	if (sh == NULL)
@@ -314,11 +314,11 @@ static int sctp_packet(struct nf_conn *conntrack,
 		return -1;
 
 	/* Check the verification tag (Sec 8.5) */
-	if (!test_bit(SCTP_CID_INIT, (void *)map) &&
-	    !test_bit(SCTP_CID_SHUTDOWN_COMPLETE, (void *)map) &&
-	    !test_bit(SCTP_CID_COOKIE_ECHO, (void *)map) &&
-	    !test_bit(SCTP_CID_ABORT, (void *)map) &&
-	    !test_bit(SCTP_CID_SHUTDOWN_ACK, (void *)map) &&
+	if (!test_bit(SCTP_CID_INIT, map) &&
+	    !test_bit(SCTP_CID_SHUTDOWN_COMPLETE, map) &&
+	    !test_bit(SCTP_CID_COOKIE_ECHO, map) &&
+	    !test_bit(SCTP_CID_ABORT, map) &&
+	    !test_bit(SCTP_CID_SHUTDOWN_ACK, map) &&
 	    sh->vtag != conntrack->proto.sctp.vtag[CTINFO2DIR(ctinfo)]) {
 		pr_debug("Verification tag check failed\n");
 		return -1;
@@ -413,7 +413,7 @@ static int sctp_new(struct nf_conn *conntrack, const struct sk_buff *skb,
 	sctp_sctphdr_t _sctph, *sh;
 	sctp_chunkhdr_t _sch, *sch;
 	u_int32_t offset, count;
-	char map[256 / sizeof (char)] = {0};
+	unsigned long map[256 / sizeof(unsigned long)] = { 0 };
 
 	sh = skb_header_pointer(skb, dataoff, sizeof(_sctph), &_sctph);
 	if (sh == NULL)
@@ -423,9 +423,9 @@ static int sctp_new(struct nf_conn *conntrack, const struct sk_buff *skb,
 		return 0;
 
 	/* If an OOTB packet has any of these chunks discard (Sec 8.4) */
-	if (test_bit (SCTP_CID_ABORT, (void *)map) ||
-	    test_bit (SCTP_CID_SHUTDOWN_COMPLETE, (void *)map) ||
-	    test_bit (SCTP_CID_COOKIE_ACK, (void *)map))
+	if (test_bit(SCTP_CID_ABORT, map) ||
+	    test_bit(SCTP_CID_SHUTDOWN_COMPLETE, map) ||
+	    test_bit(SCTP_CID_COOKIE_ACK, map))
 		return 0;
 
 	newconntrack = SCTP_CONNTRACK_MAX;
