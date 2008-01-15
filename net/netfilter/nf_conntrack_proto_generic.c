@@ -40,13 +40,6 @@ static int generic_print_tuple(struct seq_file *s,
 	return 0;
 }
 
-/* Print out the private part of the conntrack. */
-static int generic_print_conntrack(struct seq_file *s,
-				   const struct nf_conn *state)
-{
-	return 0;
-}
-
 /* Returns verdict for packet, or -1 for invalid. */
 static int packet(struct nf_conn *conntrack,
 		  const struct sk_buff *skb,
@@ -104,7 +97,6 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_generic __read_mostly =
 	.pkt_to_tuple		= generic_pkt_to_tuple,
 	.invert_tuple		= generic_invert_tuple,
 	.print_tuple		= generic_print_tuple,
-	.print_conntrack	= generic_print_conntrack,
 	.packet			= packet,
 	.new			= new,
 #ifdef CONFIG_SYSCTL

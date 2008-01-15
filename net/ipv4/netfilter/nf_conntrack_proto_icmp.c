@@ -74,13 +74,6 @@ static int icmp_print_tuple(struct seq_file *s,
 			  ntohs(tuple->src.u.icmp.id));
 }
 
-/* Print out the private part of the conntrack. */
-static int icmp_print_conntrack(struct seq_file *s,
-				const struct nf_conn *conntrack)
-{
-	return 0;
-}
-
 /* Returns verdict for packet, or -1 for invalid. */
 static int icmp_packet(struct nf_conn *ct,
 		       const struct sk_buff *skb,
@@ -309,7 +302,6 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp __read_mostly =
 	.pkt_to_tuple		= icmp_pkt_to_tuple,
 	.invert_tuple		= icmp_invert_tuple,
 	.print_tuple		= icmp_print_tuple,
-	.print_conntrack	= icmp_print_conntrack,
 	.packet			= icmp_packet,
 	.new			= icmp_new,
 	.error			= icmp_error,
