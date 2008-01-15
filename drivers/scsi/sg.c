@@ -1434,11 +1434,14 @@ sg_add(struct class_device *cl_dev, struct class_interface *cl_intf)
 				MKDEV(SCSI_GENERIC_MAJOR, sdp->index),
 				cl_dev->dev, "%s",
 				disk->disk_name);
-		if (IS_ERR(sg_class_member))
-			printk(KERN_WARNING "sg_add: "
-				"class_device_create failed\n");
+		if (IS_ERR(sg_class_member)) {
+			printk(KERN_ERR "sg_add: "
+			       "class_device_create failed\n");
+			error = PTR_ERR(sg_class_member);
+			goto cdev_add_err;
+		}
 		class_set_devdata(sg_class_member, sdp);
-		error = sysfs_create_link(&scsidp->sdev_gendev.kobj, 
+		error = sysfs_create_link(&scsidp->sdev_gendev.kobj,
 					  &sg_class_member->kobj, "generic");
 		if (error)
 			printk(KERN_ERR "sg_add: unable to make symlink "
