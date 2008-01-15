@@ -1,12 +1,17 @@
 #ifndef _ASM_ARCH_IRQ_H
 #define _ASM_ARCH_IRQ_H
 
-#include "hwregs/intr_vect.h"
+#include <hwregs/intr_vect.h>
 
 /* Number of non-cpu interrupts. */
-#define NR_IRQS 0x50 /* Exceptions + IRQs */
-#define NR_REAL_IRQS 0x20 /* IRQs */
+#define NR_IRQS NBR_INTR_VECT /* Exceptions + IRQs */
 #define FIRST_IRQ 0x31 /* Exception number for first IRQ */
+#define NR_REAL_IRQS (NBR_INTR_VECT - FIRST_IRQ) /* IRQs */
+#if NR_REAL_IRQS > 32
+#define MACH_IRQS 64
+#else
+#define MACH_IRQS 32
+#endif
 
 #ifndef __ASSEMBLY__
 /* Global IRQ vector. */
@@ -73,7 +78,7 @@ void set_exception_vector(int n, irqvectptr addr);
  * which will acknowledge the interrupt, is run. The actual blocking is made
  * by crisv32_do_IRQ.
  */
-#define BUILD_IRQ(nr, mask)		\
+#define BUILD_IRQ(nr)		        \
 void IRQ_NAME(nr);			\
 __asm__ (				\
 	".text\n\t"			\
@@ -81,7 +86,7 @@ __asm__ (				\
 	SAVE_ALL			\
 	KGDB_FIXUP                      \
 	"move.d "#nr",$r10\n\t"		\
-	"move.d $sp,$r12\n\t"		\
+	"move.d $sp, $r12\n\t"          \
 	"jsr crisv32_do_IRQ\n\t"       	\
 	"moveq 1, $r11\n\t"		\
 	"jump ret_from_intr\n\t"	\
