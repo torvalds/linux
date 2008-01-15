@@ -468,18 +468,21 @@ static int nfs_start_lockd(struct nfs_server *server)
 {
 	struct nlm_host *host;
 	struct nfs_client *clp = server->nfs_client;
-	u32 nfs_version = clp->rpc_ops->version;
-	unsigned short protocol = server->flags & NFS_MOUNT_TCP ?
-						IPPROTO_TCP : IPPROTO_UDP;
+	struct nlmclnt_initdata nlm_init = {
+		.hostname	= clp->cl_hostname,
+		.address	= (struct sockaddr *)&clp->cl_addr,
+		.addrlen	= clp->cl_addrlen,
+		.protocol	= server->flags & NFS_MOUNT_TCP ?
+						IPPROTO_TCP : IPPROTO_UDP,
+		.nfs_version	= clp->rpc_ops->version,
+	};
 
-	if (nfs_version > 3)
+	if (nlm_init.nfs_version > 3)
 		return 0;
 	if (server->flags & NFS_MOUNT_NONLM)
 		return 0;
 
-	host = nlmclnt_init(clp->cl_hostname,
-			    (struct sockaddr *)&clp->cl_addr,
-			    clp->cl_addrlen, protocol, nfs_version);
+	host = nlmclnt_init(&nlm_init);
 	if (IS_ERR(host))
 		return PTR_ERR(host);
 

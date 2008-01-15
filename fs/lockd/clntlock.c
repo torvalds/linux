@@ -43,31 +43,25 @@ static LIST_HEAD(nlm_blocked);
 
 /**
  * nlmclnt_init - Set up per-NFS mount point lockd data structures
- * @server_name: server's hostname
- * @server_address: server's network address
- * @server_addrlen: length of server's address
- * @protocol: transport protocol lockd should use
- * @nfs_version: NFS protocol version for this mount point
+ * @nlm_init: pointer to arguments structure
  *
  * Returns pointer to an appropriate nlm_host struct,
  * or an ERR_PTR value.
  */
-struct nlm_host *nlmclnt_init(const char *server_name,
-			      const struct sockaddr *server_address,
-			      size_t server_addrlen,
-			      unsigned short protocol, u32 nfs_version)
+struct nlm_host *nlmclnt_init(const struct nlmclnt_initdata *nlm_init)
 {
 	struct nlm_host *host;
-	u32 nlm_version = (nfs_version == 2) ? 1 : 4;
+	u32 nlm_version = (nlm_init->nfs_version == 2) ? 1 : 4;
 	int status;
 
-	status = lockd_up(protocol);
+	status = lockd_up(nlm_init->protocol);
 	if (status < 0)
 		return ERR_PTR(status);
 
-	host = nlmclnt_lookup_host((struct sockaddr_in *)server_address,
-				   protocol, nlm_version,
-				   server_name, strlen(server_name));
+	host = nlmclnt_lookup_host((struct sockaddr_in *)nlm_init->address,
+				   nlm_init->protocol, nlm_version,
+				   nlm_init->hostname,
+				   strlen(nlm_init->hostname));
 	if (host == NULL) {
 		lockd_down();
 		return ERR_PTR(-ENOLCK);
