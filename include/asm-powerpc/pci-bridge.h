@@ -152,9 +152,6 @@ extern void setup_indirect_pci(struct pci_controller* hose,
 			       resource_size_t cfg_addr,
 			       resource_size_t cfg_data, u32 flags);
 extern void setup_grackle(struct pci_controller *hose);
-extern void __init update_bridge_resource(struct pci_dev *dev,
-					  struct resource *res);
-
 #else	/* CONFIG_PPC64 */
 
 /*
