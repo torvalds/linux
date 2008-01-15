@@ -325,9 +325,8 @@ static int sctp_packet(struct nf_conn *ct,
 	}
 
 	old_state = new_state = SCTP_CONNTRACK_MAX;
+	write_lock_bh(&sctp_lock);
 	for_each_sctp_chunk (skb, sch, _sch, offset, dataoff, count) {
-		write_lock_bh(&sctp_lock);
-
 		/* Special cases of Verification tag check (Sec 8.5.1) */
 		if (sch->type == SCTP_CID_INIT) {
 			/* Sec 8.5.1 (A) */
@@ -378,8 +377,8 @@ static int sctp_packet(struct nf_conn *ct,
 		ct->proto.sctp.state = new_state;
 		if (old_state != new_state)
 			nf_conntrack_event_cache(IPCT_PROTOINFO, skb);
-		write_unlock_bh(&sctp_lock);
 	}
+	write_unlock_bh(&sctp_lock);
 
 	nf_ct_refresh_acct(ct, ctinfo, skb, *sctp_timeouts[new_state]);
 
