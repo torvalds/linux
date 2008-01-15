@@ -128,7 +128,7 @@ tos_tg(struct sk_buff *skb, const struct net_device *in,
 	u_int8_t orig, nv;
 
 	orig = ipv4_get_dsfield(iph);
-	nv   = (orig & info->tos_mask) ^ info->tos_value;
+	nv   = (orig & ~info->tos_mask) ^ info->tos_value;
 
 	if (orig != nv) {
 		if (!skb_make_writable(skb, sizeof(struct iphdr)))
