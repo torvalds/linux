@@ -27,6 +27,7 @@ static __inline__ struct atalk_iface *atalk_get_interface_idx(loff_t pos)
 }
 
 static void *atalk_seq_interface_start(struct seq_file *seq, loff_t *pos)
+	__acquires(atalk_interfaces_lock)
 {
 	loff_t l = *pos;
 
@@ -52,6 +53,7 @@ out:
 }
 
 static void atalk_seq_interface_stop(struct seq_file *seq, void *v)
+	__releases(atalk_interfaces_lock)
 {
 	read_unlock_bh(&atalk_interfaces_lock);
 }
@@ -86,6 +88,7 @@ static __inline__ struct atalk_route *atalk_get_route_idx(loff_t pos)
 }
 
 static void *atalk_seq_route_start(struct seq_file *seq, loff_t *pos)
+	__acquires(atalk_routes_lock)
 {
 	loff_t l = *pos;
 
@@ -111,6 +114,7 @@ out:
 }
 
 static void atalk_seq_route_stop(struct seq_file *seq, void *v)
+	__releases(atalk_routes_lock)
 {
 	read_unlock_bh(&atalk_routes_lock);
 }
@@ -154,6 +158,7 @@ found:
 }
 
 static void *atalk_seq_socket_start(struct seq_file *seq, loff_t *pos)
+	__acquires(atalk_sockets_lock)
 {
 	loff_t l = *pos;
 
@@ -176,6 +181,7 @@ out:
 }
 
 static void atalk_seq_socket_stop(struct seq_file *seq, void *v)
+	__releases(atalk_sockets_lock)
 {
 	read_unlock_bh(&atalk_sockets_lock);
 }

@@ -941,6 +941,7 @@ static struct aarp_entry *iter_next(struct aarp_iter_state *iter, loff_t *pos)
 }
 
 static void *aarp_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(aarp_lock)
 {
 	struct aarp_iter_state *iter = seq->private;
 
@@ -975,6 +976,7 @@ static void *aarp_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void aarp_seq_stop(struct seq_file *seq, void *v)
+	__releases(aarp_lock)
 {
 	read_unlock_bh(&aarp_lock);
 }
