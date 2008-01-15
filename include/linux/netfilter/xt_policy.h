@@ -27,18 +27,33 @@ struct xt_policy_spec
 			reqid:1;
 };
 
+#ifndef __KERNEL__
 union xt_policy_addr
 {
 	struct in_addr	a4;
 	struct in6_addr	a6;
 };
+#endif
 
 struct xt_policy_elem
 {
-	union xt_policy_addr	saddr;
-	union xt_policy_addr	smask;
-	union xt_policy_addr	daddr;
-	union xt_policy_addr	dmask;
+	union {
+#ifdef __KERNEL__
+		struct {
+			union nf_inet_addr saddr;
+			union nf_inet_addr smask;
+			union nf_inet_addr daddr;
+			union nf_inet_addr dmask;
+		};
+#else
+		struct {
+			union xt_policy_addr saddr;
+			union xt_policy_addr smask;
+			union xt_policy_addr daddr;
+			union xt_policy_addr dmask;
+		};
+#endif
+	};
 	__be32			spi;
 	u_int32_t		reqid;
 	u_int8_t		proto;

@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <net/xfrm.h>
 
+#include <linux/netfilter.h>
 #include <linux/netfilter/xt_policy.h>
 #include <linux/netfilter/x_tables.h>
 
@@ -21,14 +22,14 @@ MODULE_DESCRIPTION("Xtables IPsec policy matching module");
 MODULE_LICENSE("GPL");
 
 static inline bool
-xt_addr_cmp(const union xt_policy_addr *a1, const union xt_policy_addr *m,
-	    const union xt_policy_addr *a2, unsigned short family)
+xt_addr_cmp(const union nf_inet_addr *a1, const union nf_inet_addr *m,
+	    const union nf_inet_addr *a2, unsigned short family)
 {
 	switch (family) {
 	case AF_INET:
-		return !((a1->a4.s_addr ^ a2->a4.s_addr) & m->a4.s_addr);
+		return ((a1->ip ^ a2->ip) & m->ip) == 0;
 	case AF_INET6:
-		return !ipv6_masked_addr_cmp(&a1->a6, &m->a6, &a2->a6);
+		return ipv6_masked_addr_cmp(&a1->in6, &m->in6, &a2->in6) == 0;
 	}
 	return false;
 }
@@ -38,12 +39,12 @@ match_xfrm_state(const struct xfrm_state *x, const struct xt_policy_elem *e,
 		 unsigned short family)
 {
 #define MATCH_ADDR(x,y,z)	(!e->match.x ||			       \
-				 (xt_addr_cmp(&e->x, &e->y, (z), family) \
+				 (xt_addr_cmp(&e->x, &e->y, (const union nf_inet_addr *)(z), family) \
 				  ^ e->invert.x))
 #define MATCH(x,y)		(!e->match.x || ((e->x == (y)) ^ e->invert.x))
 
-	return MATCH_ADDR(saddr, smask, (union xt_policy_addr *)&x->props.saddr) &&
-	       MATCH_ADDR(daddr, dmask, (union xt_policy_addr *)&x->id.daddr) &&
+	return MATCH_ADDR(saddr, smask, &x->props.saddr) &&
+	       MATCH_ADDR(daddr, dmask, &x->id.daddr) &&
 	       MATCH(proto, x->id.proto) &&
 	       MATCH(mode, x->props.mode) &&
 	       MATCH(spi, x->id.spi) &&
