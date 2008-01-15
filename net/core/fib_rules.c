@@ -112,29 +112,16 @@ void fib_rules_cleanup_ops(struct fib_rules_ops *ops)
 }
 EXPORT_SYMBOL_GPL(fib_rules_cleanup_ops);
 
-int fib_rules_unregister(struct net *net, struct fib_rules_ops *ops)
+void fib_rules_unregister(struct net *net, struct fib_rules_ops *ops)
 {
-	int err = 0;
-	struct fib_rules_ops *o;
 
 	spin_lock(&net->rules_mod_lock);
-	list_for_each_entry(o, &net->rules_ops, list) {
-		if (o == ops) {
-			list_del_rcu(&o->list);
-			fib_rules_cleanup_ops(ops);
-			goto out;
-		}
-	}
-
-	err = -ENOENT;
-out:
+	list_del_rcu(&ops->list);
+	fib_rules_cleanup_ops(ops);
 	spin_unlock(&net->rules_mod_lock);
 
 	synchronize_rcu();
-	if (!err)
-		release_net(net);
-
-	return err;
+	release_net(net);
 }
 
 EXPORT_SYMBOL_GPL(fib_rules_unregister);
