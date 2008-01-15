@@ -369,17 +369,17 @@ struct iwl3945_eeprom {
 
 /* interrupt flags in INTA, set by uCode or hardware (e.g. dma),
  * acknowledged (reset) by host writing "1" to flagged bits. */
-#define CSR_INT_BIT_FH_RX        (1<<31) /* Rx DMA, cmd responses, FH_INT[17:16] */
-#define CSR_INT_BIT_HW_ERR       (1<<29) /* DMA hardware error FH_INT[31] */
-#define CSR_INT_BIT_DNLD         (1<<28) /* uCode Download */
-#define CSR_INT_BIT_FH_TX        (1<<27) /* Tx DMA FH_INT[1:0] */
-#define CSR_INT_BIT_MAC_CLK_ACTV (1<<26) /* NIC controller's clock toggled on/off */
-#define CSR_INT_BIT_SW_ERR       (1<<25) /* uCode error */
-#define CSR_INT_BIT_RF_KILL      (1<<7)  /* HW RFKILL switch GP_CNTRL[27] toggled */
-#define CSR_INT_BIT_CT_KILL      (1<<6)  /* Critical temp (chip too hot) rfkill */
-#define CSR_INT_BIT_SW_RX        (1<<3)  /* Rx, command responses, 3945 */
-#define CSR_INT_BIT_WAKEUP       (1<<1)  /* NIC controller waking up (pwr mgmt) */
-#define CSR_INT_BIT_ALIVE        (1<<0)  /* uCode interrupts once it initializes */
+#define CSR_INT_BIT_FH_RX        (1 << 31) /* Rx DMA, cmd responses, FH_INT[17:16] */
+#define CSR_INT_BIT_HW_ERR       (1 << 29) /* DMA hardware error FH_INT[31] */
+#define CSR_INT_BIT_DNLD         (1 << 28) /* uCode Download */
+#define CSR_INT_BIT_FH_TX        (1 << 27) /* Tx DMA FH_INT[1:0] */
+#define CSR_INT_BIT_MAC_CLK_ACTV (1 << 26) /* NIC controller's clock toggled on/off */
+#define CSR_INT_BIT_SW_ERR       (1 << 25) /* uCode error */
+#define CSR_INT_BIT_RF_KILL      (1 << 7)  /* HW RFKILL switch GP_CNTRL[27] toggled */
+#define CSR_INT_BIT_CT_KILL      (1 << 6)  /* Critical temp (chip too hot) rfkill */
+#define CSR_INT_BIT_SW_RX        (1 << 3)  /* Rx, command responses, 3945 */
+#define CSR_INT_BIT_WAKEUP       (1 << 1)  /* NIC controller waking up (pwr mgmt) */
+#define CSR_INT_BIT_ALIVE        (1 << 0)  /* uCode interrupts once it initializes */
 
 #define CSR_INI_SET_MASK	(CSR_INT_BIT_FH_RX   | \
 				 CSR_INT_BIT_HW_ERR  | \
@@ -391,14 +391,14 @@ struct iwl3945_eeprom {
 				 CSR_INT_BIT_ALIVE)
 
 /* interrupt flags in FH (flow handler) (PCI busmaster DMA) */
-#define CSR_FH_INT_BIT_ERR       (1<<31) /* Error */
-#define CSR_FH_INT_BIT_HI_PRIOR  (1<<30) /* High priority Rx, bypass coalescing */
-#define CSR_FH_INT_BIT_RX_CHNL2  (1<<18) /* Rx channel 2 (3945 only) */
-#define CSR_FH_INT_BIT_RX_CHNL1  (1<<17) /* Rx channel 1 */
-#define CSR_FH_INT_BIT_RX_CHNL0  (1<<16) /* Rx channel 0 */
-#define CSR_FH_INT_BIT_TX_CHNL6  (1<<6)  /* Tx channel 6 (3945 only) */
-#define CSR_FH_INT_BIT_TX_CHNL1  (1<<1)  /* Tx channel 1 */
-#define CSR_FH_INT_BIT_TX_CHNL0  (1<<0)  /* Tx channel 0 */
+#define CSR_FH_INT_BIT_ERR       (1 << 31) /* Error */
+#define CSR_FH_INT_BIT_HI_PRIOR  (1 << 30) /* High priority Rx, bypass coalescing */
+#define CSR_FH_INT_BIT_RX_CHNL2  (1 << 18) /* Rx channel 2 (3945 only) */
+#define CSR_FH_INT_BIT_RX_CHNL1  (1 << 17) /* Rx channel 1 */
+#define CSR_FH_INT_BIT_RX_CHNL0  (1 << 16) /* Rx channel 0 */
+#define CSR_FH_INT_BIT_TX_CHNL6  (1 << 6)  /* Tx channel 6 (3945 only) */
+#define CSR_FH_INT_BIT_TX_CHNL1  (1 << 1)  /* Tx channel 1 */
+#define CSR_FH_INT_BIT_TX_CHNL0  (1 << 0)  /* Tx channel 0 */
 
 #define CSR_FH_INT_RX_MASK	(CSR_FH_INT_BIT_HI_PRIOR | \
 				 CSR_FH_INT_BIT_RX_CHNL2 | \
@@ -629,10 +629,10 @@ struct iwl3945_eeprom {
 
 #define U32_PAD(n)		((4-(n))&0x3)
 
-#define TFD_CTL_COUNT_SET(n)       (n<<24)
-#define TFD_CTL_COUNT_GET(ctl)     ((ctl>>24) & 7)
-#define TFD_CTL_PAD_SET(n)         (n<<28)
-#define TFD_CTL_PAD_GET(ctl)       (ctl>>28)
+#define TFD_CTL_COUNT_SET(n)       (n << 24)
+#define TFD_CTL_COUNT_GET(ctl)     ((ctl >> 24) & 7)
+#define TFD_CTL_PAD_SET(n)         (n << 28)
+#define TFD_CTL_PAD_GET(ctl)       (ctl >> 28)
 
 #define TFD_TX_CMD_SLOTS 256
 #define TFD_CMD_SLOTS 32

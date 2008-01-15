@@ -508,8 +508,8 @@ struct iwl3945_qosparam_cmd {
 #define	IWL_STATION_COUNT	32 	/* MAX(3945,4965)*/
 #define	IWL_INVALID_STATION 	255
 
-#define STA_FLG_TX_RATE_MSK		__constant_cpu_to_le32(1<<2);
-#define STA_FLG_PWR_SAVE_MSK		__constant_cpu_to_le32(1<<8);
+#define STA_FLG_TX_RATE_MSK		__constant_cpu_to_le32(1 << 2);
+#define STA_FLG_PWR_SAVE_MSK		__constant_cpu_to_le32(1 << 8);
 
 /* Use in mode field.  1: modify existing entry, 0: add new station entry */
 #define STA_CONTROL_MODIFY_MSK		0x01
@@ -1010,7 +1010,7 @@ struct iwl3945_rate_scaling_info {
  * For example, if you set 9MB (PLCP 0x0f) as the first
  * rate in the rate table, the bit mask for that rate
  * when passed through ofdm_basic_rates on the REPLY_RXON
- * command would be bit 0 (1<<0)
+ * command would be bit 0 (1 << 0)
  */
 struct iwl3945_rate_scaling_cmd {
 	u8 table_id;
@@ -1190,9 +1190,9 @@ struct iwl3945_spectrum_notification {
  */
 #define IWL_POWER_VEC_SIZE 5
 
-#define IWL_POWER_DRIVER_ALLOW_SLEEP_MSK	__constant_cpu_to_le32(1<<0)
-#define IWL_POWER_SLEEP_OVER_DTIM_MSK		__constant_cpu_to_le32(1<<2)
-#define IWL_POWER_PCI_PM_MSK			__constant_cpu_to_le32(1<<3)
+#define IWL_POWER_DRIVER_ALLOW_SLEEP_MSK	__constant_cpu_to_le32(1 << 0)
+#define IWL_POWER_SLEEP_OVER_DTIM_MSK		__constant_cpu_to_le32(1 << 2)
+#define IWL_POWER_PCI_PM_MSK			__constant_cpu_to_le32(1 << 3)
 struct iwl3945_powertable_cmd {
 	__le32 flags;
 	__le32 rx_data_timeout;

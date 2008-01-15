@@ -5267,7 +5267,7 @@ static int iwl3945_get_channels_for_scan(struct iwl3945_priv *priv, int phymode,
 			scan_ch->tpc.tx_gain = ((1 << 5) | (5 << 3));
 			/* NOTE: if we were doing 6Mb OFDM for scans we'd use
 			 * power level:
-			 * scan_ch->tpc.tx_gain = ((1<<5) | (2 << 3)) | 3;
+			 * scan_ch->tpc.tx_gain = ((1 << 5) | (2 << 3)) | 3;
 			 */
 		}
 

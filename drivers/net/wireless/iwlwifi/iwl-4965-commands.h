@@ -492,18 +492,18 @@ enum {
 };
 
 
-#define RXON_RX_CHAIN_DRIVER_FORCE_MSK		__constant_cpu_to_le16(0x1<<0)
-#define RXON_RX_CHAIN_VALID_MSK			__constant_cpu_to_le16(0x7<<1)
+#define RXON_RX_CHAIN_DRIVER_FORCE_MSK		__constant_cpu_to_le16(0x1 << 0)
+#define RXON_RX_CHAIN_VALID_MSK			__constant_cpu_to_le16(0x7 << 1)
 #define RXON_RX_CHAIN_VALID_POS			(1)
-#define RXON_RX_CHAIN_FORCE_SEL_MSK		__constant_cpu_to_le16(0x7<<4)
+#define RXON_RX_CHAIN_FORCE_SEL_MSK		__constant_cpu_to_le16(0x7 << 4)
 #define RXON_RX_CHAIN_FORCE_SEL_POS		(4)
-#define RXON_RX_CHAIN_FORCE_MIMO_SEL_MSK	__constant_cpu_to_le16(0x7<<7)
+#define RXON_RX_CHAIN_FORCE_MIMO_SEL_MSK	__constant_cpu_to_le16(0x7 << 7)
 #define RXON_RX_CHAIN_FORCE_MIMO_SEL_POS	(7)
-#define RXON_RX_CHAIN_CNT_MSK			__constant_cpu_to_le16(0x3<<10)
+#define RXON_RX_CHAIN_CNT_MSK			__constant_cpu_to_le16(0x3 << 10)
 #define RXON_RX_CHAIN_CNT_POS			(10)
-#define RXON_RX_CHAIN_MIMO_CNT_MSK		__constant_cpu_to_le16(0x3<<12)
+#define RXON_RX_CHAIN_MIMO_CNT_MSK		__constant_cpu_to_le16(0x3 << 12)
 #define RXON_RX_CHAIN_MIMO_CNT_POS		(12)
-#define RXON_RX_CHAIN_MIMO_FORCE_MSK		__constant_cpu_to_le16(0x1<<14)
+#define RXON_RX_CHAIN_MIMO_FORCE_MSK		__constant_cpu_to_le16(0x1 << 14)
 #define RXON_RX_CHAIN_MIMO_FORCE_POS		(14)
 
 /* rx_config flags */
@@ -532,17 +532,17 @@ enum {
 
 /* HT flags */
 #define RXON_FLG_CTRL_CHANNEL_LOC_POS		(22)
-#define RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK	__constant_cpu_to_le32(0x1<<22)
+#define RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK	__constant_cpu_to_le32(0x1 << 22)
 
 #define RXON_FLG_HT_OPERATING_MODE_POS		(23)
 
-#define RXON_FLG_HT_PROT_MSK			__constant_cpu_to_le32(0x1<<23)
-#define RXON_FLG_FAT_PROT_MSK			__constant_cpu_to_le32(0x2<<23)
+#define RXON_FLG_HT_PROT_MSK			__constant_cpu_to_le32(0x1 << 23)
+#define RXON_FLG_FAT_PROT_MSK			__constant_cpu_to_le32(0x2 << 23)
 
 #define RXON_FLG_CHANNEL_MODE_POS		(25)
-#define RXON_FLG_CHANNEL_MODE_MSK		__constant_cpu_to_le32(0x3<<25)
-#define RXON_FLG_CHANNEL_MODE_PURE_40_MSK	__constant_cpu_to_le32(0x1<<25)
-#define RXON_FLG_CHANNEL_MODE_MIXED_MSK		__constant_cpu_to_le32(0x2<<25)
+#define RXON_FLG_CHANNEL_MODE_MSK		__constant_cpu_to_le32(0x3 << 25)
+#define RXON_FLG_CHANNEL_MODE_PURE_40_MSK	__constant_cpu_to_le32(0x1 << 25)
+#define RXON_FLG_CHANNEL_MODE_MIXED_MSK		__constant_cpu_to_le32(0x2 << 25)
 
 /* rx_config filter flags */
 /* accept all data frames */
@@ -713,7 +713,7 @@ struct iwl4965_qosparam_cmd {
 #define	IWL_STATION_COUNT	32 	/* MAX(3945,4965)*/
 #define	IWL_INVALID_STATION 	255
 
-#define STA_FLG_PWR_SAVE_MSK		__constant_cpu_to_le32(1<<8);
+#define STA_FLG_PWR_SAVE_MSK		__constant_cpu_to_le32(1 << 8);
 #define STA_FLG_RTS_MIMO_PROT_MSK	__constant_cpu_to_le32(1 << 17)
 #define STA_FLG_AGG_MPDU_8US_MSK	__constant_cpu_to_le32(1 << 18)
 #define STA_FLG_MAX_AGG_SIZE_POS	(19)
@@ -1333,7 +1333,7 @@ struct iwl4965_txpowertable_cmd {
 } __attribute__ ((packed));
 
 /*RS_NEW_API: only TLC_RTS remains and moved to bit 0 */
-#define  LINK_QUAL_FLAGS_SET_STA_TLC_RTS_MSK	(1<<0)
+#define  LINK_QUAL_FLAGS_SET_STA_TLC_RTS_MSK	(1 << 0)
 
 /* # of EDCA prioritized tx fifos */
 #define  LINK_QUAL_AC_NUM AC_NUM
@@ -1342,8 +1342,8 @@ struct iwl4965_txpowertable_cmd {
 #define  LINK_QUAL_MAX_RETRY_NUM 16
 
 /* Tx antenna selection values */
-#define  LINK_QUAL_ANT_A_MSK (1<<0)
-#define  LINK_QUAL_ANT_B_MSK (1<<1)
+#define  LINK_QUAL_ANT_A_MSK (1 << 0)
+#define  LINK_QUAL_ANT_B_MSK (1 << 1)
 #define  LINK_QUAL_ANT_MSK   (LINK_QUAL_ANT_A_MSK|LINK_QUAL_ANT_B_MSK)
 
 
@@ -1785,9 +1785,9 @@ struct iwl4965_spectrum_notification {
  */
 #define IWL_POWER_VEC_SIZE 5
 
-#define IWL_POWER_DRIVER_ALLOW_SLEEP_MSK	__constant_cpu_to_le16(1<<0)
-#define IWL_POWER_SLEEP_OVER_DTIM_MSK		__constant_cpu_to_le16(1<<2)
-#define IWL_POWER_PCI_PM_MSK			__constant_cpu_to_le16(1<<3)
+#define IWL_POWER_DRIVER_ALLOW_SLEEP_MSK	__constant_cpu_to_le16(1 << 0)
+#define IWL_POWER_SLEEP_OVER_DTIM_MSK		__constant_cpu_to_le16(1 << 2)
+#define IWL_POWER_PCI_PM_MSK			__constant_cpu_to_le16(1 << 3)
 
 struct iwl4965_powertable_cmd {
 	__le16 flags;

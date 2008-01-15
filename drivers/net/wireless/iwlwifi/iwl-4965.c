@@ -815,11 +815,11 @@ static int iwl4965_sens_energy_cck(struct iwl4965_priv *priv,
 	 * This is background noise, which may include transmissions from other
 	 *    networks, measured during silence before our network's beacon */
 	silence_rssi_a = (u8)((rx_info->beacon_silence_rssi_a &
-			    ALL_BAND_FILTER)>>8);
+			    ALL_BAND_FILTER) >> 8);
 	silence_rssi_b = (u8)((rx_info->beacon_silence_rssi_b &
-			    ALL_BAND_FILTER)>>8);
+			    ALL_BAND_FILTER) >> 8);
 	silence_rssi_c = (u8)((rx_info->beacon_silence_rssi_c &
-			    ALL_BAND_FILTER)>>8);
+			    ALL_BAND_FILTER) >> 8);
 
 	val = max(silence_rssi_b, silence_rssi_c);
 	max_silence_rssi = max(silence_rssi_a, (u8) val);
@@ -4233,14 +4233,14 @@ static int iwl4965_tx_status_reply_compressed_ba(struct iwl4965_priv *priv,
 	IWL_DEBUG_TX_REPLY("BA %d %d\n", agg->start_idx, ba_resp->ba_seq_ctl);
 
 	/* Calculate shift to align block-ack bits with our Tx window bits */
-	sh = agg->start_idx - SEQ_TO_INDEX(ba_seq_ctl>>4);
+	sh = agg->start_idx - SEQ_TO_INDEX(ba_seq_ctl >> 4);
 	if (sh < 0) /* tbw something is wrong with indices */
 		sh += 0x100;
 
 	/* don't use 64-bit values for now */
 	bitmap0 = resp_bitmap0 >> sh;
 	bitmap1 = resp_bitmap1 >> sh;
-	bitmap0 |= (resp_bitmap1 & ((1<<sh)|((1<<sh)-1))) << (32 - sh);
+	bitmap0 |= (resp_bitmap1 & ((1 << sh) | ((1 << sh) - 1))) << (32 - sh);
 
 	if (agg->frame_count > (64 - sh)) {
 		IWL_DEBUG_TX_REPLY("more frames than bitmap size");
@@ -4425,7 +4425,7 @@ static int iwl4965_tx_queue_agg_enable(struct iwl4965_priv *priv, int txq_id,
 	iwl4965_tx_queue_set_q2ratid(priv, ra_tid, txq_id);
 
 	/* Set this queue as a chain-building queue */
-	iwl4965_set_bits_prph(priv, KDR_SCD_QUEUECHAIN_SEL, (1<<txq_id));
+	iwl4965_set_bits_prph(priv, KDR_SCD_QUEUECHAIN_SEL, (1 << txq_id));
 
 	/* Place first TFD at index corresponding to start sequence number.
 	 * Assumes that ssn_idx is valid (!= 0xFFF) */
