@@ -2284,10 +2284,8 @@ static void seq_indent(struct seq_file *seq, int n)
 	while (n-- > 0) seq_puts(seq, "   ");
 }
 
-static inline const char *rtn_scope(enum rt_scope_t s)
+static inline const char *rtn_scope(char *buf, size_t len, enum rt_scope_t s)
 {
-	static char buf[32];
-
 	switch (s) {
 	case RT_SCOPE_UNIVERSE: return "universe";
 	case RT_SCOPE_SITE:	return "site";
@@ -2295,7 +2293,7 @@ static inline const char *rtn_scope(enum rt_scope_t s)
 	case RT_SCOPE_HOST:	return "host";
 	case RT_SCOPE_NOWHERE:	return "nowhere";
 	default:
-		snprintf(buf, sizeof(buf), "scope=%d", s);
+		snprintf(buf, len, "scope=%d", s);
 		return buf;
 	}
 }
@@ -2315,13 +2313,11 @@ static const char *rtn_type_names[__RTN_MAX] = {
 	[RTN_XRESOLVE] = "XRESOLVE",
 };
 
-static inline const char *rtn_type(unsigned t)
+static inline const char *rtn_type(char *buf, size_t len, unsigned t)
 {
-	static char buf[32];
-
 	if (t < __RTN_MAX && rtn_type_names[t])
 		return rtn_type_names[t];
-	snprintf(buf, sizeof(buf), "type %u", t);
+	snprintf(buf, len, "type %u", t);
 	return buf;
 }
 
@@ -2359,13 +2355,19 @@ static int fib_trie_seq_show(struct seq_file *seq, void *v)
 		seq_printf(seq, "  |-- %d.%d.%d.%d\n", NIPQUAD(val));
 		for (i = 32; i >= 0; i--) {
 			struct leaf_info *li = find_leaf_info(l, i);
+
 			if (li) {
 				struct fib_alias *fa;
+
 				list_for_each_entry_rcu(fa, &li->falh, fa_list) {
+					char buf1[32], buf2[32];
+
 					seq_indent(seq, iter->depth+1);
 					seq_printf(seq, "  /%d %s %s", i,
-						   rtn_scope(fa->fa_scope),
-						   rtn_type(fa->fa_type));
+						   rtn_scope(buf1, sizeof(buf1),
+							     fa->fa_scope),
+						   rtn_type(buf2, sizeof(buf2),
+							     fa->fa_type));
 					if (fa->fa_tos)
 						seq_printf(seq, "tos =%d\n",
 							   fa->fa_tos);
