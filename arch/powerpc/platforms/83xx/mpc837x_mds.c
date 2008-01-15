@@ -50,15 +50,12 @@ static struct of_device_id mpc837x_ids[] = {
 
 static int __init mpc837x_declare_of_platform_devices(void)
 {
-	if (!machine_is(mpc837x_mds))
-		return 0;
-
 	/* Publish of_device */
 	of_platform_bus_probe(NULL, mpc837x_ids, NULL);
 
 	return 0;
 }
-device_initcall(mpc837x_declare_of_platform_devices);
+machine_device_initcall(mpc837x_mds, mpc837x_declare_of_platform_devices);
 
 static void __init mpc837x_mds_init_IRQ(void)
 {

@@ -141,15 +141,12 @@ static struct of_device_id mpc836x_ids[] = {
 
 static int __init mpc836x_declare_of_platform_devices(void)
 {
-	if (!machine_is(mpc836x_mds))
-		return 0;
-
 	/* Publish the QE devices */
 	of_platform_bus_probe(NULL, mpc836x_ids, NULL);
 
 	return 0;
 }
-device_initcall(mpc836x_declare_of_platform_devices);
+machine_device_initcall(mpc836x_mds, mpc836x_declare_of_platform_devices);
 
 static void __init mpc836x_mds_init_IRQ(void)
 {
