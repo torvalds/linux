@@ -82,14 +82,6 @@ static inline void slb_shadow_clear(unsigned long entry)
 	get_slb_shadow()->save_area[entry].esid = 0;
 }
 
-void slb_shadow_clear_all(void)
-{
-	int i;
-
-	for (i = 0; i < SLB_NUM_BOLTED; i++)
-		slb_shadow_clear(i);
-}
-
 static inline void create_shadowed_slbe(unsigned long ea, int ssize,
 					unsigned long flags,
 					unsigned long entry)
@@ -299,6 +291,8 @@ void slb_initialize(void)
 	create_shadowed_slbe(PAGE_OFFSET, mmu_kernel_ssize, lflags, 0);
 
 	create_shadowed_slbe(VMALLOC_START, mmu_kernel_ssize, vflags, 1);
+
+	slb_shadow_clear(2);
 
 	/* We don't bolt the stack for the time being - we're in boot,
 	 * so the stack is in the bolted segment.  By the time it goes

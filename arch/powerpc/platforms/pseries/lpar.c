@@ -272,7 +272,6 @@ void vpa_init(int cpu)
 	 */
 	addr = __pa(&slb_shadow[cpu]);
 	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
-		slb_shadow_clear_all();
 		ret = register_slb_shadow(hwcpu, addr);
 		if (ret)
 			printk(KERN_ERR
