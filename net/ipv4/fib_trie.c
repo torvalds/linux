@@ -148,10 +148,10 @@ struct trie_stat {
 
 struct trie {
 	struct node *trie;
+	unsigned int size;
 #ifdef CONFIG_IP_FIB_TRIE_STATS
 	struct trie_use_stats stats;
 #endif
-	int size;
 };
 
 static void put_child(struct trie *t, struct tnode *tn, int i, struct node *n);
@@ -1045,7 +1045,6 @@ static struct list_head *fib_insert_node(struct trie *t, u32 key, int plen)
 		insert_leaf_info(&l->list, li);
 		goto done;
 	}
-	t->size++;
 	l = leaf_new();
 
 	if (!l)
@@ -1260,6 +1259,8 @@ static int fn_trie_insert(struct fib_table *tb, struct fib_config *cfg)
 
 	list_add_tail_rcu(&new_fa->fa_list,
 			  (fa ? &fa->fa_list : fa_head));
+
+	t->size++;
 
 	rt_cache_flush(-1);
 	rtmsg_fib(RTM_NEWROUTE, htonl(key), new_fa, plen, tb->tb_id,
@@ -2131,50 +2132,34 @@ static void trie_show_usage(struct seq_file *seq,
 }
 #endif /*  CONFIG_IP_FIB_TRIE_STATS */
 
+static void fib_trie_show(struct seq_file *seq, const char *name, struct trie *trie)
+{
+	struct trie_stat stat;
+
+	seq_printf(seq, "%s: %d\n", name, trie->size);
+	trie_collect_stats(trie, &stat);
+	trie_show_stats(seq, &stat);
+#ifdef CONFIG_IP_FIB_TRIE_STATS
+	trie_show_usage(seq, &trie->stats);
+#endif
+}
 
 static int fib_triestat_seq_show(struct seq_file *seq, void *v)
 {
 	struct net *net = (struct net *)seq->private;
-	struct trie *trie_local, *trie_main;
-	struct trie_stat *stat;
 	struct fib_table *tb;
 
-	trie_local = NULL;
-	tb = fib_get_table(net, RT_TABLE_LOCAL);
-	if (tb)
-		trie_local = (struct trie *) tb->tb_data;
-
-	trie_main = NULL;
-	tb = fib_get_table(net, RT_TABLE_MAIN);
-	if (tb)
-		trie_main = (struct trie *) tb->tb_data;
-
-
-	stat = kmalloc(sizeof(*stat), GFP_KERNEL);
-	if (!stat)
-		return -ENOMEM;
-
-	seq_printf(seq, "Basic info: size of leaf: %Zd bytes, size of tnode: %Zd bytes.\n",
+	seq_printf(seq,
+		   "Basic info: size of leaf: %Zd bytes, size of tnode: %Zd bytes.\n",
 		   sizeof(struct leaf), sizeof(struct tnode));
 
-	if (trie_local) {
-		seq_printf(seq, "Local:\n");
-		trie_collect_stats(trie_local, stat);
-		trie_show_stats(seq, stat);
-#ifdef CONFIG_IP_FIB_TRIE_STATS
-		trie_show_usage(seq, &trie_local->stats);
-#endif
-	}
+	tb = fib_get_table(net, RT_TABLE_LOCAL);
+	if (tb)
+		fib_trie_show(seq, "Local", (struct trie *) tb->tb_data);
 
-	if (trie_main) {
-		seq_printf(seq, "Main:\n");
-		trie_collect_stats(trie_main, stat);
-		trie_show_stats(seq, stat);
-#ifdef CONFIG_IP_FIB_TRIE_STATS
-		trie_show_usage(seq, &trie_main->stats);
-#endif
-	}
-	kfree(stat);
+	tb = fib_get_table(net, RT_TABLE_MAIN);
+	if (tb)
+		fib_trie_show(seq, "Main", (struct trie *) tb->tb_data);
 
 	return 0;
 }
