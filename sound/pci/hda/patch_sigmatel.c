@@ -121,7 +121,6 @@ struct sigmatel_spec {
 	unsigned int mic_switch: 1;
 	unsigned int alt_switch: 1;
 	unsigned int hp_detect: 1;
-	unsigned int gpio_mute: 1;
 
 	unsigned int gpio_mask, gpio_data;
 	unsigned char aloopback_mask;
@@ -1681,22 +1680,6 @@ static void stac92xx_set_config_regs(struct hda_codec *codec)
 					spec->pin_configs[i]);
 }
 
-static void stac92xx_enable_gpio_mask(struct hda_codec *codec)
-{
-	struct sigmatel_spec *spec = codec->spec;
-	/* Configure GPIOx as output */
-	snd_hda_codec_write_cache(codec, codec->afg, 0,
-				  AC_VERB_SET_GPIO_DIRECTION, spec->gpio_mask);
-	/* Configure GPIOx as CMOS */
-	snd_hda_codec_write_cache(codec, codec->afg, 0, 0x7e7, 0x00000000);
-	/* Assert GPIOx */
-	snd_hda_codec_write_cache(codec, codec->afg, 0,
-				  AC_VERB_SET_GPIO_DATA, spec->gpio_data);
-	/* Enable GPIOx */
-	snd_hda_codec_write_cache(codec, codec->afg, 0,
-				  AC_VERB_SET_GPIO_MASK, spec->gpio_mask);
-}
-
 /*
  * Analog playback callbacks
  */
@@ -2678,38 +2661,35 @@ static int stac9200_parse_auto_config(struct hda_codec *codec)
  * funky external mute control using GPIO pins.
  */
 
-static void stac922x_gpio_mute(struct hda_codec *codec, int pin, int muted)
+static void stac_gpio_set(struct hda_codec *codec, unsigned int mask,
+			  unsigned int data)
 {
 	unsigned int gpiostate, gpiomask, gpiodir;
 
 	gpiostate = snd_hda_codec_read(codec, codec->afg, 0,
 				       AC_VERB_GET_GPIO_DATA, 0);
-
-	if (!muted)
-		gpiostate |= (1 << pin);
-	else
-		gpiostate &= ~(1 << pin);
+	gpiostate = (gpiostate & ~mask) | (data & mask);
 
 	gpiomask = snd_hda_codec_read(codec, codec->afg, 0,
 				      AC_VERB_GET_GPIO_MASK, 0);
-	gpiomask |= (1 << pin);
+	gpiomask |= mask;
 
 	gpiodir = snd_hda_codec_read(codec, codec->afg, 0,
 				     AC_VERB_GET_GPIO_DIRECTION, 0);
-	gpiodir |= (1 << pin);
+	gpiodir |= mask;
 
-	/* AppleHDA seems to do this -- WTF is this verb?? */
+	/* Configure GPIOx as CMOS */
 	snd_hda_codec_write(codec, codec->afg, 0, 0x7e7, 0);
 
 	snd_hda_codec_write(codec, codec->afg, 0,
 			    AC_VERB_SET_GPIO_MASK, gpiomask);
-	snd_hda_codec_write(codec, codec->afg, 0,
-			    AC_VERB_SET_GPIO_DIRECTION, gpiodir);
+	snd_hda_codec_read(codec, codec->afg, 0,
+			   AC_VERB_SET_GPIO_DIRECTION, gpiodir); /* sync */
 
 	msleep(1);
 
-	snd_hda_codec_write(codec, codec->afg, 0,
-			    AC_VERB_SET_GPIO_DATA, gpiostate);
+	snd_hda_codec_read(codec, codec->afg, 0,
+			   AC_VERB_SET_GPIO_DATA, gpiostate); /* sync */
 }
 
 static void enable_pin_detect(struct hda_codec *codec, hda_nid_t nid,
@@ -2791,10 +2771,7 @@ static int stac92xx_init(struct hda_codec *codec)
 		stac92xx_auto_set_pinctl(codec, cfg->dig_in_pin,
 					 AC_PINCTL_IN_EN);
 
-	if (spec->gpio_mute) {
-		stac922x_gpio_mute(codec, 0, 0);
-		stac922x_gpio_mute(codec, 1, 0);
-	}
+	stac_gpio_set(codec, spec->gpio_mask, spec->gpio_data);
 
 	return 0;
 }
@@ -2950,10 +2927,7 @@ static int stac92xx_resume(struct hda_codec *codec)
 
 	stac92xx_set_config_regs(codec);
 	snd_hda_sequence_write(codec, spec->init);
-	if (spec->gpio_mute) {
-		stac922x_gpio_mute(codec, 0, 0);
-		stac922x_gpio_mute(codec, 1, 0);
-	}
+	stac_gpio_set(codec, spec->gpio_mask, spec->gpio_data);
 	snd_hda_codec_resume_amp(codec);
 	snd_hda_codec_resume_cache(codec);
 	/* invoke unsolicited event to reset the HP state */
@@ -3188,7 +3162,6 @@ again:
 	spec->dinput_mux = &stac92hd73xx_dmux;
 	/* GPIO0 High = Enable EAPD */
 	spec->gpio_mask = spec->gpio_data = 0x000001;
-	stac92xx_enable_gpio_mask(codec);
 
 	spec->num_pwrs = ARRAY_SIZE(stac92hd73xx_pwr_nids);
 	spec->pwr_nids = stac92hd73xx_pwr_nids;
@@ -3263,7 +3236,6 @@ again:
 	spec->aloopback_shift = 0;
 
 	spec->gpio_mask = spec->gpio_data = 0x00000001; /* GPIO0 High = EAPD */
-	stac92xx_enable_gpio_mask(codec);
 
 	spec->mux_nids = stac92hd71bxx_mux_nids;
 	spec->adc_nids = stac92hd71bxx_adc_nids;
@@ -3319,7 +3291,7 @@ static int patch_stac922x(struct hda_codec *codec)
 							stac922x_models,
 							stac922x_cfg_tbl);
 	if (spec->board_config == STAC_INTEL_MAC_V3) {
-		spec->gpio_mute = 1;
+		spec->gpio_mask = spec->gpio_data = 0x03;
 		/* Intel Macs have all same PCI SSID, so we need to check
 		 * codec SSID to distinguish the exact models
 		 */
@@ -3483,7 +3455,6 @@ static int patch_stac927x(struct hda_codec *codec)
 	spec->aloopback_mask = 0x40;
 	spec->aloopback_shift = 0;
 
-	stac92xx_enable_gpio_mask(codec); 
 	err = stac92xx_parse_auto_config(codec, 0x1e, 0x20);
 	if (!err) {
 		if (spec->board_config < 0) {
@@ -3568,7 +3539,6 @@ static int patch_stac9205(struct hda_codec *codec)
 		break;
 	}
 
-	stac92xx_enable_gpio_mask(codec);
 	err = stac92xx_parse_auto_config(codec, 0x1f, 0x20);
 	if (!err) {
 		if (spec->board_config < 0) {
