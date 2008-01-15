@@ -4947,6 +4947,11 @@ static int selinux_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
 	return security_sid_to_context(secid, secdata, seclen);
 }
 
+static int selinux_secctx_to_secid(char *secdata, u32 seclen, u32 *secid)
+{
+	return security_context_to_sid(secdata, seclen, secid);
+}
+
 static void selinux_release_secctx(char *secdata, u32 seclen)
 {
 	kfree(secdata);
@@ -5138,6 +5143,7 @@ static struct security_operations selinux_ops = {
 	.setprocattr =                  selinux_setprocattr,
 
 	.secid_to_secctx =		selinux_secid_to_secctx,
+	.secctx_to_secid =		selinux_secctx_to_secid,
 	.release_secctx =		selinux_release_secctx,
 
         .unix_stream_connect =		selinux_socket_unix_stream_connect,
