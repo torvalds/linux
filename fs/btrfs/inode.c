@@ -80,6 +80,8 @@ int btrfs_check_free_space(struct btrfs_root *root, u64 num_required,
 	u64 thresh;
 	int ret = 0;
 
+	return 0;
+
 	if (for_del)
 		thresh = total * 90;
 	else
