@@ -341,7 +341,7 @@ static int sctp_packet(struct nf_conn *ct,
 			/* Sec 8.5.1 (C) */
 			if (sh->vtag != ct->proto.sctp.vtag[dir] &&
 			    sh->vtag != ct->proto.sctp.vtag[!dir] &&
-			    (sch->flags & 1))
+			    sch->flags & SCTP_CHUNK_FLAG_T)
 				goto out_unlock;
 		} else if (sch->type == SCTP_CID_COOKIE_ECHO) {
 			/* Sec 8.5.1 (D) */
