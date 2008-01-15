@@ -321,8 +321,13 @@ extern void set_highmem_pages_init(int);
 static void __init set_highmem_pages_init(int bad_ppro)
 {
 	int pfn;
-	for (pfn = highstart_pfn; pfn < highend_pfn; pfn++)
-		add_one_highpage_init(pfn_to_page(pfn), pfn, bad_ppro);
+	for (pfn = highstart_pfn; pfn < highend_pfn; pfn++) {
+		/*
+		 * Holes under sparsemem might not have no mem_map[]:
+		 */
+		if (pfn_valid(pfn))
+			add_one_highpage_init(pfn_to_page(pfn), pfn, bad_ppro);
+	}
 	totalram_pages += totalhigh_pages;
 }
 #endif /* CONFIG_FLATMEM */
