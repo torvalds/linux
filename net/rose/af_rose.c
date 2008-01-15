@@ -116,7 +116,7 @@ int rosecmp(rose_address *addr1, rose_address *addr2)
  */
 int rosecmpm(rose_address *addr1, rose_address *addr2, unsigned short mask)
 {
-	int i, j;
+	unsigned int i, j;
 
 	if (mask > 10)
 		return 1;
@@ -973,8 +973,8 @@ int rose_rx_call_request(struct sk_buff *skb, struct net_device *dev, struct ros
 	 */
 	memset(&facilities, 0x00, sizeof(struct rose_facilities_struct));
 
-	len  = (((skb->data[3] >> 4) & 0x0F) + 1) / 2;
-	len += (((skb->data[3] >> 0) & 0x0F) + 1) / 2;
+	len  = (((skb->data[3] >> 4) & 0x0F) + 1) >> 1;
+	len += (((skb->data[3] >> 0) & 0x0F) + 1) >> 1;
 	if (!rose_parse_facilities(skb->data + len + 4, &facilities)) {
 		rose_transmit_clear_request(neigh, lci, ROSE_INVALID_FACILITY, 76);
 		return 0;
@@ -1377,6 +1377,7 @@ static int rose_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 
 #ifdef CONFIG_PROC_FS
 static void *rose_info_start(struct seq_file *seq, loff_t *pos)
+	__acquires(rose_list_lock)
 {
 	int i;
 	struct sock *s;
@@ -1404,6 +1405,7 @@ static void *rose_info_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void rose_info_stop(struct seq_file *seq, void *v)
+	__releases(rose_list_lock)
 {
 	spin_unlock_bh(&rose_list_lock);
 }
