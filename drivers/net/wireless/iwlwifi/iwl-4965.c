@@ -2797,11 +2797,6 @@ int iwl4965_hw_tx_queue_init(struct iwl4965_priv *priv, struct iwl4965_tx_queue 
 	return 0;
 }
 
-static inline u8 iwl4965_get_dma_hi_address(dma_addr_t addr)
-{
-	return sizeof(addr) > sizeof(u32) ? (addr >> 16) >> 16 : 0;
-}
-
 int iwl4965_hw_txq_attach_buf_to_tfd(struct iwl4965_priv *priv, void *ptr,
 				 dma_addr_t addr, u16 len)
 {
@@ -2822,7 +2817,7 @@ int iwl4965_hw_txq_attach_buf_to_tfd(struct iwl4965_priv *priv, void *ptr,
 	if (!is_odd) {
 		tfd->pa[index].tb1_addr = cpu_to_le32(addr);
 		IWL_SET_BITS(tfd->pa[index], tb1_addr_hi,
-			     iwl4965_get_dma_hi_address(addr));
+			     iwl_get_dma_hi_address(addr));
 		IWL_SET_BITS(tfd->pa[index], tb1_len, len);
 	} else {
 		IWL_SET_BITS(tfd->pa[index], tb2_addr_lo16,
@@ -3289,7 +3284,7 @@ int iwl4965_tx_cmd(struct iwl4965_priv *priv, struct iwl4965_cmd *out_cmd,
 	scratch_phys = txcmd_phys + sizeof(struct iwl4965_cmd_header) +
 	    offsetof(struct iwl4965_tx_cmd, scratch);
 	tx->dram_lsb_ptr = cpu_to_le32(scratch_phys);
-	tx->dram_msb_ptr = iwl4965_get_dma_hi_address(scratch_phys);
+	tx->dram_msb_ptr = iwl_get_dma_hi_address(scratch_phys);
 
 	/* Hard coded to start at the highest retry fallback position
 	 * until the 4965 specific rate control algorithm is tied in */
