@@ -88,6 +88,20 @@ void dt_fixup_clock(const char *path, u32 freq)
 	}
 }
 
+void dt_fixup_mac_address_by_alias(const char *alias, const u8 *addr)
+{
+	void *devp = find_node_by_alias(alias);
+
+	if (devp) {
+		printf("%s: local-mac-address <-"
+		       " %02x:%02x:%02x:%02x:%02x:%02x\n\r", alias,
+		       addr[0], addr[1], addr[2],
+		       addr[3], addr[4], addr[5]);
+
+		setprop(devp, "local-mac-address", addr, 6);
+	}
+}
+
 void dt_fixup_mac_address(u32 index, const u8 *addr)
 {
 	void *devp = find_node_by_prop_value(NULL, "linux,network-index",
