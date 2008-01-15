@@ -122,7 +122,6 @@ static struct scsi_host_template arcmsr_scsi_host_template = {
 	.max_sectors    	= ARCMSR_MAX_XFER_SECTORS,
 	.cmd_per_lun		= ARCMSR_MAX_CMD_PERLUN,
 	.use_clustering		= ENABLE_CLUSTERING,
-	.use_sg_chaining	= ENABLE_SG_CHAINING,
 	.shost_attrs		= arcmsr_host_attrs,
 };
 #ifdef CONFIG_SCSI_ARCMSR_AER

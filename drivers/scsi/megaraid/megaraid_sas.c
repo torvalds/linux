@@ -1192,7 +1192,6 @@ static struct scsi_host_template megasas_template = {
 	.eh_timed_out = megasas_reset_timer,
 	.bios_param = megasas_bios_param,
 	.use_clustering = ENABLE_CLUSTERING,
-	.use_sg_chaining = ENABLE_SG_CHAINING,
 };
 
 /**

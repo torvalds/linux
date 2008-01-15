@@ -1571,7 +1571,6 @@ static struct scsi_host_template srp_template = {
 	.this_id			= -1,
 	.cmd_per_lun			= SRP_SQ_SIZE,
 	.use_clustering			= ENABLE_CLUSTERING,
-	.use_sg_chaining		= ENABLE_SG_CHAINING,
 	.shost_attrs			= srp_host_attrs
 };
 

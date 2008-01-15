@@ -1065,7 +1065,6 @@ static struct scsi_host_template driver_template =
      .cmd_per_lun       	= 1			/* commands per lun */, 
      .unchecked_isa_dma 	= 1			/* unchecked_isa_dma */,
      .use_clustering    	= ENABLE_CLUSTERING,
-     .use_sg_chaining           = ENABLE_SG_CHAINING,
 };
 
 #include "scsi_module.c"

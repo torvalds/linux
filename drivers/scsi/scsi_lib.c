@@ -8,6 +8,7 @@
  */
 
 #include <linux/bio.h>
+#include <linux/bitops.h>
 #include <linux/blkdev.h>
 #include <linux/completion.h>
 #include <linux/kernel.h>
@@ -34,13 +35,6 @@
 #define SG_MEMPOOL_NR		ARRAY_SIZE(scsi_sg_pools)
 #define SG_MEMPOOL_SIZE		2
 
-/*
- * The maximum number of SG segments that we will put inside a scatterlist
- * (unless chaining is used). Should ideally fit inside a single page, to
- * avoid a higher order allocation.
- */
-#define SCSI_MAX_SG_SEGMENTS	128
-
 struct scsi_host_sg_pool {
 	size_t		size;
 	char		*name;
@@ -48,19 +42,26 @@ struct scsi_host_sg_pool {
 	mempool_t	*pool;
 };
 
-#define SP(x) { x, "sgpool-" #x }
+#define SP(x) { x, "sgpool-" __stringify(x) }
+#if (SCSI_MAX_SG_SEGMENTS < 32)
+#error SCSI_MAX_SG_SEGMENTS is too small (must be 32 or greater)
+#endif
 static struct scsi_host_sg_pool scsi_sg_pools[] = {
 	SP(8),
 	SP(16),
-#if (SCSI_MAX_SG_SEGMENTS > 16)
-	SP(32),
 #if (SCSI_MAX_SG_SEGMENTS > 32)
-	SP(64),
+	SP(32),
 #if (SCSI_MAX_SG_SEGMENTS > 64)
+	SP(64),
+#if (SCSI_MAX_SG_SEGMENTS > 128)
 	SP(128),
+#if (SCSI_MAX_SG_SEGMENTS > 256)
+#error SCSI_MAX_SG_SEGMENTS is too large (256 MAX)
 #endif
 #endif
 #endif
+#endif
+	SP(SCSI_MAX_SG_SEGMENTS)
 };
 #undef SP
 
@@ -692,42 +693,16 @@ static struct scsi_cmnd *scsi_end_request(struct scsi_cmnd *cmd, int error,
 	return NULL;
 }
 
-/*
- * Like SCSI_MAX_SG_SEGMENTS, but for archs that have sg chaining. This limit
- * is totally arbitrary, a setting of 2048 will get you at least 8mb ios.
- */
-#define SCSI_MAX_SG_CHAIN_SEGMENTS	2048
-
 static inline unsigned int scsi_sgtable_index(unsigned short nents)
 {
 	unsigned int index;
 
-	switch (nents) {
-	case 1 ... 8:
+	BUG_ON(nents > SCSI_MAX_SG_SEGMENTS);
+
+	if (nents <= 8)
 		index = 0;
-		break;
-	case 9 ... 16:
-		index = 1;
-		break;
-#if (SCSI_MAX_SG_SEGMENTS > 16)
-	case 17 ... 32:
-		index = 2;
-		break;
-#if (SCSI_MAX_SG_SEGMENTS > 32)
-	case 33 ... 64:
-		index = 3;
-		break;
-#if (SCSI_MAX_SG_SEGMENTS > 64)
-	case 65 ... 128:
-		index = 4;
-		break;
-#endif
-#endif
-#endif
-	default:
-		printk(KERN_ERR "scsi: bad segment count=%d\n", nents);
-		BUG();
-	}
+	else
+		index = get_count_order(nents) - 3;
 
 	return index;
 }
@@ -1603,20 +1578,7 @@ struct request_queue *__scsi_alloc_queue(struct Scsi_Host *shost,
 	 * this limit is imposed by hardware restrictions
 	 */
 	blk_queue_max_hw_segments(q, shost->sg_tablesize);
-
-	/*
-	 * In the future, sg chaining support will be mandatory and this
-	 * ifdef can then go away. Right now we don't have all archs
-	 * converted, so better keep it safe.
-	 */
-#ifdef ARCH_HAS_SG_CHAIN
-	if (shost->use_sg_chaining)
-		blk_queue_max_phys_segments(q, SCSI_MAX_SG_CHAIN_SEGMENTS);
-	else
-		blk_queue_max_phys_segments(q, SCSI_MAX_SG_SEGMENTS);
-#else
-	blk_queue_max_phys_segments(q, SCSI_MAX_SG_SEGMENTS);
-#endif
+	blk_queue_max_phys_segments(q, SCSI_MAX_SG_CHAIN_SEGMENTS);
 
 	blk_queue_max_sectors(q, shost->max_sectors);
 	blk_queue_bounce_limit(q, scsi_calculate_bounce_limit(shost));
