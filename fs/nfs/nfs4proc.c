@@ -3617,10 +3617,6 @@ int nfs4_setxattr(struct dentry *dentry, const char *key, const void *buf,
 	if (strcmp(key, XATTR_NAME_NFSV4_ACL) != 0)
 		return -EOPNOTSUPP;
 
-	if (!S_ISREG(inode->i_mode) &&
-	    (!S_ISDIR(inode->i_mode) || inode->i_mode & S_ISVTX))
-		return -EPERM;
-
 	return nfs4_proc_set_acl(inode, buf, buflen);
 }
 
