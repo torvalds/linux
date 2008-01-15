@@ -524,7 +524,7 @@ static DECLARE_TLV_DB_SCALE(ac97_db_scale, -3450, 150, 0);
 static const struct snd_kcontrol_new controls[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "PCM Playback Volume",
+		.name = "Master Playback Volume",
 		.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
 			  SNDRV_CTL_ELEM_ACCESS_TLV_READ,
 		.info = dac_volume_info,
@@ -536,7 +536,7 @@ static const struct snd_kcontrol_new controls[] = {
 	},
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "PCM Playback Switch",
+		.name = "Master Playback Switch",
 		.info = snd_ctl_boolean_mono_info,
 		.get = dac_mute_get,
 		.put = dac_mute_put,
@@ -637,7 +637,7 @@ int oxygen_mixer_init(struct oxygen *chip)
 		ctl = snd_ctl_new1(&controls[i], chip);
 		if (!ctl)
 			return -ENOMEM;
-		if (!strcmp(ctl->id.name, "PCM Playback Volume"))
+		if (!strcmp(ctl->id.name, "Master Playback Volume"))
 			ctl->tlv.p = chip->model->dac_tlv;
 		else if (chip->model->cd_in_from_video_in &&
 			 !strncmp(ctl->id.name, "CD Capture ", 11))
