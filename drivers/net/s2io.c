@@ -84,7 +84,7 @@
 #include "s2io.h"
 #include "s2io-regs.h"
 
-#define DRV_VERSION "2.0.26.10"
+#define DRV_VERSION "2.0.26.17"
 
 /* S2io Driver name & version. */
 static char s2io_driver_name[] = "Neterion";
@@ -3848,8 +3848,6 @@ static int s2io_open(struct net_device *dev)
 	netif_carrier_off(dev);
 	sp->last_link_state = 0;
 
-	napi_enable(&sp->napi);
-
 	if (sp->config.intr_type == MSI_X) {
 		int ret = s2io_enable_msi_x(sp);
 
@@ -3892,7 +3890,6 @@ static int s2io_open(struct net_device *dev)
 	return 0;
 
 hw_init_failed:
-	napi_disable(&sp->napi);
 	if (sp->config.intr_type == MSI_X) {
 		if (sp->entries) {
 			kfree(sp->entries);
@@ -3932,7 +3929,6 @@ static int s2io_close(struct net_device *dev)
 		return 0;
 
 	netif_stop_queue(dev);
-	napi_disable(&sp->napi);
 	/* Reset card, kill tasklet and free Tx and Rx buffers. */
 	s2io_card_down(sp);
 
@@ -6796,6 +6792,8 @@ static void do_s2io_card_down(struct s2io_nic * sp, int do_io)
 	struct XENA_dev_config __iomem *bar0 = sp->bar0;
 	unsigned long flags;
 	register u64 val64 = 0;
+	struct config_param *config;
+	config = &sp->config;
 
 	if (!is_s2io_card_up(sp))
 		return;
@@ -6806,6 +6804,10 @@ static void do_s2io_card_down(struct s2io_nic * sp, int do_io)
 		msleep(50);
 	}
 	clear_bit(__S2IO_STATE_CARD_UP, &sp->state);
+
+	/* Disable napi */
+	if (config->napi)
+		napi_disable(&sp->napi);
 
 	/* disable Tx and Rx traffic on the NIC */
 	if (do_io)
@@ -6900,6 +6902,11 @@ static int s2io_card_up(struct s2io_nic * sp)
 		DBG_PRINT(INFO_DBG, "Buf in ring:%d is %d:\n", i,
 			  atomic_read(&sp->rx_bufs_left[i]));
 	}
+
+	/* Initialise napi */
+	if (config->napi)
+		napi_enable(&sp->napi);
+
 	/* Maintain the state prior to the open */
 	if (sp->promisc_flg)
 		sp->promisc_flg = 0;
