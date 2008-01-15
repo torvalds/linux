@@ -3949,7 +3949,7 @@ static __exit void sky2_debug_cleanup(void)
 /* Initialize network device */
 static __devinit struct net_device *sky2_init_netdev(struct sky2_hw *hw,
 						     unsigned port,
-						     int highmem)
+						     int highmem, int wol)
 {
 	struct sky2_port *sky2;
 	struct net_device *dev = alloc_etherdev(sizeof(*sky2));
@@ -3989,7 +3989,7 @@ static __devinit struct net_device *sky2_init_netdev(struct sky2_hw *hw,
 	sky2->speed = -1;
 	sky2->advertising = sky2_supported_modes(hw);
 	sky2->rx_csum = (hw->chip_id != CHIP_ID_YUKON_XL);
-	sky2->wol = sky2_wol_supported(hw) & WAKE_MAGIC;
+	sky2->wol = wol;
 
 	spin_lock_init(&sky2->phy_lock);
 	sky2->tx_pending = TX_DEF_PENDING;
@@ -4086,12 +4086,24 @@ static int __devinit sky2_test_msi(struct sky2_hw *hw)
 	return err;
 }
 
+static int __devinit pci_wake_enabled(struct pci_dev *dev)
+{
+	int pm  = pci_find_capability(dev, PCI_CAP_ID_PM);
+	u16 value;
+
+	if (!pm)
+		return 0;
+	if (pci_read_config_word(dev, pm + PCI_PM_CTRL, &value))
+		return 0;
+	return value & PCI_PM_CTRL_PME_ENABLE;
+}
+
 static int __devinit sky2_probe(struct pci_dev *pdev,
 				const struct pci_device_id *ent)
 {
 	struct net_device *dev;
 	struct sky2_hw *hw;
-	int err, using_dac = 0;
+	int err, using_dac = 0, wol_default;
 
 	err = pci_enable_device(pdev);
 	if (err) {
@@ -4123,6 +4135,8 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 			goto err_out_free_regions;
 		}
 	}
+
+	wol_default = pci_wake_enabled(pdev) ? WAKE_MAGIC : 0;
 
 	err = -ENOMEM;
 	hw = kzalloc(sizeof(*hw), GFP_KERNEL);
@@ -4167,7 +4181,7 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 
 	sky2_reset(hw);
 
-	dev = sky2_init_netdev(hw, 0, using_dac);
+	dev = sky2_init_netdev(hw, 0, using_dac, wol_default);
 	if (!dev) {
 		err = -ENOMEM;
 		goto err_out_free_pci;
@@ -4204,7 +4218,7 @@ static int __devinit sky2_probe(struct pci_dev *pdev,
 	if (hw->ports > 1) {
 		struct net_device *dev1;
 
-		dev1 = sky2_init_netdev(hw, 1, using_dac);
+		dev1 = sky2_init_netdev(hw, 1, using_dac, wol_default);
 		if (!dev1)
 			dev_warn(&pdev->dev, "allocation for second device failed\n");
 		else if ((err = register_netdev(dev1))) {
