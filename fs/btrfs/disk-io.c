@@ -639,6 +639,7 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	INIT_LIST_HEAD(&fs_info->hashers);
 	spin_lock_init(&fs_info->hash_lock);
 	spin_lock_init(&fs_info->delalloc_lock);
+	spin_lock_init(&fs_info->new_trans_lock);
 
 	memset(&fs_info->super_kobj, 0, sizeof(fs_info->super_kobj));
 	init_completion(&fs_info->kobj_unregister);

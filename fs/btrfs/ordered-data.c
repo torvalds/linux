@@ -219,3 +219,39 @@ int btrfs_find_del_first_ordered_inode(struct btrfs_ordered_inode_tree *tree,
 	kfree(entry);
 	return 1;
 }
+
+static int __btrfs_del_ordered_inode(struct btrfs_ordered_inode_tree *tree,
+				     u64 root_objectid, u64 objectid)
+{
+	struct tree_entry *entry;
+	struct rb_node *node;
+	struct rb_node *prev;
+
+	write_lock(&tree->lock);
+	node = __tree_search(&tree->tree, root_objectid, objectid, &prev);
+	if (!node) {
+		write_unlock(&tree->lock);
+		return 0;
+	}
+	rb_erase(node, &tree->tree);
+	write_unlock(&tree->lock);
+	entry = rb_entry(node, struct tree_entry, rb_node);
+	kfree(entry);
+	return 1;
+}
+
+int btrfs_del_ordered_inode(struct inode *inode)
+{
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	u64 root_objectid = root->root_key.objectid;
+
+	spin_lock(&root->fs_info->new_trans_lock);
+	if (root->fs_info->running_transaction) {
+		struct btrfs_ordered_inode_tree *tree;
+		tree = &root->fs_info->running_transaction->ordered_inode_tree;
+		__btrfs_del_ordered_inode(tree, root_objectid, inode->i_ino);
+	}
+	spin_unlock(&root->fs_info->new_trans_lock);
+	return 0;
+}
+

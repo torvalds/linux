@@ -699,7 +699,9 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	BUG_ON(ret);
 
 	cur_trans = root->fs_info->running_transaction;
+	spin_lock(&root->fs_info->new_trans_lock);
 	root->fs_info->running_transaction = NULL;
+	spin_unlock(&root->fs_info->new_trans_lock);
 	btrfs_set_super_generation(&root->fs_info->super_copy,
 				   cur_trans->transid);
 	btrfs_set_super_root(&root->fs_info->super_copy,

@@ -349,6 +349,7 @@ struct btrfs_fs_info {
 
 	u64 total_pinned;
 	spinlock_t delalloc_lock;
+	spinlock_t new_trans_lock;
 	u64 delalloc_bytes;
 };
 /*

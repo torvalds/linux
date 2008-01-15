@@ -36,4 +36,5 @@ int btrfs_find_del_first_ordered_inode(struct btrfs_ordered_inode_tree *tree,
 				       u64 *root_objectid, u64 *objectid);
 int btrfs_find_first_ordered_inode(struct btrfs_ordered_inode_tree *tree,
 				       u64 *root_objectid, u64 *objectid);
+int btrfs_del_ordered_inode(struct inode *inode);
 #endif
