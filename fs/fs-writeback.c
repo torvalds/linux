@@ -482,8 +482,6 @@ sync_sb_inodes(struct super_block *sb, struct writeback_control *wbc)
 		if (wbc->nr_to_write <= 0)
 			break;
 	}
-	if (!list_empty(&sb->s_more_io))
-		wbc->more_io = 1;
 	return;		/* Leave any unwritten inodes on s_io */
 }
 
