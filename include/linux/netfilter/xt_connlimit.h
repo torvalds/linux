@@ -15,7 +15,7 @@ struct xt_connlimit_info {
 	};
 	unsigned int limit, inverse;
 
-	/* this needs to be at the end */
+	/* Used internally by the kernel */
 	struct xt_connlimit_data *data __attribute__((aligned(8)));
 };
 
