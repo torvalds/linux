@@ -1076,7 +1076,7 @@ endmenu
 
 source "fs/Kconfig"
 
-source "kernel/Kconfig.instrumentation"
+source "arch/arm/Kconfig.instrumentation"
 
 source "arch/arm/Kconfig.debug"
 
