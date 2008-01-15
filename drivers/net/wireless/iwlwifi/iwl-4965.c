@@ -3267,8 +3267,7 @@ int iwl4965_tx_cmd(struct iwl4965_priv *priv, struct iwl4965_cmd *out_cmd,
 		   struct ieee80211_hdr *hdr, u8 hdr_len,
 		   struct ieee80211_tx_control *ctrl, void *sta_in)
 {
-	struct iwl4965_tx_cmd cmd;
-	struct iwl4965_tx_cmd *tx = (struct iwl4965_tx_cmd *)&out_cmd->cmd.payload[0];
+	struct iwl4965_tx_cmd *tx = &out_cmd->cmd.tx;
 	dma_addr_t scratch_phys;
 	u8 unicast = 0;
 	u8 is_data = 1;
@@ -3286,26 +3285,6 @@ int iwl4965_tx_cmd(struct iwl4965_priv *priv, struct iwl4965_cmd *out_cmd,
 	fc = le16_to_cpu(hdr->frame_control);
 	if ((fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA)
 		is_data = 0;
-
-	memcpy(&cmd, &(out_cmd->cmd.tx), sizeof(struct iwl4965_tx_cmd));
-	memset(tx, 0, sizeof(struct iwl4965_tx_cmd));
-	memcpy(tx->hdr, hdr, hdr_len);
-
-	tx->len = cmd.len;
-	tx->driver_txop = cmd.driver_txop;
-	tx->stop_time.life_time = cmd.stop_time.life_time;
-	tx->tx_flags = cmd.tx_flags;
-	tx->sta_id = cmd.sta_id;
-	tx->tid_tspec = cmd.tid_tspec;
-	tx->timeout.pm_frame_timeout = cmd.timeout.pm_frame_timeout;
-	tx->next_frame_len = cmd.next_frame_len;
-
-	tx->sec_ctl = cmd.sec_ctl;
-	memcpy(&(tx->key[0]), &(cmd.key[0]), 16);
-	tx->tx_flags = cmd.tx_flags;
-
-	tx->rts_retry_limit = cmd.rts_retry_limit;
-	tx->data_retry_limit = cmd.data_retry_limit;
 
 	scratch_phys = txcmd_phys + sizeof(struct iwl4965_cmd_header) +
 	    offsetof(struct iwl4965_tx_cmd, scratch);
