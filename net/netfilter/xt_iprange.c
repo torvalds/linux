@@ -1,11 +1,11 @@
 /*
- * iptables module to match IP address ranges
+ *	xt_iprange - Netfilter module to match IP address ranges
  *
- * (C) 2003 Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
+ *	(C) 2003 Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ *	This program is free software; you can redistribute it and/or modify
+ *	it under the terms of the GNU General Public License version 2 as
+ *	published by the Free Software Foundation.
  */
 #include <linux/module.h>
 #include <linux/skbuff.h>
@@ -13,15 +13,11 @@
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_ipv4/ipt_iprange.h>
 
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>");
-MODULE_DESCRIPTION("Xtables: arbitrary IPv4 range matching");
-
 static bool
-iprange_mt(const struct sk_buff *skb, const struct net_device *in,
-           const struct net_device *out, const struct xt_match *match,
-           const void *matchinfo, int offset, unsigned int protoff,
-           bool *hotdrop)
+iprange_mt_v0(const struct sk_buff *skb, const struct net_device *in,
+              const struct net_device *out, const struct xt_match *match,
+              const void *matchinfo, int offset, unsigned int protoff,
+              bool *hotdrop)
 {
 	const struct ipt_iprange_info *info = matchinfo;
 	const struct iphdr *iph = ip_hdr(skb);
@@ -58,7 +54,7 @@ iprange_mt(const struct sk_buff *skb, const struct net_device *in,
 static struct xt_match iprange_mt_reg __read_mostly = {
 	.name		= "iprange",
 	.family		= AF_INET,
-	.match		= iprange_mt,
+	.match		= iprange_mt_v0,
 	.matchsize	= sizeof(struct ipt_iprange_info),
 	.me		= THIS_MODULE
 };
@@ -75,3 +71,6 @@ static void __exit iprange_mt_exit(void)
 
 module_init(iprange_mt_init);
 module_exit(iprange_mt_exit);
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>");
+MODULE_DESCRIPTION("Xtables: arbitrary IPv4 range matching");

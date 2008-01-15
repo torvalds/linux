@@ -21,6 +21,7 @@ header-y += xt_dccp.h
 header-y += xt_dscp.h
 header-y += xt_esp.h
 header-y += xt_hashlimit.h
+header-y += xt_iprange.h
 header-y += xt_helper.h
 header-y += xt_length.h
 header-y += xt_limit.h
