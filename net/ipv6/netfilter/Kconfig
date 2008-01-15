@@ -2,12 +2,12 @@
 # IP netfilter configuration
 #
 
-menu "IPv6: Netfilter Configuration (EXPERIMENTAL)"
-	depends on INET && IPV6 && NETFILTER && EXPERIMENTAL
+menu "IPv6: Netfilter Configuration"
+	depends on INET && IPV6 && NETFILTER
 
 config NF_CONNTRACK_IPV6
-	tristate "IPv6 connection tracking support (EXPERIMENTAL)"
-	depends on INET && IPV6 && EXPERIMENTAL && NF_CONNTRACK
+	tristate "IPv6 connection tracking support"
+	depends on INET && IPV6 && NF_CONNTRACK
 	default m if NETFILTER_ADVANCED=n
 	---help---
 	  Connection tracking keeps a record of what packets have passed
@@ -22,7 +22,7 @@ config NF_CONNTRACK_IPV6
 
 config IP6_NF_QUEUE
 	tristate "IP6 Userspace queueing via NETLINK (OBSOLETE)"
-	depends on INET && IPV6 && NETFILTER && EXPERIMENTAL
+	depends on INET && IPV6 && NETFILTER
 	depends on NETFILTER_ADVANCED
 	---help---
 
@@ -44,7 +44,7 @@ config IP6_NF_QUEUE
 
 config IP6_NF_IPTABLES
 	tristate "IP6 tables support (required for filtering)"
-	depends on INET && IPV6 && EXPERIMENTAL
+	depends on INET && IPV6
 	select NETFILTER_XTABLES
 	default m if NETFILTER_ADVANCED=n
 	help

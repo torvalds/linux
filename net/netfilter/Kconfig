@@ -76,8 +76,8 @@ config NF_CONNTRACK_SECMARK
 	  If unsure, say 'N'.
 
 config NF_CONNTRACK_EVENTS
-	bool "Connection tracking events (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && NF_CONNTRACK
+	bool "Connection tracking events"
+	depends on NF_CONNTRACK
 	depends on NETFILTER_ADVANCED
 	help
 	  If this option is enabled, the connection tracking code will
@@ -102,8 +102,8 @@ config NF_CT_PROTO_SCTP
 	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
 
 config NF_CT_PROTO_UDPLITE
-	tristate 'UDP-Lite protocol connection tracking support (EXPERIMENTAL)'
-	depends on EXPERIMENTAL && NF_CONNTRACK
+	tristate 'UDP-Lite protocol connection tracking support'
+	depends on NF_CONNTRACK
 	depends on NETFILTER_ADVANCED
 	help
 	  With this option enabled, the layer 3 independent connection
@@ -144,8 +144,8 @@ config NF_CONNTRACK_FTP
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 config NF_CONNTRACK_H323
-	tristate "H.323 protocol support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && NF_CONNTRACK && (IPV6 || IPV6=n)
+	tristate "H.323 protocol support"
+	depends on NF_CONNTRACK && (IPV6 || IPV6=n)
 	depends on NETFILTER_ADVANCED
 	help
 	  H.323 is a VoIP signalling protocol from ITU-T. As one of the most
@@ -180,8 +180,8 @@ config NF_CONNTRACK_IRC
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 config NF_CONNTRACK_NETBIOS_NS
-	tristate "NetBIOS name service protocol support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && NF_CONNTRACK
+	tristate "NetBIOS name service protocol support"
+	depends on NF_CONNTRACK
 	depends on NETFILTER_ADVANCED
 	help
 	  NetBIOS name service requests are sent as broadcast messages from an
@@ -234,8 +234,8 @@ config NF_CONNTRACK_SANE
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 config NF_CONNTRACK_SIP
-	tristate "SIP protocol support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && NF_CONNTRACK
+	tristate "SIP protocol support"
+	depends on NF_CONNTRACK
 	default m if NETFILTER_ADVANCED=n
 	help
 	  SIP is an application-layer control protocol that can establish,
@@ -259,8 +259,8 @@ config NF_CONNTRACK_TFTP
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 config NF_CT_NETLINK
-	tristate 'Connection tracking netlink interface (EXPERIMENTAL)'
-	depends on EXPERIMENTAL && NF_CONNTRACK
+	tristate 'Connection tracking netlink interface'
+	depends on NF_CONNTRACK
 	select NETFILTER_NETLINK
 	depends on NF_NAT=n || NF_NAT
 	default m if NETFILTER_ADVANCED=n

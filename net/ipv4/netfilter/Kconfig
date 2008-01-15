@@ -229,8 +229,8 @@ config IP_NF_TARGET_NETMAP
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 config NF_NAT_SNMP_BASIC
-	tristate "Basic SNMP-ALG support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && NF_NAT
+	tristate "Basic SNMP-ALG support"
+	depends on NF_NAT
 	depends on NETFILTER_ADVANCED
 	---help---
 
