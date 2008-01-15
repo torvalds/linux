@@ -300,6 +300,7 @@ static int sctp_packet(struct nf_conn *ct,
 		       unsigned int hooknum)
 {
 	enum sctp_conntrack newconntrack, oldsctpstate;
+	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 	sctp_sctphdr_t _sctph, *sh;
 	sctp_chunkhdr_t _sch, *sch;
 	u_int32_t offset, count;
@@ -318,7 +319,7 @@ static int sctp_packet(struct nf_conn *ct,
 	    !test_bit(SCTP_CID_COOKIE_ECHO, map) &&
 	    !test_bit(SCTP_CID_ABORT, map) &&
 	    !test_bit(SCTP_CID_SHUTDOWN_ACK, map) &&
-	    sh->vtag != ct->proto.sctp.vtag[CTINFO2DIR(ctinfo)]) {
+	    sh->vtag != ct->proto.sctp.vtag[dir]) {
 		pr_debug("Verification tag check failed\n");
 		return -1;
 	}
@@ -336,35 +337,35 @@ static int sctp_packet(struct nf_conn *ct,
 			}
 		} else if (sch->type == SCTP_CID_ABORT) {
 			/* Sec 8.5.1 (B) */
-			if (sh->vtag != ct->proto.sctp.vtag[CTINFO2DIR(ctinfo)] &&
-			    sh->vtag != ct->proto.sctp.vtag[1 - CTINFO2DIR(ctinfo)]) {
+			if (sh->vtag != ct->proto.sctp.vtag[dir] &&
+			    sh->vtag != ct->proto.sctp.vtag[!dir]) {
 				write_unlock_bh(&sctp_lock);
 				return -1;
 			}
 		} else if (sch->type == SCTP_CID_SHUTDOWN_COMPLETE) {
 			/* Sec 8.5.1 (C) */
-			if (sh->vtag != ct->proto.sctp.vtag[CTINFO2DIR(ctinfo)] &&
-			    sh->vtag != ct->proto.sctp.vtag[1 - CTINFO2DIR(ctinfo)] &&
+			if (sh->vtag != ct->proto.sctp.vtag[dir] &&
+			    sh->vtag != ct->proto.sctp.vtag[!dir] &&
 			    (sch->flags & 1)) {
 				write_unlock_bh(&sctp_lock);
 				return -1;
 			}
 		} else if (sch->type == SCTP_CID_COOKIE_ECHO) {
 			/* Sec 8.5.1 (D) */
-			if (sh->vtag != ct->proto.sctp.vtag[CTINFO2DIR(ctinfo)]) {
+			if (sh->vtag != ct->proto.sctp.vtag[dir]) {
 				write_unlock_bh(&sctp_lock);
 				return -1;
 			}
 		}
 
 		oldsctpstate = ct->proto.sctp.state;
-		newconntrack = new_state(CTINFO2DIR(ctinfo), oldsctpstate, sch->type);
+		newconntrack = new_state(dir, oldsctpstate, sch->type);
 
 		/* Invalid */
 		if (newconntrack == SCTP_CONNTRACK_MAX) {
 			pr_debug("nf_conntrack_sctp: Invalid dir=%i ctype=%u "
 				 "conntrack=%u\n",
-				 CTINFO2DIR(ctinfo), sch->type, oldsctpstate);
+				 dir, sch->type, oldsctpstate);
 			write_unlock_bh(&sctp_lock);
 			return -1;
 		}
@@ -381,8 +382,8 @@ static int sctp_packet(struct nf_conn *ct,
 				return -1;
 			}
 			pr_debug("Setting vtag %x for dir %d\n",
-				 ih->init_tag, !CTINFO2DIR(ctinfo));
-			ct->proto.sctp.vtag[!CTINFO2DIR(ctinfo)] = ih->init_tag;
+				 ih->init_tag, !dir);
+			ct->proto.sctp.vtag[!dir] = ih->init_tag;
 		}
 
 		ct->proto.sctp.state = newconntrack;
@@ -394,7 +395,7 @@ static int sctp_packet(struct nf_conn *ct,
 	nf_ct_refresh_acct(ct, ctinfo, skb, *sctp_timeouts[newconntrack]);
 
 	if (oldsctpstate == SCTP_CONNTRACK_COOKIE_ECHOED &&
-	    CTINFO2DIR(ctinfo) == IP_CT_DIR_REPLY &&
+	    dir == IP_CT_DIR_REPLY &&
 	    newconntrack == SCTP_CONNTRACK_ESTABLISHED) {
 		pr_debug("Setting assured bit\n");
 		set_bit(IPS_ASSURED_BIT, &ct->status);
