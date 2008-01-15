@@ -137,7 +137,7 @@ void dlm_rcom_out(struct dlm_rcom *rc)
 	rc->rc_seq		= cpu_to_le64(rc->rc_seq);
 	rc->rc_seq_reply	= cpu_to_le64(rc->rc_seq_reply);
 
-	if (type == DLM_RCOM_LOCK)
+	if ((type == DLM_RCOM_LOCK) || (type == DLM_RCOM_LOCK_REPLY))
 		rcom_lock_out((struct rcom_lock *) rc->rc_buf);
 
 	else if (type == DLM_RCOM_STATUS_REPLY)
@@ -147,6 +147,7 @@ void dlm_rcom_out(struct dlm_rcom *rc)
 void dlm_rcom_in(struct dlm_rcom *rc)
 {
 	struct dlm_header *hd = (struct dlm_header *) rc;
+	int type;
 
 	header_in(hd);
 
@@ -156,10 +157,12 @@ void dlm_rcom_in(struct dlm_rcom *rc)
 	rc->rc_seq		= le64_to_cpu(rc->rc_seq);
 	rc->rc_seq_reply	= le64_to_cpu(rc->rc_seq_reply);
 
-	if (rc->rc_type == DLM_RCOM_LOCK)
+	type = rc->rc_type;
+
+	if ((type == DLM_RCOM_LOCK) || (type == DLM_RCOM_LOCK_REPLY))
 		rcom_lock_in((struct rcom_lock *) rc->rc_buf);
 
-	else if (rc->rc_type == DLM_RCOM_STATUS_REPLY)
+	else if (type == DLM_RCOM_STATUS_REPLY)
 		rcom_config_in((struct rcom_config *) rc->rc_buf);
 }
 
