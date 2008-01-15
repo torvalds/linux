@@ -1291,10 +1291,7 @@ struct neigh_parms *neigh_parms_alloc(struct net_device *dev,
 	struct neigh_parms *p, *ref;
 	struct net *net;
 
-	net = &init_net;
-	if (dev)
-		net = dev->nd_net;
-
+	net = dev->nd_net;
 	ref = lookup_neigh_params(tbl, net, 0);
 	if (!ref)
 		return NULL;
@@ -1306,15 +1303,14 @@ struct neigh_parms *neigh_parms_alloc(struct net_device *dev,
 		INIT_RCU_HEAD(&p->rcu_head);
 		p->reachable_time =
 				neigh_rand_reach_time(p->base_reachable_time);
-		if (dev) {
-			if (dev->neigh_setup && dev->neigh_setup(dev, p)) {
-				kfree(p);
-				return NULL;
-			}
 
-			dev_hold(dev);
-			p->dev = dev;
+		if (dev->neigh_setup && dev->neigh_setup(dev, p)) {
+			kfree(p);
+			return NULL;
 		}
+
+		dev_hold(dev);
+		p->dev = dev;
 		p->net = hold_net(net);
 		p->sysctl_table = NULL;
 		write_lock_bh(&tbl->lock);
