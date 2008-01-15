@@ -47,7 +47,7 @@ match(const struct sk_buff *skb,
 			memcpy(eui64 + 5, eth_hdr(skb)->h_source + 3, 3);
 			eui64[3] = 0xff;
 			eui64[4] = 0xfe;
-			eui64[0] |= 0x02;
+			eui64[0] ^= 0x02;
 
 			i = 0;
 			while (ipv6_hdr(skb)->saddr.s6_addr[8 + i] == eui64[i]

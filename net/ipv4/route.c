@@ -283,12 +283,12 @@ static struct rtable *rt_cache_get_first(struct seq_file *seq)
 			break;
 		rcu_read_unlock_bh();
 	}
-	return r;
+	return rcu_dereference(r);
 }
 
 static struct rtable *rt_cache_get_next(struct seq_file *seq, struct rtable *r)
 {
-	struct rt_cache_iter_state *st = rcu_dereference(seq->private);
+	struct rt_cache_iter_state *st = seq->private;
 
 	r = r->u.dst.rt_next;
 	while (!r) {
@@ -298,7 +298,7 @@ static struct rtable *rt_cache_get_next(struct seq_file *seq, struct rtable *r)
 		rcu_read_lock_bh();
 		r = rt_hash_table[st->bucket].chain;
 	}
-	return r;
+	return rcu_dereference(r);
 }
 
 static struct rtable *rt_cache_get_idx(struct seq_file *seq, loff_t pos)
