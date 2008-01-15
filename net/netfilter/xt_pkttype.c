@@ -11,6 +11,7 @@
 #include <linux/if_packet.h>
 #include <linux/in.h>
 #include <linux/ip.h>
+#include <linux/ipv6.h>
 
 #include <linux/netfilter/xt_pkttype.h>
 #include <linux/netfilter/x_tables.h>
@@ -27,16 +28,19 @@ pkttype_mt(const struct sk_buff *skb, const struct net_device *in,
            const void *matchinfo, int offset, unsigned int protoff,
            bool *hotdrop)
 {
-	u_int8_t type;
 	const struct xt_pkttype_info *info = matchinfo;
+	u_int8_t type;
 
-	if (skb->pkt_type == PACKET_LOOPBACK)
-		type = match->family == AF_INET &&
-		       ipv4_is_multicast(ip_hdr(skb)->daddr)
-			? PACKET_MULTICAST
-			: PACKET_BROADCAST;
-	else
+	if (skb->pkt_type != PACKET_LOOPBACK)
 		type = skb->pkt_type;
+	else if (match->family == AF_INET &&
+	    ipv4_is_multicast(ip_hdr(skb)->daddr))
+		type = PACKET_MULTICAST;
+	else if (match->family == AF_INET6 &&
+	    ipv6_hdr(skb)->daddr.s6_addr[0] == 0xFF)
+		type = PACKET_MULTICAST;
+	else
+		type = PACKET_BROADCAST;
 
 	return (type == info->pkttype) ^ info->invert;
 }
