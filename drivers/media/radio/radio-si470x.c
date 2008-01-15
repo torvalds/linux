@@ -72,11 +72,11 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/input.h>
-#include <linux/videodev2.h>
-#include <media/v4l2-common.h>
 #include <linux/usb.h>
 #include <linux/hid.h>
 #include <linux/version.h>
+#include <linux/videodev2.h>
+#include <media/v4l2-common.h>
 #include <media/rds.h>
 
 

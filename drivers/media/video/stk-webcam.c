@@ -30,9 +30,9 @@
 #include <linux/kref.h>
 
 #include <linux/usb.h>
+#include <linux/vmalloc.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
-#include <linux/vmalloc.h>
 
 #include "stk-webcam.h"
 
