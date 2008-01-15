@@ -378,6 +378,7 @@ config NETFILTER_XT_TARGET_NOTRACK
 config NETFILTER_XT_TARGET_RATEEST
 	tristate '"RATEEST" target support'
 	depends on NETFILTER_XTABLES
+	depends on NETFILTER_ADVANCED
 	help
 	  This option adds a `RATEEST' target, which allows to measure
 	  rates similar to TC estimators. The `rateest' match can be
@@ -676,6 +677,7 @@ config NETFILTER_XT_MATCH_QUOTA
 config NETFILTER_XT_MATCH_RATEEST
 	tristate '"rateest" match support'
 	depends on NETFILTER_XTABLES
+	depends on NETFILTER_ADVANCED
 	select NETFILTER_XT_TARGET_RATEEST
 	help
 	  This option adds a `rateest' match, which allows to match on the
