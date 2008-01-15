@@ -978,13 +978,15 @@ __be32 inet_confirm_addr(struct in_device *in_dev,
 {
 	__be32 addr = 0;
 	struct net_device *dev;
+	struct net *net;
 
-	if (in_dev != NULL)
+	if (scope != RT_SCOPE_LINK)
 		return confirm_addr_indev(in_dev, dst, local, scope);
 
+	net = in_dev->dev->nd_net;
 	read_lock(&dev_base_lock);
 	rcu_read_lock();
-	for_each_netdev(&init_net, dev) {
+	for_each_netdev(net, dev) {
 		if ((in_dev = __in_dev_get_rcu(dev))) {
 			addr = confirm_addr_indev(in_dev, dst, local, scope);
 			if (addr)

@@ -402,7 +402,6 @@ static int arp_ignore(struct in_device *in_dev, __be32 sip, __be32 tip)
 	case 3:	/* Do not reply for scope host addresses */
 		sip = 0;
 		scope = RT_SCOPE_LINK;
-		in_dev = NULL;
 		break;
 	case 4:	/* Reserved */
 	case 5:
