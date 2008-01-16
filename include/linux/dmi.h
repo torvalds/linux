@@ -78,6 +78,7 @@ extern const struct dmi_device * dmi_find_device(int type, const char *name,
 extern void dmi_scan_machine(void);
 extern int dmi_get_year(int field);
 extern int dmi_name_in_vendors(const char *str);
+extern int dmi_available;
 
 #else
 
@@ -87,6 +88,7 @@ static inline const struct dmi_device * dmi_find_device(int type, const char *na
 	const struct dmi_device *from) { return NULL; }
 static inline int dmi_get_year(int year) { return 0; }
 static inline int dmi_name_in_vendors(const char *s) { return 0; }
+#define dmi_available 0
 
 #endif
 
