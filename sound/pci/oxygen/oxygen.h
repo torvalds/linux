@@ -34,6 +34,7 @@ enum {
 struct pci_dev;
 struct snd_card;
 struct snd_pcm_substream;
+struct snd_pcm_hardware;
 struct snd_pcm_hw_params;
 struct snd_kcontrol_new;
 struct snd_rawmidi;
@@ -75,6 +76,8 @@ struct oxygen_model {
 	int (*control_filter)(struct snd_kcontrol_new *template);
 	int (*mixer_init)(struct oxygen *chip);
 	void (*cleanup)(struct oxygen *chip);
+	void (*pcm_hardware_filter)(unsigned int channel,
+				    struct snd_pcm_hardware *hardware);
 	void (*set_dac_params)(struct oxygen *chip,
 			       struct snd_pcm_hw_params *params);
 	void (*set_adc_params)(struct oxygen *chip,

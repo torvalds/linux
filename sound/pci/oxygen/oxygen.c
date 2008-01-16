@@ -163,6 +163,18 @@ static void generic_cleanup(struct oxygen *chip)
 {
 }
 
+static void generic_pcm_hardware_filter(unsigned int channel,
+					struct snd_pcm_hardware *hardware)
+{
+	if (channel == PCM_A) {
+		hardware->rates = SNDRV_PCM_RATE_44100 |
+				  SNDRV_PCM_RATE_48000 |
+				  SNDRV_PCM_RATE_96000 |
+				  SNDRV_PCM_RATE_192000;
+		hardware->rate_min = 44100;
+	}
+}
+
 static void set_ak4396_params(struct oxygen *chip,
 			      struct snd_pcm_hw_params *params)
 {
@@ -262,6 +274,7 @@ static const struct oxygen_model model_generic = {
 	.init = generic_init,
 	.control_filter = ak4396_control_filter,
 	.cleanup = generic_cleanup,
+	.pcm_hardware_filter = generic_pcm_hardware_filter,
 	.set_dac_params = set_ak4396_params,
 	.set_adc_params = set_wm8785_params,
 	.update_dac_volume = update_ak4396_volume,

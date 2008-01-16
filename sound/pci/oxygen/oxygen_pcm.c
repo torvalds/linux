@@ -33,11 +33,15 @@ static struct snd_pcm_hardware oxygen_hardware[PCM_COUNT] = {
 			SNDRV_PCM_INFO_SYNC_START,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE |
 			   SNDRV_PCM_FMTBIT_S32_LE,
-		.rates = SNDRV_PCM_RATE_44100 |
+		.rates = SNDRV_PCM_RATE_32000 |
+			 SNDRV_PCM_RATE_44100 |
 			 SNDRV_PCM_RATE_48000 |
+			 SNDRV_PCM_RATE_64000 |
+			 SNDRV_PCM_RATE_88200 |
 			 SNDRV_PCM_RATE_96000 |
+			 SNDRV_PCM_RATE_176400 |
 			 SNDRV_PCM_RATE_192000,
-		.rate_min = 44100,
+		.rate_min = 32000,
 		.rate_max = 192000,
 		.channels_min = 2,
 		.channels_max = 2,
@@ -182,6 +186,8 @@ static int oxygen_open(struct snd_pcm_substream *substream,
 
 	runtime->private_data = (void *)(uintptr_t)channel;
 	runtime->hw = oxygen_hardware[channel];
+	if (chip->model->pcm_hardware_filter)
+		chip->model->pcm_hardware_filter(channel, &runtime->hw);
 	err = snd_pcm_hw_constraint_step(runtime, 0,
 					 SNDRV_PCM_HW_PARAM_PERIOD_BYTES, 32);
 	if (err < 0)
