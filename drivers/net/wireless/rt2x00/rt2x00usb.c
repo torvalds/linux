@@ -419,7 +419,7 @@ int rt2x00usb_initialize(struct rt2x00_dev *rt2x00dev)
 	struct sk_buff *skb;
 	unsigned int entry_size;
 	unsigned int i;
-	int status;
+	int uninitialized_var(status);
 
 	/*
 	 * Allocate DMA
