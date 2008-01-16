@@ -1319,6 +1319,7 @@ static int link_status_10g(struct niu *np, int *link_up_p)
 
 static int link_status_1g(struct niu *np, int *link_up_p)
 {
+	struct niu_link_config *lp = &np->link_config;
 	u16 current_speed, bmsr;
 	unsigned long flags;
 	u8 current_duplex;
@@ -1386,6 +1387,8 @@ static int link_status_1g(struct niu *np, int *link_up_p)
 				link_up = 0;
 		}
 	}
+	lp->active_speed = current_speed;
+	lp->active_duplex = current_duplex;
 	err = 0;
 
 out:
