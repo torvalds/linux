@@ -33,8 +33,10 @@ btrfs_ordered_inode_tree_init(struct btrfs_ordered_inode_tree *t)
 
 int btrfs_add_ordered_inode(struct inode *inode);
 int btrfs_find_del_first_ordered_inode(struct btrfs_ordered_inode_tree *tree,
-				       u64 *root_objectid, u64 *objectid);
+				       u64 *root_objectid, u64 *objectid,
+				       struct inode **inode);
 int btrfs_find_first_ordered_inode(struct btrfs_ordered_inode_tree *tree,
-				       u64 *root_objectid, u64 *objectid);
+				       u64 *root_objectid, u64 *objectid,
+				       struct inode **inode);
 int btrfs_del_ordered_inode(struct inode *inode);
 #endif

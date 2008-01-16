@@ -490,19 +490,17 @@ int btrfs_write_ordered_inodes(struct btrfs_trans_handle *trans,
 	while(1) {
 		ret = btrfs_find_first_ordered_inode(
 				&cur_trans->ordered_inode_tree,
-				&root_objectid, &objectid);
+				&root_objectid, &objectid, &inode);
 		if (!ret)
 			break;
 
 		mutex_unlock(&root->fs_info->trans_mutex);
 		mutex_unlock(&root->fs_info->fs_mutex);
-		inode = btrfs_ilookup(root->fs_info->sb, objectid,
-				      root_objectid);
-		if (inode) {
-			if (S_ISREG(inode->i_mode))
-				filemap_fdatawrite(inode->i_mapping);
-			iput(inode);
-		}
+
+		if (S_ISREG(inode->i_mode))
+			filemap_fdatawrite(inode->i_mapping);
+		iput(inode);
+
 		mutex_lock(&root->fs_info->fs_mutex);
 		mutex_lock(&root->fs_info->trans_mutex);
 	}
@@ -511,19 +509,17 @@ int btrfs_write_ordered_inodes(struct btrfs_trans_handle *trans,
 		objectid = 0;
 		ret = btrfs_find_del_first_ordered_inode(
 				&cur_trans->ordered_inode_tree,
-				&root_objectid, &objectid);
+				&root_objectid, &objectid, &inode);
 		if (!ret)
 			break;
 		mutex_unlock(&root->fs_info->trans_mutex);
 		mutex_unlock(&root->fs_info->fs_mutex);
-		inode = btrfs_ilookup(root->fs_info->sb, objectid,
-				      root_objectid);
-		if (inode) {
-			if (S_ISREG(inode->i_mode))
-				filemap_write_and_wait(inode->i_mapping);
-			atomic_dec(&inode->i_count);
-			iput(inode);
-		}
+
+		if (S_ISREG(inode->i_mode))
+			filemap_write_and_wait(inode->i_mapping);
+		atomic_dec(&inode->i_count);
+		iput(inode);
+
 		mutex_lock(&root->fs_info->fs_mutex);
 		mutex_lock(&root->fs_info->trans_mutex);
 	}

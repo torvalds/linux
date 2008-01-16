@@ -25,6 +25,7 @@
 struct tree_entry {
 	u64 root_objectid;
 	u64 objectid;
+	struct inode *inode;
 	struct rb_node rb_node;
 };
 
@@ -144,6 +145,7 @@ int btrfs_add_ordered_inode(struct inode *inode)
 	write_lock(&tree->lock);
 	entry->objectid = inode->i_ino;
 	entry->root_objectid = root_objectid;
+	entry->inode = inode;
 
 	node = tree_insert(&tree->tree, root_objectid,
 			   inode->i_ino, &entry->rb_node);
@@ -159,7 +161,8 @@ int btrfs_add_ordered_inode(struct inode *inode)
 }
 
 int btrfs_find_first_ordered_inode(struct btrfs_ordered_inode_tree *tree,
-				       u64 *root_objectid, u64 *objectid)
+				   u64 *root_objectid, u64 *objectid,
+				   struct inode **inode)
 {
 	struct tree_entry *entry;
 	struct rb_node *node;
@@ -184,13 +187,16 @@ int btrfs_find_first_ordered_inode(struct btrfs_ordered_inode_tree *tree,
 	}
 
 	*root_objectid = entry->root_objectid;
+	*inode = entry->inode;
+	atomic_inc(&entry->inode->i_count);
 	*objectid = entry->objectid;
 	write_unlock(&tree->lock);
 	return 1;
 }
 
 int btrfs_find_del_first_ordered_inode(struct btrfs_ordered_inode_tree *tree,
-				       u64 *root_objectid, u64 *objectid)
+				       u64 *root_objectid, u64 *objectid,
+				       struct inode **inode)
 {
 	struct tree_entry *entry;
 	struct rb_node *node;
@@ -216,6 +222,8 @@ int btrfs_find_del_first_ordered_inode(struct btrfs_ordered_inode_tree *tree,
 
 	*root_objectid = entry->root_objectid;
 	*objectid = entry->objectid;
+	*inode = entry->inode;
+	atomic_inc(&entry->inode->i_count);
 	rb_erase(node, &tree->tree);
 	write_unlock(&tree->lock);
 	kfree(entry);
