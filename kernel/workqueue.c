@@ -722,7 +722,8 @@ static void start_workqueue_thread(struct cpu_workqueue_struct *cwq, int cpu)
 struct workqueue_struct *__create_workqueue_key(const char *name,
 						int singlethread,
 						int freezeable,
-						struct lock_class_key *key)
+						struct lock_class_key *key,
+						const char *lock_name)
 {
 	struct workqueue_struct *wq;
 	struct cpu_workqueue_struct *cwq;
@@ -739,7 +740,7 @@ struct workqueue_struct *__create_workqueue_key(const char *name,
 	}
 
 	wq->name = name;
-	lockdep_init_map(&wq->lockdep_map, name, key, 0);
+	lockdep_init_map(&wq->lockdep_map, lock_name, key, 0);
 	wq->singlethread = singlethread;
 	wq->freezeable = freezeable;
 	INIT_LIST_HEAD(&wq->list);
