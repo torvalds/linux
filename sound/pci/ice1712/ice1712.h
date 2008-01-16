@@ -407,7 +407,13 @@ struct snd_ice1712 {
 				unsigned char ch1, ch2;
 			} vol[8];
 		} se;
-
+		struct prodigy_hifi_spec {
+			unsigned short master[2];
+			unsigned short vol[8];
+		} prodigy_hifi;
+		struct prodigy_hd2_spec {
+			unsigned short vol[2];
+		} prodigy_hd2;
 	} spec;
 
 };

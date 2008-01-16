@@ -47,6 +47,7 @@
 #include "vt1720_mobo.h"
 #include "pontis.h"
 #include "prodigy192.h"
+#include "prodigy_hifi.h"
 #include "juli.h"
 #include "phase.h"
 #include "wtm.h"
@@ -62,6 +63,7 @@ MODULE_SUPPORTED_DEVICE("{"
 	       VT1720_MOBO_DEVICE_DESC
 	       PONTIS_DEVICE_DESC
 	       PRODIGY192_DEVICE_DESC
+	       PRODIGY_HIFI_DEVICE_DESC
 	       JULI_DEVICE_DESC
 	       PHASE_DEVICE_DESC
 	       WTM_DEVICE_DESC
@@ -1930,6 +1932,7 @@ static struct snd_ice1712_card_info *card_tables[] __devinitdata = {
 	snd_vt1724_aureon_cards,
 	snd_vt1720_mobo_cards,
 	snd_vt1720_pontis_cards,
+	snd_vt1724_prodigy_hifi_cards,
 	snd_vt1724_prodigy192_cards,
 	snd_vt1724_juli_cards,
 	snd_vt1724_phase_cards,
