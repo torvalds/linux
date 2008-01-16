@@ -27,11 +27,9 @@
 static int dac_volume_info(struct snd_kcontrol *ctl,
 			   struct snd_ctl_elem_info *info)
 {
-	struct oxygen *chip = ctl->private_data;
-
 	info->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	info->count = 8;
-	info->value.integer.min = chip->model->dac_minimum_volume;
+	info->value.integer.min = 0;
 	info->value.integer.max = 0xff;
 	return 0;
 }
@@ -525,14 +523,10 @@ static const struct snd_kcontrol_new controls[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Master Playback Volume",
-		.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
-			  SNDRV_CTL_ELEM_ACCESS_TLV_READ,
+		.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
 		.info = dac_volume_info,
 		.get = dac_volume_get,
 		.put = dac_volume_put,
-		.tlv = {
-			.p = NULL, /* set later */
-		},
 	},
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -635,18 +629,18 @@ static int add_controls(struct oxygen *chip,
 		[CONTROL_AUX_CAPTURE_SWITCH] = "Aux Capture Switch",
 	};
 	unsigned int i, j;
+	struct snd_kcontrol_new template;
 	struct snd_kcontrol *ctl;
 	int err;
 
 	for (i = 0; i < count; ++i) {
+		template = controls[i];
+		err = chip->model->control_filter(&template);
+		if (err < 0)
+			return err;
 		ctl = snd_ctl_new1(&controls[i], chip);
 		if (!ctl)
 			return -ENOMEM;
-		if (!strcmp(ctl->id.name, "Master Playback Volume"))
-			ctl->tlv.p = chip->model->dac_tlv;
-		else if (chip->model->cd_in_from_video_in &&
-			 !strncmp(ctl->id.name, "CD Capture ", 11))
-			ctl->private_value ^= AC97_CD ^ AC97_VIDEO;
 		err = snd_ctl_add(chip->card, ctl);
 		if (err < 0)
 			return err;

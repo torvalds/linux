@@ -35,6 +35,7 @@ struct pci_dev;
 struct snd_card;
 struct snd_pcm_substream;
 struct snd_pcm_hw_params;
+struct snd_kcontrol_new;
 struct snd_rawmidi;
 struct oxygen_model;
 
@@ -71,6 +72,7 @@ struct oxygen_model {
 	const char *chip;
 	struct module *owner;
 	void (*init)(struct oxygen *chip);
+	int (*control_filter)(struct snd_kcontrol_new *template);
 	int (*mixer_init)(struct oxygen *chip);
 	void (*cleanup)(struct oxygen *chip);
 	void (*set_dac_params)(struct oxygen *chip,
@@ -79,10 +81,7 @@ struct oxygen_model {
 			       struct snd_pcm_hw_params *params);
 	void (*update_dac_volume)(struct oxygen *chip);
 	void (*update_dac_mute)(struct oxygen *chip);
-	const unsigned int *dac_tlv;
 	u8 used_channels;
-	u8 cd_in_from_video_in;
-	u8 dac_minimum_volume;
 	u8 function_flags;
 };
 
