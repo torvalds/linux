@@ -607,7 +607,10 @@ static int hdsp_playback_to_output_key (struct hdsp *hdsp, int in, int out)
 	case Multiface:
 	case Digiface:
 	default:
-		return (64 * out) + (32 + (in));
+		if (hdsp->firmware_rev == 0xa)
+			return (64 * out) + (32 + (in));
+		else
+			return (52 * out) + (26 + (in));
 	case H9632:
 		return (32 * out) + (16 + (in));
 	case H9652:
@@ -621,7 +624,10 @@ static int hdsp_input_to_output_key (struct hdsp *hdsp, int in, int out)
 	case Multiface:
 	case Digiface:
 	default:
-		return (64 * out) + in;
+		if (hdsp->firmware_rev == 0xa)
+			return (64 * out) + in;
+		else
+			return (52 * out) + in;
 	case H9632:
 		return (32 * out) + in;
 	case H9652:
