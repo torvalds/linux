@@ -769,7 +769,7 @@ struct ubi_scan_leb *ubi_scan_get_free_peb(struct ubi_device *ubi,
  */
 static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si, int pnum)
 {
-	long long ec;
+	long long uninitialized_var(ec);
 	int err, bitflips = 0, vol_id, ec_corr = 0;
 
 	dbg_bld("scan PEB %d", pnum);
