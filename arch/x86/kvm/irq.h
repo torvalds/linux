@@ -83,6 +83,6 @@ void kvm_pic_reset(struct kvm_kpic_state *s);
 void kvm_timer_intr_post(struct kvm_vcpu *vcpu, int vec);
 void kvm_inject_pending_timer_irqs(struct kvm_vcpu *vcpu);
 void kvm_inject_apic_timer_irqs(struct kvm_vcpu *vcpu);
-void kvm_migrate_apic_timer(struct kvm_vcpu *vcpu);
+void __kvm_migrate_apic_timer(struct kvm_vcpu *vcpu);
 
 #endif

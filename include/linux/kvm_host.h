@@ -35,6 +35,7 @@
  * vcpu->requests bit members
  */
 #define KVM_REQ_TLB_FLUSH          0
+#define KVM_REQ_MIGRATE_TIMER      1
 #define KVM_REQ_REPORT_TPR_ACCESS  2
 
 struct kvm_vcpu;
@@ -275,6 +276,11 @@ static inline int memslot_id(struct kvm *kvm, struct kvm_memory_slot *slot)
 static inline gpa_t gfn_to_gpa(gfn_t gfn)
 {
 	return (gpa_t)gfn << PAGE_SHIFT;
+}
+
+static inline void kvm_migrate_apic_timer(struct kvm_vcpu *vcpu)
+{
+	set_bit(KVM_REQ_MIGRATE_TIMER, &vcpu->requests);
 }
 
 enum kvm_stat_kind {

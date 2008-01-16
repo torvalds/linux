@@ -2518,13 +2518,16 @@ again:
 	if (unlikely(r))
 		goto out;
 
-	if (vcpu->requests)
+	if (vcpu->requests) {
+		if (test_and_clear_bit(KVM_REQ_MIGRATE_TIMER, &vcpu->requests))
+			__kvm_migrate_apic_timer(vcpu);
 		if (test_and_clear_bit(KVM_REQ_REPORT_TPR_ACCESS,
 				       &vcpu->requests)) {
 			kvm_run->exit_reason = KVM_EXIT_TPR_ACCESS;
 			r = 0;
 			goto out;
 		}
+	}
 
 	kvm_inject_pending_timer_irqs(vcpu);
 
