@@ -181,7 +181,7 @@ static int suspend_prepare(void)
 
 	pm_prepare_console();
 
-	if (freeze_processes()) {
+	if (suspend_freeze_processes()) {
 		error = -EAGAIN;
 		goto Thaw;
 	}
@@ -199,7 +199,7 @@ static int suspend_prepare(void)
 		return 0;
 
  Thaw:
-	thaw_processes();
+	suspend_thaw_processes();
 	pm_restore_console();
  Finish:
 	pm_notifier_call_chain(PM_POST_SUSPEND);
@@ -308,7 +308,7 @@ int suspend_devices_and_enter(suspend_state_t state)
  */
 static void suspend_finish(void)
 {
-	thaw_processes();
+	suspend_thaw_processes();
 	pm_restore_console();
 	pm_notifier_call_chain(PM_POST_SUSPEND);
 }

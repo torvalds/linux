@@ -1,6 +1,7 @@
 #include <linux/suspend.h>
 #include <linux/suspend_ioctls.h>
 #include <linux/utsname.h>
+#include <linux/freezer.h>
 
 struct swsusp_info {
 	struct new_utsname	uts;
@@ -203,3 +204,24 @@ enum {
 #define TEST_MAX	(__TEST_AFTER_LAST - 1)
 
 extern int pm_test_level;
+
+#ifdef CONFIG_SUSPEND_FREEZER
+static inline int suspend_freeze_processes(void)
+{
+	return freeze_processes();
+}
+
+static inline void suspend_thaw_processes(void)
+{
+	thaw_processes();
+}
+#else
+static inline int suspend_freeze_processes(void)
+{
+	return 0;
+}
+
+static inline void suspend_thaw_processes(void)
+{
+}
+#endif
