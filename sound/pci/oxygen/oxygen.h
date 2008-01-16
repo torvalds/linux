@@ -83,6 +83,7 @@ struct oxygen_model {
 	u8 record_from_dma_b;
 	u8 cd_in_from_video_in;
 	u8 dac_minimum_volume;
+	u8 function_flags;
 };
 
 /* oxygen_lib.c */

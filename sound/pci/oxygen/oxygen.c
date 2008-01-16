@@ -256,6 +256,7 @@ static const struct oxygen_model model_generic = {
 	.update_dac_volume = update_ak4396_volume,
 	.update_dac_mute = update_ak4396_mute,
 	.dac_tlv = ak4396_db_scale,
+	.function_flags = OXYGEN_FUNCTION_ENABLE_SPI_4_5,
 };
 static const struct oxygen_model model_meridian = {
 	.shortname = "C-Media CMI8788",
@@ -270,6 +271,7 @@ static const struct oxygen_model model_meridian = {
 	.update_dac_mute = update_ak4396_mute,
 	.dac_tlv = ak4396_db_scale,
 	.record_from_dma_b = 1,
+	.function_flags = OXYGEN_FUNCTION_ENABLE_SPI_4_5,
 };
 
 static int __devinit generic_oxygen_probe(struct pci_dev *pci,

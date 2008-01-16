@@ -202,7 +202,7 @@ static void __devinit oxygen_init(struct oxygen *chip)
 
 	oxygen_set_bits8(chip, OXYGEN_FUNCTION,
 			 OXYGEN_FUNCTION_RESET_CODEC |
-			 OXYGEN_FUNCTION_ENABLE_SPI_4_5);
+			 chip->model->function_flags);
 	oxygen_write16(chip, OXYGEN_I2S_MULTICH_FORMAT, 0x010a);
 	oxygen_write16(chip, OXYGEN_I2S_A_FORMAT, 0x010a);
 	oxygen_write16(chip, OXYGEN_I2S_B_FORMAT, 0x010a);

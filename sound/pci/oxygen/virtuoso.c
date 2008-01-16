@@ -227,6 +227,7 @@ static const struct oxygen_model model_xonar = {
 	.record_from_dma_b = 1,
 	.cd_in_from_video_in = 1,
 	.dac_minimum_volume = 15,
+	.function_flags = OXYGEN_FUNCTION_ENABLE_SPI_4_5,
 };
 
 static int __devinit xonar_probe(struct pci_dev *pci,
