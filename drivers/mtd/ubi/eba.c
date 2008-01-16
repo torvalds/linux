@@ -137,10 +137,12 @@ static struct ubi_ltree_entry *ltree_add_entry(struct ubi_device *ubi,
 {
 	struct ubi_ltree_entry *le, *le1, *le_free;
 
-	le = kmem_cache_alloc(ubi_ltree_slab, GFP_NOFS);
+	le = kmalloc(sizeof(struct ubi_ltree_entry), GFP_NOFS);
 	if (!le)
 		return ERR_PTR(-ENOMEM);
 
+	le->users = 0;
+	init_rwsem(&le->mutex);
 	le->vol_id = vol_id;
 	le->lnum = lnum;
 
@@ -188,7 +190,7 @@ static struct ubi_ltree_entry *ltree_add_entry(struct ubi_device *ubi,
 	spin_unlock(&ubi->ltree_lock);
 
 	if (le_free)
-		kmem_cache_free(ubi_ltree_slab, le_free);
+		kfree(le_free);
 
 	return le;
 }
@@ -236,7 +238,7 @@ static void leb_read_unlock(struct ubi_device *ubi, int vol_id, int lnum)
 
 	up_read(&le->mutex);
 	if (free)
-		kmem_cache_free(ubi_ltree_slab, le);
+		kfree(le);
 }
 
 /**
@@ -292,7 +294,7 @@ static int leb_write_trylock(struct ubi_device *ubi, int vol_id, int lnum)
 		free = 0;
 	spin_unlock(&ubi->ltree_lock);
 	if (free)
-		kmem_cache_free(ubi_ltree_slab, le);
+		kfree(le);
 
 	return 1;
 }
@@ -321,7 +323,7 @@ static void leb_write_unlock(struct ubi_device *ubi, int vol_id, int lnum)
 
 	up_write(&le->mutex);
 	if (free)
-		kmem_cache_free(ubi_ltree_slab, le);
+		kfree(le);
 }
 
 /**

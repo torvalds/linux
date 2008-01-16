@@ -66,9 +66,6 @@ static struct mtd_dev_param mtd_dev_param[UBI_MAX_DEVICES];
 /* Root UBI "class" object (corresponds to '/<sysfs>/class/ubi/') */
 struct class *ubi_class;
 
-/* Slab cache for lock-tree entries */
-struct kmem_cache *ubi_ltree_slab;
-
 /* Slab cache for wear-leveling entries */
 struct kmem_cache *ubi_wl_entry_slab;
 
@@ -858,20 +855,6 @@ int ubi_detach_mtd_dev(int ubi_num, int anyway)
 }
 
 /**
- * ltree_entry_ctor - lock tree entries slab cache constructor.
- * @obj: the lock-tree entry to construct
- * @cache: the lock tree entry slab cache
- * @flags: constructor flags
- */
-static void ltree_entry_ctor(struct kmem_cache *cache, void *obj)
-{
-	struct ubi_ltree_entry *le = obj;
-
-	le->users = 0;
-	init_rwsem(&le->mutex);
-}
-
-/**
  * find_mtd_device - open an MTD device by its name or number.
  * @mtd_dev: name or number of the device
  *
@@ -933,17 +916,11 @@ static int __init ubi_init(void)
 		goto out_version;
 	}
 
-	ubi_ltree_slab = kmem_cache_create("ubi_ltree_slab",
-					   sizeof(struct ubi_ltree_entry), 0,
-					   0, &ltree_entry_ctor);
-	if (!ubi_ltree_slab)
-		goto out_dev_unreg;
-
 	ubi_wl_entry_slab = kmem_cache_create("ubi_wl_entry_slab",
 						sizeof(struct ubi_wl_entry),
 						0, 0, NULL);
 	if (!ubi_wl_entry_slab)
-		goto out_ltree;
+		goto out_dev_unreg;
 
 	/* Attach MTD devices */
 	for (i = 0; i < mtd_devs; i++) {
@@ -980,8 +957,6 @@ out_detach:
 			mutex_unlock(&ubi_devices_mutex);
 		}
 	kmem_cache_destroy(ubi_wl_entry_slab);
-out_ltree:
-	kmem_cache_destroy(ubi_ltree_slab);
 out_dev_unreg:
 	misc_deregister(&ubi_ctrl_cdev);
 out_version:
@@ -1005,7 +980,6 @@ static void __exit ubi_exit(void)
 			mutex_unlock(&ubi_devices_mutex);
 		}
 	kmem_cache_destroy(ubi_wl_entry_slab);
-	kmem_cache_destroy(ubi_ltree_slab);
 	misc_deregister(&ubi_ctrl_cdev);
 	class_remove_file(ubi_class, &ubi_version);
 	class_destroy(ubi_class);

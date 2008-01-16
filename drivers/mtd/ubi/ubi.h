@@ -399,7 +399,6 @@ struct ubi_device {
 #endif
 };
 
-extern struct kmem_cache *ubi_ltree_slab;
 extern struct kmem_cache *ubi_wl_entry_slab;
 extern struct file_operations ubi_ctrl_cdev_operations;
 extern struct file_operations ubi_cdev_operations;
