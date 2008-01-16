@@ -601,6 +601,7 @@ static int btrfs_unlink(struct inode *dir, struct dentry *dentry)
 {
 	struct btrfs_root *root;
 	struct btrfs_trans_handle *trans;
+	struct inode *inode = dentry->d_inode;
 	int ret;
 	unsigned long nr = 0;
 
@@ -616,6 +617,18 @@ static int btrfs_unlink(struct inode *dir, struct dentry *dentry)
 	btrfs_set_trans_block_group(trans, dir);
 	ret = btrfs_unlink_trans(trans, root, dir, dentry);
 	nr = trans->blocks_used;
+
+	if (inode->i_nlink == 0) {
+		int found;
+		/* if the inode isn't linked anywhere,
+		 * we don't need to worry about
+		 * data=ordered
+		 */
+		found = btrfs_del_ordered_inode(inode);
+		if (found == 1) {
+			atomic_dec(&inode->i_count);
+		}
+	}
 
 	btrfs_end_transaction(trans, root);
 fail:
@@ -993,15 +1006,22 @@ fail:
 	return err;
 }
 
-void btrfs_drop_inode(struct inode *inode)
+void btrfs_put_inode(struct inode *inode)
 {
-	if (!BTRFS_I(inode)->ordered_trans || inode->i_nlink) {
-		generic_drop_inode(inode);
+	int ret;
+
+	if (!BTRFS_I(inode)->ordered_trans) {
 		return;
 	}
-	/* FIXME, make sure this delete actually ends up in the transaction */
-	btrfs_del_ordered_inode(inode);
-	generic_drop_inode(inode);
+
+	if (mapping_tagged(inode->i_mapping, PAGECACHE_TAG_DIRTY) ||
+	    mapping_tagged(inode->i_mapping, PAGECACHE_TAG_WRITEBACK))
+		return;
+
+	ret = btrfs_del_ordered_inode(inode);
+	if (ret == 1) {
+		atomic_dec(&inode->i_count);
+	}
 }
 
 void btrfs_delete_inode(struct inode *inode)

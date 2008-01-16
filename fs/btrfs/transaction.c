@@ -521,6 +521,7 @@ int btrfs_write_ordered_inodes(struct btrfs_trans_handle *trans,
 		if (inode) {
 			if (S_ISREG(inode->i_mode))
 				filemap_write_and_wait(inode->i_mapping);
+			atomic_dec(&inode->i_count);
 			iput(inode);
 		}
 		mutex_lock(&root->fs_info->fs_mutex);

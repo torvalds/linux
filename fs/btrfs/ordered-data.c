@@ -153,6 +153,8 @@ int btrfs_add_ordered_inode(struct inode *inode)
 	write_unlock(&tree->lock);
 	if (node)
 		kfree(entry);
+	else
+		igrab(inode);
 	return 0;
 }
 
@@ -221,6 +223,7 @@ int btrfs_find_del_first_ordered_inode(struct btrfs_ordered_inode_tree *tree,
 }
 
 static int __btrfs_del_ordered_inode(struct btrfs_ordered_inode_tree *tree,
+				     struct inode *inode,
 				     u64 root_objectid, u64 objectid)
 {
 	struct tree_entry *entry;
@@ -234,6 +237,7 @@ static int __btrfs_del_ordered_inode(struct btrfs_ordered_inode_tree *tree,
 		return 0;
 	}
 	rb_erase(node, &tree->tree);
+	BTRFS_I(inode)->ordered_trans = 0;
 	write_unlock(&tree->lock);
 	entry = rb_entry(node, struct tree_entry, rb_node);
 	kfree(entry);
@@ -244,14 +248,16 @@ int btrfs_del_ordered_inode(struct inode *inode)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	u64 root_objectid = root->root_key.objectid;
+	int ret = 0;
 
 	spin_lock(&root->fs_info->new_trans_lock);
 	if (root->fs_info->running_transaction) {
 		struct btrfs_ordered_inode_tree *tree;
 		tree = &root->fs_info->running_transaction->ordered_inode_tree;
-		__btrfs_del_ordered_inode(tree, root_objectid, inode->i_ino);
+		ret = __btrfs_del_ordered_inode(tree, inode, root_objectid,
+						inode->i_ino);
 	}
 	spin_unlock(&root->fs_info->new_trans_lock);
-	return 0;
+	return ret;
 }
 
