@@ -603,7 +603,7 @@ static void free_urbs(struct urb **urbs)
 	kfree(urbs);
 }
 
-int __devinit snd_usb_caiaq_audio_init(struct snd_usb_caiaqdev *dev)
+int snd_usb_caiaq_audio_init(struct snd_usb_caiaqdev *dev)
 {
 	int i, ret;
 

@@ -123,7 +123,7 @@ void snd_usb_caiaq_midi_handle_input(struct snd_usb_caiaqdev *dev,
 	snd_rawmidi_receive(dev->midi_receive_substream, buf, len);
 }
 
-int __devinit snd_usb_caiaq_midi_init(struct snd_usb_caiaqdev *device)
+int snd_usb_caiaq_midi_init(struct snd_usb_caiaqdev *device)
 {
 	int ret;
 	struct snd_rawmidi *rmidi;
