@@ -1192,31 +1192,35 @@ int lbs_start_card(struct lbs_private *priv)
 	if (device_create_file(&dev->dev, &dev_attr_lbs_rtap))
 		lbs_pr_err("cannot register lbs_rtap attribute\n");
 
-	/* Enable mesh, if supported, and work out which TLV it uses.
-	   0x100 + 291 is an unofficial value used in 5.110.20.pXX
-	   0x100 + 37 is the official value used in 5.110.21.pXX
-	   but we check them in that order because 20.pXX doesn't
-	   give an error -- it just silently fails. */
-
-	/* 5.110.20.pXX firmware will fail the command if the channel
-	   doesn't match the existing channel. But only if the TLV
-	   is correct. If the channel is wrong, _BOTH_ versions will
-	   give an error to 0x100+291, and allow 0x100+37 to succeed.
-	   It's just that 5.110.20.pXX will not have done anything
-	   useful */
-
 	lbs_update_channel(priv);
-	priv->mesh_tlv = 0x100 + 291;
-	if (lbs_mesh_config(priv, 1, priv->curbssparams.channel)) {
-		priv->mesh_tlv = 0x100 + 37;
-		if (lbs_mesh_config(priv, 1, priv->curbssparams.channel))
-			priv->mesh_tlv = 0;
-	}
-	if (priv->mesh_tlv) {
-		lbs_add_mesh(priv);
 
-		if (device_create_file(&dev->dev, &dev_attr_lbs_mesh))
-			lbs_pr_err("cannot register lbs_mesh attribute\n");
+	/* 5.0.16p0 is known to NOT support any mesh */
+	if (priv->fwrelease > 0x05001000) {
+		/* Enable mesh, if supported, and work out which TLV it uses.
+		   0x100 + 291 is an unofficial value used in 5.110.20.pXX
+		   0x100 + 37 is the official value used in 5.110.21.pXX
+		   but we check them in that order because 20.pXX doesn't
+		   give an error -- it just silently fails. */
+
+		/* 5.110.20.pXX firmware will fail the command if the channel
+		   doesn't match the existing channel. But only if the TLV
+		   is correct. If the channel is wrong, _BOTH_ versions will
+		   give an error to 0x100+291, and allow 0x100+37 to succeed.
+		   It's just that 5.110.20.pXX will not have done anything
+		   useful */
+
+		priv->mesh_tlv = 0x100 + 291;
+		if (lbs_mesh_config(priv, 1, priv->curbssparams.channel)) {
+			priv->mesh_tlv = 0x100 + 37;
+			if (lbs_mesh_config(priv, 1, priv->curbssparams.channel))
+				priv->mesh_tlv = 0;
+		}
+		if (priv->mesh_tlv) {
+			lbs_add_mesh(priv);
+
+			if (device_create_file(&dev->dev, &dev_attr_lbs_mesh))
+				lbs_pr_err("cannot register lbs_mesh attribute\n");
+		}
 	}
 
 	lbs_debugfs_init_one(priv, dev);
