@@ -329,49 +329,47 @@ int dlm_dir_lookup(struct dlm_ls *ls, int nodeid, char *name, int namelen,
 	return get_entry(ls, nodeid, name, namelen, r_nodeid);
 }
 
-/* Copy the names of master rsb's into the buffer provided.
-   Only select names whose dir node is the given nodeid. */
+static struct dlm_rsb *find_rsb_root(struct dlm_ls *ls, char *name, int len)
+{
+	struct dlm_rsb *r;
+
+	down_read(&ls->ls_root_sem);
+	list_for_each_entry(r, &ls->ls_root_list, res_root_list) {
+		if (len == r->res_length && !memcmp(name, r->res_name, len)) {
+			up_read(&ls->ls_root_sem);
+			return r;
+		}
+	}
+	up_read(&ls->ls_root_sem);
+	return NULL;
+}
+
+/* Find the rsb where we left off (or start again), then send rsb names
+   for rsb's we're master of and whose directory node matches the requesting
+   node.  inbuf is the rsb name last sent, inlen is the name's length */
 
 void dlm_copy_master_names(struct dlm_ls *ls, char *inbuf, int inlen,
  			   char *outbuf, int outlen, int nodeid)
 {
 	struct list_head *list;
-	struct dlm_rsb *start_r = NULL, *r = NULL;
-	int offset = 0, start_namelen, error, dir_nodeid;
-	char *start_name;
+	struct dlm_rsb *r;
+	int offset = 0, dir_nodeid;
 	uint16_t be_namelen;
 
-	/*
-	 * Find the rsb where we left off (or start again)
-	 */
-
-	start_namelen = inlen;
-	start_name = inbuf;
-
-	if (start_namelen > 1) {
-		/*
-		 * We could also use a find_rsb_root() function here that
-		 * searched the ls_root_list.
-		 */
-		error = dlm_find_rsb(ls, start_name, start_namelen, R_MASTER,
-				     &start_r);
-		DLM_ASSERT(!error && start_r,
-			   printk("error %d\n", error););
-		DLM_ASSERT(!list_empty(&start_r->res_root_list),
-			   dlm_print_rsb(start_r););
-		dlm_put_rsb(start_r);
-	}
-
-	/*
-	 * Send rsb names for rsb's we're master of and whose directory node
-	 * matches the requesting node.
-	 */
-
 	down_read(&ls->ls_root_sem);
-	if (start_r)
-		list = start_r->res_root_list.next;
-	else
+
+	if (inlen > 1) {
+		r = find_rsb_root(ls, inbuf, inlen);
+		if (!r) {
+			inbuf[inlen - 1] = '\0';
+			log_error(ls, "copy_master_names from %d start %d %s",
+				  nodeid, inlen, inbuf);
+			goto out;
+		}
+		list = r->res_root_list.next;
+	} else {
 		list = ls->ls_root_list.next;
+	}
 
 	for (offset = 0; list != &ls->ls_root_list; list = list->next) {
 		r = list_entry(list, struct dlm_rsb, res_root_list);

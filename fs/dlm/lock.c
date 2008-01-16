@@ -489,12 +489,6 @@ static int find_rsb(struct dlm_ls *ls, char *name, int namelen,
 	return error;
 }
 
-int dlm_find_rsb(struct dlm_ls *ls, char *name, int namelen,
-		 unsigned int flags, struct dlm_rsb **r_ret)
-{
-	return find_rsb(ls, name, namelen, flags, r_ret);
-}
-
 /* This is only called to add a reference when the code already holds
    a valid reference to the rsb, so there's no need for locking. */
 
