@@ -229,7 +229,6 @@
 	   		};
 
 			IIC0: i2c@ef600700 {
-				device_type = "i2c";
 				compatible = "ibm,iic-440grx", "ibm,iic";
 				reg = <ef600700 14>;
 				interrupt-parent = <&UIC0>;
@@ -237,7 +236,6 @@
 			};
 
 			IIC1: i2c@ef600800 {
-				device_type = "i2c";
 				compatible = "ibm,iic-440grx", "ibm,iic";
 				reg = <ef600800 14>;
 				interrupt-parent = <&UIC0>;
@@ -245,13 +243,11 @@
 			};
 
 			ZMII0: emac-zmii@ef600d00 {
-				device_type = "zmii-interface";
 				compatible = "ibm,zmii-440grx", "ibm,zmii";
 				reg = <ef600d00 c>;
 			};
 
 			RGMII0: emac-rgmii@ef601000 {
-				device_type = "rgmii-interface";
 				compatible = "ibm,rgmii-440grx", "ibm,rgmii";
 				reg = <ef601000 8>;
 				has-mdio;

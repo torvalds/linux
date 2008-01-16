@@ -187,7 +187,6 @@
 	   		};
 
 			IIC0: i2c@10000400 {
-				device_type = "i2c";
 				compatible = "ibm,iic-440spe", "ibm,iic-440gp", "ibm,iic";
 				reg = <10000400 14>;
 				interrupt-parent = <&UIC0>;
@@ -195,7 +194,6 @@
 			};
 
 			IIC1: i2c@10000500 {
-				device_type = "i2c";
 				compatible = "ibm,iic-440spe", "ibm,iic-440gp", "ibm,iic";
 				reg = <10000500 14>;
 				interrupt-parent = <&UIC0>;
