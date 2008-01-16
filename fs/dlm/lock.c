@@ -3857,8 +3857,9 @@ void dlm_receive_buffer(struct dlm_header *hd, int nodeid)
 
 	ls = dlm_find_lockspace_global(hd->h_lockspace);
 	if (!ls) {
-		log_print("invalid h_lockspace %x from %d cmd %d type %d",
-			  hd->h_lockspace, nodeid, hd->h_cmd, type);
+		if (dlm_config.ci_log_debug)
+			log_print("invalid lockspace %x from %d cmd %d type %d",
+				  hd->h_lockspace, nodeid, hd->h_cmd, type);
 
 		if (hd->h_cmd == DLM_RCOM && type == DLM_RCOM_STATUS)
 			dlm_send_ls_not_ready(nodeid, rc);
