@@ -665,7 +665,7 @@ static int __devinit snd_mts64_ctl_create(struct snd_card *card,
 					  struct mts64 *mts) 
 {
 	int err, i;
-	static struct snd_kcontrol_new *control[] = {
+	static struct snd_kcontrol_new *control[] __devinitdata = {
 		&mts64_ctl_smpte_switch,
 		&mts64_ctl_smpte_time_hours,
 		&mts64_ctl_smpte_time_minutes,
