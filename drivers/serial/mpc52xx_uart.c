@@ -112,6 +112,7 @@ static void mpc52xx_uart_of_enumerate(void);
 #endif
 
 #define PSC(port) ((struct mpc52xx_psc __iomem *)((port)->membase))
+#define FIFO(port) ((struct mpc52xx_psc_fifo __iomem *)(PSC(port)+1))
 
 
 /* Forward declaration of the interruption handling routine */
@@ -223,6 +224,7 @@ static int
 mpc52xx_uart_startup(struct uart_port *port)
 {
 	struct mpc52xx_psc __iomem *psc = PSC(port);
+	struct mpc52xx_psc_fifo __iomem *fifo = FIFO(port);
 	int ret;
 
 	/* Request IRQ */
@@ -239,10 +241,10 @@ mpc52xx_uart_startup(struct uart_port *port)
 
 	out_be16(&psc->mpc52xx_psc_clock_select, 0xdd00); /* /16 prescaler on */
 
-	out_8(&psc->rfcntl, 0x00);
-	out_be16(&psc->rfalarm, 0x1ff);
-	out_8(&psc->tfcntl, 0x07);
-	out_be16(&psc->tfalarm, 0x80);
+	out_8(&fifo->rfcntl, 0x00);
+	out_be16(&fifo->rfalarm, 0x1ff);
+	out_8(&fifo->tfcntl, 0x07);
+	out_be16(&fifo->tfalarm, 0x80);
 
 	port->read_status_mask |= MPC52xx_PSC_IMR_RXRDY | MPC52xx_PSC_IMR_TXRDY;
 	out_be16(&psc->mpc52xx_psc_imr,port->read_status_mask);

@@ -159,6 +159,9 @@ struct mpc52xx_psc {
 	u8		reserved16[3];
 	u8		irfdr;		/* PSC + 0x54 */
 	u8		reserved17[3];
+};
+
+struct mpc52xx_psc_fifo {
 	u16		rfnum;		/* PSC + 0x58 */
 	u16		reserved18;
 	u16		tfnum;		/* PSC + 0x5c */
