@@ -104,12 +104,13 @@ static void if_usb_free(struct if_usb_card *cardp)
 
 static void if_usb_setup_firmware(struct lbs_private *priv)
 {
+	struct if_usb_card *cardp = priv->card;
 	struct cmd_ds_set_boot2_ver b2_cmd;
 	struct cmd_ds_802_11_fw_wake_method wake_method;
 
 	b2_cmd.hdr.size = cpu_to_le16(sizeof(b2_cmd));
 	b2_cmd.action = 0;
-	b2_cmd.version = priv->boot2_version;
+	b2_cmd.version = cardp->boot2_version;
 
 	if (lbs_cmd_with_response(priv, CMD_SET_BOOT2_VER, &b2_cmd))
 		lbs_deb_usb("Setting boot2 version failed\n");
@@ -234,7 +235,7 @@ static int if_usb_probe(struct usb_interface *intf,
 	priv->hw_host_to_card = if_usb_host_to_card;
 	priv->hw_get_int_status = if_usb_get_int_status;
 	priv->hw_read_event_cause = if_usb_read_event_cause;
-	priv->boot2_version = udev->descriptor.bcdDevice;
+	cardp->boot2_version = udev->descriptor.bcdDevice;
 
 	if_usb_submit_rx_urb(cardp);
 

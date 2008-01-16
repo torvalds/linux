@@ -70,6 +70,7 @@ struct if_usb_card {
 	uint8_t fwfinalblk;
 	uint8_t surprise_removed;
 
+	__le16 boot2_version;
 };
 
 /** fwheader */
