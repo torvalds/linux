@@ -182,8 +182,7 @@ static int ib_fmr_cleanup_thread(void *pool_ptr)
 	struct ib_fmr_pool *pool = pool_ptr;
 
 	do {
-		if (pool->dirty_len >= pool->dirty_watermark ||
-		    atomic_read(&pool->flush_ser) - atomic_read(&pool->req_ser) < 0) {
+		if (atomic_read(&pool->flush_ser) - atomic_read(&pool->req_ser) < 0) {
 			ib_fmr_batch_release(pool);
 
 			atomic_inc(&pool->flush_ser);
@@ -194,8 +193,7 @@ static int ib_fmr_cleanup_thread(void *pool_ptr)
 		}
 
 		set_current_state(TASK_INTERRUPTIBLE);
-		if (pool->dirty_len < pool->dirty_watermark &&
-		    atomic_read(&pool->flush_ser) - atomic_read(&pool->req_ser) >= 0 &&
+		if (atomic_read(&pool->flush_ser) - atomic_read(&pool->req_ser) >= 0 &&
 		    !kthread_should_stop())
 			schedule();
 		__set_current_state(TASK_RUNNING);
@@ -511,8 +509,10 @@ int ib_fmr_pool_unmap(struct ib_pool_fmr *fmr)
 			list_add_tail(&fmr->list, &pool->free_list);
 		} else {
 			list_add_tail(&fmr->list, &pool->dirty_list);
-			++pool->dirty_len;
-			wake_up_process(pool->thread);
+			if (++pool->dirty_len >= pool->dirty_watermark) {
+				atomic_inc(&pool->req_ser);
+				wake_up_process(pool->thread);
+			}
 		}
 	}
 
