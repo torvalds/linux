@@ -3472,6 +3472,18 @@ static int patch_stac927x(struct hda_codec *codec)
 
 	codec->patch_ops = stac92xx_patch_ops;
 
+	/*
+	 * !!FIXME!!
+	 * The STAC927x seem to require fairly long delays for certain
+	 * command sequences.  With too short delays (even if the answer
+	 * is set to RIRB properly), it results in the silence output
+	 * on some hardwares like Dell.
+	 *
+	 * The below flag enables the longer delay (see get_response
+	 * in hda_intel.c).
+	 */
+	codec->bus->needs_damn_long_delay = 1;
+
 	return 0;
 }
 

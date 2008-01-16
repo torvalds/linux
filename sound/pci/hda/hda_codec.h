@@ -464,6 +464,9 @@ struct hda_bus {
 	struct hda_bus_unsolicited *unsol;
 
 	struct snd_info_entry *proc;
+
+	/* misc op flags */
+	unsigned int needs_damn_long_delay :1;
 };
 
 /*
