@@ -205,13 +205,13 @@ static int __devinit snd_ice1712_hoontech_init(struct snd_ice1712 *ice)
 	snd_ice1712_stdsp24_darear(ice, (ice->spec.hoontech.config & ICE1712_STDSP24_DAREAR) ? 1 : 0);
 	snd_ice1712_stdsp24_mute(ice, (ice->spec.hoontech.config & ICE1712_STDSP24_MUTE) ? 1 : 0);
 	snd_ice1712_stdsp24_insel(ice, (ice->spec.hoontech.config & ICE1712_STDSP24_INSEL) ? 1 : 0);
-	for (box = 0; box < 4; box++) {
+	for (box = 0; box < 1; box++) {
+		if (ice->spec.hoontech.boxconfig[box] & ICE1712_STDSP24_BOX_MIDI2)
+                        snd_ice1712_stdsp24_midi2(ice, 1);
 		for (chn = 0; chn < 4; chn++)
 			snd_ice1712_stdsp24_box_channel(ice, box, chn, (ice->spec.hoontech.boxconfig[box] & (1 << chn)) ? 1 : 0);
 		snd_ice1712_stdsp24_box_midi(ice, box,
 				(ice->spec.hoontech.boxconfig[box] & ICE1712_STDSP24_BOX_MIDI1) ? 1 : 0);
-		if (ice->spec.hoontech.boxconfig[box] & ICE1712_STDSP24_BOX_MIDI2)
-			snd_ice1712_stdsp24_midi2(ice, 1);
 	}
 
 	return 0;
