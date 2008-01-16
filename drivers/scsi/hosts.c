@@ -268,6 +268,7 @@ static void scsi_host_dev_release(struct device *dev)
 	}
 
 	scsi_destroy_command_freelist(shost);
+	scsi_destroy_command_sense_buffer(shost);
 	if (shost->bqt)
 		blk_free_tags(shost->bqt);
 
@@ -372,9 +373,13 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 	else
 		shost->dma_boundary = 0xffffffff;
 
-	rval = scsi_setup_command_freelist(shost);
+	rval = scsi_setup_command_sense_buffer(shost);
 	if (rval)
 		goto fail_kfree;
+
+	rval = scsi_setup_command_freelist(shost);
+	if (rval)
+		goto fail_destroy_sense;
 
 	device_initialize(&shost->shost_gendev);
 	snprintf(shost->shost_gendev.bus_id, BUS_ID_SIZE, "host%d",
@@ -399,6 +404,8 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 
  fail_destroy_freelist:
 	scsi_destroy_command_freelist(shost);
+ fail_destroy_sense:
+	scsi_destroy_command_sense_buffer(shost);
  fail_kfree:
 	kfree(shost);
 	return NULL;
