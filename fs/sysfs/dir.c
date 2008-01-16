@@ -678,8 +678,10 @@ static struct dentry * sysfs_lookup(struct inode *dir, struct dentry *dentry,
 	sd = sysfs_find_dirent(parent_sd, dentry->d_name.name);
 
 	/* no such entry */
-	if (!sd)
+	if (!sd) {
+		ret = ERR_PTR(-ENOENT);
 		goto out_unlock;
+	}
 
 	/* attach dentry and inode */
 	inode = sysfs_get_inode(sd);
