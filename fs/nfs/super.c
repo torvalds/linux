@@ -1006,12 +1006,14 @@ static int nfs_parse_mount_options(char *raw,
 			string = match_strdup(args);
 			if (string == NULL)
 				goto out_nomem;
+			kfree(mnt->client_address);
 			mnt->client_address = string;
 			break;
 		case Opt_mounthost:
 			string = match_strdup(args);
 			if (string == NULL)
 				goto out_nomem;
+			kfree(mnt->mount_server.hostname);
 			mnt->mount_server.hostname = string;
 			break;
 		case Opt_mountaddr:
