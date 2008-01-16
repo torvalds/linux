@@ -126,7 +126,8 @@ static struct s5h1409_config hauppauge_generic_config = {
 	.gpio          = S5H1409_GPIO_ON,
 	.qam_if        = 44000,
 	.inversion     = S5H1409_INVERSION_OFF,
-	.status_mode   = S5H1409_DEMODLOCKING
+	.status_mode   = S5H1409_DEMODLOCKING,
+	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK,
 };
 
 static struct s5h1409_config hauppauge_ezqam_config = {
@@ -135,7 +136,8 @@ static struct s5h1409_config hauppauge_ezqam_config = {
 	.gpio          = S5H1409_GPIO_OFF,
 	.qam_if        = 4000,
 	.inversion     = S5H1409_INVERSION_ON,
-	.status_mode   = S5H1409_DEMODLOCKING
+	.status_mode   = S5H1409_DEMODLOCKING,
+	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK,
 };
 
 static struct s5h1409_config hauppauge_hvr1800lp_config = {
@@ -144,7 +146,8 @@ static struct s5h1409_config hauppauge_hvr1800lp_config = {
 	.gpio          = S5H1409_GPIO_OFF,
 	.qam_if        = 44000,
 	.inversion     = S5H1409_INVERSION_OFF,
-	.status_mode   = S5H1409_DEMODLOCKING
+	.status_mode   = S5H1409_DEMODLOCKING,
+	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK,
 };
 
 static struct s5h1409_config hauppauge_hvr1500_config = {
@@ -152,7 +155,8 @@ static struct s5h1409_config hauppauge_hvr1500_config = {
 	.output_mode   = S5H1409_SERIAL_OUTPUT,
 	.gpio          = S5H1409_GPIO_OFF,
 	.inversion     = S5H1409_INVERSION_OFF,
-	.status_mode   = S5H1409_DEMODLOCKING
+	.status_mode   = S5H1409_DEMODLOCKING,
+	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK,
 };
 
 static struct mt2131_config hauppauge_generic_tunerconfig = {
@@ -171,7 +175,8 @@ static struct s5h1409_config hauppauge_hvr1500q_config = {
 	.gpio          = S5H1409_GPIO_ON,
 	.qam_if        = 44000,
 	.inversion     = S5H1409_INVERSION_OFF,
-	.status_mode   = S5H1409_DEMODLOCKING
+	.status_mode   = S5H1409_DEMODLOCKING,
+	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK,
 };
 
 static struct xc5000_config hauppauge_hvr1500q_tunerconfig = {

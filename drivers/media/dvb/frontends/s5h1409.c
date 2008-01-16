@@ -98,7 +98,7 @@ static struct init_tab {
 	{ 0xac, 0x1003, },
 	{ 0xad, 0x103f, },
 	{ 0xe2, 0x0100, },
-	{ 0xe3, 0x0000, },
+	{ 0xe3, 0x1000, },
 	{ 0x28, 0x1010, },
 	{ 0xb1, 0x000e, },
 };
@@ -441,9 +441,11 @@ static int s5h1409_set_gpio(struct dvb_frontend* fe, int enable)
 	dprintk("%s(%d)\n", __FUNCTION__, enable);
 
 	if (enable)
-		return s5h1409_writereg(state, 0xe3, 0x1100);
+		return s5h1409_writereg(state, 0xe3,
+			s5h1409_readreg(state, 0xe3) | 0x1100);
 	else
-		return s5h1409_writereg(state, 0xe3, 0x1000);
+		return s5h1409_writereg(state, 0xe3,
+			s5h1409_readreg(state, 0xe3) & 0xeeff);
 }
 
 static int s5h1409_sleep(struct dvb_frontend* fe, int enable)
@@ -513,13 +515,15 @@ static void s5h1409_set_qam_interleave_mode(struct dvb_frontend *fe)
 			s5h1409_writereg(state, 0x96, 0x20);
 			s5h1409_writereg(state, 0xad,
 				( ((reg1 & 0xf000) >> 4) | (reg2 & 0xf0ff)) );
-			s5h1409_writereg(state, 0xab, 0x1100);
+			s5h1409_writereg(state, 0xab,
+				s5h1409_readreg(state, 0xab) & 0xeffe);
 		}
 	} else {
 		if (state->qam_state != 1) {
 			state->qam_state = 1;
 			s5h1409_writereg(state, 0x96, 0x08);
-			s5h1409_writereg(state, 0xab, 0x1101);
+			s5h1409_writereg(state, 0xab,
+				s5h1409_readreg(state, 0xab) | 0x1001);
 		}
 	}
 }
@@ -556,6 +560,36 @@ static int s5h1409_set_frontend (struct dvb_frontend* fe,
 	return 0;
 }
 
+static int s5h1409_set_mpeg_timing(struct dvb_frontend *fe, int mode)
+{
+	struct s5h1409_state *state = fe->demodulator_priv;
+	u16 val;
+
+	dprintk("%s(%d)\n", __FUNCTION__, mode);
+
+	val = s5h1409_readreg(state, 0xac) & 0xcfff;
+	switch (mode) {
+	case S5H1409_MPEGTIMING_CONTINOUS_INVERTING_CLOCK:
+		val |= 0x0000;
+		break;
+	case S5H1409_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK:
+		dprintk("%s(%d) Mode1 or Defaulting\n", __FUNCTION__, mode);
+		val |= 0x1000;
+		break;
+	case S5H1409_MPEGTIMING_NONCONTINOUS_INVERTING_CLOCK:
+		val |= 0x2000;
+		break;
+	case S5H1409_MPEGTIMING_NONCONTINOUS_NONINVERTING_CLOCK:
+		val |= 0x3000;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* Configure MPEG Signal Timing charactistics */
+	return s5h1409_writereg(state, 0xac, val);
+}
+
 /* Reset the demod hardware and reset all of the configuration registers
    to a default state. */
 static int s5h1409_init (struct dvb_frontend* fe)
@@ -575,13 +609,16 @@ static int s5h1409_init (struct dvb_frontend* fe)
 	state->current_modulation = VSB_8;
 
 	if (state->config->output_mode == S5H1409_SERIAL_OUTPUT)
-		s5h1409_writereg(state, 0xab, 0x100); /* Serial */
+		s5h1409_writereg(state, 0xab,
+			s5h1409_readreg(state, 0xab) | 0x100); /* Serial */
 	else
-		s5h1409_writereg(state, 0xab, 0x0); /* Parallel */
+		s5h1409_writereg(state, 0xab,
+			s5h1409_readreg(state, 0xab) & 0xfeff); /* Parallel */
 
 	s5h1409_set_spectralinversion(fe, state->config->inversion);
 	s5h1409_set_if_freq(fe, state->if_freq);
 	s5h1409_set_gpio(fe, state->config->gpio);
+	s5h1409_set_mpeg_timing(fe, state->config->mpeg_timing);
 	s5h1409_softreset(fe);
 
 	/* Note: Leaving the I2C gate closed. */
