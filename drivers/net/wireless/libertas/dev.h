@@ -161,7 +161,7 @@ struct lbs_private {
 
 	/** Wlan adapter data structure*/
 	/** STATUS variables */
-	u8 fwreleasenumber[4];
+	u32 fwrelease;
 	u32 fwcapinfo;
 	/* protected with big lock */
 

@@ -60,13 +60,24 @@ int lbs_update_hw_spec(struct lbs_private *priv)
 		goto out;
 
 	priv->fwcapinfo = le32_to_cpu(cmd.fwcapinfo);
-	memcpy(priv->fwreleasenumber, cmd.fwreleasenumber, 4);
 
-	lbs_deb_cmd("GET_HW_SPEC: firmware release %u.%u.%up%u\n",
-		    priv->fwreleasenumber[2], priv->fwreleasenumber[1],
-		    priv->fwreleasenumber[0], priv->fwreleasenumber[3]);
-	lbs_deb_cmd("GET_HW_SPEC: MAC addr %s\n",
-		    print_mac(mac, cmd.permanentaddr));
+	/* The firmware release is in an interesting format: the patch
+	 * level is in the most significant nibble ... so fix that: */
+	priv->fwrelease = le32_to_cpu(cmd.fwrelease);
+	priv->fwrelease = (priv->fwrelease << 8) |
+		(priv->fwrelease >> 24 & 0xff);
+
+	/* Some firmware capabilities:
+	 * CF card    firmware 5.0.16p0:   cap 0x00000303
+	 * USB dongle firmware 5.110.17p2: cap 0x00000303
+	 */
+	printk("libertas: %s, fw %u.%u.%up%u, cap 0x%08x\n",
+		print_mac(mac, cmd.permanentaddr),
+		priv->fwrelease >> 24 & 0xff,
+		priv->fwrelease >> 16 & 0xff,
+		priv->fwrelease >>  8 & 0xff,
+		priv->fwrelease       & 0xff,
+		priv->fwcapinfo);
 	lbs_deb_cmd("GET_HW_SPEC: hardware interface 0x%x, hardware spec 0x%04x\n",
 		    cmd.hwifversion, cmd.version);
 

@@ -2071,17 +2071,11 @@ void lbs_get_fwversion(struct lbs_private *priv, char *fwversion, int maxlen)
 
 	mutex_lock(&priv->lock);
 
-	if (priv->fwreleasenumber[3] == 0)
-		sprintf(fwver, "%u.%u.%u",
-			priv->fwreleasenumber[2],
-			priv->fwreleasenumber[1],
-			priv->fwreleasenumber[0]);
-	else
-		sprintf(fwver, "%u.%u.%u.p%u",
-			priv->fwreleasenumber[2],
-			priv->fwreleasenumber[1],
-			priv->fwreleasenumber[0],
-			priv->fwreleasenumber[3]);
+	sprintf(fwver, "%u.%u.%u.p%u",
+		priv->fwrelease >> 24 & 0xff,
+		priv->fwrelease >> 16 & 0xff,
+		priv->fwrelease >>  8 & 0xff,
+		priv->fwrelease       & 0xff);
 
 	mutex_unlock(&priv->lock);
 	snprintf(fwversion, maxlen, fwver);

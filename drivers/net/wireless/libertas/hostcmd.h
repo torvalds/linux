@@ -136,8 +136,8 @@ struct cmd_ds_get_hw_spec {
 	/* Number of antenna used */
 	__le16 nr_antenna;
 
-	/* FW release number, example 1,2,3,4 = 3.2.1p4 */
-	u8 fwreleasenumber[4];
+	/* FW release number, example 0x01030304 = 2.3.4p1 */
+	__le32 fwrelease;
 
 	/* Base Address of TxPD queue */
 	__le32 wcb_base;
