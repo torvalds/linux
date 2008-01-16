@@ -250,9 +250,11 @@ struct ubi_wl_entry;
  * @rsvd_pebs: count of reserved physical eraseblocks
  * @avail_pebs: count of available physical eraseblocks
  * @beb_rsvd_pebs: how many physical eraseblocks are reserved for bad PEB
- * handling
+ *                 handling
  * @beb_rsvd_level: normal level of PEBs reserved for bad PEB handling
  *
+ * @autoresize_vol_id: ID of the volume which has to be auto-resized at the end
+ *                     of UBI ititializetion
  * @vtbl_slots: how many slots are available in the volume table
  * @vtbl_size: size of the volume table in bytes
  * @vtbl: in-RAM volume table copy
@@ -333,12 +335,14 @@ struct ubi_device {
 	int beb_rsvd_pebs;
 	int beb_rsvd_level;
 
+	int autoresize_vol_id;
 	int vtbl_slots;
 	int vtbl_size;
 	struct ubi_vtbl_record *vtbl;
 	struct mutex volumes_mutex;
 
 	int max_ec;
+	/* TODO: mean_ec is not updated run-time, fix */
 	int mean_ec;
 
 	/* EBA unit's stuff */

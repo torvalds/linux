@@ -366,9 +366,6 @@ static int uif_init(struct ubi_device *ubi)
 	int i, err;
 	dev_t dev;
 
-	mutex_init(&ubi->volumes_mutex);
-	spin_lock_init(&ubi->volumes_lock);
-
 	sprintf(ubi->ubi_name, UBI_NAME_STR "%d", ubi->ubi_num);
 
 	/*
@@ -624,6 +621,58 @@ static int io_init(struct ubi_device *ubi)
 }
 
 /**
+ * autoresize - re-size the volume which has the "auto-resize" flag set.
+ * @ubi: UBI device description object
+ * @vol_id: ID of the volume to re-size
+ *
+ * This function re-sizes the volume marked by the @UBI_VTBL_AUTORESIZE_FLG in
+ * the volume table to the largest possible size. See comments in ubi-header.h
+ * for more description of the flag. Returns zero in case of success and a
+ * negative error code in case of failure.
+ */
+static int autoresize(struct ubi_device *ubi, int vol_id)
+{
+	struct ubi_volume_desc desc;
+	struct ubi_volume *vol = ubi->volumes[vol_id];
+	int err, old_reserved_pebs = vol->reserved_pebs;
+
+	/*
+	 * Clear the auto-resize flag in the volume in-memory copy of the
+	 * volume table, and 'ubi_resize_volume()' will propogate this change
+	 * to the flash.
+	 */
+	ubi->vtbl[vol_id].flags &= ~UBI_VTBL_AUTORESIZE_FLG;
+
+	if (ubi->avail_pebs == 0) {
+		struct ubi_vtbl_record vtbl_rec;
+
+		/*
+		 * No avalilable PEBs to re-size the volume, clear the flag on
+		 * flash and exit.
+		 */
+		memcpy(&vtbl_rec, &ubi->vtbl[vol_id],
+		       sizeof(struct ubi_vtbl_record));
+		err = ubi_change_vtbl_record(ubi, vol_id, &vtbl_rec);
+		if (err)
+			ubi_err("cannot clean auto-resize flag for volume %d",
+				vol_id);
+	} else {
+		desc.vol = vol;
+		err = ubi_resize_volume(&desc,
+					old_reserved_pebs + ubi->avail_pebs);
+		if (err)
+			ubi_err("cannot auto-resize volume %d", vol_id);
+	}
+
+	if (err)
+		return err;
+
+	ubi_msg("volume %d (\"%s\") re-sized from %d to %d LEBs", vol_id,
+		vol->name, old_reserved_pebs, vol->reserved_pebs);
+	return 0;
+}
+
+/**
  * ubi_attach_mtd_dev - attach an MTD device.
  * @mtd_dev: MTD device description object
  * @ubi_num: number to assign to the new UBI device
@@ -699,6 +748,12 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 	ubi->mtd = mtd;
 	ubi->ubi_num = ubi_num;
 	ubi->vid_hdr_offset = vid_hdr_offset;
+	ubi->autoresize_vol_id = -1;
+
+	mutex_init(&ubi->buf_mutex);
+	mutex_init(&ubi->ckvol_mutex);
+	mutex_init(&ubi->volumes_mutex);
+	spin_lock_init(&ubi->volumes_lock);
 
 	dbg_msg("attaching mtd%d to ubi%d: VID header offset %d",
 		mtd->index, ubi_num, vid_hdr_offset);
@@ -707,8 +762,6 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 	if (err)
 		goto out_free;
 
-	mutex_init(&ubi->buf_mutex);
-	mutex_init(&ubi->ckvol_mutex);
 	ubi->peb_buf1 = vmalloc(ubi->peb_size);
 	if (!ubi->peb_buf1)
 		goto out_free;
@@ -728,6 +781,12 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 	if (err) {
 		dbg_err("failed to attach by scanning, error %d", err);
 		goto out_free;
+	}
+
+	if (ubi->autoresize_vol_id != -1) {
+		err = autoresize(ubi, ubi->autoresize_vol_id);
+		if (err)
+			goto out_detach;
 	}
 
 	err = uif_init(ubi);

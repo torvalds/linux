@@ -497,8 +497,6 @@ int ubi_resize_volume(struct ubi_volume_desc *desc, int reserved_pebs)
 
 	dbg_msg("re-size volume %d to from %d to %d PEBs",
 		vol_id, vol->reserved_pebs, reserved_pebs);
-	ubi_assert(desc->mode == UBI_EXCLUSIVE);
-	ubi_assert(vol == ubi->volumes[vol_id]);
 
 	if (vol->vol_type == UBI_STATIC_VOLUME &&
 	    reserved_pebs < vol->used_ebs) {

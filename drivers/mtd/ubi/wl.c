@@ -1303,7 +1303,6 @@ int ubi_wl_flush(struct ubi_device *ubi)
 	 * Make sure all the works which have been done in parallel are
 	 * finished.
 	 */
-	ubi_assert(ubi->ref_count > 0);
 	down_write(&ubi->work_sem);
 	up_write(&ubi->work_sem);
 
