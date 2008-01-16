@@ -634,6 +634,7 @@ static struct usb_serial * create_serial (struct usb_device *dev,
 	serial->type = driver;
 	serial->interface = interface;
 	kref_init(&serial->kref);
+	mutex_init(&serial->disc_mutex);
 
 	return serial;
 }
@@ -1089,20 +1090,22 @@ void usb_serial_disconnect(struct usb_interface *interface)
 	usb_serial_console_disconnect(serial);
 	dbg ("%s", __FUNCTION__);
 
+	mutex_lock(&serial->disc_mutex);
 	usb_set_intfdata (interface, NULL);
-	if (serial) {
-		for (i = 0; i < serial->num_ports; ++i) {
-			port = serial->port[i];
-			if (port) {
-				if (port->tty)
-					tty_hangup(port->tty);
-				kill_traffic(port);
-			}
+	/* must set a flag, to signal subdrivers */
+	serial->disconnected = 1;
+	for (i = 0; i < serial->num_ports; ++i) {
+		port = serial->port[i];
+		if (port) {
+			if (port->tty)
+				tty_hangup(port->tty);
+			kill_traffic(port);
 		}
-		/* let the last holder of this object 
-		 * cause it to be cleaned up */
-		usb_serial_put(serial);
 	}
+	/* let the last holder of this object
+	 * cause it to be cleaned up */
+	mutex_unlock(&serial->disc_mutex);
+	usb_serial_put(serial);
 	dev_info(dev, "device disconnected\n");
 }
 
@@ -1111,9 +1114,6 @@ int usb_serial_suspend(struct usb_interface *intf, pm_message_t message)
 	struct usb_serial *serial = usb_get_intfdata(intf);
 	struct usb_serial_port *port;
 	int i, r = 0;
-
-	if (!serial) /* device has been disconnected */
-		return 0;
 
 	for (i = 0; i < serial->num_ports; ++i) {
 		port = serial->port[i];

@@ -564,22 +564,25 @@ static void mos7720_close(struct usb_serial_port *port, struct file *filp)
 	}
 
 	/* While closing port, shutdown all bulk read, write  *
-	 * and interrupt read if they exists                  */
-	if (serial->dev) {
-		dbg("Shutdown bulk write");
-		usb_kill_urb(port->write_urb);
-		dbg("Shutdown bulk read");
-		usb_kill_urb(port->read_urb);
+	 * and interrupt read if they exists, otherwise nop   */
+	dbg("Shutdown bulk write");
+	usb_kill_urb(port->write_urb);
+	dbg("Shutdown bulk read");
+	usb_kill_urb(port->read_urb);
+
+	mutex_lock(&serial->disc_mutex);
+	/* these commands must not be issued if the device has
+	 * been disconnected */
+	if (!serial->disconnected) {
+		data = 0x00;
+		send_mos_cmd(serial, MOS_WRITE, port->number - port->serial->minor,
+			     0x04, &data);
+
+		data = 0x00;
+		send_mos_cmd(serial, MOS_WRITE, port->number - port->serial->minor,
+			     0x01, &data);
 	}
-
-	data = 0x00;
-	send_mos_cmd(serial, MOS_WRITE, port->number - port->serial->minor,
-		     0x04, &data);
-
-	data = 0x00;
-	send_mos_cmd(serial, MOS_WRITE, port->number - port->serial->minor,
-		     0x01, &data);
-
+	mutex_unlock(&serial->disc_mutex);
 	mos7720_port->open = 0;
 
 	dbg("Leaving %s", __FUNCTION__);

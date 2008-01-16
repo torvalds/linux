@@ -129,6 +129,7 @@ struct usb_serial {
 	struct usb_device *		dev;
 	struct usb_serial_driver *	type;
 	struct usb_interface *		interface;
+	unsigned char			disconnected;
 	unsigned char			minor;
 	unsigned char			num_ports;
 	unsigned char			num_port_pointers;
@@ -138,6 +139,7 @@ struct usb_serial {
 	char				num_bulk_out;
 	struct usb_serial_port *	port[MAX_NUM_PORTS];
 	struct kref			kref;
+	struct mutex			disc_mutex;
 	void *				private;
 };
 #define to_usb_serial(d) container_of(d, struct usb_serial, kref)
