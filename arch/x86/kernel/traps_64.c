@@ -635,6 +635,7 @@ asmlinkage void do_##name(struct pt_regs * regs, long error_code) \
 	info.si_errno = 0; \
 	info.si_code = sicode; \
 	info.si_addr = (void __user *)siaddr; \
+	trace_hardirqs_fixup(); \
 	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr) \
 							== NOTIFY_STOP) \
 		return; \
