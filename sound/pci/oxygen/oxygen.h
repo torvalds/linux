@@ -56,7 +56,8 @@ struct oxygen {
 	u8 spdif_playback_enable;
 	u8 ak4396_reg1;
 	u8 revision;
-	u8 has_2nd_ac97_codec;
+	u8 has_ac97_0;
+	u8 has_ac97_1;
 	u32 spdif_bits;
 	u32 spdif_pcm_bits;
 	struct snd_pcm_substream *streams[PCM_COUNT];

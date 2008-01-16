@@ -714,7 +714,7 @@ int __devinit oxygen_pcm_init(struct oxygen *chip)
 					      snd_dma_pci_data(chip->pci),
 					      128 * 1024, 256 * 1024);
 
-	if (chip->has_2nd_ac97_codec) {
+	if (chip->has_ac97_1) {
 		err = snd_pcm_new(chip->card, "AC97", 2, 1, 0, &pcm);
 		if (err < 0)
 			return err;

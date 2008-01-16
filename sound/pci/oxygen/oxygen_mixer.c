@@ -597,6 +597,9 @@ static const struct snd_kcontrol_new controls[] = {
 		.info = spdif_info,
 		.get = spdif_input_default_get,
 	},
+};
+
+static const struct snd_kcontrol_new ac97_controls[] = {
 	AC97_VOLUME("Mic Capture Volume", AC97_MIC),
 	AC97_SWITCH("Mic Capture Switch", AC97_MIC, 15, 1),
 	AC97_SWITCH("Mic Boost (+20dB)", AC97_MIC, 6, 0),
@@ -617,7 +620,9 @@ static void oxygen_any_ctl_free(struct snd_kcontrol *ctl)
 		chip->controls[i] = NULL;
 }
 
-int oxygen_mixer_init(struct oxygen *chip)
+static int add_controls(struct oxygen *chip,
+			const struct snd_kcontrol_new controls[],
+			unsigned int count)
 {
 	static const char *const known_ctl_names[CONTROL_COUNT] = {
 		[CONTROL_SPDIF_PCM] =
@@ -633,7 +638,7 @@ int oxygen_mixer_init(struct oxygen *chip)
 	struct snd_kcontrol *ctl;
 	int err;
 
-	for (i = 0; i < ARRAY_SIZE(controls); ++i) {
+	for (i = 0; i < count; ++i) {
 		ctl = snd_ctl_new1(&controls[i], chip);
 		if (!ctl)
 			return -ENOMEM;
@@ -650,6 +655,22 @@ int oxygen_mixer_init(struct oxygen *chip)
 				chip->controls[j] = ctl;
 				ctl->private_free = oxygen_any_ctl_free;
 			}
+	}
+	return 0;
+}
+
+int oxygen_mixer_init(struct oxygen *chip)
+{
+	int err;
+
+	err = add_controls(chip, controls, ARRAY_SIZE(controls));
+	if (err < 0)
+		return err;
+	if (chip->has_ac97_0) {
+		err = add_controls(chip, ac97_controls,
+				   ARRAY_SIZE(ac97_controls));
+		if (err < 0)
+			return err;
 	}
 	return chip->model->mixer_init ? chip->model->mixer_init(chip) : 0;
 }
