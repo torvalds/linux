@@ -247,7 +247,10 @@ int lbs_process_rxed_packet(struct lbs_private *priv, struct sk_buff *skb)
 	priv->stats.rx_packets++;
 
 	skb->protocol = eth_type_trans(skb, dev);
-	netif_rx(skb);
+	if (in_interrupt())
+		netif_rx(skb);
+	else
+		netif_rx_ni(skb);
 
 	ret = 0;
 done:
