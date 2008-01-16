@@ -380,6 +380,7 @@ static struct s5h1409_config pinnacle_pctv_hd_800i_config = {
 	.qam_if	       = 44000,
 	.inversion     = S5H1409_INVERSION_OFF,
 	.status_mode   = S5H1409_DEMODLOCKING,
+	.mpeg_timing   = S5H1409_MPEGTIMING_NONCONTINOUS_NONINVERTING_CLOCK,
 };
 
 static struct xc5000_config pinnacle_pctv_hd_800i_tuner_config = {
@@ -643,9 +644,6 @@ static int dvb_register(struct cx8802_dev *dev)
 		}
 		break;
 	case CX88_BOARD_PINNACLE_PCTV_HD_800i:
-		/* Parallel mpeg data port and punctured clock mode */
-		dev->ts_gen_cntrl = 0x04;
-
 		dev->dvb.frontend = dvb_attach(s5h1409_attach,
 					       &pinnacle_pctv_hd_800i_config,
 					       &dev->core->i2c_adap);

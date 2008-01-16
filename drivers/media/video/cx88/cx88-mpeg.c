@@ -118,8 +118,12 @@ static int cx8802_start_dma(struct cx8802_dev    *dev,
 		case CX88_BOARD_HAUPPAUGE_HVR1300:
 			break;
 		case CX88_BOARD_PINNACLE_PCTV_HD_800i:
-			/* Enable MPEG parallel port */
-			cx_write(MO_PINMUX_IO, 0x80);
+			/* Enable MPEG parallel IO and video signal pins */
+			cx_write(MO_PINMUX_IO, 0x88);
+			cx_write(TS_HW_SOP_CNTRL, (0x47 << 16) | (188 << 4));
+			dev->ts_gen_cntrl = 5;
+			cx_write(TS_SOP_STAT, 0);
+			cx_write(TS_VALERR_CNTRL, 0);
 			udelay(100);
 			break;
 		default:
