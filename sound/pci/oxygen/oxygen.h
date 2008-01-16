@@ -80,7 +80,7 @@ struct oxygen_model {
 	void (*update_dac_volume)(struct oxygen *chip);
 	void (*update_dac_mute)(struct oxygen *chip);
 	const unsigned int *dac_tlv;
-	u8 record_from_dma_b;
+	u8 used_channels;
 	u8 cd_in_from_video_in;
 	u8 dac_minimum_volume;
 	u8 function_flags;

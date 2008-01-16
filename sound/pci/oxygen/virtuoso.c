@@ -224,7 +224,10 @@ static const struct oxygen_model model_xonar = {
 	.update_dac_volume = update_pcm1796_volume,
 	.update_dac_mute = update_pcm1796_mute,
 	.dac_tlv = pcm1796_db_scale,
-	.record_from_dma_b = 1,
+	.used_channels = OXYGEN_CHANNEL_B |
+			 OXYGEN_CHANNEL_C |
+			 OXYGEN_CHANNEL_SPDIF |
+			 OXYGEN_CHANNEL_MULTICH,
 	.cd_in_from_video_in = 1,
 	.dac_minimum_volume = 15,
 	.function_flags = OXYGEN_FUNCTION_ENABLE_SPI_4_5,

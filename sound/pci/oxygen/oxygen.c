@@ -256,6 +256,11 @@ static const struct oxygen_model model_generic = {
 	.update_dac_volume = update_ak4396_volume,
 	.update_dac_mute = update_ak4396_mute,
 	.dac_tlv = ak4396_db_scale,
+	.used_channels = OXYGEN_CHANNEL_A |
+			 OXYGEN_CHANNEL_C |
+			 OXYGEN_CHANNEL_SPDIF |
+			 OXYGEN_CHANNEL_MULTICH |
+			 OXYGEN_CHANNEL_AC97,
 	.function_flags = OXYGEN_FUNCTION_ENABLE_SPI_4_5,
 };
 static const struct oxygen_model model_meridian = {
@@ -270,7 +275,11 @@ static const struct oxygen_model model_meridian = {
 	.update_dac_volume = update_ak4396_volume,
 	.update_dac_mute = update_ak4396_mute,
 	.dac_tlv = ak4396_db_scale,
-	.record_from_dma_b = 1,
+	.used_channels = OXYGEN_CHANNEL_B |
+			 OXYGEN_CHANNEL_C |
+			 OXYGEN_CHANNEL_SPDIF |
+			 OXYGEN_CHANNEL_MULTICH |
+			 OXYGEN_CHANNEL_AC97,
 	.function_flags = OXYGEN_FUNCTION_ENABLE_SPI_4_5,
 };
 
