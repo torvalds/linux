@@ -3555,7 +3555,7 @@ snd_hdsp_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *buffer)
 
 }
 
-static void __devinit snd_hdsp_proc_init(struct hdsp *hdsp)
+static void snd_hdsp_proc_init(struct hdsp *hdsp)
 {
 	struct snd_info_entry *entry;
 
