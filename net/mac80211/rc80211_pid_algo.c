@@ -496,6 +496,8 @@ static void *rate_control_pid_alloc_sta(void *priv, gfp_t gfp)
 	if (spinfo == NULL)
 		return NULL;
 
+	spinfo->last_sample = jiffies;
+
 #ifdef CONFIG_MAC80211_DEBUGFS
 	spin_lock_init(&spinfo->events.lock);
 	init_waitqueue_head(&spinfo->events.waitqueue);
