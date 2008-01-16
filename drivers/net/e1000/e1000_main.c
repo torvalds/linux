@@ -3919,7 +3919,7 @@ e1000_clean(struct napi_struct *napi, int budget)
 {
 	struct e1000_adapter *adapter = container_of(napi, struct e1000_adapter, napi);
 	struct net_device *poll_dev = adapter->netdev;
-	int work_done = 0;
+	int tx_cleaned = 0, work_done = 0;
 
 	/* Must NOT use netdev_priv macro here. */
 	adapter = poll_dev->priv;
@@ -3929,13 +3929,16 @@ e1000_clean(struct napi_struct *napi, int budget)
 	 * simultaneously.  A failure obtaining the lock means
 	 * tx_ring[0] is currently being cleaned anyway. */
 	if (spin_trylock(&adapter->tx_queue_lock)) {
-		e1000_clean_tx_irq(adapter,
-				   &adapter->tx_ring[0]);
+		tx_cleaned = e1000_clean_tx_irq(adapter,
+						&adapter->tx_ring[0]);
 		spin_unlock(&adapter->tx_queue_lock);
 	}
 
 	adapter->clean_rx(adapter, &adapter->rx_ring[0],
 	                  &work_done, budget);
+
+	if (tx_cleaned)
+		work_done = budget;
 
 	/* If budget not fully consumed, exit the polling mode */
 	if (work_done < budget) {

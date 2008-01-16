@@ -1468,12 +1468,15 @@ static int ixgbe_clean(struct napi_struct *napi, int budget)
 	struct ixgbe_adapter *adapter = container_of(napi,
 					struct ixgbe_adapter, napi);
 	struct net_device *netdev = adapter->netdev;
-	int work_done = 0;
+	int tx_cleaned = 0, work_done = 0;
 
 	/* In non-MSIX case, there is no multi-Tx/Rx queue */
-	ixgbe_clean_tx_irq(adapter, adapter->tx_ring);
+	tx_cleaned = ixgbe_clean_tx_irq(adapter, adapter->tx_ring);
 	ixgbe_clean_rx_irq(adapter, &adapter->rx_ring[0], &work_done,
 			   budget);
+
+	if (tx_cleaned)
+		work_done = budget;
 
 	/* If budget not fully consumed, exit the polling mode */
 	if (work_done < budget) {
