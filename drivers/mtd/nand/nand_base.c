@@ -2472,9 +2472,9 @@ int nand_scan_tail(struct mtd_info *mtd)
 		if ((!chip->ecc.calculate || !chip->ecc.correct ||
 		     !chip->ecc.hwctl) &&
 		    (!chip->ecc.read_page ||
-		     chip->ecc.read_page == nand_read_page_hwecc) ||
+		     chip->ecc.read_page == nand_read_page_hwecc ||
 		     !chip->ecc.write_page ||
-		     chip->ecc.write_page == nand_write_page_hwecc) {
+		     chip->ecc.write_page == nand_write_page_hwecc)) {
 			printk(KERN_WARNING "No ECC functions supplied, "
 			       "Hardware ECC not possible\n");
 			BUG();
