@@ -268,7 +268,7 @@ static ssize_t vol_cdev_direct_write(struct file *file, const char __user *buf,
 	struct ubi_volume_desc *desc = file->private_data;
 	struct ubi_volume *vol = desc->vol;
 	struct ubi_device *ubi = vol->ubi;
-	int lnum, off, len, tbuf_size, vol_id = vol->vol_id, err = 0;
+	int lnum, off, len, tbuf_size, err = 0;
 	size_t count_save = count;
 	char *tbuf;
 	uint64_t tmp;
