@@ -144,7 +144,6 @@ struct ubi_volume_desc;
  * @readers: number of users holding this volume in read-only mode
  * @writers: number of users holding this volume in read-write mode
  * @exclusive: whether somebody holds this volume in exclusive mode
- * @checked: if this static volume was checked
  *
  * @reserved_pebs: how many physical eraseblocks are reserved for this volume
  * @vol_type: volume type (%UBI_DYNAMIC_VOLUME or %UBI_STATIC_VOLUME)
@@ -152,21 +151,22 @@ struct ubi_volume_desc;
  * @used_ebs: how many logical eraseblocks in this volume contain data
  * @last_eb_bytes: how many bytes are stored in the last logical eraseblock
  * @used_bytes: how many bytes of data this volume contains
- * @upd_marker: non-zero if the update marker is set for this volume
- * @corrupted: non-zero if the volume is corrupted (static volumes only)
  * @alignment: volume alignment
  * @data_pad: how many bytes are not used at the end of physical eraseblocks to
  *            satisfy the requested alignment
  * @name_len: volume name length
  * @name: volume name
  *
- * @updating: whether the volume is being updated
  * @upd_ebs: how many eraseblocks are expected to be updated
  * @upd_bytes: how many bytes are expected to be received
  * @upd_received: how many update bytes were already received
  * @upd_buf: update buffer which is used to collect update data
  *
  * @eba_tbl: EBA table of this volume (LEB->PEB mapping)
+ * @checked: %1 if this static volume was checked
+ * @corrupted: %1 if the volume is corrupted (static volumes only)
+ * @upd_marker: %1 if the update marker is set for this volume
+ * @updating: %1 if the volume is being updated
  *
  * @gluebi_desc: gluebi UBI volume descriptor
  * @gluebi_refcount: reference count of the gluebi MTD device
@@ -189,7 +189,6 @@ struct ubi_volume {
 	int readers;
 	int writers;
 	int exclusive;
-	int checked;
 
 	int reserved_pebs;
 	int vol_type;
@@ -197,20 +196,21 @@ struct ubi_volume {
 	int used_ebs;
 	int last_eb_bytes;
 	long long used_bytes;
-	int upd_marker;
-	int corrupted;
 	int alignment;
 	int data_pad;
 	int name_len;
 	char name[UBI_VOL_NAME_MAX+1];
 
-	int updating;
 	int upd_ebs;
 	long long upd_bytes;
 	long long upd_received;
 	void *upd_buf;
 
 	int *eba_tbl;
+	int checked:1;
+	int corrupted:1;
+	int upd_marker:1;
+	int updating:1;
 
 #ifdef CONFIG_MTD_UBI_GLUEBI
 	/* Gluebi-related stuff may be compiled out */
