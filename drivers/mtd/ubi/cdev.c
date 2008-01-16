@@ -184,13 +184,13 @@ static ssize_t vol_cdev_read(struct file *file, __user char *buf, size_t count,
 	struct ubi_volume_desc *desc = file->private_data;
 	struct ubi_volume *vol = desc->vol;
 	struct ubi_device *ubi = vol->ubi;
-	int err, lnum, off, len,  vol_id = desc->vol->vol_id, tbuf_size;
+	int err, lnum, off, len,  tbuf_size;
 	size_t count_save = count;
 	void *tbuf;
 	uint64_t tmp;
 
 	dbg_msg("read %zd bytes from offset %lld of volume %d",
-		count, *offp, vol_id);
+		count, *offp, vol->vol_id);
 
 	if (vol->updating) {
 		dbg_err("updating");
@@ -204,7 +204,7 @@ static ssize_t vol_cdev_read(struct file *file, __user char *buf, size_t count,
 		return 0;
 
 	if (vol->corrupted)
-		dbg_msg("read from corrupted volume %d", vol_id);
+		dbg_msg("read from corrupted volume %d", vol->vol_id);
 
 	if (*offp + count > vol->used_bytes)
 		count_save = count = vol->used_bytes - *offp;
@@ -268,13 +268,13 @@ static ssize_t vol_cdev_direct_write(struct file *file, const char __user *buf,
 	struct ubi_volume_desc *desc = file->private_data;
 	struct ubi_volume *vol = desc->vol;
 	struct ubi_device *ubi = vol->ubi;
-	int lnum, off, len, tbuf_size, vol_id = vol->vol_id, err = 0;
+	int lnum, off, len, tbuf_size, err = 0;
 	size_t count_save = count;
 	char *tbuf;
 	uint64_t tmp;
 
 	dbg_msg("requested: write %zd bytes to offset %lld of volume %u",
-		count, *offp, desc->vol->vol_id);
+		count, *offp, vol->vol_id);
 
 	if (vol->vol_type == UBI_STATIC_VOLUME)
 		return -EROFS;
