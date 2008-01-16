@@ -1730,7 +1730,6 @@ void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw, struct sk_buff *skb,
 		ieee80211_invoke_rx_handlers(local, local->rx_handlers, &rx,
 					     rx.sta);
 		sta_info_put(sta);
-		rcu_read_unlock();
 		return;
 	}
 
