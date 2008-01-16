@@ -48,13 +48,13 @@
  *	ioctl_send_fib	-	send a FIB from userspace
  *	@dev:	adapter is being processed
  *	@arg:	arguments to the ioctl call
- *	
+ *
  *	This routine sends a fib to the adapter on behalf of a user level
  *	program.
  */
 # define AAC_DEBUG_PREAMBLE	KERN_INFO
 # define AAC_DEBUG_POSTAMBLE
- 
+
 static int ioctl_send_fib(struct aac_dev * dev, void __user *arg)
 {
 	struct hw_fib * kfib;
@@ -71,7 +71,7 @@ static int ioctl_send_fib(struct aac_dev * dev, void __user *arg)
 	if(fibptr == NULL) {
 		return -ENOMEM;
 	}
-		
+
 	kfib = fibptr->hw_fib_va;
 	/*
 	 *	First copy in the header so that we can check the size field.
@@ -109,7 +109,7 @@ static int ioctl_send_fib(struct aac_dev * dev, void __user *arg)
 	if (kfib->header.Command == cpu_to_le16(TakeABreakPt)) {
 		aac_adapter_interrupt(dev);
 		/*
-		 * Since we didn't really send a fib, zero out the state to allow 
+		 * Since we didn't really send a fib, zero out the state to allow
 		 * cleanup code not to assert.
 		 */
 		kfib->header.XferState = 0;
@@ -169,7 +169,7 @@ static int open_getadapter_fib(struct aac_dev * dev, void __user *arg)
 
 		fibctx->type = FSAFS_NTC_GET_ADAPTER_FIB_CONTEXT;
 		fibctx->size = sizeof(struct aac_fib_context);
- 		/*
+		/*
 		 *	Yes yes, I know this could be an index, but we have a
 		 * better guarantee of uniqueness for the locked loop below.
 		 * Without the aid of a persistent history, this also helps
@@ -189,7 +189,7 @@ static int open_getadapter_fib(struct aac_dev * dev, void __user *arg)
 		INIT_LIST_HEAD(&fibctx->fib_list);
 		fibctx->jiffies = jiffies/HZ;
 		/*
-		 *	Now add this context onto the adapter's 
+		 *	Now add this context onto the adapter's
 		 *	AdapterFibContext list.
 		 */
 		spin_lock_irqsave(&dev->fib_lock, flags);
@@ -207,12 +207,12 @@ static int open_getadapter_fib(struct aac_dev * dev, void __user *arg)
 		}
 		list_add_tail(&fibctx->next, &dev->fib_list);
 		spin_unlock_irqrestore(&dev->fib_lock, flags);
-		if (copy_to_user(arg,  &fibctx->unique, 
+		if (copy_to_user(arg, &fibctx->unique,
 						sizeof(fibctx->unique))) {
 			status = -EFAULT;
 		} else {
 			status = 0;
-		}	
+		}
 	}
 	return status;
 }
@@ -221,8 +221,8 @@ static int open_getadapter_fib(struct aac_dev * dev, void __user *arg)
  *	next_getadapter_fib	-	get the next fib
  *	@dev: adapter to use
  *	@arg: ioctl argument
- *	
- * 	This routine will get the next Fib, if available, from the AdapterFibContext
+ *
+ *	This routine will get the next Fib, if available, from the AdapterFibContext
  *	passed in from the user.
  */
 
@@ -234,7 +234,7 @@ static int next_getadapter_fib(struct aac_dev * dev, void __user *arg)
 	int status;
 	struct list_head * entry;
 	unsigned long flags;
-	
+
 	if(copy_from_user((void *)&f, arg, sizeof(struct fib_ioctl)))
 		return -EFAULT;
 	/*
@@ -280,7 +280,7 @@ return_fib:
 		 */
 		entry = fibctx->fib_list.next;
 		list_del(entry);
-		
+
 		fib = list_entry(entry, struct fib, fiblink);
 		fibctx->count--;
 		spin_unlock_irqrestore(&dev->fib_lock, flags);
@@ -288,7 +288,7 @@ return_fib:
 			kfree(fib->hw_fib_va);
 			kfree(fib);
 			return -EFAULT;
-		}	
+		}
 		/*
 		 *	Free the space occupied by this copy of the fib.
 		 */
@@ -317,7 +317,7 @@ return_fib:
 			}
 		} else {
 			status = -EAGAIN;
-		}	
+		}
 	}
 	fibctx->jiffies = jiffies/HZ;
 	return status;
@@ -367,7 +367,7 @@ int aac_close_fib_context(struct aac_dev * dev, struct aac_fib_context * fibctx)
  *
  *	This routine will close down the fibctx passed in from the user.
  */
- 
+
 static int close_getadapter_fib(struct aac_dev * dev, void __user *arg)
 {
 	struct aac_fib_context *fibctx;
@@ -414,7 +414,7 @@ static int close_getadapter_fib(struct aac_dev * dev, void __user *arg)
  *	@arg: ioctl arguments
  *
  *	This routine returns the driver version.
- *      Under Linux, there have been no version incompatibilities, so this is 
+ *      Under Linux, there have been no version incompatibilities, so this is
  *      simple!
  */
 
@@ -425,12 +425,12 @@ static int check_revision(struct aac_dev *dev, void __user *arg)
 	u32 version;
 
 	response.compat = 1;
-	version = (simple_strtol(driver_version, 
+	version = (simple_strtol(driver_version,
 				&driver_version, 10) << 24) | 0x00000400;
 	version += simple_strtol(driver_version + 1, &driver_version, 10) << 16;
 	version += simple_strtol(driver_version + 1, NULL, 10);
 	response.version = cpu_to_le32(version);
-#	if (defined(AAC_DRIVER_BUILD))
+#	ifdef AAC_DRIVER_BUILD
 		response.build = cpu_to_le32(AAC_DRIVER_BUILD);
 #	else
 		response.build = cpu_to_le32(9999);
@@ -474,7 +474,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 		return -EBUSY;
 	}
 	if (!capable(CAP_SYS_ADMIN)){
-		dprintk((KERN_DEBUG"aacraid: No permission to send raw srb\n")); 
+		dprintk((KERN_DEBUG"aacraid: No permission to send raw srb\n"));
 		return -EPERM;
 	}
 	/*
@@ -489,7 +489,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 
 	memset(sg_list, 0, sizeof(sg_list)); /* cleanup may take issue */
 	if(copy_from_user(&fibsize, &user_srb->count,sizeof(u32))){
-		dprintk((KERN_DEBUG"aacraid: Could not copy data size from user\n")); 
+		dprintk((KERN_DEBUG"aacraid: Could not copy data size from user\n"));
 		rcode = -EFAULT;
 		goto cleanup;
 	}
@@ -506,7 +506,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 		goto cleanup;
 	}
 	if(copy_from_user(user_srbcmd, user_srb,fibsize)){
-		dprintk((KERN_DEBUG"aacraid: Could not copy srb from user\n")); 
+		dprintk((KERN_DEBUG"aacraid: Could not copy srb from user\n"));
 		rcode = -EFAULT;
 		goto cleanup;
 	}
@@ -525,7 +525,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 	srbcmd->retry_limit = 0; // Obsolete parameter
 	srbcmd->cdb_size = cpu_to_le32(user_srbcmd->cdb_size);
 	memcpy(srbcmd->cdb, user_srbcmd->cdb, sizeof(srbcmd->cdb));
-	
+
 	switch (flags & (SRB_DataIn | SRB_DataOut)) {
 	case SRB_DataOut:
 		data_dir = DMA_TO_DEVICE;
@@ -593,7 +593,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 				sg_list[i] = p; // save so we can clean up later
 				sg_indx = i;
 
-				if( flags & SRB_DataOut ){
+				if (flags & SRB_DataOut) {
 					if(copy_from_user(p,sg_user[i],upsg->sg[i].count)){
 						dprintk((KERN_DEBUG"aacraid: Could not copy sg data from user\n"));
 						rcode = -EFAULT;
@@ -636,7 +636,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 				sg_list[i] = p; // save so we can clean up later
 				sg_indx = i;
 
-				if( flags & SRB_DataOut ){
+				if (flags & SRB_DataOut) {
 					if(copy_from_user(p,sg_user[i],upsg->sg[i].count)){
 						kfree (usg);
 						dprintk((KERN_DEBUG"aacraid: Could not copy sg data from user\n"));
@@ -679,7 +679,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 				sg_list[i] = p; // save so we can clean up later
 				sg_indx = i;
 
-				if( flags & SRB_DataOut ){
+				if (flags & SRB_DataOut) {
 					if(copy_from_user(p,sg_user[i],usg->sg[i].count)){
 						dprintk((KERN_DEBUG"aacraid: Could not copy sg data from user\n"));
 						rcode = -EFAULT;
@@ -707,7 +707,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 				sg_list[i] = p; // save so we can clean up later
 				sg_indx = i;
 
-				if( flags & SRB_DataOut ){
+				if (flags & SRB_DataOut) {
 					if(copy_from_user(p, sg_user[i],
 							upsg->sg[i].count)) {
 						dprintk((KERN_DEBUG"aacraid: Could not copy sg data from user\n"));
@@ -733,19 +733,19 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 	}
 
 	if (status != 0){
-		dprintk((KERN_DEBUG"aacraid: Could not send raw srb fib to hba\n")); 
+		dprintk((KERN_DEBUG"aacraid: Could not send raw srb fib to hba\n"));
 		rcode = -ENXIO;
 		goto cleanup;
 	}
 
-	if( flags & SRB_DataIn ) {
+	if (flags & SRB_DataIn) {
 		for(i = 0 ; i <= sg_indx; i++){
 			byte_count = le32_to_cpu(
 			  (dev->adapter_info.options & AAC_OPT_SGMAP_HOST64)
 			      ? ((struct sgmap64*)&srbcmd->sg)->sg[i].count
 			      : srbcmd->sg.sg[i].count);
 			if(copy_to_user(sg_user[i], sg_list[i], byte_count)){
-				dprintk((KERN_DEBUG"aacraid: Could not copy sg data to user\n")); 
+				dprintk((KERN_DEBUG"aacraid: Could not copy sg data to user\n"));
 				rcode = -EFAULT;
 				goto cleanup;
 
@@ -755,7 +755,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 
 	reply = (struct aac_srb_reply *) fib_data(srbfib);
 	if(copy_to_user(user_reply,reply,sizeof(struct aac_srb_reply))){
-		dprintk((KERN_DEBUG"aacraid: Could not copy reply to user\n")); 
+		dprintk((KERN_DEBUG"aacraid: Could not copy reply to user\n"));
 		rcode = -EFAULT;
 		goto cleanup;
 	}
@@ -774,34 +774,34 @@ cleanup:
 }
 
 struct aac_pci_info {
-        u32 bus;
-        u32 slot;
+	u32 bus;
+	u32 slot;
 };
 
 
 static int aac_get_pci_info(struct aac_dev* dev, void __user *arg)
 {
-        struct aac_pci_info pci_info;
+	struct aac_pci_info pci_info;
 
 	pci_info.bus = dev->pdev->bus->number;
 	pci_info.slot = PCI_SLOT(dev->pdev->devfn);
 
        if (copy_to_user(arg, &pci_info, sizeof(struct aac_pci_info))) {
-               dprintk((KERN_DEBUG "aacraid: Could not copy pci info\n"));
-               return -EFAULT;
+	       dprintk((KERN_DEBUG "aacraid: Could not copy pci info\n"));
+	       return -EFAULT;
 	}
-        return 0;
+	return 0;
 }
- 
+
 
 int aac_do_ioctl(struct aac_dev * dev, int cmd, void __user *arg)
 {
 	int status;
-	
+
 	/*
 	 *	HBA gets first crack
 	 */
-	 
+
 	status = aac_dev_ioctl(dev, cmd, arg);
 	if(status != -ENOTTY)
 		return status;
@@ -831,7 +831,7 @@ int aac_do_ioctl(struct aac_dev * dev, int cmd, void __user *arg)
 		break;
 	default:
 		status = -ENOTTY;
-	  	break;	
+		break;
 	}
 	return status;
 }

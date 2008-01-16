@@ -56,54 +56,54 @@
 /*
  *	Sense codes
  */
- 
-#define SENCODE_NO_SENSE                        0x00
-#define SENCODE_END_OF_DATA                     0x00
-#define SENCODE_BECOMING_READY                  0x04
-#define SENCODE_INIT_CMD_REQUIRED               0x04
-#define SENCODE_PARAM_LIST_LENGTH_ERROR         0x1A
-#define SENCODE_INVALID_COMMAND                 0x20
-#define SENCODE_LBA_OUT_OF_RANGE                0x21
-#define SENCODE_INVALID_CDB_FIELD               0x24
-#define SENCODE_LUN_NOT_SUPPORTED               0x25
-#define SENCODE_INVALID_PARAM_FIELD             0x26
-#define SENCODE_PARAM_NOT_SUPPORTED             0x26
-#define SENCODE_PARAM_VALUE_INVALID             0x26
-#define SENCODE_RESET_OCCURRED                  0x29
-#define SENCODE_LUN_NOT_SELF_CONFIGURED_YET     0x3E
-#define SENCODE_INQUIRY_DATA_CHANGED            0x3F
-#define SENCODE_SAVING_PARAMS_NOT_SUPPORTED     0x39
-#define SENCODE_DIAGNOSTIC_FAILURE              0x40
-#define SENCODE_INTERNAL_TARGET_FAILURE         0x44
-#define SENCODE_INVALID_MESSAGE_ERROR           0x49
-#define SENCODE_LUN_FAILED_SELF_CONFIG          0x4c
-#define SENCODE_OVERLAPPED_COMMAND              0x4E
+
+#define SENCODE_NO_SENSE			0x00
+#define SENCODE_END_OF_DATA			0x00
+#define SENCODE_BECOMING_READY			0x04
+#define SENCODE_INIT_CMD_REQUIRED		0x04
+#define SENCODE_PARAM_LIST_LENGTH_ERROR		0x1A
+#define SENCODE_INVALID_COMMAND			0x20
+#define SENCODE_LBA_OUT_OF_RANGE		0x21
+#define SENCODE_INVALID_CDB_FIELD		0x24
+#define SENCODE_LUN_NOT_SUPPORTED		0x25
+#define SENCODE_INVALID_PARAM_FIELD		0x26
+#define SENCODE_PARAM_NOT_SUPPORTED		0x26
+#define SENCODE_PARAM_VALUE_INVALID		0x26
+#define SENCODE_RESET_OCCURRED			0x29
+#define SENCODE_LUN_NOT_SELF_CONFIGURED_YET	0x3E
+#define SENCODE_INQUIRY_DATA_CHANGED		0x3F
+#define SENCODE_SAVING_PARAMS_NOT_SUPPORTED	0x39
+#define SENCODE_DIAGNOSTIC_FAILURE		0x40
+#define SENCODE_INTERNAL_TARGET_FAILURE		0x44
+#define SENCODE_INVALID_MESSAGE_ERROR		0x49
+#define SENCODE_LUN_FAILED_SELF_CONFIG		0x4c
+#define SENCODE_OVERLAPPED_COMMAND		0x4E
 
 /*
  *	Additional sense codes
  */
- 
-#define ASENCODE_NO_SENSE                       0x00
-#define ASENCODE_END_OF_DATA                    0x05
-#define ASENCODE_BECOMING_READY                 0x01
-#define ASENCODE_INIT_CMD_REQUIRED              0x02
-#define ASENCODE_PARAM_LIST_LENGTH_ERROR        0x00
-#define ASENCODE_INVALID_COMMAND                0x00
-#define ASENCODE_LBA_OUT_OF_RANGE               0x00
-#define ASENCODE_INVALID_CDB_FIELD              0x00
-#define ASENCODE_LUN_NOT_SUPPORTED              0x00
-#define ASENCODE_INVALID_PARAM_FIELD            0x00
-#define ASENCODE_PARAM_NOT_SUPPORTED            0x01
-#define ASENCODE_PARAM_VALUE_INVALID            0x02
-#define ASENCODE_RESET_OCCURRED                 0x00
-#define ASENCODE_LUN_NOT_SELF_CONFIGURED_YET    0x00
-#define ASENCODE_INQUIRY_DATA_CHANGED           0x03
-#define ASENCODE_SAVING_PARAMS_NOT_SUPPORTED    0x00
-#define ASENCODE_DIAGNOSTIC_FAILURE             0x80
-#define ASENCODE_INTERNAL_TARGET_FAILURE        0x00
-#define ASENCODE_INVALID_MESSAGE_ERROR          0x00
-#define ASENCODE_LUN_FAILED_SELF_CONFIG         0x00
-#define ASENCODE_OVERLAPPED_COMMAND             0x00
+
+#define ASENCODE_NO_SENSE			0x00
+#define ASENCODE_END_OF_DATA			0x05
+#define ASENCODE_BECOMING_READY			0x01
+#define ASENCODE_INIT_CMD_REQUIRED		0x02
+#define ASENCODE_PARAM_LIST_LENGTH_ERROR	0x00
+#define ASENCODE_INVALID_COMMAND		0x00
+#define ASENCODE_LBA_OUT_OF_RANGE		0x00
+#define ASENCODE_INVALID_CDB_FIELD		0x00
+#define ASENCODE_LUN_NOT_SUPPORTED		0x00
+#define ASENCODE_INVALID_PARAM_FIELD		0x00
+#define ASENCODE_PARAM_NOT_SUPPORTED		0x01
+#define ASENCODE_PARAM_VALUE_INVALID		0x02
+#define ASENCODE_RESET_OCCURRED			0x00
+#define ASENCODE_LUN_NOT_SELF_CONFIGURED_YET	0x00
+#define ASENCODE_INQUIRY_DATA_CHANGED		0x03
+#define ASENCODE_SAVING_PARAMS_NOT_SUPPORTED	0x00
+#define ASENCODE_DIAGNOSTIC_FAILURE		0x80
+#define ASENCODE_INTERNAL_TARGET_FAILURE	0x00
+#define ASENCODE_INVALID_MESSAGE_ERROR		0x00
+#define ASENCODE_LUN_FAILED_SELF_CONFIG		0x00
+#define ASENCODE_OVERLAPPED_COMMAND		0x00
 
 #define BYTE0(x) (unsigned char)(x)
 #define BYTE1(x) (unsigned char)((x) >> 8)
@@ -115,8 +115,8 @@
  *----------------------------------------------------------------------------*/
 /* SCSI inquiry data */
 struct inquiry_data {
-	u8 inqd_pdt;	/* Peripheral qualifier | Peripheral Device Type  */
-	u8 inqd_dtq;	/* RMB | Device Type Qualifier  */
+	u8 inqd_pdt;	/* Peripheral qualifier | Peripheral Device Type */
+	u8 inqd_dtq;	/* RMB | Device Type Qualifier */
 	u8 inqd_ver;	/* ISO version | ECMA version | ANSI-approved version */
 	u8 inqd_rdf;	/* AENC | TrmIOP | Response data format */
 	u8 inqd_len;	/* Additional length (n-4) */
@@ -130,7 +130,7 @@ struct inquiry_data {
 /*
  *              M O D U L E   G L O B A L S
  */
- 
+
 static unsigned long aac_build_sg(struct scsi_cmnd* scsicmd, struct sgmap* sgmap);
 static unsigned long aac_build_sg64(struct scsi_cmnd* scsicmd, struct sgmap64* psg);
 static unsigned long aac_build_sgraw(struct scsi_cmnd* scsicmd, struct sgmapraw* psg);
@@ -141,8 +141,8 @@ static char *aac_get_status_string(u32 status);
 
 /*
  *	Non dasd selection is handled entirely in aachba now
- */	
- 
+ */
+
 static int nondasd = -1;
 static int aac_cache = 0;
 static int dacmode = -1;
@@ -196,12 +196,12 @@ static inline int aac_valid_context(struct scsi_cmnd *scsicmd,
 		struct fib *fibptr) {
 	struct scsi_device *device;
 
-	if (unlikely(!scsicmd || !scsicmd->scsi_done )) {
+	if (unlikely(!scsicmd || !scsicmd->scsi_done)) {
 		dprintk((KERN_WARNING "aac_valid_context: scsi command corrupt\n"));
-                aac_fib_complete(fibptr);
-                aac_fib_free(fibptr);
-                return 0;
-        }
+		aac_fib_complete(fibptr);
+		aac_fib_free(fibptr);
+		return 0;
+	}
 	scsicmd->SCp.phase = AAC_OWNER_MIDLEVEL;
 	device = scsicmd->device;
 	if (unlikely(!device || !scsi_device_online(device))) {
@@ -243,7 +243,7 @@ int aac_get_config_status(struct aac_dev *dev, int commit_flag)
 			    FsaNormal,
 			    1, 1,
 			    NULL, NULL);
-	if (status < 0 ) {
+	if (status < 0) {
 		printk(KERN_WARNING "aac_get_config_status: SendFIB failed.\n");
 	} else {
 		struct aac_get_config_status_resp *reply
@@ -267,10 +267,10 @@ int aac_get_config_status(struct aac_dev *dev, int commit_flag)
 			struct aac_commit_config * dinfo;
 			aac_fib_init(fibptr);
 			dinfo = (struct aac_commit_config *) fib_data(fibptr);
-	
+
 			dinfo->command = cpu_to_le32(VM_ContainerConfig);
 			dinfo->type = cpu_to_le32(CT_COMMIT_CONFIG);
-	
+
 			status = aac_fib_send(ContainerCommand,
 				    fibptr,
 				    sizeof (struct aac_commit_config),
@@ -296,7 +296,7 @@ int aac_get_config_status(struct aac_dev *dev, int commit_flag)
 int aac_get_containers(struct aac_dev *dev)
 {
 	struct fsa_dev_info *fsa_dev_ptr;
-	u32 index; 
+	u32 index;
 	int status = 0;
 	struct fib * fibptr;
 	struct aac_get_container_count *dinfo;
@@ -399,7 +399,7 @@ static void get_container_name_callback(void *context, struct fib * fibptr)
 			do {
 				*dp++ = (*sp) ? *sp++ : ' ';
 			} while (--count > 0);
-			aac_internal_transfer(scsicmd, d, 
+			aac_internal_transfer(scsicmd, d,
 			  offsetof(struct inquiry_data, inqd_pid), sizeof(d));
 		}
 	}
@@ -435,13 +435,13 @@ static int aac_get_container_name(struct scsi_cmnd * scsicmd)
 	dinfo->count = cpu_to_le32(sizeof(((struct aac_get_name_resp *)NULL)->data));
 
 	status = aac_fib_send(ContainerCommand,
-		  cmd_fibcontext, 
+		  cmd_fibcontext,
 		  sizeof (struct aac_get_name),
-		  FsaNormal, 
-		  0, 1, 
-		  (fib_callback) get_container_name_callback, 
+		  FsaNormal,
+		  0, 1,
+		  (fib_callback)get_container_name_callback,
 		  (void *) scsicmd);
-	
+
 	/*
 	 *	Check that the command queued to the controller
 	 */
@@ -449,7 +449,7 @@ static int aac_get_container_name(struct scsi_cmnd * scsicmd)
 		scsicmd->SCp.phase = AAC_OWNER_FIRMWARE;
 		return 0;
 	}
-		
+
 	printk(KERN_WARNING "aac_get_container_name: aac_fib_send failed with status: %d.\n", status);
 	aac_fib_complete(cmd_fibcontext);
 	aac_fib_free(cmd_fibcontext);
@@ -656,39 +656,39 @@ struct scsi_inq {
  *	@a:	string to copy from
  *	@b:	string to copy to
  *
- * 	Copy a String from one location to another
+ *	Copy a String from one location to another
  *	without copying \0
  */
 
 static void inqstrcpy(char *a, char *b)
 {
 
-	while(*a != (char)0) 
+	while (*a != (char)0)
 		*b++ = *a++;
 }
 
 static char *container_types[] = {
-        "None",
-        "Volume",
-        "Mirror",
-        "Stripe",
-        "RAID5",
-        "SSRW",
-        "SSRO",
-        "Morph",
-        "Legacy",
-        "RAID4",
-        "RAID10",             
-        "RAID00",             
-        "V-MIRRORS",          
-        "PSEUDO R4",          
+	"None",
+	"Volume",
+	"Mirror",
+	"Stripe",
+	"RAID5",
+	"SSRW",
+	"SSRO",
+	"Morph",
+	"Legacy",
+	"RAID4",
+	"RAID10",
+	"RAID00",
+	"V-MIRRORS",
+	"PSEUDO R4",
 	"RAID50",
 	"RAID5D",
 	"RAID5D0",
 	"RAID1E",
 	"RAID6",
 	"RAID60",
-        "Unknown"
+	"Unknown"
 };
 
 char * get_container_type(unsigned tindex)
@@ -1230,11 +1230,11 @@ int aac_get_adapter_info(struct aac_dev* dev)
 	memset(info,0,sizeof(*info));
 
 	rcode = aac_fib_send(RequestAdapterInfo,
-			 fibptr, 
+			 fibptr,
 			 sizeof(*info),
-			 FsaNormal, 
+			 FsaNormal,
 			 -1, 1, /* First `interrupt' command uses special wait */
-			 NULL, 
+			 NULL,
 			 NULL);
 
 	if (rcode < 0) {
@@ -1266,8 +1266,8 @@ int aac_get_adapter_info(struct aac_dev* dev)
 	}
 
 
-	/* 
-	 * GetBusInfo 
+	/*
+	 * GetBusInfo
 	 */
 
 	aac_fib_init(fibptr);
@@ -1301,7 +1301,7 @@ int aac_get_adapter_info(struct aac_dev* dev)
 		char buffer[16];
 		tmp = le32_to_cpu(dev->adapter_info.kernelrev);
 		printk(KERN_INFO "%s%d: kernel %d.%d-%d[%d] %.*s\n",
-			dev->name, 
+			dev->name,
 			dev->id,
 			tmp>>24,
 			(tmp>>16)&0xff,
@@ -1363,7 +1363,7 @@ int aac_get_adapter_info(struct aac_dev* dev)
 	if (dev->raid_scsi_mode != 0)
 		printk(KERN_INFO "%s%d: ROMB RAID/SCSI mode enabled\n",
 				dev->name, dev->id);
-		
+
 	if (nondasd != -1)
 		dev->nondasd_support = (nondasd!=0);
 	if(dev->nondasd_support != 0) {
@@ -1395,7 +1395,7 @@ int aac_get_adapter_info(struct aac_dev* dev)
 			rcode = -ENOMEM;
 		}
 	}
-	/* 
+	/*
 	 * Deal with configuring for the individualized limits of each packet
 	 * interface.
 	 */
@@ -1419,8 +1419,8 @@ int aac_get_adapter_info(struct aac_dev* dev)
 		if (dev->dac_support) {
 			dev->a_ops.adapter_read = aac_read_block64;
 			dev->a_ops.adapter_write = aac_write_block64;
-			/* 
-			 * 38 scatter gather elements 
+			/*
+			 * 38 scatter gather elements
 			 */
 			dev->scsi_host_ptr->sg_tablesize =
 				(dev->max_fib_size -
@@ -1549,7 +1549,7 @@ static int aac_read(struct scsi_cmnd * scsicmd)
 	case READ_6:
 		dprintk((KERN_DEBUG "aachba: received a read(6) command on id %d.\n", scmd_id(scsicmd)));
 
-		lba = ((scsicmd->cmnd[1] & 0x1F) << 16) | 
+		lba = ((scsicmd->cmnd[1] & 0x1F) << 16) |
 			(scsicmd->cmnd[2] << 8) | scsicmd->cmnd[3];
 		count = scsicmd->cmnd[4];
 
@@ -1559,32 +1559,32 @@ static int aac_read(struct scsi_cmnd * scsicmd)
 	case READ_16:
 		dprintk((KERN_DEBUG "aachba: received a read(16) command on id %d.\n", scmd_id(scsicmd)));
 
-		lba = 	((u64)scsicmd->cmnd[2] << 56) |
-		 	((u64)scsicmd->cmnd[3] << 48) |
+		lba =	((u64)scsicmd->cmnd[2] << 56) |
+			((u64)scsicmd->cmnd[3] << 48) |
 			((u64)scsicmd->cmnd[4] << 40) |
 			((u64)scsicmd->cmnd[5] << 32) |
-			((u64)scsicmd->cmnd[6] << 24) | 
+			((u64)scsicmd->cmnd[6] << 24) |
 			(scsicmd->cmnd[7] << 16) |
 			(scsicmd->cmnd[8] << 8) | scsicmd->cmnd[9];
-		count = (scsicmd->cmnd[10] << 24) | 
+		count = (scsicmd->cmnd[10] << 24) |
 			(scsicmd->cmnd[11] << 16) |
 			(scsicmd->cmnd[12] << 8) | scsicmd->cmnd[13];
 		break;
 	case READ_12:
 		dprintk((KERN_DEBUG "aachba: received a read(12) command on id %d.\n", scmd_id(scsicmd)));
 
-		lba = ((u64)scsicmd->cmnd[2] << 24) | 
+		lba = ((u64)scsicmd->cmnd[2] << 24) |
 			(scsicmd->cmnd[3] << 16) |
-		    	(scsicmd->cmnd[4] << 8) | scsicmd->cmnd[5];
-		count = (scsicmd->cmnd[6] << 24) | 
+			(scsicmd->cmnd[4] << 8) | scsicmd->cmnd[5];
+		count = (scsicmd->cmnd[6] << 24) |
 			(scsicmd->cmnd[7] << 16) |
-		      	(scsicmd->cmnd[8] << 8) | scsicmd->cmnd[9];
+			(scsicmd->cmnd[8] << 8) | scsicmd->cmnd[9];
 		break;
 	default:
 		dprintk((KERN_DEBUG "aachba: received a read(10) command on id %d.\n", scmd_id(scsicmd)));
 
-		lba = ((u64)scsicmd->cmnd[2] << 24) | 
-			(scsicmd->cmnd[3] << 16) | 
+		lba = ((u64)scsicmd->cmnd[2] << 24) |
+			(scsicmd->cmnd[3] << 16) |
 			(scsicmd->cmnd[4] << 8) | scsicmd->cmnd[5];
 		count = (scsicmd->cmnd[7] << 8) | scsicmd->cmnd[8];
 		break;
@@ -1609,7 +1609,7 @@ static int aac_read(struct scsi_cmnd * scsicmd)
 		scsicmd->SCp.phase = AAC_OWNER_FIRMWARE;
 		return 0;
 	}
-		
+
 	printk(KERN_WARNING "aac_read: aac_fib_send failed with status: %d.\n", status);
 	/*
 	 *	For some reason, the Fib didn't queue, return QUEUE_FULL
@@ -1644,11 +1644,11 @@ static int aac_write(struct scsi_cmnd * scsicmd)
 	} else if (scsicmd->cmnd[0] == WRITE_16) { /* 16 byte command */
 		dprintk((KERN_DEBUG "aachba: received a write(16) command on id %d.\n", scmd_id(scsicmd)));
 
-		lba = 	((u64)scsicmd->cmnd[2] << 56) |
+		lba =	((u64)scsicmd->cmnd[2] << 56) |
 			((u64)scsicmd->cmnd[3] << 48) |
 			((u64)scsicmd->cmnd[4] << 40) |
 			((u64)scsicmd->cmnd[5] << 32) |
-			((u64)scsicmd->cmnd[6] << 24) | 
+			((u64)scsicmd->cmnd[6] << 24) |
 			(scsicmd->cmnd[7] << 16) |
 			(scsicmd->cmnd[8] << 8) | scsicmd->cmnd[9];
 		count = (scsicmd->cmnd[10] << 24) | (scsicmd->cmnd[11] << 16) |
@@ -1875,14 +1875,14 @@ static int aac_synchronize(struct scsi_cmnd *scsicmd)
  *	Emulate a SCSI command and queue the required request for the
  *	aacraid firmware.
  */
- 
+
 int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 {
 	u32 cid;
 	struct Scsi_Host *host = scsicmd->device->host;
 	struct aac_dev *dev = (struct aac_dev *)host->hostdata;
 	struct fsa_dev_info *fsa_dev_ptr = dev->fsa_dev;
-	
+
 	if (fsa_dev_ptr == NULL)
 		return -1;
 	/*
@@ -1938,7 +1938,7 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 	 * else Command for the controller itself
 	 */
 	else if ((scsicmd->cmnd[0] != INQUIRY) &&	/* only INQUIRY & TUR cmnd supported for controller */
-		(scsicmd->cmnd[0] != TEST_UNIT_READY)) 
+		(scsicmd->cmnd[0] != TEST_UNIT_READY))
 	{
 		dprintk((KERN_WARNING "Only INQUIRY & TUR command supported for controller, rcvd = 0x%x.\n", scsicmd->cmnd[0]));
 		scsicmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 | SAM_STAT_CHECK_CONDITION;
@@ -1963,7 +1963,7 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 		dprintk((KERN_DEBUG "INQUIRY command, ID: %d.\n", cid));
 		memset(&inq_data, 0, sizeof (struct inquiry_data));
 
-		if (scsicmd->cmnd[1] & 0x1 ) {
+		if (scsicmd->cmnd[1] & 0x1) {
 			char *arr = (char *)&inq_data;
 
 			/* EVPD bit set */
@@ -2204,7 +2204,7 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 		return 0;
 	}
 
-	switch (scsicmd->cmnd[0]) 
+	switch (scsicmd->cmnd[0])
 	{
 		case READ_6:
 		case READ_10:
@@ -2217,11 +2217,11 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 			 *	corresponds to a container. Needed to convert
 			 *	containers to /dev/sd device names
 			 */
-			 
+
 			if (scsicmd->request->rq_disk)
 				strlcpy(fsa_dev_ptr[cid].devname,
 				scsicmd->request->rq_disk->disk_name,
-			  	min(sizeof(fsa_dev_ptr[cid].devname),
+				min(sizeof(fsa_dev_ptr[cid].devname),
 				sizeof(scsicmd->request->rq_disk->disk_name) + 1));
 
 			return aac_read(scsicmd);
@@ -2275,7 +2275,7 @@ static int query_disk(struct aac_dev *dev, void __user *arg)
 		return -EFAULT;
 	if (qd.cnum == -1)
 		qd.cnum = qd.id;
-	else if ((qd.bus == -1) && (qd.id == -1) && (qd.lun == -1)) 
+	else if ((qd.bus == -1) && (qd.id == -1) && (qd.lun == -1))
 	{
 		if (qd.cnum < 0 || qd.cnum >= dev->maximum_num_containers)
 			return -EINVAL;
@@ -2402,7 +2402,7 @@ static void aac_srb_callback(void *context, struct fib * fibptr)
 
 	scsicmd->sense_buffer[0] = '\0';  /* Initialize sense valid flag to false */
 	/*
-	 *	Calculate resid for sg 
+	 *	Calculate resid for sg
 	 */
 
 	scsi_set_resid(scsicmd, scsi_bufflen(scsicmd)
@@ -2442,7 +2442,7 @@ static void aac_srb_callback(void *context, struct fib * fibptr)
 		case  WRITE_12:
 		case  READ_16:
 		case  WRITE_16:
-			if(le32_to_cpu(srbreply->data_xfer_length) < scsicmd->underflow ) {
+			if (le32_to_cpu(srbreply->data_xfer_length) < scsicmd->underflow) {
 				printk(KERN_WARNING"aacraid: SCSI CMD underflow\n");
 			} else {
 				printk(KERN_WARNING"aacraid: SCSI CMD Data Overrun\n");
@@ -2511,14 +2511,14 @@ static void aac_srb_callback(void *context, struct fib * fibptr)
 		printk("aacraid: SRB ERROR(%u) %s scsi cmd 0x%x - scsi status 0x%x\n",
 			le32_to_cpu(srbreply->srb_status) & 0x3F,
 			aac_get_status_string(
-				le32_to_cpu(srbreply->srb_status) & 0x3F), 
-			scsicmd->cmnd[0], 
+				le32_to_cpu(srbreply->srb_status) & 0x3F),
+			scsicmd->cmnd[0],
 			le32_to_cpu(srbreply->scsi_status));
 #endif
 		scsicmd->result = DID_ERROR << 16 | COMMAND_COMPLETE << 8;
 		break;
 	}
-	if (le32_to_cpu(srbreply->scsi_status) == 0x02 ){  // Check Condition
+	if (le32_to_cpu(srbreply->scsi_status) == SAM_STAT_CHECK_CONDITION) {
 		int len;
 		scsicmd->result |= SAM_STAT_CHECK_CONDITION;
 		len = min_t(u32, le32_to_cpu(srbreply->sense_data_size),
@@ -2528,7 +2528,6 @@ static void aac_srb_callback(void *context, struct fib * fibptr)
 					le32_to_cpu(srbreply->status), len);
 #endif
 		memcpy(scsicmd->sense_buffer, srbreply->sense_data, len);
-		
 	}
 	/*
 	 * OR in the scsi status (already shifted up a bit)
@@ -2545,7 +2544,7 @@ static void aac_srb_callback(void *context, struct fib * fibptr)
  * aac_send_scb_fib
  * @scsicmd: the scsi command block
  *
- * This routine will form a FIB and fill in the aac_srb from the 
+ * This routine will form a FIB and fill in the aac_srb from the
  * scsicmd passed in.
  */
 
@@ -2759,7 +2758,7 @@ static struct aac_srb_status_info srb_status_info[] = {
 	{ SRB_STATUS_ERROR_RECOVERY,	"Error Recovery"},
 	{ SRB_STATUS_NOT_STARTED,	"Not Started"},
 	{ SRB_STATUS_NOT_IN_USE,	"Not In Use"},
-    	{ SRB_STATUS_FORCE_ABORT,	"Force Abort"},
+	{ SRB_STATUS_FORCE_ABORT,	"Force Abort"},
 	{ SRB_STATUS_DOMAIN_VALIDATION_FAIL,"Domain Validation Failure"},
 	{ 0xff,				"Unknown Error"}
 };
