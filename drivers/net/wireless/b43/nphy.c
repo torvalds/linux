@@ -22,6 +22,9 @@
 
 */
 
+#include <linux/delay.h>
+#include <linux/types.h>
+
 #include "b43.h"
 #include "nphy.h"
 #include "tables_nphy.h"
