@@ -90,7 +90,8 @@ MODULE_PARM_DESC(hw_level,
 		 "hardware level"
 		 " (0: autosensing (default), 1: v. 0.20, 2: v. 0.21)");
 MODULE_PARM_DESC(nr_ports,
-		 "number of connected ports (default: 2)");
+		 "number of connected ports (-1: autodetect, 1: port one only, "
+		 "2: two ports (default)");
 MODULE_PARM_DESC(use_hp_mr,
 		 "high performance MRs (0: no (default), 1: yes)");
 MODULE_PARM_DESC(port_act_time,
@@ -693,7 +694,7 @@ static int __devinit ehca_probe(struct of_device *dev,
 	struct ehca_shca *shca;
 	const u64 *handle;
 	struct ib_pd *ibpd;
-	int ret;
+	int ret, i;
 
 	handle = of_get_property(dev->node, "ibm,hca-handle", NULL);
 	if (!handle) {
@@ -714,6 +715,8 @@ static int __devinit ehca_probe(struct of_device *dev,
 		return -ENOMEM;
 	}
 	mutex_init(&shca->modify_mutex);
+	for (i = 0; i < ARRAY_SIZE(shca->sport); i++)
+		spin_lock_init(&shca->sport[i].mod_sqp_lock);
 
 	shca->ofdev = dev;
 	shca->ipz_hca_handle.handle = *handle;
