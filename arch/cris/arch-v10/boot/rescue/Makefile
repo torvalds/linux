@@ -3,10 +3,10 @@
 #
 
 CC = gcc-cris -mlinux $(LINUXINCLUDE)
-EXTRA_CFLAGS = -O2
-AFLAGS = -traditional
+ccflags-y += -O2
+asflags-y += -traditional
 LD = gcc-cris -mlinux -nostdlib
-LDFLAGS = -T $(obj)/rescue.ld
+ldflags-y += -T $(obj)/rescue.ld
 OBJCOPY = objcopy-cris
 OBJCOPYFLAGS = -O binary --remove-section=.bss
 obj-$(CONFIG_ETRAX_AXISFLASHMAP) = head.o
