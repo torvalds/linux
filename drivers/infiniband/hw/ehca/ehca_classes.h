@@ -94,7 +94,7 @@ struct ehca_sma_attr {
 
 struct ehca_sport {
 	struct ib_cq *ibcq_aqp1;
-	struct ib_qp *ibqp_aqp1;
+	struct ib_qp *ibqp_sqp[2];
 	enum ib_port_state port_state;
 	struct ehca_sma_attr saved_attr;
 };
