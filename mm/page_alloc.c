@@ -2566,7 +2566,7 @@ static void __meminit zone_init_free_lists(struct pglist_data *pgdat,
 	memmap_init_zone((size), (nid), (zone), (start_pfn), MEMMAP_EARLY)
 #endif
 
-static int __devinit zone_batchsize(struct zone *zone)
+static int zone_batchsize(struct zone *zone)
 {
 	int batch;
 
