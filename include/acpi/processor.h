@@ -4,7 +4,7 @@
 #include <linux/kernel.h>
 #include <linux/cpu.h>
 #include <linux/cpuidle.h>
-
+#include <linux/thermal.h>
 #include <asm/acpi.h>
 
 #define ACPI_PROCESSOR_BUSY_METRIC	10
@@ -218,7 +218,7 @@ struct acpi_processor {
 	struct acpi_processor_performance *performance;
 	struct acpi_processor_throttling throttling;
 	struct acpi_processor_limit limit;
-
+	struct thermal_cooling_device *cdev;
 	/* the _PDC objects for this processor, if any */
 	struct acpi_object_list *pdc;
 };
@@ -330,7 +330,7 @@ extern struct cpuidle_driver acpi_idle_driver;
 /* in processor_thermal.c */
 int acpi_processor_get_limit_info(struct acpi_processor *pr);
 extern struct file_operations acpi_processor_limit_fops;
-
+extern struct thermal_cooling_device_ops processor_cooling_ops;
 #ifdef CONFIG_CPU_FREQ
 void acpi_thermal_cpufreq_init(void);
 void acpi_thermal_cpufreq_exit(void);
