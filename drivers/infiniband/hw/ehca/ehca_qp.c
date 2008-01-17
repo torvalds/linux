@@ -769,11 +769,14 @@ static struct ehca_qp *internal_create_qp(
 		if (ib_copy_to_udata(udata, &resp, sizeof resp)) {
 			ehca_err(pd->device, "Copy to udata failed");
 			ret = -EINVAL;
-			goto create_qp_exit4;
+			goto create_qp_exit5;
 		}
 	}
 
 	return my_qp;
+
+create_qp_exit5:
+	ehca_cq_unassign_qp(my_qp->send_cq, my_qp->real_qp_num);
 
 create_qp_exit4:
 	if (HAS_RQ(my_qp))
