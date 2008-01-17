@@ -341,6 +341,8 @@ qla24xx_vport_create_req_sanity_check(struct fc_vport *fc_vport)
 
 	/* Check up unique WWPN */
 	u64_to_wwn(fc_vport->port_name, port_name);
+	if (!memcmp(port_name, ha->port_name, WWN_SIZE))
+		return VPCERR_BAD_WWN;
 	vha = qla24xx_find_vhost_by_name(ha, port_name);
 	if (vha)
 		return VPCERR_BAD_WWN;
