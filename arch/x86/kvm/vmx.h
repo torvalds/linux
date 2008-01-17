@@ -49,6 +49,7 @@
  * Definitions of Secondary Processor-Based VM-Execution Controls.
  */
 #define SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES 0x00000001
+#define SECONDARY_EXEC_ENABLE_VPID              0x00000020
 #define SECONDARY_EXEC_WBINVD_EXITING		0x00000040
 
 
@@ -65,6 +66,7 @@
 
 /* VMCS Encodings */
 enum vmcs_field {
+	VIRTUAL_PROCESSOR_ID            = 0x00000000,
 	GUEST_ES_SELECTOR               = 0x00000800,
 	GUEST_CS_SELECTOR               = 0x00000802,
 	GUEST_SS_SELECTOR               = 0x00000804,
@@ -320,5 +322,9 @@ enum vmcs_field {
 #define MSR_IA32_FEATURE_CONTROL_VMXON_ENABLED  0x4
 
 #define APIC_ACCESS_PAGE_PRIVATE_MEMSLOT	9
+
+#define VMX_NR_VPIDS				(1 << 16)
+#define VMX_VPID_EXTENT_SINGLE_CONTEXT		1
+#define VMX_VPID_EXTENT_ALL_CONTEXT		2
 
 #endif
