@@ -1976,9 +1976,6 @@ config E1000E
 
 	  <http://support.intel.com>
 
-	  More specific information on configuring the driver is in
-	  <file:Documentation/networking/e1000e.txt>.
-
 	  To compile this driver as a module, choose M here. The module
 	  will be called e1000e.
 
