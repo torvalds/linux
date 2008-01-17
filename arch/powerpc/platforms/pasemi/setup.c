@@ -135,9 +135,6 @@ static int __init pas_setup_mce_regs(void)
 	struct pci_dev *dev;
 	int reg;
 
-	if (!machine_is(pasemi))
-		return -ENODEV;
-
 	/* Remap various SoC status registers for use by the MCE handler */
 
 	reg = 0;
@@ -181,7 +178,7 @@ static int __init pas_setup_mce_regs(void)
 
 	return 0;
 }
-device_initcall(pas_setup_mce_regs);
+machine_device_initcall(pasemi, pas_setup_mce_regs);
 
 static __init void pas_init_IRQ(void)
 {
@@ -264,7 +261,7 @@ static int pas_machine_check_handler(struct pt_regs *regs)
 	srr0 = regs->nip;
 	srr1 = regs->msr;
 
-	if (mpic_get_mcirq() == nmi_virq) {
+	if (nmi_virq != NO_IRQ && mpic_get_mcirq() == nmi_virq) {
 		printk(KERN_ERR "NMI delivered\n");
 		debugger(regs);
 		mpic_end_irq(nmi_virq);
@@ -405,9 +402,6 @@ static struct of_device_id pasemi_bus_ids[] = {
 
 static int __init pasemi_publish_devices(void)
 {
-	if (!machine_is(pasemi))
-		return 0;
-
 	pasemi_pcmcia_init();
 
 	/* Publish OF platform devices for SDC and other non-PCI devices */
@@ -415,7 +409,7 @@ static int __init pasemi_publish_devices(void)
 
 	return 0;
 }
-device_initcall(pasemi_publish_devices);
+machine_device_initcall(pasemi, pasemi_publish_devices);
 
 
 /*

@@ -74,9 +74,6 @@ static int pasemi_system_reset_exception(struct pt_regs *regs)
 
 static int __init pasemi_idle_init(void)
 {
-	if (!machine_is(pasemi))
-		return -ENODEV;
-
 #ifndef CONFIG_PPC_PASEMI_CPUFREQ
 	printk(KERN_WARNING "No cpufreq driver, powersavings modes disabled\n");
 	current_mode = 0;
@@ -88,7 +85,7 @@ static int __init pasemi_idle_init(void)
 
 	return 0;
 }
-late_initcall(pasemi_idle_init);
+machine_late_initcall(pasemi, pasemi_idle_init);
 
 static int __init idle_param(char *p)
 {
