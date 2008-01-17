@@ -475,13 +475,11 @@ static int iser_cma_handler(struct rdma_cm_id *cma_id, struct rdma_cm_event *eve
 		iser_disconnected_handler(cma_id);
 		break;
 	case RDMA_CM_EVENT_DEVICE_REMOVAL:
+		iser_err("Device removal is currently unsupported\n");
 		BUG();
 		break;
-	case RDMA_CM_EVENT_CONNECT_RESPONSE:
-		BUG();
-		break;
-	case RDMA_CM_EVENT_CONNECT_REQUEST:
 	default:
+		iser_err("Unexpected RDMA CM event (%d)\n", event->event);
 		break;
 	}
 	return ret;
