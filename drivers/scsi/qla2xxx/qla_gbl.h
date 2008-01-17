@@ -65,6 +65,8 @@ extern int ql2xextended_error_logging;
 extern int ql2xqfullrampup;
 extern int num_hosts;
 
+extern int qla2x00_loop_reset(scsi_qla_host_t *);
+
 /*
  * Global Functions in qla_mid.c source file.
  */

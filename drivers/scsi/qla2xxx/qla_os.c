@@ -105,7 +105,6 @@ static int qla2xxx_eh_abort(struct scsi_cmnd *);
 static int qla2xxx_eh_device_reset(struct scsi_cmnd *);
 static int qla2xxx_eh_bus_reset(struct scsi_cmnd *);
 static int qla2xxx_eh_host_reset(struct scsi_cmnd *);
-static int qla2x00_loop_reset(scsi_qla_host_t *ha);
 static int qla2x00_device_reset(scsi_qla_host_t *, fc_port_t *);
 
 static int qla2x00_change_queue_depth(struct scsi_device *, int);
@@ -1060,7 +1059,7 @@ eh_host_reset_lock:
 * Returns:
 *      0 = success
 */
-static int
+int
 qla2x00_loop_reset(scsi_qla_host_t *ha)
 {
 	int ret;

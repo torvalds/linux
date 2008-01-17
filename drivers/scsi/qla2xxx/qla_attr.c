@@ -958,7 +958,7 @@ qla2x00_issue_lip(struct Scsi_Host *shost)
 {
 	scsi_qla_host_t *ha = shost_priv(shost);
 
-	set_bit(LOOP_RESET_NEEDED, &ha->dpc_flags);
+	qla2x00_loop_reset(ha);
 	return 0;
 }
 
