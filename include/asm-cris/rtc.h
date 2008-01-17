@@ -1,9 +1,6 @@
-/* $Id: rtc.h,v 1.7 2002/11/04 07:32:09 starvik Exp $ */
 
 #ifndef __RTC_H__
 #define __RTC_H__
-
-
 
 #ifdef CONFIG_ETRAX_DS1302
    /* Dallas DS1302 clock/calendar register numbers. */
@@ -17,17 +14,17 @@
 #  define RTC_CONTROL      7
 
    /* Bits in CONTROL register. */
-#  define RTC_CONTROL_WRITEPROTECT 	0x80
-#  define RTC_TRICKLECHARGER 		8
-  
+#  define RTC_CONTROL_WRITEPROTECT	0x80
+#  define RTC_TRICKLECHARGER		8
+
   /* Bits in TRICKLECHARGER register TCS TCS TCS TCS DS DS RS RS. */
-#  define RTC_TCR_PATTERN 	0xA0	/* 1010xxxx */
-#  define RTC_TCR_1DIOD 	0x04	/* xxxx01xx */
-#  define RTC_TCR_2DIOD 	0x08	/* xxxx10xx */
-#  define RTC_TCR_DISABLED 	0x00	/* xxxxxx00 Disabled */
-#  define RTC_TCR_2KOHM 	0x01	/* xxxxxx01 2KOhm */
-#  define RTC_TCR_4KOHM 	0x02	/* xxxxxx10 4kOhm */
-#  define RTC_TCR_8KOHM 	0x03	/* xxxxxx11 8kOhm */
+#  define RTC_TCR_PATTERN	0xA0	/* 1010xxxx */
+#  define RTC_TCR_1DIOD		0x04	/* xxxx01xx */
+#  define RTC_TCR_2DIOD		0x08	/* xxxx10xx */
+#  define RTC_TCR_DISABLED	0x00	/* xxxxxx00 Disabled */
+#  define RTC_TCR_2KOHM		0x01	/* xxxxxx01 2KOhm */
+#  define RTC_TCR_4KOHM		0x02	/* xxxxxx10 4kOhm */
+#  define RTC_TCR_8KOHM		0x03	/* xxxxxx11 8kOhm */
 
 #elif defined(CONFIG_ETRAX_PCF8563)
    /* I2C bus slave registers. */
@@ -79,7 +76,7 @@ extern int pcf8563_init(void);
 
 /*
  * The struct used to pass data via the following ioctl. Similar to the
- * struct tm in <time.h>, but it needs to be here so that the kernel 
+ * struct tm in <time.h>, but it needs to be here so that the kernel
  * source is self contained, allowing cross-compiles, etc. etc.
  */
 struct rtc_time {
@@ -96,11 +93,15 @@ struct rtc_time {
 
 /* ioctl() calls that are permitted to the /dev/rtc interface. */
 #define RTC_MAGIC 'p'
-#define RTC_RD_TIME		_IOR(RTC_MAGIC, 0x09, struct rtc_time)	/* Read RTC time. */
-#define RTC_SET_TIME		_IOW(RTC_MAGIC, 0x0a, struct rtc_time)	/* Set RTC time. */
-#define RTC_SET_CHARGE  	_IOW(RTC_MAGIC, 0x0b, int) 		
-#define RTC_VLOW_RD     _IOR(RTC_MAGIC, 0x11, int)  /* Voltage Low detector */
-#define RTC_VLOW_SET    _IO(RTC_MAGIC, 0x12)        /* Clear voltage low information */
-#define RTC_MAX_IOCTL 0x12
+/* Read RTC time. */
+#define RTC_RD_TIME		_IOR(RTC_MAGIC, 0x09, struct rtc_time)
+/* Set RTC time. */
+#define RTC_SET_TIME		_IOW(RTC_MAGIC, 0x0a, struct rtc_time)
+#define RTC_SET_CHARGE		_IOW(RTC_MAGIC, 0x0b, int)
+/* Voltage low detector */
+#define RTC_VL_READ		_IOR(RTC_MAGIC, 0x13, int)
+/* Clear voltage low information */
+#define RTC_VL_CLR		_IO(RTC_MAGIC, 0x14)
+#define RTC_MAX_IOCTL 0x14
 
 #endif /* __RTC_H__ */
