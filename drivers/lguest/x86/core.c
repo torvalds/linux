@@ -60,7 +60,7 @@ static struct lguest_pages *lguest_pages(unsigned int cpu)
 		  (SWITCHER_ADDR + SHARED_SWITCHER_PAGES*PAGE_SIZE))[cpu]);
 }
 
-static DEFINE_PER_CPU(struct lguest *, last_guest);
+static DEFINE_PER_CPU(struct lg_cpu *, last_cpu);
 
 /*S:010
  * We approach the Switcher.
@@ -80,8 +80,8 @@ static void copy_in_guest_info(struct lg_cpu *cpu, struct lguest_pages *pages)
 	 * same Guest we ran last time (and that Guest hasn't run anywhere else
 	 * meanwhile).  If that's not the case, we pretend everything in the
 	 * Guest has changed. */
-	if (__get_cpu_var(last_guest) != lg || lg->last_pages != pages) {
-		__get_cpu_var(last_guest) = lg;
+	if (__get_cpu_var(last_cpu) != cpu || lg->last_pages != pages) {
+		__get_cpu_var(last_cpu) = cpu;
 		lg->last_pages = pages;
 		lg->changed = CHANGED_ALL;
 	}
