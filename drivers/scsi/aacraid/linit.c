@@ -790,6 +790,23 @@ static ssize_t aac_show_vendor(struct class_device *class_dev,
 	return len;
 }
 
+static ssize_t aac_show_flags(struct class_device *class_dev, char *buf)
+{
+	int len = 0;
+	struct aac_dev *dev = (struct aac_dev*)class_to_shost(class_dev)->hostdata;
+
+	if (nblank(dprintk(x)))
+		len = snprintf(buf, PAGE_SIZE, "dprintk\n");
+#ifdef AAC_DETAILED_STATUS_INFO
+	len += snprintf(buf + len, PAGE_SIZE - len,
+			"AAC_DETAILED_STATUS_INFO\n");
+#endif
+	if (dev->raw_io_interface && dev->raw_io_64)
+		len += snprintf(buf + len, PAGE_SIZE - len,
+				"SAI_READ_CAPACITY_16\n");
+	return len;
+}
+
 static ssize_t aac_show_kernel_version(struct class_device *class_dev,
 		char *buf)
 {
@@ -899,6 +916,13 @@ static struct class_device_attribute aac_vendor = {
 	},
 	.show = aac_show_vendor,
 };
+static struct class_device_attribute aac_flags = {
+	.attr = {
+		.name = "flags",
+		.mode = S_IRUGO,
+	},
+	.show = aac_show_flags,
+};
 static struct class_device_attribute aac_kernel_version = {
 	.attr = {
 		.name = "hba_kernel_version",
@@ -953,6 +977,7 @@ static struct class_device_attribute aac_reset = {
 static struct class_device_attribute *aac_attrs[] = {
 	&aac_model,
 	&aac_vendor,
+	&aac_flags,
 	&aac_kernel_version,
 	&aac_monitor_version,
 	&aac_bios_version,
