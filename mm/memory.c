@@ -392,6 +392,7 @@ struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr, pte_
 			return NULL;
 	}
 
+#ifdef CONFIG_DEBUG_VM
 	/*
 	 * Add some anal sanity checks for now. Eventually,
 	 * we should just do "return pfn_to_page(pfn)", but
@@ -402,6 +403,7 @@ struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr, pte_
 		print_bad_pte(vma, pte, addr);
 		return NULL;
 	}
+#endif
 
 	/*
 	 * NOTE! We still have PageReserved() pages in the page 
