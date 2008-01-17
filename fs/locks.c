@@ -125,6 +125,7 @@
 #include <linux/syscalls.h>
 #include <linux/time.h>
 #include <linux/rcupdate.h>
+#include <linux/pid_namespace.h>
 
 #include <asm/semaphore.h>
 #include <asm/uaccess.h>
@@ -185,6 +186,7 @@ void locks_init_lock(struct file_lock *fl)
 	fl->fl_fasync = NULL;
 	fl->fl_owner = NULL;
 	fl->fl_pid = 0;
+	fl->fl_nspid = NULL;
 	fl->fl_file = NULL;
 	fl->fl_flags = 0;
 	fl->fl_type = 0;
@@ -553,6 +555,8 @@ static void locks_insert_lock(struct file_lock **pos, struct file_lock *fl)
 {
 	list_add(&fl->fl_link, &file_lock_list);
 
+	fl->fl_nspid = get_pid(task_tgid(current));
+
 	/* insert into file's list */
 	fl->fl_next = *pos;
 	*pos = fl;
@@ -583,6 +587,11 @@ static void locks_delete_lock(struct file_lock **thisfl_p)
 
 	if (fl->fl_ops && fl->fl_ops->fl_remove)
 		fl->fl_ops->fl_remove(fl);
+
+	if (fl->fl_nspid) {
+		put_pid(fl->fl_nspid);
+		fl->fl_nspid = NULL;
+	}
 
 	locks_wake_up_blocks(fl);
 	locks_free_lock(fl);
@@ -646,14 +655,16 @@ posix_test_lock(struct file *filp, struct file_lock *fl)
 		if (posix_locks_conflict(fl, cfl))
 			break;
 	}
-	if (cfl)
+	if (cfl) {
 		__locks_copy_lock(fl, cfl);
-	else
+		if (cfl->fl_nspid)
+			fl->fl_pid = pid_nr_ns(cfl->fl_nspid,
+						task_active_pid_ns(current));
+	} else
 		fl->fl_type = F_UNLCK;
 	unlock_kernel();
 	return;
 }
-
 EXPORT_SYMBOL(posix_test_lock);
 
 /*
@@ -2070,6 +2081,12 @@ static void lock_get_status(struct seq_file *f, struct file_lock *fl,
 							int id, char *pfx)
 {
 	struct inode *inode = NULL;
+	unsigned int fl_pid;
+
+	if (fl->fl_nspid)
+		fl_pid = pid_nr_ns(fl->fl_nspid, task_active_pid_ns(current));
+	else
+		fl_pid = fl->fl_pid;
 
 	if (fl->fl_file != NULL)
 		inode = fl->fl_file->f_path.dentry->d_inode;
@@ -2110,16 +2127,16 @@ static void lock_get_status(struct seq_file *f, struct file_lock *fl,
 	}
 	if (inode) {
 #ifdef WE_CAN_BREAK_LSLK_NOW
-		seq_printf(f, "%d %s:%ld ", fl->fl_pid,
+		seq_printf(f, "%d %s:%ld ", fl_pid,
 				inode->i_sb->s_id, inode->i_ino);
 #else
 		/* userspace relies on this representation of dev_t ;-( */
-		seq_printf(f, "%d %02x:%02x:%ld ", fl->fl_pid,
+		seq_printf(f, "%d %02x:%02x:%ld ", fl_pid,
 				MAJOR(inode->i_sb->s_dev),
 				MINOR(inode->i_sb->s_dev), inode->i_ino);
 #endif
 	} else {
-		seq_printf(f, "%d <none>:0 ", fl->fl_pid);
+		seq_printf(f, "%d <none>:0 ", fl_pid);
 	}
 	if (IS_POSIX(fl)) {
 		if (fl->fl_end == OFFSET_MAX)
