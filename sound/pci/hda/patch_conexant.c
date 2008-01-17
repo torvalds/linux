@@ -453,7 +453,7 @@ static struct hda_input_mux cxt5045_capture_source = {
 	.num_items = 2,
 	.items = {
 		{ "IntMic", 0x1 },
-		{ "LineIn", 0x2 },
+		{ "ExtMic", 0x2 },
 	}
 };
 
