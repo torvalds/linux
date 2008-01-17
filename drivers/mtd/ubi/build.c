@@ -1099,7 +1099,7 @@ static int __init ubi_mtd_param_parse(const char *val, struct kernel_param *kp)
 	struct mtd_dev_param *p;
 	char buf[MTD_PARAM_LEN_MAX];
 	char *pbuf = &buf[0];
-	char *tokens[3] = {NULL, NULL, NULL};
+	char *tokens[2] = {NULL, NULL};
 
 	if (!val)
 		return -EINVAL;
@@ -1129,7 +1129,7 @@ static int __init ubi_mtd_param_parse(const char *val, struct kernel_param *kp)
 	if (buf[len - 1] == '\n')
 		buf[len - 1] = '\0';
 
-	for (i = 0; i < 3; i++)
+	for (i = 0; i < 2; i++)
 		tokens[i] = strsep(&pbuf, ",");
 
 	if (pbuf) {
