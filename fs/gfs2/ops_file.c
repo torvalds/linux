@@ -394,6 +394,7 @@ static int gfs2_page_mkwrite(struct vm_area_struct *vma, struct page *page)
 	last_index = ip->i_inode.i_size >> PAGE_CACHE_SHIFT;
 	if (page->index > last_index)
 		goto out_unlock_page;
+	ret = 0;
 	if (!PageUptodate(page) || page->mapping != ip->i_inode.i_mapping)
 		goto out_unlock_page;
 	if (gfs2_is_stuffed(ip)) {
