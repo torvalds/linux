@@ -25,7 +25,8 @@ may be raised, if the temperature grows enough (more than TjMax) to trigger
 the Out-Of-Spec bit. Following table summarizes the exported sysfs files:
 
 temp1_input	 - Core temperature (in millidegrees Celsius).
-temp1_crit	 - Maximum junction temperature  (in millidegrees Celsius).
+temp1_max	 - All cooling devices should be turned on (on Core2).
+temp1_crit	 - Maximum junction temperature (in millidegrees Celsius).
 temp1_crit_alarm - Set when Out-of-spec bit is set, never clears.
 		   Correct CPU operation is no longer guaranteed.
 temp1_label	 - Contains string "Core X", where X is processor

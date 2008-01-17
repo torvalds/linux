@@ -38,7 +38,8 @@
 
 #define DRVNAME	"coretemp"
 
-typedef enum { SHOW_TEMP, SHOW_TJMAX, SHOW_LABEL, SHOW_NAME } SHOW;
+typedef enum { SHOW_TEMP, SHOW_TJMAX, SHOW_TTARGET, SHOW_LABEL,
+		SHOW_NAME } SHOW;
 
 /*
  * Functions declaration
@@ -55,6 +56,7 @@ struct coretemp_data {
 	unsigned long last_updated;	/* in jiffies */
 	int temp;
 	int tjmax;
+	int ttarget;
 	u8 alarm;
 };
 
@@ -93,9 +95,10 @@ static ssize_t show_temp(struct device *dev,
 
 	if (attr->index == SHOW_TEMP)
 		err = data->valid ? sprintf(buf, "%d\n", data->temp) : -EAGAIN;
-	else
+	else if (attr->index == SHOW_TJMAX)
 		err = sprintf(buf, "%d\n", data->tjmax);
-
+	else
+		err = sprintf(buf, "%d\n", data->ttarget);
 	return err;
 }
 
@@ -103,6 +106,8 @@ static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_temp, NULL,
 			  SHOW_TEMP);
 static SENSOR_DEVICE_ATTR(temp1_crit, S_IRUGO, show_temp, NULL,
 			  SHOW_TJMAX);
+static SENSOR_DEVICE_ATTR(temp1_max, S_IRUGO, show_temp, NULL,
+			  SHOW_TTARGET);
 static DEVICE_ATTR(temp1_crit_alarm, S_IRUGO, show_alarm, NULL);
 static SENSOR_DEVICE_ATTR(temp1_label, S_IRUGO, show_name, NULL, SHOW_LABEL);
 static SENSOR_DEVICE_ATTR(name, S_IRUGO, show_name, NULL, SHOW_NAME);
@@ -223,8 +228,26 @@ static int __devinit coretemp_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, data);
 
+	/* read the still undocumented IA32_TEMPERATURE_TARGET it exists
+	   on older CPUs but not in this register */
+
+	if (c->x86_model > 0xe) {
+		err = rdmsr_safe_on_cpu(data->id, 0x1a2, &eax, &edx);
+		if (err) {
+			dev_warn(&pdev->dev, "Unable to read"
+					" IA32_TEMPERATURE_TARGET MSR\n");
+		} else {
+			data->ttarget = data->tjmax -
+					(((eax >> 8) & 0xff) * 1000);
+			err = device_create_file(&pdev->dev,
+					&sensor_dev_attr_temp1_max.dev_attr);
+			if (err)
+				goto exit_free;
+		}
+	}
+
 	if ((err = sysfs_create_group(&pdev->dev.kobj, &coretemp_group)))
-		goto exit_free;
+		goto exit_dev;
 
 	data->hwmon_dev = hwmon_device_register(&pdev->dev);
 	if (IS_ERR(data->hwmon_dev)) {
@@ -238,6 +261,8 @@ static int __devinit coretemp_probe(struct platform_device *pdev)
 
 exit_class:
 	sysfs_remove_group(&pdev->dev.kobj, &coretemp_group);
+exit_dev:
+	device_remove_file(&pdev->dev, &sensor_dev_attr_temp1_max.dev_attr);
 exit_free:
 	kfree(data);
 exit:
@@ -250,6 +275,7 @@ static int __devexit coretemp_remove(struct platform_device *pdev)
 
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&pdev->dev.kobj, &coretemp_group);
+	device_remove_file(&pdev->dev, &sensor_dev_attr_temp1_max.dev_attr);
 	platform_set_drvdata(pdev, NULL);
 	kfree(data);
 	return 0;
