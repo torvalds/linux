@@ -61,7 +61,7 @@ struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id, btree_keycmp ke
 	mapping = tree->inode->i_mapping;
 	page = read_mapping_page(mapping, 0, NULL);
 	if (IS_ERR(page))
-		goto free_tree;
+		goto free_inode;
 
 	/* Load the header */
 	head = (struct hfs_btree_header_rec *)(kmap(page) + sizeof(struct hfs_bnode_desc));
@@ -99,11 +99,12 @@ struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id, btree_keycmp ke
 	page_cache_release(page);
 	return tree;
 
- fail_page:
+fail_page:
 	page_cache_release(page);
- free_tree:
+free_inode:
 	tree->inode->i_mapping->a_ops = &hfs_aops;
 	iput(tree->inode);
+free_tree:
 	kfree(tree);
 	return NULL;
 }
