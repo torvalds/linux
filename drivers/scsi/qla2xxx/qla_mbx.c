@@ -2042,29 +2042,20 @@ qla2x00_get_fcal_position_map(scsi_qla_host_t *ha, char *pos_map)
  */
 int
 qla2x00_get_link_status(scsi_qla_host_t *ha, uint16_t loop_id,
-    link_stat_t *ret_buf, uint16_t *status)
+    struct link_statistics *stats, dma_addr_t stats_dma)
 {
 	int rval;
 	mbx_cmd_t mc;
 	mbx_cmd_t *mcp = &mc;
-	link_stat_t *stat_buf;
-	dma_addr_t stat_buf_dma;
+	uint32_t *siter, *diter, dwords;
 
 	DEBUG11(printk("%s(%ld): entered.\n", __func__, ha->host_no));
 
-	stat_buf = dma_pool_alloc(ha->s_dma_pool, GFP_ATOMIC, &stat_buf_dma);
-	if (stat_buf == NULL) {
-		DEBUG2_3_11(printk("%s(%ld): Failed to allocate memory.\n",
-		    __func__, ha->host_no));
-		return BIT_0;
-	}
-	memset(stat_buf, 0, sizeof(link_stat_t));
-
 	mcp->mb[0] = MBC_GET_LINK_STATUS;
-	mcp->mb[2] = MSW(stat_buf_dma);
-	mcp->mb[3] = LSW(stat_buf_dma);
-	mcp->mb[6] = MSW(MSD(stat_buf_dma));
-	mcp->mb[7] = LSW(MSD(stat_buf_dma));
+	mcp->mb[2] = MSW(stats_dma);
+	mcp->mb[3] = LSW(stats_dma);
+	mcp->mb[6] = MSW(MSD(stats_dma));
+	mcp->mb[7] = LSW(MSD(stats_dma));
 	mcp->out_mb = MBX_7|MBX_6|MBX_3|MBX_2|MBX_0;
 	mcp->in_mb = MBX_0;
 	if (IS_FWI2_CAPABLE(ha)) {
@@ -2089,78 +2080,43 @@ qla2x00_get_link_status(scsi_qla_host_t *ha, uint16_t loop_id,
 		if (mcp->mb[0] != MBS_COMMAND_COMPLETE) {
 			DEBUG2_3_11(printk("%s(%ld): cmd failed. mbx0=%x.\n",
 			    __func__, ha->host_no, mcp->mb[0]));
-			status[0] = mcp->mb[0];
-			rval = BIT_1;
+			rval = QLA_FUNCTION_FAILED;
 		} else {
-			/* copy over data -- firmware data is LE. */
-			ret_buf->link_fail_cnt =
-			    le32_to_cpu(stat_buf->link_fail_cnt);
-			ret_buf->loss_sync_cnt =
-			    le32_to_cpu(stat_buf->loss_sync_cnt);
-			ret_buf->loss_sig_cnt =
-			    le32_to_cpu(stat_buf->loss_sig_cnt);
-			ret_buf->prim_seq_err_cnt =
-			    le32_to_cpu(stat_buf->prim_seq_err_cnt);
-			ret_buf->inval_xmit_word_cnt =
-			    le32_to_cpu(stat_buf->inval_xmit_word_cnt);
-			ret_buf->inval_crc_cnt =
-			    le32_to_cpu(stat_buf->inval_crc_cnt);
-
-			DEBUG11(printk("%s(%ld): stat dump: fail_cnt=%d "
-			    "loss_sync=%d loss_sig=%d seq_err=%d "
-			    "inval_xmt_word=%d inval_crc=%d.\n", __func__,
-			    ha->host_no, stat_buf->link_fail_cnt,
-			    stat_buf->loss_sync_cnt, stat_buf->loss_sig_cnt,
-			    stat_buf->prim_seq_err_cnt,
-			    stat_buf->inval_xmit_word_cnt,
-			    stat_buf->inval_crc_cnt));
+			/* Copy over data -- firmware data is LE. */
+			dwords = offsetof(struct link_statistics, unused1) / 4;
+			siter = diter = &stats->link_fail_cnt;
+			while (dwords--)
+				*diter++ = le32_to_cpu(*siter++);
 		}
 	} else {
 		/* Failed. */
 		DEBUG2_3_11(printk("%s(%ld): failed=%x.\n", __func__,
 		    ha->host_no, rval));
-		rval = BIT_1;
 	}
-
-	dma_pool_free(ha->s_dma_pool, stat_buf, stat_buf_dma);
 
 	return rval;
 }
 
 int
-qla24xx_get_isp_stats(scsi_qla_host_t *ha, uint32_t *dwbuf, uint32_t dwords,
-    uint16_t *status)
+qla24xx_get_isp_stats(scsi_qla_host_t *ha, struct link_statistics *stats,
+    dma_addr_t stats_dma)
 {
 	int rval;
 	mbx_cmd_t mc;
 	mbx_cmd_t *mcp = &mc;
-	uint32_t *sbuf, *siter;
-	dma_addr_t sbuf_dma;
+	uint32_t *siter, *diter, dwords;
 
 	DEBUG11(printk("%s(%ld): entered.\n", __func__, ha->host_no));
 
-	if (dwords > (DMA_POOL_SIZE / 4)) {
-		DEBUG2_3_11(printk("%s(%ld): Unabled to retrieve %d DWORDs "
-		    "(max %d).\n", __func__, ha->host_no, dwords,
-		    DMA_POOL_SIZE / 4));
-		return BIT_0;
-	}
-	sbuf = dma_pool_alloc(ha->s_dma_pool, GFP_ATOMIC, &sbuf_dma);
-	if (sbuf == NULL) {
-		DEBUG2_3_11(printk("%s(%ld): Failed to allocate memory.\n",
-		    __func__, ha->host_no));
-		return BIT_0;
-	}
-	memset(sbuf, 0, DMA_POOL_SIZE);
-
 	mcp->mb[0] = MBC_GET_LINK_PRIV_STATS;
-	mcp->mb[2] = MSW(sbuf_dma);
-	mcp->mb[3] = LSW(sbuf_dma);
-	mcp->mb[6] = MSW(MSD(sbuf_dma));
-	mcp->mb[7] = LSW(MSD(sbuf_dma));
-	mcp->mb[8] = dwords;
+	mcp->mb[2] = MSW(stats_dma);
+	mcp->mb[3] = LSW(stats_dma);
+	mcp->mb[6] = MSW(MSD(stats_dma));
+	mcp->mb[7] = LSW(MSD(stats_dma));
+	mcp->mb[8] = sizeof(struct link_statistics) / 4;
+	mcp->mb[9] = ha->vp_idx;
 	mcp->mb[10] = 0;
-	mcp->out_mb = MBX_10|MBX_8|MBX_7|MBX_6|MBX_3|MBX_2|MBX_0;
+	mcp->out_mb = MBX_10|MBX_9|MBX_8|MBX_7|MBX_6|MBX_3|MBX_2|MBX_0;
 	mcp->in_mb = MBX_2|MBX_1|MBX_0;
 	mcp->tov = 30;
 	mcp->flags = IOCTL_CMD;
@@ -2170,22 +2126,19 @@ qla24xx_get_isp_stats(scsi_qla_host_t *ha, uint32_t *dwbuf, uint32_t dwords,
 		if (mcp->mb[0] != MBS_COMMAND_COMPLETE) {
 			DEBUG2_3_11(printk("%s(%ld): cmd failed. mbx0=%x.\n",
 			    __func__, ha->host_no, mcp->mb[0]));
-			status[0] = mcp->mb[0];
-			rval = BIT_1;
+			rval = QLA_FUNCTION_FAILED;
 		} else {
 			/* Copy over data -- firmware data is LE. */
-			siter = sbuf;
+			dwords = sizeof(struct link_statistics) / 4;
+			siter = diter = &stats->link_fail_cnt;
 			while (dwords--)
-				*dwbuf++ = le32_to_cpu(*siter++);
+				*diter++ = le32_to_cpu(*siter++);
 		}
 	} else {
 		/* Failed. */
 		DEBUG2_3_11(printk("%s(%ld): failed=%x.\n", __func__,
 		    ha->host_no, rval));
-		rval = BIT_1;
 	}
-
-	dma_pool_free(ha->s_dma_pool, sbuf, sbuf_dma);
 
 	return rval;
 }

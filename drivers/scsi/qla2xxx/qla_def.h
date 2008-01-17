@@ -862,14 +862,20 @@ typedef struct {
 #define GLSO_SEND_RPS	BIT_0
 #define GLSO_USE_DID	BIT_3
 
-typedef struct {
-	uint32_t	link_fail_cnt;
-	uint32_t	loss_sync_cnt;
-	uint32_t	loss_sig_cnt;
-	uint32_t	prim_seq_err_cnt;
-	uint32_t	inval_xmit_word_cnt;
-	uint32_t	inval_crc_cnt;
-} link_stat_t;
+struct link_statistics {
+	uint32_t link_fail_cnt;
+	uint32_t loss_sync_cnt;
+	uint32_t loss_sig_cnt;
+	uint32_t prim_seq_err_cnt;
+	uint32_t inval_xmit_word_cnt;
+	uint32_t inval_crc_cnt;
+	uint32_t unused1[0x1b];
+	uint32_t tx_frames;
+	uint32_t rx_frames;
+	uint32_t dumped_frames;
+	uint32_t unused2[2];
+	uint32_t nos_rcvd;
+};
 
 /*
  * NVRAM Command values.

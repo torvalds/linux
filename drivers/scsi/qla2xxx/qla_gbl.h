@@ -222,11 +222,12 @@ extern int
 qla2x00_get_fcal_position_map(scsi_qla_host_t *ha, char *pos_map);
 
 extern int
-qla2x00_get_link_status(scsi_qla_host_t *, uint16_t, link_stat_t *,
-    uint16_t *);
+qla2x00_get_link_status(scsi_qla_host_t *, uint16_t, struct link_statistics *,
+    dma_addr_t);
 
 extern int
-qla24xx_get_isp_stats(scsi_qla_host_t *, uint32_t *, uint32_t, uint16_t *);
+qla24xx_get_isp_stats(scsi_qla_host_t *, struct link_statistics *,
+    dma_addr_t);
 
 extern int qla24xx_abort_command(scsi_qla_host_t *, srb_t *);
 extern int qla24xx_abort_target(fc_port_t *);
