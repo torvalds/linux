@@ -323,7 +323,6 @@ static unsigned int sata_fsl_fill_sg(struct ata_queued_cmd *qc, void *cmd_desc,
 	struct scatterlist *sg;
 	unsigned int num_prde = 0;
 	u32 ttl_dwords = 0;
-	unsigned int si;
 
 	/*
 	 * NOTE : direct & indirect prdt's are contigiously allocated
