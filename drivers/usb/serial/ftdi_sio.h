@@ -536,6 +536,8 @@
 #define OLIMEX_VID			0x15BA
 #define OLIMEX_ARM_USB_OCD_PID		0x0003
 
+/* www.elsterelectricity.com Elster Unicom III Optical Probe */
+#define FTDI_ELSTER_UNICOM_PID		0xE700 /* Product Id */
 
 /*
  * The Mobility Lab (TML)
