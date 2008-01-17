@@ -52,3 +52,36 @@ Description:
 		facility is inherently dangerous, it is disabled by default
 		for all devices except hubs.  For more information, see
 		Documentation/usb/persist.txt.
+
+What:		/sys/bus/usb/device/.../power/connected_duration
+Date:		January 2008
+KernelVersion:	2.6.25
+Contact:	Sarah Sharp <sarah.a.sharp@intel.com>
+Description:
+		If CONFIG_PM and CONFIG_USB_SUSPEND are enabled, then this file
+		is present.  When read, it returns the total time (in msec)
+		that the USB device has been connected to the machine.  This
+		file is read-only.
+Users:
+		PowerTOP <power@bughost.org>
+		http://www.lesswatts.org/projects/powertop/
+
+What:		/sys/bus/usb/device/.../power/active_duration
+Date:		January 2008
+KernelVersion:	2.6.25
+Contact:	Sarah Sharp <sarah.a.sharp@intel.com>
+Description:
+		If CONFIG_PM and CONFIG_USB_SUSPEND are enabled, then this file
+		is present.  When read, it returns the total time (in msec)
+		that the USB device has been active, i.e. not in a suspended
+		state.  This file is read-only.
+
+		Tools can use this file and the connected_duration file to
+		compute the percentage of time that a device has been active.
+		For example,
+		echo $((100 * `cat active_duration` / `cat connected_duration`))
+		will give an integer percentage.  Note that this does not
+		account for counter wrap.
+Users:
+		PowerTOP <power@bughost.org>
+		http://www.lesswatts.org/projects/powertop/
