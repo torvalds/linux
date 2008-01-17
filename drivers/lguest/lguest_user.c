@@ -131,6 +131,10 @@ static int lg_cpu_start(struct lg_cpu *cpu, unsigned id, unsigned long start_ip)
 	 * reference, it is destroyed before close() is called. */
 	cpu->mm = get_task_mm(cpu->tsk);
 
+	/* We remember which CPU's pages this Guest used last, for optimization
+	 * when the same Guest runs on the same CPU twice. */
+	cpu->last_pages = NULL;
+
 	return 0;
 }
 
@@ -191,10 +195,6 @@ static int initialize(struct file *file, const unsigned long __user *input)
 	err = init_guest_pagetable(lg, args[2]);
 	if (err)
 		goto free_regs;
-
-	/* We remember which CPU's pages this Guest used last, for optimization
-	 * when the same Guest runs on the same CPU twice. */
-	lg->last_pages = NULL;
 
 	/* We keep our "struct lguest" in the file's private_data. */
 	file->private_data = lg;

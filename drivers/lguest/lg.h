@@ -57,6 +57,8 @@ struct lg_cpu {
 	unsigned long regs_page;
 	struct lguest_regs *regs;
 
+	struct lguest_pages *last_pages;
+
 	int cpu_pgd; /* which pgd this cpu is currently using */
 
 	/* If a hypercall was asked for, this points to the arguments. */
@@ -92,7 +94,6 @@ struct lguest
 
 	/* Bitmap of what has changed: see CHANGED_* above. */
 	int changed;
-	struct lguest_pages *last_pages;
 
 	struct pgdir pgdirs[4];
 

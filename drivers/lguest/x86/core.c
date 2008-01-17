@@ -80,9 +80,9 @@ static void copy_in_guest_info(struct lg_cpu *cpu, struct lguest_pages *pages)
 	 * same Guest we ran last time (and that Guest hasn't run anywhere else
 	 * meanwhile).  If that's not the case, we pretend everything in the
 	 * Guest has changed. */
-	if (__get_cpu_var(last_cpu) != cpu || lg->last_pages != pages) {
+	if (__get_cpu_var(last_cpu) != cpu || cpu->last_pages != pages) {
 		__get_cpu_var(last_cpu) = cpu;
-		lg->last_pages = pages;
+		cpu->last_pages = pages;
 		lg->changed = CHANGED_ALL;
 	}
 
