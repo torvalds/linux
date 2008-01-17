@@ -313,12 +313,12 @@ static unsigned int oxygen_i2s_magic2(struct snd_pcm_hw_params *hw_params)
 	return params_rate(hw_params) <= 96000 ? 0x10 : 0x00;
 }
 
-static unsigned int oxygen_i2s_format(struct snd_pcm_hw_params *hw_params)
+static unsigned int oxygen_i2s_bits(struct snd_pcm_hw_params *hw_params)
 {
 	if (params_format(hw_params) == SNDRV_PCM_FORMAT_S32_LE)
-		return OXYGEN_I2S_FORMAT_24;
+		return OXYGEN_I2S_BITS_24;
 	else
-		return OXYGEN_I2S_FORMAT_16;
+		return OXYGEN_I2S_BITS_16;
 }
 
 static unsigned int oxygen_play_channels(struct snd_pcm_hw_params *hw_params)
@@ -386,13 +386,15 @@ static int oxygen_rec_a_hw_params(struct snd_pcm_substream *substream,
 	oxygen_write8_masked(chip, OXYGEN_REC_FORMAT,
 			     oxygen_format(hw_params) << OXYGEN_REC_FORMAT_A_SHIFT,
 			     OXYGEN_REC_FORMAT_A_MASK);
-	oxygen_write8_masked(chip, OXYGEN_I2S_A_FORMAT,
-			     oxygen_rate(hw_params) |
-			     oxygen_i2s_magic2(hw_params) |
-			     oxygen_i2s_format(hw_params),
-			     OXYGEN_I2S_RATE_MASK |
-			     OXYGEN_I2S_MAGIC2_MASK |
-			     OXYGEN_I2S_FORMAT_MASK);
+	oxygen_write16_masked(chip, OXYGEN_I2S_A_FORMAT,
+			      oxygen_rate(hw_params) |
+			      oxygen_i2s_magic2(hw_params) |
+			      chip->model->adc_i2s_format |
+			      oxygen_i2s_bits(hw_params),
+			      OXYGEN_I2S_RATE_MASK |
+			      OXYGEN_I2S_FORMAT_MASK |
+			      OXYGEN_I2S_MAGIC2_MASK |
+			      OXYGEN_I2S_BITS_MASK);
 	oxygen_clear_bits8(chip, OXYGEN_REC_ROUTING, 0x08);
 	spin_unlock_irq(&chip->reg_lock);
 
@@ -416,13 +418,15 @@ static int oxygen_rec_b_hw_params(struct snd_pcm_substream *substream,
 	oxygen_write8_masked(chip, OXYGEN_REC_FORMAT,
 			     oxygen_format(hw_params) << OXYGEN_REC_FORMAT_B_SHIFT,
 			     OXYGEN_REC_FORMAT_B_MASK);
-	oxygen_write8_masked(chip, OXYGEN_I2S_B_FORMAT,
-			     oxygen_rate(hw_params) |
-			     oxygen_i2s_magic2(hw_params) |
-			     oxygen_i2s_format(hw_params),
-			     OXYGEN_I2S_RATE_MASK |
-			     OXYGEN_I2S_MAGIC2_MASK |
-			     OXYGEN_I2S_FORMAT_MASK);
+	oxygen_write16_masked(chip, OXYGEN_I2S_B_FORMAT,
+			      oxygen_rate(hw_params) |
+			      oxygen_i2s_magic2(hw_params) |
+			      chip->model->adc_i2s_format |
+			      oxygen_i2s_bits(hw_params),
+			      OXYGEN_I2S_RATE_MASK |
+			      OXYGEN_I2S_FORMAT_MASK |
+			      OXYGEN_I2S_MAGIC2_MASK |
+			      OXYGEN_I2S_BITS_MASK);
 	oxygen_clear_bits8(chip, OXYGEN_REC_ROUTING, 0x10);
 	spin_unlock_irq(&chip->reg_lock);
 
@@ -493,8 +497,12 @@ static int oxygen_multich_hw_params(struct snd_pcm_substream *substream,
 			     oxygen_format(hw_params) << OXYGEN_MULTICH_FORMAT_SHIFT,
 			     OXYGEN_MULTICH_FORMAT_MASK);
 	oxygen_write16_masked(chip, OXYGEN_I2S_MULTICH_FORMAT,
-			      oxygen_rate(hw_params) | oxygen_i2s_format(hw_params),
-			      OXYGEN_I2S_RATE_MASK | OXYGEN_I2S_FORMAT_MASK);
+			      oxygen_rate(hw_params) |
+			      chip->model->dac_i2s_format |
+			      oxygen_i2s_bits(hw_params),
+			      OXYGEN_I2S_RATE_MASK |
+			      OXYGEN_I2S_FORMAT_MASK |
+			      OXYGEN_I2S_BITS_MASK);
 	oxygen_clear_bits16(chip, OXYGEN_PLAY_ROUTING, 0x001f);
 	oxygen_update_dac_routing(chip);
 	oxygen_update_spdif_source(chip);

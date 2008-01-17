@@ -102,10 +102,6 @@ static void xonar_init(struct oxygen *chip)
 
 	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL, 0x8c);
 	oxygen_write16_masked(chip, OXYGEN_GPIO_DATA, 0x00, 0x8c);
-#if 0
-	oxygen_clear_bits16(chip, OXYGEN_I2S_MULTICH_FORMAT,
-			    OXYGEN_I2S_MAGIC1_MASK);
-#endif
 	oxygen_ac97_set_bits(chip, 0, 0x62, 0x0080);
 	msleep(300);
 	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL, 0x100);
@@ -253,6 +249,8 @@ static const struct oxygen_model model_xonar = {
 			 OXYGEN_CHANNEL_SPDIF |
 			 OXYGEN_CHANNEL_MULTICH,
 	.function_flags = OXYGEN_FUNCTION_ENABLE_SPI_4_5,
+	.dac_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
+	.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 };
 
 static int __devinit xonar_probe(struct pci_dev *pci,

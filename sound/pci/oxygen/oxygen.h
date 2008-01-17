@@ -86,6 +86,8 @@ struct oxygen_model {
 	void (*update_dac_mute)(struct oxygen *chip);
 	u8 used_channels;
 	u8 function_flags;
+	u16 dac_i2s_format;
+	u16 adc_i2s_format;
 };
 
 /* oxygen_lib.c */

@@ -285,6 +285,8 @@ static const struct oxygen_model model_generic = {
 			 OXYGEN_CHANNEL_MULTICH |
 			 OXYGEN_CHANNEL_AC97,
 	.function_flags = OXYGEN_FUNCTION_ENABLE_SPI_4_5,
+	.dac_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
+	.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 };
 static const struct oxygen_model model_meridian = {
 	.shortname = "C-Media CMI8788",
@@ -304,6 +306,8 @@ static const struct oxygen_model model_meridian = {
 			 OXYGEN_CHANNEL_MULTICH |
 			 OXYGEN_CHANNEL_AC97,
 	.function_flags = OXYGEN_FUNCTION_ENABLE_SPI_4_5,
+	.dac_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
+	.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 };
 
 static int __devinit generic_oxygen_probe(struct pci_dev *pci,
