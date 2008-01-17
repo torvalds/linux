@@ -41,11 +41,11 @@ static int idt_present(u32 lo, u32 hi)
 
 /* We need a helper to "push" a value onto the Guest's stack, since that's a
  * big part of what delivering an interrupt does. */
-static void push_guest_stack(struct lguest *lg, unsigned long *gstack, u32 val)
+static void push_guest_stack(struct lg_cpu *cpu, unsigned long *gstack, u32 val)
 {
 	/* Stack grows upwards: move stack then write value. */
 	*gstack -= 4;
-	lgwrite(lg, *gstack, u32, val);
+	lgwrite(cpu, *gstack, u32, val);
 }
 
 /*H:210 The set_guest_interrupt() routine actually delivers the interrupt or
@@ -65,7 +65,6 @@ static void set_guest_interrupt(struct lg_cpu *cpu, u32 lo, u32 hi, int has_err)
 	unsigned long gstack, origstack;
 	u32 eflags, ss, irq_enable;
 	unsigned long virtstack;
-	struct lguest *lg = cpu->lg;
 
 	/* There are two cases for interrupts: one where the Guest is already
 	 * in the kernel, and a more complex one where the Guest is in
@@ -81,8 +80,8 @@ static void set_guest_interrupt(struct lg_cpu *cpu, u32 lo, u32 hi, int has_err)
 		 * stack: when the Guest does an "iret" back from the interrupt
 		 * handler the CPU will notice they're dropping privilege
 		 * levels and expect these here. */
-		push_guest_stack(lg, &gstack, cpu->regs->ss);
-		push_guest_stack(lg, &gstack, cpu->regs->esp);
+		push_guest_stack(cpu, &gstack, cpu->regs->ss);
+		push_guest_stack(cpu, &gstack, cpu->regs->esp);
 	} else {
 		/* We're staying on the same Guest (kernel) stack. */
 		virtstack = cpu->regs->esp;
@@ -96,20 +95,20 @@ static void set_guest_interrupt(struct lg_cpu *cpu, u32 lo, u32 hi, int has_err)
 	 * Guest's "irq_enabled" field into the eflags word: we saw the Guest
 	 * copy it back in "lguest_iret". */
 	eflags = cpu->regs->eflags;
-	if (get_user(irq_enable, &lg->lguest_data->irq_enabled) == 0
+	if (get_user(irq_enable, &cpu->lg->lguest_data->irq_enabled) == 0
 	    && !(irq_enable & X86_EFLAGS_IF))
 		eflags &= ~X86_EFLAGS_IF;
 
 	/* An interrupt is expected to push three things on the stack: the old
 	 * "eflags" word, the old code segment, and the old instruction
 	 * pointer. */
-	push_guest_stack(lg, &gstack, eflags);
-	push_guest_stack(lg, &gstack, cpu->regs->cs);
-	push_guest_stack(lg, &gstack, cpu->regs->eip);
+	push_guest_stack(cpu, &gstack, eflags);
+	push_guest_stack(cpu, &gstack, cpu->regs->cs);
+	push_guest_stack(cpu, &gstack, cpu->regs->eip);
 
 	/* For the six traps which supply an error code, we push that, too. */
 	if (has_err)
-		push_guest_stack(lg, &gstack, cpu->regs->errcode);
+		push_guest_stack(cpu, &gstack, cpu->regs->errcode);
 
 	/* Now we've pushed all the old state, we change the stack, the code
 	 * segment and the address to execute. */
@@ -121,8 +120,8 @@ static void set_guest_interrupt(struct lg_cpu *cpu, u32 lo, u32 hi, int has_err)
 	/* There are two kinds of interrupt handlers: 0xE is an "interrupt
 	 * gate" which expects interrupts to be disabled on entry. */
 	if (idt_type(lo, hi) == 0xE)
-		if (put_user(0, &lg->lguest_data->irq_enabled))
-			kill_guest(lg, "Disabling interrupts");
+		if (put_user(0, &cpu->lg->lguest_data->irq_enabled))
+			kill_guest(cpu, "Disabling interrupts");
 }
 
 /*H:205
@@ -133,17 +132,16 @@ static void set_guest_interrupt(struct lg_cpu *cpu, u32 lo, u32 hi, int has_err)
 void maybe_do_interrupt(struct lg_cpu *cpu)
 {
 	unsigned int irq;
-	struct lguest *lg = cpu->lg;
 	DECLARE_BITMAP(blk, LGUEST_IRQS);
 	struct desc_struct *idt;
 
 	/* If the Guest hasn't even initialized yet, we can do nothing. */
-	if (!lg->lguest_data)
+	if (!cpu->lg->lguest_data)
 		return;
 
 	/* Take our "irqs_pending" array and remove any interrupts the Guest
 	 * wants blocked: the result ends up in "blk". */
-	if (copy_from_user(&blk, lg->lguest_data->blocked_interrupts,
+	if (copy_from_user(&blk, cpu->lg->lguest_data->blocked_interrupts,
 			   sizeof(blk)))
 		return;
 
@@ -157,19 +155,20 @@ void maybe_do_interrupt(struct lg_cpu *cpu)
 
 	/* They may be in the middle of an iret, where they asked us never to
 	 * deliver interrupts. */
-	if (cpu->regs->eip >= lg->noirq_start && cpu->regs->eip < lg->noirq_end)
+	if (cpu->regs->eip >= cpu->lg->noirq_start &&
+	   (cpu->regs->eip < cpu->lg->noirq_end))
 		return;
 
 	/* If they're halted, interrupts restart them. */
 	if (cpu->halted) {
 		/* Re-enable interrupts. */
-		if (put_user(X86_EFLAGS_IF, &lg->lguest_data->irq_enabled))
-			kill_guest(lg, "Re-enabling interrupts");
+		if (put_user(X86_EFLAGS_IF, &cpu->lg->lguest_data->irq_enabled))
+			kill_guest(cpu, "Re-enabling interrupts");
 		cpu->halted = 0;
 	} else {
 		/* Otherwise we check if they have interrupts disabled. */
 		u32 irq_enabled;
-		if (get_user(irq_enabled, &lg->lguest_data->irq_enabled))
+		if (get_user(irq_enabled, &cpu->lg->lguest_data->irq_enabled))
 			irq_enabled = 0;
 		if (!irq_enabled)
 			return;
@@ -194,7 +193,7 @@ void maybe_do_interrupt(struct lg_cpu *cpu)
 	 * did this more often, but it can actually be quite slow: doing it
 	 * here is a compromise which means at least it gets updated every
 	 * timer interrupt. */
-	write_timestamp(lg);
+	write_timestamp(cpu);
 }
 /*:*/
 
@@ -315,10 +314,9 @@ void pin_stack_pages(struct lg_cpu *cpu)
 {
 	unsigned int i;
 
-	struct lguest *lg = cpu->lg;
 	/* Depending on the CONFIG_4KSTACKS option, the Guest can have one or
 	 * two pages of stack space. */
-	for (i = 0; i < lg->stack_pages; i++)
+	for (i = 0; i < cpu->lg->stack_pages; i++)
 		/* The stack grows *upwards*, so the address we're given is the
 		 * start of the page after the kernel stack.  Subtract one to
 		 * get back onto the first stack page, and keep subtracting to
@@ -339,10 +337,10 @@ void guest_set_stack(struct lg_cpu *cpu, u32 seg, u32 esp, unsigned int pages)
 	/* You are not allowed have a stack segment with privilege level 0: bad
 	 * Guest! */
 	if ((seg & 0x3) != GUEST_PL)
-		kill_guest(cpu->lg, "bad stack segment %i", seg);
+		kill_guest(cpu, "bad stack segment %i", seg);
 	/* We only expect one or two stack pages. */
 	if (pages > 2)
-		kill_guest(cpu->lg, "bad stack pages %u", pages);
+		kill_guest(cpu, "bad stack pages %u", pages);
 	/* Save where the stack is, and how many pages */
 	cpu->ss1 = seg;
 	cpu->esp1 = esp;
@@ -356,7 +354,7 @@ void guest_set_stack(struct lg_cpu *cpu, u32 seg, u32 esp, unsigned int pages)
 
 /*H:235 This is the routine which actually checks the Guest's IDT entry and
  * transfers it into the entry in "struct lguest": */
-static void set_trap(struct lguest *lg, struct desc_struct *trap,
+static void set_trap(struct lg_cpu *cpu, struct desc_struct *trap,
 		     unsigned int num, u32 lo, u32 hi)
 {
 	u8 type = idt_type(lo, hi);
@@ -369,7 +367,7 @@ static void set_trap(struct lguest *lg, struct desc_struct *trap,
 
 	/* We only support interrupt and trap gates. */
 	if (type != 0xE && type != 0xF)
-		kill_guest(lg, "bad IDT type %i", type);
+		kill_guest(cpu, "bad IDT type %i", type);
 
 	/* We only copy the handler address, present bit, privilege level and
 	 * type.  The privilege level controls where the trap can be triggered
@@ -399,9 +397,9 @@ void load_guest_idt_entry(struct lg_cpu *cpu, unsigned int num, u32 lo, u32 hi)
 
 	/* Check that the Guest doesn't try to step outside the bounds. */
 	if (num >= ARRAY_SIZE(cpu->arch.idt))
-		kill_guest(cpu->lg, "Setting idt entry %u", num);
+		kill_guest(cpu, "Setting idt entry %u", num);
 	else
-		set_trap(cpu->lg, &cpu->arch.idt[num], num, lo, hi);
+		set_trap(cpu, &cpu->arch.idt[num], num, lo, hi);
 }
 
 /* The default entry for each interrupt points into the Switcher routines which

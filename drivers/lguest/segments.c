@@ -148,14 +148,13 @@ void copy_gdt(const struct lg_cpu *cpu, struct desc_struct *gdt)
  * We copy it from the Guest and tweak the entries. */
 void load_guest_gdt(struct lg_cpu *cpu, unsigned long table, u32 num)
 {
-	struct lguest *lg = cpu->lg;
 	/* We assume the Guest has the same number of GDT entries as the
 	 * Host, otherwise we'd have to dynamically allocate the Guest GDT. */
 	if (num > ARRAY_SIZE(cpu->arch.gdt))
-		kill_guest(lg, "too many gdt entries %i", num);
+		kill_guest(cpu, "too many gdt entries %i", num);
 
 	/* We read the whole thing in, then fix it up. */
-	__lgread(lg, cpu->arch.gdt, table, num * sizeof(cpu->arch.gdt[0]));
+	__lgread(cpu, cpu->arch.gdt, table, num * sizeof(cpu->arch.gdt[0]));
 	fixup_gdt_table(cpu, 0, ARRAY_SIZE(cpu->arch.gdt));
 	/* Mark that the GDT changed so the core knows it has to copy it again,
 	 * even if the Guest is run on the same CPU. */
@@ -169,9 +168,8 @@ void load_guest_gdt(struct lg_cpu *cpu, unsigned long table, u32 num)
 void guest_load_tls(struct lg_cpu *cpu, unsigned long gtls)
 {
 	struct desc_struct *tls = &cpu->arch.gdt[GDT_ENTRY_TLS_MIN];
-	struct lguest *lg = cpu->lg;
 
-	__lgread(lg, tls, gtls, sizeof(*tls)*GDT_ENTRY_TLS_ENTRIES);
+	__lgread(cpu, tls, gtls, sizeof(*tls)*GDT_ENTRY_TLS_ENTRIES);
 	fixup_gdt_table(cpu, GDT_ENTRY_TLS_MIN, GDT_ENTRY_TLS_MAX+1);
 	/* Note that just the TLS entries have changed. */
 	cpu->changed |= CHANGED_GDT_TLS;

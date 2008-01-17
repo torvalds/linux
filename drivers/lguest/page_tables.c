@@ -68,17 +68,17 @@ static DEFINE_PER_CPU(pte_t *, switcher_pte_pages);
  * page directory entry (PGD) for that address.  Since we keep track of several
  * page tables, the "i" argument tells us which one we're interested in (it's
  * usually the current one). */
-static pgd_t *spgd_addr(struct lguest *lg, u32 i, unsigned long vaddr)
+static pgd_t *spgd_addr(struct lg_cpu *cpu, u32 i, unsigned long vaddr)
 {
 	unsigned int index = pgd_index(vaddr);
 
 	/* We kill any Guest trying to touch the Switcher addresses. */
 	if (index >= SWITCHER_PGD_INDEX) {
-		kill_guest(lg, "attempt to access switcher pages");
+		kill_guest(cpu, "attempt to access switcher pages");
 		index = 0;
 	}
 	/* Return a pointer index'th pgd entry for the i'th page table. */
-	return &lg->pgdirs[i].pgdir[index];
+	return &cpu->lg->pgdirs[i].pgdir[index];
 }
 
 /* This routine then takes the page directory entry returned above, which
@@ -137,7 +137,7 @@ static unsigned long get_pfn(unsigned long virtpfn, int write)
  * entry can be a little tricky.  The flags are (almost) the same, but the
  * Guest PTE contains a virtual page number: the CPU needs the real page
  * number. */
-static pte_t gpte_to_spte(struct lguest *lg, pte_t gpte, int write)
+static pte_t gpte_to_spte(struct lg_cpu *cpu, pte_t gpte, int write)
 {
 	unsigned long pfn, base, flags;
 
@@ -148,7 +148,7 @@ static pte_t gpte_to_spte(struct lguest *lg, pte_t gpte, int write)
 	flags = (pte_flags(gpte) & ~_PAGE_GLOBAL);
 
 	/* The Guest's pages are offset inside the Launcher. */
-	base = (unsigned long)lg->mem_base / PAGE_SIZE;
+	base = (unsigned long)cpu->lg->mem_base / PAGE_SIZE;
 
 	/* We need a temporary "unsigned long" variable to hold the answer from
 	 * get_pfn(), because it returns 0xFFFFFFFF on failure, which wouldn't
@@ -156,7 +156,7 @@ static pte_t gpte_to_spte(struct lguest *lg, pte_t gpte, int write)
 	 * page, given the virtual number. */
 	pfn = get_pfn(base + pte_pfn(gpte), write);
 	if (pfn == -1UL) {
-		kill_guest(lg, "failed to get page %lu", pte_pfn(gpte));
+		kill_guest(cpu, "failed to get page %lu", pte_pfn(gpte));
 		/* When we destroy the Guest, we'll go through the shadow page
 		 * tables and release_pte() them.  Make sure we don't think
 		 * this one is valid! */
@@ -176,17 +176,18 @@ static void release_pte(pte_t pte)
 }
 /*:*/
 
-static void check_gpte(struct lguest *lg, pte_t gpte)
+static void check_gpte(struct lg_cpu *cpu, pte_t gpte)
 {
 	if ((pte_flags(gpte) & (_PAGE_PWT|_PAGE_PSE))
-	    || pte_pfn(gpte) >= lg->pfn_limit)
-		kill_guest(lg, "bad page table entry");
+	    || pte_pfn(gpte) >= cpu->lg->pfn_limit)
+		kill_guest(cpu, "bad page table entry");
 }
 
-static void check_gpgd(struct lguest *lg, pgd_t gpgd)
+static void check_gpgd(struct lg_cpu *cpu, pgd_t gpgd)
 {
-	if ((pgd_flags(gpgd) & ~_PAGE_TABLE) || pgd_pfn(gpgd) >= lg->pfn_limit)
-		kill_guest(lg, "bad page directory entry");
+	if ((pgd_flags(gpgd) & ~_PAGE_TABLE) ||
+	   (pgd_pfn(gpgd) >= cpu->lg->pfn_limit))
+		kill_guest(cpu, "bad page directory entry");
 }
 
 /*H:330
@@ -206,27 +207,26 @@ int demand_page(struct lg_cpu *cpu, unsigned long vaddr, int errcode)
 	unsigned long gpte_ptr;
 	pte_t gpte;
 	pte_t *spte;
-	struct lguest *lg = cpu->lg;
 
 	/* First step: get the top-level Guest page table entry. */
-	gpgd = lgread(lg, gpgd_addr(cpu, vaddr), pgd_t);
+	gpgd = lgread(cpu, gpgd_addr(cpu, vaddr), pgd_t);
 	/* Toplevel not present?  We can't map it in. */
 	if (!(pgd_flags(gpgd) & _PAGE_PRESENT))
 		return 0;
 
 	/* Now look at the matching shadow entry. */
-	spgd = spgd_addr(lg, cpu->cpu_pgd, vaddr);
+	spgd = spgd_addr(cpu, cpu->cpu_pgd, vaddr);
 	if (!(pgd_flags(*spgd) & _PAGE_PRESENT)) {
 		/* No shadow entry: allocate a new shadow PTE page. */
 		unsigned long ptepage = get_zeroed_page(GFP_KERNEL);
 		/* This is not really the Guest's fault, but killing it is
 		 * simple for this corner case. */
 		if (!ptepage) {
-			kill_guest(lg, "out of memory allocating pte page");
+			kill_guest(cpu, "out of memory allocating pte page");
 			return 0;
 		}
 		/* We check that the Guest pgd is OK. */
-		check_gpgd(lg, gpgd);
+		check_gpgd(cpu, gpgd);
 		/* And we copy the flags to the shadow PGD entry.  The page
 		 * number in the shadow PGD is the page we just allocated. */
 		*spgd = __pgd(__pa(ptepage) | pgd_flags(gpgd));
@@ -235,7 +235,7 @@ int demand_page(struct lg_cpu *cpu, unsigned long vaddr, int errcode)
 	/* OK, now we look at the lower level in the Guest page table: keep its
 	 * address, because we might update it later. */
 	gpte_ptr = gpte_addr(gpgd, vaddr);
-	gpte = lgread(lg, gpte_ptr, pte_t);
+	gpte = lgread(cpu, gpte_ptr, pte_t);
 
 	/* If this page isn't in the Guest page tables, we can't page it in. */
 	if (!(pte_flags(gpte) & _PAGE_PRESENT))
@@ -252,7 +252,7 @@ int demand_page(struct lg_cpu *cpu, unsigned long vaddr, int errcode)
 
 	/* Check that the Guest PTE flags are OK, and the page number is below
 	 * the pfn_limit (ie. not mapping the Launcher binary). */
-	check_gpte(lg, gpte);
+	check_gpte(cpu, gpte);
 
 	/* Add the _PAGE_ACCESSED and (for a write) _PAGE_DIRTY flag */
 	gpte = pte_mkyoung(gpte);
@@ -268,17 +268,17 @@ int demand_page(struct lg_cpu *cpu, unsigned long vaddr, int errcode)
 	/* If this is a write, we insist that the Guest page is writable (the
 	 * final arg to gpte_to_spte()). */
 	if (pte_dirty(gpte))
-		*spte = gpte_to_spte(lg, gpte, 1);
+		*spte = gpte_to_spte(cpu, gpte, 1);
 	else
 		/* If this is a read, don't set the "writable" bit in the page
 		 * table entry, even if the Guest says it's writable.  That way
 		 * we will come back here when a write does actually occur, so
 		 * we can update the Guest's _PAGE_DIRTY flag. */
-		*spte = gpte_to_spte(lg, pte_wrprotect(gpte), 0);
+		*spte = gpte_to_spte(cpu, pte_wrprotect(gpte), 0);
 
 	/* Finally, we write the Guest PTE entry back: we've set the
 	 * _PAGE_ACCESSED and maybe the _PAGE_DIRTY flags. */
-	lgwrite(lg, gpte_ptr, pte_t, gpte);
+	lgwrite(cpu, gpte_ptr, pte_t, gpte);
 
 	/* The fault is fixed, the page table is populated, the mapping
 	 * manipulated, the result returned and the code complete.  A small
@@ -303,7 +303,7 @@ static int page_writable(struct lg_cpu *cpu, unsigned long vaddr)
 	unsigned long flags;
 
 	/* Look at the current top level entry: is it present? */
-	spgd = spgd_addr(cpu->lg, cpu->cpu_pgd, vaddr);
+	spgd = spgd_addr(cpu, cpu->cpu_pgd, vaddr);
 	if (!(pgd_flags(*spgd) & _PAGE_PRESENT))
 		return 0;
 
@@ -320,7 +320,7 @@ static int page_writable(struct lg_cpu *cpu, unsigned long vaddr)
 void pin_page(struct lg_cpu *cpu, unsigned long vaddr)
 {
 	if (!page_writable(cpu, vaddr) && !demand_page(cpu, vaddr, 2))
-		kill_guest(cpu->lg, "bad stack page %#lx", vaddr);
+		kill_guest(cpu, "bad stack page %#lx", vaddr);
 }
 
 /*H:450 If we chase down the release_pgd() code, it looks like this: */
@@ -372,14 +372,14 @@ unsigned long guest_pa(struct lg_cpu *cpu, unsigned long vaddr)
 	pte_t gpte;
 
 	/* First step: get the top-level Guest page table entry. */
-	gpgd = lgread(cpu->lg, gpgd_addr(cpu, vaddr), pgd_t);
+	gpgd = lgread(cpu, gpgd_addr(cpu, vaddr), pgd_t);
 	/* Toplevel not present?  We can't map it in. */
 	if (!(pgd_flags(gpgd) & _PAGE_PRESENT))
-		kill_guest(cpu->lg, "Bad address %#lx", vaddr);
+		kill_guest(cpu, "Bad address %#lx", vaddr);
 
-	gpte = lgread(cpu->lg, gpte_addr(gpgd, vaddr), pte_t);
+	gpte = lgread(cpu, gpte_addr(gpgd, vaddr), pte_t);
 	if (!(pte_flags(gpte) & _PAGE_PRESENT))
-		kill_guest(cpu->lg, "Bad address %#lx", vaddr);
+		kill_guest(cpu, "Bad address %#lx", vaddr);
 
 	return pte_pfn(gpte) * PAGE_SIZE | (vaddr & ~PAGE_MASK);
 }
@@ -404,16 +404,16 @@ static unsigned int new_pgdir(struct lg_cpu *cpu,
 			      int *blank_pgdir)
 {
 	unsigned int next;
-	struct lguest *lg = cpu->lg;
 
 	/* We pick one entry at random to throw out.  Choosing the Least
 	 * Recently Used might be better, but this is easy. */
-	next = random32() % ARRAY_SIZE(lg->pgdirs);
+	next = random32() % ARRAY_SIZE(cpu->lg->pgdirs);
 	/* If it's never been allocated at all before, try now. */
-	if (!lg->pgdirs[next].pgdir) {
-		lg->pgdirs[next].pgdir = (pgd_t *)get_zeroed_page(GFP_KERNEL);
+	if (!cpu->lg->pgdirs[next].pgdir) {
+		cpu->lg->pgdirs[next].pgdir =
+					(pgd_t *)get_zeroed_page(GFP_KERNEL);
 		/* If the allocation fails, just keep using the one we have */
-		if (!lg->pgdirs[next].pgdir)
+		if (!cpu->lg->pgdirs[next].pgdir)
 			next = cpu->cpu_pgd;
 		else
 			/* This is a blank page, so there are no kernel
@@ -421,9 +421,9 @@ static unsigned int new_pgdir(struct lg_cpu *cpu,
 			*blank_pgdir = 1;
 	}
 	/* Record which Guest toplevel this shadows. */
-	lg->pgdirs[next].gpgdir = gpgdir;
+	cpu->lg->pgdirs[next].gpgdir = gpgdir;
 	/* Release all the non-kernel mappings. */
-	flush_user_mappings(lg, next);
+	flush_user_mappings(cpu->lg, next);
 
 	return next;
 }
@@ -436,13 +436,12 @@ static unsigned int new_pgdir(struct lg_cpu *cpu,
 void guest_new_pagetable(struct lg_cpu *cpu, unsigned long pgtable)
 {
 	int newpgdir, repin = 0;
-	struct lguest *lg = cpu->lg;
 
 	/* Look to see if we have this one already. */
-	newpgdir = find_pgdir(lg, pgtable);
+	newpgdir = find_pgdir(cpu->lg, pgtable);
 	/* If not, we allocate or mug an existing one: if it's a fresh one,
 	 * repin gets set to 1. */
-	if (newpgdir == ARRAY_SIZE(lg->pgdirs))
+	if (newpgdir == ARRAY_SIZE(cpu->lg->pgdirs))
 		newpgdir = new_pgdir(cpu, pgtable, &repin);
 	/* Change the current pgd index to the new one. */
 	cpu->cpu_pgd = newpgdir;
@@ -499,11 +498,11 @@ void guest_pagetable_clear_all(struct lg_cpu *cpu)
  * _PAGE_ACCESSED then we can put a read-only PTE entry in immediately, and if
  * they set _PAGE_DIRTY then we can put a writable PTE entry in immediately.
  */
-static void do_set_pte(struct lguest *lg, int idx,
+static void do_set_pte(struct lg_cpu *cpu, int idx,
 		       unsigned long vaddr, pte_t gpte)
 {
 	/* Look up the matching shadow page directory entry. */
-	pgd_t *spgd = spgd_addr(lg, idx, vaddr);
+	pgd_t *spgd = spgd_addr(cpu, idx, vaddr);
 
 	/* If the top level isn't present, there's no entry to update. */
 	if (pgd_flags(*spgd) & _PAGE_PRESENT) {
@@ -515,8 +514,8 @@ static void do_set_pte(struct lguest *lg, int idx,
 		 * as well put that entry they've given us in now.  This shaves
 		 * 10% off a copy-on-write micro-benchmark. */
 		if (pte_flags(gpte) & (_PAGE_DIRTY | _PAGE_ACCESSED)) {
-			check_gpte(lg, gpte);
-			*spte = gpte_to_spte(lg, gpte,
+			check_gpte(cpu, gpte);
+			*spte = gpte_to_spte(cpu, gpte,
 					     pte_flags(gpte) & _PAGE_DIRTY);
 		} else
 			/* Otherwise kill it and we can demand_page() it in
@@ -535,22 +534,22 @@ static void do_set_pte(struct lguest *lg, int idx,
  *
  * The benefit is that when we have to track a new page table, we can copy keep
  * all the kernel mappings.  This speeds up context switch immensely. */
-void guest_set_pte(struct lguest *lg,
+void guest_set_pte(struct lg_cpu *cpu,
 		   unsigned long gpgdir, unsigned long vaddr, pte_t gpte)
 {
 	/* Kernel mappings must be changed on all top levels.  Slow, but
 	 * doesn't happen often. */
-	if (vaddr >= lg->kernel_address) {
+	if (vaddr >= cpu->lg->kernel_address) {
 		unsigned int i;
-		for (i = 0; i < ARRAY_SIZE(lg->pgdirs); i++)
-			if (lg->pgdirs[i].pgdir)
-				do_set_pte(lg, i, vaddr, gpte);
+		for (i = 0; i < ARRAY_SIZE(cpu->lg->pgdirs); i++)
+			if (cpu->lg->pgdirs[i].pgdir)
+				do_set_pte(cpu, i, vaddr, gpte);
 	} else {
 		/* Is this page table one we have a shadow for? */
-		int pgdir = find_pgdir(lg, gpgdir);
-		if (pgdir != ARRAY_SIZE(lg->pgdirs))
+		int pgdir = find_pgdir(cpu->lg, gpgdir);
+		if (pgdir != ARRAY_SIZE(cpu->lg->pgdirs))
 			/* If so, do the update. */
-			do_set_pte(lg, pgdir, vaddr, gpte);
+			do_set_pte(cpu, pgdir, vaddr, gpte);
 	}
 }
 
@@ -601,21 +600,23 @@ int init_guest_pagetable(struct lguest *lg, unsigned long pgtable)
 }
 
 /* When the Guest calls LHCALL_LGUEST_INIT we do more setup. */
-void page_table_guest_data_init(struct lguest *lg)
+void page_table_guest_data_init(struct lg_cpu *cpu)
 {
 	/* We get the kernel address: above this is all kernel memory. */
-	if (get_user(lg->kernel_address, &lg->lguest_data->kernel_address)
+	if (get_user(cpu->lg->kernel_address,
+		     &cpu->lg->lguest_data->kernel_address)
 	    /* We tell the Guest that it can't use the top 4MB of virtual
 	     * addresses used by the Switcher. */
-	    || put_user(4U*1024*1024, &lg->lguest_data->reserve_mem)
-	    || put_user(lg->pgdirs[0].gpgdir, &lg->lguest_data->pgdir))
-		kill_guest(lg, "bad guest page %p", lg->lguest_data);
+	    || put_user(4U*1024*1024, &cpu->lg->lguest_data->reserve_mem)
+	    || put_user(cpu->lg->pgdirs[0].gpgdir, &cpu->lg->lguest_data->pgdir))
+		kill_guest(cpu, "bad guest page %p", cpu->lg->lguest_data);
 
 	/* In flush_user_mappings() we loop from 0 to
 	 * "pgd_index(lg->kernel_address)".  This assumes it won't hit the
 	 * Switcher mappings, so check that now. */
-	if (pgd_index(lg->kernel_address) >= SWITCHER_PGD_INDEX)
-		kill_guest(lg, "bad kernel address %#lx", lg->kernel_address);
+	if (pgd_index(cpu->lg->kernel_address) >= SWITCHER_PGD_INDEX)
+		kill_guest(cpu, "bad kernel address %#lx",
+				 cpu->lg->kernel_address);
 }
 
 /* When a Guest dies, our cleanup is fairly simple. */

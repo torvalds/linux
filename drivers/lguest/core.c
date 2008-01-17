@@ -151,23 +151,23 @@ int lguest_address_ok(const struct lguest *lg,
 /* This routine copies memory from the Guest.  Here we can see how useful the
  * kill_lguest() routine we met in the Launcher can be: we return a random
  * value (all zeroes) instead of needing to return an error. */
-void __lgread(struct lguest *lg, void *b, unsigned long addr, unsigned bytes)
+void __lgread(struct lg_cpu *cpu, void *b, unsigned long addr, unsigned bytes)
 {
-	if (!lguest_address_ok(lg, addr, bytes)
-	    || copy_from_user(b, lg->mem_base + addr, bytes) != 0) {
+	if (!lguest_address_ok(cpu->lg, addr, bytes)
+	    || copy_from_user(b, cpu->lg->mem_base + addr, bytes) != 0) {
 		/* copy_from_user should do this, but as we rely on it... */
 		memset(b, 0, bytes);
-		kill_guest(lg, "bad read address %#lx len %u", addr, bytes);
+		kill_guest(cpu, "bad read address %#lx len %u", addr, bytes);
 	}
 }
 
 /* This is the write (copy into guest) version. */
-void __lgwrite(struct lguest *lg, unsigned long addr, const void *b,
+void __lgwrite(struct lg_cpu *cpu, unsigned long addr, const void *b,
 	       unsigned bytes)
 {
-	if (!lguest_address_ok(lg, addr, bytes)
-	    || copy_to_user(lg->mem_base + addr, b, bytes) != 0)
-		kill_guest(lg, "bad write address %#lx len %u", addr, bytes);
+	if (!lguest_address_ok(cpu->lg, addr, bytes)
+	    || copy_to_user(cpu->lg->mem_base + addr, b, bytes) != 0)
+		kill_guest(cpu, "bad write address %#lx len %u", addr, bytes);
 }
 /*:*/
 
@@ -176,10 +176,8 @@ void __lgwrite(struct lguest *lg, unsigned long addr, const void *b,
  * going around and around until something interesting happens. */
 int run_guest(struct lg_cpu *cpu, unsigned long __user *user)
 {
-	struct lguest *lg = cpu->lg;
-
 	/* We stop running once the Guest is dead. */
-	while (!lg->dead) {
+	while (!cpu->lg->dead) {
 		/* First we run any hypercalls the Guest wants done. */
 		if (cpu->hcall)
 			do_hypercalls(cpu);
@@ -212,7 +210,7 @@ int run_guest(struct lg_cpu *cpu, unsigned long __user *user)
 
 		/* Just make absolutely sure the Guest is still alive.  One of
 		 * those hypercalls could have been fatal, for example. */
-		if (lg->dead)
+		if (cpu->lg->dead)
 			break;
 
 		/* If the Guest asked to be stopped, we sleep.  The Guest's
@@ -237,7 +235,7 @@ int run_guest(struct lg_cpu *cpu, unsigned long __user *user)
 		lguest_arch_handle_trap(cpu);
 	}
 
-	if (lg->dead == ERR_PTR(-ERESTART))
+	if (cpu->lg->dead == ERR_PTR(-ERESTART))
 		return -ERESTART;
 	/* The Guest is dead => "No such file or directory" */
 	return -ENOENT;

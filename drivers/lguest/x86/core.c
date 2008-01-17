@@ -117,7 +117,6 @@ static void run_guest_once(struct lg_cpu *cpu, struct lguest_pages *pages)
 {
 	/* This is a dummy value we need for GCC's sake. */
 	unsigned int clobber;
-	struct lguest *lg = cpu->lg;
 
 	/* Copy the guest-specific information into this CPU's "struct
 	 * lguest_pages". */
@@ -144,7 +143,7 @@ static void run_guest_once(struct lg_cpu *cpu, struct lguest_pages *pages)
 		      * 0-th argument above, ie "a").  %ebx contains the
 		      * physical address of the Guest's top-level page
 		      * directory. */
-		     : "0"(pages), "1"(__pa(lg->pgdirs[cpu->cpu_pgd].pgdir))
+		     : "0"(pages), "1"(__pa(cpu->lg->pgdirs[cpu->cpu_pgd].pgdir))
 		     /* We tell gcc that all these registers could change,
 		      * which means we don't have to save and restore them in
 		      * the Switcher. */
@@ -217,7 +216,6 @@ void lguest_arch_run_guest(struct lg_cpu *cpu)
  * instructions and skip over it.  We return true if we did. */
 static int emulate_insn(struct lg_cpu *cpu)
 {
-	struct lguest *lg = cpu->lg;
 	u8 insn;
 	unsigned int insnlen = 0, in = 0, shift = 0;
 	/* The eip contains the *virtual* address of the Guest's instruction:
@@ -231,7 +229,7 @@ static int emulate_insn(struct lg_cpu *cpu)
 		return 0;
 
 	/* Decoding x86 instructions is icky. */
-	insn = lgread(lg, physaddr, u8);
+	insn = lgread(cpu, physaddr, u8);
 
 	/* 0x66 is an "operand prefix".  It means it's using the upper 16 bits
 	   of the eax register. */
@@ -239,7 +237,7 @@ static int emulate_insn(struct lg_cpu *cpu)
 		shift = 16;
 		/* The instruction is 1 byte so far, read the next byte. */
 		insnlen = 1;
-		insn = lgread(lg, physaddr + insnlen, u8);
+		insn = lgread(cpu, physaddr + insnlen, u8);
 	}
 
 	/* We can ignore the lower bit for the moment and decode the 4 opcodes
@@ -283,7 +281,6 @@ static int emulate_insn(struct lg_cpu *cpu)
 /*H:050 Once we've re-enabled interrupts, we look at why the Guest exited. */
 void lguest_arch_handle_trap(struct lg_cpu *cpu)
 {
-	struct lguest *lg = cpu->lg;
 	switch (cpu->regs->trapnum) {
 	case 13: /* We've intercepted a General Protection Fault. */
 		/* Check if this was one of those annoying IN or OUT
@@ -315,9 +312,10 @@ void lguest_arch_handle_trap(struct lg_cpu *cpu)
 		 * Note that if the Guest were really messed up, this could
 		 * happen before it's done the LHCALL_LGUEST_INIT hypercall, so
 		 * lg->lguest_data could be NULL */
-		if (lg->lguest_data &&
-		    put_user(cpu->arch.last_pagefault, &lg->lguest_data->cr2))
-			kill_guest(lg, "Writing cr2");
+		if (cpu->lg->lguest_data &&
+		    put_user(cpu->arch.last_pagefault,
+			     &cpu->lg->lguest_data->cr2))
+			kill_guest(cpu, "Writing cr2");
 		break;
 	case 7: /* We've intercepted a Device Not Available fault. */
 		/* If the Guest doesn't want to know, we already restored the
@@ -345,7 +343,7 @@ void lguest_arch_handle_trap(struct lg_cpu *cpu)
 		/* If the Guest doesn't have a handler (either it hasn't
 		 * registered any yet, or it's one of the faults we don't let
 		 * it handle), it dies with a cryptic error message. */
-		kill_guest(lg, "unhandled trap %li at %#lx (%#lx)",
+		kill_guest(cpu, "unhandled trap %li at %#lx (%#lx)",
 			   cpu->regs->trapnum, cpu->regs->eip,
 			   cpu->regs->trapnum == 14 ? cpu->arch.last_pagefault
 			   : cpu->regs->errcode);
@@ -514,11 +512,11 @@ int lguest_arch_do_hcall(struct lg_cpu *cpu, struct hcall_args *args)
 int lguest_arch_init_hypercalls(struct lg_cpu *cpu)
 {
 	u32 tsc_speed;
-	struct lguest *lg = cpu->lg;
 
 	/* The pointer to the Guest's "struct lguest_data" is the only
 	 * argument.  We check that address now. */
-	if (!lguest_address_ok(lg, cpu->hcall->arg1, sizeof(*lg->lguest_data)))
+	if (!lguest_address_ok(cpu->lg, cpu->hcall->arg1,
+			       sizeof(*cpu->lg->lguest_data)))
 		return -EFAULT;
 
 	/* Having checked it, we simply set lg->lguest_data to point straight
@@ -526,7 +524,7 @@ int lguest_arch_init_hypercalls(struct lg_cpu *cpu)
 	 * copy_to_user/from_user from now on, instead of lgread/write.  I put
 	 * this in to show that I'm not immune to writing stupid
 	 * optimizations. */
-	lg->lguest_data = lg->mem_base + cpu->hcall->arg1;
+	cpu->lg->lguest_data = cpu->lg->mem_base + cpu->hcall->arg1;
 
 	/* We insist that the Time Stamp Counter exist and doesn't change with
 	 * cpu frequency.  Some devious chip manufacturers decided that TSC
@@ -539,12 +537,12 @@ int lguest_arch_init_hypercalls(struct lg_cpu *cpu)
 		tsc_speed = tsc_khz;
 	else
 		tsc_speed = 0;
-	if (put_user(tsc_speed, &lg->lguest_data->tsc_khz))
+	if (put_user(tsc_speed, &cpu->lg->lguest_data->tsc_khz))
 		return -EFAULT;
 
 	/* The interrupt code might not like the system call vector. */
-	if (!check_syscall_vector(lg))
-		kill_guest(lg, "bad syscall vector");
+	if (!check_syscall_vector(cpu->lg))
+		kill_guest(cpu, "bad syscall vector");
 
 	return 0;
 }

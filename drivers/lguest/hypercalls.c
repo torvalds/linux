@@ -31,8 +31,6 @@
  * Or gets killed.  Or, in the case of LHCALL_CRASH, both. */
 static void do_hcall(struct lg_cpu *cpu, struct hcall_args *args)
 {
-	struct lguest *lg = cpu->lg;
-
 	switch (args->arg0) {
 	case LHCALL_FLUSH_ASYNC:
 		/* This call does nothing, except by breaking out of the Guest
@@ -41,7 +39,7 @@ static void do_hcall(struct lg_cpu *cpu, struct hcall_args *args)
 	case LHCALL_LGUEST_INIT:
 		/* You can't get here unless you're already initialized.  Don't
 		 * do that. */
-		kill_guest(lg, "already have lguest_data");
+		kill_guest(cpu, "already have lguest_data");
 		break;
 	case LHCALL_SHUTDOWN: {
 		/* Shutdown is such a trivial hypercall that we do it in four
@@ -49,11 +47,11 @@ static void do_hcall(struct lg_cpu *cpu, struct hcall_args *args)
 		char msg[128];
 		/* If the lgread fails, it will call kill_guest() itself; the
 		 * kill_guest() with the message will be ignored. */
-		__lgread(lg, msg, args->arg1, sizeof(msg));
+		__lgread(cpu, msg, args->arg1, sizeof(msg));
 		msg[sizeof(msg)-1] = '\0';
-		kill_guest(lg, "CRASH: %s", msg);
+		kill_guest(cpu, "CRASH: %s", msg);
 		if (args->arg2 == LGUEST_SHUTDOWN_RESTART)
-			lg->dead = ERR_PTR(-ERESTART);
+			cpu->lg->dead = ERR_PTR(-ERESTART);
 		break;
 	}
 	case LHCALL_FLUSH_TLB:
@@ -74,10 +72,10 @@ static void do_hcall(struct lg_cpu *cpu, struct hcall_args *args)
 		guest_set_stack(cpu, args->arg1, args->arg2, args->arg3);
 		break;
 	case LHCALL_SET_PTE:
-		guest_set_pte(lg, args->arg1, args->arg2, __pte(args->arg3));
+		guest_set_pte(cpu, args->arg1, args->arg2, __pte(args->arg3));
 		break;
 	case LHCALL_SET_PMD:
-		guest_set_pmd(lg, args->arg1, args->arg2);
+		guest_set_pmd(cpu->lg, args->arg1, args->arg2);
 		break;
 	case LHCALL_SET_CLOCKEVENT:
 		guest_set_clockevent(cpu, args->arg1);
@@ -96,7 +94,7 @@ static void do_hcall(struct lg_cpu *cpu, struct hcall_args *args)
 	default:
 		/* It should be an architecture-specific hypercall. */
 		if (lguest_arch_do_hcall(cpu, args))
-			kill_guest(lg, "Bad hypercall %li\n", args->arg0);
+			kill_guest(cpu, "Bad hypercall %li\n", args->arg0);
 	}
 }
 /*:*/
@@ -112,10 +110,9 @@ static void do_async_hcalls(struct lg_cpu *cpu)
 {
 	unsigned int i;
 	u8 st[LHCALL_RING_SIZE];
-	struct lguest *lg = cpu->lg;
 
 	/* For simplicity, we copy the entire call status array in at once. */
-	if (copy_from_user(&st, &lg->lguest_data->hcall_status, sizeof(st)))
+	if (copy_from_user(&st, &cpu->lg->lguest_data->hcall_status, sizeof(st)))
 		return;
 
 	/* We process "struct lguest_data"s hcalls[] ring once. */
@@ -137,9 +134,9 @@ static void do_async_hcalls(struct lg_cpu *cpu)
 
 		/* Copy the hypercall arguments into a local copy of
 		 * the hcall_args struct. */
-		if (copy_from_user(&args, &lg->lguest_data->hcalls[n],
+		if (copy_from_user(&args, &cpu->lg->lguest_data->hcalls[n],
 				   sizeof(struct hcall_args))) {
-			kill_guest(lg, "Fetching async hypercalls");
+			kill_guest(cpu, "Fetching async hypercalls");
 			break;
 		}
 
@@ -147,8 +144,8 @@ static void do_async_hcalls(struct lg_cpu *cpu)
 		do_hcall(cpu, &args);
 
 		/* Mark the hypercall done. */
-		if (put_user(0xFF, &lg->lguest_data->hcall_status[n])) {
-			kill_guest(lg, "Writing result for async hypercall");
+		if (put_user(0xFF, &cpu->lg->lguest_data->hcall_status[n])) {
+			kill_guest(cpu, "Writing result for async hypercall");
 			break;
 		}
 
@@ -163,29 +160,28 @@ static void do_async_hcalls(struct lg_cpu *cpu)
  * Guest makes a hypercall, we end up here to set things up: */
 static void initialize(struct lg_cpu *cpu)
 {
-	struct lguest *lg = cpu->lg;
 	/* You can't do anything until you're initialized.  The Guest knows the
 	 * rules, so we're unforgiving here. */
 	if (cpu->hcall->arg0 != LHCALL_LGUEST_INIT) {
-		kill_guest(lg, "hypercall %li before INIT", cpu->hcall->arg0);
+		kill_guest(cpu, "hypercall %li before INIT", cpu->hcall->arg0);
 		return;
 	}
 
 	if (lguest_arch_init_hypercalls(cpu))
-		kill_guest(lg, "bad guest page %p", lg->lguest_data);
+		kill_guest(cpu, "bad guest page %p", cpu->lg->lguest_data);
 
 	/* The Guest tells us where we're not to deliver interrupts by putting
 	 * the range of addresses into "struct lguest_data". */
-	if (get_user(lg->noirq_start, &lg->lguest_data->noirq_start)
-	    || get_user(lg->noirq_end, &lg->lguest_data->noirq_end))
-		kill_guest(lg, "bad guest page %p", lg->lguest_data);
+	if (get_user(cpu->lg->noirq_start, &cpu->lg->lguest_data->noirq_start)
+	    || get_user(cpu->lg->noirq_end, &cpu->lg->lguest_data->noirq_end))
+		kill_guest(cpu, "bad guest page %p", cpu->lg->lguest_data);
 
 	/* We write the current time into the Guest's data page once so it can
 	 * set its clock. */
-	write_timestamp(lg);
+	write_timestamp(cpu);
 
 	/* page_tables.c will also do some setup. */
-	page_table_guest_data_init(lg);
+	page_table_guest_data_init(cpu);
 
 	/* This is the one case where the above accesses might have been the
 	 * first write to a Guest page.  This may have caused a copy-on-write
@@ -237,10 +233,11 @@ void do_hypercalls(struct lg_cpu *cpu)
 
 /* This routine supplies the Guest with time: it's used for wallclock time at
  * initial boot and as a rough time source if the TSC isn't available. */
-void write_timestamp(struct lguest *lg)
+void write_timestamp(struct lg_cpu *cpu)
 {
 	struct timespec now;
 	ktime_get_real_ts(&now);
-	if (copy_to_user(&lg->lguest_data->time, &now, sizeof(struct timespec)))
-		kill_guest(lg, "Writing timestamp");
+	if (copy_to_user(&cpu->lg->lguest_data->time,
+			 &now, sizeof(struct timespec)))
+		kill_guest(cpu, "Writing timestamp");
 }

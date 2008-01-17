@@ -111,22 +111,22 @@ extern struct mutex lguest_lock;
 /* core.c: */
 int lguest_address_ok(const struct lguest *lg,
 		      unsigned long addr, unsigned long len);
-void __lgread(struct lguest *, void *, unsigned long, unsigned);
-void __lgwrite(struct lguest *, unsigned long, const void *, unsigned);
+void __lgread(struct lg_cpu *, void *, unsigned long, unsigned);
+void __lgwrite(struct lg_cpu *, unsigned long, const void *, unsigned);
 
 /*H:035 Using memory-copy operations like that is usually inconvient, so we
  * have the following helper macros which read and write a specific type (often
  * an unsigned long).
  *
  * This reads into a variable of the given type then returns that. */
-#define lgread(lg, addr, type)						\
-	({ type _v; __lgread((lg), &_v, (addr), sizeof(_v)); _v; })
+#define lgread(cpu, addr, type)						\
+	({ type _v; __lgread((cpu), &_v, (addr), sizeof(_v)); _v; })
 
 /* This checks that the variable is of the given type, then writes it out. */
-#define lgwrite(lg, addr, type, val)				\
+#define lgwrite(cpu, addr, type, val)				\
 	do {							\
 		typecheck(type, val);				\
-		__lgwrite((lg), (addr), &(val), sizeof(val));	\
+		__lgwrite((cpu), (addr), &(val), sizeof(val));	\
 	} while(0)
 /* (end of memory access helper routines) :*/
 
@@ -171,13 +171,13 @@ void guest_new_pagetable(struct lg_cpu *cpu, unsigned long pgtable);
 void guest_set_pmd(struct lguest *lg, unsigned long gpgdir, u32 i);
 void guest_pagetable_clear_all(struct lg_cpu *cpu);
 void guest_pagetable_flush_user(struct lg_cpu *cpu);
-void guest_set_pte(struct lguest *lg, unsigned long gpgdir,
+void guest_set_pte(struct lg_cpu *cpu, unsigned long gpgdir,
 		   unsigned long vaddr, pte_t val);
 void map_switcher_in_guest(struct lg_cpu *cpu, struct lguest_pages *pages);
 int demand_page(struct lg_cpu *cpu, unsigned long cr2, int errcode);
 void pin_page(struct lg_cpu *cpu, unsigned long vaddr);
 unsigned long guest_pa(struct lg_cpu *cpu, unsigned long vaddr);
-void page_table_guest_data_init(struct lguest *lg);
+void page_table_guest_data_init(struct lg_cpu *cpu);
 
 /* <arch>/core.c: */
 void lguest_arch_host_init(void);
@@ -197,7 +197,7 @@ void lguest_device_remove(void);
 
 /* hypercalls.c: */
 void do_hypercalls(struct lg_cpu *cpu);
-void write_timestamp(struct lguest *lg);
+void write_timestamp(struct lg_cpu *cpu);
 
 /*L:035
  * Let's step aside for the moment, to study one important routine that's used
@@ -223,12 +223,12 @@ void write_timestamp(struct lguest *lg);
  * Like any macro which uses an "if", it is safely wrapped in a run-once "do {
  * } while(0)".
  */
-#define kill_guest(lg, fmt...)					\
+#define kill_guest(cpu, fmt...)					\
 do {								\
-	if (!(lg)->dead) {					\
-		(lg)->dead = kasprintf(GFP_ATOMIC, fmt);	\
-		if (!(lg)->dead)				\
-			(lg)->dead = ERR_PTR(-ENOMEM);		\
+	if (!(cpu)->lg->dead) {					\
+		(cpu)->lg->dead = kasprintf(GFP_ATOMIC, fmt);	\
+		if (!(cpu)->lg->dead)				\
+			(cpu)->lg->dead = ERR_PTR(-ENOMEM);	\
 	}							\
 } while(0)
 /* (End of aside) :*/
