@@ -1692,9 +1692,10 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* load the F/W, read paramaters, and init the H/W */
 	ha->instance = num_hosts;
 
-	init_MUTEX(&ha->mbx_cmd_sem);
 	init_MUTEX(&ha->vport_sem);
-	init_MUTEX_LOCKED(&ha->mbx_intr_sem);
+	init_completion(&ha->mbx_cmd_comp);
+	complete(&ha->mbx_cmd_comp);
+	init_completion(&ha->mbx_intr_comp);
 
 	INIT_LIST_HEAD(&ha->list);
 	INIT_LIST_HEAD(&ha->fcports);
@@ -2737,23 +2738,6 @@ qla2x00_timer(scsi_qla_host_t *ha)
 		qla2xxx_wake_dpc(pha);
 
 	qla2x00_restart_timer(ha, WATCH_INTERVAL);
-}
-
-/* XXX(hch): crude hack to emulate a down_timeout() */
-int
-qla2x00_down_timeout(struct semaphore *sema, unsigned long timeout)
-{
-	const unsigned int step = 100; /* msecs */
-	unsigned int iterations = jiffies_to_msecs(timeout)/100;
-
-	do {
-		if (!down_trylock(sema))
-			return 0;
-		if (msleep_interruptible(step))
-			break;
-	} while (--iterations > 0);
-
-	return -ETIMEDOUT;
 }
 
 /* Firmware interface routines. */

@@ -105,8 +105,6 @@ extern char *qla2x00_get_fw_version_str(struct scsi_qla_host *, char *);
 extern void qla2x00_mark_device_lost(scsi_qla_host_t *, fc_port_t *, int, int);
 extern void qla2x00_mark_all_devices_lost(scsi_qla_host_t *, int);
 
-extern int qla2x00_down_timeout(struct semaphore *, unsigned long);
-
 extern struct fw_blob *qla2x00_request_firmware(scsi_qla_host_t *);
 
 extern int qla2x00_wait_for_hba_online(scsi_qla_host_t *);

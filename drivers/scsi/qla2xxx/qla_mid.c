@@ -403,8 +403,9 @@ qla24xx_create_vhost(struct fc_vport *fc_vport)
 	}
 	vha->mgmt_svr_loop_id = 10 + vha->vp_idx;
 
-	init_MUTEX(&vha->mbx_cmd_sem);
-	init_MUTEX_LOCKED(&vha->mbx_intr_sem);
+	init_completion(&vha->mbx_cmd_comp);
+	complete(&vha->mbx_cmd_comp);
+	init_completion(&vha->mbx_intr_comp);
 
 	INIT_LIST_HEAD(&vha->list);
 	INIT_LIST_HEAD(&vha->fcports);

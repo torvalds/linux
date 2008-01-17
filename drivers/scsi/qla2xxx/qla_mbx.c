@@ -8,19 +8,6 @@
 
 #include <linux/delay.h>
 
-static void
-qla2x00_mbx_sem_timeout(unsigned long data)
-{
-	struct semaphore	*sem_ptr = (struct semaphore *)data;
-
-	DEBUG11(printk("qla2x00_sem_timeout: entered.\n"));
-
-	if (sem_ptr != NULL) {
-		up(sem_ptr);
-	}
-
-	DEBUG11(printk("qla2x00_mbx_sem_timeout: exiting.\n"));
-}
 
 /*
  * qla2x00_mailbox_command
@@ -47,7 +34,6 @@ qla2x00_mailbox_command(scsi_qla_host_t *pvha, mbx_cmd_t *mcp)
 	int		rval;
 	unsigned long    flags = 0;
 	device_reg_t __iomem *reg;
-	struct timer_list	tmp_intr_timer;
 	uint8_t		abort_active;
 	uint8_t		io_lock_on;
 	uint16_t	command;
@@ -72,7 +58,8 @@ qla2x00_mailbox_command(scsi_qla_host_t *pvha, mbx_cmd_t *mcp)
 	 * non ISP abort time.
 	 */
 	if (!abort_active) {
-		if (qla2x00_down_timeout(&ha->mbx_cmd_sem, mcp->tov * HZ)) {
+		if (!wait_for_completion_timeout(&ha->mbx_cmd_comp,
+		    mcp->tov * HZ)) {
 			/* Timeout occurred. Return error. */
 			DEBUG2_3_11(printk("%s(%ld): cmd access timeout. "
 			    "Exiting.\n", __func__, ha->host_no));
@@ -135,22 +122,6 @@ qla2x00_mailbox_command(scsi_qla_host_t *pvha, mbx_cmd_t *mcp)
 	/* Wait for mbx cmd completion until timeout */
 
 	if (!abort_active && io_lock_on) {
-		/* sleep on completion semaphore */
-		DEBUG11(printk("%s(%ld): INTERRUPT MODE. Initializing timer.\n",
-		    __func__, ha->host_no));
-
-		init_timer(&tmp_intr_timer);
-		tmp_intr_timer.data = (unsigned long)&ha->mbx_intr_sem;
-		tmp_intr_timer.expires = jiffies + mcp->tov * HZ;
-		tmp_intr_timer.function =
-		    (void (*)(unsigned long))qla2x00_mbx_sem_timeout;
-
-		DEBUG11(printk("%s(%ld): Adding timer.\n", __func__,
-		    ha->host_no));
-		add_timer(&tmp_intr_timer);
-
-		DEBUG11(printk("%s(%ld): going to unlock & sleep. "
-		    "time=0x%lx.\n", __func__, ha->host_no, jiffies));
 
 		set_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags);
 
@@ -160,17 +131,10 @@ qla2x00_mailbox_command(scsi_qla_host_t *pvha, mbx_cmd_t *mcp)
 			WRT_REG_WORD(&reg->isp.hccr, HCCR_SET_HOST_INT);
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
-		/* Wait for either the timer to expire
-		 * or the mbox completion interrupt
-		 */
-		down(&ha->mbx_intr_sem);
+		wait_for_completion_timeout(&ha->mbx_intr_comp, mcp->tov * HZ);
 
-		DEBUG11(printk("%s(%ld): waking up. time=0x%lx\n", __func__,
-		    ha->host_no, jiffies));
 		clear_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags);
 
-		/* delete the timer */
-		del_timer(&tmp_intr_timer);
 	} else {
 		DEBUG3_11(printk("%s(%ld): cmd=%x POLLING MODE.\n", __func__,
 		    ha->host_no, command));
@@ -299,7 +263,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *pvha, mbx_cmd_t *mcp)
 
 	/* Allow next mbx cmd to come in. */
 	if (!abort_active)
-		up(&ha->mbx_cmd_sem);
+		complete(&ha->mbx_cmd_comp);
 
 	if (rval) {
 		DEBUG2_3_11(printk("%s(%ld): **** FAILED. mbx0=%x, mbx1=%x, "
