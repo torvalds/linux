@@ -919,8 +919,13 @@ void btrfs_throttle(struct btrfs_root *root)
 	struct backing_dev_info *bdi;
 
 	bdi = root->fs_info->sb->s_bdev->bd_inode->i_mapping->backing_dev_info;
-	if (root->fs_info->throttles && bdi_write_congested(bdi))
+	if (root->fs_info->throttles && bdi_write_congested(bdi)) {
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,18)
 		congestion_wait(WRITE, HZ/20);
+#else
+		blk_congestion_wait(WRITE, HZ/20);
+#endif
+	}
 }
 
 void btrfs_btree_balance_dirty(struct btrfs_root *root, unsigned long nr)
