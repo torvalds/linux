@@ -183,6 +183,11 @@ struct ehca_qp {
 	u32 mm_count_squeue;
 	u32 mm_count_rqueue;
 	u32 mm_count_galpa;
+	/* unsolicited ack circumvention */
+	int unsol_ack_circ;
+	int mtu_shift;
+	u32 message_count;
+	u32 packet_count;
 };
 
 #define IS_SRQ(qp) (qp->ext_type == EQPT_SRQ)

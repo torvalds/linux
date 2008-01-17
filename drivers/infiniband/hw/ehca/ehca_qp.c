@@ -592,10 +592,8 @@ static struct ehca_qp *internal_create_qp(
 		goto create_qp_exit1;
 	}
 
-	if (init_attr->sq_sig_type == IB_SIGNAL_ALL_WR)
-		parms.sigtype = HCALL_SIGT_EVERY;
-	else
-		parms.sigtype = HCALL_SIGT_BY_WQE;
+	/* Always signal by WQE so we can hide circ. WQEs */
+	parms.sigtype = HCALL_SIGT_BY_WQE;
 
 	/* UD_AV CIRCUMVENTION */
 	max_send_sge = init_attr->cap.max_send_sge;
@@ -617,6 +615,10 @@ static struct ehca_qp *internal_create_qp(
 	parms.rqueue.max_wr = init_attr->cap.max_recv_wr;
 	parms.squeue.max_sge = max_send_sge;
 	parms.rqueue.max_sge = max_recv_sge;
+
+	/* RC QPs need one more SWQE for unsolicited ack circumvention */
+	if (qp_type == IB_QPT_RC)
+		parms.squeue.max_wr++;
 
 	if (EHCA_BMASK_GET(HCA_CAP_MINI_QP, shca->hca_cap)) {
 		if (HAS_SQ(my_qp))
@@ -650,6 +652,8 @@ static struct ehca_qp *internal_create_qp(
 			parms.squeue.act_nr_sges = 1;
 			parms.rqueue.act_nr_sges = 1;
 		}
+		/* hide the extra WQE */
+		parms.squeue.act_nr_wqes--;
 		break;
 	case IB_QPT_UD:
 	case IB_QPT_GSI:
@@ -1294,6 +1298,8 @@ static int internal_modify_qp(struct ib_qp *ibqp,
 	}
 
 	if (attr_mask & IB_QP_PATH_MTU) {
+		/* store ld(MTU) */
+		my_qp->mtu_shift = attr->path_mtu + 7;
 		mqpcb->path_mtu = attr->path_mtu;
 		update_mask |= EHCA_BMASK_SET(MQPCB_MASK_PATH_MTU, 1);
 	}
