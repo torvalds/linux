@@ -395,7 +395,7 @@ void load_guest_idt_entry(struct lg_cpu *cpu, unsigned int num, u32 lo, u32 hi)
 
 	/* Mark the IDT as changed: next time the Guest runs we'll know we have
 	 * to copy this again. */
-	cpu->lg->changed |= CHANGED_IDT;
+	cpu->changed |= CHANGED_IDT;
 
 	/* Check that the Guest doesn't try to step outside the bounds. */
 	if (num >= ARRAY_SIZE(cpu->arch.idt))

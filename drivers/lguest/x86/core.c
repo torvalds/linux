@@ -75,7 +75,6 @@ static DEFINE_PER_CPU(struct lg_cpu *, last_cpu);
  */
 static void copy_in_guest_info(struct lg_cpu *cpu, struct lguest_pages *pages)
 {
-	struct lguest *lg = cpu->lg;
 	/* Copying all this data can be quite expensive.  We usually run the
 	 * same Guest we ran last time (and that Guest hasn't run anywhere else
 	 * meanwhile).  If that's not the case, we pretend everything in the
@@ -83,7 +82,7 @@ static void copy_in_guest_info(struct lg_cpu *cpu, struct lguest_pages *pages)
 	if (__get_cpu_var(last_cpu) != cpu || cpu->last_pages != pages) {
 		__get_cpu_var(last_cpu) = cpu;
 		cpu->last_pages = pages;
-		lg->changed = CHANGED_ALL;
+		cpu->changed = CHANGED_ALL;
 	}
 
 	/* These copies are pretty cheap, so we do them unconditionally: */
@@ -99,18 +98,18 @@ static void copy_in_guest_info(struct lg_cpu *cpu, struct lguest_pages *pages)
 	pages->state.guest_tss.ss1 = cpu->ss1;
 
 	/* Copy direct-to-Guest trap entries. */
-	if (lg->changed & CHANGED_IDT)
+	if (cpu->changed & CHANGED_IDT)
 		copy_traps(cpu, pages->state.guest_idt, default_idt_entries);
 
 	/* Copy all GDT entries which the Guest can change. */
-	if (lg->changed & CHANGED_GDT)
+	if (cpu->changed & CHANGED_GDT)
 		copy_gdt(cpu, pages->state.guest_gdt);
 	/* If only the TLS entries have changed, copy them. */
-	else if (lg->changed & CHANGED_GDT_TLS)
+	else if (cpu->changed & CHANGED_GDT_TLS)
 		copy_gdt_tls(cpu, pages->state.guest_gdt);
 
 	/* Mark the Guest as unchanged for next time. */
-	lg->changed = 0;
+	cpu->changed = 0;
 }
 
 /* Finally: the code to actually call into the Switcher to run the Guest. */

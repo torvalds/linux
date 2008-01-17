@@ -51,6 +51,9 @@ struct lg_cpu {
 	u32 esp1;
 	u8 ss1;
 
+	/* Bitmap of what has changed: see CHANGED_* above. */
+	int changed;
+
 	unsigned long pending_notify; /* pfn from LHCALL_NOTIFY */
 
 	/* At end of a page shared mapped over lguest_pages in guest.  */
@@ -91,9 +94,6 @@ struct lguest
 	 * memory in the Launcher. */
 	void __user *mem_base;
 	unsigned long kernel_address;
-
-	/* Bitmap of what has changed: see CHANGED_* above. */
-	int changed;
 
 	struct pgdir pgdirs[4];
 

@@ -159,7 +159,7 @@ void load_guest_gdt(struct lg_cpu *cpu, unsigned long table, u32 num)
 	fixup_gdt_table(cpu, 0, ARRAY_SIZE(cpu->arch.gdt));
 	/* Mark that the GDT changed so the core knows it has to copy it again,
 	 * even if the Guest is run on the same CPU. */
-	lg->changed |= CHANGED_GDT;
+	cpu->changed |= CHANGED_GDT;
 }
 
 /* This is the fast-track version for just changing the three TLS entries.
@@ -174,7 +174,7 @@ void guest_load_tls(struct lg_cpu *cpu, unsigned long gtls)
 	__lgread(lg, tls, gtls, sizeof(*tls)*GDT_ENTRY_TLS_ENTRIES);
 	fixup_gdt_table(cpu, GDT_ENTRY_TLS_MIN, GDT_ENTRY_TLS_MAX+1);
 	/* Note that just the TLS entries have changed. */
-	lg->changed |= CHANGED_GDT_TLS;
+	cpu->changed |= CHANGED_GDT_TLS;
 }
 /*:*/
 
