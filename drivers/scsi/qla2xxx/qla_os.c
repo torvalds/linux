@@ -1791,6 +1791,8 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	qla2x00_init_host_attr(ha);
 
+	qla2x00_dfs_setup(ha);
+
 	qla_printk(KERN_INFO, ha, "\n"
 	    " QLogic Fibre Channel HBA Driver: %s\n"
 	    "  QLogic %s - %s\n"
@@ -1821,6 +1823,8 @@ qla2x00_remove_one(struct pci_dev *pdev)
 	scsi_qla_host_t *ha;
 
 	ha = pci_get_drvdata(pdev);
+
+	qla2x00_dfs_remove(ha);
 
 	qla2x00_free_sysfs_attr(ha);
 
@@ -1854,6 +1858,9 @@ qla2x00_free_device(scsi_qla_host_t *ha)
 		ha->dpc_thread = NULL;
 		kthread_stop(t);
 	}
+
+	if (ha->flags.fce_enabled)
+		qla2x00_disable_fce_trace(ha, NULL, NULL);
 
 	if (ha->eft)
 		qla2x00_disable_eft_trace(ha);
@@ -2211,6 +2218,10 @@ qla2x00_mem_free(scsi_qla_host_t *ha)
 
 	/* free sp pool */
 	qla2x00_free_sp_pool(ha);
+
+	if (ha->fce)
+		dma_free_coherent(&ha->pdev->dev, FCE_SIZE, ha->fce,
+		    ha->fce_dma);
 
 	if (ha->fw_dump) {
 		if (ha->eft)

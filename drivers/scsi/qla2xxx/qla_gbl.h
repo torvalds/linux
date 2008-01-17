@@ -233,6 +233,13 @@ extern int
 qla2x00_disable_eft_trace(scsi_qla_host_t *);
 
 extern int
+qla2x00_enable_fce_trace(scsi_qla_host_t *, dma_addr_t, uint16_t , uint16_t *,
+    uint32_t *);
+
+extern int
+qla2x00_disable_fce_trace(scsi_qla_host_t *, uint64_t *, uint64_t *);
+
+extern int
 qla2x00_read_sfp(scsi_qla_host_t *, dma_addr_t, uint16_t, uint16_t, uint16_t);
 
 extern int
@@ -334,4 +341,10 @@ extern void qla2x00_free_sysfs_attr(scsi_qla_host_t *);
 extern void qla2x00_init_host_attr(scsi_qla_host_t *);
 extern void qla2x00_alloc_sysfs_attr(scsi_qla_host_t *);
 extern void qla2x00_free_sysfs_attr(scsi_qla_host_t *);
+
+/*
+ * Global Function Prototypes in qla_dfs.c source file.
+ */
+extern int qla2x00_dfs_setup(scsi_qla_host_t *);
+extern int qla2x00_dfs_remove(scsi_qla_host_t *);
 #endif /* _QLA_GBL_H */

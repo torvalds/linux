@@ -2415,6 +2415,93 @@ qla2x00_disable_eft_trace(scsi_qla_host_t *ha)
 }
 
 int
+qla2x00_enable_fce_trace(scsi_qla_host_t *ha, dma_addr_t fce_dma,
+    uint16_t buffers, uint16_t *mb, uint32_t *dwords)
+{
+	int rval;
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+
+	if (!IS_QLA25XX(ha))
+		return QLA_FUNCTION_FAILED;
+
+	DEBUG11(printk("%s(%ld): entered.\n", __func__, ha->host_no));
+
+	mcp->mb[0] = MBC_TRACE_CONTROL;
+	mcp->mb[1] = TC_FCE_ENABLE;
+	mcp->mb[2] = LSW(fce_dma);
+	mcp->mb[3] = MSW(fce_dma);
+	mcp->mb[4] = LSW(MSD(fce_dma));
+	mcp->mb[5] = MSW(MSD(fce_dma));
+	mcp->mb[6] = buffers;
+	mcp->mb[7] = TC_AEN_DISABLE;
+	mcp->mb[8] = 0;
+	mcp->mb[9] = TC_FCE_DEFAULT_RX_SIZE;
+	mcp->mb[10] = TC_FCE_DEFAULT_TX_SIZE;
+	mcp->out_mb = MBX_10|MBX_9|MBX_8|MBX_7|MBX_6|MBX_5|MBX_4|MBX_3|MBX_2|
+	    MBX_1|MBX_0;
+	mcp->in_mb = MBX_6|MBX_5|MBX_4|MBX_3|MBX_2|MBX_1|MBX_0;
+	mcp->tov = 30;
+	mcp->flags = 0;
+	rval = qla2x00_mailbox_command(ha, mcp);
+	if (rval != QLA_SUCCESS) {
+		DEBUG2_3_11(printk("%s(%ld): failed=%x mb[0]=%x mb[1]=%x.\n",
+		    __func__, ha->host_no, rval, mcp->mb[0], mcp->mb[1]));
+	} else {
+		DEBUG11(printk("%s(%ld): done.\n", __func__, ha->host_no));
+
+		if (mb)
+			memcpy(mb, mcp->mb, 8 * sizeof(*mb));
+		if (dwords)
+			*dwords = mcp->mb[6];
+	}
+
+	return rval;
+}
+
+int
+qla2x00_disable_fce_trace(scsi_qla_host_t *ha, uint64_t *wr, uint64_t *rd)
+{
+	int rval;
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+
+	if (!IS_FWI2_CAPABLE(ha))
+		return QLA_FUNCTION_FAILED;
+
+	DEBUG11(printk("%s(%ld): entered.\n", __func__, ha->host_no));
+
+	mcp->mb[0] = MBC_TRACE_CONTROL;
+	mcp->mb[1] = TC_FCE_DISABLE;
+	mcp->mb[2] = TC_FCE_DISABLE_TRACE;
+	mcp->out_mb = MBX_2|MBX_1|MBX_0;
+	mcp->in_mb = MBX_9|MBX_8|MBX_7|MBX_6|MBX_5|MBX_4|MBX_3|MBX_2|
+	    MBX_1|MBX_0;
+	mcp->tov = 30;
+	mcp->flags = 0;
+	rval = qla2x00_mailbox_command(ha, mcp);
+	if (rval != QLA_SUCCESS) {
+		DEBUG2_3_11(printk("%s(%ld): failed=%x mb[0]=%x mb[1]=%x.\n",
+		    __func__, ha->host_no, rval, mcp->mb[0], mcp->mb[1]));
+	} else {
+		DEBUG11(printk("%s(%ld): done.\n", __func__, ha->host_no));
+
+		if (wr)
+			*wr = (uint64_t) mcp->mb[5] << 48 |
+			    (uint64_t) mcp->mb[4] << 32 |
+			    (uint64_t) mcp->mb[3] << 16 |
+			    (uint64_t) mcp->mb[2];
+		if (rd)
+			*rd = (uint64_t) mcp->mb[9] << 48 |
+			    (uint64_t) mcp->mb[8] << 32 |
+			    (uint64_t) mcp->mb[7] << 16 |
+			    (uint64_t) mcp->mb[6];
+	}
+
+	return rval;
+}
+
+int
 qla2x00_read_sfp(scsi_qla_host_t *ha, dma_addr_t sfp_dma, uint16_t addr,
     uint16_t off, uint16_t count)
 {

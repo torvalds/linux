@@ -256,6 +256,25 @@ struct qla25xx_fw_dump {
 #define EFT_BYTES_PER_BUFFER	0x4000
 #define EFT_SIZE		((EFT_BYTES_PER_BUFFER) * (EFT_NUM_BUFFERS))
 
+#define FCE_NUM_BUFFERS		64
+#define FCE_BYTES_PER_BUFFER	0x400
+#define FCE_SIZE		((FCE_BYTES_PER_BUFFER) * (FCE_NUM_BUFFERS))
+#define fce_calc_size(b)	((FCE_BYTES_PER_BUFFER) * (b))
+
+struct qla2xxx_fce_chain {
+	uint32_t type;
+	uint32_t chain_size;
+
+	uint32_t size;
+	uint32_t addr_l;
+	uint32_t addr_h;
+	uint32_t eregs[8];
+};
+
+#define DUMP_CHAIN_VARIANT	0x80000000
+#define DUMP_CHAIN_FCE		0x7FFFFAF0
+#define DUMP_CHAIN_LAST		0x80000000
+
 struct qla2xxx_fw_dump {
 	uint8_t signature[4];
 	uint32_t version;

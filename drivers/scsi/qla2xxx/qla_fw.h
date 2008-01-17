@@ -959,6 +959,13 @@ struct device_reg_24xx {
 #define TC_EFT_ENABLE		4
 #define TC_EFT_DISABLE		5
 
+#define TC_FCE_ENABLE		8
+#define TC_FCE_OPTIONS		0
+#define TC_FCE_DEFAULT_RX_SIZE	2112
+#define TC_FCE_DEFAULT_TX_SIZE	2112
+#define TC_FCE_DISABLE		9
+#define TC_FCE_DISABLE_TRACE	BIT_0
+
 /* MID Support ***************************************************************/
 
 #define MIN_MULTI_ID_FABRIC	64	/* Must be power-of-2. */

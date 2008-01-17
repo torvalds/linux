@@ -2156,6 +2156,7 @@ typedef struct scsi_qla_host {
 		uint32_t	gpsc_supported		:1;
 		uint32_t        vsan_enabled            :1;
 		uint32_t	npiv_supported		:1;
+		uint32_t	fce_enabled		:1;
 	} flags;
 
 	atomic_t	loop_state;
@@ -2448,6 +2449,15 @@ typedef struct scsi_qla_host {
 	int		fw_dump_reading;
 	dma_addr_t	eft_dma;
 	void		*eft;
+
+	struct dentry *dfs_dir;
+	struct dentry *dfs_fce;
+	dma_addr_t	fce_dma;
+	void		*fce;
+	uint32_t	fce_bufs;
+	uint16_t	fce_mb[8];
+	uint64_t	fce_wr, fce_rd;
+	struct mutex	fce_mutex;
 
 	uint8_t		host_str[16];
 	uint32_t	pci_attr;
