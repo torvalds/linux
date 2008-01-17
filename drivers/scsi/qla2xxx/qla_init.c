@@ -766,6 +766,7 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *ha)
 			goto cont_alloc;
 		}
 
+		memset(tc, 0, EFT_SIZE);
 		rval = qla2x00_enable_eft_trace(ha, tc_dma, EFT_NUM_BUFFERS);
 		if (rval) {
 			qla_printk(KERN_WARNING, ha, "Unable to initialize "
@@ -779,7 +780,6 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *ha)
 		    EFT_SIZE / 1024);
 
 		eft_size = EFT_SIZE;
-		memset(tc, 0, eft_size);
 		ha->eft_dma = tc_dma;
 		ha->eft = tc;
 
