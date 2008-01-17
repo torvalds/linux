@@ -542,10 +542,6 @@ static inline void set_24xx_gpio_triggering(struct gpio_bank *bank, int gpio,
 	bank->level_mask =
 		__raw_readl(bank->base + OMAP24XX_GPIO_LEVELDETECT0) |
 		__raw_readl(bank->base + OMAP24XX_GPIO_LEVELDETECT1);
-	/*
-	 * FIXME: Possibly do 'set_irq_handler(j, handle_level_irq)' if only
-	 * level triggering requested.
-	 */
 }
 #endif
 
@@ -656,6 +652,12 @@ static int gpio_irq_type(unsigned irq, unsigned type)
 		irq_desc[irq].status |= type;
 	}
 	spin_unlock_irqrestore(&bank->lock, flags);
+
+	if (type & (IRQ_TYPE_LEVEL_LOW | IRQ_TYPE_LEVEL_HIGH))
+		__set_irq_handler_unlocked(irq, handle_level_irq);
+	else if (type & (IRQ_TYPE_EDGE_FALLING | IRQ_TYPE_EDGE_RISING))
+		__set_irq_handler_unlocked(irq, handle_edge_irq);
+
 	return retval;
 }
 
@@ -1050,42 +1052,12 @@ static void gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 		gpio_irq = bank->virtual_irq_start;
 		for (; isr != 0; isr >>= 1, gpio_irq++) {
 			struct irq_desc *d;
-			int irq_mask;
+
 			if (!(isr & 1))
 				continue;
 			d = irq_desc + gpio_irq;
-			/* Don't run the handler if it's already running
-			 * or was disabled lazely.
-			 */
-			if (unlikely((d->depth ||
-				      (d->status & IRQ_INPROGRESS)))) {
-				irq_mask = 1 <<
-					(gpio_irq - bank->virtual_irq_start);
-				/* The unmasking will be done by
-				 * enable_irq in case it is disabled or
-				 * after returning from the handler if
-				 * it's already running.
-				 */
-				_enable_gpio_irqbank(bank, irq_mask, 0);
-				if (!d->depth) {
-					/* Level triggered interrupts
-					 * won't ever be reentered
-					 */
-					BUG_ON(level_mask & irq_mask);
-					d->status |= IRQ_PENDING;
-				}
-				continue;
-			}
 
 			desc_handle_irq(gpio_irq, d);
-
-			if (unlikely((d->status & IRQ_PENDING) && !d->depth)) {
-				irq_mask = 1 <<
-					(gpio_irq - bank->virtual_irq_start);
-				d->status &= ~IRQ_PENDING;
-				_enable_gpio_irqbank(bank, irq_mask, 1);
-				retrigger |= irq_mask;
-			}
 		}
 	}
 	/* if bank has any level sensitive GPIO pin interrupt
