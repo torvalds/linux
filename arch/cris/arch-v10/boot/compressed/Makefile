@@ -3,9 +3,9 @@
 #
 
 CC = gcc-cris -melf $(LINUXINCLUDE)
-EXTRA_CFLAGS = -O2
+ccflags-y += -O2
 LD = ld-cris
-LDFLAGS = -T $(obj)/decompress.ld
+ldflags-y += -T $(obj)/decompress.ld
 OBJECTS = $(obj)/head.o $(obj)/misc.o
 OBJCOPY = objcopy-cris
 OBJCOPYFLAGS = -O binary --remove-section=.bss
