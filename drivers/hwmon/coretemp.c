@@ -413,10 +413,10 @@ static int __init coretemp_init(void)
 	for_each_online_cpu(i) {
 		struct cpuinfo_x86 *c = &cpu_data(i);
 
-		/* check if family 6, models e, f, 16 */
+		/* check if family 6, models 0xe, 0xf, 0x16, 0x17 */
 		if ((c->cpuid_level < 0) || (c->x86 != 0x6) ||
 		    !((c->x86_model == 0xe) || (c->x86_model == 0xf) ||
-			(c->x86_model == 0x16))) {
+			(c->x86_model == 0x16) || (c->x86_model == 0x17))) {
 
 			/* supported CPU not found, but report the unknown
 			   family 6 CPU */
