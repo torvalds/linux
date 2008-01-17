@@ -100,8 +100,7 @@ static unsigned long gpgd_addr(struct lg_cpu *cpu, unsigned long vaddr)
 	return cpu->lg->pgdirs[cpu->cpu_pgd].gpgdir + index * sizeof(pgd_t);
 }
 
-static unsigned long gpte_addr(struct lguest *lg,
-			       pgd_t gpgd, unsigned long vaddr)
+static unsigned long gpte_addr(pgd_t gpgd, unsigned long vaddr)
 {
 	unsigned long gpage = pgd_pfn(gpgd) << PAGE_SHIFT;
 	BUG_ON(!(pgd_flags(gpgd) & _PAGE_PRESENT));
@@ -235,7 +234,7 @@ int demand_page(struct lg_cpu *cpu, unsigned long vaddr, int errcode)
 
 	/* OK, now we look at the lower level in the Guest page table: keep its
 	 * address, because we might update it later. */
-	gpte_ptr = gpte_addr(lg, gpgd, vaddr);
+	gpte_ptr = gpte_addr(gpgd, vaddr);
 	gpte = lgread(lg, gpte_ptr, pte_t);
 
 	/* If this page isn't in the Guest page tables, we can't page it in. */
@@ -378,7 +377,7 @@ unsigned long guest_pa(struct lg_cpu *cpu, unsigned long vaddr)
 	if (!(pgd_flags(gpgd) & _PAGE_PRESENT))
 		kill_guest(cpu->lg, "Bad address %#lx", vaddr);
 
-	gpte = lgread(cpu->lg, gpte_addr(cpu->lg, gpgd, vaddr), pte_t);
+	gpte = lgread(cpu->lg, gpte_addr(gpgd, vaddr), pte_t);
 	if (!(pte_flags(gpte) & _PAGE_PRESENT))
 		kill_guest(cpu->lg, "Bad address %#lx", vaddr);
 
