@@ -82,7 +82,8 @@ struct dlm_lock_result32 {
 };
 
 static void compat_input(struct dlm_write_request *kb,
-			 struct dlm_write_request32 *kb32)
+			 struct dlm_write_request32 *kb32,
+			 int max_namelen)
 {
 	kb->version[0] = kb32->version[0];
 	kb->version[1] = kb32->version[1];
@@ -112,7 +113,11 @@ static void compat_input(struct dlm_write_request *kb,
 		kb->i.lock.bastaddr = (void *)(long)kb32->i.lock.bastaddr;
 		kb->i.lock.lksb = (void *)(long)kb32->i.lock.lksb;
 		memcpy(kb->i.lock.lvb, kb32->i.lock.lvb, DLM_USER_LVB_LEN);
-		memcpy(kb->i.lock.name, kb32->i.lock.name, kb->i.lock.namelen);
+		if (kb->i.lock.namelen <= max_namelen)
+			memcpy(kb->i.lock.name, kb32->i.lock.name,
+			       kb->i.lock.namelen);
+		else
+			kb->i.lock.namelen = max_namelen;
 	}
 }
 
@@ -529,7 +534,8 @@ static ssize_t device_write(struct file *file, const char __user *buf,
 
 		if (proc)
 			set_bit(DLM_PROC_FLAGS_COMPAT, &proc->flags);
-		compat_input(kbuf, k32buf);
+		compat_input(kbuf, k32buf,
+			     count - sizeof(struct dlm_write_request32));
 		kfree(k32buf);
 	}
 #endif
