@@ -1339,6 +1339,8 @@ int aac_get_adapter_info(struct aac_dev* dev)
 	}
 
 	dev->cache_protected = 0;
+	dev->jbod = ((dev->supplement_adapter_info.FeatureBits &
+		AAC_FEATURE_JBOD) != 0);
 	dev->nondasd_support = 0;
 	dev->raid_scsi_mode = 0;
 	if(dev->adapter_info.options & AAC_OPT_NONDASD)
@@ -1923,7 +1925,8 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 				}
 			}
 		} else {  /* check for physical non-dasd devices */
-			if ((dev->nondasd_support == 1) || expose_physicals) {
+			if (dev->nondasd_support || expose_physicals ||
+					dev->jbod) {
 				if (dev->in_reset)
 					return -1;
 				return aac_send_srb_fib(scsicmd);

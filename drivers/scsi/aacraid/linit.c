@@ -404,6 +404,7 @@ static int aac_slave_configure(struct scsi_device *sdev)
 	struct aac_dev *aac = (struct aac_dev *)sdev->host->hostdata;
 	if ((sdev->type == TYPE_DISK) &&
 			(sdev_channel(sdev) != CONTAINER_CHANNEL) &&
+			(!aac->jbod || sdev->inq_periph_qual) &&
 			(!aac->raid_scsi_mode || (sdev_channel(sdev) != 2))) {
 		if (expose_physicals == 0)
 			return -ENXIO;
@@ -411,7 +412,8 @@ static int aac_slave_configure(struct scsi_device *sdev)
 			sdev->no_uld_attach = 1;
 	}
 	if (sdev->tagged_supported && (sdev->type == TYPE_DISK) &&
-			(sdev_channel(sdev) == CONTAINER_CHANNEL)) {
+			(!aac->raid_scsi_mode || (sdev_channel(sdev) != 2)) &&
+			!sdev->no_uld_attach) {
 		struct scsi_device * dev;
 		struct Scsi_Host *host = sdev->host;
 		unsigned num_lsu = 0;
@@ -430,8 +432,11 @@ static int aac_slave_configure(struct scsi_device *sdev)
 				++num_lsu;
 		__shost_for_each_device(dev, host) {
 			if (dev->tagged_supported && (dev->type == TYPE_DISK) &&
-				(sdev_channel(dev) == CONTAINER_CHANNEL)) {
-				if (!aac->fsa_dev[sdev_id(dev)].valid)
+					(!aac->raid_scsi_mode ||
+						(sdev_channel(sdev) != 2)) &&
+					!dev->no_uld_attach) {
+				if ((sdev_channel(dev) != CONTAINER_CHANNEL)
+				 || !aac->fsa_dev[sdev_id(dev)].valid)
 					++num_lsu;
 			} else
 				++num_one;
@@ -804,6 +809,8 @@ static ssize_t aac_show_flags(struct class_device *class_dev, char *buf)
 	if (dev->raw_io_interface && dev->raw_io_64)
 		len += snprintf(buf + len, PAGE_SIZE - len,
 				"SAI_READ_CAPACITY_16\n");
+	if (dev->jbod)
+		len += snprintf(buf + len, PAGE_SIZE - len, "SUPPORTED_JBOD\n");
 	return len;
 }
 
@@ -1157,7 +1164,7 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 	 * all containers are on the virtual channel 0 (CONTAINER_CHANNEL)
 	 * physical channels are address by their actual physical number+1
 	 */
-	if ((aac->nondasd_support == 1) || expose_physicals)
+	if (aac->nondasd_support || expose_physicals || aac->jbod)
 		shost->max_channel = aac->maximum_num_channels;
 	else
 		shost->max_channel = 0;

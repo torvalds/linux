@@ -12,7 +12,7 @@
  *----------------------------------------------------------------------------*/
 
 #ifndef AAC_DRIVER_BUILD
-# define AAC_DRIVER_BUILD 2454
+# define AAC_DRIVER_BUILD 2455
 # define AAC_DRIVER_BRANCH "-ms"
 #endif
 #define MAXIMUM_NUM_CONTAINERS	32
@@ -866,6 +866,7 @@ struct aac_supplement_adapter_info
 	__le32	ReservedGrowth[1];
 };
 #define AAC_FEATURE_FALCON	cpu_to_le32(0x00000010)
+#define AAC_FEATURE_JBOD	cpu_to_le32(0x08000000)
 #define AAC_OPTION_MU_RESET	cpu_to_le32(0x00000001)
 #define AAC_OPTION_IGNORE_RESET	cpu_to_le32(0x00000002)
 #define AAC_SIS_VERSION_V3	3
@@ -1012,6 +1013,7 @@ struct aac_dev
 	 * lets break them out so we don't have to do an AND to check them
 	 */
 	u8			nondasd_support;
+	u8			jbod;
 	u8			cache_protected;
 	u8			dac_support;
 	u8			raid_scsi_mode;
@@ -1777,6 +1779,8 @@ extern struct aac_common aac_config;
 #define			AifEnExpEvent		23	/* Firmware Event Log */
 #define			AifExeFirmwarePanic	3	/* Firmware Event Panic */
 #define			AifHighPriority		3	/* Highest Priority Event */
+#define			AifEnAddJBOD		30	/* JBOD created */
+#define			AifEnDeleteJBOD		31	/* JBOD deleted */
 
 #define		AifCmdJobProgress	2	/* Progress report */
 #define			AifJobCtrZero	101	/* Array Zero progress */

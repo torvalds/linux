@@ -901,7 +901,31 @@ static void aac_handle_aif(struct aac_dev * dev, struct fib * fibptr)
 		case AifEnConfigChange:
 			break;
 
+		case AifEnAddJBOD:
+		case AifEnDeleteJBOD:
+			container = le32_to_cpu(((__le32 *)aifcmd->data)[1]);
+			if ((container >> 28))
+				break;
+			channel = (container >> 24) & 0xF;
+			if (channel >= dev->maximum_num_channels)
+				break;
+			id = container & 0xFFFF;
+			if (id >= dev->maximum_num_physicals)
+				break;
+			lun = (container >> 16) & 0xFF;
+			channel = aac_phys_to_logical(channel);
+			device_config_needed =
+			  (((__le32 *)aifcmd->data)[0] ==
+			    cpu_to_le32(AifEnAddJBOD)) ? ADD : DELETE;
+			break;
+
 		case AifEnEnclosureManagement:
+			/*
+			 * If in JBOD mode, automatic exposure of new
+			 * physical target to be suppressed until configured.
+			 */
+			if (dev->jbod)
+				break;
 			switch (le32_to_cpu(((__le32 *)aifcmd->data)[3])) {
 			case EM_DRIVE_INSERTION:
 			case EM_DRIVE_REMOVAL:
