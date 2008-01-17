@@ -148,6 +148,7 @@ struct gpio_bank {
 	u32 saved_fallingdetect;
 	u32 saved_risingdetect;
 #endif
+	u32 level_mask;
 	spinlock_t lock;
 	struct gpio_chip chip;
 };
@@ -538,6 +539,9 @@ static inline void set_24xx_gpio_triggering(struct gpio_bank *bank, int gpio,
 			bank->enabled_non_wakeup_gpios &= ~gpio_bit;
 	}
 
+	bank->level_mask =
+		__raw_readl(bank->base + OMAP24XX_GPIO_LEVELDETECT0) |
+		__raw_readl(bank->base + OMAP24XX_GPIO_LEVELDETECT1);
 	/*
 	 * FIXME: Possibly do 'set_irq_handler(j, handle_level_irq)' if only
 	 * level triggering requested.
@@ -1021,12 +1025,7 @@ static void gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 			isr &= 0x0000ffff;
 
 		if (cpu_class_is_omap2()) {
-			level_mask =
-				__raw_readl(bank->base +
-					OMAP24XX_GPIO_LEVELDETECT0) |
-				__raw_readl(bank->base +
-					OMAP24XX_GPIO_LEVELDETECT1);
-			level_mask &= enabled;
+			level_mask = bank->level_mask & enabled;
 		}
 
 		/* clear edge sensitive interrupts before handler(s) are
@@ -1088,14 +1087,6 @@ static void gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 				retrigger |= irq_mask;
 			}
 		}
-
-		if (cpu_class_is_omap2()) {
-			/* clear level sensitive interrupts after handler(s) */
-			_enable_gpio_irqbank(bank, isr_saved & level_mask, 0);
-			_clear_gpio_irqbank(bank, isr_saved & level_mask);
-			_enable_gpio_irqbank(bank, isr_saved & level_mask, 1);
-		}
-
 	}
 	/* if bank has any level sensitive GPIO pin interrupt
 	configured, we must unmask the bank interrupt only after
@@ -1134,6 +1125,14 @@ static void gpio_unmask_irq(unsigned int irq)
 {
 	unsigned int gpio = irq - IH_GPIO_BASE;
 	struct gpio_bank *bank = get_irq_chip_data(irq);
+	unsigned int irq_mask = 1 << get_gpio_index(gpio);
+
+	/* For level-triggered GPIOs, the clearing must be done after
+	 * the HW source is cleared, thus after the handler has run */
+	if (bank->level_mask & irq_mask) {
+		_set_gpio_irqenable(bank, gpio, 0);
+		_clear_gpio_irqstatus(bank, gpio);
+	}
 
 	_set_gpio_irqenable(bank, gpio, 1);
 }
