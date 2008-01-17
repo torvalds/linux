@@ -215,6 +215,7 @@ static void pnpacpi_parse_allocated_ioresource(struct pnp_resource_table *res,
 	} else if (!warned) {
 		printk(KERN_ERR "pnpacpi: exceeded the max number of IO "
 				"resources: %d \n", PNP_MAX_PORT);
+		warned = 1;
 	}
 }
 
@@ -242,6 +243,7 @@ static void pnpacpi_parse_allocated_memresource(struct pnp_resource_table *res,
 	} else if (!warned) {
 		printk(KERN_ERR "pnpacpi: exceeded the max number of mem "
 				"resources: %d\n", PNP_MAX_MEM);
+		warned = 1;
 	}
 }
 
