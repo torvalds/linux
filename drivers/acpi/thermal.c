@@ -1015,7 +1015,9 @@ static int acpi_thermal_cooling_device_cb(struct thermal_zone_device *thermal,
 {
 	struct acpi_device *device = cdev->devdata;
 	struct acpi_thermal *tz = thermal->devdata;
-	acpi_handle handle = device->handle;
+	struct acpi_device *dev;
+	acpi_status status;
+	acpi_handle handle;
 	int i;
 	int j;
 	int trip = -1;
@@ -1031,12 +1033,13 @@ static int acpi_thermal_cooling_device_cb(struct thermal_zone_device *thermal,
 		trip++;
 		for (i = 0; i < tz->trips.passive.devices.count;
 		    i++) {
-			if (tz->trips.passive.devices.handles[i] !=
-				handle)
-				continue;
-			result = action(thermal, trip, cdev);
-			if (result)
-				goto failed;
+			handle = tz->trips.passive.devices.handles[i];
+			status = acpi_bus_get_device(handle, &dev);
+			if (ACPI_SUCCESS(status) && (dev == device)) {
+				result = action(thermal, trip, cdev);
+				if (result)
+					goto failed;
+			}
 		}
 	}
 
@@ -1047,21 +1050,24 @@ static int acpi_thermal_cooling_device_cb(struct thermal_zone_device *thermal,
 		for (j = 0;
 		    j < tz->trips.active[i].devices.count;
 		    j++) {
-			if (tz->trips.active[i].devices.
-						handles[j] != handle)
-				continue;
-			result = action(thermal, trip, cdev);
-			if (result)
-				goto failed;
+			handle = tz->trips.active[i].devices.handles[j];
+			status = acpi_bus_get_device(handle, &dev);
+			if (ACPI_SUCCESS(status) && (dev == device)) {
+				result = action(thermal, trip, cdev);
+				if (result)
+					goto failed;
+			}
 		}
 	}
 
 	for (i = 0; i < tz->devices.count; i++) {
-		if (tz->devices.handles[i] != handle)
-			continue;
-		result = action(thermal, -1, cdev);
-		if (result)
-			goto failed;
+		handle = tz->devices.handles[i];
+		status = acpi_bus_get_device(handle, &dev);
+		if (ACPI_SUCCESS(status) && (dev == device)) {
+			result = action(thermal, -1, cdev);
+			if (result)
+				goto failed;
+		}
 	}
 
 failed:
