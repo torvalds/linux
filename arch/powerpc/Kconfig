@@ -140,6 +140,9 @@ config DEFAULT_UIMAGE
 	  Used to allow a board to specify it wants a uImage built by default
 	default n
 
+config REDBOOT
+	bool
+
 config PPC64_SWSUSP
 	bool
 	depends on PPC64 && (BROKEN || (PPC_PMAC64 && EXPERIMENTAL))
