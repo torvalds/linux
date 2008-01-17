@@ -2322,15 +2322,16 @@ static int create_snapshot(struct btrfs_root *root, char *name, int namelen)
 		ret = -ENOMEM;
 		goto fail_unlock;
 	}
-	pending_snapshot->name = kstrndup(name, namelen, GFP_NOFS);
+	pending_snapshot->name = kmalloc(namelen + 1, GFP_NOFS);
 	if (!pending_snapshot->name) {
 		ret = -ENOMEM;
 		kfree(pending_snapshot);
 		goto fail_unlock;
 	}
+	memcpy(pending_snapshot->name, name, namelen);
+	pending_snapshot->name[namelen] = '\0';
 	trans = btrfs_start_transaction(root, 1);
 	BUG_ON(!trans);
-
 	pending_snapshot->root = root;
 	list_add(&pending_snapshot->list,
 		 &trans->transaction->pending_snapshots);

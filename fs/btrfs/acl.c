@@ -22,6 +22,11 @@
 #include <linux/posix_acl_xattr.h>
 #include "ctree.h"
 #include "xattr.h"
+#ifndef is_owner_or_cap
+#define is_owner_or_cap(inode)	\
+	((current->fsuid == (inode)->i_uid) || capable(CAP_FOWNER))
+#endif
+
 static int btrfs_xattr_set_acl(struct inode *inode, int type,
 			       const void *value, size_t size)
 {
