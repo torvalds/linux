@@ -196,6 +196,12 @@ again:
 	return 0;
 }
 
+static int
+nlmsvc_always_match(void *dummy1, struct nlm_host *dummy2)
+{
+	return 1;
+}
+
 /*
  * Inspect a single file
  */
@@ -232,7 +238,8 @@ nlm_file_inuse(struct nlm_file *file)
  * Loop over all files in the file table.
  */
 static int
-nlm_traverse_files(void *data, nlm_host_match_fn_t match)
+nlm_traverse_files(void *data, nlm_host_match_fn_t match,
+		int (*is_failover_file)(void *data, struct nlm_file *file))
 {
 	struct hlist_node *pos, *next;
 	struct nlm_file	*file;
@@ -241,6 +248,8 @@ nlm_traverse_files(void *data, nlm_host_match_fn_t match)
 	mutex_lock(&nlm_file_mutex);
 	for (i = 0; i < FILE_NRHASH; i++) {
 		hlist_for_each_entry_safe(file, pos, next, &nlm_files[i], f_list) {
+			if (is_failover_file && !is_failover_file(data, file))
+				continue;
 			file->f_count++;
 			mutex_unlock(&nlm_file_mutex);
 
@@ -345,7 +354,7 @@ void
 nlmsvc_mark_resources(void)
 {
 	dprintk("lockd: nlmsvc_mark_resources\n");
-	nlm_traverse_files(NULL, nlmsvc_mark_host);
+	nlm_traverse_files(NULL, nlmsvc_mark_host, NULL);
 }
 
 /*
@@ -356,7 +365,7 @@ nlmsvc_free_host_resources(struct nlm_host *host)
 {
 	dprintk("lockd: nlmsvc_free_host_resources\n");
 
-	if (nlm_traverse_files(host, nlmsvc_same_host)) {
+	if (nlm_traverse_files(host, nlmsvc_same_host, NULL)) {
 		printk(KERN_WARNING
 			"lockd: couldn't remove all locks held by %s\n",
 			host->h_name);
@@ -376,8 +385,26 @@ nlmsvc_invalidate_all(void)
 	 * turn, which is about as inefficient as it gets.
 	 * Now we just do it once in nlm_traverse_files.
 	 */
-	nlm_traverse_files(NULL, nlmsvc_is_client);
+	nlm_traverse_files(NULL, nlmsvc_is_client, NULL);
 }
+
+static int
+nlmsvc_match_sb(void *datap, struct nlm_file *file)
+{
+	struct super_block *sb = datap;
+
+	return sb == file->f_file->f_path.mnt->mnt_sb;
+}
+
+int
+nlmsvc_unlock_all_by_sb(struct super_block *sb)
+{
+	int ret;
+
+	ret = nlm_traverse_files(sb, nlmsvc_always_match, nlmsvc_match_sb);
+	return ret ? -EIO : 0;
+}
+EXPORT_SYMBOL_GPL(nlmsvc_unlock_all_by_sb);
 
 static int
 nlmsvc_match_ip(void *datap, struct nlm_host *host)
@@ -391,7 +418,7 @@ int
 nlmsvc_unlock_all_by_ip(__be32 server_addr)
 {
 	int ret;
-	ret = nlm_traverse_files(&server_addr, nlmsvc_match_ip);
+	ret = nlm_traverse_files(&server_addr, nlmsvc_match_ip, NULL);
 	return ret ? -EIO : 0;
 
 }
