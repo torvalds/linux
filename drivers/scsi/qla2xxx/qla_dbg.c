@@ -1428,21 +1428,6 @@ qla2x00_print_scsi_cmd(struct scsi_cmnd * cmd)
 	printk("  sp flags=0x%x\n", sp->flags);
 }
 
-void
-qla2x00_dump_pkt(void *pkt)
-{
-	uint32_t i;
-	uint8_t *data = (uint8_t *) pkt;
-
-	for (i = 0; i < 64; i++) {
-		if (!(i % 4))
-			printk("\n%02x: ", i);
-
-		printk("%02x ", data[i]);
-	}
-	printk("\n");
-}
-
 #if defined(QL_DEBUG_ROUTINES)
 /*
  * qla2x00_formatted_dump_buffer

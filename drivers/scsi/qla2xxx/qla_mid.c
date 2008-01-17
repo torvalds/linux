@@ -39,7 +39,7 @@ qla2x00_vp_stop_timer(scsi_qla_host_t *vha)
 	}
 }
 
-uint32_t
+static uint32_t
 qla24xx_allocate_vp_id(scsi_qla_host_t *vha)
 {
 	uint32_t vp_id;
@@ -77,7 +77,7 @@ qla24xx_deallocate_vp_id(scsi_qla_host_t *vha)
 	up(&ha->vport_sem);
 }
 
-scsi_qla_host_t *
+static scsi_qla_host_t *
 qla24xx_find_vhost_by_name(scsi_qla_host_t *ha, uint8_t *port_name)
 {
 	scsi_qla_host_t *vha;
@@ -265,7 +265,7 @@ qla2x00_vp_abort_isp(scsi_qla_host_t *vha)
 	qla24xx_enable_vp(vha);
 }
 
-int
+static int
 qla2x00_do_dpc_vp(scsi_qla_host_t *vha)
 {
 	if (test_and_clear_bit(VP_IDX_ACQUIRED, &vha->vp_flags)) {
