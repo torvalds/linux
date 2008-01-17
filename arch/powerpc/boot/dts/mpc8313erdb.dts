@@ -45,10 +45,49 @@
 		reg = <00000000 08000000>;	// 128MB at 0
 	};
 
+	localbus@e0005000 {
+		#address-cells = <2>;
+		#size-cells = <1>;
+		compatible = "fsl,mpc8313-elbc", "fsl,elbc", "simple-bus";
+		reg = <e0005000 1000>;
+		interrupts = <d#77 8>;
+		interrupt-parent = <&ipic>;
+
+		// CS0 and CS1 are swapped when
+		// booting from nand, but the
+		// addresses are the same.
+		ranges = <0 0 fe000000 00800000
+		          1 0 e2800000 00008000
+		          2 0 f0000000 00020000
+		          3 0 fa000000 00008000>;
+
+		nand@1,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "fsl,mpc8313-fcm-nand",
+			             "fsl,elbc-fcm-nand";
+			reg = <1 0 2000>;
+
+			u-boot@0 {
+				reg = <0 100000>;
+				read-only;
+			};
+
+			kernel@100000 {
+				reg = <100000 300000>;
+			};
+
+			fs@400000 {
+				reg = <400000 1c00000>;
+			};
+		};
+	};
+
 	soc8313@e0000000 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		device_type = "soc";
+		compatible = "simple-bus";
 		ranges = <0 e0000000 00100000>;
 		reg = <e0000000 00000200>;
 		bus-frequency = <0>;

@@ -14,6 +14,7 @@
  */
 
 #include <linux/pci.h>
+#include <linux/of_platform.h>
 
 #include <asm/time.h>
 #include <asm/ipic.h>
@@ -74,6 +75,18 @@ static int __init mpc8313_rdb_probe(void)
 
 	return of_flat_dt_is_compatible(root, "MPC8313ERDB");
 }
+
+static struct of_device_id __initdata of_bus_ids[] = {
+	{ .compatible = "simple-bus" },
+	{},
+};
+
+static int __init declare_of_platform_devices(void)
+{
+	of_platform_bus_probe(NULL, of_bus_ids, NULL);
+	return 0;
+}
+machine_device_initcall(mpc8313_rdb, declare_of_platform_devices);
 
 define_machine(mpc8313_rdb) {
 	.name			= "MPC8313 RDB",
