@@ -1134,10 +1134,9 @@ static void gpio_mask_irq(unsigned int irq)
 static void gpio_unmask_irq(unsigned int irq)
 {
 	unsigned int gpio = irq - IH_GPIO_BASE;
-	unsigned int gpio_idx = get_gpio_index(gpio);
 	struct gpio_bank *bank = get_irq_chip_data(irq);
 
-	_set_gpio_irqenable(bank, gpio_idx, 1);
+	_set_gpio_irqenable(bank, gpio, 1);
 }
 
 static struct irq_chip gpio_irq_chip = {
