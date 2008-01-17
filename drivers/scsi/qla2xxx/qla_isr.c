@@ -822,6 +822,35 @@ qla2x00_process_response_queue(struct scsi_qla_host *ha)
 	WRT_REG_WORD(ISP_RSP_Q_OUT(ha, reg), ha->rsp_ring_index);
 }
 
+static inline void
+qla2x00_handle_sense(srb_t *sp, uint8_t *sense_data, uint32_t sense_len)
+{
+	struct scsi_cmnd *cp = sp->cmd;
+
+	if (sense_len >= SCSI_SENSE_BUFFERSIZE)
+		sense_len = SCSI_SENSE_BUFFERSIZE;
+
+	CMD_ACTUAL_SNSLEN(cp) = sense_len;
+	sp->request_sense_length = sense_len;
+	sp->request_sense_ptr = cp->sense_buffer;
+	if (sp->request_sense_length > 32)
+		sense_len = 32;
+
+	memcpy(cp->sense_buffer, sense_data, sense_len);
+
+	sp->request_sense_ptr += sense_len;
+	sp->request_sense_length -= sense_len;
+	if (sp->request_sense_length != 0)
+		sp->ha->status_srb = sp;
+
+	DEBUG5(printk("%s(): Check condition Sense data, scsi(%ld:%d:%d:%d) "
+	    "cmd=%p pid=%ld\n", __func__, sp->ha->host_no, cp->device->channel,
+	    cp->device->id, cp->device->lun, cp, cp->serial_number));
+	if (sense_len)
+		DEBUG5(qla2x00_dump_buffer(cp->sense_buffer,
+		    CMD_ACTUAL_SNSLEN(cp)));
+}
+
 /**
  * qla2x00_status_entry() - Process a Status IOCB entry.
  * @ha: SCSI driver HA context
@@ -976,36 +1005,11 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 		if (lscsi_status != SS_CHECK_CONDITION)
 			break;
 
-		/* Copy Sense Data into sense buffer. */
 		memset(cp->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
-
 		if (!(scsi_status & SS_SENSE_LEN_VALID))
 			break;
 
-		if (sense_len >= SCSI_SENSE_BUFFERSIZE)
-			sense_len = SCSI_SENSE_BUFFERSIZE;
-
-		CMD_ACTUAL_SNSLEN(cp) = sense_len;
-		sp->request_sense_length = sense_len;
-		sp->request_sense_ptr = cp->sense_buffer;
-
-		if (sp->request_sense_length > 32)
-			sense_len = 32;
-
-		memcpy(cp->sense_buffer, sense_data, sense_len);
-
-		sp->request_sense_ptr += sense_len;
-		sp->request_sense_length -= sense_len;
-		if (sp->request_sense_length != 0)
-			ha->status_srb = sp;
-
-		DEBUG5(printk("%s(): Check condition Sense data, "
-		    "scsi(%ld:%d:%d:%d) cmd=%p pid=%ld\n", __func__,
-		    ha->host_no, cp->device->channel, cp->device->id,
-		    cp->device->lun, cp, cp->serial_number));
-		if (sense_len)
-			DEBUG5(qla2x00_dump_buffer(cp->sense_buffer,
-			    CMD_ACTUAL_SNSLEN(cp)));
+		qla2x00_handle_sense(sp, sense_data, sense_len);
 		break;
 
 	case CS_DATA_UNDERRUN:
@@ -1060,34 +1064,11 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 			if (lscsi_status != SS_CHECK_CONDITION)
 				break;
 
-			/* Copy Sense Data into sense buffer */
 			memset(cp->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
-
 			if (!(scsi_status & SS_SENSE_LEN_VALID))
 				break;
 
-			if (sense_len >= SCSI_SENSE_BUFFERSIZE)
-				sense_len = SCSI_SENSE_BUFFERSIZE;
-
-			CMD_ACTUAL_SNSLEN(cp) = sense_len;
-			sp->request_sense_length = sense_len;
-			sp->request_sense_ptr = cp->sense_buffer;
-
-			if (sp->request_sense_length > 32)
-				sense_len = 32;
-
-			memcpy(cp->sense_buffer, sense_data, sense_len);
-
-			sp->request_sense_ptr += sense_len;
-			sp->request_sense_length -= sense_len;
-			if (sp->request_sense_length != 0)
-				ha->status_srb = sp;
-
-			DEBUG5(printk("%s(): Check condition Sense data, "
-			    "scsi(%ld:%d:%d:%d) cmd=%p pid=%ld\n",
-			    __func__, ha->host_no, cp->device->channel,
-			    cp->device->id, cp->device->lun, cp,
-			    cp->serial_number));
+			qla2x00_handle_sense(sp, sense_data, sense_len);
 
 			/*
 			 * In case of a Underrun condition, set both the lscsi
@@ -1107,10 +1088,6 @@ qla2x00_status_entry(scsi_qla_host_t *ha, void *pkt)
 
 				cp->result = DID_ERROR << 16 | lscsi_status;
 			}
-
-			if (sense_len)
-				DEBUG5(qla2x00_dump_buffer(cp->sense_buffer,
-				    CMD_ACTUAL_SNSLEN(cp)));
 		} else {
 			/*
 			 * If RISC reports underrun and target does not report
