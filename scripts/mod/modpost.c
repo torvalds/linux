@@ -1299,7 +1299,8 @@ static void read_symbols(char *modname)
 		handle_modversions(mod, &info, sym, symname);
 		handle_moddevtable(mod, &info, sym, symname);
 	}
-	if (is_vmlinux(modname) && vmlinux_section_warnings) {
+	if (!is_vmlinux(modname) ||
+	     (is_vmlinux(modname) && vmlinux_section_warnings)) {
 		check_sec_ref(mod, modname, &info, init_section, init_section_ref_ok);
 		check_sec_ref(mod, modname, &info, exit_section, exit_section_ref_ok);
 	}
