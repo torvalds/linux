@@ -61,6 +61,10 @@ struct thermal_cooling_device {
 	struct list_head node;
 };
 
+#define KELVIN_TO_CELSIUS(t)	(long)(((long)t-2732 >= 0) ?	\
+				((long)t-2732+5)/10 : ((long)t-2732-5)/10)
+#define CELSIUS_TO_KELVIN(t)	((t)*10+2732)
+
 struct thermal_zone_device {
 	int id;
 	char type[THERMAL_NAME_LENGTH];
