@@ -623,9 +623,6 @@ typedef struct {
 #define MBC_GET_LINK_PRIV_STATS		0x6d	/* Get link & private data. */
 #define MBC_SET_VENDOR_ID		0x76	/* Set Vendor ID. */
 
-#define TC_ENABLE			4
-#define TC_DISABLE			5
-
 /* Firmware return data sizes */
 #define FCAL_MAP_SIZE	128
 

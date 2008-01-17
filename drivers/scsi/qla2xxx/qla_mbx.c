@@ -2350,7 +2350,7 @@ qla2x00_stop_firmware(scsi_qla_host_t *ha)
 }
 
 int
-qla2x00_trace_control(scsi_qla_host_t *ha, uint16_t ctrl, dma_addr_t eft_dma,
+qla2x00_enable_eft_trace(scsi_qla_host_t *ha, dma_addr_t eft_dma,
     uint16_t buffers)
 {
 	int rval;
@@ -2363,22 +2363,47 @@ qla2x00_trace_control(scsi_qla_host_t *ha, uint16_t ctrl, dma_addr_t eft_dma,
 	DEBUG11(printk("%s(%ld): entered.\n", __func__, ha->host_no));
 
 	mcp->mb[0] = MBC_TRACE_CONTROL;
-	mcp->mb[1] = ctrl;
-	mcp->out_mb = MBX_1|MBX_0;
+	mcp->mb[1] = TC_EFT_ENABLE;
+	mcp->mb[2] = LSW(eft_dma);
+	mcp->mb[3] = MSW(eft_dma);
+	mcp->mb[4] = LSW(MSD(eft_dma));
+	mcp->mb[5] = MSW(MSD(eft_dma));
+	mcp->mb[6] = buffers;
+	mcp->mb[7] = TC_AEN_DISABLE;
+	mcp->out_mb = MBX_7|MBX_6|MBX_5|MBX_4|MBX_3|MBX_2|MBX_1|MBX_0;
 	mcp->in_mb = MBX_1|MBX_0;
-	if (ctrl == TC_ENABLE) {
-		mcp->mb[2] = LSW(eft_dma);
-		mcp->mb[3] = MSW(eft_dma);
-		mcp->mb[4] = LSW(MSD(eft_dma));
-		mcp->mb[5] = MSW(MSD(eft_dma));
-		mcp->mb[6] = buffers;
-		mcp->mb[7] = 0;
-		mcp->out_mb |= MBX_7|MBX_6|MBX_5|MBX_4|MBX_3|MBX_2;
-	}
 	mcp->tov = 30;
 	mcp->flags = 0;
 	rval = qla2x00_mailbox_command(ha, mcp);
+	if (rval != QLA_SUCCESS) {
+		DEBUG2_3_11(printk("%s(%ld): failed=%x mb[0]=%x mb[1]=%x.\n",
+		    __func__, ha->host_no, rval, mcp->mb[0], mcp->mb[1]));
+	} else {
+		DEBUG11(printk("%s(%ld): done.\n", __func__, ha->host_no));
+	}
 
+	return rval;
+}
+
+int
+qla2x00_disable_eft_trace(scsi_qla_host_t *ha)
+{
+	int rval;
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+
+	if (!IS_FWI2_CAPABLE(ha))
+		return QLA_FUNCTION_FAILED;
+
+	DEBUG11(printk("%s(%ld): entered.\n", __func__, ha->host_no));
+
+	mcp->mb[0] = MBC_TRACE_CONTROL;
+	mcp->mb[1] = TC_EFT_DISABLE;
+	mcp->out_mb = MBX_1|MBX_0;
+	mcp->in_mb = MBX_1|MBX_0;
+	mcp->tov = 30;
+	mcp->flags = 0;
+	rval = qla2x00_mailbox_command(ha, mcp);
 	if (rval != QLA_SUCCESS) {
 		DEBUG2_3_11(printk("%s(%ld): failed=%x mb[0]=%x mb[1]=%x.\n",
 		    __func__, ha->host_no, rval, mcp->mb[0], mcp->mb[1]));

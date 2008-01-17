@@ -228,7 +228,9 @@ extern int
 qla2x00_stop_firmware(scsi_qla_host_t *);
 
 extern int
-qla2x00_trace_control(scsi_qla_host_t *, uint16_t, dma_addr_t, uint16_t);
+qla2x00_enable_eft_trace(scsi_qla_host_t *, dma_addr_t, uint16_t);
+extern int
+qla2x00_disable_eft_trace(scsi_qla_host_t *);
 
 extern int
 qla2x00_read_sfp(scsi_qla_host_t *, dma_addr_t, uint16_t, uint16_t, uint16_t);

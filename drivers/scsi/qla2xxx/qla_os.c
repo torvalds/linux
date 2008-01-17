@@ -1856,7 +1856,7 @@ qla2x00_free_device(scsi_qla_host_t *ha)
 	}
 
 	if (ha->eft)
-		qla2x00_trace_control(ha, TC_DISABLE, 0, 0);
+		qla2x00_disable_eft_trace(ha);
 
 	ha->flags.online = 0;
 

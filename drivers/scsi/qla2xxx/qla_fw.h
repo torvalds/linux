@@ -952,6 +952,13 @@ struct device_reg_24xx {
 	uint32_t iobase_sdata;
 };
 
+/* Trace Control *************************************************************/
+
+#define TC_AEN_DISABLE		0
+
+#define TC_EFT_ENABLE		4
+#define TC_EFT_DISABLE		5
+
 /* MID Support ***************************************************************/
 
 #define MIN_MULTI_ID_FABRIC	64	/* Must be power-of-2. */
