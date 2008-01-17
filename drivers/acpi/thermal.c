@@ -1101,6 +1101,7 @@ static int acpi_thermal_register_thermal_zone(struct acpi_thermal *tz)
 {
 	int trips = 0;
 	int result;
+	acpi_status status;
 	int i;
 
 	if (tz->trips.critical.flags.valid)
@@ -1129,6 +1130,15 @@ static int acpi_thermal_register_thermal_zone(struct acpi_thermal *tz)
 	if (result)
 		return result;
 
+	status = acpi_attach_data(tz->device->handle,
+				  acpi_bus_private_data_handler,
+				  tz->thermal_zone);
+	if (ACPI_FAILURE(status)) {
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+				"Error attaching device data\n"));
+		return -ENODEV;
+	}
+
 	tz->tz_enabled = 1;
 
 	printk(KERN_INFO PREFIX "%s is registered as thermal_zone%d\n",
@@ -1142,6 +1152,7 @@ static void acpi_thermal_unregister_thermal_zone(struct acpi_thermal *tz)
 	sysfs_remove_link(&tz->thermal_zone->device.kobj, "device");
 	thermal_zone_device_unregister(tz->thermal_zone);
 	tz->thermal_zone = NULL;
+	acpi_detach_data(tz->device->handle, acpi_bus_private_data_handler);
 }
 
 
