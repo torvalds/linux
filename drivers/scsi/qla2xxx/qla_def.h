@@ -2271,8 +2271,7 @@ typedef struct scsi_qla_host {
 
 	int		bars;
 	device_reg_t __iomem *iobase;		/* Base I/O address */
-	unsigned long	pio_address;
-	unsigned long	pio_length;
+	resource_size_t pio_address;
 #define MIN_IOBASE_LEN		0x100
 
 	/* ISP ring lock, rings, and indexes */

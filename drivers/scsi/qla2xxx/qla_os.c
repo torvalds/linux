@@ -1479,8 +1479,7 @@ qla2x00_set_isp_flags(scsi_qla_host_t *ha)
 static int
 qla2x00_iospace_config(scsi_qla_host_t *ha)
 {
-	unsigned long	pio, pio_len, pio_flags;
-	unsigned long	mmio, mmio_len, mmio_flags;
+	resource_size_t pio;
 
 	if (pci_request_selected_regions(ha->pdev, ha->bars,
 	    QLA2XXX_DRIVER_NAME)) {
@@ -1495,10 +1494,8 @@ qla2x00_iospace_config(scsi_qla_host_t *ha)
 
 	/* We only need PIO for Flash operations on ISP2312 v2 chips. */
 	pio = pci_resource_start(ha->pdev, 0);
-	pio_len = pci_resource_len(ha->pdev, 0);
-	pio_flags = pci_resource_flags(ha->pdev, 0);
-	if (pio_flags & IORESOURCE_IO) {
-		if (pio_len < MIN_IOBASE_LEN) {
+	if (pci_resource_flags(ha->pdev, 0) & IORESOURCE_IO) {
+		if (pci_resource_len(ha->pdev, 0) < MIN_IOBASE_LEN) {
 			qla_printk(KERN_WARNING, ha,
 			    "Invalid PCI I/O region size (%s)...\n",
 				pci_name(ha->pdev));
@@ -1511,28 +1508,23 @@ qla2x00_iospace_config(scsi_qla_host_t *ha)
 		pio = 0;
 	}
 	ha->pio_address = pio;
-	ha->pio_length = pio_len;
 
 skip_pio:
 	/* Use MMIO operations for all accesses. */
-	mmio = pci_resource_start(ha->pdev, 1);
-	mmio_len = pci_resource_len(ha->pdev, 1);
-	mmio_flags = pci_resource_flags(ha->pdev, 1);
-
-	if (!(mmio_flags & IORESOURCE_MEM)) {
+	if (!(pci_resource_flags(ha->pdev, 1) & IORESOURCE_MEM)) {
 		qla_printk(KERN_ERR, ha,
-		    "region #0 not an MMIO resource (%s), aborting\n",
+		    "region #1 not an MMIO resource (%s), aborting\n",
 		    pci_name(ha->pdev));
 		goto iospace_error_exit;
 	}
-	if (mmio_len < MIN_IOBASE_LEN) {
+	if (pci_resource_len(ha->pdev, 1) < MIN_IOBASE_LEN) {
 		qla_printk(KERN_ERR, ha,
 		    "Invalid PCI mem region size (%s), aborting\n",
 			pci_name(ha->pdev));
 		goto iospace_error_exit;
 	}
 
-	ha->iobase = ioremap(mmio, MIN_IOBASE_LEN);
+	ha->iobase = ioremap(pci_resource_start(ha->pdev, 1), MIN_IOBASE_LEN);
 	if (!ha->iobase) {
 		qla_printk(KERN_ERR, ha,
 		    "cannot remap MMIO (%s), aborting\n", pci_name(ha->pdev));
