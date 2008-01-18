@@ -69,6 +69,10 @@
 #define GroupDual   (1<<15)     /* Alternate decoding of mod == 3 */
 #define GroupMask   0xff        /* Group number stored in bits 0:7 */
 
+enum {
+	Group1A,
+};
+
 static u16 opcode_table[256] = {
 	/* 0x00 - 0x07 */
 	ByteOp | DstMem | SrcReg | ModRM, DstMem | SrcReg | ModRM,
@@ -133,7 +137,7 @@ static u16 opcode_table[256] = {
 	/* 0x88 - 0x8F */
 	ByteOp | DstMem | SrcReg | ModRM | Mov, DstMem | SrcReg | ModRM | Mov,
 	ByteOp | DstReg | SrcMem | ModRM | Mov, DstReg | SrcMem | ModRM | Mov,
-	0, ModRM | DstReg, 0, DstMem | SrcNone | ModRM | Mov | Stack,
+	0, ModRM | DstReg, 0, Group | Group1A,
 	/* 0x90 - 0x9F */
 	0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, ImplicitOps | Stack, ImplicitOps | Stack, 0, 0,
@@ -233,6 +237,8 @@ static u16 twobyte_table[256] = {
 };
 
 static u16 group_table[] = {
+	[Group1A*8] =
+	DstMem | SrcNone | ModRM | Mov | Stack, 0, 0, 0, 0, 0, 0, 0,
 };
 
 static u16 group2_table[] = {
