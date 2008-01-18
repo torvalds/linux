@@ -812,8 +812,16 @@ EXPORT_SYMBOL(scsi_release_buffers);
  */
 void scsi_end_bidi_request(struct scsi_cmnd *cmd)
 {
-	blk_end_bidi_request(cmd->request, 0, scsi_out(cmd)->resid,
-							scsi_in(cmd)->resid);
+	struct request *req = cmd->request;
+	unsigned int dlen = req->data_len;
+	unsigned int next_dlen = req->next_rq->data_len;
+
+	req->data_len = scsi_out(cmd)->resid;
+	req->next_rq->data_len = scsi_in(cmd)->resid;
+
+	/* The req and req->next_rq have not been completed */
+	BUG_ON(blk_end_bidi_request(req, 0, dlen, next_dlen));
+
 	scsi_release_buffers(cmd);
 
 	/*
