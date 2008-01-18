@@ -489,6 +489,38 @@ static int ps3_register_repository_device(
 	return result;
 }
 
+static void ps3_find_and_add_device(u64 bus_id, u64 dev_id)
+{
+	struct ps3_repository_device repo;
+	int res;
+	unsigned int retries;
+	unsigned long rem;
+
+	/*
+	 * On some firmware versions (e.g. 1.90), the device may not show up
+	 * in the repository immediately
+	 */
+	for (retries = 0; retries < 10; retries++) {
+		res = ps3_repository_find_device_by_id(&repo, bus_id, dev_id);
+		if (!res)
+			goto found;
+
+		rem = msleep_interruptible(100);
+		if (rem)
+			break;
+	}
+	pr_warning("%s:%u: device %lu:%lu not found\n", __func__, __LINE__,
+		   bus_id, dev_id);
+	return;
+
+found:
+	if (retries)
+		pr_debug("%s:%u: device %lu:%lu found after %u retries\n",
+			 __func__, __LINE__, bus_id, dev_id, retries);
+
+	ps3_register_repository_device(&repo);
+	return;
+}
 
 #define PS3_NOTIFICATION_DEV_ID		ULONG_MAX
 #define PS3_NOTIFICATION_INTERRUPT_ID	0
@@ -600,7 +632,6 @@ static struct task_struct *probe_task;
 static int ps3_probe_thread(void *data)
 {
 	struct ps3_notification_device dev;
-	struct ps3_repository_device repo;
 	int res;
 	unsigned int irq;
 	u64 lpar;
@@ -682,18 +713,7 @@ static int ps3_probe_thread(void *data)
 			continue;
 		}
 
-		res = ps3_repository_find_device_by_id(&repo, dev.sbd.bus_id,
-						       notify_event->dev_id);
-		if (res) {
-			pr_warning("%s:%u: device %lu:%lu not found\n",
-				   __func__, __LINE__, dev.sbd.bus_id,
-				   notify_event->dev_id);
-			continue;
-		}
-
-		pr_debug("%s:%u: device %lu:%lu found\n", __func__, __LINE__,
-			 dev.sbd.bus_id, notify_event->dev_id);
-		ps3_register_repository_device(&repo);
+		ps3_find_and_add_device(dev.sbd.bus_id, notify_event->dev_id);
 
 	} while (!kthread_should_stop());
 
