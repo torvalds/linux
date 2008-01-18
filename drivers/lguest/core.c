@@ -253,7 +253,7 @@ static int __init init(void)
 
 	/* Lguest can't run under Xen, VMI or itself.  It does Tricky Stuff. */
 	if (paravirt_enabled()) {
-		printk("lguest is afraid of %s\n", pv_info.name);
+		printk("lguest is afraid of being a guest\n");
 		return -EPERM;
 	}
 
