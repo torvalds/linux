@@ -1593,7 +1593,7 @@ static enum dvbfe_search stb0899_search(struct dvb_frontend *fe, struct dvbfe_pa
 
 			/* What to do for tuners having no bandwidth setup ?	*/
 			if (state->config->tuner_set_bandwidth)
-				state->config->tuner_set_bandwidth(fe, (135 * (stb0899_carr_width(state) + SearchRange)) / 100);
+				state->config->tuner_set_bandwidth(fe, (13 * (stb0899_carr_width(state) + SearchRange)) / 10);
 			if (state->config->tuner_get_bandwidth)
 				state->config->tuner_get_bandwidth(fe, &internal->tuner_bw);
 			/* Set DVB-S1 AGC		*/
