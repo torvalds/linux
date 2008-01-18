@@ -269,7 +269,7 @@ static int stb6100_set_bandwidth(struct dvb_frontend *fe, u32 bandwidth)
 
 	dprintk(verbose, FE_DEBUG, 1, "set bandwidth to %u kHz", bandwidth);
 
-	bandwidth *= 1000 / 2;	/* kHz -> Hz, bw / 2 */
+	bandwidth /= 2; /* ZIF */
 
 	if (bandwidth > 36000000)	/* F[4:0] BW/2 max =31+5=36 mhz for F=31	*/
 		tmp = 31;
