@@ -6,7 +6,8 @@ menuconfig SCSI_LOWLEVEL_PCMCIA
 	bool "PCMCIA SCSI adapter support"
 	depends on SCSI!=n && PCMCIA!=n
 
-if SCSI_LOWLEVEL_PCMCIA && SCSI && PCMCIA
+# drivers have problems when build in, so require modules
+if SCSI_LOWLEVEL_PCMCIA && SCSI && PCMCIA && m
 
 config PCMCIA_AHA152X
 	tristate "Adaptec AHA152X PCMCIA support"
