@@ -632,6 +632,7 @@ e1000_down(struct e1000_adapter *adapter)
 
 #ifdef CONFIG_E1000_NAPI
 	napi_disable(&adapter->napi);
+	atomic_set(&adapter->irq_sem, 0);
 #endif
 	e1000_irq_disable(adapter);
 
