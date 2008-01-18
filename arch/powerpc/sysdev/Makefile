@@ -24,7 +24,7 @@ obj-$(CONFIG_AXON_RAM)		+= axonram.o
 ifeq ($(CONFIG_PPC_MERGE),y)
 obj-$(CONFIG_PPC_INDIRECT_PCI)	+= indirect_pci.o
 obj-$(CONFIG_PPC_I8259)		+= i8259.o
-obj-$(CONFIG_PPC_83xx)		+= ipic.o
+obj-$(CONFIG_IPIC)		+= ipic.o
 obj-$(CONFIG_4xx)		+= uic.o
 obj-$(CONFIG_XILINX_VIRTEX)	+= xilinx_intc.o
 ifeq ($(CONFIG_PCI),y)

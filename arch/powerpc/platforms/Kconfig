@@ -22,6 +22,7 @@ config PPC_83xx
 	depends on 6xx
 	select FSL_SOC
 	select 83xx
+	select IPIC
 	select WANT_DEVICE_TREE
 
 config PPC_86xx
@@ -79,6 +80,10 @@ config XICS
 	depends on PPC_PSERIES
 	bool
 	default y
+
+config IPIC
+	bool
+	default n
 
 config MPIC
 	bool
