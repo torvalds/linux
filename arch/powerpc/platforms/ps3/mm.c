@@ -36,11 +36,6 @@
 #endif
 
 enum {
-#if defined(CONFIG_PS3_USE_LPAR_ADDR)
-	USE_LPAR_ADDR = 1,
-#else
-	USE_LPAR_ADDR = 0,
-#endif
 #if defined(CONFIG_PS3_DYNAMIC_DMA)
 	USE_DYNAMIC_DMA = 1,
 #else
@@ -137,11 +132,8 @@ static struct map map;
 unsigned long ps3_mm_phys_to_lpar(unsigned long phys_addr)
 {
 	BUG_ON(is_kernel_addr(phys_addr));
-	if (USE_LPAR_ADDR)
-		return phys_addr;
-	else
-		return (phys_addr < map.rm.size || phys_addr >= map.total)
-			? phys_addr : phys_addr + map.r1.offset;
+	return (phys_addr < map.rm.size || phys_addr >= map.total)
+		? phys_addr : phys_addr + map.r1.offset;
 }
 
 EXPORT_SYMBOL(ps3_mm_phys_to_lpar);
@@ -309,7 +301,7 @@ static int __init ps3_mm_add_memory(void)
 
 	BUG_ON(!mem_init_done);
 
-	start_addr = USE_LPAR_ADDR ? map.r1.base : map.rm.size;
+	start_addr = map.rm.size;
 	start_pfn = start_addr >> PAGE_SHIFT;
 	nr_pages = (map.r1.size + PAGE_SIZE - 1) >> PAGE_SHIFT;
 
@@ -1007,7 +999,7 @@ static int dma_sb_region_create_linear(struct ps3_dma_region *r)
 
 	if (r->offset + r->len > map.rm.size) {
 		/* Map (part of) 2nd RAM chunk */
-		virt_addr = USE_LPAR_ADDR ? map.r1.base : map.rm.size;
+		virt_addr = map.rm.size;
 		len = r->len;
 		if (r->offset >= map.rm.size)
 			virt_addr += r->offset - map.rm.size;
