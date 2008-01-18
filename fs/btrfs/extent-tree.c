@@ -1431,6 +1431,19 @@ static int noinline find_free_extent(struct btrfs_trans_handle *trans,
 		data = BTRFS_BLOCK_GROUP_MIXED;
 	}
 
+	/* for SSD, cluster allocations together as much as possible */
+	if (btrfs_test_opt(root, SSD)) {
+		if (!data) {
+			if (root->fs_info->last_alloc)
+				hint_byte = root->fs_info->last_alloc;
+			else {
+				hint_byte = hint_byte &
+					~((u64)BTRFS_BLOCK_GROUP_SIZE - 1);
+				empty_size += 16 * 1024 * 1024;
+			}
+		}
+	}
+
 	search_end = min(search_end,
 			 btrfs_super_total_bytes(&info->super_copy));
 	if (hint_byte) {
@@ -1456,6 +1469,19 @@ check_failed:
 	}
 	search_start = find_search_start(root, &block_group, search_start,
 					 total_needed, data);
+
+	if (!data && btrfs_test_opt(root, SSD) && info->last_alloc &&
+	    search_start != info->last_alloc) {
+		info->last_alloc = 0;
+		if (!empty_size) {
+			empty_size += 16 * 1024 * 1024;
+			total_needed += empty_size;
+		}
+		search_start = find_search_start(root, &block_group,
+						 search_start, total_needed,
+						 data);
+	}
+
 	search_start = stripe_align(root, search_start);
 	cached_start = search_start;
 	btrfs_init_path(path);
@@ -1610,6 +1636,8 @@ enospc:
 error:
 	btrfs_release_path(root, path);
 	btrfs_free_path(path);
+	if (btrfs_test_opt(root, SSD) && !ret && !data)
+		info->last_alloc = ins->objectid + ins->offset;
 	return ret;
 }
 /*
@@ -1778,7 +1806,8 @@ struct extent_buffer *__btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 			buf->start, buf->start + buf->len - 1,
 			EXTENT_CSUM, GFP_NOFS);
 	buf->flags |= EXTENT_CSUM;
-	btrfs_set_buffer_defrag(buf);
+	if (!btrfs_test_opt(root, SSD))
+		btrfs_set_buffer_defrag(buf);
 	trans->blocks_used++;
 	return buf;
 }

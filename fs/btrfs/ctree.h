@@ -351,6 +351,7 @@ struct btrfs_fs_info {
 	spinlock_t delalloc_lock;
 	spinlock_t new_trans_lock;
 	u64 delalloc_bytes;
+	u64 last_alloc;
 };
 /*
  * in ram representation of the tree.  extent_root is used for all allocations
@@ -444,6 +445,7 @@ struct btrfs_root {
 #define BTRFS_MOUNT_NODATASUM		(1 << 0)
 #define BTRFS_MOUNT_NODATACOW		(1 << 1)
 #define BTRFS_MOUNT_NOBARRIER		(1 << 2)
+#define BTRFS_MOUNT_SSD			(1 << 3)
 
 #define btrfs_clear_opt(o, opt)		((o) &= ~BTRFS_MOUNT_##opt)
 #define btrfs_set_opt(o, opt)		((o) |= BTRFS_MOUNT_##opt)

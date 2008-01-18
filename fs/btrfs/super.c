@@ -64,7 +64,7 @@ static void btrfs_put_super (struct super_block * sb)
 
 enum {
 	Opt_subvol, Opt_nodatasum, Opt_nodatacow, Opt_max_extent,
-	Opt_alloc_start, Opt_nobarrier, Opt_err,
+	Opt_alloc_start, Opt_nobarrier, Opt_ssd, Opt_err,
 };
 
 static match_table_t tokens = {
@@ -74,6 +74,7 @@ static match_table_t tokens = {
 	{Opt_nobarrier, "nobarrier"},
 	{Opt_max_extent, "max_extent=%s"},
 	{Opt_alloc_start, "alloc_start=%s"},
+	{Opt_ssd, "ssd"},
 	{Opt_err, NULL}
 };
 
@@ -147,6 +148,12 @@ static int parse_options (char * options,
 				printk("btrfs: setting nodatacow\n");
 				btrfs_set_opt(info->mount_opt, NODATACOW);
 				btrfs_set_opt(info->mount_opt, NODATASUM);
+			}
+			break;
+		case Opt_ssd:
+			if (info) {
+				printk("btrfs: use ssd allocation scheme\n");
+				btrfs_set_opt(info->mount_opt, SSD);
 			}
 			break;
 		case Opt_nobarrier:

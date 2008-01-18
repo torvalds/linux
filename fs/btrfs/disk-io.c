@@ -193,6 +193,7 @@ int csum_dirty_buffer(struct btrfs_root *root, struct page *page)
 	}
 	eb = alloc_extent_buffer(tree, start, len, page, GFP_NOFS);
 	read_extent_buffer_pages(tree, eb, start + PAGE_CACHE_SIZE, 1);
+	btrfs_clear_buffer_defrag(eb);
 	found_start = btrfs_header_bytenr(eb);
 	if (found_start != start) {
 		printk("warning: eb start incorrect %Lu buffer %Lu len %lu\n",
@@ -676,6 +677,8 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	fs_info->do_barriers = 1;
 	fs_info->closing = 0;
 	fs_info->total_pinned = 0;
+	fs_info->last_alloc = 0;
+
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
 	INIT_WORK(&fs_info->trans_work, btrfs_transaction_cleaner, fs_info);
 #else
