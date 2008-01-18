@@ -344,8 +344,8 @@ struct ps3_system_bus_device {
 	enum ps3_match_id match_id;
 	enum ps3_system_bus_device_type dev_type;
 
-	unsigned int bus_id;              /* SB */
-	unsigned int dev_id;              /* SB */
+	u64 bus_id;                       /* SB */
+	u64 dev_id;                       /* SB */
 	unsigned int interrupt_id;        /* SB */
 	struct ps3_dma_region *d_region;  /* SB, IOC0 */
 	struct ps3_mmio_region *m_region; /* SB, IOC0*/

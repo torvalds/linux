@@ -95,7 +95,7 @@ enum ps3_dev_type {
 
 int ps3_repository_read_bus_str(unsigned int bus_index, const char *bus_str,
 	u64 *value);
-int ps3_repository_read_bus_id(unsigned int bus_index, unsigned int *bus_id);
+int ps3_repository_read_bus_id(unsigned int bus_index, u64 *bus_id);
 int ps3_repository_read_bus_type(unsigned int bus_index,
 	enum ps3_bus_type *bus_type);
 int ps3_repository_read_bus_num_dev(unsigned int bus_index,
@@ -119,7 +119,7 @@ enum ps3_reg_type {
 int ps3_repository_read_dev_str(unsigned int bus_index,
 	unsigned int dev_index, const char *dev_str, u64 *value);
 int ps3_repository_read_dev_id(unsigned int bus_index, unsigned int dev_index,
-	unsigned int *dev_id);
+	u64 *dev_id);
 int ps3_repository_read_dev_type(unsigned int bus_index,
 	unsigned int dev_index, enum ps3_dev_type *dev_type);
 int ps3_repository_read_dev_intr(unsigned int bus_index,
@@ -138,12 +138,12 @@ int ps3_repository_read_dev_reg(unsigned int bus_index,
 /* repository bus enumerators */
 
 struct ps3_repository_device {
-	enum ps3_bus_type bus_type;
 	unsigned int bus_index;
-	unsigned int bus_id;
-	enum ps3_dev_type dev_type;
 	unsigned int dev_index;
-	unsigned int dev_id;
+	enum ps3_bus_type bus_type;
+	enum ps3_dev_type dev_type;
+	u64 bus_id;
+	u64 dev_id;
 };
 
 static inline struct ps3_repository_device *ps3_repository_bump_device(

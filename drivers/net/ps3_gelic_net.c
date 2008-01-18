@@ -58,11 +58,11 @@ static inline struct device *ctodev(struct gelic_net_card *card)
 {
 	return &card->dev->core;
 }
-static inline unsigned int bus_id(struct gelic_net_card *card)
+static inline u64 bus_id(struct gelic_net_card *card)
 {
 	return card->dev->bus_id;
 }
-static inline unsigned int dev_id(struct gelic_net_card *card)
+static inline u64 dev_id(struct gelic_net_card *card)
 {
 	return card->dev->dev_id;
 }

@@ -359,7 +359,7 @@ static unsigned long dma_sb_lpar_to_bus(struct ps3_dma_region *r,
 static void  __maybe_unused _dma_dump_region(const struct ps3_dma_region *r,
 	const char *func, int line)
 {
-	DBG("%s:%d: dev        %u:%u\n", func, line, r->dev->bus_id,
+	DBG("%s:%d: dev        %lu:%lu\n", func, line, r->dev->bus_id,
 		r->dev->dev_id);
 	DBG("%s:%d: page_size  %u\n", func, line, r->page_size);
 	DBG("%s:%d: bus_addr   %lxh\n", func, line, r->bus_addr);
@@ -394,7 +394,7 @@ struct dma_chunk {
 static void _dma_dump_chunk (const struct dma_chunk* c, const char* func,
 	int line)
 {
-	DBG("%s:%d: r.dev        %u:%u\n", func, line,
+	DBG("%s:%d: r.dev        %lu:%lu\n", func, line,
 		c->region->dev->bus_id, c->region->dev->dev_id);
 	DBG("%s:%d: r.bus_addr   %lxh\n", func, line, c->region->bus_addr);
 	DBG("%s:%d: r.page_size  %u\n", func, line, c->region->page_size);
@@ -658,7 +658,7 @@ static int dma_sb_region_create(struct ps3_dma_region *r)
 	BUG_ON(!r);
 
 	if (!r->dev->bus_id) {
-		pr_info("%s:%d: %u:%u no dma\n", __func__, __LINE__,
+		pr_info("%s:%d: %lu:%lu no dma\n", __func__, __LINE__,
 			r->dev->bus_id, r->dev->dev_id);
 		return 0;
 	}
@@ -724,7 +724,7 @@ static int dma_sb_region_free(struct ps3_dma_region *r)
 	BUG_ON(!r);
 
 	if (!r->dev->bus_id) {
-		pr_info("%s:%d: %u:%u no dma\n", __func__, __LINE__,
+		pr_info("%s:%d: %lu:%lu no dma\n", __func__, __LINE__,
 			r->dev->bus_id, r->dev->dev_id);
 		return 0;
 	}

@@ -297,7 +297,7 @@ static int ps3_storage_wait_for_device(const struct ps3_repository_device *repo)
 		u64 dev_port;
 	} *notify_event;
 
-	pr_debug(" -> %s:%u: (%u:%u:%u)\n", __func__, __LINE__, repo->bus_id,
+	pr_debug(" -> %s:%u: (%lu:%lu:%u)\n", __func__, __LINE__, repo->bus_id,
 		 repo->dev_id, repo->dev_type);
 
 	buf = kzalloc(512, GFP_KERNEL);
@@ -384,7 +384,7 @@ static int ps3_storage_wait_for_device(const struct ps3_repository_device *repo)
 
 		if (notify_event->dev_id == repo->dev_id &&
 		    notify_event->dev_type == PS3_DEV_TYPE_NOACCESS) {
-			pr_debug("%s:%u: no access: dev_id %u\n", __func__,
+			pr_debug("%s:%u: no access: dev_id %lu\n", __func__,
 				 __LINE__, repo->dev_id);
 			break;
 		}
