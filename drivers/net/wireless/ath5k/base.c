@@ -2554,7 +2554,7 @@ ath5k_config(struct ieee80211_hw *hw,
 {
 	struct ath5k_softc *sc = hw->priv;
 
-	sc->bintval = conf->beacon_int * 1000 / 1024;
+	sc->bintval = conf->beacon_int;
 	ath5k_setcurmode(sc, conf->phymode);
 
 	return ath5k_chan_set(sc, conf->chan);
@@ -2570,7 +2570,7 @@ ath5k_config_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	/* Set to a reasonable value. Note that this will
 	 * be set to mac80211's value at ath5k_config(). */
-	sc->bintval = 1000 * 1000 / 1024;
+	sc->bintval = 1000;
 	mutex_lock(&sc->lock);
 	if (sc->vif != vif) {
 		ret = -EIO;

@@ -486,8 +486,8 @@ struct ath5k_beacon_state {
  * TSF to TU conversion:
  *
  * TSF is a 64bit value in usec (microseconds).
- * TU is a 32bit value in roughly msec (milliseconds): usec / 1024
- * (1000ms equals 976 TU)
+ * TU is a 32bit value and defined by IEEE802.11 (page 6) as "A measurement of
+ * time equal to 1024 usec", so it's roughly milliseconds (usec / 1024).
  */
 #define TSF_TO_TU(_tsf) (u32)((_tsf) >> 10)
 
