@@ -121,7 +121,7 @@ static int upmix_get(struct snd_kcontrol *ctl, struct snd_ctl_elem_value *value)
 void oxygen_update_dac_routing(struct oxygen *chip)
 {
 	static const unsigned int reg_values[3] = {
-		0xe100, /* front <- 0, surround <- 1, center <- 2, back <- 3 */
+		0xe400, /* front <- 0, surround <- 1, center <- 2, back <- 3 */
 		0xe000, /* front <- 0, surround <- 0, center <- 2, back <- 3 */
 		0x2000  /* front <- 0, surround <- 0, center <- 2, back <- 0 */
 	};
@@ -135,7 +135,7 @@ void oxygen_update_dac_routing(struct oxygen *chip)
 	else if (channels == OXYGEN_PLAY_CHANNELS_8)
 		reg_value = 0x6c00; /* surround <- 3, back <- 1 */
 	else
-		reg_value = 0xe100;
+		reg_value = 0xe400;
 	oxygen_write16_masked(chip, OXYGEN_PLAY_ROUTING, reg_value, 0xff00);
 }
 
