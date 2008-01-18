@@ -25,7 +25,6 @@
 #include <linux/swap.h>
 #include <linux/pagemap.h>
 
-#include <asm/pgtable.h>
 #include <asm/bootparam.h>
 #include <asm/mmu_context.h>
 #include <asm/tlb.h>
