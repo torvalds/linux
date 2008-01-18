@@ -317,6 +317,7 @@ enum ps3_match_id {
 	PS3_MATCH_ID_STOR_FLASH     = 8,
 	PS3_MATCH_ID_SOUND          = 9,
 	PS3_MATCH_ID_GRAPHICS       = 10,
+	PS3_MATCH_ID_LPM            = 11,
 };
 
 #define PS3_MODULE_ALIAS_EHCI           "ps3:1"
@@ -329,11 +330,13 @@ enum ps3_match_id {
 #define PS3_MODULE_ALIAS_STOR_FLASH     "ps3:8"
 #define PS3_MODULE_ALIAS_SOUND          "ps3:9"
 #define PS3_MODULE_ALIAS_GRAPHICS       "ps3:10"
+#define PS3_MODULE_ALIAS_LPM            "ps3:11"
 
 enum ps3_system_bus_device_type {
 	PS3_DEVICE_TYPE_IOC0 = 1,
 	PS3_DEVICE_TYPE_SB,
 	PS3_DEVICE_TYPE_VUART,
+	PS3_DEVICE_TYPE_LPM,
 };
 
 /**
@@ -350,6 +353,11 @@ struct ps3_system_bus_device {
 	struct ps3_dma_region *d_region;  /* SB, IOC0 */
 	struct ps3_mmio_region *m_region; /* SB, IOC0*/
 	unsigned int port_number;         /* VUART */
+	struct {                          /* LPM */
+		u64 node_id;
+		u64 pu_id;
+		u64 rights;
+	} lpm;
 
 /*	struct iommu_table *iommu_table; -- waiting for BenH's cleanups */
 	struct device core;

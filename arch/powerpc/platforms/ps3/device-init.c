@@ -31,6 +31,89 @@
 
 #include "platform.h"
 
+static int __init ps3_register_lpm_devices(void)
+{
+	int result;
+	u64 tmp1;
+	u64 tmp2;
+	struct ps3_system_bus_device *dev;
+
+	pr_debug(" -> %s:%d\n", __func__, __LINE__);
+
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (!dev)
+		return -ENOMEM;
+
+	dev->match_id = PS3_MATCH_ID_LPM;
+	dev->dev_type = PS3_DEVICE_TYPE_LPM;
+
+	/* The current lpm driver only supports a single BE processor. */
+
+	result = ps3_repository_read_be_node_id(0, &dev->lpm.node_id);
+
+	if (result) {
+		pr_debug("%s:%d: ps3_repository_read_be_node_id failed \n",
+			__func__, __LINE__);
+		goto fail_read_repo;
+	}
+
+	result = ps3_repository_read_lpm_privileges(dev->lpm.node_id, &tmp1,
+		&dev->lpm.rights);
+
+	if (result) {
+		pr_debug("%s:%d: ps3_repository_read_lpm_privleges failed \n",
+			__func__, __LINE__);
+		goto fail_read_repo;
+	}
+
+	lv1_get_logical_partition_id(&tmp2);
+
+	if (tmp1 != tmp2) {
+		pr_debug("%s:%d: wrong lpar\n",
+			__func__, __LINE__);
+		result = -ENODEV;
+		goto fail_rights;
+	}
+
+	if (!(dev->lpm.rights & PS3_LPM_RIGHTS_USE_LPM)) {
+		pr_debug("%s:%d: don't have rights to use lpm\n",
+			__func__, __LINE__);
+		result = -EPERM;
+		goto fail_rights;
+	}
+
+	pr_debug("%s:%d: pu_id %lu, rights %lu(%lxh)\n",
+		__func__, __LINE__, dev->lpm.pu_id, dev->lpm.rights,
+		dev->lpm.rights);
+
+	result = ps3_repository_read_pu_id(0, &dev->lpm.pu_id);
+
+	if (result) {
+		pr_debug("%s:%d: ps3_repository_read_pu_id failed \n",
+			__func__, __LINE__);
+		goto fail_read_repo;
+	}
+
+	result = ps3_system_bus_device_register(dev);
+
+	if (result) {
+		pr_debug("%s:%d ps3_system_bus_device_register failed\n",
+			__func__, __LINE__);
+		goto fail_register;
+	}
+
+	pr_debug(" <- %s:%d\n", __func__, __LINE__);
+	return 0;
+
+
+fail_register:
+fail_rights:
+fail_read_repo:
+	kfree(dev);
+	pr_debug(" <- %s:%d: failed\n", __func__, __LINE__);
+	return result;
+}
+
 /**
  * ps3_setup_gelic_device - Setup and register a gelic device instance.
  *
@@ -826,6 +909,8 @@ static int __init ps3_register_devices(void)
 		ps3_register_repository_device);
 
 	ps3_register_sound_devices();
+
+	ps3_register_lpm_devices();
 
 	pr_debug(" <- %s:%d\n", __func__, __LINE__);
 	return 0;
