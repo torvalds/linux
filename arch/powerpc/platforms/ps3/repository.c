@@ -445,50 +445,34 @@ int __devinit ps3_repository_find_devices(enum ps3_bus_type bus_type,
 
 	pr_debug(" -> %s:%d: find bus_type %u\n", __func__, __LINE__, bus_type);
 
-	for (repo.bus_index = 0; repo.bus_index < 10; repo.bus_index++) {
+	repo.bus_type = bus_type;
+	result = ps3_repository_find_bus(repo.bus_type, 0, &repo.bus_index);
+	if (result) {
+		pr_debug(" <- %s:%u: bus not found\n", __func__, __LINE__);
+		return result;
+	}
 
-		result = ps3_repository_read_bus_type(repo.bus_index,
-			&repo.bus_type);
+	result = ps3_repository_read_bus_id(repo.bus_index, &repo.bus_id);
+	if (result) {
+		pr_debug("%s:%d read_bus_id(%u) failed\n", __func__, __LINE__,
+			 repo.bus_index);
+		return result;
+	}
 
+	for (repo.dev_index = 0; ; repo.dev_index++) {
+		result = ps3_repository_find_device(&repo);
+		if (result == -ENODEV) {
+			result = 0;
+			break;
+		} else if (result)
+			break;
+
+		result = callback(&repo);
 		if (result) {
-			pr_debug("%s:%d read_bus_type(%u) failed\n",
-				__func__, __LINE__, repo.bus_index);
+			pr_debug("%s:%d: abort at callback\n", __func__,
+				__LINE__);
 			break;
 		}
-
-		if (repo.bus_type != bus_type) {
-			pr_debug("%s:%d: skip, bus_type %u\n", __func__,
-				__LINE__, repo.bus_type);
-			continue;
-		}
-
-		result = ps3_repository_read_bus_id(repo.bus_index,
-			&repo.bus_id);
-
-		if (result) {
-			pr_debug("%s:%d read_bus_id(%u) failed\n",
-				__func__, __LINE__, repo.bus_index);
-			continue;
-		}
-
-		for (repo.dev_index = 0; ; repo.dev_index++) {
-			result = ps3_repository_find_device(&repo);
-
-			if (result == -ENODEV) {
-				result = 0;
-				break;
-			} else if (result)
-				break;
-
-			result = callback(&repo);
-
-			if (result) {
-				pr_debug("%s:%d: abort at callback\n", __func__,
-					__LINE__);
-				break;
-			}
-		}
-		break;
 	}
 
 	pr_debug(" <- %s:%d\n", __func__, __LINE__);
