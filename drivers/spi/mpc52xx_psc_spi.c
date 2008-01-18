@@ -330,6 +330,7 @@ static void mpc52xx_psc_spi_cleanup(struct spi_device *spi)
 
 static int mpc52xx_psc_spi_port_config(int psc_id, struct mpc52xx_psc_spi *mps)
 {
+	struct device_node *np;
 	struct mpc52xx_cdm __iomem *cdm;
 	struct mpc52xx_gpio __iomem *gpio;
 	struct mpc52xx_psc __iomem *psc = mps->psc;
@@ -338,8 +339,12 @@ static int mpc52xx_psc_spi_port_config(int psc_id, struct mpc52xx_psc_spi *mps)
 	int ret = 0;
 
 #if defined(CONFIG_PPC_MERGE)
-	cdm = mpc52xx_find_and_map("mpc5200-cdm");
-	gpio = mpc52xx_find_and_map("mpc5200-gpio");
+	np = of_find_compatible_node(NULL, NULL, "mpc5200-cdm");
+	cdm = of_iomap(np, 0);
+	of_node_put(np);
+	np = of_find_compatible_node(NULL, NULL, "mpc5200-gpio");
+	gpio = of_iomap(np, 0);
+	of_node_put(np);
 #else
 	cdm = ioremap(MPC52xx_PA(MPC52xx_CDM_OFFSET), MPC52xx_CDM_SIZE);
 	gpio = ioremap(MPC52xx_PA(MPC52xx_GPIO_OFFSET), MPC52xx_GPIO_SIZE);

@@ -364,16 +364,18 @@ void __init mpc52xx_init_irq(void)
 {
 	u32 intr_ctrl;
 	struct device_node *picnode;
+	struct device_node *np;
 
 	/* Remap the necessary zones */
 	picnode = of_find_compatible_node(NULL, NULL, "mpc5200-pic");
-
-	intr = mpc52xx_find_and_map("mpc5200-pic");
+	intr = of_iomap(picnode, 0);
 	if (!intr)
 		panic(__FILE__	": find_and_map failed on 'mpc5200-pic'. "
 				"Check node !");
 
-	sdma = mpc52xx_find_and_map("mpc5200-bestcomm");
+	np = of_find_compatible_node(NULL, NULL, "mpc5200-bestcomm");
+	sdma = of_iomap(np, 0);
+	of_node_put(np);
 	if (!sdma)
 		panic(__FILE__	": find_and_map failed on 'mpc5200-bestcomm'. "
 				"Check node !");

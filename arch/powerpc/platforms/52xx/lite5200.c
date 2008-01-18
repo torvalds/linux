@@ -42,10 +42,13 @@
 static void __init
 lite5200_fix_clock_config(void)
 {
+	struct device_node *np;
 	struct mpc52xx_cdm  __iomem *cdm;
 
 	/* Map zones */
-	cdm = mpc52xx_find_and_map("mpc5200-cdm");
+	np = of_find_compatible_node(NULL, NULL, "mpc5200-cdm");
+	cdm = of_iomap(np, 0);
+	of_node_put(np);
 	if (!cdm) {
 		printk(KERN_ERR "%s() failed; expect abnormal behaviour\n",
 		       __FUNCTION__);
@@ -74,10 +77,13 @@ lite5200_fix_clock_config(void)
 static void __init
 lite5200_fix_port_config(void)
 {
+	struct device_node *np;
 	struct mpc52xx_gpio __iomem *gpio;
 	u32 port_config;
 
-	gpio = mpc52xx_find_and_map("mpc5200-gpio");
+	np = of_find_compatible_node(NULL, NULL, "mpc5200-gpio");
+	gpio = of_iomap(np, 0);
+	of_node_put(np);
 	if (!gpio) {
 		printk(KERN_ERR "%s() failed. expect abnormal behavior\n",
 		       __FUNCTION__);

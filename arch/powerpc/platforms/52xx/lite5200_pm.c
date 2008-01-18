@@ -42,6 +42,8 @@ static int lite5200_pm_set_target(suspend_state_t state)
 
 static int lite5200_pm_prepare(void)
 {
+	struct device_node *np;
+
 	/* deep sleep? let mpc52xx code handle that */
 	if (lite5200_pm_target_state == PM_SUSPEND_STANDBY)
 		return mpc52xx_pm_prepare();
@@ -50,7 +52,9 @@ static int lite5200_pm_prepare(void)
 		return -EINVAL;
 
 	/* map registers */
-	mbar = mpc52xx_find_and_map("mpc5200");
+	np = of_find_compatible_node(NULL, NULL, "mpc5200");
+	mbar = of_iomap(np, 0);
+	of_node_put(np);
 	if (!mbar) {
 		printk(KERN_ERR "%s:%i Error mapping registers\n", __func__, __LINE__);
 		return -ENOSYS;

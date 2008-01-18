@@ -26,45 +26,6 @@
  */
 static volatile struct mpc52xx_gpt *mpc52xx_wdt = NULL;
 
-static void __iomem *
-mpc52xx_map_node(struct device_node *ofn)
-{
-	const u32 *regaddr_p;
-	u64 regaddr64, size64;
-
-	if (!ofn)
-		return NULL;
-
-	regaddr_p = of_get_address(ofn, 0, &size64, NULL);
-	if (!regaddr_p) {
-		of_node_put(ofn);
-		return NULL;
-	}
-
-	regaddr64 = of_translate_address(ofn, regaddr_p);
-
-	of_node_put(ofn);
-
-	return ioremap((u32)regaddr64, (u32)size64);
-}
-
-void __iomem *
-mpc52xx_find_and_map(const char *compatible)
-{
-	return mpc52xx_map_node(
-		of_find_compatible_node(NULL, NULL, compatible));
-}
-
-EXPORT_SYMBOL(mpc52xx_find_and_map);
-
-void __iomem *
-mpc52xx_find_and_map_path(const char *path)
-{
-	return mpc52xx_map_node(of_find_node_by_path(path));
-}
-
-EXPORT_SYMBOL(mpc52xx_find_and_map_path);
-
 /**
  * 	mpc52xx_find_ipb_freq - Find the IPB bus frequency for a device
  * 	@node:	device node
@@ -101,9 +62,12 @@ EXPORT_SYMBOL(mpc52xx_find_ipb_freq);
 void __init
 mpc5200_setup_xlb_arbiter(void)
 {
+	struct device_node *np;
 	struct mpc52xx_xlb  __iomem *xlb;
 
-	xlb = mpc52xx_find_and_map("mpc5200-xlb");
+	np = of_find_compatible_node(NULL, NULL, "mpc5200-xlb");
+	xlb = of_iomap(np, 0);
+	of_node_put(np);
 	if (!xlb) {
 		printk(KERN_ERR __FILE__ ": "
 			"Error mapping XLB in mpc52xx_setup_cpu().  "
@@ -156,16 +120,19 @@ mpc52xx_map_wdt(void)
 	for_each_compatible_node(np, NULL, "fsl,mpc5200-gpt") {
 		has_wdt = of_get_property(np, "fsl,has-wdt", NULL);
 		if (has_wdt) {
-			mpc52xx_wdt = mpc52xx_map_node(np);
+			mpc52xx_wdt = of_iomap(np, 0);
+			of_node_put(np);
 			return;
 		}
 	}
 	for_each_compatible_node(np, NULL, "mpc5200-gpt") {
 		has_wdt = of_get_property(np, "has-wdt", NULL);
 		if (has_wdt) {
-			mpc52xx_wdt = mpc52xx_map_node(np);
+			mpc52xx_wdt = of_iomap(np, 0);
+			of_node_put(np);
 			return;
 		}
+
 	}
 }
 

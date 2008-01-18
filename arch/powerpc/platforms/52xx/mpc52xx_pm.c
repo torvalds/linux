@@ -59,10 +59,14 @@ int mpc52xx_set_wakeup_gpio(u8 pin, u8 level)
 
 int mpc52xx_pm_prepare(void)
 {
+	struct device_node *np;
+
 	/* map the whole register space */
-	mbar = mpc52xx_find_and_map("mpc5200");
+	np = of_find_compatible_node(NULL, NULL, "mpc5200");
+	mbar = of_iomap(np, 0);
+	of_node_put(np);
 	if (!mbar) {
-		printk(KERN_ERR "%s:%i Error mapping registers\n", __func__, __LINE__);
+		pr_err("mpc52xx_pm_prepare(): could not map registers\n");
 		return -ENOSYS;
 	}
 	/* these offsets are from mpc5200 users manual */
