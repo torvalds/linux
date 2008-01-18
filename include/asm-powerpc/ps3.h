@@ -24,6 +24,7 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/device.h>
+#include "cell-pmu.h"
 
 union ps3_firmware_version {
 	u64 raw;
@@ -446,5 +447,66 @@ struct ps3_prealloc {
 extern struct ps3_prealloc ps3fb_videomemory;
 extern struct ps3_prealloc ps3flash_bounce_buffer;
 
+/* logical performance monitor */
+
+/**
+ * enum ps3_lpm_rights - Rigths granted by the system policy module.
+ *
+ * @PS3_LPM_RIGHTS_USE_LPM: The right to use the lpm.
+ * @PS3_LPM_RIGHTS_USE_TB: The right to use the internal trace buffer.
+ */
+
+enum ps3_lpm_rights {
+	PS3_LPM_RIGHTS_USE_LPM = 0x001,
+	PS3_LPM_RIGHTS_USE_TB = 0x100,
+};
+
+/**
+ * enum ps3_lpm_tb_type - Type of trace buffer lv1 should use.
+ *
+ * @PS3_LPM_TB_TYPE_NONE: Do not use a trace buffer.
+ * @PS3_LPM_RIGHTS_USE_TB: Use the lv1 internal trace buffer.  Must have
+ *  rights @PS3_LPM_RIGHTS_USE_TB.
+ */
+
+enum ps3_lpm_tb_type {
+	PS3_LPM_TB_TYPE_NONE = 0,
+	PS3_LPM_TB_TYPE_INTERNAL = 1,
+};
+
+int ps3_lpm_open(enum ps3_lpm_tb_type tb_type, void *tb_cache,
+	u64 tb_cache_size);
+int ps3_lpm_close(void);
+int ps3_lpm_copy_tb(unsigned long offset, void *buf, unsigned long count,
+	unsigned long *bytes_copied);
+int ps3_lpm_copy_tb_to_user(unsigned long offset, void __user *buf,
+	unsigned long count, unsigned long *bytes_copied);
+void ps3_set_bookmark(u64 bookmark);
+void ps3_set_pm_bookmark(u64 tag, u64 incident, u64 th_id);
+int ps3_set_signal(u64 rtas_signal_group, u8 signal_bit, u16 sub_unit,
+	u8 bus_word);
+
+u32 ps3_read_phys_ctr(u32 cpu, u32 phys_ctr);
+void ps3_write_phys_ctr(u32 cpu, u32 phys_ctr, u32 val);
+u32 ps3_read_ctr(u32 cpu, u32 ctr);
+void ps3_write_ctr(u32 cpu, u32 ctr, u32 val);
+
+u32 ps3_read_pm07_control(u32 cpu, u32 ctr);
+void ps3_write_pm07_control(u32 cpu, u32 ctr, u32 val);
+u32 ps3_read_pm(u32 cpu, enum pm_reg_name reg);
+void ps3_write_pm(u32 cpu, enum pm_reg_name reg, u32 val);
+
+u32 ps3_get_ctr_size(u32 cpu, u32 phys_ctr);
+void ps3_set_ctr_size(u32 cpu, u32 phys_ctr, u32 ctr_size);
+
+void ps3_enable_pm(u32 cpu);
+void ps3_disable_pm(u32 cpu);
+void ps3_enable_pm_interrupts(u32 cpu, u32 thread, u32 mask);
+void ps3_disable_pm_interrupts(u32 cpu);
+
+u32 ps3_get_and_clear_pm_interrupts(u32 cpu);
+void ps3_sync_irq(int node);
+u32 ps3_get_hw_thread_id(int cpu);
+u64 ps3_get_spe_id(void *arg);
 
 #endif

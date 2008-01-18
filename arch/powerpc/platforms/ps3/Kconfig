@@ -138,4 +138,17 @@ config PS3_FLASH
 	  be disabled on the kernel command line using "ps3flash=off", to
 	  not allocate this fixed buffer.
 
+config PS3_LPM
+	tristate "PS3 Logical Performance Monitor support"
+	depends on PPC_PS3
+	help
+	  Include support for the PS3 Logical Performance Monitor.
+
+	  This support is required to use the logical performance monitor
+	  of the PS3's LV1 hypervisor.
+
+	  If you intend to use the advanced performance monitoring and
+	  profiling support of the Cell processor with programs like
+	  oprofile and perfmon2, then say Y or M, otherwise say N.
+
 endmenu
