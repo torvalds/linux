@@ -444,6 +444,9 @@ static int fn_hash_insert(struct fib_table *tb, struct fib_config *cfg)
 			struct fib_info *fi_drop;
 			u8 state;
 
+			if (fi->fib_treeref > 1)
+				goto out;
+
 			write_lock_bh(&fib_hash_lock);
 			fi_drop = fa->fa_info;
 			fa->fa_info = fi;
