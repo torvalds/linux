@@ -144,12 +144,6 @@ struct ps3_repository_device {
 	u64 dev_id;
 };
 
-static inline struct ps3_repository_device *ps3_repository_bump_device(
-	struct ps3_repository_device *repo)
-{
-	repo->dev_index++;
-	return repo;
-}
 int ps3_repository_find_device(struct ps3_repository_device *repo);
 int ps3_repository_find_device_by_id(struct ps3_repository_device *repo,
 				     u64 bus_id, u64 dev_id);
