@@ -1601,9 +1601,6 @@ void bond_alb_handle_active_change(struct bonding *bond, struct slave *new_slave
 	struct slave *swap_slave;
 	int i;
 
-	if (new_slave)
-		ASSERT_RTNL();
-
 	if (bond->curr_active_slave == new_slave) {
 		return;
 	}
@@ -1648,6 +1645,8 @@ void bond_alb_handle_active_change(struct bonding *bond, struct slave *new_slave
 
 	write_unlock_bh(&bond->curr_slave_lock);
 	read_unlock(&bond->lock);
+
+	ASSERT_RTNL();
 
 	/* curr_active_slave must be set before calling alb_swap_mac_addr */
 	if (swap_slave) {
