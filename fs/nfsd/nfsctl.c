@@ -37,6 +37,7 @@
 #include <linux/nfsd/syscall.h>
 
 #include <asm/uaccess.h>
+#include <net/ipv6.h>
 
 /*
  *	We have a single directory with 9 nodes in it.
@@ -222,6 +223,7 @@ static ssize_t write_getfs(struct file *file, char *buf, size_t size)
 	struct auth_domain *clp;
 	int err = 0;
 	struct knfsd_fh *res;
+	struct in6_addr in6;
 
 	if (size < sizeof(*data))
 		return -EINVAL;
@@ -236,7 +238,11 @@ static ssize_t write_getfs(struct file *file, char *buf, size_t size)
 	res = (struct knfsd_fh*)buf;
 
 	exp_readlock();
-	if (!(clp = auth_unix_lookup(sin->sin_addr)))
+
+	ipv6_addr_set_v4mapped(sin->sin_addr.s_addr, &in6);
+
+	clp = auth_unix_lookup(&in6);
+	if (!clp)
 		err = -EPERM;
 	else {
 		err = exp_rootfh(clp, data->gd_path, res, data->gd_maxlen);
@@ -257,6 +263,7 @@ static ssize_t write_getfd(struct file *file, char *buf, size_t size)
 	int err = 0;
 	struct knfsd_fh fh;
 	char *res;
+	struct in6_addr in6;
 
 	if (size < sizeof(*data))
 		return -EINVAL;
@@ -271,7 +278,11 @@ static ssize_t write_getfd(struct file *file, char *buf, size_t size)
 	res = buf;
 	sin = (struct sockaddr_in *)&data->gd_addr;
 	exp_readlock();
-	if (!(clp = auth_unix_lookup(sin->sin_addr)))
+
+	ipv6_addr_set_v4mapped(sin->sin_addr.s_addr, &in6);
+
+	clp = auth_unix_lookup(&in6);
+	if (!clp)
 		err = -EPERM;
 	else {
 		err = exp_rootfh(clp, data->gd_path, &fh, NFS_FHSIZE);
