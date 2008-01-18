@@ -452,7 +452,7 @@ static int ps3_sys_manager_handle_event(struct ps3_system_bus_device *dev)
 	case PS3_SM_EVENT_THERMAL_ALERT:
 		dev_dbg(&dev->core, "%s:%d: THERMAL_ALERT (zone %u)\n",
 			__func__, __LINE__, event.value);
-		printk(KERN_INFO "PS3 Thermal Alert Zone %u\n", event.value);
+		pr_info("PS3 Thermal Alert Zone %u\n", event.value);
 		break;
 	case PS3_SM_EVENT_THERMAL_CLEARED:
 		dev_dbg(&dev->core, "%s:%d: THERMAL_CLEARED (zone %u)\n",
@@ -488,7 +488,7 @@ static int ps3_sys_manager_handle_cmd(struct ps3_system_bus_device *dev)
 	result = ps3_vuart_read(dev, &cmd, sizeof(cmd));
 	BUG_ON(result && "need to retry here");
 
-	if(result)
+	if (result)
 		return result;
 
 	if (cmd.version != 1) {
@@ -521,7 +521,7 @@ static int ps3_sys_manager_handle_msg(struct ps3_system_bus_device *dev)
 	result = ps3_vuart_read(dev, &header,
 		sizeof(struct ps3_sys_manager_header));
 
-	if(result)
+	if (result)
 		return result;
 
 	if (header.version != 1) {
@@ -589,9 +589,9 @@ static void ps3_sys_manager_final_power_off(struct ps3_system_bus_device *dev)
 		PS3_SM_WAKE_DEFAULT);
 	ps3_sys_manager_send_request_shutdown(dev);
 
-	printk(KERN_EMERG "System Halted, OK to turn off power\n");
+	pr_emerg("System Halted, OK to turn off power\n");
 
-	while(1)
+	while (1)
 		ps3_sys_manager_handle_msg(dev);
 }
 
@@ -626,9 +626,9 @@ static void ps3_sys_manager_final_restart(struct ps3_system_bus_device *dev)
 		PS3_SM_WAKE_DEFAULT);
 	ps3_sys_manager_send_request_shutdown(dev);
 
-	printk(KERN_EMERG "System Halted, OK to turn off power\n");
+	pr_emerg("System Halted, OK to turn off power\n");
 
-	while(1)
+	while (1)
 		ps3_sys_manager_handle_msg(dev);
 }
 
