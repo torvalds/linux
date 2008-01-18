@@ -776,10 +776,13 @@ static int secref_whitelist(const char *modname, const char *tosec,
  * In other cases the symbol needs to be looked up in the symbol table
  * based on section and address.
  *  **/
-static Elf_Sym *find_elf_symbol(struct elf_info *elf, Elf_Addr addr,
+static Elf_Sym *find_elf_symbol(struct elf_info *elf, Elf64_Sword addr,
 				Elf_Sym *relsym)
 {
 	Elf_Sym *sym;
+	Elf_Sym *near = NULL;
+	Elf64_Sword distance = 20;
+	Elf64_Sword d;
 
 	if (relsym->st_name != 0)
 		return relsym;
@@ -790,8 +793,20 @@ static Elf_Sym *find_elf_symbol(struct elf_info *elf, Elf_Addr addr,
 			continue;
 		if (sym->st_value == addr)
 			return sym;
+		/* Find a symbol nearby - addr are maybe negative */
+		d = sym->st_value - addr;
+		if (d < 0)
+			d = addr - sym->st_value;
+		if (d < distance) {
+			distance = d;
+			near = sym;
+		}
 	}
-	return NULL;
+	/* We need a close match */
+	if (distance < 20)
+		return near;
+	else
+		return NULL;
 }
 
 static inline int is_arm_mapping_symbol(const char *str)
