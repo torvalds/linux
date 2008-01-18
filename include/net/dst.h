@@ -102,6 +102,7 @@ struct dst_ops
 
 	atomic_t		entries;
 	struct kmem_cache 		*kmem_cachep;
+	struct net              *dst_net;
 };
 
 #ifdef __KERNEL__
