@@ -109,11 +109,10 @@ static ssize_t bonding_store_bonds(struct class *cls, const char *buffer, size_t
 {
 	char command[IFNAMSIZ + 1] = {0, };
 	char *ifname;
-	int res = count;
+	int rv, res = count;
 	struct bonding *bond;
 	struct bonding *nxt;
 
-	down_write(&(bonding_rwsem));
 	sscanf(buffer, "%16s", command); /* IFNAMSIZ*/
 	ifname = command + 1;
 	if ((strlen(command) <= 1) ||
@@ -121,39 +120,28 @@ static ssize_t bonding_store_bonds(struct class *cls, const char *buffer, size_t
 		goto err_no_cmd;
 
 	if (command[0] == '+') {
-
-		/* Check to see if the bond already exists. */
-		list_for_each_entry_safe(bond, nxt, &bond_dev_list, bond_list)
-			if (strnicmp(bond->dev->name, ifname, IFNAMSIZ) == 0) {
-				printk(KERN_ERR DRV_NAME
-					": cannot add bond %s; it already exists\n",
-					ifname);
-				res = -EPERM;
-				goto out;
-			}
-
 		printk(KERN_INFO DRV_NAME
 			": %s is being created...\n", ifname);
-		if (bond_create(ifname, &bonding_defaults, &bond)) {
-			printk(KERN_INFO DRV_NAME
-			": %s interface already exists. Bond creation failed.\n",
-			ifname);
-			res = -EPERM;
+		rv = bond_create(ifname, &bonding_defaults, &bond);
+		if (rv) {
+			printk(KERN_INFO DRV_NAME ": Bond creation failed.\n");
+			res = rv;
 		}
 		goto out;
 	}
 
 	if (command[0] == '-') {
+		rtnl_lock();
+		down_write(&bonding_rwsem);
+
 		list_for_each_entry_safe(bond, nxt, &bond_dev_list, bond_list)
 			if (strnicmp(bond->dev->name, ifname, IFNAMSIZ) == 0) {
-				rtnl_lock();
 				/* check the ref count on the bond's kobject.
 				 * If it's > expected, then there's a file open,
 				 * and we have to fail.
 				 */
 				if (atomic_read(&bond->dev->dev.kobj.kref.refcount)
 							> expected_refcount){
-					rtnl_unlock();
 					printk(KERN_INFO DRV_NAME
 						": Unable remove bond %s due to open references.\n",
 						ifname);
@@ -164,6 +152,7 @@ static ssize_t bonding_store_bonds(struct class *cls, const char *buffer, size_t
 					": %s is being deleted...\n",
 					bond->dev->name);
 				bond_destroy(bond);
+				up_write(&bonding_rwsem);
 				rtnl_unlock();
 				goto out;
 			}
@@ -171,6 +160,8 @@ static ssize_t bonding_store_bonds(struct class *cls, const char *buffer, size_t
 		printk(KERN_ERR DRV_NAME
 			": unable to delete non-existent bond %s\n", ifname);
 		res = -ENODEV;
+		up_write(&bonding_rwsem);
+		rtnl_unlock();
 		goto out;
 	}
 
@@ -183,7 +174,6 @@ err_no_cmd:
 	 * get called forever, which is bad.
 	 */
 out:
-	up_write(&(bonding_rwsem));
 	return res;
 }
 /* class attribute for bond_masters file.  This ends up in /sys/class/net */
@@ -271,6 +261,9 @@ static ssize_t bonding_store_slaves(struct device *d,
 
 	/* Note:  We can't hold bond->lock here, as bond_create grabs it. */
 
+	rtnl_lock();
+	down_write(&(bonding_rwsem));
+
 	sscanf(buffer, "%16s", command); /* IFNAMSIZ*/
 	ifname = command + 1;
 	if ((strlen(command) <= 1) ||
@@ -336,12 +329,10 @@ static ssize_t bonding_store_slaves(struct device *d,
 				dev->mtu = bond->dev->mtu;
 			}
 		}
-		rtnl_lock();
 		res = bond_enslave(bond->dev, dev);
 		bond_for_each_slave(bond, slave, i)
 			if (strnicmp(slave->dev->name, ifname, IFNAMSIZ) == 0)
 				slave->original_mtu = original_mtu;
-		rtnl_unlock();
 		if (res) {
 			ret = res;
 		}
@@ -359,12 +350,10 @@ static ssize_t bonding_store_slaves(struct device *d,
 		if (dev) {
 			printk(KERN_INFO DRV_NAME ": %s: Removing slave %s\n",
 				bond->dev->name, dev->name);
-			rtnl_lock();
 			if (bond->setup_by_slave)
 				res = bond_release_and_destroy(bond->dev, dev);
 			else
 				res = bond_release(bond->dev, dev);
-			rtnl_unlock();
 			if (res) {
 				ret = res;
 				goto out;
@@ -389,6 +378,8 @@ err_no_cmd:
 	ret = -EPERM;
 
 out:
+	up_write(&(bonding_rwsem));
+	rtnl_unlock();
 	return ret;
 }
 
@@ -1422,8 +1413,6 @@ int bond_create_sysfs(void)
 {
 	int ret = 0;
 	struct bonding *firstbond;
-
-	init_rwsem(&bonding_rwsem);
 
 	/* get the netdev class pointer */
 	firstbond = container_of(bond_dev_list.next, struct bonding, bond_list);
