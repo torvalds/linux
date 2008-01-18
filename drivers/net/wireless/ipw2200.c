@@ -4935,7 +4935,7 @@ static int ipw_queue_reset(struct ipw_priv *priv)
 /**
  * Reclaim Tx queue entries no more used by NIC.
  *
- * When FW adwances 'R' index, all entries between old and
+ * When FW advances 'R' index, all entries between old and
  * new 'R' index need to be reclaimed. As result, some free space
  * forms. If there is enough free space (> low mark), wake Tx queue.
  *

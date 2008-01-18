@@ -149,7 +149,7 @@ void rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev)
 		 * The data behind the ieee80211 header must be
 		 * aligned on a 4 byte boundary.
 		 */
-		align = NET_IP_ALIGN + (2 * (header_size % 4 == 0));
+		align = header_size % 4;
 
 		/*
 		 * Allocate the sk_buffer, initialize it and copy
