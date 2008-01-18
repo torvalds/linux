@@ -551,7 +551,7 @@ static unsigned int azx_rirb_get_response(struct hda_codec *codec)
 
  again:
 	timeout = jiffies + msecs_to_jiffies(1000);
-	do {
+	for (;;) {
 		if (chip->polling_mode) {
 			spin_lock_irq(&chip->reg_lock);
 			azx_update_rirb(chip);
@@ -559,13 +559,15 @@ static unsigned int azx_rirb_get_response(struct hda_codec *codec)
 		}
 		if (!chip->rirb.cmds)
 			return chip->rirb.res; /* the last value */
+		if (time_after(jiffies, timeout))
+			break;
 		if (codec->bus->needs_damn_long_delay)
 			msleep(2); /* temporary workaround */
 		else {
 			udelay(10);
 			cond_resched();
 		}
-	} while (time_after_eq(timeout, jiffies));
+	}
 
 	if (chip->msi) {
 		snd_printk(KERN_WARNING "hda_intel: No response from codec, "
