@@ -3,7 +3,7 @@
 # Just process the CPP output from systbl_chk.c and complain
 # if anything is out of order.
 #
-# Copyright Â© 2008 IBM Corporation
+# Copyright © 2008 IBM Corporation
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
