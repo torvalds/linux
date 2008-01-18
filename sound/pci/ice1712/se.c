@@ -34,6 +34,11 @@
 #include "envy24ht.h"
 #include "se.h"
 
+struct se_spec {
+	struct {
+		unsigned char ch1, ch2;
+	} vol[8];
+};
 
 /****************************************************************************/
 /*  ONKYO WAVIO SE-200PCI                                                   */
@@ -462,9 +467,10 @@ static int se200pci_cont_volume_get(struct snd_kcontrol *kc,
 				    struct snd_ctl_elem_value *uc)
 {
 	struct snd_ice1712 *ice = snd_kcontrol_chip(kc);
+	struct se_spec *spec = ice->spec;
 	int n = kc->private_value;
-	uc->value.integer.value[0] = ice->spec.se.vol[n].ch1;
-	uc->value.integer.value[1] = ice->spec.se.vol[n].ch2;
+	uc->value.integer.value[0] = spec->vol[n].ch1;
+	uc->value.integer.value[1] = spec->vol[n].ch2;
 	return 0;
 }
 
@@ -472,8 +478,9 @@ static int se200pci_cont_boolean_get(struct snd_kcontrol *kc,
 				     struct snd_ctl_elem_value *uc)
 {
 	struct snd_ice1712 *ice = snd_kcontrol_chip(kc);
+	struct se_spec *spec = ice->spec;
 	int n = kc->private_value;
-	uc->value.integer.value[0] = ice->spec.se.vol[n].ch1;
+	uc->value.integer.value[0] = spec->vol[n].ch1;
 	return 0;
 }
 
@@ -481,44 +488,46 @@ static int se200pci_cont_enum_get(struct snd_kcontrol *kc,
 				  struct snd_ctl_elem_value *uc)
 {
 	struct snd_ice1712 *ice = snd_kcontrol_chip(kc);
+	struct se_spec *spec = ice->spec;
 	int n = kc->private_value;
-	uc->value.enumerated.item[0] = ice->spec.se.vol[n].ch1;
+	uc->value.enumerated.item[0] = spec->vol[n].ch1;
 	return 0;
 }
 
 static void se200pci_cont_update(struct snd_ice1712 *ice, int n)
 {
+	struct se_spec *spec = ice->spec;
 	switch (se200pci_cont[n].target) {
 	case WM8766:
 		se200pci_WM8766_set_volume(ice,
 					   se200pci_cont[n].ch,
-					   ice->spec.se.vol[n].ch1,
-					   ice->spec.se.vol[n].ch2);
+					   spec->vol[n].ch1,
+					   spec->vol[n].ch2);
 		break;
 
 	case WM8776in:
 		se200pci_WM8776_set_input_volume(ice,
-						 ice->spec.se.vol[n].ch1,
-						 ice->spec.se.vol[n].ch2);
+						 spec->vol[n].ch1,
+						 spec->vol[n].ch2);
 		break;
 
 	case WM8776out:
 		se200pci_WM8776_set_output_volume(ice,
-						  ice->spec.se.vol[n].ch1,
-						  ice->spec.se.vol[n].ch2);
+						  spec->vol[n].ch1,
+						  spec->vol[n].ch2);
 		break;
 
 	case WM8776sel:
 		se200pci_WM8776_set_input_selector(ice,
-						   ice->spec.se.vol[n].ch1);
+						   spec->vol[n].ch1);
 		break;
 
 	case WM8776agc:
-		se200pci_WM8776_set_agc(ice, ice->spec.se.vol[n].ch1);
+		se200pci_WM8776_set_agc(ice, spec->vol[n].ch1);
 		break;
 
 	case WM8776afl:
-		se200pci_WM8776_set_afl(ice, ice->spec.se.vol[n].ch1);
+		se200pci_WM8776_set_afl(ice, spec->vol[n].ch1);
 		break;
 
 	default:
@@ -530,6 +539,7 @@ static int se200pci_cont_volume_put(struct snd_kcontrol *kc,
 				    struct snd_ctl_elem_value *uc)
 {
 	struct snd_ice1712 *ice = snd_kcontrol_chip(kc);
+	struct se_spec *spec = ice->spec;
 	int n = kc->private_value;
 	unsigned int vol1, vol2;
 	int changed;
@@ -537,12 +547,12 @@ static int se200pci_cont_volume_put(struct snd_kcontrol *kc,
 	changed = 0;
 	vol1 = uc->value.integer.value[0] & 0xff;
 	vol2 = uc->value.integer.value[1] & 0xff;
-	if (ice->spec.se.vol[n].ch1 != vol1) {
-		ice->spec.se.vol[n].ch1 = vol1;
+	if (spec->vol[n].ch1 != vol1) {
+		spec->vol[n].ch1 = vol1;
 		changed = 1;
 	}
-	if (ice->spec.se.vol[n].ch2 != vol2) {
-		ice->spec.se.vol[n].ch2 = vol2;
+	if (spec->vol[n].ch2 != vol2) {
+		spec->vol[n].ch2 = vol2;
 		changed = 1;
 	}
 	if (changed)
@@ -555,12 +565,13 @@ static int se200pci_cont_boolean_put(struct snd_kcontrol *kc,
 				     struct snd_ctl_elem_value *uc)
 {
 	struct snd_ice1712 *ice = snd_kcontrol_chip(kc);
+	struct se_spec *spec = ice->spec;
 	int n = kc->private_value;
 	unsigned int vol1;
 
 	vol1 = !!uc->value.integer.value[0];
-	if (ice->spec.se.vol[n].ch1 != vol1) {
-		ice->spec.se.vol[n].ch1 = vol1;
+	if (spec->vol[n].ch1 != vol1) {
+		spec->vol[n].ch1 = vol1;
 		se200pci_cont_update(ice, n);
 		return 1;
 	}
@@ -571,14 +582,15 @@ static int se200pci_cont_enum_put(struct snd_kcontrol *kc,
 				  struct snd_ctl_elem_value *uc)
 {
 	struct snd_ice1712 *ice = snd_kcontrol_chip(kc);
+	struct se_spec *spec = ice->spec;
 	int n = kc->private_value;
 	unsigned int vol1;
 
 	vol1 = uc->value.enumerated.item[0];
 	if (vol1 >= se200pci_get_enum_count(n))
 		return -EINVAL;
-	if (ice->spec.se.vol[n].ch1 != vol1) {
-		ice->spec.se.vol[n].ch1 = vol1;
+	if (spec->vol[n].ch1 != vol1) {
+		spec->vol[n].ch1 = vol1;
 		se200pci_cont_update(ice, n);
 		return 1;
 	}
@@ -668,6 +680,13 @@ static int __devinit se200pci_add_controls(struct snd_ice1712 *ice)
 
 static int __devinit se_init(struct snd_ice1712 *ice)
 {
+	struct se_spec *spec;
+
+	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	if (!spec)
+		return -ENOMEM;
+	ice->spec = spec;
+
 	if (ice->eeprom.subvendor == VT1724_SUBDEVICE_SE90PCI) {
 		ice->num_total_dacs = 2;
 		ice->num_total_adcs = 0;

@@ -67,6 +67,12 @@
 #include "stac946x.h"
 #include <sound/tlv.h>
 
+struct prodigy192_spec {
+	struct ak4114 *ak4114;
+	/* rate change needs atomic mute/unmute of all dacs*/
+	struct mutex mute_mutex;
+};
+
 static inline void stac9460_put(struct snd_ice1712 *ice, int reg, unsigned char val)
 {
 	snd_vt1724_write_i2c(ice, PRODIGY192_STAC9460_ADDR, reg, val);
@@ -118,6 +124,7 @@ static int stac9460_dac_mute_get(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 static int stac9460_dac_mute_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
+	struct prodigy192_spec *spec = ice->spec;
 	int idx, change;
 
 	if (kcontrol->private_value)
@@ -125,11 +132,11 @@ static int stac9460_dac_mute_put(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	else
 		idx  = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id) + STAC946X_LF_VOLUME;
 	/* due to possible conflicts with stac9460_set_rate_val, mutexing */
-	mutex_lock(&ice->spec.prodigy192.mute_mutex);
+	mutex_lock(&spec->mute_mutex);
 	/*printk("Mute put: reg 0x%02x, ctrl value: 0x%02x\n", idx,
 		ucontrol->value.integer.value[0]);*/
 	change = stac9460_dac_mute(ice, idx, ucontrol->value.integer.value[0]);
-	mutex_unlock(&ice->spec.prodigy192.mute_mutex);
+	mutex_unlock(&spec->mute_mutex);
 	return change;
 }
 
@@ -318,6 +325,7 @@ static void stac9460_set_rate_val(struct snd_akm4xxx *ak, unsigned int rate)
 	int idx;
 	unsigned char changed[7];
 	struct snd_ice1712 *ice = ak->private_data[0];
+	struct prodigy192_spec *spec = ice->spec;
 
 	if (rate == 0)  /* no hint - S/PDIF input is master, simply return */
 		return;
@@ -332,7 +340,7 @@ static void stac9460_set_rate_val(struct snd_akm4xxx *ak, unsigned int rate)
 		return;
 	/* change detected, setting master clock, muting first */
 	/* due to possible conflicts with mute controls - mutexing */
-	mutex_lock(&ice->spec.prodigy192.mute_mutex);
+	mutex_lock(&spec->mute_mutex);
 	/* we have to remember current mute status for each DAC */
 	for (idx = 0; idx < 7 ; ++idx)
 		changed[idx] = stac9460_dac_mute(ice,
@@ -346,7 +354,7 @@ static void stac9460_set_rate_val(struct snd_akm4xxx *ak, unsigned int rate)
 		if (changed[idx])
 			stac9460_dac_mute(ice, STAC946X_MASTER_VOLUME + idx, 1);
 	}
-	mutex_unlock(&ice->spec.prodigy192.mute_mutex);
+	mutex_unlock(&spec->mute_mutex);
 }
 
 /* using akm infrastructure for setting rate of the codec */
@@ -633,12 +641,13 @@ static int prodigy192_ak4114_init(struct snd_ice1712 *ice)
 	static const unsigned char ak4114_init_txcsb[] = {
 		0x41, 0x02, 0x2c, 0x00, 0x00
 	};
+	struct prodigy192_spec *spec = ice->spec;
 
 	return snd_ak4114_create(ice->card,
 				 prodigy192_ak4114_read,
 				 prodigy192_ak4114_write,
 				 ak4114_init_vals, ak4114_init_txcsb,
-				 ice, &ice->spec.prodigy192.ak4114);
+				 ice, &spec->ak4114);
 }
 
 static void stac9460_proc_regs_read(struct snd_info_entry *entry,
@@ -664,6 +673,7 @@ static void stac9460_proc_init(struct snd_ice1712 *ice)
 
 static int __devinit prodigy192_add_controls(struct snd_ice1712 *ice)
 {
+	struct prodigy192_spec *spec = ice->spec;
 	unsigned int i;
 	int err;
 
@@ -673,7 +683,7 @@ static int __devinit prodigy192_add_controls(struct snd_ice1712 *ice)
 		if (err < 0)
 			return err;
 	}
-	if (ice->spec.prodigy192.ak4114) {
+	if (spec->ak4114) {
 		/* ak4114 is connected */
 		for (i = 0; i < ARRAY_SIZE(ak4114_controls); i++) {
 			err = snd_ctl_add(ice->card,
@@ -682,7 +692,7 @@ static int __devinit prodigy192_add_controls(struct snd_ice1712 *ice)
 			if (err < 0)
 				return err;
 		}
-		err = snd_ak4114_build(ice->spec.prodigy192.ak4114,
+		err = snd_ak4114_build(spec->ak4114,
 				NULL, /* ak4114 in MIO/DI/O handles no IEC958 output */
 				ice->pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream);
 		if (err < 0)
@@ -734,12 +744,19 @@ static int __devinit prodigy192_init(struct snd_ice1712 *ice)
 	const unsigned short *p;
 	int err = 0;
 	struct snd_akm4xxx *ak;
+	struct prodigy192_spec *spec;
 
 	/* prodigy 192 */
 	ice->num_total_dacs = 6;
 	ice->num_total_adcs = 2;
 	ice->vt1720 = 0;  /* ice1724, e.g. 23 GPIOs */
 	
+	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	if (!spec)
+		return -ENOMEM;
+	ice->spec = spec;
+	mutex_init(&spec->mute_mutex);
+
 	/* initialize codec */
 	p = stac_inits_prodigy;
 	for (; *p != (unsigned short)-1; p += 2)
@@ -758,15 +775,13 @@ static int __devinit prodigy192_init(struct snd_ice1712 *ice)
 	if (prodigy192_miodio_exists(ice)) {
 		err = prodigy192_ak4114_init(ice);
 		/* from this moment if err = 0 then
-		 * ice->spec.prodigy192.ak4114 should not be null
+		 * spec->ak4114 should not be null
 		 */
 		snd_printdd("AK4114 initialized with status %d\n", err);
 	} else
 		snd_printdd("AK4114 not found\n");
 	if (err < 0)
 		return err;
-
-	mutex_init(&ice->spec.prodigy192.mute_mutex);
 
 	return 0;
 }
