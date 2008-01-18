@@ -79,7 +79,7 @@ static struct dst_entry *ip6_negative_advice(struct dst_entry *);
 static void		ip6_dst_destroy(struct dst_entry *);
 static void		ip6_dst_ifdown(struct dst_entry *,
 				       struct net_device *dev, int how);
-static int		 ip6_dst_gc(void);
+static int		 ip6_dst_gc(struct dst_ops *ops);
 
 static int		ip6_pkt_discard(struct sk_buff *skb);
 static int		ip6_pkt_discard_out(struct sk_buff *skb);
@@ -983,7 +983,7 @@ int ndisc_dst_gc(int *more)
 	return freed;
 }
 
-static int ip6_dst_gc(void)
+static int ip6_dst_gc(struct dst_ops *ops)
 {
 	static unsigned expire = 30*HZ;
 	static unsigned long last_gc;

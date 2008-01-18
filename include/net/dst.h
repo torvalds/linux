@@ -89,7 +89,7 @@ struct dst_ops
 	__be16			protocol;
 	unsigned		gc_thresh;
 
-	int			(*gc)(void);
+	int			(*gc)(struct dst_ops *ops);
 	struct dst_entry *	(*check)(struct dst_entry *, __u32 cookie);
 	void			(*destroy)(struct dst_entry *);
 	void			(*ifdown)(struct dst_entry *,

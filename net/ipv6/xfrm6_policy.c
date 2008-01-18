@@ -212,7 +212,7 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl, int reverse)
 	}
 }
 
-static inline int xfrm6_garbage_collect(void)
+static inline int xfrm6_garbage_collect(struct dst_ops *ops)
 {
 	xfrm6_policy_afinfo.garbage_collect();
 	return (atomic_read(&xfrm6_dst_ops.entries) > xfrm6_dst_ops.gc_thresh*2);

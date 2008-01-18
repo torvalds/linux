@@ -165,7 +165,7 @@ void * dst_alloc(struct dst_ops * ops)
 	struct dst_entry * dst;
 
 	if (ops->gc && atomic_read(&ops->entries) > ops->gc_thresh) {
-		if (ops->gc())
+		if (ops->gc(ops))
 			return NULL;
 	}
 	dst = kmem_cache_zalloc(ops->kmem_cachep, GFP_ATOMIC);
