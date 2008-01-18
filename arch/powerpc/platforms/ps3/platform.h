@@ -153,6 +153,8 @@ static inline struct ps3_repository_device *ps3_repository_bump_device(
 	return repo;
 }
 int ps3_repository_find_device(struct ps3_repository_device *repo);
+int ps3_repository_find_device_by_id(struct ps3_repository_device *repo,
+				     u64 bus_id, u64 dev_id);
 int ps3_repository_find_devices(enum ps3_bus_type bus_type,
 	int (*callback)(const struct ps3_repository_device *repo));
 int ps3_repository_find_bus(enum ps3_bus_type bus_type, unsigned int from,

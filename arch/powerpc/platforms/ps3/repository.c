@@ -389,6 +389,83 @@ int ps3_repository_find_device(struct ps3_repository_device *repo)
 	return 0;
 }
 
+int ps3_repository_find_device_by_id(struct ps3_repository_device *repo,
+				     u64 bus_id, u64 dev_id)
+{
+	int result = -ENODEV;
+	struct ps3_repository_device tmp;
+	unsigned int num_dev;
+
+	pr_debug(" -> %s:%u: find device by id %lu:%lu\n", __func__, __LINE__,
+		 bus_id, dev_id);
+
+	for (tmp.bus_index = 0; tmp.bus_index < 10; tmp.bus_index++) {
+		result = ps3_repository_read_bus_id(tmp.bus_index,
+						    &tmp.bus_id);
+		if (result) {
+			pr_debug("%s:%u read_bus_id(%u) failed\n", __func__,
+				 __LINE__, tmp.bus_index);
+			return result;
+		}
+
+		if (tmp.bus_id == bus_id)
+			goto found_bus;
+
+		pr_debug("%s:%u: skip, bus_id %lu\n", __func__, __LINE__,
+			 tmp.bus_id);
+	}
+	pr_debug(" <- %s:%u: bus not found\n", __func__, __LINE__);
+	return result;
+
+found_bus:
+	result = ps3_repository_read_bus_type(tmp.bus_index, &tmp.bus_type);
+	if (result) {
+		pr_debug("%s:%u read_bus_type(%u) failed\n", __func__,
+			 __LINE__, tmp.bus_index);
+		return result;
+	}
+
+	result = ps3_repository_read_bus_num_dev(tmp.bus_index, &num_dev);
+	if (result) {
+		pr_debug("%s:%u read_bus_num_dev failed\n", __func__,
+			 __LINE__);
+		return result;
+	}
+
+	for (tmp.dev_index = 0; tmp.dev_index < num_dev; tmp.dev_index++) {
+		result = ps3_repository_read_dev_id(tmp.bus_index,
+						    tmp.dev_index,
+						    &tmp.dev_id);
+		if (result) {
+			pr_debug("%s:%u read_dev_id(%u:%u) failed\n", __func__,
+				 __LINE__, tmp.bus_index, tmp.dev_index);
+			return result;
+		}
+
+		if (tmp.dev_id == dev_id)
+			goto found_dev;
+
+		pr_debug("%s:%u: skip, dev_id %lu\n", __func__, __LINE__,
+			 tmp.dev_id);
+	}
+	pr_debug(" <- %s:%u: dev not found\n", __func__, __LINE__);
+	return result;
+
+found_dev:
+	result = ps3_repository_read_dev_type(tmp.bus_index, tmp.dev_index,
+					      &tmp.dev_type);
+	if (result) {
+		pr_debug("%s:%u read_dev_type failed\n", __func__, __LINE__);
+		return result;
+	}
+
+	pr_debug(" <- %s:%u: found: type (%u:%u) index (%u:%u) id (%lu:%lu)\n",
+		 __func__, __LINE__, tmp.bus_type, tmp.dev_type, tmp.bus_index,
+		 tmp.dev_index, tmp.bus_id, tmp.dev_id);
+	*repo = tmp;
+	return 0;
+}
+
 int __devinit ps3_repository_find_devices(enum ps3_bus_type bus_type,
 	int (*callback)(const struct ps3_repository_device *repo))
 {
