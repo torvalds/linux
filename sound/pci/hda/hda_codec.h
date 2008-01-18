@@ -84,7 +84,9 @@ enum {
 #define AC_VERB_GET_GPIO_DATA			0x0f15
 #define AC_VERB_GET_GPIO_MASK			0x0f16
 #define AC_VERB_GET_GPIO_DIRECTION		0x0f17
+#define AC_VERB_GET_GPIO_WAKE_MASK		0x0f18
 #define AC_VERB_GET_GPIO_UNSOLICITED_RSP_MASK	0x0f19
+#define AC_VERB_GET_GPIO_STICKY_MASK		0x0f1a
 #define AC_VERB_GET_CONFIG_DEFAULT		0x0f1c
 /* f20: AFG/MFG */
 #define AC_VERB_GET_SUBSYSTEM_ID		0x0f20
@@ -112,7 +114,9 @@ enum {
 #define AC_VERB_SET_GPIO_DATA			0x715
 #define AC_VERB_SET_GPIO_MASK			0x716
 #define AC_VERB_SET_GPIO_DIRECTION		0x717
+#define AC_VERB_SET_GPIO_WAKE_MASK		0x718
 #define AC_VERB_SET_GPIO_UNSOLICITED_RSP_MASK	0x719
+#define AC_VERB_SET_GPIO_STICKY_MASK		0x71a
 #define AC_VERB_SET_CONFIG_DEFAULT_BYTES_0	0x71c
 #define AC_VERB_SET_CONFIG_DEFAULT_BYTES_1	0x71d
 #define AC_VERB_SET_CONFIG_DEFAULT_BYTES_2	0x71e
@@ -185,6 +189,27 @@ enum {
 #define AC_SUPFMT_FLOAT32		(1<<1)
 #define AC_SUPFMT_AC3			(1<<2)
 
+/* GP I/O count */
+#define AC_GPIO_IO_COUNT		(0xff<<0)
+#define AC_GPIO_O_COUNT			(0xff<<8)
+#define AC_GPIO_O_COUNT_SHIFT		8
+#define AC_GPIO_I_COUNT			(0xff<<16)
+#define AC_GPIO_I_COUNT_SHIFT		16
+#define AC_GPIO_UNSOLICITED		(1<<30)
+#define AC_GPIO_WAKE			(1<<31)
+
+/* Converter stream, channel */
+#define AC_CONV_CHANNEL			(0xf<<0)
+#define AC_CONV_STREAM			(0xf<<4)
+#define AC_CONV_STREAM_SHIFT		4
+
+/* Input converter SDI select */
+#define AC_SDI_SELECT			(0xf<<0)
+
+/* Unsolicited response */
+#define AC_UNSOL_TAG			(0x3f<<0)
+#define AC_UNSOL_ENABLED		(1<<7)
+
 /* Pin widget capabilies */
 #define AC_PINCAP_IMP_SENSE		(1<<0)	/* impedance sense capable */
 #define AC_PINCAP_TRIG_REQ		(1<<1)	/* trigger required */
@@ -230,6 +255,9 @@ enum {
 #define AC_PWRST_D3SUP			(1<<3)
 
 /* Power state values */
+#define AC_PWRST_SETTING		(0xf<<0)
+#define AC_PWRST_ACTUAL			(0xf<<4)
+#define AC_PWRST_ACTUAL_SHIFT		4
 #define AC_PWRST_D0			0x00
 #define AC_PWRST_D1			0x01
 #define AC_PWRST_D2			0x02
@@ -238,6 +266,7 @@ enum {
 /* Processing capabilies */
 #define AC_PCAP_BENIGN			(1<<0)
 #define AC_PCAP_NUM_COEF		(0xff<<8)
+#define AC_PCAP_NUM_COEF_SHIFT		8
 
 /* Volume knobs capabilities */
 #define AC_KNBCAP_NUM_STEPS		(0x7f<<0)
@@ -274,6 +303,9 @@ enum {
 #define AC_DIG1_PROFESSIONAL		(1<<6)
 #define AC_DIG1_LEVEL			(1<<7)
 
+/* DIGITAL2 bits */
+#define AC_DIG2_CC			(0x7f<<0)
+
 /* Pin widget control - 8bit */
 #define AC_PINCTL_VREFEN		(0x7<<0)
 #define AC_PINCTL_VREF_HIZ		0	/* Hi-Z */
@@ -288,12 +320,22 @@ enum {
 /* Unsolicited response - 8bit */
 #define AC_USRSP_EN			(1<<7)
 
+/* Pin sense - 32bit */
+#define AC_PINSENSE_IMPEDANCE_MASK	(0x7fffffff)
+#define AC_PINSENSE_PRESENCE		(1<<31)
+
+/* EAPD/BTL enable - 32bit */
+#define AC_EAPDBTL_BALANCED		(1<<0)
+#define AC_EAPDBTL_EAPD			(1<<1)
+#define AC_EAPDBTL_LR_SWAP		(1<<2)
+
 /* configuration default - 32bit */
 #define AC_DEFCFG_SEQUENCE		(0xf<<0)
 #define AC_DEFCFG_DEF_ASSOC		(0xf<<4)
 #define AC_DEFCFG_ASSOC_SHIFT		4
 #define AC_DEFCFG_MISC			(0xf<<8)
 #define AC_DEFCFG_MISC_SHIFT		8
+#define AC_DEFCFG_MISC_NO_PRESENCE	(1<<0)
 #define AC_DEFCFG_COLOR			(0xf<<12)
 #define AC_DEFCFG_COLOR_SHIFT		12
 #define AC_DEFCFG_CONN_TYPE		(0xf<<16)
