@@ -192,24 +192,8 @@ static void asd_get_response_tasklet(struct asd_ascb *ascb,
 			r + 16 + sizeof(struct ssp_frame_hdr);
 
 		ts->residual = le32_to_cpu(*(__le32 *)r);
-		ts->resp = SAS_TASK_COMPLETE;
-		if (iu->datapres == 0)
-			ts->stat = iu->status;
-		else if (iu->datapres == 1)
-			ts->stat = iu->resp_data[3];
-		else if (iu->datapres == 2) {
-			ts->stat = SAM_CHECK_COND;
-			ts->buf_valid_size = min((u32) SAS_STATUS_BUF_SIZE,
-					 be32_to_cpu(iu->sense_data_len));
-			memcpy(ts->buf, iu->sense_data, ts->buf_valid_size);
-			if (iu->status != SAM_CHECK_COND) {
-				ASD_DPRINTK("device %llx sent sense data, but "
-					    "stat(0x%x) is not CHECK_CONDITION"
-					    "\n",
-					    SAS_ADDR(task->dev->sas_addr),
-					    iu->status);
-			}
-		}
+
+		sas_ssp_task_response(&asd_ha->pcidev->dev, task, iu);
 	}  else {
 		struct ata_task_resp *resp = (void *) &ts->buf[0];
 

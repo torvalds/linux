@@ -672,4 +672,8 @@ extern int sas_ioctl(struct scsi_device *sdev, int cmd, void __user *arg);
 
 extern int sas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 			   struct request *req);
+
+extern void sas_ssp_task_response(struct device *dev, struct sas_task *task,
+				  struct ssp_response_iu *iu);
+
 #endif /* _SASLIB_H_ */
