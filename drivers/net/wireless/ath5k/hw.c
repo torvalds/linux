@@ -2605,10 +2605,8 @@ void ath5k_hw_init_beacon(struct ath5k_hw *ah, u32 next_beacon, u32 interval)
 		break;
 
 	default:
-		timer1 = (next_beacon - AR5K_TUNE_DMA_BEACON_RESP) <<
-		    0x00000003;
-		timer2 = (next_beacon - AR5K_TUNE_SW_BEACON_RESP) <<
-		    0x00000003;
+		timer1 = (next_beacon - AR5K_TUNE_DMA_BEACON_RESP) << 3;
+		timer2 = (next_beacon - AR5K_TUNE_SW_BEACON_RESP) << 3;
 	}
 
 	timer3 = next_beacon + (ah->ah_atim_window ? ah->ah_atim_window : 1);
