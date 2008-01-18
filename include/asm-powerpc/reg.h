@@ -553,6 +553,7 @@
 #define SPRN_PA6T_BTCR	978	/* Breakpoint and Tagging Control Register */
 #define SPRN_PA6T_IMAAT	979	/* Instruction Match Array Action Table */
 #define SPRN_PA6T_PCCR	1019	/* Power Counter Control Register */
+#define SPRN_BKMK	1020	/* Cell Bookmark Register */
 #define SPRN_PA6T_RPCCR	1021	/* Retire PC Trace Control Register */
 
 
