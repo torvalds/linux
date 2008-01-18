@@ -1655,6 +1655,8 @@ static struct stb0899_config tt3200_config = {
 	.init_s2_fec		= tt3200_stb0899_s2_init_4,
 	.init_tst		= tt3200_stb0899_s1_init_5,
 
+	.postproc		= NULL,
+
 	.demod_address 		= 0x68,
 
 	.xtal_freq		= 27000000,
@@ -1679,7 +1681,7 @@ static struct stb0899_config tt3200_config = {
 	.tuner_set_frequency	= stb6100_set_frequency,
 	.tuner_set_bandwidth	= stb6100_set_bandwidth,
 	.tuner_get_bandwidth	= stb6100_get_bandwidth,
-	.tuner_set_rfsiggain	= NULL,
+	.tuner_set_rfsiggain	= NULL
 };
 
 struct stb6100_config tt3200_stb6100_config = {

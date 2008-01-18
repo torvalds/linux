@@ -583,7 +583,7 @@ static void stb0899_set_mclk(struct stb0899_state *state, u32 Mclk)
 static int stb0899_postproc(struct stb0899_state *state, u8 ctl, int enable)
 {
 	struct stb0899_config *config		= state->config;
-	struct stb0899_postproc	*postproc	= config->postproc;
+	const struct stb0899_postproc *postproc	= config->postproc;
 
 	/* post process event */
 	if (postproc) {

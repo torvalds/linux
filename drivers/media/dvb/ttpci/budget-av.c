@@ -1445,6 +1445,8 @@ static struct stb0899_config knc1_dvbs2_config = {
 	.init_s2_fec		= knc1_stb0899_s2_init_4,
 	.init_tst		= knc1_stb0899_s1_init_5,
 
+	.postproc		= NULL,
+
 	.demod_address		= 0x68,
 //	.ts_output_mode		= STB0899_OUT_PARALLEL,	/* types = SERIAL/PARALLEL	*/
 	.block_sync_mode	= STB0899_SYNC_FORCED,	/* DSS, SYNC_FORCED/UNSYNCED	*/
@@ -1472,7 +1474,7 @@ static struct stb0899_config knc1_dvbs2_config = {
 	.tuner_set_frequency	= tda8261_set_frequency,
 	.tuner_set_bandwidth	= NULL,
 	.tuner_get_bandwidth	= tda8261_get_bandwidth,
-	.tuner_set_rfsiggain	= NULL,
+	.tuner_set_rfsiggain	= NULL
 };
 
 /*
