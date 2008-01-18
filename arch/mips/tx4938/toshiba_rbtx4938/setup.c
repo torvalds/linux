@@ -598,8 +598,8 @@ static int __init rbtx4938_ethaddr_init(void)
 			printk(KERN_WARNING "seeprom: bad checksum.\n");
 	}
 	for (i = 0; i < 2; i++) {
-		unsigned int slot = TX4938_PCIC_IDSEL_AD_TO_SLOT(31 - i);
-		unsigned int id = (1 << 8) | PCI_DEVFN(slot, 0); /* bus 1 */
+		unsigned int id =
+			TXX9_IRQ_BASE + (i ? TX4938_IR_ETH1 : TX4938_IR_ETH0);
 		struct platform_device *pdev;
 		if (!(tx4938_ccfgptr->pcfg &
 		      (i ? TX4938_PCFG_ETH1_SEL : TX4938_PCFG_ETH0_SEL)))
