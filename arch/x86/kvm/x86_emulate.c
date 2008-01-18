@@ -70,7 +70,7 @@
 #define GroupMask   0xff        /* Group number stored in bits 0:7 */
 
 enum {
-	Group1A, Group3_Byte, Group3, Group4, Group5,
+	Group1A, Group3_Byte, Group3, Group4, Group5, Group7,
 };
 
 static u16 opcode_table[256] = {
@@ -179,7 +179,7 @@ static u16 opcode_table[256] = {
 
 static u16 twobyte_table[256] = {
 	/* 0x00 - 0x0F */
-	0, SrcMem | ModRM | DstReg, 0, 0, 0, 0, ImplicitOps, 0,
+	0, Group | GroupDual | Group7, 0, 0, 0, 0, ImplicitOps, 0,
 	ImplicitOps, ImplicitOps, 0, 0, 0, ImplicitOps | ModRM, 0, 0,
 	/* 0x10 - 0x1F */
 	0, 0, 0, 0, 0, 0, 0, 0, ImplicitOps | ModRM, 0, 0, 0, 0, 0, 0, 0,
@@ -252,9 +252,14 @@ static u16 group_table[] = {
 	[Group5*8] =
 	DstMem | SrcNone | ModRM, DstMem | SrcNone | ModRM, 0, 0,
 	SrcMem | ModRM, 0, SrcMem | ModRM | Stack, 0,
+	[Group7*8] =
+	0, 0, ModRM | SrcMem, ModRM | SrcMem,
+	SrcNone | ModRM | DstMem, 0, SrcMem | ModRM, SrcMem | ModRM | ByteOp,
 };
 
 static u16 group2_table[] = {
+	[Group7*8] =
+	SrcNone | ModRM, 0, 0, 0, SrcNone | ModRM | DstMem, 0, SrcMem | ModRM, 0,
 };
 
 /* EFLAGS bit definitions. */
