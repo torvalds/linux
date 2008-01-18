@@ -65,6 +65,9 @@
 #define MemAbs      (1<<9)      /* Memory operand is absolute displacement */
 #define String      (1<<10)     /* String instruction (rep capable) */
 #define Stack       (1<<11)     /* Stack instruction (push/pop) */
+#define Group       (1<<14)     /* Bits 3:5 of modrm byte extend opcode */
+#define GroupDual   (1<<15)     /* Alternate decoding of mod == 3 */
+#define GroupMask   0xff        /* Group number stored in bits 0:7 */
 
 static u16 opcode_table[256] = {
 	/* 0x00 - 0x07 */
@@ -227,6 +230,12 @@ static u16 twobyte_table[256] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	/* 0xF0 - 0xFF */
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+};
+
+static u16 group_table[] = {
+};
+
+static u16 group2_table[] = {
 };
 
 /* EFLAGS bit definitions. */
@@ -763,7 +772,7 @@ x86_decode_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	struct decode_cache *c = &ctxt->decode;
 	int rc = 0;
 	int mode = ctxt->mode;
-	int def_op_bytes, def_ad_bytes;
+	int def_op_bytes, def_ad_bytes, group;
 
 	/* Shadow copy of register state. Committed on successful emulation. */
 
@@ -864,12 +873,24 @@ done_prefixes:
 			c->b = insn_fetch(u8, 1, c->eip);
 			c->d = twobyte_table[c->b];
 		}
+	}
 
-		/* Unrecognised? */
-		if (c->d == 0) {
-			DPRINTF("Cannot emulate %02x\n", c->b);
-			return -1;
-		}
+	if (c->d & Group) {
+		group = c->d & GroupMask;
+		c->modrm = insn_fetch(u8, 1, c->eip);
+		--c->eip;
+
+		group = (group << 3) + ((c->modrm >> 3) & 7);
+		if ((c->d & GroupDual) && (c->modrm >> 6) == 3)
+			c->d = group2_table[group];
+		else
+			c->d = group_table[group];
+	}
+
+	/* Unrecognised? */
+	if (c->d == 0) {
+		DPRINTF("Cannot emulate %02x\n", c->b);
+		return -1;
 	}
 
 	if (mode == X86EMUL_MODE_PROT64 && (c->d & Stack))
