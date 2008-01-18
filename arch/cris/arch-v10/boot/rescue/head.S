@@ -74,11 +74,12 @@
 #define PTABLE_MAGIC 0xbeef
 
 	;; The normal Etrax100 on-chip boot ROM does serial boot at 0x380000f0.
-	;; That is not where we put our downloaded serial boot-code. The length is
-	;; enough for downloading code that loads the rest of itself (after
-	;; having setup the DRAM etc). It is the same length as the on-chip
-	;; ROM loads, so the same host loader can be used to load a rescued
-	;; product as well as one booted through the Etrax serial boot code.
+	;; That is not where we put our downloaded serial boot-code.
+	;; The length is enough for downloading code that loads the rest
+	;; of itself (after having setup the DRAM etc).
+	;; It is the same length as the on-chip ROM loads, so the same
+	;; host loader can be used to load a rescued product as well as
+	;; one booted through the Etrax serial boot code.
 
 #define CODE_START 0x40000000
 #define CODE_LENGTH 784
@@ -330,7 +331,8 @@ checksum:
 	moveq	0, $r0
 	moveq   CONFIG_ETRAX_FLASH1_SIZE, $r6
 
-	;; If the first physical flash memory is exceeded wrap to the second one
+	;; If the first physical flash memory is exceeded wrap to the
+	;; second one
 	btstq	26, $r1		; Are we addressing first flash?
 	bpl	1f
 	nop
