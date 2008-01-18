@@ -119,7 +119,7 @@ void oxygen_write_ac97(struct oxygen *chip, unsigned int codec,
 		udelay(5);
 		oxygen_write32(chip, OXYGEN_AC97_REGS, reg);
 		/* require two "completed" writes, just to be sure */
-		if (oxygen_ac97_wait(chip, OXYGEN_AC97_WRITE_COMPLETE) >= 0 &&
+		if (oxygen_ac97_wait(chip, OXYGEN_AC97_INT_WRITE_DONE) >= 0 &&
 		    ++succeeded >= 2)
 			return;
 	}
@@ -141,7 +141,7 @@ u16 oxygen_read_ac97(struct oxygen *chip, unsigned int codec,
 		udelay(5);
 		oxygen_write32(chip, OXYGEN_AC97_REGS, reg);
 		udelay(10);
-		if (oxygen_ac97_wait(chip, OXYGEN_AC97_READ_COMPLETE) >= 0) {
+		if (oxygen_ac97_wait(chip, OXYGEN_AC97_INT_READ_DONE) >= 0) {
 			u16 value = oxygen_read16(chip, OXYGEN_AC97_REGS);
 			/* we require two consecutive reads of the same value */
 			if (value == last_read)

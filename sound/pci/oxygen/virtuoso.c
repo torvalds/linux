@@ -80,10 +80,11 @@ static void pcm1796_write(struct oxygen *chip, unsigned int codec,
 	static const u8 codec_map[4] = {
 		0, 1, 2, 4
 	};
-	oxygen_write_spi(chip, OXYGEN_SPI_TRIGGER_WRITE |
+	oxygen_write_spi(chip, OXYGEN_SPI_TRIGGER  |
 			 OXYGEN_SPI_DATA_LENGTH_2 |
+			 OXYGEN_SPI_CLOCK_160 |
 			 (codec_map[codec] << OXYGEN_SPI_CODEC_SHIFT) |
-			 OXYGEN_SPI_MAGIC,
+			 OXYGEN_SPI_CEN_LATCH_CLOCK_HI,
 			 (reg << 8) | value);
 }
 

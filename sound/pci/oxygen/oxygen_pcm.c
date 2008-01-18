@@ -308,9 +308,10 @@ static unsigned int oxygen_rate(struct snd_pcm_hw_params *hw_params)
 	}
 }
 
-static unsigned int oxygen_i2s_magic2(struct snd_pcm_hw_params *hw_params)
+static unsigned int oxygen_i2s_mclk(struct snd_pcm_hw_params *hw_params)
 {
-	return params_rate(hw_params) <= 96000 ? 0x10 : 0x00;
+	return params_rate(hw_params) <= 96000
+		? OXYGEN_I2S_MCLK_256 : OXYGEN_I2S_MCLK_128;
 }
 
 static unsigned int oxygen_i2s_bits(struct snd_pcm_hw_params *hw_params)
@@ -388,12 +389,12 @@ static int oxygen_rec_a_hw_params(struct snd_pcm_substream *substream,
 			     OXYGEN_REC_FORMAT_A_MASK);
 	oxygen_write16_masked(chip, OXYGEN_I2S_A_FORMAT,
 			      oxygen_rate(hw_params) |
-			      oxygen_i2s_magic2(hw_params) |
+			      oxygen_i2s_mclk(hw_params) |
 			      chip->model->adc_i2s_format |
 			      oxygen_i2s_bits(hw_params),
 			      OXYGEN_I2S_RATE_MASK |
 			      OXYGEN_I2S_FORMAT_MASK |
-			      OXYGEN_I2S_MAGIC2_MASK |
+			      OXYGEN_I2S_MCLK_MASK |
 			      OXYGEN_I2S_BITS_MASK);
 	oxygen_clear_bits8(chip, OXYGEN_REC_ROUTING, 0x08);
 	spin_unlock_irq(&chip->reg_lock);
@@ -420,12 +421,12 @@ static int oxygen_rec_b_hw_params(struct snd_pcm_substream *substream,
 			     OXYGEN_REC_FORMAT_B_MASK);
 	oxygen_write16_masked(chip, OXYGEN_I2S_B_FORMAT,
 			      oxygen_rate(hw_params) |
-			      oxygen_i2s_magic2(hw_params) |
+			      oxygen_i2s_mclk(hw_params) |
 			      chip->model->adc_i2s_format |
 			      oxygen_i2s_bits(hw_params),
 			      OXYGEN_I2S_RATE_MASK |
 			      OXYGEN_I2S_FORMAT_MASK |
-			      OXYGEN_I2S_MAGIC2_MASK |
+			      OXYGEN_I2S_MCLK_MASK |
 			      OXYGEN_I2S_BITS_MASK);
 	oxygen_clear_bits8(chip, OXYGEN_REC_ROUTING, 0x10);
 	spin_unlock_irq(&chip->reg_lock);
@@ -511,24 +512,6 @@ static int oxygen_multich_hw_params(struct snd_pcm_substream *substream,
 	mutex_lock(&chip->mutex);
 	chip->model->set_dac_params(chip, hw_params);
 	mutex_unlock(&chip->mutex);
-	return 0;
-}
-
-static int oxygen_ac97_hw_params(struct snd_pcm_substream *substream,
-				 struct snd_pcm_hw_params *hw_params)
-{
-	struct oxygen *chip = snd_pcm_substream_chip(substream);
-	int err;
-
-	err = oxygen_hw_params(substream, hw_params);
-	if (err < 0)
-		return err;
-
-	spin_lock_irq(&chip->reg_lock);
-	oxygen_write8_masked(chip, OXYGEN_PLAY_FORMAT,
-			     oxygen_format(hw_params) << OXYGEN_AC97_FORMAT_SHIFT,
-			     OXYGEN_AC97_FORMAT_MASK);
-	spin_unlock_irq(&chip->reg_lock);
 	return 0;
 }
 
@@ -680,7 +663,7 @@ static struct snd_pcm_ops oxygen_ac97_ops = {
 	.open      = oxygen_ac97_open,
 	.close     = oxygen_close,
 	.ioctl     = snd_pcm_lib_ioctl,
-	.hw_params = oxygen_ac97_hw_params,
+	.hw_params = oxygen_hw_params,
 	.hw_free   = oxygen_hw_free,
 	.prepare   = oxygen_prepare,
 	.trigger   = oxygen_trigger,
