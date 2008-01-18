@@ -2386,7 +2386,9 @@ void bond_mii_monitor(struct work_struct *work)
 		rtnl_lock();
 		read_lock(&bond->lock);
 		__bond_mii_monitor(bond, 1);
-		rtnl_unlock();
+		read_unlock(&bond->lock);
+		rtnl_unlock();	/* might sleep, hold no other locks */
+		read_lock(&bond->lock);
 	}
 
 	delay = ((bond->params.miimon * HZ) / 1000) ? : 1;
