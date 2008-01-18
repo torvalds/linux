@@ -29,6 +29,8 @@
 #include "nphy.h"
 #include "tables_nphy.h"
 
+#include <linux/delay.h>
+
 
 void b43_nphy_set_rxantenna(struct b43_wldev *dev, int antenna)
 {//TODO
@@ -191,9 +193,297 @@ void b43_nphy_radio_turn_off(struct b43_wldev *dev)
 		     ~B43_NPHY_RFCTL_CMD_EN);
 }
 
+#define ntab_upload(dev, offset, data) do { \
+		unsigned int i;						\
+		for (i = 0; i < (offset##_SIZE); i++)			\
+			b43_ntab_write(dev, (offset) + i, (data)[i]);	\
+	} while (0)
+
+/* Upload the N-PHY tables. */
+static void b43_nphy_tables_init(struct b43_wldev *dev)
+{
+	/* Static tables */
+	ntab_upload(dev, B43_NTAB_FRAMESTRUCT, b43_ntab_framestruct);
+	ntab_upload(dev, B43_NTAB_FRAMELT, b43_ntab_framelookup);
+	ntab_upload(dev, B43_NTAB_TMAP, b43_ntab_tmap);
+	ntab_upload(dev, B43_NTAB_TDTRN, b43_ntab_tdtrn);
+	ntab_upload(dev, B43_NTAB_INTLEVEL, b43_ntab_intlevel);
+	ntab_upload(dev, B43_NTAB_PILOT, b43_ntab_pilot);
+	ntab_upload(dev, B43_NTAB_PILOTLT, b43_ntab_pilotlt);
+	ntab_upload(dev, B43_NTAB_TDI20A0, b43_ntab_tdi20a0);
+	ntab_upload(dev, B43_NTAB_TDI20A1, b43_ntab_tdi20a1);
+	ntab_upload(dev, B43_NTAB_TDI40A0, b43_ntab_tdi40a0);
+	ntab_upload(dev, B43_NTAB_TDI40A1, b43_ntab_tdi40a1);
+	ntab_upload(dev, B43_NTAB_BDI, b43_ntab_bdi);
+	ntab_upload(dev, B43_NTAB_CHANEST, b43_ntab_channelest);
+	ntab_upload(dev, B43_NTAB_MCS, b43_ntab_mcs);
+
+	/* Volatile tables */
+	ntab_upload(dev, B43_NTAB_NOISEVAR10, b43_ntab_noisevar10);
+	ntab_upload(dev, B43_NTAB_NOISEVAR11, b43_ntab_noisevar11);
+	ntab_upload(dev, B43_NTAB_C0_ESTPLT, b43_ntab_estimatepowerlt0);
+	ntab_upload(dev, B43_NTAB_C1_ESTPLT, b43_ntab_estimatepowerlt1);
+	ntab_upload(dev, B43_NTAB_C0_ADJPLT, b43_ntab_adjustpower0);
+	ntab_upload(dev, B43_NTAB_C1_ADJPLT, b43_ntab_adjustpower1);
+	ntab_upload(dev, B43_NTAB_C0_GAINCTL, b43_ntab_gainctl0);
+	ntab_upload(dev, B43_NTAB_C1_GAINCTL, b43_ntab_gainctl1);
+	ntab_upload(dev, B43_NTAB_C0_IQLT, b43_ntab_iqlt0);
+	ntab_upload(dev, B43_NTAB_C1_IQLT, b43_ntab_iqlt1);
+	ntab_upload(dev, B43_NTAB_C0_LOFEEDTH, b43_ntab_loftlt0);
+	ntab_upload(dev, B43_NTAB_C1_LOFEEDTH, b43_ntab_loftlt1);
+}
+
+static void b43_nphy_workarounds(struct b43_wldev *dev)
+{
+	struct b43_phy *phy = &dev->phy;
+	unsigned int i;
+
+	b43_phy_set(dev, B43_NPHY_IQFLIP,
+		    B43_NPHY_IQFLIP_ADC1 | B43_NPHY_IQFLIP_ADC2);
+	//FIXME the following condition is different in the specs.
+	if (1 /* FIXME band is 2.4GHz */) {
+		b43_phy_set(dev, B43_NPHY_CLASSCTL,
+			    B43_NPHY_CLASSCTL_CCKEN);
+	} else {
+		b43_phy_mask(dev, B43_NPHY_CLASSCTL,
+			     ~B43_NPHY_CLASSCTL_CCKEN);
+	}
+	b43_radio_set(dev, B2055_C1_TX_RF_SPARE, 0x8);
+	b43_phy_write(dev, B43_NPHY_TXFRAMEDELAY, 8);
+
+	/* Fixup some tables */
+	b43_ntab_write(dev, B43_NTAB16(8, 0x00), 0xA);
+	b43_ntab_write(dev, B43_NTAB16(8, 0x10), 0xA);
+	b43_ntab_write(dev, B43_NTAB16(8, 0x02), 0xCDAA);
+	b43_ntab_write(dev, B43_NTAB16(8, 0x12), 0xCDAA);
+	b43_ntab_write(dev, B43_NTAB16(8, 0x08), 0);
+	b43_ntab_write(dev, B43_NTAB16(8, 0x18), 0);
+	b43_ntab_write(dev, B43_NTAB16(8, 0x07), 0x7AAB);
+	b43_ntab_write(dev, B43_NTAB16(8, 0x17), 0x7AAB);
+	b43_ntab_write(dev, B43_NTAB16(8, 0x06), 0x800);
+	b43_ntab_write(dev, B43_NTAB16(8, 0x16), 0x800);
+
+	b43_phy_write(dev, B43_NPHY_RFCTL_LUT_TRSW_LO1, 0x2D8);
+	b43_phy_write(dev, B43_NPHY_RFCTL_LUT_TRSW_UP1, 0x301);
+	b43_phy_write(dev, B43_NPHY_RFCTL_LUT_TRSW_LO2, 0x2D8);
+	b43_phy_write(dev, B43_NPHY_RFCTL_LUT_TRSW_UP2, 0x301);
+
+	//TODO set RF sequence
+
+	/* Set narrowband clip threshold */
+	b43_phy_write(dev, B43_NPHY_C1_NBCLIPTHRES, 66);
+	b43_phy_write(dev, B43_NPHY_C2_NBCLIPTHRES, 66);
+
+	/* Set wideband clip 2 threshold */
+	b43_phy_maskset(dev, B43_NPHY_C1_CLIPWBTHRES,
+			~B43_NPHY_C1_CLIPWBTHRES_CLIP2,
+			21 << B43_NPHY_C1_CLIPWBTHRES_CLIP2_SHIFT);
+	b43_phy_maskset(dev, B43_NPHY_C2_CLIPWBTHRES,
+			~B43_NPHY_C2_CLIPWBTHRES_CLIP2,
+			21 << B43_NPHY_C2_CLIPWBTHRES_CLIP2_SHIFT);
+
+	/* Set Clip 2 detect */
+	b43_phy_set(dev, B43_NPHY_C1_CGAINI,
+		    B43_NPHY_C1_CGAINI_CL2DETECT);
+	b43_phy_set(dev, B43_NPHY_C2_CGAINI,
+		    B43_NPHY_C2_CGAINI_CL2DETECT);
+
+	if (0 /*FIXME*/) {
+		/* Set dwell lengths */
+		b43_phy_write(dev, B43_NPHY_CLIP1_NBDWELL_LEN, 43);
+		b43_phy_write(dev, B43_NPHY_CLIP2_NBDWELL_LEN, 43);
+		b43_phy_write(dev, B43_NPHY_W1CLIP1_DWELL_LEN, 9);
+		b43_phy_write(dev, B43_NPHY_W1CLIP2_DWELL_LEN, 9);
+
+		/* Set gain backoff */
+		b43_phy_maskset(dev, B43_NPHY_C1_CGAINI,
+				~B43_NPHY_C1_CGAINI_GAINBKOFF,
+				1 << B43_NPHY_C1_CGAINI_GAINBKOFF_SHIFT);
+		b43_phy_maskset(dev, B43_NPHY_C2_CGAINI,
+				~B43_NPHY_C2_CGAINI_GAINBKOFF,
+				1 << B43_NPHY_C2_CGAINI_GAINBKOFF_SHIFT);
+
+		/* Set HPVGA2 index */
+		b43_phy_maskset(dev, B43_NPHY_C1_INITGAIN,
+				~B43_NPHY_C1_INITGAIN_HPVGA2,
+				6 << B43_NPHY_C1_INITGAIN_HPVGA2_SHIFT);
+		b43_phy_maskset(dev, B43_NPHY_C2_INITGAIN,
+				~B43_NPHY_C2_INITGAIN_HPVGA2,
+				6 << B43_NPHY_C2_INITGAIN_HPVGA2_SHIFT);
+
+		//FIXME verify that the specs really mean to use autoinc here.
+		for (i = 0; i < 3; i++)
+			b43_ntab_write(dev, B43_NTAB16(7, 0x106) + i, 0x673);
+	}
+
+	/* Set minimum gain value */
+	b43_phy_maskset(dev, B43_NPHY_C1_MINMAX_GAIN,
+			~B43_NPHY_C1_MINGAIN,
+			23 << B43_NPHY_C1_MINGAIN_SHIFT);
+	b43_phy_maskset(dev, B43_NPHY_C2_MINMAX_GAIN,
+			~B43_NPHY_C2_MINGAIN,
+			23 << B43_NPHY_C2_MINGAIN_SHIFT);
+
+	if (phy->rev < 2) {
+		b43_phy_mask(dev, B43_NPHY_SCRAM_SIGCTL,
+			     ~B43_NPHY_SCRAM_SIGCTL_SCM);
+	}
+
+	/* Set phase track alpha and beta */
+	b43_phy_write(dev, B43_NPHY_PHASETR_A0, 0x125);
+	b43_phy_write(dev, B43_NPHY_PHASETR_A1, 0x1B3);
+	b43_phy_write(dev, B43_NPHY_PHASETR_A2, 0x105);
+	b43_phy_write(dev, B43_NPHY_PHASETR_B0, 0x16E);
+	b43_phy_write(dev, B43_NPHY_PHASETR_B1, 0xCD);
+	b43_phy_write(dev, B43_NPHY_PHASETR_B2, 0x20);
+}
+
+static void b43_nphy_reset_cca(struct b43_wldev *dev)
+{
+	u16 bbcfg;
+
+	ssb_write32(dev->dev, SSB_TMSLOW,
+		    ssb_read32(dev->dev, SSB_TMSLOW) | SSB_TMSLOW_FGC);
+	bbcfg = b43_phy_read(dev, B43_NPHY_BBCFG);
+	b43_phy_set(dev, B43_NPHY_BBCFG, B43_NPHY_BBCFG_RSTCCA);
+	b43_phy_write(dev, B43_NPHY_BBCFG,
+		      bbcfg & ~B43_NPHY_BBCFG_RSTCCA);
+	ssb_write32(dev->dev, SSB_TMSLOW,
+		    ssb_read32(dev->dev, SSB_TMSLOW) & ~SSB_TMSLOW_FGC);
+}
+
+enum b43_nphy_rf_sequence {
+	B43_RFSEQ_RX2TX,
+	B43_RFSEQ_TX2RX,
+	B43_RFSEQ_RESET2RX,
+	B43_RFSEQ_UPDATE_GAINH,
+	B43_RFSEQ_UPDATE_GAINL,
+	B43_RFSEQ_UPDATE_GAINU,
+};
+
+static void b43_nphy_force_rf_sequence(struct b43_wldev *dev,
+				       enum b43_nphy_rf_sequence seq)
+{
+	static const u16 trigger[] = {
+		[B43_RFSEQ_RX2TX]		= B43_NPHY_RFSEQTR_RX2TX,
+		[B43_RFSEQ_TX2RX]		= B43_NPHY_RFSEQTR_TX2RX,
+		[B43_RFSEQ_RESET2RX]		= B43_NPHY_RFSEQTR_RST2RX,
+		[B43_RFSEQ_UPDATE_GAINH]	= B43_NPHY_RFSEQTR_UPGH,
+		[B43_RFSEQ_UPDATE_GAINL]	= B43_NPHY_RFSEQTR_UPGL,
+		[B43_RFSEQ_UPDATE_GAINU]	= B43_NPHY_RFSEQTR_UPGU,
+	};
+	int i;
+
+	B43_WARN_ON(seq >= ARRAY_SIZE(trigger));
+
+	b43_phy_set(dev, B43_NPHY_RFSEQMODE,
+		    B43_NPHY_RFSEQMODE_CAOVER | B43_NPHY_RFSEQMODE_TROVER);
+	b43_phy_set(dev, B43_NPHY_RFSEQTR, trigger[seq]);
+	for (i = 0; i < 200; i++) {
+		if (!(b43_phy_read(dev, B43_NPHY_RFSEQST) & trigger[seq]))
+			goto ok;
+		msleep(1);
+	}
+	b43err(dev->wl, "RF sequence status timeout\n");
+ok:
+	b43_phy_mask(dev, B43_NPHY_RFSEQMODE,
+		     ~(B43_NPHY_RFSEQMODE_CAOVER | B43_NPHY_RFSEQMODE_TROVER));
+}
+
+static void b43_nphy_bphy_init(struct b43_wldev *dev)
+{
+	unsigned int i;
+	u16 val;
+
+	val = 0x1E1F;
+	for (i = 0; i < 14; i++) {
+		b43_phy_write(dev, B43_PHY_N_BMODE(0x88 + i), val);
+		val -= 0x202;
+	}
+	val = 0x3E3F;
+	for (i = 0; i < 16; i++) {
+		b43_phy_write(dev, B43_PHY_N_BMODE(0x97 + i), val);
+		val -= 0x202;
+	}
+	b43_phy_write(dev, B43_PHY_N_BMODE(0x38), 0x668);
+}
+
+/* RSSI Calibration */
+static void b43_nphy_rssi_cal(struct b43_wldev *dev, u8 type)
+{
+	//TODO
+}
+
 int b43_phy_initn(struct b43_wldev *dev)
 {
-	b43err(dev->wl, "IEEE 802.11n devices are not supported, yet.\n");
+	struct b43_phy *phy = &dev->phy;
+	u16 tmp;
 
+	//TODO: Spectral management
+	b43_nphy_tables_init(dev);
+
+	/* Clear all overrides */
+	b43_phy_write(dev, B43_NPHY_RFCTL_OVER, 0);
+	b43_phy_write(dev, B43_NPHY_RFCTL_INTC1, 0);
+	b43_phy_write(dev, B43_NPHY_RFCTL_INTC2, 0);
+	b43_phy_write(dev, B43_NPHY_RFCTL_INTC3, 0);
+	b43_phy_write(dev, B43_NPHY_RFCTL_INTC4, 0);
+	b43_phy_mask(dev, B43_NPHY_RFSEQMODE,
+		     ~(B43_NPHY_RFSEQMODE_CAOVER |
+		       B43_NPHY_RFSEQMODE_TROVER));
+	b43_phy_write(dev, B43_NPHY_AFECTL_OVER, 0);
+
+	tmp = (phy->rev < 2) ? 64 : 59;
+	b43_phy_maskset(dev, B43_NPHY_BPHY_CTL3,
+			~B43_NPHY_BPHY_CTL3_SCALE,
+			tmp << B43_NPHY_BPHY_CTL3_SCALE_SHIFT);
+
+	b43_phy_write(dev, B43_NPHY_AFESEQ_TX2RX_PUD_20M, 0x20);
+	b43_phy_write(dev, B43_NPHY_AFESEQ_TX2RX_PUD_40M, 0x20);
+
+	b43_phy_write(dev, B43_NPHY_TXREALFD, 184);
+	b43_phy_write(dev, B43_NPHY_MIMO_CRSTXEXT, 200);
+	b43_phy_write(dev, B43_NPHY_PLOAD_CSENSE_EXTLEN, 80);
+	b43_phy_write(dev, B43_NPHY_C2_BCLIPBKOFF, 511);
+
+	//TODO MIMO-Config
+	//TODO Update TX/RX chain
+
+	if (phy->rev < 2) {
+		b43_phy_write(dev, B43_NPHY_DUP40_GFBL, 0xAA8);
+		b43_phy_write(dev, B43_NPHY_DUP40_BL, 0x9A4);
+	}
+	b43_nphy_workarounds(dev);
+	b43_nphy_reset_cca(dev);
+
+	ssb_write32(dev->dev, SSB_TMSLOW,
+		    ssb_read32(dev->dev, SSB_TMSLOW) | B43_TMSLOW_MACPHYCLKEN);
+	b43_nphy_force_rf_sequence(dev, B43_RFSEQ_RX2TX);
+	b43_nphy_force_rf_sequence(dev, B43_RFSEQ_RESET2RX);
+
+	b43_phy_read(dev, B43_NPHY_CLASSCTL); /* dummy read */
+	//TODO read core1/2 clip1 thres regs
+
+	if (1 /* FIXME Band is 2.4GHz */)
+		b43_nphy_bphy_init(dev);
+	//TODO disable TX power control
+	//TODO Fix the TX power settings
+	//TODO Init periodic calibration with reason 3
+	b43_nphy_rssi_cal(dev, 2);
+	b43_nphy_rssi_cal(dev, 0);
+	b43_nphy_rssi_cal(dev, 1);
+	//TODO get TX gain
+	//TODO init superswitch
+	//TODO calibrate LO
+	//TODO idle TSSI TX pctl
+	//TODO TX power control power setup
+	//TODO table writes
+	//TODO TX power control coefficients
+	//TODO enable TX power control
+	//TODO control antenna selection
+	//TODO init radar detection
+	//TODO reset channel if changed
+
+	b43err(dev->wl, "IEEE 802.11n devices are not supported, yet.\n");
 	return 0;
 }

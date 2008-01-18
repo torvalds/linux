@@ -25,8 +25,11 @@
 #define B43_NPHY_C1_CCK_BCLIPBKOFF		B43_PHY_N(0x01B) /* Core 1 CCK barely clip backoff */
 #define B43_NPHY_C1_CGAINI			B43_PHY_N(0x01C) /* Core 1 compute gain info */
 #define  B43_NPHY_C1_CGAINI_GAINBKOFF		0x001F /* Gain backoff */
+#define  B43_NPHY_C1_CGAINI_GAINBKOFF_SHIFT	0
 #define  B43_NPHY_C1_CGAINI_CLIPGBKOFF		0x03E0 /* Clip gain backoff */
+#define  B43_NPHY_C1_CGAINI_CLIPGBKOFF_SHIFT	5
 #define  B43_NPHY_C1_CGAINI_GAINSTEP		0x1C00 /* Gain step */
+#define  B43_NPHY_C1_CGAINI_GAINSTEP_SHIFT	10
 #define  B43_NPHY_C1_CGAINI_CL2DETECT		0x2000 /* Clip 2 detect mask */
 #define B43_NPHY_C1_CCK_CGAINI			B43_PHY_N(0x01D) /* Core 1 CCK compute gain info */
 #define  B43_NPHY_C1_CCK_CGAINI_GAINBKOFF	0x001F /* Gain backoff */
@@ -69,29 +72,32 @@
 #define B43_NPHY_C1_CLIP1THRES			B43_PHY_N(0x02C) /* Core 1 clip1 threshold */
 #define B43_NPHY_C1_CLIP2THRES			B43_PHY_N(0x02D) /* Core 1 clip2 threshold */
 
-#define B43_NPHY_C2_DESPWR			B43_PHY_N(0x018 + 22) /* Core 2 desired power */
-#define B43_NPHY_C2_CCK_DESPWR			B43_PHY_N(0x019 + 22) /* Core 2 CCK desired power */
-#define B43_NPHY_C2_BCLIPBKOFF			B43_PHY_N(0x01A + 22) /* Core 2 barely clip backoff */
-#define B43_NPHY_C2_CCK_BCLIPBKOFF		B43_PHY_N(0x01B + 22) /* Core 2 CCK barely clip backoff */
-#define B43_NPHY_C2_CGAINI			B43_PHY_N(0x01C + 22) /* Core 2 compute gain info */
+#define B43_NPHY_C2_DESPWR			B43_PHY_N(0x02E) /* Core 2 desired power */
+#define B43_NPHY_C2_CCK_DESPWR			B43_PHY_N(0x02F) /* Core 2 CCK desired power */
+#define B43_NPHY_C2_BCLIPBKOFF			B43_PHY_N(0x030) /* Core 2 barely clip backoff */
+#define B43_NPHY_C2_CCK_BCLIPBKOFF		B43_PHY_N(0x031) /* Core 2 CCK barely clip backoff */
+#define B43_NPHY_C2_CGAINI			B43_PHY_N(0x032) /* Core 2 compute gain info */
 #define  B43_NPHY_C2_CGAINI_GAINBKOFF		0x001F /* Gain backoff */
+#define  B43_NPHY_C2_CGAINI_GAINBKOFF_SHIFT	0
 #define  B43_NPHY_C2_CGAINI_CLIPGBKOFF		0x03E0 /* Clip gain backoff */
+#define  B43_NPHY_C2_CGAINI_CLIPGBKOFF_SHIFT	5
 #define  B43_NPHY_C2_CGAINI_GAINSTEP		0x1C00 /* Gain step */
+#define  B43_NPHY_C2_CGAINI_GAINSTEP_SHIFT	10
 #define  B43_NPHY_C2_CGAINI_CL2DETECT		0x2000 /* Clip 2 detect mask */
-#define B43_NPHY_C2_CCK_CGAINI			B43_PHY_N(0x01D + 22) /* Core 2 CCK compute gain info */
+#define B43_NPHY_C2_CCK_CGAINI			B43_PHY_N(0x033) /* Core 2 CCK compute gain info */
 #define  B43_NPHY_C2_CCK_CGAINI_GAINBKOFF	0x001F /* Gain backoff */
 #define  B43_NPHY_C2_CCK_CGAINI_CLIPGBKOFF	0x01E0 /* CCK barely clip gain backoff */
-#define B43_NPHY_C2_MINMAX_GAIN			B43_PHY_N(0x01E + 22) /* Core 2 min/max gain */
+#define B43_NPHY_C2_MINMAX_GAIN			B43_PHY_N(0x034) /* Core 2 min/max gain */
 #define  B43_NPHY_C2_MINGAIN			0x00FF /* Minimum gain */
 #define  B43_NPHY_C2_MINGAIN_SHIFT		0
 #define  B43_NPHY_C2_MAXGAIN			0xFF00 /* Maximum gain */
 #define  B43_NPHY_C2_MAXGAIN_SHIFT		8
-#define B43_NPHY_C2_CCK_MINMAX_GAIN		B43_PHY_N(0x01F + 22) /* Core 2 CCK min/max gain */
+#define B43_NPHY_C2_CCK_MINMAX_GAIN		B43_PHY_N(0x035) /* Core 2 CCK min/max gain */
 #define  B43_NPHY_C2_CCK_MINGAIN		0x00FF /* Minimum gain */
 #define  B43_NPHY_C2_CCK_MINGAIN_SHIFT		0
 #define  B43_NPHY_C2_CCK_MAXGAIN		0xFF00 /* Maximum gain */
 #define  B43_NPHY_C2_CCK_MAXGAIN_SHIFT		8
-#define B43_NPHY_C2_INITGAIN			B43_PHY_N(0x020 + 22) /* Core 2 initial gain code */
+#define B43_NPHY_C2_INITGAIN			B43_PHY_N(0x036) /* Core 2 initial gain code */
 #define  B43_NPHY_C2_INITGAIN_EXTLNA		0x0001 /* External LNA index */
 #define  B43_NPHY_C2_INITGAIN_LNA		0x0006 /* LNA index */
 #define  B43_NPHY_C2_INITGAIN_LNAIDX_SHIFT	1
@@ -101,23 +107,23 @@
 #define  B43_NPHY_C2_INITGAIN_HPVGA2_SHIFT	7
 #define  B43_NPHY_C2_INITGAIN_TRRX		0x1000 /* TR RX index */
 #define  B43_NPHY_C2_INITGAIN_TRTX		0x2000 /* TR TX index */
-#define B43_NPHY_C2_CLIP1_HIGAIN		B43_PHY_N(0x021 + 22) /* Core 2 clip1 high gain code */
-#define B43_NPHY_C2_CLIP1_MEDGAIN		B43_PHY_N(0x022 + 22) /* Core 2 clip1 medium gain code */
-#define B43_NPHY_C2_CLIP1_LOGAIN		B43_PHY_N(0x023 + 22) /* Core 2 clip1 low gain code */
-#define B43_NPHY_C2_CLIP2_GAIN			B43_PHY_N(0x024 + 22) /* Core 2 clip2 gain code */
-#define B43_NPHY_C2_FILTERGAIN			B43_PHY_N(0x025 + 22) /* Core 2 filter gain */
-#define B43_NPHY_C2_LPF_QHPF_BW			B43_PHY_N(0x026 + 22) /* Core 2 LPF Q HP F bandwidth */
-#define B43_NPHY_C2_CLIPWBTHRES			B43_PHY_N(0x027 + 22) /* Core 2 clip wideband threshold */
+#define B43_NPHY_C2_CLIP1_HIGAIN		B43_PHY_N(0x037) /* Core 2 clip1 high gain code */
+#define B43_NPHY_C2_CLIP1_MEDGAIN		B43_PHY_N(0x038) /* Core 2 clip1 medium gain code */
+#define B43_NPHY_C2_CLIP1_LOGAIN		B43_PHY_N(0x039) /* Core 2 clip1 low gain code */
+#define B43_NPHY_C2_CLIP2_GAIN			B43_PHY_N(0x03A) /* Core 2 clip2 gain code */
+#define B43_NPHY_C2_FILTERGAIN			B43_PHY_N(0x03B) /* Core 2 filter gain */
+#define B43_NPHY_C2_LPF_QHPF_BW			B43_PHY_N(0x03C) /* Core 2 LPF Q HP F bandwidth */
+#define B43_NPHY_C2_CLIPWBTHRES			B43_PHY_N(0x03D) /* Core 2 clip wideband threshold */
 #define  B43_NPHY_C2_CLIPWBTHRES_CLIP2		0x003F /* Clip 2 */
 #define  B43_NPHY_C2_CLIPWBTHRES_CLIP2_SHIFT	0
 #define  B43_NPHY_C2_CLIPWBTHRES_CLIP1		0x0FC0 /* Clip 1 */
 #define  B43_NPHY_C2_CLIPWBTHRES_CLIP1_SHIFT	6
-#define B43_NPHY_C2_W1THRES			B43_PHY_N(0x028 + 22) /* Core 2 W1 threshold */
-#define B43_NPHY_C2_EDTHRES			B43_PHY_N(0x029 + 22) /* Core 2 ED threshold */
-#define B43_NPHY_C2_SMSIGTHRES			B43_PHY_N(0x02A + 22) /* Core 2 small sig threshold */
-#define B43_NPHY_C2_NBCLIPTHRES			B43_PHY_N(0x02B + 22) /* Core 2 NB clip threshold */
-#define B43_NPHY_C2_CLIP1THRES			B43_PHY_N(0x02C + 22) /* Core 2 clip1 threshold */
-#define B43_NPHY_C2_CLIP2THRES			B43_PHY_N(0x02D + 22) /* Core 2 clip2 threshold */
+#define B43_NPHY_C2_W1THRES			B43_PHY_N(0x03E) /* Core 2 W1 threshold */
+#define B43_NPHY_C2_EDTHRES			B43_PHY_N(0x03F) /* Core 2 ED threshold */
+#define B43_NPHY_C2_SMSIGTHRES			B43_PHY_N(0x040) /* Core 2 small sig threshold */
+#define B43_NPHY_C2_NBCLIPTHRES			B43_PHY_N(0x041) /* Core 2 NB clip threshold */
+#define B43_NPHY_C2_CLIP1THRES			B43_PHY_N(0x042) /* Core 2 clip1 threshold */
+#define B43_NPHY_C2_CLIP2THRES			B43_PHY_N(0x043) /* Core 2 clip2 threshold */
 
 #define B43_NPHY_CRS_THRES1			B43_PHY_N(0x044) /* CRS threshold 1 */
 #define B43_NPHY_CRS_THRES2			B43_PHY_N(0x045) /* CRS threshold 2 */
@@ -225,7 +231,7 @@
 #define B43_NPHY_C2_TXIQ_COMP_OFF		B43_PHY_N(0x088) /* Core 2 TX I/Q comp offset */
 #define B43_NPHY_C1_TXCTL			B43_PHY_N(0x08B) /* Core 1 TX control */
 #define B43_NPHY_C2_TXCTL			B43_PHY_N(0x08C) /* Core 2 TX control */
-#define B43_NPHY_SCRAM_SIGCTL			B43_PHY_N(0x090) /* Scran signal control */
+#define B43_NPHY_SCRAM_SIGCTL			B43_PHY_N(0x090) /* Scram signal control */
 #define  B43_NPHY_SCRAM_SIGCTL_INITST		0x007F /* Initial state value */
 #define  B43_NPHY_SCRAM_SIGCTL_INITST_SHIFT	0
 #define  B43_NPHY_SCRAM_SIGCTL_SCM		0x0080 /* Scram control mode */
