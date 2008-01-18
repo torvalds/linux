@@ -165,9 +165,13 @@ static struct kmem_cache *fn_alias_kmem __read_mostly;
 
 static inline struct tnode *node_parent(struct node *node)
 {
-	struct tnode *ret;
+	return (struct tnode *)(node->parent & ~NODE_TYPE_MASK);
+}
 
-	ret = (struct tnode *)(node->parent & ~NODE_TYPE_MASK);
+static inline struct tnode *node_parent_rcu(struct node *node)
+{
+	struct tnode *ret = node_parent(node);
+
 	return rcu_dereference(ret);
 }
 
@@ -177,13 +181,18 @@ static inline void node_set_parent(struct node *node, struct tnode *ptr)
 			   (unsigned long)ptr | NODE_TYPE(node));
 }
 
-/* rcu_read_lock needs to be hold by caller from readside */
-
-static inline struct node *tnode_get_child(struct tnode *tn, int i)
+static inline struct node *tnode_get_child(struct tnode *tn, unsigned int i)
 {
-	BUG_ON(i >= 1 << tn->bits);
+	BUG_ON(i >= 1U << tn->bits);
 
-	return rcu_dereference(tn->child[i]);
+	return tn->child[i];
+}
+
+static inline struct node *tnode_get_child_rcu(struct tnode *tn, unsigned int i)
+{
+	struct node *ret = tnode_get_child(tn, i);
+
+	return rcu_dereference(ret);
 }
 
 static inline int tnode_child_length(const struct tnode *tn)
@@ -938,7 +947,7 @@ fib_find_node(struct trie *t, u32 key)
 
 		if (tkey_sub_equals(tn->key, pos, tn->pos-pos, key)) {
 			pos = tn->pos + tn->bits;
-			n = tnode_get_child(tn, tkey_extract_bits(key, tn->pos, tn->bits));
+			n = tnode_get_child_rcu(tn, tkey_extract_bits(key, tn->pos, tn->bits));
 		} else
 			break;
 	}
@@ -1688,7 +1697,7 @@ static struct leaf *nextleaf(struct trie *t, struct leaf *thisleaf)
 
 		p = (struct tnode*) trie;  /* Start */
 	} else
-		p = node_parent(c);
+		p = node_parent_rcu(c);
 
 	while (p) {
 		int pos, last;
@@ -1725,7 +1734,7 @@ static struct leaf *nextleaf(struct trie *t, struct leaf *thisleaf)
 up:
 		/* No more children go up one step  */
 		c = (struct node *) p;
-		p = node_parent(c);
+		p = node_parent_rcu(c);
 	}
 	return NULL; /* Ready. Root of trie */
 }
@@ -1987,7 +1996,7 @@ static struct node *fib_trie_get_next(struct fib_trie_iter *iter)
 		 iter->tnode, iter->index, iter->depth);
 rescan:
 	while (cindex < (1<<tn->bits)) {
-		struct node *n = tnode_get_child(tn, cindex);
+		struct node *n = tnode_get_child_rcu(tn, cindex);
 
 		if (n) {
 			if (IS_LEAF(n)) {
@@ -2006,7 +2015,7 @@ rescan:
 	}
 
 	/* Current node exhausted, pop back up */
-	p = node_parent((struct node *)tn);
+	p = node_parent_rcu((struct node *)tn);
 	if (p) {
 		cindex = tkey_extract_bits(tn->key, p->pos, p->bits)+1;
 		tn = p;
@@ -2315,7 +2324,7 @@ static int fib_trie_seq_show(struct seq_file *seq, void *v)
 	if (v == SEQ_START_TOKEN)
 		return 0;
 
-	if (!node_parent(n)) {
+	if (!node_parent_rcu(n)) {
 		if (iter->trie == iter->trie_local)
 			seq_puts(seq, "<local>:\n");
 		else
