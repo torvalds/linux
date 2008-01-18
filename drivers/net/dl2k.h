@@ -298,23 +298,6 @@ enum _pcs_reg {
 };
 
 /* Basic Mode Control Register */
-typedef union t_MII_BMCR {
-	u16 image;
-	struct {
-		u16 _bit_5_0:6;	// bit 5:0
-		u16 speed1000:1;	// bit 6
-		u16 col_test_enable:1;	// bit 7
-		u16 duplex_mode:1;	// bit 8
-		u16 restart_an:1;	// bit 9
-		u16 isolate:1;	// bit 10
-		u16 power_down:1;	// bit 11
-		u16 an_enable:1;	// bit 12
-		u16 speed100:1;	// bit 13
-		u16 loopback:1;	// bit 14
-		u16 reset:1;	// bit 15
-	} bits;
-} BMCR_t, *PBMCR_t;
-
 enum _mii_bmcr {
 	MII_BMCR_RESET = 0x8000,
 	MII_BMCR_LOOP_BACK = 0x4000,
@@ -333,28 +316,6 @@ enum _mii_bmcr {
 };
 
 /* Basic Mode Status Register */
-typedef union t_MII_BMSR {
-	u16 image;
-	struct {
-		u16 ext_capability:1;	// bit 0
-		u16 japper_detect:1;	// bit 1
-		u16 link_status:1;	// bit 2
-		u16 an_ability:1;	// bit 3
-		u16 remote_fault:1;	// bit 4
-		u16 an_complete:1;	// bit 5
-		u16 preamble_supp:1;	// bit 6
-		u16 _bit_7:1;	// bit 7
-		u16 ext_status:1;	// bit 8
-		u16 media_100BT2_HD:1;	// bit 9
-		u16 media_100BT2_FD:1;	// bit 10
-		u16 media_10BT_HD:1;	// bit 11
-		u16 media_10BT_FD:1;	// bit 12
-		u16 media_100BX_HD:1;	// bit 13
-		u16 media_100BX_FD:1;	// bit 14
-		u16 media_100BT4:1;	// bit 15
-	} bits;
-} BMSR_t, *PBMSR_t;
-
 enum _mii_bmsr {
 	MII_BMSR_100BT4 = 0x8000,
 	MII_BMSR_100BX_FD = 0x4000,
@@ -374,24 +335,6 @@ enum _mii_bmsr {
 };
 
 /* ANAR */
-typedef union t_MII_ANAR {
-	u16 image;
-	struct {
-		u16 selector:5;	// bit 4:0
-		u16 media_10BT_HD:1;	// bit 5
-		u16 media_10BT_FD:1;	// bit 6
-		u16 media_100BX_HD:1;	// bit 7
-		u16 media_100BX_FD:1;	// bit 8
-		u16 media_100BT4:1;	// bit 9
-		u16 pause:1;	// bit 10
-		u16 asymmetric:1;	// bit 11
-		u16 _bit12:1;	// bit 12
-		u16 remote_fault:1;	// bit 13
-		u16 _bit14:1;	// bit 14
-		u16 next_page:1;	// bit 15
-	} bits;
-} ANAR_t, *PANAR_t;
-
 enum _mii_anar {
 	MII_ANAR_NEXT_PAGE = 0x8000,
 	MII_ANAR_REMOTE_FAULT = 0x4000,
@@ -407,24 +350,6 @@ enum _mii_anar {
 };
 
 /* ANLPAR */
-typedef union t_MII_ANLPAR {
-	u16 image;
-	struct {
-		u16 selector:5;	// bit 4:0
-		u16 media_10BT_HD:1;	// bit 5
-		u16 media_10BT_FD:1;	// bit 6
-		u16 media_100BX_HD:1;	// bit 7
-		u16 media_100BX_FD:1;	// bit 8
-		u16 media_100BT4:1;	// bit 9
-		u16 pause:1;	// bit 10
-		u16 asymmetric:1;	// bit 11
-		u16 _bit12:1;	// bit 12
-		u16 remote_fault:1;	// bit 13
-		u16 _bit14:1;	// bit 14
-		u16 next_page:1;	// bit 15
-	} bits;
-} ANLPAR_t, *PANLPAR_t;
-
 enum _mii_anlpar {
 	MII_ANLPAR_NEXT_PAGE = MII_ANAR_NEXT_PAGE,
 	MII_ANLPAR_REMOTE_FAULT = MII_ANAR_REMOTE_FAULT,
@@ -439,18 +364,6 @@ enum _mii_anlpar {
 };
 
 /* Auto-Negotiation Expansion Register */
-typedef union t_MII_ANER {
-	u16 image;
-	struct {
-		u16 lp_negotiable:1;	// bit 0
-		u16 page_received:1;	// bit 1
-		u16 nextpagable:1;	// bit 2
-		u16 lp_nextpagable:1;	// bit 3
-		u16 pdetect_fault:1;	// bit 4
-		u16 _bit15_5:11;	// bit 15:5
-	} bits;
-} ANER_t, *PANER_t;
-
 enum _mii_aner {
 	MII_ANER_PAR_DETECT_FAULT = 0x0010,
 	MII_ANER_LP_NEXTPAGABLE = 0x0008,
@@ -460,19 +373,6 @@ enum _mii_aner {
 };
 
 /* MASTER-SLAVE Control Register */
-typedef union t_MII_MSCR {
-	u16 image;
-	struct {
-		u16 _bit_7_0:8;	// bit 7:0
-		u16 media_1000BT_HD:1;	// bit 8
-		u16 media_1000BT_FD:1;	// bit 9
-		u16 port_type:1;	// bit 10
-		u16 cfg_value:1;	// bit 11
-		u16 cfg_enable:1;	// bit 12
-		u16 test_mode:3;	// bit 15:13
-	} bits;
-} MSCR_t, *PMSCR_t;
-
 enum _mii_mscr {
 	MII_MSCR_TEST_MODE = 0xe000,
 	MII_MSCR_CFG_ENABLE = 0x1000,
@@ -483,20 +383,6 @@ enum _mii_mscr {
 };
 
 /* MASTER-SLAVE Status Register */
-typedef union t_MII_MSSR {
-	u16 image;
-	struct {
-		u16 idle_err_count:8;	// bit 7:0
-		u16 _bit_9_8:2;	// bit 9:8
-		u16 lp_1000BT_HD:1;	// bit 10
-		u16 lp_1000BT_FD:1;	// bit 11
-		u16 remote_rcv_status:1;	// bit 12
-		u16 local_rcv_status:1;	// bit 13
-		u16 cfg_resolution:1;	// bit 14
-		u16 cfg_fault:1;	// bit 15
-	} bits;
-} MSSR_t, *PMSSR_t;
-
 enum _mii_mssr {
 	MII_MSSR_CFG_FAULT = 0x8000,
 	MII_MSSR_CFG_RES = 0x4000,
@@ -508,17 +394,6 @@ enum _mii_mssr {
 };
 
 /* IEEE Extened Status Register */
-typedef union t_MII_ESR {
-	u16 image;
-	struct {
-		u16 _bit_11_0:12;	// bit 11:0
-		u16 media_1000BT_HD:2;	// bit 12
-		u16 media_1000BT_FD:1;	// bit 13
-		u16 media_1000BX_HD:1;	// bit 14
-		u16 media_1000BX_FD:1;	// bit 15
-	} bits;
-} ESR_t, *PESR_t;
-
 enum _mii_esr {
 	MII_ESR_1000BX_FD = 0x8000,
 	MII_ESR_1000BX_HD = 0x4000,
@@ -526,6 +401,7 @@ enum _mii_esr {
 	MII_ESR_1000BT_HD = 0x1000,
 };
 /* PHY Specific Control Register */
+#if 0
 typedef union t_MII_PHY_SCR {
 	u16 image;
 	struct {
@@ -543,6 +419,7 @@ typedef union t_MII_PHY_SCR {
 		u16 xmit_fifo_depth:2;	// bit 15:14
 	} bits;
 } PHY_SCR_t, *PPHY_SCR_t;
+#endif
 
 typedef enum t_MII_ADMIN_STATUS {
 	adm_reset,
@@ -556,21 +433,6 @@ typedef enum t_MII_ADMIN_STATUS {
 /* PCS control and status registers bitmap as the same as MII */
 /* PCS Extended Status register bitmap as the same as MII */
 /* PCS ANAR */
-typedef union t_PCS_ANAR {
-	u16 image;
-	struct {
-		u16 _bit_4_0:5;		// bit 4:0
-		u16 full_duplex:1;	// bit 5
-		u16 half_duplex:1;	// bit 6
-		u16 asymmetric:1;	// bit 7
-		u16 pause:1;		// bit 8
-		u16 _bit_11_9:3;	// bit 11:9
-		u16 remote_fault:2;	// bit 13:12
-		u16 _bit_14:1;		// bit 14
-		u16 next_page:1;	// bit 15
-	} bits;
-} ANAR_PCS_t, *PANAR_PCS_t;
-
 enum _pcs_anar {
 	PCS_ANAR_NEXT_PAGE = 0x8000,
 	PCS_ANAR_REMOTE_FAULT = 0x3000,
@@ -580,21 +442,6 @@ enum _pcs_anar {
 	PCS_ANAR_FULL_DUPLEX = 0x0020,
 };
 /* PCS ANLPAR */
-typedef union t_PCS_ANLPAR {
-	u16 image;
-	struct {
-		u16 _bit_4_0:5;		// bit 4:0
-		u16 full_duplex:1;	// bit 5
-		u16 half_duplex:1;	// bit 6
-		u16 asymmetric:1;	// bit 7
-		u16 pause:1;		// bit 8
-		u16 _bit_11_9:3;	// bit 11:9
-		u16 remote_fault:2;	// bit 13:12
-		u16 _bit_14:1;		// bit 14
-		u16 next_page:1;	// bit 15
-	} bits;
-} ANLPAR_PCS_t, *PANLPAR_PCS_t;
-
 enum _pcs_anlpar {
 	PCS_ANLPAR_NEXT_PAGE = PCS_ANAR_NEXT_PAGE,
 	PCS_ANLPAR_REMOTE_FAULT = PCS_ANAR_REMOTE_FAULT,

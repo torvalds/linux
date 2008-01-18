@@ -187,14 +187,16 @@ enum Window1 {
 enum Window3 {			/* Window 3: MAC/config bits. */
 	Wn3_Config=0, Wn3_MAC_Ctrl=6, Wn3_Options=8,
 };
-union wn3_config {
-	int i;
-	struct w3_config_fields {
-		unsigned int ram_size:3, ram_width:1, ram_speed:2, rom_size:2;
-		int pad8:8;
-		unsigned int ram_split:2, pad18:2, xcvr:3, pad21:1, autoselect:1;
-		int pad24:7;
-	} u;
+enum wn3_config {
+	Ram_size = 7,
+	Ram_width = 8,
+	Ram_speed = 0x30,
+	Rom_size = 0xc0,
+	Ram_split_shift = 16,
+	Ram_split = 3 << Ram_split_shift,
+	Xcvr_shift = 20,
+	Xcvr = 7 << Xcvr_shift,
+	Autoselect = 0x1000000,
 };
 
 enum Window4 {		/* Window 4: Xcvr/media bits. */
@@ -342,7 +344,7 @@ static int tc574_config(struct pcmcia_device *link)
 	kio_addr_t ioaddr;
 	__be16 *phys_addr;
 	char *cardname;
-	union wn3_config config;
+	__u32 config;
 	DECLARE_MAC_BUF(mac);
 
 	phys_addr = (__be16 *)dev->dev_addr;
@@ -401,9 +403,9 @@ static int tc574_config(struct pcmcia_device *link)
 		outw(0<<11, ioaddr + RunnerRdCtrl);
 		printk(KERN_INFO "  ASIC rev %d,", mcr>>3);
 		EL3WINDOW(3);
-		config.i = inl(ioaddr + Wn3_Config);
-		lp->default_media = config.u.xcvr;
-		lp->autoselect = config.u.autoselect;
+		config = inl(ioaddr + Wn3_Config);
+		lp->default_media = (config & Xcvr) >> Xcvr_shift;
+		lp->autoselect = config & Autoselect ? 1 : 0;
 	}
 
 	init_timer(&lp->media);
@@ -464,8 +466,9 @@ static int tc574_config(struct pcmcia_device *link)
 	       dev->name, cardname, dev->base_addr, dev->irq,
 	       print_mac(mac, dev->dev_addr));
 	printk(" %dK FIFO split %s Rx:Tx, %sMII interface.\n",
-		   8 << config.u.ram_size, ram_split[config.u.ram_split],
-		   config.u.autoselect ? "autoselect " : "");
+		   8 << config & Ram_size,
+		   ram_split[(config & Ram_split) >> Ram_split_shift],
+		   config & Autoselect ? "autoselect " : "");
 
 	return 0;
 

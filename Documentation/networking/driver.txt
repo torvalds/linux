@@ -61,7 +61,10 @@ Transmit path guidelines:
 2) Do not forget to update netdev->trans_start to jiffies after
    each new tx packet is given to the hardware.
 
-3) Do not forget that once you return 0 from your hard_start_xmit
+3) A hard_start_xmit method must not modify the shared parts of a
+   cloned SKB.
+
+4) Do not forget that once you return 0 from your hard_start_xmit
    method, it is your driver's responsibility to free up the SKB
    and in some finite amount of time.
 
