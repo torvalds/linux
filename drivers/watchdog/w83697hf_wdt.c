@@ -382,10 +382,8 @@ wdt_init(void)
 		/* we will autodetect the W83697HF/HG watchdog */
 		for (i = 0; ((!found) && (w83697hf_ioports[i] != 0)); i++) {
 			wdt_io = w83697hf_ioports[i];
-			if (!w83697hf_check_wdt()) {
+			if (!w83697hf_check_wdt())
 				found++;
-				break;
-			}
 		}
 	} else {
 		if (!w83697hf_check_wdt())
