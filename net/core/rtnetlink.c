@@ -1368,25 +1368,14 @@ static int rtnetlink_net_init(struct net *net)
 				   rtnetlink_rcv, &rtnl_mutex, THIS_MODULE);
 	if (!sk)
 		return -ENOMEM;
-
-	/* Don't hold an extra reference on the namespace */
-	put_net(sk->sk_net);
 	net->rtnl = sk;
 	return 0;
 }
 
 static void rtnetlink_net_exit(struct net *net)
 {
-	struct sock *sk = net->rtnl;
-	if (sk) {
-		/* At the last minute lie and say this is a socket for the
-		 * initial network namespace.  So the socket will be safe to
-		 * free.
-		 */
-		sk->sk_net = get_net(&init_net);
-		netlink_kernel_release(net->rtnl);
-		net->rtnl = NULL;
-	}
+	netlink_kernel_release(net->rtnl);
+	net->rtnl = NULL;
 }
 
 static struct pernet_operations rtnetlink_net_ops = {

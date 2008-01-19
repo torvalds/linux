@@ -1396,6 +1396,9 @@ netlink_kernel_create(struct net *net, int unit, unsigned int groups,
 	}
 	netlink_table_ungrab();
 
+	/* Do not hold an extra referrence to a namespace as this socket is
+	 * internal to a namespace and does not prevent it to stop. */
+	put_net(net);
 	return sk;
 
 out_sock_release:
@@ -1411,7 +1414,19 @@ netlink_kernel_release(struct sock *sk)
 {
 	if (sk == NULL || sk->sk_socket == NULL)
 		return;
+
+	/*
+	 * Last sock_put should drop referrence to sk->sk_net. It has already
+	 * been dropped in netlink_kernel_create. Taking referrence to stopping
+	 * namespace is not an option.
+	 * Take referrence to a socket to remove it from netlink lookup table
+	 * _alive_ and after that destroy it in the context of init_net.
+	 */
+	sock_hold(sk);
 	sock_release(sk->sk_socket);
+
+	sk->sk_net = get_net(&init_net);
+	sock_put(sk);
 }
 EXPORT_SYMBOL(netlink_kernel_release);
 

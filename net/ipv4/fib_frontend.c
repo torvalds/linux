@@ -869,19 +869,14 @@ static int nl_fib_lookup_init(struct net *net)
 				   nl_fib_input, NULL, THIS_MODULE);
 	if (sk == NULL)
 		return -EAFNOSUPPORT;
-	/* Don't hold an extra reference on the namespace */
-	put_net(sk->sk_net);
 	net->ipv4.fibnl = sk;
 	return 0;
 }
 
 static void nl_fib_lookup_exit(struct net *net)
 {
-	/* At the last minute lie and say this is a socket for the
-	 * initial network namespace. So the socket will  be safe to free.
-	 */
-	net->ipv4.fibnl->sk_net = get_net(&init_net);
 	netlink_kernel_release(net->ipv4.fibnl);
+	net->ipv4.fibnl = NULL;
 }
 
 static void fib_disable_ip(struct net_device *dev, int force)
