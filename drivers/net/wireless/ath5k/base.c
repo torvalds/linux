@@ -1458,8 +1458,7 @@ ath5k_beaconq_config(struct ath5k_softc *sc)
 	ret = ath5k_hw_get_tx_queueprops(ah, sc->bhalq, &qi);
 	if (ret)
 		return ret;
-	if (sc->opmode == IEEE80211_IF_TYPE_AP ||
-	    sc->opmode == IEEE80211_IF_TYPE_IBSS) {
+	if (sc->opmode == IEEE80211_IF_TYPE_AP) {
 		/*
 		 * Always burst out beacon and CAB traffic
 		 * (aifs = cwmin = cwmax = 0)
@@ -1467,7 +1466,18 @@ ath5k_beaconq_config(struct ath5k_softc *sc)
 		qi.tqi_aifs = 0;
 		qi.tqi_cw_min = 0;
 		qi.tqi_cw_max = 0;
+	} else if (sc->opmode == IEEE80211_IF_TYPE_IBSS) {
+		/*
+		 * Adhoc mode; backoff between 0 and (2 * cw_min).
+		 */
+		qi.tqi_aifs = 0;
+		qi.tqi_cw_min = 0;
+		qi.tqi_cw_max = 2 * ah->ah_cw_min;
 	}
+
+	ATH5K_DBG(sc, ATH5K_DEBUG_BEACON,
+		"beacon queueprops tqi_aifs:%d tqi_cw_min:%d tqi_cw_max:%d\n",
+		qi.tqi_aifs, qi.tqi_cw_min, qi.tqi_cw_max);
 
 	ret = ath5k_hw_setup_tx_queueprops(ah, sc->bhalq, &qi);
 	if (ret) {
