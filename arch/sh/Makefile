@@ -66,7 +66,7 @@ OBJCOPYFLAGS	:= -O binary -R .note -R .note.gnu.build-id -R .comment \
 defaultimage-$(CONFIG_SUPERH32)	:= zImage
 
 # Set some sensible Kbuild defaults
-KBUILD_DEFCONFIG	:= r7780rp_defconfig
+KBUILD_DEFCONFIG	:= r7780mp_defconfig
 KBUILD_IMAGE		:= $(defaultimage-y)
 
 #
