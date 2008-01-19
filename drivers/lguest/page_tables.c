@@ -646,7 +646,7 @@ void map_switcher_in_guest(struct lg_cpu *cpu, struct lguest_pages *pages)
 
 	/* Make the last PGD entry for this Guest point to the Switcher's PTE
 	 * page for this CPU (with appropriate flags). */
-	switcher_pgd = __pgd(__pa(switcher_pte_page) | _PAGE_KERNEL);
+	switcher_pgd = __pgd(__pa(switcher_pte_page) | __PAGE_KERNEL);
 
 	cpu->lg->pgdirs[cpu->cpu_pgd].pgdir[SWITCHER_PGD_INDEX] = switcher_pgd;
 
@@ -658,7 +658,7 @@ void map_switcher_in_guest(struct lg_cpu *cpu, struct lguest_pages *pages)
 	 * page is already mapped there, we don't have to copy them out
 	 * again. */
 	pfn = __pa(cpu->regs_page) >> PAGE_SHIFT;
-	regs_pte = pfn_pte(pfn, __pgprot(_PAGE_KERNEL));
+	regs_pte = pfn_pte(pfn, __pgprot(__PAGE_KERNEL));
 	switcher_pte_page[(unsigned long)pages/PAGE_SIZE%PTRS_PER_PTE] = regs_pte;
 }
 /*:*/
