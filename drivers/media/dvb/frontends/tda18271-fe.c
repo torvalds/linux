@@ -836,7 +836,6 @@ static int tda18271_set_params(struct dvb_frontend *fe,
 
 	priv->mode = TDA18271_DIGITAL;
 
-	/* see table 22 */
 	if (fe->ops.info.type == FE_ATSC) {
 		switch (params->u.vsb.modulation) {
 		case VSB_8:
@@ -883,6 +882,10 @@ static int tda18271_set_params(struct dvb_frontend *fe,
 		tda_warn("modulation type not supported!\n");
 		return -EINVAL;
 	}
+
+	/* When tuning digital, the analog demod must be tri-stated */
+	if (fe->ops.analog_ops.standby)
+		fe->ops.analog_ops.standby(fe);
 
 	ret = tda18271_tune(fe, sgIF * 1000, freq, bw, std, 0);
 
