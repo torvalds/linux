@@ -1514,9 +1514,15 @@ static int irlap_state_nrm_p(struct irlap_cb *self, IRLAP_EVENT event,
 
 		/* N2 is the disconnect timer. Until we reach it, we retry */
 		if (self->retry_count < self->N2) {
-			/* Retry sending the pf bit to the secondary */
-			irlap_wait_min_turn_around(self, &self->qos_tx);
-			irlap_send_rr_frame(self, CMD_FRAME);
+			if (skb_peek(&self->wx_list) == NULL) {
+				/* Retry sending the pf bit to the secondary */
+				IRDA_DEBUG(4, "nrm_p: resending rr");
+				irlap_wait_min_turn_around(self, &self->qos_tx);
+				irlap_send_rr_frame(self, CMD_FRAME);
+			} else {
+				IRDA_DEBUG(4, "nrm_p: resend frames");
+				irlap_resend_rejected_frames(self, CMD_FRAME);
+			}
 
 			irlap_start_final_timer(self, self->final_timeout);
 			self->retry_count++;
