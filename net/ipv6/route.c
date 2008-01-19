@@ -329,7 +329,7 @@ static inline int rt6_check_dev(struct rt6_info *rt, int oif)
 static inline int rt6_check_neigh(struct rt6_info *rt)
 {
 	struct neighbour *neigh = rt->rt6i_nexthop;
-	int m = 0;
+	int m;
 	if (rt->rt6i_flags & RTF_NONEXTHOP ||
 	    !(rt->rt6i_flags & RTF_GATEWAY))
 		m = 1;
@@ -337,10 +337,15 @@ static inline int rt6_check_neigh(struct rt6_info *rt)
 		read_lock_bh(&neigh->lock);
 		if (neigh->nud_state & NUD_VALID)
 			m = 2;
-		else if (!(neigh->nud_state & NUD_FAILED))
+#ifdef CONFIG_IPV6_ROUTER_PREF
+		else if (neigh->nud_state & NUD_FAILED)
+			m = 0;
+#endif
+		else
 			m = 1;
 		read_unlock_bh(&neigh->lock);
-	}
+	} else
+		m = 0;
 	return m;
 }
 
