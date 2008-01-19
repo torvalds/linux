@@ -8,6 +8,7 @@
 #include <linux/lguest.h>
 #include <linux/lguest_launcher.h>
 #include <linux/wait.h>
+#include <linux/hrtimer.h>
 #include <linux/err.h>
 #include <asm/semaphore.h>
 

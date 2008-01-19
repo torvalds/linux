@@ -6,6 +6,7 @@
 #include <linux/uaccess.h>
 #include <linux/miscdevice.h>
 #include <linux/fs.h>
+#include <linux/sched.h>
 #include "lg.h"
 
 /*L:055 When something happens, the Waker process needs a way to stop the

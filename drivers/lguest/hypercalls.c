@@ -23,6 +23,7 @@
 #include <linux/uaccess.h>
 #include <linux/syscalls.h>
 #include <linux/mm.h>
+#include <linux/ktime.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include "lg.h"
