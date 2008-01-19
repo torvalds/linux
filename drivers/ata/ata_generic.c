@@ -26,7 +26,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "ata_generic"
-#define DRV_VERSION "0.2.13"
+#define DRV_VERSION "0.2.15"
 
 /*
  *	A generic parallel ATA driver using libata
@@ -48,10 +48,14 @@ static int generic_set_mode(struct ata_link *link, struct ata_device **unused)
 	struct ata_port *ap = link->ap;
 	int dma_enabled = 0;
 	struct ata_device *dev;
+	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 
 	/* Bits 5 and 6 indicate if DMA is active on master/slave */
 	if (ap->ioaddr.bmdma_addr)
 		dma_enabled = ioread8(ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
+
+	if (pdev->vendor == PCI_VENDOR_ID_CENATEK)
+		dma_enabled = 0xFF;
 
 	ata_link_for_each_dev(dev, link) {
 		if (!ata_dev_enabled(dev))
@@ -201,6 +205,7 @@ static struct pci_device_id ata_generic[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_HINT,   PCI_DEVICE_ID_HINT_VXPROII_IDE), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA,    PCI_DEVICE_ID_VIA_82C561), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_OPTI,   PCI_DEVICE_ID_OPTI_82C558), },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CENATEK,PCI_DEVICE_ID_CENATEK_IDE), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_TOSHIBA,PCI_DEVICE_ID_TOSHIBA_PICCOLO), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_TOSHIBA,PCI_DEVICE_ID_TOSHIBA_PICCOLO_1), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_TOSHIBA,PCI_DEVICE_ID_TOSHIBA_PICCOLO_2),  },
