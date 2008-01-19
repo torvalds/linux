@@ -36,8 +36,6 @@
 #include <asm/arch/omapfb.h>
 #include <asm/arch/lcd_mipid.h>
 
-#include "../plat-omap/dsp/dsp_common.h"
-
 #define ADS7846_PENDOWN_GPIO	15
 
 static void __init omap_nokia770_init_irq(void)
@@ -318,6 +316,8 @@ static __init int omap_dsp_init(void)
  out:
 	return ret;
 }
+#else
+#define omap_dsp_init()		do {} while (0)
 #endif	/* CONFIG_OMAP_DSP */
 
 static void __init omap_nokia770_init(void)
