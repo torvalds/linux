@@ -112,7 +112,6 @@ machdir-$(CONFIG_SH_DREAMCAST)			+= dreamcast
 machdir-$(CONFIG_SH_MPC1211)			+= mpc1211
 machdir-$(CONFIG_SH_SH03)			+= sh03
 machdir-$(CONFIG_SH_SECUREEDGE5410)		+= snapgear
-machdir-$(CONFIG_SH_HS7751RVOIP)		+= renesas/hs7751rvoip
 machdir-$(CONFIG_SH_RTS7751R2D)			+= renesas/rts7751r2d
 machdir-$(CONFIG_SH_7751_SYSTEMH)		+= renesas/systemh
 machdir-$(CONFIG_SH_EDOSK7705)			+= renesas/edosk7705

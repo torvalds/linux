@@ -440,13 +440,6 @@ config SH_SECUREEDGE5410
 	  This includes both the OEM SecureEdge products as well as the
 	  SME product line.
 
-config SH_HS7751RVOIP
-	bool "HS7751RVOIP"
-	depends on CPU_SUBTYPE_SH7751R
-	help
-	  Select HS7751RVOIP if configuring for a Renesas Technology
-	  Sales VoIP board.
-
 config SH_7710VOIPGW
 	bool "SH7710-VOIP-GW"
 	depends on CPU_SUBTYPE_SH7710
