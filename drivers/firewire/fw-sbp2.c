@@ -151,9 +151,16 @@ struct sbp2_target {
 	struct list_head lu_list;
 };
 
-#define SBP2_MAX_SG_ELEMENT_LENGTH	0xf000
+/*
+ * Per section 7.4.8 of the SBP-2 spec, a mgt_ORB_timeout value can be
+ * provided in the config rom.  A high timeout value really only matters
+ * on initial login, where we'll just use 20s rather than hassling with
+ * reading the config rom, since it really wouldn't buy us much.
+ */
+#define SBP2_LOGIN_ORB_TIMEOUT		20000	/* Timeout in ms */
 #define SBP2_ORB_TIMEOUT		2000	/* Timeout in ms */
 #define SBP2_ORB_NULL			0x80000000
+#define SBP2_MAX_SG_ELEMENT_LENGTH	0xf000
 
 #define SBP2_DIRECTION_TO_MEDIA		0x0
 #define SBP2_DIRECTION_FROM_MEDIA	0x1
@@ -488,6 +495,7 @@ sbp2_send_management_orb(struct sbp2_logical_unit *lu, int node_id,
 {
 	struct fw_device *device = fw_device(lu->tgt->unit->device.parent);
 	struct sbp2_management_orb *orb;
+	unsigned int timeout;
 	int retval = -ENOMEM;
 
 	orb = kzalloc(sizeof(*orb), GFP_ATOMIC);
@@ -519,6 +527,9 @@ sbp2_send_management_orb(struct sbp2_logical_unit *lu, int node_id,
 		orb->request.misc |=
 			MANAGEMENT_ORB_RECONNECT(2) |
 			MANAGEMENT_ORB_EXCLUSIVE(sbp2_param_exclusive_login);
+		timeout = SBP2_LOGIN_ORB_TIMEOUT;
+	} else {
+		timeout = SBP2_ORB_TIMEOUT;
 	}
 
 	fw_memcpy_to_be32(&orb->request, &orb->request, sizeof(orb->request));
@@ -535,8 +546,7 @@ sbp2_send_management_orb(struct sbp2_logical_unit *lu, int node_id,
 	sbp2_send_orb(&orb->base, lu, node_id, generation,
 		      lu->tgt->management_agent_address);
 
-	wait_for_completion_timeout(&orb->done,
-				    msecs_to_jiffies(SBP2_ORB_TIMEOUT));
+	wait_for_completion_timeout(&orb->done, msecs_to_jiffies(timeout));
 
 	retval = -EIO;
 	if (sbp2_cancel_orbs(lu) == 0) {
