@@ -627,6 +627,9 @@ static struct inet6_protocol frag_protocol =
 
 void ipv6_frag_sysctl_init(struct net *net)
 {
+	if (net != &init_net)
+		return;
+
 	ip6_frags.ctl = &net->ipv6.sysctl.frags;
 }
 
