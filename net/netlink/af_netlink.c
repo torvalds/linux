@@ -498,9 +498,12 @@ static int netlink_release(struct socket *sock)
 
 	netlink_table_grab();
 	if (netlink_is_kernel(sk)) {
-		kfree(nl_table[sk->sk_protocol].listeners);
-		nl_table[sk->sk_protocol].module = NULL;
-		nl_table[sk->sk_protocol].registered = 0;
+		BUG_ON(nl_table[sk->sk_protocol].registered == 0);
+		if (--nl_table[sk->sk_protocol].registered == 0) {
+			kfree(nl_table[sk->sk_protocol].listeners);
+			nl_table[sk->sk_protocol].module = NULL;
+			nl_table[sk->sk_protocol].registered = 0;
+		}
 	} else if (nlk->subscriptions)
 		netlink_update_listeners(sk);
 	netlink_table_ungrab();
@@ -1389,6 +1392,7 @@ netlink_kernel_create(struct net *net, int unit, unsigned int groups,
 		nl_table[unit].registered = 1;
 	} else {
 		kfree(listeners);
+		nl_table[unit].registered++;
 	}
 	netlink_table_ungrab();
 
