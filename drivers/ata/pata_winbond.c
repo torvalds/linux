@@ -195,7 +195,7 @@ static __init int winbond_init_one(unsigned long port)
 	reg = winbond_readcfg(port, 0x81);
 
 	if (!(reg & 0x03))		/* Disabled */
-		return 0;
+		return -ENODEV;
 
 	for (i = 0; i < 2 ; i ++) {
 		unsigned long cmd_port = 0x1F0 - (0x80 * i);
