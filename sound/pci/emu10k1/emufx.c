@@ -665,7 +665,7 @@ static unsigned int *copy_tlv(const unsigned int __user *_tlv)
 		return NULL;
 	if (data[1] >= MAX_TLV_SIZE)
 		return NULL;
-	tlv = kmalloc(data[1] * 4 + sizeof(data), GFP_KERNEL);
+	tlv = kmalloc(data[1] + sizeof(data), GFP_KERNEL);
 	if (!tlv)
 		return NULL;
 	memcpy(tlv, data, sizeof(data));
