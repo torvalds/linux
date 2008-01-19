@@ -166,6 +166,7 @@ struct ath5k_softc {
 				bmisscount,	/* missed beacon transmits */
 				bintval,	/* beacon interval in TU */
 				bsent;
+	unsigned int		nexttbtt;	/* next beacon time in TU */
 
 	struct timer_list	calib_tim;	/* calibration timer */
 };
