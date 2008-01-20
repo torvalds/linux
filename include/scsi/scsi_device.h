@@ -387,6 +387,10 @@ static inline int scsi_device_qas(struct scsi_device *sdev)
 		return 0;
 	return sdev->inquiry[56] & 0x02;
 }
+static inline int scsi_device_enclosure(struct scsi_device *sdev)
+{
+	return sdev->inquiry[6] & (1<<6);
+}
 
 #define MODULE_ALIAS_SCSI_DEVICE(type) \
 	MODULE_ALIAS("scsi:t-" __stringify(type) "*")
