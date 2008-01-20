@@ -928,27 +928,38 @@ struct saa7134_board saa7134_boards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
 		.tda9887_conf   = TDA9887_PRESENT,
+		.gpiomask	= 0x03,
 		.inputs         = {{
 			.name = name_tv,
 			.vmux = 1,
 			.amux = TV,
 			.tv   = 1,
-		},{
+			.gpio = 0x00,
+		}, {
 			.name = name_comp1,
-			.vmux = 0,
-			.amux = LINE2,
-		},{
-			.name = name_comp2,
 			.vmux = 3,
-			.amux = LINE2,
-		},{
+			.amux = LINE1,
+			.gpio = 0x02,
+		}, {
+			.name = name_comp2,
+			.vmux = 0,
+			.amux = LINE1,
+			.gpio = 0x02,
+		}, {
 			.name = name_svideo,
 			.vmux = 8,
-			.amux = LINE2,
-		}},
+			.amux = LINE1,
+			.gpio = 0x02,
+		} },
 		.radio = {
 			.name = name_radio,
-			.amux = LINE2,
+			.amux = LINE1,
+			.gpio = 0x01,
+		},
+		.mute  = {
+			.name = name_mute,
+			.amux = TV,
+			.gpio = 0x00,
 		},
 	},
 	[SAA7134_BOARD_BMK_MPEX_TUNER] = {
