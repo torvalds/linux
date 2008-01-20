@@ -12,7 +12,7 @@ NAME = Arr Matey! A Hairy Bilge Rat!
 
 # Do not:
 # o  use make's built-in rules and variables
-#    (this increases performance and avoid hard-to-debug behavour);
+#    (this increases performance and avoids hard-to-debug behaviour);
 # o  print "Entering directory ...";
 MAKEFLAGS += -rR --no-print-directory
 
@@ -1329,7 +1329,7 @@ else
 ALLINCLUDE_ARCHS := $(SRCARCH)
 endif
 else
-#Allow user to specify only ALLSOURCE_PATHS on the command line, keeping existing behavour.
+#Allow user to specify only ALLSOURCE_PATHS on the command line, keeping existing behaviour.
 ALLINCLUDE_ARCHS := $(ALLSOURCE_ARCHS)
 endif
 
