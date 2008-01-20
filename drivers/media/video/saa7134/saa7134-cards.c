@@ -4552,6 +4552,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x5168,
+		.subdevice    = 0x3307, /* FlyDVB-T Hybrid Mini PCI */
+		.driver_data  = SAA7134_BOARD_FLYDVBT_HYBRID_CARDBUS,
+	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
 		.subvendor    = 0x16be,
 		.subdevice    = 0x0007,
 		.driver_data  = SAA7134_BOARD_MEDION_MD8800_QUADRO,
