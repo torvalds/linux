@@ -395,6 +395,15 @@ static int sd_prep_fn(struct request_queue *q, struct request *rq)
 		goto out;
 	}
 
+	/*
+	 * Some devices (some sdcards for one) don't like it if the
+	 * last sector gets read in a larger then 1 sector read.
+	 */
+	if (unlikely(sdp->last_sector_bug &&
+	    rq->nr_sectors > sdp->sector_size / 512 &&
+	    block + this_count == get_capacity(disk)))
+		this_count -= sdp->sector_size / 512;
+
 	SCSI_LOG_HLQUEUE(2, scmd_printk(KERN_INFO, SCpnt, "block=%llu\n",
 					(unsigned long long)block));
 
