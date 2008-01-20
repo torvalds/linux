@@ -606,13 +606,17 @@ static void sbp2_release_target(struct kref *kref)
 	struct sbp2_logical_unit *lu, *next;
 	struct Scsi_Host *shost =
 		container_of((void *)tgt, struct Scsi_Host, hostdata[0]);
+	struct fw_device *device = fw_device(tgt->unit->device.parent);
 
 	list_for_each_entry_safe(lu, next, &tgt->lu_list, link) {
 		if (lu->sdev)
 			scsi_remove_device(lu->sdev);
 
-		sbp2_send_management_orb(lu, tgt->node_id, lu->generation,
-				SBP2_LOGOUT_REQUEST, lu->login_id, NULL);
+		if (!fw_device_is_shutdown(device))
+			sbp2_send_management_orb(lu, tgt->node_id,
+					lu->generation, SBP2_LOGOUT_REQUEST,
+					lu->login_id, NULL);
+
 		fw_core_remove_address_handler(&lu->address_handler);
 		list_del(&lu->link);
 		kfree(lu);
