@@ -4564,6 +4564,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x16be,
+		.subdevice    = 0x000d, /* triple CTX948_V1.1.1 */
+		.driver_data  = SAA7134_BOARD_MEDION_MD8800_QUADRO,
+	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
 		.subvendor    = 0x1461,
 		.subdevice    = 0x2c05,
 		.driver_data  = SAA7134_BOARD_AVERMEDIA_777,
