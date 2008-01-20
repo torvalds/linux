@@ -68,7 +68,7 @@ config WAVELAN
 	  <http://www.tldp.org/docs.html#howto>. Some more specific
 	  information is contained in
 	  <file:Documentation/networking/wavelan.txt> and in the source code
-	  <file:drivers/net/wavelan.p.h>.
+	  <file:drivers/net/wireless/wavelan.p.h>.
 
 	  You will also need the wireless tools package available from
 	  <http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Tools.html>.

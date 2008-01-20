@@ -732,7 +732,7 @@ config SCSI_GDTH
 	  This is a driver for RAID/SCSI Disk Array Controllers (EISA/ISA/PCI) 
 	  manufactured by Intel Corporation/ICP vortex GmbH. It is documented
 	  in the kernel source in <file:drivers/scsi/gdth.c> and
-	  <file:drivers/scsi/gdth.h.>
+	  <file:drivers/scsi/gdth.h>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called gdth.

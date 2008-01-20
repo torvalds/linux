@@ -2,7 +2,7 @@
  * This file adds the header file glue so that the shared files
  * flatdevicetree.[ch] can compile and work in the powerpc bootwrapper.
  *
- * strncmp & strchr copied from <file:lib/strings.c>
+ * strncmp & strchr copied from <file:lib/string.c>
  * Copyright (C) 1991, 1992  Linus Torvalds
  *
  * Maintained by: Mark A. Greer <mgreer@mvista.com>
