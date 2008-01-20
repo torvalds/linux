@@ -670,27 +670,41 @@ int match(const char *sym, const char * const pat[])
 static const char *section_white_list[] =
 	{ ".debug*", ".stab*", ".note*", ".got*", ".toc*", NULL };
 
-#define INIT_DATA_SECTIONS ".init.data$"
-#define EXIT_DATA_SECTIONS ".exit.data$"
+#define ALL_INIT_DATA_SECTIONS \
+	".init.data$", ".devinit.data$", ".cpuinit.data$", ".meminit.data$"
+#define ALL_EXIT_DATA_SECTIONS \
+	".exit.data$", ".devexit.data$", ".cpuexit.data$", ".memexit.data$"
 
-#define INIT_TEXT_SECTIONS ".init.text$"
-#define EXIT_TEXT_SECTIONS ".exit.text$"
+#define ALL_INIT_TEXT_SECTIONS \
+	".init.text$", ".devinit.text$", ".cpuinit.text$", ".meminit.text$"
+#define ALL_EXIT_TEXT_SECTIONS \
+	".exit.text$", ".devexit.text$", ".cpuexit.text$", ".memexit.text$"
 
-#define INIT_SECTIONS INIT_DATA_SECTIONS, INIT_TEXT_SECTIONS
-#define EXIT_SECTIONS EXIT_DATA_SECTIONS, EXIT_TEXT_SECTIONS
+#define ALL_INIT_SECTIONS ALL_INIT_DATA_SECTIONS, ALL_INIT_TEXT_SECTIONS
+#define ALL_EXIT_SECTIONS ALL_EXIT_DATA_SECTIONS, ALL_EXIT_TEXT_SECTIONS
 
 #define DATA_SECTIONS ".data$", ".data.rel$"
 #define TEXT_SECTIONS ".text$"
 
+#define INIT_SECTIONS      ".init.data$", ".init.text$"
+#define DEV_INIT_SECTIONS  ".devinit.data$", ".devinit.text$"
+#define CPU_INIT_SECTIONS  ".cpuinit.data$", ".cpuinit.text$"
+#define MEM_INIT_SECTIONS  ".meminit.data$", ".meminit.text$"
+
+#define EXIT_SECTIONS      ".exit.data$", ".exit.text$"
+#define DEV_EXIT_SECTIONS  ".devexit.data$", ".devexit.text$"
+#define CPU_EXIT_SECTIONS  ".cpuexit.data$", ".cpuexit.text$"
+#define MEM_EXIT_SECTIONS  ".memexit.data$", ".memexit.text$"
+
 /* init data sections */
-static const char *init_data_sections[] = { INIT_DATA_SECTIONS, NULL };
+static const char *init_data_sections[] = { ALL_INIT_DATA_SECTIONS, NULL };
 
 /* all init sections */
-static const char *init_sections[] = { INIT_SECTIONS, NULL };
+static const char *init_sections[] = { ALL_INIT_SECTIONS, NULL };
 
 /* All init and exit sections (code + data) */
 static const char *init_exit_sections[] =
-	{INIT_SECTIONS, EXIT_SECTIONS, NULL };
+	{ALL_INIT_SECTIONS, ALL_EXIT_SECTIONS, NULL };
 
 /* data section */
 static const char *data_sections[] = { DATA_SECTIONS, NULL };
@@ -734,22 +748,32 @@ const struct sectioncheck sectioncheck[] = {
  */
 {
 	.fromsec = { TEXT_SECTIONS, DATA_SECTIONS, NULL },
-	.tosec   = { INIT_SECTIONS, EXIT_SECTIONS, NULL }
+	.tosec   = { ALL_INIT_SECTIONS, ALL_EXIT_SECTIONS, NULL }
+},
+/* Do not reference init code/data from devinit/cpuinit/meminit code/data */
+{
+	.fromsec = { DEV_INIT_SECTIONS, CPU_INIT_SECTIONS, MEM_INIT_SECTIONS, NULL },
+	.tosec   = { INIT_SECTIONS, NULL }
+},
+/* Do not reference exit code/data from devexit/cpuexit/memexit code/data */
+{
+	.fromsec = { DEV_EXIT_SECTIONS, CPU_EXIT_SECTIONS, MEM_EXIT_SECTIONS, NULL },
+	.tosec   = { EXIT_SECTIONS, NULL }
 },
 /* Do not use exit code/data from init code */
 {
-	.fromsec = { INIT_SECTIONS, NULL },
-	.tosec   = { EXIT_SECTIONS, NULL },
+	.fromsec = { ALL_INIT_SECTIONS, NULL },
+	.tosec   = { ALL_EXIT_SECTIONS, NULL },
 },
 /* Do not use init code/data from exit code */
 {
-	.fromsec = { EXIT_SECTIONS, NULL },
-	.tosec   = { INIT_SECTIONS, NULL }
+	.fromsec = { ALL_EXIT_SECTIONS, NULL },
+	.tosec   = { ALL_INIT_SECTIONS, NULL }
 },
 /* Do not export init/exit functions or data */
 {
 	.fromsec = { "__ksymtab*", NULL },
-	.tosec   = { INIT_SECTIONS, EXIT_SECTIONS, NULL }
+	.tosec   = { ALL_INIT_SECTIONS, ALL_EXIT_SECTIONS, NULL }
 }
 };
 

@@ -60,17 +60,53 @@
 #define __exit_refok     noinline __section(.exit.text.refok)
 
 #ifdef MODULE
-#define __exit		__section(.exit.text) __cold
+#define __exitused
 #else
-#define __exit		__attribute_used__ __section(.exit.text) __cold
+#define __exitused  __used
 #endif
+
+#define __exit          __section(.exit.text) __exitused __cold
+
+/* Used for HOTPLUG */
+#define __devinit        __section(.devinit.text) __cold
+#define __devinitdata    __section(.devinit.data)
+#define __devinitconst   __section(.devinit.rodata)
+#define __devexit        __section(.devexit.text) __exitused __cold
+#define __devexitdata    __section(.devexit.data)
+#define __devexitconst   __section(.devexit.rodata)
+
+/* Used for HOTPLUG_CPU */
+#define __cpuinit        __section(.cpuinit.text) __cold
+#define __cpuinitdata    __section(.cpuinit.data)
+#define __cpuinitconst   __section(.cpuinit.rodata)
+#define __cpuexit        __section(.cpuexit.text) __exitused __cold
+#define __cpuexitdata    __section(.cpuexit.data)
+#define __cpuexitconst   __section(.cpuexit.rodata)
+
+/* Used for MEMORY_HOTPLUG */
+#define __meminit        __section(.meminit.text) __cold
+#define __meminitdata    __section(.meminit.data)
+#define __meminitconst   __section(.meminit.rodata)
+#define __memexit        __section(.memexit.text) __exitused __cold
+#define __memexitdata    __section(.memexit.data)
+#define __memexitconst   __section(.memexit.rodata)
 
 /* For assembly routines */
 #define __INIT		.section	".init.text","ax"
 #define __INIT_REFOK	.section	".text.init.refok","ax"
 #define __FINIT		.previous
+
 #define __INITDATA	.section	".init.data","aw"
 #define __INITDATA_REFOK .section	".data.init.refok","aw"
+
+#define __DEVINIT        .section	".devinit.text", "ax"
+#define __DEVINITDATA    .section	".devinit.data", "aw"
+
+#define __CPUINIT        .section	".cpuinit.text", "ax"
+#define __CPUINITDATA    .section	".cpuinit.data", "aw"
+
+#define __MEMINIT        .section	".meminit.text", "ax"
+#define __MEMINITDATA    .section	".meminit.data", "aw"
 
 #ifndef __ASSEMBLY__
 /*
@@ -253,43 +289,6 @@ void __init parse_early_param(void);
 #define __init_or_module __init
 #define __initdata_or_module __initdata
 #endif /*CONFIG_MODULES*/
-
-#ifdef CONFIG_HOTPLUG
-#define __devinit
-#define __devinitdata
-#define __devexit
-#define __devexitdata
-#else
-#define __devinit __init
-#define __devinitdata __initdata
-#define __devexit __exit
-#define __devexitdata __exitdata
-#endif
-
-#ifdef CONFIG_HOTPLUG_CPU
-#define __cpuinit
-#define __cpuinitdata
-#define __cpuexit
-#define __cpuexitdata
-#else
-#define __cpuinit	__init
-#define __cpuinitdata __initdata
-#define __cpuexit __exit
-#define __cpuexitdata	__exitdata
-#endif
-
-#if defined(CONFIG_MEMORY_HOTPLUG) || defined(CONFIG_ACPI_HOTPLUG_MEMORY) \
-	|| defined(CONFIG_ACPI_HOTPLUG_MEMORY_MODULE)
-#define __meminit
-#define __meminitdata
-#define __memexit
-#define __memexitdata
-#else
-#define __meminit	__init
-#define __meminitdata __initdata
-#define __memexit __exit
-#define __memexitdata	__exitdata
-#endif
 
 /* Functions marked as __devexit may be discarded at kernel link time, depending
    on config options.  Newer versions of binutils detect references from
