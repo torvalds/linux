@@ -514,9 +514,10 @@ sbp2_send_management_orb(struct sbp2_logical_unit *lu, int node_id,
 	orb->request.status_fifo.low  = lu->address_handler.offset;
 
 	if (function == SBP2_LOGIN_REQUEST) {
+		/* Ask for 2^2 == 4 seconds reconnect grace period */
 		orb->request.misc |=
-			MANAGEMENT_ORB_EXCLUSIVE(sbp2_param_exclusive_login) |
-			MANAGEMENT_ORB_RECONNECT(0);
+			MANAGEMENT_ORB_RECONNECT(2) |
+			MANAGEMENT_ORB_EXCLUSIVE(sbp2_param_exclusive_login);
 	}
 
 	fw_memcpy_to_be32(&orb->request, &orb->request, sizeof(orb->request));
