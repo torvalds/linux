@@ -141,28 +141,29 @@ const char * scsi_device_type(unsigned type)
 EXPORT_SYMBOL(scsi_device_type);
 
 struct scsi_host_cmd_pool {
-	struct kmem_cache	*slab;
-	unsigned int	users;
-	char		*name;
-	unsigned int	slab_flags;
-	gfp_t		gfp_mask;
+	struct kmem_cache	*cmd_slab;
+	struct kmem_cache	*sense_slab;
+	unsigned int		users;
+	char			*cmd_name;
+	char			*sense_name;
+	unsigned int		slab_flags;
+	gfp_t			gfp_mask;
 };
 
 static struct scsi_host_cmd_pool scsi_cmd_pool = {
-	.name		= "scsi_cmd_cache",
+	.cmd_name	= "scsi_cmd_cache",
+	.sense_name	= "scsi_sense_cache",
 	.slab_flags	= SLAB_HWCACHE_ALIGN,
 };
 
 static struct scsi_host_cmd_pool scsi_cmd_dma_pool = {
-	.name		= "scsi_cmd_cache(DMA)",
+	.cmd_name	= "scsi_cmd_cache(DMA)",
+	.sense_name	= "scsi_sense_cache(DMA)",
 	.slab_flags	= SLAB_HWCACHE_ALIGN|SLAB_CACHE_DMA,
 	.gfp_mask	= __GFP_DMA,
 };
 
 static DEFINE_MUTEX(host_cmd_pool_mutex);
-
-static struct kmem_cache *sense_buffer_slab;
-static int sense_buffer_slab_users;
 
 /**
  * __scsi_get_command - Allocate a struct scsi_cmnd
@@ -177,8 +178,8 @@ struct scsi_cmnd *__scsi_get_command(struct Scsi_Host *shost, gfp_t gfp_mask)
 	struct scsi_cmnd *cmd;
 	unsigned char *buf;
 
-	cmd = kmem_cache_alloc(shost->cmd_pool->slab,
-			gfp_mask | shost->cmd_pool->gfp_mask);
+	cmd = kmem_cache_alloc(shost->cmd_pool->cmd_slab,
+			       gfp_mask | shost->cmd_pool->gfp_mask);
 
 	if (unlikely(!cmd)) {
 		unsigned long flags;
@@ -197,12 +198,13 @@ struct scsi_cmnd *__scsi_get_command(struct Scsi_Host *shost, gfp_t gfp_mask)
 			cmd->sense_buffer = buf;
 		}
 	} else {
-		buf = kmem_cache_alloc(sense_buffer_slab, __GFP_DMA|gfp_mask);
+		buf = kmem_cache_alloc(shost->cmd_pool->sense_slab,
+				       gfp_mask | shost->cmd_pool->gfp_mask);
 		if (likely(buf)) {
 			memset(cmd, 0, sizeof(*cmd));
 			cmd->sense_buffer = buf;
 		} else {
-			kmem_cache_free(shost->cmd_pool->slab, cmd);
+			kmem_cache_free(shost->cmd_pool->cmd_slab, cmd);
 			cmd = NULL;
 		}
 	}
@@ -265,8 +267,9 @@ void __scsi_put_command(struct Scsi_Host *shost, struct scsi_cmnd *cmd,
 	spin_unlock_irqrestore(&shost->free_list_lock, flags);
 
 	if (likely(cmd != NULL)) {
-		kmem_cache_free(sense_buffer_slab, cmd->sense_buffer);
-		kmem_cache_free(shost->cmd_pool->slab, cmd);
+		kmem_cache_free(shost->cmd_pool->sense_slab,
+				cmd->sense_buffer);
+		kmem_cache_free(shost->cmd_pool->cmd_slab, cmd);
 	}
 
 	put_device(dev);
@@ -310,7 +313,6 @@ int scsi_setup_command_freelist(struct Scsi_Host *shost)
 {
 	struct scsi_host_cmd_pool *pool;
 	struct scsi_cmnd *cmd;
-	unsigned char *sense_buffer;
 
 	spin_lock_init(&shost->free_list_lock);
 	INIT_LIST_HEAD(&shost->free_list);
@@ -322,11 +324,19 @@ int scsi_setup_command_freelist(struct Scsi_Host *shost)
 	mutex_lock(&host_cmd_pool_mutex);
 	pool = (shost->unchecked_isa_dma ? &scsi_cmd_dma_pool : &scsi_cmd_pool);
 	if (!pool->users) {
-		pool->slab = kmem_cache_create(pool->name,
-				sizeof(struct scsi_cmnd), 0,
-				pool->slab_flags, NULL);
-		if (!pool->slab)
+		pool->cmd_slab = kmem_cache_create(pool->cmd_name,
+						   sizeof(struct scsi_cmnd), 0,
+						   pool->slab_flags, NULL);
+		if (!pool->cmd_slab)
 			goto fail;
+
+		pool->sense_slab = kmem_cache_create(pool->sense_name,
+						     SCSI_SENSE_BUFFERSIZE, 0,
+						     pool->slab_flags, NULL);
+		if (!pool->sense_slab) {
+			kmem_cache_destroy(pool->cmd_slab);
+			goto fail;
+		}
 	}
 
 	pool->users++;
@@ -336,26 +346,28 @@ int scsi_setup_command_freelist(struct Scsi_Host *shost)
 	/*
 	 * Get one backup command for this host.
 	 */
-	cmd = kmem_cache_alloc(shost->cmd_pool->slab,
-			GFP_KERNEL | shost->cmd_pool->gfp_mask);
+	cmd = kmem_cache_alloc(shost->cmd_pool->cmd_slab,
+			       GFP_KERNEL | shost->cmd_pool->gfp_mask);
 	if (!cmd)
 		goto fail2;
 
-	sense_buffer = kmem_cache_alloc(sense_buffer_slab,
-					GFP_KERNEL | __GFP_DMA);
-	if (!sense_buffer)
-		goto destroy_backup;
+	cmd->sense_buffer = kmem_cache_alloc(shost->cmd_pool->sense_slab,
+					     GFP_KERNEL |
+					     shost->cmd_pool->gfp_mask);
+	if (!cmd->sense_buffer)
+		goto fail2;
 
-	cmd->sense_buffer = sense_buffer;
 	list_add(&cmd->list, &shost->free_list);
 	return 0;
 
-destroy_backup:
-	kmem_cache_free(shost->cmd_pool->slab, cmd);
  fail2:
+	if (cmd)
+		kmem_cache_free(shost->cmd_pool->cmd_slab, cmd);
 	mutex_lock(&host_cmd_pool_mutex);
-	if (!--pool->users)
-		kmem_cache_destroy(pool->slab);
+	if (!--pool->users) {
+		kmem_cache_destroy(pool->cmd_slab);
+		kmem_cache_destroy(pool->sense_slab);
+	}
  fail:
 	mutex_unlock(&host_cmd_pool_mutex);
 	return -ENOMEM;
@@ -372,39 +384,16 @@ void scsi_destroy_command_freelist(struct Scsi_Host *shost)
 
 		cmd = list_entry(shost->free_list.next, struct scsi_cmnd, list);
 		list_del_init(&cmd->list);
-		kmem_cache_free(sense_buffer_slab, cmd->sense_buffer);
-		kmem_cache_free(shost->cmd_pool->slab, cmd);
+		kmem_cache_free(shost->cmd_pool->sense_slab,
+				cmd->sense_buffer);
+		kmem_cache_free(shost->cmd_pool->cmd_slab, cmd);
 	}
 
 	mutex_lock(&host_cmd_pool_mutex);
-	if (!--shost->cmd_pool->users)
-		kmem_cache_destroy(shost->cmd_pool->slab);
-	mutex_unlock(&host_cmd_pool_mutex);
-}
-
-int scsi_setup_command_sense_buffer(struct Scsi_Host *shost)
-{
-	mutex_lock(&host_cmd_pool_mutex);
-	if (!sense_buffer_slab_users) {
-		sense_buffer_slab = kmem_cache_create("scsi_sense_buffer",
-						      SCSI_SENSE_BUFFERSIZE,
-						      0, SLAB_CACHE_DMA, NULL);
-		if (!sense_buffer_slab) {
-			mutex_unlock(&host_cmd_pool_mutex);
-			return -ENOMEM;
-		}
+	if (!--shost->cmd_pool->users) {
+		kmem_cache_destroy(shost->cmd_pool->cmd_slab);
+		kmem_cache_destroy(shost->cmd_pool->sense_slab);
 	}
-	sense_buffer_slab_users++;
-	mutex_unlock(&host_cmd_pool_mutex);
-
-	return 0;
-}
-
-void scsi_destroy_command_sense_buffer(struct Scsi_Host *shost)
-{
-	mutex_lock(&host_cmd_pool_mutex);
-	if (!--sense_buffer_slab_users)
-		kmem_cache_destroy(sense_buffer_slab);
 	mutex_unlock(&host_cmd_pool_mutex);
 }
 
