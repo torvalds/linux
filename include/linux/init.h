@@ -40,10 +40,10 @@
 
 /* These are for everybody (although not all archs will actually
    discard it in modules) */
-#define __init		__attribute__ ((__section__ (".init.text"))) __cold
-#define __initdata	__attribute__ ((__section__ (".init.data")))
-#define __exitdata	__attribute__ ((__section__(".exit.data")))
-#define __exit_call	__attribute_used__ __attribute__ ((__section__ (".exitcall.exit")))
+#define __init		__section(.init.text) __cold
+#define __initdata	__section(.init.data)
+#define __exitdata	__section(.exit.data)
+#define __exit_call	__attribute_used__ __section(.exitcall.exit)
 
 /* modpost check for section mismatches during the kernel build.
  * A section mismatch happens when there are references from a
@@ -55,14 +55,14 @@
  * the init/exit section (code or data) is valid and will teach modpost
  * not to issue a warning.
  * The markers follow same syntax rules as __init / __initdata. */
-#define __init_refok     noinline __attribute__ ((__section__ (".text.init.refok")))
-#define __initdata_refok          __attribute__ ((__section__ (".data.init.refok")))
-#define __exit_refok     noinline __attribute__ ((__section__ (".exit.text.refok")))
+#define __init_refok     noinline __section(.text.init.refok)
+#define __initdata_refok          __section(.data.init.refok)
+#define __exit_refok     noinline __section(.exit.text.refok)
 
 #ifdef MODULE
-#define __exit		__attribute__ ((__section__(".exit.text"))) __cold
+#define __exit		__section(.exit.text) __cold
 #else
-#define __exit		__attribute_used__ __attribute__ ((__section__(".exit.text"))) __cold
+#define __exit		__attribute_used__ __section(.exit.text) __cold
 #endif
 
 /* For assembly routines */
@@ -142,11 +142,11 @@ void prepare_namespace(void);
 
 #define console_initcall(fn) \
 	static initcall_t __initcall_##fn \
-	__attribute_used__ __attribute__((__section__(".con_initcall.init")))=fn
+	__attribute_used__ __section(.con_initcall.init)=fn
 
 #define security_initcall(fn) \
 	static initcall_t __initcall_##fn \
-	__attribute_used__ __attribute__((__section__(".security_initcall.init"))) = fn
+	__attribute_used__ __section(.security_initcall.init) = fn
 
 struct obs_kernel_param {
 	const char *str;
@@ -164,7 +164,7 @@ struct obs_kernel_param {
 	static char __setup_str_##unique_id[] __initdata __aligned(1) = str; \
 	static struct obs_kernel_param __setup_##unique_id	\
 		__attribute_used__				\
-		__attribute__((__section__(".init.setup")))	\
+		__section(.init.setup)				\
 		__attribute__((aligned((sizeof(long)))))	\
 		= { __setup_str_##unique_id, fn, early }
 
@@ -242,7 +242,7 @@ void __init parse_early_param(void);
 #endif
 
 /* Data marked not to be saved by software suspend */
-#define __nosavedata __attribute__ ((__section__ (".data.nosave")))
+#define __nosavedata __section(.data.nosave)
 
 /* This means "can be init if no module support, otherwise module load
    may call it." */

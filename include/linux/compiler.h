@@ -175,4 +175,9 @@ extern void __chk_io_ptr(const volatile void __iomem *);
 #define __cold
 #endif
 
+/* Simple shorthand for a section definition */
+#ifndef __section
+# define __section(S) __attribute__ ((__section__(#S)))
+#endif
+
 #endif /* __LINUX_COMPILER_H */
