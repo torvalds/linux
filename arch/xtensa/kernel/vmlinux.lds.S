@@ -136,13 +136,13 @@ SECTIONS
   __init_begin = .;
   .init.text : {
   	_sinittext = .;
-	*(.init.literal) *(.init.text)
+	*(.init.literal) INIT_TEXT
 	_einittext = .;
   }
 
   .init.data :
   {
-    *(.init.data)
+    INIT_DATA
     . = ALIGN(0x4);
     __tagtable_begin = .;
     *(.taglist)
@@ -278,8 +278,9 @@ SECTIONS
   /* Sections to be discarded */
   /DISCARD/ :
   {
-  	*(.exit.literal .exit.text)
-  	*(.exit.data)
+	*(.exit.literal)
+	EXIT_TEXT
+	EXIT_DATA
         *(.exitcall.exit)
   }
 

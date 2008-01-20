@@ -155,12 +155,15 @@ SECTIONS
   __init_begin = .;
   .init.text : AT(ADDR(.init.text) - LOAD_OFFSET) {
 	_sinittext = .;
-	*(.init.text)
+	INIT_TEXT
 	_einittext = .;
   }
-  __initdata_begin = .;
-  .init.data : AT(ADDR(.init.data) - LOAD_OFFSET) { *(.init.data) }
-  __initdata_end = .;
+  .init.data : AT(ADDR(.init.data) - LOAD_OFFSET) {
+	__initdata_begin = .;
+	INIT_DATA
+	__initdata_end = .;
+   }
+
   . = ALIGN(16);
   __setup_start = .;
   .init.setup : AT(ADDR(.init.setup) - LOAD_OFFSET) { *(.init.setup) }
@@ -187,8 +190,12 @@ SECTIONS
   }
   /* .exit.text is discard at runtime, not link time, to deal with references
      from .altinstructions and .eh_frame */
-  .exit.text : AT(ADDR(.exit.text) - LOAD_OFFSET) { *(.exit.text) }
-  .exit.data : AT(ADDR(.exit.data) - LOAD_OFFSET) { *(.exit.data) }
+  .exit.text : AT(ADDR(.exit.text) - LOAD_OFFSET) {
+	EXIT_TEXT
+  }
+  .exit.data : AT(ADDR(.exit.data) - LOAD_OFFSET) {
+	EXIT_DATA
+  }
 
 /* vdso blob that is mapped into user space */
   vdso_start = . ;

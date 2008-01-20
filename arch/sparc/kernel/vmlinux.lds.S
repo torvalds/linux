@@ -48,12 +48,12 @@ SECTIONS
 	__init_begin = .;
 	.init.text : {
 		_sinittext = .;
-		*(.init.text)
+		INIT_TEXT
 		_einittext = .;
 	}
 	__init_text_end = .;
 	.init.data : {
-		*(.init.data)
+		INIT_DATA
 	}
 	. = ALIGN(16);
 	.init.setup : {
@@ -102,8 +102,8 @@ SECTIONS
 	_end = . ;
 	PROVIDE (end = .);
 	/DISCARD/ : {
-		*(.exit.text)
-		*(.exit.data)
+		EXIT_TEXT
+		EXIT_DATA
 		*(.exitcall.exit)
 	}
 

@@ -110,9 +110,9 @@ SECTIONS
 	. = ALIGN(0x4) ;
 	___init_begin = .;
 	__sinittext = .; 
-		*(.init.text)
+		INIT_TEXT
 	__einittext = .; 
-		*(.init.data)
+		INIT_DATA
 	. = ALIGN(0x4) ;
 	___setup_start = .;
 		*(.init.setup)
@@ -124,8 +124,8 @@ SECTIONS
 	___con_initcall_start = .;
 		*(.con_initcall.init)
 	___con_initcall_end = .;
-		*(.exit.text)
-		*(.exit.data)
+		EXIT_TEXT
+		EXIT_DATA
 #if defined(CONFIG_BLK_DEV_INITRD)
 		. = ALIGN(4);
 	___initramfs_start = .;

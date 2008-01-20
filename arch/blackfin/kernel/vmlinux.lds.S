@@ -91,13 +91,13 @@ SECTIONS
 	{
 		. = ALIGN(PAGE_SIZE);
 		__sinittext = .;
-		*(.init.text)
+		INIT_TEXT
 		__einittext = .;
 	}
 	.init.data :
 	{
 		. = ALIGN(16);
-		*(.init.data)
+		INIT_DATA
 	}
 	.init.setup :
 	{
@@ -198,8 +198,8 @@ SECTIONS
 
 	/DISCARD/ :
 	{
-		*(.exit.text)
-		*(.exit.data)
+		EXIT_TEXT
+		EXIT_DATA
 		*(.exitcall.exit)
 	}
 }

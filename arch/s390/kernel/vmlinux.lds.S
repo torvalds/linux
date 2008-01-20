@@ -97,7 +97,7 @@ SECTIONS
 	__init_begin = .;
 	.init.text : {
 		_sinittext = .;
-		*(.init.text)
+		INIT_TEXT
 		_einittext = .;
 	}
 	/*
@@ -105,11 +105,11 @@ SECTIONS
 	 * to deal with references from __bug_table
 	*/
 	.exit.text : {
-		*(.exit.text)
+		EXIT_TEXT
 	}
 
 	.init.data : {
-		*(.init.data)
+		INIT_DATA
 	}
 	. = ALIGN(0x100);
 	.init.setup : {
@@ -156,7 +156,7 @@ SECTIONS
 
 	/* Sections to be discarded */
 	/DISCARD/ : {
-		*(.exit.data)
+		EXIT_DATA
 		*(.exitcall.exit)
 	}
 

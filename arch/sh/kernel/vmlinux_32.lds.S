@@ -84,9 +84,9 @@ SECTIONS
 	. = ALIGN(PAGE_SIZE);		/* Init code and data */
 	__init_begin = .;
 	_sinittext = .;
-	.init.text : { *(.init.text) }
+	.init.text : { INIT_TEXT }
 	_einittext = .;
-	.init.data : { *(.init.data) }
+	.init.data : { INIT_DATA }
 
 	. = ALIGN(16);
 	__setup_start = .;
@@ -122,8 +122,8 @@ SECTIONS
 	 * .exit.text is discarded at runtime, not link time, to deal with
 	 * references from __bug_table
 	 */
-	.exit.text : { *(.exit.text) }
-	.exit.data : { *(.exit.data) }
+	.exit.text : { EXIT_TEXT }
+	.exit.data : { EXIT_DATA }
 
 	. = ALIGN(PAGE_SIZE);
 	.bss : {
