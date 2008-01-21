@@ -570,16 +570,16 @@ static int oxygen_trigger(struct snd_pcm_substream *substream, int cmd)
 	struct oxygen *chip = snd_pcm_substream_chip(substream);
 	struct snd_pcm_substream *s;
 	unsigned int mask = 0;
-	int running;
+	int pausing;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_STOP:
-	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		running = 0;
-		break;
 	case SNDRV_PCM_TRIGGER_START:
+		pausing = 0;
+		break;
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		running = 1;
+		pausing = 1;
 		break;
 	default:
 		return -EINVAL;
@@ -593,11 +593,18 @@ static int oxygen_trigger(struct snd_pcm_substream *substream, int cmd)
 	}
 
 	spin_lock(&chip->reg_lock);
-	if (running)
-		chip->pcm_running |= mask;
-	else
-		chip->pcm_running &= ~mask;
-	oxygen_write8(chip, OXYGEN_DMA_STATUS, chip->pcm_running);
+	if (!pausing) {
+		if (cmd == SNDRV_PCM_TRIGGER_START)
+			chip->pcm_running |= mask;
+		else
+			chip->pcm_running &= ~mask;
+		oxygen_write8(chip, OXYGEN_DMA_STATUS, chip->pcm_running);
+	} else {
+		if (cmd == SNDRV_PCM_TRIGGER_PAUSE_PUSH)
+			oxygen_set_bits8(chip, OXYGEN_DMA_PAUSE, mask);
+		else
+			oxygen_clear_bits8(chip, OXYGEN_DMA_PAUSE, mask);
+	}
 	spin_unlock(&chip->reg_lock);
 	return 0;
 }
