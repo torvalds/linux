@@ -23,27 +23,12 @@
 #include "stb0899_priv.h"
 #include "stb0899_reg.h"
 
-/*
- * BinaryFloatDiv
- * float division with integer
- */
-static long BinaryFloatDiv(long n1, long n2, int precision)
+inline u32 stb0899_do_div(u64 n, u32 d)
 {
-	int i = 0;
-	long result = 0;
+	/* wrap do_div() for ease of use */
 
-	while (i <= precision) {
-		if (n1 < n2) {
-			result *= 2;
-			n1 *= 2;
-		} else {
-			result = result * 2 + 1;
-			n1 = (n1 - n2) * 2;
-		}
-		i++;
-	}
-
-	return result;
+	do_div(n, d);
+	return n;
 }
 
 /*
@@ -52,15 +37,15 @@ static long BinaryFloatDiv(long n1, long n2, int precision)
  */
 static u32 stb0899_calc_srate(u32 master_clk, u8 *sfr)
 {
-	u32 tmp, tmp2, mclk;
+	u64 tmp;
 
-	mclk  =  master_clk / 4096L; /* MasterClock * 10 / 2^20	*/
-	tmp  = (((u32) sfr[0] << 12) + ((u32) sfr[1] << 4)) / 16;
+	/* srate = (SFR * master_clk) >> 20 */
 
-	tmp *= mclk;
-	tmp /= 16;
-	tmp2 = ((u32) sfr[2] * mclk) / 256;
-	tmp += tmp2;
+	/* sfr is of size 20 bit, stored with an offset of 4 bit */
+	tmp = (((u32)sfr[0]) << 16) | (((u32)sfr[1]) << 8) | sfr[2];
+	tmp &= ~0xf;
+	tmp *= master_clk;
+	tmp >>= 24;
 
 	return tmp;
 }
@@ -72,7 +57,7 @@ static u32 stb0899_calc_srate(u32 master_clk, u8 *sfr)
 u32 stb0899_get_srate(struct stb0899_state *state)
 {
 	struct stb0899_internal *internal = &state->internal;
-	u8 sfr[4];
+	u8 sfr[3];
 
 	stb0899_read_regs(state, STB0899_SFRH, sfr, 3);
 
@@ -101,16 +86,30 @@ static u32 stb0899_set_srate(struct stb0899_state *state, u32 master_clk, u32 sr
 	 */
 //	srate_up += (srate_up * 3) / 100;
 
-	tmp = BinaryFloatDiv(srate, master_clk, 20);
-//	tmp_up = BinaryFloatDiv(srate_up, master_clk, 20);
+	/*
+	 * srate = (SFR * master_clk) >> 20
+	 *      <=>
+	 *   SFR = srate << 20 / master_clk
+	 *
+	 * rounded:
+	 *   SFR = (srate << 21 + master_clk) / (2 * master_clk)
+	 *
+	 * stored as 20 bit number with an offset of 4 bit:
+	 *   sfr = SFR << 4;
+	 */
+//	tmp_up = stb0899_do_div((((u64)srate_up) << 21) + master_clk, 2 * master_clk);
+//	tmp_up <<= 4;
 
-//	sfr_up[0] = (tmp_up >> 12) & 0xff;
-//	sfr_up[1] = (tmp_up >>  4) & 0xff;
-//	sfr_up[2] =  tmp_up & 0x0f;
+	tmp = stb0899_do_div((((u64)srate) << 21) + master_clk, 2 * master_clk);
+	tmp <<= 4;
 
-	sfr[0] = (tmp >> 12) & 0xff;
-	sfr[1] = (tmp >>  4) & 0xff;
-	sfr[2] = (tmp <<  4) & 0xf0;
+//	sfr_up[0] = tmp_up >> 16;
+//	sfr_up[1] = tmp_up >>  8;
+//	sfr_up[2] = tmp_up;
+
+	sfr[0] = tmp >> 16;
+	sfr[1] = tmp >>  8;
+	sfr[2] = tmp;
 
 //	stb0899_write_regs(state, STB0899_SFRUPH, sfr_up, 3);
 	stb0899_write_regs(state, STB0899_SFRH, sfr, 3);
