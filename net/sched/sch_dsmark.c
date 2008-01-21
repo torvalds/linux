@@ -10,6 +10,7 @@
 #include <linux/errno.h>
 #include <linux/skbuff.h>
 #include <linux/rtnetlink.h>
+#include <linux/bitops.h>
 #include <net/pkt_sched.h>
 #include <net/dsfield.h>
 #include <net/inet_ecn.h>
@@ -42,17 +43,6 @@ struct dsmark_qdisc_data {
 	u32			default_index;	/* index range is 0...0xffff */
 	int			set_tc_index;
 };
-
-static inline int dsmark_valid_indices(u16 indices)
-{
-	while (indices != 1) {
-		if (indices & 1)
-			return 0;
-		indices >>= 1;
-	}
-
-	return 1;
-}
 
 static inline int dsmark_valid_index(struct dsmark_qdisc_data *p, u16 index)
 {
@@ -348,7 +338,8 @@ static int dsmark_init(struct Qdisc *sch, struct rtattr *opt)
 		goto errout;
 
 	indices = RTA_GET_U16(tb[TCA_DSMARK_INDICES-1]);
-	if (!indices || !dsmark_valid_indices(indices))
+
+	if (hweight32(indices) != 1)
 		goto errout;
 
 	if (tb[TCA_DSMARK_DEFAULT_INDEX-1])
