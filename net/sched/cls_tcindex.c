@@ -29,19 +29,6 @@
 #define DEFAULT_HASH_SIZE	64	/* optimized for diffserv */
 
 
-#if 1 /* control */
-#define DPRINTK(format,args...) printk(KERN_DEBUG format,##args)
-#else
-#define DPRINTK(format,args...)
-#endif
-
-#if 0 /* data */
-#define D2PRINTK(format,args...) printk(KERN_DEBUG format,##args)
-#else
-#define D2PRINTK(format,args...)
-#endif
-
-
 #define	PRIV(tp)	((struct tcindex_data *) (tp)->root)
 
 
@@ -104,7 +91,8 @@ static int tcindex_classify(struct sk_buff *skb, struct tcf_proto *tp,
 	struct tcindex_filter_result *f;
 	int key = (skb->tc_index & p->mask) >> p->shift;
 
-	D2PRINTK("tcindex_classify(skb %p,tp %p,res %p),p %p\n",skb,tp,res,p);
+	pr_debug("tcindex_classify(skb %p,tp %p,res %p),p %p\n",
+		 skb, tp, res, p);
 
 	f = tcindex_lookup(p, key);
 	if (!f) {
@@ -112,11 +100,11 @@ static int tcindex_classify(struct sk_buff *skb, struct tcf_proto *tp,
 			return -1;
 		res->classid = TC_H_MAKE(TC_H_MAJ(tp->q->handle), key);
 		res->class = 0;
-		D2PRINTK("alg 0x%x\n",res->classid);
+		pr_debug("alg 0x%x\n", res->classid);
 		return 0;
 	}
 	*res = f->res;
-	D2PRINTK("map 0x%x\n",res->classid);
+	pr_debug("map 0x%x\n", res->classid);
 
 	return tcf_exts_exec(skb, &f->exts, res);
 }
@@ -127,7 +115,7 @@ static unsigned long tcindex_get(struct tcf_proto *tp, u32 handle)
 	struct tcindex_data *p = PRIV(tp);
 	struct tcindex_filter_result *r;
 
-	DPRINTK("tcindex_get(tp %p,handle 0x%08x)\n",tp,handle);
+	pr_debug("tcindex_get(tp %p,handle 0x%08x)\n", tp, handle);
 	if (p->perfect && handle >= p->alloc_hash)
 		return 0;
 	r = tcindex_lookup(p, handle);
@@ -137,7 +125,7 @@ static unsigned long tcindex_get(struct tcf_proto *tp, u32 handle)
 
 static void tcindex_put(struct tcf_proto *tp, unsigned long f)
 {
-	DPRINTK("tcindex_put(tp %p,f 0x%lx)\n",tp,f);
+	pr_debug("tcindex_put(tp %p,f 0x%lx)\n", tp, f);
 }
 
 
@@ -145,8 +133,8 @@ static int tcindex_init(struct tcf_proto *tp)
 {
 	struct tcindex_data *p;
 
-	DPRINTK("tcindex_init(tp %p)\n",tp);
-	p = kzalloc(sizeof(struct tcindex_data),GFP_KERNEL);
+	pr_debug("tcindex_init(tp %p)\n", tp);
+	p = kzalloc(sizeof(struct tcindex_data), GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
 
@@ -166,7 +154,7 @@ __tcindex_delete(struct tcf_proto *tp, unsigned long arg, int lock)
 	struct tcindex_filter_result *r = (struct tcindex_filter_result *) arg;
 	struct tcindex_filter *f = NULL;
 
-	DPRINTK("tcindex_delete(tp %p,arg 0x%lx),p %p,f %p\n",tp,arg,p,f);
+	pr_debug("tcindex_delete(tp %p,arg 0x%lx),p %p,f %p\n", tp, arg, p, f);
 	if (p->perfect) {
 		if (!r->res.class)
 			return -ENOENT;
@@ -363,7 +351,7 @@ tcindex_change(struct tcf_proto *tp, unsigned long base, u32 handle,
 	struct tcindex_data *p = PRIV(tp);
 	struct tcindex_filter_result *r = (struct tcindex_filter_result *) *arg;
 
-	DPRINTK("tcindex_change(tp %p,handle 0x%08x,tca %p,arg %p),opt %p,"
+	pr_debug("tcindex_change(tp %p,handle 0x%08x,tca %p,arg %p),opt %p,"
 	    "p %p,r %p,*arg 0x%lx\n",
 	    tp, handle, tca, arg, opt, p, r, arg ? *arg : 0L);
 
@@ -380,10 +368,10 @@ tcindex_change(struct tcf_proto *tp, unsigned long base, u32 handle,
 static void tcindex_walk(struct tcf_proto *tp, struct tcf_walker *walker)
 {
 	struct tcindex_data *p = PRIV(tp);
-	struct tcindex_filter *f,*next;
+	struct tcindex_filter *f, *next;
 	int i;
 
-	DPRINTK("tcindex_walk(tp %p,walker %p),p %p\n",tp,walker,p);
+	pr_debug("tcindex_walk(tp %p,walker %p),p %p\n", tp, walker, p);
 	if (p->perfect) {
 		for (i = 0; i < p->hash; i++) {
 			if (!p->perfect[i].res.class)
@@ -405,7 +393,7 @@ static void tcindex_walk(struct tcf_proto *tp, struct tcf_walker *walker)
 		for (f = p->h[i]; f; f = next) {
 			next = f->next;
 			if (walker->count >= walker->skip) {
-				if (walker->fn(tp,(unsigned long) &f->result,
+				if (walker->fn(tp, (unsigned long) &f->result,
 				    walker) < 0) {
 					walker->stop = 1;
 					return;
@@ -429,11 +417,11 @@ static void tcindex_destroy(struct tcf_proto *tp)
 	struct tcindex_data *p = PRIV(tp);
 	struct tcf_walker walker;
 
-	DPRINTK("tcindex_destroy(tp %p),p %p\n",tp,p);
+	pr_debug("tcindex_destroy(tp %p),p %p\n", tp, p);
 	walker.count = 0;
 	walker.skip = 0;
 	walker.fn = &tcindex_destroy_element;
-	tcindex_walk(tp,&walker);
+	tcindex_walk(tp, &walker);
 	kfree(p->perfect);
 	kfree(p->h);
 	kfree(p);
@@ -449,17 +437,17 @@ static int tcindex_dump(struct tcf_proto *tp, unsigned long fh,
 	unsigned char *b = skb_tail_pointer(skb);
 	struct rtattr *rta;
 
-	DPRINTK("tcindex_dump(tp %p,fh 0x%lx,skb %p,t %p),p %p,r %p,b %p\n",
-	    tp,fh,skb,t,p,r,b);
-	DPRINTK("p->perfect %p p->h %p\n",p->perfect,p->h);
+	pr_debug("tcindex_dump(tp %p,fh 0x%lx,skb %p,t %p),p %p,r %p,b %p\n",
+		 tp, fh, skb, t, p, r, b);
+	pr_debug("p->perfect %p p->h %p\n", p->perfect, p->h);
 	rta = (struct rtattr *) b;
-	RTA_PUT(skb,TCA_OPTIONS,0,NULL);
+	RTA_PUT(skb, TCA_OPTIONS, 0, NULL);
 	if (!fh) {
 		t->tcm_handle = ~0; /* whatever ... */
-		RTA_PUT(skb,TCA_TCINDEX_HASH,sizeof(p->hash),&p->hash);
-		RTA_PUT(skb,TCA_TCINDEX_MASK,sizeof(p->mask),&p->mask);
-		RTA_PUT(skb,TCA_TCINDEX_SHIFT,sizeof(p->shift),&p->shift);
-		RTA_PUT(skb,TCA_TCINDEX_FALL_THROUGH,sizeof(p->fall_through),
+		RTA_PUT(skb, TCA_TCINDEX_HASH, sizeof(p->hash), &p->hash);
+		RTA_PUT(skb, TCA_TCINDEX_MASK, sizeof(p->mask), &p->mask);
+		RTA_PUT(skb, TCA_TCINDEX_SHIFT, sizeof(p->shift), &p->shift);
+		RTA_PUT(skb, TCA_TCINDEX_FALL_THROUGH, sizeof(p->fall_through),
 		    &p->fall_through);
 		rta->rta_len = skb_tail_pointer(skb) - b;
 	} else {
@@ -478,7 +466,7 @@ static int tcindex_dump(struct tcf_proto *tp, unsigned long fh,
 				}
 			}
 		}
-		DPRINTK("handle = %d\n",t->tcm_handle);
+		pr_debug("handle = %d\n", t->tcm_handle);
 		if (r->res.class)
 			RTA_PUT(skb, TCA_TCINDEX_CLASSID, 4, &r->res.classid);
 
