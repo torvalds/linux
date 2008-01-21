@@ -52,6 +52,8 @@ static int __init find_dma_window(u64 *io_space_id, u64 *ioid,
 	return 0;
 }
 
+static unsigned long celleb_dma_direct_offset;
+
 static void __init celleb_init_direct_mapping(void)
 {
 	u64 lpar_addr, io_addr;
@@ -69,13 +71,13 @@ static void __init celleb_init_direct_mapping(void)
 				     ioid, DMA_FLAGS);
 	}
 
-	dma_direct_offset = dma_base;
+	celleb_dma_direct_offset = dma_base;
 }
 
 static void celleb_dma_dev_setup(struct device *dev)
 {
 	dev->archdata.dma_ops = get_pci_dma_ops();
-	dev->archdata.dma_data = (void *)dma_direct_offset;
+	dev->archdata.dma_data = (void *)celleb_dma_direct_offset;
 }
 
 static void celleb_pci_dma_dev_setup(struct pci_dev *pdev)
