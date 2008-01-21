@@ -297,6 +297,12 @@ static void tuner_i2c_address_check(struct tuner *t)
 	    ((t->i2c->addr < 0x64) || (t->i2c->addr > 0x6f)))
 		return;
 
+	/* We already know that the XC5000 can only be located at
+	 * i2c address 0x61, 0x62, 0x63 or 0x64 */
+	if ((t->type == TUNER_XC5000) &&
+	    ((t->i2c->addr <= 0x64)) && (t->i2c->addr >= 0x61))
+		return;
+
 	tuner_warn("====================== WARNING! ======================\n");
 	tuner_warn("Support for tuners in i2c address range 0x64 thru 0x6f\n");
 	tuner_warn("will soon be dropped. This message indicates that your\n");
