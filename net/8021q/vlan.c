@@ -688,26 +688,6 @@ static int vlan_ioctl_handler(struct net *net, void __user *arg)
 		err = unregister_vlan_device(dev);
 		break;
 
-	case GET_VLAN_INGRESS_PRIORITY_CMD:
-		/* TODO:  Implement
-		   err = vlan_dev_get_ingress_priority(args);
-		   if (copy_to_user((void*)arg, &args,
-			sizeof(struct vlan_ioctl_args))) {
-			err = -EFAULT;
-		   }
-		*/
-		err = -EINVAL;
-		break;
-	case GET_VLAN_EGRESS_PRIORITY_CMD:
-		/* TODO:  Implement
-		   err = vlan_dev_get_egress_priority(args.device1, &(args.args);
-		   if (copy_to_user((void*)arg, &args,
-			sizeof(struct vlan_ioctl_args))) {
-			err = -EFAULT;
-		   }
-		*/
-		err = -EINVAL;
-		break;
 	case GET_VLAN_REALDEV_NAME_CMD:
 		err = 0;
 		vlan_dev_get_realdev_name(dev, args.u.device2);
@@ -728,8 +708,7 @@ static int vlan_ioctl_handler(struct net *net, void __user *arg)
 		break;
 
 	default:
-		/* pass on to underlying device instead?? */
-		err = -EINVAL;
+		err = -EOPNOTSUPP;
 		break;
 	}
 out:
