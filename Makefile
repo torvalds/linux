@@ -520,6 +520,11 @@ KBUILD_CFLAGS	+= -g
 KBUILD_AFLAGS	+= -gdwarf-2
 endif
 
+# We trigger additional mismatches with less inlining
+ifdef CONFIG_DEBUG_SECTION_MISMATCH
+KBUILD_CFLAGS += $(call cc-option, -fno-inline-functions-called-once)
+endif
+
 # Force gcc to behave correct even for buggy distributions
 KBUILD_CFLAGS         += $(call cc-option, -fno-stack-protector)
 
