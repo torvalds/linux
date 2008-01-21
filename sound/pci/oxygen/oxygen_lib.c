@@ -320,7 +320,8 @@ int __devinit oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 	struct oxygen *chip;
 	int err;
 
-	card = snd_card_new(index, id, model->owner, sizeof *chip);
+	card = snd_card_new(index, id, model->owner,
+			    sizeof *chip + model->model_data_size);
 	if (!card)
 		return -ENOMEM;
 
@@ -329,6 +330,7 @@ int __devinit oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 	chip->pci = pci;
 	chip->irq = -1;
 	chip->model = model;
+	chip->model_data = chip + 1;
 	spin_lock_init(&chip->reg_lock);
 	mutex_init(&chip->mutex);
 	INIT_WORK(&chip->spdif_input_bits_work,

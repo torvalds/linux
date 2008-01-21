@@ -49,6 +49,7 @@ struct oxygen {
 	struct snd_rawmidi *midi;
 	int irq;
 	const struct oxygen_model *model;
+	void *model_data;
 	unsigned int interrupt_mask;
 	u8 dac_volume[8];
 	u8 dac_mute;
@@ -56,7 +57,6 @@ struct oxygen {
 	u8 pcm_running;
 	u8 dac_routing;
 	u8 spdif_playback_enable;
-	u8 ak4396_ctl2;
 	u8 revision;
 	u8 has_ac97_0;
 	u8 has_ac97_1;
@@ -84,6 +84,7 @@ struct oxygen_model {
 			       struct snd_pcm_hw_params *params);
 	void (*update_dac_volume)(struct oxygen *chip);
 	void (*update_dac_mute)(struct oxygen *chip);
+	size_t model_data_size;
 	u8 used_channels;
 	u8 function_flags;
 	u16 dac_i2s_format;

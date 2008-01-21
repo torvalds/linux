@@ -157,6 +157,10 @@ MODULE_DEVICE_TABLE(pci, oxygen_ids);
 #define WM8785_PWRDNL		0x010
 #define WM8785_TDM_MASK		0x1c0
 
+struct generic_data {
+	u8 ak4396_ctl2;
+};
+
 static void ak4396_write(struct oxygen *chip, unsigned int codec,
 			 u8 reg, u8 value)
 {
@@ -184,14 +188,15 @@ static void wm8785_write(struct oxygen *chip, u8 reg, unsigned int value)
 
 static void ak4396_init(struct oxygen *chip)
 {
+	struct generic_data *data = chip->model_data;
 	unsigned int i;
 
-	chip->ak4396_ctl2 = AK4396_DEM_OFF | AK4396_DFS_NORMAL;
+	data->ak4396_ctl2 = AK4396_DEM_OFF | AK4396_DFS_NORMAL;
 	for (i = 0; i < 4; ++i) {
 		ak4396_write(chip, i,
 			     AK4396_CONTROL_1, AK4396_DIF_24_MSB | AK4396_RSTN);
 		ak4396_write(chip, i,
-			     AK4396_CONTROL_2, chip->ak4396_ctl2);
+			     AK4396_CONTROL_2, data->ak4396_ctl2);
 		ak4396_write(chip, i,
 			     AK4396_CONTROL_3, AK4396_PCM);
 		ak4396_write(chip, i, AK4396_LCH_ATT, 0xff);
@@ -235,17 +240,18 @@ static void generic_cleanup(struct oxygen *chip)
 static void set_ak4396_params(struct oxygen *chip,
 			      struct snd_pcm_hw_params *params)
 {
+	struct generic_data *data = chip->model_data;
 	unsigned int i;
 	u8 value;
 
-	value = chip->ak4396_ctl2 & ~AK4396_DFS_MASK;
+	value = data->ak4396_ctl2 & ~AK4396_DFS_MASK;
 	if (params_rate(params) <= 54000)
 		value |= AK4396_DFS_NORMAL;
 	else if (params_rate(params) < 120000)
 		value |= AK4396_DFS_DOUBLE;
 	else
 		value |= AK4396_DFS_QUAD;
-	chip->ak4396_ctl2 = value;
+	data->ak4396_ctl2 = value;
 	for (i = 0; i < 4; ++i) {
 		ak4396_write(chip, i,
 			     AK4396_CONTROL_1, AK4396_DIF_24_MSB);
@@ -270,12 +276,14 @@ static void update_ak4396_volume(struct oxygen *chip)
 
 static void update_ak4396_mute(struct oxygen *chip)
 {
+	struct generic_data *data = chip->model_data;
 	unsigned int i;
 	u8 value;
 
-	value = chip->ak4396_ctl2 & ~AK4396_SMUTE;
+	value = data->ak4396_ctl2 & ~AK4396_SMUTE;
 	if (chip->dac_mute)
 		value |= AK4396_SMUTE;
+	data->ak4396_ctl2 = value;
 	for (i = 0; i < 4; ++i)
 		ak4396_write(chip, i, AK4396_CONTROL_2, value);
 }
@@ -341,6 +349,7 @@ static const struct oxygen_model model_generic = {
 	.set_adc_params = set_wm8785_params,
 	.update_dac_volume = update_ak4396_volume,
 	.update_dac_mute = update_ak4396_mute,
+	.model_data_size = sizeof(struct generic_data),
 	.used_channels = OXYGEN_CHANNEL_A |
 			 OXYGEN_CHANNEL_C |
 			 OXYGEN_CHANNEL_SPDIF |
@@ -362,6 +371,7 @@ static const struct oxygen_model model_meridian = {
 	.set_adc_params = set_ak5385_params,
 	.update_dac_volume = update_ak4396_volume,
 	.update_dac_mute = update_ak4396_mute,
+	.model_data_size = sizeof(struct generic_data),
 	.used_channels = OXYGEN_CHANNEL_B |
 			 OXYGEN_CHANNEL_C |
 			 OXYGEN_CHANNEL_SPDIF |
