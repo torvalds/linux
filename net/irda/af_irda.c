@@ -802,12 +802,18 @@ static int irda_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	}
 #endif /* CONFIG_IRDA_ULTRA */
 
+	self->ias_obj = irias_new_object(addr->sir_name, jiffies);
+	if (self->ias_obj == NULL)
+		return -ENOMEM;
+
 	err = irda_open_tsap(self, addr->sir_lsap_sel, addr->sir_name);
-	if (err < 0)
+	if (err < 0) {
+		kfree(self->ias_obj->name);
+		kfree(self->ias_obj);
 		return err;
+	}
 
 	/*  Register with LM-IAS */
-	self->ias_obj = irias_new_object(addr->sir_name, jiffies);
 	irias_add_integer_attrib(self->ias_obj, "IrDA:TinyTP:LsapSel",
 				 self->stsap_sel, IAS_KERNEL_ATTR);
 	irias_insert_object(self->ias_obj);
@@ -1825,7 +1831,7 @@ static int irda_setsockopt(struct socket *sock, int level, int optname,
 	struct irda_ias_set    *ias_opt;
 	struct ias_object      *ias_obj;
 	struct ias_attrib *	ias_attr;	/* Attribute in IAS object */
-	int opt;
+	int opt, free_ias = 0;
 
 	IRDA_DEBUG(2, "%s(%p)\n", __FUNCTION__, self);
 
@@ -1881,11 +1887,20 @@ static int irda_setsockopt(struct socket *sock, int level, int optname,
 			/* Create a new object */
 			ias_obj = irias_new_object(ias_opt->irda_class_name,
 						   jiffies);
+			if (ias_obj == NULL) {
+				kfree(ias_opt);
+				return -ENOMEM;
+			}
+			free_ias = 1;
 		}
 
 		/* Do we have the attribute already ? */
 		if(irias_find_attrib(ias_obj, ias_opt->irda_attrib_name)) {
 			kfree(ias_opt);
+			if (free_ias) {
+				kfree(ias_obj->name);
+				kfree(ias_obj);
+			}
 			return -EINVAL;
 		}
 
@@ -1904,6 +1919,11 @@ static int irda_setsockopt(struct socket *sock, int level, int optname,
 			if(ias_opt->attribute.irda_attrib_octet_seq.len >
 			   IAS_MAX_OCTET_STRING) {
 				kfree(ias_opt);
+				if (free_ias) {
+					kfree(ias_obj->name);
+					kfree(ias_obj);
+				}
+
 				return -EINVAL;
 			}
 			/* Add an octet sequence attribute */
@@ -1932,6 +1952,10 @@ static int irda_setsockopt(struct socket *sock, int level, int optname,
 			break;
 		default :
 			kfree(ias_opt);
+			if (free_ias) {
+				kfree(ias_obj->name);
+				kfree(ias_obj);
+			}
 			return -EINVAL;
 		}
 		irias_insert_object(ias_obj);
