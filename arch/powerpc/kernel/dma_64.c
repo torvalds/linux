@@ -130,7 +130,6 @@ static void *dma_direct_alloc_coherent(struct device *dev, size_t size,
 	void *ret;
 	int node = dev->archdata.numa_node;
 
-	/* TODO: Maybe use the numa node here too ? */
 	page = alloc_pages_node(node, flag, get_order(size));
 	if (page == NULL)
 		return NULL;
