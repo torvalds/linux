@@ -158,15 +158,18 @@ void vlan_proc_cleanup(void)
 int __init vlan_proc_init(void)
 {
 	proc_vlan_dir = proc_mkdir(name_root, init_net.proc_net);
-	if (proc_vlan_dir) {
-		proc_vlan_conf = create_proc_entry(name_conf,
-						   S_IFREG|S_IRUSR|S_IWUSR,
-						   proc_vlan_dir);
-		if (proc_vlan_conf) {
-			proc_vlan_conf->proc_fops = &vlan_fops;
-			return 0;
-		}
-	}
+	if (!proc_vlan_dir)
+		goto err;
+
+	proc_vlan_conf = create_proc_entry(name_conf, S_IFREG|S_IRUSR|S_IWUSR,
+					   proc_vlan_dir);
+	if (!proc_vlan_conf)
+		goto err;
+	proc_vlan_conf->proc_fops = &vlan_fops;
+	return 0;
+
+err:
+	pr_err("%s: can't create entry in proc filesystem!\n", __FUNCTION__);
 	vlan_proc_cleanup();
 	return -ENOBUFS;
 }

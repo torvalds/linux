@@ -50,16 +50,6 @@ static char vlan_version[] = DRV_VERSION;
 static char vlan_copyright[] = "Ben Greear <greearb@candelatech.com>";
 static char vlan_buggyright[] = "David S. Miller <davem@redhat.com>";
 
-static int vlan_device_event(struct notifier_block *, unsigned long, void *);
-static int vlan_ioctl_handler(struct net *net, void __user *);
-static int unregister_vlan_dev(struct net_device *, unsigned short );
-
-static struct notifier_block vlan_notifier_block = {
-	.notifier_call = vlan_device_event,
-};
-
-/* These may be changed at run-time through IOCTLs */
-
 /* Determines interface naming scheme. */
 unsigned short vlan_name_type = VLAN_NAME_TYPE_RAW_PLUS_VID_NO_PAD;
 
@@ -69,79 +59,6 @@ static struct packet_type vlan_packet_type = {
 };
 
 /* End of global variables definitions. */
-
-/*
- * Function vlan_proto_init (pro)
- *
- *    Initialize VLAN protocol layer,
- *
- */
-static int __init vlan_proto_init(void)
-{
-	int err;
-
-	pr_info("%s v%s %s\n", vlan_fullname, vlan_version, vlan_copyright);
-	pr_info("All bugs added by %s\n", vlan_buggyright);
-
-	/* proc file system initialization */
-	err = vlan_proc_init();
-	if (err < 0) {
-		pr_err("%s: can't create entry in proc filesystem!\n",
-		       __FUNCTION__);
-		return err;
-	}
-
-	dev_add_pack(&vlan_packet_type);
-
-	/* Register us to receive netdevice events */
-	err = register_netdevice_notifier(&vlan_notifier_block);
-	if (err < 0)
-		goto err1;
-
-	err = vlan_netlink_init();
-	if (err < 0)
-		goto err2;
-
-	vlan_ioctl_set(vlan_ioctl_handler);
-	return 0;
-
-err2:
-	unregister_netdevice_notifier(&vlan_notifier_block);
-err1:
-	vlan_proc_cleanup();
-	dev_remove_pack(&vlan_packet_type);
-	return err;
-}
-
-/*
- *     Module 'remove' entry point.
- *     o delete /proc/net/router directory and static entries.
- */
-static void __exit vlan_cleanup_module(void)
-{
-	int i;
-
-	vlan_ioctl_set(NULL);
-	vlan_netlink_fini();
-
-	/* Un-register us from receiving netdevice events */
-	unregister_netdevice_notifier(&vlan_notifier_block);
-
-	dev_remove_pack(&vlan_packet_type);
-
-	/* This table must be empty if there are no module
-	 * references left.
-	 */
-	for (i = 0; i < VLAN_GRP_HASH_SIZE; i++) {
-		BUG_ON(!hlist_empty(&vlan_group_hash[i]));
-	}
-	vlan_proc_cleanup();
-
-	synchronize_net();
-}
-
-module_init(vlan_proto_init);
-module_exit(vlan_cleanup_module);
 
 /* Must be invoked with RCU read lock (no preempt) */
 static struct vlan_group *__vlan_find_group(int real_dev_ifindex)
@@ -592,6 +509,10 @@ out:
 	return NOTIFY_DONE;
 }
 
+static struct notifier_block vlan_notifier_block __read_mostly = {
+	.notifier_call = vlan_device_event,
+};
+
 /*
  *	VLAN IOCTL handler.
  *	o execute requested action or pass command to the device driver
@@ -715,6 +636,60 @@ out:
 	rtnl_unlock();
 	return err;
 }
+
+static int __init vlan_proto_init(void)
+{
+	int err;
+
+	pr_info("%s v%s %s\n", vlan_fullname, vlan_version, vlan_copyright);
+	pr_info("All bugs added by %s\n", vlan_buggyright);
+
+	err = vlan_proc_init();
+	if (err < 0)
+		goto err1;
+
+	err = register_netdevice_notifier(&vlan_notifier_block);
+	if (err < 0)
+		goto err2;
+
+	err = vlan_netlink_init();
+	if (err < 0)
+		goto err3;
+
+	dev_add_pack(&vlan_packet_type);
+	vlan_ioctl_set(vlan_ioctl_handler);
+	return 0;
+
+err3:
+	unregister_netdevice_notifier(&vlan_notifier_block);
+err2:
+	vlan_proc_cleanup();
+err1:
+	return err;
+}
+
+static void __exit vlan_cleanup_module(void)
+{
+	unsigned int i;
+
+	vlan_ioctl_set(NULL);
+	vlan_netlink_fini();
+
+	unregister_netdevice_notifier(&vlan_notifier_block);
+
+	dev_remove_pack(&vlan_packet_type);
+
+	/* This table must be empty if there are no module references left. */
+	for (i = 0; i < VLAN_GRP_HASH_SIZE; i++)
+		BUG_ON(!hlist_empty(&vlan_group_hash[i]));
+
+	vlan_proc_cleanup();
+
+	synchronize_net();
+}
+
+module_init(vlan_proto_init);
+module_exit(vlan_cleanup_module);
 
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
