@@ -147,7 +147,7 @@ static int dsmark_delete(struct Qdisc *sch, unsigned long arg)
 	return 0;
 }
 
-static void dsmark_walk(struct Qdisc *sch,struct qdisc_walker *walker)
+static void dsmark_walk(struct Qdisc *sch, struct qdisc_walker *walker)
 {
 	struct dsmark_qdisc_data *p = qdisc_priv(sch);
 	int i;
@@ -171,7 +171,8 @@ ignore:
 	}
 }
 
-static inline struct tcf_proto **dsmark_find_tcf(struct Qdisc *sch,unsigned long cl)
+static inline struct tcf_proto **dsmark_find_tcf(struct Qdisc *sch,
+						 unsigned long cl)
 {
 	struct dsmark_qdisc_data *p = qdisc_priv(sch);
 	return &p->filter_list;
@@ -179,7 +180,7 @@ static inline struct tcf_proto **dsmark_find_tcf(struct Qdisc *sch,unsigned long
 
 /* --------------------------- Qdisc operations ---------------------------- */
 
-static int dsmark_enqueue(struct sk_buff *skb,struct Qdisc *sch)
+static int dsmark_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 {
 	struct dsmark_qdisc_data *p = qdisc_priv(sch);
 	int err;
@@ -188,24 +189,24 @@ static int dsmark_enqueue(struct sk_buff *skb,struct Qdisc *sch)
 
 	if (p->set_tc_index) {
 		switch (skb->protocol) {
-			case __constant_htons(ETH_P_IP):
-				if (skb_cow_head(skb, sizeof(struct iphdr)))
-					goto drop;
+		case __constant_htons(ETH_P_IP):
+			if (skb_cow_head(skb, sizeof(struct iphdr)))
+				goto drop;
 
-				skb->tc_index = ipv4_get_dsfield(ip_hdr(skb))
-					& ~INET_ECN_MASK;
-				break;
+			skb->tc_index = ipv4_get_dsfield(ip_hdr(skb))
+				& ~INET_ECN_MASK;
+			break;
 
-			case __constant_htons(ETH_P_IPV6):
-				if (skb_cow_head(skb, sizeof(struct ipv6hdr)))
-					goto drop;
+		case __constant_htons(ETH_P_IPV6):
+			if (skb_cow_head(skb, sizeof(struct ipv6hdr)))
+				goto drop;
 
-				skb->tc_index = ipv6_get_dsfield(ipv6_hdr(skb))
-					& ~INET_ECN_MASK;
-				break;
-			default:
-				skb->tc_index = 0;
-				break;
+			skb->tc_index = ipv6_get_dsfield(ipv6_hdr(skb))
+				& ~INET_ECN_MASK;
+			break;
+		default:
+			skb->tc_index = 0;
+			break;
 		}
 	}
 
@@ -238,7 +239,7 @@ static int dsmark_enqueue(struct sk_buff *skb,struct Qdisc *sch)
 		}
 	}
 
-	err = p->q->enqueue(skb,p->q);
+	err = p->q->enqueue(skb, p->q);
 	if (err != NET_XMIT_SUCCESS) {
 		sch->qstats.drops++;
 		return err;
@@ -274,31 +275,31 @@ static struct sk_buff *dsmark_dequeue(struct Qdisc *sch)
 	pr_debug("index %d->%d\n", skb->tc_index, index);
 
 	switch (skb->protocol) {
-		case __constant_htons(ETH_P_IP):
-			ipv4_change_dsfield(ip_hdr(skb), p->mask[index],
-					    p->value[index]);
+	case __constant_htons(ETH_P_IP):
+		ipv4_change_dsfield(ip_hdr(skb), p->mask[index],
+				    p->value[index]);
 			break;
-		case __constant_htons(ETH_P_IPV6):
-			ipv6_change_dsfield(ipv6_hdr(skb), p->mask[index],
-					    p->value[index]);
+	case __constant_htons(ETH_P_IPV6):
+		ipv6_change_dsfield(ipv6_hdr(skb), p->mask[index],
+				    p->value[index]);
 			break;
-		default:
-			/*
-			 * Only complain if a change was actually attempted.
-			 * This way, we can send non-IP traffic through dsmark
-			 * and don't need yet another qdisc as a bypass.
-			 */
-			if (p->mask[index] != 0xff || p->value[index])
-				printk(KERN_WARNING "dsmark_dequeue: "
-				       "unsupported protocol %d\n",
-				       ntohs(skb->protocol));
-			break;
+	default:
+		/*
+		 * Only complain if a change was actually attempted.
+		 * This way, we can send non-IP traffic through dsmark
+		 * and don't need yet another qdisc as a bypass.
+		 */
+		if (p->mask[index] != 0xff || p->value[index])
+			printk(KERN_WARNING
+			       "dsmark_dequeue: unsupported protocol %d\n",
+			       ntohs(skb->protocol));
+		break;
 	}
 
 	return skb;
 }
 
-static int dsmark_requeue(struct sk_buff *skb,struct Qdisc *sch)
+static int dsmark_requeue(struct sk_buff *skb, struct Qdisc *sch)
 {
 	struct dsmark_qdisc_data *p = qdisc_priv(sch);
 	int err;
@@ -419,8 +420,8 @@ static int dsmark_dump_class(struct Qdisc *sch, unsigned long cl,
 	tcm->tcm_info = p->q->handle;
 
 	opts = RTA_NEST(skb, TCA_OPTIONS);
-	RTA_PUT_U8(skb,TCA_DSMARK_MASK, p->mask[cl-1]);
-	RTA_PUT_U8(skb,TCA_DSMARK_VALUE, p->value[cl-1]);
+	RTA_PUT_U8(skb, TCA_DSMARK_MASK, p->mask[cl-1]);
+	RTA_PUT_U8(skb, TCA_DSMARK_VALUE, p->value[cl-1]);
 
 	return RTA_NEST_END(skb, opts);
 
