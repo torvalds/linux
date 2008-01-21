@@ -65,6 +65,7 @@ void
 ptrace_disable(struct task_struct *child)
 {
        /* Todo - pending singlesteps? */
+       clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 }
 
 /* 
