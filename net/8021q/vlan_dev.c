@@ -60,9 +60,8 @@ static int vlan_dev_rebuild_header(struct sk_buff *skb)
 		return arp_find(veth->h_dest, skb);
 #endif
 	default:
-		printk(VLAN_DBG
-		       "%s: unable to resolve type %X addresses.\n",
-		       dev->name, ntohs(veth->h_vlan_encapsulated_proto));
+		pr_debug("%s: unable to resolve type %X addresses.\n",
+			 dev->name, ntohs(veth->h_vlan_encapsulated_proto));
 
 		memcpy(veth->h_source, dev->dev_addr, ETH_ALEN);
 		break;
@@ -142,11 +141,6 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 
 	vid = (vlan_TCI & VLAN_VID_MASK);
 
-#ifdef VLAN_DEBUG
-	printk(VLAN_DBG "%s: skb: %p vlan_id: %hx\n",
-		__FUNCTION__, skb, vid);
-#endif
-
 	/* Ok, we will find the correct VLAN device, strip the header,
 	 * and then go on as usual.
 	 */
@@ -162,11 +156,8 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	skb->dev = __find_vlan_dev(dev, vid);
 	if (!skb->dev) {
 		rcu_read_unlock();
-
-#ifdef VLAN_DEBUG
-		printk(VLAN_DBG "%s: ERROR: No net_device for VID: %i on dev: %s [%i]\n",
-			__FUNCTION__, (unsigned int)(vid), dev->name, dev->ifindex);
-#endif
+		pr_debug("%s: ERROR: No net_device for VID: %u on dev: %s [%i]\n",
+			 __FUNCTION__, (unsigned int)vid, dev->name, dev->ifindex);
 		kfree_skb(skb);
 		return -1;
 	}
@@ -186,11 +177,8 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	 */
 	skb->priority = vlan_get_ingress_priority(skb->dev, ntohs(vhdr->h_vlan_TCI));
 
-#ifdef VLAN_DEBUG
-	printk(VLAN_DBG "%s: priority: %lu  for TCI: %hu (hbo)\n",
-		__FUNCTION__, (unsigned long)(skb->priority),
-		ntohs(vhdr->h_vlan_TCI));
-#endif
+	pr_debug("%s: priority: %u for TCI: %hu\n",
+		 __FUNCTION__, skb->priority, ntohs(vhdr->h_vlan_TCI));
 
 	/* The ethernet driver already did the pkt_type calculations
 	 * for us...
@@ -335,10 +323,8 @@ static int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 	int build_vlan_header = 0;
 	struct net_device *vdev = dev; /* save this for the bottom of the method */
 
-#ifdef VLAN_DEBUG
-	printk(VLAN_DBG "%s: skb: %p type: %hx len: %x vlan_id: %hx, daddr: %p\n",
-		__FUNCTION__, skb, type, len, VLAN_DEV_INFO(dev)->vlan_id, daddr);
-#endif
+	pr_debug("%s: skb: %p type: %hx len: %u vlan_id: %hx, daddr: %p\n",
+		 __FUNCTION__, skb, type, len, VLAN_DEV_INFO(dev)->vlan_id, daddr);
 
 	/* build vlan header only if re_order_header flag is NOT set.  This
 	 * fixes some programs that get confused when they see a VLAN device
@@ -410,9 +396,7 @@ static int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 			return -ENOMEM;
 		}
 		VLAN_DEV_INFO(vdev)->cnt_inc_headroom_on_tx++;
-#ifdef VLAN_DEBUG
-		printk(VLAN_DBG "%s: %s: had to grow skb.\n", __FUNCTION__, vdev->name);
-#endif
+		pr_debug("%s: %s: had to grow skb.\n", __FUNCTION__, vdev->name);
 	}
 
 	if (build_vlan_header) {
@@ -453,10 +437,8 @@ static int vlan_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* This is not a VLAN frame...but we can fix that! */
 		VLAN_DEV_INFO(dev)->cnt_encap_on_xmit++;
 
-#ifdef VLAN_DEBUG
-		printk(VLAN_DBG "%s: proto to encap: 0x%hx (hbo)\n",
-			__FUNCTION__, htons(veth->h_vlan_proto));
-#endif
+		pr_debug("%s: proto to encap: 0x%hx\n",
+			 __FUNCTION__, htons(veth->h_vlan_proto));
 		/* Construct the second two bytes. This field looks something
 		 * like:
 		 * usr_priority: 3 bits	 (high bits)
@@ -477,14 +459,15 @@ static int vlan_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 
-#ifdef VLAN_DEBUG
-	printk(VLAN_DBG "%s: about to send skb: %p to dev: %s\n",
+	pr_debug("%s: about to send skb: %p to dev: %s\n",
 		__FUNCTION__, skb, skb->dev->name);
-	printk(VLAN_DBG "  %2hx.%2hx.%2hx.%2xh.%2hx.%2hx %2hx.%2hx.%2hx.%2hx.%2hx.%2hx %4hx %4hx %4hx\n",
-	       veth->h_dest[0], veth->h_dest[1], veth->h_dest[2], veth->h_dest[3], veth->h_dest[4], veth->h_dest[5],
-	       veth->h_source[0], veth->h_source[1], veth->h_source[2], veth->h_source[3], veth->h_source[4], veth->h_source[5],
-	       veth->h_vlan_proto, veth->h_vlan_TCI, veth->h_vlan_encapsulated_proto);
-#endif
+	pr_debug("  " MAC_FMT " " MAC_FMT " %4hx %4hx %4hx\n",
+		 veth->h_dest[0], veth->h_dest[1], veth->h_dest[2],
+		 veth->h_dest[3], veth->h_dest[4], veth->h_dest[5],
+		 veth->h_source[0], veth->h_source[1], veth->h_source[2],
+		 veth->h_source[3], veth->h_source[4], veth->h_source[5],
+		 veth->h_vlan_proto, veth->h_vlan_TCI,
+		 veth->h_vlan_encapsulated_proto);
 
 	stats->tx_packets++; /* for statics only */
 	stats->tx_bytes += skb->len;
@@ -596,7 +579,6 @@ int vlan_dev_set_vlan_flag(const struct net_device *dev,
 		}
 		return 0;
 	}
-	printk(KERN_ERR "%s: flag %i is not valid.\n", __FUNCTION__, flag);
 	return -EINVAL;
 }
 

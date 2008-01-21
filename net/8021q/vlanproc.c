@@ -179,13 +179,6 @@ int vlan_proc_add_dev (struct net_device *vlandev)
 {
 	struct vlan_dev_info *dev_info = VLAN_DEV_INFO(vlandev);
 
-	if (!(vlandev->priv_flags & IFF_802_1Q_VLAN)) {
-		printk(KERN_ERR
-		       "ERROR:	vlan_proc_add, device -:%s:- is NOT a VLAN\n",
-		       vlandev->name);
-		return -EINVAL;
-	}
-
 	dev_info->dent = create_proc_entry(vlandev->name,
 					   S_IFREG|S_IRUSR|S_IWUSR,
 					   proc_vlan_dir);
@@ -194,11 +187,6 @@ int vlan_proc_add_dev (struct net_device *vlandev)
 
 	dev_info->dent->proc_fops = &vlandev_fops;
 	dev_info->dent->data = vlandev;
-
-#ifdef VLAN_DEBUG
-	printk(KERN_ERR "vlan_proc_add, device -:%s:- being added.\n",
-	       vlandev->name);
-#endif
 	return 0;
 }
 
@@ -207,28 +195,11 @@ int vlan_proc_add_dev (struct net_device *vlandev)
  */
 int vlan_proc_rem_dev(struct net_device *vlandev)
 {
-	if (!vlandev) {
-		printk(VLAN_ERR "%s: invalid argument: %p\n",
-			__FUNCTION__, vlandev);
-		return -EINVAL;
-	}
-
-	if (!(vlandev->priv_flags & IFF_802_1Q_VLAN)) {
-		printk(VLAN_DBG "%s: invalid argument, device: %s is not a VLAN device, priv_flags: 0x%4hX.\n",
-			__FUNCTION__, vlandev->name, vlandev->priv_flags);
-		return -EINVAL;
-	}
-
-#ifdef VLAN_DEBUG
-	printk(VLAN_DBG "%s: dev: %p\n", __FUNCTION__, vlandev);
-#endif
-
 	/** NOTE:  This will consume the memory pointed to by dent, it seems. */
 	if (VLAN_DEV_INFO(vlandev)->dent) {
 		remove_proc_entry(VLAN_DEV_INFO(vlandev)->dent->name, proc_vlan_dir);
 		VLAN_DEV_INFO(vlandev)->dent = NULL;
 	}
-
 	return 0;
 }
 

@@ -80,16 +80,13 @@ static int __init vlan_proto_init(void)
 {
 	int err;
 
-	printk(VLAN_INF "%s v%s %s\n",
-	       vlan_fullname, vlan_version, vlan_copyright);
-	printk(VLAN_INF "All bugs added by %s\n",
-	       vlan_buggyright);
+	pr_info("%s v%s %s\n", vlan_fullname, vlan_version, vlan_copyright);
+	pr_info("All bugs added by %s\n", vlan_buggyright);
 
 	/* proc file system initialization */
 	err = vlan_proc_init();
 	if (err < 0) {
-		printk(KERN_ERR
-		       "%s: can't create entry in proc filesystem!\n",
+		pr_err("%s: can't create entry in proc filesystem!\n",
 		       __FUNCTION__);
 		return err;
 	}
@@ -233,10 +230,6 @@ static int unregister_vlan_dev(struct net_device *real_dev,
 	struct vlan_group *grp;
 	int i, ret;
 
-#ifdef VLAN_DEBUG
-	printk(VLAN_DBG "%s: VID: %i\n", __FUNCTION__, vlan_id);
-#endif
-
 	/* sanity check */
 	if (vlan_id >= VLAN_VID_MASK)
 		return -EINVAL;
@@ -329,23 +322,22 @@ static void vlan_transfer_operstate(const struct net_device *dev, struct net_dev
 
 int vlan_check_real_dev(struct net_device *real_dev, unsigned short vlan_id)
 {
+	char *name = real_dev->name;
+
 	if (real_dev->features & NETIF_F_VLAN_CHALLENGED) {
-		printk(VLAN_DBG "%s: VLANs not supported on %s.\n",
-			__FUNCTION__, real_dev->name);
+		pr_info("8021q: VLANs not supported on %s\n", name);
 		return -EOPNOTSUPP;
 	}
 
 	if ((real_dev->features & NETIF_F_HW_VLAN_RX) &&
 	    !real_dev->vlan_rx_register) {
-		printk(VLAN_DBG "%s: Device %s has buggy VLAN hw accel.\n",
-			__FUNCTION__, real_dev->name);
+		pr_info("8021q: device %s has buggy VLAN hw accel\n", name);
 		return -EOPNOTSUPP;
 	}
 
 	if ((real_dev->features & NETIF_F_HW_VLAN_FILTER) &&
 	    (!real_dev->vlan_rx_add_vid || !real_dev->vlan_rx_kill_vid)) {
-		printk(VLAN_DBG "%s: Device %s has buggy VLAN hw accel.\n",
-			__FUNCTION__, real_dev->name);
+		pr_info("8021q: Device %s has buggy VLAN hw accel\n", name);
 		return -EOPNOTSUPP;
 	}
 
@@ -355,11 +347,8 @@ int vlan_check_real_dev(struct net_device *real_dev, unsigned short vlan_id)
 	if (!(real_dev->flags & IFF_UP))
 		return -ENETDOWN;
 
-	if (__find_vlan_dev(real_dev, vlan_id) != NULL) {
-		/* was already registered. */
-		printk(VLAN_DBG "%s: ALREADY had VLAN registered\n", __FUNCTION__);
+	if (__find_vlan_dev(real_dev, vlan_id) != NULL)
 		return -EEXIST;
-	}
 
 	return 0;
 }
@@ -399,8 +388,8 @@ int register_vlan_dev(struct net_device *dev)
 		real_dev->vlan_rx_add_vid(real_dev, vlan_id);
 
 	if (vlan_proc_add_dev(dev) < 0)
-		printk(KERN_WARNING "VLAN: failed to add proc entry for %s\n",
-		       dev->name);
+		pr_warning("8021q: failed to add proc entry for %s\n",
+			   dev->name);
 	return 0;
 
 out_free_group:
@@ -419,11 +408,6 @@ static int register_vlan_device(struct net_device *real_dev,
 	char name[IFNAMSIZ];
 	int err;
 
-#ifdef VLAN_DEBUG
-	printk(VLAN_DBG "%s: if_name -:%s:-	vid: %i\n",
-		__FUNCTION__, eth_IF_name, VLAN_ID);
-#endif
-
 	if (VLAN_ID >= VLAN_VID_MASK)
 		return -ERANGE;
 
@@ -432,10 +416,6 @@ static int register_vlan_device(struct net_device *real_dev,
 		return err;
 
 	/* Gotta set up the fields for the device. */
-#ifdef VLAN_DEBUG
-	printk(VLAN_DBG "About to allocate name, vlan_name_type: %i\n",
-	       vlan_name_type);
-#endif
 	switch (vlan_name_type) {
 	case VLAN_NAME_TYPE_RAW_PLUS_VID:
 		/* name will look like:	 eth1.0005 */
@@ -472,13 +452,6 @@ static int register_vlan_device(struct net_device *real_dev,
 	 */
 	new_dev->mtu = real_dev->mtu;
 
-#ifdef VLAN_DEBUG
-	printk(VLAN_DBG "Allocated new name -:%s:-\n", new_dev->name);
-	VLAN_MEM_DBG("new_dev->priv malloc, addr: %p  size: %i\n",
-		     new_dev->priv,
-		     sizeof(struct vlan_dev_info));
-#endif
-
 	VLAN_DEV_INFO(new_dev)->vlan_id = VLAN_ID; /* 1 through VLAN_VID_MASK */
 	VLAN_DEV_INFO(new_dev)->real_dev = real_dev;
 	VLAN_DEV_INFO(new_dev)->dent = NULL;
@@ -489,9 +462,6 @@ static int register_vlan_device(struct net_device *real_dev,
 	if (err < 0)
 		goto out_free_newdev;
 
-#ifdef VLAN_DEBUG
-	printk(VLAN_DBG "Allocated new device successfully, returning.\n");
-#endif
 	return 0;
 
 out_free_newdev:
@@ -641,10 +611,6 @@ static int vlan_ioctl_handler(struct net *net, void __user *arg)
 	args.device1[23] = 0;
 	args.u.device2[23] = 0;
 
-#ifdef VLAN_DEBUG
-	printk(VLAN_DBG "%s: args.cmd: %x\n", __FUNCTION__, args.cmd);
-#endif
-
 	rtnl_lock();
 
 	switch (args.cmd) {
@@ -763,8 +729,6 @@ static int vlan_ioctl_handler(struct net *net, void __user *arg)
 
 	default:
 		/* pass on to underlying device instead?? */
-		printk(VLAN_DBG "%s: Unknown VLAN CMD: %x \n",
-			__FUNCTION__, args.cmd);
 		err = -EINVAL;
 		break;
 	}
