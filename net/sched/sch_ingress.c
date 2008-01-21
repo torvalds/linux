@@ -19,8 +19,6 @@
 #include <net/pkt_sched.h>
 
 
-#define PRIV(sch) qdisc_priv(sch)
-
 /* Thanks to Doron Oz for this hack */
 #ifndef CONFIG_NET_CLS_ACT
 #ifdef CONFIG_NETFILTER
@@ -74,7 +72,7 @@ static void ingress_walk(struct Qdisc *sch, struct qdisc_walker *walker)
 
 static struct tcf_proto **ingress_find_tcf(struct Qdisc *sch, unsigned long cl)
 {
-	struct ingress_qdisc_data *p = PRIV(sch);
+	struct ingress_qdisc_data *p = qdisc_priv(sch);
 
 	return &p->filter_list;
 }
@@ -83,7 +81,7 @@ static struct tcf_proto **ingress_find_tcf(struct Qdisc *sch, unsigned long cl)
 
 static int ingress_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 {
-	struct ingress_qdisc_data *p = PRIV(sch);
+	struct ingress_qdisc_data *p = qdisc_priv(sch);
 	struct tcf_result res;
 	int result;
 
@@ -180,7 +178,7 @@ static struct nf_hook_ops ing_ops[] __read_mostly = {
 
 static int ingress_init(struct Qdisc *sch, struct rtattr *opt)
 {
-	struct ingress_qdisc_data *p = PRIV(sch);
+	struct ingress_qdisc_data *p = qdisc_priv(sch);
 
 	/* Make sure either netfilter or preferably CLS_ACT is
 	 * compiled in */
@@ -217,7 +215,7 @@ static void ingress_reset(struct Qdisc *sch)
 
 static void ingress_destroy(struct Qdisc *sch)
 {
-	struct ingress_qdisc_data *p = PRIV(sch);
+	struct ingress_qdisc_data *p = qdisc_priv(sch);
 
 	tcf_destroy_chain(p->filter_list);
 }
