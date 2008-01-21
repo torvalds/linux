@@ -181,24 +181,6 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	/* Take off the VLAN header (4 bytes currently) */
 	skb_pull_rcsum(skb, VLAN_HLEN);
 
-	/* Ok, lets check to make sure the device (dev) we
-	 * came in on is what this VLAN is attached to.
-	 */
-
-	if (dev != VLAN_DEV_INFO(skb->dev)->real_dev) {
-		rcu_read_unlock();
-
-#ifdef VLAN_DEBUG
-		printk(VLAN_DBG "%s: dropping skb: %p because came in on wrong device, dev: %s  real_dev: %s, skb_dev: %s\n",
-			__FUNCTION__, skb, dev->name,
-			VLAN_DEV_INFO(skb->dev)->real_dev->name,
-			skb->dev->name);
-#endif
-		kfree_skb(skb);
-		stats->rx_errors++;
-		return -1;
-	}
-
 	/*
 	 * Deal with ingress priority mapping.
 	 */
