@@ -208,21 +208,45 @@ static void __devinit oxygen_init(struct oxygen *chip)
 	oxygen_set_bits8(chip, OXYGEN_FUNCTION,
 			 OXYGEN_FUNCTION_RESET_CODEC |
 			 chip->model->function_flags);
-	oxygen_write16(chip, OXYGEN_I2S_MULTICH_FORMAT, 0x010a);
-	oxygen_write16(chip, OXYGEN_I2S_A_FORMAT, 0x010a);
-	oxygen_write16(chip, OXYGEN_I2S_B_FORMAT, 0x010a);
-	oxygen_write16(chip, OXYGEN_I2S_C_FORMAT, 0x010a);
+	oxygen_write16(chip, OXYGEN_I2S_MULTICH_FORMAT,
+		       OXYGEN_RATE_48000 | OXYGEN_I2S_FORMAT_LJUST |
+		       OXYGEN_I2S_MCLK_128 | OXYGEN_I2S_BITS_16 |
+		       OXYGEN_I2S_MASTER | OXYGEN_I2S_BCLK_64);
+	oxygen_write16(chip, OXYGEN_I2S_A_FORMAT,
+		       OXYGEN_RATE_48000 | OXYGEN_I2S_FORMAT_LJUST |
+		       OXYGEN_I2S_MCLK_128 | OXYGEN_I2S_BITS_16 |
+		       OXYGEN_I2S_MASTER | OXYGEN_I2S_BCLK_64);
+	oxygen_write16(chip, OXYGEN_I2S_B_FORMAT,
+		       OXYGEN_RATE_48000 | OXYGEN_I2S_FORMAT_LJUST |
+		       OXYGEN_I2S_MCLK_128 | OXYGEN_I2S_BITS_16 |
+		       OXYGEN_I2S_MASTER | OXYGEN_I2S_BCLK_64);
+	oxygen_write16(chip, OXYGEN_I2S_C_FORMAT,
+		       OXYGEN_RATE_48000 | OXYGEN_I2S_FORMAT_LJUST |
+		       OXYGEN_I2S_MCLK_128 | OXYGEN_I2S_BITS_16 |
+		       OXYGEN_I2S_MASTER | OXYGEN_I2S_BCLK_64);
 	oxygen_set_bits32(chip, OXYGEN_SPDIF_CONTROL, OXYGEN_SPDIF_RATE_MASK);
 	oxygen_write32(chip, OXYGEN_SPDIF_OUTPUT_BITS, chip->spdif_bits);
-	oxygen_write16(chip, OXYGEN_PLAY_ROUTING, 0xe400);
-	oxygen_write8(chip, OXYGEN_REC_ROUTING, 0x10);
-	oxygen_write8(chip, OXYGEN_ADC_MONITOR, 0x00);
-	oxygen_write8(chip, OXYGEN_A_MONITOR_ROUTING, 0xe4);
+	oxygen_write16(chip, OXYGEN_PLAY_ROUTING,
+		       OXYGEN_PLAY_MULTICH_I2S_DAC | OXYGEN_PLAY_SPDIF_SPDIF |
+		       (0 << OXYGEN_PLAY_DAC0_SOURCE_SHIFT) |
+		       (1 << OXYGEN_PLAY_DAC1_SOURCE_SHIFT) |
+		       (2 << OXYGEN_PLAY_DAC2_SOURCE_SHIFT) |
+		       (3 << OXYGEN_PLAY_DAC3_SOURCE_SHIFT));
+	oxygen_write8(chip, OXYGEN_REC_ROUTING,
+		      OXYGEN_REC_A_ROUTE_I2S_ADC_1 |
+		      OXYGEN_REC_B_ROUTE_AC97_1 |
+		      OXYGEN_REC_C_ROUTE_SPDIF);
+	oxygen_write8(chip, OXYGEN_ADC_MONITOR, 0);
+	oxygen_write8(chip, OXYGEN_A_MONITOR_ROUTING,
+		      (0 << OXYGEN_A_MONITOR_ROUTE_0_SHIFT) |
+		      (1 << OXYGEN_A_MONITOR_ROUTE_1_SHIFT) |
+		      (2 << OXYGEN_A_MONITOR_ROUTE_2_SHIFT) |
+		      (3 << OXYGEN_A_MONITOR_ROUTE_3_SHIFT));
 
 	oxygen_write16(chip, OXYGEN_INTERRUPT_MASK, 0);
 	oxygen_write16(chip, OXYGEN_DMA_STATUS, 0);
 
-	oxygen_write8(chip, OXYGEN_AC97_INTERRUPT_MASK, 0x00);
+	oxygen_write8(chip, OXYGEN_AC97_INTERRUPT_MASK, 0);
 	if (chip->has_ac97_0) {
 		oxygen_clear_bits16(chip, OXYGEN_AC97_OUT_CONFIG,
 				    OXYGEN_AC97_CODEC0_FRONTL |
