@@ -16,11 +16,6 @@
 #ifdef __KERNEL__
 
 /* externally defined structs */
-struct vlan_group;
-struct net_device;
-struct packet_type;
-struct vlan_collection;
-struct vlan_dev_info;
 struct hlist_node;
 
 #include <linux/netdevice.h>
