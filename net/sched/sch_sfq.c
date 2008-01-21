@@ -122,7 +122,7 @@ static unsigned sfq_hash(struct sfq_sched_data *q, struct sk_buff *skb)
 	{
 		const struct iphdr *iph = ip_hdr(skb);
 		h = iph->daddr;
-		h2 = iph->saddr^iph->protocol;
+		h2 = iph->saddr ^ iph->protocol;
 		if (!(iph->frag_off&htons(IP_MF|IP_OFFSET)) &&
 		    (iph->protocol == IPPROTO_TCP ||
 		     iph->protocol == IPPROTO_UDP ||
@@ -137,7 +137,7 @@ static unsigned sfq_hash(struct sfq_sched_data *q, struct sk_buff *skb)
 	{
 		struct ipv6hdr *iph = ipv6_hdr(skb);
 		h = iph->daddr.s6_addr32[3];
-		h2 = iph->saddr.s6_addr32[3]^iph->nexthdr;
+		h2 = iph->saddr.s6_addr32[3] ^ iph->nexthdr;
 		if (iph->nexthdr == IPPROTO_TCP ||
 		    iph->nexthdr == IPPROTO_UDP ||
 		    iph->nexthdr == IPPROTO_UDPLITE ||
@@ -148,9 +148,10 @@ static unsigned sfq_hash(struct sfq_sched_data *q, struct sk_buff *skb)
 		break;
 	}
 	default:
-		h = (u32)(unsigned long)skb->dst^skb->protocol;
-		h2 = (u32)(unsigned long)skb->sk;
+		h = (unsigned long)skb->dst ^ skb->protocol;
+		h2 = (unsigned long)skb->sk;
 	}
+
 	return sfq_fold_hash(q, h, h2);
 }
 
@@ -208,7 +209,7 @@ static unsigned int sfq_drop(struct Qdisc *sch)
 	   drop a packet from it */
 
 	if (d > 1) {
-		sfq_index x = q->dep[d+SFQ_DEPTH].next;
+		sfq_index x = q->dep[d + SFQ_DEPTH].next;
 		skb = q->qs[x].prev;
 		len = skb->len;
 		__skb_unlink(skb, &q->qs[x]);
@@ -241,7 +242,7 @@ static unsigned int sfq_drop(struct Qdisc *sch)
 }
 
 static int
-sfq_enqueue(struct sk_buff *skb, struct Qdisc* sch)
+sfq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 {
 	struct sfq_sched_data *q = qdisc_priv(sch);
 	unsigned hash = sfq_hash(q, skb);
@@ -252,6 +253,7 @@ sfq_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 		q->ht[hash] = x = q->dep[SFQ_DEPTH].next;
 		q->hash[x] = hash;
 	}
+
 	/* If selected queue has length q->limit, this means that
 	 * all another queues are empty and that we do simple tail drop,
 	 * i.e. drop _this_ packet.
@@ -284,7 +286,7 @@ sfq_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 }
 
 static int
-sfq_requeue(struct sk_buff *skb, struct Qdisc* sch)
+sfq_requeue(struct sk_buff *skb, struct Qdisc *sch)
 {
 	struct sfq_sched_data *q = qdisc_priv(sch);
 	unsigned hash = sfq_hash(q, skb);
@@ -295,6 +297,7 @@ sfq_requeue(struct sk_buff *skb, struct Qdisc* sch)
 		q->ht[hash] = x = q->dep[SFQ_DEPTH].next;
 		q->hash[x] = hash;
 	}
+
 	sch->qstats.backlog += skb->len;
 	__skb_queue_head(&q->qs[x], skb);
 	/* If selected queue has length q->limit+1, this means that
@@ -310,6 +313,7 @@ sfq_requeue(struct sk_buff *skb, struct Qdisc* sch)
 		kfree_skb(skb);
 		return NET_XMIT_CN;
 	}
+
 	sfq_inc(q, x);
 	if (q->qs[x].qlen == 1) {		/* The flow is new */
 		if (q->tail == SFQ_DEPTH) {	/* It is the first flow */
@@ -322,6 +326,7 @@ sfq_requeue(struct sk_buff *skb, struct Qdisc* sch)
 			q->tail = x;
 		}
 	}
+
 	if (++sch->q.qlen <= q->limit) {
 		sch->qstats.requeues++;
 		return 0;
@@ -336,7 +341,7 @@ sfq_requeue(struct sk_buff *skb, struct Qdisc* sch)
 
 
 static struct sk_buff *
-sfq_dequeue(struct Qdisc* sch)
+sfq_dequeue(struct Qdisc *sch)
 {
 	struct sfq_sched_data *q = qdisc_priv(sch);
 	struct sk_buff *skb;
@@ -373,7 +378,7 @@ sfq_dequeue(struct Qdisc* sch)
 }
 
 static void
-sfq_reset(struct Qdisc* sch)
+sfq_reset(struct Qdisc *sch)
 {
 	struct sk_buff *skb;
 
@@ -383,7 +388,7 @@ sfq_reset(struct Qdisc* sch)
 
 static void sfq_perturbation(unsigned long arg)
 {
-	struct Qdisc *sch = (struct Qdisc*)arg;
+	struct Qdisc *sch = (struct Qdisc *)arg;
 	struct sfq_sched_data *q = qdisc_priv(sch);
 
 	q->perturbation = net_random();
@@ -403,7 +408,7 @@ static int sfq_change(struct Qdisc *sch, struct rtattr *opt)
 
 	sch_tree_lock(sch);
 	q->quantum = ctl->quantum ? : psched_mtu(sch->dev);
-	q->perturb_period = ctl->perturb_period*HZ;
+	q->perturb_period = ctl->perturb_period * HZ;
 	if (ctl->limit)
 		q->limit = min_t(u32, ctl->limit, SFQ_DEPTH - 1);
 
@@ -430,13 +435,15 @@ static int sfq_init(struct Qdisc *sch, struct rtattr *opt)
 	q->perturb_timer.data = (unsigned long)sch;;
 	init_timer_deferrable(&q->perturb_timer);
 
-	for (i=0; i<SFQ_HASH_DIVISOR; i++)
+	for (i = 0; i < SFQ_HASH_DIVISOR; i++)
 		q->ht[i] = SFQ_DEPTH;
-	for (i=0; i<SFQ_DEPTH; i++) {
+
+	for (i = 0; i < SFQ_DEPTH; i++) {
 		skb_queue_head_init(&q->qs[i]);
-		q->dep[i+SFQ_DEPTH].next = i+SFQ_DEPTH;
-		q->dep[i+SFQ_DEPTH].prev = i+SFQ_DEPTH;
+		q->dep[i + SFQ_DEPTH].next = i + SFQ_DEPTH;
+		q->dep[i + SFQ_DEPTH].prev = i + SFQ_DEPTH;
 	}
+
 	q->limit = SFQ_DEPTH - 1;
 	q->max_depth = 0;
 	q->tail = SFQ_DEPTH;
@@ -449,7 +456,8 @@ static int sfq_init(struct Qdisc *sch, struct rtattr *opt)
 		if (err)
 			return err;
 	}
-	for (i=0; i<SFQ_DEPTH; i++)
+
+	for (i = 0; i < SFQ_DEPTH; i++)
 		sfq_link(q, i);
 	return 0;
 }
@@ -467,7 +475,7 @@ static int sfq_dump(struct Qdisc *sch, struct sk_buff *skb)
 	struct tc_sfq_qopt opt;
 
 	opt.quantum = q->quantum;
-	opt.perturb_period = q->perturb_period/HZ;
+	opt.perturb_period = q->perturb_period / HZ;
 
 	opt.limit = q->limit;
 	opt.divisor = SFQ_HASH_DIVISOR;
