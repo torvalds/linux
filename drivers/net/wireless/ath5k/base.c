@@ -1775,11 +1775,18 @@ accept:
 			skb_pull(skb, pad);
 		}
 
-		if (sc->opmode == IEEE80211_IF_TYPE_MNTR)
-			rxs.mactime = ath5k_extend_tsf(sc->ah,
-					ds->ds_rxstat.rs_tstamp);
-		else
-			rxs.mactime = ds->ds_rxstat.rs_tstamp;
+		/*
+		 * always extend the mac timestamp, since this information is
+		 * also needed for proper IBSS merging.
+		 *
+		 * XXX: it might be too late to do it here, since rs_tstamp is
+		 * 15bit only. that means TSF extension has to be done within
+		 * 32768usec (about 32ms). it might be necessary to move this to
+		 * the interrupt handler, like it is done in madwifi.
+		 */
+		rxs.mactime = ath5k_extend_tsf(sc->ah, ds->ds_rxstat.rs_tstamp);
+		rxs.flag |= RX_FLAG_TSFT;
+
 		rxs.freq = sc->curchan->freq;
 		rxs.channel = sc->curchan->chan;
 		rxs.phymode = sc->curmode;
