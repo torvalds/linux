@@ -663,7 +663,7 @@ ath5k_attach(struct pci_dev *pdev, struct ieee80211_hw *hw)
 	 * Reset the key cache since some parts do not
 	 * reset the contents on initial power up.
 	 */
-	for (i = 0; i < AR5K_KEYCACHE_SIZE; i++)
+	for (i = 0; i < AR5K_KEYTABLE_SIZE; i++)
 		ath5k_hw_reset_key(ah, i);
 
 	/*
