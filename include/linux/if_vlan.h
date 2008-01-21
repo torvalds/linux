@@ -271,12 +271,12 @@ static inline struct sk_buff *__vlan_put_tag(struct sk_buff *skb, unsigned short
 	memmove(skb->data, skb->data + VLAN_HLEN, 2 * VLAN_ETH_ALEN);
 
 	/* first, the ethernet type */
-	veth->h_vlan_proto = __constant_htons(ETH_P_8021Q);
+	veth->h_vlan_proto = htons(ETH_P_8021Q);
 
 	/* now, the tag */
 	veth->h_vlan_TCI = htons(tag);
 
-	skb->protocol = __constant_htons(ETH_P_8021Q);
+	skb->protocol = htons(ETH_P_8021Q);
 	skb->mac_header -= VLAN_HLEN;
 	skb->network_header -= VLAN_HLEN;
 
@@ -331,7 +331,7 @@ static inline int __vlan_get_tag(struct sk_buff *skb, unsigned short *tag)
 {
 	struct vlan_ethhdr *veth = (struct vlan_ethhdr *)skb->data;
 
-	if (veth->h_vlan_proto != __constant_htons(ETH_P_8021Q)) {
+	if (veth->h_vlan_proto != htons(ETH_P_8021Q)) {
 		return -EINVAL;
 	}
 
