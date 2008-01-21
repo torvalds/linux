@@ -667,7 +667,7 @@ static int add_controls(struct oxygen *chip,
 		err = chip->model->control_filter(&template);
 		if (err < 0)
 			return err;
-		ctl = snd_ctl_new1(&controls[i], chip);
+		ctl = snd_ctl_new1(&template, chip);
 		if (!ctl)
 			return -ENOMEM;
 		err = snd_ctl_add(chip->card, ctl);
