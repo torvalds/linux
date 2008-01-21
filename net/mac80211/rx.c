@@ -295,7 +295,7 @@ ieee80211_rx_h_parse_qos(struct ieee80211_txrx_data *rx)
 }
 
 
-u32 ieee80211_rx_load_stats(struct ieee80211_local *local,
+static u32 ieee80211_rx_load_stats(struct ieee80211_local *local,
 			      struct sk_buff *skb,
 			      struct ieee80211_rx_status *status)
 {
@@ -1664,8 +1664,10 @@ static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
  * This is the actual Rx frames handler. as it blongs to Rx path it must
  * be called with rcu_read_lock protection.
  */
-void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw, struct sk_buff *skb,
-			    struct ieee80211_rx_status *status, u32 load)
+static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
+					 struct sk_buff *skb,
+					 struct ieee80211_rx_status *status,
+					 u32 load)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_sub_if_data *sdata;
@@ -1919,8 +1921,8 @@ u8 ieee80211_sta_manage_reorder_buf(struct ieee80211_hw *hw,
 	return 1;
 }
 
-u8 ieee80211_rx_reorder_ampdu(struct ieee80211_local *local,
-			      struct sk_buff *skb)
+static u8 ieee80211_rx_reorder_ampdu(struct ieee80211_local *local,
+				     struct sk_buff *skb)
 {
 	struct ieee80211_hw *hw = &local->hw;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;

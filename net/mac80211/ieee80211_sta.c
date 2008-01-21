@@ -1154,8 +1154,8 @@ end_no_lock:
 	sta_info_put(sta);
 }
 
-void ieee80211_send_delba(struct net_device *dev, const u8 *da, u16 tid,
-				u16 initiator, u16 reason_code)
+static void ieee80211_send_delba(struct net_device *dev, const u8 *da, u16 tid,
+				 u16 initiator, u16 reason_code)
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
