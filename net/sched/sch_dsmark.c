@@ -187,13 +187,19 @@ static int dsmark_enqueue(struct sk_buff *skb,struct Qdisc *sch)
 	pr_debug("dsmark_enqueue(skb %p,sch %p,[qdisc %p])\n", skb, sch, p);
 
 	if (p->set_tc_index) {
-		/* FIXME: Safe with non-linear skbs? --RR */
 		switch (skb->protocol) {
 			case __constant_htons(ETH_P_IP):
+				if (skb_cow_head(skb, sizeof(struct iphdr)))
+					goto drop;
+
 				skb->tc_index = ipv4_get_dsfield(ip_hdr(skb))
 					& ~INET_ECN_MASK;
 				break;
+
 			case __constant_htons(ETH_P_IPV6):
+				if (skb_cow_head(skb, sizeof(struct ipv6hdr)))
+					goto drop;
+
 				skb->tc_index = ipv6_get_dsfield(ipv6_hdr(skb))
 					& ~INET_ECN_MASK;
 				break;
@@ -217,14 +223,14 @@ static int dsmark_enqueue(struct sk_buff *skb,struct Qdisc *sch)
 		case TC_ACT_STOLEN:
 			kfree_skb(skb);
 			return NET_XMIT_SUCCESS;
+
 		case TC_ACT_SHOT:
-			kfree_skb(skb);
-			sch->qstats.drops++;
-			return NET_XMIT_BYPASS;
+			goto drop;
 #endif
 		case TC_ACT_OK:
 			skb->tc_index = TC_H_MIN(res.classid);
 			break;
+
 		default:
 			if (p->default_index != NO_DEFAULT_INDEX)
 				skb->tc_index = p->default_index;
@@ -243,6 +249,11 @@ static int dsmark_enqueue(struct sk_buff *skb,struct Qdisc *sch)
 	sch->q.qlen++;
 
 	return NET_XMIT_SUCCESS;
+
+drop:
+	kfree_skb(skb);
+	sch->qstats.drops++;
+	return NET_XMIT_BYPASS;
 }
 
 static struct sk_buff *dsmark_dequeue(struct Qdisc *sch)
