@@ -241,7 +241,7 @@ void gen_kill_estimator(struct gnet_stats_basic *bstats,
 }
 
 /**
- * gen_replace_estimator - replace rate estimator configruation
+ * gen_replace_estimator - replace rate estimator configuration
  * @bstats: basic statistics
  * @rate_est: rate estimator statistics
  * @stats_lock: statistics lock
@@ -252,13 +252,12 @@ void gen_kill_estimator(struct gnet_stats_basic *bstats,
  *
  * Returns 0 on success or a negative error code.
  */
-int
-gen_replace_estimator(struct gnet_stats_basic *bstats,
-	struct gnet_stats_rate_est *rate_est, spinlock_t *stats_lock,
-	struct rtattr *opt)
+int gen_replace_estimator(struct gnet_stats_basic *bstats,
+			  struct gnet_stats_rate_est *rate_est,
+			  spinlock_t *stats_lock, struct rtattr *opt)
 {
-    gen_kill_estimator(bstats, rate_est);
-    return gen_new_estimator(bstats, rate_est, stats_lock, opt);
+	gen_kill_estimator(bstats, rate_est);
+	return gen_new_estimator(bstats, rate_est, stats_lock, opt);
 }
 
 
