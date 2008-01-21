@@ -375,7 +375,7 @@ static void macvlan_transfer_operstate(struct net_device *dev)
 		if (!netif_carrier_ok(dev))
 			netif_carrier_on(dev);
 	} else {
-		if (netif_carrier_ok(lowerdev))
+		if (netif_carrier_ok(dev))
 			netif_carrier_off(dev);
 	}
 }
