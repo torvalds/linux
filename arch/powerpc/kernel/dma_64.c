@@ -117,6 +117,11 @@ EXPORT_SYMBOL(dma_iommu_ops);
  */
 unsigned long dma_direct_offset;
 
+static unsigned long get_dma_direct_offset(struct device *dev)
+{
+	return (unsigned long)dev->archdata.dma_data;
+}
+
 static void *dma_direct_alloc_coherent(struct device *dev, size_t size,
 				       dma_addr_t *dma_handle, gfp_t flag)
 {
@@ -130,7 +135,7 @@ static void *dma_direct_alloc_coherent(struct device *dev, size_t size,
 		return NULL;
 	ret = page_address(page);
 	memset(ret, 0, size);
-	*dma_handle = virt_to_abs(ret) | dma_direct_offset;
+	*dma_handle = virt_to_abs(ret) + get_dma_direct_offset(dev);
 
 	return ret;
 }
@@ -145,7 +150,7 @@ static dma_addr_t dma_direct_map_single(struct device *dev, void *ptr,
 					size_t size,
 					enum dma_data_direction direction)
 {
-	return virt_to_abs(ptr) | dma_direct_offset;
+	return virt_to_abs(ptr) + get_dma_direct_offset(dev);
 }
 
 static void dma_direct_unmap_single(struct device *dev, dma_addr_t dma_addr,
@@ -161,7 +166,7 @@ static int dma_direct_map_sg(struct device *dev, struct scatterlist *sgl,
 	int i;
 
 	for_each_sg(sgl, sg, nents, i) {
-		sg->dma_address = sg_phys(sg) | dma_direct_offset;
+		sg->dma_address = sg_phys(sg) + get_dma_direct_offset(dev);
 		sg->dma_length = sg->length;
 	}
 
