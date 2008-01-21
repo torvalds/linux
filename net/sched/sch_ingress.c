@@ -118,21 +118,6 @@ static int ingress_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	return result;
 }
 
-static struct sk_buff *ingress_dequeue(struct Qdisc *sch)
-{
-	return NULL;
-}
-
-static int ingress_requeue(struct sk_buff *skb, struct Qdisc *sch)
-{
-	return 0;
-}
-
-static unsigned int ingress_drop(struct Qdisc *sch)
-{
-	return 0;
-}
-
 #ifndef CONFIG_NET_CLS_ACT
 #ifdef CONFIG_NETFILTER
 static unsigned int ing_hook(unsigned int hook, struct sk_buff *skb,
@@ -202,11 +187,6 @@ static int ingress_init(struct Qdisc *sch, struct rtattr *opt)
 	return 0;
 }
 
-static void ingress_reset(struct Qdisc *sch)
-{
-	return;
-}
-
 /* ------------------------------------------------------------- */
 
 static void ingress_destroy(struct Qdisc *sch)
@@ -248,11 +228,7 @@ static struct Qdisc_ops ingress_qdisc_ops __read_mostly = {
 	.id		=	"ingress",
 	.priv_size	=	sizeof(struct ingress_qdisc_data),
 	.enqueue	=	ingress_enqueue,
-	.dequeue	=	ingress_dequeue,
-	.requeue	=	ingress_requeue,
-	.drop		=	ingress_drop,
 	.init		=	ingress_init,
-	.reset		=	ingress_reset,
 	.destroy	=	ingress_destroy,
 	.dump		=	ingress_dump,
 	.owner		=	THIS_MODULE,
