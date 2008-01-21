@@ -3593,27 +3593,29 @@ static int pfkey_send_migrate(struct xfrm_selector *sel, u8 dir, u8 type,
 		/* old ipsecrequest */
 		int mode = pfkey_mode_from_xfrm(mp->mode);
 		if (mode < 0)
-			return -EINVAL;
+			goto err;
 		if (set_ipsecrequest(skb, mp->proto, mode,
 				     (mp->reqid ?  IPSEC_LEVEL_UNIQUE : IPSEC_LEVEL_REQUIRE),
 				     mp->reqid, mp->old_family,
-				     &mp->old_saddr, &mp->old_daddr) < 0) {
-			return -EINVAL;
-		}
+				     &mp->old_saddr, &mp->old_daddr) < 0)
+			goto err;
 
 		/* new ipsecrequest */
 		if (set_ipsecrequest(skb, mp->proto, mode,
 				     (mp->reqid ? IPSEC_LEVEL_UNIQUE : IPSEC_LEVEL_REQUIRE),
 				     mp->reqid, mp->new_family,
-				     &mp->new_saddr, &mp->new_daddr) < 0) {
-			return -EINVAL;
-		}
+				     &mp->new_saddr, &mp->new_daddr) < 0)
+			goto err;
 	}
 
 	/* broadcast migrate message to sockets */
 	pfkey_broadcast(skb, GFP_ATOMIC, BROADCAST_ALL, NULL);
 
 	return 0;
+
+err:
+	kfree_skb(skb);
+	return -EINVAL;
 }
 #else
 static int pfkey_send_migrate(struct xfrm_selector *sel, u8 dir, u8 type,
