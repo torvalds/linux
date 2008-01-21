@@ -276,7 +276,7 @@ static int stb6100_set_bandwidth(struct dvb_frontend *fe, u32 bandwidth)
 	else if (bandwidth <= 5000000)	/* bw/2 min = 5Mhz for F=0			*/
 		tmp = 0;
 	else				/* if 5 < bw/2 < 36				*/
-		tmp = bandwidth / 1000000 - 5;
+		tmp = (bandwidth + 500000) / 1000000 - 5;
 
 	/* Turn on LPF bandwidth setting clock control,
 	 * set bandwidth, wait 10ms, turn off.
