@@ -1570,7 +1570,6 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     * HT-Omega Claro
     * Razer Barracuda AC-1
     * Sondigo Inferno
-    * TempoTec HIFIER
 
     This module supports autoprobe and multiple cards.
 
