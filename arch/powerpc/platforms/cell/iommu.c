@@ -490,6 +490,8 @@ static struct cbe_iommu *cell_iommu_for_node(int nid)
 	return NULL;
 }
 
+static unsigned long cell_dma_direct_offset;
+
 static void cell_dma_dev_setup(struct device *dev)
 {
 	struct iommu_window *window;
@@ -497,7 +499,7 @@ static void cell_dma_dev_setup(struct device *dev)
 	struct dev_archdata *archdata = &dev->archdata;
 
 	if (get_pci_dma_ops() == &dma_direct_ops) {
-		archdata->dma_data = (void *)dma_direct_offset;
+		archdata->dma_data = (void *)cell_dma_direct_offset;
 		return;
 	}
 
@@ -655,7 +657,7 @@ static int __init cell_iommu_init_disabled(void)
 
 	/* If we have no Axon, we set up the spider DMA magic offset */
 	if (of_find_node_by_name(NULL, "axon") == NULL)
-		dma_direct_offset = SPIDER_DMA_OFFSET;
+		cell_dma_direct_offset = SPIDER_DMA_OFFSET;
 
 	/* Now we need to check to see where the memory is mapped
 	 * in PCI space. We assume that all busses use the same dma
@@ -689,13 +691,13 @@ static int __init cell_iommu_init_disabled(void)
 		return -ENODEV;
 	}
 
-	dma_direct_offset += base;
+	cell_dma_direct_offset += base;
 
-	if (dma_direct_offset != 0)
+	if (cell_dma_direct_offset != 0)
 		ppc_md.pci_dma_dev_setup = cell_pci_dma_dev_setup;
 
 	printk("iommu: disabled, direct DMA offset is 0x%lx\n",
-	       dma_direct_offset);
+	       cell_dma_direct_offset);
 
 	return 0;
 }
