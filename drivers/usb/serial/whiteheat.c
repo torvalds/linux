@@ -658,11 +658,14 @@ static void whiteheat_close(struct usb_serial_port *port, struct file * filp)
 	struct list_head *tmp2;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
-	
+
+	mutex_lock(&port->serial->disc_mutex);
 	/* filp is NULL when called from usb_serial_disconnect */
-	if (filp && (tty_hung_up_p(filp))) {
+	if ((filp && (tty_hung_up_p(filp))) || port->serial->disconnected) {
+		mutex_unlock(&port->serial->disc_mutex);
 		return;
 	}
+	mutex_unlock(&port->serial->disc_mutex);
 
 	port->tty->closing = 1;
 

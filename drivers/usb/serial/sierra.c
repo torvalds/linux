@@ -597,7 +597,10 @@ static void sierra_close(struct usb_serial_port *port, struct file *filp)
 	portdata->dtr_state = 0;
 
 	if (serial->dev) {
-		sierra_send_setup(port);
+		mutex_lock(&serial->disc_mutex);
+		if (!serial->disconnected)
+			sierra_send_setup(port);
+		mutex_unlock(&serial->disc_mutex);
 
 		/* Stop reading/writing urbs */
 		for (i = 0; i < N_IN_URB; i++)

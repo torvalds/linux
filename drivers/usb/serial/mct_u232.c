@@ -487,21 +487,22 @@ error:
 static void mct_u232_close (struct usb_serial_port *port, struct file *filp)
 {
 	unsigned int c_cflag;
-	unsigned long flags;
 	unsigned int control_state;
 	struct mct_u232_private *priv = usb_get_serial_port_data(port);
 	dbg("%s port %d", __FUNCTION__, port->number);
 
    	if (port->tty) {
 		c_cflag = port->tty->termios->c_cflag;
-		if (c_cflag & HUPCL) {
-		   /* drop DTR and RTS */
-		   spin_lock_irqsave(&priv->lock, flags);
-		   priv->control_state &= ~(TIOCM_DTR | TIOCM_RTS);
-		   control_state = priv->control_state;
-		   spin_unlock_irqrestore(&priv->lock, flags);
-		   mct_u232_set_modem_ctrl(port->serial, control_state);
+		mutex_lock(&port->serial->disc_mutex);
+		if (c_cflag & HUPCL && !port->serial->disconnected) {
+			/* drop DTR and RTS */
+			spin_lock_irq(&priv->lock);
+			priv->control_state &= ~(TIOCM_DTR | TIOCM_RTS);
+			control_state = priv->control_state;
+			spin_unlock_irq(&priv->lock);
+			mct_u232_set_modem_ctrl(port->serial, control_state);
 		}
+		mutex_unlock(&port->serial->disc_mutex);
 	}
 
 
