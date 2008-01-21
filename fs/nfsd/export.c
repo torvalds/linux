@@ -1357,8 +1357,6 @@ exp_pseudoroot(struct svc_rqst *rqstp, struct svc_fh *fhp)
 	mk_fsid(FSID_NUM, fsidv, 0, 0, 0, NULL);
 
 	exp = rqst_exp_find(rqstp, FSID_NUM, fsidv);
-	if (PTR_ERR(exp) == -ENOENT)
-		return nfserr_perm;
 	if (IS_ERR(exp))
 		return nfserrno(PTR_ERR(exp));
 	rv = fh_compose(fhp, exp, exp->ex_dentry, NULL);
