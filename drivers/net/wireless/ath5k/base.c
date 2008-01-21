@@ -604,7 +604,8 @@ ath5k_pci_resume(struct pci_dev *pdev)
 {
 	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
 	struct ath5k_softc *sc = hw->priv;
-	int err;
+	struct ath5k_hw *ah = sc->ah;
+	int i, err;
 
 	err = pci_set_power_state(pdev, PCI_D0);
 	if (err)
@@ -624,9 +625,19 @@ ath5k_pci_resume(struct pci_dev *pdev)
 
 	ath5k_init(sc);
 	if (test_bit(ATH_STAT_LEDSOFT, sc->status)) {
-		ath5k_hw_set_gpio_output(sc->ah, sc->led_pin);
-		ath5k_hw_set_gpio(sc->ah, sc->led_pin, 0);
+		ath5k_hw_set_gpio_output(ah, sc->led_pin);
+		ath5k_hw_set_gpio(ah, sc->led_pin, 0);
 	}
+
+	/*
+	 * Reset the key cache since some parts do not
+	 * reset the contents on initial power up or resume.
+	 *
+	 * FIXME: This may need to be revisited when mac80211 becomes
+	 *        aware of suspend/resume.
+	 */
+	for (i = 0; i < AR5K_KEYTABLE_SIZE; i++)
+		ath5k_hw_reset_key(ah, i);
 
 	return 0;
 }
