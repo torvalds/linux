@@ -1395,9 +1395,6 @@ int input_register_device(struct input_dev *dev)
 	snprintf(dev->dev.bus_id, sizeof(dev->dev.bus_id),
 		 "input%ld", (unsigned long) atomic_inc_return(&input_no) - 1);
 
-	if (dev->cdev.dev)
-		dev->dev.parent = dev->cdev.dev;
-
 	error = device_add(&dev->dev);
 	if (error)
 		return error;
