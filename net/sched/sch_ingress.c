@@ -27,7 +27,6 @@ static int nf_registered;
 #endif
 
 struct ingress_qdisc_data {
-	struct Qdisc		*q;
 	struct tcf_proto	*filter_list;
 };
 
@@ -178,8 +177,6 @@ static struct nf_hook_ops ing_ops[] __read_mostly = {
 
 static int ingress_init(struct Qdisc *sch, struct rtattr *opt)
 {
-	struct ingress_qdisc_data *p = qdisc_priv(sch);
-
 	/* Make sure either netfilter or preferably CLS_ACT is
 	 * compiled in */
 #ifndef CONFIG_NET_CLS_ACT
@@ -202,7 +199,6 @@ static int ingress_init(struct Qdisc *sch, struct rtattr *opt)
 	}
 #endif
 #endif
-	p->q = &noop_qdisc;
 	return 0;
 }
 
