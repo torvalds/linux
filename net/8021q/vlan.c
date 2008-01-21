@@ -3,7 +3,7 @@
  *		Ethernet-type device handling.
  *
  * Authors:	Ben Greear <greearb@candelatech.com>
- *              Please send support related email to: vlan@scry.wanfear.com
+ *              Please send support related email to: netdev@vger.kernel.org
  *              VLAN Home Page: http://www.candelatech.com/~greear/vlan.html
  *
  * Fixes:
