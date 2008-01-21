@@ -1,4 +1,4 @@
-/* $Id: checksumcopy.S,v 1.1 2001/12/17 13:59:27 bjornw Exp $
+/*
  * A fast checksum+copy routine using movem
  * Copyright (c) 1998, 2001 Axis Communications AB
  *
@@ -67,8 +67,6 @@ _mloop:	movem	[$r10+],$r9	; read 10 longwords
 	
 	ax
 	addq	0,$r13
-	ax			; do it again, since we might have generated a carry
-	addq	0,$r13
 
 	subq	10*4,$r12
 	bge	_mloop
@@ -91,10 +89,6 @@ _word_loop:
 	lsrq	16,$r9		; r0 = checksum >> 16
 	and.d	0xffff,$r13	; checksum = checksum & 0xffff
 	add.d	$r9,$r13	; checksum += r0
-	move.d	$r13,$r9	; do the same again, maybe we got a carry last add
-	lsrq	16,$r9
-	and.d	0xffff,$r13
-	add.d	$r9,$r13
 	
 _no_fold:
 	cmpq	2,$r12
