@@ -72,6 +72,17 @@ static void __init celleb_init_direct_mapping(void)
 	dma_direct_offset = dma_base;
 }
 
+static void celleb_dma_dev_setup(struct device *dev)
+{
+	dev->archdata.dma_ops = get_pci_dma_ops();
+	dev->archdata.dma_data = (void *)dma_direct_offset;
+}
+
+static void celleb_pci_dma_dev_setup(struct pci_dev *pdev)
+{
+	celleb_dma_dev_setup(&pdev->dev);
+}
+
 static int celleb_of_bus_notify(struct notifier_block *nb,
 				unsigned long action, void *data)
 {
@@ -81,7 +92,7 @@ static int celleb_of_bus_notify(struct notifier_block *nb,
 	if (action != BUS_NOTIFY_ADD_DEVICE)
 		return 0;
 
-	dev->archdata.dma_ops = get_pci_dma_ops();
+	celleb_dma_dev_setup(dev);
 
 	return 0;
 }
@@ -94,6 +105,7 @@ static int __init celleb_init_iommu(void)
 {
 	celleb_init_direct_mapping();
 	set_pci_dma_ops(&dma_direct_ops);
+	ppc_md.pci_dma_dev_setup = celleb_pci_dma_dev_setup;
 	bus_register_notifier(&of_platform_bus_type, &celleb_of_bus_notifier);
 
 	return 0;
