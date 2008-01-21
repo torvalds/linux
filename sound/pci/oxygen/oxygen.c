@@ -166,7 +166,7 @@ static void ak4396_write(struct oxygen *chip, unsigned int codec,
 	};
 	oxygen_write_spi(chip, OXYGEN_SPI_TRIGGER |
 			 OXYGEN_SPI_DATA_LENGTH_2 |
-			 OXYGEN_SPI_CLOCK_160 |
+			 OXYGEN_SPI_CLOCK_320 |
 			 (codec_spi_map[codec] << OXYGEN_SPI_CODEC_SHIFT) |
 			 OXYGEN_SPI_CEN_LATCH_CLOCK_HI,
 			 AK4396_WRITE | (reg << 8) | value);
@@ -176,7 +176,7 @@ static void wm8785_write(struct oxygen *chip, u8 reg, unsigned int value)
 {
 	oxygen_write_spi(chip, OXYGEN_SPI_TRIGGER |
 			 OXYGEN_SPI_DATA_LENGTH_2 |
-			 OXYGEN_SPI_CLOCK_160 |
+			 OXYGEN_SPI_CLOCK_320 |
 			 (3 << OXYGEN_SPI_CODEC_SHIFT) |
 			 OXYGEN_SPI_CEN_LATCH_CLOCK_LO,
 			 (reg << 9) | value);

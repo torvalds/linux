@@ -174,7 +174,7 @@ void oxygen_write_spi(struct oxygen *chip, u8 control, unsigned int data)
 {
 	unsigned int count;
 
-	/* should not need more than 3.84 us (24 * 160 ns) */
+	/* should not need more than 7.68 us (24 * 320 ns) */
 	count = 10;
 	while ((oxygen_read8(chip, OXYGEN_SPI_CONTROL) & OXYGEN_SPI_BUSY)
 	       && count > 0) {
