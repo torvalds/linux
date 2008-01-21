@@ -310,8 +310,8 @@ static void cell_iommu_setup_hardware(struct cbe_iommu *iommu, unsigned long siz
 {
 	struct page *page;
 	int ret, i;
-	unsigned long reg, segments, pages_per_segment, ptab_size, n_pte_pages;
-	unsigned long xlate_base;
+	unsigned long reg, segments, pages_per_segment, ptab_size, stab_size,
+		      n_pte_pages, xlate_base;
 	unsigned int virq;
 
 	if (cell_iommu_find_ioc(iommu->nid, &xlate_base))
@@ -328,7 +328,8 @@ static void cell_iommu_setup_hardware(struct cbe_iommu *iommu, unsigned long siz
 			__FUNCTION__, iommu->nid, segments, pages_per_segment);
 
 	/* set up the segment table */
-	page = alloc_pages_node(iommu->nid, GFP_KERNEL, 0);
+	stab_size = segments * sizeof(unsigned long);
+	page = alloc_pages_node(iommu->nid, GFP_KERNEL, get_order(stab_size));
 	BUG_ON(!page);
 	iommu->stab = page_address(page);
 	clear_page(iommu->stab);
