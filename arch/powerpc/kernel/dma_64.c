@@ -112,10 +112,11 @@ EXPORT_SYMBOL(dma_iommu_ops);
 /*
  * Generic direct DMA implementation
  *
- * This implementation supports a global offset that can be applied if
- * the address at which memory is visible to devices is not 0.
+ * This implementation supports a per-device offset that can be applied if
+ * the address at which memory is visible to devices is not 0. Platform code
+ * can set archdata.dma_data to an unsigned long holding the offset. By
+ * default the offset is zero.
  */
-unsigned long dma_direct_offset;
 
 static unsigned long get_dma_direct_offset(struct device *dev)
 {
