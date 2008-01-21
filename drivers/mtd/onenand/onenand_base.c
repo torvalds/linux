@@ -1431,7 +1431,7 @@ static int onenand_write_ops_nolock(struct mtd_info *mtd, loff_t to,
 		}
 
 		/* Only check verify write turn on */
-		ret = onenand_verify(mtd, (u_char *) wbuf, to, thislen);
+		ret = onenand_verify(mtd, buf, to, thislen);
 		if (ret) {
 			printk(KERN_ERR "onenand_write_ops_nolock: verify failed %d\n", ret);
 			break;
