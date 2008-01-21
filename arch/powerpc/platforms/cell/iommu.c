@@ -496,9 +496,10 @@ static void cell_dma_dev_setup(struct device *dev)
 	struct cbe_iommu *iommu;
 	struct dev_archdata *archdata = &dev->archdata;
 
-	/* If we run without iommu, no need to do anything */
-	if (get_pci_dma_ops() == &dma_direct_ops)
+	if (get_pci_dma_ops() == &dma_direct_ops) {
+		archdata->dma_data = (void *)dma_direct_offset;
 		return;
+	}
 
 	/* Current implementation uses the first window available in that
 	 * node's iommu. We -might- do something smarter later though it may
@@ -689,6 +690,9 @@ static int __init cell_iommu_init_disabled(void)
 	}
 
 	dma_direct_offset += base;
+
+	if (dma_direct_offset != 0)
+		ppc_md.pci_dma_dev_setup = cell_pci_dma_dev_setup;
 
 	printk("iommu: disabled, direct DMA offset is 0x%lx\n",
 	       dma_direct_offset);
