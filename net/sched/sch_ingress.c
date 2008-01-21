@@ -162,19 +162,10 @@ static struct nf_hook_ops ing_ops[] __read_mostly = {
 
 static int ingress_init(struct Qdisc *sch, struct rtattr *opt)
 {
-	/* Make sure either netfilter or preferably CLS_ACT is
-	 * compiled in */
-#ifndef CONFIG_NET_CLS_ACT
-#ifndef CONFIG_NETFILTER
-	printk("You MUST compile classifier actions into the kernel\n");
-	return -EINVAL;
-#else
-	printk("Ingress scheduler: Classifier actions prefered over netfilter\n");
-#endif
-#endif
-
 #ifndef CONFIG_NET_CLS_ACT
 #ifdef CONFIG_NETFILTER
+	printk("Ingress scheduler: Classifier actions prefered over netfilter\n");
+
 	if (!nf_registered) {
 		if (nf_register_hooks(ing_ops, ARRAY_SIZE(ing_ops)) < 0) {
 			printk("ingress qdisc registration error \n");
