@@ -122,6 +122,13 @@ int build_phys_page_list(struct ib_phys_buf *buffer_list,
 		*total_size += buffer_list[i].size;
 		if (i > 0)
 			mask |= buffer_list[i].addr;
+		else
+			mask |= buffer_list[i].addr & PAGE_MASK;
+		if (i != num_phys_buf - 1)
+			mask |= buffer_list[i].addr + buffer_list[i].size;
+		else
+			mask |= (buffer_list[i].addr + buffer_list[i].size +
+				PAGE_SIZE - 1) & PAGE_MASK;
 	}
 
 	if (*total_size > 0xFFFFFFFFULL)
