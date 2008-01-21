@@ -43,7 +43,6 @@
 
 /* Our listing of VLAN group(s) */
 static struct hlist_head vlan_group_hash[VLAN_GRP_HASH_SIZE];
-#define vlan_grp_hashfn(IDX)	((((IDX) >> VLAN_GRP_HASH_SHIFT) ^ (IDX)) & VLAN_GRP_HASH_MASK)
 
 static char vlan_fullname[] = "802.1Q VLAN Support";
 static char vlan_version[] = DRV_VERSION;
@@ -59,6 +58,11 @@ static struct packet_type vlan_packet_type = {
 };
 
 /* End of global variables definitions. */
+
+static inline unsigned int vlan_grp_hashfn(unsigned int idx)
+{
+	return ((idx >> VLAN_GRP_HASH_SHIFT) ^ idx) & VLAN_GRP_HASH_MASK;
+}
 
 /* Must be invoked with RCU read lock (no preempt) */
 static struct vlan_group *__vlan_find_group(int real_dev_ifindex)
@@ -94,7 +98,7 @@ static void vlan_group_free(struct vlan_group *grp)
 {
 	int i;
 
-	for (i=0; i < VLAN_GROUP_ARRAY_SPLIT_PARTS; i++)
+	for (i = 0; i < VLAN_GROUP_ARRAY_SPLIT_PARTS; i++)
 		kfree(grp->vlan_devices_arrays[i]);
 	kfree(grp);
 }
@@ -174,7 +178,8 @@ void unregister_vlan_dev(struct net_device *dev)
 	unregister_netdevice(dev);
 }
 
-static void vlan_transfer_operstate(const struct net_device *dev, struct net_device *vlandev)
+static void vlan_transfer_operstate(const struct net_device *dev,
+				    struct net_device *vlandev)
 {
 	/* Have to respect userspace enforced dormant state
 	 * of real device, also must allow supplicant running
@@ -369,7 +374,8 @@ static void vlan_sync_address(struct net_device *dev,
 	memcpy(vlan->real_dev_addr, dev->dev_addr, ETH_ALEN);
 }
 
-static int vlan_device_event(struct notifier_block *unused, unsigned long event, void *ptr)
+static int vlan_device_event(struct notifier_block *unused, unsigned long event,
+			     void *ptr)
 {
 	struct net_device *dev = ptr;
 	struct vlan_group *grp = __vlan_find_group(dev->ifindex);
@@ -569,9 +575,8 @@ static int vlan_ioctl_handler(struct net *net, void __user *arg)
 		err = 0;
 		vlan_dev_get_realdev_name(dev, args.u.device2);
 		if (copy_to_user(arg, &args,
-				 sizeof(struct vlan_ioctl_args))) {
+				 sizeof(struct vlan_ioctl_args)))
 			err = -EFAULT;
-		}
 		break;
 
 	case GET_VLAN_VID_CMD:
@@ -579,9 +584,8 @@ static int vlan_ioctl_handler(struct net *net, void __user *arg)
 		vlan_dev_get_vid(dev, &vid);
 		args.u.VID = vid;
 		if (copy_to_user(arg, &args,
-				 sizeof(struct vlan_ioctl_args))) {
+				 sizeof(struct vlan_ioctl_args)))
 		      err = -EFAULT;
-		}
 		break;
 
 	default:

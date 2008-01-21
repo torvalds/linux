@@ -20,7 +20,7 @@ extern unsigned short vlan_name_type;
  *  Must be invoked with rcu_read_lock (ie preempt disabled)
  *  or with RTNL.
  */
-struct net_device *__find_vlan_dev(struct net_device* real_dev,
+struct net_device *__find_vlan_dev(struct net_device *real_dev,
 				   unsigned short VID); /* vlan.c */
 
 /* found in vlan_dev.c */

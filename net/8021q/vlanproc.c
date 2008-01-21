@@ -125,10 +125,10 @@ static struct proc_dir_entry *proc_vlan_conf;
 
 /* Strings */
 static const char *vlan_name_type_str[VLAN_NAME_TYPE_HIGHEST] = {
-    [VLAN_NAME_TYPE_RAW_PLUS_VID]       = "VLAN_NAME_TYPE_RAW_PLUS_VID",
-    [VLAN_NAME_TYPE_PLUS_VID_NO_PAD]	= "VLAN_NAME_TYPE_PLUS_VID_NO_PAD",
-    [VLAN_NAME_TYPE_RAW_PLUS_VID_NO_PAD]= "VLAN_NAME_TYPE_RAW_PLUS_VID_NO_PAD",
-    [VLAN_NAME_TYPE_PLUS_VID]		= "VLAN_NAME_TYPE_PLUS_VID",
+    [VLAN_NAME_TYPE_RAW_PLUS_VID]        = "VLAN_NAME_TYPE_RAW_PLUS_VID",
+    [VLAN_NAME_TYPE_PLUS_VID_NO_PAD]	 = "VLAN_NAME_TYPE_PLUS_VID_NO_PAD",
+    [VLAN_NAME_TYPE_RAW_PLUS_VID_NO_PAD] = "VLAN_NAME_TYPE_RAW_PLUS_VID_NO_PAD",
+    [VLAN_NAME_TYPE_PLUS_VID]		 = "VLAN_NAME_TYPE_PLUS_VID",
 };
 /*
  *	Interface functions
@@ -178,7 +178,7 @@ err:
  *	Add directory entry for VLAN device.
  */
 
-int vlan_proc_add_dev (struct net_device *vlandev)
+int vlan_proc_add_dev(struct net_device *vlandev)
 {
 	struct vlan_dev_info *dev_info = vlan_dev_info(vlandev);
 
@@ -200,7 +200,8 @@ int vlan_proc_rem_dev(struct net_device *vlandev)
 {
 	/** NOTE:  This will consume the memory pointed to by dent, it seems. */
 	if (vlan_dev_info(vlandev)->dent) {
-		remove_proc_entry(vlan_dev_info(vlandev)->dent->name, proc_vlan_dir);
+		remove_proc_entry(vlan_dev_info(vlandev)->dent->name,
+				  proc_vlan_dir);
 		vlan_dev_info(vlandev)->dent = NULL;
 	}
 	return 0;
@@ -275,7 +276,7 @@ static int vlan_seq_show(struct seq_file *seq, void *v)
 		    nmtype =  vlan_name_type_str[vlan_name_type];
 
 		seq_printf(seq, "Name-Type: %s\n",
-			   nmtype ? nmtype :  "UNKNOWN" );
+			   nmtype ? nmtype :  "UNKNOWN");
 	} else {
 		const struct net_device *vlandev = v;
 		const struct vlan_dev_info *dev_info = vlan_dev_info(vlandev);
@@ -297,9 +298,10 @@ static int vlandev_seq_show(struct seq_file *seq, void *offset)
 	if (!(vlandev->priv_flags & IFF_802_1Q_VLAN))
 		return 0;
 
-	seq_printf(seq, "%s  VID: %d	 REORDER_HDR: %i  dev->priv_flags: %hx\n",
-		       vlandev->name, dev_info->vlan_id,
-		       (int)(dev_info->flags & 1), vlandev->priv_flags);
+	seq_printf(seq,
+		   "%s  VID: %d	 REORDER_HDR: %i  dev->priv_flags: %hx\n",
+		   vlandev->name, dev_info->vlan_id,
+		   (int)(dev_info->flags & 1), vlandev->priv_flags);
 
 	seq_printf(seq, fmt, "total frames received", stats->rx_packets);
 	seq_printf(seq, fmt, "total bytes received", stats->rx_bytes);
@@ -313,16 +315,16 @@ static int vlandev_seq_show(struct seq_file *seq, void *offset)
 		   dev_info->cnt_encap_on_xmit);
 	seq_printf(seq, "Device: %s", dev_info->real_dev->name);
 	/* now show all PRIORITY mappings relating to this VLAN */
-	seq_printf(seq,
-		       "\nINGRESS priority mappings: 0:%u  1:%u  2:%u  3:%u  4:%u  5:%u  6:%u 7:%u\n",
-		       dev_info->ingress_priority_map[0],
-		       dev_info->ingress_priority_map[1],
-		       dev_info->ingress_priority_map[2],
-		       dev_info->ingress_priority_map[3],
-		       dev_info->ingress_priority_map[4],
-		       dev_info->ingress_priority_map[5],
-		       dev_info->ingress_priority_map[6],
-		       dev_info->ingress_priority_map[7]);
+	seq_printf(seq, "\nINGRESS priority mappings: "
+			"0:%u  1:%u  2:%u  3:%u  4:%u  5:%u  6:%u 7:%u\n",
+		   dev_info->ingress_priority_map[0],
+		   dev_info->ingress_priority_map[1],
+		   dev_info->ingress_priority_map[2],
+		   dev_info->ingress_priority_map[3],
+		   dev_info->ingress_priority_map[4],
+		   dev_info->ingress_priority_map[5],
+		   dev_info->ingress_priority_map[6],
+		   dev_info->ingress_priority_map[7]);
 
 	seq_printf(seq, "EGRESSS priority Mappings: ");
 	for (i = 0; i < 16; i++) {

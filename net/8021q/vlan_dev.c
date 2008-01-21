@@ -106,13 +106,13 @@ static inline struct sk_buff *vlan_check_reorder_header(struct sk_buff *skb)
  *  SANITY NOTE 2: We are referencing to the VLAN_HDR frields, which MAY be
  *                 stored UNALIGNED in the memory.  RISC systems don't like
  *                 such cases very much...
- *  SANITY NOTE 2a:  According to Dave Miller & Alexey, it will always be aligned,
- *                 so there doesn't need to be any of the unaligned stuff.  It has
- *                 been commented out now...  --Ben
+ *  SANITY NOTE 2a: According to Dave Miller & Alexey, it will always be
+ *  		    aligned, so there doesn't need to be any of the unaligned
+ *  		    stuff.  It has been commented out now...  --Ben
  *
  */
 int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
-		  struct packet_type* ptype, struct net_device *orig_dev)
+		  struct packet_type *ptype, struct net_device *orig_dev)
 {
 	unsigned char *rawp = NULL;
 	struct vlan_hdr *vhdr;
@@ -126,7 +126,8 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 		return -1;
 	}
 
-	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL)
+	skb = skb_share_check(skb, GFP_ATOMIC);
+	if (skb == NULL)
 		return -1;
 
 	if (unlikely(!pskb_may_pull(skb, VLAN_HLEN))) {
@@ -156,8 +157,8 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	skb->dev = __find_vlan_dev(dev, vid);
 	if (!skb->dev) {
 		rcu_read_unlock();
-		pr_debug("%s: ERROR: No net_device for VID: %u on dev: %s [%i]\n",
-			 __FUNCTION__, (unsigned int)vid, dev->name, dev->ifindex);
+		pr_debug("%s: ERROR: No net_device for VID: %u on dev: %s\n",
+			 __FUNCTION__, (unsigned int)vid, dev->name);
 		kfree_skb(skb);
 		return -1;
 	}
@@ -175,7 +176,8 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	/*
 	 * Deal with ingress priority mapping.
 	 */
-	skb->priority = vlan_get_ingress_priority(skb->dev, ntohs(vhdr->h_vlan_TCI));
+	skb->priority = vlan_get_ingress_priority(skb->dev,
+						  ntohs(vhdr->h_vlan_TCI));
 
 	pr_debug("%s: priority: %u for TCI: %hu\n",
 		 __FUNCTION__, skb->priority, ntohs(vhdr->h_vlan_TCI));
@@ -185,7 +187,7 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	 */
 	switch (skb->pkt_type) {
 	case PACKET_BROADCAST: /* Yeah, stats collect these together.. */
-		// stats->broadcast ++; // no such counter :-(
+		/* stats->broadcast ++; // no such counter :-( */
 		break;
 
 	case PACKET_MULTICAST:
@@ -194,13 +196,13 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 
 	case PACKET_OTHERHOST:
 		/* Our lower layer thinks this is not local, let's make sure.
-		 * This allows the VLAN to have a different MAC than the underlying
-		 * device, and still route correctly.
+		 * This allows the VLAN to have a different MAC than the
+		 * underlying device, and still route correctly.
 		 */
-		if (!compare_ether_addr(eth_hdr(skb)->h_dest, skb->dev->dev_addr)) {
+		if (!compare_ether_addr(eth_hdr(skb)->h_dest,
+					skb->dev->dev_addr))
 			/* It is for our (changed) MAC-address! */
 			skb->pkt_type = PACKET_HOST;
-		}
 		break;
 	default:
 		break;
@@ -244,8 +246,8 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	 */
 	if (*(unsigned short *)rawp == 0xFFFF) {
 		skb->protocol = htons(ETH_P_802_3);
-		/* place it back on the queue to be handled by true layer 3 protocols.
-		 */
+		/* place it back on the queue to be handled by true layer 3
+		 * protocols. */
 
 		/* See if we are configured to re-write the VLAN header
 		 * to make it look like ethernet...
@@ -286,17 +288,17 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	return 0;
 }
 
-static inline unsigned short vlan_dev_get_egress_qos_mask(struct net_device* dev,
-							  struct sk_buff* skb)
+static inline unsigned short
+vlan_dev_get_egress_qos_mask(struct net_device *dev, struct sk_buff *skb)
 {
-	struct vlan_priority_tci_mapping *mp =
-		vlan_dev_info(dev)->egress_priority_map[(skb->priority & 0xF)];
+	struct vlan_priority_tci_mapping *mp;
 
+	mp = vlan_dev_info(dev)->egress_priority_map[(skb->priority & 0xF)];
 	while (mp) {
 		if (mp->priority == skb->priority) {
-			return mp->vlan_qos; /* This should already be shifted to mask
-					      * correctly with the VLAN's TCI
-					      */
+			return mp->vlan_qos; /* This should already be shifted
+					      * to mask correctly with the
+					      * VLAN's TCI */
 		}
 		mp = mp->next;
 	}
@@ -321,10 +323,11 @@ static int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 	unsigned short veth_TCI = 0;
 	int rc = 0;
 	int build_vlan_header = 0;
-	struct net_device *vdev = dev; /* save this for the bottom of the method */
+	struct net_device *vdev = dev;
 
 	pr_debug("%s: skb: %p type: %hx len: %u vlan_id: %hx, daddr: %p\n",
-		 __FUNCTION__, skb, type, len, vlan_dev_info(dev)->vlan_id, daddr);
+		 __FUNCTION__, skb, type, len, vlan_dev_info(dev)->vlan_id,
+		 daddr);
 
 	/* build vlan header only if re_order_header flag is NOT set.  This
 	 * fixes some programs that get confused when they see a VLAN device
@@ -342,8 +345,8 @@ static int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 
 		/* build the four bytes that make this a VLAN header. */
 
-		/* Now, construct the second two bytes. This field looks something
-		 * like:
+		/* Now, construct the second two bytes. This field looks
+		 * something like:
 		 * usr_priority: 3 bits	 (high bits)
 		 * CFI		 1 bit
 		 * VLAN ID	 12 bits (low bits)
@@ -355,16 +358,15 @@ static int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 		vhdr->h_vlan_TCI = htons(veth_TCI);
 
 		/*
-		 *  Set the protocol type.
-		 *  For a packet of type ETH_P_802_3 we put the length in here instead.
-		 *  It is up to the 802.2 layer to carry protocol information.
+		 *  Set the protocol type. For a packet of type ETH_P_802_3 we
+		 *  put the length in here instead. It is up to the 802.2
+		 *  layer to carry protocol information.
 		 */
 
-		if (type != ETH_P_802_3) {
+		if (type != ETH_P_802_3)
 			vhdr->h_vlan_encapsulated_proto = htons(type);
-		} else {
+		else
 			vhdr->h_vlan_encapsulated_proto = htons(len);
-		}
 
 		skb->protocol = htons(ETH_P_8021Q);
 		skb_reset_network_header(skb);
@@ -376,14 +378,14 @@ static int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 
 	dev = vlan_dev_info(dev)->real_dev;
 
-	/* MPLS can send us skbuffs w/out enough space.	 This check will grow the
-	 * skb if it doesn't have enough headroom.  Not a beautiful solution, so
-	 * I'll tick a counter so that users can know it's happening...	 If they
-	 * care...
+	/* MPLS can send us skbuffs w/out enough space.	This check will grow
+	 * the skb if it doesn't have enough headroom. Not a beautiful solution,
+	 * so I'll tick a counter so that users can know it's happening...
+	 * If they care...
 	 */
 
-	/* NOTE:  This may still break if the underlying device is not the final
-	 * device (and thus there are more headers to add...)  It should work for
+	/* NOTE: This may still break if the underlying device is not the final
+	 * device (and thus there are more headers to add...) It should work for
 	 * good-ole-ethernet though.
 	 */
 	if (skb_headroom(skb) < dev->hard_header_len) {
@@ -396,7 +398,7 @@ static int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 			return -ENOMEM;
 		}
 		vlan_dev_info(vdev)->cnt_inc_headroom_on_tx++;
-		pr_debug("%s: %s: had to grow skb.\n", __FUNCTION__, vdev->name);
+		pr_debug("%s: %s: had to grow skb\n", __FUNCTION__, vdev->name);
 	}
 
 	if (build_vlan_header) {
@@ -408,10 +410,10 @@ static int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 		else if (rc < 0)
 			rc -= VLAN_HLEN;
 	} else
-		/* If here, then we'll just make a normal looking ethernet frame,
-		 * but, the hard_start_xmit method will insert the tag (it has to
-		 * be able to do this for bridged and other skbs that don't come
-		 * down the protocol stack in an orderly manner.
+		/* If here, then we'll just make a normal looking ethernet
+		 * frame, but, the hard_start_xmit method will insert the tag
+		 * (it has to be able to do this for bridged and other skbs
+		 * that don't come down the protocol stack in an orderly manner.
 		 */
 		rc = dev_hard_header(skb, dev, type, daddr, saddr, len);
 
@@ -454,9 +456,8 @@ static int vlan_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			return 0;
 		}
 
-		if (orig_headroom < VLAN_HLEN) {
+		if (orig_headroom < VLAN_HLEN)
 			vlan_dev_info(dev)->cnt_inc_headroom_on_tx++;
-		}
 	}
 
 	pr_debug("%s: about to send skb: %p to dev: %s\n",
@@ -572,11 +573,10 @@ int vlan_dev_set_vlan_flag(const struct net_device *dev,
 {
 	/* verify flag is supported */
 	if (flag == VLAN_FLAG_REORDER_HDR) {
-		if (flag_val) {
+		if (flag_val)
 			vlan_dev_info(dev)->flags |= VLAN_FLAG_REORDER_HDR;
-		} else {
+		else
 			vlan_dev_info(dev)->flags &= ~VLAN_FLAG_REORDER_HDR;
-		}
 		return 0;
 	}
 	return -EINVAL;
@@ -667,7 +667,7 @@ static int vlan_dev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	strncpy(ifrr.ifr_name, real_dev->name, IFNAMSIZ);
 	ifrr.ifr_ifru = ifr->ifr_ifru;
 
-	switch(cmd) {
+	switch (cmd) {
 	case SIOCGMIIPHY:
 	case SIOCGMIIREG:
 	case SIOCSMIIREG:
