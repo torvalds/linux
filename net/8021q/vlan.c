@@ -366,8 +366,6 @@ void vlan_setup(struct net_device *new_dev)
 	 * the global list.
 	 * iflink is set as well.
 	 */
-	new_dev->get_stats = vlan_dev_get_stats;
-
 	/* Make this thing known as a VLAN device */
 	new_dev->priv_flags |= IFF_802_1Q_VLAN;
 

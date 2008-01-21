@@ -316,7 +316,7 @@ static int vlandev_seq_show(struct seq_file *seq, void *offset)
 {
 	struct net_device *vlandev = (struct net_device *) seq->private;
 	const struct vlan_dev_info *dev_info = VLAN_DEV_INFO(vlandev);
-	struct net_device_stats *stats;
+	struct net_device_stats *stats = &vlandev->stats;
 	static const char fmt[] = "%30s %12lu\n";
 	int i;
 
@@ -326,9 +326,6 @@ static int vlandev_seq_show(struct seq_file *seq, void *offset)
 	seq_printf(seq, "%s  VID: %d	 REORDER_HDR: %i  dev->priv_flags: %hx\n",
 		       vlandev->name, dev_info->vlan_id,
 		       (int)(dev_info->flags & 1), vlandev->priv_flags);
-
-
-	stats = vlan_dev_get_stats(vlandev);
 
 	seq_printf(seq, fmt, "total frames received", stats->rx_packets);
 	seq_printf(seq, fmt, "total bytes received", stats->rx_bytes);

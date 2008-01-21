@@ -140,18 +140,11 @@ struct vlan_dev_info {
 	struct proc_dir_entry *dent;    /* Holds the proc data */
 	unsigned long cnt_inc_headroom_on_tx; /* How many times did we have to grow the skb on TX. */
 	unsigned long cnt_encap_on_xmit;      /* How many times did we have to encapsulate the skb on TX. */
-	struct net_device_stats dev_stats; /* Device stats (rx-bytes, tx-pkts, etc...) */
 };
 
 #define VLAN_DEV_INFO(x) ((struct vlan_dev_info *)(x->priv))
 
 /* inline functions */
-
-static inline struct net_device_stats *vlan_dev_get_stats(struct net_device *dev)
-{
-	return &(VLAN_DEV_INFO(dev)->dev_stats);
-}
-
 static inline __u32 vlan_get_ingress_priority(struct net_device *dev,
 					      unsigned short vlan_tag)
 {
@@ -196,7 +189,7 @@ static inline int __vlan_hwaccel_rx(struct sk_buff *skb,
 
 	skb->dev->last_rx = jiffies;
 
-	stats = vlan_dev_get_stats(skb->dev);
+	stats = &skb->dev->stats;
 	stats->rx_packets++;
 	stats->rx_bytes += skb->len;
 

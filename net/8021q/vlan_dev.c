@@ -174,7 +174,7 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	skb->dev->last_rx = jiffies;
 
 	/* Bump the rx counters for the VLAN device. */
-	stats = vlan_dev_get_stats(skb->dev);
+	stats = &skb->dev->stats;
 	stats->rx_packets++;
 	stats->rx_bytes += skb->len;
 
@@ -422,7 +422,7 @@ int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 		skb = skb_realloc_headroom(sk_tmp, dev->hard_header_len);
 		kfree_skb(sk_tmp);
 		if (skb == NULL) {
-			struct net_device_stats *stats = vlan_dev_get_stats(vdev);
+			struct net_device_stats *stats = &vdev->stats;
 			stats->tx_dropped++;
 			return -ENOMEM;
 		}
@@ -453,7 +453,7 @@ int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 
 int vlan_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct net_device_stats *stats = vlan_dev_get_stats(dev);
+	struct net_device_stats *stats = &dev->stats;
 	struct vlan_ethhdr *veth = (struct vlan_ethhdr *)(skb->data);
 
 	/* Handle non-VLAN frames if they are sent to us, for example by DHCP.
@@ -514,7 +514,7 @@ int vlan_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 int vlan_dev_hwaccel_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct net_device_stats *stats = vlan_dev_get_stats(dev);
+	struct net_device_stats *stats = &dev->stats;
 	unsigned short veth_TCI;
 
 	/* Construct the second two bytes. This field looks something
