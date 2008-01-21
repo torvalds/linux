@@ -426,7 +426,9 @@ static int sfq_init(struct Qdisc *sch, struct rtattr *opt)
 	struct sfq_sched_data *q = qdisc_priv(sch);
 	int i;
 
-	setup_timer(&q->perturb_timer, sfq_perturbation, (unsigned long)sch);
+	q->perturb_timer.function = sfq_perturbation;
+	q->perturb_timer.data = (unsigned long)sch;;
+	init_timer_deferrable(&q->perturb_timer);
 
 	for (i=0; i<SFQ_HASH_DIVISOR; i++)
 		q->ht[i] = SFQ_DEPTH;
