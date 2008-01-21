@@ -237,8 +237,8 @@ struct ieee80211_bar {
 	__le16 duration;
 	__u8 ra[6];
 	__u8 ta[6];
-	__u16 control;
-	__u16 start_seq_num;
+	__le16 control;
+	__le16 start_seq_num;
 } __attribute__((packed));
 
 /**
