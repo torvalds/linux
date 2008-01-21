@@ -665,16 +665,23 @@ struct b43_wl {
 	bool beacon1_uploaded;
 };
 
+/* In-memory representation of a cached microcode file. */
+struct b43_firmware_file {
+	const char *filename;
+	const struct firmware *data;
+};
+
 /* Pointers to the firmware data and meta information about it. */
 struct b43_firmware {
 	/* Microcode */
-	const struct firmware *ucode;
+	struct b43_firmware_file ucode;
 	/* PCM code */
-	const struct firmware *pcm;
+	struct b43_firmware_file pcm;
 	/* Initial MMIO values for the firmware */
-	const struct firmware *initvals;
+	struct b43_firmware_file initvals;
 	/* Initial MMIO values for the firmware, band-specific */
-	const struct firmware *initvals_band;
+	struct b43_firmware_file initvals_band;
+
 	/* Firmware revision */
 	u16 rev;
 	/* Firmware patchlevel */

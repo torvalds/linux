@@ -1557,16 +1557,19 @@ static irqreturn_t b43_interrupt_handler(int irq, void *dev_id)
 	return ret;
 }
 
+static void do_release_fw(struct b43_firmware_file *fw)
+{
+	release_firmware(fw->data);
+	fw->data = NULL;
+	fw->filename = NULL;
+}
+
 static void b43_release_firmware(struct b43_wldev *dev)
 {
-	release_firmware(dev->fw.ucode);
-	dev->fw.ucode = NULL;
-	release_firmware(dev->fw.pcm);
-	dev->fw.pcm = NULL;
-	release_firmware(dev->fw.initvals);
-	dev->fw.initvals = NULL;
-	release_firmware(dev->fw.initvals_band);
-	dev->fw.initvals_band = NULL;
+	do_release_fw(&dev->fw.ucode);
+	do_release_fw(&dev->fw.pcm);
+	do_release_fw(&dev->fw.initvals);
+	do_release_fw(&dev->fw.initvals_band);
 }
 
 static void b43_print_fw_helptext(struct b43_wl *wl, bool error)
@@ -1584,33 +1587,43 @@ static void b43_print_fw_helptext(struct b43_wl *wl, bool error)
 
 static int do_request_fw(struct b43_wldev *dev,
 			 const char *name,
-			 const struct firmware **fw)
+			 struct b43_firmware_file *fw)
 {
 	char path[sizeof(modparam_fwpostfix) + 32];
+	const struct firmware *blob;
 	struct b43_fw_header *hdr;
 	u32 size;
 	int err;
 
-	if (!name)
+	if (!name) {
+		/* Don't fetch anything. Free possibly cached firmware. */
+		do_release_fw(fw);
 		return 0;
+	}
+	if (fw->filename) {
+		if (strcmp(fw->filename, name) == 0)
+			return 0; /* Already have this fw. */
+		/* Free the cached firmware first. */
+		do_release_fw(fw);
+	}
 
 	snprintf(path, ARRAY_SIZE(path),
 		 "b43%s/%s.fw",
 		 modparam_fwpostfix, name);
-	err = request_firmware(fw, path, dev->dev->dev);
+	err = request_firmware(&blob, path, dev->dev->dev);
 	if (err) {
 		b43err(dev->wl, "Firmware file \"%s\" not found "
 		       "or load failed.\n", path);
 		return err;
 	}
-	if ((*fw)->size < sizeof(struct b43_fw_header))
+	if (blob->size < sizeof(struct b43_fw_header))
 		goto err_format;
-	hdr = (struct b43_fw_header *)((*fw)->data);
+	hdr = (struct b43_fw_header *)(blob->data);
 	switch (hdr->type) {
 	case B43_FW_TYPE_UCODE:
 	case B43_FW_TYPE_PCM:
 		size = be32_to_cpu(hdr->size);
-		if (size != (*fw)->size - sizeof(struct b43_fw_header))
+		if (size != blob->size - sizeof(struct b43_fw_header))
 			goto err_format;
 		/* fallthrough */
 	case B43_FW_TYPE_IV:
@@ -1621,10 +1634,15 @@ static int do_request_fw(struct b43_wldev *dev,
 		goto err_format;
 	}
 
-	return err;
+	fw->data = blob;
+	fw->filename = name;
+
+	return 0;
 
 err_format:
 	b43err(dev->wl, "Firmware file \"%s\" format error.\n", path);
+	release_firmware(blob);
+
 	return -EPROTO;
 }
 
@@ -1636,97 +1654,96 @@ static int b43_request_firmware(struct b43_wldev *dev)
 	u32 tmshigh;
 	int err;
 
+	/* Get microcode */
 	tmshigh = ssb_read32(dev->dev, SSB_TMSHIGH);
-	if (!fw->ucode) {
+	if ((rev >= 5) && (rev <= 10))
+		filename = "ucode5";
+	else if ((rev >= 11) && (rev <= 12))
+		filename = "ucode11";
+	else if (rev >= 13)
+		filename = "ucode13";
+	else
+		goto err_no_ucode;
+	err = do_request_fw(dev, filename, &fw->ucode);
+	if (err)
+		goto err_load;
+
+	/* Get PCM code */
+	if ((rev >= 5) && (rev <= 10))
+		filename = "pcm5";
+	else if (rev >= 11)
+		filename = NULL;
+	else
+		goto err_no_pcm;
+	err = do_request_fw(dev, filename, &fw->pcm);
+	if (err)
+		goto err_load;
+
+	/* Get initvals */
+	switch (dev->phy.type) {
+	case B43_PHYTYPE_A:
+		if ((rev >= 5) && (rev <= 10)) {
+			if (tmshigh & B43_TMSHIGH_HAVE_2GHZ_PHY)
+				filename = "a0g1initvals5";
+			else
+				filename = "a0g0initvals5";
+		} else
+			goto err_no_initvals;
+		break;
+	case B43_PHYTYPE_G:
 		if ((rev >= 5) && (rev <= 10))
-			filename = "ucode5";
-		else if ((rev >= 11) && (rev <= 12))
-			filename = "ucode11";
+			filename = "b0g0initvals5";
 		else if (rev >= 13)
-			filename = "ucode13";
+			filename = "lp0initvals13";
 		else
-			goto err_no_ucode;
-		err = do_request_fw(dev, filename, &fw->ucode);
-		if (err)
-			goto err_load;
+			goto err_no_initvals;
+		break;
+	case B43_PHYTYPE_N:
+		if ((rev >= 11) && (rev <= 12))
+			filename = "n0initvals11";
+		else
+			goto err_no_initvals;
+		break;
+	default:
+		goto err_no_initvals;
 	}
-	if (!fw->pcm) {
+	err = do_request_fw(dev, filename, &fw->initvals);
+	if (err)
+		goto err_load;
+
+	/* Get bandswitch initvals */
+	switch (dev->phy.type) {
+	case B43_PHYTYPE_A:
+		if ((rev >= 5) && (rev <= 10)) {
+			if (tmshigh & B43_TMSHIGH_HAVE_2GHZ_PHY)
+				filename = "a0g1bsinitvals5";
+			else
+				filename = "a0g0bsinitvals5";
+		} else if (rev >= 11)
+			filename = NULL;
+		else
+			goto err_no_initvals;
+		break;
+	case B43_PHYTYPE_G:
 		if ((rev >= 5) && (rev <= 10))
-			filename = "pcm5";
+			filename = "b0g0bsinitvals5";
 		else if (rev >= 11)
 			filename = NULL;
 		else
-			goto err_no_pcm;
-		err = do_request_fw(dev, filename, &fw->pcm);
-		if (err)
-			goto err_load;
-	}
-	if (!fw->initvals) {
-		switch (dev->phy.type) {
-		case B43_PHYTYPE_A:
-			if ((rev >= 5) && (rev <= 10)) {
-				if (tmshigh & B43_TMSHIGH_HAVE_2GHZ_PHY)
-					filename = "a0g1initvals5";
-				else
-					filename = "a0g0initvals5";
-			} else
-				goto err_no_initvals;
-			break;
-		case B43_PHYTYPE_G:
-			if ((rev >= 5) && (rev <= 10))
-				filename = "b0g0initvals5";
-			else if (rev >= 13)
-				filename = "lp0initvals13";
-			else
-				goto err_no_initvals;
-			break;
-		case B43_PHYTYPE_N:
-			if ((rev >= 11) && (rev <= 12))
-				filename = "n0initvals11";
-			else
-				goto err_no_initvals;
-			break;
-		default:
 			goto err_no_initvals;
-		}
-		err = do_request_fw(dev, filename, &fw->initvals);
-		if (err)
-			goto err_load;
-	}
-	if (!fw->initvals_band) {
-		switch (dev->phy.type) {
-		case B43_PHYTYPE_A:
-			if ((rev >= 5) && (rev <= 10)) {
-				if (tmshigh & B43_TMSHIGH_HAVE_2GHZ_PHY)
-					filename = "a0g1bsinitvals5";
-				else
-					filename = "a0g0bsinitvals5";
-			} else if (rev >= 11)
-				filename = NULL;
-			else
-				goto err_no_initvals;
-			break;
-		case B43_PHYTYPE_G:
-			if ((rev >= 5) && (rev <= 10))
-				filename = "b0g0bsinitvals5";
-			else if (rev >= 11)
-				filename = NULL;
-			else
-				goto err_no_initvals;
-			break;
-		case B43_PHYTYPE_N:
-			if ((rev >= 11) && (rev <= 12))
-				filename = "n0bsinitvals11";
-			else
-				goto err_no_initvals;
-			break;
-		default:
+		break;
+	case B43_PHYTYPE_N:
+		if ((rev >= 11) && (rev <= 12))
+			filename = "n0bsinitvals11";
+		else
 			goto err_no_initvals;
-		}
-		err = do_request_fw(dev, filename, &fw->initvals_band);
-		if (err)
-			goto err_load;
+		break;
+	default:
+		goto err_no_initvals;
 	}
+	err = do_request_fw(dev, filename, &fw->initvals_band);
+	if (err)
+		goto err_load;
 
 	return 0;
 
@@ -1765,18 +1782,18 @@ static int b43_upload_microcode(struct b43_wldev *dev)
 	int err = 0;
 
 	/* Upload Microcode. */
-	data = (__be32 *) (dev->fw.ucode->data + hdr_len);
-	len = (dev->fw.ucode->size - hdr_len) / sizeof(__be32);
+	data = (__be32 *) (dev->fw.ucode.data->data + hdr_len);
+	len = (dev->fw.ucode.data->size - hdr_len) / sizeof(__be32);
 	b43_shm_control_word(dev, B43_SHM_UCODE | B43_SHM_AUTOINC_W, 0x0000);
 	for (i = 0; i < len; i++) {
 		b43_write32(dev, B43_MMIO_SHM_DATA, be32_to_cpu(data[i]));
 		udelay(10);
 	}
 
-	if (dev->fw.pcm) {
+	if (dev->fw.pcm.data) {
 		/* Upload PCM data. */
-		data = (__be32 *) (dev->fw.pcm->data + hdr_len);
-		len = (dev->fw.pcm->size - hdr_len) / sizeof(__be32);
+		data = (__be32 *) (dev->fw.pcm.data->data + hdr_len);
+		len = (dev->fw.pcm.data->size - hdr_len) / sizeof(__be32);
 		b43_shm_control_word(dev, B43_SHM_HW, 0x01EA);
 		b43_write32(dev, B43_MMIO_SHM_DATA, 0x00004000);
 		/* No need for autoinc bit in SHM_HW */
@@ -1913,19 +1930,19 @@ static int b43_upload_initvals(struct b43_wldev *dev)
 	size_t count;
 	int err;
 
-	hdr = (const struct b43_fw_header *)(fw->initvals->data);
-	ivals = (const struct b43_iv *)(fw->initvals->data + hdr_len);
+	hdr = (const struct b43_fw_header *)(fw->initvals.data->data);
+	ivals = (const struct b43_iv *)(fw->initvals.data->data + hdr_len);
 	count = be32_to_cpu(hdr->size);
 	err = b43_write_initvals(dev, ivals, count,
-				 fw->initvals->size - hdr_len);
+				 fw->initvals.data->size - hdr_len);
 	if (err)
 		goto out;
-	if (fw->initvals_band) {
-		hdr = (const struct b43_fw_header *)(fw->initvals_band->data);
-		ivals = (const struct b43_iv *)(fw->initvals_band->data + hdr_len);
+	if (fw->initvals_band.data) {
+		hdr = (const struct b43_fw_header *)(fw->initvals_band.data->data);
+		ivals = (const struct b43_iv *)(fw->initvals_band.data->data + hdr_len);
 		count = be32_to_cpu(hdr->size);
 		err = b43_write_initvals(dev, ivals, count,
-					 fw->initvals_band->size - hdr_len);
+					 fw->initvals_band.data->size - hdr_len);
 		if (err)
 			goto out;
 	}
