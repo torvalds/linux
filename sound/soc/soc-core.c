@@ -1101,7 +1101,6 @@ int snd_soc_register_card(struct snd_soc_device *socdev)
 	struct snd_soc_machine *machine = socdev->machine;
 	int ret = 0, i, ac97 = 0, err = 0;
 
-	mutex_lock(&codec->mutex);
 	for(i = 0; i < machine->num_links; i++) {
 		if (socdev->machine->dai_link[i].init) {
 			err = socdev->machine->dai_link[i].init(codec);
@@ -1127,12 +1126,14 @@ int snd_soc_register_card(struct snd_soc_device *socdev)
 		goto out;
 	}
 
+	mutex_lock(&codec->mutex);
 #ifdef CONFIG_SND_SOC_AC97_BUS
 	if (ac97) {
 		ret = soc_ac97_dev_register(codec);
 		if (ret < 0) {
 			printk(KERN_ERR "asoc: AC97 device register failed\n");
 			snd_card_free(codec->card);
+			mutex_unlock(&codec->mutex);
 			goto out;
 		}
 	}
@@ -1145,8 +1146,10 @@ int snd_soc_register_card(struct snd_soc_device *socdev)
 	err = device_create_file(socdev->dev, &dev_attr_codec_reg);
 	if (err < 0)
 		printk(KERN_WARNING "asoc: failed to add codec sysfs entries\n");
-out:
+
 	mutex_unlock(&codec->mutex);
+
+out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_register_card);
