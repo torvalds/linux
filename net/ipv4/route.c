@@ -1154,7 +1154,7 @@ void ip_rt_redirect(__be32 old_gw, __be32 daddr, __be32 new_gw,
 		return;
 
 	if (new_gw == old_gw || !IN_DEV_RX_REDIRECTS(in_dev)
-	    || ipv4_is_multicast(new_gw) || ipv4_is_badclass(new_gw)
+	    || ipv4_is_multicast(new_gw) || ipv4_is_lbcast(new_gw)
 	    || ipv4_is_zeronet(new_gw))
 		goto reject_redirect;
 
@@ -1634,7 +1634,7 @@ static int ip_route_input_mc(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	if (in_dev == NULL)
 		return -EINVAL;
 
-	if (ipv4_is_multicast(saddr) || ipv4_is_badclass(saddr) ||
+	if (ipv4_is_multicast(saddr) || ipv4_is_lbcast(saddr) ||
 	    ipv4_is_loopback(saddr) || skb->protocol != htons(ETH_P_IP))
 		goto e_inval;
 
@@ -1891,7 +1891,7 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	   by fib_lookup.
 	 */
 
-	if (ipv4_is_multicast(saddr) || ipv4_is_badclass(saddr) ||
+	if (ipv4_is_multicast(saddr) || ipv4_is_lbcast(saddr) ||
 	    ipv4_is_loopback(saddr))
 		goto martian_source;
 
@@ -1904,7 +1904,7 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	if (ipv4_is_zeronet(saddr))
 		goto martian_source;
 
-	if (ipv4_is_badclass(daddr) || ipv4_is_zeronet(daddr) ||
+	if (ipv4_is_lbcast(daddr) || ipv4_is_zeronet(daddr) ||
 	    ipv4_is_loopback(daddr))
 		goto martian_destination;
 
@@ -2125,7 +2125,7 @@ static inline int __mkroute_output(struct rtable **result,
 		res->type = RTN_BROADCAST;
 	else if (ipv4_is_multicast(fl->fl4_dst))
 		res->type = RTN_MULTICAST;
-	else if (ipv4_is_badclass(fl->fl4_dst) || ipv4_is_zeronet(fl->fl4_dst))
+	else if (ipv4_is_lbcast(fl->fl4_dst) || ipv4_is_zeronet(fl->fl4_dst))
 		return -EINVAL;
 
 	if (dev_out->flags & IFF_LOOPBACK)
@@ -2276,7 +2276,7 @@ static int ip_route_output_slow(struct rtable **rp, const struct flowi *oldflp)
 	if (oldflp->fl4_src) {
 		err = -EINVAL;
 		if (ipv4_is_multicast(oldflp->fl4_src) ||
-		    ipv4_is_badclass(oldflp->fl4_src) ||
+		    ipv4_is_lbcast(oldflp->fl4_src) ||
 		    ipv4_is_zeronet(oldflp->fl4_src))
 			goto out;
 

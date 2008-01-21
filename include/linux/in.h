@@ -262,9 +262,10 @@ static inline bool ipv4_is_local_multicast(__be32 addr)
 	return (addr & htonl(0xffffff00)) == htonl(0xe0000000);
 }
 
-static inline bool ipv4_is_badclass(__be32 addr)
+static inline bool ipv4_is_lbcast(__be32 addr)
 {
-	return (addr & htonl(0xf0000000)) == htonl(0xf0000000);
+	/* limited broadcast */
+	return addr == INADDR_BROADCAST;
 }
 
 static inline bool ipv4_is_zeronet(__be32 addr)
