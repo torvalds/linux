@@ -306,7 +306,7 @@ static void oxygen_card_free(struct snd_card *card)
 }
 
 int __devinit oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
-			       const struct oxygen_model *model)
+			       int midi, const struct oxygen_model *model)
 {
 	struct snd_card *card;
 	struct oxygen *chip;
@@ -374,7 +374,9 @@ int __devinit oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 	if (err < 0)
 		goto err_card;
 
-	if (oxygen_read8(chip, OXYGEN_MISC) & OXYGEN_MISC_MIDI) {
+	oxygen_write8_masked(chip, OXYGEN_MISC,
+			     midi ? OXYGEN_MISC_MIDI : 0, OXYGEN_MISC_MIDI);
+	if (midi) {
 		err = snd_mpu401_uart_new(card, 0, MPU401_HW_CMIPCI,
 					  chip->addr + OXYGEN_MPU401,
 					  MPU401_INFO_INTEGRATED, 0, 0,

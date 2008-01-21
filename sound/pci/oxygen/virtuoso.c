@@ -266,7 +266,7 @@ static int __devinit xonar_probe(struct pci_dev *pci,
 		++dev;
 		return -ENOENT;
 	}
-	err = oxygen_pci_probe(pci, index[dev], id[dev], &model_xonar);
+	err = oxygen_pci_probe(pci, index[dev], id[dev], 1, &model_xonar);
 	if (err >= 0)
 		++dev;
 	return err;
