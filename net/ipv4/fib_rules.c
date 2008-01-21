@@ -315,6 +315,8 @@ int __net_init fib4_rules_init(struct net *net)
 	if (ops == NULL)
 		return -ENOMEM;
 	INIT_LIST_HEAD(&ops->rules_list);
+	ops->fro_net = net;
+
 	fib_rules_register(net, ops);
 
 	err = fib_default_rules_init(ops);

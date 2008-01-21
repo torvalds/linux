@@ -249,6 +249,7 @@ static struct fib_rules_ops fib6_rules_ops = {
 	.policy			= fib6_rule_policy,
 	.rules_list		= LIST_HEAD_INIT(fib6_rules_ops.rules_list),
 	.owner			= THIS_MODULE,
+	.fro_net		= &init_net,
 };
 
 static int __init fib6_default_rules_init(void)

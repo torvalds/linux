@@ -67,6 +67,7 @@ struct fib_rules_ops
 	const struct nla_policy	*policy;
 	struct list_head	rules_list;
 	struct module		*owner;
+	struct net		*fro_net;
 };
 
 #define FRA_GENERIC_POLICY \

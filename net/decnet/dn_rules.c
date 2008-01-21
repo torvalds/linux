@@ -249,6 +249,7 @@ static struct fib_rules_ops dn_fib_rules_ops = {
 	.policy		= dn_fib_rule_policy,
 	.rules_list	= LIST_HEAD_INIT(dn_fib_rules_ops.rules_list),
 	.owner		= THIS_MODULE,
+	.fro_net	= &init_net,
 };
 
 void __init dn_fib_rules_init(void)
