@@ -63,6 +63,12 @@ static unsigned int i8042_blink_frequency = 500;
 module_param_named(panicblink, i8042_blink_frequency, uint, 0600);
 MODULE_PARM_DESC(panicblink, "Frequency with which keyboard LEDs should blink when kernel panics");
 
+#ifdef CONFIG_X86
+static unsigned int i8042_dritek;
+module_param_named(dritek, i8042_dritek, bool, 0);
+MODULE_PARM_DESC(dritek, "Force enable the Dritek keyboard extension");
+#endif
+
 #ifdef CONFIG_PNP
 static int i8042_nopnp;
 module_param_named(nopnp, i8042_nopnp, bool, 0);
@@ -1145,6 +1151,7 @@ static int __devinit i8042_setup_kbd(void)
 static int __devinit i8042_probe(struct platform_device *dev)
 {
 	int error;
+	char param;
 
 	error = i8042_controller_selftest();
 	if (error)
@@ -1162,6 +1169,13 @@ static int __devinit i8042_probe(struct platform_device *dev)
 
 	if (!i8042_nokbd) {
 		error = i8042_setup_kbd();
+		if (error)
+			goto out_fail;
+	}
+
+	if (i8042_dritek) {
+		param = 0x90;
+		error = i8042_command(&param, 0x1059);
 		if (error)
 			goto out_fail;
 	}
