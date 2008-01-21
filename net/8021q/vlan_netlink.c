@@ -137,11 +137,6 @@ static int vlan_newlink(struct net_device *dev,
 	return register_vlan_dev(dev);
 }
 
-static void vlan_dellink(struct net_device *dev)
-{
-	unregister_vlan_device(dev);
-}
-
 static inline size_t vlan_qos_map_size(unsigned int n)
 {
 	if (n == 0)
@@ -226,7 +221,7 @@ struct rtnl_link_ops vlan_link_ops __read_mostly = {
 	.validate	= vlan_validate,
 	.newlink	= vlan_newlink,
 	.changelink	= vlan_changelink,
-	.dellink	= vlan_dellink,
+	.dellink	= unregister_vlan_dev,
 	.get_size	= vlan_get_size,
 	.fill_info	= vlan_fill_info,
 };

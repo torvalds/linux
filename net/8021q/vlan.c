@@ -132,33 +132,17 @@ static void vlan_rcu_free(struct rcu_head *rcu)
 	vlan_group_free(container_of(rcu, struct vlan_group, rcu));
 }
 
-
-/* This returns 0 if everything went fine.
- * It will return 1 if the group was killed as a result.
- * A negative return indicates failure.
- *
- * The RTNL lock must be held.
- */
-static int unregister_vlan_dev(struct net_device *real_dev,
-			       unsigned short vlan_id)
+void unregister_vlan_dev(struct net_device *dev)
 {
-	struct net_device *dev;
-	int real_dev_ifindex = real_dev->ifindex;
+	struct vlan_dev_info *vlan = VLAN_DEV_INFO(dev);
+	struct net_device *real_dev = vlan->real_dev;
 	struct vlan_group *grp;
-	unsigned int i;
-	int ret;
-
-	if (vlan_id >= VLAN_VID_MASK)
-		return -EINVAL;
+	unsigned short vlan_id = vlan->vlan_id;
 
 	ASSERT_RTNL();
-	grp = __vlan_find_group(real_dev_ifindex);
-	if (!grp)
-		return -ENOENT;
 
-	dev = vlan_group_get_device(grp, vlan_id);
-	if (!dev)
-		return -ENOENT;
+	grp = __vlan_find_group(real_dev->ifindex);
+	BUG_ON(!grp);
 
 	vlan_proc_rem_dev(dev);
 
@@ -169,20 +153,12 @@ static int unregister_vlan_dev(struct net_device *real_dev,
 		real_dev->vlan_rx_kill_vid(real_dev, vlan_id);
 
 	vlan_group_set_device(grp, vlan_id, NULL);
+	grp->nr_vlans--;
+
 	synchronize_net();
 
-	/* Caller unregisters (and if necessary, puts) VLAN device, but we
-	 * get rid of the reference to real_dev here.
-	 */
-	dev_put(real_dev);
-
 	/* If the group is now empty, kill off the group. */
-	ret = 0;
-	for (i = 0; i < VLAN_VID_MASK; i++)
-		if (vlan_group_get_device(grp, i))
-			break;
-
-	if (i == VLAN_VID_MASK) {
+	if (grp->nr_vlans == 0) {
 		if (real_dev->features & NETIF_F_HW_VLAN_RX)
 			real_dev->vlan_rx_register(real_dev, NULL);
 
@@ -190,23 +166,12 @@ static int unregister_vlan_dev(struct net_device *real_dev,
 
 		/* Free the group, after all cpu's are done. */
 		call_rcu(&grp->rcu, vlan_rcu_free);
-		ret = 1;
 	}
 
-	return ret;
-}
+	/* Get rid of the vlan's reference to real_dev */
+	dev_put(real_dev);
 
-int unregister_vlan_device(struct net_device *dev)
-{
-	int ret;
-
-	ret = unregister_vlan_dev(VLAN_DEV_INFO(dev)->real_dev,
-				  VLAN_DEV_INFO(dev)->vlan_id);
 	unregister_netdevice(dev);
-
-	if (ret == 1)
-		ret = 0;
-	return ret;
 }
 
 static void vlan_transfer_operstate(const struct net_device *dev, struct net_device *vlandev)
@@ -291,6 +256,8 @@ int register_vlan_dev(struct net_device *dev)
 	 * it into our local structure.
 	 */
 	vlan_group_set_device(grp, vlan_id, dev);
+	grp->nr_vlans++;
+
 	if (ngrp && real_dev->features & NETIF_F_HW_VLAN_RX)
 		real_dev->vlan_rx_register(real_dev, ngrp);
 	if (real_dev->features & NETIF_F_HW_VLAN_FILTER)
@@ -479,20 +446,16 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 	case NETDEV_UNREGISTER:
 		/* Delete all VLANs for this dev. */
 		for (i = 0; i < VLAN_GROUP_ARRAY_LEN; i++) {
-			int ret;
-
 			vlandev = vlan_group_get_device(grp, i);
 			if (!vlandev)
 				continue;
 
-			ret = unregister_vlan_dev(dev,
-						  VLAN_DEV_INFO(vlandev)->vlan_id);
+			/* unregistration of last vlan destroys group, abort
+			 * afterwards */
+			if (grp->nr_vlans == 1)
+				i = VLAN_GROUP_ARRAY_LEN;
 
-			unregister_netdevice(vlandev);
-
-			/* Group was destroyed? */
-			if (ret == 1)
-				break;
+			unregister_vlan_dev(vlandev);
 		}
 		break;
 	}
@@ -598,7 +561,8 @@ static int vlan_ioctl_handler(struct net *net, void __user *arg)
 		err = -EPERM;
 		if (!capable(CAP_NET_ADMIN))
 			break;
-		err = unregister_vlan_device(dev);
+		unregister_vlan_dev(dev);
+		err = 0;
 		break;
 
 	case GET_VLAN_REALDEV_NAME_CMD:
