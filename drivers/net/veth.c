@@ -459,19 +459,7 @@ static __init int veth_init(void)
 
 static __exit void veth_exit(void)
 {
-	struct veth_priv *priv, *next;
-
-	rtnl_lock();
-	/*
-	 * cannot trust __rtnl_link_unregister() to unregister all
-	 * devices, as each ->dellink call will remove two devices
-	 * from the list at once.
-	 */
-	list_for_each_entry_safe(priv, next, &veth_list, list)
-		veth_dellink(priv->dev);
-
-	__rtnl_link_unregister(&veth_link_ops);
-	rtnl_unlock();
+	rtnl_link_unregister(&veth_link_ops);
 }
 
 module_init(veth_init);
