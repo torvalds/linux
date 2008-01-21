@@ -24,155 +24,84 @@
 #include <sound/pcm_params.h>
 #include "oxygen.h"
 
-static struct snd_pcm_hardware oxygen_hardware[PCM_COUNT] = {
-	[PCM_A] = {
-		.info = SNDRV_PCM_INFO_MMAP |
-			SNDRV_PCM_INFO_MMAP_VALID |
-			SNDRV_PCM_INFO_INTERLEAVED |
-			SNDRV_PCM_INFO_PAUSE |
-			SNDRV_PCM_INFO_SYNC_START,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE |
-			   SNDRV_PCM_FMTBIT_S32_LE,
-		.rates = SNDRV_PCM_RATE_32000 |
-			 SNDRV_PCM_RATE_44100 |
-			 SNDRV_PCM_RATE_48000 |
-			 SNDRV_PCM_RATE_64000 |
-			 SNDRV_PCM_RATE_88200 |
-			 SNDRV_PCM_RATE_96000 |
-			 SNDRV_PCM_RATE_176400 |
-			 SNDRV_PCM_RATE_192000,
-		.rate_min = 32000,
-		.rate_max = 192000,
-		.channels_min = 2,
-		.channels_max = 2,
-		.buffer_bytes_max = 256 * 1024,
-		.period_bytes_min = 128,
-		.period_bytes_max = 128 * 1024,
-		.periods_min = 2,
-		.periods_max = 2048,
-	},
-	[PCM_B] = {
-		.info = SNDRV_PCM_INFO_MMAP |
-			SNDRV_PCM_INFO_MMAP_VALID |
-			SNDRV_PCM_INFO_INTERLEAVED |
-			SNDRV_PCM_INFO_PAUSE |
-			SNDRV_PCM_INFO_SYNC_START,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE |
-			   SNDRV_PCM_FMTBIT_S32_LE,
-		.rates = SNDRV_PCM_RATE_32000 |
-			 SNDRV_PCM_RATE_44100 |
-			 SNDRV_PCM_RATE_48000 |
-			 SNDRV_PCM_RATE_64000 |
-			 SNDRV_PCM_RATE_88200 |
-			 SNDRV_PCM_RATE_96000 |
-			 SNDRV_PCM_RATE_176400 |
-			 SNDRV_PCM_RATE_192000,
-		.rate_min = 32000,
-		.rate_max = 192000,
-		.channels_min = 2,
-		.channels_max = 2,
-		.buffer_bytes_max = 256 * 1024,
-		.period_bytes_min = 128,
-		.period_bytes_max = 128 * 1024,
-		.periods_min = 2,
-		.periods_max = 2048,
-	},
-	[PCM_C] = {
-		.info = SNDRV_PCM_INFO_MMAP |
-			SNDRV_PCM_INFO_MMAP_VALID |
-			SNDRV_PCM_INFO_INTERLEAVED |
-			SNDRV_PCM_INFO_PAUSE |
-			SNDRV_PCM_INFO_SYNC_START,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE |
-			   SNDRV_PCM_FMTBIT_S32_LE,
-		.rates = SNDRV_PCM_RATE_32000 |
-			 SNDRV_PCM_RATE_44100 |
-			 SNDRV_PCM_RATE_48000 |
-			 SNDRV_PCM_RATE_64000 |
-			 SNDRV_PCM_RATE_88200 |
-			 SNDRV_PCM_RATE_96000 |
-			 SNDRV_PCM_RATE_176400 |
-			 SNDRV_PCM_RATE_192000,
-		.rate_min = 32000,
-		.rate_max = 192000,
-		.channels_min = 2,
-		.channels_max = 2,
-		.buffer_bytes_max = 256 * 1024,
-		.period_bytes_min = 128,
-		.period_bytes_max = 128 * 1024,
-		.periods_min = 2,
-		.periods_max = 2048,
-	},
-	[PCM_SPDIF] = {
-		.info = SNDRV_PCM_INFO_MMAP |
-			SNDRV_PCM_INFO_MMAP_VALID |
-			SNDRV_PCM_INFO_INTERLEAVED |
-			SNDRV_PCM_INFO_PAUSE |
-			SNDRV_PCM_INFO_SYNC_START,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE |
-			   SNDRV_PCM_FMTBIT_S32_LE,
-		.rates = SNDRV_PCM_RATE_32000 |
-			 SNDRV_PCM_RATE_44100 |
-			 SNDRV_PCM_RATE_48000 |
-			 SNDRV_PCM_RATE_64000 |
-			 SNDRV_PCM_RATE_88200 |
-			 SNDRV_PCM_RATE_96000 |
-			 SNDRV_PCM_RATE_176400 |
-			 SNDRV_PCM_RATE_192000,
-		.rate_min = 32000,
-		.rate_max = 192000,
-		.channels_min = 2,
-		.channels_max = 2,
-		.buffer_bytes_max = 256 * 1024,
-		.period_bytes_min = 128,
-		.period_bytes_max = 128 * 1024,
-		.periods_min = 2,
-		.periods_max = 2048,
-	},
-	[PCM_MULTICH] = {
-		.info = SNDRV_PCM_INFO_MMAP |
-			SNDRV_PCM_INFO_MMAP_VALID |
-			SNDRV_PCM_INFO_INTERLEAVED |
-			SNDRV_PCM_INFO_PAUSE |
-			SNDRV_PCM_INFO_SYNC_START,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE |
-			   SNDRV_PCM_FMTBIT_S32_LE,
-		.rates = SNDRV_PCM_RATE_32000 |
-			 SNDRV_PCM_RATE_44100 |
-			 SNDRV_PCM_RATE_48000 |
-			 SNDRV_PCM_RATE_64000 |
-			 SNDRV_PCM_RATE_88200 |
-			 SNDRV_PCM_RATE_96000 |
-			 SNDRV_PCM_RATE_176400 |
-			 SNDRV_PCM_RATE_192000,
-		.rate_min = 32000,
-		.rate_max = 192000,
-		.channels_min = 2,
-		.channels_max = 8,
-		.buffer_bytes_max = 2048 * 1024,
-		.period_bytes_min = 128,
-		.period_bytes_max = 256 * 1024,
-		.periods_min = 2,
-		.periods_max = 16384,
-	},
-	[PCM_AC97] = {
-		.info = SNDRV_PCM_INFO_MMAP |
-			SNDRV_PCM_INFO_MMAP_VALID |
-			SNDRV_PCM_INFO_INTERLEAVED |
-			SNDRV_PCM_INFO_PAUSE |
-			SNDRV_PCM_INFO_SYNC_START,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE,
-		.rates = SNDRV_PCM_RATE_48000,
-		.rate_min = 48000,
-		.rate_max = 48000,
-		.channels_min = 2,
-		.channels_max = 2,
-		.buffer_bytes_max = 256 * 1024,
-		.period_bytes_min = 128,
-		.period_bytes_max = 128 * 1024,
-		.periods_min = 2,
-		.periods_max = 2048,
-	},
+static const struct snd_pcm_hardware oxygen_stereo_hardware = {
+	.info = SNDRV_PCM_INFO_MMAP |
+		SNDRV_PCM_INFO_MMAP_VALID |
+		SNDRV_PCM_INFO_INTERLEAVED |
+		SNDRV_PCM_INFO_PAUSE |
+		SNDRV_PCM_INFO_SYNC_START,
+	.formats = SNDRV_PCM_FMTBIT_S16_LE |
+		   SNDRV_PCM_FMTBIT_S32_LE,
+	.rates = SNDRV_PCM_RATE_32000 |
+		 SNDRV_PCM_RATE_44100 |
+		 SNDRV_PCM_RATE_48000 |
+		 SNDRV_PCM_RATE_64000 |
+		 SNDRV_PCM_RATE_88200 |
+		 SNDRV_PCM_RATE_96000 |
+		 SNDRV_PCM_RATE_176400 |
+		 SNDRV_PCM_RATE_192000,
+	.rate_min = 32000,
+	.rate_max = 192000,
+	.channels_min = 2,
+	.channels_max = 2,
+	.buffer_bytes_max = 256 * 1024,
+	.period_bytes_min = 128,
+	.period_bytes_max = 128 * 1024,
+	.periods_min = 2,
+	.periods_max = 2048,
+};
+static const struct snd_pcm_hardware oxygen_multichannel_hardware = {
+	.info = SNDRV_PCM_INFO_MMAP |
+		SNDRV_PCM_INFO_MMAP_VALID |
+		SNDRV_PCM_INFO_INTERLEAVED |
+		SNDRV_PCM_INFO_PAUSE |
+		SNDRV_PCM_INFO_SYNC_START,
+	.formats = SNDRV_PCM_FMTBIT_S16_LE |
+		   SNDRV_PCM_FMTBIT_S32_LE,
+	.rates = SNDRV_PCM_RATE_32000 |
+		 SNDRV_PCM_RATE_44100 |
+		 SNDRV_PCM_RATE_48000 |
+		 SNDRV_PCM_RATE_64000 |
+		 SNDRV_PCM_RATE_88200 |
+		 SNDRV_PCM_RATE_96000 |
+		 SNDRV_PCM_RATE_176400 |
+		 SNDRV_PCM_RATE_192000,
+	.rate_min = 32000,
+	.rate_max = 192000,
+	.channels_min = 2,
+	.channels_max = 8,
+	.buffer_bytes_max = 2048 * 1024,
+	.period_bytes_min = 128,
+	.period_bytes_max = 256 * 1024,
+	.periods_min = 2,
+	.periods_max = 16384,
+};
+static const struct snd_pcm_hardware oxygen_ac97_hardware = {
+	.info = SNDRV_PCM_INFO_MMAP |
+		SNDRV_PCM_INFO_MMAP_VALID |
+		SNDRV_PCM_INFO_INTERLEAVED |
+		SNDRV_PCM_INFO_PAUSE |
+		SNDRV_PCM_INFO_SYNC_START,
+	.formats = SNDRV_PCM_FMTBIT_S16_LE,
+	.rates = SNDRV_PCM_RATE_48000,
+	.rate_min = 48000,
+	.rate_max = 48000,
+	.channels_min = 2,
+	.channels_max = 2,
+	.buffer_bytes_max = 256 * 1024,
+	.period_bytes_min = 128,
+	.period_bytes_max = 128 * 1024,
+	.periods_min = 2,
+	.periods_max = 2048,
+};
+
+static const struct snd_pcm_hardware *const oxygen_hardware[PCM_COUNT] = {
+	[PCM_A] = &oxygen_stereo_hardware,
+	[PCM_B] = &oxygen_stereo_hardware,
+	[PCM_C] = &oxygen_stereo_hardware,
+	[PCM_SPDIF] = &oxygen_stereo_hardware,
+	[PCM_MULTICH] = &oxygen_multichannel_hardware,
+	[PCM_AC97] = &oxygen_ac97_hardware,
 };
 
 static inline unsigned int
@@ -189,7 +118,7 @@ static int oxygen_open(struct snd_pcm_substream *substream,
 	int err;
 
 	runtime->private_data = (void *)(uintptr_t)channel;
-	runtime->hw = oxygen_hardware[channel];
+	runtime->hw = *oxygen_hardware[channel];
 	if (chip->model->pcm_hardware_filter)
 		chip->model->pcm_hardware_filter(channel, &runtime->hw);
 	err = snd_pcm_hw_constraint_step(runtime, 0,
