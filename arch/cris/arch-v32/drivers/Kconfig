@@ -497,12 +497,6 @@ config ETRAX_V32_I2C_CLK_PORT
 	help
 	  The pin to use for I2C clock.
 
-config ETRAX_RTC
-	bool "Real Time Clock support"
-	depends on ETRAX_ARCH_V32 && ETRAX_I2C
-	help
-	  Enabled RTC support.
-
 config ETRAX_GPIO
 	bool "GPIO support"
 	depends on ETRAX_ARCH_V32

@@ -596,18 +596,6 @@ config ETRAX_PB_CHANGEABLE_BITS
 	  Bit set = changeable.
 	  You probably want 00 here.
 
-config ETRAX_RTC
-	bool "Real Time Clock support"
-	depends on ETRAX_ARCH_V10
-	help
-	  Enables drivers for the Real-Time Clock battery-backed chips on
-	  some products. The kernel reads the time when booting, and
-	  the date can be set using ioctl(fd, RTC_SET_TIME, &rt) with rt a
-	  rtc_time struct (see <file:include/asm-cris/rtc.h>) on the /dev/rtc
-	  device, major 121.  You can check the time with cat /proc/rtc, but
-	  normal time reading should be done using libc function time and
-	  friends.
-
 config ETRAX_DS1302_RST_ON_GENERIC_PORT
 	bool "DS1302 RST on Generic Port"
 	depends on ETRAX_DS1302
