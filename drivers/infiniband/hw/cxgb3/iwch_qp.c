@@ -642,6 +642,7 @@ static void __flush_qp(struct iwch_qp *qhp, unsigned long *flag)
 	cxio_flush_rq(&qhp->wq, &rchp->cq, count);
 	spin_unlock(&qhp->lock);
 	spin_unlock_irqrestore(&rchp->lock, *flag);
+	(*rchp->ibcq.comp_handler)(&rchp->ibcq, rchp->ibcq.cq_context);
 
 	/* locking heirarchy: cq lock first, then qp lock. */
 	spin_lock_irqsave(&schp->lock, *flag);
@@ -651,6 +652,7 @@ static void __flush_qp(struct iwch_qp *qhp, unsigned long *flag)
 	cxio_flush_sq(&qhp->wq, &schp->cq, count);
 	spin_unlock(&qhp->lock);
 	spin_unlock_irqrestore(&schp->lock, *flag);
+	(*schp->ibcq.comp_handler)(&schp->ibcq, schp->ibcq.cq_context);
 
 	/* deref */
 	if (atomic_dec_and_test(&qhp->refcnt))
@@ -661,7 +663,7 @@ static void __flush_qp(struct iwch_qp *qhp, unsigned long *flag)
 
 static void flush_qp(struct iwch_qp *qhp, unsigned long *flag)
 {
-	if (t3b_device(qhp->rhp))
+	if (qhp->ibqp.uobject)
 		cxio_set_wq_in_error(&qhp->wq);
 	else
 		__flush_qp(qhp, flag);
@@ -830,10 +832,11 @@ int iwch_modify_qp(struct iwch_dev *rhp, struct iwch_qp *qhp,
 				disconnect = 1;
 				ep = qhp->ep;
 			}
+			flush_qp(qhp, &flag);
 			break;
 		case IWCH_QP_STATE_TERMINATE:
 			qhp->attr.state = IWCH_QP_STATE_TERMINATE;
-			if (t3b_device(qhp->rhp))
+			if (qhp->ibqp.uobject)
 				cxio_set_wq_in_error(&qhp->wq);
 			if (!internal)
 				terminate = 1;
