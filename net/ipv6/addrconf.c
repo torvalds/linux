@@ -1900,7 +1900,7 @@ int addrconf_set_dstaddr(void __user *arg)
 		p.iph.ihl = 5;
 		p.iph.protocol = IPPROTO_IPV6;
 		p.iph.ttl = 64;
-		ifr.ifr_ifru.ifru_data = (void __user *)&p;
+		ifr.ifr_ifru.ifru_data = (__force void __user *)&p;
 
 		oldfs = get_fs(); set_fs(KERNEL_DS);
 		err = dev->do_ioctl(dev, &ifr, SIOCADDTUNNEL);
@@ -2799,6 +2799,7 @@ static struct inet6_ifaddr *if6_get_idx(struct seq_file *seq, loff_t pos)
 }
 
 static void *if6_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(addrconf_hash_lock)
 {
 	read_lock_bh(&addrconf_hash_lock);
 	return if6_get_idx(seq, *pos);
@@ -2814,6 +2815,7 @@ static void *if6_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void if6_seq_stop(struct seq_file *seq, void *v)
+	__releases(addrconf_hash_lock)
 {
 	read_unlock_bh(&addrconf_hash_lock);
 }
