@@ -19,20 +19,6 @@
 #include <net/pkt_sched.h>
 
 
-#undef DEBUG_INGRESS
-
-#ifdef DEBUG_INGRESS  /* control */
-#define DPRINTK(format, args...) printk(KERN_DEBUG format,##args)
-#else
-#define DPRINTK(format, args...)
-#endif
-
-#if 0  /* data */
-#define D2PRINTK(format, args...) printk(KERN_DEBUG format,##args)
-#else
-#define D2PRINTK(format, args...)
-#endif
-
 #define PRIV(sch) qdisc_priv(sch)
 
 /* Thanks to Doron Oz for this hack */
@@ -52,13 +38,6 @@ struct ingress_qdisc_data {
 static int ingress_graft(struct Qdisc *sch, unsigned long arg,
 			 struct Qdisc *new, struct Qdisc **old)
 {
-#ifdef DEBUG_INGRESS
-	struct ingress_qdisc_data *p = PRIV(sch);
-#endif
-
-	DPRINTK("ingress_graft(sch %p,[qdisc %p],new %p,old %p)\n",
-		sch, p, new, old);
-	DPRINTK("\n ingress_graft: You cannot add qdiscs to classes");
 	return 1;
 }
 
@@ -69,11 +48,6 @@ static struct Qdisc *ingress_leaf(struct Qdisc *sch, unsigned long arg)
 
 static unsigned long ingress_get(struct Qdisc *sch, u32 classid)
 {
-#ifdef DEBUG_INGRESS
-	struct ingress_qdisc_data *p = PRIV(sch);
-#endif
-	DPRINTK("ingress_get(sch %p,[qdisc %p],classid %x)\n",
-		sch, p, classid);
 	return TC_H_MIN(classid) + 1;
 }
 
@@ -90,22 +64,12 @@ static void ingress_put(struct Qdisc *sch, unsigned long cl)
 static int ingress_change(struct Qdisc *sch, u32 classid, u32 parent,
 			  struct rtattr **tca, unsigned long *arg)
 {
-#ifdef DEBUG_INGRESS
-	struct ingress_qdisc_data *p = PRIV(sch);
-#endif
-	DPRINTK("ingress_change(sch %p,[qdisc %p],classid %x,parent %x),"
-		"arg 0x%lx\n", sch, p, classid, parent, *arg);
-	DPRINTK("No effect. sch_ingress doesn't maintain classes at the moment");
 	return 0;
 }
 
 static void ingress_walk(struct Qdisc *sch, struct qdisc_walker *walker)
 {
-#ifdef DEBUG_INGRESS
-	struct ingress_qdisc_data *p = PRIV(sch);
-#endif
-	DPRINTK("ingress_walk(sch %p,[qdisc %p],walker %p)\n", sch, p, walker);
-	DPRINTK("No effect. sch_ingress doesn't maintain classes at the moment");
+	return;
 }
 
 static struct tcf_proto **ingress_find_tcf(struct Qdisc *sch, unsigned long cl)
@@ -123,9 +87,8 @@ static int ingress_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	struct tcf_result res;
 	int result;
 
-	D2PRINTK("ingress_enqueue(skb %p,sch %p,[qdisc %p])\n", skb, sch, p);
 	result = tc_classify(skb, p->filter_list, &res);
-	D2PRINTK("result %d class 0x%04x\n", result, res.classid);
+
 	/*
 	 * Unlike normal "enqueue" functions, ingress_enqueue returns a
 	 * firewall FW_* code.
@@ -150,7 +113,6 @@ static int ingress_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		break;
 	}
 #else
-	D2PRINTK("Overriding result to ACCEPT\n");
 	result = NF_ACCEPT;
 	sch->bstats.packets++;
 	sch->bstats.bytes += skb->len;
@@ -161,28 +123,16 @@ static int ingress_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 
 static struct sk_buff *ingress_dequeue(struct Qdisc *sch)
 {
-/*
-	struct ingress_qdisc_data *p = PRIV(sch);
-	D2PRINTK("ingress_dequeue(sch %p,[qdisc %p])\n",sch,PRIV(p));
-*/
 	return NULL;
 }
 
 static int ingress_requeue(struct sk_buff *skb, struct Qdisc *sch)
 {
-/*
-	struct ingress_qdisc_data *p = PRIV(sch);
-	D2PRINTK("ingress_requeue(skb %p,sch %p,[qdisc %p])\n",skb,sch,PRIV(p));
-*/
 	return 0;
 }
 
 static unsigned int ingress_drop(struct Qdisc *sch)
 {
-#ifdef DEBUG_INGRESS
-	struct ingress_qdisc_data *p = PRIV(sch);
-#endif
-	DPRINTK("ingress_drop(sch %p,[qdisc %p])\n", sch, p);
 	return 0;
 }
 
@@ -197,11 +147,6 @@ static unsigned int ing_hook(unsigned int hook, struct sk_buff *skb,
 	struct Qdisc *q;
 	struct net_device *dev = skb->dev;
 	int fwres = NF_ACCEPT;
-
-	DPRINTK("ing_hook: skb %s dev=%s len=%u\n",
-		skb->sk ? "(owned)" : "(unowned)",
-		skb->dev ? skb->dev->name : "(no dev)",
-		skb->len);
 
 	if (dev->qdisc_ingress) {
 		spin_lock(&dev->ingress_lock);
@@ -259,26 +204,13 @@ static int ingress_init(struct Qdisc *sch, struct rtattr *opt)
 	}
 #endif
 #endif
-
-	DPRINTK("ingress_init(sch %p,[qdisc %p],opt %p)\n", sch, p, opt);
 	p->q = &noop_qdisc;
 	return 0;
 }
 
 static void ingress_reset(struct Qdisc *sch)
 {
-	struct ingress_qdisc_data *p = PRIV(sch);
-
-	DPRINTK("ingress_reset(sch %p,[qdisc %p])\n", sch, p);
-
-/*
-#if 0
-*/
-/* for future use */
-	qdisc_reset(p->q);
-/*
-#endif
-*/
+	return;
 }
 
 /* ------------------------------------------------------------- */
@@ -287,12 +219,7 @@ static void ingress_destroy(struct Qdisc *sch)
 {
 	struct ingress_qdisc_data *p = PRIV(sch);
 
-	DPRINTK("ingress_destroy(sch %p,[qdisc %p])\n", sch, p);
 	tcf_destroy_chain(p->filter_list);
-#if 0
-/* for future use */
-	qdisc_destroy(p->q);
-#endif
 }
 
 static int ingress_dump(struct Qdisc *sch, struct sk_buff *skb)
