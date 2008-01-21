@@ -354,7 +354,7 @@ DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_WINBOND, PCI_DEVICE_ID_WINBOND_82C105,
  * mode as well. The same fixup must be done to the class-code property in
  * the IDE node /pci@80000000/ide@C,1
  */
-static void __devinit chrp_pci_fixup_vt8231_ata(struct pci_dev *viaide)
+static void chrp_pci_fixup_vt8231_ata(struct pci_dev *viaide)
 {
 	u8 progif;
 	struct pci_dev *viaisa;
@@ -375,4 +375,4 @@ static void __devinit chrp_pci_fixup_vt8231_ata(struct pci_dev *viaide)
 
 	pci_dev_put(viaisa);
 }
-DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C586_1, chrp_pci_fixup_vt8231_ata);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C586_1, chrp_pci_fixup_vt8231_ata);
