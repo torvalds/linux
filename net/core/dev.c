@@ -2543,6 +2543,7 @@ static void *ptype_get_idx(loff_t pos)
 }
 
 static void *ptype_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(RCU)
 {
 	rcu_read_lock();
 	return *pos ? ptype_get_idx(*pos - 1) : SEQ_START_TOKEN;
@@ -2578,6 +2579,7 @@ found:
 }
 
 static void ptype_seq_stop(struct seq_file *seq, void *v)
+	__releases(RCU)
 {
 	rcu_read_unlock();
 }
