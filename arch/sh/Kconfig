@@ -518,7 +518,6 @@ config SH_CAYMAN
 
 endmenu
 
-source "arch/sh/boards/renesas/hs7751rvoip/Kconfig"
 source "arch/sh/boards/renesas/rts7751r2d/Kconfig"
 source "arch/sh/boards/renesas/r7780rp/Kconfig"
 source "arch/sh/boards/magicpanelr2/Kconfig"
