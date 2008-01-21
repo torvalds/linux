@@ -122,8 +122,8 @@ static inline void writel(unsigned int b, volatile void __iomem *addr)
 #define memcpy_toio(a,b,c)	memcpy((void *)(a),(b),(c))
 
 
-/* The following is junk needed for the arch-independent code but which
- * we never use in the CRIS port
+/* I/O port access. Normally there is no I/O space on CRIS but when
+ * Cardbus/PCI is enabled the request is passed through the bridge.
  */
 
 #define IO_SPACE_LIMIT 0xffff
