@@ -357,7 +357,6 @@ void __devinit scan_phb(struct pci_controller *hose)
 	struct pci_bus *bus;
 	struct device_node *node = hose->dn;
 	int i, mode;
-	struct resource *res;
 
 	DBG("PCI: Scanning PHB %s\n", node ? node->full_name : "<NO NAME>");
 
@@ -375,12 +374,10 @@ void __devinit scan_phb(struct pci_controller *hose)
 	pcibios_map_io_space(bus);
 
 	/* Wire up PHB bus resources */
-	if (hose->io_resource.flags) {
-		DBG("PCI: PHB IO resource    = %016lx-%016lx [%lx]\n",
-		    hose->io_resource.start, hose->io_resource.end,
-		    hose->io_resource.flags);
-		bus->resource[0] = res = &hose->io_resource;
-	}
+	DBG("PCI: PHB IO resource    = %016lx-%016lx [%lx]\n",
+	    hose->io_resource.start, hose->io_resource.end,
+	    hose->io_resource.flags);
+	bus->resource[0] = &hose->io_resource;
 	for (i = 0; i < 3; ++i) {
 		DBG("PCI: PHB MEM resource %d = %016lx-%016lx [%lx]\n", i,
 		    hose->mem_resources[i].start,
