@@ -256,6 +256,57 @@ static void briq_restart(char *cmd)
 	for(;;);
 }
 
+/*
+ * Per default, input/output-device points to the keyboard/screen
+ * If no card is installed, the built-in serial port is used as a fallback.
+ * But unfortunately, the firmware does not connect /chosen/{stdin,stdout}
+ * the the built-in serial node. Instead, a /failsafe node is created.
+ */
+static void chrp_init_early(void)
+{
+	struct device_node *node;
+	const char *property;
+
+	if (strstr(cmd_line, "console="))
+		return;
+	/* find the boot console from /chosen/stdout */
+	if (!of_chosen)
+		return;
+	node = of_find_node_by_path("/");
+	if (!node)
+		return;
+	property = of_get_property(node, "model", NULL);
+	if (!property)
+		goto out_put;
+	if (strcmp(property, "Pegasos2"))
+		goto out_put;
+	/* this is a Pegasos2 */
+	property = of_get_property(of_chosen, "linux,stdout-path", NULL);
+	if (!property)
+		goto out_put;
+	of_node_put(node);
+	node = of_find_node_by_path(property);
+	if (!node)
+		return;
+	property = of_get_property(node, "device_type", NULL);
+	if (!property)
+		goto out_put;
+	if (strcmp(property, "serial"))
+		goto out_put;
+	/*
+	 * The 9pin connector is either /failsafe
+	 * or /pci@80000000/isa@C/serial@i2F8
+	 * The optional graphics card has also type 'serial' in VGA mode.
+	 */
+	property = of_get_property(node, "name", NULL);
+	if (!property)
+		goto out_put;
+	if (!strcmp(property, "failsafe") || !strcmp(property, "serial"))
+		add_preferred_console("ttyS", 0, NULL);
+out_put:
+	of_node_put(node);
+}
+
 void __init chrp_setup_arch(void)
 {
 	struct device_node *root = of_find_node_by_path("/");
@@ -599,6 +650,7 @@ define_machine(chrp) {
 	.probe			= chrp_probe,
 	.setup_arch		= chrp_setup_arch,
 	.init			= chrp_init2,
+	.init_early		= chrp_init_early,
 	.show_cpuinfo		= chrp_show_cpuinfo,
 	.init_IRQ		= chrp_init_IRQ,
 	.restart		= rtas_restart,
