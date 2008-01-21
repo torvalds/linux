@@ -317,7 +317,7 @@ int __net_init fib4_rules_init(struct net *net)
 	INIT_LIST_HEAD(&ops->rules_list);
 	ops->fro_net = net;
 
-	fib_rules_register(net, ops);
+	fib_rules_register(ops);
 
 	err = fib_default_rules_init(ops);
 	if (err < 0)
@@ -327,13 +327,13 @@ int __net_init fib4_rules_init(struct net *net)
 
 fail:
 	/* also cleans all rules already added */
-	fib_rules_unregister(net, ops);
+	fib_rules_unregister(ops);
 	kfree(ops);
 	return err;
 }
 
 void __net_exit fib4_rules_exit(struct net *net)
 {
-	fib_rules_unregister(net, net->ipv4.rules_ops);
+	fib_rules_unregister(net->ipv4.rules_ops);
 	kfree(net->ipv4.rules_ops);
 }

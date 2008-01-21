@@ -274,7 +274,7 @@ int __init fib6_rules_init(void)
 	if (ret)
 		goto out;
 
-	ret = fib_rules_register(&init_net, &fib6_rules_ops);
+	ret = fib_rules_register(&fib6_rules_ops);
 	if (ret)
 		goto out_default_rules_init;
 out:
@@ -287,5 +287,5 @@ out_default_rules_init:
 
 void fib6_rules_cleanup(void)
 {
-	fib_rules_unregister(&init_net, &fib6_rules_ops);
+	fib_rules_unregister(&fib6_rules_ops);
 }

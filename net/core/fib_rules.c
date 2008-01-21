@@ -37,8 +37,7 @@ int fib_default_rule_add(struct fib_rules_ops *ops,
 }
 EXPORT_SYMBOL(fib_default_rule_add);
 
-static void notify_rule_change(struct net *net, int event,
-			       struct fib_rule *rule,
+static void notify_rule_change(int event, struct fib_rule *rule,
 			       struct fib_rules_ops *ops, struct nlmsghdr *nlh,
 			       u32 pid);
 
@@ -72,10 +71,13 @@ static void flush_route_cache(struct fib_rules_ops *ops)
 		ops->flush_cache();
 }
 
-int fib_rules_register(struct net *net, struct fib_rules_ops *ops)
+int fib_rules_register(struct fib_rules_ops *ops)
 {
 	int err = -EEXIST;
 	struct fib_rules_ops *o;
+	struct net *net;
+
+	net = ops->fro_net;
 
 	if (ops->rule_size < sizeof(struct fib_rule))
 		return -EINVAL;
@@ -112,8 +114,9 @@ void fib_rules_cleanup_ops(struct fib_rules_ops *ops)
 }
 EXPORT_SYMBOL_GPL(fib_rules_cleanup_ops);
 
-void fib_rules_unregister(struct net *net, struct fib_rules_ops *ops)
+void fib_rules_unregister(struct fib_rules_ops *ops)
 {
+	struct net *net = ops->fro_net;
 
 	spin_lock(&net->rules_mod_lock);
 	list_del_rcu(&ops->list);
@@ -333,7 +336,7 @@ static int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 	else
 		list_add_rcu(&rule->list, &ops->rules_list);
 
-	notify_rule_change(net, RTM_NEWRULE, rule, ops, nlh, NETLINK_CB(skb).pid);
+	notify_rule_change(RTM_NEWRULE, rule, ops, nlh, NETLINK_CB(skb).pid);
 	flush_route_cache(ops);
 	rules_ops_put(ops);
 	return 0;
@@ -423,7 +426,7 @@ static int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 		}
 
 		synchronize_rcu();
-		notify_rule_change(net, RTM_DELRULE, rule, ops, nlh,
+		notify_rule_change(RTM_DELRULE, rule, ops, nlh,
 				   NETLINK_CB(skb).pid);
 		fib_rule_put(rule);
 		flush_route_cache(ops);
@@ -561,13 +564,15 @@ static int fib_nl_dumprule(struct sk_buff *skb, struct netlink_callback *cb)
 	return skb->len;
 }
 
-static void notify_rule_change(struct net *net, int event, struct fib_rule *rule,
+static void notify_rule_change(int event, struct fib_rule *rule,
 			       struct fib_rules_ops *ops, struct nlmsghdr *nlh,
 			       u32 pid)
 {
+	struct net *net;
 	struct sk_buff *skb;
 	int err = -ENOBUFS;
 
+	net = ops->fro_net;
 	skb = nlmsg_new(fib_rule_nlmsg_size(ops, rule), GFP_KERNEL);
 	if (skb == NULL)
 		goto errout;
@@ -579,6 +584,7 @@ static void notify_rule_change(struct net *net, int event, struct fib_rule *rule
 		kfree_skb(skb);
 		goto errout;
 	}
+
 	err = rtnl_notify(skb, net, pid, ops->nlgroup, nlh, GFP_KERNEL);
 errout:
 	if (err < 0)

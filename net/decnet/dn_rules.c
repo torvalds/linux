@@ -256,12 +256,12 @@ void __init dn_fib_rules_init(void)
 {
 	BUG_ON(fib_default_rule_add(&dn_fib_rules_ops, 0x7fff,
 			            RT_TABLE_MAIN, 0));
-	fib_rules_register(&init_net, &dn_fib_rules_ops);
+	fib_rules_register(&dn_fib_rules_ops);
 }
 
 void __exit dn_fib_rules_cleanup(void)
 {
-	fib_rules_unregister(&init_net, &dn_fib_rules_ops);
+	fib_rules_unregister(&dn_fib_rules_ops);
 }
 
 
