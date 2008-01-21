@@ -35,7 +35,7 @@ struct ingress_qdisc_data {
 static int ingress_graft(struct Qdisc *sch, unsigned long arg,
 			 struct Qdisc *new, struct Qdisc **old)
 {
-	return 1;
+	return -EOPNOTSUPP;
 }
 
 static struct Qdisc *ingress_leaf(struct Qdisc *sch, unsigned long arg)
