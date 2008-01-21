@@ -49,19 +49,8 @@ struct net_device *__find_vlan_dev(struct net_device* real_dev,
 				   unsigned short VID); /* vlan.c */
 
 /* found in vlan_dev.c */
-int vlan_dev_rebuild_header(struct sk_buff *skb);
 int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 		  struct packet_type *ptype, struct net_device *orig_dev);
-int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
-			 unsigned short type, const void *daddr,
-			 const void *saddr, unsigned len);
-int vlan_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev);
-int vlan_dev_hwaccel_hard_start_xmit(struct sk_buff *skb, struct net_device *dev);
-int vlan_dev_change_mtu(struct net_device *dev, int new_mtu);
-int vlan_dev_open(struct net_device* dev);
-int vlan_dev_stop(struct net_device* dev);
-int vlan_set_mac_address(struct net_device *dev, void *p);
-int vlan_dev_ioctl(struct net_device* dev, struct ifreq *ifr, int cmd);
 void vlan_dev_set_ingress_priority(const struct net_device *dev,
 				   u32 skb_prio, short vlan_prio);
 int vlan_dev_set_egress_priority(const struct net_device *dev,
@@ -70,8 +59,6 @@ int vlan_dev_set_vlan_flag(const struct net_device *dev,
 			   u32 flag, short flag_val);
 void vlan_dev_get_realdev_name(const struct net_device *dev, char *result);
 void vlan_dev_get_vid(const struct net_device *dev, unsigned short *result);
-void vlan_change_rx_flags(struct net_device *dev, int change);
-void vlan_dev_set_multicast_list(struct net_device *vlan_dev);
 
 int vlan_check_real_dev(struct net_device *real_dev, unsigned short vlan_id);
 void vlan_setup(struct net_device *dev);
