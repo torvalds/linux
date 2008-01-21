@@ -20,10 +20,8 @@
 
 
 /* Thanks to Doron Oz for this hack */
-#ifndef CONFIG_NET_CLS_ACT
-#ifdef CONFIG_NETFILTER
+#if !defined(CONFIG_NET_CLS_ACT) && defined(CONFIG_NETFILTER)
 static int nf_registered;
-#endif
 #endif
 
 struct ingress_qdisc_data {
@@ -118,8 +116,7 @@ static int ingress_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	return result;
 }
 
-#ifndef CONFIG_NET_CLS_ACT
-#ifdef CONFIG_NETFILTER
+#if !defined(CONFIG_NET_CLS_ACT) && defined(CONFIG_NETFILTER)
 static unsigned int ing_hook(unsigned int hook, struct sk_buff *skb,
 			     const struct net_device *indev,
 			     const struct net_device *outdev,
@@ -158,12 +155,10 @@ static struct nf_hook_ops ing_ops[] __read_mostly = {
 	},
 };
 #endif
-#endif
 
 static int ingress_init(struct Qdisc *sch, struct rtattr *opt)
 {
-#ifndef CONFIG_NET_CLS_ACT
-#ifdef CONFIG_NETFILTER
+#if !defined(CONFIG_NET_CLS_ACT) && defined(CONFIG_NETFILTER)
 	printk("Ingress scheduler: Classifier actions prefered over netfilter\n");
 
 	if (!nf_registered) {
@@ -173,7 +168,6 @@ static int ingress_init(struct Qdisc *sch, struct rtattr *opt)
 		}
 		nf_registered++;
 	}
-#endif
 #endif
 	return 0;
 }
@@ -240,11 +234,9 @@ static int __init ingress_module_init(void)
 static void __exit ingress_module_exit(void)
 {
 	unregister_qdisc(&ingress_qdisc_ops);
-#ifndef CONFIG_NET_CLS_ACT
-#ifdef CONFIG_NETFILTER
+#if !defined(CONFIG_NET_CLS_ACT) && defined(CONFIG_NETFILTER)
 	if (nf_registered)
 		nf_unregister_hooks(ing_ops, ARRAY_SIZE(ing_ops));
-#endif
 #endif
 }
 
