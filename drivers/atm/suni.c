@@ -289,7 +289,7 @@ static const struct atmphy_ops suni_ops = {
 };
 
 
-int __devinit suni_init(struct atm_dev *dev)
+int suni_init(struct atm_dev *dev)
 {
 	unsigned char mri;
 
