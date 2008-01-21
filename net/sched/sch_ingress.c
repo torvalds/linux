@@ -221,14 +221,7 @@ static struct Qdisc_ops ingress_qdisc_ops __read_mostly = {
 
 static int __init ingress_module_init(void)
 {
-	int ret = 0;
-
-	if ((ret = register_qdisc(&ingress_qdisc_ops)) < 0) {
-		printk("Unable to register Ingress qdisc\n");
-		return ret;
-	}
-
-	return ret;
+	return register_qdisc(&ingress_qdisc_ops);
 }
 
 static void __exit ingress_module_exit(void)
