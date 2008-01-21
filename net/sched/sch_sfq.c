@@ -386,7 +386,7 @@ static void sfq_perturbation(unsigned long arg)
 	struct Qdisc *sch = (struct Qdisc*)arg;
 	struct sfq_sched_data *q = qdisc_priv(sch);
 
-	get_random_bytes(&q->perturbation, 4);
+	q->perturbation = net_random();
 
 	if (q->perturb_period)
 		mod_timer(&q->perturb_timer, jiffies + q->perturb_period);
@@ -415,7 +415,7 @@ static int sfq_change(struct Qdisc *sch, struct rtattr *opt)
 	del_timer(&q->perturb_timer);
 	if (q->perturb_period) {
 		mod_timer(&q->perturb_timer, jiffies + q->perturb_period);
-		get_random_bytes(&q->perturbation, 4);
+		q->perturbation = net_random();
 	}
 	sch_tree_unlock(sch);
 	return 0;
@@ -443,7 +443,7 @@ static int sfq_init(struct Qdisc *sch, struct rtattr *opt)
 	if (opt == NULL) {
 		q->quantum = psched_mtu(sch->dev);
 		q->perturb_period = 0;
-		get_random_bytes(&q->perturbation, 4);
+		q->perturbation = net_random();
 	} else {
 		int err = sfq_change(sch, opt);
 		if (err)
