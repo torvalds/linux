@@ -74,7 +74,9 @@ static irqreturn_t oxygen_interrupt(int dummy, void *dev_id)
 	if (status & OXYGEN_INT_SPDIF_IN_DETECT) {
 		spin_lock(&chip->reg_lock);
 		i = oxygen_read32(chip, OXYGEN_SPDIF_CONTROL);
-		if (i & OXYGEN_SPDIF_RATE_INT) {
+		if (i & (OXYGEN_SPDIF_SENSE_INT | OXYGEN_SPDIF_LOCK_INT |
+			 OXYGEN_SPDIF_RATE_INT)) {
+			/* write the interrupt bit(s) to clear */
 			oxygen_write32(chip, OXYGEN_SPDIF_CONTROL, i);
 			schedule_work(&chip->spdif_input_bits_work);
 		}
@@ -94,30 +96,46 @@ static void oxygen_spdif_input_bits_changed(struct work_struct *work)
 {
 	struct oxygen *chip = container_of(work, struct oxygen,
 					   spdif_input_bits_work);
+	u32 reg;
 
-	spin_lock_irq(&chip->reg_lock);
-	oxygen_write32_masked(chip, OXYGEN_SPDIF_CONTROL,
-			      OXYGEN_SPDIF_IN_CLOCK_96,
-			      OXYGEN_SPDIF_IN_CLOCK_MASK);
-	spin_unlock_irq(&chip->reg_lock);
+	/*
+	 * This function gets called when there is new activity on the SPDIF
+	 * input, or when we lose lock on the input signal, or when the rate
+	 * changes.
+	 */
 	msleep(1);
-	if (!(oxygen_read32(chip, OXYGEN_SPDIF_CONTROL)
-	      & OXYGEN_SPDIF_LOCK_STATUS)) {
-		spin_lock_irq(&chip->reg_lock);
-		oxygen_write32_masked(chip, OXYGEN_SPDIF_CONTROL,
-				      OXYGEN_SPDIF_IN_CLOCK_192,
-				      OXYGEN_SPDIF_IN_CLOCK_MASK);
+	spin_lock_irq(&chip->reg_lock);
+	reg = oxygen_read32(chip, OXYGEN_SPDIF_CONTROL);
+	if ((reg & (OXYGEN_SPDIF_SENSE_STATUS |
+		    OXYGEN_SPDIF_LOCK_STATUS))
+	    == OXYGEN_SPDIF_SENSE_STATUS) {
+		/*
+		 * If we detect activity on the SPDIF input but cannot lock to
+		 * a signal, the clock bit is likely to be wrong.
+		 */
+		reg ^= OXYGEN_SPDIF_IN_CLOCK_MASK;
+		oxygen_write32(chip, OXYGEN_SPDIF_CONTROL, reg);
 		spin_unlock_irq(&chip->reg_lock);
 		msleep(1);
-		if (!(oxygen_read32(chip, OXYGEN_SPDIF_CONTROL)
-		      & OXYGEN_SPDIF_LOCK_STATUS)) {
-			spin_lock_irq(&chip->reg_lock);
-			oxygen_write32_masked(chip, OXYGEN_SPDIF_CONTROL,
-					      OXYGEN_SPDIF_IN_CLOCK_96,
-					      OXYGEN_SPDIF_IN_CLOCK_MASK);
-			spin_unlock_irq(&chip->reg_lock);
+		spin_lock_irq(&chip->reg_lock);
+		reg = oxygen_read32(chip, OXYGEN_SPDIF_CONTROL);
+		if ((reg & (OXYGEN_SPDIF_SENSE_STATUS |
+			    OXYGEN_SPDIF_LOCK_STATUS))
+		    == OXYGEN_SPDIF_SENSE_STATUS) {
+			/* nothing detected with either clock; give up */
+			if ((reg & OXYGEN_SPDIF_IN_CLOCK_MASK)
+			    == OXYGEN_SPDIF_IN_CLOCK_192) {
+				/*
+				 * Reset clock to <= 96 kHz because this is
+				 * more likely to be received next time.
+				 */
+				reg &= ~OXYGEN_SPDIF_IN_CLOCK_MASK;
+				reg |= OXYGEN_SPDIF_IN_CLOCK_96;
+				oxygen_write32(chip, OXYGEN_SPDIF_CONTROL, reg);
+			}
 		}
 	}
+	spin_unlock_irq(&chip->reg_lock);
 
 	if (chip->controls[CONTROL_SPDIF_INPUT_BITS]) {
 		spin_lock_irq(&chip->reg_lock);
@@ -126,6 +144,10 @@ static void oxygen_spdif_input_bits_changed(struct work_struct *work)
 			       chip->interrupt_mask);
 		spin_unlock_irq(&chip->reg_lock);
 
+		/*
+		 * We don't actually know that any channel status bits have
+		 * changed, but let's send a notification just to be sure.
+		 */
 		snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       &chip->controls[CONTROL_SPDIF_INPUT_BITS]->id);
 	}
@@ -225,7 +247,20 @@ static void __devinit oxygen_init(struct oxygen *chip)
 		       OXYGEN_RATE_48000 | OXYGEN_I2S_FORMAT_LJUST |
 		       OXYGEN_I2S_MCLK_128 | OXYGEN_I2S_BITS_16 |
 		       OXYGEN_I2S_MASTER | OXYGEN_I2S_BCLK_64);
-	oxygen_set_bits32(chip, OXYGEN_SPDIF_CONTROL, OXYGEN_SPDIF_RATE_MASK);
+	oxygen_write32_masked(chip, OXYGEN_SPDIF_CONTROL,
+			      OXYGEN_SPDIF_SENSE_MASK |
+			      OXYGEN_SPDIF_LOCK_MASK |
+			      OXYGEN_SPDIF_RATE_MASK |
+			      OXYGEN_SPDIF_LOCK_PAR |
+			      OXYGEN_SPDIF_IN_CLOCK_96,
+			      OXYGEN_SPDIF_OUT_ENABLE |
+			      OXYGEN_SPDIF_LOOPBACK |
+			      OXYGEN_SPDIF_SENSE_MASK |
+			      OXYGEN_SPDIF_LOCK_MASK |
+			      OXYGEN_SPDIF_RATE_MASK |
+			      OXYGEN_SPDIF_SENSE_PAR |
+			      OXYGEN_SPDIF_LOCK_PAR |
+			      OXYGEN_SPDIF_IN_CLOCK_MASK);
 	oxygen_write32(chip, OXYGEN_SPDIF_OUTPUT_BITS, chip->spdif_bits);
 	oxygen_write16(chip, OXYGEN_PLAY_ROUTING,
 		       OXYGEN_PLAY_MULTICH_I2S_DAC | OXYGEN_PLAY_SPDIF_SPDIF |
