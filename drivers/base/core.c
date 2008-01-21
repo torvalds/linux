@@ -552,6 +552,8 @@ static struct kobject *get_device_parent(struct device *dev,
 }
 
 static inline void cleanup_device_parent(struct device *dev) {}
+static inline void cleanup_glue_dir(struct device *dev,
+				    struct kobject *glue_dir) {}
 #else
 static struct kobject *virtual_device_parent(struct device *dev)
 {
@@ -616,27 +618,27 @@ static struct kobject *get_device_parent(struct device *dev,
 	return NULL;
 }
 
-static void cleanup_device_parent(struct device *dev)
+static void cleanup_glue_dir(struct device *dev, struct kobject *glue_dir)
 {
-	struct kobject *glue_dir = dev->kobj.parent;
-
 	/* see if we live in a "glue" directory */
 	if (!dev->class || glue_dir->kset != &dev->class->class_dirs)
 		return;
 
 	kobject_put(glue_dir);
 }
+
+static void cleanup_device_parent(struct device *dev)
+{
+	cleanup_glue_dir(dev, dev->kobj.parent);
+}
 #endif
 
-static int setup_parent(struct device *dev, struct device *parent)
+static void setup_parent(struct device *dev, struct device *parent)
 {
 	struct kobject *kobj;
 	kobj = get_device_parent(dev, parent);
-	if (IS_ERR(kobj))
-		return PTR_ERR(kobj);
 	if (kobj)
 		dev->kobj.parent = kobj;
-	return 0;
 }
 
 static int device_add_class_symlinks(struct device *dev)
@@ -784,9 +786,7 @@ int device_add(struct device *dev)
 	pr_debug("device: '%s': %s\n", dev->bus_id, __FUNCTION__);
 
 	parent = get_device(dev->parent);
-	error = setup_parent(dev, parent);
-	if (error)
-		goto Error;
+	setup_parent(dev, parent);
 
 	/* first, register with generic layer. */
 	error = kobject_add(&dev->kobj, dev->kobj.parent, "%s", dev->bus_id);
@@ -864,6 +864,7 @@ int device_add(struct device *dev)
 	kobject_uevent(&dev->kobj, KOBJ_REMOVE);
 	kobject_del(&dev->kobj);
  Error:
+	cleanup_device_parent(dev);
 	if (parent)
 		put_device(parent);
 	goto Done;
@@ -1344,15 +1345,12 @@ int device_move(struct device *dev, struct device *new_parent)
 
 	new_parent = get_device(new_parent);
 	new_parent_kobj = get_device_parent (dev, new_parent);
-	if (IS_ERR(new_parent_kobj)) {
-		error = PTR_ERR(new_parent_kobj);
-		put_device(new_parent);
-		goto out;
-	}
+
 	pr_debug("device: '%s': %s: moving to '%s'\n", dev->bus_id,
 		 __FUNCTION__, new_parent ? new_parent->bus_id : "<NULL>");
 	error = kobject_move(&dev->kobj, new_parent_kobj);
 	if (error) {
+		cleanup_glue_dir(dev, new_parent_kobj);
 		put_device(new_parent);
 		goto out;
 	}
@@ -1375,6 +1373,7 @@ int device_move(struct device *dev, struct device *new_parent)
 				klist_add_tail(&dev->knode_parent,
 					       &old_parent->klist_children);
 		}
+		cleanup_glue_dir(dev, new_parent_kobj);
 		put_device(new_parent);
 		goto out;
 	}
