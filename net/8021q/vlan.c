@@ -142,63 +142,55 @@ static void vlan_rcu_free(struct rcu_head *rcu)
 static int unregister_vlan_dev(struct net_device *real_dev,
 			       unsigned short vlan_id)
 {
-	struct net_device *dev = NULL;
+	struct net_device *dev;
 	int real_dev_ifindex = real_dev->ifindex;
 	struct vlan_group *grp;
-	int i, ret;
+	unsigned int i;
+	int ret;
 
-	/* sanity check */
 	if (vlan_id >= VLAN_VID_MASK)
 		return -EINVAL;
 
 	ASSERT_RTNL();
 	grp = __vlan_find_group(real_dev_ifindex);
+	if (!grp)
+		return -ENOENT;
 
+	dev = vlan_group_get_device(grp, vlan_id);
+	if (!dev)
+		return -ENOENT;
+
+	vlan_proc_rem_dev(dev);
+
+	/* Take it out of our own structures, but be sure to interlock with
+	 * HW accelerating devices or SW vlan input packet processing.
+	 */
+	if (real_dev->features & NETIF_F_HW_VLAN_FILTER)
+		real_dev->vlan_rx_kill_vid(real_dev, vlan_id);
+
+	vlan_group_set_device(grp, vlan_id, NULL);
+	synchronize_net();
+
+	/* Caller unregisters (and if necessary, puts) VLAN device, but we
+	 * get rid of the reference to real_dev here.
+	 */
+	dev_put(real_dev);
+
+	/* If the group is now empty, kill off the group. */
 	ret = 0;
+	for (i = 0; i < VLAN_VID_MASK; i++)
+		if (vlan_group_get_device(grp, i))
+			break;
 
-	if (grp) {
-		dev = vlan_group_get_device(grp, vlan_id);
-		if (dev) {
-			/* Remove proc entry */
-			vlan_proc_rem_dev(dev);
+	if (i == VLAN_VID_MASK) {
+		if (real_dev->features & NETIF_F_HW_VLAN_RX)
+			real_dev->vlan_rx_register(real_dev, NULL);
 
-			/* Take it out of our own structures, but be sure to
-			 * interlock with HW accelerating devices or SW vlan
-			 * input packet processing.
-			 */
-			if (real_dev->features & NETIF_F_HW_VLAN_FILTER)
-				real_dev->vlan_rx_kill_vid(real_dev, vlan_id);
+		hlist_del_rcu(&grp->hlist);
 
-			vlan_group_set_device(grp, vlan_id, NULL);
-			synchronize_net();
-
-
-			/* Caller unregisters (and if necessary, puts)
-			 * VLAN device, but we get rid of the reference to
-			 * real_dev here.
-			 */
-			dev_put(real_dev);
-
-			/* If the group is now empty, kill off the
-			 * group.
-			 */
-			for (i = 0; i < VLAN_VID_MASK; i++)
-				if (vlan_group_get_device(grp, i))
-					break;
-
-			if (i == VLAN_VID_MASK) {
-				if (real_dev->features & NETIF_F_HW_VLAN_RX)
-					real_dev->vlan_rx_register(real_dev, NULL);
-
-				hlist_del_rcu(&grp->hlist);
-
-				/* Free the group, after all cpu's are done. */
-				call_rcu(&grp->rcu, vlan_rcu_free);
-
-				grp = NULL;
-				ret = 1;
-			}
-		}
+		/* Free the group, after all cpu's are done. */
+		call_rcu(&grp->rcu, vlan_rcu_free);
+		ret = 1;
 	}
 
 	return ret;
