@@ -70,30 +70,92 @@ static struct pci_device_id oxygen_ids[] __devinitdata = {
 };
 MODULE_DEVICE_TABLE(pci, oxygen_ids);
 
+
+#define GPIO_AK5385_DFS_MASK	0x0003
+#define GPIO_AK5385_DFS_NORMAL	0x0000
+#define GPIO_AK5385_DFS_DOUBLE	0x0001
+#define GPIO_AK5385_DFS_QUAD	0x0002
+
 #define AK4396_WRITE	0x2000
 
-/* register 0 */
+#define AK4396_CONTROL_1	0
+#define AK4396_CONTROL_2	1
+#define AK4396_CONTROL_3	2
+#define AK4396_LCH_ATT		3
+#define AK4396_RCH_ATT		4
+
+/* control 1 */
 #define AK4396_RSTN		0x01
+#define AK4396_DIF_MASK		0x0e
+#define AK4396_DIF_16_LSB	0x00
+#define AK4396_DIF_20_LSB	0x02
 #define AK4396_DIF_24_MSB	0x04
-/* register 1 */
+#define AK4396_DIF_24_I2S	0x06
+#define AK4396_DIF_24_LSB	0x08
+#define AK4396_ACKS		0x80
+/* control 2 */
 #define AK4396_SMUTE		0x01
+#define AK4396_DEM_MASK		0x06
+#define AK4396_DEM_441		0x00
 #define AK4396_DEM_OFF		0x02
+#define AK4396_DEM_48		0x04
+#define AK4396_DEM_32		0x06
 #define AK4396_DFS_MASK		0x18
 #define AK4396_DFS_NORMAL	0x00
 #define AK4396_DFS_DOUBLE	0x08
 #define AK4396_DFS_QUAD		0x10
+#define AK4396_SLOW		0x20
+#define AK4396_DZFM		0x40
+#define AK4396_DZFE		0x80
+/* control 3 */
+#define AK4396_DZFB		0x04
+#define AK4396_DCKB		0x10
+#define AK4396_DCKS		0x20
+#define AK4396_DSDM		0x40
+#define AK4396_D_P_MASK		0x80
+#define AK4396_PCM		0x00
+#define AK4396_DSD		0x80
 
-/* register 0 */
+#define WM8785_R0	0
+#define WM8785_R1	1
+#define WM8785_R2	2
+#define WM8785_R7	7
+
+/* R0 */
+#define WM8785_MCR_MASK		0x007
+#define WM8785_MCR_SLAVE	0x000
+#define WM8785_MCR_MASTER_128	0x001
+#define WM8785_MCR_MASTER_192	0x002
+#define WM8785_MCR_MASTER_256	0x003
+#define WM8785_MCR_MASTER_384	0x004
+#define WM8785_MCR_MASTER_512	0x005
+#define WM8785_MCR_MASTER_768	0x006
+#define WM8785_OSR_MASK		0x018
 #define WM8785_OSR_SINGLE	0x000
 #define WM8785_OSR_DOUBLE	0x008
 #define WM8785_OSR_QUAD		0x010
+#define WM8785_FORMAT_MASK	0x060
+#define WM8785_FORMAT_RJUST	0x000
 #define WM8785_FORMAT_LJUST	0x020
 #define WM8785_FORMAT_I2S	0x040
-/* register 1 */
+#define WM8785_FORMAT_DSP	0x060
+/* R1 */
+#define WM8785_WL_MASK		0x003
 #define WM8785_WL_16		0x000
 #define WM8785_WL_20		0x001
 #define WM8785_WL_24		0x002
 #define WM8785_WL_32		0x003
+#define WM8785_LRP		0x004
+#define WM8785_BCLKINV		0x008
+#define WM8785_LRSWAP		0x010
+#define WM8785_DEVNO_MASK	0x0e0
+/* R2 */
+#define WM8785_HPFR		0x001
+#define WM8785_HPFL		0x002
+#define WM8785_SDODIS		0x004
+#define WM8785_PWRDNR		0x008
+#define WM8785_PWRDNL		0x010
+#define WM8785_TDM_MASK		0x1c0
 
 static void ak4396_write(struct oxygen *chip, unsigned int codec,
 			 u8 reg, u8 value)
@@ -124,29 +186,33 @@ static void ak4396_init(struct oxygen *chip)
 {
 	unsigned int i;
 
-	chip->ak4396_reg1 = AK4396_DEM_OFF | AK4396_DFS_NORMAL;
+	chip->ak4396_ctl2 = AK4396_DEM_OFF | AK4396_DFS_NORMAL;
 	for (i = 0; i < 4; ++i) {
-		ak4396_write(chip, i, 0, AK4396_DIF_24_MSB | AK4396_RSTN);
-		ak4396_write(chip, i, 1, chip->ak4396_reg1);
-		ak4396_write(chip, i, 2, 0);
-		ak4396_write(chip, i, 3, 0xff);
-		ak4396_write(chip, i, 4, 0xff);
+		ak4396_write(chip, i,
+			     AK4396_CONTROL_1, AK4396_DIF_24_MSB | AK4396_RSTN);
+		ak4396_write(chip, i,
+			     AK4396_CONTROL_2, chip->ak4396_ctl2);
+		ak4396_write(chip, i,
+			     AK4396_CONTROL_3, AK4396_PCM);
+		ak4396_write(chip, i, AK4396_LCH_ATT, 0xff);
+		ak4396_write(chip, i, AK4396_RCH_ATT, 0xff);
 	}
 	snd_component_add(chip->card, "AK4396");
 }
 
 static void ak5385_init(struct oxygen *chip)
 {
-	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL, 0x0003);
-	oxygen_clear_bits16(chip, OXYGEN_GPIO_DATA, 0x0003);
+	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL, GPIO_AK5385_DFS_MASK);
+	oxygen_clear_bits16(chip, OXYGEN_GPIO_DATA, GPIO_AK5385_DFS_MASK);
 	snd_component_add(chip->card, "AK5385");
 }
 
 static void wm8785_init(struct oxygen *chip)
 {
-	wm8785_write(chip, 7, 0);
-	wm8785_write(chip, 0, WM8785_FORMAT_LJUST | WM8785_OSR_SINGLE);
-	wm8785_write(chip, 1, WM8785_WL_24);
+	wm8785_write(chip, WM8785_R7, 0);
+	wm8785_write(chip, WM8785_R0, WM8785_MCR_SLAVE |
+		     WM8785_OSR_SINGLE | WM8785_FORMAT_LJUST);
+	wm8785_write(chip, WM8785_R1, WM8785_WL_24);
 	snd_component_add(chip->card, "WM8785");
 }
 
@@ -184,18 +250,21 @@ static void set_ak4396_params(struct oxygen *chip,
 	unsigned int i;
 	u8 value;
 
-	value = chip->ak4396_reg1 & ~AK4396_DFS_MASK;
+	value = chip->ak4396_ctl2 & ~AK4396_DFS_MASK;
 	if (params_rate(params) <= 54000)
 		value |= AK4396_DFS_NORMAL;
 	else if (params_rate(params) < 120000)
 		value |= AK4396_DFS_DOUBLE;
 	else
 		value |= AK4396_DFS_QUAD;
-	chip->ak4396_reg1 = value;
+	chip->ak4396_ctl2 = value;
 	for (i = 0; i < 4; ++i) {
-		ak4396_write(chip, i, 0, AK4396_DIF_24_MSB);
-		ak4396_write(chip, i, 1, value);
-		ak4396_write(chip, i, 0, AK4396_DIF_24_MSB | AK4396_RSTN);
+		ak4396_write(chip, i,
+			     AK4396_CONTROL_1, AK4396_DIF_24_MSB);
+		ak4396_write(chip, i,
+			     AK4396_CONTROL_2, value);
+		ak4396_write(chip, i,
+			     AK4396_CONTROL_1, AK4396_DIF_24_MSB | AK4396_RSTN);
 	}
 }
 
@@ -204,8 +273,10 @@ static void update_ak4396_volume(struct oxygen *chip)
 	unsigned int i;
 
 	for (i = 0; i < 4; ++i) {
-		ak4396_write(chip, i, 3, chip->dac_volume[i * 2]);
-		ak4396_write(chip, i, 4, chip->dac_volume[i * 2 + 1]);
+		ak4396_write(chip, i,
+			     AK4396_LCH_ATT, chip->dac_volume[i * 2]);
+		ak4396_write(chip, i,
+			     AK4396_RCH_ATT, chip->dac_volume[i * 2 + 1]);
 	}
 }
 
@@ -214,11 +285,11 @@ static void update_ak4396_mute(struct oxygen *chip)
 	unsigned int i;
 	u8 value;
 
-	value = chip->ak4396_reg1 & ~AK4396_SMUTE;
+	value = chip->ak4396_ctl2 & ~AK4396_SMUTE;
 	if (chip->dac_mute)
 		value |= AK4396_SMUTE;
 	for (i = 0; i < 4; ++i)
-		ak4396_write(chip, i, 1, value);
+		ak4396_write(chip, i, AK4396_CONTROL_2, value);
 }
 
 static void set_wm8785_params(struct oxygen *chip,
@@ -226,22 +297,22 @@ static void set_wm8785_params(struct oxygen *chip,
 {
 	unsigned int value;
 
-	wm8785_write(chip, 7, 0);
+	wm8785_write(chip, WM8785_R7, 0);
 
-	value = WM8785_FORMAT_LJUST;
+	value = WM8785_MCR_SLAVE | WM8785_FORMAT_LJUST;
 	if (params_rate(params) == 96000)
 		value |= WM8785_OSR_DOUBLE;
 	else if (params_rate(params) == 192000)
 		value |= WM8785_OSR_QUAD;
 	else
 		value |= WM8785_OSR_SINGLE;
-	wm8785_write(chip, 0, value);
+	wm8785_write(chip, WM8785_R0, value);
 
 	if (snd_pcm_format_width(params_format(params)) <= 16)
 		value = WM8785_WL_16;
 	else
 		value = WM8785_WL_24;
-	wm8785_write(chip, 1, value);
+	wm8785_write(chip, WM8785_R1, value);
 }
 
 static void set_ak5385_params(struct oxygen *chip,
@@ -250,12 +321,13 @@ static void set_ak5385_params(struct oxygen *chip,
 	unsigned int value;
 
 	if (params_rate(params) <= 54000)
-		value = 0;
+		value = GPIO_AK5385_DFS_NORMAL;
 	else if (params_rate(params) <= 108000)
-		value = 1;
+		value = GPIO_AK5385_DFS_DOUBLE;
 	else
-		value = 2;
-	oxygen_write16_masked(chip, OXYGEN_GPIO_DATA, value, 0x0003);
+		value = GPIO_AK5385_DFS_QUAD;
+	oxygen_write16_masked(chip, OXYGEN_GPIO_DATA,
+			      value, GPIO_AK5385_DFS_MASK);
 }
 
 static const DECLARE_TLV_DB_LINEAR(ak4396_db_scale, TLV_DB_GAIN_MUTE, 0);

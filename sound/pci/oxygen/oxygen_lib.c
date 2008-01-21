@@ -28,6 +28,7 @@
 #include <sound/mpu401.h>
 #include <sound/pcm.h>
 #include "oxygen.h"
+#include "cm9780.h"
 
 MODULE_AUTHOR("Clemens Ladisch <clemens@ladisch.de>");
 MODULE_DESCRIPTION("C-Media CMI8788 helper library");
@@ -262,9 +263,15 @@ static void __devinit oxygen_init(struct oxygen *chip)
 				  OXYGEN_AC97_CODEC0_LINER);
 		oxygen_write_ac97(chip, 0, AC97_RESET, 0);
 		msleep(1);
-		oxygen_ac97_set_bits(chip, 0, 0x70, 0x0300);
-		oxygen_ac97_set_bits(chip, 0, 0x64, 0x8043);
-		oxygen_ac97_set_bits(chip, 0, 0x62, 0x180f);
+		oxygen_ac97_set_bits(chip, 0, CM9780_GPIO_SETUP,
+				     CM9780_GPIO0IO | CM9780_GPIO1IO);
+		oxygen_ac97_set_bits(chip, 0, CM9780_MIXER,
+				     CM9780_BSTSEL | CM9780_STRO_MIC |
+				     CM9780_MIX2FR | CM9780_PCBSW);
+		oxygen_ac97_set_bits(chip, 0, CM9780_JACK,
+				     CM9780_RSOE | CM9780_CBOE |
+				     CM9780_SSOE | CM9780_FROE |
+				     CM9780_MIC2MIC | CM9780_LI2LI);
 		oxygen_write_ac97(chip, 0, AC97_MASTER, 0x0000);
 		oxygen_write_ac97(chip, 0, AC97_PC_BEEP, 0x8000);
 		oxygen_write_ac97(chip, 0, AC97_MIC, 0x8808);
@@ -275,7 +282,8 @@ static void __devinit oxygen_init(struct oxygen *chip)
 		oxygen_write_ac97(chip, 0, AC97_REC_GAIN, 0x8000);
 		oxygen_write_ac97(chip, 0, AC97_CENTER_LFE_MASTER, 0x8080);
 		oxygen_write_ac97(chip, 0, AC97_SURROUND_MASTER, 0x8080);
-		oxygen_ac97_clear_bits(chip, 0, 0x72, 0x0001);
+		oxygen_ac97_clear_bits(chip, 0,
+				       CM9780_GPIO_STATUS, CM9780_GPO0);
 		/* power down unused ADCs and DACs */
 		oxygen_ac97_set_bits(chip, 0, AC97_POWERDOWN,
 				     AC97_PD_PR0 | AC97_PD_PR1);

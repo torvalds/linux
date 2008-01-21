@@ -18,6 +18,8 @@
  */
 
 /*
+ * CMI8788:
+ *
  * SPI 0 -> 1st PCM1796 (front)
  * SPI 1 -> 2nd PCM1796 (surround)
  * SPI 2 -> 3rd PCM1796 (center/LFE)
@@ -25,9 +27,13 @@
  *
  * GPIO 2 -> M0 of CS5381
  * GPIO 3 -> M1 of CS5381
- * GPIO 5 <- ? (D2X only)
+ * GPIO 5 <- external power present (D2X only)
  * GPIO 7 -> ALT
- * GPIO 8 -> ? (amps enable?)
+ * GPIO 8 -> enable output to speakers
+ *
+ * CM9780:
+ *
+ * GPIO 0 -> enable AC'97 bypass (line in -> ADC)
  */
 
 #include <linux/pci.h>
@@ -40,6 +46,7 @@
 #include <sound/pcm.h>
 #include <sound/tlv.h>
 #include "oxygen.h"
+#include "cm9780.h"
 
 MODULE_AUTHOR("Clemens Ladisch <clemens@ladisch.de>");
 MODULE_DESCRIPTION("Asus AV200 driver");
@@ -64,14 +71,68 @@ static struct pci_device_id xonar_ids[] __devinitdata = {
 };
 MODULE_DEVICE_TABLE(pci, xonar_ids);
 
-/* register 0x12 */
+
+#define GPIO_CS5381_M_MASK	0x000c
+#define GPIO_CS5381_M_SINGLE	0x0000
+#define GPIO_CS5381_M_DOUBLE	0x0004
+#define GPIO_CS5381_M_QUAD	0x0008
+#define GPIO_EXT_POWER		0x0020
+#define GPIO_ALT		0x0080
+#define GPIO_OUTPUT_ENABLE	0x0100
+
+/* register 16 */
+#define PCM1796_ATL_MASK	0xff
+/* register 17 */
+#define PCM1796_ATR_MASK	0xff
+/* register 18 */
 #define PCM1796_MUTE		0x01
-#define PCM1796_FMT_24_MSB	0x30
+#define PCM1796_DME		0x02
+#define PCM1796_DMF_MASK	0x0c
+#define PCM1796_DMF_DISABLED	0x00
+#define PCM1796_DMF_48		0x04
+#define PCM1796_DMF_441		0x08
+#define PCM1796_DMF_32		0x0c
+#define PCM1796_FMT_MASK	0x70
+#define PCM1796_FMT_16_RJUST	0x00
+#define PCM1796_FMT_20_RJUST	0x10
+#define PCM1796_FMT_24_RJUST	0x20
+#define PCM1796_FMT_24_LJUST	0x30
+#define PCM1796_FMT_16_I2S	0x40
+#define PCM1796_FMT_24_I2S	0x50
 #define PCM1796_ATLD		0x80
-/* register 0x14 */
+/* register 19 */
+#define PCM1796_INZD		0x01
+#define PCM1796_FLT_MASK	0x02
+#define PCM1796_FLT_SHARP	0x00
+#define PCM1796_FLT_SLOW	0x02
+#define PCM1796_DFMS		0x04
+#define PCM1796_OPE		0x10
+#define PCM1796_ATS_MASK	0x60
+#define PCM1796_ATS_1		0x00
+#define PCM1796_ATS_2		0x20
+#define PCM1796_ATS_4		0x40
+#define PCM1796_ATS_8		0x60
+#define PCM1796_REV		0x80
+/* register 20 */
+#define PCM1796_OS_MASK		0x03
 #define PCM1796_OS_64		0x00
 #define PCM1796_OS_32		0x01
 #define PCM1796_OS_128		0x02
+#define PCM1796_CHSL_MASK	0x04
+#define PCM1796_CHSL_LEFT	0x00
+#define PCM1796_CHSL_RIGHT	0x04
+#define PCM1796_MONO		0x08
+#define PCM1796_DFTH		0x10
+#define PCM1796_DSD		0x20
+#define PCM1796_SRST		0x40
+/* register 21 */
+#define PCM1796_PCMZ		0x01
+#define PCM1796_DZ_MASK		0x06
+/* register 22 */
+#define PCM1796_ZFGL		0x01
+#define PCM1796_ZFGR		0x02
+/* register 23 */
+#define PCM1796_ID_MASK		0x1f
 
 static void pcm1796_write(struct oxygen *chip, unsigned int codec,
 			  u8 reg, u8 value)
@@ -93,20 +154,23 @@ static void xonar_init(struct oxygen *chip)
 	unsigned int i;
 
 	for (i = 0; i < 4; ++i) {
-		pcm1796_write(chip, i, 0x12, PCM1796_FMT_24_MSB | PCM1796_ATLD);
-		pcm1796_write(chip, i, 0x13, 0);
-		pcm1796_write(chip, i, 0x14, PCM1796_OS_64);
-		pcm1796_write(chip, i, 0x15, 0);
-		pcm1796_write(chip, i, 0x10, 0xff);
-		pcm1796_write(chip, i, 0x11, 0xff);
+		pcm1796_write(chip, i, 18, PCM1796_FMT_24_LJUST | PCM1796_ATLD);
+		pcm1796_write(chip, i, 19, PCM1796_FLT_SHARP | PCM1796_ATS_1);
+		pcm1796_write(chip, i, 20, PCM1796_OS_64);
+		pcm1796_write(chip, i, 21, 0);
+		pcm1796_write(chip, i, 16, 0xff); /* set ATL/ATR after ATLD */
+		pcm1796_write(chip, i, 17, 0xff);
 	}
 
-	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL, 0x8c);
-	oxygen_write16_masked(chip, OXYGEN_GPIO_DATA, 0x00, 0x8c);
-	oxygen_ac97_set_bits(chip, 0, 0x62, 0x0080);
+	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL,
+			  GPIO_CS5381_M_MASK | GPIO_ALT);
+	oxygen_write16_masked(chip, OXYGEN_GPIO_DATA,
+			      GPIO_CS5381_M_SINGLE,
+			      GPIO_CS5381_M_MASK | GPIO_ALT);
+	oxygen_ac97_set_bits(chip, 0, CM9780_JACK, CM9780_FMIC2MIC);
 	msleep(300);
-	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL, 0x100);
-	oxygen_set_bits16(chip, OXYGEN_GPIO_DATA, 0x100);
+	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL, GPIO_OUTPUT_ENABLE);
+	oxygen_set_bits16(chip, OXYGEN_GPIO_DATA, GPIO_OUTPUT_ENABLE);
 
 	snd_component_add(chip->card, "PCM1796");
 	snd_component_add(chip->card, "CS5381");
@@ -114,7 +178,7 @@ static void xonar_init(struct oxygen *chip)
 
 static void xonar_cleanup(struct oxygen *chip)
 {
-	oxygen_clear_bits16(chip, OXYGEN_GPIO_DATA, 0x100);
+	oxygen_clear_bits16(chip, OXYGEN_GPIO_DATA, GPIO_OUTPUT_ENABLE);
 }
 
 static void set_pcm1796_params(struct oxygen *chip,
@@ -126,7 +190,7 @@ static void set_pcm1796_params(struct oxygen *chip,
 
 	value = params_rate(params) >= 96000 ? PCM1796_OS_32 : PCM1796_OS_64;
 	for (i = 0; i < 4; ++i)
-		pcm1796_write(chip, i, 0x14, value);
+		pcm1796_write(chip, i, 20, value);
 #endif
 }
 
@@ -135,8 +199,8 @@ static void update_pcm1796_volume(struct oxygen *chip)
 	unsigned int i;
 
 	for (i = 0; i < 4; ++i) {
-		pcm1796_write(chip, i, 0x10, chip->dac_volume[i * 2]);
-		pcm1796_write(chip, i, 0x11, chip->dac_volume[i * 2 + 1]);
+		pcm1796_write(chip, i, 16, chip->dac_volume[i * 2]);
+		pcm1796_write(chip, i, 17, chip->dac_volume[i * 2 + 1]);
 	}
 }
 
@@ -145,11 +209,11 @@ static void update_pcm1796_mute(struct oxygen *chip)
 	unsigned int i;
 	u8 value;
 
-	value = PCM1796_FMT_24_MSB | PCM1796_ATLD;
+	value = PCM1796_FMT_24_LJUST | PCM1796_ATLD;
 	if (chip->dac_mute)
 		value |= PCM1796_MUTE;
 	for (i = 0; i < 4; ++i)
-		pcm1796_write(chip, i, 0x12, value);
+		pcm1796_write(chip, i, 18, value);
 }
 
 static void set_cs5381_params(struct oxygen *chip,
@@ -158,12 +222,13 @@ static void set_cs5381_params(struct oxygen *chip,
 	unsigned int value;
 
 	if (params_rate(params) <= 54000)
-		value = 0;
+		value = GPIO_CS5381_M_SINGLE;
 	else if (params_rate(params) <= 108000)
-		value = 4;
+		value = GPIO_CS5381_M_DOUBLE;
 	else
-		value = 8;
-	oxygen_write16_masked(chip, OXYGEN_GPIO_DATA, value, 0x000c);
+		value = GPIO_CS5381_M_QUAD;
+	oxygen_write16_masked(chip, OXYGEN_GPIO_DATA,
+			      value, GPIO_CS5381_M_MASK);
 }
 
 static int pcm1796_volume_info(struct snd_kcontrol *ctl,
@@ -182,7 +247,7 @@ static int alt_switch_get(struct snd_kcontrol *ctl,
 	struct oxygen *chip = ctl->private_data;
 
 	value->value.integer.value[0] =
-		!!(oxygen_read16(chip, OXYGEN_GPIO_DATA) & 0x80);
+		!!(oxygen_read16(chip, OXYGEN_GPIO_DATA) & GPIO_ALT);
 	return 0;
 }
 
@@ -196,9 +261,9 @@ static int alt_switch_put(struct snd_kcontrol *ctl,
 	spin_lock_irq(&chip->reg_lock);
 	old_bits = oxygen_read16(chip, OXYGEN_GPIO_DATA);
 	if (value->value.integer.value[0])
-		new_bits = old_bits | 0x80;
+		new_bits = old_bits | GPIO_ALT;
 	else
-		new_bits = old_bits & ~0x80;
+		new_bits = old_bits & ~GPIO_ALT;
 	changed = new_bits != old_bits;
 	if (changed)
 		oxygen_write16(chip, OXYGEN_GPIO_DATA, new_bits);

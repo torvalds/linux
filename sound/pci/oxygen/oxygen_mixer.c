@@ -23,6 +23,7 @@
 #include <sound/control.h>
 #include <sound/tlv.h>
 #include "oxygen.h"
+#include "cm9780.h"
 
 static int dac_volume_info(struct snd_kcontrol *ctl,
 			   struct snd_ctl_elem_info *info)
@@ -460,8 +461,9 @@ static int ac97_switch_put(struct snd_kcontrol *ctl,
 	if (change) {
 		oxygen_write_ac97(chip, 0, index, newreg);
 		if (index == AC97_LINE) {
-			oxygen_write_ac97_masked(chip, 0, 0x72,
-						 !!(newreg & 0x8000), 0x0001);
+			oxygen_write_ac97_masked(chip, 0, CM9780_GPIO_STATUS,
+						 newreg & 0x8000 ?
+						 CM9780_GPO0 : 0, CM9780_GPO0);
 			if (!(newreg & 0x8000)) {
 				ac97_mute_ctl(chip, CONTROL_MIC_CAPTURE_SWITCH);
 				ac97_mute_ctl(chip, CONTROL_CD_CAPTURE_SWITCH);
@@ -471,7 +473,8 @@ static int ac97_switch_put(struct snd_kcontrol *ctl,
 			    index == AC97_VIDEO || index == AC97_AUX) &&
 			   bitnr == 15 && !(newreg & 0x8000)) {
 			ac97_mute_ctl(chip, CONTROL_LINE_CAPTURE_SWITCH);
-			oxygen_write_ac97_masked(chip, 0, 0x72, 0x0001, 0x0001);
+			oxygen_write_ac97_masked(chip, 0, CM9780_GPIO_STATUS,
+						 CM9780_GPO0, CM9780_GPO0);
 		}
 	}
 	mutex_unlock(&chip->mutex);
