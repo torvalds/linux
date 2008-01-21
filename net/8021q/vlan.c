@@ -89,8 +89,8 @@ static int __init vlan_proto_init(void)
 	err = vlan_proc_init();
 	if (err < 0) {
 		printk(KERN_ERR
-		       "%s %s: can't create entry in proc filesystem!\n",
-		       __FUNCTION__, VLAN_NAME);
+		       "%s: can't create entry in proc filesystem!\n",
+		       __FUNCTION__);
 		return err;
 	}
 
