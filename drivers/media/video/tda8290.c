@@ -645,9 +645,6 @@ static int tda8295_probe(struct tuner_i2c_props *i2c_props)
 }
 
 static struct analog_demod_ops tda8290_ops = {
-	.info		= {
-		.name	= "TDA8290",
-	},
 	.set_params     = tda8290_set_params,
 	.has_signal     = tda8290_has_signal,
 	.standby        = tda8290_standby,
@@ -656,9 +653,6 @@ static struct analog_demod_ops tda8290_ops = {
 };
 
 static struct analog_demod_ops tda8295_ops = {
-	.info		= {
-		.name	= "TDA8295",
-	},
 	.set_params     = tda8295_set_params,
 	.has_signal     = tda8295_has_signal,
 	.standby        = tda8295_standby,
@@ -730,6 +724,8 @@ struct dvb_frontend *tda829x_attach(struct dvb_frontend *fe,
 		goto fail;
 	}
 	tuner_info("type set to %s\n", name);
+
+	fe->ops.analog_ops.info.name = name;
 
 	if (priv->ver & TDA8290) {
 		tda8290_init_tuner(fe);
