@@ -337,7 +337,7 @@ struct l2t_entry *t3_l2t_get(struct t3cdev *cdev, struct neighbour *neigh,
 		atomic_set(&e->refcnt, 1);
 		neigh_replace(e, neigh);
 		if (neigh->dev->priv_flags & IFF_802_1Q_VLAN)
-			e->vlan = VLAN_DEV_INFO(neigh->dev)->vlan_id;
+			e->vlan = vlan_dev_info(neigh->dev)->vlan_id;
 		else
 			e->vlan = VLAN_NONE;
 		spin_unlock(&e->lock);

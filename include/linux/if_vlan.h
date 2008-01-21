@@ -143,13 +143,16 @@ struct vlan_dev_info {
 	unsigned long cnt_encap_on_xmit;      /* How many times did we have to encapsulate the skb on TX. */
 };
 
-#define VLAN_DEV_INFO(x) ((struct vlan_dev_info *)(x->priv))
+static inline struct vlan_dev_info *vlan_dev_info(const struct net_device *dev)
+{
+	return netdev_priv(dev);
+}
 
 /* inline functions */
 static inline __u32 vlan_get_ingress_priority(struct net_device *dev,
 					      unsigned short vlan_tag)
 {
-	struct vlan_dev_info *vip = VLAN_DEV_INFO(dev);
+	struct vlan_dev_info *vip = vlan_dev_info(dev);
 
 	return vip->ingress_priority_map[(vlan_tag >> 13) & 0x7];
 }

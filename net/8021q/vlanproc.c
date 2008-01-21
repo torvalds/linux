@@ -180,7 +180,7 @@ err:
 
 int vlan_proc_add_dev (struct net_device *vlandev)
 {
-	struct vlan_dev_info *dev_info = VLAN_DEV_INFO(vlandev);
+	struct vlan_dev_info *dev_info = vlan_dev_info(vlandev);
 
 	dev_info->dent = create_proc_entry(vlandev->name,
 					   S_IFREG|S_IRUSR|S_IWUSR,
@@ -199,9 +199,9 @@ int vlan_proc_add_dev (struct net_device *vlandev)
 int vlan_proc_rem_dev(struct net_device *vlandev)
 {
 	/** NOTE:  This will consume the memory pointed to by dent, it seems. */
-	if (VLAN_DEV_INFO(vlandev)->dent) {
-		remove_proc_entry(VLAN_DEV_INFO(vlandev)->dent->name, proc_vlan_dir);
-		VLAN_DEV_INFO(vlandev)->dent = NULL;
+	if (vlan_dev_info(vlandev)->dent) {
+		remove_proc_entry(vlan_dev_info(vlandev)->dent->name, proc_vlan_dir);
+		vlan_dev_info(vlandev)->dent = NULL;
 	}
 	return 0;
 }
@@ -278,7 +278,7 @@ static int vlan_seq_show(struct seq_file *seq, void *v)
 			   nmtype ? nmtype :  "UNKNOWN" );
 	} else {
 		const struct net_device *vlandev = v;
-		const struct vlan_dev_info *dev_info = VLAN_DEV_INFO(vlandev);
+		const struct vlan_dev_info *dev_info = vlan_dev_info(vlandev);
 
 		seq_printf(seq, "%-15s| %d  | %s\n",  vlandev->name,
 			   dev_info->vlan_id,    dev_info->real_dev->name);
@@ -289,7 +289,7 @@ static int vlan_seq_show(struct seq_file *seq, void *v)
 static int vlandev_seq_show(struct seq_file *seq, void *offset)
 {
 	struct net_device *vlandev = (struct net_device *) seq->private;
-	const struct vlan_dev_info *dev_info = VLAN_DEV_INFO(vlandev);
+	const struct vlan_dev_info *dev_info = vlan_dev_info(vlandev);
 	struct net_device_stats *stats = &vlandev->stats;
 	static const char fmt[] = "%30s %12lu\n";
 	int i;

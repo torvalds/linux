@@ -3890,7 +3890,7 @@ qeth_verify_vlan_dev(struct net_device *dev, struct qeth_card *card)
 			break;
 		}
 	}
-	if (rc && !(VLAN_DEV_INFO(dev)->real_dev->priv == (void *)card))
+	if (rc && !(vlan_dev_info(dev)->real_dev->priv == (void *)card))
 		return 0;
 
 #endif
@@ -3930,7 +3930,7 @@ qeth_get_card_from_dev(struct net_device *dev)
 		card = (struct qeth_card *)dev->priv;
 	else if (rc == QETH_VLAN_CARD)
 		card = (struct qeth_card *)
-			VLAN_DEV_INFO(dev)->real_dev->priv;
+			vlan_dev_info(dev)->real_dev->priv;
 
 	QETH_DBF_TEXT_(trace, 4, "%d", rc);
 	return card ;

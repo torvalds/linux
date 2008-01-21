@@ -72,7 +72,7 @@ static int vlan_dev_rebuild_header(struct sk_buff *skb)
 
 static inline struct sk_buff *vlan_check_reorder_header(struct sk_buff *skb)
 {
-	if (VLAN_DEV_INFO(skb->dev)->flags & VLAN_FLAG_REORDER_HDR) {
+	if (vlan_dev_info(skb->dev)->flags & VLAN_FLAG_REORDER_HDR) {
 		if (skb_shared(skb) || skb_cloned(skb)) {
 			struct sk_buff *nskb = skb_copy(skb, GFP_ATOMIC);
 			kfree_skb(skb);
@@ -290,7 +290,7 @@ static inline unsigned short vlan_dev_get_egress_qos_mask(struct net_device* dev
 							  struct sk_buff* skb)
 {
 	struct vlan_priority_tci_mapping *mp =
-		VLAN_DEV_INFO(dev)->egress_priority_map[(skb->priority & 0xF)];
+		vlan_dev_info(dev)->egress_priority_map[(skb->priority & 0xF)];
 
 	while (mp) {
 		if (mp->priority == skb->priority) {
@@ -324,7 +324,7 @@ static int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 	struct net_device *vdev = dev; /* save this for the bottom of the method */
 
 	pr_debug("%s: skb: %p type: %hx len: %u vlan_id: %hx, daddr: %p\n",
-		 __FUNCTION__, skb, type, len, VLAN_DEV_INFO(dev)->vlan_id, daddr);
+		 __FUNCTION__, skb, type, len, vlan_dev_info(dev)->vlan_id, daddr);
 
 	/* build vlan header only if re_order_header flag is NOT set.  This
 	 * fixes some programs that get confused when they see a VLAN device
@@ -334,7 +334,7 @@ static int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 	 * header shuffling in the hard_start_xmit.  Users can turn off this
 	 * REORDER behaviour with the vconfig tool.
 	 */
-	if (!(VLAN_DEV_INFO(dev)->flags & VLAN_FLAG_REORDER_HDR))
+	if (!(vlan_dev_info(dev)->flags & VLAN_FLAG_REORDER_HDR))
 		build_vlan_header = 1;
 
 	if (build_vlan_header) {
@@ -349,7 +349,7 @@ static int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 		 * VLAN ID	 12 bits (low bits)
 		 *
 		 */
-		veth_TCI = VLAN_DEV_INFO(dev)->vlan_id;
+		veth_TCI = vlan_dev_info(dev)->vlan_id;
 		veth_TCI |= vlan_dev_get_egress_qos_mask(dev, skb);
 
 		vhdr->h_vlan_TCI = htons(veth_TCI);
@@ -374,7 +374,7 @@ static int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 	if (saddr == NULL)
 		saddr = dev->dev_addr;
 
-	dev = VLAN_DEV_INFO(dev)->real_dev;
+	dev = vlan_dev_info(dev)->real_dev;
 
 	/* MPLS can send us skbuffs w/out enough space.	 This check will grow the
 	 * skb if it doesn't have enough headroom.  Not a beautiful solution, so
@@ -395,7 +395,7 @@ static int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 			stats->tx_dropped++;
 			return -ENOMEM;
 		}
-		VLAN_DEV_INFO(vdev)->cnt_inc_headroom_on_tx++;
+		vlan_dev_info(vdev)->cnt_inc_headroom_on_tx++;
 		pr_debug("%s: %s: had to grow skb.\n", __FUNCTION__, vdev->name);
 	}
 
@@ -430,12 +430,12 @@ static int vlan_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 */
 
 	if (veth->h_vlan_proto != htons(ETH_P_8021Q) ||
-		VLAN_DEV_INFO(dev)->flags & VLAN_FLAG_REORDER_HDR) {
+		vlan_dev_info(dev)->flags & VLAN_FLAG_REORDER_HDR) {
 		int orig_headroom = skb_headroom(skb);
 		unsigned short veth_TCI;
 
 		/* This is not a VLAN frame...but we can fix that! */
-		VLAN_DEV_INFO(dev)->cnt_encap_on_xmit++;
+		vlan_dev_info(dev)->cnt_encap_on_xmit++;
 
 		pr_debug("%s: proto to encap: 0x%hx\n",
 			 __FUNCTION__, htons(veth->h_vlan_proto));
@@ -445,7 +445,7 @@ static int vlan_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		 * CFI		 1 bit
 		 * VLAN ID	 12 bits (low bits)
 		 */
-		veth_TCI = VLAN_DEV_INFO(dev)->vlan_id;
+		veth_TCI = vlan_dev_info(dev)->vlan_id;
 		veth_TCI |= vlan_dev_get_egress_qos_mask(dev, skb);
 
 		skb = __vlan_put_tag(skb, veth_TCI);
@@ -455,7 +455,7 @@ static int vlan_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 
 		if (orig_headroom < VLAN_HLEN) {
-			VLAN_DEV_INFO(dev)->cnt_inc_headroom_on_tx++;
+			vlan_dev_info(dev)->cnt_inc_headroom_on_tx++;
 		}
 	}
 
@@ -472,7 +472,7 @@ static int vlan_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	stats->tx_packets++; /* for statics only */
 	stats->tx_bytes += skb->len;
 
-	skb->dev = VLAN_DEV_INFO(dev)->real_dev;
+	skb->dev = vlan_dev_info(dev)->real_dev;
 	dev_queue_xmit(skb);
 
 	return 0;
@@ -490,14 +490,14 @@ static int vlan_dev_hwaccel_hard_start_xmit(struct sk_buff *skb,
 	 * CFI		 1 bit
 	 * VLAN ID	 12 bits (low bits)
 	 */
-	veth_TCI = VLAN_DEV_INFO(dev)->vlan_id;
+	veth_TCI = vlan_dev_info(dev)->vlan_id;
 	veth_TCI |= vlan_dev_get_egress_qos_mask(dev, skb);
 	skb = __vlan_hwaccel_put_tag(skb, veth_TCI);
 
 	stats->tx_packets++;
 	stats->tx_bytes += skb->len;
 
-	skb->dev = VLAN_DEV_INFO(dev)->real_dev;
+	skb->dev = vlan_dev_info(dev)->real_dev;
 	dev_queue_xmit(skb);
 
 	return 0;
@@ -508,7 +508,7 @@ static int vlan_dev_change_mtu(struct net_device *dev, int new_mtu)
 	/* TODO: gotta make sure the underlying layer can handle it,
 	 * maybe an IFF_VLAN_CAPABLE flag for devices?
 	 */
-	if (VLAN_DEV_INFO(dev)->real_dev->mtu < new_mtu)
+	if (vlan_dev_info(dev)->real_dev->mtu < new_mtu)
 		return -ERANGE;
 
 	dev->mtu = new_mtu;
@@ -519,7 +519,7 @@ static int vlan_dev_change_mtu(struct net_device *dev, int new_mtu)
 void vlan_dev_set_ingress_priority(const struct net_device *dev,
 				   u32 skb_prio, short vlan_prio)
 {
-	struct vlan_dev_info *vlan = VLAN_DEV_INFO(dev);
+	struct vlan_dev_info *vlan = vlan_dev_info(dev);
 
 	if (vlan->ingress_priority_map[vlan_prio & 0x7] && !skb_prio)
 		vlan->nr_ingress_mappings--;
@@ -532,7 +532,7 @@ void vlan_dev_set_ingress_priority(const struct net_device *dev,
 int vlan_dev_set_egress_priority(const struct net_device *dev,
 				 u32 skb_prio, short vlan_prio)
 {
-	struct vlan_dev_info *vlan = VLAN_DEV_INFO(dev);
+	struct vlan_dev_info *vlan = vlan_dev_info(dev);
 	struct vlan_priority_tci_mapping *mp = NULL;
 	struct vlan_priority_tci_mapping *np;
 	u32 vlan_qos = (vlan_prio << 13) & 0xE000;
@@ -573,9 +573,9 @@ int vlan_dev_set_vlan_flag(const struct net_device *dev,
 	/* verify flag is supported */
 	if (flag == VLAN_FLAG_REORDER_HDR) {
 		if (flag_val) {
-			VLAN_DEV_INFO(dev)->flags |= VLAN_FLAG_REORDER_HDR;
+			vlan_dev_info(dev)->flags |= VLAN_FLAG_REORDER_HDR;
 		} else {
-			VLAN_DEV_INFO(dev)->flags &= ~VLAN_FLAG_REORDER_HDR;
+			vlan_dev_info(dev)->flags &= ~VLAN_FLAG_REORDER_HDR;
 		}
 		return 0;
 	}
@@ -584,17 +584,17 @@ int vlan_dev_set_vlan_flag(const struct net_device *dev,
 
 void vlan_dev_get_realdev_name(const struct net_device *dev, char *result)
 {
-	strncpy(result, VLAN_DEV_INFO(dev)->real_dev->name, 23);
+	strncpy(result, vlan_dev_info(dev)->real_dev->name, 23);
 }
 
 void vlan_dev_get_vid(const struct net_device *dev, unsigned short *result)
 {
-	*result = VLAN_DEV_INFO(dev)->vlan_id;
+	*result = vlan_dev_info(dev)->vlan_id;
 }
 
 static int vlan_dev_open(struct net_device *dev)
 {
-	struct vlan_dev_info *vlan = VLAN_DEV_INFO(dev);
+	struct vlan_dev_info *vlan = vlan_dev_info(dev);
 	struct net_device *real_dev = vlan->real_dev;
 	int err;
 
@@ -618,7 +618,7 @@ static int vlan_dev_open(struct net_device *dev)
 
 static int vlan_dev_stop(struct net_device *dev)
 {
-	struct net_device *real_dev = VLAN_DEV_INFO(dev)->real_dev;
+	struct net_device *real_dev = vlan_dev_info(dev)->real_dev;
 
 	dev_mc_unsync(real_dev, dev);
 	if (dev->flags & IFF_ALLMULTI)
@@ -634,7 +634,7 @@ static int vlan_dev_stop(struct net_device *dev)
 
 static int vlan_dev_set_mac_address(struct net_device *dev, void *p)
 {
-	struct net_device *real_dev = VLAN_DEV_INFO(dev)->real_dev;
+	struct net_device *real_dev = vlan_dev_info(dev)->real_dev;
 	struct sockaddr *addr = p;
 	int err;
 
@@ -660,7 +660,7 @@ out:
 
 static int vlan_dev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
-	struct net_device *real_dev = VLAN_DEV_INFO(dev)->real_dev;
+	struct net_device *real_dev = vlan_dev_info(dev)->real_dev;
 	struct ifreq ifrr;
 	int err = -EOPNOTSUPP;
 
@@ -684,7 +684,7 @@ static int vlan_dev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 static void vlan_dev_change_rx_flags(struct net_device *dev, int change)
 {
-	struct net_device *real_dev = VLAN_DEV_INFO(dev)->real_dev;
+	struct net_device *real_dev = vlan_dev_info(dev)->real_dev;
 
 	if (change & IFF_ALLMULTI)
 		dev_set_allmulti(real_dev, dev->flags & IFF_ALLMULTI ? 1 : -1);
@@ -694,7 +694,7 @@ static void vlan_dev_change_rx_flags(struct net_device *dev, int change)
 
 static void vlan_dev_set_multicast_list(struct net_device *vlan_dev)
 {
-	dev_mc_sync(VLAN_DEV_INFO(vlan_dev)->real_dev, vlan_dev);
+	dev_mc_sync(vlan_dev_info(vlan_dev)->real_dev, vlan_dev);
 }
 
 /*
@@ -712,7 +712,7 @@ static const struct header_ops vlan_header_ops = {
 
 static int vlan_dev_init(struct net_device *dev)
 {
-	struct net_device *real_dev = VLAN_DEV_INFO(dev)->real_dev;
+	struct net_device *real_dev = vlan_dev_info(dev)->real_dev;
 	int subclass = 0;
 
 	/* IFF_BROADCAST|IFF_MULTICAST; ??? */
