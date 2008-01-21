@@ -91,7 +91,7 @@ static int fib4_rule_action(struct fib_rule *rule, struct flowi *flp,
 		goto errout;
 	}
 
-	if ((tbl = fib_get_table(&init_net, rule->table)) == NULL)
+	if ((tbl = fib_get_table(rule->fr_net, rule->table)) == NULL)
 		goto errout;
 
 	err = tbl->tb_lookup(tbl, flp, (struct fib_result *) arg->result);

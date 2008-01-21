@@ -22,6 +22,7 @@ struct fib_rule
 	u32			target;
 	struct fib_rule *	ctarget;
 	struct rcu_head		rcu;
+	struct net *		fr_net;
 };
 
 struct fib_lookup_arg
