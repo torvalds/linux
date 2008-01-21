@@ -1277,8 +1277,8 @@ int stb0899_get_dev_id(struct stb0899_state *state)
 	u8 chip_id, release;
 	u16 id;
 	u32 demod_ver = 0, fec_ver = 0;
-	char demod_str[4] = { 0 };
-	char fec_str[4] = { 0 };
+	char demod_str[5] = { 0 };
+	char fec_str[5] = { 0 };
 
 	id = stb0899_read_reg(state, STB0899_DEV_ID);
 	dprintk(state->verbose, FE_DEBUG, 1, "ID reg=[0x%02x]", id);
