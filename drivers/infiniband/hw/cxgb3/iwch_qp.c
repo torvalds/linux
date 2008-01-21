@@ -717,6 +717,7 @@ static int rdma_init(struct iwch_dev *rhp, struct iwch_qp *qhp,
 	init_attr.qp_dma_addr = qhp->wq.dma_addr;
 	init_attr.qp_dma_size = (1UL << qhp->wq.size_log2);
 	init_attr.flags = rqes_posted(qhp) ? RECVS_POSTED : 0;
+	init_attr.flags |= capable(CAP_NET_BIND_SERVICE) ? PRIV_QP : 0;
 	init_attr.irs = qhp->ep->rcv_seq;
 	PDBG("%s init_attr.rq_addr 0x%x init_attr.rq_size = %d "
 	     "flags 0x%x qpcaps 0x%x\n", __FUNCTION__,

@@ -324,7 +324,8 @@ struct t3_genbit {
 };
 
 enum rdma_init_wr_flags {
-	RECVS_POSTED = 1,
+	RECVS_POSTED = (1<<0),
+	PRIV_QP = (1<<1),
 };
 
 union t3_wr {
