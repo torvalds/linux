@@ -169,9 +169,9 @@ u32 ipv6_addr_label(const struct in6_addr *addr, int type, int ifindex)
 }
 
 /* allocate one entry */
-struct ip6addrlbl_entry *ip6addrlbl_alloc(const struct in6_addr *prefix,
-					  int prefixlen, int ifindex,
-					  u32 label)
+static struct ip6addrlbl_entry *ip6addrlbl_alloc(const struct in6_addr *prefix,
+						 int prefixlen, int ifindex,
+						 u32 label)
 {
 	struct ip6addrlbl_entry *newp;
 	int addrtype;
@@ -216,7 +216,7 @@ struct ip6addrlbl_entry *ip6addrlbl_alloc(const struct in6_addr *prefix,
 }
 
 /* add a label */
-int __ip6addrlbl_add(struct ip6addrlbl_entry *newp, int replace)
+static int __ip6addrlbl_add(struct ip6addrlbl_entry *newp, int replace)
 {
 	int ret = 0;
 
@@ -257,8 +257,8 @@ out:
 }
 
 /* add a label */
-int ip6addrlbl_add(const struct in6_addr *prefix, int prefixlen,
-		       int ifindex, u32 label, int replace)
+static int ip6addrlbl_add(const struct in6_addr *prefix, int prefixlen,
+			  int ifindex, u32 label, int replace)
 {
 	struct ip6addrlbl_entry *newp;
 	int ret = 0;
@@ -282,8 +282,8 @@ int ip6addrlbl_add(const struct in6_addr *prefix, int prefixlen,
 }
 
 /* remove a label */
-int __ip6addrlbl_del(const struct in6_addr *prefix, int prefixlen,
-			  int ifindex)
+static int __ip6addrlbl_del(const struct in6_addr *prefix, int prefixlen,
+			    int ifindex)
 {
 	struct ip6addrlbl_entry *p = NULL;
 	struct hlist_node *pos, *n;
@@ -308,8 +308,8 @@ int __ip6addrlbl_del(const struct in6_addr *prefix, int prefixlen,
 	return ret;
 }
 
-int ip6addrlbl_del(const struct in6_addr *prefix, int prefixlen,
-		       int ifindex)
+static int ip6addrlbl_del(const struct in6_addr *prefix, int prefixlen,
+			  int ifindex)
 {
 	struct in6_addr prefix_buf;
 	int ret;
