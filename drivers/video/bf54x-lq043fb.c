@@ -264,8 +264,7 @@ static int request_ports(struct bfin_bf54xfb_info *fbi)
 		}
 	}
 
-	gpio_direction_output(disp);
-	gpio_set_value(disp, 1);
+	gpio_direction_output(disp, 1);
 
 	return 0;
 }

@@ -229,6 +229,11 @@ inline int check_gpio(unsigned short gpio)
 }
 #endif
 
+void gpio_error(unsigned gpio)
+{
+	printk(KERN_ERR "bfin-gpio: GPIO %d wasn't requested!\n", gpio);
+}
+
 static void set_label(unsigned short ident, const char *label)
 {
 
@@ -1034,7 +1039,7 @@ EXPORT_SYMBOL(peripheral_free_list);
 * MODIFICATION HISTORY :
 **************************************************************/
 
-int gpio_request(unsigned short gpio, const char *label)
+int gpio_request(unsigned gpio, const char *label)
 {
 	unsigned long flags;
 
@@ -1081,7 +1086,7 @@ int gpio_request(unsigned short gpio, const char *label)
 }
 EXPORT_SYMBOL(gpio_request);
 
-void gpio_free(unsigned short gpio)
+void gpio_free(unsigned gpio)
 {
 	unsigned long flags;
 
@@ -1091,7 +1096,7 @@ void gpio_free(unsigned short gpio)
 	local_irq_save(flags);
 
 	if (unlikely(!(reserved_gpio_map[gpio_bank(gpio)] & gpio_bit(gpio)))) {
-		printk(KERN_ERR "bfin-gpio: GPIO %d wasn't reserved!\n", gpio);
+		gpio_error(gpio);
 		dump_stack();
 		local_irq_restore(flags);
 		return;
@@ -1107,34 +1112,47 @@ void gpio_free(unsigned short gpio)
 }
 EXPORT_SYMBOL(gpio_free);
 
+
 #ifdef BF548_FAMILY
-void gpio_direction_input(unsigned short gpio)
+int gpio_direction_input(unsigned gpio)
 {
 	unsigned long flags;
 
-	BUG_ON(!(reserved_gpio_map[gpio_bank(gpio)] & gpio_bit(gpio)));
+	if (!(reserved_gpio_map[gpio_bank(gpio)] & gpio_bit(gpio))) {
+		gpio_error(gpio);
+		return -EINVAL;
+	}
+
 
 	local_irq_save(flags);
 	gpio_array[gpio_bank(gpio)]->port_dir_clear = gpio_bit(gpio);
 	gpio_array[gpio_bank(gpio)]->port_inen |= gpio_bit(gpio);
 	local_irq_restore(flags);
+
+	return 0;
 }
 EXPORT_SYMBOL(gpio_direction_input);
 
-void gpio_direction_output(unsigned short gpio)
+int gpio_direction_output(unsigned gpio, int value)
 {
 	unsigned long flags;
 
-	BUG_ON(!(reserved_gpio_map[gpio_bank(gpio)] & gpio_bit(gpio)));
+	if (!(reserved_gpio_map[gpio_bank(gpio)] & gpio_bit(gpio))) {
+		gpio_error(gpio);
+		return -EINVAL;
+	}
 
 	local_irq_save(flags);
 	gpio_array[gpio_bank(gpio)]->port_inen &= ~gpio_bit(gpio);
+	gpio_set_value(gpio, value);
 	gpio_array[gpio_bank(gpio)]->port_dir_set = gpio_bit(gpio);
 	local_irq_restore(flags);
+
+	return 0;
 }
 EXPORT_SYMBOL(gpio_direction_output);
 
-void gpio_set_value(unsigned short gpio, unsigned short arg)
+void gpio_set_value(unsigned gpio, int arg)
 {
 	if (arg)
 		gpio_array[gpio_bank(gpio)]->port_set = gpio_bit(gpio);
@@ -1144,7 +1162,7 @@ void gpio_set_value(unsigned short gpio, unsigned short arg)
 }
 EXPORT_SYMBOL(gpio_set_value);
 
-unsigned short gpio_get_value(unsigned short gpio)
+int gpio_get_value(unsigned gpio)
 {
 	return (1 & (gpio_array[gpio_bank(gpio)]->port_data >> gpio_sub_n(gpio)));
 }
@@ -1152,31 +1170,42 @@ EXPORT_SYMBOL(gpio_get_value);
 
 #else
 
-void gpio_direction_input(unsigned short gpio)
+int gpio_direction_input(unsigned gpio)
 {
 	unsigned long flags;
 
-	BUG_ON(!(reserved_gpio_map[gpio_bank(gpio)] & gpio_bit(gpio)));
+	if (!(reserved_gpio_map[gpio_bank(gpio)] & gpio_bit(gpio))) {
+		gpio_error(gpio);
+		return -EINVAL;
+	}
 
 	local_irq_save(flags);
 	gpio_bankb[gpio_bank(gpio)]->dir &= ~gpio_bit(gpio);
 	gpio_bankb[gpio_bank(gpio)]->inen |= gpio_bit(gpio);
 	AWA_DUMMY_READ(inen);
 	local_irq_restore(flags);
+
+	return 0;
 }
 EXPORT_SYMBOL(gpio_direction_input);
 
-void gpio_direction_output(unsigned short gpio)
+int gpio_direction_output(unsigned gpio, int value)
 {
 	unsigned long flags;
 
-	BUG_ON(!(reserved_gpio_map[gpio_bank(gpio)] & gpio_bit(gpio)));
+	if (!(reserved_gpio_map[gpio_bank(gpio)] & gpio_bit(gpio))) {
+		gpio_error(gpio);
+		return -EINVAL;
+	}
 
 	local_irq_save(flags);
 	gpio_bankb[gpio_bank(gpio)]->inen &= ~gpio_bit(gpio);
+	gpio_set_value(gpio, value);
 	gpio_bankb[gpio_bank(gpio)]->dir |= gpio_bit(gpio);
 	AWA_DUMMY_READ(dir);
 	local_irq_restore(flags);
+
+	return 0;
 }
 EXPORT_SYMBOL(gpio_direction_output);
 

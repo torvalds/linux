@@ -426,19 +426,19 @@ struct gpio_port_s {
 * MODIFICATION HISTORY :
 **************************************************************/
 
-int gpio_request(unsigned short, const char *);
-void gpio_free(unsigned short);
+int gpio_request(unsigned, const char *);
+void gpio_free(unsigned);
 
-void gpio_set_value(unsigned short gpio, unsigned short arg);
-unsigned short gpio_get_value(unsigned short gpio);
+void gpio_set_value(unsigned gpio, int arg);
+int gpio_get_value(unsigned gpio);
 
 #ifndef BF548_FAMILY
 #define gpio_get_value(gpio) 		get_gpio_data(gpio)
 #define gpio_set_value(gpio, value)	set_gpio_data(gpio, value)
 #endif
 
-void gpio_direction_input(unsigned short gpio);
-void gpio_direction_output(unsigned short gpio);
+int gpio_direction_input(unsigned gpio);
+int gpio_direction_output(unsigned gpio, int value);
 
 #include <asm-generic/gpio.h>		/* cansleep wrappers */
 #include <asm/irq.h>
