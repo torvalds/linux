@@ -2606,8 +2606,6 @@ int security_netlbl_sid_to_secattr(u32 sid, struct netlbl_lsm_secattr *secattr)
 	int rc = -ENOENT;
 	struct context *ctx;
 
-	netlbl_secattr_init(secattr);
-
 	if (!ss_initialized)
 		return 0;
 
