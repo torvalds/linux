@@ -447,7 +447,7 @@ static void	usa26_indat_callback(struct urb *urb)
 
 	port = (struct usb_serial_port *) urb->context;
 	tty = port->tty;
-	if (urb->actual_length) {
+	if (tty && urb->actual_length) {
 		/* 0x80 bit is error flag */
 		if ((data[0] & 0x80) == 0) {
 			/* no errors on individual bytes, only possible overrun err*/
