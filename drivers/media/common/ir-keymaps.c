@@ -1849,6 +1849,41 @@ IR_KEYTAB_TYPE ir_codes_fusionhdtv_mce[IR_KEYTAB_SIZE] = {
 
 EXPORT_SYMBOL_GPL(ir_codes_fusionhdtv_mce);
 
+/* Pinnacle PCTV HD 800i mini remote */
+IR_KEYTAB_TYPE ir_codes_pinnacle_pctv_hd[IR_KEYTAB_SIZE] = {
+
+	[0x0f] = KEY_1,
+	[0x15] = KEY_2,
+	[0x10] = KEY_3,
+	[0x18] = KEY_4,
+	[0x1b] = KEY_5,
+	[0x1e] = KEY_6,
+	[0x11] = KEY_7,
+	[0x21] = KEY_8,
+	[0x12] = KEY_9,
+	[0x27] = KEY_0,
+
+	[0x24] = KEY_ZOOM,
+	[0x2a] = KEY_SUBTITLE,
+
+	[0x00] = KEY_MUTE,
+	[0x01] = KEY_ENTER,	/* Pinnacle Logo */
+	[0x39] = KEY_POWER,
+
+	[0x03] = KEY_VOLUMEUP,
+	[0x09] = KEY_VOLUMEDOWN,
+	[0x06] = KEY_CHANNELUP,
+	[0x0c] = KEY_CHANNELDOWN,
+
+	[0x2d] = KEY_REWIND,
+	[0x30] = KEY_PLAYPAUSE,
+	[0x33] = KEY_FASTFORWARD,
+	[0x3c] = KEY_STOP,
+	[0x36] = KEY_RECORD,
+	[0x3f] = KEY_EPG,	/* Labeled "?" */
+};
+EXPORT_SYMBOL_GPL(ir_codes_pinnacle_pctv_hd);
+
 /*
  * Igor Kuznetsov <igk72@ya.ru>
  * Andrey J. Melnikov <temnota@kmv.ru>

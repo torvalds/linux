@@ -224,7 +224,6 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	case CX88_BOARD_HAUPPAUGE_NOVASPLUS_S1:
 	case CX88_BOARD_HAUPPAUGE_HVR1100:
 	case CX88_BOARD_HAUPPAUGE_HVR3000:
-	case CX88_BOARD_PINNACLE_PCTV_HD_800i:
 		ir_codes = ir_codes_hauppauge_new;
 		ir_type = IR_TYPE_RC5;
 		ir->sampling = 1;
@@ -305,6 +304,11 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		ir->gpio_addr = MO_GP0_IO;
 		ir->mask_keycode = 0xfa;
 		ir->polling = 50; /* ms */
+		break;
+	case CX88_BOARD_PINNACLE_PCTV_HD_800i:
+		ir_codes = ir_codes_pinnacle_pctv_hd;
+		ir_type = IR_TYPE_RC5;
+		ir->sampling = 1;
 		break;
 	}
 
