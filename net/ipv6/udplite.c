@@ -26,7 +26,7 @@ static void udplitev6_err(struct sk_buff *skb,
 			  struct inet6_skb_parm *opt,
 			  int type, int code, int offset, __be32 info)
 {
-	return __udp6_lib_err(skb, opt, type, code, offset, info, udplite_hash);
+	__udp6_lib_err(skb, opt, type, code, offset, info, udplite_hash);
 }
 
 static struct inet6_protocol udplitev6_protocol = {

@@ -259,7 +259,7 @@ static __inline__ void udpv6_err(struct sk_buff *skb,
 				 struct inet6_skb_parm *opt, int type,
 				 int code, int offset, __be32 info     )
 {
-	return __udp6_lib_err(skb, opt, type, code, offset, info, udp_hash);
+	__udp6_lib_err(skb, opt, type, code, offset, info, udp_hash);
 }
 
 int udpv6_queue_rcv_skb(struct sock * sk, struct sk_buff *skb)
