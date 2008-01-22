@@ -204,10 +204,12 @@ static struct rb_node *tree_insert(struct rb_root *root, u64 offset,
 }
 
 static struct rb_node *__tree_search(struct rb_root *root, u64 offset,
-				   struct rb_node **prev_ret)
+				     struct rb_node **prev_ret,
+				     struct rb_node **next_ret)
 {
 	struct rb_node * n = root->rb_node;
 	struct rb_node *prev = NULL;
+	struct rb_node *orig_prev = NULL;
 	struct tree_entry *entry;
 	struct tree_entry *prev_entry = NULL;
 
@@ -223,13 +225,25 @@ static struct rb_node *__tree_search(struct rb_root *root, u64 offset,
 		else
 			return n;
 	}
-	if (!prev_ret)
-		return NULL;
-	while(prev && offset > prev_entry->end) {
-		prev = rb_next(prev);
-		prev_entry = rb_entry(prev, struct tree_entry, rb_node);
+
+	if (prev_ret) {
+		orig_prev = prev;
+		while(prev && offset > prev_entry->end) {
+			prev = rb_next(prev);
+			prev_entry = rb_entry(prev, struct tree_entry, rb_node);
+		}
+		*prev_ret = prev;
+		prev = orig_prev;
 	}
-	*prev_ret = prev;
+
+	if (next_ret) {
+		prev_entry = rb_entry(prev, struct tree_entry, rb_node);
+		while(prev && offset < prev_entry->start) {
+			prev = rb_prev(prev);
+			prev_entry = rb_entry(prev, struct tree_entry, rb_node);
+		}
+		*next_ret = prev;
+	}
 	return NULL;
 }
 
@@ -237,7 +251,7 @@ static inline struct rb_node *tree_search(struct rb_root *root, u64 offset)
 {
 	struct rb_node *prev;
 	struct rb_node *ret;
-	ret = __tree_search(root, offset, &prev);
+	ret = __tree_search(root, offset, &prev, NULL);
 	if (!ret)
 		return prev;
 	return ret;
@@ -248,7 +262,7 @@ static int tree_delete(struct rb_root *root, u64 offset)
 	struct rb_node *node;
 	struct tree_entry *entry;
 
-	node = __tree_search(root, offset, NULL);
+	node = __tree_search(root, offset, NULL, NULL);
 	if (!node)
 		return -ENOENT;
 	entry = rb_entry(node, struct tree_entry, rb_node);
@@ -314,9 +328,21 @@ struct extent_map *lookup_extent_mapping(struct extent_map_tree *tree,
 {
 	struct extent_map *em;
 	struct rb_node *rb_node;
+	struct rb_node *prev = NULL;
+	struct rb_node *next = NULL;
 
 	read_lock_irq(&tree->lock);
-	rb_node = tree_search(&tree->map, start);
+	rb_node = __tree_search(&tree->map, start, &prev, &next);
+	if (!rb_node && prev) {
+		em = rb_entry(prev, struct extent_map, rb_node);
+		if (em->start <= end && em->end >= start)
+			goto found;
+	}
+	if (!rb_node && next) {
+		em = rb_entry(next, struct extent_map, rb_node);
+		if (em->start <= end && em->end >= start)
+			goto found;
+	}
 	if (!rb_node) {
 		em = NULL;
 		goto out;
@@ -330,6 +356,7 @@ struct extent_map *lookup_extent_mapping(struct extent_map_tree *tree,
 		em = NULL;
 		goto out;
 	}
+found:
 	atomic_inc(&em->refs);
 out:
 	read_unlock_irq(&tree->lock);

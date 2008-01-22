@@ -133,6 +133,7 @@ static int cow_file_range(struct inode *inode, u64 start, u64 end)
 		ret = btrfs_insert_file_extent(trans, root, inode->i_ino,
 					       start, ins.objectid, ins.offset,
 					       ins.offset);
+		btrfs_check_file(root, inode);
 		num_bytes -= cur_alloc_size;
 		alloc_hint = ins.objectid + ins.offset;
 		start += cur_alloc_size;
@@ -965,11 +966,17 @@ static int btrfs_setattr(struct dentry *dentry, struct iattr *attr)
 		u64 mask = root->sectorsize - 1;
 		u64 pos = (inode->i_size + mask) & ~mask;
 		u64 block_end = attr->ia_size | mask;
+		u64 hole_start;
 		u64 hole_size;
 		u64 alloc_hint = 0;
 
 		if (attr->ia_size <= pos)
 			goto out;
+
+		if (pos != inode->i_size)
+			hole_start = pos + root->sectorsize;
+		else
+			hole_start = pos;
 
 		mutex_lock(&root->fs_info->fs_mutex);
 		err = btrfs_check_free_space(root, 1, 0);
@@ -980,19 +987,21 @@ static int btrfs_setattr(struct dentry *dentry, struct iattr *attr)
 		btrfs_truncate_page(inode->i_mapping, inode->i_size);
 
 		lock_extent(em_tree, pos, block_end, GFP_NOFS);
-		hole_size = (attr->ia_size - pos + mask) & ~mask;
+		hole_size = block_end - hole_start;
 
 		mutex_lock(&root->fs_info->fs_mutex);
 		trans = btrfs_start_transaction(root, 1);
 		btrfs_set_trans_block_group(trans, inode);
 		err = btrfs_drop_extents(trans, root, inode,
-					 pos, pos + hole_size, pos,
+					 pos, block_end, pos,
 					 &alloc_hint);
 
 		if (alloc_hint != EXTENT_MAP_INLINE) {
 			err = btrfs_insert_file_extent(trans, root,
 						       inode->i_ino,
-						       pos, 0, 0, hole_size);
+						       hole_start, 0, 0,
+						       hole_size);
+			btrfs_check_file(root, inode);
 		}
 		btrfs_end_transaction(trans, root);
 		mutex_unlock(&root->fs_info->fs_mutex);

@@ -1170,6 +1170,7 @@ int btrfs_update_inode(struct btrfs_trans_handle *trans,
 			      struct inode *inode);
 /* file.c */
 int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end);
+int btrfs_check_file(struct btrfs_root *root, struct inode *inode);
 extern struct file_operations btrfs_file_operations;
 int btrfs_drop_extents(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root, struct inode *inode,
