@@ -245,7 +245,7 @@ struct ipv6_txoptions *ipv6_fixup_options(struct ipv6_txoptions *opt_space,
 
 extern int ipv6_opt_accepted(struct sock *sk, struct sk_buff *skb);
 
-int ip6_frag_nqueues(void);
+int ip6_frag_nqueues(struct net *net);
 int ip6_frag_mem(void);
 
 #define IPV6_FRAG_TIMEOUT	(60*HZ)		/* 60 seconds */

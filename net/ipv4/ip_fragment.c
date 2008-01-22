@@ -95,9 +95,9 @@ static struct inet_frags_ctl ip4_frags_ctl __read_mostly = {
 
 static struct inet_frags ip4_frags;
 
-int ip_frag_nqueues(void)
+int ip_frag_nqueues(struct net *net)
 {
-	return ip4_frags.nqueues;
+	return net->ipv4.frags.nqueues;
 }
 
 int ip_frag_mem(void)
@@ -675,6 +675,8 @@ static inline int ip4_frags_ctl_register(struct net *net)
 
 static int ipv4_frags_init_net(struct net *net)
 {
+	inet_frags_init_net(&net->ipv4.frags);
+
 	return ip4_frags_ctl_register(net);
 }
 

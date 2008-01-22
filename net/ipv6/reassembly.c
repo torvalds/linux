@@ -84,9 +84,9 @@ struct frag_queue
 
 static struct inet_frags ip6_frags;
 
-int ip6_frag_nqueues(void)
+int ip6_frag_nqueues(struct net *net)
 {
-	return ip6_frags.nqueues;
+	return net->ipv6.frags.nqueues;
 }
 
 int ip6_frag_mem(void)
@@ -689,6 +689,8 @@ static int ipv6_frags_init_net(struct net *net)
 	net->ipv6.sysctl.frags.low_thresh = 192 * 1024;
 	net->ipv6.sysctl.frags.timeout = IPV6_FRAG_TIMEOUT;
 	net->ipv6.sysctl.frags.secret_interval = 10 * 60 * HZ;
+
+	inet_frags_init_net(&net->ipv6.frags);
 
 	return ip6_frags_sysctl_register(net);
 }

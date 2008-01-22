@@ -2,6 +2,7 @@
 #define __NET_FRAG_H__
 
 struct netns_frags {
+	int			nqueues;
 };
 
 struct inet_frag_queue {
@@ -36,7 +37,6 @@ struct inet_frags {
 	struct hlist_head	hash[INETFRAGS_HASHSZ];
 	rwlock_t		lock;
 	u32			rnd;
-	int			nqueues;
 	int			qsize;
 	atomic_t		mem;
 	struct timer_list	secret_timer;
@@ -54,6 +54,8 @@ struct inet_frags {
 
 void inet_frags_init(struct inet_frags *);
 void inet_frags_fini(struct inet_frags *);
+
+void inet_frags_init_net(struct netns_frags *nf);
 
 void inet_frag_kill(struct inet_frag_queue *q, struct inet_frags *f);
 void inet_frag_destroy(struct inet_frag_queue *q,

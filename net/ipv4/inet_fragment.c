@@ -63,7 +63,6 @@ void inet_frags_init(struct inet_frags *f)
 	f->rnd = (u32) ((num_physpages ^ (num_physpages>>7)) ^
 				   (jiffies ^ (jiffies >> 6)));
 
-	f->nqueues = 0;
 	atomic_set(&f->mem, 0);
 
 	setup_timer(&f->secret_timer, inet_frag_secret_rebuild,
@@ -72,6 +71,12 @@ void inet_frags_init(struct inet_frags *f)
 	add_timer(&f->secret_timer);
 }
 EXPORT_SYMBOL(inet_frags_init);
+
+void inet_frags_init_net(struct netns_frags *nf)
+{
+	nf->nqueues = 0;
+}
+EXPORT_SYMBOL(inet_frags_init_net);
 
 void inet_frags_fini(struct inet_frags *f)
 {
@@ -84,7 +89,7 @@ static inline void fq_unlink(struct inet_frag_queue *fq, struct inet_frags *f)
 	write_lock(&f->lock);
 	hlist_del(&fq->list);
 	list_del(&fq->lru_list);
-	f->nqueues--;
+	fq->net->nqueues--;
 	write_unlock(&f->lock);
 }
 
@@ -206,7 +211,7 @@ static struct inet_frag_queue *inet_frag_intern(struct netns_frags *nf,
 	atomic_inc(&qp->refcnt);
 	hlist_add_head(&qp->list, &f->hash[hash]);
 	list_add_tail(&qp->lru_list, &f->lru_list);
-	f->nqueues++;
+	nf->nqueues++;
 	write_unlock(&f->lock);
 	return qp;
 }
