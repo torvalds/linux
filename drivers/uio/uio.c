@@ -39,7 +39,7 @@ struct uio_device {
 
 static int uio_major;
 static DEFINE_IDR(uio_idr);
-static struct file_operations uio_fops;
+static const struct file_operations uio_fops;
 
 /* UIO class infrastructure */
 static struct uio_class {
@@ -508,7 +508,7 @@ static int uio_mmap(struct file *filep, struct vm_area_struct *vma)
 	}
 }
 
-static struct file_operations uio_fops = {
+static const struct file_operations uio_fops = {
 	.owner		= THIS_MODULE,
 	.open		= uio_open,
 	.release	= uio_release,
