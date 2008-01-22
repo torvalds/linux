@@ -507,6 +507,17 @@ void __init at91_add_device_lcdc(struct atmel_lcdfb_info *data)
 		return;
 	}
 
+#if defined(CONFIG_FB_ATMEL_STN)
+	at91_set_A_periph(AT91_PIN_PB0, 0);     /* LCDVSYNC */
+	at91_set_A_periph(AT91_PIN_PB1, 0);     /* LCDHSYNC */
+	at91_set_A_periph(AT91_PIN_PB2, 0);     /* LCDDOTCK */
+	at91_set_A_periph(AT91_PIN_PB3, 0);     /* LCDDEN */
+	at91_set_A_periph(AT91_PIN_PB4, 0);     /* LCDCC */
+	at91_set_A_periph(AT91_PIN_PB5, 0);     /* LCDD0 */
+	at91_set_A_periph(AT91_PIN_PB6, 0);     /* LCDD1 */
+	at91_set_A_periph(AT91_PIN_PB7, 0);     /* LCDD2 */
+	at91_set_A_periph(AT91_PIN_PB8, 0);     /* LCDD3 */
+#else
 	at91_set_A_periph(AT91_PIN_PB1, 0);	/* LCDHSYNC */
 	at91_set_A_periph(AT91_PIN_PB2, 0);	/* LCDDOTCK */
 	at91_set_A_periph(AT91_PIN_PB3, 0);	/* LCDDEN */
@@ -529,6 +540,7 @@ void __init at91_add_device_lcdc(struct atmel_lcdfb_info *data)
 	at91_set_B_periph(AT91_PIN_PB26, 0);	/* LCDD21 */
 	at91_set_B_periph(AT91_PIN_PB27, 0);	/* LCDD22 */
 	at91_set_B_periph(AT91_PIN_PB28, 0);	/* LCDD23 */
+#endif
 
 	lcdc_data = *data;
 	platform_device_register(&at91_lcdc_device);
