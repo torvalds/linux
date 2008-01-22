@@ -7153,6 +7153,14 @@ int sched_group_set_shares(struct task_group *tg, unsigned long shares)
 {
 	int i;
 
+	/*
+	 * A weight of 0 or 1 can cause arithmetics problems.
+	 * (The default weight is 1024 - so there's no practical
+	 *  limitation from this.)
+	 */
+	if (shares < 2)
+		shares = 2;
+
 	spin_lock(&tg->lock);
 	if (tg->shares == shares)
 		goto done;
