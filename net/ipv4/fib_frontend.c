@@ -228,6 +228,7 @@ int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
 	struct fib_result res;
 	int no_addr, rpf;
 	int ret;
+	struct net *net;
 
 	no_addr = rpf = 0;
 	rcu_read_lock();
@@ -241,7 +242,8 @@ int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
 	if (in_dev == NULL)
 		goto e_inval;
 
-	if (fib_lookup(&init_net, &fl, &res))
+	net = dev->nd_net;
+	if (fib_lookup(net, &fl, &res))
 		goto last_resort;
 	if (res.type != RTN_UNICAST)
 		goto e_inval_res;
@@ -265,7 +267,7 @@ int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
 	fl.oif = dev->ifindex;
 
 	ret = 0;
-	if (fib_lookup(&init_net, &fl, &res) == 0) {
+	if (fib_lookup(net, &fl, &res) == 0) {
 		if (res.type == RTN_UNICAST) {
 			*spec_dst = FIB_RES_PREFSRC(res);
 			ret = FIB_RES_NH(res).nh_scope >= RT_SCOPE_HOST;
