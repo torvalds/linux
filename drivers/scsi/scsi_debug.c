@@ -594,18 +594,18 @@ static int fill_from_dev_buffer(struct scsi_cmnd * scp, unsigned char * arr,
 	int k, req_len, act_len, len, active;
 	void * kaddr;
 	void * kaddr_off;
-	struct scatterlist * sg;
+	struct scatterlist *sg;
+	struct scsi_data_buffer *sdb = scsi_in(scp);
 
-	if (0 == scsi_bufflen(scp))
+	if (!sdb->length)
 		return 0;
-	if (NULL == scsi_sglist(scp))
+	if (!sdb->table.sgl)
 		return (DID_ERROR << 16);
-	if (! ((scp->sc_data_direction == DMA_BIDIRECTIONAL) ||
-	      (scp->sc_data_direction == DMA_FROM_DEVICE)))
+	if (!(scsi_bidi_cmnd(scp) || scp->sc_data_direction == DMA_FROM_DEVICE))
 		return (DID_ERROR << 16);
 	active = 1;
 	req_len = act_len = 0;
-	scsi_for_each_sg(scp, sg, scsi_sg_count(scp), k) {
+	for_each_sg(sdb->table.sgl, sg, sdb->table.nents, k) {
 		if (active) {
 			kaddr = (unsigned char *)
 				kmap_atomic(sg_page(sg), KM_USER0);
@@ -623,10 +623,10 @@ static int fill_from_dev_buffer(struct scsi_cmnd * scp, unsigned char * arr,
 		}
 		req_len += sg->length;
 	}
-	if (scsi_get_resid(scp))
-		scsi_set_resid(scp, scsi_get_resid(scp) - act_len);
+	if (sdb->resid)
+		sdb->resid -= act_len;
 	else
-		scsi_set_resid(scp, req_len - act_len);
+		sdb->resid = req_len - act_len;
 	return 0;
 }
 
@@ -643,8 +643,7 @@ static int fetch_to_dev_buffer(struct scsi_cmnd * scp, unsigned char * arr,
 		return 0;
 	if (NULL == scsi_sglist(scp))
 		return -1;
-	if (! ((scp->sc_data_direction == DMA_BIDIRECTIONAL) ||
-	      (scp->sc_data_direction == DMA_TO_DEVICE)))
+	if (!(scsi_bidi_cmnd(scp) || scp->sc_data_direction == DMA_TO_DEVICE))
 		return -1;
 	req_len = fin = 0;
 	scsi_for_each_sg(scp, sg, scsi_sg_count(scp), k) {
