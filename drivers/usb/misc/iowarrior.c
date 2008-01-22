@@ -715,7 +715,7 @@ static unsigned iowarrior_poll(struct file *file, poll_table * wait)
  * would use "struct net_driver" instead, and a serial
  * device would use "struct tty_driver".
  */
-static struct file_operations iowarrior_fops = {
+static const struct file_operations iowarrior_fops = {
 	.owner = THIS_MODULE,
 	.write = iowarrior_write,
 	.read = iowarrior_read,
