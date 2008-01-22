@@ -234,7 +234,7 @@ out:
 }
 
 static __inline__ struct frag_queue *
-fq_find(__be32 id, struct in6_addr *src, struct in6_addr *dst,
+fq_find(struct net *net, __be32 id, struct in6_addr *src, struct in6_addr *dst,
 	struct inet6_dev *idev)
 {
 	struct inet_frag_queue *q;
@@ -246,7 +246,7 @@ fq_find(__be32 id, struct in6_addr *src, struct in6_addr *dst,
 	arg.dst = dst;
 	hash = ip6qhashfn(id, src, dst);
 
-	q = inet_frag_find(&ip6_frags, &arg, hash);
+	q = inet_frag_find(&net->ipv6.frags, &ip6_frags, &arg, hash);
 	if (q == NULL)
 		goto oom;
 
@@ -568,6 +568,7 @@ static int ipv6_frag_rcv(struct sk_buff *skb)
 	struct frag_hdr *fhdr;
 	struct frag_queue *fq;
 	struct ipv6hdr *hdr = ipv6_hdr(skb);
+	struct net *net;
 
 	IP6_INC_STATS_BH(ip6_dst_idev(skb->dst), IPSTATS_MIB_REASMREQDS);
 
@@ -598,10 +599,11 @@ static int ipv6_frag_rcv(struct sk_buff *skb)
 		return 1;
 	}
 
+	net = skb->dev->nd_net;
 	if (atomic_read(&ip6_frags.mem) > init_net.ipv6.sysctl.frags.high_thresh)
 		ip6_evictor(ip6_dst_idev(skb->dst));
 
-	if ((fq = fq_find(fhdr->identification, &hdr->saddr, &hdr->daddr,
+	if ((fq = fq_find(net, fhdr->identification, &hdr->saddr, &hdr->daddr,
 			  ip6_dst_idev(skb->dst))) != NULL) {
 		int ret;
 

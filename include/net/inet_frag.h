@@ -1,8 +1,12 @@
 #ifndef __NET_FRAG_H__
 #define __NET_FRAG_H__
 
+struct netns_frags {
+};
+
 struct inet_frag_queue {
 	struct hlist_node	list;
+	struct netns_frags	*net;
 	struct list_head	lru_list;   /* lru list member */
 	spinlock_t		lock;
 	atomic_t		refcnt;
@@ -55,8 +59,8 @@ void inet_frag_kill(struct inet_frag_queue *q, struct inet_frags *f);
 void inet_frag_destroy(struct inet_frag_queue *q,
 				struct inet_frags *f, int *work);
 int inet_frag_evictor(struct inet_frags *f);
-struct inet_frag_queue *inet_frag_find(struct inet_frags *f, void *key,
-		unsigned int hash);
+struct inet_frag_queue *inet_frag_find(struct netns_frags *nf,
+		struct inet_frags *f, void *key, unsigned int hash);
 
 static inline void inet_frag_put(struct inet_frag_queue *q, struct inet_frags *f)
 {

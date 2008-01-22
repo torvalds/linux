@@ -236,7 +236,7 @@ out:
 /* Find the correct entry in the "incomplete datagrams" queue for
  * this IP datagram, and create new one, if nothing is found.
  */
-static inline struct ipq *ip_find(struct iphdr *iph, u32 user)
+static inline struct ipq *ip_find(struct net *net, struct iphdr *iph, u32 user)
 {
 	struct inet_frag_queue *q;
 	struct ip4_create_arg arg;
@@ -246,7 +246,7 @@ static inline struct ipq *ip_find(struct iphdr *iph, u32 user)
 	arg.user = user;
 	hash = ipqhashfn(iph->id, iph->saddr, iph->daddr, iph->protocol);
 
-	q = inet_frag_find(&ip4_frags, &arg, hash);
+	q = inet_frag_find(&net->ipv4.frags, &ip4_frags, &arg, hash);
 	if (q == NULL)
 		goto out_nomem;
 
@@ -582,15 +582,17 @@ out_fail:
 int ip_defrag(struct sk_buff *skb, u32 user)
 {
 	struct ipq *qp;
+	struct net *net;
 
 	IP_INC_STATS_BH(IPSTATS_MIB_REASMREQDS);
 
+	net = skb->dev->nd_net;
 	/* Start by cleaning up the memory. */
 	if (atomic_read(&ip4_frags.mem) > ip4_frags_ctl.high_thresh)
 		ip_evictor();
 
 	/* Lookup (or create) queue header */
-	if ((qp = ip_find(ip_hdr(skb), user)) != NULL) {
+	if ((qp = ip_find(net, ip_hdr(skb), user)) != NULL) {
 		int ret;
 
 		spin_lock(&qp->q.lock);

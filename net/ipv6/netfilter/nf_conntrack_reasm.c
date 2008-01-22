@@ -78,6 +78,7 @@ static struct inet_frags_ctl nf_frags_ctl __read_mostly = {
 };
 
 static struct inet_frags nf_frags;
+static struct netns_frags nf_init_frags;
 
 #ifdef CONFIG_SYSCTL
 struct ctl_table nf_ct_ipv6_sysctl_table[] = {
@@ -212,7 +213,7 @@ fq_find(__be32 id, struct in6_addr *src, struct in6_addr *dst)
 	arg.dst = dst;
 	hash = ip6qhashfn(id, src, dst);
 
-	q = inet_frag_find(&nf_frags, &arg, hash);
+	q = inet_frag_find(&nf_init_frags, &nf_frags, &arg, hash);
 	if (q == NULL)
 		goto oom;
 
