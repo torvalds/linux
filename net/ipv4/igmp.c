@@ -2329,6 +2329,7 @@ static struct ip_mc_list *igmp_mc_get_idx(struct seq_file *seq, loff_t pos)
 }
 
 static void *igmp_mc_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(dev_base_lock)
 {
 	read_lock(&dev_base_lock);
 	return *pos ? igmp_mc_get_idx(seq, *pos - 1) : SEQ_START_TOKEN;
@@ -2346,6 +2347,7 @@ static void *igmp_mc_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void igmp_mc_seq_stop(struct seq_file *seq, void *v)
+	__releases(dev_base_lock)
 {
 	struct igmp_mc_iter_state *state = igmp_mc_seq_private(seq);
 	if (likely(state->in_dev != NULL)) {
