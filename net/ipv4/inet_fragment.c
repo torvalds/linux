@@ -83,6 +83,13 @@ void inet_frags_fini(struct inet_frags *f)
 }
 EXPORT_SYMBOL(inet_frags_fini);
 
+void inet_frags_exit_net(struct netns_frags *nf, struct inet_frags *f)
+{
+	nf->low_thresh = 0;
+	inet_frag_evictor(nf, f);
+}
+EXPORT_SYMBOL(inet_frags_exit_net);
+
 static inline void fq_unlink(struct inet_frag_queue *fq, struct inet_frags *f)
 {
 	write_lock(&f->lock);

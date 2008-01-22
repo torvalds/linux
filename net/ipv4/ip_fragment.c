@@ -713,9 +713,20 @@ static int ipv4_frags_init_net(struct net *net)
 	return ip4_frags_ctl_register(net);
 }
 
+static void ipv4_frags_exit_net(struct net *net)
+{
+	ip4_frags_ctl_unregister(net);
+	inet_frags_exit_net(&net->ipv4.frags, &ip4_frags);
+}
+
+static struct pernet_operations ip4_frags_ops = {
+	.init = ipv4_frags_init_net,
+	.exit = ipv4_frags_exit_net,
+};
+
 void __init ipfrag_init(void)
 {
-	ipv4_frags_init_net(&init_net);
+	register_pernet_subsys(&ip4_frags_ops);
 	ip4_frags.hashfn = ip4_hashfn;
 	ip4_frags.constructor = ip4_frag_init;
 	ip4_frags.destructor = ip4_frag_free;

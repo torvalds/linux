@@ -728,6 +728,17 @@ static int ipv6_frags_init_net(struct net *net)
 	return ip6_frags_sysctl_register(net);
 }
 
+static void ipv6_frags_exit_net(struct net *net)
+{
+	ip6_frags_sysctl_unregister(net);
+	inet_frags_exit_net(&net->ipv6.frags, &ip6_frags);
+}
+
+static struct pernet_operations ip6_frags_ops = {
+	.init = ipv6_frags_init_net,
+	.exit = ipv6_frags_exit_net,
+};
+
 int __init ipv6_frag_init(void)
 {
 	int ret;
@@ -736,7 +747,7 @@ int __init ipv6_frag_init(void)
 	if (ret)
 		goto out;
 
-	ipv6_frags_init_net(&init_net);
+	register_pernet_subsys(&ip6_frags_ops);
 
 	ip6_frags.hashfn = ip6_hashfn;
 	ip6_frags.constructor = ip6_frag_init;
@@ -754,5 +765,6 @@ out:
 void ipv6_frag_exit(void)
 {
 	inet_frags_fini(&ip6_frags);
+	unregister_pernet_subsys(&ip6_frags_ops);
 	inet6_del_protocol(&frag_protocol, IPPROTO_FRAGMENT);
 }
