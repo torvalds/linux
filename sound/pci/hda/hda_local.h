@@ -370,7 +370,7 @@ static inline u32 get_wcaps(struct hda_codec *codec, hda_nid_t nid)
 {
 	if (nid < codec->start_nid ||
 	    nid >= codec->start_nid + codec->num_nodes)
-		return snd_hda_param_read(codec, nid, AC_PAR_AUDIO_WIDGET_CAP);
+		return 0;
 	return codec->wcaps[nid - codec->start_nid];
 }
 
