@@ -220,6 +220,7 @@ static inline int is_vlan_dev(struct net_device *dev)
 
 /* start read of /proc/net/vlan/config */
 static void *vlan_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(dev_base_lock)
 {
 	struct net_device *dev;
 	loff_t i = 1;
@@ -261,6 +262,7 @@ static void *vlan_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void vlan_seq_stop(struct seq_file *seq, void *v)
+	__releases(dev_base_lock)
 {
 	read_unlock(&dev_base_lock);
 }
