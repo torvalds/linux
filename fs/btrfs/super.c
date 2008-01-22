@@ -429,6 +429,17 @@ static struct file_system_type btrfs_fs_type = {
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };
+static void btrfs_write_super_lockfs(struct super_block *sb)
+{
+	struct btrfs_root *root = btrfs_sb(sb);
+	btrfs_transaction_flush_work(root);
+}
+
+static void btrfs_unlockfs(struct super_block *sb)
+{
+	struct btrfs_root *root = btrfs_sb(sb);
+	btrfs_transaction_queue_work(root, HZ * 30);
+}
 
 static struct super_operations btrfs_super_ops = {
 	.delete_inode	= btrfs_delete_inode,
@@ -442,8 +453,9 @@ static struct super_operations btrfs_super_ops = {
 	.alloc_inode	= btrfs_alloc_inode,
 	.destroy_inode	= btrfs_destroy_inode,
 	.statfs		= btrfs_statfs,
+	.write_super_lockfs = btrfs_write_super_lockfs,
+	.unlockfs	= btrfs_unlockfs,
 };
-
 static int __init init_btrfs_fs(void)
 {
 	int err;
