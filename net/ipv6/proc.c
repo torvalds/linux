@@ -88,7 +88,7 @@ static char *icmp6type2name[256] = {
 	[ICMPV6_PKT_TOOBIG] = "PktTooBigs",
 	[ICMPV6_TIME_EXCEED] = "TimeExcds",
 	[ICMPV6_PARAMPROB] = "ParmProblems",
-	[ICMPV6_ECHO_REQUEST] = "EchoRequest",
+	[ICMPV6_ECHO_REQUEST] = "Echos",
 	[ICMPV6_ECHO_REPLY] = "EchoReplies",
 	[ICMPV6_MGM_QUERY] = "GroupMembQueries",
 	[ICMPV6_MGM_REPORT] = "GroupMembResponses",
@@ -98,7 +98,7 @@ static char *icmp6type2name[256] = {
 	[NDISC_ROUTER_SOLICITATION] = "RouterSolicits",
 	[NDISC_NEIGHBOUR_ADVERTISEMENT] = "NeighborAdvertisements",
 	[NDISC_NEIGHBOUR_SOLICITATION] = "NeighborSolicits",
-	[NDISC_REDIRECT] = "NeighborRedirects",
+	[NDISC_REDIRECT] = "Redirects",
 };
 
 

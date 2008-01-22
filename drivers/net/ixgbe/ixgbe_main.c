@@ -1409,9 +1409,11 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 	IXGBE_WRITE_FLUSH(&adapter->hw);
 	msleep(10);
 
+	napi_disable(&adapter->napi);
+	atomic_set(&adapter->irq_sem, 0);
+
 	ixgbe_irq_disable(adapter);
 
-	napi_disable(&adapter->napi);
 	del_timer_sync(&adapter->watchdog_timer);
 
 	netif_carrier_off(netdev);

@@ -392,11 +392,14 @@ int rfkill_register(struct rfkill *rfkill)
 	rfkill_led_trigger_register(rfkill);
 
 	error = rfkill_add_switch(rfkill);
-	if (error)
+	if (error) {
+		rfkill_led_trigger_unregister(rfkill);
 		return error;
+	}
 
 	error = device_add(dev);
 	if (error) {
+		rfkill_led_trigger_unregister(rfkill);
 		rfkill_remove_switch(rfkill);
 		return error;
 	}
