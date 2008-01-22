@@ -429,6 +429,10 @@ find_codec_preset(struct hda_codec *codec)
 	for (tbl = hda_preset_tables; *tbl; tbl++) {
 		for (preset = *tbl; preset->id; preset++) {
 			u32 mask = preset->mask;
+			if (preset->afg && preset->afg != codec->afg)
+				continue;
+			if (preset->mfg && preset->mfg != codec->mfg)
+				continue;
 			if (!mask)
 				mask = ~0;
 			if (preset->id == (codec->vendor_id & mask) &&
