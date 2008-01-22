@@ -304,6 +304,9 @@ static ssize_t write_filehandle(struct file *file, char *buf, size_t size)
 	struct auth_domain *dom;
 	struct knfsd_fh fh;
 
+	if (size == 0)
+		return -EINVAL;
+
 	if (buf[size-1] != '\n')
 		return -EINVAL;
 	buf[size-1] = 0;
@@ -663,7 +666,7 @@ static ssize_t write_recoverydir(struct file *file, char *buf, size_t size)
 	char *recdir;
 	int len, status;
 
-	if (size > PATH_MAX || buf[size-1] != '\n')
+	if (size == 0 || size > PATH_MAX || buf[size-1] != '\n')
 		return -EINVAL;
 	buf[size-1] = 0;
 
