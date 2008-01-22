@@ -2529,7 +2529,7 @@ sg_idr_max_id(int id, void *p, void *data)
 static int
 sg_last_dev(void)
 {
-	int k = 0;
+	int k = -1;
 	unsigned long iflags;
 
 	read_lock_irqsave(&sg_index_lock, iflags);
