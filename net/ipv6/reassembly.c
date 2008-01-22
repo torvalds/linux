@@ -670,16 +670,51 @@ static struct ctl_table ip6_frags_ctl_table[] = {
 
 static int ip6_frags_sysctl_register(struct net *net)
 {
+	struct ctl_table *table;
 	struct ctl_table_header *hdr;
 
-	hdr = register_net_sysctl_table(net, net_ipv6_ctl_path,
-			ip6_frags_ctl_table);
-	return hdr == NULL ? -ENOMEM : 0;
+	table = ip6_frags_ctl_table;
+	if (net != &init_net) {
+		table = kmemdup(table, sizeof(ip6_frags_ctl_table), GFP_KERNEL);
+		if (table == NULL)
+			goto err_alloc;
+
+		table[0].mode &= ~0222;
+		table[1].mode &= ~0222;
+		table[2].mode &= ~0222;
+		table[3].mode &= ~0222;
+	}
+
+	hdr = register_net_sysctl_table(net, net_ipv6_ctl_path, table);
+	if (hdr == NULL)
+		goto err_reg;
+
+	net->ipv6.sysctl.frags_hdr = hdr;
+	return 0;
+
+err_reg:
+	if (net != &init_net)
+		kfree(table);
+err_alloc:
+	return -ENOMEM;
+}
+
+static void ip6_frags_sysctl_unregister(struct net *net)
+{
+	struct ctl_table *table;
+
+	table = net->ipv6.sysctl.frags_hdr->ctl_table_arg;
+	unregister_net_sysctl_table(net->ipv6.sysctl.frags_hdr);
+	kfree(table);
 }
 #else
 static inline int ip6_frags_sysctl_register(struct net *net)
 {
 	return 0;
+}
+
+static inline void ip6_frags_sysctl_unregister(struct net *net)
+{
 }
 #endif
 

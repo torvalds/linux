@@ -12,6 +12,7 @@ struct ctl_table_header;
 struct netns_sysctl_ipv6 {
 #ifdef CONFIG_SYSCTL
 	struct ctl_table_header *table;
+	struct ctl_table_header *frags_hdr;
 #endif
 	struct inet_frags_ctl frags;
 	int bindv6only;
