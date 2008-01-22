@@ -2671,8 +2671,7 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 				 struct auto_pin_cfg *cfg,
 				 hda_nid_t *ignore_nids)
 {
-	hda_nid_t nid, nid_start;
-	int nodes;
+	hda_nid_t nid, end_nid;
 	short seq, assoc_line_out, assoc_speaker;
 	short sequences_line_out[ARRAY_SIZE(cfg->line_out_pins)];
 	short sequences_speaker[ARRAY_SIZE(cfg->speaker_pins)];
@@ -2685,8 +2684,8 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 	memset(sequences_hp, 0, sizeof(sequences_hp));
 	assoc_line_out = assoc_speaker = 0;
 
-	nodes = snd_hda_get_sub_nodes(codec, codec->afg, &nid_start);
-	for (nid = nid_start; nid < nodes + nid_start; nid++) {
+	end_nid = codec->start_nid + codec->num_nodes;
+	for (nid = codec->start_nid; nid < end_nid; nid++) {
 		unsigned int wid_caps = get_wcaps(codec, nid);
 		unsigned int wid_type =
 			(wid_caps & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
