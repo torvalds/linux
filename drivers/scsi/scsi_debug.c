@@ -311,12 +311,47 @@ static void sdebug_max_tgts_luns(void);
 static struct device pseudo_primary;
 static struct bus_type pseudo_lld_bus;
 
+static void get_data_transfer_info(unsigned char *cmd,
+				   unsigned long long *lba, unsigned int *num)
+{
+	int i;
+
+	switch (*cmd) {
+	case WRITE_16:
+	case READ_16:
+		for (*lba = 0, i = 0; i < 8; ++i) {
+			if (i > 0)
+				*lba <<= 8;
+			*lba += cmd[2 + i];
+		}
+		*num = cmd[13] + (cmd[12] << 8) +
+			(cmd[11] << 16) + (cmd[10] << 24);
+		break;
+	case WRITE_12:
+	case READ_12:
+		*lba = cmd[5] + (cmd[4] << 8) +	(cmd[3] << 16) + (cmd[2] << 24);
+		*num = cmd[9] + (cmd[8] << 8) +	(cmd[7] << 16) + (cmd[6] << 24);
+		break;
+	case WRITE_10:
+	case READ_10:
+		*lba = cmd[5] + (cmd[4] << 8) +	(cmd[3] << 16) + (cmd[2] << 24);
+		*num = cmd[8] + (cmd[7] << 8);
+		break;
+	case WRITE_6:
+	case READ_6:
+		*lba = cmd[3] + (cmd[2] << 8) + ((cmd[1] & 0x1f) << 16);
+		*num = (0 == cmd[4]) ? 256 : cmd[4];
+		break;
+	default:
+		break;
+	}
+}
 
 static
 int scsi_debug_queuecommand(struct scsi_cmnd * SCpnt, done_funct_t done)
 {
 	unsigned char *cmd = (unsigned char *) SCpnt->cmnd;
-	int len, k, j;
+	int len, k;
 	unsigned int num;
 	unsigned long long lba;
 	int errsts = 0;
@@ -452,28 +487,7 @@ int scsi_debug_queuecommand(struct scsi_cmnd * SCpnt, done_funct_t done)
 			break;
 		if (scsi_debug_fake_rw)
 			break;
-		if ((*cmd) == READ_16) {
-			for (lba = 0, j = 0; j < 8; ++j) {
-				if (j > 0)
-					lba <<= 8;
-				lba += cmd[2 + j];
-			}
-			num = cmd[13] + (cmd[12] << 8) +
-				(cmd[11] << 16) + (cmd[10] << 24);
-		} else if ((*cmd) == READ_12) {
-			lba = cmd[5] + (cmd[4] << 8) +
-				(cmd[3] << 16) + (cmd[2] << 24);
-			num = cmd[9] + (cmd[8] << 8) +
-				(cmd[7] << 16) + (cmd[6] << 24);
-		} else if ((*cmd) == READ_10) {
-			lba = cmd[5] + (cmd[4] << 8) +
-				(cmd[3] << 16) + (cmd[2] << 24);
-			num = cmd[8] + (cmd[7] << 8);
-		} else {	/* READ (6) */
-			lba = cmd[3] + (cmd[2] << 8) +
-				((cmd[1] & 0x1f) << 16);
-			num = (0 == cmd[4]) ? 256 : cmd[4];
-		}
+		get_data_transfer_info(cmd, &lba, &num);
 		errsts = resp_read(SCpnt, lba, num, devip);
 		if (inj_recovered && (0 == errsts)) {
 			mk_sense_buffer(devip, RECOVERED_ERROR,
@@ -500,28 +514,7 @@ int scsi_debug_queuecommand(struct scsi_cmnd * SCpnt, done_funct_t done)
 			break;
 		if (scsi_debug_fake_rw)
 			break;
-		if ((*cmd) == WRITE_16) {
-			for (lba = 0, j = 0; j < 8; ++j) {
-				if (j > 0)
-					lba <<= 8;
-				lba += cmd[2 + j];
-			}
-			num = cmd[13] + (cmd[12] << 8) +
-				(cmd[11] << 16) + (cmd[10] << 24);
-		} else if ((*cmd) == WRITE_12) {
-			lba = cmd[5] + (cmd[4] << 8) +
-				(cmd[3] << 16) + (cmd[2] << 24);
-			num = cmd[9] + (cmd[8] << 8) +
-				(cmd[7] << 16) + (cmd[6] << 24);
-		} else if ((*cmd) == WRITE_10) {
-			lba = cmd[5] + (cmd[4] << 8) +
-				(cmd[3] << 16) + (cmd[2] << 24);
-			num = cmd[8] + (cmd[7] << 8);
-		} else {	/* WRITE (6) */
-			lba = cmd[3] + (cmd[2] << 8) +
-				((cmd[1] & 0x1f) << 16);
-			num = (0 == cmd[4]) ? 256 : cmd[4];
-		}
+		get_data_transfer_info(cmd, &lba, &num);
 		errsts = resp_write(SCpnt, lba, num, devip);
 		if (inj_recovered && (0 == errsts)) {
 			mk_sense_buffer(devip, RECOVERED_ERROR,
