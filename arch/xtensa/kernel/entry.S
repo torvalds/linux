@@ -395,55 +395,49 @@ common_exception_return:
 	/* Jump if we are returning from kernel exceptions. */
 
 1:	l32i	a3, a1, PT_PS
-	_bbsi.l	a3, PS_UM_BIT, 2f
-	j	kernel_exception_exit
+	_bbci.l	a3, PS_UM_BIT, 4f
 
 	/* Specific to a user exception exit:
 	 * We need to check some flags for signal handling and rescheduling,
 	 * and have to restore WB and WS, extra states, and all registers
 	 * in the register file that were in use in the user task.
-	 */
-
-2:	wsr	a3, PS		/* disable interrupts */
-
-	/* Check for signals (keep interrupts disabled while we read TI_FLAGS)
-	 * Note: PS.INTLEVEL = 0, PS.EXCM = 1
+	 * Note that we don't disable interrupts here. 
 	 */
 
 	GET_THREAD_INFO(a2,a1)
 	l32i	a4, a2, TI_FLAGS
-
-	/* Enable interrupts again.
-	 * Note: When we get here, we certainly have handled any interrupts.
-	 *       (Hint: There is only one user exception frame on stack)
-	 */
-
-	movi	a3, 1 << PS_WOE_BIT
 
 	_bbsi.l	a4, TIF_NEED_RESCHED, 3f
 	_bbci.l	a4, TIF_SIGPENDING, 4f
 
 	l32i	a4, a1, PT_DEPC
 	bgeui	a4, VALID_DOUBLE_EXCEPTION_ADDRESS, 4f
-	/* Reenable interrupts and call do_signal() */
 
-	wsr	a3, PS
+	/* Call do_signal() */
+
 	movi	a4, do_signal	# int do_signal(struct pt_regs*, sigset_t*)
 	mov	a6, a1
 	movi	a7, 0
 	callx4	a4
 	j	1b
 
-3:	/* Reenable interrupts and reschedule */
+3:	/* Reschedule */
 
-	wsr	a3, PS
 	movi	a4, schedule	# void schedule (void)
 	callx4	a4
 	j	1b
 
-	/* Restore the state of the task and return from the exception. */
+4:	/* Restore optional registers. */
 
-4:	/* a2 holds GET_CURRENT(a2,a1)  */
+	load_xtregs_opt a1 a2 a4 a5 a6 a7 PT_XTREGS_OPT
+
+	wsr	a3, PS		/* disable interrupts */
+
+	_bbci.l	a3, PS_UM_BIT, kernel_exception_exit
+
+user_exception_exit:
+
+	/* Restore the state of the task and return from the exception. */
 
 	/* Switch to the user thread WINDOWBASE. Save SP temporarily in DEPC */
 
@@ -508,10 +502,6 @@ common_exception_return:
 	 */
 
 kernel_exception_exit:
-
-	/* Disable interrupts (a3 holds PT_PS) */
-
-	wsr	a3, PS
 
 #ifdef PREEMPTIBLE_KERNEL
 
@@ -590,10 +580,6 @@ kernel_exception_exit:
 	 */
 
 common_exception_exit:
-
-	/* Restore optional registers. */
-
-	load_xtregs_opt a1 a3 a4 a5 a6 a7 PT_XTREGS_OPT
 
 	/* Restore address registers. */
 
