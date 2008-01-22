@@ -178,15 +178,16 @@ static inline struct fib_table *fib_new_table(struct net *net, u32 id)
 	return fib_get_table(net, id);
 }
 
-static inline int fib_lookup(const struct flowi *flp, struct fib_result *res)
+static inline int fib_lookup(struct net *net, const struct flowi *flp,
+			     struct fib_result *res)
 {
 	struct fib_table *table;
 
-	table = fib_get_table(&init_net, RT_TABLE_LOCAL);
+	table = fib_get_table(net, RT_TABLE_LOCAL);
 	if (!table->tb_lookup(table, flp, res))
 		return 0;
 
-	table = fib_get_table(&init_net, RT_TABLE_MAIN);
+	table = fib_get_table(net, RT_TABLE_MAIN);
 	if (!table->tb_lookup(table, flp, res))
 		return 0;
 	return -ENETUNREACH;
@@ -208,7 +209,7 @@ extern void __net_exit fib4_rules_exit(struct net *net);
 extern u32 fib_rules_tclass(struct fib_result *res);
 #endif
 
-extern int fib_lookup(struct flowi *flp, struct fib_result *res);
+extern int fib_lookup(struct net *n, struct flowi *flp, struct fib_result *res);
 
 extern struct fib_table *fib_new_table(struct net *net, u32 id);
 extern struct fib_table *fib_get_table(struct net *net, u32 id);

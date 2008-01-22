@@ -54,14 +54,14 @@ u32 fib_rules_tclass(struct fib_result *res)
 }
 #endif
 
-int fib_lookup(struct flowi *flp, struct fib_result *res)
+int fib_lookup(struct net *net, struct flowi *flp, struct fib_result *res)
 {
 	struct fib_lookup_arg arg = {
 		.result = res,
 	};
 	int err;
 
-	err = fib_rules_lookup(init_net.ipv4.rules_ops, flp, 0, &arg);
+	err = fib_rules_lookup(net->ipv4.rules_ops, flp, 0, &arg);
 	res->r = arg.rule;
 
 	return err;

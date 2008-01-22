@@ -559,7 +559,7 @@ static int fib_check_nh(struct fib_config *cfg, struct fib_info *fi,
 			/* It is not necessary, but requires a bit of thinking */
 			if (fl.fl4_scope < RT_SCOPE_LINK)
 				fl.fl4_scope = RT_SCOPE_LINK;
-			if ((err = fib_lookup(&fl, &res)) != 0)
+			if ((err = fib_lookup(&init_net, &fl, &res)) != 0)
 				return err;
 		}
 		err = -EINVAL;
