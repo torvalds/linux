@@ -1020,19 +1020,26 @@ static void garmin_close (struct usb_serial_port *port, struct file * filp)
 	if (!serial)
 		return;
 
-	garmin_clear(garmin_data_p);
+	mutex_lock(&port->serial->disc_mutex);
+	if (!port->serial->disconnected)
+		garmin_clear(garmin_data_p);
 
 	/* shutdown our urbs */
 	usb_kill_urb (port->read_urb);
 	usb_kill_urb (port->write_urb);
 
-	if (noResponseFromAppLayer(garmin_data_p) ||
-	    ((garmin_data_p->flags & CLEAR_HALT_REQUIRED) != 0)) {
-		process_resetdev_request(port);
-		garmin_data_p->state = STATE_RESET;
+	if (!port->serial->disconnected) {
+		if (noResponseFromAppLayer(garmin_data_p) ||
+		    ((garmin_data_p->flags & CLEAR_HALT_REQUIRED) != 0)) {
+			process_resetdev_request(port);
+			garmin_data_p->state = STATE_RESET;
+		} else {
+			garmin_data_p->state = STATE_DISCONNECTED;
+		}
 	} else {
 		garmin_data_p->state = STATE_DISCONNECTED;
 	}
+	mutex_unlock(&port->serial->disc_mutex);
 }
 
 

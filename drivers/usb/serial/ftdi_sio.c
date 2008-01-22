@@ -1198,7 +1198,8 @@ static void ftdi_close (struct usb_serial_port *port, struct file *filp)
 
 	dbg("%s", __FUNCTION__);
 
-	if (c_cflag & HUPCL){
+	mutex_lock(&port->serial->disc_mutex);
+	if (c_cflag & HUPCL && !port->serial->disconnected){
 		/* Disable flow control */
 		if (usb_control_msg(port->serial->dev,
 				    usb_sndctrlpipe(port->serial->dev, 0),
@@ -1212,6 +1213,7 @@ static void ftdi_close (struct usb_serial_port *port, struct file *filp)
 		/* drop RTS and DTR */
 		clear_mctrl(port, TIOCM_DTR | TIOCM_RTS);
 	} /* Note change no line if hupcl is off */
+	mutex_unlock(&port->serial->disc_mutex);
 
 	/* cancel any scheduled reading */
 	cancel_delayed_work(&priv->rx_work);

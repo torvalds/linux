@@ -348,7 +348,10 @@ static void cp2101_close (struct usb_serial_port *port, struct file * filp)
 	usb_kill_urb(port->write_urb);
 	usb_kill_urb(port->read_urb);
 
-	cp2101_set_config_single(port, CP2101_UART, UART_DISABLE);
+	mutex_lock(&port->serial->disc_mutex);
+	if (!port->serial->disconnected)
+		cp2101_set_config_single(port, CP2101_UART, UART_DISABLE);
+	mutex_unlock(&port->serial->disc_mutex);
 }
 
 /*

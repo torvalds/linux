@@ -362,7 +362,7 @@ static void visor_close (struct usb_serial_port *port, struct file * filp)
 			kfree (transfer_buffer);
 		}
 	}
-	mutex_lock(&port->serial->disc_mutex);
+	mutex_unlock(&port->serial->disc_mutex);
 
 	if (stats)
 		dev_info(&port->dev, "Bytes In = %d  Bytes Out = %d\n",
