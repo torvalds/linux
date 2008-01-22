@@ -1020,13 +1020,13 @@ static void cxt5047_hp2_automute(struct hda_codec *codec)
 static void cxt5047_hp_automic(struct hda_codec *codec)
 {
 	static struct hda_verb mic_jack_on[] = {
-		{0x15, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
-		{0x17, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
+		{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
+		{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
 		{}
 	};
 	static struct hda_verb mic_jack_off[] = {
-		{0x17, AC_VERB_SET_AMP_GAIN_MUTE, 0xb080},
-		{0x15, AC_VERB_SET_AMP_GAIN_MUTE, 0xb000},
+		{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
+		{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
 		{}
 	};
 	unsigned int present;
@@ -1043,8 +1043,7 @@ static void cxt5047_hp_automic(struct hda_codec *codec)
 static void cxt5047_hp_unsol_event(struct hda_codec *codec,
 				  unsigned int res)
 {
-	res >>= 26;
-	switch (res) {
+	switch (res >> 26) {
 	case CONEXANT_HP_EVENT:
 		cxt5047_hp_automute(codec);
 		break;
@@ -1253,6 +1252,17 @@ static struct snd_kcontrol_new cxt5047_test_mixer[] = {
 		.get = conexant_mux_enum_get,
 		.put = conexant_mux_enum_put,
 	},
+	HDA_CODEC_VOLUME("Input-1 Volume", 0x1a, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("Input-1 Switch", 0x1a, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Input-2 Volume", 0x1a, 0x1, HDA_INPUT),
+	HDA_CODEC_MUTE("Input-2 Switch", 0x1a, 0x1, HDA_INPUT),
+	HDA_CODEC_VOLUME("Input-3 Volume", 0x1a, 0x2, HDA_INPUT),
+	HDA_CODEC_MUTE("Input-3 Switch", 0x1a, 0x2, HDA_INPUT),
+	HDA_CODEC_VOLUME("Input-4 Volume", 0x1a, 0x3, HDA_INPUT),
+	HDA_CODEC_MUTE("Input-4 Switch", 0x1a, 0x3, HDA_INPUT),
+	HDA_CODEC_VOLUME("Input-5 Volume", 0x1a, 0x4, HDA_INPUT),
+	HDA_CODEC_MUTE("Input-5 Switch", 0x1a, 0x4, HDA_INPUT),
+
 	{ } /* end */
 };
 
