@@ -141,7 +141,7 @@ struct net_device *ipmr_new_tunnel(struct vifctl *v)
 		p.iph.ihl = 5;
 		p.iph.protocol = IPPROTO_IPIP;
 		sprintf(p.name, "dvmrp%d", v->vifc_vifi);
-		ifr.ifr_ifru.ifru_data = (void*)&p;
+		ifr.ifr_ifru.ifru_data = (__force void __user *)&p;
 
 		oldfs = get_fs(); set_fs(KERNEL_DS);
 		err = dev->do_ioctl(dev, &ifr, SIOCADDTUNNEL);
@@ -954,10 +954,12 @@ int ip_mroute_setsockopt(struct sock *sk,int optname,char __user *optval,int opt
 #ifdef CONFIG_IP_PIMSM
 	case MRT_PIM:
 	{
-		int v, ret;
+		int v;
+
 		if (get_user(v,(int __user *)optval))
 			return -EFAULT;
-		v = (v)?1:0;
+		v = (v) ? 1 : 0;
+
 		rtnl_lock();
 		ret = 0;
 		if (v != mroute_do_pim) {
@@ -1659,6 +1661,7 @@ static struct vif_device *ipmr_vif_seq_idx(struct ipmr_vif_iter *iter,
 }
 
 static void *ipmr_vif_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(mrt_lock)
 {
 	read_lock(&mrt_lock);
 	return *pos ? ipmr_vif_seq_idx(seq->private, *pos - 1)
@@ -1682,6 +1685,7 @@ static void *ipmr_vif_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void ipmr_vif_seq_stop(struct seq_file *seq, void *v)
+	__releases(mrt_lock)
 {
 	read_unlock(&mrt_lock);
 }
