@@ -586,6 +586,10 @@ extern int ip6_mc_msfget(struct sock *sk, struct group_filter *gsf,
 			 int __user *optlen);
 
 #ifdef CONFIG_PROC_FS
+extern struct ctl_table *ipv6_icmp_sysctl_init(struct net *net);
+extern void ipv6_frag_sysctl_init(struct net *net);
+extern struct ctl_table *ipv6_route_sysctl_init(struct net *net);
+
 extern int  ac6_proc_init(void);
 extern void ac6_proc_exit(void);
 extern int  raw6_proc_init(void);

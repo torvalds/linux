@@ -14,9 +14,6 @@
 #include <net/addrconf.h>
 #include <net/inet_frag.h>
 
-extern struct ctl_table *ipv6_route_sysctl_init(struct net *net);
-extern struct ctl_table *ipv6_icmp_sysctl_init(struct net *net);
-
 static ctl_table ipv6_table_template[] = {
 	{
 		.ctl_name	= NET_IPV6_ROUTE,
