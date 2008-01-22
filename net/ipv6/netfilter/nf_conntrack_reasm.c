@@ -71,8 +71,6 @@ struct nf_ct_frag6_queue
 };
 
 static struct inet_frags_ctl nf_frags_ctl __read_mostly = {
-	.high_thresh	 = 256 * 1024,
-	.low_thresh	 = 192 * 1024,
 	.secret_interval = 10 * 60 * HZ,
 };
 
@@ -91,7 +89,7 @@ struct ctl_table nf_ct_ipv6_sysctl_table[] = {
 	{
 		.ctl_name	= NET_NF_CONNTRACK_FRAG6_LOW_THRESH,
 		.procname	= "nf_conntrack_frag6_low_thresh",
-		.data		= &nf_frags_ctl.low_thresh,
+		.data		= &nf_init_frags.low_thresh,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
@@ -99,7 +97,7 @@ struct ctl_table nf_ct_ipv6_sysctl_table[] = {
 	{
 		.ctl_name	= NET_NF_CONNTRACK_FRAG6_HIGH_THRESH,
 		.procname	= "nf_conntrack_frag6_high_thresh",
-		.data		= &nf_frags_ctl.high_thresh,
+		.data		= &nf_init_frags.high_thresh,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
@@ -632,7 +630,7 @@ struct sk_buff *nf_ct_frag6_gather(struct sk_buff *skb)
 		goto ret_orig;
 	}
 
-	if (atomic_read(&nf_init_frags.mem) > nf_frags_ctl.high_thresh)
+	if (atomic_read(&nf_init_frags.mem) > nf_init_frags.high_thresh)
 		nf_ct_frag6_evictor();
 
 	fq = fq_find(fhdr->identification, &hdr->saddr, &hdr->daddr);
@@ -712,6 +710,8 @@ int nf_ct_frag6_init(void)
 	nf_frags.match = ip6_frag_match;
 	nf_frags.frag_expire = nf_ct_frag6_expire;
 	nf_init_frags.timeout = IPV6_FRAG_TIMEOUT;
+	nf_init_frags.high_thresh = 256 * 1024;
+	nf_init_frags.low_thresh = 192 * 1024;
 	inet_frags_init_net(&nf_init_frags);
 	inet_frags_init(&nf_frags);
 
@@ -722,6 +722,6 @@ void nf_ct_frag6_cleanup(void)
 {
 	inet_frags_fini(&nf_frags);
 
-	nf_frags_ctl.low_thresh = 0;
+	nf_init_frags.low_thresh = 0;
 	nf_ct_frag6_evictor();
 }

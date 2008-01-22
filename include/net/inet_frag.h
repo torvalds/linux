@@ -7,6 +7,8 @@ struct netns_frags {
 
 	/* sysctls */
 	int			timeout;
+	int			high_thresh;
+	int			low_thresh;
 };
 
 struct inet_frag_queue {
@@ -30,8 +32,6 @@ struct inet_frag_queue {
 #define INETFRAGS_HASHSZ		64
 
 struct inet_frags_ctl {
-	int high_thresh;
-	int low_thresh;
 	int secret_interval;
 };
 

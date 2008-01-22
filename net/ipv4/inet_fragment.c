@@ -153,7 +153,7 @@ int inet_frag_evictor(struct netns_frags *nf, struct inet_frags *f)
 	struct inet_frag_queue *q;
 	int work, evicted = 0;
 
-	work = atomic_read(&nf->mem) - f->ctl->low_thresh;
+	work = atomic_read(&nf->mem) - nf->low_thresh;
 	while (work > 0) {
 		read_lock(&f->lock);
 		if (list_empty(&f->lru_list)) {

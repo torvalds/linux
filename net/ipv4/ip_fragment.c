@@ -75,14 +75,6 @@ struct ipq {
 };
 
 static struct inet_frags_ctl ip4_frags_ctl __read_mostly = {
-	/*
-	 * Fragment cache limits. We will commit 256K at one time. Should we
-	 * cross that limit we will prune down to 192K. This should cope with
-	 * even the most extreme cases without allowing an attacker to
-	 * measurably harm machine performance.
-	 */
-	.high_thresh	 = 256 * 1024,
-	.low_thresh	 = 192 * 1024,
 	.secret_interval = 10 * 60 * HZ,
 };
 
@@ -582,7 +574,7 @@ int ip_defrag(struct sk_buff *skb, u32 user)
 
 	net = skb->dev->nd_net;
 	/* Start by cleaning up the memory. */
-	if (atomic_read(&net->ipv4.frags.mem) > ip4_frags_ctl.high_thresh)
+	if (atomic_read(&net->ipv4.frags.mem) > net->ipv4.frags.high_thresh)
 		ip_evictor(net);
 
 	/* Lookup (or create) queue header */
@@ -610,7 +602,7 @@ static struct ctl_table ip4_frags_ctl_table[] = {
 	{
 		.ctl_name	= NET_IPV4_IPFRAG_HIGH_THRESH,
 		.procname	= "ipfrag_high_thresh",
-		.data		= &ip4_frags_ctl.high_thresh,
+		.data		= &init_net.ipv4.frags.high_thresh,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec
@@ -618,7 +610,7 @@ static struct ctl_table ip4_frags_ctl_table[] = {
 	{
 		.ctl_name	= NET_IPV4_IPFRAG_LOW_THRESH,
 		.procname	= "ipfrag_low_thresh",
-		.data		= &ip4_frags_ctl.low_thresh,
+		.data		= &init_net.ipv4.frags.low_thresh,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec
@@ -663,8 +655,8 @@ static int ip4_frags_ctl_register(struct net *net)
 		if (table == NULL)
 			goto err_alloc;
 
-		table[0].mode &= ~0222;
-		table[1].mode &= ~0222;
+		table[0].data = &net->ipv4.frags.high_thresh;
+		table[1].data = &net->ipv4.frags.low_thresh;
 		table[2].data = &net->ipv4.frags.timeout;
 		table[3].mode &= ~0222;
 		table[4].mode &= ~0222;
@@ -705,6 +697,14 @@ static inline void ip4_frags_ctl_unregister(struct net *net)
 
 static int ipv4_frags_init_net(struct net *net)
 {
+	/*
+	 * Fragment cache limits. We will commit 256K at one time. Should we
+	 * cross that limit we will prune down to 192K. This should cope with
+	 * even the most extreme cases without allowing an attacker to
+	 * measurably harm machine performance.
+	 */
+	net->ipv4.frags.high_thresh = 256 * 1024;
+	net->ipv4.frags.low_thresh = 192 * 1024;
 	/*
 	 * Important NOTE! Fragment queue must be destroyed before MSL expires.
 	 * RFC791 is wrong proposing to prolongate timer each fragment arrival

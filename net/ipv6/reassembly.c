@@ -601,8 +601,7 @@ static int ipv6_frag_rcv(struct sk_buff *skb)
 	}
 
 	net = skb->dev->nd_net;
-	if (atomic_read(&net->ipv6.frags.mem) >
-			init_net.ipv6.sysctl.frags.high_thresh)
+	if (atomic_read(&net->ipv6.frags.mem) > net->ipv6.frags.high_thresh)
 		ip6_evictor(net, ip6_dst_idev(skb->dst));
 
 	if ((fq = fq_find(net, fhdr->identification, &hdr->saddr, &hdr->daddr,
@@ -634,7 +633,7 @@ static struct ctl_table ip6_frags_ctl_table[] = {
 	{
 		.ctl_name	= NET_IPV6_IP6FRAG_HIGH_THRESH,
 		.procname	= "ip6frag_high_thresh",
-		.data		= &init_net.ipv6.sysctl.frags.high_thresh,
+		.data		= &init_net.ipv6.frags.high_thresh,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec
@@ -642,7 +641,7 @@ static struct ctl_table ip6_frags_ctl_table[] = {
 	{
 		.ctl_name	= NET_IPV6_IP6FRAG_LOW_THRESH,
 		.procname	= "ip6frag_low_thresh",
-		.data		= &init_net.ipv6.sysctl.frags.low_thresh,
+		.data		= &init_net.ipv6.frags.low_thresh,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec
@@ -679,8 +678,8 @@ static int ip6_frags_sysctl_register(struct net *net)
 		if (table == NULL)
 			goto err_alloc;
 
-		table[0].mode &= ~0222;
-		table[1].mode &= ~0222;
+		table[0].data = &net->ipv6.frags.high_thresh;
+		table[1].data = &net->ipv6.frags.low_thresh;
 		table[2].data = &net->ipv6.frags.timeout;
 		table[3].mode &= ~0222;
 	}
@@ -722,8 +721,8 @@ static int ipv6_frags_init_net(struct net *net)
 {
 	ip6_frags.ctl = &net->ipv6.sysctl.frags;
 
-	net->ipv6.sysctl.frags.high_thresh = 256 * 1024;
-	net->ipv6.sysctl.frags.low_thresh = 192 * 1024;
+	net->ipv6.frags.high_thresh = 256 * 1024;
+	net->ipv6.frags.low_thresh = 192 * 1024;
 	net->ipv6.frags.timeout = IPV6_FRAG_TIMEOUT;
 	net->ipv6.sysctl.frags.secret_interval = 10 * 60 * HZ;
 
