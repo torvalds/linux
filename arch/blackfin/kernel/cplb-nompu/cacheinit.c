@@ -42,6 +42,7 @@ void bfin_icache_init(void)
 	ctrl = bfin_read_IMEM_CONTROL();
 	ctrl |= IMC | ENICPLB;
 	bfin_write_IMEM_CONTROL(ctrl);
+	SSYNC();
 }
 #endif
 
@@ -63,5 +64,6 @@ void bfin_dcache_init(void)
 	ctrl = bfin_read_DMEM_CONTROL();
 	ctrl |= DMEM_CNTR;
 	bfin_write_DMEM_CONTROL(ctrl);
+	SSYNC();
 }
 #endif
