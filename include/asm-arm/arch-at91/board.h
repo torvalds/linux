@@ -126,6 +126,9 @@ struct atmel_ac97_data {
 };
 extern void __init at91_add_device_ac97(struct atmel_ac97_data *data);
 
+ /* ISI */
+extern void __init at91_add_device_isi(void);
+
  /* LEDs */
 extern u8 at91_leds_cpu;
 extern u8 at91_leds_timer;

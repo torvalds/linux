@@ -732,6 +732,56 @@ void __init at91_add_device_lcdc(struct atmel_lcdfb_info *data) {}
 
 
 /* --------------------------------------------------------------------
+ *  Image Sensor Interface
+ * -------------------------------------------------------------------- */
+
+#if defined(CONFIG_VIDEO_AT91_ISI) || defined(CONFIG_VIDEO_AT91_ISI_MODULE)
+
+struct resource isi_resources[] = {
+	[0] = {
+		.start	= AT91SAM9263_BASE_ISI,
+		.end	= AT91SAM9263_BASE_ISI + SZ_16K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= AT91SAM9263_ID_ISI,
+		.end	= AT91SAM9263_ID_ISI,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device at91sam9263_isi_device = {
+	.name		= "at91_isi",
+	.id		= -1,
+	.resource	= isi_resources,
+	.num_resources	= ARRAY_SIZE(isi_resources),
+};
+
+void __init at91_add_device_isi(void)
+{
+	at91_set_A_periph(AT91_PIN_PE0, 0);	/* ISI_D0 */
+	at91_set_A_periph(AT91_PIN_PE1, 0);	/* ISI_D1 */
+	at91_set_A_periph(AT91_PIN_PE2, 0);	/* ISI_D2 */
+	at91_set_A_periph(AT91_PIN_PE3, 0);	/* ISI_D3 */
+	at91_set_A_periph(AT91_PIN_PE4, 0);	/* ISI_D4 */
+	at91_set_A_periph(AT91_PIN_PE5, 0);	/* ISI_D5 */
+	at91_set_A_periph(AT91_PIN_PE6, 0);	/* ISI_D6 */
+	at91_set_A_periph(AT91_PIN_PE7, 0);	/* ISI_D7 */
+	at91_set_A_periph(AT91_PIN_PE8, 0);	/* ISI_PCK */
+	at91_set_A_periph(AT91_PIN_PE9, 0);	/* ISI_HSYNC */
+	at91_set_A_periph(AT91_PIN_PE10, 0);	/* ISI_VSYNC */
+	at91_set_B_periph(AT91_PIN_PE11, 0);	/* ISI_MCK (PCK3) */
+	at91_set_B_periph(AT91_PIN_PE12, 0);	/* ISI_PD8 */
+	at91_set_B_periph(AT91_PIN_PE13, 0);	/* ISI_PD9 */
+	at91_set_B_periph(AT91_PIN_PE14, 0);	/* ISI_PD10 */
+	at91_set_B_periph(AT91_PIN_PE15, 0);	/* ISI_PD11 */
+}
+#else
+void __init at91_add_device_isi(void) {}
+#endif
+
+
+/* --------------------------------------------------------------------
  *  LEDs
  * -------------------------------------------------------------------- */
 
