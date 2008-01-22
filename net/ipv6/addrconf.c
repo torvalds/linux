@@ -3335,11 +3335,11 @@ static int inet6_dump_addr(struct sk_buff *skb, struct netlink_callback *cb,
 			     ifa = ifa->if_next, ip_idx++) {
 				if (ip_idx < s_ip_idx)
 					continue;
-				if ((err = inet6_fill_ifaddr(skb, ifa,
-				    NETLINK_CB(cb->skb).pid,
-				    cb->nlh->nlmsg_seq, RTM_NEWADDR,
-				    NLM_F_MULTI)) <= 0)
-					goto done;
+				err = inet6_fill_ifaddr(skb, ifa,
+							NETLINK_CB(cb->skb).pid,
+							cb->nlh->nlmsg_seq,
+							RTM_NEWADDR,
+							NLM_F_MULTI);
 			}
 			break;
 		case MULTICAST_ADDR:
@@ -3348,11 +3348,11 @@ static int inet6_dump_addr(struct sk_buff *skb, struct netlink_callback *cb,
 			     ifmca = ifmca->next, ip_idx++) {
 				if (ip_idx < s_ip_idx)
 					continue;
-				if ((err = inet6_fill_ifmcaddr(skb, ifmca,
-				    NETLINK_CB(cb->skb).pid,
-				    cb->nlh->nlmsg_seq, RTM_GETMULTICAST,
-				    NLM_F_MULTI)) <= 0)
-					goto done;
+				err = inet6_fill_ifmcaddr(skb, ifmca,
+							  NETLINK_CB(cb->skb).pid,
+							  cb->nlh->nlmsg_seq,
+							  RTM_GETMULTICAST,
+							  NLM_F_MULTI);
 			}
 			break;
 		case ANYCAST_ADDR:
@@ -3361,11 +3361,11 @@ static int inet6_dump_addr(struct sk_buff *skb, struct netlink_callback *cb,
 			     ifaca = ifaca->aca_next, ip_idx++) {
 				if (ip_idx < s_ip_idx)
 					continue;
-				if ((err = inet6_fill_ifacaddr(skb, ifaca,
-				    NETLINK_CB(cb->skb).pid,
-				    cb->nlh->nlmsg_seq, RTM_GETANYCAST,
-				    NLM_F_MULTI)) <= 0)
-					goto done;
+				err = inet6_fill_ifacaddr(skb, ifaca,
+							  NETLINK_CB(cb->skb).pid,
+							  cb->nlh->nlmsg_seq,
+							  RTM_GETANYCAST,
+							  NLM_F_MULTI);
 			}
 			break;
 		default:
@@ -3373,13 +3373,11 @@ static int inet6_dump_addr(struct sk_buff *skb, struct netlink_callback *cb,
 		}
 		read_unlock_bh(&idev->lock);
 		in6_dev_put(idev);
+
+		if (err <= 0)
+			break;
 cont:
 		idx++;
-	}
-done:
-	if (err <= 0) {
-		read_unlock_bh(&idev->lock);
-		in6_dev_put(idev);
 	}
 	cb->args[0] = idx;
 	cb->args[1] = ip_idx;
