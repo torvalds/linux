@@ -2903,8 +2903,7 @@ bnx2_tx_msix(int irq, void *dev_instance)
 static inline int
 bnx2_has_work(struct bnx2_napi *bnapi)
 {
-	struct bnx2 *bp = bnapi->bp;
-	struct status_block *sblk = bp->status_blk;
+	struct status_block *sblk = bnapi->status_blk;
 
 	if ((bnx2_get_hw_rx_cons(bnapi) != bnapi->rx_cons) ||
 	    (bnx2_get_hw_tx_cons(bnapi) != bnapi->hw_tx_cons))
