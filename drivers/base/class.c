@@ -21,17 +21,16 @@
 #include "base.h"
 
 #define to_class_attr(_attr) container_of(_attr, struct class_attribute, attr)
-#define to_class(obj) container_of(obj, struct class, subsys.kobj)
 
 static ssize_t class_attr_show(struct kobject *kobj, struct attribute *attr,
 			       char *buf)
 {
 	struct class_attribute *class_attr = to_class_attr(attr);
-	struct class *dc = to_class(kobj);
+	struct class_private *cp = to_class(kobj);
 	ssize_t ret = -EIO;
 
 	if (class_attr->show)
-		ret = class_attr->show(dc, buf);
+		ret = class_attr->show(cp->class, buf);
 	return ret;
 }
 
@@ -39,17 +38,18 @@ static ssize_t class_attr_store(struct kobject *kobj, struct attribute *attr,
 				const char *buf, size_t count)
 {
 	struct class_attribute *class_attr = to_class_attr(attr);
-	struct class *dc = to_class(kobj);
+	struct class_private *cp = to_class(kobj);
 	ssize_t ret = -EIO;
 
 	if (class_attr->store)
-		ret = class_attr->store(dc, buf, count);
+		ret = class_attr->store(cp->class, buf, count);
 	return ret;
 }
 
 static void class_release(struct kobject *kobj)
 {
-	struct class *class = to_class(kobj);
+	struct class_private *cp = to_class(kobj);
+	struct class *class = cp->class;
 
 	pr_debug("class '%s': release.\n", class->name);
 
@@ -78,7 +78,7 @@ int class_create_file(struct class *cls, const struct class_attribute *attr)
 {
 	int error;
 	if (cls)
-		error = sysfs_create_file(&cls->subsys.kobj, &attr->attr);
+		error = sysfs_create_file(&cls->p->subsys.kobj, &attr->attr);
 	else
 		error = -EINVAL;
 	return error;
@@ -87,21 +87,20 @@ int class_create_file(struct class *cls, const struct class_attribute *attr)
 void class_remove_file(struct class *cls, const struct class_attribute *attr)
 {
 	if (cls)
-		sysfs_remove_file(&cls->subsys.kobj, &attr->attr);
+		sysfs_remove_file(&cls->p->subsys.kobj, &attr->attr);
 }
 
 static struct class *class_get(struct class *cls)
 {
 	if (cls)
-		return container_of(kset_get(&cls->subsys),
-				    struct class, subsys);
-	return NULL;
+		kset_get(&cls->p->subsys);
+	return cls;
 }
 
 static void class_put(struct class *cls)
 {
 	if (cls)
-		kset_put(&cls->subsys);
+		kset_put(&cls->p->subsys);
 }
 
 static int add_class_attrs(struct class *cls)
@@ -136,17 +135,23 @@ static void remove_class_attrs(struct class *cls)
 
 int class_register(struct class *cls)
 {
+	struct class_private *cp;
 	int error;
 
 	pr_debug("device class '%s': registering\n", cls->name);
 
-	INIT_LIST_HEAD(&cls->devices);
-	INIT_LIST_HEAD(&cls->interfaces);
-	kset_init(&cls->class_dirs);
-	init_MUTEX(&cls->sem);
-	error = kobject_set_name(&cls->subsys.kobj, "%s", cls->name);
-	if (error)
+	cp = kzalloc(sizeof(*cp), GFP_KERNEL);
+	if (!cp)
+		return -ENOMEM;
+	INIT_LIST_HEAD(&cp->devices);
+	INIT_LIST_HEAD(&cp->interfaces);
+	kset_init(&cp->class_dirs);
+	init_MUTEX(&cp->sem);
+	error = kobject_set_name(&cp->subsys.kobj, "%s", cls->name);
+	if (error) {
+		kfree(cp);
 		return error;
+	}
 
 	/* set the default /sys/dev directory for devices of this class */
 	if (!cls->dev_kobj)
@@ -155,17 +160,21 @@ int class_register(struct class *cls)
 #if defined(CONFIG_SYSFS_DEPRECATED) && defined(CONFIG_BLOCK)
 	/* let the block class directory show up in the root of sysfs */
 	if (cls != &block_class)
-		cls->subsys.kobj.kset = class_kset;
+		cp->subsys.kobj.kset = class_kset;
 #else
-	cls->subsys.kobj.kset = class_kset;
+	cp->subsys.kobj.kset = class_kset;
 #endif
-	cls->subsys.kobj.ktype = &class_ktype;
+	cp->subsys.kobj.ktype = &class_ktype;
+	cp->class = cls;
+	cls->p = cp;
 
-	error = kset_register(&cls->subsys);
-	if (!error) {
-		error = add_class_attrs(class_get(cls));
-		class_put(cls);
+	error = kset_register(&cp->subsys);
+	if (error) {
+		kfree(cp);
+		return error;
 	}
+	error = add_class_attrs(class_get(cls));
+	class_put(cls);
 	return error;
 }
 
@@ -173,7 +182,7 @@ void class_unregister(struct class *cls)
 {
 	pr_debug("device class '%s': unregistering\n", cls->name);
 	remove_class_attrs(cls);
-	kset_unregister(&cls->subsys);
+	kset_unregister(&cls->p->subsys);
 }
 
 static void class_create_release(struct class *cls)
@@ -280,8 +289,8 @@ int class_for_each_device(struct class *class, struct device *start,
 
 	if (!class)
 		return -EINVAL;
-	down(&class->sem);
-	list_for_each_entry(dev, &class->devices, node) {
+	down(&class->p->sem);
+	list_for_each_entry(dev, &class->p->devices, node) {
 		if (start) {
 			if (start == dev)
 				start = NULL;
@@ -293,7 +302,7 @@ int class_for_each_device(struct class *class, struct device *start,
 		if (error)
 			break;
 	}
-	up(&class->sem);
+	up(&class->p->sem);
 
 	return error;
 }
@@ -330,8 +339,8 @@ struct device *class_find_device(struct class *class, struct device *start,
 	if (!class)
 		return NULL;
 
-	down(&class->sem);
-	list_for_each_entry(dev, &class->devices, node) {
+	down(&class->p->sem);
+	list_for_each_entry(dev, &class->p->devices, node) {
 		if (start) {
 			if (start == dev)
 				start = NULL;
@@ -344,7 +353,7 @@ struct device *class_find_device(struct class *class, struct device *start,
 		} else
 			put_device(dev);
 	}
-	up(&class->sem);
+	up(&class->p->sem);
 
 	return found ? dev : NULL;
 }
@@ -362,13 +371,13 @@ int class_interface_register(struct class_interface *class_intf)
 	if (!parent)
 		return -EINVAL;
 
-	down(&parent->sem);
-	list_add_tail(&class_intf->node, &parent->interfaces);
+	down(&parent->p->sem);
+	list_add_tail(&class_intf->node, &parent->p->interfaces);
 	if (class_intf->add_dev) {
-		list_for_each_entry(dev, &parent->devices, node)
+		list_for_each_entry(dev, &parent->p->devices, node)
 			class_intf->add_dev(dev, class_intf);
 	}
-	up(&parent->sem);
+	up(&parent->p->sem);
 
 	return 0;
 }
@@ -381,13 +390,13 @@ void class_interface_unregister(struct class_interface *class_intf)
 	if (!parent)
 		return;
 
-	down(&parent->sem);
+	down(&parent->p->sem);
 	list_del_init(&class_intf->node);
 	if (class_intf->remove_dev) {
-		list_for_each_entry(dev, &parent->devices, node)
+		list_for_each_entry(dev, &parent->p->devices, node)
 			class_intf->remove_dev(dev, class_intf);
 	}
-	up(&parent->sem);
+	up(&parent->p->sem);
 
 	class_put(parent);
 }
