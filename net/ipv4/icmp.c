@@ -275,18 +275,19 @@ static inline void icmp_xmit_unlock(void)
 #define XRLIM_BURST_FACTOR 6
 int xrlim_allow(struct dst_entry *dst, int timeout)
 {
-	unsigned long now;
+	unsigned long now, token = dst->rate_tokens;
 	int rc = 0;
 
 	now = jiffies;
-	dst->rate_tokens += now - dst->rate_last;
+	token += now - dst->rate_last;
 	dst->rate_last = now;
-	if (dst->rate_tokens > XRLIM_BURST_FACTOR * timeout)
-		dst->rate_tokens = XRLIM_BURST_FACTOR * timeout;
-	if (dst->rate_tokens >= timeout) {
-		dst->rate_tokens -= timeout;
+	if (token > XRLIM_BURST_FACTOR * timeout)
+		token = XRLIM_BURST_FACTOR * timeout;
+	if (token >= timeout) {
+		token -= timeout;
 		rc = 1;
 	}
+	dst->rate_tokens = token;
 	return rc;
 }
 
