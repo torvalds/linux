@@ -390,7 +390,6 @@ out_free_buf:
 	vfree(buf);
 out_free_vidh:
 	ubi_free_vid_hdr(ubi, vh);
-	ubi_assert(err < 0);
 	return err;
 }
 
