@@ -112,7 +112,7 @@ static struct w1_therm_family_converter w1_therm_families[] = {
 
 static inline int w1_DS18B20_convert_temp(u8 rom[9])
 {
-	int t = (rom[1] << 8) | rom[0];
+	s16 t = (rom[1] << 8) | rom[0];
 	t /= 16;
 	return t;
 }
