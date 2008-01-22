@@ -417,20 +417,6 @@ static const int event_type_size[] = {
 	IW_EV_QUAL_LEN,			/* IW_HEADER_TYPE_QUAL */
 };
 
-/* Size (in bytes) of various events, as packed */
-static const int event_type_pk_size[] = {
-	IW_EV_LCP_PK_LEN,		/* IW_HEADER_TYPE_NULL */
-	0,
-	IW_EV_CHAR_PK_LEN,		/* IW_HEADER_TYPE_CHAR */
-	0,
-	IW_EV_UINT_PK_LEN,		/* IW_HEADER_TYPE_UINT */
-	IW_EV_FREQ_PK_LEN,		/* IW_HEADER_TYPE_FREQ */
-	IW_EV_ADDR_PK_LEN,		/* IW_HEADER_TYPE_ADDR */
-	0,
-	IW_EV_POINT_PK_LEN,		/* Without variable payload */
-	IW_EV_PARAM_PK_LEN,		/* IW_HEADER_TYPE_PARAM */
-	IW_EV_QUAL_PK_LEN,		/* IW_HEADER_TYPE_QUAL */
-};
 
 /************************ COMMON SUBROUTINES ************************/
 /*
