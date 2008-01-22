@@ -74,10 +74,6 @@ struct ipq {
 	struct inet_peer *peer;
 };
 
-static struct inet_frags_ctl ip4_frags_ctl __read_mostly = {
-	.secret_interval = 10 * 60 * HZ,
-};
-
 static struct inet_frags ip4_frags;
 
 int ip_frag_nqueues(struct net *net)
@@ -627,7 +623,7 @@ static struct ctl_table ip4_frags_ctl_table[] = {
 	{
 		.ctl_name	= NET_IPV4_IPFRAG_SECRET_INTERVAL,
 		.procname	= "ipfrag_secret_interval",
-		.data		= &ip4_frags_ctl.secret_interval,
+		.data		= &ip4_frags.secret_interval,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_jiffies,
@@ -720,7 +716,6 @@ static int ipv4_frags_init_net(struct net *net)
 void __init ipfrag_init(void)
 {
 	ipv4_frags_init_net(&init_net);
-	ip4_frags.ctl = &ip4_frags_ctl;
 	ip4_frags.hashfn = ip4_hashfn;
 	ip4_frags.constructor = ip4_frag_init;
 	ip4_frags.destructor = ip4_frag_free;
@@ -728,6 +723,7 @@ void __init ipfrag_init(void)
 	ip4_frags.qsize = sizeof(struct ipq);
 	ip4_frags.match = ip4_frag_match;
 	ip4_frags.frag_expire = ip_expire;
+	ip4_frags.secret_interval = 10 * 60 * HZ;
 	inet_frags_init(&ip4_frags);
 }
 

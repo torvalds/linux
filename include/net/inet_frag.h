@@ -31,18 +31,14 @@ struct inet_frag_queue {
 
 #define INETFRAGS_HASHSZ		64
 
-struct inet_frags_ctl {
-	int secret_interval;
-};
-
 struct inet_frags {
 	struct list_head	lru_list;
 	struct hlist_head	hash[INETFRAGS_HASHSZ];
 	rwlock_t		lock;
 	u32			rnd;
 	int			qsize;
+	int			secret_interval;
 	struct timer_list	secret_timer;
-	struct inet_frags_ctl	*ctl;
 
 	unsigned int		(*hashfn)(struct inet_frag_queue *);
 	void			(*constructor)(struct inet_frag_queue *q,

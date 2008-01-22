@@ -658,7 +658,7 @@ static struct ctl_table ip6_frags_ctl_table[] = {
 	{
 		.ctl_name	= NET_IPV6_IP6FRAG_SECRET_INTERVAL,
 		.procname	= "ip6frag_secret_interval",
-		.data		= &init_net.ipv6.sysctl.frags.secret_interval,
+		.data		= &ip6_frags.secret_interval,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_jiffies,
@@ -719,12 +719,9 @@ static inline void ip6_frags_sysctl_unregister(struct net *net)
 
 static int ipv6_frags_init_net(struct net *net)
 {
-	ip6_frags.ctl = &net->ipv6.sysctl.frags;
-
 	net->ipv6.frags.high_thresh = 256 * 1024;
 	net->ipv6.frags.low_thresh = 192 * 1024;
 	net->ipv6.frags.timeout = IPV6_FRAG_TIMEOUT;
-	net->ipv6.sysctl.frags.secret_interval = 10 * 60 * HZ;
 
 	inet_frags_init_net(&net->ipv6.frags);
 
@@ -748,6 +745,7 @@ int __init ipv6_frag_init(void)
 	ip6_frags.qsize = sizeof(struct frag_queue);
 	ip6_frags.match = ip6_frag_match;
 	ip6_frags.frag_expire = ip6_frag_expire;
+	ip6_frags.secret_interval = 10 * 60 * HZ;
 	inet_frags_init(&ip6_frags);
 out:
 	return ret;

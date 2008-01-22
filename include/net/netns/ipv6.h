@@ -14,7 +14,6 @@ struct netns_sysctl_ipv6 {
 	struct ctl_table_header *table;
 	struct ctl_table_header *frags_hdr;
 #endif
-	struct inet_frags_ctl frags;
 	int bindv6only;
 	int flush_delay;
 	int ip6_rt_max_size;

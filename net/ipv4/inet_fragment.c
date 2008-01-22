@@ -47,7 +47,7 @@ static void inet_frag_secret_rebuild(unsigned long dummy)
 	}
 	write_unlock(&f->lock);
 
-	mod_timer(&f->secret_timer, now + f->ctl->secret_interval);
+	mod_timer(&f->secret_timer, now + f->secret_interval);
 }
 
 void inet_frags_init(struct inet_frags *f)
@@ -65,7 +65,7 @@ void inet_frags_init(struct inet_frags *f)
 
 	setup_timer(&f->secret_timer, inet_frag_secret_rebuild,
 			(unsigned long)f);
-	f->secret_timer.expires = jiffies + f->ctl->secret_interval;
+	f->secret_timer.expires = jiffies + f->secret_interval;
 	add_timer(&f->secret_timer);
 }
 EXPORT_SYMBOL(inet_frags_init);
