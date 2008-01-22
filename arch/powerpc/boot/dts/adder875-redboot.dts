@@ -62,7 +62,7 @@
 		flash@0,0 {
 			compatible = "cfi-flash";
 			reg = <0 0 0x800000>;
-			bank-width = <4>;
+			bank-width = <2>;
 			device-width = <2>;
 		};
 	};
