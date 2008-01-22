@@ -5795,7 +5795,7 @@ pfm_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-struct seq_operations pfm_seq_ops = {
+const struct seq_operations pfm_seq_ops = {
 	.start =	pfm_proc_start,
  	.next =		pfm_proc_next,
  	.stop =		pfm_proc_stop,

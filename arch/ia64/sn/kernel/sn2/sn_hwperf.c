@@ -577,7 +577,7 @@ static void sn_topology_stop(struct seq_file *m, void *v)
 /*
  * /proc/sgi_sn/sn_topology, read-only using seq_file
  */
-static struct seq_operations sn_topology_seq_ops = {
+static const struct seq_operations sn_topology_seq_ops = {
 	.start = sn_topology_start,
 	.next = sn_topology_next,
 	.stop = sn_topology_stop,
