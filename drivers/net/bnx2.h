@@ -6582,6 +6582,7 @@ struct bnx2 {
 #define PCIE_FLAG			0x00000200
 #define USING_MSIX_FLAG			0x00000400
 #define USING_MSI_OR_MSIX_FLAG		(USING_MSI_FLAG | USING_MSIX_FLAG)
+#define JUMBO_BROKEN_FLAG		0x00000800
 
 	/* Put tx producer and consumer fields in separate cache lines. */
 

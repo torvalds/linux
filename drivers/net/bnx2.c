@@ -4669,7 +4669,7 @@ bnx2_set_rx_ring_size(struct bnx2 *bp, u32 size)
 	bp->rx_pg_ring_size = 0;
 	bp->rx_max_pg_ring = 0;
 	bp->rx_max_pg_ring_idx = 0;
-	if (rx_space > PAGE_SIZE) {
+	if ((rx_space > PAGE_SIZE) && !(bp->flags & JUMBO_BROKEN_FLAG)) {
 		int pages = PAGE_ALIGN(bp->dev->mtu - 40) >> PAGE_SHIFT;
 
 		jumbo_size = size * pages;
@@ -7031,6 +7031,8 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 			goto err_out_unmap;
 		}
 		bp->flags |= PCIE_FLAG;
+		if (CHIP_REV(bp) == CHIP_REV_Ax)
+			bp->flags |= JUMBO_BROKEN_FLAG;
 	} else {
 		bp->pcix_cap = pci_find_capability(pdev, PCI_CAP_ID_PCIX);
 		if (bp->pcix_cap == 0) {
