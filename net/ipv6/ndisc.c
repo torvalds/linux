@@ -1297,11 +1297,11 @@ skip_defrtr:
 	}
 
 	if (ndopts.nd_useropts) {
-		struct nd_opt_hdr *opt;
-		for (opt = ndopts.nd_useropts;
-		     opt;
-		     opt = ndisc_next_useropt(opt, ndopts.nd_useropts_end)) {
-				ndisc_ra_useropt(skb, opt);
+		struct nd_opt_hdr *p;
+		for (p = ndopts.nd_useropts;
+		     p;
+		     p = ndisc_next_useropt(p, ndopts.nd_useropts_end)) {
+			ndisc_ra_useropt(skb, p);
 		}
 	}
 
