@@ -824,9 +824,6 @@ static void ata_scsi_sdev_config(struct scsi_device *sdev)
 	 * requests.
 	 */
 	sdev->max_device_blocked = 1;
-
-	/* set the min alignment */
-	blk_queue_update_dma_alignment(sdev->request_queue, ATA_DMA_PAD_SZ - 1);
 }
 
 static void ata_scsi_dev_config(struct scsi_device *sdev,
@@ -842,7 +839,14 @@ static void ata_scsi_dev_config(struct scsi_device *sdev,
 	if (dev->class == ATA_DEV_ATAPI) {
 		struct request_queue *q = sdev->request_queue;
 		blk_queue_max_hw_segments(q, q->max_hw_segments - 1);
-	}
+
+		/* set the min alignment */
+		blk_queue_update_dma_alignment(sdev->request_queue,
+					       ATA_DMA_PAD_SZ - 1);
+	} else
+		/* ATA devices must be sector aligned */
+		blk_queue_update_dma_alignment(sdev->request_queue,
+					       ATA_SECT_SIZE - 1);
 
 	if (dev->flags & ATA_DFLAG_AN)
 		set_bit(SDEV_EVT_MEDIA_CHANGE, sdev->supported_events);
