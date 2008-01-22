@@ -50,7 +50,7 @@
  * as well. Or notify me, at least. --ANK
  */
 
-int sysctl_ipfrag_max_dist __read_mostly = 64;
+static int sysctl_ipfrag_max_dist __read_mostly = 64;
 
 struct ipfrag_skb_cb
 {
@@ -74,7 +74,7 @@ struct ipq {
 	struct inet_peer *peer;
 };
 
-struct inet_frags_ctl ip4_frags_ctl __read_mostly = {
+static struct inet_frags_ctl ip4_frags_ctl __read_mostly = {
 	/*
 	 * Fragment cache limits. We will commit 256K at one time. Should we
 	 * cross that limit we will prune down to 192K. This should cope with
@@ -607,8 +607,78 @@ int ip_defrag(struct sk_buff *skb, u32 user)
 	return -ENOMEM;
 }
 
+#ifdef CONFIG_SYSCTL
+static int zero;
+
+static struct ctl_table ip4_frags_ctl_table[] = {
+	{
+		.ctl_name	= NET_IPV4_IPFRAG_HIGH_THRESH,
+		.procname	= "ipfrag_high_thresh",
+		.data		= &ip4_frags_ctl.high_thresh,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec
+	},
+	{
+		.ctl_name	= NET_IPV4_IPFRAG_LOW_THRESH,
+		.procname	= "ipfrag_low_thresh",
+		.data		= &ip4_frags_ctl.low_thresh,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec
+	},
+	{
+		.ctl_name	= NET_IPV4_IPFRAG_TIME,
+		.procname	= "ipfrag_time",
+		.data		= &ip4_frags_ctl.timeout,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_jiffies,
+		.strategy	= &sysctl_jiffies
+	},
+	{
+		.ctl_name	= NET_IPV4_IPFRAG_SECRET_INTERVAL,
+		.procname	= "ipfrag_secret_interval",
+		.data		= &ip4_frags_ctl.secret_interval,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_jiffies,
+		.strategy	= &sysctl_jiffies
+	},
+	{
+		.procname	= "ipfrag_max_dist",
+		.data		= &sysctl_ipfrag_max_dist,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_minmax,
+		.extra1		= &zero
+	},
+	{ }
+};
+
+static int ip4_frags_ctl_register(struct net *net)
+{
+	struct ctl_table_header *hdr;
+
+	hdr = register_net_sysctl_table(net, net_ipv4_ctl_path,
+			ip4_frags_ctl_table);
+	return hdr == NULL ? -ENOMEM : 0;
+}
+#else
+static inline int ip4_frags_ctl_register(struct net *net)
+{
+	return 0;
+}
+#endif
+
+static int ipv4_frags_init_net(struct net *net)
+{
+	return ip4_frags_ctl_register(net);
+}
+
 void __init ipfrag_init(void)
 {
+	ipv4_frags_init_net(&init_net);
 	ip4_frags.ctl = &ip4_frags_ctl;
 	ip4_frags.hashfn = ip4_hashfn;
 	ip4_frags.constructor = ip4_frag_init;

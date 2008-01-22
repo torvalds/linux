@@ -70,7 +70,7 @@ struct nf_ct_frag6_queue
 	__u16			nhoffset;
 };
 
-struct inet_frags_ctl nf_frags_ctl __read_mostly = {
+static struct inet_frags_ctl nf_frags_ctl __read_mostly = {
 	.high_thresh	 = 256 * 1024,
 	.low_thresh	 = 192 * 1024,
 	.timeout	 = IPV6_FRAG_TIMEOUT,
@@ -78,6 +78,35 @@ struct inet_frags_ctl nf_frags_ctl __read_mostly = {
 };
 
 static struct inet_frags nf_frags;
+
+#ifdef CONFIG_SYSCTL
+struct ctl_table nf_ct_ipv6_sysctl_table[] = {
+	{
+		.procname	= "nf_conntrack_frag6_timeout",
+		.data		= &nf_frags_ctl.timeout,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_jiffies,
+	},
+	{
+		.ctl_name	= NET_NF_CONNTRACK_FRAG6_LOW_THRESH,
+		.procname	= "nf_conntrack_frag6_low_thresh",
+		.data		= &nf_frags_ctl.low_thresh,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+	{
+		.ctl_name	= NET_NF_CONNTRACK_FRAG6_HIGH_THRESH,
+		.procname	= "nf_conntrack_frag6_high_thresh",
+		.data		= &nf_frags_ctl.high_thresh,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+	{ .ctl_name = 0 }
+};
+#endif
 
 static unsigned int ip6qhashfn(__be32 id, struct in6_addr *saddr,
 			       struct in6_addr *daddr)

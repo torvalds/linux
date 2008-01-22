@@ -38,40 +38,6 @@ static ctl_table ipv6_table_template[] = {
 		.proc_handler	= &proc_dointvec
 	},
 	{
-		.ctl_name	= NET_IPV6_IP6FRAG_HIGH_THRESH,
-		.procname	= "ip6frag_high_thresh",
-		.data		= &init_net.ipv6.sysctl.frags.high_thresh,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
-	},
-	{
-		.ctl_name	= NET_IPV6_IP6FRAG_LOW_THRESH,
-		.procname	= "ip6frag_low_thresh",
-		.data		= &init_net.ipv6.sysctl.frags.low_thresh,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
-	},
-	{
-		.ctl_name	= NET_IPV6_IP6FRAG_TIME,
-		.procname	= "ip6frag_time",
-		.data		= &init_net.ipv6.sysctl.frags.timeout,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-		.strategy	= &sysctl_jiffies,
-	},
-	{
-		.ctl_name	= NET_IPV6_IP6FRAG_SECRET_INTERVAL,
-		.procname	= "ip6frag_secret_interval",
-		.data		= &init_net.ipv6.sysctl.frags.secret_interval,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-		.strategy	= &sysctl_jiffies
-	},
-	{
 		.ctl_name	= NET_IPV6_MLD_MAX_MSF,
 		.procname	= "mld_max_msf",
 		.data		= &sysctl_mld_max_msf,
@@ -126,16 +92,12 @@ static int ipv6_sysctl_net_init(struct net *net)
 	ipv6_table[1].child = ipv6_icmp_table;
 
 	ipv6_table[2].data = &net->ipv6.sysctl.bindv6only;
-	ipv6_table[3].data = &net->ipv6.sysctl.frags.high_thresh;
-	ipv6_table[4].data = &net->ipv6.sysctl.frags.low_thresh;
-	ipv6_table[5].data = &net->ipv6.sysctl.frags.timeout;
-	ipv6_table[6].data = &net->ipv6.sysctl.frags.secret_interval;
 
 	/* We don't want this value to be per namespace, it should be global
 	   to all namespaces, so make it read-only when we are not in the
 	   init network namespace */
 	if (net != &init_net)
-		ipv6_table[7].mode = 0444;
+		ipv6_table[3].mode = 0444;
 
 	net->ipv6.sysctl.table = register_net_sysctl_table(net, net_ipv6_ctl_path,
 							   ipv6_table);

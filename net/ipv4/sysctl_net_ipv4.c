@@ -284,37 +284,12 @@ static struct ctl_table ipv4_table[] = {
 		.proc_handler	= &proc_dointvec
 	},
 	{
-		.ctl_name	= NET_IPV4_IPFRAG_HIGH_THRESH,
-		.procname	= "ipfrag_high_thresh",
-		.data		= &ip4_frags_ctl.high_thresh,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
-	},
-	{
-		.ctl_name	= NET_IPV4_IPFRAG_LOW_THRESH,
-		.procname	= "ipfrag_low_thresh",
-		.data		= &ip4_frags_ctl.low_thresh,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
-	},
-	{
 		.ctl_name	= NET_IPV4_DYNADDR,
 		.procname	= "ip_dynaddr",
 		.data		= &sysctl_ip_dynaddr,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec
-	},
-	{
-		.ctl_name	= NET_IPV4_IPFRAG_TIME,
-		.procname	= "ipfrag_time",
-		.data		= &ip4_frags_ctl.timeout,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-		.strategy	= &sysctl_jiffies
 	},
 	{
 		.ctl_name	= NET_IPV4_TCP_KEEPALIVE_TIME,
@@ -657,23 +632,6 @@ static struct ctl_table ipv4_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec
-	},
-	{
-		.ctl_name	= NET_IPV4_IPFRAG_SECRET_INTERVAL,
-		.procname	= "ipfrag_secret_interval",
-		.data		= &ip4_frags_ctl.secret_interval,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-		.strategy	= &sysctl_jiffies
-	},
-	{
-		.procname	= "ipfrag_max_dist",
-		.data		= &sysctl_ipfrag_max_dist,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
-		.extra1		= &zero
 	},
 	{
 		.ctl_name	= NET_TCP_NO_METRICS_SAVE,

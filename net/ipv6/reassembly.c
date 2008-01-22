@@ -625,12 +625,70 @@ static struct inet6_protocol frag_protocol =
 	.flags		=	INET6_PROTO_NOPOLICY,
 };
 
-void ipv6_frag_sysctl_init(struct net *net)
-{
-	if (net != &init_net)
-		return;
+#ifdef CONFIG_SYSCTL
+static struct ctl_table ip6_frags_ctl_table[] = {
+	{
+		.ctl_name	= NET_IPV6_IP6FRAG_HIGH_THRESH,
+		.procname	= "ip6frag_high_thresh",
+		.data		= &init_net.ipv6.sysctl.frags.high_thresh,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec
+	},
+	{
+		.ctl_name	= NET_IPV6_IP6FRAG_LOW_THRESH,
+		.procname	= "ip6frag_low_thresh",
+		.data		= &init_net.ipv6.sysctl.frags.low_thresh,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec
+	},
+	{
+		.ctl_name	= NET_IPV6_IP6FRAG_TIME,
+		.procname	= "ip6frag_time",
+		.data		= &init_net.ipv6.sysctl.frags.timeout,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_jiffies,
+		.strategy	= &sysctl_jiffies,
+	},
+	{
+		.ctl_name	= NET_IPV6_IP6FRAG_SECRET_INTERVAL,
+		.procname	= "ip6frag_secret_interval",
+		.data		= &init_net.ipv6.sysctl.frags.secret_interval,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_jiffies,
+		.strategy	= &sysctl_jiffies
+	},
+	{ }
+};
 
+static int ip6_frags_sysctl_register(struct net *net)
+{
+	struct ctl_table_header *hdr;
+
+	hdr = register_net_sysctl_table(net, net_ipv6_ctl_path,
+			ip6_frags_ctl_table);
+	return hdr == NULL ? -ENOMEM : 0;
+}
+#else
+static inline int ip6_frags_sysctl_register(struct net *net)
+{
+	return 0;
+}
+#endif
+
+static int ipv6_frags_init_net(struct net *net)
+{
 	ip6_frags.ctl = &net->ipv6.sysctl.frags;
+
+	net->ipv6.sysctl.frags.high_thresh = 256 * 1024;
+	net->ipv6.sysctl.frags.low_thresh = 192 * 1024;
+	net->ipv6.sysctl.frags.timeout = IPV6_FRAG_TIMEOUT;
+	net->ipv6.sysctl.frags.secret_interval = 10 * 60 * HZ;
+
+	return ip6_frags_sysctl_register(net);
 }
 
 int __init ipv6_frag_init(void)
@@ -640,6 +698,8 @@ int __init ipv6_frag_init(void)
 	ret = inet6_add_protocol(&frag_protocol, IPPROTO_FRAGMENT);
 	if (ret)
 		goto out;
+
+	ipv6_frags_init_net(&init_net);
 
 	ip6_frags.hashfn = ip6_hashfn;
 	ip6_frags.constructor = ip6_frag_init;

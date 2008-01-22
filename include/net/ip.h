@@ -179,11 +179,6 @@ extern int sysctl_ip_nonlocal_bind;
 
 extern struct ctl_path net_ipv4_ctl_path[];
 
-/* From ip_fragment.c */
-struct inet_frags_ctl;
-extern struct inet_frags_ctl ip4_frags_ctl;
-extern int sysctl_ipfrag_max_dist;
-
 /* From inetpeer.c */
 extern int inet_peer_threshold;
 extern int inet_peer_minttl;

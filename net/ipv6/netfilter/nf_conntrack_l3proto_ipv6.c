@@ -297,35 +297,6 @@ static struct nf_hook_ops ipv6_conntrack_ops[] __read_mostly = {
 	},
 };
 
-#ifdef CONFIG_SYSCTL
-static ctl_table nf_ct_ipv6_sysctl_table[] = {
-	{
-		.procname	= "nf_conntrack_frag6_timeout",
-		.data		= &nf_frags_ctl.timeout,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-	},
-	{
-		.ctl_name	= NET_NF_CONNTRACK_FRAG6_LOW_THRESH,
-		.procname	= "nf_conntrack_frag6_low_thresh",
-		.data		= &nf_frags_ctl.low_thresh,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
-	},
-	{
-		.ctl_name	= NET_NF_CONNTRACK_FRAG6_HIGH_THRESH,
-		.procname	= "nf_conntrack_frag6_high_thresh",
-		.data		= &nf_frags_ctl.high_thresh,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
-	},
-	{ .ctl_name = 0 }
-};
-#endif
-
 #if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
 
 #include <linux/netfilter/nfnetlink.h>

@@ -721,10 +721,6 @@ static void cleanup_ipv6_mibs(void)
 static int inet6_net_init(struct net *net)
 {
 	net->ipv6.sysctl.bindv6only = 0;
-	net->ipv6.sysctl.frags.high_thresh = 256 * 1024;
-	net->ipv6.sysctl.frags.low_thresh = 192 * 1024;
-	net->ipv6.sysctl.frags.timeout = IPV6_FRAG_TIMEOUT;
-	net->ipv6.sysctl.frags.secret_interval = 10 * 60 * HZ;
 	net->ipv6.sysctl.flush_delay = 0;
 	net->ipv6.sysctl.ip6_rt_max_size = 4096;
 	net->ipv6.sysctl.ip6_rt_gc_min_interval = HZ / 2;
@@ -734,7 +730,6 @@ static int inet6_net_init(struct net *net)
 	net->ipv6.sysctl.ip6_rt_mtu_expires = 10*60*HZ;
 	net->ipv6.sysctl.ip6_rt_min_advmss = IPV6_MIN_MTU - 20 - 40;
 	net->ipv6.sysctl.icmpv6_time = 1*HZ;
-	ipv6_frag_sysctl_init(net);
 
 	return 0;
 }
