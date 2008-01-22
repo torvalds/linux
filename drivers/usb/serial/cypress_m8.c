@@ -682,7 +682,6 @@ static void cypress_close(struct usb_serial_port *port, struct file * filp)
 {
 	struct cypress_private *priv = usb_get_serial_port_data(port);
 	unsigned int c_cflag;
-	unsigned long flags;
 	int bps;
 	long timeout;
 	wait_queue_t wait;
@@ -690,7 +689,7 @@ static void cypress_close(struct usb_serial_port *port, struct file * filp)
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
 	/* wait for data to drain from buffer */
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irq(&priv->lock);
 	timeout = CYPRESS_CLOSING_WAIT;
 	init_waitqueue_entry(&wait, current);
 	add_wait_queue(&port->tty->write_wait, &wait);
@@ -698,18 +697,25 @@ static void cypress_close(struct usb_serial_port *port, struct file * filp)
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (cypress_buf_data_avail(priv->buf) == 0
 		|| timeout == 0 || signal_pending(current)
-		|| !usb_get_intfdata(port->serial->interface))
+		/* without mutex, allowed due to harmless failure mode */
+		|| port->serial->disconnected)
 			break;
-		spin_unlock_irqrestore(&priv->lock, flags);
+		spin_unlock_irq(&priv->lock);
 		timeout = schedule_timeout(timeout);
-		spin_lock_irqsave(&priv->lock, flags);
+		spin_lock_irq(&priv->lock);
 	}
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&port->tty->write_wait, &wait);
 	/* clear out any remaining data in the buffer */
 	cypress_buf_clear(priv->buf);
-	spin_unlock_irqrestore(&priv->lock, flags);
-	
+	spin_unlock_irq(&priv->lock);
+
+	/* writing is potentially harmful, lock must be taken */
+	mutex_lock(&port->serial->disc_mutex);
+	if (port->serial->disconnected) {
+		mutex_unlock(&port->serial->disc_mutex);
+		return;
+	}
 	/* wait for characters to drain from device */
 	bps = tty_get_baud_rate(port->tty);
 	if (bps > 1200)
@@ -727,10 +733,10 @@ static void cypress_close(struct usb_serial_port *port, struct file * filp)
 		if (c_cflag & HUPCL) {
 			/* drop dtr and rts */
 			priv = usb_get_serial_port_data(port);
-			spin_lock_irqsave(&priv->lock, flags);
+			spin_lock_irq(&priv->lock);
 			priv->line_control = 0;
 			priv->cmd_ctrl = 1;
-			spin_unlock_irqrestore(&priv->lock, flags);
+			spin_unlock_irq(&priv->lock);
 			cypress_write(port, NULL, 0);
 		}
 	}
@@ -738,6 +744,7 @@ static void cypress_close(struct usb_serial_port *port, struct file * filp)
 	if (stats)
 		dev_info (&port->dev, "Statistics: %d Bytes In | %d Bytes Out | %d Commands Issued\n",
 		          priv->bytes_in, priv->bytes_out, priv->cmd_count);
+	mutex_unlock(&port->serial->disc_mutex);
 } /* cypress_close */
 
 
