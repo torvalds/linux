@@ -629,8 +629,9 @@ static int azx_single_send_cmd(struct hda_codec *codec, u32 val)
 		}
 		udelay(1);
 	}
-	snd_printd(SFX "send_cmd timeout: IRS=0x%x, val=0x%x\n",
-		   azx_readw(chip, IRS), val);
+	if (printk_ratelimit())
+		snd_printd(SFX "send_cmd timeout: IRS=0x%x, val=0x%x\n",
+			   azx_readw(chip, IRS), val);
 	return -EIO;
 }
 
@@ -646,8 +647,9 @@ static unsigned int azx_single_get_response(struct hda_codec *codec)
 			return azx_readl(chip, IR);
 		udelay(1);
 	}
-	snd_printd(SFX "get_response timeout: IRS=0x%x\n",
-		   azx_readw(chip, IRS));
+	if (printk_ratelimit())
+		snd_printd(SFX "get_response timeout: IRS=0x%x\n",
+			   azx_readw(chip, IRS));
 	return (unsigned int)-1;
 }
 
