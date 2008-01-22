@@ -418,7 +418,7 @@ out:
 
 void udp_err(struct sk_buff *skb, u32 info)
 {
-	return __udp4_lib_err(skb, info, udp_hash);
+	__udp4_lib_err(skb, info, udp_hash);
 }
 
 /*
