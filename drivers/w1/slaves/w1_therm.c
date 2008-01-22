@@ -204,7 +204,7 @@ static ssize_t w1_therm_read_bin(struct kobject *kobj,
 
 				crc = w1_calc_crc8(rom, 8);
 
-				if (rom[8] == crc && rom[0])
+				if (rom[8] == crc)
 					verdict = 1;
 			}
 		}
