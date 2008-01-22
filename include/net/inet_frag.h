@@ -4,6 +4,9 @@
 struct netns_frags {
 	int			nqueues;
 	atomic_t		mem;
+
+	/* sysctls */
+	int			timeout;
 };
 
 struct inet_frag_queue {
@@ -29,7 +32,6 @@ struct inet_frag_queue {
 struct inet_frags_ctl {
 	int high_thresh;
 	int low_thresh;
-	int timeout;
 	int secret_interval;
 };
 

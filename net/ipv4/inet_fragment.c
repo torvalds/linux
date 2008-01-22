@@ -206,7 +206,7 @@ static struct inet_frag_queue *inet_frag_intern(struct netns_frags *nf,
 	}
 #endif
 	qp = qp_in;
-	if (!mod_timer(&qp->timer, jiffies + f->ctl->timeout))
+	if (!mod_timer(&qp->timer, jiffies + nf->timeout))
 		atomic_inc(&qp->refcnt);
 
 	atomic_inc(&qp->refcnt);

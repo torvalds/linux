@@ -73,7 +73,6 @@ struct nf_ct_frag6_queue
 static struct inet_frags_ctl nf_frags_ctl __read_mostly = {
 	.high_thresh	 = 256 * 1024,
 	.low_thresh	 = 192 * 1024,
-	.timeout	 = IPV6_FRAG_TIMEOUT,
 	.secret_interval = 10 * 60 * HZ,
 };
 
@@ -84,7 +83,7 @@ static struct netns_frags nf_init_frags;
 struct ctl_table nf_ct_ipv6_sysctl_table[] = {
 	{
 		.procname	= "nf_conntrack_frag6_timeout",
-		.data		= &nf_frags_ctl.timeout,
+		.data		= &nf_init_frags.timeout,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_jiffies,
@@ -712,6 +711,7 @@ int nf_ct_frag6_init(void)
 	nf_frags.qsize = sizeof(struct nf_ct_frag6_queue);
 	nf_frags.match = ip6_frag_match;
 	nf_frags.frag_expire = nf_ct_frag6_expire;
+	nf_init_frags.timeout = IPV6_FRAG_TIMEOUT;
 	inet_frags_init_net(&nf_init_frags);
 	inet_frags_init(&nf_frags);
 

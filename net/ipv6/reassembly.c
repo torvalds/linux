@@ -650,7 +650,7 @@ static struct ctl_table ip6_frags_ctl_table[] = {
 	{
 		.ctl_name	= NET_IPV6_IP6FRAG_TIME,
 		.procname	= "ip6frag_time",
-		.data		= &init_net.ipv6.sysctl.frags.timeout,
+		.data		= &init_net.ipv6.frags.timeout,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_jiffies,
@@ -681,7 +681,7 @@ static int ip6_frags_sysctl_register(struct net *net)
 
 		table[0].mode &= ~0222;
 		table[1].mode &= ~0222;
-		table[2].mode &= ~0222;
+		table[2].data = &net->ipv6.frags.timeout;
 		table[3].mode &= ~0222;
 	}
 
@@ -724,7 +724,7 @@ static int ipv6_frags_init_net(struct net *net)
 
 	net->ipv6.sysctl.frags.high_thresh = 256 * 1024;
 	net->ipv6.sysctl.frags.low_thresh = 192 * 1024;
-	net->ipv6.sysctl.frags.timeout = IPV6_FRAG_TIMEOUT;
+	net->ipv6.frags.timeout = IPV6_FRAG_TIMEOUT;
 	net->ipv6.sysctl.frags.secret_interval = 10 * 60 * HZ;
 
 	inet_frags_init_net(&net->ipv6.frags);

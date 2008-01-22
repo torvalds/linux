@@ -83,13 +83,6 @@ static struct inet_frags_ctl ip4_frags_ctl __read_mostly = {
 	 */
 	.high_thresh	 = 256 * 1024,
 	.low_thresh	 = 192 * 1024,
-
-	/*
-	 * Important NOTE! Fragment queue must be destroyed before MSL expires.
-	 * RFC791 is wrong proposing to prolongate timer each fragment arrival
-	 * by TTL.
-	 */
-	.timeout	 = IP_FRAG_TIME,
 	.secret_interval = 10 * 60 * HZ,
 };
 
@@ -287,7 +280,7 @@ static int ip_frag_reinit(struct ipq *qp)
 {
 	struct sk_buff *fp;
 
-	if (!mod_timer(&qp->q.timer, jiffies + ip4_frags_ctl.timeout)) {
+	if (!mod_timer(&qp->q.timer, jiffies + qp->q.net->timeout)) {
 		atomic_inc(&qp->q.refcnt);
 		return -ETIMEDOUT;
 	}
@@ -633,7 +626,7 @@ static struct ctl_table ip4_frags_ctl_table[] = {
 	{
 		.ctl_name	= NET_IPV4_IPFRAG_TIME,
 		.procname	= "ipfrag_time",
-		.data		= &ip4_frags_ctl.timeout,
+		.data		= &init_net.ipv4.frags.timeout,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_jiffies,
@@ -672,7 +665,7 @@ static int ip4_frags_ctl_register(struct net *net)
 
 		table[0].mode &= ~0222;
 		table[1].mode &= ~0222;
-		table[2].mode &= ~0222;
+		table[2].data = &net->ipv4.frags.timeout;
 		table[3].mode &= ~0222;
 		table[4].mode &= ~0222;
 	}
@@ -712,6 +705,13 @@ static inline void ip4_frags_ctl_unregister(struct net *net)
 
 static int ipv4_frags_init_net(struct net *net)
 {
+	/*
+	 * Important NOTE! Fragment queue must be destroyed before MSL expires.
+	 * RFC791 is wrong proposing to prolongate timer each fragment arrival
+	 * by TTL.
+	 */
+	net->ipv4.frags.timeout = IP_FRAG_TIME;
+
 	inet_frags_init_net(&net->ipv4.frags);
 
 	return ip4_frags_ctl_register(net);
