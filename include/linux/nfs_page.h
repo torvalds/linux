@@ -83,6 +83,7 @@ extern	void nfs_pageio_complete(struct nfs_pageio_descriptor *desc);
 extern	void nfs_pageio_cond_complete(struct nfs_pageio_descriptor *, pgoff_t);
 extern  int nfs_wait_on_request(struct nfs_page *);
 extern	void nfs_unlock_request(struct nfs_page *req);
+extern	int nfs_set_page_tag_locked(struct nfs_page *req);
 extern  void nfs_clear_page_tag_locked(struct nfs_page *req);
 
 
@@ -93,18 +94,6 @@ static inline int
 nfs_lock_request_dontget(struct nfs_page *req)
 {
 	return !test_and_set_bit(PG_BUSY, &req->wb_flags);
-}
-
-/*
- * Lock the page of an asynchronous request and take a reference
- */
-static inline int
-nfs_lock_request(struct nfs_page *req)
-{
-	if (test_and_set_bit(PG_BUSY, &req->wb_flags))
-		return 0;
-	kref_get(&req->wb_kref);
-	return 1;
 }
 
 /**

@@ -196,7 +196,7 @@ static int nfs_writepage_setup(struct nfs_open_context *ctx, struct page *page,
 	}
 	/* Update file length */
 	nfs_grow_file(page, offset, count);
-	nfs_unlock_request(req);
+	nfs_clear_page_tag_locked(req);
 	return 0;
 }
 
@@ -252,7 +252,6 @@ static int nfs_page_async_flush(struct nfs_pageio_descriptor *pgio,
 				struct page *page)
 {
 	struct inode *inode = page->mapping->host;
-	struct nfs_inode *nfsi = NFS_I(inode);
 	struct nfs_page *req;
 	int ret;
 
@@ -263,10 +262,10 @@ static int nfs_page_async_flush(struct nfs_pageio_descriptor *pgio,
 			spin_unlock(&inode->i_lock);
 			return 0;
 		}
-		if (nfs_lock_request_dontget(req))
+		if (nfs_set_page_tag_locked(req))
 			break;
 		/* Note: If we hold the page lock, as is the case in nfs_writepage,
-		 *	 then the call to nfs_lock_request_dontget() will always
+		 *	 then the call to nfs_set_page_tag_locked() will always
 		 *	 succeed provided that someone hasn't already marked the
 		 *	 request as dirty (in which case we don't care).
 		 */
@@ -280,7 +279,7 @@ static int nfs_page_async_flush(struct nfs_pageio_descriptor *pgio,
 	if (test_bit(PG_NEED_COMMIT, &req->wb_flags)) {
 		/* This request is marked for commit */
 		spin_unlock(&inode->i_lock);
-		nfs_unlock_request(req);
+		nfs_clear_page_tag_locked(req);
 		nfs_pageio_complete(pgio);
 		return 0;
 	}
@@ -288,8 +287,6 @@ static int nfs_page_async_flush(struct nfs_pageio_descriptor *pgio,
 		spin_unlock(&inode->i_lock);
 		BUG();
 	}
-	radix_tree_tag_set(&nfsi->nfs_page_tree, req->wb_index,
-			NFS_PAGE_TAG_LOCKED);
 	spin_unlock(&inode->i_lock);
 	nfs_pageio_add_request(pgio, req);
 	return 0;
@@ -381,6 +378,7 @@ static int nfs_inode_add_request(struct inode *inode, struct nfs_page *req)
 	set_page_private(req->wb_page, (unsigned long)req);
 	nfsi->npages++;
 	kref_get(&req->wb_kref);
+	radix_tree_tag_set(&nfsi->nfs_page_tree, req->wb_index, NFS_PAGE_TAG_LOCKED);
 	return 0;
 }
 
@@ -596,7 +594,7 @@ static struct nfs_page * nfs_update_request(struct nfs_open_context* ctx,
 		spin_lock(&inode->i_lock);
 		req = nfs_page_find_request_locked(page);
 		if (req) {
-			if (!nfs_lock_request_dontget(req)) {
+			if (!nfs_set_page_tag_locked(req)) {
 				int error;
 
 				spin_unlock(&inode->i_lock);
@@ -646,7 +644,7 @@ static struct nfs_page * nfs_update_request(struct nfs_open_context* ctx,
 	    || req->wb_page != page
 	    || !nfs_dirty_request(req)
 	    || offset > rqend || end < req->wb_offset) {
-		nfs_unlock_request(req);
+		nfs_clear_page_tag_locked(req);
 		return ERR_PTR(-EBUSY);
 	}
 
