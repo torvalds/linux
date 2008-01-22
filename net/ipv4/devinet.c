@@ -409,12 +409,12 @@ static int inet_set_ifa(struct net_device *dev, struct in_ifaddr *ifa)
 	return inet_insert_ifa(ifa);
 }
 
-struct in_device *inetdev_by_index(int ifindex)
+struct in_device *inetdev_by_index(struct net *net, int ifindex)
 {
 	struct net_device *dev;
 	struct in_device *in_dev = NULL;
 	read_lock(&dev_base_lock);
-	dev = __dev_get_by_index(&init_net, ifindex);
+	dev = __dev_get_by_index(net, ifindex);
 	if (dev)
 		in_dev = in_dev_get(dev);
 	read_unlock(&dev_base_lock);
@@ -454,7 +454,7 @@ static int inet_rtm_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg
 		goto errout;
 
 	ifm = nlmsg_data(nlh);
-	in_dev = inetdev_by_index(ifm->ifa_index);
+	in_dev = inetdev_by_index(net, ifm->ifa_index);
 	if (in_dev == NULL) {
 		err = -ENODEV;
 		goto errout;
