@@ -290,7 +290,7 @@ static int davinci_ck_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static struct seq_operations davinci_ck_op = {
+static const struct seq_operations davinci_ck_op = {
 	.start	= davinci_ck_start,
 	.next	= davinci_ck_next,
 	.stop	= davinci_ck_stop,
@@ -302,7 +302,7 @@ static int davinci_ck_open(struct inode *inode, struct file *file)
 	return seq_open(file, &davinci_ck_op);
 }
 
-static struct file_operations proc_davinci_ck_operations = {
+static const struct file_operations proc_davinci_ck_operations = {
 	.open		= davinci_ck_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
