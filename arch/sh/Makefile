@@ -153,8 +153,6 @@ drivers-$(CONFIG_OPROFILE)	+= arch/sh/oprofile/
 
 boot := arch/sh/boot
 
-CPPFLAGS_vmlinux.lds := -traditional
-
 incdir-prefix	:= $(srctree)/include/asm-sh/
 
 #	Update machine arch and proc symlinks if something which affects
