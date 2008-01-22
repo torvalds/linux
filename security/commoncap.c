@@ -59,6 +59,12 @@ int cap_netlink_recv(struct sk_buff *skb, int cap)
 
 EXPORT_SYMBOL(cap_netlink_recv);
 
+/*
+ * NOTE WELL: cap_capable() cannot be used like the kernel's capable()
+ * function.  That is, it has the reverse semantics: cap_capable()
+ * returns 0 when a task has a capability, but the kernel's capable()
+ * returns 1 for this case.
+ */
 int cap_capable (struct task_struct *tsk, int cap)
 {
 	/* Derived from include/linux/sched.h:capable. */
@@ -107,10 +113,11 @@ static inline int cap_block_setpcap(struct task_struct *target)
 static inline int cap_inh_is_capped(void)
 {
 	/*
-	 * return 1 if changes to the inheritable set are limited
-	 * to the old permitted set.
+	 * Return 1 if changes to the inheritable set are limited
+	 * to the old permitted set. That is, if the current task
+	 * does *not* possess the CAP_SETPCAP capability.
 	 */
-	return !cap_capable(current, CAP_SETPCAP);
+	return (cap_capable(current, CAP_SETPCAP) != 0);
 }
 
 #else /* ie., ndef CONFIG_SECURITY_FILE_CAPABILITIES */
