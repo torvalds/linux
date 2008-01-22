@@ -408,6 +408,37 @@ static int spdif_input_default_get(struct snd_kcontrol *ctl,
 	return 0;
 }
 
+static int spdif_loopback_get(struct snd_kcontrol *ctl,
+			      struct snd_ctl_elem_value *value)
+{
+	struct oxygen *chip = ctl->private_data;
+
+	value->value.integer.value[0] =
+		!!(oxygen_read32(chip, OXYGEN_SPDIF_CONTROL)
+		   & OXYGEN_SPDIF_LOOPBACK);
+	return 0;
+}
+
+static int spdif_loopback_put(struct snd_kcontrol *ctl,
+			      struct snd_ctl_elem_value *value)
+{
+	struct oxygen *chip = ctl->private_data;
+	u32 oldreg, newreg;
+	int changed;
+
+	spin_lock_irq(&chip->reg_lock);
+	oldreg = oxygen_read32(chip, OXYGEN_SPDIF_CONTROL);
+	if (value->value.integer.value[0])
+		newreg = oldreg | OXYGEN_SPDIF_LOOPBACK;
+	else
+		newreg = oldreg & ~OXYGEN_SPDIF_LOOPBACK;
+	changed = newreg != oldreg;
+	if (changed)
+		oxygen_write32(chip, OXYGEN_SPDIF_CONTROL, newreg);
+	spin_unlock_irq(&chip->reg_lock);
+	return changed;
+}
+
 static int ac97_switch_get(struct snd_kcontrol *ctl,
 			   struct snd_ctl_elem_value *value)
 {
@@ -619,6 +650,13 @@ static const struct snd_kcontrol_new controls[] = {
 		.access = SNDRV_CTL_ELEM_ACCESS_READ,
 		.info = spdif_info,
 		.get = spdif_input_default_get,
+	},
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = SNDRV_CTL_NAME_IEC958("Loopback ", NONE, SWITCH),
+		.info = snd_ctl_boolean_mono_info,
+		.get = spdif_loopback_get,
+		.put = spdif_loopback_put,
 	},
 };
 
