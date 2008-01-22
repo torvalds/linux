@@ -286,8 +286,13 @@ static int compare_lebs(struct ubi_device *ubi, const struct ubi_scan_leb *seb,
 		 * FIXME: but this is anyway obsolete and will be removed at
 		 * some point.
 		 */
-
 		dbg_bld("using old crappy leb_ver stuff");
+
+		if (v1 == v2) {
+			ubi_err("PEB %d and PEB %d have the same version %lld",
+				seb->pnum, pnum, v1);
+			return -EINVAL;
+		}
 
 		abs = v1 - v2;
 		if (abs < 0)
