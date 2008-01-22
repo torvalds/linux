@@ -7,7 +7,7 @@
  * Description:  GPIO Abstraction Layer
  *
  * Modified:
- *               Copyright 2007 Analog Devices Inc.
+ *               Copyright 2008 Analog Devices Inc.
  *
  * Bugs:         Enter bugs at http://blackfin.uclinux.org/
  *
@@ -137,7 +137,6 @@ static unsigned short *port_fer[gpio_bank(MAX_BLACKFIN_GPIOS)] = {
 	(unsigned short *) PORTG_FER,
 	(unsigned short *) PORTH_FER,
 };
-
 #endif
 
 #ifdef BF527_FAMILY
@@ -211,7 +210,7 @@ static unsigned int sic_iwr_irqs[gpio_bank(MAX_BLACKFIN_GPIOS)] = {IRQ_PROG0_INT
 #endif /* CONFIG_PM */
 
 #if defined(BF548_FAMILY)
-inline int check_gpio(unsigned short gpio)
+inline int check_gpio(unsigned gpio)
 {
 	if (gpio == GPIO_PB15 || gpio == GPIO_PC14 || gpio == GPIO_PC15
 	    || gpio == GPIO_PH14 || gpio == GPIO_PH15
@@ -221,7 +220,7 @@ inline int check_gpio(unsigned short gpio)
 	return 0;
 }
 #else
-inline int check_gpio(unsigned short gpio)
+inline int check_gpio(unsigned gpio)
 {
 	if (gpio >= MAX_BLACKFIN_GPIOS)
 		return -EINVAL;
@@ -236,7 +235,6 @@ void gpio_error(unsigned gpio)
 
 static void set_label(unsigned short ident, const char *label)
 {
-
 	if (label && str_ident) {
 		strncpy(str_ident[ident].name, label,
 			 RESOURCE_LABEL_SIZE);
@@ -267,7 +265,7 @@ static int cmp_label(unsigned short ident, const char *label)
 }
 
 #if defined(BF527_FAMILY) || defined(BF537_FAMILY)
-static void port_setup(unsigned short gpio, unsigned short usage)
+static void port_setup(unsigned gpio, unsigned short usage)
 {
 	if (!check_gpio(gpio)) {
 		if (usage == GPIO_USAGE)
@@ -278,7 +276,7 @@ static void port_setup(unsigned short gpio, unsigned short usage)
 	}
 }
 #elif defined(BF548_FAMILY)
-static void port_setup(unsigned short gpio, unsigned short usage)
+static void port_setup(unsigned gpio, unsigned short usage)
 {
 	if (usage == GPIO_USAGE)
 		gpio_array[gpio_bank(gpio)]->port_fer &= ~gpio_bit(gpio);
@@ -399,7 +397,7 @@ inline void portmux_setup(unsigned short portno, unsigned short function)
 #endif
 
 #ifndef BF548_FAMILY
-static void default_gpio(unsigned short gpio)
+static void default_gpio(unsigned gpio)
 {
 	unsigned short bank, bitmask;
 	unsigned long flags;
@@ -419,7 +417,6 @@ static void default_gpio(unsigned short gpio)
 	gpio_bankb[bank]->edge &= ~bitmask;
 	AWA_DUMMY_READ(edge);
 	local_irq_restore(flags);
-
 }
 #else
 # define default_gpio(...)  do { } while (0)
@@ -457,10 +454,9 @@ arch_initcall(bfin_gpio_init);
 /* Set a specific bit */
 
 #define SET_GPIO(name) \
-void set_gpio_ ## name(unsigned short gpio, unsigned short arg) \
+void set_gpio_ ## name(unsigned gpio, unsigned short arg) \
 { \
 	unsigned long flags; \
-	BUG_ON(!(reserved_gpio_map[gpio_bank(gpio)] & gpio_bit(gpio))); \
 	local_irq_save(flags); \
 	if (arg) \
 		gpio_bankb[gpio_bank(gpio)]->name |= gpio_bit(gpio); \
@@ -480,10 +476,9 @@ SET_GPIO(both)
 
 #if ANOMALY_05000311 || ANOMALY_05000323
 #define SET_GPIO_SC(name) \
-void set_gpio_ ## name(unsigned short gpio, unsigned short arg) \
+void set_gpio_ ## name(unsigned gpio, unsigned short arg) \
 { \
 	unsigned long flags; \
-	BUG_ON(!(reserved_gpio_map[gpio_bank(gpio)] & gpio_bit(gpio))); \
 	local_irq_save(flags); \
 	if (arg) \
 		gpio_bankb[gpio_bank(gpio)]->name ## _set = gpio_bit(gpio); \
@@ -495,9 +490,8 @@ void set_gpio_ ## name(unsigned short gpio, unsigned short arg) \
 EXPORT_SYMBOL(set_gpio_ ## name);
 #else
 #define SET_GPIO_SC(name) \
-void set_gpio_ ## name(unsigned short gpio, unsigned short arg) \
+void set_gpio_ ## name(unsigned gpio, unsigned short arg) \
 { \
-	BUG_ON(!(reserved_gpio_map[gpio_bank(gpio)] & gpio_bit(gpio))); \
 	if (arg) \
 		gpio_bankb[gpio_bank(gpio)]->name ## _set = gpio_bit(gpio); \
 	else \
@@ -511,19 +505,17 @@ SET_GPIO_SC(maskb)
 SET_GPIO_SC(data)
 
 #if ANOMALY_05000311 || ANOMALY_05000323
-void set_gpio_toggle(unsigned short gpio)
+void set_gpio_toggle(unsigned gpio)
 {
 	unsigned long flags;
-	BUG_ON(!(reserved_gpio_map[gpio_bank(gpio)] & gpio_bit(gpio)));
 	local_irq_save(flags);
 	gpio_bankb[gpio_bank(gpio)]->toggle = gpio_bit(gpio);
 	AWA_DUMMY_READ(toggle);
 	local_irq_restore(flags);
 }
 #else
-void set_gpio_toggle(unsigned short gpio)
+void set_gpio_toggle(unsigned gpio)
 {
-	BUG_ON(!(reserved_gpio_map[gpio_bank(gpio)] & gpio_bit(gpio)));
 	gpio_bankb[gpio_bank(gpio)]->toggle = gpio_bit(gpio);
 }
 #endif
@@ -534,7 +526,7 @@ EXPORT_SYMBOL(set_gpio_toggle);
 
 #if ANOMALY_05000311 || ANOMALY_05000323
 #define SET_GPIO_P(name) \
-void set_gpiop_ ## name(unsigned short gpio, unsigned short arg) \
+void set_gpiop_ ## name(unsigned gpio, unsigned short arg) \
 { \
 	unsigned long flags; \
 	local_irq_save(flags); \
@@ -545,7 +537,7 @@ void set_gpiop_ ## name(unsigned short gpio, unsigned short arg) \
 EXPORT_SYMBOL(set_gpiop_ ## name);
 #else
 #define SET_GPIO_P(name) \
-void set_gpiop_ ## name(unsigned short gpio, unsigned short arg) \
+void set_gpiop_ ## name(unsigned gpio, unsigned short arg) \
 { \
 	gpio_bankb[gpio_bank(gpio)]->name = arg; \
 } \
@@ -561,11 +553,10 @@ SET_GPIO_P(both)
 SET_GPIO_P(maska)
 SET_GPIO_P(maskb)
 
-
 /* Get a specific bit */
 #if ANOMALY_05000311 || ANOMALY_05000323
 #define GET_GPIO(name) \
-unsigned short get_gpio_ ## name(unsigned short gpio) \
+unsigned short get_gpio_ ## name(unsigned gpio) \
 { \
 	unsigned long flags; \
 	unsigned short ret; \
@@ -578,7 +569,7 @@ unsigned short get_gpio_ ## name(unsigned short gpio) \
 EXPORT_SYMBOL(get_gpio_ ## name);
 #else
 #define GET_GPIO(name) \
-unsigned short get_gpio_ ## name(unsigned short gpio) \
+unsigned short get_gpio_ ## name(unsigned gpio) \
 { \
 	return (0x01 & (gpio_bankb[gpio_bank(gpio)]->name >> gpio_sub_n(gpio))); \
 } \
@@ -598,7 +589,7 @@ GET_GPIO(maskb)
 
 #if ANOMALY_05000311 || ANOMALY_05000323
 #define GET_GPIO_P(name) \
-unsigned short get_gpiop_ ## name(unsigned short gpio) \
+unsigned short get_gpiop_ ## name(unsigned gpio) \
 { \
 	unsigned long flags; \
 	unsigned short ret; \
@@ -611,7 +602,7 @@ unsigned short get_gpiop_ ## name(unsigned short gpio) \
 EXPORT_SYMBOL(get_gpiop_ ## name);
 #else
 #define GET_GPIO_P(name) \
-unsigned short get_gpiop_ ## name(unsigned short gpio) \
+unsigned short get_gpiop_ ## name(unsigned gpio) \
 { \
 	return (gpio_bankb[gpio_bank(gpio)]->name);\
 } \
@@ -648,7 +639,7 @@ GET_GPIO_P(maskb)
 *************************************************************
 * MODIFICATION HISTORY :
 **************************************************************/
-int gpio_pm_wakeup_request(unsigned short gpio, unsigned char type)
+int gpio_pm_wakeup_request(unsigned gpio, unsigned char type)
 {
 	unsigned long flags;
 
@@ -656,7 +647,6 @@ int gpio_pm_wakeup_request(unsigned short gpio, unsigned char type)
 		return -EINVAL;
 
 	local_irq_save(flags);
-
 	wakeup_map[gpio_bank(gpio)] |= gpio_bit(gpio);
 	wakeup_flags_map[gpio] = type;
 	local_irq_restore(flags);
@@ -665,7 +655,7 @@ int gpio_pm_wakeup_request(unsigned short gpio, unsigned char type)
 }
 EXPORT_SYMBOL(gpio_pm_wakeup_request);
 
-void gpio_pm_wakeup_free(unsigned short gpio)
+void gpio_pm_wakeup_free(unsigned gpio)
 {
 	unsigned long flags;
 
@@ -680,7 +670,7 @@ void gpio_pm_wakeup_free(unsigned short gpio)
 }
 EXPORT_SYMBOL(gpio_pm_wakeup_free);
 
-static int bfin_gpio_wakeup_type(unsigned short gpio, unsigned char type)
+static int bfin_gpio_wakeup_type(unsigned gpio, unsigned char type)
 {
 	port_setup(gpio, GPIO_USAGE);
 	set_gpio_dir(gpio, 0);
@@ -789,7 +779,7 @@ void gpio_pm_restore(void)
 #endif
 #else /* BF548_FAMILY */
 
-unsigned short get_gpio_dir(unsigned short gpio)
+unsigned short get_gpio_dir(unsigned gpio)
 {
 	return (0x01 & (gpio_array[gpio_bank(gpio)]->port_dir_clear >> gpio_sub_n(gpio)));
 }
@@ -1123,7 +1113,6 @@ int gpio_direction_input(unsigned gpio)
 		return -EINVAL;
 	}
 
-
 	local_irq_save(flags);
 	gpio_array[gpio_bank(gpio)]->port_dir_clear = gpio_bit(gpio);
 	gpio_array[gpio_bank(gpio)]->port_inen |= gpio_bit(gpio);
@@ -1158,7 +1147,6 @@ void gpio_set_value(unsigned gpio, int arg)
 		gpio_array[gpio_bank(gpio)]->port_set = gpio_bit(gpio);
 	else
 		gpio_array[gpio_bank(gpio)]->port_clear = gpio_bit(gpio);
-
 }
 EXPORT_SYMBOL(gpio_set_value);
 
@@ -1200,7 +1188,12 @@ int gpio_direction_output(unsigned gpio, int value)
 
 	local_irq_save(flags);
 	gpio_bankb[gpio_bank(gpio)]->inen &= ~gpio_bit(gpio);
-	gpio_set_value(gpio, value);
+
+	if (value)
+		gpio_bankb[gpio_bank(gpio)]->data_set = gpio_bit(gpio);
+	else
+		gpio_bankb[gpio_bank(gpio)]->data_clear = gpio_bit(gpio);
+
 	gpio_bankb[gpio_bank(gpio)]->dir |= gpio_bit(gpio);
 	AWA_DUMMY_READ(dir);
 	local_irq_restore(flags);
@@ -1225,6 +1218,7 @@ void bfin_gpio_reset_spi0_ssel1(void)
 
 	port_setup(gpio, GPIO_USAGE);
 	gpio_bankb[gpio_bank(gpio)]->data_set = gpio_bit(gpio);
+	AWA_DUMMY_READ(data_set);
 	udelay(1);
 }
 
@@ -1259,6 +1253,5 @@ static __init int gpio_register_proc(void)
 		proc_gpio->read_proc = gpio_proc_read;
 	return proc_gpio != NULL;
 }
-
 __initcall(gpio_register_proc);
 #endif
