@@ -158,7 +158,7 @@ static int mpc5200_wdt_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static struct file_operations mpc5200_wdt_fops = {
+static const struct file_operations mpc5200_wdt_fops = {
 	.owner	= THIS_MODULE,
 	.write	= mpc5200_wdt_write,
 	.ioctl	= mpc5200_wdt_ioctl,

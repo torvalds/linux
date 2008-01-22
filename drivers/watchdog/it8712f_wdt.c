@@ -296,7 +296,7 @@ it8712f_wdt_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static struct file_operations it8712f_wdt_fops = {
+static const struct file_operations it8712f_wdt_fops = {
 	.owner = THIS_MODULE,
 	.llseek = no_llseek,
 	.write = it8712f_wdt_write,
