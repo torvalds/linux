@@ -442,7 +442,8 @@ static void bfin_serial_dma_tx_chars(struct bfin_serial_port *uart)
 		set_bfin_dma_config(DIR_READ, DMA_FLOW_STOP,
 			INTR_ON_BUF,
 			DIMENSION_LINEAR,
-			DATA_SIZE_8));
+			DATA_SIZE_8,
+			DMA_SYNC_RESTART));
 	set_dma_start_addr(uart->tx_dma_channel, (unsigned long)(xmit->buf+xmit->tail));
 	set_dma_x_count(uart->tx_dma_channel, uart->tx_count);
 	set_dma_x_modify(uart->tx_dma_channel, 1);
@@ -689,7 +690,8 @@ static int bfin_serial_startup(struct uart_port *port)
 	set_dma_config(uart->rx_dma_channel,
 		set_bfin_dma_config(DIR_WRITE, DMA_FLOW_AUTO,
 				INTR_ON_ROW, DIMENSION_2D,
-				DATA_SIZE_8));
+				DATA_SIZE_8,
+				DMA_SYNC_RESTART));
 	set_dma_x_count(uart->rx_dma_channel, DMA_RX_XCOUNT);
 	set_dma_x_modify(uart->rx_dma_channel, 1);
 	set_dma_y_count(uart->rx_dma_channel, DMA_RX_YCOUNT);
