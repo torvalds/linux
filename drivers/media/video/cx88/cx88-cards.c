@@ -1893,12 +1893,10 @@ int cx88_tuner_callback(void *priv, int command, int arg)
 	switch(core->boardnr) {
 	case CX88_BOARD_PINNACLE_PCTV_HD_800i:
 		if(command == 0) { /* This is the reset command from xc5000 */
-			/* Reset XC5000 tuner via GPIO pin #2 */
-			cx_set(MO_GP0_IO, 0x00000400);
-			cx_clear(MO_GP0_IO, 0x00000004);
-			mdelay(200);
-			cx_set(MO_GP0_IO, 0x00000004);
-			mdelay(200);
+			/* Reset XC5000 tuner via SYS_RSTO_pin */
+			cx_write(MO_SRST_IO, 0);
+			msleep(10);
+			cx_write(MO_SRST_IO, 1);
 			return 0;
 		}
 		else {
