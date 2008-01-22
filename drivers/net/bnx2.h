@@ -6344,6 +6344,15 @@ struct l2_fhdr {
 #define MII_BNX2_DSP_RW_PORT			0x15
 #define MII_BNX2_DSP_ADDRESS			0x17
 #define MII_BNX2_DSP_EXPAND_REG			 0x0f00
+#define MII_EXPAND_REG1				  (MII_BNX2_DSP_EXPAND_REG | 1)
+#define MII_EXPAND_REG1_RUDI_C			   0x20
+#define MII_EXPAND_SERDES_CTL			  (MII_BNX2_DSP_EXPAND_REG | 2)
+
+#define MII_BNX2_MISC_SHADOW			0x1c
+#define MISC_SHDW_AN_DBG			 0x6800
+#define MISC_SHDW_AN_DBG_NOSYNC			  0x0002
+#define MISC_SHDW_MODE_CTL			 0x7c00
+#define MISC_SHDW_MODE_CTL_SIG_DET		  0x0010
 
 #define MII_BNX2_BLK_ADDR			0x1f
 #define MII_BNX2_BLK_ADDR_IEEE0			 0x0000
@@ -6643,6 +6652,7 @@ struct bnx2 {
 #define PHY_INT_MODE_LINK_READY_FLAG	0x200
 #define PHY_DIS_EARLY_DAC_FLAG		0x400
 #define REMOTE_PHY_CAP_FLAG		0x800
+#define PHY_FORCED_DOWN_FLAG		0x1000
 
 	u32			mii_bmcr;
 	u32			mii_bmsr;
