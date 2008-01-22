@@ -4,6 +4,7 @@
 struct netns_frags {
 	int			nqueues;
 	atomic_t		mem;
+	struct list_head	lru_list;
 
 	/* sysctls */
 	int			timeout;
@@ -32,7 +33,6 @@ struct inet_frag_queue {
 #define INETFRAGS_HASHSZ		64
 
 struct inet_frags {
-	struct list_head	lru_list;
 	struct hlist_head	hash[INETFRAGS_HASHSZ];
 	rwlock_t		lock;
 	u32			rnd;

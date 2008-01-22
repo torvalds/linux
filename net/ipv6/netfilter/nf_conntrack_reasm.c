@@ -385,7 +385,7 @@ static int nf_ct_frag6_queue(struct nf_ct_frag6_queue *fq, struct sk_buff *skb,
 		fq->q.last_in |= FIRST_IN;
 	}
 	write_lock(&nf_frags.lock);
-	list_move_tail(&fq->q.lru_list, &nf_frags.lru_list);
+	list_move_tail(&fq->q.lru_list, &nf_init_frags.lru_list);
 	write_unlock(&nf_frags.lock);
 	return 0;
 

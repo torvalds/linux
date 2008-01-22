@@ -57,7 +57,6 @@ void inet_frags_init(struct inet_frags *f)
 	for (i = 0; i < INETFRAGS_HASHSZ; i++)
 		INIT_HLIST_HEAD(&f->hash[i]);
 
-	INIT_LIST_HEAD(&f->lru_list);
 	rwlock_init(&f->lock);
 
 	f->rnd = (u32) ((num_physpages ^ (num_physpages>>7)) ^
@@ -74,6 +73,7 @@ void inet_frags_init_net(struct netns_frags *nf)
 {
 	nf->nqueues = 0;
 	atomic_set(&nf->mem, 0);
+	INIT_LIST_HEAD(&nf->lru_list);
 }
 EXPORT_SYMBOL(inet_frags_init_net);
 
@@ -156,12 +156,12 @@ int inet_frag_evictor(struct netns_frags *nf, struct inet_frags *f)
 	work = atomic_read(&nf->mem) - nf->low_thresh;
 	while (work > 0) {
 		read_lock(&f->lock);
-		if (list_empty(&f->lru_list)) {
+		if (list_empty(&nf->lru_list)) {
 			read_unlock(&f->lock);
 			break;
 		}
 
-		q = list_first_entry(&f->lru_list,
+		q = list_first_entry(&nf->lru_list,
 				struct inet_frag_queue, lru_list);
 		atomic_inc(&q->refcnt);
 		read_unlock(&f->lock);
@@ -211,7 +211,7 @@ static struct inet_frag_queue *inet_frag_intern(struct netns_frags *nf,
 
 	atomic_inc(&qp->refcnt);
 	hlist_add_head(&qp->list, &f->hash[hash]);
-	list_add_tail(&qp->lru_list, &f->lru_list);
+	list_add_tail(&qp->lru_list, &nf->lru_list);
 	nf->nqueues++;
 	write_unlock(&f->lock);
 	return qp;
