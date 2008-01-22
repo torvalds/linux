@@ -1685,6 +1685,7 @@ static void hda_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 
 	snd_hda_codec_write(codec, fg, 0, AC_VERB_SET_POWER_STATE,
 			    power_state);
+	msleep(10); /* partial workaround for "azx_get_response timeout" */
 
 	nid = codec->start_nid;
 	for (i = 0; i < codec->num_nodes; i++, nid++) {
