@@ -945,8 +945,9 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  auto		auto-config reading BIOS (default)
 	
 	Conexant 5045
-	  laptop	Laptop config 
-	  fujitsu	Fujitsu Si1520 laptop
+	  laptop-hpsense    Laptop with HP sense (old model laptop)
+	  laptop-micsense   Laptop with Mic sense (old model fujitsu)
+	  laptop-hpmicsense Laptop with HP and Mic senses
 	  benq		Benq R55E
 	  test		for testing/debugging purpose, almost all controls
 			can be adjusted.  Appearing only when compiled with
