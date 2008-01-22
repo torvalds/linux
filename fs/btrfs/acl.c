@@ -20,6 +20,7 @@
 #include <linux/string.h>
 #include <linux/xattr.h>
 #include <linux/posix_acl_xattr.h>
+#include <linux/sched.h>
 #include "ctree.h"
 #include "xattr.h"
 #ifndef is_owner_or_cap
