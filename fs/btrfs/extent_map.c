@@ -1336,6 +1336,11 @@ int test_range_bit(struct extent_map_tree *tree, u64 start, u64 end,
 		if (start > end)
 			break;
 		node = rb_next(node);
+		if (!node) {
+			if (filled)
+				bitset = 0;
+			break;
+		}
 	}
 	read_unlock_irq(&tree->lock);
 	return bitset;
