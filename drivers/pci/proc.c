@@ -375,7 +375,7 @@ static int show_device(struct seq_file *m, void *v)
 	return 0;
 }
 
-static struct seq_operations proc_bus_pci_devices_op = {
+static const struct seq_operations proc_bus_pci_devices_op = {
 	.start	= pci_seq_start,
 	.next	= pci_seq_next,
 	.stop	= pci_seq_stop,
