@@ -1778,8 +1778,19 @@ static int b43_upload_microcode(struct b43_wldev *dev)
 	const __be32 *data;
 	unsigned int i, len;
 	u16 fwrev, fwpatch, fwdate, fwtime;
-	u32 tmp;
+	u32 tmp, macctl;
 	int err = 0;
+
+	/* Jump the microcode PSM to offset 0 */
+	macctl = b43_read32(dev, B43_MMIO_MACCTL);
+	B43_WARN_ON(macctl & B43_MACCTL_PSM_RUN);
+	macctl |= B43_MACCTL_PSM_JMP0;
+	b43_write32(dev, B43_MMIO_MACCTL, macctl);
+	/* Zero out all microcode PSM registers and shared memory. */
+	for (i = 0; i < 64; i++)
+		b43_shm_write16(dev, B43_SHM_SCRATCH, i, 0);
+	for (i = 0; i < 4096; i += 2)
+		b43_shm_write16(dev, B43_SHM_SHARED, i, 0);
 
 	/* Upload Microcode. */
 	data = (__be32 *) (dev->fw.ucode.data->data + hdr_len);
@@ -1805,9 +1816,12 @@ static int b43_upload_microcode(struct b43_wldev *dev)
 	}
 
 	b43_write32(dev, B43_MMIO_GEN_IRQ_REASON, B43_IRQ_ALL);
-	b43_write32(dev, B43_MMIO_MACCTL,
-		    B43_MACCTL_PSM_RUN |
-		    B43_MACCTL_IHR_ENABLED | B43_MACCTL_INFRA);
+
+	/* Start the microcode PSM */
+	macctl = b43_read32(dev, B43_MMIO_MACCTL);
+	macctl &= ~B43_MACCTL_PSM_JMP0;
+	macctl |= B43_MACCTL_PSM_RUN;
+	b43_write32(dev, B43_MMIO_MACCTL, macctl);
 
 	/* Wait for the microcode to load and respond */
 	i = 0;
@@ -1816,13 +1830,17 @@ static int b43_upload_microcode(struct b43_wldev *dev)
 		if (tmp == B43_IRQ_MAC_SUSPENDED)
 			break;
 		i++;
-		if (i >= 50) {
+		if (i >= 20) {
 			b43err(dev->wl, "Microcode not responding\n");
 			b43_print_fw_helptext(dev->wl, 1);
 			err = -ENODEV;
-			goto out;
+			goto error;
 		}
-		udelay(10);
+		msleep_interruptible(50);
+		if (signal_pending(current)) {
+			err = -EINTR;
+			goto error;
+		}
 	}
 	b43_read32(dev, B43_MMIO_GEN_IRQ_REASON);	/* dummy read */
 
@@ -1837,9 +1855,8 @@ static int b43_upload_microcode(struct b43_wldev *dev)
 		       "binary drivers older than version 4.x is unsupported. "
 		       "You must upgrade your firmware files.\n");
 		b43_print_fw_helptext(dev->wl, 1);
-		b43_write32(dev, B43_MMIO_MACCTL, 0);
 		err = -EOPNOTSUPP;
-		goto out;
+		goto error;
 	}
 	b43dbg(dev->wl, "Loading firmware version %u.%u "
 	       "(20%.2i-%.2i-%.2i %.2i:%.2i:%.2i)\n",
@@ -1856,7 +1873,14 @@ static int b43_upload_microcode(struct b43_wldev *dev)
 		b43_print_fw_helptext(dev->wl, 0);
 	}
 
-out:
+	return 0;
+
+error:
+	macctl = b43_read32(dev, B43_MMIO_MACCTL);
+	macctl &= ~B43_MACCTL_PSM_RUN;
+	macctl |= B43_MACCTL_PSM_JMP0;
+	b43_write32(dev, B43_MMIO_MACCTL, macctl);
+
 	return err;
 }
 
@@ -2228,11 +2252,15 @@ static int b43_chip_init(struct b43_wldev *dev)
 {
 	struct b43_phy *phy = &dev->phy;
 	int err, tmp;
-	u32 value32;
+	u32 value32, macctl;
 	u16 value16;
 
-	b43_write32(dev, B43_MMIO_MACCTL,
-		    B43_MACCTL_PSM_JMP0 | B43_MACCTL_IHR_ENABLED);
+	/* Initialize the MAC control */
+	macctl = B43_MACCTL_IHR_ENABLED | B43_MACCTL_SHM_ENABLED;
+	if (dev->phy.gmode)
+		macctl |= B43_MACCTL_GMODE;
+	macctl |= B43_MACCTL_INFRA;
+	b43_write32(dev, B43_MMIO_MACCTL, macctl);
 
 	err = b43_request_firmware(dev);
 	if (err)
@@ -3376,11 +3404,18 @@ static void b43_set_retry_limits(struct b43_wldev *dev,
 static void b43_wireless_core_exit(struct b43_wldev *dev)
 {
 	struct b43_phy *phy = &dev->phy;
+	u32 macctl;
 
 	B43_WARN_ON(b43_status(dev) > B43_STAT_INITIALIZED);
 	if (b43_status(dev) != B43_STAT_INITIALIZED)
 		return;
 	b43_set_status(dev, B43_STAT_UNINIT);
+
+	/* Stop the microcode PSM. */
+	macctl = b43_read32(dev, B43_MMIO_MACCTL);
+	macctl &= ~B43_MACCTL_PSM_RUN;
+	macctl |= B43_MACCTL_PSM_JMP0;
+	b43_write32(dev, B43_MMIO_MACCTL, macctl);
 
 	b43_leds_exit(dev);
 	b43_rng_exit(dev->wl);
