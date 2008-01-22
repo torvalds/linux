@@ -3,6 +3,7 @@
 
 struct netns_frags {
 	int			nqueues;
+	atomic_t		mem;
 };
 
 struct inet_frag_queue {
@@ -38,7 +39,6 @@ struct inet_frags {
 	rwlock_t		lock;
 	u32			rnd;
 	int			qsize;
-	atomic_t		mem;
 	struct timer_list	secret_timer;
 	struct inet_frags_ctl	*ctl;
 
@@ -60,7 +60,7 @@ void inet_frags_init_net(struct netns_frags *nf);
 void inet_frag_kill(struct inet_frag_queue *q, struct inet_frags *f);
 void inet_frag_destroy(struct inet_frag_queue *q,
 				struct inet_frags *f, int *work);
-int inet_frag_evictor(struct inet_frags *f);
+int inet_frag_evictor(struct netns_frags *nf, struct inet_frags *f);
 struct inet_frag_queue *inet_frag_find(struct netns_frags *nf,
 		struct inet_frags *f, void *key, unsigned int hash);
 

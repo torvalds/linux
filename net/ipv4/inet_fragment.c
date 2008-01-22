@@ -63,8 +63,6 @@ void inet_frags_init(struct inet_frags *f)
 	f->rnd = (u32) ((num_physpages ^ (num_physpages>>7)) ^
 				   (jiffies ^ (jiffies >> 6)));
 
-	atomic_set(&f->mem, 0);
-
 	setup_timer(&f->secret_timer, inet_frag_secret_rebuild,
 			(unsigned long)f);
 	f->secret_timer.expires = jiffies + f->ctl->secret_interval;
@@ -75,6 +73,7 @@ EXPORT_SYMBOL(inet_frags_init);
 void inet_frags_init_net(struct netns_frags *nf)
 {
 	nf->nqueues = 0;
+	atomic_set(&nf->mem, 0);
 }
 EXPORT_SYMBOL(inet_frags_init_net);
 
@@ -107,13 +106,13 @@ void inet_frag_kill(struct inet_frag_queue *fq, struct inet_frags *f)
 
 EXPORT_SYMBOL(inet_frag_kill);
 
-static inline void frag_kfree_skb(struct inet_frags *f, struct sk_buff *skb,
-						int *work)
+static inline void frag_kfree_skb(struct netns_frags *nf, struct inet_frags *f,
+		struct sk_buff *skb, int *work)
 {
 	if (work)
 		*work -= skb->truesize;
 
-	atomic_sub(skb->truesize, &f->mem);
+	atomic_sub(skb->truesize, &nf->mem);
 	if (f->skb_free)
 		f->skb_free(skb);
 	kfree_skb(skb);
@@ -123,22 +122,24 @@ void inet_frag_destroy(struct inet_frag_queue *q, struct inet_frags *f,
 					int *work)
 {
 	struct sk_buff *fp;
+	struct netns_frags *nf;
 
 	BUG_TRAP(q->last_in & COMPLETE);
 	BUG_TRAP(del_timer(&q->timer) == 0);
 
 	/* Release all fragment data. */
 	fp = q->fragments;
+	nf = q->net;
 	while (fp) {
 		struct sk_buff *xp = fp->next;
 
-		frag_kfree_skb(f, fp, work);
+		frag_kfree_skb(nf, f, fp, work);
 		fp = xp;
 	}
 
 	if (work)
 		*work -= f->qsize;
-	atomic_sub(f->qsize, &f->mem);
+	atomic_sub(f->qsize, &nf->mem);
 
 	if (f->destructor)
 		f->destructor(q);
@@ -147,12 +148,12 @@ void inet_frag_destroy(struct inet_frag_queue *q, struct inet_frags *f,
 }
 EXPORT_SYMBOL(inet_frag_destroy);
 
-int inet_frag_evictor(struct inet_frags *f)
+int inet_frag_evictor(struct netns_frags *nf, struct inet_frags *f)
 {
 	struct inet_frag_queue *q;
 	int work, evicted = 0;
 
-	work = atomic_read(&f->mem) - f->ctl->low_thresh;
+	work = atomic_read(&nf->mem) - f->ctl->low_thresh;
 	while (work > 0) {
 		read_lock(&f->lock);
 		if (list_empty(&f->lru_list)) {
@@ -226,7 +227,7 @@ static struct inet_frag_queue *inet_frag_alloc(struct netns_frags *nf,
 		return NULL;
 
 	f->constructor(q, arg);
-	atomic_add(f->qsize, &f->mem);
+	atomic_add(f->qsize, &nf->mem);
 	setup_timer(&q->timer, f->frag_expire, (unsigned long)q);
 	spin_lock_init(&q->lock);
 	atomic_set(&q->refcnt, 1);

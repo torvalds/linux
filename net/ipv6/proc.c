@@ -44,7 +44,7 @@ static int sockstat6_seq_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "RAW6: inuse %d\n",
 		       sock_prot_inuse_get(&rawv6_prot));
 	seq_printf(seq, "FRAG6: inuse %d memory %d\n",
-		       ip6_frag_nqueues(&init_net), ip6_frag_mem());
+		       ip6_frag_nqueues(&init_net), ip6_frag_mem(&init_net));
 	return 0;
 }
 

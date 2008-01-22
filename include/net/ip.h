@@ -331,7 +331,7 @@ enum ip_defrag_users
 };
 
 int ip_defrag(struct sk_buff *skb, u32 user);
-int ip_frag_mem(void);
+int ip_frag_mem(struct net *net);
 int ip_frag_nqueues(struct net *net);
 
 /*

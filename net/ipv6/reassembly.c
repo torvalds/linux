@@ -89,9 +89,9 @@ int ip6_frag_nqueues(struct net *net)
 	return net->ipv6.frags.nqueues;
 }
 
-int ip6_frag_mem(void)
+int ip6_frag_mem(struct net *net)
 {
-	return atomic_read(&ip6_frags.mem);
+	return atomic_read(&net->ipv6.frags.mem);
 }
 
 static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *prev,
@@ -149,11 +149,12 @@ int ip6_frag_match(struct inet_frag_queue *q, void *a)
 EXPORT_SYMBOL(ip6_frag_match);
 
 /* Memory Tracking Functions. */
-static inline void frag_kfree_skb(struct sk_buff *skb, int *work)
+static inline void frag_kfree_skb(struct netns_frags *nf,
+		struct sk_buff *skb, int *work)
 {
 	if (work)
 		*work -= skb->truesize;
-	atomic_sub(skb->truesize, &ip6_frags.mem);
+	atomic_sub(skb->truesize, &nf->mem);
 	kfree_skb(skb);
 }
 
@@ -183,11 +184,11 @@ static __inline__ void fq_kill(struct frag_queue *fq)
 	inet_frag_kill(&fq->q, &ip6_frags);
 }
 
-static void ip6_evictor(struct inet6_dev *idev)
+static void ip6_evictor(struct net *net, struct inet6_dev *idev)
 {
 	int evicted;
 
-	evicted = inet_frag_evictor(&ip6_frags);
+	evicted = inet_frag_evictor(&net->ipv6.frags, &ip6_frags);
 	if (evicted)
 		IP6_ADD_STATS_BH(idev, IPSTATS_MIB_REASMFAILS, evicted);
 }
@@ -389,7 +390,7 @@ static int ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 				fq->q.fragments = next;
 
 			fq->q.meat -= free_it->len;
-			frag_kfree_skb(free_it, NULL);
+			frag_kfree_skb(fq->q.net, free_it, NULL);
 		}
 	}
 
@@ -409,7 +410,7 @@ static int ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 	}
 	fq->q.stamp = skb->tstamp;
 	fq->q.meat += skb->len;
-	atomic_add(skb->truesize, &ip6_frags.mem);
+	atomic_add(skb->truesize, &fq->q.net->mem);
 
 	/* The first fragment.
 	 * nhoffset is obtained from the first fragment, of course.
@@ -503,7 +504,7 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *prev,
 		head->len -= clone->len;
 		clone->csum = 0;
 		clone->ip_summed = head->ip_summed;
-		atomic_add(clone->truesize, &ip6_frags.mem);
+		atomic_add(clone->truesize, &fq->q.net->mem);
 	}
 
 	/* We have to remove fragment header from datagram and to relocate
@@ -518,7 +519,7 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *prev,
 	skb_shinfo(head)->frag_list = head->next;
 	skb_reset_transport_header(head);
 	skb_push(head, head->data - skb_network_header(head));
-	atomic_sub(head->truesize, &ip6_frags.mem);
+	atomic_sub(head->truesize, &fq->q.net->mem);
 
 	for (fp=head->next; fp; fp = fp->next) {
 		head->data_len += fp->len;
@@ -528,7 +529,7 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *prev,
 		else if (head->ip_summed == CHECKSUM_COMPLETE)
 			head->csum = csum_add(head->csum, fp->csum);
 		head->truesize += fp->truesize;
-		atomic_sub(fp->truesize, &ip6_frags.mem);
+		atomic_sub(fp->truesize, &fq->q.net->mem);
 	}
 
 	head->next = NULL;
@@ -600,8 +601,9 @@ static int ipv6_frag_rcv(struct sk_buff *skb)
 	}
 
 	net = skb->dev->nd_net;
-	if (atomic_read(&ip6_frags.mem) > init_net.ipv6.sysctl.frags.high_thresh)
-		ip6_evictor(ip6_dst_idev(skb->dst));
+	if (atomic_read(&net->ipv6.frags.mem) >
+			init_net.ipv6.sysctl.frags.high_thresh)
+		ip6_evictor(net, ip6_dst_idev(skb->dst));
 
 	if ((fq = fq_find(net, fhdr->identification, &hdr->saddr, &hdr->daddr,
 			  ip6_dst_idev(skb->dst))) != NULL) {

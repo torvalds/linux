@@ -62,7 +62,7 @@ static int sockstat_seq_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "UDPLITE: inuse %d\n", sock_prot_inuse_get(&udplite_prot));
 	seq_printf(seq, "RAW: inuse %d\n", sock_prot_inuse_get(&raw_prot));
 	seq_printf(seq,  "FRAG: inuse %d memory %d\n",
-			ip_frag_nqueues(&init_net), ip_frag_mem());
+			ip_frag_nqueues(&init_net), ip_frag_mem(&init_net));
 	return 0;
 }
 

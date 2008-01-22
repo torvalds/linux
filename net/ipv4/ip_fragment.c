@@ -100,9 +100,9 @@ int ip_frag_nqueues(struct net *net)
 	return net->ipv4.frags.nqueues;
 }
 
-int ip_frag_mem(void)
+int ip_frag_mem(struct net *net)
 {
-	return atomic_read(&ip4_frags.mem);
+	return atomic_read(&net->ipv4.frags.mem);
 }
 
 static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
@@ -142,11 +142,12 @@ static int ip4_frag_match(struct inet_frag_queue *q, void *a)
 }
 
 /* Memory Tracking Functions. */
-static __inline__ void frag_kfree_skb(struct sk_buff *skb, int *work)
+static __inline__ void frag_kfree_skb(struct netns_frags *nf,
+		struct sk_buff *skb, int *work)
 {
 	if (work)
 		*work -= skb->truesize;
-	atomic_sub(skb->truesize, &ip4_frags.mem);
+	atomic_sub(skb->truesize, &nf->mem);
 	kfree_skb(skb);
 }
 
@@ -192,11 +193,11 @@ static void ipq_kill(struct ipq *ipq)
 /* Memory limiting on fragments.  Evictor trashes the oldest
  * fragment queue until we are back under the threshold.
  */
-static void ip_evictor(void)
+static void ip_evictor(struct net *net)
 {
 	int evicted;
 
-	evicted = inet_frag_evictor(&ip4_frags);
+	evicted = inet_frag_evictor(&net->ipv4.frags, &ip4_frags);
 	if (evicted)
 		IP_ADD_STATS_BH(IPSTATS_MIB_REASMFAILS, evicted);
 }
@@ -294,7 +295,7 @@ static int ip_frag_reinit(struct ipq *qp)
 	fp = qp->q.fragments;
 	do {
 		struct sk_buff *xp = fp->next;
-		frag_kfree_skb(fp, NULL);
+		frag_kfree_skb(qp->q.net, fp, NULL);
 		fp = xp;
 	} while (fp);
 
@@ -431,7 +432,7 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 				qp->q.fragments = next;
 
 			qp->q.meat -= free_it->len;
-			frag_kfree_skb(free_it, NULL);
+			frag_kfree_skb(qp->q.net, free_it, NULL);
 		}
 	}
 
@@ -451,7 +452,7 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 	}
 	qp->q.stamp = skb->tstamp;
 	qp->q.meat += skb->len;
-	atomic_add(skb->truesize, &ip4_frags.mem);
+	atomic_add(skb->truesize, &qp->q.net->mem);
 	if (offset == 0)
 		qp->q.last_in |= FIRST_IN;
 
@@ -534,12 +535,12 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 		head->len -= clone->len;
 		clone->csum = 0;
 		clone->ip_summed = head->ip_summed;
-		atomic_add(clone->truesize, &ip4_frags.mem);
+		atomic_add(clone->truesize, &qp->q.net->mem);
 	}
 
 	skb_shinfo(head)->frag_list = head->next;
 	skb_push(head, head->data - skb_network_header(head));
-	atomic_sub(head->truesize, &ip4_frags.mem);
+	atomic_sub(head->truesize, &qp->q.net->mem);
 
 	for (fp=head->next; fp; fp = fp->next) {
 		head->data_len += fp->len;
@@ -549,7 +550,7 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 		else if (head->ip_summed == CHECKSUM_COMPLETE)
 			head->csum = csum_add(head->csum, fp->csum);
 		head->truesize += fp->truesize;
-		atomic_sub(fp->truesize, &ip4_frags.mem);
+		atomic_sub(fp->truesize, &qp->q.net->mem);
 	}
 
 	head->next = NULL;
@@ -588,8 +589,8 @@ int ip_defrag(struct sk_buff *skb, u32 user)
 
 	net = skb->dev->nd_net;
 	/* Start by cleaning up the memory. */
-	if (atomic_read(&ip4_frags.mem) > ip4_frags_ctl.high_thresh)
-		ip_evictor();
+	if (atomic_read(&net->ipv4.frags.mem) > ip4_frags_ctl.high_thresh)
+		ip_evictor(net);
 
 	/* Lookup (or create) queue header */
 	if ((qp = ip_find(net, ip_hdr(skb), user)) != NULL) {
