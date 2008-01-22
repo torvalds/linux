@@ -2300,7 +2300,7 @@ static inline struct dentry *securityfs_create_file(const char *name,
 						mode_t mode,
 						struct dentry *parent,
 						void *data,
-						struct file_operations *fops)
+						const struct file_operations *fops)
 {
 	return ERR_PTR(-ENODEV);
 }
