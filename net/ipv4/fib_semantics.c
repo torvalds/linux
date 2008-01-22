@@ -519,7 +519,9 @@ static int fib_check_nh(struct fib_config *cfg, struct fib_info *fi,
 			struct fib_nh *nh)
 {
 	int err;
+	struct net *net;
 
+	net = cfg->fc_nlinfo.nl_net;
 	if (nh->nh_gw) {
 		struct fib_result res;
 
@@ -532,11 +534,9 @@ static int fib_check_nh(struct fib_config *cfg, struct fib_info *fi,
 
 			if (cfg->fc_scope >= RT_SCOPE_LINK)
 				return -EINVAL;
-			if (inet_addr_type(cfg->fc_nlinfo.nl_net,
-					   nh->nh_gw) != RTN_UNICAST)
+			if (inet_addr_type(net, nh->nh_gw) != RTN_UNICAST)
 				return -EINVAL;
-			if ((dev = __dev_get_by_index(cfg->fc_nlinfo.nl_net,
-						      nh->nh_oif)) == NULL)
+			if ((dev = __dev_get_by_index(net, nh->nh_oif)) == NULL)
 				return -ENODEV;
 			if (!(dev->flags&IFF_UP))
 				return -ENETDOWN;
@@ -559,7 +559,7 @@ static int fib_check_nh(struct fib_config *cfg, struct fib_info *fi,
 			/* It is not necessary, but requires a bit of thinking */
 			if (fl.fl4_scope < RT_SCOPE_LINK)
 				fl.fl4_scope = RT_SCOPE_LINK;
-			if ((err = fib_lookup(&init_net, &fl, &res)) != 0)
+			if ((err = fib_lookup(net, &fl, &res)) != 0)
 				return err;
 		}
 		err = -EINVAL;
@@ -583,7 +583,7 @@ out:
 		if (nh->nh_flags&(RTNH_F_PERVASIVE|RTNH_F_ONLINK))
 			return -EINVAL;
 
-		in_dev = inetdev_by_index(&init_net, nh->nh_oif);
+		in_dev = inetdev_by_index(net, nh->nh_oif);
 		if (in_dev == NULL)
 			return -ENODEV;
 		if (!(in_dev->dev->flags&IFF_UP)) {
