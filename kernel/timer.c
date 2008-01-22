@@ -1289,7 +1289,7 @@ static void migrate_timer_list(tvec_base_t *new_base, struct list_head *head)
 	}
 }
 
-static void __devinit migrate_timers(int cpu)
+static void __cpuinit migrate_timers(int cpu)
 {
 	tvec_base_t *old_base;
 	tvec_base_t *new_base;
