@@ -809,6 +809,139 @@ void class_device_put(struct class_device *class_dev)
 		kobject_put(&class_dev->kobj);
 }
 
+/**
+ * class_for_each_device - device iterator
+ * @class: the class we're iterating
+ * @data: data for the callback
+ * @fn: function to be called for each device
+ *
+ * Iterate over @class's list of devices, and call @fn for each,
+ * passing it @data.
+ *
+ * We check the return of @fn each time. If it returns anything
+ * other than 0, we break out and return that value.
+ *
+ * Note, we hold class->sem in this function, so it can not be
+ * re-acquired in @fn, otherwise it will self-deadlocking. For
+ * example, calls to add or remove class members would be verboten.
+ */
+int class_for_each_device(struct class *class, void *data,
+			   int (*fn)(struct device *, void *))
+{
+	struct device *dev;
+	int error = 0;
+
+	if (!class)
+		return -EINVAL;
+	down(&class->sem);
+	list_for_each_entry(dev, &class->devices, node) {
+		dev = get_device(dev);
+		if (dev) {
+			error = fn(dev, data);
+			put_device(dev);
+		} else
+			error = -ENODEV;
+		if (error)
+			break;
+	}
+	up(&class->sem);
+
+	return error;
+}
+EXPORT_SYMBOL_GPL(class_for_each_device);
+
+/**
+ * class_find_device - device iterator for locating a particular device
+ * @class: the class we're iterating
+ * @data: data for the match function
+ * @match: function to check device
+ *
+ * This is similar to the class_for_each_dev() function above, but it
+ * returns a reference to a device that is 'found' for later use, as
+ * determined by the @match callback.
+ *
+ * The callback should return 0 if the device doesn't match and non-zero
+ * if it does.  If the callback returns non-zero, this function will
+ * return to the caller and not iterate over any more devices.
+
+ * Note, you will need to drop the reference with put_device() after use.
+ *
+ * We hold class->sem in this function, so it can not be
+ * re-acquired in @match, otherwise it will self-deadlocking. For
+ * example, calls to add or remove class members would be verboten.
+ */
+struct device *class_find_device(struct class *class, void *data,
+				   int (*match)(struct device *, void *))
+{
+	struct device *dev;
+	int found = 0;
+
+	if (!class)
+		return NULL;
+
+	down(&class->sem);
+	list_for_each_entry(dev, &class->devices, node) {
+		dev = get_device(dev);
+		if (dev) {
+			if (match(dev, data)) {
+				found = 1;
+				break;
+			} else
+				put_device(dev);
+		} else
+			break;
+	}
+	up(&class->sem);
+
+	return found ? dev : NULL;
+}
+EXPORT_SYMBOL_GPL(class_find_device);
+
+/**
+ * class_find_child - device iterator for locating a particular class_device
+ * @class: the class we're iterating
+ * @data: data for the match function
+ * @match: function to check class_device
+ *
+ * This function returns a reference to a class_device that is 'found' for
+ * later use, as determined by the @match callback.
+ *
+ * The callback should return 0 if the class_device doesn't match and non-zero
+ * if it does.  If the callback returns non-zero, this function will
+ * return to the caller and not iterate over any more class_devices.
+ *
+ * Note, you will need to drop the reference with class_device_put() after use.
+ *
+ * We hold class->sem in this function, so it can not be
+ * re-acquired in @match, otherwise it will self-deadlocking. For
+ * example, calls to add or remove class members would be verboten.
+ */
+struct class_device *class_find_child(struct class *class, void *data,
+				   int (*match)(struct class_device *, void *))
+{
+	struct class_device *dev;
+	int found = 0;
+
+	if (!class)
+		return NULL;
+
+	down(&class->sem);
+	list_for_each_entry(dev, &class->children, node) {
+		dev = class_device_get(dev);
+		if (dev) {
+			if (match(dev, data)) {
+				found = 1;
+				break;
+			} else
+				class_device_put(dev);
+		} else
+			break;
+	}
+	up(&class->sem);
+
+	return found ? dev : NULL;
+}
+EXPORT_SYMBOL_GPL(class_find_child);
 
 int class_interface_register(struct class_interface *class_intf)
 {

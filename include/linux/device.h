@@ -177,8 +177,7 @@ struct class {
 	struct list_head	devices;
 	struct list_head	interfaces;
 	struct kset		class_dirs;
-	struct semaphore	sem;	/* locks both the children and interfaces lists */
-
+	struct semaphore	sem; /* locks children, devices, interfaces */
 	struct class_attribute		* class_attrs;
 	struct class_device_attribute	* class_dev_attrs;
 	struct device_attribute		* dev_attrs;
@@ -196,6 +195,12 @@ struct class {
 
 extern int __must_check class_register(struct class *);
 extern void class_unregister(struct class *);
+extern int class_for_each_device(struct class *class, void *data,
+				 int (*fn)(struct device *dev, void *data));
+extern struct device *class_find_device(struct class *class, void *data,
+					int (*match)(struct device *, void *));
+extern struct class_device *class_find_child(struct class *class, void *data,
+				   int (*match)(struct class_device *, void *));
 
 
 struct class_attribute {
