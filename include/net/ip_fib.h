@@ -193,14 +193,6 @@ static inline int fib_lookup(struct net *net, const struct flowi *flp,
 	return -ENETUNREACH;
 }
 
-static inline void fib_select_default(const struct flowi *flp,
-				      struct fib_result *res)
-{
-	struct fib_table *table = fib_get_table(&init_net, RT_TABLE_MAIN);
-	if (FIB_RES_GW(*res) && FIB_RES_NH(*res).nh_scope == RT_SCOPE_LINK)
-		table->tb_select_default(table, flp, res);
-}
-
 #else /* CONFIG_IP_MULTIPLE_TABLES */
 extern int __net_init fib4_rules_init(struct net *net);
 extern void __net_exit fib4_rules_exit(struct net *net);
@@ -213,7 +205,6 @@ extern int fib_lookup(struct net *n, struct flowi *flp, struct fib_result *res);
 
 extern struct fib_table *fib_new_table(struct net *net, u32 id);
 extern struct fib_table *fib_get_table(struct net *net, u32 id);
-extern void fib_select_default(const struct flowi *flp, struct fib_result *res);
 
 #endif /* CONFIG_IP_MULTIPLE_TABLES */
 
@@ -222,6 +213,7 @@ extern const struct nla_policy rtm_ipv4_policy[];
 extern void		ip_fib_init(void);
 extern int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
 			       struct net_device *dev, __be32 *spec_dst, u32 *itag);
+extern void fib_select_default(const struct flowi *flp, struct fib_result *res);
 
 /* Exported by fib_semantics.c */
 extern int ip_fib_check_default(__be32 gw, struct net_device *dev);

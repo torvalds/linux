@@ -102,16 +102,6 @@ errout:
 }
 
 
-void fib_select_default(const struct flowi *flp, struct fib_result *res)
-{
-	if (res->r && res->r->action == FR_ACT_TO_TBL &&
-	    FIB_RES_GW(*res) && FIB_RES_NH(*res).nh_scope == RT_SCOPE_LINK) {
-		struct fib_table *tb;
-		if ((tb = fib_get_table(&init_net, res->r->table)) != NULL)
-			tb->tb_select_default(tb, flp, res);
-	}
-}
-
 static int fib4_rule_match(struct fib_rule *rule, struct flowi *fl, int flags)
 {
 	struct fib4_rule *r = (struct fib4_rule *) rule;
