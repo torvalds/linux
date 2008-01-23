@@ -342,6 +342,14 @@ config PPC_64K_PAGES
 	  while on hardware with such support, it will be used to map
 	  normal application pages.
 
+config PPC_SUBPAGE_PROT
+	bool "Support setting protections for 4k subpages"
+	depends on PPC_64K_PAGES
+	help
+	  This option adds support for a system call to allow user programs
+	  to set access permissions (read/write, readonly, or no access)
+	  on the 4k subpages of each 64k page.
+
 config SCHED_SMT
 	bool "SMT (Hyperthreading) scheduler support"
 	depends on PPC64 && SMP

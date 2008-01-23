@@ -903,6 +903,7 @@ handle_page_fault:
  * the PTE insertion
  */
 12:	bl	.save_nvgprs
+	mr	r5,r3
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	ld	r4,_DAR(r1)
 	bl	.low_hash_fault

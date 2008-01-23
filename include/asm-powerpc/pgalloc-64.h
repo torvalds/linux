@@ -12,6 +12,10 @@
 #include <linux/cpumask.h>
 #include <linux/percpu.h>
 
+#ifndef CONFIG_PPC_SUBPAGE_PROT
+static inline void subpage_prot_free(pgd_t *pgd) {}
+#endif
+
 extern struct kmem_cache *pgtable_cache[];
 
 #define PGD_CACHE_NUM		0
@@ -27,6 +31,7 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 
 static inline void pgd_free(pgd_t *pgd)
 {
+	subpage_prot_free(pgd);
 	kmem_cache_free(pgtable_cache[PGD_CACHE_NUM], pgd);
 }
 
