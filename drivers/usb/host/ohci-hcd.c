@@ -1052,6 +1052,11 @@ MODULE_LICENSE ("GPL");
 #define SSB_OHCI_DRIVER		ssb_ohci_driver
 #endif
 
+#ifdef CONFIG_MFD_SM501
+#include "ohci-sm501.c"
+#define PLATFORM_DRIVER		ohci_hcd_sm501_driver
+#endif
+
 #if	!defined(PCI_DRIVER) &&		\
 	!defined(PLATFORM_DRIVER) &&	\
 	!defined(OF_PLATFORM_DRIVER) &&	\
