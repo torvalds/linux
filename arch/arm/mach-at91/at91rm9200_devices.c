@@ -884,17 +884,21 @@ static struct platform_device at91rm9200_uart0_device = {
 	.num_resources	= ARRAY_SIZE(uart0_resources),
 };
 
-static inline void configure_usart0_pins(void)
+static inline void configure_usart0_pins(unsigned pins)
 {
 	at91_set_A_periph(AT91_PIN_PA17, 1);		/* TXD0 */
 	at91_set_A_periph(AT91_PIN_PA18, 0);		/* RXD0 */
-	at91_set_A_periph(AT91_PIN_PA20, 0);		/* CTS0 */
 
-	/*
-	 * AT91RM9200 Errata #39 - RTS0 is not internally connected to PA21.
-	 *  We need to drive the pin manually.  Default is off (RTS is active low).
-	 */
-	at91_set_gpio_output(AT91_PIN_PA21, 1);
+	if (pins & ATMEL_UART_CTS)
+		at91_set_A_periph(AT91_PIN_PA20, 0);	/* CTS0 */
+
+	if (pins & ATMEL_UART_RTS) {
+		/*
+		 * AT91RM9200 Errata #39 - RTS0 is not internally connected to PA21.
+		 *  We need to drive the pin manually.  Default is off (RTS is active low).
+		 */
+		at91_set_gpio_output(AT91_PIN_PA21, 1);
+	}
 }
 
 static struct resource uart1_resources[] = {
@@ -929,16 +933,23 @@ static struct platform_device at91rm9200_uart1_device = {
 	.num_resources	= ARRAY_SIZE(uart1_resources),
 };
 
-static inline void configure_usart1_pins(void)
+static inline void configure_usart1_pins(unsigned pins)
 {
-	at91_set_A_periph(AT91_PIN_PB18, 0);		/* RI1 */
-	at91_set_A_periph(AT91_PIN_PB19, 0);		/* DTR1 */
 	at91_set_A_periph(AT91_PIN_PB20, 1);		/* TXD1 */
 	at91_set_A_periph(AT91_PIN_PB21, 0);		/* RXD1 */
-	at91_set_A_periph(AT91_PIN_PB23, 0);		/* DCD1 */
-	at91_set_A_periph(AT91_PIN_PB24, 0);		/* CTS1 */
-	at91_set_A_periph(AT91_PIN_PB25, 0);		/* DSR1 */
-	at91_set_A_periph(AT91_PIN_PB26, 0);		/* RTS1 */
+
+	if (pins & ATMEL_UART_RI)
+		at91_set_A_periph(AT91_PIN_PB18, 0);	/* RI1 */
+	if (pins & ATMEL_UART_DTR)
+		at91_set_A_periph(AT91_PIN_PB19, 0);	/* DTR1 */
+	if (pins & ATMEL_UART_DCD)
+		at91_set_A_periph(AT91_PIN_PB23, 0);	/* DCD1 */
+	if (pins & ATMEL_UART_CTS)
+		at91_set_A_periph(AT91_PIN_PB24, 0);	/* CTS1 */
+	if (pins & ATMEL_UART_DSR)
+		at91_set_A_periph(AT91_PIN_PB25, 0);	/* DSR1 */
+	if (pins & ATMEL_UART_RTS)
+		at91_set_A_periph(AT91_PIN_PB26, 0);	/* RTS1 */
 }
 
 static struct resource uart2_resources[] = {
@@ -973,10 +984,15 @@ static struct platform_device at91rm9200_uart2_device = {
 	.num_resources	= ARRAY_SIZE(uart2_resources),
 };
 
-static inline void configure_usart2_pins(void)
+static inline void configure_usart2_pins(unsigned pins)
 {
 	at91_set_A_periph(AT91_PIN_PA22, 0);		/* RXD2 */
 	at91_set_A_periph(AT91_PIN_PA23, 1);		/* TXD2 */
+
+	if (pins & ATMEL_UART_CTS)
+		at91_set_B_periph(AT91_PIN_PA30, 0);	/* CTS2 */
+	if (pins & ATMEL_UART_RTS)
+		at91_set_B_periph(AT91_PIN_PA31, 0);	/* RTS2 */
 }
 
 static struct resource uart3_resources[] = {
@@ -1011,16 +1027,21 @@ static struct platform_device at91rm9200_uart3_device = {
 	.num_resources	= ARRAY_SIZE(uart3_resources),
 };
 
-static inline void configure_usart3_pins(void)
+static inline void configure_usart3_pins(unsigned pins)
 {
 	at91_set_B_periph(AT91_PIN_PA5, 1);		/* TXD3 */
 	at91_set_B_periph(AT91_PIN_PA6, 0);		/* RXD3 */
+
+	if (pins & ATMEL_UART_CTS)
+		at91_set_B_periph(AT91_PIN_PB1, 0);	/* CTS3 */
+	if (pins & ATMEL_UART_RTS)
+		at91_set_B_periph(AT91_PIN_PB0, 0);	/* RTS3 */
 }
 
 static struct platform_device *at91_uarts[ATMEL_MAX_UART];	/* the UARTs to use */
 struct platform_device *atmel_default_console_device;	/* the serial console device */
 
-void __init at91_init_serial(struct at91_uart_config *config)
+void __init __deprecated at91_init_serial(struct at91_uart_config *config)
 {
 	int i;
 
@@ -1028,22 +1049,22 @@ void __init at91_init_serial(struct at91_uart_config *config)
 	for (i = 0; i < config->nr_tty; i++) {
 		switch (config->tty_map[i]) {
 			case 0:
-				configure_usart0_pins();
+				configure_usart0_pins(ATMEL_UART_CTS | ATMEL_UART_RTS);
 				at91_uarts[i] = &at91rm9200_uart0_device;
 				at91_clock_associate("usart0_clk", &at91rm9200_uart0_device.dev, "usart");
 				break;
 			case 1:
-				configure_usart1_pins();
+				configure_usart1_pins(ATMEL_UART_CTS | ATMEL_UART_RTS | ATMEL_UART_DSR | ATMEL_UART_DTR | ATMEL_UART_DCD | ATMEL_UART_RI);
 				at91_uarts[i] = &at91rm9200_uart1_device;
 				at91_clock_associate("usart1_clk", &at91rm9200_uart1_device.dev, "usart");
 				break;
 			case 2:
-				configure_usart2_pins();
+				configure_usart2_pins(0);
 				at91_uarts[i] = &at91rm9200_uart2_device;
 				at91_clock_associate("usart2_clk", &at91rm9200_uart2_device.dev, "usart");
 				break;
 			case 3:
-				configure_usart3_pins();
+				configure_usart3_pins(0);
 				at91_uarts[i] = &at91rm9200_uart3_device;
 				at91_clock_associate("usart3_clk", &at91rm9200_uart3_device.dev, "usart");
 				break;
@@ -1065,6 +1086,53 @@ void __init at91_init_serial(struct at91_uart_config *config)
 		printk(KERN_INFO "AT91: No default serial console defined.\n");
 }
 
+void __init at91_register_uart(unsigned id, unsigned portnr, unsigned pins)
+{
+	struct platform_device *pdev;
+
+	switch (id) {
+		case 0:		/* DBGU */
+			pdev = &at91rm9200_dbgu_device;
+			configure_dbgu_pins();
+			at91_clock_associate("mck", &pdev->dev, "usart");
+			break;
+		case AT91RM9200_ID_US0:
+			pdev = &at91rm9200_uart0_device;
+			configure_usart0_pins(pins);
+			at91_clock_associate("usart0_clk", &pdev->dev, "usart");
+			break;
+		case AT91RM9200_ID_US1:
+			pdev = &at91rm9200_uart1_device;
+			configure_usart1_pins(pins);
+			at91_clock_associate("usart1_clk", &pdev->dev, "usart");
+			break;
+		case AT91RM9200_ID_US2:
+			pdev = &at91rm9200_uart2_device;
+			configure_usart2_pins(pins);
+			at91_clock_associate("usart2_clk", &pdev->dev, "usart");
+			break;
+		case AT91RM9200_ID_US3:
+			pdev = &at91rm9200_uart3_device;
+			configure_usart3_pins(pins);
+			at91_clock_associate("usart3_clk", &pdev->dev, "usart");
+			break;
+		default:
+			return;
+	}
+	pdev->id = portnr;		/* update to mapped ID */
+
+	if (portnr < ATMEL_MAX_UART)
+		at91_uarts[portnr] = pdev;
+}
+
+void __init at91_set_serial_console(unsigned portnr)
+{
+	if (portnr < ATMEL_MAX_UART)
+		atmel_default_console_device = at91_uarts[portnr];
+	if (!atmel_default_console_device)
+		printk(KERN_INFO "AT91: No default serial console defined.\n");
+}
+
 void __init at91_add_device_serial(void)
 {
 	int i;
@@ -1075,7 +1143,9 @@ void __init at91_add_device_serial(void)
 	}
 }
 #else
-void __init at91_init_serial(struct at91_uart_config *config) {}
+void __init __deprecated at91_init_serial(struct at91_uart_config *config) {}
+void __init at91_register_uart(unsigned id, unsigned portnr, unsigned pins) {}
+void __init at91_set_serial_console(unsigned portnr) {}
 void __init at91_add_device_serial(void) {}
 #endif
 

@@ -101,13 +101,23 @@ extern void __init at91_add_device_i2c(struct i2c_board_info *devices, int nr_de
 extern void __init at91_add_device_spi(struct spi_board_info *devices, int nr_devices);
 
  /* Serial */
+#define ATMEL_UART_CTS	0x01
+#define ATMEL_UART_RTS	0x02
+#define ATMEL_UART_DSR	0x04
+#define ATMEL_UART_DTR	0x08
+#define ATMEL_UART_DCD	0x10
+#define ATMEL_UART_RI	0x20
+
+extern void __init at91_register_uart(unsigned id, unsigned portnr, unsigned pins);
+extern void __init at91_set_serial_console(unsigned portnr);
+
 struct at91_uart_config {
 	unsigned short	console_tty;	/* tty number of serial console */
 	unsigned short	nr_tty;		/* number of serial tty's */
 	short		tty_map[];	/* map UART to tty number */
 };
 extern struct platform_device *atmel_default_console_device;
-extern void __init at91_init_serial(struct at91_uart_config *config);
+extern void __init __deprecated at91_init_serial(struct at91_uart_config *config);
 
 struct atmel_uart_data {
 	short		use_dma_tx;	/* use transmit DMA? */
