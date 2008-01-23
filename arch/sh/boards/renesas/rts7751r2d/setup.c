@@ -16,9 +16,12 @@
 #include <linux/sm501-regs.h>
 #include <linux/pm.h>
 #include <linux/fb.h>
+#include <linux/spi/spi.h>
+#include <linux/spi/spi_bitbang.h>
 #include <asm/machvec.h>
 #include <asm/rts7751r2d.h>
 #include <asm/io.h>
+#include <asm/spi.h>
 
 static struct resource cf_ide_resources[] = {
 	[0] = {
@@ -50,6 +53,43 @@ static struct platform_device cf_ide_device  = {
 	.resource	= cf_ide_resources,
 	.dev	= {
 		.platform_data	= &pata_info,
+	},
+};
+
+static struct spi_board_info spi_bus[] = {
+	{
+		.modalias	= "rtc-r9701",
+		.max_speed_hz	= 1000000,
+		.mode		= SPI_MODE_3,
+	},
+};
+
+static void r2d_chip_select(struct sh_spi_info *spi, int cs, int state)
+{
+	BUG_ON(cs != 0);  /* Single Epson RTC-9701JE attached on CS0 */
+	ctrl_outw(state == BITBANG_CS_ACTIVE, PA_RTCCE);
+}
+
+static struct sh_spi_info spi_info = {
+	.num_chipselect = 1,
+	.chip_select = r2d_chip_select,
+};
+
+static struct resource spi_sh_sci_resources[] = {
+	{
+		.start	= 0xffe00000,
+		.end	= 0xffe0001f,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device spi_sh_sci_device  = {
+	.name		= "spi_sh_sci",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(spi_sh_sci_resources),
+	.resource	= spi_sh_sci_resources,
+	.dev	= {
+		.platform_data	= &spi_info,
 	},
 };
 
@@ -176,10 +216,12 @@ static struct platform_device *rts7751r2d_devices[] __initdata = {
 #endif
 	&cf_ide_device,
 	&heartbeat_device,
+	&spi_sh_sci_device,
 };
 
 static int __init rts7751r2d_devices_setup(void)
 {
+	spi_register_board_info(spi_bus, ARRAY_SIZE(spi_bus));
 	return platform_add_devices(rts7751r2d_devices,
 				    ARRAY_SIZE(rts7751r2d_devices));
 }
