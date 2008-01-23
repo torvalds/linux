@@ -33,6 +33,7 @@
 #include <linux/ip.h>
 #include <linux/cache.h>
 #include <linux/security.h>
+#include <net/sock.h>
 
 #ifndef __KERNEL__
 #warning This file is not supposed to be used outside of kernel.
@@ -157,8 +158,9 @@ static inline int ip_route_connect(struct rtable **rp, __be32 dst,
 					 .dport = dport } } };
 
 	int err;
+	struct net *net = sk->sk_net;
 	if (!dst || !src) {
-		err = __ip_route_output_key(&init_net, rp, &fl);
+		err = __ip_route_output_key(net, rp, &fl);
 		if (err)
 			return err;
 		fl.fl4_dst = (*rp)->rt_dst;
@@ -167,7 +169,7 @@ static inline int ip_route_connect(struct rtable **rp, __be32 dst,
 		*rp = NULL;
 	}
 	security_sk_classify_flow(sk, &fl);
-	return ip_route_output_flow(&init_net, rp, &fl, sk, flags);
+	return ip_route_output_flow(net, rp, &fl, sk, flags);
 }
 
 static inline int ip_route_newports(struct rtable **rp, u8 protocol,
@@ -184,7 +186,7 @@ static inline int ip_route_newports(struct rtable **rp, u8 protocol,
 		ip_rt_put(*rp);
 		*rp = NULL;
 		security_sk_classify_flow(sk, &fl);
-		return ip_route_output_flow(&init_net, rp, &fl, sk, 0);
+		return ip_route_output_flow(sk->sk_net, rp, &fl, sk, 0);
 	}
 	return 0;
 }
