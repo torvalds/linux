@@ -162,6 +162,7 @@ static struct tnode *halve(struct trie *t, struct tnode *tn);
 static void tnode_free(struct tnode *tn);
 
 static struct kmem_cache *fn_alias_kmem __read_mostly;
+static struct kmem_cache *trie_leaf_kmem __read_mostly;
 
 static inline struct tnode *node_parent(struct node *node)
 {
@@ -325,7 +326,8 @@ static inline void alias_free_mem_rcu(struct fib_alias *fa)
 
 static void __leaf_free_rcu(struct rcu_head *head)
 {
-	kfree(container_of(head, struct leaf, rcu));
+	struct leaf *l = container_of(head, struct leaf, rcu);
+	kmem_cache_free(trie_leaf_kmem, l);
 }
 
 static void __leaf_info_free_rcu(struct rcu_head *head)
@@ -375,7 +377,7 @@ static inline void tnode_free(struct tnode *tn)
 
 static struct leaf *leaf_new(void)
 {
-	struct leaf *l = kmalloc(sizeof(struct leaf),  GFP_KERNEL);
+	struct leaf *l = kmem_cache_alloc(trie_leaf_kmem, GFP_KERNEL);
 	if (l) {
 		l->parent = T_LEAF;
 		INIT_HLIST_HEAD(&l->list);
@@ -1938,7 +1940,12 @@ out:
 void __init fib_hash_init(void)
 {
 	fn_alias_kmem = kmem_cache_create("ip_fib_alias", sizeof(struct fib_alias),
-					  0, SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
+					  0, SLAB_PANIC, NULL);
+
+	trie_leaf_kmem = kmem_cache_create("ip_fib_trie",
+					   max(sizeof(struct leaf),
+					       sizeof(struct leaf_info)),
+					   0, SLAB_PANIC, NULL);
 }
 
 
