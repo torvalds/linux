@@ -1287,6 +1287,7 @@ static int pasemi_mac_close(struct net_device *dev)
 	pasemi_mac_pause_txchan(mac);
 	pasemi_mac_pause_rxint(mac);
 	pasemi_mac_pause_rxchan(mac);
+	pasemi_mac_intf_disable(mac);
 
 	free_irq(mac->tx->chan.irq, mac->tx);
 	free_irq(mac->rx->chan.irq, mac->rx);
