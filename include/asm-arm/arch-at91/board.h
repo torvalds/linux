@@ -116,6 +116,23 @@ struct atmel_uart_data {
 };
 extern void __init at91_add_device_serial(void);
 
+/*
+ * SSC -- accessed through ssc_request(id).  Drivers don't bind to SSC
+ * platform devices.  Their SSC ID is part of their configuration data,
+ * along with information about which SSC signals they should use.
+ */
+#define ATMEL_SSC_TK	0x01
+#define ATMEL_SSC_TF	0x02
+#define ATMEL_SSC_TD	0x04
+#define ATMEL_SSC_TX	(ATMEL_SSC_TK | ATMEL_SSC_TF | ATMEL_SSC_TD)
+
+#define ATMEL_SSC_RK	0x10
+#define ATMEL_SSC_RF	0x20
+#define ATMEL_SSC_RD	0x40
+#define ATMEL_SSC_RX	(ATMEL_SSC_RK | ATMEL_SSC_RF | ATMEL_SSC_RD)
+
+extern void __init at91_add_device_ssc(unsigned id, unsigned pins);
+
  /* LCD Controller */
 struct atmel_lcdfb_info;
 extern void __init at91_add_device_lcdc(struct atmel_lcdfb_info *data);

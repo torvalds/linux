@@ -607,6 +607,85 @@ void __init at91_init_leds(u8 cpu_led, u8 timer_led) {}
 
 
 /* --------------------------------------------------------------------
+ *  SSC -- Synchronous Serial Controller
+ * -------------------------------------------------------------------- */
+
+#if defined(CONFIG_ATMEL_SSC) || defined(CONFIG_ATMEL_SSC_MODULE)
+static u64 ssc_dmamask = DMA_BIT_MASK(32);
+
+static struct resource ssc_resources[] = {
+	[0] = {
+		.start	= AT91SAM9260_BASE_SSC,
+		.end	= AT91SAM9260_BASE_SSC + SZ_16K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= AT91SAM9260_ID_SSC,
+		.end	= AT91SAM9260_ID_SSC,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device at91sam9260_ssc_device = {
+	.name	= "ssc",
+	.id	= 0,
+	.dev	= {
+		.dma_mask		= &ssc_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+	.resource	= ssc_resources,
+	.num_resources	= ARRAY_SIZE(ssc_resources),
+};
+
+static inline void configure_ssc_pins(unsigned pins)
+{
+	if (pins & ATMEL_SSC_TF)
+		at91_set_A_periph(AT91_PIN_PB17, 1);
+	if (pins & ATMEL_SSC_TK)
+		at91_set_A_periph(AT91_PIN_PB16, 1);
+	if (pins & ATMEL_SSC_TD)
+		at91_set_A_periph(AT91_PIN_PB18, 1);
+	if (pins & ATMEL_SSC_RD)
+		at91_set_A_periph(AT91_PIN_PB19, 1);
+	if (pins & ATMEL_SSC_RK)
+		at91_set_A_periph(AT91_PIN_PB20, 1);
+	if (pins & ATMEL_SSC_RF)
+		at91_set_A_periph(AT91_PIN_PB21, 1);
+}
+
+/*
+ * SSC controllers are accessed through library code, instead of any
+ * kind of all-singing/all-dancing driver.  For example one could be
+ * used by a particular I2S audio codec's driver, while another one
+ * on the same system might be used by a custom data capture driver.
+ */
+void __init at91_add_device_ssc(unsigned id, unsigned pins)
+{
+	struct platform_device *pdev;
+
+	/*
+	 * NOTE: caller is responsible for passing information matching
+	 * "pins" to whatever will be using each particular controller.
+	 */
+	switch (id) {
+	case AT91SAM9260_ID_SSC:
+		pdev = &at91sam9260_ssc_device;
+		configure_ssc_pins(pins);
+		at91_clock_associate("ssc_clk", &pdev->dev, "pclk");
+		break;
+	default:
+		return;
+	}
+
+	platform_device_register(pdev);
+}
+
+#else
+void __init at91_add_device_ssc(unsigned id, unsigned pins) {}
+#endif
+
+
+/* --------------------------------------------------------------------
  *  UART
  * -------------------------------------------------------------------- */
 #if defined(CONFIG_SERIAL_ATMEL)

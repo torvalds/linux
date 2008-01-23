@@ -636,6 +636,179 @@ void __init at91_init_leds(u8 cpu_led, u8 timer_led) {}
 
 
 /* --------------------------------------------------------------------
+ *  SSC -- Synchronous Serial Controller
+ * -------------------------------------------------------------------- */
+
+#if defined(CONFIG_ATMEL_SSC) || defined(CONFIG_ATMEL_SSC_MODULE)
+static u64 ssc0_dmamask = DMA_BIT_MASK(32);
+
+static struct resource ssc0_resources[] = {
+	[0] = {
+		.start	= AT91RM9200_BASE_SSC0,
+		.end	= AT91RM9200_BASE_SSC0 + SZ_16K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= AT91RM9200_ID_SSC0,
+		.end	= AT91RM9200_ID_SSC0,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device at91rm9200_ssc0_device = {
+	.name	= "ssc",
+	.id	= 0,
+	.dev	= {
+		.dma_mask		= &ssc0_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+	.resource	= ssc0_resources,
+	.num_resources	= ARRAY_SIZE(ssc0_resources),
+};
+
+static inline void configure_ssc0_pins(unsigned pins)
+{
+	if (pins & ATMEL_SSC_TF)
+		at91_set_A_periph(AT91_PIN_PB0, 1);
+	if (pins & ATMEL_SSC_TK)
+		at91_set_A_periph(AT91_PIN_PB1, 1);
+	if (pins & ATMEL_SSC_TD)
+		at91_set_A_periph(AT91_PIN_PB2, 1);
+	if (pins & ATMEL_SSC_RD)
+		at91_set_A_periph(AT91_PIN_PB3, 1);
+	if (pins & ATMEL_SSC_RK)
+		at91_set_A_periph(AT91_PIN_PB4, 1);
+	if (pins & ATMEL_SSC_RF)
+		at91_set_A_periph(AT91_PIN_PB5, 1);
+}
+
+static u64 ssc1_dmamask = DMA_BIT_MASK(32);
+
+static struct resource ssc1_resources[] = {
+	[0] = {
+		.start	= AT91RM9200_BASE_SSC1,
+		.end	= AT91RM9200_BASE_SSC1 + SZ_16K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= AT91RM9200_ID_SSC1,
+		.end	= AT91RM9200_ID_SSC1,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device at91rm9200_ssc1_device = {
+	.name	= "ssc",
+	.id	= 1,
+	.dev	= {
+		.dma_mask		= &ssc1_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+	.resource	= ssc1_resources,
+	.num_resources	= ARRAY_SIZE(ssc1_resources),
+};
+
+static inline void configure_ssc1_pins(unsigned pins)
+{
+	if (pins & ATMEL_SSC_TF)
+		at91_set_A_periph(AT91_PIN_PB6, 1);
+	if (pins & ATMEL_SSC_TK)
+		at91_set_A_periph(AT91_PIN_PB7, 1);
+	if (pins & ATMEL_SSC_TD)
+		at91_set_A_periph(AT91_PIN_PB8, 1);
+	if (pins & ATMEL_SSC_RD)
+		at91_set_A_periph(AT91_PIN_PB9, 1);
+	if (pins & ATMEL_SSC_RK)
+		at91_set_A_periph(AT91_PIN_PB10, 1);
+	if (pins & ATMEL_SSC_RF)
+		at91_set_A_periph(AT91_PIN_PB11, 1);
+}
+
+static u64 ssc2_dmamask = DMA_BIT_MASK(32);
+
+static struct resource ssc2_resources[] = {
+	[0] = {
+		.start	= AT91RM9200_BASE_SSC2,
+		.end	= AT91RM9200_BASE_SSC2 + SZ_16K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= AT91RM9200_ID_SSC2,
+		.end	= AT91RM9200_ID_SSC2,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device at91rm9200_ssc2_device = {
+	.name	= "ssc",
+	.id	= 2,
+	.dev	= {
+		.dma_mask		= &ssc2_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+	.resource	= ssc2_resources,
+	.num_resources	= ARRAY_SIZE(ssc2_resources),
+};
+
+static inline void configure_ssc2_pins(unsigned pins)
+{
+	if (pins & ATMEL_SSC_TF)
+		at91_set_A_periph(AT91_PIN_PB12, 1);
+	if (pins & ATMEL_SSC_TK)
+		at91_set_A_periph(AT91_PIN_PB13, 1);
+	if (pins & ATMEL_SSC_TD)
+		at91_set_A_periph(AT91_PIN_PB14, 1);
+	if (pins & ATMEL_SSC_RD)
+		at91_set_A_periph(AT91_PIN_PB15, 1);
+	if (pins & ATMEL_SSC_RK)
+		at91_set_A_periph(AT91_PIN_PB16, 1);
+	if (pins & ATMEL_SSC_RF)
+		at91_set_A_periph(AT91_PIN_PB17, 1);
+}
+
+/*
+ * SSC controllers are accessed through library code, instead of any
+ * kind of all-singing/all-dancing driver.  For example one could be
+ * used by a particular I2S audio codec's driver, while another one
+ * on the same system might be used by a custom data capture driver.
+ */
+void __init at91_add_device_ssc(unsigned id, unsigned pins)
+{
+	struct platform_device *pdev;
+
+	/*
+	 * NOTE: caller is responsible for passing information matching
+	 * "pins" to whatever will be using each particular controller.
+	 */
+	switch (id) {
+	case AT91RM9200_ID_SSC0:
+		pdev = &at91rm9200_ssc0_device;
+		configure_ssc0_pins(pins);
+		at91_clock_associate("ssc0_clk", &pdev->dev, "ssc");
+		break;
+	case AT91RM9200_ID_SSC1:
+		pdev = &at91rm9200_ssc1_device;
+		configure_ssc1_pins(pins);
+		at91_clock_associate("ssc1_clk", &pdev->dev, "ssc");
+		break;
+	case AT91RM9200_ID_SSC2:
+		pdev = &at91rm9200_ssc2_device;
+		configure_ssc2_pins(pins);
+		at91_clock_associate("ssc2_clk", &pdev->dev, "ssc");
+		break;
+	default:
+		return;
+	}
+
+	platform_device_register(pdev);
+}
+
+#else
+void __init at91_add_device_ssc(unsigned id, unsigned pins) {}
+#endif
+
+
+/* --------------------------------------------------------------------
  *  UART
  * -------------------------------------------------------------------- */
 
