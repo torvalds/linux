@@ -18,7 +18,7 @@ static DEFINE_MUTEX(net_mutex);
 LIST_HEAD(net_namespace_list);
 
 struct net init_net;
-EXPORT_SYMBOL_GPL(init_net);
+EXPORT_SYMBOL(init_net);
 
 /*
  * setup_net runs the initializers for the network namespace object.
