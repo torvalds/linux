@@ -91,7 +91,6 @@ struct ath5k_dbg_info {
  * @ATH5K_DEBUG_MODE: mode init/setup
  * @ATH5K_DEBUG_XMIT: basic xmit operation
  * @ATH5K_DEBUG_BEACON: beacon handling
- * @ATH5K_DEBUG_BEACON_PROC: beacon ISR proc
  * @ATH5K_DEBUG_CALIBRATE: periodic calibration
  * @ATH5K_DEBUG_TXPOWER: transmit power setting
  * @ATH5K_DEBUG_LED: led management
@@ -99,7 +98,6 @@ struct ath5k_dbg_info {
  * @ATH5K_DEBUG_DUMP_TX: print transmit skb content
  * @ATH5K_DEBUG_DUMPMODES: dump modes
  * @ATH5K_DEBUG_TRACE: trace function calls
- * @ATH5K_DEBUG_FATAL: fatal errors
  * @ATH5K_DEBUG_ANY: show at any debug level
  *
  * The debug level is used to control the amount and type of debugging output
@@ -115,15 +113,13 @@ enum ath5k_debug_level {
 	ATH5K_DEBUG_MODE	= 0x00000004,
 	ATH5K_DEBUG_XMIT	= 0x00000008,
 	ATH5K_DEBUG_BEACON	= 0x00000010,
-	ATH5K_DEBUG_BEACON_PROC	= 0x00000020,
-	ATH5K_DEBUG_CALIBRATE	= 0x00000100,
-	ATH5K_DEBUG_TXPOWER	= 0x00000200,
-	ATH5K_DEBUG_LED		= 0x00000400,
-	ATH5K_DEBUG_DUMP_RX	= 0x00001000,
-	ATH5K_DEBUG_DUMP_TX	= 0x00002000,
-	ATH5K_DEBUG_DUMPMODES	= 0x00004000,
-	ATH5K_DEBUG_TRACE	= 0x00010000,
-	ATH5K_DEBUG_FATAL	= 0x80000000,
+	ATH5K_DEBUG_CALIBRATE	= 0x00000020,
+	ATH5K_DEBUG_TXPOWER	= 0x00000040,
+	ATH5K_DEBUG_LED		= 0x00000080,
+	ATH5K_DEBUG_DUMP_RX	= 0x00000100,
+	ATH5K_DEBUG_DUMP_TX	= 0x00000200,
+	ATH5K_DEBUG_DUMPMODES	= 0x00000400,
+	ATH5K_DEBUG_TRACE	= 0x00001000,
 	ATH5K_DEBUG_ANY		= 0xffffffff
 };
 

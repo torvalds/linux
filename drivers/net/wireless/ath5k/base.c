@@ -1980,7 +1980,7 @@ ath5k_beacon_send(struct ath5k_softc *sc)
 	struct ath5k_buf *bf = sc->bbuf;
 	struct ath5k_hw *ah = sc->ah;
 
-	ATH5K_DBG(sc, ATH5K_DEBUG_BEACON_PROC, "in beacon_send\n");
+	ATH5K_DBG_UNLIMIT(sc, ATH5K_DEBUG_BEACON, "in beacon_send\n");
 
 	if (unlikely(bf->skb == NULL || sc->opmode == IEEE80211_IF_TYPE_STA ||
 			sc->opmode == IEEE80211_IF_TYPE_MNTR)) {
@@ -1996,10 +1996,10 @@ ath5k_beacon_send(struct ath5k_softc *sc)
 	 */
 	if (unlikely(ath5k_hw_num_tx_pending(ah, sc->bhalq) != 0)) {
 		sc->bmisscount++;
-		ATH5K_DBG(sc, ATH5K_DEBUG_BEACON_PROC,
+		ATH5K_DBG(sc, ATH5K_DEBUG_BEACON,
 			"missed %u consecutive beacons\n", sc->bmisscount);
 		if (sc->bmisscount > 3) {		/* NB: 3 is a guess */
-			ATH5K_DBG(sc, ATH5K_DEBUG_BEACON_PROC,
+			ATH5K_DBG(sc, ATH5K_DEBUG_BEACON,
 				"stuck beacon time (%u missed)\n",
 				sc->bmisscount);
 			tasklet_schedule(&sc->restq);
@@ -2007,7 +2007,7 @@ ath5k_beacon_send(struct ath5k_softc *sc)
 		return;
 	}
 	if (unlikely(sc->bmisscount != 0)) {
-		ATH5K_DBG(sc, ATH5K_DEBUG_BEACON_PROC,
+		ATH5K_DBG(sc, ATH5K_DEBUG_BEACON,
 			"resume beacon xmit after %u misses\n",
 			sc->bmisscount);
 		sc->bmisscount = 0;
@@ -2027,7 +2027,7 @@ ath5k_beacon_send(struct ath5k_softc *sc)
 
 	ath5k_hw_put_tx_buf(ah, sc->bhalq, bf->daddr);
 	ath5k_hw_tx_start(ah, sc->bhalq);
-	ATH5K_DBG(sc, ATH5K_DEBUG_BEACON_PROC, "TXDP[%u] = %llx (%p)\n",
+	ATH5K_DBG(sc, ATH5K_DEBUG_BEACON, "TXDP[%u] = %llx (%p)\n",
 		sc->bhalq, (unsigned long long)bf->daddr, bf->desc);
 
 	sc->bsent++;
