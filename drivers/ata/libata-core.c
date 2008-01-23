@@ -3949,17 +3949,6 @@ int ata_std_prereset(struct ata_link *link, unsigned long deadline)
 	const unsigned long *timing = sata_ehc_deb_timing(ehc);
 	int rc;
 
-	/* handle link resume */
-	if ((ehc->i.flags & ATA_EHI_RESUME_LINK) &&
-	    (link->flags & ATA_LFLAG_HRST_TO_RESUME))
-		ehc->i.action |= ATA_EH_HARDRESET;
-
-	/* Some PMPs don't work with only SRST, force hardreset if PMP
-	 * is supported.
-	 */
-	if (ap->flags & ATA_FLAG_PMP)
-		ehc->i.action |= ATA_EH_HARDRESET;
-
 	/* if we're about to do hardreset, nothing more to do */
 	if (ehc->i.action & ATA_EH_HARDRESET)
 		return 0;
@@ -6055,9 +6044,9 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 		if (ata_sg_setup(qc))
 			goto sg_err;
 
-	/* if device is sleeping, schedule softreset and abort the link */
+	/* if device is sleeping, schedule reset and abort the link */
 	if (unlikely(qc->dev->flags & ATA_DFLAG_SLEEPING)) {
-		link->eh_info.action |= ATA_EH_SOFTRESET;
+		link->eh_info.action |= ATA_EH_RESET;
 		ata_ehi_push_desc(&link->eh_info, "waking up from sleep");
 		ata_link_abort(link);
 		return;
@@ -6634,7 +6623,7 @@ int ata_host_suspend(struct ata_host *host, pm_message_t mesg)
  */
 void ata_host_resume(struct ata_host *host)
 {
-	ata_host_request_pm(host, PMSG_ON, ATA_EH_SOFTRESET,
+	ata_host_request_pm(host, PMSG_ON, ATA_EH_RESET,
 			    ATA_EHI_NO_AUTOPSY | ATA_EHI_QUIET, 0);
 	host->dev->power.power_state = PMSG_ON;
 
@@ -7171,7 +7160,7 @@ int ata_host_register(struct ata_host *host, struct scsi_host_template *sht)
 
 			ehi->probe_mask =
 				(1 << ata_link_max_devices(&ap->link)) - 1;
-			ehi->action |= ATA_EH_SOFTRESET;
+			ehi->action |= ATA_EH_RESET;
 			ehi->flags |= ATA_EHI_NO_AUTOPSY | ATA_EHI_QUIET;
 
 			ap->pflags &= ~ATA_PFLAG_INITIALIZING;

@@ -996,7 +996,7 @@ static void sata_fsl_error_intr(struct ata_port *ap)
 	/* handle fatal errors */
 	if (hstatus & FATAL_ERROR_DECODE) {
 		err_mask |= AC_ERR_ATA_BUS;
-		action |= ATA_EH_SOFTRESET;
+		action |= ATA_EH_RESET;
 		/* how will fatal error interrupts be completed ?? */
 		freeze = 1;
 	}

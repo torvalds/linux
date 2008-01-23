@@ -929,7 +929,7 @@ static int nv_adma_check_cpb(struct ata_port *ap, int cpb_num, int force_err)
 					"notifier for tag %d with no cmd?\n",
 					cpb_num);
 			ehi->err_mask |= AC_ERR_HSM;
-			ehi->action |= ATA_EH_SOFTRESET;
+			ehi->action |= ATA_EH_RESET;
 			ata_port_freeze(ap);
 			return 1;
 		}
@@ -1892,7 +1892,7 @@ static void nv_swncq_error_handler(struct ata_port *ap)
 
 	if (ap->link.sactive) {
 		nv_swncq_ncq_stop(ap);
-		ehc->i.action |= ATA_EH_HARDRESET;
+		ehc->i.action |= ATA_EH_RESET;
 	}
 
 	ata_bmdma_drive_eh(ap, ata_std_prereset, ata_std_softreset,
@@ -2173,7 +2173,7 @@ static int nv_swncq_sdbfis(struct ata_port *ap)
 		ata_ehi_clear_desc(ehi);
 		ata_ehi_push_desc(ehi, "BMDMA stat 0x%x", host_stat);
 		ehi->err_mask |= AC_ERR_HOST_BUS;
-		ehi->action |= ATA_EH_SOFTRESET;
+		ehi->action |= ATA_EH_RESET;
 		return -EINVAL;
 	}
 
@@ -2188,7 +2188,7 @@ static int nv_swncq_sdbfis(struct ata_port *ap)
 		ata_ehi_push_desc(ehi, "illegal SWNCQ:qc_active transition"
 				  "(%08x->%08x)", pp->qc_active, sactive);
 		ehi->err_mask |= AC_ERR_HSM;
-		ehi->action |= ATA_EH_HARDRESET;
+		ehi->action |= ATA_EH_RESET;
 		return -EINVAL;
 	}
 	for (i = 0; i < ATA_MAX_QUEUE; i++) {
@@ -2324,7 +2324,7 @@ static void nv_swncq_host_interrupt(struct ata_port *ap, u16 fis)
 		ata_ehi_push_desc(ehi, "Ata error. fis:0x%X", fis);
 		ehi->err_mask |= AC_ERR_DEV;
 		ehi->serror |= serror;
-		ehi->action |= ATA_EH_SOFTRESET;
+		ehi->action |= ATA_EH_RESET;
 		ata_port_freeze(ap);
 		return;
 	}
@@ -2356,7 +2356,7 @@ static void nv_swncq_host_interrupt(struct ata_port *ap, u16 fis)
 		if (pp->ncq_flags & (ncq_saw_sdb | ncq_saw_backout)) {
 			ata_ehi_push_desc(ehi, "illegal fis transaction");
 			ehi->err_mask |= AC_ERR_HSM;
-			ehi->action |= ATA_EH_HARDRESET;
+			ehi->action |= ATA_EH_RESET;
 			goto irq_error;
 		}
 

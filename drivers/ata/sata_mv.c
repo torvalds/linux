@@ -1524,14 +1524,14 @@ static void mv_err_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
 			EDMA_ERR_CRQB_PAR | EDMA_ERR_CRPB_PAR |
 			EDMA_ERR_INTRL_PAR)) {
 		err_mask |= AC_ERR_ATA_BUS;
-		action |= ATA_EH_HARDRESET;
+		action |= ATA_EH_RESET;
 		ata_ehi_push_desc(ehi, "parity error");
 	}
 	if (edma_err_cause & (EDMA_ERR_DEV_DCON | EDMA_ERR_DEV_CON)) {
 		ata_ehi_hotplugged(ehi);
 		ata_ehi_push_desc(ehi, edma_err_cause & EDMA_ERR_DEV_DCON ?
 			"dev disconnect" : "dev connect");
-		action |= ATA_EH_HARDRESET;
+		action |= ATA_EH_RESET;
 	}
 
 	if (IS_GEN_I(hpriv)) {
@@ -1555,7 +1555,7 @@ static void mv_err_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
 			sata_scr_read(&ap->link, SCR_ERROR, &serr);
 			sata_scr_write_flush(&ap->link, SCR_ERROR, serr);
 			err_mask = AC_ERR_ATA_BUS;
-			action |= ATA_EH_HARDRESET;
+			action |= ATA_EH_RESET;
 		}
 	}
 
@@ -1564,7 +1564,7 @@ static void mv_err_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
 
 	if (!err_mask) {
 		err_mask = AC_ERR_OTHER;
-		action |= ATA_EH_HARDRESET;
+		action |= ATA_EH_RESET;
 	}
 
 	ehi->serror |= serr;
@@ -1780,7 +1780,7 @@ static void mv_pci_error(struct ata_host *host, void __iomem *mmio)
 				ata_ehi_push_desc(ehi,
 					"PCI err cause 0x%08x", err_cause);
 			err_mask = AC_ERR_HOST_BUS;
-			ehi->action = ATA_EH_HARDRESET;
+			ehi->action = ATA_EH_RESET;
 			qc = ata_qc_from_tag(ap, ap->link.active_tag);
 			if (qc)
 				qc->err_mask |= err_mask;
@@ -2449,28 +2449,13 @@ static int mv_prereset(struct ata_link *link, unsigned long deadline)
 {
 	struct ata_port *ap = link->ap;
 	struct mv_port_priv *pp	= ap->private_data;
-	struct ata_eh_context *ehc = &link->eh_context;
-	int rc;
 
-	rc = mv_stop_dma(ap);
-	if (rc)
-		ehc->i.action |= ATA_EH_HARDRESET;
+	mv_stop_dma(ap);
 
-	if (!(pp->pp_flags & MV_PP_FLAG_HAD_A_RESET)) {
+	if (!(pp->pp_flags & MV_PP_FLAG_HAD_A_RESET))
 		pp->pp_flags |= MV_PP_FLAG_HAD_A_RESET;
-		ehc->i.action |= ATA_EH_HARDRESET;
-	}
 
-	/* if we're about to do hardreset, nothing more to do */
-	if (ehc->i.action & ATA_EH_HARDRESET)
-		return 0;
-
-	if (ata_link_online(link))
-		rc = ata_wait_ready(ap, deadline);
-	else
-		rc = -ENODEV;
-
-	return rc;
+	return 0;
 }
 
 static int mv_hardreset(struct ata_link *link, unsigned int *class,

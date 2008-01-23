@@ -320,7 +320,7 @@ static int vt6420_prereset(struct ata_link *link, unsigned long deadline)
 
 	if (!online) {
 		/* tell EH to bail */
-		ehc->i.action &= ~ATA_EH_RESET_MASK;
+		ehc->i.action &= ~ATA_EH_RESET;
 		return 0;
 	}
 

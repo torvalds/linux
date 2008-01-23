@@ -194,15 +194,6 @@ int sata_pmp_std_prereset(struct ata_link *link, unsigned long deadline)
 	const unsigned long *timing = sata_ehc_deb_timing(ehc);
 	int rc;
 
-	/* force HRST? */
-	if (link->flags & ATA_LFLAG_NO_SRST)
-		ehc->i.action |= ATA_EH_HARDRESET;
-
-	/* handle link resume */
-	if ((ehc->i.flags & ATA_EHI_RESUME_LINK) &&
-	    (link->flags & ATA_LFLAG_HRST_TO_RESUME))
-		ehc->i.action |= ATA_EH_HARDRESET;
-
 	/* if we're about to do hardreset, nothing more to do */
 	if (ehc->i.action & ATA_EH_HARDRESET)
 		return 0;
@@ -445,7 +436,7 @@ static int sata_pmp_init_links(struct ata_port *ap, int nr_ports)
 
 		link->flags = 0;
 		ehc->i.probe_mask |= 1;
-		ehc->i.action |= ATA_EH_SOFTRESET;
+		ehc->i.action |= ATA_EH_RESET;
 		ehc->i.flags |= ATA_EHI_RESUME_LINK;
 	}
 
@@ -840,13 +831,12 @@ static int sata_pmp_eh_recover_pmp(struct ata_port *ap,
  retry:
 	ehc->classes[0] = ATA_DEV_UNKNOWN;
 
-	if (ehc->i.action & ATA_EH_RESET_MASK) {
+	if (ehc->i.action & ATA_EH_RESET) {
 		struct ata_link *tlink;
 
 		ata_eh_freeze_port(ap);
 
 		/* reset */
-		ehc->i.action = ATA_EH_HARDRESET;
 		rc = ata_eh_reset(link, 0, prereset, softreset, hardreset,
 				  postreset);
 		if (rc) {
@@ -890,11 +880,11 @@ static int sata_pmp_eh_recover_pmp(struct ata_port *ap,
 				reval_failed = 1;
 
 			ata_dev_printk(dev, KERN_WARNING,
-				       "retrying hardreset%s\n",
+				       "retrying reset%s\n",
 				       sleep ? " in 5 secs" : "");
 			if (sleep)
 				ssleep(5);
-			ehc->i.action |= ATA_EH_HARDRESET;
+			ehc->i.action |= ATA_EH_RESET;
 			goto retry;
 		} else {
 			ata_dev_printk(dev, KERN_ERR, "failed to recover PMP "
@@ -938,10 +928,8 @@ static int sata_pmp_eh_handle_disabled_links(struct ata_port *ap)
 		/* Some PMPs require hardreset sequence to get
 		 * SError.N working.
 		 */
-		if ((link->flags & ATA_LFLAG_HRST_TO_RESUME) &&
-		    (link->eh_context.i.flags & ATA_EHI_RESUME_LINK))
-			sata_link_hardreset(link, sata_deb_timing_normal,
-					    jiffies + ATA_TMOUT_INTERNAL_QUICK);
+		sata_link_hardreset(link, sata_deb_timing_normal,
+				    jiffies + ATA_TMOUT_INTERNAL_QUICK);
 
 		/* unconditionally clear SError.N */
 		rc = sata_scr_write(link, SCR_ERROR, SERR_PHYRDY_CHG);
@@ -1124,7 +1112,7 @@ static int sata_pmp_eh_recover(struct ata_port *ap,
 
  link_fail:
 	if (sata_pmp_handle_link_fail(link, link_tries)) {
-		pmp_ehc->i.action |= ATA_EH_HARDRESET;
+		pmp_ehc->i.action |= ATA_EH_RESET;
 		goto retry;
 	}
 
@@ -1142,7 +1130,7 @@ static int sata_pmp_eh_recover(struct ata_port *ap,
 	if (--pmp_tries) {
 		ata_port_printk(ap, KERN_WARNING,
 				"failed to recover PMP, retrying in 5 secs\n");
-		pmp_ehc->i.action |= ATA_EH_HARDRESET;
+		pmp_ehc->i.action |= ATA_EH_RESET;
 		ssleep(5);
 		goto retry;
 	}

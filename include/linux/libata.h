@@ -292,12 +292,12 @@ enum {
 
 	/* reset / recovery action types */
 	ATA_EH_REVALIDATE	= (1 << 0),
-	ATA_EH_SOFTRESET	= (1 << 1),
-	ATA_EH_HARDRESET	= (1 << 2),
+	ATA_EH_SOFTRESET	= (1 << 1), /* meaningful only in ->prereset */
+	ATA_EH_HARDRESET	= (1 << 2), /* meaningful only in ->prereset */
+	ATA_EH_RESET		= ATA_EH_SOFTRESET | ATA_EH_HARDRESET,
 	ATA_EH_ENABLE_LINK	= (1 << 3),
 	ATA_EH_LPM		= (1 << 4),  /* link power management action */
 
-	ATA_EH_RESET_MASK	= ATA_EH_SOFTRESET | ATA_EH_HARDRESET,
 	ATA_EH_PERDEV_MASK	= ATA_EH_REVALIDATE,
 
 	/* ata_eh_info->flags */
@@ -1097,7 +1097,7 @@ extern void ata_ehi_clear_desc(struct ata_eh_info *ehi);
 static inline void ata_ehi_schedule_probe(struct ata_eh_info *ehi)
 {
 	ehi->flags |= ATA_EHI_RESUME_LINK;
-	ehi->action |= ATA_EH_SOFTRESET;
+	ehi->action |= ATA_EH_RESET;
 	ehi->probe_mask |= (1 << ATA_MAX_DEVICES) - 1;
 }
 
