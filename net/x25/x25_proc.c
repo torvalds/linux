@@ -293,7 +293,7 @@ static const struct file_operations x25_seq_route_fops = {
 	.release	= seq_release,
 };
 
-static struct file_operations x25_seq_forward_fops = {
+static const struct file_operations x25_seq_forward_fops = {
 	.owner		= THIS_MODULE,
 	.open		= x25_seq_forward_open,
 	.read		= seq_read,
