@@ -671,7 +671,6 @@ extern int iwl3945_hw_channel_switch(struct iwl3945_priv *priv, u16 channel);
 /*
  * Forward declare iwl-3945.c functions for iwl-base.c
  */
-extern int iwl3945_eeprom_acquire_semaphore(struct iwl3945_priv *priv);
 extern __le32 iwl3945_get_antenna_flags(const struct iwl3945_priv *priv);
 extern int iwl3945_init_hw_rate_table(struct iwl3945_priv *priv);
 extern void iwl3945_reg_txpower_periodic(struct iwl3945_priv *priv);

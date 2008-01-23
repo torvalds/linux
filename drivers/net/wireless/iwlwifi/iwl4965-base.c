@@ -1639,6 +1639,12 @@ static void get_eeprom_mac(struct iwl4965_priv *priv, u8 *mac)
 	memcpy(mac, priv->eeprom.mac_address, 6);
 }
 
+static inline void iwl4965_eeprom_release_semaphore(struct iwl4965_priv *priv)
+{
+	iwl4965_clear_bit(priv, CSR_HW_IF_CONFIG_REG,
+		CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM);
+}
+
 /**
  * iwl4965_eeprom_init - read EEPROM contents
  *
