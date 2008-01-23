@@ -913,29 +913,37 @@ static long ch_ioctl_compat(struct file * file,
 static int ch_probe(struct device *dev)
 {
 	struct scsi_device *sd = to_scsi_device(dev);
+	struct class_device *class_dev;
 	scsi_changer *ch;
-	
+
 	if (sd->type != TYPE_MEDIUM_CHANGER)
 		return -ENODEV;
-    
+
 	ch = kzalloc(sizeof(*ch), GFP_KERNEL);
 	if (NULL == ch)
 		return -ENOMEM;
 
 	ch->minor = ch_devcount;
 	sprintf(ch->name,"ch%d",ch->minor);
+
+	class_dev = class_device_create(ch_sysfs_class, NULL,
+					MKDEV(SCSI_CHANGER_MAJOR, ch->minor),
+					dev, "s%s", ch->name);
+	if (IS_ERR(class_dev)) {
+		printk(KERN_WARNING "ch%d: class_device_create failed\n",
+		       ch->minor);
+		kfree(ch);
+		return PTR_ERR(class_dev);
+	}
+
 	mutex_init(&ch->lock);
 	ch->device = sd;
 	ch_readconfig(ch);
 	if (init)
 		ch_init_elem(ch);
 
-	class_device_create(ch_sysfs_class, NULL,
-			    MKDEV(SCSI_CHANGER_MAJOR,ch->minor),
-			    dev, "s%s", ch->name);
-
 	sdev_printk(KERN_INFO, sd, "Attached scsi changer %s\n", ch->name);
-	
+
 	spin_lock(&ch_devlist_lock);
 	list_add_tail(&ch->list,&ch_devlist);
 	ch_devcount++;
