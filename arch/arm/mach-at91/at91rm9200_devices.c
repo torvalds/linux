@@ -558,8 +558,11 @@ void __init at91_add_device_spi(struct spi_board_info *devices, int nr_devices)
 		else
 			cs_pin = spi_standard_cs[devices[i].chip_select];
 
-		/* enable chip-select pin */
-		at91_set_gpio_output(cs_pin, 1);
+		if (devices[i].chip_select == 0)	/* for CS0 errata */
+			at91_set_A_periph(cs_pin, 0);
+		else
+			at91_set_gpio_output(cs_pin, 1);
+
 
 		/* pass chip-select pin to driver */
 		devices[i].controller_data = (void *) cs_pin;
