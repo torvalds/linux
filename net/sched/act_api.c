@@ -263,6 +263,7 @@ int tcf_register_action(struct tc_action_ops *act)
 	write_unlock(&act_mod_lock);
 	return 0;
 }
+EXPORT_SYMBOL(tcf_register_action);
 
 int tcf_unregister_action(struct tc_action_ops *act)
 {
@@ -281,6 +282,7 @@ int tcf_unregister_action(struct tc_action_ops *act)
 	write_unlock(&act_mod_lock);
 	return err;
 }
+EXPORT_SYMBOL(tcf_unregister_action);
 
 /* lookup by name */
 static struct tc_action_ops *tc_lookup_action_n(char *kind)
@@ -377,6 +379,7 @@ repeat:
 exec_done:
 	return ret;
 }
+EXPORT_SYMBOL(tcf_action_exec);
 
 void tcf_action_destroy(struct tc_action *act, int bind)
 {
@@ -430,6 +433,7 @@ rtattr_failure:
 	nlmsg_trim(skb, b);
 	return -1;
 }
+EXPORT_SYMBOL(tcf_action_dump_1);
 
 int
 tcf_action_dump(struct sk_buff *skb, struct tc_action *act, int bind, int ref)
@@ -1077,8 +1081,3 @@ static int __init tc_action_init(void)
 }
 
 subsys_initcall(tc_action_init);
-
-EXPORT_SYMBOL(tcf_register_action);
-EXPORT_SYMBOL(tcf_unregister_action);
-EXPORT_SYMBOL(tcf_action_exec);
-EXPORT_SYMBOL(tcf_action_dump_1);

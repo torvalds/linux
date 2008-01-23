@@ -158,6 +158,7 @@ out:
 	write_unlock(&qdisc_mod_lock);
 	return rc;
 }
+EXPORT_SYMBOL(register_qdisc);
 
 int unregister_qdisc(struct Qdisc_ops *qops)
 {
@@ -176,6 +177,7 @@ int unregister_qdisc(struct Qdisc_ops *qops)
 	write_unlock(&qdisc_mod_lock);
 	return err;
 }
+EXPORT_SYMBOL(unregister_qdisc);
 
 /* We know handle. Find qdisc among all qdisc's attached to device
    (root qdisc, all its children, children of children etc.)
@@ -255,6 +257,7 @@ struct qdisc_rate_table *qdisc_get_rtab(struct tc_ratespec *r, struct rtattr *ta
 	}
 	return rtab;
 }
+EXPORT_SYMBOL(qdisc_get_rtab);
 
 void qdisc_put_rtab(struct qdisc_rate_table *tab)
 {
@@ -271,6 +274,7 @@ void qdisc_put_rtab(struct qdisc_rate_table *tab)
 		}
 	}
 }
+EXPORT_SYMBOL(qdisc_put_rtab);
 
 static enum hrtimer_restart qdisc_watchdog(struct hrtimer *timer)
 {
@@ -1289,8 +1293,3 @@ static int __init pktsched_init(void)
 }
 
 subsys_initcall(pktsched_init);
-
-EXPORT_SYMBOL(qdisc_get_rtab);
-EXPORT_SYMBOL(qdisc_put_rtab);
-EXPORT_SYMBOL(register_qdisc);
-EXPORT_SYMBOL(unregister_qdisc);
