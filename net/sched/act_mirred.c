@@ -54,10 +54,10 @@ static inline int tcf_mirred_release(struct tcf_mirred *m, int bind)
 	return 0;
 }
 
-static int tcf_mirred_init(struct rtattr *rta, struct rtattr *est,
+static int tcf_mirred_init(struct nlattr *nla, struct nlattr *est,
 			   struct tc_action *a, int ovr, int bind)
 {
-	struct rtattr *tb[TCA_MIRRED_MAX];
+	struct nlattr *tb[TCA_MIRRED_MAX + 1];
 	struct tc_mirred *parm;
 	struct tcf_mirred *m;
 	struct tcf_common *pc;
@@ -65,13 +65,13 @@ static int tcf_mirred_init(struct rtattr *rta, struct rtattr *est,
 	int ret = 0;
 	int ok_push = 0;
 
-	if (rta == NULL || rtattr_parse_nested(tb, TCA_MIRRED_MAX, rta) < 0)
+	if (nla == NULL || nla_parse_nested(tb, TCA_MIRRED_MAX, nla, NULL) < 0)
 		return -EINVAL;
 
-	if (tb[TCA_MIRRED_PARMS-1] == NULL ||
-	    RTA_PAYLOAD(tb[TCA_MIRRED_PARMS-1]) < sizeof(*parm))
+	if (tb[TCA_MIRRED_PARMS] == NULL ||
+	    nla_len(tb[TCA_MIRRED_PARMS]) < sizeof(*parm))
 		return -EINVAL;
-	parm = RTA_DATA(tb[TCA_MIRRED_PARMS-1]);
+	parm = nla_data(tb[TCA_MIRRED_PARMS]);
 
 	if (parm->ifindex) {
 		dev = __dev_get_by_index(&init_net, parm->ifindex);
@@ -207,14 +207,14 @@ static int tcf_mirred_dump(struct sk_buff *skb, struct tc_action *a, int bind, i
 	opt.bindcnt = m->tcf_bindcnt - bind;
 	opt.eaction = m->tcfm_eaction;
 	opt.ifindex = m->tcfm_ifindex;
-	RTA_PUT(skb, TCA_MIRRED_PARMS, sizeof(opt), &opt);
+	NLA_PUT(skb, TCA_MIRRED_PARMS, sizeof(opt), &opt);
 	t.install = jiffies_to_clock_t(jiffies - m->tcf_tm.install);
 	t.lastuse = jiffies_to_clock_t(jiffies - m->tcf_tm.lastuse);
 	t.expires = jiffies_to_clock_t(m->tcf_tm.expires);
-	RTA_PUT(skb, TCA_MIRRED_TM, sizeof(t), &t);
+	NLA_PUT(skb, TCA_MIRRED_TM, sizeof(t), &t);
 	return skb->len;
 
-rtattr_failure:
+nla_put_failure:
 	nlmsg_trim(skb, b);
 	return -1;
 }

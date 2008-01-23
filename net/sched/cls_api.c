@@ -491,8 +491,7 @@ int tcf_exts_validate(struct tcf_proto *tp, struct nlattr **tb,
 		struct tc_action *act;
 
 		if (map->police && tb[map->police]) {
-			act = tcf_action_init_1((struct rtattr *)tb[map->police],
-						(struct rtattr *)rate_tlv,
+			act = tcf_action_init_1(tb[map->police], rate_tlv,
 						"police", TCA_ACT_NOREPLACE,
 						TCA_ACT_BIND, &err);
 			if (act == NULL)
@@ -501,8 +500,7 @@ int tcf_exts_validate(struct tcf_proto *tp, struct nlattr **tb,
 			act->type = TCA_OLD_COMPAT;
 			exts->action = act;
 		} else if (map->action && tb[map->action]) {
-			act = tcf_action_init((struct rtattr *)tb[map->action],
-					      (struct rtattr *)rate_tlv, NULL,
+			act = tcf_action_init(tb[map->action], rate_tlv, NULL,
 				TCA_ACT_NOREPLACE, TCA_ACT_BIND, &err);
 			if (act == NULL)
 				return err;

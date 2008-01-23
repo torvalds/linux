@@ -40,22 +40,22 @@ static struct tcf_hashinfo nat_hash_info = {
 	.lock	=	&nat_lock,
 };
 
-static int tcf_nat_init(struct rtattr *rta, struct rtattr *est,
+static int tcf_nat_init(struct nlattr *nla, struct nlattr *est,
 			struct tc_action *a, int ovr, int bind)
 {
-	struct rtattr *tb[TCA_NAT_MAX];
+	struct nlattr *tb[TCA_NAT_MAX + 1];
 	struct tc_nat *parm;
 	int ret = 0;
 	struct tcf_nat *p;
 	struct tcf_common *pc;
 
-	if (rta == NULL || rtattr_parse_nested(tb, TCA_NAT_MAX, rta) < 0)
+	if (nla == NULL || nla_parse_nested(tb, TCA_NAT_MAX, nla, NULL) < 0)
 		return -EINVAL;
 
-	if (tb[TCA_NAT_PARMS - 1] == NULL ||
-	    RTA_PAYLOAD(tb[TCA_NAT_PARMS - 1]) < sizeof(*parm))
+	if (tb[TCA_NAT_PARMS] == NULL ||
+	    nla_len(tb[TCA_NAT_PARMS]) < sizeof(*parm))
 		return -EINVAL;
-	parm = RTA_DATA(tb[TCA_NAT_PARMS - 1]);
+	parm = nla_data(tb[TCA_NAT_PARMS]);
 
 	pc = tcf_hash_check(parm->index, a, bind, &nat_hash_info);
 	if (!pc) {
@@ -275,17 +275,17 @@ static int tcf_nat_dump(struct sk_buff *skb, struct tc_action *a,
 	opt->refcnt = p->tcf_refcnt - ref;
 	opt->bindcnt = p->tcf_bindcnt - bind;
 
-	RTA_PUT(skb, TCA_NAT_PARMS, s, opt);
+	NLA_PUT(skb, TCA_NAT_PARMS, s, opt);
 	t.install = jiffies_to_clock_t(jiffies - p->tcf_tm.install);
 	t.lastuse = jiffies_to_clock_t(jiffies - p->tcf_tm.lastuse);
 	t.expires = jiffies_to_clock_t(p->tcf_tm.expires);
-	RTA_PUT(skb, TCA_NAT_TM, sizeof(t), &t);
+	NLA_PUT(skb, TCA_NAT_TM, sizeof(t), &t);
 
 	kfree(opt);
 
 	return skb->len;
 
-rtattr_failure:
+nla_put_failure:
 	nlmsg_trim(skb, b);
 	kfree(opt);
 	return -1;

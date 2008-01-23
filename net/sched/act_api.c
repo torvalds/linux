@@ -68,7 +68,7 @@ static int tcf_dump_walker(struct sk_buff *skb, struct netlink_callback *cb,
 {
 	struct tcf_common *p;
 	int err = 0, index = -1,i = 0, s_i = 0, n_i = 0;
-	struct rtattr *r ;
+	struct nlattr *r ;
 
 	read_lock_bh(hinfo->lock);
 
@@ -83,15 +83,15 @@ static int tcf_dump_walker(struct sk_buff *skb, struct netlink_callback *cb,
 				continue;
 			a->priv = p;
 			a->order = n_i;
-			r = (struct rtattr *)skb_tail_pointer(skb);
-			RTA_PUT(skb, a->order, 0, NULL);
+			r = (struct nlattr *)skb_tail_pointer(skb);
+			NLA_PUT(skb, a->order, 0, NULL);
 			err = tcf_action_dump_1(skb, a, 0, 0);
 			if (err < 0) {
 				index--;
 				nlmsg_trim(skb, r);
 				goto done;
 			}
-			r->rta_len = skb_tail_pointer(skb) - (u8 *)r;
+			r->nla_len = skb_tail_pointer(skb) - (u8 *)r;
 			n_i++;
 			if (n_i >= TCA_ACT_MAX_PRIO)
 				goto done;
@@ -103,7 +103,7 @@ done:
 		cb->args[0] += n_i;
 	return n_i;
 
-rtattr_failure:
+nla_put_failure:
 	nlmsg_trim(skb, r);
 	goto done;
 }
@@ -112,12 +112,12 @@ static int tcf_del_walker(struct sk_buff *skb, struct tc_action *a,
 			  struct tcf_hashinfo *hinfo)
 {
 	struct tcf_common *p, *s_p;
-	struct rtattr *r ;
+	struct nlattr *r ;
 	int i= 0, n_i = 0;
 
-	r = (struct rtattr *)skb_tail_pointer(skb);
-	RTA_PUT(skb, a->order, 0, NULL);
-	RTA_PUT(skb, TCA_KIND, IFNAMSIZ, a->ops->kind);
+	r = (struct nlattr *)skb_tail_pointer(skb);
+	NLA_PUT(skb, a->order, 0, NULL);
+	NLA_PUT(skb, TCA_KIND, IFNAMSIZ, a->ops->kind);
 	for (i = 0; i < (hinfo->hmask + 1); i++) {
 		p = hinfo->htab[tcf_hash(i, hinfo->hmask)];
 
@@ -129,11 +129,11 @@ static int tcf_del_walker(struct sk_buff *skb, struct tc_action *a,
 			p = s_p;
 		}
 	}
-	RTA_PUT(skb, TCA_FCNT, 4, &n_i);
-	r->rta_len = skb_tail_pointer(skb) - (u8 *)r;
+	NLA_PUT(skb, TCA_FCNT, 4, &n_i);
+	r->nla_len = skb_tail_pointer(skb) - (u8 *)r;
 
 	return n_i;
-rtattr_failure:
+nla_put_failure:
 	nlmsg_trim(skb, r);
 	return -EINVAL;
 }
@@ -211,7 +211,7 @@ struct tcf_common *tcf_hash_check(u32 index, struct tc_action *a, int bind,
 }
 EXPORT_SYMBOL(tcf_hash_check);
 
-struct tcf_common *tcf_hash_create(u32 index, struct rtattr *est, struct tc_action *a, int size, int bind, u32 *idx_gen, struct tcf_hashinfo *hinfo)
+struct tcf_common *tcf_hash_create(u32 index, struct nlattr *est, struct tc_action *a, int size, int bind, u32 *idx_gen, struct tcf_hashinfo *hinfo)
 {
 	struct tcf_common *p = kzalloc(size, GFP_KERNEL);
 
@@ -227,7 +227,7 @@ struct tcf_common *tcf_hash_create(u32 index, struct rtattr *est, struct tc_acti
 	p->tcfc_tm.lastuse = jiffies;
 	if (est)
 		gen_new_estimator(&p->tcfc_bstats, &p->tcfc_rate_est,
-				  &p->tcfc_lock, (struct nlattr *)est);
+				  &p->tcfc_lock, est);
 	a->priv = (void *) p;
 	return p;
 }
@@ -305,15 +305,15 @@ static struct tc_action_ops *tc_lookup_action_n(char *kind)
 	return a;
 }
 
-/* lookup by rtattr */
-static struct tc_action_ops *tc_lookup_action(struct rtattr *kind)
+/* lookup by nlattr */
+static struct tc_action_ops *tc_lookup_action(struct nlattr *kind)
 {
 	struct tc_action_ops *a = NULL;
 
 	if (kind) {
 		read_lock(&act_mod_lock);
 		for (a = act_base; a; a = a->next) {
-			if (rtattr_strcmp(kind, a->kind) == 0) {
+			if (nla_strcmp(kind, a->kind) == 0) {
 				if (!try_module_get(a->owner)) {
 					read_unlock(&act_mod_lock);
 					return NULL;
@@ -414,22 +414,22 @@ tcf_action_dump_1(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 {
 	int err = -EINVAL;
 	unsigned char *b = skb_tail_pointer(skb);
-	struct rtattr *r;
+	struct nlattr *r;
 
 	if (a->ops == NULL || a->ops->dump == NULL)
 		return err;
 
-	RTA_PUT(skb, TCA_KIND, IFNAMSIZ, a->ops->kind);
+	NLA_PUT(skb, TCA_KIND, IFNAMSIZ, a->ops->kind);
 	if (tcf_action_copy_stats(skb, a, 0))
-		goto rtattr_failure;
-	r = (struct rtattr *)skb_tail_pointer(skb);
-	RTA_PUT(skb, TCA_OPTIONS, 0, NULL);
+		goto nla_put_failure;
+	r = (struct nlattr *)skb_tail_pointer(skb);
+	NLA_PUT(skb, TCA_OPTIONS, 0, NULL);
 	if ((err = tcf_action_dump_old(skb, a, bind, ref)) > 0) {
-		r->rta_len = skb_tail_pointer(skb) - (u8 *)r;
+		r->nla_len = skb_tail_pointer(skb) - (u8 *)r;
 		return err;
 	}
 
-rtattr_failure:
+nla_put_failure:
 	nlmsg_trim(skb, b);
 	return -1;
 }
@@ -441,45 +441,45 @@ tcf_action_dump(struct sk_buff *skb, struct tc_action *act, int bind, int ref)
 	struct tc_action *a;
 	int err = -EINVAL;
 	unsigned char *b = skb_tail_pointer(skb);
-	struct rtattr *r ;
+	struct nlattr *r ;
 
 	while ((a = act) != NULL) {
-		r = (struct rtattr *)skb_tail_pointer(skb);
+		r = (struct nlattr *)skb_tail_pointer(skb);
 		act = a->next;
-		RTA_PUT(skb, a->order, 0, NULL);
+		NLA_PUT(skb, a->order, 0, NULL);
 		err = tcf_action_dump_1(skb, a, bind, ref);
 		if (err < 0)
 			goto errout;
-		r->rta_len = skb_tail_pointer(skb) - (u8 *)r;
+		r->nla_len = skb_tail_pointer(skb) - (u8 *)r;
 	}
 
 	return 0;
 
-rtattr_failure:
+nla_put_failure:
 	err = -EINVAL;
 errout:
 	nlmsg_trim(skb, b);
 	return err;
 }
 
-struct tc_action *tcf_action_init_1(struct rtattr *rta, struct rtattr *est,
+struct tc_action *tcf_action_init_1(struct nlattr *nla, struct nlattr *est,
 				    char *name, int ovr, int bind, int *err)
 {
 	struct tc_action *a;
 	struct tc_action_ops *a_o;
 	char act_name[IFNAMSIZ];
-	struct rtattr *tb[TCA_ACT_MAX+1];
-	struct rtattr *kind;
+	struct nlattr *tb[TCA_ACT_MAX+1];
+	struct nlattr *kind;
 
 	*err = -EINVAL;
 
 	if (name == NULL) {
-		if (rtattr_parse_nested(tb, TCA_ACT_MAX, rta) < 0)
+		if (nla_parse_nested(tb, TCA_ACT_MAX, nla, NULL) < 0)
 			goto err_out;
-		kind = tb[TCA_ACT_KIND-1];
+		kind = tb[TCA_ACT_KIND];
 		if (kind == NULL)
 			goto err_out;
-		if (rtattr_strlcpy(act_name, kind, IFNAMSIZ) >= IFNAMSIZ)
+		if (nla_strlcpy(act_name, kind, IFNAMSIZ) >= IFNAMSIZ)
 			goto err_out;
 	} else {
 		if (strlcpy(act_name, name, IFNAMSIZ) >= IFNAMSIZ)
@@ -517,9 +517,9 @@ struct tc_action *tcf_action_init_1(struct rtattr *rta, struct rtattr *est,
 
 	/* backward compatibility for policer */
 	if (name == NULL)
-		*err = a_o->init(tb[TCA_ACT_OPTIONS-1], est, a, ovr, bind);
+		*err = a_o->init(tb[TCA_ACT_OPTIONS], est, a, ovr, bind);
 	else
-		*err = a_o->init(rta, est, a, ovr, bind);
+		*err = a_o->init(nla, est, a, ovr, bind);
 	if (*err < 0)
 		goto err_free;
 
@@ -542,23 +542,23 @@ err_out:
 	return NULL;
 }
 
-struct tc_action *tcf_action_init(struct rtattr *rta, struct rtattr *est,
+struct tc_action *tcf_action_init(struct nlattr *nla, struct nlattr *est,
 				  char *name, int ovr, int bind, int *err)
 {
-	struct rtattr *tb[TCA_ACT_MAX_PRIO+1];
+	struct nlattr *tb[TCA_ACT_MAX_PRIO+1];
 	struct tc_action *head = NULL, *act, *act_prev = NULL;
 	int i;
 
-	if (rtattr_parse_nested(tb, TCA_ACT_MAX_PRIO, rta) < 0) {
+	if (nla_parse_nested(tb, TCA_ACT_MAX_PRIO, nla, NULL) < 0) {
 		*err = -EINVAL;
 		return head;
 	}
 
-	for (i=0; i < TCA_ACT_MAX_PRIO && tb[i]; i++) {
+	for (i = 1; i <= TCA_ACT_MAX_PRIO && tb[i]; i++) {
 		act = tcf_action_init_1(tb[i], est, name, ovr, bind, err);
 		if (act == NULL)
 			goto err;
-		act->order = i+1;
+		act->order = i;
 
 		if (head == NULL)
 			head = act;
@@ -625,7 +625,7 @@ tca_get_fill(struct sk_buff *skb, struct tc_action *a, u32 pid, u32 seq,
 	struct tcamsg *t;
 	struct nlmsghdr *nlh;
 	unsigned char *b = skb_tail_pointer(skb);
-	struct rtattr *x;
+	struct nlattr *x;
 
 	nlh = NLMSG_NEW(skb, pid, seq, event, sizeof(*t), flags);
 
@@ -634,18 +634,18 @@ tca_get_fill(struct sk_buff *skb, struct tc_action *a, u32 pid, u32 seq,
 	t->tca__pad1 = 0;
 	t->tca__pad2 = 0;
 
-	x = (struct rtattr *)skb_tail_pointer(skb);
-	RTA_PUT(skb, TCA_ACT_TAB, 0, NULL);
+	x = (struct nlattr *)skb_tail_pointer(skb);
+	NLA_PUT(skb, TCA_ACT_TAB, 0, NULL);
 
 	if (tcf_action_dump(skb, a, bind, ref) < 0)
-		goto rtattr_failure;
+		goto nla_put_failure;
 
-	x->rta_len = skb_tail_pointer(skb) - (u8 *)x;
+	x->nla_len = skb_tail_pointer(skb) - (u8 *)x;
 
 	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 	return skb->len;
 
-rtattr_failure:
+nla_put_failure:
 nlmsg_failure:
 	nlmsg_trim(skb, b);
 	return -1;
@@ -668,20 +668,20 @@ act_get_notify(u32 pid, struct nlmsghdr *n, struct tc_action *a, int event)
 }
 
 static struct tc_action *
-tcf_action_get_1(struct rtattr *rta, struct nlmsghdr *n, u32 pid, int *err)
+tcf_action_get_1(struct nlattr *nla, struct nlmsghdr *n, u32 pid, int *err)
 {
-	struct rtattr *tb[TCA_ACT_MAX+1];
+	struct nlattr *tb[TCA_ACT_MAX+1];
 	struct tc_action *a;
 	int index;
 
 	*err = -EINVAL;
-	if (rtattr_parse_nested(tb, TCA_ACT_MAX, rta) < 0)
+	if (nla_parse_nested(tb, TCA_ACT_MAX, nla, NULL) < 0)
 		return NULL;
 
-	if (tb[TCA_ACT_INDEX - 1] == NULL ||
-	    RTA_PAYLOAD(tb[TCA_ACT_INDEX - 1]) < sizeof(index))
+	if (tb[TCA_ACT_INDEX] == NULL ||
+	    nla_len(tb[TCA_ACT_INDEX]) < sizeof(index))
 		return NULL;
-	index = *(int *)RTA_DATA(tb[TCA_ACT_INDEX - 1]);
+	index = *(int *)nla_data(tb[TCA_ACT_INDEX]);
 
 	*err = -ENOMEM;
 	a = kzalloc(sizeof(struct tc_action), GFP_KERNEL);
@@ -689,7 +689,7 @@ tcf_action_get_1(struct rtattr *rta, struct nlmsghdr *n, u32 pid, int *err)
 		return NULL;
 
 	*err = -EINVAL;
-	a->ops = tc_lookup_action(tb[TCA_ACT_KIND - 1]);
+	a->ops = tc_lookup_action(tb[TCA_ACT_KIND]);
 	if (a->ops == NULL)
 		goto err_free;
 	if (a->ops->lookup == NULL)
@@ -731,16 +731,16 @@ static struct tc_action *create_a(int i)
 	return act;
 }
 
-static int tca_action_flush(struct rtattr *rta, struct nlmsghdr *n, u32 pid)
+static int tca_action_flush(struct nlattr *nla, struct nlmsghdr *n, u32 pid)
 {
 	struct sk_buff *skb;
 	unsigned char *b;
 	struct nlmsghdr *nlh;
 	struct tcamsg *t;
 	struct netlink_callback dcb;
-	struct rtattr *x;
-	struct rtattr *tb[TCA_ACT_MAX+1];
-	struct rtattr *kind;
+	struct nlattr *x;
+	struct nlattr *tb[TCA_ACT_MAX+1];
+	struct nlattr *kind;
 	struct tc_action *a = create_a(0);
 	int err = -EINVAL;
 
@@ -758,10 +758,10 @@ static int tca_action_flush(struct rtattr *rta, struct nlmsghdr *n, u32 pid)
 
 	b = skb_tail_pointer(skb);
 
-	if (rtattr_parse_nested(tb, TCA_ACT_MAX, rta) < 0)
+	if (nla_parse_nested(tb, TCA_ACT_MAX, nla, NULL) < 0)
 		goto err_out;
 
-	kind = tb[TCA_ACT_KIND-1];
+	kind = tb[TCA_ACT_KIND];
 	a->ops = tc_lookup_action(kind);
 	if (a->ops == NULL)
 		goto err_out;
@@ -772,14 +772,14 @@ static int tca_action_flush(struct rtattr *rta, struct nlmsghdr *n, u32 pid)
 	t->tca__pad1 = 0;
 	t->tca__pad2 = 0;
 
-	x = (struct rtattr *)skb_tail_pointer(skb);
-	RTA_PUT(skb, TCA_ACT_TAB, 0, NULL);
+	x = (struct nlattr *)skb_tail_pointer(skb);
+	NLA_PUT(skb, TCA_ACT_TAB, 0, NULL);
 
 	err = a->ops->walk(skb, &dcb, RTM_DELACTION, a);
 	if (err < 0)
-		goto rtattr_failure;
+		goto nla_put_failure;
 
-	x->rta_len = skb_tail_pointer(skb) - (u8 *)x;
+	x->nla_len = skb_tail_pointer(skb) - (u8 *)x;
 
 	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 	nlh->nlmsg_flags |= NLM_F_ROOT;
@@ -791,7 +791,7 @@ static int tca_action_flush(struct rtattr *rta, struct nlmsghdr *n, u32 pid)
 
 	return err;
 
-rtattr_failure:
+nla_put_failure:
 nlmsg_failure:
 	module_put(a->ops->owner);
 err_out:
@@ -801,13 +801,13 @@ err_out:
 }
 
 static int
-tca_action_gd(struct rtattr *rta, struct nlmsghdr *n, u32 pid, int event)
+tca_action_gd(struct nlattr *nla, struct nlmsghdr *n, u32 pid, int event)
 {
 	int i, ret = 0;
-	struct rtattr *tb[TCA_ACT_MAX_PRIO+1];
+	struct nlattr *tb[TCA_ACT_MAX_PRIO+1];
 	struct tc_action *head = NULL, *act, *act_prev = NULL;
 
-	if (rtattr_parse_nested(tb, TCA_ACT_MAX_PRIO, rta) < 0)
+	if (nla_parse_nested(tb, TCA_ACT_MAX_PRIO, nla, NULL) < 0)
 		return -EINVAL;
 
 	if (event == RTM_DELACTION && n->nlmsg_flags&NLM_F_ROOT) {
@@ -815,11 +815,11 @@ tca_action_gd(struct rtattr *rta, struct nlmsghdr *n, u32 pid, int event)
 			return tca_action_flush(tb[0], n, pid);
 	}
 
-	for (i=0; i < TCA_ACT_MAX_PRIO && tb[i]; i++) {
+	for (i = 1; i <= TCA_ACT_MAX_PRIO && tb[i]; i++) {
 		act = tcf_action_get_1(tb[i], n, pid, &ret);
 		if (act == NULL)
 			goto err;
-		act->order = i+1;
+		act->order = i;
 
 		if (head == NULL)
 			head = act;
@@ -865,7 +865,7 @@ static int tcf_add_notify(struct tc_action *a, u32 pid, u32 seq, int event,
 	struct tcamsg *t;
 	struct nlmsghdr *nlh;
 	struct sk_buff *skb;
-	struct rtattr *x;
+	struct nlattr *x;
 	unsigned char *b;
 	int err = 0;
 
@@ -881,13 +881,13 @@ static int tcf_add_notify(struct tc_action *a, u32 pid, u32 seq, int event,
 	t->tca__pad1 = 0;
 	t->tca__pad2 = 0;
 
-	x = (struct rtattr *)skb_tail_pointer(skb);
-	RTA_PUT(skb, TCA_ACT_TAB, 0, NULL);
+	x = (struct nlattr *)skb_tail_pointer(skb);
+	NLA_PUT(skb, TCA_ACT_TAB, 0, NULL);
 
 	if (tcf_action_dump(skb, a, 0, 0) < 0)
-		goto rtattr_failure;
+		goto nla_put_failure;
 
-	x->rta_len = skb_tail_pointer(skb) - (u8 *)x;
+	x->nla_len = skb_tail_pointer(skb) - (u8 *)x;
 
 	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 	NETLINK_CB(skb).dst_group = RTNLGRP_TC;
@@ -897,7 +897,7 @@ static int tcf_add_notify(struct tc_action *a, u32 pid, u32 seq, int event,
 		err = 0;
 	return err;
 
-rtattr_failure:
+nla_put_failure:
 nlmsg_failure:
 	kfree_skb(skb);
 	return -1;
@@ -905,14 +905,14 @@ nlmsg_failure:
 
 
 static int
-tcf_action_add(struct rtattr *rta, struct nlmsghdr *n, u32 pid, int ovr)
+tcf_action_add(struct nlattr *nla, struct nlmsghdr *n, u32 pid, int ovr)
 {
 	int ret = 0;
 	struct tc_action *act;
 	struct tc_action *a;
 	u32 seq = n->nlmsg_seq;
 
-	act = tcf_action_init(rta, NULL, NULL, ovr, 0, &ret);
+	act = tcf_action_init(nla, NULL, NULL, ovr, 0, &ret);
 	if (act == NULL)
 		goto done;
 
@@ -931,14 +931,18 @@ done:
 static int tc_ctl_action(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 {
 	struct net *net = skb->sk->sk_net;
-	struct rtattr **tca = arg;
+	struct nlattr *tca[TCA_ACT_MAX + 1];
 	u32 pid = skb ? NETLINK_CB(skb).pid : 0;
 	int ret = 0, ovr = 0;
 
 	if (net != &init_net)
 		return -EINVAL;
 
-	if (tca[TCA_ACT_TAB-1] == NULL) {
+	ret = nlmsg_parse(n, sizeof(struct tcamsg), tca, TCA_ACT_MAX, NULL);
+	if (ret < 0)
+		return ret;
+
+	if (tca[TCA_ACT_TAB] == NULL) {
 		printk("tc_ctl_action: received NO action attribs\n");
 		return -EINVAL;
 	}
@@ -956,15 +960,15 @@ static int tc_ctl_action(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 		if (n->nlmsg_flags&NLM_F_REPLACE)
 			ovr = 1;
 replay:
-		ret = tcf_action_add(tca[TCA_ACT_TAB-1], n, pid, ovr);
+		ret = tcf_action_add(tca[TCA_ACT_TAB], n, pid, ovr);
 		if (ret == -EAGAIN)
 			goto replay;
 		break;
 	case RTM_DELACTION:
-		ret = tca_action_gd(tca[TCA_ACT_TAB-1], n, pid, RTM_DELACTION);
+		ret = tca_action_gd(tca[TCA_ACT_TAB], n, pid, RTM_DELACTION);
 		break;
 	case RTM_GETACTION:
-		ret = tca_action_gd(tca[TCA_ACT_TAB-1], n, pid, RTM_GETACTION);
+		ret = tca_action_gd(tca[TCA_ACT_TAB], n, pid, RTM_GETACTION);
 		break;
 	default:
 		BUG();
@@ -973,33 +977,33 @@ replay:
 	return ret;
 }
 
-static struct rtattr *
+static struct nlattr *
 find_dump_kind(struct nlmsghdr *n)
 {
-	struct rtattr *tb1, *tb2[TCA_ACT_MAX+1];
-	struct rtattr *tb[TCA_ACT_MAX_PRIO + 1];
-	struct rtattr *rta[TCAA_MAX + 1];
-	struct rtattr *kind;
+	struct nlattr *tb1, *tb2[TCA_ACT_MAX+1];
+	struct nlattr *tb[TCA_ACT_MAX_PRIO + 1];
+	struct nlattr *nla[TCAA_MAX + 1];
+	struct nlattr *kind;
 	int min_len = NLMSG_LENGTH(sizeof(struct tcamsg));
 	int attrlen = n->nlmsg_len - NLMSG_ALIGN(min_len);
-	struct rtattr *attr = (void *) n + NLMSG_ALIGN(min_len);
+	struct nlattr *attr = (void *) n + NLMSG_ALIGN(min_len);
 
-	if (rtattr_parse(rta, TCAA_MAX, attr, attrlen) < 0)
+	if (nla_parse(nla, TCAA_MAX, attr, attrlen, NULL) < 0)
 		return NULL;
-	tb1 = rta[TCA_ACT_TAB - 1];
+	tb1 = nla[TCA_ACT_TAB];
 	if (tb1 == NULL)
 		return NULL;
 
-	if (rtattr_parse(tb, TCA_ACT_MAX_PRIO, RTA_DATA(tb1),
-			 NLMSG_ALIGN(RTA_PAYLOAD(tb1))) < 0)
+	if (nla_parse(tb, TCA_ACT_MAX_PRIO, nla_data(tb1),
+		      NLMSG_ALIGN(nla_len(tb1)), NULL) < 0)
 		return NULL;
 	if (tb[0] == NULL)
 		return NULL;
 
-	if (rtattr_parse(tb2, TCA_ACT_MAX, RTA_DATA(tb[0]),
-			 RTA_PAYLOAD(tb[0])) < 0)
+	if (nla_parse(tb2, TCA_ACT_MAX, nla_data(tb[0]),
+		      nla_len(tb[0]), NULL) < 0)
 		return NULL;
-	kind = tb2[TCA_ACT_KIND-1];
+	kind = tb2[TCA_ACT_KIND];
 
 	return kind;
 }
@@ -1010,12 +1014,12 @@ tc_dump_action(struct sk_buff *skb, struct netlink_callback *cb)
 	struct net *net = skb->sk->sk_net;
 	struct nlmsghdr *nlh;
 	unsigned char *b = skb_tail_pointer(skb);
-	struct rtattr *x;
+	struct nlattr *x;
 	struct tc_action_ops *a_o;
 	struct tc_action a;
 	int ret = 0;
 	struct tcamsg *t = (struct tcamsg *) NLMSG_DATA(cb->nlh);
-	struct rtattr *kind = find_dump_kind(cb->nlh);
+	struct nlattr *kind = find_dump_kind(cb->nlh);
 
 	if (net != &init_net)
 		return 0;
@@ -1035,7 +1039,7 @@ tc_dump_action(struct sk_buff *skb, struct netlink_callback *cb)
 
 	if (a_o->walk == NULL) {
 		printk("tc_dump_action: %s !capable of dumping table\n", a_o->kind);
-		goto rtattr_failure;
+		goto nla_put_failure;
 	}
 
 	nlh = NLMSG_PUT(skb, NETLINK_CB(cb->skb).pid, cb->nlh->nlmsg_seq,
@@ -1045,15 +1049,15 @@ tc_dump_action(struct sk_buff *skb, struct netlink_callback *cb)
 	t->tca__pad1 = 0;
 	t->tca__pad2 = 0;
 
-	x = (struct rtattr *)skb_tail_pointer(skb);
-	RTA_PUT(skb, TCA_ACT_TAB, 0, NULL);
+	x = (struct nlattr *)skb_tail_pointer(skb);
+	NLA_PUT(skb, TCA_ACT_TAB, 0, NULL);
 
 	ret = a_o->walk(skb, cb, RTM_GETACTION, &a);
 	if (ret < 0)
-		goto rtattr_failure;
+		goto nla_put_failure;
 
 	if (ret > 0) {
-		x->rta_len = skb_tail_pointer(skb) - (u8 *)x;
+		x->nla_len = skb_tail_pointer(skb) - (u8 *)x;
 		ret = skb->len;
 	} else
 		nlmsg_trim(skb, x);
@@ -1064,7 +1068,7 @@ tc_dump_action(struct sk_buff *skb, struct netlink_callback *cb)
 	module_put(a_o->owner);
 	return skb->len;
 
-rtattr_failure:
+nla_put_failure:
 nlmsg_failure:
 	module_put(a_o->owner);
 	nlmsg_trim(skb, b);

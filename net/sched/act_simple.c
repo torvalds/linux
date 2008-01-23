@@ -84,10 +84,10 @@ static int realloc_defdata(struct tcf_defact *d, u32 datalen, void *defdata)
 	return alloc_defdata(d, datalen, defdata);
 }
 
-static int tcf_simp_init(struct rtattr *rta, struct rtattr *est,
+static int tcf_simp_init(struct nlattr *nla, struct nlattr *est,
 			 struct tc_action *a, int ovr, int bind)
 {
-	struct rtattr *tb[TCA_DEF_MAX];
+	struct nlattr *tb[TCA_DEF_MAX + 1];
 	struct tc_defact *parm;
 	struct tcf_defact *d;
 	struct tcf_common *pc;
@@ -95,19 +95,19 @@ static int tcf_simp_init(struct rtattr *rta, struct rtattr *est,
 	u32 datalen = 0;
 	int ret = 0;
 
-	if (rta == NULL || rtattr_parse_nested(tb, TCA_DEF_MAX, rta) < 0)
+	if (nla == NULL || nla_parse_nested(tb, TCA_DEF_MAX, nla, NULL) < 0)
 		return -EINVAL;
 
-	if (tb[TCA_DEF_PARMS - 1] == NULL ||
-	    RTA_PAYLOAD(tb[TCA_DEF_PARMS - 1]) < sizeof(*parm))
+	if (tb[TCA_DEF_PARMS] == NULL ||
+	    nla_len(tb[TCA_DEF_PARMS]) < sizeof(*parm))
 		return -EINVAL;
 
-	parm = RTA_DATA(tb[TCA_DEF_PARMS - 1]);
-	defdata = RTA_DATA(tb[TCA_DEF_DATA - 1]);
+	parm = nla_data(tb[TCA_DEF_PARMS]);
+	defdata = nla_data(tb[TCA_DEF_DATA]);
 	if (defdata == NULL)
 		return -EINVAL;
 
-	datalen = RTA_PAYLOAD(tb[TCA_DEF_DATA - 1]);
+	datalen = nla_len(tb[TCA_DEF_DATA]);
 	if (datalen <= 0)
 		return -EINVAL;
 
@@ -164,15 +164,15 @@ static inline int tcf_simp_dump(struct sk_buff *skb, struct tc_action *a,
 	opt.refcnt = d->tcf_refcnt - ref;
 	opt.bindcnt = d->tcf_bindcnt - bind;
 	opt.action = d->tcf_action;
-	RTA_PUT(skb, TCA_DEF_PARMS, sizeof(opt), &opt);
-	RTA_PUT(skb, TCA_DEF_DATA, d->tcfd_datalen, d->tcfd_defdata);
+	NLA_PUT(skb, TCA_DEF_PARMS, sizeof(opt), &opt);
+	NLA_PUT(skb, TCA_DEF_DATA, d->tcfd_datalen, d->tcfd_defdata);
 	t.install = jiffies_to_clock_t(jiffies - d->tcf_tm.install);
 	t.lastuse = jiffies_to_clock_t(jiffies - d->tcf_tm.lastuse);
 	t.expires = jiffies_to_clock_t(d->tcf_tm.expires);
-	RTA_PUT(skb, TCA_DEF_TM, sizeof(t), &t);
+	NLA_PUT(skb, TCA_DEF_TM, sizeof(t), &t);
 	return skb->len;
 
-rtattr_failure:
+nla_put_failure:
 	nlmsg_trim(skb, b);
 	return -1;
 }
