@@ -159,7 +159,7 @@ void ibm4xx_denali_fixup_memsize(void)
 	val = DDR_GET_VAL(val, DDR_CS_MAP, DDR_CS_MAP_SHIFT);
 	cs = 0;
 	while (val) {
-		if (val && 0x1)
+		if (val & 0x1)
 			cs++;
 		val = val >> 1;
 	}
