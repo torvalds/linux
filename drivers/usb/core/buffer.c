@@ -53,7 +53,8 @@ int hcd_buffer_create(struct usb_hcd *hcd)
 	char		name[16];
 	int 		i, size;
 
-	if (!hcd->self.controller->dma_mask)
+	if (!hcd->self.controller->dma_mask &&
+	    !(hcd->driver->flags & HCD_LOCAL_MEM))
 		return 0;
 
 	for (i = 0; i < HCD_BUFFER_POOLS; i++) { 
@@ -107,7 +108,8 @@ void *hcd_buffer_alloc(
 	int 			i;
 
 	/* some USB hosts just use PIO */
-	if (!bus->controller->dma_mask) {
+	if (!bus->controller->dma_mask &&
+	    !(hcd->driver->flags & HCD_LOCAL_MEM)) {
 		*dma = ~(dma_addr_t) 0;
 		return kmalloc(size, mem_flags);
 	}
@@ -132,7 +134,8 @@ void hcd_buffer_free(
 	if (!addr)
 		return;
 
-	if (!bus->controller->dma_mask) {
+	if (!bus->controller->dma_mask &&
+	    !(hcd->driver->flags & HCD_LOCAL_MEM)) {
 		kfree(addr);
 		return;
 	}
