@@ -869,11 +869,9 @@ void w1_search_process(struct w1_master *dev, u8 search_type)
 	w1_search_devices(dev, search_type, w1_slave_found);
 
 	list_for_each_entry_safe(sl, sln, &dev->slist, w1_slave_entry) {
-		if (!test_bit(W1_SLAVE_ACTIVE, (unsigned long *)&sl->flags) && !--sl->ttl) {
+		if (!test_bit(W1_SLAVE_ACTIVE, (unsigned long *)&sl->flags) && !--sl->ttl)
 			w1_slave_detach(sl);
-
-			dev->slave_count--;
-		} else if (test_bit(W1_SLAVE_ACTIVE, (unsigned long *)&sl->flags))
+		else if (test_bit(W1_SLAVE_ACTIVE, (unsigned long *)&sl->flags))
 			sl->ttl = dev->slave_ttl;
 	}
 

@@ -612,11 +612,11 @@ u8 eighty_ninty_three (ide_drive_t *drive)
 		printk(KERN_DEBUG "%s: skipping word 93 validity check\n",
 				  drive->name);
 
+	if (ide_dev_is_sata(id) && !ivb)
+		return 1;
+
 	if (hwif->cbl != ATA_CBL_PATA80 && !ivb)
 		goto no_80w;
-
-	if (ide_dev_is_sata(id))
-		return 1;
 
 	/*
 	 * FIXME:

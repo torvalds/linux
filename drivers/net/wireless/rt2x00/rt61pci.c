@@ -1738,6 +1738,7 @@ static void rt61pci_txdone(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_ring *ring;
 	struct data_entry *entry;
+	struct data_entry *entry_done;
 	struct data_desc *txd;
 	u32 word;
 	u32 reg;
@@ -1790,6 +1791,17 @@ static void rt61pci_txdone(struct rt2x00_dev *rt2x00dev)
 		if (rt2x00_get_field32(word, TXD_W0_OWNER_NIC) ||
 		    !rt2x00_get_field32(word, TXD_W0_VALID))
 			return;
+
+		entry_done = rt2x00_get_data_entry_done(ring);
+		while (entry != entry_done) {
+			/* Catch up. Just report any entries we missed as
+			 * failed. */
+			WARNING(rt2x00dev,
+				"TX status report missed for entry %p\n",
+				entry_done);
+			rt2x00lib_txdone(entry_done, TX_FAIL_OTHER, 0);
+			entry_done = rt2x00_get_data_entry_done(ring);
+		}
 
 		/*
 		 * Obtain the status about this packet.

@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/skbuff.h>
 #include <linux/if_arp.h>
+#include <linux/timer.h>
 
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
@@ -306,7 +307,8 @@ static void sta_info_cleanup(unsigned long data)
 	}
 	read_unlock_bh(&local->sta_lock);
 
-	local->sta_cleanup.expires = jiffies + STA_INFO_CLEANUP_INTERVAL;
+	local->sta_cleanup.expires =
+		round_jiffies(jiffies + STA_INFO_CLEANUP_INTERVAL);
 	add_timer(&local->sta_cleanup);
 }
 
@@ -345,7 +347,8 @@ void sta_info_init(struct ieee80211_local *local)
 	INIT_LIST_HEAD(&local->sta_list);
 
 	init_timer(&local->sta_cleanup);
-	local->sta_cleanup.expires = jiffies + STA_INFO_CLEANUP_INTERVAL;
+	local->sta_cleanup.expires =
+		round_jiffies(jiffies + STA_INFO_CLEANUP_INTERVAL);
 	local->sta_cleanup.data = (unsigned long) local;
 	local->sta_cleanup.function = sta_info_cleanup;
 

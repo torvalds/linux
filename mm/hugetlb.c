@@ -418,9 +418,14 @@ static struct page *alloc_huge_page_private(struct vm_area_struct *vma,
 	if (free_huge_pages > resv_huge_pages)
 		page = dequeue_huge_page(vma, addr);
 	spin_unlock(&hugetlb_lock);
-	if (!page)
+	if (!page) {
 		page = alloc_buddy_huge_page(vma, addr);
-	return page ? page : ERR_PTR(-VM_FAULT_OOM);
+		if (!page) {
+			hugetlb_put_quota(vma->vm_file->f_mapping, 1);
+			return ERR_PTR(-VM_FAULT_OOM);
+		}
+	}
+	return page;
 }
 
 static struct page *alloc_huge_page(struct vm_area_struct *vma,
@@ -1206,8 +1211,10 @@ int hugetlb_reserve_pages(struct inode *inode, long from, long to)
 	if (hugetlb_get_quota(inode->i_mapping, chg))
 		return -ENOSPC;
 	ret = hugetlb_acct_memory(chg);
-	if (ret < 0)
+	if (ret < 0) {
+		hugetlb_put_quota(inode->i_mapping, chg);
 		return ret;
+	}
 	region_add(&inode->i_mapping->private_list, from, to);
 	return 0;
 }

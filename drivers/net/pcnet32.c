@@ -455,9 +455,14 @@ static void pcnet32_netif_start(struct net_device *dev)
 {
 #ifdef CONFIG_PCNET32_NAPI
 	struct pcnet32_private *lp = netdev_priv(dev);
+	ulong ioaddr = dev->base_addr;
+	u16 val;
 #endif
 	netif_wake_queue(dev);
 #ifdef CONFIG_PCNET32_NAPI
+	val = lp->a.read_csr(ioaddr, CSR3);
+	val &= 0x00ff;
+	lp->a.write_csr(ioaddr, CSR3, val);
 	napi_enable(&lp->napi);
 #endif
 }

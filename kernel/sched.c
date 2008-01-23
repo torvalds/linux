@@ -4918,7 +4918,7 @@ static void show_task(struct task_struct *p)
 	}
 #endif
 	printk(KERN_CONT "%5lu %5d %6d\n", free,
-		task_pid_nr(p), task_pid_nr(p->parent));
+		task_pid_nr(p), task_pid_nr(p->real_parent));
 
 	if (state != TASK_RUNNING)
 		show_stack(p, NULL);
@@ -7152,6 +7152,14 @@ static void set_se_shares(struct sched_entity *se, unsigned long shares)
 int sched_group_set_shares(struct task_group *tg, unsigned long shares)
 {
 	int i;
+
+	/*
+	 * A weight of 0 or 1 can cause arithmetics problems.
+	 * (The default weight is 1024 - so there's no practical
+	 *  limitation from this.)
+	 */
+	if (shares < 2)
+		shares = 2;
 
 	spin_lock(&tg->lock);
 	if (tg->shares == shares)

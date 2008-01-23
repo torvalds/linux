@@ -160,7 +160,7 @@ struct hfsc_class
 	u64	cl_vtoff;		/* inter-period cumulative vt offset */
 	u64	cl_cvtmax;		/* max child's vt in the last period */
 	u64	cl_cvtoff;		/* cumulative cvtmax of all periods */
-	u64	cl_pcvtoff;		/* parent's cvtoff at initalization
+	u64	cl_pcvtoff;		/* parent's cvtoff at initialization
 					   time */
 
 	struct internal_sc cl_rsc;	/* internal real-time service curve */

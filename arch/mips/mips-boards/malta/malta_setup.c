@@ -149,7 +149,7 @@ void __init plat_mem_setup(void)
 	/* Check PCI clock */
 	{
 		unsigned int __iomem *jmpr_p = (unsigned int *) ioremap(MALTA_JMPRS_REG, sizeof(unsigned int));
-		int jmpr = (readw(jmpr_p) >> 2) & 0x07;
+		int jmpr = (__raw_readl(jmpr_p) >> 2) & 0x07;
 		static const int pciclocks[] __initdata = {
 			33, 20, 25, 30, 12, 16, 37, 10
 		};

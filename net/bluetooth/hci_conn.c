@@ -259,21 +259,13 @@ int hci_conn_del(struct hci_conn *conn)
 	}
 
 	tasklet_disable(&hdev->tx_task);
-
-	hci_conn_del_sysfs(conn);
-
 	hci_conn_hash_del(hdev, conn);
 	if (hdev->notify)
 		hdev->notify(hdev, HCI_NOTIFY_CONN_DEL);
-
 	tasklet_enable(&hdev->tx_task);
-
 	skb_queue_purge(&conn->data_q);
-
+	hci_conn_del_sysfs(conn);
 	hci_dev_put(hdev);
-
-	/* will free via device release */
-	put_device(&conn->dev);
 
 	return 0;
 }

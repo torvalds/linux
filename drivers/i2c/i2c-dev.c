@@ -184,7 +184,7 @@ static ssize_t i2cdev_write (struct file *file, const char __user *buf, size_t c
 
 /* This address checking function differs from the one in i2c-core
    in that it considers an address with a registered device, but no
-   bounded driver, as NOT busy. */
+   bound driver, as NOT busy. */
 static int i2cdev_check_addr(struct i2c_adapter *adapter, unsigned int addr)
 {
 	struct list_head *item;

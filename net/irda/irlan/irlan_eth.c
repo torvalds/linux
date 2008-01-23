@@ -342,7 +342,7 @@ static void irlan_eth_set_multicast_list(struct net_device *dev)
 
 	if (dev->flags & IFF_PROMISC) {
 		/* Enable promiscuous mode */
-		IRDA_WARNING("Promiscous mode not implemented by IrLAN!\n");
+		IRDA_WARNING("Promiscuous mode not implemented by IrLAN!\n");
 	}
 	else if ((dev->flags & IFF_ALLMULTI) || dev->mc_count > HW_MAX_ADDRS) {
 		/* Disable promiscuous mode, use normal mode. */

@@ -817,7 +817,7 @@ __setup("console=", console_setup);
  * commonly to provide a default console (ie from PROM variables) when
  * the user has not supplied one.
  */
-int __init add_preferred_console(char *name, int idx, char *options)
+int add_preferred_console(char *name, int idx, char *options)
 {
 	struct console_cmdline *c;
 	int i;

@@ -3063,11 +3063,10 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 		struct video_mbuf *mbuf = arg;
 		unsigned int i;
 
-		mutex_lock(&fh->cap.lock);
 		retval = videobuf_mmap_setup(&fh->cap,gbuffers,gbufsize,
 					     V4L2_MEMORY_MMAP);
 		if (retval < 0)
-			goto fh_unlock_and_return;
+			return retval;
 
 		gbuffers = retval;
 		memset(mbuf,0,sizeof(*mbuf));
@@ -3075,7 +3074,6 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 		mbuf->size   = gbuffers * gbufsize;
 		for (i = 0; i < gbuffers; i++)
 			mbuf->offsets[i] = i * gbufsize;
-		mutex_unlock(&fh->cap.lock);
 		return 0;
 	}
 	case VIDIOCMCAPTURE:

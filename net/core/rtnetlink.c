@@ -308,9 +308,12 @@ void __rtnl_link_unregister(struct rtnl_link_ops *ops)
 	struct net *net;
 
 	for_each_net(net) {
+restart:
 		for_each_netdev_safe(net, dev, n) {
-			if (dev->rtnl_link_ops == ops)
+			if (dev->rtnl_link_ops == ops) {
 				ops->dellink(dev);
+				goto restart;
+			}
 		}
 	}
 	list_del(&ops->list);

@@ -361,10 +361,12 @@ u32 vfp_estimate_sqrt_significand(u32 exponent, u32 significand);
  *  OP_SCALAR - this operation always operates in scalar mode
  *  OP_SD - the instruction exceptionally writes to a single precision result.
  *  OP_DD - the instruction exceptionally writes to a double precision result.
+ *  OP_SM - the instruction exceptionally reads from a single precision operand.
  */
 #define OP_SCALAR	(1 << 0)
 #define OP_SD		(1 << 1)
 #define OP_DD		(1 << 1)
+#define OP_SM		(1 << 2)
 
 struct op {
 	u32 (* const fn)(int dd, int dn, int dm, u32 fpscr);

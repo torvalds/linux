@@ -221,7 +221,9 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	struct data_ring *ring = entry->ring;
 	struct rt2x00_dev *rt2x00dev = ring->rt2x00dev;
 	struct sk_buff *skb;
+	struct ieee80211_hdr *hdr;
 	struct rxdata_entry_desc desc;
+	int header_size;
 	int frame_size;
 
 	if (!test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags) ||
@@ -243,19 +245,37 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	 * Allocate a new sk buffer to replace the current one.
 	 * If allocation fails, we should drop the current frame
 	 * so we can recycle the existing sk buffer for the new frame.
+	 * As alignment we use 2 and not NET_IP_ALIGN because we need
+	 * to be sure we have 2 bytes room in the head. (NET_IP_ALIGN
+	 * can be 0 on some hardware). We use these 2 bytes for frame
+	 * alignment later, we assume that the chance that
+	 * header_size % 4 == 2 is bigger then header_size % 2 == 0
+	 * and thus optimize alignment by reserving the 2 bytes in
+	 * advance.
 	 */
 	frame_size = entry->ring->data_size + entry->ring->desc_size;
-	skb = dev_alloc_skb(frame_size + NET_IP_ALIGN);
+	skb = dev_alloc_skb(frame_size + 2);
 	if (!skb)
 		goto skip_entry;
 
-	skb_reserve(skb, NET_IP_ALIGN);
+	skb_reserve(skb, 2);
 	skb_put(skb, frame_size);
 
 	/*
-	 * Trim the skb_buffer to only contain the valid
-	 * frame data (so ignore the device's descriptor).
+	 * The data behind the ieee80211 header must be
+	 * aligned on a 4 byte boundary.
+	 * After that trim the entire buffer down to only
+	 * contain the valid frame data excluding the device
+	 * descriptor.
 	 */
+	hdr = (struct ieee80211_hdr *)entry->skb->data;
+	header_size =
+	    ieee80211_get_hdrlen(le16_to_cpu(hdr->frame_control));
+
+	if (header_size % 4 == 0) {
+		skb_push(entry->skb, 2);
+		memmove(entry->skb->data, entry->skb->data + 2, skb->len - 2);
+	}
 	skb_trim(entry->skb, desc.size);
 
 	/*

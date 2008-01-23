@@ -2207,8 +2207,12 @@ static void net_rx_action(struct softirq_action *h)
 		 * still "owns" the NAPI instance and therefore can
 		 * move the instance around on the list at-will.
 		 */
-		if (unlikely(work == weight))
-			list_move_tail(&n->poll_list, list);
+		if (unlikely(work == weight)) {
+			if (unlikely(napi_disable_pending(n)))
+				__napi_complete(n);
+			else
+				list_move_tail(&n->poll_list, list);
+		}
 
 		netpoll_poll_unlock(have);
 	}
@@ -2819,7 +2823,7 @@ void dev_set_allmulti(struct net_device *dev, int inc)
 /*
  *	Upload unicast and multicast address lists to device and
  *	configure RX filtering. When the device doesn't support unicast
- *	filtering it is put in promiscous mode while unicast addresses
+ *	filtering it is put in promiscuous mode while unicast addresses
  *	are present.
  */
 void __dev_set_rx_mode(struct net_device *dev)

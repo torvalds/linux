@@ -53,10 +53,11 @@ static int selinux_netlbl_sock_setsid(struct sock *sk, u32 sid)
 	struct sk_security_struct *sksec = sk->sk_security;
 	struct netlbl_lsm_secattr secattr;
 
+	netlbl_secattr_init(&secattr);
+
 	rc = security_netlbl_sid_to_secattr(sid, &secattr);
 	if (rc != 0)
-		return rc;
-
+		goto sock_setsid_return;
 	rc = netlbl_sock_setattr(sk, &secattr);
 	if (rc == 0) {
 		spin_lock_bh(&sksec->nlbl_lock);
@@ -64,6 +65,8 @@ static int selinux_netlbl_sock_setsid(struct sock *sk, u32 sid)
 		spin_unlock_bh(&sksec->nlbl_lock);
 	}
 
+sock_setsid_return:
+	netlbl_secattr_destroy(&secattr);
 	return rc;
 }
 

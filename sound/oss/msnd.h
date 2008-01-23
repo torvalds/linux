@@ -233,8 +233,8 @@ typedef struct multisound_dev {
 	spinlock_t lock;
 	int nresets;
 	unsigned long recsrc;
-	int left_levels[16];
-	int right_levels[16];
+	int left_levels[32];
+	int right_levels[32];
 	int mixer_mod_count;
 	int calibrate_signal;
 	int play_sample_size, play_sample_rate, play_channels;

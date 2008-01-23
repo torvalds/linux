@@ -97,10 +97,6 @@ ip=<client-ip>:<server-ip>:<gw-ip>:<netmask>:<hostname>:<device>:<autoconf>
   autoconfiguration will take place.  The most common way to use this
   is "ip=dhcp".
 
-  Note that "ip=off" is not the same thing as "ip=::::::off", because in
-  the latter autoconfiguration will take place if any of DHCP, BOOTP or RARP
-  are compiled in the kernel.
-
   <client-ip>	IP address of the client.
 
   		Default:  Determined using autoconfiguration.
@@ -149,7 +145,9 @@ ip=<client-ip>:<server-ip>:<gw-ip>:<netmask>:<hostname>:<device>:<autoconf>
 		this option.
 
                   off or none: don't use autoconfiguration
+				(do static IP assignment instead)
 		  on or any:   use any protocol available in the kernel
+			       (default)
 		  dhcp:        use DHCP
 		  bootp:       use BOOTP
 		  rarp:        use RARP

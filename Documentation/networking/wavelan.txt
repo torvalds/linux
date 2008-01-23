@@ -12,8 +12,8 @@ and many Linux driver to support it.
 "wavelan" driver (old ISA Wavelan)
 ----------------
 	o Config :	Network device -> Wireless LAN -> AT&T WaveLAN
-	o Location :	.../drivers/net/wavelan*
-	o in-line doc :	.../drivers/net/wavelan.p.h
+	o Location :	.../drivers/net/wireless/wavelan*
+	o in-line doc :	.../drivers/net/wireless/wavelan.p.h
 	o on-line doc :
 	    http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Wavelan.html
 

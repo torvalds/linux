@@ -39,11 +39,11 @@
 #define PAD_BYTES(nr_bytes)		P4D_BYTES( __LINE__ , (nr_bytes))
 
 /* Lightweight function to convert a frequency (in Mhz) to a channel number. */
-static inline u8 b43_freq_to_channel_a(int freq)
+static inline u8 b43_freq_to_channel_5ghz(int freq)
 {
 	return ((freq - 5000) / 5);
 }
-static inline u8 b43_freq_to_channel_bg(int freq)
+static inline u8 b43_freq_to_channel_2ghz(int freq)
 {
 	u8 channel;
 
@@ -54,19 +54,13 @@ static inline u8 b43_freq_to_channel_bg(int freq)
 
 	return channel;
 }
-static inline u8 b43_freq_to_channel(struct b43_wldev *dev, int freq)
-{
-	if (dev->phy.type == B43_PHYTYPE_A)
-		return b43_freq_to_channel_a(freq);
-	return b43_freq_to_channel_bg(freq);
-}
 
 /* Lightweight function to convert a channel number to a frequency (in Mhz). */
-static inline int b43_channel_to_freq_a(u8 channel)
+static inline int b43_channel_to_freq_5ghz(u8 channel)
 {
 	return (5000 + (5 * channel));
 }
-static inline int b43_channel_to_freq_bg(u8 channel)
+static inline int b43_channel_to_freq_2ghz(u8 channel)
 {
 	int freq;
 
@@ -76,12 +70,6 @@ static inline int b43_channel_to_freq_bg(u8 channel)
 		freq = 2407 + (5 * channel);
 
 	return freq;
-}
-static inline int b43_channel_to_freq(struct b43_wldev *dev, u8 channel)
-{
-	if (dev->phy.type == B43_PHYTYPE_A)
-		return b43_channel_to_freq_a(channel);
-	return b43_channel_to_freq_bg(channel);
 }
 
 static inline int b43_is_cck_rate(int rate)

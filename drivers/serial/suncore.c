@@ -52,7 +52,7 @@ void sunserial_unregister_minors(struct uart_driver *drv, int count)
 }
 EXPORT_SYMBOL(sunserial_unregister_minors);
 
-int __init sunserial_console_match(struct console *con, struct device_node *dp,
+int sunserial_console_match(struct console *con, struct device_node *dp,
 			    struct uart_driver *drv, int line)
 {
 	int off;

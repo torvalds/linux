@@ -1046,12 +1046,6 @@ void tpm_remove_hardware(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(tpm_remove_hardware);
 
-static u8 savestate[] = {
-	0, 193,			/* TPM_TAG_RQU_COMMAND */
-	0, 0, 0, 10,		/* blob length (in bytes) */
-	0, 0, 0, 152		/* TPM_ORD_SaveState */
-};
-
 /*
  * We are about to suspend. Save the TPM state
  * so that it can be restored.
@@ -1059,6 +1053,12 @@ static u8 savestate[] = {
 int tpm_pm_suspend(struct device *dev, pm_message_t pm_state)
 {
 	struct tpm_chip *chip = dev_get_drvdata(dev);
+	u8 savestate[] = {
+		0, 193,		/* TPM_TAG_RQU_COMMAND */
+		0, 0, 0, 10,	/* blob length (in bytes) */
+		0, 0, 0, 152	/* TPM_ORD_SaveState */
+	};
+
 	if (chip == NULL)
 		return -ENODEV;
 

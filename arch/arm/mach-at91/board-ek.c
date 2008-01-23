@@ -109,6 +109,15 @@ static struct spi_board_info ek_spi_devices[] = {
 #endif
 };
 
+static struct i2c_board_info __initdata ek_i2c_devices[] = {
+	{
+		I2C_BOARD_INFO("ics1523", 0x26),
+	},
+	{
+		I2C_BOARD_INFO("dac3550", 0x4d),
+	}
+};
+
 #define EK_FLASH_BASE	AT91_CHIPSELECT_0
 #define EK_FLASH_SIZE	0x200000
 

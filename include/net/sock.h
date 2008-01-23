@@ -944,7 +944,7 @@ static inline int sk_filter(struct sock *sk, struct sk_buff *skb)
 		return err;
 	
 	rcu_read_lock_bh();
-	filter = sk->sk_filter;
+	filter = rcu_dereference(sk->sk_filter);
 	if (filter) {
 		unsigned int pkt_len = sk_run_filter(skb, filter->insns,
 				filter->len);

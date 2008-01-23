@@ -295,6 +295,8 @@ void slb_initialize(void)
 
 	create_shadowed_slbe(VMALLOC_START, mmu_kernel_ssize, vflags, 1);
 
+	slb_shadow_clear(2);
+
 	/* We don't bolt the stack for the time being - we're in boot,
 	 * so the stack is in the bolted segment.  By the time it goes
 	 * elsewhere, we'll call _switch() which will bolt in the new

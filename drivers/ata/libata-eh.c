@@ -1733,11 +1733,15 @@ static void ata_eh_link_autopsy(struct ata_link *link)
 		ehc->i.action &= ~ATA_EH_PERDEV_MASK;
 	}
 
-	/* consider speeding down */
+	/* propagate timeout to host link */
+	if ((all_err_mask & AC_ERR_TIMEOUT) && !ata_is_host_link(link))
+		ap->link.eh_context.i.err_mask |= AC_ERR_TIMEOUT;
+
+	/* record error and consider speeding down */
 	dev = ehc->i.dev;
-	if (!dev && ata_link_max_devices(link) == 1 &&
-	    ata_dev_enabled(link->device))
-		dev = link->device;
+	if (!dev && ((ata_link_max_devices(link) == 1 &&
+		      ata_dev_enabled(link->device))))
+	    dev = link->device;
 
 	if (dev)
 		ehc->i.action |= ata_eh_speed_down(dev, is_io, all_err_mask);
@@ -1759,8 +1763,14 @@ void ata_eh_autopsy(struct ata_port *ap)
 {
 	struct ata_link *link;
 
-	__ata_port_for_each_link(link, ap)
+	ata_port_for_each_link(link, ap)
 		ata_eh_link_autopsy(link);
+
+	/* Autopsy of fanout ports can affect host link autopsy.
+	 * Perform host link autopsy last.
+	 */
+	if (ap->nr_pmp_links)
+		ata_eh_link_autopsy(&ap->link);
 }
 
 /**
@@ -2157,13 +2167,11 @@ int ata_eh_reset(struct ata_link *link, int classify,
 		if (ata_link_offline(link))
 			continue;
 
-		/* apply class override and convert UNKNOWN to NONE */
+		/* apply class override */
 		if (lflags & ATA_LFLAG_ASSUME_ATA)
 			classes[dev->devno] = ATA_DEV_ATA;
 		else if (lflags & ATA_LFLAG_ASSUME_SEMB)
 			classes[dev->devno] = ATA_DEV_SEMB_UNSUP; /* not yet */
-		else if (classes[dev->devno] == ATA_DEV_UNKNOWN)
-			classes[dev->devno] = ATA_DEV_NONE;
 	}
 
 	/* record current link speed */

@@ -75,7 +75,7 @@ config SOUND_TRIDENT
 
 
 	  This driver differs slightly from OSS/Free, so PLEASE READ the
-	  comments at the top of <file:drivers/sound/trident.c>.
+	  comments at the top of <file:sound/oss/trident.c>.
 
 config SOUND_MSNDCLAS
 	tristate "Support for Turtle Beach MultiSound Classic, Tahiti, Monterey"
@@ -564,7 +564,7 @@ config SOUND_AEDSP16
 	  questions.
 
 	  Read the <file:Documentation/sound/oss/README.OSS> file and the head of
-	  <file:drivers/sound/aedsp16.c> as well as
+	  <file:sound/oss/aedsp16.c> as well as
 	  <file:Documentation/sound/oss/AudioExcelDSP16> to get more information
 	  about this driver and its configuration.
 

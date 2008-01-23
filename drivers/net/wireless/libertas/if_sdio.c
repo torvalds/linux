@@ -871,6 +871,10 @@ static int if_sdio_probe(struct sdio_func *func,
 		if (sscanf(func->card->info[i],
 				"ID: %x", &model) == 1)
 			break;
+               if (!strcmp(func->card->info[i], "IBIS Wireless SDIO Card")) {
+                       model = 4;
+                       break;
+               }
 	}
 
 	if (i == func->card->num_info) {

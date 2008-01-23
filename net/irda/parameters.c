@@ -133,7 +133,7 @@ static int irda_insert_integer(void *self, __u8 *buf, int len, __u8 pi,
 	int err;
 
 	p.pi = pi;             /* In case handler needs to know */
-	p.pl = type & PV_MASK; /* The integer type codes the lenght as well */
+	p.pl = type & PV_MASK; /* The integer type codes the length as well */
 	p.pv.i = 0;            /* Clear value */
 
 	/* Call handler for this parameter */
@@ -142,7 +142,7 @@ static int irda_insert_integer(void *self, __u8 *buf, int len, __u8 pi,
 		return err;
 
 	/*
-	 * If parameter lenght is still 0, then (1) this is an any length
+	 * If parameter length is still 0, then (1) this is an any length
 	 * integer, and (2) the handler function does not care which length
 	 * we choose to use, so we pick the one the gives the fewest bytes.
 	 */
@@ -206,11 +206,11 @@ static int irda_extract_integer(void *self, __u8 *buf, int len, __u8 pi,
 {
 	irda_param_t p;
 	int n = 0;
-	int extract_len;	/* Real lenght we extract */
+	int extract_len;	/* Real length we extract */
 	int err;
 
 	p.pi = pi;     /* In case handler needs to know */
-	p.pl = buf[1]; /* Extract lenght of value */
+	p.pl = buf[1]; /* Extract length of value */
 	p.pv.i = 0;    /* Clear value */
 	extract_len = p.pl;	/* Default : extract all */
 
@@ -297,7 +297,7 @@ static int irda_extract_string(void *self, __u8 *buf, int len, __u8 pi,
 	IRDA_DEBUG(2, "%s()\n", __FUNCTION__);
 
 	p.pi = pi;     /* In case handler needs to know */
-	p.pl = buf[1]; /* Extract lenght of value */
+	p.pl = buf[1]; /* Extract length of value */
 
 	IRDA_DEBUG(2, "%s(), pi=%#x, pl=%d\n", __FUNCTION__,
 		   p.pi, p.pl);
@@ -339,7 +339,7 @@ static int irda_extract_octseq(void *self, __u8 *buf, int len, __u8 pi,
 	irda_param_t p;
 
 	p.pi = pi;     /* In case handler needs to know */
-	p.pl = buf[1]; /* Extract lenght of value */
+	p.pl = buf[1]; /* Extract length of value */
 
 	/* Check if buffer is long enough for parsing */
 	if (len < (2+p.pl)) {

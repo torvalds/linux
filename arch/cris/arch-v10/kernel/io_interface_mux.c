@@ -392,6 +392,7 @@ int cris_request_io_interface(enum cris_io_interface ioif, const char *device_id
 	if (((interfaces[ioif].gpio_g_in & gpio_in_pins) != interfaces[ioif].gpio_g_in) ||
 	    ((interfaces[ioif].gpio_g_out & gpio_out_pins) != interfaces[ioif].gpio_g_out) ||
 	    ((interfaces[ioif].gpio_b & gpio_pb_pins) != interfaces[ioif].gpio_b)) {
+		local_irq_restore(flags);
 		printk(KERN_CRIT "cris_request_io_interface: Could not get required pins for interface %u\n",
 		       ioif);
 		return -EBUSY;

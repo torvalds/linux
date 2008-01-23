@@ -591,7 +591,7 @@ static int ieee80211_ioctl_siwrate(struct net_device *dev,
 	sdata->bss->force_unicast_rateidx = -1;
 	if (rate->value < 0)
 		return 0;
-	for (i=0; i< mode->num_rates; i++) {
+	for (i=0; i < mode->num_rates; i++) {
 		struct ieee80211_rate *rates = &mode->rates[i];
 		int this_rate = rates->rate;
 
@@ -599,10 +599,10 @@ static int ieee80211_ioctl_siwrate(struct net_device *dev,
 			sdata->bss->max_ratectrl_rateidx = i;
 			if (rate->fixed)
 				sdata->bss->force_unicast_rateidx = i;
-			break;
+			return 0;
 		}
 	}
-	return 0;
+	return -EINVAL;
 }
 
 static int ieee80211_ioctl_giwrate(struct net_device *dev,

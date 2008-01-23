@@ -427,6 +427,7 @@ int ecryptfs_init_messaging(unsigned int transport)
 	if (!ecryptfs_daemon_id_hash) {
 		rc = -ENOMEM;
 		ecryptfs_printk(KERN_ERR, "Failed to allocate memory\n");
+		mutex_unlock(&ecryptfs_daemon_id_hash_mux);
 		goto out;
 	}
 	for (i = 0; i < ecryptfs_hash_buckets; i++)

@@ -319,9 +319,15 @@ struct napi_struct {
 enum
 {
 	NAPI_STATE_SCHED,	/* Poll is scheduled */
+	NAPI_STATE_DISABLE,	/* Disable pending */
 };
 
 extern void FASTCALL(__napi_schedule(struct napi_struct *n));
+
+static inline int napi_disable_pending(struct napi_struct *n)
+{
+	return test_bit(NAPI_STATE_DISABLE, &n->state);
+}
 
 /**
  *	napi_schedule_prep - check if napi can be scheduled
@@ -329,11 +335,13 @@ extern void FASTCALL(__napi_schedule(struct napi_struct *n));
  *
  * Test if NAPI routine is already running, and if not mark
  * it as running.  This is used as a condition variable
- * insure only one NAPI poll instance runs
+ * insure only one NAPI poll instance runs.  We also make
+ * sure there is no pending NAPI disable.
  */
 static inline int napi_schedule_prep(struct napi_struct *n)
 {
-	return !test_and_set_bit(NAPI_STATE_SCHED, &n->state);
+	return !napi_disable_pending(n) &&
+		!test_and_set_bit(NAPI_STATE_SCHED, &n->state);
 }
 
 /**
@@ -389,8 +397,10 @@ static inline void napi_complete(struct napi_struct *n)
  */
 static inline void napi_disable(struct napi_struct *n)
 {
+	set_bit(NAPI_STATE_DISABLE, &n->state);
 	while (test_and_set_bit(NAPI_STATE_SCHED, &n->state))
 		msleep(1);
+	clear_bit(NAPI_STATE_DISABLE, &n->state);
 }
 
 /**
@@ -1268,7 +1278,7 @@ static inline u32 netif_msg_init(int debug_value, int default_msg_enable_bits)
 static inline int netif_rx_schedule_prep(struct net_device *dev,
 					 struct napi_struct *napi)
 {
-	return netif_running(dev) && napi_schedule_prep(napi);
+	return napi_schedule_prep(napi);
 }
 
 /* Add interface to tail of rx poll list. This assumes that _prep has
@@ -1277,7 +1287,6 @@ static inline int netif_rx_schedule_prep(struct net_device *dev,
 static inline void __netif_rx_schedule(struct net_device *dev,
 				       struct napi_struct *napi)
 {
-	dev_hold(dev);
 	__napi_schedule(napi);
 }
 
@@ -1308,7 +1317,6 @@ static inline void __netif_rx_complete(struct net_device *dev,
 				       struct napi_struct *napi)
 {
 	__napi_complete(napi);
-	dev_put(dev);
 }
 
 /* Remove interface from poll list: it must be in the poll list

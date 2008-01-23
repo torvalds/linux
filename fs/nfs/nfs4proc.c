@@ -741,10 +741,10 @@ static void nfs4_open_confirm_done(struct rpc_task *task, void *calldata)
 	if (data->rpc_status == 0) {
 		memcpy(data->o_res.stateid.data, data->c_res.stateid.data,
 				sizeof(data->o_res.stateid.data));
+		nfs_confirm_seqid(&data->owner->so_seqid, 0);
 		renew_lease(data->o_res.server, data->timestamp);
 		data->rpc_done = 1;
 	}
-	nfs_confirm_seqid(&data->owner->so_seqid, data->rpc_status);
 	nfs_increment_open_seqid(data->rpc_status, data->c_arg.seqid);
 }
 
@@ -759,7 +759,6 @@ static void nfs4_open_confirm_release(void *calldata)
 	/* In case of error, no cleanup! */
 	if (!data->rpc_done)
 		goto out_free;
-	nfs_confirm_seqid(&data->owner->so_seqid, 0);
 	state = nfs4_opendata_to_nfs4_state(data);
 	if (!IS_ERR(state))
 		nfs4_close_state(&data->path, state, data->o_arg.open_flags);
@@ -886,7 +885,6 @@ static void nfs4_open_release(void *calldata)
 	/* In case we need an open_confirm, no cleanup! */
 	if (data->o_res.rflags & NFS4_OPEN_RESULT_CONFIRM)
 		goto out_free;
-	nfs_confirm_seqid(&data->owner->so_seqid, 0);
 	state = nfs4_opendata_to_nfs4_state(data);
 	if (!IS_ERR(state))
 		nfs4_close_state(&data->path, state, data->o_arg.open_flags);
@@ -3333,6 +3331,12 @@ static struct nfs4_lockdata *nfs4_alloc_lockdata(struct file_lock *fl,
 
 	p->arg.fh = NFS_FH(inode);
 	p->arg.fl = &p->fl;
+	if (!(lsp->ls_seqid.flags & NFS_SEQID_CONFIRMED)) {
+		p->arg.open_seqid = nfs_alloc_seqid(&lsp->ls_state->owner->so_seqid);
+		if (p->arg.open_seqid == NULL)
+			goto out_free;
+
+	}
 	p->arg.lock_seqid = nfs_alloc_seqid(&lsp->ls_seqid);
 	if (p->arg.lock_seqid == NULL)
 		goto out_free;
@@ -3345,6 +3349,8 @@ static struct nfs4_lockdata *nfs4_alloc_lockdata(struct file_lock *fl,
 	memcpy(&p->fl, fl, sizeof(p->fl));
 	return p;
 out_free:
+	if (p->arg.open_seqid != NULL)
+		nfs_free_seqid(p->arg.open_seqid);
 	kfree(p);
 	return NULL;
 }
@@ -3361,23 +3367,23 @@ static void nfs4_lock_prepare(struct rpc_task *task, void *calldata)
 		.rpc_cred = sp->so_cred,
 	};
 
-	if (nfs_wait_on_sequence(data->arg.lock_seqid, task) != 0)
-		return;
 	dprintk("%s: begin!\n", __FUNCTION__);
 	/* Do we need to do an open_to_lock_owner? */
 	if (!(data->arg.lock_seqid->sequence->flags & NFS_SEQID_CONFIRMED)) {
-		data->arg.open_seqid = nfs_alloc_seqid(&sp->so_seqid);
-		if (data->arg.open_seqid == NULL) {
-			data->rpc_status = -ENOMEM;
-			task->tk_action = NULL;
-			goto out;
-		}
+		if (nfs_wait_on_sequence(data->arg.open_seqid, task) != 0)
+			return;
 		data->arg.open_stateid = &state->stateid;
 		data->arg.new_lock_owner = 1;
+		/* Retest in case we raced... */
+		if (!(data->arg.lock_seqid->sequence->flags & NFS_SEQID_CONFIRMED))
+			goto do_rpc;
 	}
+	if (nfs_wait_on_sequence(data->arg.lock_seqid, task) != 0)
+		return;
+	data->arg.new_lock_owner = 0;
+do_rpc:	
 	data->timestamp = jiffies;
 	rpc_call_setup(task, &msg, 0);
-out:
 	dprintk("%s: done!, ret = %d\n", __FUNCTION__, data->rpc_status);
 }
 
@@ -3413,8 +3419,6 @@ static void nfs4_lock_release(void *calldata)
 	struct nfs4_lockdata *data = calldata;
 
 	dprintk("%s: begin!\n", __FUNCTION__);
-	if (data->arg.open_seqid != NULL)
-		nfs_free_seqid(data->arg.open_seqid);
 	if (data->cancelled != 0) {
 		struct rpc_task *task;
 		task = nfs4_do_unlck(&data->fl, data->ctx, data->lsp,
@@ -3424,6 +3428,8 @@ static void nfs4_lock_release(void *calldata)
 		dprintk("%s: cancelling lock!\n", __FUNCTION__);
 	} else
 		nfs_free_seqid(data->arg.lock_seqid);
+	if (data->arg.open_seqid != NULL)
+		nfs_free_seqid(data->arg.open_seqid);
 	nfs4_put_lock_state(data->lsp);
 	put_nfs_open_context(data->ctx);
 	kfree(data);

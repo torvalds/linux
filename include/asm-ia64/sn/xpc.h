@@ -1211,11 +1211,13 @@ xpc_IPI_init(int index)
 static inline enum xpc_retval
 xpc_map_bte_errors(bte_result_t error)
 {
+	if (error == BTE_SUCCESS)
+		return xpcSuccess;
+
 	if (is_shub2()) {
 		if (BTE_VALID_SH2_ERROR(error))
 			return xpcBteSh2Start + error;
-		else
-			return xpcBteUnmappedError;
+		return xpcBteUnmappedError;
 	}
 	switch (error) {
 	case BTE_SUCCESS:	return xpcSuccess;

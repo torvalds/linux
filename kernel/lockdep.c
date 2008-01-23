@@ -2943,9 +2943,10 @@ void lockdep_free_key_range(void *start, unsigned long size)
 	struct list_head *head;
 	unsigned long flags;
 	int i;
+	int locked;
 
 	raw_local_irq_save(flags);
-	graph_lock();
+	locked = graph_lock();
 
 	/*
 	 * Unhash all classes that were created by this module:
@@ -2959,7 +2960,8 @@ void lockdep_free_key_range(void *start, unsigned long size)
 				zap_class(class);
 	}
 
-	graph_unlock();
+	if (locked)
+		graph_unlock();
 	raw_local_irq_restore(flags);
 }
 
@@ -2969,6 +2971,7 @@ void lockdep_reset_lock(struct lockdep_map *lock)
 	struct list_head *head;
 	unsigned long flags;
 	int i, j;
+	int locked;
 
 	raw_local_irq_save(flags);
 
@@ -2987,7 +2990,7 @@ void lockdep_reset_lock(struct lockdep_map *lock)
 	 * Debug check: in the end all mapped classes should
 	 * be gone.
 	 */
-	graph_lock();
+	locked = graph_lock();
 	for (i = 0; i < CLASSHASH_SIZE; i++) {
 		head = classhash_table + i;
 		if (list_empty(head))
@@ -3000,7 +3003,8 @@ void lockdep_reset_lock(struct lockdep_map *lock)
 			}
 		}
 	}
-	graph_unlock();
+	if (locked)
+		graph_unlock();
 
 out_restore:
 	raw_local_irq_restore(flags);

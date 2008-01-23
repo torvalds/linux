@@ -925,6 +925,68 @@ static void mixer_slot_clear(struct snd_mixer_oss_slot *rslot)
 	rslot->number = idx;
 }
 
+/* In a separate function to keep gcc 3.2 happy - do NOT merge this in
+   snd_mixer_oss_build_input! */
+static int snd_mixer_oss_build_test_all(struct snd_mixer_oss *mixer,
+					struct snd_mixer_oss_assign_table *ptr,
+					struct slot *slot)
+{
+	char str[64];
+	int err;
+
+	err = snd_mixer_oss_build_test(mixer, slot, ptr->name, ptr->index,
+				       SNDRV_MIXER_OSS_ITEM_GLOBAL);
+	if (err)
+		return err;
+	sprintf(str, "%s Switch", ptr->name);
+	err = snd_mixer_oss_build_test(mixer, slot, str, ptr->index,
+				       SNDRV_MIXER_OSS_ITEM_GSWITCH);
+	if (err)
+		return err;
+	sprintf(str, "%s Route", ptr->name);
+	err = snd_mixer_oss_build_test(mixer, slot, str, ptr->index,
+				       SNDRV_MIXER_OSS_ITEM_GROUTE);
+	if (err)
+		return err;
+	sprintf(str, "%s Volume", ptr->name);
+	err = snd_mixer_oss_build_test(mixer, slot, str, ptr->index,
+				       SNDRV_MIXER_OSS_ITEM_GVOLUME);
+	if (err)
+		return err;
+	sprintf(str, "%s Playback Switch", ptr->name);
+	err = snd_mixer_oss_build_test(mixer, slot, str, ptr->index,
+				       SNDRV_MIXER_OSS_ITEM_PSWITCH);
+	if (err)
+		return err;
+	sprintf(str, "%s Playback Route", ptr->name);
+	err = snd_mixer_oss_build_test(mixer, slot, str, ptr->index,
+				       SNDRV_MIXER_OSS_ITEM_PROUTE);
+	if (err)
+		return err;
+	sprintf(str, "%s Playback Volume", ptr->name);
+	err = snd_mixer_oss_build_test(mixer, slot, str, ptr->index,
+				       SNDRV_MIXER_OSS_ITEM_PVOLUME);
+	if (err)
+		return err;
+	sprintf(str, "%s Capture Switch", ptr->name);
+	err = snd_mixer_oss_build_test(mixer, slot, str, ptr->index,
+				       SNDRV_MIXER_OSS_ITEM_CSWITCH);
+	if (err)
+		return err;
+	sprintf(str, "%s Capture Route", ptr->name);
+	err = snd_mixer_oss_build_test(mixer, slot, str, ptr->index,
+				       SNDRV_MIXER_OSS_ITEM_CROUTE);
+	if (err)
+		return err;
+	sprintf(str, "%s Capture Volume", ptr->name);
+	err = snd_mixer_oss_build_test(mixer, slot, str, ptr->index,
+				       SNDRV_MIXER_OSS_ITEM_CVOLUME);
+	if (err)
+		return err;
+
+	return 0;
+}
+
 /*
  * build an OSS mixer element.
  * ptr_allocated means the entry is dynamically allocated (change via proc file).
@@ -944,44 +1006,7 @@ static int snd_mixer_oss_build_input(struct snd_mixer_oss *mixer, struct snd_mix
 
 	memset(&slot, 0, sizeof(slot));
 	memset(slot.numid, 0xff, sizeof(slot.numid)); /* ID_UNKNOWN */
-	if (snd_mixer_oss_build_test(mixer, &slot, ptr->name, ptr->index,
-				     SNDRV_MIXER_OSS_ITEM_GLOBAL))
-		return 0;
-	sprintf(str, "%s Switch", ptr->name);
-	if (snd_mixer_oss_build_test(mixer, &slot, str, ptr->index,
-				     SNDRV_MIXER_OSS_ITEM_GSWITCH))
-		return 0;
-	sprintf(str, "%s Route", ptr->name);
-	if (snd_mixer_oss_build_test(mixer, &slot, str, ptr->index,
-				     SNDRV_MIXER_OSS_ITEM_GROUTE))
-		return 0;
-	sprintf(str, "%s Volume", ptr->name);
-	if (snd_mixer_oss_build_test(mixer, &slot, str, ptr->index,
-				     SNDRV_MIXER_OSS_ITEM_GVOLUME))
-		return 0;
-	sprintf(str, "%s Playback Switch", ptr->name);
-	if (snd_mixer_oss_build_test(mixer, &slot, str, ptr->index,
-				     SNDRV_MIXER_OSS_ITEM_PSWITCH))
-		return 0;
-	sprintf(str, "%s Playback Route", ptr->name);
-	if (snd_mixer_oss_build_test(mixer, &slot, str, ptr->index,
-				     SNDRV_MIXER_OSS_ITEM_PROUTE))
-		return 0;
-	sprintf(str, "%s Playback Volume", ptr->name);
-	if (snd_mixer_oss_build_test(mixer, &slot, str, ptr->index,
-				     SNDRV_MIXER_OSS_ITEM_PVOLUME))
-		return 0;
-	sprintf(str, "%s Capture Switch", ptr->name);
-	if (snd_mixer_oss_build_test(mixer, &slot, str, ptr->index,
-				     SNDRV_MIXER_OSS_ITEM_CSWITCH))
-		return 0;
-	sprintf(str, "%s Capture Route", ptr->name);
-	if (snd_mixer_oss_build_test(mixer, &slot, str, ptr->index,
-				     SNDRV_MIXER_OSS_ITEM_CROUTE))
-		return 0;
-	sprintf(str, "%s Capture Volume", ptr->name);
-	if (snd_mixer_oss_build_test(mixer, &slot, str, ptr->index,
-				     SNDRV_MIXER_OSS_ITEM_CVOLUME))
+	if (snd_mixer_oss_build_test_all(mixer, ptr, &slot))
 		return 0;
 	down_read(&mixer->card->controls_rwsem);
 	if (ptr->index == 0 && (kctl = snd_mixer_oss_test_id(mixer, "Capture Source", 0)) != NULL) {

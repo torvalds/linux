@@ -65,6 +65,10 @@ config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
 
+config HARDWARE_PM
+	def_bool y
+	depends on OPROFILE
+
 source "init/Kconfig"
 source "kernel/Kconfig.preempt"
 

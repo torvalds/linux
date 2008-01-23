@@ -193,7 +193,7 @@ static int __inet6_check_established(struct inet_timewait_death_row *death_row,
 		   sk2->sk_family	       == PF_INET6	 &&
 		   ipv6_addr_equal(&tw6->tw_v6_daddr, saddr)	 &&
 		   ipv6_addr_equal(&tw6->tw_v6_rcv_saddr, daddr) &&
-		   sk2->sk_bound_dev_if == sk->sk_bound_dev_if) {
+		   (!sk2->sk_bound_dev_if || sk2->sk_bound_dev_if == dif)) {
 			if (twsk_unique(sk, sk2, twp))
 				goto unique;
 			else

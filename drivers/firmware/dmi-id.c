@@ -175,12 +175,11 @@ static struct device *dmi_dev;
 
 extern int dmi_available;
 
-static int __init dmi_id_init(void)
+/* In a separate function to keep gcc 3.2 happy - do NOT merge this in
+   dmi_id_init! */
+static void __init dmi_id_init_attr_table(void)
 {
-	int ret, i;
-
-	if (!dmi_available)
-		return -ENODEV;
+	int i;
 
 	/* Not necessarily all DMI fields are available on all
 	 * systems, hence let's built an attribute table of just
@@ -205,6 +204,16 @@ static int __init dmi_id_init(void)
 	ADD_DMI_ATTR(chassis_serial,    DMI_CHASSIS_SERIAL);
 	ADD_DMI_ATTR(chassis_asset_tag, DMI_CHASSIS_ASSET_TAG);
 	sys_dmi_attributes[i++] = &sys_dmi_modalias_attr.attr;
+}
+
+static int __init dmi_id_init(void)
+{
+	int ret;
+
+	if (!dmi_available)
+		return -ENODEV;
+
+	dmi_id_init_attr_table();
 
 	ret = class_register(&dmi_class);
 	if (ret)

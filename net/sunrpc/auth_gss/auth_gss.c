@@ -625,7 +625,7 @@ gss_create(struct rpc_clnt *clnt, rpc_authflavor_t flavor)
 	err = -EINVAL;
 	gss_auth->mech = gss_mech_get_by_pseudoflavor(flavor);
 	if (!gss_auth->mech) {
-		printk(KERN_WARNING "%s: Pseudoflavor %d not found!",
+		printk(KERN_WARNING "%s: Pseudoflavor %d not found!\n",
 				__FUNCTION__, flavor);
 		goto err_free;
 	}

@@ -806,7 +806,10 @@ int ata_pci_init_one(struct pci_dev *pdev,
 	if (rc)
 		goto err_out;
 
-	if (!legacy_mode) {
+	if (!legacy_mode && pdev->irq) {
+		/* We may have no IRQ assigned in which case we can poll. This
+		   shouldn't happen on a sane system but robustness is cheap
+		   in this case */
 		rc = devm_request_irq(dev, pdev->irq, pi->port_ops->irq_handler,
 				      IRQF_SHARED, DRV_NAME, host);
 		if (rc)
@@ -814,7 +817,7 @@ int ata_pci_init_one(struct pci_dev *pdev,
 
 		ata_port_desc(host->ports[0], "irq %d", pdev->irq);
 		ata_port_desc(host->ports[1], "irq %d", pdev->irq);
-	} else {
+	} else if (legacy_mode) {
 		if (!ata_port_is_dummy(host->ports[0])) {
 			rc = devm_request_irq(dev, ATA_PRIMARY_IRQ(pdev),
 					      pi->port_ops->irq_handler,

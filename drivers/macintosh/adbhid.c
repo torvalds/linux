@@ -322,8 +322,9 @@ adbhid_input_keycode(int id, int scancode, int repeat)
 			input_sync(ahid->input);
 			input_report_key(ahid->input, KEY_CAPSLOCK, 0);
 			input_sync(ahid->input);
+			return;
 		}
-		return;
+		break;
 #ifdef CONFIG_PPC_PMAC
 	case ADB_KEY_POWER_OLD: /* Power key on PBook 3400 needs remapping */
 		switch(pmac_call_feature(PMAC_FTR_GET_MB_INFO,

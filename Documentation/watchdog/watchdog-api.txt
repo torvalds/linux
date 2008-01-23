@@ -42,23 +42,27 @@ like this source file:  see Documentation/watchdog/src/watchdog-simple.c
 A more advanced driver could for example check that a HTTP server is
 still responding before doing the write call to ping the watchdog.
 
-When the device is closed, the watchdog is disabled.  This is not
-always such a good idea, since if there is a bug in the watchdog
-daemon and it crashes the system will not reboot.  Because of this,
-some of the drivers support the configuration option "Disable watchdog
-shutdown on close", CONFIG_WATCHDOG_NOWAYOUT.  If it is set to Y when
-compiling the kernel, there is no way of disabling the watchdog once
-it has been started.  So, if the watchdog daemon crashes, the system
-will reboot after the timeout has passed. Watchdog devices also usually
-support the nowayout module parameter so that this option can be controlled
-at runtime.
+When the device is closed, the watchdog is disabled, unless the "Magic
+Close" feature is supported (see below).  This is not always such a
+good idea, since if there is a bug in the watchdog daemon and it
+crashes the system will not reboot.  Because of this, some of the
+drivers support the configuration option "Disable watchdog shutdown on
+close", CONFIG_WATCHDOG_NOWAYOUT.  If it is set to Y when compiling
+the kernel, there is no way of disabling the watchdog once it has been
+started.  So, if the watchdog daemon crashes, the system will reboot
+after the timeout has passed. Watchdog devices also usually support
+the nowayout module parameter so that this option can be controlled at
+runtime.
 
-Drivers will not disable the watchdog, unless a specific magic character 'V'
-has been sent /dev/watchdog just before closing the file.  If the userspace
-daemon closes the file without sending this special character, the driver
-will assume that the daemon (and userspace in general) died, and will stop
-pinging the watchdog without disabling it first.  This will then cause a
-reboot if the watchdog is not re-opened in sufficient time.
+Magic Close feature:
+
+If a driver supports "Magic Close", the driver will not disable the
+watchdog unless a specific magic character 'V' has been sent to
+/dev/watchdog just before closing the file.  If the userspace daemon
+closes the file without sending this special character, the driver
+will assume that the daemon (and userspace in general) died, and will
+stop pinging the watchdog without disabling it first.  This will then
+cause a reboot if the watchdog is not re-opened in sufficient time.
 
 The ioctl API:
 

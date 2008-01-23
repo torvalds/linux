@@ -1309,26 +1309,6 @@ static void sctp_tietags_populate(struct sctp_association *new_asoc,
 	new_asoc->c.initial_tsn         = asoc->c.initial_tsn;
 }
 
-static void sctp_auth_params_populate(struct sctp_association *new_asoc,
-				    const struct sctp_association *asoc)
-{
-	/* Only perform this if AUTH extension is enabled */
-	if (!sctp_auth_enable)
-		return;
-
-	/* We need to provide the same parameter information as
-	 * was in the original INIT.  This means that we need to copy
-	 * the HMACS, CHUNKS, and RANDOM parameter from the original
-	 * assocaition.
-	 */
-	memcpy(new_asoc->c.auth_random, asoc->c.auth_random,
-		sizeof(asoc->c.auth_random));
-	memcpy(new_asoc->c.auth_hmacs, asoc->c.auth_hmacs,
-		sizeof(asoc->c.auth_hmacs));
-	memcpy(new_asoc->c.auth_chunks, asoc->c.auth_chunks,
-		sizeof(asoc->c.auth_chunks));
-}
-
 /*
  * Compare vtag/tietag values to determine unexpected COOKIE-ECHO
  * handling action.
@@ -1485,8 +1465,6 @@ static sctp_disposition_t sctp_sf_do_unexpected_init(
 	}
 
 	sctp_tietags_populate(new_asoc, asoc);
-
-	sctp_auth_params_populate(new_asoc, asoc);
 
 	/* B) "Z" shall respond immediately with an INIT ACK chunk.  */
 

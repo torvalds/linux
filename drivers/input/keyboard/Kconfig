@@ -209,22 +209,22 @@ config KEYBOARD_HIL
 	  to your machine, so normally you should say Y here.
 
 config KEYBOARD_HP6XX
-	tristate "HP Jornada 6XX Keyboard support"
+	tristate "HP Jornada 6xx keyboard"
 	depends on SH_HP6XX
 	select INPUT_POLLDEV
 	help
-	  This adds support for the onboard keyboard found on
-	  HP Jornada 620/660/680/690.
+	  Say Y here if you have a HP Jornada 620/660/680/690 and want to
+	  support the built-in keyboard.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called jornada680_kbd.
 
 config KEYBOARD_HP7XX
-	tristate "HP Jornada 7XX Keyboard Driver"
+	tristate "HP Jornada 7xx keyboard"
 	depends on SA1100_JORNADA720_SSP && SA1100_SSP
 	help
-	  Say Y here to add support for the HP Jornada 7xx (710/720/728)
-	  onboard keyboard.
+	  Say Y here if you have a HP Jornada 710/720/728 and want to
+	  support the built-in keyboard.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called jornada720_kbd.

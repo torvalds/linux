@@ -1074,7 +1074,6 @@ static int ps3_vuart_probe(struct ps3_system_bus_device *dev)
 	if (result) {
 		dev_dbg(&dev->core, "%s:%d: drv->probe failed\n",
 			__func__, __LINE__);
-		down(&vuart_bus_priv.probe_mutex);
 		goto fail_probe;
 	}
 

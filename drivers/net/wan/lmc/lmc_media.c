@@ -890,16 +890,8 @@ write_av9110 (lmc_softc_t * sc, u_int32_t n, u_int32_t m, u_int32_t v,
 static void
 lmc_ssi_watchdog (lmc_softc_t * const sc)
 {
-  u_int16_t mii17;
-  struct ssicsr2
-  {
-    unsigned short dtr:1, dsr:1, rts:1, cable:3, crc:1, led0:1, led1:1,
-      led2:1, led3:1, fifo:1, ll:1, rl:1, tm:1, loop:1;
-  };
-  struct ssicsr2 *ssicsr;
-  mii17 = lmc_mii_readreg (sc, 0, 17);
-  ssicsr = (struct ssicsr2 *) &mii17;
-  if (ssicsr->cable == 7)
+  u_int16_t mii17 = lmc_mii_readreg (sc, 0, 17);
+  if (((mii17 >> 3) & 7) == 7)
     {
       lmc_led_off (sc, LMC_MII16_LED2);
     }

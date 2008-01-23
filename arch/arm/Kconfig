@@ -1072,11 +1072,13 @@ source "drivers/rtc/Kconfig"
 
 source "drivers/dma/Kconfig"
 
+source "drivers/dca/Kconfig"
+
 endmenu
 
 source "fs/Kconfig"
 
-source "kernel/Kconfig.instrumentation"
+source "arch/arm/Kconfig.instrumentation"
 
 source "arch/arm/Kconfig.debug"
 

@@ -310,7 +310,7 @@ static void lro_flush(struct net_lro_mgr *lro_mgr,
 	skb_shinfo(lro_desc->parent)->gso_size = lro_desc->mss;
 
 	if (lro_desc->vgrp) {
-		if (test_bit(LRO_F_NAPI, &lro_mgr->features))
+		if (lro_mgr->features & LRO_F_NAPI)
 			vlan_hwaccel_receive_skb(lro_desc->parent,
 						 lro_desc->vgrp,
 						 lro_desc->vlan_tag);
@@ -320,7 +320,7 @@ static void lro_flush(struct net_lro_mgr *lro_mgr,
 					lro_desc->vlan_tag);
 
 	} else {
-		if (test_bit(LRO_F_NAPI, &lro_mgr->features))
+		if (lro_mgr->features & LRO_F_NAPI)
 			netif_receive_skb(lro_desc->parent);
 		else
 			netif_rx(lro_desc->parent);
@@ -352,7 +352,7 @@ static int __lro_proc_skb(struct net_lro_mgr *lro_mgr, struct sk_buff *skb,
 		goto out;
 
 	if ((skb->protocol == htons(ETH_P_8021Q))
-	    && !test_bit(LRO_F_EXTRACT_VLAN_ID, &lro_mgr->features))
+	    && !(lro_mgr->features & LRO_F_EXTRACT_VLAN_ID))
 		vlan_hdr_len = VLAN_HLEN;
 
 	if (!lro_desc->active) { /* start new lro session */
@@ -474,7 +474,7 @@ static struct sk_buff *__lro_proc_segment(struct net_lro_mgr *lro_mgr,
 			goto out;
 
 		if ((skb->protocol == htons(ETH_P_8021Q))
-		    && !test_bit(LRO_F_EXTRACT_VLAN_ID, &lro_mgr->features))
+		    && !(lro_mgr->features & LRO_F_EXTRACT_VLAN_ID))
 			vlan_hdr_len = VLAN_HLEN;
 
 		iph = (void *)(skb->data + vlan_hdr_len);
@@ -516,7 +516,7 @@ void lro_receive_skb(struct net_lro_mgr *lro_mgr,
 		     void *priv)
 {
 	if (__lro_proc_skb(lro_mgr, skb, NULL, 0, priv)) {
-		if (test_bit(LRO_F_NAPI, &lro_mgr->features))
+		if (lro_mgr->features & LRO_F_NAPI)
 			netif_receive_skb(skb);
 		else
 			netif_rx(skb);
@@ -531,7 +531,7 @@ void lro_vlan_hwaccel_receive_skb(struct net_lro_mgr *lro_mgr,
 				  void *priv)
 {
 	if (__lro_proc_skb(lro_mgr, skb, vgrp, vlan_tag, priv)) {
-		if (test_bit(LRO_F_NAPI, &lro_mgr->features))
+		if (lro_mgr->features & LRO_F_NAPI)
 			vlan_hwaccel_receive_skb(skb, vgrp, vlan_tag);
 		else
 			vlan_hwaccel_rx(skb, vgrp, vlan_tag);
@@ -550,7 +550,7 @@ void lro_receive_frags(struct net_lro_mgr *lro_mgr,
 	if (!skb)
 		return;
 
-	if (test_bit(LRO_F_NAPI, &lro_mgr->features))
+	if (lro_mgr->features & LRO_F_NAPI)
 		netif_receive_skb(skb);
 	else
 		netif_rx(skb);
@@ -570,7 +570,7 @@ void lro_vlan_hwaccel_receive_frags(struct net_lro_mgr *lro_mgr,
 	if (!skb)
 		return;
 
-	if (test_bit(LRO_F_NAPI, &lro_mgr->features))
+	if (lro_mgr->features & LRO_F_NAPI)
 		vlan_hwaccel_receive_skb(skb, vgrp, vlan_tag);
 	else
 		vlan_hwaccel_rx(skb, vgrp, vlan_tag);

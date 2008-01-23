@@ -914,6 +914,9 @@ isdn_readbchan_tty(int di, int channel, struct tty_struct *tty, int cisco_hack)
 			dflag = 0;
 			count_pull = count_put = 0;
 			while ((count_pull < skb->len) && (len > 0)) {
+				/* push every character but the last to the tty buffer directly */
+				if ( count_put )
+					tty_insert_flip_char(tty, last, TTY_NORMAL);
 				len--;
 				if (dev->drv[di]->DLEflag & DLEmask) {
 					last = DLE;

@@ -1509,7 +1509,8 @@ static int __devinit bfin_atapi_probe(struct platform_device *pdev)
 	if (res == NULL)
 		return -EINVAL;
 
-	while (bfin_port_info[board_idx].udma_mask>0 && udma_fsclk[udma_mode] > fsclk) {
+	while (bfin_port_info[board_idx].udma_mask > 0 &&
+			udma_fsclk[udma_mode] > fsclk) {
 		udma_mode--;
 		bfin_port_info[board_idx].udma_mask >>= 1;
 	}

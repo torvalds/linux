@@ -120,7 +120,7 @@ int ptrace_check_attach(struct task_struct *child, int kill)
 	return ret;
 }
 
-static int may_attach(struct task_struct *task)
+int __ptrace_may_attach(struct task_struct *task)
 {
 	/* May we inspect the given task?
 	 * This check is used both for attaching with ptrace
@@ -154,7 +154,7 @@ int ptrace_may_attach(struct task_struct *task)
 {
 	int err;
 	task_lock(task);
-	err = may_attach(task);
+	err = __ptrace_may_attach(task);
 	task_unlock(task);
 	return !err;
 }
@@ -196,7 +196,7 @@ repeat:
 	/* the same process cannot be attached many times */
 	if (task->ptrace & PT_PTRACED)
 		goto bad;
-	retval = may_attach(task);
+	retval = __ptrace_may_attach(task);
 	if (retval)
 		goto bad;
 

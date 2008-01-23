@@ -43,11 +43,11 @@ pxa_cpu_save_cp:
 pxa_cpu_save_sp:
 	@ preserve phys address of stack
 	mov	r0, sp
-	mov	r2, lr
+	str	lr, [sp, #-4]!
 	bl	sleep_phys_sp
 	ldr	r1, =sleep_save_sp
 	str	r0, [r1]
-	mov	pc, r2
+	ldr	pc, [sp], #4
 
 /*
  * pxa27x_cpu_suspend()
@@ -270,5 +270,3 @@ resume_after_mmu:
 	mar	acc0, r2, r3
 #endif
 	ldmfd	sp!, {r4 - r12, pc}		@ return to caller
-
-

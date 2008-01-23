@@ -166,16 +166,6 @@ config NET_SB1000
 
 	  If you don't have this card, of course say N.
 
-config IP1000
-	tristate "IP1000 Gigabit Ethernet support"
-	depends on PCI && EXPERIMENTAL
-	select MII
-	---help---
-	  This driver supports IP1000 gigabit Ethernet cards.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called ipg.  This is recommended.
-
 source "drivers/net/arcnet/Kconfig"
 
 source "drivers/net/phy/Kconfig"
@@ -1986,11 +1976,18 @@ config E1000E
 
 	  <http://support.intel.com>
 
-	  More specific information on configuring the driver is in
-	  <file:Documentation/networking/e1000e.txt>.
-
 	  To compile this driver as a module, choose M here. The module
 	  will be called e1000e.
+
+config IP1000
+	tristate "IP1000 Gigabit Ethernet support"
+	depends on PCI && EXPERIMENTAL
+	select MII
+	---help---
+	  This driver supports IP1000 gigabit Ethernet cards.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called ipg.  This is recommended.
 
 source "drivers/net/ixp2000/Kconfig"
 
@@ -2467,9 +2464,6 @@ config IXGBE
 	  website at:
 
 	  <http://support.intel.com>
-
-	  More specific information on configuring the driver is in
-	  <file:Documentation/networking/ixgbe.txt>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called ixgbe.

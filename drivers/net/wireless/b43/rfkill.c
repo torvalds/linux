@@ -138,8 +138,11 @@ void b43_rfkill_init(struct b43_wldev *dev)
 	rfk->rfkill->user_claim_unsupported = 1;
 
 	rfk->poll_dev = input_allocate_polled_device();
-	if (!rfk->poll_dev)
-		goto err_free_rfk;
+	if (!rfk->poll_dev) {
+		rfkill_free(rfk->rfkill);
+		goto err_freed_rfk;
+	}
+
 	rfk->poll_dev->private = dev;
 	rfk->poll_dev->poll = b43_rfkill_poll;
 	rfk->poll_dev->poll_interval = 1000; /* msecs */
@@ -175,8 +178,7 @@ err_unreg_rfk:
 err_free_polldev:
 	input_free_polled_device(rfk->poll_dev);
 	rfk->poll_dev = NULL;
-err_free_rfk:
-	rfkill_free(rfk->rfkill);
+err_freed_rfk:
 	rfk->rfkill = NULL;
 out_error:
 	rfk->registered = 0;
@@ -195,6 +197,5 @@ void b43_rfkill_exit(struct b43_wldev *dev)
 	rfkill_unregister(rfk->rfkill);
 	input_free_polled_device(rfk->poll_dev);
 	rfk->poll_dev = NULL;
-	rfkill_free(rfk->rfkill);
 	rfk->rfkill = NULL;
 }

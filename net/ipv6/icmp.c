@@ -458,8 +458,6 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 	}
 	err = icmpv6_push_pending_frames(sk, &fl, &tmp_hdr, len + sizeof(struct icmp6hdr));
 
-	ICMP6_INC_STATS_BH(idev, ICMP6_MIB_OUTMSGS);
-
 out_put:
 	if (likely(idev != NULL))
 		in6_dev_put(idev);

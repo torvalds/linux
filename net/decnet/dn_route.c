@@ -1665,12 +1665,12 @@ static struct dn_route *dn_rt_cache_get_first(struct seq_file *seq)
 			break;
 		rcu_read_unlock_bh();
 	}
-	return rt;
+	return rcu_dereference(rt);
 }
 
 static struct dn_route *dn_rt_cache_get_next(struct seq_file *seq, struct dn_route *rt)
 {
-	struct dn_rt_cache_iter_state *s = rcu_dereference(seq->private);
+	struct dn_rt_cache_iter_state *s = seq->private;
 
 	rt = rt->u.dst.dn_next;
 	while(!rt) {
@@ -1680,7 +1680,7 @@ static struct dn_route *dn_rt_cache_get_next(struct seq_file *seq, struct dn_rou
 		rcu_read_lock_bh();
 		rt = dn_rt_hash_table[s->bucket].chain;
 	}
-	return rt;
+	return rcu_dereference(rt);
 }
 
 static void *dn_rt_cache_seq_start(struct seq_file *seq, loff_t *pos)

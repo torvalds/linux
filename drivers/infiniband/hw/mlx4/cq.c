@@ -430,7 +430,7 @@ static int mlx4_ib_poll_one(struct mlx4_ib_cq *cq,
 		wc->dlid_path_bits = (be32_to_cpu(cqe->g_mlpath_rqpn) >> 24) & 0x7f;
 		wc->wc_flags      |= be32_to_cpu(cqe->g_mlpath_rqpn) & 0x80000000 ?
 			IB_WC_GRH : 0;
-		wc->pkey_index     = be32_to_cpu(cqe->immed_rss_invalid) >> 16;
+		wc->pkey_index     = be32_to_cpu(cqe->immed_rss_invalid) & 0x7f;
 	}
 
 	return 0;

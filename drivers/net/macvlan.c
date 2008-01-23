@@ -384,6 +384,13 @@ static int macvlan_newlink(struct net_device *dev,
 	if (lowerdev == NULL)
 		return -ENODEV;
 
+	/* Don't allow macvlans on top of other macvlans - its not really
+	 * wrong, but lockdep can't handle it and its not useful for anything
+	 * you couldn't do directly on top of the real device.
+	 */
+	if (lowerdev->rtnl_link_ops == dev->rtnl_link_ops)
+		return -ENODEV;
+
 	if (!tb[IFLA_MTU])
 		dev->mtu = lowerdev->mtu;
 	else if (dev->mtu > lowerdev->mtu)

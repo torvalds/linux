@@ -2266,7 +2266,7 @@ static int natsemi_poll(struct napi_struct *napi, int budget)
 	/* Reenable interrupts providing nothing is trying to shut
 	 * the chip down. */
 	spin_lock(&np->lock);
-	if (!np->hands_off && netif_running(dev))
+	if (!np->hands_off)
 		natsemi_irq_enable(dev);
 	spin_unlock(&np->lock);
 

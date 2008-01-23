@@ -213,7 +213,7 @@ static struct pcmcia_low_level lubbock_pcmcia_ops = {
 
 #include "pxa2xx_base.h"
 
-int __init pcmcia_lubbock_init(struct sa1111_dev *sadev)
+int pcmcia_lubbock_init(struct sa1111_dev *sadev)
 {
 	int ret = -ENODEV;
 

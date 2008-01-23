@@ -182,15 +182,7 @@ static int node_allowed(struct spu_context *ctx, int node)
 	return rval;
 }
 
-static BLOCKING_NOTIFIER_HEAD(spu_switch_notifier);
-
-void spu_switch_notify(struct spu *spu, struct spu_context *ctx)
-{
-	blocking_notifier_call_chain(&spu_switch_notifier,
-			    ctx ? ctx->object_id : 0, spu);
-}
-
-static void notify_spus_active(void)
+void do_notify_spus_active(void)
 {
 	int node;
 
@@ -216,22 +208,6 @@ static void notify_spus_active(void)
 		mutex_unlock(&cbe_spu_info[node].list_mutex);
 	}
 }
-
-int spu_switch_event_register(struct notifier_block * n)
-{
-	int ret;
-	ret = blocking_notifier_chain_register(&spu_switch_notifier, n);
-	if (!ret)
-		notify_spus_active();
-	return ret;
-}
-EXPORT_SYMBOL_GPL(spu_switch_event_register);
-
-int spu_switch_event_unregister(struct notifier_block * n)
-{
-	return blocking_notifier_chain_unregister(&spu_switch_notifier, n);
-}
-EXPORT_SYMBOL_GPL(spu_switch_event_unregister);
 
 /**
  * spu_bind_context - bind spu context to physical spu

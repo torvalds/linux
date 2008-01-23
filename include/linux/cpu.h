@@ -107,7 +107,6 @@ extern void unlock_cpu_hotplug(void);
 #define register_hotcpu_notifier(nb)	register_cpu_notifier(nb)
 #define unregister_hotcpu_notifier(nb)	unregister_cpu_notifier(nb)
 int cpu_down(unsigned int cpu);
-#define cpu_is_offline(cpu) unlikely(!cpu_online(cpu))
 
 #else		/* CONFIG_HOTPLUG_CPU */
 
@@ -122,9 +121,6 @@ static inline void cpuhotplug_mutex_unlock(struct mutex *cpu_hp_mutex)
 /* These aren't inline functions due to a GCC bug. */
 #define register_hotcpu_notifier(nb)	({ (void)(nb); 0; })
 #define unregister_hotcpu_notifier(nb)	({ (void)(nb); })
-
-/* CPUs don't go offline once they're online w/o CONFIG_HOTPLUG_CPU */
-static inline int cpu_is_offline(int cpu) { return 0; }
 #endif		/* CONFIG_HOTPLUG_CPU */
 
 #ifdef CONFIG_PM_SLEEP_SMP
