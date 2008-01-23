@@ -126,6 +126,7 @@ static struct _intel_private {
 	};
 	struct page *i8xx_page;
 	struct resource ifp_resource;
+	int resource_valid;
 } intel_private;
 
 static int intel_i810_fetch_size(void)
@@ -603,10 +604,14 @@ static void intel_i830_fini_flush(void)
 	flush_agp_mappings();
 
 	__free_page(intel_private.i8xx_page);
+	intel_private.i8xx_page = NULL;
 }
 
 static void intel_i830_setup_flush(void)
 {
+	/* return if we've already set the flush mechanism up */
+	if (intel_private.i8xx_page)
+		return;
 
 	intel_private.i8xx_page = alloc_page(GFP_KERNEL | __GFP_ZERO | GFP_DMA32);
 	if (!intel_private.i8xx_page) {
@@ -846,18 +851,18 @@ static void intel_i915_setup_chipset_flush(void)
 	pci_read_config_dword(agp_bridge->dev, I915_IFPADDR, &temp);
 	if (!(temp & 0x1)) {
 		intel_alloc_chipset_flush_resource();
-
+		intel_private.resource_valid = 1;
 		pci_write_config_dword(agp_bridge->dev, I915_IFPADDR, (intel_private.ifp_resource.start & 0xffffffff) | 0x1);
 	} else {
 		temp &= ~1;
 
+		intel_private.resource_valid = 1;
 		intel_private.ifp_resource.start = temp;
 		intel_private.ifp_resource.end = temp + PAGE_SIZE;
 		ret = request_resource(&iomem_resource, &intel_private.ifp_resource);
-		if (ret) {
-			intel_private.ifp_resource.start = 0;
-			printk("Failed inserting resource into tree\n");
-		}
+		/* some BIOSes reserve this area in a pnp some don't */
+		if (ret)
+			intel_private.resource_valid = 0;
 	}
 }
 
@@ -873,6 +878,7 @@ static void intel_i965_g33_setup_chipset_flush(void)
 
 		intel_alloc_chipset_flush_resource();
 
+		intel_private.resource_valid = 1;
 		pci_write_config_dword(agp_bridge->dev, I965_IFPADDR + 4,
 			upper_32_bits(intel_private.ifp_resource.start));
 		pci_write_config_dword(agp_bridge->dev, I965_IFPADDR, (intel_private.ifp_resource.start & 0xffffffff) | 0x1);
@@ -882,20 +888,23 @@ static void intel_i965_g33_setup_chipset_flush(void)
 		temp_lo &= ~0x1;
 		l64 = ((u64)temp_hi << 32) | temp_lo;
 
+		intel_private.resource_valid = 1;
 		intel_private.ifp_resource.start = l64;
 		intel_private.ifp_resource.end = l64 + PAGE_SIZE;
 		ret = request_resource(&iomem_resource, &intel_private.ifp_resource);
-		if (!ret) {
-			printk("Failed inserting resource into tree - continuing\n");
-		}
+		/* some BIOSes reserve this area in a pnp some don't */
+		if (ret)
+			intel_private.resource_valid = 0;
 	}
 }
 
 static void intel_i9xx_setup_flush(void)
 {
-	/* setup a resource for this object */
-	memset(&intel_private.ifp_resource, 0, sizeof(intel_private.ifp_resource));
+	/* return if already configured */
+	if (intel_private.ifp_resource.start)
+		return;
 
+	/* setup a resource for this object */
 	intel_private.ifp_resource.name = "Intel Flush Page";
 	intel_private.ifp_resource.flags = IORESOURCE_MEM;
 
@@ -951,6 +960,10 @@ static void intel_i915_cleanup(void)
 {
 	if (intel_private.i9xx_flush_page)
 		iounmap(intel_private.i9xx_flush_page);
+	if (intel_private.resource_valid)
+		release_resource(&intel_private.ifp_resource);
+	intel_private.ifp_resource.start = 0;
+	intel_private.resource_valid = 0;
 	iounmap(intel_private.gtt);
 	iounmap(intel_private.registers);
 }
