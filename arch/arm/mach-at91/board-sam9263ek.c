@@ -272,6 +272,30 @@ static struct atmel_ac97_data ek_ac97_data = {
 };
 
 
+/*
+ * LEDs ... these could all be PWM-driven, for variable brightness
+ */
+static struct gpio_led ek_leds[] = {
+	{	/* "left" led, green, userled1, pwm1 */
+		.name			= "ds1",
+		.gpio			= AT91_PIN_PB8,
+		.active_low		= 1,
+		.default_trigger	= "mmc0",
+	},
+	{	/* "right" led, green, userled2, pwm2 */
+		.name			= "ds2",
+		.gpio			= AT91_PIN_PC29,
+		.active_low		= 1,
+		.default_trigger	= "nand-disk",
+	},
+	{	/* "power" led, yellow, pwm0 */
+		.name			= "ds3",
+		.gpio			= AT91_PIN_PB7,
+		.default_trigger	= "heartbeat",
+	},
+};
+
+
 static void __init ek_board_init(void)
 {
 	/* Serial */
@@ -297,6 +321,8 @@ static void __init ek_board_init(void)
 	at91_add_device_lcdc(&ek_lcdc_data);
 	/* AC97 */
 	at91_add_device_ac97(&ek_ac97_data);
+	/* LEDs */
+	at91_gpio_leds(ek_leds, ARRAY_SIZE(ek_leds));
 }
 
 MACHINE_START(AT91SAM9263EK, "Atmel AT91SAM9263-EK")

@@ -215,6 +215,28 @@ static void __init csb300_add_device_buttons(void)
 static void __init csb300_add_device_buttons(void) {}
 #endif
 
+static struct gpio_led csb_leds[] = {
+	{	/* "led0", yellow */
+		.name			= "led0",
+		.gpio			= AT91_PIN_PB2,
+		.active_low		= 1,
+		.default_trigger	= "heartbeat",
+	},
+	{	/* "led1", green */
+		.name			= "led1",
+		.gpio			= AT91_PIN_PB1,
+		.active_low		= 1,
+		.default_trigger	= "mmc0",
+	},
+	{	/* "led2", yellow */
+		.name			= "led2",
+		.gpio			= AT91_PIN_PB0,
+		.active_low		= 1,
+		.default_trigger	= "ide-disk",
+	},
+};
+
+
 static void __init csb337_board_init(void)
 {
 	/* Serial */
@@ -236,6 +258,8 @@ static void __init csb337_board_init(void)
 	at91_add_device_mmc(0, &csb337_mmc_data);
 	/* NOR flash */
 	platform_device_register(&csb_flash);
+	/* LEDs */
+	at91_gpio_leds(csb_leds, ARRAY_SIZE(csb_leds));
 	/* Switches on CSB300 */
 	csb300_add_device_buttons();
 }
