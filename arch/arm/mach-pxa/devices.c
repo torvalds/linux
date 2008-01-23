@@ -11,6 +11,7 @@
 #include <asm/arch/irda.h>
 #include <asm/arch/i2c.h>
 #include <asm/arch/ohci.h>
+#include <asm/arch/pxa27x_keypad.h>
 
 #include "devices.h"
 
@@ -395,6 +396,31 @@ struct platform_device pxa25x_device_assp = {
 #endif /* CONFIG_PXA25x */
 
 #if defined(CONFIG_PXA27x) || defined(CONFIG_PXA3xx)
+
+static struct resource pxa27x_resource_keypad[] = {
+	[0] = {
+		.start	= 0x41500000,
+		.end	= 0x4150004c,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_KEYPAD,
+		.end	= IRQ_KEYPAD,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device pxa27x_device_keypad = {
+	.name		= "pxa27x-keypad",
+	.id		= -1,
+	.resource	= pxa27x_resource_keypad,
+	.num_resources	= ARRAY_SIZE(pxa27x_resource_keypad),
+};
+
+void __init pxa_set_keypad_info(struct pxa27x_keypad_platform_data *info)
+{
+	pxa_register_device(&pxa27x_device_keypad, info);
+}
 
 static u64 pxa27x_ohci_dma_mask = DMA_BIT_MASK(32);
 
