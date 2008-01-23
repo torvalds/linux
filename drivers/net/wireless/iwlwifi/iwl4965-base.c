@@ -7580,7 +7580,7 @@ static void iwl4965_config_ap(struct iwl4965_priv *priv)
 {
 	int rc = 0;
 
-	if (priv->status & STATUS_EXIT_PENDING)
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
 	/* The following should be done only at AP bring up */

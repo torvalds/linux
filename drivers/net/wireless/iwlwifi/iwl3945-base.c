@@ -7120,7 +7120,7 @@ static void iwl3945_config_ap(struct iwl3945_priv *priv)
 {
 	int rc = 0;
 
-	if (priv->status & STATUS_EXIT_PENDING)
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
 	/* The following should be done only at AP bring up */
