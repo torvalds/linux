@@ -4759,8 +4759,9 @@ static void iwl3945_irq_tasklet(struct iwl3945_priv *priv)
 #ifdef CONFIG_IWL3945_DEBUG
 	if (iwl3945_debug_level & (IWL_DL_ISR)) {
 		/* NIC fires this, but we don't use it, redundant with WAKEUP */
-		if (inta & CSR_INT_BIT_MAC_CLK_ACTV)
-			IWL_DEBUG_ISR("Microcode started or stopped.\n");
+		if (inta & CSR_INT_BIT_SCD)
+			IWL_DEBUG_ISR("Scheduler finished to transmit "
+				      "the frame/frames.\n");
 
 		/* Alive notification via Rx interrupt will do the real work */
 		if (inta & CSR_INT_BIT_ALIVE)
@@ -4768,7 +4769,7 @@ static void iwl3945_irq_tasklet(struct iwl3945_priv *priv)
 	}
 #endif
 	/* Safely ignore these bits for debug checks below */
-	inta &= ~(CSR_INT_BIT_MAC_CLK_ACTV | CSR_INT_BIT_ALIVE);
+	inta &= ~(CSR_INT_BIT_SCD | CSR_INT_BIT_ALIVE);
 
 	/* HW RF KILL switch toggled (4965 only) */
 	if (inta & CSR_INT_BIT_RF_KILL) {
@@ -4904,8 +4905,11 @@ static irqreturn_t iwl3945_isr(int irq, void *data)
 	IWL_DEBUG_ISR("ISR inta 0x%08x, enabled 0x%08x, fh 0x%08x\n",
 		      inta, inta_mask, inta_fh);
 
+	inta &= ~CSR_INT_BIT_SCD;
+
 	/* iwl3945_irq_tasklet() will service interrupts and re-enable them */
-	tasklet_schedule(&priv->irq_tasklet);
+	if (likely(inta || inta_fh))
+		tasklet_schedule(&priv->irq_tasklet);
 unplugged:
 	spin_unlock(&priv->lock);
 
