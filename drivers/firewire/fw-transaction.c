@@ -153,7 +153,7 @@ fw_fill_request(struct fw_packet *packet, int tcode, int tlabel,
 	int ext_tcode;
 
 	if (tcode > 0x10) {
-		ext_tcode = tcode - 0x10;
+		ext_tcode = tcode & ~0x10;
 		tcode = TCODE_LOCK_REQUEST;
 	} else
 		ext_tcode = 0;
