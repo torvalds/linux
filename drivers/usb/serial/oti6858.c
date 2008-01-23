@@ -649,7 +649,7 @@ static void oti6858_close(struct usb_serial_port *port, struct file *filp)
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (oti6858_buf_data_avail(priv->buf) == 0
 		|| timeout == 0 || signal_pending(current)
-		|| !usb_get_intfdata(port->serial->interface))	/* disconnect */
+		|| port->serial->disconnected)
 			break;
 		spin_unlock_irqrestore(&priv->lock, flags);
 		timeout = schedule_timeout(timeout);

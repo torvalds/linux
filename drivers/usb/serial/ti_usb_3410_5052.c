@@ -1493,11 +1493,10 @@ static void ti_drain(struct ti_port *tport, unsigned long timeout, int flush)
 	struct ti_device *tdev = tport->tp_tdev;
 	struct usb_serial_port *port = tport->tp_port;
 	wait_queue_t wait;
-	unsigned long flags;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
-	spin_lock_irqsave(&tport->tp_lock, flags);
+	spin_lock_irq(&tport->tp_lock);
 
 	/* wait for data to drain from the buffer */
 	tdev->td_urb_error = 0;
@@ -1508,11 +1507,11 @@ static void ti_drain(struct ti_port *tport, unsigned long timeout, int flush)
 		if (ti_buf_data_avail(tport->tp_write_buf) == 0
 		|| timeout == 0 || signal_pending(current)
 		|| tdev->td_urb_error
-		|| !usb_get_intfdata(port->serial->interface))  /* disconnect */
+		|| port->serial->disconnected)  /* disconnect */
 			break;
-		spin_unlock_irqrestore(&tport->tp_lock, flags);
+		spin_unlock_irq(&tport->tp_lock);
 		timeout = schedule_timeout(timeout);
-		spin_lock_irqsave(&tport->tp_lock, flags);
+		spin_lock_irq(&tport->tp_lock);
 	}
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(&tport->tp_write_wait, &wait);
@@ -1521,19 +1520,23 @@ static void ti_drain(struct ti_port *tport, unsigned long timeout, int flush)
 	if (flush)
 		ti_buf_clear(tport->tp_write_buf);
 
-	spin_unlock_irqrestore(&tport->tp_lock, flags);
+	spin_unlock_irq(&tport->tp_lock);
 
+	mutex_lock(&port->serial->disc_mutex);
 	/* wait for data to drain from the device */
 	/* wait for empty tx register, plus 20 ms */
 	timeout += jiffies;
 	tport->tp_lsr &= ~TI_LSR_TX_EMPTY;
 	while ((long)(jiffies - timeout) < 0 && !signal_pending(current)
 	&& !(tport->tp_lsr&TI_LSR_TX_EMPTY) && !tdev->td_urb_error
-	&& usb_get_intfdata(port->serial->interface)) {  /* not disconnected */
+	&& !port->serial->disconnected) {
 		if (ti_get_lsr(tport))
 			break;
+		mutex_unlock(&port->serial->disc_mutex);
 		msleep_interruptible(20);
+		mutex_lock(&port->serial->disc_mutex);
 	}
+	mutex_unlock(&port->serial->disc_mutex);
 }
 
 

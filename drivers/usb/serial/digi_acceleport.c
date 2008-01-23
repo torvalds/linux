@@ -1405,19 +1405,19 @@ static void digi_close(struct usb_serial_port *port, struct file *filp)
 	unsigned char buf[32];
 	struct tty_struct *tty = port->tty;
 	struct digi_port *priv = usb_get_serial_port_data(port);
-	unsigned long flags = 0;
 
 	dbg("digi_close: TOP: port=%d, open_count=%d",
 		priv->dp_port_num, port->open_count);
 
+	mutex_lock(&port->serial->disc_mutex);
 	/* if disconnected, just clear flags */
-	if (!usb_get_intfdata(port->serial->interface))
+	if (port->serial->disconnected)
 		goto exit;
 
 	/* do cleanup only after final close on this port */
-	spin_lock_irqsave(&priv->dp_port_lock, flags);
+	spin_lock_irq(&priv->dp_port_lock);
 	priv->dp_in_close = 1;
-	spin_unlock_irqrestore(&priv->dp_port_lock, flags);
+	spin_unlock_irq(&priv->dp_port_lock);
 
 	/* tell line discipline to process only XON/XOFF */
 	tty->closing = 1;
@@ -1482,11 +1482,12 @@ static void digi_close(struct usb_serial_port *port, struct file *filp)
 	}
 	tty->closing = 0;
 exit:
-	spin_lock_irqsave(&priv->dp_port_lock, flags);
+	spin_lock_irq(&priv->dp_port_lock);
 	priv->dp_write_urb_in_use = 0;
 	priv->dp_in_close = 0;
 	wake_up_interruptible(&priv->dp_close_wait);
-	spin_unlock_irqrestore(&priv->dp_port_lock, flags);
+	spin_unlock_irq(&priv->dp_port_lock);
+	mutex_unlock(&port->serial->disc_mutex);
 	dbg("digi_close: done");
 }
 
