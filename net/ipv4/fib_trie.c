@@ -1917,35 +1917,43 @@ static int fn_trie_dump_leaf(struct leaf *l, struct fib_table *tb,
 	return skb->len;
 }
 
-
-
 static int fn_trie_dump(struct fib_table *tb, struct sk_buff *skb,
 			struct netlink_callback *cb)
 {
 	struct leaf *l;
 	struct trie *t = (struct trie *) tb->tb_data;
-	int h = 0;
-	int s_h = cb->args[2];
+	t_key key = cb->args[2];
 
 	rcu_read_lock();
-	for (h = 0, l = trie_firstleaf(t); l != NULL; h++, l = trie_nextleaf(l)) {
-		if (h < s_h)
-			continue;
-
-		if (h > s_h) {
-			cb->args[3] = 0;
-			cb->args[4] = 0;
+	/* Dump starting at last key.
+	 * Note: 0.0.0.0/0 (ie default) is first key.
+	 */
+	if (!key)
+		l = trie_firstleaf(t);
+	else {
+		l = fib_find_node(t, key);
+		if (!l) {
+			/* The table changed during the dump, rather than
+			 * giving partial data, just make application retry.
+			 */
+			rcu_read_unlock();
+			return -EBUSY;
 		}
+	}
 
+	while (l) {
+		cb->args[2] = l->key;
 		if (fn_trie_dump_leaf(l, tb, skb, cb) < 0) {
 			rcu_read_unlock();
-			cb->args[2] = h;
 			return -1;
 		}
+
+		l = trie_nextleaf(l);
+		memset(&cb->args[3], 0,
+		       sizeof(cb->args) - 3*sizeof(cb->args[0]));
 	}
 	rcu_read_unlock();
 
-	cb->args[2] = h;
 	return skb->len;
 }
 
