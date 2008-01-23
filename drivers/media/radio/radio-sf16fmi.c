@@ -321,7 +321,7 @@ static struct isapnp_device_id id_table[] __devinitdata = {
 
 MODULE_DEVICE_TABLE(isapnp, id_table);
 
-static int isapnp_fmi_probe(void)
+static int __init isapnp_fmi_probe(void)
 {
 	int i = 0;
 
