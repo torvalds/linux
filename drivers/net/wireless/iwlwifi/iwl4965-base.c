@@ -7448,7 +7448,7 @@ static int iwl4965_mac_add_interface(struct ieee80211_hw *hw,
 
 	if (priv->vif) {
 		IWL_DEBUG_MAC80211("leave - vif != NULL\n");
-		return 0;
+		return -EOPNOTSUPP;
 	}
 
 	spin_lock_irqsave(&priv->lock, flags);
