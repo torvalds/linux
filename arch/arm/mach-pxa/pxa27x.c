@@ -265,12 +265,6 @@ void pxa27x_cpu_pm_enter(suspend_state_t state)
 {
 	extern void pxa_cpu_standby(void);
 
-	if (state == PM_SUSPEND_STANDBY)
-		CKEN = (1 << CKEN_MEMC) | (1 << CKEN_OSTIMER) |
-			(1 << CKEN_LCD) | (1 << CKEN_PWM0);
-	else
-		CKEN = (1 << CKEN_MEMC) | (1 << CKEN_OSTIMER);
-
 	/* ensure voltage-change sequencer not initiated, which hangs */
 	PCFR &= ~PCFR_FVC;
 
