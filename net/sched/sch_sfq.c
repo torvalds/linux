@@ -397,13 +397,13 @@ static void sfq_perturbation(unsigned long arg)
 		mod_timer(&q->perturb_timer, jiffies + q->perturb_period);
 }
 
-static int sfq_change(struct Qdisc *sch, struct rtattr *opt)
+static int sfq_change(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct sfq_sched_data *q = qdisc_priv(sch);
-	struct tc_sfq_qopt *ctl = RTA_DATA(opt);
+	struct tc_sfq_qopt *ctl = nla_data(opt);
 	unsigned int qlen;
 
-	if (opt->rta_len < RTA_LENGTH(sizeof(*ctl)))
+	if (opt->nla_len < nla_attr_size(sizeof(*ctl)))
 		return -EINVAL;
 
 	sch_tree_lock(sch);
@@ -426,7 +426,7 @@ static int sfq_change(struct Qdisc *sch, struct rtattr *opt)
 	return 0;
 }
 
-static int sfq_init(struct Qdisc *sch, struct rtattr *opt)
+static int sfq_init(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct sfq_sched_data *q = qdisc_priv(sch);
 	int i;
@@ -481,11 +481,11 @@ static int sfq_dump(struct Qdisc *sch, struct sk_buff *skb)
 	opt.divisor = SFQ_HASH_DIVISOR;
 	opt.flows = q->limit;
 
-	RTA_PUT(skb, TCA_OPTIONS, sizeof(opt), &opt);
+	NLA_PUT(skb, TCA_OPTIONS, sizeof(opt), &opt);
 
 	return skb->len;
 
-rtattr_failure:
+nla_put_failure:
 	nlmsg_trim(skb, b);
 	return -1;
 }

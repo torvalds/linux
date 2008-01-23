@@ -159,13 +159,13 @@ skip:
 int gen_new_estimator(struct gnet_stats_basic *bstats,
 		      struct gnet_stats_rate_est *rate_est,
 		      spinlock_t *stats_lock,
-		      struct rtattr *opt)
+		      struct nlattr *opt)
 {
 	struct gen_estimator *est;
-	struct gnet_estimator *parm = RTA_DATA(opt);
+	struct gnet_estimator *parm = nla_data(opt);
 	int idx;
 
-	if (RTA_PAYLOAD(opt) < sizeof(*parm))
+	if (nla_len(opt) < sizeof(*parm))
 		return -EINVAL;
 
 	if (parm->interval < -2 || parm->interval > 3)
@@ -254,7 +254,7 @@ void gen_kill_estimator(struct gnet_stats_basic *bstats,
  */
 int gen_replace_estimator(struct gnet_stats_basic *bstats,
 			  struct gnet_stats_rate_est *rate_est,
-			  spinlock_t *stats_lock, struct rtattr *opt)
+			  spinlock_t *stats_lock, struct nlattr *opt)
 {
 	gen_kill_estimator(bstats, rate_est);
 	return gen_new_estimator(bstats, rate_est, stats_lock, opt);

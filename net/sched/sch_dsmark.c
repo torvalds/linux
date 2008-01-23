@@ -100,11 +100,11 @@ static void dsmark_put(struct Qdisc *sch, unsigned long cl)
 }
 
 static int dsmark_change(struct Qdisc *sch, u32 classid, u32 parent,
-			 struct rtattr **tca, unsigned long *arg)
+			 struct nlattr **tca, unsigned long *arg)
 {
 	struct dsmark_qdisc_data *p = qdisc_priv(sch);
-	struct rtattr *opt = tca[TCA_OPTIONS-1];
-	struct rtattr *tb[TCA_DSMARK_MAX];
+	struct nlattr *opt = tca[TCA_OPTIONS];
+	struct nlattr *tb[TCA_DSMARK_MAX + 1];
 	int err = -EINVAL;
 	u8 mask = 0;
 
@@ -113,24 +113,29 @@ static int dsmark_change(struct Qdisc *sch, u32 classid, u32 parent,
 
 	if (!dsmark_valid_index(p, *arg)) {
 		err = -ENOENT;
-		goto rtattr_failure;
+		goto errout;
 	}
 
-	if (!opt || rtattr_parse_nested(tb, TCA_DSMARK_MAX, opt))
-		goto rtattr_failure;
+	if (!opt || nla_parse_nested(tb, TCA_DSMARK_MAX, opt, NULL))
+		goto errout;
 
-	if (tb[TCA_DSMARK_MASK-1])
-		mask = RTA_GET_U8(tb[TCA_DSMARK_MASK-1]);
+	if (tb[TCA_DSMARK_MASK]) {
+		if (nla_len(tb[TCA_DSMARK_MASK]) < sizeof(u8))
+			goto errout;
+		mask = nla_get_u8(tb[TCA_DSMARK_MASK]);
+	}
+	if (tb[TCA_DSMARK_VALUE]) {
+		if (nla_len(tb[TCA_DSMARK_VALUE]) < sizeof(u8))
+			goto errout;
+		p->value[*arg-1] = nla_get_u8(tb[TCA_DSMARK_VALUE]);
+	}
 
-	if (tb[TCA_DSMARK_VALUE-1])
-		p->value[*arg-1] = RTA_GET_U8(tb[TCA_DSMARK_VALUE-1]);
-
-	if (tb[TCA_DSMARK_MASK-1])
+	if (tb[TCA_DSMARK_MASK])
 		p->mask[*arg-1] = mask;
 
 	err = 0;
 
-rtattr_failure:
+errout:
 	return err;
 }
 
@@ -335,10 +340,10 @@ static unsigned int dsmark_drop(struct Qdisc *sch)
 	return len;
 }
 
-static int dsmark_init(struct Qdisc *sch, struct rtattr *opt)
+static int dsmark_init(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct dsmark_qdisc_data *p = qdisc_priv(sch);
-	struct rtattr *tb[TCA_DSMARK_MAX];
+	struct nlattr *tb[TCA_DSMARK_MAX + 1];
 	int err = -EINVAL;
 	u32 default_index = NO_DEFAULT_INDEX;
 	u16 indices;
@@ -346,16 +351,21 @@ static int dsmark_init(struct Qdisc *sch, struct rtattr *opt)
 
 	pr_debug("dsmark_init(sch %p,[qdisc %p],opt %p)\n", sch, p, opt);
 
-	if (!opt || rtattr_parse_nested(tb, TCA_DSMARK_MAX, opt) < 0)
+	if (!opt || nla_parse_nested(tb, TCA_DSMARK_MAX, opt, NULL) < 0)
 		goto errout;
 
-	indices = RTA_GET_U16(tb[TCA_DSMARK_INDICES-1]);
+	if (nla_len(tb[TCA_DSMARK_INDICES]) < sizeof(u16))
+		goto errout;
+	indices = nla_get_u16(tb[TCA_DSMARK_INDICES]);
 
 	if (hweight32(indices) != 1)
 		goto errout;
 
-	if (tb[TCA_DSMARK_DEFAULT_INDEX-1])
-		default_index = RTA_GET_U16(tb[TCA_DSMARK_DEFAULT_INDEX-1]);
+	if (tb[TCA_DSMARK_DEFAULT_INDEX]) {
+		if (nla_len(tb[TCA_DSMARK_DEFAULT_INDEX]) < sizeof(u16))
+			goto errout;
+		default_index = nla_get_u16(tb[TCA_DSMARK_DEFAULT_INDEX]);
+	}
 
 	mask = kmalloc(indices * 2, GFP_KERNEL);
 	if (mask == NULL) {
@@ -371,7 +381,7 @@ static int dsmark_init(struct Qdisc *sch, struct rtattr *opt)
 
 	p->indices = indices;
 	p->default_index = default_index;
-	p->set_tc_index = RTA_GET_FLAG(tb[TCA_DSMARK_SET_TC_INDEX-1]);
+	p->set_tc_index = nla_get_flag(tb[TCA_DSMARK_SET_TC_INDEX]);
 
 	p->q = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops, sch->handle);
 	if (p->q == NULL)
@@ -381,7 +391,6 @@ static int dsmark_init(struct Qdisc *sch, struct rtattr *opt)
 
 	err = 0;
 errout:
-rtattr_failure:
 	return err;
 }
 
@@ -409,7 +418,7 @@ static int dsmark_dump_class(struct Qdisc *sch, unsigned long cl,
 			     struct sk_buff *skb, struct tcmsg *tcm)
 {
 	struct dsmark_qdisc_data *p = qdisc_priv(sch);
-	struct rtattr *opts = NULL;
+	struct nlattr *opts = NULL;
 
 	pr_debug("dsmark_dump_class(sch %p,[qdisc %p],class %ld\n", sch, p, cl);
 
@@ -419,34 +428,38 @@ static int dsmark_dump_class(struct Qdisc *sch, unsigned long cl,
 	tcm->tcm_handle = TC_H_MAKE(TC_H_MAJ(sch->handle), cl-1);
 	tcm->tcm_info = p->q->handle;
 
-	opts = RTA_NEST(skb, TCA_OPTIONS);
-	RTA_PUT_U8(skb, TCA_DSMARK_MASK, p->mask[cl-1]);
-	RTA_PUT_U8(skb, TCA_DSMARK_VALUE, p->value[cl-1]);
+	opts = nla_nest_start(skb, TCA_OPTIONS);
+	if (opts == NULL)
+		goto nla_put_failure;
+	NLA_PUT_U8(skb, TCA_DSMARK_MASK, p->mask[cl-1]);
+	NLA_PUT_U8(skb, TCA_DSMARK_VALUE, p->value[cl-1]);
 
-	return RTA_NEST_END(skb, opts);
+	return nla_nest_end(skb, opts);
 
-rtattr_failure:
-	return RTA_NEST_CANCEL(skb, opts);
+nla_put_failure:
+	return nla_nest_cancel(skb, opts);
 }
 
 static int dsmark_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct dsmark_qdisc_data *p = qdisc_priv(sch);
-	struct rtattr *opts = NULL;
+	struct nlattr *opts = NULL;
 
-	opts = RTA_NEST(skb, TCA_OPTIONS);
-	RTA_PUT_U16(skb, TCA_DSMARK_INDICES, p->indices);
+	opts = nla_nest_start(skb, TCA_OPTIONS);
+	if (opts == NULL)
+		goto nla_put_failure;
+	NLA_PUT_U16(skb, TCA_DSMARK_INDICES, p->indices);
 
 	if (p->default_index != NO_DEFAULT_INDEX)
-		RTA_PUT_U16(skb, TCA_DSMARK_DEFAULT_INDEX, p->default_index);
+		NLA_PUT_U16(skb, TCA_DSMARK_DEFAULT_INDEX, p->default_index);
 
 	if (p->set_tc_index)
-		RTA_PUT_FLAG(skb, TCA_DSMARK_SET_TC_INDEX);
+		NLA_PUT_FLAG(skb, TCA_DSMARK_SET_TC_INDEX);
 
-	return RTA_NEST_END(skb, opts);
+	return nla_nest_end(skb, opts);
 
-rtattr_failure:
-	return RTA_NEST_CANCEL(skb, opts);
+nla_put_failure:
+	return nla_nest_cancel(skb, opts);
 }
 
 static const struct Qdisc_class_ops dsmark_class_ops = {

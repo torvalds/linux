@@ -992,19 +992,19 @@ static void htb_reset(struct Qdisc *sch)
 		INIT_LIST_HEAD(q->drops + i);
 }
 
-static int htb_init(struct Qdisc *sch, struct rtattr *opt)
+static int htb_init(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct htb_sched *q = qdisc_priv(sch);
-	struct rtattr *tb[TCA_HTB_INIT];
+	struct nlattr *tb[TCA_HTB_INIT + 1];
 	struct tc_htb_glob *gopt;
 	int i;
-	if (!opt || rtattr_parse_nested(tb, TCA_HTB_INIT, opt) ||
-	    tb[TCA_HTB_INIT - 1] == NULL ||
-	    RTA_PAYLOAD(tb[TCA_HTB_INIT - 1]) < sizeof(*gopt)) {
+	if (!opt || nla_parse_nested(tb, TCA_HTB_INIT, opt, NULL) ||
+	    tb[TCA_HTB_INIT] == NULL ||
+	    nla_len(tb[TCA_HTB_INIT]) < sizeof(*gopt)) {
 		printk(KERN_ERR "HTB: hey probably you have bad tc tool ?\n");
 		return -EINVAL;
 	}
-	gopt = RTA_DATA(tb[TCA_HTB_INIT - 1]);
+	gopt = nla_data(tb[TCA_HTB_INIT]);
 	if (gopt->version != HTB_VER >> 16) {
 		printk(KERN_ERR
 		       "HTB: need tc/htb version %d (minor is %d), you have %d\n",
@@ -1036,7 +1036,7 @@ static int htb_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct htb_sched *q = qdisc_priv(sch);
 	unsigned char *b = skb_tail_pointer(skb);
-	struct rtattr *rta;
+	struct nlattr *nla;
 	struct tc_htb_glob gopt;
 	spin_lock_bh(&sch->dev->queue_lock);
 	gopt.direct_pkts = q->direct_pkts;
@@ -1045,13 +1045,13 @@ static int htb_dump(struct Qdisc *sch, struct sk_buff *skb)
 	gopt.rate2quantum = q->rate2quantum;
 	gopt.defcls = q->defcls;
 	gopt.debug = 0;
-	rta = (struct rtattr *)b;
-	RTA_PUT(skb, TCA_OPTIONS, 0, NULL);
-	RTA_PUT(skb, TCA_HTB_INIT, sizeof(gopt), &gopt);
-	rta->rta_len = skb_tail_pointer(skb) - b;
+	nla = (struct nlattr *)b;
+	NLA_PUT(skb, TCA_OPTIONS, 0, NULL);
+	NLA_PUT(skb, TCA_HTB_INIT, sizeof(gopt), &gopt);
+	nla->nla_len = skb_tail_pointer(skb) - b;
 	spin_unlock_bh(&sch->dev->queue_lock);
 	return skb->len;
-rtattr_failure:
+nla_put_failure:
 	spin_unlock_bh(&sch->dev->queue_lock);
 	nlmsg_trim(skb, skb_tail_pointer(skb));
 	return -1;
@@ -1062,7 +1062,7 @@ static int htb_dump_class(struct Qdisc *sch, unsigned long arg,
 {
 	struct htb_class *cl = (struct htb_class *)arg;
 	unsigned char *b = skb_tail_pointer(skb);
-	struct rtattr *rta;
+	struct nlattr *nla;
 	struct tc_htb_opt opt;
 
 	spin_lock_bh(&sch->dev->queue_lock);
@@ -1071,8 +1071,8 @@ static int htb_dump_class(struct Qdisc *sch, unsigned long arg,
 	if (!cl->level && cl->un.leaf.q)
 		tcm->tcm_info = cl->un.leaf.q->handle;
 
-	rta = (struct rtattr *)b;
-	RTA_PUT(skb, TCA_OPTIONS, 0, NULL);
+	nla = (struct nlattr *)b;
+	NLA_PUT(skb, TCA_OPTIONS, 0, NULL);
 
 	memset(&opt, 0, sizeof(opt));
 
@@ -1083,11 +1083,11 @@ static int htb_dump_class(struct Qdisc *sch, unsigned long arg,
 	opt.quantum = cl->un.leaf.quantum;
 	opt.prio = cl->un.leaf.prio;
 	opt.level = cl->level;
-	RTA_PUT(skb, TCA_HTB_PARMS, sizeof(opt), &opt);
-	rta->rta_len = skb_tail_pointer(skb) - b;
+	NLA_PUT(skb, TCA_HTB_PARMS, sizeof(opt), &opt);
+	nla->nla_len = skb_tail_pointer(skb) - b;
 	spin_unlock_bh(&sch->dev->queue_lock);
 	return skb->len;
-rtattr_failure:
+nla_put_failure:
 	spin_unlock_bh(&sch->dev->queue_lock);
 	nlmsg_trim(skb, b);
 	return -1;
@@ -1290,29 +1290,29 @@ static void htb_put(struct Qdisc *sch, unsigned long arg)
 }
 
 static int htb_change_class(struct Qdisc *sch, u32 classid,
-			    u32 parentid, struct rtattr **tca,
+			    u32 parentid, struct nlattr **tca,
 			    unsigned long *arg)
 {
 	int err = -EINVAL;
 	struct htb_sched *q = qdisc_priv(sch);
 	struct htb_class *cl = (struct htb_class *)*arg, *parent;
-	struct rtattr *opt = tca[TCA_OPTIONS - 1];
+	struct nlattr *opt = tca[TCA_OPTIONS];
 	struct qdisc_rate_table *rtab = NULL, *ctab = NULL;
-	struct rtattr *tb[TCA_HTB_RTAB];
+	struct nlattr *tb[TCA_HTB_RTAB + 1];
 	struct tc_htb_opt *hopt;
 
 	/* extract all subattrs from opt attr */
-	if (!opt || rtattr_parse_nested(tb, TCA_HTB_RTAB, opt) ||
-	    tb[TCA_HTB_PARMS - 1] == NULL ||
-	    RTA_PAYLOAD(tb[TCA_HTB_PARMS - 1]) < sizeof(*hopt))
+	if (!opt || nla_parse_nested(tb, TCA_HTB_RTAB, opt, NULL) ||
+	    tb[TCA_HTB_PARMS] == NULL ||
+	    nla_len(tb[TCA_HTB_PARMS]) < sizeof(*hopt))
 		goto failure;
 
 	parent = parentid == TC_H_ROOT ? NULL : htb_find(parentid, sch);
 
-	hopt = RTA_DATA(tb[TCA_HTB_PARMS - 1]);
+	hopt = nla_data(tb[TCA_HTB_PARMS]);
 
-	rtab = qdisc_get_rtab(&hopt->rate, tb[TCA_HTB_RTAB - 1]);
-	ctab = qdisc_get_rtab(&hopt->ceil, tb[TCA_HTB_CTAB - 1]);
+	rtab = qdisc_get_rtab(&hopt->rate, tb[TCA_HTB_RTAB]);
+	ctab = qdisc_get_rtab(&hopt->ceil, tb[TCA_HTB_CTAB]);
 	if (!rtab || !ctab)
 		goto failure;
 
@@ -1320,12 +1320,12 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 		struct Qdisc *new_q;
 		int prio;
 		struct {
-			struct rtattr		rta;
+			struct nlattr		nla;
 			struct gnet_estimator	opt;
 		} est = {
-			.rta = {
-				.rta_len	= RTA_LENGTH(sizeof(est.opt)),
-				.rta_type	= TCA_RATE,
+			.nla = {
+				.nla_len	= nla_attr_size(sizeof(est.opt)),
+				.nla_type	= TCA_RATE,
 			},
 			.opt = {
 				/* 4s interval, 16s averaging constant */
@@ -1350,7 +1350,7 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 
 		gen_new_estimator(&cl->bstats, &cl->rate_est,
 				  &sch->dev->queue_lock,
-				  tca[TCA_RATE-1] ? : &est.rta);
+				  tca[TCA_RATE] ? : &est.nla);
 		cl->refcnt = 1;
 		INIT_LIST_HEAD(&cl->sibling);
 		INIT_HLIST_NODE(&cl->hlist);
@@ -1403,10 +1403,10 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 		list_add_tail(&cl->sibling,
 			      parent ? &parent->children : &q->root);
 	} else {
-		if (tca[TCA_RATE-1])
+		if (tca[TCA_RATE])
 			gen_replace_estimator(&cl->bstats, &cl->rate_est,
 					      &sch->dev->queue_lock,
-					      tca[TCA_RATE-1]);
+					      tca[TCA_RATE]);
 		sch_tree_lock(sch);
 	}
 

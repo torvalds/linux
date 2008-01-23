@@ -245,20 +245,21 @@ static void tbf_reset(struct Qdisc* sch)
 static struct Qdisc *tbf_create_dflt_qdisc(struct Qdisc *sch, u32 limit)
 {
 	struct Qdisc *q;
-	struct rtattr *rta;
+	struct nlattr *nla;
 	int ret;
 
 	q = qdisc_create_dflt(sch->dev, &bfifo_qdisc_ops,
 			      TC_H_MAKE(sch->handle, 1));
 	if (q) {
-		rta = kmalloc(RTA_LENGTH(sizeof(struct tc_fifo_qopt)), GFP_KERNEL);
-		if (rta) {
-			rta->rta_type = RTM_NEWQDISC;
-			rta->rta_len = RTA_LENGTH(sizeof(struct tc_fifo_qopt));
-			((struct tc_fifo_qopt *)RTA_DATA(rta))->limit = limit;
+		nla = kmalloc(nla_attr_size(sizeof(struct tc_fifo_qopt)),
+			      GFP_KERNEL);
+		if (nla) {
+			nla->nla_type = RTM_NEWQDISC;
+			nla->nla_len = nla_attr_size(sizeof(struct tc_fifo_qopt));
+			((struct tc_fifo_qopt *)nla_data(nla))->limit = limit;
 
-			ret = q->ops->change(q, rta);
-			kfree(rta);
+			ret = q->ops->change(q, nla);
+			kfree(nla);
 
 			if (ret == 0)
 				return q;
@@ -269,30 +270,30 @@ static struct Qdisc *tbf_create_dflt_qdisc(struct Qdisc *sch, u32 limit)
 	return NULL;
 }
 
-static int tbf_change(struct Qdisc* sch, struct rtattr *opt)
+static int tbf_change(struct Qdisc* sch, struct nlattr *opt)
 {
 	int err = -EINVAL;
 	struct tbf_sched_data *q = qdisc_priv(sch);
-	struct rtattr *tb[TCA_TBF_PTAB];
+	struct nlattr *tb[TCA_TBF_PTAB + 1];
 	struct tc_tbf_qopt *qopt;
 	struct qdisc_rate_table *rtab = NULL;
 	struct qdisc_rate_table *ptab = NULL;
 	struct Qdisc *child = NULL;
 	int max_size,n;
 
-	if (rtattr_parse_nested(tb, TCA_TBF_PTAB, opt) ||
-	    tb[TCA_TBF_PARMS-1] == NULL ||
-	    RTA_PAYLOAD(tb[TCA_TBF_PARMS-1]) < sizeof(*qopt))
+	if (nla_parse_nested(tb, TCA_TBF_PTAB, opt, NULL) ||
+	    tb[TCA_TBF_PARMS] == NULL ||
+	    nla_len(tb[TCA_TBF_PARMS]) < sizeof(*qopt))
 		goto done;
 
-	qopt = RTA_DATA(tb[TCA_TBF_PARMS-1]);
-	rtab = qdisc_get_rtab(&qopt->rate, tb[TCA_TBF_RTAB-1]);
+	qopt = nla_data(tb[TCA_TBF_PARMS]);
+	rtab = qdisc_get_rtab(&qopt->rate, tb[TCA_TBF_RTAB]);
 	if (rtab == NULL)
 		goto done;
 
 	if (qopt->peakrate.rate) {
 		if (qopt->peakrate.rate > qopt->rate.rate)
-			ptab = qdisc_get_rtab(&qopt->peakrate, tb[TCA_TBF_PTAB-1]);
+			ptab = qdisc_get_rtab(&qopt->peakrate, tb[TCA_TBF_PTAB]);
 		if (ptab == NULL)
 			goto done;
 	}
@@ -339,7 +340,7 @@ done:
 	return err;
 }
 
-static int tbf_init(struct Qdisc* sch, struct rtattr *opt)
+static int tbf_init(struct Qdisc* sch, struct nlattr *opt)
 {
 	struct tbf_sched_data *q = qdisc_priv(sch);
 
@@ -371,11 +372,11 @@ static int tbf_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct tbf_sched_data *q = qdisc_priv(sch);
 	unsigned char *b = skb_tail_pointer(skb);
-	struct rtattr *rta;
+	struct nlattr *nla;
 	struct tc_tbf_qopt opt;
 
-	rta = (struct rtattr*)b;
-	RTA_PUT(skb, TCA_OPTIONS, 0, NULL);
+	nla = (struct nlattr*)b;
+	NLA_PUT(skb, TCA_OPTIONS, 0, NULL);
 
 	opt.limit = q->limit;
 	opt.rate = q->R_tab->rate;
@@ -385,12 +386,12 @@ static int tbf_dump(struct Qdisc *sch, struct sk_buff *skb)
 		memset(&opt.peakrate, 0, sizeof(opt.peakrate));
 	opt.mtu = q->mtu;
 	opt.buffer = q->buffer;
-	RTA_PUT(skb, TCA_TBF_PARMS, sizeof(opt), &opt);
-	rta->rta_len = skb_tail_pointer(skb) - b;
+	NLA_PUT(skb, TCA_TBF_PARMS, sizeof(opt), &opt);
+	nla->nla_len = skb_tail_pointer(skb) - b;
 
 	return skb->len;
 
-rtattr_failure:
+nla_put_failure:
 	nlmsg_trim(skb, b);
 	return -1;
 }
@@ -442,7 +443,7 @@ static void tbf_put(struct Qdisc *sch, unsigned long arg)
 }
 
 static int tbf_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
-			    struct rtattr **tca, unsigned long *arg)
+			    struct nlattr **tca, unsigned long *arg)
 {
 	return -ENOSYS;
 }

@@ -297,16 +297,16 @@ static void wme_qdiscop_destroy(struct Qdisc* qd)
 
 
 /* called whenever parameters are updated on existing qdisc */
-static int wme_qdiscop_tune(struct Qdisc *qd, struct rtattr *opt)
+static int wme_qdiscop_tune(struct Qdisc *qd, struct nlattr *opt)
 {
 /*	struct ieee80211_sched_data *q = qdisc_priv(qd);
 */
 	/* check our options block is the right size */
 	/* copy any options to our local structure */
 /*	Ignore options block for now - always use static mapping
-	struct tc_ieee80211_qopt *qopt = RTA_DATA(opt);
+	struct tc_ieee80211_qopt *qopt = nla_data(opt);
 
-	if (opt->rta_len < RTA_LENGTH(sizeof(*qopt)))
+	if (opt->nla_len < nla_attr_size(sizeof(*qopt)))
 		return -EINVAL;
 	memcpy(q->tag2queue, qopt->tag2queue, sizeof(qopt->tag2queue));
 */
@@ -315,7 +315,7 @@ static int wme_qdiscop_tune(struct Qdisc *qd, struct rtattr *opt)
 
 
 /* called during initial creation of qdisc on device */
-static int wme_qdiscop_init(struct Qdisc *qd, struct rtattr *opt)
+static int wme_qdiscop_init(struct Qdisc *qd, struct nlattr *opt)
 {
 	struct ieee80211_sched_data *q = qdisc_priv(qd);
 	struct net_device *dev = qd->dev;
@@ -370,10 +370,10 @@ static int wme_qdiscop_dump(struct Qdisc *qd, struct sk_buff *skb)
 	struct tc_ieee80211_qopt opt;
 
 	memcpy(&opt.tag2queue, q->tag2queue, TC_80211_MAX_TAG + 1);
-	RTA_PUT(skb, TCA_OPTIONS, sizeof(opt), &opt);
+	NLA_PUT(skb, TCA_OPTIONS, sizeof(opt), &opt);
 */	return skb->len;
 /*
-rtattr_failure:
+nla_put_failure:
 	skb_trim(skb, p - skb->data);*/
 	return -1;
 }
@@ -444,7 +444,7 @@ static void wme_classop_put(struct Qdisc *q, unsigned long cl)
 
 
 static int wme_classop_change(struct Qdisc *qd, u32 handle, u32 parent,
-			      struct rtattr **tca, unsigned long *arg)
+			      struct nlattr **tca, unsigned long *arg)
 {
 	unsigned long cl = *arg;
 	struct ieee80211_local *local = wdev_priv(qd->dev->ieee80211_ptr);

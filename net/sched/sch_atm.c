@@ -196,13 +196,13 @@ static const u8 llc_oui_ip[] = {
 };				/* Ethertype IP (0800) */
 
 static int atm_tc_change(struct Qdisc *sch, u32 classid, u32 parent,
-			 struct rtattr **tca, unsigned long *arg)
+			 struct nlattr **tca, unsigned long *arg)
 {
 	struct atm_qdisc_data *p = qdisc_priv(sch);
 	struct atm_flow_data *flow = (struct atm_flow_data *)*arg;
 	struct atm_flow_data *excess = NULL;
-	struct rtattr *opt = tca[TCA_OPTIONS - 1];
-	struct rtattr *tb[TCA_ATM_MAX];
+	struct nlattr *opt = tca[TCA_OPTIONS];
+	struct nlattr *tb[TCA_ATM_MAX + 1];
 	struct socket *sock;
 	int fd, error, hdr_len;
 	void *hdr;
@@ -223,31 +223,31 @@ static int atm_tc_change(struct Qdisc *sch, u32 classid, u32 parent,
 	 */
 	if (flow)
 		return -EBUSY;
-	if (opt == NULL || rtattr_parse_nested(tb, TCA_ATM_MAX, opt))
+	if (opt == NULL || nla_parse_nested(tb, TCA_ATM_MAX, opt, NULL))
 		return -EINVAL;
-	if (!tb[TCA_ATM_FD - 1] || RTA_PAYLOAD(tb[TCA_ATM_FD - 1]) < sizeof(fd))
+	if (!tb[TCA_ATM_FD] || nla_len(tb[TCA_ATM_FD]) < sizeof(fd))
 		return -EINVAL;
-	fd = *(int *)RTA_DATA(tb[TCA_ATM_FD - 1]);
+	fd = *(int *)nla_data(tb[TCA_ATM_FD]);
 	pr_debug("atm_tc_change: fd %d\n", fd);
-	if (tb[TCA_ATM_HDR - 1]) {
-		hdr_len = RTA_PAYLOAD(tb[TCA_ATM_HDR - 1]);
-		hdr = RTA_DATA(tb[TCA_ATM_HDR - 1]);
+	if (tb[TCA_ATM_HDR]) {
+		hdr_len = nla_len(tb[TCA_ATM_HDR]);
+		hdr = nla_data(tb[TCA_ATM_HDR]);
 	} else {
 		hdr_len = RFC1483LLC_LEN;
 		hdr = NULL;	/* default LLC/SNAP for IP */
 	}
-	if (!tb[TCA_ATM_EXCESS - 1])
+	if (!tb[TCA_ATM_EXCESS])
 		excess = NULL;
 	else {
-		if (RTA_PAYLOAD(tb[TCA_ATM_EXCESS - 1]) != sizeof(u32))
+		if (nla_len(tb[TCA_ATM_EXCESS]) != sizeof(u32))
 			return -EINVAL;
 		excess = (struct atm_flow_data *)
-			atm_tc_get(sch, *(u32 *)RTA_DATA(tb[TCA_ATM_EXCESS - 1]));
+			atm_tc_get(sch, *(u32 *)nla_data(tb[TCA_ATM_EXCESS]));
 		if (!excess)
 			return -ENOENT;
 	}
 	pr_debug("atm_tc_change: type %d, payload %lu, hdr_len %d\n",
-		 opt->rta_type, RTA_PAYLOAD(opt), hdr_len);
+		 opt->nla_type, nla_len(opt), hdr_len);
 	sock = sockfd_lookup(fd, &error);
 	if (!sock)
 		return error;	/* f_count++ */
@@ -541,7 +541,7 @@ static unsigned int atm_tc_drop(struct Qdisc *sch)
 	return 0;
 }
 
-static int atm_tc_init(struct Qdisc *sch, struct rtattr *opt)
+static int atm_tc_init(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct atm_qdisc_data *p = qdisc_priv(sch);
 
@@ -602,7 +602,7 @@ static int atm_tc_dump_class(struct Qdisc *sch, unsigned long cl,
 	struct atm_qdisc_data *p = qdisc_priv(sch);
 	struct atm_flow_data *flow = (struct atm_flow_data *)cl;
 	unsigned char *b = skb_tail_pointer(skb);
-	struct rtattr *rta;
+	struct nlattr *nla;
 
 	pr_debug("atm_tc_dump_class(sch %p,[qdisc %p],flow %p,skb %p,tcm %p)\n",
 		sch, p, flow, skb, tcm);
@@ -610,9 +610,9 @@ static int atm_tc_dump_class(struct Qdisc *sch, unsigned long cl,
 		return -EINVAL;
 	tcm->tcm_handle = flow->classid;
 	tcm->tcm_info = flow->q->handle;
-	rta = (struct rtattr *)b;
-	RTA_PUT(skb, TCA_OPTIONS, 0, NULL);
-	RTA_PUT(skb, TCA_ATM_HDR, flow->hdr_len, flow->hdr);
+	nla = (struct nlattr *)b;
+	NLA_PUT(skb, TCA_OPTIONS, 0, NULL);
+	NLA_PUT(skb, TCA_ATM_HDR, flow->hdr_len, flow->hdr);
 	if (flow->vcc) {
 		struct sockaddr_atmpvc pvc;
 		int state;
@@ -621,21 +621,21 @@ static int atm_tc_dump_class(struct Qdisc *sch, unsigned long cl,
 		pvc.sap_addr.itf = flow->vcc->dev ? flow->vcc->dev->number : -1;
 		pvc.sap_addr.vpi = flow->vcc->vpi;
 		pvc.sap_addr.vci = flow->vcc->vci;
-		RTA_PUT(skb, TCA_ATM_ADDR, sizeof(pvc), &pvc);
+		NLA_PUT(skb, TCA_ATM_ADDR, sizeof(pvc), &pvc);
 		state = ATM_VF2VS(flow->vcc->flags);
-		RTA_PUT(skb, TCA_ATM_STATE, sizeof(state), &state);
+		NLA_PUT(skb, TCA_ATM_STATE, sizeof(state), &state);
 	}
 	if (flow->excess)
-		RTA_PUT(skb, TCA_ATM_EXCESS, sizeof(u32), &flow->classid);
+		NLA_PUT(skb, TCA_ATM_EXCESS, sizeof(u32), &flow->classid);
 	else {
 		static u32 zero;
 
-		RTA_PUT(skb, TCA_ATM_EXCESS, sizeof(zero), &zero);
+		NLA_PUT(skb, TCA_ATM_EXCESS, sizeof(zero), &zero);
 	}
-	rta->rta_len = skb_tail_pointer(skb) - b;
+	nla->nla_len = skb_tail_pointer(skb) - b;
 	return skb->len;
 
-rtattr_failure:
+nla_put_failure:
 	nlmsg_trim(skb, b);
 	return -1;
 }

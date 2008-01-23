@@ -12,6 +12,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/random.h>
 #include <net/gen_stats.h>
+#include <net/netlink.h>
 
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter/xt_RATEEST.h>
@@ -98,7 +99,7 @@ xt_rateest_tg_checkentry(const char *tablename,
 	struct xt_rateest_target_info *info = (void *)targinfo;
 	struct xt_rateest *est;
 	struct {
-		struct rtattr		opt;
+		struct nlattr		opt;
 		struct gnet_estimator	est;
 	} cfg;
 
@@ -128,8 +129,8 @@ xt_rateest_tg_checkentry(const char *tablename,
 	est->params.interval	= info->interval;
 	est->params.ewma_log	= info->ewma_log;
 
-	cfg.opt.rta_len		= RTA_LENGTH(sizeof(cfg.est));
-	cfg.opt.rta_type	= TCA_STATS_RATE_EST;
+	cfg.opt.nla_len		= nla_attr_size(sizeof(cfg.est));
+	cfg.opt.nla_type	= TCA_STATS_RATE_EST;
 	cfg.est.interval	= info->interval;
 	cfg.est.ewma_log	= info->ewma_log;
 

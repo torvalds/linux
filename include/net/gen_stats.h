@@ -10,7 +10,7 @@ struct gnet_dump
 {
 	spinlock_t *      lock;
 	struct sk_buff *  skb;
-	struct rtattr *   tail;
+	struct nlattr *   tail;
 
 	/* Backward compatability */
 	int               compat_tc_stats;
@@ -39,11 +39,11 @@ extern int gnet_stats_finish_copy(struct gnet_dump *d);
 
 extern int gen_new_estimator(struct gnet_stats_basic *bstats,
 			     struct gnet_stats_rate_est *rate_est,
-			     spinlock_t *stats_lock, struct rtattr *opt);
+			     spinlock_t *stats_lock, struct nlattr *opt);
 extern void gen_kill_estimator(struct gnet_stats_basic *bstats,
 			       struct gnet_stats_rate_est *rate_est);
 extern int gen_replace_estimator(struct gnet_stats_basic *bstats,
 				 struct gnet_stats_rate_est *rate_est,
-				 spinlock_t *stats_lock, struct rtattr *opt);
+				 spinlock_t *stats_lock, struct nlattr *opt);
 
 #endif

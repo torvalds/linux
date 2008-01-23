@@ -174,12 +174,12 @@ static int tcf_act_police_locate(struct rtattr *rta, struct rtattr *est,
 override:
 	if (parm->rate.rate) {
 		err = -ENOMEM;
-		R_tab = qdisc_get_rtab(&parm->rate, tb[TCA_POLICE_RATE-1]);
+		R_tab = qdisc_get_rtab(&parm->rate, (struct nlattr *)tb[TCA_POLICE_RATE-1]);
 		if (R_tab == NULL)
 			goto failure;
 		if (parm->peakrate.rate) {
 			P_tab = qdisc_get_rtab(&parm->peakrate,
-					       tb[TCA_POLICE_PEAKRATE-1]);
+					       (struct nlattr *)tb[TCA_POLICE_PEAKRATE-1]);
 			if (P_tab == NULL) {
 				qdisc_put_rtab(R_tab);
 				goto failure;
@@ -216,7 +216,7 @@ override:
 	if (est)
 		gen_replace_estimator(&police->tcf_bstats,
 				      &police->tcf_rate_est,
-				      &police->tcf_lock, est);
+				      &police->tcf_lock, (struct nlattr *)est);
 
 	spin_unlock_bh(&police->tcf_lock);
 	if (ret != ACT_P_CREATED)

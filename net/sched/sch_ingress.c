@@ -57,7 +57,7 @@ static void ingress_put(struct Qdisc *sch, unsigned long cl)
 }
 
 static int ingress_change(struct Qdisc *sch, u32 classid, u32 parent,
-			  struct rtattr **tca, unsigned long *arg)
+			  struct nlattr **tca, unsigned long *arg)
 {
 	return 0;
 }
@@ -156,7 +156,7 @@ static struct nf_hook_ops ing_ops[] __read_mostly = {
 };
 #endif
 
-static int ingress_init(struct Qdisc *sch, struct rtattr *opt)
+static int ingress_init(struct Qdisc *sch, struct nlattr *opt)
 {
 #if !defined(CONFIG_NET_CLS_ACT) && defined(CONFIG_NETFILTER)
 	printk("Ingress scheduler: Classifier actions prefered over netfilter\n");
@@ -184,14 +184,14 @@ static void ingress_destroy(struct Qdisc *sch)
 static int ingress_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	unsigned char *b = skb_tail_pointer(skb);
-	struct rtattr *rta;
+	struct nlattr *nla;
 
-	rta = (struct rtattr *)b;
-	RTA_PUT(skb, TCA_OPTIONS, 0, NULL);
-	rta->rta_len = skb_tail_pointer(skb) - b;
+	nla = (struct nlattr *)b;
+	NLA_PUT(skb, TCA_OPTIONS, 0, NULL);
+	nla->nla_len = skb_tail_pointer(skb) - b;
 	return skb->len;
 
-rtattr_failure:
+nla_put_failure:
 	nlmsg_trim(skb, b);
 	return -1;
 }

@@ -227,7 +227,7 @@ struct tcf_common *tcf_hash_create(u32 index, struct rtattr *est, struct tc_acti
 	p->tcfc_tm.lastuse = jiffies;
 	if (est)
 		gen_new_estimator(&p->tcfc_bstats, &p->tcfc_rate_est,
-				  &p->tcfc_lock, est);
+				  &p->tcfc_lock, (struct nlattr *)est);
 	a->priv = (void *) p;
 	return p;
 }
