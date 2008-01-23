@@ -932,7 +932,7 @@ static int __devinit NCR5380_init(struct Scsi_Host *instance, int flags)
  *	@instance: adapter to remove
  */
 
-static void __devexit NCR5380_exit(struct Scsi_Host *instance)
+static void NCR5380_exit(struct Scsi_Host *instance)
 {
 	struct NCR5380_hostdata *hostdata = (struct NCR5380_hostdata *) instance->hostdata;
 
