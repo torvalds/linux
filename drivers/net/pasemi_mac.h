@@ -96,6 +96,8 @@ struct pasemi_mac_buffer {
 /* MAC CFG register offsets */
 enum {
 	PAS_MAC_CFG_PCFG = 0x80,
+	PAS_MAC_CFG_ADR0 = 0x8c,
+	PAS_MAC_CFG_ADR1 = 0x90,
 	PAS_MAC_CFG_TXP = 0x98,
 	PAS_MAC_IPC_CHNL = 0x208,
 };

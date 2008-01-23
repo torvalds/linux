@@ -221,6 +221,33 @@ static int pasemi_get_mac_addr(struct pasemi_mac *mac)
 	return 0;
 }
 
+static int pasemi_mac_set_mac_addr(struct net_device *dev, void *p)
+{
+	struct pasemi_mac *mac = netdev_priv(dev);
+	struct sockaddr *addr = p;
+	unsigned int adr0, adr1;
+
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EINVAL;
+
+	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+
+	adr0 = dev->dev_addr[2] << 24 |
+	       dev->dev_addr[3] << 16 |
+	       dev->dev_addr[4] << 8 |
+	       dev->dev_addr[5];
+	adr1 = read_mac_reg(mac, PAS_MAC_CFG_ADR1);
+	adr1 &= ~0xffff;
+	adr1 |= dev->dev_addr[0] << 8 | dev->dev_addr[1];
+
+	pasemi_mac_intf_disable(mac);
+	write_mac_reg(mac, PAS_MAC_CFG_ADR0, adr0);
+	write_mac_reg(mac, PAS_MAC_CFG_ADR1, adr1);
+	pasemi_mac_intf_enable(mac);
+
+	return 0;
+}
+
 static int get_skb_hdr(struct sk_buff *skb, void **iphdr,
 		       void **tcph, u64 *hdr_flags, void *data)
 {
@@ -1475,6 +1502,7 @@ pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->stop = pasemi_mac_close;
 	dev->hard_start_xmit = pasemi_mac_start_tx;
 	dev->set_multicast_list = pasemi_mac_set_rx_mode;
+	dev->set_mac_address = pasemi_mac_set_mac_addr;
 
 	if (err)
 		goto out;
