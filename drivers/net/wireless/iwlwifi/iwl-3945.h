@@ -790,7 +790,6 @@ struct iwl3945_priv {
 	u16 active_rate_basic;
 
 	u8 call_post_assoc_from_beacon;
-	u8 assoc_station_added;
 	/* Rate scaling data */
 	s8 data_retry_limit;
 	u8 retry_rate;

@@ -2933,8 +2933,10 @@ static int iwl4965_tx_skb(struct iwl4965_priv *priv,
 #endif
 
 	/* drop all data frame if we are not associated */
-	if (!iwl4965_is_associated(priv) && !priv->assoc_id &&
-	    ((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA)) {
+	if (((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA) &&
+	   (!iwl4965_is_associated(priv) ||
+	    !priv->assoc_id ||
+	    !priv->assoc_station_added)) {
 		IWL_DEBUG_DROP("Dropping - !iwl4965_is_associated\n");
 		goto drop_unlock;
 	}
