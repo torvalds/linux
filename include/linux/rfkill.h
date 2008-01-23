@@ -33,11 +33,13 @@
  * RFKILL_TYPE_WLAN: switch is on a 802.11 wireless network device.
  * RFKILL_TYPE_BLUETOOTH: switch is on a bluetooth device.
  * RFKILL_TYPE_UWB: switch is on a ultra wideband device.
+ * RFKILL_TYPE_WIMAX: switch is on a WiMAX device.
  */
 enum rfkill_type {
 	RFKILL_TYPE_WLAN ,
 	RFKILL_TYPE_BLUETOOTH,
 	RFKILL_TYPE_UWB,
+	RFKILL_TYPE_WIMAX,
 	RFKILL_TYPE_MAX,
 };
 

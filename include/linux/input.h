@@ -371,6 +371,8 @@ struct input_absinfo {
 #define KEY_BRIGHTNESS_ZERO	244	/* brightness off, use ambient */
 #define KEY_DISPLAY_OFF		245	/* display device to off state */
 
+#define KEY_WIMAX		246
+
 #define BTN_MISC		0x100
 #define BTN_0			0x100
 #define BTN_1			0x101

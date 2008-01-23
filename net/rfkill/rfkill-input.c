@@ -84,6 +84,7 @@ static void rfkill_schedule_toggle(struct rfkill_task *task)
 static DEFINE_RFKILL_TASK(rfkill_wlan, RFKILL_TYPE_WLAN);
 static DEFINE_RFKILL_TASK(rfkill_bt, RFKILL_TYPE_BLUETOOTH);
 static DEFINE_RFKILL_TASK(rfkill_uwb, RFKILL_TYPE_UWB);
+static DEFINE_RFKILL_TASK(rfkill_wimax, RFKILL_TYPE_WIMAX);
 
 static void rfkill_event(struct input_handle *handle, unsigned int type,
 			unsigned int code, int down)
@@ -98,6 +99,9 @@ static void rfkill_event(struct input_handle *handle, unsigned int type,
 			break;
 		case KEY_UWB:
 			rfkill_schedule_toggle(&rfkill_uwb);
+			break;
+		case KEY_WIMAX:
+			rfkill_schedule_toggle(&rfkill_wimax);
 			break;
 		default:
 			break;
@@ -158,6 +162,11 @@ static const struct input_device_id rfkill_ids[] = {
 		.flags = INPUT_DEVICE_ID_MATCH_EVBIT | INPUT_DEVICE_ID_MATCH_KEYBIT,
 		.evbit = { BIT_MASK(EV_KEY) },
 		.keybit = { [BIT_WORD(KEY_UWB)] = BIT_MASK(KEY_UWB) },
+	},
+	{
+		.flags = INPUT_DEVICE_ID_MATCH_EVBIT | INPUT_DEVICE_ID_MATCH_KEYBIT,
+		.evbit = { BIT_MASK(EV_KEY) },
+		.keybit = { [BIT_WORD(KEY_WIMAX)] = BIT_MASK(KEY_WIMAX) },
 	},
 	{ }
 };
