@@ -1746,7 +1746,7 @@ static void ata_eh_link_autopsy(struct ata_link *link)
 		ata_eh_analyze_serror(link);
 	} else if (rc != -EOPNOTSUPP) {
 		/* SError read failed, force reset and probing */
-		ata_ehi_schedule_probe(&ehc->i);
+		ehc->i.probe_mask |= ATA_ALL_DEVICES;
 		ehc->i.action |= ATA_EH_RESET;
 		ehc->i.err_mask |= AC_ERR_OTHER;
 	}

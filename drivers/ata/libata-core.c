@@ -7156,8 +7156,7 @@ int ata_host_register(struct ata_host *host, struct scsi_host_template *sht)
 			/* kick EH for boot probing */
 			spin_lock_irqsave(ap->lock, flags);
 
-			ehi->probe_mask =
-				(1 << ata_link_max_devices(&ap->link)) - 1;
+			ehi->probe_mask |= ATA_ALL_DEVICES;
 			ehi->action |= ATA_EH_RESET;
 			ehi->flags |= ATA_EHI_NO_AUTOPSY | ATA_EHI_QUIET;
 

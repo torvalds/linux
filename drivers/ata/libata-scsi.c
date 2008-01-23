@@ -3507,7 +3507,7 @@ static int ata_scsi_user_scan(struct Scsi_Host *shost, unsigned int channel,
 
 		ata_port_for_each_link(link, ap) {
 			struct ata_eh_info *ehi = &link->eh_info;
-			ehi->probe_mask |= (1 << ata_link_max_devices(link)) - 1;
+			ehi->probe_mask |= ATA_ALL_DEVICES;
 			ehi->action |= ATA_EH_RESET;
 		}
 	} else {

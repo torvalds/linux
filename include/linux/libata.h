@@ -122,6 +122,8 @@ enum {
 
 	ATAPI_MAX_DRAIN		= 16 << 10,
 
+	ATA_ALL_DEVICES		= (1 << ATA_MAX_DEVICES) - 1,
+
 	ATA_SHT_EMULATED	= 1,
 	ATA_SHT_CMD_PER_LUN	= 1,
 	ATA_SHT_THIS_ID		= -1,
@@ -1089,17 +1091,11 @@ extern void ata_ehi_push_desc(struct ata_eh_info *ehi, const char *fmt, ...)
 	__attribute__ ((format (printf, 2, 3)));
 extern void ata_ehi_clear_desc(struct ata_eh_info *ehi);
 
-static inline void ata_ehi_schedule_probe(struct ata_eh_info *ehi)
-{
-	ehi->action |= ATA_EH_RESET;
-	ehi->probe_mask |= (1 << ATA_MAX_DEVICES) - 1;
-}
-
 static inline void ata_ehi_hotplugged(struct ata_eh_info *ehi)
 {
-	ata_ehi_schedule_probe(ehi);
+	ehi->probe_mask |= (1 << ATA_MAX_DEVICES) - 1;
 	ehi->flags |= ATA_EHI_HOTPLUGGED;
-	ehi->action |= ATA_EH_ENABLE_LINK;
+	ehi->action |= ATA_EH_RESET | ATA_EH_ENABLE_LINK;
 	ehi->err_mask |= AC_ERR_ATA_BUS;
 }
 

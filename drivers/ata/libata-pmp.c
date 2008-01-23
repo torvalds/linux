@@ -435,7 +435,7 @@ static int sata_pmp_init_links(struct ata_port *ap, int nr_ports)
 		struct ata_eh_context *ehc = &link->eh_context;
 
 		link->flags = 0;
-		ehc->i.probe_mask |= 1;
+		ehc->i.probe_mask |= ATA_ALL_DEVICES;
 		ehc->i.action |= ATA_EH_RESET;
 	}
 
@@ -831,8 +831,12 @@ static int sata_pmp_eh_recover_pmp(struct ata_port *ap,
 		ata_eh_thaw_port(ap);
 
 		/* PMP is reset, SErrors cannot be trusted, scan all */
-		ata_port_for_each_link(tlink, ap)
-			ata_ehi_schedule_probe(&tlink->eh_context.i);
+		ata_port_for_each_link(tlink, ap) {
+			struct ata_eh_context *ehc = &tlink->eh_context;
+
+			ehc->i.probe_mask |= ATA_ALL_DEVICES;
+			ehc->i.action |= ATA_EH_RESET;
+		}
 	}
 
 	/* If revalidation is requested, revalidate and reconfigure;
@@ -847,7 +851,7 @@ static int sata_pmp_eh_recover_pmp(struct ata_port *ap,
 		tries--;
 
 		if (rc == -ENODEV) {
-			ehc->i.probe_mask |= 1;
+			ehc->i.probe_mask |= ATA_ALL_DEVICES;
 			detach = 1;
 			/* give it just two more chances */
 			tries = min(tries, 2);
