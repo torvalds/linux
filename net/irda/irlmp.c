@@ -103,9 +103,12 @@ int __init irlmp_init(void)
 	irlmp->last_lsap_sel = 0x0f; /* Reserved 0x00-0x0f */
 	strcpy(sysctl_devname, "Linux");
 
-	/* Do discovery every 3 seconds */
 	init_timer(&irlmp->discovery_timer);
-	irlmp_start_discovery_timer(irlmp, sysctl_discovery_timeout*HZ);
+
+	/* Do discovery every 3 seconds, conditionaly */
+	if (sysctl_discovery)
+		irlmp_start_discovery_timer(irlmp,
+					    sysctl_discovery_timeout*HZ);
 
 	return 0;
 }
