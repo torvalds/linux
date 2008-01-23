@@ -110,7 +110,7 @@ int rdma_translate_ip(struct sockaddr *addr, struct rdma_dev_addr *dev_addr)
 	__be32 ip = ((struct sockaddr_in *) addr)->sin_addr.s_addr;
 	int ret;
 
-	dev = ip_dev_find(ip);
+	dev = ip_dev_find(&init_net, ip);
 	if (!dev)
 		return -EADDRNOTAVAIL;
 
@@ -261,7 +261,7 @@ static int addr_resolve_local(struct sockaddr_in *src_in,
 	__be32 dst_ip = dst_in->sin_addr.s_addr;
 	int ret;
 
-	dev = ip_dev_find(dst_ip);
+	dev = ip_dev_find(&init_net, dst_ip);
 	if (!dev)
 		return -EADDRNOTAVAIL;
 

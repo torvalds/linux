@@ -1289,7 +1289,7 @@ static int iw_conn_req_handler(struct iw_cm_id *cm_id,
 	atomic_inc(&conn_id->dev_remove);
 	conn_id->state = CMA_CONNECT;
 
-	dev = ip_dev_find(iw_event->local_addr.sin_addr.s_addr);
+	dev = ip_dev_find(&init_net, iw_event->local_addr.sin_addr.s_addr);
 	if (!dev) {
 		ret = -EADDRNOTAVAIL;
 		cma_enable_remove(conn_id);

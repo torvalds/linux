@@ -153,7 +153,7 @@ static void fib_flush(struct net *net)
  *	Find the first device with a given source address.
  */
 
-struct net_device * ip_dev_find(__be32 addr)
+struct net_device * ip_dev_find(struct net *net, __be32 addr)
 {
 	struct flowi fl = { .nl_u = { .ip4_u = { .daddr = addr } } };
 	struct fib_result res;
@@ -164,7 +164,7 @@ struct net_device * ip_dev_find(__be32 addr)
 	res.r = NULL;
 #endif
 
-	local_table = fib_get_table(&init_net, RT_TABLE_LOCAL);
+	local_table = fib_get_table(net, RT_TABLE_LOCAL);
 	if (!local_table || local_table->tb_lookup(local_table, &fl, &res))
 		return NULL;
 	if (res.type != RTN_LOCAL)

@@ -1395,7 +1395,7 @@ static struct in_device * ip_mc_find_dev(struct ip_mreqn *imr)
 		return idev;
 	}
 	if (imr->imr_address.s_addr) {
-		dev = ip_dev_find(imr->imr_address.s_addr);
+		dev = ip_dev_find(&init_net, imr->imr_address.s_addr);
 		if (!dev)
 			return NULL;
 		dev_put(dev);
