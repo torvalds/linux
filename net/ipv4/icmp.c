@@ -696,7 +696,7 @@ static void icmp_unreach(struct sk_buff *skb)
 							 "and DF set.\n",
 					       NIPQUAD(iph->daddr));
 			} else {
-				info = ip_rt_frag_needed(iph,
+				info = ip_rt_frag_needed(&init_net, iph,
 						     ntohs(icmph->un.frag.mtu));
 				if (!info)
 					goto out;
