@@ -405,7 +405,7 @@ static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 						.tos = RT_TOS(ip_hdr(skb)->tos) } },
 				    .proto = IPPROTO_ICMP };
 		security_skb_classify_flow(skb, &fl);
-		if (ip_route_output_key(&init_net, &rt, &fl))
+		if (ip_route_output_key(rt->u.dst.dev->nd_net, &rt, &fl))
 			goto out_unlock;
 	}
 	if (icmpv4_xrlim_allow(rt, icmp_param->data.icmph.type,
@@ -437,9 +437,11 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 	struct ipcm_cookie ipc;
 	__be32 saddr;
 	u8  tos;
+	struct net *net;
 
 	if (!rt)
 		goto out;
+	net = rt->u.dst.dev->nd_net;
 
 	/*
 	 *	Find the original header. It is expected to be valid, of course.
@@ -515,7 +517,7 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 		struct net_device *dev = NULL;
 
 		if (rt->fl.iif && sysctl_icmp_errors_use_inbound_ifaddr)
-			dev = dev_get_by_index(&init_net, rt->fl.iif);
+			dev = dev_get_by_index(net, rt->fl.iif);
 
 		if (dev) {
 			saddr = inet_select_addr(dev, 0, RT_SCOPE_LINK);
@@ -569,7 +571,7 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 		struct rtable *rt2;
 
 		security_skb_classify_flow(skb_in, &fl);
-		if (__ip_route_output_key(&init_net, &rt, &fl))
+		if (__ip_route_output_key(net, &rt, &fl))
 			goto out_unlock;
 
 		/* No need to clone since we're just using its address. */
@@ -591,14 +593,14 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 		if (xfrm_decode_session_reverse(skb_in, &fl, AF_INET))
 			goto out_unlock;
 
-		if (inet_addr_type(&init_net, fl.fl4_src) == RTN_LOCAL)
-			err = __ip_route_output_key(&init_net, &rt2, &fl);
+		if (inet_addr_type(net, fl.fl4_src) == RTN_LOCAL)
+			err = __ip_route_output_key(net, &rt2, &fl);
 		else {
 			struct flowi fl2 = {};
 			struct dst_entry *odst;
 
 			fl2.fl4_dst = fl.fl4_src;
-			if (ip_route_output_key(&init_net, &rt2, &fl2))
+			if (ip_route_output_key(net, &rt2, &fl2))
 				goto out_unlock;
 
 			/* Ugh! */
@@ -666,6 +668,9 @@ static void icmp_unreach(struct sk_buff *skb)
 	int hash, protocol;
 	struct net_protocol *ipprot;
 	u32 info = 0;
+	struct net *net;
+
+	net = skb->dst->dev->nd_net;
 
 	/*
 	 *	Incomplete header ?
@@ -696,7 +701,7 @@ static void icmp_unreach(struct sk_buff *skb)
 							 "and DF set.\n",
 					       NIPQUAD(iph->daddr));
 			} else {
-				info = ip_rt_frag_needed(&init_net, iph,
+				info = ip_rt_frag_needed(net, iph,
 						     ntohs(icmph->un.frag.mtu));
 				if (!info)
 					goto out;
@@ -734,7 +739,7 @@ static void icmp_unreach(struct sk_buff *skb)
 	 */
 
 	if (!sysctl_icmp_ignore_bogus_error_responses &&
-	    inet_addr_type(&init_net, iph->daddr) == RTN_BROADCAST) {
+	    inet_addr_type(net, iph->daddr) == RTN_BROADCAST) {
 		if (net_ratelimit())
 			printk(KERN_WARNING "%u.%u.%u.%u sent an invalid ICMP "
 					    "type %u, code %u "
