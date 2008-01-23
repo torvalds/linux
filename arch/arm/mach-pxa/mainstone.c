@@ -379,12 +379,10 @@ static int mainstone_mci_init(struct device *dev, irq_handler_t mstone_detect_in
 
 	err = request_irq(MAINSTONE_MMC_IRQ, mstone_detect_int, IRQF_DISABLED,
 			     "MMC card detect", data);
-	if (err) {
+	if (err)
 		printk(KERN_ERR "mainstone_mci_init: MMC/SD: can't request MMC card detect IRQ\n");
-		return -1;
-	}
 
-	return 0;
+	return err;
 }
 
 static void mainstone_mci_setpower(struct device *dev, unsigned int vdd)

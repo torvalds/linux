@@ -487,18 +487,15 @@ static int cmx270_mci_init(struct device *dev,
 
 	/* card detect IRQ on GPIO 83 */
 	pxa_gpio_mode(IRQ_TO_GPIO(CMX270_MMC_IRQ));
-	set_irq_type(CMX270_MMC_IRQ, IRQT_FALLING);
 
 	err = request_irq(CMX270_MMC_IRQ, cmx270_detect_int,
 			  IRQF_DISABLED | IRQF_TRIGGER_FALLING,
 			  "MMC card detect", data);
-	if (err) {
+	if (err)
 		printk(KERN_ERR "cmx270_mci_init: MMC/SD: can't"
 		       " request MMC card detect IRQ\n");
-		return -1;
-	}
 
-	return 0;
+	return err;
 }
 
 static void cmx270_mci_setpower(struct device *dev, unsigned int vdd)
