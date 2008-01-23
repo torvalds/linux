@@ -31,23 +31,13 @@ int aer_osc_setup(struct pcie_device *pciedev)
 {
 	acpi_status status = AE_NOT_FOUND;
 	struct pci_dev *pdev = pciedev->port;
-	acpi_handle handle = DEVICE_ACPI_HANDLE(&pdev->dev);
-	struct pci_bus *parent;
+	acpi_handle handle = 0;
 
-	while (!handle) {
-		if (!pdev || !pdev->bus->parent)
-			break;
-		parent = pdev->bus->parent;
-		if (!parent->self)
-			/* Parent must be a host bridge */
-			handle = acpi_get_pci_rootbridge_handle(
-					pci_domain_nr(parent),
-					parent->number);
-		else
-			handle = DEVICE_ACPI_HANDLE(
-					&(parent->self->dev));
-		pdev = parent->self;
-	}
+	/* Find root host bridge */
+	while (pdev->bus && pdev->bus->self)
+		pdev = pdev->bus->self;
+	handle = acpi_get_pci_rootbridge_handle(
+		pci_domain_nr(pdev->bus), pdev->bus->number);
 
 	if (handle) {
 		pcie_osc_support_set(OSC_EXT_PCI_CONFIG_SUPPORT);
