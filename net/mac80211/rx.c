@@ -1972,7 +1972,7 @@ static u8 ieee80211_rx_reorder_ampdu(struct ieee80211_local *local,
 		goto end_reorder;
 
 	/* null data frames are excluded */
-	if (unlikely(fc & IEEE80211_STYPE_QOS_NULLFUNC))
+	if (unlikely(fc & IEEE80211_STYPE_NULLFUNC))
 		goto end_reorder;
 
 	/* new un-ordered ampdu frame - process it */
