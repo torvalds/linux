@@ -169,7 +169,7 @@ static void __init pxa_timer_init(void)
 	ckevt_pxa_osmr0.max_delta_ns =
 		clockevent_delta2ns(0x7fffffff, &ckevt_pxa_osmr0);
 	ckevt_pxa_osmr0.min_delta_ns =
-		clockevent_delta2ns(MIN_OSCR_DELTA, &ckevt_pxa_osmr0) + 1;
+		clockevent_delta2ns(MIN_OSCR_DELTA * 2, &ckevt_pxa_osmr0) + 1;
 
 	cksrc_pxa_oscr0.mult =
 		clocksource_hz2mult(clock_tick_rate, cksrc_pxa_oscr0.shift);
