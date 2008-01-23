@@ -1898,7 +1898,7 @@ static int fn_trie_dump_fa(t_key key, int plen, struct list_head *fah,
 				  xkey,
 				  plen,
 				  fa->fa_tos,
-				  fa->fa_info, 0) < 0) {
+				  fa->fa_info, NLM_F_MULTI) < 0) {
 			cb->args[4] = i;
 			return -1;
 		}
