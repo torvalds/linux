@@ -32,13 +32,16 @@
 #define PCI_DEVICE_ID_INTEL_Q35_IG          0x29B2
 #define PCI_DEVICE_ID_INTEL_Q33_HB          0x29D0
 #define PCI_DEVICE_ID_INTEL_Q33_IG          0x29D2
+#define PCI_DEVICE_ID_INTEL_IGD_HB          0x2A40
+#define PCI_DEVICE_ID_INTEL_IGD_IG          0x2A42
 
 #define IS_I965 (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82946GZ_HB || \
                  agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82965G_1_HB || \
                  agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82965Q_HB || \
                  agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82965G_HB || \
                  agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82965GM_HB || \
-                 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82965GME_HB)
+		 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82965GME_HB || \
+		 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IGD_HB)
 
 #define IS_G33 (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_G33_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_Q35_HB || \
@@ -460,6 +463,15 @@ static void intel_i830_init_gtt_entries(void)
 			break;
 		case I965_PGETBL_SIZE_512KB:
 			size = 512;
+			break;
+		case I965_PGETBL_SIZE_1MB:
+			size = 1024;
+			break;
+		case I965_PGETBL_SIZE_2MB:
+			size = 2048;
+			break;
+		case I965_PGETBL_SIZE_1_5MB:
+			size = 1024 + 512;
 			break;
 		default:
 			printk(KERN_INFO PFX "Unknown page table size, "
@@ -1124,6 +1136,7 @@ static int intel_i965_create_gatt_table(struct agp_bridge_data *bridge)
        struct aper_size_info_fixed *size;
        int num_entries;
        u32 temp;
+       int gtt_offset, gtt_size;
 
        size = agp_bridge->current_size;
        page_order = size->page_order;
@@ -1133,13 +1146,18 @@ static int intel_i965_create_gatt_table(struct agp_bridge_data *bridge)
        pci_read_config_dword(intel_private.pcidev, I915_MMADDR, &temp);
 
        temp &= 0xfff00000;
-       intel_private.gtt = ioremap((temp + (512 * 1024)) , 512 * 1024);
 
-	if (!intel_private.gtt)
-		return -ENOMEM;
+       if (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IGD_HB)
+	       gtt_offset = gtt_size = MB(2);
+       else
+	       gtt_offset = gtt_size = KB(512);
 
+       intel_private.gtt = ioremap((temp + gtt_offset) , gtt_size);
 
-       intel_private.registers = ioremap(temp,128 * 4096);
+       if (!intel_private.gtt)
+	       return -ENOMEM;
+
+       intel_private.registers = ioremap(temp, 128 * 4096);
        if (!intel_private.registers) {
 		iounmap(intel_private.gtt);
 		return -ENOMEM;
@@ -2036,6 +2054,8 @@ static const struct intel_driver_description {
 		NULL, &intel_g33_driver },
 	{ PCI_DEVICE_ID_INTEL_Q33_HB, PCI_DEVICE_ID_INTEL_Q33_IG, 0, "Q33",
 		NULL, &intel_g33_driver },
+	{ PCI_DEVICE_ID_INTEL_IGD_HB, PCI_DEVICE_ID_INTEL_IGD_IG, 0,
+	    "Intel Integrated Graphics Device", NULL, &intel_i965_driver },
 	{ 0, 0, 0, NULL, NULL, NULL }
 };
 
@@ -2226,6 +2246,7 @@ static struct pci_device_id agp_intel_pci_table[] = {
 	ID(PCI_DEVICE_ID_INTEL_G33_HB),
 	ID(PCI_DEVICE_ID_INTEL_Q35_HB),
 	ID(PCI_DEVICE_ID_INTEL_Q33_HB),
+	ID(PCI_DEVICE_ID_INTEL_IGD_HB),
 	{ }
 };
 
