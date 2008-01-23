@@ -91,6 +91,7 @@
  *   nla_reserve_nohdr(skb, len)	reserve room for an attribute w/o hdr
  *   nla_put(skb, type, len, data)	add attribute to skb
  *   nla_put_nohdr(skb, len, data)	add attribute w/o hdr
+ *   nla_append(skb, len, data)		append data to skb
  *
  * Attribute Construction for Basic Types:
  *   nla_put_u8(skb, type, value)	add u8 attribute to skb
@@ -254,6 +255,8 @@ extern int		nla_put(struct sk_buff *skb, int attrtype,
 				int attrlen, const void *data);
 extern int		nla_put_nohdr(struct sk_buff *skb, int attrlen,
 				      const void *data);
+extern int		nla_append(struct sk_buff *skb, int attrlen,
+				   const void *data);
 
 /**************************************************************************
  * Netlink Messages

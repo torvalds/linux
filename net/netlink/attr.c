@@ -430,6 +430,24 @@ int nla_put_nohdr(struct sk_buff *skb, int attrlen, const void *data)
 	return 0;
 }
 
+/**
+ * nla_append - Add a netlink attribute without header or padding
+ * @skb: socket buffer to add attribute to
+ * @attrlen: length of attribute payload
+ * @data: head of attribute payload
+ *
+ * Returns -1 if the tailroom of the skb is insufficient to store
+ * the attribute payload.
+ */
+int nla_append(struct sk_buff *skb, int attrlen, const void *data)
+{
+	if (unlikely(skb_tailroom(skb) < NLA_ALIGN(attrlen)))
+		return -1;
+
+	memcpy(skb_put(skb, attrlen), data, attrlen);
+	return 0;
+}
+
 EXPORT_SYMBOL(nla_validate);
 EXPORT_SYMBOL(nla_parse);
 EXPORT_SYMBOL(nla_find);
@@ -445,3 +463,4 @@ EXPORT_SYMBOL(nla_put_nohdr);
 EXPORT_SYMBOL(nla_memcpy);
 EXPORT_SYMBOL(nla_memcmp);
 EXPORT_SYMBOL(nla_strcmp);
+EXPORT_SYMBOL(nla_append);
