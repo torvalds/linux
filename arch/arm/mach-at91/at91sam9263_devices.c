@@ -12,6 +12,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
+#include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
 #include <linux/i2c-gpio.h>
 
@@ -32,7 +33,7 @@
  * -------------------------------------------------------------------- */
 
 #if defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
-static u64 ohci_dmamask = 0xffffffffUL;
+static u64 ohci_dmamask = DMA_BIT_MASK(32);
 static struct at91_usbh_data usbh_data;
 
 static struct resource usbh_resources[] = {
@@ -53,7 +54,7 @@ static struct platform_device at91_usbh_device = {
 	.id		= -1,
 	.dev		= {
 				.dma_mask		= &ohci_dmamask,
-				.coherent_dma_mask	= 0xffffffff,
+				.coherent_dma_mask	= DMA_BIT_MASK(32),
 				.platform_data		= &usbh_data,
 	},
 	.resource	= usbh_resources,
@@ -136,7 +137,7 @@ void __init at91_add_device_udc(struct at91_udc_data *data) {}
  * -------------------------------------------------------------------- */
 
 #if defined(CONFIG_MACB) || defined(CONFIG_MACB_MODULE)
-static u64 eth_dmamask = 0xffffffffUL;
+static u64 eth_dmamask = DMA_BIT_MASK(32);
 static struct at91_eth_data eth_data;
 
 static struct resource eth_resources[] = {
@@ -157,7 +158,7 @@ static struct platform_device at91sam9263_eth_device = {
 	.id		= -1,
 	.dev		= {
 				.dma_mask		= &eth_dmamask,
-				.coherent_dma_mask	= 0xffffffff,
+				.coherent_dma_mask	= DMA_BIT_MASK(32),
 				.platform_data		= &eth_data,
 	},
 	.resource	= eth_resources,
@@ -210,7 +211,7 @@ void __init at91_add_device_eth(struct at91_eth_data *data) {}
  * -------------------------------------------------------------------- */
 
 #if defined(CONFIG_MMC_AT91) || defined(CONFIG_MMC_AT91_MODULE)
-static u64 mmc_dmamask = 0xffffffffUL;
+static u64 mmc_dmamask = DMA_BIT_MASK(32);
 static struct at91_mmc_data mmc0_data, mmc1_data;
 
 static struct resource mmc0_resources[] = {
@@ -231,7 +232,7 @@ static struct platform_device at91sam9263_mmc0_device = {
 	.id		= 0,
 	.dev		= {
 				.dma_mask		= &mmc_dmamask,
-				.coherent_dma_mask	= 0xffffffff,
+				.coherent_dma_mask	= DMA_BIT_MASK(32),
 				.platform_data		= &mmc0_data,
 	},
 	.resource	= mmc0_resources,
@@ -256,7 +257,7 @@ static struct platform_device at91sam9263_mmc1_device = {
 	.id		= 1,
 	.dev		= {
 				.dma_mask		= &mmc_dmamask,
-				.coherent_dma_mask	= 0xffffffff,
+				.coherent_dma_mask	= DMA_BIT_MASK(32),
 				.platform_data		= &mmc1_data,
 	},
 	.resource	= mmc1_resources,
@@ -500,7 +501,7 @@ void __init at91_add_device_i2c(struct i2c_board_info *devices, int nr_devices) 
  * -------------------------------------------------------------------- */
 
 #if defined(CONFIG_SPI_ATMEL) || defined(CONFIG_SPI_ATMEL_MODULE)
-static u64 spi_dmamask = 0xffffffffUL;
+static u64 spi_dmamask = DMA_BIT_MASK(32);
 
 static struct resource spi0_resources[] = {
 	[0] = {
@@ -520,7 +521,7 @@ static struct platform_device at91sam9263_spi0_device = {
 	.id		= 0,
 	.dev		= {
 				.dma_mask		= &spi_dmamask,
-				.coherent_dma_mask	= 0xffffffff,
+				.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 	.resource	= spi0_resources,
 	.num_resources	= ARRAY_SIZE(spi0_resources),
@@ -546,7 +547,7 @@ static struct platform_device at91sam9263_spi1_device = {
 	.id		= 1,
 	.dev		= {
 				.dma_mask		= &spi_dmamask,
-				.coherent_dma_mask	= 0xffffffff,
+				.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 	.resource	= spi1_resources,
 	.num_resources	= ARRAY_SIZE(spi1_resources),
@@ -612,7 +613,7 @@ void __init at91_add_device_spi(struct spi_board_info *devices, int nr_devices) 
  * -------------------------------------------------------------------- */
 
 #if defined(CONFIG_SND_AT91_AC97) || defined(CONFIG_SND_AT91_AC97_MODULE)
-static u64 ac97_dmamask = 0xffffffffUL;
+static u64 ac97_dmamask = DMA_BIT_MASK(32);
 static struct atmel_ac97_data ac97_data;
 
 static struct resource ac97_resources[] = {
@@ -633,7 +634,7 @@ static struct platform_device at91sam9263_ac97_device = {
 	.id		= 1,
 	.dev		= {
 				.dma_mask		= &ac97_dmamask,
-				.coherent_dma_mask	= 0xffffffff,
+				.coherent_dma_mask	= DMA_BIT_MASK(32),
 				.platform_data		= &ac97_data,
 	},
 	.resource	= ac97_resources,
@@ -667,7 +668,7 @@ void __init at91_add_device_ac97(struct atmel_ac97_data *data) {}
  * -------------------------------------------------------------------- */
 
 #if defined(CONFIG_FB_ATMEL) || defined(CONFIG_FB_ATMEL_MODULE)
-static u64 lcdc_dmamask = 0xffffffffUL;
+static u64 lcdc_dmamask = DMA_BIT_MASK(32);
 static struct atmel_lcdfb_info lcdc_data;
 
 static struct resource lcdc_resources[] = {
@@ -688,7 +689,7 @@ static struct platform_device at91_lcdc_device = {
 	.id		= 0,
 	.dev		= {
 				.dma_mask		= &lcdc_dmamask,
-				.coherent_dma_mask	= 0xffffffff,
+				.coherent_dma_mask	= DMA_BIT_MASK(32),
 				.platform_data		= &lcdc_data,
 	},
 	.resource	= lcdc_resources,
@@ -889,12 +890,15 @@ static struct atmel_uart_data dbgu_data = {
 	.regs		= (void __iomem *)(AT91_VA_BASE_SYS + AT91_DBGU),
 };
 
+static u64 dbgu_dmamask = DMA_BIT_MASK(32);
+
 static struct platform_device at91sam9263_dbgu_device = {
 	.name		= "atmel_usart",
 	.id		= 0,
 	.dev		= {
-				.platform_data	= &dbgu_data,
-				.coherent_dma_mask = 0xffffffff,
+				.dma_mask		= &dbgu_dmamask,
+				.coherent_dma_mask	= DMA_BIT_MASK(32),
+				.platform_data		= &dbgu_data,
 	},
 	.resource	= dbgu_resources,
 	.num_resources	= ARRAY_SIZE(dbgu_resources),
@@ -924,12 +928,15 @@ static struct atmel_uart_data uart0_data = {
 	.use_dma_rx	= 1,
 };
 
+static u64 uart0_dmamask = DMA_BIT_MASK(32);
+
 static struct platform_device at91sam9263_uart0_device = {
 	.name		= "atmel_usart",
 	.id		= 1,
 	.dev		= {
-				.platform_data	= &uart0_data,
-				.coherent_dma_mask = 0xffffffff,
+				.dma_mask		= &uart0_dmamask,
+				.coherent_dma_mask	= DMA_BIT_MASK(32),
+				.platform_data		= &uart0_data,
 	},
 	.resource	= uart0_resources,
 	.num_resources	= ARRAY_SIZE(uart0_resources),
@@ -961,12 +968,15 @@ static struct atmel_uart_data uart1_data = {
 	.use_dma_rx	= 1,
 };
 
+static u64 uart1_dmamask = DMA_BIT_MASK(32);
+
 static struct platform_device at91sam9263_uart1_device = {
 	.name		= "atmel_usart",
 	.id		= 2,
 	.dev		= {
-				.platform_data	= &uart1_data,
-				.coherent_dma_mask = 0xffffffff,
+				.dma_mask		= &uart1_dmamask,
+				.coherent_dma_mask	= DMA_BIT_MASK(32),
+				.platform_data		= &uart1_data,
 	},
 	.resource	= uart1_resources,
 	.num_resources	= ARRAY_SIZE(uart1_resources),
@@ -998,12 +1008,15 @@ static struct atmel_uart_data uart2_data = {
 	.use_dma_rx	= 1,
 };
 
+static u64 uart2_dmamask = DMA_BIT_MASK(32);
+
 static struct platform_device at91sam9263_uart2_device = {
 	.name		= "atmel_usart",
 	.id		= 3,
 	.dev		= {
-				.platform_data	= &uart2_data,
-				.coherent_dma_mask = 0xffffffff,
+				.dma_mask		= &uart2_dmamask,
+				.coherent_dma_mask	= DMA_BIT_MASK(32),
+				.platform_data		= &uart2_data,
 	},
 	.resource	= uart2_resources,
 	.num_resources	= ARRAY_SIZE(uart2_resources),
@@ -1017,7 +1030,7 @@ static inline void configure_usart2_pins(void)
 	at91_set_B_periph(AT91_PIN_PD6, 0);		/* CTS2 */
 }
 
-struct platform_device *at91_uarts[ATMEL_MAX_UART];	/* the UARTs to use */
+static struct platform_device *at91_uarts[ATMEL_MAX_UART];	/* the UARTs to use */
 struct platform_device *atmel_default_console_device;	/* the serial console device */
 
 void __init at91_init_serial(struct at91_uart_config *config)
