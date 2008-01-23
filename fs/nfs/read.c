@@ -336,7 +336,7 @@ int nfs_readpage_result(struct rpc_task *task, struct nfs_read_data *data)
 	nfs_add_stats(data->inode, NFSIOS_SERVERREADBYTES, data->res.count);
 
 	if (task->tk_status == -ESTALE) {
-		set_bit(NFS_INO_STALE, &NFS_FLAGS(data->inode));
+		set_bit(NFS_INO_STALE, &NFS_I(data->inode)->flags);
 		nfs_mark_for_revalidate(data->inode);
 	}
 	return 0;

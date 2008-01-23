@@ -214,8 +214,7 @@ static inline struct nfs_inode *NFS_I(struct inode *inode)
 	(S_ISDIR(inode->i_mode)? NFS_SERVER(inode)->acdirmax \
 			       : NFS_SERVER(inode)->acregmax)
 
-#define NFS_FLAGS(inode)		(NFS_I(inode)->flags)
-#define NFS_STALE(inode)		(test_bit(NFS_INO_STALE, &NFS_FLAGS(inode)))
+#define NFS_STALE(inode)		(test_bit(NFS_INO_STALE, &NFS_I(inode)->flags))
 
 #define NFS_FILEID(inode)		(NFS_I(inode)->fileid)
 
@@ -237,7 +236,7 @@ static inline int nfs_server_capable(struct inode *inode, int cap)
 
 static inline int NFS_USE_READDIRPLUS(struct inode *inode)
 {
-	return test_bit(NFS_INO_ADVISE_RDPLUS, &NFS_FLAGS(inode));
+	return test_bit(NFS_INO_ADVISE_RDPLUS, &NFS_I(inode)->flags);
 }
 
 static inline void nfs_set_verifier(struct dentry * dentry, unsigned long verf)
