@@ -54,7 +54,7 @@ extern void mykfree(void *);
 
 static unsigned int (*sock_poll)(struct file *, poll_table *);
 
-static struct file_operations socksys_file_ops = {
+static const struct file_operations socksys_file_ops = {
 	/* Currently empty */
 };
 
