@@ -376,7 +376,7 @@ static struct at91_nand_data nand_data;
 static struct resource nand_resources[] = {
 	{
 		.start	= NAND_BASE,
-		.end	= NAND_BASE + SZ_8M - 1,
+		.end	= NAND_BASE + SZ_256M - 1,
 		.flags	= IORESOURCE_MEM,
 	}
 };
