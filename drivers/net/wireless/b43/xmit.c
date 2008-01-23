@@ -237,20 +237,23 @@ void b43_generate_txhdr(struct b43_wldev *dev,
 
 		B43_WARN_ON(key_idx >= dev->max_nr_keys);
 		key = &(dev->key[key_idx]);
-		B43_WARN_ON(!key->keyconf);
 
-		/* Hardware appends ICV. */
-		plcp_fragment_len += txctl->icv_len;
+		if (likely(key->keyconf)) {
+			/* This key is valid. Use it for encryption. */
 
-		key_idx = b43_kidx_to_fw(dev, key_idx);
-		mac_ctl |= (key_idx << B43_TXH_MAC_KEYIDX_SHIFT) &
-			   B43_TXH_MAC_KEYIDX;
-		mac_ctl |= (key->algorithm << B43_TXH_MAC_KEYALG_SHIFT) &
-			   B43_TXH_MAC_KEYALG;
-		wlhdr_len = ieee80211_get_hdrlen(fctl);
-		iv_len = min((size_t) txctl->iv_len,
-			     ARRAY_SIZE(txhdr->iv));
-		memcpy(txhdr->iv, ((u8 *) wlhdr) + wlhdr_len, iv_len);
+			/* Hardware appends ICV. */
+			plcp_fragment_len += txctl->icv_len;
+
+			key_idx = b43_kidx_to_fw(dev, key_idx);
+			mac_ctl |= (key_idx << B43_TXH_MAC_KEYIDX_SHIFT) &
+				   B43_TXH_MAC_KEYIDX;
+			mac_ctl |= (key->algorithm << B43_TXH_MAC_KEYALG_SHIFT) &
+				   B43_TXH_MAC_KEYALG;
+			wlhdr_len = ieee80211_get_hdrlen(fctl);
+			iv_len = min((size_t) txctl->iv_len,
+				     ARRAY_SIZE(txhdr->iv));
+			memcpy(txhdr->iv, ((u8 *) wlhdr) + wlhdr_len, iv_len);
+		}
 	}
 	if (b43_is_old_txhdr_format(dev)) {
 		b43_generate_plcp_hdr((struct b43_plcp_hdr4 *)(&txhdr->old_format.plcp),
