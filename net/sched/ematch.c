@@ -183,11 +183,11 @@ static inline struct tcf_ematch * tcf_em_get_match(struct tcf_ematch_tree *tree,
 
 static int tcf_em_validate(struct tcf_proto *tp,
 			   struct tcf_ematch_tree_hdr *tree_hdr,
-			   struct tcf_ematch *em, struct rtattr *rta, int idx)
+			   struct tcf_ematch *em, struct nlattr *nla, int idx)
 {
 	int err = -EINVAL;
-	struct tcf_ematch_hdr *em_hdr = RTA_DATA(rta);
-	int data_len = RTA_PAYLOAD(rta) - sizeof(*em_hdr);
+	struct tcf_ematch_hdr *em_hdr = nla_data(nla);
+	int data_len = nla_len(nla) - sizeof(*em_hdr);
 	void *data = (void *) em_hdr + sizeof(*em_hdr);
 
 	if (!TCF_EM_REL_VALID(em_hdr->flags))
@@ -286,11 +286,11 @@ errout:
  * tcf_em_tree_validate - validate ematch config TLV and build ematch tree
  *
  * @tp: classifier kind handle
- * @rta: ematch tree configuration TLV
+ * @nla: ematch tree configuration TLV
  * @tree: destination ematch tree variable to store the resulting
  *        ematch tree.
  *
- * This function validates the given configuration TLV @rta and builds an
+ * This function validates the given configuration TLV @nla and builds an
  * ematch tree in @tree. The resulting tree must later be copied into
  * the private classifier data using tcf_em_tree_change(). You MUST NOT
  * provide the ematch tree variable of the private classifier data directly,
@@ -298,45 +298,45 @@ errout:
  *
  * Returns a negative error code if the configuration TLV contains errors.
  */
-int tcf_em_tree_validate(struct tcf_proto *tp, struct rtattr *rta,
+int tcf_em_tree_validate(struct tcf_proto *tp, struct nlattr *nla,
 			 struct tcf_ematch_tree *tree)
 {
 	int idx, list_len, matches_len, err = -EINVAL;
-	struct rtattr *tb[TCA_EMATCH_TREE_MAX];
-	struct rtattr *rt_match, *rt_hdr, *rt_list;
+	struct nlattr *tb[TCA_EMATCH_TREE_MAX + 1];
+	struct nlattr *rt_match, *rt_hdr, *rt_list;
 	struct tcf_ematch_tree_hdr *tree_hdr;
 	struct tcf_ematch *em;
 
-	if (!rta) {
+	if (!nla) {
 		memset(tree, 0, sizeof(*tree));
 		return 0;
 	}
 
-	if (rtattr_parse_nested(tb, TCA_EMATCH_TREE_MAX, rta) < 0)
+	if (nla_parse_nested(tb, TCA_EMATCH_TREE_MAX, nla, NULL) < 0)
 		goto errout;
 
-	rt_hdr = tb[TCA_EMATCH_TREE_HDR-1];
-	rt_list = tb[TCA_EMATCH_TREE_LIST-1];
+	rt_hdr = tb[TCA_EMATCH_TREE_HDR];
+	rt_list = tb[TCA_EMATCH_TREE_LIST];
 
 	if (rt_hdr == NULL || rt_list == NULL)
 		goto errout;
 
-	if (RTA_PAYLOAD(rt_hdr) < sizeof(*tree_hdr) ||
-	    RTA_PAYLOAD(rt_list) < sizeof(*rt_match))
+	if (nla_len(rt_hdr) < sizeof(*tree_hdr) ||
+	    nla_len(rt_list) < sizeof(*rt_match))
 		goto errout;
 
-	tree_hdr = RTA_DATA(rt_hdr);
+	tree_hdr = nla_data(rt_hdr);
 	memcpy(&tree->hdr, tree_hdr, sizeof(*tree_hdr));
 
-	rt_match = RTA_DATA(rt_list);
-	list_len = RTA_PAYLOAD(rt_list);
+	rt_match = nla_data(rt_list);
+	list_len = nla_len(rt_list);
 	matches_len = tree_hdr->nmatches * sizeof(*em);
 
 	tree->matches = kzalloc(matches_len, GFP_KERNEL);
 	if (tree->matches == NULL)
 		goto errout;
 
-	/* We do not use rtattr_parse_nested here because the maximum
+	/* We do not use nla_parse_nested here because the maximum
 	 * number of attributes is unknown. This saves us the allocation
 	 * for a tb buffer which would serve no purpose at all.
 	 *
@@ -344,16 +344,16 @@ int tcf_em_tree_validate(struct tcf_proto *tp, struct rtattr *rta,
 	 * provided, their type must be incremental from 1 to n. Even
 	 * if it does not serve any real purpose, a failure of sticking
 	 * to this policy will result in parsing failure. */
-	for (idx = 0; RTA_OK(rt_match, list_len); idx++) {
+	for (idx = 0; nla_ok(rt_match, list_len); idx++) {
 		err = -EINVAL;
 
-		if (rt_match->rta_type != (idx + 1))
+		if (rt_match->nla_type != (idx + 1))
 			goto errout_abort;
 
 		if (idx >= tree_hdr->nmatches)
 			goto errout_abort;
 
-		if (RTA_PAYLOAD(rt_match) < sizeof(struct tcf_ematch_hdr))
+		if (nla_len(rt_match) < sizeof(struct tcf_ematch_hdr))
 			goto errout_abort;
 
 		em = tcf_em_get_match(tree, idx);
@@ -362,7 +362,7 @@ int tcf_em_tree_validate(struct tcf_proto *tp, struct rtattr *rta,
 		if (err < 0)
 			goto errout_abort;
 
-		rt_match = RTA_NEXT(rt_match, list_len);
+		rt_match = nla_next(rt_match, &list_len);
 	}
 
 	/* Check if the number of matches provided by userspace actually
@@ -434,18 +434,18 @@ int tcf_em_tree_dump(struct sk_buff *skb, struct tcf_ematch_tree *tree, int tlv)
 {
 	int i;
 	u8 *tail;
-	struct rtattr *top_start = (struct rtattr *)skb_tail_pointer(skb);
-	struct rtattr *list_start;
+	struct nlattr *top_start = (struct nlattr *)skb_tail_pointer(skb);
+	struct nlattr *list_start;
 
-	RTA_PUT(skb, tlv, 0, NULL);
-	RTA_PUT(skb, TCA_EMATCH_TREE_HDR, sizeof(tree->hdr), &tree->hdr);
+	NLA_PUT(skb, tlv, 0, NULL);
+	NLA_PUT(skb, TCA_EMATCH_TREE_HDR, sizeof(tree->hdr), &tree->hdr);
 
-	list_start = (struct rtattr *)skb_tail_pointer(skb);
-	RTA_PUT(skb, TCA_EMATCH_TREE_LIST, 0, NULL);
+	list_start = (struct nlattr *)skb_tail_pointer(skb);
+	NLA_PUT(skb, TCA_EMATCH_TREE_LIST, 0, NULL);
 
 	tail = skb_tail_pointer(skb);
 	for (i = 0; i < tree->hdr.nmatches; i++) {
-		struct rtattr *match_start = (struct rtattr *)tail;
+		struct nlattr *match_start = (struct nlattr *)tail;
 		struct tcf_ematch *em = tcf_em_get_match(tree, i);
 		struct tcf_ematch_hdr em_hdr = {
 			.kind = em->ops ? em->ops->kind : TCF_EM_CONTAINER,
@@ -453,27 +453,27 @@ int tcf_em_tree_dump(struct sk_buff *skb, struct tcf_ematch_tree *tree, int tlv)
 			.flags = em->flags
 		};
 
-		RTA_PUT(skb, i+1, sizeof(em_hdr), &em_hdr);
+		NLA_PUT(skb, i+1, sizeof(em_hdr), &em_hdr);
 
 		if (em->ops && em->ops->dump) {
 			if (em->ops->dump(skb, em) < 0)
-				goto rtattr_failure;
+				goto nla_put_failure;
 		} else if (tcf_em_is_container(em) || tcf_em_is_simple(em)) {
 			u32 u = em->data;
-			RTA_PUT_NOHDR(skb, sizeof(u), &u);
+			nla_put_nohdr(skb, sizeof(u), &u);
 		} else if (em->datalen > 0)
-			RTA_PUT_NOHDR(skb, em->datalen, (void *) em->data);
+			nla_put_nohdr(skb, em->datalen, (void *) em->data);
 
 		tail = skb_tail_pointer(skb);
-		match_start->rta_len = tail - (u8 *)match_start;
+		match_start->nla_len = tail - (u8 *)match_start;
 	}
 
-	list_start->rta_len = tail - (u8 *)list_start;
-	top_start->rta_len = tail - (u8 *)top_start;
+	list_start->nla_len = tail - (u8 *)list_start;
+	top_start->nla_len = tail - (u8 *)top_start;
 
 	return 0;
 
-rtattr_failure:
+nla_put_failure:
 	return -1;
 }
 EXPORT_SYMBOL(tcf_em_tree_dump);

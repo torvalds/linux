@@ -196,7 +196,7 @@ valid_perfect_hash(struct tcindex_data *p)
 static int
 tcindex_set_parms(struct tcf_proto *tp, unsigned long base, u32 handle,
 		  struct tcindex_data *p, struct tcindex_filter_result *r,
-		  struct rtattr **tb, struct rtattr *est)
+		  struct nlattr **tb, struct nlattr *est)
 {
 	int err, balloc = 0;
 	struct tcindex_filter_result new_filter_result, *old_r = r;
@@ -218,22 +218,22 @@ tcindex_set_parms(struct tcf_proto *tp, unsigned long base, u32 handle,
 		memset(&cr, 0, sizeof(cr));
 
 	err = -EINVAL;
-	if (tb[TCA_TCINDEX_HASH-1]) {
-		if (RTA_PAYLOAD(tb[TCA_TCINDEX_HASH-1]) < sizeof(u32))
+	if (tb[TCA_TCINDEX_HASH]) {
+		if (nla_len(tb[TCA_TCINDEX_HASH]) < sizeof(u32))
 			goto errout;
-		cp.hash = *(u32 *) RTA_DATA(tb[TCA_TCINDEX_HASH-1]);
+		cp.hash = *(u32 *) nla_data(tb[TCA_TCINDEX_HASH]);
 	}
 
-	if (tb[TCA_TCINDEX_MASK-1]) {
-		if (RTA_PAYLOAD(tb[TCA_TCINDEX_MASK-1]) < sizeof(u16))
+	if (tb[TCA_TCINDEX_MASK]) {
+		if (nla_len(tb[TCA_TCINDEX_MASK]) < sizeof(u16))
 			goto errout;
-		cp.mask = *(u16 *) RTA_DATA(tb[TCA_TCINDEX_MASK-1]);
+		cp.mask = *(u16 *) nla_data(tb[TCA_TCINDEX_MASK]);
 	}
 
-	if (tb[TCA_TCINDEX_SHIFT-1]) {
-		if (RTA_PAYLOAD(tb[TCA_TCINDEX_SHIFT-1]) < sizeof(int))
+	if (tb[TCA_TCINDEX_SHIFT]) {
+		if (nla_len(tb[TCA_TCINDEX_SHIFT]) < sizeof(int))
 			goto errout;
-		cp.shift = *(int *) RTA_DATA(tb[TCA_TCINDEX_SHIFT-1]);
+		cp.shift = *(int *) nla_data(tb[TCA_TCINDEX_SHIFT]);
 	}
 
 	err = -EBUSY;
@@ -248,11 +248,11 @@ tcindex_set_parms(struct tcf_proto *tp, unsigned long base, u32 handle,
 		goto errout;
 
 	err = -EINVAL;
-	if (tb[TCA_TCINDEX_FALL_THROUGH-1]) {
-		if (RTA_PAYLOAD(tb[TCA_TCINDEX_FALL_THROUGH-1]) < sizeof(u32))
+	if (tb[TCA_TCINDEX_FALL_THROUGH]) {
+		if (nla_len(tb[TCA_TCINDEX_FALL_THROUGH]) < sizeof(u32))
 			goto errout;
 		cp.fall_through =
-			*(u32 *) RTA_DATA(tb[TCA_TCINDEX_FALL_THROUGH-1]);
+			*(u32 *) nla_data(tb[TCA_TCINDEX_FALL_THROUGH]);
 	}
 
 	if (!cp.hash) {
@@ -304,8 +304,8 @@ tcindex_set_parms(struct tcf_proto *tp, unsigned long base, u32 handle,
 			goto errout_alloc;
 	}
 
-	if (tb[TCA_TCINDEX_CLASSID-1]) {
-		cr.res.classid = *(u32 *) RTA_DATA(tb[TCA_TCINDEX_CLASSID-1]);
+	if (tb[TCA_TCINDEX_CLASSID]) {
+		cr.res.classid = *(u32 *) nla_data(tb[TCA_TCINDEX_CLASSID]);
 		tcf_bind_filter(tp, &cr.res, base);
 	}
 
@@ -344,10 +344,10 @@ errout:
 
 static int
 tcindex_change(struct tcf_proto *tp, unsigned long base, u32 handle,
-	       struct rtattr **tca, unsigned long *arg)
+	       struct nlattr **tca, unsigned long *arg)
 {
-	struct rtattr *opt = tca[TCA_OPTIONS-1];
-	struct rtattr *tb[TCA_TCINDEX_MAX];
+	struct nlattr *opt = tca[TCA_OPTIONS];
+	struct nlattr *tb[TCA_TCINDEX_MAX + 1];
 	struct tcindex_data *p = PRIV(tp);
 	struct tcindex_filter_result *r = (struct tcindex_filter_result *) *arg;
 
@@ -358,10 +358,10 @@ tcindex_change(struct tcf_proto *tp, unsigned long base, u32 handle,
 	if (!opt)
 		return 0;
 
-	if (rtattr_parse_nested(tb, TCA_TCINDEX_MAX, opt) < 0)
+	if (nla_parse_nested(tb, TCA_TCINDEX_MAX, opt, NULL) < 0)
 		return -EINVAL;
 
-	return tcindex_set_parms(tp, base, handle, p, r, tb, tca[TCA_RATE-1]);
+	return tcindex_set_parms(tp, base, handle, p, r, tb, tca[TCA_RATE]);
 }
 
 
@@ -435,21 +435,21 @@ static int tcindex_dump(struct tcf_proto *tp, unsigned long fh,
 	struct tcindex_data *p = PRIV(tp);
 	struct tcindex_filter_result *r = (struct tcindex_filter_result *) fh;
 	unsigned char *b = skb_tail_pointer(skb);
-	struct rtattr *rta;
+	struct nlattr *nla;
 
 	pr_debug("tcindex_dump(tp %p,fh 0x%lx,skb %p,t %p),p %p,r %p,b %p\n",
 		 tp, fh, skb, t, p, r, b);
 	pr_debug("p->perfect %p p->h %p\n", p->perfect, p->h);
-	rta = (struct rtattr *) b;
-	RTA_PUT(skb, TCA_OPTIONS, 0, NULL);
+	nla = (struct nlattr *) b;
+	NLA_PUT(skb, TCA_OPTIONS, 0, NULL);
 	if (!fh) {
 		t->tcm_handle = ~0; /* whatever ... */
-		RTA_PUT(skb, TCA_TCINDEX_HASH, sizeof(p->hash), &p->hash);
-		RTA_PUT(skb, TCA_TCINDEX_MASK, sizeof(p->mask), &p->mask);
-		RTA_PUT(skb, TCA_TCINDEX_SHIFT, sizeof(p->shift), &p->shift);
-		RTA_PUT(skb, TCA_TCINDEX_FALL_THROUGH, sizeof(p->fall_through),
+		NLA_PUT(skb, TCA_TCINDEX_HASH, sizeof(p->hash), &p->hash);
+		NLA_PUT(skb, TCA_TCINDEX_MASK, sizeof(p->mask), &p->mask);
+		NLA_PUT(skb, TCA_TCINDEX_SHIFT, sizeof(p->shift), &p->shift);
+		NLA_PUT(skb, TCA_TCINDEX_FALL_THROUGH, sizeof(p->fall_through),
 		    &p->fall_through);
-		rta->rta_len = skb_tail_pointer(skb) - b;
+		nla->nla_len = skb_tail_pointer(skb) - b;
 	} else {
 		if (p->perfect) {
 			t->tcm_handle = r-p->perfect;
@@ -468,19 +468,19 @@ static int tcindex_dump(struct tcf_proto *tp, unsigned long fh,
 		}
 		pr_debug("handle = %d\n", t->tcm_handle);
 		if (r->res.class)
-			RTA_PUT(skb, TCA_TCINDEX_CLASSID, 4, &r->res.classid);
+			NLA_PUT(skb, TCA_TCINDEX_CLASSID, 4, &r->res.classid);
 
 		if (tcf_exts_dump(skb, &r->exts, &tcindex_ext_map) < 0)
-			goto rtattr_failure;
-		rta->rta_len = skb_tail_pointer(skb) - b;
+			goto nla_put_failure;
+		nla->nla_len = skb_tail_pointer(skb) - b;
 
 		if (tcf_exts_dump_stats(skb, &r->exts, &tcindex_ext_map) < 0)
-			goto rtattr_failure;
+			goto nla_put_failure;
 	}
 
 	return skb->len;
 
-rtattr_failure:
+nla_put_failure:
 	nlmsg_trim(skb, b);
 	return -1;
 }

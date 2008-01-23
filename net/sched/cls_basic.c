@@ -130,27 +130,27 @@ static int basic_delete(struct tcf_proto *tp, unsigned long arg)
 }
 
 static inline int basic_set_parms(struct tcf_proto *tp, struct basic_filter *f,
-				  unsigned long base, struct rtattr **tb,
-				  struct rtattr *est)
+				  unsigned long base, struct nlattr **tb,
+				  struct nlattr *est)
 {
 	int err = -EINVAL;
 	struct tcf_exts e;
 	struct tcf_ematch_tree t;
 
-	if (tb[TCA_BASIC_CLASSID-1])
-		if (RTA_PAYLOAD(tb[TCA_BASIC_CLASSID-1]) < sizeof(u32))
+	if (tb[TCA_BASIC_CLASSID])
+		if (nla_len(tb[TCA_BASIC_CLASSID]) < sizeof(u32))
 			return err;
 
 	err = tcf_exts_validate(tp, tb, est, &e, &basic_ext_map);
 	if (err < 0)
 		return err;
 
-	err = tcf_em_tree_validate(tp, tb[TCA_BASIC_EMATCHES-1], &t);
+	err = tcf_em_tree_validate(tp, tb[TCA_BASIC_EMATCHES], &t);
 	if (err < 0)
 		goto errout;
 
-	if (tb[TCA_BASIC_CLASSID-1]) {
-		f->res.classid = *(u32*)RTA_DATA(tb[TCA_BASIC_CLASSID-1]);
+	if (tb[TCA_BASIC_CLASSID]) {
+		f->res.classid = *(u32*)nla_data(tb[TCA_BASIC_CLASSID]);
 		tcf_bind_filter(tp, &f->res, base);
 	}
 
@@ -164,23 +164,23 @@ errout:
 }
 
 static int basic_change(struct tcf_proto *tp, unsigned long base, u32 handle,
-			struct rtattr **tca, unsigned long *arg)
+			struct nlattr **tca, unsigned long *arg)
 {
 	int err = -EINVAL;
 	struct basic_head *head = (struct basic_head *) tp->root;
-	struct rtattr *tb[TCA_BASIC_MAX];
+	struct nlattr *tb[TCA_BASIC_MAX + 1];
 	struct basic_filter *f = (struct basic_filter *) *arg;
 
-	if (tca[TCA_OPTIONS-1] == NULL)
+	if (tca[TCA_OPTIONS] == NULL)
 		return -EINVAL;
 
-	if (rtattr_parse_nested(tb, TCA_BASIC_MAX, tca[TCA_OPTIONS-1]) < 0)
+	if (nla_parse_nested(tb, TCA_BASIC_MAX, tca[TCA_OPTIONS], NULL) < 0)
 		return -EINVAL;
 
 	if (f != NULL) {
 		if (handle && f->handle != handle)
 			return -EINVAL;
-		return basic_set_parms(tp, f, base, tb, tca[TCA_RATE-1]);
+		return basic_set_parms(tp, f, base, tb, tca[TCA_RATE]);
 	}
 
 	err = -ENOBUFS;
@@ -206,7 +206,7 @@ static int basic_change(struct tcf_proto *tp, unsigned long base, u32 handle,
 		f->handle = head->hgenerator;
 	}
 
-	err = basic_set_parms(tp, f, base, tb, tca[TCA_RATE-1]);
+	err = basic_set_parms(tp, f, base, tb, tca[TCA_RATE]);
 	if (err < 0)
 		goto errout;
 
@@ -246,27 +246,27 @@ static int basic_dump(struct tcf_proto *tp, unsigned long fh,
 {
 	struct basic_filter *f = (struct basic_filter *) fh;
 	unsigned char *b = skb_tail_pointer(skb);
-	struct rtattr *rta;
+	struct nlattr *nla;
 
 	if (f == NULL)
 		return skb->len;
 
 	t->tcm_handle = f->handle;
 
-	rta = (struct rtattr *) b;
-	RTA_PUT(skb, TCA_OPTIONS, 0, NULL);
+	nla = (struct nlattr *) b;
+	NLA_PUT(skb, TCA_OPTIONS, 0, NULL);
 
 	if (f->res.classid)
-		RTA_PUT(skb, TCA_BASIC_CLASSID, sizeof(u32), &f->res.classid);
+		NLA_PUT(skb, TCA_BASIC_CLASSID, sizeof(u32), &f->res.classid);
 
 	if (tcf_exts_dump(skb, &f->exts, &basic_ext_map) < 0 ||
 	    tcf_em_tree_dump(skb, &f->ematches, TCA_BASIC_EMATCHES) < 0)
-		goto rtattr_failure;
+		goto nla_put_failure;
 
-	rta->rta_len = skb_tail_pointer(skb) - b;
+	nla->nla_len = skb_tail_pointer(skb) - b;
 	return skb->len;
 
-rtattr_failure:
+nla_put_failure:
 	nlmsg_trim(skb, b);
 	return -1;
 }

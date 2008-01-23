@@ -325,7 +325,7 @@ static int route4_delete(struct tcf_proto *tp, unsigned long arg)
 
 static int route4_set_parms(struct tcf_proto *tp, unsigned long base,
 	struct route4_filter *f, u32 handle, struct route4_head *head,
-	struct rtattr **tb, struct rtattr *est, int new)
+	struct nlattr **tb, struct nlattr *est, int new)
 {
 	int err;
 	u32 id = 0, to = 0, nhandle = 0x8000;
@@ -339,34 +339,34 @@ static int route4_set_parms(struct tcf_proto *tp, unsigned long base,
 		return err;
 
 	err = -EINVAL;
-	if (tb[TCA_ROUTE4_CLASSID-1])
-		if (RTA_PAYLOAD(tb[TCA_ROUTE4_CLASSID-1]) < sizeof(u32))
+	if (tb[TCA_ROUTE4_CLASSID])
+		if (nla_len(tb[TCA_ROUTE4_CLASSID]) < sizeof(u32))
 			goto errout;
 
-	if (tb[TCA_ROUTE4_TO-1]) {
+	if (tb[TCA_ROUTE4_TO]) {
 		if (new && handle & 0x8000)
 			goto errout;
-		if (RTA_PAYLOAD(tb[TCA_ROUTE4_TO-1]) < sizeof(u32))
+		if (nla_len(tb[TCA_ROUTE4_TO]) < sizeof(u32))
 			goto errout;
-		to = *(u32*)RTA_DATA(tb[TCA_ROUTE4_TO-1]);
+		to = *(u32*)nla_data(tb[TCA_ROUTE4_TO]);
 		if (to > 0xFF)
 			goto errout;
 		nhandle = to;
 	}
 
-	if (tb[TCA_ROUTE4_FROM-1]) {
-		if (tb[TCA_ROUTE4_IIF-1])
+	if (tb[TCA_ROUTE4_FROM]) {
+		if (tb[TCA_ROUTE4_IIF])
 			goto errout;
-		if (RTA_PAYLOAD(tb[TCA_ROUTE4_FROM-1]) < sizeof(u32))
+		if (nla_len(tb[TCA_ROUTE4_FROM]) < sizeof(u32))
 			goto errout;
-		id = *(u32*)RTA_DATA(tb[TCA_ROUTE4_FROM-1]);
+		id = *(u32*)nla_data(tb[TCA_ROUTE4_FROM]);
 		if (id > 0xFF)
 			goto errout;
 		nhandle |= id << 16;
-	} else if (tb[TCA_ROUTE4_IIF-1]) {
-		if (RTA_PAYLOAD(tb[TCA_ROUTE4_IIF-1]) < sizeof(u32))
+	} else if (tb[TCA_ROUTE4_IIF]) {
+		if (nla_len(tb[TCA_ROUTE4_IIF]) < sizeof(u32))
 			goto errout;
-		id = *(u32*)RTA_DATA(tb[TCA_ROUTE4_IIF-1]);
+		id = *(u32*)nla_data(tb[TCA_ROUTE4_IIF]);
 		if (id > 0x7FFF)
 			goto errout;
 		nhandle |= (id | 0x8000) << 16;
@@ -398,20 +398,20 @@ static int route4_set_parms(struct tcf_proto *tp, unsigned long base,
 	}
 
 	tcf_tree_lock(tp);
-	if (tb[TCA_ROUTE4_TO-1])
+	if (tb[TCA_ROUTE4_TO])
 		f->id = to;
 
-	if (tb[TCA_ROUTE4_FROM-1])
+	if (tb[TCA_ROUTE4_FROM])
 		f->id = to | id<<16;
-	else if (tb[TCA_ROUTE4_IIF-1])
+	else if (tb[TCA_ROUTE4_IIF])
 		f->iif = id;
 
 	f->handle = nhandle;
 	f->bkt = b;
 	tcf_tree_unlock(tp);
 
-	if (tb[TCA_ROUTE4_CLASSID-1]) {
-		f->res.classid = *(u32*)RTA_DATA(tb[TCA_ROUTE4_CLASSID-1]);
+	if (tb[TCA_ROUTE4_CLASSID]) {
+		f->res.classid = *(u32*)nla_data(tb[TCA_ROUTE4_CLASSID]);
 		tcf_bind_filter(tp, &f->res, base);
 	}
 
@@ -425,14 +425,14 @@ errout:
 
 static int route4_change(struct tcf_proto *tp, unsigned long base,
 		       u32 handle,
-		       struct rtattr **tca,
+		       struct nlattr **tca,
 		       unsigned long *arg)
 {
 	struct route4_head *head = tp->root;
 	struct route4_filter *f, *f1, **fp;
 	struct route4_bucket *b;
-	struct rtattr *opt = tca[TCA_OPTIONS-1];
-	struct rtattr *tb[TCA_ROUTE4_MAX];
+	struct nlattr *opt = tca[TCA_OPTIONS];
+	struct nlattr *tb[TCA_ROUTE4_MAX + 1];
 	unsigned int h, th;
 	u32 old_handle = 0;
 	int err;
@@ -440,7 +440,7 @@ static int route4_change(struct tcf_proto *tp, unsigned long base,
 	if (opt == NULL)
 		return handle ? -EINVAL : 0;
 
-	if (rtattr_parse_nested(tb, TCA_ROUTE4_MAX, opt) < 0)
+	if (nla_parse_nested(tb, TCA_ROUTE4_MAX, opt, NULL) < 0)
 		return -EINVAL;
 
 	if ((f = (struct route4_filter*)*arg) != NULL) {
@@ -451,7 +451,7 @@ static int route4_change(struct tcf_proto *tp, unsigned long base,
 			old_handle = f->handle;
 
 		err = route4_set_parms(tp, base, f, handle, head, tb,
-			tca[TCA_RATE-1], 0);
+			tca[TCA_RATE], 0);
 		if (err < 0)
 			return err;
 
@@ -474,7 +474,7 @@ static int route4_change(struct tcf_proto *tp, unsigned long base,
 		goto errout;
 
 	err = route4_set_parms(tp, base, f, handle, head, tb,
-		tca[TCA_RATE-1], 1);
+		tca[TCA_RATE], 1);
 	if (err < 0)
 		goto errout;
 
@@ -550,7 +550,7 @@ static int route4_dump(struct tcf_proto *tp, unsigned long fh,
 {
 	struct route4_filter *f = (struct route4_filter*)fh;
 	unsigned char *b = skb_tail_pointer(skb);
-	struct rtattr *rta;
+	struct nlattr *nla;
 	u32 id;
 
 	if (f == NULL)
@@ -558,34 +558,34 @@ static int route4_dump(struct tcf_proto *tp, unsigned long fh,
 
 	t->tcm_handle = f->handle;
 
-	rta = (struct rtattr*)b;
-	RTA_PUT(skb, TCA_OPTIONS, 0, NULL);
+	nla = (struct nlattr*)b;
+	NLA_PUT(skb, TCA_OPTIONS, 0, NULL);
 
 	if (!(f->handle&0x8000)) {
 		id = f->id&0xFF;
-		RTA_PUT(skb, TCA_ROUTE4_TO, sizeof(id), &id);
+		NLA_PUT(skb, TCA_ROUTE4_TO, sizeof(id), &id);
 	}
 	if (f->handle&0x80000000) {
 		if ((f->handle>>16) != 0xFFFF)
-			RTA_PUT(skb, TCA_ROUTE4_IIF, sizeof(f->iif), &f->iif);
+			NLA_PUT(skb, TCA_ROUTE4_IIF, sizeof(f->iif), &f->iif);
 	} else {
 		id = f->id>>16;
-		RTA_PUT(skb, TCA_ROUTE4_FROM, sizeof(id), &id);
+		NLA_PUT(skb, TCA_ROUTE4_FROM, sizeof(id), &id);
 	}
 	if (f->res.classid)
-		RTA_PUT(skb, TCA_ROUTE4_CLASSID, 4, &f->res.classid);
+		NLA_PUT(skb, TCA_ROUTE4_CLASSID, 4, &f->res.classid);
 
 	if (tcf_exts_dump(skb, &f->exts, &route_ext_map) < 0)
-		goto rtattr_failure;
+		goto nla_put_failure;
 
-	rta->rta_len = skb_tail_pointer(skb) - b;
+	nla->nla_len = skb_tail_pointer(skb) - b;
 
 	if (tcf_exts_dump_stats(skb, &f->exts, &route_ext_map) < 0)
-		goto rtattr_failure;
+		goto nla_put_failure;
 
 	return skb->len;
 
-rtattr_failure:
+nla_put_failure:
 	nlmsg_trim(skb, b);
 	return -1;
 }

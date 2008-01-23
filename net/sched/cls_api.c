@@ -38,14 +38,14 @@ static DEFINE_RWLOCK(cls_mod_lock);
 
 /* Find classifier type by string name */
 
-static struct tcf_proto_ops *tcf_proto_lookup_ops(struct rtattr *kind)
+static struct tcf_proto_ops *tcf_proto_lookup_ops(struct nlattr *kind)
 {
 	struct tcf_proto_ops *t = NULL;
 
 	if (kind) {
 		read_lock(&cls_mod_lock);
 		for (t = tcf_proto_base; t; t = t->next) {
-			if (rtattr_strcmp(kind, t->kind) == 0) {
+			if (nla_strcmp(kind, t->kind) == 0) {
 				if (!try_module_get(t->owner))
 					t = NULL;
 				break;
@@ -118,7 +118,7 @@ static inline u32 tcf_auto_prio(struct tcf_proto *tp)
 static int tc_ctl_tfilter(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 {
 	struct net *net = skb->sk->sk_net;
-	struct rtattr **tca;
+	struct nlattr *tca[TCA_MAX + 1];
 	struct tcmsg *t;
 	u32 protocol;
 	u32 prio;
@@ -138,7 +138,6 @@ static int tc_ctl_tfilter(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 		return -EINVAL;
 
 replay:
-	tca = arg;
 	t = NLMSG_DATA(n);
 	protocol = TC_H_MIN(t->tcm_info);
 	prio = TC_H_MAJ(t->tcm_info);
@@ -159,6 +158,10 @@ replay:
 	dev = __dev_get_by_index(&init_net, t->tcm_ifindex);
 	if (dev == NULL)
 		return -ENODEV;
+
+	err = nlmsg_parse(n, sizeof(*t), tca, TCA_MAX, NULL);
+	if (err < 0)
+		return err;
 
 	/* Find qdisc */
 	if (!parent) {
@@ -202,7 +205,7 @@ replay:
 	if (tp == NULL) {
 		/* Proto-tcf does not exist, create new one */
 
-		if (tca[TCA_KIND-1] == NULL || !protocol)
+		if (tca[TCA_KIND] == NULL || !protocol)
 			goto errout;
 
 		err = -ENOENT;
@@ -217,14 +220,14 @@ replay:
 		if (tp == NULL)
 			goto errout;
 		err = -EINVAL;
-		tp_ops = tcf_proto_lookup_ops(tca[TCA_KIND-1]);
+		tp_ops = tcf_proto_lookup_ops(tca[TCA_KIND]);
 		if (tp_ops == NULL) {
 #ifdef CONFIG_KMOD
-			struct rtattr *kind = tca[TCA_KIND-1];
+			struct nlattr *kind = tca[TCA_KIND];
 			char name[IFNAMSIZ];
 
 			if (kind != NULL &&
-			    rtattr_strlcpy(name, kind, IFNAMSIZ) < IFNAMSIZ) {
+			    nla_strlcpy(name, kind, IFNAMSIZ) < IFNAMSIZ) {
 				rtnl_unlock();
 				request_module("cls_%s", name);
 				rtnl_lock();
@@ -263,7 +266,7 @@ replay:
 		*back = tp;
 		qdisc_unlock_tree(dev);
 
-	} else if (tca[TCA_KIND-1] && rtattr_strcmp(tca[TCA_KIND-1], tp->ops->kind))
+	} else if (tca[TCA_KIND] && nla_strcmp(tca[TCA_KIND], tp->ops->kind))
 		goto errout;
 
 	fh = tp->ops->get(tp, t->tcm_handle);
@@ -333,18 +336,18 @@ static int tcf_fill_node(struct sk_buff *skb, struct tcf_proto *tp,
 	tcm->tcm_ifindex = tp->q->dev->ifindex;
 	tcm->tcm_parent = tp->classid;
 	tcm->tcm_info = TC_H_MAKE(tp->prio, tp->protocol);
-	RTA_PUT(skb, TCA_KIND, IFNAMSIZ, tp->ops->kind);
+	NLA_PUT(skb, TCA_KIND, IFNAMSIZ, tp->ops->kind);
 	tcm->tcm_handle = fh;
 	if (RTM_DELTFILTER != event) {
 		tcm->tcm_handle = 0;
 		if (tp->ops->dump && tp->ops->dump(tp, fh, skb, tcm) < 0)
-			goto rtattr_failure;
+			goto nla_put_failure;
 	}
 	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 	return skb->len;
 
 nlmsg_failure:
-rtattr_failure:
+nla_put_failure:
 	nlmsg_trim(skb, b);
 	return -1;
 }
@@ -476,8 +479,8 @@ void tcf_exts_destroy(struct tcf_proto *tp, struct tcf_exts *exts)
 }
 EXPORT_SYMBOL(tcf_exts_destroy);
 
-int tcf_exts_validate(struct tcf_proto *tp, struct rtattr **tb,
-		  struct rtattr *rate_tlv, struct tcf_exts *exts,
+int tcf_exts_validate(struct tcf_proto *tp, struct nlattr **tb,
+		  struct nlattr *rate_tlv, struct tcf_exts *exts,
 		  struct tcf_ext_map *map)
 {
 	memset(exts, 0, sizeof(*exts));
@@ -487,8 +490,9 @@ int tcf_exts_validate(struct tcf_proto *tp, struct rtattr **tb,
 		int err;
 		struct tc_action *act;
 
-		if (map->police && tb[map->police-1]) {
-			act = tcf_action_init_1(tb[map->police-1], rate_tlv,
+		if (map->police && tb[map->police]) {
+			act = tcf_action_init_1((struct rtattr *)tb[map->police],
+						(struct rtattr *)rate_tlv,
 						"police", TCA_ACT_NOREPLACE,
 						TCA_ACT_BIND, &err);
 			if (act == NULL)
@@ -496,8 +500,9 @@ int tcf_exts_validate(struct tcf_proto *tp, struct rtattr **tb,
 
 			act->type = TCA_OLD_COMPAT;
 			exts->action = act;
-		} else if (map->action && tb[map->action-1]) {
-			act = tcf_action_init(tb[map->action-1], rate_tlv, NULL,
+		} else if (map->action && tb[map->action]) {
+			act = tcf_action_init((struct rtattr *)tb[map->action],
+					      (struct rtattr *)rate_tlv, NULL,
 				TCA_ACT_NOREPLACE, TCA_ACT_BIND, &err);
 			if (act == NULL)
 				return err;
@@ -506,8 +511,8 @@ int tcf_exts_validate(struct tcf_proto *tp, struct rtattr **tb,
 		}
 	}
 #else
-	if ((map->action && tb[map->action-1]) ||
-	    (map->police && tb[map->police-1]))
+	if ((map->action && tb[map->action]) ||
+	    (map->police && tb[map->police]))
 		return -EOPNOTSUPP;
 #endif
 
@@ -541,23 +546,23 @@ int tcf_exts_dump(struct sk_buff *skb, struct tcf_exts *exts,
 		 * to work with both old and new modes of entering
 		 * tc data even if iproute2  was newer - jhs
 		 */
-		struct rtattr *p_rta = (struct rtattr *)skb_tail_pointer(skb);
+		struct nlattr *p_rta = (struct nlattr *)skb_tail_pointer(skb);
 
 		if (exts->action->type != TCA_OLD_COMPAT) {
-			RTA_PUT(skb, map->action, 0, NULL);
+			NLA_PUT(skb, map->action, 0, NULL);
 			if (tcf_action_dump(skb, exts->action, 0, 0) < 0)
-				goto rtattr_failure;
-			p_rta->rta_len = skb_tail_pointer(skb) - (u8 *)p_rta;
+				goto nla_put_failure;
+			p_rta->nla_len = skb_tail_pointer(skb) - (u8 *)p_rta;
 		} else if (map->police) {
-			RTA_PUT(skb, map->police, 0, NULL);
+			NLA_PUT(skb, map->police, 0, NULL);
 			if (tcf_action_dump_old(skb, exts->action, 0, 0) < 0)
-				goto rtattr_failure;
-			p_rta->rta_len = skb_tail_pointer(skb) - (u8 *)p_rta;
+				goto nla_put_failure;
+			p_rta->nla_len = skb_tail_pointer(skb) - (u8 *)p_rta;
 		}
 	}
 #endif
 	return 0;
-rtattr_failure: __attribute__ ((unused))
+nla_put_failure: __attribute__ ((unused))
 	return -1;
 }
 EXPORT_SYMBOL(tcf_exts_dump);
@@ -569,10 +574,10 @@ int tcf_exts_dump_stats(struct sk_buff *skb, struct tcf_exts *exts,
 #ifdef CONFIG_NET_CLS_ACT
 	if (exts->action)
 		if (tcf_action_copy_stats(skb, exts->action, 1) < 0)
-			goto rtattr_failure;
+			goto nla_put_failure;
 #endif
 	return 0;
-rtattr_failure: __attribute__ ((unused))
+nla_put_failure: __attribute__ ((unused))
 	return -1;
 }
 EXPORT_SYMBOL(tcf_exts_dump_stats);
