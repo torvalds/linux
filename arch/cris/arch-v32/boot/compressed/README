@@ -1,6 +1,5 @@
 Creation of the self-extracting compressed kernel image (vmlinuz)
 -----------------------------------------------------------------
-$Id: README,v 1.1 2003/08/21 09:37:03 johana Exp $
 
 This can be slightly confusing because it's a process with many steps.
 
