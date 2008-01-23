@@ -1113,7 +1113,7 @@ int inet_sk_rebuild_header(struct sock *sk)
 	};
 
 	security_sk_classify_flow(sk, &fl);
-	err = ip_route_output_flow(&rt, &fl, sk, 0);
+	err = ip_route_output_flow(&init_net, &rt, &fl, sk, 0);
 }
 	if (!err)
 		sk_setup_caps(sk, &rt->u.dst);

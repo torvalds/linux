@@ -2533,11 +2533,12 @@ static int ipv4_dst_blackhole(struct rtable **rp, struct flowi *flp, struct sock
 	return (rt ? 0 : -ENOMEM);
 }
 
-int ip_route_output_flow(struct rtable **rp, struct flowi *flp, struct sock *sk, int flags)
+int ip_route_output_flow(struct net *net, struct rtable **rp, struct flowi *flp,
+			 struct sock *sk, int flags)
 {
 	int err;
 
-	if ((err = __ip_route_output_key(&init_net, rp, flp)) != 0)
+	if ((err = __ip_route_output_key(net, rp, flp)) != 0)
 		return err;
 
 	if (flp->proto) {
@@ -2560,7 +2561,7 @@ EXPORT_SYMBOL_GPL(ip_route_output_flow);
 
 int ip_route_output_key(struct rtable **rp, struct flowi *flp)
 {
-	return ip_route_output_flow(rp, flp, NULL, 0);
+	return ip_route_output_flow(&init_net, rp, flp, NULL, 0);
 }
 
 static int rt_fill_info(struct sk_buff *skb, u32 pid, u32 seq, int event,

@@ -558,7 +558,7 @@ static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		}
 
 		security_sk_classify_flow(sk, &fl);
-		err = ip_route_output_flow(&rt, &fl, sk, 1);
+		err = ip_route_output_flow(&init_net, &rt, &fl, sk, 1);
 	}
 	if (err)
 		goto done;
