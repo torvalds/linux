@@ -5146,6 +5146,15 @@ static int iwl3945_init_channel_map(struct iwl3945_priv *priv)
 	return 0;
 }
 
+/*
+ * iwl3945_free_channel_map - undo allocations in iwl3945_init_channel_map
+ */
+static void iwl3945_free_channel_map(struct iwl3945_priv *priv)
+{
+	kfree(priv->channel_info);
+	priv->channel_count = 0;
+}
+
 /* For active scan, listen ACTIVE_DWELL_TIME (msec) on each channel after
  * sending probe req.  This should be set long enough to hear probe responses
  * from more than one AP.  */
@@ -5469,6 +5478,17 @@ static int iwl3945_init_geos(struct iwl3945_priv *priv)
 	set_bit(STATUS_GEO_CONFIGURED, &priv->status);
 
 	return 0;
+}
+
+/*
+ * iwl3945_free_geos - undo allocations in iwl3945_init_geos
+ */
+static void iwl3945_free_geos(struct iwl3945_priv *priv)
+{
+	kfree(priv->modes);
+	kfree(priv->ieee_channels);
+	kfree(priv->ieee_rates);
+	clear_bit(STATUS_GEO_CONFIGURED, &priv->status);
 }
 
 /******************************************************************************
@@ -6129,15 +6149,6 @@ static void iwl3945_alive_start(struct iwl3945_priv *priv)
 
 	/* Clear out the uCode error bit if it is set */
 	clear_bit(STATUS_FW_ERROR, &priv->status);
-
-	rc = iwl3945_init_channel_map(priv);
-	if (rc) {
-		IWL_ERROR("initializing regulatory failed: %d\n", rc);
-		return;
-	}
-
-	iwl3945_init_geos(priv);
-	iwl3945_reset_channel_flag(priv);
 
 	if (iwl3945_is_rfkill(priv))
 		return;
@@ -8614,11 +8625,24 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	IWL_DEBUG_INFO("MAC address: %s\n", print_mac(mac, priv->mac_addr));
 	SET_IEEE80211_PERM_ADDR(priv->hw, priv->mac_addr);
 
+	err = iwl3945_init_channel_map(priv);
+	if (err) {
+		IWL_ERROR("initializing regulatory failed: %d\n", err);
+		goto out_remove_sysfs;
+	}
+
+	err = iwl3945_init_geos(priv);
+	if (err) {
+		IWL_ERROR("initializing geos failed: %d\n", err);
+		goto out_free_channel_map;
+	}
+	iwl3945_reset_channel_flag(priv);
+
 	iwl3945_rate_control_register(priv->hw);
 	err = ieee80211_register_hw(priv->hw);
 	if (err) {
 		IWL_ERROR("Failed to register network device (error %d)\n", err);
-		goto out_remove_sysfs;
+		goto out_free_geos;
 	}
 
 	priv->hw->conf.beacon_int = 100;
@@ -8628,6 +8652,10 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 
 	return 0;
 
+ out_free_geos:
+	iwl3945_free_geos(priv);
+ out_free_channel_map:
+	iwl3945_free_channel_map(priv);
  out_remove_sysfs:
 	sysfs_remove_group(&pdev->dev.kobj, &iwl3945_attribute_group);
 
@@ -8702,10 +8730,8 @@ static void iwl3945_pci_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
 
-	kfree(priv->channel_info);
-
-	kfree(priv->ieee_channels);
-	kfree(priv->ieee_rates);
+	iwl3945_free_channel_map(priv);
+	iwl3945_free_geos(priv);
 
 	if (priv->ibss_beacon)
 		dev_kfree_skb(priv->ibss_beacon);
