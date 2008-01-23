@@ -1172,6 +1172,8 @@ ssize_t	ip_append_page(struct sock *sk, struct page *page,
 
 		skb->len += len;
 		skb->data_len += len;
+		skb->truesize += len;
+		atomic_add(len, &sk->sk_wmem_alloc);
 		offset += len;
 		size -= len;
 	}
