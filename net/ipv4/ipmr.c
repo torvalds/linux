@@ -1185,7 +1185,7 @@ static void ipmr_queue_xmit(struct sk_buff *skb, struct mfc_cache *c, int vifi)
 						.saddr = vif->local,
 						.tos = RT_TOS(iph->tos) } },
 				    .proto = IPPROTO_IPIP };
-		if (ip_route_output_key(&rt, &fl))
+		if (ip_route_output_key(&init_net, &rt, &fl))
 			goto out_free;
 		encap = sizeof(struct iphdr);
 	} else {
@@ -1194,7 +1194,7 @@ static void ipmr_queue_xmit(struct sk_buff *skb, struct mfc_cache *c, int vifi)
 					      { .daddr = iph->daddr,
 						.tos = RT_TOS(iph->tos) } },
 				    .proto = IPPROTO_IPIP };
-		if (ip_route_output_key(&rt, &fl))
+		if (ip_route_output_key(&init_net, &rt, &fl))
 			goto out_free;
 	}
 

@@ -405,7 +405,7 @@ static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 						.tos = RT_TOS(ip_hdr(skb)->tos) } },
 				    .proto = IPPROTO_ICMP };
 		security_skb_classify_flow(skb, &fl);
-		if (ip_route_output_key(&rt, &fl))
+		if (ip_route_output_key(&init_net, &rt, &fl))
 			goto out_unlock;
 	}
 	if (icmpv4_xrlim_allow(rt, icmp_param->data.icmph.type,
@@ -598,7 +598,7 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 			struct dst_entry *odst;
 
 			fl2.fl4_dst = fl.fl4_src;
-			if (ip_route_output_key(&rt2, &fl2))
+			if (ip_route_output_key(&init_net, &rt2, &fl2))
 				goto out_unlock;
 
 			/* Ugh! */

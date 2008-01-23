@@ -78,7 +78,7 @@ __ip_vs_get_out_rt(struct ip_vs_conn *cp, u32 rtos)
 						.tos = rtos, } },
 			};
 
-			if (ip_route_output_key(&rt, &fl)) {
+			if (ip_route_output_key(&init_net, &rt, &fl)) {
 				spin_unlock(&dest->dst_lock);
 				IP_VS_DBG_RL("ip_route_output error, "
 					     "dest: %u.%u.%u.%u\n",
@@ -101,7 +101,7 @@ __ip_vs_get_out_rt(struct ip_vs_conn *cp, u32 rtos)
 					.tos = rtos, } },
 		};
 
-		if (ip_route_output_key(&rt, &fl)) {
+		if (ip_route_output_key(&init_net, &rt, &fl)) {
 			IP_VS_DBG_RL("ip_route_output error, dest: "
 				     "%u.%u.%u.%u\n", NIPQUAD(cp->daddr));
 			return NULL;
@@ -170,7 +170,7 @@ ip_vs_bypass_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 	EnterFunction(10);
 
-	if (ip_route_output_key(&rt, &fl)) {
+	if (ip_route_output_key(&init_net, &rt, &fl)) {
 		IP_VS_DBG_RL("ip_vs_bypass_xmit(): ip_route_output error, "
 			     "dest: %u.%u.%u.%u\n", NIPQUAD(iph->daddr));
 		goto tx_error_icmp;

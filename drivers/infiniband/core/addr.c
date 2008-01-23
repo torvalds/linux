@@ -158,7 +158,7 @@ static void addr_send_arp(struct sockaddr_in *dst_in)
 
 	memset(&fl, 0, sizeof fl);
 	fl.nl_u.ip4_u.daddr = dst_ip;
-	if (ip_route_output_key(&rt, &fl))
+	if (ip_route_output_key(&init_net, &rt, &fl))
 		return;
 
 	neigh_event_send(rt->u.dst.neighbour, NULL);
@@ -179,7 +179,7 @@ static int addr_resolve_remote(struct sockaddr_in *src_in,
 	memset(&fl, 0, sizeof fl);
 	fl.nl_u.ip4_u.daddr = dst_ip;
 	fl.nl_u.ip4_u.saddr = src_ip;
-	ret = ip_route_output_key(&rt, &fl);
+	ret = ip_route_output_key(&init_net, &rt, &fl);
 	if (ret)
 		goto out;
 

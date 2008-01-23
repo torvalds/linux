@@ -97,7 +97,7 @@ static void warn_if_extra_mangle(__be32 dstip, __be32 srcip)
 	struct flowi fl = { .nl_u = { .ip4_u = { .daddr = dstip } } };
 	struct rtable *rt;
 
-	if (ip_route_output_key(&rt, &fl) != 0)
+	if (ip_route_output_key(&init_net, &rt, &fl) != 0)
 		return;
 
 	if (rt->rt_src != srcip && !warned) {

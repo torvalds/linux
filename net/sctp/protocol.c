@@ -454,7 +454,7 @@ static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 			  __FUNCTION__, NIPQUAD(fl.fl4_dst),
 			  NIPQUAD(fl.fl4_src));
 
-	if (!ip_route_output_key(&rt, &fl)) {
+	if (!ip_route_output_key(&init_net, &rt, &fl)) {
 		dst = &rt->u.dst;
 	}
 
@@ -497,7 +497,7 @@ static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 		if ((laddr->state == SCTP_ADDR_SRC) &&
 		    (AF_INET == laddr->a.sa.sa_family)) {
 			fl.fl4_src = laddr->a.v4.sin_addr.s_addr;
-			if (!ip_route_output_key(&rt, &fl)) {
+			if (!ip_route_output_key(&init_net, &rt, &fl)) {
 				dst = &rt->u.dst;
 				goto out_unlock;
 			}

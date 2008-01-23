@@ -2559,9 +2559,9 @@ int ip_route_output_flow(struct net *net, struct rtable **rp, struct flowi *flp,
 
 EXPORT_SYMBOL_GPL(ip_route_output_flow);
 
-int ip_route_output_key(struct rtable **rp, struct flowi *flp)
+int ip_route_output_key(struct net *net, struct rtable **rp, struct flowi *flp)
 {
-	return ip_route_output_flow(&init_net, rp, flp, NULL, 0);
+	return ip_route_output_flow(net, rp, flp, NULL, 0);
 }
 
 static int rt_fill_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
@@ -2728,7 +2728,7 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void 
 			},
 			.oif = tb[RTA_OIF] ? nla_get_u32(tb[RTA_OIF]) : 0,
 		};
-		err = ip_route_output_key(&rt, &fl);
+		err = ip_route_output_key(&init_net, &rt, &fl);
 	}
 
 	if (err)

@@ -2517,7 +2517,7 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 		fl.fl4_dst = targets[i];
 		fl.fl4_tos = RTO_ONLINK;
 
-		rv = ip_route_output_key(&rt, &fl);
+		rv = ip_route_output_key(&init_net, &rt, &fl);
 		if (rv) {
 			if (net_ratelimit()) {
 				printk(KERN_WARNING DRV_NAME

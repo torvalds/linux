@@ -424,7 +424,7 @@ static int arp_filter(__be32 sip, __be32 tip, struct net_device *dev)
 	int flag = 0;
 	/*unsigned long now; */
 
-	if (ip_route_output_key(&rt, &fl) < 0)
+	if (ip_route_output_key(&init_net, &rt, &fl) < 0)
 		return 1;
 	if (rt->u.dst.dev != dev) {
 		NET_INC_STATS_BH(LINUX_MIB_ARPFILTER);
@@ -1002,7 +1002,7 @@ static int arp_req_set(struct net *net, struct arpreq *r,
 		struct flowi fl = { .nl_u = { .ip4_u = { .daddr = ip,
 							 .tos = RTO_ONLINK } } };
 		struct rtable * rt;
-		if ((err = ip_route_output_key(&rt, &fl)) != 0)
+		if ((err = ip_route_output_key(net, &rt, &fl)) != 0)
 			return err;
 		dev = rt->u.dst.dev;
 		ip_rt_put(rt);
@@ -1109,7 +1109,7 @@ static int arp_req_delete(struct net *net, struct arpreq *r,
 		struct flowi fl = { .nl_u = { .ip4_u = { .daddr = ip,
 							 .tos = RTO_ONLINK } } };
 		struct rtable * rt;
-		if ((err = ip_route_output_key(&rt, &fl)) != 0)
+		if ((err = ip_route_output_key(net, &rt, &fl)) != 0)
 			return err;
 		dev = rt->u.dst.dev;
 		ip_rt_put(rt);

@@ -534,7 +534,7 @@ static int clip_setentry(struct atm_vcc *vcc, __be32 ip)
 		unlink_clip_vcc(clip_vcc);
 		return 0;
 	}
-	error = ip_route_output_key(&rt, &fl);
+	error = ip_route_output_key(&init_net, &rt, &fl);
 	if (error)
 		return error;
 	neigh = __neigh_lookup(&clip_tbl, &ip, rt->u.dst.dev, 1);

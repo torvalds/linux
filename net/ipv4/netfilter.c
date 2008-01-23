@@ -33,7 +33,7 @@ int ip_route_me_harder(struct sk_buff *skb, unsigned addr_type)
 		fl.nl_u.ip4_u.tos = RT_TOS(iph->tos);
 		fl.oif = skb->sk ? skb->sk->sk_bound_dev_if : 0;
 		fl.mark = skb->mark;
-		if (ip_route_output_key(&rt, &fl) != 0)
+		if (ip_route_output_key(&init_net, &rt, &fl) != 0)
 			return -1;
 
 		/* Drop old route. */
@@ -43,7 +43,7 @@ int ip_route_me_harder(struct sk_buff *skb, unsigned addr_type)
 		/* non-local src, find valid iif to satisfy
 		 * rp-filter when calling ip_route_input. */
 		fl.nl_u.ip4_u.daddr = iph->saddr;
-		if (ip_route_output_key(&rt, &fl) != 0)
+		if (ip_route_output_key(&init_net, &rt, &fl) != 0)
 			return -1;
 
 		odst = skb->dst;
@@ -187,7 +187,7 @@ EXPORT_SYMBOL(nf_ip_checksum);
 
 static int nf_ip_route(struct dst_entry **dst, struct flowi *fl)
 {
-	return ip_route_output_key((struct rtable **)dst, fl);
+	return ip_route_output_key(&init_net, (struct rtable **)dst, fl);
 }
 
 static const struct nf_afinfo nf_ip_afinfo = {
