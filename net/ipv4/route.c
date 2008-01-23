@@ -2419,7 +2419,7 @@ static int ip_route_output_slow(struct rtable **rp, const struct flowi *oldflp)
 	else
 #endif
 	if (!res.prefixlen && res.type == RTN_UNICAST && !fl.oif)
-		fib_select_default(&fl, &res);
+		fib_select_default(&init_net, &fl, &res);
 
 	if (!fl.fl4_src)
 		fl.fl4_src = FIB_RES_PREFSRC(res);
