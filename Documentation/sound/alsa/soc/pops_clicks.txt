@@ -15,11 +15,11 @@ click every time a component power state is changed.
 Minimising Playback Pops and Clicks
 ===================================
 
-Playback pops in portable audio subsystems cannot be completely eliminated atm,
-however future audio codec hardware will have better pop and click suppression.
-Pops can be reduced within playback by powering the audio components in a
-specific order. This order is different for startup and shutdown and follows
-some basic rules:-
+Playback pops in portable audio subsystems cannot be completely eliminated
+currently, however future audio codec hardware will have better pop and click
+suppression.  Pops can be reduced within playback by powering the audio
+components in a specific order. This order is different for startup and
+shutdown and follows some basic rules:-
 
  Startup Order :- DAC --> Mixers --> Output PGA --> Digital Unmute
 
