@@ -143,12 +143,12 @@ struct trie_stat {
 	unsigned int tnodes;
 	unsigned int leaves;
 	unsigned int nullpointers;
+	unsigned int prefixes;
 	unsigned int nodesizes[MAX_STAT_DEPTH];
 };
 
 struct trie {
 	struct node *trie;
-	unsigned int size;
 #ifdef CONFIG_IP_FIB_TRIE_STATS
 	struct trie_use_stats stats;
 #endif
@@ -1292,8 +1292,6 @@ static int fn_trie_insert(struct fib_table *tb, struct fib_config *cfg)
 	list_add_tail_rcu(&new_fa->fa_list,
 			  (fa ? &fa->fa_list : fa_head));
 
-	t->size++;
-
 	rt_cache_flush(-1);
 	rtmsg_fib(RTM_NEWROUTE, htonl(key), new_fa, plen, tb->tb_id,
 		  &cfg->fc_nlinfo, 0);
@@ -1579,9 +1577,6 @@ static int trie_leaf_remove(struct trie *t, t_key key)
 	 * Key found.
 	 * Remove the leaf and rebalance the tree
 	 */
-
-	t->size--;
-
 	tp = node_parent(n);
 	tnode_free((struct tnode *) n);
 
@@ -2114,10 +2109,17 @@ static void trie_collect_stats(struct trie *t, struct trie_stat *s)
 	for (n = fib_trie_get_first(&iter, t); n;
 	     n = fib_trie_get_next(&iter)) {
 		if (IS_LEAF(n)) {
+			struct leaf *l = (struct leaf *)n;
+			struct leaf_info *li;
+			struct hlist_node *tmp;
+
 			s->leaves++;
 			s->totdepth += iter.depth;
 			if (iter.depth > s->maxdepth)
 				s->maxdepth = iter.depth;
+
+			hlist_for_each_entry_rcu(li, tmp, &l->list, hlist)
+				++s->prefixes;
 		} else {
 			const struct tnode *tn = (const struct tnode *) n;
 			int i;
@@ -2151,8 +2153,11 @@ static void trie_show_stats(struct seq_file *seq, struct trie_stat *stat)
 	seq_printf(seq, "\tMax depth:      %u\n", stat->maxdepth);
 
 	seq_printf(seq, "\tLeaves:         %u\n", stat->leaves);
-
 	bytes = sizeof(struct leaf) * stat->leaves;
+
+	seq_printf(seq, "\tPrefixes:       %u\n", stat->prefixes);
+	bytes += sizeof(struct leaf_info) * stat->prefixes;
+
 	seq_printf(seq, "\tInternal nodes: %u\n\t", stat->tnodes);
 	bytes += sizeof(struct tnode) * stat->tnodes;
 
@@ -2196,8 +2201,8 @@ static void fib_trie_show(struct seq_file *seq, const char *name,
 {
 	struct trie_stat stat;
 
-	seq_printf(seq, "%s: %d\n", name, trie->size);
 	trie_collect_stats(trie, &stat);
+	seq_printf(seq, "%s:\n", name);
 	trie_show_stats(seq, &stat);
 #ifdef CONFIG_IP_FIB_TRIE_STATS
 	trie_show_usage(seq, &trie->stats);
