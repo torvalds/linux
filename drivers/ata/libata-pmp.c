@@ -453,9 +453,6 @@ static void sata_pmp_quirks(struct ata_port *ap)
 	if (vendor == 0x1095 && devid == 0x3726) {
 		/* sil3726 quirks */
 		ata_port_for_each_link(link, ap) {
-			/* SError.N need a kick in the ass to get working */
-			link->flags |= ATA_LFLAG_HRST_TO_RESUME;
-
 			/* class code report is unreliable */
 			if (link->pmp < 5)
 				link->flags |= ATA_LFLAG_ASSUME_ATA;
@@ -468,9 +465,6 @@ static void sata_pmp_quirks(struct ata_port *ap)
 	} else if (vendor == 0x1095 && devid == 0x4723) {
 		/* sil4723 quirks */
 		ata_port_for_each_link(link, ap) {
-			/* SError.N need a kick in the ass to get working */
-			link->flags |= ATA_LFLAG_HRST_TO_RESUME;
-
 			/* class code report is unreliable */
 			if (link->pmp < 2)
 				link->flags |= ATA_LFLAG_ASSUME_ATA;
@@ -483,9 +477,6 @@ static void sata_pmp_quirks(struct ata_port *ap)
 	} else if (vendor == 0x1095 && devid == 0x4726) {
 		/* sil4726 quirks */
 		ata_port_for_each_link(link, ap) {
-			/* SError.N need a kick in the ass to get working */
-			link->flags |= ATA_LFLAG_HRST_TO_RESUME;
-
 			/* Class code report is unreliable and SRST
 			 * times out under certain configurations.
 			 * Config device can be at port 0 or 5 and
@@ -513,13 +504,6 @@ static void sata_pmp_quirks(struct ata_port *ap)
 		 * otherwise.  Don't try hard to recover it.
 		 */
 		ap->pmp_link[ap->nr_pmp_links - 1].flags |= ATA_LFLAG_NO_RETRY;
-	} else if (vendor == 0x11ab && devid == 0x4140) {
-		/* Marvell 88SM4140 quirks.  Fan-out ports require PHY
-		 * reset to work; other than that, it behaves very
-		 * nicely.
-		 */
-		ata_port_for_each_link(link, ap)
-			link->flags |= ATA_LFLAG_HRST_TO_RESUME;
 	}
 }
 
