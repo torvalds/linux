@@ -35,7 +35,6 @@ enum {
 	SATA_FSL_HOST_FLAGS	= (ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 				ATA_FLAG_MMIO | ATA_FLAG_PIO_DMA |
 				ATA_FLAG_NCQ),
-	SATA_FSL_HOST_LFLAGS	= ATA_LFLAG_SKIP_D2H_BSY,
 
 	SATA_FSL_MAX_CMDS	= SATA_FSL_QUEUE_DEPTH,
 	SATA_FSL_CMD_HDR_SIZE	= 16,	/* 4 DWORDS */
@@ -1241,7 +1240,6 @@ static const struct ata_port_operations sata_fsl_ops = {
 static const struct ata_port_info sata_fsl_port_info[] = {
 	{
 	 .flags = SATA_FSL_HOST_FLAGS,
-	 .link_flags = SATA_FSL_HOST_LFLAGS,
 	 .pio_mask = 0x1f,	/* pio 0-4 */
 	 .udma_mask = 0x7f,	/* udma 0-6 */
 	 .port_ops = &sata_fsl_ops,

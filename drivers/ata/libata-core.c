@@ -3962,10 +3962,8 @@ int ata_std_prereset(struct ata_link *link, unsigned long deadline)
 					"link for reset (errno=%d)\n", rc);
 	}
 
-	/* Wait for !BSY if the controller can wait for the first D2H
-	 * Reg FIS and we don't know that no device is attached.
-	 */
-	if (!(link->flags & ATA_LFLAG_SKIP_D2H_BSY) && !ata_link_offline(link)) {
+	/* wait for !BSY if we don't know that no device is attached */
+	if (!ata_link_offline(link)) {
 		rc = ata_wait_ready(ap, deadline);
 		if (rc && rc != -ENODEV) {
 			ata_link_printk(link, KERN_WARNING, "device not ready "

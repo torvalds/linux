@@ -254,7 +254,6 @@ enum {
 				  ATA_FLAG_MMIO | ATA_FLAG_PIO_DMA |
 				  ATA_FLAG_NCQ | ATA_FLAG_ACPI_SATA |
 				  ATA_FLAG_AN | ATA_FLAG_PMP,
-	SIL24_COMMON_LFLAGS	= ATA_LFLAG_SKIP_D2H_BSY,
 	SIL24_FLAG_PCIX_IRQ_WOC	= (1 << 24), /* IRQ loss errata on PCI-X */
 
 	IRQ_STAT_4PORTS		= 0xf,
@@ -449,7 +448,6 @@ static const struct ata_port_info sil24_port_info[] = {
 	{
 		.flags		= SIL24_COMMON_FLAGS | SIL24_NPORTS2FLAG(4) |
 				  SIL24_FLAG_PCIX_IRQ_WOC,
-		.link_flags	= SIL24_COMMON_LFLAGS,
 		.pio_mask	= 0x1f,			/* pio0-4 */
 		.mwdma_mask	= 0x07,			/* mwdma0-2 */
 		.udma_mask	= ATA_UDMA5,		/* udma0-5 */
@@ -458,7 +456,6 @@ static const struct ata_port_info sil24_port_info[] = {
 	/* sil_3132 */
 	{
 		.flags		= SIL24_COMMON_FLAGS | SIL24_NPORTS2FLAG(2),
-		.link_flags	= SIL24_COMMON_LFLAGS,
 		.pio_mask	= 0x1f,			/* pio0-4 */
 		.mwdma_mask	= 0x07,			/* mwdma0-2 */
 		.udma_mask	= ATA_UDMA5,		/* udma0-5 */
@@ -467,7 +464,6 @@ static const struct ata_port_info sil24_port_info[] = {
 	/* sil_3131/sil_3531 */
 	{
 		.flags		= SIL24_COMMON_FLAGS | SIL24_NPORTS2FLAG(1),
-		.link_flags	= SIL24_COMMON_LFLAGS,
 		.pio_mask	= 0x1f,			/* pio0-4 */
 		.mwdma_mask	= 0x07,			/* mwdma0-2 */
 		.udma_mask	= ATA_UDMA5,		/* udma0-5 */
