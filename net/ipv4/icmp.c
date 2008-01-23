@@ -569,7 +569,7 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 		struct rtable *rt2;
 
 		security_skb_classify_flow(skb_in, &fl);
-		if (__ip_route_output_key(&rt, &fl))
+		if (__ip_route_output_key(&init_net, &rt, &fl))
 			goto out_unlock;
 
 		/* No need to clone since we're just using its address. */
@@ -592,7 +592,7 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 			goto out_unlock;
 
 		if (inet_addr_type(&init_net, fl.fl4_src) == RTN_LOCAL)
-			err = __ip_route_output_key(&rt2, &fl);
+			err = __ip_route_output_key(&init_net, &rt2, &fl);
 		else {
 			struct flowi fl2 = {};
 			struct dst_entry *odst;

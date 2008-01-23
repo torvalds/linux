@@ -36,7 +36,7 @@ static struct dst_entry *xfrm4_dst_lookup(int tos, xfrm_address_t *saddr,
 	if (saddr)
 		fl.fl4_src = saddr->a4;
 
-	err = __ip_route_output_key(&rt, &fl);
+	err = __ip_route_output_key(&init_net, &rt, &fl);
 	dst = &rt->u.dst;
 	if (err)
 		dst = ERR_PTR(err);

@@ -2443,7 +2443,8 @@ make_route:
 out:	return err;
 }
 
-int __ip_route_output_key(struct rtable **rp, const struct flowi *flp)
+int __ip_route_output_key(struct net *net, struct rtable **rp,
+			  const struct flowi *flp)
 {
 	unsigned hash;
 	struct rtable *rth;
@@ -2470,7 +2471,7 @@ int __ip_route_output_key(struct rtable **rp, const struct flowi *flp)
 	}
 	rcu_read_unlock_bh();
 
-	return ip_route_output_slow(&init_net, rp, flp);
+	return ip_route_output_slow(net, rp, flp);
 }
 
 EXPORT_SYMBOL_GPL(__ip_route_output_key);
@@ -2536,7 +2537,7 @@ int ip_route_output_flow(struct rtable **rp, struct flowi *flp, struct sock *sk,
 {
 	int err;
 
-	if ((err = __ip_route_output_key(rp, flp)) != 0)
+	if ((err = __ip_route_output_key(&init_net, rp, flp)) != 0)
 		return err;
 
 	if (flp->proto) {
