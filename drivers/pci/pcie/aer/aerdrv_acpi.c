@@ -50,7 +50,7 @@ int aer_osc_setup(struct pcie_device *pciedev)
 	}
 
 	if (handle) {
-		pci_osc_support_set(OSC_EXT_PCI_CONFIG_SUPPORT);
+		pcie_osc_support_set(OSC_EXT_PCI_CONFIG_SUPPORT);
 		status = pci_osc_control_set(handle,
 					OSC_PCI_EXPRESS_AER_CONTROL |
 					OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL);
