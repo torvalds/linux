@@ -669,7 +669,7 @@ static int __devinit snd_set_aci_init_values(struct snd_miro *miro)
 	return 0;
 }
 
-static int snd_miro_mixer(struct snd_miro *miro)
+static int __devinit snd_miro_mixer(struct snd_miro *miro)
 {
 	struct snd_card *card;
 	unsigned int idx;

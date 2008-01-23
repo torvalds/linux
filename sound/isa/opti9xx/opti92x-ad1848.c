@@ -1594,7 +1594,7 @@ OPTi93X_DOUBLE("Capture Volume", 0, OPTi93X_MIXOUT_LEFT, OPTi93X_MIXOUT_RIGHT, 0
 }
 };
                                         
-static int snd_opti93x_mixer(struct snd_opti93x *chip)
+static int __devinit snd_opti93x_mixer(struct snd_opti93x *chip)
 {
 	struct snd_card *card;
 	struct snd_kcontrol_new knew;
