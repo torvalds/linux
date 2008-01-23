@@ -152,9 +152,20 @@ static int virtblk_ioctl(struct inode *inode, struct file *filp,
 			      (void __user *)data);
 }
 
+/* We provide getgeo only to please some old bootloader/partitioning tools */
+static int virtblk_getgeo(struct block_device *bd, struct hd_geometry *geo)
+{
+	/* some standard values, similar to sd */
+	geo->heads = 1 << 6;
+	geo->sectors = 1 << 5;
+	geo->cylinders = get_capacity(bd->bd_disk) >> 11;
+	return 0;
+}
+
 static struct block_device_operations virtblk_fops = {
-	.ioctl = virtblk_ioctl,
-	.owner = THIS_MODULE,
+	.ioctl  = virtblk_ioctl,
+	.owner  = THIS_MODULE,
+	.getgeo = virtblk_getgeo,
 };
 
 static int virtblk_probe(struct virtio_device *vdev)
