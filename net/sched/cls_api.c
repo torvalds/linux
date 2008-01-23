@@ -31,7 +31,7 @@
 
 /* The list of all installed classifier types */
 
-static struct tcf_proto_ops *tcf_proto_base;
+static struct tcf_proto_ops *tcf_proto_base __read_mostly;
 
 /* Protects list of registered TC modules. It is pure SMP lock. */
 static DEFINE_RWLOCK(cls_mod_lock);

@@ -271,7 +271,7 @@ rtattr_failure:
 	return -1;
 }
 
-static struct tcf_proto_ops cls_basic_ops = {
+static struct tcf_proto_ops cls_basic_ops __read_mostly = {
 	.kind		=	"basic",
 	.classify	=	basic_classify,
 	.init		=	basic_init,

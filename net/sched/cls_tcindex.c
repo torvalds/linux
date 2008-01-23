@@ -485,8 +485,7 @@ rtattr_failure:
 	return -1;
 }
 
-static struct tcf_proto_ops cls_tcindex_ops = {
-	.next		=	NULL,
+static struct tcf_proto_ops cls_tcindex_ops __read_mostly = {
 	.kind		=	"tcindex",
 	.classify	=	tcindex_classify,
 	.init		=	tcindex_init,

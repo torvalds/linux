@@ -590,8 +590,7 @@ rtattr_failure:
 	return -1;
 }
 
-static struct tcf_proto_ops cls_route4_ops = {
-	.next		=	NULL,
+static struct tcf_proto_ops cls_route4_ops __read_mostly = {
 	.kind		=	"route",
 	.classify	=	route4_classify,
 	.init		=	route4_init,

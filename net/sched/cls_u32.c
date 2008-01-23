@@ -751,8 +751,7 @@ rtattr_failure:
 	return -1;
 }
 
-static struct tcf_proto_ops cls_u32_ops = {
-	.next		=	NULL,
+static struct tcf_proto_ops cls_u32_ops __read_mostly = {
 	.kind		=	"u32",
 	.classify	=	u32_classify,
 	.init		=	u32_init,
