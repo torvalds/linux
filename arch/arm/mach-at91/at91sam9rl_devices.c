@@ -450,28 +450,6 @@ static void __init at91_add_device_watchdog(void) {}
 
 
 /* --------------------------------------------------------------------
- *  LEDs
- * -------------------------------------------------------------------- */
-
-#if defined(CONFIG_LEDS)
-u8 at91_leds_cpu;
-u8 at91_leds_timer;
-
-void __init at91_init_leds(u8 cpu_led, u8 timer_led)
-{
-	/* Enable GPIO to access the LEDs */
-	at91_set_gpio_output(cpu_led, 1);
-	at91_set_gpio_output(timer_led, 1);
-
-	at91_leds_cpu	= cpu_led;
-	at91_leds_timer	= timer_led;
-}
-#else
-void __init at91_init_leds(u8 cpu_led, u8 timer_led) {}
-#endif
-
-
-/* --------------------------------------------------------------------
  *  SSC -- Synchronous Serial Controller
  * -------------------------------------------------------------------- */
 

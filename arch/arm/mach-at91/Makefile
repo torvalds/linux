@@ -45,7 +45,7 @@ obj-$(CONFIG_MACH_AT91SAM9RLEK)	+= board-sam9rlek.o
 obj-$(CONFIG_MACH_AT91EB01)	+= board-eb01.o
 
 # Drivers
-obj-$(CONFIG_LEDS)		+= leds.o
+obj-y				+= leds.o
 
 # Power Management
 obj-$(CONFIG_PM)		+= pm.o

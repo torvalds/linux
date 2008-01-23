@@ -34,6 +34,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/device.h>
 #include <linux/i2c.h>
+#include <linux/leds.h>
 #include <linux/spi/spi.h>
 
  /* USB Device */
@@ -157,9 +158,8 @@ extern void __init at91_add_device_ac97(struct atmel_ac97_data *data);
 extern void __init at91_add_device_isi(void);
 
  /* LEDs */
-extern u8 at91_leds_cpu;
-extern u8 at91_leds_timer;
 extern void __init at91_init_leds(u8 cpu_led, u8 timer_led);
+extern void __init at91_gpio_leds(struct gpio_led *leds, int nr);
 
 /* FIXME: this needs a better location, but gets stuff building again */
 extern int at91_suspend_entering_slow_clock(void);
