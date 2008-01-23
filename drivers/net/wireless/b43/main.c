@@ -3630,6 +3630,7 @@ static int b43_op_start(struct ieee80211_hw *hw)
 	struct b43_wldev *dev = wl->current_dev;
 	int did_init = 0;
 	int err = 0;
+	bool do_rfkill_exit = 0;
 
 	/* First register RFkill.
 	 * LEDs that are registered later depend on it. */
@@ -3639,8 +3640,10 @@ static int b43_op_start(struct ieee80211_hw *hw)
 
 	if (b43_status(dev) < B43_STAT_INITIALIZED) {
 		err = b43_wireless_core_init(dev);
-		if (err)
+		if (err) {
+			do_rfkill_exit = 1;
 			goto out_mutex_unlock;
+		}
 		did_init = 1;
 	}
 
@@ -3649,12 +3652,16 @@ static int b43_op_start(struct ieee80211_hw *hw)
 		if (err) {
 			if (did_init)
 				b43_wireless_core_exit(dev);
+			do_rfkill_exit = 1;
 			goto out_mutex_unlock;
 		}
 	}
 
  out_mutex_unlock:
 	mutex_unlock(&wl->mutex);
+
+	if (do_rfkill_exit)
+		b43_rfkill_exit(dev);
 
 	return err;
 }
