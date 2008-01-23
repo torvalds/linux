@@ -222,15 +222,13 @@ extern const struct nla_policy rtm_ipv4_policy[];
 extern void		ip_fib_init(void);
 extern int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
 			       struct net_device *dev, __be32 *spec_dst, u32 *itag);
-extern void fib_select_multipath(const struct flowi *flp, struct fib_result *res);
-
-struct rtentry;
 
 /* Exported by fib_semantics.c */
 extern int ip_fib_check_default(__be32 gw, struct net_device *dev);
 extern int fib_sync_down(__be32 local, struct net_device *dev, int force);
 extern int fib_sync_up(struct net_device *dev);
 extern __be32  __fib_res_prefsrc(struct fib_result *res);
+extern void fib_select_multipath(const struct flowi *flp, struct fib_result *res);
 
 /* Exported by fib_{hash|trie}.c */
 extern void fib_hash_init(void);
