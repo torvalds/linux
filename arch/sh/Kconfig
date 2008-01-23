@@ -455,6 +455,14 @@ config SH_RTS7751R2D
 	  Select RTS7751R2D if configuring for a Renesas Technology
 	  Sales SH-Graphics board.
 
+config SH_SDK7780
+	bool "SDK7780R3"
+	depends on CPU_SUBTYPE_SH7780
+	select SYS_SUPPORTS_PCI
+	help
+	  Select SDK7780 if configuring for a Renesas SH7780 SDK7780R3
+	  evaluation board.
+
 config SH_HIGHLANDER
 	bool "Highlander"
 	depends on CPU_SUBTYPE_SH7780 || CPU_SUBTYPE_SH7785
@@ -520,6 +528,7 @@ endmenu
 
 source "arch/sh/boards/renesas/rts7751r2d/Kconfig"
 source "arch/sh/boards/renesas/r7780rp/Kconfig"
+source "arch/sh/boards/renesas/sdk7780/Kconfig"
 source "arch/sh/boards/magicpanelr2/Kconfig"
 
 menu "Timer and clock configuration"
