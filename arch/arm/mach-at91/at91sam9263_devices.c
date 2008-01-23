@@ -782,6 +782,67 @@ void __init at91_add_device_isi(void) {}
 
 
 /* --------------------------------------------------------------------
+ *  RTT
+ * -------------------------------------------------------------------- */
+
+static struct resource rtt0_resources[] = {
+	{
+		.start	= AT91_BASE_SYS + AT91_RTT0,
+		.end	= AT91_BASE_SYS + AT91_RTT0 + SZ_16 - 1,
+		.flags	= IORESOURCE_MEM,
+	}
+};
+
+static struct platform_device at91sam9263_rtt0_device = {
+	.name		= "at91_rtt",
+	.id		= 0,
+	.resource	= rtt0_resources,
+	.num_resources	= ARRAY_SIZE(rtt0_resources),
+};
+
+static struct resource rtt1_resources[] = {
+	{
+		.start	= AT91_BASE_SYS + AT91_RTT1,
+		.end	= AT91_BASE_SYS + AT91_RTT1 + SZ_16 - 1,
+		.flags	= IORESOURCE_MEM,
+	}
+};
+
+static struct platform_device at91sam9263_rtt1_device = {
+	.name		= "at91_rtt",
+	.id		= 1,
+	.resource	= rtt1_resources,
+	.num_resources	= ARRAY_SIZE(rtt1_resources),
+};
+
+static void __init at91_add_device_rtt(void)
+{
+	platform_device_register(&at91sam9263_rtt0_device);
+	platform_device_register(&at91sam9263_rtt1_device);
+}
+
+
+/* --------------------------------------------------------------------
+ *  Watchdog
+ * -------------------------------------------------------------------- */
+
+#if defined(CONFIG_AT91SAM9_WATCHDOG) || defined(CONFIG_AT91SAM9_WATCHDOG_MODULE)
+static struct platform_device at91sam9263_wdt_device = {
+	.name		= "at91_wdt",
+	.id		= -1,
+	.num_resources	= 0,
+};
+
+static void __init at91_add_device_watchdog(void)
+{
+	platform_device_register(&at91sam9263_wdt_device);
+}
+#else
+static void __init at91_add_device_watchdog(void) {}
+#endif
+
+
+/* --------------------------------------------------------------------
  *  LEDs
  * -------------------------------------------------------------------- */
 
@@ -1021,6 +1082,8 @@ void __init at91_add_device_serial(void) {}
  */
 static int __init at91_add_standard_devices(void)
 {
+	at91_add_device_rtt();
+	at91_add_device_watchdog();
 	return 0;
 }
 
