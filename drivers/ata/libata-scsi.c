@@ -3517,7 +3517,6 @@ static int ata_scsi_user_scan(struct Scsi_Host *shost, unsigned int channel,
 			struct ata_eh_info *ehi = &dev->link->eh_info;
 			ehi->probe_mask |= 1 << dev->devno;
 			ehi->action |= ATA_EH_RESET;
-			ehi->flags |= ATA_EHI_RESUME_LINK;
 		} else
 			rc = -EINVAL;
 	}

@@ -437,7 +437,6 @@ static int sata_pmp_init_links(struct ata_port *ap, int nr_ports)
 		link->flags = 0;
 		ehc->i.probe_mask |= 1;
 		ehc->i.action |= ATA_EH_RESET;
-		ehc->i.flags |= ATA_EHI_RESUME_LINK;
 	}
 
 	return 0;
