@@ -14,8 +14,8 @@
 #define PCI_DEVICE_ID_INTEL_E7221_IG	0x258a
 #define PCI_DEVICE_ID_INTEL_82946GZ_HB      0x2970
 #define PCI_DEVICE_ID_INTEL_82946GZ_IG      0x2972
-#define PCI_DEVICE_ID_INTEL_82965G_1_HB     0x2980
-#define PCI_DEVICE_ID_INTEL_82965G_1_IG     0x2982
+#define PCI_DEVICE_ID_INTEL_82G35_HB     0x2980
+#define PCI_DEVICE_ID_INTEL_82G35_IG     0x2982
 #define PCI_DEVICE_ID_INTEL_82965Q_HB       0x2990
 #define PCI_DEVICE_ID_INTEL_82965Q_IG       0x2992
 #define PCI_DEVICE_ID_INTEL_82965G_HB       0x29A0
@@ -36,7 +36,7 @@
 #define PCI_DEVICE_ID_INTEL_IGD_IG          0x2A42
 
 #define IS_I965 (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82946GZ_HB || \
-                 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82965G_1_HB || \
+                 agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82G35_HB || \
                  agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82965Q_HB || \
                  agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82965G_HB || \
                  agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_82965GM_HB || \
@@ -2049,7 +2049,7 @@ static const struct intel_driver_description {
 		NULL, &intel_915_driver },
 	{ PCI_DEVICE_ID_INTEL_82946GZ_HB, PCI_DEVICE_ID_INTEL_82946GZ_IG, 0, "946GZ",
 		NULL, &intel_i965_driver },
-	{ PCI_DEVICE_ID_INTEL_82965G_1_HB, PCI_DEVICE_ID_INTEL_82965G_1_IG, 0, "965G",
+	{ PCI_DEVICE_ID_INTEL_82G35_HB, PCI_DEVICE_ID_INTEL_82G35_IG, 0, "G35",
 		NULL, &intel_i965_driver },
 	{ PCI_DEVICE_ID_INTEL_82965Q_HB, PCI_DEVICE_ID_INTEL_82965Q_IG, 0, "965Q",
 		NULL, &intel_i965_driver },
@@ -2251,7 +2251,7 @@ static struct pci_device_id agp_intel_pci_table[] = {
 	ID(PCI_DEVICE_ID_INTEL_82945GM_HB),
 	ID(PCI_DEVICE_ID_INTEL_82945GME_HB),
 	ID(PCI_DEVICE_ID_INTEL_82946GZ_HB),
-	ID(PCI_DEVICE_ID_INTEL_82965G_1_HB),
+	ID(PCI_DEVICE_ID_INTEL_82G35_HB),
 	ID(PCI_DEVICE_ID_INTEL_82965Q_HB),
 	ID(PCI_DEVICE_ID_INTEL_82965G_HB),
 	ID(PCI_DEVICE_ID_INTEL_82965GM_HB),
