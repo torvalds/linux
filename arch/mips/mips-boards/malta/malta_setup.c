@@ -15,21 +15,21 @@
  *  with this program; if not, write to the Free Software Foundation, Inc.,
  *  59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
  */
+#include <linux/cpu.h>
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/ioport.h>
+#include <linux/irq.h>
 #include <linux/pci.h>
 #include <linux/screen_info.h>
+#include <linux/time.h>
 
-#include <asm/cpu.h>
 #include <asm/bootinfo.h>
-#include <asm/irq.h>
 #include <asm/mips-boards/generic.h>
 #include <asm/mips-boards/prom.h>
 #include <asm/mips-boards/malta.h>
 #include <asm/mips-boards/maltaint.h>
 #include <asm/dma.h>
-#include <asm/time.h>
 #include <asm/traps.h>
 #ifdef CONFIG_VT
 #include <linux/console.h>
