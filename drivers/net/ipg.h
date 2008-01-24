@@ -626,7 +626,7 @@ enum ipg_regs {
 #define		IPG_MINUSEDRFDSTOFREE	0x80
 
 /* specify the jumbo frame maximum size
- * per unit is 0x600 (the RxBuffer size that one RFD can carry)
+ * per unit is 0x600 (the rx_buffer size that one RFD can carry)
  */
 #define     MAX_JUMBOSIZE	        0x8	// max is 12K
 
@@ -767,11 +767,12 @@ struct ipg_rx {
 	__le64 frag_info;
 };
 
-struct SJumbo {
-	int FoundStart;
-	int CurrentSize;
+struct ipg_jumbo {
+	int found_start;
+	int current_size;
 	struct sk_buff *skb;
 };
+
 /* Structure of IPG NIC specific data. */
 struct ipg_nic_private {
 	void __iomem *ioaddr;
@@ -779,14 +780,14 @@ struct ipg_nic_private {
 	struct ipg_rx *rxd;
 	dma_addr_t txd_map;
 	dma_addr_t rxd_map;
-	struct sk_buff *TxBuff[IPG_TFDLIST_LENGTH];
-	struct sk_buff *RxBuff[IPG_RFDLIST_LENGTH];
+	struct sk_buff *tx_buff[IPG_TFDLIST_LENGTH];
+	struct sk_buff *rx_buff[IPG_RFDLIST_LENGTH];
 	unsigned int tx_current;
 	unsigned int tx_dirty;
 	unsigned int rx_current;
 	unsigned int rx_dirty;
 #ifdef JUMBO_FRAME
-	struct SJumbo Jumbo;
+	struct ipg_jumbo jumbo;
 #endif
 	unsigned int rx_buf_sz;
 	struct pci_dev *pdev;
@@ -795,12 +796,12 @@ struct ipg_nic_private {
 	spinlock_t lock;
 	int tenmbpsmode;
 
-	u16 LED_Mode;
+	u16 led_mode;
 	u16 station_addr[3];	/* Station Address in EEPROM Reg 0x10..0x12 */
 
 	struct mutex		mii_mutex;
 	struct mii_if_info	mii_if;
-	int ResetCurrentTFD;
+	int reset_current_tfd;
 #ifdef IPG_DEBUG
 	int RFDlistendCount;
 	int RFDListCheckedCount;
