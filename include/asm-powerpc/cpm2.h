@@ -132,29 +132,6 @@ extern void cpm_setbrg(uint brg, uint rate);
 extern void cpm2_fastbrg(uint brg, uint rate, int div16);
 extern void cpm2_reset(void);
 
-
-/* Buffer descriptors used by many of the CPM protocols.
-*/
-typedef struct cpm_buf_desc {
-	ushort	cbd_sc;		/* Status and Control */
-	ushort	cbd_datlen;	/* Data length in buffer */
-	uint	cbd_bufaddr;	/* Buffer address in host memory */
-} cbd_t;
-
-#define BD_SC_EMPTY	((ushort)0x8000)	/* Receive is empty */
-#define BD_SC_READY	((ushort)0x8000)	/* Transmit is ready */
-#define BD_SC_WRAP	((ushort)0x2000)	/* Last buffer descriptor */
-#define BD_SC_INTRPT	((ushort)0x1000)	/* Interrupt on change */
-#define BD_SC_LAST	((ushort)0x0800)	/* Last buffer in frame */
-#define BD_SC_CM	((ushort)0x0200)	/* Continous mode */
-#define BD_SC_ID	((ushort)0x0100)	/* Rec'd too many idles */
-#define BD_SC_P		((ushort)0x0100)	/* xmt preamble */
-#define BD_SC_BR	((ushort)0x0020)	/* Break received */
-#define BD_SC_FR	((ushort)0x0010)	/* Framing error */
-#define BD_SC_PR	((ushort)0x0008)	/* Parity error */
-#define BD_SC_OV	((ushort)0x0002)	/* Overrun */
-#define BD_SC_CD	((ushort)0x0001)	/* ?? */
-
 /* Function code bits, usually generic to devices.
 */
 #define CPMFCR_GBL	((u_char)0x20)	/* Set memory snooping */
@@ -456,43 +433,6 @@ typedef struct scc_enet {
 #define SCC_PSMR_NIB22	((ushort)0x000a)	/* Start frame search */
 #define SCC_PSMR_FDE	((ushort)0x0001)	/* Full duplex enable */
 
-/* Buffer descriptor control/status used by Ethernet receive.
- * Common to SCC and FCC.
- */
-#define BD_ENET_RX_EMPTY	((ushort)0x8000)
-#define BD_ENET_RX_WRAP		((ushort)0x2000)
-#define BD_ENET_RX_INTR		((ushort)0x1000)
-#define BD_ENET_RX_LAST		((ushort)0x0800)
-#define BD_ENET_RX_FIRST	((ushort)0x0400)
-#define BD_ENET_RX_MISS		((ushort)0x0100)
-#define BD_ENET_RX_BC		((ushort)0x0080)	/* FCC Only */
-#define BD_ENET_RX_MC		((ushort)0x0040)	/* FCC Only */
-#define BD_ENET_RX_LG		((ushort)0x0020)
-#define BD_ENET_RX_NO		((ushort)0x0010)
-#define BD_ENET_RX_SH		((ushort)0x0008)
-#define BD_ENET_RX_CR		((ushort)0x0004)
-#define BD_ENET_RX_OV		((ushort)0x0002)
-#define BD_ENET_RX_CL		((ushort)0x0001)
-#define BD_ENET_RX_STATS	((ushort)0x01ff)	/* All status bits */
-
-/* Buffer descriptor control/status used by Ethernet transmit.
- * Common to SCC and FCC.
- */
-#define BD_ENET_TX_READY	((ushort)0x8000)
-#define BD_ENET_TX_PAD		((ushort)0x4000)
-#define BD_ENET_TX_WRAP		((ushort)0x2000)
-#define BD_ENET_TX_INTR		((ushort)0x1000)
-#define BD_ENET_TX_LAST		((ushort)0x0800)
-#define BD_ENET_TX_TC		((ushort)0x0400)
-#define BD_ENET_TX_DEF		((ushort)0x0200)
-#define BD_ENET_TX_HB		((ushort)0x0100)
-#define BD_ENET_TX_LC		((ushort)0x0080)
-#define BD_ENET_TX_RL		((ushort)0x0040)
-#define BD_ENET_TX_RCMASK	((ushort)0x003c)
-#define BD_ENET_TX_UN		((ushort)0x0002)
-#define BD_ENET_TX_CSL		((ushort)0x0001)
-#define BD_ENET_TX_STATS	((ushort)0x03ff)	/* All status bits */
-
 /* SCC as UART
 */
 typedef struct scc_uart {
@@ -561,8 +501,6 @@ typedef struct scc_trans {
 	uint	st_cpres;	/* Preset CRC */
 	uint	st_cmask;	/* Constant mask for CRC */
 } scc_trans_t;
-
-#define BD_SCC_TX_LAST		((ushort)0x0800)
 
 /* How about some FCCs.....
 */
@@ -768,8 +706,6 @@ typedef struct spi {
 #define SPMODE_PM(x)	((x) &0xF)
 
 #define SPI_EB		((u_char)0x10)		/* big endian byte order */
-
-#define BD_IIC_START		((ushort)0x0400)
 
 /* IDMA parameter RAM
 */
