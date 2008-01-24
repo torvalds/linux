@@ -368,6 +368,7 @@ static ssize_t vol_cdev_write(struct file *file, const char __user *buf,
 		 */
 		count = err;
 
+		vol->updating = 0;
 		err = ubi_check_volume(ubi, vol->vol_id);
 		if (err < 0)
 			return err;
@@ -382,7 +383,6 @@ static ssize_t vol_cdev_write(struct file *file, const char __user *buf,
 		revoke_exclusive(desc, UBI_READWRITE);
 	}
 
-	*offp += count;
 	return count;
 }
 
@@ -430,8 +430,6 @@ static int vol_cdev_ioctl(struct inode *inode, struct file *file,
 		err = ubi_start_update(ubi, vol->vol_id, bytes);
 		if (bytes == 0)
 			revoke_exclusive(desc, UBI_READWRITE);
-
-		file->f_pos = 0;
 		break;
 	}
 

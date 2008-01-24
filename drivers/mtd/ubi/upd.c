@@ -343,7 +343,6 @@ int ubi_more_update_data(struct ubi_device *ubi, int vol_id,
 		if (err == 0) {
 			err = to_write;
 			vfree(vol->upd_buf);
-			vol->updating = 0;
 		}
 	}
 
