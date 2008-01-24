@@ -6761,7 +6761,6 @@ static void iwl4965_down(struct iwl4965_priv *priv)
 static int __iwl4965_up(struct iwl4965_priv *priv)
 {
 	int rc, i;
-	u32 hw_rf_kill = 0;
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status)) {
 		IWL_WARNING("Exit pending; will not bring the NIC up\n");
@@ -6771,7 +6770,19 @@ static int __iwl4965_up(struct iwl4965_priv *priv)
 	if (test_bit(STATUS_RF_KILL_SW, &priv->status)) {
 		IWL_WARNING("Radio disabled by SW RF kill (module "
 			    "parameter)\n");
-		return 0;
+		return -ENODEV;
+	}
+
+	/* If platform's RF_KILL switch is NOT set to KILL */
+	if (iwl4965_read32(priv, CSR_GP_CNTRL) &
+				CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW)
+		clear_bit(STATUS_RF_KILL_HW, &priv->status);
+	else {
+		set_bit(STATUS_RF_KILL_HW, &priv->status);
+		if (!test_bit(STATUS_IN_SUSPEND, &priv->status)) {
+			IWL_WARNING("Radio disabled by HW RF Kill switch\n");
+			return -ENODEV;
+		}
 	}
 
 	if (!priv->ucode_data_backup.v_addr || !priv->ucode_data.v_addr) {
@@ -6806,17 +6817,9 @@ static int __iwl4965_up(struct iwl4965_priv *priv)
 	memcpy(priv->ucode_data_backup.v_addr, priv->ucode_data.v_addr,
 	       priv->ucode_data.len);
 
-	/* If platform's RF_KILL switch is set to KILL,
-	 * wait for BIT_INT_RF_KILL interrupt before loading uCode
-	 * and getting things started */
-	if (!(iwl4965_read32(priv, CSR_GP_CNTRL) &
-				CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW))
-		hw_rf_kill = 1;
-
-	if (test_bit(STATUS_RF_KILL_HW, &priv->status) || hw_rf_kill) {
-		IWL_WARNING("Radio disabled by HW RF Kill switch\n");
+	/* We return success when we resume from suspend and rf_kill is on. */
+	if (test_bit(STATUS_RF_KILL_HW, &priv->status))
 		return 0;
-	}
 
 	for (i = 0; i < MAX_HW_RESTARTS; i++) {
 
@@ -7379,11 +7382,17 @@ static int iwl4965_mac_start(struct ieee80211_hw *hw)
 		}
 	}
 
-	IWL_DEBUG_INFO("Start UP work.\n");
-	__iwl4965_up(priv);
+	ret = __iwl4965_up(priv);
 
-	priv->is_open = 1;
 	mutex_unlock(&priv->mutex);
+
+	if (ret)
+		goto out_release_irq;
+
+	IWL_DEBUG_INFO("Start UP work done.\n");
+
+	if (test_bit(STATUS_IN_SUSPEND, &priv->status))
+		return 0;
 
 	/* Wait for START_ALIVE from ucode. Otherwise callbacks from
 	 * mac80211 will not be run successfully. */
@@ -7399,6 +7408,7 @@ static int iwl4965_mac_start(struct ieee80211_hw *hw)
 		}
 	}
 
+	priv->is_open = 1;
 	IWL_DEBUG_MAC80211("leave\n");
 	return 0;
 
@@ -7406,6 +7416,9 @@ out_release_irq:
 	free_irq(priv->pci_dev->irq, priv);
 out_disable_msi:
 	pci_disable_msi(priv->pci_dev);
+	pci_disable_device(priv->pci_dev);
+	priv->is_open = 0;
+	IWL_DEBUG_MAC80211("leave - failed\n");
 	return ret;
 }
 
@@ -7415,12 +7428,17 @@ static void iwl4965_mac_stop(struct ieee80211_hw *hw)
 
 	IWL_DEBUG_MAC80211("enter\n");
 
-	/* stop mac, cancel any scan request and clear
-	 * RXON_FILTER_ASSOC_MSK BIT
-	 */
+	if (!priv->is_open) {
+		IWL_DEBUG_MAC80211("leave - skip\n");
+		return;
+	}
+
 	priv->is_open = 0;
 
 	if (iwl4965_is_ready_rf(priv)) {
+		/* stop mac, cancel any scan request and clear
+		 * RXON_FILTER_ASSOC_MSK BIT
+		 */
 		mutex_lock(&priv->mutex);
 		iwl4965_scan_cancel_timeout(priv, 100);
 		cancel_delayed_work(&priv->post_associate);
@@ -8152,7 +8170,6 @@ static void iwl4965_mac_reset_tsf(struct ieee80211_hw *hw)
 	mutex_unlock(&priv->mutex);
 
 	IWL_DEBUG_MAC80211("leave\n");
-
 }
 
 static int iwl4965_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
@@ -9327,89 +9344,27 @@ static int iwl4965_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct iwl4965_priv *priv = pci_get_drvdata(pdev);
 
-	set_bit(STATUS_IN_SUSPEND, &priv->status);
+	if (priv->is_open) {
+		set_bit(STATUS_IN_SUSPEND, &priv->status);
+		iwl4965_mac_stop(priv->hw);
+		priv->is_open = 1;
+	}
 
-	/* Take down the device; powers it off, etc. */
-	iwl4965_down(priv);
-
-	if (priv->mac80211_registered)
-		ieee80211_stop_queues(priv->hw);
-
-	pci_save_state(pdev);
-	pci_disable_device(pdev);
 	pci_set_power_state(pdev, PCI_D3hot);
 
 	return 0;
 }
 
-static void iwl4965_resume(struct iwl4965_priv *priv)
-{
-	unsigned long flags;
-
-	/* The following it a temporary work around due to the
-	 * suspend / resume not fully initializing the NIC correctly.
-	 * Without all of the following, resume will not attempt to take
-	 * down the NIC (it shouldn't really need to) and will just try
-	 * and bring the NIC back up.  However that fails during the
-	 * ucode verification process.  This then causes iwl4965_down to be
-	 * called *after* iwl4965_hw_nic_init() has succeeded -- which
-	 * then lets the next init sequence succeed.  So, we've
-	 * replicated all of that NIC init code here... */
-
-	iwl4965_write32(priv, CSR_INT, 0xFFFFFFFF);
-
-	iwl4965_hw_nic_init(priv);
-
-	iwl4965_write32(priv, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
-	iwl4965_write32(priv, CSR_UCODE_DRV_GP1_CLR,
-		    CSR_UCODE_DRV_GP1_BIT_CMD_BLOCKED);
-	iwl4965_write32(priv, CSR_INT, 0xFFFFFFFF);
-	iwl4965_write32(priv, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
-	iwl4965_write32(priv, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
-
-	/* tell the device to stop sending interrupts */
-	iwl4965_disable_interrupts(priv);
-
-	spin_lock_irqsave(&priv->lock, flags);
-	iwl4965_clear_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
-
-	if (!iwl4965_grab_nic_access(priv)) {
-		iwl4965_write_prph(priv, APMG_CLK_DIS_REG,
-				APMG_CLK_VAL_DMA_CLK_RQT);
-		iwl4965_release_nic_access(priv);
-	}
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	udelay(5);
-
-	iwl4965_hw_nic_reset(priv);
-
-	/* Bring the device back up */
-	clear_bit(STATUS_IN_SUSPEND, &priv->status);
-	queue_work(priv->workqueue, &priv->up);
-}
-
 static int iwl4965_pci_resume(struct pci_dev *pdev)
 {
 	struct iwl4965_priv *priv = pci_get_drvdata(pdev);
-	int err;
-
-	printk(KERN_INFO "Coming out of suspend...\n");
 
 	pci_set_power_state(pdev, PCI_D0);
-	err = pci_enable_device(pdev);
-	pci_restore_state(pdev);
 
-	/*
-	 * Suspend/Resume resets the PCI configuration space, so we have to
-	 * re-disable the RETRY_TIMEOUT register (0x41) to keep PCI Tx retries
-	 * from interfering with C3 CPU state. pci_restore_state won't help
-	 * here since it only restores the first 64 bytes pci config header.
-	 */
-	pci_write_config_byte(pdev, 0x41, 0x00);
+	if (priv->is_open)
+		iwl4965_mac_start(priv->hw);
 
-	iwl4965_resume(priv);
-
+	clear_bit(STATUS_IN_SUSPEND, &priv->status);
 	return 0;
 }
 

@@ -6340,7 +6340,19 @@ static int __iwl3945_up(struct iwl3945_priv *priv)
 	if (test_bit(STATUS_RF_KILL_SW, &priv->status)) {
 		IWL_WARNING("Radio disabled by SW RF kill (module "
 			    "parameter)\n");
-		return 0;
+		return -ENODEV;
+	}
+
+	/* If platform's RF_KILL switch is NOT set to KILL */
+	if (iwl3945_read32(priv, CSR_GP_CNTRL) &
+				CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW)
+		clear_bit(STATUS_RF_KILL_HW, &priv->status);
+	else {
+		set_bit(STATUS_RF_KILL_HW, &priv->status);
+		if (!test_bit(STATUS_IN_SUSPEND, &priv->status)) {
+			IWL_WARNING("Radio disabled by HW RF Kill switch\n");
+			return -ENODEV;
+		}
 	}
 
 	if (!priv->ucode_data_backup.v_addr || !priv->ucode_data.v_addr) {
@@ -6374,6 +6386,10 @@ static int __iwl3945_up(struct iwl3945_priv *priv)
 	 * data SRAM for a clean start when the runtime program first loads. */
 	memcpy(priv->ucode_data_backup.v_addr, priv->ucode_data.v_addr,
 	       priv->ucode_data.len);
+
+	/* We return success when we resume from suspend and rf_kill is on. */
+	if (test_bit(STATUS_RF_KILL_HW, &priv->status))
+		return 0;
 
 	for (i = 0; i < MAX_HW_RESTARTS; i++) {
 
@@ -6919,11 +6935,17 @@ static int iwl3945_mac_start(struct ieee80211_hw *hw)
 		}
 	}
 
-	IWL_DEBUG_INFO("Start UP work.\n");
-	__iwl3945_up(priv);
+	ret = __iwl3945_up(priv);
 
-	priv->is_open = 1;
 	mutex_unlock(&priv->mutex);
+
+	if (ret)
+		goto out_release_irq;
+
+	IWL_DEBUG_INFO("Start UP work.\n");
+
+	if (test_bit(STATUS_IN_SUSPEND, &priv->status))
+		return 0;
 
 	/* Wait for START_ALIVE from ucode. Otherwise callbacks from
 	 * mac80211 will not be run successfully. */
@@ -6939,6 +6961,7 @@ static int iwl3945_mac_start(struct ieee80211_hw *hw)
 		}
 	}
 
+	priv->is_open = 1;
 	IWL_DEBUG_MAC80211("leave\n");
 	return 0;
 
@@ -6946,6 +6969,9 @@ out_release_irq:
 	free_irq(priv->pci_dev->irq, priv);
 out_disable_msi:
 	pci_disable_msi(priv->pci_dev);
+	pci_disable_device(priv->pci_dev);
+	priv->is_open = 0;
+	IWL_DEBUG_MAC80211("leave - failed\n");
 	return ret;
 }
 
@@ -6955,12 +6981,17 @@ static void iwl3945_mac_stop(struct ieee80211_hw *hw)
 
 	IWL_DEBUG_MAC80211("enter\n");
 
-	/* stop mac, cancel any scan request and clear
-	 * RXON_FILTER_ASSOC_MSK BIT
-	 */
+	if (!priv->is_open) {
+		IWL_DEBUG_MAC80211("leave - skip\n");
+		return;
+	}
+
 	priv->is_open = 0;
 
 	if (iwl3945_is_ready_rf(priv)) {
+		/* stop mac, cancel any scan request and clear
+		 * RXON_FILTER_ASSOC_MSK BIT
+		 */
 		mutex_lock(&priv->mutex);
 		iwl3945_scan_cancel_timeout(priv, 100);
 		cancel_delayed_work(&priv->post_associate);
@@ -7334,7 +7365,6 @@ static void iwl3945_mac_remove_interface(struct ieee80211_hw *hw,
 	mutex_unlock(&priv->mutex);
 
 	IWL_DEBUG_MAC80211("leave\n");
-
 }
 
 static int iwl3945_mac_hw_scan(struct ieee80211_hw *hw, u8 *ssid, size_t len)
@@ -8731,89 +8761,27 @@ static int iwl3945_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct iwl3945_priv *priv = pci_get_drvdata(pdev);
 
-	set_bit(STATUS_IN_SUSPEND, &priv->status);
+	if (priv->is_open) {
+		set_bit(STATUS_IN_SUSPEND, &priv->status);
+		iwl3945_mac_stop(priv->hw);
+		priv->is_open = 1;
+	}
 
-	/* Take down the device; powers it off, etc. */
-	iwl3945_down(priv);
-
-	if (priv->mac80211_registered)
-		ieee80211_stop_queues(priv->hw);
-
-	pci_save_state(pdev);
-	pci_disable_device(pdev);
 	pci_set_power_state(pdev, PCI_D3hot);
 
 	return 0;
 }
 
-static void iwl3945_resume(struct iwl3945_priv *priv)
-{
-	unsigned long flags;
-
-	/* The following it a temporary work around due to the
-	 * suspend / resume not fully initializing the NIC correctly.
-	 * Without all of the following, resume will not attempt to take
-	 * down the NIC (it shouldn't really need to) and will just try
-	 * and bring the NIC back up.  However that fails during the
-	 * ucode verification process.  This then causes iwl3945_down to be
-	 * called *after* iwl3945_hw_nic_init() has succeeded -- which
-	 * then lets the next init sequence succeed.  So, we've
-	 * replicated all of that NIC init code here... */
-
-	iwl3945_write32(priv, CSR_INT, 0xFFFFFFFF);
-
-	iwl3945_hw_nic_init(priv);
-
-	iwl3945_write32(priv, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
-	iwl3945_write32(priv, CSR_UCODE_DRV_GP1_CLR,
-		    CSR_UCODE_DRV_GP1_BIT_CMD_BLOCKED);
-	iwl3945_write32(priv, CSR_INT, 0xFFFFFFFF);
-	iwl3945_write32(priv, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
-	iwl3945_write32(priv, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
-
-	/* tell the device to stop sending interrupts */
-	iwl3945_disable_interrupts(priv);
-
-	spin_lock_irqsave(&priv->lock, flags);
-	iwl3945_clear_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
-
-	if (!iwl3945_grab_nic_access(priv)) {
-		iwl3945_write_prph(priv, APMG_CLK_DIS_REG,
-					 APMG_CLK_VAL_DMA_CLK_RQT);
-		iwl3945_release_nic_access(priv);
-	}
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	udelay(5);
-
-	iwl3945_hw_nic_reset(priv);
-
-	/* Bring the device back up */
-	clear_bit(STATUS_IN_SUSPEND, &priv->status);
-	queue_work(priv->workqueue, &priv->up);
-}
-
 static int iwl3945_pci_resume(struct pci_dev *pdev)
 {
 	struct iwl3945_priv *priv = pci_get_drvdata(pdev);
-	int err;
-
-	printk(KERN_INFO "Coming out of suspend...\n");
 
 	pci_set_power_state(pdev, PCI_D0);
-	err = pci_enable_device(pdev);
-	pci_restore_state(pdev);
 
-	/*
-	 * Suspend/Resume resets the PCI configuration space, so we have to
-	 * re-disable the RETRY_TIMEOUT register (0x41) to keep PCI Tx retries
-	 * from interfering with C3 CPU state. pci_restore_state won't help
-	 * here since it only restores the first 64 bytes pci config header.
-	 */
-	pci_write_config_byte(pdev, 0x41, 0x00);
+	if (priv->is_open)
+		iwl3945_mac_start(priv->hw);
 
-	iwl3945_resume(priv);
-
+	clear_bit(STATUS_IN_SUSPEND, &priv->status);
 	return 0;
 }
 
