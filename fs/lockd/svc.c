@@ -158,15 +158,9 @@ lockd(void *vrqstp)
 			continue;
 		}
 
-		/*
-		 * Retry any blocked locks that have been notified by
-		 * the VFS. Don't do this during grace period.
-		 * (Theoretically, there shouldn't even be blocked locks
-		 * during grace period).
-		 */
-		if (!nlmsvc_grace_period) {
-			timeout = nlmsvc_retry_blocked();
-		} else if (time_before(grace_period_expire, jiffies))
+		timeout = nlmsvc_retry_blocked();
+
+		if (time_before(grace_period_expire, jiffies))
 			clear_grace_period();
 
 		/*
