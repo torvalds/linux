@@ -173,7 +173,34 @@ int __init acpi_blacklisted(void)
 	return blacklisted;
 }
 #ifdef CONFIG_DMI
+static int __init dmi_enable_osi_linux(const struct dmi_system_id *d)
+{
+	acpi_dmi_osi_linux(1, d);	/* enable */
+	return 0;
+}
+
 static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
+	/*
+	 * _OSI(Linux) helps sound
+	 * DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad R61"),
+	 * DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad T61"),
+	 */
+	{
+	.callback = dmi_enable_osi_linux,
+	.ident = "Lenovo ThinkPad R61",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		     DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad R61"),
+		},
+	},
+	{
+	.callback = dmi_enable_osi_linux,
+	.ident = "Lenovo ThinkPad T61",
+	.matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		     DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad T61"),
+		},
+	},
 	{}
 };
 
