@@ -792,15 +792,21 @@ out:
 	return error;
 }
 
-static int copy_io(struct task_struct *tsk)
+static int copy_io(unsigned long clone_flags, struct task_struct *tsk)
 {
 #ifdef CONFIG_BLOCK
 	struct io_context *ioc = current->io_context;
 
 	if (!ioc)
 		return 0;
-
-	if (ioprio_valid(ioc->ioprio)) {
+	/*
+	 * Share io context with parent, if CLONE_IO is set
+	 */
+	if (clone_flags & CLONE_IO) {
+		tsk->io_context = ioc_task_link(ioc);
+		if (unlikely(!tsk->io_context))
+			return -ENOMEM;
+	} else if (ioprio_valid(ioc->ioprio)) {
 		tsk->io_context = alloc_io_context(GFP_KERNEL, -1);
 		if (unlikely(!tsk->io_context))
 			return -ENOMEM;
@@ -1176,7 +1182,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 		goto bad_fork_cleanup_mm;
 	if ((retval = copy_namespaces(clone_flags, p)))
 		goto bad_fork_cleanup_keys;
-	if ((retval = copy_io(p)))
+	if ((retval = copy_io(clone_flags, p)))
 		goto bad_fork_cleanup_namespaces;
 	retval = copy_thread(0, clone_flags, stack_start, stack_size, p, regs);
 	if (retval)
