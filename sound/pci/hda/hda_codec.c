@@ -769,7 +769,7 @@ get_alloc_amp_hash(struct hda_codec *codec, u32 key)
 /*
  * query AMP capabilities for the given widget and direction
  */
-static u32 query_amp_caps(struct hda_codec *codec, hda_nid_t nid, int direction)
+u32 query_amp_caps(struct hda_codec *codec, hda_nid_t nid, int direction)
 {
 	struct hda_amp_info *info;
 

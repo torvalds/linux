@@ -375,6 +375,7 @@ static inline u32 get_wcaps(struct hda_codec *codec, hda_nid_t nid)
 	return codec->wcaps[nid - codec->start_nid];
 }
 
+u32 query_amp_caps(struct hda_codec *codec, hda_nid_t nid, int direction);
 int snd_hda_override_amp_caps(struct hda_codec *codec, hda_nid_t nid, int dir,
 			      unsigned int caps);
 
