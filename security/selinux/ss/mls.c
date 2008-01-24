@@ -537,15 +537,8 @@ int mls_compute_sid(struct context *scontext,
 			/* Use the process effective MLS attributes. */
 			return mls_context_cpy_low(newcontext, scontext);
 	case AVTAB_MEMBER:
-		/* Only polyinstantiate the MLS attributes if
-		   the type is being polyinstantiated */
-		if (newcontext->type != tcontext->type) {
-			/* Use the process effective MLS attributes. */
-			return mls_context_cpy_low(newcontext, scontext);
-		} else {
-			/* Use the related object MLS attributes. */
-			return mls_context_cpy(newcontext, tcontext);
-		}
+		/* Use the process effective MLS attributes. */
+		return mls_context_cpy_low(newcontext, scontext);
 	default:
 		return -EINVAL;
 	}
