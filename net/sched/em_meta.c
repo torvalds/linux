@@ -745,6 +745,10 @@ static inline int meta_is_supported(struct meta_value *val)
 	return (!meta_id(val) || meta_ops(val)->get);
 }
 
+static const struct nla_policy meta_policy[TCA_EM_META_MAX + 1] = {
+	[TCA_EM_META_HDR]	= { .len = sizeof(struct tcf_meta_hdr) },
+};
+
 static int em_meta_change(struct tcf_proto *tp, void *data, int len,
 			  struct tcf_ematch *m)
 {
@@ -753,13 +757,12 @@ static int em_meta_change(struct tcf_proto *tp, void *data, int len,
 	struct tcf_meta_hdr *hdr;
 	struct meta_match *meta = NULL;
 
-	err = nla_parse(tb, TCA_EM_META_MAX, data, len, NULL);
+	err = nla_parse(tb, TCA_EM_META_MAX, data, len, meta_policy);
 	if (err < 0)
 		goto errout;
 
 	err = -EINVAL;
-	if (tb[TCA_EM_META_HDR] == NULL ||
-	    nla_len(tb[TCA_EM_META_HDR]) < sizeof(*hdr))
+	if (tb[TCA_EM_META_HDR] == NULL)
 		goto errout;
 	hdr = nla_data(tb[TCA_EM_META_HDR]);
 

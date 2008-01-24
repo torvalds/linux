@@ -282,6 +282,11 @@ errout:
 	return err;
 }
 
+static const struct nla_policy em_policy[TCA_EMATCH_TREE_MAX + 1] = {
+	[TCA_EMATCH_TREE_HDR]	= { .len = sizeof(struct tcf_ematch_tree_hdr) },
+	[TCA_EMATCH_TREE_LIST]	= { .type = NLA_NESTED },
+};
+
 /**
  * tcf_em_tree_validate - validate ematch config TLV and build ematch tree
  *
@@ -312,7 +317,7 @@ int tcf_em_tree_validate(struct tcf_proto *tp, struct nlattr *nla,
 		return 0;
 	}
 
-	err = nla_parse_nested(tb, TCA_EMATCH_TREE_MAX, nla, NULL);
+	err = nla_parse_nested(tb, TCA_EMATCH_TREE_MAX, nla, em_policy);
 	if (err < 0)
 		goto errout;
 
@@ -321,10 +326,6 @@ int tcf_em_tree_validate(struct tcf_proto *tp, struct nlattr *nla,
 	rt_list = tb[TCA_EMATCH_TREE_LIST];
 
 	if (rt_hdr == NULL || rt_list == NULL)
-		goto errout;
-
-	if (nla_len(rt_hdr) < sizeof(*tree_hdr) ||
-	    nla_len(rt_list) < sizeof(*rt_match))
 		goto errout;
 
 	tree_hdr = nla_data(rt_hdr);
