@@ -246,7 +246,7 @@ static int atm_tc_change(struct Qdisc *sch, u32 classid, u32 parent,
 		if (!excess)
 			return -ENOENT;
 	}
-	pr_debug("atm_tc_change: type %d, payload %lu, hdr_len %d\n",
+	pr_debug("atm_tc_change: type %d, payload %d, hdr_len %d\n",
 		 opt->nla_type, nla_len(opt), hdr_len);
 	sock = sockfd_lookup(fd, &error);
 	if (!sock)
