@@ -86,7 +86,7 @@ unsigned int pxa3xx_get_clk_frequency_khz(int info)
 			HSS / 1000000, (HSS % 1000000) / 10000);
 	}
 
-	return CLK;
+	return CLK / 1000;
 }
 
 /*
