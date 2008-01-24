@@ -298,7 +298,7 @@ static int i915_suspend(struct drm_device *dev)
 	dev_priv->saveDSPBSIZE = I915_READ(DSPBSIZE);
 	dev_priv->saveDSPBPOS = I915_READ(DSPBPOS);
 	dev_priv->saveDSPBBASE = I915_READ(DSPBBASE);
-	if (IS_I965GM(dev)) {
+	if (IS_I965GM(dev) || IS_IGD_GM(dev)) {
 		dev_priv->saveDSPBSURF = I915_READ(DSPBSURF);
 		dev_priv->saveDSPBTILEOFF = I915_READ(DSPBTILEOFF);
 	}
