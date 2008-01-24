@@ -2019,6 +2019,28 @@ config IP1000
 	  To compile this driver as a module, choose M here: the module
 	  will be called ipg.  This is recommended.
 
+config IGB
+       tristate "Intel(R) 82575 PCI-Express Gigabit Ethernet support"
+       depends on PCI
+       ---help---
+         This driver supports Intel(R) 82575 gigabit ethernet family of
+         adapters.  For more information on how to identify your adapter, go
+         to the Adapter & Driver ID Guide at:
+
+         <http://support.intel.com/support/network/adapter/pro100/21397.htm>
+
+         For general information and support, go to the Intel support
+         website at:
+
+         <http://support.intel.com>
+
+         More specific information on configuring the driver is in
+         <file:Documentation/networking/e1000.txt>.
+
+         To compile this driver as a module, choose M here and read
+         <file:Documentation/networking/net-modules.txt>.  The module
+         will be called igb.
+
 source "drivers/net/ixp2000/Kconfig"
 
 config MYRI_SBUS
