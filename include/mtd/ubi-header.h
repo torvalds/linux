@@ -299,7 +299,9 @@ struct ubi_vid_hdr {
 
 /* The layout volume contains the volume table */
 
-#define UBI_LAYOUT_VOL_ID        UBI_INTERNAL_VOL_START
+#define UBI_LAYOUT_VOLUME_ID     UBI_INTERNAL_VOL_START
+#define UBI_LAYOUT_VOLUME_TYPE   UBI_VID_DYNAMIC
+#define UBI_LAYOUT_VOLUME_ALIGN  1
 #define UBI_LAYOUT_VOLUME_EBS    2
 #define UBI_LAYOUT_VOLUME_NAME   "layout volume"
 #define UBI_LAYOUT_VOLUME_COMPAT UBI_COMPAT_REJECT

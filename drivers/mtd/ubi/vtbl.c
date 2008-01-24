@@ -89,7 +89,7 @@ int ubi_change_vtbl_record(struct ubi_device *ubi, int idx,
 	struct ubi_volume *layout_vol;
 
 	ubi_assert(idx >= 0 && idx < ubi->vtbl_slots);
-	layout_vol = ubi->volumes[vol_id2idx(ubi, UBI_LAYOUT_VOL_ID)];
+	layout_vol = ubi->volumes[vol_id2idx(ubi, UBI_LAYOUT_VOLUME_ID)];
 
 	if (!vtbl_rec)
 		vtbl_rec = &empty_vtbl_record;
@@ -269,7 +269,7 @@ static int create_vtbl(struct ubi_device *ubi, struct ubi_scan_info *si,
 	 * this volume table copy was found during scanning. It has to be wiped
 	 * out.
 	 */
-	sv = ubi_scan_find_sv(si, UBI_LAYOUT_VOL_ID);
+	sv = ubi_scan_find_sv(si, UBI_LAYOUT_VOLUME_ID);
 	if (sv)
 		old_seb = ubi_scan_find_seb(sv, copy);
 
@@ -281,7 +281,7 @@ retry:
 	}
 
 	vid_hdr->vol_type = UBI_VID_DYNAMIC;
-	vid_hdr->vol_id = cpu_to_be32(UBI_LAYOUT_VOL_ID);
+	vid_hdr->vol_id = cpu_to_be32(UBI_LAYOUT_VOLUME_ID);
 	vid_hdr->compat = UBI_LAYOUT_VOLUME_COMPAT;
 	vid_hdr->data_size = vid_hdr->used_ebs =
 			     vid_hdr->data_pad = cpu_to_be32(0);
@@ -590,7 +590,7 @@ static int init_volumes(struct ubi_device *ubi, const struct ubi_scan_info *si,
 	vol->last_eb_bytes = vol->reserved_pebs;
 	vol->used_bytes =
 		(long long)vol->used_ebs * (ubi->leb_size - vol->data_pad);
-	vol->vol_id = UBI_LAYOUT_VOL_ID;
+	vol->vol_id = UBI_LAYOUT_VOLUME_ID;
 	vol->ref_count = 1;
 
 	ubi_assert(!ubi->volumes[i]);
@@ -743,7 +743,7 @@ int ubi_read_volume_table(struct ubi_device *ubi, struct ubi_scan_info *si)
 	ubi->vtbl_size = ubi->vtbl_slots * UBI_VTBL_RECORD_SIZE;
 	ubi->vtbl_size = ALIGN(ubi->vtbl_size, ubi->min_io_size);
 
-	sv = ubi_scan_find_sv(si, UBI_LAYOUT_VOL_ID);
+	sv = ubi_scan_find_sv(si, UBI_LAYOUT_VOLUME_ID);
 	if (!sv) {
 		/*
 		 * No logical eraseblocks belonging to the layout volume were

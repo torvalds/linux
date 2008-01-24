@@ -78,7 +78,7 @@ static unsigned long long next_sqnum(struct ubi_device *ubi)
  */
 static int ubi_get_compat(const struct ubi_device *ubi, int vol_id)
 {
-	if (vol_id == UBI_LAYOUT_VOL_ID)
+	if (vol_id == UBI_LAYOUT_VOLUME_ID)
 		return UBI_LAYOUT_VOLUME_COMPAT;
 	return 0;
 }
