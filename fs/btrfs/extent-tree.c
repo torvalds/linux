@@ -1856,27 +1856,44 @@ static int noinline drop_leaf_ref(struct btrfs_trans_handle *trans,
 }
 
 static void noinline reada_walk_down(struct btrfs_root *root,
-				     struct extent_buffer *node)
+				     struct extent_buffer *node,
+				     int slot)
 {
-	int i;
-	u32 nritems;
 	u64 bytenr;
-	int ret;
+	u64 last = 0;
+	u32 nritems;
 	u32 refs;
-	int level;
 	u32 blocksize;
+	int ret;
+	int i;
+	int level;
+	int skipped = 0;
 
 	nritems = btrfs_header_nritems(node);
 	level = btrfs_header_level(node);
-	for (i = 0; i < nritems; i++) {
+	if (level)
+		return;
+
+	for (i = slot; i < nritems && skipped < 32; i++) {
 		bytenr = btrfs_node_blockptr(node, i);
-		blocksize = btrfs_level_size(root, level - 1);
-		ret = lookup_extent_ref(NULL, root, bytenr, blocksize, &refs);
-		BUG_ON(ret);
-		if (refs != 1)
+		if (last && ((bytenr > last && bytenr - last > 32 * 1024) ||
+			     (last > bytenr && last - bytenr > 32 * 1024))) {
+			skipped++;
 			continue;
+		}
+		blocksize = btrfs_level_size(root, level - 1);
+		if (i != slot) {
+			ret = lookup_extent_ref(NULL, root, bytenr,
+						blocksize, &refs);
+			BUG_ON(ret);
+			if (refs != 1) {
+				skipped++;
+				continue;
+			}
+		}
 		mutex_unlock(&root->fs_info->fs_mutex);
 		ret = readahead_tree_block(root, bytenr, blocksize);
+		last = bytenr + blocksize;
 		cond_resched();
 		mutex_lock(&root->fs_info->fs_mutex);
 		if (ret)
@@ -1919,9 +1936,6 @@ static int noinline walk_down_tree(struct btrfs_trans_handle *trans,
 		WARN_ON(*level >= BTRFS_MAX_LEVEL);
 		cur = path->nodes[*level];
 
-		if (*level > 0 && path->slots[*level] == 0)
-			reada_walk_down(root, cur);
-
 		if (btrfs_header_level(cur) != *level)
 			WARN_ON(1);
 
@@ -1951,6 +1965,7 @@ static int noinline walk_down_tree(struct btrfs_trans_handle *trans,
 		next = btrfs_find_tree_block(root, bytenr, blocksize);
 		if (!next || !btrfs_buffer_uptodate(next)) {
 			free_extent_buffer(next);
+			reada_walk_down(root, cur, path->slots[*level]);
 			mutex_unlock(&root->fs_info->fs_mutex);
 			next = read_tree_block(root, bytenr, blocksize);
 			mutex_lock(&root->fs_info->fs_mutex);
