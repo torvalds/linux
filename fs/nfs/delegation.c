@@ -174,11 +174,11 @@ int nfs_inode_set_delegation(struct inode *inode, struct rpc_cred *cred, struct 
 	return status;
 }
 
-static int nfs_do_return_delegation(struct inode *inode, struct nfs_delegation *delegation)
+static int nfs_do_return_delegation(struct inode *inode, struct nfs_delegation *delegation, int issync)
 {
 	int res = 0;
 
-	res = nfs4_proc_delegreturn(inode, delegation->cred, &delegation->stateid);
+	res = nfs4_proc_delegreturn(inode, delegation->cred, &delegation->stateid, issync);
 	nfs_free_delegation(delegation);
 	return res;
 }
@@ -208,7 +208,7 @@ static int __nfs_inode_return_delegation(struct inode *inode, struct nfs_delegat
 	up_read(&clp->cl_sem);
 	nfs_msync_inode(inode);
 
-	return nfs_do_return_delegation(inode, delegation);
+	return nfs_do_return_delegation(inode, delegation, 1);
 }
 
 static struct nfs_delegation *nfs_detach_delegation_locked(struct nfs_inode *nfsi, const nfs4_stateid *stateid)
@@ -226,6 +226,27 @@ static struct nfs_delegation *nfs_detach_delegation_locked(struct nfs_inode *nfs
 	return delegation;
 nomatch:
 	return NULL;
+}
+
+/*
+ * This function returns the delegation without reclaiming opens
+ * or protecting against delegation reclaims.
+ * It is therefore really only safe to be called from
+ * nfs4_clear_inode()
+ */
+void nfs_inode_return_delegation_noreclaim(struct inode *inode)
+{
+	struct nfs_client *clp = NFS_SERVER(inode)->nfs_client;
+	struct nfs_inode *nfsi = NFS_I(inode);
+	struct nfs_delegation *delegation;
+
+	if (rcu_dereference(nfsi->delegation) != NULL) {
+		spin_lock(&clp->cl_lock);
+		delegation = nfs_detach_delegation_locked(nfsi, NULL);
+		spin_unlock(&clp->cl_lock);
+		if (delegation != NULL)
+			nfs_do_return_delegation(inode, delegation, 0);
+	}
 }
 
 int nfs_inode_return_delegation(struct inode *inode)
@@ -388,7 +409,7 @@ static int recall_thread(void *data)
 	nfs_msync_inode(inode);
 
 	if (delegation != NULL)
-		nfs_do_return_delegation(inode, delegation);
+		nfs_do_return_delegation(inode, delegation, 1);
 	iput(inode);
 	module_put_and_exit(0);
 }

@@ -1145,7 +1145,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 void nfs4_clear_inode(struct inode *inode)
 {
 	/* If we are holding a delegation, return it! */
-	nfs_inode_return_delegation(inode);
+	nfs_inode_return_delegation_noreclaim(inode);
 	/* First call standard NFS clear_inode() code */
 	nfs_clear_inode(inode);
 }
