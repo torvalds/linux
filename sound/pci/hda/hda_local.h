@@ -332,6 +332,7 @@ struct auto_pin_cfg {
 	hda_nid_t input_pins[AUTO_PIN_LAST];
 	hda_nid_t dig_out_pin;
 	hda_nid_t dig_in_pin;
+	hda_nid_t mono_out_pin;
 };
 
 #define get_defcfg_connect(cfg) \
