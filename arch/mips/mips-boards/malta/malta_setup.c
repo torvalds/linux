@@ -80,7 +80,7 @@ const char display_string[] = "        LINUX ON MALTA       ";
 #endif /* CONFIG_MIPS_MT_SMTC */
 
 #ifdef CONFIG_BLK_DEV_FD
-void __init fd_activate(void)
+static void __init fd_activate(void)
 {
 	/*
 	 * Activate Floppy Controller in the SMSC FDC37M817 Super I/O
