@@ -181,7 +181,7 @@ static volatile unsigned long *dir_oe[NUM_PORTS] = {
 
 
 
-static unsigned int gpio_poll(struct file *file, struct poll_table *wait)
+static unsigned int gpio_poll(struct file *file, struct poll_table_struct *wait)
 {
 	unsigned int mask = 0;
 	struct gpio_private *priv = (struct gpio_private *)file->private_data;
@@ -841,8 +841,8 @@ gpio_leds_ioctl(unsigned int cmd, unsigned long arg)
 	case IO_LEDACTIVE_SET:
 		green = ((unsigned char) arg) & 1;
 		red   = (((unsigned char) arg) >> 1) & 1;
-		LED_ACTIVE_SET_G(green);
-		LED_ACTIVE_SET_R(red);
+		CRIS_LED_ACTIVE_SET_G(green);
+		CRIS_LED_ACTIVE_SET_R(red);
 		break;
 
 	default:
@@ -938,11 +938,11 @@ gpio_init(void)
 	}
 
 	/* Clear all leds */
-	LED_NETWORK_GRP0_SET(0);
-	LED_NETWORK_GRP1_SET(0);
-	LED_ACTIVE_SET(0);
-	LED_DISK_READ(0);
-	LED_DISK_WRITE(0);
+	CRIS_LED_NETWORK_GRP0_SET(0);
+	CRIS_LED_NETWORK_GRP1_SET(0);
+	CRIS_LED_ACTIVE_SET(0);
+	CRIS_LED_DISK_READ(0);
+	CRIS_LED_DISK_WRITE(0);
 
 	printk(KERN_INFO "ETRAX FS GPIO driver v2.5, (c) 2003-2007 "
 		"Axis Communications AB\n");
