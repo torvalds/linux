@@ -176,7 +176,7 @@ int rt2x00usb_write_tx_data(struct rt2x00_dev *rt2x00dev,
 	struct usb_device *usb_dev =
 	    interface_to_usbdev(rt2x00dev_usb(rt2x00dev));
 	struct data_entry *entry = rt2x00_get_data_entry(ring);
-	int pipe = usb_sndbulkpipe(usb_dev, 1);
+	struct skb_desc *desc;
 	u32 length;
 
 	if (rt2x00_ring_full(ring)) {
@@ -199,12 +199,18 @@ int rt2x00usb_write_tx_data(struct rt2x00_dev *rt2x00dev,
 	skb_push(skb, ring->desc_size);
 	memset(skb->data, 0, ring->desc_size);
 
-	rt2x00lib_write_tx_desc(rt2x00dev, (__le32 *)skb->data,
-				(struct ieee80211_hdr *)(skb->data +
-							 ring->desc_size),
-				skb->len - ring->desc_size, control);
-	memcpy(&entry->tx_status.control, control, sizeof(*control));
-	entry->skb = skb;
+	/*
+	 * Fill in skb descriptor
+	 */
+	desc = get_skb_desc(skb);
+	desc->desc_len = ring->desc_size;
+	desc->data_len = skb->len - ring->desc_size;
+	desc->desc = skb->data;
+	desc->data = skb->data + ring->desc_size;
+	desc->ring = ring;
+	desc->entry = entry;
+
+	rt2x00lib_write_tx_desc(rt2x00dev, skb, control);
 
 	/*
 	 * USB devices cannot blindly pass the skb->len as the
@@ -217,7 +223,7 @@ int rt2x00usb_write_tx_data(struct rt2x00_dev *rt2x00dev,
 	 * Initialize URB and send the frame to the device.
 	 */
 	__set_bit(ENTRY_OWNER_NIC, &entry->flags);
-	usb_fill_bulk_urb(entry->priv, usb_dev, pipe,
+	usb_fill_bulk_urb(entry->priv, usb_dev, usb_sndbulkpipe(usb_dev, 1),
 			  skb->data, length, rt2x00usb_interrupt_txdone, entry);
 	usb_submit_urb(entry->priv, GFP_ATOMIC);
 
@@ -240,6 +246,7 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	struct rt2x00_dev *rt2x00dev = ring->rt2x00dev;
 	struct sk_buff *skb;
 	struct ieee80211_hdr *hdr;
+	struct skb_desc *skbdesc;
 	struct rxdata_entry_desc desc;
 	int header_size;
 	int frame_size;
@@ -256,7 +263,7 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	if (urb->actual_length < entry->ring->desc_size || urb->status)
 		goto skip_entry;
 
-	memset(&desc, 0x00, sizeof(desc));
+	memset(&desc, 0, sizeof(desc));
 	rt2x00dev->ops->lib->fill_rxdone(entry, &desc);
 
 	/*
@@ -295,6 +302,17 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 		memmove(entry->skb->data, entry->skb->data + 2, skb->len - 2);
 	}
 	skb_trim(entry->skb, desc.size);
+
+	/*
+	 * Fill in skb descriptor
+	 */
+	skbdesc = get_skb_desc(entry->skb);
+	skbdesc->desc_len = desc.size;
+	skbdesc->data_len = entry->ring->desc_size;
+	skbdesc->desc = entry->skb->data + desc.size;
+	skbdesc->data = entry->skb->data;
+	skbdesc->ring = ring;
+	skbdesc->entry = entry;
 
 	/*
 	 * Send the frame to rt2x00lib for further processing.

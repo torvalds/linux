@@ -38,9 +38,9 @@ int rt2x00pci_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
 			    struct ieee80211_tx_control *control)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
-	struct data_ring *ring =
-	    rt2x00lib_get_ring(rt2x00dev, IEEE80211_TX_QUEUE_BEACON);
-	struct data_entry *entry = rt2x00_get_data_entry(ring);
+	struct skb_desc *desc;
+	struct data_ring *ring;
+	struct data_entry *entry;
 
 	/*
 	 * Just in case mac80211 doesn't set this correctly,
@@ -48,14 +48,22 @@ int rt2x00pci_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
 	 * initialization.
 	 */
 	control->queue = IEEE80211_TX_QUEUE_BEACON;
+	ring = rt2x00lib_get_ring(rt2x00dev, control->queue);
+	entry = rt2x00_get_data_entry(ring);
 
 	/*
-	 * Update the beacon entry.
+	 * Fill in skb descriptor
 	 */
+	desc = get_skb_desc(skb);
+	desc->desc_len = ring->desc_size;
+	desc->data_len = skb->len;
+	desc->desc = entry->priv;
+	desc->data = skb->data;
+	desc->ring = ring;
+	desc->entry = entry;
+
 	memcpy(entry->data_addr, skb->data, skb->len);
-	rt2x00lib_write_tx_desc(rt2x00dev, entry->priv,
-				(struct ieee80211_hdr *)skb->data,
-				skb->len, control);
+	rt2x00lib_write_tx_desc(rt2x00dev, skb, control);
 
 	/*
 	 * Enable beacon generation.
@@ -73,9 +81,9 @@ int rt2x00pci_write_tx_data(struct rt2x00_dev *rt2x00dev,
 			    struct data_ring *ring, struct sk_buff *skb,
 			    struct ieee80211_tx_control *control)
 {
-	struct ieee80211_hdr *ieee80211hdr = (struct ieee80211_hdr *)skb->data;
 	struct data_entry *entry = rt2x00_get_data_entry(ring);
 	__le32 *txd = entry->priv;
+	struct skb_desc *desc;
 	u32 word;
 
 	if (rt2x00_ring_full(ring)) {
@@ -95,11 +103,19 @@ int rt2x00pci_write_tx_data(struct rt2x00_dev *rt2x00dev,
 		return -EINVAL;
 	}
 
-	entry->skb = skb;
-	memcpy(&entry->tx_status.control, control, sizeof(*control));
+	/*
+	 * Fill in skb descriptor
+	 */
+	desc = get_skb_desc(skb);
+	desc->desc_len = ring->desc_size;
+	desc->data_len = skb->len;
+	desc->desc = entry->priv;
+	desc->data = skb->data;
+	desc->ring = ring;
+	desc->entry = entry;
+
 	memcpy(entry->data_addr, skb->data, skb->len);
-	rt2x00lib_write_tx_desc(rt2x00dev, txd, ieee80211hdr,
-				skb->len, control);
+	rt2x00lib_write_tx_desc(rt2x00dev, skb, control);
 
 	rt2x00_ring_index_inc(ring);
 
@@ -119,6 +135,7 @@ void rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev)
 	struct data_entry *entry;
 	struct sk_buff *skb;
 	struct ieee80211_hdr *hdr;
+	struct skb_desc *skbdesc;
 	struct rxdata_entry_desc desc;
 	int header_size;
 	__le32 *rxd;
@@ -133,7 +150,7 @@ void rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev)
 		if (rt2x00_get_field32(word, RXD_ENTRY_OWNER_NIC))
 			break;
 
-		memset(&desc, 0x00, sizeof(desc));
+		memset(&desc, 0, sizeof(desc));
 		rt2x00dev->ops->lib->fill_rxdone(entry, &desc);
 
 		hdr = (struct ieee80211_hdr *)entry->data_addr;
@@ -156,6 +173,17 @@ void rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev)
 
 		skb_reserve(skb, align);
 		memcpy(skb_put(skb, desc.size), entry->data_addr, desc.size);
+
+		/*
+		 * Fill in skb descriptor
+		 */
+		skbdesc = get_skb_desc(skb);
+		skbdesc->desc_len = desc.size;
+		skbdesc->data_len = entry->ring->desc_size;
+		skbdesc->desc = entry->priv;
+		skbdesc->data = skb->data;
+		skbdesc->ring = ring;
+		skbdesc->entry = entry;
 
 		/*
 		 * Send the frame to rt2x00lib for further processing.

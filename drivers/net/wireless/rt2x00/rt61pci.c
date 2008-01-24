@@ -2408,6 +2408,9 @@ static int rt61pci_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
 			  struct ieee80211_tx_control *control)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
+	struct skb_desc *desc;
+	struct data_ring *ring;
+	struct data_entry *entry;
 
 	/*
 	 * Just in case the ieee80211 doesn't set this,
@@ -2415,6 +2418,8 @@ static int rt61pci_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
 	 * initialization.
 	 */
 	control->queue = IEEE80211_TX_QUEUE_BEACON;
+	ring = rt2x00lib_get_ring(rt2x00dev, control->queue);
+	entry = rt2x00_get_data_entry(ring);
 
 	/*
 	 * We need to append the descriptor in front of the
@@ -2428,15 +2433,23 @@ static int rt61pci_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
 	}
 
 	/*
-	 * First we create the beacon.
+	 * Add the descriptor in front of the skb.
 	 */
-	skb_push(skb, TXD_DESC_SIZE);
-	memset(skb->data, 0, TXD_DESC_SIZE);
+	skb_push(skb, ring->desc_size);
+	memset(skb->data, 0, ring->desc_size);
 
-	rt2x00lib_write_tx_desc(rt2x00dev, (__le32 *)skb->data,
-				(struct ieee80211_hdr *)(skb->data +
-							 TXD_DESC_SIZE),
-				skb->len - TXD_DESC_SIZE, control);
+	/*
+	 * Fill in skb descriptor
+	 */
+	desc = get_skb_desc(skb);
+	desc->desc_len = ring->desc_size;
+	desc->data_len = skb->len - ring->desc_size;
+	desc->desc = skb->data;
+	desc->data = skb->data + ring->desc_size;
+	desc->ring = ring;
+	desc->entry = entry;
+
+	rt2x00lib_write_tx_desc(rt2x00dev, skb, control);
 
 	/*
 	 * Write entire beacon with descriptor to register,

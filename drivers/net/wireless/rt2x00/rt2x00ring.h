@@ -27,6 +27,28 @@
 #define RT2X00RING_H
 
 /*
+ * skb_desc
+ * Descriptor information for the skb buffer
+ */
+struct skb_desc {
+	unsigned int frame_type;
+
+	unsigned int desc_len;
+	unsigned int data_len;
+
+	void *desc;
+	void *data;
+
+	struct data_ring *ring;
+	struct data_entry *entry;
+};
+
+static inline struct skb_desc* get_skb_desc(struct sk_buff *skb)
+{
+	return (struct skb_desc*)&skb->cb[0];
+}
+
+/*
  * rxdata_entry_desc
  * Summary of information that has been read from the
  * RX frame descriptor.

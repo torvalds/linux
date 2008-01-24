@@ -901,9 +901,7 @@ void rt2x00lib_rxdone(struct data_entry *entry, struct sk_buff *skb,
  * TX descriptor initializer
  */
 void rt2x00lib_write_tx_desc(struct rt2x00_dev *rt2x00dev,
-			     __le32 *txd,
-			     struct ieee80211_hdr *ieee80211hdr,
-			     unsigned int length,
+			     struct sk_buff *skb,
 			     struct ieee80211_tx_control *control);
 
 /*

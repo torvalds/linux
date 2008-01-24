@@ -573,36 +573,26 @@ EXPORT_SYMBOL_GPL(rt2x00lib_rxdone);
  * TX descriptor initializer
  */
 void rt2x00lib_write_tx_desc(struct rt2x00_dev *rt2x00dev,
-			     __le32 *txd,
-			     struct ieee80211_hdr *ieee80211hdr,
-			     unsigned int length,
+			     struct sk_buff *skb,
 			     struct ieee80211_tx_control *control)
 {
 	struct txdata_entry_desc desc;
-	struct data_ring *ring;
+	struct skb_desc *skbdesc = get_skb_desc(skb);
+	struct ieee80211_hdr *ieee80211hdr = skbdesc->data;
+	__le32 *txd = skbdesc->desc;
 	int tx_rate;
 	int bitrate;
+	int length;
 	int duration;
 	int residual;
 	u16 frame_control;
 	u16 seq_ctrl;
 
-	/*
-	 * Make sure the descriptor is properly cleared.
-	 */
-	memset(&desc, 0x00, sizeof(desc));
+	memset(&desc, 0, sizeof(desc));
 
-	/*
-	 * Get ring pointer, if we fail to obtain the
-	 * correct ring, then use the first TX ring.
-	 */
-	ring = rt2x00lib_get_ring(rt2x00dev, control->queue);
-	if (!ring)
-		ring = rt2x00lib_get_ring(rt2x00dev, IEEE80211_TX_QUEUE_DATA0);
-
-	desc.cw_min = ring->tx_params.cw_min;
-	desc.cw_max = ring->tx_params.cw_max;
-	desc.aifs = ring->tx_params.aifs;
+	desc.cw_min = skbdesc->ring->tx_params.cw_min;
+	desc.cw_max = skbdesc->ring->tx_params.cw_max;
+	desc.aifs = skbdesc->ring->tx_params.aifs;
 
 	/*
 	 * Identify queue
@@ -683,17 +673,18 @@ void rt2x00lib_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	desc.signal = DEVICE_GET_RATE_FIELD(tx_rate, PLCP);
 	desc.service = 0x04;
 
+	length = skbdesc->data_len + FCS_LEN;
 	if (test_bit(ENTRY_TXD_OFDM_RATE, &desc.flags)) {
-		desc.length_high = ((length + FCS_LEN) >> 6) & 0x3f;
-		desc.length_low = ((length + FCS_LEN) & 0x3f);
+		desc.length_high = (length >> 6) & 0x3f;
+		desc.length_low = length & 0x3f;
 	} else {
 		bitrate = DEVICE_GET_RATE_FIELD(tx_rate, RATE);
 
 		/*
 		 * Convert length to microseconds.
 		 */
-		residual = get_duration_res(length + FCS_LEN, bitrate);
-		duration = get_duration(length + FCS_LEN, bitrate);
+		residual = get_duration_res(length, bitrate);
+		duration = get_duration(length, bitrate);
 
 		if (residual != 0) {
 			duration++;
@@ -716,8 +707,14 @@ void rt2x00lib_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 			desc.signal |= 0x08;
 	}
 
-	rt2x00dev->ops->lib->write_tx_desc(rt2x00dev, txd, &desc,
-					   ieee80211hdr, length, control);
+	rt2x00dev->ops->lib->write_tx_desc(rt2x00dev, txd, &desc, ieee80211hdr,
+					   skbdesc->data_len, control);
+
+	/*
+	 * Update ring entry.
+	 */
+	skbdesc->entry->skb = skb;
+	memcpy(&skbdesc->entry->tx_status.control, control, sizeof(*control));
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_write_tx_desc);
 
