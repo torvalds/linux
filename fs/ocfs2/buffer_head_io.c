@@ -79,7 +79,7 @@ int ocfs2_write_block(struct ocfs2_super *osb, struct buffer_head *bh,
 		 * information for this bh as it's not marked locally
 		 * uptodate. */
 		ret = -EIO;
-		brelse(bh);
+		put_bh(bh);
 	}
 
 	mutex_unlock(&OCFS2_I(inode)->ip_io_mutex);
@@ -256,7 +256,7 @@ int ocfs2_read_blocks(struct ocfs2_super *osb, u64 block, int nr,
 				 * for this bh as it's not marked locally
 				 * uptodate. */
 				status = -EIO;
-				brelse(bh);
+				put_bh(bh);
 				bhs[i] = NULL;
 				continue;
 			}
@@ -334,7 +334,7 @@ int ocfs2_write_super_or_backup(struct ocfs2_super *osb,
 
 	if (!buffer_uptodate(bh)) {
 		ret = -EIO;
-		brelse(bh);
+		put_bh(bh);
 	}
 
 out:

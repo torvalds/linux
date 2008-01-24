@@ -257,8 +257,7 @@ static void ocfs2_update_super_and_backups(struct inode *inode,
 		ret = update_backups(inode, clusters, super_bh->b_data);
 
 out:
-	if (super_bh)
-		brelse(super_bh);
+	brelse(super_bh);
 	if (ret)
 		printk(KERN_WARNING "ocfs2: Failed to update super blocks on %s"
 			" during fs resize. This condition is not fatal,"
@@ -380,11 +379,8 @@ int ocfs2_group_extend(struct inode * inode, int new_clusters)
 out_commit:
 	ocfs2_commit_trans(osb, handle);
 out_unlock:
-	if (group_bh)
-		brelse(group_bh);
-
-	if (main_bm_bh)
-		brelse(main_bm_bh);
+	brelse(group_bh);
+	brelse(main_bm_bh);
 
 	ocfs2_inode_unlock(main_bm_inode, 1);
 
@@ -623,11 +619,8 @@ int ocfs2_group_add(struct inode *inode, struct ocfs2_new_group_input *input)
 out_commit:
 	ocfs2_commit_trans(osb, handle);
 out_unlock:
-	if (group_bh)
-		brelse(group_bh);
-
-	if (main_bm_bh)
-		brelse(main_bm_bh);
+	brelse(group_bh);
+	brelse(main_bm_bh);
 
 	ocfs2_inode_unlock(main_bm_inode, 1);
 
