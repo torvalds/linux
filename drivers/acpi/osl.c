@@ -1141,6 +1141,34 @@ acpi_status acpi_os_release_object(acpi_cache_t * cache, void *object)
 	return (AE_OK);
 }
 
+/**
+ *	acpi_dmi_dump - dump DMI slots needed for blacklist entry
+ *
+ *	Returns 0 on success
+ */
+int acpi_dmi_dump(void)
+{
+
+	if (!dmi_available)
+		return -1;
+
+	printk(KERN_NOTICE PREFIX "DMI System Vendor: %s\n",
+		dmi_get_slot(DMI_SYS_VENDOR));
+	printk(KERN_NOTICE PREFIX "DMI Product Name: %s\n",
+		dmi_get_slot(DMI_PRODUCT_NAME));
+	printk(KERN_NOTICE PREFIX "DMI Product Version: %s\n",
+		dmi_get_slot(DMI_PRODUCT_VERSION));
+	printk(KERN_NOTICE PREFIX "DMI Board Name: %s\n",
+		dmi_get_slot(DMI_BOARD_NAME));
+	printk(KERN_NOTICE PREFIX "DMI BIOS Vendor: %s\n",
+		dmi_get_slot(DMI_BIOS_VENDOR));
+	printk(KERN_NOTICE PREFIX "DMI BIOS Date: %s\n",
+		dmi_get_slot(DMI_BIOS_DATE));
+
+	return 0;
+}
+
+
 /******************************************************************************
  *
  * FUNCTION:    acpi_os_validate_interface
