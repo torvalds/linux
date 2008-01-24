@@ -577,6 +577,13 @@ static int pneigh_ifdown(struct neigh_table *tbl, struct net_device *dev)
 	return -ENOENT;
 }
 
+static void neigh_parms_destroy(struct neigh_parms *parms);
+
+static inline void neigh_parms_put(struct neigh_parms *parms)
+{
+	if (atomic_dec_and_test(&parms->refcnt))
+		neigh_parms_destroy(parms);
+}
 
 /*
  *	neighbour must already be out of the table;
@@ -1350,7 +1357,7 @@ void neigh_parms_release(struct neigh_table *tbl, struct neigh_parms *parms)
 	NEIGH_PRINTK1("neigh_parms_release: not found\n");
 }
 
-void neigh_parms_destroy(struct neigh_parms *parms)
+static void neigh_parms_destroy(struct neigh_parms *parms)
 {
 	release_net(parms->net);
 	kfree(parms);
