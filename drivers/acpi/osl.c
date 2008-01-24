@@ -1190,10 +1190,16 @@ acpi_os_validate_interface (char *interface)
 	if (!strcmp("Linux", interface)) {
 		printk(KERN_WARNING PREFIX
 			"System BIOS is requesting _OSI(Linux)\n");
-		printk(KERN_WARNING PREFIX
-			"If \"acpi_osi=Linux\" works better,\n"
-			"Please send dmidecode "
-			"to linux-acpi@vger.kernel.org\n");
+		if (acpi_dmi_dump())
+			printk(KERN_NOTICE PREFIX
+				"[please extract dmidecode output]\n");
+		printk(KERN_NOTICE PREFIX
+			"Please send DMI info above to "
+			"linux-acpi@vger.kernel.org\n");
+		printk(KERN_NOTICE PREFIX
+			"If \"acpi_osi=%sLinux\" works better, "
+			"please notify linux-acpi@vger.kernel.org\n",
+			osi_linux ? "!" : "");
 		if(osi_linux)
 			return AE_OK;
 	}
