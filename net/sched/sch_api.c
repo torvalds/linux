@@ -244,7 +244,8 @@ struct qdisc_rate_table *qdisc_get_rtab(struct tc_ratespec *r, struct nlattr *ta
 		}
 	}
 
-	if (tab == NULL || r->rate == 0 || r->cell_log == 0 || nla_len(tab) != 1024)
+	if (tab == NULL || r->rate == 0 || r->cell_log == 0 ||
+	    nla_len(tab) != TC_RTAB_SIZE)
 		return NULL;
 
 	rtab = kmalloc(sizeof(*rtab), GFP_KERNEL);
