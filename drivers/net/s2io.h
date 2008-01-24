@@ -360,6 +360,8 @@ struct stat_block {
 #define MAX_TX_FIFOS 8
 #define MAX_RX_RINGS 8
 
+#define FIFO_DEFAULT_NUM	1
+
 #define MAX_RX_DESC_1  (MAX_RX_RINGS * MAX_RX_BLOCKS_PER_RING * 127 )
 #define MAX_RX_DESC_2  (MAX_RX_RINGS * MAX_RX_BLOCKS_PER_RING * 85 )
 #define MAX_RX_DESC_3  (MAX_RX_RINGS * MAX_RX_BLOCKS_PER_RING * 85 )
@@ -719,8 +721,14 @@ struct fifo_info {
 	 */
 	struct tx_curr_get_info tx_curr_get_info;
 
+	/* Per fifo lock */
+	spinlock_t tx_lock;
+
+	/* Per fifo UFO in band structure */
+	u64 *ufo_in_band_v;
+
 	struct s2io_nic *nic;
-};
+} ____cacheline_aligned;
 
 /* Information related to the Tx and Rx FIFOs and Rings of Xena
  * is maintained in this structure.
@@ -848,7 +856,6 @@ struct s2io_nic {
 
 	atomic_t rx_bufs_left[MAX_RX_RINGS];
 
-	spinlock_t tx_lock;
 	spinlock_t put_lock;
 
 #define PROMISC     1
@@ -915,7 +922,6 @@ struct s2io_nic {
 	volatile unsigned long state;
 	spinlock_t	rx_lock;
 	u64		general_int_mask;
-	u64 *ufo_in_band_v;
 #define VPD_STRING_LEN 80
 	u8  product_name[VPD_STRING_LEN];
 	u8  serial_num[VPD_STRING_LEN];
