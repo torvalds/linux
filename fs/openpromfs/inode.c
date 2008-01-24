@@ -131,7 +131,7 @@ static void property_stop(struct seq_file *f, void *v)
 	/* Nothing to do */
 }
 
-static struct seq_operations property_op = {
+static const struct seq_operations property_op = {
 	.start		= property_start,
 	.next		= property_next,
 	.stop		= property_stop,

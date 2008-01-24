@@ -131,7 +131,7 @@ void vio_unregister_driver(struct vio_driver *viodrv)
 }
 EXPORT_SYMBOL(vio_unregister_driver);
 
-static void __devinit vio_dev_release(struct device *dev)
+static void vio_dev_release(struct device *dev)
 {
 	kfree(to_vio_dev(dev));
 }
