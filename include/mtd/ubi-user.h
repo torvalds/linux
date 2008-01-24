@@ -63,7 +63,7 @@
  *
  * Volume update should be done via the %UBI_IOCVOLUP IOCTL command of the
  * corresponding UBI volume character device. A pointer to a 64-bit update
- * size should be passed to the IOCTL. After then, UBI expects user to write
+ * size should be passed to the IOCTL. After this, UBI expects user to write
  * this number of bytes to the volume character device. The update is finished
  * when the claimed number of bytes is passed. So, the volume update sequence
  * is something like:
@@ -72,6 +72,15 @@
  * ioctl(fd, UBI_IOCVOLUP, &image_size);
  * write(fd, buf, image_size);
  * close(fd);
+ *
+ * Atomic eraseblock change
+ * ~~~~~~~~~~~~~~~~~~~~~~~~
+ *
+ * Atomic eraseblock change operation is done via the %UBI_IOCEBCH IOCTL
+ * command of the corresponding UBI volume character device. A pointer to
+ * &struct ubi_leb_change_req has to be passed to the IOCTL. Then the user is
+ * expected to write the requested amount of bytes. This is similar to the
+ * "volume update" IOCTL.
  */
 
 /*
@@ -113,9 +122,28 @@
 #define UBI_IOCVOLUP _IOW(UBI_VOL_IOC_MAGIC, 0, int64_t)
 /* An eraseblock erasure command, used for debugging, disabled by default */
 #define UBI_IOCEBER _IOW(UBI_VOL_IOC_MAGIC, 1, int32_t)
+/* An atomic eraseblock change command */
+#define UBI_IOCEBCH _IOW(UBI_VOL_IOC_MAGIC, 2, int32_t)
 
 /* Maximum MTD device name length supported by UBI */
 #define MAX_UBI_MTD_NAME_LEN 127
+
+/*
+ * UBI data type hint constants.
+ *
+ * UBI_LONGTERM: long-term data
+ * UBI_SHORTTERM: short-term data
+ * UBI_UNKNOWN: data persistence is unknown
+ *
+ * These constants are used when data is written to UBI volumes in order to
+ * help the UBI wear-leveling unit to find more appropriate physical
+ * eraseblocks.
+ */
+enum {
+	UBI_LONGTERM  = 1,
+	UBI_SHORTTERM = 2,
+	UBI_UNKNOWN   = 3,
+};
 
 /*
  * UBI volume type constants.
@@ -125,7 +153,7 @@
  */
 enum {
 	UBI_DYNAMIC_VOLUME = 3,
-	UBI_STATIC_VOLUME = 4,
+	UBI_STATIC_VOLUME  = 4,
 };
 
 /**
@@ -137,7 +165,7 @@ enum {
  *
  * This data structure is used to specify MTD device UBI has to attach and the
  * parameters it has to use. The number which should be assigned to the new UBI
- * device is passed in @ubi_num. UBI may automatically assing the number if
+ * device is passed in @ubi_num. UBI may automatically assign the number if
  * @UBI_DEV_NUM_AUTO is passed. In this case, the device number is returned in
  * @ubi_num.
  *
@@ -176,7 +204,7 @@ struct ubi_attach_req {
  * @padding2: reserved for future, not used, has to be zeroed
  * @name: volume name
  *
- * This structure is used by userspace programs when creating new volumes. The
+ * This structure is used by user-space programs when creating new volumes. The
  * @used_bytes field is only necessary when creating static volumes.
  *
  * The @alignment field specifies the required alignment of the volume logical
@@ -220,6 +248,21 @@ struct ubi_mkvol_req {
 struct ubi_rsvol_req {
 	int64_t bytes;
 	int32_t vol_id;
+} __attribute__ ((packed));
+
+/**
+ * struct ubi_leb_change_req - a data structure used in atomic logical
+ *                             eraseblock change requests.
+ * @lnum: logical eraseblock number to change
+ * @bytes: how many bytes will be written to the logical eraseblock
+ * @dtype: data type (%UBI_LONGTERM, %UBI_SHORTTERM, %UBI_UNKNOWN)
+ * @padding: reserved for future, not used, has to be zeroed
+ */
+struct ubi_leb_change_req {
+	int32_t lnum;
+	int32_t bytes;
+	uint8_t dtype;
+	uint8_t padding[7];
 } __attribute__ ((packed));
 
 #endif /* __UBI_USER_H__ */
