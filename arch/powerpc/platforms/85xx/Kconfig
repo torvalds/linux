@@ -13,6 +13,7 @@ config MPC8560_ADS
 	bool "Freescale MPC8560 ADS"
 	select DEFAULT_UIMAGE
 	select PPC_CPM_NEW_BINDING
+	select CPM2
 	help
 	  This option enables support for the MPC 8560 ADS board
 
@@ -43,6 +44,7 @@ config STX_GP3
 	help
 	  This option enables support for the Silicon Turnkey Express GP3
 	  board.
+	select CPM2
 	select DEFAULT_UIMAGE
 	select PPC_CPM_NEW_BINDING
 
@@ -84,7 +86,7 @@ config TQM8560
 config SBC8560
 	bool "Wind River SBC8560"
 	select DEFAULT_UIMAGE
-	select PPC_CPM_NEW_BINDING
+	select PPC_CPM_NEW_BINDING if CPM2
 	help
 	  This option enables support for the Wind River SBC8560 board
 
@@ -99,11 +101,6 @@ config MPC8540
 	select PPC_UDBG_16550
 	select PPC_INDIRECT_PCI
 	default y if MPC8540_ADS || MPC85xx_CDS
-
-config MPC8560
-	bool
-	select CPM2
-	default y if MPC8560_ADS || STX_GP3 || SBC8560
 
 config MPC85xx
 	bool
