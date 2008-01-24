@@ -12675,7 +12675,7 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 		tg3reg_len = pci_resource_len(pdev, 2);
 
 		tp->aperegs = ioremap_nocache(tg3reg_base, tg3reg_len);
-		if (tp->aperegs == 0UL) {
+		if (!tp->aperegs) {
 			printk(KERN_ERR PFX "Cannot map APE registers, "
 			       "aborting.\n");
 			err = -ENOMEM;

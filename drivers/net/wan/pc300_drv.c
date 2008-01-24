@@ -2365,17 +2365,17 @@ static void falc_intr(pc300_t * card)
 
 static irqreturn_t cpc_intr(int irq, void *dev_id)
 {
-	pc300_t *card;
+	pc300_t *card = dev_id;
 	volatile ucchar plx_status;
 
-	if ((card = (pc300_t *) dev_id) == 0) {
+	if (!card) {
 #ifdef PC300_DEBUG_INTR
 		printk("cpc_intr: spurious intr %d\n", irq);
 #endif
 		return IRQ_NONE;		/* spurious intr */
 	}
 
-	if (card->hw.rambase == 0) {
+	if (!card->hw.rambase) {
 #ifdef PC300_DEBUG_INTR
 		printk("cpc_intr: spurious intr2 %d\n", irq);
 #endif
@@ -3648,7 +3648,7 @@ static void __devexit cpc_remove_one(struct pci_dev *pdev)
 {
 	pc300_t *card = pci_get_drvdata(pdev);
 
-	if (card->hw.rambase != 0) {
+	if (card->hw.rambase) {
 		int i;
 
 		/* Disable interrupts on the PCI bridge */

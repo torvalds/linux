@@ -3060,7 +3060,7 @@ static int __devinit happy_meal_pci_probe(struct pci_dev *pdev,
 		goto err_out_clear_quattro;
 	}
 
-	if ((hpreg_base = ioremap(hpreg_res, 0x8000)) == 0) {
+	if ((hpreg_base = ioremap(hpreg_res, 0x8000)) == NULL) {
 		printk(KERN_ERR "happymeal(PCI): Unable to remap card memory.\n");
 		goto err_out_free_res;
 	}

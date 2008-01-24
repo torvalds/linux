@@ -289,7 +289,7 @@ struct net_device * __init mac89x0_probe(int unit)
 	err = register_netdev(dev);
 	if (err)
 		goto out1;
-	return 0;
+	return NULL;
 out1:
 	nubus_writew(0, dev->base_addr + ADD_PORT);
 out:

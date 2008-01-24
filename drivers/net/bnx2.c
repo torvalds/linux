@@ -2757,7 +2757,7 @@ bnx2_rx_int(struct bnx2 *bp, struct bnx2_napi *bnapi, int budget)
 		}
 
 #ifdef BCM_VLAN
-		if ((status & L2_FHDR_STATUS_L2_VLAN_TAG) && (bp->vlgrp != 0)) {
+		if ((status & L2_FHDR_STATUS_L2_VLAN_TAG) && bp->vlgrp) {
 			vlan_hwaccel_receive_skb(skb, bp->vlgrp,
 				rx_hdr->l2_fhdr_vlan_tag);
 		}
@@ -5660,7 +5660,7 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		vlan_tag_flags |= TX_BD_FLAGS_TCP_UDP_CKSUM;
 	}
 
-	if (bp->vlgrp != 0 && vlan_tx_tag_present(skb)) {
+	if (bp->vlgrp && vlan_tx_tag_present(skb)) {
 		vlan_tag_flags |=
 			(TX_BD_FLAGS_VLAN_TAG | (vlan_tx_tag_get(skb) << 16));
 	}

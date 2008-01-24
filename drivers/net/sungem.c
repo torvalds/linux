@@ -3056,7 +3056,7 @@ static int __devinit gem_init_one(struct pci_dev *pdev,
 	netif_carrier_off(dev);
 
 	gp->regs = ioremap(gemreg_base, gemreg_len);
-	if (gp->regs == 0UL) {
+	if (!gp->regs) {
 		printk(KERN_ERR PFX "Cannot map device registers, "
 		       "aborting.\n");
 		err = -EIO;

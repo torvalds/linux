@@ -1219,10 +1219,6 @@ lmc_t1_watchdog (lmc_softc_t * const sc)
 static void
 lmc_set_protocol (lmc_softc_t * const sc, lmc_ctl_t * ctl)
 {
-  if (ctl == 0)
-    {
-      sc->ictl.keepalive_onoff = LMC_CTL_ON;
-
-      return;
-    }
+	if (!ctl)
+		sc->ictl.keepalive_onoff = LMC_CTL_ON;
 }

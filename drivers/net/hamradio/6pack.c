@@ -701,7 +701,7 @@ static void sixpack_close(struct tty_struct *tty)
 	sp = tty->disc_data;
 	tty->disc_data = NULL;
 	write_unlock(&disc_data_lock);
-	if (sp == 0)
+	if (!sp)
 		return;
 
 	/*

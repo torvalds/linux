@@ -354,8 +354,8 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_free_netdev;
 	}
 
-	if (((mem_ptr0 == 0UL) && (mem_len == NETXEN_PCI_128MB_SIZE)) ||
-			(mem_ptr1 == 0UL) || (mem_ptr2 == 0UL)) {
+	if ((!mem_ptr0 && mem_len == NETXEN_PCI_128MB_SIZE) ||
+			!mem_ptr1 || !mem_ptr2) {
 		DPRINTK(ERR,
 			"Cannot remap adapter memory aborting.:"
 			"0 -> %p, 1 -> %p, 2 -> %p\n",
@@ -1337,7 +1337,7 @@ static struct pci_driver netxen_driver = {
 
 static int __init netxen_init_module(void)
 {
-	if ((netxen_workq = create_singlethread_workqueue("netxen")) == 0)
+	if ((netxen_workq = create_singlethread_workqueue("netxen")) == NULL)
 		return -ENOMEM;
 
 	return pci_register_driver(&netxen_driver);

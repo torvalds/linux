@@ -313,7 +313,7 @@ static int cpc_tty_open(struct tty_struct *tty, struct file *flip)
 	if (cpc_tty->num_open == 0) { /* first open of this tty */
 		if (!cpc_tty_area[port].buf_tx){
 			cpc_tty_area[port].buf_tx = kmalloc(CPC_TTY_MAX_MTU,GFP_KERNEL);
-			if (cpc_tty_area[port].buf_tx == 0){
+			if (!cpc_tty_area[port].buf_tx) {
 				CPC_TTY_DBG("%s: error in memory allocation\n",cpc_tty->name);
 				return -ENOMEM;
 			}
@@ -678,7 +678,7 @@ static void cpc_tty_rx_work(struct work_struct *work)
 		for (j=0; j < CPC_TTY_NPORTS; j++) {
 			cpc_tty = &cpc_tty_area[port];
 		
-			if ((buf=cpc_tty->buf_rx.first) != 0) {
+			if ((buf=cpc_tty->buf_rx.first) != NULL) {
 				if (cpc_tty->tty) {
 					ld = tty_ldisc_ref(cpc_tty->tty);
 					if (ld) {
@@ -784,7 +784,7 @@ void cpc_tty_receive(pc300dev_t *pc300dev)
 		} 
 		
 		new = kmalloc(rx_len + sizeof(st_cpc_rx_buf), GFP_ATOMIC);
-		if (new == 0) {
+		if (!new) {
 			cpc_tty_rx_disc_frame(pc300chan);
 			continue;
 		}
@@ -863,7 +863,7 @@ void cpc_tty_receive(pc300dev_t *pc300dev)
 			} 
 			new->size = rx_len;
 			new->next = NULL;
-			if (cpc_tty->buf_rx.first == 0) {
+			if (cpc_tty->buf_rx.first == NULL) {
 				cpc_tty->buf_rx.first = new;
 				cpc_tty->buf_rx.last = new;
 			} else {
@@ -891,7 +891,7 @@ static void cpc_tty_tx_work(struct work_struct *work)
 
 	CPC_TTY_DBG("%s: cpc_tty_tx_work init\n",cpc_tty->name);
 	
-	if ((tty = cpc_tty->tty) == 0) { 
+	if ((tty = cpc_tty->tty) == NULL) { 
 		CPC_TTY_DBG("%s: the interface is not opened\n",cpc_tty->name);
 		return; 
 	}
@@ -1027,7 +1027,7 @@ void cpc_tty_unregister_service(pc300dev_t *pc300dev)
 	ulong flags;
 	int res;
 
-	if ((cpc_tty= (st_cpc_tty_area *) pc300dev->cpc_tty) == 0) { 
+	if ((cpc_tty= (st_cpc_tty_area *) pc300dev->cpc_tty) == NULL) {
 		CPC_TTY_DBG("%s: interface is not TTY\n", pc300dev->dev->name);
 		return; 
 	}

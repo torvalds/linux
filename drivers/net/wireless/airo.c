@@ -2032,7 +2032,7 @@ static int mpi_send_packet (struct net_device *dev)
 
 	/* get a packet to send */
 
-	if ((skb = skb_dequeue(&ai->txq)) == 0) {
+	if ((skb = skb_dequeue(&ai->txq)) == NULL) {
 		airo_print_err(dev->name,
 			"%s: Dequeue'd zero in send_packet()",
 			__FUNCTION__);

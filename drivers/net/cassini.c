@@ -5085,7 +5085,7 @@ static int __devinit cas_init_one(struct pci_dev *pdev,
 
 	/* give us access to cassini registers */
 	cp->regs = pci_iomap(pdev, 0, casreg_len);
-	if (cp->regs == 0UL) {
+	if (!cp->regs) {
 		dev_err(&pdev->dev, "Cannot map device registers, aborting.\n");
 		goto err_out_free_res;
 	}
