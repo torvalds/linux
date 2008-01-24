@@ -202,9 +202,8 @@ void __init plat_mem_setup(void)
 #endif
 	}
 #ifdef CONFIG_DMA_COHERENT
-	else {
+	else
 		panic("Hardware DMA cache coherency not supported");
-	}
 #endif
 
 #ifdef CONFIG_BLK_DEV_IDE

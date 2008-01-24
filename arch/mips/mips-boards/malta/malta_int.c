@@ -114,7 +114,8 @@ static void malta_hw0_irqdispatch(void)
 
 	irq = get_int();
 	if (irq < 0) {
-		return;  /* interrupt has already been cleared */
+		/* interrupt has already been cleared */
+		return;
 	}
 
 	do_IRQ(MALTA_INT_BASE + irq);
