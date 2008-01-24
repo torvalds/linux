@@ -199,7 +199,7 @@ CFQ_CFQQ_FNS(sync);
 
 static void cfq_dispatch_insert(struct request_queue *, struct request *);
 static struct cfq_queue *cfq_get_queue(struct cfq_data *, int,
-				       struct task_struct *, gfp_t);
+				       struct io_context *, gfp_t);
 static struct cfq_io_context *cfq_cic_rb_lookup(struct cfq_data *,
 						struct io_context *);
 
@@ -1273,7 +1273,7 @@ cfq_alloc_io_context(struct cfq_data *cfqd, gfp_t gfp_mask)
 	return cic;
 }
 
-static void cfq_init_prio_data(struct cfq_queue *cfqq)
+static void cfq_init_prio_data(struct cfq_queue *cfqq, struct io_context *ioc)
 {
 	struct task_struct *tsk = current;
 	int ioprio_class;
@@ -1281,7 +1281,7 @@ static void cfq_init_prio_data(struct cfq_queue *cfqq)
 	if (!cfq_cfqq_prio_changed(cfqq))
 		return;
 
-	ioprio_class = IOPRIO_PRIO_CLASS(tsk->ioprio);
+	ioprio_class = IOPRIO_PRIO_CLASS(ioc->ioprio);
 	switch (ioprio_class) {
 		default:
 			printk(KERN_ERR "cfq: bad prio %x\n", ioprio_class);
@@ -1293,11 +1293,11 @@ static void cfq_init_prio_data(struct cfq_queue *cfqq)
 			cfqq->ioprio_class = IOPRIO_CLASS_BE;
 			break;
 		case IOPRIO_CLASS_RT:
-			cfqq->ioprio = task_ioprio(tsk);
+			cfqq->ioprio = task_ioprio(ioc);
 			cfqq->ioprio_class = IOPRIO_CLASS_RT;
 			break;
 		case IOPRIO_CLASS_BE:
-			cfqq->ioprio = task_ioprio(tsk);
+			cfqq->ioprio = task_ioprio(ioc);
 			cfqq->ioprio_class = IOPRIO_CLASS_BE;
 			break;
 		case IOPRIO_CLASS_IDLE:
@@ -1330,8 +1330,7 @@ static inline void changed_ioprio(struct cfq_io_context *cic)
 	cfqq = cic->cfqq[ASYNC];
 	if (cfqq) {
 		struct cfq_queue *new_cfqq;
-		new_cfqq = cfq_get_queue(cfqd, ASYNC, cic->ioc->task,
-					 GFP_ATOMIC);
+		new_cfqq = cfq_get_queue(cfqd, ASYNC, cic->ioc, GFP_ATOMIC);
 		if (new_cfqq) {
 			cic->cfqq[ASYNC] = new_cfqq;
 			cfq_put_queue(cfqq);
@@ -1363,13 +1362,13 @@ static void cfq_ioc_set_ioprio(struct io_context *ioc)
 
 static struct cfq_queue *
 cfq_find_alloc_queue(struct cfq_data *cfqd, int is_sync,
-		     struct task_struct *tsk, gfp_t gfp_mask)
+		     struct io_context *ioc, gfp_t gfp_mask)
 {
 	struct cfq_queue *cfqq, *new_cfqq = NULL;
 	struct cfq_io_context *cic;
 
 retry:
-	cic = cfq_cic_rb_lookup(cfqd, tsk->io_context);
+	cic = cfq_cic_rb_lookup(cfqd, ioc);
 	/* cic always exists here */
 	cfqq = cic_to_cfqq(cic, is_sync);
 
@@ -1412,7 +1411,7 @@ retry:
 		cfq_mark_cfqq_prio_changed(cfqq);
 		cfq_mark_cfqq_queue_new(cfqq);
 
-		cfq_init_prio_data(cfqq);
+		cfq_init_prio_data(cfqq, ioc);
 	}
 
 	if (new_cfqq)
@@ -1439,11 +1438,11 @@ cfq_async_queue_prio(struct cfq_data *cfqd, int ioprio_class, int ioprio)
 }
 
 static struct cfq_queue *
-cfq_get_queue(struct cfq_data *cfqd, int is_sync, struct task_struct *tsk,
+cfq_get_queue(struct cfq_data *cfqd, int is_sync, struct io_context *ioc,
 	      gfp_t gfp_mask)
 {
-	const int ioprio = task_ioprio(tsk);
-	const int ioprio_class = task_ioprio_class(tsk);
+	const int ioprio = task_ioprio(ioc);
+	const int ioprio_class = task_ioprio_class(ioc);
 	struct cfq_queue **async_cfqq = NULL;
 	struct cfq_queue *cfqq = NULL;
 
@@ -1453,7 +1452,7 @@ cfq_get_queue(struct cfq_data *cfqd, int is_sync, struct task_struct *tsk,
 	}
 
 	if (!cfqq) {
-		cfqq = cfq_find_alloc_queue(cfqd, is_sync, tsk, gfp_mask);
+		cfqq = cfq_find_alloc_queue(cfqd, is_sync, ioc, gfp_mask);
 		if (!cfqq)
 			return NULL;
 	}
@@ -1793,7 +1792,7 @@ static void cfq_insert_request(struct request_queue *q, struct request *rq)
 	struct cfq_data *cfqd = q->elevator->elevator_data;
 	struct cfq_queue *cfqq = RQ_CFQQ(rq);
 
-	cfq_init_prio_data(cfqq);
+	cfq_init_prio_data(cfqq, RQ_CIC(rq)->ioc);
 
 	cfq_add_rq_rb(rq);
 
@@ -1900,7 +1899,7 @@ static int cfq_may_queue(struct request_queue *q, int rw)
 
 	cfqq = cic_to_cfqq(cic, rw & REQ_RW_SYNC);
 	if (cfqq) {
-		cfq_init_prio_data(cfqq);
+		cfq_init_prio_data(cfqq, cic->ioc);
 		cfq_prio_boost(cfqq);
 
 		return __cfq_may_queue(cfqq);
@@ -1938,7 +1937,6 @@ static int
 cfq_set_request(struct request_queue *q, struct request *rq, gfp_t gfp_mask)
 {
 	struct cfq_data *cfqd = q->elevator->elevator_data;
-	struct task_struct *tsk = current;
 	struct cfq_io_context *cic;
 	const int rw = rq_data_dir(rq);
 	const int is_sync = rq_is_sync(rq);
@@ -1956,7 +1954,7 @@ cfq_set_request(struct request_queue *q, struct request *rq, gfp_t gfp_mask)
 
 	cfqq = cic_to_cfqq(cic, is_sync);
 	if (!cfqq) {
-		cfqq = cfq_get_queue(cfqd, is_sync, tsk, gfp_mask);
+		cfqq = cfq_get_queue(cfqd, is_sync, cic->ioc, gfp_mask);
 
 		if (!cfqq)
 			goto queue_fail;

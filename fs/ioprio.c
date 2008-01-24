@@ -41,18 +41,29 @@ static int set_task_ioprio(struct task_struct *task, int ioprio)
 		return err;
 
 	task_lock(task);
+	do {
+		ioc = task->io_context;
+		/* see wmb() in current_io_context() */
+		smp_read_barrier_depends();
+		if (ioc)
+			break;
 
-	task->ioprio = ioprio;
+		ioc = alloc_io_context(GFP_ATOMIC, -1);
+		if (!ioc) {
+			err = -ENOMEM;
+			break;
+		}
+		task->io_context = ioc;
+		ioc->task = task;
+	} while (1);
 
-	ioc = task->io_context;
-	/* see wmb() in current_io_context() */
-	smp_read_barrier_depends();
-
-	if (ioc)
+	if (!err) {
+		ioc->ioprio = ioprio;
 		ioc->ioprio_changed = 1;
+	}
 
 	task_unlock(task);
-	return 0;
+	return err;
 }
 
 asmlinkage long sys_ioprio_set(int which, int who, int ioprio)
@@ -148,7 +159,9 @@ static int get_task_ioprio(struct task_struct *p)
 	ret = security_task_getioprio(p);
 	if (ret)
 		goto out;
-	ret = p->ioprio;
+	ret = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_NONE, IOPRIO_NORM);
+	if (p->io_context)
+		ret = p->io_context->ioprio;
 out:
 	return ret;
 }

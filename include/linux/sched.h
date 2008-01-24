@@ -975,7 +975,6 @@ struct task_struct {
 	struct hlist_head preempt_notifiers;
 #endif
 
-	unsigned short ioprio;
 	/*
 	 * fpu_counter contains the number of consecutive context switches
 	 * that the FPU is used. If this is over a threshold, the lazy fpu

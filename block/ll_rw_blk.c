@@ -3904,6 +3904,26 @@ void exit_io_context(void)
 	put_io_context(ioc);
 }
 
+struct io_context *alloc_io_context(gfp_t gfp_flags, int node)
+{
+	struct io_context *ret;
+
+	ret = kmem_cache_alloc_node(iocontext_cachep, gfp_flags, node);
+	if (ret) {
+		atomic_set(&ret->refcount, 1);
+		ret->task = current;
+		ret->ioprio_changed = 0;
+		ret->ioprio = 0;
+		ret->last_waited = jiffies; /* doesn't matter... */
+		ret->nr_batch_requests = 0; /* because this is 0 */
+		ret->aic = NULL;
+		ret->cic_root.rb_node = NULL;
+		ret->ioc_data = NULL;
+	}
+
+	return ret;
+}
+
 /*
  * If the current task has no IO context then create one and initialise it.
  * Otherwise, return its existing IO context.
@@ -3921,16 +3941,8 @@ static struct io_context *current_io_context(gfp_t gfp_flags, int node)
 	if (likely(ret))
 		return ret;
 
-	ret = kmem_cache_alloc_node(iocontext_cachep, gfp_flags, node);
+	ret = alloc_io_context(gfp_flags, node);
 	if (ret) {
-		atomic_set(&ret->refcount, 1);
-		ret->task = current;
-		ret->ioprio_changed = 0;
-		ret->last_waited = jiffies; /* doesn't matter... */
-		ret->nr_batch_requests = 0; /* because this is 0 */
-		ret->aic = NULL;
-		ret->cic_root.rb_node = NULL;
-		ret->ioc_data = NULL;
 		/* make sure set_task_ioprio() sees the settings above */
 		smp_wmb();
 		tsk->io_context = ret;
