@@ -989,6 +989,7 @@ out:
 }
 
 static void *pppoe_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(pppoe_hash_lock)
 {
 	loff_t l = *pos;
 
@@ -1022,6 +1023,7 @@ out:
 }
 
 static void pppoe_seq_stop(struct seq_file *seq, void *v)
+	__releases(pppoe_hash_lock)
 {
 	read_unlock_bh(&pppoe_hash_lock);
 }

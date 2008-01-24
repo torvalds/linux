@@ -174,7 +174,7 @@ put16(unsigned char *cp, unsigned short x)
 
 
 /* Encode a number */
-unsigned char *
+static unsigned char *
 encode(unsigned char *cp, unsigned short n)
 {
 	if(n >= 256 || n == 0){
@@ -199,7 +199,7 @@ pull16(unsigned char **cpp)
 }
 
 /* Decode a number */
-long
+static long
 decode(unsigned char **cpp)
 {
 	register int x;

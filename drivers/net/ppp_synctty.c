@@ -560,7 +560,7 @@ static void ppp_sync_process(unsigned long arg)
  * Procedures for encapsulation and framing.
  */
 
-struct sk_buff*
+static struct sk_buff*
 ppp_sync_txmunge(struct syncppp *ap, struct sk_buff *skb)
 {
 	int proto;
