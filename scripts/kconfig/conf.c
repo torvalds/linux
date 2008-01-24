@@ -400,9 +400,9 @@ static int conf_choice(struct menu *menu)
 			continue;
 		}
 		sym_set_choice_value(sym, child->sym);
-		if (child->list) {
+		for (child = child->list; child; child = child->next) {
 			indent += 2;
-			conf(child->list);
+			conf(child);
 			indent -= 2;
 		}
 		return 1;
