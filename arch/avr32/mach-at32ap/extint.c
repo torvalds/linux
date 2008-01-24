@@ -226,15 +226,15 @@ static int __init eic_probe(struct platform_device *pdev)
 	pattern = eic_readl(eic, MODE);
 	nr_irqs = fls(pattern);
 
-	/* Trigger on falling edge unless overridden by driver */
-	eic_writel(eic, MODE, 0UL);
+	/* Trigger on low level unless overridden by driver */
 	eic_writel(eic, EDGE, 0UL);
+	eic_writel(eic, LEVEL, 0UL);
 
 	eic->chip = &eic_chip;
 
 	for (i = 0; i < nr_irqs; i++) {
 		set_irq_chip_and_handler(eic->first_irq + i, &eic_chip,
-					 handle_edge_irq);
+					 handle_level_irq);
 		set_irq_chip_data(eic->first_irq + i, eic);
 	}
 
