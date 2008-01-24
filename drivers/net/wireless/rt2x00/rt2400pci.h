@@ -803,8 +803,8 @@
 /*
  * DMA descriptor defines.
  */
-#define TXD_DESC_SIZE			( 8 * sizeof(struct data_desc) )
-#define RXD_DESC_SIZE			( 8 * sizeof(struct data_desc) )
+#define TXD_DESC_SIZE			( 8 * sizeof(__le32) )
+#define RXD_DESC_SIZE			( 8 * sizeof(__le32) )
 
 /*
  * TX descriptor format for TX, PRIO, ATIM and Beacon Ring.

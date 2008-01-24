@@ -80,7 +80,7 @@ int rt2x00pci_write_tx_data(struct rt2x00_dev *rt2x00dev,
 {
 	struct ieee80211_hdr *ieee80211hdr = (struct ieee80211_hdr *)skb->data;
 	struct data_entry *entry = rt2x00_get_data_entry(ring);
-	struct data_desc *txd = entry->priv;
+	__le32 *txd = entry->priv;
 	u32 word;
 
 	if (rt2x00_ring_full(ring)) {
@@ -122,11 +122,11 @@ void rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_ring *ring = rt2x00dev->rx;
 	struct data_entry *entry;
-	struct data_desc *rxd;
 	struct sk_buff *skb;
 	struct ieee80211_hdr *hdr;
 	struct rxdata_entry_desc desc;
 	int header_size;
+	__le32 *rxd;
 	int align;
 	u32 word;
 

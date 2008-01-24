@@ -578,7 +578,7 @@ EXPORT_SYMBOL_GPL(rt2x00lib_rxdone);
  * TX descriptor initializer
  */
 void rt2x00lib_write_tx_desc(struct rt2x00_dev *rt2x00dev,
-			     struct data_desc *txd,
+			     __le32 *txd,
 			     struct ieee80211_hdr *ieee80211hdr,
 			     unsigned int length,
 			     struct ieee80211_tx_control *control)

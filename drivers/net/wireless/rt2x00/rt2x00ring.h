@@ -27,20 +27,6 @@
 #define RT2X00RING_H
 
 /*
- * data_desc
- * Each data entry also contains a descriptor which is used by the
- * device to determine what should be done with the packet and
- * what the current status is.
- * This structure is greatly simplified, but the descriptors
- * are basically a list of little endian 32 bit values.
- * Make the array by default 1 word big, this will allow us
- * to use sizeof() correctly.
- */
-struct data_desc {
-	__le32 word[1];
-};
-
-/*
  * rxdata_entry_desc
  * Summary of information that has been read from the
  * RX frame descriptor.
@@ -253,16 +239,16 @@ static inline int rt2x00_ring_free(struct data_ring *ring)
 /*
  * TX/RX Descriptor access functions.
  */
-static inline void rt2x00_desc_read(struct data_desc *desc,
+static inline void rt2x00_desc_read(__le32 *desc,
 				    const u8 word, u32 *value)
 {
-	*value = le32_to_cpu(desc->word[word]);
+	*value = le32_to_cpu(desc[word]);
 }
 
-static inline void rt2x00_desc_write(struct data_desc *desc,
+static inline void rt2x00_desc_write(__le32 *desc,
 				     const u8 word, const u32 value)
 {
-	desc->word[word] = cpu_to_le32(value);
+	desc[word] = cpu_to_le32(value);
 }
 
 #endif /* RT2X00RING_H */

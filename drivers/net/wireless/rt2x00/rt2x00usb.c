@@ -113,7 +113,7 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 	struct data_entry *entry = (struct data_entry *)urb->context;
 	struct data_ring *ring = entry->ring;
 	struct rt2x00_dev *rt2x00dev = ring->rt2x00dev;
-	struct data_desc *txd = (struct data_desc *)entry->skb->data;
+	__le32 *txd = (__le32 *)entry->skb->data;
 	u32 word;
 	int tx_status;
 
@@ -181,7 +181,7 @@ int rt2x00usb_write_tx_data(struct rt2x00_dev *rt2x00dev,
 	skb_push(skb, ring->desc_size);
 	memset(skb->data, 0, ring->desc_size);
 
-	rt2x00lib_write_tx_desc(rt2x00dev, (struct data_desc *)skb->data,
+	rt2x00lib_write_tx_desc(rt2x00dev, (__le32 *)skb->data,
 				(struct ieee80211_hdr *)(skb->data +
 							 ring->desc_size),
 				skb->len - ring->desc_size, control);

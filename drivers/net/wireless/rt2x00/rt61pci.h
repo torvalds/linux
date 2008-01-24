@@ -1246,8 +1246,8 @@ struct hw_pairwise_ta_entry {
 /*
  * DMA descriptor defines.
  */
-#define TXD_DESC_SIZE			( 16 * sizeof(struct data_desc) )
-#define RXD_DESC_SIZE			( 16 * sizeof(struct data_desc) )
+#define TXD_DESC_SIZE			( 16 * sizeof(__le32) )
+#define RXD_DESC_SIZE			( 16 * sizeof(__le32) )
 
 /*
  * TX descriptor format for TX, PRIO and Beacon Ring.

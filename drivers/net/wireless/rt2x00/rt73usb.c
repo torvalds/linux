@@ -1203,7 +1203,7 @@ static int rt73usb_set_device_state(struct rt2x00_dev *rt2x00dev,
  * TX descriptor initialization
  */
 static void rt73usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
-				  struct data_desc *txd,
+				  __le32 *txd,
 				  struct txdata_entry_desc *desc,
 				  struct ieee80211_hdr *ieee80211hdr,
 				  unsigned int length,
@@ -1350,7 +1350,7 @@ static int rt73usb_agc_to_rssi(struct rt2x00_dev *rt2x00dev, int rxd_w1)
 static void rt73usb_fill_rxdone(struct data_entry *entry,
 			        struct rxdata_entry_desc *desc)
 {
-	struct data_desc *rxd = (struct data_desc *)entry->skb->data;
+	__le32 *rxd = (__le32 *)entry->skb->data;
 	u32 word0;
 	u32 word1;
 
@@ -1953,7 +1953,7 @@ static int rt73usb_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
 	skb_push(skb, TXD_DESC_SIZE);
 	memset(skb->data, 0, TXD_DESC_SIZE);
 
-	rt2x00lib_write_tx_desc(rt2x00dev, (struct data_desc *)skb->data,
+	rt2x00lib_write_tx_desc(rt2x00dev, (__le32 *)skb->data,
 				(struct ieee80211_hdr *)(skb->data +
 							 TXD_DESC_SIZE),
 				skb->len - TXD_DESC_SIZE, control);

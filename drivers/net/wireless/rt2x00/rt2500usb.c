@@ -990,7 +990,7 @@ static int rt2500usb_set_device_state(struct rt2x00_dev *rt2x00dev,
  * TX descriptor initialization
  */
 static void rt2500usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
-				    struct data_desc *txd,
+				    __le32 *txd,
 				    struct txdata_entry_desc *desc,
 				    struct ieee80211_hdr *ieee80211hdr,
 				    unsigned int length,
@@ -1082,9 +1082,8 @@ static void rt2500usb_fill_rxdone(struct data_entry *entry,
 				  struct rxdata_entry_desc *desc)
 {
 	struct urb *urb = entry->priv;
-	struct data_desc *rxd = (struct data_desc *)(entry->skb->data +
-						     (urb->actual_length -
-						      entry->ring->desc_size));
+	__le32 *rxd = (__le32 *)(entry->skb->data +
+				 (urb->actual_length - entry->ring->desc_size));
 	u32 word0;
 	u32 word1;
 
@@ -1682,7 +1681,7 @@ static int rt2500usb_beacon_update(struct ieee80211_hw *hw,
 	skb_push(skb, ring->desc_size);
 	memset(skb->data, 0, ring->desc_size);
 
-	rt2x00lib_write_tx_desc(rt2x00dev, (struct data_desc *)skb->data,
+	rt2x00lib_write_tx_desc(rt2x00dev, (__le32 *)skb->data,
 				(struct ieee80211_hdr *)(skb->data +
 							 ring->desc_size),
 				skb->len - ring->desc_size, control);

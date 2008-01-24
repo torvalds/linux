@@ -691,7 +691,7 @@ dynamic_cca_tune:
 static void rt2500pci_init_rxring(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_ring *ring = rt2x00dev->rx;
-	struct data_desc *rxd;
+	__le32 *rxd;
 	unsigned int i;
 	u32 word;
 
@@ -716,7 +716,7 @@ static void rt2500pci_init_rxring(struct rt2x00_dev *rt2x00dev)
 static void rt2500pci_init_txring(struct rt2x00_dev *rt2x00dev, const int queue)
 {
 	struct data_ring *ring = rt2x00lib_get_ring(rt2x00dev, queue);
-	struct data_desc *txd;
+	__le32 *txd;
 	unsigned int i;
 	u32 word;
 
@@ -1167,7 +1167,7 @@ static int rt2500pci_set_device_state(struct rt2x00_dev *rt2x00dev,
  * TX descriptor initialization
  */
 static void rt2500pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
-				    struct data_desc *txd,
+				    __le32 *txd,
 				    struct txdata_entry_desc *desc,
 				    struct ieee80211_hdr *ieee80211hdr,
 				    unsigned int length,
@@ -1251,7 +1251,7 @@ static void rt2500pci_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
 static void rt2500pci_fill_rxdone(struct data_entry *entry,
 				  struct rxdata_entry_desc *desc)
 {
-	struct data_desc *rxd = entry->priv;
+	__le32 *rxd = entry->priv;
 	u32 word0;
 	u32 word2;
 
@@ -1278,7 +1278,7 @@ static void rt2500pci_txdone(struct rt2x00_dev *rt2x00dev, const int queue)
 {
 	struct data_ring *ring = rt2x00lib_get_ring(rt2x00dev, queue);
 	struct data_entry *entry;
-	struct data_desc *txd;
+	__le32 *txd;
 	u32 word;
 	int tx_status;
 	int retry;
