@@ -2932,7 +2932,7 @@ static void zap_class(struct lock_class *class)
 
 }
 
-static inline int within(void *addr, void *start, unsigned long size)
+static inline int within(const void *addr, void *start, unsigned long size)
 {
 	return addr >= start && addr < start + size;
 }
@@ -2955,9 +2955,12 @@ void lockdep_free_key_range(void *start, unsigned long size)
 		head = classhash_table + i;
 		if (list_empty(head))
 			continue;
-		list_for_each_entry_safe(class, next, head, hash_entry)
+		list_for_each_entry_safe(class, next, head, hash_entry) {
 			if (within(class->key, start, size))
 				zap_class(class);
+			else if (within(class->name, start, size))
+				zap_class(class);
+		}
 	}
 
 	if (locked)
