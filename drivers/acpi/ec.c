@@ -26,6 +26,9 @@
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
+/* Uncomment next line to get verbose print outs*/
+/* #define DEBUG */
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -46,9 +49,6 @@
 
 #undef PREFIX
 #define PREFIX				"ACPI: EC: "
-
-/* Uncomment next line to get verbose print outs*/
-/* #define DEBUG */
 
 /* EC status register */
 #define ACPI_EC_FLAG_OBF	0x01	/* Output buffer full */
