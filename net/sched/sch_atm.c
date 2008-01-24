@@ -605,8 +605,7 @@ static int atm_tc_dump_class(struct Qdisc *sch, unsigned long cl,
 {
 	struct atm_qdisc_data *p = qdisc_priv(sch);
 	struct atm_flow_data *flow = (struct atm_flow_data *)cl;
-	unsigned char *b = skb_tail_pointer(skb);
-	struct nlattr *nla;
+	struct nlattr *nest;
 
 	pr_debug("atm_tc_dump_class(sch %p,[qdisc %p],flow %p,skb %p,tcm %p)\n",
 		sch, p, flow, skb, tcm);
@@ -614,8 +613,11 @@ static int atm_tc_dump_class(struct Qdisc *sch, unsigned long cl,
 		return -EINVAL;
 	tcm->tcm_handle = flow->classid;
 	tcm->tcm_info = flow->q->handle;
-	nla = (struct nlattr *)b;
-	NLA_PUT(skb, TCA_OPTIONS, 0, NULL);
+
+	nest = nla_nest_start(skb, TCA_OPTIONS);
+	if (nest == NULL)
+		goto nla_put_failure;
+
 	NLA_PUT(skb, TCA_ATM_HDR, flow->hdr_len, flow->hdr);
 	if (flow->vcc) {
 		struct sockaddr_atmpvc pvc;
@@ -636,11 +638,12 @@ static int atm_tc_dump_class(struct Qdisc *sch, unsigned long cl,
 
 		NLA_PUT(skb, TCA_ATM_EXCESS, sizeof(zero), &zero);
 	}
-	nla->nla_len = skb_tail_pointer(skb) - b;
+
+	nla_nest_end(skb, nest);
 	return skb->len;
 
 nla_put_failure:
-	nlmsg_trim(skb, b);
+	nla_nest_cancel(skb, nest);
 	return -1;
 }
 static int

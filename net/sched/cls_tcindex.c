@@ -437,13 +437,16 @@ static int tcindex_dump(struct tcf_proto *tp, unsigned long fh,
 	struct tcindex_data *p = PRIV(tp);
 	struct tcindex_filter_result *r = (struct tcindex_filter_result *) fh;
 	unsigned char *b = skb_tail_pointer(skb);
-	struct nlattr *nla;
+	struct nlattr *nest;
 
 	pr_debug("tcindex_dump(tp %p,fh 0x%lx,skb %p,t %p),p %p,r %p,b %p\n",
 		 tp, fh, skb, t, p, r, b);
 	pr_debug("p->perfect %p p->h %p\n", p->perfect, p->h);
-	nla = (struct nlattr *) b;
-	NLA_PUT(skb, TCA_OPTIONS, 0, NULL);
+
+	nest = nla_nest_start(skb, TCA_OPTIONS);
+	if (nest == NULL)
+		goto nla_put_failure;
+
 	if (!fh) {
 		t->tcm_handle = ~0; /* whatever ... */
 		NLA_PUT(skb, TCA_TCINDEX_HASH, sizeof(p->hash), &p->hash);
@@ -451,7 +454,7 @@ static int tcindex_dump(struct tcf_proto *tp, unsigned long fh,
 		NLA_PUT(skb, TCA_TCINDEX_SHIFT, sizeof(p->shift), &p->shift);
 		NLA_PUT(skb, TCA_TCINDEX_FALL_THROUGH, sizeof(p->fall_through),
 		    &p->fall_through);
-		nla->nla_len = skb_tail_pointer(skb) - b;
+		nla_nest_end(skb, nest);
 	} else {
 		if (p->perfect) {
 			t->tcm_handle = r-p->perfect;
@@ -474,7 +477,7 @@ static int tcindex_dump(struct tcf_proto *tp, unsigned long fh,
 
 		if (tcf_exts_dump(skb, &r->exts, &tcindex_ext_map) < 0)
 			goto nla_put_failure;
-		nla->nla_len = skb_tail_pointer(skb) - b;
+		nla_nest_end(skb, nest);
 
 		if (tcf_exts_dump_stats(skb, &r->exts, &tcindex_ext_map) < 0)
 			goto nla_put_failure;

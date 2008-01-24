@@ -436,14 +436,18 @@ int tcf_em_tree_dump(struct sk_buff *skb, struct tcf_ematch_tree *tree, int tlv)
 {
 	int i;
 	u8 *tail;
-	struct nlattr *top_start = (struct nlattr *)skb_tail_pointer(skb);
+	struct nlattr *top_start;
 	struct nlattr *list_start;
 
-	NLA_PUT(skb, tlv, 0, NULL);
+	top_start = nla_nest_start(skb, tlv);
+	if (top_start == NULL)
+		goto nla_put_failure;
+
 	NLA_PUT(skb, TCA_EMATCH_TREE_HDR, sizeof(tree->hdr), &tree->hdr);
 
-	list_start = (struct nlattr *)skb_tail_pointer(skb);
-	NLA_PUT(skb, TCA_EMATCH_TREE_LIST, 0, NULL);
+	list_start = nla_nest_start(skb, TCA_EMATCH_TREE_LIST);
+	if (list_start == NULL)
+		goto nla_put_failure;
 
 	tail = skb_tail_pointer(skb);
 	for (i = 0; i < tree->hdr.nmatches; i++) {
@@ -470,8 +474,8 @@ int tcf_em_tree_dump(struct sk_buff *skb, struct tcf_ematch_tree *tree, int tlv)
 		match_start->nla_len = tail - (u8 *)match_start;
 	}
 
-	list_start->nla_len = tail - (u8 *)list_start;
-	top_start->nla_len = tail - (u8 *)top_start;
+	nla_nest_end(skb, list_start);
+	nla_nest_end(skb, top_start);
 
 	return 0;
 

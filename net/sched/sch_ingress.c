@@ -183,16 +183,16 @@ static void ingress_destroy(struct Qdisc *sch)
 
 static int ingress_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
-	unsigned char *b = skb_tail_pointer(skb);
-	struct nlattr *nla;
+	struct nlattr *nest;
 
-	nla = (struct nlattr *)b;
-	NLA_PUT(skb, TCA_OPTIONS, 0, NULL);
-	nla->nla_len = skb_tail_pointer(skb) - b;
+	nest = nla_nest_start(skb, TCA_OPTIONS);
+	if (nest == NULL)
+		goto nla_put_failure;
+	nla_nest_end(skb, nest);
 	return skb->len;
 
 nla_put_failure:
-	nlmsg_trim(skb, b);
+	nla_nest_cancel(skb, nest);
 	return -1;
 }
 

@@ -694,16 +694,16 @@ static int u32_dump(struct tcf_proto *tp, unsigned long fh,
 		     struct sk_buff *skb, struct tcmsg *t)
 {
 	struct tc_u_knode *n = (struct tc_u_knode*)fh;
-	unsigned char *b = skb_tail_pointer(skb);
-	struct nlattr *nla;
+	struct nlattr *nest;
 
 	if (n == NULL)
 		return skb->len;
 
 	t->tcm_handle = n->handle;
 
-	nla = (struct nlattr*)b;
-	NLA_PUT(skb, TCA_OPTIONS, 0, NULL);
+	nest = nla_nest_start(skb, TCA_OPTIONS);
+	if (nest == NULL)
+		goto nla_put_failure;
 
 	if (TC_U32_KEY(n->handle) == 0) {
 		struct tc_u_hnode *ht = (struct tc_u_hnode*)fh;
@@ -741,14 +741,15 @@ static int u32_dump(struct tcf_proto *tp, unsigned long fh,
 #endif
 	}
 
-	nla->nla_len = skb_tail_pointer(skb) - b;
+	nla_nest_end(skb, nest);
+
 	if (TC_U32_KEY(n->handle))
 		if (tcf_exts_dump_stats(skb, &n->exts, &u32_ext_map) < 0)
 			goto nla_put_failure;
 	return skb->len;
 
 nla_put_failure:
-	nlmsg_trim(skb, b);
+	nla_nest_cancel(skb, nest);
 	return -1;
 }
 

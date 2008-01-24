@@ -1043,25 +1043,29 @@ static int htb_init(struct Qdisc *sch, struct nlattr *opt)
 static int htb_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct htb_sched *q = qdisc_priv(sch);
-	unsigned char *b = skb_tail_pointer(skb);
-	struct nlattr *nla;
+	struct nlattr *nest;
 	struct tc_htb_glob gopt;
-	spin_lock_bh(&sch->dev->queue_lock);
-	gopt.direct_pkts = q->direct_pkts;
 
+	spin_lock_bh(&sch->dev->queue_lock);
+
+	gopt.direct_pkts = q->direct_pkts;
 	gopt.version = HTB_VER;
 	gopt.rate2quantum = q->rate2quantum;
 	gopt.defcls = q->defcls;
 	gopt.debug = 0;
-	nla = (struct nlattr *)b;
-	NLA_PUT(skb, TCA_OPTIONS, 0, NULL);
+
+	nest = nla_nest_start(skb, TCA_OPTIONS);
+	if (nest == NULL)
+		goto nla_put_failure;
 	NLA_PUT(skb, TCA_HTB_INIT, sizeof(gopt), &gopt);
-	nla->nla_len = skb_tail_pointer(skb) - b;
+	nla_nest_end(skb, nest);
+
 	spin_unlock_bh(&sch->dev->queue_lock);
 	return skb->len;
+
 nla_put_failure:
 	spin_unlock_bh(&sch->dev->queue_lock);
-	nlmsg_trim(skb, skb_tail_pointer(skb));
+	nla_nest_cancel(skb, nest);
 	return -1;
 }
 
@@ -1069,8 +1073,7 @@ static int htb_dump_class(struct Qdisc *sch, unsigned long arg,
 			  struct sk_buff *skb, struct tcmsg *tcm)
 {
 	struct htb_class *cl = (struct htb_class *)arg;
-	unsigned char *b = skb_tail_pointer(skb);
-	struct nlattr *nla;
+	struct nlattr *nest;
 	struct tc_htb_opt opt;
 
 	spin_lock_bh(&sch->dev->queue_lock);
@@ -1079,8 +1082,9 @@ static int htb_dump_class(struct Qdisc *sch, unsigned long arg,
 	if (!cl->level && cl->un.leaf.q)
 		tcm->tcm_info = cl->un.leaf.q->handle;
 
-	nla = (struct nlattr *)b;
-	NLA_PUT(skb, TCA_OPTIONS, 0, NULL);
+	nest = nla_nest_start(skb, TCA_OPTIONS);
+	if (nest == NULL)
+		goto nla_put_failure;
 
 	memset(&opt, 0, sizeof(opt));
 
@@ -1092,12 +1096,14 @@ static int htb_dump_class(struct Qdisc *sch, unsigned long arg,
 	opt.prio = cl->un.leaf.prio;
 	opt.level = cl->level;
 	NLA_PUT(skb, TCA_HTB_PARMS, sizeof(opt), &opt);
-	nla->nla_len = skb_tail_pointer(skb) - b;
+
+	nla_nest_end(skb, nest);
 	spin_unlock_bh(&sch->dev->queue_lock);
 	return skb->len;
+
 nla_put_failure:
 	spin_unlock_bh(&sch->dev->queue_lock);
-	nlmsg_trim(skb, b);
+	nla_nest_cancel(skb, nest);
 	return -1;
 }
 

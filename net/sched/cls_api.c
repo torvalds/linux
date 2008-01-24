@@ -544,18 +544,22 @@ int tcf_exts_dump(struct sk_buff *skb, struct tcf_exts *exts,
 		 * to work with both old and new modes of entering
 		 * tc data even if iproute2  was newer - jhs
 		 */
-		struct nlattr *p_rta = (struct nlattr *)skb_tail_pointer(skb);
+		struct nlattr *nest;
 
 		if (exts->action->type != TCA_OLD_COMPAT) {
-			NLA_PUT(skb, map->action, 0, NULL);
+			nest = nla_nest_start(skb, map->action);
+			if (nest == NULL)
+				goto nla_put_failure;
 			if (tcf_action_dump(skb, exts->action, 0, 0) < 0)
 				goto nla_put_failure;
-			p_rta->nla_len = skb_tail_pointer(skb) - (u8 *)p_rta;
+			nla_nest_end(skb, nest);
 		} else if (map->police) {
-			NLA_PUT(skb, map->police, 0, NULL);
+			nest = nla_nest_start(skb, map->police);
+			if (nest == NULL)
+				goto nla_put_failure;
 			if (tcf_action_dump_old(skb, exts->action, 0, 0) < 0)
 				goto nla_put_failure;
-			p_rta->nla_len = skb_tail_pointer(skb) - (u8 *)p_rta;
+			nla_nest_end(skb, nest);
 		}
 	}
 #endif

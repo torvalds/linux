@@ -69,7 +69,7 @@ static int tcf_dump_walker(struct sk_buff *skb, struct netlink_callback *cb,
 {
 	struct tcf_common *p;
 	int err = 0, index = -1,i = 0, s_i = 0, n_i = 0;
-	struct nlattr *r ;
+	struct nlattr *nest;
 
 	read_lock_bh(hinfo->lock);
 
@@ -84,15 +84,17 @@ static int tcf_dump_walker(struct sk_buff *skb, struct netlink_callback *cb,
 				continue;
 			a->priv = p;
 			a->order = n_i;
-			r = (struct nlattr *)skb_tail_pointer(skb);
-			NLA_PUT(skb, a->order, 0, NULL);
+
+			nest = nla_nest_start(skb, a->order);
+			if (nest == NULL)
+				goto nla_put_failure;
 			err = tcf_action_dump_1(skb, a, 0, 0);
 			if (err < 0) {
 				index--;
-				nlmsg_trim(skb, r);
+				nlmsg_trim(skb, nest);
 				goto done;
 			}
-			r->nla_len = skb_tail_pointer(skb) - (u8 *)r;
+			nla_nest_end(skb, nest);
 			n_i++;
 			if (n_i >= TCA_ACT_MAX_PRIO)
 				goto done;
@@ -105,7 +107,7 @@ done:
 	return n_i;
 
 nla_put_failure:
-	nlmsg_trim(skb, r);
+	nla_nest_cancel(skb, nest);
 	goto done;
 }
 
@@ -113,11 +115,12 @@ static int tcf_del_walker(struct sk_buff *skb, struct tc_action *a,
 			  struct tcf_hashinfo *hinfo)
 {
 	struct tcf_common *p, *s_p;
-	struct nlattr *r ;
+	struct nlattr *nest;
 	int i= 0, n_i = 0;
 
-	r = (struct nlattr *)skb_tail_pointer(skb);
-	NLA_PUT(skb, a->order, 0, NULL);
+	nest = nla_nest_start(skb, a->order);
+	if (nest == NULL)
+		goto nla_put_failure;
 	NLA_PUT(skb, TCA_KIND, IFNAMSIZ, a->ops->kind);
 	for (i = 0; i < (hinfo->hmask + 1); i++) {
 		p = hinfo->htab[tcf_hash(i, hinfo->hmask)];
@@ -131,11 +134,11 @@ static int tcf_del_walker(struct sk_buff *skb, struct tc_action *a,
 		}
 	}
 	NLA_PUT(skb, TCA_FCNT, 4, &n_i);
-	r->nla_len = skb_tail_pointer(skb) - (u8 *)r;
+	nla_nest_end(skb, nest);
 
 	return n_i;
 nla_put_failure:
-	nlmsg_trim(skb, r);
+	nla_nest_cancel(skb, nest);
 	return -EINVAL;
 }
 
@@ -415,7 +418,7 @@ tcf_action_dump_1(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 {
 	int err = -EINVAL;
 	unsigned char *b = skb_tail_pointer(skb);
-	struct nlattr *r;
+	struct nlattr *nest;
 
 	if (a->ops == NULL || a->ops->dump == NULL)
 		return err;
@@ -423,10 +426,11 @@ tcf_action_dump_1(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 	NLA_PUT(skb, TCA_KIND, IFNAMSIZ, a->ops->kind);
 	if (tcf_action_copy_stats(skb, a, 0))
 		goto nla_put_failure;
-	r = (struct nlattr *)skb_tail_pointer(skb);
-	NLA_PUT(skb, TCA_OPTIONS, 0, NULL);
+	nest = nla_nest_start(skb, TCA_OPTIONS);
+	if (nest == NULL)
+		goto nla_put_failure;
 	if ((err = tcf_action_dump_old(skb, a, bind, ref)) > 0) {
-		r->nla_len = skb_tail_pointer(skb) - (u8 *)r;
+		nla_nest_end(skb, nest);
 		return err;
 	}
 
@@ -441,17 +445,17 @@ tcf_action_dump(struct sk_buff *skb, struct tc_action *act, int bind, int ref)
 {
 	struct tc_action *a;
 	int err = -EINVAL;
-	unsigned char *b = skb_tail_pointer(skb);
-	struct nlattr *r ;
+	struct nlattr *nest;
 
 	while ((a = act) != NULL) {
-		r = (struct nlattr *)skb_tail_pointer(skb);
 		act = a->next;
-		NLA_PUT(skb, a->order, 0, NULL);
+		nest = nla_nest_start(skb, a->order);
+		if (nest == NULL)
+			goto nla_put_failure;
 		err = tcf_action_dump_1(skb, a, bind, ref);
 		if (err < 0)
 			goto errout;
-		r->nla_len = skb_tail_pointer(skb) - (u8 *)r;
+		nla_nest_end(skb, nest);
 	}
 
 	return 0;
@@ -459,7 +463,7 @@ tcf_action_dump(struct sk_buff *skb, struct tc_action *act, int bind, int ref)
 nla_put_failure:
 	err = -EINVAL;
 errout:
-	nlmsg_trim(skb, b);
+	nla_nest_cancel(skb, nest);
 	return err;
 }
 
@@ -627,7 +631,7 @@ tca_get_fill(struct sk_buff *skb, struct tc_action *a, u32 pid, u32 seq,
 	struct tcamsg *t;
 	struct nlmsghdr *nlh;
 	unsigned char *b = skb_tail_pointer(skb);
-	struct nlattr *x;
+	struct nlattr *nest;
 
 	nlh = NLMSG_NEW(skb, pid, seq, event, sizeof(*t), flags);
 
@@ -636,13 +640,14 @@ tca_get_fill(struct sk_buff *skb, struct tc_action *a, u32 pid, u32 seq,
 	t->tca__pad1 = 0;
 	t->tca__pad2 = 0;
 
-	x = (struct nlattr *)skb_tail_pointer(skb);
-	NLA_PUT(skb, TCA_ACT_TAB, 0, NULL);
+	nest = nla_nest_start(skb, TCA_ACT_TAB);
+	if (nest == NULL)
+		goto nla_put_failure;
 
 	if (tcf_action_dump(skb, a, bind, ref) < 0)
 		goto nla_put_failure;
 
-	x->nla_len = skb_tail_pointer(skb) - (u8 *)x;
+	nla_nest_end(skb, nest);
 
 	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 	return skb->len;
@@ -743,7 +748,7 @@ static int tca_action_flush(struct nlattr *nla, struct nlmsghdr *n, u32 pid)
 	struct nlmsghdr *nlh;
 	struct tcamsg *t;
 	struct netlink_callback dcb;
-	struct nlattr *x;
+	struct nlattr *nest;
 	struct nlattr *tb[TCA_ACT_MAX+1];
 	struct nlattr *kind;
 	struct tc_action *a = create_a(0);
@@ -779,14 +784,15 @@ static int tca_action_flush(struct nlattr *nla, struct nlmsghdr *n, u32 pid)
 	t->tca__pad1 = 0;
 	t->tca__pad2 = 0;
 
-	x = (struct nlattr *)skb_tail_pointer(skb);
-	NLA_PUT(skb, TCA_ACT_TAB, 0, NULL);
+	nest = nla_nest_start(skb, TCA_ACT_TAB);
+	if (nest == NULL)
+		goto nla_put_failure;
 
 	err = a->ops->walk(skb, &dcb, RTM_DELACTION, a);
 	if (err < 0)
 		goto nla_put_failure;
 
-	x->nla_len = skb_tail_pointer(skb) - (u8 *)x;
+	nla_nest_end(skb, nest);
 
 	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 	nlh->nlmsg_flags |= NLM_F_ROOT;
@@ -875,7 +881,7 @@ static int tcf_add_notify(struct tc_action *a, u32 pid, u32 seq, int event,
 	struct tcamsg *t;
 	struct nlmsghdr *nlh;
 	struct sk_buff *skb;
-	struct nlattr *x;
+	struct nlattr *nest;
 	unsigned char *b;
 	int err = 0;
 
@@ -891,13 +897,14 @@ static int tcf_add_notify(struct tc_action *a, u32 pid, u32 seq, int event,
 	t->tca__pad1 = 0;
 	t->tca__pad2 = 0;
 
-	x = (struct nlattr *)skb_tail_pointer(skb);
-	NLA_PUT(skb, TCA_ACT_TAB, 0, NULL);
+	nest = nla_nest_start(skb, TCA_ACT_TAB);
+	if (nest == NULL)
+		goto nla_put_failure;
 
 	if (tcf_action_dump(skb, a, 0, 0) < 0)
 		goto nla_put_failure;
 
-	x->nla_len = skb_tail_pointer(skb) - (u8 *)x;
+	nla_nest_end(skb, nest);
 
 	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 	NETLINK_CB(skb).dst_group = RTNLGRP_TC;
@@ -1025,7 +1032,7 @@ tc_dump_action(struct sk_buff *skb, struct netlink_callback *cb)
 	struct net *net = skb->sk->sk_net;
 	struct nlmsghdr *nlh;
 	unsigned char *b = skb_tail_pointer(skb);
-	struct nlattr *x;
+	struct nlattr *nest;
 	struct tc_action_ops *a_o;
 	struct tc_action a;
 	int ret = 0;
@@ -1060,18 +1067,19 @@ tc_dump_action(struct sk_buff *skb, struct netlink_callback *cb)
 	t->tca__pad1 = 0;
 	t->tca__pad2 = 0;
 
-	x = (struct nlattr *)skb_tail_pointer(skb);
-	NLA_PUT(skb, TCA_ACT_TAB, 0, NULL);
+	nest = nla_nest_start(skb, TCA_ACT_TAB);
+	if (nest == NULL)
+		goto nla_put_failure;
 
 	ret = a_o->walk(skb, cb, RTM_GETACTION, &a);
 	if (ret < 0)
 		goto nla_put_failure;
 
 	if (ret > 0) {
-		x->nla_len = skb_tail_pointer(skb) - (u8 *)x;
+		nla_nest_end(skb, nest);
 		ret = skb->len;
 	} else
-		nlmsg_trim(skb, x);
+		nla_nest_cancel(skb, nest);
 
 	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
 	if (NETLINK_CB(cb->skb).pid && ret)

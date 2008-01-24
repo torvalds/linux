@@ -595,7 +595,7 @@ static int rsvp_dump(struct tcf_proto *tp, unsigned long fh,
 	struct rsvp_filter *f = (struct rsvp_filter*)fh;
 	struct rsvp_session *s;
 	unsigned char *b = skb_tail_pointer(skb);
-	struct nlattr *nla;
+	struct nlattr *nest;
 	struct tc_rsvp_pinfo pinfo;
 
 	if (f == NULL)
@@ -604,9 +604,9 @@ static int rsvp_dump(struct tcf_proto *tp, unsigned long fh,
 
 	t->tcm_handle = f->handle;
 
-
-	nla = (struct nlattr*)b;
-	NLA_PUT(skb, TCA_OPTIONS, 0, NULL);
+	nest = nla_nest_start(skb, TCA_OPTIONS);
+	if (nest == NULL)
+		goto nla_put_failure;
 
 	NLA_PUT(skb, TCA_RSVP_DST, sizeof(s->dst), &s->dst);
 	pinfo.dpi = s->dpi;
@@ -624,7 +624,7 @@ static int rsvp_dump(struct tcf_proto *tp, unsigned long fh,
 	if (tcf_exts_dump(skb, &f->exts, &rsvp_ext_map) < 0)
 		goto nla_put_failure;
 
-	nla->nla_len = skb_tail_pointer(skb) - b;
+	nla_nest_end(skb, nest);
 
 	if (tcf_exts_dump_stats(skb, &f->exts, &rsvp_ext_map) < 0)
 		goto nla_put_failure;

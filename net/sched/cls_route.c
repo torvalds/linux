@@ -551,7 +551,7 @@ static int route4_dump(struct tcf_proto *tp, unsigned long fh,
 {
 	struct route4_filter *f = (struct route4_filter*)fh;
 	unsigned char *b = skb_tail_pointer(skb);
-	struct nlattr *nla;
+	struct nlattr *nest;
 	u32 id;
 
 	if (f == NULL)
@@ -559,8 +559,9 @@ static int route4_dump(struct tcf_proto *tp, unsigned long fh,
 
 	t->tcm_handle = f->handle;
 
-	nla = (struct nlattr*)b;
-	NLA_PUT(skb, TCA_OPTIONS, 0, NULL);
+	nest = nla_nest_start(skb, TCA_OPTIONS);
+	if (nest == NULL)
+		goto nla_put_failure;
 
 	if (!(f->handle&0x8000)) {
 		id = f->id&0xFF;
@@ -579,7 +580,7 @@ static int route4_dump(struct tcf_proto *tp, unsigned long fh,
 	if (tcf_exts_dump(skb, &f->exts, &route_ext_map) < 0)
 		goto nla_put_failure;
 
-	nla->nla_len = skb_tail_pointer(skb) - b;
+	nla_nest_end(skb, nest);
 
 	if (tcf_exts_dump_stats(skb, &f->exts, &route_ext_map) < 0)
 		goto nla_put_failure;

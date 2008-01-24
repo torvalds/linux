@@ -334,7 +334,7 @@ static int fw_dump(struct tcf_proto *tp, unsigned long fh,
 	struct fw_head *head = (struct fw_head *)tp->root;
 	struct fw_filter *f = (struct fw_filter*)fh;
 	unsigned char *b = skb_tail_pointer(skb);
-	struct nlattr *nla;
+	struct nlattr *nest;
 
 	if (f == NULL)
 		return skb->len;
@@ -344,8 +344,9 @@ static int fw_dump(struct tcf_proto *tp, unsigned long fh,
 	if (!f->res.classid && !tcf_exts_is_available(&f->exts))
 		return skb->len;
 
-	nla = (struct nlattr*)b;
-	NLA_PUT(skb, TCA_OPTIONS, 0, NULL);
+	nest = nla_nest_start(skb, TCA_OPTIONS);
+	if (nest == NULL)
+		goto nla_put_failure;
 
 	if (f->res.classid)
 		NLA_PUT(skb, TCA_FW_CLASSID, 4, &f->res.classid);
@@ -359,7 +360,7 @@ static int fw_dump(struct tcf_proto *tp, unsigned long fh,
 	if (tcf_exts_dump(skb, &f->exts, &fw_ext_map) < 0)
 		goto nla_put_failure;
 
-	nla->nla_len = skb_tail_pointer(skb) - b;
+	nla_nest_end(skb, nest);
 
 	if (tcf_exts_dump_stats(skb, &f->exts, &fw_ext_map) < 0)
 		goto nla_put_failure;

@@ -375,12 +375,12 @@ static void tbf_destroy(struct Qdisc *sch)
 static int tbf_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct tbf_sched_data *q = qdisc_priv(sch);
-	unsigned char *b = skb_tail_pointer(skb);
-	struct nlattr *nla;
+	struct nlattr *nest;
 	struct tc_tbf_qopt opt;
 
-	nla = (struct nlattr*)b;
-	NLA_PUT(skb, TCA_OPTIONS, 0, NULL);
+	nest = nla_nest_start(skb, TCA_OPTIONS);
+	if (nest == NULL)
+		goto nla_put_failure;
 
 	opt.limit = q->limit;
 	opt.rate = q->R_tab->rate;
@@ -391,12 +391,12 @@ static int tbf_dump(struct Qdisc *sch, struct sk_buff *skb)
 	opt.mtu = q->mtu;
 	opt.buffer = q->buffer;
 	NLA_PUT(skb, TCA_TBF_PARMS, sizeof(opt), &opt);
-	nla->nla_len = skb_tail_pointer(skb) - b;
 
+	nla_nest_end(skb, nest);
 	return skb->len;
 
 nla_put_failure:
-	nlmsg_trim(skb, b);
+	nla_nest_cancel(skb, nest);
 	return -1;
 }
 

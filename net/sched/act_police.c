@@ -54,7 +54,7 @@ static int tcf_act_police_walker(struct sk_buff *skb, struct netlink_callback *c
 {
 	struct tcf_common *p;
 	int err = 0, index = -1, i = 0, s_i = 0, n_i = 0;
-	struct nlattr *r;
+	struct nlattr *nest;
 
 	read_lock_bh(&police_lock);
 
@@ -69,18 +69,19 @@ static int tcf_act_police_walker(struct sk_buff *skb, struct netlink_callback *c
 				continue;
 			a->priv = p;
 			a->order = index;
-			r = (struct nlattr *)skb_tail_pointer(skb);
-			NLA_PUT(skb, a->order, 0, NULL);
+			nest = nla_nest_start(skb, a->order);
+			if (nest == NULL)
+				goto nla_put_failure;
 			if (type == RTM_DELACTION)
 				err = tcf_action_dump_1(skb, a, 0, 1);
 			else
 				err = tcf_action_dump_1(skb, a, 0, 0);
 			if (err < 0) {
 				index--;
-				nlmsg_trim(skb, r);
+				nla_nest_cancel(skb, nest);
 				goto done;
 			}
-			r->nla_len = skb_tail_pointer(skb) - (u8 *)r;
+			nla_nest_end(skb, nest);
 			n_i++;
 		}
 	}
@@ -91,7 +92,7 @@ done:
 	return n_i;
 
 nla_put_failure:
-	nlmsg_trim(skb, r);
+	nla_nest_cancel(skb, nest);
 	goto done;
 }
 
