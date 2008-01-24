@@ -17,7 +17,7 @@
 #include <asm/udbg.h>
 #include <asm/commproc.h>
 
-#include <sysdev/commproc.h>
+#include "mpc8xx.h"
 
 struct cpm_pin {
 	int port, pin, flags;

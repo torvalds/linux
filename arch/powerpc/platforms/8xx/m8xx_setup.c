@@ -25,7 +25,8 @@
 #include <mm/mmu_decl.h>
 
 #include <sysdev/mpc8xx_pic.h>
-#include <sysdev/commproc.h>
+
+#include "mpc8xx.h"
 
 #ifdef CONFIG_PCMCIA_M8XX
 struct mpc8xx_pcmcia_ops m8xx_pcmcia_ops;

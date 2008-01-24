@@ -21,15 +21,13 @@
 #include <asm/machdep.h>
 #include <asm/system.h>
 #include <asm/time.h>
-#include <asm/mpc8xx.h>
 #include <asm/8xx_immap.h>
 #include <asm/commproc.h>
 #include <asm/fs_pd.h>
 #include <asm/udbg.h>
 
-#include <sysdev/commproc.h>
-
 #include "mpc86xads.h"
+#include "mpc8xx.h"
 
 struct cpm_pin {
 	int port, pin, flags;

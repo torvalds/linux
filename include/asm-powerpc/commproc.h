@@ -89,6 +89,8 @@ extern void cpm_setbrg(uint brg, uint rate);
 
 extern void cpm_load_patch(cpm8xx_t *cp);
 
+extern void cpm_reset(void);
+
 /* Buffer descriptors used by many of the CPM protocols.
 */
 typedef struct cpm_buf_desc {
