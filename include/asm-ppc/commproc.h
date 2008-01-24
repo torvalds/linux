@@ -75,10 +75,6 @@ extern void *cpm_dpram_addr(unsigned long offset);
 extern uint cpm_dpram_phys(u8* addr);
 extern void cpm_setbrg(uint brg, uint rate);
 
-extern uint m8xx_cpm_hostalloc(uint size);
-extern int  m8xx_cpm_hostfree(uint start);
-extern void m8xx_cpm_hostdump(void);
-
 extern void cpm_load_patch(volatile immap_t *immr);
 
 /* Buffer descriptors used by many of the CPM protocols.

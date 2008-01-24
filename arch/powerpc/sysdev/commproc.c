@@ -48,8 +48,6 @@
 #ifndef CONFIG_PPC_CPM_NEW_BINDING
 static void m8xx_cpm_dpinit(void);
 #endif
-static uint host_buffer; /* One page of host buffer */
-static uint host_end;    /* end + 1 */
 cpm8xx_t __iomem *cpmp;  /* Pointer to comm processor space */
 immap_t __iomem *mpc8xx_immr;
 static cpic8xx_t __iomem *cpic_reg;
@@ -267,41 +265,6 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL(cpm_command);
-
-/* We used to do this earlier, but have to postpone as long as possible
- * to ensure the kernel VM is now running.
- */
-static void
-alloc_host_memory(void)
-{
-	dma_addr_t	physaddr;
-
-	/* Set the host page for allocation.
-	*/
-	host_buffer = (uint)dma_alloc_coherent(NULL, PAGE_SIZE, &physaddr,
-			GFP_KERNEL);
-	host_end = host_buffer + PAGE_SIZE;
-}
-
-/* We also own one page of host buffer space for the allocation of
- * UART "fifos" and the like.
- */
-uint
-m8xx_cpm_hostalloc(uint size)
-{
-	uint	retloc;
-
-	if (host_buffer == 0)
-		alloc_host_memory();
-
-	if ((host_buffer + size) >= host_end)
-		return(0);
-
-	retloc = host_buffer;
-	host_buffer += size;
-
-	return(retloc);
-}
 
 /* Set a baud rate generator.  This needs lots of work.  There are
  * four BRGs, any of which can be wired to any channel.
