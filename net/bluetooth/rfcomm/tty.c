@@ -696,7 +696,8 @@ static void rfcomm_tty_close(struct tty_struct *tty, struct file *filp)
 	BT_DBG("tty %p dev %p dlc %p opened %d", tty, dev, dev->dlc, dev->opened);
 
 	if (--dev->opened == 0) {
-		device_move(dev->tty_dev, NULL);
+		if (dev->tty_dev->parent)
+			device_move(dev->tty_dev, NULL);
 
 		/* Close DLC and dettach TTY */
 		rfcomm_dlc_close(dev->dlc, 0);

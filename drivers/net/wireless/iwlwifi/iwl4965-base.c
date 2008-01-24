@@ -6698,6 +6698,11 @@ static int __iwl_up(struct iwl_priv *priv)
 		return 0;
 	}
 
+	if (!priv->ucode_data_backup.v_addr || !priv->ucode_data.v_addr) {
+		IWL_ERROR("ucode not available for device bringup\n");
+		return -EIO;
+	}
+
 	iwl_write32(priv, CSR_INT, 0xFFFFFFFF);
 
 	rc = iwl_hw_nic_init(priv);
