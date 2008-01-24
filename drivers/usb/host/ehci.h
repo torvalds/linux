@@ -550,8 +550,8 @@ struct ehci_iso_stream {
 	 * trusting urb->interval == f(epdesc->bInterval) and
 	 * including the extra info for hw_bufp[0..2]
 	 */
-	u8			interval;
 	u8			usecs, c_usecs;
+	u16			interval;
 	u16			tt_usecs;
 	u16			maxp;
 	u16			raw_mask;
