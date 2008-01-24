@@ -203,7 +203,7 @@ override:
 	}
 
 	if (tb[TCA_POLICE_RESULT])
-		police->tcfp_result = *(u32*)nla_data(tb[TCA_POLICE_RESULT]);
+		police->tcfp_result = nla_get_u32(tb[TCA_POLICE_RESULT]);
 	police->tcfp_toks = police->tcfp_burst = parm->burst;
 	police->tcfp_mtu = parm->mtu;
 	if (police->tcfp_mtu == 0) {
@@ -216,8 +216,7 @@ override:
 	police->tcf_action = parm->action;
 
 	if (tb[TCA_POLICE_AVRATE])
-		police->tcfp_ewma_rate =
-			*(u32*)nla_data(tb[TCA_POLICE_AVRATE]);
+		police->tcfp_ewma_rate = nla_get_u32(tb[TCA_POLICE_AVRATE]);
 	if (est)
 		gen_replace_estimator(&police->tcf_bstats,
 				      &police->tcf_rate_est,

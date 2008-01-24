@@ -348,7 +348,7 @@ static int route4_set_parms(struct tcf_proto *tp, unsigned long base,
 			goto errout;
 		if (nla_len(tb[TCA_ROUTE4_TO]) < sizeof(u32))
 			goto errout;
-		to = *(u32*)nla_data(tb[TCA_ROUTE4_TO]);
+		to = nla_get_u32(tb[TCA_ROUTE4_TO]);
 		if (to > 0xFF)
 			goto errout;
 		nhandle = to;
@@ -359,14 +359,14 @@ static int route4_set_parms(struct tcf_proto *tp, unsigned long base,
 			goto errout;
 		if (nla_len(tb[TCA_ROUTE4_FROM]) < sizeof(u32))
 			goto errout;
-		id = *(u32*)nla_data(tb[TCA_ROUTE4_FROM]);
+		id = nla_get_u32(tb[TCA_ROUTE4_FROM]);
 		if (id > 0xFF)
 			goto errout;
 		nhandle |= id << 16;
 	} else if (tb[TCA_ROUTE4_IIF]) {
 		if (nla_len(tb[TCA_ROUTE4_IIF]) < sizeof(u32))
 			goto errout;
-		id = *(u32*)nla_data(tb[TCA_ROUTE4_IIF]);
+		id = nla_get_u32(tb[TCA_ROUTE4_IIF]);
 		if (id > 0x7FFF)
 			goto errout;
 		nhandle |= (id | 0x8000) << 16;
@@ -411,7 +411,7 @@ static int route4_set_parms(struct tcf_proto *tp, unsigned long base,
 	tcf_tree_unlock(tp);
 
 	if (tb[TCA_ROUTE4_CLASSID]) {
-		f->res.classid = *(u32*)nla_data(tb[TCA_ROUTE4_CLASSID]);
+		f->res.classid = nla_get_u32(tb[TCA_ROUTE4_CLASSID]);
 		tcf_bind_filter(tp, &f->res, base);
 	}
 

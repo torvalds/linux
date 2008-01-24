@@ -231,7 +231,7 @@ static int atm_tc_change(struct Qdisc *sch, u32 classid, u32 parent,
 
 	if (!tb[TCA_ATM_FD] || nla_len(tb[TCA_ATM_FD]) < sizeof(fd))
 		return -EINVAL;
-	fd = *(int *)nla_data(tb[TCA_ATM_FD]);
+	fd = nla_get_u32(tb[TCA_ATM_FD]);
 	pr_debug("atm_tc_change: fd %d\n", fd);
 	if (tb[TCA_ATM_HDR]) {
 		hdr_len = nla_len(tb[TCA_ATM_HDR]);
@@ -246,7 +246,7 @@ static int atm_tc_change(struct Qdisc *sch, u32 classid, u32 parent,
 		if (nla_len(tb[TCA_ATM_EXCESS]) != sizeof(u32))
 			return -EINVAL;
 		excess = (struct atm_flow_data *)
-			atm_tc_get(sch, *(u32 *)nla_data(tb[TCA_ATM_EXCESS]));
+			atm_tc_get(sch, nla_get_u32(tb[TCA_ATM_EXCESS]));
 		if (!excess)
 			return -ENOENT;
 	}

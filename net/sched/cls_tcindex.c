@@ -221,19 +221,19 @@ tcindex_set_parms(struct tcf_proto *tp, unsigned long base, u32 handle,
 	if (tb[TCA_TCINDEX_HASH]) {
 		if (nla_len(tb[TCA_TCINDEX_HASH]) < sizeof(u32))
 			goto errout;
-		cp.hash = *(u32 *) nla_data(tb[TCA_TCINDEX_HASH]);
+		cp.hash = nla_get_u32(tb[TCA_TCINDEX_HASH]);
 	}
 
 	if (tb[TCA_TCINDEX_MASK]) {
 		if (nla_len(tb[TCA_TCINDEX_MASK]) < sizeof(u16))
 			goto errout;
-		cp.mask = *(u16 *) nla_data(tb[TCA_TCINDEX_MASK]);
+		cp.mask = nla_get_u16(tb[TCA_TCINDEX_MASK]);
 	}
 
 	if (tb[TCA_TCINDEX_SHIFT]) {
 		if (nla_len(tb[TCA_TCINDEX_SHIFT]) < sizeof(int))
 			goto errout;
-		cp.shift = *(int *) nla_data(tb[TCA_TCINDEX_SHIFT]);
+		cp.shift = nla_get_u32(tb[TCA_TCINDEX_SHIFT]);
 	}
 
 	err = -EBUSY;
@@ -251,8 +251,7 @@ tcindex_set_parms(struct tcf_proto *tp, unsigned long base, u32 handle,
 	if (tb[TCA_TCINDEX_FALL_THROUGH]) {
 		if (nla_len(tb[TCA_TCINDEX_FALL_THROUGH]) < sizeof(u32))
 			goto errout;
-		cp.fall_through =
-			*(u32 *) nla_data(tb[TCA_TCINDEX_FALL_THROUGH]);
+		cp.fall_through = nla_get_u32(tb[TCA_TCINDEX_FALL_THROUGH]);
 	}
 
 	if (!cp.hash) {
@@ -305,7 +304,7 @@ tcindex_set_parms(struct tcf_proto *tp, unsigned long base, u32 handle,
 	}
 
 	if (tb[TCA_TCINDEX_CLASSID]) {
-		cr.res.classid = *(u32 *) nla_data(tb[TCA_TCINDEX_CLASSID]);
+		cr.res.classid = nla_get_u32(tb[TCA_TCINDEX_CLASSID]);
 		tcf_bind_filter(tp, &cr.res, base);
 	}
 

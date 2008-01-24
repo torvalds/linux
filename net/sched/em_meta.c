@@ -600,7 +600,7 @@ static int meta_int_change(struct meta_value *dst, struct nlattr *nla)
 		dst->val = *(unsigned long *) nla_data(nla);
 		dst->len = sizeof(unsigned long);
 	} else if (nla_len(nla) == sizeof(u32)) {
-		dst->val = *(u32 *) nla_data(nla);
+		dst->val = nla_get_u32(nla);
 		dst->len = sizeof(u32);
 	} else
 		return -EINVAL;

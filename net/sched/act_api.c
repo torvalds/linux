@@ -690,7 +690,7 @@ tcf_action_get_1(struct nlattr *nla, struct nlmsghdr *n, u32 pid)
 	if (tb[TCA_ACT_INDEX] == NULL ||
 	    nla_len(tb[TCA_ACT_INDEX]) < sizeof(index))
 		goto err_out;
-	index = *(int *)nla_data(tb[TCA_ACT_INDEX]);
+	index = nla_get_u32(tb[TCA_ACT_INDEX]);
 
 	err = -ENOMEM;
 	a = kzalloc(sizeof(struct tc_action), GFP_KERNEL);

@@ -430,7 +430,7 @@ static int rsvp_change(struct tcf_proto *tp, unsigned long base,
 		if (f->handle != handle && handle)
 			goto errout2;
 		if (tb[TCA_RSVP_CLASSID-1]) {
-			f->res.classid = *(u32*)nla_data(tb[TCA_RSVP_CLASSID-1]);
+			f->res.classid = nla_get_u32(tb[TCA_RSVP_CLASSID-1]);
 			tcf_bind_filter(tp, &f->res, base);
 		}
 
@@ -470,7 +470,7 @@ static int rsvp_change(struct tcf_proto *tp, unsigned long base,
 		err = -EINVAL;
 		if (nla_len(tb[TCA_RSVP_CLASSID-1]) != 4)
 			goto errout;
-		f->res.classid = *(u32*)nla_data(tb[TCA_RSVP_CLASSID-1]);
+		f->res.classid = nla_get_u32(tb[TCA_RSVP_CLASSID-1]);
 	}
 
 	err = -EINVAL;

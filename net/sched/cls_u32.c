@@ -474,7 +474,7 @@ static int u32_set_parms(struct tcf_proto *tp, unsigned long base,
 
 	err = -EINVAL;
 	if (tb[TCA_U32_LINK]) {
-		u32 handle = *(u32*)nla_data(tb[TCA_U32_LINK]);
+		u32 handle = nla_get_u32(tb[TCA_U32_LINK]);
 		struct tc_u_hnode *ht_down = NULL;
 
 		if (TC_U32_KEY(handle))
@@ -496,7 +496,7 @@ static int u32_set_parms(struct tcf_proto *tp, unsigned long base,
 			ht_down->refcnt--;
 	}
 	if (tb[TCA_U32_CLASSID]) {
-		n->res.classid = *(u32*)nla_data(tb[TCA_U32_CLASSID]);
+		n->res.classid = nla_get_u32(tb[TCA_U32_CLASSID]);
 		tcf_bind_filter(tp, &n->res, base);
 	}
 
@@ -543,7 +543,7 @@ static int u32_change(struct tcf_proto *tp, unsigned long base, u32 handle,
 	}
 
 	if (tb[TCA_U32_DIVISOR]) {
-		unsigned divisor = *(unsigned*)nla_data(tb[TCA_U32_DIVISOR]);
+		unsigned divisor = nla_get_u32(tb[TCA_U32_DIVISOR]);
 
 		if (--divisor > 0x100)
 			return -EINVAL;
@@ -569,7 +569,7 @@ static int u32_change(struct tcf_proto *tp, unsigned long base, u32 handle,
 	}
 
 	if (tb[TCA_U32_HASH]) {
-		htid = *(unsigned*)nla_data(tb[TCA_U32_HASH]);
+		htid = nla_get_u32(tb[TCA_U32_HASH]);
 		if (TC_U32_HTID(htid) == TC_U32_ROOT) {
 			ht = tp->root;
 			htid = ht->handle;

@@ -150,7 +150,7 @@ static inline int basic_set_parms(struct tcf_proto *tp, struct basic_filter *f,
 		goto errout;
 
 	if (tb[TCA_BASIC_CLASSID]) {
-		f->res.classid = *(u32*)nla_data(tb[TCA_BASIC_CLASSID]);
+		f->res.classid = nla_get_u32(tb[TCA_BASIC_CLASSID]);
 		tcf_bind_filter(tp, &f->res, base);
 	}
 

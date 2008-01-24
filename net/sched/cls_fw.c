@@ -203,7 +203,7 @@ fw_change_attrs(struct tcf_proto *tp, struct fw_filter *f,
 	if (tb[TCA_FW_CLASSID]) {
 		if (nla_len(tb[TCA_FW_CLASSID]) != sizeof(u32))
 			goto errout;
-		f->res.classid = *(u32*)nla_data(tb[TCA_FW_CLASSID]);
+		f->res.classid = nla_get_u32(tb[TCA_FW_CLASSID]);
 		tcf_bind_filter(tp, &f->res, base);
 	}
 
@@ -218,7 +218,7 @@ fw_change_attrs(struct tcf_proto *tp, struct fw_filter *f,
 	if (tb[TCA_FW_MASK]) {
 		if (nla_len(tb[TCA_FW_MASK]) != sizeof(u32))
 			goto errout;
-		mask = *(u32*)nla_data(tb[TCA_FW_MASK]);
+		mask = nla_get_u32(tb[TCA_FW_MASK]);
 		if (mask != head->mask)
 			goto errout;
 	} else if (head->mask != 0xFFFFFFFF)
@@ -264,7 +264,7 @@ static int fw_change(struct tcf_proto *tp, unsigned long base,
 		if (tb[TCA_FW_MASK]) {
 			if (nla_len(tb[TCA_FW_MASK]) != sizeof(u32))
 				return -EINVAL;
-			mask = *(u32*)nla_data(tb[TCA_FW_MASK]);
+			mask = nla_get_u32(tb[TCA_FW_MASK]);
 		}
 
 		head = kzalloc(sizeof(struct fw_head), GFP_KERNEL);

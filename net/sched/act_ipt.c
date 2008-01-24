@@ -123,7 +123,7 @@ static int tcf_ipt_init(struct nlattr *nla, struct nlattr *est,
 
 	if (tb[TCA_IPT_INDEX] != NULL &&
 	    nla_len(tb[TCA_IPT_INDEX]) >= sizeof(u32))
-		index = *(u32 *)nla_data(tb[TCA_IPT_INDEX]);
+		index = nla_get_u32(tb[TCA_IPT_INDEX]);
 
 	pc = tcf_hash_check(index, a, bind, &ipt_hash_info);
 	if (!pc) {
@@ -140,7 +140,7 @@ static int tcf_ipt_init(struct nlattr *nla, struct nlattr *est,
 	}
 	ipt = to_ipt(pc);
 
-	hook = *(u32 *)nla_data(tb[TCA_IPT_HOOK]);
+	hook = nla_get_u32(tb[TCA_IPT_HOOK]);
 
 	err = -ENOMEM;
 	tname = kmalloc(IFNAMSIZ, GFP_KERNEL);
