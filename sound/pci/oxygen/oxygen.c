@@ -386,7 +386,7 @@ static int __devinit generic_oxygen_probe(struct pci_dev *pci,
 					  const struct pci_device_id *pci_id)
 {
 	static int dev;
-	const struct oxygen_model *model;
+	int is_meridian;
 	int err;
 
 	if (dev >= SNDRV_CARDS)
@@ -395,8 +395,9 @@ static int __devinit generic_oxygen_probe(struct pci_dev *pci,
 		++dev;
 		return -ENOENT;
 	}
-	model = pci_id->driver_data ? &model_meridian : &model_generic;
-	err = oxygen_pci_probe(pci, index[dev], id[dev], 1, model);
+	is_meridian = pci_id->driver_data;
+	err = oxygen_pci_probe(pci, index[dev], id[dev], is_meridian,
+			       is_meridian ? &model_meridian : &model_generic);
 	if (err >= 0)
 		++dev;
 	return err;
