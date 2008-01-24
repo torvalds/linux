@@ -1242,7 +1242,7 @@ unsigned long snmp_fold_field(void *mib[], int offt)
 }
 EXPORT_SYMBOL_GPL(snmp_fold_field);
 
-int snmp_mib_init(void *ptr[2], size_t mibsize, size_t mibalign)
+int snmp_mib_init(void *ptr[2], size_t mibsize)
 {
 	BUG_ON(ptr == NULL);
 	ptr[0] = __alloc_percpu(mibsize);
@@ -1296,32 +1296,25 @@ static struct net_protocol icmp_protocol = {
 static int __init init_ipv4_mibs(void)
 {
 	if (snmp_mib_init((void **)net_statistics,
-			  sizeof(struct linux_mib),
-			  __alignof__(struct linux_mib)) < 0)
+			  sizeof(struct linux_mib)) < 0)
 		goto err_net_mib;
 	if (snmp_mib_init((void **)ip_statistics,
-			  sizeof(struct ipstats_mib),
-			  __alignof__(struct ipstats_mib)) < 0)
+			  sizeof(struct ipstats_mib)) < 0)
 		goto err_ip_mib;
 	if (snmp_mib_init((void **)icmp_statistics,
-			  sizeof(struct icmp_mib),
-			  __alignof__(struct icmp_mib)) < 0)
+			  sizeof(struct icmp_mib)) < 0)
 		goto err_icmp_mib;
 	if (snmp_mib_init((void **)icmpmsg_statistics,
-			  sizeof(struct icmpmsg_mib),
-			  __alignof__(struct icmpmsg_mib)) < 0)
+			  sizeof(struct icmpmsg_mib)) < 0)
 		goto err_icmpmsg_mib;
 	if (snmp_mib_init((void **)tcp_statistics,
-			  sizeof(struct tcp_mib),
-			  __alignof__(struct tcp_mib)) < 0)
+			  sizeof(struct tcp_mib)) < 0)
 		goto err_tcp_mib;
 	if (snmp_mib_init((void **)udp_statistics,
-			  sizeof(struct udp_mib),
-			  __alignof__(struct udp_mib)) < 0)
+			  sizeof(struct udp_mib)) < 0)
 		goto err_udp_mib;
 	if (snmp_mib_init((void **)udplite_statistics,
-			  sizeof(struct udp_mib),
-			  __alignof__(struct udp_mib)) < 0)
+			  sizeof(struct udp_mib)) < 0)
 		goto err_udplite_mib;
 
 	tcp_mib_init();
