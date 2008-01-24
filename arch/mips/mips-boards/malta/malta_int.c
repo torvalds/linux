@@ -329,8 +329,7 @@ void __init arch_init_irq(void)
 		set_vi_handler(MSC01E_INT_COREHI, corehi_irqdispatch);
 		setup_irq(MSC01E_INT_BASE+MSC01E_INT_I8259A, &i8259irq);
 		setup_irq(MSC01E_INT_BASE+MSC01E_INT_COREHI, &corehi_irqaction);
-	}
-	else if (cpu_has_vint) {
+	} else if (cpu_has_vint) {
 		set_vi_handler(MIPSCPU_INT_I8259A, malta_hw0_irqdispatch);
 		set_vi_handler(MIPSCPU_INT_COREHI, corehi_irqdispatch);
 #ifdef CONFIG_MIPS_MT_SMTC
@@ -355,8 +354,7 @@ void __init arch_init_irq(void)
 		setup_irq(MIPS_CPU_IRQ_BASE+MIPSCPU_INT_COREHI,
 						&corehi_irqaction);
 #endif /* CONFIG_MIPS_MT_SMTC */
-	}
-	else {
+	} else {
 		setup_irq(MIPS_CPU_IRQ_BASE+MIPSCPU_INT_I8259A, &i8259irq);
 		setup_irq(MIPS_CPU_IRQ_BASE+MIPSCPU_INT_COREHI,
 						&corehi_irqaction);
