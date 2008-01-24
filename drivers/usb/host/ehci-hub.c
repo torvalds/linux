@@ -411,10 +411,8 @@ static int check_reset_complete (
 	u32 __iomem	*status_reg,
 	int		port_status
 ) {
-	if (!(port_status & PORT_CONNECT)) {
-		ehci->reset_done [index] = 0;
+	if (!(port_status & PORT_CONNECT))
 		return port_status;
-	}
 
 	/* if reset finished and it's still not enabled -- handoff */
 	if (!(port_status & PORT_PE)) {
@@ -493,8 +491,6 @@ ehci_hub_status_data (struct usb_hcd *hcd, char *buf)
 		 * controller by the user.
 		 */
 
-		if (!(temp & PORT_CONNECT))
-			ehci->reset_done [i] = 0;
 		if ((temp & mask) != 0
 				|| ((temp & PORT_RESUME) != 0
 					&& time_after_eq(jiffies,
