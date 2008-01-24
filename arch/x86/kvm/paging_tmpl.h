@@ -399,6 +399,14 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 	page = gfn_to_page(vcpu->kvm, walker.gfn);
 	up_read(&current->mm->mmap_sem);
 
+	/* mmio */
+	if (is_error_page(page)) {
+		pgprintk("gfn %x is mmio\n", walker.gfn);
+		kvm_release_page_clean(page);
+		up_read(&vcpu->kvm->slots_lock);
+		return 1;
+	}
+
 	spin_lock(&vcpu->kvm->mmu_lock);
 	kvm_mmu_free_some_pages(vcpu);
 	shadow_pte = FNAME(fetch)(vcpu, addr, &walker, user_fault, write_fault,
@@ -408,15 +416,6 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 
 	if (!write_pt)
 		vcpu->arch.last_pt_write_count = 0; /* reset fork detector */
-
-	/*
-	 * mmio: emulate if accessible, otherwise its a guest fault.
-	 */
-	if (shadow_pte && is_io_pte(*shadow_pte)) {
-		spin_unlock(&vcpu->kvm->mmu_lock);
-		up_read(&vcpu->kvm->slots_lock);
-		return 1;
-	}
 
 	++vcpu->stat.pf_fixed;
 	kvm_mmu_audit(vcpu, "post page fault (fixed)");
