@@ -168,7 +168,8 @@ struct acpi_device_flags {
 	u32 power_manageable:1;
 	u32 performance_manageable:1;
 	u32 wake_capable:1;	/* Wakeup(_PRW) supported? */
-	u32 reserved:20;
+	u32 force_power_state:1;
+	u32 reserved:19;
 };
 
 /* File System */
