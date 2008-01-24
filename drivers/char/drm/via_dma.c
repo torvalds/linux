@@ -179,14 +179,12 @@ static int via_initialize(struct drm_device * dev,
 	}
 
 	if (dev_priv->ring.virtual_start != NULL) {
-		DRM_ERROR("%s called again without calling cleanup\n",
-			  __FUNCTION__);
+		DRM_ERROR("called again without calling cleanup\n");
 		return -EFAULT;
 	}
 
 	if (!dev->agp || !dev->agp->base) {
-		DRM_ERROR("%s called with no agp memory available\n",
-			  __FUNCTION__);
+		DRM_ERROR("called with no agp memory available\n");
 		return -EFAULT;
 	}
 
@@ -267,8 +265,7 @@ static int via_dispatch_cmdbuffer(struct drm_device * dev, drm_via_cmdbuffer_t *
 	dev_priv = (drm_via_private_t *) dev->dev_private;
 
 	if (dev_priv->ring.virtual_start == NULL) {
-		DRM_ERROR("%s called without initializing AGP ring buffer.\n",
-			  __FUNCTION__);
+		DRM_ERROR("called without initializing AGP ring buffer.\n");
 		return -EFAULT;
 	}
 
@@ -337,8 +334,7 @@ static int via_cmdbuffer(struct drm_device *dev, void *data, struct drm_file *fi
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
-	DRM_DEBUG("via cmdbuffer, buf %p size %lu\n", cmdbuf->buf,
-		  cmdbuf->size);
+	DRM_DEBUG("buf %p size %lu\n", cmdbuf->buf, cmdbuf->size);
 
 	ret = via_dispatch_cmdbuffer(dev, cmdbuf);
 	if (ret) {
@@ -379,8 +375,7 @@ static int via_pci_cmdbuffer(struct drm_device *dev, void *data, struct drm_file
 
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
-	DRM_DEBUG("via_pci_cmdbuffer, buf %p size %lu\n", cmdbuf->buf,
-		  cmdbuf->size);
+	DRM_DEBUG("buf %p size %lu\n", cmdbuf->buf, cmdbuf->size);
 
 	ret = via_dispatch_pci_cmdbuffer(dev, cmdbuf);
 	if (ret) {
@@ -648,14 +643,13 @@ static int via_cmdbuf_size(struct drm_device *dev, void *data, struct drm_file *
 	uint32_t tmp_size, count;
 	drm_via_private_t *dev_priv;
 
-	DRM_DEBUG("via cmdbuf_size\n");
+	DRM_DEBUG("\n");
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	dev_priv = (drm_via_private_t *) dev->dev_private;
 
 	if (dev_priv->ring.virtual_start == NULL) {
-		DRM_ERROR("%s called without initializing AGP ring buffer.\n",
-			  __FUNCTION__);
+		DRM_ERROR("called without initializing AGP ring buffer.\n");
 		return -EFAULT;
 	}
 

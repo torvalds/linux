@@ -657,7 +657,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 	int value;
 
 	if (!dev_priv) {
-		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
+		DRM_ERROR("called with no initialization\n");
 		return -EINVAL;
 	}
 
@@ -691,7 +691,7 @@ static int i915_setparam(struct drm_device *dev, void *data,
 	drm_i915_setparam_t *param = data;
 
 	if (!dev_priv) {
-		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
+		DRM_ERROR("called with no initialization\n");
 		return -EINVAL;
 	}
 
@@ -721,7 +721,7 @@ static int i915_set_status_page(struct drm_device *dev, void *data,
 	drm_i915_hws_addr_t *hws = data;
 
 	if (!dev_priv) {
-		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
+		DRM_ERROR("called with no initialization\n");
 		return -EINVAL;
 	}
 

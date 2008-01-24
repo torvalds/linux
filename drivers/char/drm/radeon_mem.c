@@ -224,7 +224,7 @@ int radeon_mem_alloc(struct drm_device *dev, void *data, struct drm_file *file_p
 	struct mem_block *block, **heap;
 
 	if (!dev_priv) {
-		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
+		DRM_ERROR("called with no initialization\n");
 		return -EINVAL;
 	}
 
@@ -259,7 +259,7 @@ int radeon_mem_free(struct drm_device *dev, void *data, struct drm_file *file_pr
 	struct mem_block *block, **heap;
 
 	if (!dev_priv) {
-		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
+		DRM_ERROR("called with no initialization\n");
 		return -EINVAL;
 	}
 
@@ -285,7 +285,7 @@ int radeon_mem_init_heap(struct drm_device *dev, void *data, struct drm_file *fi
 	struct mem_block **heap;
 
 	if (!dev_priv) {
-		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
+		DRM_ERROR("called with no initialization\n");
 		return -EINVAL;
 	}
 

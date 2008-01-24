@@ -145,7 +145,7 @@ extern int i810_max_ioctl;
 
 #define BEGIN_LP_RING(n) do {						\
 	if (I810_VERBOSE)                                               \
-           DRM_DEBUG("BEGIN_LP_RING(%d) in %s\n", n, __FUNCTION__);	\
+		DRM_DEBUG("BEGIN_LP_RING(%d)\n", n);			\
 	if (dev_priv->ring.space < n*4)					\
 		i810_wait_ring(dev, n*4);				\
 	dev_priv->ring.space -= n*4;					\

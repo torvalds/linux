@@ -1114,8 +1114,7 @@ do {									\
 
 #define BEGIN_RING( n ) do {						\
 	if ( RADEON_VERBOSE ) {						\
-		DRM_INFO( "BEGIN_RING( %d ) in %s\n",			\
-			   n, __FUNCTION__ );				\
+		DRM_INFO( "BEGIN_RING( %d )\n", (n));			\
 	}								\
 	if ( dev_priv->ring.space <= (n) * sizeof(u32) ) {		\
                 COMMIT_RING();						\

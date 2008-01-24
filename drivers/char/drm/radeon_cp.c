@@ -1852,12 +1852,12 @@ int radeon_cp_start(struct drm_device *dev, void *data, struct drm_file *file_pr
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	if (dev_priv->cp_running) {
-		DRM_DEBUG("%s while CP running\n", __FUNCTION__);
+		DRM_DEBUG("while CP running\n");
 		return 0;
 	}
 	if (dev_priv->cp_mode == RADEON_CSQ_PRIDIS_INDDIS) {
-		DRM_DEBUG("%s called with bogus CP mode (%d)\n",
-			  __FUNCTION__, dev_priv->cp_mode);
+		DRM_DEBUG("called with bogus CP mode (%d)\n",
+			  dev_priv->cp_mode);
 		return 0;
 	}
 
@@ -1962,7 +1962,7 @@ int radeon_cp_reset(struct drm_device *dev, void *data, struct drm_file *file_pr
 	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	if (!dev_priv) {
-		DRM_DEBUG("%s called before init done\n", __FUNCTION__);
+		DRM_DEBUG("called before init done\n");
 		return -EINVAL;
 	}
 

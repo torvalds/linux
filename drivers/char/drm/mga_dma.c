@@ -1050,7 +1050,7 @@ int mga_dma_flush(struct drm_device *dev, void *data,
 #if MGA_DMA_DEBUG
 		int ret = mga_do_wait_for_idle(dev_priv);
 		if (ret < 0)
-			DRM_INFO("%s: -EBUSY\n", __FUNCTION__);
+			DRM_INFO("-EBUSY\n");
 		return ret;
 #else
 		return mga_do_wait_for_idle(dev_priv);
