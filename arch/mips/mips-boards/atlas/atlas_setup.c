@@ -34,10 +34,6 @@
 #include <asm/time.h>
 #include <asm/traps.h>
 
-#ifdef CONFIG_KGDB
-extern void kgdb_config(void);
-#endif
-
 static void __init serial_init(void);
 
 const char *get_system_type(void)

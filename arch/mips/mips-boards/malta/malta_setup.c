@@ -35,10 +35,6 @@
 #include <linux/console.h>
 #endif
 
-#ifdef CONFIG_KGDB
-extern void kgdb_config(void);
-#endif
-
 struct resource standard_io_resources[] = {
 	{
 		.name = "dma1",
