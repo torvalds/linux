@@ -3661,11 +3661,11 @@ static int patch_stac9205(struct hda_codec *codec)
 		stac92xx_set_config_reg(codec, 0x1f, 0x01441030);
 		stac92xx_set_config_reg(codec, 0x20, 0x1c410030);
 
-		spec->gpio_mask = 0x00000007; /* GPIO0-2 */
-		/* GPIO0 High = EAPD, GPIO1 Low = DRM,
-		 * GPIO2 High = Headphone Mute
+		spec->gpio_mask = 0x0000000b;
+		/* GPIO0 High = EAPD, GPIO1 Low = Headphone Mute,
+		 * GPIO3 High = DRM
 		 */
-		spec->gpio_data = 0x00000005;
+		spec->gpio_data = 0x00000009;
 		break;
 	default:
 		/* GPIO0 High = EAPD */
