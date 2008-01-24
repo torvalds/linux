@@ -139,26 +139,26 @@ static struct acpi_ec {
 static inline u8 acpi_ec_read_status(struct acpi_ec *ec)
 {
 	u8 x = inb(ec->command_addr);
-	pr_debug(PREFIX "---> status = 0x%2x\n", x);
+	pr_debug(PREFIX "---> status = 0x%2.2x\n", x);
 	return x;
 }
 
 static inline u8 acpi_ec_read_data(struct acpi_ec *ec)
 {
 	u8 x = inb(ec->data_addr);
-	pr_debug(PREFIX "---> data = 0x%2x\n", x);
+	pr_debug(PREFIX "---> data = 0x%2.2x\n", x);
 	return inb(ec->data_addr);
 }
 
 static inline void acpi_ec_write_cmd(struct acpi_ec *ec, u8 command)
 {
-	pr_debug(PREFIX "<--- command = 0x%2x\n", command);
+	pr_debug(PREFIX "<--- command = 0x%2.2x\n", command);
 	outb(command, ec->command_addr);
 }
 
 static inline void acpi_ec_write_data(struct acpi_ec *ec, u8 data)
 {
-	pr_debug(PREFIX "<--- data = 0x%2x\n", data);
+	pr_debug(PREFIX "<--- data = 0x%2.2x\n", data);
 	outb(data, ec->data_addr);
 }
 
