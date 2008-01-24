@@ -173,7 +173,6 @@ static void corehi_irqdispatch(void)
 		break;
 	}
 
-	/* We die here*/
 	die("CoreHi interrupt", regs);
 }
 
