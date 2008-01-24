@@ -206,7 +206,7 @@ struct iwl4965_channel_info {
 
 	u8 group_index;	  /* 0-4, maps channel to group1/2/3/4/5 */
 	u8 band_index;	  /* 0-4, maps channel to band1/2/3/4/5 */
-	u8 phymode;	  /* MODE_IEEE80211{A,B,G} */
+	enum ieee80211_band band;
 
 	/* Radio/DSP gain settings for each "normal" data Tx rate.
 	 * These include, in addition to RF and DSP gain, a few fields for
@@ -764,7 +764,8 @@ extern void iwl4965_update_rate_scaling(struct iwl4965_priv *priv, u8 mode);
 extern void iwl4965_chain_noise_reset(struct iwl4965_priv *priv);
 extern void iwl4965_init_sensitivity(struct iwl4965_priv *priv, u8 flags,
 				     u8 force);
-extern int iwl4965_set_fat_chan_info(struct iwl4965_priv *priv, int phymode,
+extern int iwl4965_set_fat_chan_info(struct iwl4965_priv *priv,
+				enum ieee80211_band band,
 				u16 channel,
 				const struct iwl4965_eeprom_channel *eeprom_ch,
 				u8 fat_extension_channel);
@@ -977,14 +978,14 @@ struct iwl4965_priv {
 	struct list_head free_frames;
 	int frames_count;
 
-	u8 phymode;
+	enum ieee80211_band band;
 	int alloc_rxb_skb;
 	bool add_radiotap;
 
 	void (*rx_handlers[REPLY_MAX])(struct iwl4965_priv *priv,
 				       struct iwl4965_rx_mem_buffer *rxb);
 
-	const struct ieee80211_hw_mode *modes;
+	struct ieee80211_supported_band bands[IEEE80211_NUM_BANDS];
 
 #ifdef CONFIG_IWL4965_SPECTRUM_MEASUREMENT
 	/* spectrum measurement report caching */
@@ -1243,13 +1244,12 @@ static inline int is_channel_radar(const struct iwl4965_channel_info *ch_info)
 
 static inline u8 is_channel_a_band(const struct iwl4965_channel_info *ch_info)
 {
-	return ch_info->phymode == MODE_IEEE80211A;
+	return ch_info->band == IEEE80211_BAND_5GHZ;
 }
 
 static inline u8 is_channel_bg_band(const struct iwl4965_channel_info *ch_info)
 {
-	return ((ch_info->phymode == MODE_IEEE80211B) ||
-		(ch_info->phymode == MODE_IEEE80211G));
+	return ch_info->band == IEEE80211_BAND_2GHZ;
 }
 
 static inline int is_channel_passive(const struct iwl4965_channel_info *ch)
@@ -1263,7 +1263,7 @@ static inline int is_channel_ibss(const struct iwl4965_channel_info *ch)
 }
 
 extern const struct iwl4965_channel_info *iwl4965_get_channel_info(
-	const struct iwl4965_priv *priv, int phymode, u16 channel);
+	const struct iwl4965_priv *priv, enum ieee80211_band band, u16 channel);
 
 /* Requires full declaration of iwl4965_priv before including */
 #include "iwl-4965-io.h"

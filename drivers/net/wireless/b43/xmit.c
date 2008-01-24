@@ -32,46 +32,48 @@
 #include "dma.h"
 
 
-/* Extract the bitrate out of a CCK PLCP header. */
-static u8 b43_plcp_get_bitrate_cck(struct b43_plcp_hdr6 *plcp)
+/* Extract the bitrate index out of a CCK PLCP header. */
+static int b43_plcp_get_bitrate_idx_cck(struct b43_plcp_hdr6 *plcp)
 {
 	switch (plcp->raw[0]) {
 	case 0x0A:
-		return B43_CCK_RATE_1MB;
+		return 0;
 	case 0x14:
-		return B43_CCK_RATE_2MB;
+		return 1;
 	case 0x37:
-		return B43_CCK_RATE_5MB;
+		return 2;
 	case 0x6E:
-		return B43_CCK_RATE_11MB;
+		return 3;
 	}
 	B43_WARN_ON(1);
-	return 0;
+	return -1;
 }
 
-/* Extract the bitrate out of an OFDM PLCP header. */
-static u8 b43_plcp_get_bitrate_ofdm(struct b43_plcp_hdr6 *plcp)
+/* Extract the bitrate index out of an OFDM PLCP header. */
+static u8 b43_plcp_get_bitrate_idx_ofdm(struct b43_plcp_hdr6 *plcp, bool aphy)
 {
+	int base = aphy ? 0 : 4;
+
 	switch (plcp->raw[0] & 0xF) {
 	case 0xB:
-		return B43_OFDM_RATE_6MB;
+		return base + 0;
 	case 0xF:
-		return B43_OFDM_RATE_9MB;
+		return base + 1;
 	case 0xA:
-		return B43_OFDM_RATE_12MB;
+		return base + 2;
 	case 0xE:
-		return B43_OFDM_RATE_18MB;
+		return base + 3;
 	case 0x9:
-		return B43_OFDM_RATE_24MB;
+		return base + 4;
 	case 0xD:
-		return B43_OFDM_RATE_36MB;
+		return base + 5;
 	case 0x8:
-		return B43_OFDM_RATE_48MB;
+		return base + 6;
 	case 0xC:
-		return B43_OFDM_RATE_54MB;
+		return base + 7;
 	}
 	B43_WARN_ON(1);
-	return 0;
+	return -1;
 }
 
 u8 b43_plcp_get_ratecode_cck(const u8 bitrate)
@@ -191,6 +193,7 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 	    (const struct ieee80211_hdr *)fragment_data;
 	int use_encryption = (!(txctl->flags & IEEE80211_TXCTL_DO_NOT_ENCRYPT));
 	u16 fctl = le16_to_cpu(wlhdr->frame_control);
+	struct ieee80211_rate *fbrate;
 	u8 rate, rate_fb;
 	int rate_ofdm, rate_fb_ofdm;
 	unsigned int plcp_fragment_len;
@@ -200,9 +203,11 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 
 	memset(txhdr, 0, sizeof(*txhdr));
 
-	rate = txctl->tx_rate;
+	WARN_ON(!txctl->tx_rate);
+	rate = txctl->tx_rate ? txctl->tx_rate->hw_value : B43_CCK_RATE_1MB;
 	rate_ofdm = b43_is_ofdm_rate(rate);
-	rate_fb = (txctl->alt_retry_rate == -1) ? rate : txctl->alt_retry_rate;
+	fbrate = txctl->alt_retry_rate ? : txctl->tx_rate;
+	rate_fb = fbrate->hw_value;
 	rate_fb_ofdm = b43_is_ofdm_rate(rate_fb);
 
 	if (rate_ofdm)
@@ -221,11 +226,10 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 		 * use the original dur_id field. */
 		txhdr->dur_fb = wlhdr->duration_id;
 	} else {
-		int fbrate_base100kbps = B43_RATE_TO_BASE100KBPS(rate_fb);
 		txhdr->dur_fb = ieee80211_generic_frame_duration(dev->wl->hw,
 								 txctl->vif,
 								 fragment_len,
-								 fbrate_base100kbps);
+								 fbrate);
 	}
 
 	plcp_fragment_len = fragment_len + FCS_LEN;
@@ -287,7 +291,7 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 		phy_ctl |= B43_TXH_PHY_ENC_OFDM;
 	else
 		phy_ctl |= B43_TXH_PHY_ENC_CCK;
-	if (dev->short_preamble)
+	if (txctl->flags & IEEE80211_TXCTL_SHORT_PREAMBLE)
 		phy_ctl |= B43_TXH_PHY_SHORTPRMBL;
 
 	switch (b43_ieee80211_antenna_sanitize(dev, txctl->antenna_sel_tx)) {
@@ -332,7 +336,8 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 		int rts_rate_ofdm, rts_rate_fb_ofdm;
 		struct b43_plcp_hdr6 *plcp;
 
-		rts_rate = txctl->rts_cts_rate;
+		WARN_ON(!txctl->rts_cts_rate);
+		rts_rate = txctl->rts_cts_rate ? txctl->rts_cts_rate->hw_value : B43_CCK_RATE_1MB;
 		rts_rate_ofdm = b43_is_ofdm_rate(rts_rate);
 		rts_rate_fb = b43_calc_fallback_rate(rts_rate);
 		rts_rate_fb_ofdm = b43_is_ofdm_rate(rts_rate_fb);
@@ -506,6 +511,7 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 	u16 phystat0, phystat3, chanstat, mactime;
 	u32 macstat;
 	u16 chanid;
+	u16 phytype;
 	u8 jssi;
 	int padding;
 
@@ -518,6 +524,7 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 	macstat = le32_to_cpu(rxhdr->mac_status);
 	mactime = le16_to_cpu(rxhdr->mac_time);
 	chanstat = le16_to_cpu(rxhdr->channel);
+	phytype = chanstat & B43_RX_CHAN_PHYTYPE;
 
 	if (macstat & B43_RX_MAC_FCSERR)
 		dev->wl->ieee_stats.dot11FCSErrorCount++;
@@ -575,9 +582,10 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 	/* the next line looks wrong, but is what mac80211 wants */
 	status.signal = (jssi * 100) / B43_RX_MAX_SSI;
 	if (phystat0 & B43_RX_PHYST0_OFDM)
-		status.rate = b43_plcp_get_bitrate_ofdm(plcp);
+		status.rate_idx = b43_plcp_get_bitrate_idx_ofdm(plcp,
+						phytype == B43_PHYTYPE_A);
 	else
-		status.rate = b43_plcp_get_bitrate_cck(plcp);
+		status.rate_idx = b43_plcp_get_bitrate_idx_cck(plcp);
 	status.antenna = !!(phystat0 & B43_RX_PHYST0_ANT);
 
 	/*
@@ -601,29 +609,28 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 	chanid = (chanstat & B43_RX_CHAN_ID) >> B43_RX_CHAN_ID_SHIFT;
 	switch (chanstat & B43_RX_CHAN_PHYTYPE) {
 	case B43_PHYTYPE_A:
-		status.phymode = MODE_IEEE80211A;
+		status.band = IEEE80211_BAND_5GHZ;
 		B43_WARN_ON(1);
 		/* FIXME: We don't really know which value the "chanid" contains.
 		 *        So the following assignment might be wrong. */
-		status.channel = chanid;
-		status.freq = b43_channel_to_freq_5ghz(status.channel);
+		status.freq = b43_channel_to_freq_5ghz(chanid);
 		break;
 	case B43_PHYTYPE_G:
-		status.phymode = MODE_IEEE80211G;
+		status.band = IEEE80211_BAND_2GHZ;
 		/* chanid is the radio channel cookie value as used
 		 * to tune the radio. */
 		status.freq = chanid + 2400;
-		status.channel = b43_freq_to_channel_2ghz(status.freq);
 		break;
 	case B43_PHYTYPE_N:
-		status.phymode = 0xDEAD /*FIXME MODE_IEEE80211N*/;
 		/* chanid is the SHM channel cookie. Which is the plain
 		 * channel number in b43. */
-		status.channel = chanid;
-		if (chanstat & B43_RX_CHAN_5GHZ)
-			status.freq = b43_freq_to_channel_5ghz(status.freq);
-		else
-			status.freq = b43_freq_to_channel_2ghz(status.freq);
+		if (chanstat & B43_RX_CHAN_5GHZ) {
+			status.band = IEEE80211_BAND_5GHZ;
+			status.freq = b43_freq_to_channel_5ghz(chanid);
+		} else {
+			status.band = IEEE80211_BAND_2GHZ;
+			status.freq = b43_freq_to_channel_2ghz(chanid);
+		}
 		break;
 	default:
 		B43_WARN_ON(1);

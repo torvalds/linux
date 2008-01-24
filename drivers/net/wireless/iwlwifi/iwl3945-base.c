@@ -116,16 +116,10 @@ static __le16 *ieee80211_get_qos_ctrl(struct ieee80211_hdr *hdr)
 	return NULL;
 }
 
-static const struct ieee80211_hw_mode *iwl3945_get_hw_mode(
-		struct iwl3945_priv *priv, int mode)
+static const struct ieee80211_supported_band *iwl3945_get_band(
+		struct iwl3945_priv *priv, enum ieee80211_band band)
 {
-	int i;
-
-	for (i = 0; i < 3; i++)
-		if (priv->modes[i].mode == mode)
-			return &priv->modes[i];
-
-	return NULL;
+	return priv->hw->wiphy->bands[band];
 }
 
 static int iwl3945_is_empty_essid(const char *essid, int essid_len)
@@ -547,7 +541,7 @@ u8 iwl3945_add_station(struct iwl3945_priv *priv, const u8 *addr, int is_ap, u8 
 	station->sta.sta.sta_id = index;
 	station->sta.station_flags = 0;
 
-	if (priv->phymode == MODE_IEEE80211A)
+	if (priv->band == IEEE80211_BAND_5GHZ)
 		rate = IWL_RATE_6M_PLCP;
 	else
 		rate =	IWL_RATE_1M_PLCP;
@@ -894,35 +888,37 @@ int iwl3945_send_statistics_request(struct iwl3945_priv *priv)
 
 /**
  * iwl3945_set_rxon_channel - Set the phymode and channel values in staging RXON
- * @phymode: MODE_IEEE80211A sets to 5.2GHz; all else set to 2.4GHz
- * @channel: Any channel valid for the requested phymode
+ * @band: 2.4 or 5 GHz band
+ * @channel: Any channel valid for the requested band
 
- * In addition to setting the staging RXON, priv->phymode is also set.
+ * In addition to setting the staging RXON, priv->band is also set.
  *
  * NOTE:  Does not commit to the hardware; it sets appropriate bit fields
- * in the staging RXON flag structure based on the phymode
+ * in the staging RXON flag structure based on the band
  */
-static int iwl3945_set_rxon_channel(struct iwl3945_priv *priv, u8 phymode, u16 channel)
+static int iwl3945_set_rxon_channel(struct iwl3945_priv *priv,
+				    enum ieee80211_band band,
+				    u16 channel)
 {
-	if (!iwl3945_get_channel_info(priv, phymode, channel)) {
+	if (!iwl3945_get_channel_info(priv, band, channel)) {
 		IWL_DEBUG_INFO("Could not set channel to %d [%d]\n",
-			       channel, phymode);
+			       channel, band);
 		return -EINVAL;
 	}
 
 	if ((le16_to_cpu(priv->staging_rxon.channel) == channel) &&
-	    (priv->phymode == phymode))
+	    (priv->band == band))
 		return 0;
 
 	priv->staging_rxon.channel = cpu_to_le16(channel);
-	if (phymode == MODE_IEEE80211A)
+	if (band == IEEE80211_BAND_5GHZ)
 		priv->staging_rxon.flags &= ~RXON_FLG_BAND_24G_MSK;
 	else
 		priv->staging_rxon.flags |= RXON_FLG_BAND_24G_MSK;
 
-	priv->phymode = phymode;
+	priv->band = band;
 
-	IWL_DEBUG_INFO("Staging channel set to %d [%d]\n", channel, phymode);
+	IWL_DEBUG_INFO("Staging channel set to %d [%d]\n", channel, band);
 
 	return 0;
 }
@@ -1210,8 +1206,7 @@ static int iwl3945_commit_rxon(struct iwl3945_priv *priv)
 			return -EIO;
 		}
 
-	/* Init the hardware's rate fallback order based on the
-	 * phymode */
+	/* Init the hardware's rate fallback order based on the band */
 	rc = iwl3945_init_hw_rate_table(priv);
 	if (rc) {
 		IWL_ERROR("Error setting HW rate table: %02X\n", rc);
@@ -2461,9 +2456,10 @@ static int iwl3945_set_rxon_hwcrypto(struct iwl3945_priv *priv, int hw_decrypt)
 	return 0;
 }
 
-static void iwl3945_set_flags_for_phymode(struct iwl3945_priv *priv, u8 phymode)
+static void iwl3945_set_flags_for_phymode(struct iwl3945_priv *priv,
+					  enum ieee80211_band band)
 {
-	if (phymode == MODE_IEEE80211A) {
+	if (band == IEEE80211_BAND_5GHZ) {
 		priv->staging_rxon.flags &=
 		    ~(RXON_FLG_BAND_24G_MSK | RXON_FLG_AUTO_DETECT_MSK
 		      | RXON_FLG_CCK_MSK);
@@ -2526,7 +2522,7 @@ static void iwl3945_connection_init_rx_config(struct iwl3945_priv *priv)
 		priv->staging_rxon.flags |= RXON_FLG_SHORT_PREAMBLE_MSK;
 #endif
 
-	ch_info = iwl3945_get_channel_info(priv, priv->phymode,
+	ch_info = iwl3945_get_channel_info(priv, priv->band,
 				       le16_to_cpu(priv->staging_rxon.channel));
 
 	if (!ch_info)
@@ -2542,11 +2538,11 @@ static void iwl3945_connection_init_rx_config(struct iwl3945_priv *priv)
 
 	priv->staging_rxon.channel = cpu_to_le16(ch_info->channel);
 	if (is_channel_a_band(ch_info))
-		priv->phymode = MODE_IEEE80211A;
+		priv->band = IEEE80211_BAND_5GHZ;
 	else
-		priv->phymode = MODE_IEEE80211G;
+		priv->band = IEEE80211_BAND_2GHZ;
 
-	iwl3945_set_flags_for_phymode(priv, priv->phymode);
+	iwl3945_set_flags_for_phymode(priv, priv->band);
 
 	priv->staging_rxon.ofdm_basic_rates =
 	    (IWL_OFDM_RATES_MASK >> IWL_FIRST_OFDM_RATE) & 0xFF;
@@ -2560,7 +2556,7 @@ static int iwl3945_set_mode(struct iwl3945_priv *priv, int mode)
 		const struct iwl3945_channel_info *ch_info;
 
 		ch_info = iwl3945_get_channel_info(priv,
-			priv->phymode,
+			priv->band,
 			le16_to_cpu(priv->staging_rxon.channel));
 
 		if (!ch_info || !is_channel_ibss(ch_info)) {
@@ -2792,7 +2788,7 @@ static int iwl3945_tx_skb(struct iwl3945_priv *priv,
 		goto drop_unlock;
 	}
 
-	if ((ctl->tx_rate & 0xFF) == IWL_INVALID_RATE) {
+	if ((ctl->tx_rate->hw_value & 0xFF) == IWL_INVALID_RATE) {
 		IWL_ERROR("ERROR: No TX rate available.\n");
 		goto drop_unlock;
 	}
@@ -2992,12 +2988,12 @@ drop:
 
 static void iwl3945_set_rate(struct iwl3945_priv *priv)
 {
-	const struct ieee80211_hw_mode *hw = NULL;
+	const struct ieee80211_supported_band *sband = NULL;
 	struct ieee80211_rate *rate;
 	int i;
 
-	hw = iwl3945_get_hw_mode(priv, priv->phymode);
-	if (!hw) {
+	sband = iwl3945_get_band(priv, priv->band);
+	if (!sband) {
 		IWL_ERROR("Failed to set rate: unable to get hw mode\n");
 		return;
 	}
@@ -3005,24 +3001,17 @@ static void iwl3945_set_rate(struct iwl3945_priv *priv)
 	priv->active_rate = 0;
 	priv->active_rate_basic = 0;
 
-	IWL_DEBUG_RATE("Setting rates for 802.11%c\n",
-		       hw->mode == MODE_IEEE80211A ?
-		       'a' : ((hw->mode == MODE_IEEE80211B) ? 'b' : 'g'));
+	IWL_DEBUG_RATE("Setting rates for %s GHz\n",
+		       sband->band == IEEE80211_BAND_2GHZ ? "2.4" : "5");
 
-	for (i = 0; i < hw->num_rates; i++) {
-		rate = &(hw->rates[i]);
-		if ((rate->val < IWL_RATE_COUNT) &&
-		    (rate->flags & IEEE80211_RATE_SUPPORTED)) {
-			IWL_DEBUG_RATE("Adding rate index %d (plcp %d)%s\n",
-				       rate->val, iwl3945_rates[rate->val].plcp,
-				       (rate->flags & IEEE80211_RATE_BASIC) ?
-				       "*" : "");
-			priv->active_rate |= (1 << rate->val);
-			if (rate->flags & IEEE80211_RATE_BASIC)
-				priv->active_rate_basic |= (1 << rate->val);
-		} else
-			IWL_DEBUG_RATE("Not adding rate %d (plcp %d)\n",
-				       rate->val, iwl3945_rates[rate->val].plcp);
+	for (i = 0; i < sband->n_bitrates; i++) {
+		rate = &sband->bitrates[i];
+		if ((rate->hw_value < IWL_RATE_COUNT) &&
+		    !(rate->flags & IEEE80211_CHAN_DISABLED)) {
+			IWL_DEBUG_RATE("Adding rate index %d (plcp %d)\n",
+				       rate->hw_value, iwl3945_rates[rate->hw_value].plcp);
+			priv->active_rate |= (1 << rate->hw_value);
+		}
 	}
 
 	IWL_DEBUG_RATE("Set active_rate = %0x, active_rate_basic = %0x\n",
@@ -3435,8 +3424,6 @@ static void iwl3945_rx_reply_tx(struct iwl3945_priv *priv,
 
 	tx_status->flags =
 	    iwl3945_is_tx_success(status) ? IEEE80211_TX_STATUS_ACK : 0;
-
-	tx_status->control.tx_rate = iwl3945_rate_index_from_plcp(tx_resp->rate);
 
 	IWL_DEBUG_TX("Tx queue %d Status %s (0x%08x) plcp rate %d retries %d\n",
 			txq_id, iwl3945_get_tx_fail_reason(status), status,
@@ -5026,24 +5013,24 @@ static void iwl3945_init_band_reference(const struct iwl3945_priv *priv, int ban
  * Based on band and channel number.
  */
 const struct iwl3945_channel_info *iwl3945_get_channel_info(const struct iwl3945_priv *priv,
-						    int phymode, u16 channel)
+						    enum ieee80211_band band, u16 channel)
 {
 	int i;
 
-	switch (phymode) {
-	case MODE_IEEE80211A:
+	switch (band) {
+	case IEEE80211_BAND_5GHZ:
 		for (i = 14; i < priv->channel_count; i++) {
 			if (priv->channel_info[i].channel == channel)
 				return &priv->channel_info[i];
 		}
 		break;
 
-	case MODE_IEEE80211B:
-	case MODE_IEEE80211G:
+	case IEEE80211_BAND_2GHZ:
 		if (channel >= 1 && channel <= 14)
 			return &priv->channel_info[channel - 1];
 		break;
-
+	case IEEE80211_NUM_BANDS:
+		WARN_ON(1);
 	}
 
 	return NULL;
@@ -5106,8 +5093,8 @@ static int iwl3945_init_channel_map(struct iwl3945_priv *priv)
 		/* Loop through each band adding each of the channels */
 		for (ch = 0; ch < eeprom_ch_count; ch++) {
 			ch_info->channel = eeprom_ch_index[ch];
-			ch_info->phymode = (band == 1) ? MODE_IEEE80211B :
-			    MODE_IEEE80211A;
+			ch_info->band = (band == 1) ? IEEE80211_BAND_2GHZ :
+			    IEEE80211_BAND_5GHZ;
 
 			/* permanently store EEPROM's channel regulatory flags
 			 *   and max power in channel info database. */
@@ -5203,18 +5190,20 @@ static void iwl3945_free_channel_map(struct iwl3945_priv *priv)
 #define IWL_PASSIVE_DWELL_BASE      (100)
 #define IWL_CHANNEL_TUNE_TIME       5
 
-static inline u16 iwl3945_get_active_dwell_time(struct iwl3945_priv *priv, int phymode)
+static inline u16 iwl3945_get_active_dwell_time(struct iwl3945_priv *priv,
+						enum ieee80211_band band)
 {
-	if (phymode == MODE_IEEE80211A)
+	if (band == IEEE80211_BAND_5GHZ)
 		return IWL_ACTIVE_DWELL_TIME_52;
 	else
 		return IWL_ACTIVE_DWELL_TIME_24;
 }
 
-static u16 iwl3945_get_passive_dwell_time(struct iwl3945_priv *priv, int phymode)
+static u16 iwl3945_get_passive_dwell_time(struct iwl3945_priv *priv,
+					  enum ieee80211_band band)
 {
-	u16 active = iwl3945_get_active_dwell_time(priv, phymode);
-	u16 passive = (phymode != MODE_IEEE80211A) ?
+	u16 active = iwl3945_get_active_dwell_time(priv, band);
+	u16 passive = (band == IEEE80211_BAND_2GHZ) ?
 	    IWL_PASSIVE_DWELL_BASE + IWL_PASSIVE_DWELL_TIME_24 :
 	    IWL_PASSIVE_DWELL_BASE + IWL_PASSIVE_DWELL_TIME_52;
 
@@ -5234,28 +5223,29 @@ static u16 iwl3945_get_passive_dwell_time(struct iwl3945_priv *priv, int phymode
 	return passive;
 }
 
-static int iwl3945_get_channels_for_scan(struct iwl3945_priv *priv, int phymode,
+static int iwl3945_get_channels_for_scan(struct iwl3945_priv *priv,
+					 enum ieee80211_band band,
 				     u8 is_active, u8 direct_mask,
 				     struct iwl3945_scan_channel *scan_ch)
 {
 	const struct ieee80211_channel *channels = NULL;
-	const struct ieee80211_hw_mode *hw_mode;
+	const struct ieee80211_supported_band *sband;
 	const struct iwl3945_channel_info *ch_info;
 	u16 passive_dwell = 0;
 	u16 active_dwell = 0;
 	int added, i;
 
-	hw_mode = iwl3945_get_hw_mode(priv, phymode);
-	if (!hw_mode)
+	sband = iwl3945_get_band(priv, band);
+	if (!sband)
 		return 0;
 
-	channels = hw_mode->channels;
+	channels = sband->channels;
 
-	active_dwell = iwl3945_get_active_dwell_time(priv, phymode);
-	passive_dwell = iwl3945_get_passive_dwell_time(priv, phymode);
+	active_dwell = iwl3945_get_active_dwell_time(priv, band);
+	passive_dwell = iwl3945_get_passive_dwell_time(priv, band);
 
-	for (i = 0, added = 0; i < hw_mode->num_channels; i++) {
-		if (channels[i].chan ==
+	for (i = 0, added = 0; i < sband->n_channels; i++) {
+		if (channels[i].hw_value ==
 		    le16_to_cpu(priv->active_rxon.channel)) {
 			if (iwl3945_is_associated(priv)) {
 				IWL_DEBUG_SCAN
@@ -5266,9 +5256,9 @@ static int iwl3945_get_channels_for_scan(struct iwl3945_priv *priv, int phymode,
 		} else if (priv->only_active_channel)
 			continue;
 
-		scan_ch->channel = channels[i].chan;
+		scan_ch->channel = channels[i].hw_value;
 
-		ch_info = iwl3945_get_channel_info(priv, phymode, scan_ch->channel);
+		ch_info = iwl3945_get_channel_info(priv, band, scan_ch->channel);
 		if (!is_channel_valid(ch_info)) {
 			IWL_DEBUG_SCAN("Channel %d is INVALID for this SKU.\n",
 				       scan_ch->channel);
@@ -5276,7 +5266,7 @@ static int iwl3945_get_channels_for_scan(struct iwl3945_priv *priv, int phymode,
 		}
 
 		if (!is_active || is_channel_passive(ch_info) ||
-		    !(channels[i].flag & IEEE80211_CHAN_W_ACTIVE_SCAN))
+		    (channels[i].flags & IEEE80211_CHAN_PASSIVE_SCAN))
 			scan_ch->type = 0;	/* passive */
 		else
 			scan_ch->type = 1;	/* active */
@@ -5295,7 +5285,7 @@ static int iwl3945_get_channels_for_scan(struct iwl3945_priv *priv, int phymode,
 		/* scan_pwr_info->tpc.dsp_atten; */
 
 		/*scan_pwr_info->tpc.tx_gain; */
-		if (phymode == MODE_IEEE80211A)
+		if (band == IEEE80211_BAND_5GHZ)
 			scan_ch->tpc.tx_gain = ((1 << 5) | (3 << 3)) | 3;
 		else {
 			scan_ch->tpc.tx_gain = ((1 << 5) | (5 << 3));
@@ -5319,41 +5309,23 @@ static int iwl3945_get_channels_for_scan(struct iwl3945_priv *priv, int phymode,
 	return added;
 }
 
-static void iwl3945_reset_channel_flag(struct iwl3945_priv *priv)
-{
-	int i, j;
-	for (i = 0; i < 3; i++) {
-		struct ieee80211_hw_mode *hw_mode = (void *)&priv->modes[i];
-		for (j = 0; j < hw_mode->num_channels; j++)
-			hw_mode->channels[j].flag = hw_mode->channels[j].val;
-	}
-}
-
 static void iwl3945_init_hw_rates(struct iwl3945_priv *priv,
 			      struct ieee80211_rate *rates)
 {
 	int i;
 
 	for (i = 0; i < IWL_RATE_COUNT; i++) {
-		rates[i].rate = iwl3945_rates[i].ieee * 5;
-		rates[i].val = i; /* Rate scaling will work on indexes */
-		rates[i].val2 = i;
-		rates[i].flags = IEEE80211_RATE_SUPPORTED;
-		/* Only OFDM have the bits-per-symbol set */
-		if ((i <= IWL_LAST_OFDM_RATE) && (i >= IWL_FIRST_OFDM_RATE))
-			rates[i].flags |= IEEE80211_RATE_OFDM;
-		else {
+		rates[i].bitrate = iwl3945_rates[i].ieee * 5;
+		rates[i].hw_value = i; /* Rate scaling will work on indexes */
+		rates[i].hw_value_short = i;
+		rates[i].flags = 0;
+		if ((i > IWL_LAST_OFDM_RATE) || (i < IWL_FIRST_OFDM_RATE)) {
 			/*
-			 * If CCK 1M then set rate flag to CCK else CCK_2
-			 * which is CCK | PREAMBLE2
+			 * If CCK != 1M then set short preamble rate flag.
 			 */
 			rates[i].flags |= (iwl3945_rates[i].plcp == 10) ?
-				IEEE80211_RATE_CCK : IEEE80211_RATE_CCK_2;
+				0 : IEEE80211_RATE_SHORT_PREAMBLE;
 		}
-
-		/* Set up which ones are basic rates... */
-		if (IWL_BASIC_RATES_MASK & (1 << i))
-			rates[i].flags |= IEEE80211_RATE_BASIC;
 	}
 }
 
@@ -5363,67 +5335,41 @@ static void iwl3945_init_hw_rates(struct iwl3945_priv *priv,
 static int iwl3945_init_geos(struct iwl3945_priv *priv)
 {
 	struct iwl3945_channel_info *ch;
-	struct ieee80211_hw_mode *modes;
+	struct ieee80211_supported_band *band;
 	struct ieee80211_channel *channels;
 	struct ieee80211_channel *geo_ch;
 	struct ieee80211_rate *rates;
 	int i = 0;
-	enum {
-		A = 0,
-		B = 1,
-		G = 2,
-	};
-	int mode_count = 3;
 
-	if (priv->modes) {
+	if (priv->bands[IEEE80211_BAND_2GHZ].n_bitrates ||
+	    priv->bands[IEEE80211_BAND_5GHZ].n_bitrates) {
 		IWL_DEBUG_INFO("Geography modes already initialized.\n");
 		set_bit(STATUS_GEO_CONFIGURED, &priv->status);
 		return 0;
 	}
 
-	modes = kzalloc(sizeof(struct ieee80211_hw_mode) * mode_count,
-			GFP_KERNEL);
-	if (!modes)
-		return -ENOMEM;
-
 	channels = kzalloc(sizeof(struct ieee80211_channel) *
 			   priv->channel_count, GFP_KERNEL);
-	if (!channels) {
-		kfree(modes);
+	if (!channels)
 		return -ENOMEM;
-	}
 
 	rates = kzalloc((sizeof(struct ieee80211_rate) * (IWL_MAX_RATES + 1)),
 			GFP_KERNEL);
 	if (!rates) {
-		kfree(modes);
 		kfree(channels);
 		return -ENOMEM;
 	}
 
-	/* 0 = 802.11a
-	 * 1 = 802.11b
-	 * 2 = 802.11g
-	 */
-
 	/* 5.2GHz channels start after the 2.4GHz channels */
-	modes[A].mode = MODE_IEEE80211A;
-	modes[A].channels = &channels[ARRAY_SIZE(iwl3945_eeprom_band_1)];
-	modes[A].rates = &rates[4];
-	modes[A].num_rates = 8;	/* just OFDM */
-	modes[A].num_channels = 0;
+	band = &priv->bands[IEEE80211_BAND_5GHZ];
+	band->channels = &channels[ARRAY_SIZE(iwl3945_eeprom_band_1)];
+	band->bitrates = &rates[4];
+	band->n_bitrates = 8;	/* just OFDM */
 
-	modes[B].mode = MODE_IEEE80211B;
-	modes[B].channels = channels;
-	modes[B].rates = rates;
-	modes[B].num_rates = 4;	/* just CCK */
-	modes[B].num_channels = 0;
-
-	modes[G].mode = MODE_IEEE80211G;
-	modes[G].channels = channels;
-	modes[G].rates = rates;
-	modes[G].num_rates = 12;	/* OFDM & CCK */
-	modes[G].num_channels = 0;
+	band = &priv->bands[IEEE80211_BAND_2GHZ];
+	band->channels = channels;
+	band->bitrates = rates;
+	band->n_bitrates = 12;	/* OFDM & CCK */
 
 	priv->ieee_channels = channels;
 	priv->ieee_rates = rates;
@@ -5442,37 +5388,32 @@ static int iwl3945_init_geos(struct iwl3945_priv *priv)
 		}
 
 		if (is_channel_a_band(ch))
-			geo_ch = &modes[A].channels[modes[A].num_channels++];
-		else {
-			geo_ch = &modes[B].channels[modes[B].num_channels++];
-			modes[G].num_channels++;
-		}
+			geo_ch = &priv->bands[IEEE80211_BAND_5GHZ].channels[priv->bands[IEEE80211_BAND_5GHZ].n_channels++];
+		else
+			geo_ch = &priv->bands[IEEE80211_BAND_2GHZ].channels[priv->bands[IEEE80211_BAND_2GHZ].n_channels++];
 
-		geo_ch->freq = ieee80211chan2mhz(ch->channel);
-		geo_ch->chan = ch->channel;
-		geo_ch->power_level = ch->max_power_avg;
-		geo_ch->antenna_max = 0xff;
+		geo_ch->center_freq = ieee80211chan2mhz(ch->channel);
+		geo_ch->max_power = ch->max_power_avg;
+		geo_ch->max_antenna_gain = 0xff;
 
 		if (is_channel_valid(ch)) {
-			geo_ch->flag = IEEE80211_CHAN_W_SCAN;
-			if (ch->flags & EEPROM_CHANNEL_IBSS)
-				geo_ch->flag |= IEEE80211_CHAN_W_IBSS;
+			if (!(ch->flags & EEPROM_CHANNEL_IBSS))
+				geo_ch->flags |= IEEE80211_CHAN_NO_IBSS;
 
-			if (ch->flags & EEPROM_CHANNEL_ACTIVE)
-				geo_ch->flag |= IEEE80211_CHAN_W_ACTIVE_SCAN;
+			if (!(ch->flags & EEPROM_CHANNEL_ACTIVE))
+				geo_ch->flags |= IEEE80211_CHAN_PASSIVE_SCAN;
 
 			if (ch->flags & EEPROM_CHANNEL_RADAR)
-				geo_ch->flag |= IEEE80211_CHAN_W_RADAR_DETECT;
+				geo_ch->flags |= IEEE80211_CHAN_RADAR;
 
 			if (ch->max_power_avg > priv->max_channel_txpower_limit)
 				priv->max_channel_txpower_limit =
 				    ch->max_power_avg;
-		}
-
-		geo_ch->val = geo_ch->flag;
+		} else
+			geo_ch->flags |= IEEE80211_CHAN_DISABLED;
 	}
 
-	if ((modes[A].num_channels == 0) && priv->is_abg) {
+	if ((priv->bands[IEEE80211_BAND_5GHZ].n_channels == 0) && priv->is_abg) {
 		printk(KERN_INFO DRV_NAME
 		       ": Incorrectly detected BG card as ABG.  Please send "
 		       "your PCI ID 0x%04X:0x%04X to maintainer.\n",
@@ -5482,24 +5423,12 @@ static int iwl3945_init_geos(struct iwl3945_priv *priv)
 
 	printk(KERN_INFO DRV_NAME
 	       ": Tunable channels: %d 802.11bg, %d 802.11a channels\n",
-	       modes[G].num_channels, modes[A].num_channels);
+	       priv->bands[IEEE80211_BAND_2GHZ].n_channels,
+	       priv->bands[IEEE80211_BAND_5GHZ].n_channels);
 
-	/*
-	 * NOTE:  We register these in preference of order -- the
-	 * stack doesn't currently (as of 7.0.6 / Apr 24 '07) pick
-	 * a phymode based on rates or AP capabilities but seems to
-	 * configure it purely on if the channel being configured
-	 * is supported by a mode -- and the first match is taken
-	 */
+	priv->hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &priv->bands[IEEE80211_BAND_2GHZ];
+	priv->hw->wiphy->bands[IEEE80211_BAND_5GHZ] = &priv->bands[IEEE80211_BAND_5GHZ];
 
-	if (modes[G].num_channels)
-		ieee80211_register_hwmode(priv->hw, &modes[G]);
-	if (modes[B].num_channels)
-		ieee80211_register_hwmode(priv->hw, &modes[B]);
-	if (modes[A].num_channels)
-		ieee80211_register_hwmode(priv->hw, &modes[A]);
-
-	priv->modes = modes;
 	set_bit(STATUS_GEO_CONFIGURED, &priv->status);
 
 	return 0;
@@ -5510,7 +5439,6 @@ static int iwl3945_init_geos(struct iwl3945_priv *priv)
  */
 static void iwl3945_free_geos(struct iwl3945_priv *priv)
 {
-	kfree(priv->modes);
 	kfree(priv->ieee_channels);
 	kfree(priv->ieee_rates);
 	clear_bit(STATUS_GEO_CONFIGURED, &priv->status);
@@ -6519,7 +6447,7 @@ static void iwl3945_bg_request_scan(struct work_struct *data)
 	struct iwl3945_scan_cmd *scan;
 	struct ieee80211_conf *conf = NULL;
 	u8 direct_mask;
-	int phymode;
+	enum ieee80211_band band;
 
 	conf = ieee80211_get_hw_conf(priv->hw);
 
@@ -6651,13 +6579,13 @@ static void iwl3945_bg_request_scan(struct work_struct *data)
 		scan->flags = RXON_FLG_BAND_24G_MSK | RXON_FLG_AUTO_DETECT_MSK;
 		scan->tx_cmd.rate = IWL_RATE_1M_PLCP;
 		scan->good_CRC_th = 0;
-		phymode = MODE_IEEE80211G;
+		band = IEEE80211_BAND_2GHZ;
 		break;
 
 	case 1:
 		scan->tx_cmd.rate = IWL_RATE_6M_PLCP;
 		scan->good_CRC_th = IWL_GOOD_CRC_TH;
-		phymode = MODE_IEEE80211A;
+		band = IEEE80211_BAND_5GHZ;
 		break;
 
 	default:
@@ -6680,7 +6608,7 @@ static void iwl3945_bg_request_scan(struct work_struct *data)
 
 	scan->channel_count =
 		iwl3945_get_channels_for_scan(
-			priv, phymode, 1, /* active */
+			priv, band, 1, /* active */
 			direct_mask,
 			(void *)&scan->data[le16_to_cpu(scan->tx_cmd.len)]);
 
@@ -6825,7 +6753,7 @@ static void iwl3945_bg_post_associate(struct work_struct *data)
 		iwl3945_add_station(priv, iwl3945_broadcast_addr, 0, 0);
 		iwl3945_add_station(priv, priv->bssid, 0, 0);
 		iwl3945_sync_sta(priv, IWL_STA_ID,
-				 (priv->phymode == MODE_IEEE80211A)?
+				 (priv->band == IEEE80211_BAND_5GHZ) ?
 				 IWL_RATE_6M_PLCP : IWL_RATE_1M_PLCP,
 				 CMD_ASYNC);
 		iwl3945_rate_scale_init(priv->hw, IWL_STA_ID);
@@ -7020,7 +6948,7 @@ static int iwl3945_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	}
 
 	IWL_DEBUG_TX("dev->xmit(%d bytes) at rate 0x%02x\n", skb->len,
-		     ctl->tx_rate);
+		     ctl->tx_rate->bitrate);
 
 	if (iwl3945_tx_skb(priv, skb, ctl))
 		dev_kfree_skb_any(skb);
@@ -7079,7 +7007,7 @@ static int iwl3945_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *co
 	int ret = 0;
 
 	mutex_lock(&priv->mutex);
-	IWL_DEBUG_MAC80211("enter to channel %d\n", conf->channel);
+	IWL_DEBUG_MAC80211("enter to channel %d\n", conf->channel->hw_value);
 
 	priv->add_radiotap = !!(conf->flags & IEEE80211_CONF_RADIOTAP);
 
@@ -7099,19 +7027,20 @@ static int iwl3945_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *co
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	ch_info = iwl3945_get_channel_info(priv, conf->phymode, conf->channel);
+	ch_info = iwl3945_get_channel_info(priv, conf->channel->band,
+					   conf->channel->hw_value);
 	if (!is_channel_valid(ch_info)) {
 		IWL_DEBUG_SCAN("Channel %d [%d] is INVALID for this SKU.\n",
-			       conf->channel, conf->phymode);
+			       conf->channel->hw_value, conf->channel->band);
 		IWL_DEBUG_MAC80211("leave - invalid channel\n");
 		spin_unlock_irqrestore(&priv->lock, flags);
 		ret = -EINVAL;
 		goto out;
 	}
 
-	iwl3945_set_rxon_channel(priv, conf->phymode, conf->channel);
+	iwl3945_set_rxon_channel(priv, conf->channel->band, conf->channel->hw_value);
 
-	iwl3945_set_flags_for_phymode(priv, conf->phymode);
+	iwl3945_set_flags_for_phymode(priv, conf->channel->band);
 
 	/* The list of supported rates and rate mask can be different
 	 * for each phymode; since the phymode may have changed, reset
@@ -7892,65 +7821,6 @@ static ssize_t store_filter_flags(struct device *d,
 static DEVICE_ATTR(filter_flags, S_IWUSR | S_IRUGO, show_filter_flags,
 		   store_filter_flags);
 
-static ssize_t show_tune(struct device *d,
-			 struct device_attribute *attr, char *buf)
-{
-	struct iwl3945_priv *priv = (struct iwl3945_priv *)d->driver_data;
-
-	return sprintf(buf, "0x%04X\n",
-		       (priv->phymode << 8) |
-			le16_to_cpu(priv->active_rxon.channel));
-}
-
-static void iwl3945_set_flags_for_phymode(struct iwl3945_priv *priv, u8 phymode);
-
-static ssize_t store_tune(struct device *d,
-			  struct device_attribute *attr,
-			  const char *buf, size_t count)
-{
-	struct iwl3945_priv *priv = (struct iwl3945_priv *)d->driver_data;
-	char *p = (char *)buf;
-	u16 tune = simple_strtoul(p, &p, 0);
-	u8 phymode = (tune >> 8) & 0xff;
-	u16 channel = tune & 0xff;
-
-	IWL_DEBUG_INFO("Tune request to:%d channel:%d\n", phymode, channel);
-
-	mutex_lock(&priv->mutex);
-	if ((le16_to_cpu(priv->staging_rxon.channel) != channel) ||
-	    (priv->phymode != phymode)) {
-		const struct iwl3945_channel_info *ch_info;
-
-		ch_info = iwl3945_get_channel_info(priv, phymode, channel);
-		if (!ch_info) {
-			IWL_WARNING("Requested invalid phymode/channel "
-				    "combination: %d %d\n", phymode, channel);
-			mutex_unlock(&priv->mutex);
-			return -EINVAL;
-		}
-
-		/* Cancel any currently running scans... */
-		if (iwl3945_scan_cancel_timeout(priv, 100))
-			IWL_WARNING("Could not cancel scan.\n");
-		else {
-			IWL_DEBUG_INFO("Committing phymode and "
-				       "rxon.channel = %d %d\n",
-				       phymode, channel);
-
-			iwl3945_set_rxon_channel(priv, phymode, channel);
-			iwl3945_set_flags_for_phymode(priv, phymode);
-
-			iwl3945_set_rate(priv);
-			iwl3945_commit_rxon(priv);
-		}
-	}
-	mutex_unlock(&priv->mutex);
-
-	return count;
-}
-
-static DEVICE_ATTR(tune, S_IWUSR | S_IRUGO, show_tune, store_tune);
-
 #ifdef CONFIG_IWL3945_SPECTRUM_MEASUREMENT
 
 static ssize_t show_measurement(struct device *d,
@@ -8165,73 +8035,8 @@ static DEVICE_ATTR(power_level, S_IWUSR | S_IRUSR, show_power_level,
 static ssize_t show_channels(struct device *d,
 			     struct device_attribute *attr, char *buf)
 {
-	struct iwl3945_priv *priv = dev_get_drvdata(d);
-	int len = 0, i;
-	struct ieee80211_channel *channels = NULL;
-	const struct ieee80211_hw_mode *hw_mode = NULL;
-	int count = 0;
-
-	if (!iwl3945_is_ready(priv))
-		return -EAGAIN;
-
-	hw_mode = iwl3945_get_hw_mode(priv, MODE_IEEE80211G);
-	if (!hw_mode)
-		hw_mode = iwl3945_get_hw_mode(priv, MODE_IEEE80211B);
-	if (hw_mode) {
-		channels = hw_mode->channels;
-		count = hw_mode->num_channels;
-	}
-
-	len +=
-	    sprintf(&buf[len],
-		    "Displaying %d channels in 2.4GHz band "
-		    "(802.11bg):\n", count);
-
-	for (i = 0; i < count; i++)
-		len += sprintf(&buf[len], "%d: %ddBm: BSS%s%s, %s.\n",
-			       channels[i].chan,
-			       channels[i].power_level,
-			       channels[i].
-			       flag & IEEE80211_CHAN_W_RADAR_DETECT ?
-			       " (IEEE 802.11h required)" : "",
-			       (!(channels[i].flag & IEEE80211_CHAN_W_IBSS)
-				|| (channels[i].
-				    flag &
-				    IEEE80211_CHAN_W_RADAR_DETECT)) ? "" :
-			       ", IBSS",
-			       channels[i].
-			       flag & IEEE80211_CHAN_W_ACTIVE_SCAN ?
-			       "active/passive" : "passive only");
-
-	hw_mode = iwl3945_get_hw_mode(priv, MODE_IEEE80211A);
-	if (hw_mode) {
-		channels = hw_mode->channels;
-		count = hw_mode->num_channels;
-	} else {
-		channels = NULL;
-		count = 0;
-	}
-
-	len += sprintf(&buf[len], "Displaying %d channels in 5.2GHz band "
-		       "(802.11a):\n", count);
-
-	for (i = 0; i < count; i++)
-		len += sprintf(&buf[len], "%d: %ddBm: BSS%s%s, %s.\n",
-			       channels[i].chan,
-			       channels[i].power_level,
-			       channels[i].
-			       flag & IEEE80211_CHAN_W_RADAR_DETECT ?
-			       " (IEEE 802.11h required)" : "",
-			       (!(channels[i].flag & IEEE80211_CHAN_W_IBSS)
-				|| (channels[i].
-				    flag &
-				    IEEE80211_CHAN_W_RADAR_DETECT)) ? "" :
-			       ", IBSS",
-			       channels[i].
-			       flag & IEEE80211_CHAN_W_ACTIVE_SCAN ?
-			       "active/passive" : "passive only");
-
-	return len;
+	/* all this shit doesn't belong into sysfs anyway */
+	return 0;
 }
 
 static DEVICE_ATTR(channels, S_IRUSR, show_channels, NULL);
@@ -8411,7 +8216,6 @@ static struct attribute *iwl3945_sysfs_entries[] = {
 	&dev_attr_statistics.attr,
 	&dev_attr_status.attr,
 	&dev_attr_temperature.attr,
-	&dev_attr_tune.attr,
 	&dev_attr_tx_power.attr,
 
 	NULL
@@ -8532,7 +8336,7 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	priv->data_retry_limit = -1;
 	priv->ieee_channels = NULL;
 	priv->ieee_rates = NULL;
-	priv->phymode = -1;
+	priv->band = IEEE80211_BAND_2GHZ;
 
 	err = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
 	if (!err)
@@ -8614,7 +8418,7 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	priv->qos_data.qos_cap.val = 0;
 #endif /* CONFIG_IWL3945_QOS */
 
-	iwl3945_set_rxon_channel(priv, MODE_IEEE80211G, 6);
+	iwl3945_set_rxon_channel(priv, IEEE80211_BAND_2GHZ, 6);
 	iwl3945_setup_deferred_work(priv);
 	iwl3945_setup_rx_handlers(priv);
 
@@ -8665,7 +8469,6 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 		IWL_ERROR("initializing geos failed: %d\n", err);
 		goto out_free_channel_map;
 	}
-	iwl3945_reset_channel_flag(priv);
 
 	iwl3945_rate_control_register(priv->hw);
 	err = ieee80211_register_hw(priv->hw);

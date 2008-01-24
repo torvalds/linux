@@ -426,12 +426,12 @@ static void rt61pci_config_antenna_5x(struct rt2x00_dev *rt2x00dev,
 	case ANTENNA_HW_DIVERSITY:
 		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA_CONTROL, 2);
 		rt2x00_set_field8(&r4, BBP_R4_RX_FRAME_END,
-				  (rt2x00dev->curr_hwmode != HWMODE_A));
+				  (rt2x00dev->curr_band != IEEE80211_BAND_5GHZ));
 		break;
 	case ANTENNA_A:
 		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA_CONTROL, 1);
 		rt2x00_set_field8(&r4, BBP_R4_RX_FRAME_END, 0);
-		if (rt2x00dev->curr_hwmode == HWMODE_A)
+		if (rt2x00dev->curr_band == IEEE80211_BAND_5GHZ)
 			rt2x00_set_field8(&r77, BBP_R77_RX_ANTENNA, 0);
 		else
 			rt2x00_set_field8(&r77, BBP_R77_RX_ANTENNA, 3);
@@ -446,7 +446,7 @@ static void rt61pci_config_antenna_5x(struct rt2x00_dev *rt2x00dev,
 	case ANTENNA_B:
 		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA_CONTROL, 1);
 		rt2x00_set_field8(&r4, BBP_R4_RX_FRAME_END, 0);
-		if (rt2x00dev->curr_hwmode == HWMODE_A)
+		if (rt2x00dev->curr_band == IEEE80211_BAND_5GHZ)
 			rt2x00_set_field8(&r77, BBP_R77_RX_ANTENNA, 3);
 		else
 			rt2x00_set_field8(&r77, BBP_R77_RX_ANTENNA, 0);
@@ -602,7 +602,7 @@ static void rt61pci_config_antenna(struct rt2x00_dev *rt2x00dev,
 	unsigned int i;
 	u32 reg;
 
-	if (rt2x00dev->curr_hwmode == HWMODE_A) {
+	if (rt2x00dev->curr_band == IEEE80211_BAND_5GHZ) {
 		sel = antenna_sel_a;
 		lna = test_bit(CONFIG_EXTERNAL_LNA_A, &rt2x00dev->flags);
 	} else {
@@ -616,10 +616,9 @@ static void rt61pci_config_antenna(struct rt2x00_dev *rt2x00dev,
 	rt2x00pci_register_read(rt2x00dev, PHY_CSR0, &reg);
 
 	rt2x00_set_field32(&reg, PHY_CSR0_PA_PE_BG,
-			   (rt2x00dev->curr_hwmode == HWMODE_B ||
-			    rt2x00dev->curr_hwmode == HWMODE_G));
+			   rt2x00dev->curr_band == IEEE80211_BAND_2GHZ);
 	rt2x00_set_field32(&reg, PHY_CSR0_PA_PE_A,
-			   (rt2x00dev->curr_hwmode == HWMODE_A));
+			   rt2x00dev->curr_band == IEEE80211_BAND_5GHZ);
 
 	rt2x00pci_register_write(rt2x00dev, PHY_CSR0, reg);
 
@@ -698,9 +697,9 @@ static void rt61pci_enable_led(struct rt2x00_dev *rt2x00dev)
 
 	rt2x00_set_field16(&rt2x00dev->led_reg, MCU_LEDCS_RADIO_STATUS, 1);
 	rt2x00_set_field16(&rt2x00dev->led_reg, MCU_LEDCS_LINK_A_STATUS,
-			   (rt2x00dev->rx_status.phymode == MODE_IEEE80211A));
+			   rt2x00dev->rx_status.band == IEEE80211_BAND_5GHZ);
 	rt2x00_set_field16(&rt2x00dev->led_reg, MCU_LEDCS_LINK_BG_STATUS,
-			   (rt2x00dev->rx_status.phymode != MODE_IEEE80211A));
+			   rt2x00dev->rx_status.band != IEEE80211_BAND_5GHZ);
 
 	arg0 = rt2x00dev->led_reg & 0xff;
 	arg1 = (rt2x00dev->led_reg >> 8) & 0xff;
@@ -798,7 +797,7 @@ static void rt61pci_link_tuner(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Determine r17 bounds.
 	 */
-	if (rt2x00dev->rx_status.phymode == MODE_IEEE80211A) {
+	if (rt2x00dev->rx_status.band == IEEE80211_BAND_2GHZ) {
 		low_bound = 0x28;
 		up_bound = 0x48;
 		if (test_bit(CONFIG_EXTERNAL_LNA_A, &rt2x00dev->flags)) {
@@ -1544,8 +1543,10 @@ static void rt61pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	rt2x00_desc_write(txd, 2, word);
 
 	rt2x00_desc_read(txd, 5, &word);
+/* XXX: removed for now
 	rt2x00_set_field32(&word, TXD_W5_TX_POWER,
 			   TXPOWER_TO_DEV(control->power_level));
+ */
 	rt2x00_set_field32(&word, TXD_W5_WAITING_DMA_DONE_INT, 1);
 	rt2x00_desc_write(txd, 5, word);
 
@@ -1637,7 +1638,7 @@ static int rt61pci_agc_to_rssi(struct rt2x00_dev *rt2x00dev, int rxd_w1)
 		return 0;
 	}
 
-	if (rt2x00dev->rx_status.phymode == MODE_IEEE80211A) {
+	if (rt2x00dev->rx_status.band == IEEE80211_BAND_5GHZ) {
 		if (test_bit(CONFIG_EXTERNAL_LNA_A, &rt2x00dev->flags))
 			offset += 14;
 

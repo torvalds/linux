@@ -392,10 +392,6 @@ struct b43legacy_phy {
 	u8 possible_phymodes;
 	/* GMODE bit enabled in MACCTL? */
 	bool gmode;
-	/* Possible ieee80211 subsystem hwmodes for this PHY.
-	 * Which mode is selected, depends on thr GMODE enabled bit */
-#define B43legacy_MAX_PHYHWMODES	2
-	struct ieee80211_hw_mode hwmodes[B43legacy_MAX_PHYHWMODES];
 
 	/* Analog Type */
 	u8 analog;

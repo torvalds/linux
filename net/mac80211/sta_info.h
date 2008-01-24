@@ -133,10 +133,11 @@ struct sta_info {
 	unsigned int wep_weak_iv_count; /* number of RX frames with weak IV */
 
 	unsigned long last_rx;
-	u32 supp_rates; /* bitmap of supported rates in local->curr_rates */
-	int txrate; /* index in local->curr_rates */
-	int last_txrate; /* last rate used to send a frame to this STA */
-	int last_nonerp_idx;
+	/* bitmap of supported rates per band */
+	u64 supp_rates[IEEE80211_NUM_BANDS];
+	int txrate_idx;
+	/* last rates used to send a frame to this STA */
+	int last_txrate_idx, last_nonerp_txrate_idx;
 
 	struct net_device *dev; /* which net device is this station associated
 				 * to */
@@ -222,7 +223,6 @@ static inline void __sta_info_get(struct sta_info *sta)
 }
 
 struct sta_info * sta_info_get(struct ieee80211_local *local, u8 *addr);
-int sta_info_min_txrate_get(struct ieee80211_local *local);
 void sta_info_put(struct sta_info *sta);
 struct sta_info * sta_info_add(struct ieee80211_local *local,
 			       struct net_device *dev, u8 *addr, gfp_t gfp);

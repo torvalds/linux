@@ -18,6 +18,7 @@
 #include "ieee80211_i.h"
 #include "sta_info.h"
 
+/* TODO: kdoc */
 struct rate_selection {
 	/* Selected transmission rate */
 	struct ieee80211_rate *rate;
@@ -34,7 +35,8 @@ struct rate_control_ops {
 			  struct sk_buff *skb,
 			  struct ieee80211_tx_status *status);
 	void (*get_rate)(void *priv, struct net_device *dev,
-			 struct ieee80211_hw_mode *mode, struct sk_buff *skb,
+			 struct ieee80211_supported_band *band,
+			 struct sk_buff *skb,
 			 struct rate_selection *sel);
 	void (*rate_init)(void *priv, void *priv_sta,
 			  struct ieee80211_local *local, struct sta_info *sta);
@@ -66,7 +68,8 @@ void ieee80211_rate_control_unregister(struct rate_control_ops *ops);
 struct rate_control_ref *rate_control_alloc(const char *name,
 					    struct ieee80211_local *local);
 void rate_control_get_rate(struct net_device *dev,
-			   struct ieee80211_hw_mode *mode, struct sk_buff *skb,
+			   struct ieee80211_supported_band *sband,
+			   struct sk_buff *skb,
 			   struct rate_selection *sel);
 struct rate_control_ref *rate_control_get(struct rate_control_ref *ref);
 void rate_control_put(struct rate_control_ref *ref);
@@ -127,23 +130,23 @@ static inline void rate_control_remove_sta_debugfs(struct sta_info *sta)
 #endif
 }
 
-static inline int
-rate_supported(struct sta_info *sta, struct ieee80211_hw_mode *mode, int index)
+static inline int rate_supported(struct sta_info *sta,
+				 enum ieee80211_band band,
+				 int index)
 {
-	return (sta == NULL || sta->supp_rates & BIT(index)) &&
-	       (mode->rates[index].flags & IEEE80211_RATE_SUPPORTED);
+	return (sta == NULL || sta->supp_rates[band] & BIT(index));
 }
 
 static inline int
-rate_lowest_index(struct ieee80211_local *local, struct ieee80211_hw_mode *mode,
+rate_lowest_index(struct ieee80211_local *local,
+		  struct ieee80211_supported_band *sband,
 		  struct sta_info *sta)
 {
 	int i;
 
-	for (i = 0; i < mode->num_rates; i++) {
-		if (rate_supported(sta, mode, i))
+	for (i = 0; i < sband->n_bitrates; i++)
+		if (rate_supported(sta, sband->band, i))
 			return i;
-	}
 
 	/* warn when we cannot find a rate. */
 	WARN_ON(1);
@@ -152,10 +155,11 @@ rate_lowest_index(struct ieee80211_local *local, struct ieee80211_hw_mode *mode,
 }
 
 static inline struct ieee80211_rate *
-rate_lowest(struct ieee80211_local *local, struct ieee80211_hw_mode *mode,
+rate_lowest(struct ieee80211_local *local,
+	    struct ieee80211_supported_band *sband,
 	    struct sta_info *sta)
 {
-	return &mode->rates[rate_lowest_index(local, mode, sta)];
+	return &sband->bitrates[rate_lowest_index(local, sband, sta)];
 }
 
 

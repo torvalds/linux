@@ -74,30 +74,6 @@ struct sta_info *sta_info_get(struct ieee80211_local *local, u8 *addr)
 }
 EXPORT_SYMBOL(sta_info_get);
 
-int sta_info_min_txrate_get(struct ieee80211_local *local)
-{
-	struct sta_info *sta;
-	struct ieee80211_hw_mode *mode;
-	int min_txrate = 9999999;
-	int i;
-
-	read_lock_bh(&local->sta_lock);
-	mode = local->oper_hw_mode;
-	for (i = 0; i < STA_HASH_SIZE; i++) {
-		sta = local->sta_hash[i];
-		while (sta) {
-			if (sta->txrate < min_txrate)
-				min_txrate = sta->txrate;
-			sta = sta->hnext;
-		}
-	}
-	read_unlock_bh(&local->sta_lock);
-	if (min_txrate == 9999999)
-		min_txrate = 0;
-
-	return mode->rates[min_txrate].rate;
-}
-
 
 static void sta_info_release(struct kref *kref)
 {

@@ -468,10 +468,6 @@ struct b43_phy {
 	u8 possible_phymodes;
 	/* GMODE bit enabled? */
 	bool gmode;
-	/* Possible ieee80211 subsystem hwmodes for this PHY.
-	 * Which mode is selected, depends on thr GMODE enabled bit */
-#define B43_MAX_PHYHWMODES	2
-	struct ieee80211_hw_mode hwmodes[B43_MAX_PHYHWMODES];
 
 	/* Analog Type */
 	u8 analog;
@@ -727,7 +723,6 @@ struct b43_wldev {
 
 	bool bad_frames_preempt;	/* Use "Bad Frames Preemption" (default off) */
 	bool dfq_valid;		/* Directed frame queue valid (IBSS PS mode, ATIM) */
-	bool short_preamble;	/* TRUE, if short preamble is enabled. */
 	bool short_slot;	/* TRUE, if short slot timing is enabled. */
 	bool radio_hw_enable;	/* saved state of radio hardware enabled state */
 	bool suspend_in_progress;	/* TRUE, if we are in a suspend/resume cycle */

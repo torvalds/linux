@@ -118,6 +118,8 @@ void ieee80211_if_set_type(struct net_device *dev, int type)
 	sdata->bss = NULL;
 	sdata->vif.type = type;
 
+	sdata->basic_rates = 0;
+
 	switch (type) {
 	case IEEE80211_IF_TYPE_WDS:
 		/* nothing special */

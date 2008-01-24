@@ -64,10 +64,6 @@ struct p54_common {
 	unsigned int tx_hdr_len;
 	void *cached_vdcf;
 	unsigned int fw_var;
-	/* FIXME: this channels/modes/rates stuff sucks */
-	struct ieee80211_channel channels[14];
-	struct ieee80211_rate rates[12];
-	struct ieee80211_hw_mode modes[2];
 	struct ieee80211_tx_queue_stats tx_stats;
 };
 

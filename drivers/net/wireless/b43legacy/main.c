@@ -95,28 +95,29 @@ MODULE_DEVICE_TABLE(ssb, b43legacy_ssb_tbl);
  * data in there. This data is the same for all devices, so we don't
  * get concurrency issues */
 #define RATETAB_ENT(_rateid, _flags) \
-	{							\
-		.rate	= B43legacy_RATE_TO_100KBPS(_rateid),	\
-		.val	= (_rateid),				\
-		.val2	= (_rateid),				\
-		.flags	= (_flags),				\
+	{								\
+		.bitrate	= B43legacy_RATE_TO_100KBPS(_rateid),	\
+		.hw_value	= (_rateid),				\
+		.flags		= (_flags),				\
 	}
+/*
+ * NOTE: When changing this, sync with xmit.c's
+ *	 b43legacy_plcp_get_bitrate_idx_* functions!
+ */
 static struct ieee80211_rate __b43legacy_ratetable[] = {
-	RATETAB_ENT(B43legacy_CCK_RATE_1MB, IEEE80211_RATE_CCK),
-	RATETAB_ENT(B43legacy_CCK_RATE_2MB, IEEE80211_RATE_CCK_2),
-	RATETAB_ENT(B43legacy_CCK_RATE_5MB, IEEE80211_RATE_CCK_2),
-	RATETAB_ENT(B43legacy_CCK_RATE_11MB, IEEE80211_RATE_CCK_2),
-	RATETAB_ENT(B43legacy_OFDM_RATE_6MB, IEEE80211_RATE_OFDM),
-	RATETAB_ENT(B43legacy_OFDM_RATE_9MB, IEEE80211_RATE_OFDM),
-	RATETAB_ENT(B43legacy_OFDM_RATE_12MB, IEEE80211_RATE_OFDM),
-	RATETAB_ENT(B43legacy_OFDM_RATE_18MB, IEEE80211_RATE_OFDM),
-	RATETAB_ENT(B43legacy_OFDM_RATE_24MB, IEEE80211_RATE_OFDM),
-	RATETAB_ENT(B43legacy_OFDM_RATE_36MB, IEEE80211_RATE_OFDM),
-	RATETAB_ENT(B43legacy_OFDM_RATE_48MB, IEEE80211_RATE_OFDM),
-	RATETAB_ENT(B43legacy_OFDM_RATE_54MB, IEEE80211_RATE_OFDM),
+	RATETAB_ENT(B43legacy_CCK_RATE_1MB, 0),
+	RATETAB_ENT(B43legacy_CCK_RATE_2MB, IEEE80211_RATE_SHORT_PREAMBLE),
+	RATETAB_ENT(B43legacy_CCK_RATE_5MB, IEEE80211_RATE_SHORT_PREAMBLE),
+	RATETAB_ENT(B43legacy_CCK_RATE_11MB, IEEE80211_RATE_SHORT_PREAMBLE),
+	RATETAB_ENT(B43legacy_OFDM_RATE_6MB, 0),
+	RATETAB_ENT(B43legacy_OFDM_RATE_9MB, 0),
+	RATETAB_ENT(B43legacy_OFDM_RATE_12MB, 0),
+	RATETAB_ENT(B43legacy_OFDM_RATE_18MB, 0),
+	RATETAB_ENT(B43legacy_OFDM_RATE_24MB, 0),
+	RATETAB_ENT(B43legacy_OFDM_RATE_36MB, 0),
+	RATETAB_ENT(B43legacy_OFDM_RATE_48MB, 0),
+	RATETAB_ENT(B43legacy_OFDM_RATE_54MB, 0),
 };
-#define b43legacy_a_ratetable		(__b43legacy_ratetable + 4)
-#define b43legacy_a_ratetable_size	8
 #define b43legacy_b_ratetable		(__b43legacy_ratetable + 0)
 #define b43legacy_b_ratetable_size	4
 #define b43legacy_g_ratetable		(__b43legacy_ratetable + 0)
@@ -124,14 +125,8 @@ static struct ieee80211_rate __b43legacy_ratetable[] = {
 
 #define CHANTAB_ENT(_chanid, _freq) \
 	{							\
-		.chan	= (_chanid),				\
-		.freq	= (_freq),				\
-		.val	= (_chanid),				\
-		.flag	= IEEE80211_CHAN_W_SCAN |		\
-			  IEEE80211_CHAN_W_ACTIVE_SCAN |	\
-			  IEEE80211_CHAN_W_IBSS,		\
-		.power_level	= 0x0A,				\
-		.antenna_max	= 0xFF,				\
+		.center_freq	= (_freq),			\
+		.hw_value	= (_chanid),			\
 	}
 static struct ieee80211_channel b43legacy_bg_chantable[] = {
 	CHANTAB_ENT(1, 2412),
@@ -149,7 +144,20 @@ static struct ieee80211_channel b43legacy_bg_chantable[] = {
 	CHANTAB_ENT(13, 2472),
 	CHANTAB_ENT(14, 2484),
 };
-#define b43legacy_bg_chantable_size	ARRAY_SIZE(b43legacy_bg_chantable)
+
+static struct ieee80211_supported_band b43legacy_band_2GHz_BPHY = {
+	.channels = b43legacy_bg_chantable,
+	.n_channels = ARRAY_SIZE(b43legacy_bg_chantable),
+	.bitrates = b43legacy_b_ratetable,
+	.n_bitrates = b43legacy_b_ratetable_size,
+};
+
+static struct ieee80211_supported_band b43legacy_band_2GHz_GPHY = {
+	.channels = b43legacy_bg_chantable,
+	.n_channels = ARRAY_SIZE(b43legacy_bg_chantable),
+	.bitrates = b43legacy_g_ratetable,
+	.n_bitrates = b43legacy_g_ratetable_size,
+};
 
 static void b43legacy_wireless_core_exit(struct b43legacy_wldev *dev);
 static int b43legacy_wireless_core_init(struct b43legacy_wldev *dev);
@@ -969,18 +977,18 @@ static void b43legacy_write_beacon_template(struct b43legacy_wldev *dev,
 
 static void b43legacy_write_probe_resp_plcp(struct b43legacy_wldev *dev,
 					    u16 shm_offset, u16 size,
-					    u8 rate)
+					    struct ieee80211_rate *rate)
 {
 	struct b43legacy_plcp_hdr4 plcp;
 	u32 tmp;
 	__le16 dur;
 
 	plcp.data = 0;
-	b43legacy_generate_plcp_hdr(&plcp, size + FCS_LEN, rate);
+	b43legacy_generate_plcp_hdr(&plcp, size + FCS_LEN, rate->bitrate);
 	dur = ieee80211_generic_frame_duration(dev->wl->hw,
 					       dev->wl->vif,
 					       size,
-					       B43legacy_RATE_TO_100KBPS(rate));
+					       rate);
 	/* Write PLCP in two parts and timing for packet transfer */
 	tmp = le32_to_cpu(plcp.data);
 	b43legacy_shm_write16(dev, B43legacy_SHM_SHARED, shm_offset,
@@ -998,7 +1006,8 @@ static void b43legacy_write_probe_resp_plcp(struct b43legacy_wldev *dev,
  * 3) Stripping TIM
  */
 static u8 *b43legacy_generate_probe_resp(struct b43legacy_wldev *dev,
-					 u16 *dest_size, u8 rate)
+					 u16 *dest_size,
+					 struct ieee80211_rate *rate)
 {
 	const u8 *src_data;
 	u8 *dest_data;
@@ -1046,7 +1055,7 @@ static u8 *b43legacy_generate_probe_resp(struct b43legacy_wldev *dev,
 	dur = ieee80211_generic_frame_duration(dev->wl->hw,
 					       dev->wl->vif,
 					       *dest_size,
-					       B43legacy_RATE_TO_100KBPS(rate));
+					       rate);
 	hdr->duration_id = dur;
 
 	return dest_data;
@@ -1054,7 +1063,8 @@ static u8 *b43legacy_generate_probe_resp(struct b43legacy_wldev *dev,
 
 static void b43legacy_write_probe_resp_template(struct b43legacy_wldev *dev,
 						u16 ram_offset,
-						u16 shm_size_offset, u8 rate)
+						u16 shm_size_offset,
+						struct ieee80211_rate *rate)
 {
 	u8 *probe_resp_data;
 	u16 size;
@@ -1069,19 +1079,19 @@ static void b43legacy_write_probe_resp_template(struct b43legacy_wldev *dev,
 	 * all possible basic rates
 	 */
 	b43legacy_write_probe_resp_plcp(dev, 0x31A, size,
-					B43legacy_CCK_RATE_1MB);
+					&b43legacy_b_ratetable[0]);
 	b43legacy_write_probe_resp_plcp(dev, 0x32C, size,
-					B43legacy_CCK_RATE_2MB);
+					&b43legacy_b_ratetable[1]);
 	b43legacy_write_probe_resp_plcp(dev, 0x33E, size,
-					B43legacy_CCK_RATE_5MB);
+					&b43legacy_b_ratetable[2]);
 	b43legacy_write_probe_resp_plcp(dev, 0x350, size,
-					B43legacy_CCK_RATE_11MB);
+					&b43legacy_b_ratetable[3]);
 
 	size = min((size_t)size,
 		   0x200 - sizeof(struct b43legacy_plcp_hdr6));
 	b43legacy_write_template_common(dev, probe_resp_data,
 					size, ram_offset,
-					shm_size_offset, rate);
+					shm_size_offset, rate->bitrate);
 	kfree(probe_resp_data);
 }
 
@@ -1106,7 +1116,7 @@ static void b43legacy_update_templates(struct b43legacy_wldev *dev)
 	b43legacy_write_beacon_template(dev, 0x468, 0x1A,
 					B43legacy_CCK_RATE_1MB);
 	b43legacy_write_probe_resp_template(dev, 0x268, 0x4A,
-					    B43legacy_CCK_RATE_11MB);
+					    &b43legacy_b_ratetable[0]);
 
 	status = b43legacy_read32(dev, B43legacy_MMIO_MACCMD);
 	status |= 0x03;
@@ -2550,14 +2560,16 @@ static int b43legacy_op_dev_config(struct ieee80211_hw *hw,
 	antenna_rx = b43legacy_antenna_from_ieee80211(conf->antenna_sel_rx);
 
 	mutex_lock(&wl->mutex);
+	dev = wl->current_dev;
+	phy = &dev->phy;
 
 	/* Switch the PHY mode (if necessary). */
-	switch (conf->phymode) {
-	case MODE_IEEE80211B:
-		new_phymode = B43legacy_PHYMODE_B;
-		break;
-	case MODE_IEEE80211G:
-		new_phymode = B43legacy_PHYMODE_G;
+	switch (conf->channel->band) {
+	case IEEE80211_BAND_2GHZ:
+		if (phy->type == B43legacy_PHYTYPE_B)
+			new_phymode = B43legacy_PHYMODE_B;
+		else
+			new_phymode = B43legacy_PHYMODE_G;
 		break;
 	default:
 		B43legacy_WARN_ON(1);
@@ -2565,8 +2577,6 @@ static int b43legacy_op_dev_config(struct ieee80211_hw *hw,
 	err = b43legacy_switch_phymode(wl, new_phymode);
 	if (err)
 		goto out_unlock_mutex;
-	dev = wl->current_dev;
-	phy = &dev->phy;
 
 	/* Disable IRQs while reconfiguring the device.
 	 * This makes it possible to drop the spinlock throughout
@@ -2582,8 +2592,8 @@ static int b43legacy_op_dev_config(struct ieee80211_hw *hw,
 
 	/* Switch to the requested channel.
 	 * The firmware takes care of races with the TX handler. */
-	if (conf->channel_val != phy->channel)
-		b43legacy_radio_selectchannel(dev, conf->channel_val, 0);
+	if (conf->channel->hw_value != phy->channel)
+		b43legacy_radio_selectchannel(dev, conf->channel->hw_value, 0);
 
 	/* Enable/Disable ShortSlot timing. */
 	if ((!!(conf->flags & IEEE80211_CONF_SHORT_SLOT_TIME))
@@ -3398,48 +3408,19 @@ static int b43legacy_setup_modes(struct b43legacy_wldev *dev,
 				 int have_gphy)
 {
 	struct ieee80211_hw *hw = dev->wl->hw;
-	struct ieee80211_hw_mode *mode;
 	struct b43legacy_phy *phy = &dev->phy;
-	int cnt = 0;
-	int err;
 
 	phy->possible_phymodes = 0;
-	for (; 1; cnt++) {
-		if (have_bphy) {
-			B43legacy_WARN_ON(cnt >= B43legacy_MAX_PHYHWMODES);
-			mode = &phy->hwmodes[cnt];
+	if (have_bphy) {
+		hw->wiphy->bands[IEEE80211_BAND_2GHZ] =
+			&b43legacy_band_2GHz_BPHY;
+		phy->possible_phymodes |= B43legacy_PHYMODE_B;
+	}
 
-			mode->mode = MODE_IEEE80211B;
-			mode->num_channels = b43legacy_bg_chantable_size;
-			mode->channels = b43legacy_bg_chantable;
-			mode->num_rates = b43legacy_b_ratetable_size;
-			mode->rates = b43legacy_b_ratetable;
-			err = ieee80211_register_hwmode(hw, mode);
-			if (err)
-				return err;
-
-			phy->possible_phymodes |= B43legacy_PHYMODE_B;
-			have_bphy = 0;
-			continue;
-		}
-		if (have_gphy) {
-			B43legacy_WARN_ON(cnt >= B43legacy_MAX_PHYHWMODES);
-			mode = &phy->hwmodes[cnt];
-
-			mode->mode = MODE_IEEE80211G;
-			mode->num_channels = b43legacy_bg_chantable_size;
-			mode->channels = b43legacy_bg_chantable;
-			mode->num_rates = b43legacy_g_ratetable_size;
-			mode->rates = b43legacy_g_ratetable;
-			err = ieee80211_register_hwmode(hw, mode);
-			if (err)
-				return err;
-
-			phy->possible_phymodes |= B43legacy_PHYMODE_G;
-			have_gphy = 0;
-			continue;
-		}
-		break;
+	if (have_gphy) {
+		hw->wiphy->bands[IEEE80211_BAND_2GHZ] =
+			&b43legacy_band_2GHz_GPHY;
+		phy->possible_phymodes |= B43legacy_PHYMODE_G;
 	}
 
 	return 0;

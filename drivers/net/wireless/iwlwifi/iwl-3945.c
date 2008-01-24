@@ -247,7 +247,7 @@ static void iwl3945_add_radiotap(struct iwl3945_priv *priv,
 	 * the information provided in the skb from the hardware */
 	s8 signal = stats->ssi;
 	s8 noise = 0;
-	int rate = stats->rate;
+	int rate = stats->rate_idx;
 	u64 tsf = stats->mactime;
 	__le16 phy_flags_hw = rx_hdr->phy_flags;
 
@@ -315,7 +315,6 @@ static void iwl3945_add_radiotap(struct iwl3945_priv *priv,
 					  IEEE80211_CHAN_2GHZ),
 			      &iwl3945_rt->rt_chbitmask);
 
-	rate = iwl3945_rate_index_from_plcp(rate);
 	if (rate == -1)
 		iwl3945_rt->rt_rate = 0;
 	else
@@ -387,11 +386,10 @@ static void iwl3945_rx_reply_rx(struct iwl3945_priv *priv,
 	struct ieee80211_rx_status stats = {
 		.mactime = le64_to_cpu(rx_end->timestamp),
 		.freq = ieee80211chan2mhz(le16_to_cpu(rx_hdr->channel)),
-		.channel = le16_to_cpu(rx_hdr->channel),
-		.phymode = (rx_hdr->phy_flags & RX_RES_PHY_FLAGS_BAND_24_MSK) ?
-		MODE_IEEE80211G : MODE_IEEE80211A,
+		.band = (rx_hdr->phy_flags & RX_RES_PHY_FLAGS_BAND_24_MSK) ?
+		IEEE80211_BAND_2GHZ : IEEE80211_BAND_5GHZ,
 		.antenna = 0,
-		.rate = rx_hdr->rate,
+		.rate_idx = iwl3945_rate_index_from_plcp(rx_hdr->rate),
 		.flag = 0,
 	};
 	u8 network_packet;
@@ -450,8 +448,6 @@ static void iwl3945_rx_reply_rx(struct iwl3945_priv *priv,
 			stats.ssi, stats.noise, stats.signal,
 			rx_stats_sig_avg, rx_stats_noise_diff);
 
-	stats.freq = ieee80211chan2mhz(stats.channel);
-
 	/* can be covered by iwl3945_report_frame() in most cases */
 /*      IWL_DEBUG_RX("RX status: 0x%08X\n", rx_end->status); */
 
@@ -464,8 +460,9 @@ static void iwl3945_rx_reply_rx(struct iwl3945_priv *priv,
 		IWL_DEBUG_STATS
 		    ("[%c] %d RSSI: %d Signal: %u, Noise: %u, Rate: %u\n",
 		     network_packet ? '*' : ' ',
-		     stats.channel, stats.ssi, stats.ssi,
-		     stats.ssi, stats.rate);
+		     le16_to_cpu(rx_hdr->channel),
+		     stats.ssi, stats.ssi,
+		     stats.ssi, stats.rate_idx);
 
 	if (iwl3945_debug_level & (IWL_DL_RX))
 		/* Set "1" to report good data frames in groups of 100 */
@@ -689,7 +686,7 @@ void iwl3945_hw_build_tx_cmd_rate(struct iwl3945_priv *priv,
 			      struct ieee80211_hdr *hdr, int sta_id, int tx_id)
 {
 	unsigned long flags;
-	u16 rate_index = min(ctrl->tx_rate & 0xffff, IWL_RATE_COUNT - 1);
+	u16 rate_index = min(ctrl->tx_rate->hw_value & 0xffff, IWL_RATE_COUNT - 1);
 	u16 rate_mask;
 	int rate;
 	u8 rts_retry_limit;
@@ -1552,14 +1549,14 @@ int iwl3945_hw_reg_send_txpower(struct iwl3945_priv *priv)
 		.channel = priv->active_rxon.channel,
 	};
 
-	txpower.band = (priv->phymode == MODE_IEEE80211A) ? 0 : 1;
+	txpower.band = (priv->band == IEEE80211_BAND_5GHZ) ? 0 : 1;
 	ch_info = iwl3945_get_channel_info(priv,
-				       priv->phymode,
+				       priv->band,
 				       le16_to_cpu(priv->active_rxon.channel));
 	if (!ch_info) {
 		IWL_ERROR
 		    ("Failed to get channel info for channel %d [%d]\n",
-		     le16_to_cpu(priv->active_rxon.channel), priv->phymode);
+		     le16_to_cpu(priv->active_rxon.channel), priv->band);
 		return -EINVAL;
 	}
 
@@ -2241,8 +2238,8 @@ int iwl3945_init_hw_rate_table(struct iwl3945_priv *priv)
 		table[index].next_rate_index = iwl3945_rates[prev_index].table_rs_index;
 	}
 
-	switch (priv->phymode) {
-	case MODE_IEEE80211A:
+	switch (priv->band) {
+	case IEEE80211_BAND_5GHZ:
 		IWL_DEBUG_RATE("Select A mode rate scale\n");
 		/* If one of the following CCK rates is used,
 		 * have it fall back to the 6M OFDM rate */
@@ -2257,8 +2254,8 @@ int iwl3945_init_hw_rate_table(struct iwl3945_priv *priv)
 		    iwl3945_rates[IWL_FIRST_OFDM_RATE].table_rs_index;
 		break;
 
-	case MODE_IEEE80211B:
-		IWL_DEBUG_RATE("Select B mode rate scale\n");
+	case IEEE80211_BAND_2GHZ:
+		IWL_DEBUG_RATE("Select B/G mode rate scale\n");
 		/* If an OFDM rate is used, have it fall back to the
 		 * 1M CCK rates */
 		for (i = IWL_RATE_6M_INDEX_TABLE; i <= IWL_RATE_54M_INDEX_TABLE; i++)
@@ -2269,7 +2266,7 @@ int iwl3945_init_hw_rate_table(struct iwl3945_priv *priv)
 		break;
 
 	default:
-		IWL_DEBUG_RATE("Select G mode rate scale\n");
+		WARN_ON(1);
 		break;
 	}
 

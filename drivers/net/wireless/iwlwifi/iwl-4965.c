@@ -339,14 +339,15 @@ static int iwl4965_kw_alloc(struct iwl4965_priv *priv)
  *
  * Does not set up a command, or touch hardware.
  */
-int iwl4965_set_fat_chan_info(struct iwl4965_priv *priv, int phymode, u16 channel,
+int iwl4965_set_fat_chan_info(struct iwl4965_priv *priv,
+			      enum ieee80211_band band, u16 channel,
 			      const struct iwl4965_eeprom_channel *eeprom_ch,
 			      u8 fat_extension_channel)
 {
 	struct iwl4965_channel_info *ch_info;
 
 	ch_info = (struct iwl4965_channel_info *)
-			iwl4965_get_channel_info(priv, phymode, channel);
+			iwl4965_get_channel_info(priv, band, channel);
 
 	if (!is_channel_valid(ch_info))
 		return -1;
@@ -1939,11 +1940,12 @@ static s32 iwl4965_get_voltage_compensation(s32 eeprom_voltage,
 }
 
 static const struct iwl4965_channel_info *
-iwl4965_get_channel_txpower_info(struct iwl4965_priv *priv, u8 phymode, u16 channel)
+iwl4965_get_channel_txpower_info(struct iwl4965_priv *priv,
+				 enum ieee80211_band band, u16 channel)
 {
 	const struct iwl4965_channel_info *ch_info;
 
-	ch_info = iwl4965_get_channel_info(priv, phymode, channel);
+	ch_info = iwl4965_get_channel_info(priv, band, channel);
 
 	if (!is_channel_valid(ch_info))
 		return NULL;
@@ -2392,7 +2394,7 @@ static int iwl4965_fill_txpower_tbl(struct iwl4965_priv *priv, u8 band, u16 chan
 
 	/* Get current (RXON) channel, band, width */
 	ch_info =
-		iwl4965_get_channel_txpower_info(priv, priv->phymode, channel);
+		iwl4965_get_channel_txpower_info(priv, priv->band, channel);
 
 	IWL_DEBUG_TXPOWER("chan %d band %d is_fat %d\n", channel, band,
 			  is_fat);
@@ -2619,8 +2621,7 @@ int iwl4965_hw_reg_send_txpower(struct iwl4965_priv *priv)
 		return -EAGAIN;
 	}
 
-	band = ((priv->phymode == MODE_IEEE80211B) ||
-		(priv->phymode == MODE_IEEE80211G));
+	band = priv->band == IEEE80211_BAND_2GHZ;
 
 	is_fat =  is_fat_channel(priv->active_rxon.flags);
 
@@ -2650,10 +2651,9 @@ int iwl4965_hw_channel_switch(struct iwl4965_priv *priv, u16 channel)
 	struct iwl4965_channel_switch_cmd cmd = { 0 };
 	const struct iwl4965_channel_info *ch_info;
 
-	band = ((priv->phymode == MODE_IEEE80211B) ||
-		(priv->phymode == MODE_IEEE80211G));
+	band = priv->band == IEEE80211_BAND_2GHZ;
 
-	ch_info = iwl4965_get_channel_info(priv, priv->phymode, channel);
+	ch_info = iwl4965_get_channel_info(priv, priv->band, channel);
 
 	is_fat = is_fat_channel(priv->staging_rxon.flags);
 
@@ -2698,7 +2698,7 @@ void iwl4965_hw_build_tx_cmd_rate(struct iwl4965_priv *priv,
 	u16 fc = le16_to_cpu(hdr->frame_control);
 	u8 rate_plcp;
 	u16 rate_flags = 0;
-	int rate_idx = min(ctrl->tx_rate & 0xffff, IWL_RATE_COUNT - 1);
+	int rate_idx = min(ctrl->tx_rate->hw_value & 0xffff, IWL_RATE_COUNT - 1);
 
 	rate_plcp = iwl4965_rates[rate_idx].plcp;
 
@@ -3178,7 +3178,7 @@ static void iwl4965_add_radiotap(struct iwl4965_priv *priv,
 {
 	s8 signal = stats->ssi;
 	s8 noise = 0;
-	int rate = stats->rate;
+	int rate = stats->rate_idx;
 	u64 tsf = stats->mactime;
 	__le16 phy_flags_hw = rx_start->phy_flags;
 	struct iwl4965_rt_rx_hdr {
@@ -3246,7 +3246,6 @@ static void iwl4965_add_radiotap(struct iwl4965_priv *priv,
 					  IEEE80211_CHAN_2GHZ),
 			      &iwl4965_rt->rt_chbitmask);
 
-	rate = iwl4965_rate_index_from_plcp(rate);
 	if (rate == -1)
 		iwl4965_rt->rt_rate = 0;
 	else
@@ -3542,12 +3541,13 @@ static void iwl4965_rx_reply_rx(struct iwl4965_priv *priv,
 	u16 fc;
 	struct ieee80211_rx_status stats = {
 		.mactime = le64_to_cpu(rx_start->timestamp),
-		.channel = le16_to_cpu(rx_start->channel),
-		.phymode =
+		.freq = ieee80211chan2mhz(le16_to_cpu(rx_start->channel)),
+		.band =
 			(rx_start->phy_flags & RX_RES_PHY_FLAGS_BAND_24_MSK) ?
-			MODE_IEEE80211G : MODE_IEEE80211A,
+			IEEE80211_BAND_2GHZ : IEEE80211_BAND_5GHZ,
 		.antenna = 0,
-		.rate = iwl4965_hw_get_rate(rx_start->rate_n_flags),
+		.rate_idx = iwl4965_hw_get_rate(
+				le32_to_cpu(rx_start->rate_n_flags)),
 		.flag = 0,
 	};
 	u8 network_packet;
@@ -3597,8 +3597,6 @@ static void iwl4965_rx_reply_rx(struct iwl4965_priv *priv,
 	}
 
 	priv->ucode_beacon_time = le32_to_cpu(rx_start->beacon_time_stamp);
-
-	stats.freq = ieee80211chan2mhz(stats.channel);
 
 	/* Find max signal strength (dBm) among 3 antenna/receiver chains */
 	stats.ssi = iwl4965_calc_rssi(rx_start);
@@ -4185,7 +4183,7 @@ void iwl4965_add_station(struct iwl4965_priv *priv, const u8 *addr, int is_ap)
 	 * all the way down to 1M in IEEE order, and then spin on 1M */
 	if (is_ap)
 		r = IWL_RATE_54M_INDEX;
-	else if (priv->phymode == MODE_IEEE80211A)
+	else if (priv->band == IEEE80211_BAND_5GHZ)
 		r = IWL_RATE_6M_INDEX;
 	else
 		r = IWL_RATE_1M_INDEX;
@@ -4218,12 +4216,13 @@ void iwl4965_add_station(struct iwl4965_priv *priv, const u8 *addr, int is_ap)
 
 #ifdef CONFIG_IWL4965_HT
 
-static u8 iwl4965_is_channel_extension(struct iwl4965_priv *priv, int phymode,
+static u8 iwl4965_is_channel_extension(struct iwl4965_priv *priv,
+				       enum ieee80211_band band,
 				   u16 channel, u8 extension_chan_offset)
 {
 	const struct iwl4965_channel_info *ch_info;
 
-	ch_info = iwl4965_get_channel_info(priv, phymode, channel);
+	ch_info = iwl4965_get_channel_info(priv, band, channel);
 	if (!is_channel_valid(ch_info))
 		return 0;
 

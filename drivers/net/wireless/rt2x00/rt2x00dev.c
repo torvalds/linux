@@ -550,19 +550,19 @@ void rt2x00lib_rxdone(struct queue_entry *entry,
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct ieee80211_rx_status *rx_status = &rt2x00dev->rx_status;
-	struct ieee80211_hw_mode *mode;
+	struct ieee80211_supported_band *sband;
 	struct ieee80211_rate *rate;
 	struct ieee80211_hdr *hdr;
 	unsigned int i;
-	int val = 0;
+	int val = 0, idx = -1;
 	u16 fc;
 
 	/*
 	 * Update RX statistics.
 	 */
-	mode = &rt2x00dev->hwmodes[rt2x00dev->curr_hwmode];
-	for (i = 0; i < mode->num_rates; i++) {
-		rate = &mode->rates[i];
+	sband = &rt2x00dev->bands[rt2x00dev->curr_band];
+	for (i = 0; i < sband->n_bitrates; i++) {
+		rate = &sband->bitrates[i];
 
 		/*
 		 * When frame was received with an OFDM bitrate,
@@ -570,12 +570,12 @@ void rt2x00lib_rxdone(struct queue_entry *entry,
 		 * a CCK bitrate the signal is the rate in 0.5kbit/s.
 		 */
 		if (!rxdesc->ofdm)
-			val = DEVICE_GET_RATE_FIELD(rate->val, RATE);
+			val = DEVICE_GET_RATE_FIELD(rate->hw_value, RATE);
 		else
-			val = DEVICE_GET_RATE_FIELD(rate->val, PLCP);
+			val = DEVICE_GET_RATE_FIELD(rate->hw_value, PLCP);
 
 		if (val == rxdesc->signal) {
-			val = rate->val;
+			idx = i;
 			break;
 		}
 	}
@@ -590,7 +590,7 @@ void rt2x00lib_rxdone(struct queue_entry *entry,
 
 	rt2x00dev->link.qual.rx_success++;
 
-	rx_status->rate = val;
+	rx_status->rate_idx = idx;
 	rx_status->signal =
 	    rt2x00lib_calculate_link_signal(rt2x00dev, rxdesc->rssi);
 	rx_status->ssi = rxdesc->rssi;
@@ -639,7 +639,7 @@ void rt2x00lib_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	frame_control = le16_to_cpu(ieee80211hdr->frame_control);
 	seq_ctrl = le16_to_cpu(ieee80211hdr->seq_ctrl);
 
-	tx_rate = control->tx_rate;
+	tx_rate = control->tx_rate->hw_value;
 
 	/*
 	 * Check whether this frame is to be acked
@@ -658,7 +658,7 @@ void rt2x00lib_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 		} else
 			__clear_bit(ENTRY_TXD_ACK, &txdesc.flags);
 		if (control->rts_cts_rate)
-			tx_rate = control->rts_cts_rate;
+			tx_rate = control->rts_cts_rate->hw_value;
 	}
 
 	/*
@@ -760,54 +760,45 @@ static void rt2x00lib_channel(struct ieee80211_channel *entry,
 			      const int channel, const int tx_power,
 			      const int value)
 {
-	entry->chan = channel;
 	if (channel <= 14)
-		entry->freq = 2407 + (5 * channel);
+		entry->center_freq = 2407 + (5 * channel);
 	else
-		entry->freq = 5000 + (5 * channel);
-	entry->val = value;
-	entry->flag =
-	    IEEE80211_CHAN_W_IBSS |
-	    IEEE80211_CHAN_W_ACTIVE_SCAN |
-	    IEEE80211_CHAN_W_SCAN;
-	entry->power_level = tx_power;
-	entry->antenna_max = 0xff;
+		entry->center_freq = 5000 + (5 * channel);
+	entry->hw_value = value;
+	entry->max_power = tx_power;
+	entry->max_antenna_gain = 0xff;
 }
 
 static void rt2x00lib_rate(struct ieee80211_rate *entry,
 			   const int rate, const int mask,
 			   const int plcp, const int flags)
 {
-	entry->rate = rate;
-	entry->val =
+	entry->bitrate = rate;
+	entry->hw_value =
 	    DEVICE_SET_RATE_FIELD(rate, RATE) |
 	    DEVICE_SET_RATE_FIELD(mask, RATEMASK) |
 	    DEVICE_SET_RATE_FIELD(plcp, PLCP);
 	entry->flags = flags;
-	entry->val2 = entry->val;
-	if (entry->flags & IEEE80211_RATE_PREAMBLE2)
-		entry->val2 |= DEVICE_SET_RATE_FIELD(1, PREAMBLE);
-	entry->min_rssi_ack = 0;
-	entry->min_rssi_ack_delta = 0;
+	entry->hw_value_short = entry->hw_value;
+	if (entry->flags & IEEE80211_RATE_SHORT_PREAMBLE)
+		entry->hw_value_short |= DEVICE_SET_RATE_FIELD(1, PREAMBLE);
 }
 
 static int rt2x00lib_probe_hw_modes(struct rt2x00_dev *rt2x00dev,
 				    struct hw_mode_spec *spec)
 {
 	struct ieee80211_hw *hw = rt2x00dev->hw;
-	struct ieee80211_hw_mode *hwmodes;
+	struct ieee80211_supported_band *sbands;
 	struct ieee80211_channel *channels;
 	struct ieee80211_rate *rates;
 	unsigned int i;
 	unsigned char tx_power;
 
-	hwmodes = kzalloc(sizeof(*hwmodes) * spec->num_modes, GFP_KERNEL);
-	if (!hwmodes)
-		goto exit;
+	sbands = &rt2x00dev->bands[0];
 
 	channels = kzalloc(sizeof(*channels) * spec->num_channels, GFP_KERNEL);
 	if (!channels)
-		goto exit_free_modes;
+		return -ENOMEM;
 
 	rates = kzalloc(sizeof(*rates) * spec->num_rates, GFP_KERNEL);
 	if (!rates)
@@ -817,31 +808,31 @@ static int rt2x00lib_probe_hw_modes(struct rt2x00_dev *rt2x00dev,
 	 * Initialize Rate list.
 	 */
 	rt2x00lib_rate(&rates[0], 10, DEV_RATEMASK_1MB,
-		       0x00, IEEE80211_RATE_CCK);
+		       0x00, 0);
 	rt2x00lib_rate(&rates[1], 20, DEV_RATEMASK_2MB,
-		       0x01, IEEE80211_RATE_CCK_2);
+		       0x01, IEEE80211_RATE_SHORT_PREAMBLE);
 	rt2x00lib_rate(&rates[2], 55, DEV_RATEMASK_5_5MB,
-		       0x02, IEEE80211_RATE_CCK_2);
+		       0x02, IEEE80211_RATE_SHORT_PREAMBLE);
 	rt2x00lib_rate(&rates[3], 110, DEV_RATEMASK_11MB,
-		       0x03, IEEE80211_RATE_CCK_2);
+		       0x03, IEEE80211_RATE_SHORT_PREAMBLE);
 
 	if (spec->num_rates > 4) {
 		rt2x00lib_rate(&rates[4], 60, DEV_RATEMASK_6MB,
-			       0x0b, IEEE80211_RATE_OFDM);
+			       0x0b, 0);
 		rt2x00lib_rate(&rates[5], 90, DEV_RATEMASK_9MB,
-			       0x0f, IEEE80211_RATE_OFDM);
+			       0x0f, 0);
 		rt2x00lib_rate(&rates[6], 120, DEV_RATEMASK_12MB,
-			       0x0a, IEEE80211_RATE_OFDM);
+			       0x0a, 0);
 		rt2x00lib_rate(&rates[7], 180, DEV_RATEMASK_18MB,
-			       0x0e, IEEE80211_RATE_OFDM);
+			       0x0e, 0);
 		rt2x00lib_rate(&rates[8], 240, DEV_RATEMASK_24MB,
-			       0x09, IEEE80211_RATE_OFDM);
+			       0x09, 0);
 		rt2x00lib_rate(&rates[9], 360, DEV_RATEMASK_36MB,
-			       0x0d, IEEE80211_RATE_OFDM);
+			       0x0d, 0);
 		rt2x00lib_rate(&rates[10], 480, DEV_RATEMASK_48MB,
-			       0x08, IEEE80211_RATE_OFDM);
+			       0x08, 0);
 		rt2x00lib_rate(&rates[11], 540, DEV_RATEMASK_54MB,
-			       0x0c, IEEE80211_RATE_OFDM);
+			       0x0c, 0);
 	}
 
 	/*
@@ -862,27 +853,27 @@ static int rt2x00lib_probe_hw_modes(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * Intitialize 802.11b
 	 * Rates: CCK.
-	 * Channels: OFDM.
+	 * Channels: 2.4 GHz
 	 */
 	if (spec->num_modes > HWMODE_B) {
-		hwmodes[HWMODE_B].mode = MODE_IEEE80211B;
-		hwmodes[HWMODE_B].num_channels = 14;
-		hwmodes[HWMODE_B].num_rates = 4;
-		hwmodes[HWMODE_B].channels = channels;
-		hwmodes[HWMODE_B].rates = rates;
+		sbands[IEEE80211_BAND_2GHZ].n_channels = 14;
+		sbands[IEEE80211_BAND_2GHZ].n_bitrates = 4;
+		sbands[IEEE80211_BAND_2GHZ].channels = channels;
+		sbands[IEEE80211_BAND_2GHZ].bitrates = rates;
+		hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &rt2x00dev->bands[IEEE80211_BAND_2GHZ];
 	}
 
 	/*
 	 * Intitialize 802.11g
 	 * Rates: CCK, OFDM.
-	 * Channels: OFDM.
+	 * Channels: 2.4 GHz
 	 */
 	if (spec->num_modes > HWMODE_G) {
-		hwmodes[HWMODE_G].mode = MODE_IEEE80211G;
-		hwmodes[HWMODE_G].num_channels = 14;
-		hwmodes[HWMODE_G].num_rates = spec->num_rates;
-		hwmodes[HWMODE_G].channels = channels;
-		hwmodes[HWMODE_G].rates = rates;
+		sbands[IEEE80211_BAND_2GHZ].n_channels = 14;
+		sbands[IEEE80211_BAND_2GHZ].n_bitrates = spec->num_rates;
+		sbands[IEEE80211_BAND_2GHZ].channels = channels;
+		sbands[IEEE80211_BAND_2GHZ].bitrates = rates;
+		hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &rt2x00dev->bands[IEEE80211_BAND_2GHZ];
 	}
 
 	/*
@@ -891,39 +882,17 @@ static int rt2x00lib_probe_hw_modes(struct rt2x00_dev *rt2x00dev,
 	 * Channels: OFDM, UNII, HiperLAN2.
 	 */
 	if (spec->num_modes > HWMODE_A) {
-		hwmodes[HWMODE_A].mode = MODE_IEEE80211A;
-		hwmodes[HWMODE_A].num_channels = spec->num_channels - 14;
-		hwmodes[HWMODE_A].num_rates = spec->num_rates - 4;
-		hwmodes[HWMODE_A].channels = &channels[14];
-		hwmodes[HWMODE_A].rates = &rates[4];
+		sbands[IEEE80211_BAND_5GHZ].n_channels = spec->num_channels - 14;
+		sbands[IEEE80211_BAND_5GHZ].n_bitrates = spec->num_rates - 4;
+		sbands[IEEE80211_BAND_5GHZ].channels = &channels[14];
+		sbands[IEEE80211_BAND_5GHZ].bitrates = &rates[4];
+		hw->wiphy->bands[IEEE80211_BAND_5GHZ] = &rt2x00dev->bands[IEEE80211_BAND_5GHZ];
 	}
-
-	if (spec->num_modes > HWMODE_G &&
-	    ieee80211_register_hwmode(hw, &hwmodes[HWMODE_G]))
-		goto exit_free_rates;
-
-	if (spec->num_modes > HWMODE_B &&
-	    ieee80211_register_hwmode(hw, &hwmodes[HWMODE_B]))
-		goto exit_free_rates;
-
-	if (spec->num_modes > HWMODE_A &&
-	    ieee80211_register_hwmode(hw, &hwmodes[HWMODE_A]))
-		goto exit_free_rates;
-
-	rt2x00dev->hwmodes = hwmodes;
 
 	return 0;
 
-exit_free_rates:
-	kfree(rates);
-
-exit_free_channels:
+ exit_free_channels:
 	kfree(channels);
-
-exit_free_modes:
-	kfree(hwmodes);
-
-exit:
 	ERROR(rt2x00dev, "Allocation ieee80211 modes failed.\n");
 	return -ENOMEM;
 }
@@ -933,11 +902,11 @@ static void rt2x00lib_remove_hw(struct rt2x00_dev *rt2x00dev)
 	if (test_bit(DEVICE_REGISTERED_HW, &rt2x00dev->flags))
 		ieee80211_unregister_hw(rt2x00dev->hw);
 
-	if (likely(rt2x00dev->hwmodes)) {
-		kfree(rt2x00dev->hwmodes->channels);
-		kfree(rt2x00dev->hwmodes->rates);
-		kfree(rt2x00dev->hwmodes);
-		rt2x00dev->hwmodes = NULL;
+	if (likely(rt2x00dev->hw->wiphy->bands[IEEE80211_BAND_2GHZ])) {
+		kfree(rt2x00dev->hw->wiphy->bands[IEEE80211_BAND_2GHZ]->channels);
+		kfree(rt2x00dev->hw->wiphy->bands[IEEE80211_BAND_2GHZ]->bitrates);
+		rt2x00dev->hw->wiphy->bands[IEEE80211_BAND_2GHZ] = NULL;
+		rt2x00dev->hw->wiphy->bands[IEEE80211_BAND_5GHZ] = NULL;
 	}
 }
 

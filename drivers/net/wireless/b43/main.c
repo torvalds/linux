@@ -96,25 +96,29 @@ MODULE_DEVICE_TABLE(ssb, b43_ssb_tbl);
  * data in there. This data is the same for all devices, so we don't
  * get concurrency issues */
 #define RATETAB_ENT(_rateid, _flags) \
-	{							\
-		.rate	= B43_RATE_TO_BASE100KBPS(_rateid),	\
-		.val	= (_rateid),				\
-		.val2	= (_rateid),				\
-		.flags	= (_flags),				\
+	{								\
+		.bitrate	= B43_RATE_TO_BASE100KBPS(_rateid),	\
+		.hw_value	= (_rateid),				\
+		.flags		= (_flags),				\
 	}
+
+/*
+ * NOTE: When changing this, sync with xmit.c's
+ *	 b43_plcp_get_bitrate_idx_* functions!
+ */
 static struct ieee80211_rate __b43_ratetable[] = {
-	RATETAB_ENT(B43_CCK_RATE_1MB, IEEE80211_RATE_CCK),
-	RATETAB_ENT(B43_CCK_RATE_2MB, IEEE80211_RATE_CCK_2),
-	RATETAB_ENT(B43_CCK_RATE_5MB, IEEE80211_RATE_CCK_2),
-	RATETAB_ENT(B43_CCK_RATE_11MB, IEEE80211_RATE_CCK_2),
-	RATETAB_ENT(B43_OFDM_RATE_6MB, IEEE80211_RATE_OFDM),
-	RATETAB_ENT(B43_OFDM_RATE_9MB, IEEE80211_RATE_OFDM),
-	RATETAB_ENT(B43_OFDM_RATE_12MB, IEEE80211_RATE_OFDM),
-	RATETAB_ENT(B43_OFDM_RATE_18MB, IEEE80211_RATE_OFDM),
-	RATETAB_ENT(B43_OFDM_RATE_24MB, IEEE80211_RATE_OFDM),
-	RATETAB_ENT(B43_OFDM_RATE_36MB, IEEE80211_RATE_OFDM),
-	RATETAB_ENT(B43_OFDM_RATE_48MB, IEEE80211_RATE_OFDM),
-	RATETAB_ENT(B43_OFDM_RATE_54MB, IEEE80211_RATE_OFDM),
+	RATETAB_ENT(B43_CCK_RATE_1MB, 0),
+	RATETAB_ENT(B43_CCK_RATE_2MB, IEEE80211_RATE_SHORT_PREAMBLE),
+	RATETAB_ENT(B43_CCK_RATE_5MB, IEEE80211_RATE_SHORT_PREAMBLE),
+	RATETAB_ENT(B43_CCK_RATE_11MB, IEEE80211_RATE_SHORT_PREAMBLE),
+	RATETAB_ENT(B43_OFDM_RATE_6MB, 0),
+	RATETAB_ENT(B43_OFDM_RATE_9MB, 0),
+	RATETAB_ENT(B43_OFDM_RATE_12MB, 0),
+	RATETAB_ENT(B43_OFDM_RATE_18MB, 0),
+	RATETAB_ENT(B43_OFDM_RATE_24MB, 0),
+	RATETAB_ENT(B43_OFDM_RATE_36MB, 0),
+	RATETAB_ENT(B43_OFDM_RATE_48MB, 0),
+	RATETAB_ENT(B43_OFDM_RATE_54MB, 0),
 };
 
 #define b43_a_ratetable		(__b43_ratetable + 4)
@@ -126,14 +130,8 @@ static struct ieee80211_rate __b43_ratetable[] = {
 
 #define CHANTAB_ENT(_chanid, _freq) \
 	{							\
-		.chan	= (_chanid),				\
-		.freq	= (_freq),				\
-		.val	= (_chanid),				\
-		.flag	= IEEE80211_CHAN_W_SCAN |		\
-			  IEEE80211_CHAN_W_ACTIVE_SCAN |	\
-			  IEEE80211_CHAN_W_IBSS,		\
-		.power_level	= 0xFF,				\
-		.antenna_max	= 0xFF,				\
+		.center_freq	= (_freq),			\
+		.hw_value	= (_chanid),			\
 	}
 static struct ieee80211_channel b43_2ghz_chantable[] = {
 	CHANTAB_ENT(1, 2412),
@@ -151,9 +149,8 @@ static struct ieee80211_channel b43_2ghz_chantable[] = {
 	CHANTAB_ENT(13, 2472),
 	CHANTAB_ENT(14, 2484),
 };
-#define b43_2ghz_chantable_size	ARRAY_SIZE(b43_2ghz_chantable)
 
-#if 0
+#ifdef NOTYET
 static struct ieee80211_channel b43_5ghz_chantable[] = {
 	CHANTAB_ENT(36, 5180),
 	CHANTAB_ENT(40, 5200),
@@ -169,8 +166,21 @@ static struct ieee80211_channel b43_5ghz_chantable[] = {
 	CHANTAB_ENT(161, 5805),
 	CHANTAB_ENT(165, 5825),
 };
-#define b43_5ghz_chantable_size	ARRAY_SIZE(b43_5ghz_chantable)
+
+static struct ieee80211_supported_band b43_band_5GHz = {
+	.channels = b43_5ghz_chantable,
+	.n_channels = ARRAY_SIZE(b43_5ghz_chantable),
+	.bitrates = b43_a_ratetable,
+	.n_bitrates = b43_a_ratetable_size,
+};
 #endif
+
+static struct ieee80211_supported_band b43_band_2GHz = {
+	.channels = b43_2ghz_chantable,
+	.n_channels = ARRAY_SIZE(b43_2ghz_chantable),
+	.bitrates = b43_g_ratetable,
+	.n_bitrates = b43_g_ratetable_size,
+};
 
 static void b43_wireless_core_exit(struct b43_wldev *dev);
 static int b43_wireless_core_init(struct b43_wldev *dev);
@@ -1222,17 +1232,18 @@ static void b43_write_beacon_template(struct b43_wldev *dev,
 }
 
 static void b43_write_probe_resp_plcp(struct b43_wldev *dev,
-				      u16 shm_offset, u16 size, u8 rate)
+				      u16 shm_offset, u16 size,
+				      struct ieee80211_rate *rate)
 {
 	struct b43_plcp_hdr4 plcp;
 	u32 tmp;
 	__le16 dur;
 
 	plcp.data = 0;
-	b43_generate_plcp_hdr(&plcp, size + FCS_LEN, rate);
+	b43_generate_plcp_hdr(&plcp, size + FCS_LEN, rate->hw_value);
 	dur = ieee80211_generic_frame_duration(dev->wl->hw,
 					       dev->wl->vif, size,
-					       B43_RATE_TO_BASE100KBPS(rate));
+					       rate);
 	/* Write PLCP in two parts and timing for packet transfer */
 	tmp = le32_to_cpu(plcp.data);
 	b43_shm_write16(dev, B43_SHM_SHARED, shm_offset, tmp & 0xFFFF);
@@ -1247,7 +1258,8 @@ static void b43_write_probe_resp_plcp(struct b43_wldev *dev,
  * 3) Stripping TIM
  */
 static const u8 * b43_generate_probe_resp(struct b43_wldev *dev,
-					  u16 *dest_size, u8 rate)
+					  u16 *dest_size,
+					  struct ieee80211_rate *rate)
 {
 	const u8 *src_data;
 	u8 *dest_data;
@@ -1292,7 +1304,7 @@ static const u8 * b43_generate_probe_resp(struct b43_wldev *dev,
 					 IEEE80211_STYPE_PROBE_RESP);
 	dur = ieee80211_generic_frame_duration(dev->wl->hw,
 					       dev->wl->vif, *dest_size,
-					       B43_RATE_TO_BASE100KBPS(rate));
+					       rate);
 	hdr->duration_id = dur;
 
 	return dest_data;
@@ -1300,7 +1312,8 @@ static const u8 * b43_generate_probe_resp(struct b43_wldev *dev,
 
 static void b43_write_probe_resp_template(struct b43_wldev *dev,
 					  u16 ram_offset,
-					  u16 shm_size_offset, u8 rate)
+					  u16 shm_size_offset,
+					  struct ieee80211_rate *rate)
 {
 	const u8 *probe_resp_data;
 	u16 size;
@@ -1313,14 +1326,15 @@ static void b43_write_probe_resp_template(struct b43_wldev *dev,
 	/* Looks like PLCP headers plus packet timings are stored for
 	 * all possible basic rates
 	 */
-	b43_write_probe_resp_plcp(dev, 0x31A, size, B43_CCK_RATE_1MB);
-	b43_write_probe_resp_plcp(dev, 0x32C, size, B43_CCK_RATE_2MB);
-	b43_write_probe_resp_plcp(dev, 0x33E, size, B43_CCK_RATE_5MB);
-	b43_write_probe_resp_plcp(dev, 0x350, size, B43_CCK_RATE_11MB);
+	b43_write_probe_resp_plcp(dev, 0x31A, size, &b43_b_ratetable[0]);
+	b43_write_probe_resp_plcp(dev, 0x32C, size, &b43_b_ratetable[1]);
+	b43_write_probe_resp_plcp(dev, 0x33E, size, &b43_b_ratetable[2]);
+	b43_write_probe_resp_plcp(dev, 0x350, size, &b43_b_ratetable[3]);
 
 	size = min((size_t) size, 0x200 - sizeof(struct b43_plcp_hdr6));
 	b43_write_template_common(dev, probe_resp_data,
-				  size, ram_offset, shm_size_offset, rate);
+				  size, ram_offset, shm_size_offset,
+				  rate->hw_value);
 	kfree(probe_resp_data);
 }
 
@@ -1388,7 +1402,7 @@ static void handle_irq_beacon(struct b43_wldev *dev)
 			b43_write_beacon_template(dev, 0x68, 0x18,
 						  B43_CCK_RATE_1MB);
 			b43_write_probe_resp_template(dev, 0x268, 0x4A,
-						      B43_CCK_RATE_11MB);
+						      &__b43_ratetable[3]);
 			wl->beacon0_uploaded = 1;
 		}
 		cmd |= B43_MACCMD_BEACON0_VALID;
@@ -2830,14 +2844,11 @@ static int b43_op_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
 	mutex_lock(&wl->mutex);
 
 	/* Switch the PHY mode (if necessary). */
-	switch (conf->phymode) {
-	case MODE_IEEE80211A:
+	switch (conf->channel->band) {
+	case IEEE80211_BAND_5GHZ:
 		new_phymode = B43_PHYMODE_A;
 		break;
-	case MODE_IEEE80211B:
-		new_phymode = B43_PHYMODE_B;
-		break;
-	case MODE_IEEE80211G:
+	case IEEE80211_BAND_2GHZ:
 		new_phymode = B43_PHYMODE_G;
 		break;
 	default:
@@ -2863,8 +2874,8 @@ static int b43_op_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
 
 	/* Switch to the requested channel.
 	 * The firmware takes care of races with the TX handler. */
-	if (conf->channel_val != phy->channel)
-		b43_radio_selectchannel(dev, conf->channel_val, 0);
+	if (conf->channel->hw_value != phy->channel)
+		b43_radio_selectchannel(dev, conf->channel->hw_value, 0);
 
 	/* Enable/Disable ShortSlot timing. */
 	if ((!!(conf->flags & IEEE80211_CONF_SHORT_SLOT_TIME)) !=
@@ -3810,9 +3821,7 @@ static int b43_setup_modes(struct b43_wldev *dev,
 			   bool have_2ghz_phy, bool have_5ghz_phy)
 {
 	struct ieee80211_hw *hw = dev->wl->hw;
-	struct ieee80211_hw_mode *mode;
 	struct b43_phy *phy = &dev->phy;
-	int err;
 
 	/* XXX: This function will go away soon, when mac80211
 	 *      band stuff is rewritten. So this is just a hack.
@@ -3821,15 +3830,7 @@ static int b43_setup_modes(struct b43_wldev *dev,
 	 *      This assumption is OK, as any B, N or A PHY will already
 	 *      have died a horrible sanity check death earlier. */
 
-	mode = &phy->hwmodes[0];
-	mode->mode = MODE_IEEE80211G;
-	mode->num_channels = b43_2ghz_chantable_size;
-	mode->channels = b43_2ghz_chantable;
-	mode->num_rates = b43_g_ratetable_size;
-	mode->rates = b43_g_ratetable;
-	err = ieee80211_register_hwmode(hw, mode);
-	if (err)
-		return err;
+	hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &b43_band_2GHz;
 	phy->possible_phymodes |= B43_PHYMODE_G;
 
 	return 0;

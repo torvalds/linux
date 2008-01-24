@@ -390,6 +390,10 @@ static inline struct rt2x00_intf* vif_to_intf(struct ieee80211_vif *vif)
 	return (struct rt2x00_intf *)vif->drv_priv;
 }
 
+#define HWMODE_B	0
+#define HWMODE_G	1
+#define HWMODE_A	2
+
 /*
  * Details about the supported modes, rates and channels
  * of a particular chipset. This is used by rt2x00lib
@@ -644,11 +648,8 @@ struct rt2x00_dev {
 	 * IEEE80211 control structure.
 	 */
 	struct ieee80211_hw *hw;
-	struct ieee80211_hw_mode *hwmodes;
-	unsigned int curr_hwmode;
-#define HWMODE_B	0
-#define HWMODE_G	1
-#define HWMODE_A	2
+	struct ieee80211_supported_band bands[IEEE80211_NUM_BANDS];
+	enum ieee80211_band curr_band;
 
 	/*
 	 * rfkill structure for RF state switching support.

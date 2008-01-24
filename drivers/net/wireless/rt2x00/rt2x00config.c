@@ -152,7 +152,7 @@ void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 		      struct ieee80211_conf *conf, const int force_config)
 {
 	struct rt2x00lib_conf libconf;
-	struct ieee80211_hw_mode *mode;
+	struct ieee80211_supported_band *band;
 	struct ieee80211_rate *rate;
 	struct antenna_setup *default_ant = &rt2x00dev->default_ant;
 	struct antenna_setup *active_ant = &rt2x00dev->link.ant.active;
@@ -172,9 +172,9 @@ void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 	 * Check which configuration options have been
 	 * updated and should be send to the device.
 	 */
-	if (rt2x00dev->rx_status.phymode != conf->phymode)
+	if (rt2x00dev->rx_status.band != conf->channel->band)
 		flags |= CONFIG_UPDATE_PHYMODE;
-	if (rt2x00dev->rx_status.channel != conf->channel)
+	if (rt2x00dev->rx_status.freq != conf->channel->center_freq)
 		flags |= CONFIG_UPDATE_CHANNEL;
 	if (rt2x00dev->tx_power != conf->power_level)
 		flags |= CONFIG_UPDATE_TXPOWER;
@@ -229,33 +229,31 @@ config:
 	memset(&libconf, 0, sizeof(libconf));
 
 	if (flags & CONFIG_UPDATE_PHYMODE) {
-		switch (conf->phymode) {
-		case MODE_IEEE80211A:
+		switch (conf->channel->band) {
+		case IEEE80211_BAND_5GHZ:
 			libconf.phymode = HWMODE_A;
 			break;
-		case MODE_IEEE80211B:
-			libconf.phymode = HWMODE_B;
-			break;
-		case MODE_IEEE80211G:
+		case IEEE80211_BAND_2GHZ:
+			/* Uh oh. what about B? */
 			libconf.phymode = HWMODE_G;
 			break;
 		default:
 			ERROR(rt2x00dev,
 			      "Attempt to configure unsupported mode (%d)"
-			      "Defaulting to 802.11b", conf->phymode);
+			      "Defaulting to 802.11b", conf->channel->band);
 			libconf.phymode = HWMODE_B;
 		}
 
-		mode = &rt2x00dev->hwmodes[libconf.phymode];
-		rate = &mode->rates[mode->num_rates - 1];
+		band = &rt2x00dev->bands[conf->channel->band];
+		rate = &band->bitrates[band->n_bitrates - 1];
 
 		libconf.basic_rates =
-		    DEVICE_GET_RATE_FIELD(rate->val, RATEMASK) & DEV_BASIC_RATEMASK;
+		    DEVICE_GET_RATE_FIELD(rate->hw_value, RATEMASK) & DEV_BASIC_RATEMASK;
 	}
 
 	if (flags & CONFIG_UPDATE_CHANNEL) {
 		memcpy(&libconf.rf,
-		       &rt2x00dev->spec.channels[conf->channel_val],
+		       &rt2x00dev->spec.channels[conf->channel->hw_value],
 		       sizeof(libconf.rf));
 	}
 
@@ -301,12 +299,11 @@ config:
 		rt2x00lib_reset_link_tuner(rt2x00dev);
 
 	if (flags & CONFIG_UPDATE_PHYMODE) {
-		rt2x00dev->curr_hwmode = libconf.phymode;
-		rt2x00dev->rx_status.phymode = conf->phymode;
+		rt2x00dev->curr_band = conf->channel->band;
+		rt2x00dev->rx_status.band = conf->channel->band;
 	}
 
-	rt2x00dev->rx_status.freq = conf->freq;
-	rt2x00dev->rx_status.channel = conf->channel;
+	rt2x00dev->rx_status.freq = conf->channel->center_freq;
 	rt2x00dev->tx_power = conf->power_level;
 
 	if (flags & CONFIG_UPDATE_ANTENNA) {

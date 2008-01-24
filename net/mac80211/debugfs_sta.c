@@ -33,22 +33,6 @@ static ssize_t sta_ ##name## _read(struct file *file,			\
 #define STA_READ_LU(name, field) STA_READ(name, 20, field, "%lu\n")
 #define STA_READ_S(name, field) STA_READ(name, 20, field, "%s\n")
 
-#define STA_READ_RATE(name, field)					\
-static ssize_t sta_##name##_read(struct file *file,			\
-				 char __user *userbuf,			\
-				 size_t count, loff_t *ppos)		\
-{									\
-	struct sta_info *sta = file->private_data;			\
-	struct ieee80211_local *local = wdev_priv(sta->dev->ieee80211_ptr);\
-	struct ieee80211_hw_mode *mode = local->oper_hw_mode;		\
-	char buf[20];							\
-	int res = scnprintf(buf, sizeof(buf), "%d\n",			\
-			    (sta->field >= 0 &&				\
-			    sta->field < mode->num_rates) ?		\
-			    mode->rates[sta->field].rate : -1);		\
-	return simple_read_from_buffer(userbuf, count, ppos, buf, res);	\
-}
-
 #define STA_OPS(name)							\
 static const struct file_operations sta_ ##name## _ops = {		\
 	.read = sta_##name##_read,					\
@@ -77,8 +61,6 @@ STA_FILE(rx_fragments, rx_fragments, LU);
 STA_FILE(rx_dropped, rx_dropped, LU);
 STA_FILE(tx_fragments, tx_fragments, LU);
 STA_FILE(tx_filtered, tx_filtered_count, LU);
-STA_FILE(txrate, txrate, RATE);
-STA_FILE(last_txrate, last_txrate, RATE);
 STA_FILE(tx_retry_failed, tx_retry_failed, LU);
 STA_FILE(tx_retry_count, tx_retry_count, LU);
 STA_FILE(last_rssi, last_rssi, D);
