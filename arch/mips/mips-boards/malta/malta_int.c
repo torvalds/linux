@@ -83,7 +83,7 @@ static inline int mips_pcibios_iack(void)
 		BONITO_PCIMAP_CFG = 0;
 		break;
 	default:
-	        printk("Unknown system controller.\n");
+		printk(KERN_WARNING "Unknown system controller.\n");
 		return -1;
 	}
 	return irq;
@@ -127,8 +127,8 @@ static void corehi_irqdispatch(void)
 	unsigned int intrcause, datalo, datahi;
 	struct pt_regs *regs = get_irq_regs();
 
-        printk("CoreHI interrupt, shouldn't happen, so we die here!!!\n");
-        printk("epc   : %08lx\nStatus: %08lx\n"
+	printk(KERN_EMERG "CoreHI interrupt, shouldn't happen, we die here!\n");
+	printk(KERN_EMERG "epc   : %08lx\nStatus: %08lx\n"
 	       "Cause : %08lx\nbadVaddr : %08lx\n",
 	       regs->cp0_epc, regs->cp0_status,
 	       regs->cp0_cause, regs->cp0_badvaddr);
@@ -149,8 +149,9 @@ static void corehi_irqdispatch(void)
                 intrcause = GT_READ(GT_INTRCAUSE_OFS);
                 datalo = GT_READ(GT_CPUERR_ADDRLO_OFS);
                 datahi = GT_READ(GT_CPUERR_ADDRHI_OFS);
-                printk("GT_INTRCAUSE = %08x\n", intrcause);
-                printk("GT_CPUERR_ADDR = %02x%08x\n", datahi, datalo);
+		printk(KERN_EMERG "GT_INTRCAUSE = %08x\n", intrcause);
+		printk(KERN_EMERG "GT_CPUERR_ADDR = %02x%08x\n",
+				datahi, datalo);
                 break;
         case MIPS_REVISION_SCON_BONITO:
                 pcibadaddr = BONITO_PCIBADADDR;
@@ -161,14 +162,14 @@ static void corehi_irqdispatch(void)
                 intedge = BONITO_INTEDGE;
                 intsteer = BONITO_INTSTEER;
                 pcicmd = BONITO_PCICMD;
-                printk("BONITO_INTISR = %08x\n", intisr);
-                printk("BONITO_INTEN = %08x\n", inten);
-                printk("BONITO_INTPOL = %08x\n", intpol);
-                printk("BONITO_INTEDGE = %08x\n", intedge);
-                printk("BONITO_INTSTEER = %08x\n", intsteer);
-                printk("BONITO_PCICMD = %08x\n", pcicmd);
-                printk("BONITO_PCIBADADDR = %08x\n", pcibadaddr);
-                printk("BONITO_PCIMSTAT = %08x\n", pcimstat);
+		printk(KERN_EMERG "BONITO_INTISR = %08x\n", intisr);
+		printk(KERN_EMERG "BONITO_INTEN = %08x\n", inten);
+		printk(KERN_EMERG "BONITO_INTPOL = %08x\n", intpol);
+		printk(KERN_EMERG "BONITO_INTEDGE = %08x\n", intedge);
+		printk(KERN_EMERG "BONITO_INTSTEER = %08x\n", intsteer);
+		printk(KERN_EMERG "BONITO_PCICMD = %08x\n", pcicmd);
+		printk(KERN_EMERG "BONITO_PCIBADADDR = %08x\n", pcibadaddr);
+		printk(KERN_EMERG "BONITO_PCIMSTAT = %08x\n", pcimstat);
                 break;
         }
 
