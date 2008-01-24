@@ -29,8 +29,7 @@
 #define CPU_DISCARD(sec) *(.cpu##sec)
 #endif
 
-#if defined(CONFIG_MEMORY_HOTPLUG) || defined(CONFIG_ACPI_HOTPLUG_MEMORY) \
-	|| defined(CONFIG_ACPI_HOTPLUG_MEMORY_MODULE)
+#if defined(CONFIG_MEMORY_HOTPLUG)
 #define MEM_KEEP(sec)    *(.mem##sec)
 #define MEM_DISCARD(sec)
 #else
