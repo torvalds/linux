@@ -55,6 +55,13 @@ config MPC837x_MDS
 	select DEFAULT_UIMAGE
 	help
 	  This option enables support for the MPC837x MDS Processor Board.
+
+config SBC834x
+	bool "Wind River SBC834x"
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for the Wind River SBC834x board.
+
 endchoice
 
 config PPC_MPC831x
@@ -73,7 +80,7 @@ config MPC834x
 	bool
 	select PPC_UDBG_16550
 	select PPC_INDIRECT_PCI
-	default y if MPC834x_MDS || MPC834x_ITX
+	default y if MPC834x_MDS || MPC834x_ITX || SBC834x
 
 config PPC_MPC836x
 	bool
