@@ -257,7 +257,7 @@ static int tcf_ipt_dump(struct sk_buff *skb, struct tc_action *a, int bind, int 
 	NLA_PUT(skb, TCA_IPT_INDEX, 4, &ipt->tcf_index);
 	NLA_PUT(skb, TCA_IPT_HOOK, 4, &ipt->tcfi_hook);
 	NLA_PUT(skb, TCA_IPT_CNT, sizeof(struct tc_cnt), &c);
-	NLA_PUT(skb, TCA_IPT_TABLE, IFNAMSIZ, ipt->tcfi_tname);
+	NLA_PUT_STRING(skb, TCA_IPT_TABLE, ipt->tcfi_tname);
 	tm.install = jiffies_to_clock_t(jiffies - ipt->tcf_tm.install);
 	tm.lastuse = jiffies_to_clock_t(jiffies - ipt->tcf_tm.lastuse);
 	tm.expires = jiffies_to_clock_t(ipt->tcf_tm.expires);

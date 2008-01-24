@@ -732,7 +732,7 @@ static int u32_dump(struct tcf_proto *tp, unsigned long fh,
 
 #ifdef CONFIG_NET_CLS_IND
 		if(strlen(n->indev))
-			NLA_PUT(skb, TCA_U32_INDEV, IFNAMSIZ, n->indev);
+			NLA_PUT_STRING(skb, TCA_U32_INDEV, n->indev);
 #endif
 #ifdef CONFIG_CLS_U32_PERF
 		NLA_PUT(skb, TCA_U32_PCNT,

@@ -121,7 +121,7 @@ static int tcf_del_walker(struct sk_buff *skb, struct tc_action *a,
 	nest = nla_nest_start(skb, a->order);
 	if (nest == NULL)
 		goto nla_put_failure;
-	NLA_PUT(skb, TCA_KIND, IFNAMSIZ, a->ops->kind);
+	NLA_PUT_STRING(skb, TCA_KIND, a->ops->kind);
 	for (i = 0; i < (hinfo->hmask + 1); i++) {
 		p = hinfo->htab[tcf_hash(i, hinfo->hmask)];
 
@@ -423,7 +423,7 @@ tcf_action_dump_1(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 	if (a->ops == NULL || a->ops->dump == NULL)
 		return err;
 
-	NLA_PUT(skb, TCA_KIND, IFNAMSIZ, a->ops->kind);
+	NLA_PUT_STRING(skb, TCA_KIND, a->ops->kind);
 	if (tcf_action_copy_stats(skb, a, 0))
 		goto nla_put_failure;
 	nest = nla_nest_start(skb, TCA_OPTIONS);
