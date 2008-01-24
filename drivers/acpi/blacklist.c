@@ -3,6 +3,7 @@
  *
  *  Check to see if the given machine has a known bad ACPI BIOS
  *  or if the BIOS is too old.
+ *  Check given machine against acpi_osi_dmi_table[].
  *
  *  Copyright (C) 2004 Len Brown <len.brown@intel.com>
  *  Copyright (C) 2002 Andy Grover <andrew.grover@intel.com>
@@ -49,6 +50,8 @@ struct acpi_blacklist_item {
 	char *reason;
 	u32 is_critical_error;
 };
+
+static struct dmi_system_id acpi_osi_dmi_table[] __initdata;
 
 /*
  * POLICY: If *anything* doesn't work, put it on the blacklist.
@@ -165,5 +168,13 @@ int __init acpi_blacklisted(void)
 
 	blacklisted += blacklist_by_year();
 
+	dmi_check_system(acpi_osi_dmi_table);
+
 	return blacklisted;
 }
+#ifdef CONFIG_DMI
+static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
+	{}
+};
+
+#endif /* CONFIG_DMI */
