@@ -79,10 +79,6 @@ static char osi_additional_string[OSI_STRING_LENGTH_MAX];
 
 static int osi_linux;		/* disable _OSI(Linux) by default */
 
-#ifdef CONFIG_DMI
-static struct __initdata dmi_system_id acpi_osl_dmi_table[];
-#endif
-
 static void __init acpi_request_region (struct acpi_generic_address *addr,
 	unsigned int length, char *desc)
 {
@@ -133,7 +129,6 @@ device_initcall(acpi_reserve_resources);
 
 acpi_status __init acpi_os_initialize(void)
 {
-	dmi_check_system(acpi_osl_dmi_table);
 	return AE_OK;
 }
 
@@ -1231,29 +1226,5 @@ acpi_os_validate_address (
 
     return AE_OK;
 }
-
-#ifdef CONFIG_DMI
-static int dmi_osi_linux(const struct dmi_system_id *d)
-{
-	printk(KERN_NOTICE "%s detected: enabling _OSI(Linux)\n", d->ident);
-	enable_osi_linux(1);
-	return 0;
-}
-
-static struct dmi_system_id acpi_osl_dmi_table[] __initdata = {
-	/*
-	 * Boxes that need _OSI(Linux)
-	 */
-	{
-	 .callback = dmi_osi_linux,
-	 .ident = "Intel Napa CRB",
-	 .matches = {
-		     DMI_MATCH(DMI_BOARD_VENDOR, "Intel Corporation"),
-		     DMI_MATCH(DMI_BOARD_NAME, "MPAD-MSAE Customer Reference Boards"),
-		     },
-	 },
-	{}
-};
-#endif /* CONFIG_DMI */
 
 #endif
