@@ -43,11 +43,36 @@ extern void kgdb_config(void);
 #endif
 
 struct resource standard_io_resources[] = {
-	{ .name = "dma1", .start = 0x00, .end = 0x1f, .flags = IORESOURCE_BUSY },
-	{ .name = "timer", .start = 0x40, .end = 0x5f, .flags = IORESOURCE_BUSY },
-	{ .name = "keyboard", .start = 0x60, .end = 0x6f, .flags = IORESOURCE_BUSY },
-	{ .name = "dma page reg", .start = 0x80, .end = 0x8f, .flags = IORESOURCE_BUSY },
-	{ .name = "dma2", .start = 0xc0, .end = 0xdf, .flags = IORESOURCE_BUSY },
+	{
+		.name = "dma1",
+		.start = 0x00,
+		.end = 0x1f,
+		.flags = IORESOURCE_BUSY
+	},
+	{
+		.name = "timer",
+		.start = 0x40,
+		.end = 0x5f,
+		.flags = IORESOURCE_BUSY
+	},
+	{
+		.name = "keyboard",
+		.start = 0x60,
+		.end = 0x6f,
+		.flags = IORESOURCE_BUSY
+	},
+	{
+		.name = "dma page reg",
+		.start = 0x80,
+		.end = 0x8f,
+		.flags = IORESOURCE_BUSY
+	},
+	{
+		.name = "dma2",
+		.start = 0xc0,
+		.end = 0xdf,
+		.flags = IORESOURCE_BUSY
+	},
 };
 
 const char *get_system_type(void)
@@ -171,15 +196,18 @@ void __init plat_mem_setup(void)
 #ifdef CONFIG_VT
 #if defined(CONFIG_VGA_CONSOLE)
 	screen_info = (struct screen_info) {
-		0, 25,			/* orig-x, orig-y */
-		0,			/* unused */
-		0,			/* orig-video-page */
-		0,			/* orig-video-mode */
-		80,			/* orig-video-cols */
-		0, 0, 0,		/* ega_ax, ega_bx, ega_cx */
-		25,			/* orig-video-lines */
-		VIDEO_TYPE_VGAC,	/* orig-video-isVGA */
-		16			/* orig-video-points */
+		.orig_x = 0,
+		.orig_y = 25,
+		.ext_mem_k = 0,
+		.orig_video_page = 0,
+		.orig_video_mode = 0,
+		.orig_video_cols = 80,
+		.unused2 = 0,
+		.orig_video_ega_bx = 0,
+		.unused3 = 0,
+		.orig_video_lines = 25,
+		.orig_video_isVGA = VIDEO_TYPE_VGAC,
+		.orig_video_points = 16
 	};
 #endif
 #endif
