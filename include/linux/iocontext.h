@@ -1,6 +1,8 @@
 #ifndef IOCONTEXT_H
 #define IOCONTEXT_H
 
+#include <linux/radix-tree.h>
+
 /*
  * This is the per-process anticipatory I/O scheduler state.
  */
@@ -29,8 +31,8 @@ struct as_io_context {
 
 struct cfq_queue;
 struct cfq_io_context {
-	struct rb_node rb_node;
 	void *key;
+	unsigned long dead_key;
 
 	struct cfq_queue *cfqq[2];
 
@@ -74,7 +76,7 @@ struct io_context {
 	int nr_batch_requests;     /* Number of requests left in the batch */
 
 	struct as_io_context *aic;
-	struct rb_root cic_root;
+	struct radix_tree_root radix_root;
 	void *ioc_data;
 };
 
