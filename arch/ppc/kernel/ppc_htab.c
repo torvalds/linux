@@ -436,7 +436,6 @@ int proc_dol2crvec(ctl_table *table, int write, struct file *filp,
  */
 static ctl_table htab_ctl_table[]={
 	{
-		.ctl_name	= KERN_PPC_L2CR,
 		.procname	= "l2cr",
 		.mode		= 0644,
 		.proc_handler	= &proc_dol2crvec,
