@@ -54,13 +54,15 @@ struct cfq_io_context {
 };
 
 /*
- * This is the per-process I/O subsystem state.  It is refcounted and
- * kmalloc'ed. Currently all fields are modified in process io context
- * (apart from the atomic refcount), so require no locking.
+ * I/O subsystem state of the associated processes.  It is refcounted
+ * and kmalloc'ed. These could be shared between processes.
  */
 struct io_context {
 	atomic_t refcount;
-	struct task_struct *task;
+	atomic_t nr_tasks;
+
+	/* all the fields below are protected by this lock */
+	spinlock_t lock;
 
 	unsigned short ioprio;
 	unsigned short ioprio_changed;
@@ -75,5 +77,17 @@ struct io_context {
 	struct rb_root cic_root;
 	void *ioc_data;
 };
+
+static inline struct io_context *ioc_task_link(struct io_context *ioc)
+{
+	/*
+	 * if ref count is zero, don't allow sharing (ioc is going away, it's
+	 * a race).
+	 */
+	if (ioc && atomic_inc_not_zero(&ioc->refcount))
+		return ioc;
+
+	return NULL;
+}
 
 #endif

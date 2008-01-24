@@ -54,7 +54,6 @@ static int set_task_ioprio(struct task_struct *task, int ioprio)
 			break;
 		}
 		task->io_context = ioc;
-		ioc->task = task;
 	} while (1);
 
 	if (!err) {
