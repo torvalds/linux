@@ -36,7 +36,6 @@
 #endif
 
 extern void mips_reboot_setup(void);
-extern unsigned long mips_rtc_get_time(void);
 
 #ifdef CONFIG_KGDB
 extern void kgdb_config(void);
