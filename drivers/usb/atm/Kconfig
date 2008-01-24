@@ -2,10 +2,7 @@
 # USB/ATM DSL configuration
 #
 
-menu "USB DSL modem support"
-	depends on USB
-
-config USB_ATM
+menuconfig USB_ATM
 	tristate "USB DSL modem support"
 	depends on USB && ATM
 	select CRC32
@@ -17,6 +14,8 @@ config USB_ATM
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called usbatm.
+
+if USB_ATM
 
 config USB_SPEEDTOUCH
 	tristate "Speedtouch USB support"
@@ -70,4 +69,4 @@ config USB_XUSBATM
 	  To compile this driver as a module, choose M here: the
 	  module will be called xusbatm.
 
-endmenu
+endif # USB_ATM

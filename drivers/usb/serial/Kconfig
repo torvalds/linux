@@ -2,10 +2,7 @@
 # USB Serial device configuration
 #
 
-menu "USB Serial Converter support"
-	depends on USB!=n
-
-config USB_SERIAL
+menuconfig USB_SERIAL
 	tristate "USB Serial Converter support"
 	depends on USB
 	---help---
@@ -19,6 +16,8 @@ config USB_SERIAL
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called usbserial.
+
+if USB_SERIAL
 
 config USB_SERIAL_CONSOLE
 	bool "USB Serial Console device support (EXPERIMENTAL)"
@@ -606,6 +605,4 @@ config USB_SERIAL_DEBUG
 	  To compile this driver as a module, choose M here: the
 	  module will be called usb-debug.
 
-
-endmenu
-
+endif # USB_SERIAL
