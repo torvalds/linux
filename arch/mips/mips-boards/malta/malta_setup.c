@@ -35,8 +35,6 @@
 #include <linux/console.h>
 #endif
 
-extern void mips_reboot_setup(void);
-
 #ifdef CONFIG_KGDB
 extern void kgdb_config(void);
 #endif

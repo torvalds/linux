@@ -34,8 +34,6 @@
 #include <asm/mips-boards/seadint.h>
 #include <asm/time.h>
 
-extern void mips_reboot_setup(void);
-
 static void __init serial_init(void);
 
 const char *get_system_type(void)
