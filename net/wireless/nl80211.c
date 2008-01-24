@@ -98,6 +98,13 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 			      struct cfg80211_registered_device *dev)
 {
 	void *hdr;
+	struct nlattr *nl_bands, *nl_band;
+	struct nlattr *nl_freqs, *nl_freq;
+	struct nlattr *nl_rates, *nl_rate;
+	enum ieee80211_band band;
+	struct ieee80211_channel *chan;
+	struct ieee80211_rate *rate;
+	int i;
 
 	hdr = nl80211hdr_put(msg, pid, seq, flags, NL80211_CMD_NEW_WIPHY);
 	if (!hdr)
@@ -105,6 +112,73 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 
 	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY, dev->idx);
 	NLA_PUT_STRING(msg, NL80211_ATTR_WIPHY_NAME, wiphy_name(&dev->wiphy));
+
+	nl_bands = nla_nest_start(msg, NL80211_ATTR_WIPHY_BANDS);
+	if (!nl_bands)
+		goto nla_put_failure;
+
+	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
+		if (!dev->wiphy.bands[band])
+			continue;
+
+		nl_band = nla_nest_start(msg, band);
+		if (!nl_band)
+			goto nla_put_failure;
+
+		/* add frequencies */
+		nl_freqs = nla_nest_start(msg, NL80211_BAND_ATTR_FREQS);
+		if (!nl_freqs)
+			goto nla_put_failure;
+
+		for (i = 0; i < dev->wiphy.bands[band]->n_channels; i++) {
+			nl_freq = nla_nest_start(msg, i);
+			if (!nl_freq)
+				goto nla_put_failure;
+
+			chan = &dev->wiphy.bands[band]->channels[i];
+			NLA_PUT_U32(msg, NL80211_FREQUENCY_ATTR_FREQ,
+				    chan->center_freq);
+
+			if (chan->flags & IEEE80211_CHAN_DISABLED)
+				NLA_PUT_FLAG(msg, NL80211_FREQUENCY_ATTR_DISABLED);
+			if (chan->flags & IEEE80211_CHAN_PASSIVE_SCAN)
+				NLA_PUT_FLAG(msg, NL80211_FREQUENCY_ATTR_PASSIVE_SCAN);
+			if (chan->flags & IEEE80211_CHAN_NO_IBSS)
+				NLA_PUT_FLAG(msg, NL80211_FREQUENCY_ATTR_NO_IBSS);
+			if (chan->flags & IEEE80211_CHAN_RADAR)
+				NLA_PUT_FLAG(msg, NL80211_FREQUENCY_ATTR_RADAR);
+
+			nla_nest_end(msg, nl_freq);
+		}
+
+		nla_nest_end(msg, nl_freqs);
+
+		/* add bitrates */
+		nl_rates = nla_nest_start(msg, NL80211_BAND_ATTR_RATES);
+		if (!nl_rates)
+			goto nla_put_failure;
+
+		for (i = 0; i < dev->wiphy.bands[band]->n_bitrates; i++) {
+			nl_rate = nla_nest_start(msg, i);
+			if (!nl_rate)
+				goto nla_put_failure;
+
+			rate = &dev->wiphy.bands[band]->bitrates[i];
+			NLA_PUT_U32(msg, NL80211_BITRATE_ATTR_RATE,
+				    rate->bitrate);
+			if (rate->flags & IEEE80211_RATE_SHORT_PREAMBLE)
+				NLA_PUT_FLAG(msg,
+					NL80211_BITRATE_ATTR_2GHZ_SHORTPREAMBLE);
+
+			nla_nest_end(msg, nl_rate);
+		}
+
+		nla_nest_end(msg, nl_rates);
+
+		nla_nest_end(msg, nl_band);
+	}
+	nla_nest_end(msg, nl_bands);
+
 	return genlmsg_end(msg, hdr);
 
  nla_put_failure:
