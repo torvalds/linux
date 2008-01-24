@@ -1736,7 +1736,8 @@ static void rt61pci_txdone(struct rt2x00_dev *rt2x00dev)
 			WARNING(rt2x00dev,
 				"TX status report missed for entry %p\n",
 				entry_done);
-			rt2x00lib_txdone(entry_done, TX_FAIL_OTHER, 0);
+			rt2x00pci_txdone(rt2x00dev, entry_done, TX_FAIL_OTHER,
+					 0);
 			entry_done = rt2x00_get_data_entry_done(ring);
 		}
 
