@@ -77,11 +77,55 @@ static struct workqueue_struct *kacpi_notify_wq;
 #define	OSI_STRING_LENGTH_MAX 64	/* arbitrary */
 static char osi_additional_string[OSI_STRING_LENGTH_MAX];
 
-static int osi_linux;		/* disable _OSI(Linux) by default */
+/*
+ * "Ode to _OSI(Linux)"
+ *
+ * osi_linux -- Control response to BIOS _OSI(Linux) query.
+ *
+ * As Linux evolves, the features that it supports change.
+ * So an OSI string such as "Linux" is not specific enough
+ * to be useful across multiple versions of Linux.  It
+ * doesn't identify any particular feature, interface,
+ * or even any particular version of Linux...
+ *
+ * Unfortunately, Linux-2.6.22 and earlier responded "yes"
+ * to a BIOS _OSI(Linux) query.  When
+ * a reference mobile BIOS started using it, its use
+ * started to spread to many vendor platforms.
+ * As it is not supportable, we need to halt that spread.
+ *
+ * Today, most BIOS references to _OSI(Linux) are noise --
+ * they have no functional effect and are just dead code
+ * carried over from the reference BIOS.
+ *
+ * The next most common case is that _OSI(Linux) harms Linux,
+ * usually by causing the BIOS to follow paths that are
+ * not tested during Windows validation.
+ *
+ * Finally, there is a short list of platforms
+ * where OSI(Linux) benefits Linux.
+ *
+ * In Linux-2.6.23, OSI(Linux) is first disabled by default.
+ * DMI is used to disable the dmesg warning about OSI(Linux)
+ * on platforms where it is known to have no effect.
+ * But a dmesg warning remains for systems where
+ * we do not know if OSI(Linux) is good or bad for the system.
+ * DMI is also used to enable OSI(Linux) for the machines
+ * that are known to need it.
+ *
+ * BIOS writers should NOT query _OSI(Linux) on future systems.
+ * It will be ignored by default, and to get Linux to
+ * not ignore it will require a kernel source update to
+ * add a DMI entry, or a boot-time "acpi_osi=Linux" invocation.
+ */
+#define OSI_LINUX_ENABLE 0
 
-#ifdef CONFIG_DMI
-static struct __initdata dmi_system_id acpi_osl_dmi_table[];
-#endif
+struct osi_linux {
+	unsigned int	enable:1;
+	unsigned int	dmi:1;
+	unsigned int	cmdline:1;
+	unsigned int	known:1;
+} osi_linux = { OSI_LINUX_ENABLE, 0, 0, 0};
 
 static void __init acpi_request_region (struct acpi_generic_address *addr,
 	unsigned int length, char *desc)
@@ -133,7 +177,6 @@ device_initcall(acpi_reserve_resources);
 
 acpi_status __init acpi_os_initialize(void)
 {
-	dmi_check_system(acpi_osl_dmi_table);
 	return AE_OK;
 }
 
@@ -964,13 +1007,37 @@ static int __init acpi_os_name_setup(char *str)
 
 __setup("acpi_os_name=", acpi_os_name_setup);
 
-static void enable_osi_linux(int enable) {
+static void __init set_osi_linux(unsigned int enable)
+{
+	if (osi_linux.enable != enable) {
+		osi_linux.enable = enable;
+		printk(KERN_NOTICE PREFIX "%sed _OSI(Linux)\n",
+			enable ? "Add": "Delet");
+	}
+	return;
+}
 
-	if (osi_linux != enable)
-		printk(KERN_INFO PREFIX "%sabled _OSI(Linux)\n",
-			enable ? "En": "Dis");
+static void __init acpi_cmdline_osi_linux(unsigned int enable)
+{
+	osi_linux.cmdline = 1;	/* cmdline set the default */
+	set_osi_linux(enable);
 
-	osi_linux = enable;
+	return;
+}
+
+void __init acpi_dmi_osi_linux(int enable, const struct dmi_system_id *d)
+{
+	osi_linux.dmi = 1;	/* DMI knows that this box asks OSI(Linux) */
+
+	printk(KERN_NOTICE PREFIX "DMI detected: %s\n", d->ident);
+
+	if (enable == -1)
+		return;
+
+	osi_linux.known = 1;	/* DMI knows which OSI(Linux) default needed */
+
+	set_osi_linux(enable);
+
 	return;
 }
 
@@ -987,12 +1054,12 @@ static int __init acpi_osi_setup(char *str)
 		printk(KERN_INFO PREFIX "_OSI method disabled\n");
 		acpi_gbl_create_osi_method = FALSE;
 	} else if (!strcmp("!Linux", str)) {
-		enable_osi_linux(0);
+		acpi_cmdline_osi_linux(0);	/* !enable */
 	} else if (*str == '!') {
 		if (acpi_osi_invalidate(++str) == AE_OK)
 			printk(KERN_INFO PREFIX "Deleted _OSI(%s)\n", str);
 	} else if (!strcmp("Linux", str)) {
-		enable_osi_linux(1);
+		acpi_cmdline_osi_linux(1);	/* enable */
 	} else if (*osi_additional_string == '\0') {
 		strncpy(osi_additional_string, str, OSI_STRING_LENGTH_MAX);
 		printk(KERN_INFO PREFIX "Added _OSI(%s)\n", str);
@@ -1141,6 +1208,34 @@ acpi_status acpi_os_release_object(acpi_cache_t * cache, void *object)
 	return (AE_OK);
 }
 
+/**
+ *	acpi_dmi_dump - dump DMI slots needed for blacklist entry
+ *
+ *	Returns 0 on success
+ */
+int acpi_dmi_dump(void)
+{
+
+	if (!dmi_available)
+		return -1;
+
+	printk(KERN_NOTICE PREFIX "DMI System Vendor: %s\n",
+		dmi_get_slot(DMI_SYS_VENDOR));
+	printk(KERN_NOTICE PREFIX "DMI Product Name: %s\n",
+		dmi_get_slot(DMI_PRODUCT_NAME));
+	printk(KERN_NOTICE PREFIX "DMI Product Version: %s\n",
+		dmi_get_slot(DMI_PRODUCT_VERSION));
+	printk(KERN_NOTICE PREFIX "DMI Board Name: %s\n",
+		dmi_get_slot(DMI_BOARD_NAME));
+	printk(KERN_NOTICE PREFIX "DMI BIOS Vendor: %s\n",
+		dmi_get_slot(DMI_BIOS_VENDOR));
+	printk(KERN_NOTICE PREFIX "DMI BIOS Date: %s\n",
+		dmi_get_slot(DMI_BIOS_DATE));
+
+	return 0;
+}
+
+
 /******************************************************************************
  *
  * FUNCTION:    acpi_os_validate_interface
@@ -1160,13 +1255,29 @@ acpi_os_validate_interface (char *interface)
 	if (!strncmp(osi_additional_string, interface, OSI_STRING_LENGTH_MAX))
 		return AE_OK;
 	if (!strcmp("Linux", interface)) {
-		printk(KERN_WARNING PREFIX
-			"System BIOS is requesting _OSI(Linux)\n");
-		printk(KERN_WARNING PREFIX
-			"If \"acpi_osi=Linux\" works better,\n"
-			"Please send dmidecode "
-			"to linux-acpi@vger.kernel.org\n");
-		if(osi_linux)
+
+		printk(KERN_NOTICE PREFIX
+			"BIOS _OSI(Linux) query %s%s\n",
+			osi_linux.enable ? "honored" : "ignored",
+			osi_linux.cmdline ? " via cmdline" :
+			osi_linux.dmi ? " via DMI" : "");
+
+		if (!osi_linux.dmi) {
+			if (acpi_dmi_dump())
+				printk(KERN_NOTICE PREFIX
+					"[please extract dmidecode output]\n");
+			printk(KERN_NOTICE PREFIX
+				"Please send DMI info above to "
+				"linux-acpi@vger.kernel.org\n");
+		}
+		if (!osi_linux.known && !osi_linux.cmdline) {
+			printk(KERN_NOTICE PREFIX
+				"If \"acpi_osi=%sLinux\" works better, "
+				"please notify linux-acpi@vger.kernel.org\n",
+				osi_linux.enable ? "!" : "");
+		}
+
+		if (osi_linux.enable)
 			return AE_OK;
 	}
 	return AE_SUPPORT;
@@ -1197,29 +1308,5 @@ acpi_os_validate_address (
 
     return AE_OK;
 }
-
-#ifdef CONFIG_DMI
-static int dmi_osi_linux(const struct dmi_system_id *d)
-{
-	printk(KERN_NOTICE "%s detected: enabling _OSI(Linux)\n", d->ident);
-	enable_osi_linux(1);
-	return 0;
-}
-
-static struct dmi_system_id acpi_osl_dmi_table[] __initdata = {
-	/*
-	 * Boxes that need _OSI(Linux)
-	 */
-	{
-	 .callback = dmi_osi_linux,
-	 .ident = "Intel Napa CRB",
-	 .matches = {
-		     DMI_MATCH(DMI_BOARD_VENDOR, "Intel Corporation"),
-		     DMI_MATCH(DMI_BOARD_NAME, "MPAD-MSAE Customer Reference Boards"),
-		     },
-	 },
-	{}
-};
-#endif /* CONFIG_DMI */
 
 #endif
