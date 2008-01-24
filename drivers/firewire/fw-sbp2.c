@@ -661,9 +661,9 @@ static void sbp2_login(struct work_struct *work)
 	struct sbp2_login_response response;
 	int generation, node_id, local_node_id;
 
-	generation    = device->card->generation;
-	node_id       = device->node->node_id;
-	local_node_id = device->card->local_node->node_id;
+	generation    = device->generation;
+	node_id       = device->node_id;
+	local_node_id = device->card->node_id;
 
 	if (sbp2_send_management_orb(lu, node_id, generation,
 				SBP2_LOGIN_REQUEST, lu->lun, &response) < 0) {
@@ -911,9 +911,9 @@ static void sbp2_reconnect(struct work_struct *work)
 	struct fw_device *device = fw_device(unit->device.parent);
 	int generation, node_id, local_node_id;
 
-	generation    = device->card->generation;
-	node_id       = device->node->node_id;
-	local_node_id = device->card->local_node->node_id;
+	generation    = device->generation;
+	node_id       = device->node_id;
+	local_node_id = device->card->node_id;
 
 	if (sbp2_send_management_orb(lu, node_id, generation,
 				     SBP2_RECONNECT_REQUEST,
