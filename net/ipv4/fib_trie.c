@@ -2477,9 +2477,6 @@ static int fib_route_seq_show(struct seq_file *seq, void *v)
 		struct fib_alias *fa;
 		__be32 mask, prefix;
 
-		if (!li)
-			continue;
-
 		mask = inet_make_mask(li->plen);
 		prefix = htonl(l->key);
 
