@@ -1447,9 +1447,6 @@ static int onenand_write_ops_nolock(struct mtd_info *mtd, loff_t to,
 		buf += thislen;
 	}
 
-	/* Deselect and wake up anyone waiting on the device */
-	onenand_release_device(mtd);
-
 	ops->retlen = written;
 
 	return ret;
