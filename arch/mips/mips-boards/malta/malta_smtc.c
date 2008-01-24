@@ -34,7 +34,7 @@ static void msmtc_send_ipi_mask(cpumask_t mask, unsigned int action)
  */
 static void __cpuinit msmtc_init_secondary(void)
 {
-        void smtc_init_secondary(void);
+	void smtc_init_secondary(void);
 	int myvpe;
 
 	/* Don't enable Malta I/O interrupts (IP2) for secondary VPEs */
