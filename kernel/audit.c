@@ -166,7 +166,8 @@ void audit_panic(const char *message)
 	case AUDIT_FAIL_SILENT:
 		break;
 	case AUDIT_FAIL_PRINTK:
-		printk(KERN_ERR "audit: %s\n", message);
+		if (printk_ratelimit())
+			printk(KERN_ERR "audit: %s\n", message);
 		break;
 	case AUDIT_FAIL_PANIC:
 		panic("audit: %s\n", message);
@@ -234,11 +235,13 @@ void audit_log_lost(const char *message)
 	}
 
 	if (print) {
-		printk(KERN_WARNING
-		       "audit: audit_lost=%d audit_rate_limit=%d audit_backlog_limit=%d\n",
-		       atomic_read(&audit_lost),
-		       audit_rate_limit,
-		       audit_backlog_limit);
+		if (printk_ratelimit())
+			printk(KERN_WARNING
+				"audit: audit_lost=%d audit_rate_limit=%d "
+				"audit_backlog_limit=%d\n",
+				atomic_read(&audit_lost),
+				audit_rate_limit,
+				audit_backlog_limit);
 		audit_panic(message);
 	}
 }
@@ -352,7 +355,11 @@ static int kauditd_thread(void *dummy)
 					audit_pid = 0;
 				}
 			} else {
-				printk(KERN_NOTICE "%s\n", skb->data + NLMSG_SPACE(0));
+				if (printk_ratelimit())
+					printk(KERN_NOTICE "%s\n", skb->data +
+						NLMSG_SPACE(0));
+				else
+					audit_log_lost("printk limit exceeded\n");
 				kfree_skb(skb);
 			}
 		} else {
@@ -1066,7 +1073,7 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx, gfp_t gfp_mask,
 			remove_wait_queue(&audit_backlog_wait, &wait);
 			continue;
 		}
-		if (audit_rate_check())
+		if (audit_rate_check() && printk_ratelimit())
 			printk(KERN_WARNING
 			       "audit: audit_backlog=%d > "
 			       "audit_backlog_limit=%d\n",
@@ -1349,9 +1356,11 @@ void audit_log_end(struct audit_buffer *ab)
 			skb_queue_tail(&audit_skb_queue, ab->skb);
 			ab->skb = NULL;
 			wake_up_interruptible(&kauditd_wait);
-		} else {
+		} else if (printk_ratelimit()) {
 			struct nlmsghdr *nlh = nlmsg_hdr(ab->skb);
 			printk(KERN_NOTICE "type=%d %s\n", nlh->nlmsg_type, ab->skb->data + NLMSG_SPACE(0));
+		} else {
+			audit_log_lost("printk limit exceeded\n");
 		}
 	}
 	audit_buffer_free(ab);
