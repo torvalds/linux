@@ -1061,7 +1061,10 @@ static long kvm_dev_ioctl(struct file *filp,
 		r = -EINVAL;
 		if (arg)
 			goto out;
-		r = 2 * PAGE_SIZE;
+		r = PAGE_SIZE;     /* struct kvm_run */
+#ifdef CONFIG_X86
+		r += PAGE_SIZE;    /* pio data page */
+#endif
 		break;
 	default:
 		return kvm_arch_dev_ioctl(filp, ioctl, arg);
