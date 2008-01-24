@@ -146,9 +146,7 @@ typedef struct sync_port
 } sync_port;
 
 static int etrax_sync_serial_init(void);
-#if defined(CONFIG_ETRAX_SYNCHRONOUS_SERIAL_PORT1)
 static void initialize_port(int portnbr);
-#endif
 static inline int sync_data_avail(struct sync_port *port);
 
 static int sync_serial_open(struct inode *, struct file*);
@@ -294,7 +292,6 @@ static int __init etrax_sync_serial_init(void)
 	return 0;
 }
 
-#if defined(CONFIG_ETRAX_SYNCHRONOUS_SERIAL_PORT1)
 static void __init initialize_port(int portnbr)
 {
 	int __attribute__((unused)) i;
@@ -388,7 +385,6 @@ static void __init initialize_port(int portnbr)
 	port->catch_tr_descr = &port->out_descr[0];
 #endif
 }
-#endif
 
 static inline int sync_data_avail(struct sync_port *port)
 {
@@ -1077,7 +1073,7 @@ static ssize_t sync_serial_write(struct file *file, const char *buf,
 
 	if (signal_pending(current))
 		return -EINTR;
-	}
+
 	DEBUGWRITE(printk(KERN_DEBUG "w d%d c %lu\n",
 			  port->port_nbr, trunc_count));
 	return trunc_count;
