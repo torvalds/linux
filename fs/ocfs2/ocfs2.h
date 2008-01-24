@@ -262,6 +262,12 @@ struct ocfs2_super
 	unsigned long dc_wake_sequence;
 	unsigned long dc_work_sequence;
 
+	/*
+	 * Any thread can add locks to the list, but the downconvert
+	 * thread is the only one allowed to remove locks. Any change
+	 * to this rule requires updating
+	 * ocfs2_downconvert_thread_do_work().
+	 */
 	struct list_head blocked_lock_list;
 	unsigned long blocked_lock_count;
 
