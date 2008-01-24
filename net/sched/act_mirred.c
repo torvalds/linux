@@ -62,11 +62,15 @@ static int tcf_mirred_init(struct nlattr *nla, struct nlattr *est,
 	struct tcf_mirred *m;
 	struct tcf_common *pc;
 	struct net_device *dev = NULL;
-	int ret = 0;
+	int ret = 0, err;
 	int ok_push = 0;
 
-	if (nla == NULL || nla_parse_nested(tb, TCA_MIRRED_MAX, nla, NULL) < 0)
+	if (nla == NULL)
 		return -EINVAL;
+
+	err = nla_parse_nested(tb, TCA_MIRRED_MAX, nla, NULL);
+	if (err < 0)
+		return err;
 
 	if (tb[TCA_MIRRED_PARMS] == NULL ||
 	    nla_len(tb[TCA_MIRRED_PARMS]) < sizeof(*parm))

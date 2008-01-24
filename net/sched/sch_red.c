@@ -207,9 +207,14 @@ static int red_change(struct Qdisc *sch, struct nlattr *opt)
 	struct nlattr *tb[TCA_RED_MAX + 1];
 	struct tc_red_qopt *ctl;
 	struct Qdisc *child = NULL;
+	int err;
 
-	if (opt == NULL || nla_parse_nested(tb, TCA_RED_MAX, opt, NULL))
+	if (opt == NULL)
 		return -EINVAL;
+
+	err = nla_parse_nested(tb, TCA_RED_MAX, opt, NULL);
+	if (err < 0)
+		return err;
 
 	if (tb[TCA_RED_PARMS] == NULL ||
 	    nla_len(tb[TCA_RED_PARMS]) < sizeof(*ctl) ||

@@ -223,8 +223,12 @@ static int atm_tc_change(struct Qdisc *sch, u32 classid, u32 parent,
 	 */
 	if (flow)
 		return -EBUSY;
-	if (opt == NULL || nla_parse_nested(tb, TCA_ATM_MAX, opt, NULL))
+	if (opt == NULL)
 		return -EINVAL;
+	error = nla_parse_nested(tb, TCA_ATM_MAX, opt, NULL);
+	if (error < 0)
+		return error;
+
 	if (!tb[TCA_ATM_FD] || nla_len(tb[TCA_ATM_FD]) < sizeof(fd))
 		return -EINVAL;
 	fd = *(int *)nla_data(tb[TCA_ATM_FD]);

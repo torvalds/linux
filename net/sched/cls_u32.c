@@ -531,8 +531,9 @@ static int u32_change(struct tcf_proto *tp, unsigned long base, u32 handle,
 	if (opt == NULL)
 		return handle ? -EINVAL : 0;
 
-	if (nla_parse_nested(tb, TCA_U32_MAX, opt, NULL) < 0)
-		return -EINVAL;
+	err = nla_parse_nested(tb, TCA_U32_MAX, opt, NULL);
+	if (err < 0)
+		return err;
 
 	if ((n = (struct tc_u_knode*)*arg) != NULL) {
 		if (TC_U32_KEY(n->handle) == 0)

@@ -430,11 +430,15 @@ static int gred_change(struct Qdisc *sch, struct nlattr *opt)
 	struct gred_sched *table = qdisc_priv(sch);
 	struct tc_gred_qopt *ctl;
 	struct nlattr *tb[TCA_GRED_MAX + 1];
-	int err = -EINVAL, prio = GRED_DEF_PRIO;
+	int err, prio = GRED_DEF_PRIO;
 	u8 *stab;
 
-	if (opt == NULL || nla_parse_nested(tb, TCA_GRED_MAX, opt, NULL))
+	if (opt == NULL)
 		return -EINVAL;
+
+	err = nla_parse_nested(tb, TCA_GRED_MAX, opt, NULL);
+	if (err < 0)
+		return err;
 
 	if (tb[TCA_GRED_PARMS] == NULL && tb[TCA_GRED_STAB] == NULL)
 		return gred_change_table_def(sch, opt);
@@ -445,6 +449,7 @@ static int gred_change(struct Qdisc *sch, struct nlattr *opt)
 	    nla_len(tb[TCA_GRED_STAB]) < 256)
 		return -EINVAL;
 
+	err = -EINVAL;
 	ctl = nla_data(tb[TCA_GRED_PARMS]);
 	stab = nla_data(tb[TCA_GRED_STAB]);
 
@@ -489,9 +494,14 @@ errout:
 static int gred_init(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct nlattr *tb[TCA_GRED_MAX + 1];
+	int err;
 
-	if (opt == NULL || nla_parse_nested(tb, TCA_GRED_MAX, opt, NULL))
+	if (opt == NULL)
 		return -EINVAL;
+
+	err = nla_parse_nested(tb, TCA_GRED_MAX, opt, NULL);
+	if (err < 0)
+		return err;
 
 	if (tb[TCA_GRED_PARMS] || tb[TCA_GRED_STAB])
 		return -EINVAL;

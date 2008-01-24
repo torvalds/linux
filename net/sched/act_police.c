@@ -129,8 +129,12 @@ static int tcf_act_police_locate(struct nlattr *nla, struct nlattr *est,
 	struct qdisc_rate_table *R_tab = NULL, *P_tab = NULL;
 	int size;
 
-	if (nla == NULL || nla_parse_nested(tb, TCA_POLICE_MAX, nla, NULL) < 0)
+	if (nla == NULL)
 		return -EINVAL;
+
+	err = nla_parse_nested(tb, TCA_POLICE_MAX, nla, NULL);
+	if (err < 0)
+		return err;
 
 	if (tb[TCA_POLICE_TBF] == NULL)
 		return -EINVAL;

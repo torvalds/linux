@@ -997,9 +997,14 @@ hfsc_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 	struct nlattr *tb[TCA_HFSC_MAX + 1];
 	struct tc_service_curve *rsc = NULL, *fsc = NULL, *usc = NULL;
 	u64 cur_time;
+	int err;
 
-	if (opt == NULL || nla_parse_nested(tb, TCA_HFSC_MAX, opt, NULL))
+	if (opt == NULL)
 		return -EINVAL;
+
+	err = nla_parse_nested(tb, TCA_HFSC_MAX, opt, NULL);
+	if (err < 0)
+		return err;
 
 	if (tb[TCA_HFSC_RSC]) {
 		if (nla_len(tb[TCA_HFSC_RSC]) < sizeof(*rsc))

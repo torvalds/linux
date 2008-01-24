@@ -93,10 +93,14 @@ static int tcf_simp_init(struct nlattr *nla, struct nlattr *est,
 	struct tcf_common *pc;
 	void *defdata;
 	u32 datalen = 0;
-	int ret = 0;
+	int ret = 0, err;
 
-	if (nla == NULL || nla_parse_nested(tb, TCA_DEF_MAX, nla, NULL) < 0)
+	if (nla == NULL)
 		return -EINVAL;
+
+	err = nla_parse_nested(tb, TCA_DEF_MAX, nla, NULL);
+	if (err < 0)
+		return err;
 
 	if (tb[TCA_DEF_PARMS] == NULL ||
 	    nla_len(tb[TCA_DEF_PARMS]) < sizeof(*parm))

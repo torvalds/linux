@@ -45,12 +45,16 @@ static int tcf_nat_init(struct nlattr *nla, struct nlattr *est,
 {
 	struct nlattr *tb[TCA_NAT_MAX + 1];
 	struct tc_nat *parm;
-	int ret = 0;
+	int ret = 0, err;
 	struct tcf_nat *p;
 	struct tcf_common *pc;
 
-	if (nla == NULL || nla_parse_nested(tb, TCA_NAT_MAX, nla, NULL) < 0)
+	if (nla == NULL)
 		return -EINVAL;
+
+	err = nla_parse_nested(tb, TCA_NAT_MAX, nla, NULL);
+	if (err < 0)
+		return err;
 
 	if (tb[TCA_NAT_PARMS] == NULL ||
 	    nla_len(tb[TCA_NAT_PARMS]) < sizeof(*parm))

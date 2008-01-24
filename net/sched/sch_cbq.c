@@ -1382,9 +1382,13 @@ static int cbq_init(struct Qdisc *sch, struct nlattr *opt)
 	struct cbq_sched_data *q = qdisc_priv(sch);
 	struct nlattr *tb[TCA_CBQ_MAX + 1];
 	struct tc_ratespec *r;
+	int err;
 
-	if (nla_parse_nested(tb, TCA_CBQ_MAX, opt, NULL) < 0 ||
-	    tb[TCA_CBQ_RTAB] == NULL || tb[TCA_CBQ_RATE] == NULL ||
+	err = nla_parse_nested(tb, TCA_CBQ_MAX, opt, NULL);
+	if (err < 0)
+		return err;
+
+	if (tb[TCA_CBQ_RTAB] == NULL || tb[TCA_CBQ_RATE] == NULL ||
 	    nla_len(tb[TCA_CBQ_RATE]) < sizeof(struct tc_ratespec))
 		return -EINVAL;
 
@@ -1764,8 +1768,12 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct nlattr **t
 	struct cbq_class *parent;
 	struct qdisc_rate_table *rtab = NULL;
 
-	if (opt==NULL || nla_parse_nested(tb, TCA_CBQ_MAX, opt, NULL))
+	if (opt == NULL)
 		return -EINVAL;
+
+	err = nla_parse_nested(tb, TCA_CBQ_MAX, opt, NULL);
+	if (err < 0)
+		return err;
 
 	if (tb[TCA_CBQ_OVL_STRATEGY] &&
 	    nla_len(tb[TCA_CBQ_OVL_STRATEGY]) < sizeof(struct tc_cbq_ovl))

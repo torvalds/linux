@@ -116,9 +116,14 @@ static int dsmark_change(struct Qdisc *sch, u32 classid, u32 parent,
 		goto errout;
 	}
 
-	if (!opt || nla_parse_nested(tb, TCA_DSMARK_MAX, opt, NULL))
+	if (!opt)
 		goto errout;
 
+	err = nla_parse_nested(tb, TCA_DSMARK_MAX, opt, NULL);
+	if (err < 0)
+		return err;
+
+	err = -EINVAL;
 	if (tb[TCA_DSMARK_MASK]) {
 		if (nla_len(tb[TCA_DSMARK_MASK]) < sizeof(u8))
 			goto errout;
@@ -351,9 +356,14 @@ static int dsmark_init(struct Qdisc *sch, struct nlattr *opt)
 
 	pr_debug("dsmark_init(sch %p,[qdisc %p],opt %p)\n", sch, p, opt);
 
-	if (!opt || nla_parse_nested(tb, TCA_DSMARK_MAX, opt, NULL) < 0)
+	if (!opt)
 		goto errout;
 
+	err = nla_parse_nested(tb, TCA_DSMARK_MAX, opt, NULL);
+	if (err < 0)
+		goto errout;
+
+	err = -EINVAL;
 	if (nla_len(tb[TCA_DSMARK_INDICES]) < sizeof(u16))
 		goto errout;
 	indices = nla_get_u16(tb[TCA_DSMARK_INDICES]);

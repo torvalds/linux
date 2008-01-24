@@ -301,7 +301,7 @@ errout:
 int tcf_em_tree_validate(struct tcf_proto *tp, struct nlattr *nla,
 			 struct tcf_ematch_tree *tree)
 {
-	int idx, list_len, matches_len, err = -EINVAL;
+	int idx, list_len, matches_len, err;
 	struct nlattr *tb[TCA_EMATCH_TREE_MAX + 1];
 	struct nlattr *rt_match, *rt_hdr, *rt_list;
 	struct tcf_ematch_tree_hdr *tree_hdr;
@@ -312,9 +312,11 @@ int tcf_em_tree_validate(struct tcf_proto *tp, struct nlattr *nla,
 		return 0;
 	}
 
-	if (nla_parse_nested(tb, TCA_EMATCH_TREE_MAX, nla, NULL) < 0)
+	err = nla_parse_nested(tb, TCA_EMATCH_TREE_MAX, nla, NULL);
+	if (err < 0)
 		goto errout;
 
+	err = -EINVAL;
 	rt_hdr = tb[TCA_EMATCH_TREE_HDR];
 	rt_list = tb[TCA_EMATCH_TREE_LIST];
 

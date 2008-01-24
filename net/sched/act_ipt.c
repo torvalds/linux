@@ -104,8 +104,12 @@ static int tcf_ipt_init(struct nlattr *nla, struct nlattr *est,
 	u32 hook = 0;
 	u32 index = 0;
 
-	if (nla == NULL || nla_parse_nested(tb, TCA_IPT_MAX, nla, NULL) < 0)
+	if (nla == NULL)
 		return -EINVAL;
+
+	err = nla_parse_nested(tb, TCA_IPT_MAX, nla, NULL);
+	if (err < 0)
+		return err;
 
 	if (tb[TCA_IPT_HOOK] == NULL ||
 	    nla_len(tb[TCA_IPT_HOOK]) < sizeof(u32))

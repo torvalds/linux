@@ -473,17 +473,18 @@ struct tc_action *tcf_action_init_1(struct nlattr *nla, struct nlattr *est,
 	struct nlattr *kind;
 	int err;
 
-	err = -EINVAL;
-
 	if (name == NULL) {
-		if (nla_parse_nested(tb, TCA_ACT_MAX, nla, NULL) < 0)
+		err = nla_parse_nested(tb, TCA_ACT_MAX, nla, NULL);
+		if (err < 0)
 			goto err_out;
+		err = -EINVAL;
 		kind = tb[TCA_ACT_KIND];
 		if (kind == NULL)
 			goto err_out;
 		if (nla_strlcpy(act_name, kind, IFNAMSIZ) >= IFNAMSIZ)
 			goto err_out;
 	} else {
+		err = -EINVAL;
 		if (strlcpy(act_name, name, IFNAMSIZ) >= IFNAMSIZ)
 			goto err_out;
 	}
@@ -548,10 +549,12 @@ struct tc_action *tcf_action_init(struct nlattr *nla, struct nlattr *est,
 {
 	struct nlattr *tb[TCA_ACT_MAX_PRIO+1];
 	struct tc_action *head = NULL, *act, *act_prev = NULL;
+	int err;
 	int i;
 
-	if (nla_parse_nested(tb, TCA_ACT_MAX_PRIO, nla, NULL) < 0)
-		return ERR_PTR(-EINVAL);
+	err = nla_parse_nested(tb, TCA_ACT_MAX_PRIO, nla, NULL);
+	if (err < 0)
+		return ERR_PTR(err);
 
 	for (i = 1; i <= TCA_ACT_MAX_PRIO && tb[i]; i++) {
 		act = tcf_action_init_1(tb[i], est, name, ovr, bind);
@@ -674,10 +677,11 @@ tcf_action_get_1(struct nlattr *nla, struct nlmsghdr *n, u32 pid)
 	int index;
 	int err;
 
-	err = -EINVAL;
-	if (nla_parse_nested(tb, TCA_ACT_MAX, nla, NULL) < 0)
+	err = nla_parse_nested(tb, TCA_ACT_MAX, nla, NULL);
+	if (err < 0)
 		goto err_out;
 
+	err = -EINVAL;
 	if (tb[TCA_ACT_INDEX] == NULL ||
 	    nla_len(tb[TCA_ACT_INDEX]) < sizeof(index))
 		goto err_out;
@@ -759,9 +763,11 @@ static int tca_action_flush(struct nlattr *nla, struct nlmsghdr *n, u32 pid)
 
 	b = skb_tail_pointer(skb);
 
-	if (nla_parse_nested(tb, TCA_ACT_MAX, nla, NULL) < 0)
+	err = nla_parse_nested(tb, TCA_ACT_MAX, nla, NULL);
+	if (err < 0)
 		goto err_out;
 
+	err = -EINVAL;
 	kind = tb[TCA_ACT_KIND];
 	a->ops = tc_lookup_action(kind);
 	if (a->ops == NULL)
@@ -804,12 +810,13 @@ err_out:
 static int
 tca_action_gd(struct nlattr *nla, struct nlmsghdr *n, u32 pid, int event)
 {
-	int i, ret = 0;
+	int i, ret;
 	struct nlattr *tb[TCA_ACT_MAX_PRIO+1];
 	struct tc_action *head = NULL, *act, *act_prev = NULL;
 
-	if (nla_parse_nested(tb, TCA_ACT_MAX_PRIO, nla, NULL) < 0)
-		return -EINVAL;
+	ret = nla_parse_nested(tb, TCA_ACT_MAX_PRIO, nla, NULL);
+	if (ret < 0)
+		return ret;
 
 	if (event == RTM_DELACTION && n->nlmsg_flags&NLM_F_ROOT) {
 		if (tb[0] != NULL && tb[1] == NULL)

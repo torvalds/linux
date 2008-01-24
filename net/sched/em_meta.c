@@ -749,14 +749,16 @@ static inline int meta_is_supported(struct meta_value *val)
 static int em_meta_change(struct tcf_proto *tp, void *data, int len,
 			  struct tcf_ematch *m)
 {
-	int err = -EINVAL;
+	int err;
 	struct nlattr *tb[TCA_EM_META_MAX + 1];
 	struct tcf_meta_hdr *hdr;
 	struct meta_match *meta = NULL;
 
-	if (nla_parse(tb, TCA_EM_META_MAX, data, len, NULL) < 0)
+	err = nla_parse(tb, TCA_EM_META_MAX, data, len, NULL);
+	if (err < 0)
 		goto errout;
 
+	err = -EINVAL;
 	if (tb[TCA_EM_META_HDR] == NULL ||
 	    nla_len(tb[TCA_EM_META_HDR]) < sizeof(*hdr))
 		goto errout;

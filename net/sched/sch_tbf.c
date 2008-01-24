@@ -272,7 +272,7 @@ static struct Qdisc *tbf_create_dflt_qdisc(struct Qdisc *sch, u32 limit)
 
 static int tbf_change(struct Qdisc* sch, struct nlattr *opt)
 {
-	int err = -EINVAL;
+	int err;
 	struct tbf_sched_data *q = qdisc_priv(sch);
 	struct nlattr *tb[TCA_TBF_PTAB + 1];
 	struct tc_tbf_qopt *qopt;
@@ -281,8 +281,12 @@ static int tbf_change(struct Qdisc* sch, struct nlattr *opt)
 	struct Qdisc *child = NULL;
 	int max_size,n;
 
-	if (nla_parse_nested(tb, TCA_TBF_PTAB, opt, NULL) ||
-	    tb[TCA_TBF_PARMS] == NULL ||
+	err = nla_parse_nested(tb, TCA_TBF_PTAB, opt, NULL);
+	if (err < 0)
+		return err;
+
+	err = -EINVAL;
+	if (tb[TCA_TBF_PARMS] == NULL ||
 	    nla_len(tb[TCA_TBF_PARMS]) < sizeof(*qopt))
 		goto done;
 

@@ -229,11 +229,14 @@ static int prio_tune(struct Qdisc *sch, struct nlattr *opt)
 	struct prio_sched_data *q = qdisc_priv(sch);
 	struct tc_prio_qopt *qopt;
 	struct nlattr *tb[TCA_PRIO_MAX + 1];
+	int err;
 	int i;
 
-	if (nla_parse_nested_compat(tb, TCA_PRIO_MAX, opt, NULL, qopt,
-				    sizeof(*qopt)))
-		return -EINVAL;
+	err = nla_parse_nested_compat(tb, TCA_PRIO_MAX, opt, NULL, qopt,
+				      sizeof(*qopt));
+	if (err < 0)
+		return err;
+
 	q->bands = qopt->bands;
 	/* If we're multiqueue, make sure the number of incoming bands
 	 * matches the number of queues on the device we're associating with.

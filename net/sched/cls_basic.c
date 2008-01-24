@@ -166,7 +166,7 @@ errout:
 static int basic_change(struct tcf_proto *tp, unsigned long base, u32 handle,
 			struct nlattr **tca, unsigned long *arg)
 {
-	int err = -EINVAL;
+	int err;
 	struct basic_head *head = (struct basic_head *) tp->root;
 	struct nlattr *tb[TCA_BASIC_MAX + 1];
 	struct basic_filter *f = (struct basic_filter *) *arg;
@@ -174,8 +174,9 @@ static int basic_change(struct tcf_proto *tp, unsigned long base, u32 handle,
 	if (tca[TCA_OPTIONS] == NULL)
 		return -EINVAL;
 
-	if (nla_parse_nested(tb, TCA_BASIC_MAX, tca[TCA_OPTIONS], NULL) < 0)
-		return -EINVAL;
+	err = nla_parse_nested(tb, TCA_BASIC_MAX, tca[TCA_OPTIONS], NULL);
+	if (err < 0)
+		return err;
 
 	if (f != NULL) {
 		if (handle && f->handle != handle)

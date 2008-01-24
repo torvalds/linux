@@ -416,8 +416,9 @@ static int rsvp_change(struct tcf_proto *tp, unsigned long base,
 	if (opt == NULL)
 		return handle ? -EINVAL : 0;
 
-	if (nla_parse_nested(tb, TCA_RSVP_MAX, opt, NULL) < 0)
-		return -EINVAL;
+	err = nla_parse_nested(tb, TCA_RSVP_MAX, opt, NULL);
+	if (err < 0)
+		return err;
 
 	err = tcf_exts_validate(tp, tb, tca[TCA_RATE-1], &e, &rsvp_ext_map);
 	if (err < 0)

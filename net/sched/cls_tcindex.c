@@ -350,6 +350,7 @@ tcindex_change(struct tcf_proto *tp, unsigned long base, u32 handle,
 	struct nlattr *tb[TCA_TCINDEX_MAX + 1];
 	struct tcindex_data *p = PRIV(tp);
 	struct tcindex_filter_result *r = (struct tcindex_filter_result *) *arg;
+	int err;
 
 	pr_debug("tcindex_change(tp %p,handle 0x%08x,tca %p,arg %p),opt %p,"
 	    "p %p,r %p,*arg 0x%lx\n",
@@ -358,8 +359,9 @@ tcindex_change(struct tcf_proto *tp, unsigned long base, u32 handle,
 	if (!opt)
 		return 0;
 
-	if (nla_parse_nested(tb, TCA_TCINDEX_MAX, opt, NULL) < 0)
-		return -EINVAL;
+	err = nla_parse_nested(tb, TCA_TCINDEX_MAX, opt, NULL);
+	if (err < 0)
+		return err;
 
 	return tcindex_set_parms(tp, base, handle, p, r, tb, tca[TCA_RATE]);
 }

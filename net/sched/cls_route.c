@@ -440,8 +440,9 @@ static int route4_change(struct tcf_proto *tp, unsigned long base,
 	if (opt == NULL)
 		return handle ? -EINVAL : 0;
 
-	if (nla_parse_nested(tb, TCA_ROUTE4_MAX, opt, NULL) < 0)
-		return -EINVAL;
+	err = nla_parse_nested(tb, TCA_ROUTE4_MAX, opt, NULL);
+	if (err < 0)
+		return err;
 
 	if ((f = (struct route4_filter*)*arg) != NULL) {
 		if (f->handle != handle && handle)

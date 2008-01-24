@@ -38,14 +38,18 @@ static int tcf_pedit_init(struct nlattr *nla, struct nlattr *est,
 {
 	struct nlattr *tb[TCA_PEDIT_MAX + 1];
 	struct tc_pedit *parm;
-	int ret = 0;
+	int ret = 0, err;
 	struct tcf_pedit *p;
 	struct tcf_common *pc;
 	struct tc_pedit_key *keys = NULL;
 	int ksize;
 
-	if (nla == NULL || nla_parse_nested(tb, TCA_PEDIT_MAX, nla, NULL) < 0)
+	if (nla == NULL)
 		return -EINVAL;
+
+	err = nla_parse_nested(tb, TCA_PEDIT_MAX, nla, NULL);
+	if (err < 0)
+		return err;
 
 	if (tb[TCA_PEDIT_PARMS] == NULL ||
 	    nla_len(tb[TCA_PEDIT_PARMS]) < sizeof(*parm))

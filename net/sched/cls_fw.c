@@ -246,8 +246,9 @@ static int fw_change(struct tcf_proto *tp, unsigned long base,
 	if (!opt)
 		return handle ? -EINVAL : 0;
 
-	if (nla_parse_nested(tb, TCA_FW_MAX, opt, NULL) < 0)
-		return -EINVAL;
+	err = nla_parse_nested(tb, TCA_FW_MAX, opt, NULL);
+	if (err < 0)
+		return err;
 
 	if (f != NULL) {
 		if (f->id != handle && handle)

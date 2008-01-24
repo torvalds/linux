@@ -61,9 +61,14 @@ static int tcf_gact_init(struct nlattr *nla, struct nlattr *est,
 	struct tcf_gact *gact;
 	struct tcf_common *pc;
 	int ret = 0;
+	int err;
 
-	if (nla == NULL || nla_parse_nested(tb, TCA_GACT_MAX, nla, NULL) < 0)
+	if (nla == NULL)
 		return -EINVAL;
+
+	err = nla_parse_nested(tb, TCA_GACT_MAX, nla, NULL);
+	if (err < 0)
+		return err;
 
 	if (tb[TCA_GACT_PARMS] == NULL ||
 	    nla_len(tb[TCA_GACT_PARMS]) < sizeof(*parm))

@@ -997,9 +997,17 @@ static int htb_init(struct Qdisc *sch, struct nlattr *opt)
 	struct htb_sched *q = qdisc_priv(sch);
 	struct nlattr *tb[TCA_HTB_INIT + 1];
 	struct tc_htb_glob *gopt;
+	int err;
 	int i;
-	if (!opt || nla_parse_nested(tb, TCA_HTB_INIT, opt, NULL) ||
-	    tb[TCA_HTB_INIT] == NULL ||
+
+	if (!opt)
+		return -EINVAL;
+
+	err = nla_parse_nested(tb, TCA_HTB_INIT, opt, NULL);
+	if (err < 0)
+		return err;
+
+	if (tb[TCA_HTB_INIT] == NULL ||
 	    nla_len(tb[TCA_HTB_INIT]) < sizeof(*gopt)) {
 		printk(KERN_ERR "HTB: hey probably you have bad tc tool ?\n");
 		return -EINVAL;
@@ -1302,8 +1310,15 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 	struct tc_htb_opt *hopt;
 
 	/* extract all subattrs from opt attr */
-	if (!opt || nla_parse_nested(tb, TCA_HTB_RTAB, opt, NULL) ||
-	    tb[TCA_HTB_PARMS] == NULL ||
+	if (!opt)
+		goto failure;
+
+	err = nla_parse_nested(tb, TCA_HTB_RTAB, opt, NULL);
+	if (err < 0)
+		goto failure;
+
+	err = -EINVAL;
+	if (tb[TCA_HTB_PARMS] == NULL ||
 	    nla_len(tb[TCA_HTB_PARMS]) < sizeof(*hopt))
 		goto failure;
 
