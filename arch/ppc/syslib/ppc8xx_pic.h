@@ -6,7 +6,6 @@
 
 extern struct hw_interrupt_type ppc8xx_pic;
 
-void m8xx_pic_init(void);
 void m8xx_do_IRQ(struct pt_regs *regs,
                  int            cpu);
 int m8xx_get_irq(struct pt_regs *regs);
