@@ -232,7 +232,7 @@ static const struct icmp_control icmp_pointers[NR_ICMP_TYPES+1];
 static DEFINE_PER_CPU(struct socket *, __icmp_socket) = NULL;
 #define icmp_socket	__get_cpu_var(__icmp_socket)
 
-static __inline__ int icmp_xmit_lock(void)
+static inline int icmp_xmit_lock(void)
 {
 	local_bh_disable();
 
@@ -246,7 +246,7 @@ static __inline__ int icmp_xmit_lock(void)
 	return 0;
 }
 
-static void icmp_xmit_unlock(void)
+static inline void icmp_xmit_unlock(void)
 {
 	spin_unlock_bh(&icmp_socket->sk->sk_lock.slock);
 }
