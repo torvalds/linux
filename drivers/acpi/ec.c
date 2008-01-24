@@ -82,6 +82,7 @@ enum {
 	EC_FLAGS_ADDRESS,		/* Address is being written */
 	EC_FLAGS_NO_WDATA_GPE,		/* Don't expect WDATA GPE event */
 	EC_FLAGS_WDATA,			/* Data is being written */
+	EC_FLAGS_NO_OBF1_GPE,		/* Don't expect GPE before read */
 };
 
 static int acpi_ec_remove(struct acpi_device *device, int type);
@@ -179,6 +180,10 @@ static inline int acpi_ec_check_status(struct acpi_ec *ec, enum ec_event event)
 static int acpi_ec_wait(struct acpi_ec *ec, enum ec_event event, int force_poll)
 {
 	int ret = 0;
+
+	if (unlikely(event == ACPI_EC_EVENT_OBF_1 &&
+		     test_bit(EC_FLAGS_NO_OBF1_GPE, &ec->flags)))
+		force_poll = 1;
 	if (unlikely(test_bit(EC_FLAGS_ADDRESS, &ec->flags) &&
 		     test_bit(EC_FLAGS_NO_ADDRESS_GPE, &ec->flags)))
 		force_poll = 1;
@@ -192,7 +197,12 @@ static int acpi_ec_wait(struct acpi_ec *ec, enum ec_event event, int force_poll)
 			goto end;
 		clear_bit(EC_FLAGS_WAIT_GPE, &ec->flags);
 		if (acpi_ec_check_status(ec, event)) {
-			if (test_bit(EC_FLAGS_ADDRESS, &ec->flags)) {
+			if (event == ACPI_EC_EVENT_OBF_1) {
+				/* miss OBF_1 GPE, don't expect it */
+				pr_info(PREFIX "missing OBF confirmation, "
+					"don't expect it any longer.\n");
+				set_bit(EC_FLAGS_NO_OBF1_GPE, &ec->flags);
+			} else if (test_bit(EC_FLAGS_ADDRESS, &ec->flags)) {
 				/* miss address GPE, don't expect it anymore */
 				pr_info(PREFIX "missing address confirmation, "
 					"don't expect it any longer.\n");
