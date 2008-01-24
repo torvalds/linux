@@ -81,6 +81,13 @@ config TQM8560
 	select TQM85xx
 	select CPM2
 
+config SBC8560
+	bool "Wind River SBC8560"
+	select DEFAULT_UIMAGE
+	select PPC_CPM_NEW_BINDING
+	help
+	  This option enables support for the Wind River SBC8560 board
+
 endchoice
 
 config TQM85xx
@@ -96,7 +103,7 @@ config MPC8540
 config MPC8560
 	bool
 	select CPM2
-	default y if MPC8560_ADS || STX_GP3
+	default y if MPC8560_ADS || STX_GP3 || SBC8560
 
 config MPC85xx
 	bool
@@ -106,4 +113,4 @@ config MPC85xx
 	select FSL_PCI if PCI
 	select SERIAL_8250_SHARE_IRQ if SERIAL_8250
 	default y if MPC8540_ADS || MPC85xx_CDS || MPC8560_ADS \
-		|| MPC85xx_MDS || MPC85xx_DS || STX_GP3
+		|| MPC85xx_MDS || MPC85xx_DS || STX_GP3 || SBC8560
