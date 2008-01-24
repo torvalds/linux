@@ -38,6 +38,14 @@ config MPC85xx_DS
 	help
 	  This option enables support for the MPC85xx DS (MPC8544 DS) board
 
+config STX_GP3
+	bool "Silicon Turnkey Express GP3"
+	help
+	  This option enables support for the Silicon Turnkey Express GP3
+	  board.
+	select DEFAULT_UIMAGE
+	select PPC_CPM_NEW_BINDING
+
 endchoice
 
 config MPC8540
@@ -49,7 +57,7 @@ config MPC8540
 config MPC8560
 	bool
 	select CPM2
-	default y if MPC8560_ADS
+	default y if MPC8560_ADS || STX_GP3
 
 config MPC85xx
 	bool
@@ -59,4 +67,4 @@ config MPC85xx
 	select FSL_PCI if PCI
 	select SERIAL_8250_SHARE_IRQ if SERIAL_8250
 	default y if MPC8540_ADS || MPC85xx_CDS || MPC8560_ADS \
-		|| MPC85xx_MDS || MPC85xx_DS
+		|| MPC85xx_MDS || MPC85xx_DS || STX_GP3
