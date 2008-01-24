@@ -75,7 +75,7 @@ phys_addr_t get_immrbase(void)
 
 EXPORT_SYMBOL(get_immrbase);
 
-#if defined(CONFIG_CPM2) || defined(CONFIG_8xx)
+#if defined(CONFIG_CPM2) || defined(CONFIG_QUICC_ENGINE) || defined(CONFIG_8xx)
 
 static u32 brgfreq = -1;
 
@@ -100,11 +100,21 @@ u32 get_brgfreq(void)
 
 	/* Legacy device binding -- will go away when no users are left. */
 	node = of_find_node_by_type(NULL, "cpm");
+	if (!node)
+		node = of_find_compatible_node(NULL, NULL, "fsl,qe");
+	if (!node)
+		node = of_find_node_by_type(NULL, "qe");
+
 	if (node) {
 		prop = of_get_property(node, "brg-frequency", &size);
 		if (prop && size == 4)
 			brgfreq = *prop;
 
+		if (brgfreq == -1 || brgfreq == 0) {
+			prop = of_get_property(node, "bus-frequency", &size);
+			if (prop && size == 4)
+				brgfreq = *prop / 2;
+		}
 		of_node_put(node);
 	}
 
@@ -1273,22 +1283,32 @@ int __init fsl_spi_init(struct spi_board_info *board_infos,
 {
 	struct device_node *np;
 	unsigned int i;
-	const u32 *sysclk;
+	u32 sysclk = -1;
 
 	/* SPI controller is either clocked from QE or SoC clock */
-	np = of_find_compatible_node(NULL, NULL, "fsl,qe");
-	if (!np)
-		np = of_find_node_by_type(NULL, "qe");
+#ifdef CONFIG_QUICC_ENGINE
+	sysclk = get_brgfreq();
+#endif
+	if (sysclk == -1) {
+		const u32 *freq;
+		int size;
 
-	if (!np)
 		np = of_find_node_by_type(NULL, "soc");
+		if (!np)
+			return -ENODEV;
 
-	if (!np)
-		return -ENODEV;
+		freq = of_get_property(np, "clock-frequency", &size);
+		if (!freq || size != sizeof(*freq) || *freq == 0) {
+			freq = of_get_property(np, "bus-frequency", &size);
+			if (!freq || size != sizeof(*freq) || *freq == 0) {
+				of_node_put(np);
+				return -ENODEV;
+			}
+		}
 
-	sysclk = of_get_property(np, "bus-frequency", NULL);
-	if (!sysclk)
-		return -ENODEV;
+		sysclk = *freq;
+		of_node_put(np);
+	}
 
 	for (np = NULL, i = 1;
 	     (np = of_find_compatible_node(np, "spi", "fsl_spi")) != NULL;
@@ -1305,7 +1325,7 @@ int __init fsl_spi_init(struct spi_board_info *board_infos,
 
 		memset(res, 0, sizeof(res));
 
-		pdata.sysclk = *sysclk;
+		pdata.sysclk = sysclk;
 
 		prop = of_get_property(np, "reg", NULL);
 		if (!prop)

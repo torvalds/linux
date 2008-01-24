@@ -436,11 +436,7 @@ static int __init mpc83xx_spi_probe(struct platform_device *dev)
 	mpc83xx_spi->qe_mode = pdata->qe_mode;
 	mpc83xx_spi->get_rx = mpc83xx_spi_rx_buf_u8;
 	mpc83xx_spi->get_tx = mpc83xx_spi_tx_buf_u8;
-
-	if (mpc83xx_spi->qe_mode)
-		mpc83xx_spi->spibrg = pdata->sysclk / 2;
-	else
-		mpc83xx_spi->spibrg = pdata->sysclk;
+	mpc83xx_spi->spibrg = pdata->sysclk;
 
 	mpc83xx_spi->rx_shift = 0;
 	mpc83xx_spi->tx_shift = 0;
