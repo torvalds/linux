@@ -268,11 +268,6 @@ config MEM_MT48LC32M16A2TG_75
 	depends on (BFIN527_EZKIT)
 	default y
 
-config BFIN_SHARED_FLASH_ENET
-	bool
-	depends on (BFIN533_STAMP)
-	default y
-
 source "arch/blackfin/mach-bf527/Kconfig"
 source "arch/blackfin/mach-bf533/Kconfig"
 source "arch/blackfin/mach-bf561/Kconfig"
