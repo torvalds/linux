@@ -1789,9 +1789,8 @@ static struct lec_arp_table *make_entry(struct lec_priv *priv,
 	}
 	memcpy(to_return->mac_addr, mac_addr, ETH_ALEN);
 	INIT_HLIST_NODE(&to_return->next);
-	init_timer(&to_return->timer);
-	to_return->timer.function = lec_arp_expire_arp;
-	to_return->timer.data = (unsigned long)to_return;
+	setup_timer(&to_return->timer, lec_arp_expire_arp,
+			(unsigned long)to_return);
 	to_return->last_used = jiffies;
 	to_return->priv = priv;
 	skb_queue_head_init(&to_return->tx_wait);

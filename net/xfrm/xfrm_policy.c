@@ -196,9 +196,8 @@ struct xfrm_policy *xfrm_policy_alloc(gfp_t gfp)
 		INIT_HLIST_NODE(&policy->byidx);
 		rwlock_init(&policy->lock);
 		atomic_set(&policy->refcnt, 1);
-		init_timer(&policy->timer);
-		policy->timer.data = (unsigned long)policy;
-		policy->timer.function = xfrm_policy_timer;
+		setup_timer(&policy->timer, xfrm_policy_timer,
+				(unsigned long)policy);
 	}
 	return policy;
 }

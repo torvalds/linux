@@ -66,9 +66,8 @@ void inet_frags_init(struct inet_frags *f)
 	f->nqueues = 0;
 	atomic_set(&f->mem, 0);
 
-	init_timer(&f->secret_timer);
-	f->secret_timer.function = inet_frag_secret_rebuild;
-	f->secret_timer.data = (unsigned long)f;
+	setup_timer(&f->secret_timer, inet_frag_secret_rebuild,
+			(unsigned long)f);
 	f->secret_timer.expires = jiffies + f->ctl->secret_interval;
 	add_timer(&f->secret_timer);
 }

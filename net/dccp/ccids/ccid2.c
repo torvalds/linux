@@ -760,10 +760,8 @@ static int ccid2_hc_tx_init(struct ccid *ccid, struct sock *sk)
 	hctx->ccid2hctx_rttvar	 = -1;
 	hctx->ccid2hctx_rpdupack = -1;
 	hctx->ccid2hctx_last_cong = jiffies;
-
-	hctx->ccid2hctx_rtotimer.function = &ccid2_hc_tx_rto_expire;
-	hctx->ccid2hctx_rtotimer.data	  = (unsigned long)sk;
-	init_timer(&hctx->ccid2hctx_rtotimer);
+	setup_timer(&hctx->ccid2hctx_rtotimer, ccid2_hc_tx_rto_expire,
+			(unsigned long)sk);
 
 	ccid2_hc_tx_check_sanity(hctx);
 	return 0;

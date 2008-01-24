@@ -97,13 +97,6 @@ static void sco_sock_clear_timer(struct sock *sk)
 	sk_stop_timer(sk, &sk->sk_timer);
 }
 
-static void sco_sock_init_timer(struct sock *sk)
-{
-	init_timer(&sk->sk_timer);
-	sk->sk_timer.function = sco_sock_timeout;
-	sk->sk_timer.data = (unsigned long)sk;
-}
-
 /* ---- SCO connections ---- */
 static struct sco_conn *sco_conn_add(struct hci_conn *hcon, __u8 status)
 {
@@ -436,7 +429,7 @@ static struct sock *sco_sock_alloc(struct net *net, struct socket *sock, int pro
 	sk->sk_protocol = proto;
 	sk->sk_state    = BT_OPEN;
 
-	sco_sock_init_timer(sk);
+	setup_timer(&sk->sk_timer, sco_sock_timeout, (unsigned long)sk);
 
 	bt_sock_link(&sco_sk_list, sk);
 	return sk;

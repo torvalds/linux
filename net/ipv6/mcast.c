@@ -903,9 +903,7 @@ int ipv6_dev_mc_inc(struct net_device *dev, struct in6_addr *addr)
 		return -ENOMEM;
 	}
 
-	init_timer(&mc->mca_timer);
-	mc->mca_timer.function = igmp6_timer_handler;
-	mc->mca_timer.data = (unsigned long) mc;
+	setup_timer(&mc->mca_timer, igmp6_timer_handler, (unsigned long)mc);
 
 	ipv6_addr_copy(&mc->mca_addr, addr);
 	mc->idev = idev;
@@ -2259,14 +2257,12 @@ void ipv6_mc_init_dev(struct inet6_dev *idev)
 	write_lock_bh(&idev->lock);
 	rwlock_init(&idev->mc_lock);
 	idev->mc_gq_running = 0;
-	init_timer(&idev->mc_gq_timer);
-	idev->mc_gq_timer.data = (unsigned long) idev;
-	idev->mc_gq_timer.function = &mld_gq_timer_expire;
+	setup_timer(&idev->mc_gq_timer, mld_gq_timer_expire,
+			(unsigned long)idev);
 	idev->mc_tomb = NULL;
 	idev->mc_ifc_count = 0;
-	init_timer(&idev->mc_ifc_timer);
-	idev->mc_ifc_timer.data = (unsigned long) idev;
-	idev->mc_ifc_timer.function = &mld_ifc_timer_expire;
+	setup_timer(&idev->mc_ifc_timer, mld_ifc_timer_expire,
+			(unsigned long)idev);
 	idev->mc_qrv = MLD_QRV_DEFAULT;
 	idev->mc_maxdelay = IGMP6_UNSOLICITED_IVAL;
 	idev->mc_v1_seen = 0;

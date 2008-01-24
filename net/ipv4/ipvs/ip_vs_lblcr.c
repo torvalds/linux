@@ -575,9 +575,8 @@ static int ip_vs_lblcr_init_svc(struct ip_vs_service *svc)
 	/*
 	 *    Hook periodic timer for garbage collection
 	 */
-	init_timer(&tbl->periodic_timer);
-	tbl->periodic_timer.data = (unsigned long)tbl;
-	tbl->periodic_timer.function = ip_vs_lblcr_check_expire;
+	setup_timer(&tbl->periodic_timer, ip_vs_lblcr_check_expire,
+			(unsigned long)tbl);
 	tbl->periodic_timer.expires = jiffies+CHECK_EXPIRE_INTERVAL;
 	add_timer(&tbl->periodic_timer);
 

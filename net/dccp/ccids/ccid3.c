@@ -606,11 +606,8 @@ static int ccid3_hc_tx_init(struct ccid *ccid, struct sock *sk)
 
 	hctx->ccid3hctx_state = TFRC_SSTATE_NO_SENT;
 	INIT_LIST_HEAD(&hctx->ccid3hctx_hist);
-
-	hctx->ccid3hctx_no_feedback_timer.function =
-				ccid3_hc_tx_no_feedback_timer;
-	hctx->ccid3hctx_no_feedback_timer.data     = (unsigned long)sk;
-	init_timer(&hctx->ccid3hctx_no_feedback_timer);
+	setup_timer(&hctx->ccid3hctx_no_feedback_timer,
+			ccid3_hc_tx_no_feedback_timer, (unsigned long)sk);
 
 	return 0;
 }

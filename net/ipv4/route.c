@@ -2964,10 +2964,8 @@ int __init ip_rt_init(void)
 	devinet_init();
 	ip_fib_init();
 
-	init_timer(&rt_flush_timer);
-	rt_flush_timer.function = rt_run_flush;
-	init_timer(&rt_secret_timer);
-	rt_secret_timer.function = rt_secret_rebuild;
+	setup_timer(&rt_flush_timer, rt_run_flush, 0);
+	setup_timer(&rt_secret_timer, rt_secret_rebuild, 0);
 
 	/* All the timers, started at system startup tend
 	   to synchronize. Perturb it a bit.

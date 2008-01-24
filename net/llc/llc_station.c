@@ -688,9 +688,8 @@ int __init llc_station_init(void)
 	skb_queue_head_init(&llc_main_station.mac_pdu_q);
 	skb_queue_head_init(&llc_main_station.ev_q.list);
 	spin_lock_init(&llc_main_station.ev_q.lock);
-	init_timer(&llc_main_station.ack_timer);
-	llc_main_station.ack_timer.data     = (unsigned long)&llc_main_station;
-	llc_main_station.ack_timer.function = llc_station_ack_tmr_cb;
+	setup_timer(&llc_main_station.ack_timer, llc_station_ack_tmr_cb,
+			(unsigned long)&llc_main_station);
 	llc_main_station.ack_timer.expires  = jiffies +
 						sysctl_llc_station_ack_timeout;
 	skb = alloc_skb(0, GFP_ATOMIC);

@@ -345,10 +345,9 @@ void rose_destroy_socket(struct sock *sk)
 	if (atomic_read(&sk->sk_wmem_alloc) ||
 	    atomic_read(&sk->sk_rmem_alloc)) {
 		/* Defer: outstanding buffers */
-		init_timer(&sk->sk_timer);
+		setup_timer(&sk->sk_timer, rose_destroy_timer,
+				(unsigned long)sk);
 		sk->sk_timer.expires  = jiffies + 10 * HZ;
-		sk->sk_timer.function = rose_destroy_timer;
-		sk->sk_timer.data     = (unsigned long)sk;
 		add_timer(&sk->sk_timer);
 	} else
 		sock_put(sk);

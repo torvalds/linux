@@ -504,12 +504,9 @@ struct xfrm_state *xfrm_state_alloc(void)
 		INIT_HLIST_NODE(&x->bydst);
 		INIT_HLIST_NODE(&x->bysrc);
 		INIT_HLIST_NODE(&x->byspi);
-		init_timer(&x->timer);
-		x->timer.function = xfrm_timer_handler;
-		x->timer.data	  = (unsigned long)x;
-		init_timer(&x->rtimer);
-		x->rtimer.function = xfrm_replay_timer_handler;
-		x->rtimer.data     = (unsigned long)x;
+		setup_timer(&x->timer, xfrm_timer_handler, (unsigned long)x);
+		setup_timer(&x->rtimer, xfrm_replay_timer_handler,
+				(unsigned long)x);
 		x->curlft.add_time = get_seconds();
 		x->lft.soft_byte_limit = XFRM_INF;
 		x->lft.soft_packet_limit = XFRM_INF;

@@ -641,10 +641,8 @@ struct net_device *alloc_trdev(int sizeof_priv)
 
 static int __init rif_init(void)
 {
-	init_timer(&rif_timer);
 	rif_timer.expires  = jiffies + sysctl_tr_rif_timeout;
-	rif_timer.data     = 0L;
-	rif_timer.function = rif_check_expire;
+	setup_timer(&rif_timer, rif_check_expire, 0);
 	add_timer(&rif_timer);
 
 	proc_net_fops_create(&init_net, "tr_rif", S_IRUGO, &rif_seq_fops);

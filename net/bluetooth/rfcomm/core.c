@@ -279,9 +279,7 @@ struct rfcomm_dlc *rfcomm_dlc_alloc(gfp_t prio)
 	if (!d)
 		return NULL;
 
-	init_timer(&d->timer);
-	d->timer.function = rfcomm_dlc_timeout;
-	d->timer.data = (unsigned long) d;
+	setup_timer(&d->timer, rfcomm_dlc_timeout, (unsigned long)d);
 
 	skb_queue_head_init(&d->tx_queue);
 	spin_lock_init(&d->lock);

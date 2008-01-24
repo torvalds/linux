@@ -366,9 +366,7 @@ static struct inet6_dev * ipv6_add_dev(struct net_device *dev)
 	in6_dev_hold(ndev);
 
 #ifdef CONFIG_IPV6_PRIVACY
-	init_timer(&ndev->regen_timer);
-	ndev->regen_timer.function = ipv6_regen_rndid;
-	ndev->regen_timer.data = (unsigned long) ndev;
+	setup_timer(&ndev->regen_timer, ipv6_regen_rndid, (unsigned long)ndev);
 	if ((dev->flags&IFF_LOOPBACK) ||
 	    dev->type == ARPHRD_TUNNEL ||
 #if defined(CONFIG_IPV6_SIT) || defined(CONFIG_IPV6_SIT_MODULE)

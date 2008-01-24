@@ -99,13 +99,6 @@ static void l2cap_sock_clear_timer(struct sock *sk)
 	sk_stop_timer(sk, &sk->sk_timer);
 }
 
-static void l2cap_sock_init_timer(struct sock *sk)
-{
-	init_timer(&sk->sk_timer);
-	sk->sk_timer.function = l2cap_sock_timeout;
-	sk->sk_timer.data = (unsigned long)sk;
-}
-
 /* ---- L2CAP channels ---- */
 static struct sock *__l2cap_get_chan_by_dcid(struct l2cap_chan_list *l, u16 cid)
 {
@@ -395,9 +388,7 @@ static struct l2cap_conn *l2cap_conn_add(struct hci_conn *hcon, u8 status)
 
 	conn->feat_mask = 0;
 
-	init_timer(&conn->info_timer);
-	conn->info_timer.function = l2cap_info_timeout;
-	conn->info_timer.data = (unsigned long) conn;
+	setup_timer(&conn->info_timer, l2cap_info_timeout, (unsigned long)conn);
 
 	spin_lock_init(&conn->lock);
 	rwlock_init(&conn->chan_list.lock);
@@ -622,7 +613,7 @@ static struct sock *l2cap_sock_alloc(struct net *net, struct socket *sock, int p
 	sk->sk_protocol = proto;
 	sk->sk_state    = BT_OPEN;
 
-	l2cap_sock_init_timer(sk);
+	setup_timer(&sk->sk_timer, l2cap_sock_timeout, (unsigned long)sk);
 
 	bt_sock_link(&l2cap_sk_list, sk);
 	return sk;

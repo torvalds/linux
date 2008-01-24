@@ -247,10 +247,7 @@ void x25_link_device_up(struct net_device *dev)
 		return;
 
 	skb_queue_head_init(&nb->queue);
-
-	init_timer(&nb->t20timer);
-	nb->t20timer.data     = (unsigned long)nb;
-	nb->t20timer.function = &x25_t20timer_expiry;
+	setup_timer(&nb->t20timer, x25_t20timer_expiry, (unsigned long)nb);
 
 	dev_hold(dev);
 	nb->dev      = dev;

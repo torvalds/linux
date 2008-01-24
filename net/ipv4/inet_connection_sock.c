@@ -277,18 +277,11 @@ void inet_csk_init_xmit_timers(struct sock *sk,
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 
-	init_timer(&icsk->icsk_retransmit_timer);
-	init_timer(&icsk->icsk_delack_timer);
-	init_timer(&sk->sk_timer);
-
-	icsk->icsk_retransmit_timer.function = retransmit_handler;
-	icsk->icsk_delack_timer.function     = delack_handler;
-	sk->sk_timer.function		     = keepalive_handler;
-
-	icsk->icsk_retransmit_timer.data =
-		icsk->icsk_delack_timer.data =
-			sk->sk_timer.data  = (unsigned long)sk;
-
+	setup_timer(&icsk->icsk_retransmit_timer, retransmit_handler,
+			(unsigned long)sk);
+	setup_timer(&icsk->icsk_delack_timer, delack_handler,
+			(unsigned long)sk);
+	setup_timer(&sk->sk_timer, keepalive_handler, (unsigned long)sk);
 	icsk->icsk_pending = icsk->icsk_ack.pending = 0;
 }
 

@@ -1234,9 +1234,7 @@ void ip_mc_inc_group(struct in_device *in_dev, __be32 addr)
 	spin_lock_init(&im->lock);
 #ifdef CONFIG_IP_MULTICAST
 	im->tm_running=0;
-	init_timer(&im->timer);
-	im->timer.data=(unsigned long)im;
-	im->timer.function=&igmp_timer_expire;
+	setup_timer(&im->timer, &igmp_timer_expire, (unsigned long)im);
 	im->unsolicit_count = IGMP_Unsolicited_Report_Count;
 	im->reporter = 0;
 	im->gsquery = 0;
@@ -1338,13 +1336,11 @@ void ip_mc_init_dev(struct in_device *in_dev)
 	in_dev->mc_tomb = NULL;
 #ifdef CONFIG_IP_MULTICAST
 	in_dev->mr_gq_running = 0;
-	init_timer(&in_dev->mr_gq_timer);
-	in_dev->mr_gq_timer.data=(unsigned long) in_dev;
-	in_dev->mr_gq_timer.function=&igmp_gq_timer_expire;
+	setup_timer(&in_dev->mr_gq_timer, igmp_gq_timer_expire,
+			(unsigned long)in_dev);
 	in_dev->mr_ifc_count = 0;
-	init_timer(&in_dev->mr_ifc_timer);
-	in_dev->mr_ifc_timer.data=(unsigned long) in_dev;
-	in_dev->mr_ifc_timer.function=&igmp_ifc_timer_expire;
+	setup_timer(&in_dev->mr_ifc_timer, igmp_ifc_timer_expire,
+			(unsigned long)in_dev);
 	in_dev->mr_qrv = IGMP_Unsolicited_Report_Count;
 #endif
 

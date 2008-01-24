@@ -270,9 +270,7 @@ static struct neighbour *neigh_alloc(struct neigh_table *tbl)
 	n->nud_state	  = NUD_NONE;
 	n->output	  = neigh_blackhole;
 	n->parms	  = neigh_parms_clone(&tbl->parms);
-	init_timer(&n->timer);
-	n->timer.function = neigh_timer_handler;
-	n->timer.data	  = (unsigned long)n;
+	setup_timer(&n->timer, neigh_timer_handler, (unsigned long)n);
 
 	NEIGH_CACHE_STAT_INC(tbl, allocs);
 	n->tbl		  = tbl;
@@ -1372,15 +1370,11 @@ void neigh_table_init_no_netlink(struct neigh_table *tbl)
 	get_random_bytes(&tbl->hash_rnd, sizeof(tbl->hash_rnd));
 
 	rwlock_init(&tbl->lock);
-	init_timer(&tbl->gc_timer);
-	tbl->gc_timer.data     = (unsigned long)tbl;
-	tbl->gc_timer.function = neigh_periodic_timer;
+	setup_timer(&tbl->gc_timer, neigh_periodic_timer, (unsigned long)tbl);
 	tbl->gc_timer.expires  = now + 1;
 	add_timer(&tbl->gc_timer);
 
-	init_timer(&tbl->proxy_timer);
-	tbl->proxy_timer.data	  = (unsigned long)tbl;
-	tbl->proxy_timer.function = neigh_proxy_process;
+	setup_timer(&tbl->proxy_timer, neigh_proxy_process, (unsigned long)tbl);
 	skb_queue_head_init_class(&tbl->proxy_queue,
 			&neigh_table_proxy_queue_class);
 

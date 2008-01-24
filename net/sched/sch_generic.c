@@ -211,13 +211,6 @@ static void dev_watchdog(unsigned long arg)
 	dev_put(dev);
 }
 
-static void dev_watchdog_init(struct net_device *dev)
-{
-	init_timer(&dev->watchdog_timer);
-	dev->watchdog_timer.data = (unsigned long)dev;
-	dev->watchdog_timer.function = dev_watchdog;
-}
-
 void __netdev_watchdog_up(struct net_device *dev)
 {
 	if (dev->tx_timeout) {
@@ -608,7 +601,7 @@ void dev_init_scheduler(struct net_device *dev)
 	INIT_LIST_HEAD(&dev->qdisc_list);
 	qdisc_unlock_tree(dev);
 
-	dev_watchdog_init(dev);
+	setup_timer(&dev->watchdog_timer, dev_watchdog, (unsigned long)dev);
 }
 
 void dev_shutdown(struct net_device *dev)

@@ -330,10 +330,9 @@ void ax25_destroy_socket(ax25_cb *ax25)
 		if (atomic_read(&ax25->sk->sk_wmem_alloc) ||
 		    atomic_read(&ax25->sk->sk_rmem_alloc)) {
 			/* Defer: outstanding buffers */
-			init_timer(&ax25->dtimer);
+			setup_timer(&ax25->dtimer, ax25_destroy_timer,
+					(unsigned long)ax25);
 			ax25->dtimer.expires  = jiffies + 2 * HZ;
-			ax25->dtimer.function = ax25_destroy_timer;
-			ax25->dtimer.data     = (unsigned long)ax25;
 			add_timer(&ax25->dtimer);
 		} else {
 			struct sock *sk=ax25->sk;

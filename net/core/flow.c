@@ -352,8 +352,7 @@ static int __init flow_cache_init(void)
 	flow_lwm = 2 * flow_hash_size;
 	flow_hwm = 4 * flow_hash_size;
 
-	init_timer(&flow_hash_rnd_timer);
-	flow_hash_rnd_timer.function = flow_cache_new_hashrnd;
+	setup_timer(&flow_hash_rnd_timer, flow_cache_new_hashrnd, 0);
 	flow_hash_rnd_timer.expires = jiffies + FLOW_HASH_RND_PERIOD;
 	add_timer(&flow_hash_rnd_timer);
 

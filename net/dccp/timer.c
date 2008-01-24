@@ -280,9 +280,8 @@ static void dccp_init_write_xmit_timer(struct sock *sk)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 
-	init_timer(&dp->dccps_xmit_timer);
-	dp->dccps_xmit_timer.data = (unsigned long)sk;
-	dp->dccps_xmit_timer.function = dccp_write_xmit_timer;
+	setup_timer(&dp->dccps_xmit_timer, dccp_write_xmit_timer,
+			(unsigned long)sk);
 }
 
 void dccp_init_xmit_timers(struct sock *sk)

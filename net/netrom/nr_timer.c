@@ -40,21 +40,10 @@ void nr_init_timers(struct sock *sk)
 {
 	struct nr_sock *nr = nr_sk(sk);
 
-	init_timer(&nr->t1timer);
-	nr->t1timer.data     = (unsigned long)sk;
-	nr->t1timer.function = &nr_t1timer_expiry;
-
-	init_timer(&nr->t2timer);
-	nr->t2timer.data     = (unsigned long)sk;
-	nr->t2timer.function = &nr_t2timer_expiry;
-
-	init_timer(&nr->t4timer);
-	nr->t4timer.data     = (unsigned long)sk;
-	nr->t4timer.function = &nr_t4timer_expiry;
-
-	init_timer(&nr->idletimer);
-	nr->idletimer.data     = (unsigned long)sk;
-	nr->idletimer.function = &nr_idletimer_expiry;
+	setup_timer(&nr->t1timer, nr_t1timer_expiry, (unsigned long)sk);
+	setup_timer(&nr->t2timer, nr_t2timer_expiry, (unsigned long)sk);
+	setup_timer(&nr->t4timer, nr_t4timer_expiry, (unsigned long)sk);
+	setup_timer(&nr->idletimer, nr_idletimer_expiry, (unsigned long)sk);
 
 	/* initialized by sock_init_data */
 	sk->sk_timer.data     = (unsigned long)sk;

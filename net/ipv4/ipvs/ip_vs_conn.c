@@ -629,9 +629,7 @@ ip_vs_conn_new(int proto, __be32 caddr, __be16 cport, __be32 vaddr, __be16 vport
 	}
 
 	INIT_LIST_HEAD(&cp->c_list);
-	init_timer(&cp->timer);
-	cp->timer.data     = (unsigned long)cp;
-	cp->timer.function = ip_vs_conn_expire;
+	setup_timer(&cp->timer, ip_vs_conn_expire, (unsigned long)cp);
 	cp->protocol	   = proto;
 	cp->caddr	   = caddr;
 	cp->cport	   = cport;

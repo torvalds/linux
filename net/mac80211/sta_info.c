@@ -346,11 +346,10 @@ void sta_info_init(struct ieee80211_local *local)
 	rwlock_init(&local->sta_lock);
 	INIT_LIST_HEAD(&local->sta_list);
 
-	init_timer(&local->sta_cleanup);
+	setup_timer(&local->sta_cleanup, sta_info_cleanup,
+		    (unsigned long)local);
 	local->sta_cleanup.expires =
 		round_jiffies(jiffies + STA_INFO_CLEANUP_INTERVAL);
-	local->sta_cleanup.data = (unsigned long) local;
-	local->sta_cleanup.function = sta_info_cleanup;
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 	INIT_WORK(&local->sta_debugfs_add, sta_info_debugfs_add_task);

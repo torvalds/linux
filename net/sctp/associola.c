@@ -167,11 +167,9 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 		sp->autoclose * HZ;
 
 	/* Initilizes the timers */
-	for (i = SCTP_EVENT_TIMEOUT_NONE; i < SCTP_NUM_TIMEOUT_TYPES; ++i) {
-		init_timer(&asoc->timers[i]);
-		asoc->timers[i].function = sctp_timer_events[i];
-		asoc->timers[i].data = (unsigned long) asoc;
-	}
+	for (i = SCTP_EVENT_TIMEOUT_NONE; i < SCTP_NUM_TIMEOUT_TYPES; ++i)
+		setup_timer(&asoc->timers[i], sctp_timer_events[i],
+				(unsigned long)asoc);
 
 	/* Pull default initialization values from the sock options.
 	 * Note: This assumes that the values have already been
