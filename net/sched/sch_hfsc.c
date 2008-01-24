@@ -986,6 +986,12 @@ hfsc_change_usc(struct hfsc_class *cl, struct tc_service_curve *usc,
 	cl->cl_flags |= HFSC_USC;
 }
 
+static const struct nla_policy hfsc_policy[TCA_HFSC_MAX + 1] = {
+	[TCA_HFSC_RSC]	= { .len = sizeof(struct tc_service_curve) },
+	[TCA_HFSC_FSC]	= { .len = sizeof(struct tc_service_curve) },
+	[TCA_HFSC_USC]	= { .len = sizeof(struct tc_service_curve) },
+};
+
 static int
 hfsc_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 		  struct nlattr **tca, unsigned long *arg)
@@ -1002,29 +1008,23 @@ hfsc_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 	if (opt == NULL)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_HFSC_MAX, opt, NULL);
+	err = nla_parse_nested(tb, TCA_HFSC_MAX, opt, hfsc_policy);
 	if (err < 0)
 		return err;
 
 	if (tb[TCA_HFSC_RSC]) {
-		if (nla_len(tb[TCA_HFSC_RSC]) < sizeof(*rsc))
-			return -EINVAL;
 		rsc = nla_data(tb[TCA_HFSC_RSC]);
 		if (rsc->m1 == 0 && rsc->m2 == 0)
 			rsc = NULL;
 	}
 
 	if (tb[TCA_HFSC_FSC]) {
-		if (nla_len(tb[TCA_HFSC_FSC]) < sizeof(*fsc))
-			return -EINVAL;
 		fsc = nla_data(tb[TCA_HFSC_FSC]);
 		if (fsc->m1 == 0 && fsc->m2 == 0)
 			fsc = NULL;
 	}
 
 	if (tb[TCA_HFSC_USC]) {
-		if (nla_len(tb[TCA_HFSC_USC]) < sizeof(*usc))
-			return -EINVAL;
 		usc = nla_data(tb[TCA_HFSC_USC]);
 		if (usc->m1 == 0 && usc->m2 == 0)
 			usc = NULL;

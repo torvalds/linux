@@ -99,6 +99,14 @@ static void dsmark_put(struct Qdisc *sch, unsigned long cl)
 {
 }
 
+static const struct nla_policy dsmark_policy[TCA_DSMARK_MAX + 1] = {
+	[TCA_DSMARK_INDICES]		= { .type = NLA_U16 },
+	[TCA_DSMARK_DEFAULT_INDEX]	= { .type = NLA_U16 },
+	[TCA_DSMARK_SET_TC_INDEX]	= { .type = NLA_FLAG },
+	[TCA_DSMARK_MASK]		= { .type = NLA_U8 },
+	[TCA_DSMARK_VALUE]		= { .type = NLA_U8 },
+};
+
 static int dsmark_change(struct Qdisc *sch, u32 classid, u32 parent,
 			 struct nlattr **tca, unsigned long *arg)
 {
@@ -119,21 +127,15 @@ static int dsmark_change(struct Qdisc *sch, u32 classid, u32 parent,
 	if (!opt)
 		goto errout;
 
-	err = nla_parse_nested(tb, TCA_DSMARK_MAX, opt, NULL);
+	err = nla_parse_nested(tb, TCA_DSMARK_MAX, opt, dsmark_policy);
 	if (err < 0)
-		return err;
+		goto errout;
 
-	err = -EINVAL;
-	if (tb[TCA_DSMARK_MASK]) {
-		if (nla_len(tb[TCA_DSMARK_MASK]) < sizeof(u8))
-			goto errout;
+	if (tb[TCA_DSMARK_MASK])
 		mask = nla_get_u8(tb[TCA_DSMARK_MASK]);
-	}
-	if (tb[TCA_DSMARK_VALUE]) {
-		if (nla_len(tb[TCA_DSMARK_VALUE]) < sizeof(u8))
-			goto errout;
+
+	if (tb[TCA_DSMARK_VALUE])
 		p->value[*arg-1] = nla_get_u8(tb[TCA_DSMARK_VALUE]);
-	}
 
 	if (tb[TCA_DSMARK_MASK])
 		p->mask[*arg-1] = mask;
@@ -359,23 +361,18 @@ static int dsmark_init(struct Qdisc *sch, struct nlattr *opt)
 	if (!opt)
 		goto errout;
 
-	err = nla_parse_nested(tb, TCA_DSMARK_MAX, opt, NULL);
+	err = nla_parse_nested(tb, TCA_DSMARK_MAX, opt, dsmark_policy);
 	if (err < 0)
 		goto errout;
 
 	err = -EINVAL;
-	if (nla_len(tb[TCA_DSMARK_INDICES]) < sizeof(u16))
-		goto errout;
 	indices = nla_get_u16(tb[TCA_DSMARK_INDICES]);
 
 	if (hweight32(indices) != 1)
 		goto errout;
 
-	if (tb[TCA_DSMARK_DEFAULT_INDEX]) {
-		if (nla_len(tb[TCA_DSMARK_DEFAULT_INDEX]) < sizeof(u16))
-			goto errout;
+	if (tb[TCA_DSMARK_DEFAULT_INDEX])
 		default_index = nla_get_u16(tb[TCA_DSMARK_DEFAULT_INDEX]);
-	}
 
 	mask = kmalloc(indices * 2, GFP_KERNEL);
 	if (mask == NULL) {

@@ -195,6 +195,11 @@ static const u8 llc_oui_ip[] = {
 	0x08, 0x00
 };				/* Ethertype IP (0800) */
 
+static const struct nla_policy atm_policy[TCA_ATM_MAX + 1] = {
+	[TCA_ATM_FD]		= { .type = NLA_U32 },
+	[TCA_ATM_EXCESS]	= { .type = NLA_U32 },
+};
+
 static int atm_tc_change(struct Qdisc *sch, u32 classid, u32 parent,
 			 struct nlattr **tca, unsigned long *arg)
 {
@@ -225,11 +230,12 @@ static int atm_tc_change(struct Qdisc *sch, u32 classid, u32 parent,
 		return -EBUSY;
 	if (opt == NULL)
 		return -EINVAL;
-	error = nla_parse_nested(tb, TCA_ATM_MAX, opt, NULL);
+
+	error = nla_parse_nested(tb, TCA_ATM_MAX, opt, atm_policy);
 	if (error < 0)
 		return error;
 
-	if (!tb[TCA_ATM_FD] || nla_len(tb[TCA_ATM_FD]) < sizeof(fd))
+	if (!tb[TCA_ATM_FD])
 		return -EINVAL;
 	fd = nla_get_u32(tb[TCA_ATM_FD]);
 	pr_debug("atm_tc_change: fd %d\n", fd);
@@ -243,8 +249,6 @@ static int atm_tc_change(struct Qdisc *sch, u32 classid, u32 parent,
 	if (!tb[TCA_ATM_EXCESS])
 		excess = NULL;
 	else {
-		if (nla_len(tb[TCA_ATM_EXCESS]) != sizeof(u32))
-			return -EINVAL;
 		excess = (struct atm_flow_data *)
 			atm_tc_get(sch, nla_get_u32(tb[TCA_ATM_EXCESS]));
 		if (!excess)

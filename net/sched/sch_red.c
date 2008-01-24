@@ -201,6 +201,11 @@ static struct Qdisc *red_create_dflt(struct Qdisc *sch, u32 limit)
 	return NULL;
 }
 
+static const struct nla_policy red_policy[TCA_RED_MAX + 1] = {
+	[TCA_RED_PARMS]	= { .len = sizeof(struct tc_red_qopt) },
+	[TCA_RED_STAB]	= { .len = RED_STAB_SIZE },
+};
+
 static int red_change(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct red_sched_data *q = qdisc_priv(sch);
@@ -212,14 +217,12 @@ static int red_change(struct Qdisc *sch, struct nlattr *opt)
 	if (opt == NULL)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_RED_MAX, opt, NULL);
+	err = nla_parse_nested(tb, TCA_RED_MAX, opt, red_policy);
 	if (err < 0)
 		return err;
 
 	if (tb[TCA_RED_PARMS] == NULL ||
-	    nla_len(tb[TCA_RED_PARMS]) < sizeof(*ctl) ||
-	    tb[TCA_RED_STAB] == NULL ||
-	    nla_len(tb[TCA_RED_STAB]) < RED_STAB_SIZE)
+	    tb[TCA_RED_STAB] == NULL)
 		return -EINVAL;
 
 	ctl = nla_data(tb[TCA_RED_PARMS]);

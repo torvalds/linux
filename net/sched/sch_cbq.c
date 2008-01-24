@@ -1377,6 +1377,16 @@ static int cbq_set_fopt(struct cbq_class *cl, struct tc_cbq_fopt *fopt)
 	return 0;
 }
 
+static const struct nla_policy cbq_policy[TCA_CBQ_MAX + 1] = {
+	[TCA_CBQ_LSSOPT]	= { .len = sizeof(struct tc_cbq_lssopt) },
+	[TCA_CBQ_WRROPT]	= { .len = sizeof(struct tc_cbq_wrropt) },
+	[TCA_CBQ_FOPT]		= { .len = sizeof(struct tc_cbq_fopt) },
+	[TCA_CBQ_OVL_STRATEGY]	= { .len = sizeof(struct tc_cbq_ovl) },
+	[TCA_CBQ_RATE]		= { .len = sizeof(struct tc_ratespec) },
+	[TCA_CBQ_RTAB]		= { .type = NLA_BINARY, .len = TC_RTAB_SIZE },
+	[TCA_CBQ_POLICE]	= { .len = sizeof(struct tc_cbq_police) },
+};
+
 static int cbq_init(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct cbq_sched_data *q = qdisc_priv(sch);
@@ -1384,16 +1394,11 @@ static int cbq_init(struct Qdisc *sch, struct nlattr *opt)
 	struct tc_ratespec *r;
 	int err;
 
-	err = nla_parse_nested(tb, TCA_CBQ_MAX, opt, NULL);
+	err = nla_parse_nested(tb, TCA_CBQ_MAX, opt, cbq_policy);
 	if (err < 0)
 		return err;
 
-	if (tb[TCA_CBQ_RTAB] == NULL || tb[TCA_CBQ_RATE] == NULL ||
-	    nla_len(tb[TCA_CBQ_RATE]) < sizeof(struct tc_ratespec))
-		return -EINVAL;
-
-	if (tb[TCA_CBQ_LSSOPT] &&
-	    nla_len(tb[TCA_CBQ_LSSOPT]) < sizeof(struct tc_cbq_lssopt))
+	if (tb[TCA_CBQ_RTAB] == NULL || tb[TCA_CBQ_RATE] == NULL)
 		return -EINVAL;
 
 	r = nla_data(tb[TCA_CBQ_RATE]);
@@ -1771,35 +1776,9 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct nlattr **t
 	if (opt == NULL)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_CBQ_MAX, opt, NULL);
+	err = nla_parse_nested(tb, TCA_CBQ_MAX, opt, cbq_policy);
 	if (err < 0)
 		return err;
-
-	if (tb[TCA_CBQ_OVL_STRATEGY] &&
-	    nla_len(tb[TCA_CBQ_OVL_STRATEGY]) < sizeof(struct tc_cbq_ovl))
-		return -EINVAL;
-
-	if (tb[TCA_CBQ_FOPT] &&
-	    nla_len(tb[TCA_CBQ_FOPT]) < sizeof(struct tc_cbq_fopt))
-		return -EINVAL;
-
-	if (tb[TCA_CBQ_RATE] &&
-	    nla_len(tb[TCA_CBQ_RATE]) < sizeof(struct tc_ratespec))
-			return -EINVAL;
-
-	if (tb[TCA_CBQ_LSSOPT] &&
-	    nla_len(tb[TCA_CBQ_LSSOPT]) < sizeof(struct tc_cbq_lssopt))
-			return -EINVAL;
-
-	if (tb[TCA_CBQ_WRROPT] &&
-	    nla_len(tb[TCA_CBQ_WRROPT]) < sizeof(struct tc_cbq_wrropt))
-			return -EINVAL;
-
-#ifdef CONFIG_NET_CLS_ACT
-	if (tb[TCA_CBQ_POLICE] &&
-	    nla_len(tb[TCA_CBQ_POLICE]) < sizeof(struct tc_cbq_police))
-			return -EINVAL;
-#endif
 
 	if (cl) {
 		/* Check parent */

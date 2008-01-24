@@ -368,9 +368,6 @@ static int get_correlation(struct Qdisc *sch, const struct nlattr *attr)
 	struct netem_sched_data *q = qdisc_priv(sch);
 	const struct tc_netem_corr *c = nla_data(attr);
 
-	if (nla_len(attr) != sizeof(*c))
-		return -EINVAL;
-
 	init_crandom(&q->delay_cor, c->delay_corr);
 	init_crandom(&q->loss_cor, c->loss_corr);
 	init_crandom(&q->dup_cor, c->dup_corr);
@@ -382,9 +379,6 @@ static int get_reorder(struct Qdisc *sch, const struct nlattr *attr)
 	struct netem_sched_data *q = qdisc_priv(sch);
 	const struct tc_netem_reorder *r = nla_data(attr);
 
-	if (nla_len(attr) != sizeof(*r))
-		return -EINVAL;
-
 	q->reorder = r->probability;
 	init_crandom(&q->reorder_cor, r->correlation);
 	return 0;
@@ -395,13 +389,16 @@ static int get_corrupt(struct Qdisc *sch, const struct nlattr *attr)
 	struct netem_sched_data *q = qdisc_priv(sch);
 	const struct tc_netem_corrupt *r = nla_data(attr);
 
-	if (nla_len(attr) != sizeof(*r))
-		return -EINVAL;
-
 	q->corrupt = r->probability;
 	init_crandom(&q->corrupt_cor, r->correlation);
 	return 0;
 }
+
+static const struct nla_policy netem_policy[TCA_NETEM_MAX + 1] = {
+	[TCA_NETEM_CORR]	= { .len = sizeof(struct tc_netem_corr) },
+	[TCA_NETEM_REORDER]	= { .len = sizeof(struct tc_netem_reorder) },
+	[TCA_NETEM_CORRUPT]	= { .len = sizeof(struct tc_netem_corrupt) },
+};
 
 /* Parse netlink message to set options */
 static int netem_change(struct Qdisc *sch, struct nlattr *opt)
@@ -414,8 +411,8 @@ static int netem_change(struct Qdisc *sch, struct nlattr *opt)
 	if (opt == NULL)
 		return -EINVAL;
 
-	ret = nla_parse_nested_compat(tb, TCA_NETEM_MAX, opt, NULL, qopt,
-				      sizeof(*qopt));
+	ret = nla_parse_nested_compat(tb, TCA_NETEM_MAX, opt, netem_policy,
+				      qopt, sizeof(*qopt));
 	if (ret < 0)
 		return ret;
 

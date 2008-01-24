@@ -992,6 +992,13 @@ static void htb_reset(struct Qdisc *sch)
 		INIT_LIST_HEAD(q->drops + i);
 }
 
+static const struct nla_policy htb_policy[TCA_HTB_MAX + 1] = {
+	[TCA_HTB_PARMS]	= { .len = sizeof(struct tc_htb_opt) },
+	[TCA_HTB_INIT]	= { .len = sizeof(struct tc_htb_glob) },
+	[TCA_HTB_CTAB]	= { .type = NLA_BINARY, .len = TC_RTAB_SIZE },
+	[TCA_HTB_RTAB]	= { .type = NLA_BINARY, .len = TC_RTAB_SIZE },
+};
+
 static int htb_init(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct htb_sched *q = qdisc_priv(sch);
@@ -1003,12 +1010,11 @@ static int htb_init(struct Qdisc *sch, struct nlattr *opt)
 	if (!opt)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_HTB_INIT, opt, NULL);
+	err = nla_parse_nested(tb, TCA_HTB_INIT, opt, htb_policy);
 	if (err < 0)
 		return err;
 
-	if (tb[TCA_HTB_INIT] == NULL ||
-	    nla_len(tb[TCA_HTB_INIT]) < sizeof(*gopt)) {
+	if (tb[TCA_HTB_INIT] == NULL) {
 		printk(KERN_ERR "HTB: hey probably you have bad tc tool ?\n");
 		return -EINVAL;
 	}
@@ -1319,13 +1325,12 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 	if (!opt)
 		goto failure;
 
-	err = nla_parse_nested(tb, TCA_HTB_RTAB, opt, NULL);
+	err = nla_parse_nested(tb, TCA_HTB_RTAB, opt, htb_policy);
 	if (err < 0)
 		goto failure;
 
 	err = -EINVAL;
-	if (tb[TCA_HTB_PARMS] == NULL ||
-	    nla_len(tb[TCA_HTB_PARMS]) < sizeof(*hopt))
+	if (tb[TCA_HTB_PARMS] == NULL)
 		goto failure;
 
 	parent = parentid == TC_H_ROOT ? NULL : htb_find(parentid, sch);
