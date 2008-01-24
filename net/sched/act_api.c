@@ -984,11 +984,8 @@ find_dump_kind(struct nlmsghdr *n)
 	struct nlattr *tb[TCA_ACT_MAX_PRIO + 1];
 	struct nlattr *nla[TCAA_MAX + 1];
 	struct nlattr *kind;
-	int min_len = NLMSG_LENGTH(sizeof(struct tcamsg));
-	int attrlen = n->nlmsg_len - NLMSG_ALIGN(min_len);
-	struct nlattr *attr = (void *) n + NLMSG_ALIGN(min_len);
 
-	if (nla_parse(nla, TCAA_MAX, attr, attrlen, NULL) < 0)
+	if (nlmsg_parse(n, sizeof(struct tcamsg), nla, TCAA_MAX, NULL) < 0)
 		return NULL;
 	tb1 = nla[TCA_ACT_TAB];
 	if (tb1 == NULL)
