@@ -33,9 +33,6 @@ extern void aica_time_init(void);
 extern int gapspci_init(void);
 extern int systemasic_irq_demux(int);
 
-void *dreamcast_consistent_alloc(struct device *, size_t, dma_addr_t *, gfp_t);
-int dreamcast_consistent_free(struct device *, size_t, void *, dma_addr_t);
-
 static void __init dreamcast_setup(char **cmdline_p)
 {
 	int i;
@@ -64,9 +61,4 @@ static struct sh_machine_vector mv_dreamcast __initmv = {
 	.mv_name		= "Sega Dreamcast",
 	.mv_setup		= dreamcast_setup,
 	.mv_irq_demux		= systemasic_irq_demux,
-
-#ifdef CONFIG_PCI
-	.mv_consistent_alloc	= dreamcast_consistent_alloc,
-	.mv_consistent_free	= dreamcast_consistent_free,
-#endif
 };
