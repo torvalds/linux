@@ -28,6 +28,9 @@ static int vmlinux_section_warnings = 1;
 /* Only warn about unresolved symbols */
 static int warn_unresolved = 0;
 /* How a symbol is exported */
+static int sec_mismatch_count = 0;
+static int sec_mismatch_verbose = 1;
+
 enum export {
 	export_plain,      export_unused,     export_gpl,
 	export_unused_gpl, export_gpl_future, export_unknown
@@ -760,9 +763,23 @@ static const char *head_sections[] = { ".head.text*", NULL };
 static const char *linker_symbols[] =
 	{ "__init_begin", "_sinittext", "_einittext", NULL };
 
+enum mismatch {
+	NO_MISMATCH,
+	TEXT_TO_INIT,
+	DATA_TO_INIT,
+	TEXT_TO_EXIT,
+	DATA_TO_EXIT,
+	XXXINIT_TO_INIT,
+	XXXEXIT_TO_EXIT,
+	INIT_TO_EXIT,
+	EXIT_TO_INIT,
+	EXPORT_TO_INIT_EXIT,
+};
+
 struct sectioncheck {
 	const char *fromsec[20];
 	const char *tosec[20];
+	enum mismatch mismatch;
 };
 
 const struct sectioncheck sectioncheck[] = {
@@ -770,33 +787,54 @@ const struct sectioncheck sectioncheck[] = {
  * normal code and data
  */
 {
-	.fromsec = { TEXT_SECTIONS, DATA_SECTIONS, NULL },
-	.tosec   = { ALL_INIT_SECTIONS, ALL_EXIT_SECTIONS, NULL }
+	.fromsec = { TEXT_SECTIONS, NULL },
+	.tosec   = { ALL_INIT_SECTIONS, NULL },
+	.mismatch = TEXT_TO_INIT,
+},
+{
+	.fromsec = { DATA_SECTIONS, NULL },
+	.tosec   = { ALL_INIT_SECTIONS, NULL },
+	.mismatch = DATA_TO_INIT,
+},
+{
+	.fromsec = { TEXT_SECTIONS, NULL },
+	.tosec   = { ALL_EXIT_SECTIONS, NULL },
+	.mismatch = TEXT_TO_EXIT,
+},
+{
+	.fromsec = { DATA_SECTIONS, NULL },
+	.tosec   = { ALL_EXIT_SECTIONS, NULL },
+	.mismatch = DATA_TO_EXIT,
 },
 /* Do not reference init code/data from devinit/cpuinit/meminit code/data */
 {
 	.fromsec = { DEV_INIT_SECTIONS, CPU_INIT_SECTIONS, MEM_INIT_SECTIONS, NULL },
-	.tosec   = { INIT_SECTIONS, NULL }
+	.tosec   = { INIT_SECTIONS, NULL },
+	.mismatch = XXXINIT_TO_INIT,
 },
 /* Do not reference exit code/data from devexit/cpuexit/memexit code/data */
 {
 	.fromsec = { DEV_EXIT_SECTIONS, CPU_EXIT_SECTIONS, MEM_EXIT_SECTIONS, NULL },
-	.tosec   = { EXIT_SECTIONS, NULL }
+	.tosec   = { EXIT_SECTIONS, NULL },
+	.mismatch = XXXEXIT_TO_EXIT,
 },
 /* Do not use exit code/data from init code */
 {
 	.fromsec = { ALL_INIT_SECTIONS, NULL },
 	.tosec   = { ALL_EXIT_SECTIONS, NULL },
+	.mismatch = INIT_TO_EXIT,
 },
 /* Do not use init code/data from exit code */
 {
 	.fromsec = { ALL_EXIT_SECTIONS, NULL },
-	.tosec   = { ALL_INIT_SECTIONS, NULL }
+	.tosec   = { ALL_INIT_SECTIONS, NULL },
+	.mismatch = EXIT_TO_INIT,
 },
 /* Do not export init/exit functions or data */
 {
 	.fromsec = { "__ksymtab*", NULL },
-	.tosec   = { ALL_INIT_SECTIONS, ALL_EXIT_SECTIONS, NULL }
+	.tosec   = { ALL_INIT_SECTIONS, ALL_EXIT_SECTIONS, NULL },
+	.mismatch = EXPORT_TO_INIT_EXIT
 }
 };
 
@@ -809,10 +847,10 @@ static int section_mismatch(const char *fromsec, const char *tosec)
 	for (i = 0; i < elems; i++) {
 		if (match(fromsec, check->fromsec) &&
 		    match(tosec, check->tosec))
-			return 1;
+			return check->mismatch;
 		check++;
 	}
-	return 0;
+	return NO_MISMATCH;
 }
 
 /**
@@ -989,47 +1027,197 @@ static Elf_Sym *find_elf_symbol2(struct elf_info *elf, Elf_Addr addr,
 }
 
 /*
+ * Convert a section name to the function/data attribute
+ * .init.text => __init
+ * .cpuinit.data => __cpudata
+ * .memexitconst => __memconst
+ * etc.
+*/
+static char *sec2annotation(const char *s)
+{
+	if (match(s, init_exit_sections)) {
+		char *p = malloc(20);
+		char *r = p;
+
+		*p++ = '_';
+		*p++ = '_';
+		if (*s == '.')
+			s++;
+		while (*s && *s != '.')
+			*p++ = *s++;
+		*p = '\0';
+		if (*s == '.')
+			s++;
+		if (strstr(s, "rodata") != NULL)
+			strcat(p, "const ");
+		else if (strstr(s, "data") != NULL)
+			strcat(p, "data ");
+		else
+			strcat(p, " ");
+		return r; /* we leak her but we do not care */
+	} else {
+		return "";
+	}
+}
+
+static int is_function(Elf_Sym *sym)
+{
+	if (sym)
+		return ELF_ST_TYPE(sym->st_info) == STT_FUNC;
+	else
+		return 0;
+}
+
+/*
  * Print a warning about a section mismatch.
  * Try to find symbols near it so user can find it.
  * Check whitelist before warning - it may be a false positive.
  */
-static void report_sec_mismatch(const char *modname,
+static void report_sec_mismatch(const char *modname, enum mismatch mismatch,
                                 const char *fromsec,
                                 unsigned long long fromaddr,
                                 const char *fromsym,
-                                const char *tosec, const char *tosym)
+                                int from_is_func,
+                                const char *tosec, const char *tosym,
+                                int to_is_func)
 {
-	if (strlen(tosym)) {
-		warn("%s(%s+0x%llx): Section mismatch: reference to %s:%s "
-		     "in '%s'\n",
-		     modname, fromsec, fromaddr,
-		     tosec, tosym, fromsym);
-	} else {
-		warn("%s(%s+0x%llx): Section mismatch: reference to %s:%s\n",
-		     modname, fromsec, fromaddr,
-		     tosec, tosym);
+	const char *from, *from_p;
+	const char *to, *to_p;
+	from = from_is_func ? "function" : "variable";
+	from_p = from_is_func ? "()" : "";
+	to = to_is_func ? "function" : "variable";
+	to_p = to_is_func ? "()" : "";
+
+	fprintf(stderr, "WARNING: %s(%s+0x%llx): Section mismatch in"
+	                " reference from the %s %s%s to the %s %s:%s%s\n",
+                        modname, fromsec, fromaddr, from, fromsym, from_p,
+	                to, tosec, tosym, to_p);
+
+	sec_mismatch_count++;
+	if (!sec_mismatch_verbose)
+		return;
+
+	switch (mismatch) {
+	case TEXT_TO_INIT:
+		fprintf(stderr,
+		"The function %s %s() references\n"
+		"the %s %s%s%s.\n"
+		"This is often because %s lacks a %s\n"
+		"annotation or the annotation of %s is wrong.\n",
+		sec2annotation(fromsec), fromsym,
+		to, sec2annotation(tosec), tosym, to_p,
+		fromsym, sec2annotation(tosec), tosym);
+		break;
+	case DATA_TO_INIT: {
+		const char **s = symbol_white_list;
+		fprintf(stderr,
+		"The variable %s references\n"
+		"the %s %s%s%s\n"
+		"If the reference is valid then annotate the\n"
+		"variable with __init* (see linux/init.h) "
+		"or name the variable:\n",
+		fromsym, to, sec2annotation(tosec), tosym, to_p);
+		while (*s)
+			fprintf(stderr, "%s, ", *s++);
+		fprintf(stderr, "\n");
+		break;
 	}
+	case TEXT_TO_EXIT:
+		fprintf(stderr,
+		"The function %s() references a %s in an exit section.\n"
+		"Often the %s %s%s has valid usage outside the exit section\n"
+		"and the fix is to remove the %sannotation of %s.\n",
+		fromsym, to, to, tosym, to_p, sec2annotation(tosec), tosym);
+		break;
+	case DATA_TO_EXIT: {
+		const char **s = symbol_white_list;
+		fprintf(stderr,
+		"The variable %s references\n"
+		"the %s %s%s%s\n"
+		"If the reference is valid then annotate the\n"
+		"variable with __exit* (see linux/init.h) or "
+		"name the variable:\n",
+		fromsym, to, sec2annotation(tosec), tosym, to_p);
+		while (*s)
+			fprintf(stderr, "%s, ", *s++);
+		fprintf(stderr, "\n");
+		break;
+	}
+	case XXXINIT_TO_INIT:
+	case XXXEXIT_TO_EXIT:
+		fprintf(stderr,
+		"The %s %s%s%s references\n"
+		"a %s %s%s%s.\n"
+		"If %s is only used by %s then\n"
+		"annotate %s with a matching annotation.\n",
+		from, sec2annotation(fromsec), fromsym, from_p,
+		to, sec2annotation(tosec), tosym, to_p,
+		fromsym, tosym, fromsym);
+		break;
+	case INIT_TO_EXIT:
+		fprintf(stderr,
+		"The %s %s%s%s references\n"
+		"a %s %s%s%s.\n"
+		"This is often seen when error handling "
+		"in the init function\n"
+		"uses functionality in the exit path.\n"
+		"The fix is often to remove the %sannotation of\n"
+		"%s%s so it may be used outside an exit section.\n",
+		from, sec2annotation(fromsec), fromsym, from_p,
+		to, sec2annotation(tosec), tosym, to_p,
+		sec2annotation(tosec), tosym, to_p);
+		break;
+	case EXIT_TO_INIT:
+		fprintf(stderr,
+		"The %s %s%s%s references\n"
+		"a %s %s%s%s.\n"
+		"This is often seen when error handling "
+		"in the exit function\n"
+		"uses functionality in the init path.\n"
+		"The fix is often to remove the %sannotation of\n"
+		"%s%s so it may be used outside an init section.\n",
+		from, sec2annotation(fromsec), fromsym, from_p,
+		to, sec2annotation(tosec), tosym, to_p,
+		sec2annotation(tosec), tosym, to_p);
+		break;
+	case EXPORT_TO_INIT_EXIT:
+		fprintf(stderr,
+		"The symbol %s is exported and annotated %s\n"
+		"Fix this by removing the %sannotation of %s "
+		"or drop the export.\n",
+		tosym, sec2annotation(tosec), sec2annotation(tosec), tosym);
+	case NO_MISMATCH:
+		/* To get warnings on missing members */
+		break;
+	}
+	fprintf(stderr, "\n");
 }
 
 static void check_section_mismatch(const char *modname, struct elf_info *elf,
                                    Elf_Rela *r, Elf_Sym *sym, const char *fromsec)
 {
 	const char *tosec;
+	enum mismatch mismatch;
 
 	tosec = sec_name(elf, sym->st_shndx);
-	if (section_mismatch(fromsec, tosec)) {
-		const char *fromsym;
+	mismatch = section_mismatch(fromsec, tosec);
+	if (mismatch != NO_MISMATCH) {
+		Elf_Sym *to;
+		Elf_Sym *from;
 		const char *tosym;
+		const char *fromsym;
 
-		fromsym = sym_name(elf,
-		          find_elf_symbol2(elf, r->r_offset, fromsec));
-		tosym = sym_name(elf,
-		        find_elf_symbol(elf, r->r_addend, sym));
+		from = find_elf_symbol2(elf, r->r_offset, fromsec);
+		fromsym = sym_name(elf, from);
+		to = find_elf_symbol(elf, r->r_addend, sym);
+		tosym = sym_name(elf, to);
 
 		/* check whitelist - we may ignore it */
 		if (secref_whitelist(fromsec, fromsym, tosec, tosym)) {
-			report_sec_mismatch(modname, fromsec, r->r_offset,
-			                    fromsym, tosec, tosym);
+			report_sec_mismatch(modname, mismatch,
+			   fromsec, r->r_offset, fromsym,
+			   is_function(from), tosec, tosym,
+			   is_function(to));
 		}
 	}
 }
@@ -1643,7 +1831,7 @@ int main(int argc, char **argv)
 	int opt;
 	int err;
 
-	while ((opt = getopt(argc, argv, "i:I:mso:aw")) != -1) {
+	while ((opt = getopt(argc, argv, "i:I:msSo:aw")) != -1) {
 		switch (opt) {
 		case 'i':
 			kernel_read = optarg;
@@ -1663,6 +1851,9 @@ int main(int argc, char **argv)
 			break;
 		case 's':
 			vmlinux_section_warnings = 0;
+			break;
+		case 'S':
+			sec_mismatch_verbose = 0;
 			break;
 		case 'w':
 			warn_unresolved = 1;
@@ -1708,6 +1899,12 @@ int main(int argc, char **argv)
 
 	if (dump_write)
 		write_dump(dump_write);
+	if (sec_mismatch_count && !sec_mismatch_verbose)
+		fprintf(stderr, "modpost: Found %d section mismatch(es).\n"
+		        "To see additional details select \"Enable full "
+		        "Section mismatch analysis\"\n"
+		        "in the Kernel Hacking menu "
+		        "(CONFIG_SECTION_MISMATCH).\n", sec_mismatch_count);
 
 	return err;
 }
