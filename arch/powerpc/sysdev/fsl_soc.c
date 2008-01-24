@@ -1276,7 +1276,10 @@ int __init fsl_spi_init(struct spi_board_info *board_infos,
 	const u32 *sysclk;
 
 	/* SPI controller is either clocked from QE or SoC clock */
-	np = of_find_node_by_type(NULL, "qe");
+	np = of_find_compatible_node(NULL, NULL, "fsl,qe");
+	if (!np)
+		np = of_find_node_by_type(NULL, "qe");
+
 	if (!np)
 		np = of_find_node_by_type(NULL, "soc");
 

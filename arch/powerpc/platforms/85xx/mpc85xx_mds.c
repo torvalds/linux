@@ -94,21 +94,25 @@ static void __init mpc85xx_mds_setup_arch(void)
 #endif
 
 #ifdef CONFIG_QUICC_ENGINE
-	if ((np = of_find_node_by_name(NULL, "qe")) != NULL) {
-		qe_reset();
-		of_node_put(np);
+	np = of_find_compatible_node(NULL, NULL, "fsl,qe");
+	if (!np) {
+		np = of_find_node_by_name(NULL, "qe");
+		if (!np)
+			return;
 	}
 
-	if ((np = of_find_node_by_name(NULL, "par_io")) != NULL) {
-		struct device_node *ucc = NULL;
+	qe_reset();
+	of_node_put(np);
+
+	np = of_find_node_by_name(NULL, "par_io");
+	if (np) {
+		struct device_node *ucc;
 
 		par_io_init(np);
 		of_node_put(np);
 
-		for ( ;(ucc = of_find_node_by_name(ucc, "ucc")) != NULL;)
+		for_each_node_by_name(ucc, "ucc")
 			par_io_of_config(ucc);
-
-		of_node_put(ucc);
 	}
 
 	if (bcsr_regs) {
@@ -131,7 +135,6 @@ static void __init mpc85xx_mds_setup_arch(void)
 
 		iounmap(bcsr_regs);
 	}
-
 #endif	/* CONFIG_QUICC_ENGINE */
 }
 
@@ -139,6 +142,7 @@ static struct of_device_id mpc85xx_ids[] = {
 	{ .type = "soc", },
 	{ .compatible = "soc", },
 	{ .type = "qe", },
+	{ .compatible = "fsl,qe", },
 	{},
 };
 
@@ -176,10 +180,12 @@ static void __init mpc85xx_mds_pic_init(void)
 	mpic_init(mpic);
 
 #ifdef CONFIG_QUICC_ENGINE
-	np = of_find_node_by_type(NULL, "qeic");
-	if (!np)
-		return;
-
+	np = of_find_compatible_node(NULL, NULL, "fsl,qe-ic");
+	if (!np) {
+		np = of_find_node_by_type(NULL, "qeic");
+		if (!np)
+			return;
+	}
 	qe_ic_init(np, 0, qe_ic_cascade_muxed_mpic, NULL);
 	of_node_put(np);
 #endif				/* CONFIG_QUICC_ENGINE */

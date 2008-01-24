@@ -284,17 +284,19 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		device_type = "qe";
-		model = "QE";
+		compatible = "fsl,qe";
 		ranges = <0 e0080000 00040000>;
 		reg = <e0080000 480>;
 		brg-frequency = <0>;
 		bus-frequency = <179A7B00>;
 
 		muram@10000 {
-			device_type = "muram";
+			compatible = "fsl,qe-muram", "fsl,cpm-muram";
 			ranges = <0 00010000 0000c000>;
 
 			data-only@0{
+				compatible = "fsl,qe-muram-data",
+					     "fsl,cpm-muram-data";
 				reg = <0 c000>;
 			};
 		};
@@ -385,9 +387,9 @@
 			};
 		};
 
-		qeic: qeic@80 {
+		qeic: interrupt-controller@80 {
 			interrupt-controller;
-			device_type = "qeic";
+			compatible = "fsl,qe-ic";
 			#address-cells = <0>;
 			#interrupt-cells = <1>;
 			reg = <80 80>;

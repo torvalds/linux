@@ -65,17 +65,22 @@ static phys_addr_t qebase = -1;
 phys_addr_t get_qe_base(void)
 {
 	struct device_node *qe;
+	unsigned int size;
+	const void *prop;
 
 	if (qebase != -1)
 		return qebase;
 
-	qe = of_find_node_by_type(NULL, "qe");
-	if (qe) {
-		unsigned int size;
-		const void *prop = of_get_property(qe, "reg", &size);
-		qebase = of_translate_address(qe, prop);
-		of_node_put(qe);
-	};
+	qe = of_find_compatible_node(NULL, NULL, "fsl,qe");
+	if (!qe) {
+		qe = of_find_node_by_type(NULL, "qe");
+		if (!qe)
+			return qebase;
+	}
+
+	prop = of_get_property(qe, "reg", &size);
+	qebase = of_translate_address(qe, prop);
+	of_node_put(qe);
 
 	return qebase;
 }
@@ -153,16 +158,26 @@ static unsigned int brg_clk = 0;
 unsigned int get_brg_clk(void)
 {
 	struct device_node *qe;
+	unsigned int size;
+	const u32 *prop;
+
 	if (brg_clk)
 		return brg_clk;
 
-	qe = of_find_node_by_type(NULL, "qe");
-	if (qe) {
-		unsigned int size;
-		const u32 *prop = of_get_property(qe, "brg-frequency", &size);
-		brg_clk = *prop;
-		of_node_put(qe);
-	};
+	qe = of_find_compatible_node(NULL, NULL, "fsl,qe");
+	if (!qe) {
+		qe = of_find_node_by_type(NULL, "qe");
+		if (!qe)
+			return brg_clk;
+	}
+
+	prop = of_get_property(qe, "brg-frequency", &size);
+	if (!prop || size != sizeof(*prop))
+		return brg_clk;
+
+	brg_clk = *prop;
+	of_node_put(qe);
+
 	return brg_clk;
 }
 
@@ -322,7 +337,7 @@ static rh_info_t qe_muram_info;
 static void qe_muram_init(void)
 {
 	struct device_node *np;
-	u32 address;
+	const u32 *address;
 	u64 size;
 	unsigned int flags;
 
@@ -335,11 +350,21 @@ static void qe_muram_init(void)
 	/* XXX: This is a subset of the available muram. It
 	 * varies with the processor and the microcode patches activated.
 	 */
-	if ((np = of_find_node_by_name(NULL, "data-only")) != NULL) {
-		address = *of_get_address(np, 0, &size, &flags);
-		of_node_put(np);
-		rh_attach_region(&qe_muram_info, address, (int) size);
+	np = of_find_compatible_node(NULL, NULL, "fsl,qe-muram-data");
+	if (!np) {
+		np = of_find_node_by_name(NULL, "data-only");
+		if (!np) {
+			WARN_ON(1);
+			return;
+		}
 	}
+
+	address = of_get_address(np, 0, &size, &flags);
+	WARN_ON(!address);
+
+	of_node_put(np);
+	if (address)
+		rh_attach_region(&qe_muram_info, *address, (int)size);
 }
 
 /* This function returns an index into the MURAM area.
