@@ -775,12 +775,12 @@ int acpi_processor_get_throttling_info(struct acpi_processor *pr)
 		acpi_processor_get_throttling_states(pr) ||
 		acpi_processor_get_platform_limit(pr))
 	{
-		if (acpi_processor_get_fadt_info(pr))
-			return 0;
 		pr->throttling.acpi_processor_get_throttling =
 		    &acpi_processor_get_throttling_fadt;
 		pr->throttling.acpi_processor_set_throttling =
 		    &acpi_processor_set_throttling_fadt;
+		if (acpi_processor_get_fadt_info(pr))
+			return 0;
 	} else {
 		pr->throttling.acpi_processor_get_throttling =
 		    &acpi_processor_get_throttling_ptc;
