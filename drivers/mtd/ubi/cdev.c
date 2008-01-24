@@ -132,7 +132,14 @@ static int vol_cdev_release(struct inode *inode, struct file *file)
 	if (vol->updating) {
 		ubi_warn("update of volume %d not finished, volume is damaged",
 			 vol->vol_id);
+		ubi_assert(!vol->changing_leb);
 		vol->updating = 0;
+		vfree(vol->upd_buf);
+	} else if (vol->changing_leb) {
+		dbg_msg("only %lld of %lld bytes received for atomic LEB change"
+			" for volume %d:%d, cancel", vol->upd_received,
+			vol->upd_bytes, vol->ubi->ubi_num, vol->vol_id);
+		vol->changing_leb = 0;
 		vfree(vol->upd_buf);
 	}
 
@@ -351,24 +358,32 @@ static ssize_t vol_cdev_write(struct file *file, const char __user *buf,
 	struct ubi_volume *vol = desc->vol;
 	struct ubi_device *ubi = vol->ubi;
 
-	if (!vol->updating)
+	if (!vol->updating && !vol->changing_leb)
 		return vol_cdev_direct_write(file, buf, count, offp);
 
-	err = ubi_more_update_data(ubi, vol, buf, count);
+	if (vol->updating)
+		err = ubi_more_update_data(ubi, vol, buf, count);
+	else
+		err = ubi_more_leb_change_data(ubi, vol, buf, count);
+
 	if (err < 0) {
-		ubi_err("cannot write %zd bytes of update data, error %d",
+		ubi_err("cannot accept more %zd bytes of data, error %d",
 			count, err);
 		return err;
 	}
 
 	if (err) {
 		/*
-		 * Update is finished, @err contains number of actually written
-		 * bytes now.
+		 * The operation is finished, @err contains number of actually
+		 * written bytes.
 		 */
 		count = err;
 
-		vol->updating = 0;
+		if (vol->changing_leb) {
+			revoke_exclusive(desc, UBI_READWRITE);
+			return count;
+		}
+
 		err = ubi_check_volume(ubi, vol->vol_id);
 		if (err < 0)
 			return err;
@@ -433,6 +448,43 @@ static int vol_cdev_ioctl(struct inode *inode, struct file *file,
 		break;
 	}
 
+	/* Atomic logical eraseblock change command */
+	case UBI_IOCEBCH:
+	{
+		struct ubi_leb_change_req req;
+
+		err = copy_from_user(&req, argp,
+				     sizeof(struct ubi_leb_change_req));
+		if (err) {
+			err = -EFAULT;
+			break;
+		}
+
+		if (desc->mode == UBI_READONLY ||
+		    vol->vol_type == UBI_STATIC_VOLUME) {
+			err = -EROFS;
+			break;
+		}
+
+		/* Validate the request */
+		err = -EINVAL;
+		if (req.lnum < 0 || req.lnum >= vol->reserved_pebs ||
+		    req.bytes < 0 || req.lnum >= vol->usable_leb_size)
+			break;
+		if (req.dtype != UBI_LONGTERM && req.dtype != UBI_SHORTTERM &&
+		    req.dtype != UBI_UNKNOWN)
+			break;
+
+		err = get_exclusive(desc);
+		if (err < 0)
+			break;
+
+		err = ubi_start_leb_change(ubi, vol, &req);
+		if (req.bytes == 0)
+			revoke_exclusive(desc, UBI_READWRITE);
+		break;
+	}
+
 #ifdef CONFIG_MTD_UBI_DEBUG_USERSPACE_IO
 	/* Logical eraseblock erasure command */
 	case UBI_IOCEBER:
@@ -445,18 +497,14 @@ static int vol_cdev_ioctl(struct inode *inode, struct file *file,
 			break;
 		}
 
-		if (desc->mode == UBI_READONLY) {
+		if (desc->mode == UBI_READONLY ||
+		    vol->vol_type == UBI_STATIC_VOLUME) {
 			err = -EROFS;
 			break;
 		}
 
 		if (lnum < 0 || lnum >= vol->reserved_pebs) {
 			err = -EINVAL;
-			break;
-		}
-
-		if (vol->vol_type != UBI_DYNAMIC_VOLUME) {
-			err = -EROFS;
 			break;
 		}
 

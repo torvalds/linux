@@ -22,7 +22,8 @@
  */
 
 /*
- * This file contains implementation of the volume update functionality.
+ * This file contains implementation of the volume update and atomic LEB change
+ * functionality.
  *
  * The update operation is based on the per-volume update marker which is
  * stored in the volume table. The update marker is set before the update
@@ -133,6 +134,7 @@ int ubi_start_update(struct ubi_device *ubi, struct ubi_volume *vol,
 	uint64_t tmp;
 
 	dbg_msg("start update of volume %d, %llu bytes", vol->vol_id, bytes);
+	ubi_assert(!vol->updating && !vol->changing_leb);
 	vol->updating = 1;
 
 	err = set_update_marker(ubi, vol);
@@ -168,6 +170,39 @@ int ubi_start_update(struct ubi_device *ubi, struct ubi_volume *vol,
 }
 
 /**
+ * ubi_start_leb_change - start atomic LEB change.
+ * @ubi: UBI device description object
+ * @vol: volume description object
+ * @req: operation request
+ *
+ * This function starts atomic LEB change operation. Returns zero in case of
+ * success and a negative error code in case of failure.
+ */
+int ubi_start_leb_change(struct ubi_device *ubi, struct ubi_volume *vol,
+			 const struct ubi_leb_change_req *req)
+{
+	ubi_assert(!vol->updating && !vol->changing_leb);
+
+	dbg_msg("start changing LEB %d:%d, %u bytes",
+		vol->vol_id, req->lnum, req->bytes);
+	if (req->bytes == 0)
+		return ubi_eba_atomic_leb_change(ubi, vol, req->lnum, NULL, 0,
+						 req->dtype);
+
+	vol->upd_bytes = req->bytes;
+	vol->upd_received = 0;
+	vol->changing_leb = 1;
+	vol->ch_lnum = req->lnum;
+	vol->ch_dtype = req->dtype;
+
+	vol->upd_buf = vmalloc(req->bytes);
+	if (!vol->upd_buf)
+		return -ENOMEM;
+
+	return 0;
+}
+
+/**
  * write_leb - write update data.
  * @ubi: UBI device description object
  * @vol: volume description object
@@ -199,21 +234,19 @@ int ubi_start_update(struct ubi_device *ubi, struct ubi_volume *vol,
 static int write_leb(struct ubi_device *ubi, struct ubi_volume *vol, int lnum,
 		     void *buf, int len, int used_ebs)
 {
-	int err, l;
+	int err;
 
 	if (vol->vol_type == UBI_DYNAMIC_VOLUME) {
-		l = ALIGN(len, ubi->min_io_size);
-		memset(buf + len, 0xFF, l - len);
+		len = ALIGN(len, ubi->min_io_size);
+		memset(buf + len, 0xFF, len - len);
 
-		l = ubi_calc_data_len(ubi, buf, l);
-		if (l == 0) {
+		len = ubi_calc_data_len(ubi, buf, len);
+		if (len == 0) {
 			dbg_msg("all %d bytes contain 0xFF - skip", len);
 			return 0;
 		}
-		if (len != l)
-			dbg_msg("skip last %d bytes (0xFF)", len - l);
 
-		err = ubi_eba_write_leb(ubi, vol, lnum, buf, 0, l, UBI_UNKNOWN);
+		err = ubi_eba_write_leb(ubi, vol, lnum, buf, 0, len, UBI_UNKNOWN);
 	} else {
 		/*
 		 * When writing static volume, and this is the last logical
@@ -239,9 +272,9 @@ static int write_leb(struct ubi_device *ubi, struct ubi_volume *vol, int lnum,
  * @count: how much bytes to write
  *
  * This function writes more data to the volume which is being updated. It may
- * be called arbitrary number of times until all of the update data arrive.
- * This function returns %0 in case of success, number of bytes written during
- * the last call if the whole volume update was successfully finished, and a
+ * be called arbitrary number of times until all the update data arriveis. This
+ * function returns %0 in case of success, number of bytes written during the
+ * last call if the whole volume update has been successfully finished, and a
  * negative error code in case of failure.
  */
 int ubi_more_update_data(struct ubi_device *ubi, struct ubi_volume *vol,
@@ -340,9 +373,64 @@ int ubi_more_update_data(struct ubi_device *ubi, struct ubi_volume *vol,
 			return err;
 		err = ubi_wl_flush(ubi);
 		if (err == 0) {
+			vol->updating = 0;
 			err = to_write;
 			vfree(vol->upd_buf);
 		}
+	}
+
+	return err;
+}
+
+/**
+ * ubi_more_leb_change_data - accept more data for atomic LEB change.
+ * @vol: volume description object
+ * @buf: write data (user-space memory buffer)
+ * @count: how much bytes to write
+ *
+ * This function accepts more data to the volume which is being under the
+ * "atomic LEB change" operation. It may be called arbitrary number of times
+ * until all data arrives. This function returns %0 in case of success, number
+ * of bytes written during the last call if the whole "atomic LEB change"
+ * operation has been successfully finished, and a negative error code in case
+ * of failure.
+ */
+int ubi_more_leb_change_data(struct ubi_device *ubi, struct ubi_volume *vol,
+			     const void __user *buf, int count)
+{
+	int err;
+
+	dbg_msg("write %d of %lld bytes, %lld already passed",
+		count, vol->upd_bytes, vol->upd_received);
+
+	if (ubi->ro_mode)
+		return -EROFS;
+
+	if (vol->upd_received + count > vol->upd_bytes)
+		count = vol->upd_bytes - vol->upd_received;
+
+	err = copy_from_user(vol->upd_buf + vol->upd_received, buf, count);
+	if (err)
+		return -EFAULT;
+
+	vol->upd_received += count;
+
+	if (vol->upd_received == vol->upd_bytes) {
+		int len = ALIGN((int)vol->upd_bytes, ubi->min_io_size);
+
+		memset(vol->upd_buf + vol->upd_bytes, 0xFF, len - vol->upd_bytes);
+		len = ubi_calc_data_len(ubi, vol->upd_buf, len);
+		err = ubi_eba_atomic_leb_change(ubi, vol, vol->ch_lnum,
+						vol->upd_buf, len, UBI_UNKNOWN);
+		if (err)
+			return err;
+	}
+
+	ubi_assert(vol->upd_received <= vol->upd_bytes);
+	if (vol->upd_received == vol->upd_bytes) {
+		vol->changing_leb = 0;
+		err = count;
+		vfree(vol->upd_buf);
 	}
 
 	return err;

@@ -158,15 +158,23 @@ struct ubi_volume_desc;
  * @name: volume name
  *
  * @upd_ebs: how many eraseblocks are expected to be updated
- * @upd_bytes: how many bytes are expected to be received
- * @upd_received: how many update bytes were already received
- * @upd_buf: update buffer which is used to collect update data
+ * @ch_lnum: LEB number which is being changing by the atomic LEB change
+ *           operation
+ * @ch_dtype: data persistency type which is being changing by the atomic LEB
+ *            change operation
+ * @upd_bytes: how many bytes are expected to be received for volume update or
+ *             atomic LEB change
+ * @upd_received: how many bytes were already received for volume update or
+ *                atomic LEB change
+ * @upd_buf: update buffer which is used to collect update data or data for
+ *           atomic LEB change
  *
  * @eba_tbl: EBA table of this volume (LEB->PEB mapping)
  * @checked: %1 if this static volume was checked
  * @corrupted: %1 if the volume is corrupted (static volumes only)
  * @upd_marker: %1 if the update marker is set for this volume
  * @updating: %1 if the volume is being updated
+ * @changing_leb: %1 if the atomic LEB change ioctl command is in progress
  *
  * @gluebi_desc: gluebi UBI volume descriptor
  * @gluebi_refcount: reference count of the gluebi MTD device
@@ -202,6 +210,8 @@ struct ubi_volume {
 	char name[UBI_VOL_NAME_MAX+1];
 
 	int upd_ebs;
+	int ch_lnum;
+	int ch_dtype;
 	long long upd_bytes;
 	long long upd_received;
 	void *upd_buf;
@@ -211,9 +221,14 @@ struct ubi_volume {
 	int corrupted:1;
 	int upd_marker:1;
 	int updating:1;
+	int changing_leb:1;
 
 #ifdef CONFIG_MTD_UBI_GLUEBI
-	/* Gluebi-related stuff may be compiled out */
+	/*
+	 * Gluebi-related stuff may be compiled out.
+	 * TODO: this should not be built into UBI but should be a separate
+	 * ubimtd driver which works on top of UBI and emulates MTD devices.
+	 */
 	struct ubi_volume_desc *gluebi_desc;
 	int gluebi_refcount;
 	struct mtd_info gluebi_mtd;
@@ -427,6 +442,10 @@ int ubi_start_update(struct ubi_device *ubi, struct ubi_volume *vol,
 		     long long bytes);
 int ubi_more_update_data(struct ubi_device *ubi, struct ubi_volume *vol,
 			 const void __user *buf, int count);
+int ubi_start_leb_change(struct ubi_device *ubi, struct ubi_volume *vol,
+			 const struct ubi_leb_change_req *req);
+int ubi_more_leb_change_data(struct ubi_device *ubi, struct ubi_volume *vol,
+			     const void __user *buf, int count);
 
 /* misc.c */
 int ubi_calc_data_len(const struct ubi_device *ubi, const void *buf, int length);
