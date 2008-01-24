@@ -31,7 +31,6 @@
 struct mpc8xx_pcmcia_ops m8xx_pcmcia_ops;
 #endif
 
-void m8xx_calibrate_decr(void);
 extern int cpm_pic_init(void);
 extern int cpm_get_irq(void);
 
