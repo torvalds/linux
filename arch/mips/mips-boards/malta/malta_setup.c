@@ -1,6 +1,7 @@
 /*
  * Carsten Langgaard, carstenl@mips.com
  * Copyright (C) 2000 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) Dmitri Vorobiev
  *
  *  This program is free software; you can distribute it and/or modify it
  *  under the terms of the GNU General Public License (Version 2) as
@@ -145,6 +146,41 @@ static void __init screen_info_setup(void)
 }
 #endif
 
+static void __init bonito_quirks_setup(void)
+{
+	char *argptr;
+
+	argptr = prom_getcmdline();
+	if (strstr(argptr, "debug")) {
+		BONITO_BONGENCFG |= BONITO_BONGENCFG_DEBUGMODE;
+		printk(KERN_INFO "Enabled Bonito debug mode\n");
+	} else
+		BONITO_BONGENCFG &= ~BONITO_BONGENCFG_DEBUGMODE;
+
+#ifdef CONFIG_DMA_COHERENT
+	if (BONITO_PCICACHECTRL & BONITO_PCICACHECTRL_CPUCOH_PRES) {
+		BONITO_PCICACHECTRL |= BONITO_PCICACHECTRL_CPUCOH_EN;
+		printk(KERN_INFO "Enabled Bonito CPU coherency\n");
+
+		argptr = prom_getcmdline();
+		if (strstr(argptr, "iobcuncached")) {
+			BONITO_PCICACHECTRL &= ~BONITO_PCICACHECTRL_IOBCCOH_EN;
+			BONITO_PCIMEMBASECFG = BONITO_PCIMEMBASECFG &
+				~(BONITO_PCIMEMBASECFG_MEMBASE0_CACHED |
+					BONITO_PCIMEMBASECFG_MEMBASE1_CACHED);
+			printk(KERN_INFO "Disabled Bonito IOBC coherency\n");
+		} else {
+			BONITO_PCICACHECTRL |= BONITO_PCICACHECTRL_IOBCCOH_EN;
+			BONITO_PCIMEMBASECFG |=
+				(BONITO_PCIMEMBASECFG_MEMBASE0_CACHED |
+					BONITO_PCIMEMBASECFG_MEMBASE1_CACHED);
+			printk(KERN_INFO "Enabled Bonito IOBC coherency\n");
+		}
+	} else
+		panic("Hardware DMA cache coherency not supported");
+#endif
+}
+
 void __init plat_mem_setup(void)
 {
 	unsigned int i;
@@ -164,54 +200,22 @@ void __init plat_mem_setup(void)
 	kgdb_config();
 #endif
 
-	if (mips_revision_sconid == MIPS_REVISION_SCON_BONITO) {
-		char *argptr;
-
-		argptr = prom_getcmdline();
-		if (strstr(argptr, "debug")) {
-			BONITO_BONGENCFG |= BONITO_BONGENCFG_DEBUGMODE;
-			printk("Enabled Bonito debug mode\n");
-		}
-		else
-			BONITO_BONGENCFG &= ~BONITO_BONGENCFG_DEBUGMODE;
-
 #ifdef CONFIG_DMA_COHERENT
-		if (BONITO_PCICACHECTRL & BONITO_PCICACHECTRL_CPUCOH_PRES) {
-			BONITO_PCICACHECTRL |= BONITO_PCICACHECTRL_CPUCOH_EN;
-			printk("Enabled Bonito CPU coherency\n");
-
-			argptr = prom_getcmdline();
-			if (strstr(argptr, "iobcuncached")) {
-				BONITO_PCICACHECTRL &= ~BONITO_PCICACHECTRL_IOBCCOH_EN;
-				BONITO_PCIMEMBASECFG = BONITO_PCIMEMBASECFG &
-					~(BONITO_PCIMEMBASECFG_MEMBASE0_CACHED |
-					  BONITO_PCIMEMBASECFG_MEMBASE1_CACHED);
-				printk("Disabled Bonito IOBC coherency\n");
-			}
-			else {
-				BONITO_PCICACHECTRL |= BONITO_PCICACHECTRL_IOBCCOH_EN;
-				BONITO_PCIMEMBASECFG |=
-					(BONITO_PCIMEMBASECFG_MEMBASE0_CACHED |
-					 BONITO_PCIMEMBASECFG_MEMBASE1_CACHED);
-				printk("Enabled Bonito IOBC coherency\n");
-			}
-		}
-		else
-			panic("Hardware DMA cache coherency not supported");
-
-#endif
-	}
-#ifdef CONFIG_DMA_COHERENT
-	else
+	if (mips_revision_sconid != MIPS_REVISION_SCON_BONITO)
 		panic("Hardware DMA cache coherency not supported");
 #endif
+
+	if (mips_revision_sconid == MIPS_REVISION_SCON_BONITO)
+		bonito_quirks_setup();
 
 #ifdef CONFIG_BLK_DEV_IDE
 	pci_clock_check();
 #endif
+
 #ifdef CONFIG_BLK_DEV_FD
 	fd_activate();
 #endif
+
 #if defined(CONFIG_VT) && defined(CONFIG_VGA_CONSOLE)
 	screen_info_setup();
 #endif
