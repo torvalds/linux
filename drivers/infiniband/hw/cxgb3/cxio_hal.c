@@ -179,7 +179,7 @@ int cxio_create_cq(struct cxio_rdev *rdev_p, struct t3_cq *cq)
 	setup.size = 1UL << cq->size_log2;
 	setup.credits = 65535;
 	setup.credit_thres = 1;
-	if (rdev_p->t3cdev_p->type == T3B)
+	if (rdev_p->t3cdev_p->type != T3A)
 		setup.ovfl_mode = 0;
 	else
 		setup.ovfl_mode = 1;

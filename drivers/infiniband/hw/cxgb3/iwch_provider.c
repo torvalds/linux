@@ -646,7 +646,7 @@ static struct ib_mr *iwch_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	if (err)
 		goto err;
 
-	if (udata && t3b_device(rhp)) {
+	if (udata && !t3a_device(rhp)) {
 		uresp.pbl_addr = (mhp->attr.pbl_addr -
 	                         rhp->rdev.rnic_info.pbl_base) >> 3;
 		PDBG("%s user resp pbl_addr 0x%x\n", __FUNCTION__,
