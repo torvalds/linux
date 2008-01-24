@@ -16,6 +16,7 @@
 #include <linux/init.h>
 #include <linux/time.h>
 #include <linux/rtc.h>
+#include <linux/fsl_devices.h>
 
 #include <asm/io.h>
 #include <asm/mpc8xx.h>
@@ -28,9 +29,7 @@
 
 #include "mpc8xx.h"
 
-#ifdef CONFIG_PCMCIA_M8XX
 struct mpc8xx_pcmcia_ops m8xx_pcmcia_ops;
-#endif
 
 extern int cpm_pic_init(void);
 extern int cpm_get_irq(void);

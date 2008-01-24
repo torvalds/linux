@@ -40,6 +40,7 @@
 #include <asm/fs_pd.h>
 #include <asm/udbg.h>
 
+#include "mpc885ads.h"
 #include "mpc8xx.h"
 
 static u32 __iomem *bcsr, *bcsr5;
