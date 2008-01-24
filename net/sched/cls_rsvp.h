@@ -397,6 +397,15 @@ static u32 gen_tunnel(struct rsvp_head *data)
 	return 0;
 }
 
+static const struct nla_policy rsvp_policy[TCA_RSVP_MAX + 1] = {
+	[TCA_RSVP_CLASSID]	= { .type = NLA_U32 },
+	[TCA_RSVP_DST]		= { .type = NLA_BINARY,
+				    .len = RSVP_DST_LEN * sizeof(u32) },
+	[TCA_RSVP_SRC]		= { .type = NLA_BINARY,
+				    .len = RSVP_DST_LEN * sizeof(u32) },
+	[TCA_RSVP_PINFO]	= { .len = sizeof(struct tc_rsvp_pinfo) },
+};
+
 static int rsvp_change(struct tcf_proto *tp, unsigned long base,
 		       u32 handle,
 		       struct nlattr **tca,
@@ -416,7 +425,7 @@ static int rsvp_change(struct tcf_proto *tp, unsigned long base,
 	if (opt == NULL)
 		return handle ? -EINVAL : 0;
 
-	err = nla_parse_nested(tb, TCA_RSVP_MAX, opt, NULL);
+	err = nla_parse_nested(tb, TCA_RSVP_MAX, opt, rsvp_policy);
 	if (err < 0)
 		return err;
 
@@ -452,30 +461,17 @@ static int rsvp_change(struct tcf_proto *tp, unsigned long base,
 
 	h2 = 16;
 	if (tb[TCA_RSVP_SRC-1]) {
-		err = -EINVAL;
-		if (nla_len(tb[TCA_RSVP_SRC-1]) != sizeof(f->src))
-			goto errout;
 		memcpy(f->src, nla_data(tb[TCA_RSVP_SRC-1]), sizeof(f->src));
 		h2 = hash_src(f->src);
 	}
 	if (tb[TCA_RSVP_PINFO-1]) {
-		err = -EINVAL;
-		if (nla_len(tb[TCA_RSVP_PINFO-1]) < sizeof(struct tc_rsvp_pinfo))
-			goto errout;
 		pinfo = nla_data(tb[TCA_RSVP_PINFO-1]);
 		f->spi = pinfo->spi;
 		f->tunnelhdr = pinfo->tunnelhdr;
 	}
-	if (tb[TCA_RSVP_CLASSID-1]) {
-		err = -EINVAL;
-		if (nla_len(tb[TCA_RSVP_CLASSID-1]) != 4)
-			goto errout;
+	if (tb[TCA_RSVP_CLASSID-1])
 		f->res.classid = nla_get_u32(tb[TCA_RSVP_CLASSID-1]);
-	}
 
-	err = -EINVAL;
-	if (nla_len(tb[TCA_RSVP_DST-1]) != sizeof(f->src))
-		goto errout;
 	dst = nla_data(tb[TCA_RSVP_DST-1]);
 	h1 = hash_dst(dst, pinfo ? pinfo->protocol : 0, pinfo ? pinfo->tunnelid : 0);
 

@@ -460,6 +460,16 @@ static u32 gen_new_kid(struct tc_u_hnode *ht, u32 handle)
 	return handle|(i>0xFFF ? 0xFFF : i);
 }
 
+static const struct nla_policy u32_policy[TCA_U32_MAX + 1] = {
+	[TCA_U32_CLASSID]	= { .type = NLA_U32 },
+	[TCA_U32_HASH]		= { .type = NLA_U32 },
+	[TCA_U32_LINK]		= { .type = NLA_U32 },
+	[TCA_U32_DIVISOR]	= { .type = NLA_U32 },
+	[TCA_U32_SEL]		= { .len = sizeof(struct tc_u32_sel) },
+	[TCA_U32_INDEV]		= { .type = NLA_STRING, .len = IFNAMSIZ },
+	[TCA_U32_MARK]		= { .len = sizeof(struct tc_u32_mark) },
+};
+
 static int u32_set_parms(struct tcf_proto *tp, unsigned long base,
 			 struct tc_u_hnode *ht,
 			 struct tc_u_knode *n, struct nlattr **tb,
@@ -531,7 +541,7 @@ static int u32_change(struct tcf_proto *tp, unsigned long base, u32 handle,
 	if (opt == NULL)
 		return handle ? -EINVAL : 0;
 
-	err = nla_parse_nested(tb, TCA_U32_MAX, opt, NULL);
+	err = nla_parse_nested(tb, TCA_U32_MAX, opt, u32_policy);
 	if (err < 0)
 		return err;
 
@@ -593,8 +603,7 @@ static int u32_change(struct tcf_proto *tp, unsigned long base, u32 handle,
 	} else
 		handle = gen_new_kid(ht, htid);
 
-	if (tb[TCA_U32_SEL] == NULL ||
-	    nla_len(tb[TCA_U32_SEL]) < sizeof(struct tc_u32_sel))
+	if (tb[TCA_U32_SEL] == NULL)
 		return -EINVAL;
 
 	s = nla_data(tb[TCA_U32_SEL]);
@@ -620,13 +629,6 @@ static int u32_change(struct tcf_proto *tp, unsigned long base, u32 handle,
 	if (tb[TCA_U32_MARK]) {
 		struct tc_u32_mark *mark;
 
-		if (nla_len(tb[TCA_U32_MARK]) < sizeof(struct tc_u32_mark)) {
-#ifdef CONFIG_CLS_U32_PERF
-			kfree(n->pf);
-#endif
-			kfree(n);
-			return -EINVAL;
-		}
 		mark = nla_data(tb[TCA_U32_MARK]);
 		memcpy(&n->mark, mark, sizeof(struct tc_u32_mark));
 		n->mark.success = 0;

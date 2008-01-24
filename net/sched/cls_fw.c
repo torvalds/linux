@@ -186,6 +186,12 @@ out:
 	return -EINVAL;
 }
 
+static const struct nla_policy fw_policy[TCA_FW_MAX + 1] = {
+	[TCA_FW_CLASSID]	= { .type = NLA_U32 },
+	[TCA_FW_INDEV]		= { .type = NLA_STRING, .len = IFNAMSIZ },
+	[TCA_FW_MASK]		= { .type = NLA_U32 },
+};
+
 static int
 fw_change_attrs(struct tcf_proto *tp, struct fw_filter *f,
 	struct nlattr **tb, struct nlattr **tca, unsigned long base)
@@ -201,8 +207,6 @@ fw_change_attrs(struct tcf_proto *tp, struct fw_filter *f,
 
 	err = -EINVAL;
 	if (tb[TCA_FW_CLASSID]) {
-		if (nla_len(tb[TCA_FW_CLASSID]) != sizeof(u32))
-			goto errout;
 		f->res.classid = nla_get_u32(tb[TCA_FW_CLASSID]);
 		tcf_bind_filter(tp, &f->res, base);
 	}
@@ -216,8 +220,6 @@ fw_change_attrs(struct tcf_proto *tp, struct fw_filter *f,
 #endif /* CONFIG_NET_CLS_IND */
 
 	if (tb[TCA_FW_MASK]) {
-		if (nla_len(tb[TCA_FW_MASK]) != sizeof(u32))
-			goto errout;
 		mask = nla_get_u32(tb[TCA_FW_MASK]);
 		if (mask != head->mask)
 			goto errout;
@@ -246,7 +248,7 @@ static int fw_change(struct tcf_proto *tp, unsigned long base,
 	if (!opt)
 		return handle ? -EINVAL : 0;
 
-	err = nla_parse_nested(tb, TCA_FW_MAX, opt, NULL);
+	err = nla_parse_nested(tb, TCA_FW_MAX, opt, fw_policy);
 	if (err < 0)
 		return err;
 
@@ -261,11 +263,8 @@ static int fw_change(struct tcf_proto *tp, unsigned long base,
 
 	if (head == NULL) {
 		u32 mask = 0xFFFFFFFF;
-		if (tb[TCA_FW_MASK]) {
-			if (nla_len(tb[TCA_FW_MASK]) != sizeof(u32))
-				return -EINVAL;
+		if (tb[TCA_FW_MASK])
 			mask = nla_get_u32(tb[TCA_FW_MASK]);
-		}
 
 		head = kzalloc(sizeof(struct fw_head), GFP_KERNEL);
 		if (head == NULL)

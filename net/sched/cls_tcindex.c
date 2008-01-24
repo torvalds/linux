@@ -193,6 +193,14 @@ valid_perfect_hash(struct tcindex_data *p)
 	return  p->hash > (p->mask >> p->shift);
 }
 
+static const struct nla_policy tcindex_policy[TCA_TCINDEX_MAX + 1] = {
+	[TCA_TCINDEX_HASH]		= { .type = NLA_U32 },
+	[TCA_TCINDEX_MASK]		= { .type = NLA_U16 },
+	[TCA_TCINDEX_SHIFT]		= { .type = NLA_U32 },
+	[TCA_TCINDEX_FALL_THROUGH]	= { .type = NLA_U32 },
+	[TCA_TCINDEX_CLASSID]		= { .type = NLA_U32 },
+};
+
 static int
 tcindex_set_parms(struct tcf_proto *tp, unsigned long base, u32 handle,
 		  struct tcindex_data *p, struct tcindex_filter_result *r,
@@ -217,24 +225,14 @@ tcindex_set_parms(struct tcf_proto *tp, unsigned long base, u32 handle,
 	else
 		memset(&cr, 0, sizeof(cr));
 
-	err = -EINVAL;
-	if (tb[TCA_TCINDEX_HASH]) {
-		if (nla_len(tb[TCA_TCINDEX_HASH]) < sizeof(u32))
-			goto errout;
+	if (tb[TCA_TCINDEX_HASH])
 		cp.hash = nla_get_u32(tb[TCA_TCINDEX_HASH]);
-	}
 
-	if (tb[TCA_TCINDEX_MASK]) {
-		if (nla_len(tb[TCA_TCINDEX_MASK]) < sizeof(u16))
-			goto errout;
+	if (tb[TCA_TCINDEX_MASK])
 		cp.mask = nla_get_u16(tb[TCA_TCINDEX_MASK]);
-	}
 
-	if (tb[TCA_TCINDEX_SHIFT]) {
-		if (nla_len(tb[TCA_TCINDEX_SHIFT]) < sizeof(int))
-			goto errout;
+	if (tb[TCA_TCINDEX_SHIFT])
 		cp.shift = nla_get_u32(tb[TCA_TCINDEX_SHIFT]);
-	}
 
 	err = -EBUSY;
 	/* Hash already allocated, make sure that we still meet the
@@ -248,11 +246,8 @@ tcindex_set_parms(struct tcf_proto *tp, unsigned long base, u32 handle,
 		goto errout;
 
 	err = -EINVAL;
-	if (tb[TCA_TCINDEX_FALL_THROUGH]) {
-		if (nla_len(tb[TCA_TCINDEX_FALL_THROUGH]) < sizeof(u32))
-			goto errout;
+	if (tb[TCA_TCINDEX_FALL_THROUGH])
 		cp.fall_through = nla_get_u32(tb[TCA_TCINDEX_FALL_THROUGH]);
-	}
 
 	if (!cp.hash) {
 		/* Hash not specified, use perfect hash if the upper limit
@@ -358,7 +353,7 @@ tcindex_change(struct tcf_proto *tp, unsigned long base, u32 handle,
 	if (!opt)
 		return 0;
 
-	err = nla_parse_nested(tb, TCA_TCINDEX_MAX, opt, NULL);
+	err = nla_parse_nested(tb, TCA_TCINDEX_MAX, opt, tcindex_policy);
 	if (err < 0)
 		return err;
 

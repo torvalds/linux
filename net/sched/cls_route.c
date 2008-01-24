@@ -323,6 +323,13 @@ static int route4_delete(struct tcf_proto *tp, unsigned long arg)
 	return 0;
 }
 
+static const struct nla_policy route4_policy[TCA_ROUTE4_MAX + 1] = {
+	[TCA_ROUTE4_CLASSID]	= { .type = NLA_U32 },
+	[TCA_ROUTE4_TO]		= { .type = NLA_U32 },
+	[TCA_ROUTE4_FROM]	= { .type = NLA_U32 },
+	[TCA_ROUTE4_IIF]	= { .type = NLA_U32 },
+};
+
 static int route4_set_parms(struct tcf_proto *tp, unsigned long base,
 	struct route4_filter *f, u32 handle, struct route4_head *head,
 	struct nlattr **tb, struct nlattr *est, int new)
@@ -339,14 +346,8 @@ static int route4_set_parms(struct tcf_proto *tp, unsigned long base,
 		return err;
 
 	err = -EINVAL;
-	if (tb[TCA_ROUTE4_CLASSID])
-		if (nla_len(tb[TCA_ROUTE4_CLASSID]) < sizeof(u32))
-			goto errout;
-
 	if (tb[TCA_ROUTE4_TO]) {
 		if (new && handle & 0x8000)
-			goto errout;
-		if (nla_len(tb[TCA_ROUTE4_TO]) < sizeof(u32))
 			goto errout;
 		to = nla_get_u32(tb[TCA_ROUTE4_TO]);
 		if (to > 0xFF)
@@ -357,15 +358,11 @@ static int route4_set_parms(struct tcf_proto *tp, unsigned long base,
 	if (tb[TCA_ROUTE4_FROM]) {
 		if (tb[TCA_ROUTE4_IIF])
 			goto errout;
-		if (nla_len(tb[TCA_ROUTE4_FROM]) < sizeof(u32))
-			goto errout;
 		id = nla_get_u32(tb[TCA_ROUTE4_FROM]);
 		if (id > 0xFF)
 			goto errout;
 		nhandle |= id << 16;
 	} else if (tb[TCA_ROUTE4_IIF]) {
-		if (nla_len(tb[TCA_ROUTE4_IIF]) < sizeof(u32))
-			goto errout;
 		id = nla_get_u32(tb[TCA_ROUTE4_IIF]);
 		if (id > 0x7FFF)
 			goto errout;
@@ -440,7 +437,7 @@ static int route4_change(struct tcf_proto *tp, unsigned long base,
 	if (opt == NULL)
 		return handle ? -EINVAL : 0;
 
-	err = nla_parse_nested(tb, TCA_ROUTE4_MAX, opt, NULL);
+	err = nla_parse_nested(tb, TCA_ROUTE4_MAX, opt, route4_policy);
 	if (err < 0)
 		return err;
 

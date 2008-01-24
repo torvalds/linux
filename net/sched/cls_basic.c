@@ -129,6 +129,11 @@ static int basic_delete(struct tcf_proto *tp, unsigned long arg)
 	return -ENOENT;
 }
 
+static const struct nla_policy basic_policy[TCA_BASIC_MAX + 1] = {
+	[TCA_BASIC_CLASSID]	= { .type = NLA_U32 },
+	[TCA_BASIC_EMATCHES]	= { .type = NLA_NESTED },
+};
+
 static inline int basic_set_parms(struct tcf_proto *tp, struct basic_filter *f,
 				  unsigned long base, struct nlattr **tb,
 				  struct nlattr *est)
@@ -136,10 +141,6 @@ static inline int basic_set_parms(struct tcf_proto *tp, struct basic_filter *f,
 	int err = -EINVAL;
 	struct tcf_exts e;
 	struct tcf_ematch_tree t;
-
-	if (tb[TCA_BASIC_CLASSID])
-		if (nla_len(tb[TCA_BASIC_CLASSID]) < sizeof(u32))
-			return err;
 
 	err = tcf_exts_validate(tp, tb, est, &e, &basic_ext_map);
 	if (err < 0)
@@ -174,7 +175,8 @@ static int basic_change(struct tcf_proto *tp, unsigned long base, u32 handle,
 	if (tca[TCA_OPTIONS] == NULL)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_BASIC_MAX, tca[TCA_OPTIONS], NULL);
+	err = nla_parse_nested(tb, TCA_BASIC_MAX, tca[TCA_OPTIONS],
+			       basic_policy);
 	if (err < 0)
 		return err;
 
