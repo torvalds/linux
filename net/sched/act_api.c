@@ -18,6 +18,7 @@
 #include <linux/skbuff.h>
 #include <linux/init.h>
 #include <linux/kmod.h>
+#include <linux/err.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
 #include <net/sch_generic.h>
@@ -463,15 +464,16 @@ errout:
 }
 
 struct tc_action *tcf_action_init_1(struct nlattr *nla, struct nlattr *est,
-				    char *name, int ovr, int bind, int *err)
+				    char *name, int ovr, int bind)
 {
 	struct tc_action *a;
 	struct tc_action_ops *a_o;
 	char act_name[IFNAMSIZ];
 	struct nlattr *tb[TCA_ACT_MAX+1];
 	struct nlattr *kind;
+	int err;
 
-	*err = -EINVAL;
+	err = -EINVAL;
 
 	if (name == NULL) {
 		if (nla_parse_nested(tb, TCA_ACT_MAX, nla, NULL) < 0)
@@ -502,36 +504,35 @@ struct tc_action *tcf_action_init_1(struct nlattr *nla, struct nlattr *est,
 		 * indicate this using -EAGAIN.
 		 */
 		if (a_o != NULL) {
-			*err = -EAGAIN;
+			err = -EAGAIN;
 			goto err_mod;
 		}
 #endif
-		*err = -ENOENT;
+		err = -ENOENT;
 		goto err_out;
 	}
 
-	*err = -ENOMEM;
+	err = -ENOMEM;
 	a = kzalloc(sizeof(*a), GFP_KERNEL);
 	if (a == NULL)
 		goto err_mod;
 
 	/* backward compatibility for policer */
 	if (name == NULL)
-		*err = a_o->init(tb[TCA_ACT_OPTIONS], est, a, ovr, bind);
+		err = a_o->init(tb[TCA_ACT_OPTIONS], est, a, ovr, bind);
 	else
-		*err = a_o->init(nla, est, a, ovr, bind);
-	if (*err < 0)
+		err = a_o->init(nla, est, a, ovr, bind);
+	if (err < 0)
 		goto err_free;
 
 	/* module count goes up only when brand new policy is created
 	   if it exists and is only bound to in a_o->init() then
 	   ACT_P_CREATED is not returned (a zero is).
 	*/
-	if (*err != ACT_P_CREATED)
+	if (err != ACT_P_CREATED)
 		module_put(a_o->owner);
 	a->ops = a_o;
 
-	*err = 0;
 	return a;
 
 err_free:
@@ -539,24 +540,22 @@ err_free:
 err_mod:
 	module_put(a_o->owner);
 err_out:
-	return NULL;
+	return ERR_PTR(err);
 }
 
 struct tc_action *tcf_action_init(struct nlattr *nla, struct nlattr *est,
-				  char *name, int ovr, int bind, int *err)
+				  char *name, int ovr, int bind)
 {
 	struct nlattr *tb[TCA_ACT_MAX_PRIO+1];
 	struct tc_action *head = NULL, *act, *act_prev = NULL;
 	int i;
 
-	if (nla_parse_nested(tb, TCA_ACT_MAX_PRIO, nla, NULL) < 0) {
-		*err = -EINVAL;
-		return head;
-	}
+	if (nla_parse_nested(tb, TCA_ACT_MAX_PRIO, nla, NULL) < 0)
+		return ERR_PTR(-EINVAL);
 
 	for (i = 1; i <= TCA_ACT_MAX_PRIO && tb[i]; i++) {
-		act = tcf_action_init_1(tb[i], est, name, ovr, bind, err);
-		if (act == NULL)
+		act = tcf_action_init_1(tb[i], est, name, ovr, bind);
+		if (IS_ERR(act))
 			goto err;
 		act->order = i;
 
@@ -571,7 +570,7 @@ struct tc_action *tcf_action_init(struct nlattr *nla, struct nlattr *est,
 err:
 	if (head != NULL)
 		tcf_action_destroy(head, bind);
-	return NULL;
+	return act;
 }
 
 int tcf_action_copy_stats(struct sk_buff *skb, struct tc_action *a,
@@ -668,44 +667,46 @@ act_get_notify(u32 pid, struct nlmsghdr *n, struct tc_action *a, int event)
 }
 
 static struct tc_action *
-tcf_action_get_1(struct nlattr *nla, struct nlmsghdr *n, u32 pid, int *err)
+tcf_action_get_1(struct nlattr *nla, struct nlmsghdr *n, u32 pid)
 {
 	struct nlattr *tb[TCA_ACT_MAX+1];
 	struct tc_action *a;
 	int index;
+	int err;
 
-	*err = -EINVAL;
+	err = -EINVAL;
 	if (nla_parse_nested(tb, TCA_ACT_MAX, nla, NULL) < 0)
-		return NULL;
+		goto err_out;
 
 	if (tb[TCA_ACT_INDEX] == NULL ||
 	    nla_len(tb[TCA_ACT_INDEX]) < sizeof(index))
-		return NULL;
+		goto err_out;
 	index = *(int *)nla_data(tb[TCA_ACT_INDEX]);
 
-	*err = -ENOMEM;
+	err = -ENOMEM;
 	a = kzalloc(sizeof(struct tc_action), GFP_KERNEL);
 	if (a == NULL)
-		return NULL;
+		goto err_out;
 
-	*err = -EINVAL;
+	err = -EINVAL;
 	a->ops = tc_lookup_action(tb[TCA_ACT_KIND]);
 	if (a->ops == NULL)
 		goto err_free;
 	if (a->ops->lookup == NULL)
 		goto err_mod;
-	*err = -ENOENT;
+	err = -ENOENT;
 	if (a->ops->lookup(a, index) == 0)
 		goto err_mod;
 
 	module_put(a->ops->owner);
-	*err = 0;
 	return a;
+
 err_mod:
 	module_put(a->ops->owner);
 err_free:
 	kfree(a);
-	return NULL;
+err_out:
+	return ERR_PTR(err);
 }
 
 static void cleanup_a(struct tc_action *act)
@@ -816,9 +817,11 @@ tca_action_gd(struct nlattr *nla, struct nlmsghdr *n, u32 pid, int event)
 	}
 
 	for (i = 1; i <= TCA_ACT_MAX_PRIO && tb[i]; i++) {
-		act = tcf_action_get_1(tb[i], n, pid, &ret);
-		if (act == NULL)
+		act = tcf_action_get_1(tb[i], n, pid);
+		if (IS_ERR(act)) {
+			ret = PTR_ERR(act);
 			goto err;
+		}
 		act->order = i;
 
 		if (head == NULL)
@@ -912,9 +915,13 @@ tcf_action_add(struct nlattr *nla, struct nlmsghdr *n, u32 pid, int ovr)
 	struct tc_action *a;
 	u32 seq = n->nlmsg_seq;
 
-	act = tcf_action_init(nla, NULL, NULL, ovr, 0, &ret);
+	act = tcf_action_init(nla, NULL, NULL, ovr, 0);
 	if (act == NULL)
 		goto done;
+	if (IS_ERR(act)) {
+		ret = PTR_ERR(act);
+		goto done;
+	}
 
 	/* dump then free all the actions after update; inserted policy
 	 * stays intact
