@@ -1175,6 +1175,7 @@ static int mthca_alloc_qp_common(struct mthca_dev *dev,
 {
 	int ret;
 	int i;
+	struct mthca_next_seg *next;
 
 	qp->refcount = 1;
 	init_waitqueue_head(&qp->wait);
@@ -1217,7 +1218,6 @@ static int mthca_alloc_qp_common(struct mthca_dev *dev,
 	}
 
 	if (mthca_is_memfree(dev)) {
-		struct mthca_next_seg *next;
 		struct mthca_data_seg *scatter;
 		int size = (sizeof (struct mthca_next_seg) +
 			    qp->rq.max_gs * sizeof (struct mthca_data_seg)) / 16;
@@ -1240,6 +1240,13 @@ static int mthca_alloc_qp_common(struct mthca_dev *dev,
 						    qp->sq.wqe_shift) +
 						   qp->send_wqe_offset);
 		}
+	} else {
+		for (i = 0; i < qp->rq.max; ++i) {
+			next = get_recv_wqe(qp, i);
+			next->nda_op = htonl((((i + 1) % qp->rq.max) <<
+					      qp->rq.wqe_shift) | 1);
+		}
+
 	}
 
 	qp->sq.last = get_send_wqe(qp, qp->sq.max - 1);
@@ -1863,7 +1870,6 @@ int mthca_tavor_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 		prev_wqe = qp->rq.last;
 		qp->rq.last = wqe;
 
-		((struct mthca_next_seg *) wqe)->nda_op = 0;
 		((struct mthca_next_seg *) wqe)->ee_nds =
 			cpu_to_be32(MTHCA_NEXT_DBD);
 		((struct mthca_next_seg *) wqe)->flags = 0;
@@ -1885,9 +1891,6 @@ int mthca_tavor_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 
 		qp->wrid[ind] = wr->wr_id;
 
-		((struct mthca_next_seg *) prev_wqe)->nda_op =
-			cpu_to_be32((ind << qp->rq.wqe_shift) | 1);
-		wmb();
 		((struct mthca_next_seg *) prev_wqe)->ee_nds =
 			cpu_to_be32(MTHCA_NEXT_DBD | size);
 
