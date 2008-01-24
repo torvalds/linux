@@ -172,15 +172,15 @@ static void power4_stop(void)
 }
 
 /* Fake functions used by canonicalize_pc */
-static void __attribute_used__ hypervisor_bucket(void)
+static void __used hypervisor_bucket(void)
 {
 }
 
-static void __attribute_used__ rtas_bucket(void)
+static void __used rtas_bucket(void)
 {
 }
 
-static void __attribute_used__ kernel_unknown_bucket(void)
+static void __used kernel_unknown_bucket(void)
 {
 }
 

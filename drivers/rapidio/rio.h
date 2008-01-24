@@ -31,8 +31,8 @@ extern struct rio_route_ops __end_rio_route_ops[];
 
 /* Helpers internal to the RIO core code */
 #define DECLARE_RIO_ROUTE_SECTION(section, vid, did, add_hook, get_hook)  \
-        static struct rio_route_ops __rio_route_ops __attribute_used__   \
-	        __attribute__((__section__(#section))) = { vid, did, add_hook, get_hook };
+	static struct rio_route_ops __rio_route_ops __used   \
+	__section(section)= { vid, did, add_hook, get_hook };
 
 /**
  * DECLARE_RIO_ROUTE_OPS - Registers switch routing operations

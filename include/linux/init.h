@@ -43,7 +43,7 @@
 #define __init		__section(.init.text) __cold
 #define __initdata	__section(.init.data)
 #define __exitdata	__section(.exit.data)
-#define __exit_call	__attribute_used__ __section(.exitcall.exit)
+#define __exit_call	__used __section(.exitcall.exit)
 
 /* modpost check for section mismatches during the kernel build.
  * A section mismatch happens when there are references from a
@@ -144,7 +144,7 @@ void prepare_namespace(void);
  */
 
 #define __define_initcall(level,fn,id) \
-	static initcall_t __initcall_##fn##id __attribute_used__ \
+	static initcall_t __initcall_##fn##id __used \
 	__attribute__((__section__(".initcall" level ".init"))) = fn
 
 /*
@@ -178,11 +178,11 @@ void prepare_namespace(void);
 
 #define console_initcall(fn) \
 	static initcall_t __initcall_##fn \
-	__attribute_used__ __section(.con_initcall.init)=fn
+	__used __section(.con_initcall.init) = fn
 
 #define security_initcall(fn) \
 	static initcall_t __initcall_##fn \
-	__attribute_used__ __section(.security_initcall.init) = fn
+	__used __section(.security_initcall.init) = fn
 
 struct obs_kernel_param {
 	const char *str;
@@ -199,8 +199,7 @@ struct obs_kernel_param {
 #define __setup_param(str, unique_id, fn, early)			\
 	static char __setup_str_##unique_id[] __initdata __aligned(1) = str; \
 	static struct obs_kernel_param __setup_##unique_id	\
-		__attribute_used__				\
-		__section(.init.setup)				\
+		__used __section(.init.setup)			\
 		__attribute__((aligned((sizeof(long)))))	\
 		= { __setup_str_##unique_id, fn, early }
 

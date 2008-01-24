@@ -175,7 +175,7 @@ unsigned long compute_effective_address(struct pt_regs *regs,
 }
 
 /* This is just to make gcc think die_if_kernel does return... */
-static void __attribute_used__ unaligned_panic(char *str, struct pt_regs *regs)
+static void __used unaligned_panic(char *str, struct pt_regs *regs)
 {
 	die_if_kernel(str, regs);
 }

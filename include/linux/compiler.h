@@ -126,10 +126,6 @@ extern void __chk_io_ptr(const volatile void __iomem *);
  * Mark functions that are referenced only in inline assembly as __used so
  * the code is emitted even though it appears to be unreferenced.
  */
-#ifndef __attribute_used__
-# define __attribute_used__	/* deprecated */
-#endif
-
 #ifndef __used
 # define __used			/* unimplemented */
 #endif
