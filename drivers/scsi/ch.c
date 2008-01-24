@@ -21,6 +21,7 @@
 #include <linux/compat.h>
 #include <linux/chio.h>			/* here are all the ioctls */
 #include <linux/mutex.h>
+#include <linux/idr.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -33,6 +34,7 @@
 
 #define CH_DT_MAX       16
 #define CH_TYPES        8
+#define CH_MAX_DEVS     128
 
 MODULE_DESCRIPTION("device driver for scsi media changer devices");
 MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org>");
@@ -113,9 +115,8 @@ typedef struct {
 	struct mutex	    lock;
 } scsi_changer;
 
-static LIST_HEAD(ch_devlist);
-static DEFINE_SPINLOCK(ch_devlist_lock);
-static int ch_devcount;
+static DEFINE_IDR(ch_index_idr);
+static DEFINE_SPINLOCK(ch_index_lock);
 
 static struct scsi_driver ch_template =
 {
@@ -598,20 +599,17 @@ ch_release(struct inode *inode, struct file *file)
 static int
 ch_open(struct inode *inode, struct file *file)
 {
-	scsi_changer *tmp, *ch;
+	scsi_changer *ch;
 	int minor = iminor(inode);
 
-	spin_lock(&ch_devlist_lock);
-	ch = NULL;
-	list_for_each_entry(tmp,&ch_devlist,list) {
-		if (tmp->minor == minor)
-			ch = tmp;
-	}
+	spin_lock(&ch_index_lock);
+	ch = idr_find(&ch_index_idr, minor);
+
 	if (NULL == ch || scsi_device_get(ch->device)) {
-		spin_unlock(&ch_devlist_lock);
+		spin_unlock(&ch_index_lock);
 		return -ENXIO;
 	}
-	spin_unlock(&ch_devlist_lock);
+	spin_unlock(&ch_index_lock);
 
 	file->private_data = ch;
 	return 0;
@@ -914,6 +912,7 @@ static int ch_probe(struct device *dev)
 {
 	struct scsi_device *sd = to_scsi_device(dev);
 	struct class_device *class_dev;
+	int minor, ret = -ENOMEM;
 	scsi_changer *ch;
 
 	if (sd->type != TYPE_MEDIUM_CHANGER)
@@ -923,7 +922,22 @@ static int ch_probe(struct device *dev)
 	if (NULL == ch)
 		return -ENOMEM;
 
-	ch->minor = ch_devcount;
+	if (!idr_pre_get(&ch_index_idr, GFP_KERNEL))
+		goto free_ch;
+
+	spin_lock(&ch_index_lock);
+	ret = idr_get_new(&ch_index_idr, ch, &minor);
+	spin_unlock(&ch_index_lock);
+
+	if (ret)
+		goto free_ch;
+
+	if (minor > CH_MAX_DEVS) {
+		ret = -ENODEV;
+		goto remove_idr;
+	}
+
+	ch->minor = minor;
 	sprintf(ch->name,"ch%d",ch->minor);
 
 	class_dev = class_device_create(ch_sysfs_class, NULL,
@@ -932,8 +946,8 @@ static int ch_probe(struct device *dev)
 	if (IS_ERR(class_dev)) {
 		printk(KERN_WARNING "ch%d: class_device_create failed\n",
 		       ch->minor);
-		kfree(ch);
-		return PTR_ERR(class_dev);
+		ret = PTR_ERR(class_dev);
+		goto remove_idr;
 	}
 
 	mutex_init(&ch->lock);
@@ -942,35 +956,29 @@ static int ch_probe(struct device *dev)
 	if (init)
 		ch_init_elem(ch);
 
+	dev_set_drvdata(dev, ch);
 	sdev_printk(KERN_INFO, sd, "Attached scsi changer %s\n", ch->name);
 
-	spin_lock(&ch_devlist_lock);
-	list_add_tail(&ch->list,&ch_devlist);
-	ch_devcount++;
-	spin_unlock(&ch_devlist_lock);
 	return 0;
+remove_idr:
+	idr_remove(&ch_index_idr, minor);
+free_ch:
+	kfree(ch);
+	return ret;
 }
 
 static int ch_remove(struct device *dev)
 {
-	struct scsi_device *sd = to_scsi_device(dev);
-	scsi_changer *tmp, *ch;
+	scsi_changer *ch = dev_get_drvdata(dev);
 
-	spin_lock(&ch_devlist_lock);
-	ch = NULL;
-	list_for_each_entry(tmp,&ch_devlist,list) {
-		if (tmp->device == sd)
-			ch = tmp;
-	}
-	BUG_ON(NULL == ch);
-	list_del(&ch->list);
-	spin_unlock(&ch_devlist_lock);
+	spin_lock(&ch_index_lock);
+	idr_remove(&ch_index_idr, ch->minor);
+	spin_unlock(&ch_index_lock);
 
 	class_device_destroy(ch_sysfs_class,
 			     MKDEV(SCSI_CHANGER_MAJOR,ch->minor));
 	kfree(ch->dt);
 	kfree(ch);
-	ch_devcount--;
 	return 0;
 }
 
@@ -1007,6 +1015,7 @@ static void __exit exit_ch_module(void)
 	scsi_unregister_driver(&ch_template.gendrv);
 	unregister_chrdev(SCSI_CHANGER_MAJOR, "ch");
 	class_destroy(ch_sysfs_class);
+	idr_destroy(&ch_index_idr);
 }
 
 module_init(init_ch_module);
