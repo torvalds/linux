@@ -34,6 +34,7 @@ struct neighbour;
 
 struct neigh_parms
 {
+	struct net *net;
 	struct net_device *dev;
 	struct neigh_parms *next;
 	int	(*neigh_setup)(struct neighbour *);
@@ -126,7 +127,8 @@ struct neigh_ops
 struct pneigh_entry
 {
 	struct pneigh_entry	*next;
-	struct net_device		*dev;
+	struct net		*net;
+	struct net_device	*dev;
 	u8			flags;
 	u8			key[0];
 };
@@ -187,6 +189,7 @@ extern struct neighbour *	neigh_lookup(struct neigh_table *tbl,
 					     const void *pkey,
 					     struct net_device *dev);
 extern struct neighbour *	neigh_lookup_nodev(struct neigh_table *tbl,
+						   struct net *net,
 						   const void *pkey);
 extern struct neighbour *	neigh_create(struct neigh_table *tbl,
 					     const void *pkey,
@@ -211,8 +214,8 @@ extern unsigned long		neigh_rand_reach_time(unsigned long base);
 
 extern void			pneigh_enqueue(struct neigh_table *tbl, struct neigh_parms *p,
 					       struct sk_buff *skb);
-extern struct pneigh_entry	*pneigh_lookup(struct neigh_table *tbl, const void *key, struct net_device *dev, int creat);
-extern int			pneigh_delete(struct neigh_table *tbl, const void *key, struct net_device *dev);
+extern struct pneigh_entry	*pneigh_lookup(struct neigh_table *tbl, struct net *net, const void *key, struct net_device *dev, int creat);
+extern int			pneigh_delete(struct neigh_table *tbl, struct net *net, const void *key, struct net_device *dev);
 
 extern void neigh_app_ns(struct neighbour *n);
 extern void neigh_for_each(struct neigh_table *tbl, void (*cb)(struct neighbour *, void *), void *cookie);
@@ -220,6 +223,7 @@ extern void __neigh_for_each_release(struct neigh_table *tbl, int (*cb)(struct n
 extern void pneigh_for_each(struct neigh_table *tbl, void (*cb)(struct pneigh_entry *));
 
 struct neigh_seq_state {
+	struct net *net;
 	struct neigh_table *tbl;
 	void *(*neigh_sub_iter)(struct neigh_seq_state *state,
 				struct neighbour *n, loff_t *pos);

@@ -580,8 +580,8 @@ static const struct seq_operations dn_neigh_seq_ops = {
 
 static int dn_neigh_seq_open(struct inode *inode, struct file *file)
 {
-	return seq_open_private(file, &dn_neigh_seq_ops,
-			sizeof(struct neigh_seq_state));
+	return seq_open_net(inode, file, &dn_neigh_seq_ops,
+			    sizeof(struct neigh_seq_state));
 }
 
 static const struct file_operations dn_neigh_seq_fops = {
@@ -589,7 +589,7 @@ static const struct file_operations dn_neigh_seq_fops = {
 	.open		= dn_neigh_seq_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release_private,
+	.release	= seq_release_net,
 };
 
 #endif

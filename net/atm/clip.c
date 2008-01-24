@@ -949,6 +949,11 @@ static int arp_seq_open(struct inode *inode, struct file *file)
 
 	seq = file->private_data;
 	seq->private = state;
+	state->ns.net = get_proc_net(inode);
+	if (!state->ns.net) {
+		seq_release_private(inode, file);
+		rc = -ENXIO;
+	}
 out:
 	return rc;
 
@@ -957,11 +962,19 @@ out_kfree:
 	goto out;
 }
 
+static int arp_seq_release(struct inode *inode, struct file *file)
+{
+	struct seq_file *seq = file->private_data;
+	struct clip_seq_state *state = seq->private;
+	put_net(state->ns.net);
+	return seq_release_private(inode, file);
+}
+
 static const struct file_operations arp_seq_fops = {
 	.open		= arp_seq_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release_private,
+	.release	= arp_seq_release,
 	.owner		= THIS_MODULE
 };
 #endif

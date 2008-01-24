@@ -837,7 +837,7 @@ static int arp_process(struct sk_buff *skb)
 		} else if (IN_DEV_FORWARD(in_dev)) {
 			if ((rt->rt_flags&RTCF_DNAT) ||
 			    (addr_type == RTN_UNICAST  && rt->u.dst.dev != dev &&
-			     (arp_fwd_proxy(in_dev, rt) || pneigh_lookup(&arp_tbl, &tip, dev, 0)))) {
+			     (arp_fwd_proxy(in_dev, rt) || pneigh_lookup(&arp_tbl, &init_net, &tip, dev, 0)))) {
 				n = neigh_event_ns(&arp_tbl, sha, &sip, dev);
 				if (n)
 					neigh_release(n);
@@ -980,7 +980,7 @@ static int arp_req_set_public(struct net *net, struct arpreq *r,
 			return -ENODEV;
 	}
 	if (mask) {
-		if (pneigh_lookup(&arp_tbl, &ip, dev, 1) == NULL)
+		if (pneigh_lookup(&arp_tbl, &init_net, &ip, dev, 1) == NULL)
 			return -ENOBUFS;
 		return 0;
 	}
@@ -1089,7 +1089,7 @@ static int arp_req_delete_public(struct net *net, struct arpreq *r,
 	__be32 mask = ((struct sockaddr_in *)&r->arp_netmask)->sin_addr.s_addr;
 
 	if (mask == htonl(0xFFFFFFFF))
-		return pneigh_delete(&arp_tbl, &ip, dev);
+		return pneigh_delete(&arp_tbl, &init_net, &ip, dev);
 
 	if (mask)
 		return -EINVAL;
@@ -1375,8 +1375,8 @@ static const struct seq_operations arp_seq_ops = {
 
 static int arp_seq_open(struct inode *inode, struct file *file)
 {
-	return seq_open_private(file, &arp_seq_ops,
-			sizeof(struct neigh_seq_state));
+	return seq_open_net(inode, file, &arp_seq_ops,
+			    sizeof(struct neigh_seq_state));
 }
 
 static const struct file_operations arp_seq_fops = {
@@ -1384,7 +1384,7 @@ static const struct file_operations arp_seq_fops = {
 	.open           = arp_seq_open,
 	.read           = seq_read,
 	.llseek         = seq_lseek,
-	.release	= seq_release_private,
+	.release	= seq_release_net,
 };
 
 static int __init arp_proc_init(void)
