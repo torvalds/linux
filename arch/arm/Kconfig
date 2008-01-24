@@ -180,8 +180,8 @@ config ARCH_AT91
 	bool "Atmel AT91"
 	select GENERIC_GPIO
 	help
-	  This enables support for systems based on the Atmel AT91RM9200
-	  and AT91SAM9xxx processors.
+	  This enables support for systems based on the Atmel AT91RM9200,
+	  AT91SAM9 and AT91CAP9 processors.
 
 config ARCH_CLPS7500
 	bool "Cirrus CL-PS7500FE"

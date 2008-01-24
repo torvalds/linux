@@ -22,6 +22,9 @@ config ARCH_AT91SAM9263
 config ARCH_AT91SAM9RL
 	bool "AT91SAM9RL"
 
+config ARCH_AT91CAP9
+	bool "AT91CAP9"
+
 config ARCH_AT91X40
 	bool "AT91x40"
 
