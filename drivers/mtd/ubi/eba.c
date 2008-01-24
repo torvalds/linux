@@ -862,6 +862,17 @@ int ubi_eba_atomic_leb_change(struct ubi_device *ubi, struct ubi_volume *vol,
 	if (ubi->ro_mode)
 		return -EROFS;
 
+	if (len == 0) {
+		/*
+		 * Special case when data length is zero. In this case the LEB
+		 * has to be unmapped and mapped somewhere else.
+		 */
+		err = ubi_eba_unmap_leb(ubi, vol, lnum);
+		if (err)
+			return err;
+		return ubi_eba_write_leb(ubi, vol, lnum, NULL, 0, 0, dtype);
+	}
+
 	vid_hdr = ubi_zalloc_vid_hdr(ubi, GFP_NOFS);
 	if (!vid_hdr)
 		return -ENOMEM;
