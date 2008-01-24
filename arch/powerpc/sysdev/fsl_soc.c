@@ -1276,44 +1276,17 @@ arch_initcall(cpm_smc_uart_of_init);
 #endif /* CONFIG_8xx */
 #endif /* CONFIG_PPC_CPM_NEW_BINDING */
 
-int __init fsl_spi_init(struct spi_board_info *board_infos,
-			unsigned int num_board_infos,
-			void (*activate_cs)(u8 cs, u8 polarity),
-			void (*deactivate_cs)(u8 cs, u8 polarity))
+static int __init of_fsl_spi_probe(char *type, char *compatible, u32 sysclk,
+				   struct spi_board_info *board_infos,
+				   unsigned int num_board_infos,
+				   void (*activate_cs)(u8 cs, u8 polarity),
+				   void (*deactivate_cs)(u8 cs, u8 polarity))
 {
 	struct device_node *np;
-	unsigned int i;
-	u32 sysclk = -1;
+	unsigned int i = 0;
 
-	/* SPI controller is either clocked from QE or SoC clock */
-#ifdef CONFIG_QUICC_ENGINE
-	sysclk = get_brgfreq();
-#endif
-	if (sysclk == -1) {
-		const u32 *freq;
-		int size;
-
-		np = of_find_node_by_type(NULL, "soc");
-		if (!np)
-			return -ENODEV;
-
-		freq = of_get_property(np, "clock-frequency", &size);
-		if (!freq || size != sizeof(*freq) || *freq == 0) {
-			freq = of_get_property(np, "bus-frequency", &size);
-			if (!freq || size != sizeof(*freq) || *freq == 0) {
-				of_node_put(np);
-				return -ENODEV;
-			}
-		}
-
-		sysclk = *freq;
-		of_node_put(np);
-	}
-
-	for (np = NULL, i = 1;
-	     (np = of_find_compatible_node(np, "spi", "fsl_spi")) != NULL;
-	     i++) {
-		int ret = 0;
+	for_each_compatible_node(np, type, compatible) {
+		int ret;
 		unsigned int j;
 		const void *prop;
 		struct resource res[2];
@@ -1332,6 +1305,10 @@ int __init fsl_spi_init(struct spi_board_info *board_infos,
 			goto err;
 		pdata.bus_num = *(u32 *)prop;
 
+		prop = of_get_property(np, "cell-index", NULL);
+		if (prop)
+			i = *(u32 *)prop;
+
 		prop = of_get_property(np, "mode", NULL);
 		if (prop && !strcmp(prop, "cpu-qe"))
 			pdata.qe_mode = 1;
@@ -1342,7 +1319,7 @@ int __init fsl_spi_init(struct spi_board_info *board_infos,
 		}
 
 		if (!pdata.max_chipselect)
-			goto err;
+			continue;
 
 		ret = of_address_to_resource(np, 0, &res[0]);
 		if (ret)
@@ -1369,12 +1346,57 @@ int __init fsl_spi_init(struct spi_board_info *board_infos,
 		if (ret)
 			goto unreg;
 
-		continue;
+		goto next;
 unreg:
 		platform_device_del(pdev);
 err:
-		continue;
+		pr_err("%s: registration failed\n", np->full_name);
+next:
+		i++;
 	}
+
+	return i;
+}
+
+int __init fsl_spi_init(struct spi_board_info *board_infos,
+			unsigned int num_board_infos,
+			void (*activate_cs)(u8 cs, u8 polarity),
+			void (*deactivate_cs)(u8 cs, u8 polarity))
+{
+	u32 sysclk = -1;
+	int ret;
+
+#ifdef CONFIG_QUICC_ENGINE
+	/* SPI controller is either clocked from QE or SoC clock */
+	sysclk = get_brgfreq();
+#endif
+	if (sysclk == -1) {
+		struct device_node *np;
+		const u32 *freq;
+		int size;
+
+		np = of_find_node_by_type(NULL, "soc");
+		if (!np)
+			return -ENODEV;
+
+		freq = of_get_property(np, "clock-frequency", &size);
+		if (!freq || size != sizeof(*freq) || *freq == 0) {
+			freq = of_get_property(np, "bus-frequency", &size);
+			if (!freq || size != sizeof(*freq) || *freq == 0) {
+				of_node_put(np);
+				return -ENODEV;
+			}
+		}
+
+		sysclk = *freq;
+		of_node_put(np);
+	}
+
+	ret = of_fsl_spi_probe(NULL, "fsl,spi", sysclk, board_infos,
+			       num_board_infos, activate_cs, deactivate_cs);
+	if (!ret)
+		of_fsl_spi_probe("spi", "fsl_spi", sysclk, board_infos,
+				 num_board_infos, activate_cs, deactivate_cs);
 
 	return spi_register_board_info(board_infos, num_board_infos);
 }

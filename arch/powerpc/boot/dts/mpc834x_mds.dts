@@ -95,8 +95,8 @@
 		};
 
 		spi@7000 {
-			device_type = "spi";
-			compatible = "fsl_spi";
+			cell-index = <0>;
+			compatible = "fsl,spi";
 			reg = <0x7000 0x1000>;
 			interrupts = <16 8>;
 			interrupt-parent = <&ipic>;
