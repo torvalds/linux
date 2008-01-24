@@ -63,7 +63,7 @@ static int cache_block_group(struct btrfs_root *root,
 	int ret;
 	struct btrfs_key key;
 	struct extent_buffer *leaf;
-	struct extent_map_tree *free_space_cache;
+	struct extent_io_tree *free_space_cache;
 	int slot;
 	u64 last = 0;
 	u64 hole_size;
@@ -158,7 +158,7 @@ struct btrfs_block_group_cache *btrfs_lookup_block_group(struct
 							 btrfs_fs_info *info,
 							 u64 bytenr)
 {
-	struct extent_map_tree *block_group_cache;
+	struct extent_io_tree *block_group_cache;
 	struct btrfs_block_group_cache *block_group = NULL;
 	u64 ptr;
 	u64 start;
@@ -281,7 +281,7 @@ struct btrfs_block_group_cache *btrfs_find_block_group(struct btrfs_root *root,
 						 int data, int owner)
 {
 	struct btrfs_block_group_cache *cache;
-	struct extent_map_tree *block_group_cache;
+	struct extent_io_tree *block_group_cache;
 	struct btrfs_block_group_cache *found_group = NULL;
 	struct btrfs_fs_info *info = root->fs_info;
 	u64 used;
@@ -951,7 +951,7 @@ fail:
 int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans,
 				   struct btrfs_root *root)
 {
-	struct extent_map_tree *block_group_cache;
+	struct extent_io_tree *block_group_cache;
 	struct btrfs_block_group_cache *cache;
 	int ret;
 	int err = 0;
@@ -1107,12 +1107,12 @@ static int update_pinned_extents(struct btrfs_root *root,
 	return 0;
 }
 
-int btrfs_copy_pinned(struct btrfs_root *root, struct extent_map_tree *copy)
+int btrfs_copy_pinned(struct btrfs_root *root, struct extent_io_tree *copy)
 {
 	u64 last = 0;
 	u64 start;
 	u64 end;
-	struct extent_map_tree *pinned_extents = &root->fs_info->pinned_extents;
+	struct extent_io_tree *pinned_extents = &root->fs_info->pinned_extents;
 	int ret;
 
 	while(1) {
@@ -1128,12 +1128,12 @@ int btrfs_copy_pinned(struct btrfs_root *root, struct extent_map_tree *copy)
 
 int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *root,
-			       struct extent_map_tree *unpin)
+			       struct extent_io_tree *unpin)
 {
 	u64 start;
 	u64 end;
 	int ret;
-	struct extent_map_tree *free_space_cache;
+	struct extent_io_tree *free_space_cache;
 	free_space_cache = &root->fs_info->free_space_cache;
 
 	while(1) {
@@ -1329,8 +1329,8 @@ static int del_pending_extents(struct btrfs_trans_handle *trans, struct
 	int err = 0;
 	u64 start;
 	u64 end;
-	struct extent_map_tree *pending_del;
-	struct extent_map_tree *pinned_extents;
+	struct extent_io_tree *pending_del;
+	struct extent_io_tree *pinned_extents;
 
 	pending_del = &extent_root->fs_info->pending_del;
 	pinned_extents = &extent_root->fs_info->pinned_extents;
@@ -1802,7 +1802,7 @@ struct extent_buffer *__btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 
 	set_extent_dirty(&trans->transaction->dirty_pages, buf->start,
 			 buf->start + buf->len - 1, GFP_NOFS);
-	set_extent_bits(&BTRFS_I(root->fs_info->btree_inode)->extent_tree,
+	set_extent_bits(&BTRFS_I(root->fs_info->btree_inode)->io_tree,
 			buf->start, buf->start + buf->len - 1,
 			EXTENT_CSUM, GFP_NOFS);
 	buf->flags |= EXTENT_CSUM;
@@ -2166,7 +2166,7 @@ static int noinline relocate_inode_pages(struct inode *inode, u64 start,
 	unsigned long i;
 	struct page *page;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
+	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
 	struct file_ra_state *ra;
 
 	ra = kzalloc(sizeof(*ra), GFP_NOFS);
@@ -2195,15 +2195,14 @@ static int noinline relocate_inode_pages(struct inode *inode, u64 start,
 		page_start = (u64)page->index << PAGE_CACHE_SHIFT;
 		page_end = page_start + PAGE_CACHE_SIZE - 1;
 
-		lock_extent(em_tree, page_start, page_end, GFP_NOFS);
+		lock_extent(io_tree, page_start, page_end, GFP_NOFS);
 
 		delalloc_start = page_start;
-		existing_delalloc =
-			count_range_bits(&BTRFS_I(inode)->extent_tree,
-					 &delalloc_start, page_end,
-					 PAGE_CACHE_SIZE, EXTENT_DELALLOC);
+		existing_delalloc = count_range_bits(io_tree,
+					     &delalloc_start, page_end,
+					     PAGE_CACHE_SIZE, EXTENT_DELALLOC);
 
-		set_extent_delalloc(em_tree, page_start,
+		set_extent_delalloc(io_tree, page_start,
 				    page_end, GFP_NOFS);
 
 		spin_lock(&root->fs_info->delalloc_lock);
@@ -2211,7 +2210,7 @@ static int noinline relocate_inode_pages(struct inode *inode, u64 start,
 						 existing_delalloc;
 		spin_unlock(&root->fs_info->delalloc_lock);
 
-		unlock_extent(em_tree, page_start, page_end, GFP_NOFS);
+		unlock_extent(io_tree, page_start, page_end, GFP_NOFS);
 		set_page_dirty(page);
 		unlock_page(page);
 		page_cache_release(page);
@@ -2379,7 +2378,7 @@ int btrfs_shrink_extent_tree(struct btrfs_root *root, u64 new_size)
 	u64 cur_byte;
 	u64 total_found;
 	struct btrfs_fs_info *info = root->fs_info;
-	struct extent_map_tree *block_group_cache;
+	struct extent_io_tree *block_group_cache;
 	struct btrfs_key key;
 	struct btrfs_key found_key;
 	struct extent_buffer *leaf;
@@ -2561,7 +2560,7 @@ int btrfs_grow_extent_tree(struct btrfs_trans_handle *trans,
 	struct btrfs_block_group_cache *cache;
 	struct btrfs_block_group_item *item;
 	struct btrfs_fs_info *info = root->fs_info;
-	struct extent_map_tree *block_group_cache;
+	struct extent_io_tree *block_group_cache;
 	struct btrfs_key key;
 	struct extent_buffer *leaf;
 	int ret;
@@ -2645,7 +2644,7 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 	int bit;
 	struct btrfs_block_group_cache *cache;
 	struct btrfs_fs_info *info = root->fs_info;
-	struct extent_map_tree *block_group_cache;
+	struct extent_io_tree *block_group_cache;
 	struct btrfs_key key;
 	struct btrfs_key found_key;
 	struct extent_buffer *leaf;

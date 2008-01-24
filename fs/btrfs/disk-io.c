@@ -43,14 +43,14 @@ static int check_tree_block(struct btrfs_root *root, struct extent_buffer *buf)
 }
 #endif
 
-static struct extent_map_ops btree_extent_map_ops;
+static struct extent_io_ops btree_extent_io_ops;
 
 struct extent_buffer *btrfs_find_tree_block(struct btrfs_root *root,
 					    u64 bytenr, u32 blocksize)
 {
 	struct inode *btree_inode = root->fs_info->btree_inode;
 	struct extent_buffer *eb;
-	eb = find_extent_buffer(&BTRFS_I(btree_inode)->extent_tree,
+	eb = find_extent_buffer(&BTRFS_I(btree_inode)->io_tree,
 				bytenr, blocksize, GFP_NOFS);
 	return eb;
 }
@@ -61,13 +61,13 @@ struct extent_buffer *btrfs_find_create_tree_block(struct btrfs_root *root,
 	struct inode *btree_inode = root->fs_info->btree_inode;
 	struct extent_buffer *eb;
 
-	eb = alloc_extent_buffer(&BTRFS_I(btree_inode)->extent_tree,
+	eb = alloc_extent_buffer(&BTRFS_I(btree_inode)->io_tree,
 				 bytenr, blocksize, NULL, GFP_NOFS);
 	return eb;
 }
 
 struct extent_map *btree_get_extent(struct inode *inode, struct page *page,
-				    size_t page_offset, u64 start, u64 end,
+				    size_t page_offset, u64 start, u64 len,
 				    int create)
 {
 	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
@@ -75,7 +75,9 @@ struct extent_map *btree_get_extent(struct inode *inode, struct page *page,
 	int ret;
 
 again:
-	em = lookup_extent_mapping(em_tree, start, end);
+	spin_lock(&em_tree->lock);
+	em = lookup_extent_mapping(em_tree, start, len);
+	spin_unlock(&em_tree->lock);
 	if (em) {
 		goto out;
 	}
@@ -85,11 +87,14 @@ again:
 		goto out;
 	}
 	em->start = 0;
-	em->end = (i_size_read(inode) & ~((u64)PAGE_CACHE_SIZE -1)) - 1;
+	em->len = i_size_read(inode);
 	em->block_start = 0;
-	em->block_end = em->end;
 	em->bdev = inode->i_sb->s_bdev;
+
+	spin_lock(&em_tree->lock);
 	ret = add_extent_mapping(em_tree, em);
+	spin_unlock(&em_tree->lock);
+
 	if (ret == -EEXIST) {
 		free_extent_map(em);
 		em = NULL;
@@ -175,13 +180,13 @@ static int csum_tree_block(struct btrfs_root *root, struct extent_buffer *buf,
 
 int csum_dirty_buffer(struct btrfs_root *root, struct page *page)
 {
-	struct extent_map_tree *tree;
+	struct extent_io_tree *tree;
 	u64 start = (u64)page->index << PAGE_CACHE_SHIFT;
 	u64 found_start;
 	int found_level;
 	unsigned long len;
 	struct extent_buffer *eb;
-	tree = &BTRFS_I(page->mapping->host)->extent_tree;
+	tree = &BTRFS_I(page->mapping->host)->io_tree;
 
 	if (page->private == EXTENT_PAGE_PRIVATE)
 		goto out;
@@ -230,16 +235,16 @@ static int btree_writepage_io_hook(struct page *page, u64 start, u64 end)
 
 static int btree_writepage(struct page *page, struct writeback_control *wbc)
 {
-	struct extent_map_tree *tree;
-	tree = &BTRFS_I(page->mapping->host)->extent_tree;
+	struct extent_io_tree *tree;
+	tree = &BTRFS_I(page->mapping->host)->io_tree;
 	return extent_write_full_page(tree, page, btree_get_extent, wbc);
 }
 
 static int btree_writepages(struct address_space *mapping,
 			    struct writeback_control *wbc)
 {
-	struct extent_map_tree *tree;
-	tree = &BTRFS_I(mapping->host)->extent_tree;
+	struct extent_io_tree *tree;
+	tree = &BTRFS_I(mapping->host)->io_tree;
 	if (wbc->sync_mode == WB_SYNC_NONE) {
 		u64 num_dirty;
 		u64 start = 0;
@@ -264,18 +269,20 @@ static int btree_writepages(struct address_space *mapping,
 
 int btree_readpage(struct file *file, struct page *page)
 {
-	struct extent_map_tree *tree;
-	tree = &BTRFS_I(page->mapping->host)->extent_tree;
+	struct extent_io_tree *tree;
+	tree = &BTRFS_I(page->mapping->host)->io_tree;
 	return extent_read_full_page(tree, page, btree_get_extent);
 }
 
 static int btree_releasepage(struct page *page, gfp_t unused_gfp_flags)
 {
-	struct extent_map_tree *tree;
+	struct extent_io_tree *tree;
+	struct extent_map_tree *map;
 	int ret;
 
-	tree = &BTRFS_I(page->mapping->host)->extent_tree;
-	ret = try_release_extent_mapping(tree, page);
+	tree = &BTRFS_I(page->mapping->host)->io_tree;
+	map = &BTRFS_I(page->mapping->host)->extent_tree;
+	ret = try_release_extent_mapping(map, tree, page);
 	if (ret == 1) {
 		ClearPagePrivate(page);
 		set_page_private(page, 0);
@@ -286,8 +293,8 @@ static int btree_releasepage(struct page *page, gfp_t unused_gfp_flags)
 
 static void btree_invalidatepage(struct page *page, unsigned long offset)
 {
-	struct extent_map_tree *tree;
-	tree = &BTRFS_I(page->mapping->host)->extent_tree;
+	struct extent_io_tree *tree;
+	tree = &BTRFS_I(page->mapping->host)->io_tree;
 	extent_invalidatepage(tree, page, offset);
 	btree_releasepage(page, GFP_NOFS);
 }
@@ -331,7 +338,7 @@ int readahead_tree_block(struct btrfs_root *root, u64 bytenr, u32 blocksize)
 	buf = btrfs_find_create_tree_block(root, bytenr, blocksize);
 	if (!buf)
 		return 0;
-	read_extent_buffer_pages(&BTRFS_I(btree_inode)->extent_tree,
+	read_extent_buffer_pages(&BTRFS_I(btree_inode)->io_tree,
 				 buf, 0, 0);
 	free_extent_buffer(buf);
 	return ret;
@@ -342,40 +349,39 @@ struct extent_buffer *read_tree_block(struct btrfs_root *root, u64 bytenr,
 {
 	struct extent_buffer *buf = NULL;
 	struct inode *btree_inode = root->fs_info->btree_inode;
-	struct extent_map_tree *extent_tree;
+	struct extent_io_tree *io_tree;
 	u64 end;
 	int ret;
 
-	extent_tree = &BTRFS_I(btree_inode)->extent_tree;
+	io_tree = &BTRFS_I(btree_inode)->io_tree;
 
 	buf = btrfs_find_create_tree_block(root, bytenr, blocksize);
 	if (!buf)
 		return NULL;
-	read_extent_buffer_pages(&BTRFS_I(btree_inode)->extent_tree,
-				 buf, 0, 1);
+	read_extent_buffer_pages(&BTRFS_I(btree_inode)->io_tree, buf, 0, 1);
 
 	if (buf->flags & EXTENT_CSUM)
 		return buf;
 
 	end = buf->start + PAGE_CACHE_SIZE - 1;
-	if (test_range_bit(extent_tree, buf->start, end, EXTENT_CSUM, 1)) {
+	if (test_range_bit(io_tree, buf->start, end, EXTENT_CSUM, 1)) {
 		buf->flags |= EXTENT_CSUM;
 		return buf;
 	}
 
-	lock_extent(extent_tree, buf->start, end, GFP_NOFS);
+	lock_extent(io_tree, buf->start, end, GFP_NOFS);
 
-	if (test_range_bit(extent_tree, buf->start, end, EXTENT_CSUM, 1)) {
+	if (test_range_bit(io_tree, buf->start, end, EXTENT_CSUM, 1)) {
 		buf->flags |= EXTENT_CSUM;
 		goto out_unlock;
 	}
 
 	ret = csum_tree_block(root, buf, 1);
-	set_extent_bits(extent_tree, buf->start, end, EXTENT_CSUM, GFP_NOFS);
+	set_extent_bits(io_tree, buf->start, end, EXTENT_CSUM, GFP_NOFS);
 	buf->flags |= EXTENT_CSUM;
 
 out_unlock:
-	unlock_extent(extent_tree, buf->start, end, GFP_NOFS);
+	unlock_extent(io_tree, buf->start, end, GFP_NOFS);
 	return buf;
 }
 
@@ -385,7 +391,7 @@ int clean_tree_block(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	struct inode *btree_inode = root->fs_info->btree_inode;
 	if (btrfs_header_generation(buf) ==
 	    root->fs_info->running_transaction->transid)
-		clear_extent_buffer_dirty(&BTRFS_I(btree_inode)->extent_tree,
+		clear_extent_buffer_dirty(&BTRFS_I(btree_inode)->io_tree,
 					  buf);
 	return 0;
 }
@@ -394,7 +400,7 @@ int wait_on_tree_block_writeback(struct btrfs_root *root,
 				 struct extent_buffer *buf)
 {
 	struct inode *btree_inode = root->fs_info->btree_inode;
-	wait_on_extent_buffer_writeback(&BTRFS_I(btree_inode)->extent_tree,
+	wait_on_extent_buffer_writeback(&BTRFS_I(btree_inode)->io_tree,
 					buf);
 	return 0;
 }
@@ -659,20 +665,23 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	fs_info->btree_inode->i_nlink = 1;
 	fs_info->btree_inode->i_size = sb->s_bdev->bd_inode->i_size;
 	fs_info->btree_inode->i_mapping->a_ops = &btree_aops;
-	extent_map_tree_init(&BTRFS_I(fs_info->btree_inode)->extent_tree,
+	extent_io_tree_init(&BTRFS_I(fs_info->btree_inode)->io_tree,
 			     fs_info->btree_inode->i_mapping,
 			     GFP_NOFS);
-	BTRFS_I(fs_info->btree_inode)->extent_tree.ops = &btree_extent_map_ops;
+	extent_map_tree_init(&BTRFS_I(fs_info->btree_inode)->extent_tree,
+			     GFP_NOFS);
 
-	extent_map_tree_init(&fs_info->free_space_cache,
+	BTRFS_I(fs_info->btree_inode)->io_tree.ops = &btree_extent_io_ops;
+
+	extent_io_tree_init(&fs_info->free_space_cache,
 			     fs_info->btree_inode->i_mapping, GFP_NOFS);
-	extent_map_tree_init(&fs_info->block_group_cache,
+	extent_io_tree_init(&fs_info->block_group_cache,
 			     fs_info->btree_inode->i_mapping, GFP_NOFS);
-	extent_map_tree_init(&fs_info->pinned_extents,
+	extent_io_tree_init(&fs_info->pinned_extents,
 			     fs_info->btree_inode->i_mapping, GFP_NOFS);
-	extent_map_tree_init(&fs_info->pending_del,
+	extent_io_tree_init(&fs_info->pending_del,
 			     fs_info->btree_inode->i_mapping, GFP_NOFS);
-	extent_map_tree_init(&fs_info->extent_ins,
+	extent_io_tree_init(&fs_info->extent_ins,
 			     fs_info->btree_inode->i_mapping, GFP_NOFS);
 	fs_info->do_barriers = 1;
 	fs_info->closing = 0;
@@ -787,7 +796,7 @@ int write_ctree_super(struct btrfs_trans_handle *trans, struct btrfs_root
 
 	if (!btrfs_test_opt(root, NOBARRIER))
 		blkdev_issue_flush(sb->s_bdev, NULL);
-	set_extent_buffer_dirty(&BTRFS_I(btree_inode)->extent_tree, super);
+	set_extent_buffer_dirty(&BTRFS_I(btree_inode)->io_tree, super);
 	ret = sync_page_range_nolock(btree_inode, btree_inode->i_mapping,
 				     super->start, super->len);
 	if (!btrfs_test_opt(root, NOBARRIER))
@@ -864,12 +873,12 @@ int close_ctree(struct btrfs_root *root)
 
 	filemap_write_and_wait(fs_info->btree_inode->i_mapping);
 
-	extent_map_tree_empty_lru(&fs_info->free_space_cache);
-	extent_map_tree_empty_lru(&fs_info->block_group_cache);
-	extent_map_tree_empty_lru(&fs_info->pinned_extents);
-	extent_map_tree_empty_lru(&fs_info->pending_del);
-	extent_map_tree_empty_lru(&fs_info->extent_ins);
-	extent_map_tree_empty_lru(&BTRFS_I(fs_info->btree_inode)->extent_tree);
+	extent_io_tree_empty_lru(&fs_info->free_space_cache);
+	extent_io_tree_empty_lru(&fs_info->block_group_cache);
+	extent_io_tree_empty_lru(&fs_info->pinned_extents);
+	extent_io_tree_empty_lru(&fs_info->pending_del);
+	extent_io_tree_empty_lru(&fs_info->extent_ins);
+	extent_io_tree_empty_lru(&BTRFS_I(fs_info->btree_inode)->io_tree);
 
 	truncate_inode_pages(fs_info->btree_inode->i_mapping, 0);
 
@@ -892,13 +901,13 @@ int close_ctree(struct btrfs_root *root)
 int btrfs_buffer_uptodate(struct extent_buffer *buf)
 {
 	struct inode *btree_inode = buf->first_page->mapping->host;
-	return extent_buffer_uptodate(&BTRFS_I(btree_inode)->extent_tree, buf);
+	return extent_buffer_uptodate(&BTRFS_I(btree_inode)->io_tree, buf);
 }
 
 int btrfs_set_buffer_uptodate(struct extent_buffer *buf)
 {
 	struct inode *btree_inode = buf->first_page->mapping->host;
-	return set_extent_buffer_uptodate(&BTRFS_I(btree_inode)->extent_tree,
+	return set_extent_buffer_uptodate(&BTRFS_I(btree_inode)->io_tree,
 					  buf);
 }
 
@@ -914,7 +923,7 @@ void btrfs_mark_buffer_dirty(struct extent_buffer *buf)
 			transid, root->fs_info->generation);
 		WARN_ON(1);
 	}
-	set_extent_buffer_dirty(&BTRFS_I(btree_inode)->extent_tree, buf);
+	set_extent_buffer_dirty(&BTRFS_I(btree_inode)->io_tree, buf);
 }
 
 void btrfs_throttle(struct btrfs_root *root)
@@ -941,7 +950,7 @@ void btrfs_set_buffer_defrag(struct extent_buffer *buf)
 {
 	struct btrfs_root *root = BTRFS_I(buf->first_page->mapping->host)->root;
 	struct inode *btree_inode = root->fs_info->btree_inode;
-	set_extent_bits(&BTRFS_I(btree_inode)->extent_tree, buf->start,
+	set_extent_bits(&BTRFS_I(btree_inode)->io_tree, buf->start,
 			buf->start + buf->len - 1, EXTENT_DEFRAG, GFP_NOFS);
 }
 
@@ -949,7 +958,7 @@ void btrfs_set_buffer_defrag_done(struct extent_buffer *buf)
 {
 	struct btrfs_root *root = BTRFS_I(buf->first_page->mapping->host)->root;
 	struct inode *btree_inode = root->fs_info->btree_inode;
-	set_extent_bits(&BTRFS_I(btree_inode)->extent_tree, buf->start,
+	set_extent_bits(&BTRFS_I(btree_inode)->io_tree, buf->start,
 			buf->start + buf->len - 1, EXTENT_DEFRAG_DONE,
 			GFP_NOFS);
 }
@@ -958,7 +967,7 @@ int btrfs_buffer_defrag(struct extent_buffer *buf)
 {
 	struct btrfs_root *root = BTRFS_I(buf->first_page->mapping->host)->root;
 	struct inode *btree_inode = root->fs_info->btree_inode;
-	return test_range_bit(&BTRFS_I(btree_inode)->extent_tree,
+	return test_range_bit(&BTRFS_I(btree_inode)->io_tree,
 		     buf->start, buf->start + buf->len - 1, EXTENT_DEFRAG, 0);
 }
 
@@ -966,7 +975,7 @@ int btrfs_buffer_defrag_done(struct extent_buffer *buf)
 {
 	struct btrfs_root *root = BTRFS_I(buf->first_page->mapping->host)->root;
 	struct inode *btree_inode = root->fs_info->btree_inode;
-	return test_range_bit(&BTRFS_I(btree_inode)->extent_tree,
+	return test_range_bit(&BTRFS_I(btree_inode)->io_tree,
 		     buf->start, buf->start + buf->len - 1,
 		     EXTENT_DEFRAG_DONE, 0);
 }
@@ -975,7 +984,7 @@ int btrfs_clear_buffer_defrag_done(struct extent_buffer *buf)
 {
 	struct btrfs_root *root = BTRFS_I(buf->first_page->mapping->host)->root;
 	struct inode *btree_inode = root->fs_info->btree_inode;
-	return clear_extent_bits(&BTRFS_I(btree_inode)->extent_tree,
+	return clear_extent_bits(&BTRFS_I(btree_inode)->io_tree,
 		     buf->start, buf->start + buf->len - 1,
 		     EXTENT_DEFRAG_DONE, GFP_NOFS);
 }
@@ -984,7 +993,7 @@ int btrfs_clear_buffer_defrag(struct extent_buffer *buf)
 {
 	struct btrfs_root *root = BTRFS_I(buf->first_page->mapping->host)->root;
 	struct inode *btree_inode = root->fs_info->btree_inode;
-	return clear_extent_bits(&BTRFS_I(btree_inode)->extent_tree,
+	return clear_extent_bits(&BTRFS_I(btree_inode)->io_tree,
 		     buf->start, buf->start + buf->len - 1,
 		     EXTENT_DEFRAG, GFP_NOFS);
 }
@@ -993,10 +1002,10 @@ int btrfs_read_buffer(struct extent_buffer *buf)
 {
 	struct btrfs_root *root = BTRFS_I(buf->first_page->mapping->host)->root;
 	struct inode *btree_inode = root->fs_info->btree_inode;
-	return read_extent_buffer_pages(&BTRFS_I(btree_inode)->extent_tree,
+	return read_extent_buffer_pages(&BTRFS_I(btree_inode)->io_tree,
 					buf, 0, 1);
 }
 
-static struct extent_map_ops btree_extent_map_ops = {
+static struct extent_io_ops btree_extent_io_ops = {
 	.writepage_io_hook = btree_writepage_io_hook,
 };

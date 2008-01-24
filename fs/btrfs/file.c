@@ -233,8 +233,7 @@ static int noinline dirty_and_release_pages(struct btrfs_trans_handle *trans,
 	int err = 0;
 	int i;
 	struct inode *inode = fdentry(file)->d_inode;
-	struct extent_map *em;
-	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
+	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
 	u64 hint_byte;
 	u64 num_bytes;
 	u64 start_pos;
@@ -242,11 +241,6 @@ static int noinline dirty_and_release_pages(struct btrfs_trans_handle *trans,
 	u64 end_pos = pos + write_bytes;
 	u64 inline_size;
 	loff_t isize = i_size_read(inode);
-	em = alloc_extent_map(GFP_NOFS);
-	if (!em)
-		return -ENOMEM;
-
-	em->bdev = inode->i_sb->s_bdev;
 
 	start_pos = pos & ~((u64)root->sectorsize - 1);
 	num_bytes = (write_bytes + pos - start_pos +
@@ -254,7 +248,7 @@ static int noinline dirty_and_release_pages(struct btrfs_trans_handle *trans,
 
 	end_of_last_block = start_pos + num_bytes - 1;
 
-	lock_extent(em_tree, start_pos, end_of_last_block, GFP_NOFS);
+	lock_extent(io_tree, start_pos, end_of_last_block, GFP_NOFS);
 	mutex_lock(&root->fs_info->fs_mutex);
 	trans = btrfs_start_transaction(root, 1);
 	if (!trans) {
@@ -268,7 +262,7 @@ static int noinline dirty_and_release_pages(struct btrfs_trans_handle *trans,
 	if ((end_of_last_block & 4095) == 0) {
 		printk("strange end of last %Lu %zu %Lu\n", start_pos, write_bytes, end_of_last_block);
 	}
-	set_extent_uptodate(em_tree, start_pos, end_of_last_block, GFP_NOFS);
+	set_extent_uptodate(io_tree, start_pos, end_of_last_block, GFP_NOFS);
 
 	/* FIXME...EIEIO, ENOSPC and more */
 
@@ -293,6 +287,8 @@ static int noinline dirty_and_release_pages(struct btrfs_trans_handle *trans,
 						       inode->i_ino,
 						       last_pos_in_file,
 						       0, 0, hole_size);
+			btrfs_drop_extent_cache(inode, last_pos_in_file,
+					last_pos_in_file + hole_size -1);
 			btrfs_check_file(root, inode);
 		}
 		if (err)
@@ -320,12 +316,12 @@ static int noinline dirty_and_release_pages(struct btrfs_trans_handle *trans,
 		last_end += PAGE_CACHE_SIZE - 1;
 		if (start_pos < isize) {
 			u64 delalloc_start = start_pos;
-			existing_delalloc = count_range_bits(em_tree,
+			existing_delalloc = count_range_bits(io_tree,
 					     &delalloc_start,
 					     end_of_last_block, (u64)-1,
 					     EXTENT_DELALLOC);
 		}
-		set_extent_delalloc(em_tree, start_pos, end_of_last_block,
+		set_extent_delalloc(io_tree, start_pos, end_of_last_block,
 				 GFP_NOFS);
 		spin_lock(&root->fs_info->delalloc_lock);
 		root->fs_info->delalloc_bytes += (end_of_last_block + 1 -
@@ -346,6 +342,7 @@ static int noinline dirty_and_release_pages(struct btrfs_trans_handle *trans,
 		inline_size -= start_pos;
 		err = insert_inline_extent(trans, root, inode, start_pos,
 					   inline_size, pages, 0, num_pages);
+		btrfs_drop_extent_cache(inode, start_pos, aligned_end - 1);
 		BUG_ON(err);
 	}
 	if (end_pos > isize) {
@@ -356,8 +353,7 @@ failed:
 	err = btrfs_end_transaction(trans, root);
 out_unlock:
 	mutex_unlock(&root->fs_info->fs_mutex);
-	unlock_extent(em_tree, start_pos, end_of_last_block, GFP_NOFS);
-	free_extent_map(em);
+	unlock_extent(io_tree, start_pos, end_of_last_block, GFP_NOFS);
 	return err;
 }
 
@@ -367,10 +363,15 @@ int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end)
 	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
 
 	while(1) {
+		spin_lock(&em_tree->lock);
 		em = lookup_extent_mapping(em_tree, start, end);
-		if (!em)
+		if (!em) {
+			spin_unlock(&em_tree->lock);
 			break;
+		}
 		remove_extent_mapping(em_tree, em);
+		spin_unlock(&em_tree->lock);
+
 		/* once for us */
 		free_extent_map(em);
 		/* once for the tree*/

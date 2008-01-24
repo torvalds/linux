@@ -70,7 +70,7 @@ static int join_transaction(struct btrfs_root *root)
 		INIT_LIST_HEAD(&cur_trans->pending_snapshots);
 		list_add_tail(&cur_trans->list, &root->fs_info->trans_list);
 		btrfs_ordered_inode_tree_init(&cur_trans->ordered_inode_tree);
-		extent_map_tree_init(&cur_trans->dirty_pages,
+		extent_io_tree_init(&cur_trans->dirty_pages,
 				     root->fs_info->btree_inode->i_mapping,
 				     GFP_NOFS);
 	} else {
@@ -153,7 +153,7 @@ int btrfs_write_and_wait_transaction(struct btrfs_trans_handle *trans,
 	int ret;
 	int err;
 	int werr = 0;
-	struct extent_map_tree *dirty_pages;
+	struct extent_io_tree *dirty_pages;
 	struct page *page;
 	struct inode *btree_inode = root->fs_info->btree_inode;
 	u64 start;
@@ -610,7 +610,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	struct btrfs_transaction *cur_trans;
 	struct btrfs_transaction *prev_trans = NULL;
 	struct list_head dirty_fs_roots;
-	struct extent_map_tree *pinned_copy;
+	struct extent_io_tree *pinned_copy;
 	DEFINE_WAIT(wait);
 	int ret;
 
@@ -639,7 +639,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	if (!pinned_copy)
 		return -ENOMEM;
 
-	extent_map_tree_init(pinned_copy,
+	extent_io_tree_init(pinned_copy,
 			     root->fs_info->btree_inode->i_mapping, GFP_NOFS);
 
 	trans->transaction->in_commit = 1;

@@ -29,7 +29,7 @@ struct btrfs_transaction {
 	int use_count;
 	int commit_done;
 	struct list_head list;
-	struct extent_map_tree dirty_pages;
+	struct extent_io_tree dirty_pages;
 	unsigned long start_time;
 	struct btrfs_ordered_inode_tree ordered_inode_tree;
 	wait_queue_head_t writer_wait;

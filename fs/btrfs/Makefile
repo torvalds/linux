@@ -5,7 +5,8 @@ obj-m  := btrfs.o
 btrfs-y := super.o ctree.o extent-tree.o print-tree.o root-tree.o dir-item.o \
 	   hash.o file-item.o inode-item.o inode-map.o disk-io.o \
 	   transaction.o bit-radix.o inode.o file.o tree-defrag.o \
-	   extent_map.o sysfs.o struct-funcs.o xattr.o ordered-data.o
+	   extent_map.o sysfs.o struct-funcs.o xattr.o ordered-data.o \
+	   extent_io.o
 
 ifeq ($(CONFIG_FS_POSIX_ACL),y)
 btrfs-y += acl.o

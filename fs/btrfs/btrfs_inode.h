@@ -20,6 +20,7 @@
 #define __BTRFS_I__
 
 #include "extent_map.h"
+#include "extent_io.h"
 
 /* in memory btrfs inode */
 struct btrfs_inode {
@@ -27,6 +28,7 @@ struct btrfs_inode {
 	struct btrfs_block_group_cache *block_group;
 	struct btrfs_key location;
 	struct extent_map_tree extent_tree;
+	struct extent_io_tree io_tree;
 	struct inode vfs_inode;
 
 	u64 ordered_trans;

@@ -468,9 +468,14 @@ static int __init init_btrfs_fs(void)
 	err = btrfs_init_cachep();
 	if (err)
 		goto free_transaction_sys;
-	err = extent_map_init();
+
+	err = extent_io_init();
 	if (err)
 		goto free_cachep;
+
+	err = extent_map_init();
+	if (err)
+		goto free_extent_io;
 
 	err = register_filesystem(&btrfs_fs_type);
 	if (err)
@@ -479,6 +484,8 @@ static int __init init_btrfs_fs(void)
 
 free_extent_map:
 	extent_map_exit();
+free_extent_io:
+	extent_io_exit();
 free_cachep:
 	btrfs_destroy_cachep();
 free_transaction_sys:
@@ -492,6 +499,7 @@ static void __exit exit_btrfs_fs(void)
 	btrfs_exit_transaction_sys();
 	btrfs_destroy_cachep();
 	extent_map_exit();
+	extent_io_exit();
 	unregister_filesystem(&btrfs_fs_type);
 	btrfs_exit_sysfs();
 }
