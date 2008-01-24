@@ -78,7 +78,6 @@ struct em28xx_board em28xx_boards[] = {
 		.is_em2800    = 1,
 		.vchannels    = 2,
 		.tda9887_conf = TDA9887_PRESENT,
-		.has_tuner    = 1,
 		.decoder      = EM28XX_SAA7113,
 		.input           = { {
 			.type     = EM28XX_VMUX_COMPOSITE1,
@@ -93,13 +92,14 @@ struct em28xx_board em28xx_boards[] = {
 	[EM2820_BOARD_UNKNOWN] = {
 		.name         = "Unknown EM2750/28xx video grabber",
 		.is_em2800    = 0,
+		.tuner_type   = TUNER_ABSENT,
 	},
 	[EM2820_BOARD_KWORLD_PVRTV2800RF] = {
 		.name         = "Kworld PVR TV 2800 RF",
 		.is_em2800    = 0,
 		.vchannels    = 2,
+		.tuner_type   = TUNER_TEMIC_PAL,
 		.tda9887_conf = TDA9887_PRESENT,
-		.has_tuner    = 1,
 		.decoder      = EM28XX_SAA7113,
 		.input           = { {
 			.type     = EM28XX_VMUX_COMPOSITE1,
@@ -116,7 +116,6 @@ struct em28xx_board em28xx_boards[] = {
 		.vchannels    = 3,
 		.tuner_type   = TUNER_LG_PAL_NEW_TAPC,
 		.tda9887_conf = TDA9887_PRESENT,
-		.has_tuner    = 1,
 		.decoder      = EM28XX_SAA7113,
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
@@ -137,7 +136,6 @@ struct em28xx_board em28xx_boards[] = {
 		.vchannels    = 3,
 		.tuner_type   = TUNER_LG_PAL_NEW_TAPC,
 		.tda9887_conf = TDA9887_PRESENT,
-		.has_tuner    = 1,
 		.decoder      = EM28XX_SAA7113,
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
@@ -160,7 +158,6 @@ struct em28xx_board em28xx_boards[] = {
 		.tda9887_conf = TDA9887_PRESENT |
 				TDA9887_PORT1_ACTIVE|
 				TDA9887_PORT2_ACTIVE,
-		.has_tuner    = 1,
 		.decoder      = EM28XX_TVP5150,
 		.has_msp34xx  = 1,
 		/*FIXME: S-Video not tested */
@@ -180,7 +177,6 @@ struct em28xx_board em28xx_boards[] = {
 		.vchannels    = 3,
 		.tda9887_conf = TDA9887_PRESENT,
 		.tuner_type   = TUNER_XC2028,
-		.has_tuner    = 1,
 		.mts_firmware = 1,
 		.decoder      = EM28XX_TVP5150,
 		.input          = { {
@@ -202,7 +198,6 @@ struct em28xx_board em28xx_boards[] = {
 		.vchannels      = 3,
 		.tda9887_conf   = TDA9887_PRESENT,
 		.tuner_type     = TUNER_XC2028,
-		.has_tuner      = 1,
 		.mts_firmware   = 1,
 		.has_12mhz_i2s  = 1,
 		.decoder        = EM28XX_TVP5150,
@@ -227,7 +222,6 @@ struct em28xx_board em28xx_boards[] = {
 		.name         = "Terratec Hybrid XS",
 		.vchannels    = 3,
 		.tda9887_conf = TDA9887_PRESENT,
-		.has_tuner    = 1,
 		.tuner_type   = TUNER_XC2028,
 		.decoder      = EM28XX_TVP5150,
 		.input          = { {
@@ -251,7 +245,6 @@ struct em28xx_board em28xx_boards[] = {
 		.name         = "Terratec Prodigy XS",
 		.vchannels    = 3,
 		.tda9887_conf = TDA9887_PRESENT,
-		.has_tuner    = 1,
 		.tuner_type   = TUNER_XC2028,
 		.decoder      = EM28XX_TVP5150,
 		.input          = { {
@@ -275,7 +268,6 @@ struct em28xx_board em28xx_boards[] = {
 		.tda9887_conf	   = TDA9887_PRESENT      |
 				     TDA9887_PORT1_ACTIVE |
 				     TDA9887_PORT2_ACTIVE,
-		.has_tuner	   = 1,
 		.max_range_640_480 = 1,
 
 		.decoder           = EM28XX_SAA7114,
@@ -299,7 +291,6 @@ struct em28xx_board em28xx_boards[] = {
 		.vchannels    = 3,
 		.tuner_type   = TUNER_LG_PAL_NEW_TAPC,
 		.tda9887_conf = TDA9887_PRESENT,
-		.has_tuner    = 1,
 		.decoder      = EM28XX_SAA7113,
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
@@ -321,7 +312,6 @@ struct em28xx_board em28xx_boards[] = {
 		.vchannels    = 3,
 		.tuner_type   = TUNER_LG_PAL_NEW_TAPC,
 		.tda9887_conf = TDA9887_PRESENT,
-		.has_tuner    = 1,
 		.decoder      = EM28XX_SAA7113,
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
@@ -343,7 +333,6 @@ struct em28xx_board em28xx_boards[] = {
 		.vchannels    = 3,
 		.tuner_type   = TUNER_PHILIPS_ATSC,
 		.tda9887_conf = TDA9887_PRESENT,
-		.has_tuner    = 1,
 		.decoder      = EM28XX_SAA7113,
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
@@ -362,7 +351,7 @@ struct em28xx_board em28xx_boards[] = {
 	[EM2820_BOARD_PINNACLE_DVC_90] = {
 		.name         = "Pinnacle Dazzle DVC 90/DVC 100",
 		.vchannels    = 3,
-		.has_tuner    = 0,
+		.tuner_type   = TUNER_ABSENT,
 		.decoder      = EM28XX_SAA7113,
 		.input          = { {
 			.type     = EM28XX_VMUX_COMPOSITE1,
@@ -380,7 +369,6 @@ struct em28xx_board em28xx_boards[] = {
 		.vchannels    = 3,
 		.tuner_type   = TUNER_LG_PAL_NEW_TAPC,
 		.tda9887_conf = TDA9887_PRESENT,
-		.has_tuner    = 1,
 		.decoder      = EM28XX_SAA7113,
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
@@ -400,7 +388,7 @@ struct em28xx_board em28xx_boards[] = {
 		.name         = "Pixelview Prolink PlayTV USB 2.0",
 		.vchannels    = 3,
 		.tda9887_conf = TDA9887_PRESENT,
-		.has_tuner    = 1,
+		.tuner_type   = TUNER_YMEC_TVF_5533MF,
 		.decoder      = EM28XX_SAA7113,
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
@@ -551,7 +539,7 @@ static void em28xx_config_tuner(struct em28xx *dev)
 	struct tuner_setup           tun_setup;
 	struct v4l2_frequency        f;
 
-	if (!dev->has_tuner)
+	if (dev->tuner_type == TUNER_ABSENT)
 		return;
 
 	tun_setup.mode_mask = T_ANALOG_TV | T_RADIO;
@@ -668,7 +656,6 @@ static int em28xx_hint_board(struct em28xx *dev)
 static void em28xx_set_model(struct em28xx *dev)
 {
 	dev->is_em2800 = em28xx_boards[dev->model].is_em2800;
-	dev->has_tuner = em28xx_boards[dev->model].has_tuner;
 	dev->has_msp34xx = em28xx_boards[dev->model].has_msp34xx;
 	dev->tda9887_conf = em28xx_boards[dev->model].tda9887_conf;
 	dev->decoder = em28xx_boards[dev->model].decoder;
@@ -676,9 +663,6 @@ static void em28xx_set_model(struct em28xx *dev)
 	dev->analog_gpio = em28xx_boards[dev->model].analog_gpio;
 	dev->has_12mhz_i2s = em28xx_boards[dev->model].has_12mhz_i2s;
 	dev->max_range_640_480 = em28xx_boards[dev->model].max_range_640_480;
-
-	if (!em28xx_boards[dev->model].has_tuner)
-		dev->tuner_type = UNSET;
 }
 
 /* ----------------------------------------------------------------------- */
@@ -745,6 +729,7 @@ void em28xx_card_setup(struct em28xx *dev)
 		tveeprom_hauppauge_analog(&dev->i2c_client, &tv, dev->eedata);
 
 		dev->tuner_type = tv.tuner_type;
+
 		if (tv.audio_processor == AUDIO_CHIP_MSP34XX) {
 			dev->i2s_speed = 2048000;
 			dev->has_msp34xx = 1;
@@ -777,7 +762,7 @@ void em28xx_card_setup(struct em28xx *dev)
 		request_module("saa7115");
 	if (dev->decoder == EM28XX_TVP5150)
 		request_module("tvp5150");
-	if (dev->has_tuner)
+	if (dev->tuner_type != TUNER_ABSENT)
 		request_module("tuner");
 #endif
 

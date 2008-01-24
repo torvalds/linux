@@ -161,7 +161,6 @@ struct em28xx_board {
 	unsigned int tda9887_conf;
 
 	unsigned int is_em2800:1;
-	unsigned int has_tuner:1;
 	unsigned int has_msp34xx:1;
 	unsigned int mts_firmware:1;
 	unsigned int has_12mhz_i2s:1;
@@ -226,7 +225,6 @@ struct em28xx {
 	int devno;		/* marks the number of this device */
 	unsigned int analog_gpio;
 	unsigned int is_em2800:1;
-	unsigned int has_tuner:1;
 	unsigned int has_msp34xx:1;
 	unsigned int has_tda9887:1;
 	unsigned int stream_on:1;	/* Locks streams */

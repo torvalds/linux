@@ -38,6 +38,7 @@
 #include "em28xx.h"
 #include <media/v4l2-common.h>
 #include <media/msp3400.h>
+#include <media/tuner.h>
 
 #define DRIVER_AUTHOR "Ludovico Cavedon <cavedon@sssup.it>, " \
 		      "Markus Rechberger <mrechberger@gmail.com>, " \
@@ -928,7 +929,7 @@ static int vidioc_querycap(struct file *file, void  *priv,
 			V4L2_CAP_AUDIO |
 			V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
 
-	if (dev->has_tuner)
+	if (dev->tuner_type != TUNER_ABSENT)
 		cap->capabilities |= V4L2_CAP_TUNER;
 
 	return 0;
@@ -1900,7 +1901,7 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 		em28xx_errdev("cannot allocate video_device.\n");
 		goto fail_unreg;
 	}
-	if (dev->has_tuner)
+	if (dev->tuner_type != TUNER_ABSENT)
 		dev->vdev->type |= VID_TYPE_TUNER;
 
 	/* register v4l2 video video_device */
