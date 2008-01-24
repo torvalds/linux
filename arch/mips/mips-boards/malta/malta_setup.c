@@ -132,6 +132,26 @@ static void __init pci_clock_check(void)
 }
 #endif
 
+#if defined(CONFIG_VT) && defined(CONFIG_VGA_CONSOLE)
+static void __init screen_info_setup(void)
+{
+	screen_info = (struct screen_info) {
+		.orig_x = 0,
+		.orig_y = 25,
+		.ext_mem_k = 0,
+		.orig_video_page = 0,
+		.orig_video_mode = 0,
+		.orig_video_cols = 80,
+		.unused2 = 0,
+		.orig_video_ega_bx = 0,
+		.unused3 = 0,
+		.orig_video_lines = 25,
+		.orig_video_isVGA = VIDEO_TYPE_VGAC,
+		.orig_video_points = 16
+	};
+}
+#endif
+
 void __init plat_mem_setup(void)
 {
 	unsigned int i;
@@ -200,23 +220,8 @@ void __init plat_mem_setup(void)
 #ifdef CONFIG_BLK_DEV_FD
 	fd_activate();
 #endif
-#ifdef CONFIG_VT
-#if defined(CONFIG_VGA_CONSOLE)
-	screen_info = (struct screen_info) {
-		.orig_x = 0,
-		.orig_y = 25,
-		.ext_mem_k = 0,
-		.orig_video_page = 0,
-		.orig_video_mode = 0,
-		.orig_video_cols = 80,
-		.unused2 = 0,
-		.orig_video_ega_bx = 0,
-		.unused3 = 0,
-		.orig_video_lines = 25,
-		.orig_video_isVGA = VIDEO_TYPE_VGAC,
-		.orig_video_points = 16
-	};
-#endif
+#if defined(CONFIG_VT) && defined(CONFIG_VGA_CONSOLE)
+	screen_info_setup();
 #endif
 	mips_reboot_setup();
 }
