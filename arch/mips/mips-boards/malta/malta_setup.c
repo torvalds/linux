@@ -108,6 +108,30 @@ void __init fd_activate(void)
 }
 #endif
 
+#ifdef CONFIG_BLK_DEV_IDE
+static void __init pci_clock_check(void)
+{
+	unsigned int __iomem *jmpr_p =
+		(unsigned int *) ioremap(MALTA_JMPRS_REG, sizeof(unsigned int));
+	int jmpr = (__raw_readl(jmpr_p) >> 2) & 0x07;
+	static const int pciclocks[] __initdata = {
+		33, 20, 25, 30, 12, 16, 37, 10
+	};
+	int pciclock = pciclocks[jmpr];
+	char *argptr = prom_getcmdline();
+
+	if (pciclock != 33 && !strstr(argptr, "idebus=")) {
+		printk(KERN_WARNING "WARNING: PCI clock is %dMHz, "
+				"setting idebus\n", pciclock);
+		argptr += strlen(argptr);
+		sprintf(argptr, " idebus=%d", pciclock);
+		if (pciclock < 20 || pciclock > 66)
+			printk(KERN_WARNING "WARNING: IDE timing "
+					"calculations will be incorrect\n");
+	}
+}
+#endif
+
 void __init plat_mem_setup(void)
 {
 	unsigned int i;
@@ -171,24 +195,7 @@ void __init plat_mem_setup(void)
 #endif
 
 #ifdef CONFIG_BLK_DEV_IDE
-	/* Check PCI clock */
-	{
-		unsigned int __iomem *jmpr_p = (unsigned int *) ioremap(MALTA_JMPRS_REG, sizeof(unsigned int));
-		int jmpr = (__raw_readl(jmpr_p) >> 2) & 0x07;
-		static const int pciclocks[] __initdata = {
-			33, 20, 25, 30, 12, 16, 37, 10
-		};
-		int pciclock = pciclocks[jmpr];
-		char *argptr = prom_getcmdline();
-
-		if (pciclock != 33 && !strstr (argptr, "idebus=")) {
-			printk("WARNING: PCI clock is %dMHz, setting idebus\n", pciclock);
-			argptr += strlen(argptr);
-			sprintf(argptr, " idebus=%d", pciclock);
-			if (pciclock < 20 || pciclock > 66)
-				printk("WARNING: IDE timing calculations will be incorrect\n");
-		}
-	}
+	pci_clock_check();
 #endif
 #ifdef CONFIG_BLK_DEV_FD
 	fd_activate();
