@@ -44,10 +44,7 @@
 #define FAST_TIMER_SANITY_CHECKS
 
 #ifdef FAST_TIMER_SANITY_CHECKS
-#define SANITYCHECK(x) x
-static int sanity_failed = 0;
-#else
-#define SANITYCHECK(x)
+static int sanity_failed;
 #endif
 
 #define D1(x)
@@ -206,7 +203,8 @@ void start_one_shot_timer(struct fast_timer *t,
   do_gettimeofday_fast(&t->tv_set);
   tmp = fast_timer_list;
 
-  SANITYCHECK({ /* Check so this is not in the list already... */
+#ifdef FAST_TIMER_SANITY_CHECKS
+	/* Check so this is not in the list already... */
 	while (tmp != NULL) {
 		if (tmp == t) {
 			printk(KERN_DEBUG
@@ -215,10 +213,10 @@ void start_one_shot_timer(struct fast_timer *t,
 			sanity_failed++;
 			goto done;
 		} else
-        tmp = tmp->next;
-    }
-    tmp = fast_timer_list;
-  });
+			tmp = tmp->next;
+	}
+	tmp = fast_timer_list;
+#endif
 
   t->delay_us = delay_us;
   t->function = function;
