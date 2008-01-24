@@ -304,17 +304,25 @@ void __init arch_init_irq(void)
 	case MIPS_REVISION_SCON_SOCIT:
 	case MIPS_REVISION_SCON_ROCIT:
 		if (cpu_has_veic)
-			init_msc_irqs(MIPS_MSC01_IC_REG_BASE, MSC01E_INT_BASE, msc_eicirqmap, msc_nr_eicirqs);
+			init_msc_irqs(MIPS_MSC01_IC_REG_BASE,
+					MSC01E_INT_BASE, msc_eicirqmap,
+					msc_nr_eicirqs);
 		else
-			init_msc_irqs(MIPS_MSC01_IC_REG_BASE, MSC01C_INT_BASE, msc_irqmap, msc_nr_irqs);
+			init_msc_irqs(MIPS_MSC01_IC_REG_BASE,
+					MSC01C_INT_BASE, msc_irqmap,
+					msc_nr_irqs);
 		break;
 
 	case MIPS_REVISION_SCON_SOCITSC:
 	case MIPS_REVISION_SCON_SOCITSCP:
 		if (cpu_has_veic)
-			init_msc_irqs(MIPS_SOCITSC_IC_REG_BASE, MSC01E_INT_BASE, msc_eicirqmap, msc_nr_eicirqs);
+			init_msc_irqs(MIPS_SOCITSC_IC_REG_BASE,
+					MSC01E_INT_BASE, msc_eicirqmap,
+					msc_nr_eicirqs);
 		else
-			init_msc_irqs(MIPS_SOCITSC_IC_REG_BASE, MSC01C_INT_BASE, msc_irqmap, msc_nr_irqs);
+			init_msc_irqs(MIPS_SOCITSC_IC_REG_BASE,
+					MSC01C_INT_BASE, msc_irqmap,
+					msc_nr_irqs);
 	}
 
 	if (cpu_has_veic) {
@@ -345,11 +353,13 @@ void __init arch_init_irq(void)
 		}
 #else /* Not SMTC */
 		setup_irq(MIPS_CPU_IRQ_BASE+MIPSCPU_INT_I8259A, &i8259irq);
-		setup_irq(MIPS_CPU_IRQ_BASE+MIPSCPU_INT_COREHI, &corehi_irqaction);
+		setup_irq(MIPS_CPU_IRQ_BASE+MIPSCPU_INT_COREHI,
+						&corehi_irqaction);
 #endif /* CONFIG_MIPS_MT_SMTC */
 	}
 	else {
 		setup_irq(MIPS_CPU_IRQ_BASE+MIPSCPU_INT_I8259A, &i8259irq);
-		setup_irq(MIPS_CPU_IRQ_BASE+MIPSCPU_INT_COREHI, &corehi_irqaction);
+		setup_irq(MIPS_CPU_IRQ_BASE+MIPSCPU_INT_COREHI,
+						&corehi_irqaction);
 	}
 }
