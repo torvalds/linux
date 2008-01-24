@@ -997,11 +997,11 @@ find_dump_kind(struct nlmsghdr *n)
 	if (nla_parse(tb, TCA_ACT_MAX_PRIO, nla_data(tb1),
 		      NLMSG_ALIGN(nla_len(tb1)), NULL) < 0)
 		return NULL;
-	if (tb[0] == NULL)
-		return NULL;
 
-	if (nla_parse(tb2, TCA_ACT_MAX, nla_data(tb[0]),
-		      nla_len(tb[0]), NULL) < 0)
+	if (tb[1] == NULL)
+		return NULL;
+	if (nla_parse(tb2, TCA_ACT_MAX, nla_data(tb[1]),
+		      nla_len(tb[1]), NULL) < 0)
 		return NULL;
 	kind = tb2[TCA_ACT_KIND];
 
