@@ -220,6 +220,8 @@ struct alc_spec {
 	char *stream_name_analog;	/* analog PCM stream */
 	struct hda_pcm_stream *stream_analog_playback;
 	struct hda_pcm_stream *stream_analog_capture;
+	struct hda_pcm_stream *stream_analog_alt_playback;
+	struct hda_pcm_stream *stream_analog_alt_capture;
 
 	char *stream_name_digital;	/* digital PCM stream */
 	struct hda_pcm_stream *stream_digital_playback;
@@ -230,6 +232,7 @@ struct alc_spec {
 					 * max_channels, dacs must be set
 					 * dig_out_nid and hp_nid are optional
 					 */
+	hda_nid_t alt_dac_nid;
 
 	/* capture */
 	unsigned int num_adc_nids;
@@ -2370,7 +2373,7 @@ static int alc880_dig_playback_pcm_close(struct hda_pcm_stream *hinfo,
 /*
  * Analog capture
  */
-static int alc880_capture_pcm_prepare(struct hda_pcm_stream *hinfo,
+static int alc880_alt_capture_pcm_prepare(struct hda_pcm_stream *hinfo,
 				      struct hda_codec *codec,
 				      unsigned int stream_tag,
 				      unsigned int format,
@@ -2378,18 +2381,18 @@ static int alc880_capture_pcm_prepare(struct hda_pcm_stream *hinfo,
 {
 	struct alc_spec *spec = codec->spec;
 
-	snd_hda_codec_setup_stream(codec, spec->adc_nids[substream->number],
+	snd_hda_codec_setup_stream(codec, spec->adc_nids[substream->number + 1],
 				   stream_tag, 0, format);
 	return 0;
 }
 
-static int alc880_capture_pcm_cleanup(struct hda_pcm_stream *hinfo,
+static int alc880_alt_capture_pcm_cleanup(struct hda_pcm_stream *hinfo,
 				      struct hda_codec *codec,
 				      struct snd_pcm_substream *substream)
 {
 	struct alc_spec *spec = codec->spec;
 
-	snd_hda_codec_setup_stream(codec, spec->adc_nids[substream->number],
+	snd_hda_codec_setup_stream(codec, spec->adc_nids[substream->number + 1],
 				   0, 0, 0);
 	return 0;
 }
@@ -2410,13 +2413,27 @@ static struct hda_pcm_stream alc880_pcm_analog_playback = {
 };
 
 static struct hda_pcm_stream alc880_pcm_analog_capture = {
-	.substreams = 2,
+	.substreams = 1,
+	.channels_min = 2,
+	.channels_max = 2,
+	/* NID is set in alc_build_pcms */
+};
+
+static struct hda_pcm_stream alc880_pcm_analog_alt_playback = {
+	.substreams = 1,
+	.channels_min = 2,
+	.channels_max = 2,
+	/* NID is set in alc_build_pcms */
+};
+
+static struct hda_pcm_stream alc880_pcm_analog_alt_capture = {
+	.substreams = 2, /* can be overridden */
 	.channels_min = 2,
 	.channels_max = 2,
 	/* NID is set in alc_build_pcms */
 	.ops = {
-		.prepare = alc880_capture_pcm_prepare,
-		.cleanup = alc880_capture_pcm_cleanup
+		.prepare = alc880_alt_capture_pcm_prepare,
+		.cleanup = alc880_alt_capture_pcm_cleanup
 	},
 };
 
@@ -2440,7 +2457,7 @@ static struct hda_pcm_stream alc880_pcm_digital_capture = {
 };
 
 /* Used by alc_build_pcms to flag that a PCM has no playback stream */
-static struct hda_pcm_stream alc_pcm_null_playback = {
+static struct hda_pcm_stream alc_pcm_null_stream = {
 	.substreams = 0,
 	.channels_min = 0,
 	.channels_max = 0,
@@ -2497,17 +2514,32 @@ static int alc_build_pcms(struct hda_codec *codec)
 	 * model, configure a second analog capture-only PCM.
 	 */
 	/* Additional Analaog capture for index #2 */
-	if (spec->num_adc_nids > 1 && spec->stream_analog_capture &&
-	    spec->adc_nids) {
+	if ((spec->alt_dac_nid && spec->stream_analog_alt_playback) ||
+	    (spec->num_adc_nids > 1 && spec->stream_analog_alt_capture)) {
 		codec->num_pcms = 3;
 		info = spec->pcm_rec + 2;
 		info->name = spec->stream_name_analog;
-		/* No playback stream for second PCM */
-		info->stream[SNDRV_PCM_STREAM_PLAYBACK] = alc_pcm_null_playback;
-		info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = 0;
-		if (spec->stream_analog_capture) {
-			info->stream[SNDRV_PCM_STREAM_CAPTURE] = *(spec->stream_analog_capture);
-			info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->adc_nids[1];
+		if (spec->alt_dac_nid) {
+			info->stream[SNDRV_PCM_STREAM_PLAYBACK] =
+				*spec->stream_analog_alt_playback;
+			info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid =
+				spec->alt_dac_nid;
+		} else {
+			info->stream[SNDRV_PCM_STREAM_PLAYBACK] =
+				alc_pcm_null_stream;
+			info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = 0;
+		}
+		if (spec->num_adc_nids > 1) {
+			info->stream[SNDRV_PCM_STREAM_CAPTURE] =
+				*spec->stream_analog_alt_capture;
+			info->stream[SNDRV_PCM_STREAM_CAPTURE].nid =
+				spec->adc_nids[1];
+			info->stream[SNDRV_PCM_STREAM_CAPTURE].substreams =
+				spec->num_adc_nids - 1;
+		} else {
+			info->stream[SNDRV_PCM_STREAM_CAPTURE] =
+				alc_pcm_null_stream;
+			info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = 0;
 		}
 	}
 
@@ -3615,6 +3647,7 @@ static int patch_alc880(struct hda_codec *codec)
 	spec->stream_name_analog = "ALC880 Analog";
 	spec->stream_analog_playback = &alc880_pcm_analog_playback;
 	spec->stream_analog_capture = &alc880_pcm_analog_capture;
+	spec->stream_analog_alt_capture = &alc880_pcm_analog_alt_capture;
 
 	spec->stream_name_digital = "ALC880 Digital";
 	spec->stream_digital_playback = &alc880_pcm_digital_playback;
@@ -4527,17 +4560,8 @@ static struct hda_verb alc260_test_init_verbs[] = {
 };
 #endif
 
-static struct hda_pcm_stream alc260_pcm_analog_playback = {
-	.substreams = 1,
-	.channels_min = 2,
-	.channels_max = 2,
-};
-
-static struct hda_pcm_stream alc260_pcm_analog_capture = {
-	.substreams = 1,
-	.channels_min = 2,
-	.channels_max = 2,
-};
+#define alc260_pcm_analog_playback	alc880_pcm_analog_alt_playback
+#define alc260_pcm_analog_capture	alc880_pcm_analog_capture
 
 #define alc260_pcm_digital_playback	alc880_pcm_digital_playback
 #define alc260_pcm_digital_capture	alc880_pcm_digital_capture
@@ -6204,6 +6228,9 @@ static int patch_alc882(struct hda_codec *codec)
 	spec->stream_name_analog = "ALC882 Analog";
 	spec->stream_analog_playback = &alc882_pcm_analog_playback;
 	spec->stream_analog_capture = &alc882_pcm_analog_capture;
+	/* FIXME: setup DAC5 */
+	/*spec->stream_analog_alt_playback = &alc880_pcm_analog_alt_playback;*/
+	spec->stream_analog_alt_capture = &alc880_pcm_analog_alt_capture;
 
 	spec->stream_name_digital = "ALC882 Digital";
 	spec->stream_digital_playback = &alc882_pcm_digital_playback;
@@ -7409,6 +7436,7 @@ static struct snd_kcontrol_new alc883_capture_mixer[] = {
 /* pcm configuration: identiacal with ALC880 */
 #define alc883_pcm_analog_playback	alc880_pcm_analog_playback
 #define alc883_pcm_analog_capture	alc880_pcm_analog_capture
+#define alc883_pcm_analog_alt_capture	alc880_pcm_analog_alt_capture
 #define alc883_pcm_digital_playback	alc880_pcm_digital_playback
 #define alc883_pcm_digital_capture	alc880_pcm_digital_capture
 
@@ -7894,6 +7922,7 @@ static int patch_alc883(struct hda_codec *codec)
 	spec->stream_name_analog = "ALC883 Analog";
 	spec->stream_analog_playback = &alc883_pcm_analog_playback;
 	spec->stream_analog_capture = &alc883_pcm_analog_capture;
+	spec->stream_analog_alt_capture = &alc883_pcm_analog_alt_capture;
 
 	spec->stream_name_digital = "ALC883 Digital";
 	spec->stream_digital_playback = &alc883_pcm_digital_playback;
@@ -9821,6 +9850,7 @@ static void alc268_auto_init_mono_speaker_out(struct hda_codec *codec)
 /* pcm configuration: identiacal with ALC880 */
 #define alc268_pcm_analog_playback	alc880_pcm_analog_playback
 #define alc268_pcm_analog_capture	alc880_pcm_analog_capture
+#define alc268_pcm_analog_alt_capture	alc880_pcm_analog_alt_capture
 #define alc268_pcm_digital_playback	alc880_pcm_digital_playback
 
 /*
@@ -10022,6 +10052,7 @@ static int patch_alc268(struct hda_codec *codec)
 	spec->stream_name_analog = "ALC268 Analog";
 	spec->stream_analog_playback = &alc268_pcm_analog_playback;
 	spec->stream_analog_capture = &alc268_pcm_analog_capture;
+	spec->stream_analog_alt_capture = &alc268_pcm_analog_alt_capture;
 
 	spec->stream_name_digital = "ALC268 Digital";
 	spec->stream_digital_playback = &alc268_pcm_digital_playback;
