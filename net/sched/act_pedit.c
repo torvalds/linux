@@ -33,6 +33,10 @@ static struct tcf_hashinfo pedit_hash_info = {
 	.lock	=	&pedit_lock,
 };
 
+static const struct nla_policy pedit_policy[TCA_PEDIT_MAX + 1] = {
+	[TCA_PEDIT_PARMS]	= { .len = sizeof(struct tcf_pedit) },
+};
+
 static int tcf_pedit_init(struct nlattr *nla, struct nlattr *est,
 			  struct tc_action *a, int ovr, int bind)
 {
@@ -47,12 +51,11 @@ static int tcf_pedit_init(struct nlattr *nla, struct nlattr *est,
 	if (nla == NULL)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_PEDIT_MAX, nla, NULL);
+	err = nla_parse_nested(tb, TCA_PEDIT_MAX, nla, pedit_policy);
 	if (err < 0)
 		return err;
 
-	if (tb[TCA_PEDIT_PARMS] == NULL ||
-	    nla_len(tb[TCA_PEDIT_PARMS]) < sizeof(*parm))
+	if (tb[TCA_PEDIT_PARMS] == NULL)
 		return -EINVAL;
 	parm = nla_data(tb[TCA_PEDIT_PARMS]);
 	ksize = parm->nkeys * sizeof(struct tc_pedit_key);

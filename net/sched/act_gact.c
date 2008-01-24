@@ -53,6 +53,11 @@ typedef int (*g_rand)(struct tcf_gact *gact);
 static g_rand gact_rand[MAX_RAND]= { NULL, gact_net_rand, gact_determ };
 #endif /* CONFIG_GACT_PROB */
 
+static const struct nla_policy gact_policy[TCA_GACT_MAX + 1] = {
+	[TCA_GACT_PARMS]	= { .len = sizeof(struct tc_gact) },
+	[TCA_GACT_PROB]		= { .len = sizeof(struct tc_gact_p) },
+};
+
 static int tcf_gact_init(struct nlattr *nla, struct nlattr *est,
 			 struct tc_action *a, int ovr, int bind)
 {
@@ -66,20 +71,16 @@ static int tcf_gact_init(struct nlattr *nla, struct nlattr *est,
 	if (nla == NULL)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_GACT_MAX, nla, NULL);
+	err = nla_parse_nested(tb, TCA_GACT_MAX, nla, gact_policy);
 	if (err < 0)
 		return err;
 
-	if (tb[TCA_GACT_PARMS] == NULL ||
-	    nla_len(tb[TCA_GACT_PARMS]) < sizeof(*parm))
+	if (tb[TCA_GACT_PARMS] == NULL)
 		return -EINVAL;
 	parm = nla_data(tb[TCA_GACT_PARMS]);
 
+#ifndef CONFIG_GACT_PROB
 	if (tb[TCA_GACT_PROB] != NULL)
-#ifdef CONFIG_GACT_PROB
-		if (nla_len(tb[TCA_GACT_PROB]) < sizeof(struct tc_gact_p))
-			return -EINVAL;
-#else
 		return -EOPNOTSUPP;
 #endif
 

@@ -119,6 +119,13 @@ static void tcf_police_destroy(struct tcf_police *p)
 	BUG_TRAP(0);
 }
 
+static const struct nla_policy police_policy[TCA_POLICE_MAX + 1] = {
+	[TCA_POLICE_RATE]	= { .len = TC_RTAB_SIZE },
+	[TCA_POLICE_PEAKRATE]	= { .len = TC_RTAB_SIZE },
+	[TCA_POLICE_AVRATE]	= { .type = NLA_U32 },
+	[TCA_POLICE_RESULT]	= { .type = NLA_U32 },
+};
+
 static int tcf_act_police_locate(struct nlattr *nla, struct nlattr *est,
 				 struct tc_action *a, int ovr, int bind)
 {
@@ -133,7 +140,7 @@ static int tcf_act_police_locate(struct nlattr *nla, struct nlattr *est,
 	if (nla == NULL)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_POLICE_MAX, nla, NULL);
+	err = nla_parse_nested(tb, TCA_POLICE_MAX, nla, police_policy);
 	if (err < 0)
 		return err;
 
@@ -143,13 +150,6 @@ static int tcf_act_police_locate(struct nlattr *nla, struct nlattr *est,
 	if (size != sizeof(*parm) && size != sizeof(struct tc_police_compat))
 		return -EINVAL;
 	parm = nla_data(tb[TCA_POLICE_TBF]);
-
-	if (tb[TCA_POLICE_RESULT] != NULL &&
-	    nla_len(tb[TCA_POLICE_RESULT]) != sizeof(u32))
-		return -EINVAL;
-	if (tb[TCA_POLICE_RESULT] != NULL &&
-	    nla_len(tb[TCA_POLICE_RESULT]) != sizeof(u32))
-		return -EINVAL;
 
 	if (parm->index) {
 		struct tcf_common *pc;

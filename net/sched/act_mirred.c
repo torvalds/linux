@@ -54,6 +54,10 @@ static inline int tcf_mirred_release(struct tcf_mirred *m, int bind)
 	return 0;
 }
 
+static const struct nla_policy mirred_policy[TCA_MIRRED_MAX + 1] = {
+	[TCA_MIRRED_PARMS]	= { .len = sizeof(struct tc_mirred) },
+};
+
 static int tcf_mirred_init(struct nlattr *nla, struct nlattr *est,
 			   struct tc_action *a, int ovr, int bind)
 {
@@ -68,12 +72,11 @@ static int tcf_mirred_init(struct nlattr *nla, struct nlattr *est,
 	if (nla == NULL)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_MIRRED_MAX, nla, NULL);
+	err = nla_parse_nested(tb, TCA_MIRRED_MAX, nla, mirred_policy);
 	if (err < 0)
 		return err;
 
-	if (tb[TCA_MIRRED_PARMS] == NULL ||
-	    nla_len(tb[TCA_MIRRED_PARMS]) < sizeof(*parm))
+	if (tb[TCA_MIRRED_PARMS] == NULL)
 		return -EINVAL;
 	parm = nla_data(tb[TCA_MIRRED_PARMS]);
 

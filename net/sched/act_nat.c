@@ -40,6 +40,10 @@ static struct tcf_hashinfo nat_hash_info = {
 	.lock	=	&nat_lock,
 };
 
+static const struct nla_policy nat_policy[TCA_NAT_MAX + 1] = {
+	[TCA_NAT_PARMS]	= { .len = sizeof(struct tc_nat) },
+};
+
 static int tcf_nat_init(struct nlattr *nla, struct nlattr *est,
 			struct tc_action *a, int ovr, int bind)
 {
@@ -52,12 +56,11 @@ static int tcf_nat_init(struct nlattr *nla, struct nlattr *est,
 	if (nla == NULL)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_NAT_MAX, nla, NULL);
+	err = nla_parse_nested(tb, TCA_NAT_MAX, nla, nat_policy);
 	if (err < 0)
 		return err;
 
-	if (tb[TCA_NAT_PARMS] == NULL ||
-	    nla_len(tb[TCA_NAT_PARMS]) < sizeof(*parm))
+	if (tb[TCA_NAT_PARMS] == NULL)
 		return -EINVAL;
 	parm = nla_data(tb[TCA_NAT_PARMS]);
 

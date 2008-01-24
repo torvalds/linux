@@ -84,6 +84,10 @@ static int realloc_defdata(struct tcf_defact *d, u32 datalen, void *defdata)
 	return alloc_defdata(d, datalen, defdata);
 }
 
+static const struct nla_policy simple_policy[TCA_DEF_MAX + 1] = {
+	[TCA_DEF_PARMS]	= { .len = sizeof(struct tc_defact) },
+};
+
 static int tcf_simp_init(struct nlattr *nla, struct nlattr *est,
 			 struct tc_action *a, int ovr, int bind)
 {
@@ -102,8 +106,7 @@ static int tcf_simp_init(struct nlattr *nla, struct nlattr *est,
 	if (err < 0)
 		return err;
 
-	if (tb[TCA_DEF_PARMS] == NULL ||
-	    nla_len(tb[TCA_DEF_PARMS]) < sizeof(*parm))
+	if (tb[TCA_DEF_PARMS] == NULL)
 		return -EINVAL;
 
 	parm = nla_data(tb[TCA_DEF_PARMS]);

@@ -92,6 +92,13 @@ static int tcf_ipt_release(struct tcf_ipt *ipt, int bind)
 	return ret;
 }
 
+static const struct nla_policy ipt_policy[TCA_IPT_MAX + 1] = {
+	[TCA_IPT_TABLE]	= { .type = NLA_STRING, .len = IFNAMSIZ },
+	[TCA_IPT_HOOK]	= { .type = NLA_U32 },
+	[TCA_IPT_INDEX]	= { .type = NLA_U32 },
+	[TCA_IPT_TARG]	= { .len = sizeof(struct ipt_entry_target) },
+};
+
 static int tcf_ipt_init(struct nlattr *nla, struct nlattr *est,
 			struct tc_action *a, int ovr, int bind)
 {
@@ -107,22 +114,20 @@ static int tcf_ipt_init(struct nlattr *nla, struct nlattr *est,
 	if (nla == NULL)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_IPT_MAX, nla, NULL);
+	err = nla_parse_nested(tb, TCA_IPT_MAX, nla, ipt_policy);
 	if (err < 0)
 		return err;
 
-	if (tb[TCA_IPT_HOOK] == NULL ||
-	    nla_len(tb[TCA_IPT_HOOK]) < sizeof(u32))
+	if (tb[TCA_IPT_HOOK] == NULL)
 		return -EINVAL;
-	if (tb[TCA_IPT_TARG] == NULL ||
-	    nla_len(tb[TCA_IPT_TARG]) < sizeof(*t))
+	if (tb[TCA_IPT_TARG] == NULL)
 		return -EINVAL;
+
 	td = (struct ipt_entry_target *)nla_data(tb[TCA_IPT_TARG]);
 	if (nla_len(tb[TCA_IPT_TARG]) < td->u.target_size)
 		return -EINVAL;
 
-	if (tb[TCA_IPT_INDEX] != NULL &&
-	    nla_len(tb[TCA_IPT_INDEX]) >= sizeof(u32))
+	if (tb[TCA_IPT_INDEX] != NULL)
 		index = nla_get_u32(tb[TCA_IPT_INDEX]);
 
 	pc = tcf_hash_check(index, a, bind, &ipt_hash_info);
