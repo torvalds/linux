@@ -181,6 +181,21 @@ endif
 
 # ----------------------------------------------------------
 
+if ARCH_AT91CAP9
+
+comment "AT91CAP9 Board Type"
+
+config MACH_AT91CAP9ADK
+	bool "Atmel AT91CAP9A-DK Evaluation Kit"
+	depends on ARCH_AT91CAP9
+	help
+	  Select this if you are using Atmel's AT91CAP9A-DK Evaluation Kit.
+	  <http://www.atmel.com/dyn/products/tools_card.asp?tool_id=4138>
+
+endif
+
+# ----------------------------------------------------------
+
 if ARCH_AT91X40
 
 comment "AT91X40 Board Type"
@@ -201,13 +216,13 @@ comment "AT91 Board Options"
 
 config MTD_AT91_DATAFLASH_CARD
 	bool "Enable DataFlash Card support"
-	depends on (ARCH_AT91RM9200DK || MACH_AT91RM9200EK || MACH_AT91SAM9260EK || MACH_AT91SAM9261EK || MACH_AT91SAM9263EK)
+	depends on (ARCH_AT91RM9200DK || MACH_AT91RM9200EK || MACH_AT91SAM9260EK || MACH_AT91SAM9261EK || MACH_AT91SAM9263EK || MACH_AT91CAP9ADK)
 	help
 	  Enable support for the DataFlash card.
 
 config MTD_NAND_AT91_BUSWIDTH_16
 	bool "Enable 16-bit data bus interface to NAND flash"
-	depends on (MACH_AT91SAM9260EK || MACH_AT91SAM9261EK || MACH_AT91SAM9263EK)
+	depends on (MACH_AT91SAM9260EK || MACH_AT91SAM9261EK || MACH_AT91SAM9263EK || MACH_AT91CAP9ADK)
 	help
 	  On AT91SAM926x boards both types of NAND flash can be present
 	  (8 and 16 bit data bus width).
