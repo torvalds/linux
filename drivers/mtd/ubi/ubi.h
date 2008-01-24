@@ -423,8 +423,9 @@ int ubi_add_volume(struct ubi_device *ubi, struct ubi_volume *vol);
 void ubi_free_volume(struct ubi_device *ubi, struct ubi_volume *vol);
 
 /* upd.c */
-int ubi_start_update(struct ubi_device *ubi, int vol_id, long long bytes);
-int ubi_more_update_data(struct ubi_device *ubi, int vol_id,
+int ubi_start_update(struct ubi_device *ubi, struct ubi_volume *vol,
+		     long long bytes);
+int ubi_more_update_data(struct ubi_device *ubi, struct ubi_volume *vol,
 			 const void __user *buf, int count);
 
 /* misc.c */

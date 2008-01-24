@@ -354,7 +354,7 @@ static ssize_t vol_cdev_write(struct file *file, const char __user *buf,
 	if (!vol->updating)
 		return vol_cdev_direct_write(file, buf, count, offp);
 
-	err = ubi_more_update_data(ubi, vol->vol_id, buf, count);
+	err = ubi_more_update_data(ubi, vol, buf, count);
 	if (err < 0) {
 		ubi_err("cannot write %zd bytes of update data, error %d",
 			count, err);
@@ -427,7 +427,7 @@ static int vol_cdev_ioctl(struct inode *inode, struct file *file,
 		if (err < 0)
 			break;
 
-		err = ubi_start_update(ubi, vol->vol_id, bytes);
+		err = ubi_start_update(ubi, vol, bytes);
 		if (bytes == 0)
 			revoke_exclusive(desc, UBI_READWRITE);
 		break;
