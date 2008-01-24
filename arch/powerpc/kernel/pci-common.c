@@ -792,9 +792,10 @@ static void __devinit __pcibios_fixup_bus(struct pci_bus *bus)
 		for (i = 0; i < PCI_BUS_NUM_RESOURCES; ++i) {
 			if ((res = bus->resource[i]) == NULL)
 				continue;
-			if (!res->flags || bus->self->transparent)
+			if (!res->flags)
 				continue;
-
+			if (i >= 3 && bus->self->transparent)
+				continue;
 			/* On PowerMac, Apple leaves bridge windows open over
 			 * an inaccessible region of memory space (0...fffff)
 			 * which is somewhat bogus, but that's what they think
@@ -806,7 +807,8 @@ static void __devinit __pcibios_fixup_bus(struct pci_bus *bus)
 			 * equal to the pci_mem_offset of the host bridge and
 			 * their size is smaller than 1M.
 			 */
-			if (res->start == hose->pci_mem_offset &&
+			if (res->flags & IORESOURCE_MEM &&
+			    res->start == hose->pci_mem_offset &&
 			    res->end < 0x100000) {
 				printk(KERN_INFO
 				       "PCI: Closing bogus Apple Firmware"

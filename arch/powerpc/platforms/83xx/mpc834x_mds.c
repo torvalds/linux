@@ -115,13 +115,10 @@ static struct of_device_id mpc834x_ids[] = {
 
 static int __init mpc834x_declare_of_platform_devices(void)
 {
-	if (!machine_is(mpc834x_mds))
-		return 0;
-
 	of_platform_bus_probe(NULL, mpc834x_ids, NULL);
 	return 0;
 }
-device_initcall(mpc834x_declare_of_platform_devices);
+machine_device_initcall(mpc834x_mds, mpc834x_declare_of_platform_devices);
 
 /*
  * Called very early, MMU is off, device-tree isn't unflattened

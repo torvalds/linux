@@ -54,7 +54,6 @@
 
 #include <syslib/cpm2_pic.h>
 #include <syslib/ppc85xx_common.h>
-#include <syslib/ppc85xx_rio.h>
 
 
 unsigned char __res[sizeof(bd_t)];
@@ -270,6 +269,7 @@ int mpc85xx_exclude_device(u_char bus, u_char devfn)
 #endif /* CONFIG_PCI */
 
 #ifdef CONFIG_RAPIDIO
+extern void mpc85xx_rio_setup(int law_start, int law_size);
 void
 platform_rio_init(void)
 {

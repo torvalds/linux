@@ -54,7 +54,6 @@
 #include <syslib/ppc85xx_setup.h>
 #include <syslib/cpm2_pic.h>
 #include <syslib/ppc85xx_common.h>
-#include <syslib/ppc85xx_rio.h>
 
 #ifndef CONFIG_PCI
 unsigned long isa_io_base = 0;
@@ -309,6 +308,7 @@ int mpc85xx_exclude_device(u_char bus, u_char devfn)
 #endif /* CONFIG_PCI */
 
 #ifdef CONFIG_RAPIDIO
+extern void mpc85xx_rio_setup(int law_start, int law_size);
 void platform_rio_init(void)
 {
 	/* 512MB RIO LAW at 0xc0000000 */

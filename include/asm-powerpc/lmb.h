@@ -51,6 +51,7 @@ extern unsigned long __init __lmb_alloc_base(unsigned long size,
 extern unsigned long __init lmb_phys_mem_size(void);
 extern unsigned long __init lmb_end_of_DRAM(void);
 extern void __init lmb_enforce_memory_limit(unsigned long memory_limit);
+extern int __init lmb_is_reserved(unsigned long addr);
 
 extern void lmb_dump_all(void);
 

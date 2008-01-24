@@ -52,7 +52,11 @@ Table of Contents
       i) Freescale QUICC Engine module (QE)
       j) CFI or JEDEC memory-mapped NOR flash
       k) Global Utilities Block
-      l) Xilinx IP cores
+      l) Freescale Communications Processor Module
+      m) Chipselect/Local Bus
+      n) 4xx/Axon EMAC ethernet nodes
+      o) Xilinx IP cores
+      p) Freescale Synchronous Serial Interface
 
   VII - Specifying interrupt information for devices
     1) interrupts property
@@ -1257,6 +1261,10 @@ platforms are moved over to use the flattened-device-tree model.
       services interrupts for this device.
     - phy-handle : The phandle for the PHY connected to this ethernet
       controller.
+    - fixed-link : <a b c d e> where a is emulated phy id - choose any,
+      but unique to the all specified fixed-links, b is duplex - 0 half,
+      1 full, c is link speed - d#10/d#100/d#1000, d is pause - 0 no
+      pause, 1 pause, e is asym_pause - 0 no asym_pause, 1 asym_pause.
 
   Recommended properties:
 
@@ -1411,7 +1419,6 @@ platforms are moved over to use the flattened-device-tree model.
 
    Example multi port host USB controller device node :
 	usb@22000 {
-	        device_type = "usb";
 		compatible = "fsl-usb2-mph";
 		reg = <22000 1000>;
 		#address-cells = <1>;
@@ -1425,7 +1432,6 @@ platforms are moved over to use the flattened-device-tree model.
 
    Example dual role USB controller device node :
 	usb@23000 {
-		device_type = "usb";
 		compatible = "fsl-usb2-dr";
 		reg = <23000 1000>;
 		#address-cells = <1>;
@@ -1589,7 +1595,6 @@ platforms are moved over to use the flattened-device-tree model.
    iii) USB (Universal Serial Bus Controller)
 
    Required properties:
-   - device_type : should be "usb".
    - compatible : could be "qe_udc" or "fhci-hcd".
    - mode : the could be "host" or "slave".
    - reg : Offset and length of the register set for the device
@@ -1603,7 +1608,6 @@ platforms are moved over to use the flattened-device-tree model.
 
    Example(slave):
 	usb@6c0 {
-		device_type = "usb";
 		compatible = "qe_udc";
 		reg = <6c0 40>;
 		interrupts = <8b 0>;
@@ -1616,7 +1620,7 @@ platforms are moved over to use the flattened-device-tree model.
 
    Required properties:
    - device_type : should be "network", "hldc", "uart", "transparent"
-    "bisync" or "atm".
+     "bisync", "atm", or "serial".
    - compatible : could be "ucc_geth" or "fsl_atm" and so on.
    - model : should be "UCC".
    - device-id : the ucc number(1-8), corresponding to UCCx in UM.
@@ -1629,6 +1633,13 @@ platforms are moved over to use the flattened-device-tree model.
    - interrupt-parent : the phandle for the interrupt controller that
      services interrupts for this device.
    - pio-handle : The phandle for the Parallel I/O port configuration.
+   - port-number : for UART drivers, the port number to use, between 0 and 3.
+     This usually corresponds to the /dev/ttyQE device, e.g. <0> = /dev/ttyQE0.
+     The port number is added to the minor number of the device.  Unlike the
+     CPM UART driver, the port-number is required for the QE UART driver.
+   - soft-uart : for UART drivers, if specified this means the QE UART device
+     driver should use "Soft-UART" mode, which is needed on some SOCs that have
+     broken UART hardware.  Soft-UART is provided via a microcode upload.
    - rx-clock-name: the UCC receive clock source
      "none": clock source is disabled
      "brg1" through "brg16": clock source is BRG1-BRG16, respectively
@@ -1787,6 +1798,32 @@ platforms are moved over to use the flattened-device-tree model.
 			reg = <0 c000>;
 		};
 	};
+
+   viii) Uploaded QE firmware
+
+	 If a new firwmare has been uploaded to the QE (usually by the
+	 boot loader), then a 'firmware' child node should be added to the QE
+	 node.  This node provides information on the uploaded firmware that
+	 device drivers may need.
+
+	 Required properties:
+	 - id: The string name of the firmware.  This is taken from the 'id'
+	       member of the qe_firmware structure of the uploaded firmware.
+	       Device drivers can search this string to determine if the
+	       firmware they want is already present.
+	 - extended-modes: The Extended Modes bitfield, taken from the
+			   firmware binary.  It is a 64-bit number represented
+			   as an array of two 32-bit numbers.
+	 - virtual-traps: The virtual traps, taken from the firmware binary.
+			  It is an array of 8 32-bit numbers.
+
+	 Example:
+
+		firmware {
+			id = "Soft-UART";
+			extended-modes = <0 0>;
+			virtual-traps = <0 0 0 0 0 0 0 0>;
+		}
 
    j) CFI or JEDEC memory-mapped NOR flash
 
@@ -2269,7 +2306,7 @@ platforms are moved over to use the flattened-device-tree model.
 			   available.
 			   For Axon: 0x0000012a
 
-   l) Xilinx IP cores
+   o) Xilinx IP cores
 
    The Xilinx EDK toolchain ships with a set of IP cores (devices) for use
    in Xilinx Spartan and Virtex FPGAs.  The devices cover the whole range
@@ -2538,6 +2575,46 @@ platforms are moved over to use the flattened-device-tree model.
 
       Requred properties:
        - current-speed : Baud rate of uartlite
+
+    p) Freescale Synchronous Serial Interface
+
+       The SSI is a serial device that communicates with audio codecs.  It can
+       be programmed in AC97, I2S, left-justified, or right-justified modes.
+
+       Required properties:
+       - compatible	  : compatible list, containing "fsl,ssi"
+       - cell-index	  : the SSI, <0> = SSI1, <1> = SSI2, and so on
+       - reg		  : offset and length of the register set for the device
+       - interrupts	  : <a b> where a is the interrupt number and b is a
+                            field that represents an encoding of the sense and
+			    level information for the interrupt.  This should be
+			    encoded based on the information in section 2)
+			    depending on the type of interrupt controller you
+			    have.
+       - interrupt-parent : the phandle for the interrupt controller that
+                            services interrupts for this device.
+       - fsl,mode	  : the operating mode for the SSI interface
+			    "i2s-slave" - I2S mode, SSI is clock slave
+			    "i2s-master" - I2S mode, SSI is clock master
+			    "lj-slave" - left-justified mode, SSI is clock slave
+			    "lj-master" - l.j. mode, SSI is clock master
+			    "rj-slave" - right-justified mode, SSI is clock slave
+			    "rj-master" - r.j., SSI is clock master
+			    "ac97-slave" - AC97 mode, SSI is clock slave
+			    "ac97-master" - AC97 mode, SSI is clock master
+
+       Optional properties:
+       - codec-handle	  : phandle to a 'codec' node that defines an audio
+			    codec connected to this SSI.  This node is typically
+			    a child of an I2C or other control node.
+
+       Child 'codec' node required properties:
+       - compatible	  : compatible list, contains the name of the codec
+
+       Child 'codec' node optional properties:
+       - clock-frequency  : The frequency of the input clock, which typically
+                            comes from an on-board dedicated oscillator.
+
 
    More devices will be defined as this spec matures.
 

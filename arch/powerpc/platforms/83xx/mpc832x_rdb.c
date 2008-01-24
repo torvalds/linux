@@ -63,9 +63,6 @@ static struct spi_board_info mpc832x_spi_boardinfo = {
 
 static int __init mpc832x_spi_init(void)
 {
-	if (!machine_is(mpc832x_rdb))
-		return 0;
-
 	par_io_config_pin(3,  0, 3, 0, 1, 0); /* SPI1 MOSI, I/O */
 	par_io_config_pin(3,  1, 3, 0, 1, 0); /* SPI1 MISO, I/O */
 	par_io_config_pin(3,  2, 3, 0, 1, 0); /* SPI1 CLK,  I/O */
@@ -80,7 +77,7 @@ static int __init mpc832x_spi_init(void)
 			    mpc83xx_spi_deactivate_cs);
 }
 
-device_initcall(mpc832x_spi_init);
+machine_device_initcall(mpc832x_rdb, mpc832x_spi_init);
 
 /* ************************************************************************
  *
@@ -123,15 +120,12 @@ static struct of_device_id mpc832x_ids[] = {
 
 static int __init mpc832x_declare_of_platform_devices(void)
 {
-	if (!machine_is(mpc832x_rdb))
-		return 0;
-
 	/* Publish the QE devices */
 	of_platform_bus_probe(NULL, mpc832x_ids, NULL);
 
 	return 0;
 }
-device_initcall(mpc832x_declare_of_platform_devices);
+machine_device_initcall(mpc832x_rdb, mpc832x_declare_of_platform_devices);
 
 void __init mpc832x_rdb_init_IRQ(void)
 {

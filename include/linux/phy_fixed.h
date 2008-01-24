@@ -1,38 +1,31 @@
 #ifndef __PHY_FIXED_H
 #define __PHY_FIXED_H
 
-#define MII_REGS_NUM	29
-
-/* max number of virtual phy stuff */
-#define MAX_PHY_AMNT	10
-/*
-    The idea is to emulate normal phy behavior by responding with
-    pre-defined values to mii BMCR read, so that read_status hook could
-    take all the needed info.
-*/
-
 struct fixed_phy_status {
-	u8 link;
-	u16 speed;
-	u8 duplex;
+	int link;
+	int speed;
+	int duplex;
+	int pause;
+	int asym_pause;
 };
 
-/*-----------------------------------------------------------------------------
- *  Private information hoder for mii_bus
- *-----------------------------------------------------------------------------*/
-struct fixed_info {
-	u16 *regs;
-	u8 regs_num;
-	struct fixed_phy_status phy_status;
-	struct phy_device *phydev;	/* pointer to the container */
-	/* link & speed cb */
-	int (*link_update) (struct net_device *, struct fixed_phy_status *);
+#ifdef CONFIG_FIXED_PHY
+extern int fixed_phy_add(unsigned int irq, int phy_id,
+			 struct fixed_phy_status *status);
+#else
+static inline int fixed_phy_add(unsigned int irq, int phy_id,
+				struct fixed_phy_status *status)
+{
+	return -ENODEV;
+}
+#endif /* CONFIG_FIXED_PHY */
 
-};
-
-
-int fixed_mdio_set_link_update(struct phy_device *,
-       int (*link_update) (struct net_device *, struct fixed_phy_status *));
-struct fixed_info *fixed_mdio_get_phydev (int phydev_ind);
+/*
+ * This function issued only by fixed_phy-aware drivers, no need
+ * protect it with #ifdef
+ */
+extern int fixed_phy_set_link_update(struct phy_device *phydev,
+			int (*link_update)(struct net_device *,
+					   struct fixed_phy_status *));
 
 #endif /* __PHY_FIXED_H */

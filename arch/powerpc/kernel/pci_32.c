@@ -94,64 +94,6 @@ fixup_cpc710_pci64(struct pci_dev* dev)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_IBM,	PCI_DEVICE_ID_IBM_CPC710_PCI64,	fixup_cpc710_pci64);
 
-
-void __init
-update_bridge_resource(struct pci_dev *dev, struct resource *res)
-{
-	u8 io_base_lo, io_limit_lo;
-	u16 mem_base, mem_limit;
-	u16 cmd;
-	resource_size_t start, end, off;
-	struct pci_controller *hose = dev->sysdata;
-
-	if (!hose) {
-		printk("update_bridge_base: no hose?\n");
-		return;
-	}
-	pci_read_config_word(dev, PCI_COMMAND, &cmd);
-	pci_write_config_word(dev, PCI_COMMAND,
-			      cmd & ~(PCI_COMMAND_IO | PCI_COMMAND_MEMORY));
-	if (res->flags & IORESOURCE_IO) {
-		off = (unsigned long) hose->io_base_virt - isa_io_base;
-		start = res->start - off;
-		end = res->end - off;
-		io_base_lo = (start >> 8) & PCI_IO_RANGE_MASK;
-		io_limit_lo = (end >> 8) & PCI_IO_RANGE_MASK;
-		if (end > 0xffff)
-			io_base_lo |= PCI_IO_RANGE_TYPE_32;
-		else
-			io_base_lo |= PCI_IO_RANGE_TYPE_16;
-		pci_write_config_word(dev, PCI_IO_BASE_UPPER16,
-				start >> 16);
-		pci_write_config_word(dev, PCI_IO_LIMIT_UPPER16,
-				end >> 16);
-		pci_write_config_byte(dev, PCI_IO_BASE, io_base_lo);
-		pci_write_config_byte(dev, PCI_IO_LIMIT, io_limit_lo);
-
-	} else if ((res->flags & (IORESOURCE_MEM | IORESOURCE_PREFETCH))
-		   == IORESOURCE_MEM) {
-		off = hose->pci_mem_offset;
-		mem_base = ((res->start - off) >> 16) & PCI_MEMORY_RANGE_MASK;
-		mem_limit = ((res->end - off) >> 16) & PCI_MEMORY_RANGE_MASK;
-		pci_write_config_word(dev, PCI_MEMORY_BASE, mem_base);
-		pci_write_config_word(dev, PCI_MEMORY_LIMIT, mem_limit);
-
-	} else if ((res->flags & (IORESOURCE_MEM | IORESOURCE_PREFETCH))
-		   == (IORESOURCE_MEM | IORESOURCE_PREFETCH)) {
-		off = hose->pci_mem_offset;
-		mem_base = ((res->start - off) >> 16) & PCI_PREF_RANGE_MASK;
-		mem_limit = ((res->end - off) >> 16) & PCI_PREF_RANGE_MASK;
-		pci_write_config_word(dev, PCI_PREF_MEMORY_BASE, mem_base);
-		pci_write_config_word(dev, PCI_PREF_MEMORY_LIMIT, mem_limit);
-
-	} else {
-		DBG(KERN_ERR "PCI: ugh, bridge %s res has flags=%lx\n",
-		    pci_name(dev), res->flags);
-	}
-	pci_write_config_word(dev, PCI_COMMAND, cmd);
-}
-
-
 #ifdef CONFIG_PPC_OF
 /*
  * Functions below are used on OpenFirmware machines.

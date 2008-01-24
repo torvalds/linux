@@ -42,8 +42,6 @@
 
 #include <mm/mmu_decl.h>
 
-#include <syslib/ppc85xx_rio.h>
-
 #include <platforms/85xx/mpc85xx_ads_common.h>
 
 #ifndef CONFIG_PCI
@@ -190,6 +188,7 @@ mpc85xx_exclude_device(u_char bus, u_char devfn)
 #endif /* CONFIG_PCI */
 
 #ifdef CONFIG_RAPIDIO
+extern void mpc85xx_rio_setup(int law_start, int law_size);
 void platform_rio_init(void)
 {
 	/* 512MB RIO LAW at 0xc0000000 */

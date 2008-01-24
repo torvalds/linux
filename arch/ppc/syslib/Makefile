@@ -93,7 +93,6 @@ obj-$(CONFIG_85xx)		+= open_pic.o ppc85xx_common.o ppc85xx_setup.o \
 ifeq ($(CONFIG_85xx),y)
 obj-$(CONFIG_PCI)		+= pci_auto.o
 endif
-obj-$(CONFIG_RAPIDIO)		+= ppc85xx_rio.o
 obj-$(CONFIG_83xx)		+= ppc83xx_setup.o ppc_sys.o \
 					mpc83xx_sys.o mpc83xx_devices.o ipic.o
 ifeq ($(CONFIG_83xx),y)

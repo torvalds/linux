@@ -22,6 +22,56 @@
 
 #include "mpc83xx.h"
 
+#define BCSR12_USB_SER_MASK	0x8a
+#define BCSR12_USB_SER_PIN	0x80
+#define BCSR12_USB_SER_DEVICE	0x02
+extern int mpc837x_usb_cfg(void);
+
+static int mpc837xmds_usb_cfg(void)
+{
+	struct device_node *np;
+	const void *phy_type, *mode;
+	void __iomem *bcsr_regs = NULL;
+	u8 bcsr12;
+	int ret;
+
+	ret = mpc837x_usb_cfg();
+	if (ret)
+		return ret;
+	/* Map BCSR area */
+	np = of_find_node_by_name(NULL, "bcsr");
+	if (np) {
+		struct resource res;
+
+		of_address_to_resource(np, 0, &res);
+		bcsr_regs = ioremap(res.start, res.end - res.start + 1);
+		of_node_put(np);
+	}
+	if (!bcsr_regs)
+		return -1;
+
+	np = of_find_node_by_name(NULL, "usb");
+	if (!np)
+		return -ENODEV;
+	phy_type = of_get_property(np, "phy_type", NULL);
+	if (phy_type && !strcmp(phy_type, "ulpi")) {
+		clrbits8(bcsr_regs + 12, BCSR12_USB_SER_PIN);
+	} else if (phy_type && !strcmp(phy_type, "serial")) {
+		mode = of_get_property(np, "dr_mode", NULL);
+		bcsr12 = in_8(bcsr_regs + 12) & ~BCSR12_USB_SER_MASK;
+		bcsr12 |= BCSR12_USB_SER_PIN;
+		if (mode && !strcmp(mode, "peripheral"))
+			bcsr12 |= BCSR12_USB_SER_DEVICE;
+		out_8(bcsr_regs + 12, bcsr12);
+	} else {
+		printk(KERN_ERR "USB DR: unsupported PHY\n");
+	}
+
+	of_node_put(np);
+	iounmap(bcsr_regs);
+	return 0;
+}
+
 /* ************************************************************************
  *
  * Setup the architecture
@@ -40,6 +90,7 @@ static void __init mpc837x_mds_setup_arch(void)
 	for_each_compatible_node(np, "pci", "fsl,mpc8349-pci")
 		mpc83xx_add_bridge(np);
 #endif
+	mpc837xmds_usb_cfg();
 }
 
 static struct of_device_id mpc837x_ids[] = {
@@ -50,15 +101,12 @@ static struct of_device_id mpc837x_ids[] = {
 
 static int __init mpc837x_declare_of_platform_devices(void)
 {
-	if (!machine_is(mpc837x_mds))
-		return 0;
-
 	/* Publish of_device */
 	of_platform_bus_probe(NULL, mpc837x_ids, NULL);
 
 	return 0;
 }
-device_initcall(mpc837x_declare_of_platform_devices);
+machine_device_initcall(mpc837x_mds, mpc837x_declare_of_platform_devices);
 
 static void __init mpc837x_mds_init_IRQ(void)
 {

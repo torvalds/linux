@@ -91,7 +91,6 @@
 		};
 
 		usb@22000 {
-			device_type = "usb";
 			compatible = "fsl-usb2-mph";
 			reg = <22000 1000>;
 			#address-cells = <1>;
@@ -103,7 +102,6 @@
 		};
 
 		usb@23000 {
-			device_type = "usb";
 			compatible = "fsl-usb2-dr";
 			reg = <23000 1000>;
 			#address-cells = <1>;
@@ -125,14 +123,6 @@
 				interrupt-parent = < &ipic >;
 				interrupts = <12 8>;
 				reg = <1c>;
-				device_type = "ethernet-phy";
-			};
-
-			/* Vitesse 7385 */
-			phy1f: ethernet-phy@1f {
-				interrupt-parent = < &ipic >;
-				interrupts = <12 8>;
-				reg = <1f>;
 				device_type = "ethernet-phy";
 			};
 		};
@@ -159,7 +149,8 @@
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <23 8 24 8 25 8>;
 			interrupt-parent = < &ipic >;
-			phy-handle = < &phy1f >;
+			/* Vitesse 7385 isn't on the MDIO bus */
+			fixed-link = <1 1 d#1000 0 0>;
 			linux,network-index = <1>;
 		};
 
@@ -253,6 +244,21 @@
 		device_type = "pci";
 	};
 
+	localbus@e0005000 {
+		#address-cells = <2>;
+		#size-cells = <1>;
+		compatible = "fsl,mpc8349e-localbus",
+			     "fsl,pq2pro-localbus";
+		reg = <e0005000 d8>;
+		ranges = <3 0 f0000000 210>;
 
-
+		pata@3,0 {
+			compatible = "fsl,mpc8349emitx-pata", "ata-generic";
+			reg = <3 0 10 3 20c 4>;
+			reg-shift = <1>;
+			pio-mode = <6>;
+			interrupts = <17 8>;
+			interrupt-parent = <&ipic>;
+		};
+	};
 };

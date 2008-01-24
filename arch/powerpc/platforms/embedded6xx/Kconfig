@@ -9,12 +9,27 @@ config LINKSTATION
 	select FSL_SOC
 	select PPC_UDBG_16550 if SERIAL_8250
 	select DEFAULT_UIMAGE
+	select MPC10X_OPENPIC
+	select MPC10X_BRIDGE
 	help
 	  Select LINKSTATION if configuring for one of PPC- (MPC8241)
 	  based NAS systems from Buffalo Technology. So far only
 	  KuroboxHG has been tested. In the future classical Kurobox,
 	  Linkstation-I HD-HLAN and HD-HGLAN versions, and PPC-based
 	  Terastation systems should be supported too.
+
+config STORCENTER
+	bool "IOMEGA StorCenter"
+	depends on EMBEDDED6xx
+	select MPIC
+	select FSL_SOC
+	select PPC_UDBG_16550 if SERIAL_8250
+	select WANT_DEVICE_TREE
+	select MPC10X_OPENPIC
+	select MPC10X_BRIDGE
+	help
+	  Select STORCENTER if configuring for the iomega StorCenter
+	  with an 8241 CPU in it.
 
 config MPC7448HPC2
 	bool "Freescale MPC7448HPC2(Taiga)"
@@ -23,6 +38,7 @@ config MPC7448HPC2
 	select DEFAULT_UIMAGE
 	select PPC_UDBG_16550
 	select WANT_DEVICE_TREE
+	select TSI108_BRIDGE
 	help
 	  Select MPC7448HPC2 if configuring for Freescale MPC7448HPC2 (Taiga)
 	  platform
@@ -33,6 +49,7 @@ config PPC_HOLLY
 	select TSI108_BRIDGE
 	select PPC_UDBG_16550
 	select WANT_DEVICE_TREE
+	select TSI108_BRIDGE
 	help
 	  Select PPC_HOLLY if configuring for an IBM 750GX/CL Eval
 	  Board with TSI108/9 bridge (Hickory/Holly)
@@ -48,17 +65,13 @@ config PPC_PRPMC2800
 
 config TSI108_BRIDGE
 	bool
-	depends on MPC7448HPC2 || PPC_HOLLY
 	select PCI
 	select MPIC
 	select MPIC_WEIRD
-	default y
 
 config MPC10X_BRIDGE
 	bool
-	depends on LINKSTATION
 	select PPC_INDIRECT_PCI
-	default y
 
 config MV64X60
 	bool
@@ -67,8 +80,6 @@ config MV64X60
 
 config MPC10X_OPENPIC
 	bool
-	depends on LINKSTATION
-	default y
 
 config MPC10X_STORE_GATHERING
 	bool "Enable MPC10x store gathering"

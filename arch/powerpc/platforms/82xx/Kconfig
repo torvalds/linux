@@ -26,6 +26,19 @@ config PQ2FADS
 	help
 	  This option enables support for the PQ2FADS board
 
+config EP8248E
+	bool "Embedded Planet EP8248E (a.k.a. CWH-PPC-8248N-VE)"
+	select 8272
+	select 8260
+	select FSL_SOC
+	select PPC_CPM_NEW_BINDING
+	select MDIO_BITBANG
+	help
+	  This enables support for the Embedded Planet EP8248E board.
+
+	  This board is also resold by Freescale as the QUICCStart
+	  MPC8248 Evaluation System and/or the CWH-PPC-8248N-VE.
+
 endchoice
 
 config PQ2ADS

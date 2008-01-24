@@ -165,15 +165,15 @@ void invalidate_tlbcam_entry(int index)
 void __init cam_mapin_ram(unsigned long cam0, unsigned long cam1,
 		unsigned long cam2)
 {
-	settlbcam(0, KERNELBASE, PPC_MEMSTART, cam0, _PAGE_KERNEL, 0);
+	settlbcam(0, PAGE_OFFSET, PPC_MEMSTART, cam0, _PAGE_KERNEL, 0);
 	tlbcam_index++;
 	if (cam1) {
 		tlbcam_index++;
-		settlbcam(1, KERNELBASE+cam0, PPC_MEMSTART+cam0, cam1, _PAGE_KERNEL, 0);
+		settlbcam(1, PAGE_OFFSET+cam0, PPC_MEMSTART+cam0, cam1, _PAGE_KERNEL, 0);
 	}
 	if (cam2) {
 		tlbcam_index++;
-		settlbcam(2, KERNELBASE+cam0+cam1, PPC_MEMSTART+cam0+cam1, cam2, _PAGE_KERNEL, 0);
+		settlbcam(2, PAGE_OFFSET+cam0+cam1, PPC_MEMSTART+cam0+cam1, cam2, _PAGE_KERNEL, 0);
 	}
 }
 

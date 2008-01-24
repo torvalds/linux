@@ -60,10 +60,52 @@
 		reg = <00000000 40000000>;	// 1G at 0x0
 	};
 
+	localbus@f8005000 {
+		#address-cells = <2>;
+		#size-cells = <1>;
+		compatible = "fsl,mpc8641-localbus", "simple-bus";
+		reg = <f8005000 1000>;
+		interrupts = <13 2>;
+		interrupt-parent = <&mpic>;
+
+		ranges = <0 0 ff800000 00800000
+			  1 0 fe000000 01000000
+			  2 0 f8200000 00100000
+			  3 0 f8100000 00100000>;
+
+		flash@0,0 {
+			compatible = "cfi-flash";
+			reg = <0 0 00800000>;
+			bank-width = <2>;
+			device-width = <2>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			partition@0 {
+				label = "kernel";
+				reg = <00000000 00300000>;
+			};
+			partition@300000 {
+				label = "firmware b";
+				reg = <00300000 00100000>;
+				read-only;
+			};
+			partition@400000 {
+				label = "fs";
+				reg = <00400000 00300000>;
+			};
+			partition@700000 {
+				label = "firmware a";
+				reg = <00700000 00100000>;
+				read-only;
+			};
+		};
+	};
+
 	soc8641@f8000000 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		device_type = "soc";
+		compatible = "simple-bus";
 		ranges = <00000000 f8000000 00100000>;
 		reg = <f8000000 00001000>;	// CCSRBAR
 		bus-frequency = <0>;
@@ -326,9 +368,9 @@
 
 			// IDSEL 0x1c  USB
 			e000 0 0 1 &i8259 c 2
-			e100 0 0 1 &i8259 9 2
-			e200 0 0 1 &i8259 a 2
-			e300 0 0 1 &i8259 b 2
+			e100 0 0 2 &i8259 9 2
+			e200 0 0 3 &i8259 a 2
+			e300 0 0 4 &i8259 b 2
 
 			// IDSEL 0x1d  Audio
 			e800 0 0 1 &i8259 6 2

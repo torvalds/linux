@@ -61,34 +61,12 @@ config ICPLUS_PHY
 	  Currently supports the IP175C PHY.
 
 config FIXED_PHY
-	tristate "Drivers for PHY emulation on fixed speed/link"
+	bool "Driver for MDIO Bus/PHY emulation with fixed speed/link PHYs"
 	---help---
-	  Adds the driver to PHY layer to cover the boards that do not have any PHY bound,
-	  but with the ability to manipulate the speed/link in software. The relevant MII
-	  speed/duplex parameters could be effectively handled in a user-specified function.
-	  Currently tested with mpc866ads.
+	  Adds the platform "fixed" MDIO Bus to cover the boards that use
+	  PHYs that are not connected to the real MDIO bus.
 
-config FIXED_MII_10_FDX
-	bool "Emulation for 10M Fdx fixed PHY behavior"
-	depends on FIXED_PHY
-
-config FIXED_MII_100_FDX
-	bool "Emulation for 100M Fdx fixed PHY behavior"
-	depends on FIXED_PHY
-
-config FIXED_MII_1000_FDX
-	bool "Emulation for 1000M Fdx fixed PHY behavior"
-	depends on FIXED_PHY
-
-config FIXED_MII_AMNT
-        int "Number of emulated PHYs to allocate "
-        depends on FIXED_PHY
-        default "1"
-        ---help---
-        Sometimes it is required to have several independent emulated
-        PHYs on the bus (in case of multi-eth but phy-less HW for instance).
-        This control will have specified number allocated for each fixed
-        PHY type enabled.
+	  Currently tested with mpc866ads and mpc8349e-mitx.
 
 config MDIO_BITBANG
 	tristate "Support for bitbanged MDIO buses"
