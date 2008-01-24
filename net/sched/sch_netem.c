@@ -407,13 +407,18 @@ static int get_corrupt(struct Qdisc *sch, const struct nlattr *attr)
 static int netem_change(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct netem_sched_data *q = qdisc_priv(sch);
+	struct nlattr *tb[TCA_NETEM_MAX + 1];
 	struct tc_netem_qopt *qopt;
 	int ret;
 
-	if (opt == NULL || nla_len(opt) < sizeof(*qopt))
+	if (opt == NULL)
 		return -EINVAL;
 
-	qopt = nla_data(opt);
+	ret = nla_parse_nested_compat(tb, TCA_NETEM_MAX, opt, NULL, qopt,
+				      sizeof(*qopt));
+	if (ret < 0)
+		return ret;
+
 	ret = set_fifo_limit(q->qdisc, qopt->limit);
 	if (ret) {
 		pr_debug("netem: can't set fifo limit\n");
@@ -434,39 +439,28 @@ static int netem_change(struct Qdisc *sch, struct nlattr *opt)
 	if (q->gap)
 		q->reorder = ~0;
 
-	/* Handle nested options after initial queue options.
-	 * Should have put all options in nested format but too late now.
-	 */
-	if (nla_len(opt) > sizeof(*qopt)) {
-		struct nlattr *tb[TCA_NETEM_MAX + 1];
-		if (nla_parse(tb, TCA_NETEM_MAX,
-			      nla_data(opt) + sizeof(*qopt),
-			      nla_len(opt) - sizeof(*qopt), NULL))
-			return -EINVAL;
+	if (tb[TCA_NETEM_CORR]) {
+		ret = get_correlation(sch, tb[TCA_NETEM_CORR]);
+		if (ret)
+			return ret;
+	}
 
-		if (tb[TCA_NETEM_CORR]) {
-			ret = get_correlation(sch, tb[TCA_NETEM_CORR]);
-			if (ret)
-				return ret;
-		}
+	if (tb[TCA_NETEM_DELAY_DIST]) {
+		ret = get_dist_table(sch, tb[TCA_NETEM_DELAY_DIST]);
+		if (ret)
+			return ret;
+	}
 
-		if (tb[TCA_NETEM_DELAY_DIST]) {
-			ret = get_dist_table(sch, tb[TCA_NETEM_DELAY_DIST]);
-			if (ret)
-				return ret;
-		}
+	if (tb[TCA_NETEM_REORDER]) {
+		ret = get_reorder(sch, tb[TCA_NETEM_REORDER]);
+		if (ret)
+			return ret;
+	}
 
-		if (tb[TCA_NETEM_REORDER]) {
-			ret = get_reorder(sch, tb[TCA_NETEM_REORDER]);
-			if (ret)
-				return ret;
-		}
-
-		if (tb[TCA_NETEM_CORRUPT]) {
-			ret = get_corrupt(sch, tb[TCA_NETEM_CORRUPT]);
-			if (ret)
-				return ret;
-		}
+	if (tb[TCA_NETEM_CORRUPT]) {
+		ret = get_corrupt(sch, tb[TCA_NETEM_CORRUPT]);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
