@@ -708,19 +708,19 @@ static int u32_dump(struct tcf_proto *tp, unsigned long fh,
 	if (TC_U32_KEY(n->handle) == 0) {
 		struct tc_u_hnode *ht = (struct tc_u_hnode*)fh;
 		u32 divisor = ht->divisor+1;
-		NLA_PUT(skb, TCA_U32_DIVISOR, 4, &divisor);
+		NLA_PUT_U32(skb, TCA_U32_DIVISOR, divisor);
 	} else {
 		NLA_PUT(skb, TCA_U32_SEL,
 			sizeof(n->sel) + n->sel.nkeys*sizeof(struct tc_u32_key),
 			&n->sel);
 		if (n->ht_up) {
 			u32 htid = n->handle & 0xFFFFF000;
-			NLA_PUT(skb, TCA_U32_HASH, 4, &htid);
+			NLA_PUT_U32(skb, TCA_U32_HASH, htid);
 		}
 		if (n->res.classid)
-			NLA_PUT(skb, TCA_U32_CLASSID, 4, &n->res.classid);
+			NLA_PUT_U32(skb, TCA_U32_CLASSID, n->res.classid);
 		if (n->ht_down)
-			NLA_PUT(skb, TCA_U32_LINK, 4, &n->ht_down->handle);
+			NLA_PUT_U32(skb, TCA_U32_LINK, n->ht_down->handle);
 
 #ifdef CONFIG_CLS_U32_MARK
 		if (n->mark.val || n->mark.mask)

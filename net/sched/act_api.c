@@ -133,7 +133,7 @@ static int tcf_del_walker(struct sk_buff *skb, struct tc_action *a,
 			p = s_p;
 		}
 	}
-	NLA_PUT(skb, TCA_FCNT, 4, &n_i);
+	NLA_PUT_U32(skb, TCA_FCNT, n_i);
 	nla_nest_end(skb, nest);
 
 	return n_i;

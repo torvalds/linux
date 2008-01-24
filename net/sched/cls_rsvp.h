@@ -617,7 +617,7 @@ static int rsvp_dump(struct tcf_proto *tp, unsigned long fh,
 	pinfo.pad = 0;
 	NLA_PUT(skb, TCA_RSVP_PINFO, sizeof(pinfo), &pinfo);
 	if (f->res.classid)
-		NLA_PUT(skb, TCA_RSVP_CLASSID, 4, &f->res.classid);
+		NLA_PUT_U32(skb, TCA_RSVP_CLASSID, f->res.classid);
 	if (((f->handle>>8)&0xFF) != 16)
 		NLA_PUT(skb, TCA_RSVP_SRC, sizeof(f->src), f->src);
 

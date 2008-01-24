@@ -339,10 +339,9 @@ tcf_act_police_dump(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 		memset(&opt.peakrate, 0, sizeof(opt.peakrate));
 	NLA_PUT(skb, TCA_POLICE_TBF, sizeof(opt), &opt);
 	if (police->tcfp_result)
-		NLA_PUT(skb, TCA_POLICE_RESULT, sizeof(int),
-			&police->tcfp_result);
+		NLA_PUT_U32(skb, TCA_POLICE_RESULT, police->tcfp_result);
 	if (police->tcfp_ewma_rate)
-		NLA_PUT(skb, TCA_POLICE_AVRATE, 4, &police->tcfp_ewma_rate);
+		NLA_PUT_U32(skb, TCA_POLICE_AVRATE, police->tcfp_ewma_rate);
 	return skb->len;
 
 nla_put_failure:

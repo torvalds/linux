@@ -565,17 +565,17 @@ static int route4_dump(struct tcf_proto *tp, unsigned long fh,
 
 	if (!(f->handle&0x8000)) {
 		id = f->id&0xFF;
-		NLA_PUT(skb, TCA_ROUTE4_TO, sizeof(id), &id);
+		NLA_PUT_U32(skb, TCA_ROUTE4_TO, id);
 	}
 	if (f->handle&0x80000000) {
 		if ((f->handle>>16) != 0xFFFF)
-			NLA_PUT(skb, TCA_ROUTE4_IIF, sizeof(f->iif), &f->iif);
+			NLA_PUT_U32(skb, TCA_ROUTE4_IIF, f->iif);
 	} else {
 		id = f->id>>16;
-		NLA_PUT(skb, TCA_ROUTE4_FROM, sizeof(id), &id);
+		NLA_PUT_U32(skb, TCA_ROUTE4_FROM, id);
 	}
 	if (f->res.classid)
-		NLA_PUT(skb, TCA_ROUTE4_CLASSID, 4, &f->res.classid);
+		NLA_PUT_U32(skb, TCA_ROUTE4_CLASSID, f->res.classid);
 
 	if (tcf_exts_dump(skb, &f->exts, &route_ext_map) < 0)
 		goto nla_put_failure;

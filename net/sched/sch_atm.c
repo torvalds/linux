@@ -629,14 +629,12 @@ static int atm_tc_dump_class(struct Qdisc *sch, unsigned long cl,
 		pvc.sap_addr.vci = flow->vcc->vci;
 		NLA_PUT(skb, TCA_ATM_ADDR, sizeof(pvc), &pvc);
 		state = ATM_VF2VS(flow->vcc->flags);
-		NLA_PUT(skb, TCA_ATM_STATE, sizeof(state), &state);
+		NLA_PUT_U32(skb, TCA_ATM_STATE, state);
 	}
 	if (flow->excess)
-		NLA_PUT(skb, TCA_ATM_EXCESS, sizeof(u32), &flow->classid);
+		NLA_PUT_U32(skb, TCA_ATM_EXCESS, flow->classid);
 	else {
-		static u32 zero;
-
-		NLA_PUT(skb, TCA_ATM_EXCESS, sizeof(zero), &zero);
+		NLA_PUT_U32(skb, TCA_ATM_EXCESS, 0);
 	}
 
 	nla_nest_end(skb, nest);

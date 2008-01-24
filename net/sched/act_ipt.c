@@ -254,8 +254,8 @@ static int tcf_ipt_dump(struct sk_buff *skb, struct tc_action *a, int bind, int 
 	strcpy(t->u.user.name, ipt->tcfi_t->u.kernel.target->name);
 
 	NLA_PUT(skb, TCA_IPT_TARG, ipt->tcfi_t->u.user.target_size, t);
-	NLA_PUT(skb, TCA_IPT_INDEX, 4, &ipt->tcf_index);
-	NLA_PUT(skb, TCA_IPT_HOOK, 4, &ipt->tcfi_hook);
+	NLA_PUT_U32(skb, TCA_IPT_INDEX, ipt->tcf_index);
+	NLA_PUT_U32(skb, TCA_IPT_HOOK, ipt->tcfi_hook);
 	NLA_PUT(skb, TCA_IPT_CNT, sizeof(struct tc_cnt), &c);
 	NLA_PUT_STRING(skb, TCA_IPT_TABLE, ipt->tcfi_tname);
 	tm.install = jiffies_to_clock_t(jiffies - ipt->tcf_tm.install);

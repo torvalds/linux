@@ -623,8 +623,7 @@ static int meta_int_dump(struct sk_buff *skb, struct meta_value *v, int tlv)
 	if (v->len == sizeof(unsigned long))
 		NLA_PUT(skb, tlv, sizeof(unsigned long), &v->val);
 	else if (v->len == sizeof(u32)) {
-		u32 d = v->val;
-		NLA_PUT(skb, tlv, sizeof(d), &d);
+		NLA_PUT_U32(skb, tlv, v->val);
 	}
 
 	return 0;

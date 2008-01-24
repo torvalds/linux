@@ -349,13 +349,13 @@ static int fw_dump(struct tcf_proto *tp, unsigned long fh,
 		goto nla_put_failure;
 
 	if (f->res.classid)
-		NLA_PUT(skb, TCA_FW_CLASSID, 4, &f->res.classid);
+		NLA_PUT_U32(skb, TCA_FW_CLASSID, f->res.classid);
 #ifdef CONFIG_NET_CLS_IND
 	if (strlen(f->indev))
 		NLA_PUT_STRING(skb, TCA_FW_INDEV, f->indev);
 #endif /* CONFIG_NET_CLS_IND */
 	if (head->mask != 0xFFFFFFFF)
-		NLA_PUT(skb, TCA_FW_MASK, 4, &head->mask);
+		NLA_PUT_U32(skb, TCA_FW_MASK, head->mask);
 
 	if (tcf_exts_dump(skb, &f->exts, &fw_ext_map) < 0)
 		goto nla_put_failure;
