@@ -702,7 +702,9 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 					loglev_char = default_message_loglevel
 						+ '0';
 				}
-				t = cpu_clock(printk_cpu);
+				t = 0;
+				if (system_state != SYSTEM_BOOTING)
+					t = ktime_to_ns(ktime_get());
 				nanosec_rem = do_div(t, 1000000000);
 				tlen = sprintf(tbuf,
 						"<%c>[%5lu.%06lu] ",
