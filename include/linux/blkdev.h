@@ -144,7 +144,6 @@ enum rq_cmd_type_bits {
 	 * private REQ_LB opcodes to differentiate what type of request this is
 	 */
 	REQ_TYPE_ATA_CMD,
-	REQ_TYPE_ATA_TASK,
 	REQ_TYPE_ATA_TASKFILE,
 	REQ_TYPE_ATA_PC,
 };

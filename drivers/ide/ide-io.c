@@ -332,22 +332,6 @@ void ide_end_drive_cmd (ide_drive_t *drive, u8 stat, u8 err)
 			args[1] = err;
 			args[2] = hwif->INB(IDE_NSECTOR_REG);
 		}
-	} else if (rq->cmd_type == REQ_TYPE_ATA_TASK) {
-		u8 *args = (u8 *) rq->buffer;
-		if (rq->errors == 0)
-			rq->errors = !OK_STAT(stat,READY_STAT,BAD_STAT);
-
-		if (args) {
-			args[0] = stat;
-			args[1] = err;
-			/* be sure we're looking at the low order bits */
-			hwif->OUTB(drive->ctl & ~0x80, IDE_CONTROL_REG);
-			args[2] = hwif->INB(IDE_NSECTOR_REG);
-			args[3] = hwif->INB(IDE_SECTOR_REG);
-			args[4] = hwif->INB(IDE_LCYL_REG);
-			args[5] = hwif->INB(IDE_HCYL_REG);
-			args[6] = hwif->INB(IDE_SELECT_REG);
-		}
 	} else if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE) {
 		ide_task_t *args = (ide_task_t *) rq->special;
 		if (rq->errors == 0)
@@ -877,13 +861,7 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
 		goto done;
 
 	memset(&ltask, 0, sizeof(ltask));
-	if (rq->cmd_type == REQ_TYPE_ATA_TASK) {
-#ifdef DEBUG
-		printk("%s: DRIVE_TASK_CMD\n", drive->name);
-#endif
-		memcpy(&ltask.tf_array[7], &args[1], 6);
-		ltask.tf_flags = IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE;
-	} else { /* rq->cmd_type == REQ_TYPE_ATA_CMD */
+	if (rq->cmd_type == REQ_TYPE_ATA_CMD) {
 #ifdef DEBUG
 		printk("%s: DRIVE_CMD\n", drive->name);
 #endif
@@ -1011,7 +989,6 @@ static ide_startstop_t start_request (ide_drive_t *drive, struct request *rq)
 			ide_config_drive_speed(drive, drive->desired_speed);
 
 		if (rq->cmd_type == REQ_TYPE_ATA_CMD ||
-		    rq->cmd_type == REQ_TYPE_ATA_TASK ||
 		    rq->cmd_type == REQ_TYPE_ATA_TASKFILE)
 			return execute_drive_cmd(drive, rq);
 		else if (blk_pm_request(rq)) {

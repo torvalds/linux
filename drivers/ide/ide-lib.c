@@ -458,8 +458,7 @@ static void ide_dump_opcode(ide_drive_t *drive)
 	spin_unlock(&ide_lock);
 	if (!rq)
 		return;
-	if (rq->cmd_type == REQ_TYPE_ATA_CMD ||
-	    rq->cmd_type == REQ_TYPE_ATA_TASK) {
+	if (rq->cmd_type == REQ_TYPE_ATA_CMD) {
 		char *args = rq->buffer;
 		if (args) {
 			opcode = args[0];
