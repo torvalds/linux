@@ -199,9 +199,7 @@ static enum stb0899_status stb0899_check_tmg(struct stb0899_state *state)
 
 	msleep(internal->t_timing);
 
-	reg = stb0899_read_reg(state, STB0899_RTF);
-	STB0899_SETFIELD_VAL(RTF_TIMING_LOOP_FREQ, reg, 0xf2);
-	stb0899_write_reg(state, STB0899_RTF, reg);
+	stb0899_write_reg(state, STB0899_RTF, 0xf2);
 	reg = stb0899_read_reg(state, STB0899_TLIR);
 	lock = STB0899_GETFIELD(TLIR_TMG_LOCK_IND, reg);
 	timing = stb0899_read_reg(state, STB0899_RTF);
@@ -603,9 +601,7 @@ enum stb0899_status stb0899_dvbs_algo(struct stb0899_state *state)
 		cfr[0] = cfr[1] = 0;
 		stb0899_write_regs(state, STB0899_CFRM, cfr, 2); /* RESET derotator frequency	*/
 
-		reg = stb0899_read_reg(state, STB0899_RTF);
-		STB0899_SETFIELD_VAL(RTF_TIMING_LOOP_FREQ, reg, 0);
-		stb0899_write_reg(state, STB0899_RTF, reg);
+		stb0899_write_reg(state, STB0899_RTF, 0);
 		reg = stb0899_read_reg(state, STB0899_CFD);
 		STB0899_SETFIELD_VAL(CFD_ON, reg, 1);
 		stb0899_write_reg(state, STB0899_CFD, reg);
