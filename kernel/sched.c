@@ -161,6 +161,8 @@ struct rt_prio_array {
 
 struct cfs_rq;
 
+static LIST_HEAD(task_groups);
+
 /* task group related information */
 struct task_group {
 #ifdef CONFIG_FAIR_CGROUP_SCHED
@@ -170,6 +172,11 @@ struct task_group {
 	struct sched_entity **se;
 	/* runqueue "owned" by this group on each cpu */
 	struct cfs_rq **cfs_rq;
+
+	struct sched_rt_entity **rt_se;
+	struct rt_rq **rt_rq;
+
+	unsigned int rt_ratio;
 
 	/*
 	 * shares assigned to a task group governs how much of cpu bandwidth
@@ -208,6 +215,7 @@ struct task_group {
 	unsigned long shares;
 
 	struct rcu_head rcu;
+	struct list_head list;
 };
 
 /* Default task group's sched entity on each cpu */
@@ -215,8 +223,14 @@ static DEFINE_PER_CPU(struct sched_entity, init_sched_entity);
 /* Default task group's cfs_rq on each cpu */
 static DEFINE_PER_CPU(struct cfs_rq, init_cfs_rq) ____cacheline_aligned_in_smp;
 
+static DEFINE_PER_CPU(struct sched_rt_entity, init_sched_rt_entity);
+static DEFINE_PER_CPU(struct rt_rq, init_rt_rq) ____cacheline_aligned_in_smp;
+
 static struct sched_entity *init_sched_entity_p[NR_CPUS];
 static struct cfs_rq *init_cfs_rq_p[NR_CPUS];
+
+static struct sched_rt_entity *init_sched_rt_entity_p[NR_CPUS];
+static struct rt_rq *init_rt_rq_p[NR_CPUS];
 
 /* task_group_mutex serializes add/remove of task groups and also changes to
  * a task group's cpu shares.
@@ -240,6 +254,9 @@ static void set_se_shares(struct sched_entity *se, unsigned long shares);
 struct task_group init_task_group = {
 	.se	= init_sched_entity_p,
 	.cfs_rq = init_cfs_rq_p,
+
+	.rt_se	= init_sched_rt_entity_p,
+	.rt_rq	= init_rt_rq_p,
 };
 
 #ifdef CONFIG_FAIR_USER_SCHED
@@ -269,10 +286,13 @@ static inline struct task_group *task_group(struct task_struct *p)
 }
 
 /* Change a task's cfs_rq and parent entity if it moves across CPUs/groups */
-static inline void set_task_cfs_rq(struct task_struct *p, unsigned int cpu)
+static inline void set_task_rq(struct task_struct *p, unsigned int cpu)
 {
 	p->se.cfs_rq = task_group(p)->cfs_rq[cpu];
 	p->se.parent = task_group(p)->se[cpu];
+
+	p->rt.rt_rq  = task_group(p)->rt_rq[cpu];
+	p->rt.parent = task_group(p)->rt_se[cpu];
 }
 
 static inline void lock_task_group_list(void)
@@ -297,7 +317,7 @@ static inline void unlock_doms_cur(void)
 
 #else
 
-static inline void set_task_cfs_rq(struct task_struct *p, unsigned int cpu) { }
+static inline void set_task_rq(struct task_struct *p, unsigned int cpu) { }
 static inline void lock_task_group_list(void) { }
 static inline void unlock_task_group_list(void) { }
 static inline void lock_doms_cur(void) { }
@@ -343,13 +363,22 @@ struct cfs_rq {
 struct rt_rq {
 	struct rt_prio_array active;
 	unsigned long rt_nr_running;
+#if defined CONFIG_SMP || defined CONFIG_FAIR_GROUP_SCHED
+	int highest_prio; /* highest queued rt task prio */
+#endif
 #ifdef CONFIG_SMP
 	unsigned long rt_nr_migratory;
-	int highest_prio; /* highest queued rt task prio */
 	int overloaded;
 #endif
+	int rt_throttled;
 	u64 rt_time;
-	u64 rt_throttled;
+
+#ifdef CONFIG_FAIR_GROUP_SCHED
+	struct rq *rq;
+	struct list_head leaf_rt_rq_list;
+	struct task_group *tg;
+	struct sched_rt_entity *rt_se;
+#endif
 };
 
 #ifdef CONFIG_SMP
@@ -411,12 +440,14 @@ struct rq {
 	u64 nr_switches;
 
 	struct cfs_rq cfs;
+	struct rt_rq rt;
+	u64 rt_period_expire;
+
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	/* list of leaf cfs_rq on this cpu: */
 	struct list_head leaf_cfs_rq_list;
+	struct list_head leaf_rt_rq_list;
 #endif
-	struct rt_rq rt;
-	u64 rt_period_expire;
 
 	/*
 	 * This is part of a global counter where only the total sum
@@ -613,9 +644,9 @@ const_debug unsigned int sysctl_sched_rt_period = 1000;
 
 /*
  * ratio of time -rt tasks may consume.
- * default: 100%
+ * default: 95%
  */
-const_debug unsigned int sysctl_sched_rt_ratio = SCHED_RT_FRAC;
+const_debug unsigned int sysctl_sched_rt_ratio = 62259;
 
 /*
  * For kernel-internal use: high-speed (but slightly incorrect) per-cpu
@@ -1337,7 +1368,7 @@ unsigned long weighted_cpuload(const int cpu)
 
 static inline void __set_task_cpu(struct task_struct *p, unsigned int cpu)
 {
-	set_task_cfs_rq(p, cpu);
+	set_task_rq(p, cpu);
 #ifdef CONFIG_SMP
 	/*
 	 * After ->cpu is set up to a new value, task_rq_lock(p, ...) can be
@@ -5281,7 +5312,7 @@ int set_cpus_allowed(struct task_struct *p, cpumask_t new_mask)
 		p->sched_class->set_cpus_allowed(p, &new_mask);
 	else {
 		p->cpus_allowed = new_mask;
-		p->nr_cpus_allowed = cpus_weight(new_mask);
+		p->rt.nr_cpus_allowed = cpus_weight(new_mask);
 	}
 
 	/* Can the task run on the task's current CPU? If so, we're done */
@@ -7079,7 +7110,49 @@ static void init_rt_rq(struct rt_rq *rt_rq, struct rq *rq)
 
 	rt_rq->rt_time = 0;
 	rt_rq->rt_throttled = 0;
+
+#ifdef CONFIG_FAIR_GROUP_SCHED
+	rt_rq->rq = rq;
+#endif
 }
+
+#ifdef CONFIG_FAIR_GROUP_SCHED
+static void init_tg_cfs_entry(struct rq *rq, struct task_group *tg,
+		struct cfs_rq *cfs_rq, struct sched_entity *se,
+		int cpu, int add)
+{
+	tg->cfs_rq[cpu] = cfs_rq;
+	init_cfs_rq(cfs_rq, rq);
+	cfs_rq->tg = tg;
+	if (add)
+		list_add(&cfs_rq->leaf_cfs_rq_list, &rq->leaf_cfs_rq_list);
+
+	tg->se[cpu] = se;
+	se->cfs_rq = &rq->cfs;
+	se->my_q = cfs_rq;
+	se->load.weight = tg->shares;
+	se->load.inv_weight = div64_64(1ULL<<32, se->load.weight);
+	se->parent = NULL;
+}
+
+static void init_tg_rt_entry(struct rq *rq, struct task_group *tg,
+		struct rt_rq *rt_rq, struct sched_rt_entity *rt_se,
+		int cpu, int add)
+{
+	tg->rt_rq[cpu] = rt_rq;
+	init_rt_rq(rt_rq, rq);
+	rt_rq->tg = tg;
+	rt_rq->rt_se = rt_se;
+	if (add)
+		list_add(&rt_rq->leaf_rt_rq_list, &rq->leaf_rt_rq_list);
+
+	tg->rt_se[cpu] = rt_se;
+	rt_se->rt_rq = &rq->rt;
+	rt_se->my_q = rt_rq;
+	rt_se->parent = NULL;
+	INIT_LIST_HEAD(&rt_se->run_list);
+}
+#endif
 
 void __init sched_init(void)
 {
@@ -7088,6 +7161,10 @@ void __init sched_init(void)
 
 #ifdef CONFIG_SMP
 	init_defrootdomain();
+#endif
+
+#ifdef CONFIG_FAIR_GROUP_SCHED
+	list_add(&init_task_group.list, &task_groups);
 #endif
 
 	for_each_possible_cpu(i) {
@@ -7099,30 +7176,20 @@ void __init sched_init(void)
 		rq->nr_running = 0;
 		rq->clock = 1;
 		init_cfs_rq(&rq->cfs, rq);
-#ifdef CONFIG_FAIR_GROUP_SCHED
-		INIT_LIST_HEAD(&rq->leaf_cfs_rq_list);
-		{
-			struct cfs_rq *cfs_rq = &per_cpu(init_cfs_rq, i);
-			struct sched_entity *se =
-					 &per_cpu(init_sched_entity, i);
-
-			init_cfs_rq_p[i] = cfs_rq;
-			init_cfs_rq(cfs_rq, rq);
-			cfs_rq->tg = &init_task_group;
-			list_add(&cfs_rq->leaf_cfs_rq_list,
-							 &rq->leaf_cfs_rq_list);
-
-			init_sched_entity_p[i] = se;
-			se->cfs_rq = &rq->cfs;
-			se->my_q = cfs_rq;
-			se->load.weight = init_task_group_load;
-			se->load.inv_weight =
-				 div64_64(1ULL<<32, init_task_group_load);
-			se->parent = NULL;
-		}
-		init_task_group.shares = init_task_group_load;
-#endif
 		init_rt_rq(&rq->rt, rq);
+#ifdef CONFIG_FAIR_GROUP_SCHED
+		init_task_group.shares = init_task_group_load;
+		INIT_LIST_HEAD(&rq->leaf_cfs_rq_list);
+		init_tg_cfs_entry(rq, &init_task_group,
+				&per_cpu(init_cfs_rq, i),
+				&per_cpu(init_sched_entity, i), i, 1);
+
+		init_task_group.rt_ratio = sysctl_sched_rt_ratio; /* XXX */
+		INIT_LIST_HEAD(&rq->leaf_rt_rq_list);
+		init_tg_rt_entry(rq, &init_task_group,
+				&per_cpu(init_rt_rq, i),
+				&per_cpu(init_sched_rt_entity, i), i, 1);
+#endif
 		rq->rt_period_expire = 0;
 
 		for (j = 0; j < CPU_LOAD_IDX_MAX; j++)
@@ -7460,12 +7527,36 @@ static int load_balance_monitor(void *unused)
 }
 #endif	/* CONFIG_SMP */
 
+static void free_sched_group(struct task_group *tg)
+{
+	int i;
+
+	for_each_possible_cpu(i) {
+		if (tg->cfs_rq)
+			kfree(tg->cfs_rq[i]);
+		if (tg->se)
+			kfree(tg->se[i]);
+		if (tg->rt_rq)
+			kfree(tg->rt_rq[i]);
+		if (tg->rt_se)
+			kfree(tg->rt_se[i]);
+	}
+
+	kfree(tg->cfs_rq);
+	kfree(tg->se);
+	kfree(tg->rt_rq);
+	kfree(tg->rt_se);
+	kfree(tg);
+}
+
 /* allocate runqueue etc for a new task group */
 struct task_group *sched_create_group(void)
 {
 	struct task_group *tg;
 	struct cfs_rq *cfs_rq;
 	struct sched_entity *se;
+	struct rt_rq *rt_rq;
+	struct sched_rt_entity *rt_se;
 	struct rq *rq;
 	int i;
 
@@ -7479,100 +7570,89 @@ struct task_group *sched_create_group(void)
 	tg->se = kzalloc(sizeof(se) * NR_CPUS, GFP_KERNEL);
 	if (!tg->se)
 		goto err;
+	tg->rt_rq = kzalloc(sizeof(rt_rq) * NR_CPUS, GFP_KERNEL);
+	if (!tg->rt_rq)
+		goto err;
+	tg->rt_se = kzalloc(sizeof(rt_se) * NR_CPUS, GFP_KERNEL);
+	if (!tg->rt_se)
+		goto err;
+
+	tg->shares = NICE_0_LOAD;
+	tg->rt_ratio = 0; /* XXX */
 
 	for_each_possible_cpu(i) {
 		rq = cpu_rq(i);
 
-		cfs_rq = kmalloc_node(sizeof(struct cfs_rq), GFP_KERNEL,
-							 cpu_to_node(i));
+		cfs_rq = kmalloc_node(sizeof(struct cfs_rq),
+				GFP_KERNEL|__GFP_ZERO, cpu_to_node(i));
 		if (!cfs_rq)
 			goto err;
 
-		se = kmalloc_node(sizeof(struct sched_entity), GFP_KERNEL,
-							cpu_to_node(i));
+		se = kmalloc_node(sizeof(struct sched_entity),
+				GFP_KERNEL|__GFP_ZERO, cpu_to_node(i));
 		if (!se)
 			goto err;
 
-		memset(cfs_rq, 0, sizeof(struct cfs_rq));
-		memset(se, 0, sizeof(struct sched_entity));
+		rt_rq = kmalloc_node(sizeof(struct rt_rq),
+				GFP_KERNEL|__GFP_ZERO, cpu_to_node(i));
+		if (!rt_rq)
+			goto err;
 
-		tg->cfs_rq[i] = cfs_rq;
-		init_cfs_rq(cfs_rq, rq);
-		cfs_rq->tg = tg;
+		rt_se = kmalloc_node(sizeof(struct sched_rt_entity),
+				GFP_KERNEL|__GFP_ZERO, cpu_to_node(i));
+		if (!rt_se)
+			goto err;
 
-		tg->se[i] = se;
-		se->cfs_rq = &rq->cfs;
-		se->my_q = cfs_rq;
-		se->load.weight = NICE_0_LOAD;
-		se->load.inv_weight = div64_64(1ULL<<32, NICE_0_LOAD);
-		se->parent = NULL;
+		init_tg_cfs_entry(rq, tg, cfs_rq, se, i, 0);
+		init_tg_rt_entry(rq, tg, rt_rq, rt_se, i, 0);
 	}
-
-	tg->shares = NICE_0_LOAD;
 
 	lock_task_group_list();
 	for_each_possible_cpu(i) {
 		rq = cpu_rq(i);
 		cfs_rq = tg->cfs_rq[i];
 		list_add_rcu(&cfs_rq->leaf_cfs_rq_list, &rq->leaf_cfs_rq_list);
+		rt_rq = tg->rt_rq[i];
+		list_add_rcu(&rt_rq->leaf_rt_rq_list, &rq->leaf_rt_rq_list);
 	}
+	list_add_rcu(&tg->list, &task_groups);
 	unlock_task_group_list();
 
 	return tg;
 
 err:
-	for_each_possible_cpu(i) {
-		if (tg->cfs_rq)
-			kfree(tg->cfs_rq[i]);
-		if (tg->se)
-			kfree(tg->se[i]);
-	}
-	kfree(tg->cfs_rq);
-	kfree(tg->se);
-	kfree(tg);
-
+	free_sched_group(tg);
 	return ERR_PTR(-ENOMEM);
 }
 
 /* rcu callback to free various structures associated with a task group */
-static void free_sched_group(struct rcu_head *rhp)
+static void free_sched_group_rcu(struct rcu_head *rhp)
 {
-	struct task_group *tg = container_of(rhp, struct task_group, rcu);
-	struct cfs_rq *cfs_rq;
-	struct sched_entity *se;
-	int i;
-
 	/* now it should be safe to free those cfs_rqs */
-	for_each_possible_cpu(i) {
-		cfs_rq = tg->cfs_rq[i];
-		kfree(cfs_rq);
-
-		se = tg->se[i];
-		kfree(se);
-	}
-
-	kfree(tg->cfs_rq);
-	kfree(tg->se);
-	kfree(tg);
+	free_sched_group(container_of(rhp, struct task_group, rcu));
 }
 
 /* Destroy runqueue etc associated with a task group */
 void sched_destroy_group(struct task_group *tg)
 {
 	struct cfs_rq *cfs_rq = NULL;
+	struct rt_rq *rt_rq = NULL;
 	int i;
 
 	lock_task_group_list();
 	for_each_possible_cpu(i) {
 		cfs_rq = tg->cfs_rq[i];
 		list_del_rcu(&cfs_rq->leaf_cfs_rq_list);
+		rt_rq = tg->rt_rq[i];
+		list_del_rcu(&rt_rq->leaf_rt_rq_list);
 	}
+	list_del_rcu(&tg->list);
 	unlock_task_group_list();
 
 	BUG_ON(!cfs_rq);
 
 	/* wait for possible concurrent references to cfs_rqs complete */
-	call_rcu(&tg->rcu, free_sched_group);
+	call_rcu(&tg->rcu, free_sched_group_rcu);
 }
 
 /* change task's runqueue when it moves between groups.
@@ -7588,11 +7668,6 @@ void sched_move_task(struct task_struct *tsk)
 
 	rq = task_rq_lock(tsk, &flags);
 
-	if (tsk->sched_class != &fair_sched_class) {
-		set_task_cfs_rq(tsk, task_cpu(tsk));
-		goto done;
-	}
-
 	update_rq_clock(rq);
 
 	running = task_current(rq, tsk);
@@ -7604,7 +7679,7 @@ void sched_move_task(struct task_struct *tsk)
 			tsk->sched_class->put_prev_task(rq, tsk);
 	}
 
-	set_task_cfs_rq(tsk, task_cpu(tsk));
+	set_task_rq(tsk, task_cpu(tsk));
 
 	if (on_rq) {
 		if (unlikely(running))
@@ -7612,7 +7687,6 @@ void sched_move_task(struct task_struct *tsk)
 		enqueue_task(rq, tsk, 0);
 	}
 
-done:
 	task_rq_unlock(rq, &flags);
 }
 
@@ -7697,6 +7771,31 @@ unsigned long sched_group_shares(struct task_group *tg)
 	return tg->shares;
 }
 
+/*
+ * Ensure the total rt_ratio <= sysctl_sched_rt_ratio
+ */
+int sched_group_set_rt_ratio(struct task_group *tg, unsigned long rt_ratio)
+{
+	struct task_group *tgi;
+	unsigned long total = 0;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(tgi, &task_groups, list)
+		total += tgi->rt_ratio;
+	rcu_read_unlock();
+
+	if (total + rt_ratio - tg->rt_ratio > sysctl_sched_rt_ratio)
+		return -EINVAL;
+
+	tg->rt_ratio = rt_ratio;
+	return 0;
+}
+
+unsigned long sched_group_rt_ratio(struct task_group *tg)
+{
+	return tg->rt_ratio;
+}
+
 #endif	/* CONFIG_FAIR_GROUP_SCHED */
 
 #ifdef CONFIG_FAIR_CGROUP_SCHED
@@ -7772,11 +7871,29 @@ static u64 cpu_shares_read_uint(struct cgroup *cgrp, struct cftype *cft)
 	return (u64) tg->shares;
 }
 
+static int cpu_rt_ratio_write_uint(struct cgroup *cgrp, struct cftype *cftype,
+		u64 rt_ratio_val)
+{
+	return sched_group_set_rt_ratio(cgroup_tg(cgrp), rt_ratio_val);
+}
+
+static u64 cpu_rt_ratio_read_uint(struct cgroup *cgrp, struct cftype *cft)
+{
+	struct task_group *tg = cgroup_tg(cgrp);
+
+	return (u64) tg->rt_ratio;
+}
+
 static struct cftype cpu_files[] = {
 	{
 		.name = "shares",
 		.read_uint = cpu_shares_read_uint,
 		.write_uint = cpu_shares_write_uint,
+	},
+	{
+		.name = "rt_ratio",
+		.read_uint = cpu_rt_ratio_read_uint,
+		.write_uint = cpu_rt_ratio_write_uint,
 	},
 };
 

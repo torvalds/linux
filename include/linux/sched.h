@@ -934,6 +934,15 @@ struct sched_rt_entity {
 	struct list_head run_list;
 	unsigned int time_slice;
 	unsigned long timeout;
+	int nr_cpus_allowed;
+
+#ifdef CONFIG_FAIR_GROUP_SCHED
+	struct sched_rt_entity	*parent;
+	/* rq on which this entity is (to be) queued: */
+	struct rt_rq		*rt_rq;
+	/* rq "owned" by this entity/group: */
+	struct rt_rq		*my_q;
+#endif
 };
 
 struct task_struct {
@@ -978,7 +987,6 @@ struct task_struct {
 
 	unsigned int policy;
 	cpumask_t cpus_allowed;
-	int nr_cpus_allowed;
 
 #ifdef CONFIG_PREEMPT_RCU
 	int rcu_read_lock_nesting;
