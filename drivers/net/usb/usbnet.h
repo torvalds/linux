@@ -116,6 +116,11 @@ struct driver_info {
 	struct sk_buff	*(*tx_fixup)(struct usbnet *dev,
 				struct sk_buff *skb, gfp_t flags);
 
+	/* early initialization code, can sleep. This is for minidrivers
+	 * having 'subminidrivers' that need to do extra initialization
+	 * right after minidriver have initialized hardware. */
+	int	(*early_init)(struct usbnet *dev);
+
 	/* for new devices, use the descriptor-reading code instead */
 	int		in;		/* rx endpoint */
 	int		out;		/* tx endpoint */
