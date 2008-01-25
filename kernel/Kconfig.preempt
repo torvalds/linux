@@ -53,15 +53,8 @@ config PREEMPT
 endchoice
 
 config PREEMPT_BKL
-	bool "Preempt The Big Kernel Lock"
+	def_bool y
 	depends on SMP || PREEMPT
-	default y
-	help
-	  This option reduces the latency of the kernel by making the
-	  big kernel lock preemptible.
-
-	  Say Y here if you are building a kernel for a desktop system.
-	  Say N if you are unsure.
 
 config RCU_TRACE
 	bool "Enable tracing for RCU - currently stats in debugfs"
