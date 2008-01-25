@@ -236,7 +236,8 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq, 
 			command = lba48 ? WIN_READ_EXT : WIN_READ;
 		}
 
-		ide_execute_command(drive, command, &task_in_intr, WAIT_CMD, NULL);
+		ide_execute_command(drive, command, &task_in_intr,
+				    WAIT_WORSTCASE, NULL);
 		return ide_started;
 	} else {
 		if (drive->mult_count) {
