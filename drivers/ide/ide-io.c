@@ -624,21 +624,18 @@ ide_startstop_t ide_abort(ide_drive_t *drive, const char *msg)
  *	ide_cmd		-	issue a simple drive command
  *	@drive: drive the command is for
  *	@cmd: command byte
- *	@nsect: sector byte
  *	@handler: handler for the command completion
  *
  *	Issue a simple drive command with interrupts.
  *	The drive must be selected beforehand.
  */
 
-static void ide_cmd (ide_drive_t *drive, u8 cmd, u8 nsect,
-		ide_handler_t *handler)
+static void ide_cmd(ide_drive_t *drive, u8 cmd, ide_handler_t *handler)
 {
 	ide_hwif_t *hwif = HWIF(drive);
 	if (IDE_CONTROL_REG)
 		hwif->OUTB(drive->ctl,IDE_CONTROL_REG);	/* clear nIEN */
 	SELECT_MASK(drive,0);
-	hwif->OUTB(nsect,IDE_NSECTOR_REG);
 	ide_execute_command(drive, cmd, handler, WAIT_CMD, NULL);
 }
 
@@ -913,11 +910,12 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
  		printk("sel=0x%02x\n", args[6]);
 #endif
  		hwif->OUTB(args[1], IDE_FEATURE_REG);
+		hwif->OUTB(args[2], IDE_NSECTOR_REG);
  		hwif->OUTB(args[3], IDE_SECTOR_REG);
  		hwif->OUTB(args[4], IDE_LCYL_REG);
  		hwif->OUTB(args[5], IDE_HCYL_REG);
  		hwif->OUTB((args[6] & 0xEF)|drive->select.all, IDE_SELECT_REG);
- 		ide_cmd(drive, args[0], args[2], &drive_cmd_intr);
+		ide_cmd(drive, args[0], &drive_cmd_intr);
  		return ide_started;
  	} else if (rq->cmd_type == REQ_TYPE_ATA_CMD) {
  		u8 *args = rq->buffer;
@@ -931,16 +929,15 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
  		printk("fr=0x%02x ", args[2]);
  		printk("xx=0x%02x\n", args[3]);
 #endif
+		hwif->OUTB(args[2], IDE_FEATURE_REG);
  		if (args[0] == WIN_SMART) {
- 			hwif->OUTB(args[2],IDE_FEATURE_REG);
+			hwif->OUTB(args[3],IDE_NSECTOR_REG);
  			hwif->OUTB(args[1],IDE_SECTOR_REG);
 			hwif->OUTB(0x4f, IDE_LCYL_REG);
 			hwif->OUTB(0xc2, IDE_HCYL_REG);
- 			ide_cmd(drive, args[0], args[3], &drive_cmd_intr);
- 			return ide_started;
- 		}
- 		hwif->OUTB(args[2],IDE_FEATURE_REG);
- 		ide_cmd(drive, args[0], args[1], &drive_cmd_intr);
+		} else
+			hwif->OUTB(args[1], IDE_NSECTOR_REG);
+		ide_cmd(drive, args[0], &drive_cmd_intr);
  		return ide_started;
  	}
 
