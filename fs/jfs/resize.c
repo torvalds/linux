@@ -172,7 +172,7 @@ int jfs_extendfs(struct super_block *sb, s64 newLVSize, int newLogSize)
 	 */
 	t64 = ((newLVSize - newLogSize + BPERDMAP - 1) >> L2BPERDMAP)
 	    << L2BPERDMAP;
-	t32 = ((t64 + (BITSPERPAGE - 1)) / BITSPERPAGE) + 1 + 50;
+	t32 = DIV_ROUND_UP(t64, BITSPERPAGE) + 1 + 50;
 	newFSCKSize = t32 << sbi->l2nbperpage;
 	newFSCKAddress = newLogAddress - newFSCKSize;
 

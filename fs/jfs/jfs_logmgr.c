@@ -208,6 +208,17 @@ static struct lmStat {
 } lmStat;
 #endif
 
+static void write_special_inodes(struct jfs_log *log,
+				 int (*writer)(struct address_space *))
+{
+	struct jfs_sb_info *sbi;
+
+	list_for_each_entry(sbi, &log->sb_list, log_list) {
+		writer(sbi->ipbmap->i_mapping);
+		writer(sbi->ipimap->i_mapping);
+		writer(sbi->direct_inode->i_mapping);
+	}
+}
 
 /*
  * NAME:	lmLog()
@@ -935,22 +946,13 @@ static int lmLogSync(struct jfs_log * log, int hard_sync)
 	struct lrd lrd;
 	int lsn;
 	struct logsyncblk *lp;
-	struct jfs_sb_info *sbi;
 	unsigned long flags;
 
 	/* push dirty metapages out to disk */
 	if (hard_sync)
-		list_for_each_entry(sbi, &log->sb_list, log_list) {
-			filemap_fdatawrite(sbi->ipbmap->i_mapping);
-			filemap_fdatawrite(sbi->ipimap->i_mapping);
-			filemap_fdatawrite(sbi->direct_inode->i_mapping);
-		}
+		write_special_inodes(log, filemap_fdatawrite);
 	else
-		list_for_each_entry(sbi, &log->sb_list, log_list) {
-			filemap_flush(sbi->ipbmap->i_mapping);
-			filemap_flush(sbi->ipimap->i_mapping);
-			filemap_flush(sbi->direct_inode->i_mapping);
-		}
+		write_special_inodes(log, filemap_flush);
 
 	/*
 	 *	forward syncpt
@@ -1536,7 +1538,6 @@ void jfs_flush_journal(struct jfs_log *log, int wait)
 {
 	int i;
 	struct tblock *target = NULL;
-	struct jfs_sb_info *sbi;
 
 	/* jfs_write_inode may call us during read-only mount */
 	if (!log)
@@ -1598,11 +1599,7 @@ void jfs_flush_journal(struct jfs_log *log, int wait)
 	if (wait < 2)
 		return;
 
-	list_for_each_entry(sbi, &log->sb_list, log_list) {
-		filemap_fdatawrite(sbi->ipbmap->i_mapping);
-		filemap_fdatawrite(sbi->ipimap->i_mapping);
-		filemap_fdatawrite(sbi->direct_inode->i_mapping);
-	}
+	write_special_inodes(log, filemap_fdatawrite);
 
 	/*
 	 * If there was recent activity, we may need to wait
@@ -1611,6 +1608,7 @@ void jfs_flush_journal(struct jfs_log *log, int wait)
 	if ((!list_empty(&log->cqueue)) || !list_empty(&log->synclist)) {
 		for (i = 0; i < 200; i++) {	/* Too much? */
 			msleep(250);
+			write_special_inodes(log, filemap_fdatawrite);
 			if (list_empty(&log->cqueue) &&
 			    list_empty(&log->synclist))
 				break;
@@ -2347,7 +2345,7 @@ int jfsIOWait(void *arg)
 
 	do {
 		spin_lock_irq(&log_redrive_lock);
-		while ((bp = log_redrive_list) != 0) {
+		while ((bp = log_redrive_list)) {
 			log_redrive_list = bp->l_redrive_next;
 			bp->l_redrive_next = NULL;
 			spin_unlock_irq(&log_redrive_lock);
