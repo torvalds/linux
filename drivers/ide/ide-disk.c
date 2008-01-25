@@ -212,7 +212,6 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq, 
 		unsigned int sect,head,cyl,track;
 		track = (int)block / drive->sect;
 		sect  = (int)block % drive->sect + 1;
-		hwif->OUTB(sect, IDE_SECTOR_REG);
 		head  = track % drive->head;
 		cyl   = track / drive->head;
 
@@ -220,6 +219,7 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq, 
 
 		hwif->OUTB(0x00, IDE_FEATURE_REG);
 		hwif->OUTB(nsectors.b.low, IDE_NSECTOR_REG);
+		hwif->OUTB(sect, IDE_SECTOR_REG);
 		hwif->OUTB(cyl, IDE_LCYL_REG);
 		hwif->OUTB(cyl>>8, IDE_HCYL_REG);
 		hwif->OUTB(head|drive->select.all,IDE_SELECT_REG);
