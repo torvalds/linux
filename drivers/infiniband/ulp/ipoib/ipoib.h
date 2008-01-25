@@ -69,6 +69,7 @@ enum {
 	IPOIB_TX_RING_SIZE	  = 64,
 	IPOIB_MAX_QUEUE_SIZE	  = 8192,
 	IPOIB_MIN_QUEUE_SIZE	  = 2,
+	IPOIB_CM_MAX_CONN_QP	  = 4096,
 
 	IPOIB_NUM_WC		  = 4,
 
@@ -188,10 +189,12 @@ enum ipoib_cm_state {
 struct ipoib_cm_rx {
 	struct ib_cm_id	       *id;
 	struct ib_qp	       *qp;
+	struct ipoib_cm_rx_buf *rx_ring;
 	struct list_head	list;
 	struct net_device      *dev;
 	unsigned long		jiffies;
 	enum ipoib_cm_state	state;
+	int			recv_count;
 };
 
 struct ipoib_cm_tx {
@@ -234,6 +237,7 @@ struct ipoib_cm_dev_priv {
 	struct ib_wc		ibwc[IPOIB_NUM_WC];
 	struct ib_sge		rx_sge[IPOIB_CM_RX_SG];
 	struct ib_recv_wr       rx_wr;
+	int			nonsrq_conn_qp;
 };
 
 /*
@@ -461,6 +465,8 @@ void ipoib_drain_cq(struct net_device *dev);
 /* We don't support UC connections at the moment */
 #define IPOIB_CM_SUPPORTED(ha)   (ha[0] & (IPOIB_FLAGS_RC))
 
+extern int ipoib_max_conn_qp;
+
 static inline int ipoib_cm_admin_enabled(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
@@ -491,6 +497,12 @@ static inline void ipoib_cm_set(struct ipoib_neigh *neigh, struct ipoib_cm_tx *t
 	neigh->cm = tx;
 }
 
+static inline int ipoib_cm_has_srq(struct net_device *dev)
+{
+	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	return !!priv->cm.srq;
+}
+
 void ipoib_cm_send(struct net_device *dev, struct sk_buff *skb, struct ipoib_cm_tx *tx);
 int ipoib_cm_dev_open(struct net_device *dev);
 void ipoib_cm_dev_stop(struct net_device *dev);
@@ -507,6 +519,8 @@ void ipoib_cm_handle_tx_wc(struct net_device *dev, struct ib_wc *wc);
 #else
 
 struct ipoib_cm_tx;
+
+#define ipoib_max_conn_qp 0
 
 static inline int ipoib_cm_admin_enabled(struct net_device *dev)
 {
@@ -531,6 +545,11 @@ static inline struct ipoib_cm_tx *ipoib_cm_get(struct ipoib_neigh *neigh)
 
 static inline void ipoib_cm_set(struct ipoib_neigh *neigh, struct ipoib_cm_tx *tx)
 {
+}
+
+static inline int ipoib_cm_has_srq(struct net_device *dev)
+{
+	return 0;
 }
 
 static inline
