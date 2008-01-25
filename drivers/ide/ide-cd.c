@@ -917,19 +917,19 @@ static ide_startstop_t cdrom_start_packet_command(ide_drive_t *drive,
 	if (ide_wait_stat(&startstop, drive, 0, BUSY_STAT, WAIT_READY))
 		return startstop;
 
+	/* FIXME: for Virtual DMA we must check harder */
 	if (info->dma)
 		info->dma = !hwif->dma_setup(drive);
 
 	/* Set up the controller registers. */
-	/* FIXME: for Virtual DMA we must check harder */
+	if (IDE_CONTROL_REG)
+		HWIF(drive)->OUTB(drive->ctl, IDE_CONTROL_REG);
 	HWIF(drive)->OUTB(info->dma, IDE_FEATURE_REG);
 	HWIF(drive)->OUTB(0, IDE_IREASON_REG);
 	HWIF(drive)->OUTB(0, IDE_SECTOR_REG);
 
 	HWIF(drive)->OUTB(xferlen & 0xff, IDE_BCOUNTL_REG);
 	HWIF(drive)->OUTB(xferlen >> 8  , IDE_BCOUNTH_REG);
-	if (IDE_CONTROL_REG)
-		HWIF(drive)->OUTB(drive->ctl, IDE_CONTROL_REG);
  
 	if (CDROM_CONFIG_FLAGS (drive)->drq_interrupt) {
 		/* waiting for CDB interrupt, not DMA yet. */
