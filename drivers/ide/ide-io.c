@@ -637,32 +637,26 @@ static ide_startstop_t drive_cmd_intr (ide_drive_t *drive)
 	return ide_stopped;
 }
 
-static void ide_init_specify_cmd(ide_drive_t *drive, ide_task_t *task)
+static void ide_tf_set_specify_cmd(ide_drive_t *drive, struct ide_taskfile *tf)
 {
-	task->tf.nsect   = drive->sect;
-	task->tf.lbal    = drive->sect;
-	task->tf.lbam    = drive->cyl;
-	task->tf.lbah    = drive->cyl >> 8;
-	task->tf.device  = ((drive->head - 1) | drive->select.all) & ~ATA_LBA;
-	task->tf.command = WIN_SPECIFY;
-
-	task->handler = &set_geometry_intr;
+	tf->nsect   = drive->sect;
+	tf->lbal    = drive->sect;
+	tf->lbam    = drive->cyl;
+	tf->lbah    = drive->cyl >> 8;
+	tf->device  = ((drive->head - 1) | drive->select.all) & ~ATA_LBA;
+	tf->command = WIN_SPECIFY;
 }
 
-static void ide_init_restore_cmd(ide_drive_t *drive, ide_task_t *task)
+static void ide_tf_set_restore_cmd(ide_drive_t *drive, struct ide_taskfile *tf)
 {
-	task->tf.nsect   = drive->sect;
-	task->tf.command = WIN_RESTORE;
-
-	task->handler = &recal_intr;
+	tf->nsect   = drive->sect;
+	tf->command = WIN_RESTORE;
 }
 
-static void ide_init_setmult_cmd(ide_drive_t *drive, ide_task_t *task)
+static void ide_tf_set_setmult_cmd(ide_drive_t *drive, struct ide_taskfile *tf)
 {
-	task->tf.nsect   = drive->mult_req;
-	task->tf.command = WIN_SETMULT;
-
-	task->handler = &set_multmode_intr;
+	tf->nsect   = drive->mult_req;
+	tf->command = WIN_SETMULT;
 }
 
 static ide_startstop_t ide_disk_special(ide_drive_t *drive)
@@ -675,15 +669,15 @@ static ide_startstop_t ide_disk_special(ide_drive_t *drive)
 
 	if (s->b.set_geometry) {
 		s->b.set_geometry = 0;
-		ide_init_specify_cmd(drive, &args);
+		ide_tf_set_specify_cmd(drive, &args.tf);
 	} else if (s->b.recalibrate) {
 		s->b.recalibrate = 0;
-		ide_init_restore_cmd(drive, &args);
+		ide_tf_set_restore_cmd(drive, &args.tf);
 	} else if (s->b.set_multmode) {
 		s->b.set_multmode = 0;
 		if (drive->mult_req > drive->id->max_multsect)
 			drive->mult_req = drive->id->max_multsect;
-		ide_init_setmult_cmd(drive, &args);
+		ide_tf_set_setmult_cmd(drive, &args.tf);
 	} else if (s->all) {
 		int special = s->all;
 		s->all = 0;
@@ -691,7 +685,8 @@ static ide_startstop_t ide_disk_special(ide_drive_t *drive)
 		return ide_stopped;
 	}
 
-	args.tf_flags = IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE;
+	args.tf_flags = IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE |
+			IDE_TFLAG_CUSTOM_HANDLER;
 
 	do_rw_taskfile(drive, &args);
 

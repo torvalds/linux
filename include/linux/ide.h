@@ -911,6 +911,7 @@ enum {
 	IDE_TFLAG_WRITE			= (1 << 15),
 	IDE_TFLAG_FLAGGED_SET_IN_FLAGS	= (1 << 16),
 	IDE_TFLAG_IN_DATA		= (1 << 17),
+	IDE_TFLAG_CUSTOM_HANDLER	= (1 << 18),
 };
 
 struct ide_taskfile {
@@ -949,7 +950,6 @@ typedef struct ide_task_s {
 	};
 	u32			tf_flags;
 	int			data_phase;
-	ide_handler_t		*handler;
 	struct request		*rq;		/* copy of request */
 	void			*special;	/* valid_t generally */
 } ide_task_t;
@@ -970,9 +970,6 @@ void ide_pktcmd_tf_load(ide_drive_t *, u32, u16, u8);
  */
 extern ide_startstop_t do_rw_taskfile(ide_drive_t *, ide_task_t *);
 
-extern ide_startstop_t set_multmode_intr(ide_drive_t *);
-extern ide_startstop_t set_geometry_intr(ide_drive_t *);
-extern ide_startstop_t recal_intr(ide_drive_t *);
 extern ide_startstop_t task_in_intr(ide_drive_t *);
 extern ide_startstop_t pre_task_out_intr(ide_drive_t *, struct request *);
 

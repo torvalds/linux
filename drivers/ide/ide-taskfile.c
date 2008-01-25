@@ -151,12 +151,15 @@ static int inline task_dma_ok(ide_task_t *task)
 }
 
 static ide_startstop_t task_no_data_intr(ide_drive_t *);
-static ide_startstop_t task_out_intr(ide_drive_t *);
+static ide_startstop_t set_geometry_intr(ide_drive_t *);
+static ide_startstop_t recal_intr(ide_drive_t *);
+static ide_startstop_t set_multmode_intr(ide_drive_t *);
 
 ide_startstop_t do_rw_taskfile (ide_drive_t *drive, ide_task_t *task)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct ide_taskfile *tf = &task->tf;
+	ide_handler_t *handler = NULL;
 
 	if (task->data_phase == TASKFILE_MULTI_IN ||
 	    task->data_phase == TASKFILE_MULTI_OUT) {
@@ -175,19 +178,26 @@ ide_startstop_t do_rw_taskfile (ide_drive_t *drive, ide_task_t *task)
 	switch (task->data_phase) {
 	case TASKFILE_MULTI_OUT:
 	case TASKFILE_OUT:
-		task->handler = task_out_intr;
 		hwif->OUTBSYNC(drive, tf->command, IDE_COMMAND_REG);
 		ndelay(400);	/* FIXME */
 		return pre_task_out_intr(drive, task->rq);
 	case TASKFILE_MULTI_IN:
 	case TASKFILE_IN:
-		task->handler = task_in_intr;
+		handler = task_in_intr;
 		/* fall-through */
 	case TASKFILE_NO_DATA:
+		if (handler == NULL)
+			handler = task_no_data_intr;
 		/* WIN_{SPECIFY,RESTORE,SETMULT} use custom handlers */
-		if (task->handler == NULL)
-			task->handler = task_no_data_intr;
-		ide_execute_command(drive, tf->command, task->handler, WAIT_WORSTCASE, NULL);
+		if (task->tf_flags & IDE_TFLAG_CUSTOM_HANDLER) {
+			switch (tf->command) {
+			case WIN_SPECIFY: handler = set_geometry_intr;	break;
+			case WIN_RESTORE: handler = recal_intr;		break;
+			case WIN_SETMULT: handler = set_multmode_intr;	break;
+			}
+		}
+		ide_execute_command(drive, tf->command, handler,
+				    WAIT_WORSTCASE, NULL);
 		return ide_started;
 	default:
 		if (task_dma_ok(task) == 0 || drive->using_dma == 0 ||
@@ -202,7 +212,7 @@ ide_startstop_t do_rw_taskfile (ide_drive_t *drive, ide_task_t *task)
 /*
  * set_multmode_intr() is invoked on completion of a WIN_SETMULT cmd.
  */
-ide_startstop_t set_multmode_intr (ide_drive_t *drive)
+static ide_startstop_t set_multmode_intr(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = HWIF(drive);
 	u8 stat;
@@ -220,7 +230,7 @@ ide_startstop_t set_multmode_intr (ide_drive_t *drive)
 /*
  * set_geometry_intr() is invoked on completion of a WIN_SPECIFY cmd.
  */
-ide_startstop_t set_geometry_intr (ide_drive_t *drive)
+static ide_startstop_t set_geometry_intr(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = HWIF(drive);
 	int retries = 5;
@@ -243,7 +253,7 @@ ide_startstop_t set_geometry_intr (ide_drive_t *drive)
 /*
  * recal_intr() is invoked on completion of a WIN_RESTORE (recalibrate) cmd.
  */
-ide_startstop_t recal_intr (ide_drive_t *drive)
+static ide_startstop_t recal_intr(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = HWIF(drive);
 	u8 stat;
