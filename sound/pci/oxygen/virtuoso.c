@@ -310,6 +310,7 @@ static const struct oxygen_model model_xonar = {
 	.set_adc_params = set_cs5381_params,
 	.update_dac_volume = update_pcm1796_volume,
 	.update_dac_mute = update_pcm1796_mute,
+	.dac_channels = 8,
 	.used_channels = OXYGEN_CHANNEL_B |
 			 OXYGEN_CHANNEL_C |
 			 OXYGEN_CHANNEL_SPDIF |

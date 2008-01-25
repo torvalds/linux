@@ -85,6 +85,7 @@ struct oxygen_model {
 	void (*update_dac_volume)(struct oxygen *chip);
 	void (*update_dac_mute)(struct oxygen *chip);
 	size_t model_data_size;
+	u8 dac_channels;
 	u8 used_channels;
 	u8 function_flags;
 	u16 dac_i2s_format;

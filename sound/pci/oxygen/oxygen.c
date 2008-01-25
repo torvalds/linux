@@ -350,6 +350,7 @@ static const struct oxygen_model model_generic = {
 	.update_dac_volume = update_ak4396_volume,
 	.update_dac_mute = update_ak4396_mute,
 	.model_data_size = sizeof(struct generic_data),
+	.dac_channels = 8,
 	.used_channels = OXYGEN_CHANNEL_A |
 			 OXYGEN_CHANNEL_C |
 			 OXYGEN_CHANNEL_SPDIF |
@@ -372,6 +373,7 @@ static const struct oxygen_model model_meridian = {
 	.update_dac_volume = update_ak4396_volume,
 	.update_dac_mute = update_ak4396_mute,
 	.model_data_size = sizeof(struct generic_data),
+	.dac_channels = 8,
 	.used_channels = OXYGEN_CHANNEL_B |
 			 OXYGEN_CHANNEL_C |
 			 OXYGEN_CHANNEL_SPDIF |

@@ -119,10 +119,15 @@ static int oxygen_open(struct snd_pcm_substream *substream,
 
 	runtime->private_data = (void *)(uintptr_t)channel;
 	runtime->hw = *oxygen_hardware[channel];
-	if (channel == PCM_C) {
+	switch (channel) {
+	case PCM_C:
 		runtime->hw.rates &= ~(SNDRV_PCM_RATE_32000 |
 				       SNDRV_PCM_RATE_64000);
 		runtime->hw.rate_min = 44100;
+		break;
+	case PCM_MULTICH:
+		runtime->hw.channels_max = chip->model->dac_channels;
+		break;
 	}
 	if (chip->model->pcm_hardware_filter)
 		chip->model->pcm_hardware_filter(channel, &runtime->hw);

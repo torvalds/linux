@@ -28,8 +28,10 @@
 static int dac_volume_info(struct snd_kcontrol *ctl,
 			   struct snd_ctl_elem_info *info)
 {
+	struct oxygen *chip = ctl->private_data;
+
 	info->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-	info->count = 8;
+	info->count = chip->model->dac_channels;
 	info->value.integer.min = 0;
 	info->value.integer.max = 0xff;
 	return 0;
@@ -42,7 +44,7 @@ static int dac_volume_get(struct snd_kcontrol *ctl,
 	unsigned int i;
 
 	mutex_lock(&chip->mutex);
-	for (i = 0; i < 8; ++i)
+	for (i = 0; i < chip->model->dac_channels; ++i)
 		value->value.integer.value[i] = chip->dac_volume[i];
 	mutex_unlock(&chip->mutex);
 	return 0;
@@ -57,7 +59,7 @@ static int dac_volume_put(struct snd_kcontrol *ctl,
 
 	changed = 0;
 	mutex_lock(&chip->mutex);
-	for (i = 0; i < 8; ++i)
+	for (i = 0; i < chip->model->dac_channels; ++i)
 		if (value->value.integer.value[i] != chip->dac_volume[i]) {
 			chip->dac_volume[i] = value->value.integer.value[i];
 			changed = 1;
@@ -100,11 +102,14 @@ static int upmix_info(struct snd_kcontrol *ctl, struct snd_ctl_elem_info *info)
 	static const char *const names[3] = {
 		"Front", "Front+Surround", "Front+Surround+Back"
 	};
+	struct oxygen *chip = ctl->private_data;
+	unsigned int count = 2 + (chip->model->dac_channels == 8);
+
 	info->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	info->count = 1;
-	info->value.enumerated.items = 3;
-	if (info->value.enumerated.item > 2)
-		info->value.enumerated.item = 2;
+	info->value.enumerated.items = count;
+	if (info->value.enumerated.item >= count)
+		info->value.enumerated.item = count - 1;
 	strcpy(info->value.enumerated.name, names[info->value.enumerated.item]);
 	return 0;
 }
@@ -167,12 +172,14 @@ void oxygen_update_dac_routing(struct oxygen *chip)
 static int upmix_put(struct snd_kcontrol *ctl, struct snd_ctl_elem_value *value)
 {
 	struct oxygen *chip = ctl->private_data;
+	unsigned int count = 2 + (chip->model->dac_channels == 8);
 	int changed;
 
 	mutex_lock(&chip->mutex);
 	changed = value->value.enumerated.item[0] != chip->dac_routing;
 	if (changed) {
-		chip->dac_routing = min(value->value.enumerated.item[0], 2u);
+		chip->dac_routing = min(value->value.enumerated.item[0],
+					count - 1);
 		spin_lock_irq(&chip->reg_lock);
 		oxygen_update_dac_routing(chip);
 		spin_unlock_irq(&chip->reg_lock);
