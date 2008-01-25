@@ -94,7 +94,7 @@ static int bristol_frontend_attach(struct dvb_usb_adapter *adap)
 		(10 + adap->id) << 1, &bristol_dib3000mc_config[adap->id])) == NULL ? -ENODEV : 0;
 }
 
-int eeprom_read(struct i2c_adapter *adap,u8 adrs,u8 *pval)
+static int eeprom_read(struct i2c_adapter *adap,u8 adrs,u8 *pval)
 {
 	struct i2c_msg msg[2] = {
 		{ .addr = 0x50, .flags = 0,        .buf = &adrs, .len = 1 },
