@@ -185,6 +185,9 @@ static struct cfs_rq *init_cfs_rq_p[NR_CPUS];
  */
 static DEFINE_MUTEX(task_group_mutex);
 
+/* doms_cur_mutex serializes access to doms_cur[] array */
+static DEFINE_MUTEX(doms_cur_mutex);
+
 /* Default task group.
  *	Every task in system belong to this group at bootup.
  */
@@ -234,11 +237,23 @@ static inline void unlock_task_group_list(void)
 	mutex_unlock(&task_group_mutex);
 }
 
+static inline void lock_doms_cur(void)
+{
+	mutex_lock(&doms_cur_mutex);
+}
+
+static inline void unlock_doms_cur(void)
+{
+	mutex_unlock(&doms_cur_mutex);
+}
+
 #else
 
 static inline void set_task_cfs_rq(struct task_struct *p, unsigned int cpu) { }
 static inline void lock_task_group_list(void) { }
 static inline void unlock_task_group_list(void) { }
+static inline void lock_doms_cur(void) { }
+static inline void unlock_doms_cur(void) { }
 
 #endif	/* CONFIG_FAIR_GROUP_SCHED */
 
@@ -6543,6 +6558,8 @@ void partition_sched_domains(int ndoms_new, cpumask_t *doms_new)
 {
 	int i, j;
 
+	lock_doms_cur();
+
 	/* always unregister in case we don't destroy any domains */
 	unregister_sched_domain_sysctl();
 
@@ -6583,6 +6600,8 @@ match2:
 	ndoms_cur = ndoms_new;
 
 	register_sched_domain_sysctl();
+
+	unlock_doms_cur();
 }
 
 #if defined(CONFIG_SCHED_MC) || defined(CONFIG_SCHED_SMT)
