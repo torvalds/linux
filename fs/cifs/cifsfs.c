@@ -471,6 +471,10 @@ static void cifs_umount_begin(struct vfsmount *vfsmnt, int flags)
 	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *tcon;
 
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	dfs_shrink_umount_helper(vfsmnt);
+#endif /* CONFIG CIFS_DFS_UPCALL */
+
 	if (!(flags & MNT_FORCE))
 		return;
 	cifs_sb = CIFS_SB(vfsmnt->mnt_sb);
