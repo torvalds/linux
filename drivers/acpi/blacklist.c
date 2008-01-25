@@ -214,13 +214,11 @@ static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 	 * _OSI(Linux) effect unknown:
 	 * DMI_MATCH(DMI_PRODUCT_NAME, "Ferrari 5000"),
 	 */
-	{
-	.callback = dmi_disable_osi_linux,
-	.ident = "Acer, inc.",
-	.matches = {
-		     DMI_MATCH(DMI_SYS_VENDOR, "Acer, inc."),
-		},
-	},
+	/*
+	 * note that dmi_check_system() uses strstr()
+	 * to match sub-strings rather than !strcmp(),
+	 * so "Acer" below matches "Acer, inc." above.
+	 */
 	/*
 	 * Disable OSI(Linux) warnings on all "Acer"
 	 *
