@@ -17,11 +17,6 @@ static inline int rt_overloaded(void)
 	return atomic_read(&rto_count);
 }
 
-static inline cpumask_t *rt_overload(void)
-{
-	return &rt_overload_mask;
-}
-
 static inline void rt_set_overload(struct rq *rq)
 {
 	rq->rt.overloaded = 1;
@@ -590,7 +585,6 @@ static int pull_rt_task(struct rq *this_rq)
 	struct task_struct *next;
 	struct task_struct *p;
 	struct rq *src_rq;
-	cpumask_t *rto_cpumask;
 	int this_cpu = this_rq->cpu;
 	int cpu;
 	int ret = 0;
@@ -608,9 +602,7 @@ static int pull_rt_task(struct rq *this_rq)
 
 	next = pick_next_task_rt(this_rq);
 
-	rto_cpumask = rt_overload();
-
-	for_each_cpu_mask(cpu, *rto_cpumask) {
+	for_each_cpu_mask(cpu, rt_overload_mask) {
 		if (this_cpu == cpu)
 			continue;
 
