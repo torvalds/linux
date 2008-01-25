@@ -1293,7 +1293,7 @@ void hrtimer_init_sleeper(struct hrtimer_sleeper *sl, struct task_struct *task)
 	sl->timer.function = hrtimer_wakeup;
 	sl->task = task;
 #ifdef CONFIG_HIGH_RES_TIMERS
-	sl->timer.cb_mode = HRTIMER_CB_IRQSAFE_NO_RESTART;
+	sl->timer.cb_mode = HRTIMER_CB_IRQSAFE_NO_SOFTIRQ;
 #endif
 }
 
@@ -1304,6 +1304,8 @@ static int __sched do_nanosleep(struct hrtimer_sleeper *t, enum hrtimer_mode mod
 	do {
 		set_current_state(TASK_INTERRUPTIBLE);
 		hrtimer_start(&t->timer, t->timer.expires, mode);
+		if (!hrtimer_active(&t->timer))
+			t->task = NULL;
 
 		if (likely(t->task))
 			schedule();
