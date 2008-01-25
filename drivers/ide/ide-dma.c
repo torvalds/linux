@@ -827,22 +827,19 @@ int ide_set_dma(ide_drive_t *drive)
 	ide_hwif_t *hwif = drive->hwif;
 	int rc;
 
+	/*
+	 * Force DMAing for the beginning of the check.
+	 * Some chipsets appear to do interesting
+	 * things, if not checked and cleared.
+	 *   PARANOIA!!!
+	 */
+	hwif->dma_off_quietly(drive);
+
 	rc = ide_dma_check(drive);
+	if (rc)
+		return rc;
 
-	switch(rc) {
-	case -1: /* DMA needs to be disabled */
-		hwif->dma_off_quietly(drive);
-		return -1;
-	case  0: /* DMA needs to be enabled */
-		return hwif->ide_dma_on(drive);
-	case  1: /* DMA setting cannot be changed */
-		break;
-	default:
-		BUG();
-		break;
-	}
-
-	return rc;
+	return hwif->ide_dma_on(drive);
 }
 
 #ifdef CONFIG_BLK_DEV_IDEDMA_PCI

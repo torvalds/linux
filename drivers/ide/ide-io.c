@@ -221,7 +221,6 @@ static ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *
 		 */
 		if (drive->hwif->ide_dma_on == NULL)
 			break;
-		drive->hwif->dma_off_quietly(drive);
 		/*
 		 * TODO: respect ->using_dma setting
 		 */
