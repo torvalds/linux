@@ -94,8 +94,11 @@ static void sched_rt_ratio_enqueue(struct rt_rq *rt_rq)
 	struct sched_rt_entity *rt_se = rt_rq->rt_se;
 
 	if (rt_se && !on_rt_rq(rt_se) && rt_rq->rt_nr_running) {
+		struct task_struct *curr = rq_of_rt_rq(rt_rq)->curr;
+
 		enqueue_rt_entity(rt_se);
-		resched_task(rq_of_rt_rq(rt_rq)->curr);
+		if (rt_rq->highest_prio < curr->prio)
+			resched_task(curr);
 	}
 }
 
