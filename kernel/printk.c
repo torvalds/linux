@@ -573,11 +573,6 @@ static int __init printk_time_setup(char *str)
 
 __setup("time", printk_time_setup);
 
-__attribute__((weak)) unsigned long long printk_clock(void)
-{
-	return sched_clock();
-}
-
 /* Check if we have any console registered that can be called early in boot. */
 static int have_callable_console(void)
 {

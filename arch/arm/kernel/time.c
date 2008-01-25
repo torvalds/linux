@@ -79,17 +79,6 @@ static unsigned long dummy_gettimeoffset(void)
 }
 #endif
 
-/*
- * An implementation of printk_clock() independent from
- * sched_clock().  This avoids non-bootable kernels when
- * printk_clock is enabled.
- */
-unsigned long long printk_clock(void)
-{
-	return (unsigned long long)(jiffies - INITIAL_JIFFIES) *
-			(1000000000 / HZ);
-}
-
 static unsigned long next_rtc_update;
 
 /*
