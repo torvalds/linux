@@ -621,25 +621,6 @@ ide_startstop_t ide_abort(ide_drive_t *drive, const char *msg)
 }
 
 /**
- *	ide_cmd		-	issue a simple drive command
- *	@drive: drive the command is for
- *	@cmd: command byte
- *	@handler: handler for the command completion
- *
- *	Issue a simple drive command with interrupts.
- *	The drive must be selected beforehand.
- */
-
-static void ide_cmd(ide_drive_t *drive, u8 cmd, ide_handler_t *handler)
-{
-	ide_hwif_t *hwif = HWIF(drive);
-	if (IDE_CONTROL_REG)
-		hwif->OUTB(drive->ctl,IDE_CONTROL_REG);	/* clear nIEN */
-	SELECT_MASK(drive,0);
-	ide_execute_command(drive, cmd, handler, WAIT_CMD, NULL);
-}
-
-/**
  *	drive_cmd_intr		- 	drive command completion interrupt
  *	@drive: drive the completion interrupt occurred on
  *
@@ -901,6 +882,11 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
 	if (args == NULL)
 		goto done;
 
+	if (IDE_CONTROL_REG)
+		hwif->OUTB(drive->ctl, IDE_CONTROL_REG); /* clear nIEN */
+
+	SELECT_MASK(drive, 0);
+
 	if (rq->cmd_type == REQ_TYPE_ATA_TASK) {
 #ifdef DEBUG
  		printk("%s: DRIVE_TASK_CMD ", drive->name);
@@ -936,7 +922,7 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
 			hwif->OUTB(args[1], IDE_NSECTOR_REG);
  	}
 
-	ide_cmd(drive, args[0], &drive_cmd_intr);
+	ide_execute_command(drive, args[0], &drive_cmd_intr, WAIT_CMD, NULL);
 	return ide_started;
 
 done:
