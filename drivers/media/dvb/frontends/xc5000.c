@@ -558,6 +558,7 @@ static int xc5000_fwupload(struct dvb_frontend* fe)
 	if (ret) {
 		printk(KERN_ERR "xc5000: Upload failed. (file not found?)\n");
 		ret = XC_RESULT_RESET_FAILURE;
+		goto out;
 	} else {
 		printk(KERN_INFO "xc5000: firmware read %Zu bytes.\n",
 		       fw->size);
@@ -572,6 +573,7 @@ static int xc5000_fwupload(struct dvb_frontend* fe)
 		ret = xc_load_i2c_sequence(fe,  fw->data );
 	}
 
+out:
 	release_firmware(fw);
 	return ret;
 }
