@@ -170,23 +170,25 @@ ide_startstop_t do_rw_taskfile (ide_drive_t *drive, ide_task_t *task)
 
 	ide_tf_load(drive, task);
 
-	if (task->handler != NULL) {
-		if (task->prehandler != NULL) {
-			hwif->OUTBSYNC(drive, tf->command, IDE_COMMAND_REG);
-			ndelay(400);	/* FIXME */
-			return task->prehandler(drive, task->rq);
-		}
+	switch (task->data_phase) {
+	case TASKFILE_MULTI_OUT:
+	case TASKFILE_OUT:
+		hwif->OUTBSYNC(drive, tf->command, IDE_COMMAND_REG);
+		ndelay(400);	/* FIXME */
+		return pre_task_out_intr(drive, task->rq);
+	case TASKFILE_MULTI_IN:
+	case TASKFILE_IN:
+	case TASKFILE_NO_DATA:
 		ide_execute_command(drive, tf->command, task->handler, WAIT_WORSTCASE, NULL);
 		return ide_started;
-	}
-
-	if (task_dma_ok(task) && drive->using_dma && !hwif->dma_setup(drive)) {
+	default:
+		if (task_dma_ok(task) == 0 || drive->using_dma == 0 ||
+		    hwif->dma_setup(drive))
+			return ide_stopped;
 		hwif->dma_exec_cmd(drive, tf->command);
 		hwif->dma_start(drive);
 		return ide_started;
 	}
-
-	return ide_stopped;
 }
 
 /*
@@ -665,7 +667,6 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 			}
 			/* fall through */
 		case TASKFILE_OUT:
-			args.prehandler = &pre_task_out_intr;
 			args.handler = &task_out_intr;
 			/* fall through */
 		case TASKFILE_OUT_DMAQ:

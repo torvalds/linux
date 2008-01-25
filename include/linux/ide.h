@@ -626,7 +626,6 @@ typedef struct hwif_s {
 /*
  *  internal ide interrupt handler type
  */
-typedef ide_startstop_t (ide_pre_handler_t)(ide_drive_t *, struct request *);
 typedef ide_startstop_t (ide_handler_t)(ide_drive_t *);
 typedef int (ide_expiry_t)(ide_drive_t *);
 
@@ -950,7 +949,6 @@ typedef struct ide_task_s {
 	};
 	u32			tf_flags;
 	int			data_phase;
-	ide_pre_handler_t	*prehandler;
 	ide_handler_t		*handler;
 	struct request		*rq;		/* copy of request */
 	void			*special;	/* valid_t generally */
