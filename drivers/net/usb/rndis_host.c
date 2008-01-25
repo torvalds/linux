@@ -256,6 +256,27 @@ struct rndis_keepalive_c {	/* IN (optionally OUT) */
 #define OID_GEN_MAXIMUM_FRAME_SIZE	ccpu2(0x00010106)
 #define OID_GEN_CURRENT_PACKET_FILTER	ccpu2(0x0001010e)
 
+/* packet filter bits used by OID_GEN_CURRENT_PACKET_FILTER */
+#define RNDIS_PACKET_TYPE_DIRECTED		ccpu2(0x00000001)
+#define RNDIS_PACKET_TYPE_MULTICAST		ccpu2(0x00000002)
+#define RNDIS_PACKET_TYPE_ALL_MULTICAST		ccpu2(0x00000004)
+#define RNDIS_PACKET_TYPE_BROADCAST		ccpu2(0x00000008)
+#define RNDIS_PACKET_TYPE_SOURCE_ROUTING	ccpu2(0x00000010)
+#define RNDIS_PACKET_TYPE_PROMISCUOUS		ccpu2(0x00000020)
+#define RNDIS_PACKET_TYPE_SMT			ccpu2(0x00000040)
+#define RNDIS_PACKET_TYPE_ALL_LOCAL		ccpu2(0x00000080)
+#define RNDIS_PACKET_TYPE_GROUP			ccpu2(0x00001000)
+#define RNDIS_PACKET_TYPE_ALL_FUNCTIONAL	ccpu2(0x00002000)
+#define RNDIS_PACKET_TYPE_FUNCTIONAL		ccpu2(0x00004000)
+#define RNDIS_PACKET_TYPE_MAC_FRAME		ccpu2(0x00008000)
+
+/* default filter used with RNDIS devices */
+#define RNDIS_DEFAULT_FILTER ( \
+	RNDIS_PACKET_TYPE_DIRECTED | \
+	RNDIS_PACKET_TYPE_BROADCAST | \
+	RNDIS_PACKET_TYPE_ALL_MULTICAST | \
+	RNDIS_PACKET_TYPE_PROMISCUOUS)
+
 /*
  * RNDIS notifications from device: command completion; "reverse"
  * keepalives; etc
@@ -551,7 +572,7 @@ static int rndis_bind(struct usbnet *dev, struct usb_interface *intf)
 	u.set->oid = OID_GEN_CURRENT_PACKET_FILTER;
 	u.set->len = ccpu2(4);
 	u.set->offset = ccpu2((sizeof *u.set) - 8);
-	*(__le32 *)(u.buf + sizeof *u.set) = ccpu2(DEFAULT_FILTER);
+	*(__le32 *)(u.buf + sizeof *u.set) = RNDIS_DEFAULT_FILTER;
 
 	retval = rndis_command(dev, u.header);
 	if (unlikely(retval < 0)) {
