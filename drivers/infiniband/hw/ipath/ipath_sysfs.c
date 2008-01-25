@@ -770,7 +770,8 @@ int ipath_device_create_group(struct device *dev, struct ipath_devdata *dd)
 	if (ret)
 		goto bail_attrs;
 
-	sysfs_remove_group(&dev->kobj, &dev_counter_attr_group);
+	return 0;
+
 bail_attrs:
 	sysfs_remove_group(&dev->kobj, &dev_attr_group);
 bail:
