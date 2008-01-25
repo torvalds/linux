@@ -509,7 +509,8 @@ static void ide_dump_sector(ide_drive_t *drive)
 	ide_tf_read(drive, &task);
 
 	if (lba48 || (tf->device & ATA_LBA))
-		printk(", LBAsect=%llu", ide_get_lba_addr(tf, lba48));
+		printk(", LBAsect=%llu",
+			(unsigned long long)ide_get_lba_addr(tf, lba48));
 	else
 		printk(", CHS=%d/%d/%d", (tf->lbah << 8) + tf->lbam,
 					 tf->device & 0xf, tf->lbal);
