@@ -998,7 +998,7 @@ static struct {
 			   .flags     = 0 },
 	[ARBEL_COMPAT] = { .latest_fw = MTHCA_FW_VER(4, 8, 200),
 			   .flags     = MTHCA_FLAG_PCIE },
-	[ARBEL_NATIVE] = { .latest_fw = MTHCA_FW_VER(5, 2, 0),
+	[ARBEL_NATIVE] = { .latest_fw = MTHCA_FW_VER(5, 3, 0),
 			   .flags     = MTHCA_FLAG_MEMFREE |
 					MTHCA_FLAG_PCIE },
 	[SINAI]        = { .latest_fw = MTHCA_FW_VER(1, 2, 0),
