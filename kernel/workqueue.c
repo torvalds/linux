@@ -67,9 +67,8 @@ struct workqueue_struct {
 #endif
 };
 
-/* All the per-cpu workqueues on the system, for hotplug cpu to add/remove
-   threads to each one as cpus come/go. */
-static DEFINE_MUTEX(workqueue_mutex);
+/* Serializes the accesses to the list of workqueues. */
+static DEFINE_SPINLOCK(workqueue_lock);
 static LIST_HEAD(workqueues);
 
 static int singlethread_cpu __read_mostly;
@@ -592,8 +591,6 @@ EXPORT_SYMBOL(schedule_delayed_work_on);
  * Returns zero on success.
  * Returns -ve errno on failure.
  *
- * Appears to be racy against CPU hotplug.
- *
  * schedule_on_each_cpu() is very slow.
  */
 int schedule_on_each_cpu(work_func_t func)
@@ -605,7 +602,7 @@ int schedule_on_each_cpu(work_func_t func)
 	if (!works)
 		return -ENOMEM;
 
-	preempt_disable();		/* CPU hotplug */
+	get_online_cpus();
 	for_each_online_cpu(cpu) {
 		struct work_struct *work = per_cpu_ptr(works, cpu);
 
@@ -613,8 +610,8 @@ int schedule_on_each_cpu(work_func_t func)
 		set_bit(WORK_STRUCT_PENDING, work_data_bits(work));
 		__queue_work(per_cpu_ptr(keventd_wq->cpu_wq, cpu), work);
 	}
-	preempt_enable();
 	flush_workqueue(keventd_wq);
+	put_online_cpus();
 	free_percpu(works);
 	return 0;
 }
@@ -750,8 +747,10 @@ struct workqueue_struct *__create_workqueue_key(const char *name,
 		err = create_workqueue_thread(cwq, singlethread_cpu);
 		start_workqueue_thread(cwq, -1);
 	} else {
-		mutex_lock(&workqueue_mutex);
+		get_online_cpus();
+		spin_lock(&workqueue_lock);
 		list_add(&wq->list, &workqueues);
+		spin_unlock(&workqueue_lock);
 
 		for_each_possible_cpu(cpu) {
 			cwq = init_cpu_workqueue(wq, cpu);
@@ -760,7 +759,7 @@ struct workqueue_struct *__create_workqueue_key(const char *name,
 			err = create_workqueue_thread(cwq, cpu);
 			start_workqueue_thread(cwq, cpu);
 		}
-		mutex_unlock(&workqueue_mutex);
+		put_online_cpus();
 	}
 
 	if (err) {
@@ -775,7 +774,7 @@ static void cleanup_workqueue_thread(struct cpu_workqueue_struct *cwq, int cpu)
 {
 	/*
 	 * Our caller is either destroy_workqueue() or CPU_DEAD,
-	 * workqueue_mutex protects cwq->thread
+	 * get_online_cpus() protects cwq->thread.
 	 */
 	if (cwq->thread == NULL)
 		return;
@@ -810,9 +809,11 @@ void destroy_workqueue(struct workqueue_struct *wq)
 	struct cpu_workqueue_struct *cwq;
 	int cpu;
 
-	mutex_lock(&workqueue_mutex);
+	get_online_cpus();
+	spin_lock(&workqueue_lock);
 	list_del(&wq->list);
-	mutex_unlock(&workqueue_mutex);
+	spin_unlock(&workqueue_lock);
+	put_online_cpus();
 
 	for_each_cpu_mask(cpu, *cpu_map) {
 		cwq = per_cpu_ptr(wq->cpu_wq, cpu);
@@ -835,13 +836,6 @@ static int __devinit workqueue_cpu_callback(struct notifier_block *nfb,
 	action &= ~CPU_TASKS_FROZEN;
 
 	switch (action) {
-	case CPU_LOCK_ACQUIRE:
-		mutex_lock(&workqueue_mutex);
-		return NOTIFY_OK;
-
-	case CPU_LOCK_RELEASE:
-		mutex_unlock(&workqueue_mutex);
-		return NOTIFY_OK;
 
 	case CPU_UP_PREPARE:
 		cpu_set(cpu, cpu_populated_map);
@@ -854,7 +848,8 @@ static int __devinit workqueue_cpu_callback(struct notifier_block *nfb,
 		case CPU_UP_PREPARE:
 			if (!create_workqueue_thread(cwq, cpu))
 				break;
-			printk(KERN_ERR "workqueue for %i failed\n", cpu);
+			printk(KERN_ERR "workqueue [%s] for %i failed\n",
+				wq->name, cpu);
 			return NOTIFY_BAD;
 
 		case CPU_ONLINE:
