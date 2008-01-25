@@ -4085,6 +4085,12 @@ L:	video4linux-list@redhat.com
 W:	http://www.linux-projects.org
 S:	Maintained
 
+USB WIRELESS RNDIS DRIVER (rndis_wlan)
+P:	Jussi Kivilinna
+M:	jussi.kivilinna@mbnet.fi
+L:	linux-wireless@vger.kernel.org
+S:	Maintained
+
 USB ZC0301 DRIVER
 P:	Luca Risolia
 M:	luca.risolia@studio.unibo.it

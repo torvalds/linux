@@ -545,6 +545,34 @@ config USB_ZD1201
 	  To compile this driver as a module, choose M here: the
 	  module will be called zd1201.
 
+config USB_NET_RNDIS_WLAN
+	tristate "Wireless RNDIS USB support"
+	depends on USB && WLAN_80211 && EXPERIMENTAL
+	select USB_USBNET
+	select USB_NET_CDCETHER
+	select USB_NET_RNDIS_HOST
+	select WIRELESS_EXT
+	---help---
+	  This is a driver for wireless RNDIS devices.
+	  These are USB based adapters found in devices such as:
+
+	  Buffalo WLI-U2-KG125S
+	  U.S. Robotics USR5421
+	  Belkin F5D7051
+	  Linksys WUSB54GSv2
+	  Linksys WUSB54GSC
+	  Asus WL169gE
+	  Eminent EM4045
+	  BT Voyager 1055
+	  Linksys WUSB54GSv1
+	  U.S. Robotics USR5420
+	  BUFFALO WLI-USB-G54
+
+	  All of these devices are based on Broadcom 4320 chip which is the
+	  only wireless RNDIS chip known to date.
+
+	  If you choose to build a module, it'll be called rndis_wlan.
+
 config RTL8180
 	tristate "Realtek 8180/8185 PCI support"
 	depends on MAC80211 && PCI && WLAN_80211 && EXPERIMENTAL
