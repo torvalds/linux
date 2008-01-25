@@ -5,7 +5,7 @@
  *   - Silicon Labs USB FM Radio Reference Design
  *   - ADS/Tech FM Radio Receiver (formerly Instant FM Music) (RDX-155-EF)
  *
- *  Copyright (c) 2007 Tobias Lorenz <tobias.lorenz@gmx.net>
+ *  Copyright (c) 2008 Tobias Lorenz <tobias.lorenz@gmx.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@
  *		Version 1.0.0
  *		- First working version
  * 2008-01-13   Tobias Lorenz <tobias.lorenz@gmx.net>
- *              Version 1.0.1
+ *		Version 1.0.1
  *		- Improved error handling, every function now returns errno
  *		- Improved multi user access (start/mute/stop)
  *		- Channel doesn't get lost anymore after start/mute/stop
@@ -47,6 +47,14 @@
  * 		- check for firmware version 15
  * 		- code order and prototypes still remain the same
  * 		- spacing and bottom of band codes remain the same
+ * 2008-01-16	Tobias Lorenz <tobias.lorenz@gmx.net>
+ *		Version 1.0.3
+ * 		- code reordered to avoid function prototypes
+ *		- switch/case defaults are now more user-friendly
+ *		- unified comment style
+ *		- applied all checkpatch.pl v1.12 suggestions
+ *		  except the warning about the too long lines with bit comments
+ *		- renamed FMRADIO to RADIO to cut line length (checkpatch.pl)
  *
  * ToDo:
  * - check USB Vendor/Product ID for ADS/Tech FM Radio Receiver
@@ -55,13 +63,14 @@
  * - add firmware download/update support
  * - add possibility to switch off RDS
  * - RDS support: interrupt mode, instead of polling
- * - add LED status output
+ * - add LED status output (check if that's not already done in firmware)
  */
+
 
 /* driver definitions */
 #define DRIVER_AUTHOR "Tobias Lorenz <tobias.lorenz@gmx.net>"
 #define DRIVER_NAME "radio-si470x"
-#define DRIVER_VERSION KERNEL_VERSION(1, 0, 2)
+#define DRIVER_VERSION KERNEL_VERSION(1, 0, 3)
 #define DRIVER_CARD "Silicon Labs Si470x FM Radio Receiver"
 #define DRIVER_DESC "USB radio driver for Si470x FM Radio Receivers"
 
@@ -79,6 +88,21 @@
 #include <media/v4l2-common.h>
 #include <media/rds.h>
 
+
+/* USB Device ID List */
+static struct usb_device_id si470x_usb_driver_id_table[] = {
+	/* Silicon Labs USB FM Radio Reference Design */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x10c4, 0x818a,	USB_CLASS_HID, 0, 0) },
+	/* Terminating entry */
+	{ }
+};
+MODULE_DEVICE_TABLE(usb, si470x_usb_driver_id_table);
+
+
+
+/**************************************************************************
+ * Module Parameters
+ **************************************************************************/
 
 /* Radio Nr */
 static int radio_nr = -1;
@@ -145,8 +169,8 @@ MODULE_PARM_DESC(rds_poll_time, "RDS poll time (ms): *40*");
 /**************************************************************************
  * Register Definitions
  **************************************************************************/
-#define FMRADIO_REGISTER_SIZE	2	/* 16 register bit width */
-#define FMRADIO_REGISTER_NUM	16	/* DEVICEID   ... RDSD */
+#define RADIO_REGISTER_SIZE	2	/* 16 register bit width */
+#define RADIO_REGISTER_NUM	16	/* DEVICEID   ... RDSD */
 #define RDS_REGISTER_NUM	6	/* STATUSRSSI ... RDSD */
 
 #define DEVICEID		0	/* Device ID */
@@ -236,23 +260,23 @@ MODULE_PARM_DESC(rds_poll_time, "RDS poll time (ms): *40*");
 
 
 /**************************************************************************
- * USB HID reports
+ * USB HID Reports
  **************************************************************************/
 
 /* Reports 1-16 give direct read/write access to the 16 Si470x registers */
 /* with the (REPORT_ID - 1) corresponding to the register address across USB */
 /* endpoint 0 using GET_REPORT and SET_REPORT */
-#define REGISTER_REPORT_SIZE	(FMRADIO_REGISTER_SIZE + 1)
+#define REGISTER_REPORT_SIZE	(RADIO_REGISTER_SIZE + 1)
 #define REGISTER_REPORT(reg)	((reg) + 1)
 
 /* Report 17 gives direct read/write access to the entire Si470x register */
 /* map across endpoint 0 using GET_REPORT and SET_REPORT */
-#define ENTIRE_REPORT_SIZE	(FMRADIO_REGISTER_NUM * FMRADIO_REGISTER_SIZE + 1)
+#define ENTIRE_REPORT_SIZE	(RADIO_REGISTER_NUM * RADIO_REGISTER_SIZE + 1)
 #define ENTIRE_REPORT		17
 
 /* Report 18 is used to send the lowest 6 Si470x registers up the HID */
 /* interrupt endpoint 1 to Windows every 20 milliseconds for status */
-#define RDS_REPORT_SIZE		(RDS_REGISTER_NUM * FMRADIO_REGISTER_SIZE + 1)
+#define RDS_REPORT_SIZE		(RDS_REGISTER_NUM * RADIO_REGISTER_SIZE + 1)
 #define RDS_REPORT		18
 
 /* Report 19: LED state */
@@ -281,12 +305,12 @@ MODULE_PARM_DESC(rds_poll_time, "RDS poll time (ms): *40*");
 
 
 /**************************************************************************
- * software/hardware versions
+ * Software/Hardware Versions
  **************************************************************************/
-#define FMRADIO_SW_VERSION_NOT_BOOTLOADABLE	6
-#define FMRADIO_SW_VERSION			7
-#define FMRADIO_SW_VERSION_CURRENT		15
-#define FMRADIO_HW_VERSION			1
+#define RADIO_SW_VERSION_NOT_BOOTLOADABLE	6
+#define RADIO_SW_VERSION			7
+#define RADIO_SW_VERSION_CURRENT		15
+#define RADIO_HW_VERSION			1
 
 #define SCRATCH_PAGE_SW_VERSION	1
 #define SCRATCH_PAGE_HW_VERSION	2
@@ -294,7 +318,7 @@ MODULE_PARM_DESC(rds_poll_time, "RDS poll time (ms): *40*");
 
 
 /**************************************************************************
- * LED State definitions
+ * LED State Definitions
  **************************************************************************/
 #define LED_COMMAND		0x35
 
@@ -310,7 +334,7 @@ MODULE_PARM_DESC(rds_poll_time, "RDS poll time (ms): *40*");
 
 
 /**************************************************************************
- * Stream State definitions
+ * Stream State Definitions
  **************************************************************************/
 #define STREAM_COMMAND	0x36
 #define STREAM_VIDPID	0x00
@@ -319,16 +343,16 @@ MODULE_PARM_DESC(rds_poll_time, "RDS poll time (ms): *40*");
 
 
 /**************************************************************************
- * bootloader / flash commands
+ * Bootloader / Flash Commands
  **************************************************************************/
 
-/* Unique ID sent to bootloader and required to put into a bootload state */
+/* unique id sent to bootloader and required to put into a bootload state */
 #define UNIQUE_BL_ID		0x34
 
-/* Mask for the flash data */
+/* mask for the flash data */
 #define FLASH_DATA_MASK		0x55
 
-/* Bootloader commands */
+/* bootloader commands */
 #define GET_SW_VERSION_COMMAND	0x00
 #define	SET_PAGE_COMMAND	0x01
 #define ERASE_PAGE_COMMAND	0x02
@@ -339,12 +363,12 @@ MODULE_PARM_DESC(rds_poll_time, "RDS poll time (ms): *40*");
 #define GET_HW_VERSION_COMMAND	0x07
 #define BLANK			0xff
 
-/* Bootloader command responses */
+/* bootloader command responses */
 #define COMMAND_OK		0x01
 #define COMMAND_FAILED		0x02
 #define COMMAND_PENDING		0x03
 
-/* Buffer sizes */
+/* buffer sizes */
 #define COMMAND_BUFFER_SIZE	4
 #define RESPONSE_BUFFER_SIZE	2
 #define FLASH_BUFFER_SIZE	64
@@ -353,10 +377,12 @@ MODULE_PARM_DESC(rds_poll_time, "RDS poll time (ms): *40*");
 
 
 /**************************************************************************
- * Driver private definitions
+ * General Driver Definitions
  **************************************************************************/
 
-/* private data */
+/*
+ * si470x_device - private data
+ */
 struct si470x_device {
 	/* reference to USB and video device */
 	struct usb_device *usbdev;
@@ -369,12 +395,12 @@ struct si470x_device {
 	unsigned char buf[64];
 
 	/* Silabs internal registers (0..15) */
-	unsigned short registers[FMRADIO_REGISTER_NUM];
+	unsigned short registers[RADIO_REGISTER_NUM];
 
 	/* RDS receive buffer */
 	struct work_struct work;
 	struct timer_list timer;
-	spinlock_t lock;
+	spinlock_t lock;		/* buffer locking */
 	unsigned char *buffer;
 	unsigned int buf_size;
 	unsigned int rd_index;
@@ -385,177 +411,20 @@ struct si470x_device {
 	int data_available_for_read;
 };
 
-/* register acccess functions */
-static int si470x_get_report(struct si470x_device *radio, int size);
-static int si470x_set_report(struct si470x_device *radio, int size);
-static int si470x_get_register(struct si470x_device *radio, int regnr);
-static int si470x_set_register(struct si470x_device *radio, int regnr);
-static int si470x_get_all_registers(struct si470x_device *radio);
-static int si470x_get_rds_registers(struct si470x_device *radio);
 
-/* high-level functions */
-static int si470x_start(struct si470x_device *radio);
-static int si470x_stop(struct si470x_device *radio);
-static int si470x_set_chan(struct si470x_device *radio, int chan);
-static int si470x_get_freq(struct si470x_device *radio);
-static int si470x_set_freq(struct si470x_device *radio, int freq);
-
-/* RDS functions */
-static void si470x_rds(struct si470x_device *radio);
-static void si470x_timer(unsigned long data);
-static void si470x_work(struct work_struct *work);
-
-
-
-/**************************************************************************
- * USB interface definitions
- **************************************************************************/
-
-/* USB device ID list (Vendor, Product, Class, SubClass, Protocol) */
-static struct usb_device_id si470x_usb_driver_id_table[] = {
-	/* Silicon Labs USB FM Radio Reference Design */
-	{ USB_DEVICE_AND_INTERFACE_INFO(0x10c4, 0x818a, USB_CLASS_HID, 0, 0) },
-	/* Terminating entry */
-	{ }
-};
-MODULE_DEVICE_TABLE (usb, si470x_usb_driver_id_table);
-
-/* USB driver functions */
-static int si470x_usb_driver_probe(struct usb_interface *intf,
-		const struct usb_device_id *id);
-static void si470x_usb_driver_disconnect(struct usb_interface *intf);
-
-/* USB driver interface */
-static struct usb_driver si470x_usb_driver = {
-	.name		= DRIVER_NAME,
-	.probe		= si470x_usb_driver_probe,
-	.disconnect	= si470x_usb_driver_disconnect,
-	.id_table	= si470x_usb_driver_id_table,
-};
-
-
-
-/**************************************************************************
- * Video4Linux interface definitions
- **************************************************************************/
-
-/* The frequency is set in units of 62.5 Hz when using V4L2_TUNER_CAP_LOW, */
-/* 62.5 kHz otherwise. */
-/* The tuner is able to have a channel spacing of 50, 100 or 200 kHz. */
-/* tuner->capability is therefore set to V4L2_TUNER_CAP_LOW */
-/* The FREQ_MUL is then: 1 MHz / 62.5 Hz = 16000 */
+/*
+ * The frequency is set in units of 62.5 Hz when using V4L2_TUNER_CAP_LOW,
+ * 62.5 kHz otherwise.
+ * The tuner is able to have a channel spacing of 50, 100 or 200 kHz.
+ * tuner->capability is therefore set to V4L2_TUNER_CAP_LOW
+ * The FREQ_MUL is then: 1 MHz / 62.5 Hz = 16000
+ */
 #define FREQ_MUL (1000000 / 62.5)
 
-/* File operations functions */
-static ssize_t si470x_fops_read(struct file *file, char __user *buf,
-		size_t count, loff_t *ppos);
-static unsigned int si470x_fops_poll(struct file *file,
-		struct poll_table_struct *pts);
-static int si470x_fops_open(struct inode *inode, struct file *file);
-static int si470x_fops_release(struct inode *inode, struct file *file);
-
-/* File operations interface */
-static const struct file_operations si470x_fops = {
-	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
-	.read		= si470x_fops_read,
-	.poll		= si470x_fops_poll,
-	.ioctl		= video_ioctl2,
-	.compat_ioctl	= v4l_compat_ioctl32,
-	.open		= si470x_fops_open,
-	.release	= si470x_fops_release,
-};
-
-/* Video device functions */
-static int si470x_vidioc_querycap(struct file *file, void *priv,
-		struct v4l2_capability *capability);
-static int si470x_vidioc_g_input(struct file *file, void *priv,
-		unsigned int *i);
-static int si470x_vidioc_s_input(struct file *file, void *priv,
-		unsigned int i);
-static int si470x_vidioc_queryctrl(struct file *file, void *priv,
-		struct v4l2_queryctrl *qc);
-static int si470x_vidioc_g_ctrl(struct file *file, void *priv,
-		struct v4l2_control *ctrl);
-static int si470x_vidioc_s_ctrl(struct file *file, void *priv,
-		struct v4l2_control *ctrl);
-static int si470x_vidioc_g_audio(struct file *file, void *priv,
-		struct v4l2_audio *audio);
-static int si470x_vidioc_s_audio(struct file *file, void *priv,
-		struct v4l2_audio *audio);
-static int si470x_vidioc_g_tuner(struct file *file, void *priv,
-		struct v4l2_tuner *tuner);
-static int si470x_vidioc_s_tuner(struct file *file, void *priv,
-		struct v4l2_tuner *tuner);
-static int si470x_vidioc_g_frequency(struct file *file, void *priv,
-		struct v4l2_frequency *freq);
-static int si470x_vidioc_s_frequency(struct file *file, void *priv,
-		struct v4l2_frequency *freq);
-
-/* Video device interface */
-static struct video_device si470x_viddev_template = {
-	.fops			= &si470x_fops,
-	.name			= DRIVER_NAME,
-	.type			= VID_TYPE_TUNER,
-	.release		= video_device_release,
-	.vidioc_querycap	= si470x_vidioc_querycap,
-	.vidioc_g_input		= si470x_vidioc_g_input,
-	.vidioc_s_input		= si470x_vidioc_s_input,
-	.vidioc_queryctrl	= si470x_vidioc_queryctrl,
-	.vidioc_g_ctrl		= si470x_vidioc_g_ctrl,
-	.vidioc_s_ctrl		= si470x_vidioc_s_ctrl,
-	.vidioc_g_audio		= si470x_vidioc_g_audio,
-	.vidioc_s_audio		= si470x_vidioc_s_audio,
-	.vidioc_g_tuner		= si470x_vidioc_g_tuner,
-	.vidioc_s_tuner		= si470x_vidioc_s_tuner,
-	.vidioc_g_frequency	= si470x_vidioc_g_frequency,
-	.vidioc_s_frequency	= si470x_vidioc_s_frequency,
-	.owner			= THIS_MODULE,
-};
-
-/* Query control */
-static struct v4l2_queryctrl radio_queryctrl[] = {
-/* HINT: the disabled controls are only here to satify kradio and such apps */
-	{
-		.id		= V4L2_CID_AUDIO_VOLUME,
-		.type		= V4L2_CTRL_TYPE_INTEGER,
-		.name		= "Volume",
-		.minimum	= 0,
-		.maximum	= 15,
-		.step		= 1,
-		.default_value	= 15,
-	},
-	{
-		.id		= V4L2_CID_AUDIO_BALANCE,
-		.flags		= V4L2_CTRL_FLAG_DISABLED,
-	},
-	{
-		.id		= V4L2_CID_AUDIO_BASS,
-		.flags		= V4L2_CTRL_FLAG_DISABLED,
-	},
-	{
-		.id		= V4L2_CID_AUDIO_TREBLE,
-		.flags		= V4L2_CTRL_FLAG_DISABLED,
-	},
-	{
-		.id		= V4L2_CID_AUDIO_MUTE,
-		.type		= V4L2_CTRL_TYPE_BOOLEAN,
-		.name		= "Mute",
-		.minimum	= 0,
-		.maximum	= 1,
-		.step		= 1,
-		.default_value	= 1,
-	},
-	{
-		.id		= V4L2_CID_AUDIO_LOUDNESS,
-		.flags		= V4L2_CTRL_FLAG_DISABLED,
-	},
-};
-
 
 
 /**************************************************************************
- * Driver private functions
+ * General Driver Functions
  **************************************************************************/
 
 /*
@@ -633,10 +502,10 @@ static int si470x_get_all_registers(struct si470x_device *radio)
 	retval = si470x_get_report(radio, ENTIRE_REPORT_SIZE);
 
 	if (retval >= 0)
-		for (regnr = 0; regnr < FMRADIO_REGISTER_NUM; regnr++)
+		for (regnr = 0; regnr < RADIO_REGISTER_NUM; regnr++)
 			radio->registers[regnr] =
-			(radio->buf[regnr * FMRADIO_REGISTER_SIZE + 1] << 8) |
-			 radio->buf[regnr * FMRADIO_REGISTER_SIZE + 2];
+			(radio->buf[regnr * RADIO_REGISTER_SIZE + 1] << 8) |
+			 radio->buf[regnr * RADIO_REGISTER_SIZE + 2];
 
 	return (retval < 0) ? -EINVAL : 0;
 }
@@ -657,15 +526,120 @@ static int si470x_get_rds_registers(struct si470x_device *radio)
 		usb_rcvctrlpipe(radio->usbdev, 1),
 		radio->buf, RDS_REPORT_SIZE, &size, usb_timeout);
 
-	if (retval >= 0) {
-		for (regnr = 0; regnr < RDS_REGISTER_NUM; regnr++) {
+	if (retval >= 0)
+		for (regnr = 0; regnr < RDS_REGISTER_NUM; regnr++)
 			radio->registers[STATUSRSSI + regnr] =
-			(radio->buf[regnr * FMRADIO_REGISTER_SIZE + 1] << 8) |
-			 radio->buf[regnr * FMRADIO_REGISTER_SIZE + 2];
-		}
-	}
+			(radio->buf[regnr * RADIO_REGISTER_SIZE + 1] << 8) |
+			 radio->buf[regnr * RADIO_REGISTER_SIZE + 2];
 
-	return (retval < 0) ? - EINVAL : 0;
+	return (retval < 0) ? -EINVAL : 0;
+}
+
+
+/*
+ * si470x_set_chan - set the channel
+ */
+static int si470x_set_chan(struct si470x_device *radio, int chan)
+{
+	int retval, i;
+
+	/* start tuning */
+	radio->registers[CHANNEL] &= ~CHANNEL_CHAN;
+	radio->registers[CHANNEL] |= CHANNEL_TUNE | chan;
+	retval = si470x_set_register(radio, CHANNEL);
+	if (retval < 0)
+		return retval;
+
+	/* wait till seek operation has completed */
+	i = 0;
+	do {
+		retval = si470x_get_register(radio, STATUSRSSI);
+		if (retval < 0)
+			return retval;
+	} while ((radio->registers[STATUSRSSI] & STATUSRSSI_STC) &&
+		(++i < seek_retries));
+	if (i >= seek_retries)
+		printk(KERN_WARNING DRIVER_NAME
+			": seek does not finish after %d tries\n", i);
+
+	/* stop tuning */
+	radio->registers[CHANNEL] &= ~CHANNEL_TUNE;
+	return si470x_set_register(radio, CHANNEL);
+}
+
+
+/*
+ * si470x_get_freq - get the frequency
+ */
+static int si470x_get_freq(struct si470x_device *radio)
+{
+	int spacing, band_bottom, chan, freq;
+	int retval;
+
+	/* Spacing (kHz) */
+	switch (space) {
+	/* 0: 200 kHz (USA, Australia) */
+	case 0 : spacing = 0.200 * FREQ_MUL; break;
+	/* 1: 100 kHz (Europe, Japan) */
+	case 1 : spacing = 0.100 * FREQ_MUL; break;
+	/* 2:  50 kHz */
+	default: spacing = 0.050 * FREQ_MUL; break;
+	};
+
+	/* Bottom of Band (MHz) */
+	switch (band) {
+	/* 0: 87.5 - 108 MHz (USA, Europe) */
+	case 0 : band_bottom = 87.5 * FREQ_MUL; break;
+	/* 1: 76   - 108 MHz (Japan wide band) */
+	default: band_bottom = 76   * FREQ_MUL; break;
+	/* 2: 76   -  90 MHz (Japan) */
+	case 2 : band_bottom = 76   * FREQ_MUL; break;
+	};
+
+	/* read channel */
+	retval = si470x_get_register(radio, READCHAN);
+	if (retval < 0)
+		return retval;
+	chan = radio->registers[READCHAN] & READCHAN_READCHAN;
+
+	/* Frequency (MHz) = Spacing (kHz) x Channel + Bottom of Band (MHz) */
+	freq = chan * spacing + band_bottom;
+
+	return freq;
+}
+
+
+/*
+ * si470x_set_freq - set the frequency
+ */
+static int si470x_set_freq(struct si470x_device *radio, int freq)
+{
+	int spacing, band_bottom, chan;
+
+	/* Spacing (kHz) */
+	switch (space) {
+	/* 0: 200 kHz (USA, Australia) */
+	case 0 : spacing = 0.200 * FREQ_MUL; break;
+	/* 1: 100 kHz (Europe, Japan) */
+	case 1 : spacing = 0.100 * FREQ_MUL; break;
+	/* 2:  50 kHz */
+	default: spacing = 0.050 * FREQ_MUL; break;
+	};
+
+	/* Bottom of Band (MHz) */
+	switch (band) {
+	/* 0: 87.5 - 108 MHz (USA, Europe) */
+	case 0 : band_bottom = 87.5 * FREQ_MUL; break;
+	/* 1: 76   - 108 MHz (Japan wide band) */
+	default: band_bottom = 76   * FREQ_MUL; break;
+	/* 2: 76   -  90 MHz (Japan) */
+	case 2 : band_bottom = 76   * FREQ_MUL; break;
+	};
+
+	/* Chan = [ Freq (Mhz) - Bottom of Band (MHz) ] / Spacing (kHz) */
+	chan = (freq - band_bottom) / spacing;
+
+	return si470x_set_chan(radio, chan);
 }
 
 
@@ -719,113 +693,10 @@ static int si470x_stop(struct si470x_device *radio)
 }
 
 
-/*
- * si470x_set_chan - set the channel
- */
-static int si470x_set_chan(struct si470x_device *radio, int chan)
-{
-	int retval, i;
 
-	/* start tuning */
-	radio->registers[CHANNEL] &= ~CHANNEL_CHAN;
-	radio->registers[CHANNEL] |= CHANNEL_TUNE | chan;
-	retval = si470x_set_register(radio, CHANNEL);
-	if (retval < 0)
-		return retval;
-
-	/* wait till seek operation has completed */
-	i = 0;
-	do {
-		retval = si470x_get_register(radio, STATUSRSSI);
-		if (retval < 0)
-			return retval;
-	} while ((radio->registers[STATUSRSSI] & STATUSRSSI_STC) &&
-		(++i < seek_retries));
-	if (i >= seek_retries)
-		printk(KERN_WARNING DRIVER_NAME
-			": seek does not finish after %d tries\n", i);
-
-	/* stop tuning */
-	radio->registers[CHANNEL] &= ~CHANNEL_TUNE;
-	return si470x_set_register(radio, CHANNEL);
-}
-
-
-/*
- * si470x_get_freq - get the frequency
- */
-static int si470x_get_freq(struct si470x_device *radio)
-{
-	int spacing, band_bottom, chan, freq;
-	int retval;
-
-	/* Spacing (kHz) */
-	switch (space) {
-		/* 0: 200 kHz (USA, Australia) */
-		default: spacing = 0.200 * FREQ_MUL; break;
-		/* 1: 100 kHz (Europe, Japan) */
-		case 1 : spacing = 0.100 * FREQ_MUL; break;
-		/* 2:  50 kHz */
-		case 2 : spacing = 0.050 * FREQ_MUL; break;
-	};
-
-	/* Bottom of Band (MHz) */
-	switch (band) {
-		/* 0: 87.5 - 108 MHz (USA, Europe) */
-		default: band_bottom = 87.5 * FREQ_MUL; break;
-		/* 1: 76   - 108 MHz (Japan wide band) */
-		case 1 : band_bottom = 76   * FREQ_MUL; break;
-		/* 2: 76   -  90 MHz (Japan) */
-		case 2 : band_bottom = 76   * FREQ_MUL; break;
-	};
-
-	/* read channel */
-	retval = si470x_get_register(radio, READCHAN);
-	if (retval < 0)
-		return retval;
-	chan = radio->registers[READCHAN] & READCHAN_READCHAN;
-
-	/* Frequency (MHz) = Spacing (kHz) x Channel + Bottom of Band (MHz) */
-	freq = chan * spacing + band_bottom;
-
-	return freq;
-}
-
-
-/*
- * si470x_set_freq - set the frequency
- */
-static int si470x_set_freq(struct si470x_device *radio, int freq)
-{
-	int spacing, band_bottom, chan;
-
-	/* Spacing (kHz) */
-	switch (space) {
-		/* 0: 200 kHz (USA, Australia) */
-		default: spacing = 0.200 * FREQ_MUL; break;
-		/* 1: 100 kHz (Europe, Japan) */
-		case 1 : spacing = 0.100 * FREQ_MUL; break;
-		/* 2:  50 kHz */
-		case 2 : spacing = 0.050 * FREQ_MUL; break;
-	};
-
-	/* Bottom of Band (MHz) */
-	switch (band) {
-		/* 0: 87.5 - 108 MHz (USA, Europe) */
-		default: band_bottom = 87.5 * FREQ_MUL; break;
-		/* 1: 76   - 108 MHz (Japan wide band) */
-		case 1 : band_bottom = 76   * FREQ_MUL; break;
-		/* 2: 76   -  90 MHz (Japan) */
-		case 2 : band_bottom = 76   * FREQ_MUL; break;
-	};
-
-	/* Chan = [ Freq (Mhz) - Bottom of Band (MHz) ] / Spacing (kHz) */
-	chan = (freq - band_bottom) / spacing;
-
-	return si470x_set_chan(radio, chan);
-}
-
-
+/**************************************************************************
+ * RDS Driver Functions
+ **************************************************************************/
 
 /*
  * si470x_rds - rds processing function
@@ -854,26 +725,26 @@ static void si470x_rds(struct si470x_device *radio)
 
 	for (blocknum = 0; blocknum < 4; blocknum++) {
 		switch (blocknum) {
-			default:
-				bler = (radio->registers[STATUSRSSI] &
-						STATUSRSSI_BLERA) >> 9;
-				rds = radio->registers[RDSA];
-				break;
-			case 1:
-				bler = (radio->registers[READCHAN] &
-						READCHAN_BLERB) >> 14;
-				rds = radio->registers[RDSB];
-				break;
-			case 2:
-				bler = (radio->registers[READCHAN] &
-						READCHAN_BLERC) >> 12;
-				rds = radio->registers[RDSC];
-				break;
-			case 3:
-				bler = (radio->registers[READCHAN] &
-						READCHAN_BLERD) >> 10;
-				rds = radio->registers[RDSD];
-				break;
+		default:
+			bler = (radio->registers[STATUSRSSI] &
+					STATUSRSSI_BLERA) >> 9;
+			rds = radio->registers[RDSA];
+			break;
+		case 1:
+			bler = (radio->registers[READCHAN] &
+					READCHAN_BLERB) >> 14;
+			rds = radio->registers[RDSB];
+			break;
+		case 2:
+			bler = (radio->registers[READCHAN] &
+					READCHAN_BLERC) >> 12;
+			rds = radio->registers[RDSC];
+			break;
+		case 3:
+			bler = (radio->registers[READCHAN] &
+					READCHAN_BLERD) >> 10;
+			rds = radio->registers[RDSD];
+			break;
 		};
 
 		/* Fill the V4L2 RDS buffer */
@@ -941,107 +812,7 @@ static void si470x_work(struct work_struct *work)
 
 
 /**************************************************************************
- * USB interface functions
- **************************************************************************/
-
-/*
- * si470x_usb_driver_probe - probe for the device
- */
-static int si470x_usb_driver_probe(struct usb_interface *intf,
-		const struct usb_device_id *id)
-{
-	struct si470x_device *radio;
-
-	if (!(radio = kmalloc(sizeof(struct si470x_device), GFP_KERNEL)))
-		return -ENOMEM;
-	if (!(radio->videodev = video_device_alloc())) {
-		kfree(radio);
-		return -ENOMEM;
-	}
-	memcpy(radio->videodev, &si470x_viddev_template,
-			sizeof(si470x_viddev_template));
-	radio->users = 0;
-	radio->usbdev = interface_to_usbdev(intf);
-	video_set_drvdata(radio->videodev, radio);
-	if (video_register_device(radio->videodev, VFL_TYPE_RADIO, radio_nr)) {
-		printk(KERN_WARNING DRIVER_NAME
-				": Could not register video device\n");
-		video_device_release(radio->videodev);
-		kfree(radio);
-		return -EIO;
-	}
-	usb_set_intfdata(intf, radio);
-
-	/* show some infos about the specific device */
-	if (si470x_get_all_registers(radio) < 0) {
-		video_device_release(radio->videodev);
-		kfree(radio);
-		return -EIO;
-	}
-	printk(KERN_INFO DRIVER_NAME ": DeviceID=0x%4.4x ChipID=0x%4.4x\n",
-			radio->registers[DEVICEID], radio->registers[CHIPID]);
-
-	/* check if firmware is current */
-	if ((radio->registers[CHIPID] & CHIPID_FIRMWARE)
-			< FMRADIO_SW_VERSION_CURRENT) {
-		printk(KERN_WARNING DRIVER_NAME
-			": This driver is known to work with chip version %d, "
-			"but the device has firmware %d. If you have some "
-			"trouble using this driver, please report to V4L ML "
-			"at video4linux-list@redhat.com\n",
-			radio->registers[CHIPID] & CHIPID_FIRMWARE,
-			FMRADIO_SW_VERSION_CURRENT);
-	}
-
-	/* set initial frequency */
-	si470x_set_freq(radio, 87.5 * FREQ_MUL); /* available in all regions */
-
-	/* rds initialization */
-	radio->buf_size = rds_buf * 3;
-	if (NULL == (radio->buffer = kmalloc(radio->buf_size, GFP_KERNEL))) {
-		video_device_release(radio->videodev);
-		kfree(radio);
-		return -ENOMEM;
-	}
-	radio->block_count = 0;
-	radio->wr_index = 0;
-	radio->rd_index = 0;
-	radio->last_blocknum = 0xff;
-	init_waitqueue_head(&radio->read_queue);
-	radio->data_available_for_read = 0;
-
-	/* prepare polling via eventd */
-	INIT_WORK(&radio->work, si470x_work);
-	init_timer(&radio->timer);
-	radio->timer.function = si470x_timer;
-	radio->timer.data = (unsigned long) radio;
-
-	return 0;
-}
-
-
-/*
- * si470x_usb_driver_disconnect - disconnect the device
- */
-static void si470x_usb_driver_disconnect(struct usb_interface *intf)
-{
-	struct si470x_device *radio = usb_get_intfdata(intf);
-
-	del_timer_sync(&radio->timer);
-	flush_scheduled_work();
-
-	usb_set_intfdata(intf, NULL);
-	if (radio) {
-		video_unregister_device(radio->videodev);
-		kfree(radio->buffer);
-		kfree(radio);
-	}
-}
-
-
-
-/**************************************************************************
- * Video4Linux interface functions
+ * File Operations Interface
  **************************************************************************/
 
 /*
@@ -1166,6 +937,68 @@ static int si470x_fops_release(struct inode *inode, struct file *file)
 
 
 /*
+ * si470x_fops - file operations interface
+ */
+static const struct file_operations si470x_fops = {
+	.owner		= THIS_MODULE,
+	.llseek		= no_llseek,
+	.read		= si470x_fops_read,
+	.poll		= si470x_fops_poll,
+	.ioctl		= video_ioctl2,
+	.compat_ioctl	= v4l_compat_ioctl32,
+	.open		= si470x_fops_open,
+	.release	= si470x_fops_release,
+};
+
+
+
+/**************************************************************************
+ * Video4Linux Interface
+ **************************************************************************/
+
+/*
+ * si470x_v4l2_queryctrl - query control
+ */
+static struct v4l2_queryctrl si470x_v4l2_queryctrl[] = {
+/* HINT: the disabled controls are only here to satify kradio and such apps */
+	{
+		.id		= V4L2_CID_AUDIO_VOLUME,
+		.type		= V4L2_CTRL_TYPE_INTEGER,
+		.name		= "Volume",
+		.minimum	= 0,
+		.maximum	= 15,
+		.step		= 1,
+		.default_value	= 15,
+	},
+	{
+		.id		= V4L2_CID_AUDIO_BALANCE,
+		.flags		= V4L2_CTRL_FLAG_DISABLED,
+	},
+	{
+		.id		= V4L2_CID_AUDIO_BASS,
+		.flags		= V4L2_CTRL_FLAG_DISABLED,
+	},
+	{
+		.id		= V4L2_CID_AUDIO_TREBLE,
+		.flags		= V4L2_CTRL_FLAG_DISABLED,
+	},
+	{
+		.id		= V4L2_CID_AUDIO_MUTE,
+		.type		= V4L2_CTRL_TYPE_BOOLEAN,
+		.name		= "Mute",
+		.minimum	= 0,
+		.maximum	= 1,
+		.step		= 1,
+		.default_value	= 1,
+	},
+	{
+		.id		= V4L2_CID_AUDIO_LOUDNESS,
+		.flags		= V4L2_CTRL_FLAG_DISABLED,
+	},
+};
+
+
+/*
  * si470x_vidioc_querycap - query device capabilities
  */
 static int si470x_vidioc_querycap(struct file *file, void *priv,
@@ -1213,9 +1046,9 @@ static int si470x_vidioc_queryctrl(struct file *file, void *priv,
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(radio_queryctrl); i++) {
-		if (qc->id && qc->id == radio_queryctrl[i].id) {
-			memcpy(qc, &(radio_queryctrl[i]), sizeof(*qc));
+	for (i = 0; i < ARRAY_SIZE(si470x_v4l2_queryctrl); i++) {
+		if (qc->id && qc->id == si470x_v4l2_queryctrl[i].id) {
+			memcpy(qc, &(si470x_v4l2_queryctrl[i]), sizeof(*qc));
 			return 0;
 		}
 	}
@@ -1233,14 +1066,14 @@ static int si470x_vidioc_g_ctrl(struct file *file, void *priv,
 	struct si470x_device *radio = video_get_drvdata(video_devdata(file));
 
 	switch (ctrl->id) {
-		case V4L2_CID_AUDIO_VOLUME:
-			ctrl->value = radio->registers[SYSCONFIG2] &
-					SYSCONFIG2_VOLUME;
-			break;
-		case V4L2_CID_AUDIO_MUTE:
-			ctrl->value = ((radio->registers[POWERCFG] &
-					POWERCFG_DMUTE) == 0) ? 1 : 0;
-			break;
+	case V4L2_CID_AUDIO_VOLUME:
+		ctrl->value = radio->registers[SYSCONFIG2] &
+				SYSCONFIG2_VOLUME;
+		break;
+	case V4L2_CID_AUDIO_MUTE:
+		ctrl->value = ((radio->registers[POWERCFG] &
+				POWERCFG_DMUTE) == 0) ? 1 : 0;
+		break;
 	}
 
 	return 0;
@@ -1256,16 +1089,16 @@ static int si470x_vidioc_s_ctrl(struct file *file, void *priv,
 	struct si470x_device *radio = video_get_drvdata(video_devdata(file));
 
 	switch (ctrl->id) {
-		case V4L2_CID_AUDIO_VOLUME:
-			radio->registers[SYSCONFIG2] &= ~SYSCONFIG2_VOLUME;
-			radio->registers[SYSCONFIG2] |= ctrl->value;
-			return si470x_set_register(radio, SYSCONFIG2);
-		case V4L2_CID_AUDIO_MUTE:
-			if (ctrl->value == 1)
-				radio->registers[POWERCFG] &= ~POWERCFG_DMUTE;
-			else
-				radio->registers[POWERCFG] |= POWERCFG_DMUTE;
-			return si470x_set_register(radio, POWERCFG);
+	case V4L2_CID_AUDIO_VOLUME:
+		radio->registers[SYSCONFIG2] &= ~SYSCONFIG2_VOLUME;
+		radio->registers[SYSCONFIG2] |= ctrl->value;
+		return si470x_set_register(radio, SYSCONFIG2);
+	case V4L2_CID_AUDIO_MUTE:
+		if (ctrl->value == 1)
+			radio->registers[POWERCFG] &= ~POWERCFG_DMUTE;
+		else
+			radio->registers[POWERCFG] |= POWERCFG_DMUTE;
+		return si470x_set_register(radio, POWERCFG);
 	}
 
 	return -EINVAL;
@@ -1320,22 +1153,22 @@ static int si470x_vidioc_g_tuner(struct file *file, void *priv,
 
 	strcpy(tuner->name, "FM");
 	tuner->type = V4L2_TUNER_RADIO;
-	switch(band) {
-		/* 0: 87.5 - 108 MHz (USA, Europe, default) */
-		default:
-			tuner->rangelow  =  87.5 * FREQ_MUL;
-			tuner->rangehigh = 108   * FREQ_MUL;
-			break;
-		/* 1: 76   - 108 MHz (Japan wide band) */
-		case 1 :
-			tuner->rangelow  =  76   * FREQ_MUL;
-			tuner->rangehigh = 108   * FREQ_MUL;
-			break;
-		/* 2: 76   -  90 MHz (Japan) */
-		case 2 :
-			tuner->rangelow  =  76   * FREQ_MUL;
-			tuner->rangehigh =  90   * FREQ_MUL;
-			break;
+	switch (band) {
+	/* 0: 87.5 - 108 MHz (USA, Europe, default) */
+	default:
+		tuner->rangelow  =  87.5 * FREQ_MUL;
+		tuner->rangehigh = 108   * FREQ_MUL;
+		break;
+	/* 1: 76   - 108 MHz (Japan wide band) */
+	case 1 :
+		tuner->rangelow  =  76   * FREQ_MUL;
+		tuner->rangehigh = 108   * FREQ_MUL;
+		break;
+	/* 2: 76   -  90 MHz (Japan) */
+	case 2 :
+		tuner->rangelow  =  76   * FREQ_MUL;
+		tuner->rangehigh =  90   * FREQ_MUL;
+		break;
 	};
 	tuner->rxsubchans = V4L2_TUNER_SUB_MONO | V4L2_TUNER_SUB_STEREO;
 	tuner->capability = V4L2_TUNER_CAP_LOW;
@@ -1407,9 +1240,147 @@ static int si470x_vidioc_s_frequency(struct file *file, void *priv,
 }
 
 
+/*
+ * si470x_viddev_tamples - video device interface
+ */
+static struct video_device si470x_viddev_template = {
+	.fops			= &si470x_fops,
+	.name			= DRIVER_NAME,
+	.type			= VID_TYPE_TUNER,
+	.release		= video_device_release,
+	.vidioc_querycap	= si470x_vidioc_querycap,
+	.vidioc_g_input		= si470x_vidioc_g_input,
+	.vidioc_s_input		= si470x_vidioc_s_input,
+	.vidioc_queryctrl	= si470x_vidioc_queryctrl,
+	.vidioc_g_ctrl		= si470x_vidioc_g_ctrl,
+	.vidioc_s_ctrl		= si470x_vidioc_s_ctrl,
+	.vidioc_g_audio		= si470x_vidioc_g_audio,
+	.vidioc_s_audio		= si470x_vidioc_s_audio,
+	.vidioc_g_tuner		= si470x_vidioc_g_tuner,
+	.vidioc_s_tuner		= si470x_vidioc_s_tuner,
+	.vidioc_g_frequency	= si470x_vidioc_g_frequency,
+	.vidioc_s_frequency	= si470x_vidioc_s_frequency,
+	.owner			= THIS_MODULE,
+};
+
+
 
 /**************************************************************************
- * Module interface definitions and functions
+ * USB Interface
+ **************************************************************************/
+
+/*
+ * si470x_usb_driver_probe - probe for the device
+ */
+static int si470x_usb_driver_probe(struct usb_interface *intf,
+		const struct usb_device_id *id)
+{
+	struct si470x_device *radio;
+
+	/* memory and interface allocations */
+	radio = kmalloc(sizeof(struct si470x_device), GFP_KERNEL);
+	if (!radio)
+		return -ENOMEM;
+	radio->videodev = video_device_alloc();
+	if (!radio->videodev) {
+		kfree(radio);
+		return -ENOMEM;
+	}
+	memcpy(radio->videodev, &si470x_viddev_template,
+			sizeof(si470x_viddev_template));
+	radio->users = 0;
+	radio->usbdev = interface_to_usbdev(intf);
+	video_set_drvdata(radio->videodev, radio);
+	if (video_register_device(radio->videodev, VFL_TYPE_RADIO, radio_nr)) {
+		printk(KERN_WARNING DRIVER_NAME
+				": Could not register video device\n");
+		video_device_release(radio->videodev);
+		kfree(radio);
+		return -EIO;
+	}
+	usb_set_intfdata(intf, radio);
+
+	/* show some infos about the specific device */
+	if (si470x_get_all_registers(radio) < 0) {
+		video_device_release(radio->videodev);
+		kfree(radio);
+		return -EIO;
+	}
+	printk(KERN_INFO DRIVER_NAME ": DeviceID=0x%4.4x ChipID=0x%4.4x\n",
+			radio->registers[DEVICEID], radio->registers[CHIPID]);
+
+	/* check if firmware is current */
+	if ((radio->registers[CHIPID] & CHIPID_FIRMWARE)
+			< RADIO_SW_VERSION_CURRENT)
+		printk(KERN_WARNING DRIVER_NAME
+			": This driver is known to work with chip version %d, "
+			"but the device has firmware %d. If you have some "
+			"trouble using this driver, please report to V4L ML "
+			"at video4linux-list@redhat.com\n",
+			radio->registers[CHIPID] & CHIPID_FIRMWARE,
+			RADIO_SW_VERSION_CURRENT);
+
+	/* set initial frequency */
+	si470x_set_freq(radio, 87.5 * FREQ_MUL); /* available in all regions */
+
+	/* rds initialization */
+	radio->buf_size = rds_buf * 3;
+	radio->buffer = kmalloc(radio->buf_size, GFP_KERNEL);
+	if (!radio->buffer) {
+		video_device_release(radio->videodev);
+		kfree(radio);
+		return -ENOMEM;
+	}
+	radio->block_count = 0;
+	radio->wr_index = 0;
+	radio->rd_index = 0;
+	radio->last_blocknum = 0xff;
+	init_waitqueue_head(&radio->read_queue);
+	radio->data_available_for_read = 0;
+
+	/* prepare polling via eventd */
+	INIT_WORK(&radio->work, si470x_work);
+	init_timer(&radio->timer);
+	radio->timer.function = si470x_timer;
+	radio->timer.data = (unsigned long) radio;
+
+	return 0;
+}
+
+
+/*
+ * si470x_usb_driver_disconnect - disconnect the device
+ */
+static void si470x_usb_driver_disconnect(struct usb_interface *intf)
+{
+	struct si470x_device *radio = usb_get_intfdata(intf);
+
+	del_timer_sync(&radio->timer);
+	flush_scheduled_work();
+
+	usb_set_intfdata(intf, NULL);
+	if (radio) {
+		video_unregister_device(radio->videodev);
+		kfree(radio->buffer);
+		kfree(radio);
+	}
+}
+
+
+/*
+ * si470x_usb_driver - usb driver interface
+ */
+static struct usb_driver si470x_usb_driver = {
+	.name		= DRIVER_NAME,
+	.probe		= si470x_usb_driver_probe,
+	.disconnect	= si470x_usb_driver_disconnect,
+	.id_table	= si470x_usb_driver_id_table,
+};
+
+
+
+/**************************************************************************
+ * Module Interface
  **************************************************************************/
 
 /*
@@ -1437,4 +1408,4 @@ module_exit(si470x_module_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_VERSION("1.0.2");
+MODULE_VERSION("1.0.3");
