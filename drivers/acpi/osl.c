@@ -1220,17 +1220,17 @@ int acpi_dmi_dump(void)
 		return -1;
 
 	printk(KERN_NOTICE PREFIX "DMI System Vendor: %s\n",
-		dmi_get_slot(DMI_SYS_VENDOR));
+		dmi_get_system_info(DMI_SYS_VENDOR));
 	printk(KERN_NOTICE PREFIX "DMI Product Name: %s\n",
-		dmi_get_slot(DMI_PRODUCT_NAME));
+		dmi_get_system_info(DMI_PRODUCT_NAME));
 	printk(KERN_NOTICE PREFIX "DMI Product Version: %s\n",
-		dmi_get_slot(DMI_PRODUCT_VERSION));
+		dmi_get_system_info(DMI_PRODUCT_VERSION));
 	printk(KERN_NOTICE PREFIX "DMI Board Name: %s\n",
-		dmi_get_slot(DMI_BOARD_NAME));
+		dmi_get_system_info(DMI_BOARD_NAME));
 	printk(KERN_NOTICE PREFIX "DMI BIOS Vendor: %s\n",
-		dmi_get_slot(DMI_BIOS_VENDOR));
+		dmi_get_system_info(DMI_BIOS_VENDOR));
 	printk(KERN_NOTICE PREFIX "DMI BIOS Date: %s\n",
-		dmi_get_slot(DMI_BIOS_DATE));
+		dmi_get_system_info(DMI_BIOS_DATE));
 
 	return 0;
 }
