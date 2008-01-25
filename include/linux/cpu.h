@@ -83,6 +83,9 @@ static inline void unregister_cpu_notifier(struct notifier_block *nb)
 
 #endif /* CONFIG_SMP */
 extern struct sysdev_class cpu_sysdev_class;
+extern void cpu_hotplug_init(void);
+extern void cpu_maps_update_begin(void);
+extern void cpu_maps_update_done(void);
 
 #ifdef CONFIG_HOTPLUG_CPU
 /* Stop CPUs going up and down. */
