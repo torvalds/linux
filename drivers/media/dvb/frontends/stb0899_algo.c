@@ -73,20 +73,16 @@ u32 stb0899_get_srate(struct stb0899_state *state)
  */
 static u32 stb0899_set_srate(struct stb0899_state *state, u32 master_clk, u32 srate)
 {
-	u32 tmp, tmp_up, srate_up;
-	u8 sfr_up[3], sfr[3];
+	u32 tmp;
+	u8 sfr[3];
 
-//	srate_up = srate;
 	dprintk(state->verbose, FE_DEBUG, 1, "-->");
 	/*
 	 * in order to have the maximum precision, the symbol rate entered into
 	 * the chip is computed as the closest value of the "true value".
 	 * In this purpose, the symbol rate value is rounded (1 is added on the bit
 	 * below the LSB )
-	 */
-//	srate_up += (srate_up * 3) / 100;
-
-	/*
+	 *
 	 * srate = (SFR * master_clk) >> 20
 	 *      <=>
 	 *   SFR = srate << 20 / master_clk
@@ -97,38 +93,17 @@ static u32 stb0899_set_srate(struct stb0899_state *state, u32 master_clk, u32 sr
 	 * stored as 20 bit number with an offset of 4 bit:
 	 *   sfr = SFR << 4;
 	 */
-//	tmp_up = stb0899_do_div((((u64)srate_up) << 21) + master_clk, 2 * master_clk);
-//	tmp_up <<= 4;
 
 	tmp = stb0899_do_div((((u64)srate) << 21) + master_clk, 2 * master_clk);
 	tmp <<= 4;
-
-//	sfr_up[0] = tmp_up >> 16;
-//	sfr_up[1] = tmp_up >>  8;
-//	sfr_up[2] = tmp_up;
 
 	sfr[0] = tmp >> 16;
 	sfr[1] = tmp >>  8;
 	sfr[2] = tmp;
 
-//	stb0899_write_regs(state, STB0899_SFRUPH, sfr_up, 3);
 	stb0899_write_regs(state, STB0899_SFRH, sfr, 3);
 
 	return srate;
-}
-
-/*
- * stb0899_calc_loop_time
- * Compute the amount of time needed by the timing loop to lock
- * SymbolRate: Symbol rate
- * return: timing loop time constant (ms)
- */
-static long stb0899_calc_loop_time(long srate)
-{
-	if (srate > 0)
-		return (100000 / (srate / 1000));
-	else
-		return 0;
 }
 
 /*
@@ -197,7 +172,7 @@ static enum stb0899_status stb0899_check_tmg(struct stb0899_state *state)
 	u8 reg;
 	s8 timing;
 
-	msleep(internal->t_timing);
+	msleep(internal->t_derot);
 
 	stb0899_write_reg(state, STB0899_RTF, 0xf2);
 	reg = stb0899_read_reg(state, STB0899_TLIR);
@@ -574,7 +549,6 @@ enum stb0899_status stb0899_dvbs_algo(struct stb0899_state *state)
 
 	/* Initial calculations	*/
 	internal->derot_step = internal->derot_percent * (params->srate / 1000L) / internal->mclk; /* DerotStep/1000 * Fsymbol	*/
-	internal->t_timing = stb0899_calc_loop_time(params->srate);
 	internal->t_derot = stb0899_calc_derot_time(params->srate);
 	internal->t_data = 500;
 
@@ -617,7 +591,7 @@ enum stb0899_status stb0899_dvbs_algo(struct stb0899_state *state)
 		if (state->config->tuner_get_frequency)
 			state->config->tuner_get_frequency(&state->frontend, &internal->freq);
 
-		msleep(internal->t_agc1 + internal->t_agc2 + internal->t_timing); /* AGC1, AGC2 and timing loop	*/
+		msleep(internal->t_agc1 + internal->t_agc2 + internal->t_derot); /* AGC1, AGC2 and timing loop	*/
 		dprintk(state->verbose, FE_DEBUG, 1, "current derot freq=%d", internal->derot_freq);
 		internal->status = AGC1OK;
 

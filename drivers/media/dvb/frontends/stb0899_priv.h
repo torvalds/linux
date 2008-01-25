@@ -182,7 +182,6 @@ struct stb0899_internal {
 
 	s16			direction;		/* Current derotator search direction	*/
 	s16			derot_step;		/* Derotator step (binary value)	*/
-	s16			t_timing;		/* Timing loop time constant (ms)	*/
 	s16			t_derot;		/* Derotator time constant (ms)		*/
 	s16			t_data;			/* Data recovery time constant (ms)	*/
 	s16			sub_dir;		/* Direction of the next sub range	*/
