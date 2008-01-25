@@ -1658,9 +1658,12 @@ ahc_done(struct ahc_softc *ahc, struct scb *scb)
 		untagged_q = &(ahc->untagged_queues[target_offset]);
 		TAILQ_REMOVE(untagged_q, scb, links.tqe);
 		BUG_ON(!TAILQ_EMPTY(untagged_q));
-	}
-
-	if ((scb->flags & SCB_ACTIVE) == 0) {
+	} else if ((scb->flags & SCB_ACTIVE) == 0) {
+		/*
+		 * Transactions aborted from the untagged queue may
+		 * not have been dispatched to the controller, so
+		 * only check the SCB_ACTIVE flag for tagged transactions.
+		 */
 		printf("SCB %d done'd twice\n", scb->hscb->tag);
 		ahc_dump_card_state(ahc);
 		panic("Stopping for safety");
