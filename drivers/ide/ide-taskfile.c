@@ -72,6 +72,13 @@ void ide_tf_load(ide_drive_t *drive, ide_task_t *task)
 	if (task->tf_flags & IDE_TFLAG_FLAGGED)
 		HIHI = 0xFF;
 
+#ifdef DEBUG
+	printk("%s: tf: feat 0x%02x nsect 0x%02x lbal 0x%02x "
+		"lbam 0x%02x lbah 0x%02x dev 0x%02x cmd 0x%02x\n",
+		drive->name, tf->feature, tf->nsect, tf->lbal,
+		tf->lbam, tf->lbah, tf->device, tf->command);
+#endif
+
 	if (IDE_CONTROL_REG)
 		hwif->OUTB(drive->ctl, IDE_CONTROL_REG); /* clear nIEN */
 
@@ -103,7 +110,8 @@ void ide_tf_load(ide_drive_t *drive, ide_task_t *task)
 	if (task->tf_flags & IDE_TFLAG_OUT_LBAH)
 		hwif->OUTB(tf->lbah, IDE_HCYL_REG);
 
-	hwif->OUTB((tf->device & HIHI) | drive->select.all, IDE_SELECT_REG);
+	if (task->tf_flags & IDE_TFLAG_OUT_DEVICE)
+		hwif->OUTB((tf->device & HIHI) | drive->select.all, IDE_SELECT_REG);
 }
 
 EXPORT_SYMBOL_GPL(ide_tf_load);

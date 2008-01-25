@@ -232,7 +232,7 @@ static ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *
 	return ide_stopped;
 
 out_do_tf:
-	args->tf_flags = IDE_TFLAG_OUT_TF;
+	args->tf_flags = IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE;
 	if (drive->addressing == 1)
 		args->tf_flags |= (IDE_TFLAG_LBA48 | IDE_TFLAG_OUT_HOB);
 	args->command_type = IDE_DRIVE_TASK_NO_DATA;
@@ -710,7 +710,7 @@ static ide_startstop_t ide_disk_special(ide_drive_t *drive)
 		return ide_stopped;
 	}
 
-	args.tf_flags = IDE_TFLAG_OUT_TF;
+	args.tf_flags = IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE;
 	if (drive->addressing == 1)
 		args.tf_flags |= (IDE_TFLAG_LBA48 | IDE_TFLAG_OUT_HOB);
 
@@ -849,6 +849,8 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
 {
 	ide_hwif_t *hwif = HWIF(drive);
 	u8 *args = rq->buffer;
+	ide_task_t ltask;
+	struct ide_taskfile *tf = &ltask.tf;
 
 	if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE) {
 		ide_task_t *task = rq->special;
@@ -869,6 +871,8 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
 			break;
 		}
 
+		task->tf_flags |= IDE_TFLAG_OUT_DEVICE;
+
 		if (task->tf_flags & IDE_TFLAG_FLAGGED)
 			return flagged_taskfile(drive, task);
 
@@ -882,46 +886,32 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
 	if (args == NULL)
 		goto done;
 
-	if (IDE_CONTROL_REG)
-		hwif->OUTB(drive->ctl, IDE_CONTROL_REG); /* clear nIEN */
-
-	SELECT_MASK(drive, 0);
-
+	memset(&ltask, 0, sizeof(ltask));
 	if (rq->cmd_type == REQ_TYPE_ATA_TASK) {
 #ifdef DEBUG
- 		printk("%s: DRIVE_TASK_CMD ", drive->name);
- 		printk("cmd=0x%02x ", args[0]);
- 		printk("fr=0x%02x ", args[1]);
- 		printk("ns=0x%02x ", args[2]);
- 		printk("sc=0x%02x ", args[3]);
- 		printk("lcyl=0x%02x ", args[4]);
- 		printk("hcyl=0x%02x ", args[5]);
- 		printk("sel=0x%02x\n", args[6]);
+		printk("%s: DRIVE_TASK_CMD\n", drive->name);
 #endif
- 		hwif->OUTB(args[1], IDE_FEATURE_REG);
-		hwif->OUTB(args[2], IDE_NSECTOR_REG);
- 		hwif->OUTB(args[3], IDE_SECTOR_REG);
- 		hwif->OUTB(args[4], IDE_LCYL_REG);
- 		hwif->OUTB(args[5], IDE_HCYL_REG);
- 		hwif->OUTB((args[6] & 0xEF)|drive->select.all, IDE_SELECT_REG);
+		memcpy(&ltask.tf_array[7], &args[1], 6);
+		ltask.tf_flags = IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE;
 	} else { /* rq->cmd_type == REQ_TYPE_ATA_CMD */
 #ifdef DEBUG
- 		printk("%s: DRIVE_CMD ", drive->name);
- 		printk("cmd=0x%02x ", args[0]);
- 		printk("sc=0x%02x ", args[1]);
- 		printk("fr=0x%02x ", args[2]);
- 		printk("xx=0x%02x\n", args[3]);
+		printk("%s: DRIVE_CMD\n", drive->name);
 #endif
-		hwif->OUTB(args[2], IDE_FEATURE_REG);
- 		if (args[0] == WIN_SMART) {
-			hwif->OUTB(args[3],IDE_NSECTOR_REG);
- 			hwif->OUTB(args[1],IDE_SECTOR_REG);
-			hwif->OUTB(0x4f, IDE_LCYL_REG);
-			hwif->OUTB(0xc2, IDE_HCYL_REG);
-		} else
-			hwif->OUTB(args[1], IDE_NSECTOR_REG);
+		tf->feature = args[2];
+		if (args[0] == WIN_SMART) {
+			tf->nsect = args[3];
+			tf->lbal  = args[1];
+			tf->lbam  = 0x4f;
+			tf->lbah  = 0xc2;
+			ltask.tf_flags = IDE_TFLAG_OUT_TF;
+		} else {
+			tf->nsect = args[1];
+			ltask.tf_flags = IDE_TFLAG_OUT_FEATURE |
+					 IDE_TFLAG_OUT_NSECT;
+		}
  	}
-
+	tf->command = args[0];
+	ide_tf_load(drive, &ltask);
 	ide_execute_command(drive, args[0], &drive_cmd_intr, WAIT_CMD, NULL);
 	return ide_started;
 
