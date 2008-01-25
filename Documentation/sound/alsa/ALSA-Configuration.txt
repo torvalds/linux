@@ -961,6 +961,10 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 			can be adjusted.  Appearing only when compiled with
 			$CONFIG_SND_DEBUG=y
 
+	Conexant 5051
+	  laptop	Basic Laptop config (default)
+	  hp		HP Spartan laptop
+
 	STAC9200
 	  ref		Reference board
 	  dell-d21	Dell (unknown)
