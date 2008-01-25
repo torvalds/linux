@@ -137,6 +137,227 @@ static void put_prev_task_rt(struct rq *rq, struct task_struct *p)
 }
 
 #ifdef CONFIG_SMP
+/* Only try algorithms three times */
+#define RT_MAX_TRIES 3
+
+static int double_lock_balance(struct rq *this_rq, struct rq *busiest);
+static void deactivate_task(struct rq *rq, struct task_struct *p, int sleep);
+
+/* Return the second highest RT task, NULL otherwise */
+static struct task_struct *pick_next_highest_task_rt(struct rq *rq)
+{
+	struct rt_prio_array *array = &rq->rt.active;
+	struct task_struct *next;
+	struct list_head *queue;
+	int idx;
+
+	assert_spin_locked(&rq->lock);
+
+	if (likely(rq->rt.rt_nr_running < 2))
+		return NULL;
+
+	idx = sched_find_first_bit(array->bitmap);
+	if (unlikely(idx >= MAX_RT_PRIO)) {
+		WARN_ON(1); /* rt_nr_running is bad */
+		return NULL;
+	}
+
+	queue = array->queue + idx;
+	next = list_entry(queue->next, struct task_struct, run_list);
+	if (unlikely(next != rq->curr))
+		return next;
+
+	if (queue->next->next != queue) {
+		/* same prio task */
+		next = list_entry(queue->next->next, struct task_struct, run_list);
+		return next;
+	}
+
+	/* slower, but more flexible */
+	idx = find_next_bit(array->bitmap, MAX_RT_PRIO, idx+1);
+	if (unlikely(idx >= MAX_RT_PRIO)) {
+		WARN_ON(1); /* rt_nr_running was 2 and above! */
+		return NULL;
+	}
+
+	queue = array->queue + idx;
+	next = list_entry(queue->next, struct task_struct, run_list);
+
+	return next;
+}
+
+static DEFINE_PER_CPU(cpumask_t, local_cpu_mask);
+
+/* Will lock the rq it finds */
+static struct rq *find_lock_lowest_rq(struct task_struct *task,
+				      struct rq *this_rq)
+{
+	struct rq *lowest_rq = NULL;
+	int cpu;
+	int tries;
+	cpumask_t *cpu_mask = &__get_cpu_var(local_cpu_mask);
+
+	cpus_and(*cpu_mask, cpu_online_map, task->cpus_allowed);
+
+	for (tries = 0; tries < RT_MAX_TRIES; tries++) {
+		/*
+		 * Scan each rq for the lowest prio.
+		 */
+		for_each_cpu_mask(cpu, *cpu_mask) {
+			struct rq *rq = &per_cpu(runqueues, cpu);
+
+			if (cpu == this_rq->cpu)
+				continue;
+
+			/* We look for lowest RT prio or non-rt CPU */
+			if (rq->rt.highest_prio >= MAX_RT_PRIO) {
+				lowest_rq = rq;
+				break;
+			}
+
+			/* no locking for now */
+			if (rq->rt.highest_prio > task->prio &&
+			    (!lowest_rq || rq->rt.highest_prio > lowest_rq->rt.highest_prio)) {
+				lowest_rq = rq;
+			}
+		}
+
+		if (!lowest_rq)
+			break;
+
+		/* if the prio of this runqueue changed, try again */
+		if (double_lock_balance(this_rq, lowest_rq)) {
+			/*
+			 * We had to unlock the run queue. In
+			 * the mean time, task could have
+			 * migrated already or had its affinity changed.
+			 * Also make sure that it wasn't scheduled on its rq.
+			 */
+			if (unlikely(task_rq(task) != this_rq ||
+				     !cpu_isset(lowest_rq->cpu, task->cpus_allowed) ||
+				     task_running(this_rq, task) ||
+				     !task->se.on_rq)) {
+				spin_unlock(&lowest_rq->lock);
+				lowest_rq = NULL;
+				break;
+			}
+		}
+
+		/* If this rq is still suitable use it. */
+		if (lowest_rq->rt.highest_prio > task->prio)
+			break;
+
+		/* try again */
+		spin_unlock(&lowest_rq->lock);
+		lowest_rq = NULL;
+	}
+
+	return lowest_rq;
+}
+
+/*
+ * If the current CPU has more than one RT task, see if the non
+ * running task can migrate over to a CPU that is running a task
+ * of lesser priority.
+ */
+static int push_rt_task(struct rq *this_rq)
+{
+	struct task_struct *next_task;
+	struct rq *lowest_rq;
+	int ret = 0;
+	int paranoid = RT_MAX_TRIES;
+
+	assert_spin_locked(&this_rq->lock);
+
+	next_task = pick_next_highest_task_rt(this_rq);
+	if (!next_task)
+		return 0;
+
+ retry:
+	if (unlikely(next_task == this_rq->curr))
+		return 0;
+
+	/*
+	 * It's possible that the next_task slipped in of
+	 * higher priority than current. If that's the case
+	 * just reschedule current.
+	 */
+	if (unlikely(next_task->prio < this_rq->curr->prio)) {
+		resched_task(this_rq->curr);
+		return 0;
+	}
+
+	/* We might release this_rq lock */
+	get_task_struct(next_task);
+
+	/* find_lock_lowest_rq locks the rq if found */
+	lowest_rq = find_lock_lowest_rq(next_task, this_rq);
+	if (!lowest_rq) {
+		struct task_struct *task;
+		/*
+		 * find lock_lowest_rq releases this_rq->lock
+		 * so it is possible that next_task has changed.
+		 * If it has, then try again.
+		 */
+		task = pick_next_highest_task_rt(this_rq);
+		if (unlikely(task != next_task) && task && paranoid--) {
+			put_task_struct(next_task);
+			next_task = task;
+			goto retry;
+		}
+		goto out;
+	}
+
+	assert_spin_locked(&lowest_rq->lock);
+
+	deactivate_task(this_rq, next_task, 0);
+	set_task_cpu(next_task, lowest_rq->cpu);
+	activate_task(lowest_rq, next_task, 0);
+
+	resched_task(lowest_rq->curr);
+
+	spin_unlock(&lowest_rq->lock);
+
+	ret = 1;
+out:
+	put_task_struct(next_task);
+
+	return ret;
+}
+
+/*
+ * TODO: Currently we just use the second highest prio task on
+ *       the queue, and stop when it can't migrate (or there's
+ *       no more RT tasks).  There may be a case where a lower
+ *       priority RT task has a different affinity than the
+ *       higher RT task. In this case the lower RT task could
+ *       possibly be able to migrate where as the higher priority
+ *       RT task could not.  We currently ignore this issue.
+ *       Enhancements are welcome!
+ */
+static void push_rt_tasks(struct rq *rq)
+{
+	/* push_rt_task will return true if it moved an RT */
+	while (push_rt_task(rq))
+		;
+}
+
+static void schedule_tail_balance_rt(struct rq *rq)
+{
+	/*
+	 * If we have more than one rt_task queued, then
+	 * see if we can push the other rt_tasks off to other CPUS.
+	 * Note we may release the rq lock, and since
+	 * the lock was owned by prev, we need to release it
+	 * first via finish_lock_switch and then reaquire it here.
+	 */
+	if (unlikely(rq->rt.rt_nr_running > 1)) {
+		spin_lock_irq(&rq->lock);
+		push_rt_tasks(rq);
+		spin_unlock_irq(&rq->lock);
+	}
+}
+
 /*
  * Load-balancing iterator. Note: while the runqueue stays locked
  * during the whole iteration, the current task might be
@@ -241,7 +462,9 @@ move_one_task_rt(struct rq *this_rq, int this_cpu, struct rq *busiest,
 	return iter_move_one_task(this_rq, this_cpu, busiest, sd, idle,
 				  &rt_rq_iterator);
 }
-#endif
+#else /* CONFIG_SMP */
+# define schedule_tail_balance_rt(rq)	do { } while (0)
+#endif /* CONFIG_SMP */
 
 static void task_tick_rt(struct rq *rq, struct task_struct *p)
 {
