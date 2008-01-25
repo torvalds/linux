@@ -5,22 +5,14 @@
 
 #ifdef CONFIG_SMP
 
-/*
- * The "RT overload" flag: it gets set if a CPU has more than
- * one runnable RT task.
- */
-static cpumask_t rt_overload_mask;
-static atomic_t rto_count;
-
-static inline int rt_overloaded(void)
+static inline int rt_overloaded(struct rq *rq)
 {
-	return atomic_read(&rto_count);
+	return atomic_read(&rq->rd->rto_count);
 }
 
 static inline void rt_set_overload(struct rq *rq)
 {
-	rq->rt.overloaded = 1;
-	cpu_set(rq->cpu, rt_overload_mask);
+	cpu_set(rq->cpu, rq->rd->rto_mask);
 	/*
 	 * Make sure the mask is visible before we set
 	 * the overload count. That is checked to determine
@@ -29,23 +21,25 @@ static inline void rt_set_overload(struct rq *rq)
 	 * updated yet.
 	 */
 	wmb();
-	atomic_inc(&rto_count);
+	atomic_inc(&rq->rd->rto_count);
 }
 
 static inline void rt_clear_overload(struct rq *rq)
 {
 	/* the order here really doesn't matter */
-	atomic_dec(&rto_count);
-	cpu_clear(rq->cpu, rt_overload_mask);
-	rq->rt.overloaded = 0;
+	atomic_dec(&rq->rd->rto_count);
+	cpu_clear(rq->cpu, rq->rd->rto_mask);
 }
 
 static void update_rt_migration(struct rq *rq)
 {
-	if (rq->rt.rt_nr_migratory && (rq->rt.rt_nr_running > 1))
+	if (rq->rt.rt_nr_migratory && (rq->rt.rt_nr_running > 1)) {
 		rt_set_overload(rq);
-	else
+		rq->rt.overloaded = 1;
+	} else {
 		rt_clear_overload(rq);
+		rq->rt.overloaded = 0;
+	}
 }
 #endif /* CONFIG_SMP */
 
@@ -306,7 +300,7 @@ static int find_lowest_cpus(struct task_struct *task, cpumask_t *lowest_mask)
 	int       count       = 0;
 	int       cpu;
 
-	cpus_and(*lowest_mask, cpu_online_map, task->cpus_allowed);
+	cpus_and(*lowest_mask, task_rq(task)->rd->online, task->cpus_allowed);
 
 	/*
 	 * Scan each rq for the lowest prio.
@@ -580,18 +574,12 @@ static int pull_rt_task(struct rq *this_rq)
 	struct task_struct *p, *next;
 	struct rq *src_rq;
 
-	/*
-	 * If cpusets are used, and we have overlapping
-	 * run queue cpusets, then this algorithm may not catch all.
-	 * This is just the price you pay on trying to keep
-	 * dirtying caches down on large SMP machines.
-	 */
-	if (likely(!rt_overloaded()))
+	if (likely(!rt_overloaded(this_rq)))
 		return 0;
 
 	next = pick_next_task_rt(this_rq);
 
-	for_each_cpu_mask(cpu, rt_overload_mask) {
+	for_each_cpu_mask(cpu, this_rq->rd->rto_mask) {
 		if (this_cpu == cpu)
 			continue;
 
@@ -811,6 +799,20 @@ static void task_tick_rt(struct rq *rq, struct task_struct *p)
 	}
 }
 
+/* Assumes rq->lock is held */
+static void join_domain_rt(struct rq *rq)
+{
+	if (rq->rt.overloaded)
+		rt_set_overload(rq);
+}
+
+/* Assumes rq->lock is held */
+static void leave_domain_rt(struct rq *rq)
+{
+	if (rq->rt.overloaded)
+		rt_clear_overload(rq);
+}
+
 static void set_curr_task_rt(struct rq *rq)
 {
 	struct task_struct *p = rq->curr;
@@ -840,4 +842,7 @@ const struct sched_class rt_sched_class = {
 
 	.set_curr_task          = set_curr_task_rt,
 	.task_tick		= task_tick_rt,
+
+	.join_domain            = join_domain_rt,
+	.leave_domain           = leave_domain_rt,
 };

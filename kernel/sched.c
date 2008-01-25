@@ -365,6 +365,13 @@ struct root_domain {
 	atomic_t refcount;
 	cpumask_t span;
 	cpumask_t online;
+
+        /*
+	 * The "RT overload" flag: it gets set if a CPU has more than
+	 * one runnable RT task.
+	 */
+	cpumask_t rto_mask;
+	atomic_t  rto_count;
 };
 
 static struct root_domain def_root_domain;
