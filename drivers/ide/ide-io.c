@@ -932,10 +932,10 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
  		printk("xx=0x%02x\n", args[3]);
 #endif
  		if (args[0] == WIN_SMART) {
- 			hwif->OUTB(0x4f, IDE_LCYL_REG);
- 			hwif->OUTB(0xc2, IDE_HCYL_REG);
  			hwif->OUTB(args[2],IDE_FEATURE_REG);
  			hwif->OUTB(args[1],IDE_SECTOR_REG);
+			hwif->OUTB(0x4f, IDE_LCYL_REG);
+			hwif->OUTB(0xc2, IDE_HCYL_REG);
  			ide_cmd(drive, args[0], args[3], &drive_cmd_intr);
  			return ide_started;
  		}
