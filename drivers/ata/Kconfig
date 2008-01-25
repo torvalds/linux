@@ -184,7 +184,7 @@ config PATA_ACPI
 
 config SATA_FSL
 	tristate "Freescale 3.0Gbps SATA support"
-	depends on PPC_MPC837x
+	depends on FSL_SOC
 	help
 	  This option enables support for Freescale 3.0Gbps SATA controller.
 	  It can be found on MPC837x and MPC8315.
