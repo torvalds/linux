@@ -326,18 +326,9 @@ static u64 idedisk_read_native_max_address(ide_drive_t *drive, int lba48)
 	ide_no_data_taskfile(drive, &args);
 
 	/* if OK, compute maximum address value */
-	if ((tf->status & 0x01) == 0) {
-		u32 high, low;
+	if ((tf->status & 0x01) == 0)
+		addr = ide_get_lba_addr(tf, lba48) + 1;
 
-		if (lba48)
-			high = (tf->hob_lbah << 16) | (tf->hob_lbam << 8) |
-				tf->hob_lbal;
-		else
-			high = tf->device & 0xf;
-		low  = (tf->lbah << 16) | (tf->lbam << 8) | tf->lbal;
-		addr = ((__u64)high << 24) | low;
-		addr++;	/* since the return value is (maxlba - 1), we add 1 */
-	}
 	return addr;
 }
 
@@ -373,18 +364,9 @@ static u64 idedisk_set_max_address(ide_drive_t *drive, u64 addr_req, int lba48)
 	/* submit command request */
 	ide_no_data_taskfile(drive, &args);
 	/* if OK, compute maximum address value */
-	if ((tf->status & 0x01) == 0) {
-		u32 high, low;
+	if ((tf->status & 0x01) == 0)
+		addr_set = ide_get_lba_addr(tf, lba48) + 1;
 
-		if (lba48)
-			high = (tf->hob_lbah << 16) | (tf->hob_lbam << 8) |
-				tf->hob_lbal;
-		else
-			high = tf->device & 0xf;
-		low  = (tf->lbah << 16) | (tf->lbam << 8) | tf->lbal;
-		addr_set = ((__u64)high << 24) | low;
-		addr_set++;
-	}
 	return addr_set;
 }
 

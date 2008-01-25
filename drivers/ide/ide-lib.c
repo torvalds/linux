@@ -479,7 +479,7 @@ static void ide_dump_opcode(ide_drive_t *drive)
 		printk("0x%02x\n", opcode);
 }
 
-static u64 ide_get_lba_addr(struct ide_taskfile *tf, int lba48)
+u64 ide_get_lba_addr(struct ide_taskfile *tf, int lba48)
 {
 	u32 high, low;
 
@@ -492,6 +492,7 @@ static u64 ide_get_lba_addr(struct ide_taskfile *tf, int lba48)
 
 	return ((u64)high << 24) | low;
 }
+EXPORT_SYMBOL_GPL(ide_get_lba_addr);
 
 static void ide_dump_sector(ide_drive_t *drive)
 {

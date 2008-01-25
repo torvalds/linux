@@ -1238,6 +1238,7 @@ static inline int ide_dev_is_sata(struct hd_driveid *id)
 	return 0;
 }
 
+u64 ide_get_lba_addr(struct ide_taskfile *, int);
 u8 ide_dump_status(ide_drive_t *, const char *, u8);
 
 typedef struct ide_pio_timings_s {
