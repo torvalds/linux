@@ -851,6 +851,7 @@ struct usb_device_id dib0700_usb_id_table[] = {
 		{ USB_DEVICE(USB_VID_COMPRO,    USB_PID_COMPRO_VIDEOMATE_U500_PC) },
 /* 20 */{ USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_EXPRESS) },
 /* 21 */{ USB_DEVICE(USB_VID_GIGABYTE, USB_PID_GIGABYTE_U7000) },
+/* 22 */{ USB_DEVICE(USB_VID_ULTIMA_ELECTRONIC, USB_PID_ARTEC_T14BR) },
 		{ 0 }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -1018,7 +1019,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
-		.num_device_descs = 2,
+		.num_device_descs = 3,
 		.devices = {
 			{   "DiBcom STK7070P reference design",
 				{ &dib0700_usb_id_table[15], NULL },
@@ -1028,6 +1029,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 				{ &dib0700_usb_id_table[16], NULL },
 				{ NULL },
 			},
+			{   "Artec T14BR DVB-T",
+				{ &dib0700_usb_id_table[22], NULL },
+				{ NULL },
+			}
 		}
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 
