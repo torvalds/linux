@@ -806,28 +806,29 @@ abort:
 	return err;
 }
 
-static int ide_wait_cmd_task(ide_drive_t *drive, u8 *buf)
-{
-	struct request rq;
-
-	ide_init_drive_cmd(&rq);
-	rq.cmd_type = REQ_TYPE_ATA_TASK;
-	rq.buffer = buf;
-	return ide_do_drive_cmd(drive, &rq, ide_wait);
-}
-
 int ide_task_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 {
 	void __user *p = (void __user *)arg;
 	int err = 0;
-	u8 args[7], *argbuf = args;
-	int argsize = 7;
+	u8 args[7];
+	ide_task_t task;
 
 	if (copy_from_user(args, p, 7))
 		return -EFAULT;
-	err = ide_wait_cmd_task(drive, argbuf);
-	if (copy_to_user(p, argbuf, argsize))
+
+	memset(&task, 0, sizeof(task));
+	memcpy(&task.tf_array[7], &args[1], 6);
+	task.tf.command = args[0];
+	task.tf_flags = IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE;
+
+	err = ide_no_data_taskfile(drive, &task);
+
+	args[0] = task.tf.command;
+	memcpy(&args[1], &task.tf_array[7], 6);
+
+	if (copy_to_user(p, args, 7))
 		err = -EFAULT;
+
 	return err;
 }
 
