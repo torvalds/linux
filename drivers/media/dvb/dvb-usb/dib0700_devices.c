@@ -94,12 +94,28 @@ static int bristol_frontend_attach(struct dvb_usb_adapter *adap)
 		(10 + adap->id) << 1, &bristol_dib3000mc_config[adap->id])) == NULL ? -ENODEV : 0;
 }
 
+int eeprom_read(struct i2c_adapter *adap,u8 adrs,u8 *pval)
+{
+	struct i2c_msg msg[2] = {
+		{ .addr = 0x50, .flags = 0,        .buf = &adrs, .len = 1 },
+		{ .addr = 0x50, .flags = I2C_M_RD, .buf = pval,  .len = 1 },
+	};
+	if (i2c_transfer(adap, msg, 2) != 2) return -EREMOTEIO;
+	return 0;
+}
+
 static int bristol_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	struct dib0700_state *st = adap->dev->priv;
+	struct i2c_adapter *prim_i2c = &adap->dev->i2c_adap;
 	struct i2c_adapter *tun_i2c = dib3000mc_get_tuner_i2c_master(adap->fe, 1);
-	return dvb_attach(mt2060_attach,adap->fe, tun_i2c, &bristol_mt2060_config[adap->id],
-		st->mt2060_if1[adap->id]) == NULL ? -ENODEV : 0;
+	s8 a;
+	int if1=1220;
+	if (adap->dev->udev->descriptor.idVendor  == USB_VID_HAUPPAUGE &&
+		adap->dev->udev->descriptor.idProduct == USB_PID_HAUPPAUGE_NOVA_T_500_2) {
+		if (!eeprom_read(prim_i2c,0x59 + adap->id,&a)) if1=1220+a;
+	}
+	return dvb_attach(mt2060_attach,adap->fe, tun_i2c,&bristol_mt2060_config[adap->id],
+		if1) == NULL ? -ENODEV : 0;
 }
 
 /* STK7700D: Pinnacle/Terratec/Hauppauge Dual DVB-T Diversity */
@@ -628,16 +644,22 @@ static struct mt2060_config stk7700p_mt2060_config = {
 
 static int stk7700p_tuner_attach(struct dvb_usb_adapter *adap)
 {
+	struct i2c_adapter *prim_i2c = &adap->dev->i2c_adap;
 	struct dib0700_state *st = adap->dev->priv;
 	struct i2c_adapter *tun_i2c;
-
+	s8 a;
+	int if1=1220;
+	if (adap->dev->udev->descriptor.idVendor  == USB_VID_HAUPPAUGE &&
+		adap->dev->udev->descriptor.idProduct == USB_PID_HAUPPAUGE_NOVA_T_STICK) {
+		if (!eeprom_read(prim_i2c,0x58,&a)) if1=1220+a;
+	}
 	if (st->is_dib7000pc)
 		tun_i2c = dib7000p_get_i2c_master(adap->fe, DIBX000_I2C_INTERFACE_TUNER, 1);
 	else
 		tun_i2c = dib7000m_get_i2c_master(adap->fe, DIBX000_I2C_INTERFACE_TUNER, 1);
 
 	return dvb_attach(mt2060_attach, adap->fe, tun_i2c, &stk7700p_mt2060_config,
-		st->mt2060_if1[0]) == NULL ? -ENODEV : 0;
+		if1) == NULL ? -ENODEV : 0;
 }
 
 /* DIB7070 generic */
