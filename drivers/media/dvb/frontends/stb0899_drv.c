@@ -1433,7 +1433,7 @@ void stb0899_set_delsys(struct stb0899_state *state)
 		STB0899_SETFIELD_VAL(STOP_CKPKDLIN216, stop_clk[1], 1);
 
 		STB0899_SETFIELD_VAL(STOP_CKINTBUF216, stop_clk[0], 1);
-		STB0899_SETFIELD_VAL(STOP_CKCORE216, stop_clk[0], 1);
+		STB0899_SETFIELD_VAL(STOP_CKCORE216, stop_clk[0], 0);
 
 		STB0899_SETFIELD_VAL(STOP_CKS2DMD108, stop_clk[1], 1);
 		break;
