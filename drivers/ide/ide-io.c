@@ -234,7 +234,6 @@ static ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *
 out_do_tf:
 	args->tf_flags	 = IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE;
 	args->data_phase = TASKFILE_NO_DATA;
-	args->handler	 = task_no_data_intr;
 	return do_rw_taskfile(drive, args);
 }
 

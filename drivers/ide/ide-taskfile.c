@@ -128,7 +128,6 @@ int taskfile_lib_get_identify (ide_drive_t *drive, u8 *buf)
 		args.tf.command = WIN_PIDENTIFY;
 	args.tf_flags	= IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE;
 	args.data_phase	= TASKFILE_IN;
-	args.handler	= task_in_intr;
 	return ide_raw_taskfile(drive, &args, buf, 1);
 }
 
@@ -150,6 +149,9 @@ static int inline task_dma_ok(ide_task_t *task)
 
 	return 0;
 }
+
+static ide_startstop_t task_no_data_intr(ide_drive_t *);
+static ide_startstop_t task_out_intr(ide_drive_t *);
 
 ide_startstop_t do_rw_taskfile (ide_drive_t *drive, ide_task_t *task)
 {
@@ -173,12 +175,18 @@ ide_startstop_t do_rw_taskfile (ide_drive_t *drive, ide_task_t *task)
 	switch (task->data_phase) {
 	case TASKFILE_MULTI_OUT:
 	case TASKFILE_OUT:
+		task->handler = task_out_intr;
 		hwif->OUTBSYNC(drive, tf->command, IDE_COMMAND_REG);
 		ndelay(400);	/* FIXME */
 		return pre_task_out_intr(drive, task->rq);
 	case TASKFILE_MULTI_IN:
 	case TASKFILE_IN:
+		task->handler = task_in_intr;
+		/* fall-through */
 	case TASKFILE_NO_DATA:
+		/* WIN_{SPECIFY,RESTORE,SETMULT} use custom handlers */
+		if (task->handler == NULL)
+			task->handler = task_no_data_intr;
 		ide_execute_command(drive, tf->command, task->handler, WAIT_WORSTCASE, NULL);
 		return ide_started;
 	default:
@@ -248,7 +256,7 @@ ide_startstop_t recal_intr (ide_drive_t *drive)
 /*
  * Handler for commands without a data phase
  */
-ide_startstop_t task_no_data_intr (ide_drive_t *drive)
+static ide_startstop_t task_no_data_intr(ide_drive_t *drive)
 {
 	ide_task_t *args	= HWGROUP(drive)->rq->special;
 	ide_hwif_t *hwif	= HWIF(drive);
@@ -544,7 +552,6 @@ EXPORT_SYMBOL(ide_raw_taskfile);
 int ide_no_data_taskfile(ide_drive_t *drive, ide_task_t *task)
 {
 	task->data_phase = TASKFILE_NO_DATA;
-	task->handler    = task_no_data_intr;
 
 	return ide_raw_taskfile(drive, task, NULL, 0);
 }
@@ -667,7 +674,6 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 			}
 			/* fall through */
 		case TASKFILE_OUT:
-			args.handler = &task_out_intr;
 			/* fall through */
 		case TASKFILE_OUT_DMAQ:
 		case TASKFILE_OUT_DMA:
@@ -685,7 +691,6 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 			}
 			/* fall through */
 		case TASKFILE_IN:
-			args.handler = &task_in_intr;
 			/* fall through */
 		case TASKFILE_IN_DMAQ:
 		case TASKFILE_IN_DMA:
@@ -693,7 +698,6 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 			data_buf = inbuf;
 			break;
 		case TASKFILE_NO_DATA:
-			args.handler = &task_no_data_intr;
 			break;
 		default:
 			err = -EFAULT;

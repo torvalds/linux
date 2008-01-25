@@ -973,7 +973,6 @@ extern ide_startstop_t do_rw_taskfile(ide_drive_t *, ide_task_t *);
 extern ide_startstop_t set_multmode_intr(ide_drive_t *);
 extern ide_startstop_t set_geometry_intr(ide_drive_t *);
 extern ide_startstop_t recal_intr(ide_drive_t *);
-extern ide_startstop_t task_no_data_intr(ide_drive_t *);
 extern ide_startstop_t task_in_intr(ide_drive_t *);
 extern ide_startstop_t pre_task_out_intr(ide_drive_t *, struct request *);
 

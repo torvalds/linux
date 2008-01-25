@@ -518,7 +518,6 @@ static int get_smart_data(ide_drive_t *drive, u8 *buf, u8 sub_cmd)
 	tf->command = WIN_SMART;
 	args.tf_flags	= IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE;
 	args.data_phase	= TASKFILE_IN;
-	args.handler	= task_in_intr;
 	(void) smart_enable(drive);
 	return ide_raw_taskfile(drive, &args, buf, 1);
 }
@@ -608,7 +607,6 @@ static void idedisk_prepare_flush(struct request_queue *q, struct request *rq)
 		task.tf.command = WIN_FLUSH_CACHE;
 	task.tf_flags	= IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE;
 	task.data_phase	= TASKFILE_NO_DATA;
-	task.handler	= task_no_data_intr;
 
 	rq->cmd_type = REQ_TYPE_ATA_TASKFILE;
 	rq->cmd_flags |= REQ_SOFTBARRIER;
