@@ -13,8 +13,8 @@
 #include <asm/arch/hwregs/supp_reg.h>
 
 #define UPDATE_TLB_SEL_IDX(val)					\
-do { 								\
-	unsigned long tlb_sel; 					\
+do {								\
+	unsigned long tlb_sel;					\
 								\
 	tlb_sel = REG_FIELD(mmu, rw_mm_tlb_sel, idx, val);	\
 	SUPP_REG_WR(RW_MM_TLB_SEL, tlb_sel);			\
@@ -30,8 +30,8 @@ do {						\
  * The TLB can host up to 256 different mm contexts at the same time. The running
  * context is found in the PID register. Each TLB entry contains a page_id that
  * has to match the PID register to give a hit. page_id_map keeps track of which
- * mm is assigned to which page_id, making sure it's known when to invalidate TLB
- * entries.
+ * mm's is assigned to which page_id's, making sure it's known when to
+ * invalidate TLB entries.
  *
  * The last page_id is never running, it is used as an invalid page_id so that
  * it's possible to make TLB entries that will nerver match.
@@ -179,29 +179,29 @@ void
 switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	  struct task_struct *tsk)
 {
-	int cpu = smp_processor_id();
+	if (prev != next) {
+		int cpu = smp_processor_id();
 
-	/* Make sure there is a MMU context. */
-	spin_lock(&mmu_context_lock);
-	get_mmu_context(next);
-	cpu_set(cpu, next->cpu_vm_mask);
-	spin_unlock(&mmu_context_lock);
+		/* Make sure there is a MMU context. */
+		spin_lock(&mmu_context_lock);
+		get_mmu_context(next);
+		cpu_set(cpu, next->cpu_vm_mask);
+		spin_unlock(&mmu_context_lock);
 
-	/*
-	 * Remember the pgd for the fault handlers. Keep a separate copy of it
-	 * because current and active_mm might be invalid at points where
-	 * there's still a need to derefer the pgd.
-	 */
-	per_cpu(current_pgd, cpu) = next->pgd;
+		/*
+		 * Remember the pgd for the fault handlers. Keep a seperate
+		 * copy of it because current and active_mm might be invalid
+		 * at points where * there's still a need to derefer the pgd.
+		 */
+		per_cpu(current_pgd, cpu) = next->pgd;
 
-	/* Switch context in the MMU. */
-        if (tsk && task_thread_info(tsk))
-        {
-          SPEC_REG_WR(SPEC_REG_PID, next->context.page_id | task_thread_info(tsk)->tls);
-        }
-        else
-        {
-          SPEC_REG_WR(SPEC_REG_PID, next->context.page_id);
-        }
+		/* Switch context in the MMU. */
+		if (tsk && task_thread_info(tsk)) {
+			SPEC_REG_WR(SPEC_REG_PID, next->context.page_id |
+				task_thread_info(tsk)->tls);
+		} else {
+			SPEC_REG_WR(SPEC_REG_PID, next->context.page_id);
+		}
+	}
 }
 
