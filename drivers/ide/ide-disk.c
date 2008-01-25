@@ -137,13 +137,11 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq, 
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	unsigned int dma	= drive->using_dma;
+	u16 nsectors		= (u16)rq->nr_sectors;
 	u8 lba48		= (drive->addressing == 1) ? 1 : 0;
 	u8 command		= WIN_NOP;
-	ata_nsector_t		nsectors;
 	ide_task_t		task;
 	struct ide_taskfile	*tf = &task.tf;
-
-	nsectors.all		= (u16) rq->nr_sectors;
 
 	if ((hwif->host_flags & IDE_HFLAG_NO_LBA48_DMA) && lba48 && dma) {
 		if (block + rq->nr_sectors > 1ULL << 28)
@@ -166,14 +164,14 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq, 
 			pr_debug("%s: LBA=0x%012llx\n", drive->name,
 					(unsigned long long)block);
 
-			tf->hob_nsect = nsectors.b.high;
+			tf->hob_nsect = (nsectors >> 8) & 0xff;
 			tf->hob_lbal  = (u8)(block >> 24);
 			if (sizeof(block) != 4) {
 				tf->hob_lbam = (u8)((u64)block >> 32);
 				tf->hob_lbah = (u8)((u64)block >> 40);
 			}
 
-			tf->nsect  = nsectors.b.low;
+			tf->nsect  = nsectors & 0xff;
 			tf->lbal   = (u8) block;
 			tf->lbam   = (u8)(block >>  8);
 			tf->lbah   = (u8)(block >> 16);
@@ -185,7 +183,7 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq, 
 #endif
 			task.tf_flags |= (IDE_TFLAG_LBA48 | IDE_TFLAG_OUT_HOB);
 		} else {
-			tf->nsect  = nsectors.b.low;
+			tf->nsect  = nsectors & 0xff;
 			tf->lbal   = block;
 			tf->lbam   = block >>= 8;
 			tf->lbah   = block >>= 8;
@@ -200,7 +198,7 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq, 
 
 		pr_debug("%s: CHS=%u/%u/%u\n", drive->name, cyl, head, sect);
 
-		tf->nsect  = nsectors.b.low;
+		tf->nsect  = nsectors & 0xff;
 		tf->lbal   = sect;
 		tf->lbam   = cyl;
 		tf->lbah   = cyl >> 8;

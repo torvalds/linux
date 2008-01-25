@@ -1847,13 +1847,13 @@ static ide_startstop_t idetape_pc_intr (ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	idetape_tape_t *tape = drive->driver_data;
-	atapi_bcount_t bcount;
 	atapi_ireason_t ireason;
 	idetape_pc_t *pc = tape->pc;
 	unsigned int temp;
 #if SIMULATE_ERRORS
 	static int error_sim_count = 0;
 #endif
+	u16 bcount;
 	u8 stat;
 
 #if IDETAPE_DEBUG_LOG
@@ -1962,8 +1962,8 @@ static ide_startstop_t idetape_pc_intr (ide_drive_t *drive)
 		return ide_do_reset(drive);
 	}
 	/* Get the number of bytes to transfer on this interrupt. */
-	bcount.b.high = hwif->INB(IDE_BCOUNTH_REG);
-	bcount.b.low = hwif->INB(IDE_BCOUNTL_REG);
+	bcount = (hwif->INB(IDE_BCOUNTH_REG) << 8) |
+		  hwif->INB(IDE_BCOUNTL_REG);
 
 	ireason.all = hwif->INB(IDE_IREASON_REG);
 
@@ -1981,11 +1981,11 @@ static ide_startstop_t idetape_pc_intr (ide_drive_t *drive)
 	}
 	if (!test_bit(PC_WRITING, &pc->flags)) {
 		/* Reading - Check that we have enough space */
-		temp = pc->actually_transferred + bcount.all;
+		temp = pc->actually_transferred + bcount;
 		if (temp > pc->request_transfer) {
 			if (temp > pc->buffer_size) {
 				printk(KERN_ERR "ide-tape: The tape wants to send us more data than expected - discarding data\n");
-				idetape_discard_data(drive, bcount.all);
+				idetape_discard_data(drive, bcount);
 				ide_set_handler(drive, &idetape_pc_intr, IDETAPE_WAIT_CMD, NULL);
 				return ide_started;
 			}
@@ -1997,23 +1997,26 @@ static ide_startstop_t idetape_pc_intr (ide_drive_t *drive)
 	}
 	if (test_bit(PC_WRITING, &pc->flags)) {
 		if (pc->bh != NULL)
-			idetape_output_buffers(drive, pc, bcount.all);
+			idetape_output_buffers(drive, pc, bcount);
 		else
 			/* Write the current buffer */
-			HWIF(drive)->atapi_output_bytes(drive, pc->current_position, bcount.all);
+			hwif->atapi_output_bytes(drive, pc->current_position,
+						 bcount);
 	} else {
 		if (pc->bh != NULL)
-			idetape_input_buffers(drive, pc, bcount.all);
+			idetape_input_buffers(drive, pc, bcount);
 		else
 			/* Read the current buffer */
-			HWIF(drive)->atapi_input_bytes(drive, pc->current_position, bcount.all);
+			hwif->atapi_input_bytes(drive, pc->current_position,
+						bcount);
 	}
 	/* Update the current position */
-	pc->actually_transferred += bcount.all;
-	pc->current_position += bcount.all;
+	pc->actually_transferred += bcount;
+	pc->current_position += bcount;
 #if IDETAPE_DEBUG_LOG
 	if (tape->debug_level >= 2)
-		printk(KERN_INFO "ide-tape: [cmd %x] transferred %d bytes on that interrupt\n", pc->c[0], bcount.all);
+		printk(KERN_INFO "ide-tape: [cmd %x] transferred %d bytes "
+				 "on that interrupt\n", pc->c[0], bcount);
 #endif
 	/* And set the interrupt handler again */
 	ide_set_handler(drive, &idetape_pc_intr, IDETAPE_WAIT_CMD, NULL);
@@ -2109,8 +2112,8 @@ static ide_startstop_t idetape_issue_packet_command (ide_drive_t *drive, idetape
 {
 	ide_hwif_t *hwif = drive->hwif;
 	idetape_tape_t *tape = drive->driver_data;
-	atapi_bcount_t bcount;
 	int dma_ok = 0;
+	u16 bcount;
 
 #if IDETAPE_DEBUG_BUGS
 	if (tape->pc->c[0] == IDETAPE_REQUEST_SENSE_CMD &&
@@ -2159,7 +2162,7 @@ static ide_startstop_t idetape_issue_packet_command (ide_drive_t *drive, idetape
 	pc->actually_transferred = 0;
 	pc->current_position = pc->buffer;
 	/* Request to transfer the entire buffer at once */
-	bcount.all = pc->request_transfer;
+	bcount = pc->request_transfer;
 
 	if (test_and_clear_bit(PC_DMA_ERROR, &pc->flags)) {
 		printk(KERN_WARNING "ide-tape: DMA disabled, "
@@ -2172,8 +2175,8 @@ static ide_startstop_t idetape_issue_packet_command (ide_drive_t *drive, idetape
 	if (IDE_CONTROL_REG)
 		hwif->OUTB(drive->ctl, IDE_CONTROL_REG);
 	hwif->OUTB(dma_ok ? 1 : 0, IDE_FEATURE_REG);	/* Use PIO/DMA */
-	hwif->OUTB(bcount.b.high, IDE_BCOUNTH_REG);
-	hwif->OUTB(bcount.b.low, IDE_BCOUNTL_REG);
+	hwif->OUTB((bcount >> 8) & 0xff, IDE_BCOUNTH_REG);
+	hwif->OUTB(bcount & 0xff, IDE_BCOUNTL_REG);
 	hwif->OUTB(drive->select.all, IDE_SELECT_REG);
 	if (dma_ok)			/* Will begin DMA later */
 		set_bit(PC_DMA_IN_PROGRESS, &pc->flags);

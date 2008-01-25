@@ -787,11 +787,12 @@ static void idefloppy_retry_pc (ide_drive_t *drive)
 static ide_startstop_t idefloppy_pc_intr (ide_drive_t *drive)
 {
 	idefloppy_floppy_t *floppy = drive->driver_data;
-	atapi_bcount_t bcount;
+	ide_hwif_t *hwif = drive->hwif;
 	atapi_ireason_t ireason;
 	idefloppy_pc_t *pc = floppy->pc;
 	struct request *rq = pc->rq;
 	unsigned int temp;
+	u16 bcount;
 	u8 stat;
 
 	debug_log(KERN_INFO "ide-floppy: Reached %s interrupt handler\n",
@@ -848,8 +849,8 @@ static ide_startstop_t idefloppy_pc_intr (ide_drive_t *drive)
 	}
 
 	/* Get the number of bytes to transfer */
-	bcount.b.high = HWIF(drive)->INB(IDE_BCOUNTH_REG);
-	bcount.b.low = HWIF(drive)->INB(IDE_BCOUNTL_REG);
+	bcount = (hwif->INB(IDE_BCOUNTH_REG) << 8) |
+		  hwif->INB(IDE_BCOUNTL_REG);
 	/* on this interrupt */
 	ireason.all = HWIF(drive)->INB(IDE_IREASON_REG);
 
@@ -867,13 +868,13 @@ static ide_startstop_t idefloppy_pc_intr (ide_drive_t *drive)
 	}
 	if (!test_bit(PC_WRITING, &pc->flags)) {
 		/* Reading - Check that we have enough space */
-		temp = pc->actually_transferred + bcount.all;
+		temp = pc->actually_transferred + bcount;
 		if (temp > pc->request_transfer) {
 			if (temp > pc->buffer_size) {
 				printk(KERN_ERR "ide-floppy: The floppy wants "
 					"to send us more data than expected "
 					"- discarding data\n");
-				idefloppy_discard_data(drive,bcount.all);
+				idefloppy_discard_data(drive, bcount);
 				BUG_ON(HWGROUP(drive)->handler != NULL);
 				ide_set_handler(drive,
 						&idefloppy_pc_intr,
@@ -889,23 +890,21 @@ static ide_startstop_t idefloppy_pc_intr (ide_drive_t *drive)
 	if (test_bit(PC_WRITING, &pc->flags)) {
 		if (pc->buffer != NULL)
 			/* Write the current buffer */
-			HWIF(drive)->atapi_output_bytes(drive,
-						pc->current_position,
-						bcount.all);
+			hwif->atapi_output_bytes(drive, pc->current_position,
+						 bcount);
 		else
-			idefloppy_output_buffers(drive, pc, bcount.all);
+			idefloppy_output_buffers(drive, pc, bcount);
 	} else {
 		if (pc->buffer != NULL)
 			/* Read the current buffer */
-			HWIF(drive)->atapi_input_bytes(drive,
-						pc->current_position,
-						bcount.all);
+			hwif->atapi_input_bytes(drive, pc->current_position,
+						bcount);
 		else
-			idefloppy_input_buffers(drive, pc, bcount.all);
+			idefloppy_input_buffers(drive, pc, bcount);
 	}
 	/* Update the current position */
-	pc->actually_transferred += bcount.all;
-	pc->current_position += bcount.all;
+	pc->actually_transferred += bcount;
+	pc->current_position += bcount;
 
 	BUG_ON(HWGROUP(drive)->handler != NULL);
 	ide_set_handler(drive, &idefloppy_pc_intr, IDEFLOPPY_WAIT_CMD, NULL);		/* And set the interrupt handler again */
@@ -1019,8 +1018,8 @@ static ide_startstop_t idefloppy_issue_pc (ide_drive_t *drive, idefloppy_pc_t *p
 {
 	idefloppy_floppy_t *floppy = drive->driver_data;
 	ide_hwif_t *hwif = drive->hwif;
-	atapi_bcount_t bcount;
 	ide_handler_t *pkt_xfer_routine;
+	u16 bcount;
 	u8 dma;
 
 	if (floppy->failed_pc == NULL &&
@@ -1059,7 +1058,7 @@ static ide_startstop_t idefloppy_issue_pc (ide_drive_t *drive, idefloppy_pc_t *p
 	/* We haven't transferred any data yet */
 	pc->actually_transferred = 0;
 	pc->current_position = pc->buffer;
-	bcount.all = min(pc->request_transfer, 63 * 1024);
+	bcount = min(pc->request_transfer, 63 * 1024);
 
 	if (test_and_clear_bit(PC_DMA_ERROR, &pc->flags))
 		ide_dma_off(drive);
@@ -1073,8 +1072,8 @@ static ide_startstop_t idefloppy_issue_pc (ide_drive_t *drive, idefloppy_pc_t *p
 		HWIF(drive)->OUTB(drive->ctl, IDE_CONTROL_REG);
 	/* Use PIO/DMA */
 	hwif->OUTB(dma, IDE_FEATURE_REG);
-	HWIF(drive)->OUTB(bcount.b.high, IDE_BCOUNTH_REG);
-	HWIF(drive)->OUTB(bcount.b.low, IDE_BCOUNTL_REG);
+	hwif->OUTB((bcount >> 8) & 0xff, IDE_BCOUNTH_REG);
+	hwif->OUTB(bcount & 0xff, IDE_BCOUNTL_REG);
 	HWIF(drive)->OUTB(drive->select.all, IDE_SELECT_REG);
 
 	if (dma) {	/* Begin DMA, if necessary */

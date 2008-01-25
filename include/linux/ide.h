@@ -316,26 +316,6 @@ typedef union {
 } special_t;
 
 /*
- * ATA DATA Register Special.
- * ATA NSECTOR Count Register().
- * ATAPI Byte Count Register.
- */
-typedef union {
-	unsigned all			:16;
-	struct {
-#if defined(__LITTLE_ENDIAN_BITFIELD)
-		unsigned low		:8;	/* LSB */
-		unsigned high		:8;	/* MSB */
-#elif defined(__BIG_ENDIAN_BITFIELD)
-		unsigned high		:8;	/* MSB */
-		unsigned low		:8;	/* LSB */
-#else
-#error "Please fix <asm/byteorder.h>"
-#endif
-	} b;
-} ata_nsector_t, ata_data_t, atapi_bcount_t;
-
-/*
  * ATA-IDE Select Register, aka Device-Head
  *
  * head		: always zeros here
