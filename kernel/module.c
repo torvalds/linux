@@ -2357,21 +2357,30 @@ static void m_stop(struct seq_file *m, void *p)
 	mutex_unlock(&module_mutex);
 }
 
-static char *taint_flags(unsigned int taints, char *buf)
+static char *module_flags(struct module *mod, char *buf)
 {
 	int bx = 0;
 
-	if (taints) {
+	if (mod->taints ||
+	    mod->state == MODULE_STATE_GOING ||
+	    mod->state == MODULE_STATE_COMING) {
 		buf[bx++] = '(';
-		if (taints & TAINT_PROPRIETARY_MODULE)
+		if (mod->taints & TAINT_PROPRIETARY_MODULE)
 			buf[bx++] = 'P';
-		if (taints & TAINT_FORCED_MODULE)
+		if (mod->taints & TAINT_FORCED_MODULE)
 			buf[bx++] = 'F';
 		/*
 		 * TAINT_FORCED_RMMOD: could be added.
 		 * TAINT_UNSAFE_SMP, TAINT_MACHINE_CHECK, TAINT_BAD_PAGE don't
 		 * apply to modules.
 		 */
+
+		/* Show a - for module-is-being-unloaded */
+		if (mod->state == MODULE_STATE_GOING)
+			buf[bx++] = '-';
+		/* Show a + for module-is-being-loaded */
+		if (mod->state == MODULE_STATE_COMING)
+			buf[bx++] = '+';
 		buf[bx++] = ')';
 	}
 	buf[bx] = '\0';
@@ -2398,7 +2407,7 @@ static int m_show(struct seq_file *m, void *p)
 
 	/* Taints info */
 	if (mod->taints)
-		seq_printf(m, " %s", taint_flags(mod->taints, buf));
+		seq_printf(m, " %s", module_flags(mod, buf));
 
 	seq_printf(m, "\n");
 	return 0;
@@ -2493,7 +2502,7 @@ void print_modules(void)
 
 	printk("Modules linked in:");
 	list_for_each_entry(mod, &modules, list)
-		printk(" %s%s", mod->name, taint_flags(mod->taints, buf));
+		printk(" %s%s", mod->name, module_flags(mod, buf));
 	printk("\n");
 }
 
