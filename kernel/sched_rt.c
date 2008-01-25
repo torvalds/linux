@@ -263,54 +263,66 @@ static struct task_struct *pick_next_highest_task_rt(struct rq *rq,
 
 static DEFINE_PER_CPU(cpumask_t, local_cpu_mask);
 
+static int find_lowest_rq(struct task_struct *task)
+{
+	int cpu;
+	cpumask_t *cpu_mask = &__get_cpu_var(local_cpu_mask);
+	struct rq *lowest_rq = NULL;
+
+	cpus_and(*cpu_mask, cpu_online_map, task->cpus_allowed);
+
+	/*
+	 * Scan each rq for the lowest prio.
+	 */
+	for_each_cpu_mask(cpu, *cpu_mask) {
+		struct rq *rq = cpu_rq(cpu);
+
+		if (cpu == rq->cpu)
+			continue;
+
+		/* We look for lowest RT prio or non-rt CPU */
+		if (rq->rt.highest_prio >= MAX_RT_PRIO) {
+			lowest_rq = rq;
+			break;
+		}
+
+		/* no locking for now */
+		if (rq->rt.highest_prio > task->prio &&
+		    (!lowest_rq || rq->rt.highest_prio > lowest_rq->rt.highest_prio)) {
+			lowest_rq = rq;
+		}
+	}
+
+	return lowest_rq ? lowest_rq->cpu : -1;
+}
+
 /* Will lock the rq it finds */
 static struct rq *find_lock_lowest_rq(struct task_struct *task,
-				      struct rq *this_rq)
+				      struct rq *rq)
 {
 	struct rq *lowest_rq = NULL;
 	int cpu;
 	int tries;
-	cpumask_t *cpu_mask = &__get_cpu_var(local_cpu_mask);
-
-	cpus_and(*cpu_mask, cpu_online_map, task->cpus_allowed);
 
 	for (tries = 0; tries < RT_MAX_TRIES; tries++) {
-		/*
-		 * Scan each rq for the lowest prio.
-		 */
-		for_each_cpu_mask(cpu, *cpu_mask) {
-			struct rq *rq = &per_cpu(runqueues, cpu);
+		cpu = find_lowest_rq(task);
 
-			if (cpu == this_rq->cpu)
-				continue;
-
-			/* We look for lowest RT prio or non-rt CPU */
-			if (rq->rt.highest_prio >= MAX_RT_PRIO) {
-				lowest_rq = rq;
-				break;
-			}
-
-			/* no locking for now */
-			if (rq->rt.highest_prio > task->prio &&
-			    (!lowest_rq || rq->rt.highest_prio > lowest_rq->rt.highest_prio)) {
-				lowest_rq = rq;
-			}
-		}
-
-		if (!lowest_rq)
+		if (cpu == -1)
 			break;
 
+		lowest_rq = cpu_rq(cpu);
+
 		/* if the prio of this runqueue changed, try again */
-		if (double_lock_balance(this_rq, lowest_rq)) {
+		if (double_lock_balance(rq, lowest_rq)) {
 			/*
 			 * We had to unlock the run queue. In
 			 * the mean time, task could have
 			 * migrated already or had its affinity changed.
 			 * Also make sure that it wasn't scheduled on its rq.
 			 */
-			if (unlikely(task_rq(task) != this_rq ||
+			if (unlikely(task_rq(task) != rq ||
 				     !cpu_isset(lowest_rq->cpu, task->cpus_allowed) ||
-				     task_running(this_rq, task) ||
+				     task_running(rq, task) ||
 				     !task->se.on_rq)) {
 				spin_unlock(&lowest_rq->lock);
 				lowest_rq = NULL;
