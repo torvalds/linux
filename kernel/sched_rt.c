@@ -16,6 +16,7 @@ static inline cpumask_t *rt_overload(void)
 }
 static inline void rt_set_overload(struct rq *rq)
 {
+	rq->rt.overloaded = 1;
 	cpu_set(rq->cpu, rt_overload_mask);
 	/*
 	 * Make sure the mask is visible before we set
@@ -32,6 +33,7 @@ static inline void rt_clear_overload(struct rq *rq)
 	/* the order here really doesn't matter */
 	atomic_dec(&rto_count);
 	cpu_clear(rq->cpu, rt_overload_mask);
+	rq->rt.overloaded = 0;
 }
 
 static void update_rt_migration(struct rq *rq)
@@ -448,6 +450,9 @@ static int push_rt_task(struct rq *rq)
 
 	assert_spin_locked(&rq->lock);
 
+	if (!rq->rt.overloaded)
+		return 0;
+
 	next_task = pick_next_highest_task_rt(rq, -1);
 	if (!next_task)
 		return 0;
@@ -675,7 +680,7 @@ static void schedule_tail_balance_rt(struct rq *rq)
 	 * the lock was owned by prev, we need to release it
 	 * first via finish_lock_switch and then reaquire it here.
 	 */
-	if (unlikely(rq->rt.rt_nr_running > 1)) {
+	if (unlikely(rq->rt.overloaded)) {
 		spin_lock_irq(&rq->lock);
 		push_rt_tasks(rq);
 		spin_unlock_irq(&rq->lock);
@@ -687,7 +692,8 @@ static void wakeup_balance_rt(struct rq *rq, struct task_struct *p)
 {
 	if (unlikely(rt_task(p)) &&
 	    !task_running(rq, p) &&
-	    (p->prio >= rq->curr->prio))
+	    (p->prio >= rq->rt.highest_prio) &&
+	    rq->rt.overloaded)
 		push_rt_tasks(rq);
 }
 
