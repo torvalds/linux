@@ -576,12 +576,9 @@ static void push_rt_tasks(struct rq *rq)
 
 static int pull_rt_task(struct rq *this_rq)
 {
-	struct task_struct *next;
-	struct task_struct *p;
+	int this_cpu = this_rq->cpu, ret = 0, cpu;
+	struct task_struct *p, *next;
 	struct rq *src_rq;
-	int this_cpu = this_rq->cpu;
-	int cpu;
-	int ret = 0;
 
 	/*
 	 * If cpusets are used, and we have overlapping
@@ -608,23 +605,25 @@ static int pull_rt_task(struct rq *this_rq)
 			if (double_lock_balance(this_rq, src_rq)) {
 				/* unlocked our runqueue lock */
 				struct task_struct *old_next = next;
+
 				next = pick_next_task_rt(this_rq);
 				if (next != old_next)
 					ret = 1;
 			}
-			if (likely(src_rq->rt.rt_nr_running <= 1))
+			if (likely(src_rq->rt.rt_nr_running <= 1)) {
 				/*
 				 * Small chance that this_rq->curr changed
 				 * but it's really harmless here.
 				 */
 				rt_clear_overload(this_rq);
-			else
+			} else {
 				/*
 				 * Heh, the src_rq is now overloaded, since
 				 * we already have the src_rq lock, go straight
 				 * to pulling tasks from it.
 				 */
 				goto try_pulling;
+			}
 			spin_unlock(&src_rq->lock);
 			continue;
 		}
@@ -638,6 +637,7 @@ static int pull_rt_task(struct rq *this_rq)
 		 */
 		if (double_lock_balance(this_rq, src_rq)) {
 			struct task_struct *old_next = next;
+
 			next = pick_next_task_rt(this_rq);
 			if (next != old_next)
 				ret = 1;
@@ -674,7 +674,7 @@ static int pull_rt_task(struct rq *this_rq)
 			 */
 			if (p->prio < src_rq->curr->prio ||
 			    (next && next->prio < src_rq->curr->prio))
-				goto bail;
+				goto out;
 
 			ret = 1;
 
@@ -686,9 +686,7 @@ static int pull_rt_task(struct rq *this_rq)
 			 * case there's an even higher prio task
 			 * in another runqueue. (low likelyhood
 			 * but possible)
-			 */
-
-			/*
+			 *
 			 * Update next so that we won't pick a task
 			 * on another cpu with a priority lower (or equal)
 			 * than the one we just picked.
@@ -696,7 +694,7 @@ static int pull_rt_task(struct rq *this_rq)
 			next = p;
 
 		}
- bail:
+ out:
 		spin_unlock(&src_rq->lock);
 	}
 
