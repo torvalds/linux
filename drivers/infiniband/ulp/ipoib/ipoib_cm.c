@@ -155,6 +155,22 @@ partial_error:
 	return NULL;
 }
 
+static void ipoib_cm_free_rx_ring(struct net_device *dev,
+				  struct ipoib_cm_rx_buf *rx_ring)
+{
+	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	int i;
+
+	for (i = 0; i < ipoib_recvq_size; ++i)
+		if (rx_ring[i].skb) {
+			ipoib_cm_dma_unmap_rx(priv, IPOIB_CM_RX_SG - 1,
+					      rx_ring[i].mapping);
+			dev_kfree_skb_any(rx_ring[i].skb);
+		}
+
+	kfree(rx_ring);
+}
+
 static void ipoib_cm_start_rx_drain(struct ipoib_dev_priv *priv)
 {
 	struct ib_send_wr *bad_wr;
@@ -1328,7 +1344,7 @@ int ipoib_cm_dev_init(struct net_device *dev)
 void ipoib_cm_dev_cleanup(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
-	int i, ret;
+	int ret;
 
 	if (!priv->cm.srq)
 		return;
@@ -1342,13 +1358,7 @@ void ipoib_cm_dev_cleanup(struct net_device *dev)
 	priv->cm.srq = NULL;
 	if (!priv->cm.srq_ring)
 		return;
-	for (i = 0; i < ipoib_recvq_size; ++i)
-		if (priv->cm.srq_ring[i].skb) {
-			ipoib_cm_dma_unmap_rx(priv, IPOIB_CM_RX_SG - 1,
-					      priv->cm.srq_ring[i].mapping);
-			dev_kfree_skb_any(priv->cm.srq_ring[i].skb);
-			priv->cm.srq_ring[i].skb = NULL;
-		}
-	kfree(priv->cm.srq_ring);
+
+	ipoib_cm_free_rx_ring(dev, priv->cm.srq_ring);
 	priv->cm.srq_ring = NULL;
 }
