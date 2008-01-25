@@ -229,8 +229,6 @@ ide_startstop_t task_no_data_intr (ide_drive_t *drive)
 	return ide_stopped;
 }
 
-EXPORT_SYMBOL(task_no_data_intr);
-
 static u8 wait_drive_not_busy(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = HWIF(drive);
@@ -523,6 +521,16 @@ int ide_raw_taskfile (ide_drive_t *drive, ide_task_t *args, u8 *buf)
 }
 
 EXPORT_SYMBOL(ide_raw_taskfile);
+
+int ide_no_data_taskfile(ide_drive_t *drive, ide_task_t *task)
+{
+	task->command_type = IDE_DRIVE_TASK_NO_DATA;
+	task->data_phase   = TASKFILE_NO_DATA;
+	task->handler      = task_no_data_intr;
+
+	return ide_raw_taskfile(drive, task, NULL);
+}
+EXPORT_SYMBOL_GPL(ide_no_data_taskfile);
 
 #ifdef CONFIG_IDE_TASK_IOCTL
 int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)

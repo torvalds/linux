@@ -1140,6 +1140,8 @@ extern ide_startstop_t pre_task_out_intr(ide_drive_t *, struct request *);
 
 extern int ide_raw_taskfile(ide_drive_t *, ide_task_t *, u8 *);
 
+int ide_no_data_taskfile(ide_drive_t *, ide_task_t *);
+
 int ide_taskfile_ioctl(ide_drive_t *, unsigned int, unsigned long);
 int ide_cmd_ioctl(ide_drive_t *, unsigned int, unsigned long);
 int ide_task_ioctl(ide_drive_t *, unsigned int, unsigned long);
