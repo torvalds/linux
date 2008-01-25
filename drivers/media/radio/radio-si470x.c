@@ -55,13 +55,17 @@
  *		- applied all checkpatch.pl v1.12 suggestions
  *		  except the warning about the too long lines with bit comments
  *		- renamed FMRADIO to RADIO to cut line length (checkpatch.pl)
+ * 2008-01-22	Tobias Lorenz <tobias.lorenz@gmx.net>
+ *		Version 1.0.4
+ *		- avoid poss. locking when doing copy_to_user which may sleep
+ *		- RDS is automatically activated on read now
+ *		- code cleaned of unnecessary rds_commands
+ *		- USB Vendor/Product ID for ADS/Tech FM Radio Receiver verified
+ *		  (thanks to Guillaume RAMOUSSE)
  *
  * ToDo:
- * - check USB Vendor/Product ID for ADS/Tech FM Radio Receiver
- *   (formerly Instant FM Music) (RDX-155-EF) is 06e1:a155
  * - add seeking support
  * - add firmware download/update support
- * - add possibility to switch off RDS
  * - RDS support: interrupt mode, instead of polling
  * - add LED status output (check if that's not already done in firmware)
  */
@@ -70,7 +74,7 @@
 /* driver definitions */
 #define DRIVER_AUTHOR "Tobias Lorenz <tobias.lorenz@gmx.net>"
 #define DRIVER_NAME "radio-si470x"
-#define DRIVER_VERSION KERNEL_VERSION(1, 0, 3)
+#define DRIVER_VERSION KERNEL_VERSION(1, 0, 4)
 #define DRIVER_CARD "Silicon Labs Si470x FM Radio Receiver"
 #define DRIVER_DESC "USB radio driver for Si470x FM Radio Receivers"
 
@@ -93,6 +97,8 @@
 static struct usb_device_id si470x_usb_driver_id_table[] = {
 	/* Silicon Labs USB FM Radio Reference Design */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x10c4, 0x818a,	USB_CLASS_HID, 0, 0) },
+	/* ADS/Tech FM Radio Receiver (formerly Instant FM Music) */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x06e1, 0xa155,	USB_CLASS_HID, 0, 0) },
 	/* Terminating entry */
 	{ }
 };
@@ -159,6 +165,7 @@ MODULE_PARM_DESC(max_rds_errors, "RDS maximum block errors: *1*");
 /* RDS poll frequency */
 static int rds_poll_time = 40;
 /* 40 is used by the original USBRadio.exe */
+/* 50 is used by radio-cadet */
 /* 75 should be okay */
 /* 80 is the usual RDS receive interval */
 module_param(rds_poll_time, int, 0);
@@ -399,16 +406,13 @@ struct si470x_device {
 
 	/* RDS receive buffer */
 	struct work_struct work;
+	wait_queue_head_t read_queue;
 	struct timer_list timer;
 	spinlock_t lock;		/* buffer locking */
-	unsigned char *buffer;
+	unsigned char *buffer;		/* size is always multiple of three */
 	unsigned int buf_size;
 	unsigned int rd_index;
 	unsigned int wr_index;
-	unsigned int block_count;
-	unsigned char last_blocknum;
-	wait_queue_head_t read_queue;
-	int data_available_for_read;
 };
 
 
@@ -658,8 +662,7 @@ static int si470x_start(struct si470x_device *radio)
 		return retval;
 
 	/* sysconfig 1 */
-	radio->registers[SYSCONFIG1] =
-		SYSCONFIG1_DE | SYSCONFIG1_RDS;
+	radio->registers[SYSCONFIG1] = SYSCONFIG1_DE;
 	retval = si470x_set_register(radio, SYSCONFIG1);
 	if (retval < 0)
 		return retval;
@@ -685,11 +688,30 @@ static int si470x_start(struct si470x_device *radio)
  */
 static int si470x_stop(struct si470x_device *radio)
 {
+	int retval;
+
+	/* sysconfig 1 */
+	radio->registers[SYSCONFIG1] &= ~SYSCONFIG1_RDS;
+	retval = si470x_set_register(radio, SYSCONFIG1);
+	if (retval < 0)
+		return retval;
+
 	/* powercfg */
 	radio->registers[POWERCFG] &= ~POWERCFG_DMUTE;
 	/* POWERCFG_ENABLE has to automatically go low */
 	radio->registers[POWERCFG] |= POWERCFG_ENABLE |	POWERCFG_DISABLE;
 	return si470x_set_register(radio, POWERCFG);
+}
+
+
+/*
+ * si470x_rds_on - switch on rds reception
+ */
+static int si470x_rds_on(struct si470x_device *radio)
+{
+	/* sysconfig 1 */
+	radio->registers[SYSCONFIG1] |= SYSCONFIG1_RDS;
+	return si470x_set_register(radio, SYSCONFIG1);
 }
 
 
@@ -703,15 +725,13 @@ static int si470x_stop(struct si470x_device *radio)
  */
 static void si470x_rds(struct si470x_device *radio)
 {
-	unsigned long flags;
 	unsigned char tmpbuf[3];
 	unsigned char blocknum;
-	unsigned char bler; /* RDS block errors */
+	unsigned char bler; /* rds block errors */
 	unsigned short rds;
 	unsigned int i;
 
-	if (radio->users == 0)
-		return;
+	/* get rds blocks */
 	if (si470x_get_rds_registers(radio) < 0)
 		return;
 	if ((radio->registers[STATUSRSSI] & STATUSRSSI_RDSR) == 0) {
@@ -723,63 +743,67 @@ static void si470x_rds(struct si470x_device *radio)
 		return;
 	}
 
-	for (blocknum = 0; blocknum < 4; blocknum++) {
-		switch (blocknum) {
-		default:
-			bler = (radio->registers[STATUSRSSI] &
-					STATUSRSSI_BLERA) >> 9;
-			rds = radio->registers[RDSA];
-			break;
-		case 1:
-			bler = (radio->registers[READCHAN] &
-					READCHAN_BLERB) >> 14;
-			rds = radio->registers[RDSB];
-			break;
-		case 2:
-			bler = (radio->registers[READCHAN] &
-					READCHAN_BLERC) >> 12;
-			rds = radio->registers[RDSC];
-			break;
-		case 3:
-			bler = (radio->registers[READCHAN] &
-					READCHAN_BLERD) >> 10;
-			rds = radio->registers[RDSD];
-			break;
-		};
+	/* copy four RDS blocks to internal buffer */
+	if (spin_trylock(&radio->lock)) {
+		/* process each rds block */
+		for (blocknum = 0; blocknum < 4; blocknum++) {
+			switch (blocknum) {
+			default:
+				bler = (radio->registers[STATUSRSSI] &
+						STATUSRSSI_BLERA) >> 9;
+				rds = radio->registers[RDSA];
+				break;
+			case 1:
+				bler = (radio->registers[READCHAN] &
+						READCHAN_BLERB) >> 14;
+				rds = radio->registers[RDSB];
+				break;
+			case 2:
+				bler = (radio->registers[READCHAN] &
+						READCHAN_BLERC) >> 12;
+				rds = radio->registers[RDSC];
+				break;
+			case 3:
+				bler = (radio->registers[READCHAN] &
+						READCHAN_BLERD) >> 10;
+				rds = radio->registers[RDSD];
+				break;
+			};
 
-		/* Fill the V4L2 RDS buffer */
-		tmpbuf[0] = rds & 0x00ff;	/* LSB */
-		tmpbuf[1] = (rds & 0xff00) >> 8;/* MSB */
-		tmpbuf[2] = blocknum;		/* offset name */
-		tmpbuf[2] |= blocknum << 3;	/* received offset */
-		if (bler > max_rds_errors)
-			tmpbuf[2] |= 0x80;	/* uncorrectable errors */
-		else if (bler > 0)
-			tmpbuf[2] |= 0x40;	/* corrected error(s) */
+			/* Fill the V4L2 RDS buffer */
+			tmpbuf[0] = rds & 0x00ff;	/* LSB */
+			tmpbuf[1] = (rds & 0xff00) >> 8;/* MSB */
+			tmpbuf[2] = blocknum;		/* offset name */
+			tmpbuf[2] |= blocknum << 3;	/* received offset */
+			if (bler > max_rds_errors)
+				tmpbuf[2] |= 0x80; /* uncorrectable errors */
+			else if (bler > 0)
+				tmpbuf[2] |= 0x40; /* corrected error(s) */
 
-		spin_lock_irqsave(&radio->lock, flags);
+			/* copy RDS block to internal buffer */
+			for (i = 0; i < 3; i++) {
+				radio->buffer[radio->wr_index] = tmpbuf[i];
+				radio->wr_index++;
+			}
 
-		/* copy RDS block to internal buffer */
-		for (i = 0; i < 3; i++) {
-			radio->buffer[radio->wr_index] = tmpbuf[i];
-			radio->wr_index++;
+			/* wrap write pointer */
+			if (radio->wr_index >= radio->buf_size)
+				radio->wr_index = 0;
+
+			/* check for overflow */
+			if (radio->wr_index == radio->rd_index) {
+				/* increment and wrap read pointer */
+				radio->rd_index += 3;
+				if (radio->rd_index >= radio->buf_size)
+					radio->rd_index = 0;
+			}
 		}
-
-		if (radio->wr_index >= radio->buf_size)
-			radio->wr_index = 0;
-
-		if (radio->wr_index == radio->rd_index) {
-			radio->rd_index += 3;
-			if (radio->rd_index >= radio->buf_size)
-				radio->rd_index = 0;
-		} else
-			radio->block_count++;
-
-		spin_unlock_irqrestore(&radio->lock, flags);
+		spin_unlock(&radio->lock);
 	}
 
-	radio->data_available_for_read = 1;
-	wake_up_interruptible(&radio->read_queue);
+	/* wake up read queue */
+	if (radio->wr_index != radio->rd_index)
+		wake_up_interruptible(&radio->read_queue);
 }
 
 
@@ -795,14 +819,14 @@ static void si470x_timer(unsigned long data)
 
 
 /*
- * si470x_timer - rds work function
+ * si470x_work - rds work function
  */
 static void si470x_work(struct work_struct *work)
 {
 	struct si470x_device *radio = container_of(work, struct si470x_device,
 		work);
 
-	if (radio->users == 0)
+	if ((radio->registers[SYSCONFIG1] & SYSCONFIG1_RDS) == 0)
 		return;
 
 	si470x_rds(radio);
@@ -822,53 +846,52 @@ static ssize_t si470x_fops_read(struct file *file, char __user *buf,
 		size_t count, loff_t *ppos)
 {
 	struct si470x_device *radio = video_get_drvdata(video_devdata(file));
-	struct rds_command cmd;
-	unsigned long flags;
-	unsigned int i;
-	unsigned int rd_blocks;
+	int retval = 0;
+	unsigned int block_count = 0;
 
-	cmd.block_count = count / 3; /* each RDS block needs 3 bytes */
-	cmd.result = 0;
-	cmd.buffer = buf;
-	cmd.instance = file;
-
-	/* copy RDS block out of internal buffer */
-	while (!radio->data_available_for_read) {
-		if (wait_event_interruptible(radio->read_queue,
-				     radio->data_available_for_read) < 0)
-			return -EINTR;
+	/* switch on rds reception */
+	if ((radio->registers[SYSCONFIG1] & SYSCONFIG1_RDS) == 0) {
+		si470x_rds_on(radio);
+		schedule_work(&radio->work);
 	}
 
-	spin_lock_irqsave(&radio->lock, flags);
-	rd_blocks = cmd.block_count;
-	if (rd_blocks > radio->block_count)
-		rd_blocks = radio->block_count;
-
-	if (!rd_blocks) {
-		spin_unlock_irqrestore(&radio->lock, flags);
-		return cmd.result;
+	/* block if no new data available */
+	while (radio->wr_index == radio->rd_index) {
+		if (file->f_flags & O_NONBLOCK)
+			return -EWOULDBLOCK;
+		interruptible_sleep_on(&radio->read_queue);
 	}
 
-	for (i = 0; i < rd_blocks; i++) {
-		/* copy RDS block to user buffer */
-		if (radio->rd_index == radio->wr_index)
-			break;
+	/* calculate block count from byte count */
+	count /= 3;
 
-		if (copy_to_user(buf, &radio->buffer[radio->rd_index], 3))
-			break;
+	/* copy RDS block out of internal buffer and to user buffer */
+	if (spin_trylock(&radio->lock)) {
+		while (block_count < count) {
+			if (radio->rd_index == radio->wr_index)
+				break;
 
-		radio->rd_index += 3;
-		if (radio->rd_index >= radio->buf_size)
-			radio->rd_index = 0;
-		radio->block_count--;
+			/* always transfer rds complete blocks */
+			if (copy_to_user(buf,
+					&radio->buffer[radio->rd_index], 3))
+				/* retval = -EFAULT; */
+				break;
 
-		buf += 3;
-		cmd.result += 3;
+			/* increment and wrap read pointer */
+			radio->rd_index += 3;
+			if (radio->rd_index >= radio->buf_size)
+				radio->rd_index = 0;
+
+			/* increment counters */
+			block_count++;
+			buf += 3;
+			retval += 3;
+		}
+
+		spin_unlock(&radio->lock);
 	}
-	radio->data_available_for_read = (radio->block_count > 0);
-	spin_unlock_irqrestore(&radio->lock, flags);
 
-	return cmd.result;
+	return retval;
 }
 
 
@@ -879,14 +902,19 @@ static unsigned int si470x_fops_poll(struct file *file,
 		struct poll_table_struct *pts)
 {
 	struct si470x_device *radio = video_get_drvdata(video_devdata(file));
-	int retval;
 
-	retval = 0;
-	if (radio->data_available_for_read)
-		retval = POLLIN | POLLRDNORM;
+	/* switch on rds reception */
+	if ((radio->registers[SYSCONFIG1] & SYSCONFIG1_RDS) == 0) {
+		si470x_rds_on(radio);
+		schedule_work(&radio->work);
+	}
+
 	poll_wait(file, &radio->read_queue, pts);
 
-	return retval;
+	if (radio->rd_index != radio->wr_index)
+		return POLLIN | POLLRDNORM;
+
+	return 0;
 }
 
 
@@ -895,17 +923,11 @@ static unsigned int si470x_fops_poll(struct file *file,
  */
 static int si470x_fops_open(struct inode *inode, struct file *file)
 {
-	int retval;
 	struct si470x_device *radio = video_get_drvdata(video_devdata(file));
 
 	radio->users++;
-	if (radio->users == 1) {
-		retval = si470x_start(radio);
-		if (retval < 0)
-			return retval;
-
-		schedule_work(&radio->work);
-	}
+	if (radio->users == 1)
+		return si470x_start(radio);
 
 	return 0;
 }
@@ -916,7 +938,6 @@ static int si470x_fops_open(struct inode *inode, struct file *file)
  */
 static int si470x_fops_release(struct inode *inode, struct file *file)
 {
-	int retval;
 	struct si470x_device *radio = video_get_drvdata(video_devdata(file));
 
 	if (!radio)
@@ -924,12 +945,14 @@ static int si470x_fops_release(struct inode *inode, struct file *file)
 
 	radio->users--;
 	if (radio->users == 0) {
-		radio->data_available_for_read = 1;		/* ? */
-		wake_up_interruptible(&radio->read_queue);	/* ? */
+		/* stop rds reception */
+		del_timer_sync(&radio->timer);
+		flush_scheduled_work();
 
-		retval = si470x_stop(radio);
-		if (retval < 0)
-			return retval;
+		/* cancel read processes */
+		wake_up_interruptible(&radio->read_queue);
+
+		return si470x_stop(radio);
 	}
 
 	return 0;
@@ -1314,9 +1337,10 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 			< RADIO_SW_VERSION_CURRENT)
 		printk(KERN_WARNING DRIVER_NAME
 			": This driver is known to work with chip version %d, "
-			"but the device has firmware %d. If you have some "
-			"trouble using this driver, please report to V4L ML "
-			"at video4linux-list@redhat.com\n",
+			"but the device has firmware %d.\n"
+			DRIVER_NAME
+			"If you have some trouble using this driver, please "
+			"report to V4L ML at video4linux-list@redhat.com\n",
 			radio->registers[CHIPID] & CHIPID_FIRMWARE,
 			RADIO_SW_VERSION_CURRENT);
 
@@ -1331,12 +1355,9 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 		kfree(radio);
 		return -ENOMEM;
 	}
-	radio->block_count = 0;
 	radio->wr_index = 0;
 	radio->rd_index = 0;
-	radio->last_blocknum = 0xff;
 	init_waitqueue_head(&radio->read_queue);
-	radio->data_available_for_read = 0;
 
 	/* prepare polling via eventd */
 	INIT_WORK(&radio->work, si470x_work);
@@ -1408,4 +1429,4 @@ module_exit(si470x_module_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_VERSION("1.0.3");
+MODULE_VERSION("1.0.4");
