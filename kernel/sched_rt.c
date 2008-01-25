@@ -45,6 +45,50 @@ static void update_rt_migration(struct rq *rq)
 }
 #endif /* CONFIG_SMP */
 
+static int sched_rt_ratio_exceeded(struct rq *rq, struct rt_rq *rt_rq)
+{
+	u64 period, ratio;
+
+	if (sysctl_sched_rt_ratio == SCHED_RT_FRAC)
+		return 0;
+
+	if (rt_rq->rt_throttled)
+		return 1;
+
+	period = (u64)sysctl_sched_rt_period * NSEC_PER_MSEC;
+	ratio = (period * sysctl_sched_rt_ratio) >> SCHED_RT_FRAC_SHIFT;
+
+	if (rt_rq->rt_time > ratio) {
+		rt_rq->rt_throttled = rq->clock + period - rt_rq->rt_time;
+		return 1;
+	}
+
+	return 0;
+}
+
+static void update_sched_rt_period(struct rq *rq)
+{
+	while (rq->clock > rq->rt_period_expire) {
+		u64 period, ratio;
+
+		period = (u64)sysctl_sched_rt_period * NSEC_PER_MSEC;
+		ratio = (period * sysctl_sched_rt_ratio) >> SCHED_RT_FRAC_SHIFT;
+
+		rq->rt.rt_time -= min(rq->rt.rt_time, ratio);
+		rq->rt_period_expire += period;
+	}
+
+	/*
+	 * When the rt throttle is expired, let them rip.
+	 * (XXX: use hrtick when available)
+	 */
+	if (rq->rt.rt_throttled && rq->clock > rq->rt.rt_throttled) {
+		rq->rt.rt_throttled = 0;
+		if (!sched_rt_ratio_exceeded(rq, &rq->rt))
+			resched_task(rq->curr);
+	}
+}
+
 /*
  * Update the current task's runtime statistics. Skip current tasks that
  * are not in our scheduling class.
@@ -66,6 +110,11 @@ static void update_curr_rt(struct rq *rq)
 	curr->se.sum_exec_runtime += delta_exec;
 	curr->se.exec_start = rq->clock;
 	cpuacct_charge(curr, delta_exec);
+
+	rq->rt.rt_time += delta_exec;
+	update_sched_rt_period(rq);
+	if (sched_rt_ratio_exceeded(rq, &rq->rt))
+		resched_task(curr);
 }
 
 static inline void inc_rt_tasks(struct task_struct *p, struct rq *rq)
@@ -208,7 +257,11 @@ static struct task_struct *pick_next_task_rt(struct rq *rq)
 	struct rt_prio_array *array = &rq->rt.active;
 	struct task_struct *next;
 	struct list_head *queue;
+	struct rt_rq *rt_rq = &rq->rt;
 	int idx;
+
+	if (sched_rt_ratio_exceeded(rq, rt_rq))
+		return NULL;
 
 	idx = sched_find_first_bit(array->bitmap);
 	if (idx >= MAX_RT_PRIO)

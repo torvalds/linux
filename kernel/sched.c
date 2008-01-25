@@ -342,13 +342,14 @@ struct cfs_rq {
 /* Real-Time classes' related field in a runqueue: */
 struct rt_rq {
 	struct rt_prio_array active;
-	int rt_load_balance_idx;
-	struct list_head *rt_load_balance_head, *rt_load_balance_curr;
 	unsigned long rt_nr_running;
+#ifdef CONFIG_SMP
 	unsigned long rt_nr_migratory;
-	/* highest queued rt task prio */
-	int highest_prio;
+	int highest_prio; /* highest queued rt task prio */
 	int overloaded;
+#endif
+	u64 rt_time;
+	u64 rt_throttled;
 };
 
 #ifdef CONFIG_SMP
@@ -415,6 +416,7 @@ struct rq {
 	struct list_head leaf_cfs_rq_list;
 #endif
 	struct rt_rq rt;
+	u64 rt_period_expire;
 
 	/*
 	 * This is part of a global counter where only the total sum
@@ -599,6 +601,21 @@ const_debug unsigned int sysctl_sched_features =
  * Limited because this is done with IRQs disabled.
  */
 const_debug unsigned int sysctl_sched_nr_migrate = 32;
+
+/*
+ * period over which we measure -rt task cpu usage in ms.
+ * default: 1s
+ */
+const_debug unsigned int sysctl_sched_rt_period = 1000;
+
+#define SCHED_RT_FRAC_SHIFT	16
+#define SCHED_RT_FRAC		(1UL << SCHED_RT_FRAC_SHIFT)
+
+/*
+ * ratio of time -rt tasks may consume.
+ * default: 100%
+ */
+const_debug unsigned int sysctl_sched_rt_ratio = SCHED_RT_FRAC;
 
 /*
  * For kernel-internal use: high-speed (but slightly incorrect) per-cpu
@@ -3674,8 +3691,8 @@ void scheduler_tick(void)
 		rq->clock = next_tick;
 	rq->tick_timestamp = rq->clock;
 	update_cpu_load(rq);
-	if (curr != rq->idle) /* FIXME: needed? */
-		curr->sched_class->task_tick(rq, curr, 0);
+	curr->sched_class->task_tick(rq, curr, 0);
+	update_sched_rt_period(rq);
 	spin_unlock(&rq->lock);
 
 #ifdef CONFIG_SMP
@@ -7041,6 +7058,29 @@ static void init_cfs_rq(struct cfs_rq *cfs_rq, struct rq *rq)
 	cfs_rq->min_vruntime = (u64)(-(1LL << 20));
 }
 
+static void init_rt_rq(struct rt_rq *rt_rq, struct rq *rq)
+{
+	struct rt_prio_array *array;
+	int i;
+
+	array = &rt_rq->active;
+	for (i = 0; i < MAX_RT_PRIO; i++) {
+		INIT_LIST_HEAD(array->queue + i);
+		__clear_bit(i, array->bitmap);
+	}
+	/* delimiter for bitsearch: */
+	__set_bit(MAX_RT_PRIO, array->bitmap);
+
+#ifdef CONFIG_SMP
+	rt_rq->rt_nr_migratory = 0;
+	rt_rq->highest_prio = MAX_RT_PRIO;
+	rt_rq->overloaded = 0;
+#endif
+
+	rt_rq->rt_time = 0;
+	rt_rq->rt_throttled = 0;
+}
+
 void __init sched_init(void)
 {
 	int highest_cpu = 0;
@@ -7051,7 +7091,6 @@ void __init sched_init(void)
 #endif
 
 	for_each_possible_cpu(i) {
-		struct rt_prio_array *array;
 		struct rq *rq;
 
 		rq = cpu_rq(i);
@@ -7083,6 +7122,8 @@ void __init sched_init(void)
 		}
 		init_task_group.shares = init_task_group_load;
 #endif
+		init_rt_rq(&rq->rt, rq);
+		rq->rt_period_expire = 0;
 
 		for (j = 0; j < CPU_LOAD_IDX_MAX; j++)
 			rq->cpu_load[j] = 0;
@@ -7095,22 +7136,11 @@ void __init sched_init(void)
 		rq->cpu = i;
 		rq->migration_thread = NULL;
 		INIT_LIST_HEAD(&rq->migration_queue);
-		rq->rt.highest_prio = MAX_RT_PRIO;
-		rq->rt.overloaded = 0;
 		rq_attach_root(rq, &def_root_domain);
 #endif
 		init_rq_hrtick(rq);
-
 		atomic_set(&rq->nr_iowait, 0);
-
-		array = &rq->rt.active;
-		for (j = 0; j < MAX_RT_PRIO; j++) {
-			INIT_LIST_HEAD(array->queue + j);
-			__clear_bit(j, array->bitmap);
-		}
 		highest_cpu = i;
-		/* delimiter for bitsearch: */
-		__set_bit(MAX_RT_PRIO, array->bitmap);
 	}
 
 	set_load_weight(&init_task);
@@ -7282,7 +7312,7 @@ void set_curr_task(int cpu, struct task_struct *p)
 #ifdef CONFIG_SMP
 /*
  * distribute shares of all task groups among their schedulable entities,
- * to reflect load distrbution across cpus.
+ * to reflect load distribution across cpus.
  */
 static int rebalance_shares(struct sched_domain *sd, int this_cpu)
 {
@@ -7349,7 +7379,7 @@ static int rebalance_shares(struct sched_domain *sd, int this_cpu)
  * sysctl_sched_max_bal_int_shares represents the maximum interval between
  * consecutive calls to rebalance_shares() in the same sched domain.
  *
- * These settings allows for the appropriate tradeoff between accuracy of
+ * These settings allows for the appropriate trade-off between accuracy of
  * fairness and the associated overhead.
  *
  */
