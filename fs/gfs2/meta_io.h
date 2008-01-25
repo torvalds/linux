@@ -56,7 +56,6 @@ void gfs2_remove_from_journal(struct buffer_head *bh, struct gfs2_trans *tr,
 
 void gfs2_meta_wipe(struct gfs2_inode *ip, u64 bstart, u32 blen);
 
-void gfs2_meta_cache_flush(struct gfs2_inode *ip);
 int gfs2_meta_indirect_buffer(struct gfs2_inode *ip, int height, u64 num,
 			      int new, struct buffer_head **bhp);
 

@@ -31,7 +31,6 @@
 #include "log.h"
 #include "meta_io.h"
 #include "ops_address.h"
-#include "ops_file.h"
 #include "ops_inode.h"
 #include "quota.h"
 #include "rgrp.h"
@@ -132,15 +131,21 @@ static struct inode *gfs2_iget_skip(struct super_block *sb,
 
 void gfs2_set_iop(struct inode *inode)
 {
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	umode_t mode = inode->i_mode;
 
 	if (S_ISREG(mode)) {
 		inode->i_op = &gfs2_file_iops;
-		inode->i_fop = &gfs2_file_fops;
-		inode->i_mapping->a_ops = &gfs2_file_aops;
+		if (sdp->sd_args.ar_localflocks)
+			inode->i_fop = &gfs2_file_fops_nolock;
+		else
+			inode->i_fop = &gfs2_file_fops;
 	} else if (S_ISDIR(mode)) {
 		inode->i_op = &gfs2_dir_iops;
-		inode->i_fop = &gfs2_dir_fops;
+		if (sdp->sd_args.ar_localflocks)
+			inode->i_fop = &gfs2_dir_fops_nolock;
+		else
+			inode->i_fop = &gfs2_dir_fops;
 	} else if (S_ISLNK(mode)) {
 		inode->i_op = &gfs2_symlink_iops;
 	} else {
@@ -291,12 +296,10 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 	di->di_entries = be32_to_cpu(str->di_entries);
 
 	di->di_eattr = be64_to_cpu(str->di_eattr);
-	return 0;
-}
+	if (S_ISREG(ip->i_inode.i_mode))
+		gfs2_set_aops(&ip->i_inode);
 
-static void gfs2_inode_bh(struct gfs2_inode *ip, struct buffer_head *bh)
-{
-	ip->i_cache[0] = bh;
+	return 0;
 }
 
 /**
@@ -366,7 +369,8 @@ int gfs2_dinode_dealloc(struct gfs2_inode *ip)
 	if (error)
 		goto out_rg_gunlock;
 
-	gfs2_trans_add_gl(ip->i_gl);
+	set_bit(GLF_DIRTY, &ip->i_gl->gl_flags);
+	set_bit(GLF_LFLUSH, &ip->i_gl->gl_flags);
 
 	gfs2_free_di(rgd, ip);
 
@@ -707,9 +711,10 @@ static int alloc_dinode(struct gfs2_inode *dip, u64 *no_addr, u64 *generation)
 	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
 	int error;
 
-	gfs2_alloc_get(dip);
+	if (gfs2_alloc_get(dip) == NULL)
+		return -ENOMEM;
 
-	dip->i_alloc.al_requested = RES_DINODE;
+	dip->i_alloc->al_requested = RES_DINODE;
 	error = gfs2_inplace_reserve(dip);
 	if (error)
 		goto out;
@@ -855,7 +860,7 @@ static int link_dinode(struct gfs2_inode *dip, const struct qstr *name,
 
 	error = alloc_required = gfs2_diradd_alloc_required(&dip->i_inode, name);
 	if (alloc_required < 0)
-		goto fail;
+		goto fail_quota_locks;
 	if (alloc_required) {
 		error = gfs2_quota_check(dip, dip->i_inode.i_uid, dip->i_inode.i_gid);
 		if (error)
@@ -896,7 +901,7 @@ fail_end_trans:
 	gfs2_trans_end(sdp);
 
 fail_ipreserv:
-	if (dip->i_alloc.al_rgd)
+	if (dip->i_alloc->al_rgd)
 		gfs2_inplace_release(dip);
 
 fail_quota_locks:
@@ -966,7 +971,7 @@ struct inode *gfs2_createi(struct gfs2_holder *ghs, const struct qstr *name,
 	struct gfs2_inum_host inum = { .no_addr = 0, .no_formal_ino = 0 };
 	int error;
 	u64 generation;
-	struct buffer_head *bh=NULL;
+	struct buffer_head *bh = NULL;
 
 	if (!name->len || name->len > GFS2_FNAMESIZE)
 		return ERR_PTR(-ENAMETOOLONG);
@@ -1003,8 +1008,6 @@ struct inode *gfs2_createi(struct gfs2_holder *ghs, const struct qstr *name,
 	if (IS_ERR(inode))
 		goto fail_gunlock2;
 
-	gfs2_inode_bh(GFS2_I(inode), bh);
-
 	error = gfs2_inode_refresh(GFS2_I(inode));
 	if (error)
 		goto fail_gunlock2;
@@ -1021,6 +1024,8 @@ struct inode *gfs2_createi(struct gfs2_holder *ghs, const struct qstr *name,
 	if (error)
 		goto fail_gunlock2;
 
+	if (bh)
+		brelse(bh);
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
 	return inode;
@@ -1032,6 +1037,8 @@ fail_gunlock2:
 fail_gunlock:
 	gfs2_glock_dq(ghs);
 fail:
+	if (bh)
+		brelse(bh);
 	return ERR_PTR(error);
 }
 

@@ -32,7 +32,8 @@ spinlock_t gfs2_sys_margs_lock;
 
 static ssize_t id_show(struct gfs2_sbd *sdp, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%s\n", sdp->sd_vfs->s_id);
+	return snprintf(buf, PAGE_SIZE, "%u:%u\n",
+			MAJOR(sdp->sd_vfs->s_dev), MINOR(sdp->sd_vfs->s_dev));
 }
 
 static ssize_t fsname_show(struct gfs2_sbd *sdp, char *buf)
@@ -425,13 +426,11 @@ TUNE_ATTR_2(name, name##_store)
 TUNE_ATTR(demote_secs, 0);
 TUNE_ATTR(incore_log_blocks, 0);
 TUNE_ATTR(log_flush_secs, 0);
-TUNE_ATTR(jindex_refresh_secs, 0);
 TUNE_ATTR(quota_warn_period, 0);
 TUNE_ATTR(quota_quantum, 0);
 TUNE_ATTR(atime_quantum, 0);
 TUNE_ATTR(max_readahead, 0);
 TUNE_ATTR(complain_secs, 0);
-TUNE_ATTR(reclaim_limit, 0);
 TUNE_ATTR(statfs_slow, 0);
 TUNE_ATTR(new_files_jdata, 0);
 TUNE_ATTR(new_files_directio, 0);
@@ -448,13 +447,11 @@ static struct attribute *tune_attrs[] = {
 	&tune_attr_demote_secs.attr,
 	&tune_attr_incore_log_blocks.attr,
 	&tune_attr_log_flush_secs.attr,
-	&tune_attr_jindex_refresh_secs.attr,
 	&tune_attr_quota_warn_period.attr,
 	&tune_attr_quota_quantum.attr,
 	&tune_attr_atime_quantum.attr,
 	&tune_attr_max_readahead.attr,
 	&tune_attr_complain_secs.attr,
-	&tune_attr_reclaim_limit.attr,
 	&tune_attr_statfs_slow.attr,
 	&tune_attr_quota_simul_sync.attr,
 	&tune_attr_quota_cache_secs.attr,

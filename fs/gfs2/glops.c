@@ -56,7 +56,7 @@ static void gfs2_ail_empty_gl(struct gfs2_glock *gl)
 		bd = list_entry(head->next, struct gfs2_bufdata,
 				bd_ail_gl_list);
 		bh = bd->bd_bh;
-		gfs2_remove_from_ail(NULL, bd);
+		gfs2_remove_from_ail(bd);
 		bd->bd_bh = NULL;
 		bh->b_private = NULL;
 		bd->bd_blkno = bh->b_blocknr;
@@ -86,15 +86,10 @@ static void gfs2_pte_inval(struct gfs2_glock *gl)
 	if (!ip || !S_ISREG(inode->i_mode))
 		return;
 
-	if (!test_bit(GIF_PAGED, &ip->i_flags))
-		return;
-
 	unmap_shared_mapping_range(inode->i_mapping, 0, 0);
-
 	if (test_bit(GIF_SW_PAGED, &ip->i_flags))
 		set_bit(GLF_DIRTY, &gl->gl_flags);
 
-	clear_bit(GIF_SW_PAGED, &ip->i_flags);
 }
 
 /**
@@ -143,41 +138,31 @@ static void meta_go_inval(struct gfs2_glock *gl, int flags)
 static void inode_go_sync(struct gfs2_glock *gl)
 {
 	struct gfs2_inode *ip = gl->gl_object;
+	struct address_space *metamapping = gl->gl_aspace->i_mapping;
+	int error;
+
+	if (gl->gl_state != LM_ST_UNLOCKED)
+		gfs2_pte_inval(gl);
+	if (gl->gl_state != LM_ST_EXCLUSIVE)
+		return;
 
 	if (ip && !S_ISREG(ip->i_inode.i_mode))
 		ip = NULL;
 
 	if (test_bit(GLF_DIRTY, &gl->gl_flags)) {
-		if (ip && !gfs2_is_jdata(ip))
-			filemap_fdatawrite(ip->i_inode.i_mapping);
 		gfs2_log_flush(gl->gl_sbd, gl);
-		if (ip && gfs2_is_jdata(ip))
-			filemap_fdatawrite(ip->i_inode.i_mapping);
-		gfs2_meta_sync(gl);
+		filemap_fdatawrite(metamapping);
 		if (ip) {
 			struct address_space *mapping = ip->i_inode.i_mapping;
-			int error = filemap_fdatawait(mapping);
+			filemap_fdatawrite(mapping);
+			error = filemap_fdatawait(mapping);
 			mapping_set_error(mapping, error);
 		}
+		error = filemap_fdatawait(metamapping);
+		mapping_set_error(metamapping, error);
 		clear_bit(GLF_DIRTY, &gl->gl_flags);
 		gfs2_ail_empty_gl(gl);
 	}
-}
-
-/**
- * inode_go_xmote_th - promote/demote a glock
- * @gl: the glock
- * @state: the requested state
- * @flags:
- *
- */
-
-static void inode_go_xmote_th(struct gfs2_glock *gl)
-{
-	if (gl->gl_state != LM_ST_UNLOCKED)
-		gfs2_pte_inval(gl);
-	if (gl->gl_state == LM_ST_EXCLUSIVE)
-		inode_go_sync(gl);
 }
 
 /**
@@ -201,22 +186,6 @@ static void inode_go_xmote_bh(struct gfs2_glock *gl)
 }
 
 /**
- * inode_go_drop_th - unlock a glock
- * @gl: the glock
- *
- * Invoked from rq_demote().
- * Another node needs the lock in EXCLUSIVE mode, or lock (unused for too long)
- * is being purged from our node's glock cache; we're dropping lock.
- */
-
-static void inode_go_drop_th(struct gfs2_glock *gl)
-{
-	gfs2_pte_inval(gl);
-	if (gl->gl_state == LM_ST_EXCLUSIVE)
-		inode_go_sync(gl);
-}
-
-/**
  * inode_go_inval - prepare a inode glock to be released
  * @gl: the glock
  * @flags:
@@ -234,10 +203,8 @@ static void inode_go_inval(struct gfs2_glock *gl, int flags)
 			set_bit(GIF_INVALID, &ip->i_flags);
 	}
 
-	if (ip && S_ISREG(ip->i_inode.i_mode)) {
+	if (ip && S_ISREG(ip->i_inode.i_mode))
 		truncate_inode_pages(ip->i_inode.i_mapping, 0);
-		clear_bit(GIF_PAGED, &ip->i_flags);
-	}
 }
 
 /**
@@ -294,23 +261,6 @@ static int inode_go_lock(struct gfs2_holder *gh)
 }
 
 /**
- * inode_go_unlock - operation done before an inode lock is unlocked by a
- *		     process
- * @gl: the glock
- * @flags:
- *
- */
-
-static void inode_go_unlock(struct gfs2_holder *gh)
-{
-	struct gfs2_glock *gl = gh->gh_gl;
-	struct gfs2_inode *ip = gl->gl_object;
-
-	if (ip)
-		gfs2_meta_cache_flush(ip);
-}
-
-/**
  * rgrp_go_demote_ok - Check to see if it's ok to unlock a RG's glock
  * @gl: the glock
  *
@@ -350,14 +300,14 @@ static void rgrp_go_unlock(struct gfs2_holder *gh)
 }
 
 /**
- * trans_go_xmote_th - promote/demote the transaction glock
+ * trans_go_sync - promote/demote the transaction glock
  * @gl: the glock
  * @state: the requested state
  * @flags:
  *
  */
 
-static void trans_go_xmote_th(struct gfs2_glock *gl)
+static void trans_go_sync(struct gfs2_glock *gl)
 {
 	struct gfs2_sbd *sdp = gl->gl_sbd;
 
@@ -384,7 +334,6 @@ static void trans_go_xmote_bh(struct gfs2_glock *gl)
 
 	if (gl->gl_state != LM_ST_UNLOCKED &&
 	    test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags)) {
-		gfs2_meta_cache_flush(GFS2_I(sdp->sd_jdesc->jd_inode));
 		j_gl->gl_ops->go_inval(j_gl, DIO_METADATA);
 
 		error = gfs2_find_jhead(sdp->sd_jdesc, &head);
@@ -402,24 +351,6 @@ static void trans_go_xmote_bh(struct gfs2_glock *gl)
 }
 
 /**
- * trans_go_drop_th - unlock the transaction glock
- * @gl: the glock
- *
- * We want to sync the device even with localcaching.  Remember
- * that localcaching journal replay only marks buffers dirty.
- */
-
-static void trans_go_drop_th(struct gfs2_glock *gl)
-{
-	struct gfs2_sbd *sdp = gl->gl_sbd;
-
-	if (test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags)) {
-		gfs2_meta_syncfs(sdp);
-		gfs2_log_shutdown(sdp);
-	}
-}
-
-/**
  * quota_go_demote_ok - Check to see if it's ok to unlock a quota glock
  * @gl: the glock
  *
@@ -433,25 +364,21 @@ static int quota_go_demote_ok(struct gfs2_glock *gl)
 
 const struct gfs2_glock_operations gfs2_meta_glops = {
 	.go_xmote_th = meta_go_sync,
-	.go_drop_th = meta_go_sync,
 	.go_type = LM_TYPE_META,
 };
 
 const struct gfs2_glock_operations gfs2_inode_glops = {
-	.go_xmote_th = inode_go_xmote_th,
+	.go_xmote_th = inode_go_sync,
 	.go_xmote_bh = inode_go_xmote_bh,
-	.go_drop_th = inode_go_drop_th,
 	.go_inval = inode_go_inval,
 	.go_demote_ok = inode_go_demote_ok,
 	.go_lock = inode_go_lock,
-	.go_unlock = inode_go_unlock,
 	.go_type = LM_TYPE_INODE,
 	.go_min_hold_time = HZ / 10,
 };
 
 const struct gfs2_glock_operations gfs2_rgrp_glops = {
 	.go_xmote_th = meta_go_sync,
-	.go_drop_th = meta_go_sync,
 	.go_inval = meta_go_inval,
 	.go_demote_ok = rgrp_go_demote_ok,
 	.go_lock = rgrp_go_lock,
@@ -461,9 +388,8 @@ const struct gfs2_glock_operations gfs2_rgrp_glops = {
 };
 
 const struct gfs2_glock_operations gfs2_trans_glops = {
-	.go_xmote_th = trans_go_xmote_th,
+	.go_xmote_th = trans_go_sync,
 	.go_xmote_bh = trans_go_xmote_bh,
-	.go_drop_th = trans_go_drop_th,
 	.go_type = LM_TYPE_NONDISK,
 };
 

@@ -87,6 +87,7 @@ static void gfs2_unpin(struct gfs2_sbd *sdp, struct buffer_head *bh,
 	}
 	bd->bd_ail = ai;
 	list_add(&bd->bd_ail_st_list, &ai->ai_ail1_list);
+	clear_bit(GLF_LFLUSH, &bd->bd_gl->gl_flags);
 	gfs2_log_unlock(sdp);
 	unlock_buffer(bh);
 }
@@ -124,49 +125,6 @@ static struct buffer_head *gfs2_get_log_desc(struct gfs2_sbd *sdp, u32 ld_type)
 	return bh;
 }
 
-static void __glock_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
-{
-	struct gfs2_glock *gl;
-	struct gfs2_trans *tr = current->journal_info;
-
-	tr->tr_touched = 1;
-
-	gl = container_of(le, struct gfs2_glock, gl_le);
-	if (gfs2_assert_withdraw(sdp, gfs2_glock_is_held_excl(gl)))
-		return;
-
-	if (!list_empty(&le->le_list))
-		return;
-
-	gfs2_glock_hold(gl);
-	set_bit(GLF_DIRTY, &gl->gl_flags);
-	sdp->sd_log_num_gl++;
-	list_add(&le->le_list, &sdp->sd_log_le_gl);
-}
-
-static void glock_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
-{
-	gfs2_log_lock(sdp);
-	__glock_lo_add(sdp, le);
-	gfs2_log_unlock(sdp);
-}
-
-static void glock_lo_after_commit(struct gfs2_sbd *sdp, struct gfs2_ail *ai)
-{
-	struct list_head *head = &sdp->sd_log_le_gl;
-	struct gfs2_glock *gl;
-
-	while (!list_empty(head)) {
-		gl = list_entry(head->next, struct gfs2_glock, gl_le.le_list);
-		list_del_init(&gl->gl_le.le_list);
-		sdp->sd_log_num_gl--;
-
-		gfs2_assert_withdraw(sdp, gfs2_glock_is_held_excl(gl));
-		gfs2_glock_put(gl);
-	}
-	gfs2_assert_warn(sdp, !sdp->sd_log_num_gl);
-}
-
 static void buf_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 {
 	struct gfs2_bufdata *bd = container_of(le, struct gfs2_bufdata, bd_le);
@@ -182,7 +140,8 @@ static void buf_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 	list_add(&bd->bd_list_tr, &tr->tr_list_buf);
 	if (!list_empty(&le->le_list))
 		goto out;
-	__glock_lo_add(sdp, &bd->bd_gl->gl_le);
+	set_bit(GLF_LFLUSH, &bd->bd_gl->gl_flags);
+	set_bit(GLF_DIRTY, &bd->bd_gl->gl_flags);
 	gfs2_meta_check(sdp, bd->bd_bh);
 	gfs2_pin(sdp, bd->bd_bh);
 	sdp->sd_log_num_buf++;
@@ -556,17 +515,20 @@ static void databuf_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 
 	lock_buffer(bd->bd_bh);
 	gfs2_log_lock(sdp);
-	if (!list_empty(&bd->bd_list_tr))
-		goto out;
-	tr->tr_touched = 1;
-	if (gfs2_is_jdata(ip)) {
-		tr->tr_num_buf++;
-		list_add(&bd->bd_list_tr, &tr->tr_list_buf);
+	if (tr) {
+		if (!list_empty(&bd->bd_list_tr))
+			goto out;
+		tr->tr_touched = 1;
+		if (gfs2_is_jdata(ip)) {
+			tr->tr_num_buf++;
+			list_add(&bd->bd_list_tr, &tr->tr_list_buf);
+		}
 	}
 	if (!list_empty(&le->le_list))
 		goto out;
 
-	__glock_lo_add(sdp, &bd->bd_gl->gl_le);
+	set_bit(GLF_LFLUSH, &bd->bd_gl->gl_flags);
+	set_bit(GLF_DIRTY, &bd->bd_gl->gl_flags);
 	if (gfs2_is_jdata(ip)) {
 		gfs2_pin(sdp, bd->bd_bh);
 		tr->tr_num_databuf_new++;
@@ -773,12 +735,6 @@ static void databuf_lo_after_commit(struct gfs2_sbd *sdp, struct gfs2_ail *ai)
 }
 
 
-const struct gfs2_log_operations gfs2_glock_lops = {
-	.lo_add = glock_lo_add,
-	.lo_after_commit = glock_lo_after_commit,
-	.lo_name = "glock",
-};
-
 const struct gfs2_log_operations gfs2_buf_lops = {
 	.lo_add = buf_lo_add,
 	.lo_incore_commit = buf_lo_incore_commit,
@@ -816,7 +772,6 @@ const struct gfs2_log_operations gfs2_databuf_lops = {
 };
 
 const struct gfs2_log_operations *gfs2_log_ops[] = {
-	&gfs2_glock_lops,
 	&gfs2_databuf_lops,
 	&gfs2_buf_lops,
 	&gfs2_rg_lops,

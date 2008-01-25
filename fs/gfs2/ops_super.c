@@ -487,7 +487,6 @@ static struct inode *gfs2_alloc_inode(struct super_block *sb)
 	if (ip) {
 		ip->i_flags = 0;
 		ip->i_gl = NULL;
-		ip->i_last_pfault = jiffies;
 	}
 	return &ip->i_inode;
 }
