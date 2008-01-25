@@ -3,9 +3,9 @@
  *
  * OMAP1 pin multiplexing configurations
  *
- * Copyright (C) 2003 - 2005 Nokia Corporation
+ * Copyright (C) 2003 - 2008 Nokia Corporation
  *
- * Written by Tony Lindgren <tony.lindgren@nokia.com>
+ * Written by Tony Lindgren
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@
 static struct omap_mux_cfg arch_mux_cfg;
 
 #ifdef CONFIG_ARCH_OMAP730
-struct pin_config __initdata_or_module omap730_pins[] = {
+static struct pin_config __initdata_or_module omap730_pins[] = {
 MUX_CFG_730("E2_730_KBR0",        12,   21,    0,   20,   1, 0)
 MUX_CFG_730("J7_730_KBR1",        12,   25,    0,   24,   1, 0)
 MUX_CFG_730("E1_730_KBR2",        12,   29,    0,   28,   1, 0)
@@ -51,10 +51,14 @@ MUX_CFG_730("AA17_730_USB_DM",     2,   21,    0,   20,   0, 0)
 MUX_CFG_730("W16_730_USB_PU_EN",   2,   25,    0,   24,   0, 0)
 MUX_CFG_730("W17_730_USB_VBUSI",   2,   29,    0,   28,   0, 0)
 };
-#endif
+#define OMAP730_PINS_SZ		ARRAY_SIZE(omap730_pins)
+#else
+#define omap730_pins		NULL
+#define OMAP730_PINS_SZ		0
+#endif	/* CONFIG_ARCH_OMAP730 */
 
 #if defined(CONFIG_ARCH_OMAP15XX) || defined(CONFIG_ARCH_OMAP16XX)
-struct pin_config __initdata_or_module omap1xxx_pins[] = {
+static struct pin_config __initdata_or_module omap1xxx_pins[] = {
 /*
  *	 description		mux  mode   mux	 pull pull  pull  pu_pd	 pu  dbg
  *				reg  offset mode reg  bit   ena	  reg
@@ -308,8 +312,11 @@ MUX_CFG("Y12_1610_CCP_CLKP",	 8,   18,    6,   1,  24,   1,    1,     0,  0)
 MUX_CFG("W13_1610_CCP_CLKM",	 9,    0,    6,   1,  28,   1,    1,     0,  0)
 MUX_CFG("W14_1610_CCP_DATAP",	 9,   24,    6,   2,   4,   1,    2,     0,  0)
 MUX_CFG("Y14_1610_CCP_DATAM",	 9,   21,    6,   2,   3,   1,    2,     0,  0)
-
 };
+#define OMAP1XXX_PINS_SZ	ARRAY_SIZE(omap1xxx_pins)
+#else
+#define omap1xxx_pins		NULL
+#define OMAP1XXX_PINS_SZ	0
 #endif	/* CONFIG_ARCH_OMAP15XX || CONFIG_ARCH_OMAP16XX */
 
 int __init_or_module omap1_cfg_reg(const struct pin_config *cfg)
@@ -422,22 +429,17 @@ int __init_or_module omap1_cfg_reg(const struct pin_config *cfg)
 
 int __init omap1_mux_init(void)
 {
-
-#ifdef CONFIG_ARCH_OMAP730
 	if (cpu_is_omap730()) {
 		arch_mux_cfg.pins	= omap730_pins;
-		arch_mux_cfg.size	= ARRAY_SIZE(omap730_pins);
+		arch_mux_cfg.size	= OMAP730_PINS_SZ;
 		arch_mux_cfg.cfg_reg	= omap1_cfg_reg;
 	}
-#endif
 
-#if defined(CONFIG_ARCH_OMAP15XX) || defined(CONFIG_ARCH_OMAP16XX)
 	if (cpu_is_omap15xx() || cpu_is_omap16xx()) {
 		arch_mux_cfg.pins	= omap1xxx_pins;
-		arch_mux_cfg.size	= ARRAY_SIZE(omap1xxx_pins);
+		arch_mux_cfg.size	= OMAP1XXX_PINS_SZ;
 		arch_mux_cfg.cfg_reg	= omap1_cfg_reg;
 	}
-#endif
 
 	return omap_mux_register(&arch_mux_cfg);
 }

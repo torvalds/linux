@@ -1,11 +1,12 @@
 /*
  * linux/arch/arm/mach-omap2/mux.c
  *
- * OMAP1 pin multiplexing configurations
+ * OMAP2 pin multiplexing configurations
  *
- * Copyright (C) 2003 - 2005 Nokia Corporation
+ * Copyright (C) 2004 - 2008 Texas Instruments Inc.
+ * Copyright (C) 2003 - 2008 Nokia Corporation
  *
- * Written by Tony Lindgren <tony.lindgren@nokia.com>
+ * Written by Tony Lindgren
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,7 +37,8 @@ static struct omap_mux_cfg arch_mux_cfg;
 
 /* NOTE: See mux.h for the enumeration */
 
-struct pin_config __initdata_or_module omap24xx_pins[] = {
+#ifdef CONFIG_ARCH_OMAP24XX
+static struct pin_config __initdata_or_module omap24xx_pins[] = {
 /*
  *	description			mux	mux	pull	pull	debug
  *					offset	mode	ena	type
@@ -209,54 +211,69 @@ MUX_CFG_24XX("AE13_2430_MCBSP2_DX_OFF",	0x0130,	0,	0,	0,	1)
 MUX_CFG_24XX("AD13_2430_MCBSP2_DR_OFF",	0x0131,	0,	0,	0,	1)
 };
 
-#ifdef CONFIG_ARCH_OMAP24XX
+#define OMAP24XX_PINS_SZ	ARRAY_SIZE(omap24xx_pins)
+
+#else
+#define omap24xx_pins		NULL
+#define OMAP24XX_PINS_SZ	0
+#endif	/* CONFIG_ARCH_OMAP24XX */
 
 #define OMAP24XX_L4_BASE	0x48000000
 #define OMAP24XX_PULL_ENA	(1 << 3)
 #define OMAP24XX_PULL_UP	(1 << 4)
 
 /* REVISIT: Convert this code to use ctrl_{read,write}_reg */
+#if defined(CONFIG_OMAP_MUX_DEBUG) || defined(CONFIG_OMAP_MUX_WARNINGS)
+void __init_or_module omap2_cfg_debug(const struct pin_config *cfg, u8 reg)
+{
+	u16 orig;
+	u8 warn = 0, debug = 0;
+
+	orig = omap_readb(OMAP24XX_L4_BASE + cfg->mux_reg);
+
+#ifdef	CONFIG_OMAP_MUX_DEBUG
+	debug = cfg->debug;
+#endif
+	warn = (orig != reg);
+	if (debug || warn)
+		printk(KERN_WARNING
+			"MUX: setup %s (0x%08x): 0x%02x -> 0x%02x\n",
+			cfg->name, omap_readb(OMAP24XX_L4_BASE + cfg->mux_reg));
+}
+#else
+#define omap2_cfg_debug(x, y)	do {} while (0)
+#endif
+
+#ifdef CONFIG_ARCH_OMAP24XX
 int __init_or_module omap24xx_cfg_reg(const struct pin_config *cfg)
 {
+	static DEFINE_SPINLOCK(mux_spin_lock);
+	unsigned long flags;
 	u8 reg = 0;
-	unsigned int warn = 0;
 
+	spin_lock_irqsave(&mux_spin_lock, flags);
 	reg |= cfg->mask & 0x7;
 	if (cfg->pull_val)
 		reg |= OMAP24XX_PULL_ENA;
-	if(cfg->pu_pd_val)
+	if (cfg->pu_pd_val)
 		reg |= OMAP24XX_PULL_UP;
-#if defined(CONFIG_OMAP_MUX_DEBUG) || defined(CONFIG_OMAP_MUX_WARNINGS)
-	{
-		u8 orig = omap_readb(OMAP24XX_L4_BASE + cfg->mux_reg);
-		u8 debug = 0;
-
-#ifdef	CONFIG_OMAP_MUX_DEBUG
-		debug = cfg->debug;
-#endif
-		warn = (orig != reg);
-		if (debug || warn)
-			printk("MUX: setup %s (0x%08x): 0x%02x -> 0x%02x\n",
-				cfg->name, OMAP24XX_L4_BASE + cfg->mux_reg,
-				orig, reg);
-	}
-#endif
+	omap2_cfg_debug(cfg, reg);
 	omap_writeb(reg, OMAP24XX_L4_BASE + cfg->mux_reg);
+	spin_unlock_irqrestore(&mux_spin_lock, flags);
 
 	return 0;
 }
+#else
+#define omap24xx_cfg_reg	0
 #endif
 
 int __init omap2_mux_init(void)
 {
-
-#ifdef CONFIG_ARCH_OMAP24XX
 	if (cpu_is_omap24xx()) {
 		arch_mux_cfg.pins	= omap24xx_pins;
-		arch_mux_cfg.size	= ARRAY_SIZE(omap24xx_pins);
+		arch_mux_cfg.size	= OMAP24XX_PINS_SZ;
 		arch_mux_cfg.cfg_reg	= omap24xx_cfg_reg;
 	}
-#endif
 
 	return omap_mux_register(&arch_mux_cfg);
 }

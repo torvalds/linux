@@ -3,9 +3,9 @@
  *
  * Utility to set the Omap MUX and PULL_DWN registers from a table in mux.h
  *
- * Copyright (C) 2003 - 2005 Nokia Corporation
+ * Copyright (C) 2003 - 2008 Nokia Corporation
  *
- * Written by Tony Lindgren <tony.lindgren@nokia.com>
+ * Written by Tony Lindgren
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
