@@ -35,8 +35,8 @@ struct dib7000p_state {
 
 	u16 wbd_ref;
 
-	u8 current_band;
-	fe_bandwidth_t current_bandwidth;
+	u8  current_band;
+	u32 current_bandwidth;
 	struct dibx000_agc_config *current_agc;
 	u32 timf;
 
@@ -1074,7 +1074,7 @@ static int dib7000p_get_frontend(struct dvb_frontend* fe,
 
 	fep->inversion = INVERSION_AUTO;
 
-	fep->u.ofdm.bandwidth = state->current_bandwidth;
+	fep->u.ofdm.bandwidth = BANDWIDTH_TO_INDEX(state->current_bandwidth);
 
 	switch ((tps >> 8) & 0x3) {
 		case 0: fep->u.ofdm.transmission_mode = TRANSMISSION_MODE_2K; break;
@@ -1131,10 +1131,8 @@ static int dib7000p_set_frontend(struct dvb_frontend* fe,
 	int time, ret;
 
 	dib7000p_set_output_mode(state, OUTMODE_HIGH_Z);
-	state->current_bandwidth = fep->u.ofdm.bandwidth;
-	dib7000p_set_bandwidth(state, BANDWIDTH_TO_KHZ(fep->u.ofdm.bandwidth));
 
-	/* maybe the parameter has been changed */
+    /* maybe the parameter has been changed */
 	state->sfn_workaround_active = buggy_sfn_workaround;
 
 	if (fe->ops.tuner_ops.set_params)
