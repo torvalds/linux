@@ -1201,7 +1201,10 @@ static void ide_do_request (ide_hwgroup_t *hwgroup, int masked_irq)
 		    hwif != hwgroup->hwif &&
 		    hwif->io_ports[IDE_CONTROL_OFFSET]) {
 			/* set nIEN for previous hwif */
-			SELECT_INTERRUPT(drive);
+			if (hwif->intrproc)
+				hwif->intrproc(drive);
+			else
+				hwif->OUTB(drive->ctl | 2, IDE_CONTROL_REG);
 		}
 		hwgroup->hwif = hwif;
 		hwgroup->drive = drive;
