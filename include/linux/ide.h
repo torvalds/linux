@@ -964,7 +964,6 @@ extern u32 ide_read_24(ide_drive_t *);
 extern void SELECT_DRIVE(ide_drive_t *);
 extern void SELECT_INTERRUPT(ide_drive_t *);
 extern void SELECT_MASK(ide_drive_t *, int);
-extern void QUIRK_LIST(ide_drive_t *);
 
 extern int drive_is_ready(ide_drive_t *);
 

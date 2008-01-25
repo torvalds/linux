@@ -234,7 +234,10 @@ static inline void do_identify (ide_drive_t *drive, u8 cmd)
 
 	drive->media = ide_disk;
 	printk("%s DISK drive\n", (id->config == 0x848a) ? "CFA" : "ATA" );
-	QUIRK_LIST(drive);
+
+	if (hwif->quirkproc)
+		drive->quirk_list = hwif->quirkproc(drive);
+
 	return;
 
 err_misc:

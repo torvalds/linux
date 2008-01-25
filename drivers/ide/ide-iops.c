@@ -189,12 +189,6 @@ void SELECT_MASK (ide_drive_t *drive, int mask)
 		HWIF(drive)->maskproc(drive, mask);
 }
 
-void QUIRK_LIST (ide_drive_t *drive)
-{
-	if (HWIF(drive)->quirkproc)
-		drive->quirk_list = HWIF(drive)->quirkproc(drive);
-}
-
 /*
  * Some localbus EIDE interfaces require a special access sequence
  * when using 32-bit I/O instructions to transfer data.  We call this
