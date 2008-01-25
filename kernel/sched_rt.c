@@ -689,14 +689,14 @@ static int pull_rt_task(struct rq *this_rq)
 	return ret;
 }
 
-static void schedule_balance_rt(struct rq *rq, struct task_struct *prev)
+static void pre_schedule_rt(struct rq *rq, struct task_struct *prev)
 {
 	/* Try to pull RT tasks here if we lower this rq's prio */
 	if (unlikely(rt_task(prev)) && rq->rt.highest_prio > prev->prio)
 		pull_rt_task(rq);
 }
 
-static void schedule_tail_balance_rt(struct rq *rq)
+static void post_schedule_rt(struct rq *rq)
 {
 	/*
 	 * If we have more than one rt_task queued, then
@@ -713,10 +713,9 @@ static void schedule_tail_balance_rt(struct rq *rq)
 }
 
 
-static void wakeup_balance_rt(struct rq *rq, struct task_struct *p)
+static void task_wake_up_rt(struct rq *rq, struct task_struct *p)
 {
-	if (unlikely(rt_task(p)) &&
-	    !task_running(rq, p) &&
+	if (!task_running(rq, p) &&
 	    (p->prio >= rq->rt.highest_prio) &&
 	    rq->rt.overloaded)
 		push_rt_tasks(rq);
@@ -780,11 +779,6 @@ static void leave_domain_rt(struct rq *rq)
 	if (rq->rt.overloaded)
 		rt_clear_overload(rq);
 }
-
-#else /* CONFIG_SMP */
-# define schedule_tail_balance_rt(rq)	do { } while (0)
-# define schedule_balance_rt(rq, prev)	do { } while (0)
-# define wakeup_balance_rt(rq, p)	do { } while (0)
 #endif /* CONFIG_SMP */
 
 static void task_tick_rt(struct rq *rq, struct task_struct *p)
@@ -840,6 +834,9 @@ const struct sched_class rt_sched_class = {
 	.set_cpus_allowed       = set_cpus_allowed_rt,
 	.join_domain            = join_domain_rt,
 	.leave_domain           = leave_domain_rt,
+	.pre_schedule		= pre_schedule_rt,
+	.post_schedule		= post_schedule_rt,
+	.task_wake_up		= task_wake_up_rt,
 #endif
 
 	.set_curr_task          = set_curr_task_rt,

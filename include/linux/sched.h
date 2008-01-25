@@ -843,6 +843,9 @@ struct sched_class {
 	int (*move_one_task) (struct rq *this_rq, int this_cpu,
 			      struct rq *busiest, struct sched_domain *sd,
 			      enum cpu_idle_type idle);
+	void (*pre_schedule) (struct rq *this_rq, struct task_struct *task);
+	void (*post_schedule) (struct rq *this_rq);
+	void (*task_wake_up) (struct rq *this_rq, struct task_struct *task);
 #endif
 
 	void (*set_curr_task) (struct rq *rq);

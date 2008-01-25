@@ -1625,7 +1625,10 @@ out_activate:
 
 out_running:
 	p->state = TASK_RUNNING;
-	wakeup_balance_rt(rq, p);
+#ifdef CONFIG_SMP
+	if (p->sched_class->task_wake_up)
+		p->sched_class->task_wake_up(rq, p);
+#endif
 out:
 	task_rq_unlock(rq, &flags);
 
@@ -1748,7 +1751,10 @@ void fastcall wake_up_new_task(struct task_struct *p, unsigned long clone_flags)
 		inc_nr_running(p, rq);
 	}
 	check_preempt_curr(rq, p);
-	wakeup_balance_rt(rq, p);
+#ifdef CONFIG_SMP
+	if (p->sched_class->task_wake_up)
+		p->sched_class->task_wake_up(rq, p);
+#endif
 	task_rq_unlock(rq, &flags);
 }
 
@@ -1869,7 +1875,10 @@ static void finish_task_switch(struct rq *rq, struct task_struct *prev)
 	prev_state = prev->state;
 	finish_arch_switch(prev);
 	finish_lock_switch(rq, prev);
-	schedule_tail_balance_rt(rq);
+#ifdef CONFIG_SMP
+	if (current->sched_class->post_schedule)
+		current->sched_class->post_schedule(rq);
+#endif
 
 	fire_sched_in_preempt_notifiers(current);
 	if (mm)
@@ -3638,7 +3647,10 @@ need_resched_nonpreemptible:
 		switch_count = &prev->nvcsw;
 	}
 
-	schedule_balance_rt(rq, prev);
+#ifdef CONFIG_SMP
+	if (prev->sched_class->pre_schedule)
+		prev->sched_class->pre_schedule(rq, prev);
+#endif
 
 	if (unlikely(!rq->nr_running))
 		idle_balance(cpu, rq);
