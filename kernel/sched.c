@@ -182,7 +182,7 @@ struct task_group {
 	 *
 	 *	Bw(A) = 1000/(1000+2000+3000) * 100 = 16.66%
 	 *	Bw(B) = 2000/(1000+2000+3000) * 100 = 33.33%
-	 * 	Bw(C) = 3000/(1000+2000+3000) * 100 = 50%
+	 *	Bw(C) = 3000/(1000+2000+3000) * 100 = 50%
 	 *
 	 * The weight assigned to a task group's schedulable entities on every
 	 * cpu (task_group.se[a_cpu]->load.weight) is derived from the task
@@ -192,9 +192,9 @@ struct task_group {
 	 *  tg_A->se[0]->load.weight = tg_A->se[1]->load.weight = 1000;
 	 *
 	 * Note: It's not necessary that each of a task's group schedulable
-	 * 	 entity have the same weight on all CPUs. If the group
-	 * 	 has 2 of its tasks on CPU0 and 1 task on CPU1, then a
-	 * 	 better distribution of weight could be:
+	 *	 entity have the same weight on all CPUs. If the group
+	 *	 has 2 of its tasks on CPU0 and 1 task on CPU1, then a
+	 *	 better distribution of weight could be:
 	 *
 	 *	tg_A->se[0]->load.weight = 2/3 * 2000 = 1333
 	 *	tg_A->se[1]->load.weight = 1/2 * 2000 =  667
