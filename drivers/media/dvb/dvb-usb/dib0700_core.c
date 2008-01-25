@@ -243,7 +243,7 @@ int dib0700_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 	u8 b[4];
 
 	b[0] = REQUEST_ENABLE_VIDEO;
-	b[1] = 0x00;
+	b[1] = (onoff << 4) | 0x00; /* this bit gives a kind of command, rather than enabling something or not */
 	b[2] = (0x01 << 4); /* Master mode */
 	b[3] = 0x00;
 
@@ -255,9 +255,6 @@ int dib0700_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 		st->channel_state &= ~(1 << adap->id);
 
 	b[2] |= st->channel_state;
-
-	if (st->channel_state) /* if at least one channel is active */
-		b[1] = (0x01 << 4) | 0x00;
 
 	deb_info("data for streaming: %x %x\n",b[1],b[2]);
 
