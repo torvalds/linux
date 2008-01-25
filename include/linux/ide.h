@@ -1111,7 +1111,7 @@ struct ide_port_info {
 	void			(*fixup)(ide_hwif_t *);
 	ide_pci_enablebit_t	enablebits[2];
 	hwif_chipset_t		chipset;
-	unsigned int		extra;
+	u8			extra;
 	u32			host_flags;
 	u8			pio_mask;
 	u8			swdma_mask;
