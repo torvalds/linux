@@ -1271,7 +1271,7 @@ int ipoib_cm_add_mode_attr(struct net_device *dev)
 	return device_create_file(&dev->dev, &dev_attr_mode);
 }
 
-int ipoib_cm_dev_init(struct net_device *dev)
+static int ipoib_cm_create_srq(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ib_srq_init_attr srq_init_attr = {
@@ -1280,6 +1280,31 @@ int ipoib_cm_dev_init(struct net_device *dev)
 			.max_sge = IPOIB_CM_RX_SG
 		}
 	};
+	int ret;
+
+	priv->cm.srq = ib_create_srq(priv->pd, &srq_init_attr);
+	if (IS_ERR(priv->cm.srq)) {
+		ret = PTR_ERR(priv->cm.srq);
+		priv->cm.srq = NULL;
+		return ret;
+	}
+
+	priv->cm.srq_ring = kzalloc(ipoib_recvq_size * sizeof *priv->cm.srq_ring,
+				    GFP_KERNEL);
+	if (!priv->cm.srq_ring) {
+		printk(KERN_WARNING "%s: failed to allocate CM ring (%d entries)\n",
+		       priv->ca->name, ipoib_recvq_size);
+		ib_destroy_srq(priv->cm.srq);
+		priv->cm.srq = NULL;
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+int ipoib_cm_dev_init(struct net_device *dev)
+{
+	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	int ret, i;
 
 	INIT_LIST_HEAD(&priv->cm.passive_ids);
@@ -1297,22 +1322,6 @@ int ipoib_cm_dev_init(struct net_device *dev)
 
 	skb_queue_head_init(&priv->cm.skb_queue);
 
-	priv->cm.srq = ib_create_srq(priv->pd, &srq_init_attr);
-	if (IS_ERR(priv->cm.srq)) {
-		ret = PTR_ERR(priv->cm.srq);
-		priv->cm.srq = NULL;
-		return ret;
-	}
-
-	priv->cm.srq_ring = kzalloc(ipoib_recvq_size * sizeof *priv->cm.srq_ring,
-				    GFP_KERNEL);
-	if (!priv->cm.srq_ring) {
-		printk(KERN_WARNING "%s: failed to allocate CM ring (%d entries)\n",
-		       priv->ca->name, ipoib_recvq_size);
-		ipoib_cm_dev_cleanup(dev);
-		return -ENOMEM;
-	}
-
 	for (i = 0; i < IPOIB_CM_RX_SG; ++i)
 		priv->cm.rx_sge[i].lkey	= priv->mr->lkey;
 
@@ -1322,6 +1331,10 @@ int ipoib_cm_dev_init(struct net_device *dev)
 	priv->cm.rx_wr.next = NULL;
 	priv->cm.rx_wr.sg_list = priv->cm.rx_sge;
 	priv->cm.rx_wr.num_sge = IPOIB_CM_RX_SG;
+
+	ret = ipoib_cm_create_srq(dev);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < ipoib_recvq_size; ++i) {
 		if (!ipoib_cm_alloc_rx_skb(dev, i, IPOIB_CM_RX_SG - 1,
