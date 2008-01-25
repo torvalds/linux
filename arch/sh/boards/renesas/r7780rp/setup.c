@@ -179,9 +179,11 @@ static struct platform_device ax88796_device = {
 static struct platform_device *r7780rp_devices[] __initdata = {
 	&r8a66597_usb_host_device,
 	&m66592_usb_peripheral_device,
-	&cf_ide_device,
 	&heartbeat_device,
+#ifndef CONFIG_SH_R7780RP
+	&cf_ide_device,
 	&ax88796_device,
+#endif
 };
 
 static int __init r7780rp_devices_setup(void)
@@ -316,9 +318,9 @@ void __init highlander_init_irq(void)
 			break;
 #endif
 #ifdef CONFIG_SH_R7780RP
-		highlander_init_irq_r7780rp();
-		ucp = irl2irq;
-		break;
+		ucp = highlander_init_irq_r7780rp();
+		if (ucp)
+			break;
 #endif
 	} while (0);
 
