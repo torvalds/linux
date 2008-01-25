@@ -24,8 +24,8 @@
 #include "base.h"
 #include "power/power.h"
 
-int (*platform_notify)(struct device * dev) = NULL;
-int (*platform_notify_remove)(struct device * dev) = NULL;
+int (*platform_notify)(struct device *dev) = NULL;
+int (*platform_notify_remove)(struct device *dev) = NULL;
 
 /*
  * sysfs bindings for devices.
@@ -51,11 +51,11 @@ EXPORT_SYMBOL(dev_driver_string);
 #define to_dev(obj) container_of(obj, struct device, kobj)
 #define to_dev_attr(_attr) container_of(_attr, struct device_attribute, attr)
 
-static ssize_t
-dev_attr_show(struct kobject * kobj, struct attribute * attr, char * buf)
+static ssize_t dev_attr_show(struct kobject *kobj, struct attribute *attr,
+			     char *buf)
 {
-	struct device_attribute * dev_attr = to_dev_attr(attr);
-	struct device * dev = to_dev(kobj);
+	struct device_attribute *dev_attr = to_dev_attr(attr);
+	struct device *dev = to_dev(kobj);
 	ssize_t ret = -EIO;
 
 	if (dev_attr->show)
@@ -63,12 +63,11 @@ dev_attr_show(struct kobject * kobj, struct attribute * attr, char * buf)
 	return ret;
 }
 
-static ssize_t
-dev_attr_store(struct kobject * kobj, struct attribute * attr,
-	       const char * buf, size_t count)
+static ssize_t dev_attr_store(struct kobject *kobj, struct attribute *attr,
+			      const char *buf, size_t count)
 {
-	struct device_attribute * dev_attr = to_dev_attr(attr);
-	struct device * dev = to_dev(kobj);
+	struct device_attribute *dev_attr = to_dev_attr(attr);
+	struct device *dev = to_dev(kobj);
 	ssize_t ret = -EIO;
 
 	if (dev_attr->store)
@@ -90,9 +89,9 @@ static struct sysfs_ops dev_sysfs_ops = {
  *	reaches 0. We forward the call to the device's release
  *	method, which should handle actually freeing the structure.
  */
-static void device_release(struct kobject * kobj)
+static void device_release(struct kobject *kobj)
 {
-	struct device * dev = to_dev(kobj);
+	struct device *dev = to_dev(kobj);
 
 	if (dev->release)
 		dev->release(dev);
@@ -101,8 +100,8 @@ static void device_release(struct kobject * kobj)
 	else if (dev->class && dev->class->dev_release)
 		dev->class->dev_release(dev);
 	else {
-		printk(KERN_ERR "Device '%s' does not have a release() function, "
-			"it is broken and must be fixed.\n",
+		printk(KERN_ERR "Device '%s' does not have a release() "
+			"function, it is broken and must be fixed.\n",
 			dev->bus_id);
 		WARN_ON(1);
 	}
@@ -185,7 +184,8 @@ static int dev_uevent(struct kset *kset, struct kobject *kobj,
 		add_uevent_var(env, "PHYSDEVBUS=%s", dev->bus->name);
 
 		if (dev->driver)
-			add_uevent_var(env, "PHYSDEVDRIVER=%s", dev->driver->name);
+			add_uevent_var(env, "PHYSDEVDRIVER=%s",
+				       dev->driver->name);
 	}
 #endif
 
@@ -327,7 +327,8 @@ static int device_add_groups(struct device *dev,
 			error = sysfs_create_group(&dev->kobj, groups[i]);
 			if (error) {
 				while (--i >= 0)
-					sysfs_remove_group(&dev->kobj, groups[i]);
+					sysfs_remove_group(&dev->kobj,
+							   groups[i]);
 				break;
 			}
 		}
@@ -406,14 +407,12 @@ static struct device_attribute devt_attr =
 /* kset to create /sys/devices/  */
 struct kset *devices_kset;
 
-
 /**
- *	device_create_file - create sysfs attribute file for device.
- *	@dev:	device.
- *	@attr:	device attribute descriptor.
+ * device_create_file - create sysfs attribute file for device.
+ * @dev: device.
+ * @attr: device attribute descriptor.
  */
-
-int device_create_file(struct device * dev, struct device_attribute * attr)
+int device_create_file(struct device *dev, struct device_attribute *attr)
 {
 	int error = 0;
 	if (get_device(dev)) {
@@ -424,12 +423,11 @@ int device_create_file(struct device * dev, struct device_attribute * attr)
 }
 
 /**
- *	device_remove_file - remove sysfs attribute file.
- *	@dev:	device.
- *	@attr:	device attribute descriptor.
+ * device_remove_file - remove sysfs attribute file.
+ * @dev: device.
+ * @attr: device attribute descriptor.
  */
-
-void device_remove_file(struct device * dev, struct device_attribute * attr)
+void device_remove_file(struct device *dev, struct device_attribute *attr)
 {
 	if (get_device(dev)) {
 		sysfs_remove_file(&dev->kobj, &attr->attr);
@@ -510,18 +508,16 @@ static void klist_children_put(struct klist_node *n)
 	put_device(dev);
 }
 
-
 /**
- *	device_initialize - init device structure.
- *	@dev:	device.
+ * device_initialize - init device structure.
+ * @dev: device.
  *
- *	This prepares the device for use by other layers,
- *	including adding it to the device hierarchy.
- *	It is the first half of device_register(), if called by
- *	that, though it can also be called separately, so one
- *	may use @dev's fields (e.g. the refcount).
+ * This prepares the device for use by other layers,
+ * including adding it to the device hierarchy.
+ * It is the first half of device_register(), if called by
+ * that, though it can also be called separately, so one
+ * may use @dev's fields (e.g. the refcount).
  */
-
 void device_initialize(struct device *dev)
 {
 	dev->kobj.kset = devices_kset;
@@ -754,15 +750,15 @@ static void device_remove_class_symlinks(struct device *dev)
 }
 
 /**
- *	device_add - add device to device hierarchy.
- *	@dev:	device.
+ * device_add - add device to device hierarchy.
+ * @dev: device.
  *
- *	This is part 2 of device_register(), though may be called
- *	separately _iff_ device_initialize() has been called separately.
+ * This is part 2 of device_register(), though may be called
+ * separately _iff_ device_initialize() has been called separately.
  *
- *	This adds it to the kobject hierarchy via kobject_add(), adds it
- *	to the global and sibling lists for the device, then
- *	adds it to the other relevant subsystems of the driver model.
+ * This adds it to the kobject hierarchy via kobject_add(), adds it
+ * to the global and sibling lists for the device, then
+ * adds it to the other relevant subsystems of the driver model.
  */
 int device_add(struct device *dev)
 {
@@ -870,70 +866,63 @@ int device_add(struct device *dev)
 	goto Done;
 }
 
-
 /**
- *	device_register - register a device with the system.
- *	@dev:	pointer to the device structure
+ * device_register - register a device with the system.
+ * @dev: pointer to the device structure
  *
- *	This happens in two clean steps - initialize the device
- *	and add it to the system. The two steps can be called
- *	separately, but this is the easiest and most common.
- *	I.e. you should only call the two helpers separately if
- *	have a clearly defined need to use and refcount the device
- *	before it is added to the hierarchy.
+ * This happens in two clean steps - initialize the device
+ * and add it to the system. The two steps can be called
+ * separately, but this is the easiest and most common.
+ * I.e. you should only call the two helpers separately if
+ * have a clearly defined need to use and refcount the device
+ * before it is added to the hierarchy.
  */
-
 int device_register(struct device *dev)
 {
 	device_initialize(dev);
 	return device_add(dev);
 }
 
-
 /**
- *	get_device - increment reference count for device.
- *	@dev:	device.
+ * get_device - increment reference count for device.
+ * @dev: device.
  *
- *	This simply forwards the call to kobject_get(), though
- *	we do take care to provide for the case that we get a NULL
- *	pointer passed in.
+ * This simply forwards the call to kobject_get(), though
+ * we do take care to provide for the case that we get a NULL
+ * pointer passed in.
  */
-
-struct device * get_device(struct device * dev)
+struct device *get_device(struct device *dev)
 {
 	return dev ? to_dev(kobject_get(&dev->kobj)) : NULL;
 }
 
-
 /**
- *	put_device - decrement reference count.
- *	@dev:	device in question.
+ * put_device - decrement reference count.
+ * @dev: device in question.
  */
-void put_device(struct device * dev)
+void put_device(struct device *dev)
 {
 	/* might_sleep(); */
 	if (dev)
 		kobject_put(&dev->kobj);
 }
 
-
 /**
- *	device_del - delete device from system.
- *	@dev:	device.
+ * device_del - delete device from system.
+ * @dev: device.
  *
- *	This is the first part of the device unregistration
- *	sequence. This removes the device from the lists we control
- *	from here, has it removed from the other driver model
- *	subsystems it was added to in device_add(), and removes it
- *	from the kobject hierarchy.
+ * This is the first part of the device unregistration
+ * sequence. This removes the device from the lists we control
+ * from here, has it removed from the other driver model
+ * subsystems it was added to in device_add(), and removes it
+ * from the kobject hierarchy.
  *
- *	NOTE: this should be called manually _iff_ device_add() was
- *	also called manually.
+ * NOTE: this should be called manually _iff_ device_add() was
+ * also called manually.
  */
-
-void device_del(struct device * dev)
+void device_del(struct device *dev)
 {
-	struct device * parent = dev->parent;
+	struct device *parent = dev->parent;
 	struct class_interface *class_intf;
 
 	device_pm_remove(dev);
@@ -979,47 +968,46 @@ void device_del(struct device * dev)
 }
 
 /**
- *	device_unregister - unregister device from system.
- *	@dev:	device going away.
+ * device_unregister - unregister device from system.
+ * @dev: device going away.
  *
- *	We do this in two parts, like we do device_register(). First,
- *	we remove it from all the subsystems with device_del(), then
- *	we decrement the reference count via put_device(). If that
- *	is the final reference count, the device will be cleaned up
- *	via device_release() above. Otherwise, the structure will
- *	stick around until the final reference to the device is dropped.
+ * We do this in two parts, like we do device_register(). First,
+ * we remove it from all the subsystems with device_del(), then
+ * we decrement the reference count via put_device(). If that
+ * is the final reference count, the device will be cleaned up
+ * via device_release() above. Otherwise, the structure will
+ * stick around until the final reference to the device is dropped.
  */
-void device_unregister(struct device * dev)
+void device_unregister(struct device *dev)
 {
 	pr_debug("device: '%s': %s\n", dev->bus_id, __FUNCTION__);
 	device_del(dev);
 	put_device(dev);
 }
 
-
-static struct device * next_device(struct klist_iter * i)
+static struct device *next_device(struct klist_iter *i)
 {
-	struct klist_node * n = klist_next(i);
+	struct klist_node *n = klist_next(i);
 	return n ? container_of(n, struct device, knode_parent) : NULL;
 }
 
 /**
- *	device_for_each_child - device child iterator.
- *	@parent: parent struct device.
- *	@data:	data for the callback.
- *	@fn:	function to be called for each device.
+ * device_for_each_child - device child iterator.
+ * @parent: parent struct device.
+ * @data: data for the callback.
+ * @fn: function to be called for each device.
  *
- *	Iterate over @parent's child devices, and call @fn for each,
- *	passing it @data.
+ * Iterate over @parent's child devices, and call @fn for each,
+ * passing it @data.
  *
- *	We check the return of @fn each time. If it returns anything
- *	other than 0, we break out and return that value.
+ * We check the return of @fn each time. If it returns anything
+ * other than 0, we break out and return that value.
  */
-int device_for_each_child(struct device * parent, void * data,
-		     int (*fn)(struct device *, void *))
+int device_for_each_child(struct device *parent, void *data,
+			  int (*fn)(struct device *dev, void *data))
 {
 	struct klist_iter i;
-	struct device * child;
+	struct device *child;
 	int error = 0;
 
 	klist_iter_init(&parent->klist_children, &i);
@@ -1044,8 +1032,8 @@ int device_for_each_child(struct device * parent, void * data,
  * current device can be obtained, this function will return to the caller
  * and not iterate over any more devices.
  */
-struct device * device_find_child(struct device *parent, void *data,
-				  int (*match)(struct device *, void *))
+struct device *device_find_child(struct device *parent, void *data,
+				 int (*match)(struct device *dev, void *data))
 {
 	struct klist_iter i;
 	struct device *child;
@@ -1312,8 +1300,7 @@ static int device_move_class_links(struct device *dev,
 					  class_name);
 		if (error)
 			sysfs_remove_link(&dev->kobj, "device");
-	}
-	else
+	} else
 		error = 0;
 out:
 	kfree(class_name);
@@ -1344,7 +1331,7 @@ int device_move(struct device *dev, struct device *new_parent)
 		return -EINVAL;
 
 	new_parent = get_device(new_parent);
-	new_parent_kobj = get_device_parent (dev, new_parent);
+	new_parent_kobj = get_device_parent(dev, new_parent);
 
 	pr_debug("device: '%s': %s: moving to '%s'\n", dev->bus_id,
 		 __FUNCTION__, new_parent ? new_parent->bus_id : "<NULL>");
@@ -1390,7 +1377,7 @@ EXPORT_SYMBOL_GPL(device_move);
  */
 void device_shutdown(void)
 {
-	struct device * dev, *devn;
+	struct device *dev, *devn;
 
 	list_for_each_entry_safe_reverse(dev, devn, &devices_kset->list,
 				kobj.entry) {

@@ -50,15 +50,15 @@ extern int platform_bus_init(void);
 extern int system_bus_init(void);
 extern int cpu_dev_init(void);
 
-extern int bus_add_device(struct device * dev);
-extern void bus_attach_device(struct device * dev);
-extern void bus_remove_device(struct device * dev);
+extern int bus_add_device(struct device *dev);
+extern void bus_attach_device(struct device *dev);
+extern void bus_remove_device(struct device *dev);
 
-extern int bus_add_driver(struct device_driver *);
-extern void bus_remove_driver(struct device_driver *);
+extern int bus_add_driver(struct device_driver *drv);
+extern void bus_remove_driver(struct device_driver *drv);
 
-extern void driver_detach(struct device_driver * drv);
-extern int driver_probe_device(struct device_driver *, struct device *);
+extern void driver_detach(struct device_driver *drv);
+extern int driver_probe_device(struct device_driver *drv, struct device *dev);
 
 extern void sysdev_shutdown(void);
 extern int sysdev_suspend(pm_message_t state);

@@ -1,20 +1,20 @@
 /*
- *	drivers/base/dd.c - The core device/driver interactions.
+ * drivers/base/dd.c - The core device/driver interactions.
  *
- * 	This file contains the (sometimes tricky) code that controls the
- *	interactions between devices and drivers, which primarily includes
- *	driver binding and unbinding.
+ * This file contains the (sometimes tricky) code that controls the
+ * interactions between devices and drivers, which primarily includes
+ * driver binding and unbinding.
  *
- *	All of this code used to exist in drivers/base/bus.c, but was
- *	relocated to here in the name of compartmentalization (since it wasn't
- *	strictly code just for the 'struct bus_type'.
+ * All of this code used to exist in drivers/base/bus.c, but was
+ * relocated to here in the name of compartmentalization (since it wasn't
+ * strictly code just for the 'struct bus_type'.
  *
- *	Copyright (c) 2002-5 Patrick Mochel
- *	Copyright (c) 2002-3 Open Source Development Labs
- *	Copyright (c) 2007 Greg Kroah-Hartman <gregkh@suse.de>
- *	Copyright (c) 2007 Novell Inc.
+ * Copyright (c) 2002-5 Patrick Mochel
+ * Copyright (c) 2002-3 Open Source Development Labs
+ * Copyright (c) 2007 Greg Kroah-Hartman <gregkh@suse.de>
+ * Copyright (c) 2007 Novell Inc.
  *
- *	This file is released under the GPLv2
+ * This file is released under the GPLv2
  */
 
 #include <linux/device.h>
@@ -71,18 +71,18 @@ static void driver_sysfs_remove(struct device *dev)
 }
 
 /**
- *	device_bind_driver - bind a driver to one device.
- *	@dev:	device.
+ * device_bind_driver - bind a driver to one device.
+ * @dev: device.
  *
- *	Allow manual attachment of a driver to a device.
- *	Caller must have already set @dev->driver.
+ * Allow manual attachment of a driver to a device.
+ * Caller must have already set @dev->driver.
  *
- *	Note that this does not modify the bus reference count
- *	nor take the bus's rwsem. Please verify those are accounted
- *	for before calling this. (It is ok to call with no other effort
- *	from a driver's probe() method.)
+ * Note that this does not modify the bus reference count
+ * nor take the bus's rwsem. Please verify those are accounted
+ * for before calling this. (It is ok to call with no other effort
+ * from a driver's probe() method.)
  *
- *	This function must be called with @dev->sem held.
+ * This function must be called with @dev->sem held.
  */
 int device_bind_driver(struct device *dev)
 {
@@ -93,6 +93,7 @@ int device_bind_driver(struct device *dev)
 		driver_bound(dev);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(device_bind_driver);
 
 static atomic_t probe_count = ATOMIC_INIT(0);
 static DECLARE_WAIT_QUEUE_HEAD(probe_waitqueue);
@@ -183,7 +184,7 @@ int driver_probe_done(void)
  * This function must be called with @dev->sem held.  When called for a
  * USB interface, @dev->parent->sem must be held as well.
  */
-int driver_probe_device(struct device_driver * drv, struct device * dev)
+int driver_probe_device(struct device_driver *drv, struct device *dev)
 {
 	int ret = 0;
 
@@ -201,27 +202,27 @@ done:
 	return ret;
 }
 
-static int __device_attach(struct device_driver * drv, void * data)
+static int __device_attach(struct device_driver *drv, void *data)
 {
-	struct device * dev = data;
+	struct device *dev = data;
 	return driver_probe_device(drv, dev);
 }
 
 /**
- *	device_attach - try to attach device to a driver.
- *	@dev:	device.
+ * device_attach - try to attach device to a driver.
+ * @dev: device.
  *
- *	Walk the list of drivers that the bus has and call
- *	driver_probe_device() for each pair. If a compatible
- *	pair is found, break out and return.
+ * Walk the list of drivers that the bus has and call
+ * driver_probe_device() for each pair. If a compatible
+ * pair is found, break out and return.
  *
- *	Returns 1 if the device was bound to a driver;
- *	0 if no matching device was found;
- *	-ENODEV if the device is not registered.
+ * Returns 1 if the device was bound to a driver;
+ * 0 if no matching device was found;
+ * -ENODEV if the device is not registered.
  *
- *	When called for a USB interface, @dev->parent->sem must be held.
+ * When called for a USB interface, @dev->parent->sem must be held.
  */
-int device_attach(struct device * dev)
+int device_attach(struct device *dev)
 {
 	int ret = 0;
 
@@ -240,10 +241,11 @@ int device_attach(struct device * dev)
 	up(&dev->sem);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(device_attach);
 
-static int __driver_attach(struct device * dev, void * data)
+static int __driver_attach(struct device *dev, void *data)
 {
-	struct device_driver * drv = data;
+	struct device_driver *drv = data;
 
 	/*
 	 * Lock device and try to bind to it. We drop the error
@@ -268,26 +270,27 @@ static int __driver_attach(struct device * dev, void * data)
 }
 
 /**
- *	driver_attach - try to bind driver to devices.
- *	@drv:	driver.
+ * driver_attach - try to bind driver to devices.
+ * @drv: driver.
  *
- *	Walk the list of devices that the bus has on it and try to
- *	match the driver with each one.  If driver_probe_device()
- *	returns 0 and the @dev->driver is set, we've found a
- *	compatible pair.
+ * Walk the list of devices that the bus has on it and try to
+ * match the driver with each one.  If driver_probe_device()
+ * returns 0 and the @dev->driver is set, we've found a
+ * compatible pair.
  */
-int driver_attach(struct device_driver * drv)
+int driver_attach(struct device_driver *drv)
 {
 	return bus_for_each_dev(drv->bus, NULL, drv, __driver_attach);
 }
+EXPORT_SYMBOL_GPL(driver_attach);
 
 /*
- *	__device_release_driver() must be called with @dev->sem held.
- *	When called for a USB interface, @dev->parent->sem must be held as well.
+ * __device_release_driver() must be called with @dev->sem held.
+ * When called for a USB interface, @dev->parent->sem must be held as well.
  */
-static void __device_release_driver(struct device * dev)
+static void __device_release_driver(struct device *dev)
 {
-	struct device_driver * drv;
+	struct device_driver *drv;
 
 	drv = dev->driver;
 	if (drv) {
@@ -310,13 +313,13 @@ static void __device_release_driver(struct device * dev)
 }
 
 /**
- *	device_release_driver - manually detach device from driver.
- *	@dev:	device.
+ * device_release_driver - manually detach device from driver.
+ * @dev: device.
  *
- *	Manually detach device from driver.
- *	When called for a USB interface, @dev->parent->sem must be held.
+ * Manually detach device from driver.
+ * When called for a USB interface, @dev->parent->sem must be held.
  */
-void device_release_driver(struct device * dev)
+void device_release_driver(struct device *dev)
 {
 	/*
 	 * If anyone calls device_release_driver() recursively from
@@ -327,15 +330,15 @@ void device_release_driver(struct device * dev)
 	__device_release_driver(dev);
 	up(&dev->sem);
 }
-
+EXPORT_SYMBOL_GPL(device_release_driver);
 
 /**
  * driver_detach - detach driver from all devices it controls.
  * @drv: driver.
  */
-void driver_detach(struct device_driver * drv)
+void driver_detach(struct device_driver *drv)
 {
-	struct device * dev;
+	struct device *dev;
 
 	for (;;) {
 		spin_lock(&drv->p->klist_devices.k_lock);
@@ -359,9 +362,3 @@ void driver_detach(struct device_driver * drv)
 		put_device(dev);
 	}
 }
-
-EXPORT_SYMBOL_GPL(device_bind_driver);
-EXPORT_SYMBOL_GPL(device_release_driver);
-EXPORT_SYMBOL_GPL(device_attach);
-EXPORT_SYMBOL_GPL(driver_attach);
-
