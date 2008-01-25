@@ -476,15 +476,12 @@ static struct sched_rt_entity *pick_next_rt_entity(struct rq *rq,
 	struct list_head *queue;
 	int idx;
 
-	if (sched_rt_ratio_exceeded(rt_rq))
-		goto out;
-
 	idx = sched_find_first_bit(array->bitmap);
 	BUG_ON(idx >= MAX_RT_PRIO);
 
 	queue = array->queue + idx;
 	next = list_entry(queue->next, struct sched_rt_entity, run_list);
- out:
+
 	return next;
 }
 
@@ -494,7 +491,6 @@ static struct task_struct *pick_next_task_rt(struct rq *rq)
 	struct task_struct *p;
 	struct rt_rq *rt_rq;
 
- retry:
 	rt_rq = &rq->rt;
 
 	if (unlikely(!rt_rq->rt_nr_running))
@@ -505,8 +501,7 @@ static struct task_struct *pick_next_task_rt(struct rq *rq)
 
 	do {
 		rt_se = pick_next_rt_entity(rq, rt_rq);
-		if (unlikely(!rt_se))
-			goto retry;
+		BUG_ON(!rt_se);
 		rt_rq = group_rt_rq(rt_se);
 	} while (rt_rq);
 
