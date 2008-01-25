@@ -133,9 +133,6 @@ static void atiixp_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	u32 tmp32;
 	u16 tmp16;
 
-	if (speed < XFER_MW_DMA_0)
-		return;
-
 	spin_lock_irqsave(&atiixp_lock, flags);
 
 	save_mdma_mode[drive->dn] = 0;

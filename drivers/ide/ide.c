@@ -424,7 +424,6 @@ static void ide_hwif_restore(ide_hwif_t *hwif, ide_hwif_t *tmp_hwif)
 	hwif->reset_poll		= tmp_hwif->reset_poll;
 	hwif->pre_reset			= tmp_hwif->pre_reset;
 	hwif->resetproc			= tmp_hwif->resetproc;
-	hwif->intrproc			= tmp_hwif->intrproc;
 	hwif->maskproc			= tmp_hwif->maskproc;
 	hwif->quirkproc			= tmp_hwif->quirkproc;
 	hwif->busproc			= tmp_hwif->busproc;
@@ -468,7 +467,6 @@ static void ide_hwif_restore(ide_hwif_t *hwif, ide_hwif_t *tmp_hwif)
 #endif
 
 	hwif->dma_base			= tmp_hwif->dma_base;
-	hwif->dma_master		= tmp_hwif->dma_master;
 	hwif->dma_command		= tmp_hwif->dma_command;
 	hwif->dma_vendor1		= tmp_hwif->dma_vendor1;
 	hwif->dma_status		= tmp_hwif->dma_status;
@@ -602,7 +600,6 @@ void ide_unregister(unsigned int index)
 		(void) ide_release_dma(hwif);
 
 		hwif->dma_base = 0;
-		hwif->dma_master = 0;
 		hwif->dma_command = 0;
 		hwif->dma_vendor1 = 0;
 		hwif->dma_status = 0;
@@ -854,8 +851,7 @@ int set_using_dma(ide_drive_t *drive, int arg)
 	err = 0;
 
 	if (arg) {
-		hwif->dma_off_quietly(drive);
-		if (ide_set_dma(drive) || hwif->ide_dma_on(drive))
+		if (ide_set_dma(drive))
 			err = -EIO;
 	} else
 		ide_dma_off(drive);

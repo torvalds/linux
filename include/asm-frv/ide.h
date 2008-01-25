@@ -18,12 +18,6 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
-#undef SUPPORT_SLOW_DATA_PORTS
-#define SUPPORT_SLOW_DATA_PORTS 0
-
-#undef SUPPORT_VLB_SYNC
-#define SUPPORT_VLB_SYNC 0
-
 #ifndef MAX_HWIFS
 #define MAX_HWIFS 8
 #endif

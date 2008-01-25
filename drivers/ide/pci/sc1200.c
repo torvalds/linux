@@ -135,59 +135,29 @@ static void sc1200_set_dma_mode(ide_drive_t *drive, const u8 mode)
 	unsigned short		pci_clock;
 	unsigned int		basereg = hwif->channel ? 0x50 : 0x40;
 
+	static const u32 udma_timing[3][3] = {
+		{ 0x00921250, 0x00911140, 0x00911030 },
+		{ 0x00932470, 0x00922260, 0x00922140 },
+		{ 0x009436a1, 0x00933481, 0x00923261 },
+	};
+
+	static const u32 mwdma_timing[3][3] = {
+		{ 0x00077771, 0x00012121, 0x00002020 },
+		{ 0x000bbbb2, 0x00024241, 0x00013131 },
+		{ 0x000ffff3, 0x00035352, 0x00015151 },
+	};
+
 	pci_clock = sc1200_get_pci_clock();
 
 	/*
 	 * Note that each DMA mode has several timings associated with it.
 	 * The correct timing depends on the fast PCI clock freq.
 	 */
-	timings = 0;
-	switch (mode) {
-		case XFER_UDMA_0:
-			switch (pci_clock) {
-				case PCI_CLK_33:	timings = 0x00921250;	break;
-				case PCI_CLK_48:	timings = 0x00932470;	break;
-				case PCI_CLK_66:	timings = 0x009436a1;	break;
-			}
-			break;
-		case XFER_UDMA_1:
-			switch (pci_clock) {
-				case PCI_CLK_33:	timings = 0x00911140;	break;
-				case PCI_CLK_48:	timings = 0x00922260;	break;
-				case PCI_CLK_66:	timings = 0x00933481;	break;
-			}
-			break;
-		case XFER_UDMA_2:
-			switch (pci_clock) {
-				case PCI_CLK_33:	timings = 0x00911030;	break;
-				case PCI_CLK_48:	timings = 0x00922140;	break;
-				case PCI_CLK_66:	timings = 0x00923261;	break;
-			}
-			break;
-		case XFER_MW_DMA_0:
-			switch (pci_clock) {
-				case PCI_CLK_33:	timings = 0x00077771;	break;
-				case PCI_CLK_48:	timings = 0x000bbbb2;	break;
-				case PCI_CLK_66:	timings = 0x000ffff3;	break;
-			}
-			break;
-		case XFER_MW_DMA_1:
-			switch (pci_clock) {
-				case PCI_CLK_33:	timings = 0x00012121;	break;
-				case PCI_CLK_48:	timings = 0x00024241;	break;
-				case PCI_CLK_66:	timings = 0x00035352;	break;
-			}
-			break;
-		case XFER_MW_DMA_2:
-			switch (pci_clock) {
-				case PCI_CLK_33:	timings = 0x00002020;	break;
-				case PCI_CLK_48:	timings = 0x00013131;	break;
-				case PCI_CLK_66:	timings = 0x00015151;	break;
-			}
-			break;
-		default:
-			return;
-	}
+
+	if (mode >= XFER_UDMA_0)
+		timings =  udma_timing[pci_clock][mode - XFER_UDMA_0];
+	else
+		timings = mwdma_timing[pci_clock][mode - XFER_MW_DMA_0];
 
 	if (unit == 0) {			/* are we configuring drive0? */
 		pci_read_config_dword(hwif->pci_dev, basereg+4, &reg);
@@ -260,66 +230,39 @@ static void sc1200_set_pio_mode(ide_drive_t *drive, const u8 pio)
 }
 
 #ifdef CONFIG_PM
-static ide_hwif_t *lookup_pci_dev (ide_hwif_t *prev, struct pci_dev *dev)
-{
-	int	h;
-
-	for (h = 0; h < MAX_HWIFS; h++) {
-		ide_hwif_t *hwif = &ide_hwifs[h];
-		if (prev) {
-			if (hwif == prev)
-				prev = NULL;	// found previous, now look for next match
-		} else {
-			if (hwif && hwif->pci_dev == dev)
-				return hwif;	// found next match
-		}
-	}
-	return NULL;	// not found
-}
-
-typedef struct sc1200_saved_state_s {
-	__u32		regs[4];
-} sc1200_saved_state_t;
-
+struct sc1200_saved_state {
+	u32 regs[8];
+};
 
 static int sc1200_suspend (struct pci_dev *dev, pm_message_t state)
 {
-	ide_hwif_t		*hwif = NULL;
-
 	printk("SC1200: suspend(%u)\n", state.event);
 
+	/*
+	 * we only save state when going from full power to less
+	 */
 	if (state.event == PM_EVENT_ON) {
-		// we only save state when going from full power to less
+		struct sc1200_saved_state *ss;
+		unsigned int r;
 
-		//
-		// Loop over all interfaces that are part of this PCI device:
-		//
-		while ((hwif = lookup_pci_dev(hwif, dev)) != NULL) {
-			sc1200_saved_state_t	*ss;
-			unsigned int		basereg, r;
-			//
-			// allocate a permanent save area, if not already allocated
-			//
-			ss = (sc1200_saved_state_t *)hwif->config_data;
-			if (ss == NULL) {
-				ss = kmalloc(sizeof(sc1200_saved_state_t), GFP_KERNEL);
-				if (ss == NULL)
-					return -ENOMEM;
-				hwif->config_data = (unsigned long)ss;
-			}
-			ss = (sc1200_saved_state_t *)hwif->config_data;
-			//
-			// Save timing registers:  this may be unnecessary if 
-			// BIOS also does it
-			//
-			basereg = hwif->channel ? 0x50 : 0x40;
-			for (r = 0; r < 4; ++r) {
-				pci_read_config_dword (hwif->pci_dev, basereg + (r<<2), &ss->regs[r]);
-			}
+		/*
+		 * allocate a permanent save area, if not already allocated
+		 */
+		ss = (struct sc1200_saved_state *)pci_get_drvdata(dev);
+		if (ss == NULL) {
+			ss = kmalloc(sizeof(*ss), GFP_KERNEL);
+			if (ss == NULL)
+				return -ENOMEM;
+			pci_set_drvdata(dev, ss);
 		}
-	}
 
-	/* You don't need to iterate over disks -- sysfs should have done that for you already */ 
+		/*
+		 * save timing registers
+		 * (this may be unnecessary if BIOS also does it)
+		 */
+		for (r = 0; r < 8; r++)
+			pci_read_config_dword(dev, 0x40 + r * 4, &ss->regs[r]);
+	}
 
 	pci_disable_device(dev);
 	pci_set_power_state(dev, pci_choose_state(dev, state));
@@ -328,30 +271,25 @@ static int sc1200_suspend (struct pci_dev *dev, pm_message_t state)
 
 static int sc1200_resume (struct pci_dev *dev)
 {
-	ide_hwif_t	*hwif = NULL;
-	int		i;
+	struct sc1200_saved_state *ss;
+	unsigned int r;
+	int i;
 
 	i = pci_enable_device(dev);
 	if (i)
 		return i;
 
-	//
-	// loop over all interfaces that are part of this pci device:
-	//
-	while ((hwif = lookup_pci_dev(hwif, dev)) != NULL) {
-		unsigned int		basereg, r;
-		sc1200_saved_state_t	*ss = (sc1200_saved_state_t *)hwif->config_data;
+	ss = (struct sc1200_saved_state *)pci_get_drvdata(dev);
 
-		//
-		// Restore timing registers:  this may be unnecessary if BIOS also does it
-		//
-		basereg = hwif->channel ? 0x50 : 0x40;
-		if (ss != NULL) {
-			for (r = 0; r < 4; ++r) {
-				pci_write_config_dword(hwif->pci_dev, basereg + (r<<2), ss->regs[r]);
-			}
-		}
+	/*
+	 * restore timing registers
+	 * (this may be unnecessary if BIOS also does it)
+	 */
+	if (ss) {
+		for (r = 0; r < 8; r++)
+			pci_write_config_dword(dev, 0x40 + r * 4, ss->regs[r]);
 	}
+
 	return 0;
 }
 #endif

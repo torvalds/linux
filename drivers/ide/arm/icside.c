@@ -272,8 +272,6 @@ static void icside_set_dma_mode(ide_drive_t *drive, const u8 xfer_mode)
 	case XFER_SW_DMA_0:
 		cycle_time = 480;
 		break;
-	default:
-		return;
 	}
 
 	/*

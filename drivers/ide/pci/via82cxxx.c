@@ -439,6 +439,7 @@ static const struct ide_port_info via82cxxx_chipset __devinitdata = {
 	.enablebits	= { { 0x40, 0x02, 0x02 }, { 0x40, 0x01, 0x01 } },
 	.host_flags	= IDE_HFLAG_PIO_NO_BLACKLIST |
 			  IDE_HFLAG_PIO_NO_DOWNGRADE |
+			  IDE_HFLAG_ABUSE_SET_DMA_MODE |
 			  IDE_HFLAG_POST_SET_MODE |
 			  IDE_HFLAG_IO_32BIT |
 			  IDE_HFLAG_BOOTABLE,

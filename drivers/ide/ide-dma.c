@@ -491,10 +491,6 @@ EXPORT_SYMBOL(ide_dma_host_on);
  
 int __ide_dma_on (ide_drive_t *drive)
 {
-	/* consult the list of known "bad" drives */
-	if (__ide_dma_bad_drive(drive))
-		return 1;
-
 	drive->using_dma = 1;
 	ide_toggle_bounce(drive, 1);
 
@@ -827,22 +823,19 @@ int ide_set_dma(ide_drive_t *drive)
 	ide_hwif_t *hwif = drive->hwif;
 	int rc;
 
+	/*
+	 * Force DMAing for the beginning of the check.
+	 * Some chipsets appear to do interesting
+	 * things, if not checked and cleared.
+	 *   PARANOIA!!!
+	 */
+	hwif->dma_off_quietly(drive);
+
 	rc = ide_dma_check(drive);
+	if (rc)
+		return rc;
 
-	switch(rc) {
-	case -1: /* DMA needs to be disabled */
-		hwif->dma_off_quietly(drive);
-		return -1;
-	case  0: /* DMA needs to be enabled */
-		return hwif->ide_dma_on(drive);
-	case  1: /* DMA setting cannot be changed */
-		break;
-	default:
-		BUG();
-		break;
-	}
-
-	return rc;
+	return hwif->ide_dma_on(drive);
 }
 
 #ifdef CONFIG_BLK_DEV_IDEDMA_PCI
@@ -968,11 +961,6 @@ void ide_setup_dma(ide_hwif_t *hwif, unsigned long base, unsigned num_ports)
 
 	hwif->dma_base = base;
 
-	if (hwif->mate)
-		hwif->dma_master = hwif->channel ? hwif->mate->dma_base : base;
-	else
-		hwif->dma_master = base;
-
 	if (!(hwif->dma_command))
 		hwif->dma_command	= hwif->dma_base;
 	if (!(hwif->dma_vendor1))
@@ -1014,8 +1002,6 @@ void ide_setup_dma(ide_hwif_t *hwif, unsigned long base, unsigned num_ports)
 		       hwif->drives[1].name, (dma_stat & 0x40) ? "DMA" : "pio");
 	}
 	printk("\n");
-
-	BUG_ON(!hwif->dma_master);
 }
 
 EXPORT_SYMBOL_GPL(ide_setup_dma);

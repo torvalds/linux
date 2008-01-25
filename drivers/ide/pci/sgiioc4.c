@@ -582,7 +582,6 @@ ide_init_sgiioc4(ide_hwif_t * hwif)
 	hwif->pre_reset = NULL;	/* No HBA specific pre_set needed */
 	hwif->resetproc = &sgiioc4_resetproc;/* Reset DMA engine,
 						clear interrupts */
-	hwif->intrproc = NULL;	/* Enable or Disable interrupt from drive */
 	hwif->maskproc = &sgiioc4_maskproc;	/* Mask on/off NIEN register */
 	hwif->quirkproc = NULL;
 	hwif->busproc = NULL;

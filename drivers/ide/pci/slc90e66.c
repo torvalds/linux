@@ -91,19 +91,9 @@ static void slc90e66_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	pci_read_config_word(dev, 0x48, &reg48);
 	pci_read_config_word(dev, 0x4a, &reg4a);
 
-	switch(speed) {
-		case XFER_UDMA_4:	u_speed = 4 << (drive->dn * 4); break;
-		case XFER_UDMA_3:	u_speed = 3 << (drive->dn * 4); break;
-		case XFER_UDMA_2:	u_speed = 2 << (drive->dn * 4); break;
-		case XFER_UDMA_1:	u_speed = 1 << (drive->dn * 4); break;
-		case XFER_UDMA_0:	u_speed = 0 << (drive->dn * 4); break;
-		case XFER_MW_DMA_2:
-		case XFER_MW_DMA_1:
-		case XFER_SW_DMA_2:	break;
-		default:		return;
-	}
-
 	if (speed >= XFER_UDMA_0) {
+		u_speed = (speed - XFER_UDMA_0) << (drive->dn * 4);
+
 		if (!(reg48 & u_flag))
 			pci_write_config_word(dev, 0x48, reg48|u_flag);
 		/* FIXME: (reg4a & a_speed) ? */

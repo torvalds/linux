@@ -146,7 +146,7 @@ static struct udma_timing {
 	{ 0x1a, 0x01, 0xcb },	/* UDMA mode 6 */
 };
 
-static void pdcnew_set_mode(ide_drive_t *drive, const u8 speed)
+static void pdcnew_set_dma_mode(ide_drive_t *drive, const u8 speed)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	u8 adj			= (drive->dn & 1) ? 0x08 : 0x00;
@@ -162,45 +162,18 @@ static void pdcnew_set_mode(ide_drive_t *drive, const u8 speed)
 	if (max_dma_rate(hwif->pci_dev) == 4) {
 		u8 mode = speed & 0x07;
 
-		switch (speed) {
-			case XFER_UDMA_6:
-			case XFER_UDMA_5:
-			case XFER_UDMA_4:
-			case XFER_UDMA_3:
-			case XFER_UDMA_2:
-			case XFER_UDMA_1:
-			case XFER_UDMA_0:
-				set_indexed_reg(hwif, 0x10 + adj,
-						udma_timings[mode].reg10);
-				set_indexed_reg(hwif, 0x11 + adj,
-						udma_timings[mode].reg11);
-				set_indexed_reg(hwif, 0x12 + adj,
-						udma_timings[mode].reg12);
-				break;
-
-			case XFER_MW_DMA_2:
-			case XFER_MW_DMA_1:
-			case XFER_MW_DMA_0:
-				set_indexed_reg(hwif, 0x0e + adj,
-						mwdma_timings[mode].reg0e);
-				set_indexed_reg(hwif, 0x0f + adj,
-						mwdma_timings[mode].reg0f);
-				break;
-			case XFER_PIO_4:
-			case XFER_PIO_3:
-			case XFER_PIO_2:
-			case XFER_PIO_1:
-			case XFER_PIO_0:
-				set_indexed_reg(hwif, 0x0c + adj,
-						pio_timings[mode].reg0c);
-				set_indexed_reg(hwif, 0x0d + adj,
-						pio_timings[mode].reg0d);
-				set_indexed_reg(hwif, 0x13 + adj,
-						pio_timings[mode].reg13);
-				break;
-			default:
-				printk(KERN_ERR "pdc202xx_new: "
-				       "Unknown speed %d ignored\n", speed);
+		if (speed >= XFER_UDMA_0) {
+			set_indexed_reg(hwif, 0x10 + adj,
+					udma_timings[mode].reg10);
+			set_indexed_reg(hwif, 0x11 + adj,
+					udma_timings[mode].reg11);
+			set_indexed_reg(hwif, 0x12 + adj,
+					udma_timings[mode].reg12);
+		} else {
+			set_indexed_reg(hwif, 0x0e + adj,
+					mwdma_timings[mode].reg0e);
+			set_indexed_reg(hwif, 0x0f + adj,
+					mwdma_timings[mode].reg0f);
 		}
 	} else if (speed == XFER_UDMA_2) {
 		/* Set tHOLD bit to 0 if using UDMA mode 2 */
@@ -212,7 +185,14 @@ static void pdcnew_set_mode(ide_drive_t *drive, const u8 speed)
 
 static void pdcnew_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	pdcnew_set_mode(drive, XFER_PIO_0 + pio);
+	ide_hwif_t *hwif = drive->hwif;
+	u8 adj = (drive->dn & 1) ? 0x08 : 0x00;
+
+	if (max_dma_rate(hwif->pci_dev) == 4) {
+		set_indexed_reg(hwif, 0x0c + adj, pio_timings[pio].reg0c);
+		set_indexed_reg(hwif, 0x0d + adj, pio_timings[pio].reg0d);
+		set_indexed_reg(hwif, 0x13 + adj, pio_timings[pio].reg13);
+	}
 }
 
 static u8 pdcnew_cable_detect(ide_hwif_t *hwif)
@@ -466,7 +446,7 @@ static unsigned int __devinit init_chipset_pdcnew(struct pci_dev *dev, const cha
 static void __devinit init_hwif_pdc202new(ide_hwif_t *hwif)
 {
 	hwif->set_pio_mode = &pdcnew_set_pio_mode;
-	hwif->set_dma_mode = &pdcnew_set_mode;
+	hwif->set_dma_mode = &pdcnew_set_dma_mode;
 
 	hwif->quirkproc = &pdcnew_quirkproc;
 	hwif->resetproc = &pdcnew_reset;

@@ -158,14 +158,6 @@ void default_hwif_mmiops (ide_hwif_t *hwif)
 
 EXPORT_SYMBOL(default_hwif_mmiops);
 
-u32 ide_read_24 (ide_drive_t *drive)
-{
-	u8 hcyl = HWIF(drive)->INB(IDE_HCYL_REG);
-	u8 lcyl = HWIF(drive)->INB(IDE_LCYL_REG);
-	u8 sect = HWIF(drive)->INB(IDE_SECTOR_REG);
-	return (hcyl<<16)|(lcyl<<8)|sect;
-}
-
 void SELECT_DRIVE (ide_drive_t *drive)
 {
 	if (HWIF(drive)->selectproc)
@@ -175,24 +167,10 @@ void SELECT_DRIVE (ide_drive_t *drive)
 
 EXPORT_SYMBOL(SELECT_DRIVE);
 
-void SELECT_INTERRUPT (ide_drive_t *drive)
-{
-	if (HWIF(drive)->intrproc)
-		HWIF(drive)->intrproc(drive);
-	else
-		HWIF(drive)->OUTB(drive->ctl|2, IDE_CONTROL_REG);
-}
-
 void SELECT_MASK (ide_drive_t *drive, int mask)
 {
 	if (HWIF(drive)->maskproc)
 		HWIF(drive)->maskproc(drive, mask);
-}
-
-void QUIRK_LIST (ide_drive_t *drive)
-{
-	if (HWIF(drive)->quirkproc)
-		drive->quirk_list = HWIF(drive)->quirkproc(drive);
 }
 
 /*
@@ -449,7 +427,6 @@ int drive_is_ready (ide_drive_t *drive)
 	udelay(1);
 #endif
 
-#ifdef CONFIG_IDEPCI_SHARE_IRQ
 	/*
 	 * We do a passive status test under shared PCI interrupts on
 	 * cards that truly share the ATA side interrupt, but may also share
@@ -459,7 +436,6 @@ int drive_is_ready (ide_drive_t *drive)
 	if (IDE_CONTROL_REG)
 		stat = hwif->INB(IDE_ALTSTATUS_REG);
 	else
-#endif /* CONFIG_IDEPCI_SHARE_IRQ */
 		/* Note: this may clear a pending IRQ!! */
 		stat = hwif->INB(IDE_STATUS_REG);
 
@@ -642,9 +618,9 @@ no_80w:
 
 int ide_ata66_check (ide_drive_t *drive, ide_task_t *args)
 {
-	if ((args->tfRegister[IDE_COMMAND_OFFSET] == WIN_SETFEATURES) &&
-	    (args->tfRegister[IDE_SECTOR_OFFSET] > XFER_UDMA_2) &&
-	    (args->tfRegister[IDE_FEATURE_OFFSET] == SETFEATURES_XFER)) {
+	if (args->tf.command == WIN_SETFEATURES &&
+	    args->tf.lbal > XFER_UDMA_2 &&
+	    args->tf.feature == SETFEATURES_XFER) {
 		if (eighty_ninty_three(drive) == 0) {
 			printk(KERN_WARNING "%s: UDMA speeds >UDMA33 cannot "
 					    "be set\n", drive->name);
@@ -662,9 +638,9 @@ int ide_ata66_check (ide_drive_t *drive, ide_task_t *args)
  */
 int set_transfer (ide_drive_t *drive, ide_task_t *args)
 {
-	if ((args->tfRegister[IDE_COMMAND_OFFSET] == WIN_SETFEATURES) &&
-	    (args->tfRegister[IDE_SECTOR_OFFSET] >= XFER_SW_DMA_0) &&
-	    (args->tfRegister[IDE_FEATURE_OFFSET] == SETFEATURES_XFER) &&
+	if (args->tf.command == WIN_SETFEATURES &&
+	    args->tf.lbal >= XFER_SW_DMA_0 &&
+	    args->tf.feature == SETFEATURES_XFER &&
 	    (drive->id->dma_ultra ||
 	     drive->id->dma_mword ||
 	     drive->id->dma_1word))
@@ -902,8 +878,9 @@ EXPORT_SYMBOL(ide_set_handler);
  *	handler and IRQ setup do not race. All IDE command kick off
  *	should go via this function or do equivalent locking.
  */
- 
-void ide_execute_command(ide_drive_t *drive, task_ioreg_t cmd, ide_handler_t *handler, unsigned timeout, ide_expiry_t *expiry)
+
+void ide_execute_command(ide_drive_t *drive, u8 cmd, ide_handler_t *handler,
+			 unsigned timeout, ide_expiry_t *expiry)
 {
 	unsigned long flags;
 	ide_hwgroup_t *hwgroup = HWGROUP(drive);
@@ -1051,8 +1028,7 @@ static void ide_disk_pre_reset(ide_drive_t *drive)
 	drive->special.all = 0;
 	drive->special.b.set_geometry = legacy;
 	drive->special.b.recalibrate  = legacy;
-	if (OK_TO_RESET_CONTROLLER)
-		drive->mult_count = 0;
+	drive->mult_count = 0;
 	if (!drive->keep_settings && !drive->using_dma)
 		drive->mult_req = 0;
 	if (drive->mult_req != drive->mult_count)
@@ -1137,7 +1113,6 @@ static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 	for (unit = 0; unit < MAX_DRIVES; ++unit)
 		pre_reset(&hwif->drives[unit]);
 
-#if OK_TO_RESET_CONTROLLER
 	if (!IDE_CONTROL_REG) {
 		spin_unlock_irqrestore(&ide_lock, flags);
 		return ide_stopped;
@@ -1174,11 +1149,8 @@ static ide_startstop_t do_reset1 (ide_drive_t *drive, int do_not_try_atapi)
 	 * state when the disks are reset this way. At least, the Winbond
 	 * 553 documentation says that
 	 */
-	if (hwif->resetproc != NULL) {
+	if (hwif->resetproc)
 		hwif->resetproc(drive);
-	}
-	
-#endif	/* OK_TO_RESET_CONTROLLER */
 
 	spin_unlock_irqrestore(&ide_lock, flags);
 	return ide_started;

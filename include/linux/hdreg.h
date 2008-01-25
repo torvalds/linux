@@ -44,7 +44,9 @@
 
 /* Bits for HD_ERROR */
 #define MARK_ERR		0x01	/* Bad address mark */
+#define ILI_ERR			0x01	/* Illegal Length Indication (ATAPI) */
 #define TRK0_ERR		0x02	/* couldn't find track 0 */
+#define EOM_ERR			0x02	/* End Of Media (ATAPI) */
 #define ABRT_ERR		0x04	/* Command aborted */
 #define MCR_ERR			0x08	/* media change request */
 #define ID_ERR			0x10	/* ID field not found */
@@ -52,6 +54,7 @@
 #define ECC_ERR			0x40	/* Uncorrectable ECC error */
 #define BBD_ERR			0x80	/* pre-EIDE meaning:  block marked bad */
 #define ICRC_ERR		0x80	/* new meaning:  CRC error during transfer */
+#define LFS_ERR			0xf0	/* Last Failed Sense (ATAPI) */
 
 /* Bits of HD_NSECTOR */
 #define CD			0x01
@@ -70,13 +73,13 @@
 #define HDIO_DRIVE_HOB_HDR_SIZE		(8 * sizeof(__u8))
 #define HDIO_DRIVE_TASK_HDR_SIZE	(8 * sizeof(__u8))
 
-#define IDE_DRIVE_TASK_INVALID		-1
 #define IDE_DRIVE_TASK_NO_DATA		0
+#ifndef __KERNEL__
+#define IDE_DRIVE_TASK_INVALID		-1
 #define IDE_DRIVE_TASK_SET_XFER		1
-
 #define IDE_DRIVE_TASK_IN		2
-
 #define IDE_DRIVE_TASK_OUT		3
+#endif
 #define IDE_DRIVE_TASK_RAW_WRITE	4
 
 /*
@@ -87,10 +90,10 @@
 #ifndef __KERNEL__
 #define IDE_TASKFILE_STD_OUT_FLAGS	0xFE
 #define IDE_HOB_STD_OUT_FLAGS		0x3C
-#endif
 
 typedef unsigned char task_ioreg_t;
 typedef unsigned long sata_ioreg_t;
+#endif
 
 typedef union ide_reg_valid_s {
 	unsigned all				: 16;
@@ -116,8 +119,8 @@ typedef union ide_reg_valid_s {
 } ide_reg_valid_t;
 
 typedef struct ide_task_request_s {
-	task_ioreg_t	io_ports[8];
-	task_ioreg_t	hob_ports[8];
+	__u8		io_ports[8];
+	__u8		hob_ports[8]; /* bytes 6 and 7 are unused */
 	ide_reg_valid_t	out_flags;
 	ide_reg_valid_t	in_flags;
 	int		data_phase;
@@ -133,36 +136,35 @@ typedef struct ide_ioctl_request_s {
 } ide_ioctl_request_t;
 
 struct hd_drive_cmd_hdr {
-	task_ioreg_t command;
-	task_ioreg_t sector_number;
-	task_ioreg_t feature;
-	task_ioreg_t sector_count;
+	__u8 command;
+	__u8 sector_number;
+	__u8 feature;
+	__u8 sector_count;
 };
 
+#ifndef __KERNEL__
 typedef struct hd_drive_task_hdr {
-	task_ioreg_t data;
-	task_ioreg_t feature;
-	task_ioreg_t sector_count;
-	task_ioreg_t sector_number;
-	task_ioreg_t low_cylinder;
-	task_ioreg_t high_cylinder;
-	task_ioreg_t device_head;
-	task_ioreg_t command;
+	__u8 data;
+	__u8 feature;
+	__u8 sector_count;
+	__u8 sector_number;
+	__u8 low_cylinder;
+	__u8 high_cylinder;
+	__u8 device_head;
+	__u8 command;
 } task_struct_t;
 
 typedef struct hd_drive_hob_hdr {
-	task_ioreg_t data;
-	task_ioreg_t feature;
-	task_ioreg_t sector_count;
-	task_ioreg_t sector_number;
-	task_ioreg_t low_cylinder;
-	task_ioreg_t high_cylinder;
-	task_ioreg_t device_head;
-	task_ioreg_t control;
+	__u8 data;
+	__u8 feature;
+	__u8 sector_count;
+	__u8 sector_number;
+	__u8 low_cylinder;
+	__u8 high_cylinder;
+	__u8 device_head;
+	__u8 control;
 } hob_struct_t;
-
-#define TASKFILE_INVALID		0x7fff
-#define TASKFILE_48			0x8000
+#endif
 
 #define TASKFILE_NO_DATA		0x0000
 
@@ -178,12 +180,16 @@ typedef struct hd_drive_hob_hdr {
 #define TASKFILE_IN_DMAQ		0x0080
 #define TASKFILE_OUT_DMAQ		0x0100
 
+#ifndef __KERNEL__
 #define TASKFILE_P_IN			0x0200
 #define TASKFILE_P_OUT			0x0400
 #define TASKFILE_P_IN_DMA		0x0800
 #define TASKFILE_P_OUT_DMA		0x1000
 #define TASKFILE_P_IN_DMAQ		0x2000
 #define TASKFILE_P_OUT_DMAQ		0x4000
+#define TASKFILE_48			0x8000
+#define TASKFILE_INVALID		0x7fff
+#endif
 
 /* ATA/ATAPI Commands pre T13 Spec */
 #define WIN_NOP				0x00

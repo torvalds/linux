@@ -322,8 +322,6 @@ static void cmd64x_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	case XFER_MW_DMA_0:
 		program_cycle_times(drive, 480, 215);
 		break;
-	default:
-		return;
 	}
 
 	if (speed >= XFER_SW_DMA_0)
@@ -333,14 +331,15 @@ static void cmd64x_set_dma_mode(ide_drive_t *drive, const u8 speed)
 static int cmd648_ide_dma_end (ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
+	unsigned long base	= hwif->dma_base - (hwif->channel * 8);
 	int err			= __ide_dma_end(drive);
 	u8  irq_mask		= hwif->channel ? MRDMODE_INTR_CH1 :
 						  MRDMODE_INTR_CH0;
-	u8  mrdmode		= inb(hwif->dma_master + 0x01);
+	u8  mrdmode		= inb(base + 1);
 
 	/* clear the interrupt bit */
 	outb((mrdmode & ~(MRDMODE_INTR_CH0 | MRDMODE_INTR_CH1)) | irq_mask,
-	     hwif->dma_master + 0x01);
+	     base + 1);
 
 	return err;
 }
@@ -365,10 +364,11 @@ static int cmd64x_ide_dma_end (ide_drive_t *drive)
 static int cmd648_ide_dma_test_irq (ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
+	unsigned long base	= hwif->dma_base - (hwif->channel * 8);
 	u8 irq_mask		= hwif->channel ? MRDMODE_INTR_CH1 :
 						  MRDMODE_INTR_CH0;
 	u8 dma_stat		= inb(hwif->dma_status);
-	u8 mrdmode		= inb(hwif->dma_master + 0x01);
+	u8 mrdmode		= inb(base + 1);
 
 #ifdef DEBUG
 	printk("%s: dma_stat: 0x%02x mrdmode: 0x%02x irq_mask: 0x%02x\n",
