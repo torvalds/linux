@@ -707,6 +707,8 @@ static inline struct sched_entity *parent_entity(struct sched_entity *se)
 	return se->parent;
 }
 
+#define GROUP_IMBALANCE_PCT	20
+
 #else	/* CONFIG_FAIR_GROUP_SCHED */
 
 #define for_each_sched_entity(se) \
@@ -967,25 +969,6 @@ static struct task_struct *load_balance_next_fair(void *arg)
 	return __load_balance_iterator(cfs_rq, cfs_rq->rb_load_balance_curr);
 }
 
-#ifdef CONFIG_FAIR_GROUP_SCHED
-static int cfs_rq_best_prio(struct cfs_rq *cfs_rq)
-{
-	struct sched_entity *curr;
-	struct task_struct *p;
-
-	if (!cfs_rq->nr_running)
-		return MAX_PRIO;
-
-	curr = cfs_rq->curr;
-	if (!curr)
-		curr = __pick_next_entity(cfs_rq);
-
-	p = task_of(curr);
-
-	return p->prio;
-}
-#endif
-
 static unsigned long
 load_balance_fair(struct rq *this_rq, int this_cpu, struct rq *busiest,
 		  unsigned long max_load_move,
@@ -995,28 +978,45 @@ load_balance_fair(struct rq *this_rq, int this_cpu, struct rq *busiest,
 	struct cfs_rq *busy_cfs_rq;
 	long rem_load_move = max_load_move;
 	struct rq_iterator cfs_rq_iterator;
+	unsigned long load_moved;
 
 	cfs_rq_iterator.start = load_balance_start_fair;
 	cfs_rq_iterator.next = load_balance_next_fair;
 
 	for_each_leaf_cfs_rq(busiest, busy_cfs_rq) {
 #ifdef CONFIG_FAIR_GROUP_SCHED
-		struct cfs_rq *this_cfs_rq;
-		long imbalance;
-		unsigned long maxload;
+		struct cfs_rq *this_cfs_rq = busy_cfs_rq->tg->cfs_rq[this_cpu];
+		unsigned long maxload, task_load, group_weight;
+		unsigned long thisload, per_task_load;
+		struct sched_entity *se = busy_cfs_rq->tg->se[busiest->cpu];
 
-		this_cfs_rq = cpu_cfs_rq(busy_cfs_rq, this_cpu);
+		task_load = busy_cfs_rq->load.weight;
+		group_weight = se->load.weight;
 
-		imbalance = busy_cfs_rq->load.weight - this_cfs_rq->load.weight;
-		/* Don't pull if this_cfs_rq has more load than busy_cfs_rq */
-		if (imbalance <= 0)
+		/*
+		 * 'group_weight' is contributed by tasks of total weight
+		 * 'task_load'. To move 'rem_load_move' worth of weight only,
+		 * we need to move a maximum task load of:
+		 *
+		 * 	maxload = (remload / group_weight) * task_load;
+		 */
+		maxload = (rem_load_move * task_load) / group_weight;
+
+		if (!maxload || !task_load)
 			continue;
 
-		/* Don't pull more than imbalance/2 */
-		imbalance /= 2;
-		maxload = min(rem_load_move, imbalance);
+		per_task_load = task_load / busy_cfs_rq->nr_running;
+		/*
+		 * balance_tasks will try to forcibly move atleast one task if
+		 * possible (because of SCHED_LOAD_SCALE_FUZZ). Avoid that if
+		 * maxload is less than GROUP_IMBALANCE_FUZZ% the per_task_load.
+		 */
+		 if (100 * maxload < GROUP_IMBALANCE_PCT * per_task_load)
+			continue;
 
-		*this_best_prio = cfs_rq_best_prio(this_cfs_rq);
+		/* Disable priority-based load balance */
+		*this_best_prio = 0;
+		thisload = this_cfs_rq->load.weight;
 #else
 # define maxload rem_load_move
 #endif
@@ -1025,10 +1025,32 @@ load_balance_fair(struct rq *this_rq, int this_cpu, struct rq *busiest,
 		 * load_balance_[start|next]_fair iterators
 		 */
 		cfs_rq_iterator.arg = busy_cfs_rq;
-		rem_load_move -= balance_tasks(this_rq, this_cpu, busiest,
+		load_moved = balance_tasks(this_rq, this_cpu, busiest,
 					       maxload, sd, idle, all_pinned,
 					       this_best_prio,
 					       &cfs_rq_iterator);
+
+#ifdef CONFIG_FAIR_GROUP_SCHED
+		/*
+		 * load_moved holds the task load that was moved. The
+		 * effective (group) weight moved would be:
+		 * 	load_moved_eff = load_moved/task_load * group_weight;
+		 */
+		load_moved = (group_weight * load_moved) / task_load;
+
+		/* Adjust shares on both cpus to reflect load_moved */
+		group_weight -= load_moved;
+		set_se_shares(se, group_weight);
+
+		se = busy_cfs_rq->tg->se[this_cpu];
+		if (!thisload)
+			group_weight = load_moved;
+		else
+			group_weight = se->load.weight + load_moved;
+		set_se_shares(se, group_weight);
+#endif
+
+		rem_load_move -= load_moved;
 
 		if (rem_load_move <= 0)
 			break;

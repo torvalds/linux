@@ -168,7 +168,43 @@ struct task_group {
 	struct sched_entity **se;
 	/* runqueue "owned" by this group on each cpu */
 	struct cfs_rq **cfs_rq;
+
+	/*
+	 * shares assigned to a task group governs how much of cpu bandwidth
+	 * is allocated to the group. The more shares a group has, the more is
+	 * the cpu bandwidth allocated to it.
+	 *
+	 * For ex, lets say that there are three task groups, A, B and C which
+	 * have been assigned shares 1000, 2000 and 3000 respectively. Then,
+	 * cpu bandwidth allocated by the scheduler to task groups A, B and C
+	 * should be:
+	 *
+	 *	Bw(A) = 1000/(1000+2000+3000) * 100 = 16.66%
+	 *	Bw(B) = 2000/(1000+2000+3000) * 100 = 33.33%
+	 * 	Bw(C) = 3000/(1000+2000+3000) * 100 = 50%
+	 *
+	 * The weight assigned to a task group's schedulable entities on every
+	 * cpu (task_group.se[a_cpu]->load.weight) is derived from the task
+	 * group's shares. For ex: lets say that task group A has been
+	 * assigned shares of 1000 and there are two CPUs in a system. Then,
+	 *
+	 *  tg_A->se[0]->load.weight = tg_A->se[1]->load.weight = 1000;
+	 *
+	 * Note: It's not necessary that each of a task's group schedulable
+	 * 	 entity have the same weight on all CPUs. If the group
+	 * 	 has 2 of its tasks on CPU0 and 1 task on CPU1, then a
+	 * 	 better distribution of weight could be:
+	 *
+	 *	tg_A->se[0]->load.weight = 2/3 * 2000 = 1333
+	 *	tg_A->se[1]->load.weight = 1/2 * 2000 =  667
+	 *
+	 * rebalance_shares() is responsible for distributing the shares of a
+	 * task groups like this among the group's schedulable entities across
+	 * cpus.
+	 *
+	 */
 	unsigned long shares;
+
 	struct rcu_head rcu;
 };
 
@@ -188,6 +224,14 @@ static DEFINE_MUTEX(task_group_mutex);
 /* doms_cur_mutex serializes access to doms_cur[] array */
 static DEFINE_MUTEX(doms_cur_mutex);
 
+#ifdef CONFIG_SMP
+/* kernel thread that runs rebalance_shares() periodically */
+static struct task_struct *lb_monitor_task;
+static int load_balance_monitor(void *unused);
+#endif
+
+static void set_se_shares(struct sched_entity *se, unsigned long shares);
+
 /* Default task group.
  *	Every task in system belong to this group at bootup.
  */
@@ -201,6 +245,8 @@ struct task_group init_task_group = {
 #else
 # define INIT_TASK_GROUP_LOAD	NICE_0_LOAD
 #endif
+
+#define MIN_GROUP_SHARES       2
 
 static int init_task_group_load = INIT_TASK_GROUP_LOAD;
 
@@ -6736,6 +6782,21 @@ void __init sched_init_smp(void)
 	if (set_cpus_allowed(current, non_isolated_cpus) < 0)
 		BUG();
 	sched_init_granularity();
+
+#ifdef CONFIG_FAIR_GROUP_SCHED
+	if (nr_cpu_ids == 1)
+		return;
+
+	lb_monitor_task = kthread_create(load_balance_monitor, NULL,
+					 "group_balance");
+	if (!IS_ERR(lb_monitor_task)) {
+		lb_monitor_task->flags |= PF_NOFREEZE;
+		wake_up_process(lb_monitor_task);
+	} else {
+		printk(KERN_ERR "Could not create load balance monitor thread"
+			"(error = %ld) \n", PTR_ERR(lb_monitor_task));
+	}
+#endif
 }
 #else
 void __init sched_init_smp(void)
@@ -6988,6 +7049,157 @@ void set_curr_task(int cpu, struct task_struct *p)
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 
+#ifdef CONFIG_SMP
+/*
+ * distribute shares of all task groups among their schedulable entities,
+ * to reflect load distrbution across cpus.
+ */
+static int rebalance_shares(struct sched_domain *sd, int this_cpu)
+{
+	struct cfs_rq *cfs_rq;
+	struct rq *rq = cpu_rq(this_cpu);
+	cpumask_t sdspan = sd->span;
+	int balanced = 1;
+
+	/* Walk thr' all the task groups that we have */
+	for_each_leaf_cfs_rq(rq, cfs_rq) {
+		int i;
+		unsigned long total_load = 0, total_shares;
+		struct task_group *tg = cfs_rq->tg;
+
+		/* Gather total task load of this group across cpus */
+		for_each_cpu_mask(i, sdspan)
+			total_load += tg->cfs_rq[i]->load.weight;
+
+		/* Nothing to do if this group has no load  */
+		if (!total_load)
+			continue;
+
+		/*
+		 * tg->shares represents the number of cpu shares the task group
+		 * is eligible to hold on a single cpu. On N cpus, it is
+		 * eligible to hold (N * tg->shares) number of cpu shares.
+		 */
+		total_shares = tg->shares * cpus_weight(sdspan);
+
+		/*
+		 * redistribute total_shares across cpus as per the task load
+		 * distribution.
+		 */
+		for_each_cpu_mask(i, sdspan) {
+			unsigned long local_load, local_shares;
+
+			local_load = tg->cfs_rq[i]->load.weight;
+			local_shares = (local_load * total_shares) / total_load;
+			if (!local_shares)
+				local_shares = MIN_GROUP_SHARES;
+			if (local_shares == tg->se[i]->load.weight)
+				continue;
+
+			spin_lock_irq(&cpu_rq(i)->lock);
+			set_se_shares(tg->se[i], local_shares);
+			spin_unlock_irq(&cpu_rq(i)->lock);
+			balanced = 0;
+		}
+	}
+
+	return balanced;
+}
+
+/*
+ * How frequently should we rebalance_shares() across cpus?
+ *
+ * The more frequently we rebalance shares, the more accurate is the fairness
+ * of cpu bandwidth distribution between task groups. However higher frequency
+ * also implies increased scheduling overhead.
+ *
+ * sysctl_sched_min_bal_int_shares represents the minimum interval between
+ * consecutive calls to rebalance_shares() in the same sched domain.
+ *
+ * sysctl_sched_max_bal_int_shares represents the maximum interval between
+ * consecutive calls to rebalance_shares() in the same sched domain.
+ *
+ * These settings allows for the appropriate tradeoff between accuracy of
+ * fairness and the associated overhead.
+ *
+ */
+
+/* default: 8ms, units: milliseconds */
+const_debug unsigned int sysctl_sched_min_bal_int_shares = 8;
+
+/* default: 128ms, units: milliseconds */
+const_debug unsigned int sysctl_sched_max_bal_int_shares = 128;
+
+/* kernel thread that runs rebalance_shares() periodically */
+static int load_balance_monitor(void *unused)
+{
+	unsigned int timeout = sysctl_sched_min_bal_int_shares;
+	struct sched_param schedparm;
+	int ret;
+
+	/*
+	 * We don't want this thread's execution to be limited by the shares
+	 * assigned to default group (init_task_group). Hence make it run
+	 * as a SCHED_RR RT task at the lowest priority.
+	 */
+	schedparm.sched_priority = 1;
+	ret = sched_setscheduler(current, SCHED_RR, &schedparm);
+	if (ret)
+		printk(KERN_ERR "Couldn't set SCHED_RR policy for load balance"
+				" monitor thread (error = %d) \n", ret);
+
+	while (!kthread_should_stop()) {
+		int i, cpu, balanced = 1;
+
+		/* Prevent cpus going down or coming up */
+		lock_cpu_hotplug();
+		/* lockout changes to doms_cur[] array */
+		lock_doms_cur();
+		/*
+		 * Enter a rcu read-side critical section to safely walk rq->sd
+		 * chain on various cpus and to walk task group list
+		 * (rq->leaf_cfs_rq_list) in rebalance_shares().
+		 */
+		rcu_read_lock();
+
+		for (i = 0; i < ndoms_cur; i++) {
+			cpumask_t cpumap = doms_cur[i];
+			struct sched_domain *sd = NULL, *sd_prev = NULL;
+
+			cpu = first_cpu(cpumap);
+
+			/* Find the highest domain at which to balance shares */
+			for_each_domain(cpu, sd) {
+				if (!(sd->flags & SD_LOAD_BALANCE))
+					continue;
+				sd_prev = sd;
+			}
+
+			sd = sd_prev;
+			/* sd == NULL? No load balance reqd in this domain */
+			if (!sd)
+				continue;
+
+			balanced &= rebalance_shares(sd, cpu);
+		}
+
+		rcu_read_unlock();
+
+		unlock_doms_cur();
+		unlock_cpu_hotplug();
+
+		if (!balanced)
+			timeout = sysctl_sched_min_bal_int_shares;
+		else if (timeout < sysctl_sched_max_bal_int_shares)
+			timeout *= 2;
+
+		msleep_interruptible(timeout);
+	}
+
+	return 0;
+}
+#endif	/* CONFIG_SMP */
+
 /* allocate runqueue etc for a new task group */
 struct task_group *sched_create_group(void)
 {
@@ -7144,47 +7356,77 @@ done:
 	task_rq_unlock(rq, &flags);
 }
 
+/* rq->lock to be locked by caller */
 static void set_se_shares(struct sched_entity *se, unsigned long shares)
 {
 	struct cfs_rq *cfs_rq = se->cfs_rq;
 	struct rq *rq = cfs_rq->rq;
 	int on_rq;
 
-	spin_lock_irq(&rq->lock);
+	if (!shares)
+		shares = MIN_GROUP_SHARES;
 
 	on_rq = se->on_rq;
-	if (on_rq)
+	if (on_rq) {
 		dequeue_entity(cfs_rq, se, 0);
+		dec_cpu_load(rq, se->load.weight);
+	}
 
 	se->load.weight = shares;
 	se->load.inv_weight = div64_64((1ULL<<32), shares);
 
-	if (on_rq)
+	if (on_rq) {
 		enqueue_entity(cfs_rq, se, 0);
-
-	spin_unlock_irq(&rq->lock);
+		inc_cpu_load(rq, se->load.weight);
+	}
 }
 
 int sched_group_set_shares(struct task_group *tg, unsigned long shares)
 {
 	int i;
-
-	/*
-	 * A weight of 0 or 1 can cause arithmetics problems.
-	 * (The default weight is 1024 - so there's no practical
-	 *  limitation from this.)
-	 */
-	if (shares < 2)
-		shares = 2;
+	struct cfs_rq *cfs_rq;
+	struct rq *rq;
 
 	lock_task_group_list();
 	if (tg->shares == shares)
 		goto done;
 
-	tg->shares = shares;
-	for_each_possible_cpu(i)
-		set_se_shares(tg->se[i], shares);
+	if (shares < MIN_GROUP_SHARES)
+		shares = MIN_GROUP_SHARES;
 
+	/*
+	 * Prevent any load balance activity (rebalance_shares,
+	 * load_balance_fair) from referring to this group first,
+	 * by taking it off the rq->leaf_cfs_rq_list on each cpu.
+	 */
+	for_each_possible_cpu(i) {
+		cfs_rq = tg->cfs_rq[i];
+		list_del_rcu(&cfs_rq->leaf_cfs_rq_list);
+	}
+
+	/* wait for any ongoing reference to this group to finish */
+	synchronize_sched();
+
+	/*
+	 * Now we are free to modify the group's share on each cpu
+	 * w/o tripping rebalance_share or load_balance_fair.
+	 */
+	tg->shares = shares;
+	for_each_possible_cpu(i) {
+		spin_lock_irq(&cpu_rq(i)->lock);
+		set_se_shares(tg->se[i], shares);
+		spin_unlock_irq(&cpu_rq(i)->lock);
+	}
+
+	/*
+	 * Enable load balance activity on this group, by inserting it back on
+	 * each cpu's rq->leaf_cfs_rq_list.
+	 */
+	for_each_possible_cpu(i) {
+		rq = cpu_rq(i);
+		cfs_rq = tg->cfs_rq[i];
+		list_add_rcu(&cfs_rq->leaf_cfs_rq_list, &rq->leaf_cfs_rq_list);
+	}
 done:
 	unlock_task_group_list();
 	return 0;
