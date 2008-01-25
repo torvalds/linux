@@ -390,12 +390,12 @@ complete_transaction(struct fw_card *card, int rcode,
 	complete(&callback_data->done);
 }
 
-static int read_rom(struct fw_device *device, int index, u32 * data)
+static int
+read_rom(struct fw_device *device, int generation, int index, u32 *data)
 {
 	struct read_quadlet_callback_data callback_data;
 	struct fw_transaction t;
 	u64 offset;
-	int generation = device->generation;
 
 	/* device->node_id, accessed below, must not be older than generation */
 	smp_rmb();
@@ -414,7 +414,14 @@ static int read_rom(struct fw_device *device, int index, u32 * data)
 	return callback_data.rcode;
 }
 
-static int read_bus_info_block(struct fw_device *device)
+/*
+ * Read the bus info block, perform a speed probe, and read all of the rest of
+ * the config ROM.  We do all this with a cached bus generation.  If the bus
+ * generation changes under us, read_bus_info_block will fail and get retried.
+ * It's better to start all over in this case because the node from which we
+ * are reading the ROM may have changed the ROM during the reset.
+ */
+static int read_bus_info_block(struct fw_device *device, int generation)
 {
 	static u32 rom[256];
 	u32 stack[16], sp, key;
@@ -424,7 +431,7 @@ static int read_bus_info_block(struct fw_device *device)
 
 	/* First read the bus info block. */
 	for (i = 0; i < 5; i++) {
-		if (read_rom(device, i, &rom[i]) != RCODE_COMPLETE)
+		if (read_rom(device, generation, i, &rom[i]) != RCODE_COMPLETE)
 			return -1;
 		/*
 		 * As per IEEE1212 7.2, during power-up, devices can
@@ -459,7 +466,8 @@ static int read_bus_info_block(struct fw_device *device)
 			device->max_speed = device->card->link_speed;
 
 		while (device->max_speed > SCODE_100) {
-			if (read_rom(device, 0, &dummy) == RCODE_COMPLETE)
+			if (read_rom(device, generation, 0, &dummy) ==
+			    RCODE_COMPLETE)
 				break;
 			device->max_speed--;
 		}
@@ -492,7 +500,7 @@ static int read_bus_info_block(struct fw_device *device)
 			return -1;
 
 		/* Read header quadlet for the block to get the length. */
-		if (read_rom(device, i, &rom[i]) != RCODE_COMPLETE)
+		if (read_rom(device, generation, i, &rom[i]) != RCODE_COMPLETE)
 			return -1;
 		end = i + (rom[i] >> 16) + 1;
 		i++;
@@ -511,7 +519,8 @@ static int read_bus_info_block(struct fw_device *device)
 		 * it references another block, and push it in that case.
 		 */
 		while (i < end) {
-			if (read_rom(device, i, &rom[i]) != RCODE_COMPLETE)
+			if (read_rom(device, generation, i, &rom[i]) !=
+			    RCODE_COMPLETE)
 				return -1;
 			if ((key >> 30) == 3 && (rom[i] >> 30) > 1 &&
 			    sp < ARRAY_SIZE(stack))
@@ -658,7 +667,7 @@ static void fw_device_init(struct work_struct *work)
 	 * device.
 	 */
 
-	if (read_bus_info_block(device) < 0) {
+	if (read_bus_info_block(device, device->generation) < 0) {
 		if (device->config_rom_retries < MAX_RETRIES) {
 			device->config_rom_retries++;
 			schedule_delayed_work(&device->work, RETRY_DELAY);
