@@ -925,6 +925,9 @@ static int select_task_rq_fair(struct task_struct *p, int sync)
 	this_cpu = smp_processor_id();
 	new_cpu  = cpu;
 
+	if (cpu == this_cpu)
+		goto out_set_cpu;
+
 	for_each_domain(this_cpu, sd) {
 		if (cpu_isset(cpu, sd->span)) {
 			this_sd = sd;
