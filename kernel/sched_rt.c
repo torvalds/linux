@@ -438,12 +438,11 @@ static int find_lowest_rq(struct task_struct *task)
 }
 
 /* Will lock the rq it finds */
-static struct rq *find_lock_lowest_rq(struct task_struct *task,
-				      struct rq *rq)
+static struct rq *find_lock_lowest_rq(struct task_struct *task, struct rq *rq)
 {
 	struct rq *lowest_rq = NULL;
-	int cpu;
 	int tries;
+	int cpu;
 
 	for (tries = 0; tries < RT_MAX_TRIES; tries++) {
 		cpu = find_lowest_rq(task);
@@ -462,9 +461,11 @@ static struct rq *find_lock_lowest_rq(struct task_struct *task,
 			 * Also make sure that it wasn't scheduled on its rq.
 			 */
 			if (unlikely(task_rq(task) != rq ||
-				     !cpu_isset(lowest_rq->cpu, task->cpus_allowed) ||
+				     !cpu_isset(lowest_rq->cpu,
+						task->cpus_allowed) ||
 				     task_running(rq, task) ||
 				     !task->se.on_rq)) {
+
 				spin_unlock(&lowest_rq->lock);
 				lowest_rq = NULL;
 				break;
