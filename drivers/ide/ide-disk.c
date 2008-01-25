@@ -247,8 +247,7 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq, 
 			command = lba48 ? WIN_WRITE_EXT : WIN_WRITE;
 		}
 
-		/* FIXME: ->OUTBSYNC ? */
-		hwif->OUTB(command, IDE_COMMAND_REG);
+		hwif->OUTBSYNC(drive, command, IDE_COMMAND_REG);
 
 		return pre_task_out_intr(drive, rq);
 	}
