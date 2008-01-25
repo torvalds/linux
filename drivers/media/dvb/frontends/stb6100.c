@@ -360,7 +360,10 @@ static int stb6100_set_frequency(struct dvb_frontend *fe, u32 frequency)
 		g = 12;
 	else
 		g = 14;
+
 	regs[STB6100_G] = (regs[STB6100_G] & ~STB6100_G_G) | g;
+	regs[STB6100_G] &= ~STB6100_G_GCT; /* mask GCT */
+	regs[STB6100_G] |= (1 << 5); /* 2Vp-p Mode */
 
 	/* VCO divide ratio (LO divide ratio, VCO prescaler enable).	*/
 	if (frequency <= 1075000)
