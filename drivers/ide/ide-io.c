@@ -374,7 +374,7 @@ void ide_end_drive_cmd (ide_drive_t *drive, u8 stat, u8 err)
 			tf->device = hwif->INB(IDE_SELECT_REG);
 			tf->status = stat;
 
-			if (drive->addressing == 1) {
+			if (args->tf_flags & IDE_TFLAG_LBA48) {
 				hwif->OUTB(drive->ctl|0x80, IDE_CONTROL_REG);
 				tf->hob_feature = hwif->INB(IDE_FEATURE_REG);
 				tf->hob_nsect   = hwif->INB(IDE_NSECTOR_REG);
@@ -872,13 +872,15 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
 		}
 
 		task->tf_flags |= IDE_TFLAG_OUT_DEVICE;
+		if (drive->addressing == 1)
+			task->tf_flags |= IDE_TFLAG_LBA48;
 
 		if (task->tf_flags & IDE_TFLAG_FLAGGED)
 			return flagged_taskfile(drive, task);
 
 		task->tf_flags |= IDE_TFLAG_OUT_TF;
-		if (drive->addressing == 1)
-			task->tf_flags |= (IDE_TFLAG_LBA48 | IDE_TFLAG_OUT_HOB);
+		if (task->tf_flags & IDE_TFLAG_LBA48)
+			task->tf_flags |= IDE_TFLAG_OUT_HOB;
 
 		return do_rw_taskfile(drive, task);
 	}
