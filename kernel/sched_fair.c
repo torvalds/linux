@@ -760,15 +760,26 @@ static inline struct sched_entity *parent_entity(struct sched_entity *se)
 static void enqueue_task_fair(struct rq *rq, struct task_struct *p, int wakeup)
 {
 	struct cfs_rq *cfs_rq;
-	struct sched_entity *se = &p->se;
+	struct sched_entity *se = &p->se,
+			    *topse = NULL;	/* Highest schedulable entity */
+	int incload = 1;
 
 	for_each_sched_entity(se) {
-		if (se->on_rq)
+		topse = se;
+		if (se->on_rq) {
+			incload = 0;
 			break;
+		}
 		cfs_rq = cfs_rq_of(se);
 		enqueue_entity(cfs_rq, se, wakeup);
 		wakeup = 1;
 	}
+	/* Increment cpu load if we just enqueued the first task of a group on
+	 * 'rq->cpu'. 'topse' represents the group to which task 'p' belongs
+	 * at the highest grouping level.
+	 */
+	if (incload)
+		inc_cpu_load(rq, topse->load.weight);
 }
 
 /*
@@ -779,16 +790,28 @@ static void enqueue_task_fair(struct rq *rq, struct task_struct *p, int wakeup)
 static void dequeue_task_fair(struct rq *rq, struct task_struct *p, int sleep)
 {
 	struct cfs_rq *cfs_rq;
-	struct sched_entity *se = &p->se;
+	struct sched_entity *se = &p->se,
+			    *topse = NULL; 	/* Highest schedulable entity */
+	int decload = 1;
 
 	for_each_sched_entity(se) {
+		topse = se;
 		cfs_rq = cfs_rq_of(se);
 		dequeue_entity(cfs_rq, se, sleep);
 		/* Don't dequeue parent if it has other entities besides us */
-		if (cfs_rq->load.weight)
+		if (cfs_rq->load.weight) {
+			if (parent_entity(se))
+				decload = 0;
 			break;
+		}
 		sleep = 1;
 	}
+	/* Decrement cpu load if we just dequeued the last task of a group on
+	 * 'rq->cpu'. 'topse' represents the group to which task 'p' belongs
+	 * at the highest grouping level.
+	 */
+	if (decload)
+		dec_cpu_load(rq, topse->load.weight);
 }
 
 /*

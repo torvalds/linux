@@ -32,6 +32,7 @@ static void enqueue_task_rt(struct rq *rq, struct task_struct *p, int wakeup)
 
 	list_add_tail(&p->run_list, array->queue + p->prio);
 	__set_bit(p->prio, array->bitmap);
+	inc_cpu_load(rq, p->se.load.weight);
 }
 
 /*
@@ -46,6 +47,7 @@ static void dequeue_task_rt(struct rq *rq, struct task_struct *p, int sleep)
 	list_del(&p->run_list);
 	if (list_empty(array->queue + p->prio))
 		__clear_bit(p->prio, array->bitmap);
+	dec_cpu_load(rq, p->se.load.weight);
 }
 
 /*
