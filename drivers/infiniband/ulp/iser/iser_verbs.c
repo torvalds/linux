@@ -105,7 +105,7 @@ pd_err:
 }
 
 /**
- * iser_free_device_ib_res - destory/dealloc/dereg the DMA MR,
+ * iser_free_device_ib_res - destroy/dealloc/dereg the DMA MR,
  * CQ and PD created with the device associated with the adapator.
  */
 static void iser_free_device_ib_res(struct iser_device *device)
