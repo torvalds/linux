@@ -1,31 +1,14 @@
 config PPC_MPC52xx
-	bool
+	bool "52xx-based boards"
+	depends on PPC_MULTIPLATFORM && PPC32
 	select FSL_SOC
 	select PPC_CLOCK
-	default n
-
-config PPC_MPC5200
-	bool
-	select PPC_MPC52xx
-	default n
-
-config PPC_MPC5200_BUGFIX
-	bool "MPC5200 (L25R) bugfix support"
-	depends on PPC_MPC5200
-	default n
-	help
-	  Enable workarounds for original MPC5200 errata.  This is not required
-	  for MPC5200B based boards.
-
-	  It is safe to say 'Y' here
 
 config PPC_MPC5200_SIMPLE
 	bool "Generic support for simple MPC5200 based boards"
-	depends on PPC_MULTIPLATFORM && PPC32
-	select PPC_MPC5200
+	depends on PPC_MPC52xx
 	select DEFAULT_UIMAGE
 	select WANT_DEVICE_TREE
-	default n
 	help
 	  This option enables support for a simple MPC52xx based boards which
 	  do not need a custom platform specific setup. Such boards are
@@ -43,17 +26,23 @@ config PPC_MPC5200_SIMPLE
 
 config PPC_EFIKA
 	bool "bPlan Efika 5k2. MPC5200B based computer"
-	depends on PPC_MULTIPLATFORM && PPC32
+	depends on PPC_MPC52xx
 	select PPC_RTAS
 	select RTAS_PROC
-	select PPC_MPC52xx
 	select PPC_NATIVE
-	default n
 
 config PPC_LITE5200
 	bool "Freescale Lite5200 Eval Board"
-	depends on PPC_MULTIPLATFORM && PPC32
-	select PPC_MPC5200
+	depends on PPC_MPC52xx
 	select DEFAULT_UIMAGE
 	select WANT_DEVICE_TREE
-	default n
+
+config PPC_MPC5200_BUGFIX
+	bool "MPC5200 (L25R) bugfix support"
+	depends on PPC_MPC52xx
+	help
+	  Enable workarounds for original MPC5200 errata.  This is not required
+	  for MPC5200B based boards.
+
+	  It is safe to say 'Y' here
+
