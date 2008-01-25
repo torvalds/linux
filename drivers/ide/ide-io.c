@@ -902,7 +902,7 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
  	}
 	tf->command = args[0];
 	ide_tf_load(drive, &ltask);
-	ide_execute_command(drive, args[0], &drive_cmd_intr, WAIT_CMD, NULL);
+	ide_execute_command(drive, args[0], &drive_cmd_intr, WAIT_WORSTCASE, NULL);
 	return ide_started;
 
 done:
