@@ -17,22 +17,10 @@ extern void __lockfunc __release_kernel_lock(void);
 		__release_kernel_lock();	\
 } while (0)
 
-/*
- * Non-SMP kernels will never block on the kernel lock,
- * so we are better off returning a constant zero from
- * reacquire_kernel_lock() so that the compiler can see
- * it at compile-time.
- */
-#if defined(CONFIG_SMP) && !defined(CONFIG_PREEMPT_BKL)
-# define return_value_on_smp return
-#else
-# define return_value_on_smp
-#endif
-
 static inline int reacquire_kernel_lock(struct task_struct *task)
 {
 	if (unlikely(task->lock_depth >= 0))
-		return_value_on_smp __reacquire_kernel_lock();
+		return __reacquire_kernel_lock();
 	return 0;
 }
 

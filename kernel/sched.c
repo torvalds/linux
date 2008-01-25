@@ -3955,10 +3955,9 @@ EXPORT_SYMBOL(schedule);
 asmlinkage void __sched preempt_schedule(void)
 {
 	struct thread_info *ti = current_thread_info();
-#ifdef CONFIG_PREEMPT_BKL
 	struct task_struct *task = current;
 	int saved_lock_depth;
-#endif
+
 	/*
 	 * If there is a non-zero preempt_count or interrupts are disabled,
 	 * we do not want to preempt the current task. Just return..
@@ -3974,14 +3973,10 @@ asmlinkage void __sched preempt_schedule(void)
 		 * clear ->lock_depth so that schedule() doesnt
 		 * auto-release the semaphore:
 		 */
-#ifdef CONFIG_PREEMPT_BKL
 		saved_lock_depth = task->lock_depth;
 		task->lock_depth = -1;
-#endif
 		schedule();
-#ifdef CONFIG_PREEMPT_BKL
 		task->lock_depth = saved_lock_depth;
-#endif
 		sub_preempt_count(PREEMPT_ACTIVE);
 
 		/*
@@ -4002,10 +3997,9 @@ EXPORT_SYMBOL(preempt_schedule);
 asmlinkage void __sched preempt_schedule_irq(void)
 {
 	struct thread_info *ti = current_thread_info();
-#ifdef CONFIG_PREEMPT_BKL
 	struct task_struct *task = current;
 	int saved_lock_depth;
-#endif
+
 	/* Catch callers which need to be fixed */
 	BUG_ON(ti->preempt_count || !irqs_disabled());
 
@@ -4017,16 +4011,12 @@ asmlinkage void __sched preempt_schedule_irq(void)
 		 * clear ->lock_depth so that schedule() doesnt
 		 * auto-release the semaphore:
 		 */
-#ifdef CONFIG_PREEMPT_BKL
 		saved_lock_depth = task->lock_depth;
 		task->lock_depth = -1;
-#endif
 		local_irq_enable();
 		schedule();
 		local_irq_disable();
-#ifdef CONFIG_PREEMPT_BKL
 		task->lock_depth = saved_lock_depth;
-#endif
 		sub_preempt_count(PREEMPT_ACTIVE);
 
 		/*
@@ -5241,11 +5231,8 @@ void __cpuinit init_idle(struct task_struct *idle, int cpu)
 	spin_unlock_irqrestore(&rq->lock, flags);
 
 	/* Set the preempt count _outside_ the spinlocks! */
-#if defined(CONFIG_PREEMPT) && !defined(CONFIG_PREEMPT_BKL)
-	task_thread_info(idle)->preempt_count = (idle->lock_depth >= 0);
-#else
 	task_thread_info(idle)->preempt_count = 0;
-#endif
+
 	/*
 	 * The idle tasks have their own, simple scheduling class:
 	 */

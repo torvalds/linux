@@ -52,10 +52,6 @@ config PREEMPT
 
 endchoice
 
-config PREEMPT_BKL
-	def_bool y
-	depends on SMP || PREEMPT
-
 config RCU_TRACE
 	bool "Enable tracing for RCU - currently stats in debugfs"
 	select DEBUG_FS
