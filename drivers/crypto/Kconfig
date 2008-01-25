@@ -83,4 +83,15 @@ config ZCRYPT_MONOLITHIC
 	  that contains all parts of the crypto device driver (ap bus,
 	  request router and all the card drivers).
 
+config CRYPTO_DEV_HIFN_795X
+	tristate "Driver HIFN 795x crypto accelerator chips"
+	select CRYPTO_DES
+	select CRYPTO_ALGAPI
+	select CRYPTO_BLKCIPHER
+	depends on PCI
+	help
+	  This option allows you to have support for HIFN 795x crypto adapters.
+
+
+
 endif # CRYPTO_HW

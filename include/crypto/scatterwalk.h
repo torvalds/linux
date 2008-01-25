@@ -1,9 +1,10 @@
 /*
- * Cryptographic API.
+ * Cryptographic scatter and gather helpers.
  *
  * Copyright (c) 2002 James Morris <jmorris@intercode.com.au>
  * Copyright (c) 2002 Adam J. Richter <adam@yggdrasil.com>
  * Copyright (c) 2004 Jean-Luc Cooke <jlcooke@certainkey.com>
+ * Copyright (c) 2007 Herbert Xu <herbert@gondor.apana.org.au>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -15,14 +16,52 @@
 #ifndef _CRYPTO_SCATTERWALK_H
 #define _CRYPTO_SCATTERWALK_H
 
+#include <asm/kmap_types.h>
+#include <crypto/algapi.h>
+#include <linux/hardirq.h>
+#include <linux/highmem.h>
+#include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/scatterlist.h>
+#include <linux/sched.h>
 
-#include "internal.h"
+static inline enum km_type crypto_kmap_type(int out)
+{
+	enum km_type type;
+
+	if (in_softirq())
+		type = out * (KM_SOFTIRQ1 - KM_SOFTIRQ0) + KM_SOFTIRQ0;
+	else
+		type = out * (KM_USER1 - KM_USER0) + KM_USER0;
+
+	return type;
+}
+
+static inline void *crypto_kmap(struct page *page, int out)
+{
+	return kmap_atomic(page, crypto_kmap_type(out));
+}
+
+static inline void crypto_kunmap(void *vaddr, int out)
+{
+	kunmap_atomic(vaddr, crypto_kmap_type(out));
+}
+
+static inline void crypto_yield(u32 flags)
+{
+	if (flags & CRYPTO_TFM_REQ_MAY_SLEEP)
+		cond_resched();
+}
+
+static inline void scatterwalk_sg_chain(struct scatterlist *sg1, int num,
+					struct scatterlist *sg2)
+{
+	sg_set_page(&sg1[num - 1], (void *)sg2, 0, 0);
+}
 
 static inline struct scatterlist *scatterwalk_sg_next(struct scatterlist *sg)
 {
-	return (++sg)->length ? sg : (void *) sg_page(sg);
+	return (++sg)->length ? sg : (void *)sg_page(sg);
 }
 
 static inline unsigned long scatterwalk_samebuf(struct scatter_walk *walk_in,

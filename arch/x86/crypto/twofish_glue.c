@@ -1,5 +1,5 @@
 /*
- * Glue Code for optimized x86_64 assembler version of TWOFISH
+ * Glue Code for assembler optimized version of TWOFISH
  *
  * Originally Twofish for GPG
  * By Matthew Skala <mskala@ansuz.sooke.bc.ca>, July 26, 1998
@@ -41,7 +41,6 @@
 #include <crypto/twofish.h>
 #include <linux/crypto.h>
 #include <linux/init.h>
-#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/types.h>
 
@@ -60,7 +59,7 @@ static void twofish_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 
 static struct crypto_alg alg = {
 	.cra_name		=	"twofish",
-	.cra_driver_name	=	"twofish-x86_64",
+	.cra_driver_name	=	"twofish-asm",
 	.cra_priority		=	200,
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	TF_BLOCK_SIZE,
@@ -93,5 +92,6 @@ module_init(init);
 module_exit(fini);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION ("Twofish Cipher Algorithm, x86_64 asm optimized");
+MODULE_DESCRIPTION ("Twofish Cipher Algorithm, asm optimized");
 MODULE_ALIAS("twofish");
+MODULE_ALIAS("twofish-asm");

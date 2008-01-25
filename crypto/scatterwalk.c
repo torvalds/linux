@@ -13,15 +13,14 @@
  * any later version.
  *
  */
+
+#include <crypto/scatterwalk.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/pagemap.h>
 #include <linux/highmem.h>
 #include <linux/scatterlist.h>
-
-#include "internal.h"
-#include "scatterwalk.h"
 
 static inline void memcpy_dir(void *buf, void *sgdata, size_t nbytes, int out)
 {
@@ -106,6 +105,9 @@ void scatterwalk_map_and_copy(void *buf, struct scatterlist *sg,
 	struct scatter_walk walk;
 	unsigned int offset = 0;
 
+	if (!nbytes)
+		return;
+
 	for (;;) {
 		scatterwalk_start(&walk, sg);
 
@@ -113,7 +115,7 @@ void scatterwalk_map_and_copy(void *buf, struct scatterlist *sg,
 			break;
 
 		offset += sg->length;
-		sg = sg_next(sg);
+		sg = scatterwalk_sg_next(sg);
 	}
 
 	scatterwalk_advance(&walk, start - offset);

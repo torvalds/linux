@@ -111,8 +111,15 @@ void crypto_drop_spawn(struct crypto_spawn *spawn);
 struct crypto_tfm *crypto_spawn_tfm(struct crypto_spawn *spawn, u32 type,
 				    u32 mask);
 
+static inline void crypto_set_spawn(struct crypto_spawn *spawn,
+				    struct crypto_instance *inst)
+{
+	spawn->inst = inst;
+}
+
 struct crypto_attr_type *crypto_get_attr_type(struct rtattr **tb);
 int crypto_check_attr_type(struct rtattr **tb, u32 type);
+const char *crypto_attr_alg_name(struct rtattr *rta);
 struct crypto_alg *crypto_attr_alg(struct rtattr *rta, u32 type, u32 mask);
 int crypto_attr_u32(struct rtattr *rta, u32 *num);
 struct crypto_instance *crypto_alloc_instance(const char *name,
@@ -123,6 +130,10 @@ int crypto_enqueue_request(struct crypto_queue *queue,
 			   struct crypto_async_request *request);
 struct crypto_async_request *crypto_dequeue_request(struct crypto_queue *queue);
 int crypto_tfm_in_queue(struct crypto_queue *queue, struct crypto_tfm *tfm);
+
+/* These functions require the input/output to be aligned as u32. */
+void crypto_inc(u8 *a, unsigned int size);
+void crypto_xor(u8 *dst, const u8 *src, unsigned int size);
 
 int blkcipher_walk_done(struct blkcipher_desc *desc,
 			struct blkcipher_walk *walk, int err);
@@ -187,20 +198,11 @@ static inline struct crypto_instance *crypto_aead_alg_instance(
 	return crypto_tfm_alg_instance(&aead->base);
 }
 
-static inline struct crypto_ablkcipher *crypto_spawn_ablkcipher(
-	struct crypto_spawn *spawn)
-{
-	u32 type = CRYPTO_ALG_TYPE_BLKCIPHER;
-	u32 mask = CRYPTO_ALG_TYPE_MASK;
-
-	return __crypto_ablkcipher_cast(crypto_spawn_tfm(spawn, type, mask));
-}
-
 static inline struct crypto_blkcipher *crypto_spawn_blkcipher(
 	struct crypto_spawn *spawn)
 {
 	u32 type = CRYPTO_ALG_TYPE_BLKCIPHER;
-	u32 mask = CRYPTO_ALG_TYPE_MASK | CRYPTO_ALG_ASYNC;
+	u32 mask = CRYPTO_ALG_TYPE_MASK;
 
 	return __crypto_blkcipher_cast(crypto_spawn_tfm(spawn, type, mask));
 }
@@ -301,6 +303,15 @@ static inline struct crypto_alg *crypto_get_attr_alg(struct rtattr **tb,
 						     u32 type, u32 mask)
 {
 	return crypto_attr_alg(tb[1], type, mask);
+}
+
+/*
+ * Returns CRYPTO_ALG_ASYNC if type/mask requires the use of sync algorithms.
+ * Otherwise returns zero.
+ */
+static inline int crypto_requires_sync(u32 type, u32 mask)
+{
+	return (type ^ CRYPTO_ALG_ASYNC) & mask & CRYPTO_ALG_ASYNC;
 }
 
 #endif	/* _CRYPTO_ALGAPI_H */

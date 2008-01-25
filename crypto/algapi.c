@@ -472,7 +472,7 @@ int crypto_check_attr_type(struct rtattr **tb, u32 type)
 }
 EXPORT_SYMBOL_GPL(crypto_check_attr_type);
 
-struct crypto_alg *crypto_attr_alg(struct rtattr *rta, u32 type, u32 mask)
+const char *crypto_attr_alg_name(struct rtattr *rta)
 {
 	struct crypto_attr_alg *alga;
 
@@ -486,7 +486,21 @@ struct crypto_alg *crypto_attr_alg(struct rtattr *rta, u32 type, u32 mask)
 	alga = RTA_DATA(rta);
 	alga->name[CRYPTO_MAX_ALG_NAME - 1] = 0;
 
-	return crypto_alg_mod_lookup(alga->name, type, mask);
+	return alga->name;
+}
+EXPORT_SYMBOL_GPL(crypto_attr_alg_name);
+
+struct crypto_alg *crypto_attr_alg(struct rtattr *rta, u32 type, u32 mask)
+{
+	const char *name;
+	int err;
+
+	name = crypto_attr_alg_name(rta);
+	err = PTR_ERR(name);
+	if (IS_ERR(name))
+		return ERR_PTR(err);
+
+	return crypto_alg_mod_lookup(name, type, mask);
 }
 EXPORT_SYMBOL_GPL(crypto_attr_alg);
 
@@ -604,6 +618,53 @@ int crypto_tfm_in_queue(struct crypto_queue *queue, struct crypto_tfm *tfm)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(crypto_tfm_in_queue);
+
+static inline void crypto_inc_byte(u8 *a, unsigned int size)
+{
+	u8 *b = (a + size);
+	u8 c;
+
+	for (; size; size--) {
+		c = *--b + 1;
+		*b = c;
+		if (c)
+			break;
+	}
+}
+
+void crypto_inc(u8 *a, unsigned int size)
+{
+	__be32 *b = (__be32 *)(a + size);
+	u32 c;
+
+	for (; size >= 4; size -= 4) {
+		c = be32_to_cpu(*--b) + 1;
+		*b = cpu_to_be32(c);
+		if (c)
+			return;
+	}
+
+	crypto_inc_byte(a, size);
+}
+EXPORT_SYMBOL_GPL(crypto_inc);
+
+static inline void crypto_xor_byte(u8 *a, const u8 *b, unsigned int size)
+{
+	for (; size; size--)
+		*a++ ^= *b++;
+}
+
+void crypto_xor(u8 *dst, const u8 *src, unsigned int size)
+{
+	u32 *a = (u32 *)dst;
+	u32 *b = (u32 *)src;
+
+	for (; size >= 4; size -= 4)
+		*a++ ^= *b++;
+
+	crypto_xor_byte((u8 *)a, (u8 *)b, size);
+}
+EXPORT_SYMBOL_GPL(crypto_xor);
 
 static int __init crypto_algapi_init(void)
 {

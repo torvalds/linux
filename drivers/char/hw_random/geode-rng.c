@@ -28,6 +28,7 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/hw_random.h>
+#include <linux/delay.h>
 #include <asm/io.h>
 
 
@@ -61,11 +62,18 @@ static int geode_rng_data_read(struct hwrng *rng, u32 *data)
 	return 4;
 }
 
-static int geode_rng_data_present(struct hwrng *rng)
+static int geode_rng_data_present(struct hwrng *rng, int wait)
 {
 	void __iomem *mem = (void __iomem *)rng->priv;
+	int data, i;
 
-	return !!(readl(mem + GEODE_RNG_STATUS_REG));
+	for (i = 0; i < 20; i++) {
+		data = !!(readl(mem + GEODE_RNG_STATUS_REG));
+		if (data || !wait)
+			break;
+		udelay(10);
+	}
+	return data;
 }
 
 

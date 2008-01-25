@@ -29,6 +29,7 @@
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/hw_random.h>
+#include <linux/delay.h>
 
 #include <asm/io.h>
 
@@ -65,9 +66,17 @@ static void omap_rng_write_reg(int reg, u32 val)
 }
 
 /* REVISIT: Does the status bit really work on 16xx? */
-static int omap_rng_data_present(struct hwrng *rng)
+static int omap_rng_data_present(struct hwrng *rng, int wait)
 {
-	return omap_rng_read_reg(RNG_STAT_REG) ? 0 : 1;
+	int data, i;
+
+	for (i = 0; i < 20; i++) {
+		data = omap_rng_read_reg(RNG_STAT_REG) ? 0 : 1;
+		if (data || !wait)
+			break;
+		udelay(10);
+	}
+	return data;
 }
 
 static int omap_rng_data_read(struct hwrng *rng, u32 *data)

@@ -8,10 +8,10 @@
  * including this sentence is retained in full.
  */
 
-.extern aes_ft_tab
-.extern aes_it_tab
-.extern aes_fl_tab
-.extern aes_il_tab
+.extern crypto_ft_tab
+.extern crypto_it_tab
+.extern crypto_fl_tab
+.extern crypto_il_tab
 
 .text
 
@@ -56,13 +56,13 @@
 	.align	8;			\
 FUNC:	movq	r1,r2;			\
 	movq	r3,r4;			\
-	leaq	BASE+KEY+52(r8),r9;	\
+	leaq	BASE+KEY+48+4(r8),r9;	\
 	movq	r10,r11;		\
 	movl	(r7),r5 ## E;		\
 	movl	4(r7),r1 ## E;		\
 	movl	8(r7),r6 ## E;		\
 	movl	12(r7),r7 ## E;		\
-	movl	BASE(r8),r10 ## E;	\
+	movl	BASE+0(r8),r10 ## E;	\
 	xorl	-48(r9),r5 ## E;	\
 	xorl	-44(r9),r1 ## E;	\
 	xorl	-40(r9),r6 ## E;	\
@@ -154,37 +154,37 @@ FUNC:	movq	r1,r2;			\
 /* void aes_enc_blk(stuct crypto_tfm *tfm, u8 *out, const u8 *in) */
 
 	entry(aes_enc_blk,0,enc128,enc192)
-	encrypt_round(aes_ft_tab,-96)
-	encrypt_round(aes_ft_tab,-80)
-enc192:	encrypt_round(aes_ft_tab,-64)
-	encrypt_round(aes_ft_tab,-48)
-enc128:	encrypt_round(aes_ft_tab,-32)
-	encrypt_round(aes_ft_tab,-16)
-	encrypt_round(aes_ft_tab,  0)
-	encrypt_round(aes_ft_tab, 16)
-	encrypt_round(aes_ft_tab, 32)
-	encrypt_round(aes_ft_tab, 48)
-	encrypt_round(aes_ft_tab, 64)
-	encrypt_round(aes_ft_tab, 80)
-	encrypt_round(aes_ft_tab, 96)
-	encrypt_final(aes_fl_tab,112)
+	encrypt_round(crypto_ft_tab,-96)
+	encrypt_round(crypto_ft_tab,-80)
+enc192:	encrypt_round(crypto_ft_tab,-64)
+	encrypt_round(crypto_ft_tab,-48)
+enc128:	encrypt_round(crypto_ft_tab,-32)
+	encrypt_round(crypto_ft_tab,-16)
+	encrypt_round(crypto_ft_tab,  0)
+	encrypt_round(crypto_ft_tab, 16)
+	encrypt_round(crypto_ft_tab, 32)
+	encrypt_round(crypto_ft_tab, 48)
+	encrypt_round(crypto_ft_tab, 64)
+	encrypt_round(crypto_ft_tab, 80)
+	encrypt_round(crypto_ft_tab, 96)
+	encrypt_final(crypto_fl_tab,112)
 	return
 
 /* void aes_dec_blk(struct crypto_tfm *tfm, u8 *out, const u8 *in) */
 
 	entry(aes_dec_blk,240,dec128,dec192)
-	decrypt_round(aes_it_tab,-96)
-	decrypt_round(aes_it_tab,-80)
-dec192:	decrypt_round(aes_it_tab,-64)
-	decrypt_round(aes_it_tab,-48)
-dec128:	decrypt_round(aes_it_tab,-32)
-	decrypt_round(aes_it_tab,-16)
-	decrypt_round(aes_it_tab,  0)
-	decrypt_round(aes_it_tab, 16)
-	decrypt_round(aes_it_tab, 32)
-	decrypt_round(aes_it_tab, 48)
-	decrypt_round(aes_it_tab, 64)
-	decrypt_round(aes_it_tab, 80)
-	decrypt_round(aes_it_tab, 96)
-	decrypt_final(aes_il_tab,112)
+	decrypt_round(crypto_it_tab,-96)
+	decrypt_round(crypto_it_tab,-80)
+dec192:	decrypt_round(crypto_it_tab,-64)
+	decrypt_round(crypto_it_tab,-48)
+dec128:	decrypt_round(crypto_it_tab,-32)
+	decrypt_round(crypto_it_tab,-16)
+	decrypt_round(crypto_it_tab,  0)
+	decrypt_round(crypto_it_tab, 16)
+	decrypt_round(crypto_it_tab, 32)
+	decrypt_round(crypto_it_tab, 48)
+	decrypt_round(crypto_it_tab, 64)
+	decrypt_round(crypto_it_tab, 80)
+	decrypt_round(crypto_it_tab, 96)
+	decrypt_final(crypto_il_tab,112)
 	return

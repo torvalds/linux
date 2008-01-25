@@ -24,10 +24,6 @@ config CRYPTO_ALGAPI
 	help
 	  This option provides the API for cryptographic algorithms.
 
-config CRYPTO_ABLKCIPHER
-	tristate
-	select CRYPTO_BLKCIPHER
-
 config CRYPTO_AEAD
 	tristate
 	select CRYPTO_ALGAPI
@@ -35,6 +31,15 @@ config CRYPTO_AEAD
 config CRYPTO_BLKCIPHER
 	tristate
 	select CRYPTO_ALGAPI
+
+config CRYPTO_SEQIV
+	tristate "Sequence Number IV Generator"
+	select CRYPTO_AEAD
+	select CRYPTO_BLKCIPHER
+	help
+	  This IV generator generates an IV based on a sequence number by
+	  xoring it with a salt.  This algorithm is mainly useful for CTR
+	  and similar modes.
 
 config CRYPTO_HASH
 	tristate
@@ -91,13 +96,16 @@ config CRYPTO_SHA1
 	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2).
 
 config CRYPTO_SHA256
-	tristate "SHA256 digest algorithm"
+	tristate "SHA224 and SHA256 digest algorithm"
 	select CRYPTO_ALGAPI
 	help
 	  SHA256 secure hash standard (DFIPS 180-2).
 	  
 	  This version of SHA implements a 256 bit hash with 128 bits of
 	  security against collision attacks.
+
+          This code also includes SHA-224, a 224 bit hash with 112 bits
+          of security against collision attacks.
 
 config CRYPTO_SHA512
 	tristate "SHA384 and SHA512 digest algorithms"
@@ -195,9 +203,34 @@ config CRYPTO_XTS
 	  key size 256, 384 or 512 bits. This implementation currently
 	  can't handle a sectorsize which is not a multiple of 16 bytes.
 
+config CRYPTO_CTR
+	tristate "CTR support"
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_SEQIV
+	select CRYPTO_MANAGER
+	help
+	  CTR: Counter mode
+	  This block cipher algorithm is required for IPSec.
+
+config CRYPTO_GCM
+	tristate "GCM/GMAC support"
+	select CRYPTO_CTR
+	select CRYPTO_AEAD
+	select CRYPTO_GF128MUL
+	help
+	  Support for Galois/Counter Mode (GCM) and Galois Message
+	  Authentication Code (GMAC). Required for IPSec.
+
+config CRYPTO_CCM
+	tristate "CCM support"
+	select CRYPTO_CTR
+	select CRYPTO_AEAD
+	help
+	  Support for Counter with CBC MAC. Required for IPsec.
+
 config CRYPTO_CRYPTD
 	tristate "Software async crypto daemon"
-	select CRYPTO_ABLKCIPHER
+	select CRYPTO_BLKCIPHER
 	select CRYPTO_MANAGER
 	help
 	  This is a generic software asynchronous crypto daemon that
@@ -320,6 +353,7 @@ config CRYPTO_AES_586
 	tristate "AES cipher algorithms (i586)"
 	depends on (X86 || UML_X86) && !64BIT
 	select CRYPTO_ALGAPI
+	select CRYPTO_AES
 	help
 	  AES cipher algorithms (FIPS-197). AES uses the Rijndael 
 	  algorithm.
@@ -341,6 +375,7 @@ config CRYPTO_AES_X86_64
 	tristate "AES cipher algorithms (x86_64)"
 	depends on (X86 || UML_X86) && 64BIT
 	select CRYPTO_ALGAPI
+	select CRYPTO_AES
 	help
 	  AES cipher algorithms (FIPS-197). AES uses the Rijndael 
 	  algorithm.
@@ -441,6 +476,46 @@ config CRYPTO_SEED
 	  See also:
 	  <http://www.kisa.or.kr/kisa/seed/jsp/seed_eng.jsp>
 
+config CRYPTO_SALSA20
+	tristate "Salsa20 stream cipher algorithm (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	select CRYPTO_BLKCIPHER
+	help
+	  Salsa20 stream cipher algorithm.
+
+	  Salsa20 is a stream cipher submitted to eSTREAM, the ECRYPT
+	  Stream Cipher Project. See <http://www.ecrypt.eu.org/stream/>
+
+	  The Salsa20 stream cipher algorithm is designed by Daniel J.
+	  Bernstein <djb@cr.yp.to>. See <http://cr.yp.to/snuffle.html>
+
+config CRYPTO_SALSA20_586
+	tristate "Salsa20 stream cipher algorithm (i586) (EXPERIMENTAL)"
+	depends on (X86 || UML_X86) && !64BIT
+	depends on EXPERIMENTAL
+	select CRYPTO_BLKCIPHER
+	help
+	  Salsa20 stream cipher algorithm.
+
+	  Salsa20 is a stream cipher submitted to eSTREAM, the ECRYPT
+	  Stream Cipher Project. See <http://www.ecrypt.eu.org/stream/>
+
+	  The Salsa20 stream cipher algorithm is designed by Daniel J.
+	  Bernstein <djb@cr.yp.to>. See <http://cr.yp.to/snuffle.html>
+
+config CRYPTO_SALSA20_X86_64
+	tristate "Salsa20 stream cipher algorithm (x86_64) (EXPERIMENTAL)"
+	depends on (X86 || UML_X86) && 64BIT
+	depends on EXPERIMENTAL
+	select CRYPTO_BLKCIPHER
+	help
+	  Salsa20 stream cipher algorithm.
+
+	  Salsa20 is a stream cipher submitted to eSTREAM, the ECRYPT
+	  Stream Cipher Project. See <http://www.ecrypt.eu.org/stream/>
+
+	  The Salsa20 stream cipher algorithm is designed by Daniel J.
+	  Bernstein <djb@cr.yp.to>. See <http://cr.yp.to/snuffle.html>
 
 config CRYPTO_DEFLATE
 	tristate "Deflate compression algorithm"
@@ -491,6 +566,7 @@ config CRYPTO_TEST
 	tristate "Testing module"
 	depends on m
 	select CRYPTO_ALGAPI
+	select CRYPTO_AEAD
 	help
 	  Quick & dirty crypto test module.
 
@@ -498,9 +574,18 @@ config CRYPTO_AUTHENC
 	tristate "Authenc support"
 	select CRYPTO_AEAD
 	select CRYPTO_MANAGER
+	select CRYPTO_HASH
 	help
 	  Authenc: Combined mode wrapper for IPsec.
 	  This is required for IPSec.
+
+config CRYPTO_LZO
+	tristate "LZO compression algorithm"
+	select CRYPTO_ALGAPI
+	select LZO_COMPRESS
+	select LZO_DECOMPRESS
+	help
+	  This is the LZO algorithm.
 
 source "drivers/crypto/Kconfig"
 

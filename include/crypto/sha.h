@@ -8,6 +8,9 @@
 #define SHA1_DIGEST_SIZE        20
 #define SHA1_BLOCK_SIZE         64
 
+#define SHA224_DIGEST_SIZE	28
+#define SHA224_BLOCK_SIZE	64
+
 #define SHA256_DIGEST_SIZE      32
 #define SHA256_BLOCK_SIZE       64
 
@@ -22,6 +25,15 @@
 #define SHA1_H2		0x98badcfeUL
 #define SHA1_H3		0x10325476UL
 #define SHA1_H4		0xc3d2e1f0UL
+
+#define SHA224_H0	0xc1059ed8UL
+#define SHA224_H1	0x367cd507UL
+#define SHA224_H2	0x3070dd17UL
+#define SHA224_H3	0xf70e5939UL
+#define SHA224_H4	0xffc00b31UL
+#define SHA224_H5	0x68581511UL
+#define SHA224_H6	0x64f98fa7UL
+#define SHA224_H7	0xbefa4fa4UL
 
 #define SHA256_H0	0x6a09e667UL
 #define SHA256_H1	0xbb67ae85UL
