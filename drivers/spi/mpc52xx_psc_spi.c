@@ -628,8 +628,9 @@ static int __exit mpc52xx_psc_spi_of_remove(struct of_device *op)
 }
 
 static struct of_device_id mpc52xx_psc_spi_of_match[] = {
-	{ .type = "spi", .compatible = "mpc5200-psc-spi", },
-	{},
+	{ .compatible = "fsl,mpc5200-psc-spi", },
+	{ .compatible = "mpc5200-psc-spi", }, /* old */
+	{}
 };
 
 MODULE_DEVICE_TABLE(of, mpc52xx_psc_spi_of_match);

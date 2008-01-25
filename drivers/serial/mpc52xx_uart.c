@@ -130,7 +130,9 @@ static irqreturn_t mpc52xx_uart_int(int irq, void *dev_id);
 
 #if defined(CONFIG_PPC_MERGE)
 static struct of_device_id mpc52xx_uart_of_match[] = {
-	{ .type = "serial", .compatible = "mpc5200-psc-uart", },
+	{ .type = "serial", .compatible = "fsl,mpc5200-psc-uart", },
+	{ .type = "serial", .compatible = "mpc5200-psc-uart", }, /* lite5200 */
+	{ .type = "serial", .compatible = "mpc5200-serial", }, /* efika */
 	{},
 };
 #endif

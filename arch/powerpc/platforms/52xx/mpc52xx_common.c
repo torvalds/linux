@@ -18,6 +18,23 @@
 #include <asm/prom.h>
 #include <asm/mpc52xx.h>
 
+/* MPC5200 device tree match tables */
+static struct of_device_id mpc52xx_xlb_ids[] __initdata = {
+	{ .compatible = "fsl,mpc5200-xlb", },
+	{ .compatible = "mpc5200-xlb", },
+	{}
+};
+static struct of_device_id mpc52xx_bus_ids[] __initdata = {
+	{ .compatible = "fsl,mpc5200-immr", },
+	{ .compatible = "fsl,mpc5200b-immr", },
+	{ .compatible = "fsl,lpb", },
+
+	/* depreciated matches; shouldn't be used in new device trees */
+	{ .type = "builtin", .compatible = "mpc5200", }, /* efika */
+	{ .type = "soc", .compatible = "mpc5200", }, /* lite5200 */
+	{}
+};
+
 /*
  * This variable is mapped in mpc52xx_map_wdt() and used in mpc52xx_restart().
  * Permanent mapping is required because mpc52xx_restart() can be called
@@ -65,7 +82,7 @@ mpc5200_setup_xlb_arbiter(void)
 	struct device_node *np;
 	struct mpc52xx_xlb  __iomem *xlb;
 
-	np = of_find_compatible_node(NULL, NULL, "mpc5200-xlb");
+	np = of_find_matching_node(NULL, mpc52xx_xlb_ids);
 	xlb = of_iomap(np, 0);
 	of_node_put(np);
 	if (!xlb) {
@@ -88,16 +105,11 @@ mpc5200_setup_xlb_arbiter(void)
 	iounmap(xlb);
 }
 
-static struct of_device_id mpc52xx_bus_ids[] __initdata= {
-	{ .compatible = "fsl,mpc5200-immr", },
-	{ .compatible = "fsl,lpb", },
-
-	/* depreciated matches; shouldn't be used in new device trees */
-	{ .type = "builtin", .compatible = "mpc5200", }, /* efika */
-	{ .type = "soc", .compatible = "mpc5200", }, /* lite5200 */
-	{},
-};
-
+/**
+ * mpc52xx_declare_of_platform_devices: register internal devices and children
+ *					of the localplus bus to the of_platform
+ *					bus.
+ */
 void __init
 mpc52xx_declare_of_platform_devices(void)
 {
@@ -107,32 +119,30 @@ mpc52xx_declare_of_platform_devices(void)
 			"Error while probing of_platform bus\n");
 }
 
+/*
+ * match tables used by mpc52xx_map_wdt()
+ */
+static struct of_device_id mpc52xx_gpt_ids[] __initdata = {
+	{ .compatible = "fsl,mpc5200-gpt", },
+	{ .compatible = "mpc5200-gpt", }, /* old */
+	{}
+};
+
 void __init
 mpc52xx_map_wdt(void)
 {
-	const void *has_wdt;
 	struct device_node *np;
-
 	/* mpc52xx_wdt is mapped here and used in mpc52xx_restart,
 	 * possibly from a interrupt context. wdt is only implement
 	 * on a gpt0, so check has-wdt property before mapping.
 	 */
-	for_each_compatible_node(np, NULL, "fsl,mpc5200-gpt") {
-		has_wdt = of_get_property(np, "fsl,has-wdt", NULL);
-		if (has_wdt) {
+	for_each_matching_node(np, mpc52xx_gpt_ids) {
+		if (of_get_property(np, "fsl,has-wdt", NULL) ||
+		    of_get_property(np, "has-wdt", NULL)) {
 			mpc52xx_wdt = of_iomap(np, 0);
 			of_node_put(np);
 			return;
 		}
-	}
-	for_each_compatible_node(np, NULL, "mpc5200-gpt") {
-		has_wdt = of_get_property(np, "has-wdt", NULL);
-		if (has_wdt) {
-			mpc52xx_wdt = of_iomap(np, 0);
-			of_node_put(np);
-			return;
-		}
-
 	}
 }
 

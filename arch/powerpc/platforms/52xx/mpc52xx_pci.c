@@ -99,6 +99,12 @@ struct mpc52xx_pci {
 	u8	reserved6[4];	/* PCI + 0xFC */
 };
 
+/* MPC5200 device tree match tables */
+const struct of_device_id mpc52xx_pci_ids[] __initdata = {
+	{ .type = "pci", .compatible = "fsl,mpc5200-pci", },
+	{ .type = "pci", .compatible = "mpc5200-pci", },
+	{}
+};
 
 /* ======================================================================== */
 /* PCI configuration acess                                                  */
@@ -411,9 +417,7 @@ void __init mpc52xx_setup_pci(void)
 {
 	struct device_node *pci;
 
-	pci = of_find_compatible_node(NULL, NULL, "fsl,mpc5200-pci");
-	if (!pci)
-		pci = of_find_compatible_node(NULL, NULL, "mpc5200-pci");
+	pci = of_find_matching_node(NULL, mpc52xx_pci_ids);
 	if (!pci)
 		return;
 
