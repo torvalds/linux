@@ -876,6 +876,7 @@ struct usb_device_id dib0700_usb_id_table[] = {
 		{ USB_DEVICE(USB_VID_ASUS,      USB_PID_ASUS_U3000) },
 		{ USB_DEVICE(USB_VID_ASUS,      USB_PID_ASUS_U3100) },
 /* 25 */	{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_NOVA_T_STICK_3) },
+		{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_MYTV_T) },
 		{ 0 }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -1061,7 +1062,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
-		.num_device_descs = 5,
+		.num_device_descs = 6,
 		.devices = {
 			{   "DiBcom STK7070P reference design",
 				{ &dib0700_usb_id_table[15], NULL },
@@ -1081,6 +1082,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 			{   "Hauppauge Nova-T Stick",
 				{ &dib0700_usb_id_table[25], NULL },
+				{ NULL },
+			},
+			{   "Hauppauge Nova-T MyTV.t",
+				{ &dib0700_usb_id_table[26], NULL },
 				{ NULL },
 			},
 		},
