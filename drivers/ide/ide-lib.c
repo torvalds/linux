@@ -479,6 +479,42 @@ static void ide_dump_opcode(ide_drive_t *drive)
 		printk("0x%02x\n", opcode);
 }
 
+static u64 ide_get_lba_addr(struct ide_taskfile *tf, int lba48)
+{
+	u32 high, low;
+
+	if (lba48)
+		high = (tf->hob_lbah << 16) | (tf->hob_lbam << 8) |
+			tf->hob_lbal;
+	else
+		high = tf->device & 0xf;
+	low  = (tf->lbah << 16) | (tf->lbam << 8) | tf->lbal;
+
+	return ((u64)high << 24) | low;
+}
+
+static void ide_dump_sector(ide_drive_t *drive)
+{
+	ide_task_t task;
+	struct ide_taskfile *tf = &task.tf;
+	int lba48 = (drive->addressing == 1) ? 1 : 0;
+
+	memset(&task, 0, sizeof(task));
+	if (lba48)
+		task.tf_flags = IDE_TFLAG_IN_LBA | IDE_TFLAG_IN_HOB_LBA |
+				IDE_TFLAG_LBA48;
+	else
+		task.tf_flags = IDE_TFLAG_IN_LBA | IDE_TFLAG_IN_DEVICE;
+
+	ide_tf_read(drive, &task);
+
+	if (lba48 || (tf->device & ATA_LBA))
+		printk(", LBAsect=%llu", ide_get_lba_addr(tf, lba48));
+	else
+		printk(", CHS=%d/%d/%d", (tf->lbah << 8) + tf->lbam,
+					 tf->device & 0xf, tf->lbal);
+}
+
 static u8 ide_dump_ata_status(ide_drive_t *drive, const char *msg, u8 stat)
 {
 	ide_hwif_t *hwif = HWIF(drive);
@@ -512,38 +548,7 @@ static u8 ide_dump_ata_status(ide_drive_t *drive, const char *msg, u8 stat)
 		printk("}");
 		if ((err & (BBD_ERR | ABRT_ERR)) == BBD_ERR ||
 		    (err & (ECC_ERR|ID_ERR|MARK_ERR))) {
-			if (drive->addressing == 1) {
-				__u64 sectors = 0;
-				u32 low = 0, high = 0;
-				hwif->OUTB(drive->ctl&~0x80, IDE_CONTROL_REG);
-				low = ide_read_24(drive);
-				hwif->OUTB(drive->ctl|0x80, IDE_CONTROL_REG);
-				high = ide_read_24(drive);
-				sectors = ((__u64)high << 24) | low;
-				printk(", LBAsect=%llu, high=%d, low=%d",
-				       (unsigned long long) sectors,
-				       high, low);
-			} else {
-				u8 sector, lcyl, hcyl, cur;
-
-				sector = hwif->INB(IDE_SECTOR_REG);
-				lcyl   = hwif->INB(IDE_LCYL_REG);
-				hcyl   = hwif->INB(IDE_HCYL_REG);
-				cur    = hwif->INB(IDE_SELECT_REG);
-
-				if (cur & 0x40) {	/* using LBA? */
-					printk(", LBAsect=%ld", (unsigned long)
-						((cur & 0xf) << 24) |
-						(hcyl << 16) |
-						(lcyl <<  8) |
-						sector);
-				} else {
-					printk(", CHS=%d/%d/%d",
-						(hcyl << 8) + lcyl,
-						cur & 0xf,
-						sector);
-				}
-			}
+			ide_dump_sector(drive);
 			if (HWGROUP(drive) && HWGROUP(drive)->rq)
 				printk(", sector=%llu",
 					(unsigned long long)HWGROUP(drive)->rq->sector);

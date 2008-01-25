@@ -158,14 +158,6 @@ void default_hwif_mmiops (ide_hwif_t *hwif)
 
 EXPORT_SYMBOL(default_hwif_mmiops);
 
-u32 ide_read_24 (ide_drive_t *drive)
-{
-	u8 sect = HWIF(drive)->INB(IDE_SECTOR_REG);
-	u8 lcyl = HWIF(drive)->INB(IDE_LCYL_REG);
-	u8 hcyl = HWIF(drive)->INB(IDE_HCYL_REG);
-	return (hcyl<<16)|(lcyl<<8)|sect;
-}
-
 void SELECT_DRIVE (ide_drive_t *drive)
 {
 	if (HWIF(drive)->selectproc)

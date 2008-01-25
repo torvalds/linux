@@ -297,6 +297,48 @@ static void ide_complete_pm_request (ide_drive_t *drive, struct request *rq)
 	spin_unlock_irqrestore(&ide_lock, flags);
 }
 
+void ide_tf_read(ide_drive_t *drive, ide_task_t *task)
+{
+	ide_hwif_t *hwif = drive->hwif;
+	struct ide_taskfile *tf = &task->tf;
+
+	if (task->tf_flags & IDE_TFLAG_IN_DATA) {
+		u16 data = hwif->INW(IDE_DATA_REG);
+
+		tf->data = data & 0xff;
+		tf->hob_data = (data >> 8) & 0xff;
+	}
+
+	/* be sure we're looking at the low order bits */
+	hwif->OUTB(drive->ctl & ~0x80, IDE_CONTROL_REG);
+
+	if (task->tf_flags & IDE_TFLAG_IN_NSECT)
+		tf->nsect  = hwif->INB(IDE_NSECTOR_REG);
+	if (task->tf_flags & IDE_TFLAG_IN_LBAL)
+		tf->lbal   = hwif->INB(IDE_SECTOR_REG);
+	if (task->tf_flags & IDE_TFLAG_IN_LBAM)
+		tf->lbam   = hwif->INB(IDE_LCYL_REG);
+	if (task->tf_flags & IDE_TFLAG_IN_LBAH)
+		tf->lbah   = hwif->INB(IDE_HCYL_REG);
+	if (task->tf_flags & IDE_TFLAG_IN_DEVICE)
+		tf->device = hwif->INB(IDE_SELECT_REG);
+
+	if (task->tf_flags & IDE_TFLAG_LBA48) {
+		hwif->OUTB(drive->ctl | 0x80, IDE_CONTROL_REG);
+
+		if (task->tf_flags & IDE_TFLAG_IN_HOB_FEATURE)
+			tf->hob_feature = hwif->INB(IDE_FEATURE_REG);
+		if (task->tf_flags & IDE_TFLAG_IN_HOB_NSECT)
+			tf->hob_nsect   = hwif->INB(IDE_NSECTOR_REG);
+		if (task->tf_flags & IDE_TFLAG_IN_HOB_LBAL)
+			tf->hob_lbal    = hwif->INB(IDE_SECTOR_REG);
+		if (task->tf_flags & IDE_TFLAG_IN_HOB_LBAM)
+			tf->hob_lbam    = hwif->INB(IDE_LCYL_REG);
+		if (task->tf_flags & IDE_TFLAG_IN_HOB_LBAH)
+			tf->hob_lbah    = hwif->INB(IDE_HCYL_REG);
+	}
+}
+
 /**
  *	ide_end_drive_cmd	-	end an explicit drive command
  *	@drive: command 
@@ -339,30 +381,14 @@ void ide_end_drive_cmd (ide_drive_t *drive, u8 stat, u8 err)
 		if (args) {
 			struct ide_taskfile *tf = &args->tf;
 
-			if (args->tf_flags & IDE_TFLAG_IN_DATA) {
-				u16 data = hwif->INW(IDE_DATA_REG);
-
-				tf->data = data & 0xff;
-				tf->hob_data = (data >> 8) & 0xff;
-			}
 			tf->error = err;
-			/* be sure we're looking at the low order bits */
-			hwif->OUTB(drive->ctl & ~0x80, IDE_CONTROL_REG);
-			tf->nsect  = hwif->INB(IDE_NSECTOR_REG);
-			tf->lbal   = hwif->INB(IDE_SECTOR_REG);
-			tf->lbam   = hwif->INB(IDE_LCYL_REG);
-			tf->lbah   = hwif->INB(IDE_HCYL_REG);
-			tf->device = hwif->INB(IDE_SELECT_REG);
 			tf->status = stat;
 
-			if (args->tf_flags & IDE_TFLAG_LBA48) {
-				hwif->OUTB(drive->ctl|0x80, IDE_CONTROL_REG);
-				tf->hob_feature = hwif->INB(IDE_FEATURE_REG);
-				tf->hob_nsect   = hwif->INB(IDE_NSECTOR_REG);
-				tf->hob_lbal    = hwif->INB(IDE_SECTOR_REG);
-				tf->hob_lbam    = hwif->INB(IDE_LCYL_REG);
-				tf->hob_lbah    = hwif->INB(IDE_HCYL_REG);
-			}
+			args->tf_flags |= (IDE_TFLAG_IN_TF|IDE_TFLAG_IN_DEVICE);
+			if (args->tf_flags & IDE_TFLAG_LBA48)
+				args->tf_flags |= IDE_TFLAG_IN_HOB;
+
+			ide_tf_read(drive, args);
 		}
 	} else if (blk_pm_request(rq)) {
 		struct request_pm_state *pm = rq->data;
