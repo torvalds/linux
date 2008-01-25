@@ -3,6 +3,38 @@
  * policies)
  */
 
+#ifdef CONFIG_SMP
+static cpumask_t rt_overload_mask;
+static atomic_t rto_count;
+static inline int rt_overloaded(void)
+{
+	return atomic_read(&rto_count);
+}
+static inline cpumask_t *rt_overload(void)
+{
+	return &rt_overload_mask;
+}
+static inline void rt_set_overload(struct rq *rq)
+{
+	cpu_set(rq->cpu, rt_overload_mask);
+	/*
+	 * Make sure the mask is visible before we set
+	 * the overload count. That is checked to determine
+	 * if we should look at the mask. It would be a shame
+	 * if we looked at the mask, but the mask was not
+	 * updated yet.
+	 */
+	wmb();
+	atomic_inc(&rto_count);
+}
+static inline void rt_clear_overload(struct rq *rq)
+{
+	/* the order here really doesn't matter */
+	atomic_dec(&rto_count);
+	cpu_clear(rq->cpu, rt_overload_mask);
+}
+#endif /* CONFIG_SMP */
+
 /*
  * Update the current task's runtime statistics. Skip current tasks that
  * are not in our scheduling class.
@@ -33,6 +65,8 @@ static inline void inc_rt_tasks(struct task_struct *p, struct rq *rq)
 #ifdef CONFIG_SMP
 	if (p->prio < rq->rt.highest_prio)
 		rq->rt.highest_prio = p->prio;
+	if (rq->rt.rt_nr_running > 1)
+		rt_set_overload(rq);
 #endif /* CONFIG_SMP */
 }
 
@@ -54,6 +88,8 @@ static inline void dec_rt_tasks(struct task_struct *p, struct rq *rq)
 		} /* otherwise leave rq->highest prio alone */
 	} else
 		rq->rt.highest_prio = MAX_RT_PRIO;
+	if (rq->rt.rt_nr_running < 2)
+		rt_clear_overload(rq);
 #endif /* CONFIG_SMP */
 }
 
