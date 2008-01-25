@@ -169,8 +169,6 @@ struct task_group {
 	/* runqueue "owned" by this group on each cpu */
 	struct cfs_rq **cfs_rq;
 	unsigned long shares;
-	/* spinlock to serialize modification to shares */
-	spinlock_t lock;
 	struct rcu_head rcu;
 };
 
@@ -181,6 +179,11 @@ static DEFINE_PER_CPU(struct cfs_rq, init_cfs_rq) ____cacheline_aligned_in_smp;
 
 static struct sched_entity *init_sched_entity_p[NR_CPUS];
 static struct cfs_rq *init_cfs_rq_p[NR_CPUS];
+
+/* task_group_mutex serializes add/remove of task groups and also changes to
+ * a task group's cpu shares.
+ */
+static DEFINE_MUTEX(task_group_mutex);
 
 /* Default task group.
  *	Every task in system belong to this group at bootup.
@@ -221,9 +224,21 @@ static inline void set_task_cfs_rq(struct task_struct *p, unsigned int cpu)
 	p->se.parent = task_group(p)->se[cpu];
 }
 
+static inline void lock_task_group_list(void)
+{
+	mutex_lock(&task_group_mutex);
+}
+
+static inline void unlock_task_group_list(void)
+{
+	mutex_unlock(&task_group_mutex);
+}
+
 #else
 
 static inline void set_task_cfs_rq(struct task_struct *p, unsigned int cpu) { }
+static inline void lock_task_group_list(void) { }
+static inline void unlock_task_group_list(void) { }
 
 #endif	/* CONFIG_FAIR_GROUP_SCHED */
 
@@ -6768,7 +6783,6 @@ void __init sched_init(void)
 			se->parent = NULL;
 		}
 		init_task_group.shares = init_task_group_load;
-		spin_lock_init(&init_task_group.lock);
 #endif
 
 		for (j = 0; j < CPU_LOAD_IDX_MAX; j++)
@@ -7008,14 +7022,15 @@ struct task_group *sched_create_group(void)
 		se->parent = NULL;
 	}
 
+	tg->shares = NICE_0_LOAD;
+
+	lock_task_group_list();
 	for_each_possible_cpu(i) {
 		rq = cpu_rq(i);
 		cfs_rq = tg->cfs_rq[i];
 		list_add_rcu(&cfs_rq->leaf_cfs_rq_list, &rq->leaf_cfs_rq_list);
 	}
-
-	tg->shares = NICE_0_LOAD;
-	spin_lock_init(&tg->lock);
+	unlock_task_group_list();
 
 	return tg;
 
@@ -7061,10 +7076,12 @@ void sched_destroy_group(struct task_group *tg)
 	struct cfs_rq *cfs_rq = NULL;
 	int i;
 
+	lock_task_group_list();
 	for_each_possible_cpu(i) {
 		cfs_rq = tg->cfs_rq[i];
 		list_del_rcu(&cfs_rq->leaf_cfs_rq_list);
 	}
+	unlock_task_group_list();
 
 	BUG_ON(!cfs_rq);
 
@@ -7146,7 +7163,7 @@ int sched_group_set_shares(struct task_group *tg, unsigned long shares)
 	if (shares < 2)
 		shares = 2;
 
-	spin_lock(&tg->lock);
+	lock_task_group_list();
 	if (tg->shares == shares)
 		goto done;
 
@@ -7155,7 +7172,7 @@ int sched_group_set_shares(struct task_group *tg, unsigned long shares)
 		set_se_shares(tg->se[i], shares);
 
 done:
-	spin_unlock(&tg->lock);
+	unlock_task_group_list();
 	return 0;
 }
 
