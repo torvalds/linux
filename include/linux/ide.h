@@ -366,33 +366,6 @@ typedef union {
 } select_t, ata_select_t;
 
 /*
- * ATAPI Feature Register
- *
- * dma		: Using DMA or PIO
- * reserved321	: Reserved
- * reserved654	: Reserved (Tag Type)
- * reserved7	: Reserved
- */
-typedef union {
-	unsigned all			:8;
-	struct {
-#if defined(__LITTLE_ENDIAN_BITFIELD)
-		unsigned dma		:1;
-		unsigned reserved321	:3;
-		unsigned reserved654	:3;
-		unsigned reserved7	:1;
-#elif defined(__BIG_ENDIAN_BITFIELD)
-		unsigned reserved7	:1;
-		unsigned reserved654	:3;
-		unsigned reserved321	:3;
-		unsigned dma		:1;
-#else
-#error "Please fix <asm/byteorder.h>"
-#endif
-	} b;
-} atapi_feature_t;
-
-/*
  * ATAPI Interrupt Reason Register.
  *
  * cod		: Information transferred is command (1) or data (0)

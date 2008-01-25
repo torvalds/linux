@@ -399,7 +399,6 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 	struct request *rq = pc->rq;
 	atapi_bcount_t bcount;
 	atapi_ireason_t ireason;
-	atapi_feature_t feature;
 	unsigned int temp;
 	u8 stat;
 
@@ -424,7 +423,6 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 		(void) HWIF(drive)->ide_dma_end(drive);
 	}
 
-	feature.all = 0;
 	/* Clear the interrupt */
 	stat = drive->hwif->INB(IDE_STATUS_REG);
 
@@ -572,18 +570,17 @@ static ide_startstop_t idescsi_issue_pc (ide_drive_t *drive, idescsi_pc_t *pc)
 {
 	idescsi_scsi_t *scsi = drive_to_idescsi(drive);
 	ide_hwif_t *hwif = drive->hwif;
-	atapi_feature_t feature;
 	atapi_bcount_t bcount;
+	u8 dma = 0;
 
 	scsi->pc=pc;							/* Set the current packet command */
 	pc->actually_transferred=0;					/* We haven't transferred any data yet */
 	pc->current_position=pc->buffer;
 	bcount.all = min(pc->request_transfer, 63 * 1024);		/* Request to transfer the entire buffer at once */
 
-	feature.all = 0;
 	if (drive->using_dma && !idescsi_map_sg(drive, pc)) {
 		hwif->sg_mapped = 1;
-		feature.b.dma = !hwif->dma_setup(drive);
+		dma = !hwif->dma_setup(drive);
 		hwif->sg_mapped = 0;
 	}
 
@@ -591,11 +588,11 @@ static ide_startstop_t idescsi_issue_pc (ide_drive_t *drive, idescsi_pc_t *pc)
 	if (IDE_CONTROL_REG)
 		HWIF(drive)->OUTB(drive->ctl, IDE_CONTROL_REG);
 
-	HWIF(drive)->OUTB(feature.all, IDE_FEATURE_REG);
+	hwif->OUTB(dma, IDE_FEATURE_REG);
 	HWIF(drive)->OUTB(bcount.b.high, IDE_BCOUNTH_REG);
 	HWIF(drive)->OUTB(bcount.b.low, IDE_BCOUNTL_REG);
 
-	if (feature.b.dma)
+	if (dma)
 		set_bit(PC_DMA_OK, &pc->flags);
 
 	if (test_bit(IDESCSI_DRQ_INTERRUPT, &scsi->flags)) {

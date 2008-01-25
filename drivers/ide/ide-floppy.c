@@ -1019,9 +1019,9 @@ static ide_startstop_t idefloppy_issue_pc (ide_drive_t *drive, idefloppy_pc_t *p
 {
 	idefloppy_floppy_t *floppy = drive->driver_data;
 	ide_hwif_t *hwif = drive->hwif;
-	atapi_feature_t feature;
 	atapi_bcount_t bcount;
 	ide_handler_t *pkt_xfer_routine;
+	u8 dma;
 
 	if (floppy->failed_pc == NULL &&
 	    pc->c[0] != IDEFLOPPY_REQUEST_SENSE_CMD)
@@ -1064,20 +1064,20 @@ static ide_startstop_t idefloppy_issue_pc (ide_drive_t *drive, idefloppy_pc_t *p
 	if (test_and_clear_bit(PC_DMA_ERROR, &pc->flags))
 		ide_dma_off(drive);
 
-	feature.all = 0;
+	dma = 0;
 
 	if (test_bit(PC_DMA_RECOMMENDED, &pc->flags) && drive->using_dma)
-		feature.b.dma = !hwif->dma_setup(drive);
+		dma = !hwif->dma_setup(drive);
 
 	if (IDE_CONTROL_REG)
 		HWIF(drive)->OUTB(drive->ctl, IDE_CONTROL_REG);
 	/* Use PIO/DMA */
-	HWIF(drive)->OUTB(feature.all, IDE_FEATURE_REG);
+	hwif->OUTB(dma, IDE_FEATURE_REG);
 	HWIF(drive)->OUTB(bcount.b.high, IDE_BCOUNTH_REG);
 	HWIF(drive)->OUTB(bcount.b.low, IDE_BCOUNTL_REG);
 	HWIF(drive)->OUTB(drive->select.all, IDE_SELECT_REG);
 
-	if (feature.b.dma) {	/* Begin DMA, if necessary */
+	if (dma) {	/* Begin DMA, if necessary */
 		set_bit(PC_DMA_IN_PROGRESS, &pc->flags);
 		hwif->dma_start(drive);
 	}
