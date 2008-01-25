@@ -11,3 +11,4 @@ obj-$(CONFIG_MPC836x_MDS)	+= mpc836x_mds.o
 obj-$(CONFIG_MPC832x_MDS)	+= mpc832x_mds.o
 obj-$(CONFIG_MPC837x_MDS)	+= mpc837x_mds.o
 obj-$(CONFIG_SBC834x)		+= sbc834x.o
+obj-$(CONFIG_MPC837x_RDB)	+= mpc837x_rdb.o
