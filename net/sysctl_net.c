@@ -31,14 +31,6 @@
 #endif
 
 struct ctl_table net_table[] = {
-#ifdef CONFIG_TR
-	{
-		.ctl_name	= NET_TR,
-		.procname	= "token-ring",
-		.mode		= 0555,
-		.child		= tr_table,
-	},
-#endif
 	{ 0 },
 };
 
