@@ -192,15 +192,11 @@ static ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *
 			args->tf.command = WIN_FLUSH_CACHE_EXT;
 		else
 			args->tf.command = WIN_FLUSH_CACHE;
-		args->command_type = IDE_DRIVE_TASK_NO_DATA;
-		args->handler	   = &task_no_data_intr;
-		return do_rw_taskfile(drive, args);
+		goto out_do_tf;
 
 	case idedisk_pm_standby:	/* Suspend step 2 (standby) */
 		args->tf.command = WIN_STANDBYNOW1;
-		args->command_type = IDE_DRIVE_TASK_NO_DATA;
-		args->handler	   = &task_no_data_intr;
-		return do_rw_taskfile(drive, args);
+		goto out_do_tf;
 
 	case idedisk_pm_restore_pio:	/* Resume step 1 (restore PIO) */
 		ide_set_max_pio(drive);
@@ -215,9 +211,7 @@ static ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *
 
 	case idedisk_pm_idle:		/* Resume step 2 (idle) */
 		args->tf.command = WIN_IDLEIMMEDIATE;
-		args->command_type = IDE_DRIVE_TASK_NO_DATA;
-		args->handler = task_no_data_intr;
-		return do_rw_taskfile(drive, args);
+		goto out_do_tf;
 
 	case ide_pm_restore_dma:	/* Resume step 3 (restore DMA) */
 		/*
@@ -236,6 +230,14 @@ static ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *
 	}
 	pm->pm_step = ide_pm_state_completed;
 	return ide_stopped;
+
+out_do_tf:
+	args->tf_flags = IDE_TFLAG_OUT_TF;
+	if (drive->addressing == 1)
+		args->tf_flags |= (IDE_TFLAG_LBA48 | IDE_TFLAG_OUT_HOB);
+	args->command_type = IDE_DRIVE_TASK_NO_DATA;
+	args->handler      = task_no_data_intr;
+	return do_rw_taskfile(drive, args);
 }
 
 /**
@@ -730,6 +732,10 @@ static ide_startstop_t ide_disk_special(ide_drive_t *drive)
 		return ide_stopped;
 	}
 
+	args.tf_flags = IDE_TFLAG_OUT_TF;
+	if (drive->addressing == 1)
+		args.tf_flags |= (IDE_TFLAG_LBA48 | IDE_TFLAG_OUT_HOB);
+
 	do_rw_taskfile(drive, &args);
 
 	return ide_started;
@@ -883,8 +889,13 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
 			break;
 		}
 
-		if (args->tf_out_flags.all != 0) 
+		if (args->tf_flags & IDE_TFLAG_FLAGGED)
 			return flagged_taskfile(drive, args);
+
+		args->tf_flags |= IDE_TFLAG_OUT_TF;
+		if (drive->addressing == 1)
+			args->tf_flags |= (IDE_TFLAG_LBA48 | IDE_TFLAG_OUT_HOB);
+
 		return do_rw_taskfile(drive, args);
 	} else if (rq->cmd_type == REQ_TYPE_ATA_TASK) {
 		u8 *args = rq->buffer;

@@ -159,6 +159,7 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq, 
 
 	memset(&task, 0, sizeof(task));
 	task.tf_flags = IDE_TFLAG_NO_SELECT_MASK;  /* FIXME? */
+	task.tf_flags |= IDE_TFLAG_OUT_TF;
 
 	if (drive->select.b.lba) {
 		if (lba48) {
@@ -182,7 +183,7 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq, 
 				tf->hob_lbah, tf->hob_lbam, tf->hob_lbal,
 				tf->lbah, tf->lbam, tf->lbal);
 #endif
-			task.tf_flags |= IDE_TFLAG_LBA48;
+			task.tf_flags |= (IDE_TFLAG_LBA48 | IDE_TFLAG_OUT_HOB);
 		} else {
 			tf->nsect  = nsectors.b.low;
 			tf->lbal   = block;
