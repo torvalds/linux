@@ -117,7 +117,7 @@ typedef union ide_reg_valid_s {
 
 typedef struct ide_task_request_s {
 	__u8		io_ports[8];
-	__u8		hob_ports[8];
+	__u8		hob_ports[8]; /* bytes 6 and 7 are unused */
 	ide_reg_valid_t	out_flags;
 	ide_reg_valid_t	in_flags;
 	int		data_phase;
@@ -139,6 +139,7 @@ struct hd_drive_cmd_hdr {
 	__u8 sector_count;
 };
 
+#ifndef __KERNEL__
 typedef struct hd_drive_task_hdr {
 	__u8 data;
 	__u8 feature;
@@ -160,6 +161,7 @@ typedef struct hd_drive_hob_hdr {
 	__u8 device_head;
 	__u8 control;
 } hob_struct_t;
+#endif
 
 #define TASKFILE_INVALID		0x7fff
 #define TASKFILE_48			0x8000

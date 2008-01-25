@@ -66,12 +66,13 @@ static void taskfile_output_data(ide_drive_t *drive, void *buffer, u32 wcount)
 int taskfile_lib_get_identify (ide_drive_t *drive, u8 *buf)
 {
 	ide_task_t args;
+
 	memset(&args, 0, sizeof(ide_task_t));
-	args.tfRegister[IDE_NSECTOR_OFFSET]	= 0x01;
+	args.tf.nsect = 0x01;
 	if (drive->media == ide_disk)
-		args.tfRegister[IDE_COMMAND_OFFSET]	= WIN_IDENTIFY;
+		args.tf.command = WIN_IDENTIFY;
 	else
-		args.tfRegister[IDE_COMMAND_OFFSET]	= WIN_PIDENTIFY;
+		args.tf.command = WIN_PIDENTIFY;
 	args.command_type = IDE_DRIVE_TASK_IN;
 	args.data_phase   = TASKFILE_IN;
 	args.handler	  = &task_in_intr;
@@ -81,8 +82,7 @@ int taskfile_lib_get_identify (ide_drive_t *drive, u8 *buf)
 ide_startstop_t do_rw_taskfile (ide_drive_t *drive, ide_task_t *task)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
-	task_struct_t *taskfile	= (task_struct_t *) task->tfRegister;
-	hob_struct_t *hobfile	= (hob_struct_t *) task->hobRegister;
+	struct ide_taskfile *tf = &task->tf;
 	u8 HIHI			= (drive->addressing == 1) ? 0xE0 : 0xEF;
 
 	/* ALL Command Block Executions SHALL clear nIEN, unless otherwise */
@@ -93,35 +93,35 @@ ide_startstop_t do_rw_taskfile (ide_drive_t *drive, ide_task_t *task)
 	SELECT_MASK(drive, 0);
 
 	if (drive->addressing == 1) {
-		hwif->OUTB(hobfile->feature, IDE_FEATURE_REG);
-		hwif->OUTB(hobfile->sector_count, IDE_NSECTOR_REG);
-		hwif->OUTB(hobfile->sector_number, IDE_SECTOR_REG);
-		hwif->OUTB(hobfile->low_cylinder, IDE_LCYL_REG);
-		hwif->OUTB(hobfile->high_cylinder, IDE_HCYL_REG);
+		hwif->OUTB(tf->hob_feature, IDE_FEATURE_REG);
+		hwif->OUTB(tf->hob_nsect, IDE_NSECTOR_REG);
+		hwif->OUTB(tf->hob_lbal, IDE_SECTOR_REG);
+		hwif->OUTB(tf->hob_lbam, IDE_LCYL_REG);
+		hwif->OUTB(tf->hob_lbah, IDE_HCYL_REG);
 	}
 
-	hwif->OUTB(taskfile->feature, IDE_FEATURE_REG);
-	hwif->OUTB(taskfile->sector_count, IDE_NSECTOR_REG);
-	hwif->OUTB(taskfile->sector_number, IDE_SECTOR_REG);
-	hwif->OUTB(taskfile->low_cylinder, IDE_LCYL_REG);
-	hwif->OUTB(taskfile->high_cylinder, IDE_HCYL_REG);
+	hwif->OUTB(tf->feature, IDE_FEATURE_REG);
+	hwif->OUTB(tf->nsect, IDE_NSECTOR_REG);
+	hwif->OUTB(tf->lbal, IDE_SECTOR_REG);
+	hwif->OUTB(tf->lbam, IDE_LCYL_REG);
+	hwif->OUTB(tf->lbah, IDE_HCYL_REG);
 
-	hwif->OUTB((taskfile->device_head & HIHI) | drive->select.all, IDE_SELECT_REG);
+	hwif->OUTB((tf->device & HIHI) | drive->select.all, IDE_SELECT_REG);
 
 	if (task->handler != NULL) {
 		if (task->prehandler != NULL) {
-			hwif->OUTBSYNC(drive, taskfile->command, IDE_COMMAND_REG);
+			hwif->OUTBSYNC(drive, tf->command, IDE_COMMAND_REG);
 			ndelay(400);	/* FIXME */
 			return task->prehandler(drive, task->rq);
 		}
-		ide_execute_command(drive, taskfile->command, task->handler, WAIT_WORSTCASE, NULL);
+		ide_execute_command(drive, tf->command, task->handler, WAIT_WORSTCASE, NULL);
 		return ide_started;
 	}
 
 	if (!drive->using_dma)
 		return ide_stopped;
 
-	switch (taskfile->command) {
+	switch (tf->command) {
 		case WIN_WRITEDMA_ONCE:
 		case WIN_WRITEDMA:
 		case WIN_WRITEDMA_EXT:
@@ -130,7 +130,7 @@ ide_startstop_t do_rw_taskfile (ide_drive_t *drive, ide_task_t *task)
 		case WIN_READDMA_EXT:
 		case WIN_IDENTIFY_DMA:
 			if (!hwif->dma_setup(drive)) {
-				hwif->dma_exec_cmd(drive, taskfile->command);
+				hwif->dma_exec_cmd(drive, tf->command);
 				hwif->dma_start(drive);
 				return ide_started;
 			}
@@ -483,7 +483,7 @@ static int ide_diag_taskfile(ide_drive_t *drive, ide_task_t *args, unsigned long
 	 */
 	if (args->command_type != IDE_DRIVE_TASK_NO_DATA) {
 		if (data_size == 0)
-			rq.nr_sectors = (args->hobRegister[IDE_NSECTOR_OFFSET] << 8) | args->tfRegister[IDE_NSECTOR_OFFSET];
+			rq.nr_sectors = (args->tf.hob_nsect << 8) | args->tf.nsect;
 		else
 			rq.nr_sectors = data_size / SECTOR_SIZE;
 
@@ -519,8 +519,6 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 	ide_task_t		args;
 	u8 *outbuf		= NULL;
 	u8 *inbuf		= NULL;
-	u8 *argsptr		= args.tfRegister;
-	u8 *hobsptr		= args.hobRegister;
 	int err			= 0;
 	int tasksize		= sizeof(struct ide_task_request_s);
 	unsigned int taskin	= 0;
@@ -572,9 +570,9 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 	}
 
 	memset(&args, 0, sizeof(ide_task_t));
-	memcpy(argsptr, req_task->io_ports, HDIO_DRIVE_TASK_HDR_SIZE);
-	memcpy(hobsptr, req_task->hob_ports, HDIO_DRIVE_HOB_HDR_SIZE);
 
+	memcpy(&args.tf_array[0], req_task->hob_ports, HDIO_DRIVE_HOB_HDR_SIZE - 2);
+	memcpy(&args.tf_array[6], req_task->io_ports, HDIO_DRIVE_TASK_HDR_SIZE);
 	args.tf_in_flags  = req_task->in_flags;
 	args.tf_out_flags = req_task->out_flags;
 	args.data_phase   = req_task->data_phase;
@@ -628,8 +626,8 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 			goto abort;
 	}
 
-	memcpy(req_task->io_ports, &(args.tfRegister), HDIO_DRIVE_TASK_HDR_SIZE);
-	memcpy(req_task->hob_ports, &(args.hobRegister), HDIO_DRIVE_HOB_HDR_SIZE);
+	memcpy(req_task->hob_ports, &args.tf_array[0], HDIO_DRIVE_HOB_HDR_SIZE - 2);
+	memcpy(req_task->io_ports, &args.tf_array[6], HDIO_DRIVE_TASK_HDR_SIZE);
 	req_task->in_flags  = args.tf_in_flags;
 	req_task->out_flags = args.tf_out_flags;
 
@@ -688,6 +686,7 @@ int ide_cmd_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 	u8 xfer_rate = 0;
 	int argsize = 4;
 	ide_task_t tfargs;
+	struct ide_taskfile *tf = &tfargs.tf;
 
 	if (NULL == (void *) arg) {
 		struct request rq;
@@ -699,13 +698,10 @@ int ide_cmd_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 		return -EFAULT;
 
 	memset(&tfargs, 0, sizeof(ide_task_t));
-	tfargs.tfRegister[IDE_FEATURE_OFFSET] = args[2];
-	tfargs.tfRegister[IDE_NSECTOR_OFFSET] = args[3];
-	tfargs.tfRegister[IDE_SECTOR_OFFSET]  = args[1];
-	tfargs.tfRegister[IDE_LCYL_OFFSET]    = 0x00;
-	tfargs.tfRegister[IDE_HCYL_OFFSET]    = 0x00;
-	tfargs.tfRegister[IDE_SELECT_OFFSET]  = 0x00;
-	tfargs.tfRegister[IDE_COMMAND_OFFSET] = args[0];
+	tf->feature = args[2];
+	tf->nsect   = args[3];
+	tf->lbal    = args[1];
+	tf->command = args[0];
 
 	if (args[3]) {
 		argsize = 4 + (SECTOR_WORDS * 4 * args[3]);
@@ -767,8 +763,7 @@ int ide_task_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 ide_startstop_t flagged_taskfile (ide_drive_t *drive, ide_task_t *task)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
-	task_struct_t *taskfile	= (task_struct_t *) task->tfRegister;
-	hob_struct_t *hobfile	= (hob_struct_t *) task->hobRegister;
+	struct ide_taskfile *tf = &task->tf;
 
 	if (task->data_phase == TASKFILE_MULTI_IN ||
 	    task->data_phase == TASKFILE_MULTI_OUT) {
@@ -798,34 +793,32 @@ ide_startstop_t flagged_taskfile (ide_drive_t *drive, ide_task_t *task)
 		hwif->OUTB(drive->ctl, IDE_CONTROL_REG);
 	SELECT_MASK(drive, 0);
 
-	if (task->tf_out_flags.b.data) {
-		u16 data =  taskfile->data + (hobfile->data << 8);
-		hwif->OUTW(data, IDE_DATA_REG);
-	}
+	if (task->tf_out_flags.b.data)
+		hwif->OUTW((tf->hob_data << 8) | tf->data, IDE_DATA_REG);
 
 	/* (ks) send hob registers first */
 	if (task->tf_out_flags.b.nsector_hob)
-		hwif->OUTB(hobfile->sector_count, IDE_NSECTOR_REG);
+		hwif->OUTB(tf->hob_nsect, IDE_NSECTOR_REG);
 	if (task->tf_out_flags.b.sector_hob)
-		hwif->OUTB(hobfile->sector_number, IDE_SECTOR_REG);
+		hwif->OUTB(tf->hob_lbal, IDE_SECTOR_REG);
 	if (task->tf_out_flags.b.lcyl_hob)
-		hwif->OUTB(hobfile->low_cylinder, IDE_LCYL_REG);
+		hwif->OUTB(tf->hob_lbam, IDE_LCYL_REG);
 	if (task->tf_out_flags.b.hcyl_hob)
-		hwif->OUTB(hobfile->high_cylinder, IDE_HCYL_REG);
+		hwif->OUTB(tf->hob_lbah, IDE_HCYL_REG);
 
 	/* (ks) Send now the standard registers */
 	if (task->tf_out_flags.b.error_feature)
-		hwif->OUTB(taskfile->feature, IDE_FEATURE_REG);
+		hwif->OUTB(tf->feature, IDE_FEATURE_REG);
 	/* refers to number of sectors to transfer */
 	if (task->tf_out_flags.b.nsector)
-		hwif->OUTB(taskfile->sector_count, IDE_NSECTOR_REG);
+		hwif->OUTB(tf->nsect, IDE_NSECTOR_REG);
 	/* refers to sector offset or start sector */
 	if (task->tf_out_flags.b.sector)
-		hwif->OUTB(taskfile->sector_number, IDE_SECTOR_REG);
+		hwif->OUTB(tf->lbal, IDE_SECTOR_REG);
 	if (task->tf_out_flags.b.lcyl)
-		hwif->OUTB(taskfile->low_cylinder, IDE_LCYL_REG);
+		hwif->OUTB(tf->lbam, IDE_LCYL_REG);
 	if (task->tf_out_flags.b.hcyl)
-		hwif->OUTB(taskfile->high_cylinder, IDE_HCYL_REG);
+		hwif->OUTB(tf->lbah, IDE_HCYL_REG);
 
         /*
 	 * (ks) In the flagged taskfile approch, we will use all specified
@@ -833,7 +826,7 @@ ide_startstop_t flagged_taskfile (ide_drive_t *drive, ide_task_t *task)
 	 * select bit (master/slave) in the drive_head register. We must make
 	 * sure that the desired drive is selected.
 	 */
-	hwif->OUTB(taskfile->device_head | drive->select.all, IDE_SELECT_REG);
+	hwif->OUTB(tf->device | drive->select.all, IDE_SELECT_REG);
 	switch(task->data_phase) {
 
    	        case TASKFILE_OUT_DMAQ:
@@ -844,7 +837,7 @@ ide_startstop_t flagged_taskfile (ide_drive_t *drive, ide_task_t *task)
 				break;
 
 			if (!hwif->dma_setup(drive)) {
-				hwif->dma_exec_cmd(drive, taskfile->command);
+				hwif->dma_exec_cmd(drive, tf->command);
 				hwif->dma_start(drive);
 				return ide_started;
 			}
@@ -856,11 +849,11 @@ ide_startstop_t flagged_taskfile (ide_drive_t *drive, ide_task_t *task)
 
 			/* Issue the command */
 			if (task->prehandler) {
-				hwif->OUTBSYNC(drive, taskfile->command, IDE_COMMAND_REG);
+				hwif->OUTBSYNC(drive, tf->command, IDE_COMMAND_REG);
 				ndelay(400);	/* FIXME */
 				return task->prehandler(drive, task->rq);
 			}
-			ide_execute_command(drive, taskfile->command, task->handler, WAIT_WORSTCASE, NULL);
+			ide_execute_command(drive, tf->command, task->handler, WAIT_WORSTCASE, NULL);
 			return ide_started;
 	}
 

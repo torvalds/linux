@@ -189,15 +189,15 @@ static ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *
 			return ide_stopped;
 		}
 		if (ide_id_has_flush_cache_ext(drive->id))
-			args->tfRegister[IDE_COMMAND_OFFSET] = WIN_FLUSH_CACHE_EXT;
+			args->tf.command = WIN_FLUSH_CACHE_EXT;
 		else
-			args->tfRegister[IDE_COMMAND_OFFSET] = WIN_FLUSH_CACHE;
+			args->tf.command = WIN_FLUSH_CACHE;
 		args->command_type = IDE_DRIVE_TASK_NO_DATA;
 		args->handler	   = &task_no_data_intr;
 		return do_rw_taskfile(drive, args);
 
 	case idedisk_pm_standby:	/* Suspend step 2 (standby) */
-		args->tfRegister[IDE_COMMAND_OFFSET] = WIN_STANDBYNOW1;
+		args->tf.command = WIN_STANDBYNOW1;
 		args->command_type = IDE_DRIVE_TASK_NO_DATA;
 		args->handler	   = &task_no_data_intr;
 		return do_rw_taskfile(drive, args);
@@ -214,7 +214,7 @@ static ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *
 		return ide_stopped;
 
 	case idedisk_pm_idle:		/* Resume step 2 (idle) */
-		args->tfRegister[IDE_COMMAND_OFFSET] = WIN_IDLEIMMEDIATE;
+		args->tf.command = WIN_IDLEIMMEDIATE;
 		args->command_type = IDE_DRIVE_TASK_NO_DATA;
 		args->handler = task_no_data_intr;
 		return do_rw_taskfile(drive, args);
@@ -354,28 +354,31 @@ void ide_end_drive_cmd (ide_drive_t *drive, u8 stat, u8 err)
 			rq->errors = !OK_STAT(stat,READY_STAT,BAD_STAT);
 			
 		if (args) {
+			struct ide_taskfile *tf = &args->tf;
+
 			if (args->tf_in_flags.b.data) {
-				u16 data				= hwif->INW(IDE_DATA_REG);
-				args->tfRegister[IDE_DATA_OFFSET]	= (data) & 0xFF;
-				args->hobRegister[IDE_DATA_OFFSET]	= (data >> 8) & 0xFF;
+				u16 data = hwif->INW(IDE_DATA_REG);
+
+				tf->data = data & 0xff;
+				tf->hob_data = (data >> 8) & 0xff;
 			}
-			args->tfRegister[IDE_ERROR_OFFSET]   = err;
+			tf->error = err;
 			/* be sure we're looking at the low order bits */
 			hwif->OUTB(drive->ctl & ~0x80, IDE_CONTROL_REG);
-			args->tfRegister[IDE_NSECTOR_OFFSET] = hwif->INB(IDE_NSECTOR_REG);
-			args->tfRegister[IDE_SECTOR_OFFSET]  = hwif->INB(IDE_SECTOR_REG);
-			args->tfRegister[IDE_LCYL_OFFSET]    = hwif->INB(IDE_LCYL_REG);
-			args->tfRegister[IDE_HCYL_OFFSET]    = hwif->INB(IDE_HCYL_REG);
-			args->tfRegister[IDE_SELECT_OFFSET]  = hwif->INB(IDE_SELECT_REG);
-			args->tfRegister[IDE_STATUS_OFFSET]  = stat;
+			tf->nsect  = hwif->INB(IDE_NSECTOR_REG);
+			tf->lbal   = hwif->INB(IDE_SECTOR_REG);
+			tf->lbam   = hwif->INB(IDE_LCYL_REG);
+			tf->lbah   = hwif->INB(IDE_HCYL_REG);
+			tf->device = hwif->INB(IDE_SELECT_REG);
+			tf->status = stat;
 
 			if (drive->addressing == 1) {
 				hwif->OUTB(drive->ctl|0x80, IDE_CONTROL_REG);
-				args->hobRegister[IDE_FEATURE_OFFSET]	= hwif->INB(IDE_FEATURE_REG);
-				args->hobRegister[IDE_NSECTOR_OFFSET]	= hwif->INB(IDE_NSECTOR_REG);
-				args->hobRegister[IDE_SECTOR_OFFSET]	= hwif->INB(IDE_SECTOR_REG);
-				args->hobRegister[IDE_LCYL_OFFSET]	= hwif->INB(IDE_LCYL_REG);
-				args->hobRegister[IDE_HCYL_OFFSET]	= hwif->INB(IDE_HCYL_REG);
+				tf->hob_feature = hwif->INB(IDE_FEATURE_REG);
+				tf->hob_nsect   = hwif->INB(IDE_NSECTOR_REG);
+				tf->hob_lbal    = hwif->INB(IDE_SECTOR_REG);
+				tf->hob_lbam    = hwif->INB(IDE_LCYL_REG);
+				tf->hob_lbah    = hwif->INB(IDE_HCYL_REG);
 			}
 		}
 	} else if (blk_pm_request(rq)) {
@@ -675,28 +678,28 @@ static ide_startstop_t drive_cmd_intr (ide_drive_t *drive)
 
 static void ide_init_specify_cmd(ide_drive_t *drive, ide_task_t *task)
 {
-	task->tfRegister[IDE_NSECTOR_OFFSET] = drive->sect;
-	task->tfRegister[IDE_SECTOR_OFFSET]  = drive->sect;
-	task->tfRegister[IDE_LCYL_OFFSET]    = drive->cyl;
-	task->tfRegister[IDE_HCYL_OFFSET]    = drive->cyl>>8;
-	task->tfRegister[IDE_SELECT_OFFSET]  = ((drive->head-1)|drive->select.all)&0xBF;
-	task->tfRegister[IDE_COMMAND_OFFSET] = WIN_SPECIFY;
+	task->tf.nsect   = drive->sect;
+	task->tf.lbal    = drive->sect;
+	task->tf.lbam    = drive->cyl;
+	task->tf.lbah    = drive->cyl >> 8;
+	task->tf.device  = ((drive->head - 1) | drive->select.all) & ~ATA_LBA;
+	task->tf.command = WIN_SPECIFY;
 
 	task->handler = &set_geometry_intr;
 }
 
 static void ide_init_restore_cmd(ide_drive_t *drive, ide_task_t *task)
 {
-	task->tfRegister[IDE_NSECTOR_OFFSET] = drive->sect;
-	task->tfRegister[IDE_COMMAND_OFFSET] = WIN_RESTORE;
+	task->tf.nsect   = drive->sect;
+	task->tf.command = WIN_RESTORE;
 
 	task->handler = &recal_intr;
 }
 
 static void ide_init_setmult_cmd(ide_drive_t *drive, ide_task_t *task)
 {
-	task->tfRegister[IDE_NSECTOR_OFFSET] = drive->mult_req;
-	task->tfRegister[IDE_COMMAND_OFFSET] = WIN_SETMULT;
+	task->tf.nsect   = drive->mult_req;
+	task->tf.command = WIN_SETMULT;
 
 	task->handler = &set_multmode_intr;
 }

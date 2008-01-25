@@ -310,23 +310,22 @@ static ide_startstop_t ide_do_rw_disk (ide_drive_t *drive, struct request *rq, s
 static unsigned long idedisk_read_native_max_address(ide_drive_t *drive)
 {
 	ide_task_t args;
+	struct ide_taskfile *tf = &args.tf;
 	unsigned long addr = 0;
 
 	/* Create IDE/ATA command request structure */
 	memset(&args, 0, sizeof(ide_task_t));
-	args.tfRegister[IDE_SELECT_OFFSET]	= 0x40;
-	args.tfRegister[IDE_COMMAND_OFFSET]	= WIN_READ_NATIVE_MAX;
+	tf->device  = ATA_LBA;
+	tf->command = WIN_READ_NATIVE_MAX;
 	args.command_type			= IDE_DRIVE_TASK_NO_DATA;
 	args.handler				= &task_no_data_intr;
 	/* submit command request */
 	ide_raw_taskfile(drive, &args, NULL);
 
 	/* if OK, compute maximum address value */
-	if ((args.tfRegister[IDE_STATUS_OFFSET] & 0x01) == 0) {
-		addr = ((args.tfRegister[IDE_SELECT_OFFSET] & 0x0f) << 24)
-		     | ((args.tfRegister[  IDE_HCYL_OFFSET]       ) << 16)
-		     | ((args.tfRegister[  IDE_LCYL_OFFSET]       ) <<  8)
-		     | ((args.tfRegister[IDE_SECTOR_OFFSET]       ));
+	if ((tf->status & 0x01) == 0) {
+		addr = ((tf->device & 0xf) << 24) |
+		       (tf->lbah << 16) | (tf->lbam << 8) | tf->lbal;
 		addr++;	/* since the return value is (maxlba - 1), we add 1 */
 	}
 	return addr;
@@ -335,26 +334,24 @@ static unsigned long idedisk_read_native_max_address(ide_drive_t *drive)
 static unsigned long long idedisk_read_native_max_address_ext(ide_drive_t *drive)
 {
 	ide_task_t args;
+	struct ide_taskfile *tf = &args.tf;
 	unsigned long long addr = 0;
 
 	/* Create IDE/ATA command request structure */
 	memset(&args, 0, sizeof(ide_task_t));
-
-	args.tfRegister[IDE_SELECT_OFFSET]	= 0x40;
-	args.tfRegister[IDE_COMMAND_OFFSET]	= WIN_READ_NATIVE_MAX_EXT;
+	tf->device  = ATA_LBA;
+	tf->command = WIN_READ_NATIVE_MAX_EXT;
 	args.command_type			= IDE_DRIVE_TASK_NO_DATA;
 	args.handler				= &task_no_data_intr;
         /* submit command request */
         ide_raw_taskfile(drive, &args, NULL);
 
 	/* if OK, compute maximum address value */
-	if ((args.tfRegister[IDE_STATUS_OFFSET] & 0x01) == 0) {
-		u32 high = (args.hobRegister[IDE_HCYL_OFFSET] << 16) |
-			   (args.hobRegister[IDE_LCYL_OFFSET] <<  8) |
-			    args.hobRegister[IDE_SECTOR_OFFSET];
-		u32 low  = ((args.tfRegister[IDE_HCYL_OFFSET])<<16) |
-			   ((args.tfRegister[IDE_LCYL_OFFSET])<<8) |
-			    (args.tfRegister[IDE_SECTOR_OFFSET]);
+	if ((tf->status & 0x01) == 0) {
+		u32 high, low;
+
+		high = (tf->hob_lbah << 16) | (tf->hob_lbam << 8) | tf->hob_lbal;
+		low  = (tf->lbah << 16) | (tf->lbam << 8) | tf->lbal;
 		addr = ((__u64)high << 24) | low;
 		addr++;	/* since the return value is (maxlba - 1), we add 1 */
 	}
@@ -368,26 +365,25 @@ static unsigned long long idedisk_read_native_max_address_ext(ide_drive_t *drive
 static unsigned long idedisk_set_max_address(ide_drive_t *drive, unsigned long addr_req)
 {
 	ide_task_t args;
+	struct ide_taskfile *tf = &args.tf;
 	unsigned long addr_set = 0;
 	
 	addr_req--;
 	/* Create IDE/ATA command request structure */
 	memset(&args, 0, sizeof(ide_task_t));
-	args.tfRegister[IDE_SECTOR_OFFSET]	= ((addr_req >>  0) & 0xff);
-	args.tfRegister[IDE_LCYL_OFFSET]	= ((addr_req >>  8) & 0xff);
-	args.tfRegister[IDE_HCYL_OFFSET]	= ((addr_req >> 16) & 0xff);
-	args.tfRegister[IDE_SELECT_OFFSET]	= ((addr_req >> 24) & 0x0f) | 0x40;
-	args.tfRegister[IDE_COMMAND_OFFSET]	= WIN_SET_MAX;
+	tf->lbal    =  (addr_req >>  0) & 0xff;
+	tf->lbam    =  (addr_req >>  8) & 0xff;
+	tf->lbah    =  (addr_req >> 16) & 0xff;
+	tf->device  = ((addr_req >> 24) & 0x0f) | ATA_LBA;
+	tf->command = WIN_SET_MAX;
 	args.command_type			= IDE_DRIVE_TASK_NO_DATA;
 	args.handler				= &task_no_data_intr;
 	/* submit command request */
 	ide_raw_taskfile(drive, &args, NULL);
 	/* if OK, read new maximum address value */
-	if ((args.tfRegister[IDE_STATUS_OFFSET] & 0x01) == 0) {
-		addr_set = ((args.tfRegister[IDE_SELECT_OFFSET] & 0x0f) << 24)
-			 | ((args.tfRegister[  IDE_HCYL_OFFSET]       ) << 16)
-			 | ((args.tfRegister[  IDE_LCYL_OFFSET]       ) <<  8)
-			 | ((args.tfRegister[IDE_SECTOR_OFFSET]       ));
+	if ((tf->status & 0x01) == 0) {
+		addr_set = ((tf->device & 0xf) << 24) |
+			   (tf->lbah << 16) | (tf->lbam << 8) | tf->lbal;
 		addr_set++;
 	}
 	return addr_set;
@@ -396,33 +392,30 @@ static unsigned long idedisk_set_max_address(ide_drive_t *drive, unsigned long a
 static unsigned long long idedisk_set_max_address_ext(ide_drive_t *drive, unsigned long long addr_req)
 {
 	ide_task_t args;
+	struct ide_taskfile *tf = &args.tf;
 	unsigned long long addr_set = 0;
 
 	addr_req--;
 	/* Create IDE/ATA command request structure */
 	memset(&args, 0, sizeof(ide_task_t));
-	args.tfRegister[IDE_SECTOR_OFFSET]	= ((addr_req >>  0) & 0xff);
-	args.tfRegister[IDE_LCYL_OFFSET]	= ((addr_req >>= 8) & 0xff);
-	args.tfRegister[IDE_HCYL_OFFSET]	= ((addr_req >>= 8) & 0xff);
-	args.tfRegister[IDE_SELECT_OFFSET]      = 0x40;
-	args.tfRegister[IDE_COMMAND_OFFSET]	= WIN_SET_MAX_EXT;
-	args.hobRegister[IDE_SECTOR_OFFSET]	= (addr_req >>= 8) & 0xff;
-	args.hobRegister[IDE_LCYL_OFFSET]	= (addr_req >>= 8) & 0xff;
-	args.hobRegister[IDE_HCYL_OFFSET]	= (addr_req >>= 8) & 0xff;
-	args.hobRegister[IDE_SELECT_OFFSET]	= 0x40;
-	args.hobRegister[IDE_CONTROL_OFFSET_HOB]= (drive->ctl|0x80);
+	tf->lbal     = (addr_req >>  0) & 0xff;
+	tf->lbam     = (addr_req >>= 8) & 0xff;
+	tf->lbah     = (addr_req >>= 8) & 0xff;
+	tf->device   = ATA_LBA;
+	tf->command  = WIN_SET_MAX_EXT;
+	tf->hob_lbal = (addr_req >>= 8) & 0xff;
+	tf->hob_lbam = (addr_req >>= 8) & 0xff;
+	tf->hob_lbah = (addr_req >>= 8) & 0xff;
 	args.command_type			= IDE_DRIVE_TASK_NO_DATA;
 	args.handler				= &task_no_data_intr;
 	/* submit command request */
 	ide_raw_taskfile(drive, &args, NULL);
 	/* if OK, compute maximum address value */
-	if ((args.tfRegister[IDE_STATUS_OFFSET] & 0x01) == 0) {
-		u32 high = (args.hobRegister[IDE_HCYL_OFFSET] << 16) |
-			   (args.hobRegister[IDE_LCYL_OFFSET] <<  8) |
-			    args.hobRegister[IDE_SECTOR_OFFSET];
-		u32 low  = ((args.tfRegister[IDE_HCYL_OFFSET])<<16) |
-			   ((args.tfRegister[IDE_LCYL_OFFSET])<<8) |
-			    (args.tfRegister[IDE_SECTOR_OFFSET]);
+	if ((tf->status & 0x01) == 0) {
+		u32 high, low;
+
+		high = (tf->hob_lbah << 16) | (tf->hob_lbam << 8) | tf->hob_lbal;
+		low  = (tf->lbah << 16) | (tf->lbam << 8) | tf->lbal;
 		addr_set = ((__u64)high << 24) | low;
 		addr_set++;
 	}
@@ -556,12 +549,13 @@ static sector_t idedisk_capacity (ide_drive_t *drive)
 static int smart_enable(ide_drive_t *drive)
 {
 	ide_task_t args;
+	struct ide_taskfile *tf = &args.tf;
 
 	memset(&args, 0, sizeof(ide_task_t));
-	args.tfRegister[IDE_FEATURE_OFFSET]	= SMART_ENABLE;
-	args.tfRegister[IDE_LCYL_OFFSET]	= SMART_LCYL_PASS;
-	args.tfRegister[IDE_HCYL_OFFSET]	= SMART_HCYL_PASS;
-	args.tfRegister[IDE_COMMAND_OFFSET]	= WIN_SMART;
+	tf->feature = SMART_ENABLE;
+	tf->lbam    = SMART_LCYL_PASS;
+	tf->lbah    = SMART_HCYL_PASS;
+	tf->command = WIN_SMART;
 	args.command_type			= IDE_DRIVE_TASK_NO_DATA;
 	args.handler				= &task_no_data_intr;
 	return ide_raw_taskfile(drive, &args, NULL);
@@ -570,13 +564,14 @@ static int smart_enable(ide_drive_t *drive)
 static int get_smart_data(ide_drive_t *drive, u8 *buf, u8 sub_cmd)
 {
 	ide_task_t args;
+	struct ide_taskfile *tf = &args.tf;
 
 	memset(&args, 0, sizeof(ide_task_t));
-	args.tfRegister[IDE_FEATURE_OFFSET]	= sub_cmd;
-	args.tfRegister[IDE_NSECTOR_OFFSET]	= 0x01;
-	args.tfRegister[IDE_LCYL_OFFSET]	= SMART_LCYL_PASS;
-	args.tfRegister[IDE_HCYL_OFFSET]	= SMART_HCYL_PASS;
-	args.tfRegister[IDE_COMMAND_OFFSET]	= WIN_SMART;
+	tf->feature = sub_cmd;
+	tf->nsect   = 0x01;
+	tf->lbam    = SMART_LCYL_PASS;
+	tf->lbah    = SMART_HCYL_PASS;
+	tf->command = WIN_SMART;
 	args.command_type			= IDE_DRIVE_TASK_IN;
 	args.data_phase				= TASKFILE_IN;
 	args.handler				= &task_in_intr;
@@ -753,9 +748,9 @@ static int write_cache(ide_drive_t *drive, int arg)
 
 	if (ide_id_has_flush_cache(drive->id)) {
 		memset(&args, 0, sizeof(ide_task_t));
-		args.tfRegister[IDE_FEATURE_OFFSET]	= (arg) ?
+		args.tf.feature = arg ?
 			SETFEATURES_EN_WCACHE : SETFEATURES_DIS_WCACHE;
-		args.tfRegister[IDE_COMMAND_OFFSET]	= WIN_SETFEATURES;
+		args.tf.command = WIN_SETFEATURES;
 		args.command_type		= IDE_DRIVE_TASK_NO_DATA;
 		args.handler			= &task_no_data_intr;
 		err = ide_raw_taskfile(drive, &args, NULL);
@@ -774,9 +769,9 @@ static int do_idedisk_flushcache (ide_drive_t *drive)
 
 	memset(&args, 0, sizeof(ide_task_t));
 	if (ide_id_has_flush_cache_ext(drive->id))
-		args.tfRegister[IDE_COMMAND_OFFSET]	= WIN_FLUSH_CACHE_EXT;
+		args.tf.command = WIN_FLUSH_CACHE_EXT;
 	else
-		args.tfRegister[IDE_COMMAND_OFFSET]	= WIN_FLUSH_CACHE;
+		args.tf.command = WIN_FLUSH_CACHE;
 	args.command_type			= IDE_DRIVE_TASK_NO_DATA;
 	args.handler				= &task_no_data_intr;
 	return ide_raw_taskfile(drive, &args, NULL);
@@ -790,10 +785,9 @@ static int set_acoustic (ide_drive_t *drive, int arg)
 		return -EINVAL;
 
 	memset(&args, 0, sizeof(ide_task_t));
-	args.tfRegister[IDE_FEATURE_OFFSET]	= (arg) ? SETFEATURES_EN_AAM :
-							  SETFEATURES_DIS_AAM;
-	args.tfRegister[IDE_NSECTOR_OFFSET]	= arg;
-	args.tfRegister[IDE_COMMAND_OFFSET]	= WIN_SETFEATURES;
+	args.tf.feature = arg ? SETFEATURES_EN_AAM : SETFEATURES_DIS_AAM;
+	args.tf.nsect   = arg;
+	args.tf.command = WIN_SETFEATURES;
 	args.command_type = IDE_DRIVE_TASK_NO_DATA;
 	args.handler	  = &task_no_data_intr;
 	ide_raw_taskfile(drive, &args, NULL);
@@ -1057,7 +1051,7 @@ static int idedisk_open(struct inode *inode, struct file *filp)
 	if (drive->removable && idkp->openers == 1) {
 		ide_task_t args;
 		memset(&args, 0, sizeof(ide_task_t));
-		args.tfRegister[IDE_COMMAND_OFFSET] = WIN_DOORLOCK;
+		args.tf.command = WIN_DOORLOCK;
 		args.command_type = IDE_DRIVE_TASK_NO_DATA;
 		args.handler	  = &task_no_data_intr;
 		check_disk_change(inode->i_bdev);
@@ -1084,7 +1078,7 @@ static int idedisk_release(struct inode *inode, struct file *filp)
 	if (drive->removable && idkp->openers == 1) {
 		ide_task_t args;
 		memset(&args, 0, sizeof(ide_task_t));
-		args.tfRegister[IDE_COMMAND_OFFSET] = WIN_DOORUNLOCK;
+		args.tf.command = WIN_DOORUNLOCK;
 		args.command_type = IDE_DRIVE_TASK_NO_DATA;
 		args.handler	  = &task_no_data_intr;
 		if (drive->doorlocking && ide_raw_taskfile(drive, &args, NULL))

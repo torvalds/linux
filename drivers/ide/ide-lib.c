@@ -468,8 +468,7 @@ static void ide_dump_opcode(ide_drive_t *drive)
 	} else if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE) {
 		ide_task_t *args = rq->special;
 		if (args) {
-			task_struct_t *tf = (task_struct_t *) args->tfRegister;
-			opcode = tf->command;
+			opcode = args->tf.command;
 			found = 1;
 		}
 	}
