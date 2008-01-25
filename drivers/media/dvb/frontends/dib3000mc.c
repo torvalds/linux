@@ -700,7 +700,7 @@ static int dib3000mc_set_frontend(struct dvb_frontend* fe,
 		fep->u.ofdm.guard_interval    == GUARD_INTERVAL_AUTO ||
 		fep->u.ofdm.constellation     == QAM_AUTO ||
 		fep->u.ofdm.code_rate_HP      == FEC_AUTO) {
-		int i = 100, found;
+		int i = 1000, found;
 
 		dib3000mc_autosearch_start(fe, fep);
 		do {
