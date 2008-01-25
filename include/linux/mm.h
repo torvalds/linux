@@ -12,7 +12,6 @@
 #include <linux/prio_tree.h>
 #include <linux/debug_locks.h>
 #include <linux/mm_types.h>
-#include <linux/security.h>
 
 struct mempolicy;
 struct anon_vma;
@@ -33,6 +32,8 @@ extern int sysctl_legacy_va_layout;
 #else
 #define sysctl_legacy_va_layout 0
 #endif
+
+extern unsigned long mmap_min_addr;
 
 #include <asm/page.h>
 #include <asm/pgtable.h>

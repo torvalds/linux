@@ -1104,10 +1104,6 @@ static ssize_t compat_do_readv_writev(int type, struct file *file,
 	if (ret < 0)
 		goto out;
 
-	ret = security_file_permission(file, type == READ ? MAY_READ:MAY_WRITE);
-	if (ret)
-		goto out;
-
 	fnv = NULL;
 	if (type == READ) {
 		fn = file->f_op->read;

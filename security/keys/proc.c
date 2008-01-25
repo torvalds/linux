@@ -26,7 +26,7 @@ static void *proc_keys_next(struct seq_file *p, void *v, loff_t *_pos);
 static void proc_keys_stop(struct seq_file *p, void *v);
 static int proc_keys_show(struct seq_file *m, void *v);
 
-static struct seq_operations proc_keys_ops = {
+static const struct seq_operations proc_keys_ops = {
 	.start	= proc_keys_start,
 	.next	= proc_keys_next,
 	.stop	= proc_keys_stop,
@@ -47,7 +47,7 @@ static void *proc_key_users_next(struct seq_file *p, void *v, loff_t *_pos);
 static void proc_key_users_stop(struct seq_file *p, void *v);
 static int proc_key_users_show(struct seq_file *m, void *v);
 
-static struct seq_operations proc_key_users_ops = {
+static const struct seq_operations proc_key_users_ops = {
 	.start	= proc_key_users_start,
 	.next	= proc_key_users_next,
 	.stop	= proc_key_users_stop,

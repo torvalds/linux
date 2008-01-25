@@ -378,6 +378,5 @@ void __init prepare_namespace(void)
 out:
 	sys_mount(".", "/", NULL, MS_MOVE, NULL);
 	sys_chroot(".");
-	security_sb_post_mountroot();
 }
 

@@ -288,11 +288,6 @@ void security_sb_post_remount(struct vfsmount *mnt, unsigned long flags, void *d
 	security_ops->sb_post_remount(mnt, flags, data);
 }
 
-void security_sb_post_mountroot(void)
-{
-	security_ops->sb_post_mountroot();
-}
-
 void security_sb_post_addmount(struct vfsmount *mnt, struct nameidata *mountpoint_nd)
 {
 	security_ops->sb_post_addmount(mnt, mountpoint_nd);
@@ -306,6 +301,26 @@ int security_sb_pivotroot(struct nameidata *old_nd, struct nameidata *new_nd)
 void security_sb_post_pivotroot(struct nameidata *old_nd, struct nameidata *new_nd)
 {
 	security_ops->sb_post_pivotroot(old_nd, new_nd);
+}
+
+int security_sb_get_mnt_opts(const struct super_block *sb,
+			      char ***mount_options,
+			      int **flags, int *num_opts)
+{
+	return security_ops->sb_get_mnt_opts(sb, mount_options, flags, num_opts);
+}
+
+int security_sb_set_mnt_opts(struct super_block *sb,
+			      char **mount_options,
+			      int *flags, int num_opts)
+{
+	return security_ops->sb_set_mnt_opts(sb, mount_options, flags, num_opts);
+}
+
+void security_sb_clone_mnt_opts(const struct super_block *oldsb,
+				struct super_block *newsb)
+{
+	security_ops->sb_clone_mnt_opts(oldsb, newsb);
 }
 
 int security_inode_alloc(struct inode *inode)
@@ -815,6 +830,12 @@ int security_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
 	return security_ops->secid_to_secctx(secid, secdata, seclen);
 }
 EXPORT_SYMBOL(security_secid_to_secctx);
+
+int security_secctx_to_secid(char *secdata, u32 seclen, u32 *secid)
+{
+	return security_ops->secctx_to_secid(secdata, seclen, secid);
+}
+EXPORT_SYMBOL(security_secctx_to_secid);
 
 void security_release_secctx(char *secdata, u32 seclen)
 {

@@ -225,11 +225,6 @@ static void dummy_sb_post_remount (struct vfsmount *mnt, unsigned long flags,
 }
 
 
-static void dummy_sb_post_mountroot (void)
-{
-	return;
-}
-
 static void dummy_sb_post_addmount (struct vfsmount *mnt, struct nameidata *nd)
 {
 	return;
@@ -241,6 +236,29 @@ static int dummy_sb_pivotroot (struct nameidata *old_nd, struct nameidata *new_n
 }
 
 static void dummy_sb_post_pivotroot (struct nameidata *old_nd, struct nameidata *new_nd)
+{
+	return;
+}
+
+static int dummy_sb_get_mnt_opts(const struct super_block *sb, char ***mount_options,
+				 int **flags, int *num_opts)
+{
+	*mount_options = NULL;
+	*flags = NULL;
+	*num_opts = 0;
+	return 0;
+}
+
+static int dummy_sb_set_mnt_opts(struct super_block *sb, char **mount_options,
+				 int *flags, int num_opts)
+{
+	if (unlikely(num_opts))
+		return -EOPNOTSUPP;
+	return 0;
+}
+
+static void dummy_sb_clone_mnt_opts(const struct super_block *oldsb,
+				    struct super_block *newsb)
 {
 	return;
 }
@@ -928,6 +946,11 @@ static int dummy_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
 	return -EOPNOTSUPP;
 }
 
+static int dummy_secctx_to_secid(char *secdata, u32 seclen, u32 *secid)
+{
+	return -EOPNOTSUPP;
+}
+
 static void dummy_release_secctx(char *secdata, u32 seclen)
 {
 }
@@ -994,10 +1017,12 @@ void security_fixup_ops (struct security_operations *ops)
 	set_to_dummy_if_null(ops, sb_umount_close);
 	set_to_dummy_if_null(ops, sb_umount_busy);
 	set_to_dummy_if_null(ops, sb_post_remount);
-	set_to_dummy_if_null(ops, sb_post_mountroot);
 	set_to_dummy_if_null(ops, sb_post_addmount);
 	set_to_dummy_if_null(ops, sb_pivotroot);
 	set_to_dummy_if_null(ops, sb_post_pivotroot);
+	set_to_dummy_if_null(ops, sb_get_mnt_opts);
+	set_to_dummy_if_null(ops, sb_set_mnt_opts);
+	set_to_dummy_if_null(ops, sb_clone_mnt_opts);
 	set_to_dummy_if_null(ops, inode_alloc_security);
 	set_to_dummy_if_null(ops, inode_free_security);
 	set_to_dummy_if_null(ops, inode_init_security);
@@ -1086,6 +1111,7 @@ void security_fixup_ops (struct security_operations *ops)
  	set_to_dummy_if_null(ops, getprocattr);
  	set_to_dummy_if_null(ops, setprocattr);
  	set_to_dummy_if_null(ops, secid_to_secctx);
+	set_to_dummy_if_null(ops, secctx_to_secid);
  	set_to_dummy_if_null(ops, release_secctx);
 #ifdef CONFIG_SECURITY_NETWORK
 	set_to_dummy_if_null(ops, unix_stream_connect);

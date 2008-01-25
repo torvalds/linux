@@ -197,25 +197,27 @@ int rw_verify_area(int read_write, struct file *file, loff_t *ppos, size_t count
 {
 	struct inode *inode;
 	loff_t pos;
+	int retval = -EINVAL;
 
 	inode = file->f_path.dentry->d_inode;
 	if (unlikely((ssize_t) count < 0))
-		goto Einval;
+		return retval;
 	pos = *ppos;
 	if (unlikely((pos < 0) || (loff_t) (pos + count) < 0))
-		goto Einval;
+		return retval;
 
 	if (unlikely(inode->i_flock && mandatory_lock(inode))) {
-		int retval = locks_mandatory_area(
+		retval = locks_mandatory_area(
 			read_write == READ ? FLOCK_VERIFY_READ : FLOCK_VERIFY_WRITE,
 			inode, file, pos, count);
 		if (retval < 0)
 			return retval;
 	}
+	retval = security_file_permission(file,
+				read_write == READ ? MAY_READ : MAY_WRITE);
+	if (retval)
+		return retval;
 	return count > MAX_RW_COUNT ? MAX_RW_COUNT : count;
-
-Einval:
-	return -EINVAL;
 }
 
 static void wait_on_retry_sync_kiocb(struct kiocb *iocb)
@@ -267,18 +269,15 @@ ssize_t vfs_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
 	ret = rw_verify_area(READ, file, pos, count);
 	if (ret >= 0) {
 		count = ret;
-		ret = security_file_permission (file, MAY_READ);
-		if (!ret) {
-			if (file->f_op->read)
-				ret = file->f_op->read(file, buf, count, pos);
-			else
-				ret = do_sync_read(file, buf, count, pos);
-			if (ret > 0) {
-				fsnotify_access(file->f_path.dentry);
-				add_rchar(current, ret);
-			}
-			inc_syscr(current);
+		if (file->f_op->read)
+			ret = file->f_op->read(file, buf, count, pos);
+		else
+			ret = do_sync_read(file, buf, count, pos);
+		if (ret > 0) {
+			fsnotify_access(file->f_path.dentry);
+			add_rchar(current, ret);
 		}
+		inc_syscr(current);
 	}
 
 	return ret;
@@ -325,18 +324,15 @@ ssize_t vfs_write(struct file *file, const char __user *buf, size_t count, loff_
 	ret = rw_verify_area(WRITE, file, pos, count);
 	if (ret >= 0) {
 		count = ret;
-		ret = security_file_permission (file, MAY_WRITE);
-		if (!ret) {
-			if (file->f_op->write)
-				ret = file->f_op->write(file, buf, count, pos);
-			else
-				ret = do_sync_write(file, buf, count, pos);
-			if (ret > 0) {
-				fsnotify_modify(file->f_path.dentry);
-				add_wchar(current, ret);
-			}
-			inc_syscw(current);
+		if (file->f_op->write)
+			ret = file->f_op->write(file, buf, count, pos);
+		else
+			ret = do_sync_write(file, buf, count, pos);
+		if (ret > 0) {
+			fsnotify_modify(file->f_path.dentry);
+			add_wchar(current, ret);
 		}
+		inc_syscw(current);
 	}
 
 	return ret;
@@ -603,9 +599,6 @@ static ssize_t do_readv_writev(int type, struct file *file,
 	ret = rw_verify_area(type, file, pos, tot_len);
 	if (ret < 0)
 		goto out;
-	ret = security_file_permission(file, type == READ ? MAY_READ : MAY_WRITE);
-	if (ret)
-		goto out;
 
 	fnv = NULL;
 	if (type == READ) {
@@ -737,10 +730,6 @@ static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
 		goto fput_in;
 	count = retval;
 
-	retval = security_file_permission (in_file, MAY_READ);
-	if (retval)
-		goto fput_in;
-
 	/*
 	 * Get output file, and verify that it is ok..
 	 */
@@ -758,10 +747,6 @@ static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
 	if (retval < 0)
 		goto fput_out;
 	count = retval;
-
-	retval = security_file_permission (out_file, MAY_WRITE);
-	if (retval)
-		goto fput_out;
 
 	if (!max)
 		max = min(in_inode->i_sb->s_maxbytes, out_inode->i_sb->s_maxbytes);

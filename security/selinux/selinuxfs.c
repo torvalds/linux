@@ -1222,7 +1222,7 @@ static int sel_avc_stats_seq_show(struct seq_file *seq, void *v)
 static void sel_avc_stats_seq_stop(struct seq_file *seq, void *v)
 { }
 
-static struct seq_operations sel_avc_cache_stats_seq_ops = {
+static const struct seq_operations sel_avc_cache_stats_seq_ops = {
 	.start		= sel_avc_stats_seq_start,
 	.next		= sel_avc_stats_seq_next,
 	.show		= sel_avc_stats_seq_show,
