@@ -855,8 +855,6 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 	 * See ipath_mmap() for details.
 	 */
 	if (udata && udata->outlen >= sizeof(__u64)) {
-		int err;
-
 		if (!qp->r_rq.wq) {
 			__u64 offset = 0;
 

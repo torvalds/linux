@@ -574,7 +574,7 @@ void ipath_get_eeprom_info(struct ipath_devdata *dd)
 	struct ipath_devdata *dd0 = ipath_lookup(0);
 
 	if (t && dd0->ipath_nguid > 1 && t <= dd0->ipath_nguid) {
-		u8 *bguid, oguid;
+		u8 oguid;
 		dd->ipath_guid = dd0->ipath_guid;
 		bguid = (u8 *) & dd->ipath_guid;
 
@@ -674,7 +674,6 @@ void ipath_get_eeprom_info(struct ipath_devdata *dd)
 		 * elsewhere for backward-compatibility.
 		 */
 		char *snp = dd->ipath_serial;
-		int len;
 		memcpy(snp, ifp->if_sprefix, sizeof ifp->if_sprefix);
 		snp[sizeof ifp->if_sprefix] = '\0';
 		len = strlen(snp);
