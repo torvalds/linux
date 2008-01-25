@@ -1694,13 +1694,19 @@ int nfs_access_cache_shrinker(int nr_to_scan, gfp_t gfp_mask)
 restart:
 	spin_lock(&nfs_access_lru_lock);
 	list_for_each_entry(nfsi, &nfs_access_lru_list, access_cache_inode_lru) {
+		struct rw_semaphore *s_umount;
 		struct inode *inode;
 
 		if (nr_to_scan-- == 0)
 			break;
-		inode = igrab(&nfsi->vfs_inode);
-		if (inode == NULL)
+		s_umount = &nfsi->vfs_inode.i_sb->s_umount;
+		if (!down_read_trylock(s_umount))
 			continue;
+		inode = igrab(&nfsi->vfs_inode);
+		if (inode == NULL) {
+			up_read(s_umount);
+			continue;
+		}
 		spin_lock(&inode->i_lock);
 		if (list_empty(&nfsi->access_cache_entry_lru))
 			goto remove_lru_entry;
@@ -1719,6 +1725,7 @@ remove_lru_entry:
 		spin_unlock(&inode->i_lock);
 		spin_unlock(&nfs_access_lru_lock);
 		iput(inode);
+		up_read(s_umount);
 		goto restart;
 	}
 	spin_unlock(&nfs_access_lru_lock);
