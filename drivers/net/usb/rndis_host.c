@@ -29,9 +29,8 @@
 #include <linux/mii.h>
 #include <linux/usb.h>
 #include <linux/usb/cdc.h>
-
-#include "usbnet.h"
-#include "rndis_host.h"
+#include <linux/usb/usbnet.h>
+#include <linux/usb/rndis_host.h>
 
 
 /*
