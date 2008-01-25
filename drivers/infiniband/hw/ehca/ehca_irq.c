@@ -403,6 +403,8 @@ static void parse_ec(struct ehca_shca *shca, u64 eqe)
 			sport->port_state = IB_PORT_ACTIVE;
 			dispatch_port_event(shca, port, IB_EVENT_PORT_ACTIVE,
 					    "is active");
+			ehca_query_sma_attr(shca, port,
+					    &sport->saved_attr);
 		} else
 			notify_port_conf_change(shca, port);
 		break;
