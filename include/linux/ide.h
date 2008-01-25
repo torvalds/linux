@@ -909,6 +909,7 @@ enum {
 					  IDE_TFLAG_OUT_LBAM |
 					  IDE_TFLAG_OUT_LBAH,
 	IDE_TFLAG_OUT_DEVICE		= (1 << 14),
+	IDE_TFLAG_WRITE			= (1 << 15),
 };
 
 struct ide_taskfile {
@@ -948,7 +949,6 @@ typedef struct ide_task_s {
 	u16			tf_flags;
 	ide_reg_valid_t		tf_in_flags;
 	int			data_phase;
-	int			command_type;
 	ide_pre_handler_t	*prehandler;
 	ide_handler_t		*handler;
 	struct request		*rq;		/* copy of request */
@@ -983,8 +983,7 @@ extern ide_startstop_t task_no_data_intr(ide_drive_t *);
 extern ide_startstop_t task_in_intr(ide_drive_t *);
 extern ide_startstop_t pre_task_out_intr(ide_drive_t *, struct request *);
 
-extern int ide_raw_taskfile(ide_drive_t *, ide_task_t *, u8 *);
-
+int ide_raw_taskfile(ide_drive_t *, ide_task_t *, u8 *, u16);
 int ide_no_data_taskfile(ide_drive_t *, ide_task_t *);
 
 int ide_taskfile_ioctl(ide_drive_t *, unsigned int, unsigned long);

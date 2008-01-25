@@ -126,11 +126,10 @@ int taskfile_lib_get_identify (ide_drive_t *drive, u8 *buf)
 		args.tf.command = WIN_IDENTIFY;
 	else
 		args.tf.command = WIN_PIDENTIFY;
-	args.tf_flags = IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE;
-	args.command_type = IDE_DRIVE_TASK_IN;
-	args.data_phase   = TASKFILE_IN;
-	args.handler	  = &task_in_intr;
-	return ide_raw_taskfile(drive, &args, buf);
+	args.tf_flags	= IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE;
+	args.data_phase	= TASKFILE_IN;
+	args.handler	= task_in_intr;
+	return ide_raw_taskfile(drive, &args, buf, 1);
 }
 
 static int inline task_dma_ok(ide_task_t *task)
@@ -499,7 +498,7 @@ ide_startstop_t pre_task_out_intr (ide_drive_t *drive, struct request *rq)
 }
 EXPORT_SYMBOL(pre_task_out_intr);
 
-static int ide_diag_taskfile(ide_drive_t *drive, ide_task_t *args, unsigned long data_size, u8 *buf)
+int ide_raw_taskfile(ide_drive_t *drive, ide_task_t *task, u8 *buf, u16 nsect)
 {
 	struct request rq;
 
@@ -514,44 +513,26 @@ static int ide_diag_taskfile(ide_drive_t *drive, ide_task_t *args, unsigned long
 	 * if we would find a solution to transfer any size.
 	 * To support special commands like READ LONG.
 	 */
-	if (args->command_type != IDE_DRIVE_TASK_NO_DATA) {
-		if (data_size == 0)
-			rq.nr_sectors = (args->tf.hob_nsect << 8) | args->tf.nsect;
-		else
-			rq.nr_sectors = data_size / SECTOR_SIZE;
+	rq.hard_nr_sectors = rq.nr_sectors = nsect;
+	rq.hard_cur_sectors = rq.current_nr_sectors = nsect;
 
-		if (!rq.nr_sectors) {
-			printk(KERN_ERR "%s: in/out command without data\n",
-					drive->name);
-			return -EFAULT;
-		}
+	if (task->tf_flags & IDE_TFLAG_WRITE)
+		rq.cmd_flags |= REQ_RW;
 
-		rq.hard_nr_sectors = rq.nr_sectors;
-		rq.hard_cur_sectors = rq.current_nr_sectors = rq.nr_sectors;
+	rq.special = task;
+	task->rq = &rq;
 
-		if (args->command_type == IDE_DRIVE_TASK_RAW_WRITE)
-			rq.cmd_flags |= REQ_RW;
-	}
-
-	rq.special = args;
-	args->rq = &rq;
 	return ide_do_drive_cmd(drive, &rq, ide_wait);
-}
-
-int ide_raw_taskfile (ide_drive_t *drive, ide_task_t *args, u8 *buf)
-{
-	return ide_diag_taskfile(drive, args, 0, buf);
 }
 
 EXPORT_SYMBOL(ide_raw_taskfile);
 
 int ide_no_data_taskfile(ide_drive_t *drive, ide_task_t *task)
 {
-	task->command_type = IDE_DRIVE_TASK_NO_DATA;
-	task->data_phase   = TASKFILE_NO_DATA;
-	task->handler      = task_no_data_intr;
+	task->data_phase = TASKFILE_NO_DATA;
+	task->handler    = task_no_data_intr;
 
-	return ide_raw_taskfile(drive, task, NULL);
+	return ide_raw_taskfile(drive, task, NULL, 0);
 }
 EXPORT_SYMBOL_GPL(ide_no_data_taskfile);
 
@@ -562,10 +543,12 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 	ide_task_t		args;
 	u8 *outbuf		= NULL;
 	u8 *inbuf		= NULL;
+	u8 *data_buf		= NULL;
 	int err			= 0;
 	int tasksize		= sizeof(struct ide_task_request_s);
 	unsigned int taskin	= 0;
 	unsigned int taskout	= 0;
+	u16 nsect		= 0;
 	u8 io_32bit		= drive->io_32bit;
 	char __user *buf = (char __user *)arg;
 
@@ -618,7 +601,6 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 	memcpy(&args.tf_array[6], req_task->io_ports, HDIO_DRIVE_TASK_HDR_SIZE);
 	args.tf_in_flags  = req_task->in_flags;
 	args.data_phase   = req_task->data_phase;
-	args.command_type = req_task->req_cmd;
 
 	args.tf_flags = IDE_TFLAG_OUT_DEVICE;
 	if (drive->addressing == 1)
@@ -657,14 +639,6 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 
 	drive->io_32bit = 0;
 	switch(req_task->data_phase) {
-		case TASKFILE_OUT_DMAQ:
-		case TASKFILE_OUT_DMA:
-			err = ide_diag_taskfile(drive, &args, taskout, outbuf);
-			break;
-		case TASKFILE_IN_DMAQ:
-		case TASKFILE_IN_DMA:
-			err = ide_diag_taskfile(drive, &args, taskin, inbuf);
-			break;
 		case TASKFILE_MULTI_OUT:
 			if (!drive->mult_count) {
 				/* (hs): give up if multcount is not set */
@@ -678,7 +652,11 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 		case TASKFILE_OUT:
 			args.prehandler = &pre_task_out_intr;
 			args.handler = &task_out_intr;
-			err = ide_diag_taskfile(drive, &args, taskout, outbuf);
+			/* fall through */
+		case TASKFILE_OUT_DMAQ:
+		case TASKFILE_OUT_DMA:
+			nsect = taskout / SECTOR_SIZE;
+			data_buf = outbuf;
 			break;
 		case TASKFILE_MULTI_IN:
 			if (!drive->mult_count) {
@@ -692,16 +670,37 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 			/* fall through */
 		case TASKFILE_IN:
 			args.handler = &task_in_intr;
-			err = ide_diag_taskfile(drive, &args, taskin, inbuf);
+			/* fall through */
+		case TASKFILE_IN_DMAQ:
+		case TASKFILE_IN_DMA:
+			nsect = taskin / SECTOR_SIZE;
+			data_buf = inbuf;
 			break;
 		case TASKFILE_NO_DATA:
 			args.handler = &task_no_data_intr;
-			err = ide_diag_taskfile(drive, &args, 0, NULL);
 			break;
 		default:
 			err = -EFAULT;
 			goto abort;
 	}
+
+	if (req_task->req_cmd == IDE_DRIVE_TASK_NO_DATA)
+		nsect = 0;
+	else if (!nsect) {
+		nsect = (args.tf.hob_nsect << 8) | args.tf.nsect;
+
+		if (!nsect) {
+			printk(KERN_ERR "%s: in/out command without data\n",
+					drive->name);
+			err = -EFAULT;
+			goto abort;
+		}
+	}
+
+	if (req_task->req_cmd == IDE_DRIVE_TASK_RAW_WRITE)
+		args.tf_flags |= IDE_TFLAG_WRITE;
+
+	err = ide_raw_taskfile(drive, &args, data_buf, nsect);
 
 	memcpy(req_task->hob_ports, &args.tf_array[0], HDIO_DRIVE_HOB_HDR_SIZE - 2);
 	memcpy(req_task->io_ports, &args.tf_array[6], HDIO_DRIVE_TASK_HDR_SIZE);

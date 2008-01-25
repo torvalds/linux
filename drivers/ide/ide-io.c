@@ -232,9 +232,9 @@ static ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *
 	return ide_stopped;
 
 out_do_tf:
-	args->tf_flags = IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE;
-	args->command_type = IDE_DRIVE_TASK_NO_DATA;
-	args->handler      = task_no_data_intr;
+	args->tf_flags	 = IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE;
+	args->data_phase = TASKFILE_NO_DATA;
+	args->handler	 = task_no_data_intr;
 	return do_rw_taskfile(drive, args);
 }
 
@@ -672,7 +672,7 @@ static ide_startstop_t ide_disk_special(ide_drive_t *drive)
 	ide_task_t args;
 
 	memset(&args, 0, sizeof(ide_task_t));
-	args.command_type = IDE_DRIVE_TASK_NO_DATA;
+	args.data_phase = TASKFILE_NO_DATA;
 
 	if (s->b.set_geometry) {
 		s->b.set_geometry = 0;
