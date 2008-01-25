@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/hpt366.c		Version 1.23	Dec 7, 2007
+ * linux/drivers/ide/pci/hpt366.c		Version 1.24	Dec 8, 2007
  *
  * Copyright (C) 1999-2003		Andre Hedrick <andre@linux-ide.org>
  * Portions Copyright (C) 2001	        Sun Microsystems, Inc.
@@ -725,20 +725,9 @@ static void hpt37x_set_mode(ide_drive_t *drive, const u8 speed)
 	pci_write_config_dword(dev, itr_addr, new_itr);
 }
 
-static void hpt3xx_set_mode(ide_drive_t *drive, const u8 speed)
-{
-	ide_hwif_t *hwif	= HWIF(drive);
-	struct hpt_info	*info	= pci_get_drvdata(hwif->pci_dev);
-
-	if (info->chip_type >= HPT370)
-		hpt37x_set_mode(drive, speed);
-	else	/* hpt368: hpt_minimum_revision(dev, 2) */
-		hpt36x_set_mode(drive, speed);
-}
-
 static void hpt3xx_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
-	hpt3xx_set_mode(drive, XFER_PIO_0 + pio);
+	HWIF(drive)->set_dma_mode(drive, XFER_PIO_0 + pio);
 }
 
 static int hpt3xx_quirkproc(ide_drive_t *drive)
@@ -1315,7 +1304,11 @@ static void __devinit init_hwif_hpt366(ide_hwif_t *hwif)
 	hwif->select_data	= hwif->channel ? 0x54 : 0x50;
 
 	hwif->set_pio_mode	= &hpt3xx_set_pio_mode;
-	hwif->set_dma_mode	= &hpt3xx_set_mode;
+	if (chip_type >= HPT370)
+		hwif->set_dma_mode = &hpt37x_set_mode;
+	else
+		hwif->set_dma_mode = &hpt36x_set_mode;
+
 	hwif->quirkproc		= &hpt3xx_quirkproc;
 	hwif->intrproc		= &hpt3xx_intrproc;
 	hwif->maskproc		= &hpt3xx_maskproc;
