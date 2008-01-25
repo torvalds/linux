@@ -111,7 +111,7 @@ static void enqueue_task_rt(struct rq *rq, struct task_struct *p, int wakeup)
 {
 	struct rt_prio_array *array = &rq->rt.active;
 
-	list_add_tail(&p->run_list, array->queue + p->prio);
+	list_add_tail(&p->rt.run_list, array->queue + p->prio);
 	__set_bit(p->prio, array->bitmap);
 	inc_cpu_load(rq, p->se.load.weight);
 
@@ -127,7 +127,7 @@ static void dequeue_task_rt(struct rq *rq, struct task_struct *p, int sleep)
 
 	update_curr_rt(rq);
 
-	list_del(&p->run_list);
+	list_del(&p->rt.run_list);
 	if (list_empty(array->queue + p->prio))
 		__clear_bit(p->prio, array->bitmap);
 	dec_cpu_load(rq, p->se.load.weight);
@@ -143,7 +143,7 @@ static void requeue_task_rt(struct rq *rq, struct task_struct *p)
 {
 	struct rt_prio_array *array = &rq->rt.active;
 
-	list_move_tail(&p->run_list, array->queue + p->prio);
+	list_move_tail(&p->rt.run_list, array->queue + p->prio);
 }
 
 static void
@@ -212,7 +212,7 @@ static struct task_struct *pick_next_task_rt(struct rq *rq)
 		return NULL;
 
 	queue = array->queue + idx;
-	next = list_entry(queue->next, struct task_struct, run_list);
+	next = list_entry(queue->next, struct task_struct, rt.run_list);
 
 	next->se.exec_start = rq->clock;
 
@@ -261,14 +261,14 @@ static struct task_struct *pick_next_highest_task_rt(struct rq *rq, int cpu)
 	queue = array->queue + idx;
 	BUG_ON(list_empty(queue));
 
-	next = list_entry(queue->next, struct task_struct, run_list);
+	next = list_entry(queue->next, struct task_struct, rt.run_list);
 	if (unlikely(pick_rt_task(rq, next, cpu)))
 		goto out;
 
 	if (queue->next->next != queue) {
 		/* same prio task */
 		next = list_entry(queue->next->next, struct task_struct,
-				  run_list);
+				  rt.run_list);
 		if (pick_rt_task(rq, next, cpu))
 			goto out;
 	}
@@ -282,7 +282,7 @@ static struct task_struct *pick_next_highest_task_rt(struct rq *rq, int cpu)
 	queue = array->queue + idx;
 	BUG_ON(list_empty(queue));
 
-	list_for_each_entry(next, queue, run_list) {
+	list_for_each_entry(next, queue, rt.run_list) {
 		if (pick_rt_task(rq, next, cpu))
 			goto out;
 	}
@@ -846,16 +846,16 @@ static void task_tick_rt(struct rq *rq, struct task_struct *p)
 	if (p->policy != SCHED_RR)
 		return;
 
-	if (--p->time_slice)
+	if (--p->rt.time_slice)
 		return;
 
-	p->time_slice = DEF_TIMESLICE;
+	p->rt.time_slice = DEF_TIMESLICE;
 
 	/*
 	 * Requeue to the end of queue if we are not the only element
 	 * on the queue:
 	 */
-	if (p->run_list.prev != p->run_list.next) {
+	if (p->rt.run_list.prev != p->rt.run_list.next) {
 		requeue_task_rt(rq, p);
 		set_tsk_need_resched(p);
 	}

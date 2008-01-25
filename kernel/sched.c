@@ -1685,7 +1685,7 @@ static void __sched_fork(struct task_struct *p)
 	p->se.wait_max			= 0;
 #endif
 
-	INIT_LIST_HEAD(&p->run_list);
+	INIT_LIST_HEAD(&p->rt.run_list);
 	p->se.on_rq = 0;
 
 #ifdef CONFIG_PREEMPT_NOTIFIERS
