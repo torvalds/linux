@@ -313,6 +313,7 @@ static int mlx4_ib_poll_one(struct mlx4_ib_cq *cq,
 	struct mlx4_ib_srq *srq;
 	int is_send;
 	int is_error;
+	u32 g_mlpath_rqpn;
 	u16 wqe_ctr;
 
 	cqe = next_cqe_sw(cq);
@@ -426,10 +427,10 @@ static int mlx4_ib_poll_one(struct mlx4_ib_cq *cq,
 
 		wc->slid	   = be16_to_cpu(cqe->rlid);
 		wc->sl		   = cqe->sl >> 4;
-		wc->src_qp	   = be32_to_cpu(cqe->g_mlpath_rqpn) & 0xffffff;
-		wc->dlid_path_bits = (be32_to_cpu(cqe->g_mlpath_rqpn) >> 24) & 0x7f;
-		wc->wc_flags      |= be32_to_cpu(cqe->g_mlpath_rqpn) & 0x80000000 ?
-			IB_WC_GRH : 0;
+		g_mlpath_rqpn	   = be32_to_cpu(cqe->g_mlpath_rqpn);
+		wc->src_qp	   = g_mlpath_rqpn & 0xffffff;
+		wc->dlid_path_bits = (g_mlpath_rqpn >> 24) & 0x7f;
+		wc->wc_flags	  |= g_mlpath_rqpn & 0x80000000 ? IB_WC_GRH : 0;
 		wc->pkey_index     = be32_to_cpu(cqe->immed_rss_invalid) & 0x7f;
 	}
 
