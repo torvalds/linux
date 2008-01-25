@@ -673,10 +673,27 @@ err_cm:
 	return ret;
 }
 
+static void ipoib_cm_free_rx_reap_list(struct net_device *dev)
+{
+	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	struct ipoib_cm_rx *rx, *n;
+	LIST_HEAD(list);
+
+	spin_lock_irq(&priv->lock);
+	list_splice_init(&priv->cm.rx_reap_list, &list);
+	spin_unlock_irq(&priv->lock);
+
+	list_for_each_entry_safe(rx, n, &list, list) {
+		ib_destroy_cm_id(rx->id);
+		ib_destroy_qp(rx->qp);
+		kfree(rx);
+	}
+}
+
 void ipoib_cm_dev_stop(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
-	struct ipoib_cm_rx *p, *n;
+	struct ipoib_cm_rx *p;
 	unsigned long begin;
 	LIST_HEAD(list);
 	int ret;
@@ -722,15 +739,9 @@ void ipoib_cm_dev_stop(struct net_device *dev)
 		spin_lock_irq(&priv->lock);
 	}
 
-	list_splice_init(&priv->cm.rx_reap_list, &list);
-
 	spin_unlock_irq(&priv->lock);
 
-	list_for_each_entry_safe(p, n, &list, list) {
-		ib_destroy_cm_id(p->id);
-		ib_destroy_qp(p->qp);
-		kfree(p);
-	}
+	ipoib_cm_free_rx_reap_list(dev);
 
 	cancel_delayed_work(&priv->cm.stale_task);
 }
@@ -1182,20 +1193,8 @@ void ipoib_cm_skb_too_long(struct net_device *dev, struct sk_buff *skb,
 
 static void ipoib_cm_rx_reap(struct work_struct *work)
 {
-	struct ipoib_dev_priv *priv = container_of(work, struct ipoib_dev_priv,
-						   cm.rx_reap_task);
-	struct ipoib_cm_rx *p, *n;
-	LIST_HEAD(list);
-
-	spin_lock_irq(&priv->lock);
-	list_splice_init(&priv->cm.rx_reap_list, &list);
-	spin_unlock_irq(&priv->lock);
-
-	list_for_each_entry_safe(p, n, &list, list) {
-		ib_destroy_cm_id(p->id);
-		ib_destroy_qp(p->qp);
-		kfree(p);
-	}
+	ipoib_cm_free_rx_reap_list(container_of(work, struct ipoib_dev_priv,
+						cm.rx_reap_task)->dev);
 }
 
 static void ipoib_cm_stale_task(struct work_struct *work)
