@@ -5,6 +5,12 @@
  *  handled in sched_fair.c)
  */
 
+#ifdef CONFIG_SMP
+static int select_task_rq_idle(struct task_struct *p, int sync)
+{
+	return task_cpu(p); /* IDLE tasks as never migrated */
+}
+#endif /* CONFIG_SMP */
 /*
  * Idle tasks are unconditionally rescheduled:
  */
@@ -72,6 +78,9 @@ const struct sched_class idle_sched_class = {
 
 	/* dequeue is not valid, we print a debug message there: */
 	.dequeue_task		= dequeue_task_idle,
+#ifdef CONFIG_SMP
+	.select_task_rq		= select_task_rq_idle,
+#endif /* CONFIG_SMP */
 
 	.check_preempt_curr	= check_preempt_curr_idle,
 
