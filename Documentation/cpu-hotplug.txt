@@ -109,12 +109,13 @@ Never use anything other than cpumask_t to represent bitmap of CPUs.
 	for_each_cpu_mask(x,mask) - Iterate over some random collection of cpu mask.
 
 	#include <linux/cpu.h>
-	lock_cpu_hotplug() and unlock_cpu_hotplug():
+	get_online_cpus() and put_online_cpus():
 
-The above calls are used to inhibit cpu hotplug operations. While holding the
-cpucontrol mutex, cpu_online_map will not change. If you merely need to avoid
-cpus going away, you could also use preempt_disable() and preempt_enable()
-for those sections. Just remember the critical section cannot call any
+The above calls are used to inhibit cpu hotplug operations. While the
+cpu_hotplug.refcount is non zero, the cpu_online_map will not change.
+If you merely need to avoid cpus going away, you could also use
+preempt_disable() and preempt_enable() for those sections.
+Just remember the critical section cannot call any
 function that can sleep or schedule this process away. The preempt_disable()
 will work as long as stop_machine_run() is used to take a cpu down.
 

@@ -436,7 +436,7 @@ static ssize_t microcode_write (struct file *file, const char __user *buf, size_
 		return -EINVAL;
 	}
 
-	lock_cpu_hotplug();
+	get_online_cpus();
 	mutex_lock(&microcode_mutex);
 
 	user_buffer = (void __user *) buf;
@@ -447,7 +447,7 @@ static ssize_t microcode_write (struct file *file, const char __user *buf, size_
 		ret = (ssize_t)len;
 
 	mutex_unlock(&microcode_mutex);
-	unlock_cpu_hotplug();
+	put_online_cpus();
 
 	return ret;
 }
@@ -658,14 +658,14 @@ static ssize_t reload_store(struct sys_device *dev, const char *buf, size_t sz)
 
 		old = current->cpus_allowed;
 
-		lock_cpu_hotplug();
+		get_online_cpus();
 		set_cpus_allowed(current, cpumask_of_cpu(cpu));
 
 		mutex_lock(&microcode_mutex);
 		if (uci->valid)
 			err = cpu_request_microcode(cpu);
 		mutex_unlock(&microcode_mutex);
-		unlock_cpu_hotplug();
+		put_online_cpus();
 		set_cpus_allowed(current, old);
 	}
 	if (err)
@@ -817,9 +817,9 @@ static int __init microcode_init (void)
 		return PTR_ERR(microcode_pdev);
 	}
 
-	lock_cpu_hotplug();
+	get_online_cpus();
 	error = sysdev_driver_register(&cpu_sysdev_class, &mc_sysdev_driver);
-	unlock_cpu_hotplug();
+	put_online_cpus();
 	if (error) {
 		microcode_dev_exit();
 		platform_device_unregister(microcode_pdev);
@@ -839,9 +839,9 @@ static void __exit microcode_exit (void)
 
 	unregister_hotcpu_notifier(&mc_cpu_notifier);
 
-	lock_cpu_hotplug();
+	get_online_cpus();
 	sysdev_driver_unregister(&cpu_sysdev_class, &mc_sysdev_driver);
-	unlock_cpu_hotplug();
+	put_online_cpus();
 
 	platform_device_unregister(microcode_pdev);
 }

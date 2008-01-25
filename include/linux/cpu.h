@@ -100,8 +100,8 @@ static inline void cpuhotplug_mutex_unlock(struct mutex *cpu_hp_mutex)
 	mutex_unlock(cpu_hp_mutex);
 }
 
-extern void lock_cpu_hotplug(void);
-extern void unlock_cpu_hotplug(void);
+extern void get_online_cpus(void);
+extern void put_online_cpus(void);
 #define hotcpu_notifier(fn, pri) {				\
 	static struct notifier_block fn##_nb =			\
 		{ .notifier_call = fn, .priority = pri };	\
@@ -118,8 +118,8 @@ static inline void cpuhotplug_mutex_lock(struct mutex *cpu_hp_mutex)
 static inline void cpuhotplug_mutex_unlock(struct mutex *cpu_hp_mutex)
 { }
 
-#define lock_cpu_hotplug()	do { } while (0)
-#define unlock_cpu_hotplug()	do { } while (0)
+#define get_online_cpus()	do { } while (0)
+#define put_online_cpus()	do { } while (0)
 #define hotcpu_notifier(fn, pri)	do { (void)(fn); } while (0)
 /* These aren't inline functions due to a GCC bug. */
 #define register_hotcpu_notifier(nb)	({ (void)(nb); 0; })

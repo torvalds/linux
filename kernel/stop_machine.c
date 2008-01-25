@@ -203,13 +203,13 @@ int stop_machine_run(int (*fn)(void *), void *data, unsigned int cpu)
 	int ret;
 
 	/* No CPUs can come up or down during this. */
-	lock_cpu_hotplug();
+	get_online_cpus();
 	p = __stop_machine_run(fn, data, cpu);
 	if (!IS_ERR(p))
 		ret = kthread_stop(p);
 	else
 		ret = PTR_ERR(p);
-	unlock_cpu_hotplug();
+	put_online_cpus();
 
 	return ret;
 }

@@ -7152,7 +7152,7 @@ static int load_balance_monitor(void *unused)
 		int i, cpu, balanced = 1;
 
 		/* Prevent cpus going down or coming up */
-		lock_cpu_hotplug();
+		get_online_cpus();
 		/* lockout changes to doms_cur[] array */
 		lock_doms_cur();
 		/*
@@ -7186,7 +7186,7 @@ static int load_balance_monitor(void *unused)
 		rcu_read_unlock();
 
 		unlock_doms_cur();
-		unlock_cpu_hotplug();
+		put_online_cpus();
 
 		if (!balanced)
 			timeout = sysctl_sched_min_bal_int_shares;

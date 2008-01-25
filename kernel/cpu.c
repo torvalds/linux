@@ -48,7 +48,7 @@ void __init cpu_hotplug_init(void)
 
 #ifdef CONFIG_HOTPLUG_CPU
 
-void lock_cpu_hotplug(void)
+void get_online_cpus(void)
 {
 	might_sleep();
 	if (cpu_hotplug.active_writer == current)
@@ -58,9 +58,9 @@ void lock_cpu_hotplug(void)
 	mutex_unlock(&cpu_hotplug.lock);
 
 }
-EXPORT_SYMBOL_GPL(lock_cpu_hotplug);
+EXPORT_SYMBOL_GPL(get_online_cpus);
 
-void unlock_cpu_hotplug(void)
+void put_online_cpus(void)
 {
 	if (cpu_hotplug.active_writer == current)
 		return;
@@ -73,7 +73,7 @@ void unlock_cpu_hotplug(void)
 	mutex_unlock(&cpu_hotplug.lock);
 
 }
-EXPORT_SYMBOL_GPL(unlock_cpu_hotplug);
+EXPORT_SYMBOL_GPL(put_online_cpus);
 
 #endif	/* CONFIG_HOTPLUG_CPU */
 
@@ -110,7 +110,7 @@ void cpu_maps_update_done(void)
  *   non zero and goes to sleep again.
  *
  * However, this is very difficult to achieve in practice since
- * lock_cpu_hotplug() not an api which is called all that often.
+ * get_online_cpus() not an api which is called all that often.
  *
  */
 static void cpu_hotplug_begin(void)
