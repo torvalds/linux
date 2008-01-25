@@ -867,13 +867,15 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
 		struct request *rq)
 {
 	ide_hwif_t *hwif = HWIF(drive);
+	u8 *args = rq->buffer;
+
 	if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE) {
- 		ide_task_t *args = rq->special;
+		ide_task_t *task = rq->special;
  
-		if (!args)
+		if (task == NULL)
 			goto done;
 
-		hwif->data_phase = args->data_phase;
+		hwif->data_phase = task->data_phase;
 
 		switch (hwif->data_phase) {
 		case TASKFILE_MULTI_OUT:
@@ -886,19 +888,20 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
 			break;
 		}
 
-		if (args->tf_flags & IDE_TFLAG_FLAGGED)
-			return flagged_taskfile(drive, args);
+		if (task->tf_flags & IDE_TFLAG_FLAGGED)
+			return flagged_taskfile(drive, task);
 
-		args->tf_flags |= IDE_TFLAG_OUT_TF;
+		task->tf_flags |= IDE_TFLAG_OUT_TF;
 		if (drive->addressing == 1)
-			args->tf_flags |= (IDE_TFLAG_LBA48 | IDE_TFLAG_OUT_HOB);
+			task->tf_flags |= (IDE_TFLAG_LBA48 | IDE_TFLAG_OUT_HOB);
 
-		return do_rw_taskfile(drive, args);
-	} else if (rq->cmd_type == REQ_TYPE_ATA_TASK) {
-		u8 *args = rq->buffer;
- 
-		if (!args)
-			goto done;
+		return do_rw_taskfile(drive, task);
+	}
+
+	if (args == NULL)
+		goto done;
+
+	if (rq->cmd_type == REQ_TYPE_ATA_TASK) {
 #ifdef DEBUG
  		printk("%s: DRIVE_TASK_CMD ", drive->name);
  		printk("cmd=0x%02x ", args[0]);
@@ -915,13 +918,7 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
  		hwif->OUTB(args[4], IDE_LCYL_REG);
  		hwif->OUTB(args[5], IDE_HCYL_REG);
  		hwif->OUTB((args[6] & 0xEF)|drive->select.all, IDE_SELECT_REG);
-		ide_cmd(drive, args[0], &drive_cmd_intr);
- 		return ide_started;
- 	} else if (rq->cmd_type == REQ_TYPE_ATA_CMD) {
- 		u8 *args = rq->buffer;
-
-		if (!args)
-			goto done;
+	} else { /* rq->cmd_type == REQ_TYPE_ATA_CMD */
 #ifdef DEBUG
  		printk("%s: DRIVE_CMD ", drive->name);
  		printk("cmd=0x%02x ", args[0]);
@@ -937,9 +934,10 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
 			hwif->OUTB(0xc2, IDE_HCYL_REG);
 		} else
 			hwif->OUTB(args[1], IDE_NSECTOR_REG);
-		ide_cmd(drive, args[0], &drive_cmd_intr);
- 		return ide_started;
  	}
+
+	ide_cmd(drive, args[0], &drive_cmd_intr);
+	return ide_started;
 
 done:
  	/*
