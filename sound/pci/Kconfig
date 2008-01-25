@@ -647,6 +647,17 @@ config SND_HDSPM
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-hdspm.
 
+config SND_HIFIER
+	tristate "TempoTec HiFier Fantasia"
+	depends on SND
+	select SND_OXYGEN_LIB
+	help
+	  Say Y here to include support for the MediaTek/TempoTec HiFier
+	  Fantasia sound card.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-hifier.
+
 config SND_ICE1712
 	tristate "ICEnsemble ICE1712 (Envy24)"
 	depends on SND

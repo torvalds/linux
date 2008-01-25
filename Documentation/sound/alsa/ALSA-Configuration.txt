@@ -1092,6 +1092,15 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     See hdspm.txt for details.
 
+  Module snd-hifier
+  -----------------
+
+    Module for the MediaTek/TempoTec HiFier Fantasia sound card.
+
+    This module supports autoprobe and multiple cards.
+
+    Power management is _not_ supported.
+
   Module snd-ice1712
   ------------------
 
