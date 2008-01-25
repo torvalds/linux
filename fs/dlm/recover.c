@@ -94,7 +94,7 @@ void dlm_set_recover_status(struct dlm_ls *ls, uint32_t status)
 
 static int wait_status_all(struct dlm_ls *ls, uint32_t wait_status)
 {
-	struct dlm_rcom *rc = (struct dlm_rcom *) ls->ls_recover_buf;
+	struct dlm_rcom *rc = ls->ls_recover_buf;
 	struct dlm_member *memb;
 	int error = 0, delay;
 
@@ -123,7 +123,7 @@ static int wait_status_all(struct dlm_ls *ls, uint32_t wait_status)
 
 static int wait_status_low(struct dlm_ls *ls, uint32_t wait_status)
 {
-	struct dlm_rcom *rc = (struct dlm_rcom *) ls->ls_recover_buf;
+	struct dlm_rcom *rc = ls->ls_recover_buf;
 	int error = 0, delay = 0, nodeid = ls->ls_low_nodeid;
 
 	for (;;) {

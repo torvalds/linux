@@ -500,7 +500,7 @@ struct dlm_ls {
 	struct rw_semaphore	ls_recv_active;	/* block dlm_recv */
 	struct list_head	ls_requestqueue;/* queue remote requests */
 	struct mutex		ls_requestqueue_mutex;
-	char			*ls_recover_buf;
+	struct dlm_rcom		*ls_recover_buf;
 	int			ls_recover_nodeid; /* for debugging */
 	uint64_t		ls_rcom_seq;
 	spinlock_t		ls_rcom_spin;

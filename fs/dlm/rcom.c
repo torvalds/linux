@@ -129,7 +129,7 @@ int dlm_rcom_status(struct dlm_ls *ls, int nodeid)
 	ls->ls_recover_nodeid = nodeid;
 
 	if (nodeid == dlm_our_nodeid()) {
-		rc = (struct dlm_rcom *) ls->ls_recover_buf;
+		rc = ls->ls_recover_buf;
 		rc->rc_result = dlm_recover_status(ls);
 		goto out;
 	}
@@ -148,7 +148,7 @@ int dlm_rcom_status(struct dlm_ls *ls, int nodeid)
 	if (error)
 		goto out;
 
-	rc = (struct dlm_rcom *) ls->ls_recover_buf;
+	rc = ls->ls_recover_buf;
 
 	if (rc->rc_result == -ESRCH) {
 		/* we pretend the remote lockspace exists with 0 status */
@@ -202,14 +202,15 @@ int dlm_rcom_names(struct dlm_ls *ls, int nodeid, char *last_name, int last_len)
 {
 	struct dlm_rcom *rc;
 	struct dlm_mhandle *mh;
-	int error = 0, len = sizeof(struct dlm_rcom);
+	int error = 0;
+	int max_size = dlm_config.ci_buffer_size - sizeof(struct dlm_rcom);
 
 	ls->ls_recover_nodeid = nodeid;
 
 	if (nodeid == dlm_our_nodeid()) {
 		dlm_copy_master_names(ls, last_name, last_len,
-		                      ls->ls_recover_buf + len,
-		                      dlm_config.ci_buffer_size - len, nodeid);
+		                      ls->ls_recover_buf->rc_buf,
+		                      max_size, nodeid);
 		goto out;
 	}
 

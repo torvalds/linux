@@ -235,7 +235,7 @@ int dlm_recover_directory(struct dlm_ls *ls)
 			 * pick namelen/name pairs out of received buffer
 			 */
 
-			b = ls->ls_recover_buf + sizeof(struct dlm_rcom);
+			b = ls->ls_recover_buf->rc_buf;
 
 			for (;;) {
 				memcpy(&namelen, b, sizeof(uint16_t));
