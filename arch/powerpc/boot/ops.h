@@ -46,6 +46,8 @@ struct dt_ops {
 	void *(*find_node_by_prop_value)(const void *prev,
 	                                 const char *propname,
 	                                 const char *propval, int proplen);
+	void *(*find_node_by_compatible)(const void *prev,
+	                                 const char *compat);
 	unsigned long (*finalize)(void);
 	char *(*get_path)(const void *phandle, char *buf, int len);
 };
@@ -168,6 +170,15 @@ static inline void *find_node_by_alias(const char *alias)
 		if (getprop(devp, alias, path, MAX_PATH_LEN) > 0)
 			return finddevice(path);
 	}
+
+	return NULL;
+}
+
+static inline void *find_node_by_compatible(const void *prev,
+                                            const char *compat)
+{
+	if (dt_ops.find_node_by_compatible)
+		return dt_ops.find_node_by_compatible(prev, compat);
 
 	return NULL;
 }

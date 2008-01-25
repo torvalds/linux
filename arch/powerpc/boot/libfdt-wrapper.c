@@ -133,6 +133,14 @@ static void *fdt_wrapper_find_node_by_prop_value(const void *prev,
 	return offset_devp(offset);
 }
 
+static void *fdt_wrapper_find_node_by_compatible(const void *prev,
+						 const char *val)
+{
+	int offset = fdt_node_offset_by_compatible(fdt, devp_offset_find(prev),
+	                                           val);
+	return offset_devp(offset);
+}
+
 static char *fdt_wrapper_get_path(const void *devp, char *buf, int len)
 {
 	int rc;
@@ -164,6 +172,7 @@ void fdt_init(void *blob)
 	dt_ops.get_parent = fdt_wrapper_get_parent;
 	dt_ops.create_node = fdt_wrapper_create_node;
 	dt_ops.find_node_by_prop_value = fdt_wrapper_find_node_by_prop_value;
+	dt_ops.find_node_by_compatible = fdt_wrapper_find_node_by_compatible;
 	dt_ops.get_path = fdt_wrapper_get_path;
 	dt_ops.finalize = fdt_wrapper_finalize;
 
