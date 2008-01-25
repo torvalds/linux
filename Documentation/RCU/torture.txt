@@ -46,12 +46,13 @@ stat_interval	The number of seconds between output of torture
 
 shuffle_interval
 		The number of seconds to keep the test threads affinitied
-		to a particular subset of the CPUs.  Used in conjunction
-		with test_no_idle_hz.
+		to a particular subset of the CPUs, defaults to 5 seconds.
+		Used in conjunction with test_no_idle_hz.
 
 test_no_idle_hz	Whether or not to test the ability of RCU to operate in
 		a kernel that disables the scheduling-clock interrupt to
 		idle CPUs.  Boolean parameter, "1" to test, "0" otherwise.
+		Defaults to omitting this test.
 
 torture_type	The type of RCU to test: "rcu" for the rcu_read_lock() API,
 		"rcu_sync" for rcu_read_lock() with synchronous reclamation,
@@ -81,8 +82,6 @@ the RCU torture test.  The printk()s use KERN_ALERT, so they should
 be evident.  ;-)
 
 The entries are as follows:
-
-o	"ggp": The number of counter flips (or batches) since boot.
 
 o	"rtc": The hexadecimal address of the structure currently visible
 	to readers.
@@ -117,8 +116,8 @@ o	"Reader Pipe": Histogram of "ages" of structures seen by readers.
 o	"Reader Batch": Another histogram of "ages" of structures seen
 	by readers, but in terms of counter flips (or batches) rather
 	than in terms of grace periods.  The legal number of non-zero
-	entries is again two.  The reason for this separate view is
-	that it is easier to get the third entry to show up in the
+	entries is again two.  The reason for this separate view is that
+	it is sometimes easier to get the third entry to show up in the
 	"Reader Batch" list than in the "Reader Pipe" list.
 
 o	"Free-Block Circulation": Shows the number of torture structures
