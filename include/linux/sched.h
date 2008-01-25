@@ -855,6 +855,13 @@ struct sched_class {
 
 	void (*join_domain)(struct rq *rq);
 	void (*leave_domain)(struct rq *rq);
+
+	void (*switched_from) (struct rq *this_rq, struct task_struct *task,
+			       int running);
+	void (*switched_to) (struct rq *this_rq, struct task_struct *task,
+			     int running);
+	void (*prio_changed) (struct rq *this_rq, struct task_struct *task,
+			     int oldprio, int running);
 };
 
 struct load_weight {

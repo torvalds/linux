@@ -1280,6 +1280,42 @@ static void task_new_fair(struct rq *rq, struct task_struct *p)
 	resched_task(rq->curr);
 }
 
+/*
+ * Priority of the task has changed. Check to see if we preempt
+ * the current task.
+ */
+static void prio_changed_fair(struct rq *rq, struct task_struct *p,
+			      int oldprio, int running)
+{
+	/*
+	 * Reschedule if we are currently running on this runqueue and
+	 * our priority decreased, or if we are not currently running on
+	 * this runqueue and our priority is higher than the current's
+	 */
+	if (running) {
+		if (p->prio > oldprio)
+			resched_task(rq->curr);
+	} else
+		check_preempt_curr(rq, p);
+}
+
+/*
+ * We switched to the sched_fair class.
+ */
+static void switched_to_fair(struct rq *rq, struct task_struct *p,
+			     int running)
+{
+	/*
+	 * We were most likely switched from sched_rt, so
+	 * kick off the schedule if running, otherwise just see
+	 * if we can still preempt the current task.
+	 */
+	if (running)
+		resched_task(rq->curr);
+	else
+		check_preempt_curr(rq, p);
+}
+
 /* Account for a task changing its policy or group.
  *
  * This routine is mostly called to set cfs_rq->curr field when a task
@@ -1318,6 +1354,9 @@ static const struct sched_class fair_sched_class = {
 	.set_curr_task          = set_curr_task_fair,
 	.task_tick		= task_tick_fair,
 	.task_new		= task_new_fair,
+
+	.prio_changed		= prio_changed_fair,
+	.switched_to		= switched_to_fair,
 };
 
 #ifdef CONFIG_SCHED_DEBUG

@@ -779,7 +779,92 @@ static void leave_domain_rt(struct rq *rq)
 	if (rq->rt.overloaded)
 		rt_clear_overload(rq);
 }
+
+/*
+ * When switch from the rt queue, we bring ourselves to a position
+ * that we might want to pull RT tasks from other runqueues.
+ */
+static void switched_from_rt(struct rq *rq, struct task_struct *p,
+			   int running)
+{
+	/*
+	 * If there are other RT tasks then we will reschedule
+	 * and the scheduling of the other RT tasks will handle
+	 * the balancing. But if we are the last RT task
+	 * we may need to handle the pulling of RT tasks
+	 * now.
+	 */
+	if (!rq->rt.rt_nr_running)
+		pull_rt_task(rq);
+}
 #endif /* CONFIG_SMP */
+
+/*
+ * When switching a task to RT, we may overload the runqueue
+ * with RT tasks. In this case we try to push them off to
+ * other runqueues.
+ */
+static void switched_to_rt(struct rq *rq, struct task_struct *p,
+			   int running)
+{
+	int check_resched = 1;
+
+	/*
+	 * If we are already running, then there's nothing
+	 * that needs to be done. But if we are not running
+	 * we may need to preempt the current running task.
+	 * If that current running task is also an RT task
+	 * then see if we can move to another run queue.
+	 */
+	if (!running) {
+#ifdef CONFIG_SMP
+		if (rq->rt.overloaded && push_rt_task(rq) &&
+		    /* Don't resched if we changed runqueues */
+		    rq != task_rq(p))
+			check_resched = 0;
+#endif /* CONFIG_SMP */
+		if (check_resched && p->prio < rq->curr->prio)
+			resched_task(rq->curr);
+	}
+}
+
+/*
+ * Priority of the task has changed. This may cause
+ * us to initiate a push or pull.
+ */
+static void prio_changed_rt(struct rq *rq, struct task_struct *p,
+			    int oldprio, int running)
+{
+	if (running) {
+#ifdef CONFIG_SMP
+		/*
+		 * If our priority decreases while running, we
+		 * may need to pull tasks to this runqueue.
+		 */
+		if (oldprio < p->prio)
+			pull_rt_task(rq);
+		/*
+		 * If there's a higher priority task waiting to run
+		 * then reschedule.
+		 */
+		if (p->prio > rq->rt.highest_prio)
+			resched_task(p);
+#else
+		/* For UP simply resched on drop of prio */
+		if (oldprio < p->prio)
+			resched_task(p);
+#endif /* CONFIG_SMP */
+	} else {
+		/*
+		 * This task is not running, but if it is
+		 * greater than the current running task
+		 * then reschedule.
+		 */
+		if (p->prio < rq->curr->prio)
+			resched_task(rq->curr);
+	}
+}
+
 
 static void task_tick_rt(struct rq *rq, struct task_struct *p)
 {
@@ -837,8 +922,12 @@ const struct sched_class rt_sched_class = {
 	.pre_schedule		= pre_schedule_rt,
 	.post_schedule		= post_schedule_rt,
 	.task_wake_up		= task_wake_up_rt,
+	.switched_from		= switched_from_rt,
 #endif
 
 	.set_curr_task          = set_curr_task_rt,
 	.task_tick		= task_tick_rt,
+
+	.prio_changed		= prio_changed_rt,
+	.switched_to		= switched_to_rt,
 };
