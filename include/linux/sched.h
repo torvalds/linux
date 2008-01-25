@@ -78,7 +78,6 @@ struct sched_param {
 #include <linux/proportions.h>
 #include <linux/seccomp.h>
 #include <linux/rcupdate.h>
-#include <linux/futex.h>
 #include <linux/rtmutex.h>
 
 #include <linux/time.h>
@@ -94,6 +93,7 @@ struct sched_param {
 
 struct exec_domain;
 struct futex_pi_state;
+struct robust_list_head;
 struct bio;
 
 /*
