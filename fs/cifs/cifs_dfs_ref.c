@@ -3,8 +3,9 @@
  *   traversal via DFS junction point
  *
  *   Copyright (c) 2007 Igor Mammedov
+ *   Copyright (C) International Business Machines  Corp., 2008
  *   Author(s): Igor Mammedov (niallain@gmail.com)
- *
+ *		Steve French (sfrench@us.ibm.com)
  *   This program is free software; you can redistribute it and/or
  *   modify it under the terms of the GNU General Public License
  *   as published by the Free Software Foundation; either version
@@ -107,8 +108,9 @@ static char *cifs_get_share_name(const char *node_name)
  * Returns: pointer to new mount options or ERR_PTR.
  * Caller is responcible for freeing retunrned value if it is not error.
  */
-char *compose_mount_options(const char *sb_mountdata, const char *ref_unc,
-				char **devname)
+static char *compose_mount_options(const char *sb_mountdata,
+				   const char *ref_unc,
+				   char **devname)
 {
 	int rc;
 	char *mountdata;
@@ -188,13 +190,13 @@ compose_mount_options_out:
 }
 
 
-struct vfsmount *cifs_dfs_do_refmount(const struct vfsmount *mnt_parent,
+static struct vfsmount *cifs_dfs_do_refmount(const struct vfsmount *mnt_parent,
 		struct dentry *dentry, char *ref_unc)
 {
 	struct cifs_sb_info *cifs_sb;
 	struct vfsmount *mnt;
 	char *mountdata;
-	char *devname;
+	char *devname = NULL;
 
 	cifs_sb = CIFS_SB(dentry->d_inode->i_sb);
 	mountdata = compose_mount_options(cifs_sb->mountdata,
@@ -278,7 +280,7 @@ static int add_mount_helper(struct vfsmount *newmnt, struct nameidata *nd,
 	return err;
 }
 
-void dump_referral(const struct dfs_info3_param *ref)
+static void dump_referral(const struct dfs_info3_param *ref)
 {
 	cFYI(1, ("DFS: ref path: %s", ref->path_name));
 	cFYI(1, ("DFS: node path: %s", ref->node_name));

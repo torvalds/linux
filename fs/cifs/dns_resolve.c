@@ -64,13 +64,14 @@ struct key_type key_type_dns_resolver = {
  * return 0 on success
  */
 int
-dns_resolve_server_name_to_ip(const char *unc, char **ip_addr) {
+dns_resolve_server_name_to_ip(const char *unc, char **ip_addr)
+{
 	int rc = -EAGAIN;
 	struct key *rkey;
 	char *name;
 	int len;
 
-	if ((!ip_addr) || (!unc))
+	if (!ip_addr || !unc)
 		return -EINVAL;
 
 	/* search for server name delimiter */

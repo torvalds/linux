@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/link.c
  *
- *   Copyright (C) International Business Machines  Corp., 2002,2003
+ *   Copyright (C) International Business Machines  Corp., 2002,2008
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -236,8 +236,6 @@ cifs_readlink(struct dentry *direntry, char __user *pBuffer, int buflen)
 	char *full_path = NULL;
 	char *tmp_path = NULL;
 	char *tmpbuffer;
-	unsigned char *referrals = NULL;
-	unsigned int num_referrals = 0;
 	int len;
 	__u16 fid;
 
@@ -297,8 +295,11 @@ cifs_readlink(struct dentry *direntry, char __user *pBuffer, int buflen)
 				cFYI(1, ("Error closing junction point "
 					 "(open for ioctl)"));
 			}
+			/* BB unwind this long, nested function, or remove BB */
 			if (rc == -EIO) {
 				/* Query if DFS Junction */
+				unsigned int num_referrals = 0;
+				struct dfs_info3_param *refs = NULL;
 				tmp_path =
 					kmalloc(MAX_TREE_SIZE + MAX_PATHCONF + 1,
 						GFP_KERNEL);
@@ -310,7 +311,7 @@ cifs_readlink(struct dentry *direntry, char __user *pBuffer, int buflen)
 					rc = get_dfs_path(xid, pTcon->ses,
 						tmp_path,
 						cifs_sb->local_nls,
-						&num_referrals, &referrals,
+						&num_referrals, &refs,
 						cifs_sb->mnt_cifs_flags &
 						    CIFS_MOUNT_MAP_SPECIAL_CHR);
 					cFYI(1, ("Get DFS for %s rc = %d ",
@@ -320,14 +321,13 @@ cifs_readlink(struct dentry *direntry, char __user *pBuffer, int buflen)
 					else {
 						cFYI(1, ("num referral: %d",
 							num_referrals));
-						if (referrals) {
-							cFYI(1,("referral string: %s", referrals));
+						if (refs && refs->path_name) {
 							strncpy(tmpbuffer,
-								referrals,
+								refs->path_name,
 								len-1);
 						}
 					}
-					kfree(referrals);
+					kfree(refs);
 					kfree(tmp_path);
 }
 				/* BB add code like else decode referrals
