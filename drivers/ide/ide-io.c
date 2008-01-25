@@ -233,8 +233,6 @@ static ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *
 
 out_do_tf:
 	args->tf_flags = IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE;
-	if (drive->addressing == 1)
-		args->tf_flags |= (IDE_TFLAG_LBA48 | IDE_TFLAG_OUT_HOB);
 	args->command_type = IDE_DRIVE_TASK_NO_DATA;
 	args->handler      = task_no_data_intr;
 	return do_rw_taskfile(drive, args);
@@ -711,8 +709,6 @@ static ide_startstop_t ide_disk_special(ide_drive_t *drive)
 	}
 
 	args.tf_flags = IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE;
-	if (drive->addressing == 1)
-		args.tf_flags |= (IDE_TFLAG_LBA48 | IDE_TFLAG_OUT_HOB);
 
 	do_rw_taskfile(drive, &args);
 
@@ -871,16 +867,8 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
 			break;
 		}
 
-		task->tf_flags |= IDE_TFLAG_OUT_DEVICE;
-		if (drive->addressing == 1)
-			task->tf_flags |= IDE_TFLAG_LBA48;
-
 		if (task->tf_flags & IDE_TFLAG_FLAGGED)
 			return flagged_taskfile(drive, task);
-
-		task->tf_flags |= IDE_TFLAG_OUT_TF;
-		if (task->tf_flags & IDE_TFLAG_LBA48)
-			task->tf_flags |= IDE_TFLAG_OUT_HOB;
 
 		return do_rw_taskfile(drive, task);
 	}

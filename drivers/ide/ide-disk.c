@@ -304,6 +304,9 @@ static u64 idedisk_read_native_max_address(ide_drive_t *drive, int lba48)
 	else
 		tf->command = WIN_READ_NATIVE_MAX;
 	tf->device  = ATA_LBA;
+	args.tf_flags = IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE;
+	if (lba48)
+		args.tf_flags |= (IDE_TFLAG_LBA48 | IDE_TFLAG_OUT_HOB);
 	/* submit command request */
 	ide_no_data_taskfile(drive, &args);
 
@@ -349,6 +352,9 @@ static u64 idedisk_set_max_address(ide_drive_t *drive, u64 addr_req, int lba48)
 		tf->command  = WIN_SET_MAX;
 	}
 	tf->device |= ATA_LBA;
+	args.tf_flags = IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE;
+	if (lba48)
+		args.tf_flags |= (IDE_TFLAG_LBA48 | IDE_TFLAG_OUT_HOB);
 	/* submit command request */
 	ide_no_data_taskfile(drive, &args);
 	/* if OK, compute maximum address value */
@@ -497,6 +503,7 @@ static int smart_enable(ide_drive_t *drive)
 	tf->lbam    = SMART_LCYL_PASS;
 	tf->lbah    = SMART_HCYL_PASS;
 	tf->command = WIN_SMART;
+	args.tf_flags = IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE;
 	return ide_no_data_taskfile(drive, &args);
 }
 
@@ -511,6 +518,7 @@ static int get_smart_data(ide_drive_t *drive, u8 *buf, u8 sub_cmd)
 	tf->lbam    = SMART_LCYL_PASS;
 	tf->lbah    = SMART_HCYL_PASS;
 	tf->command = WIN_SMART;
+	args.tf_flags = IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE;
 	args.command_type			= IDE_DRIVE_TASK_IN;
 	args.data_phase				= TASKFILE_IN;
 	args.handler				= &task_in_intr;
@@ -690,6 +698,7 @@ static int write_cache(ide_drive_t *drive, int arg)
 		args.tf.feature = arg ?
 			SETFEATURES_EN_WCACHE : SETFEATURES_DIS_WCACHE;
 		args.tf.command = WIN_SETFEATURES;
+		args.tf_flags = IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE;
 		err = ide_no_data_taskfile(drive, &args);
 		if (err == 0)
 			drive->wcache = arg;
@@ -709,6 +718,7 @@ static int do_idedisk_flushcache (ide_drive_t *drive)
 		args.tf.command = WIN_FLUSH_CACHE_EXT;
 	else
 		args.tf.command = WIN_FLUSH_CACHE;
+	args.tf_flags = IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE;
 	return ide_no_data_taskfile(drive, &args);
 }
 
@@ -723,6 +733,7 @@ static int set_acoustic (ide_drive_t *drive, int arg)
 	args.tf.feature = arg ? SETFEATURES_EN_AAM : SETFEATURES_DIS_AAM;
 	args.tf.nsect   = arg;
 	args.tf.command = WIN_SETFEATURES;
+	args.tf_flags = IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE;
 	ide_no_data_taskfile(drive, &args);
 	drive->acoustic = arg;
 	return 0;
@@ -985,6 +996,7 @@ static int idedisk_open(struct inode *inode, struct file *filp)
 		ide_task_t args;
 		memset(&args, 0, sizeof(ide_task_t));
 		args.tf.command = WIN_DOORLOCK;
+		args.tf_flags = IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE;
 		check_disk_change(inode->i_bdev);
 		/*
 		 * Ignore the return code from door_lock,
@@ -1010,6 +1022,7 @@ static int idedisk_release(struct inode *inode, struct file *filp)
 		ide_task_t args;
 		memset(&args, 0, sizeof(ide_task_t));
 		args.tf.command = WIN_DOORUNLOCK;
+		args.tf_flags = IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE;
 		if (drive->doorlocking && ide_no_data_taskfile(drive, &args))
 			drive->doorlocking = 0;
 	}

@@ -126,6 +126,7 @@ int taskfile_lib_get_identify (ide_drive_t *drive, u8 *buf)
 		args.tf.command = WIN_IDENTIFY;
 	else
 		args.tf.command = WIN_PIDENTIFY;
+	args.tf_flags = IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE;
 	args.command_type = IDE_DRIVE_TASK_IN;
 	args.data_phase   = TASKFILE_IN;
 	args.handler	  = &task_in_intr;
@@ -619,6 +620,10 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 	args.data_phase   = req_task->data_phase;
 	args.command_type = req_task->req_cmd;
 
+	args.tf_flags = IDE_TFLAG_OUT_DEVICE;
+	if (drive->addressing == 1)
+		args.tf_flags |= IDE_TFLAG_LBA48;
+
 	if (req_task->out_flags.all) {
 		args.tf_flags |= IDE_TFLAG_FLAGGED;
 
@@ -644,6 +649,10 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 			args.tf_flags |= IDE_TFLAG_OUT_LBAM;
 		if (req_task->out_flags.b.hcyl)
 			args.tf_flags |= IDE_TFLAG_OUT_LBAH;
+	} else {
+		args.tf_flags |= IDE_TFLAG_OUT_TF;
+		if (args.tf_flags & IDE_TFLAG_LBA48)
+			args.tf_flags |= IDE_TFLAG_OUT_HOB;
 	}
 
 	drive->io_32bit = 0;
