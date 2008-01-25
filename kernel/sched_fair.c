@@ -1434,9 +1434,9 @@ static void print_cfs_stats(struct seq_file *m, int cpu)
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	print_cfs_rq(m, cpu, &cpu_rq(cpu)->cfs);
 #endif
-	lock_task_group_list();
+	rcu_read_lock();
 	for_each_leaf_cfs_rq(cpu_rq(cpu), cfs_rq)
 		print_cfs_rq(m, cpu, cfs_rq);
-	unlock_task_group_list();
+	rcu_read_unlock();
 }
 #endif
