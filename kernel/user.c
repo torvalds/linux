@@ -319,7 +319,7 @@ void free_uid(struct user_struct *up)
 struct user_struct * alloc_uid(struct user_namespace *ns, uid_t uid)
 {
 	struct hlist_head *hashent = uidhashentry(ns, uid);
-	struct user_struct *up;
+	struct user_struct *up, *new;
 
 	/* Make uid_hash_find() + uids_user_create() + uid_hash_insert()
 	 * atomic.
@@ -331,13 +331,9 @@ struct user_struct * alloc_uid(struct user_namespace *ns, uid_t uid)
 	spin_unlock_irq(&uidhash_lock);
 
 	if (!up) {
-		struct user_struct *new;
-
 		new = kmem_cache_alloc(uid_cachep, GFP_KERNEL);
-		if (!new) {
-			uids_mutex_unlock();
-			return NULL;
-		}
+		if (!new)
+			goto out_unlock;
 
 		new->uid = uid;
 		atomic_set(&new->__count, 1);
@@ -353,28 +349,14 @@ struct user_struct * alloc_uid(struct user_namespace *ns, uid_t uid)
 #endif
 		new->locked_shm = 0;
 
-		if (alloc_uid_keyring(new, current) < 0) {
-			kmem_cache_free(uid_cachep, new);
-			uids_mutex_unlock();
-			return NULL;
-		}
+		if (alloc_uid_keyring(new, current) < 0)
+			goto out_free_user;
 
-		if (sched_create_user(new) < 0) {
-			key_put(new->uid_keyring);
-			key_put(new->session_keyring);
-			kmem_cache_free(uid_cachep, new);
-			uids_mutex_unlock();
-			return NULL;
-		}
+		if (sched_create_user(new) < 0)
+			goto out_put_keys;
 
-		if (uids_user_create(new)) {
-			sched_destroy_user(new);
-			key_put(new->uid_keyring);
-			key_put(new->session_keyring);
-			kmem_cache_free(uid_cachep, new);
-			uids_mutex_unlock();
-			return NULL;
-		}
+		if (uids_user_create(new))
+			goto out_destoy_sched;
 
 		/*
 		 * Before adding this, check whether we raced
@@ -402,6 +384,17 @@ struct user_struct * alloc_uid(struct user_namespace *ns, uid_t uid)
 	uids_mutex_unlock();
 
 	return up;
+
+out_destoy_sched:
+	sched_destroy_user(new);
+out_put_keys:
+	key_put(new->uid_keyring);
+	key_put(new->session_keyring);
+out_free_user:
+	kmem_cache_free(uid_cachep, new);
+out_unlock:
+	uids_mutex_unlock();
+	return NULL;
 }
 
 void switch_uid(struct user_struct *new_user)
