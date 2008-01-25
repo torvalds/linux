@@ -410,9 +410,9 @@ union dlm_packet {
 };
 
 struct rcom_config {
-	uint32_t		rf_lvblen;
-	uint32_t		rf_lsflags;
-	uint64_t		rf_unused;
+	__le32			rf_lvblen;
+	__le32			rf_lsflags;
+	__le64			rf_unused;
 };
 
 struct rcom_lock {

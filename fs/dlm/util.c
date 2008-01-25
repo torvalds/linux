@@ -131,22 +131,8 @@ void dlm_message_in(struct dlm_message *ms)
 	ms->m_result		= from_dlm_errno(le32_to_cpu(ms->m_result));
 }
 
-static void rcom_config_out(struct rcom_config *rf)
-{
-	rf->rf_lvblen		= cpu_to_le32(rf->rf_lvblen);
-	rf->rf_lsflags		= cpu_to_le32(rf->rf_lsflags);
-}
-
-static void rcom_config_in(struct rcom_config *rf)
-{
-	rf->rf_lvblen		= le32_to_cpu(rf->rf_lvblen);
-	rf->rf_lsflags		= le32_to_cpu(rf->rf_lsflags);
-}
-
 void dlm_rcom_out(struct dlm_rcom *rc)
 {
-	int type = rc->rc_type;
-
 	header_out(&rc->rc_header);
 
 	rc->rc_type		= cpu_to_le32(rc->rc_type);
@@ -154,9 +140,6 @@ void dlm_rcom_out(struct dlm_rcom *rc)
 	rc->rc_id		= cpu_to_le64(rc->rc_id);
 	rc->rc_seq		= cpu_to_le64(rc->rc_seq);
 	rc->rc_seq_reply	= cpu_to_le64(rc->rc_seq_reply);
-
-	if (type == DLM_RCOM_STATUS_REPLY)
-		rcom_config_out((struct rcom_config *) rc->rc_buf);
 }
 
 void dlm_rcom_in(struct dlm_rcom *rc)
@@ -168,7 +151,4 @@ void dlm_rcom_in(struct dlm_rcom *rc)
 	rc->rc_id		= le64_to_cpu(rc->rc_id);
 	rc->rc_seq		= le64_to_cpu(rc->rc_seq);
 	rc->rc_seq_reply	= le64_to_cpu(rc->rc_seq_reply);
-
-	if (rc->rc_type == DLM_RCOM_STATUS_REPLY)
-		rcom_config_in((struct rcom_config *) rc->rc_buf);
 }
