@@ -156,6 +156,18 @@ ide_startstop_t do_rw_taskfile (ide_drive_t *drive, ide_task_t *task)
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct ide_taskfile *tf = &task->tf;
 
+	if (task->data_phase == TASKFILE_MULTI_IN ||
+	    task->data_phase == TASKFILE_MULTI_OUT) {
+		if (!drive->mult_count) {
+			printk(KERN_ERR "%s: multimode not set!\n",
+					drive->name);
+			return ide_stopped;
+		}
+	}
+
+	if (task->tf_flags & IDE_TFLAG_FLAGGED)
+		task->tf_flags |= IDE_TFLAG_FLAGGED_SET_IN_FLAGS;
+
 	ide_tf_load(drive, task);
 
 	if (task->handler != NULL) {
@@ -838,24 +850,4 @@ int ide_task_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 		err = -EFAULT;
 
 	return err;
-}
-
-/*
- * NOTICE: This is additions from IBM to provide a discrete interface,
- * for selective taskregister access operations.  Nice JOB Klaus!!!
- * Glad to be able to work and co-develop this with you and IBM.
- */
-ide_startstop_t flagged_taskfile (ide_drive_t *drive, ide_task_t *task)
-{
-	if (task->data_phase == TASKFILE_MULTI_IN ||
-	    task->data_phase == TASKFILE_MULTI_OUT) {
-		if (!drive->mult_count) {
-			printk(KERN_ERR "%s: multimode not set!\n", drive->name);
-			return ide_stopped;
-		}
-	}
-
-	task->tf_flags |= IDE_TFLAG_FLAGGED_SET_IN_FLAGS;
-
-	return do_rw_taskfile(drive, task);
 }

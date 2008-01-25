@@ -851,9 +851,6 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
 			break;
 		}
 
-		if (task->tf_flags & IDE_TFLAG_FLAGGED)
-			return flagged_taskfile(drive, task);
-
 		return do_rw_taskfile(drive, task);
 	}
 
