@@ -27,25 +27,10 @@
 #include <asm/semaphore.h>
 #include <asm/mutex.h>
 
-/******************************************************************************
- * IDE driver configuration options (play with these as desired):
- *
- * REALLY_SLOW_IO can be defined in ide.c and ide-cd.c, if necessary
- */
-#define INITIAL_MULT_COUNT	0	/* off=0; on=2,4,8,16,32, etc.. */
-
-#ifndef SUPPORT_SLOW_DATA_PORTS		/* 1 to support slow data ports */
-#define SUPPORT_SLOW_DATA_PORTS	1	/* 0 to reduce kernel size */
-#endif
-#ifndef SUPPORT_VLB_SYNC		/* 1 to support weird 32-bit chips */
-#define SUPPORT_VLB_SYNC	1	/* 0 to reduce kernel size */
-#endif
-#ifndef OK_TO_RESET_CONTROLLER		/* 1 needed for good error recovery */
-#define OK_TO_RESET_CONTROLLER	1	/* 0 for use with AH2372A/B interface */
-#endif
-
-#ifndef DISABLE_IRQ_NOSYNC
-#define DISABLE_IRQ_NOSYNC	0
+#if defined(CRIS) || defined(FRV)
+# define SUPPORT_VLB_SYNC 0
+#else
+# define SUPPORT_VLB_SYNC 1
 #endif
 
 /*
@@ -54,10 +39,6 @@
  */
  
 #define IDE_NO_IRQ		(-1)
-
-/*
- *  "No user-serviceable parts" beyond this point  :)
- *****************************************************************************/
 
 typedef unsigned char	byte;	/* used everywhere */
 

@@ -1469,12 +1469,8 @@ void ide_timer_expiry (unsigned long data)
 			 */
 			spin_unlock(&ide_lock);
 			hwif  = HWIF(drive);
-#if DISABLE_IRQ_NOSYNC
-			disable_irq_nosync(hwif->irq);
-#else
 			/* disable_irq_nosync ?? */
 			disable_irq(hwif->irq);
-#endif /* DISABLE_IRQ_NOSYNC */
 			/* local CPU only,
 			 * as if we were handling an interrupt */
 			local_irq_disable();

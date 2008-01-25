@@ -48,11 +48,6 @@ static inline unsigned long ide_default_io_base(int index)
 	return REG_TYPE_CONV(unsigned long, reg_ata_rw_ctrl2, ctrl2);
 }
 
-/* some configuration options we don't need */
-
-#undef SUPPORT_VLB_SYNC
-#define SUPPORT_VLB_SYNC 0
-
 #define IDE_ARCH_ACK_INTR
 #define ide_ack_intr(hwif)	((hwif)->ack_intr(hwif))
 
