@@ -465,7 +465,7 @@ struct rq {
 	u64 clock, prev_clock_raw;
 	s64 clock_max_delta;
 
-	unsigned int clock_warps, clock_overflows;
+	unsigned int clock_warps, clock_overflows, clock_underflows;
 	u64 idle_clock;
 	unsigned int clock_deep_idle_events;
 	u64 tick_timestamp;
@@ -3736,8 +3736,10 @@ void scheduler_tick(void)
 	/*
 	 * Let rq->clock advance by at least TICK_NSEC:
 	 */
-	if (unlikely(rq->clock < next_tick))
+	if (unlikely(rq->clock < next_tick)) {
 		rq->clock = next_tick;
+		rq->clock_underflows++;
+	}
 	rq->tick_timestamp = rq->clock;
 	update_cpu_load(rq);
 	curr->sched_class->task_tick(rq, curr, 0);

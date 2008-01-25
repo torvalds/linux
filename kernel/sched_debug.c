@@ -179,6 +179,7 @@ static void print_cpu(struct seq_file *m, int cpu)
 	PN(prev_clock_raw);
 	P(clock_warps);
 	P(clock_overflows);
+	P(clock_underflows);
 	P(clock_deep_idle_events);
 	PN(clock_max_delta);
 	P(cpu_load[0]);
