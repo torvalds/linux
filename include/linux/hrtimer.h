@@ -217,6 +217,11 @@ static inline ktime_t hrtimer_cb_get_time(struct hrtimer *timer)
 	return timer->base->get_time();
 }
 
+static inline int hrtimer_is_hres_active(struct hrtimer *timer)
+{
+	return timer->base->cpu_base->hres_active;
+}
+
 /*
  * The resolution of the clocks. The resolution value is returned in
  * the clock_getres() system call to give application programmers an
@@ -248,6 +253,10 @@ static inline ktime_t hrtimer_cb_get_time(struct hrtimer *timer)
 	return timer->base->softirq_time;
 }
 
+static inline int hrtimer_is_hres_active(struct hrtimer *timer)
+{
+	return 0;
+}
 #endif
 
 extern ktime_t ktime_get(void);

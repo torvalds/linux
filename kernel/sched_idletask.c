@@ -61,7 +61,7 @@ move_one_task_idle(struct rq *this_rq, int this_cpu, struct rq *busiest,
 }
 #endif
 
-static void task_tick_idle(struct rq *rq, struct task_struct *curr)
+static void task_tick_idle(struct rq *rq, struct task_struct *curr, int queued)
 {
 }
 

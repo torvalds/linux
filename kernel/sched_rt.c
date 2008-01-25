@@ -863,7 +863,7 @@ static void watchdog(struct rq *rq, struct task_struct *p)
 	}
 }
 
-static void task_tick_rt(struct rq *rq, struct task_struct *p)
+static void task_tick_rt(struct rq *rq, struct task_struct *p, int queued)
 {
 	update_curr_rt(rq);
 

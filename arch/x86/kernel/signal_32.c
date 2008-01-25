@@ -658,6 +658,9 @@ void do_notify_resume(struct pt_regs *regs, void *_unused,
 	/* deal with pending signal delivery */
 	if (thread_info_flags & (_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK))
 		do_signal(regs);
+
+	if (thread_info_flags & _TIF_HRTICK_RESCHED)
+		hrtick_resched();
 	
 	clear_thread_flag(TIF_IRET);
 }

@@ -642,12 +642,28 @@ static void put_prev_entity(struct cfs_rq *cfs_rq, struct sched_entity *prev)
 	cfs_rq->curr = NULL;
 }
 
-static void entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
+static void
+entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr, int queued)
 {
 	/*
 	 * Update run-time statistics of the 'current'.
 	 */
 	update_curr(cfs_rq);
+
+#ifdef CONFIG_SCHED_HRTICK
+	/*
+	 * queued ticks are scheduled to match the slice, so don't bother
+	 * validating it and just reschedule.
+	 */
+	if (queued)
+		return resched_task(rq_of(cfs_rq)->curr);
+	/*
+	 * don't let the period tick interfere with the hrtick preemption
+	 */
+	if (!sched_feat(DOUBLE_TICK) &&
+			hrtimer_active(&rq_of(cfs_rq)->hrtick_timer))
+		return;
+#endif
 
 	if (cfs_rq->nr_running > 1 || !sched_feat(WAKEUP_PREEMPT))
 		check_preempt_tick(cfs_rq, curr);
@@ -754,6 +770,43 @@ static inline struct sched_entity *parent_entity(struct sched_entity *se)
 
 #endif	/* CONFIG_FAIR_GROUP_SCHED */
 
+#ifdef CONFIG_SCHED_HRTICK
+static void hrtick_start_fair(struct rq *rq, struct task_struct *p)
+{
+	int requeue = rq->curr == p;
+	struct sched_entity *se = &p->se;
+	struct cfs_rq *cfs_rq = cfs_rq_of(se);
+
+	WARN_ON(task_rq(p) != rq);
+
+	if (hrtick_enabled(rq) && cfs_rq->nr_running > 1) {
+		u64 slice = sched_slice(cfs_rq, se);
+		u64 ran = se->sum_exec_runtime - se->prev_sum_exec_runtime;
+		s64 delta = slice - ran;
+
+		if (delta < 0) {
+			if (rq->curr == p)
+				resched_task(p);
+			return;
+		}
+
+		/*
+		 * Don't schedule slices shorter than 10000ns, that just
+		 * doesn't make sense. Rely on vruntime for fairness.
+		 */
+		if (!requeue)
+			delta = max(10000LL, delta);
+
+		hrtick_start(rq, delta, requeue);
+	}
+}
+#else
+static inline void
+hrtick_start_fair(struct rq *rq, struct task_struct *p)
+{
+}
+#endif
+
 /*
  * The enqueue_task method is called before nr_running is
  * increased. Here we update the fair scheduling stats and
@@ -782,6 +835,8 @@ static void enqueue_task_fair(struct rq *rq, struct task_struct *p, int wakeup)
 	 */
 	if (incload)
 		inc_cpu_load(rq, topse->load.weight);
+
+	hrtick_start_fair(rq, rq->curr);
 }
 
 /*
@@ -814,6 +869,8 @@ static void dequeue_task_fair(struct rq *rq, struct task_struct *p, int sleep)
 	 */
 	if (decload)
 		dec_cpu_load(rq, topse->load.weight);
+
+	hrtick_start_fair(rq, rq->curr);
 }
 
 /*
@@ -1049,6 +1106,7 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p)
 
 static struct task_struct *pick_next_task_fair(struct rq *rq)
 {
+	struct task_struct *p;
 	struct cfs_rq *cfs_rq = &rq->cfs;
 	struct sched_entity *se;
 
@@ -1060,7 +1118,10 @@ static struct task_struct *pick_next_task_fair(struct rq *rq)
 		cfs_rq = group_cfs_rq(se);
 	} while (cfs_rq);
 
-	return task_of(se);
+	p = task_of(se);
+	hrtick_start_fair(rq, p);
+
+	return p;
 }
 
 /*
@@ -1235,14 +1296,14 @@ move_one_task_fair(struct rq *this_rq, int this_cpu, struct rq *busiest,
 /*
  * scheduler tick hitting a task of our scheduling class:
  */
-static void task_tick_fair(struct rq *rq, struct task_struct *curr)
+static void task_tick_fair(struct rq *rq, struct task_struct *curr, int queued)
 {
 	struct cfs_rq *cfs_rq;
 	struct sched_entity *se = &curr->se;
 
 	for_each_sched_entity(se) {
 		cfs_rq = cfs_rq_of(se);
-		entity_tick(cfs_rq, se);
+		entity_tick(cfs_rq, se, queued);
 	}
 }
 
