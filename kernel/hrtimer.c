@@ -1063,7 +1063,9 @@ void hrtimer_interrupt(struct clock_event_device *dev)
 		basenow = ktime_add(now, base->offset);
 
 		while ((node = base->first)) {
+			enum hrtimer_restart (*fn)(struct hrtimer *);
 			struct hrtimer *timer;
+			int restart;
 
 			timer = rb_entry(node, struct hrtimer, node);
 
@@ -1091,13 +1093,29 @@ void hrtimer_interrupt(struct clock_event_device *dev)
 					 HRTIMER_STATE_CALLBACK, 0);
 			timer_stats_account_hrtimer(timer);
 
+			fn = timer->function;
+			if (timer->cb_mode == HRTIMER_CB_IRQSAFE_NO_SOFTIRQ) {
+				/*
+				 * Used for scheduler timers, avoid lock
+				 * inversion with rq->lock and tasklist_lock.
+				 *
+				 * These timers are required to deal with
+				 * enqueue expiry themselves and are not
+				 * allowed to migrate.
+				 */
+				spin_unlock(&cpu_base->lock);
+				restart = fn(timer);
+				spin_lock(&cpu_base->lock);
+			} else
+				restart = fn(timer);
+
 			/*
 			 * Note: We clear the CALLBACK bit after
 			 * enqueue_hrtimer to avoid reprogramming of
 			 * the event hardware. This happens at the end
 			 * of this function anyway.
 			 */
-			if (timer->function(timer) != HRTIMER_NORESTART) {
+			if (restart != HRTIMER_NORESTART) {
 				BUG_ON(timer->state != HRTIMER_STATE_CALLBACK);
 				enqueue_hrtimer(timer, base, 0);
 			}
