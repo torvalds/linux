@@ -176,7 +176,8 @@ static int select_task_rq_rt(struct task_struct *p, int sync)
 	 * that is just being woken and probably will have
 	 * cold cache anyway.
 	 */
-	if (unlikely(rt_task(rq->curr))) {
+	if (unlikely(rt_task(rq->curr)) &&
+	    (p->nr_cpus_allowed > 1)) {
 		int cpu = find_lowest_rq(p);
 
 		return (cpu == -1) ? task_cpu(p) : cpu;
