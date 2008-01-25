@@ -135,57 +135,29 @@ static void sc1200_set_dma_mode(ide_drive_t *drive, const u8 mode)
 	unsigned short		pci_clock;
 	unsigned int		basereg = hwif->channel ? 0x50 : 0x40;
 
+	static const u32 udma_timing[3][3] = {
+		{ 0x00921250, 0x00911140, 0x00911030 },
+		{ 0x00932470, 0x00922260, 0x00922140 },
+		{ 0x009436a1, 0x00933481, 0x00923261 },
+	};
+
+	static const u32 mwdma_timing[3][3] = {
+		{ 0x00077771, 0x00012121, 0x00002020 },
+		{ 0x000bbbb2, 0x00024241, 0x00013131 },
+		{ 0x000ffff3, 0x00035352, 0x00015151 },
+	};
+
 	pci_clock = sc1200_get_pci_clock();
 
 	/*
 	 * Note that each DMA mode has several timings associated with it.
 	 * The correct timing depends on the fast PCI clock freq.
 	 */
-	timings = 0;
-	switch (mode) {
-		case XFER_UDMA_0:
-			switch (pci_clock) {
-				case PCI_CLK_33:	timings = 0x00921250;	break;
-				case PCI_CLK_48:	timings = 0x00932470;	break;
-				case PCI_CLK_66:	timings = 0x009436a1;	break;
-			}
-			break;
-		case XFER_UDMA_1:
-			switch (pci_clock) {
-				case PCI_CLK_33:	timings = 0x00911140;	break;
-				case PCI_CLK_48:	timings = 0x00922260;	break;
-				case PCI_CLK_66:	timings = 0x00933481;	break;
-			}
-			break;
-		case XFER_UDMA_2:
-			switch (pci_clock) {
-				case PCI_CLK_33:	timings = 0x00911030;	break;
-				case PCI_CLK_48:	timings = 0x00922140;	break;
-				case PCI_CLK_66:	timings = 0x00923261;	break;
-			}
-			break;
-		case XFER_MW_DMA_0:
-			switch (pci_clock) {
-				case PCI_CLK_33:	timings = 0x00077771;	break;
-				case PCI_CLK_48:	timings = 0x000bbbb2;	break;
-				case PCI_CLK_66:	timings = 0x000ffff3;	break;
-			}
-			break;
-		case XFER_MW_DMA_1:
-			switch (pci_clock) {
-				case PCI_CLK_33:	timings = 0x00012121;	break;
-				case PCI_CLK_48:	timings = 0x00024241;	break;
-				case PCI_CLK_66:	timings = 0x00035352;	break;
-			}
-			break;
-		case XFER_MW_DMA_2:
-			switch (pci_clock) {
-				case PCI_CLK_33:	timings = 0x00002020;	break;
-				case PCI_CLK_48:	timings = 0x00013131;	break;
-				case PCI_CLK_66:	timings = 0x00015151;	break;
-			}
-			break;
-	}
+
+	if (mode >= XFER_UDMA_0)
+		timings =  udma_timing[pci_clock][mode - XFER_UDMA_0];
+	else
+		timings = mwdma_timing[pci_clock][mode - XFER_MW_DMA_0];
 
 	if (unit == 0) {			/* are we configuring drive0? */
 		pci_read_config_dword(hwif->pci_dev, basereg+4, &reg);
