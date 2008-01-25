@@ -1265,7 +1265,7 @@ static int s3c2410_dma_resume(struct sys_device *dev)
 #endif /* CONFIG_PM */
 
 struct sysdev_class dma_sysclass = {
-	set_kset_name("s3c24xx-dma"),
+	.name		= "s3c24xx-dma",
 	.suspend	= s3c2410_dma_suspend,
 	.resume		= s3c2410_dma_resume,
 };

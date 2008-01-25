@@ -26,11 +26,6 @@
 #include "lowlevel.h"
 
 static void exec_next_command(struct service_processor *sp);
-static void free_command(struct kobject *kobj);
-
-static struct kobj_type ibmasm_cmd_kobj_type = {
-	.release = free_command,
-};
 
 static atomic_t command_count = ATOMIC_INIT(0);
 
@@ -53,8 +48,7 @@ struct command *ibmasm_new_command(struct service_processor *sp, size_t buffer_s
 	}
 	cmd->buffer_size = buffer_size;
 
-	kobject_init(&cmd->kobj);
-	cmd->kobj.ktype = &ibmasm_cmd_kobj_type;
+	kref_init(&cmd->kref);
 	cmd->lock = &sp->lock;
 
 	cmd->status = IBMASM_CMD_PENDING;
@@ -67,9 +61,9 @@ struct command *ibmasm_new_command(struct service_processor *sp, size_t buffer_s
 	return cmd;
 }
 
-static void free_command(struct kobject *kobj)
+void ibmasm_free_command(struct kref *kref)
 {
-	struct command *cmd = to_command(kobj);
+	struct command *cmd = to_command(kref);
 
 	list_del(&cmd->queue_node);
 	atomic_dec(&command_count);

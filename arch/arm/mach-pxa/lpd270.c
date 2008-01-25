@@ -122,7 +122,7 @@ static int lpd270_irq_resume(struct sys_device *dev)
 }
 
 static struct sysdev_class lpd270_irq_sysclass = {
-	set_kset_name("cpld_irq"),
+	.name = "cpld_irq",
 	.resume = lpd270_irq_resume,
 };
 

@@ -745,7 +745,7 @@ static void mce_restart(void)
 
 static struct sysdev_class mce_sysclass = {
 	.resume = mce_resume,
-	set_kset_name("machinecheck"),
+	.name = "machinecheck",
 };
 
 DEFINE_PER_CPU(struct sys_device, device_mce);

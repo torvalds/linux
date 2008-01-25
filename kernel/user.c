@@ -115,7 +115,7 @@ static void sched_switch_user(struct task_struct *p) { }
 
 #if defined(CONFIG_FAIR_USER_SCHED) && defined(CONFIG_SYSFS)
 
-static struct kobject uids_kobject; /* represents /sys/kernel/uids directory */
+static struct kset *uids_kset; /* represents the /sys/kernel/uids/ directory */
 static DEFINE_MUTEX(uids_mutex);
 
 static inline void uids_mutex_lock(void)
@@ -128,86 +128,83 @@ static inline void uids_mutex_unlock(void)
 	mutex_unlock(&uids_mutex);
 }
 
-/* return cpu shares held by the user */
-static ssize_t cpu_shares_show(struct kset *kset, char *buffer)
+/* uid directory attributes */
+static ssize_t cpu_shares_show(struct kobject *kobj,
+			       struct kobj_attribute *attr,
+			       char *buf)
 {
-	struct user_struct *up = container_of(kset, struct user_struct, kset);
+	struct user_struct *up = container_of(kobj, struct user_struct, kobj);
 
-	return sprintf(buffer, "%lu\n", sched_group_shares(up->tg));
+	return sprintf(buf, "%lu\n", sched_group_shares(up->tg));
 }
 
-/* modify cpu shares held by the user */
-static ssize_t cpu_shares_store(struct kset *kset, const char *buffer,
-				size_t size)
+static ssize_t cpu_shares_store(struct kobject *kobj,
+				struct kobj_attribute *attr,
+				const char *buf, size_t size)
 {
-	struct user_struct *up = container_of(kset, struct user_struct, kset);
+	struct user_struct *up = container_of(kobj, struct user_struct, kobj);
 	unsigned long shares;
 	int rc;
 
-	sscanf(buffer, "%lu", &shares);
+	sscanf(buf, "%lu", &shares);
 
 	rc = sched_group_set_shares(up->tg, shares);
 
 	return (rc ? rc : size);
 }
 
-static void user_attr_init(struct subsys_attribute *sa, char *name, int mode)
+static struct kobj_attribute cpu_share_attr =
+	__ATTR(cpu_share, 0644, cpu_shares_show, cpu_shares_store);
+
+/* default attributes per uid directory */
+static struct attribute *uids_attributes[] = {
+	&cpu_share_attr.attr,
+	NULL
+};
+
+/* the lifetime of user_struct is not managed by the core (now) */
+static void uids_release(struct kobject *kobj)
 {
-	sa->attr.name = name;
-	sa->attr.mode = mode;
-	sa->show = cpu_shares_show;
-	sa->store = cpu_shares_store;
+	return;
 }
 
-/* Create "/sys/kernel/uids/<uid>" directory and
- *  "/sys/kernel/uids/<uid>/cpu_share" file for this user.
- */
-static int user_kobject_create(struct user_struct *up)
+static struct kobj_type uids_ktype = {
+	.sysfs_ops = &kobj_sysfs_ops,
+	.default_attrs = uids_attributes,
+	.release = uids_release,
+};
+
+/* create /sys/kernel/uids/<uid>/cpu_share file for this user */
+static int uids_user_create(struct user_struct *up)
 {
-	struct kset *kset = &up->kset;
-	struct kobject *kobj = &kset->kobj;
+	struct kobject *kobj = &up->kobj;
 	int error;
 
-	memset(kset, 0, sizeof(struct kset));
-	kobj->parent = &uids_kobject;	/* create under /sys/kernel/uids dir */
-	kobject_set_name(kobj, "%d", up->uid);
-	kset_init(kset);
-	user_attr_init(&up->user_attr, "cpu_share", 0644);
-
-	error = kobject_add(kobj);
-	if (error)
+	memset(kobj, 0, sizeof(struct kobject));
+	kobj->kset = uids_kset;
+	error = kobject_init_and_add(kobj, &uids_ktype, NULL, "%d", up->uid);
+	if (error) {
+		kobject_put(kobj);
 		goto done;
-
-	error = sysfs_create_file(kobj, &up->user_attr.attr);
-	if (error)
-		kobject_del(kobj);
+	}
 
 	kobject_uevent(kobj, KOBJ_ADD);
-
 done:
 	return error;
 }
 
-/* create these in sysfs filesystem:
+/* create these entries in sysfs:
  * 	"/sys/kernel/uids" directory
  * 	"/sys/kernel/uids/0" directory (for root user)
  * 	"/sys/kernel/uids/0/cpu_share" file (for root user)
  */
-int __init uids_kobject_init(void)
+int __init uids_sysfs_init(void)
 {
-	int error;
+	uids_kset = kset_create_and_add("uids", NULL, kernel_kobj);
+	if (!uids_kset)
+		return -ENOMEM;
 
-	/* create under /sys/kernel dir */
-	uids_kobject.parent = &kernel_subsys.kobj;
-	uids_kobject.kset = &kernel_subsys;
-	kobject_set_name(&uids_kobject, "uids");
-	kobject_init(&uids_kobject);
-
-	error = kobject_add(&uids_kobject);
-	if (!error)
-		error = user_kobject_create(&root_user);
-
-	return error;
+	return uids_user_create(&root_user);
 }
 
 /* work function to remove sysfs directory for a user and free up
@@ -216,7 +213,6 @@ int __init uids_kobject_init(void)
 static void remove_user_sysfs_dir(struct work_struct *w)
 {
 	struct user_struct *up = container_of(w, struct user_struct, work);
-	struct kobject *kobj = &up->kset.kobj;
 	unsigned long flags;
 	int remove_user = 0;
 
@@ -238,9 +234,9 @@ static void remove_user_sysfs_dir(struct work_struct *w)
 	if (!remove_user)
 		goto done;
 
-	sysfs_remove_file(kobj, &up->user_attr.attr);
-	kobject_uevent(kobj, KOBJ_REMOVE);
-	kobject_del(kobj);
+	kobject_uevent(&up->kobj, KOBJ_REMOVE);
+	kobject_del(&up->kobj);
+	kobject_put(&up->kobj);
 
 	sched_destroy_user(up);
 	key_put(up->uid_keyring);
@@ -267,7 +263,8 @@ static inline void free_user(struct user_struct *up, unsigned long flags)
 
 #else	/* CONFIG_FAIR_USER_SCHED && CONFIG_SYSFS */
 
-static inline int user_kobject_create(struct user_struct *up) { return 0; }
+int uids_sysfs_init(void) { return 0; }
+static inline int uids_user_create(struct user_struct *up) { return 0; }
 static inline void uids_mutex_lock(void) { }
 static inline void uids_mutex_unlock(void) { }
 
@@ -324,7 +321,7 @@ struct user_struct * alloc_uid(struct user_namespace *ns, uid_t uid)
 	struct hlist_head *hashent = uidhashentry(ns, uid);
 	struct user_struct *up;
 
-	/* Make uid_hash_find() + user_kobject_create() + uid_hash_insert()
+	/* Make uid_hash_find() + uids_user_create() + uid_hash_insert()
 	 * atomic.
 	 */
 	uids_mutex_lock();
@@ -370,7 +367,7 @@ struct user_struct * alloc_uid(struct user_namespace *ns, uid_t uid)
 			return NULL;
 		}
 
-		if (user_kobject_create(new)) {
+		if (uids_user_create(new)) {
 			sched_destroy_user(new);
 			key_put(new->uid_keyring);
 			key_put(new->session_keyring);

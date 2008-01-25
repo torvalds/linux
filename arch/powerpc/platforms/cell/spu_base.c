@@ -459,7 +459,7 @@ static int spu_shutdown(struct sys_device *sysdev)
 }
 
 static struct sysdev_class spu_sysdev_class = {
-	set_kset_name("spu"),
+	.name = "spu",
 	.shutdown = spu_shutdown,
 };
 

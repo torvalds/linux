@@ -1584,7 +1584,7 @@ static struct sysdev_class mpic_sysclass = {
 	.resume = mpic_resume,
 	.suspend = mpic_suspend,
 #endif
-	set_kset_name("mpic"),
+	.name = "mpic",
 };
 
 static int mpic_init_sys(void)

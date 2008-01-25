@@ -1,10 +1,3 @@
-/*
- * shutdown.c
- */
-
-extern void device_shutdown(void);
-
-
 #ifdef CONFIG_PM_SLEEP
 
 /*
@@ -20,6 +13,9 @@ static inline struct device *to_device(struct list_head *entry)
 
 extern void device_pm_add(struct device *);
 extern void device_pm_remove(struct device *);
+extern void device_pm_schedule_removal(struct device *);
+extern int pm_sleep_lock(void);
+extern void pm_sleep_unlock(void);
 
 #else /* CONFIG_PM_SLEEP */
 
@@ -29,6 +25,15 @@ static inline void device_pm_add(struct device *dev)
 }
 
 static inline void device_pm_remove(struct device *dev)
+{
+}
+
+static inline int pm_sleep_lock(void)
+{
+	return 0;
+}
+
+static inline void pm_sleep_unlock(void)
 {
 }
 

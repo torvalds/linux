@@ -15,7 +15,7 @@
 #include <linux/device.h>
 
 static struct sysdev_class node_class = {
-	set_kset_name("node"),
+	.name = "node",
 };
 
 

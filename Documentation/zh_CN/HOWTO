@@ -1,10 +1,10 @@
 ﻿Chinese translated version of Documentation/HOWTO
 
 If you have any comment or update to the content, please contact the
-original document maintainer directly.  However, if you have problem
+original document maintainer directly.  However, if you have a problem
 communicating in English you can also ask the Chinese maintainer for
-help.  Contact the Chinese maintainer, if this translation is outdated
-or there is problem with translation.
+help.  Contact the Chinese maintainer if this translation is outdated
+or if there is a problem with the translation.
 
 Maintainer: Greg Kroah-Hartman <greg@kroah.com>
 Chinese maintainer: Li Yang <leoli@freescale.com>
@@ -85,7 +85,7 @@ Linux内核源代码都是在GPL（通用公共许可证）的保护下发布的
 Linux内核代码中包含有大量的文档。这些文档对于学习如何与内核社区互动有着
 不可估量的价值。当一个新的功能被加入内核，最好把解释如何使用这个功能的文
 档也放进内核。当内核的改动导致面向用户空间的接口发生变化时，最好将相关信
-息或手册页(manpages)的补丁发到mtk-manpages@gmx.net，以向手册页(manpages)
+息或手册页(manpages)的补丁发到mtk.manpages@gmail.com，以向手册页(manpages)
 的维护者解释这些变化。
 
 以下是内核代码中需要阅读的文档：
@@ -218,6 +218,8 @@ kernel.org网站的pub/linux/kernel/v2.6/目录下找到它。它的开发遵循
     时，一个新的-rc版本就会被发布。计划是每周都发布新的-rc版本。
   - 这个过程一直持续下去直到内核被认为达到足够稳定的状态，持续时间大概是
     6个星期。
+  - 以下地址跟踪了在每个-rc发布中发现的退步列表：
+    http://kernelnewbies.org/known_regressions
 
 关于内核发布，值得一提的是Andrew Morton在linux-kernel邮件列表中如是说：
 	“没有人知道新内核何时会被发布，因为发布是根据已知bug的情况来决定

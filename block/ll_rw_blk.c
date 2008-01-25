@@ -1862,9 +1862,7 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 
 	init_timer(&q->unplug_timer);
 
-	kobject_set_name(&q->kobj, "%s", "queue");
-	q->kobj.ktype = &queue_ktype;
-	kobject_init(&q->kobj);
+	kobject_init(&q->kobj, &queue_ktype);
 
 	mutex_init(&q->sysfs_lock);
 
@@ -4182,9 +4180,8 @@ int blk_register_queue(struct gendisk *disk)
 	if (!q || !q->request_fn)
 		return -ENXIO;
 
-	q->kobj.parent = kobject_get(&disk->kobj);
-
-	ret = kobject_add(&q->kobj);
+	ret = kobject_add(&q->kobj, kobject_get(&disk->dev.kobj),
+			  "%s", "queue");
 	if (ret < 0)
 		return ret;
 
@@ -4209,6 +4206,6 @@ void blk_unregister_queue(struct gendisk *disk)
 
 		kobject_uevent(&q->kobj, KOBJ_REMOVE);
 		kobject_del(&q->kobj);
-		kobject_put(&disk->kobj);
+		kobject_put(&disk->dev.kobj);
 	}
 }

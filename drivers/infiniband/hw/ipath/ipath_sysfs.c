@@ -683,6 +683,11 @@ static struct attribute_group driver_attr_group = {
 	.attrs = driver_attributes
 };
 
+struct attribute_group *ipath_driver_attr_groups[] = {
+	&driver_attr_group,
+	NULL,
+};
+
 static DEVICE_ATTR(guid, S_IWUSR | S_IRUGO, show_guid, store_guid);
 static DEVICE_ATTR(lmc, S_IWUSR | S_IRUGO, show_lmc, store_lmc);
 static DEVICE_ATTR(lid, S_IWUSR | S_IRUGO, show_lid, store_lid);
@@ -753,24 +758,9 @@ int ipath_expose_reset(struct device *dev)
 	return ret;
 }
 
-int ipath_driver_create_group(struct device_driver *drv)
-{
-	int ret;
-
-	ret = sysfs_create_group(&drv->kobj, &driver_attr_group);
-
-	return ret;
-}
-
-void ipath_driver_remove_group(struct device_driver *drv)
-{
-	sysfs_remove_group(&drv->kobj, &driver_attr_group);
-}
-
 int ipath_device_create_group(struct device *dev, struct ipath_devdata *dd)
 {
 	int ret;
-	char unit[5];
 
 	ret = sysfs_create_group(&dev->kobj, &dev_attr_group);
 	if (ret)
@@ -779,11 +769,6 @@ int ipath_device_create_group(struct device *dev, struct ipath_devdata *dd)
 	ret = sysfs_create_group(&dev->kobj, &dev_counter_attr_group);
 	if (ret)
 		goto bail_attrs;
-
-	snprintf(unit, sizeof(unit), "%02d", dd->ipath_unit);
-	ret = sysfs_create_link(&dev->driver->kobj, &dev->kobj, unit);
-	if (ret == 0)
-		goto bail;
 
 	sysfs_remove_group(&dev->kobj, &dev_counter_attr_group);
 bail_attrs:
@@ -794,11 +779,6 @@ bail:
 
 void ipath_device_remove_group(struct device *dev, struct ipath_devdata *dd)
 {
-	char unit[5];
-
-	snprintf(unit, sizeof(unit), "%02d", dd->ipath_unit);
-	sysfs_remove_link(&dev->driver->kobj, unit);
-
 	sysfs_remove_group(&dev->kobj, &dev_counter_attr_group);
 	sysfs_remove_group(&dev->kobj, &dev_attr_group);
 

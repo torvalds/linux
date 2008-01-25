@@ -35,7 +35,7 @@ extern struct resource *platform_get_resource_byname(struct platform_device *, u
 extern int platform_get_irq_byname(struct platform_device *, char *);
 extern int platform_add_devices(struct platform_device **, int);
 
-extern struct platform_device *platform_device_register_simple(char *, int id,
+extern struct platform_device *platform_device_register_simple(const char *, int id,
 					struct resource *, unsigned int);
 
 extern struct platform_device *platform_device_alloc(const char *name, int id);

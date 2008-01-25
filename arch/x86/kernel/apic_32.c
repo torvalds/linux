@@ -1530,7 +1530,7 @@ static int lapic_resume(struct sys_device *dev)
  */
 
 static struct sysdev_class lapic_sysclass = {
-	set_kset_name("lapic"),
+	.name		= "lapic",
 	.resume		= lapic_resume,
 	.suspend	= lapic_suspend,
 };

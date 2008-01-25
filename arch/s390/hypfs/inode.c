@@ -490,7 +490,7 @@ static struct super_operations hypfs_s_ops = {
 	.show_options	= hypfs_show_options,
 };
 
-static decl_subsys(s390, NULL, NULL);
+static struct kobject *s390_kobj;
 
 static int __init hypfs_init(void)
 {
@@ -506,17 +506,18 @@ static int __init hypfs_init(void)
 			goto fail_diag;
 		}
 	}
-	kobj_set_kset_s(&s390_subsys, hypervisor_subsys);
-	rc = subsystem_register(&s390_subsys);
-	if (rc)
+	s390_kobj = kobject_create_and_add("s390", hypervisor_kobj);
+	if (!s390_kobj) {
+		rc = -ENOMEM;;
 		goto fail_sysfs;
+	}
 	rc = register_filesystem(&hypfs_type);
 	if (rc)
 		goto fail_filesystem;
 	return 0;
 
 fail_filesystem:
-	subsystem_unregister(&s390_subsys);
+	kobject_put(s390_kobj);
 fail_sysfs:
 	if (!MACHINE_IS_VM)
 		hypfs_diag_exit();
@@ -530,7 +531,7 @@ static void __exit hypfs_exit(void)
 	if (!MACHINE_IS_VM)
 		hypfs_diag_exit();
 	unregister_filesystem(&hypfs_type);
-	subsystem_unregister(&s390_subsys);
+	kobject_put(s390_kobj);
 }
 
 module_init(hypfs_init)

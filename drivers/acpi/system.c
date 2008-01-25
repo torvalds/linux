@@ -58,7 +58,7 @@ module_param_call(acpica_version, NULL, param_get_acpica_version, NULL, 0444);
                               FS Interface (/sys)
    -------------------------------------------------------------------------- */
 static LIST_HEAD(acpi_table_attr_list);
-static struct kobject tables_kobj;
+static struct kobject *tables_kobj;
 
 struct acpi_table_attr {
 	struct bin_attribute attr;
@@ -135,11 +135,9 @@ static int acpi_system_sysfs_init(void)
 	int table_index = 0;
 	int result;
 
-	tables_kobj.parent = &acpi_subsys.kobj;
-	kobject_set_name(&tables_kobj, "tables");
-	result = kobject_register(&tables_kobj);
-	if (result)
-		return result;
+	tables_kobj = kobject_create_and_add("tables", acpi_kobj);
+	if (!tables_kobj)
+		return -ENOMEM;
 
 	do {
 		result = acpi_get_table_by_index(table_index, &table_header);
@@ -153,7 +151,7 @@ static int acpi_system_sysfs_init(void)
 
 			acpi_table_attr_init(table_attr, table_header);
 			result =
-			    sysfs_create_bin_file(&tables_kobj,
+			    sysfs_create_bin_file(tables_kobj,
 						  &table_attr->attr);
 			if (result) {
 				kfree(table_attr);
@@ -163,6 +161,7 @@ static int acpi_system_sysfs_init(void)
 					      &acpi_table_attr_list);
 		}
 	} while (!result);
+	kobject_uevent(tables_kobj, KOBJ_ADD);
 
 	return 0;
 }

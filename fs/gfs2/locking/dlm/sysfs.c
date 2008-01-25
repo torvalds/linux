@@ -189,51 +189,39 @@ static struct kobj_type gdlm_ktype = {
 	.sysfs_ops     = &gdlm_attr_ops,
 };
 
-static struct kset gdlm_kset = {
-	.ktype  = &gdlm_ktype,
-};
+static struct kset *gdlm_kset;
 
 int gdlm_kobject_setup(struct gdlm_ls *ls, struct kobject *fskobj)
 {
 	int error;
 
-	error = kobject_set_name(&ls->kobj, "%s", "lock_module");
-	if (error) {
-		log_error("can't set kobj name %d", error);
-		return error;
-	}
-
-	ls->kobj.kset = &gdlm_kset;
-	ls->kobj.ktype = &gdlm_ktype;
-	ls->kobj.parent = fskobj;
-
-	error = kobject_register(&ls->kobj);
+	ls->kobj.kset = gdlm_kset;
+	error = kobject_init_and_add(&ls->kobj, &gdlm_ktype, fskobj,
+				     "lock_module");
 	if (error)
 		log_error("can't register kobj %d", error);
+	kobject_uevent(&ls->kobj, KOBJ_ADD);
 
 	return error;
 }
 
 void gdlm_kobject_release(struct gdlm_ls *ls)
 {
-	kobject_unregister(&ls->kobj);
+	kobject_put(&ls->kobj);
 }
 
 int gdlm_sysfs_init(void)
 {
-	int error;
-
-	kobject_set_name(&gdlm_kset.kobj, "lock_dlm");
-	kobj_set_kset_s(&gdlm_kset, kernel_subsys);
-	error = kset_register(&gdlm_kset);
-	if (error)
-		printk("lock_dlm: cannot register kset %d\n", error);
-
-	return error;
+	gdlm_kset = kset_create_and_add("lock_dlm", NULL, kernel_kobj);
+	if (!gdlm_kset) {
+		printk(KERN_WARNING "%s: can not create kset\n", __FUNCTION__);
+		return -ENOMEM;
+	}
+	return 0;
 }
 
 void gdlm_sysfs_exit(void)
 {
-	kset_unregister(&gdlm_kset);
+	kset_unregister(gdlm_kset);
 }
 

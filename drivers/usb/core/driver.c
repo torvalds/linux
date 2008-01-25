@@ -91,8 +91,8 @@ static int usb_create_newid_file(struct usb_driver *usb_drv)
 		goto exit;
 
 	if (usb_drv->probe != NULL)
-		error = sysfs_create_file(&usb_drv->drvwrap.driver.kobj,
-					  &driver_attr_new_id.attr);
+		error = driver_create_file(&usb_drv->drvwrap.driver,
+					   &driver_attr_new_id);
 exit:
 	return error;
 }
@@ -103,8 +103,8 @@ static void usb_remove_newid_file(struct usb_driver *usb_drv)
 		return;
 
 	if (usb_drv->probe != NULL)
-		sysfs_remove_file(&usb_drv->drvwrap.driver.kobj,
-				  &driver_attr_new_id.attr);
+		driver_remove_file(&usb_drv->drvwrap.driver,
+				   &driver_attr_new_id);
 }
 
 static void usb_free_dynids(struct usb_driver *usb_drv)

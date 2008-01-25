@@ -51,7 +51,7 @@ static int nmi_resume(struct sys_device *dev)
 
 
 static struct sysdev_class oprofile_sysclass = {
-	set_kset_name("oprofile"),
+	.name		= "oprofile",
 	.resume		= nmi_resume,
 	.suspend	= nmi_suspend,
 };

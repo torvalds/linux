@@ -666,7 +666,7 @@ int openpic2_resume(struct sys_device *sysdev)
 
 /* HACK ALERT */
 static struct sysdev_class openpic2_sysclass = {
-	set_kset_name("openpic2"),
+	.name = "openpic2",
 };
 
 static struct sys_device device_openpic2 = {

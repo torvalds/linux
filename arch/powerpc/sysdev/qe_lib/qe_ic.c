@@ -483,7 +483,7 @@ int qe_ic_set_high_priority(unsigned int virq, unsigned int priority, int high)
 }
 
 static struct sysdev_class qe_ic_sysclass = {
-	set_kset_name("qe_ic"),
+	.name = "qe_ic",
 };
 
 static struct sys_device device_qe_ic = {

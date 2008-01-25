@@ -65,7 +65,7 @@ static struct threshold_block threshold_defaults = {
 };
 
 struct threshold_bank {
-	struct kobject kobj;
+	struct kobject *kobj;
 	struct threshold_block *blocks;
 	cpumask_t cpus;
 };
@@ -432,10 +432,9 @@ static __cpuinit int allocate_threshold_blocks(unsigned int cpu,
 	else
 		per_cpu(threshold_banks, cpu)[bank]->blocks = b;
 
-	kobject_set_name(&b->kobj, "misc%i", block);
-	b->kobj.parent = &per_cpu(threshold_banks, cpu)[bank]->kobj;
-	b->kobj.ktype = &threshold_ktype;
-	err = kobject_register(&b->kobj);
+	err = kobject_init_and_add(&b->kobj, &threshold_ktype,
+				   per_cpu(threshold_banks, cpu)[bank]->kobj,
+				   "misc%i", block);
 	if (err)
 		goto out_free;
 recurse:
@@ -451,11 +450,13 @@ recurse:
 	if (err)
 		goto out_free;
 
+	kobject_uevent(&b->kobj, KOBJ_ADD);
+
 	return err;
 
 out_free:
 	if (b) {
-		kobject_unregister(&b->kobj);
+		kobject_put(&b->kobj);
 		kfree(b);
 	}
 	return err;
@@ -489,7 +490,7 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 			goto out;
 
 		err = sysfs_create_link(&per_cpu(device_mce, cpu).kobj,
-					&b->kobj, name);
+					b->kobj, name);
 		if (err)
 			goto out;
 
@@ -505,16 +506,15 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 		goto out;
 	}
 
-	kobject_set_name(&b->kobj, "threshold_bank%i", bank);
-	b->kobj.parent = &per_cpu(device_mce, cpu).kobj;
+	b->kobj = kobject_create_and_add(name, &per_cpu(device_mce, cpu).kobj);
+	if (!b->kobj)
+		goto out_free;
+
 #ifndef CONFIG_SMP
 	b->cpus = CPU_MASK_ALL;
 #else
 	b->cpus = per_cpu(cpu_core_map, cpu);
 #endif
-	err = kobject_register(&b->kobj);
-	if (err)
-		goto out_free;
 
 	per_cpu(threshold_banks, cpu)[bank] = b;
 
@@ -531,7 +531,7 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 			continue;
 
 		err = sysfs_create_link(&per_cpu(device_mce, i).kobj,
-					&b->kobj, name);
+					b->kobj, name);
 		if (err)
 			goto out;
 
@@ -581,7 +581,7 @@ static void deallocate_threshold_block(unsigned int cpu,
 		return;
 
 	list_for_each_entry_safe(pos, tmp, &head->blocks->miscj, miscj) {
-		kobject_unregister(&pos->kobj);
+		kobject_put(&pos->kobj);
 		list_del(&pos->miscj);
 		kfree(pos);
 	}
@@ -627,7 +627,7 @@ static void threshold_remove_bank(unsigned int cpu, int bank)
 	deallocate_threshold_block(cpu, bank);
 
 free_out:
-	kobject_unregister(&b->kobj);
+	kobject_put(b->kobj);
 	kfree(b);
 	per_cpu(threshold_banks, cpu)[bank] = NULL;
 }

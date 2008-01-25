@@ -43,7 +43,7 @@ static struct map_desc s3c2443_iodesc[] __initdata = {
 };
 
 struct sysdev_class s3c2443_sysclass = {
-	set_kset_name("s3c2443-core"),
+	.name = "s3c2443-core",
 };
 
 static struct sys_device s3c2443_sysdev = {

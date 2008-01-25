@@ -4724,10 +4724,8 @@ static void ide_tape_release(struct kref *kref)
 
 	drive->dsc_overlap = 0;
 	drive->driver_data = NULL;
-	class_device_destroy(idetape_sysfs_class,
-			MKDEV(IDETAPE_MAJOR, tape->minor));
-	class_device_destroy(idetape_sysfs_class,
-			MKDEV(IDETAPE_MAJOR, tape->minor + 128));
+	device_destroy(idetape_sysfs_class, MKDEV(IDETAPE_MAJOR, tape->minor));
+	device_destroy(idetape_sysfs_class, MKDEV(IDETAPE_MAJOR, tape->minor + 128));
 	idetape_devs[tape->minor] = NULL;
 	g->private_data = NULL;
 	put_disk(g);
@@ -4884,10 +4882,10 @@ static int ide_tape_probe(ide_drive_t *drive)
 
 	idetape_setup(drive, tape, minor);
 
-	class_device_create(idetape_sysfs_class, NULL,
-			MKDEV(IDETAPE_MAJOR, minor), &drive->gendev, "%s", tape->name);
-	class_device_create(idetape_sysfs_class, NULL,
-			MKDEV(IDETAPE_MAJOR, minor + 128), &drive->gendev, "n%s", tape->name);
+	device_create(idetape_sysfs_class, &drive->gendev,
+		      MKDEV(IDETAPE_MAJOR, minor), "%s", tape->name);
+	device_create(idetape_sysfs_class, &drive->gendev,
+			MKDEV(IDETAPE_MAJOR, minor + 128), "n%s", tape->name);
 
 	g->fops = &idetape_block_ops;
 	ide_register_region(g);

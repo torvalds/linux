@@ -566,7 +566,7 @@ static int cmx270_resume(struct sys_device *dev)
 }
 
 static struct sysdev_class cmx270_pm_sysclass = {
-	set_kset_name("pm"),
+	.name = "pm",
 	.resume = cmx270_resume,
 	.suspend = cmx270_suspend,
 };

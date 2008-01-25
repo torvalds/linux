@@ -3451,7 +3451,7 @@ static int kvm_resume(struct sys_device *dev)
 }
 
 static struct sysdev_class kvm_sysdev_class = {
-	set_kset_name("kvm"),
+	.name = "kvm",
 	.suspend = kvm_suspend,
 	.resume = kvm_resume,
 };

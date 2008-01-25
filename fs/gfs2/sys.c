@@ -221,9 +221,7 @@ static struct kobj_type gfs2_ktype = {
 	.sysfs_ops     = &gfs2_attr_ops,
 };
 
-static struct kset gfs2_kset = {
-	.ktype  = &gfs2_ktype,
-};
+static struct kset *gfs2_kset;
 
 /*
  * display struct lm_lockstruct fields
@@ -495,14 +493,9 @@ int gfs2_sys_fs_add(struct gfs2_sbd *sdp)
 {
 	int error;
 
-	sdp->sd_kobj.kset = &gfs2_kset;
-	sdp->sd_kobj.ktype = &gfs2_ktype;
-
-	error = kobject_set_name(&sdp->sd_kobj, "%s", sdp->sd_table_name);
-	if (error)
-		goto fail;
-
-	error = kobject_register(&sdp->sd_kobj);
+	sdp->sd_kobj.kset = gfs2_kset;
+	error = kobject_init_and_add(&sdp->sd_kobj, &gfs2_ktype, NULL,
+				     "%s", sdp->sd_table_name);
 	if (error)
 		goto fail;
 
@@ -522,6 +515,7 @@ int gfs2_sys_fs_add(struct gfs2_sbd *sdp)
 	if (error)
 		goto fail_args;
 
+	kobject_uevent(&sdp->sd_kobj, KOBJ_ADD);
 	return 0;
 
 fail_args:
@@ -531,7 +525,7 @@ fail_counters:
 fail_lockstruct:
 	sysfs_remove_group(&sdp->sd_kobj, &lockstruct_group);
 fail_reg:
-	kobject_unregister(&sdp->sd_kobj);
+	kobject_put(&sdp->sd_kobj);
 fail:
 	fs_err(sdp, "error %d adding sysfs files", error);
 	return error;
@@ -543,21 +537,22 @@ void gfs2_sys_fs_del(struct gfs2_sbd *sdp)
 	sysfs_remove_group(&sdp->sd_kobj, &args_group);
 	sysfs_remove_group(&sdp->sd_kobj, &counters_group);
 	sysfs_remove_group(&sdp->sd_kobj, &lockstruct_group);
-	kobject_unregister(&sdp->sd_kobj);
+	kobject_put(&sdp->sd_kobj);
 }
 
 int gfs2_sys_init(void)
 {
 	gfs2_sys_margs = NULL;
 	spin_lock_init(&gfs2_sys_margs_lock);
-	kobject_set_name(&gfs2_kset.kobj, "gfs2");
-	kobj_set_kset_s(&gfs2_kset, fs_subsys);
-	return kset_register(&gfs2_kset);
+	gfs2_kset = kset_create_and_add("gfs2", NULL, fs_kobj);
+	if (!gfs2_kset)
+		return -ENOMEM;
+	return 0;
 }
 
 void gfs2_sys_uninit(void)
 {
 	kfree(gfs2_sys_margs);
-	kset_unregister(&gfs2_kset);
+	kset_unregister(gfs2_kset);
 }
 

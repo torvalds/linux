@@ -160,16 +160,16 @@ static struct bus_type tifm_bus_type = {
 	.resume    = tifm_device_resume
 };
 
-static void tifm_free(struct class_device *cdev)
+static void tifm_free(struct device *dev)
 {
-	struct tifm_adapter *fm = container_of(cdev, struct tifm_adapter, cdev);
+	struct tifm_adapter *fm = container_of(dev, struct tifm_adapter, dev);
 
 	kfree(fm);
 }
 
 static struct class tifm_adapter_class = {
 	.name    = "tifm_adapter",
-	.release = tifm_free
+	.dev_release = tifm_free
 };
 
 struct tifm_adapter *tifm_alloc_adapter(unsigned int num_sockets,
@@ -180,9 +180,9 @@ struct tifm_adapter *tifm_alloc_adapter(unsigned int num_sockets,
 	fm = kzalloc(sizeof(struct tifm_adapter)
 		     + sizeof(struct tifm_dev*) * num_sockets, GFP_KERNEL);
 	if (fm) {
-		fm->cdev.class = &tifm_adapter_class;
-		fm->cdev.dev = dev;
-		class_device_initialize(&fm->cdev);
+		fm->dev.class = &tifm_adapter_class;
+		fm->dev.parent = dev;
+		device_initialize(&fm->dev);
 		spin_lock_init(&fm->lock);
 		fm->num_sockets = num_sockets;
 	}
@@ -203,8 +203,8 @@ int tifm_add_adapter(struct tifm_adapter *fm)
 	if (rc)
 		return rc;
 
-	snprintf(fm->cdev.class_id, BUS_ID_SIZE, "tifm%u", fm->id);
-	rc = class_device_add(&fm->cdev);
+	snprintf(fm->dev.bus_id, BUS_ID_SIZE, "tifm%u", fm->id);
+	rc = device_add(&fm->dev);
 	if (rc) {
 		spin_lock(&tifm_adapter_lock);
 		idr_remove(&tifm_adapter_idr, fm->id);
@@ -228,13 +228,13 @@ void tifm_remove_adapter(struct tifm_adapter *fm)
 	spin_lock(&tifm_adapter_lock);
 	idr_remove(&tifm_adapter_idr, fm->id);
 	spin_unlock(&tifm_adapter_lock);
-	class_device_del(&fm->cdev);
+	device_del(&fm->dev);
 }
 EXPORT_SYMBOL(tifm_remove_adapter);
 
 void tifm_free_adapter(struct tifm_adapter *fm)
 {
-	class_device_put(&fm->cdev);
+	put_device(&fm->dev);
 }
 EXPORT_SYMBOL(tifm_free_adapter);
 
@@ -261,9 +261,9 @@ struct tifm_dev *tifm_alloc_device(struct tifm_adapter *fm, unsigned int id,
 		sock->card_event = tifm_dummy_event;
 		sock->data_event = tifm_dummy_event;
 
-		sock->dev.parent = fm->cdev.dev;
+		sock->dev.parent = fm->dev.parent;
 		sock->dev.bus = &tifm_bus_type;
-		sock->dev.dma_mask = fm->cdev.dev->dma_mask;
+		sock->dev.dma_mask = fm->dev.parent->dma_mask;
 		sock->dev.release = tifm_free_device;
 
 		snprintf(sock->dev.bus_id, BUS_ID_SIZE,

@@ -20,6 +20,9 @@
 
 #define IOP_TIMEOUT 100
 
+#error "This driver is broken with regard to its driver core usage."
+#error "Please contact <greg@kroah.com> for details on how to fix it properly."
+
 static struct device iop_spu_device[2] = {
 	{ .bus_id =     "iop-spu0", },
 	{ .bus_id =     "iop-spu1", },
@@ -192,6 +195,13 @@ int iop_start_mpu(unsigned int start_addr)
 
 static int __init iop_fw_load_init(void)
 {
+#if 0
+	/*
+	 * static struct devices can not be added directly to sysfs by ignoring
+	 * the driver model infrastructure.  To fix this properly, please use
+	 * the platform_bus to register these devices to be able to properly
+	 * use the firmware infrastructure.
+	 */
 	device_initialize(&iop_spu_device[0]);
 	kobject_set_name(&iop_spu_device[0].kobj, "iop-spu0");
 	kobject_add(&iop_spu_device[0].kobj);
@@ -201,6 +211,7 @@ static int __init iop_fw_load_init(void)
 	device_initialize(&iop_mpu_device);
 	kobject_set_name(&iop_mpu_device.kobj, "iop-mpu");
 	kobject_add(&iop_mpu_device.kobj);
+#endif
 	return 0;
 }
 

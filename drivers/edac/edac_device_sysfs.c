@@ -246,16 +246,6 @@ int edac_device_register_sysfs_main_kobj(struct edac_device_ctl_info *edac_dev)
 
 	/* Init the devices's kobject */
 	memset(&edac_dev->kobj, 0, sizeof(struct kobject));
-	edac_dev->kobj.ktype = &ktype_device_ctrl;
-
-	/* set this new device under the edac_class kobject */
-	edac_dev->kobj.parent = &edac_class->kset.kobj;
-
-	/* generate sysfs "..../edac/<name>"   */
-	debugf4("%s() set name of kobject to: %s\n", __func__, edac_dev->name);
-	err = kobject_set_name(&edac_dev->kobj, "%s", edac_dev->name);
-	if (err)
-		goto err_out;
 
 	/* Record which module 'owns' this control structure
 	 * and bump the ref count of the module
@@ -268,12 +258,15 @@ int edac_device_register_sysfs_main_kobj(struct edac_device_ctl_info *edac_dev)
 	}
 
 	/* register */
-	err = kobject_register(&edac_dev->kobj);
+	err = kobject_init_and_add(&edac_dev->kobj, &ktype_device_ctrl,
+				   &edac_class->kset.kobj,
+				   "%s", edac_dev->name);
 	if (err) {
 		debugf1("%s()Failed to register '.../edac/%s'\n",
 			__func__, edac_dev->name);
 		goto err_kobj_reg;
 	}
+	kobject_uevent(&edac_dev->kobj, KOBJ_ADD);
 
 	/* At this point, to 'free' the control struct,
 	 * edac_device_unregister_sysfs_main_kobj() must be used
@@ -310,7 +303,7 @@ void edac_device_unregister_sysfs_main_kobj(
 	 *   a) module_put() this module
 	 *   b) 'kfree' the memory
 	 */
-	kobject_unregister(&edac_dev->kobj);
+	kobject_put(&edac_dev->kobj);
 }
 
 /* edac_dev -> instance information */
@@ -533,12 +526,6 @@ static int edac_device_create_block(struct edac_device_ctl_info *edac_dev,
 
 	/* init this block's kobject */
 	memset(&block->kobj, 0, sizeof(struct kobject));
-	block->kobj.parent = &instance->kobj;
-	block->kobj.ktype = &ktype_block_ctrl;
-
-	err = kobject_set_name(&block->kobj, "%s", block->name);
-	if (err)
-		return err;
 
 	/* bump the main kobject's reference count for this controller
 	 * and this instance is dependant on the main
@@ -550,7 +537,9 @@ static int edac_device_create_block(struct edac_device_ctl_info *edac_dev,
 	}
 
 	/* Add this block's kobject */
-	err = kobject_register(&block->kobj);
+	err = kobject_init_and_add(&block->kobj, &ktype_block_ctrl,
+				   &instance->kobj,
+				   "%s", block->name);
 	if (err) {
 		debugf1("%s() Failed to register instance '%s'\n",
 			__func__, block->name);
@@ -579,12 +568,13 @@ static int edac_device_create_block(struct edac_device_ctl_info *edac_dev,
 				goto err_on_attrib;
 		}
 	}
+	kobject_uevent(&block->kobj, KOBJ_ADD);
 
 	return 0;
 
 	/* Error unwind stack */
 err_on_attrib:
-	kobject_unregister(&block->kobj);
+	kobject_put(&block->kobj);
 
 err_out:
 	return err;
@@ -615,7 +605,7 @@ static void edac_device_delete_block(struct edac_device_ctl_info *edac_dev,
 	/* unregister this block's kobject, SEE:
 	 *	edac_device_ctrl_block_release() callback operation
 	 */
-	kobject_unregister(&block->kobj);
+	kobject_put(&block->kobj);
 }
 
 /* instance ctor/dtor code */
@@ -637,14 +627,7 @@ static int edac_device_create_instance(struct edac_device_ctl_info *edac_dev,
 	/* Init the instance's kobject */
 	memset(&instance->kobj, 0, sizeof(struct kobject));
 
-	/* set this new device under the edac_device main kobject */
-	instance->kobj.parent = &edac_dev->kobj;
-	instance->kobj.ktype = &ktype_instance_ctrl;
 	instance->ctl = edac_dev;
-
-	err = kobject_set_name(&instance->kobj, "%s", instance->name);
-	if (err)
-		goto err_out;
 
 	/* bump the main kobject's reference count for this controller
 	 * and this instance is dependant on the main
@@ -655,8 +638,9 @@ static int edac_device_create_instance(struct edac_device_ctl_info *edac_dev,
 		goto err_out;
 	}
 
-	/* Formally register this instance's kobject */
-	err = kobject_register(&instance->kobj);
+	/* Formally register this instance's kobject under the edac_device */
+	err = kobject_init_and_add(&instance->kobj, &ktype_instance_ctrl,
+				   &edac_dev->kobj, "%s", instance->name);
 	if (err != 0) {
 		debugf2("%s() Failed to register instance '%s'\n",
 			__func__, instance->name);
@@ -679,6 +663,7 @@ static int edac_device_create_instance(struct edac_device_ctl_info *edac_dev,
 			goto err_release_instance_kobj;
 		}
 	}
+	kobject_uevent(&instance->kobj, KOBJ_ADD);
 
 	debugf4("%s() Registered instance %d '%s' kobject\n",
 		__func__, idx, instance->name);
@@ -687,7 +672,7 @@ static int edac_device_create_instance(struct edac_device_ctl_info *edac_dev,
 
 	/* error unwind stack */
 err_release_instance_kobj:
-	kobject_unregister(&instance->kobj);
+	kobject_put(&instance->kobj);
 
 err_out:
 	return err;
@@ -712,7 +697,7 @@ static void edac_device_delete_instance(struct edac_device_ctl_info *edac_dev,
 	/* unregister this instance's kobject, SEE:
 	 *	edac_device_ctrl_instance_release() for callback operation
 	 */
-	kobject_unregister(&instance->kobj);
+	kobject_put(&instance->kobj);
 }
 
 /*

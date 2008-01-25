@@ -41,8 +41,8 @@ static struct kmem_cache *mnt_cache __read_mostly;
 static struct rw_semaphore namespace_sem;
 
 /* /sys/fs */
-decl_subsys(fs, NULL, NULL);
-EXPORT_SYMBOL_GPL(fs_subsys);
+struct kobject *fs_kobj;
+EXPORT_SYMBOL_GPL(fs_kobj);
 
 static inline unsigned long hash(struct vfsmount *mnt, struct dentry *dentry)
 {
@@ -1861,10 +1861,9 @@ void __init mnt_init(void)
 	if (err)
 		printk(KERN_WARNING "%s: sysfs_init error: %d\n",
 			__FUNCTION__, err);
-	err = subsystem_register(&fs_subsys);
-	if (err)
-		printk(KERN_WARNING "%s: subsystem_register error: %d\n",
-			__FUNCTION__, err);
+	fs_kobj = kobject_create_and_add("fs", NULL);
+	if (!fs_kobj)
+		printk(KERN_WARNING "%s: kobj create error\n", __FUNCTION__);
 	init_rootfs();
 	init_mount_tree();
 }

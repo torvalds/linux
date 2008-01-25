@@ -2089,6 +2089,11 @@ static struct attribute_group netiucv_drv_attr_group = {
 	.attrs = netiucv_drv_attrs,
 };
 
+static struct attribute_group *netiucv_drv_attr_groups[] = {
+	&netiucv_drv_attr_group,
+	NULL,
+};
+
 static void netiucv_banner(void)
 {
 	PRINT_INFO("NETIUCV driver initialized\n");
@@ -2113,7 +2118,6 @@ static void __exit netiucv_exit(void)
 		netiucv_unregister_device(dev);
 	}
 
-	sysfs_remove_group(&netiucv_driver.kobj, &netiucv_drv_attr_group);
 	driver_unregister(&netiucv_driver);
 	iucv_unregister(&netiucv_handler, 1);
 	iucv_unregister_dbf_views();
@@ -2133,6 +2137,7 @@ static int __init netiucv_init(void)
 	if (rc)
 		goto out_dbf;
 	IUCV_DBF_TEXT(trace, 3, __FUNCTION__);
+	netiucv_driver.groups = netiucv_drv_attr_groups;
 	rc = driver_register(&netiucv_driver);
 	if (rc) {
 		PRINT_ERR("NETIUCV: failed to register driver.\n");
@@ -2140,18 +2145,9 @@ static int __init netiucv_init(void)
 		goto out_iucv;
 	}
 
-	rc = sysfs_create_group(&netiucv_driver.kobj, &netiucv_drv_attr_group);
-	if (rc) {
-		PRINT_ERR("NETIUCV: failed to add driver attributes.\n");
-		IUCV_DBF_TEXT_(setup, 2,
-			       "ret %d - netiucv_drv_attr_group\n", rc);
-		goto out_driver;
-	}
 	netiucv_banner();
 	return rc;
 
-out_driver:
-	driver_unregister(&netiucv_driver);
 out_iucv:
 	iucv_unregister(&netiucv_handler, 1);
 out_dbf:

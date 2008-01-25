@@ -1173,7 +1173,7 @@ static struct kobject *exact_match(dev_t dev, int *part, void *data)
 {
 	struct gendisk *p = data;
 	*part &= (1 << PARTN_BITS) - 1;
-	return &p->kobj;
+	return &p->dev.kobj;
 }
 
 static int exact_lock(dev_t dev, void *data)

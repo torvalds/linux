@@ -24,6 +24,7 @@ struct kref {
 	atomic_t refcount;
 };
 
+void kref_set(struct kref *kref, int num);
 void kref_init(struct kref *kref);
 void kref_get(struct kref *kref);
 int kref_put(struct kref *kref, void (*release) (struct kref *kref));

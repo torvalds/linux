@@ -55,69 +55,6 @@ static int __init readwrite(char *str)
 __setup("ro", readonly);
 __setup("rw", readwrite);
 
-static dev_t try_name(char *name, int part)
-{
-	char path[64];
-	char buf[32];
-	int range;
-	dev_t res;
-	char *s;
-	int len;
-	int fd;
-	unsigned int maj, min;
-
-	/* read device number from .../dev */
-
-	sprintf(path, "/sys/block/%s/dev", name);
-	fd = sys_open(path, 0, 0);
-	if (fd < 0)
-		goto fail;
-	len = sys_read(fd, buf, 32);
-	sys_close(fd);
-	if (len <= 0 || len == 32 || buf[len - 1] != '\n')
-		goto fail;
-	buf[len - 1] = '\0';
-	if (sscanf(buf, "%u:%u", &maj, &min) == 2) {
-		/*
-		 * Try the %u:%u format -- see print_dev_t()
-		 */
-		res = MKDEV(maj, min);
-		if (maj != MAJOR(res) || min != MINOR(res))
-			goto fail;
-	} else {
-		/*
-		 * Nope.  Try old-style "0321"
-		 */
-		res = new_decode_dev(simple_strtoul(buf, &s, 16));
-		if (*s)
-			goto fail;
-	}
-
-	/* if it's there and we are not looking for a partition - that's it */
-	if (!part)
-		return res;
-
-	/* otherwise read range from .../range */
-	sprintf(path, "/sys/block/%s/range", name);
-	fd = sys_open(path, 0, 0);
-	if (fd < 0)
-		goto fail;
-	len = sys_read(fd, buf, 32);
-	sys_close(fd);
-	if (len <= 0 || len == 32 || buf[len - 1] != '\n')
-		goto fail;
-	buf[len - 1] = '\0';
-	range = simple_strtoul(buf, &s, 10);
-	if (*s)
-		goto fail;
-
-	/* if partition is within range - we got it */
-	if (part < range)
-		return res + part;
-fail:
-	return 0;
-}
-
 /*
  *	Convert a name into device number.  We accept the following variants:
  *
@@ -129,12 +66,10 @@ fail:
  *	5) /dev/<disk_name>p<decimal> - same as the above, that form is
  *	   used when disk name of partitioned disk ends on a digit.
  *
- *	If name doesn't have fall into the categories above, we return 0.
- *	Sysfs is used to check if something is a disk name - it has
- *	all known disks under bus/block/devices.  If the disk name
- *	contains slashes, name of sysfs node has them replaced with
- *	bangs.  try_name() does the actual checks, assuming that sysfs
- *	is mounted on rootfs /sys.
+ *	If name doesn't have fall into the categories above, we return (0,0).
+ *	block_class is used to check if something is a disk name. If the disk
+ *	name contains slashes, the device name has them replaced with
+ *	bangs.
  */
 
 dev_t name_to_dev_t(char *name)
@@ -142,13 +77,6 @@ dev_t name_to_dev_t(char *name)
 	char s[32];
 	char *p;
 	dev_t res = 0;
-	int part;
-
-#ifdef CONFIG_SYSFS
-	int mkdir_err = sys_mkdir("/sys", 0700);
-	if (sys_mount("sysfs", "/sys", "sysfs", 0, NULL) < 0)
-		goto out;
-#endif
 
 	if (strncmp(name, "/dev/", 5) != 0) {
 		unsigned maj, min;
@@ -164,6 +92,7 @@ dev_t name_to_dev_t(char *name)
 		}
 		goto done;
 	}
+
 	name += 5;
 	res = Root_NFS;
 	if (strcmp(name, "nfs") == 0)
@@ -178,35 +107,14 @@ dev_t name_to_dev_t(char *name)
 	for (p = s; *p; p++)
 		if (*p == '/')
 			*p = '!';
-	res = try_name(s, 0);
+	res = blk_lookup_devt(s);
 	if (res)
 		goto done;
 
-	while (p > s && isdigit(p[-1]))
-		p--;
-	if (p == s || !*p || *p == '0')
-		goto fail;
-	part = simple_strtoul(p, NULL, 10);
-	*p = '\0';
-	res = try_name(s, part);
-	if (res)
-		goto done;
-
-	if (p < s + 2 || !isdigit(p[-2]) || p[-1] != 'p')
-		goto fail;
-	p[-1] = '\0';
-	res = try_name(s, part);
-done:
-#ifdef CONFIG_SYSFS
-	sys_umount("/sys", 0);
-out:
-	if (!mkdir_err)
-		sys_rmdir("/sys");
-#endif
-	return res;
 fail:
-	res = 0;
-	goto done;
+	return 0;
+done:
+	return res;
 }
 
 static int __init root_dev_setup(char *line)

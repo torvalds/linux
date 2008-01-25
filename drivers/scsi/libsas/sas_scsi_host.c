@@ -464,7 +464,7 @@ int sas_eh_bus_reset_handler(struct scsi_cmnd *cmd)
 	res = sas_phy_reset(phy, 1);
 	if (res)
 		SAS_DPRINTK("Bus reset of %s failed 0x%x\n",
-			    phy->dev.kobj.k_name,
+			    kobject_name(&phy->dev.kobj),
 			    res);
 	if (res == TMF_RESP_FUNC_SUCC || res == TMF_RESP_FUNC_COMPLETE)
 		return SUCCESS;

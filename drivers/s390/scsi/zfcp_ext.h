@@ -27,8 +27,7 @@
 extern struct zfcp_data zfcp_data;
 
 /******************************** SYSFS  *************************************/
-extern int  zfcp_sysfs_driver_create_files(struct device_driver *);
-extern void zfcp_sysfs_driver_remove_files(struct device_driver *);
+extern struct attribute_group *zfcp_driver_attr_groups[];
 extern int  zfcp_sysfs_adapter_create_files(struct device *);
 extern void zfcp_sysfs_adapter_remove_files(struct device *);
 extern int  zfcp_sysfs_port_create_files(struct device *, u32);

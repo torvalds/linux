@@ -28,13 +28,15 @@
 
 unsigned long rtas_poweron_auto; /* default and normal state is 0 */
 
-static ssize_t auto_poweron_show(struct kset *kset, char *buf)
+static ssize_t auto_poweron_show(struct kobject *kobj,
+				 struct kobj_attribute *attr, char *buf)
 {
         return sprintf(buf, "%lu\n", rtas_poweron_auto);
 }
 
-static ssize_t
-auto_poweron_store(struct kset *kset, const char *buf, size_t n)
+static ssize_t auto_poweron_store(struct kobject *kobj,
+				  struct kobj_attribute *attr,
+				  const char *buf, size_t n)
 {
 	int ret;
 	unsigned long ups_restart;
@@ -47,17 +49,11 @@ auto_poweron_store(struct kset *kset, const char *buf, size_t n)
 	return -EINVAL;
 }
 
-static struct subsys_attribute auto_poweron_attr = {
-        .attr   = {
-                .name = __stringify(auto_poweron),
-                .mode = 0644,
-        },
-        .show   = auto_poweron_show,
-        .store  = auto_poweron_store,
-};
+static struct kobj_attribute auto_poweron_attr =
+	__ATTR(auto_poweron, 0644, auto_poweron_show, auto_poweron_store);
 
 #ifndef CONFIG_PM
-decl_subsys(power,NULL,NULL);
+struct kobject *power_kobj;
 
 static struct attribute *g[] = {
         &auto_poweron_attr.attr,
@@ -70,18 +66,16 @@ static struct attribute_group attr_group = {
 
 static int __init pm_init(void)
 {
-        int error = subsystem_register(&power_subsys);
-        if (!error)
-                error = sysfs_create_group(&power_subsys.kobj, &attr_group);
-        return error;
+	power_kobj = kobject_create_and_add("power", NULL);
+	if (!power_kobj)
+		return -ENOMEM;
+	return sysfs_create_group(power_kobj, &attr_group);
 }
 core_initcall(pm_init);
 #else
-extern struct kset power_subsys;
-
 static int __init apo_pm_init(void)
 {
-	return (subsys_create_file(&power_subsys, &auto_poweron_attr));
+	return (sysfs_create_file(power_kobj, &auto_poweron_attr));
 }
 __initcall(apo_pm_init);
 #endif
