@@ -18,7 +18,7 @@ static int debug = 0;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable verbose debug messages");
 
-#define PREFIX "tea5761 "
+#define PREFIX "tea5761"
 
 struct tea5761_priv {
 	struct tuner_i2c_props i2c_props;

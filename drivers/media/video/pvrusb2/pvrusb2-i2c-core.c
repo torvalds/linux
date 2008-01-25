@@ -895,7 +895,7 @@ static int pvr2_i2c_attach_inform(struct i2c_client *client)
 		list_add_tail(&cp->list,&hdw->i2c_clients);
 		hdw->i2c_pend_types |= PVR2_I2C_PEND_DETECT;
 	} while (0); mutex_unlock(&hdw->i2c_list_lock);
-	if (fl) pvr2_hdw_poll_trigger_unlocked(hdw);
+	if (fl) queue_work(hdw->workqueue,&hdw->worki2csync);
 	return 0;
 }
 
@@ -980,13 +980,15 @@ void pvr2_i2c_core_init(struct pvr2_hdw *hdw)
 		printk(KERN_INFO "%s: IR disabled\n",hdw->name);
 		hdw->i2c_func[0x18] = i2c_black_hole;
 	} else if (ir_mode[hdw->unit_number] == 1) {
-		if (hdw->hdw_type == PVR2_HDW_TYPE_24XXX) {
+		if (hdw->hdw_desc->flag_has_hauppauge_custom_ir) {
 			hdw->i2c_func[0x18] = i2c_24xxx_ir;
 		}
 	}
-	if (hdw->hdw_type == PVR2_HDW_TYPE_24XXX) {
-		hdw->i2c_func[0x1b] = i2c_hack_wm8775;
+	if (hdw->hdw_desc->flag_has_cx25840) {
 		hdw->i2c_func[0x44] = i2c_hack_cx25840;
+	}
+	if (hdw->hdw_desc->flag_has_wm8775) {
+		hdw->i2c_func[0x1b] = i2c_hack_wm8775;
 	}
 
 	// Configure the adapter and set up everything else related to it.

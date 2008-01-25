@@ -46,6 +46,11 @@ extern int av7110_debug;
 
 enum {AV_PES_STREAM, PS_STREAM, TS_STREAM, PES_STREAM};
 
+enum av7110_video_mode {
+	AV7110_VIDEO_MODE_PAL 	= 0,
+	AV7110_VIDEO_MODE_NTSC	= 1
+};
+
 struct av7110_p2t {
 	u8		  pes[TS_SIZE];
 	u8		  counter;
@@ -170,7 +175,7 @@ struct av7110 {
 
 	ca_slot_info_t		ci_slot[2];
 
-	int			vidmode;
+	enum av7110_video_mode	vidmode;
 	struct dmxdev		dmxdev;
 	struct dvb_demux	demux;
 

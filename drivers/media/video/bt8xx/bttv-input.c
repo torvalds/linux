@@ -69,6 +69,11 @@ static void ir_handle_key(struct bttv *btv)
 	    (ir->mask_keyup    &&  (0 == (gpio & ir->mask_keyup)))) {
 		ir_input_keydown(ir->dev,&ir->ir,data,data);
 	} else {
+		/* HACK: Probably, ir->mask_keydown is missing
+		   for this board */
+		if (btv->c.type == BTTV_BOARD_WINFAST2000)
+			ir_input_keydown(ir->dev, &ir->ir, data, data);
+
 		ir_input_nokey(ir->dev,&ir->ir);
 	}
 

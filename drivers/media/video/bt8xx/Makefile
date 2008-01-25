@@ -4,7 +4,7 @@
 
 bttv-objs      :=      bttv-driver.o bttv-cards.o bttv-if.o \
 		       bttv-risc.o bttv-vbi.o bttv-i2c.o bttv-gpio.o \
-		       bttv-input.o
+		       bttv-input.o bttv-audio-hook.o
 
 obj-$(CONFIG_VIDEO_BT848) += bttv.o
 

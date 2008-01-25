@@ -568,6 +568,7 @@ the fingerprint is: '88E8 F32F 7244 68BA 3958  5D40 99DA 5D2A FCE6 35A4'.
 Many thanks to following persons for their contribute (listed in alphabetical
 order):
 
+- David Anderson for the donation of a webcam;
 - Luca Capello for the donation of a webcam;
 - Philippe Coval for having helped testing the PAS202BCA image sensor;
 - Joao Rodrigo Fuzaro, Joao Limirio, Claudio Filho and Caio Begotti for the

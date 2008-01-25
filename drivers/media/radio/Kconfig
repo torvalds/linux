@@ -351,4 +351,14 @@ config USB_DSBR
 	  To compile this driver as a module, choose M here: the
 	  module will be called dsbr100.
 
+config USB_SI470X
+	tristate "Silicon Labs Si470x FM Radio Receiver support"
+	depends on USB && VIDEO_V4L2
+	---help---
+	  Say Y here if you want to connect this type of radio to your
+	  computer's USB port.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called radio-silabs.
+
 endif # RADIO_ADAPTERS

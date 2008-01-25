@@ -1,7 +1,7 @@
 /*
  *  Driver for Zarlink DVB-T ZL10353 demodulator
  *
- *  Copyright (C) 2006 Christopher Pascoe <c.pascoe@itee.uq.edu.au>
+ *  Copyright (C) 2006, 2007 Christopher Pascoe <c.pascoe@itee.uq.edu.au>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.=
+ *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef _ZL10353_PRIV_
@@ -46,9 +46,28 @@ enum zl10353_reg_addr {
 	RS_ERR_CNT_0       = 0x13,
 	RS_UBC_1           = 0x14,
 	RS_UBC_0           = 0x15,
+	TPS_RECEIVED_1     = 0x1D,
+	TPS_RECEIVED_0     = 0x1E,
+	TPS_CURRENT_1      = 0x1F,
+	TPS_CURRENT_0      = 0x20,
+	RESET              = 0x55,
+	AGC_TARGET         = 0x56,
+	MCLK_RATIO         = 0x5C,
+	ACQ_CTL            = 0x5E,
 	TRL_NOMINAL_RATE_1 = 0x65,
 	TRL_NOMINAL_RATE_0 = 0x66,
+	INPUT_FREQ_1       = 0x6C,
+	INPUT_FREQ_0       = 0x6D,
+	TPS_GIVEN_1        = 0x6E,
+	TPS_GIVEN_0        = 0x6F,
+	TUNER_GO           = 0x70,
+	FSM_GO             = 0x71,
 	CHIP_ID            = 0x7F,
+	CHAN_STEP_1        = 0xE4,
+	CHAN_STEP_0        = 0xE5,
+	OFDM_LOCK_TIME     = 0xE7,
+	FEC_LOCK_TIME      = 0xE8,
+	ACQ_DELAY          = 0xE9,
 };
 
 #endif                          /* _ZL10353_PRIV_ */

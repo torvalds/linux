@@ -1,5 +1,7 @@
   0 -> UNKNOWN/GENERIC                                     [0070:3400]
   1 -> Hauppauge WinTV-HVR1800lp                           [0070:7600]
-  2 -> Hauppauge WinTV-HVR1800                             [0070:7800,0070:7801]
+  2 -> Hauppauge WinTV-HVR1800                             [0070:7800,0070:7801,0070:7809]
   3 -> Hauppauge WinTV-HVR1250                             [0070:7911]
   4 -> DViCO FusionHDTV5 Express                           [18ac:d500]
+  5 -> Hauppauge WinTV-HVR1500Q                            [0070:7790,0070:7797]
+  6 -> Hauppauge WinTV-HVR1500                             [0070:7710,0070:7717]

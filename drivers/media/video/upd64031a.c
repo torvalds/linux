@@ -28,30 +28,27 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
+#include <media/v4l2-i2c-drv.h>
 #include <media/upd64031a.h>
 
-// --------------------- read registers functions define -----------------------
+/* --------------------- read registers functions define -------------------- */
 
 /* bit masks */
 #define GR_MODE_MASK              0xc0
 #define DIRECT_3DYCS_CONNECT_MASK 0xc0
 #define SYNC_CIRCUIT_MASK         0xa0
 
-// -----------------------------------------------------------------------------
+/* -------------------------------------------------------------------------- */
 
 MODULE_DESCRIPTION("uPD64031A driver");
 MODULE_AUTHOR("T. Adachi, Takeru KOMORIYA, Hans Verkuil");
 MODULE_LICENSE("GPL");
 
-static int debug = 0;
+static int debug;
 module_param(debug, int, 0644);
 
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
-static unsigned short normal_i2c[] = { 0x24 >> 1, 0x26 >> 1, I2C_CLIENT_END };
-
-
-I2C_CLIENT_INSMOD;
 
 enum {
 	R00 = 0, R01, R02, R03, R04,
@@ -99,7 +96,7 @@ static void upd64031a_write(struct i2c_client *client, u8 reg, u8 val)
 
 	buf[0] = reg;
 	buf[1] = val;
-	v4l_dbg(1, debug, client, "writing reg addr: %02X val: %02X\n", reg, val);
+	v4l_dbg(1, debug, client, "write reg: %02X val: %02X\n", reg, val);
 	if (i2c_master_send(client, buf, 2) != 2)
 		v4l_err(client, "I/O error write 0x%02x/0x%02x\n", reg, val);
 }
@@ -119,7 +116,7 @@ static void upd64031a_change(struct i2c_client *client)
 
 /* ------------------------------------------------------------------------ */
 
-static int upd64031a_command(struct i2c_client *client, unsigned int cmd, void *arg)
+static int upd64031a_command(struct i2c_client *client, unsigned cmd, void *arg)
 {
 	struct upd64031a_state *state = i2c_get_clientdata(client);
 	struct v4l2_routing *route = arg;
@@ -143,8 +140,10 @@ static int upd64031a_command(struct i2c_client *client, unsigned int cmd, void *
 
 		state->gr_mode = (route->input & 3) << 6;
 		state->direct_3dycs_connect = (route->input & 0xc) << 4;
-		state->ext_comp_sync = (route->input & UPD64031A_COMPOSITE_EXTERNAL) << 1;
-		state->ext_vert_sync = (route->input & UPD64031A_VERTICAL_EXTERNAL) << 2;
+		state->ext_comp_sync =
+			(route->input & UPD64031A_COMPOSITE_EXTERNAL) << 1;
+		state->ext_vert_sync =
+			(route->input & UPD64031A_VERTICAL_EXTERNAL) << 2;
 		r00 = (state->regs[R00] & ~GR_MODE_MASK) | state->gr_mode;
 		r05 = (state->regs[R00] & ~SYNC_CIRCUIT_MASK) |
 			state->ext_comp_sync | state->ext_vert_sync;
@@ -168,20 +167,23 @@ static int upd64031a_command(struct i2c_client *client, unsigned int cmd, void *
 	{
 		struct v4l2_register *reg = arg;
 
-		if (!v4l2_chip_match_i2c_client(client, reg->match_type, reg->match_chip))
+		if (!v4l2_chip_match_i2c_client(client,
+					reg->match_type, reg->match_chip))
 			return -EINVAL;
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
-		if (cmd == VIDIOC_DBG_G_REGISTER)
+		if (cmd == VIDIOC_DBG_G_REGISTER) {
 			reg->val = upd64031a_read(client, reg->reg & 0xff);
-		else
-			upd64031a_write(client, reg->reg & 0xff, reg->val & 0xff);
+			break;
+		}
+		upd64031a_write(client, reg->reg & 0xff, reg->val & 0xff);
 		break;
 	}
 #endif
 
 	case VIDIOC_G_CHIP_IDENT:
-		return v4l2_chip_ident_i2c_client(client, arg, V4L2_IDENT_UPD64031A, 0);
+		return v4l2_chip_ident_i2c_client(client, arg,
+				V4L2_IDENT_UPD64031A, 0);
 
 	default:
 		break;
@@ -193,90 +195,43 @@ static int upd64031a_command(struct i2c_client *client, unsigned int cmd, void *
 
 /* i2c implementation */
 
-static struct i2c_driver i2c_driver;
-
-static int upd64031a_attach(struct i2c_adapter *adapter, int address, int kind)
+static int upd64031a_probe(struct i2c_client *client)
 {
-	struct i2c_client *client;
 	struct upd64031a_state *state;
 	int i;
 
-	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return 0;
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
+		return -EIO;
 
-	client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
-	if (client == NULL) {
-		return -ENOMEM;
-	}
-
-	client->addr = address;
-	client->adapter = adapter;
-	client->driver = &i2c_driver;
-	snprintf(client->name, sizeof(client->name) - 1, "uPD64031A");
-
-	v4l_info(client, "chip found @ 0x%x (%s)\n", address << 1, adapter->name);
+	v4l_info(client, "chip found @ 0x%x (%s)\n",
+			client->addr << 1, client->adapter->name);
 
 	state = kmalloc(sizeof(struct upd64031a_state), GFP_KERNEL);
-	if (state == NULL) {
-		kfree(client);
+	if (state == NULL)
 		return -ENOMEM;
-	}
 	i2c_set_clientdata(client, state);
 	memcpy(state->regs, upd64031a_init, sizeof(state->regs));
 	state->gr_mode = UPD64031A_GR_ON << 6;
 	state->direct_3dycs_connect = UPD64031A_3DYCS_COMPOSITE << 4;
 	state->ext_comp_sync = state->ext_vert_sync = 0;
-	for (i = 0; i < TOT_REGS; i++) {
+	for (i = 0; i < TOT_REGS; i++)
 		upd64031a_write(client, i, state->regs[i]);
-	}
-
-	i2c_attach_client(client);
-
 	return 0;
 }
 
-static int upd64031a_probe(struct i2c_adapter *adapter)
+static int upd64031a_remove(struct i2c_client *client)
 {
-	if (adapter->class & I2C_CLASS_TV_ANALOG)
-		return i2c_probe(adapter, &addr_data, upd64031a_attach);
-	return 0;
-}
-
-static int upd64031a_detach(struct i2c_client *client)
-{
-	int err;
-
-	err = i2c_detach_client(client);
-	if (err)
-		return err;
-
-	kfree(client);
+	kfree(i2c_get_clientdata(client));
 	return 0;
 }
 
 /* ----------------------------------------------------------------------- */
 
-/* i2c implementation */
-static struct i2c_driver i2c_driver = {
-	.driver = {
-		.name = "upd64031a",
-	},
-	.id = I2C_DRIVERID_UPD64031A,
-	.attach_adapter = upd64031a_probe,
-	.detach_client  = upd64031a_detach,
+
+static struct v4l2_i2c_driver_data v4l2_i2c_data = {
+	.name = "upd64031a",
+	.driverid = I2C_DRIVERID_UPD64031A,
 	.command = upd64031a_command,
+	.probe = upd64031a_probe,
+	.remove = upd64031a_remove,
 };
-
-
-static int __init upd64031a_init_module(void)
-{
-	return i2c_add_driver(&i2c_driver);
-}
-
-static void __exit upd64031a_exit_module(void)
-{
-	i2c_del_driver(&i2c_driver);
-}
-
-module_init(upd64031a_init_module);
-module_exit(upd64031a_exit_module);

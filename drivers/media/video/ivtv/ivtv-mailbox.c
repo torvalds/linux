@@ -333,7 +333,7 @@ int ivtv_api(struct ivtv *itv, int cmd, int args, u32 data[])
 	return (res == -EBUSY) ? ivtv_api_call(itv, cmd, args, data) : res;
 }
 
-int ivtv_api_func(void *priv, int cmd, int in, int out, u32 data[CX2341X_MBOX_MAX_DATA])
+int ivtv_api_func(void *priv, u32 cmd, int in, int out, u32 data[CX2341X_MBOX_MAX_DATA])
 {
 	return ivtv_api(priv, cmd, in, data);
 }

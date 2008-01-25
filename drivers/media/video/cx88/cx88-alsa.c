@@ -417,7 +417,7 @@ static int snd_cx88_hw_params(struct snd_pcm_substream * substream,
 	buf->risc.jmp[0] = cpu_to_le32(RISC_JUMP|RISC_IRQ1|RISC_CNT_INC);
 	buf->risc.jmp[1] = cpu_to_le32(buf->risc.dma);
 
-	buf->vb.state = STATE_PREPARED;
+	buf->vb.state = VIDEOBUF_PREPARED;
 
 	chip->buf = buf;
 	chip->dma_risc = dma;

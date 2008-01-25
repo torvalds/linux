@@ -14,7 +14,7 @@ static int debug = 0;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable verbose debug messages");
 
-#define PREFIX "mt20xx "
+#define PREFIX "mt20xx"
 
 /* ---------------------------------------------------------------------- */
 

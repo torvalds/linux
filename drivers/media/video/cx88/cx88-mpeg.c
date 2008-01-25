@@ -102,7 +102,7 @@ static int cx8802_start_dma(struct cx8802_dev    *dev,
 		cx_write(TS_GEN_CNTRL, 0x0040 | dev->ts_gen_cntrl);
 		udelay(100);
 		cx_write(MO_PINMUX_IO, 0x00);
-		cx_write(TS_HW_SOP_CNTRL,0x47<<16|188<<4|0x01);
+		cx_write(TS_HW_SOP_CNTRL, 0x47<<16|188<<4|0x01);
 		switch (core->boardnr) {
 		case CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_Q:
 		case CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_T:
@@ -116,6 +116,15 @@ static int cx8802_start_dma(struct cx8802_dev    *dev,
 			udelay(100);
 			break;
 		case CX88_BOARD_HAUPPAUGE_HVR1300:
+			break;
+		case CX88_BOARD_PINNACLE_PCTV_HD_800i:
+			/* Enable MPEG parallel IO and video signal pins */
+			cx_write(MO_PINMUX_IO, 0x88);
+			cx_write(TS_HW_SOP_CNTRL, (0x47 << 16) | (188 << 4));
+			dev->ts_gen_cntrl = 5;
+			cx_write(TS_SOP_STAT, 0);
+			cx_write(TS_VALERR_CNTRL, 0);
+			udelay(100);
 			break;
 		default:
 			cx_write(TS_SOP_STAT, 0x00);
@@ -195,7 +204,7 @@ static int cx8802_restart_queue(struct cx8802_dev    *dev,
 				list_del(&buf->vb.queue);
 				list_add_tail(&buf->vb.queue,&q->active);
 				cx8802_start_dma(dev, q, buf);
-				buf->vb.state = STATE_ACTIVE;
+				buf->vb.state = VIDEOBUF_ACTIVE;
 				buf->count    = q->count++;
 				mod_timer(&q->timeout, jiffies+BUFFER_TIMEOUT);
 				dprintk(1,"[%p/%d] restart_queue - first active\n",
@@ -206,7 +215,7 @@ static int cx8802_restart_queue(struct cx8802_dev    *dev,
 				   prev->fmt       == buf->fmt) {
 				list_del(&buf->vb.queue);
 				list_add_tail(&buf->vb.queue,&q->active);
-				buf->vb.state = STATE_ACTIVE;
+				buf->vb.state = VIDEOBUF_ACTIVE;
 				buf->count    = q->count++;
 				prev->risc.jmp[1] = cpu_to_le32(buf->risc.dma);
 				dprintk(1,"[%p/%d] restart_queue - move to active\n",
@@ -242,7 +251,7 @@ int cx8802_buf_prepare(struct videobuf_queue *q, struct cx8802_dev *dev,
 	if (0 != buf->vb.baddr  &&  buf->vb.bsize < size)
 		return -EINVAL;
 
-	if (STATE_NEEDS_INIT == buf->vb.state) {
+	if (VIDEOBUF_NEEDS_INIT == buf->vb.state) {
 		buf->vb.width  = dev->ts_packet_size;
 		buf->vb.height = dev->ts_packet_count;
 		buf->vb.size   = size;
@@ -254,7 +263,7 @@ int cx8802_buf_prepare(struct videobuf_queue *q, struct cx8802_dev *dev,
 				     dma->sglist,
 				     buf->vb.width, buf->vb.height, 0);
 	}
-	buf->vb.state = STATE_PREPARED;
+	buf->vb.state = VIDEOBUF_PREPARED;
 	return 0;
 
  fail:
@@ -276,7 +285,7 @@ void cx8802_buf_queue(struct cx8802_dev *dev, struct cx88_buffer *buf)
 		dprintk( 1, "queue is empty - first active\n" );
 		list_add_tail(&buf->vb.queue,&cx88q->active);
 		cx8802_start_dma(dev, cx88q, buf);
-		buf->vb.state = STATE_ACTIVE;
+		buf->vb.state = VIDEOBUF_ACTIVE;
 		buf->count    = cx88q->count++;
 		mod_timer(&cx88q->timeout, jiffies+BUFFER_TIMEOUT);
 		dprintk(1,"[%p/%d] %s - first active\n",
@@ -286,7 +295,7 @@ void cx8802_buf_queue(struct cx8802_dev *dev, struct cx88_buffer *buf)
 		dprintk( 1, "queue is not empty - append to active\n" );
 		prev = list_entry(cx88q->active.prev, struct cx88_buffer, vb.queue);
 		list_add_tail(&buf->vb.queue,&cx88q->active);
-		buf->vb.state = STATE_ACTIVE;
+		buf->vb.state = VIDEOBUF_ACTIVE;
 		buf->count    = cx88q->count++;
 		prev->risc.jmp[1] = cpu_to_le32(buf->risc.dma);
 		dprintk( 1, "[%p/%d] %s - append to active\n",
@@ -306,7 +315,7 @@ static void do_cancel_buffers(struct cx8802_dev *dev, char *reason, int restart)
 	while (!list_empty(&q->active)) {
 		buf = list_entry(q->active.next, struct cx88_buffer, vb.queue);
 		list_del(&buf->vb.queue);
-		buf->vb.state = STATE_ERROR;
+		buf->vb.state = VIDEOBUF_ERROR;
 		wake_up(&buf->vb.done);
 		dprintk(1,"[%p/%d] %s - dma=0x%08lx\n",
 			buf, buf->vb.i, reason, (unsigned long)buf->risc.dma);
@@ -437,10 +446,7 @@ static irqreturn_t cx8802_irq(int irq, void *dev_id)
 	return IRQ_RETVAL(handled);
 }
 
-/* ----------------------------------------------------------- */
-/* exported stuff                                              */
-
-int cx8802_init_common(struct cx8802_dev *dev)
+static int cx8802_init_common(struct cx8802_dev *dev)
 {
 	struct cx88_core *core = dev->core;
 	int err;
@@ -488,7 +494,7 @@ int cx8802_init_common(struct cx8802_dev *dev)
 	return 0;
 }
 
-void cx8802_fini_common(struct cx8802_dev *dev)
+static void cx8802_fini_common(struct cx8802_dev *dev)
 {
 	dprintk( 2, "cx8802_fini_common\n" );
 	cx8802_stop_dma(dev);
@@ -504,7 +510,7 @@ void cx8802_fini_common(struct cx8802_dev *dev)
 
 /* ----------------------------------------------------------- */
 
-int cx8802_suspend_common(struct pci_dev *pci_dev, pm_message_t state)
+static int cx8802_suspend_common(struct pci_dev *pci_dev, pm_message_t state)
 {
 	struct cx8802_dev *dev = pci_get_drvdata(pci_dev);
 	struct cx88_core *core = dev->core;
@@ -530,7 +536,7 @@ int cx8802_suspend_common(struct pci_dev *pci_dev, pm_message_t state)
 	return 0;
 }
 
-int cx8802_resume_common(struct pci_dev *pci_dev)
+static int cx8802_resume_common(struct pci_dev *pci_dev)
 {
 	struct cx8802_dev *dev = pci_get_drvdata(pci_dev);
 	struct cx88_core *core = dev->core;
@@ -873,9 +879,6 @@ module_exit(cx8802_fini);
 EXPORT_SYMBOL(cx8802_buf_prepare);
 EXPORT_SYMBOL(cx8802_buf_queue);
 EXPORT_SYMBOL(cx8802_cancel_buffers);
-
-EXPORT_SYMBOL(cx8802_init_common);
-EXPORT_SYMBOL(cx8802_fini_common);
 
 EXPORT_SYMBOL(cx8802_register_driver);
 EXPORT_SYMBOL(cx8802_unregister_driver);

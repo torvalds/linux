@@ -49,29 +49,50 @@ struct pvr2_v4l_decoder {
 };
 
 
+struct routing_scheme {
+	const int *def;
+	unsigned int cnt;
+};
+
+
+static const int routing_scheme0[] = {
+	[PVR2_CVAL_INPUT_TV] = SAA7115_COMPOSITE4,
+	/* In radio mode, we mute the video, but point at one
+	   spot just to stay consistent */
+	[PVR2_CVAL_INPUT_RADIO] = SAA7115_COMPOSITE5,
+	[PVR2_CVAL_INPUT_COMPOSITE] = SAA7115_COMPOSITE5,
+	[PVR2_CVAL_INPUT_SVIDEO] =  SAA7115_SVIDEO2,
+};
+
+static const struct routing_scheme routing_schemes[] = {
+	[PVR2_ROUTING_SCHEME_HAUPPAUGE] = {
+		.def = routing_scheme0,
+		.cnt = ARRAY_SIZE(routing_scheme0),
+	},
+};
+
 static void set_input(struct pvr2_v4l_decoder *ctxt)
 {
 	struct pvr2_hdw *hdw = ctxt->hdw;
 	struct v4l2_routing route;
+	const struct routing_scheme *sp;
+	unsigned int sid = hdw->hdw_desc->signal_routing_scheme;
 
 	pvr2_trace(PVR2_TRACE_CHIPS,"i2c v4l2 set_input(%d)",hdw->input_val);
-	switch(hdw->input_val) {
-	case PVR2_CVAL_INPUT_TV:
-		route.input = SAA7115_COMPOSITE4;
-		break;
-	case PVR2_CVAL_INPUT_COMPOSITE:
-		route.input = SAA7115_COMPOSITE5;
-		break;
-	case PVR2_CVAL_INPUT_SVIDEO:
-		route.input = SAA7115_SVIDEO2;
-		break;
-	case PVR2_CVAL_INPUT_RADIO:
-		// In radio mode, we mute the video, but point at one
-		// spot just to stay consistent
-		route.input = SAA7115_COMPOSITE5;
-	default:
+
+	if ((sid < ARRAY_SIZE(routing_schemes)) &&
+	    ((sp = routing_schemes + sid) != 0) &&
+	    (hdw->input_val >= 0) &&
+	    (hdw->input_val < sp->cnt)) {
+		route.input = sp->def[hdw->input_val];
+	} else {
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			   "*** WARNING *** i2c v4l2 set_input:"
+			   " Invalid routing scheme (%u) and/or input (%d)",
+			   sid,hdw->input_val);
 		return;
 	}
+
 	route.output = 0;
 	pvr2_i2c_client_cmd(ctxt->client,VIDIOC_INT_S_VIDEO_ROUTING,&route);
 }
@@ -129,7 +150,7 @@ static const struct pvr2_v4l_decoder_ops decoder_ops[] = {
 static void decoder_detach(struct pvr2_v4l_decoder *ctxt)
 {
 	ctxt->client->handler = NULL;
-	ctxt->hdw->decoder_ctrl = NULL;
+	pvr2_hdw_set_decoder(ctxt->hdw,NULL);
 	kfree(ctxt);
 }
 
@@ -217,7 +238,7 @@ int pvr2_i2c_decoder_v4l_setup(struct pvr2_hdw *hdw,
 	ctxt->client = cp;
 	ctxt->hdw = hdw;
 	ctxt->stale_mask = (1 << ARRAY_SIZE(decoder_ops)) - 1;
-	hdw->decoder_ctrl = &ctxt->ctrl;
+	pvr2_hdw_set_decoder(hdw,&ctxt->ctrl);
 	cp->handler = &ctxt->handler;
 	pvr2_trace(PVR2_TRACE_CHIPS,"i2c 0x%x saa711x V4L2 handler set up",
 		   cp->client->addr);

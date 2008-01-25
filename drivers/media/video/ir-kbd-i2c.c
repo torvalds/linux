@@ -398,6 +398,7 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 	case 0x7a:
 	case 0x47:
 	case 0x71:
+	case 0x2d:
 		if (adap->id == I2C_HW_B_CX2388x) {
 			/* Handled by cx88-input */
 			name        = "CX2388x remote";
@@ -504,7 +505,7 @@ static int ir_probe(struct i2c_adapter *adap)
 	*/
 
 	static const int probe_bttv[] = { 0x1a, 0x18, 0x4b, 0x64, 0x30, -1};
-	static const int probe_saa7134[] = { 0x7a, 0x47, 0x71, -1 };
+	static const int probe_saa7134[] = { 0x7a, 0x47, 0x71, 0x2d, -1 };
 	static const int probe_em28XX[] = { 0x30, 0x47, -1 };
 	static const int probe_cx88[] = { 0x18, 0x6b, 0x71, -1 };
 	static const int probe_cx23885[] = { 0x6b, -1 };

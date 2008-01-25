@@ -45,7 +45,7 @@ comment "Audio decoders"
 
 config VIDEO_TVAUDIO
 	tristate "Simple audio decoder chips"
-	depends on VIDEO_V4L1 && I2C
+	depends on VIDEO_V4L2 && I2C
 	---help---
 	  Support for several audio decoder chips found on some bt8xx boards:
 	  Philips: tda9840, tda9873h, tda9874h/a, tda9850, tda985x, tea6300,
@@ -57,7 +57,7 @@ config VIDEO_TVAUDIO
 
 config VIDEO_TDA7432
 	tristate "Philips TDA7432 audio processor"
-	depends on VIDEO_V4L1 && I2C
+	depends on VIDEO_V4L2 && I2C
 	---help---
 	  Support for tda7432 audio decoder chip found on some bt8xx boards.
 
@@ -75,7 +75,7 @@ config VIDEO_TDA9840
 
 config VIDEO_TDA9875
 	tristate "Philips TDA9875 audio processor"
-	depends on VIDEO_V4L1 && I2C
+	depends on VIDEO_V4L2 && I2C
 	---help---
 	  Support for tda9875 audio decoder chip found on some bt8xx boards.
 
@@ -109,15 +109,34 @@ config VIDEO_MSP3400
 	  To compile this driver as a module, choose M here: the
 	  module will be called msp3400.
 
+config VIDEO_CS5345
+	tristate "Cirrus Logic CS5345 audio ADC"
+	depends on VIDEO_V4L2 && I2C && EXPERIMENTAL
+	---help---
+	  Support for the Cirrus Logic CS5345 24-bit, 192 kHz
+	  stereo A/D converter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cs5345.
+
 config VIDEO_CS53L32A
 	tristate "Cirrus Logic CS53L32A audio ADC"
-	depends on VIDEO_V4L2 && I2C && EXPERIMENTAL
+	depends on VIDEO_V4L2 && I2C
 	---help---
 	  Support for the Cirrus Logic CS53L32A low voltage
 	  stereo A/D converter.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called cs53l32a.
+
+config VIDEO_M52790
+       tristate "Mitsubishi M52790 A/V switch"
+       depends on VIDEO_V4L2 && I2C && EXPERIMENTAL
+       ---help---
+	 Support for the Mitsubishi M52790 A/V switch.
+
+	 To compile this driver as a module, choose M here: the
+	 module will be called m52790.
 
 config VIDEO_TLV320AIC23B
 	tristate "Texas Instruments TLV320AIC23B audio codec"
@@ -130,7 +149,7 @@ config VIDEO_TLV320AIC23B
 
 config VIDEO_WM8775
 	tristate "Wolfson Microelectronics WM8775 audio ADC with input mixer"
-	depends on VIDEO_V4L2 && I2C && EXPERIMENTAL
+	depends on VIDEO_V4L2 && I2C
 	---help---
 	  Support for the Wolfson Microelectronics WM8775 high
 	  performance stereo A/D Converter with a 4 channel input mixer.
@@ -140,7 +159,7 @@ config VIDEO_WM8775
 
 config VIDEO_WM8739
 	tristate "Wolfson Microelectronics WM8739 stereo audio ADC"
-	depends on VIDEO_V4L2 && I2C && EXPERIMENTAL
+	depends on VIDEO_V4L2 && I2C
 	---help---
 	  Support for the Wolfson Microelectronics WM8739
 	  stereo A/D Converter.
@@ -244,7 +263,7 @@ config VIDEO_SAA7114
 
 config VIDEO_SAA711X
 	tristate "Philips SAA7113/4/5 video decoders"
-	depends on VIDEO_V4L2 && I2C && EXPERIMENTAL
+	depends on VIDEO_V4L2 && I2C
 	---help---
 	  Support for the Philips SAA7113/4/5 video decoders.
 
@@ -300,7 +319,7 @@ comment "Video encoders"
 
 config VIDEO_SAA7127
 	tristate "Philips SAA7127/9 digital video encoders"
-	depends on VIDEO_V4L2 && I2C && EXPERIMENTAL
+	depends on VIDEO_V4L2 && I2C
 	---help---
 	  Support for the Philips SAA7127/9 digital video encoders.
 
@@ -338,7 +357,7 @@ comment "Video improvement chips"
 
 config VIDEO_UPD64031A
 	tristate "NEC Electronics uPD64031A Ghost Reduction"
-	depends on VIDEO_V4L2 && I2C && EXPERIMENTAL
+	depends on VIDEO_V4L2 && I2C
 	---help---
 	  Support for the NEC Electronics uPD64031A Ghost Reduction
 	  video chip. It is most often found in NTSC TV cards made for
@@ -350,7 +369,7 @@ config VIDEO_UPD64031A
 
 config VIDEO_UPD64083
 	tristate "NEC Electronics uPD64083 3-Dimensional Y/C separation"
-	depends on VIDEO_V4L2 && I2C && EXPERIMENTAL
+	depends on VIDEO_V4L2 && I2C
 	---help---
 	  Support for the NEC Electronics uPD64083 3-Dimensional Y/C
 	  separation video chip. It is used to improve the quality of
@@ -801,6 +820,19 @@ config USB_ZR364XX
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called zr364xx.
+
+config USB_STKWEBCAM
+	tristate "USB Syntek DC1125 Camera support"
+	depends on VIDEO_V4L2 && EXPERIMENTAL
+	---help---
+	  Say Y here if you want to use this type of camera.
+	  Supported devices are typically found in some Asus laptops,
+	  with USB id 174f:a311 and 05e1:0501. Other Syntek cameras
+	  may be supported by the stk11xx driver, from which this is
+	  derived, see http://stk11xx.sourceforge.net
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called stkwebcam.
 
 endif # V4L_USB_DRIVERS
 

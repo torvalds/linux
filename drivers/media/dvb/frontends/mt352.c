@@ -152,7 +152,13 @@ static void mt352_calc_input_freq(struct mt352_state* state,
 	if (state->config.if2)
 		if2 = state->config.if2;
 
-	ife = (2*adc_clock - if2);
+	if (adc_clock >= if2 * 2)
+		ife = if2;
+	else {
+		ife = adc_clock - (if2 % adc_clock);
+		if (ife > adc_clock / 2)
+			ife = adc_clock - ife;
+	}
 	value = -16374 * ife / adc_clock;
 	dprintk("%s: if2 %d, ife %d, adc_clock %d => %d / 0x%x\n",
 		__FUNCTION__, if2, ife, adc_clock, value, value & 0x3fff);

@@ -7,6 +7,7 @@
  *
  * Copyright (c) 2000 Guillaume Delvit based on Gerd Knorr source and
  * Eric Sandeen
+ * Copyright (c) 2006 Mauro Carvalho Chehab <mchehab@infradead.org>
  * This code is placed under the terms of the GNU General Public License
  * Based on tda9855.c by Steve VanDeBogart (vandebo@uclink.berkeley.edu)
  * Which was based on tda8425.c by Greg Alexander (c) 1998
@@ -268,87 +269,143 @@ static int tda9875_detach(struct i2c_client *client)
 	return 0;
 }
 
-static int tda9875_command(struct i2c_client *client,
-				unsigned int cmd, void *arg)
+static int tda9875_get_ctrl(struct i2c_client *client,
+			    struct v4l2_control *ctrl)
 {
 	struct tda9875 *t = i2c_get_clientdata(client);
 
+	switch (ctrl->id) {
+	case V4L2_CID_AUDIO_VOLUME:
+	{
+		int left = (t->lvol+84)*606;
+		int right = (t->rvol+84)*606;
+
+		ctrl->value=max(left,right);
+		return 0;
+	}
+	case V4L2_CID_AUDIO_BALANCE:
+	{
+		int left = (t->lvol+84)*606;
+		int right = (t->rvol+84)*606;
+		int volume = max(left,right);
+		int balance = (32768*min(left,right))/
+			      (volume ? volume : 1);
+		ctrl->value=(left<right)?
+			(65535-balance) : balance;
+		return 0;
+	}
+	case V4L2_CID_AUDIO_BASS:
+		ctrl->value = (t->bass+12)*2427;    /* min -12 max +15 */
+		return 0;
+	case V4L2_CID_AUDIO_TREBLE:
+		ctrl->value = (t->treble+12)*2730;/* min -12 max +12 */
+		return 0;
+	}
+	return -EINVAL;
+}
+
+static int tda9875_set_ctrl(struct i2c_client *client,
+			    struct v4l2_control *ctrl)
+{
+	struct tda9875 *t = i2c_get_clientdata(client);
+	int chvol=0, volume, balance, left, right;
+
+	switch (ctrl->id) {
+	case V4L2_CID_AUDIO_VOLUME:
+		left = (t->lvol+84)*606;
+		right = (t->rvol+84)*606;
+
+		volume = max(left,right);
+		balance = (32768*min(left,right))/
+			      (volume ? volume : 1);
+		balance =(left<right)?
+			(65535-balance) : balance;
+
+		volume = ctrl->value;
+
+		chvol=1;
+		break;
+	case V4L2_CID_AUDIO_BALANCE:
+		left = (t->lvol+84)*606;
+		right = (t->rvol+84)*606;
+
+		volume=max(left,right);
+
+		balance = ctrl->value;
+
+		chvol=1;
+		break;
+	case V4L2_CID_AUDIO_BASS:
+		t->bass = ((ctrl->value/2400)-12) & 0xff;
+		if (t->bass > 15)
+			t->bass = 15;
+		if (t->bass < -12)
+			t->bass = -12 & 0xff;
+		break;
+	case V4L2_CID_AUDIO_TREBLE:
+		t->treble = ((ctrl->value/2700)-12) & 0xff;
+		if (t->treble > 12)
+			t->treble = 12;
+		if (t->treble < -12)
+			t->treble = -12 & 0xff;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (chvol) {
+		left = (min(65536 - balance,32768) *
+			volume) / 32768;
+		right = (min(balance,32768) *
+				volume) / 32768;
+		t->lvol = ((left/606)-84) & 0xff;
+		if (t->lvol > 24)
+			t->lvol = 24;
+		if (t->lvol < -84)
+			t->lvol = -84 & 0xff;
+
+		t->rvol = ((right/606)-84) & 0xff;
+		if (t->rvol > 24)
+			t->rvol = 24;
+		if (t->rvol < -84)
+			t->rvol = -84 & 0xff;
+	}
+
+//printk("tda9875 bal:%04x vol:%04x bass:%04x treble:%04x\n",va->balance,va->volume,va->bass,va->treble);
+
+	tda9875_set(client);
+
+	return 0;
+}
+
+
+static int tda9875_command(struct i2c_client *client,
+				unsigned int cmd, void *arg)
+{
 	dprintk("In tda9875_command...\n");
 
 	switch (cmd) {
 	/* --- v4l ioctls --- */
 	/* take care: bttv does userspace copying, we'll get a
 	   kernel pointer here... */
-	case VIDIOCGAUDIO:
+	case VIDIOC_QUERYCTRL:
 	{
-		struct video_audio *va = arg;
-		int left,right;
+		struct v4l2_queryctrl *qc = arg;
 
-		dprintk("VIDIOCGAUDIO\n");
-
-		va->flags |= VIDEO_AUDIO_VOLUME |
-			VIDEO_AUDIO_BASS |
-			VIDEO_AUDIO_TREBLE;
-
-		/* min is -84 max is 24 */
-		left = (t->lvol+84)*606;
-		right = (t->rvol+84)*606;
-		va->volume=max(left,right);
-		va->balance=(32768*min(left,right))/
-			(va->volume ? va->volume : 1);
-		va->balance=(left<right)?
-			(65535-va->balance) : va->balance;
-		va->bass = (t->bass+12)*2427;    /* min -12 max +15 */
-		va->treble = (t->treble+12)*2730;/* min -12 max +12 */
-		va->mode |= VIDEO_SOUND_MONO;
-
-		break; /* VIDIOCGAUDIO case */
+		switch (qc->id) {
+			case V4L2_CID_AUDIO_VOLUME:
+			case V4L2_CID_AUDIO_BASS:
+			case V4L2_CID_AUDIO_TREBLE:
+			default:
+				return -EINVAL;
+		}
+		return v4l2_ctrl_query_fill_std(qc);
 	}
+	case VIDIOC_S_CTRL:
+		return tda9875_set_ctrl(client, arg);
 
-	case VIDIOCSAUDIO:
-	{
-		struct video_audio *va = arg;
-		int left,right;
-
-		dprintk("VIDEOCSAUDIO...\n");
-		left = (min(65536 - va->balance,32768) *
-			va->volume) / 32768;
-		right = (min(va->balance,(__u16)32768) *
-			 va->volume) / 32768;
-		t->lvol = ((left/606)-84) & 0xff;
-		if (t->lvol > 24)
-		 t->lvol = 24;
-		if (t->lvol < -84)
-		 t->lvol = -84 & 0xff;
-
-		t->rvol = ((right/606)-84) & 0xff;
-		if (t->rvol > 24)
-		 t->rvol = 24;
-		if (t->rvol < -84)
-		 t->rvol = -84 & 0xff;
-
-		t->bass = ((va->bass/2400)-12) & 0xff;
-		if (t->bass > 15)
-		 t->bass = 15;
-		if (t->bass < -12)
-		 t->bass = -12 & 0xff;
-
-		t->treble = ((va->treble/2700)-12) & 0xff;
-		if (t->treble > 12)
-		 t->treble = 12;
-		if (t->treble < -12)
-		 t->treble = -12 & 0xff;
-
-
-
-//printk("tda9875 bal:%04x vol:%04x bass:%04x treble:%04x\n",va->balance,va->volume,va->bass,va->treble);
-
-
-		tda9875_set(client);
-
-		break;
-
-	} /* end of VIDEOCSAUDIO case */
+	case VIDIOC_G_CTRL:
+		return tda9875_get_ctrl(client, arg);
 
 	default: /* Not VIDEOCGAUDIO or VIDEOCSAUDIO */
 

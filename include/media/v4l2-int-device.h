@@ -44,9 +44,8 @@ enum v4l2_int_type {
 struct v4l2_int_device;
 
 struct v4l2_int_master {
-	int (*attach)(struct v4l2_int_device *master,
-		      struct v4l2_int_device *slave);
-	void (*detach)(struct v4l2_int_device *master);
+	int (*attach)(struct v4l2_int_device *slave);
+	void (*detach)(struct v4l2_int_device *slave);
 };
 
 typedef int (v4l2_int_ioctl_func)(struct v4l2_int_device *);

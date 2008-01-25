@@ -58,10 +58,10 @@ static int initmute	= 1;
 static int radio_nr	= -1;
 
 module_param(io, int, 0444);
-MODULE_PARM_DESC(io, "Force I/O port for the GemTek Radio card if automatic"
+MODULE_PARM_DESC(io, "Force I/O port for the GemTek Radio card if automatic "
 	 "probing is disabled or fails. The most common I/O ports are: 0x20c "
 	 "0x30c, 0x24c or 0x34c (0x20c, 0x248 and 0x28c have been reported to "
-	 " work for the combined sound/radiocard).");
+	 "work for the combined sound/radiocard).");
 
 module_param(probe, bool, 0444);
 MODULE_PARM_DESC(probe, "Enable automatic device probing. Note: only the most "
@@ -392,7 +392,7 @@ static struct v4l2_queryctrl radio_qctrl[] = {
 	}
 };
 
-static struct file_operations gemtek_fops = {
+static const struct file_operations gemtek_fops = {
 	.owner		= THIS_MODULE,
 	.open		= video_exclusive_open,
 	.release	= video_exclusive_release,

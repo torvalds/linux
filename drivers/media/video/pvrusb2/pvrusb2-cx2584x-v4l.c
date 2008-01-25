@@ -49,34 +49,89 @@ struct pvr2_v4l_cx2584x {
 };
 
 
+struct routing_scheme_item {
+	int vid;
+	int aud;
+};
+
+struct routing_scheme {
+	const struct routing_scheme_item *def;
+	unsigned int cnt;
+};
+
+static const struct routing_scheme_item routing_scheme0[] = {
+	[PVR2_CVAL_INPUT_TV] = {
+		.vid = CX25840_COMPOSITE7,
+		.aud = CX25840_AUDIO8,
+	},
+	[PVR2_CVAL_INPUT_RADIO] = { /* Treat the same as composite */
+		.vid = CX25840_COMPOSITE3,
+		.aud = CX25840_AUDIO_SERIAL,
+	},
+	[PVR2_CVAL_INPUT_COMPOSITE] = {
+		.vid = CX25840_COMPOSITE3,
+		.aud = CX25840_AUDIO_SERIAL,
+	},
+	[PVR2_CVAL_INPUT_SVIDEO] = {
+		.vid = CX25840_SVIDEO1,
+		.aud = CX25840_AUDIO_SERIAL,
+	},
+};
+
+/* Specific to gotview device */
+static const struct routing_scheme_item routing_schemegv[] = {
+	[PVR2_CVAL_INPUT_TV] = {
+		.vid = CX25840_COMPOSITE2,
+		.aud = CX25840_AUDIO5,
+	},
+	[PVR2_CVAL_INPUT_RADIO] = { /* Treat the same as composite */
+		.vid = CX25840_COMPOSITE1,
+		.aud = CX25840_AUDIO_SERIAL,
+	},
+	[PVR2_CVAL_INPUT_COMPOSITE] = {
+		.vid = CX25840_COMPOSITE1,
+		.aud = CX25840_AUDIO_SERIAL,
+	},
+	[PVR2_CVAL_INPUT_SVIDEO] = {
+		.vid = (CX25840_SVIDEO_LUMA3|CX25840_SVIDEO_CHROMA4),
+		.aud = CX25840_AUDIO_SERIAL,
+	},
+};
+
+static const struct routing_scheme routing_schemes[] = {
+	[PVR2_ROUTING_SCHEME_HAUPPAUGE] = {
+		.def = routing_scheme0,
+		.cnt = ARRAY_SIZE(routing_scheme0),
+	},
+	[PVR2_ROUTING_SCHEME_GOTVIEW] = {
+		.def = routing_schemegv,
+		.cnt = ARRAY_SIZE(routing_schemegv),
+	},
+};
+
 static void set_input(struct pvr2_v4l_cx2584x *ctxt)
 {
 	struct pvr2_hdw *hdw = ctxt->hdw;
 	struct v4l2_routing route;
 	enum cx25840_video_input vid_input;
 	enum cx25840_audio_input aud_input;
+	const struct routing_scheme *sp;
+	unsigned int sid = hdw->hdw_desc->signal_routing_scheme;
 
 	memset(&route,0,sizeof(route));
 
-	switch(hdw->input_val) {
-	case PVR2_CVAL_INPUT_TV:
-		vid_input = CX25840_COMPOSITE7;
-		aud_input = CX25840_AUDIO8;
-		break;
-	case PVR2_CVAL_INPUT_RADIO: // Treat same as composite
-	case PVR2_CVAL_INPUT_COMPOSITE:
-		vid_input = CX25840_COMPOSITE3;
-		aud_input = CX25840_AUDIO_SERIAL;
-		break;
-	case PVR2_CVAL_INPUT_SVIDEO:
-		vid_input = CX25840_SVIDEO1;
-		aud_input = CX25840_AUDIO_SERIAL;
-		break;
-	default:
-		// Just set it to be composite input for now...
-		vid_input = CX25840_COMPOSITE3;
-		aud_input = CX25840_AUDIO_SERIAL;
-		break;
+	if ((sid < ARRAY_SIZE(routing_schemes)) &&
+	    ((sp = routing_schemes + sid) != 0) &&
+	    (hdw->input_val >= 0) &&
+	    (hdw->input_val < sp->cnt)) {
+		vid_input = sp->def[hdw->input_val].vid;
+		aud_input = sp->def[hdw->input_val].aud;
+	} else {
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			   "*** WARNING *** i2c cx2584x set_input:"
+			   " Invalid routing scheme (%u) and/or input (%d)",
+			   sid,hdw->input_val);
+		return;
 	}
 
 	pvr2_trace(PVR2_TRACE_CHIPS,"i2c cx2584x set_input vid=0x%x aud=0x%x",
@@ -140,7 +195,7 @@ static const struct pvr2_v4l_cx2584x_ops decoder_ops[] = {
 static void decoder_detach(struct pvr2_v4l_cx2584x *ctxt)
 {
 	ctxt->client->handler = NULL;
-	ctxt->hdw->decoder_ctrl = NULL;
+	pvr2_hdw_set_decoder(ctxt->hdw,NULL);
 	kfree(ctxt);
 }
 
@@ -241,7 +296,7 @@ int pvr2_i2c_cx2584x_v4l_setup(struct pvr2_hdw *hdw,
 	ctxt->client = cp;
 	ctxt->hdw = hdw;
 	ctxt->stale_mask = (1 << ARRAY_SIZE(decoder_ops)) - 1;
-	hdw->decoder_ctrl = &ctxt->ctrl;
+	pvr2_hdw_set_decoder(hdw,&ctxt->ctrl);
 	cp->handler = &ctxt->handler;
 	{
 		/*

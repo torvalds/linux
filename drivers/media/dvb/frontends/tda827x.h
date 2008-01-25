@@ -29,9 +29,16 @@
 
 struct tda827x_config
 {
+	/* saa7134 - provided callbacks */
 	void (*lna_gain) (struct dvb_frontend *fe, int high);
 	int (*init) (struct dvb_frontend *fe);
 	int (*sleep) (struct dvb_frontend *fe);
+
+	/* interface to tda829x driver */
+	unsigned int *config;
+	int (*tuner_callback) (void *dev, int command, int arg);
+
+	void (*agcf)(struct dvb_frontend *fe);
 };
 
 

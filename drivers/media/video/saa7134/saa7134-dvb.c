@@ -1073,14 +1073,21 @@ static int dvb_init(struct saa7134_dev *dev)
 
 static int dvb_fini(struct saa7134_dev *dev)
 {
-	static int on  = TDA9887_PRESENT | TDA9887_PORT2_INACTIVE;
+	/* FIXME: I suspect that this code is bogus, since the entry for
+	   Pinnacle 300I DVB-T PAL already defines the proper init to allow
+	   the detection of mt2032 (TDA9887_PORT2_INACTIVE)
+	 */
+	if (dev->board == SAA7134_BOARD_PINNACLE_300I_DVBT_PAL) {
+		struct v4l2_priv_tun_config tda9887_cfg;
+		static int on  = TDA9887_PRESENT | TDA9887_PORT2_INACTIVE;
 
-	switch (dev->board) {
-	case SAA7134_BOARD_PINNACLE_300I_DVBT_PAL:
+		tda9887_cfg.tuner = TUNER_TDA9887;
+		tda9887_cfg.priv  = &on;
+
 		/* otherwise we don't detect the tuner on next insmod */
-		saa7134_i2c_call_clients(dev,TDA9887_SET_CONFIG,&on);
-		break;
-	};
+		saa7134_i2c_call_clients(dev, TUNER_SET_CONFIG, &tda9887_cfg);
+	}
+
 	videobuf_dvb_unregister(&dev->dvb);
 	return 0;
 }

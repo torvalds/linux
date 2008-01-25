@@ -46,6 +46,7 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
+#include <media/v4l2-i2c-drv-legacy.h>
 #include <media/saa7115.h>
 #include <asm/div64.h>
 
@@ -1230,7 +1231,7 @@ static void saa711x_decode_vbi_line(struct i2c_client *client,
 
 /* ============ SAA7115 AUDIO settings (end) ============= */
 
-static int saa711x_command(struct i2c_client *client, unsigned int cmd, void *arg)
+static int saa7115_command(struct i2c_client *client, unsigned int cmd, void *arg)
 {
 	struct saa711x_state *state = i2c_get_clientdata(client);
 
@@ -1449,26 +1450,17 @@ static int saa711x_command(struct i2c_client *client, unsigned int cmd, void *ar
 
 /* ----------------------------------------------------------------------- */
 
-static struct i2c_driver i2c_driver_saa711x;
-
-static int saa711x_attach(struct i2c_adapter *adapter, int address, int kind)
+static int saa7115_probe(struct i2c_client *client)
 {
-	struct i2c_client *client;
 	struct saa711x_state *state;
 	int	i;
 	char	name[17];
 	u8 chip_id;
 
 	/* Check if the adapter supports the needed features */
-	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return 0;
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
+		return -EIO;
 
-	client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
-	if (client == 0)
-		return -ENOMEM;
-	client->addr = address;
-	client->adapter = adapter;
-	client->driver = &i2c_driver_saa711x;
 	snprintf(client->name, sizeof(client->name) - 1, "saa7115");
 
 	for (i = 0; i < 0x0f; i++) {
@@ -1485,18 +1477,16 @@ static int saa711x_attach(struct i2c_adapter *adapter, int address, int kind)
 	/* Check whether this chip is part of the saa711x series */
 	if (memcmp(name, "1f711", 5)) {
 		v4l_dbg(1, debug, client, "chip found @ 0x%x (ID %s) does not match a known saa711x chip.\n",
-			address << 1, name);
-		kfree(client);
-		return 0;
+			client->addr << 1, name);
+		return -ENODEV;
 	}
 
 	snprintf(client->name, sizeof(client->name) - 1, "saa711%d",chip_id);
-	v4l_info(client, "saa711%d found (%s) @ 0x%x (%s)\n", chip_id, name, address << 1, adapter->name);
+	v4l_info(client, "saa711%d found (%s) @ 0x%x (%s)\n", chip_id, name, client->addr << 1, client->adapter->name);
 
 	state = kzalloc(sizeof(struct saa711x_state), GFP_KERNEL);
 	i2c_set_clientdata(client, state);
 	if (state == NULL) {
-		kfree(client);
 		return -ENOMEM;
 	}
 	state->input = -1;
@@ -1549,59 +1539,25 @@ static int saa711x_attach(struct i2c_adapter *adapter, int address, int kind)
 	saa711x_writeregs(client, saa7115_init_misc);
 	saa711x_set_v4lstd(client, V4L2_STD_NTSC);
 
-	i2c_attach_client(client);
-
 	v4l_dbg(1, debug, client, "status: (1E) 0x%02x, (1F) 0x%02x\n",
 		saa711x_read(client, R_1E_STATUS_BYTE_1_VD_DEC), saa711x_read(client, R_1F_STATUS_BYTE_2_VD_DEC));
-
-	return 0;
-}
-
-static int saa711x_probe(struct i2c_adapter *adapter)
-{
-	if (adapter->class & I2C_CLASS_TV_ANALOG || adapter->class & I2C_CLASS_TV_DIGITAL)
-		return i2c_probe(adapter, &addr_data, &saa711x_attach);
-	return 0;
-}
-
-static int saa711x_detach(struct i2c_client *client)
-{
-	struct saa711x_state *state = i2c_get_clientdata(client);
-	int err;
-
-	err = i2c_detach_client(client);
-	if (err) {
-		return err;
-	}
-
-	kfree(state);
-	kfree(client);
 	return 0;
 }
 
 /* ----------------------------------------------------------------------- */
 
-/* i2c implementation */
-static struct i2c_driver i2c_driver_saa711x = {
-	.driver = {
-		.name = "saa7115",
-	},
-	.id = I2C_DRIVERID_SAA711X,
-	.attach_adapter = saa711x_probe,
-	.detach_client = saa711x_detach,
-	.command = saa711x_command,
+static int saa7115_remove(struct i2c_client *client)
+{
+	kfree(i2c_get_clientdata(client));
+	return 0;
+}
+
+static struct v4l2_i2c_driver_data v4l2_i2c_data = {
+	.name = "saa7115",
+	.driverid = I2C_DRIVERID_SAA711X,
+	.command = saa7115_command,
+	.probe = saa7115_probe,
+	.remove = saa7115_remove,
+	.legacy_class = I2C_CLASS_TV_ANALOG | I2C_CLASS_TV_DIGITAL,
 };
 
-
-static int __init saa711x_init_module(void)
-{
-	return i2c_add_driver(&i2c_driver_saa711x);
-}
-
-static void __exit saa711x_cleanup_module(void)
-{
-	i2c_del_driver(&i2c_driver_saa711x);
-}
-
-module_init(saa711x_init_module);
-module_exit(saa711x_cleanup_module);

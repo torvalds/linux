@@ -32,118 +32,156 @@ static int set_audclk_freq(struct i2c_client *client, u32 freq)
 
 	/* common for all inputs and rates */
 	/* SA_MCLK_SEL=1, SA_MCLK_DIV=0x10 */
-	cx25840_write(client, 0x127, 0x50);
+	if (!state->is_cx23885)
+		cx25840_write(client, 0x127, 0x50);
 
 	if (state->aud_input != CX25840_AUDIO_SERIAL) {
 		switch (freq) {
 		case 32000:
+			if (state->is_cx23885) {
+				/* We don't have register values
+				 * so avoid destroying registers. */
+				break;
+			}
 			/* VID_PLL and AUX_PLL */
-			cx25840_write4(client, 0x108, 0x0f040610);
+			cx25840_write4(client, 0x108, 0x1006040f);
 
 			/* AUX_PLL_FRAC */
-			cx25840_write4(client, 0x110, 0xee39bb01);
+			cx25840_write4(client, 0x110, 0x01bb39ee);
 
 			if (state->is_cx25836)
 				break;
 
 			/* src3/4/6_ctl = 0x0801f77f */
-			cx25840_write4(client, 0x900, 0x7ff70108);
-			cx25840_write4(client, 0x904, 0x7ff70108);
-			cx25840_write4(client, 0x90c, 0x7ff70108);
+			cx25840_write4(client, 0x900, 0x0801f77f);
+			cx25840_write4(client, 0x904, 0x0801f77f);
+			cx25840_write4(client, 0x90c, 0x0801f77f);
 			break;
 
 		case 44100:
+			if (state->is_cx23885) {
+				/* We don't have register values
+				 * so avoid destroying registers. */
+				break;
+			}
 			/* VID_PLL and AUX_PLL */
-			cx25840_write4(client, 0x108, 0x0f040910);
+			cx25840_write4(client, 0x108, 0x1009040f);
 
 			/* AUX_PLL_FRAC */
-			cx25840_write4(client, 0x110, 0xd66bec00);
+			cx25840_write4(client, 0x110, 0x00ec6bd6);
 
 			if (state->is_cx25836)
 				break;
 
 			/* src3/4/6_ctl = 0x08016d59 */
-			cx25840_write4(client, 0x900, 0x596d0108);
-			cx25840_write4(client, 0x904, 0x596d0108);
-			cx25840_write4(client, 0x90c, 0x596d0108);
+			cx25840_write4(client, 0x900, 0x08016d59);
+			cx25840_write4(client, 0x904, 0x08016d59);
+			cx25840_write4(client, 0x90c, 0x08016d59);
 			break;
 
 		case 48000:
+			if (state->is_cx23885) {
+				/* We don't have register values
+				 * so avoid destroying registers. */
+				break;
+			}
 			/* VID_PLL and AUX_PLL */
-			cx25840_write4(client, 0x108, 0x0f040a10);
+			cx25840_write4(client, 0x108, 0x100a040f);
 
 			/* AUX_PLL_FRAC */
-			cx25840_write4(client, 0x110, 0xe5d69800);
+			cx25840_write4(client, 0x110, 0x0098d6e5);
 
 			if (state->is_cx25836)
 				break;
 
 			/* src3/4/6_ctl = 0x08014faa */
-			cx25840_write4(client, 0x900, 0xaa4f0108);
-			cx25840_write4(client, 0x904, 0xaa4f0108);
-			cx25840_write4(client, 0x90c, 0xaa4f0108);
+			cx25840_write4(client, 0x900, 0x08014faa);
+			cx25840_write4(client, 0x904, 0x08014faa);
+			cx25840_write4(client, 0x90c, 0x08014faa);
 			break;
 		}
 	} else {
 		switch (freq) {
 		case 32000:
+			if (state->is_cx23885) {
+				/* We don't have register values
+				 * so avoid destroying registers. */
+				break;
+			}
 			/* VID_PLL and AUX_PLL */
-			cx25840_write4(client, 0x108, 0x0f04081e);
+			cx25840_write4(client, 0x108, 0x1e08040f);
 
 			/* AUX_PLL_FRAC */
-			cx25840_write4(client, 0x110, 0x69082a01);
+			cx25840_write4(client, 0x110, 0x012a0869);
 
 			if (state->is_cx25836)
 				break;
 
 			/* src1_ctl = 0x08010000 */
-			cx25840_write4(client, 0x8f8, 0x00000108);
+			cx25840_write4(client, 0x8f8, 0x08010000);
 
 			/* src3/4/6_ctl = 0x08020000 */
-			cx25840_write4(client, 0x900, 0x00000208);
-			cx25840_write4(client, 0x904, 0x00000208);
-			cx25840_write4(client, 0x90c, 0x00000208);
+			cx25840_write4(client, 0x900, 0x08020000);
+			cx25840_write4(client, 0x904, 0x08020000);
+			cx25840_write4(client, 0x90c, 0x08020000);
 
 			/* SA_MCLK_SEL=1, SA_MCLK_DIV=0x14 */
 			cx25840_write(client, 0x127, 0x54);
 			break;
 
 		case 44100:
+			if (state->is_cx23885) {
+				/* We don't have register values
+				 * so avoid destroying registers. */
+				break;
+			}
+
 			/* VID_PLL and AUX_PLL */
-			cx25840_write4(client, 0x108, 0x0f040918);
+			cx25840_write4(client, 0x108, 0x1809040f);
 
 			/* AUX_PLL_FRAC */
-			cx25840_write4(client, 0x110, 0xd66bec00);
+			cx25840_write4(client, 0x110, 0x00ec6bd6);
 
 			if (state->is_cx25836)
 				break;
 
 			/* src1_ctl = 0x08010000 */
-			cx25840_write4(client, 0x8f8, 0xcd600108);
+			cx25840_write4(client, 0x8f8, 0x080160cd);
 
 			/* src3/4/6_ctl = 0x08020000 */
-			cx25840_write4(client, 0x900, 0x85730108);
-			cx25840_write4(client, 0x904, 0x85730108);
-			cx25840_write4(client, 0x90c, 0x85730108);
+			cx25840_write4(client, 0x900, 0x08017385);
+			cx25840_write4(client, 0x904, 0x08017385);
+			cx25840_write4(client, 0x90c, 0x08017385);
 			break;
 
 		case 48000:
-			/* VID_PLL and AUX_PLL */
-			cx25840_write4(client, 0x108, 0x0f040a18);
+			if (!state->is_cx23885) {
+				/* VID_PLL and AUX_PLL */
+				cx25840_write4(client, 0x108, 0x180a040f);
 
-			/* AUX_PLL_FRAC */
-			cx25840_write4(client, 0x110, 0xe5d69800);
+				/* AUX_PLL_FRAC */
+				cx25840_write4(client, 0x110, 0x0098d6e5);
+			}
 
 			if (state->is_cx25836)
 				break;
 
-			/* src1_ctl = 0x08010000 */
-			cx25840_write4(client, 0x8f8, 0x00800108);
+			if (!state->is_cx23885) {
+				/* src1_ctl */
+				cx25840_write4(client, 0x8f8, 0x08018000);
 
-			/* src3/4/6_ctl = 0x08020000 */
-			cx25840_write4(client, 0x900, 0x55550108);
-			cx25840_write4(client, 0x904, 0x55550108);
-			cx25840_write4(client, 0x90c, 0x55550108);
+				/* src3/4/6_ctl */
+				cx25840_write4(client, 0x900, 0x08015555);
+				cx25840_write4(client, 0x904, 0x08015555);
+				cx25840_write4(client, 0x90c, 0x08015555);
+			} else {
+
+				cx25840_write4(client, 0x8f8, 0x0801867c);
+
+				cx25840_write4(client, 0x900, 0x08014faa);
+				cx25840_write4(client, 0x904, 0x08014faa);
+				cx25840_write4(client, 0x90c, 0x08014faa);
+			}
 			break;
 		}
 	}
@@ -168,14 +206,14 @@ void cx25840_audio_set_path(struct i2c_client *client)
 
 	if (state->aud_input == CX25840_AUDIO_SERIAL) {
 		/* Set Path1 to Serial Audio Input */
-		cx25840_write4(client, 0x8d0, 0x12100101);
+		cx25840_write4(client, 0x8d0, 0x01011012);
 
 		/* The microcontroller should not be started for the
 		 * non-tuner inputs: autodetection is specific for
 		 * TV audio. */
 	} else {
 		/* Set Path1 to Analog Demod Main Channel */
-		cx25840_write4(client, 0x8d0, 0x7038061f);
+		cx25840_write4(client, 0x8d0, 0x1f063870);
 	}
 
 	set_audclk_freq(client, state->audclk_freq);
@@ -188,6 +226,11 @@ void cx25840_audio_set_path(struct i2c_client *client)
 
 	/* deassert soft reset */
 	cx25840_and_or(client, 0x810, ~0x1, 0x00);
+
+	if (state->is_cx23885) {
+		/* Ensure the controller is running when we exit */
+		cx25840_and_or(client, 0x803, ~0x10, 0x10);
+	}
 }
 
 static int get_volume(struct i2c_client *client)

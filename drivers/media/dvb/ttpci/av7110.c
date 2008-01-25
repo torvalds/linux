@@ -2595,7 +2595,8 @@ static int __devinit av7110_attach(struct saa7146_dev* dev,
 	mutex_init(&av7110->osd_mutex);
 
 	/* TV standard */
-	av7110->vidmode = tv_standard == 1 ? VIDEO_MODE_NTSC : VIDEO_MODE_PAL;
+	av7110->vidmode = tv_standard == 1 ? AV7110_VIDEO_MODE_NTSC
+					   : AV7110_VIDEO_MODE_PAL;
 
 	/* ARM "watchdog" */
 	init_waitqueue_head(&av7110->arm_wait);

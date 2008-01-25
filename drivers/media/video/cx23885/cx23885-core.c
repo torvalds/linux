@@ -36,7 +36,7 @@ MODULE_DESCRIPTION("Driver for cx23885 based TV cards");
 MODULE_AUTHOR("Steven Toth <stoth@hauppauge.com>");
 MODULE_LICENSE("GPL");
 
-static unsigned int debug = 0;
+static unsigned int debug;
 module_param(debug,int,0644);
 MODULE_PARM_DESC(debug,"enable debug messages");
 
@@ -44,13 +44,15 @@ static unsigned int card[]  = {[0 ... (CX23885_MAXBOARDS - 1)] = UNSET };
 module_param_array(card,  int, NULL, 0444);
 MODULE_PARM_DESC(card,"card type");
 
-#define dprintk(level,fmt, arg...)	if (debug >= level) \
-	printk(KERN_DEBUG "%s/0: " fmt, dev->name , ## arg)
+#define dprintk(level, fmt, arg...)\
+	do { if (debug >= level)\
+		printk(KERN_DEBUG "%s/0: " fmt, dev->name, ## arg);\
+	} while (0)
 
 static unsigned int cx23885_devcount;
 
 static DEFINE_MUTEX(devlist);
-static LIST_HEAD(cx23885_devlist);
+LIST_HEAD(cx23885_devlist);
 
 #define NO_SYNC_LINE (-1U)
 
@@ -73,14 +75,14 @@ static LIST_HEAD(cx23885_devlist);
  * 0x00010ea0 0x00010xxx Free
  */
 
-struct sram_channel cx23885_sram_channels[] = {
+static struct sram_channel cx23885_sram_channels[] = {
 	[SRAM_CH01] = {
-		.name		= "test ch1",
+		.name		= "VID A",
 		.cmds_start	= 0x10000,
-		.ctrl_start	= 0x10500,
-		.cdt		= 0x10900,
-		.fifo_start	= 0x3000,
-		.fifo_size	= 0x1000,
+		.ctrl_start	= 0x105b0,
+		.cdt		= 0x107b0,
+		.fifo_start	= 0x40,
+		.fifo_size	= 0x2800,
 		.ptr1_reg	= DMA1_PTR1,
 		.ptr2_reg	= DMA1_PTR2,
 		.cnt1_reg	= DMA1_CNT1,
@@ -102,8 +104,8 @@ struct sram_channel cx23885_sram_channels[] = {
 	[SRAM_CH03] = {
 		.name		= "TS1 B",
 		.cmds_start	= 0x100A0,
-		.ctrl_start	= 0x10780,
-		.cdt		= 0x10400,
+		.ctrl_start	= 0x10630,
+		.cdt		= 0x10870,
 		.fifo_start	= 0x5000,
 		.fifo_size	= 0x1000,
 		.ptr1_reg	= DMA3_PTR1,
@@ -139,7 +141,7 @@ struct sram_channel cx23885_sram_channels[] = {
 		.name		= "TS2 C",
 		.cmds_start	= 0x10140,
 		.ctrl_start	= 0x10680,
-		.cdt		= 0x10480,
+		.cdt		= 0x108d0,
 		.fifo_start	= 0x6000,
 		.fifo_size	= 0x1000,
 		.ptr1_reg	= DMA5_PTR1,
@@ -205,14 +207,14 @@ struct sram_channel cx23885_sram_channels[] = {
  * 0x00010ea0 0x00010xxx Free
  */
 
-struct sram_channel cx23887_sram_channels[] = {
+static struct sram_channel cx23887_sram_channels[] = {
 	[SRAM_CH01] = {
-		.name		= "test ch1",
-		.cmds_start	= 0x0,
-		.ctrl_start	= 0x0,
-		.cdt		= 0x0,
-		.fifo_start	= 0x0,
-		.fifo_size	= 0x0,
+		.name		= "VID A",
+		.cmds_start	= 0x10000,
+		.ctrl_start	= 0x105b0,
+		.cdt		= 0x107b0,
+		.fifo_start	= 0x40,
+		.fifo_size	= 0x2800,
 		.ptr1_reg	= DMA1_PTR1,
 		.ptr2_reg	= DMA1_PTR2,
 		.cnt1_reg	= DMA1_CNT1,
@@ -231,12 +233,12 @@ struct sram_channel cx23887_sram_channels[] = {
 		.cnt2_reg	= DMA2_CNT2,
 	},
 	[SRAM_CH03] = {
-		.name		= "ch3",
-		.cmds_start	= 0x0,
-		.ctrl_start	= 0x0,
-		.cdt		= 0x0,
-		.fifo_start	= 0x0,
-		.fifo_size	= 0x0,
+		.name		= "TS1 B",
+		.cmds_start	= 0x100A0,
+		.ctrl_start	= 0x10780,
+		.cdt		= 0x10400,
+		.fifo_start	= 0x5000,
+		.fifo_size	= 0x1000,
 		.ptr1_reg	= DMA3_PTR1,
 		.ptr2_reg	= DMA3_PTR2,
 		.cnt1_reg	= DMA3_CNT1,
@@ -357,7 +359,7 @@ static int cx23885_risc_decode(u32 risc)
 }
 
 void cx23885_wakeup(struct cx23885_tsport *port,
-		    struct cx23885_dmaqueue *q, u32 count)
+			   struct cx23885_dmaqueue *q, u32 count)
 {
 	struct cx23885_dev *dev = port->dev;
 	struct cx23885_buffer *buf;
@@ -378,7 +380,7 @@ void cx23885_wakeup(struct cx23885_tsport *port,
 		do_gettimeofday(&buf->vb.ts);
 		dprintk(2, "[%p/%d] wakeup reg=%d buf=%d\n", buf, buf->vb.i,
 			count, buf->count);
-		buf->vb.state = STATE_DONE;
+		buf->vb.state = VIDEOBUF_DONE;
 		list_del(&buf->vb.queue);
 		wake_up(&buf->vb.done);
 	}
@@ -391,12 +393,10 @@ void cx23885_wakeup(struct cx23885_tsport *port,
 		printk("%s: %d buffers handled (should be 1)\n",
 		       __FUNCTION__, bc);
 }
-void cx23885_sram_channel_dump(struct cx23885_dev *dev,
-			       struct sram_channel *ch);
 
 int cx23885_sram_channel_setup(struct cx23885_dev *dev,
-			       struct sram_channel *ch,
-			       unsigned int bpl, u32 risc)
+				      struct sram_channel *ch,
+				      unsigned int bpl, u32 risc)
 {
 	unsigned int i, lines;
 	u32 cdt;
@@ -468,7 +468,7 @@ int cx23885_sram_channel_setup(struct cx23885_dev *dev,
 }
 
 void cx23885_sram_channel_dump(struct cx23885_dev *dev,
-			       struct sram_channel *ch)
+				      struct sram_channel *ch)
 {
 	static char *name[] = {
 		"init risc lo",
@@ -529,8 +529,8 @@ void cx23885_sram_channel_dump(struct cx23885_dev *dev,
 	       dev->name, cx_read(ch->cnt2_reg));
 }
 
-void cx23885_risc_disasm(struct cx23885_tsport *port,
-			 struct btcx_riscmem *risc)
+static void cx23885_risc_disasm(struct cx23885_tsport *port,
+				struct btcx_riscmem *risc)
 {
 	struct cx23885_dev *dev = port->dev;
 	unsigned int i, j, n;
@@ -548,7 +548,7 @@ void cx23885_risc_disasm(struct cx23885_tsport *port,
 	}
 }
 
-void cx23885_shutdown(struct cx23885_dev *dev)
+static void cx23885_shutdown(struct cx23885_dev *dev)
 {
 	/* disable RISC controller */
 	cx_write(DEV_CNTRL2, 0);
@@ -578,7 +578,7 @@ void cx23885_shutdown(struct cx23885_dev *dev)
 
 }
 
-void cx23885_reset(struct cx23885_dev *dev)
+static void cx23885_reset(struct cx23885_dev *dev)
 {
 	dprintk(1, "%s()\n", __FUNCTION__);
 
@@ -594,15 +594,18 @@ void cx23885_reset(struct cx23885_dev *dev)
 
 	mdelay(100);
 
-	cx23885_sram_channel_setup(dev, &dev->sram_channels[ SRAM_CH01 ], 188*4, 0);
-	cx23885_sram_channel_setup(dev, &dev->sram_channels[ SRAM_CH02 ], 128, 0);
-	cx23885_sram_channel_setup(dev, &dev->sram_channels[ SRAM_CH03 ], 188*4, 0);
-	cx23885_sram_channel_setup(dev, &dev->sram_channels[ SRAM_CH04 ], 128, 0);
-	cx23885_sram_channel_setup(dev, &dev->sram_channels[ SRAM_CH05 ], 128, 0);
-	cx23885_sram_channel_setup(dev, &dev->sram_channels[ SRAM_CH06 ], 188*4, 0);
-	cx23885_sram_channel_setup(dev, &dev->sram_channels[ SRAM_CH07 ], 128, 0);
-	cx23885_sram_channel_setup(dev, &dev->sram_channels[ SRAM_CH08 ], 128, 0);
-	cx23885_sram_channel_setup(dev, &dev->sram_channels[ SRAM_CH09 ], 128, 0);
+	cx23885_sram_channel_setup(dev, &dev->sram_channels[SRAM_CH01],
+		720*4, 0);
+	cx23885_sram_channel_setup(dev, &dev->sram_channels[SRAM_CH02], 128, 0);
+	cx23885_sram_channel_setup(dev, &dev->sram_channels[SRAM_CH03],
+		188*4, 0);
+	cx23885_sram_channel_setup(dev, &dev->sram_channels[SRAM_CH04], 128, 0);
+	cx23885_sram_channel_setup(dev, &dev->sram_channels[SRAM_CH05], 128, 0);
+	cx23885_sram_channel_setup(dev, &dev->sram_channels[SRAM_CH06],
+		188*4, 0);
+	cx23885_sram_channel_setup(dev, &dev->sram_channels[SRAM_CH07], 128, 0);
+	cx23885_sram_channel_setup(dev, &dev->sram_channels[SRAM_CH08], 128, 0);
+	cx23885_sram_channel_setup(dev, &dev->sram_channels[SRAM_CH09], 128, 0);
 
 	cx23885_gpio_setup(dev);
 }
@@ -637,7 +640,7 @@ static int get_resources(struct cx23885_dev *dev)
 
 static void cx23885_timeout(unsigned long data);
 int cx23885_risc_stopper(struct pci_dev *pci, struct btcx_riscmem *risc,
-			 u32 reg, u32 mask, u32 value);
+				u32 reg, u32 mask, u32 value);
 
 static int cx23885_init_tsport(struct cx23885_dev *dev, struct cx23885_tsport *port, int portno)
 {
@@ -704,6 +707,44 @@ static int cx23885_init_tsport(struct cx23885_dev *dev, struct cx23885_tsport *p
 	return 0;
 }
 
+static void cx23885_dev_checkrevision(struct cx23885_dev *dev)
+{
+	switch (cx_read(RDR_CFG2) & 0xff) {
+	case 0x00:
+		/* cx23885 */
+		dev->hwrevision = 0xa0;
+		break;
+	case 0x01:
+		/* CX23885-12Z */
+		dev->hwrevision = 0xa1;
+		break;
+	case 0x02:
+		/* CX23885-13Z */
+		dev->hwrevision = 0xb0;
+		break;
+	case 0x03:
+		/* CX23888-22Z */
+		dev->hwrevision = 0xc0;
+		break;
+	case 0x0e:
+		/* CX23887-15Z */
+		dev->hwrevision = 0xc0;
+	case 0x0f:
+		/* CX23887-14Z */
+		dev->hwrevision = 0xb1;
+		break;
+	default:
+		printk(KERN_ERR "%s() New hardware revision found 0x%x\n",
+			__FUNCTION__, dev->hwrevision);
+	}
+	if (dev->hwrevision)
+		printk(KERN_INFO "%s() Hardware revision = 0x%02x\n",
+			__FUNCTION__, dev->hwrevision);
+	else
+		printk(KERN_ERR "%s() Hardware revision unknown 0x%x\n",
+			__FUNCTION__, dev->hwrevision);
+}
+
 static int cx23885_dev_setup(struct cx23885_dev *dev)
 {
 	int i;
@@ -723,10 +764,14 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 	if(dev->pci->device == 0x8880) {
 		dev->bridge = CX23885_BRIDGE_887;
 		dev->sram_channels = cx23887_sram_channels;
+		/* Apply a sensible clock frequency for the PCIe bridge */
+		dev->clk_freq = 25000000;
 	} else
 	if(dev->pci->device == 0x8852) {
 		dev->bridge = CX23885_BRIDGE_885;
 		dev->sram_channels = cx23885_sram_channels;
+		/* Apply a sensible clock frequency for the PCIe bridge */
+		dev->clk_freq = 28000000;
 	} else
 		BUG();
 
@@ -745,6 +790,10 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 		dev->board = CX23885_BOARD_UNKNOWN;
 		cx23885_card_list(dev);
 	}
+
+	/* If the user specific a clk freq override, apply it */
+	if (cx23885_boards[dev->board].clk_freq > 0)
+		dev->clk_freq = cx23885_boards[dev->board].clk_freq;
 
 	dev->pci_bus  = dev->pci->bus->number;
 	dev->pci_slot = PCI_SLOT(dev->pci->devfn);
@@ -810,6 +859,17 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 
 	cx23885_pci_quirks(dev);
 
+	/* Assume some sensible defaults */
+	dev->tuner_type = cx23885_boards[dev->board].tuner_type;
+	dev->tuner_addr = cx23885_boards[dev->board].tuner_addr;
+	dev->radio_type = cx23885_boards[dev->board].radio_type;
+	dev->radio_addr = cx23885_boards[dev->board].radio_addr;
+
+	dprintk(1, "%s() tuner_type = 0x%x tuner_addr = 0x%x\n",
+		__FUNCTION__, dev->tuner_type, dev->tuner_addr);
+	dprintk(1, "%s() radio_type = 0x%x radio_addr = 0x%x\n",
+		__FUNCTION__, dev->radio_type, dev->radio_addr);
+
 	/* init hardware */
 	cx23885_reset(dev);
 
@@ -820,30 +880,42 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 	cx23885_card_setup(dev);
 	cx23885_ir_init(dev);
 
-	if(cx23885_boards[dev->board].portb == CX23885_MPEG_DVB) {
+	if (cx23885_boards[dev->board].porta == CX23885_ANALOG_VIDEO) {
+		if (cx23885_video_register(dev) < 0) {
+			printk(KERN_ERR "%s() Failed to register analog "
+				"video adapters on VID_A\n", __FUNCTION__);
+		}
+	}
+
+	if (cx23885_boards[dev->board].portb == CX23885_MPEG_DVB) {
 		if (cx23885_dvb_register(&dev->ts1) < 0) {
 			printk(KERN_ERR "%s() Failed to register dvb adapters on VID_B\n",
 			       __FUNCTION__);
 		}
 	}
 
-	if(cx23885_boards[dev->board].portc == CX23885_MPEG_DVB) {
+	if (cx23885_boards[dev->board].portc == CX23885_MPEG_DVB) {
 		if (cx23885_dvb_register(&dev->ts2) < 0) {
 			printk(KERN_ERR "%s() Failed to register dvb adapters on VID_C\n",
 			       __FUNCTION__);
 		}
 	}
 
+	cx23885_dev_checkrevision(dev);
+
 	return 0;
 }
 
-void cx23885_dev_unregister(struct cx23885_dev *dev)
+static void cx23885_dev_unregister(struct cx23885_dev *dev)
 {
 	release_mem_region(pci_resource_start(dev->pci,0),
 			   pci_resource_len(dev->pci,0));
 
 	if (!atomic_dec_and_test(&dev->refcount))
 		return;
+
+	if (cx23885_boards[dev->board].porta == CX23885_ANALOG_VIDEO)
+		cx23885_video_unregister(dev);
 
 	if(cx23885_boards[dev->board].portb == CX23885_MPEG_DVB)
 		cx23885_dvb_unregister(&dev->ts1);
@@ -952,9 +1024,11 @@ int cx23885_risc_buffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 	return 0;
 }
 
-int cx23885_risc_databuffer(struct pci_dev *pci, struct btcx_riscmem *risc,
-			    struct scatterlist *sglist, unsigned int bpl,
-			    unsigned int lines)
+static int cx23885_risc_databuffer(struct pci_dev *pci,
+				   struct btcx_riscmem *risc,
+				   struct scatterlist *sglist,
+				   unsigned int bpl,
+				   unsigned int lines)
 {
 	u32 instructions;
 	u32 *rp;
@@ -982,7 +1056,7 @@ int cx23885_risc_databuffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 }
 
 int cx23885_risc_stopper(struct pci_dev *pci, struct btcx_riscmem *risc,
-			 u32 reg, u32 mask, u32 value)
+				u32 reg, u32 mask, u32 value)
 {
 	u32 *rp;
 	int rc;
@@ -1011,7 +1085,58 @@ void cx23885_free_buffer(struct videobuf_queue *q, struct cx23885_buffer *buf)
 	videobuf_dma_unmap(q, dma);
 	videobuf_dma_free(dma);
 	btcx_riscmem_free((struct pci_dev *)q->dev, &buf->risc);
-	buf->vb.state = STATE_NEEDS_INIT;
+	buf->vb.state = VIDEOBUF_NEEDS_INIT;
+}
+
+static void cx23885_tsport_reg_dump(struct cx23885_tsport *port)
+{
+	struct cx23885_dev *dev = port->dev;
+
+	dprintk(1, "%s() Register Dump\n", __FUNCTION__);
+	dprintk(1, "%s() DEV_CNTRL2               0x%08X\n", __FUNCTION__,
+		cx_read(DEV_CNTRL2));
+	dprintk(1, "%s() PCI_INT_MSK              0x%08X\n", __FUNCTION__,
+		cx_read(PCI_INT_MSK));
+	dprintk(1, "%s() AUD_INT_INT_MSK          0x%08X\n", __FUNCTION__,
+		cx_read(AUDIO_INT_INT_MSK));
+	dprintk(1, "%s() AUD_INT_DMA_CTL          0x%08X\n", __FUNCTION__,
+		cx_read(AUD_INT_DMA_CTL));
+	dprintk(1, "%s() AUD_EXT_INT_MSK          0x%08X\n", __FUNCTION__,
+		cx_read(AUDIO_EXT_INT_MSK));
+	dprintk(1, "%s() AUD_EXT_DMA_CTL          0x%08X\n", __FUNCTION__,
+		cx_read(AUD_EXT_DMA_CTL));
+	dprintk(1, "%s() PAD_CTRL                 0x%08X\n", __FUNCTION__,
+		cx_read(PAD_CTRL));
+	dprintk(1, "%s() ALT_PIN_OUT_SEL          0x%08X\n", __FUNCTION__,
+		cx_read(ALT_PIN_OUT_SEL));
+	dprintk(1, "%s() GPIO2                    0x%08X\n", __FUNCTION__,
+		cx_read(GPIO2));
+	dprintk(1, "%s() gpcnt(0x%08X)          0x%08X\n", __FUNCTION__,
+		port->reg_gpcnt, cx_read(port->reg_gpcnt));
+	dprintk(1, "%s() gpcnt_ctl(0x%08X)      0x%08x\n", __FUNCTION__,
+		port->reg_gpcnt_ctl, cx_read(port->reg_gpcnt_ctl));
+	dprintk(1, "%s() dma_ctl(0x%08X)        0x%08x\n", __FUNCTION__,
+		port->reg_dma_ctl, cx_read(port->reg_dma_ctl));
+	dprintk(1, "%s() src_sel(0x%08X)        0x%08x\n", __FUNCTION__,
+		port->reg_src_sel, cx_read(port->reg_src_sel));
+	dprintk(1, "%s() lngth(0x%08X)          0x%08x\n", __FUNCTION__,
+		port->reg_lngth, cx_read(port->reg_lngth));
+	dprintk(1, "%s() hw_sop_ctrl(0x%08X)    0x%08x\n", __FUNCTION__,
+		port->reg_hw_sop_ctrl, cx_read(port->reg_hw_sop_ctrl));
+	dprintk(1, "%s() gen_ctrl(0x%08X)       0x%08x\n", __FUNCTION__,
+		port->reg_gen_ctrl, cx_read(port->reg_gen_ctrl));
+	dprintk(1, "%s() bd_pkt_status(0x%08X)  0x%08x\n", __FUNCTION__,
+		port->reg_bd_pkt_status, cx_read(port->reg_bd_pkt_status));
+	dprintk(1, "%s() sop_status(0x%08X)     0x%08x\n", __FUNCTION__,
+		port->reg_sop_status, cx_read(port->reg_sop_status));
+	dprintk(1, "%s() fifo_ovfl_stat(0x%08X) 0x%08x\n", __FUNCTION__,
+		port->reg_fifo_ovfl_stat, cx_read(port->reg_fifo_ovfl_stat));
+	dprintk(1, "%s() vld_misc(0x%08X)       0x%08x\n", __FUNCTION__,
+		port->reg_vld_misc, cx_read(port->reg_vld_misc));
+	dprintk(1, "%s() ts_clk_en(0x%08X)      0x%08x\n", __FUNCTION__,
+		port->reg_ts_clk_en, cx_read(port->reg_ts_clk_en));
+	dprintk(1, "%s() ts_int_msk(0x%08X)     0x%08x\n", __FUNCTION__,
+		port->reg_ts_int_msk, cx_read(port->reg_ts_int_msk));
 }
 
 static int cx23885_start_dma(struct cx23885_tsport *port,
@@ -1076,6 +1201,9 @@ static int cx23885_start_dma(struct cx23885_tsport *port,
 
 	cx_set(DEV_CNTRL2, (1<<5)); /* Enable RISC controller */
 
+	if (debug > 4)
+		cx23885_tsport_reg_dump(port);
+
 	return 0;
 }
 
@@ -1091,7 +1219,7 @@ static int cx23885_stop_dma(struct cx23885_tsport *port)
 	return 0;
 }
 
-static int cx23885_restart_queue(struct cx23885_tsport *port,
+int cx23885_restart_queue(struct cx23885_tsport *port,
 				struct cx23885_dmaqueue *q)
 {
 	struct cx23885_dev *dev = port->dev;
@@ -1114,7 +1242,7 @@ static int cx23885_restart_queue(struct cx23885_tsport *port,
 				list_del(&buf->vb.queue);
 				list_add_tail(&buf->vb.queue, &q->active);
 				cx23885_start_dma(port, q, buf);
-				buf->vb.state = STATE_ACTIVE;
+				buf->vb.state = VIDEOBUF_ACTIVE;
 				buf->count    = q->count++;
 				mod_timer(&q->timeout, jiffies+BUFFER_TIMEOUT);
 				dprintk(5, "[%p/%d] restart_queue - first active\n",
@@ -1125,7 +1253,7 @@ static int cx23885_restart_queue(struct cx23885_tsport *port,
 				   prev->fmt       == buf->fmt) {
 				list_del(&buf->vb.queue);
 				list_add_tail(&buf->vb.queue, &q->active);
-				buf->vb.state = STATE_ACTIVE;
+				buf->vb.state = VIDEOBUF_ACTIVE;
 				buf->count    = q->count++;
 				prev->risc.jmp[1] = cpu_to_le32(buf->risc.dma);
 				prev->risc.jmp[2] = cpu_to_le32(0); /* 64 bit bits 63-32 */
@@ -1162,7 +1290,7 @@ int cx23885_buf_prepare(struct videobuf_queue *q, struct cx23885_tsport *port,
 	if (0 != buf->vb.baddr  &&  buf->vb.bsize < size)
 		return -EINVAL;
 
-	if (STATE_NEEDS_INIT == buf->vb.state) {
+	if (VIDEOBUF_NEEDS_INIT == buf->vb.state) {
 		buf->vb.width  = port->ts_packet_size;
 		buf->vb.height = port->ts_packet_count;
 		buf->vb.size   = size;
@@ -1174,7 +1302,7 @@ int cx23885_buf_prepare(struct videobuf_queue *q, struct cx23885_tsport *port,
 					videobuf_to_dma(&buf->vb)->sglist,
 					buf->vb.width, buf->vb.height);
 	}
-	buf->vb.state = STATE_PREPARED;
+	buf->vb.state = VIDEOBUF_PREPARED;
 	return 0;
 
  fail:
@@ -1197,7 +1325,7 @@ void cx23885_buf_queue(struct cx23885_tsport *port, struct cx23885_buffer *buf)
 		dprintk( 1, "queue is empty - first active\n" );
 		list_add_tail(&buf->vb.queue, &cx88q->active);
 		cx23885_start_dma(port, cx88q, buf);
-		buf->vb.state = STATE_ACTIVE;
+		buf->vb.state = VIDEOBUF_ACTIVE;
 		buf->count    = cx88q->count++;
 		mod_timer(&cx88q->timeout, jiffies + BUFFER_TIMEOUT);
 		dprintk(1, "[%p/%d] %s - first active\n",
@@ -1207,7 +1335,7 @@ void cx23885_buf_queue(struct cx23885_tsport *port, struct cx23885_buffer *buf)
 		prev = list_entry(cx88q->active.prev, struct cx23885_buffer,
 				  vb.queue);
 		list_add_tail(&buf->vb.queue, &cx88q->active);
-		buf->vb.state = STATE_ACTIVE;
+		buf->vb.state = VIDEOBUF_ACTIVE;
 		buf->count    = cx88q->count++;
 		prev->risc.jmp[1] = cpu_to_le32(buf->risc.dma);
 		prev->risc.jmp[2] = cpu_to_le32(0); /* 64 bit bits 63-32 */
@@ -1231,7 +1359,7 @@ static void do_cancel_buffers(struct cx23885_tsport *port, char *reason,
 		buf = list_entry(q->active.next, struct cx23885_buffer,
 				 vb.queue);
 		list_del(&buf->vb.queue);
-		buf->vb.state = STATE_ERROR;
+		buf->vb.state = VIDEOBUF_ERROR;
 		wake_up(&buf->vb.done);
 		dprintk(1, "[%p/%d] %s - dma=0x%08lx\n",
 			buf, buf->vb.i, reason, (unsigned long)buf->risc.dma);
@@ -1243,16 +1371,6 @@ static void do_cancel_buffers(struct cx23885_tsport *port, char *reason,
 	spin_unlock_irqrestore(&port->slock, flags);
 }
 
-void cx23885_cancel_buffers(struct cx23885_tsport *port)
-{
-	struct cx23885_dev *dev = port->dev;
-	struct cx23885_dmaqueue *q = &port->mpegq;
-
-	dprintk(1, "%s()\n", __FUNCTION__);
-	del_timer_sync(&q->timeout);
-	cx23885_stop_dma(port);
-	do_cancel_buffers(port, "cancel", 0);
-}
 
 static void cx23885_timeout(unsigned long data)
 {
@@ -1325,12 +1443,15 @@ static irqreturn_t cx23885_irq(int irq, void *dev_id)
 	struct cx23885_tsport *ts1 = &dev->ts1;
 	struct cx23885_tsport *ts2 = &dev->ts2;
 	u32 pci_status, pci_mask;
+	u32 vida_status, vida_mask;
 	u32 ts1_status, ts1_mask;
 	u32 ts2_status, ts2_mask;
-	int ts1_count = 0, ts2_count = 0, handled = 0;
+	int vida_count = 0, ts1_count = 0, ts2_count = 0, handled = 0;
 
 	pci_status = cx_read(PCI_INT_STAT);
 	pci_mask = cx_read(PCI_INT_MSK);
+	vida_status = cx_read(VID_A_INT_STAT);
+	vida_mask = cx_read(VID_A_INT_MSK);
 	ts1_status = cx_read(VID_B_INT_STAT);
 	ts1_mask = cx_read(VID_B_INT_MSK);
 	ts2_status = cx_read(VID_C_INT_STAT);
@@ -1339,11 +1460,17 @@ static irqreturn_t cx23885_irq(int irq, void *dev_id)
 	if ( (pci_status == 0) && (ts2_status == 0) && (ts1_status == 0) )
 		goto out;
 
+	vida_count = cx_read(VID_A_GPCNT);
 	ts1_count = cx_read(ts1->reg_gpcnt);
 	ts2_count = cx_read(ts2->reg_gpcnt);
-	dprintk(7, "pci_status: 0x%08x  pci_mask: 0x%08x\n", pci_status, pci_mask );
-	dprintk(7, "ts1_status: 0x%08x  ts1_mask: 0x%08x count: 0x%x\n", ts1_status, ts1_mask, ts1_count );
-	dprintk(7, "ts2_status: 0x%08x  ts2_mask: 0x%08x count: 0x%x\n", ts2_status, ts2_mask, ts2_count );
+	dprintk(7, "pci_status: 0x%08x  pci_mask: 0x%08x\n",
+		pci_status, pci_mask);
+	dprintk(7, "vida_status: 0x%08x vida_mask: 0x%08x count: 0x%x\n",
+		vida_status, vida_mask, vida_count);
+	dprintk(7, "ts1_status: 0x%08x  ts1_mask: 0x%08x count: 0x%x\n",
+		ts1_status, ts1_mask, ts1_count);
+	dprintk(7, "ts2_status: 0x%08x  ts2_mask: 0x%08x count: 0x%x\n",
+		ts2_status, ts2_mask, ts2_count);
 
 	if ( (pci_status & PCI_MSK_RISC_RD) ||
 	     (pci_status & PCI_MSK_RISC_WR) ||
@@ -1380,11 +1507,18 @@ static irqreturn_t cx23885_irq(int irq, void *dev_id)
 
 	}
 
-	if (ts1_status)
-		handled += cx23885_irq_ts(ts1, ts1_status);
+	if (ts1_status) {
+		if (cx23885_boards[dev->board].portb == CX23885_MPEG_DVB)
+			handled += cx23885_irq_ts(ts1, ts1_status);
+	}
 
-	if (ts2_status)
-		handled += cx23885_irq_ts(ts2, ts2_status);
+	if (ts2_status) {
+		if (cx23885_boards[dev->board].portc == CX23885_MPEG_DVB)
+			handled += cx23885_irq_ts(ts2, ts2_status);
+	}
+
+	if (vida_status)
+		handled += cx23885_video_irq(dev, vida_status);
 
 	if (handled)
 		cx_write(PCI_INT_STAT, pci_status);

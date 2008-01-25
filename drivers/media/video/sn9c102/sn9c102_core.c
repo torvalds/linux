@@ -47,7 +47,7 @@
 #define SN9C102_MODULE_AUTHOR   "(C) 2004-2007 Luca Risolia"
 #define SN9C102_AUTHOR_EMAIL    "<luca.risolia@studio.unibo.it>"
 #define SN9C102_MODULE_LICENSE  "GPL"
-#define SN9C102_MODULE_VERSION  "1:1.47"
+#define SN9C102_MODULE_VERSION  "1:1.47pre49"
 #define SN9C102_MODULE_VERSION_CODE  KERNEL_VERSION(1, 1, 47)
 
 /*****************************************************************************/
@@ -3322,7 +3322,6 @@ sn9c102_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 	cam->v4ldev->fops = &sn9c102_fops;
 	cam->v4ldev->minor = video_nr[dev_nr];
 	cam->v4ldev->release = video_device_release;
-	video_set_drvdata(cam->v4ldev, cam);
 
 	init_completion(&cam->probe);
 
@@ -3340,6 +3339,7 @@ sn9c102_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 
 	DBG(2, "V4L2 device registered as /dev/video%d", cam->v4ldev->minor);
 
+	video_set_drvdata(cam->v4ldev, cam);
 	cam->module_param.force_munmap = force_munmap[dev_nr];
 	cam->module_param.frame_timeout = frame_timeout[dev_nr];
 

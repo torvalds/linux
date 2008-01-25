@@ -241,7 +241,10 @@ struct tvcard
 	unsigned int radio_addr;
 
 	unsigned int has_radio;
-	void (*audio_hook)(struct bttv *btv, struct video_audio *v, int set);
+
+	void (*volume_gpio)(struct bttv *btv, __u16 volume);
+	void (*audio_mode_gpio)(struct bttv *btv, struct v4l2_tuner *tuner, int set);
+
 	void (*muxsel_hook)(struct bttv *btv, unsigned int input);
 };
 

@@ -20,12 +20,14 @@ static int debug = 0;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable verbose debug messages");
 
-#define PREFIX "tea5767 "
+#define PREFIX "tea5767"
+
+/*****************************************************************************/
 
 struct tea5767_priv {
-	struct tuner_i2c_props i2c_props;
-
-	u32 frequency;
+	struct tuner_i2c_props	i2c_props;
+	u32			frequency;
+	struct tea5767_ctrl	ctrl;
 };
 
 /*****************************************************************************/
@@ -127,17 +129,10 @@ struct tea5767_priv {
 /* Reserved for future extensions */
 #define TEA5767_RESERVED_MASK	0xff
 
-enum tea5767_xtal_freq {
-	TEA5767_LOW_LO_32768    = 0,
-	TEA5767_HIGH_LO_32768   = 1,
-	TEA5767_LOW_LO_13MHz    = 2,
-	TEA5767_HIGH_LO_13MHz   = 3,
-};
-
-
 /*****************************************************************************/
 
-static void tea5767_status_dump(unsigned char *buffer)
+static void tea5767_status_dump(struct tea5767_priv *priv,
+				unsigned char *buffer)
 {
 	unsigned int div, frq;
 
@@ -153,7 +148,7 @@ static void tea5767_status_dump(unsigned char *buffer)
 
 	div = ((buffer[0] & 0x3f) << 8) | buffer[1];
 
-	switch (TEA5767_HIGH_LO_32768) {
+	switch (priv->ctrl.xtal_freq) {
 	case TEA5767_HIGH_LO_13MHz:
 		frq = (div * 50000 - 700000 - 225000) / 4;	/* Freq in KHz */
 		break;
@@ -202,13 +197,10 @@ static int set_radio_freq(struct dvb_frontend *fe,
 
 	tuner_dbg("radio freq = %d.%03d MHz\n", frq/16000,(frq/16)%1000);
 
-	/* Rounds freq to next decimal value - for 62.5 KHz step */
-	/* frq = 20*(frq/16)+radio_frq[frq%16]; */
+	buffer[2] = 0;
 
-	buffer[2] = TEA5767_PORT1_HIGH;
-	buffer[3] = TEA5767_PORT2_HIGH | TEA5767_HIGH_CUT_CTRL |
-		    TEA5767_ST_NOISE_CTL | TEA5767_JAPAN_BAND;
-	buffer[4] = 0;
+	if (priv->ctrl.port1)
+		buffer[2] |= TEA5767_PORT1_HIGH;
 
 	if (params->audmode == V4L2_TUNER_MODE_MONO) {
 		tuner_dbg("TEA5767 set to mono\n");
@@ -217,18 +209,45 @@ static int set_radio_freq(struct dvb_frontend *fe,
 		tuner_dbg("TEA5767 set to stereo\n");
 	}
 
-	/* Should be replaced */
-	switch (TEA5767_HIGH_LO_32768) {
+
+	buffer[3] = 0;
+
+	if (priv->ctrl.port2)
+		buffer[3] |= TEA5767_PORT2_HIGH;
+
+	if (priv->ctrl.high_cut)
+		buffer[3] |= TEA5767_HIGH_CUT_CTRL;
+
+	if (priv->ctrl.st_noise)
+		buffer[3] |= TEA5767_ST_NOISE_CTL;
+
+	if (priv->ctrl.soft_mute)
+		buffer[3] |= TEA5767_SOFT_MUTE;
+
+	if (priv->ctrl.japan_band)
+		buffer[3] |= TEA5767_JAPAN_BAND;
+
+	buffer[4] = 0;
+
+	if (priv->ctrl.deemph_75)
+		buffer[4] |= TEA5767_DEEMPH_75;
+
+	if (priv->ctrl.pllref)
+		buffer[4] |= TEA5767_PLLREF_ENABLE;
+
+
+	/* Rounds freq to next decimal value - for 62.5 KHz step */
+	/* frq = 20*(frq/16)+radio_frq[frq%16]; */
+
+	switch (priv->ctrl.xtal_freq) {
 	case TEA5767_HIGH_LO_13MHz:
 		tuner_dbg("radio HIGH LO inject xtal @ 13 MHz\n");
 		buffer[2] |= TEA5767_HIGH_LO_INJECT;
-		buffer[4] |= TEA5767_PLLREF_ENABLE;
 		div = (frq * (4000 / 16) + 700000 + 225000 + 25000) / 50000;
 		break;
 	case TEA5767_LOW_LO_13MHz:
 		tuner_dbg("radio LOW LO inject xtal @ 13 MHz\n");
 
-		buffer[4] |= TEA5767_PLLREF_ENABLE;
 		div = (frq * (4000 / 16) - 700000 - 225000 + 25000) / 50000;
 		break;
 	case TEA5767_LOW_LO_32768:
@@ -256,7 +275,7 @@ static int set_radio_freq(struct dvb_frontend *fe,
 		if (5 != (rc = tuner_i2c_xfer_recv(&priv->i2c_props, buffer, 5)))
 			tuner_warn("i2c i/o error: rc == %d (should be 5)\n", rc);
 		else
-			tea5767_status_dump(buffer);
+			tea5767_status_dump(priv, buffer);
 	}
 
 	priv->frequency = frq * 125 / 2;
@@ -382,7 +401,6 @@ int tea5767_autodetection(struct i2c_adapter* i2c_adap, u8 i2c_addr)
 		return EINVAL;
 	}
 
-	printk(KERN_WARNING "TEA5767 detected.\n");
 	return 0;
 }
 
@@ -398,6 +416,16 @@ static int tea5767_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 {
 	struct tea5767_priv *priv = fe->tuner_priv;
 	*frequency = priv->frequency;
+
+	return 0;
+}
+
+static int tea5767_set_config (struct dvb_frontend *fe, void *priv_cfg)
+{
+	struct tea5767_priv *priv = fe->tuner_priv;
+
+	memcpy(&priv->ctrl, priv_cfg, sizeof(priv->ctrl));
+
 	return 0;
 }
 
@@ -407,6 +435,7 @@ static struct dvb_tuner_ops tea5767_tuner_ops = {
 	},
 
 	.set_analog_params = set_radio_freq,
+	.set_config	   = tea5767_set_config,
 	.sleep             = tea5767_standby,
 	.release           = tea5767_release,
 	.get_frequency     = tea5767_get_frequency,
@@ -425,8 +454,14 @@ struct dvb_frontend *tea5767_attach(struct dvb_frontend *fe,
 		return NULL;
 	fe->tuner_priv = priv;
 
-	priv->i2c_props.addr = i2c_addr;
-	priv->i2c_props.adap = i2c_adap;
+	priv->i2c_props.addr  = i2c_addr;
+	priv->i2c_props.adap  = i2c_adap;
+	priv->ctrl.xtal_freq  = TEA5767_HIGH_LO_32768;
+	priv->ctrl.port1      = 1;
+	priv->ctrl.port2      = 1;
+	priv->ctrl.high_cut   = 1;
+	priv->ctrl.st_noise   = 1;
+	priv->ctrl.japan_band = 1;
 
 	memcpy(&fe->ops.tuner_ops, &tea5767_tuner_ops,
 	       sizeof(struct dvb_tuner_ops));
@@ -435,7 +470,6 @@ struct dvb_frontend *tea5767_attach(struct dvb_frontend *fe,
 
 	return fe;
 }
-
 
 EXPORT_SYMBOL_GPL(tea5767_attach);
 EXPORT_SYMBOL_GPL(tea5767_autodetection);

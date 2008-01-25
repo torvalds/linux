@@ -40,6 +40,8 @@
 #include "cx22702.h"
 #include "or51132.h"
 #include "lgdt330x.h"
+#include "s5h1409.h"
+#include "xc5000.h"
 #include "nxt200x.h"
 #include "cx24123.h"
 #include "isl6421.h"
@@ -371,6 +373,22 @@ static struct cx24123_config kworld_dvbs_100_config = {
 	.lnb_polarity  = 1,
 };
 
+static struct s5h1409_config pinnacle_pctv_hd_800i_config = {
+	.demod_address = 0x32 >> 1,
+	.output_mode   = S5H1409_PARALLEL_OUTPUT,
+	.gpio	       = S5H1409_GPIO_ON,
+	.qam_if	       = 44000,
+	.inversion     = S5H1409_INVERSION_OFF,
+	.status_mode   = S5H1409_DEMODLOCKING,
+	.mpeg_timing   = S5H1409_MPEGTIMING_NONCONTINOUS_NONINVERTING_CLOCK,
+};
+
+static struct xc5000_config pinnacle_pctv_hd_800i_tuner_config = {
+	.i2c_address	= 0x64,
+	.if_khz		= 5380,
+	.tuner_callback	= cx88_tuner_callback,
+};
+
 static int dvb_register(struct cx8802_dev *dev)
 {
 	/* init struct videobuf_dvb */
@@ -623,6 +641,21 @@ static int dvb_register(struct cx8802_dev *dev)
 		if (dev->dvb.frontend) {
 			dev->core->prev_set_voltage = dev->dvb.frontend->ops.set_voltage;
 			dev->dvb.frontend->ops.set_voltage = geniatech_dvbs_set_voltage;
+		}
+		break;
+	case CX88_BOARD_PINNACLE_PCTV_HD_800i:
+		dev->dvb.frontend = dvb_attach(s5h1409_attach,
+					       &pinnacle_pctv_hd_800i_config,
+					       &dev->core->i2c_adap);
+		if (dev->dvb.frontend != NULL) {
+			/* tuner_config.video_dev must point to
+			 * i2c_adap.algo_data
+			 */
+			pinnacle_pctv_hd_800i_tuner_config.priv =
+						dev->core->i2c_adap.algo_data;
+			dvb_attach(xc5000_attach, dev->dvb.frontend,
+				   &dev->core->i2c_adap,
+				   &pinnacle_pctv_hd_800i_tuner_config);
 		}
 		break;
 	default:

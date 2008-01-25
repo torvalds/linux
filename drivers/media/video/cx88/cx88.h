@@ -210,6 +210,7 @@ extern struct sram_channel cx88_sram_channels[];
 #define CX88_BOARD_TE_DTV_250_OEM_SWANN    55
 #define CX88_BOARD_HAUPPAUGE_HVR1300       56
 #define CX88_BOARD_ADSTECH_PTV_390         57
+#define CX88_BOARD_PINNACLE_PCTV_HD_800i   58
 
 enum cx88_itype {
 	CX88_VMUX_COMPOSITE1 = 1,
@@ -228,7 +229,7 @@ struct cx88_input {
 	enum cx88_itype type;
 	u32             gpio0, gpio1, gpio2, gpio3;
 	unsigned int    vmux:2;
-	unsigned int    extadc:1;
+	unsigned int    audioroute:2;
 };
 
 struct cx88_board {
@@ -461,6 +462,7 @@ struct cx8802_dev {
 	u32                        mailbox;
 	int                        width;
 	int                        height;
+	unsigned char              mpeg_active; /* nonzero if mpeg encoder is active */
 
 	/* mpeg params */
 	struct cx2341x_mpeg_params params;
@@ -588,6 +590,7 @@ extern void cx88_call_i2c_clients(struct cx88_core *core,
 /* ----------------------------------------------------------- */
 /* cx88-cards.c                                                */
 
+extern int cx88_tuner_callback(void *dev, int command, int arg);
 extern int cx88_get_resources(const struct cx88_core *core,
 			      struct pci_dev *pci);
 extern struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr);
@@ -632,12 +635,6 @@ int cx8802_buf_prepare(struct videobuf_queue *q,struct cx8802_dev *dev,
 			struct cx88_buffer *buf, enum v4l2_field field);
 void cx8802_buf_queue(struct cx8802_dev *dev, struct cx88_buffer *buf);
 void cx8802_cancel_buffers(struct cx8802_dev *dev);
-
-int cx8802_init_common(struct cx8802_dev *dev);
-void cx8802_fini_common(struct cx8802_dev *dev);
-
-int cx8802_suspend_common(struct pci_dev *pci_dev, pm_message_t state);
-int cx8802_resume_common(struct pci_dev *pci_dev);
 
 /* ----------------------------------------------------------- */
 /* cx88-video.c*/

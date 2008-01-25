@@ -1,6 +1,6 @@
 config VIDEO_EM28XX
 	tristate "Empia EM2800/2820/2840 USB video capture support"
-	depends on VIDEO_V4L1 && I2C && INPUT
+	depends on VIDEO_DEV && I2C && INPUT
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
 	select VIDEO_IR
@@ -11,3 +11,18 @@ config VIDEO_EM28XX
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called em28xx
+
+config VIDEO_EM28XX_ALSA
+	depends on VIDEO_EM28XX
+	tristate "Empia EM28xx ALSA audio module"
+	---help---
+	  This is an ALSA driver for some Empia 28xx based TV cards.
+
+	  This is not required for em2800/em2820/em2821 boards. However,
+	  newer em28xx devices uses Vendor Class for audio, instead of
+	  implementing the USB Audio Class. For those chips, this module
+	  will enable digital audio.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called em28xx-alsa
+

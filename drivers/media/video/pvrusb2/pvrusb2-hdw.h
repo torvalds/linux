@@ -44,27 +44,6 @@
 #define PVR2_CVAL_INPUT_COMPOSITE 2
 #define PVR2_CVAL_INPUT_RADIO 3
 
-/* Subsystem definitions - these are various pieces that can be
-   independently stopped / started.  Usually you don't want to mess with
-   this directly (let the driver handle things itself), but it is useful
-   for debugging. */
-#define PVR2_SUBSYS_B_ENC_FIRMWARE        0
-#define PVR2_SUBSYS_B_ENC_CFG             1
-#define PVR2_SUBSYS_B_DIGITIZER_RUN       2
-#define PVR2_SUBSYS_B_USBSTREAM_RUN       3
-#define PVR2_SUBSYS_B_ENC_RUN             4
-
-#define PVR2_SUBSYS_CFG_ALL ( \
-	(1 << PVR2_SUBSYS_B_ENC_FIRMWARE) | \
-	(1 << PVR2_SUBSYS_B_ENC_CFG) )
-#define PVR2_SUBSYS_RUN_ALL ( \
-	(1 << PVR2_SUBSYS_B_DIGITIZER_RUN) | \
-	(1 << PVR2_SUBSYS_B_USBSTREAM_RUN) | \
-	(1 << PVR2_SUBSYS_B_ENC_RUN) )
-#define PVR2_SUBSYS_ALL ( \
-	PVR2_SUBSYS_CFG_ALL | \
-	PVR2_SUBSYS_RUN_ALL )
-
 enum pvr2_config {
 	pvr2_config_empty,    /* No configuration */
 	pvr2_config_mpeg,     /* Encoded / compressed video */
@@ -79,7 +58,40 @@ enum pvr2_v4l_type {
 	pvr2_v4l_type_radio,
 };
 
+/* Major states that we can be in:
+ *
+ *  DEAD - Device is in an unusable state and cannot be recovered.  This
+ *  can happen if we completely lose the ability to communicate with it
+ *  (but it might still on the bus).  In this state there's nothing we can
+ *  do; it must be replugged in order to recover.
+ *
+ *  COLD - Device is in an unusuable state, needs microcontroller firmware.
+ *
+ *  WARM - We can communicate with the device and the proper
+ *  microcontroller firmware is running, but other device initialization is
+ *  still needed (e.g. encoder firmware).
+ *
+ *  ERROR - A problem prevents capture operation (e.g. encoder firmware
+ *  missing).
+ *
+ *  READY - Device is operational, but not streaming.
+ *
+ *  RUN - Device is streaming.
+ *
+ */
+#define PVR2_STATE_NONE 0
+#define PVR2_STATE_DEAD 1
+#define PVR2_STATE_COLD 2
+#define PVR2_STATE_WARM 3
+#define PVR2_STATE_ERROR 4
+#define PVR2_STATE_READY 5
+#define PVR2_STATE_RUN 6
+
+/* Translate configuration enum to a string label */
 const char *pvr2_config_get_name(enum pvr2_config);
+
+/* Translate a master state enum to a string label */
+const char *pvr2_hdw_get_state_name(unsigned int);
 
 struct pvr2_hdw;
 
@@ -88,28 +100,13 @@ struct pvr2_hdw;
 struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 				 const struct usb_device_id *devid);
 
-/* Poll for background activity (if any) */
-void pvr2_hdw_poll(struct pvr2_hdw *);
-
-/* Trigger a poll to take place later at a convenient time */
-void pvr2_hdw_poll_trigger_unlocked(struct pvr2_hdw *);
-
-/* Register a callback used to trigger a future poll */
-void pvr2_hdw_setup_poll_trigger(struct pvr2_hdw *,
-				 void (*func)(void *),
-				 void *data);
-
 /* Destroy hardware interaction structure */
 void pvr2_hdw_destroy(struct pvr2_hdw *);
 
-/* Set up the structure and attempt to put the device into a usable state.
-   This can be a time-consuming operation, which is why it is not done
-   internally as part of the create() step.  Return value is exactly the
-   same as pvr2_hdw_init_ok(). */
-int pvr2_hdw_setup(struct pvr2_hdw *);
-
-/* Initialization succeeded */
-int pvr2_hdw_init_ok(struct pvr2_hdw *);
+/* Register a function to be called whenever the master state changes. */
+void pvr2_hdw_set_state_callback(struct pvr2_hdw *,
+				 void (*callback_func)(void *),
+				 void *callback_data);
 
 /* Return true if in the ready (normal) state */
 int pvr2_hdw_dev_ok(struct pvr2_hdw *);
@@ -161,11 +158,20 @@ int pvr2_hdw_get_tuner_status(struct pvr2_hdw *,struct v4l2_tuner *);
 /* Query device and see if it thinks it is on a high-speed USB link */
 int pvr2_hdw_is_hsm(struct pvr2_hdw *);
 
+/* Return a string token representative of the hardware type */
+const char *pvr2_hdw_get_type(struct pvr2_hdw *);
+
+/* Return a single line description of the hardware type */
+const char *pvr2_hdw_get_desc(struct pvr2_hdw *);
+
 /* Turn streaming on/off */
 int pvr2_hdw_set_streaming(struct pvr2_hdw *,int);
 
 /* Find out if streaming is on */
 int pvr2_hdw_get_streaming(struct pvr2_hdw *);
+
+/* Retrieve driver overall state */
+int pvr2_hdw_get_state(struct pvr2_hdw *);
 
 /* Configure the type of stream to generate */
 int pvr2_hdw_set_stream_type(struct pvr2_hdw *, enum pvr2_config);
@@ -176,26 +182,6 @@ struct pvr2_stream *pvr2_hdw_get_video_stream(struct pvr2_hdw *);
 /* Emit a video standard struct */
 int pvr2_hdw_get_stdenum_value(struct pvr2_hdw *hdw,struct v4l2_standard *std,
 			       unsigned int idx);
-
-/* Enable / disable various pieces of hardware.  Items to change are
-   identified by bit positions within msk, and new state for each item is
-   identified by corresponding bit positions within val. */
-void pvr2_hdw_subsys_bit_chg(struct pvr2_hdw *hdw,
-			     unsigned long msk,unsigned long val);
-
-/* Retrieve mask indicating which pieces of hardware are currently enabled
-   / configured. */
-unsigned long pvr2_hdw_subsys_get(struct pvr2_hdw *);
-
-/* Adjust mask of what get shut down when streaming is stopped.  This is a
-   debugging aid. */
-void pvr2_hdw_subsys_stream_bit_chg(struct pvr2_hdw *hdw,
-				    unsigned long msk,unsigned long val);
-
-/* Retrieve mask indicating which pieces of hardware are disabled when
-   streaming is turned off. */
-unsigned long pvr2_hdw_subsys_stream_get(struct pvr2_hdw *);
-
 
 /* Enable / disable retrieval of CPU firmware or prom contents.  This must
    be enabled before pvr2_hdw_cpufw_get() will function.  Note that doing
@@ -253,6 +239,9 @@ void pvr2_hdw_cpureset_assert(struct pvr2_hdw *,int);
 /* Execute a USB-commanded device reset */
 void pvr2_hdw_device_reset(struct pvr2_hdw *);
 
+/* Reset worker's error trapping circuit breaker */
+int pvr2_hdw_untrip(struct pvr2_hdw *);
+
 /* Execute hard reset command (after this point it's likely that the
    encoder will have to be reconfigured).  This also clears the "useless"
    state. */
@@ -275,11 +264,21 @@ int pvr2_hdw_gpio_chg_out(struct pvr2_hdw *hdw,u32 msk,u32 val);
 struct pvr2_hdw_debug_info {
 	int big_lock_held;
 	int ctl_lock_held;
-	int flag_ok;
 	int flag_disconnected;
 	int flag_init_ok;
-	int flag_streaming_enabled;
-	unsigned long subsys_flags;
+	int flag_ok;
+	int fw1_state;
+	int flag_decoder_missed;
+	int flag_tripped;
+	int state_encoder_ok;
+	int state_encoder_run;
+	int state_decoder_run;
+	int state_usbstream_run;
+	int state_decoder_quiescent;
+	int state_pipeline_config;
+	int state_pipeline_req;
+	int state_pipeline_pause;
+	int state_pipeline_idle;
 	int cmd_debug_state;
 	int cmd_debug_write_len;
 	int cmd_debug_read_len;
@@ -295,8 +294,20 @@ struct pvr2_hdw_debug_info {
    diagnosing lockups.  Note that this operation is completed without any
    kind of locking and so it is not atomic and may yield inconsistent
    results.  This is *purely* a debugging aid. */
-void pvr2_hdw_get_debug_info(const struct pvr2_hdw *hdw,
-			     struct pvr2_hdw_debug_info *);
+void pvr2_hdw_get_debug_info_unlocked(const struct pvr2_hdw *hdw,
+				      struct pvr2_hdw_debug_info *);
+
+/* Intrusively retrieve internal state info - this is useful for
+   diagnosing overall driver state.  This operation synchronizes against
+   the overall driver mutex - so if there are locking problems this will
+   likely hang!  This is *purely* a debugging aid. */
+void pvr2_hdw_get_debug_info_locked(struct pvr2_hdw *hdw,
+				    struct pvr2_hdw_debug_info *);
+
+/* Report out several lines of text that describes driver internal state.
+   Results are written into the passed-in buffer. */
+unsigned int pvr2_hdw_state_report(struct pvr2_hdw *hdw,
+				   char *buf_ptr,unsigned int buf_size);
 
 /* Cause modules to log their state once */
 void pvr2_hdw_trigger_module_log(struct pvr2_hdw *hdw);
@@ -305,9 +316,6 @@ void pvr2_hdw_trigger_module_log(struct pvr2_hdw *hdw);
    done autonomously, but the interface is exported here because it is also
    a debugging aid. */
 int pvr2_upload_firmware2(struct pvr2_hdw *hdw);
-
-/* List of device types that we can match */
-extern struct usb_device_id pvr2_device_table[];
 
 #endif /* __PVRUSB2_HDW_H */
 

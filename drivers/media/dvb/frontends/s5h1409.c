@@ -42,6 +42,7 @@ struct s5h1409_state {
 	fe_modulation_t current_modulation;
 
 	u32 current_frequency;
+	int if_freq;
 
 	u32 is_qam_locked;
 	u32 qam_state;
@@ -97,7 +98,7 @@ static struct init_tab {
 	{ 0xac, 0x1003, },
 	{ 0xad, 0x103f, },
 	{ 0xe2, 0x0100, },
-	{ 0xe3, 0x0000, },
+	{ 0xe3, 0x1000, },
 	{ 0x28, 0x1010, },
 	{ 0xb1, 0x000e, },
 };
@@ -348,28 +349,32 @@ static int s5h1409_softreset(struct dvb_frontend* fe)
 	return 0;
 }
 
+#define S5H1409_VSB_IF_FREQ 5380
+#define S5H1409_QAM_IF_FREQ state->config->qam_if
+
 static int s5h1409_set_if_freq(struct dvb_frontend* fe, int KHz)
 {
 	struct s5h1409_state* state = fe->demodulator_priv;
-	int ret = 0;
 
 	dprintk("%s(%d KHz)\n", __FUNCTION__, KHz);
 
-	if( (KHz == 44000) || (KHz == 5380) ) {
-		s5h1409_writereg(state, 0x87, 0x01be);
-		s5h1409_writereg(state, 0x88, 0x0436);
-		s5h1409_writereg(state, 0x89, 0x054d);
-	} else
-	if (KHz == 4000) {
+	switch (KHz) {
+	case 4000:
 		s5h1409_writereg(state, 0x87, 0x014b);
 		s5h1409_writereg(state, 0x88, 0x0cb5);
 		s5h1409_writereg(state, 0x89, 0x03e2);
-	} else {
-		printk("%s() Invalid arg = %d KHz\n", __FUNCTION__, KHz);
-		ret = -1;
+		break;
+	case 5380:
+	case 44000:
+	default:
+		s5h1409_writereg(state, 0x87, 0x01be);
+		s5h1409_writereg(state, 0x88, 0x0436);
+		s5h1409_writereg(state, 0x89, 0x054d);
+		break;
 	}
+	state->if_freq = KHz;
 
-	return ret;
+	return 0;
 }
 
 static int s5h1409_set_spectralinversion(struct dvb_frontend* fe, int inverted)
@@ -394,11 +399,15 @@ static int s5h1409_enable_modulation(struct dvb_frontend* fe,
 	switch(m) {
 	case VSB_8:
 		dprintk("%s() VSB_8\n", __FUNCTION__);
+		if (state->if_freq != S5H1409_VSB_IF_FREQ)
+			s5h1409_set_if_freq(fe, S5H1409_VSB_IF_FREQ);
 		s5h1409_writereg(state, 0xf4, 0);
 		break;
 	case QAM_64:
 	case QAM_256:
 		dprintk("%s() QAM_AUTO (64/256)\n", __FUNCTION__);
+		if (state->if_freq != S5H1409_QAM_IF_FREQ)
+			s5h1409_set_if_freq(fe, S5H1409_QAM_IF_FREQ);
 		s5h1409_writereg(state, 0xf4, 1);
 		s5h1409_writereg(state, 0x85, 0x110);
 		break;
@@ -432,9 +441,11 @@ static int s5h1409_set_gpio(struct dvb_frontend* fe, int enable)
 	dprintk("%s(%d)\n", __FUNCTION__, enable);
 
 	if (enable)
-		return s5h1409_writereg(state, 0xe3, 0x1100);
+		return s5h1409_writereg(state, 0xe3,
+			s5h1409_readreg(state, 0xe3) | 0x1100);
 	else
-		return s5h1409_writereg(state, 0xe3, 0x1000);
+		return s5h1409_writereg(state, 0xe3,
+			s5h1409_readreg(state, 0xe3) & 0xeeff);
 }
 
 static int s5h1409_sleep(struct dvb_frontend* fe, int enable)
@@ -504,13 +515,15 @@ static void s5h1409_set_qam_interleave_mode(struct dvb_frontend *fe)
 			s5h1409_writereg(state, 0x96, 0x20);
 			s5h1409_writereg(state, 0xad,
 				( ((reg1 & 0xf000) >> 4) | (reg2 & 0xf0ff)) );
-			s5h1409_writereg(state, 0xab, 0x1100);
+			s5h1409_writereg(state, 0xab,
+				s5h1409_readreg(state, 0xab) & 0xeffe);
 		}
 	} else {
 		if (state->qam_state != 1) {
 			state->qam_state = 1;
 			s5h1409_writereg(state, 0x96, 0x08);
-			s5h1409_writereg(state, 0xab, 0x1101);
+			s5h1409_writereg(state, 0xab,
+				s5h1409_readreg(state, 0xab) | 0x1001);
 		}
 	}
 }
@@ -547,6 +560,36 @@ static int s5h1409_set_frontend (struct dvb_frontend* fe,
 	return 0;
 }
 
+static int s5h1409_set_mpeg_timing(struct dvb_frontend *fe, int mode)
+{
+	struct s5h1409_state *state = fe->demodulator_priv;
+	u16 val;
+
+	dprintk("%s(%d)\n", __FUNCTION__, mode);
+
+	val = s5h1409_readreg(state, 0xac) & 0xcfff;
+	switch (mode) {
+	case S5H1409_MPEGTIMING_CONTINOUS_INVERTING_CLOCK:
+		val |= 0x0000;
+		break;
+	case S5H1409_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK:
+		dprintk("%s(%d) Mode1 or Defaulting\n", __FUNCTION__, mode);
+		val |= 0x1000;
+		break;
+	case S5H1409_MPEGTIMING_NONCONTINOUS_INVERTING_CLOCK:
+		val |= 0x2000;
+		break;
+	case S5H1409_MPEGTIMING_NONCONTINOUS_NONINVERTING_CLOCK:
+		val |= 0x3000;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* Configure MPEG Signal Timing charactistics */
+	return s5h1409_writereg(state, 0xac, val);
+}
+
 /* Reset the demod hardware and reset all of the configuration registers
    to a default state. */
 static int s5h1409_init (struct dvb_frontend* fe)
@@ -566,13 +609,16 @@ static int s5h1409_init (struct dvb_frontend* fe)
 	state->current_modulation = VSB_8;
 
 	if (state->config->output_mode == S5H1409_SERIAL_OUTPUT)
-		s5h1409_writereg(state, 0xab, 0x100); /* Serial */
+		s5h1409_writereg(state, 0xab,
+			s5h1409_readreg(state, 0xab) | 0x100); /* Serial */
 	else
-		s5h1409_writereg(state, 0xab, 0x0); /* Parallel */
+		s5h1409_writereg(state, 0xab,
+			s5h1409_readreg(state, 0xab) & 0xfeff); /* Parallel */
 
 	s5h1409_set_spectralinversion(fe, state->config->inversion);
-	s5h1409_set_if_freq(fe, state->config->if_freq);
+	s5h1409_set_if_freq(fe, state->if_freq);
 	s5h1409_set_gpio(fe, state->config->gpio);
+	s5h1409_set_mpeg_timing(fe, state->config->mpeg_timing);
 	s5h1409_softreset(fe);
 
 	/* Note: Leaving the I2C gate closed. */
@@ -741,6 +787,7 @@ struct dvb_frontend* s5h1409_attach(const struct s5h1409_config* config,
 				    struct i2c_adapter* i2c)
 {
 	struct s5h1409_state* state = NULL;
+	u16 reg;
 
 	/* allocate memory for the internal state */
 	state = kmalloc(sizeof(struct s5h1409_state), GFP_KERNEL);
@@ -751,9 +798,11 @@ struct dvb_frontend* s5h1409_attach(const struct s5h1409_config* config,
 	state->config = config;
 	state->i2c = i2c;
 	state->current_modulation = 0;
+	state->if_freq = S5H1409_VSB_IF_FREQ;
 
 	/* check if the demod exists */
-	if (s5h1409_readreg(state, 0x04) != 0x0066)
+	reg = s5h1409_readreg(state, 0x04);
+	if ((reg != 0x0066) && (reg != 0x007f))
 		goto error;
 
 	/* create dvb_frontend */
@@ -761,8 +810,14 @@ struct dvb_frontend* s5h1409_attach(const struct s5h1409_config* config,
 	       sizeof(struct dvb_frontend_ops));
 	state->frontend.demodulator_priv = state;
 
+	if (s5h1409_init(&state->frontend) != 0) {
+		printk(KERN_ERR "%s: Failed to initialize correctly\n",
+			__FUNCTION__);
+		goto error;
+	}
+
 	/* Note: Leaving the I2C gate open here. */
-	s5h1409_writereg(state, 0xf3, 1);
+	s5h1409_i2c_gate_ctrl(&state->frontend, 1);
 
 	return &state->frontend;
 

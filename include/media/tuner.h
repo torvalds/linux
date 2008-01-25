@@ -24,8 +24,6 @@
 
 #include <linux/videodev2.h>
 
-extern int tuner_debug;
-
 #define ADDR_UNSET (255)
 
 #define TUNER_TEMIC_PAL			0        /* 4002 FH5 (3X 7756, 9483) */
@@ -117,12 +115,13 @@ extern int tuner_debug;
 #define TUNER_PHILIPS_TUV1236D		68	/* ATI HDTV Wonder */
 #define TUNER_TNF_5335MF                69	/* Sabrent Bt848   */
 #define TUNER_SAMSUNG_TCPN_2121P30A     70 	/* Hauppauge PVR-500MCE NTSC */
-#define TUNER_XCEIVE_XC3028		71
+#define TUNER_XC2028			71
 
 #define TUNER_THOMSON_FE6600		72	/* DViCO FusionHDTV DVB-T Hybrid */
 #define TUNER_SAMSUNG_TCPG_6121P30A     73 	/* Hauppauge PVR-500 PAL */
 #define TUNER_TDA9887                   74      /* This tuner should be used only internally */
 #define TUNER_TEA5761			75	/* Only FM Radio Tuner */
+#define TUNER_XC5000			76	/* Xceive Silicon Tuner */
 
 /* tv card specific */
 #define TDA9887_PRESENT 		(1<<0)

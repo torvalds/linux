@@ -65,7 +65,6 @@
 
 #include <linux/ivtv.h>
 
-
 /* Memory layout */
 #define IVTV_ENCODER_OFFSET	0x00000000
 #define IVTV_ENCODER_SIZE	0x00800000	/* Total size is 0x01000000, but only first half is used */
@@ -392,6 +391,9 @@ struct yuv_frame_info
 	u32 tru_h;
 	u32 offset_y;
 	s32 lace_mode;
+	u32 sync_field;
+	u32 delay;
+	u32 interlaced;
 };
 
 #define IVTV_YUV_MODE_INTERLACED	0x00
@@ -402,6 +404,8 @@ struct yuv_frame_info
 #define IVTV_YUV_SYNC_EVEN		0x00
 #define IVTV_YUV_SYNC_ODD		0x04
 #define IVTV_YUV_SYNC_MASK		0x04
+
+#define IVTV_YUV_BUFFERS 8
 
 struct yuv_playback_info
 {
@@ -461,9 +465,10 @@ struct yuv_playback_info
 	u32 osd_vis_w;
 	u32 osd_vis_h;
 
-	int decode_height;
+	u32 osd_full_w;
+	u32 osd_full_h;
 
-	int frame_interlaced;
+	int decode_height;
 
 	int lace_mode;
 	int lace_threshold;
@@ -475,16 +480,23 @@ struct yuv_playback_info
 	u32 yuv_forced_update;
 	int update_frame;
 
-	int sync_field[4];  /* Field to sync on */
-	int field_delay[4]; /* Flag to extend duration of previous frame */
 	u8 fields_lapsed;   /* Counter used when delaying a frame */
 
-	struct yuv_frame_info new_frame_info[4];
+	struct yuv_frame_info new_frame_info[IVTV_YUV_BUFFERS];
 	struct yuv_frame_info old_frame_info;
 	struct yuv_frame_info old_frame_info_args;
 
 	void *blanking_ptr;
 	dma_addr_t blanking_dmaptr;
+
+	int stream_size;
+
+	u8 draw_frame; /* PVR350 buffer to draw into */
+	u8 max_frames_buffered; /* Maximum number of frames to buffer */
+
+	struct v4l2_rect main_rect;
+	u32 v4l2_src_w;
+	u32 v4l2_src_h;
 };
 
 #define IVTV_VBI_FRAMES 32
@@ -577,13 +589,13 @@ struct ivtv {
 	struct pci_dev *dev;		/* PCI device */
 	const struct ivtv_card *card;	/* card information */
 	const char *card_name;          /* full name of the card */
+	const struct ivtv_card_tuner_i2c *card_i2c; /* i2c addresses to probe for tuner */
 	u8 has_cx23415;			/* 1 if it is a cx23415 based card, 0 for cx23416 */
 	u8 pvr150_workaround;           /* 1 if the cx25840 needs to workaround a PVR150 bug */
 	u8 nof_inputs;			/* number of video inputs */
 	u8 nof_audio_inputs;		/* number of audio inputs */
 	u32 v4l2_cap;			/* V4L2 capabilities of card */
 	u32 hw_flags; 			/* hardware description of the board */
-	int tunerid;			/* userspace tuner ID for experimental Xceive tuner support */
 	v4l2_std_id tuner_std;		/* the norm of the card's tuner (fixed) */
 					/* controlling video decoder function */
 	int (*video_dec_func)(struct ivtv *, unsigned int, void *);

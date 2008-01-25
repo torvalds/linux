@@ -307,7 +307,7 @@ static int register_read(struct cx88_core *core, u32 address, u32 *value)
 
 /* ------------------------------------------------------------------ */
 
-static int blackbird_mbox_func(void *priv, int command, int in, int out, u32 data[CX2341X_MBOX_MAX_DATA])
+static int blackbird_mbox_func(void *priv, u32 command, int in, int out, u32 data[CX2341X_MBOX_MAX_DATA])
 {
 	struct cx8802_dev *dev = priv;
 	unsigned long timeout;
@@ -536,11 +536,12 @@ static int blackbird_initialize_codec(struct cx8802_dev *dev)
 	dprintk(1,"Initialize codec\n");
 	retval = blackbird_api_cmd(dev, CX2341X_ENC_PING_FW, 0, 0); /* ping */
 	if (retval < 0) {
+
+		dev->mpeg_active = 0;
+
 		/* ping was not successful, reset and upload firmware */
 		cx_write(MO_SRST_IO, 0); /* SYS_RSTO=0 */
-		msleep(1);
 		cx_write(MO_SRST_IO, 1); /* SYS_RSTO=1 */
-		msleep(1);
 		retval = blackbird_load_firmware(dev);
 		if (retval < 0)
 			return retval;
@@ -562,7 +563,6 @@ static int blackbird_initialize_codec(struct cx8802_dev *dev)
 		}
 		dprintk(0, "Firmware version is 0x%08x\n", version);
 	}
-	msleep(1);
 
 	cx_write(MO_PINMUX_IO, 0x88); /* 656-8bit IO and enable MPEG parallel IO */
 	cx_clear(MO_INPUT_FORMAT, 0x100); /* chroma subcarrier lock to normal? */
@@ -570,40 +570,68 @@ static int blackbird_initialize_codec(struct cx8802_dev *dev)
 	cx_clear(MO_OUTPUT_FORMAT, 0x0008); /* Normal Y-limits to let the mpeg encoder sync */
 
 	blackbird_codec_settings(dev);
-	msleep(1);
 
-	/* blackbird_api_cmd(dev, IVTV_API_ASSIGN_NUM_VSYNC_LINES, 4, 0, 0xef, 0xef);
-	   blackbird_api_cmd(dev, IVTV_API_ASSIGN_NUM_VSYNC_LINES, 4, 0, 0xf0, 0xf0);
-	   blackbird_api_cmd(dev, IVTV_API_ASSIGN_NUM_VSYNC_LINES, 4, 0, 0x180, 0x180); */
 	blackbird_api_cmd(dev, CX2341X_ENC_SET_NUM_VSYNC_LINES, 2, 0,
 			BLACKBIRD_FIELD1_SAA7115,
 			BLACKBIRD_FIELD2_SAA7115
 		);
 
-	/* blackbird_api_cmd(dev, IVTV_API_ASSIGN_PLACEHOLDER, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0); */
 	blackbird_api_cmd(dev, CX2341X_ENC_SET_PLACEHOLDER, 12, 0,
 			BLACKBIRD_CUSTOM_EXTENSION_USR_DATA,
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
+	return 0;
+}
+
+static int blackbird_start_codec(struct file *file, void *priv)
+{
+	struct cx8802_dev *dev  = ((struct cx8802_fh *)priv)->dev;
+	struct cx88_core *core = dev->core;
+	/* start capturing to the host interface */
+	u32 reg;
+
+	int i;
+	int lastchange = -1;
+	int lastval = 0;
+
+	for (i = 0; (i < 10) && (i < (lastchange + 4)); i++) {
+		reg = cx_read(AUD_STATUS);
+
+		dprintk(1, "AUD_STATUS:%dL: 0x%x\n", i, reg);
+		if ((reg & 0x0F) != lastval) {
+			lastval = reg & 0x0F;
+			lastchange = i;
+		}
+		msleep(100);
+	}
+
+	/* unmute audio source */
+	cx_clear(AUD_VOL_CTL, (1 << 6));
+
+	blackbird_api_cmd(dev, CX2341X_ENC_REFRESH_INPUT, 0, 0);
+
 	/* initialize the video input */
 	blackbird_api_cmd(dev, CX2341X_ENC_INITIALIZE_INPUT, 0, 0);
 
-	msleep(1);
-
-	blackbird_api_cmd(dev, CX2341X_ENC_MUTE_VIDEO, 1, 0, BLACKBIRD_UNMUTE);
-	msleep(1);
-	blackbird_api_cmd(dev, CX2341X_ENC_MUTE_AUDIO, 1, 0, BLACKBIRD_UNMUTE);
-	msleep(1);
-
 	/* start capturing to the host interface */
-	/* blackbird_api_cmd(dev, CX2341X_ENC_START_CAPTURE, 2, 0, 0, 0x13); */
 	blackbird_api_cmd(dev, CX2341X_ENC_START_CAPTURE, 2, 0,
 			BLACKBIRD_MPEG_CAPTURE,
 			BLACKBIRD_RAW_BITS_NONE
 		);
-	msleep(10);
 
-	blackbird_api_cmd(dev, CX2341X_ENC_REFRESH_INPUT, 0,0);
+	dev->mpeg_active = 1;
+	return 0;
+}
+
+static int blackbird_stop_codec(struct cx8802_dev *dev)
+{
+	blackbird_api_cmd(dev, CX2341X_ENC_STOP_CAPTURE, 3, 0,
+			BLACKBIRD_END_NOW,
+			BLACKBIRD_MPEG_CAPTURE,
+			BLACKBIRD_RAW_BITS_NONE
+		);
+
+	dev->mpeg_active = 0;
 	return 0;
 }
 
@@ -833,6 +861,10 @@ static int vidioc_s_ext_ctrls (struct file *file, void *priv,
 
 	if (f->ctrl_class != V4L2_CTRL_CLASS_MPEG)
 		return -EINVAL;
+
+	if (dev->mpeg_active)
+		blackbird_stop_codec(dev);
+
 	p = dev->params;
 	err = cx2341x_ext_ctrls(&p, 0, f, VIDIOC_S_EXT_CTRLS);
 	if (!err) {
@@ -864,10 +896,9 @@ static int vidioc_s_frequency (struct file *file, void *priv,
 	struct cx8802_dev *dev  = fh->dev;
 	struct cx88_core  *core = dev->core;
 
-	blackbird_api_cmd(fh->dev, CX2341X_ENC_STOP_CAPTURE, 3, 0,
-				BLACKBIRD_END_NOW,
-				BLACKBIRD_MPEG_CAPTURE,
-				BLACKBIRD_RAW_BITS_NONE);
+	if (dev->mpeg_active)
+		blackbird_stop_codec(dev);
+
 	cx88_set_freq (core,f);
 	blackbird_initialize_codec(dev);
 	cx88_set_scale(dev->core, dev->width, dev->height,
@@ -1073,15 +1104,11 @@ static int mpeg_open(struct inode *inode, struct file *file)
 static int mpeg_release(struct inode *inode, struct file *file)
 {
 	struct cx8802_fh  *fh  = file->private_data;
-	struct cx8802_dev *dev = NULL;
+	struct cx8802_dev *dev = fh->dev;
 	struct cx8802_driver *drv = NULL;
 
-	/* blackbird_api_cmd(fh->dev, CX2341X_ENC_STOP_CAPTURE, 3, 0, BLACKBIRD_END_NOW, 0, 0x13); */
-	blackbird_api_cmd(fh->dev, CX2341X_ENC_STOP_CAPTURE, 3, 0,
-			BLACKBIRD_END_NOW,
-			BLACKBIRD_MPEG_CAPTURE,
-			BLACKBIRD_RAW_BITS_NONE
-		);
+	if (dev->mpeg_active)
+		blackbird_stop_codec(dev);
 
 	cx8802_cancel_buffers(fh->dev);
 	/* stop mpeg capture */
@@ -1107,6 +1134,10 @@ static ssize_t
 mpeg_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
 {
 	struct cx8802_fh *fh = file->private_data;
+	struct cx8802_dev *dev = fh->dev;
+
+	if (!dev->mpeg_active)
+		blackbird_start_codec(file, fh);
 
 	return videobuf_read_stream(&fh->mpegq, data, count, ppos, 0,
 				    file->f_flags & O_NONBLOCK);
@@ -1282,6 +1313,7 @@ static int cx8802_blackbird_probe(struct cx8802_driver *drv)
 	       core->name);
 	host_setup(dev->core);
 
+	blackbird_initialize_codec(dev);
 	blackbird_register_video(dev);
 
 	/* initial device configuration: needed ? */

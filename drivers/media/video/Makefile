@@ -4,9 +4,11 @@
 
 zr36067-objs	:=	zoran_procfs.o zoran_device.o \
 			zoran_driver.o zoran_card.o
-tuner-objs	:=	tuner-core.o tuner-types.o tda9887.o
+tuner-objs	:=	tuner-core.o tuner-types.o
 
 msp3400-objs	:=	msp3400-driver.o msp3400-kthreads.o
+
+stkwebcam-objs	:=	stk-webcam.o stk-sensor.o
 
 obj-$(CONFIG_VIDEO_DEV) += videodev.o v4l2-common.o compat_ioctl32.o \
 			   v4l2-int-device.o
@@ -66,7 +68,9 @@ obj-$(CONFIG_VIDEO_USBVISION) += usbvision/
 obj-$(CONFIG_VIDEO_TVP5150) += tvp5150.o
 obj-$(CONFIG_VIDEO_PVRUSB2) += pvrusb2/
 obj-$(CONFIG_VIDEO_MSP3400) += msp3400.o
+obj-$(CONFIG_VIDEO_CS5345) += cs5345.o
 obj-$(CONFIG_VIDEO_CS53L32A) += cs53l32a.o
+obj-$(CONFIG_VIDEO_M52790) += m52790.o
 obj-$(CONFIG_VIDEO_TLV320AIC23B) += tlv320aic23b.o
 obj-$(CONFIG_VIDEO_WM8775) += wm8775.o
 obj-$(CONFIG_VIDEO_WM8739) += wm8739.o
@@ -81,11 +85,13 @@ obj-$(CONFIG_TUNER_3036) += tuner-3036.o
 
 obj-$(CONFIG_VIDEO_TUNER) += tuner.o
 
+obj-$(CONFIG_TUNER_XC2028) += tuner-xc2028.o
 obj-$(CONFIG_TUNER_SIMPLE) += tuner-simple.o
 obj-$(CONFIG_TUNER_MT20XX) += mt20xx.o
 obj-$(CONFIG_TUNER_TDA8290) += tda8290.o
 obj-$(CONFIG_TUNER_TEA5767) += tea5767.o
 obj-$(CONFIG_TUNER_TEA5761) += tea5761.o
+obj-$(CONFIG_TUNER_TDA9887) += tda9887.o
 
 obj-$(CONFIG_VIDEOBUF_GEN) += videobuf-core.o
 obj-$(CONFIG_VIDEOBUF_DMA_SG) += videobuf-dma-sg.o
@@ -112,6 +118,7 @@ obj-$(CONFIG_USB_SE401)         += se401.o
 obj-$(CONFIG_USB_STV680)        += stv680.o
 obj-$(CONFIG_USB_W9968CF)       += w9968cf.o
 obj-$(CONFIG_USB_ZR364XX)       += zr364xx.o
+obj-$(CONFIG_USB_STKWEBCAM)     += stkwebcam.o
 
 obj-$(CONFIG_USB_SN9C102)       += sn9c102/
 obj-$(CONFIG_USB_ET61X251)      += et61x251/
@@ -129,3 +136,4 @@ obj-$(CONFIG_VIDEO_VIVI) += vivi.o
 obj-$(CONFIG_VIDEO_CX23885) += cx23885/
 
 EXTRA_CFLAGS += -Idrivers/media/dvb/dvb-core
+EXTRA_CFLAGS += -Idrivers/media/dvb/frontends

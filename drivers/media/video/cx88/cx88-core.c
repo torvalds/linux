@@ -220,7 +220,7 @@ cx88_free_buffer(struct videobuf_queue *q, struct cx88_buffer *buf)
 	videobuf_dma_unmap(q, dma);
 	videobuf_dma_free(dma);
 	btcx_riscmem_free((struct pci_dev *)q->dev, &buf->risc);
-	buf->vb.state = STATE_NEEDS_INIT;
+	buf->vb.state = VIDEOBUF_NEEDS_INIT;
 }
 
 /* ------------------------------------------------------------------ */
@@ -538,7 +538,7 @@ void cx88_wakeup(struct cx88_core *core,
 		do_gettimeofday(&buf->vb.ts);
 		dprintk(2,"[%p/%d] wakeup reg=%d buf=%d\n",buf,buf->vb.i,
 			count, buf->count);
-		buf->vb.state = STATE_DONE;
+		buf->vb.state = VIDEOBUF_DONE;
 		list_del(&buf->vb.queue);
 		wake_up(&buf->vb.done);
 	}

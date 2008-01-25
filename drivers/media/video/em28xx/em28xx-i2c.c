@@ -25,9 +25,9 @@
 #include <linux/kernel.h>
 #include <linux/usb.h>
 #include <linux/i2c.h>
-#include <linux/video_decoder.h>
 
 #include "em28xx.h"
+#include "tuner-xc2028.h"
 #include <media/v4l2-common.h>
 #include <media/tuner.h>
 
@@ -291,6 +291,31 @@ static int em28xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 	return rc;
 }
 
+/* based on linux/sunrpc/svcauth.h and linux/hash.h
+ * The original hash function returns a different value, if arch is x86_64
+ *  or i386.
+ */
+static inline unsigned long em28xx_hash_mem(char *buf, int length, int bits)
+{
+	unsigned long hash = 0;
+	unsigned long l = 0;
+	int len = 0;
+	unsigned char c;
+	do {
+		if (len == length) {
+			c = (char)len;
+			len = -1;
+		} else
+			c = *buf++;
+		l = (l << 8) | c;
+		len++;
+		if ((len & (32 / 8 - 1)) == 0)
+			hash = ((hash^l) * 0x9e370001UL);
+	} while (len);
+
+	return (hash >> (32 - bits)) & 0xffffffffUL;
+}
+
 static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned char *eedata, int len)
 {
 	unsigned char buf, *p = eedata;
@@ -334,7 +359,11 @@ static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned char *eedata, int len)
 			printk("\n");
 	}
 
-	printk(KERN_INFO "EEPROM ID= 0x%08x\n", em_eeprom->id);
+	if (em_eeprom->id == 0x9567eb1a)
+		dev->hash = em28xx_hash_mem(eedata, len, 32);
+
+	printk(KERN_INFO "EEPROM ID= 0x%08x, hash = 0x%08lx\n",
+	       em_eeprom->id, dev->hash);
 	printk(KERN_INFO "Vendor/Product ID= %04x:%04x\n", em_eeprom->vendor_ID,
 	       em_eeprom->product_ID);
 
@@ -391,21 +420,6 @@ static u32 functionality(struct i2c_adapter *adap)
 }
 
 
-static int em28xx_set_tuner(int check_eeprom, struct i2c_client *client)
-{
-	struct em28xx *dev = client->adapter->algo_data;
-	struct tuner_setup tun_setup;
-
-	if (dev->has_tuner) {
-		tun_setup.mode_mask = T_ANALOG_TV | T_RADIO;
-		tun_setup.type = dev->tuner_type;
-		tun_setup.addr = dev->tuner_addr;
-		em28xx_i2c_call_clients(dev, TUNER_SET_TYPE_ADDR, &tun_setup);
-	}
-
-	return (0);
-}
-
 /*
  * attach_inform()
  * gets called when a device attaches to the i2c bus
@@ -421,6 +435,8 @@ static int attach_inform(struct i2c_client *client)
 		case 0x96:
 		case 0x94:
 		{
+			struct v4l2_priv_tun_config tda9887_cfg;
+
 			struct tuner_setup tun_setup;
 
 			tun_setup.mode_mask = T_ANALOG_TV | T_RADIO;
@@ -428,7 +444,11 @@ static int attach_inform(struct i2c_client *client)
 			tun_setup.addr = client->addr;
 
 			em28xx_i2c_call_clients(dev, TUNER_SET_TYPE_ADDR, &tun_setup);
-			em28xx_i2c_call_clients(dev, TDA9887_SET_CONFIG, &dev->tda9887_conf);
+
+			tda9887_cfg.tuner = TUNER_TDA9887;
+			tda9887_cfg.priv = &dev->tda9887_conf;
+			em28xx_i2c_call_clients(dev, TUNER_SET_CONFIG,
+						&tda9887_cfg);
 			break;
 		}
 		case 0x42:
@@ -458,9 +478,11 @@ static int attach_inform(struct i2c_client *client)
 			break;
 
 		default:
+			if (!dev->tuner_addr)
+				dev->tuner_addr = client->addr;
+
 			dprintk1(1,"attach inform: detected I2C address %x\n", client->addr << 1);
-			dev->tuner_addr = client->addr;
-			em28xx_set_tuner(-1, client);
+
 	}
 
 	return 0;
@@ -510,19 +532,26 @@ static char *i2c_devs[128] = {
  * do_i2c_scan()
  * check i2c address range for devices
  */
-static void do_i2c_scan(char *name, struct i2c_client *c)
+void em28xx_do_i2c_scan(struct em28xx *dev)
 {
+	u8 i2c_devicelist[128];
 	unsigned char buf;
 	int i, rc;
 
+	memset(i2c_devicelist, 0, ARRAY_SIZE(i2c_devicelist));
+
 	for (i = 0; i < ARRAY_SIZE(i2c_devs); i++) {
-		c->addr = i;
-		rc = i2c_master_recv(c, &buf, 0);
+		dev->i2c_client.addr = i;
+		rc = i2c_master_recv(&dev->i2c_client, &buf, 0);
 		if (rc < 0)
 			continue;
-		printk(KERN_INFO "%s: found i2c device @ 0x%x [%s]\n", name,
-		       i << 1, i2c_devs[i] ? i2c_devs[i] : "???");
+		i2c_devicelist[i] = i;
+		printk(KERN_INFO "%s: found i2c device @ 0x%x [%s]\n",
+		       dev->name, i << 1, i2c_devs[i] ? i2c_devs[i] : "???");
 	}
+
+	dev->i2c_hash = em28xx_hash_mem(i2c_devicelist,
+					ARRAY_SIZE(i2c_devicelist), 32);
 }
 
 /*
@@ -555,7 +584,7 @@ int em28xx_i2c_register(struct em28xx *dev)
 	em28xx_i2c_eeprom(dev, dev->eedata, sizeof(dev->eedata));
 
 	if (i2c_scan)
-		do_i2c_scan(dev->name, &dev->i2c_client);
+		em28xx_do_i2c_scan(dev);
 	return 0;
 }
 

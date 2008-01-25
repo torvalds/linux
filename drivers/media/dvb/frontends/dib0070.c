@@ -434,9 +434,14 @@ static u16 dib0070_p1f_defaults[] =
 	0,
 };
 
-static void dib0070_wbd_calibration(struct dib0070_state *state)
+static void dib0070_wbd_calibration(struct dvb_frontend *fe)
 {
 	u16 wbd_offs;
+	struct dib0070_state *state = fe->tuner_priv;
+
+	if (state->cfg->sleep)
+		state->cfg->sleep(fe, 0);
+
 	dib0070_write_reg(state, 0x0f, 0x6d81);
 	dib0070_write_reg(state, 0x20, 0x0040 | 0x0020 | 0x0010 | 0x0008 | 0x0002 | 0x0001);
 	msleep(9);
@@ -444,6 +449,10 @@ static void dib0070_wbd_calibration(struct dib0070_state *state)
 	dib0070_write_reg(state, 0x20, 0);
 	state->wbd_ff_offset = ((wbd_offs * 8 * 18 / 33 + 1) / 2);
 	dprintk( "WBDStart = %d (Vargen) - FF = %hd", (u32) wbd_offs * 1800/1024, state->wbd_ff_offset);
+
+	if (state->cfg->sleep)
+		state->cfg->sleep(fe, 1);
+
 }
 
 u16 dib0070_wbd_offset(struct dvb_frontend *fe)
@@ -560,7 +569,7 @@ struct dvb_frontend * dib0070_attach(struct dvb_frontend *fe, struct i2c_adapter
 	if (dib0070_reset(state) != 0)
 		goto free_mem;
 
-	dib0070_wbd_calibration(state);
+	dib0070_wbd_calibration(fe);
 
 	printk(KERN_INFO "DiB0070: successfully identified\n");
 	memcpy(&fe->ops.tuner_ops, &dib0070_ops, sizeof(struct dvb_tuner_ops));

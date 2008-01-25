@@ -305,6 +305,11 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		ir->mask_keycode = 0xfa;
 		ir->polling = 50; /* ms */
 		break;
+	case CX88_BOARD_PINNACLE_PCTV_HD_800i:
+		ir_codes = ir_codes_pinnacle_pctv_hd;
+		ir_type = IR_TYPE_RC5;
+		ir->sampling = 1;
+		break;
 	}
 
 	if (NULL == ir_codes) {
@@ -443,6 +448,7 @@ void cx88_ir_irq(struct cx88_core *core)
 	case CX88_BOARD_HAUPPAUGE_NOVASPLUS_S1:
 	case CX88_BOARD_HAUPPAUGE_HVR1100:
 	case CX88_BOARD_HAUPPAUGE_HVR3000:
+	case CX88_BOARD_PINNACLE_PCTV_HD_800i:
 		ircode = ir_decode_biphase(ir->samples, ir->scount, 5, 7);
 		ir_dprintk("biphase decoded: %x\n", ircode);
 		if ((ircode & 0xfffff000) != 0x3000)

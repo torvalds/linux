@@ -104,6 +104,17 @@ int v4l2_chip_match_host(u32 id_type, u32 chip_id);
 
 /* ------------------------------------------------------------------------- */
 
+/* Helper function for I2C legacy drivers */
+
+struct i2c_driver;
+struct i2c_adapter;
+struct i2c_client;
+
+int v4l2_i2c_attach(struct i2c_adapter *adapter, int address, struct i2c_driver *driver,
+		const char *name, int (*probe)(struct i2c_client *));
+
+/* ------------------------------------------------------------------------- */
+
 /* Internal ioctls */
 
 /* VIDIOC_INT_DECODE_VBI_LINE */
@@ -114,6 +125,11 @@ struct v4l2_decode_vbi_line {
 				   On exit points to the start of the payload. */
 	u32 line;		/* Line number of the sliced VBI data (1-23) */
 	u32 type;		/* VBI service type (V4L2_SLICED_*). 0 if no service found */
+};
+
+struct v4l2_priv_tun_config {
+	int tuner;
+	void *priv;
 };
 
 /* audio ioctls */
@@ -131,7 +147,7 @@ struct v4l2_decode_vbi_line {
 #define TUNER_SET_STANDBY            _IOW('d', 91, int)
 
 /* Sets tda9887 specific stuff, like port1, port2 and qss */
-#define TDA9887_SET_CONFIG           _IOW('d', 92, int)
+#define TUNER_SET_CONFIG           _IOW('d', 92, struct v4l2_priv_tun_config)
 
 /* Switch the tuner to a specific tuner mode. Replacement of AUDC_SET_RADIO */
 #define VIDIOC_INT_S_TUNER_MODE	     _IOW('d', 93, enum v4l2_tuner_type)

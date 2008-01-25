@@ -6,7 +6,7 @@ pvrusb2-objs	:= pvrusb2-i2c-core.o pvrusb2-i2c-cmd-v4l2.o \
 		   pvrusb2-encoder.o pvrusb2-video-v4l.o \
 		   pvrusb2-eeprom.o pvrusb2-tuner.o \
 		   pvrusb2-main.o pvrusb2-hdw.o pvrusb2-v4l2.o \
-		   pvrusb2-ctrl.o pvrusb2-std.o \
+		   pvrusb2-ctrl.o pvrusb2-std.o pvrusb2-devattr.o \
 		   pvrusb2-context.o pvrusb2-io.o pvrusb2-ioread.o \
 		   pvrusb2-cx2584x-v4l.o pvrusb2-wm8775.o \
 		   $(obj-pvrusb2-sysfs-y) $(obj-pvrusb2-debugifc-y)

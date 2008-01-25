@@ -49,8 +49,13 @@ module_param(repeat_delay, int, 0644);
 MODULE_PARM_DESC(repeat_delay, "delay before key repeat started");
 static int repeat_period = 33;
 module_param(repeat_period, int, 0644);
-MODULE_PARM_DESC(repeat_period, "repeat period between"
+MODULE_PARM_DESC(repeat_period, "repeat period between "
     "keypresses when key is down");
+
+static unsigned int disable_other_ir;
+module_param(disable_other_ir, int, 0644);
+MODULE_PARM_DESC(disable_other_ir, "disable full codes of "
+    "alternative remotes from other manufacturers");
 
 #define dprintk(fmt, arg...)	if (ir_debug) \
 	printk(KERN_DEBUG "%s/ir: " fmt, dev->name , ## arg)
@@ -151,6 +156,45 @@ static int get_key_hvr1110(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	/* return key */
 	*ir_key = code4;
 	*ir_raw = code4;
+	return 1;
+}
+
+
+static int get_key_beholdm6xx(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+{
+	unsigned char data[12];
+	u32 gpio;
+
+	struct saa7134_dev *dev = ir->c.adapter->algo_data;
+
+	/* rising SAA7134_GPIO_GPRESCAN reads the status */
+	saa_clearb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
+	saa_setb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
+
+	gpio = saa_readl(SAA7134_GPIO_GPSTATUS0 >> 2);
+
+	if (0x400000 & ~gpio)
+		return 0; /* No button press */
+
+	ir->c.addr = 0x5a >> 1;
+
+	if (12 != i2c_master_recv(&ir->c, data, 12)) {
+		i2cdprintk("read error\n");
+		return -EIO;
+	}
+	/* IR of this card normally decode signals NEC-standard from
+	 * - Sven IHOO MT 5.1R remote. xxyye718
+	 * - Sven DVD HD-10xx remote. xxyyf708
+	 * - BBK ...
+	 * - mayby others
+	 * So, skip not our, if disable full codes mode.
+	 */
+	if (data[10] != 0x6b && data[11] != 0x86 && disable_other_ir)
+		return 0;
+
+	*ir_key = data[9];
+	*ir_raw = data[9];
+
 	return 1;
 }
 
@@ -260,6 +304,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_AVERMEDIA_STUDIO_307:
 	case SAA7134_BOARD_AVERMEDIA_STUDIO_507:
 	case SAA7134_BOARD_AVERMEDIA_GO_007_FM:
+	case SAA7134_BOARD_AVERMEDIA_M102:
 		ir_codes     = ir_codes_avermedia;
 		mask_keycode = 0x0007C8;
 		mask_keydown = 0x000010;
@@ -287,6 +332,16 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_MANLI_MTV001:
 	case SAA7134_BOARD_MANLI_MTV002:
 	case SAA7134_BOARD_BEHOLD_409FM:
+	case SAA7134_BOARD_BEHOLD_401:
+	case SAA7134_BOARD_BEHOLD_403:
+	case SAA7134_BOARD_BEHOLD_403FM:
+	case SAA7134_BOARD_BEHOLD_405:
+	case SAA7134_BOARD_BEHOLD_405FM:
+	case SAA7134_BOARD_BEHOLD_407:
+	case SAA7134_BOARD_BEHOLD_407FM:
+	case SAA7134_BOARD_BEHOLD_409:
+	case SAA7134_BOARD_BEHOLD_505FM:
+	case SAA7134_BOARD_BEHOLD_507_9FM:
 		ir_codes     = ir_codes_manli;
 		mask_keycode = 0x001f00;
 		mask_keyup   = 0x004000;
@@ -456,6 +511,12 @@ void saa7134_set_i2c_ir(struct saa7134_dev *dev, struct IR_i2c *ir)
 		snprintf(ir->c.name, sizeof(ir->c.name), "HVR 1110");
 		ir->get_key   = get_key_hvr1110;
 		ir->ir_codes  = ir_codes_hauppauge_new;
+		break;
+	case SAA7134_BOARD_BEHOLD_607_9FM:
+	case SAA7134_BOARD_BEHOLD_M6:
+		snprintf(ir->c.name, sizeof(ir->c.name), "BeholdTV");
+		ir->get_key   = get_key_beholdm6xx;
+		ir->ir_codes  = ir_codes_behold;
 		break;
 	default:
 		dprintk("Shouldn't get here: Unknown board %x for I2C IR?\n",dev->board);

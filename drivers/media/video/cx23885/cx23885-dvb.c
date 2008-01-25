@@ -32,13 +32,26 @@
 
 #include "s5h1409.h"
 #include "mt2131.h"
+#include "tda8290.h"
+#include "tda18271.h"
 #include "lgdt330x.h"
+#include "xc5000.h"
 #include "dvb-pll.h"
+#include "tuner-xc2028.h"
+#include "tuner-xc2028-types.h"
 
-static unsigned int debug = 0;
+static unsigned int debug;
 
-#define dprintk(level,fmt, arg...)	if (debug >= level) \
-	printk(KERN_DEBUG "%s: " fmt, dev->name, ## arg)
+#define dprintk(level, fmt, arg...)\
+	do { if (debug >= level)\
+		printk(KERN_DEBUG "%s/0: " fmt, dev->name, ## arg);\
+	} while (0)
+
+/* ------------------------------------------------------------------ */
+
+static unsigned int alt_tuner;
+module_param(alt_tuner, int, 0644);
+MODULE_PARM_DESC(alt_tuner, "Enable alternate tuner configuration");
 
 /* ------------------------------------------------------------------ */
 
@@ -85,18 +98,39 @@ static struct s5h1409_config hauppauge_generic_config = {
 	.demod_address = 0x32 >> 1,
 	.output_mode   = S5H1409_SERIAL_OUTPUT,
 	.gpio          = S5H1409_GPIO_ON,
-	.if_freq       = 44000,
+	.qam_if        = 44000,
 	.inversion     = S5H1409_INVERSION_OFF,
-	.status_mode   = S5H1409_DEMODLOCKING
+	.status_mode   = S5H1409_DEMODLOCKING,
+	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK,
+};
+
+static struct s5h1409_config hauppauge_ezqam_config = {
+	.demod_address = 0x32 >> 1,
+	.output_mode   = S5H1409_SERIAL_OUTPUT,
+	.gpio          = S5H1409_GPIO_OFF,
+	.qam_if        = 4000,
+	.inversion     = S5H1409_INVERSION_ON,
+	.status_mode   = S5H1409_DEMODLOCKING,
+	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK,
 };
 
 static struct s5h1409_config hauppauge_hvr1800lp_config = {
 	.demod_address = 0x32 >> 1,
 	.output_mode   = S5H1409_SERIAL_OUTPUT,
 	.gpio          = S5H1409_GPIO_OFF,
-	.if_freq       = 44000,
+	.qam_if        = 44000,
 	.inversion     = S5H1409_INVERSION_OFF,
-	.status_mode   = S5H1409_DEMODLOCKING
+	.status_mode   = S5H1409_DEMODLOCKING,
+	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK,
+};
+
+static struct s5h1409_config hauppauge_hvr1500_config = {
+	.demod_address = 0x32 >> 1,
+	.output_mode   = S5H1409_SERIAL_OUTPUT,
+	.gpio          = S5H1409_GPIO_OFF,
+	.inversion     = S5H1409_INVERSION_OFF,
+	.status_mode   = S5H1409_DEMODLOCKING,
+	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK,
 };
 
 static struct mt2131_config hauppauge_generic_tunerconfig = {
@@ -109,6 +143,66 @@ static struct lgdt330x_config fusionhdtv_5_express = {
 	.serial_mpeg = 0x40,
 };
 
+static struct s5h1409_config hauppauge_hvr1500q_config = {
+	.demod_address = 0x32 >> 1,
+	.output_mode   = S5H1409_SERIAL_OUTPUT,
+	.gpio          = S5H1409_GPIO_ON,
+	.qam_if        = 44000,
+	.inversion     = S5H1409_INVERSION_OFF,
+	.status_mode   = S5H1409_DEMODLOCKING,
+	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK,
+};
+
+static struct xc5000_config hauppauge_hvr1500q_tunerconfig = {
+	.i2c_address      = 0x61,
+	.if_khz           = 5380,
+	.tuner_callback   = cx23885_tuner_callback
+};
+
+static struct tda829x_config tda829x_no_probe = {
+	.probe_tuner = TDA829X_DONT_PROBE,
+};
+
+static struct tda18271_std_map hauppauge_tda18271_std_map = {
+	.atsc_6   = { .if_freq = 5380, .std_bits = 0x1b },
+	.qam_6    = { .if_freq = 4000, .std_bits = 0x18 },
+};
+
+static struct tda18271_config hauppauge_tda18271_config = {
+	.std_map = &hauppauge_tda18271_std_map,
+	.gate    = TDA18271_GATE_ANALOG,
+};
+
+static int cx23885_hvr1500_xc3028_callback(void *ptr, int command, int arg)
+{
+	struct cx23885_tsport *port = ptr;
+	struct cx23885_dev *dev = port->dev;
+
+	switch (command) {
+	case XC2028_TUNER_RESET:
+		/* Send the tuner in then out of reset */
+		/* GPIO-2 xc3028 tuner */
+		dprintk(1, "%s: XC2028_TUNER_RESET %d\n", __FUNCTION__, arg);
+
+		cx_set(GP0_IO, 0x00040000);
+		cx_clear(GP0_IO, 0x00000004);
+		msleep(5);
+
+		cx_set(GP0_IO, 0x00040004);
+		msleep(5);
+		break;
+	case XC2028_RESET_CLK:
+		dprintk(1, "%s: XC2028_RESET_CLK %d\n", __FUNCTION__, arg);
+		break;
+	default:
+		dprintk(1, "%s: unknown command %d, arg %d\n", __FUNCTION__,
+			command, arg);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int dvb_register(struct cx23885_tsport *port)
 {
 	struct cx23885_dev *dev = port->dev;
@@ -120,7 +214,6 @@ static int dvb_register(struct cx23885_tsport *port)
 	/* init frontend */
 	switch (dev->board) {
 	case CX23885_BOARD_HAUPPAUGE_HVR1250:
-	case CX23885_BOARD_HAUPPAUGE_HVR1800:
 		i2c_bus = &dev->i2c_bus[0];
 		port->dvb.frontend = dvb_attach(s5h1409_attach,
 						&hauppauge_generic_config,
@@ -129,6 +222,36 @@ static int dvb_register(struct cx23885_tsport *port)
 			dvb_attach(mt2131_attach, port->dvb.frontend,
 				   &i2c_bus->i2c_adap,
 				   &hauppauge_generic_tunerconfig, 0);
+		}
+		break;
+	case CX23885_BOARD_HAUPPAUGE_HVR1800:
+		i2c_bus = &dev->i2c_bus[0];
+		switch (alt_tuner) {
+		case 1:
+			port->dvb.frontend =
+				dvb_attach(s5h1409_attach,
+					   &hauppauge_ezqam_config,
+					   &i2c_bus->i2c_adap);
+			if (port->dvb.frontend != NULL) {
+				dvb_attach(tda829x_attach, port->dvb.frontend,
+					   &dev->i2c_bus[1].i2c_adap, 0x42,
+					   &tda829x_no_probe);
+				dvb_attach(tda18271_attach, port->dvb.frontend,
+					   0x60, &dev->i2c_bus[1].i2c_adap,
+					   &hauppauge_tda18271_config);
+			}
+			break;
+		case 0:
+		default:
+			port->dvb.frontend =
+				dvb_attach(s5h1409_attach,
+					   &hauppauge_generic_config,
+					   &i2c_bus->i2c_adap);
+			if (port->dvb.frontend != NULL)
+				dvb_attach(mt2131_attach, port->dvb.frontend,
+					   &i2c_bus->i2c_adap,
+					   &hauppauge_generic_tunerconfig, 0);
+			break;
 		}
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1800lp:
@@ -152,6 +275,43 @@ static int dvb_register(struct cx23885_tsport *port)
 				   &i2c_bus->i2c_adap, DVB_PLL_LG_TDVS_H06XF);
 		}
 		break;
+	case CX23885_BOARD_HAUPPAUGE_HVR1500Q:
+		i2c_bus = &dev->i2c_bus[1];
+		port->dvb.frontend = dvb_attach(s5h1409_attach,
+						&hauppauge_hvr1500q_config,
+						&dev->i2c_bus[0].i2c_adap);
+		if (port->dvb.frontend != NULL) {
+			hauppauge_hvr1500q_tunerconfig.priv = i2c_bus;
+			dvb_attach(xc5000_attach, port->dvb.frontend,
+				&i2c_bus->i2c_adap,
+				&hauppauge_hvr1500q_tunerconfig);
+		}
+		break;
+	case CX23885_BOARD_HAUPPAUGE_HVR1500:
+		i2c_bus = &dev->i2c_bus[1];
+		port->dvb.frontend = dvb_attach(s5h1409_attach,
+						&hauppauge_hvr1500_config,
+						&dev->i2c_bus[0].i2c_adap);
+		if (port->dvb.frontend != NULL) {
+			struct dvb_frontend *fe;
+			struct xc2028_config cfg = {
+				.i2c_adap  = &i2c_bus->i2c_adap,
+				.i2c_addr  = 0x61,
+				.video_dev = port,
+				.callback  = cx23885_hvr1500_xc3028_callback,
+			};
+			static struct xc2028_ctrl ctl = {
+				.fname       = "xc3028-v27.fw",
+				.max_len     = 64,
+				.scode_table = OREN538,
+			};
+
+			fe = dvb_attach(xc2028_attach,
+					port->dvb.frontend, &cfg);
+			if (fe != NULL && fe->ops.tuner_ops.set_config != NULL)
+				fe->ops.tuner_ops.set_config(fe, &ctl);
+		}
+		break;
 	default:
 		printk("%s: The frontend of your DVB/ATSC card isn't supported yet\n",
 		       dev->name);
@@ -164,6 +324,9 @@ static int dvb_register(struct cx23885_tsport *port)
 
 	/* Put the analog decoder in standby to keep it quiet */
 	cx23885_call_i2c_clients(i2c_bus, TUNER_SET_STANDBY, NULL);
+
+	if (port->dvb.frontend->ops.analog_ops.standby)
+		port->dvb.frontend->ops.analog_ops.standby(port->dvb.frontend);
 
 	/* register everything */
 	return videobuf_dvb_register(&port->dvb, THIS_MODULE, port,

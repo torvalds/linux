@@ -233,6 +233,17 @@ Channel manager Data Structure entry = 20 DWORD
 #define VID_A_INT_SSTAT	0x0004002C
 
 #define VID_B_INT_MSK	0x00040030
+#define VID_B_MSK_BAD_PKT     (1 << 20)
+#define VID_B_MSK_VBI_OPC_ERR (1 << 17)
+#define VID_B_MSK_OPC_ERR     (1 << 16)
+#define VID_B_MSK_VBI_SYNC    (1 << 13)
+#define VID_B_MSK_SYNC        (1 << 12)
+#define VID_B_MSK_VBI_OF      (1 <<  9)
+#define VID_B_MSK_OF          (1 <<  8)
+#define VID_B_MSK_VBI_RISCI2  (1 <<  5)
+#define VID_B_MSK_RISCI2      (1 <<  4)
+#define VID_B_MSK_VBI_RISCI1  (1 <<  1)
+#define VID_B_MSK_RISCI1       1
 #define VID_B_INT_STAT	0x00040034
 #define VID_B_INT_MSTAT	0x00040038
 #define VID_B_INT_SSTAT	0x0004003C
@@ -276,6 +287,7 @@ Channel manager Data Structure entry = 20 DWORD
 
 #define RDR_CFG0	0x00050000
 #define RDR_CFG1	0x00050004
+#define RDR_CFG2	0x00050008
 #define RDR_TLCTL0	0x00050318
 
 /* APB DMAC Current Buffer Pointer */
@@ -335,6 +347,7 @@ Channel manager Data Structure entry = 20 DWORD
 /* GPIO (417 Microsoftcontroller) Output Enable, Low Active */
 #define MC417_OEN	0x00110024
 #define MC417_CTL	0x00110028
+#define ALT_PIN_OUT_SEL 0x0011002C
 #define CLK_DELAY	0x00110048
 #define PAD_CTRL	0x0011004C
 

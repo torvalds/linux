@@ -400,7 +400,7 @@ static const char *v4l2_int_ioctls[] = {
 
 	[_IOC_NR(TUNER_SET_TYPE_ADDR)]         = "TUNER_SET_TYPE_ADDR",
 	[_IOC_NR(TUNER_SET_STANDBY)]           = "TUNER_SET_STANDBY",
-	[_IOC_NR(TDA9887_SET_CONFIG)]          = "TDA9887_SET_CONFIG",
+	[_IOC_NR(TUNER_SET_CONFIG)]            = "TUNER_SET_CONFIG",
 
 	[_IOC_NR(VIDIOC_INT_S_TUNER_MODE)]     = "VIDIOC_INT_S_TUNER_MODE",
 	[_IOC_NR(VIDIOC_INT_RESET)]            = "VIDIOC_INT_RESET",
@@ -1013,6 +1013,34 @@ int v4l2_chip_match_host(u32 match_type, u32 match_chip)
 
 /* ----------------------------------------------------------------- */
 
+/* Helper function for I2C legacy drivers */
+
+int v4l2_i2c_attach(struct i2c_adapter *adapter, int address, struct i2c_driver *driver,
+		const char *name, int (*probe)(struct i2c_client *))
+{
+	struct i2c_client *client;
+	int err;
+
+	client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
+	if (client == 0)
+		return -ENOMEM;
+
+	client->addr = address;
+	client->adapter = adapter;
+	client->driver = driver;
+	strlcpy(client->name, name, sizeof(client->name));
+
+	err = probe(client);
+	if (err == 0) {
+		i2c_attach_client(client);
+	} else {
+		kfree(client);
+	}
+	return err != -ENOMEM ? 0 : err;
+}
+
+/* ----------------------------------------------------------------- */
+
 EXPORT_SYMBOL(v4l2_norm_to_name);
 EXPORT_SYMBOL(v4l2_video_std_construct);
 
@@ -1037,6 +1065,8 @@ EXPORT_SYMBOL(v4l2_ctrl_query_fill_std);
 EXPORT_SYMBOL(v4l2_chip_match_i2c_client);
 EXPORT_SYMBOL(v4l2_chip_ident_i2c_client);
 EXPORT_SYMBOL(v4l2_chip_match_host);
+
+EXPORT_SYMBOL(v4l2_i2c_attach);
 
 /*
  * Local variables:

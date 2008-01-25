@@ -84,6 +84,11 @@
 
 #define clamp(x, low, high) min (max (low, x), high)
 
+#define BTTV_NORMS    (\
+		V4L2_STD_PAL    | V4L2_STD_PAL_N | \
+		V4L2_STD_PAL_Nc | V4L2_STD_SECAM | \
+		V4L2_STD_NTSC   | V4L2_STD_PAL_M | \
+		V4L2_STD_PAL_60)
 /* ---------------------------------------------------------- */
 
 struct bttv_tvnorm {
@@ -112,7 +117,6 @@ extern const struct bttv_tvnorm bttv_tvnorms[];
 
 struct bttv_format {
 	char *name;
-	int  palette;         /* video4linux 1      */
 	int  fourcc;          /* video4linux 2      */
 	int  btformat;        /* BT848_COLOR_FMT_*  */
 	int  btswap;          /* BT848_COLOR_CTL_*  */
@@ -253,9 +257,9 @@ int bttv_overlay_risc(struct bttv *btv, struct bttv_overlay *ov,
 /* ---------------------------------------------------------- */
 /* bttv-vbi.c                                                 */
 
-int bttv_vbi_try_fmt(struct bttv_fh *fh, struct v4l2_vbi_format *f);
-void bttv_vbi_get_fmt(struct bttv_fh *fh, struct v4l2_vbi_format *f);
-int bttv_vbi_set_fmt(struct bttv_fh *fh, struct v4l2_vbi_format *f);
+int bttv_try_fmt_vbi(struct file *file, void *fh, struct v4l2_format *f);
+int bttv_g_fmt_vbi(struct file *file, void *fh, struct v4l2_format *f);
+int bttv_s_fmt_vbi(struct file *file, void *fh, struct v4l2_format *f);
 
 extern struct videobuf_queue_ops bttv_vbi_qops;
 
@@ -337,7 +341,9 @@ struct bttv {
 	/* old gpio interface */
 	wait_queue_head_t gpioq;
 	int shutdown;
-	void (*audio_hook)(struct bttv *btv, struct video_audio *v, int set);
+
+	void (*volume_gpio)(struct bttv *btv, __u16 volume);
+	void (*audio_mode_gpio)(struct bttv *btv, struct v4l2_tuner *tuner, int set);
 
 	/* new gpio interface */
 	spinlock_t gpio_lock;
@@ -457,10 +463,6 @@ struct bttv {
 #define BTTV_MAX 16
 extern unsigned int bttv_num;
 extern struct bttv bttvs[BTTV_MAX];
-
-/* private ioctls */
-#define BTTV_VERSION            _IOR('v' , BASE_VIDIOCPRIVATE+6, int)
-#define BTTV_VBISIZE            _IOR('v' , BASE_VIDIOCPRIVATE+8, int)
 
 #endif
 
