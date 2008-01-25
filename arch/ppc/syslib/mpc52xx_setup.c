@@ -16,6 +16,7 @@
  */
 
 
+#include <linux/spinlock.h>
 #include <asm/io.h>
 #include <asm/time.h>
 #include <asm/mpc52xx.h>
@@ -273,5 +274,40 @@ int mpc52xx_match_psc_function(int psc_idx, const char *func)
 		cf++;
 	}
 
+	return 0;
+}
+
+int mpc52xx_set_psc_clkdiv(int psc_id, int clkdiv)
+{
+	static spinlock_t lock = SPIN_LOCK_UNLOCKED;
+	struct mpc52xx_cdm __iomem *cdm;
+	unsigned long flags;
+	u16 mclken_div;
+	u16 __iomem *reg;
+	u32 mask;
+
+	cdm = ioremap(MPC52xx_PA(MPC52xx_CDM_OFFSET), MPC52xx_CDM_SIZE);
+	if (!cdm) {
+		printk(KERN_ERR __FILE__ ": Error mapping CDM\n");
+		return -ENODEV;
+	}
+
+	mclken_div = 0x8000 | (clkdiv & 0x1FF);
+	switch (psc_id) {
+	case 1: reg = &cdm->mclken_div_psc1; mask = 0x20; break;
+	case 2: reg = &cdm->mclken_div_psc2; mask = 0x40; break;
+	case 3: reg = &cdm->mclken_div_psc3; mask = 0x80; break;
+	case 6: reg = &cdm->mclken_div_psc6; mask = 0x10; break;
+	default:
+		return -ENODEV;
+	}
+
+	/* Set the rate and enable the clock */
+	spin_lock_irqsave(&lock, flags);
+	out_be16(reg, mclken_div);
+	out_be32(&cdm->clk_enables, in_be32(&cdm->clk_enables) | mask);
+	spin_unlock_irqrestore(&lock, flags);
+
+	iounmap(cdm);
 	return 0;
 }

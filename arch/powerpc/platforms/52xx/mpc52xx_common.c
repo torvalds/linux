@@ -13,6 +13,7 @@
 #undef DEBUG
 
 #include <linux/kernel.h>
+#include <linux/spinlock.h>
 #include <linux/of_platform.h>
 #include <asm/io.h>
 #include <asm/prom.h>
@@ -41,7 +42,9 @@ static struct of_device_id mpc52xx_bus_ids[] __initdata = {
  * from interrupt context while node mapping (which calls ioremap())
  * cannot be used at such point.
  */
-static volatile struct mpc52xx_gpt *mpc52xx_wdt = NULL;
+static spinlock_t mpc52xx_lock = SPIN_LOCK_UNLOCKED;
+static struct mpc52xx_gpt __iomem *mpc52xx_wdt;
+static struct mpc52xx_cdm __iomem *mpc52xx_cdm;
 
 /**
  * 	mpc52xx_find_ipb_freq - Find the IPB bus frequency for a device
@@ -120,18 +123,27 @@ mpc52xx_declare_of_platform_devices(void)
 }
 
 /*
- * match tables used by mpc52xx_map_wdt()
+ * match tables used by mpc52xx_map_common_devices()
  */
 static struct of_device_id mpc52xx_gpt_ids[] __initdata = {
 	{ .compatible = "fsl,mpc5200-gpt", },
 	{ .compatible = "mpc5200-gpt", }, /* old */
 	{}
 };
+static struct of_device_id mpc52xx_cdm_ids[] __initdata = {
+	{ .compatible = "fsl,mpc5200-cdm", },
+	{ .compatible = "mpc5200-cdm", }, /* old */
+	{}
+};
 
+/**
+ * mpc52xx_map_common_devices: iomap devices required by common code
+ */
 void __init
-mpc52xx_map_wdt(void)
+mpc52xx_map_common_devices(void)
 {
 	struct device_node *np;
+
 	/* mpc52xx_wdt is mapped here and used in mpc52xx_restart,
 	 * possibly from a interrupt context. wdt is only implement
 	 * on a gpt0, so check has-wdt property before mapping.
@@ -141,11 +153,56 @@ mpc52xx_map_wdt(void)
 		    of_get_property(np, "has-wdt", NULL)) {
 			mpc52xx_wdt = of_iomap(np, 0);
 			of_node_put(np);
-			return;
+			break;
 		}
 	}
+
+	/* Clock Distribution Module, used by PSC clock setting function */
+	np = of_find_matching_node(NULL, mpc52xx_cdm_ids);
+	mpc52xx_cdm = of_iomap(np, 0);
+	of_node_put(np);
 }
 
+/**
+ * mpc52xx_set_psc_clkdiv: Set clock divider in the CDM for PSC ports
+ *
+ * @psc_id: id of psc port; must be 1,2,3 or 6
+ * @clkdiv: clock divider value to put into CDM PSC register.
+ */
+int mpc52xx_set_psc_clkdiv(int psc_id, int clkdiv)
+{
+	unsigned long flags;
+	u16 __iomem *reg;
+	u32 val;
+	u32 mask;
+	u32 mclken_div;
+
+	if (!mpc52xx_cdm)
+		return -ENODEV;
+
+	mclken_div = 0x8000 | (clkdiv & 0x1FF);
+	switch (psc_id) {
+	case 1: reg = &mpc52xx_cdm->mclken_div_psc1; mask = 0x20; break;
+	case 2: reg = &mpc52xx_cdm->mclken_div_psc2; mask = 0x40; break;
+	case 3: reg = &mpc52xx_cdm->mclken_div_psc3; mask = 0x80; break;
+	case 6: reg = &mpc52xx_cdm->mclken_div_psc6; mask = 0x10; break;
+	default:
+		return -ENODEV;
+	}
+
+	/* Set the rate and enable the clock */
+	spin_lock_irqsave(&mpc52xx_lock, flags);
+	out_be16(reg, mclken_div);
+	val = in_be32(&mpc52xx_cdm->clk_enables);
+	out_be32(&mpc52xx_cdm->clk_enables, val | mask);
+	spin_unlock_irqrestore(&mpc52xx_lock, flags);
+
+	return 0;
+}
+
+/**
+ * mpc52xx_restart: ppc_md->restart hook for mpc5200 using the watchdog timer
+ */
 void
 mpc52xx_restart(char *cmd)
 {

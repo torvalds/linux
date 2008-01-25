@@ -152,15 +152,15 @@ static void __init lite5200_setup_arch(void)
 	if (ppc_md.progress)
 		ppc_md.progress("lite5200_setup_arch()", 0);
 
-	/* Fix things that firmware should have done. */
-	lite5200_fix_clock_config();
-	lite5200_fix_port_config();
+	/* Map important registers from the internal memory map */
+	mpc52xx_map_common_devices();
 
 	/* Some mpc5200 & mpc5200b related configuration */
 	mpc5200_setup_xlb_arbiter();
 
-	/* Map wdt for mpc52xx_restart() */
-	mpc52xx_map_wdt();
+	/* Fix things that firmware should have done. */
+	lite5200_fix_clock_config();
+	lite5200_fix_port_config();
 
 #ifdef CONFIG_PM
 	mpc52xx_suspend.board_suspend_prepare = lite5200_suspend_prepare;

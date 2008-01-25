@@ -180,6 +180,9 @@ static void __init efika_setup_arch(void)
 {
 	rtas_initialize();
 
+	/* Map important registers from the internal memory map */
+	mpc52xx_map_common_devices();
+
 	efika_pcisetup();
 
 #ifdef CONFIG_PM
