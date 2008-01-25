@@ -27,6 +27,7 @@
 #include <linux/idr.h>
 #include <linux/rwsem.h>
 #include <asm/semaphore.h>
+#include <asm/system.h>
 #include <linux/ctype.h>
 #include "fw-transaction.h"
 #include "fw-topology.h"
@@ -182,9 +183,14 @@ static void fw_device_release(struct device *dev)
 
 int fw_device_enable_phys_dma(struct fw_device *device)
 {
+	int generation = device->generation;
+
+	/* device->node_id, accessed below, must not be older than generation */
+	smp_rmb();
+
 	return device->card->driver->enable_phys_dma(device->card,
 						     device->node_id,
-						     device->generation);
+						     generation);
 }
 EXPORT_SYMBOL(fw_device_enable_phys_dma);
 
@@ -389,12 +395,16 @@ static int read_rom(struct fw_device *device, int index, u32 * data)
 	struct read_quadlet_callback_data callback_data;
 	struct fw_transaction t;
 	u64 offset;
+	int generation = device->generation;
+
+	/* device->node_id, accessed below, must not be older than generation */
+	smp_rmb();
 
 	init_completion(&callback_data.done);
 
 	offset = 0xfffff0000400ULL + index * 4;
 	fw_send_request(device->card, &t, TCODE_READ_QUADLET_REQUEST,
-			device->node_id, device->generation, device->max_speed,
+			device->node_id, generation, device->max_speed,
 			offset, NULL, 4, complete_transaction, &callback_data);
 
 	wait_for_completion(&callback_data.done);
@@ -801,6 +811,7 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 
 		device = node->data;
 		device->node_id = node->node_id;
+		smp_wmb();  /* update node_id before generation */
 		device->generation = card->generation;
 		if (atomic_read(&device->state) == FW_DEVICE_RUNNING) {
 			PREPARE_DELAYED_WORK(&device->work, fw_device_update);

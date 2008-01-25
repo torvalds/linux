@@ -40,6 +40,7 @@
 #include <linux/stringify.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
+#include <asm/system.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -662,6 +663,7 @@ static void sbp2_login(struct work_struct *work)
 	int generation, node_id, local_node_id;
 
 	generation    = device->generation;
+	smp_rmb();    /* node_id must not be older than generation */
 	node_id       = device->node_id;
 	local_node_id = device->card->node_id;
 
@@ -912,6 +914,7 @@ static void sbp2_reconnect(struct work_struct *work)
 	int generation, node_id, local_node_id;
 
 	generation    = device->generation;
+	smp_rmb();    /* node_id must not be older than generation */
 	node_id       = device->node_id;
 	local_node_id = device->card->node_id;
 
