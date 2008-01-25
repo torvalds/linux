@@ -767,6 +767,20 @@ static void set_cpus_allowed_rt(struct task_struct *p, cpumask_t *new_mask)
 	p->nr_cpus_allowed = weight;
 }
 
+/* Assumes rq->lock is held */
+static void join_domain_rt(struct rq *rq)
+{
+	if (rq->rt.overloaded)
+		rt_set_overload(rq);
+}
+
+/* Assumes rq->lock is held */
+static void leave_domain_rt(struct rq *rq)
+{
+	if (rq->rt.overloaded)
+		rt_clear_overload(rq);
+}
+
 #else /* CONFIG_SMP */
 # define schedule_tail_balance_rt(rq)	do { } while (0)
 # define schedule_balance_rt(rq, prev)	do { } while (0)
@@ -799,20 +813,6 @@ static void task_tick_rt(struct rq *rq, struct task_struct *p)
 	}
 }
 
-/* Assumes rq->lock is held */
-static void join_domain_rt(struct rq *rq)
-{
-	if (rq->rt.overloaded)
-		rt_set_overload(rq);
-}
-
-/* Assumes rq->lock is held */
-static void leave_domain_rt(struct rq *rq)
-{
-	if (rq->rt.overloaded)
-		rt_clear_overload(rq);
-}
-
 static void set_curr_task_rt(struct rq *rq)
 {
 	struct task_struct *p = rq->curr;
@@ -838,11 +838,10 @@ const struct sched_class rt_sched_class = {
 	.load_balance		= load_balance_rt,
 	.move_one_task		= move_one_task_rt,
 	.set_cpus_allowed       = set_cpus_allowed_rt,
+	.join_domain            = join_domain_rt,
+	.leave_domain           = leave_domain_rt,
 #endif
 
 	.set_curr_task          = set_curr_task_rt,
 	.task_tick		= task_tick_rt,
-
-	.join_domain            = join_domain_rt,
-	.leave_domain           = leave_domain_rt,
 };
