@@ -895,6 +895,8 @@ struct sched_entity {
 #ifdef CONFIG_SCHEDSTATS
 	u64			wait_start;
 	u64			wait_max;
+	u64			wait_count;
+	u64			wait_sum;
 
 	u64			sleep_start;
 	u64			sleep_max;

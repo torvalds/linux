@@ -300,6 +300,8 @@ void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 	PN(se.exec_max);
 	PN(se.slice_max);
 	PN(se.wait_max);
+	PN(se.wait_sum);
+	P(se.wait_count);
 	P(sched_info.bkl_count);
 	P(se.nr_migrations);
 	P(se.nr_migrations_cold);
@@ -367,6 +369,8 @@ void proc_sched_set_task(struct task_struct *p)
 {
 #ifdef CONFIG_SCHEDSTATS
 	p->se.wait_max				= 0;
+	p->se.wait_sum				= 0;
+	p->se.wait_count			= 0;
 	p->se.sleep_max				= 0;
 	p->se.sum_sleep_runtime			= 0;
 	p->se.block_max				= 0;
