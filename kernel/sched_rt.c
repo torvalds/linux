@@ -30,6 +30,10 @@ static inline void inc_rt_tasks(struct task_struct *p, struct rq *rq)
 {
 	WARN_ON(!rt_task(p));
 	rq->rt.rt_nr_running++;
+#ifdef CONFIG_SMP
+	if (p->prio < rq->rt.highest_prio)
+		rq->rt.highest_prio = p->prio;
+#endif /* CONFIG_SMP */
 }
 
 static inline void dec_rt_tasks(struct task_struct *p, struct rq *rq)
@@ -37,6 +41,20 @@ static inline void dec_rt_tasks(struct task_struct *p, struct rq *rq)
 	WARN_ON(!rt_task(p));
 	WARN_ON(!rq->rt.rt_nr_running);
 	rq->rt.rt_nr_running--;
+#ifdef CONFIG_SMP
+	if (rq->rt.rt_nr_running) {
+		struct rt_prio_array *array;
+
+		WARN_ON(p->prio < rq->rt.highest_prio);
+		if (p->prio == rq->rt.highest_prio) {
+			/* recalculate */
+			array = &rq->rt.active;
+			rq->rt.highest_prio =
+				sched_find_first_bit(array->bitmap);
+		} /* otherwise leave rq->highest prio alone */
+	} else
+		rq->rt.highest_prio = MAX_RT_PRIO;
+#endif /* CONFIG_SMP */
 }
 
 static void enqueue_task_rt(struct rq *rq, struct task_struct *p, int wakeup)
