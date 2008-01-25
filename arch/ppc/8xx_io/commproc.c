@@ -34,7 +34,7 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/8xx_immap.h>
-#include <asm/commproc.h>
+#include <asm/cpm1.h>
 #include <asm/io.h>
 #include <asm/tlbflush.h>
 #include <asm/rheap.h>

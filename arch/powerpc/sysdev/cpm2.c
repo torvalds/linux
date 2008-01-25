@@ -153,8 +153,7 @@ cpm2_fastbrg(uint brg, uint rate, int div16)
 
 	if (brg < 4) {
 		bp = cpm2_map_size(im_brgc1, 16);
-	}
-	else {
+	} else {
 		bp = cpm2_map_size(im_brgc5, 16);
 		brg -= 4;
 	}

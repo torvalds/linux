@@ -22,7 +22,7 @@
 #include <asm/system.h>
 #include <asm/time.h>
 #include <asm/8xx_immap.h>
-#include <asm/commproc.h>
+#include <asm/cpm1.h>
 #include <asm/fs_pd.h>
 #include <asm/udbg.h>
 

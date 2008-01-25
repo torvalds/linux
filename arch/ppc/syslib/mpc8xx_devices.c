@@ -16,7 +16,7 @@
 #include <linux/device.h>
 #include <linux/serial_8250.h>
 #include <linux/mii.h>
-#include <asm/commproc.h>
+#include <asm/cpm1.h>
 #include <asm/mpc8xx.h>
 #include <asm/irq.h>
 #include <asm/ppc_sys.h>

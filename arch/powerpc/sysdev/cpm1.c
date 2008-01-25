@@ -33,7 +33,7 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/8xx_immap.h>
-#include <asm/commproc.h>
+#include <asm/cpm1.h>
 #include <asm/io.h>
 #include <asm/tlbflush.h>
 #include <asm/rheap.h>
@@ -290,7 +290,7 @@ cpm_setbrg(uint brg, uint rate)
 		out_be32(bp, (((BRG_UART_CLK / rate) - 1) << 1) | CPM_BRG_EN);
 	else
 		out_be32(bp, (((BRG_UART_CLK_DIV16 / rate) - 1) << 1) |
-		             CPM_BRG_EN | CPM_BRG_DIV16);
+			      CPM_BRG_EN | CPM_BRG_DIV16);
 }
 
 #ifndef CONFIG_PPC_CPM_NEW_BINDING

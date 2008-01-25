@@ -14,8 +14,8 @@
  * IDMA1 space.  The remaining DP RAM is available for buffer descriptors
  * or other use.
  */
-#ifndef __CPM_8XX__
-#define __CPM_8XX__
+#ifndef __CPM1__
+#define __CPM1__
 
 #include <asm/8xx_immap.h>
 #include <asm/ptrace.h>
@@ -72,7 +72,7 @@ extern int cpm_dpfree(unsigned long offset);
 extern unsigned long cpm_dpalloc_fixed(unsigned long offset, uint size, uint align);
 extern void cpm_dpdump(void);
 extern void *cpm_dpram_addr(unsigned long offset);
-extern uint cpm_dpram_phys(u8* addr);
+extern uint cpm_dpram_phys(u8 *addr);
 extern void cpm_setbrg(uint brg, uint rate);
 
 extern void cpm_load_patch(volatile immap_t *immr);
@@ -685,4 +685,4 @@ typedef struct risc_timer_pram {
 extern void cpm_install_handler(int vec, void (*handler)(void *), void *dev_id);
 extern void cpm_free_handler(int vec);
 
-#endif /* __CPM_8XX__ */
+#endif /* __CPM1__ */

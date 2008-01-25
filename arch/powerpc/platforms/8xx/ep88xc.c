@@ -16,6 +16,7 @@
 #include <asm/io.h>
 #include <asm/udbg.h>
 #include <asm/commproc.h>
+#include <asm/cpm1.h>
 
 #include "mpc8xx.h"
 

@@ -45,7 +45,7 @@
 #include <asm/dcr.h>
 
 #ifdef  CONFIG_8xx
-#include <asm/commproc.h>
+#include <asm/cpm1.h>
 #endif
 
 extern void transfer_to_handler(void);

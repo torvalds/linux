@@ -14,8 +14,8 @@
  * IDMA1 space.  The remaining DP RAM is available for buffer descriptors
  * or other use.
  */
-#ifndef __CPM_8XX__
-#define __CPM_8XX__
+#ifndef __CPM1__
+#define __CPM1__
 
 #include <asm/8xx_immap.h>
 #include <asm/ptrace.h>
@@ -82,7 +82,7 @@ extern int cpm_dpfree(unsigned long offset);
 extern unsigned long cpm_dpalloc_fixed(unsigned long offset, uint size, uint align);
 extern void cpm_dpdump(void);
 extern void *cpm_dpram_addr(unsigned long offset);
-extern uint cpm_dpram_phys(u8* addr);
+extern uint cpm_dpram_phys(u8 *addr);
 #endif
 
 extern void cpm_setbrg(uint brg, uint rate);
@@ -747,4 +747,4 @@ enum cpm_clk {
 
 int cpm1_clk_setup(enum cpm_clk_target target, int clock, int mode);
 
-#endif /* __CPM_8XX__ */
+#endif /* __CPM1__ */

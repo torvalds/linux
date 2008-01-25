@@ -40,7 +40,7 @@
 #include <asm/8xx_immap.h>
 #include <asm/pgtable.h>
 #include <asm/mpc8xx.h>
-#include <asm/commproc.h>
+#include <asm/cpm1.h>
 #endif
 
 #ifdef CONFIG_PPC_CPM_NEW_BINDING
