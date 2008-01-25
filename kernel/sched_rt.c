@@ -4,16 +4,24 @@
  */
 
 #ifdef CONFIG_SMP
+
+/*
+ * The "RT overload" flag: it gets set if a CPU has more than
+ * one runnable RT task.
+ */
 static cpumask_t rt_overload_mask;
 static atomic_t rto_count;
+
 static inline int rt_overloaded(void)
 {
 	return atomic_read(&rto_count);
 }
+
 static inline cpumask_t *rt_overload(void)
 {
 	return &rt_overload_mask;
 }
+
 static inline void rt_set_overload(struct rq *rq)
 {
 	rq->rt.overloaded = 1;
@@ -28,6 +36,7 @@ static inline void rt_set_overload(struct rq *rq)
 	wmb();
 	atomic_inc(&rto_count);
 }
+
 static inline void rt_clear_overload(struct rq *rq)
 {
 	/* the order here really doesn't matter */
