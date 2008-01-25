@@ -701,12 +701,10 @@ static int pull_rt_task(struct rq *this_rq)
 	return ret;
 }
 
-static void schedule_balance_rt(struct rq *rq,
-				struct task_struct *prev)
+static void schedule_balance_rt(struct rq *rq, struct task_struct *prev)
 {
 	/* Try to pull RT tasks here if we lower this rq's prio */
-	if (unlikely(rt_task(prev)) &&
-	    rq->rt.highest_prio > prev->prio)
+	if (unlikely(rt_task(prev)) && rq->rt.highest_prio > prev->prio)
 		pull_rt_task(rq);
 }
 
