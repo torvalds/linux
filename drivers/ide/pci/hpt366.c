@@ -736,15 +736,6 @@ static int hpt3xx_quirkproc(ide_drive_t *drive)
 	return 0;
 }
 
-static void hpt3xx_intrproc(ide_drive_t *drive)
-{
-	if (drive->quirk_list)
-		return;
-
-	/* drives in the quirk_list may not like intr setups/cleanups */
-	outb(drive->ctl | 2, IDE_CONTROL_REG);
-}
-
 static void hpt3xx_maskproc(ide_drive_t *drive, int mask)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
@@ -1298,7 +1289,6 @@ static void __devinit init_hwif_hpt366(ide_hwif_t *hwif)
 	hwif->set_dma_mode	= &hpt3xx_set_mode;
 
 	hwif->quirkproc		= &hpt3xx_quirkproc;
-	hwif->intrproc		= &hpt3xx_intrproc;
 	hwif->maskproc		= &hpt3xx_maskproc;
 	hwif->busproc		= &hpt3xx_busproc;
 

@@ -524,8 +524,6 @@ typedef struct hwif_s {
 	void	(*pre_reset)(ide_drive_t *);
 	/* routine to reset controller after a disk reset */
 	void	(*resetproc)(ide_drive_t *);
-	/* special interrupt handling for shared pci interrupts */
-	void	(*intrproc)(ide_drive_t *);
 	/* special host masking for drive selection */
 	void	(*maskproc)(ide_drive_t *, int);
 	/* check host's drive quirk list */

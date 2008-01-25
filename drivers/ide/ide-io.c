@@ -1200,10 +1200,11 @@ static void ide_do_request (ide_hwgroup_t *hwgroup, int masked_irq)
 		if (hwgroup->hwif->sharing_irq &&
 		    hwif != hwgroup->hwif &&
 		    hwif->io_ports[IDE_CONTROL_OFFSET]) {
-			/* set nIEN for previous hwif */
-			if (hwif->intrproc)
-				hwif->intrproc(drive);
-			else
+			/*
+			 * set nIEN for previous hwif, drives in the
+			 * quirk_list may not like intr setups/cleanups
+			 */
+			if (drive->quirk_list != 1)
 				hwif->OUTB(drive->ctl | 2, IDE_CONTROL_REG);
 		}
 		hwgroup->hwif = hwif;
