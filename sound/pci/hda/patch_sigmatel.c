@@ -2226,7 +2226,7 @@ static int stac92xx_auto_create_multi_out_ctls(struct hda_codec *codec,
 	int i, err;
 
 	struct sigmatel_spec *spec = codec->spec;
-	unsigned int wid_caps;
+	unsigned int wid_caps, pincap;
 
 
 	for (i = 0; i < cfg->line_outs; i++) {
@@ -2262,13 +2262,31 @@ static int stac92xx_auto_create_multi_out_ctls(struct hda_codec *codec,
 		}
 	}
 
-	if (spec->line_switch)
-		if ((err = stac92xx_add_control(spec, STAC_CTL_WIDGET_IO_SWITCH, "Line In as Output Switch", cfg->input_pins[AUTO_PIN_LINE] << 8)) < 0)
-			return err;
+	if (spec->line_switch) {
+		nid = cfg->input_pins[AUTO_PIN_LINE];
+		pincap = snd_hda_param_read(codec, nid,
+						AC_PAR_PIN_CAP);
+		if (pincap & AC_PINCAP_OUT) {
+			err = stac92xx_add_control(spec,
+				STAC_CTL_WIDGET_IO_SWITCH,
+				"Line In as Output Switch", nid << 8);
+			if (err < 0)
+				return err;
+		}
+	}
 
-	if (spec->mic_switch)
-		if ((err = stac92xx_add_control(spec, STAC_CTL_WIDGET_IO_SWITCH, "Mic as Output Switch", (cfg->input_pins[AUTO_PIN_MIC] << 8) | 1)) < 0)
-			return err;
+	if (spec->mic_switch) {
+		nid = cfg->input_pins[AUTO_PIN_MIC];
+		pincap = snd_hda_param_read(codec, nid,
+						AC_PAR_PIN_CAP);
+		if (pincap & AC_PINCAP_OUT) {
+			err = stac92xx_add_control(spec,
+				STAC_CTL_WIDGET_IO_SWITCH,
+				"Mic as Output Switch", (nid << 8) | 1);
+			if (err < 0)
+				return err;
+		}
+	}
 
 	return 0;
 }
