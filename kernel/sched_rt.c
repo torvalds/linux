@@ -877,10 +877,8 @@ static int pull_rt_task(struct rq *this_rq)
 		/*
 		 * Are there still pullable RT tasks?
 		 */
-		if (src_rq->rt.rt_nr_running <= 1) {
-			spin_unlock(&src_rq->lock);
-			continue;
-		}
+		if (src_rq->rt.rt_nr_running <= 1)
+			goto skip;
 
 		p = pick_next_highest_task_rt(src_rq, this_cpu);
 
@@ -904,7 +902,7 @@ static int pull_rt_task(struct rq *this_rq)
 			 */
 			if (p->prio < src_rq->curr->prio ||
 			    (next && next->prio < src_rq->curr->prio))
-				goto out;
+				goto skip;
 
 			ret = 1;
 
@@ -924,7 +922,7 @@ static int pull_rt_task(struct rq *this_rq)
 			next = p;
 
 		}
- out:
+ skip:
 		spin_unlock(&src_rq->lock);
 	}
 
