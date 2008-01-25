@@ -140,7 +140,8 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq, 
 	u8 lba48		= (drive->addressing == 1) ? 1 : 0;
 	u8 command		= WIN_NOP;
 	ata_nsector_t		nsectors;
-	struct ide_taskfile ltf, *tf = &ltf;
+	ide_task_t		task;
+	struct ide_taskfile	*tf = &task.tf;
 
 	nsectors.all		= (u16) rq->nr_sectors;
 
@@ -156,12 +157,8 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq, 
 		ide_map_sg(drive, rq);
 	}
 
-	if (IDE_CONTROL_REG)
-		hwif->OUTB(drive->ctl, IDE_CONTROL_REG);
-
-	/* FIXME: SELECT_MASK(drive, 0) ? */
-
-	memset(tf, 0, sizeof(*tf));
+	memset(&task, 0, sizeof(task));
+	task.tf_flags = IDE_TFLAG_NO_SELECT_MASK;  /* FIXME? */
 
 	if (drive->select.b.lba) {
 		if (lba48) {
@@ -185,6 +182,7 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq, 
 				tf->hob_lbah, tf->hob_lbam, tf->hob_lbal,
 				tf->lbah, tf->lbam, tf->lbal);
 #endif
+			task.tf_flags |= IDE_TFLAG_LBA48;
 		} else {
 			tf->nsect  = nsectors.b.low;
 			tf->lbal   = block;
@@ -208,21 +206,7 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq, 
 		tf->device = head;
 	}
 
-	if (drive->select.b.lba && lba48) {
-		hwif->OUTB(tf->hob_feature, IDE_FEATURE_REG);
-		hwif->OUTB(tf->hob_nsect, IDE_NSECTOR_REG);
-		hwif->OUTB(tf->hob_lbal, IDE_SECTOR_REG);
-		hwif->OUTB(tf->hob_lbam, IDE_LCYL_REG);
-		hwif->OUTB(tf->hob_lbah, IDE_HCYL_REG);
-	}
-
-	hwif->OUTB(tf->feature, IDE_FEATURE_REG);
-	hwif->OUTB(tf->nsect, IDE_NSECTOR_REG);
-	hwif->OUTB(tf->lbal, IDE_SECTOR_REG);
-	hwif->OUTB(tf->lbam, IDE_LCYL_REG);
-	hwif->OUTB(tf->lbah, IDE_HCYL_REG);
-
-	hwif->OUTB(tf->device | drive->select.all, IDE_SELECT_REG);
+	ide_tf_load(drive, &task);
 
 	if (dma) {
 		if (!hwif->dma_setup(drive)) {

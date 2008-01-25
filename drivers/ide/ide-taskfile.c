@@ -63,6 +63,37 @@ static void taskfile_output_data(ide_drive_t *drive, void *buffer, u32 wcount)
 	}
 }
 
+void ide_tf_load(ide_drive_t *drive, ide_task_t *task)
+{
+	ide_hwif_t *hwif = drive->hwif;
+	struct ide_taskfile *tf = &task->tf;
+	u8 HIHI = (task->tf_flags & IDE_TFLAG_LBA48) ? 0xE0 : 0xEF;
+
+	if (IDE_CONTROL_REG)
+		hwif->OUTB(drive->ctl, IDE_CONTROL_REG); /* clear nIEN */
+
+	if ((task->tf_flags & IDE_TFLAG_NO_SELECT_MASK) == 0)
+		SELECT_MASK(drive, 0);
+
+	if (task->tf_flags & IDE_TFLAG_LBA48) {
+		hwif->OUTB(tf->hob_feature, IDE_FEATURE_REG);
+		hwif->OUTB(tf->hob_nsect, IDE_NSECTOR_REG);
+		hwif->OUTB(tf->hob_lbal, IDE_SECTOR_REG);
+		hwif->OUTB(tf->hob_lbam, IDE_LCYL_REG);
+		hwif->OUTB(tf->hob_lbah, IDE_HCYL_REG);
+	}
+
+	hwif->OUTB(tf->feature, IDE_FEATURE_REG);
+	hwif->OUTB(tf->nsect, IDE_NSECTOR_REG);
+	hwif->OUTB(tf->lbal, IDE_SECTOR_REG);
+	hwif->OUTB(tf->lbam, IDE_LCYL_REG);
+	hwif->OUTB(tf->lbah, IDE_HCYL_REG);
+
+	hwif->OUTB((tf->device & HIHI) | drive->select.all, IDE_SELECT_REG);
+}
+
+EXPORT_SYMBOL_GPL(ide_tf_load);
+
 int taskfile_lib_get_identify (ide_drive_t *drive, u8 *buf)
 {
 	ide_task_t args;
@@ -83,30 +114,11 @@ ide_startstop_t do_rw_taskfile (ide_drive_t *drive, ide_task_t *task)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct ide_taskfile *tf = &task->tf;
-	u8 HIHI			= (drive->addressing == 1) ? 0xE0 : 0xEF;
 
-	/* ALL Command Block Executions SHALL clear nIEN, unless otherwise */
-	if (IDE_CONTROL_REG) {
-		/* clear nIEN */
-		hwif->OUTB(drive->ctl, IDE_CONTROL_REG);
-	}
-	SELECT_MASK(drive, 0);
+	if (drive->addressing == 1)
+		task->tf_flags |= IDE_TFLAG_LBA48;
 
-	if (drive->addressing == 1) {
-		hwif->OUTB(tf->hob_feature, IDE_FEATURE_REG);
-		hwif->OUTB(tf->hob_nsect, IDE_NSECTOR_REG);
-		hwif->OUTB(tf->hob_lbal, IDE_SECTOR_REG);
-		hwif->OUTB(tf->hob_lbam, IDE_LCYL_REG);
-		hwif->OUTB(tf->hob_lbah, IDE_HCYL_REG);
-	}
-
-	hwif->OUTB(tf->feature, IDE_FEATURE_REG);
-	hwif->OUTB(tf->nsect, IDE_NSECTOR_REG);
-	hwif->OUTB(tf->lbal, IDE_SECTOR_REG);
-	hwif->OUTB(tf->lbam, IDE_LCYL_REG);
-	hwif->OUTB(tf->lbah, IDE_HCYL_REG);
-
-	hwif->OUTB((tf->device & HIHI) | drive->select.all, IDE_SELECT_REG);
+	ide_tf_load(drive, task);
 
 	if (task->handler != NULL) {
 		if (task->prehandler != NULL) {

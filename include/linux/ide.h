@@ -1060,6 +1060,11 @@ extern void ide_end_drive_cmd(ide_drive_t *, u8, u8);
  */
 extern int ide_wait_cmd(ide_drive_t *, u8, u8, u8, u8, u8 *);
 
+enum {
+	IDE_TFLAG_LBA48			= (1 << 0),
+	IDE_TFLAG_NO_SELECT_MASK	= (1 << 1),
+};
+
 struct ide_taskfile {
 	u8	hob_data;	/*  0: high data byte (for TASKFILE IOCTL) */
 
@@ -1094,6 +1099,7 @@ typedef struct ide_task_s {
 		struct ide_taskfile	tf;
 		u8			tf_array[14];
 	};
+	u8			tf_flags;
 	ide_reg_valid_t		tf_out_flags;
 	ide_reg_valid_t		tf_in_flags;
 	int			data_phase;
@@ -1103,6 +1109,8 @@ typedef struct ide_task_s {
 	struct request		*rq;		/* copy of request */
 	void			*special;	/* valid_t generally */
 } ide_task_t;
+
+void ide_tf_load(ide_drive_t *, ide_task_t *);
 
 extern u32 ide_read_24(ide_drive_t *);
 
