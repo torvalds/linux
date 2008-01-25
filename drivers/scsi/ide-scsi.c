@@ -398,10 +398,9 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 	ide_hwif_t *hwif = drive->hwif;
 	idescsi_pc_t *pc = scsi->pc;
 	struct request *rq = pc->rq;
-	atapi_ireason_t ireason;
 	unsigned int temp;
 	u16 bcount;
-	u8 stat;
+	u8 stat, ireason;
 
 #if IDESCSI_DEBUG_LOG
 	printk (KERN_INFO "ide-scsi: Reached idescsi_pc_intr interrupt handler\n");
@@ -439,13 +438,13 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 	}
 	bcount = (hwif->INB(IDE_BCOUNTH_REG) << 8) |
 		  hwif->INB(IDE_BCOUNTL_REG);
-	ireason.all	= HWIF(drive)->INB(IDE_IREASON_REG);
+	ireason = hwif->INB(IDE_IREASON_REG);
 
-	if (ireason.b.cod) {
+	if (ireason & CD) {
 		printk(KERN_ERR "ide-scsi: CoD != 0 in idescsi_pc_intr\n");
 		return ide_do_reset (drive);
 	}
-	if (ireason.b.io) {
+	if (ireason & IO) {
 		temp = pc->actually_transferred + bcount;
 		if (temp > pc->request_transfer) {
 			if (temp > pc->buffer_size) {
@@ -474,7 +473,7 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 #endif /* IDESCSI_DEBUG_LOG */
 		}
 	}
-	if (ireason.b.io) {
+	if (ireason & IO) {
 		clear_bit(PC_WRITING, &pc->flags);
 		if (pc->sg)
 			idescsi_input_buffers(drive, pc, bcount);
@@ -503,16 +502,16 @@ static ide_startstop_t idescsi_transfer_pc(ide_drive_t *drive)
 	ide_hwif_t *hwif = drive->hwif;
 	idescsi_scsi_t *scsi = drive_to_idescsi(drive);
 	idescsi_pc_t *pc = scsi->pc;
-	atapi_ireason_t ireason;
 	ide_startstop_t startstop;
+	u8 ireason;
 
 	if (ide_wait_stat(&startstop,drive,DRQ_STAT,BUSY_STAT,WAIT_READY)) {
 		printk(KERN_ERR "ide-scsi: Strange, packet command "
 			"initiated yet DRQ isn't asserted\n");
 		return startstop;
 	}
-	ireason.all	= HWIF(drive)->INB(IDE_IREASON_REG);
-	if (!ireason.b.cod || ireason.b.io) {
+	ireason = hwif->INB(IDE_IREASON_REG);
+	if ((ireason & CD) == 0 || (ireason & IO)) {
 		printk(KERN_ERR "ide-scsi: (IO,CoD) != (0,1) while "
 				"issuing a packet command\n");
 		return ide_do_reset (drive);
