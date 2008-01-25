@@ -781,6 +781,8 @@ static struct dib7000p_config dib7070p_dib7000p_config = {
 	.agc_config_count = 1,
 	.agc = &dib7070_agc_config,
 	.bw  = &dib7070_bw_config_12_mhz,
+	.tuner_is_baseband = 1,
+	.spur_protect = 1,
 
 	.gpio_dir = DIB7000P_GPIO_DEFAULT_DIRECTIONS,
 	.gpio_val = DIB7000P_GPIO_DEFAULT_VALUES,
@@ -820,6 +822,8 @@ static struct dib7000p_config stk7070pd_dib7000p_config[2] = {
 		.agc_config_count = 1,
 		.agc = &dib7070_agc_config,
 		.bw  = &dib7070_bw_config_12_mhz,
+		.tuner_is_baseband = 1,
+		.spur_protect = 1,
 
 		.gpio_dir = DIB7000P_GPIO_DEFAULT_DIRECTIONS,
 		.gpio_val = DIB7000P_GPIO_DEFAULT_VALUES,
@@ -832,6 +836,8 @@ static struct dib7000p_config stk7070pd_dib7000p_config[2] = {
 		.agc_config_count = 1,
 		.agc = &dib7070_agc_config,
 		.bw  = &dib7070_bw_config_12_mhz,
+		.tuner_is_baseband = 1,
+		.spur_protect = 1,
 
 		.gpio_dir = DIB7000P_GPIO_DEFAULT_DIRECTIONS,
 		.gpio_val = DIB7000P_GPIO_DEFAULT_VALUES,
