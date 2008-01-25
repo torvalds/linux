@@ -148,10 +148,6 @@ static void stx_gp3_show_cpuinfo(struct seq_file *m)
 }
 
 static struct of_device_id __initdata of_bus_ids[] = {
-	{ .name = "soc", },
-	{ .type = "soc", },
-	{ .name = "cpm", },
-	{ .name = "localbus", },
 	{ .compatible = "simple-bus", },
 	{},
 };

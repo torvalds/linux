@@ -47,7 +47,7 @@
 		reg = <0x00000000 0x10000000>;
 	};
 
-	soc8541@e0000000 {
+	soc@e0000000 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		device_type = "soc";
