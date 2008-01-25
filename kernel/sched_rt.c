@@ -281,35 +281,111 @@ static struct task_struct *pick_next_highest_task_rt(struct rq *rq,
 }
 
 static DEFINE_PER_CPU(cpumask_t, local_cpu_mask);
+static DEFINE_PER_CPU(cpumask_t, valid_cpu_mask);
 
-static int find_lowest_rq(struct task_struct *task)
+static int find_lowest_cpus(struct task_struct *task, cpumask_t *lowest_mask)
 {
-	int cpu;
-	cpumask_t *cpu_mask = &__get_cpu_var(local_cpu_mask);
-	struct rq *lowest_rq = NULL;
+	int       cpu;
+	cpumask_t *valid_mask = &__get_cpu_var(valid_cpu_mask);
+	int       lowest_prio = -1;
+	int       ret         = 0;
 
-	cpus_and(*cpu_mask, cpu_online_map, task->cpus_allowed);
+	cpus_clear(*lowest_mask);
+	cpus_and(*valid_mask, cpu_online_map, task->cpus_allowed);
 
 	/*
 	 * Scan each rq for the lowest prio.
 	 */
-	for_each_cpu_mask(cpu, *cpu_mask) {
+	for_each_cpu_mask(cpu, *valid_mask) {
 		struct rq *rq = cpu_rq(cpu);
 
 		/* We look for lowest RT prio or non-rt CPU */
 		if (rq->rt.highest_prio >= MAX_RT_PRIO) {
-			lowest_rq = rq;
-			break;
+			if (ret)
+				cpus_clear(*lowest_mask);
+			cpu_set(rq->cpu, *lowest_mask);
+			return 1;
 		}
 
 		/* no locking for now */
-		if (rq->rt.highest_prio > task->prio &&
-		    (!lowest_rq || rq->rt.highest_prio > lowest_rq->rt.highest_prio)) {
-			lowest_rq = rq;
+		if ((rq->rt.highest_prio > task->prio)
+		    && (rq->rt.highest_prio >= lowest_prio)) {
+			if (rq->rt.highest_prio > lowest_prio) {
+				/* new low - clear old data */
+				lowest_prio = rq->rt.highest_prio;
+				cpus_clear(*lowest_mask);
+			}
+			cpu_set(rq->cpu, *lowest_mask);
+			ret = 1;
 		}
 	}
 
-	return lowest_rq ? lowest_rq->cpu : -1;
+	return ret;
+}
+
+static inline int pick_optimal_cpu(int this_cpu, cpumask_t *mask)
+{
+	int first;
+
+	/* "this_cpu" is cheaper to preempt than a remote processor */
+	if ((this_cpu != -1) && cpu_isset(this_cpu, *mask))
+		return this_cpu;
+
+	first = first_cpu(*mask);
+	if (first != NR_CPUS)
+		return first;
+
+	return -1;
+}
+
+static int find_lowest_rq(struct task_struct *task)
+{
+	struct sched_domain *sd;
+	cpumask_t *lowest_mask = &__get_cpu_var(local_cpu_mask);
+	int this_cpu = smp_processor_id();
+	int cpu      = task_cpu(task);
+
+	if (!find_lowest_cpus(task, lowest_mask))
+		return -1;
+
+	/*
+	 * At this point we have built a mask of cpus representing the
+	 * lowest priority tasks in the system.  Now we want to elect
+	 * the best one based on our affinity and topology.
+	 *
+	 * We prioritize the last cpu that the task executed on since
+	 * it is most likely cache-hot in that location.
+	 */
+	if (cpu_isset(cpu, *lowest_mask))
+		return cpu;
+
+	/*
+	 * Otherwise, we consult the sched_domains span maps to figure
+	 * out which cpu is logically closest to our hot cache data.
+	 */
+	if (this_cpu == cpu)
+		this_cpu = -1; /* Skip this_cpu opt if the same */
+
+	for_each_domain(cpu, sd) {
+		if (sd->flags & SD_WAKE_AFFINE) {
+			cpumask_t domain_mask;
+			int       best_cpu;
+
+			cpus_and(domain_mask, sd->span, *lowest_mask);
+
+			best_cpu = pick_optimal_cpu(this_cpu,
+						    &domain_mask);
+			if (best_cpu != -1)
+				return best_cpu;
+		}
+	}
+
+	/*
+	 * And finally, if there were no matches within the domains
+	 * just give the caller *something* to work with from the compatible
+	 * locations.
+	 */
+	return pick_optimal_cpu(this_cpu, lowest_mask);
 }
 
 /* Will lock the rq it finds */
