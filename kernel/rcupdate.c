@@ -73,8 +73,6 @@ static struct rcu_ctrlblk rcu_bh_ctrlblk = {
 DEFINE_PER_CPU(struct rcu_data, rcu_data) = { 0L };
 DEFINE_PER_CPU(struct rcu_data, rcu_bh_data) = { 0L };
 
-/* Fake initialization required by compiler */
-static DEFINE_PER_CPU(struct tasklet_struct, rcu_tasklet) = {NULL};
 static int blimit = 10;
 static int qhimark = 10000;
 static int qlowmark = 100;
@@ -231,6 +229,18 @@ void rcu_barrier(void)
 }
 EXPORT_SYMBOL_GPL(rcu_barrier);
 
+/* Raises the softirq for processing rcu_callbacks. */
+static inline void raise_rcu_softirq(void)
+{
+	raise_softirq(RCU_SOFTIRQ);
+	/*
+	 * The smp_mb() here is required to ensure that this cpu's
+	 * __rcu_process_callbacks() reads the most recently updated
+	 * value of rcu->cur.
+	 */
+	smp_mb();
+}
+
 /*
  * Invoke the completed RCU callbacks. They are expected to be in
  * a per-cpu list.
@@ -260,7 +270,7 @@ static void rcu_do_batch(struct rcu_data *rdp)
 	if (!rdp->donelist)
 		rdp->donetail = &rdp->donelist;
 	else
-		tasklet_schedule(&per_cpu(rcu_tasklet, rdp->cpu));
+		raise_rcu_softirq();
 }
 
 /*
@@ -412,7 +422,6 @@ static void rcu_offline_cpu(int cpu)
 					&per_cpu(rcu_bh_data, cpu));
 	put_cpu_var(rcu_data);
 	put_cpu_var(rcu_bh_data);
-	tasklet_kill_immediate(&per_cpu(rcu_tasklet, cpu), cpu);
 }
 
 #else
@@ -424,7 +433,7 @@ static void rcu_offline_cpu(int cpu)
 #endif
 
 /*
- * This does the RCU processing work from tasklet context. 
+ * This does the RCU processing work from softirq context.
  */
 static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp,
 					struct rcu_data *rdp)
@@ -469,7 +478,7 @@ static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp,
 		rcu_do_batch(rdp);
 }
 
-static void rcu_process_callbacks(unsigned long unused)
+static void rcu_process_callbacks(struct softirq_action *unused)
 {
 	__rcu_process_callbacks(&rcu_ctrlblk, &__get_cpu_var(rcu_data));
 	__rcu_process_callbacks(&rcu_bh_ctrlblk, &__get_cpu_var(rcu_bh_data));
@@ -533,7 +542,7 @@ void rcu_check_callbacks(int cpu, int user)
 		rcu_bh_qsctr_inc(cpu);
 	} else if (!in_softirq())
 		rcu_bh_qsctr_inc(cpu);
-	tasklet_schedule(&per_cpu(rcu_tasklet, cpu));
+	raise_rcu_softirq();
 }
 
 static void rcu_init_percpu_data(int cpu, struct rcu_ctrlblk *rcp,
@@ -556,7 +565,7 @@ static void __cpuinit rcu_online_cpu(int cpu)
 
 	rcu_init_percpu_data(cpu, &rcu_ctrlblk, rdp);
 	rcu_init_percpu_data(cpu, &rcu_bh_ctrlblk, bh_rdp);
-	tasklet_init(&per_cpu(rcu_tasklet, cpu), rcu_process_callbacks, 0UL);
+	open_softirq(RCU_SOFTIRQ, rcu_process_callbacks, NULL);
 }
 
 static int __cpuinit rcu_cpu_notify(struct notifier_block *self,
