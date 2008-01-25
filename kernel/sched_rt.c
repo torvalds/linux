@@ -558,6 +558,15 @@ static void schedule_tail_balance_rt(struct rq *rq)
 	}
 }
 
+
+static void wakeup_balance_rt(struct rq *rq, struct task_struct *p)
+{
+	if (unlikely(rt_task(p)) &&
+	    !task_running(rq, p) &&
+	    (p->prio >= rq->curr->prio))
+		push_rt_tasks(rq);
+}
+
 /*
  * Load-balancing iterator. Note: while the runqueue stays locked
  * during the whole iteration, the current task might be
@@ -665,6 +674,7 @@ move_one_task_rt(struct rq *this_rq, int this_cpu, struct rq *busiest,
 #else /* CONFIG_SMP */
 # define schedule_tail_balance_rt(rq)	do { } while (0)
 # define schedule_balance_rt(rq, prev)	do { } while (0)
+# define wakeup_balance_rt(rq, p)	do { } while (0)
 #endif /* CONFIG_SMP */
 
 static void task_tick_rt(struct rq *rq, struct task_struct *p)
