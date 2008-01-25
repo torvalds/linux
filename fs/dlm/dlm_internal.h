@@ -403,6 +403,12 @@ struct dlm_rcom {
 	char			rc_buf[0];
 };
 
+union dlm_packet {
+	struct dlm_header	header;		/* common to other two */
+	struct dlm_message	message;
+	struct dlm_rcom		rcom;
+};
+
 struct rcom_config {
 	uint32_t		rf_lvblen;
 	uint32_t		rf_lsflags;

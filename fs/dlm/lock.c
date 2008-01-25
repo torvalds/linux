@@ -3822,21 +3822,20 @@ void dlm_receive_message_saved(struct dlm_ls *ls, struct dlm_message *ms)
    standard locking activity) or an RCOM (recovery message sent as part of
    lockspace recovery). */
 
-void dlm_receive_buffer(struct dlm_header *hd, int nodeid)
+void dlm_receive_buffer(union dlm_packet *p, int nodeid)
 {
-	struct dlm_message *ms = (struct dlm_message *) hd;
-	struct dlm_rcom *rc = (struct dlm_rcom *) hd;
+	struct dlm_header *hd = &p->header;
 	struct dlm_ls *ls;
 	int type = 0;
 
 	switch (hd->h_cmd) {
 	case DLM_MSG:
-		dlm_message_in(ms);
-		type = ms->m_type;
+		dlm_message_in(&p->message);
+		type = p->message.m_type;
 		break;
 	case DLM_RCOM:
-		dlm_rcom_in(rc);
-		type = rc->rc_type;
+		dlm_rcom_in(&p->rcom);
+		type = p->rcom.rc_type;
 		break;
 	default:
 		log_print("invalid h_cmd %d from %u", hd->h_cmd, nodeid);
@@ -3856,7 +3855,7 @@ void dlm_receive_buffer(struct dlm_header *hd, int nodeid)
 				  hd->h_lockspace, nodeid, hd->h_cmd, type);
 
 		if (hd->h_cmd == DLM_RCOM && type == DLM_RCOM_STATUS)
-			dlm_send_ls_not_ready(nodeid, rc);
+			dlm_send_ls_not_ready(nodeid, &p->rcom);
 		return;
 	}
 
@@ -3865,9 +3864,9 @@ void dlm_receive_buffer(struct dlm_header *hd, int nodeid)
 
 	down_read(&ls->ls_recv_active);
 	if (hd->h_cmd == DLM_MSG)
-		dlm_receive_message(ls, ms, nodeid);
+		dlm_receive_message(ls, &p->message, nodeid);
 	else
-		dlm_receive_rcom(ls, rc, nodeid);
+		dlm_receive_rcom(ls, &p->rcom, nodeid);
 	up_read(&ls->ls_recv_active);
 
 	dlm_put_lockspace(ls);
