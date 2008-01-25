@@ -599,8 +599,8 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 
 	memcpy(&args.tf_array[0], req_task->hob_ports, HDIO_DRIVE_HOB_HDR_SIZE - 2);
 	memcpy(&args.tf_array[6], req_task->io_ports, HDIO_DRIVE_TASK_HDR_SIZE);
-	args.tf_in_flags  = req_task->in_flags;
-	args.data_phase   = req_task->data_phase;
+
+	args.data_phase = req_task->data_phase;
 
 	args.tf_flags = IDE_TFLAG_OUT_DEVICE;
 	if (drive->addressing == 1)
@@ -636,6 +636,9 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 		if (args.tf_flags & IDE_TFLAG_LBA48)
 			args.tf_flags |= IDE_TFLAG_OUT_HOB;
 	}
+
+	if (req_task->in_flags.b.data)
+		args.tf_flags |= IDE_TFLAG_IN_DATA;
 
 	drive->io_32bit = 0;
 	switch(req_task->data_phase) {
@@ -704,7 +707,13 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 
 	memcpy(req_task->hob_ports, &args.tf_array[0], HDIO_DRIVE_HOB_HDR_SIZE - 2);
 	memcpy(req_task->io_ports, &args.tf_array[6], HDIO_DRIVE_TASK_HDR_SIZE);
-	req_task->in_flags  = args.tf_in_flags;
+
+	if ((args.tf_flags & IDE_TFLAG_FLAGGED_SET_IN_FLAGS) &&
+	    req_task->in_flags.all == 0) {
+		req_task->in_flags.all = IDE_TASKFILE_STD_IN_FLAGS;
+		if (drive->addressing == 1)
+			req_task->in_flags.all |= (IDE_HOB_STD_IN_FLAGS << 8);
+	}
 
 	if (copy_to_user(buf, req_task, tasksize)) {
 		err = -EFAULT;
@@ -846,19 +855,7 @@ ide_startstop_t flagged_taskfile (ide_drive_t *drive, ide_task_t *task)
 		}
 	}
 
-	/*
-	 * (ks) Check taskfile in flags.
-	 * If set, then execute as it is defined.
-	 * If not set, then define default settings.
-	 * The default values are:
-	 *	read all taskfile registers (except data)
-	 *	read the hob registers (sector, nsector, lcyl, hcyl)
-	 */
-	if (task->tf_in_flags.all == 0) {
-		task->tf_in_flags.all = IDE_TASKFILE_STD_IN_FLAGS;
-		if (drive->addressing == 1)
-			task->tf_in_flags.all |= (IDE_HOB_STD_IN_FLAGS  << 8);
-        }
+	task->tf_flags |= IDE_TFLAG_FLAGGED_SET_IN_FLAGS;
 
 	return do_rw_taskfile(drive, task);
 }

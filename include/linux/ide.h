@@ -910,6 +910,8 @@ enum {
 					  IDE_TFLAG_OUT_LBAH,
 	IDE_TFLAG_OUT_DEVICE		= (1 << 14),
 	IDE_TFLAG_WRITE			= (1 << 15),
+	IDE_TFLAG_FLAGGED_SET_IN_FLAGS	= (1 << 16),
+	IDE_TFLAG_IN_DATA		= (1 << 17),
 };
 
 struct ide_taskfile {
@@ -946,8 +948,7 @@ typedef struct ide_task_s {
 		struct ide_taskfile	tf;
 		u8			tf_array[14];
 	};
-	u16			tf_flags;
-	ide_reg_valid_t		tf_in_flags;
+	u32			tf_flags;
 	int			data_phase;
 	ide_pre_handler_t	*prehandler;
 	ide_handler_t		*handler;

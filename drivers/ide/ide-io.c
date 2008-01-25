@@ -340,7 +340,7 @@ void ide_end_drive_cmd (ide_drive_t *drive, u8 stat, u8 err)
 		if (args) {
 			struct ide_taskfile *tf = &args->tf;
 
-			if (args->tf_in_flags.b.data) {
+			if (args->tf_flags & IDE_TFLAG_IN_DATA) {
 				u16 data = hwif->INW(IDE_DATA_REG);
 
 				tf->data = data & 0xff;
