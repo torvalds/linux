@@ -1019,7 +1019,8 @@ int ide_end_dequeued_request(ide_drive_t *drive, struct request *rq,
 
 extern void ide_set_handler (ide_drive_t *drive, ide_handler_t *handler, unsigned int timeout, ide_expiry_t *expiry);
 
-extern void ide_execute_command(ide_drive_t *, task_ioreg_t cmd, ide_handler_t *, unsigned int, ide_expiry_t *);
+void ide_execute_command(ide_drive_t *, u8, ide_handler_t *, unsigned int,
+			 ide_expiry_t *);
 
 ide_startstop_t __ide_error(ide_drive_t *, struct request *, u8, u8);
 
@@ -1068,8 +1069,8 @@ typedef struct ide_task_s {
  *	struct hd_drive_hob_hdr		hobf;
  *	hob_struct_t		hobf;
  */
-	task_ioreg_t		tfRegister[8];
-	task_ioreg_t		hobRegister[8];
+	u8			tfRegister[8];
+	u8			hobRegister[8];
 	ide_reg_valid_t		tf_out_flags;
 	ide_reg_valid_t		tf_in_flags;
 	int			data_phase;

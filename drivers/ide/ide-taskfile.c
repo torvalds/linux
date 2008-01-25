@@ -519,8 +519,8 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 	ide_task_t		args;
 	u8 *outbuf		= NULL;
 	u8 *inbuf		= NULL;
-	task_ioreg_t *argsptr	= args.tfRegister;
-	task_ioreg_t *hobsptr	= args.hobRegister;
+	u8 *argsptr		= args.tfRegister;
+	u8 *hobsptr		= args.hobRegister;
 	int err			= 0;
 	int tasksize		= sizeof(struct ide_task_request_s);
 	unsigned int taskin	= 0;
