@@ -33,6 +33,14 @@ static inline void rt_clear_overload(struct rq *rq)
 	atomic_dec(&rto_count);
 	cpu_clear(rq->cpu, rt_overload_mask);
 }
+
+static void update_rt_migration(struct rq *rq)
+{
+	if (rq->rt.rt_nr_migratory && (rq->rt.rt_nr_running > 1))
+		rt_set_overload(rq);
+	else
+		rt_clear_overload(rq);
+}
 #endif /* CONFIG_SMP */
 
 /*
@@ -65,8 +73,10 @@ static inline void inc_rt_tasks(struct task_struct *p, struct rq *rq)
 #ifdef CONFIG_SMP
 	if (p->prio < rq->rt.highest_prio)
 		rq->rt.highest_prio = p->prio;
-	if (rq->rt.rt_nr_running > 1)
-		rt_set_overload(rq);
+	if (p->nr_cpus_allowed > 1)
+		rq->rt.rt_nr_migratory++;
+
+	update_rt_migration(rq);
 #endif /* CONFIG_SMP */
 }
 
@@ -88,8 +98,10 @@ static inline void dec_rt_tasks(struct task_struct *p, struct rq *rq)
 		} /* otherwise leave rq->highest prio alone */
 	} else
 		rq->rt.highest_prio = MAX_RT_PRIO;
-	if (rq->rt.rt_nr_running < 2)
-		rt_clear_overload(rq);
+	if (p->nr_cpus_allowed > 1)
+		rq->rt.rt_nr_migratory--;
+
+	update_rt_migration(rq);
 #endif /* CONFIG_SMP */
 }
 
@@ -182,7 +194,8 @@ static void deactivate_task(struct rq *rq, struct task_struct *p, int sleep);
 static int pick_rt_task(struct rq *rq, struct task_struct *p, int cpu)
 {
 	if (!task_running(rq, p) &&
-	    (cpu < 0 || cpu_isset(cpu, p->cpus_allowed)))
+	    (cpu < 0 || cpu_isset(cpu, p->cpus_allowed)) &&
+	    (p->nr_cpus_allowed > 1))
 		return 1;
 	return 0;
 }
@@ -584,6 +597,32 @@ move_one_task_rt(struct rq *this_rq, int this_cpu, struct rq *busiest,
 	/* don't touch RT tasks */
 	return 0;
 }
+static void set_cpus_allowed_rt(struct task_struct *p, cpumask_t *new_mask)
+{
+	int weight = cpus_weight(*new_mask);
+
+	BUG_ON(!rt_task(p));
+
+	/*
+	 * Update the migration status of the RQ if we have an RT task
+	 * which is running AND changing its weight value.
+	 */
+	if (p->se.on_rq && (weight != p->nr_cpus_allowed)) {
+		struct rq *rq = task_rq(p);
+
+		if ((p->nr_cpus_allowed <= 1) && (weight > 1))
+			rq->rt.rt_nr_migratory++;
+		else if((p->nr_cpus_allowed > 1) && (weight <= 1)) {
+			BUG_ON(!rq->rt.rt_nr_migratory);
+			rq->rt.rt_nr_migratory--;
+		}
+
+		update_rt_migration(rq);
+	}
+
+	p->cpus_allowed    = *new_mask;
+	p->nr_cpus_allowed = weight;
+}
 #else /* CONFIG_SMP */
 # define schedule_tail_balance_rt(rq)	do { } while (0)
 # define schedule_balance_rt(rq, prev)	do { } while (0)
@@ -637,6 +676,7 @@ const struct sched_class rt_sched_class = {
 #ifdef CONFIG_SMP
 	.load_balance		= load_balance_rt,
 	.move_one_task		= move_one_task_rt,
+	.set_cpus_allowed       = set_cpus_allowed_rt,
 #endif
 
 	.set_curr_task          = set_curr_task_rt,
