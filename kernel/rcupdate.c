@@ -115,7 +115,17 @@ void rcu_barrier(void)
 	mutex_lock(&rcu_barrier_mutex);
 	init_completion(&rcu_barrier_completion);
 	atomic_set(&rcu_barrier_cpu_count, 0);
+	/*
+	 * The queueing of callbacks in all CPUs must be atomic with
+	 * respect to RCU, otherwise one CPU may queue a callback,
+	 * wait for a grace period, decrement barrier count and call
+	 * complete(), while other CPUs have not yet queued anything.
+	 * So, we need to make sure that grace periods cannot complete
+	 * until all the callbacks are queued.
+	 */
+	rcu_read_lock();
 	on_each_cpu(rcu_barrier_func, NULL, 0, 1);
+	rcu_read_unlock();
 	wait_for_completion(&rcu_barrier_completion);
 	mutex_unlock(&rcu_barrier_mutex);
 }
