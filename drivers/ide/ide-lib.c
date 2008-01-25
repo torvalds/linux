@@ -524,19 +524,24 @@ static u8 ide_dump_ata_status(ide_drive_t *drive, const char *msg, u8 stat)
 				       (unsigned long long) sectors,
 				       high, low);
 			} else {
-				u8 cur = hwif->INB(IDE_SELECT_REG);
+				u8 sector, lcyl, hcyl, cur;
+
+				sector = hwif->INB(IDE_SECTOR_REG);
+				lcyl   = hwif->INB(IDE_LCYL_REG);
+				hcyl   = hwif->INB(IDE_HCYL_REG);
+				cur    = hwif->INB(IDE_SELECT_REG);
+
 				if (cur & 0x40) {	/* using LBA? */
 					printk(", LBAsect=%ld", (unsigned long)
-					 ((cur&0xf)<<24)
-					 |(hwif->INB(IDE_HCYL_REG)<<16)
-					 |(hwif->INB(IDE_LCYL_REG)<<8)
-					 | hwif->INB(IDE_SECTOR_REG));
+						((cur & 0xf) << 24) |
+						(hcyl << 16) |
+						(lcyl <<  8) |
+						sector);
 				} else {
 					printk(", CHS=%d/%d/%d",
-					 (hwif->INB(IDE_HCYL_REG)<<8) +
-					  hwif->INB(IDE_LCYL_REG),
-					  cur & 0xf,
-					  hwif->INB(IDE_SECTOR_REG));
+						(hcyl << 8) + lcyl,
+						cur & 0xf,
+						sector);
 				}
 			}
 			if (HWGROUP(drive) && HWGROUP(drive)->rq)
