@@ -314,7 +314,110 @@ MUX_CFG("Y14_1610_CCP_DATAM",	 9,   21,    6,   2,   3,   1,    2,     0,  0)
 
 int __init_or_module omap1_cfg_reg(const struct pin_config *cfg)
 {
+	static DEFINE_SPINLOCK(mux_spin_lock);
+	unsigned long flags;
+	unsigned int reg_orig = 0, reg = 0, pu_pd_orig = 0, pu_pd = 0,
+		pull_orig = 0, pull = 0;
+	unsigned int mask, warn = 0;
+
+	/* Check the mux register in question */
+	if (cfg->mux_reg) {
+		unsigned	tmp1, tmp2;
+
+		spin_lock_irqsave(&mux_spin_lock, flags);
+		reg_orig = omap_readl(cfg->mux_reg);
+
+		/* The mux registers always seem to be 3 bits long */
+		mask = (0x7 << cfg->mask_offset);
+		tmp1 = reg_orig & mask;
+		reg = reg_orig & ~mask;
+
+		tmp2 = (cfg->mask << cfg->mask_offset);
+		reg |= tmp2;
+
+		if (tmp1 != tmp2)
+			warn = 1;
+
+		omap_writel(reg, cfg->mux_reg);
+		spin_unlock_irqrestore(&mux_spin_lock, flags);
+	}
+
+	/* Check for pull up or pull down selection on 1610 */
+	if (!cpu_is_omap15xx()) {
+		if (cfg->pu_pd_reg && cfg->pull_val) {
+			spin_lock_irqsave(&mux_spin_lock, flags);
+			pu_pd_orig = omap_readl(cfg->pu_pd_reg);
+			mask = 1 << cfg->pull_bit;
+
+			if (cfg->pu_pd_val) {
+				if (!(pu_pd_orig & mask))
+					warn = 1;
+				/* Use pull up */
+				pu_pd = pu_pd_orig | mask;
+			} else {
+				if (pu_pd_orig & mask)
+					warn = 1;
+				/* Use pull down */
+				pu_pd = pu_pd_orig & ~mask;
+			}
+			omap_writel(pu_pd, cfg->pu_pd_reg);
+			spin_unlock_irqrestore(&mux_spin_lock, flags);
+		}
+	}
+
+	/* Check for an associated pull down register */
+	if (cfg->pull_reg) {
+		spin_lock_irqsave(&mux_spin_lock, flags);
+		pull_orig = omap_readl(cfg->pull_reg);
+		mask = 1 << cfg->pull_bit;
+
+		if (cfg->pull_val) {
+			if (pull_orig & mask)
+				warn = 1;
+			/* Low bit = pull enabled */
+			pull = pull_orig & ~mask;
+		} else {
+			if (!(pull_orig & mask))
+				warn = 1;
+			/* High bit = pull disabled */
+			pull = pull_orig | mask;
+		}
+
+		omap_writel(pull, cfg->pull_reg);
+		spin_unlock_irqrestore(&mux_spin_lock, flags);
+	}
+
+	if (warn) {
+#ifdef CONFIG_OMAP_MUX_WARNINGS
+		printk(KERN_WARNING "MUX: initialized %s\n", cfg->name);
+#endif
+	}
+
+#ifdef CONFIG_OMAP_MUX_DEBUG
+	if (cfg->debug || warn) {
+		printk("MUX: Setting register %s\n", cfg->name);
+		printk("      %s (0x%08x) = 0x%08x -> 0x%08x\n",
+		       cfg->mux_reg_name, cfg->mux_reg, reg_orig, reg);
+
+		if (!cpu_is_omap15xx()) {
+			if (cfg->pu_pd_reg && cfg->pull_val) {
+				printk("      %s (0x%08x) = 0x%08x -> 0x%08x\n",
+				       cfg->pu_pd_name, cfg->pu_pd_reg,
+				       pu_pd_orig, pu_pd);
+			}
+		}
+
+		if (cfg->pull_reg)
+			printk("      %s (0x%08x) = 0x%08x -> 0x%08x\n",
+			       cfg->pull_name, cfg->pull_reg, pull_orig, pull);
+	}
+#endif
+
+#ifdef CONFIG_OMAP_MUX_ERRORS
+	return warn ? -ETXTBSY : 0;
+#else
 	return 0;
+#endif
 }
 
 int __init omap1_mux_init(void)

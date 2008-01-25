@@ -172,8 +172,39 @@ MUX_CFG_24XX("B13_24XX_KBC6",		0x110,	3,	0,	0,	1)
 };
 
 #ifdef CONFIG_ARCH_OMAP24XX
+
+#define OMAP24XX_L4_BASE	0x48000000
+#define OMAP24XX_PULL_ENA	(1 << 3)
+#define OMAP24XX_PULL_UP	(1 << 4)
+
+/* REVISIT: Convert this code to use ctrl_{read,write}_reg */
 int __init_or_module omap24xx_cfg_reg(const struct pin_config *cfg)
 {
+	u8 reg = 0;
+	unsigned int warn = 0;
+
+	reg |= cfg->mask & 0x7;
+	if (cfg->pull_val)
+		reg |= OMAP24XX_PULL_ENA;
+	if(cfg->pu_pd_val)
+		reg |= OMAP24XX_PULL_UP;
+#if defined(CONFIG_OMAP_MUX_DEBUG) || defined(CONFIG_OMAP_MUX_WARNINGS)
+	{
+		u8 orig = omap_readb(OMAP24XX_L4_BASE + cfg->mux_reg);
+		u8 debug = 0;
+
+#ifdef	CONFIG_OMAP_MUX_DEBUG
+		debug = cfg->debug;
+#endif
+		warn = (orig != reg);
+		if (debug || warn)
+			printk("MUX: setup %s (0x%08x): 0x%02x -> 0x%02x\n",
+				cfg->name, OMAP24XX_L4_BASE + cfg->mux_reg,
+				orig, reg);
+	}
+#endif
+	omap_writeb(reg, OMAP24XX_L4_BASE + cfg->mux_reg);
+
 	return 0;
 }
 #endif
