@@ -442,6 +442,7 @@ struct rq {
 	struct cfs_rq cfs;
 	struct rt_rq rt;
 	u64 rt_period_expire;
+	int rt_throttled;
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	/* list of leaf cfs_rq on this cpu: */
@@ -593,6 +594,23 @@ static void update_rq_clock(struct rq *rq)
 #define this_rq()		(&__get_cpu_var(runqueues))
 #define task_rq(p)		cpu_rq(task_cpu(p))
 #define cpu_curr(cpu)		(cpu_rq(cpu)->curr)
+
+unsigned long rt_needs_cpu(int cpu)
+{
+	struct rq *rq = cpu_rq(cpu);
+	u64 delta;
+
+	if (!rq->rt_throttled)
+		return 0;
+
+	if (rq->clock > rq->rt_period_expire)
+		return 1;
+
+	delta = rq->rt_period_expire - rq->clock;
+	do_div(delta, NSEC_PER_SEC / HZ);
+
+	return (unsigned long)delta;
+}
 
 /*
  * Tunables that become constants when CONFIG_SCHED_DEBUG is off:
@@ -7102,9 +7120,11 @@ static void init_rt_rq(struct rt_rq *rt_rq, struct rq *rq)
 	/* delimiter for bitsearch: */
 	__set_bit(MAX_RT_PRIO, array->bitmap);
 
+#if defined CONFIG_SMP || defined CONFIG_FAIR_GROUP_SCHED
+	rt_rq->highest_prio = MAX_RT_PRIO;
+#endif
 #ifdef CONFIG_SMP
 	rt_rq->rt_nr_migratory = 0;
-	rt_rq->highest_prio = MAX_RT_PRIO;
 	rt_rq->overloaded = 0;
 #endif
 
@@ -7191,6 +7211,7 @@ void __init sched_init(void)
 				&per_cpu(init_sched_rt_entity, i), i, 1);
 #endif
 		rq->rt_period_expire = 0;
+		rq->rt_throttled = 0;
 
 		for (j = 0; j < CPU_LOAD_IDX_MAX; j++)
 			rq->cpu_load[j] = 0;

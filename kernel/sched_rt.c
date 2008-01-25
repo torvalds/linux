@@ -175,24 +175,16 @@ static int sched_rt_ratio_exceeded(struct rt_rq *rt_rq)
 	ratio = (period * rt_ratio) >> SCHED_RT_FRAC_SHIFT;
 
 	if (rt_rq->rt_time > ratio) {
+		struct rq *rq = rq_of_rt_rq(rt_rq);
+
+		rq->rt_throttled = 1;
 		rt_rq->rt_throttled = 1;
+
 		sched_rt_ratio_dequeue(rt_rq);
 		return 1;
 	}
 
 	return 0;
-}
-
-static void __update_sched_rt_period(struct rt_rq *rt_rq, u64 period)
-{
-	unsigned long rt_ratio = sched_rt_ratio(rt_rq);
-	u64 ratio = (period * rt_ratio) >> SCHED_RT_FRAC_SHIFT;
-
-	rt_rq->rt_time -= min(rt_rq->rt_time, ratio);
-	if (rt_rq->rt_throttled) {
-		rt_rq->rt_throttled = 0;
-		sched_rt_ratio_enqueue(rt_rq);
-	}
 }
 
 static void update_sched_rt_period(struct rq *rq)
@@ -204,8 +196,18 @@ static void update_sched_rt_period(struct rq *rq)
 		period = (u64)sysctl_sched_rt_period * NSEC_PER_MSEC;
 		rq->rt_period_expire += period;
 
-		for_each_leaf_rt_rq(rt_rq, rq)
-			__update_sched_rt_period(rt_rq, period);
+		for_each_leaf_rt_rq(rt_rq, rq) {
+			unsigned long rt_ratio = sched_rt_ratio(rt_rq);
+			u64 ratio = (period * rt_ratio) >> SCHED_RT_FRAC_SHIFT;
+
+			rt_rq->rt_time -= min(rt_rq->rt_time, ratio);
+			if (rt_rq->rt_throttled) {
+				rt_rq->rt_throttled = 0;
+				sched_rt_ratio_enqueue(rt_rq);
+			}
+		}
+
+		rq->rt_throttled = 0;
 	}
 }
 

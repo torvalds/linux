@@ -230,6 +230,8 @@ static inline int select_nohz_load_balancer(int cpu)
 }
 #endif
 
+extern unsigned long rt_needs_cpu(int cpu);
+
 /*
  * Only dump TASK_* tasks. (0 for all tasks)
  */
