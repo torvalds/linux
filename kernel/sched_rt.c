@@ -1125,13 +1125,7 @@ static void watchdog(struct rq *rq, struct task_struct *p)
 
 		p->rt.timeout++;
 		next = DIV_ROUND_UP(min(soft, hard), USEC_PER_SEC/HZ);
-		if (next > p->rt.timeout) {
-			u64 next_time = p->se.sum_exec_runtime;
-
-			next_time += next * (NSEC_PER_SEC/HZ);
-			if (p->it_sched_expires > next_time)
-				p->it_sched_expires = next_time;
-		} else
+		if (p->rt.timeout > next)
 			p->it_sched_expires = p->se.sum_exec_runtime;
 	}
 }

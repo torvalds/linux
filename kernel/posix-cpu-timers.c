@@ -1020,7 +1020,8 @@ static void check_thread_timers(struct task_struct *tsk,
 		unsigned long hard = sig->rlim[RLIMIT_RTTIME].rlim_max;
 		unsigned long *soft = &sig->rlim[RLIMIT_RTTIME].rlim_cur;
 
-		if (tsk->rt.timeout > DIV_ROUND_UP(hard, USEC_PER_SEC/HZ)) {
+		if (hard != RLIM_INFINITY &&
+		    tsk->rt.timeout > DIV_ROUND_UP(hard, USEC_PER_SEC/HZ)) {
 			/*
 			 * At the hard limit, we just die.
 			 * No need to calculate anything else now.
