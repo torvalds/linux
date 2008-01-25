@@ -586,38 +586,6 @@ static int pull_rt_task(struct rq *this_rq)
 			continue;
 
 		src_rq = cpu_rq(cpu);
-		if (unlikely(src_rq->rt.rt_nr_running <= 1)) {
-			/*
-			 * It is possible that overlapping cpusets
-			 * will miss clearing a non overloaded runqueue.
-			 * Clear it now.
-			 */
-			if (double_lock_balance(this_rq, src_rq)) {
-				/* unlocked our runqueue lock */
-				struct task_struct *old_next = next;
-
-				next = pick_next_task_rt(this_rq);
-				if (next != old_next)
-					ret = 1;
-			}
-			if (likely(src_rq->rt.rt_nr_running <= 1)) {
-				/*
-				 * Small chance that this_rq->curr changed
-				 * but it's really harmless here.
-				 */
-				rt_clear_overload(this_rq);
-			} else {
-				/*
-				 * Heh, the src_rq is now overloaded, since
-				 * we already have the src_rq lock, go straight
-				 * to pulling tasks from it.
-				 */
-				goto try_pulling;
-			}
-			spin_unlock(&src_rq->lock);
-			continue;
-		}
-
 		/*
 		 * We can potentially drop this_rq's lock in
 		 * double_lock_balance, and another CPU could
@@ -641,7 +609,6 @@ static int pull_rt_task(struct rq *this_rq)
 			continue;
 		}
 
- try_pulling:
 		p = pick_next_highest_task_rt(src_rq, this_cpu);
 
 		/*
