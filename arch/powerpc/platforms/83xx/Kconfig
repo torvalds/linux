@@ -7,7 +7,7 @@ config MPC831x_RDB
 	bool "Freescale MPC831x RDB"
 	select DEFAULT_UIMAGE
 	help
-	  This option enables support for the MPC8313 RDB board.
+	  This option enables support for the MPC8313 RDB and MPC8315 RDB boards.
 
 config MPC832x_MDS
 	bool "Freescale MPC832x MDS"
