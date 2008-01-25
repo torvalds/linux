@@ -24,8 +24,8 @@ static DEFINE_PER_CPU(unsigned long, touch_timestamp);
 static DEFINE_PER_CPU(unsigned long, print_timestamp);
 static DEFINE_PER_CPU(struct task_struct *, watchdog_task);
 
-static int did_panic;
-int softlockup_thresh = 60;
+static int __read_mostly did_panic;
+unsigned long __read_mostly softlockup_thresh = 60;
 
 static int
 softlock_panic(struct notifier_block *this, unsigned long event, void *ptr)
@@ -121,14 +121,14 @@ void softlockup_tick(void)
 /*
  * Have a reasonable limit on the number of tasks checked:
  */
-unsigned long sysctl_hung_task_check_count = 1024;
+unsigned long __read_mostly sysctl_hung_task_check_count = 1024;
 
 /*
  * Zero means infinite timeout - no checking done:
  */
-unsigned long sysctl_hung_task_timeout_secs = 120;
+unsigned long __read_mostly sysctl_hung_task_timeout_secs = 120;
 
-long sysctl_hung_task_warnings = 10;
+unsigned long __read_mostly sysctl_hung_task_warnings = 10;
 
 /*
  * Only do the hung-tasks check on one CPU:
