@@ -366,50 +366,6 @@ typedef union {
 } select_t, ata_select_t;
 
 /*
- * The ATA-IDE Status Register.
- * The ATAPI Status Register.
- *
- * check	: Error occurred
- * idx		: Index Error
- * corr		: Correctable error occurred
- * drq		: Data is request by the device
- * dsc		: Disk Seek Complete			: ata
- *		: Media access command finished		: atapi
- * df		: Device Fault				: ata
- *		: Reserved				: atapi
- * drdy		: Ready, Command Mode Capable		: ata
- *		: Ignored for ATAPI commands		: atapi
- * bsy		: Disk is Busy
- *		: The device has access to the command block
- */
-typedef union {
-	unsigned all			:8;
-	struct {
-#if defined(__LITTLE_ENDIAN_BITFIELD)
-		unsigned check		:1;
-		unsigned idx		:1;
-		unsigned corr		:1;
-		unsigned drq		:1;
-		unsigned dsc		:1;
-		unsigned df		:1;
-		unsigned drdy		:1;
-		unsigned bsy		:1;
-#elif defined(__BIG_ENDIAN_BITFIELD)
-		unsigned bsy		:1;
-		unsigned drdy		:1;
-		unsigned df		:1;
-		unsigned dsc		:1;
-		unsigned drq		:1;
-		unsigned corr           :1;
-		unsigned idx		:1;
-		unsigned check		:1;
-#else
-#error "Please fix <asm/byteorder.h>"
-#endif
-	} b;
-} ata_status_t, atapi_status_t;
-
-/*
  * ATAPI Feature Register
  *
  * dma		: Using DMA or PIO

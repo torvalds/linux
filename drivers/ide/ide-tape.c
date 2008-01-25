@@ -1848,15 +1848,14 @@ static ide_startstop_t idetape_pc_intr (ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	idetape_tape_t *tape = drive->driver_data;
-	atapi_status_t status;
 	atapi_bcount_t bcount;
 	atapi_ireason_t ireason;
 	idetape_pc_t *pc = tape->pc;
-
 	unsigned int temp;
 #if SIMULATE_ERRORS
 	static int error_sim_count = 0;
 #endif
+	u8 stat;
 
 #if IDETAPE_DEBUG_LOG
 	if (tape->debug_level >= 4)
@@ -1865,10 +1864,10 @@ static ide_startstop_t idetape_pc_intr (ide_drive_t *drive)
 #endif /* IDETAPE_DEBUG_LOG */	
 
 	/* Clear the interrupt */
-	status.all = HWIF(drive)->INB(IDE_STATUS_REG);
+	stat = hwif->INB(IDE_STATUS_REG);
 
 	if (test_bit(PC_DMA_IN_PROGRESS, &pc->flags)) {
-		if (HWIF(drive)->ide_dma_end(drive) || status.b.check) {
+		if (hwif->ide_dma_end(drive) || (stat & ERR_STAT)) {
 			/*
 			 * A DMA error is sometimes expected. For example,
 			 * if the tape is crossing a filemark during a
@@ -1902,7 +1901,7 @@ static ide_startstop_t idetape_pc_intr (ide_drive_t *drive)
 	}
 
 	/* No more interrupts */
-	if (!status.b.drq) {
+	if ((stat & DRQ_STAT) == 0) {
 #if IDETAPE_DEBUG_LOG
 		if (tape->debug_level >= 2)
 			printk(KERN_INFO "ide-tape: Packet command completed, %d bytes transferred\n", pc->actually_transferred);
@@ -1917,12 +1916,13 @@ static ide_startstop_t idetape_pc_intr (ide_drive_t *drive)
 		    (++error_sim_count % 100) == 0) {
 			printk(KERN_INFO "ide-tape: %s: simulating error\n",
 				tape->name);
-			status.b.check = 1;
+			stat |= ERR_STAT;
 		}
 #endif
-		if (status.b.check && pc->c[0] == IDETAPE_REQUEST_SENSE_CMD)
-			status.b.check = 0;
-		if (status.b.check || test_bit(PC_DMA_ERROR, &pc->flags)) {	/* Error detected */
+		if ((stat & ERR_STAT) && pc->c[0] == IDETAPE_REQUEST_SENSE_CMD)
+			stat &= ~ERR_STAT;
+		if ((stat & ERR_STAT) || test_bit(PC_DMA_ERROR, &pc->flags)) {
+			/* Error detected */
 #if IDETAPE_DEBUG_LOG
 			if (tape->debug_level >= 1)
 				printk(KERN_INFO "ide-tape: %s: I/O error\n",
@@ -1941,7 +1941,7 @@ static ide_startstop_t idetape_pc_intr (ide_drive_t *drive)
 		}
 		pc->error = 0;
 		if (test_bit(PC_WAIT_FOR_DSC, &pc->flags) &&
-		    !status.b.dsc) {
+		    (stat & SEEK_STAT) == 0) {
 			/* Media access command */
 			tape->dsc_polling_start = jiffies;
 			tape->dsc_polling_frequency = IDETAPE_DSC_MA_FAST;
@@ -2285,11 +2285,11 @@ static ide_startstop_t idetape_media_access_finished (ide_drive_t *drive)
 {
 	idetape_tape_t *tape = drive->driver_data;
 	idetape_pc_t *pc = tape->pc;
-	atapi_status_t status;
+	u8 stat;
 
-	status.all = HWIF(drive)->INB(IDE_STATUS_REG);
-	if (status.b.dsc) {
-		if (status.b.check) {
+	stat = drive->hwif->INB(IDE_STATUS_REG);
+	if (stat & SEEK_STAT) {
+		if (stat & ERR_STAT) {
 			/* Error detected */
 			if (pc->c[0] != IDETAPE_TEST_UNIT_READY_CMD)
 				printk(KERN_ERR "ide-tape: %s: I/O error, ",
@@ -2407,7 +2407,7 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 	idetape_tape_t *tape = drive->driver_data;
 	idetape_pc_t *pc = NULL;
 	struct request *postponed_rq = tape->postponed_rq;
-	atapi_status_t status;
+	u8 stat;
 
 #if IDETAPE_DEBUG_LOG
 #if 0
@@ -2455,7 +2455,7 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 	 * If the tape is still busy, postpone our request and service
 	 * the other device meanwhile.
 	 */
-	status.all = HWIF(drive)->INB(IDE_STATUS_REG);
+	stat = drive->hwif->INB(IDE_STATUS_REG);
 
 	if (!drive->dsc_overlap && !(rq->cmd[0] & REQ_IDETAPE_PC2))
 		set_bit(IDETAPE_IGNORE_DSC, &tape->flags);
@@ -2471,7 +2471,7 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 		tape->insert_speed = tape->insert_size / 1024 * HZ / (jiffies - tape->insert_time);
 	calculate_speeds(drive);
 	if (!test_and_clear_bit(IDETAPE_IGNORE_DSC, &tape->flags) &&
-	    !status.b.dsc) {
+	    (stat & SEEK_STAT) == 0) {
 		if (postponed_rq == NULL) {
 			tape->dsc_polling_start = jiffies;
 			tape->dsc_polling_frequency = tape->best_dsc_rw_frequency;

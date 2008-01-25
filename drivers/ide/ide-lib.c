@@ -562,27 +562,24 @@ static u8 ide_dump_ata_status(ide_drive_t *drive, const char *msg, u8 stat)
 static u8 ide_dump_atapi_status(ide_drive_t *drive, const char *msg, u8 stat)
 {
 	unsigned long flags;
-
-	atapi_status_t status;
 	atapi_error_t error;
 
-	status.all = stat;
 	error.all = 0;
 	local_irq_save(flags);
 	printk("%s: %s: status=0x%02x { ", drive->name, msg, stat);
-	if (status.b.bsy)
+	if (stat & BUSY_STAT)
 		printk("Busy ");
 	else {
-		if (status.b.drdy)	printk("DriveReady ");
-		if (status.b.df)	printk("DeviceFault ");
-		if (status.b.dsc)	printk("SeekComplete ");
-		if (status.b.drq)	printk("DataRequest ");
-		if (status.b.corr)	printk("CorrectedError ");
-		if (status.b.idx)	printk("Index ");
-		if (status.b.check)	printk("Error ");
+		if (stat & READY_STAT)	printk("DriveReady ");
+		if (stat & WRERR_STAT)	printk("DeviceFault ");
+		if (stat & SEEK_STAT)	printk("SeekComplete ");
+		if (stat & DRQ_STAT)	printk("DataRequest ");
+		if (stat & ECC_STAT)	printk("CorrectedError ");
+		if (stat & INDEX_STAT)	printk("Index ");
+		if (stat & ERR_STAT)	printk("Error ");
 	}
 	printk("}\n");
-	if (status.b.check && !status.b.bsy) {
+	if ((stat & (BUSY_STAT|ERR_STAT)) == ERR_STAT) {
 		error.all = HWIF(drive)->INB(IDE_ERROR_REG);
 		printk("%s: %s: error=0x%02x { ", drive->name, msg, error.all);
 		if (error.b.ili)	printk("IllegalLengthIndication ");

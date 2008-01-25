@@ -398,11 +398,10 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 	idescsi_pc_t *pc=scsi->pc;
 	struct request *rq = pc->rq;
 	atapi_bcount_t bcount;
-	atapi_status_t status;
 	atapi_ireason_t ireason;
 	atapi_feature_t feature;
-
 	unsigned int temp;
+	u8 stat;
 
 #if IDESCSI_DEBUG_LOG
 	printk (KERN_INFO "ide-scsi: Reached idescsi_pc_intr interrupt handler\n");
@@ -427,14 +426,14 @@ static ide_startstop_t idescsi_pc_intr (ide_drive_t *drive)
 
 	feature.all = 0;
 	/* Clear the interrupt */
-	status.all = HWIF(drive)->INB(IDE_STATUS_REG);
+	stat = drive->hwif->INB(IDE_STATUS_REG);
 
-	if (!status.b.drq) {
+	if ((stat & DRQ_STAT) == 0) {
 		/* No more interrupts */
 		if (test_bit(IDESCSI_LOG_CMD, &scsi->log))
 			printk (KERN_INFO "Packet command completed, %d bytes transferred\n", pc->actually_transferred);
 		local_irq_enable_in_hardirq();
-		if (status.b.check)
+		if (stat & ERR_STAT)
 			rq->errors++;
 		idescsi_end_request (drive, 1, 0);
 		return ide_stopped;

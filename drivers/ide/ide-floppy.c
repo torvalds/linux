@@ -788,12 +788,12 @@ static void idefloppy_retry_pc (ide_drive_t *drive)
 static ide_startstop_t idefloppy_pc_intr (ide_drive_t *drive)
 {
 	idefloppy_floppy_t *floppy = drive->driver_data;
-	atapi_status_t status;
 	atapi_bcount_t bcount;
 	atapi_ireason_t ireason;
 	idefloppy_pc_t *pc = floppy->pc;
 	struct request *rq = pc->rq;
 	unsigned int temp;
+	u8 stat;
 
 	debug_log(KERN_INFO "ide-floppy: Reached %s interrupt handler\n",
 		__FUNCTION__);
@@ -809,16 +809,16 @@ static ide_startstop_t idefloppy_pc_intr (ide_drive_t *drive)
 	}
 
 	/* Clear the interrupt */
-	status.all = HWIF(drive)->INB(IDE_STATUS_REG);
+	stat = drive->hwif->INB(IDE_STATUS_REG);
 
-	if (!status.b.drq) {			/* No more interrupts */
+	if ((stat & DRQ_STAT) == 0) {		/* No more interrupts */
 		debug_log(KERN_INFO "Packet command completed, %d bytes "
 			"transferred\n", pc->actually_transferred);
 		clear_bit(PC_DMA_IN_PROGRESS, &pc->flags);
 
 		local_irq_enable_in_hardirq();
 
-		if (status.b.check || test_bit(PC_DMA_ERROR, &pc->flags)) {
+		if ((stat & ERR_STAT) || test_bit(PC_DMA_ERROR, &pc->flags)) {
 			/* Error detected */
 			debug_log(KERN_INFO "ide-floppy: %s: I/O error\n",
 				drive->name);
@@ -1632,14 +1632,14 @@ static int idefloppy_get_format_progress(ide_drive_t *drive, int __user *arg)
 		/* Else assume format_unit has finished, and we're
 		** at 0x10000 */
 	} else {
-		atapi_status_t status;
 		unsigned long flags;
+		u8 stat;
 
 		local_irq_save(flags);
-		status.all = HWIF(drive)->INB(IDE_STATUS_REG);
+		stat = drive->hwif->INB(IDE_STATUS_REG);
 		local_irq_restore(flags);
 
-		progress_indication = !status.b.dsc ? 0 : 0x10000;
+		progress_indication = ((stat & SEEK_STAT) == 0) ? 0 : 0x10000;
 	}
 	if (put_user(progress_indication, arg))
 		return (-EFAULT);
