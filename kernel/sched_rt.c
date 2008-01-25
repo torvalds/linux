@@ -34,9 +34,11 @@ static inline void rt_clear_overload(struct rq *rq)
 static void update_rt_migration(struct rq *rq)
 {
 	if (rq->rt.rt_nr_migratory && (rq->rt.rt_nr_running > 1)) {
-		rt_set_overload(rq);
-		rq->rt.overloaded = 1;
-	} else {
+		if (!rq->rt.overloaded) {
+			rt_set_overload(rq);
+			rq->rt.overloaded = 1;
+		}
+	} else if (rq->rt.overloaded) {
 		rt_clear_overload(rq);
 		rq->rt.overloaded = 0;
 	}
