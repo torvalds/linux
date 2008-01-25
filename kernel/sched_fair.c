@@ -248,8 +248,8 @@ static u64 __sched_period(unsigned long nr_running)
 	unsigned long nr_latency = sched_nr_latency;
 
 	if (unlikely(nr_running > nr_latency)) {
+		period = sysctl_sched_min_granularity;
 		period *= nr_running;
-		do_div(period, nr_latency);
 	}
 
 	return period;
