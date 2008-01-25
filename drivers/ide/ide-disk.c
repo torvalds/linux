@@ -248,6 +248,7 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq, 
 		}
 
 		hwif->OUTBSYNC(drive, command, IDE_COMMAND_REG);
+		ndelay(400);	/* FIXME */
 
 		return pre_task_out_intr(drive, rq);
 	}
