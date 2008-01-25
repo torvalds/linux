@@ -444,7 +444,7 @@ err:
 	return status < 0 ? status : -EREMOTEIO;
 }
 
-int stb0899_read_regs(struct stb0899_state *state, unsigned int reg, u8 *buf, size_t count)
+int stb0899_read_regs(struct stb0899_state *state, unsigned int reg, u8 *buf, u32 count)
 {
 	int status;
 

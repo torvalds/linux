@@ -238,7 +238,7 @@ extern u32 _stb0899_read_s2reg(struct stb0899_state *state,
 
 extern int stb0899_read_regs(struct stb0899_state *state,
 			     unsigned int reg, u8 *buf,
-			     size_t count);
+			     u32 count);
 
 extern int stb0899_write_regs(struct stb0899_state *state,
 			      unsigned int reg, u8 *data,
