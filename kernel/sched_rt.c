@@ -762,6 +762,7 @@ move_one_task_rt(struct rq *this_rq, int this_cpu, struct rq *busiest,
 	/* don't touch RT tasks */
 	return 0;
 }
+
 static void set_cpus_allowed_rt(struct task_struct *p, cpumask_t *new_mask)
 {
 	int weight = cpus_weight(*new_mask);
@@ -775,9 +776,9 @@ static void set_cpus_allowed_rt(struct task_struct *p, cpumask_t *new_mask)
 	if (p->se.on_rq && (weight != p->nr_cpus_allowed)) {
 		struct rq *rq = task_rq(p);
 
-		if ((p->nr_cpus_allowed <= 1) && (weight > 1))
+		if ((p->nr_cpus_allowed <= 1) && (weight > 1)) {
 			rq->rt.rt_nr_migratory++;
-		else if((p->nr_cpus_allowed > 1) && (weight <= 1)) {
+		} else if ((p->nr_cpus_allowed > 1) && (weight <= 1)) {
 			BUG_ON(!rq->rt.rt_nr_migratory);
 			rq->rt.rt_nr_migratory--;
 		}
@@ -788,6 +789,7 @@ static void set_cpus_allowed_rt(struct task_struct *p, cpumask_t *new_mask)
 	p->cpus_allowed    = *new_mask;
 	p->nr_cpus_allowed = weight;
 }
+
 #else /* CONFIG_SMP */
 # define schedule_tail_balance_rt(rq)	do { } while (0)
 # define schedule_balance_rt(rq, prev)	do { } while (0)
