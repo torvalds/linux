@@ -325,7 +325,7 @@ int usb_driver_claim_interface(struct usb_driver *driver,
 
 	return retval;
 }
-EXPORT_SYMBOL(usb_driver_claim_interface);
+EXPORT_SYMBOL_GPL(usb_driver_claim_interface);
 
 /**
  * usb_driver_release_interface - unbind a driver from an interface
@@ -370,7 +370,7 @@ void usb_driver_release_interface(struct usb_driver *driver,
 	iface->needs_remote_wakeup = 0;
 	usb_pm_unlock(udev);
 }
-EXPORT_SYMBOL(usb_driver_release_interface);
+EXPORT_SYMBOL_GPL(usb_driver_release_interface);
 
 /* returns 0 if no match, 1 if match */
 int usb_match_device(struct usb_device *dev, const struct usb_device_id *id)
@@ -542,7 +542,7 @@ const struct usb_device_id *usb_match_id(struct usb_interface *interface,
 
 	return NULL;
 }
-EXPORT_SYMBOL_GPL_FUTURE(usb_match_id);
+EXPORT_SYMBOL_GPL(usb_match_id);
 
 static int usb_device_match(struct device *dev, struct device_driver *drv)
 {
@@ -745,7 +745,7 @@ int usb_register_driver(struct usb_driver *new_driver, struct module *owner,
 
 	return retval;
 }
-EXPORT_SYMBOL_GPL_FUTURE(usb_register_driver);
+EXPORT_SYMBOL_GPL(usb_register_driver);
 
 /**
  * usb_deregister - unregister a USB interface driver
@@ -769,7 +769,7 @@ void usb_deregister(struct usb_driver *driver)
 
 	usbfs_update_special();
 }
-EXPORT_SYMBOL_GPL_FUTURE(usb_deregister);
+EXPORT_SYMBOL_GPL(usb_deregister);
 
 #ifdef CONFIG_PM
 

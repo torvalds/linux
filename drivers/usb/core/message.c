@@ -147,7 +147,7 @@ int usb_control_msg(struct usb_device *dev, unsigned int pipe, __u8 request, __u
 
 	return ret;
 }
-
+EXPORT_SYMBOL_GPL(usb_control_msg);
 
 /**
  * usb_interrupt_msg - Builds an interrupt urb, sends it off and waits for completion
@@ -238,6 +238,7 @@ int usb_bulk_msg(struct usb_device *usb_dev, unsigned int pipe,
 
 	return usb_start_wait_urb(urb, timeout, actual_length);
 }
+EXPORT_SYMBOL_GPL(usb_bulk_msg);
 
 /*-------------------------------------------------------------------*/
 
@@ -465,7 +466,7 @@ nomem:
 	sg_clean (io);
 	return -ENOMEM;
 }
-
+EXPORT_SYMBOL_GPL(usb_sg_init);
 
 /**
  * usb_sg_wait - synchronously execute scatter/gather request
@@ -569,6 +570,7 @@ void usb_sg_wait (struct usb_sg_request *io)
 
 	sg_clean (io);
 }
+EXPORT_SYMBOL_GPL(usb_sg_wait);
 
 /**
  * usb_sg_cancel - stop scatter/gather i/o issued by usb_sg_wait()
@@ -604,6 +606,7 @@ void usb_sg_cancel (struct usb_sg_request *io)
 	}
 	spin_unlock_irqrestore (&io->lock, flags);
 }
+EXPORT_SYMBOL_GPL(usb_sg_cancel);
 
 /*-------------------------------------------------------------------*/
 
@@ -652,6 +655,7 @@ int usb_get_descriptor(struct usb_device *dev, unsigned char type, unsigned char
 	}
 	return result;
 }
+EXPORT_SYMBOL_GPL(usb_get_descriptor);
 
 /**
  * usb_get_string - gets a string descriptor
@@ -827,6 +831,7 @@ int usb_string(struct usb_device *dev, int index, char *buf, size_t size)
 	kfree(tbuf);
 	return err;
 }
+EXPORT_SYMBOL_GPL(usb_string);
 
 /**
  * usb_cache_string - read a string descriptor and cache it for later use
@@ -927,6 +932,7 @@ int usb_get_status(struct usb_device *dev, int type, int target, void *data)
 	kfree(status);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(usb_get_status);
 
 /**
  * usb_clear_halt - tells device to clear endpoint halt/stall condition
@@ -985,6 +991,7 @@ int usb_clear_halt(struct usb_device *dev, int pipe)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(usb_clear_halt);
 
 /**
  * usb_disable_endpoint -- Disable an endpoint by address
@@ -1253,6 +1260,7 @@ int usb_set_interface(struct usb_device *dev, int interface, int alternate)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(usb_set_interface);
 
 /**
  * usb_reset_configuration - lightweight device reset
@@ -1328,6 +1336,7 @@ int usb_reset_configuration(struct usb_device *dev)
 	}
 	return 0;
 }
+EXPORT_SYMBOL_GPL(usb_reset_configuration);
 
 static void usb_release_interface(struct device *dev)
 {
@@ -1677,22 +1686,3 @@ int usb_driver_set_configuration(struct usb_device *udev, int config)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(usb_driver_set_configuration);
-
-// synchronous request completion model
-EXPORT_SYMBOL(usb_control_msg);
-EXPORT_SYMBOL(usb_bulk_msg);
-
-EXPORT_SYMBOL(usb_sg_init);
-EXPORT_SYMBOL(usb_sg_cancel);
-EXPORT_SYMBOL(usb_sg_wait);
-
-// synchronous control message convenience routines
-EXPORT_SYMBOL(usb_get_descriptor);
-EXPORT_SYMBOL(usb_get_status);
-EXPORT_SYMBOL(usb_string);
-
-// synchronous calls that also maintain usbcore state
-EXPORT_SYMBOL(usb_clear_halt);
-EXPORT_SYMBOL(usb_reset_configuration);
-EXPORT_SYMBOL(usb_set_interface);
-

@@ -144,7 +144,7 @@ int usb_hcd_pci_probe (struct pci_dev *dev, const struct pci_device_id *id)
 	dev_err (&dev->dev, "init %s fail, %d\n", pci_name(dev), retval);
 	return retval;
 } 
-EXPORT_SYMBOL (usb_hcd_pci_probe);
+EXPORT_SYMBOL_GPL(usb_hcd_pci_probe);
 
 
 /* may be called without controller electrically present */
@@ -179,7 +179,7 @@ void usb_hcd_pci_remove (struct pci_dev *dev)
 	usb_put_hcd (hcd);
 	pci_disable_device(dev);
 }
-EXPORT_SYMBOL (usb_hcd_pci_remove);
+EXPORT_SYMBOL_GPL(usb_hcd_pci_remove);
 
 
 #ifdef	CONFIG_PM
@@ -314,7 +314,7 @@ done:
 
 	return retval;
 }
-EXPORT_SYMBOL (usb_hcd_pci_suspend);
+EXPORT_SYMBOL_GPL(usb_hcd_pci_suspend);
 
 /**
  * usb_hcd_pci_resume - power management resume of a PCI-based HCD
@@ -416,7 +416,7 @@ int usb_hcd_pci_resume (struct pci_dev *dev)
 
 	return retval;
 }
-EXPORT_SYMBOL (usb_hcd_pci_resume);
+EXPORT_SYMBOL_GPL(usb_hcd_pci_resume);
 
 #endif	/* CONFIG_PM */
 
@@ -435,5 +435,5 @@ void usb_hcd_pci_shutdown (struct pci_dev *dev)
 	if (hcd->driver->shutdown)
 		hcd->driver->shutdown(hcd);
 }
-EXPORT_SYMBOL (usb_hcd_pci_shutdown);
+EXPORT_SYMBOL_GPL(usb_hcd_pci_shutdown);
 

@@ -971,7 +971,7 @@ long usb_calc_bus_time (int speed, int is_input, int isoc, int bytecount)
 		return -1;
 	}
 }
-EXPORT_SYMBOL (usb_calc_bus_time);
+EXPORT_SYMBOL_GPL(usb_calc_bus_time);
 
 
 /*-------------------------------------------------------------------------*/
@@ -1427,7 +1427,7 @@ void usb_hcd_giveback_urb(struct usb_hcd *hcd, struct urb *urb, int status)
 		wake_up (&usb_kill_urb_queue);
 	usb_put_urb (urb);
 }
-EXPORT_SYMBOL (usb_hcd_giveback_urb);
+EXPORT_SYMBOL_GPL(usb_hcd_giveback_urb);
 
 /*-------------------------------------------------------------------------*/
 
@@ -1667,7 +1667,7 @@ int usb_bus_start_enum(struct usb_bus *bus, unsigned port_num)
 		mod_timer(&hcd->rh_timer, jiffies + msecs_to_jiffies(10));
 	return status;
 }
-EXPORT_SYMBOL (usb_bus_start_enum);
+EXPORT_SYMBOL_GPL(usb_bus_start_enum);
 
 #endif
 
@@ -1774,7 +1774,7 @@ struct usb_hcd *usb_create_hcd (const struct hc_driver *driver,
 			"USB Host Controller";
 	return hcd;
 }
-EXPORT_SYMBOL (usb_create_hcd);
+EXPORT_SYMBOL_GPL(usb_create_hcd);
 
 static void hcd_release (struct kref *kref)
 {
@@ -1789,14 +1789,14 @@ struct usb_hcd *usb_get_hcd (struct usb_hcd *hcd)
 		kref_get (&hcd->kref);
 	return hcd;
 }
-EXPORT_SYMBOL (usb_get_hcd);
+EXPORT_SYMBOL_GPL(usb_get_hcd);
 
 void usb_put_hcd (struct usb_hcd *hcd)
 {
 	if (hcd)
 		kref_put (&hcd->kref, hcd_release);
 }
-EXPORT_SYMBOL (usb_put_hcd);
+EXPORT_SYMBOL_GPL(usb_put_hcd);
 
 /**
  * usb_add_hcd - finish generic HCD structure initialization and register
@@ -1922,7 +1922,7 @@ err_register_bus:
 	hcd_buffer_destroy(hcd);
 	return retval;
 } 
-EXPORT_SYMBOL (usb_add_hcd);
+EXPORT_SYMBOL_GPL(usb_add_hcd);
 
 /**
  * usb_remove_hcd - shutdown processing for generic HCDs
@@ -1964,7 +1964,7 @@ void usb_remove_hcd(struct usb_hcd *hcd)
 	usb_deregister_bus(&hcd->self);
 	hcd_buffer_destroy(hcd);
 }
-EXPORT_SYMBOL (usb_remove_hcd);
+EXPORT_SYMBOL_GPL(usb_remove_hcd);
 
 void
 usb_hcd_platform_shutdown(struct platform_device* dev)
@@ -1974,7 +1974,7 @@ usb_hcd_platform_shutdown(struct platform_device* dev)
 	if (hcd->driver->shutdown)
 		hcd->driver->shutdown(hcd);
 }
-EXPORT_SYMBOL (usb_hcd_platform_shutdown);
+EXPORT_SYMBOL_GPL(usb_hcd_platform_shutdown);
 
 /*-------------------------------------------------------------------------*/
 

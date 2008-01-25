@@ -494,6 +494,7 @@ void usb_hub_tt_clear_buffer (struct usb_device *udev, int pipe)
 	schedule_work (&tt->kevent);
 	spin_unlock_irqrestore (&tt->lock, flags);
 }
+EXPORT_SYMBOL_GPL(usb_hub_tt_clear_buffer);
 
 static void hub_power_on(struct usb_hub *hub)
 {
@@ -3116,7 +3117,7 @@ re_enumerate:
 	hub_port_logical_disconnect(parent_hub, port1);
 	return -ENODEV;
 }
-EXPORT_SYMBOL(usb_reset_device);
+EXPORT_SYMBOL_GPL(usb_reset_device);
 
 /**
  * usb_reset_composite_device - warn interface drivers and perform a USB port reset
@@ -3187,4 +3188,4 @@ int usb_reset_composite_device(struct usb_device *udev,
 	usb_autosuspend_device(udev);
 	return ret;
 }
-EXPORT_SYMBOL(usb_reset_composite_device);
+EXPORT_SYMBOL_GPL(usb_reset_composite_device);
