@@ -65,7 +65,6 @@ core-y				+= arch/ppc/kernel/ arch/powerpc/kernel/ \
 				   arch/ppc/syslib/ arch/powerpc/sysdev/ \
 				   arch/powerpc/lib/
 core-$(CONFIG_4xx)		+= arch/ppc/platforms/4xx/
-core-$(CONFIG_83xx)		+= arch/ppc/platforms/83xx/
 core-$(CONFIG_85xx)		+= arch/ppc/platforms/85xx/
 core-$(CONFIG_MATH_EMULATION)	+= arch/powerpc/math-emu/
 core-$(CONFIG_XMON)		+= arch/ppc/xmon/

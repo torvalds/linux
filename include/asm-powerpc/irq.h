@@ -483,11 +483,6 @@ static __inline__ int irq_canonicalize(int irq)
  */
 #define	mk_int_int_mask(IL) (1 << (7 - (IL/2)))
 
-#elif defined(CONFIG_83xx)
-#include <asm/mpc83xx.h>
-
-#define	NR_IRQS	(NR_IPIC_INTS)
-
 #elif defined(CONFIG_85xx)
 /* Now include the board configuration specific associations.
 */
