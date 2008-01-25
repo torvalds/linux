@@ -148,10 +148,26 @@ int rndis_command(struct usbnet *dev, struct rndis_msg_hdr *buf)
 					request_id, xid);
 				/* then likely retry */
 			} else switch (buf->msg_type) {
-			case RNDIS_MSG_INDICATE: {	/* fault */
-				// struct rndis_indicate *msg = (void *)buf;
-				dev_info(&info->control->dev,
-					"rndis fault indication\n");
+			case RNDIS_MSG_INDICATE: {	/* fault/event */
+				struct rndis_indicate *msg = (void *)buf;
+				int state = 0;
+
+				switch (msg->status) {
+				case RNDIS_STATUS_MEDIA_CONNECT:
+					state = 1;
+				case RNDIS_STATUS_MEDIA_DISCONNECT:
+					dev_info(&info->control->dev,
+						"rndis media %sconnect\n",
+						!state?"dis":"");
+					if (dev->driver_info->link_change)
+						dev->driver_info->link_change(
+							dev, state);
+					break;
+				default:
+					dev_info(&info->control->dev,
+						"rndis indication: 0x%08x\n",
+						le32_to_cpu(msg->status));
+				}
 				}
 				break;
 			case RNDIS_MSG_KEEPALIVE: {	/* ping */
