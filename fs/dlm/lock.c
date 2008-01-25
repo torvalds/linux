@@ -3802,7 +3802,7 @@ static void dlm_receive_message(struct dlm_ls *ls, struct dlm_message *ms,
 				int nodeid)
 {
 	if (dlm_locking_stopped(ls)) {
-		dlm_add_requestqueue(ls, nodeid, (struct dlm_header *) ms);
+		dlm_add_requestqueue(ls, nodeid, ms);
 	} else {
 		dlm_wait_requestqueue(ls);
 		_receive_message(ls, ms);
