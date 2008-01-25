@@ -2142,82 +2142,34 @@ static void __init fixup_device_tree_pmac(void)
 #endif
 
 #ifdef CONFIG_PPC_EFIKA
-/* The current fw of the Efika has a device tree needs quite a few
- * fixups to be compliant with the mpc52xx bindings. It's currently
- * unknown if it will ever be compliant (come on bPlan ...) so we do fixups.
- * NOTE that we (barely) tolerate it because the EFIKA was out before
- * the bindings were finished, for any new boards -> RTFM ! */
-
-struct subst_entry {
-	char *path;
-	char *property;
-	void *value;
-	int value_len;
-};
-
-static void __init fixup_device_tree_efika(void)
+/*
+ * The MPC5200 FEC driver requires an phy-handle property to tell it how
+ * to talk to the phy.  If the phy-handle property is missing, then this
+ * function is called to add the appropriate nodes and link it to the
+ * ethernet node.
+ */
+static void __init fixup_device_tree_efika_add_phy(void)
 {
-	/* Substitution table */
-	#define prop_cstr(x) x, sizeof(x)
-	int prop_sound_irq[3] = { 2, 2, 0 };
-	int prop_bcomm_irq[3*16] = { 3,0,0, 3,1,0, 3,2,0, 3,3,0,
-	                             3,4,0, 3,5,0, 3,6,0, 3,7,0,
-	                             3,8,0, 3,9,0, 3,10,0, 3,11,0,
-	                             3,12,0, 3,13,0, 3,14,0, 3,15,0 };
-	struct subst_entry efika_subst_table[] = {
-		{ "/",			"device_type",	prop_cstr("efika") },
-		{ "/builtin",		"device_type",	prop_cstr("soc") },
-		{ "/builtin/ata",	"compatible",	prop_cstr("mpc5200b-ata\0mpc5200-ata"), },
-		{ "/builtin/bestcomm",	"compatible",	prop_cstr("mpc5200b-bestcomm\0mpc5200-bestcomm") },
-		{ "/builtin/bestcomm",	"interrupts",	prop_bcomm_irq, sizeof(prop_bcomm_irq) },
-		{ "/builtin/ethernet",	"compatible",	prop_cstr("mpc5200b-fec\0mpc5200-fec") },
-		{ "/builtin/pic",	"compatible",	prop_cstr("mpc5200b-pic\0mpc5200-pic") },
-		{ "/builtin/serial",	"compatible",	prop_cstr("mpc5200b-psc-uart\0mpc5200-psc-uart") },
-		{ "/builtin/sound",	"compatible",	prop_cstr("mpc5200b-psc-ac97\0mpc5200-psc-ac97") },
-		{ "/builtin/sound",	"interrupts",	prop_sound_irq, sizeof(prop_sound_irq) },
-		{ "/builtin/sram",	"compatible",	prop_cstr("mpc5200b-sram\0mpc5200-sram") },
-		{ "/builtin/sram",	"device_type",	prop_cstr("sram") },
-		{}
-	};
-	#undef prop_cstr
-
-	/* Vars */
 	u32 node;
 	char prop[64];
-	int rv, i;
+	int rv;
 
-	/* Check if we're really running on a EFIKA */
-	node = call_prom("finddevice", 1, 1, ADDR("/"));
+	/* Check if /builtin/ethernet exists - bail if it doesn't */
+	node = call_prom("finddevice", 1, 1, ADDR("/builtin/ethernet"));
 	if (!PHANDLE_VALID(node))
 		return;
 
-	rv = prom_getprop(node, "model", prop, sizeof(prop));
-	if (rv == PROM_ERROR)
+	/* Check if the phy-handle property exists - bail if it does */
+	rv = prom_getprop(node, "phy-handle", prop, sizeof(prop));
+	if (!rv)
 		return;
-	if (strcmp(prop, "EFIKA5K2"))
-		return;
 
-	prom_printf("Applying EFIKA device tree fixups\n");
+	/*
+	 * At this point the ethernet device doesn't have a phy described.
+	 * Now we need to add the missing phy node and linkage
+	 */
 
-	/* Process substitution table */
-	for (i=0; efika_subst_table[i].path; i++) {
-		struct subst_entry *se = &efika_subst_table[i];
-
-		node = call_prom("finddevice", 1, 1, ADDR(se->path));
-		if (!PHANDLE_VALID(node)) {
-			prom_printf("fixup_device_tree_efika: ",
-				"skipped entry %x - not found\n", i);
-			continue;
-		}
-
-		rv = prom_setprop(node, se->path, se->property,
-					se->value, se->value_len );
-		if (rv == PROM_ERROR)
-			prom_printf("fixup_device_tree_efika: ",
-				"skipped entry %x - setprop error\n", i);
-	}
-
-	/* Make sure ethernet mdio bus node exists */
+	/* Check for an MDIO bus node - if missing then create one */
 	node = call_prom("finddevice", 1, 1, ADDR("/builtin/mdio"));
 	if (!PHANDLE_VALID(node)) {
 		prom_printf("Adding Ethernet MDIO node\n");
@@ -2226,8 +2178,8 @@ static void __init fixup_device_tree_efika(void)
 			" new-device"
 				" 1 encode-int s\" #address-cells\" property"
 				" 0 encode-int s\" #size-cells\" property"
-				" s\" mdio\" 2dup device-name device-type"
-				" s\" mpc5200b-fec-phy\" encode-string"
+				" s\" mdio\" device-name"
+				" s\" fsl,mpc5200b-mdio\" encode-string"
 				" s\" compatible\" property"
 				" 0xf0003000 0x400 reg"
 				" 0x2 encode-int"
@@ -2237,8 +2189,10 @@ static void __init fixup_device_tree_efika(void)
 			" finish-device");
 	};
 
-	/* Make sure ethernet phy device node exist */
-	node = call_prom("finddevice", 1, 1, ADDR("/builtin/mdio/ethernet-phy"));
+	/* Check for a PHY device node - if missing then create one and
+	 * give it's phandle to the ethernet node */
+	node = call_prom("finddevice", 1, 1,
+			 ADDR("/builtin/mdio/ethernet-phy"));
 	if (!PHANDLE_VALID(node)) {
 		prom_printf("Adding Ethernet PHY node\n");
 		call_prom("interpret", 1, 1,
@@ -2254,7 +2208,62 @@ static void __init fixup_device_tree_efika(void)
 				" s\" phy-handle\" property"
 			" device-end");
 	}
+}
 
+static void __init fixup_device_tree_efika(void)
+{
+	int sound_irq[3] = { 2, 2, 0 };
+	int bcomm_irq[3*16] = { 3,0,0, 3,1,0, 3,2,0, 3,3,0,
+				3,4,0, 3,5,0, 3,6,0, 3,7,0,
+				3,8,0, 3,9,0, 3,10,0, 3,11,0,
+				3,12,0, 3,13,0, 3,14,0, 3,15,0 };
+	u32 node;
+	char prop[64];
+	int rv, len;
+
+	/* Check if we're really running on a EFIKA */
+	node = call_prom("finddevice", 1, 1, ADDR("/"));
+	if (!PHANDLE_VALID(node))
+		return;
+
+	rv = prom_getprop(node, "model", prop, sizeof(prop));
+	if (rv == PROM_ERROR)
+		return;
+	if (strcmp(prop, "EFIKA5K2"))
+		return;
+
+	prom_printf("Applying EFIKA device tree fixups\n");
+
+	/* Claiming to be 'chrp' is death */
+	node = call_prom("finddevice", 1, 1, ADDR("/"));
+	rv = prom_getprop(node, "device_type", prop, sizeof(prop));
+	if (rv != PROM_ERROR && (strcmp(prop, "chrp") == 0))
+		prom_setprop(node, "/", "device_type", "efika", sizeof("efika"));
+
+	/* Fixup bestcomm interrupts property */
+	node = call_prom("finddevice", 1, 1, ADDR("/builtin/bestcomm"));
+	if (PHANDLE_VALID(node)) {
+		len = prom_getproplen(node, "interrupts");
+		if (len == 12) {
+			prom_printf("Fixing bestcomm interrupts property\n");
+			prom_setprop(node, "/builtin/bestcom", "interrupts",
+				     bcomm_irq, sizeof(bcomm_irq));
+		}
+	}
+
+	/* Fixup sound interrupts property */
+	node = call_prom("finddevice", 1, 1, ADDR("/builtin/sound"));
+	if (PHANDLE_VALID(node)) {
+		rv = prom_getprop(node, "interrupts", prop, sizeof(prop));
+		if (rv == PROM_ERROR) {
+			prom_printf("Adding sound interrupts property\n");
+			prom_setprop(node, "/builtin/sound", "interrupts",
+				     sound_irq, sizeof(sound_irq));
+		}
+	}
+
+	/* Make sure ethernet phy-handle property exists */
+	fixup_device_tree_efika_add_phy();
 }
 #else
 #define fixup_device_tree_efika()
