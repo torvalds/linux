@@ -46,7 +46,46 @@ config STX_GP3
 	select DEFAULT_UIMAGE
 	select PPC_CPM_NEW_BINDING
 
+config TQM8540
+	bool "TQ Components TQM8540"
+	help
+	  This option enables support for the TQ Components TQM8540 board.
+	select DEFAULT_UIMAGE
+	select PPC_CPM_NEW_BINDING
+	select TQM85xx
+
+config TQM8541
+	bool "TQ Components TQM8541"
+	help
+	  This option enables support for the TQ Components TQM8541 board.
+	select DEFAULT_UIMAGE
+	select PPC_CPM_NEW_BINDING
+	select TQM85xx
+	select CPM2
+
+config TQM8555
+	bool "TQ Components TQM8555"
+	help
+	  This option enables support for the TQ Components TQM8555 board.
+	select DEFAULT_UIMAGE
+	select PPC_CPM_NEW_BINDING
+	select TQM85xx
+	select CPM2
+
+config TQM8560
+	bool "TQ Components TQM8560"
+	help
+	  This option enables support for the TQ Components TQM8560 board.
+	select DEFAULT_UIMAGE
+	select PPC_CPM_NEW_BINDING
+	select TQM85xx
+	select CPM2
+
 endchoice
+
+config TQM85xx
+	bool
+	select MPC85xx
 
 config MPC8540
 	bool
