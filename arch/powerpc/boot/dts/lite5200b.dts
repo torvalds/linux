@@ -46,6 +46,8 @@
 	};
 
 	soc5200@f0000000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
 		model = "fsl,mpc5200b";
 		compatible = "mpc5200";
 		revision = "";			// from bootloader
