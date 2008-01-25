@@ -1,11 +1,11 @@
-// $Id: vcs_hook.h,v 1.1 2003/08/12 12:01:06 starvik Exp $
-//
-// Call simulator hook functions
+/*
+ * Call simulator hook functions
+ */
 
 #ifndef HOOK_H
 #define HOOK_H
 
-int hook_call( unsigned id, unsigned pcnt, ...);
+int hook_call(unsigned id, unsigned pcnt, ...);
 
 enum hook_ids {
   hook_debug_on = 1,
