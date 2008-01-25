@@ -594,8 +594,8 @@ static ide_startstop_t idescsi_issue_pc (ide_drive_t *drive, idescsi_pc_t *pc)
 		HWIF(drive)->OUTB(drive->ctl, IDE_CONTROL_REG);
 
 	hwif->OUTB(dma, IDE_FEATURE_REG);
-	hwif->OUTB((bcount >> 8) & 0xff, IDE_BCOUNTH_REG);
 	hwif->OUTB(bcount & 0xff, IDE_BCOUNTL_REG);
+	hwif->OUTB((bcount >> 8) & 0xff, IDE_BCOUNTH_REG);
 
 	if (dma)
 		set_bit(PC_DMA_OK, &pc->flags);
