@@ -932,6 +932,7 @@ struct sched_entity {
 struct sched_rt_entity {
 	struct list_head run_list;
 	unsigned int time_slice;
+	unsigned long timeout;
 };
 
 struct task_struct {

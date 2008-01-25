@@ -116,6 +116,9 @@ static void enqueue_task_rt(struct rq *rq, struct task_struct *p, int wakeup)
 	inc_cpu_load(rq, p->se.load.weight);
 
 	inc_rt_tasks(p, rq);
+
+	if (wakeup)
+		p->rt.timeout = 0;
 }
 
 /*
@@ -834,10 +837,37 @@ static void prio_changed_rt(struct rq *rq, struct task_struct *p,
 	}
 }
 
+static void watchdog(struct rq *rq, struct task_struct *p)
+{
+	unsigned long soft, hard;
+
+	if (!p->signal)
+		return;
+
+	soft = p->signal->rlim[RLIMIT_RTTIME].rlim_cur;
+	hard = p->signal->rlim[RLIMIT_RTTIME].rlim_max;
+
+	if (soft != RLIM_INFINITY) {
+		unsigned long next;
+
+		p->rt.timeout++;
+		next = DIV_ROUND_UP(min(soft, hard), USEC_PER_SEC/HZ);
+		if (next > p->rt.timeout) {
+			u64 next_time = p->se.sum_exec_runtime;
+
+			next_time += next * (NSEC_PER_SEC/HZ);
+			if (p->it_sched_expires > next_time)
+				p->it_sched_expires = next_time;
+		} else
+			p->it_sched_expires = p->se.sum_exec_runtime;
+	}
+}
 
 static void task_tick_rt(struct rq *rq, struct task_struct *p)
 {
 	update_curr_rt(rq);
+
+	watchdog(rq, p);
 
 	/*
 	 * RR tasks need a special form of timeslice management.
