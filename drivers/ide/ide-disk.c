@@ -185,6 +185,7 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq, 
 	u8 lba48		= (drive->addressing == 1) ? 1 : 0;
 	ide_task_t		task;
 	struct ide_taskfile	*tf = &task.tf;
+	ide_startstop_t		rc;
 
 	if ((hwif->host_flags & IDE_HFLAG_NO_LBA48_DMA) && lba48 && dma) {
 		if (block + rq->nr_sectors > 1ULL << 28)
@@ -252,32 +253,22 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq, 
 		task.tf_flags |= IDE_TFLAG_WRITE;
 
 	ide_tf_set_cmd(drive, &task, dma);
+	if (!dma)
+		hwif->data_phase = task.data_phase;
+	task.rq = rq;
 
-	ide_tf_load(drive, &task);
+	rc = do_rw_taskfile(drive, &task);
 
-	if (dma) {
-		if (!hwif->dma_setup(drive)) {
-			hwif->dma_exec_cmd(drive, tf->command);
-			hwif->dma_start(drive);
-			return ide_started;
-		}
+	if (rc == ide_stopped && dma) {
 		/* fallback to PIO */
+		task.tf_flags |= IDE_TFLAG_DMA_PIO_FALLBACK;
 		ide_tf_set_cmd(drive, &task, 0);
+		hwif->data_phase = task.data_phase;
 		ide_init_sg_cmd(drive, rq);
+		rc = do_rw_taskfile(drive, &task);
 	}
 
-	hwif->data_phase = task.data_phase;
-
-	if (rq_data_dir(rq) == READ) {
-		ide_execute_command(drive, tf->command, &task_in_intr,
-				    WAIT_WORSTCASE, NULL);
-		return ide_started;
-	} else {
-		hwif->OUTBSYNC(drive, tf->command, IDE_COMMAND_REG);
-		ndelay(400);	/* FIXME */
-
-		return pre_task_out_intr(drive, rq);
-	}
+	return rc;
 }
 
 /*

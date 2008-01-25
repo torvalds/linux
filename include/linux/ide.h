@@ -912,6 +912,7 @@ enum {
 	IDE_TFLAG_FLAGGED_SET_IN_FLAGS	= (1 << 16),
 	IDE_TFLAG_IN_DATA		= (1 << 17),
 	IDE_TFLAG_CUSTOM_HANDLER	= (1 << 18),
+	IDE_TFLAG_DMA_PIO_FALLBACK	= (1 << 19),
 };
 
 struct ide_taskfile {
@@ -965,13 +966,7 @@ extern int drive_is_ready(ide_drive_t *);
 
 void ide_pktcmd_tf_load(ide_drive_t *, u32, u16, u8);
 
-/*
- * taskfile io for disks for now...and builds request from ide_ioctl
- */
-extern ide_startstop_t do_rw_taskfile(ide_drive_t *, ide_task_t *);
-
-extern ide_startstop_t task_in_intr(ide_drive_t *);
-extern ide_startstop_t pre_task_out_intr(ide_drive_t *, struct request *);
+ide_startstop_t do_rw_taskfile(ide_drive_t *, ide_task_t *);
 
 int ide_raw_taskfile(ide_drive_t *, ide_task_t *, u8 *, u16);
 int ide_no_data_taskfile(ide_drive_t *, ide_task_t *);

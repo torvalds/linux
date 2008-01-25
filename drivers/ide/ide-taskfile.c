@@ -114,8 +114,6 @@ void ide_tf_load(ide_drive_t *drive, ide_task_t *task)
 		hwif->OUTB((tf->device & HIHI) | drive->select.all, IDE_SELECT_REG);
 }
 
-EXPORT_SYMBOL_GPL(ide_tf_load);
-
 int taskfile_lib_get_identify (ide_drive_t *drive, u8 *buf)
 {
 	ide_task_t args;
@@ -133,7 +131,7 @@ int taskfile_lib_get_identify (ide_drive_t *drive, u8 *buf)
 
 static int inline task_dma_ok(ide_task_t *task)
 {
-	if (task->tf_flags & IDE_TFLAG_FLAGGED)
+	if (blk_fs_request(task->rq) || (task->tf_flags & IDE_TFLAG_FLAGGED))
 		return 1;
 
 	switch (task->tf.command) {
@@ -154,6 +152,8 @@ static ide_startstop_t task_no_data_intr(ide_drive_t *);
 static ide_startstop_t set_geometry_intr(ide_drive_t *);
 static ide_startstop_t recal_intr(ide_drive_t *);
 static ide_startstop_t set_multmode_intr(ide_drive_t *);
+static ide_startstop_t pre_task_out_intr(ide_drive_t *, struct request *);
+static ide_startstop_t task_in_intr(ide_drive_t *);
 
 ide_startstop_t do_rw_taskfile (ide_drive_t *drive, ide_task_t *task)
 {
@@ -173,7 +173,8 @@ ide_startstop_t do_rw_taskfile (ide_drive_t *drive, ide_task_t *task)
 	if (task->tf_flags & IDE_TFLAG_FLAGGED)
 		task->tf_flags |= IDE_TFLAG_FLAGGED_SET_IN_FLAGS;
 
-	ide_tf_load(drive, task);
+	if ((task->tf_flags & IDE_TFLAG_DMA_PIO_FALLBACK) == 0)
+		ide_tf_load(drive, task);
 
 	switch (task->data_phase) {
 	case TASKFILE_MULTI_OUT:
@@ -208,6 +209,7 @@ ide_startstop_t do_rw_taskfile (ide_drive_t *drive, ide_task_t *task)
 		return ide_started;
 	}
 }
+EXPORT_SYMBOL_GPL(do_rw_taskfile);
 
 /*
  * set_multmode_intr() is invoked on completion of a WIN_SETMULT cmd.
@@ -446,7 +448,7 @@ static void task_end_request(ide_drive_t *drive, struct request *rq, u8 stat)
 /*
  * Handler for command with PIO data-in phase (Read/Read Multiple).
  */
-ide_startstop_t task_in_intr (ide_drive_t *drive)
+static ide_startstop_t task_in_intr(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	struct request *rq = HWGROUP(drive)->rq;
@@ -477,7 +479,6 @@ ide_startstop_t task_in_intr (ide_drive_t *drive)
 
 	return ide_started;
 }
-EXPORT_SYMBOL(task_in_intr);
 
 /*
  * Handler for command with PIO data-out phase (Write/Write Multiple).
@@ -507,7 +508,7 @@ static ide_startstop_t task_out_intr (ide_drive_t *drive)
 	return ide_started;
 }
 
-ide_startstop_t pre_task_out_intr (ide_drive_t *drive, struct request *rq)
+static ide_startstop_t pre_task_out_intr(ide_drive_t *drive, struct request *rq)
 {
 	ide_startstop_t startstop;
 
@@ -528,7 +529,6 @@ ide_startstop_t pre_task_out_intr (ide_drive_t *drive, struct request *rq)
 
 	return ide_started;
 }
-EXPORT_SYMBOL(pre_task_out_intr);
 
 int ide_raw_taskfile(ide_drive_t *drive, ide_task_t *task, u8 *buf, u16 nsect)
 {
