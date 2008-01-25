@@ -1682,7 +1682,7 @@ int __init scsi_init_queue(void)
 					0, 0, NULL);
 	if (!scsi_bidi_sdb_cache) {
 		printk(KERN_ERR "SCSI: can't init scsi bidi sdb cache\n");
-		return -ENOMEM;
+		goto cleanup_io_context;
 	}
 
 	for (i = 0; i < SG_MEMPOOL_NR; i++) {
@@ -1694,6 +1694,7 @@ int __init scsi_init_queue(void)
 		if (!sgp->slab) {
 			printk(KERN_ERR "SCSI: can't init sg slab %s\n",
 					sgp->name);
+			goto cleanup_bidi_sdb;
 		}
 
 		sgp->pool = mempool_create_slab_pool(SG_MEMPOOL_SIZE,
@@ -1701,10 +1702,25 @@ int __init scsi_init_queue(void)
 		if (!sgp->pool) {
 			printk(KERN_ERR "SCSI: can't init sg mempool %s\n",
 					sgp->name);
+			goto cleanup_bidi_sdb;
 		}
 	}
 
 	return 0;
+
+cleanup_bidi_sdb:
+	for (i = 0; i < SG_MEMPOOL_NR; i++) {
+		struct scsi_host_sg_pool *sgp = scsi_sg_pools + i;
+		if (sgp->pool)
+			mempool_destroy(sgp->pool);
+		if (sgp->slab)
+			kmem_cache_destroy(sgp->slab);
+	}
+	kmem_cache_destroy(scsi_bidi_sdb_cache);
+cleanup_io_context:
+	kmem_cache_destroy(scsi_io_context_cache);
+
+	return -ENOMEM;
 }
 
 void scsi_exit_queue(void)
