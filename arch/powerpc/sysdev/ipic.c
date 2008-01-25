@@ -497,6 +497,12 @@ static struct ipic_info ipic_info[] = {
 		.force	= IPIC_SIFCR_L,
 		.bit	= 27,
 	},
+	[94] = {
+		.mask	= IPIC_SIMSR_L,
+		.prio	= 0,
+		.force	= IPIC_SIFCR_L,
+		.bit	= 30,
+	},
 };
 
 static inline u32 ipic_read(volatile u32 __iomem *base, unsigned int reg)
