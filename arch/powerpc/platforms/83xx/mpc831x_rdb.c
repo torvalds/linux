@@ -1,7 +1,7 @@
 /*
- * arch/powerpc/platforms/83xx/mpc8313_rdb.c
+ * arch/powerpc/platforms/83xx/mpc831x_rdb.c
  *
- * Description: MPC8313x RDB board specific routines.
+ * Description: MPC831x RDB board specific routines.
  * This file is based on mpc834x_sys.c
  * Author: Lo Wlison <r43300@freescale.com>
  *
@@ -22,26 +22,17 @@
 
 #include "mpc83xx.h"
 
-#undef DEBUG
-#ifdef DEBUG
-#define DBG(fmt...) udbg_printf(fmt)
-#else
-#define DBG(fmt...)
-#endif
-
-/* ************************************************************************
- *
+/*
  * Setup the architecture
- *
  */
-static void __init mpc8313_rdb_setup_arch(void)
+static void __init mpc831x_rdb_setup_arch(void)
 {
 #ifdef CONFIG_PCI
 	struct device_node *np;
 #endif
 
 	if (ppc_md.progress)
-		ppc_md.progress("mpc8313_rdb_setup_arch()", 0);
+		ppc_md.progress("mpc831x_rdb_setup_arch()", 0);
 
 #ifdef CONFIG_PCI
 	for_each_compatible_node(np, "pci", "fsl,mpc8349-pci")
@@ -50,7 +41,7 @@ static void __init mpc8313_rdb_setup_arch(void)
 	mpc831x_usb_cfg();
 }
 
-void __init mpc8313_rdb_init_IRQ(void)
+void __init mpc831x_rdb_init_IRQ(void)
 {
 	struct device_node *np;
 
@@ -69,7 +60,7 @@ void __init mpc8313_rdb_init_IRQ(void)
 /*
  * Called very early, MMU is off, device-tree isn't unflattened
  */
-static int __init mpc8313_rdb_probe(void)
+static int __init mpc831x_rdb_probe(void)
 {
 	unsigned long root = of_get_flat_dt_root();
 
@@ -86,13 +77,13 @@ static int __init declare_of_platform_devices(void)
 	of_platform_bus_probe(NULL, of_bus_ids, NULL);
 	return 0;
 }
-machine_device_initcall(mpc8313_rdb, declare_of_platform_devices);
+machine_device_initcall(mpc831x_rdb, declare_of_platform_devices);
 
-define_machine(mpc8313_rdb) {
-	.name			= "MPC8313 RDB",
-	.probe			= mpc8313_rdb_probe,
-	.setup_arch		= mpc8313_rdb_setup_arch,
-	.init_IRQ		= mpc8313_rdb_init_IRQ,
+define_machine(mpc831x_rdb) {
+	.name			= "MPC831x RDB",
+	.probe			= mpc831x_rdb_probe,
+	.setup_arch		= mpc831x_rdb_setup_arch,
+	.init_IRQ		= mpc831x_rdb_init_IRQ,
 	.get_irq		= ipic_get_irq,
 	.restart		= mpc83xx_restart,
 	.time_init		= mpc83xx_time_init,

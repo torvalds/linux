@@ -3,8 +3,8 @@ choice
 	depends on PPC_83xx
 	default MPC834x_MDS
 
-config MPC8313_RDB
-	bool "Freescale MPC8313 RDB"
+config MPC831x_RDB
+	bool "Freescale MPC831x RDB"
 	select DEFAULT_UIMAGE
 	help
 	  This option enables support for the MPC8313 RDB board.
@@ -68,7 +68,7 @@ config PPC_MPC831x
 	bool
 	select PPC_UDBG_16550
 	select PPC_INDIRECT_PCI
-	default y if MPC8313_RDB
+	default y if MPC831x_RDB
 
 config PPC_MPC832x
 	bool
