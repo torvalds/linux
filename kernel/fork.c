@@ -1205,6 +1205,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 #ifdef TIF_SYSCALL_EMU
 	clear_tsk_thread_flag(p, TIF_SYSCALL_EMU);
 #endif
+	clear_all_latency_tracing(p);
 
 	/* Our parent execution domain becomes current domain
 	   These must match for thread signalling to apply */

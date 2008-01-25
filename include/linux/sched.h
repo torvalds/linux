@@ -88,6 +88,7 @@ struct sched_param {
 #include <linux/hrtimer.h>
 #include <linux/task_io_accounting.h>
 #include <linux/kobject.h>
+#include <linux/latencytop.h>
 
 #include <asm/processor.h>
 
@@ -1220,6 +1221,10 @@ struct task_struct {
 	int make_it_fail;
 #endif
 	struct prop_local_single dirties;
+#ifdef CONFIG_LATENCYTOP
+	int latency_record_count;
+	struct latency_record latency_record[LT_SAVECOUNT];
+#endif
 };
 
 /*

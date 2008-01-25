@@ -81,6 +81,7 @@ extern int compat_log;
 extern int maps_protect;
 extern int sysctl_stat_interval;
 extern int audit_argv_kb;
+extern int latencytop_enabled;
 
 /* Constants used for minimum and  maximum */
 #ifdef CONFIG_DETECT_SOFTLOCKUP
@@ -414,6 +415,15 @@ static struct ctl_table kern_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_taint,
+	},
+#endif
+#ifdef CONFIG_LATENCYTOP
+	{
+		.procname	= "latencytop",
+		.data		= &latencytop_enabled,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
 	},
 #endif
 #ifdef CONFIG_SECURITY_CAPABILITIES

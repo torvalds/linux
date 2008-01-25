@@ -20,6 +20,8 @@
  *  Copyright (C) 2007 Red Hat, Inc., Peter Zijlstra <pzijlstr@redhat.com>
  */
 
+#include <linux/latencytop.h>
+
 /*
  * Targeted preemption latency for CPU-bound tasks:
  * (default: 20ms * (1 + ilog(ncpus)), units: nanoseconds)
@@ -434,6 +436,7 @@ static void enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 #ifdef CONFIG_SCHEDSTATS
 	if (se->sleep_start) {
 		u64 delta = rq_of(cfs_rq)->clock - se->sleep_start;
+		struct task_struct *tsk = task_of(se);
 
 		if ((s64)delta < 0)
 			delta = 0;
@@ -443,9 +446,12 @@ static void enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 
 		se->sleep_start = 0;
 		se->sum_sleep_runtime += delta;
+
+		account_scheduler_latency(tsk, delta >> 10, 1);
 	}
 	if (se->block_start) {
 		u64 delta = rq_of(cfs_rq)->clock - se->block_start;
+		struct task_struct *tsk = task_of(se);
 
 		if ((s64)delta < 0)
 			delta = 0;
@@ -462,11 +468,11 @@ static void enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 		 * time that the task spent sleeping:
 		 */
 		if (unlikely(prof_on == SLEEP_PROFILING)) {
-			struct task_struct *tsk = task_of(se);
 
 			profile_hits(SLEEP_PROFILING, (void *)get_wchan(tsk),
 				     delta >> 20);
 		}
+		account_scheduler_latency(tsk, delta >> 10, 0);
 	}
 #endif
 }
