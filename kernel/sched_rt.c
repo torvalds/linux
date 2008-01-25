@@ -253,8 +253,6 @@ static struct task_struct *pick_next_highest_task_rt(struct rq *rq, int cpu)
 	struct list_head *queue;
 	int idx;
 
-	assert_spin_locked(&rq->lock);
-
 	if (likely(rq->rt.rt_nr_running < 2))
 		return NULL;
 
@@ -500,8 +498,6 @@ static int push_rt_task(struct rq *rq)
 	int ret = 0;
 	int paranoid = RT_MAX_TRIES;
 
-	assert_spin_locked(&rq->lock);
-
 	if (!rq->rt.overloaded)
 		return 0;
 
@@ -546,8 +542,6 @@ static int push_rt_task(struct rq *rq)
 		goto out;
 	}
 
-	assert_spin_locked(&lowest_rq->lock);
-
 	deactivate_task(rq, next_task, 0);
 	set_task_cpu(next_task, lowest_rq->cpu);
 	activate_task(lowest_rq, next_task, 0);
@@ -588,8 +582,6 @@ static int pull_rt_task(struct rq *this_rq)
 	int this_cpu = this_rq->cpu;
 	int cpu;
 	int ret = 0;
-
-	assert_spin_locked(&this_rq->lock);
 
 	/*
 	 * If cpusets are used, and we have overlapping
