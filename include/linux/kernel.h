@@ -105,8 +105,8 @@ struct user;
  * supposed to.
  */
 #ifdef CONFIG_PREEMPT_VOLUNTARY
-extern int cond_resched(void);
-# define might_resched() cond_resched()
+extern int _cond_resched(void);
+# define might_resched() _cond_resched()
 #else
 # define might_resched() do { } while (0)
 #endif

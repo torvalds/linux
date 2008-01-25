@@ -1885,7 +1885,18 @@ static inline int need_resched(void)
  * cond_resched_lock() will drop the spinlock before scheduling,
  * cond_resched_softirq() will enable bhs before scheduling.
  */
-extern int cond_resched(void);
+#ifdef CONFIG_PREEMPT
+static inline int cond_resched(void)
+{
+	return 0;
+}
+#else
+extern int _cond_resched(void);
+static inline int cond_resched(void)
+{
+	return _cond_resched();
+}
+#endif
 extern int cond_resched_lock(spinlock_t * lock);
 extern int cond_resched_softirq(void);
 
