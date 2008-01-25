@@ -1765,6 +1765,7 @@ static void acpi_video_bus_notify(acpi_handle handle, u32 event, void *data)
 		break;
 	}
 
+	acpi_notifier_call_chain(device, event, 0);
 	input_report_key(input, keycode, 1);
 	input_sync(input);
 	input_report_key(input, keycode, 0);
@@ -1826,6 +1827,7 @@ static void acpi_video_device_notify(acpi_handle handle, u32 event, void *data)
 		break;
 	}
 
+	acpi_notifier_call_chain(device, event, 0);
 	input_report_key(input, keycode, 1);
 	input_sync(input);
 	input_report_key(input, keycode, 0);
