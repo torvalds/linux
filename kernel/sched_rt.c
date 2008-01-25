@@ -303,7 +303,7 @@ static int find_lowest_cpus(struct task_struct *task, cpumask_t *lowest_mask)
 	int       cpu;
 	cpumask_t *valid_mask = &__get_cpu_var(valid_cpu_mask);
 	int       lowest_prio = -1;
-	int       ret         = 0;
+	int       count       = 0;
 
 	cpus_clear(*lowest_mask);
 	cpus_and(*valid_mask, cpu_online_map, task->cpus_allowed);
@@ -316,7 +316,7 @@ static int find_lowest_cpus(struct task_struct *task, cpumask_t *lowest_mask)
 
 		/* We look for lowest RT prio or non-rt CPU */
 		if (rq->rt.highest_prio >= MAX_RT_PRIO) {
-			if (ret)
+			if (count)
 				cpus_clear(*lowest_mask);
 			cpu_set(rq->cpu, *lowest_mask);
 			return 1;
@@ -328,14 +328,17 @@ static int find_lowest_cpus(struct task_struct *task, cpumask_t *lowest_mask)
 			if (rq->rt.highest_prio > lowest_prio) {
 				/* new low - clear old data */
 				lowest_prio = rq->rt.highest_prio;
-				cpus_clear(*lowest_mask);
+				if (count) {
+					cpus_clear(*lowest_mask);
+					count = 0;
+				}
 			}
 			cpu_set(rq->cpu, *lowest_mask);
-			ret = 1;
+			count++;
 		}
 	}
 
-	return ret;
+	return count;
 }
 
 static inline int pick_optimal_cpu(int this_cpu, cpumask_t *mask)
@@ -359,9 +362,17 @@ static int find_lowest_rq(struct task_struct *task)
 	cpumask_t *lowest_mask = &__get_cpu_var(local_cpu_mask);
 	int this_cpu = smp_processor_id();
 	int cpu      = task_cpu(task);
+	int count    = find_lowest_cpus(task, lowest_mask);
 
-	if (!find_lowest_cpus(task, lowest_mask))
-		return -1;
+	if (!count)
+		return -1; /* No targets found */
+
+	/*
+	 * There is no sense in performing an optimal search if only one
+	 * target is found.
+	 */
+	if (count == 1)
+		return first_cpu(*lowest_mask);
 
 	/*
 	 * At this point we have built a mask of cpus representing the
