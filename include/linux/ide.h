@@ -968,6 +968,8 @@ extern void QUIRK_LIST(ide_drive_t *);
 
 extern int drive_is_ready(ide_drive_t *);
 
+void ide_pktcmd_tf_load(ide_drive_t *, u32, u16, u8);
+
 /*
  * taskfile io for disks for now...and builds request from ide_ioctl
  */
