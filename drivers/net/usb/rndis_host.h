@@ -244,5 +244,14 @@ struct rndis_keepalive_c {	/* IN (optionally OUT) */
 	RNDIS_PACKET_TYPE_ALL_MULTICAST | \
 	RNDIS_PACKET_TYPE_PROMISCUOUS)
 
+
+extern void rndis_status(struct usbnet *dev, struct urb *urb);
+extern int rndis_command(struct usbnet *dev, struct rndis_msg_hdr *buf);
+extern int generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf);
+extern void rndis_unbind(struct usbnet *dev, struct usb_interface *intf);
+extern int rndis_rx_fixup(struct usbnet *dev, struct sk_buff *skb);
+extern struct sk_buff *
+rndis_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags);
+
 #endif	/* __RNDIS_HOST_H */
 
