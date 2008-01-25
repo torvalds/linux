@@ -9,6 +9,7 @@
 #include <linux/bug.h>
 #include <linux/init.h>
 #include <linux/kallsyms.h>
+#include <linux/kdebug.h>
 #include <linux/module.h>
 #include <linux/notifier.h>
 #include <linux/sched.h>
@@ -107,9 +108,23 @@ void _exception(long signr, struct pt_regs *regs, int code,
 
 asmlinkage void do_nmi(unsigned long ecr, struct pt_regs *regs)
 {
-	printk(KERN_ALERT "Got Non-Maskable Interrupt, dumping regs\n");
-	show_regs_log_lvl(regs, KERN_ALERT);
-	show_stack_log_lvl(current, regs->sp, regs, KERN_ALERT);
+	int ret;
+
+	nmi_enter();
+
+	ret = notify_die(DIE_NMI, "NMI", regs, 0, ecr, SIGINT);
+	switch (ret) {
+	case NOTIFY_OK:
+	case NOTIFY_STOP:
+		return;
+	case NOTIFY_BAD:
+		die("Fatal Non-Maskable Interrupt", regs, SIGINT);
+	default:
+		break;
+	}
+
+	printk(KERN_ALERT "Got NMI, but nobody cared. Disabling...\n");
+	nmi_disable();
 }
 
 asmlinkage void do_critical_exception(unsigned long ecr, struct pt_regs *regs)

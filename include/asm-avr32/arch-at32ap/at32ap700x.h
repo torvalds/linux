@@ -7,8 +7,8 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#ifndef __ASM_ARCH_AT32AP7000_H__
-#define __ASM_ARCH_AT32AP7000_H__
+#ifndef __ASM_ARCH_AT32AP700X_H__
+#define __ASM_ARCH_AT32AP700X_H__
 
 #define GPIO_PERIPH_A	0
 #define GPIO_PERIPH_B	1
@@ -32,4 +32,4 @@
 #define GPIO_PIN_PD(N)	(GPIO_PIOD_BASE + (N))
 #define GPIO_PIN_PE(N)	(GPIO_PIOE_BASE + (N))
 
-#endif /* __ASM_ARCH_AT32AP7000_H__ */
+#endif /* __ASM_ARCH_AT32AP700X_H__ */

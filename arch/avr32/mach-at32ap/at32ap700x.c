@@ -13,8 +13,9 @@
 #include <linux/spi/spi.h>
 
 #include <asm/io.h>
+#include <asm/irq.h>
 
-#include <asm/arch/at32ap7000.h>
+#include <asm/arch/at32ap700x.h>
 #include <asm/arch/board.h>
 #include <asm/arch/portmux.h>
 
@@ -803,6 +804,7 @@ void __init at32_setup_serial_console(unsigned int usart_id)
  *  Ethernet
  * -------------------------------------------------------------------- */
 
+#ifdef CONFIG_CPU_AT32AP7000
 static struct eth_platform_data macb0_data;
 static struct resource macb0_resource[] = {
 	PBMEM(0xfff01800),
@@ -890,6 +892,7 @@ at32_add_device_eth(unsigned int id, struct eth_platform_data *data)
 
 	return pdev;
 }
+#endif
 
 /* --------------------------------------------------------------------
  *  SPI
@@ -1064,6 +1067,7 @@ err_add_resources:
 /* --------------------------------------------------------------------
  *  LCDC
  * -------------------------------------------------------------------- */
+#if defined(CONFIG_CPU_AT32AP7000) || defined(CONFIG_CPU_AT32AP7002)
 static struct atmel_lcdfb_info atmel_lcdfb0_data;
 static struct resource atmel_lcdfb0_resource[] = {
 	{
@@ -1179,6 +1183,7 @@ err_dup_modedb:
 	kfree(monspecs);
 	return NULL;
 }
+#endif
 
 /* --------------------------------------------------------------------
  *  SSC
@@ -1332,6 +1337,7 @@ out_free_pdev:
 /* --------------------------------------------------------------------
  * IDE / CompactFlash
  * -------------------------------------------------------------------- */
+#if defined(CONFIG_CPU_AT32AP7000) || defined(CONFIG_CPU_AT32AP7001)
 static struct resource at32_smc_cs4_resource[] __initdata = {
 	{
 		.start	= 0x04000000,
@@ -1464,6 +1470,7 @@ fail:
 	platform_device_put(pdev);
 	return NULL;
 }
+#endif
 
 /* --------------------------------------------------------------------
  * AC97C
@@ -1639,16 +1646,20 @@ struct clk *at32_clock_list[] = {
 	&atmel_usart1_usart,
 	&atmel_usart2_usart,
 	&atmel_usart3_usart,
+#if defined(CONFIG_CPU_AT32AP7000)
 	&macb0_hclk,
 	&macb0_pclk,
 	&macb1_hclk,
 	&macb1_pclk,
+#endif
 	&atmel_spi0_spi_clk,
 	&atmel_spi1_spi_clk,
 	&atmel_twi0_pclk,
 	&atmel_mci0_pclk,
+#if defined(CONFIG_CPU_AT32AP7000) || defined(CONFIG_CPU_AT32AP7002)
 	&atmel_lcdfb0_hck1,
 	&atmel_lcdfb0_pixclk,
+#endif
 	&ssc0_pclk,
 	&ssc1_pclk,
 	&ssc2_pclk,
@@ -1697,7 +1708,9 @@ void __init at32_clock_init(void)
 	genclk_init_parent(&gclk2);
 	genclk_init_parent(&gclk3);
 	genclk_init_parent(&gclk4);
+#if defined(CONFIG_CPU_AT32AP7000) || defined(CONFIG_CPU_AT32AP7002)
 	genclk_init_parent(&atmel_lcdfb0_pixclk);
+#endif
 	genclk_init_parent(&abdac0_sample_clk);
 
 	/*

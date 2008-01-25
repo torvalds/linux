@@ -34,6 +34,7 @@ parameter is applicable:
 	ALSA	ALSA sound support is enabled.
 	APIC	APIC support is enabled.
 	APM	Advanced Power Management support is enabled.
+	AVR32	AVR32 architecture is enabled.
 	AX25	Appropriate AX.25 support is enabled.
 	BLACKFIN Blackfin architecture is enabled.
 	DRM	Direct Rendering Management support is enabled.
@@ -1122,6 +1123,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			number for the readdir() and stat() syscalls instead
 			of returning the full 64-bit number.
 			The default is to return 64-bit inode numbers.
+
+	nmi_debug=	[KNL,AVR32] Specify one or more actions to take
+			when a NMI is triggered.
+			Format: [state][,regs][,debounce][,die]
 
 	nmi_watchdog=	[KNL,BUGS=X86-32] Debugging features for SMP kernels
 

@@ -20,7 +20,7 @@
 #include <asm/io.h>
 #include <asm/setup.h>
 
-#include <asm/arch/at32ap7000.h>
+#include <asm/arch/at32ap700x.h>
 #include <asm/arch/board.h>
 #include <asm/arch/init.h>
 #include <asm/arch/portmux.h>

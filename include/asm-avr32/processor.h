@@ -57,10 +57,24 @@ struct avr32_cpuinfo {
 	unsigned short cpu_revision;
 	enum tlb_config tlb_config;
 	unsigned long features;
+	u32 device_id;
 
 	struct cache_info icache;
 	struct cache_info dcache;
 };
+
+static inline unsigned int avr32_get_manufacturer_id(struct avr32_cpuinfo *cpu)
+{
+	return (cpu->device_id >> 1) & 0x7f;
+}
+static inline unsigned int avr32_get_product_number(struct avr32_cpuinfo *cpu)
+{
+	return (cpu->device_id >> 12) & 0xffff;
+}
+static inline unsigned int avr32_get_chip_revision(struct avr32_cpuinfo *cpu)
+{
+	return (cpu->device_id >> 28) & 0x0f;
+}
 
 extern struct avr32_cpuinfo boot_cpu_data;
 

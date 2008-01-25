@@ -533,6 +533,11 @@ static inline void __ocd_write(unsigned int reg, unsigned long value)
 #define ocd_read(reg)			__ocd_read(OCD_##reg)
 #define ocd_write(reg, value)		__ocd_write(OCD_##reg, value)
 
+struct task_struct;
+
+void ocd_enable(struct task_struct *child);
+void ocd_disable(struct task_struct *child);
+
 #endif /* !__ASSEMBLER__ */
 
 #endif /* __ASM_AVR32_OCD_H */

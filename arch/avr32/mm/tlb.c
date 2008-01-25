@@ -348,7 +348,7 @@ static int tlb_show(struct seq_file *tlb, void *v)
 	return 0;
 }
 
-static struct seq_operations tlb_ops = {
+static const struct seq_operations tlb_ops = {
 	.start		= tlb_start,
 	.next		= tlb_next,
 	.stop		= tlb_stop,

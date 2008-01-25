@@ -10,13 +10,17 @@
 #include <linux/bootmem.h>
 #include <linux/fb.h>
 #include <linux/init.h>
+#include <linux/platform_device.h>
 #include <linux/types.h>
 #include <linux/linkage.h>
 
 #include <video/atmel_lcdc.h>
 
 #include <asm/setup.h>
+
+#include <asm/arch/at32ap700x.h>
 #include <asm/arch/board.h>
+#include <asm/arch/portmux.h>
 
 #include "atstk1000.h"
 
@@ -61,3 +65,63 @@ struct atmel_lcdfb_info __initdata atstk1000_lcdc_data = {
 	.default_monspecs	= &atstk1000_default_monspecs,
 	.guard_time		= 2,
 };
+
+#ifdef CONFIG_BOARD_ATSTK1000_J2_LED
+#include <linux/leds.h>
+
+static struct gpio_led stk1000_j2_led[] = {
+#ifdef CONFIG_BOARD_ATSTK1000_J2_LED8
+#define LEDSTRING "J2 jumpered to LED8"
+	{ .name = "led0:amber", .gpio = GPIO_PIN_PB( 8), },
+	{ .name = "led1:amber", .gpio = GPIO_PIN_PB( 9), },
+	{ .name = "led2:amber", .gpio = GPIO_PIN_PB(10), },
+	{ .name = "led3:amber", .gpio = GPIO_PIN_PB(13), },
+	{ .name = "led4:amber", .gpio = GPIO_PIN_PB(14), },
+	{ .name = "led5:amber", .gpio = GPIO_PIN_PB(15), },
+	{ .name = "led6:amber", .gpio = GPIO_PIN_PB(16), },
+	{ .name = "led7:amber", .gpio = GPIO_PIN_PB(30),
+			.default_trigger = "heartbeat", },
+#else	/* RGB */
+#define LEDSTRING "J2 jumpered to RGB LEDs"
+	{ .name = "r1:red",     .gpio = GPIO_PIN_PB( 8), },
+	{ .name = "g1:green",   .gpio = GPIO_PIN_PB(10), },
+	{ .name = "b1:blue",    .gpio = GPIO_PIN_PB(14), },
+
+	{ .name = "r2:red",     .gpio = GPIO_PIN_PB( 9),
+			.default_trigger = "heartbeat", },
+	{ .name = "g2:green",   .gpio = GPIO_PIN_PB(13), },
+	{ .name = "b2:blue",    .gpio = GPIO_PIN_PB(15),
+			.default_trigger = "heartbeat", },
+	/* PB16, PB30 unused */
+#endif
+};
+
+static struct gpio_led_platform_data stk1000_j2_led_data = {
+	.num_leds	= ARRAY_SIZE(stk1000_j2_led),
+	.leds		= stk1000_j2_led,
+};
+
+static struct platform_device stk1000_j2_led_dev = {
+	.name		= "leds-gpio",
+	.id		= 2,	/* gpio block J2 */
+	.dev		= {
+		.platform_data	= &stk1000_j2_led_data,
+	},
+};
+
+void __init atstk1000_setup_j2_leds(void)
+{
+	unsigned	i;
+
+	for (i = 0; i < ARRAY_SIZE(stk1000_j2_led); i++)
+		at32_select_gpio(stk1000_j2_led[i].gpio, AT32_GPIOF_OUTPUT);
+
+	printk("STK1000: " LEDSTRING "\n");
+	platform_device_register(&stk1000_j2_led_dev);
+}
+#else /* CONFIG_BOARD_ATSTK1000_J2_LED */
+void __init atstk1000_setup_j2_leds(void)
+{
+
+}
+#endif /* CONFIG_BOARD_ATSTK1000_J2_LED */
