@@ -299,22 +299,22 @@ static void pack_rcom_lock(struct dlm_rsb *r, struct dlm_lkb *lkb,
 {
 	memset(rl, 0, sizeof(*rl));
 
-	rl->rl_ownpid = lkb->lkb_ownpid;
-	rl->rl_lkid = lkb->lkb_id;
-	rl->rl_exflags = lkb->lkb_exflags;
-	rl->rl_flags = lkb->lkb_flags;
-	rl->rl_lvbseq = lkb->lkb_lvbseq;
+	rl->rl_ownpid = cpu_to_le32(lkb->lkb_ownpid);
+	rl->rl_lkid = cpu_to_le32(lkb->lkb_id);
+	rl->rl_exflags = cpu_to_le32(lkb->lkb_exflags);
+	rl->rl_flags = cpu_to_le32(lkb->lkb_flags);
+	rl->rl_lvbseq = cpu_to_le32(lkb->lkb_lvbseq);
 	rl->rl_rqmode = lkb->lkb_rqmode;
 	rl->rl_grmode = lkb->lkb_grmode;
 	rl->rl_status = lkb->lkb_status;
-	rl->rl_wait_type = lkb->lkb_wait_type;
+	rl->rl_wait_type = cpu_to_le16(lkb->lkb_wait_type);
 
 	if (lkb->lkb_bastaddr)
 		rl->rl_asts |= AST_BAST;
 	if (lkb->lkb_astaddr)
 		rl->rl_asts |= AST_COMP;
 
-	rl->rl_namelen = r->res_length;
+	rl->rl_namelen = cpu_to_le16(r->res_length);
 	memcpy(rl->rl_name, r->res_name, r->res_length);
 
 	/* FIXME: might we have an lvb without DLM_LKF_VALBLK set ?

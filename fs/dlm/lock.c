@@ -4273,12 +4273,12 @@ static int receive_rcom_lock_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 	int lvblen;
 
 	lkb->lkb_nodeid = rc->rc_header.h_nodeid;
-	lkb->lkb_ownpid = rl->rl_ownpid;
-	lkb->lkb_remid = rl->rl_lkid;
-	lkb->lkb_exflags = rl->rl_exflags;
-	lkb->lkb_flags = rl->rl_flags & 0x0000FFFF;
+	lkb->lkb_ownpid = le32_to_cpu(rl->rl_ownpid);
+	lkb->lkb_remid = le32_to_cpu(rl->rl_lkid);
+	lkb->lkb_exflags = le32_to_cpu(rl->rl_exflags);
+	lkb->lkb_flags = le32_to_cpu(rl->rl_flags) & 0x0000FFFF;
 	lkb->lkb_flags |= DLM_IFL_MSTCPY;
-	lkb->lkb_lvbseq = rl->rl_lvbseq;
+	lkb->lkb_lvbseq = le32_to_cpu(rl->rl_lvbseq);
 	lkb->lkb_rqmode = rl->rl_rqmode;
 	lkb->lkb_grmode = rl->rl_grmode;
 	/* don't set lkb_status because add_lkb wants to itself */
@@ -4299,7 +4299,8 @@ static int receive_rcom_lock_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 	   The real granted mode of these converting locks cannot be determined
 	   until all locks have been rebuilt on the rsb (recover_conversion) */
 
-	if (rl->rl_wait_type == DLM_MSG_CONVERT && middle_conversion(lkb)) {
+	if (rl->rl_wait_type == cpu_to_le16(DLM_MSG_CONVERT) &&
+	    middle_conversion(lkb)) {
 		rl->rl_status = DLM_LKSTS_CONVERT;
 		lkb->lkb_grmode = DLM_LOCK_IV;
 		rsb_set_flag(r, RSB_RECOVER_CONVERT);
@@ -4326,13 +4327,14 @@ int dlm_recover_master_copy(struct dlm_ls *ls, struct dlm_rcom *rc)
 		goto out;
 	}
 
-	error = find_rsb(ls, rl->rl_name, rl->rl_namelen, R_MASTER, &r);
+	error = find_rsb(ls, rl->rl_name, le16_to_cpu(rl->rl_namelen),
+			 R_MASTER, &r);
 	if (error)
 		goto out;
 
 	lock_rsb(r);
 
-	lkb = search_remid(r, rc->rc_header.h_nodeid, rl->rl_lkid);
+	lkb = search_remid(r, rc->rc_header.h_nodeid, le32_to_cpu(rl->rl_lkid));
 	if (lkb) {
 		error = -EEXIST;
 		goto out_remid;
@@ -4355,15 +4357,16 @@ int dlm_recover_master_copy(struct dlm_ls *ls, struct dlm_rcom *rc)
  out_remid:
 	/* this is the new value returned to the lock holder for
 	   saving in its process-copy lkb */
-	rl->rl_remid = lkb->lkb_id;
+	rl->rl_remid = cpu_to_le32(lkb->lkb_id);
 
  out_unlock:
 	unlock_rsb(r);
 	put_rsb(r);
  out:
 	if (error)
-		log_debug(ls, "recover_master_copy %d %x", error, rl->rl_lkid);
-	rl->rl_result = error;
+		log_debug(ls, "recover_master_copy %d %x", error,
+			  le32_to_cpu(rl->rl_lkid));
+	rl->rl_result = cpu_to_le32(error);
 	return error;
 }
 
@@ -4374,15 +4377,16 @@ int dlm_recover_process_copy(struct dlm_ls *ls, struct dlm_rcom *rc)
 	struct dlm_lkb *lkb;
 	int error;
 
-	error = find_lkb(ls, rl->rl_lkid, &lkb);
+	error = find_lkb(ls, le32_to_cpu(rl->rl_lkid), &lkb);
 	if (error) {
-		log_error(ls, "recover_process_copy no lkid %x", rl->rl_lkid);
+		log_error(ls, "recover_process_copy no lkid %x",
+				le32_to_cpu(rl->rl_lkid));
 		return error;
 	}
 
 	DLM_ASSERT(is_process_copy(lkb), dlm_print_lkb(lkb););
 
-	error = rl->rl_result;
+	error = le32_to_cpu(rl->rl_result);
 
 	r = lkb->lkb_resource;
 	hold_rsb(r);
@@ -4401,7 +4405,7 @@ int dlm_recover_process_copy(struct dlm_ls *ls, struct dlm_rcom *rc)
 		log_debug(ls, "master copy exists %x", lkb->lkb_id);
 		/* fall through */
 	case 0:
-		lkb->lkb_remid = rl->rl_remid;
+		lkb->lkb_remid = le32_to_cpu(rl->rl_remid);
 		break;
 	default:
 		log_error(ls, "dlm_recover_process_copy unknown error %d %x",

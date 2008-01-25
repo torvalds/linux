@@ -416,21 +416,21 @@ struct rcom_config {
 };
 
 struct rcom_lock {
-	uint32_t		rl_ownpid;
-	uint32_t		rl_lkid;
-	uint32_t		rl_remid;
-	uint32_t		rl_parent_lkid;
-	uint32_t		rl_parent_remid;
-	uint32_t		rl_exflags;
-	uint32_t		rl_flags;
-	uint32_t		rl_lvbseq;
-	int			rl_result;
+	__le32			rl_ownpid;
+	__le32			rl_lkid;
+	__le32			rl_remid;
+	__le32			rl_parent_lkid;
+	__le32			rl_parent_remid;
+	__le32			rl_exflags;
+	__le32			rl_flags;
+	__le32			rl_lvbseq;
+	__le32			rl_result;
 	int8_t			rl_rqmode;
 	int8_t			rl_grmode;
 	int8_t			rl_status;
 	int8_t			rl_asts;
-	uint16_t		rl_wait_type;
-	uint16_t		rl_namelen;
+	__le16			rl_wait_type;
+	__le16			rl_namelen;
 	char			rl_name[DLM_RESNAME_MAXLEN];
 	char			rl_lvb[0];
 };

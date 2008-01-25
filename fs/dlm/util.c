@@ -131,36 +131,6 @@ void dlm_message_in(struct dlm_message *ms)
 	ms->m_result		= from_dlm_errno(le32_to_cpu(ms->m_result));
 }
 
-static void rcom_lock_out(struct rcom_lock *rl)
-{
-	rl->rl_ownpid		= cpu_to_le32(rl->rl_ownpid);
-	rl->rl_lkid		= cpu_to_le32(rl->rl_lkid);
-	rl->rl_remid		= cpu_to_le32(rl->rl_remid);
-	rl->rl_parent_lkid	= cpu_to_le32(rl->rl_parent_lkid);
-	rl->rl_parent_remid	= cpu_to_le32(rl->rl_parent_remid);
-	rl->rl_exflags		= cpu_to_le32(rl->rl_exflags);
-	rl->rl_flags		= cpu_to_le32(rl->rl_flags);
-	rl->rl_lvbseq		= cpu_to_le32(rl->rl_lvbseq);
-	rl->rl_result		= cpu_to_le32(rl->rl_result);
-	rl->rl_wait_type	= cpu_to_le16(rl->rl_wait_type);
-	rl->rl_namelen		= cpu_to_le16(rl->rl_namelen);
-}
-
-static void rcom_lock_in(struct rcom_lock *rl)
-{
-	rl->rl_ownpid		= le32_to_cpu(rl->rl_ownpid);
-	rl->rl_lkid		= le32_to_cpu(rl->rl_lkid);
-	rl->rl_remid		= le32_to_cpu(rl->rl_remid);
-	rl->rl_parent_lkid	= le32_to_cpu(rl->rl_parent_lkid);
-	rl->rl_parent_remid	= le32_to_cpu(rl->rl_parent_remid);
-	rl->rl_exflags		= le32_to_cpu(rl->rl_exflags);
-	rl->rl_flags		= le32_to_cpu(rl->rl_flags);
-	rl->rl_lvbseq		= le32_to_cpu(rl->rl_lvbseq);
-	rl->rl_result		= le32_to_cpu(rl->rl_result);
-	rl->rl_wait_type	= le16_to_cpu(rl->rl_wait_type);
-	rl->rl_namelen		= le16_to_cpu(rl->rl_namelen);
-}
-
 static void rcom_config_out(struct rcom_config *rf)
 {
 	rf->rf_lvblen		= cpu_to_le32(rf->rf_lvblen);
@@ -185,17 +155,12 @@ void dlm_rcom_out(struct dlm_rcom *rc)
 	rc->rc_seq		= cpu_to_le64(rc->rc_seq);
 	rc->rc_seq_reply	= cpu_to_le64(rc->rc_seq_reply);
 
-	if ((type == DLM_RCOM_LOCK) || (type == DLM_RCOM_LOCK_REPLY))
-		rcom_lock_out((struct rcom_lock *) rc->rc_buf);
-
-	else if (type == DLM_RCOM_STATUS_REPLY)
+	if (type == DLM_RCOM_STATUS_REPLY)
 		rcom_config_out((struct rcom_config *) rc->rc_buf);
 }
 
 void dlm_rcom_in(struct dlm_rcom *rc)
 {
-	int type;
-
 	header_in(&rc->rc_header);
 
 	rc->rc_type		= le32_to_cpu(rc->rc_type);
@@ -204,12 +169,6 @@ void dlm_rcom_in(struct dlm_rcom *rc)
 	rc->rc_seq		= le64_to_cpu(rc->rc_seq);
 	rc->rc_seq_reply	= le64_to_cpu(rc->rc_seq_reply);
 
-	type = rc->rc_type;
-
-	if ((type == DLM_RCOM_LOCK) || (type == DLM_RCOM_LOCK_REPLY))
-		rcom_lock_in((struct rcom_lock *) rc->rc_buf);
-
-	else if (type == DLM_RCOM_STATUS_REPLY)
+	if (rc->rc_type == DLM_RCOM_STATUS_REPLY)
 		rcom_config_in((struct rcom_config *) rc->rc_buf);
 }
-
