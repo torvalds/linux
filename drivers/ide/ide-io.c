@@ -1003,6 +1003,7 @@ static ide_startstop_t start_request (ide_drive_t *drive, struct request *rq)
 
 	/* bail early if we've exceeded max_failures */
 	if (drive->max_failures && (drive->failures > drive->max_failures)) {
+		rq->cmd_flags |= REQ_FAILED;
 		goto kill_rq;
 	}
 
