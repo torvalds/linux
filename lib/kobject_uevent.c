@@ -238,11 +238,12 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 		retval = add_uevent_var(env, "HOME=/");
 		if (retval)
 			goto exit;
-		retval = add_uevent_var(env, "PATH=/sbin:/bin:/usr/sbin:/usr/bin");
+		retval = add_uevent_var(env,
+					"PATH=/sbin:/bin:/usr/sbin:/usr/bin");
 		if (retval)
 			goto exit;
 
-		call_usermodehelper (argv[0], argv, env->envp, UMH_WAIT_EXEC);
+		call_usermodehelper(argv[0], argv, env->envp, UMH_WAIT_EXEC);
 	}
 
 exit:
@@ -250,7 +251,6 @@ exit:
 	kfree(env);
 	return retval;
 }
-
 EXPORT_SYMBOL_GPL(kobject_uevent_env);
 
 /**
@@ -266,7 +266,6 @@ int kobject_uevent(struct kobject *kobj, enum kobject_action action)
 {
 	return kobject_uevent_env(kobj, action, NULL);
 }
-
 EXPORT_SYMBOL_GPL(kobject_uevent);
 
 /**
