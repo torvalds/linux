@@ -53,7 +53,11 @@ struct rcu_head {
 	void (*func)(struct rcu_head *head);
 };
 
+#ifdef CONFIG_CLASSIC_RCU
 #include <linux/rcuclassic.h>
+#else /* #ifdef CONFIG_CLASSIC_RCU */
+#include <linux/rcupreempt.h>
+#endif /* #else #ifdef CONFIG_CLASSIC_RCU */
 
 #define RCU_HEAD_INIT 	{ .next = NULL, .func = NULL }
 #define RCU_HEAD(head) struct rcu_head head = RCU_HEAD_INIT
@@ -231,13 +235,12 @@ extern void call_rcu_bh(struct rcu_head *head,
 /* Exported common interfaces */
 extern void synchronize_rcu(void);
 extern void rcu_barrier(void);
+extern long rcu_batches_completed(void);
+extern long rcu_batches_completed_bh(void);
 
 /* Internal to kernel */
 extern void rcu_init(void);
-extern void rcu_check_callbacks(int cpu, int user);
-
-extern long rcu_batches_completed(void);
-extern long rcu_batches_completed_bh(void);
+extern int rcu_needs_cpu(int cpu);
 
 #endif /* __KERNEL__ */
 #endif /* __LINUX_RCUPDATE_H */

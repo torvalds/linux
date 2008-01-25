@@ -1045,6 +1045,10 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	copy_flags(clone_flags, p);
 	INIT_LIST_HEAD(&p->children);
 	INIT_LIST_HEAD(&p->sibling);
+#ifdef CONFIG_PREEMPT_RCU
+	p->rcu_read_lock_nesting = 0;
+	p->rcu_flipctr_idx = 0;
+#endif /* #ifdef CONFIG_PREEMPT_RCU */
 	p->vfork_done = NULL;
 	spin_lock_init(&p->alloc_lock);
 
