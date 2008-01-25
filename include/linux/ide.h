@@ -417,36 +417,6 @@ typedef union {
 } atapi_ireason_t;
 
 /*
- * The ATAPI error register.
- *
- * ili		: Illegal Length Indication
- * eom		: End Of Media Detected
- * abrt		: Aborted command - As defined by ATA
- * mcr		: Media Change Requested - As defined by ATA
- * sense_key	: Sense key of the last failed packet command
- */
-typedef union {
-	unsigned all			:8;
-	struct {
-#if defined(__LITTLE_ENDIAN_BITFIELD)
-		unsigned ili		:1;
-		unsigned eom		:1;
-		unsigned abrt		:1;
-		unsigned mcr		:1;
-		unsigned sense_key	:4;
-#elif defined(__BIG_ENDIAN_BITFIELD)
-		unsigned sense_key	:4;
-		unsigned mcr		:1;
-		unsigned abrt		:1;
-		unsigned eom		:1;
-		unsigned ili		:1;
-#else
-#error "Please fix <asm/byteorder.h>"
-#endif
-	} b;
-} atapi_error_t;
-
-/*
  * Status returned from various ide_ functions
  */
 typedef enum {

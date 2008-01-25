@@ -562,9 +562,8 @@ static u8 ide_dump_ata_status(ide_drive_t *drive, const char *msg, u8 stat)
 static u8 ide_dump_atapi_status(ide_drive_t *drive, const char *msg, u8 stat)
 {
 	unsigned long flags;
-	atapi_error_t error;
+	u8 err = 0;
 
-	error.all = 0;
 	local_irq_save(flags);
 	printk("%s: %s: status=0x%02x { ", drive->name, msg, stat);
 	if (stat & BUSY_STAT)
@@ -580,19 +579,19 @@ static u8 ide_dump_atapi_status(ide_drive_t *drive, const char *msg, u8 stat)
 	}
 	printk("}\n");
 	if ((stat & (BUSY_STAT|ERR_STAT)) == ERR_STAT) {
-		error.all = HWIF(drive)->INB(IDE_ERROR_REG);
-		printk("%s: %s: error=0x%02x { ", drive->name, msg, error.all);
-		if (error.b.ili)	printk("IllegalLengthIndication ");
-		if (error.b.eom)	printk("EndOfMedia ");
-		if (error.b.abrt)	printk("AbortedCommand ");
-		if (error.b.mcr)	printk("MediaChangeRequested ");
-		if (error.b.sense_key)	printk("LastFailedSense=0x%02x ",
-						error.b.sense_key);
+		err = drive->hwif->INB(IDE_ERROR_REG);
+		printk("%s: %s: error=0x%02x { ", drive->name, msg, err);
+		if (err & ILI_ERR)	printk("IllegalLengthIndication ");
+		if (err & EOM_ERR)	printk("EndOfMedia ");
+		if (err & ABRT_ERR)	printk("AbortedCommand ");
+		if (err & MCR_ERR)	printk("MediaChangeRequested ");
+		if (err & LFS_ERR)	printk("LastFailedSense=0x%02x ",
+						(err & LFS_ERR) >> 4);
 		printk("}\n");
 	}
 	ide_dump_opcode(drive);
 	local_irq_restore(flags);
-	return error.all;
+	return err;
 }
 
 /**

@@ -772,9 +772,8 @@ static void idefloppy_retry_pc (ide_drive_t *drive)
 {
 	idefloppy_pc_t *pc;
 	struct request *rq;
-	atapi_error_t error;
 
-	error.all = HWIF(drive)->INB(IDE_ERROR_REG);
+	(void)drive->hwif->INB(IDE_ERROR_REG);
 	pc = idefloppy_next_pc_storage(drive);
 	rq = idefloppy_next_rq_storage(drive);
 	idefloppy_create_request_sense_cmd(pc);

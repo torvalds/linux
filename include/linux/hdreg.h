@@ -44,7 +44,9 @@
 
 /* Bits for HD_ERROR */
 #define MARK_ERR		0x01	/* Bad address mark */
+#define ILI_ERR			0x01	/* Illegal Length Indication (ATAPI) */
 #define TRK0_ERR		0x02	/* couldn't find track 0 */
+#define EOM_ERR			0x02	/* End Of Media (ATAPI) */
 #define ABRT_ERR		0x04	/* Command aborted */
 #define MCR_ERR			0x08	/* media change request */
 #define ID_ERR			0x10	/* ID field not found */
@@ -52,6 +54,7 @@
 #define ECC_ERR			0x40	/* Uncorrectable ECC error */
 #define BBD_ERR			0x80	/* pre-EIDE meaning:  block marked bad */
 #define ICRC_ERR		0x80	/* new meaning:  CRC error during transfer */
+#define LFS_ERR			0xf0	/* Last Failed Sense (ATAPI) */
 
 /* Bits of HD_NSECTOR */
 #define CD			0x01
