@@ -85,11 +85,18 @@ static void make_config(struct dlm_ls *ls, struct rcom_config *rf)
 static int check_config(struct dlm_ls *ls, struct dlm_rcom *rc, int nodeid)
 {
 	struct rcom_config *rf = (struct rcom_config *) rc->rc_buf;
+	size_t conf_size = sizeof(struct dlm_rcom) + sizeof(struct rcom_config);
 
 	if ((rc->rc_header.h_version & 0xFFFF0000) != DLM_HEADER_MAJOR) {
 		log_error(ls, "version mismatch: %x nodeid %d: %x",
 			  DLM_HEADER_MAJOR | DLM_HEADER_MINOR, nodeid,
 			  rc->rc_header.h_version);
+		return -EPROTO;
+	}
+
+	if (rc->rc_header.h_length < conf_size) {
+		log_error(ls, "config too short: %d nodeid %d",
+			  rc->rc_header.h_length, nodeid);
 		return -EPROTO;
 	}
 
