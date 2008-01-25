@@ -29,6 +29,12 @@
 # define SHIFT_HZ	9
 #elif HZ >= 768 && HZ < 1536
 # define SHIFT_HZ	10
+#elif HZ >= 1536 && HZ < 3072
+# define SHIFT_HZ	11
+#elif HZ >= 3072 && HZ < 6144
+# define SHIFT_HZ	12
+#elif HZ >= 6144 && HZ < 12288
+# define SHIFT_HZ	13
 #else
 # error You lose.
 #endif

@@ -52,7 +52,7 @@ static DEFINE_PER_CPU(int, cpu_profile_flip);
 static DEFINE_MUTEX(profile_flip_mutex);
 #endif /* CONFIG_SMP */
 
-static int __init profile_setup(char * str)
+static int __init profile_setup(char *str)
 {
 	static char __initdata schedstr[] = "schedule";
 	static char __initdata sleepstr[] = "sleep";
@@ -104,28 +104,28 @@ __setup("profile=", profile_setup);
 
 void __init profile_init(void)
 {
-	if (!prof_on) 
+	if (!prof_on)
 		return;
- 
+
 	/* only text is profiled */
 	prof_len = (_etext - _stext) >> prof_shift;
 	prof_buffer = alloc_bootmem(prof_len*sizeof(atomic_t));
 }
 
 /* Profile event notifications */
- 
+
 #ifdef CONFIG_PROFILING
- 
+
 static BLOCKING_NOTIFIER_HEAD(task_exit_notifier);
 static ATOMIC_NOTIFIER_HEAD(task_free_notifier);
 static BLOCKING_NOTIFIER_HEAD(munmap_notifier);
- 
-void profile_task_exit(struct task_struct * task)
+
+void profile_task_exit(struct task_struct *task)
 {
 	blocking_notifier_call_chain(&task_exit_notifier, 0, task);
 }
- 
-int profile_handoff_task(struct task_struct * task)
+
+int profile_handoff_task(struct task_struct *task)
 {
 	int ret;
 	ret = atomic_notifier_call_chain(&task_free_notifier, 0, task);
@@ -137,52 +137,55 @@ void profile_munmap(unsigned long addr)
 	blocking_notifier_call_chain(&munmap_notifier, 0, (void *)addr);
 }
 
-int task_handoff_register(struct notifier_block * n)
+int task_handoff_register(struct notifier_block *n)
 {
 	return atomic_notifier_chain_register(&task_free_notifier, n);
 }
+EXPORT_SYMBOL_GPL(task_handoff_register);
 
-int task_handoff_unregister(struct notifier_block * n)
+int task_handoff_unregister(struct notifier_block *n)
 {
 	return atomic_notifier_chain_unregister(&task_free_notifier, n);
 }
+EXPORT_SYMBOL_GPL(task_handoff_unregister);
 
-int profile_event_register(enum profile_type type, struct notifier_block * n)
+int profile_event_register(enum profile_type type, struct notifier_block *n)
 {
 	int err = -EINVAL;
- 
-	switch (type) {
-		case PROFILE_TASK_EXIT:
-			err = blocking_notifier_chain_register(
-					&task_exit_notifier, n);
-			break;
-		case PROFILE_MUNMAP:
-			err = blocking_notifier_chain_register(
-					&munmap_notifier, n);
-			break;
-	}
- 
-	return err;
-}
 
- 
-int profile_event_unregister(enum profile_type type, struct notifier_block * n)
-{
-	int err = -EINVAL;
- 
 	switch (type) {
-		case PROFILE_TASK_EXIT:
-			err = blocking_notifier_chain_unregister(
-					&task_exit_notifier, n);
-			break;
-		case PROFILE_MUNMAP:
-			err = blocking_notifier_chain_unregister(
-					&munmap_notifier, n);
-			break;
+	case PROFILE_TASK_EXIT:
+		err = blocking_notifier_chain_register(
+				&task_exit_notifier, n);
+		break;
+	case PROFILE_MUNMAP:
+		err = blocking_notifier_chain_register(
+				&munmap_notifier, n);
+		break;
 	}
 
 	return err;
 }
+EXPORT_SYMBOL_GPL(profile_event_register);
+
+int profile_event_unregister(enum profile_type type, struct notifier_block *n)
+{
+	int err = -EINVAL;
+
+	switch (type) {
+	case PROFILE_TASK_EXIT:
+		err = blocking_notifier_chain_unregister(
+				&task_exit_notifier, n);
+		break;
+	case PROFILE_MUNMAP:
+		err = blocking_notifier_chain_unregister(
+				&munmap_notifier, n);
+		break;
+	}
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(profile_event_unregister);
 
 int register_timer_hook(int (*hook)(struct pt_regs *))
 {
@@ -191,6 +194,7 @@ int register_timer_hook(int (*hook)(struct pt_regs *))
 	timer_hook = hook;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(register_timer_hook);
 
 void unregister_timer_hook(int (*hook)(struct pt_regs *))
 {
@@ -199,13 +203,7 @@ void unregister_timer_hook(int (*hook)(struct pt_regs *))
 	/* make sure all CPUs see the NULL hook */
 	synchronize_sched();  /* Allow ongoing interrupts to complete. */
 }
-
-EXPORT_SYMBOL_GPL(register_timer_hook);
 EXPORT_SYMBOL_GPL(unregister_timer_hook);
-EXPORT_SYMBOL_GPL(task_handoff_register);
-EXPORT_SYMBOL_GPL(task_handoff_unregister);
-EXPORT_SYMBOL_GPL(profile_event_register);
-EXPORT_SYMBOL_GPL(profile_event_unregister);
 
 #endif /* CONFIG_PROFILING */
 
@@ -366,7 +364,7 @@ static int __devinit profile_cpu_callback(struct notifier_block *info,
 			per_cpu(cpu_profile_hits, cpu)[0] = page_address(page);
 		}
 		break;
-	out_free:
+out_free:
 		page = virt_to_page(per_cpu(cpu_profile_hits, cpu)[1]);
 		per_cpu(cpu_profile_hits, cpu)[1] = NULL;
 		__free_page(page);
@@ -409,7 +407,6 @@ void profile_hits(int type, void *__pc, unsigned int nr_hits)
 	atomic_add(nr_hits, &prof_buffer[min(pc, prof_len - 1)]);
 }
 #endif /* !CONFIG_SMP */
-
 EXPORT_SYMBOL_GPL(profile_hits);
 
 void profile_tick(int type)
@@ -427,7 +424,7 @@ void profile_tick(int type)
 #include <asm/uaccess.h>
 #include <asm/ptrace.h>
 
-static int prof_cpu_mask_read_proc (char *page, char **start, off_t off,
+static int prof_cpu_mask_read_proc(char *page, char **start, off_t off,
 			int count, int *eof, void *data)
 {
 	int len = cpumask_scnprintf(page, count, *(cpumask_t *)data);
@@ -437,8 +434,8 @@ static int prof_cpu_mask_read_proc (char *page, char **start, off_t off,
 	return len;
 }
 
-static int prof_cpu_mask_write_proc (struct file *file, const char __user *buffer,
-					unsigned long count, void *data)
+static int prof_cpu_mask_write_proc(struct file *file,
+	const char __user *buffer,  unsigned long count, void *data)
 {
 	cpumask_t *mask = (cpumask_t *)data;
 	unsigned long full_count = count, err;
@@ -457,7 +454,8 @@ void create_prof_cpu_mask(struct proc_dir_entry *root_irq_dir)
 	struct proc_dir_entry *entry;
 
 	/* create /proc/irq/prof_cpu_mask */
-	if (!(entry = create_proc_entry("prof_cpu_mask", 0600, root_irq_dir)))
+	entry = create_proc_entry("prof_cpu_mask", 0600, root_irq_dir);
+	if (!entry)
 		return;
 	entry->data = (void *)&prof_cpu_mask;
 	entry->read_proc = prof_cpu_mask_read_proc;
@@ -475,7 +473,7 @@ read_profile(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
 	unsigned long p = *ppos;
 	ssize_t read;
-	char * pnt;
+	char *pnt;
 	unsigned int sample_step = 1 << prof_shift;
 
 	profile_flip_buffers();
@@ -486,12 +484,12 @@ read_profile(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	read = 0;
 
 	while (p < sizeof(unsigned int) && count > 0) {
-		if (put_user(*((char *)(&sample_step)+p),buf))
+		if (put_user(*((char *)(&sample_step)+p), buf))
 			return -EFAULT;
 		buf++; p++; count--; read++;
 	}
 	pnt = (char *)prof_buffer + p - sizeof(atomic_t);
-	if (copy_to_user(buf,(void *)pnt,count))
+	if (copy_to_user(buf, (void *)pnt, count))
 		return -EFAULT;
 	read += count;
 	*ppos += read;
@@ -508,7 +506,7 @@ static ssize_t write_profile(struct file *file, const char __user *buf,
 			     size_t count, loff_t *ppos)
 {
 #ifdef CONFIG_SMP
-	extern int setup_profiling_timer (unsigned int multiplier);
+	extern int setup_profiling_timer(unsigned int multiplier);
 
 	if (count == sizeof(int)) {
 		unsigned int multiplier;
@@ -591,7 +589,8 @@ static int __init create_proc_profile(void)
 		return 0;
 	if (create_hash_tables())
 		return -1;
-	if (!(entry = create_proc_entry("profile", S_IWUSR | S_IRUGO, NULL)))
+	entry = create_proc_entry("profile", S_IWUSR | S_IRUGO, NULL);
+	if (!entry)
 		return 0;
 	entry->proc_fops = &proc_profile_operations;
 	entry->size = (1+prof_len) * sizeof(atomic_t);

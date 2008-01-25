@@ -54,3 +54,5 @@ config HZ
 	default 300 if HZ_300
 	default 1000 if HZ_1000
 
+config SCHED_HRTICK
+	def_bool HIGH_RES_TIMERS && X86

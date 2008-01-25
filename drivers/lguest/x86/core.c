@@ -459,7 +459,7 @@ void __init lguest_arch_host_init(void)
 
 	/* We don't need the complexity of CPUs coming and going while we're
 	 * doing this. */
-	lock_cpu_hotplug();
+	get_online_cpus();
 	if (cpu_has_pge) { /* We have a broader idea of "global". */
 		/* Remember that this was originally set (for cleanup). */
 		cpu_had_pge = 1;
@@ -469,20 +469,20 @@ void __init lguest_arch_host_init(void)
 		/* Turn off the feature in the global feature set. */
 		clear_bit(X86_FEATURE_PGE, boot_cpu_data.x86_capability);
 	}
-	unlock_cpu_hotplug();
+	put_online_cpus();
 };
 /*:*/
 
 void __exit lguest_arch_host_fini(void)
 {
 	/* If we had PGE before we started, turn it back on now. */
-	lock_cpu_hotplug();
+	get_online_cpus();
 	if (cpu_had_pge) {
 		set_bit(X86_FEATURE_PGE, boot_cpu_data.x86_capability);
 		/* adjust_pge's argument "1" means set PGE. */
 		on_each_cpu(adjust_pge, (void *)1, 0, 1);
 	}
-	unlock_cpu_hotplug();
+	put_online_cpus();
 }
 
 

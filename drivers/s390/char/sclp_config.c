@@ -29,12 +29,12 @@ static void sclp_cpu_capability_notify(struct work_struct *work)
 	struct sys_device *sysdev;
 
 	printk(KERN_WARNING TAG "cpu capability changed.\n");
-	lock_cpu_hotplug();
+	get_online_cpus();
 	for_each_online_cpu(cpu) {
 		sysdev = get_cpu_sysdev(cpu);
 		kobject_uevent(&sysdev->kobj, KOBJ_CHANGE);
 	}
-	unlock_cpu_hotplug();
+	put_online_cpus();
 }
 
 static void sclp_conf_receiver_fn(struct evbuf_header *evbuf)

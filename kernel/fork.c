@@ -1045,6 +1045,10 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	copy_flags(clone_flags, p);
 	INIT_LIST_HEAD(&p->children);
 	INIT_LIST_HEAD(&p->sibling);
+#ifdef CONFIG_PREEMPT_RCU
+	p->rcu_read_lock_nesting = 0;
+	p->rcu_flipctr_idx = 0;
+#endif /* #ifdef CONFIG_PREEMPT_RCU */
 	p->vfork_done = NULL;
 	spin_lock_init(&p->alloc_lock);
 
@@ -1058,6 +1062,11 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	p->stimescaled = cputime_zero;
 	p->prev_utime = cputime_zero;
 	p->prev_stime = cputime_zero;
+
+#ifdef CONFIG_DETECT_SOFTLOCKUP
+	p->last_switch_count = 0;
+	p->last_switch_timestamp = 0;
+#endif
 
 #ifdef CONFIG_TASK_XACCT
 	p->rchar = 0;		/* I/O counter: bytes read */
@@ -1196,6 +1205,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 #ifdef TIF_SYSCALL_EMU
 	clear_tsk_thread_flag(p, TIF_SYSCALL_EMU);
 #endif
+	clear_all_latency_tracing(p);
 
 	/* Our parent execution domain becomes current domain
 	   These must match for thread signalling to apply */
@@ -1237,6 +1247,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	 * parent's CPU). This avoids alot of nasty races.
 	 */
 	p->cpus_allowed = current->cpus_allowed;
+	p->rt.nr_cpus_allowed = current->rt.nr_cpus_allowed;
 	if (unlikely(!cpu_isset(task_cpu(p), p->cpus_allowed) ||
 			!cpu_online(task_cpu(p))))
 		set_task_cpu(p, smp_processor_id());

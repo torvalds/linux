@@ -78,7 +78,6 @@ struct sched_param {
 #include <linux/proportions.h>
 #include <linux/seccomp.h>
 #include <linux/rcupdate.h>
-#include <linux/futex.h>
 #include <linux/rtmutex.h>
 
 #include <linux/time.h>
@@ -88,11 +87,13 @@ struct sched_param {
 #include <linux/hrtimer.h>
 #include <linux/task_io_accounting.h>
 #include <linux/kobject.h>
+#include <linux/latencytop.h>
 
 #include <asm/processor.h>
 
 struct exec_domain;
 struct futex_pi_state;
+struct robust_list_head;
 struct bio;
 
 /*
@@ -230,6 +231,8 @@ static inline int select_nohz_load_balancer(int cpu)
 }
 #endif
 
+extern unsigned long rt_needs_cpu(int cpu);
+
 /*
  * Only dump TASK_* tasks. (0 for all tasks)
  */
@@ -257,13 +260,19 @@ extern void trap_init(void);
 extern void account_process_tick(struct task_struct *task, int user);
 extern void update_process_times(int user);
 extern void scheduler_tick(void);
+extern void hrtick_resched(void);
+
+extern void sched_show_task(struct task_struct *p);
 
 #ifdef CONFIG_DETECT_SOFTLOCKUP
 extern void softlockup_tick(void);
 extern void spawn_softlockup_task(void);
 extern void touch_softlockup_watchdog(void);
 extern void touch_all_softlockup_watchdogs(void);
-extern int softlockup_thresh;
+extern unsigned long  softlockup_thresh;
+extern unsigned long sysctl_hung_task_check_count;
+extern unsigned long sysctl_hung_task_timeout_secs;
+extern unsigned long sysctl_hung_task_warnings;
 #else
 static inline void softlockup_tick(void)
 {
@@ -822,6 +831,7 @@ struct sched_class {
 	void (*enqueue_task) (struct rq *rq, struct task_struct *p, int wakeup);
 	void (*dequeue_task) (struct rq *rq, struct task_struct *p, int sleep);
 	void (*yield_task) (struct rq *rq);
+	int  (*select_task_rq)(struct task_struct *p, int sync);
 
 	void (*check_preempt_curr) (struct rq *rq, struct task_struct *p);
 
@@ -837,11 +847,25 @@ struct sched_class {
 	int (*move_one_task) (struct rq *this_rq, int this_cpu,
 			      struct rq *busiest, struct sched_domain *sd,
 			      enum cpu_idle_type idle);
+	void (*pre_schedule) (struct rq *this_rq, struct task_struct *task);
+	void (*post_schedule) (struct rq *this_rq);
+	void (*task_wake_up) (struct rq *this_rq, struct task_struct *task);
 #endif
 
 	void (*set_curr_task) (struct rq *rq);
-	void (*task_tick) (struct rq *rq, struct task_struct *p);
+	void (*task_tick) (struct rq *rq, struct task_struct *p, int queued);
 	void (*task_new) (struct rq *rq, struct task_struct *p);
+	void (*set_cpus_allowed)(struct task_struct *p, cpumask_t *newmask);
+
+	void (*join_domain)(struct rq *rq);
+	void (*leave_domain)(struct rq *rq);
+
+	void (*switched_from) (struct rq *this_rq, struct task_struct *task,
+			       int running);
+	void (*switched_to) (struct rq *this_rq, struct task_struct *task,
+			     int running);
+	void (*prio_changed) (struct rq *this_rq, struct task_struct *task,
+			     int oldprio, int running);
 };
 
 struct load_weight {
@@ -871,6 +895,8 @@ struct sched_entity {
 #ifdef CONFIG_SCHEDSTATS
 	u64			wait_start;
 	u64			wait_max;
+	u64			wait_count;
+	u64			wait_sum;
 
 	u64			sleep_start;
 	u64			sleep_max;
@@ -909,6 +935,21 @@ struct sched_entity {
 #endif
 };
 
+struct sched_rt_entity {
+	struct list_head run_list;
+	unsigned int time_slice;
+	unsigned long timeout;
+	int nr_cpus_allowed;
+
+#ifdef CONFIG_FAIR_GROUP_SCHED
+	struct sched_rt_entity	*parent;
+	/* rq on which this entity is (to be) queued: */
+	struct rt_rq		*rt_rq;
+	/* rq "owned" by this entity/group: */
+	struct rt_rq		*my_q;
+#endif
+};
+
 struct task_struct {
 	volatile long state;	/* -1 unrunnable, 0 runnable, >0 stopped */
 	void *stack;
@@ -925,9 +966,9 @@ struct task_struct {
 #endif
 
 	int prio, static_prio, normal_prio;
-	struct list_head run_list;
 	const struct sched_class *sched_class;
 	struct sched_entity se;
+	struct sched_rt_entity rt;
 
 #ifdef CONFIG_PREEMPT_NOTIFIERS
 	/* list of struct preempt_notifier: */
@@ -951,7 +992,11 @@ struct task_struct {
 
 	unsigned int policy;
 	cpumask_t cpus_allowed;
-	unsigned int time_slice;
+
+#ifdef CONFIG_PREEMPT_RCU
+	int rcu_read_lock_nesting;
+	int rcu_flipctr_idx;
+#endif /* #ifdef CONFIG_PREEMPT_RCU */
 
 #if defined(CONFIG_SCHEDSTATS) || defined(CONFIG_TASK_DELAY_ACCT)
 	struct sched_info sched_info;
@@ -1040,6 +1085,11 @@ struct task_struct {
 #ifdef CONFIG_SYSVIPC
 /* ipc stuff */
 	struct sysv_sem sysvsem;
+#endif
+#ifdef CONFIG_DETECT_SOFTLOCKUP
+/* hung task detection */
+	unsigned long last_switch_timestamp;
+	unsigned long last_switch_count;
 #endif
 /* CPU-specific state of this task */
 	struct thread_struct thread;
@@ -1173,6 +1223,10 @@ struct task_struct {
 	int make_it_fail;
 #endif
 	struct prop_local_single dirties;
+#ifdef CONFIG_LATENCYTOP
+	int latency_record_count;
+	struct latency_record latency_record[LT_SAVECOUNT];
+#endif
 };
 
 /*
@@ -1453,6 +1507,12 @@ extern unsigned int sysctl_sched_child_runs_first;
 extern unsigned int sysctl_sched_features;
 extern unsigned int sysctl_sched_migration_cost;
 extern unsigned int sysctl_sched_nr_migrate;
+extern unsigned int sysctl_sched_rt_period;
+extern unsigned int sysctl_sched_rt_ratio;
+#if defined(CONFIG_FAIR_GROUP_SCHED) && defined(CONFIG_SMP)
+extern unsigned int sysctl_sched_min_bal_int_shares;
+extern unsigned int sysctl_sched_max_bal_int_shares;
+#endif
 
 int sched_nr_latency_handler(struct ctl_table *table, int write,
 		struct file *file, void __user *buffer, size_t *length,
@@ -1845,7 +1905,18 @@ static inline int need_resched(void)
  * cond_resched_lock() will drop the spinlock before scheduling,
  * cond_resched_softirq() will enable bhs before scheduling.
  */
-extern int cond_resched(void);
+#ifdef CONFIG_PREEMPT
+static inline int cond_resched(void)
+{
+	return 0;
+}
+#else
+extern int _cond_resched(void);
+static inline int cond_resched(void)
+{
+	return _cond_resched();
+}
+#endif
 extern int cond_resched_lock(spinlock_t * lock);
 extern int cond_resched_softirq(void);
 

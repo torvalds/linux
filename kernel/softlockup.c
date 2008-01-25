@@ -8,6 +8,7 @@
  */
 #include <linux/mm.h>
 #include <linux/cpu.h>
+#include <linux/nmi.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/freezer.h>
@@ -23,8 +24,8 @@ static DEFINE_PER_CPU(unsigned long, touch_timestamp);
 static DEFINE_PER_CPU(unsigned long, print_timestamp);
 static DEFINE_PER_CPU(struct task_struct *, watchdog_task);
 
-static int did_panic;
-int softlockup_thresh = 10;
+static int __read_mostly did_panic;
+unsigned long __read_mostly softlockup_thresh = 60;
 
 static int
 softlock_panic(struct notifier_block *this, unsigned long event, void *ptr)
@@ -45,7 +46,7 @@ static struct notifier_block panic_block = {
  */
 static unsigned long get_timestamp(int this_cpu)
 {
-	return cpu_clock(this_cpu) >> 30;  /* 2^30 ~= 10^9 */
+	return cpu_clock(this_cpu) >> 30LL;  /* 2^30 ~= 10^9 */
 }
 
 void touch_softlockup_watchdog(void)
@@ -100,11 +101,7 @@ void softlockup_tick(void)
 
 	now = get_timestamp(this_cpu);
 
-	/* Wake up the high-prio watchdog task every second: */
-	if (now > (touch_timestamp + 1))
-		wake_up_process(per_cpu(watchdog_task, this_cpu));
-
-	/* Warn about unreasonable 10+ seconds delays: */
+	/* Warn about unreasonable delays: */
 	if (now <= (touch_timestamp + softlockup_thresh))
 		return;
 
@@ -122,11 +119,93 @@ void softlockup_tick(void)
 }
 
 /*
+ * Have a reasonable limit on the number of tasks checked:
+ */
+unsigned long __read_mostly sysctl_hung_task_check_count = 1024;
+
+/*
+ * Zero means infinite timeout - no checking done:
+ */
+unsigned long __read_mostly sysctl_hung_task_timeout_secs = 120;
+
+unsigned long __read_mostly sysctl_hung_task_warnings = 10;
+
+/*
+ * Only do the hung-tasks check on one CPU:
+ */
+static int check_cpu __read_mostly = -1;
+
+static void check_hung_task(struct task_struct *t, unsigned long now)
+{
+	unsigned long switch_count = t->nvcsw + t->nivcsw;
+
+	if (t->flags & PF_FROZEN)
+		return;
+
+	if (switch_count != t->last_switch_count || !t->last_switch_timestamp) {
+		t->last_switch_count = switch_count;
+		t->last_switch_timestamp = now;
+		return;
+	}
+	if ((long)(now - t->last_switch_timestamp) <
+					sysctl_hung_task_timeout_secs)
+		return;
+	if (sysctl_hung_task_warnings < 0)
+		return;
+	sysctl_hung_task_warnings--;
+
+	/*
+	 * Ok, the task did not get scheduled for more than 2 minutes,
+	 * complain:
+	 */
+	printk(KERN_ERR "INFO: task %s:%d blocked for more than "
+			"%ld seconds.\n", t->comm, t->pid,
+			sysctl_hung_task_timeout_secs);
+	printk(KERN_ERR "\"echo 0 > /proc/sys/kernel/hung_task_timeout_secs\""
+			" disables this message.\n");
+	sched_show_task(t);
+	__debug_show_held_locks(t);
+
+	t->last_switch_timestamp = now;
+	touch_nmi_watchdog();
+}
+
+/*
+ * Check whether a TASK_UNINTERRUPTIBLE does not get woken up for
+ * a really long time (120 seconds). If that happens, print out
+ * a warning.
+ */
+static void check_hung_uninterruptible_tasks(int this_cpu)
+{
+	int max_count = sysctl_hung_task_check_count;
+	unsigned long now = get_timestamp(this_cpu);
+	struct task_struct *g, *t;
+
+	/*
+	 * If the system crashed already then all bets are off,
+	 * do not report extra hung tasks:
+	 */
+	if ((tainted & TAINT_DIE) || did_panic)
+		return;
+
+	read_lock(&tasklist_lock);
+	do_each_thread(g, t) {
+		if (!--max_count)
+			break;
+		if (t->state & TASK_UNINTERRUPTIBLE)
+			check_hung_task(t, now);
+	} while_each_thread(g, t);
+
+	read_unlock(&tasklist_lock);
+}
+
+/*
  * The watchdog thread - runs every second and touches the timestamp.
  */
 static int watchdog(void *__bind_cpu)
 {
 	struct sched_param param = { .sched_priority = MAX_RT_PRIO-1 };
+	int this_cpu = (long)__bind_cpu;
 
 	sched_setscheduler(current, SCHED_FIFO, &param);
 
@@ -135,13 +214,18 @@ static int watchdog(void *__bind_cpu)
 
 	/*
 	 * Run briefly once per second to reset the softlockup timestamp.
-	 * If this gets delayed for more than 10 seconds then the
+	 * If this gets delayed for more than 60 seconds then the
 	 * debug-printout triggers in softlockup_tick().
 	 */
 	while (!kthread_should_stop()) {
-		set_current_state(TASK_INTERRUPTIBLE);
 		touch_softlockup_watchdog();
-		schedule();
+		msleep_interruptible(10000);
+
+		if (this_cpu != check_cpu)
+			continue;
+
+		if (sysctl_hung_task_timeout_secs)
+			check_hung_uninterruptible_tasks(this_cpu);
 	}
 
 	return 0;
@@ -171,6 +255,7 @@ cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 		break;
 	case CPU_ONLINE:
 	case CPU_ONLINE_FROZEN:
+		check_cpu = any_online_cpu(cpu_online_map);
 		wake_up_process(per_cpu(watchdog_task, hotcpu));
 		break;
 #ifdef CONFIG_HOTPLUG_CPU
@@ -181,6 +266,15 @@ cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 		/* Unbind so it can run.  Fall thru. */
 		kthread_bind(per_cpu(watchdog_task, hotcpu),
 			     any_online_cpu(cpu_online_map));
+	case CPU_DOWN_PREPARE:
+	case CPU_DOWN_PREPARE_FROZEN:
+		if (hotcpu == check_cpu) {
+			cpumask_t temp_cpu_online_map = cpu_online_map;
+
+			cpu_clear(hotcpu, temp_cpu_online_map);
+			check_cpu = any_online_cpu(temp_cpu_online_map);
+		}
+		break;
 	case CPU_DEAD:
 	case CPU_DEAD_FROZEN:
 		p = per_cpu(watchdog_task, hotcpu);

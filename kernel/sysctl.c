@@ -81,6 +81,7 @@ extern int compat_log;
 extern int maps_protect;
 extern int sysctl_stat_interval;
 extern int audit_argv_kb;
+extern int latencytop_enabled;
 
 /* Constants used for minimum and  maximum */
 #ifdef CONFIG_DETECT_SOFTLOCKUP
@@ -306,9 +307,43 @@ static struct ctl_table kern_table[] = {
 		.procname	= "sched_nr_migrate",
 		.data		= &sysctl_sched_nr_migrate,
 		.maxlen		= sizeof(unsigned int),
-		.mode		= 644,
+		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
 	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "sched_rt_period_ms",
+		.data		= &sysctl_sched_rt_period,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "sched_rt_ratio",
+		.data		= &sysctl_sched_rt_ratio,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
+#if defined(CONFIG_FAIR_GROUP_SCHED) && defined(CONFIG_SMP)
+	{
+		.ctl_name       = CTL_UNNUMBERED,
+		.procname       = "sched_min_bal_int_shares",
+		.data           = &sysctl_sched_min_bal_int_shares,
+		.maxlen         = sizeof(unsigned int),
+		.mode           = 0644,
+		.proc_handler   = &proc_dointvec,
+	},
+	{
+		.ctl_name       = CTL_UNNUMBERED,
+		.procname       = "sched_max_bal_int_shares",
+		.data           = &sysctl_sched_max_bal_int_shares,
+		.maxlen         = sizeof(unsigned int),
+		.mode           = 0644,
+		.proc_handler   = &proc_dointvec,
+	},
+#endif
 #endif
 	{
 		.ctl_name	= CTL_UNNUMBERED,
@@ -380,6 +415,15 @@ static struct ctl_table kern_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_taint,
+	},
+#endif
+#ifdef CONFIG_LATENCYTOP
+	{
+		.procname	= "latencytop",
+		.data		= &latencytop_enabled,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
 	},
 #endif
 #ifdef CONFIG_SECURITY_CAPABILITIES
@@ -728,12 +772,39 @@ static struct ctl_table kern_table[] = {
 		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "softlockup_thresh",
 		.data		= &softlockup_thresh,
-		.maxlen		= sizeof(int),
+		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
+		.proc_handler	= &proc_doulongvec_minmax,
 		.strategy	= &sysctl_intvec,
 		.extra1		= &one,
 		.extra2		= &sixty,
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "hung_task_check_count",
+		.data		= &sysctl_hung_task_check_count,
+		.maxlen		= sizeof(unsigned long),
+		.mode		= 0644,
+		.proc_handler	= &proc_doulongvec_minmax,
+		.strategy	= &sysctl_intvec,
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "hung_task_timeout_secs",
+		.data		= &sysctl_hung_task_timeout_secs,
+		.maxlen		= sizeof(unsigned long),
+		.mode		= 0644,
+		.proc_handler	= &proc_doulongvec_minmax,
+		.strategy	= &sysctl_intvec,
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "hung_task_warnings",
+		.data		= &sysctl_hung_task_warnings,
+		.maxlen		= sizeof(unsigned long),
+		.mode		= 0644,
+		.proc_handler	= &proc_doulongvec_minmax,
+		.strategy	= &sysctl_intvec,
 	},
 #endif
 #ifdef CONFIG_COMPAT

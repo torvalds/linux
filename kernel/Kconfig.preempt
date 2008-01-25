@@ -52,14 +52,13 @@ config PREEMPT
 
 endchoice
 
-config PREEMPT_BKL
-	bool "Preempt The Big Kernel Lock"
-	depends on SMP || PREEMPT
+config RCU_TRACE
+	bool "Enable tracing for RCU - currently stats in debugfs"
+	select DEBUG_FS
 	default y
 	help
-	  This option reduces the latency of the kernel by making the
-	  big kernel lock preemptible.
+	  This option provides tracing in RCU which presents stats
+	  in debugfs for debugging RCU implementation.
 
-	  Say Y here if you are building a kernel for a desktop system.
+	  Say Y here if you want to enable RCU tracing
 	  Say N if you are unsure.
-

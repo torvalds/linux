@@ -153,6 +153,7 @@ void tick_nohz_update_jiffies(void)
 void tick_nohz_stop_sched_tick(void)
 {
 	unsigned long seq, last_jiffies, next_jiffies, delta_jiffies, flags;
+	unsigned long rt_jiffies;
 	struct tick_sched *ts;
 	ktime_t last_update, expires, now, delta;
 	struct clock_event_device *dev = __get_cpu_var(tick_cpu_device).evtdev;
@@ -215,6 +216,10 @@ void tick_nohz_stop_sched_tick(void)
 	/* Get the next timer wheel timer */
 	next_jiffies = get_next_timer_interrupt(last_jiffies);
 	delta_jiffies = next_jiffies - last_jiffies;
+
+	rt_jiffies = rt_needs_cpu(cpu);
+	if (rt_jiffies && rt_jiffies < delta_jiffies)
+		delta_jiffies = rt_jiffies;
 
 	if (rcu_needs_cpu(cpu))
 		delta_jiffies = 1;
@@ -509,7 +514,6 @@ static enum hrtimer_restart tick_sched_timer(struct hrtimer *timer)
 {
 	struct tick_sched *ts =
 		container_of(timer, struct tick_sched, sched_timer);
-	struct hrtimer_cpu_base *base = timer->base->cpu_base;
 	struct pt_regs *regs = get_irq_regs();
 	ktime_t now = ktime_get();
 	int cpu = smp_processor_id();
@@ -547,15 +551,8 @@ static enum hrtimer_restart tick_sched_timer(struct hrtimer *timer)
 			touch_softlockup_watchdog();
 			ts->idle_jiffies++;
 		}
-		/*
-		 * update_process_times() might take tasklist_lock, hence
-		 * drop the base lock. sched-tick hrtimers are per-CPU and
-		 * never accessible by userspace APIs, so this is safe to do.
-		 */
-		spin_unlock(&base->lock);
 		update_process_times(user_mode(regs));
 		profile_tick(CPU_PROFILING);
-		spin_lock(&base->lock);
 	}
 
 	/* Do not restart, when we are in the idle loop */
