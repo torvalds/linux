@@ -278,27 +278,14 @@ static void sil_set_dma_mode(ide_drive_t *drive, const u8 speed)
 
 	scsc = is_sata(hwif) ? 1 : scsc;
 
-	switch(speed) {
-		case XFER_MW_DMA_2:
-		case XFER_MW_DMA_1:
-		case XFER_MW_DMA_0:
-			multi = dma[speed - XFER_MW_DMA_0];
-			mode |= ((unit) ? 0x20 : 0x02);
-			break;
-		case XFER_UDMA_6:
-		case XFER_UDMA_5:
-		case XFER_UDMA_4:
-		case XFER_UDMA_3:
-		case XFER_UDMA_2:
-		case XFER_UDMA_1:
-		case XFER_UDMA_0:
-			multi = dma[2];
-			ultra |= ((scsc) ? (ultra6[speed - XFER_UDMA_0]) :
-					   (ultra5[speed - XFER_UDMA_0]));
-			mode |= ((unit) ? 0x30 : 0x03);
-			break;
-		default:
-			return;
+	if (speed >= XFER_UDMA_0) {
+		multi = dma[2];
+		ultra |= (scsc ? ultra6[speed - XFER_UDMA_0] :
+				 ultra5[speed - XFER_UDMA_0]);
+		mode |= (unit ? 0x30 : 0x03);
+	} else {
+		multi = dma[speed - XFER_MW_DMA_0];
+		mode |= (unit ? 0x20 : 0x02);
 	}
 
 	if (hwif->mmio) {

@@ -115,32 +115,24 @@ static void sl82c105_set_dma_mode(ide_drive_t *drive, const u8 speed)
  	DBG(("sl82c105_tune_chipset(drive:%s, speed:%s)\n",
 	     drive->name, ide_xfer_verbose(speed)));
 
-	switch (speed) {
-	case XFER_MW_DMA_2:
-	case XFER_MW_DMA_1:
-	case XFER_MW_DMA_0:
-		drv_ctrl = mwdma_timings[speed - XFER_MW_DMA_0];
+	drv_ctrl = mwdma_timings[speed - XFER_MW_DMA_0];
 
-		/*
-		 * Store the DMA timings so that we can actually program
-		 * them when DMA will be turned on...
-		 */
-		drive->drive_data &= 0x0000ffff;
-		drive->drive_data |= (unsigned long)drv_ctrl << 16;
+	/*
+	 * Store the DMA timings so that we can actually program
+	 * them when DMA will be turned on...
+	 */
+	drive->drive_data &= 0x0000ffff;
+	drive->drive_data |= (unsigned long)drv_ctrl << 16;
 
-		/*
-		 * If we are already using DMA, we just reprogram
-		 * the drive control register.
-		 */
-		if (drive->using_dma) {
-			struct pci_dev *dev	= HWIF(drive)->pci_dev;
-			int reg 		= 0x44 + drive->dn * 4;
+	/*
+	 * If we are already using DMA, we just reprogram
+	 * the drive control register.
+	 */
+	if (drive->using_dma) {
+		struct pci_dev *dev	= HWIF(drive)->pci_dev;
+		int reg 		= 0x44 + drive->dn * 4;
 
-			pci_write_config_word(dev, reg, drv_ctrl);
-		}
-		break;
-	default:
-		return;
+		pci_write_config_word(dev, reg, drv_ctrl);
 	}
 }
 

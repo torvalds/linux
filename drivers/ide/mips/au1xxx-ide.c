@@ -198,8 +198,6 @@ static void auide_set_dma_mode(ide_drive_t *drive, const u8 speed)
 
 		break;
 #endif
-	default:
-		return;
 	}
 
 	au_writel(mem_sttime,MEM_STTIME2);

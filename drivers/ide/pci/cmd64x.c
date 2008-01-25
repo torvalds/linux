@@ -322,8 +322,6 @@ static void cmd64x_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	case XFER_MW_DMA_0:
 		program_cycle_times(drive, 480, 215);
 		break;
-	default:
-		return;
 	}
 
 	if (speed >= XFER_SW_DMA_0)

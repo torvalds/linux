@@ -441,6 +441,12 @@ int ide_set_xfer_rate(ide_drive_t *drive, u8 rate)
 	 * case could happen iff the transfer mode has already been set on
 	 * the device by ide-proc.c::set_xfer_rate()).
 	 */
+	if (rate < XFER_PIO_0) {
+		if (hwif->host_flags & IDE_HFLAG_ABUSE_SET_DMA_MODE)
+			return ide_set_dma_mode(drive, rate);
+		else
+			return ide_config_drive_speed(drive, rate);
+	}
 
 	return ide_set_dma_mode(drive, rate);
 }

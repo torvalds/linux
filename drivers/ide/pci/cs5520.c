@@ -137,6 +137,7 @@ static void __devinit init_hwif_cs5520(ide_hwif_t *hwif)
 				  IDE_HFLAG_CS5520 |		\
 				  IDE_HFLAG_VDMA |		\
 				  IDE_HFLAG_NO_ATAPI_DMA |	\
+				  IDE_HFLAG_ABUSE_SET_DMA_MODE |\
 				  IDE_HFLAG_BOOTABLE,		\
 		.pio_mask	= ATA_PIO4,			\
 	}

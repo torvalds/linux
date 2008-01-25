@@ -185,8 +185,6 @@ static void sc1200_set_dma_mode(ide_drive_t *drive, const u8 mode)
 				case PCI_CLK_66:	timings = 0x00015151;	break;
 			}
 			break;
-		default:
-			return;
 	}
 
 	if (unit == 0) {			/* are we configuring drive0? */

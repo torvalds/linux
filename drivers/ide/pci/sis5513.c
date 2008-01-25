@@ -351,25 +351,10 @@ static void sis_program_udma_timings(ide_drive_t *drive, const u8 mode)
 
 static void sis_set_dma_mode(ide_drive_t *drive, const u8 speed)
 {
-	/* Config chip for mode */
-	switch(speed) {
-		case XFER_UDMA_6:
-		case XFER_UDMA_5:
-		case XFER_UDMA_4:
-		case XFER_UDMA_3:
-		case XFER_UDMA_2:
-		case XFER_UDMA_1:
-		case XFER_UDMA_0:
-			sis_program_udma_timings(drive, speed);
-			break;
-		case XFER_MW_DMA_2:
-		case XFER_MW_DMA_1:
-		case XFER_MW_DMA_0:
-			sis_program_timings(drive, speed);
-			break;
-		default:
-			break;
-	}
+	if (speed >= XFER_UDMA_0)
+		sis_program_udma_timings(drive, speed);
+	else
+		sis_program_timings(drive, speed);
 }
 
 static u8 sis5513_ata133_udma_filter(ide_drive_t *drive)

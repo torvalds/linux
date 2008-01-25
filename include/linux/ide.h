@@ -1094,6 +1094,7 @@ enum {
 	IDE_HFLAG_IO_32BIT		= (1 << 24),
 	/* unmask IRQs */
 	IDE_HFLAG_UNMASK_IRQS		= (1 << 25),
+	IDE_HFLAG_ABUSE_SET_DMA_MODE	= (1 << 26),
 };
 
 #ifdef CONFIG_BLK_DEV_OFFBOARD
