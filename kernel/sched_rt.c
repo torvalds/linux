@@ -242,8 +242,7 @@ static int pick_rt_task(struct rq *rq, struct task_struct *p, int cpu)
 }
 
 /* Return the second highest RT task, NULL otherwise */
-static struct task_struct *pick_next_highest_task_rt(struct rq *rq,
-						     int cpu)
+static struct task_struct *pick_next_highest_task_rt(struct rq *rq, int cpu)
 {
 	struct rt_prio_array *array = &rq->rt.active;
 	struct task_struct *next;
@@ -270,7 +269,8 @@ static struct task_struct *pick_next_highest_task_rt(struct rq *rq,
 
 	if (queue->next->next != queue) {
 		/* same prio task */
-		next = list_entry(queue->next->next, struct task_struct, run_list);
+		next = list_entry(queue->next->next, struct task_struct,
+				  run_list);
 		if (pick_rt_task(rq, next, cpu))
 			goto out;
 	}
