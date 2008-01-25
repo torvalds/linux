@@ -334,6 +334,8 @@ static void ipath_verify_pioperf(struct ipath_devdata *dd)
 		udelay(1);
 	}
 
+	ipath_disable_armlaunch(dd);
+
 	writeq(0, piobuf); /* length 0, no dwords actually sent */
 	ipath_flush_wc();
 
@@ -365,6 +367,7 @@ static void ipath_verify_pioperf(struct ipath_devdata *dd)
 done:
 	/* disarm piobuf, so it's available again */
 	ipath_disarm_piobufs(dd, pbnum, 1);
+	ipath_enable_armlaunch(dd);
 }
 
 static int __devinit ipath_init_one(struct pci_dev *pdev,
@@ -803,31 +806,37 @@ void ipath_disarm_piobufs(struct ipath_devdata *dd, unsigned first,
 			  unsigned cnt)
 {
 	unsigned i, last = first + cnt;
-	u64 sendctrl, sendorig;
+	unsigned long flags;
 
 	ipath_cdbg(PKT, "disarm %u PIObufs first=%u\n", cnt, first);
-	sendorig = dd->ipath_sendctrl;
 	for (i = first; i < last; i++) {
-		sendctrl = sendorig  | INFINIPATH_S_DISARM |
-			(i << INFINIPATH_S_DISARMPIOBUF_SHIFT);
+		spin_lock_irqsave(&dd->ipath_sendctrl_lock, flags);
+		/*
+		 * The disarm-related bits are write-only, so it
+		 * is ok to OR them in with our copy of sendctrl
+		 * while we hold the lock.
+		 */
 		ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
-				 sendctrl);
+			dd->ipath_sendctrl | INFINIPATH_S_DISARM |
+			(i << INFINIPATH_S_DISARMPIOBUF_SHIFT));
+		/* can't disarm bufs back-to-back per iba7220 spec */
+		ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
+		spin_unlock_irqrestore(&dd->ipath_sendctrl_lock, flags);
 	}
 
 	/*
-	 * Write it again with current value, in case ipath_sendctrl changed
-	 * while we were looping; no critical bits that would require
-	 * locking.
-	 *
-	 * disable PIOAVAILUPD, then re-enable, reading scratch in
+	 * Disable PIOAVAILUPD, then re-enable, reading scratch in
 	 * between.  This seems to avoid a chip timing race that causes
-	 * pioavail updates to memory to stop.
+	 * pioavail updates to memory to stop.  We xor as we don't
+	 * know the state of the bit when we're called.
 	 */
+	spin_lock_irqsave(&dd->ipath_sendctrl_lock, flags);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
-			 sendorig & ~INFINIPATH_S_PIOBUFAVAILUPD);
-	sendorig = ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
+		dd->ipath_sendctrl ^ INFINIPATH_S_PIOBUFAVAILUPD);
+	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
 			 dd->ipath_sendctrl);
+	spin_unlock_irqrestore(&dd->ipath_sendctrl_lock, flags);
 }
 
 /**
@@ -1003,12 +1012,10 @@ static void get_rhf_errstring(u32 err, char *msg, size_t len)
  * ipath_get_egrbuf - get an eager buffer
  * @dd: the infinipath device
  * @bufnum: the eager buffer to get
- * @err: unused
  *
  * must only be called if ipath_pd[port] is known to be allocated
  */
-static inline void *ipath_get_egrbuf(struct ipath_devdata *dd, u32 bufnum,
-				     int err)
+static inline void *ipath_get_egrbuf(struct ipath_devdata *dd, u32 bufnum)
 {
 	return dd->ipath_port0_skbinfo ?
 		(void *) dd->ipath_port0_skbinfo[bufnum].skb->data : NULL;
@@ -1100,13 +1107,14 @@ static void ipath_rcv_hdrerr(struct ipath_devdata *dd,
 
 /*
  * ipath_kreceive - receive a packet
- * @dd: the infinipath device
+ * @pd: the infinipath port
  *
  * called from interrupt handler for errors or receive interrupt
  */
-void ipath_kreceive(struct ipath_devdata *dd)
+void ipath_kreceive(struct ipath_portdata *pd)
 {
 	u64 *rc;
+	struct ipath_devdata *dd = pd->port_dd;
 	void *ebuf;
 	const u32 rsize = dd->ipath_rcvhdrentsize;	/* words */
 	const u32 maxcnt = dd->ipath_rcvhdrcnt * rsize;	/* words */
@@ -1121,8 +1129,8 @@ void ipath_kreceive(struct ipath_devdata *dd)
 		goto bail;
 	}
 
-	l = dd->ipath_port0head;
-	hdrqtail = (u32) le64_to_cpu(*dd->ipath_hdrqtailptr);
+	l = pd->port_head;
+	hdrqtail = ipath_get_rcvhdrtail(pd);
 	if (l == hdrqtail)
 		goto bail;
 
@@ -1131,7 +1139,7 @@ reloop:
 		u32 qp;
 		u8 *bthbytes;
 
-		rc = (u64 *) (dd->ipath_pd[0]->port_rcvhdrq + (l << 2));
+		rc = (u64 *) (pd->port_rcvhdrq + (l << 2));
 		hdr = (struct ipath_message_header *)&rc[1];
 		/*
 		 * could make a network order version of IPATH_KD_QP, and
@@ -1156,7 +1164,7 @@ reloop:
 			etail = ipath_hdrget_index((__le32 *) rc);
 			if (tlen > sizeof(*hdr) ||
 			    etype == RCVHQ_RCV_TYPE_NON_KD)
-				ebuf = ipath_get_egrbuf(dd, etail, 0);
+				ebuf = ipath_get_egrbuf(dd, etail);
 		}
 
 		/*
@@ -1191,7 +1199,7 @@ reloop:
 				  be32_to_cpu(hdr->bth[0]) & 0xff);
 		else {
 			/*
-			 * error packet, type of error	unknown.
+			 * error packet, type of error unknown.
 			 * Probably type 3, but we don't know, so don't
 			 * even try to print the opcode, etc.
 			 */
@@ -1241,7 +1249,7 @@ reloop:
 		 * earlier packets, we "almost" guarantee we have covered
 		 * that case.
 		 */
-		u32 hqtail = (u32)le64_to_cpu(*dd->ipath_hdrqtailptr);
+		u32 hqtail = ipath_get_rcvhdrtail(pd);
 		if (hqtail != hdrqtail) {
 			hdrqtail = hqtail;
 			reloop = 1; /* loop 1 extra time at most */
@@ -1251,7 +1259,7 @@ reloop:
 
 	pkttot += i;
 
-	dd->ipath_port0head = l;
+	pd->port_head = l;
 
 	if (pkttot > ipath_stats.sps_maxpkts_call)
 		ipath_stats.sps_maxpkts_call = pkttot;
@@ -1335,14 +1343,9 @@ static void ipath_update_pio_bufs(struct ipath_devdata *dd)
 		/*
 		 * Chip Errata: bug 6641; even and odd qwords>3 are swapped
 		 */
-		if (i > 3) {
-			if (i & 1)
-				piov = le64_to_cpu(
-					dd->ipath_pioavailregs_dma[i - 1]);
-			else
-				piov = le64_to_cpu(
-					dd->ipath_pioavailregs_dma[i + 1]);
-		} else
+		if (i > 3 && (dd->ipath_flags & IPATH_SWAP_PIOBUFS))
+			piov = le64_to_cpu(dd->ipath_pioavailregs_dma[i ^ 1]);
+		else
 			piov = le64_to_cpu(dd->ipath_pioavailregs_dma[i]);
 		pchg = _IPATH_ALL_CHECKBITS &
 			~(dd->ipath_pioavailshadow[i] ^ piov);
@@ -1601,7 +1604,8 @@ int ipath_create_rcvhdrq(struct ipath_devdata *dd,
 
 	/* clear for security and sanity on each use */
 	memset(pd->port_rcvhdrq, 0, pd->port_rcvhdrq_size);
-	memset(pd->port_rcvhdrtail_kvaddr, 0, PAGE_SIZE);
+	if (pd->port_rcvhdrtail_kvaddr)
+		memset(pd->port_rcvhdrtail_kvaddr, 0, PAGE_SIZE);
 
 	/*
 	 * tell chip each time we init it, even if we are re-using previous
@@ -1614,77 +1618,6 @@ int ipath_create_rcvhdrq(struct ipath_devdata *dd,
 
 	ret = 0;
 bail:
-	return ret;
-}
-
-int ipath_waitfor_complete(struct ipath_devdata *dd, ipath_kreg reg_id,
-			   u64 bits_to_wait_for, u64 * valp)
-{
-	unsigned long timeout;
-	u64 lastval, val;
-	int ret;
-
-	lastval = ipath_read_kreg64(dd, reg_id);
-	/* wait a ridiculously long time */
-	timeout = jiffies + msecs_to_jiffies(5);
-	do {
-		val = ipath_read_kreg64(dd, reg_id);
-		/* set so they have something, even on failures. */
-		*valp = val;
-		if ((val & bits_to_wait_for) == bits_to_wait_for) {
-			ret = 0;
-			break;
-		}
-		if (val != lastval)
-			ipath_cdbg(VERBOSE, "Changed from %llx to %llx, "
-				   "waiting for %llx bits\n",
-				   (unsigned long long) lastval,
-				   (unsigned long long) val,
-				   (unsigned long long) bits_to_wait_for);
-		cond_resched();
-		if (time_after(jiffies, timeout)) {
-			ipath_dbg("Didn't get bits %llx in register 0x%x, "
-				  "got %llx\n",
-				  (unsigned long long) bits_to_wait_for,
-				  reg_id, (unsigned long long) *valp);
-			ret = -ENODEV;
-			break;
-		}
-	} while (1);
-
-	return ret;
-}
-
-/**
- * ipath_waitfor_mdio_cmdready - wait for last command to complete
- * @dd: the infinipath device
- *
- * Like ipath_waitfor_complete(), but we wait for the CMDVALID bit to go
- * away indicating the last command has completed.  It doesn't return data
- */
-int ipath_waitfor_mdio_cmdready(struct ipath_devdata *dd)
-{
-	unsigned long timeout;
-	u64 val;
-	int ret;
-
-	/* wait a ridiculously long time */
-	timeout = jiffies + msecs_to_jiffies(5);
-	do {
-		val = ipath_read_kreg64(dd, dd->ipath_kregs->kr_mdio);
-		if (!(val & IPATH_MDIO_CMDVALID)) {
-			ret = 0;
-			break;
-		}
-		cond_resched();
-		if (time_after(jiffies, timeout)) {
-			ipath_dbg("CMDVALID stuck in mdio reg? (%llx)\n",
-				  (unsigned long long) val);
-			ret = -ENODEV;
-			break;
-		}
-	} while (1);
-
 	return ret;
 }
 
@@ -2056,6 +1989,8 @@ void ipath_set_led_override(struct ipath_devdata *dd, unsigned int val)
  */
 void ipath_shutdown_device(struct ipath_devdata *dd)
 {
+	unsigned long flags;
+
 	ipath_dbg("Shutting down the device\n");
 
 	dd->ipath_flags |= IPATH_LINKUNK;
@@ -2076,9 +2011,13 @@ void ipath_shutdown_device(struct ipath_devdata *dd)
 	 * gracefully stop all sends allowing any in progress to trickle out
 	 * first.
 	 */
-	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl, 0ULL);
+	spin_lock_irqsave(&dd->ipath_sendctrl_lock, flags);
+	dd->ipath_sendctrl = 0;
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl, dd->ipath_sendctrl);
 	/* flush it */
 	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
+	spin_unlock_irqrestore(&dd->ipath_sendctrl_lock, flags);
+
 	/*
 	 * enough for anything that's going to trickle out to have actually
 	 * done so.
@@ -2335,5 +2274,34 @@ int ipath_set_rx_pol_inv(struct ipath_devdata *dd, u8 new_pol_inv)
 	}
 	return 0;
 }
+
+/*
+ * Disable and enable the armlaunch error.  Used for PIO bandwidth testing on
+ * the 7220, which is count-based, rather than trigger-based.  Safe for the
+ * driver check, since it's at init.   Not completely safe when used for
+ * user-mode checking, since some error checking can be lost, but not
+ * particularly risky, and only has problematic side-effects in the face of
+ * very buggy user code.  There is no reference counting, but that's also
+ * fine, given the intended use.
+ */
+void ipath_enable_armlaunch(struct ipath_devdata *dd)
+{
+	dd->ipath_lasterror &= ~INFINIPATH_E_SPIOARMLAUNCH;
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_errorclear,
+		INFINIPATH_E_SPIOARMLAUNCH);
+	dd->ipath_errormask |= INFINIPATH_E_SPIOARMLAUNCH;
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_errormask,
+		dd->ipath_errormask);
+}
+
+void ipath_disable_armlaunch(struct ipath_devdata *dd)
+{
+	/* so don't re-enable if already set */
+	dd->ipath_maskederrs &= ~INFINIPATH_E_SPIOARMLAUNCH;
+	dd->ipath_errormask &= ~INFINIPATH_E_SPIOARMLAUNCH;
+	ipath_write_kreg(dd, dd->ipath_kregs->kr_errormask,
+		dd->ipath_errormask);
+}
+
 module_init(infinipath_init);
 module_exit(infinipath_cleanup);

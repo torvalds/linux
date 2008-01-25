@@ -62,6 +62,7 @@
 #define NEQE_PORT_NUMBER       EHCA_BMASK_IBM( 8, 15)
 #define NEQE_PORT_AVAILABILITY EHCA_BMASK_IBM(16, 16)
 #define NEQE_DISRUPTIVE        EHCA_BMASK_IBM(16, 16)
+#define NEQE_SPECIFIC_EVENT    EHCA_BMASK_IBM(16, 23)
 
 #define ERROR_DATA_LENGTH      EHCA_BMASK_IBM(52, 63)
 #define ERROR_DATA_TYPE        EHCA_BMASK_IBM( 0,  7)
@@ -354,17 +355,34 @@ static void parse_ec(struct ehca_shca *shca, u64 eqe)
 {
 	u8 ec   = EHCA_BMASK_GET(NEQE_EVENT_CODE, eqe);
 	u8 port = EHCA_BMASK_GET(NEQE_PORT_NUMBER, eqe);
+	u8 spec_event;
+	struct ehca_sport *sport = &shca->sport[port - 1];
+	unsigned long flags;
 
 	switch (ec) {
 	case 0x30: /* port availability change */
 		if (EHCA_BMASK_GET(NEQE_PORT_AVAILABILITY, eqe)) {
-			shca->sport[port - 1].port_state = IB_PORT_ACTIVE;
+			int suppress_event;
+			/* replay modify_qp for sqps */
+			spin_lock_irqsave(&sport->mod_sqp_lock, flags);
+			suppress_event = !sport->ibqp_sqp[IB_QPT_GSI];
+			if (sport->ibqp_sqp[IB_QPT_SMI])
+				ehca_recover_sqp(sport->ibqp_sqp[IB_QPT_SMI]);
+			if (!suppress_event)
+				ehca_recover_sqp(sport->ibqp_sqp[IB_QPT_GSI]);
+			spin_unlock_irqrestore(&sport->mod_sqp_lock, flags);
+
+			/* AQP1 was destroyed, ignore this event */
+			if (suppress_event)
+				break;
+
+			sport->port_state = IB_PORT_ACTIVE;
 			dispatch_port_event(shca, port, IB_EVENT_PORT_ACTIVE,
 					    "is active");
 			ehca_query_sma_attr(shca, port,
-					    &shca->sport[port - 1].saved_attr);
+					    &sport->saved_attr);
 		} else {
-			shca->sport[port - 1].port_state = IB_PORT_DOWN;
+			sport->port_state = IB_PORT_DOWN;
 			dispatch_port_event(shca, port, IB_EVENT_PORT_ERR,
 					    "is inactive");
 		}
@@ -378,11 +396,11 @@ static void parse_ec(struct ehca_shca *shca, u64 eqe)
 			ehca_warn(&shca->ib_device, "disruptive port "
 				  "%d configuration change", port);
 
-			shca->sport[port - 1].port_state = IB_PORT_DOWN;
+			sport->port_state = IB_PORT_DOWN;
 			dispatch_port_event(shca, port, IB_EVENT_PORT_ERR,
 					    "is inactive");
 
-			shca->sport[port - 1].port_state = IB_PORT_ACTIVE;
+			sport->port_state = IB_PORT_ACTIVE;
 			dispatch_port_event(shca, port, IB_EVENT_PORT_ACTIVE,
 					    "is active");
 		} else
@@ -393,6 +411,16 @@ static void parse_ec(struct ehca_shca *shca, u64 eqe)
 		break;
 	case 0x33:  /* trace stopped */
 		ehca_err(&shca->ib_device, "Traced stopped.");
+		break;
+	case 0x34: /* util async event */
+		spec_event = EHCA_BMASK_GET(NEQE_SPECIFIC_EVENT, eqe);
+		if (spec_event == 0x80) /* client reregister required */
+			dispatch_port_event(shca, port,
+					    IB_EVENT_CLIENT_REREGISTER,
+					    "client reregister req.");
+		else
+			ehca_warn(&shca->ib_device, "Unknown util async "
+				  "event %x on port %x", spec_event, port);
 		break;
 	default:
 		ehca_err(&shca->ib_device, "Unknown event code: %x on %s.",

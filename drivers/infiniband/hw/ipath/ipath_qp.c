@@ -387,8 +387,8 @@ int ipath_error_qp(struct ipath_qp *qp, enum ib_wc_status err)
 	struct ib_wc wc;
 	int ret = 0;
 
-	ipath_dbg("QP%d/%d in error state\n",
-		  qp->ibqp.qp_num, qp->remote_qpn);
+	ipath_dbg("QP%d/%d in error state (%d)\n",
+		  qp->ibqp.qp_num, qp->remote_qpn, err);
 
 	spin_lock(&dev->pending_lock);
 	/* XXX What if its already removed by the timeout code? */
@@ -855,8 +855,6 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 	 * See ipath_mmap() for details.
 	 */
 	if (udata && udata->outlen >= sizeof(__u64)) {
-		int err;
-
 		if (!qp->r_rq.wq) {
 			__u64 offset = 0;
 

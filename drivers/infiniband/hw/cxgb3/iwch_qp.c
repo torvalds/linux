@@ -208,36 +208,19 @@ static int iwch_sgl2pbl_map(struct iwch_dev *rhp, struct ib_sge *sg_list,
 static int iwch_build_rdma_recv(struct iwch_dev *rhp, union t3_wr *wqe,
 				struct ib_recv_wr *wr)
 {
-	int i, err = 0;
-	u32 pbl_addr[4];
-	u8 page_size[4];
+	int i;
 	if (wr->num_sge > T3_MAX_SGE)
 		return -EINVAL;
-	err = iwch_sgl2pbl_map(rhp, wr->sg_list, wr->num_sge, pbl_addr,
-			       page_size);
-	if (err)
-		return err;
-	wqe->recv.pagesz[0] = page_size[0];
-	wqe->recv.pagesz[1] = page_size[1];
-	wqe->recv.pagesz[2] = page_size[2];
-	wqe->recv.pagesz[3] = page_size[3];
 	wqe->recv.num_sgle = cpu_to_be32(wr->num_sge);
 	for (i = 0; i < wr->num_sge; i++) {
 		wqe->recv.sgl[i].stag = cpu_to_be32(wr->sg_list[i].lkey);
 		wqe->recv.sgl[i].len = cpu_to_be32(wr->sg_list[i].length);
-
-		/* to in the WQE == the offset into the page */
-		wqe->recv.sgl[i].to = cpu_to_be64(((u32) wr->sg_list[i].addr) %
-				(1UL << (12 + page_size[i])));
-
-		/* pbl_addr is the adapters address in the PBL */
-		wqe->recv.pbl_addr[i] = cpu_to_be32(pbl_addr[i]);
+		wqe->recv.sgl[i].to = cpu_to_be64(wr->sg_list[i].addr);
 	}
 	for (; i < T3_MAX_SGE; i++) {
 		wqe->recv.sgl[i].stag = 0;
 		wqe->recv.sgl[i].len = 0;
 		wqe->recv.sgl[i].to = 0;
-		wqe->recv.pbl_addr[i] = 0;
 	}
 	return 0;
 }
@@ -659,6 +642,7 @@ static void __flush_qp(struct iwch_qp *qhp, unsigned long *flag)
 	cxio_flush_rq(&qhp->wq, &rchp->cq, count);
 	spin_unlock(&qhp->lock);
 	spin_unlock_irqrestore(&rchp->lock, *flag);
+	(*rchp->ibcq.comp_handler)(&rchp->ibcq, rchp->ibcq.cq_context);
 
 	/* locking heirarchy: cq lock first, then qp lock. */
 	spin_lock_irqsave(&schp->lock, *flag);
@@ -668,6 +652,7 @@ static void __flush_qp(struct iwch_qp *qhp, unsigned long *flag)
 	cxio_flush_sq(&qhp->wq, &schp->cq, count);
 	spin_unlock(&qhp->lock);
 	spin_unlock_irqrestore(&schp->lock, *flag);
+	(*schp->ibcq.comp_handler)(&schp->ibcq, schp->ibcq.cq_context);
 
 	/* deref */
 	if (atomic_dec_and_test(&qhp->refcnt))
@@ -678,7 +663,7 @@ static void __flush_qp(struct iwch_qp *qhp, unsigned long *flag)
 
 static void flush_qp(struct iwch_qp *qhp, unsigned long *flag)
 {
-	if (t3b_device(qhp->rhp))
+	if (qhp->ibqp.uobject)
 		cxio_set_wq_in_error(&qhp->wq);
 	else
 		__flush_qp(qhp, flag);
@@ -732,6 +717,7 @@ static int rdma_init(struct iwch_dev *rhp, struct iwch_qp *qhp,
 	init_attr.qp_dma_addr = qhp->wq.dma_addr;
 	init_attr.qp_dma_size = (1UL << qhp->wq.size_log2);
 	init_attr.flags = rqes_posted(qhp) ? RECVS_POSTED : 0;
+	init_attr.flags |= capable(CAP_NET_BIND_SERVICE) ? PRIV_QP : 0;
 	init_attr.irs = qhp->ep->rcv_seq;
 	PDBG("%s init_attr.rq_addr 0x%x init_attr.rq_size = %d "
 	     "flags 0x%x qpcaps 0x%x\n", __FUNCTION__,
@@ -847,10 +833,11 @@ int iwch_modify_qp(struct iwch_dev *rhp, struct iwch_qp *qhp,
 				disconnect = 1;
 				ep = qhp->ep;
 			}
+			flush_qp(qhp, &flag);
 			break;
 		case IWCH_QP_STATE_TERMINATE:
 			qhp->attr.state = IWCH_QP_STATE_TERMINATE;
-			if (t3b_device(qhp->rhp))
+			if (qhp->ibqp.uobject)
 				cxio_set_wq_in_error(&qhp->wq);
 			if (!internal)
 				terminate = 1;

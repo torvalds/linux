@@ -139,7 +139,7 @@ static inline struct ib_pool_fmr *ib_fmr_cache_lookup(struct ib_fmr_pool *pool,
 static void ib_fmr_batch_release(struct ib_fmr_pool *pool)
 {
 	int                 ret;
-	struct ib_pool_fmr *fmr;
+	struct ib_pool_fmr *fmr, *next;
 	LIST_HEAD(unmap_list);
 	LIST_HEAD(fmr_list);
 
@@ -156,6 +156,20 @@ static void ib_fmr_batch_release(struct ib_fmr_pool *pool)
 			       fmr, fmr->ref_count);
 		}
 #endif
+	}
+
+	/*
+	 * The free_list may hold FMRs that have been put there
+	 * because they haven't reached the max_remap count.
+	 * Invalidate their mapping as well.
+	 */
+	list_for_each_entry_safe(fmr, next, &pool->free_list, list) {
+		if (fmr->remap_count == 0)
+			continue;
+		hlist_del_init(&fmr->cache_node);
+		fmr->remap_count = 0;
+		list_add_tail(&fmr->fmr->list, &fmr_list);
+		list_move(&fmr->list, &unmap_list);
 	}
 
 	list_splice(&pool->dirty_list, &unmap_list);
@@ -182,8 +196,7 @@ static int ib_fmr_cleanup_thread(void *pool_ptr)
 	struct ib_fmr_pool *pool = pool_ptr;
 
 	do {
-		if (pool->dirty_len >= pool->dirty_watermark ||
-		    atomic_read(&pool->flush_ser) - atomic_read(&pool->req_ser) < 0) {
+		if (atomic_read(&pool->flush_ser) - atomic_read(&pool->req_ser) < 0) {
 			ib_fmr_batch_release(pool);
 
 			atomic_inc(&pool->flush_ser);
@@ -194,8 +207,7 @@ static int ib_fmr_cleanup_thread(void *pool_ptr)
 		}
 
 		set_current_state(TASK_INTERRUPTIBLE);
-		if (pool->dirty_len < pool->dirty_watermark &&
-		    atomic_read(&pool->flush_ser) - atomic_read(&pool->req_ser) >= 0 &&
+		if (atomic_read(&pool->flush_ser) - atomic_read(&pool->req_ser) >= 0 &&
 		    !kthread_should_stop())
 			schedule();
 		__set_current_state(TASK_RUNNING);
@@ -369,11 +381,6 @@ void ib_destroy_fmr_pool(struct ib_fmr_pool *pool)
 
 	i = 0;
 	list_for_each_entry_safe(fmr, tmp, &pool->free_list, list) {
-		if (fmr->remap_count) {
-			INIT_LIST_HEAD(&fmr_list);
-			list_add_tail(&fmr->fmr->list, &fmr_list);
-			ib_unmap_fmr(&fmr_list);
-		}
 		ib_dealloc_fmr(fmr->fmr);
 		list_del(&fmr->list);
 		kfree(fmr);
@@ -511,8 +518,10 @@ int ib_fmr_pool_unmap(struct ib_pool_fmr *fmr)
 			list_add_tail(&fmr->list, &pool->free_list);
 		} else {
 			list_add_tail(&fmr->list, &pool->dirty_list);
-			++pool->dirty_len;
-			wake_up_process(pool->thread);
+			if (++pool->dirty_len >= pool->dirty_watermark) {
+				atomic_inc(&pool->req_ser);
+				wake_up_process(pool->thread);
+			}
 		}
 	}
 

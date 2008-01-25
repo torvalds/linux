@@ -488,7 +488,8 @@ void rdma_destroy_qp(struct rdma_cm_id *id)
 }
 EXPORT_SYMBOL(rdma_destroy_qp);
 
-static int cma_modify_qp_rtr(struct rdma_id_private *id_priv)
+static int cma_modify_qp_rtr(struct rdma_id_private *id_priv,
+			     struct rdma_conn_param *conn_param)
 {
 	struct ib_qp_attr qp_attr;
 	int qp_attr_mask, ret;
@@ -514,13 +515,16 @@ static int cma_modify_qp_rtr(struct rdma_id_private *id_priv)
 	if (ret)
 		goto out;
 
+	if (conn_param)
+		qp_attr.max_dest_rd_atomic = conn_param->responder_resources;
 	ret = ib_modify_qp(id_priv->id.qp, &qp_attr, qp_attr_mask);
 out:
 	mutex_unlock(&id_priv->qp_mutex);
 	return ret;
 }
 
-static int cma_modify_qp_rts(struct rdma_id_private *id_priv)
+static int cma_modify_qp_rts(struct rdma_id_private *id_priv,
+			     struct rdma_conn_param *conn_param)
 {
 	struct ib_qp_attr qp_attr;
 	int qp_attr_mask, ret;
@@ -536,6 +540,8 @@ static int cma_modify_qp_rts(struct rdma_id_private *id_priv)
 	if (ret)
 		goto out;
 
+	if (conn_param)
+		qp_attr.max_rd_atomic = conn_param->initiator_depth;
 	ret = ib_modify_qp(id_priv->id.qp, &qp_attr, qp_attr_mask);
 out:
 	mutex_unlock(&id_priv->qp_mutex);
@@ -866,11 +872,11 @@ static int cma_rep_recv(struct rdma_id_private *id_priv)
 {
 	int ret;
 
-	ret = cma_modify_qp_rtr(id_priv);
+	ret = cma_modify_qp_rtr(id_priv, NULL);
 	if (ret)
 		goto reject;
 
-	ret = cma_modify_qp_rts(id_priv);
+	ret = cma_modify_qp_rts(id_priv, NULL);
 	if (ret)
 		goto reject;
 
@@ -1122,8 +1128,10 @@ static int cma_req_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 	cm_id->cm_handler = cma_ib_handler;
 
 	ret = conn_id->id.event_handler(&conn_id->id, &event);
-	if (!ret)
+	if (!ret) {
+		cma_enable_remove(conn_id);
 		goto out;
+	}
 
 	/* Destroy the CM ID by returning a non-zero value. */
 	conn_id->cm_id.ib = NULL;
@@ -1262,6 +1270,7 @@ static int iw_conn_req_handler(struct iw_cm_id *cm_id,
 	struct net_device *dev = NULL;
 	struct rdma_cm_event event;
 	int ret;
+	struct ib_device_attr attr;
 
 	listen_id = cm_id->context;
 	if (cma_disable_remove(listen_id, CMA_LISTEN))
@@ -1311,10 +1320,19 @@ static int iw_conn_req_handler(struct iw_cm_id *cm_id,
 	sin = (struct sockaddr_in *) &new_cm_id->route.addr.dst_addr;
 	*sin = iw_event->remote_addr;
 
+	ret = ib_query_device(conn_id->id.device, &attr);
+	if (ret) {
+		cma_enable_remove(conn_id);
+		rdma_destroy_id(new_cm_id);
+		goto out;
+	}
+
 	memset(&event, 0, sizeof event);
 	event.event = RDMA_CM_EVENT_CONNECT_REQUEST;
 	event.param.conn.private_data = iw_event->private_data;
 	event.param.conn.private_data_len = iw_event->private_data_len;
+	event.param.conn.initiator_depth = attr.max_qp_init_rd_atom;
+	event.param.conn.responder_resources = attr.max_qp_rd_atom;
 	ret = conn_id->id.event_handler(&conn_id->id, &event);
 	if (ret) {
 		/* User wants to destroy the CM ID */
@@ -2272,7 +2290,7 @@ static int cma_connect_iw(struct rdma_id_private *id_priv,
 	sin = (struct sockaddr_in*) &id_priv->id.route.addr.dst_addr;
 	cm_id->remote_addr = *sin;
 
-	ret = cma_modify_qp_rtr(id_priv);
+	ret = cma_modify_qp_rtr(id_priv, conn_param);
 	if (ret)
 		goto out;
 
@@ -2335,25 +2353,15 @@ static int cma_accept_ib(struct rdma_id_private *id_priv,
 			 struct rdma_conn_param *conn_param)
 {
 	struct ib_cm_rep_param rep;
-	struct ib_qp_attr qp_attr;
-	int qp_attr_mask, ret;
+	int ret;
 
-	if (id_priv->id.qp) {
-		ret = cma_modify_qp_rtr(id_priv);
-		if (ret)
-			goto out;
+	ret = cma_modify_qp_rtr(id_priv, conn_param);
+	if (ret)
+		goto out;
 
-		qp_attr.qp_state = IB_QPS_RTS;
-		ret = ib_cm_init_qp_attr(id_priv->cm_id.ib, &qp_attr,
-					 &qp_attr_mask);
-		if (ret)
-			goto out;
-
-		qp_attr.max_rd_atomic = conn_param->initiator_depth;
-		ret = ib_modify_qp(id_priv->id.qp, &qp_attr, qp_attr_mask);
-		if (ret)
-			goto out;
-	}
+	ret = cma_modify_qp_rts(id_priv, conn_param);
+	if (ret)
+		goto out;
 
 	memset(&rep, 0, sizeof rep);
 	rep.qp_num = id_priv->qp_num;
@@ -2378,7 +2386,7 @@ static int cma_accept_iw(struct rdma_id_private *id_priv,
 	struct iw_cm_conn_param iw_param;
 	int ret;
 
-	ret = cma_modify_qp_rtr(id_priv);
+	ret = cma_modify_qp_rtr(id_priv, conn_param);
 	if (ret)
 		return ret;
 
@@ -2598,11 +2606,9 @@ static void cma_set_mgid(struct rdma_id_private *id_priv,
 		/* IPv6 address is an SA assigned MGID. */
 		memcpy(mgid, &sin6->sin6_addr, sizeof *mgid);
 	} else {
-		ip_ib_mc_map(sin->sin_addr.s_addr, mc_map);
+		ip_ib_mc_map(sin->sin_addr.s_addr, dev_addr->broadcast, mc_map);
 		if (id_priv->id.ps == RDMA_PS_UDP)
 			mc_map[7] = 0x01;	/* Use RDMA CM signature */
-		mc_map[8] = ib_addr_get_pkey(dev_addr) >> 8;
-		mc_map[9] = (unsigned char) ib_addr_get_pkey(dev_addr);
 		*mgid = *(union ib_gid *) (mc_map + 4);
 	}
 }

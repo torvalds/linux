@@ -82,8 +82,7 @@
 
 /* kr_rcvctrl bits */
 #define INFINIPATH_R_PORTENABLE_SHIFT 0
-#define INFINIPATH_R_INTRAVAIL_SHIFT 16
-#define INFINIPATH_R_TAILUPD   0x80000000
+#define INFINIPATH_R_QPMAP_ENABLE (1ULL << 38)
 
 /* kr_intstatus, kr_intclear, kr_intmask bits */
 #define INFINIPATH_I_RCVURG_SHIFT 0
@@ -272,20 +271,6 @@
 #define INFINIPATH_EXTC_LEDGBLOK_ON          0x00000002ULL
 #define INFINIPATH_EXTC_LEDGBLERR_OFF        0x00000001ULL
 
-/* kr_mdio bits */
-#define INFINIPATH_MDIO_CLKDIV_MASK 0x7FULL
-#define INFINIPATH_MDIO_CLKDIV_SHIFT 32
-#define INFINIPATH_MDIO_COMMAND_MASK 0x7ULL
-#define INFINIPATH_MDIO_COMMAND_SHIFT 26
-#define INFINIPATH_MDIO_DEVADDR_MASK 0x1FULL
-#define INFINIPATH_MDIO_DEVADDR_SHIFT 21
-#define INFINIPATH_MDIO_REGADDR_MASK 0x1FULL
-#define INFINIPATH_MDIO_REGADDR_SHIFT 16
-#define INFINIPATH_MDIO_DATA_MASK 0xFFFFULL
-#define INFINIPATH_MDIO_DATA_SHIFT 0
-#define INFINIPATH_MDIO_CMDVALID    0x0000000040000000ULL
-#define INFINIPATH_MDIO_RDDATAVALID 0x0000000080000000ULL
-
 /* kr_partitionkey bits */
 #define INFINIPATH_PKEY_SIZE 16
 #define INFINIPATH_PKEY_MASK 0xFFFF
@@ -303,8 +288,6 @@
 
 /* kr_xgxsconfig bits */
 #define INFINIPATH_XGXS_RESET          0x7ULL
-#define INFINIPATH_XGXS_MDIOADDR_MASK  0xfULL
-#define INFINIPATH_XGXS_MDIOADDR_SHIFT 4
 #define INFINIPATH_XGXS_RX_POL_SHIFT 19
 #define INFINIPATH_XGXS_RX_POL_MASK 0xfULL
 
@@ -470,6 +453,20 @@ struct ipath_cregs {
 	ipath_creg cr_unsupvlcnt;
 	ipath_creg cr_wordrcvcnt;
 	ipath_creg cr_wordsendcnt;
+	ipath_creg cr_vl15droppedpktcnt;
+	ipath_creg cr_rxotherlocalphyerrcnt;
+	ipath_creg cr_excessbufferovflcnt;
+	ipath_creg cr_locallinkintegrityerrcnt;
+	ipath_creg cr_rxvlerrcnt;
+	ipath_creg cr_rxdlidfltrcnt;
+	ipath_creg cr_psstat;
+	ipath_creg cr_psstart;
+	ipath_creg cr_psinterval;
+	ipath_creg cr_psrcvdatacount;
+	ipath_creg cr_psrcvpktscount;
+	ipath_creg cr_psxmitdatacount;
+	ipath_creg cr_psxmitpktscount;
+	ipath_creg cr_psxmitwaitcount;
 };
 
 #endif				/* _IPATH_REGISTERS_H */

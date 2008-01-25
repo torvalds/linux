@@ -172,8 +172,12 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 
 	size = ipoib_sendq_size + ipoib_recvq_size + 1;
 	ret = ipoib_cm_dev_init(dev);
-	if (!ret)
-		size += ipoib_recvq_size + 1 /* 1 extra for rx_drain_qp */;
+	if (!ret) {
+		if (ipoib_cm_has_srq(dev))
+			size += ipoib_recvq_size + 1; /* 1 extra for rx_drain_qp */
+		else
+			size += ipoib_recvq_size * ipoib_max_conn_qp;
+	}
 
 	priv->cq = ib_create_cq(priv->ca, ipoib_ib_completion, NULL, dev, size, 0);
 	if (IS_ERR(priv->cq)) {
@@ -197,12 +201,12 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 	priv->dev->dev_addr[2] = (priv->qp->qp_num >>  8) & 0xff;
 	priv->dev->dev_addr[3] = (priv->qp->qp_num      ) & 0xff;
 
-	priv->tx_sge.lkey 	= priv->mr->lkey;
+	priv->tx_sge.lkey	= priv->mr->lkey;
 
-	priv->tx_wr.opcode 	= IB_WR_SEND;
-	priv->tx_wr.sg_list 	= &priv->tx_sge;
-	priv->tx_wr.num_sge 	= 1;
-	priv->tx_wr.send_flags 	= IB_SEND_SIGNALED;
+	priv->tx_wr.opcode	= IB_WR_SEND;
+	priv->tx_wr.sg_list	= &priv->tx_sge;
+	priv->tx_wr.num_sge	= 1;
+	priv->tx_wr.send_flags	= IB_SEND_SIGNALED;
 
 	return 0;
 

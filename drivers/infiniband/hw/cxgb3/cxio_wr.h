@@ -315,7 +315,7 @@ struct t3_rdma_init_wr {
 	__be32 ird;
 	__be64 qp_dma_addr;	/* 7 */
 	__be32 qp_dma_size;	/* 8 */
-	u32 irs;
+	__be32 irs;
 };
 
 struct t3_genbit {
@@ -324,7 +324,8 @@ struct t3_genbit {
 };
 
 enum rdma_init_wr_flags {
-	RECVS_POSTED = 1,
+	RECVS_POSTED = (1<<0),
+	PRIV_QP = (1<<1),
 };
 
 union t3_wr {

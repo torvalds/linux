@@ -133,15 +133,16 @@ bail:
 static void ipath_qcheck(struct ipath_devdata *dd)
 {
 	static u64 last_tot_hdrqfull;
+	struct ipath_portdata *pd = dd->ipath_pd[0];
 	size_t blen = 0;
 	char buf[128];
 
 	*buf = 0;
-	if (dd->ipath_pd[0]->port_hdrqfull != dd->ipath_p0_hdrqfull) {
+	if (pd->port_hdrqfull != dd->ipath_p0_hdrqfull) {
 		blen = snprintf(buf, sizeof buf, "port 0 hdrqfull %u",
-				dd->ipath_pd[0]->port_hdrqfull -
+				pd->port_hdrqfull -
 				dd->ipath_p0_hdrqfull);
-		dd->ipath_p0_hdrqfull = dd->ipath_pd[0]->port_hdrqfull;
+		dd->ipath_p0_hdrqfull = pd->port_hdrqfull;
 	}
 	if (ipath_stats.sps_etidfull != dd->ipath_last_tidfull) {
 		blen += snprintf(buf + blen, sizeof buf - blen,
@@ -173,7 +174,7 @@ static void ipath_qcheck(struct ipath_devdata *dd)
 	if (blen)
 		ipath_dbg("%s\n", buf);
 
-	if (dd->ipath_port0head != (u32)
+	if (pd->port_head != (u32)
 	    le64_to_cpu(*dd->ipath_hdrqtailptr)) {
 		if (dd->ipath_lastport0rcv_cnt ==
 		    ipath_stats.sps_port0pkts) {
@@ -181,7 +182,7 @@ static void ipath_qcheck(struct ipath_devdata *dd)
 				   "port0 hd=%llx tl=%x; port0pkts %llx\n",
 				   (unsigned long long)
 				   le64_to_cpu(*dd->ipath_hdrqtailptr),
-				   dd->ipath_port0head,
+				   pd->port_head,
 				   (unsigned long long)
 				   ipath_stats.sps_port0pkts);
 		}
@@ -237,7 +238,7 @@ static void ipath_chk_errormask(struct ipath_devdata *dd)
 void ipath_get_faststats(unsigned long opaque)
 {
 	struct ipath_devdata *dd = (struct ipath_devdata *) opaque;
-	u32 val;
+	int i;
 	static unsigned cnt;
 	unsigned long flags;
 	u64 traffic_wds;
@@ -321,12 +322,11 @@ void ipath_get_faststats(unsigned long opaque)
 
 	/* limit qfull messages to ~one per minute per port */
 	if ((++cnt & 0x10)) {
-		for (val = dd->ipath_cfgports - 1; ((int)val) >= 0;
-		     val--) {
-			if (dd->ipath_lastegrheads[val] != -1)
-				dd->ipath_lastegrheads[val] = -1;
-			if (dd->ipath_lastrcvhdrqtails[val] != -1)
-				dd->ipath_lastrcvhdrqtails[val] = -1;
+		for (i = (int) dd->ipath_cfgports; --i >= 0; ) {
+			struct ipath_portdata *pd = dd->ipath_pd[i];
+
+			if (pd && pd->port_lastrcvhdrqtail != -1)
+				pd->port_lastrcvhdrqtail = -1;
 		}
 	}
 

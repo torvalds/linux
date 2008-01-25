@@ -106,6 +106,9 @@ enum {
 	IB_UCM_MAX_DEVICES = 32
 };
 
+/* ib_cm and ib_user_cm modules share /sys/class/infiniband_cm */
+extern struct class cm_class;
+
 #define IB_UCM_BASE_DEV MKDEV(IB_UCM_MAJOR, IB_UCM_BASE_MINOR)
 
 static void ib_ucm_add_one(struct ib_device *device);
@@ -1199,7 +1202,7 @@ static int ib_ucm_close(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static void ib_ucm_release_class_dev(struct class_device *class_dev)
+static void ucm_release_class_dev(struct class_device *class_dev)
 {
 	struct ib_ucm_device *dev;
 
@@ -1215,11 +1218,6 @@ static const struct file_operations ucm_fops = {
 	.release = ib_ucm_close,
 	.write 	 = ib_ucm_write,
 	.poll    = ib_ucm_poll,
-};
-
-static struct class ucm_class = {
-	.name    = "infiniband_cm",
-	.release = ib_ucm_release_class_dev
 };
 
 static ssize_t show_ibdev(struct class_device *class_dev, char *buf)
@@ -1257,9 +1255,10 @@ static void ib_ucm_add_one(struct ib_device *device)
 	if (cdev_add(&ucm_dev->dev, IB_UCM_BASE_DEV + ucm_dev->devnum, 1))
 		goto err;
 
-	ucm_dev->class_dev.class = &ucm_class;
+	ucm_dev->class_dev.class = &cm_class;
 	ucm_dev->class_dev.dev = device->dma_device;
 	ucm_dev->class_dev.devt = ucm_dev->dev.dev;
+	ucm_dev->class_dev.release = ucm_release_class_dev;
 	snprintf(ucm_dev->class_dev.class_id, BUS_ID_SIZE, "ucm%d",
 		 ucm_dev->devnum);
 	if (class_device_register(&ucm_dev->class_dev))
@@ -1306,40 +1305,34 @@ static int __init ib_ucm_init(void)
 				     "infiniband_cm");
 	if (ret) {
 		printk(KERN_ERR "ucm: couldn't register device number\n");
-		goto err;
+		goto error1;
 	}
 
-	ret = class_register(&ucm_class);
-	if (ret) {
-		printk(KERN_ERR "ucm: couldn't create class infiniband_cm\n");
-		goto err_chrdev;
-	}
-
-	ret = class_create_file(&ucm_class, &class_attr_abi_version);
+	ret = class_create_file(&cm_class, &class_attr_abi_version);
 	if (ret) {
 		printk(KERN_ERR "ucm: couldn't create abi_version attribute\n");
-		goto err_class;
+		goto error2;
 	}
 
 	ret = ib_register_client(&ucm_client);
 	if (ret) {
 		printk(KERN_ERR "ucm: couldn't register client\n");
-		goto err_class;
+		goto error3;
 	}
 	return 0;
 
-err_class:
-	class_unregister(&ucm_class);
-err_chrdev:
+error3:
+	class_remove_file(&cm_class, &class_attr_abi_version);
+error2:
 	unregister_chrdev_region(IB_UCM_BASE_DEV, IB_UCM_MAX_DEVICES);
-err:
+error1:
 	return ret;
 }
 
 static void __exit ib_ucm_cleanup(void)
 {
 	ib_unregister_client(&ucm_client);
-	class_unregister(&ucm_class);
+	class_remove_file(&cm_class, &class_attr_abi_version);
 	unregister_chrdev_region(IB_UCM_BASE_DEV, IB_UCM_MAX_DEVICES);
 	idr_destroy(&ctx_id_table);
 }

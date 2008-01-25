@@ -211,7 +211,7 @@ int arp_mc_map(__be32 addr, u8 *haddr, struct net_device *dev, int dir)
 		ip_tr_mc_map(addr, haddr);
 		return 0;
 	case ARPHRD_INFINIBAND:
-		ip_ib_mc_map(addr, haddr);
+		ip_ib_mc_map(addr, dev->broadcast, haddr);
 		return 0;
 	default:
 		if (dir) {

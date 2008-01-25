@@ -94,7 +94,11 @@ struct ehca_sma_attr {
 
 struct ehca_sport {
 	struct ib_cq *ibcq_aqp1;
-	struct ib_qp *ibqp_aqp1;
+	struct ib_qp *ibqp_sqp[2];
+	/* lock to serialze modify_qp() calls for sqp in normal
+	 * and irq path (when event PORT_ACTIVE is received first time)
+	 */
+	spinlock_t mod_sqp_lock;
 	enum ib_port_state port_state;
 	struct ehca_sma_attr saved_attr;
 };
@@ -141,6 +145,14 @@ enum ehca_ext_qp_type {
 	EQPT_SRQ       = 3,
 };
 
+/* struct to cache modify_qp()'s parms for GSI/SMI qp */
+struct ehca_mod_qp_parm {
+	int mask;
+	struct ib_qp_attr attr;
+};
+
+#define EHCA_MOD_QP_PARM_MAX 4
+
 struct ehca_qp {
 	union {
 		struct ib_qp ib_qp;
@@ -164,10 +176,18 @@ struct ehca_qp {
 	struct ehca_cq *recv_cq;
 	unsigned int sqerr_purgeflag;
 	struct hlist_node list_entries;
+	/* array to cache modify_qp()'s parms for GSI/SMI qp */
+	struct ehca_mod_qp_parm *mod_qp_parm;
+	int mod_qp_parm_idx;
 	/* mmap counter for resources mapped into user space */
 	u32 mm_count_squeue;
 	u32 mm_count_rqueue;
 	u32 mm_count_galpa;
+	/* unsolicited ack circumvention */
+	int unsol_ack_circ;
+	int mtu_shift;
+	u32 message_count;
+	u32 packet_count;
 };
 
 #define IS_SRQ(qp) (qp->ext_type == EQPT_SRQ)
@@ -323,6 +343,7 @@ extern int ehca_port_act_time;
 extern int ehca_use_hp_mr;
 extern int ehca_scaling_code;
 extern int ehca_lock_hcalls;
+extern int ehca_nr_ports;
 
 struct ipzu_queue_resp {
 	u32 qe_size;      /* queue entry size */

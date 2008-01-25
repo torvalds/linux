@@ -943,7 +943,7 @@ bail:
  * ipath_verbs_send - send a packet
  * @qp: the QP to send on
  * @hdr: the packet header
- * @hdrwords: the number of words in the header
+ * @hdrwords: the number of 32-bit words in the header
  * @ss: the SGE to send
  * @len: the length of the packet in bytes
  */
@@ -955,7 +955,10 @@ int ipath_verbs_send(struct ipath_qp *qp, struct ipath_ib_header *hdr,
 	int ret;
 	u32 dwords = (len + 3) >> 2;
 
-	/* +1 is for the qword padding of pbc */
+	/*
+	 * Calculate the send buffer trigger address.
+	 * The +1 counts for the pbc control dword following the pbc length.
+	 */
 	plen = hdrwords + dwords + 1;
 
 	/* Drop non-VL15 packets if we are not in the active state */
@@ -1130,20 +1133,34 @@ static int ipath_query_device(struct ib_device *ibdev,
 	return 0;
 }
 
-const u8 ipath_cvt_physportstate[16] = {
-	[INFINIPATH_IBCS_LT_STATE_DISABLED] = 3,
-	[INFINIPATH_IBCS_LT_STATE_LINKUP] = 5,
-	[INFINIPATH_IBCS_LT_STATE_POLLACTIVE] = 2,
-	[INFINIPATH_IBCS_LT_STATE_POLLQUIET] = 2,
-	[INFINIPATH_IBCS_LT_STATE_SLEEPDELAY] = 1,
-	[INFINIPATH_IBCS_LT_STATE_SLEEPQUIET] = 1,
-	[INFINIPATH_IBCS_LT_STATE_CFGDEBOUNCE] = 4,
-	[INFINIPATH_IBCS_LT_STATE_CFGRCVFCFG] = 4,
-	[INFINIPATH_IBCS_LT_STATE_CFGWAITRMT] = 4,
-	[INFINIPATH_IBCS_LT_STATE_CFGIDLE] = 4,
-	[INFINIPATH_IBCS_LT_STATE_RECOVERRETRAIN] = 6,
-	[INFINIPATH_IBCS_LT_STATE_RECOVERWAITRMT] = 6,
-	[INFINIPATH_IBCS_LT_STATE_RECOVERIDLE] = 6,
+const u8 ipath_cvt_physportstate[32] = {
+	[INFINIPATH_IBCS_LT_STATE_DISABLED] = IB_PHYSPORTSTATE_DISABLED,
+	[INFINIPATH_IBCS_LT_STATE_LINKUP] = IB_PHYSPORTSTATE_LINKUP,
+	[INFINIPATH_IBCS_LT_STATE_POLLACTIVE] = IB_PHYSPORTSTATE_POLL,
+	[INFINIPATH_IBCS_LT_STATE_POLLQUIET] = IB_PHYSPORTSTATE_POLL,
+	[INFINIPATH_IBCS_LT_STATE_SLEEPDELAY] = IB_PHYSPORTSTATE_SLEEP,
+	[INFINIPATH_IBCS_LT_STATE_SLEEPQUIET] = IB_PHYSPORTSTATE_SLEEP,
+	[INFINIPATH_IBCS_LT_STATE_CFGDEBOUNCE] =
+		IB_PHYSPORTSTATE_CFG_TRAIN,
+	[INFINIPATH_IBCS_LT_STATE_CFGRCVFCFG] =
+		IB_PHYSPORTSTATE_CFG_TRAIN,
+	[INFINIPATH_IBCS_LT_STATE_CFGWAITRMT] =
+		IB_PHYSPORTSTATE_CFG_TRAIN,
+	[INFINIPATH_IBCS_LT_STATE_CFGIDLE] = IB_PHYSPORTSTATE_CFG_TRAIN,
+	[INFINIPATH_IBCS_LT_STATE_RECOVERRETRAIN] =
+		IB_PHYSPORTSTATE_LINK_ERR_RECOVER,
+	[INFINIPATH_IBCS_LT_STATE_RECOVERWAITRMT] =
+		IB_PHYSPORTSTATE_LINK_ERR_RECOVER,
+	[INFINIPATH_IBCS_LT_STATE_RECOVERIDLE] =
+		IB_PHYSPORTSTATE_LINK_ERR_RECOVER,
+	[0x10] = IB_PHYSPORTSTATE_CFG_TRAIN,
+	[0x11] = IB_PHYSPORTSTATE_CFG_TRAIN,
+	[0x12] = IB_PHYSPORTSTATE_CFG_TRAIN,
+	[0x13] = IB_PHYSPORTSTATE_CFG_TRAIN,
+	[0x14] = IB_PHYSPORTSTATE_CFG_TRAIN,
+	[0x15] = IB_PHYSPORTSTATE_CFG_TRAIN,
+	[0x16] = IB_PHYSPORTSTATE_CFG_TRAIN,
+	[0x17] = IB_PHYSPORTSTATE_CFG_TRAIN
 };
 
 u32 ipath_get_cr_errpkey(struct ipath_devdata *dd)
@@ -1168,8 +1185,9 @@ static int ipath_query_port(struct ib_device *ibdev,
 	ibcstat = dd->ipath_lastibcstat;
 	props->state = ((ibcstat >> 4) & 0x3) + 1;
 	/* See phys_state_show() */
-	props->phys_state = ipath_cvt_physportstate[
-		dd->ipath_lastibcstat & 0xf];
+	props->phys_state = /* MEA: assumes shift == 0 */
+		ipath_cvt_physportstate[dd->ipath_lastibcstat &
+		dd->ibcs_lts_mask];
 	props->port_cap_flags = dev->port_cap_flags;
 	props->gid_tbl_len = 1;
 	props->max_msg_sz = 0x80000000;
@@ -1641,6 +1659,7 @@ int ipath_register_ib_device(struct ipath_devdata *dd)
 		cntrs.local_link_integrity_errors;
 	idev->z_excessive_buffer_overrun_errors =
 		cntrs.excessive_buffer_overrun_errors;
+	idev->z_vl15_dropped = cntrs.vl15_dropped;
 
 	/*
 	 * The system image GUID is supposed to be the same for all

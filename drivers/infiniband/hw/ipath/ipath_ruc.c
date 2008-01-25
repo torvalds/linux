@@ -98,11 +98,15 @@ void ipath_insert_rnr_queue(struct ipath_qp *qp)
 		while (qp->s_rnr_timeout >= nqp->s_rnr_timeout) {
 			qp->s_rnr_timeout -= nqp->s_rnr_timeout;
 			l = l->next;
-			if (l->next == &dev->rnrwait)
+			if (l->next == &dev->rnrwait) {
+				nqp = NULL;
 				break;
+			}
 			nqp = list_entry(l->next, struct ipath_qp,
 					 timerwait);
 		}
+		if (nqp)
+			nqp->s_rnr_timeout -= qp->s_rnr_timeout;
 		list_add(&qp->timerwait, l);
 	}
 	spin_unlock_irqrestore(&dev->pending_lock, flags);
@@ -479,9 +483,14 @@ done:
 
 static void want_buffer(struct ipath_devdata *dd)
 {
-	set_bit(IPATH_S_PIOINTBUFAVAIL, &dd->ipath_sendctrl);
+	unsigned long flags;
+
+	spin_lock_irqsave(&dd->ipath_sendctrl_lock, flags);
+	dd->ipath_sendctrl |= INFINIPATH_S_PIOINTBUFAVAIL;
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
 			 dd->ipath_sendctrl);
+	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
+	spin_unlock_irqrestore(&dd->ipath_sendctrl_lock, flags);
 }
 
 /**

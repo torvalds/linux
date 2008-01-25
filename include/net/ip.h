@@ -266,20 +266,22 @@ static inline void ip_eth_mc_map(__be32 naddr, char *buf)
  *	Leave P_Key as 0 to be filled in by driver.
  */
 
-static inline void ip_ib_mc_map(__be32 naddr, char *buf)
+static inline void ip_ib_mc_map(__be32 naddr, const unsigned char *broadcast, char *buf)
 {
 	__u32 addr;
+	unsigned char scope = broadcast[5] & 0xF;
+
 	buf[0]  = 0;		/* Reserved */
 	buf[1]  = 0xff;		/* Multicast QPN */
 	buf[2]  = 0xff;
 	buf[3]  = 0xff;
 	addr    = ntohl(naddr);
 	buf[4]  = 0xff;
-	buf[5]  = 0x12;		/* link local scope */
+	buf[5]  = 0x10 | scope;	/* scope from broadcast address */
 	buf[6]  = 0x40;		/* IPv4 signature */
 	buf[7]  = 0x1b;
-	buf[8]  = 0;		/* P_Key */
-	buf[9]  = 0;
+	buf[8]  = broadcast[8];		/* P_Key */
+	buf[9]  = broadcast[9];
 	buf[10] = 0;
 	buf[11] = 0;
 	buf[12] = 0;

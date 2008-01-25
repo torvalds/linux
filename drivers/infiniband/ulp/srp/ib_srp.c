@@ -272,7 +272,8 @@ static void srp_path_rec_completion(int status,
 
 	target->status = status;
 	if (status)
-		printk(KERN_ERR PFX "Got failed path rec status %d\n", status);
+		shost_printk(KERN_ERR, target->scsi_host,
+			     PFX "Got failed path rec status %d\n", status);
 	else
 		target->path = *pathrec;
 	complete(&target->done);
@@ -303,7 +304,8 @@ static int srp_lookup_path(struct srp_target_port *target)
 	wait_for_completion(&target->done);
 
 	if (target->status < 0)
-		printk(KERN_WARNING PFX "Path record query failed\n");
+		shost_printk(KERN_WARNING, target->scsi_host,
+			     PFX "Path record query failed\n");
 
 	return target->status;
 }
@@ -379,9 +381,10 @@ static int srp_send_req(struct srp_target_port *target)
 	 * the second 8 bytes to the local node GUID.
 	 */
 	if (srp_target_is_topspin(target)) {
-		printk(KERN_DEBUG PFX "Topspin/Cisco initiator port ID workaround "
-		       "activated for target GUID %016llx\n",
-		       (unsigned long long) be64_to_cpu(target->ioc_guid));
+		shost_printk(KERN_DEBUG, target->scsi_host,
+			     PFX "Topspin/Cisco initiator port ID workaround "
+			     "activated for target GUID %016llx\n",
+			     (unsigned long long) be64_to_cpu(target->ioc_guid));
 		memset(req->priv.initiator_port_id, 0, 8);
 		memcpy(req->priv.initiator_port_id + 8,
 		       &target->srp_host->dev->dev->node_guid, 8);
@@ -400,7 +403,8 @@ static void srp_disconnect_target(struct srp_target_port *target)
 
 	init_completion(&target->done);
 	if (ib_send_cm_dreq(target->cm_id, NULL, 0)) {
-		printk(KERN_DEBUG PFX "Sending CM DREQ failed\n");
+		shost_printk(KERN_DEBUG, target->scsi_host,
+			     PFX "Sending CM DREQ failed\n");
 		return;
 	}
 	wait_for_completion(&target->done);
@@ -568,7 +572,8 @@ static int srp_reconnect_target(struct srp_target_port *target)
 	return ret;
 
 err:
-	printk(KERN_ERR PFX "reconnect failed (%d), removing target port.\n", ret);
+	shost_printk(KERN_ERR, target->scsi_host,
+		     PFX "reconnect failed (%d), removing target port.\n", ret);
 
 	/*
 	 * We couldn't reconnect, so kill our target port off.
@@ -683,8 +688,9 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_target_port *target,
 
 	if (scmnd->sc_data_direction != DMA_FROM_DEVICE &&
 	    scmnd->sc_data_direction != DMA_TO_DEVICE) {
-		printk(KERN_WARNING PFX "Unhandled data direction %d\n",
-		       scmnd->sc_data_direction);
+		shost_printk(KERN_WARNING, target->scsi_host,
+			     PFX "Unhandled data direction %d\n",
+			     scmnd->sc_data_direction);
 		return -EINVAL;
 	}
 
@@ -786,8 +792,9 @@ static void srp_process_rsp(struct srp_target_port *target, struct srp_rsp *rsp)
 	} else {
 		scmnd = req->scmnd;
 		if (!scmnd)
-			printk(KERN_ERR "Null scmnd for RSP w/tag %016llx\n",
-			       (unsigned long long) rsp->tag);
+			shost_printk(KERN_ERR, target->scsi_host,
+				     "Null scmnd for RSP w/tag %016llx\n",
+				     (unsigned long long) rsp->tag);
 		scmnd->result = rsp->status;
 
 		if (rsp->flags & SRP_RSP_FLAG_SNSVALID) {
@@ -831,7 +838,8 @@ static void srp_handle_recv(struct srp_target_port *target, struct ib_wc *wc)
 	if (0) {
 		int i;
 
-		printk(KERN_ERR PFX "recv completion, opcode 0x%02x\n", opcode);
+		shost_printk(KERN_ERR, target->scsi_host,
+			     PFX "recv completion, opcode 0x%02x\n", opcode);
 
 		for (i = 0; i < wc->byte_len; ++i) {
 			if (i % 8 == 0)
@@ -852,11 +860,13 @@ static void srp_handle_recv(struct srp_target_port *target, struct ib_wc *wc)
 
 	case SRP_T_LOGOUT:
 		/* XXX Handle target logout */
-		printk(KERN_WARNING PFX "Got target logout request\n");
+		shost_printk(KERN_WARNING, target->scsi_host,
+			     PFX "Got target logout request\n");
 		break;
 
 	default:
-		printk(KERN_WARNING PFX "Unhandled SRP opcode 0x%02x\n", opcode);
+		shost_printk(KERN_WARNING, target->scsi_host,
+			     PFX "Unhandled SRP opcode 0x%02x\n", opcode);
 		break;
 	}
 
@@ -872,9 +882,10 @@ static void srp_completion(struct ib_cq *cq, void *target_ptr)
 	ib_req_notify_cq(cq, IB_CQ_NEXT_COMP);
 	while (ib_poll_cq(cq, 1, &wc) > 0) {
 		if (wc.status) {
-			printk(KERN_ERR PFX "failed %s status %d\n",
-			       wc.wr_id & SRP_OP_RECV ? "receive" : "send",
-			       wc.status);
+			shost_printk(KERN_ERR, target->scsi_host,
+				     PFX "failed %s status %d\n",
+				     wc.wr_id & SRP_OP_RECV ? "receive" : "send",
+				     wc.status);
 			target->qp_in_error = 1;
 			break;
 		}
@@ -930,13 +941,18 @@ static int srp_post_recv(struct srp_target_port *target)
  * req_lim and tx_head.  Lock cannot be dropped between call here and
  * call to __srp_post_send().
  */
-static struct srp_iu *__srp_get_tx_iu(struct srp_target_port *target)
+static struct srp_iu *__srp_get_tx_iu(struct srp_target_port *target,
+					enum srp_request_type req_type)
 {
+	s32 min = (req_type == SRP_REQ_TASK_MGMT) ? 1 : 2;
+
 	if (target->tx_head - target->tx_tail >= SRP_SQ_SIZE)
 		return NULL;
 
-	if (unlikely(target->req_lim < 1))
+	if (target->req_lim < min) {
 		++target->zero_req_lim;
+		return NULL;
+	}
 
 	return target->tx_ring[target->tx_head & SRP_SQ_SIZE];
 }
@@ -993,7 +1009,7 @@ static int srp_queuecommand(struct scsi_cmnd *scmnd,
 		return 0;
 	}
 
-	iu = __srp_get_tx_iu(target);
+	iu = __srp_get_tx_iu(target, SRP_REQ_NORMAL);
 	if (!iu)
 		goto err;
 
@@ -1022,12 +1038,13 @@ static int srp_queuecommand(struct scsi_cmnd *scmnd,
 
 	len = srp_map_data(scmnd, target, req);
 	if (len < 0) {
-		printk(KERN_ERR PFX "Failed to map data\n");
+		shost_printk(KERN_ERR, target->scsi_host,
+			     PFX "Failed to map data\n");
 		goto err;
 	}
 
 	if (__srp_post_recv(target)) {
-		printk(KERN_ERR PFX "Recv failed\n");
+		shost_printk(KERN_ERR, target->scsi_host, PFX "Recv failed\n");
 		goto err_unmap;
 	}
 
@@ -1035,7 +1052,7 @@ static int srp_queuecommand(struct scsi_cmnd *scmnd,
 				      DMA_TO_DEVICE);
 
 	if (__srp_post_send(target, iu, len)) {
-		printk(KERN_ERR PFX "Send failed\n");
+		shost_printk(KERN_ERR, target->scsi_host, PFX "Send failed\n");
 		goto err_unmap;
 	}
 
@@ -1090,6 +1107,7 @@ static void srp_cm_rej_handler(struct ib_cm_id *cm_id,
 			       struct ib_cm_event *event,
 			       struct srp_target_port *target)
 {
+	struct Scsi_Host *shost = target->scsi_host;
 	struct ib_class_port_info *cpi;
 	int opcode;
 
@@ -1115,19 +1133,22 @@ static void srp_cm_rej_handler(struct ib_cm_id *cm_id,
 			memcpy(target->path.dgid.raw,
 			       event->param.rej_rcvd.ari, 16);
 
-			printk(KERN_DEBUG PFX "Topspin/Cisco redirect to target port GID %016llx%016llx\n",
-			       (unsigned long long) be64_to_cpu(target->path.dgid.global.subnet_prefix),
-			       (unsigned long long) be64_to_cpu(target->path.dgid.global.interface_id));
+			shost_printk(KERN_DEBUG, shost,
+				     PFX "Topspin/Cisco redirect to target port GID %016llx%016llx\n",
+				     (unsigned long long) be64_to_cpu(target->path.dgid.global.subnet_prefix),
+				     (unsigned long long) be64_to_cpu(target->path.dgid.global.interface_id));
 
 			target->status = SRP_PORT_REDIRECT;
 		} else {
-			printk(KERN_WARNING "  REJ reason: IB_CM_REJ_PORT_REDIRECT\n");
+			shost_printk(KERN_WARNING, shost,
+				     "  REJ reason: IB_CM_REJ_PORT_REDIRECT\n");
 			target->status = -ECONNRESET;
 		}
 		break;
 
 	case IB_CM_REJ_DUPLICATE_LOCAL_COMM_ID:
-		printk(KERN_WARNING "  REJ reason: IB_CM_REJ_DUPLICATE_LOCAL_COMM_ID\n");
+		shost_printk(KERN_WARNING, shost,
+			    "  REJ reason: IB_CM_REJ_DUPLICATE_LOCAL_COMM_ID\n");
 		target->status = -ECONNRESET;
 		break;
 
@@ -1138,20 +1159,21 @@ static void srp_cm_rej_handler(struct ib_cm_id *cm_id,
 			u32 reason = be32_to_cpu(rej->reason);
 
 			if (reason == SRP_LOGIN_REJ_REQ_IT_IU_LENGTH_TOO_LARGE)
-				printk(KERN_WARNING PFX
-				       "SRP_LOGIN_REJ: requested max_it_iu_len too large\n");
+				shost_printk(KERN_WARNING, shost,
+					     PFX "SRP_LOGIN_REJ: requested max_it_iu_len too large\n");
 			else
-				printk(KERN_WARNING PFX
-				       "SRP LOGIN REJECTED, reason 0x%08x\n", reason);
+				shost_printk(KERN_WARNING, shost,
+					    PFX "SRP LOGIN REJECTED, reason 0x%08x\n", reason);
 		} else
-			printk(KERN_WARNING "  REJ reason: IB_CM_REJ_CONSUMER_DEFINED,"
-			       " opcode 0x%02x\n", opcode);
+			shost_printk(KERN_WARNING, shost,
+				     "  REJ reason: IB_CM_REJ_CONSUMER_DEFINED,"
+				     " opcode 0x%02x\n", opcode);
 		target->status = -ECONNRESET;
 		break;
 
 	default:
-		printk(KERN_WARNING "  REJ reason 0x%x\n",
-		       event->param.rej_rcvd.reason);
+		shost_printk(KERN_WARNING, shost, "  REJ reason 0x%x\n",
+			     event->param.rej_rcvd.reason);
 		target->status = -ECONNRESET;
 	}
 }
@@ -1166,7 +1188,8 @@ static int srp_cm_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event)
 
 	switch (event->event) {
 	case IB_CM_REQ_ERROR:
-		printk(KERN_DEBUG PFX "Sending CM REQ failed\n");
+		shost_printk(KERN_DEBUG, target->scsi_host,
+			     PFX "Sending CM REQ failed\n");
 		comp = 1;
 		target->status = -ECONNRESET;
 		break;
@@ -1184,7 +1207,8 @@ static int srp_cm_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event)
 			target->scsi_host->can_queue = min(target->req_lim,
 							   target->scsi_host->can_queue);
 		} else {
-			printk(KERN_WARNING PFX "Unhandled RSP opcode %#x\n", opcode);
+			shost_printk(KERN_WARNING, target->scsi_host,
+				    PFX "Unhandled RSP opcode %#x\n", opcode);
 			target->status = -ECONNRESET;
 			break;
 		}
@@ -1230,20 +1254,23 @@ static int srp_cm_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event)
 		break;
 
 	case IB_CM_REJ_RECEIVED:
-		printk(KERN_DEBUG PFX "REJ received\n");
+		shost_printk(KERN_DEBUG, target->scsi_host, PFX "REJ received\n");
 		comp = 1;
 
 		srp_cm_rej_handler(cm_id, event, target);
 		break;
 
 	case IB_CM_DREQ_RECEIVED:
-		printk(KERN_WARNING PFX "DREQ received - connection closed\n");
+		shost_printk(KERN_WARNING, target->scsi_host,
+			     PFX "DREQ received - connection closed\n");
 		if (ib_send_cm_drep(cm_id, NULL, 0))
-			printk(KERN_ERR PFX "Sending CM DREP failed\n");
+			shost_printk(KERN_ERR, target->scsi_host,
+				     PFX "Sending CM DREP failed\n");
 		break;
 
 	case IB_CM_TIMEWAIT_EXIT:
-		printk(KERN_ERR PFX "connection closed\n");
+		shost_printk(KERN_ERR, target->scsi_host,
+			     PFX "connection closed\n");
 
 		comp = 1;
 		target->status = 0;
@@ -1255,7 +1282,8 @@ static int srp_cm_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event)
 		break;
 
 	default:
-		printk(KERN_WARNING PFX "Unhandled CM event %d\n", event->event);
+		shost_printk(KERN_WARNING, target->scsi_host,
+			     PFX "Unhandled CM event %d\n", event->event);
 		break;
 	}
 
@@ -1283,7 +1311,7 @@ static int srp_send_tsk_mgmt(struct srp_target_port *target,
 
 	init_completion(&req->done);
 
-	iu = __srp_get_tx_iu(target);
+	iu = __srp_get_tx_iu(target, SRP_REQ_TASK_MGMT);
 	if (!iu)
 		goto out;
 
@@ -1332,7 +1360,7 @@ static int srp_abort(struct scsi_cmnd *scmnd)
 	struct srp_request *req;
 	int ret = SUCCESS;
 
-	printk(KERN_ERR "SRP abort called\n");
+	shost_printk(KERN_ERR, target->scsi_host, "SRP abort called\n");
 
 	if (target->qp_in_error)
 		return FAILED;
@@ -1362,7 +1390,7 @@ static int srp_reset_device(struct scsi_cmnd *scmnd)
 	struct srp_target_port *target = host_to_target(scmnd->device->host);
 	struct srp_request *req, *tmp;
 
-	printk(KERN_ERR "SRP reset_device called\n");
+	shost_printk(KERN_ERR, target->scsi_host, "SRP reset_device called\n");
 
 	if (target->qp_in_error)
 		return FAILED;
@@ -1389,7 +1417,7 @@ static int srp_reset_host(struct scsi_cmnd *scmnd)
 	struct srp_target_port *target = host_to_target(scmnd->device->host);
 	int ret = FAILED;
 
-	printk(KERN_ERR PFX "SRP reset_host called\n");
+	shost_printk(KERN_ERR, target->scsi_host, PFX "SRP reset_host called\n");
 
 	if (!srp_reconnect_target(target))
 		ret = SUCCESS;
@@ -1543,6 +1571,7 @@ static struct scsi_host_template srp_template = {
 	.this_id			= -1,
 	.cmd_per_lun			= SRP_SQ_SIZE,
 	.use_clustering			= ENABLE_CLUSTERING,
+	.use_sg_chaining		= ENABLE_SG_CHAINING,
 	.shost_attrs			= srp_host_attrs
 };
 
@@ -1814,8 +1843,9 @@ static ssize_t srp_create_target(struct class_device *class_dev,
 
 	ib_get_cached_gid(host->dev->dev, host->port, 0, &target->path.sgid);
 
-	printk(KERN_DEBUG PFX "new target: id_ext %016llx ioc_guid %016llx pkey %04x "
-	       "service_id %016llx dgid %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x\n",
+	shost_printk(KERN_DEBUG, target->scsi_host, PFX
+		     "new target: id_ext %016llx ioc_guid %016llx pkey %04x "
+		     "service_id %016llx dgid %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x\n",
 	       (unsigned long long) be64_to_cpu(target->id_ext),
 	       (unsigned long long) be64_to_cpu(target->ioc_guid),
 	       be16_to_cpu(target->path.pkey),
@@ -1842,7 +1872,8 @@ static ssize_t srp_create_target(struct class_device *class_dev,
 	target->qp_in_error = 0;
 	ret = srp_connect_target(target);
 	if (ret) {
-		printk(KERN_ERR PFX "Connection failed\n");
+		shost_printk(KERN_ERR, target->scsi_host,
+			     PFX "Connection failed\n");
 		goto err_cm_id;
 	}
 

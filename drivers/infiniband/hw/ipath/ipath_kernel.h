@@ -41,6 +41,7 @@
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
+#include <linux/mutex.h>
 #include <asm/io.h>
 #include <rdma/ib_verbs.h>
 
@@ -140,6 +141,11 @@ struct ipath_portdata {
 	u32 port_pionowait;
 	/* total number of rcvhdrqfull errors */
 	u32 port_hdrqfull;
+	/*
+	 * Used to suppress multiple instances of same
+	 * port staying stuck at same point.
+	 */
+	u32 port_lastrcvhdrqtail;
 	/* saved total number of rcvhdrqfull errors for poll edge trigger */
 	u32 port_hdrqfull_poll;
 	/* total number of polled urgent packets */
@@ -148,6 +154,7 @@ struct ipath_portdata {
 	u32 port_urgent_poll;
 	/* pid of process using this port */
 	pid_t port_pid;
+	pid_t port_subpid[INFINIPATH_MAX_SUBPORT];
 	/* same size as task_struct .comm[] */
 	char port_comm[16];
 	/* pkeys set by this use of this port */
@@ -166,6 +173,8 @@ struct ipath_portdata {
 	u32 active_slaves;
 	/* Type of packets or conditions we want to poll for */
 	u16 poll_type;
+	/* port rcvhdrq head offset */
+	u32 port_head;
 };
 
 struct sk_buff;
@@ -181,6 +190,22 @@ struct ipath_skbinfo {
 	struct sk_buff *skb;
 	dma_addr_t phys;
 };
+
+/*
+ * Possible IB config parameters for ipath_f_get/set_ib_cfg()
+ */
+#define IPATH_IB_CFG_LIDLMC 0 /* Get/set LID (LS16b) and Mask (MS16b) */
+#define IPATH_IB_CFG_HRTBT 1 /* Get/set Heartbeat off/enable/auto */
+#define IPATH_IB_HRTBT_ON 3 /* Heartbeat enabled, sent every 100msec */
+#define IPATH_IB_HRTBT_OFF 0 /* Heartbeat off */
+#define IPATH_IB_CFG_LWID_ENB 2 /* Get/set allowed Link-width */
+#define IPATH_IB_CFG_LWID 3 /* Get currently active Link-width */
+#define IPATH_IB_CFG_SPD_ENB 4 /* Get/set allowed Link speeds */
+#define IPATH_IB_CFG_SPD 5 /* Get current Link spd */
+#define IPATH_IB_CFG_RXPOL_ENB 6 /* Get/set Auto-RX-polarity enable */
+#define IPATH_IB_CFG_LREV_ENB 7 /* Get/set Auto-Lane-reversal enable */
+#define IPATH_IB_CFG_LINKLATENCY 8 /* Get Auto-Lane-reversal enable */
+
 
 struct ipath_devdata {
 	struct list_head ipath_list;
@@ -222,6 +247,8 @@ struct ipath_devdata {
 	struct _ipath_layer ipath_layer;
 	/* setup intr */
 	int (*ipath_f_intrsetup)(struct ipath_devdata *);
+	/* fallback to alternate interrupt type if possible */
+	int (*ipath_f_intr_fallback)(struct ipath_devdata *);
 	/* setup on-chip bus config */
 	int (*ipath_f_bus)(struct ipath_devdata *, struct pci_dev *);
 	/* hard reset chip */
@@ -244,6 +271,18 @@ struct ipath_devdata {
 	int (*ipath_f_get_base_info)(struct ipath_portdata *, void *);
 	/* free irq */
 	void (*ipath_f_free_irq)(struct ipath_devdata *);
+	struct ipath_message_header *(*ipath_f_get_msgheader)
+					(struct ipath_devdata *, __le32 *);
+	void (*ipath_f_config_ports)(struct ipath_devdata *, ushort);
+	int (*ipath_f_get_ib_cfg)(struct ipath_devdata *, int);
+	int (*ipath_f_set_ib_cfg)(struct ipath_devdata *, int, u32);
+	void (*ipath_f_config_jint)(struct ipath_devdata *, u16 , u16);
+	void (*ipath_f_read_counters)(struct ipath_devdata *,
+					struct infinipath_counters *);
+	void (*ipath_f_xgxs_reset)(struct ipath_devdata *);
+	/* per chip actions needed for IB Link up/down changes */
+	int (*ipath_f_ib_updown)(struct ipath_devdata *, int, u64);
+
 	struct ipath_ibdev *verbs_dev;
 	struct timer_list verbs_timer;
 	/* total dwords sent (summed from counter) */
@@ -313,21 +352,11 @@ struct ipath_devdata {
 	 * supports, less gives more pio bufs/port, etc.
 	 */
 	u32 ipath_cfgports;
-	/* port0 rcvhdrq head offset */
-	u32 ipath_port0head;
 	/* count of port 0 hdrqfull errors */
 	u32 ipath_p0_hdrqfull;
+	/* port 0 number of receive eager buffers */
+	u32 ipath_p0_rcvegrcnt;
 
-	/*
-	 * (*cfgports) used to suppress multiple instances of same
-	 * port staying stuck at same point
-	 */
-	u32 *ipath_lastrcvhdrqtails;
-	/*
-	 * (*cfgports) used to suppress multiple instances of same
-	 * port staying stuck at same point
-	 */
-	u32 *ipath_lastegrheads;
 	/*
 	 * index of last piobuffer we used.  Speeds up searching, by
 	 * starting at this point.  Doesn't matter if multiple cpu's use and
@@ -367,14 +396,15 @@ struct ipath_devdata {
 	unsigned long ipath_wc_len;
 	/* ref count for each pkey */
 	atomic_t ipath_pkeyrefs[4];
-	/* shadow copy of all exptids physaddr; used only by funcsim */
-	u64 *ipath_tidsimshadow;
 	/* shadow copy of struct page *'s for exp tid pages */
 	struct page **ipath_pageshadow;
 	/* shadow copy of dma handles for exp tid pages */
 	dma_addr_t *ipath_physshadow;
-	/* lock to workaround chip bug 9437 */
+	u64 __iomem *ipath_egrtidbase;
+	/* lock to workaround chip bug 9437 and others */
+	spinlock_t ipath_kernel_tid_lock;
 	spinlock_t ipath_tid_lock;
+	spinlock_t ipath_sendctrl_lock;
 
 	/*
 	 * IPATH_STATUS_*,
@@ -394,6 +424,8 @@ struct ipath_devdata {
 	struct timer_list ipath_stats_timer;
 	void *ipath_dummy_hdrq;	/* used after port close */
 	dma_addr_t ipath_dummy_hdrq_phys;
+
+	unsigned long ipath_ureg_align; /* user register alignment */
 
 	/*
 	 * Shadow copies of registers; size indicates read access size.
@@ -456,8 +488,6 @@ struct ipath_devdata {
 	unsigned long ipath_rcvctrl;
 	/* shadow kr_sendctrl */
 	unsigned long ipath_sendctrl;
-	/* ports waiting for PIOavail intr */
-	unsigned long ipath_portpiowait;
 	unsigned long ipath_lastcancel; /* to not count armlaunch after cancel */
 
 	/* value we put in kr_rcvhdrcnt */
@@ -550,12 +580,26 @@ struct ipath_devdata {
 	u8 ipath_minrev;
 	/* board rev, from ipath_revision */
 	u8 ipath_boardrev;
+
+	u8 ipath_r_portenable_shift;
+	u8 ipath_r_intravail_shift;
+	u8 ipath_r_tailupd_shift;
+	u8 ipath_r_portcfg_shift;
+
 	/* unit # of this chip, if present */
 	int ipath_unit;
 	/* saved for restore after reset */
 	u8 ipath_pci_cacheline;
 	/* LID mask control */
 	u8 ipath_lmc;
+	/* link width supported */
+	u8 ipath_link_width_supported;
+	/* link speed supported */
+	u8 ipath_link_speed_supported;
+	u8 ipath_link_width_enabled;
+	u8 ipath_link_speed_enabled;
+	u8 ipath_link_width_active;
+	u8 ipath_link_speed_active;
 	/* Rx Polarity inversion (compensate for ~tx on partner) */
 	u8 ipath_rx_pol_inv;
 
@@ -590,6 +634,8 @@ struct ipath_devdata {
 	 */
 	u32 ipath_i_rcvavail_mask;
 	u32 ipath_i_rcvurg_mask;
+	u16 ipath_i_rcvurg_shift;
+	u16 ipath_i_rcvavail_shift;
 
 	/*
 	 * Register bits for selecting i2c direction and values, used for
@@ -602,6 +648,29 @@ struct ipath_devdata {
 
 	/* lock for doing RMW of shadows/regs for ExtCtrl and GPIO */
 	spinlock_t ipath_gpio_lock;
+
+	/*
+	 * IB link and linktraining states and masks that vary per chip in
+	 * some way.  Set at init, to avoid each IB status change interrupt
+	 */
+	u8 ibcs_ls_shift;
+	u8 ibcs_lts_mask;
+	u32 ibcs_mask;
+	u32 ib_init;
+	u32 ib_arm;
+	u32 ib_active;
+
+	u16 ipath_rhf_offset; /* offset of RHF within receive header entry */
+
+	/*
+	 * shift/mask for linkcmd, linkinitcmd, maxpktlen in ibccontol
+	 * reg. Changes for IBA7220
+	 */
+	u8 ibcc_lic_mask; /* LinkInitCmd */
+	u8 ibcc_lc_shift; /* LinkCmd */
+	u8 ibcc_mpl_shift; /* Maxpktlen */
+
+	u8 delay_mult;
 
 	/* used to override LED behavior */
 	u8 ipath_led_override;  /* Substituted for normal value, if non-zero */
@@ -616,7 +685,7 @@ struct ipath_devdata {
 	/* control access to actual counters, timer */
 	spinlock_t ipath_eep_st_lock;
 	/* control high-level access to EEPROM */
-	struct semaphore ipath_eep_sem;
+	struct mutex ipath_eep_lock;
 	/* Below inc'd by ipath_snap_cntrs(), locked by ipath_eep_st_lock */
 	uint64_t ipath_traffic_wds;
 	/* active time is kept in seconds, but logged in hours */
@@ -630,6 +699,10 @@ struct ipath_devdata {
 	 * each of the counters to increment.
 	 */
 	struct ipath_eep_log_mask ipath_eep_st_masks[IPATH_EEP_LOG_CNT];
+
+	/* interrupt mitigation reload register info */
+	u16 ipath_jint_idle_ticks;	/* idle clock ticks */
+	u16 ipath_jint_max_packets;	/* max packets across all ports */
 };
 
 /* Private data for file operations */
@@ -690,7 +763,7 @@ void ipath_free_pddata(struct ipath_devdata *, struct ipath_portdata *);
 
 int ipath_parse_ushort(const char *str, unsigned short *valp);
 
-void ipath_kreceive(struct ipath_devdata *);
+void ipath_kreceive(struct ipath_portdata *);
 int ipath_setrcvhdrsize(struct ipath_devdata *, unsigned);
 int ipath_reset_device(int);
 void ipath_get_faststats(unsigned long);
@@ -698,6 +771,8 @@ int ipath_set_linkstate(struct ipath_devdata *, u8);
 int ipath_set_mtu(struct ipath_devdata *, u16);
 int ipath_set_lid(struct ipath_devdata *, u32, u8);
 int ipath_set_rx_pol_inv(struct ipath_devdata *dd, u8 new_pol_inv);
+void ipath_enable_armlaunch(struct ipath_devdata *);
+void ipath_disable_armlaunch(struct ipath_devdata *);
 
 /* for use in system calls, where we want to know device type, etc. */
 #define port_fp(fp) ((struct ipath_filedata *)(fp)->private_data)->pd
@@ -744,9 +819,15 @@ int ipath_set_rx_pol_inv(struct ipath_devdata *dd, u8 new_pol_inv);
 		 * are 64bit */
 #define IPATH_32BITCOUNTERS 0x20000
 		/* can miss port0 rx interrupts */
+		/* Interrupt register is 64 bits */
+#define IPATH_INTREG_64     0x40000
 #define IPATH_DISABLED      0x80000 /* administratively disabled */
 		/* Use GPIO interrupts for new counters */
 #define IPATH_GPIO_ERRINTRS 0x100000
+#define IPATH_SWAP_PIOBUFS  0x200000
+		/* Suppress heartbeat, even if turning off loopback */
+#define IPATH_NO_HRTBT      0x1000000
+#define IPATH_HAS_MULT_IB_SPEED 0x8000000
 
 /* Bits in GPIO for the added interrupts */
 #define IPATH_GPIO_PORT0_BIT 2
@@ -758,8 +839,6 @@ int ipath_set_rx_pol_inv(struct ipath_devdata *dd, u8 new_pol_inv);
 /* portdata flag bit offsets */
 		/* waiting for a packet to arrive */
 #define IPATH_PORT_WAITING_RCV   2
-		/* waiting for a PIO buffer to be available */
-#define IPATH_PORT_WAITING_PIO   3
 		/* master has not finished initializing */
 #define IPATH_PORT_MASTER_UNINIT 4
 		/* waiting for an urgent packet to arrive */
@@ -767,8 +846,6 @@ int ipath_set_rx_pol_inv(struct ipath_devdata *dd, u8 new_pol_inv);
 
 /* free up any allocated data at closes */
 void ipath_free_data(struct ipath_portdata *dd);
-int ipath_waitfor_mdio_cmdready(struct ipath_devdata *);
-int ipath_waitfor_complete(struct ipath_devdata *, ipath_kreg, u64, u64 *);
 u32 __iomem *ipath_getpiobuf(struct ipath_devdata *, u32 *);
 void ipath_init_iba6120_funcs(struct ipath_devdata *);
 void ipath_init_iba6110_funcs(struct ipath_devdata *);
@@ -791,33 +868,6 @@ void ipath_set_led_override(struct ipath_devdata *dd, unsigned int val);
  * number of words used for protocol header if not set by ipath_userinit();
  */
 #define IPATH_DFLT_RCVHDRSIZE 9
-
-#define IPATH_MDIO_CMD_WRITE   1
-#define IPATH_MDIO_CMD_READ    2
-#define IPATH_MDIO_CLD_DIV     25	/* to get 2.5 Mhz mdio clock */
-#define IPATH_MDIO_CMDVALID    0x40000000	/* bit 30 */
-#define IPATH_MDIO_DATAVALID   0x80000000	/* bit 31 */
-#define IPATH_MDIO_CTRL_STD    0x0
-
-static inline u64 ipath_mdio_req(int cmd, int dev, int reg, int data)
-{
-	return (((u64) IPATH_MDIO_CLD_DIV) << 32) |
-		(cmd << 26) |
-		(dev << 21) |
-		(reg << 16) |
-		(data & 0xFFFF);
-}
-
-		/* signal and fifo status, in bank 31 */
-#define IPATH_MDIO_CTRL_XGXS_REG_8  0x8
-		/* controls loopback, redundancy */
-#define IPATH_MDIO_CTRL_8355_REG_1  0x10
-		/* premph, encdec, etc. */
-#define IPATH_MDIO_CTRL_8355_REG_2  0x11
-		/* Kchars, etc. */
-#define IPATH_MDIO_CTRL_8355_REG_6  0x15
-#define IPATH_MDIO_CTRL_8355_REG_9  0x18
-#define IPATH_MDIO_CTRL_8355_REG_10 0x1D
 
 int ipath_get_user_pages(unsigned long, size_t, struct page **);
 void ipath_release_user_pages(struct page **, size_t);
@@ -863,7 +913,7 @@ static inline u32 ipath_read_ureg32(const struct ipath_devdata *dd,
 	return readl(regno + (u64 __iomem *)
 		     (dd->ipath_uregbase +
 		      (char __iomem *)dd->ipath_kregbase +
-		      dd->ipath_palign * port));
+		      dd->ipath_ureg_align * port));
 }
 
 /**
@@ -880,7 +930,7 @@ static inline void ipath_write_ureg(const struct ipath_devdata *dd,
 {
 	u64 __iomem *ubase = (u64 __iomem *)
 		(dd->ipath_uregbase + (char __iomem *) dd->ipath_kregbase +
-		 dd->ipath_palign * port);
+		 dd->ipath_ureg_align * port);
 	if (dd->ipath_kregbase)
 		writeq(value, &ubase[regno]);
 }
@@ -928,6 +978,53 @@ static inline u32 ipath_read_creg32(const struct ipath_devdata *dd,
 	return readl(regno + (u64 __iomem *)
 		     (dd->ipath_cregbase +
 		      (char __iomem *)dd->ipath_kregbase));
+}
+
+static inline void ipath_write_creg(const struct ipath_devdata *dd,
+				    ipath_creg regno, u64 value)
+{
+	if (dd->ipath_kregbase)
+		writeq(value, regno + (u64 __iomem *)
+		       (dd->ipath_cregbase +
+			(char __iomem *)dd->ipath_kregbase));
+}
+
+static inline void ipath_clear_rcvhdrtail(const struct ipath_portdata *pd)
+{
+	*((u64 *) pd->port_rcvhdrtail_kvaddr) = 0ULL;
+}
+
+static inline u32 ipath_get_rcvhdrtail(const struct ipath_portdata *pd)
+{
+	return (u32) le64_to_cpu(*((volatile __le64 *)
+				pd->port_rcvhdrtail_kvaddr));
+}
+
+static inline u64 ipath_read_ireg(const struct ipath_devdata *dd, ipath_kreg r)
+{
+	return (dd->ipath_flags & IPATH_INTREG_64) ?
+		ipath_read_kreg64(dd, r) : ipath_read_kreg32(dd, r);
+}
+
+/*
+ * from contents of IBCStatus (or a saved copy), return linkstate
+ * Report ACTIVE_DEFER as ACTIVE, because we treat them the same
+ * everywhere, anyway (and should be, for almost all purposes).
+ */
+static inline u32 ipath_ib_linkstate(struct ipath_devdata *dd, u64 ibcs)
+{
+	u32 state = (u32)(ibcs >> dd->ibcs_ls_shift) &
+		INFINIPATH_IBCS_LINKSTATE_MASK;
+	if (state == INFINIPATH_IBCS_L_STATE_ACT_DEFER)
+		state = INFINIPATH_IBCS_L_STATE_ACTIVE;
+	return state;
+}
+
+/* from contents of IBCStatus (or a saved copy), return linktrainingstate */
+static inline u32 ipath_ib_linktrstate(struct ipath_devdata *dd, u64 ibcs)
+{
+	return (u32)(ibcs >> INFINIPATH_IBCS_LINKTRAININGSTATE_SHIFT) &
+		dd->ibcs_lts_mask;
 }
 
 /*

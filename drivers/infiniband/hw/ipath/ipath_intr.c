@@ -683,7 +683,7 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 		for (i = 0; i < dd->ipath_cfgports; i++) {
 			struct ipath_portdata *pd = dd->ipath_pd[i];
 			if (i == 0) {
-				hd = dd->ipath_port0head;
+				hd = pd->port_head;
 				tl = (u32) le64_to_cpu(
 					*dd->ipath_hdrqtailptr);
 			} else if (pd && pd->port_cnt &&
@@ -693,7 +693,7 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 				 * except kernel
 				 */
 				tl = *(u64 *) pd->port_rcvhdrtail_kvaddr;
-				if (tl == dd->ipath_lastrcvhdrqtails[i])
+				if (tl == pd->port_lastrcvhdrqtail)
 					continue;
 				hd = ipath_read_ureg32(dd, ur_rcvhdrhead,
 						       i);
@@ -703,7 +703,7 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 			    (!hd && tl == dd->ipath_hdrqlast)) {
 				if (i == 0)
 					chkerrpkts = 1;
-				dd->ipath_lastrcvhdrqtails[i] = tl;
+				pd->port_lastrcvhdrqtail = tl;
 				pd->port_hdrqfull++;
 				/* flush hdrqfull so that poll() sees it */
 				wmb();
@@ -712,6 +712,8 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 		}
 	}
 	if (errs & INFINIPATH_E_RRCVEGRFULL) {
+		struct ipath_portdata *pd = dd->ipath_pd[0];
+
 		/*
 		 * since this is of less importance and not likely to
 		 * happen without also getting hdrfull, only count
@@ -719,7 +721,7 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 		 * vs user)
 		 */
 		ipath_stats.sps_etidfull++;
-		if (dd->ipath_port0head !=
+		if (pd->port_head !=
 		    (u32) le64_to_cpu(*dd->ipath_hdrqtailptr))
 			chkerrpkts = 1;
 	}
@@ -795,6 +797,7 @@ void ipath_clear_freeze(struct ipath_devdata *dd)
 {
 	int i, im;
 	__le64 val;
+	unsigned long flags;
 
 	/* disable error interrupts, to avoid confusion */
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_errormask, 0ULL);
@@ -813,11 +816,14 @@ void ipath_clear_freeze(struct ipath_devdata *dd)
 			 dd->ipath_control);
 
 	/* ensure pio avail updates continue */
+	spin_lock_irqsave(&dd->ipath_sendctrl_lock, flags);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
 		 dd->ipath_sendctrl & ~INFINIPATH_S_PIOBUFAVAILUPD);
 	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
-		 dd->ipath_sendctrl);
+			 dd->ipath_sendctrl);
+	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
+	spin_unlock_irqrestore(&dd->ipath_sendctrl_lock, flags);
 
 	/*
 	 * We just enabled pioavailupdate, so dma copy is almost certainly
@@ -825,8 +831,8 @@ void ipath_clear_freeze(struct ipath_devdata *dd)
 	 */
 	for (i = 0; i < dd->ipath_pioavregs; i++) {
 		/* deal with 6110 chip bug */
-		im = i > 3 ? ((i&1) ? i-1 : i+1) : i;
-		val = ipath_read_kreg64(dd, (0x1000/sizeof(u64))+im);
+		im = i > 3 ? i ^ 1 : i;
+		val = ipath_read_kreg64(dd, (0x1000 / sizeof(u64)) + im);
 		dd->ipath_pioavailregs_dma[i] = dd->ipath_pioavailshadow[i]
 			= le64_to_cpu(val);
 	}
@@ -849,7 +855,7 @@ void ipath_clear_freeze(struct ipath_devdata *dd)
 
 /* this is separate to allow for better optimization of ipath_intr() */
 
-static void ipath_bad_intr(struct ipath_devdata *dd, u32 * unexpectp)
+static noinline void ipath_bad_intr(struct ipath_devdata *dd, u32 *unexpectp)
 {
 	/*
 	 * sometimes happen during driver init and unload, don't want
@@ -877,7 +883,7 @@ static void ipath_bad_intr(struct ipath_devdata *dd, u32 * unexpectp)
 				dd->ipath_f_free_irq(dd);
 			}
 		}
-		if (ipath_read_kreg32(dd, dd->ipath_kregs->kr_intmask)) {
+		if (ipath_read_ireg(dd, dd->ipath_kregs->kr_intmask)) {
 			ipath_dev_err(dd, "%u unexpected interrupts, "
 				      "disabling interrupts completely\n",
 				      *unexpectp);
@@ -892,7 +898,7 @@ static void ipath_bad_intr(struct ipath_devdata *dd, u32 * unexpectp)
 			  "ignoring\n");
 }
 
-static void ipath_bad_regread(struct ipath_devdata *dd)
+static noinline void ipath_bad_regread(struct ipath_devdata *dd)
 {
 	static int allbits;
 
@@ -920,31 +926,9 @@ static void ipath_bad_regread(struct ipath_devdata *dd)
 	}
 }
 
-static void handle_port_pioavail(struct ipath_devdata *dd)
-{
-	u32 i;
-	/*
-	 * start from port 1, since for now port 0  is never using
-	 * wait_event for PIO
-	 */
-	for (i = 1; dd->ipath_portpiowait && i < dd->ipath_cfgports; i++) {
-		struct ipath_portdata *pd = dd->ipath_pd[i];
-
-		if (pd && pd->port_cnt &&
-		    dd->ipath_portpiowait & (1U << i)) {
-			clear_bit(i, &dd->ipath_portpiowait);
-			if (test_bit(IPATH_PORT_WAITING_PIO,
-				     &pd->port_flag)) {
-				clear_bit(IPATH_PORT_WAITING_PIO,
-					  &pd->port_flag);
-				wake_up_interruptible(&pd->port_wait);
-			}
-		}
-	}
-}
-
 static void handle_layer_pioavail(struct ipath_devdata *dd)
 {
+	unsigned long flags;
 	int ret;
 
 	ret = ipath_ib_piobufavail(dd->verbs_dev);
@@ -953,9 +937,12 @@ static void handle_layer_pioavail(struct ipath_devdata *dd)
 
 	return;
 set:
-	set_bit(IPATH_S_PIOINTBUFAVAIL, &dd->ipath_sendctrl);
+	spin_lock_irqsave(&dd->ipath_sendctrl_lock, flags);
+	dd->ipath_sendctrl |= INFINIPATH_S_PIOINTBUFAVAIL;
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
 			 dd->ipath_sendctrl);
+	ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
+	spin_unlock_irqrestore(&dd->ipath_sendctrl_lock, flags);
 }
 
 /*
@@ -969,7 +956,15 @@ static void handle_urcv(struct ipath_devdata *dd, u32 istat)
 	int i;
 	int rcvdint = 0;
 
-	/* test_bit below needs this... */
+	/*
+	 * test_and_clear_bit(IPATH_PORT_WAITING_RCV) and
+	 * test_and_clear_bit(IPATH_PORT_WAITING_URG) below
+	 * would both like timely updates of the bits so that
+	 * we don't pass them by unnecessarily.  the rmb()
+	 * here ensures that we see them promptly -- the
+	 * corresponding wmb()'s are in ipath_poll_urgent()
+	 * and ipath_poll_next()...
+	 */
 	rmb();
 	portr = ((istat >> INFINIPATH_I_RCVAVAIL_SHIFT) &
 		 dd->ipath_i_rcvavail_mask)
@@ -980,7 +975,7 @@ static void handle_urcv(struct ipath_devdata *dd, u32 istat)
 		if (portr & (1 << i) && pd && pd->port_cnt) {
 			if (test_and_clear_bit(IPATH_PORT_WAITING_RCV,
 					       &pd->port_flag)) {
-				clear_bit(i + INFINIPATH_R_INTRAVAIL_SHIFT,
+				clear_bit(i + dd->ipath_r_intravail_shift,
 					  &dd->ipath_rcvctrl);
 				wake_up_interruptible(&pd->port_wait);
 				rcvdint = 1;
@@ -1039,7 +1034,7 @@ irqreturn_t ipath_intr(int irq, void *data)
 		goto bail;
 	}
 
-	istat = ipath_read_kreg32(dd, dd->ipath_kregs->kr_intstatus);
+	istat = ipath_read_ireg(dd, dd->ipath_kregs->kr_intstatus);
 
 	if (unlikely(!istat)) {
 		ipath_stats.sps_nullintr++;
@@ -1180,7 +1175,7 @@ irqreturn_t ipath_intr(int irq, void *data)
 	 * for receive are at the bottom.
 	 */
 	if (chk0rcv) {
-		ipath_kreceive(dd);
+		ipath_kreceive(dd->ipath_pd[0]);
 		istat &= ~port0rbits;
 	}
 
@@ -1191,12 +1186,14 @@ irqreturn_t ipath_intr(int irq, void *data)
 		handle_urcv(dd, istat);
 
 	if (istat & INFINIPATH_I_SPIOBUFAVAIL) {
-		clear_bit(IPATH_S_PIOINTBUFAVAIL, &dd->ipath_sendctrl);
+		unsigned long flags;
+
+		spin_lock_irqsave(&dd->ipath_sendctrl_lock, flags);
+		dd->ipath_sendctrl &= ~INFINIPATH_S_PIOINTBUFAVAIL;
 		ipath_write_kreg(dd, dd->ipath_kregs->kr_sendctrl,
 				 dd->ipath_sendctrl);
-
-		if (dd->ipath_portpiowait)
-			handle_port_pioavail(dd);
+		ipath_read_kreg64(dd, dd->ipath_kregs->kr_scratch);
+		spin_unlock_irqrestore(&dd->ipath_sendctrl_lock, flags);
 
 		handle_layer_pioavail(dd);
 	}

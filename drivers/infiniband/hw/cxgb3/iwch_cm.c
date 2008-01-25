@@ -1118,7 +1118,7 @@ static int act_open_rpl(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	     status2errno(rpl->status));
 	connect_reply_upcall(ep, status2errno(rpl->status));
 	state_set(&ep->com, DEAD);
-	if (ep->com.tdev->type == T3B && act_open_has_tid(rpl->status))
+	if (ep->com.tdev->type != T3A && act_open_has_tid(rpl->status))
 		release_tid(ep->com.tdev, GET_TID(rpl), NULL);
 	cxgb3_free_atid(ep->com.tdev, ep->atid);
 	dst_release(ep->dst);
@@ -1249,7 +1249,7 @@ static void reject_cr(struct t3cdev *tdev, u32 hwtid, __be32 peer_ip,
 	skb_trim(skb, sizeof(struct cpl_tid_release));
 	skb_get(skb);
 
-	if (tdev->type == T3B)
+	if (tdev->type != T3A)
 		release_tid(tdev, hwtid, skb);
 	else {
 		struct cpl_pass_accept_rpl *rpl;

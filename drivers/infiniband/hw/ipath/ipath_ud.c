@@ -301,8 +301,6 @@ int ipath_make_ud_req(struct ipath_qp *qp)
 
 	/* header size in 32-bit words LRH+BTH+DETH = (8+12+8)/4. */
 	qp->s_hdrwords = 7;
-	if (wqe->wr.opcode == IB_WR_SEND_WITH_IMM)
-		qp->s_hdrwords++;
 	qp->s_cur_size = wqe->length;
 	qp->s_cur_sge = &qp->s_sge;
 	qp->s_wqe = wqe;
@@ -327,6 +325,7 @@ int ipath_make_ud_req(struct ipath_qp *qp)
 		ohdr = &qp->s_hdr.u.oth;
 	}
 	if (wqe->wr.opcode == IB_WR_SEND_WITH_IMM) {
+		qp->s_hdrwords++;
 		ohdr->u.ud.imm_data = wqe->wr.imm_data;
 		bth0 = IB_OPCODE_UD_SEND_ONLY_WITH_IMMEDIATE << 24;
 	} else
