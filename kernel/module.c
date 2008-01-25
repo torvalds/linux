@@ -496,6 +496,8 @@ static struct module_attribute modinfo_##field = {                    \
 MODINFO_ATTR(version);
 MODINFO_ATTR(srcversion);
 
+static char last_unloaded_module[MODULE_NAME_LEN+1];
+
 #ifdef CONFIG_MODULE_UNLOAD
 /* Init the unload section of the module. */
 static void module_unload_init(struct module *mod)
@@ -719,6 +721,8 @@ sys_delete_module(const char __user *name_user, unsigned int flags)
 		mod->exit();
 		mutex_lock(&module_mutex);
 	}
+	/* Store the name of the last unloaded module for diagnostic purposes */
+	sprintf(last_unloaded_module, mod->name);
 	free_module(mod);
 
  out:
@@ -2503,6 +2507,8 @@ void print_modules(void)
 	printk("Modules linked in:");
 	list_for_each_entry(mod, &modules, list)
 		printk(" %s%s", mod->name, module_flags(mod, buf));
+	if (last_unloaded_module[0])
+		printk(" [last unloaded: %s]", last_unloaded_module);
 	printk("\n");
 }
 
