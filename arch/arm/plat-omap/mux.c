@@ -36,17 +36,17 @@
 #define OMAP24XX_PULL_ENA	(1 << 3)
 #define OMAP24XX_PULL_UP	(1 << 4)
 
-static struct pin_config * pin_table;
-static unsigned long pin_table_sz;
+static struct omap_mux_cfg *mux_cfg;
 
-extern struct pin_config * omap730_pins;
-extern struct pin_config * omap1xxx_pins;
-extern struct pin_config * omap24xx_pins;
-
-int __init omap_mux_register(struct pin_config * pins, unsigned long size)
+int __init omap_mux_register(struct omap_mux_cfg *arch_mux_cfg)
 {
-	pin_table = pins;
-	pin_table_sz = size;
+	if (!arch_mux_cfg || !arch_mux_cfg->pins || arch_mux_cfg->size == 0
+			|| !arch_mux_cfg->cfg_reg) {
+		printk(KERN_ERR "Invalid pin table\n");
+		return -EINVAL;
+	}
+
+	mux_cfg = arch_mux_cfg;
 
 	return 0;
 }
@@ -64,17 +64,19 @@ int __init_or_module omap_cfg_reg(const unsigned long index)
 		pull_orig = 0, pull = 0;
 	unsigned int mask, warn = 0;
 
-	if (!pin_table)
-		BUG();
+	if (mux_cfg == NULL) {
+		printk(KERN_ERR "Pin mux table not initialized\n");
+		return -ENODEV;
+	}
 
-	if (index >= pin_table_sz) {
+	if (index >= mux_cfg->size) {
 		printk(KERN_ERR "Invalid pin mux index: %lu (%lu)\n",
-		       index, pin_table_sz);
+		       index, mux_cfg->size);
 		dump_stack();
 		return -ENODEV;
 	}
 
-	cfg = (struct pin_config *)&pin_table[index];
+	cfg = (struct pin_config *)&mux_cfg->pins[index];
 	if (cpu_is_omap24xx()) {
 		u8 reg = 0;
 

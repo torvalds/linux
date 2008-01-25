@@ -32,6 +32,8 @@
 
 #ifdef CONFIG_OMAP_MUX
 
+static struct omap_mux_cfg arch_mux_cfg;
+
 #ifdef CONFIG_ARCH_OMAP730
 struct pin_config __initdata_or_module omap730_pins[] = {
 MUX_CFG_730("E2_730_KBR0",        12,   21,    0,   20,   1, 0)
@@ -310,18 +312,31 @@ MUX_CFG("Y14_1610_CCP_DATAM",	 9,   21,    6,   2,   3,   1,    2,     0,  0)
 };
 #endif	/* CONFIG_ARCH_OMAP15XX || CONFIG_ARCH_OMAP16XX */
 
+int __init_or_module omap1_cfg_reg(const struct pin_config *cfg)
+{
+	return 0;
+}
+
 int __init omap1_mux_init(void)
 {
 
 #ifdef CONFIG_ARCH_OMAP730
-	omap_mux_register(omap730_pins, ARRAY_SIZE(omap730_pins));
+	if (cpu_is_omap730()) {
+		arch_mux_cfg.pins	= omap730_pins;
+		arch_mux_cfg.size	= ARRAY_SIZE(omap730_pins);
+		arch_mux_cfg.cfg_reg	= omap1_cfg_reg;
+	}
 #endif
 
 #if defined(CONFIG_ARCH_OMAP15XX) || defined(CONFIG_ARCH_OMAP16XX)
-	omap_mux_register(omap1xxx_pins, ARRAY_SIZE(omap1xxx_pins));
+	if (cpu_is_omap15xx() || cpu_is_omap16xx()) {
+		arch_mux_cfg.pins	= omap1xxx_pins;
+		arch_mux_cfg.size	= ARRAY_SIZE(omap1xxx_pins);
+		arch_mux_cfg.cfg_reg	= omap1_cfg_reg;
+	}
 #endif
 
-	return 0;
+	return omap_mux_register(&arch_mux_cfg);
 }
 
 #endif
