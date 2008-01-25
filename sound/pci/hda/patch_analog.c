@@ -138,6 +138,7 @@ static const char *ad_slave_vols[] = {
 	"Side Playback Volume",
 	"Headphone Playback Volume",
 	"Mono Playback Volume",
+	"Speaker Playback Volume",
 	NULL
 };
 
@@ -149,6 +150,7 @@ static const char *ad_slave_sws[] = {
 	"Side Playback Switch",
 	"Headphone Playback Switch",
 	"Mono Playback Switch",
+	"Speaker Playback Switch",
 	NULL
 };
 
