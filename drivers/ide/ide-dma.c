@@ -491,10 +491,6 @@ EXPORT_SYMBOL(ide_dma_host_on);
  
 int __ide_dma_on (ide_drive_t *drive)
 {
-	/* consult the list of known "bad" drives */
-	if (__ide_dma_bad_drive(drive))
-		return 1;
-
 	drive->using_dma = 1;
 	ide_toggle_bounce(drive, 1);
 
