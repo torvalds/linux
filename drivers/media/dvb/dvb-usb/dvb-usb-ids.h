@@ -17,6 +17,7 @@
 #define USB_VID_ANCHOR				0x0547
 #define USB_VID_ANSONIC				0x10b9
 #define USB_VID_ANUBIS_ELECTRONIC		0x10fd
+#define USB_VID_ASUS				0x0b05
 #define USB_VID_AVERMEDIA			0x07ca
 #define USB_VID_COMPRO				0x185b
 #define USB_VID_COMPRO_UNK			0x145f
@@ -182,5 +183,7 @@
 #define USB_PID_LIFEVIEW_TV_WALKER_TWIN_WARM		0x0513
 /* dom pour gigabyte u7000 */
 #define USB_PID_GIGABYTE_U7000				0x7001
+#define USB_PID_ASUS_U3000				0x171f
+#define USB_PID_ASUS_U3100				0x173f
 
 #endif

@@ -230,6 +230,27 @@ static struct mt2266_config stk7700d_mt2266_config[2] = {
 	}
 };
 
+static int stk7700P2_frontend_attach(struct dvb_usb_adapter *adap)
+{
+	if (adap->id == 0) {
+		dib0700_set_gpio(adap->dev, GPIO6, GPIO_OUT, 1);
+		msleep(10);
+		dib0700_set_gpio(adap->dev, GPIO9, GPIO_OUT, 1);
+		dib0700_set_gpio(adap->dev, GPIO4, GPIO_OUT, 1);
+		dib0700_set_gpio(adap->dev, GPIO7, GPIO_OUT, 1);
+		dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 0);
+		msleep(10);
+		dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 1);
+		msleep(10);
+		dib7000p_i2c_enumeration(&adap->dev->i2c_adap,1,18,stk7700d_dib7000p_mt2266_config);
+	}
+
+	adap->fe = dvb_attach(dib7000p_attach, &adap->dev->i2c_adap,0x80+(adap->id << 1),
+				&stk7700d_dib7000p_mt2266_config[adap->id]);
+
+	return adap->fe == NULL ? -ENODEV : 0;
+}
+
 static int stk7700d_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	if (adap->id == 0) {
@@ -850,8 +871,10 @@ struct usb_device_id dib0700_usb_id_table[] = {
 		{ USB_DEVICE(USB_VID_PINNACLE,  USB_PID_PINNACLE_PCTV_DUAL_DIVERSITY_DVB_T) },
 		{ USB_DEVICE(USB_VID_COMPRO,    USB_PID_COMPRO_VIDEOMATE_U500_PC) },
 /* 20 */{ USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_EXPRESS) },
-/* 21 */{ USB_DEVICE(USB_VID_GIGABYTE, USB_PID_GIGABYTE_U7000) },
-/* 22 */{ USB_DEVICE(USB_VID_ULTIMA_ELECTRONIC, USB_PID_ARTEC_T14BR) },
+		{ USB_DEVICE(USB_VID_GIGABYTE,  USB_PID_GIGABYTE_U7000) },
+		{ USB_DEVICE(USB_VID_ULTIMA_ELECTRONIC, USB_PID_ARTEC_T14BR) },
+		{ USB_DEVICE(USB_VID_ASUS,      USB_PID_ASUS_U3000) },
+		{ USB_DEVICE(USB_VID_ASUS,      USB_PID_ASUS_U3100) },
 		{ 0 }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -923,7 +946,6 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 				{ &dib0700_usb_id_table[20] },
 				{ NULL },
 			},
-			/* dom : pour Gigabyte U7000 */
 			{   "Gigabyte U7000",
 				{ &dib0700_usb_id_table[21], NULL },
 				{ NULL },
@@ -1010,6 +1032,25 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.num_adapters = 1,
 		.adapter = {
 			{
+				.frontend_attach  = stk7700P2_frontend_attach,
+				.tuner_attach     = stk7700d_tuner_attach,
+
+				DIB0700_DEFAULT_STREAMING_CONFIG(0x02),
+			},
+		},
+
+		.num_device_descs = 1,
+		.devices = {
+			{   "ASUS My Cinema U3000 Mini DVBT Tuner",
+				{ &dib0700_usb_id_table[23], NULL },
+				{ NULL },
+			},
+		}
+	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
+
+		.num_adapters = 1,
+		.adapter = {
+			{
 				.frontend_attach  = stk7070p_frontend_attach,
 				.tuner_attach     = dib7070p_tuner_attach,
 
@@ -1019,7 +1060,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
-		.num_device_descs = 3,
+		.num_device_descs = 4,
 		.devices = {
 			{   "DiBcom STK7070P reference design",
 				{ &dib0700_usb_id_table[15], NULL },
@@ -1032,7 +1073,11 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			{   "Artec T14BR DVB-T",
 				{ &dib0700_usb_id_table[22], NULL },
 				{ NULL },
-			}
+			},
+			{   "ASUS My Cinema U3100 Mini DVBT Tuner",
+				{ &dib0700_usb_id_table[24], NULL },
+				{ NULL },
+			},
 		}
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 
