@@ -601,19 +601,21 @@ static ide_proc_entry_t idedisk_proc[] = {
 static void idedisk_prepare_flush(struct request_queue *q, struct request *rq)
 {
 	ide_drive_t *drive = q->queuedata;
+	ide_task_t task;
 
-	memset(rq->cmd, 0, sizeof(rq->cmd));
-
+	memset(&task, 0, sizeof(task));
 	if (ide_id_has_flush_cache_ext(drive->id) &&
 	    (drive->capacity64 >= (1UL << 28)))
-		rq->cmd[0] = WIN_FLUSH_CACHE_EXT;
+		task.tf.command = WIN_FLUSH_CACHE_EXT;
 	else
-		rq->cmd[0] = WIN_FLUSH_CACHE;
+		task.tf.command = WIN_FLUSH_CACHE;
+	task.tf_flags = IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE;
+	task.command_type = IDE_DRIVE_TASK_NO_DATA;
+	task.handler = task_no_data_intr;
 
-
-	rq->cmd_type = REQ_TYPE_ATA_TASK;
+	rq->cmd_type = REQ_TYPE_ATA_TASKFILE;
 	rq->cmd_flags |= REQ_SOFTBARRIER;
-	rq->buffer = rq->cmd;
+	rq->special = &task;
 }
 
 /*
