@@ -1340,7 +1340,7 @@ static void hwif_register_devices(ide_hwif_t *hwif)
 	}
 }
 
-int ide_device_add_all(u8 idx[MAX_HWIFS])
+int ide_device_add_all(u8 *idx)
 {
 	ide_hwif_t *hwif;
 	int i, rc = 0;

@@ -1201,7 +1201,7 @@ void ide_unregister_region(struct gendisk *);
 
 void ide_undecoded_slave(ide_drive_t *);
 
-int ide_device_add_all(u8 idx[MAX_HWIFS]);
+int ide_device_add_all(u8 *idx);
 int ide_device_add(u8 idx[4]);
 
 static inline void *ide_get_hwifdata (ide_hwif_t * hwif)
