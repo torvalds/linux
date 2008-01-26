@@ -75,23 +75,28 @@ __be32 nfs4_callback_recall(struct cb_recallargs *args, void *dummy)
 	dprintk("NFS: RECALL callback request from %s\n",
 		rpc_peeraddr2str(clp->cl_rpcclient, RPC_DISPLAY_ADDR));
 
-	inode = nfs_delegation_find_inode(clp, &args->fh);
-	if (inode == NULL)
-		goto out_putclient;
-	/* Set up a helper thread to actually return the delegation */
-	switch(nfs_async_inode_return_delegation(inode, &args->stateid)) {
-		case 0:
-			res = 0;
-			break;
-		case -ENOENT:
-			res = htonl(NFS4ERR_BAD_STATEID);
-			break;
-		default:
-			res = htonl(NFS4ERR_RESOURCE);
-	}
-	iput(inode);
-out_putclient:
-	nfs_put_client(clp);
+	do {
+		struct nfs_client *prev = clp;
+
+		inode = nfs_delegation_find_inode(clp, &args->fh);
+		if (inode != NULL) {
+			/* Set up a helper thread to actually return the delegation */
+			switch(nfs_async_inode_return_delegation(inode, &args->stateid)) {
+				case 0:
+					res = 0;
+					break;
+				case -ENOENT:
+					if (res != 0)
+						res = htonl(NFS4ERR_BAD_STATEID);
+					break;
+				default:
+					res = htonl(NFS4ERR_RESOURCE);
+			}
+			iput(inode);
+		}
+		clp = nfs_find_client_next(prev);
+		nfs_put_client(prev);
+	} while (clp != NULL);
 out:
 	dprintk("%s: exit with status = %d\n", __FUNCTION__, ntohl(res));
 	return res;

@@ -276,6 +276,41 @@ struct nfs_client *nfs_find_client(const struct sockaddr *addr, u32 nfsversion)
 }
 
 /*
+ * Find a client by IP address and protocol version
+ * - returns NULL if no such client
+ */
+struct nfs_client *nfs_find_client_next(struct nfs_client *clp)
+{
+	struct sockaddr *sap = (struct sockaddr *)&clp->cl_addr;
+	u32 nfsvers = clp->rpc_ops->version;
+
+	spin_lock(&nfs_client_lock);
+	list_for_each_entry_continue(clp, &nfs_client_list, cl_share_link) {
+		struct sockaddr *clap = (struct sockaddr *)&clp->cl_addr;
+
+		/* Don't match clients that failed to initialise properly */
+		if (clp->cl_cons_state != NFS_CS_READY)
+			continue;
+
+		/* Different NFS versions cannot share the same nfs_client */
+		if (clp->rpc_ops->version != nfsvers)
+			continue;
+
+		if (sap->sa_family != clap->sa_family)
+			continue;
+		/* Match only the IP address, not the port number */
+		if (!nfs_sockaddr_match_ipaddr(sap, clap))
+			continue;
+
+		atomic_inc(&clp->cl_count);
+		spin_unlock(&nfs_client_lock);
+		return clp;
+	}
+	spin_unlock(&nfs_client_lock);
+	return NULL;
+}
+
+/*
  * Find an nfs_client on the list that matches the initialisation data
  * that is supplied.
  */
