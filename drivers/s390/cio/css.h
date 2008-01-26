@@ -132,6 +132,7 @@ struct css_driver {
 	int (*probe)(struct subchannel *);
 	int (*remove)(struct subchannel *);
 	void (*shutdown)(struct subchannel *);
+	const char *name;
 };
 
 #define to_cssdriver(n) container_of(n, struct css_driver, drv)
@@ -140,6 +141,9 @@ struct css_driver {
  * all css_drivers have the css_bus_type
  */
 extern struct bus_type css_bus_type;
+
+extern int css_driver_register(struct css_driver *);
+extern void css_driver_unregister(struct css_driver *);
 
 extern void css_sch_device_unregister(struct subchannel *);
 extern struct subchannel * get_subchannel_by_schid(struct subchannel_id);

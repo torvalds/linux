@@ -837,6 +837,33 @@ struct bus_type css_bus_type = {
 	.shutdown = css_shutdown,
 };
 
+/**
+ * css_driver_register - register a css driver
+ * @cdrv: css driver to register
+ *
+ * This is mainly a wrapper around driver_register that sets name
+ * and bus_type in the embedded struct device_driver correctly.
+ */
+int css_driver_register(struct css_driver *cdrv)
+{
+	cdrv->drv.name = cdrv->name;
+	cdrv->drv.bus = &css_bus_type;
+	return driver_register(&cdrv->drv);
+}
+EXPORT_SYMBOL_GPL(css_driver_register);
+
+/**
+ * css_driver_unregister - unregister a css driver
+ * @cdrv: css driver to unregister
+ *
+ * This is a wrapper around driver_unregister.
+ */
+void css_driver_unregister(struct css_driver *cdrv)
+{
+	driver_unregister(&cdrv->drv);
+}
+EXPORT_SYMBOL_GPL(css_driver_unregister);
+
 subsys_initcall(init_channel_subsystem);
 
 MODULE_LICENSE("GPL");

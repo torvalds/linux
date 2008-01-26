@@ -125,10 +125,7 @@ static void io_subchannel_shutdown(struct subchannel *);
 
 static struct css_driver io_subchannel_driver = {
 	.subchannel_type = SUBCHANNEL_TYPE_IO,
-	.drv = {
-		.name = "io_subchannel",
-		.bus  = &css_bus_type,
-	},
+	.name = "io_subchannel",
 	.irq = io_subchannel_irq,
 	.notify = io_subchannel_notify,
 	.verify = io_subchannel_verify,
@@ -167,7 +164,8 @@ init_ccw_bus_type (void)
 	if ((ret = bus_register (&ccw_bus_type)))
 		goto out_err;
 
-	if ((ret = driver_register(&io_subchannel_driver.drv)))
+	ret = css_driver_register(&io_subchannel_driver);
+	if (ret)
 		goto out_err;
 
 	wait_event(ccw_device_init_wq,
@@ -187,7 +185,7 @@ out_err:
 static void __exit
 cleanup_ccw_bus_type (void)
 {
-	driver_unregister(&io_subchannel_driver.drv);
+	css_driver_unregister(&io_subchannel_driver);
 	bus_unregister(&ccw_bus_type);
 	destroy_workqueue(ccw_device_notify_work);
 	destroy_workqueue(ccw_device_work);
