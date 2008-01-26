@@ -577,8 +577,11 @@ cio_validate_subchannel (struct subchannel *sch, struct subchannel_id schid)
 	}
 
 	/* Initialization for io subchannels. */
-	if (!css_sch_is_valid(&sch->schib))
-		return -ENODEV;
+	if (!css_sch_is_valid(&sch->schib)) {
+		err = -ENODEV;
+		goto out;
+	}
+
 	/* Devno is valid. */
 	if (is_blacklisted (sch->schid.ssid, sch->schib.pmcw.dev)) {
 		/*
