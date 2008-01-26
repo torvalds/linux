@@ -198,8 +198,7 @@ struct iucv_connection {
 /**
  * Linked list of all connection structs.
  */
-static struct list_head iucv_connection_list =
-	LIST_HEAD_INIT(iucv_connection_list);
+static LIST_HEAD(iucv_connection_list);
 static DEFINE_RWLOCK(iucv_connection_rwlock);
 
 /**

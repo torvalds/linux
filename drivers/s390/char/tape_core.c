@@ -37,7 +37,7 @@ static void tape_long_busy_timeout(unsigned long data);
  * we can assign the devices to minor numbers of the same major
  * The list is protected by the rwlock
  */
-static struct list_head tape_device_list = LIST_HEAD_INIT(tape_device_list);
+static LIST_HEAD(tape_device_list);
 static DEFINE_RWLOCK(tape_device_lock);
 
 /*
