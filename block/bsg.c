@@ -445,6 +445,15 @@ static int blk_complete_sgv4_hdr_rq(struct request *rq, struct sg_io_v4 *hdr,
 	else
 		hdr->dout_resid = rq->data_len;
 
+	/*
+	 * If the request generated a negative error number, return it
+	 * (providing we aren't already returning an error); if it's
+	 * just a protocol response (i.e. non negative), that gets
+	 * processed above.
+	 */
+	if (!ret && rq->errors < 0)
+		ret = rq->errors;
+
 	blk_rq_unmap_user(bio);
 	blk_put_request(rq);
 
@@ -837,6 +846,7 @@ static long bsg_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct bsg_device *bd = file->private_data;
 	int __user *uarg = (int __user *) arg;
+	int ret;
 
 	switch (cmd) {
 		/*
@@ -889,12 +899,12 @@ static long bsg_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (rq->next_rq)
 			bidi_bio = rq->next_rq->bio;
 		blk_execute_rq(bd->queue, NULL, rq, 0);
-		blk_complete_sgv4_hdr_rq(rq, &hdr, bio, bidi_bio);
+		ret = blk_complete_sgv4_hdr_rq(rq, &hdr, bio, bidi_bio);
 
 		if (copy_to_user(uarg, &hdr, sizeof(hdr)))
 			return -EFAULT;
 
-		return 0;
+		return ret;
 	}
 	/*
 	 * block device ioctls

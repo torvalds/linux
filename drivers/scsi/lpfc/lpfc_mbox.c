@@ -82,6 +82,24 @@ lpfc_read_nv(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 }
 
 /**********************************************/
+/*  lpfc_config_async  Issue a                */
+/*  MBX_ASYNC_EVT_ENABLE mailbox command      */
+/**********************************************/
+void
+lpfc_config_async(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb,
+		uint32_t ring)
+{
+	MAILBOX_t *mb;
+
+	mb = &pmb->mb;
+	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
+	mb->mbxCommand = MBX_ASYNCEVT_ENABLE;
+	mb->un.varCfgAsyncEvent.ring = ring;
+	mb->mbxOwner = OWN_HOST;
+	return;
+}
+
+/**********************************************/
 /*  lpfc_heart_beat  Issue a HEART_BEAT       */
 /*                mailbox command             */
 /**********************************************/
@@ -270,8 +288,10 @@ lpfc_read_sparam(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb, int vpi)
 
 	/* Get a buffer to hold the HBAs Service Parameters */
 
-	if (((mp = kmalloc(sizeof (struct lpfc_dmabuf), GFP_KERNEL)) == 0) ||
-	    ((mp->virt = lpfc_mbuf_alloc(phba, 0, &(mp->phys))) == 0)) {
+	mp = kmalloc(sizeof (struct lpfc_dmabuf), GFP_KERNEL);
+	if (mp)
+		mp->virt = lpfc_mbuf_alloc(phba, 0, &mp->phys);
+	if (!mp || !mp->virt) {
 		kfree(mp);
 		mb->mbxCommand = MBX_READ_SPARM64;
 		/* READ_SPARAM: no buffers */
@@ -369,8 +389,10 @@ lpfc_reg_login(struct lpfc_hba *phba, uint16_t vpi, uint32_t did,
 	mb->mbxOwner = OWN_HOST;
 
 	/* Get a buffer to hold NPorts Service Parameters */
-	if (((mp = kmalloc(sizeof (struct lpfc_dmabuf), GFP_KERNEL)) == NULL) ||
-	    ((mp->virt = lpfc_mbuf_alloc(phba, 0, &(mp->phys))) == 0)) {
+	mp = kmalloc(sizeof (struct lpfc_dmabuf), GFP_KERNEL);
+	if (mp)
+		mp->virt = lpfc_mbuf_alloc(phba, 0, &mp->phys);
+	if (!mp || !mp->virt) {
 		kfree(mp);
 		mb->mbxCommand = MBX_REG_LOGIN64;
 		/* REG_LOGIN: no buffers */
@@ -874,7 +896,7 @@ lpfc_mbox_tmo_val(struct lpfc_hba *phba, int cmd)
 	case MBX_DOWN_LOAD:	/* 0x1C */
 	case MBX_DEL_LD_ENTRY:	/* 0x1D */
 	case MBX_LOAD_AREA:	/* 0x81 */
-	case MBX_FLASH_WR_ULA:  /* 0x98 */
+	case MBX_WRITE_WWN:     /* 0x98 */
 	case MBX_LOAD_EXP_ROM:	/* 0x9C */
 		return LPFC_MBOX_TMO_FLASH_CMD;
 	}

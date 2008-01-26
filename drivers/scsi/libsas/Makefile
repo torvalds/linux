@@ -33,5 +33,7 @@ libsas-y +=  sas_init.o     \
 		sas_dump.o     \
 		sas_discover.o \
 		sas_expander.o \
-		sas_scsi_host.o
+		sas_scsi_host.o \
+		sas_task.o
 libsas-$(CONFIG_SCSI_SAS_ATA) +=	sas_ata.o
+libsas-$(CONFIG_SCSI_SAS_HOST_SMP) +=	sas_host_smp.o

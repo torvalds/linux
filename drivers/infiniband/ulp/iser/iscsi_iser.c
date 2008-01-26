@@ -129,7 +129,7 @@ error:
  * iscsi_iser_cmd_init - Initialize iSCSI SCSI_READ or SCSI_WRITE commands
  *
  **/
-static void
+static int
 iscsi_iser_cmd_init(struct iscsi_cmd_task *ctask)
 {
 	struct iscsi_iser_conn     *iser_conn  = ctask->conn->dd_data;
@@ -138,6 +138,7 @@ iscsi_iser_cmd_init(struct iscsi_cmd_task *ctask)
 	iser_ctask->command_sent = 0;
 	iser_ctask->iser_conn    = iser_conn;
 	iser_ctask_rdma_init(iser_ctask);
+	return 0;
 }
 
 /**
@@ -219,12 +220,6 @@ iscsi_iser_ctask_xmit(struct iscsi_conn *conn,
 
 	debug_scsi("ctask deq [cid %d itt 0x%x]\n",
 		   conn->id, ctask->itt);
-
-	/*
-	 * serialize with TMF AbortTask
-	 */
-	if (ctask->mtask)
-		return error;
 
 	/* Send the cmd PDU */
 	if (!iser_ctask->command_sent) {
@@ -406,6 +401,7 @@ iscsi_iser_session_create(struct iscsi_transport *iscsit,
 		ctask      = session->cmds[i];
 		iser_ctask = ctask->dd_data;
 		ctask->hdr = (struct iscsi_cmd *)&iser_ctask->desc.iscsi_header;
+		ctask->hdr_max = sizeof(iser_ctask->desc.iscsi_header);
 	}
 
 	for (i = 0; i < session->mgmtpool_max; i++) {
@@ -557,6 +553,7 @@ static struct scsi_host_template iscsi_iser_sht = {
 	.max_sectors		= 1024,
 	.cmd_per_lun            = ISCSI_MAX_CMD_PER_LUN,
 	.eh_abort_handler       = iscsi_eh_abort,
+	.eh_device_reset_handler= iscsi_eh_device_reset,
 	.eh_host_reset_handler	= iscsi_eh_host_reset,
 	.use_clustering         = DISABLE_CLUSTERING,
 	.proc_name              = "iscsi_iser",
@@ -583,7 +580,9 @@ static struct iscsi_transport iscsi_iser_transport = {
 				  ISCSI_PERSISTENT_ADDRESS |
 				  ISCSI_TARGET_NAME | ISCSI_TPGT |
 				  ISCSI_USERNAME | ISCSI_PASSWORD |
-				  ISCSI_USERNAME_IN | ISCSI_PASSWORD_IN,
+				  ISCSI_USERNAME_IN | ISCSI_PASSWORD_IN |
+				  ISCSI_FAST_ABORT | ISCSI_ABORT_TMO |
+				  ISCSI_PING_TMO | ISCSI_RECV_TMO,
 	.host_param_mask	= ISCSI_HOST_HWADDRESS |
 				  ISCSI_HOST_NETDEV_NAME |
 				  ISCSI_HOST_INITIATOR_NAME,

@@ -159,27 +159,27 @@ static struct pci_device_id aac_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, aac_pci_tbl);
 
 /*
- * dmb - For now we add the number of channels to this structure.  
+ * dmb - For now we add the number of channels to this structure.
  * In the future we should add a fib that reports the number of channels
  * for the card.  At that time we can remove the channels from here
  */
 static struct aac_driver_ident aac_drivers[] = {
-	{ aac_rx_init, "percraid", "DELL    ", "PERCRAID        ", 2, AAC_QUIRK_31BIT | AAC_QUIRK_34SG }, /* PERC 2/Si (Iguana/PERC2Si) */
-	{ aac_rx_init, "percraid", "DELL    ", "PERCRAID        ", 2, AAC_QUIRK_31BIT | AAC_QUIRK_34SG }, /* PERC 3/Di (Opal/PERC3Di) */
-	{ aac_rx_init, "percraid", "DELL    ", "PERCRAID        ", 2, AAC_QUIRK_31BIT | AAC_QUIRK_34SG }, /* PERC 3/Si (SlimFast/PERC3Si */
-	{ aac_rx_init, "percraid", "DELL    ", "PERCRAID        ", 2, AAC_QUIRK_31BIT | AAC_QUIRK_34SG }, /* PERC 3/Di (Iguana FlipChip/PERC3DiF */
-	{ aac_rx_init, "percraid", "DELL    ", "PERCRAID        ", 2, AAC_QUIRK_31BIT | AAC_QUIRK_34SG }, /* PERC 3/Di (Viper/PERC3DiV) */
-	{ aac_rx_init, "percraid", "DELL    ", "PERCRAID        ", 2, AAC_QUIRK_31BIT | AAC_QUIRK_34SG }, /* PERC 3/Di (Lexus/PERC3DiL) */
-	{ aac_rx_init, "percraid", "DELL    ", "PERCRAID        ", 1, AAC_QUIRK_31BIT | AAC_QUIRK_34SG }, /* PERC 3/Di (Jaguar/PERC3DiJ) */
-	{ aac_rx_init, "percraid", "DELL    ", "PERCRAID        ", 2, AAC_QUIRK_31BIT | AAC_QUIRK_34SG }, /* PERC 3/Di (Dagger/PERC3DiD) */
-	{ aac_rx_init, "percraid", "DELL    ", "PERCRAID        ", 2, AAC_QUIRK_31BIT | AAC_QUIRK_34SG }, /* PERC 3/Di (Boxster/PERC3DiB) */
-	{ aac_rx_init, "aacraid",  "ADAPTEC ", "catapult        ", 2, AAC_QUIRK_31BIT | AAC_QUIRK_34SG }, /* catapult */
-	{ aac_rx_init, "aacraid",  "ADAPTEC ", "tomcat          ", 2, AAC_QUIRK_31BIT | AAC_QUIRK_34SG }, /* tomcat */
-	{ aac_rx_init, "aacraid",  "ADAPTEC ", "Adaptec 2120S   ", 1, AAC_QUIRK_31BIT | AAC_QUIRK_34SG }, /* Adaptec 2120S (Crusader) */
-	{ aac_rx_init, "aacraid",  "ADAPTEC ", "Adaptec 2200S   ", 2, AAC_QUIRK_31BIT | AAC_QUIRK_34SG }, /* Adaptec 2200S (Vulcan) */
-	{ aac_rx_init, "aacraid",  "ADAPTEC ", "Adaptec 2200S   ", 2, AAC_QUIRK_31BIT | AAC_QUIRK_34SG }, /* Adaptec 2200S (Vulcan-2m) */
-	{ aac_rx_init, "aacraid",  "Legend  ", "Legend S220     ", 1, AAC_QUIRK_31BIT | AAC_QUIRK_34SG }, /* Legend S220 (Legend Crusader) */
-	{ aac_rx_init, "aacraid",  "Legend  ", "Legend S230     ", 2, AAC_QUIRK_31BIT | AAC_QUIRK_34SG }, /* Legend S230 (Legend Vulcan) */
+	{ aac_rx_init, "percraid", "DELL    ", "PERCRAID        ", 2, AAC_QUIRK_31BIT | AAC_QUIRK_34SG | AAC_QUIRK_SCSI_32 }, /* PERC 2/Si (Iguana/PERC2Si) */
+	{ aac_rx_init, "percraid", "DELL    ", "PERCRAID        ", 2, AAC_QUIRK_31BIT | AAC_QUIRK_34SG | AAC_QUIRK_SCSI_32 }, /* PERC 3/Di (Opal/PERC3Di) */
+	{ aac_rx_init, "percraid", "DELL    ", "PERCRAID        ", 2, AAC_QUIRK_31BIT | AAC_QUIRK_34SG | AAC_QUIRK_SCSI_32 }, /* PERC 3/Si (SlimFast/PERC3Si */
+	{ aac_rx_init, "percraid", "DELL    ", "PERCRAID        ", 2, AAC_QUIRK_31BIT | AAC_QUIRK_34SG | AAC_QUIRK_SCSI_32 }, /* PERC 3/Di (Iguana FlipChip/PERC3DiF */
+	{ aac_rx_init, "percraid", "DELL    ", "PERCRAID        ", 2, AAC_QUIRK_31BIT | AAC_QUIRK_34SG | AAC_QUIRK_SCSI_32 }, /* PERC 3/Di (Viper/PERC3DiV) */
+	{ aac_rx_init, "percraid", "DELL    ", "PERCRAID        ", 2, AAC_QUIRK_31BIT | AAC_QUIRK_34SG | AAC_QUIRK_SCSI_32 }, /* PERC 3/Di (Lexus/PERC3DiL) */
+	{ aac_rx_init, "percraid", "DELL    ", "PERCRAID        ", 1, AAC_QUIRK_31BIT | AAC_QUIRK_34SG | AAC_QUIRK_SCSI_32 }, /* PERC 3/Di (Jaguar/PERC3DiJ) */
+	{ aac_rx_init, "percraid", "DELL    ", "PERCRAID        ", 2, AAC_QUIRK_31BIT | AAC_QUIRK_34SG | AAC_QUIRK_SCSI_32 }, /* PERC 3/Di (Dagger/PERC3DiD) */
+	{ aac_rx_init, "percraid", "DELL    ", "PERCRAID        ", 2, AAC_QUIRK_31BIT | AAC_QUIRK_34SG | AAC_QUIRK_SCSI_32 }, /* PERC 3/Di (Boxster/PERC3DiB) */
+	{ aac_rx_init, "aacraid",  "ADAPTEC ", "catapult        ", 2, AAC_QUIRK_31BIT | AAC_QUIRK_34SG | AAC_QUIRK_SCSI_32 }, /* catapult */
+	{ aac_rx_init, "aacraid",  "ADAPTEC ", "tomcat          ", 2, AAC_QUIRK_31BIT | AAC_QUIRK_34SG | AAC_QUIRK_SCSI_32 }, /* tomcat */
+	{ aac_rx_init, "aacraid",  "ADAPTEC ", "Adaptec 2120S   ", 1, AAC_QUIRK_31BIT | AAC_QUIRK_34SG | AAC_QUIRK_SCSI_32 }, /* Adaptec 2120S (Crusader) */
+	{ aac_rx_init, "aacraid",  "ADAPTEC ", "Adaptec 2200S   ", 2, AAC_QUIRK_31BIT | AAC_QUIRK_34SG | AAC_QUIRK_SCSI_32 }, /* Adaptec 2200S (Vulcan) */
+	{ aac_rx_init, "aacraid",  "ADAPTEC ", "Adaptec 2200S   ", 2, AAC_QUIRK_31BIT | AAC_QUIRK_34SG | AAC_QUIRK_SCSI_32 }, /* Adaptec 2200S (Vulcan-2m) */
+	{ aac_rx_init, "aacraid",  "Legend  ", "Legend S220     ", 1, AAC_QUIRK_31BIT | AAC_QUIRK_34SG | AAC_QUIRK_SCSI_32 }, /* Legend S220 (Legend Crusader) */
+	{ aac_rx_init, "aacraid",  "Legend  ", "Legend S230     ", 2, AAC_QUIRK_31BIT | AAC_QUIRK_34SG | AAC_QUIRK_SCSI_32 }, /* Legend S230 (Legend Vulcan) */
 
 	{ aac_rx_init, "aacraid",  "ADAPTEC ", "Adaptec 3230S   ", 2 }, /* Adaptec 3230S (Harrier) */
 	{ aac_rx_init, "aacraid",  "ADAPTEC ", "Adaptec 3240S   ", 2 }, /* Adaptec 3240S (Tornado) */
@@ -224,8 +224,8 @@ static struct aac_driver_ident aac_drivers[] = {
 	{ aac_sa_init, "percraid", "DELL    ", "PERCRAID        ", 4, AAC_QUIRK_34SG }, /* Dell PERC2/QC */
 	{ aac_sa_init, "hpnraid",  "HP      ", "NetRAID         ", 4, AAC_QUIRK_34SG }, /* HP NetRAID-4M */
 
-	{ aac_rx_init, "aacraid",  "DELL    ", "RAID            ", 2, AAC_QUIRK_31BIT | AAC_QUIRK_34SG }, /* Dell Catchall */
-	{ aac_rx_init, "aacraid",  "Legend  ", "RAID            ", 2, AAC_QUIRK_31BIT | AAC_QUIRK_34SG }, /* Legend Catchall */
+	{ aac_rx_init, "aacraid",  "DELL    ", "RAID            ", 2, AAC_QUIRK_31BIT | AAC_QUIRK_34SG | AAC_QUIRK_SCSI_32 }, /* Dell Catchall */
+	{ aac_rx_init, "aacraid",  "Legend  ", "RAID            ", 2, AAC_QUIRK_31BIT | AAC_QUIRK_34SG | AAC_QUIRK_SCSI_32 }, /* Legend Catchall */
 	{ aac_rx_init, "aacraid",  "ADAPTEC ", "RAID            ", 2 }, /* Adaptec Catch All */
 	{ aac_rkt_init, "aacraid", "ADAPTEC ", "RAID            ", 2 }, /* Adaptec Rocket Catch All */
 	{ aac_nark_init, "aacraid", "ADAPTEC ", "RAID            ", 2 } /* Adaptec NEMER/ARK Catch All */
@@ -239,7 +239,7 @@ static struct aac_driver_ident aac_drivers[] = {
  *	Queues a command for execution by the associated Host Adapter.
  *
  *	TODO: unify with aac_scsi_cmd().
- */ 
+ */
 
 static int aac_queuecommand(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 {
@@ -258,7 +258,7 @@ static int aac_queuecommand(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd
 	}
 	cmd->SCp.phase = AAC_OWNER_LOWLEVEL;
 	return (aac_scsi_cmd(cmd) ? FAILED : 0);
-} 
+}
 
 /**
  *	aac_info		-	Returns the host adapter name
@@ -292,21 +292,21 @@ struct aac_driver_ident* aac_get_driver_ident(int devtype)
  *	@capacity: the sector capacity of the disk
  *	@geom: geometry block to fill in
  *
- *	Return the Heads/Sectors/Cylinders BIOS Disk Parameters for Disk.  
- *	The default disk geometry is 64 heads, 32 sectors, and the appropriate 
- *	number of cylinders so as not to exceed drive capacity.  In order for 
+ *	Return the Heads/Sectors/Cylinders BIOS Disk Parameters for Disk.
+ *	The default disk geometry is 64 heads, 32 sectors, and the appropriate
+ *	number of cylinders so as not to exceed drive capacity.  In order for
  *	disks equal to or larger than 1 GB to be addressable by the BIOS
- *	without exceeding the BIOS limitation of 1024 cylinders, Extended 
- *	Translation should be enabled.   With Extended Translation enabled, 
- *	drives between 1 GB inclusive and 2 GB exclusive are given a disk 
- *	geometry of 128 heads and 32 sectors, and drives above 2 GB inclusive 
- *	are given a disk geometry of 255 heads and 63 sectors.  However, if 
- *	the BIOS detects that the Extended Translation setting does not match 
- *	the geometry in the partition table, then the translation inferred 
- *	from the partition table will be used by the BIOS, and a warning may 
+ *	without exceeding the BIOS limitation of 1024 cylinders, Extended
+ *	Translation should be enabled.   With Extended Translation enabled,
+ *	drives between 1 GB inclusive and 2 GB exclusive are given a disk
+ *	geometry of 128 heads and 32 sectors, and drives above 2 GB inclusive
+ *	are given a disk geometry of 255 heads and 63 sectors.  However, if
+ *	the BIOS detects that the Extended Translation setting does not match
+ *	the geometry in the partition table, then the translation inferred
+ *	from the partition table will be used by the BIOS, and a warning may
  *	be displayed.
  */
- 
+
 static int aac_biosparm(struct scsi_device *sdev, struct block_device *bdev,
 			sector_t capacity, int *geom)
 {
@@ -333,10 +333,10 @@ static int aac_biosparm(struct scsi_device *sdev, struct block_device *bdev,
 
 	param->cylinders = cap_to_cyls(capacity, param->heads * param->sectors);
 
-	/* 
+	/*
 	 *	Read the first 1024 bytes from the disk device, if the boot
 	 *	sector partition table is valid, search for a partition table
-	 *	entry whose end_head matches one of the standard geometry 
+	 *	entry whose end_head matches one of the standard geometry
 	 *	translations ( 64/32, 128/32, 255/63 ).
 	 */
 	buf = scsi_bios_ptable(bdev);
@@ -401,30 +401,44 @@ static int aac_biosparm(struct scsi_device *sdev, struct block_device *bdev,
 
 static int aac_slave_configure(struct scsi_device *sdev)
 {
+	struct aac_dev *aac = (struct aac_dev *)sdev->host->hostdata;
 	if ((sdev->type == TYPE_DISK) &&
-			(sdev_channel(sdev) != CONTAINER_CHANNEL)) {
+			(sdev_channel(sdev) != CONTAINER_CHANNEL) &&
+			(!aac->jbod || sdev->inq_periph_qual) &&
+			(!aac->raid_scsi_mode || (sdev_channel(sdev) != 2))) {
 		if (expose_physicals == 0)
 			return -ENXIO;
-		if (expose_physicals < 0) {
-			struct aac_dev *aac =
-				(struct aac_dev *)sdev->host->hostdata;
-			if (!aac->raid_scsi_mode || (sdev_channel(sdev) != 2))
-				sdev->no_uld_attach = 1;
-		}
+		if (expose_physicals < 0)
+			sdev->no_uld_attach = 1;
 	}
 	if (sdev->tagged_supported && (sdev->type == TYPE_DISK) &&
-			(sdev_channel(sdev) == CONTAINER_CHANNEL)) {
+			(!aac->raid_scsi_mode || (sdev_channel(sdev) != 2)) &&
+			!sdev->no_uld_attach) {
 		struct scsi_device * dev;
 		struct Scsi_Host *host = sdev->host;
 		unsigned num_lsu = 0;
 		unsigned num_one = 0;
 		unsigned depth;
+		unsigned cid;
 
+		/*
+		 * Firmware has an individual device recovery time typically
+		 * of 35 seconds, give us a margin.
+		 */
+		if (sdev->timeout < (45 * HZ))
+			sdev->timeout = 45 * HZ;
+		for (cid = 0; cid < aac->maximum_num_containers; ++cid)
+			if (aac->fsa_dev[cid].valid)
+				++num_lsu;
 		__shost_for_each_device(dev, host) {
 			if (dev->tagged_supported && (dev->type == TYPE_DISK) &&
-				(sdev_channel(dev) == CONTAINER_CHANNEL))
-				++num_lsu;
-			else
+					(!aac->raid_scsi_mode ||
+						(sdev_channel(sdev) != 2)) &&
+					!dev->no_uld_attach) {
+				if ((sdev_channel(dev) != CONTAINER_CHANNEL)
+				 || !aac->fsa_dev[sdev_id(dev)].valid)
+					++num_lsu;
+			} else
 				++num_one;
 		}
 		if (num_lsu == 0)
@@ -481,9 +495,35 @@ static int aac_change_queue_depth(struct scsi_device *sdev, int depth)
 	return sdev->queue_depth;
 }
 
+static ssize_t aac_show_raid_level(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct scsi_device * sdev = to_scsi_device(dev);
+	if (sdev_channel(sdev) != CONTAINER_CHANNEL)
+		return snprintf(buf, PAGE_SIZE, sdev->no_uld_attach
+		  ? "Hidden\n" : "JBOD");
+	return snprintf(buf, PAGE_SIZE, "%s\n",
+	  get_container_type(((struct aac_dev *)(sdev->host->hostdata))
+	    ->fsa_dev[sdev_id(sdev)].type));
+}
+
+static struct device_attribute aac_raid_level_attr = {
+	.attr = {
+		.name = "level",
+		.mode = S_IRUGO,
+	},
+	.show = aac_show_raid_level
+};
+
+static struct device_attribute *aac_dev_attrs[] = {
+	&aac_raid_level_attr,
+	NULL,
+};
+
 static int aac_ioctl(struct scsi_device *sdev, int cmd, void __user * arg)
 {
 	struct aac_dev *dev = (struct aac_dev *)sdev->host->hostdata;
+	if (!capable(CAP_SYS_RAWIO))
+		return -EPERM;
 	return aac_do_ioctl(dev, cmd, arg);
 }
 
@@ -506,15 +546,31 @@ static int aac_eh_abort(struct scsi_cmnd* cmd)
 			break;
 	case INQUIRY:
 	case READ_CAPACITY:
-	case TEST_UNIT_READY:
 		/* Mark associated FIB to not complete, eh handler does this */
 		for (count = 0; count < (host->can_queue + AAC_NUM_MGT_FIB); ++count) {
 			struct fib * fib = &aac->fibs[count];
 			if (fib->hw_fib_va->header.XferState &&
+			  (fib->flags & FIB_CONTEXT_FLAG) &&
 			  (fib->callback_data == cmd)) {
 				fib->flags |= FIB_CONTEXT_FLAG_TIMED_OUT;
 				cmd->SCp.phase = AAC_OWNER_ERROR_HANDLER;
 				ret = SUCCESS;
+			}
+		}
+		break;
+	case TEST_UNIT_READY:
+		/* Mark associated FIB to not complete, eh handler does this */
+		for (count = 0; count < (host->can_queue + AAC_NUM_MGT_FIB); ++count) {
+			struct scsi_cmnd * command;
+			struct fib * fib = &aac->fibs[count];
+			if ((fib->hw_fib_va->header.XferState & cpu_to_le32(Async | NoResponseExpected)) &&
+			  (fib->flags & FIB_CONTEXT_FLAG) &&
+			  ((command = fib->callback_data)) &&
+			  (command->device == cmd->device)) {
+				fib->flags |= FIB_CONTEXT_FLAG_TIMED_OUT;
+				command->SCp.phase = AAC_OWNER_ERROR_HANDLER;
+				if (command == cmd)
+					ret = SUCCESS;
 			}
 		}
 	}
@@ -539,12 +595,13 @@ static int aac_eh_reset(struct scsi_cmnd* cmd)
 	for (count = 0; count < (host->can_queue + AAC_NUM_MGT_FIB); ++count) {
 		struct fib * fib = &aac->fibs[count];
 		if (fib->hw_fib_va->header.XferState &&
+		  (fib->flags & FIB_CONTEXT_FLAG) &&
 		  (fib->callback_data == cmd)) {
 			fib->flags |= FIB_CONTEXT_FLAG_TIMED_OUT;
 			cmd->SCp.phase = AAC_OWNER_ERROR_HANDLER;
 		}
 	}
-	printk(KERN_ERR "%s: Host adapter reset request. SCSI hang ?\n", 
+	printk(KERN_ERR "%s: Host adapter reset request. SCSI hang ?\n",
 					AAC_DRIVERNAME);
 
 	if ((count = aac_check_health(aac)))
@@ -584,8 +641,11 @@ static int aac_eh_reset(struct scsi_cmnd* cmd)
 	 * support a register, instead of a commanded, reset.
 	 */
 	if ((aac->supplement_adapter_info.SupportedOptions2 &
-	  le32_to_cpu(AAC_OPTION_MU_RESET|AAC_OPTION_IGNORE_RESET)) ==
-	  le32_to_cpu(AAC_OPTION_MU_RESET))
+	   AAC_OPTION_MU_RESET) &&
+	  aac_check_reset &&
+	  ((aac_check_reset != 1) ||
+	   (aac->supplement_adapter_info.SupportedOptions2 &
+	    AAC_OPTION_IGNORE_RESET)))
 		aac_reset_adapter(aac, 2); /* Bypass wait for command quiesce */
 	return SUCCESS; /* Cause an immediate retry of the command with a ten second delay after successful tur */
 }
@@ -632,8 +692,8 @@ static int aac_cfg_open(struct inode *inode, struct file *file)
  *	Bugs: Needs locking against parallel ioctls lower down
  *	Bugs: Needs to handle hot plugging
  */
- 
-static int aac_cfg_ioctl(struct inode *inode,  struct file *file,
+
+static int aac_cfg_ioctl(struct inode *inode, struct file *file,
 		unsigned int cmd, unsigned long arg)
 {
 	if (!capable(CAP_SYS_RAWIO))
@@ -646,7 +706,7 @@ static long aac_compat_do_ioctl(struct aac_dev *dev, unsigned cmd, unsigned long
 {
 	long ret;
 	lock_kernel();
-	switch (cmd) { 
+	switch (cmd) {
 	case FSACTL_MINIPORT_REV_CHECK:
 	case FSACTL_SENDFIB:
 	case FSACTL_OPEN_GET_ADAPTER_FIB:
@@ -656,14 +716,14 @@ static long aac_compat_do_ioctl(struct aac_dev *dev, unsigned cmd, unsigned long
 	case FSACTL_QUERY_DISK:
 	case FSACTL_DELETE_DISK:
 	case FSACTL_FORCE_DELETE_DISK:
-	case FSACTL_GET_CONTAINERS: 
+	case FSACTL_GET_CONTAINERS:
 	case FSACTL_SEND_LARGE_FIB:
 		ret = aac_do_ioctl(dev, cmd, (void __user *)arg);
 		break;
 
 	case FSACTL_GET_NEXT_ADAPTER_FIB: {
 		struct fib_ioctl __user *f;
-		
+
 		f = compat_alloc_user_space(sizeof(*f));
 		ret = 0;
 		if (clear_user(f, sizeof(*f)))
@@ -676,9 +736,9 @@ static long aac_compat_do_ioctl(struct aac_dev *dev, unsigned cmd, unsigned long
 	}
 
 	default:
-		ret = -ENOIOCTLCMD; 
+		ret = -ENOIOCTLCMD;
 		break;
-	} 
+	}
 	unlock_kernel();
 	return ret;
 }
@@ -735,6 +795,25 @@ static ssize_t aac_show_vendor(struct class_device *class_dev,
 	return len;
 }
 
+static ssize_t aac_show_flags(struct class_device *class_dev, char *buf)
+{
+	int len = 0;
+	struct aac_dev *dev = (struct aac_dev*)class_to_shost(class_dev)->hostdata;
+
+	if (nblank(dprintk(x)))
+		len = snprintf(buf, PAGE_SIZE, "dprintk\n");
+#ifdef AAC_DETAILED_STATUS_INFO
+	len += snprintf(buf + len, PAGE_SIZE - len,
+			"AAC_DETAILED_STATUS_INFO\n");
+#endif
+	if (dev->raw_io_interface && dev->raw_io_64)
+		len += snprintf(buf + len, PAGE_SIZE - len,
+				"SAI_READ_CAPACITY_16\n");
+	if (dev->jbod)
+		len += snprintf(buf + len, PAGE_SIZE - len, "SUPPORTED_JBOD\n");
+	return len;
+}
+
 static ssize_t aac_show_kernel_version(struct class_device *class_dev,
 		char *buf)
 {
@@ -742,7 +821,7 @@ static ssize_t aac_show_kernel_version(struct class_device *class_dev,
 	int len, tmp;
 
 	tmp = le32_to_cpu(dev->adapter_info.kernelrev);
-	len = snprintf(buf, PAGE_SIZE, "%d.%d-%d[%d]\n", 
+	len = snprintf(buf, PAGE_SIZE, "%d.%d-%d[%d]\n",
 	  tmp >> 24, (tmp >> 16) & 0xff, tmp & 0xff,
 	  le32_to_cpu(dev->adapter_info.kernelbuild));
 	return len;
@@ -755,7 +834,7 @@ static ssize_t aac_show_monitor_version(struct class_device *class_dev,
 	int len, tmp;
 
 	tmp = le32_to_cpu(dev->adapter_info.monitorrev);
-	len = snprintf(buf, PAGE_SIZE, "%d.%d-%d[%d]\n", 
+	len = snprintf(buf, PAGE_SIZE, "%d.%d-%d[%d]\n",
 	  tmp >> 24, (tmp >> 16) & 0xff, tmp & 0xff,
 	  le32_to_cpu(dev->adapter_info.monitorbuild));
 	return len;
@@ -768,7 +847,7 @@ static ssize_t aac_show_bios_version(struct class_device *class_dev,
 	int len, tmp;
 
 	tmp = le32_to_cpu(dev->adapter_info.biosrev);
-	len = snprintf(buf, PAGE_SIZE, "%d.%d-%d[%d]\n", 
+	len = snprintf(buf, PAGE_SIZE, "%d.%d-%d[%d]\n",
 	  tmp >> 24, (tmp >> 16) & 0xff, tmp & 0xff,
 	  le32_to_cpu(dev->adapter_info.biosbuild));
 	return len;
@@ -844,6 +923,13 @@ static struct class_device_attribute aac_vendor = {
 	},
 	.show = aac_show_vendor,
 };
+static struct class_device_attribute aac_flags = {
+	.attr = {
+		.name = "flags",
+		.mode = S_IRUGO,
+	},
+	.show = aac_show_flags,
+};
 static struct class_device_attribute aac_kernel_version = {
 	.attr = {
 		.name = "hba_kernel_version",
@@ -898,6 +984,7 @@ static struct class_device_attribute aac_reset = {
 static struct class_device_attribute *aac_attrs[] = {
 	&aac_model,
 	&aac_vendor,
+	&aac_flags,
 	&aac_kernel_version,
 	&aac_monitor_version,
 	&aac_bios_version,
@@ -928,21 +1015,22 @@ static struct scsi_host_template aac_driver_template = {
 	.compat_ioctl			= aac_compat_ioctl,
 #endif
 	.queuecommand   		= aac_queuecommand,
-	.bios_param     		= aac_biosparm,	
+	.bios_param     		= aac_biosparm,
 	.shost_attrs			= aac_attrs,
 	.slave_configure		= aac_slave_configure,
 	.change_queue_depth		= aac_change_queue_depth,
+	.sdev_attrs			= aac_dev_attrs,
 	.eh_abort_handler		= aac_eh_abort,
 	.eh_host_reset_handler		= aac_eh_reset,
-	.can_queue      		= AAC_NUM_IO_FIB,	
+	.can_queue      		= AAC_NUM_IO_FIB,
 	.this_id        		= MAXIMUM_NUM_CONTAINERS,
 	.sg_tablesize   		= 16,
 	.max_sectors    		= 128,
 #if (AAC_NUM_IO_FIB > 256)
 	.cmd_per_lun			= 256,
-#else		
-	.cmd_per_lun    		= AAC_NUM_IO_FIB, 
-#endif	
+#else
+	.cmd_per_lun    		= AAC_NUM_IO_FIB,
+#endif
 	.use_clustering			= ENABLE_CLUSTERING,
 	.use_sg_chaining		= ENABLE_SG_CHAINING,
 	.emulated                       = 1,
@@ -979,18 +1067,18 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 		goto out;
 	error = -ENODEV;
 
-	if (pci_set_dma_mask(pdev, DMA_32BIT_MASK) || 
+	if (pci_set_dma_mask(pdev, DMA_32BIT_MASK) ||
 			pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK))
 		goto out_disable_pdev;
 	/*
 	 * If the quirk31 bit is set, the adapter needs adapter
 	 * to driver communication memory to be allocated below 2gig
 	 */
-	if (aac_drivers[index].quirks & AAC_QUIRK_31BIT) 
+	if (aac_drivers[index].quirks & AAC_QUIRK_31BIT)
 		if (pci_set_dma_mask(pdev, DMA_31BIT_MASK) ||
 				pci_set_consistent_dma_mask(pdev, DMA_31BIT_MASK))
 			goto out_disable_pdev;
-	
+
 	pci_set_master(pdev);
 
 	shost = scsi_host_alloc(&aac_driver_template, sizeof(struct aac_dev));
@@ -1003,7 +1091,7 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 	shost->max_cmd_len = 16;
 
 	aac = (struct aac_dev *)shost->hostdata;
-	aac->scsi_host_ptr = shost;	
+	aac->scsi_host_ptr = shost;
 	aac->pdev = pdev;
 	aac->name = aac_driver_template.name;
 	aac->id = shost->unique_id;
@@ -1040,7 +1128,7 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 	if (aac_drivers[index].quirks & AAC_QUIRK_31BIT)
 		if (pci_set_dma_mask(pdev, DMA_32BIT_MASK))
 			goto out_deinit;
- 
+
 	aac->maximum_num_channels = aac_drivers[index].channels;
 	error = aac_get_adapter_info(aac);
 	if (error < 0)
@@ -1049,7 +1137,7 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 	/*
  	 * Lets override negotiations and drop the maximum SG limit to 34
  	 */
- 	if ((aac_drivers[index].quirks & AAC_QUIRK_34SG) && 
+	if ((aac_drivers[index].quirks & AAC_QUIRK_34SG) &&
 			(aac->scsi_host_ptr->sg_tablesize > 34)) {
  		aac->scsi_host_ptr->sg_tablesize = 34;
  		aac->scsi_host_ptr->max_sectors
@@ -1066,17 +1154,17 @@ static int __devinit aac_probe_one(struct pci_dev *pdev,
 	/*
 	 * Firware printf works only with older firmware.
 	 */
-	if (aac_drivers[index].quirks & AAC_QUIRK_34SG) 
+	if (aac_drivers[index].quirks & AAC_QUIRK_34SG)
 		aac->printf_enabled = 1;
 	else
 		aac->printf_enabled = 0;
- 
+
  	/*
 	 * max channel will be the physical channels plus 1 virtual channel
 	 * all containers are on the virtual channel 0 (CONTAINER_CHANNEL)
 	 * physical channels are address by their actual physical number+1
 	 */
-	if ((aac->nondasd_support == 1) || expose_physicals)
+	if (aac->nondasd_support || expose_physicals || aac->jbod)
 		shost->max_channel = aac->maximum_num_channels;
 	else
 		shost->max_channel = 0;
@@ -1148,10 +1236,10 @@ static void __devexit aac_remove_one(struct pci_dev *pdev)
 	kfree(aac->queues);
 
 	aac_adapter_ioremap(aac, 0);
-	
+
 	kfree(aac->fibs);
 	kfree(aac->fsa_dev);
-	
+
 	list_del(&aac->entry);
 	scsi_host_put(shost);
 	pci_disable_device(pdev);
@@ -1172,7 +1260,7 @@ static struct pci_driver aac_pci_driver = {
 static int __init aac_init(void)
 {
 	int error;
-	
+
 	printk(KERN_INFO "Adaptec %s driver %s\n",
 	  AAC_DRIVERNAME, aac_driver_version);
 

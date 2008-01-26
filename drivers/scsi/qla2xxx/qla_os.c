@@ -105,13 +105,12 @@ static int qla2xxx_eh_abort(struct scsi_cmnd *);
 static int qla2xxx_eh_device_reset(struct scsi_cmnd *);
 static int qla2xxx_eh_bus_reset(struct scsi_cmnd *);
 static int qla2xxx_eh_host_reset(struct scsi_cmnd *);
-static int qla2x00_loop_reset(scsi_qla_host_t *ha);
 static int qla2x00_device_reset(scsi_qla_host_t *, fc_port_t *);
 
 static int qla2x00_change_queue_depth(struct scsi_device *, int);
 static int qla2x00_change_queue_type(struct scsi_device *, int);
 
-struct scsi_host_template qla2x00_driver_template = {
+static struct scsi_host_template qla2x00_driver_template = {
 	.module			= THIS_MODULE,
 	.name			= QLA2XXX_DRIVER_NAME,
 	.queuecommand		= qla2x00_queuecommand,
@@ -179,13 +178,6 @@ struct scsi_transport_template *qla2xxx_transport_vport_template = NULL;
  * Timer routines
  */
 
-void qla2x00_timer(scsi_qla_host_t *);
-
-__inline__ void qla2x00_start_timer(scsi_qla_host_t *,
-    void *, unsigned long);
-static __inline__ void qla2x00_restart_timer(scsi_qla_host_t *, unsigned long);
-__inline__ void qla2x00_stop_timer(scsi_qla_host_t *);
-
 __inline__ void
 qla2x00_start_timer(scsi_qla_host_t *ha, void *func, unsigned long interval)
 {
@@ -203,7 +195,7 @@ qla2x00_restart_timer(scsi_qla_host_t *ha, unsigned long interval)
 	mod_timer(&ha->timer, jiffies + interval * HZ);
 }
 
-__inline__ void
+static __inline__ void
 qla2x00_stop_timer(scsi_qla_host_t *ha)
 {
 	del_timer_sync(&ha->timer);
@@ -214,12 +206,11 @@ static int qla2x00_do_dpc(void *data);
 
 static void qla2x00_rst_aen(scsi_qla_host_t *);
 
-uint8_t qla2x00_mem_alloc(scsi_qla_host_t *);
-void qla2x00_mem_free(scsi_qla_host_t *ha);
+static uint8_t qla2x00_mem_alloc(scsi_qla_host_t *);
+static void qla2x00_mem_free(scsi_qla_host_t *ha);
 static int qla2x00_allocate_sp_pool( scsi_qla_host_t *ha);
 static void qla2x00_free_sp_pool(scsi_qla_host_t *ha);
 static void qla2x00_sp_free_dma(scsi_qla_host_t *, srb_t *);
-void qla2x00_sp_compl(scsi_qla_host_t *ha, srb_t *);
 
 /* -------------------------------------------------------------------------- */
 
@@ -1060,7 +1051,7 @@ eh_host_reset_lock:
 * Returns:
 *      0 = success
 */
-static int
+int
 qla2x00_loop_reset(scsi_qla_host_t *ha)
 {
 	int ret;
@@ -1479,8 +1470,7 @@ qla2x00_set_isp_flags(scsi_qla_host_t *ha)
 static int
 qla2x00_iospace_config(scsi_qla_host_t *ha)
 {
-	unsigned long	pio, pio_len, pio_flags;
-	unsigned long	mmio, mmio_len, mmio_flags;
+	resource_size_t pio;
 
 	if (pci_request_selected_regions(ha->pdev, ha->bars,
 	    QLA2XXX_DRIVER_NAME)) {
@@ -1495,10 +1485,8 @@ qla2x00_iospace_config(scsi_qla_host_t *ha)
 
 	/* We only need PIO for Flash operations on ISP2312 v2 chips. */
 	pio = pci_resource_start(ha->pdev, 0);
-	pio_len = pci_resource_len(ha->pdev, 0);
-	pio_flags = pci_resource_flags(ha->pdev, 0);
-	if (pio_flags & IORESOURCE_IO) {
-		if (pio_len < MIN_IOBASE_LEN) {
+	if (pci_resource_flags(ha->pdev, 0) & IORESOURCE_IO) {
+		if (pci_resource_len(ha->pdev, 0) < MIN_IOBASE_LEN) {
 			qla_printk(KERN_WARNING, ha,
 			    "Invalid PCI I/O region size (%s)...\n",
 				pci_name(ha->pdev));
@@ -1511,28 +1499,23 @@ qla2x00_iospace_config(scsi_qla_host_t *ha)
 		pio = 0;
 	}
 	ha->pio_address = pio;
-	ha->pio_length = pio_len;
 
 skip_pio:
 	/* Use MMIO operations for all accesses. */
-	mmio = pci_resource_start(ha->pdev, 1);
-	mmio_len = pci_resource_len(ha->pdev, 1);
-	mmio_flags = pci_resource_flags(ha->pdev, 1);
-
-	if (!(mmio_flags & IORESOURCE_MEM)) {
+	if (!(pci_resource_flags(ha->pdev, 1) & IORESOURCE_MEM)) {
 		qla_printk(KERN_ERR, ha,
-		    "region #0 not an MMIO resource (%s), aborting\n",
+		    "region #1 not an MMIO resource (%s), aborting\n",
 		    pci_name(ha->pdev));
 		goto iospace_error_exit;
 	}
-	if (mmio_len < MIN_IOBASE_LEN) {
+	if (pci_resource_len(ha->pdev, 1) < MIN_IOBASE_LEN) {
 		qla_printk(KERN_ERR, ha,
 		    "Invalid PCI mem region size (%s), aborting\n",
 			pci_name(ha->pdev));
 		goto iospace_error_exit;
 	}
 
-	ha->iobase = ioremap(mmio, MIN_IOBASE_LEN);
+	ha->iobase = ioremap(pci_resource_start(ha->pdev, 1), MIN_IOBASE_LEN);
 	if (!ha->iobase) {
 		qla_printk(KERN_ERR, ha,
 		    "cannot remap MMIO (%s), aborting\n", pci_name(ha->pdev));
@@ -1701,9 +1684,10 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* load the F/W, read paramaters, and init the H/W */
 	ha->instance = num_hosts;
 
-	init_MUTEX(&ha->mbx_cmd_sem);
 	init_MUTEX(&ha->vport_sem);
-	init_MUTEX_LOCKED(&ha->mbx_intr_sem);
+	init_completion(&ha->mbx_cmd_comp);
+	complete(&ha->mbx_cmd_comp);
+	init_completion(&ha->mbx_intr_comp);
 
 	INIT_LIST_HEAD(&ha->list);
 	INIT_LIST_HEAD(&ha->fcports);
@@ -1807,6 +1791,8 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	qla2x00_init_host_attr(ha);
 
+	qla2x00_dfs_setup(ha);
+
 	qla_printk(KERN_INFO, ha, "\n"
 	    " QLogic Fibre Channel HBA Driver: %s\n"
 	    "  QLogic %s - %s\n"
@@ -1837,6 +1823,8 @@ qla2x00_remove_one(struct pci_dev *pdev)
 	scsi_qla_host_t *ha;
 
 	ha = pci_get_drvdata(pdev);
+
+	qla2x00_dfs_remove(ha);
 
 	qla2x00_free_sysfs_attr(ha);
 
@@ -1871,8 +1859,11 @@ qla2x00_free_device(scsi_qla_host_t *ha)
 		kthread_stop(t);
 	}
 
+	if (ha->flags.fce_enabled)
+		qla2x00_disable_fce_trace(ha, NULL, NULL);
+
 	if (ha->eft)
-		qla2x00_trace_control(ha, TC_DISABLE, 0, 0);
+		qla2x00_disable_eft_trace(ha);
 
 	ha->flags.online = 0;
 
@@ -2016,7 +2007,7 @@ qla2x00_mark_all_devices_lost(scsi_qla_host_t *ha, int defer)
 *      0  = success.
 *      1  = failure.
 */
-uint8_t
+static uint8_t
 qla2x00_mem_alloc(scsi_qla_host_t *ha)
 {
 	char	name[16];
@@ -2213,7 +2204,7 @@ qla2x00_mem_alloc(scsi_qla_host_t *ha)
 * Input:
 *      ha = adapter block pointer.
 */
-void
+static void
 qla2x00_mem_free(scsi_qla_host_t *ha)
 {
 	struct list_head	*fcpl, *fcptemp;
@@ -2227,6 +2218,10 @@ qla2x00_mem_free(scsi_qla_host_t *ha)
 
 	/* free sp pool */
 	qla2x00_free_sp_pool(ha);
+
+	if (ha->fce)
+		dma_free_coherent(&ha->pdev->dev, FCE_SIZE, ha->fce,
+		    ha->fce_dma);
 
 	if (ha->fw_dump) {
 		if (ha->eft)
@@ -2746,23 +2741,6 @@ qla2x00_timer(scsi_qla_host_t *ha)
 		qla2xxx_wake_dpc(pha);
 
 	qla2x00_restart_timer(ha, WATCH_INTERVAL);
-}
-
-/* XXX(hch): crude hack to emulate a down_timeout() */
-int
-qla2x00_down_timeout(struct semaphore *sema, unsigned long timeout)
-{
-	const unsigned int step = 100; /* msecs */
-	unsigned int iterations = jiffies_to_msecs(timeout)/100;
-
-	do {
-		if (!down_trylock(sema))
-			return 0;
-		if (msleep_interruptible(step))
-			break;
-	} while (--iterations > 0);
-
-	return -ETIMEDOUT;
 }
 
 /* Firmware interface routines. */

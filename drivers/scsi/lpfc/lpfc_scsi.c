@@ -130,7 +130,7 @@ lpfc_ramp_down_queue_handler(struct lpfc_hba *phba)
 
 	vports = lpfc_create_vport_work_array(phba);
 	if (vports != NULL)
-		for(i = 0; i < LPFC_MAX_VPORTS && vports[i] != NULL; i++) {
+		for(i = 0; i <= phba->max_vpi && vports[i] != NULL; i++) {
 			shost = lpfc_shost_from_vport(vports[i]);
 			shost_for_each_device(sdev, shost) {
 				new_queue_depth =
@@ -151,7 +151,7 @@ lpfc_ramp_down_queue_handler(struct lpfc_hba *phba)
 							new_queue_depth);
 			}
 		}
-	lpfc_destroy_vport_work_array(vports);
+	lpfc_destroy_vport_work_array(phba, vports);
 	atomic_set(&phba->num_rsrc_err, 0);
 	atomic_set(&phba->num_cmd_success, 0);
 }
@@ -166,7 +166,7 @@ lpfc_ramp_up_queue_handler(struct lpfc_hba *phba)
 
 	vports = lpfc_create_vport_work_array(phba);
 	if (vports != NULL)
-		for(i = 0; i < LPFC_MAX_VPORTS && vports[i] != NULL; i++) {
+		for(i = 0; i <= phba->max_vpi && vports[i] != NULL; i++) {
 			shost = lpfc_shost_from_vport(vports[i]);
 			shost_for_each_device(sdev, shost) {
 				if (sdev->ordered_tags)
@@ -179,7 +179,7 @@ lpfc_ramp_up_queue_handler(struct lpfc_hba *phba)
 							sdev->queue_depth+1);
 			}
 		}
-	lpfc_destroy_vport_work_array(vports);
+	lpfc_destroy_vport_work_array(phba, vports);
 	atomic_set(&phba->num_rsrc_err, 0);
 	atomic_set(&phba->num_cmd_success, 0);
 }
@@ -380,7 +380,7 @@ lpfc_scsi_prep_dma_buf(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 		(num_bde * sizeof (struct ulp_bde64));
 	iocb_cmd->ulpBdeCount = 1;
 	iocb_cmd->ulpLe = 1;
-	fcp_cmnd->fcpDl = be32_to_cpu(scsi_bufflen(scsi_cmnd));
+	fcp_cmnd->fcpDl = cpu_to_be32(scsi_bufflen(scsi_cmnd));
 	return 0;
 }
 
@@ -542,6 +542,7 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	int result;
 	struct scsi_device *sdev, *tmp_sdev;
 	int depth = 0;
+	unsigned long flags;
 
 	lpfc_cmd->result = pIocbOut->iocb.un.ulpWord[4];
 	lpfc_cmd->status = pIocbOut->iocb.ulpStatus;
@@ -608,6 +609,15 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	cmd->scsi_done(cmd);
 
 	if (phba->cfg_poll & ENABLE_FCP_RING_POLLING) {
+		/*
+		 * If there is a thread waiting for command completion
+		 * wake up the thread.
+		 */
+		spin_lock_irqsave(sdev->host->host_lock, flags);
+		lpfc_cmd->pCmd = NULL;
+		if (lpfc_cmd->waitq)
+			wake_up(lpfc_cmd->waitq);
+		spin_unlock_irqrestore(sdev->host->host_lock, flags);
 		lpfc_release_scsi_buf(phba, lpfc_cmd);
 		return;
 	}
@@ -668,6 +678,16 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 					 "depth adjusted to %d.\n", depth);
 		}
 	}
+
+	/*
+	 * If there is a thread waiting for command completion
+	 * wake up the thread.
+	 */
+	spin_lock_irqsave(sdev->host->host_lock, flags);
+	lpfc_cmd->pCmd = NULL;
+	if (lpfc_cmd->waitq)
+		wake_up(lpfc_cmd->waitq);
+	spin_unlock_irqrestore(sdev->host->host_lock, flags);
 
 	lpfc_release_scsi_buf(phba, lpfc_cmd);
 }
@@ -743,6 +763,8 @@ lpfc_scsi_prep_cmnd(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 	piocbq->iocb.ulpContext = pnode->nlp_rpi;
 	if (pnode->nlp_fcp_info & NLP_FCP_2_DEVICE)
 		piocbq->iocb.ulpFCP2Rcvy = 1;
+	else
+		piocbq->iocb.ulpFCP2Rcvy = 0;
 
 	piocbq->iocb.ulpClass = (pnode->nlp_fcp_info & 0x0f);
 	piocbq->context1  = lpfc_cmd;
@@ -1018,8 +1040,8 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 	struct lpfc_iocbq *abtsiocb;
 	struct lpfc_scsi_buf *lpfc_cmd;
 	IOCB_t *cmd, *icmd;
-	unsigned int loop_count = 0;
 	int ret = SUCCESS;
+	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(waitq);
 
 	lpfc_block_error_handler(cmnd);
 	lpfc_cmd = (struct lpfc_scsi_buf *)cmnd->host_scribble;
@@ -1074,17 +1096,15 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 	if (phba->cfg_poll & DISABLE_FCP_RING_INT)
 		lpfc_sli_poll_fcp_ring (phba);
 
+	lpfc_cmd->waitq = &waitq;
 	/* Wait for abort to complete */
-	while (lpfc_cmd->pCmd == cmnd)
-	{
-		if (phba->cfg_poll & DISABLE_FCP_RING_INT)
-			lpfc_sli_poll_fcp_ring (phba);
+	wait_event_timeout(waitq,
+			  (lpfc_cmd->pCmd != cmnd),
+			   (2*vport->cfg_devloss_tmo*HZ));
 
-		schedule_timeout_uninterruptible(LPFC_ABORT_WAIT * HZ);
-		if (++loop_count
-		    > (2 * vport->cfg_devloss_tmo)/LPFC_ABORT_WAIT)
-			break;
-	}
+	spin_lock_irq(shost->host_lock);
+	lpfc_cmd->waitq = NULL;
+	spin_unlock_irq(shost->host_lock);
 
 	if (lpfc_cmd->pCmd == cmnd) {
 		ret = FAILED;
@@ -1438,7 +1458,7 @@ struct scsi_host_template lpfc_template = {
 	.slave_destroy		= lpfc_slave_destroy,
 	.scan_finished		= lpfc_scan_finished,
 	.this_id		= -1,
-	.sg_tablesize		= LPFC_SG_SEG_CNT,
+	.sg_tablesize		= LPFC_DEFAULT_SG_SEG_CNT,
 	.use_sg_chaining	= ENABLE_SG_CHAINING,
 	.cmd_per_lun		= LPFC_CMD_PER_LUN,
 	.use_clustering		= ENABLE_CLUSTERING,
@@ -1459,7 +1479,7 @@ struct scsi_host_template lpfc_vport_template = {
 	.slave_destroy		= lpfc_slave_destroy,
 	.scan_finished		= lpfc_scan_finished,
 	.this_id		= -1,
-	.sg_tablesize		= LPFC_SG_SEG_CNT,
+	.sg_tablesize		= LPFC_DEFAULT_SG_SEG_CNT,
 	.cmd_per_lun		= LPFC_CMD_PER_LUN,
 	.use_clustering		= ENABLE_CLUSTERING,
 	.use_sg_chaining	= ENABLE_SG_CHAINING,

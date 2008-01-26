@@ -4,23 +4,17 @@
 #include <linux/transport_class.h>
 #include <linux/types.h>
 #include <linux/mutex.h>
+#include <scsi/sas.h>
 
 struct scsi_transport_template;
 struct sas_rphy;
 struct request;
 
 enum sas_device_type {
-	SAS_PHY_UNUSED,
-	SAS_END_DEVICE,
-	SAS_EDGE_EXPANDER_DEVICE,
-	SAS_FANOUT_EXPANDER_DEVICE,
-};
-
-enum sas_protocol {
-	SAS_PROTOCOL_SATA		= 0x01,
-	SAS_PROTOCOL_SMP		= 0x02,
-	SAS_PROTOCOL_STP		= 0x04,
-	SAS_PROTOCOL_SSP		= 0x08,
+	SAS_PHY_UNUSED = 0,
+	SAS_END_DEVICE = 1,
+	SAS_EDGE_EXPANDER_DEVICE = 2,
+	SAS_FANOUT_EXPANDER_DEVICE = 3,
 };
 
 static inline int sas_protocol_ata(enum sas_protocol proto)

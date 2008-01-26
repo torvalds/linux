@@ -98,6 +98,7 @@ lpfc_mem_alloc(struct lpfc_hba * phba)
 
  fail_free_hbq_pool:
 	lpfc_sli_hbqbuf_free_all(phba);
+	pci_pool_destroy(phba->lpfc_hbq_pool);
  fail_free_nlp_mem_pool:
 	mempool_destroy(phba->nlp_mem_pool);
 	phba->nlp_mem_pool = NULL;

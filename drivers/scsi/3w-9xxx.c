@@ -2010,6 +2010,7 @@ static int __devinit twa_probe(struct pci_dev *pdev, const struct pci_device_id 
 	}
 
 	pci_set_master(pdev);
+	pci_try_set_mwi(pdev);
 
 	if (pci_set_dma_mask(pdev, DMA_64BIT_MASK)
 	    || pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK))

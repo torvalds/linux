@@ -511,9 +511,9 @@ static inline void initialize_SCp(Scsi_Cmnd *cmd)
 	 * various queues are valid.
 	 */
 
-	if (cmd->use_sg) {
-		cmd->SCp.buffer = (struct scatterlist *)cmd->request_buffer;
-		cmd->SCp.buffers_residual = cmd->use_sg - 1;
+	if (scsi_bufflen(cmd)) {
+		cmd->SCp.buffer = scsi_sglist(cmd);
+		cmd->SCp.buffers_residual = scsi_sg_count(cmd) - 1;
 		cmd->SCp.ptr = sg_virt(cmd->SCp.buffer);
 		cmd->SCp.this_residual = cmd->SCp.buffer->length;
 		/* ++roman: Try to merge some scatter-buffers if they are at
@@ -523,8 +523,8 @@ static inline void initialize_SCp(Scsi_Cmnd *cmd)
 	} else {
 		cmd->SCp.buffer = NULL;
 		cmd->SCp.buffers_residual = 0;
-		cmd->SCp.ptr = (char *)cmd->request_buffer;
-		cmd->SCp.this_residual = cmd->request_bufflen;
+		cmd->SCp.ptr = NULL;
+		cmd->SCp.this_residual = 0;
 	}
 }
 
@@ -936,21 +936,21 @@ static int NCR5380_queue_command(Scsi_Cmnd *cmd, void (*done)(Scsi_Cmnd *))
 	}
 # endif
 # ifdef NCR5380_STAT_LIMIT
-	if (cmd->request_bufflen > NCR5380_STAT_LIMIT)
+	if (scsi_bufflen(cmd) > NCR5380_STAT_LIMIT)
 # endif
 		switch (cmd->cmnd[0]) {
 		case WRITE:
 		case WRITE_6:
 		case WRITE_10:
 			hostdata->time_write[cmd->device->id] -= (jiffies - hostdata->timebase);
-			hostdata->bytes_write[cmd->device->id] += cmd->request_bufflen;
+			hostdata->bytes_write[cmd->device->id] += scsi_bufflen(cmd);
 			hostdata->pendingw++;
 			break;
 		case READ:
 		case READ_6:
 		case READ_10:
 			hostdata->time_read[cmd->device->id] -= (jiffies - hostdata->timebase);
-			hostdata->bytes_read[cmd->device->id] += cmd->request_bufflen;
+			hostdata->bytes_read[cmd->device->id] += scsi_bufflen(cmd);
 			hostdata->pendingr++;
 			break;
 		}
@@ -1352,21 +1352,21 @@ static irqreturn_t NCR5380_intr(int irq, void *dev_id)
 static void collect_stats(struct NCR5380_hostdata* hostdata, Scsi_Cmnd *cmd)
 {
 # ifdef NCR5380_STAT_LIMIT
-	if (cmd->request_bufflen > NCR5380_STAT_LIMIT)
+	if (scsi_bufflen(cmd) > NCR5380_STAT_LIMIT)
 # endif
 		switch (cmd->cmnd[0]) {
 		case WRITE:
 		case WRITE_6:
 		case WRITE_10:
 			hostdata->time_write[cmd->device->id] += (jiffies - hostdata->timebase);
-			/*hostdata->bytes_write[cmd->device->id] += cmd->request_bufflen;*/
+			/*hostdata->bytes_write[cmd->device->id] += scsi_bufflen(cmd);*/
 			hostdata->pendingw--;
 			break;
 		case READ:
 		case READ_6:
 		case READ_10:
 			hostdata->time_read[cmd->device->id] += (jiffies - hostdata->timebase);
-			/*hostdata->bytes_read[cmd->device->id] += cmd->request_bufflen;*/
+			/*hostdata->bytes_read[cmd->device->id] += scsi_bufflen(cmd);*/
 			hostdata->pendingr--;
 			break;
 		}
@@ -1868,7 +1868,7 @@ static int do_abort(struct Scsi_Host *host)
 	 * the target sees, so we just handshake.
 	 */
 
-	while (!(tmp = NCR5380_read(STATUS_REG)) & SR_REQ)
+	while (!((tmp = NCR5380_read(STATUS_REG)) & SR_REQ))
 		;
 
 	NCR5380_write(TARGET_COMMAND_REG, PHASE_SR_TO_TCR(tmp));

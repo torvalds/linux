@@ -372,21 +372,21 @@ int asd_abort_task(struct sas_task *task)
 	scb->header.opcode = ABORT_TASK;
 
 	switch (task->task_proto) {
-	case SATA_PROTO:
-	case SAS_PROTO_STP:
+	case SAS_PROTOCOL_SATA:
+	case SAS_PROTOCOL_STP:
 		scb->abort_task.proto_conn_rate = (1 << 5); /* STP */
 		break;
-	case SAS_PROTO_SSP:
+	case SAS_PROTOCOL_SSP:
 		scb->abort_task.proto_conn_rate  = (1 << 4); /* SSP */
 		scb->abort_task.proto_conn_rate |= task->dev->linkrate;
 		break;
-	case SAS_PROTO_SMP:
+	case SAS_PROTOCOL_SMP:
 		break;
 	default:
 		break;
 	}
 
-	if (task->task_proto == SAS_PROTO_SSP) {
+	if (task->task_proto == SAS_PROTOCOL_SSP) {
 		scb->abort_task.ssp_frame.frame_type = SSP_TASK;
 		memcpy(scb->abort_task.ssp_frame.hashed_dest_addr,
 		       task->dev->hashed_sas_addr, HASHED_SAS_ADDR_SIZE);
@@ -512,7 +512,7 @@ static int asd_initiate_ssp_tmf(struct domain_device *dev, u8 *lun,
 	int res = 1;
 	struct scb *scb;
 
-	if (!(dev->tproto & SAS_PROTO_SSP))
+	if (!(dev->tproto & SAS_PROTOCOL_SSP))
 		return TMF_RESP_FUNC_ESUPP;
 
 	ascb = asd_ascb_alloc_list(asd_ha, &res, GFP_KERNEL);

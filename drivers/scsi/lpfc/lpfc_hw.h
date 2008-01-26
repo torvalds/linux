@@ -139,6 +139,9 @@ struct lpfc_sli_ct_request {
 			uint8_t len;
 			uint8_t symbname[255];
 		} rsnn;
+		struct da_id { /* For DA_ID requests */
+			uint32_t port_id;
+		} da_id;
 		struct rspn {	/* For RSPN_ID requests */
 			uint32_t PortId;
 			uint8_t len;
@@ -150,11 +153,7 @@ struct lpfc_sli_ct_request {
 		struct gff_acc {
 			uint8_t fbits[128];
 		} gff_acc;
-#ifdef __BIG_ENDIAN_BITFIELD
 #define FCP_TYPE_FEATURE_OFFSET 7
-#else	/*  __LITTLE_ENDIAN_BITFIELD */
-#define FCP_TYPE_FEATURE_OFFSET 4
-#endif
 		struct rff {
 			uint32_t PortId;
 			uint8_t reserved[2];
@@ -177,6 +176,8 @@ struct lpfc_sli_ct_request {
 			   sizeof(struct rnn))
 #define  RSNN_REQUEST_SZ  (offsetof(struct lpfc_sli_ct_request, un) + \
 			   sizeof(struct rsnn))
+#define DA_ID_REQUEST_SZ (offsetof(struct lpfc_sli_ct_request, un) + \
+			  sizeof(struct da_id))
 #define  RSPN_REQUEST_SZ  (offsetof(struct lpfc_sli_ct_request, un) + \
 			   sizeof(struct rspn))
 
@@ -1228,7 +1229,8 @@ typedef struct {		/* FireFly BIU registers */
 #define HS_FFER3       0x20000000	/* Bit 29 */
 #define HS_FFER2       0x40000000	/* Bit 30 */
 #define HS_FFER1       0x80000000	/* Bit 31 */
-#define HS_FFERM       0xFF000000	/* Mask for error bits 31:24 */
+#define HS_CRIT_TEMP   0x00000100	/* Bit 8  */
+#define HS_FFERM       0xFF000100	/* Mask for error bits 31:24 and 8 */
 
 /* Host Control Register */
 
@@ -1277,12 +1279,14 @@ typedef struct {		/* FireFly BIU registers */
 #define MBX_DEL_LD_ENTRY    0x1D
 #define MBX_RUN_PROGRAM     0x1E
 #define MBX_SET_MASK        0x20
-#define MBX_SET_SLIM        0x21
+#define MBX_SET_VARIABLE    0x21
 #define MBX_UNREG_D_ID      0x23
 #define MBX_KILL_BOARD      0x24
 #define MBX_CONFIG_FARP     0x25
 #define MBX_BEACON          0x2A
 #define MBX_HEARTBEAT       0x31
+#define MBX_WRITE_VPARMS    0x32
+#define MBX_ASYNCEVT_ENABLE 0x33
 
 #define MBX_CONFIG_HBQ	    0x7C
 #define MBX_LOAD_AREA       0x81
@@ -1297,7 +1301,7 @@ typedef struct {		/* FireFly BIU registers */
 #define MBX_REG_VNPID	    0x96
 #define MBX_UNREG_VNPID	    0x97
 
-#define MBX_FLASH_WR_ULA    0x98
+#define MBX_WRITE_WWN       0x98
 #define MBX_SET_DEBUG       0x99
 #define MBX_LOAD_EXP_ROM    0x9C
 
@@ -1344,6 +1348,7 @@ typedef struct {		/* FireFly BIU registers */
 
 /*  SLI_2 IOCB Command Set */
 
+#define CMD_ASYNC_STATUS        0x7C
 #define CMD_RCV_SEQUENCE64_CX   0x81
 #define CMD_XMIT_SEQUENCE64_CR  0x82
 #define CMD_XMIT_SEQUENCE64_CX  0x83
@@ -1368,6 +1373,7 @@ typedef struct {		/* FireFly BIU registers */
 #define CMD_FCP_TRECEIVE64_CX   0xA1
 #define CMD_FCP_TRSP64_CX       0xA3
 
+#define CMD_QUE_XRI64_CX	0xB3
 #define CMD_IOCB_RCV_SEQ64_CX	0xB5
 #define CMD_IOCB_RCV_ELS64_CX	0xB7
 #define CMD_IOCB_RCV_CONT64_CX	0xBB
@@ -1405,6 +1411,8 @@ typedef struct {		/* FireFly BIU registers */
 
 #define MBX_BUSY                   0xffffff /* Attempted cmd to busy Mailbox */
 #define MBX_TIMEOUT                0xfffffe /* time-out expired waiting for */
+
+#define TEMPERATURE_OFFSET 0xB0	/* Slim offset for critical temperature event */
 
 /*
  *    Begin Structure Definitions for Mailbox Commands
@@ -2606,6 +2614,18 @@ typedef struct {
 	uint32_t IPAddress;
 } CONFIG_FARP_VAR;
 
+/* Structure for MB Command MBX_ASYNCEVT_ENABLE (0x33) */
+
+typedef struct {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t rsvd:30;
+	uint32_t ring:2;	/* Ring for ASYNC_EVENT iocb Bits 0-1*/
+#else /*  __LITTLE_ENDIAN */
+	uint32_t ring:2;	/* Ring for ASYNC_EVENT iocb Bits 0-1*/
+	uint32_t rsvd:30;
+#endif
+} ASYNCEVT_ENABLE_VAR;
+
 /* Union of all Mailbox Command types */
 #define MAILBOX_CMD_WSIZE	32
 #define MAILBOX_CMD_SIZE	(MAILBOX_CMD_WSIZE * sizeof(uint32_t))
@@ -2645,6 +2665,7 @@ typedef union {
 	CONFIG_PORT_VAR varCfgPort;	/* cmd = 0x88 (CONFIG_PORT)  */
 	REG_VPI_VAR varRegVpi;		/* cmd = 0x96 (REG_VPI) */
 	UNREG_VPI_VAR varUnregVpi;	/* cmd = 0x97 (UNREG_VPI) */
+	ASYNCEVT_ENABLE_VAR varCfgAsyncEvent; /*cmd = x33 (CONFIG_ASYNC) */
 } MAILVARIANTS;
 
 /*
@@ -2973,6 +2994,34 @@ typedef struct {
 #endif
 } RCV_ELS_REQ64;
 
+/* IOCB Command template for RCV_SEQ64 */
+struct rcv_seq64 {
+	struct ulp_bde64 elsReq;
+	uint32_t hbq_1;
+	uint32_t parmRo;
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t rctl:8;
+	uint32_t type:8;
+	uint32_t dfctl:8;
+	uint32_t ls:1;
+	uint32_t fs:1;
+	uint32_t rsvd2:3;
+	uint32_t si:1;
+	uint32_t bc:1;
+	uint32_t rsvd3:1;
+#else	/*  __LITTLE_ENDIAN_BITFIELD */
+	uint32_t rsvd3:1;
+	uint32_t bc:1;
+	uint32_t si:1;
+	uint32_t rsvd2:3;
+	uint32_t fs:1;
+	uint32_t ls:1;
+	uint32_t dfctl:8;
+	uint32_t type:8;
+	uint32_t rctl:8;
+#endif
+};
+
 /* IOCB Command template for all 64 bit FCP Initiator commands */
 typedef struct {
 	ULP_BDL bdl;
@@ -2986,6 +3035,21 @@ typedef struct {
 	uint32_t fcpt_Offset;
 	uint32_t fcpt_Length;	/* transfer ready for IWRITE */
 } FCPT_FIELDS64;
+
+/* IOCB Command template for Async Status iocb commands */
+typedef struct {
+	uint32_t rsvd[4];
+	uint32_t param;
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint16_t evt_code;		/* High order bits word 5 */
+	uint16_t sub_ctxt_tag;		/* Low  order bits word 5 */
+#else   /*  __LITTLE_ENDIAN_BITFIELD */
+	uint16_t sub_ctxt_tag;		/* High order bits word 5 */
+	uint16_t evt_code;		/* Low  order bits word 5 */
+#endif
+} ASYNCSTAT_FIELDS;
+#define ASYNC_TEMP_WARN		0x100
+#define ASYNC_TEMP_SAFE		0x101
 
 /* IOCB Command template for CMD_IOCB_RCV_ELS64_CX (0xB7)
    or CMD_IOCB_RCV_SEQ64_CX (0xB5) */
@@ -3004,7 +3068,26 @@ struct rcv_sli3 {
 	struct ulp_bde64 bde2;
 };
 
+/* Structure used for a single HBQ entry */
+struct lpfc_hbq_entry {
+	struct ulp_bde64 bde;
+	uint32_t buffer_tag;
+};
 
+/* IOCB Command template for QUE_XRI64_CX (0xB3) command */
+typedef struct {
+	struct lpfc_hbq_entry   buff;
+	uint32_t                rsvd;
+	uint32_t		rsvd1;
+} QUE_XRI64_CX_FIELDS;
+
+struct que_xri64cx_ext_fields {
+	uint32_t	iotag64_low;
+	uint32_t	iotag64_high;
+	uint32_t	ebde_count;
+	uint32_t	rsvd;
+	struct lpfc_hbq_entry	buff[5];
+};
 
 typedef struct _IOCB {	/* IOCB structure */
 	union {
@@ -3028,6 +3111,9 @@ typedef struct _IOCB {	/* IOCB structure */
 		XMT_SEQ_FIELDS64 xseq64;	/* XMIT / BCAST cmd */
 		FCPI_FIELDS64 fcpi64;	/* FCP 64 bit Initiator template */
 		FCPT_FIELDS64 fcpt64;	/* FCP 64 bit target template */
+		ASYNCSTAT_FIELDS asyncstat; /* async_status iocb */
+		QUE_XRI64_CX_FIELDS quexri64cx; /* que_xri64_cx fields */
+		struct rcv_seq64 rcvseq64;	/* RCV_SEQ64 and RCV_CONT64 */
 
 		uint32_t ulpWord[IOCB_WORD_SZ - 2];	/* generic 6 'words' */
 	} un;
@@ -3085,6 +3171,10 @@ typedef struct _IOCB {	/* IOCB structure */
 
 	union {
 		struct rcv_sli3 rcvsli3; /* words 8 - 15 */
+
+		/* words 8-31 used for que_xri_cx iocb */
+		struct que_xri64cx_ext_fields que_xri64cx_ext_words;
+
 		uint32_t sli3Words[24]; /* 96 extra bytes for SLI-3 */
 	} unsli3;
 
@@ -3123,12 +3213,6 @@ typedef struct _IOCB {	/* IOCB structure */
 #define IOSTAT_CNT             0x11
 
 } IOCB_t;
-
-/* Structure used for a single HBQ entry */
-struct lpfc_hbq_entry {
-	struct ulp_bde64 bde;
-	uint32_t buffer_tag;
-};
 
 
 #define SLI1_SLIM_SIZE   (4 * 1024)
@@ -3172,6 +3256,8 @@ lpfc_is_LC_HBA(unsigned short device)
 	    (device == PCI_DEVICE_ID_BSMB) ||
 	    (device == PCI_DEVICE_ID_ZMID) ||
 	    (device == PCI_DEVICE_ID_ZSMB) ||
+	    (device == PCI_DEVICE_ID_SAT_MID) ||
+	    (device == PCI_DEVICE_ID_SAT_SMB) ||
 	    (device == PCI_DEVICE_ID_RFLY))
 		return 1;
 	else

@@ -24,6 +24,7 @@
 #include <linux/types.h>
 #include <linux/kfifo.h>
 #include <linux/delay.h>
+#include <linux/log2.h>
 #include <asm/unaligned.h>
 #include <net/tcp.h>
 #include <scsi/scsi_cmnd.h>
@@ -86,7 +87,7 @@ iscsi_update_cmdsn(struct iscsi_session *session, struct iscsi_nopin *hdr)
 		 * xmit thread
 		 */
 		if (!list_empty(&session->leadconn->xmitqueue) ||
-		    __kfifo_len(session->leadconn->mgmtqueue))
+		    !list_empty(&session->leadconn->mgmtqueue))
 			scsi_queue_work(session->host,
 					&session->leadconn->xmitwork);
 	}
@@ -122,6 +123,20 @@ void iscsi_prep_unsolicit_data_pdu(struct iscsi_cmd_task *ctask,
 }
 EXPORT_SYMBOL_GPL(iscsi_prep_unsolicit_data_pdu);
 
+static int iscsi_add_hdr(struct iscsi_cmd_task *ctask, unsigned len)
+{
+	unsigned exp_len = ctask->hdr_len + len;
+
+	if (exp_len > ctask->hdr_max) {
+		WARN_ON(1);
+		return -EINVAL;
+	}
+
+	WARN_ON(len & (ISCSI_PAD_LEN - 1)); /* caller must pad the AHS */
+	ctask->hdr_len = exp_len;
+	return 0;
+}
+
 /**
  * iscsi_prep_scsi_cmd_pdu - prep iscsi scsi cmd pdu
  * @ctask: iscsi cmd task
@@ -129,27 +144,32 @@ EXPORT_SYMBOL_GPL(iscsi_prep_unsolicit_data_pdu);
  * Prep basic iSCSI PDU fields for a scsi cmd pdu. The LLD should set
  * fields like dlength or final based on how much data it sends
  */
-static void iscsi_prep_scsi_cmd_pdu(struct iscsi_cmd_task *ctask)
+static int iscsi_prep_scsi_cmd_pdu(struct iscsi_cmd_task *ctask)
 {
 	struct iscsi_conn *conn = ctask->conn;
 	struct iscsi_session *session = conn->session;
 	struct iscsi_cmd *hdr = ctask->hdr;
 	struct scsi_cmnd *sc = ctask->sc;
+	unsigned hdrlength;
+	int rc;
 
-        hdr->opcode = ISCSI_OP_SCSI_CMD;
-        hdr->flags = ISCSI_ATTR_SIMPLE;
-        int_to_scsilun(sc->device->lun, (struct scsi_lun *)hdr->lun);
-        hdr->itt = build_itt(ctask->itt, conn->id, session->age);
-        hdr->data_length = cpu_to_be32(scsi_bufflen(sc));
-        hdr->cmdsn = cpu_to_be32(session->cmdsn);
-        session->cmdsn++;
-        hdr->exp_statsn = cpu_to_be32(conn->exp_statsn);
-        memcpy(hdr->cdb, sc->cmnd, sc->cmd_len);
+	ctask->hdr_len = 0;
+	rc = iscsi_add_hdr(ctask, sizeof(*hdr));
+	if (rc)
+		return rc;
+	hdr->opcode = ISCSI_OP_SCSI_CMD;
+	hdr->flags = ISCSI_ATTR_SIMPLE;
+	int_to_scsilun(sc->device->lun, (struct scsi_lun *)hdr->lun);
+	hdr->itt = build_itt(ctask->itt, conn->id, session->age);
+	hdr->data_length = cpu_to_be32(scsi_bufflen(sc));
+	hdr->cmdsn = cpu_to_be32(session->cmdsn);
+	session->cmdsn++;
+	hdr->exp_statsn = cpu_to_be32(conn->exp_statsn);
+	memcpy(hdr->cdb, sc->cmnd, sc->cmd_len);
 	if (sc->cmd_len < MAX_COMMAND_SIZE)
 		memset(&hdr->cdb[sc->cmd_len], 0,
 			MAX_COMMAND_SIZE - sc->cmd_len);
 
-	ctask->data_count = 0;
 	ctask->imm_count = 0;
 	if (sc->sc_data_direction == DMA_TO_DEVICE) {
 		hdr->flags |= ISCSI_FLAG_CMD_WRITE;
@@ -178,9 +198,9 @@ static void iscsi_prep_scsi_cmd_pdu(struct iscsi_cmd_task *ctask)
 			else
 				ctask->imm_count = min(scsi_bufflen(sc),
 							conn->max_xmit_dlength);
-			hton24(ctask->hdr->dlength, ctask->imm_count);
+			hton24(hdr->dlength, ctask->imm_count);
 		} else
-			zero_data(ctask->hdr->dlength);
+			zero_data(hdr->dlength);
 
 		if (!session->initial_r2t_en) {
 			ctask->unsol_count = min((session->first_burst),
@@ -190,7 +210,7 @@ static void iscsi_prep_scsi_cmd_pdu(struct iscsi_cmd_task *ctask)
 
 		if (!ctask->unsol_count)
 			/* No unsolicit Data-Out's */
-			ctask->hdr->flags |= ISCSI_FLAG_CMD_FINAL;
+			hdr->flags |= ISCSI_FLAG_CMD_FINAL;
 	} else {
 		hdr->flags |= ISCSI_FLAG_CMD_FINAL;
 		zero_data(hdr->dlength);
@@ -199,13 +219,25 @@ static void iscsi_prep_scsi_cmd_pdu(struct iscsi_cmd_task *ctask)
 			hdr->flags |= ISCSI_FLAG_CMD_READ;
 	}
 
-	conn->scsicmd_pdus_cnt++;
+	/* calculate size of additional header segments (AHSs) */
+	hdrlength = ctask->hdr_len - sizeof(*hdr);
 
-        debug_scsi("iscsi prep [%s cid %d sc %p cdb 0x%x itt 0x%x len %d "
+	WARN_ON(hdrlength & (ISCSI_PAD_LEN-1));
+	hdrlength /= ISCSI_PAD_LEN;
+
+	WARN_ON(hdrlength >= 256);
+	hdr->hlength = hdrlength & 0xFF;
+
+	if (conn->session->tt->init_cmd_task(conn->ctask))
+		return EIO;
+
+	conn->scsicmd_pdus_cnt++;
+	debug_scsi("iscsi prep [%s cid %d sc %p cdb 0x%x itt 0x%x len %d "
 		"cmdsn %d win %d]\n",
-                sc->sc_data_direction == DMA_TO_DEVICE ? "write" : "read",
+		sc->sc_data_direction == DMA_TO_DEVICE ? "write" : "read",
 		conn->id, sc, sc->cmnd[0], ctask->itt, scsi_bufflen(sc),
-                session->cmdsn, session->max_cmdsn - session->exp_cmdsn + 1);
+		session->cmdsn, session->max_cmdsn - session->exp_cmdsn + 1);
+	return 0;
 }
 
 /**
@@ -218,13 +250,16 @@ static void iscsi_prep_scsi_cmd_pdu(struct iscsi_cmd_task *ctask)
  */
 static void iscsi_complete_command(struct iscsi_cmd_task *ctask)
 {
-	struct iscsi_session *session = ctask->conn->session;
+	struct iscsi_conn *conn = ctask->conn;
+	struct iscsi_session *session = conn->session;
 	struct scsi_cmnd *sc = ctask->sc;
 
 	ctask->state = ISCSI_TASK_COMPLETED;
 	ctask->sc = NULL;
 	/* SCSI eh reuses commands to verify us */
 	sc->SCp.ptr = NULL;
+	if (conn->ctask == ctask)
+		conn->ctask = NULL;
 	list_del_init(&ctask->running);
 	__kfifo_put(session->cmdpool.queue, (void*)&ctask, sizeof(void*));
 	sc->scsi_done(sc);
@@ -240,6 +275,112 @@ static void __iscsi_put_ctask(struct iscsi_cmd_task *ctask)
 	if (atomic_dec_and_test(&ctask->refcount))
 		iscsi_complete_command(ctask);
 }
+
+/*
+ * session lock must be held
+ */
+static void fail_command(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask,
+			 int err)
+{
+	struct scsi_cmnd *sc;
+
+	sc = ctask->sc;
+	if (!sc)
+		return;
+
+	if (ctask->state == ISCSI_TASK_PENDING)
+		/*
+		 * cmd never made it to the xmit thread, so we should not count
+		 * the cmd in the sequencing
+		 */
+		conn->session->queued_cmdsn--;
+	else
+		conn->session->tt->cleanup_cmd_task(conn, ctask);
+
+	sc->result = err;
+	scsi_set_resid(sc, scsi_bufflen(sc));
+	if (conn->ctask == ctask)
+		conn->ctask = NULL;
+	/* release ref from queuecommand */
+	__iscsi_put_ctask(ctask);
+}
+
+/**
+ * iscsi_free_mgmt_task - return mgmt task back to pool
+ * @conn: iscsi connection
+ * @mtask: mtask
+ *
+ * Must be called with session lock.
+ */
+void iscsi_free_mgmt_task(struct iscsi_conn *conn,
+			  struct iscsi_mgmt_task *mtask)
+{
+	list_del_init(&mtask->running);
+	if (conn->login_mtask == mtask)
+		return;
+
+	if (conn->ping_mtask == mtask)
+		conn->ping_mtask = NULL;
+	__kfifo_put(conn->session->mgmtpool.queue,
+		    (void*)&mtask, sizeof(void*));
+}
+EXPORT_SYMBOL_GPL(iscsi_free_mgmt_task);
+
+static struct iscsi_mgmt_task *
+__iscsi_conn_send_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
+		      char *data, uint32_t data_size)
+{
+	struct iscsi_session *session = conn->session;
+	struct iscsi_mgmt_task *mtask;
+
+	if (session->state == ISCSI_STATE_TERMINATE)
+		return NULL;
+
+	if (hdr->opcode == (ISCSI_OP_LOGIN | ISCSI_OP_IMMEDIATE) ||
+	    hdr->opcode == (ISCSI_OP_TEXT | ISCSI_OP_IMMEDIATE))
+		/*
+		 * Login and Text are sent serially, in
+		 * request-followed-by-response sequence.
+		 * Same mtask can be used. Same ITT must be used.
+		 * Note that login_mtask is preallocated at conn_create().
+		 */
+		mtask = conn->login_mtask;
+	else {
+		BUG_ON(conn->c_stage == ISCSI_CONN_INITIAL_STAGE);
+		BUG_ON(conn->c_stage == ISCSI_CONN_STOPPED);
+
+		if (!__kfifo_get(session->mgmtpool.queue,
+				 (void*)&mtask, sizeof(void*)))
+			return NULL;
+	}
+
+	if (data_size) {
+		memcpy(mtask->data, data, data_size);
+		mtask->data_count = data_size;
+	} else
+		mtask->data_count = 0;
+
+	memcpy(mtask->hdr, hdr, sizeof(struct iscsi_hdr));
+	INIT_LIST_HEAD(&mtask->running);
+	list_add_tail(&mtask->running, &conn->mgmtqueue);
+	return mtask;
+}
+
+int iscsi_conn_send_pdu(struct iscsi_cls_conn *cls_conn, struct iscsi_hdr *hdr,
+			char *data, uint32_t data_size)
+{
+	struct iscsi_conn *conn = cls_conn->dd_data;
+	struct iscsi_session *session = conn->session;
+	int err = 0;
+
+	spin_lock_bh(&session->lock);
+	if (!__iscsi_conn_send_pdu(conn, hdr, data, data_size))
+		err = -EPERM;
+	spin_unlock_bh(&session->lock);
+	scsi_queue_work(session->host, &conn->xmitwork);
+	return err;
+}
+EXPORT_SYMBOL_GPL(iscsi_conn_send_pdu);
 
 /**
  * iscsi_cmd_rsp - SCSI Command Response processing
@@ -291,17 +432,19 @@ invalid_datalen:
 			   min_t(uint16_t, senselen, SCSI_SENSE_BUFFERSIZE));
 	}
 
-	if (rhdr->flags & ISCSI_FLAG_CMD_UNDERFLOW) {
+	if (rhdr->flags & (ISCSI_FLAG_CMD_UNDERFLOW |
+	                   ISCSI_FLAG_CMD_OVERFLOW)) {
 		int res_count = be32_to_cpu(rhdr->residual_count);
 
-		if (res_count > 0 && res_count <= scsi_bufflen(sc))
+		if (res_count > 0 &&
+		    (rhdr->flags & ISCSI_FLAG_CMD_OVERFLOW ||
+		     res_count <= scsi_bufflen(sc)))
 			scsi_set_resid(sc, res_count);
 		else
 			sc->result = (DID_BAD_TARGET << 16) | rhdr->cmd_status;
-	} else if (rhdr->flags & ISCSI_FLAG_CMD_BIDI_UNDERFLOW)
+	} else if (rhdr->flags & (ISCSI_FLAG_CMD_BIDI_UNDERFLOW |
+	                          ISCSI_FLAG_CMD_BIDI_OVERFLOW))
 		sc->result = (DID_BAD_TARGET << 16) | rhdr->cmd_status;
-	else if (rhdr->flags & ISCSI_FLAG_CMD_OVERFLOW)
-		scsi_set_resid(sc, be32_to_cpu(rhdr->residual_count));
 
 out:
 	debug_scsi("done [sc %lx res %d itt 0x%x]\n",
@@ -318,16 +461,49 @@ static void iscsi_tmf_rsp(struct iscsi_conn *conn, struct iscsi_hdr *hdr)
 	conn->exp_statsn = be32_to_cpu(hdr->statsn) + 1;
 	conn->tmfrsp_pdus_cnt++;
 
-	if (conn->tmabort_state != TMABORT_INITIAL)
+	if (conn->tmf_state != TMF_QUEUED)
 		return;
 
 	if (tmf->response == ISCSI_TMF_RSP_COMPLETE)
-		conn->tmabort_state = TMABORT_SUCCESS;
+		conn->tmf_state = TMF_SUCCESS;
 	else if (tmf->response == ISCSI_TMF_RSP_NO_TASK)
-		conn->tmabort_state = TMABORT_NOT_FOUND;
+		conn->tmf_state = TMF_NOT_FOUND;
 	else
-		conn->tmabort_state = TMABORT_FAILED;
+		conn->tmf_state = TMF_FAILED;
 	wake_up(&conn->ehwait);
+}
+
+static void iscsi_send_nopout(struct iscsi_conn *conn, struct iscsi_nopin *rhdr)
+{
+        struct iscsi_nopout hdr;
+	struct iscsi_mgmt_task *mtask;
+
+	if (!rhdr && conn->ping_mtask)
+		return;
+
+	memset(&hdr, 0, sizeof(struct iscsi_nopout));
+	hdr.opcode = ISCSI_OP_NOOP_OUT | ISCSI_OP_IMMEDIATE;
+	hdr.flags = ISCSI_FLAG_CMD_FINAL;
+
+	if (rhdr) {
+		memcpy(hdr.lun, rhdr->lun, 8);
+		hdr.ttt = rhdr->ttt;
+		hdr.itt = RESERVED_ITT;
+	} else
+		hdr.ttt = RESERVED_ITT;
+
+	mtask = __iscsi_conn_send_pdu(conn, (struct iscsi_hdr *)&hdr, NULL, 0);
+	if (!mtask) {
+		printk(KERN_ERR "Could not send nopout\n");
+		return;
+	}
+
+	/* only track our nops */
+	if (!rhdr) {
+		conn->ping_mtask = mtask;
+		conn->last_ping = jiffies;
+	}
+	scsi_queue_work(conn->session->host, &conn->xmitwork);
 }
 
 static int iscsi_handle_reject(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
@@ -374,6 +550,7 @@ int __iscsi_complete_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 	struct iscsi_mgmt_task *mtask;
 	uint32_t itt;
 
+	conn->last_recv = jiffies;
 	if (hdr->itt != RESERVED_ITT)
 		itt = get_itt(hdr->itt);
 	else
@@ -429,10 +606,7 @@ int __iscsi_complete_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 			 */
 			if (iscsi_recv_pdu(conn->cls_conn, hdr, data, datalen))
 				rc = ISCSI_ERR_CONN_FAILED;
-			list_del(&mtask->running);
-			if (conn->login_mtask != mtask)
-				__kfifo_put(session->mgmtpool.queue,
-					    (void*)&mtask, sizeof(void*));
+			iscsi_free_mgmt_task(conn, mtask);
 			break;
 		case ISCSI_OP_SCSI_TMFUNC_RSP:
 			if (datalen) {
@@ -441,20 +615,26 @@ int __iscsi_complete_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 			}
 
 			iscsi_tmf_rsp(conn, hdr);
+			iscsi_free_mgmt_task(conn, mtask);
 			break;
 		case ISCSI_OP_NOOP_IN:
-			if (hdr->ttt != cpu_to_be32(ISCSI_RESERVED_TAG) || datalen) {
+			if (hdr->ttt != cpu_to_be32(ISCSI_RESERVED_TAG) ||
+			    datalen) {
 				rc = ISCSI_ERR_PROTO;
 				break;
 			}
 			conn->exp_statsn = be32_to_cpu(hdr->statsn) + 1;
 
-			if (iscsi_recv_pdu(conn->cls_conn, hdr, data, datalen))
-				rc = ISCSI_ERR_CONN_FAILED;
-			list_del(&mtask->running);
-			if (conn->login_mtask != mtask)
-				__kfifo_put(session->mgmtpool.queue,
-					    (void*)&mtask, sizeof(void*));
+			if (conn->ping_mtask != mtask) {
+				/*
+				 * If this is not in response to one of our
+				 * nops then it must be from userspace.
+				 */
+				if (iscsi_recv_pdu(conn->cls_conn, hdr, data,
+						   datalen))
+					rc = ISCSI_ERR_CONN_FAILED;
+			}
+			iscsi_free_mgmt_task(conn, mtask);
 			break;
 		default:
 			rc = ISCSI_ERR_BAD_OPCODE;
@@ -473,8 +653,7 @@ int __iscsi_complete_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 			if (hdr->ttt == cpu_to_be32(ISCSI_RESERVED_TAG))
 				break;
 
-			if (iscsi_recv_pdu(conn->cls_conn, hdr, NULL, 0))
-				rc = ISCSI_ERR_CONN_FAILED;
+			iscsi_send_nopout(conn, (struct iscsi_nopin*)hdr);
 			break;
 		case ISCSI_OP_REJECT:
 			rc = iscsi_handle_reject(conn, hdr, data, datalen);
@@ -609,20 +788,19 @@ static void iscsi_prep_mtask(struct iscsi_conn *conn,
 		session->tt->init_mgmt_task(conn, mtask);
 
 	debug_scsi("mgmtpdu [op 0x%x hdr->itt 0x%x datalen %d]\n",
-		   hdr->opcode, hdr->itt, mtask->data_count);
+		   hdr->opcode & ISCSI_OPCODE_MASK, hdr->itt,
+		   mtask->data_count);
 }
 
 static int iscsi_xmit_mtask(struct iscsi_conn *conn)
 {
 	struct iscsi_hdr *hdr = conn->mtask->hdr;
-	int rc, was_logout = 0;
+	int rc;
 
+	if ((hdr->opcode & ISCSI_OPCODE_MASK) == ISCSI_OP_LOGOUT)
+		conn->session->state = ISCSI_STATE_LOGGING_OUT;
 	spin_unlock_bh(&conn->session->lock);
-	if ((hdr->opcode & ISCSI_OPCODE_MASK) == ISCSI_OP_LOGOUT) {
-		conn->session->state = ISCSI_STATE_IN_RECOVERY;
-		iscsi_block_session(session_to_cls(conn->session));
-		was_logout = 1;
-	}
+
 	rc = conn->session->tt->xmit_mgmt_task(conn, conn->mtask);
 	spin_lock_bh(&conn->session->lock);
 	if (rc)
@@ -630,11 +808,6 @@ static int iscsi_xmit_mtask(struct iscsi_conn *conn)
 
 	/* done with this in-progress mtask */
 	conn->mtask = NULL;
-
-	if (was_logout) {
-		set_bit(ISCSI_SUSPEND_BIT, &conn->suspend_tx);
-		return -ENODATA;
-	}
 	return 0;
 }
 
@@ -658,26 +831,34 @@ static int iscsi_check_cmdsn_window_closed(struct iscsi_conn *conn)
 static int iscsi_xmit_ctask(struct iscsi_conn *conn)
 {
 	struct iscsi_cmd_task *ctask = conn->ctask;
-	int rc = 0;
-
-	/*
-	 * serialize with TMF AbortTask
-	 */
-	if (ctask->state == ISCSI_TASK_ABORTING)
-		goto done;
+	int rc;
 
 	__iscsi_get_ctask(ctask);
 	spin_unlock_bh(&conn->session->lock);
 	rc = conn->session->tt->xmit_cmd_task(conn, ctask);
 	spin_lock_bh(&conn->session->lock);
 	__iscsi_put_ctask(ctask);
-
-done:
 	if (!rc)
 		/* done with this ctask */
 		conn->ctask = NULL;
 	return rc;
 }
+
+/**
+ * iscsi_requeue_ctask - requeue ctask to run from session workqueue
+ * @ctask: ctask to requeue
+ *
+ * LLDs that need to run a ctask from the session workqueue should call
+ * this. The session lock must be held.
+ */
+void iscsi_requeue_ctask(struct iscsi_cmd_task *ctask)
+{
+	struct iscsi_conn *conn = ctask->conn;
+
+	list_move_tail(&ctask->running, &conn->requeue);
+	scsi_queue_work(conn->session->host, &conn->xmitwork);
+}
+EXPORT_SYMBOL_GPL(iscsi_requeue_ctask);
 
 /**
  * iscsi_data_xmit - xmit any command into the scheduled connection
@@ -717,36 +898,40 @@ static int iscsi_data_xmit(struct iscsi_conn *conn)
 	 * overflow us with nop-ins
 	 */
 check_mgmt:
-	while (__kfifo_get(conn->mgmtqueue, (void*)&conn->mtask,
-			   sizeof(void*))) {
+	while (!list_empty(&conn->mgmtqueue)) {
+		conn->mtask = list_entry(conn->mgmtqueue.next,
+					 struct iscsi_mgmt_task, running);
+		if (conn->session->state == ISCSI_STATE_LOGGING_OUT) {
+			iscsi_free_mgmt_task(conn, conn->mtask);
+			conn->mtask = NULL;
+			continue;
+		}
+
 		iscsi_prep_mtask(conn, conn->mtask);
-		list_add_tail(&conn->mtask->running, &conn->mgmt_run_list);
+		list_move_tail(conn->mgmtqueue.next, &conn->mgmt_run_list);
 		rc = iscsi_xmit_mtask(conn);
 		if (rc)
 			goto again;
 	}
 
-	/* process command queue */
+	/* process pending command queue */
 	while (!list_empty(&conn->xmitqueue)) {
-		/*
-		 * iscsi tcp may readd the task to the xmitqueue to send
-		 * write data
-		 */
+		if (conn->tmf_state == TMF_QUEUED)
+			break;
+
 		conn->ctask = list_entry(conn->xmitqueue.next,
 					 struct iscsi_cmd_task, running);
-		switch (conn->ctask->state) {
-		case ISCSI_TASK_ABORTING:
-			break;
-		case ISCSI_TASK_PENDING:
-			iscsi_prep_scsi_cmd_pdu(conn->ctask);
-			conn->session->tt->init_cmd_task(conn->ctask);
-			/* fall through */
-		default:
-			conn->ctask->state = ISCSI_TASK_RUNNING;
-			break;
+		if (conn->session->state == ISCSI_STATE_LOGGING_OUT) {
+			fail_command(conn, conn->ctask, DID_IMM_RETRY << 16);
+			continue;
 		}
-		list_move_tail(conn->xmitqueue.next, &conn->run_list);
+		if (iscsi_prep_scsi_cmd_pdu(conn->ctask)) {
+			fail_command(conn, conn->ctask, DID_ABORT << 16);
+			continue;
+		}
 
+		conn->ctask->state = ISCSI_TASK_RUNNING;
+		list_move_tail(conn->xmitqueue.next, &conn->run_list);
 		rc = iscsi_xmit_ctask(conn);
 		if (rc)
 			goto again;
@@ -755,7 +940,28 @@ check_mgmt:
 		 * we need to check the mgmt queue for nops that need to
 		 * be sent to aviod starvation
 		 */
-		if (__kfifo_len(conn->mgmtqueue))
+		if (!list_empty(&conn->mgmtqueue))
+			goto check_mgmt;
+	}
+
+	while (!list_empty(&conn->requeue)) {
+		if (conn->session->fast_abort && conn->tmf_state != TMF_INITIAL)
+			break;
+
+		/*
+		 * we always do fastlogout - conn stop code will clean up.
+		 */
+		if (conn->session->state == ISCSI_STATE_LOGGING_OUT)
+			break;
+
+		conn->ctask = list_entry(conn->requeue.next,
+					 struct iscsi_cmd_task, running);
+		conn->ctask->state = ISCSI_TASK_RUNNING;
+		list_move_tail(conn->requeue.next, &conn->run_list);
+		rc = iscsi_xmit_ctask(conn);
+		if (rc)
+			goto again;
+		if (!list_empty(&conn->mgmtqueue))
 			goto check_mgmt;
 	}
 	spin_unlock_bh(&conn->session->lock);
@@ -790,6 +996,7 @@ enum {
 	FAILURE_SESSION_TERMINATE,
 	FAILURE_SESSION_IN_RECOVERY,
 	FAILURE_SESSION_RECOVERY_TIMEOUT,
+	FAILURE_SESSION_LOGGING_OUT,
 };
 
 int iscsi_queuecommand(struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
@@ -805,8 +1012,9 @@ int iscsi_queuecommand(struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 	sc->SCp.ptr = NULL;
 
 	host = sc->device->host;
-	session = iscsi_hostdata(host->hostdata);
+	spin_unlock(host->host_lock);
 
+	session = iscsi_hostdata(host->hostdata);
 	spin_lock(&session->lock);
 
 	/*
@@ -822,17 +1030,22 @@ int iscsi_queuecommand(struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 		 * be entering our queuecommand while a block is starting
 		 * up because the block code is not locked)
 		 */
-		if (session->state == ISCSI_STATE_IN_RECOVERY) {
+		switch (session->state) {
+		case ISCSI_STATE_IN_RECOVERY:
 			reason = FAILURE_SESSION_IN_RECOVERY;
 			goto reject;
-		}
-
-		if (session->state == ISCSI_STATE_RECOVERY_FAILED)
+		case ISCSI_STATE_LOGGING_OUT:
+			reason = FAILURE_SESSION_LOGGING_OUT;
+			goto reject;
+		case ISCSI_STATE_RECOVERY_FAILED:
 			reason = FAILURE_SESSION_RECOVERY_TIMEOUT;
-		else if (session->state == ISCSI_STATE_TERMINATE)
+			break;
+		case ISCSI_STATE_TERMINATE:
 			reason = FAILURE_SESSION_TERMINATE;
-		else
+			break;
+		default:
 			reason = FAILURE_SESSION_FREED;
+		}
 		goto fault;
 	}
 
@@ -859,7 +1072,6 @@ int iscsi_queuecommand(struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 
 	atomic_set(&ctask->refcount, 1);
 	ctask->state = ISCSI_TASK_PENDING;
-	ctask->mtask = NULL;
 	ctask->conn = conn;
 	ctask->sc = sc;
 	INIT_LIST_HEAD(&ctask->running);
@@ -868,11 +1080,13 @@ int iscsi_queuecommand(struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 	spin_unlock(&session->lock);
 
 	scsi_queue_work(host, &conn->xmitwork);
+	spin_lock(host->host_lock);
 	return 0;
 
 reject:
 	spin_unlock(&session->lock);
 	debug_scsi("cmd 0x%x rejected (%d)\n", sc->cmnd[0], reason);
+	spin_lock(host->host_lock);
 	return SCSI_MLQUEUE_HOST_BUSY;
 
 fault:
@@ -882,6 +1096,7 @@ fault:
 	sc->result = (DID_NO_CONNECT << 16);
 	scsi_set_resid(sc, scsi_bufflen(sc));
 	sc->scsi_done(sc);
+	spin_lock(host->host_lock);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(iscsi_queuecommand);
@@ -895,72 +1110,15 @@ int iscsi_change_queue_depth(struct scsi_device *sdev, int depth)
 }
 EXPORT_SYMBOL_GPL(iscsi_change_queue_depth);
 
-static struct iscsi_mgmt_task *
-__iscsi_conn_send_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
-		      char *data, uint32_t data_size)
-{
-	struct iscsi_session *session = conn->session;
-	struct iscsi_mgmt_task *mtask;
-
-	if (session->state == ISCSI_STATE_TERMINATE)
-		return NULL;
-
-	if (hdr->opcode == (ISCSI_OP_LOGIN | ISCSI_OP_IMMEDIATE) ||
-	    hdr->opcode == (ISCSI_OP_TEXT | ISCSI_OP_IMMEDIATE))
-		/*
-		 * Login and Text are sent serially, in
-		 * request-followed-by-response sequence.
-		 * Same mtask can be used. Same ITT must be used.
-		 * Note that login_mtask is preallocated at conn_create().
-		 */
-		mtask = conn->login_mtask;
-	else {
-		BUG_ON(conn->c_stage == ISCSI_CONN_INITIAL_STAGE);
-		BUG_ON(conn->c_stage == ISCSI_CONN_STOPPED);
-
-		if (!__kfifo_get(session->mgmtpool.queue,
-				 (void*)&mtask, sizeof(void*)))
-			return NULL;
-	}
-
-	if (data_size) {
-		memcpy(mtask->data, data, data_size);
-		mtask->data_count = data_size;
-	} else
-		mtask->data_count = 0;
-
-	INIT_LIST_HEAD(&mtask->running);
-	memcpy(mtask->hdr, hdr, sizeof(struct iscsi_hdr));
-	__kfifo_put(conn->mgmtqueue, (void*)&mtask, sizeof(void*));
-	return mtask;
-}
-
-int iscsi_conn_send_pdu(struct iscsi_cls_conn *cls_conn, struct iscsi_hdr *hdr,
-			char *data, uint32_t data_size)
-{
-	struct iscsi_conn *conn = cls_conn->dd_data;
-	struct iscsi_session *session = conn->session;
-	int err = 0;
-
-	spin_lock_bh(&session->lock);
-	if (!__iscsi_conn_send_pdu(conn, hdr, data, data_size))
-		err = -EPERM;
-	spin_unlock_bh(&session->lock);
-	scsi_queue_work(session->host, &conn->xmitwork);
-	return err;
-}
-EXPORT_SYMBOL_GPL(iscsi_conn_send_pdu);
-
 void iscsi_session_recovery_timedout(struct iscsi_cls_session *cls_session)
 {
 	struct iscsi_session *session = class_to_transport_session(cls_session);
-	struct iscsi_conn *conn = session->leadconn;
 
 	spin_lock_bh(&session->lock);
 	if (session->state != ISCSI_STATE_LOGGED_IN) {
 		session->state = ISCSI_STATE_RECOVERY_FAILED;
-		if (conn)
-			wake_up(&conn->ehwait);
+		if (session->leadconn)
+			wake_up(&session->leadconn->ehwait);
 	}
 	spin_unlock_bh(&session->lock);
 }
@@ -971,30 +1129,25 @@ int iscsi_eh_host_reset(struct scsi_cmnd *sc)
 	struct Scsi_Host *host = sc->device->host;
 	struct iscsi_session *session = iscsi_hostdata(host->hostdata);
 	struct iscsi_conn *conn = session->leadconn;
-	int fail_session = 0;
 
+	mutex_lock(&session->eh_mutex);
 	spin_lock_bh(&session->lock);
 	if (session->state == ISCSI_STATE_TERMINATE) {
 failed:
 		debug_scsi("failing host reset: session terminated "
 			   "[CID %d age %d]\n", conn->id, session->age);
 		spin_unlock_bh(&session->lock);
+		mutex_unlock(&session->eh_mutex);
 		return FAILED;
 	}
 
-	if (sc->SCp.phase == session->age) {
-		debug_scsi("failing connection CID %d due to SCSI host reset\n",
-			   conn->id);
-		fail_session = 1;
-	}
 	spin_unlock_bh(&session->lock);
-
+	mutex_unlock(&session->eh_mutex);
 	/*
 	 * we drop the lock here but the leadconn cannot be destoyed while
 	 * we are in the scsi eh
 	 */
-	if (fail_session)
-		iscsi_conn_failure(conn, ISCSI_ERR_CONN_FAILED);
+	iscsi_conn_failure(conn, ISCSI_ERR_CONN_FAILED);
 
 	debug_scsi("iscsi_eh_host_reset wait for relogin\n");
 	wait_event_interruptible(conn->ehwait,
@@ -1004,73 +1157,56 @@ failed:
 	if (signal_pending(current))
 		flush_signals(current);
 
+	mutex_lock(&session->eh_mutex);
 	spin_lock_bh(&session->lock);
 	if (session->state == ISCSI_STATE_LOGGED_IN)
 		printk(KERN_INFO "iscsi: host reset succeeded\n");
 	else
 		goto failed;
 	spin_unlock_bh(&session->lock);
-
+	mutex_unlock(&session->eh_mutex);
 	return SUCCESS;
 }
 EXPORT_SYMBOL_GPL(iscsi_eh_host_reset);
 
-static void iscsi_tmabort_timedout(unsigned long data)
+static void iscsi_tmf_timedout(unsigned long data)
 {
-	struct iscsi_cmd_task *ctask = (struct iscsi_cmd_task *)data;
-	struct iscsi_conn *conn = ctask->conn;
+	struct iscsi_conn *conn = (struct iscsi_conn *)data;
 	struct iscsi_session *session = conn->session;
 
 	spin_lock(&session->lock);
-	if (conn->tmabort_state == TMABORT_INITIAL) {
-		conn->tmabort_state = TMABORT_TIMEDOUT;
-		debug_scsi("tmabort timedout [sc %p itt 0x%x]\n",
-			ctask->sc, ctask->itt);
+	if (conn->tmf_state == TMF_QUEUED) {
+		conn->tmf_state = TMF_TIMEDOUT;
+		debug_scsi("tmf timedout\n");
 		/* unblock eh_abort() */
 		wake_up(&conn->ehwait);
 	}
 	spin_unlock(&session->lock);
 }
 
-static int iscsi_exec_abort_task(struct scsi_cmnd *sc,
-				 struct iscsi_cmd_task *ctask)
+static int iscsi_exec_task_mgmt_fn(struct iscsi_conn *conn,
+				   struct iscsi_tm *hdr, int age,
+				   int timeout)
 {
-	struct iscsi_conn *conn = ctask->conn;
 	struct iscsi_session *session = conn->session;
-	struct iscsi_tm *hdr = &conn->tmhdr;
+	struct iscsi_mgmt_task *mtask;
 
-	/*
-	 * ctask timed out but session is OK requests must be serialized.
-	 */
-	memset(hdr, 0, sizeof(struct iscsi_tm));
-	hdr->opcode = ISCSI_OP_SCSI_TMFUNC | ISCSI_OP_IMMEDIATE;
-	hdr->flags = ISCSI_TM_FUNC_ABORT_TASK;
-	hdr->flags |= ISCSI_FLAG_CMD_FINAL;
-	memcpy(hdr->lun, ctask->hdr->lun, sizeof(hdr->lun));
-	hdr->rtt = ctask->hdr->itt;
-	hdr->refcmdsn = ctask->hdr->cmdsn;
-
-	ctask->mtask = __iscsi_conn_send_pdu(conn, (struct iscsi_hdr *)hdr,
-					    NULL, 0);
-	if (!ctask->mtask) {
+	mtask = __iscsi_conn_send_pdu(conn, (struct iscsi_hdr *)hdr,
+				      NULL, 0);
+	if (!mtask) {
 		spin_unlock_bh(&session->lock);
 		iscsi_conn_failure(conn, ISCSI_ERR_CONN_FAILED);
-		spin_lock_bh(&session->lock)
-		debug_scsi("abort sent failure [itt 0x%x]\n", ctask->itt);
+		spin_lock_bh(&session->lock);
+		debug_scsi("tmf exec failure\n");
 		return -EPERM;
 	}
-	ctask->state = ISCSI_TASK_ABORTING;
+	conn->tmfcmd_pdus_cnt++;
+	conn->tmf_timer.expires = timeout * HZ + jiffies;
+	conn->tmf_timer.function = iscsi_tmf_timedout;
+	conn->tmf_timer.data = (unsigned long)conn;
+	add_timer(&conn->tmf_timer);
+	debug_scsi("tmf set timeout\n");
 
-	debug_scsi("abort sent [itt 0x%x]\n", ctask->itt);
-
-	if (conn->tmabort_state == TMABORT_INITIAL) {
-		conn->tmfcmd_pdus_cnt++;
-		conn->tmabort_timer.expires = 20*HZ + jiffies;
-		conn->tmabort_timer.function = iscsi_tmabort_timedout;
-		conn->tmabort_timer.data = (unsigned long)ctask;
-		add_timer(&conn->tmabort_timer);
-		debug_scsi("abort set timeout [itt 0x%x]\n", ctask->itt);
-	}
 	spin_unlock_bh(&session->lock);
 	mutex_unlock(&session->eh_mutex);
 	scsi_queue_work(session->host, &conn->xmitwork);
@@ -1078,92 +1214,63 @@ static int iscsi_exec_abort_task(struct scsi_cmnd *sc,
 	/*
 	 * block eh thread until:
 	 *
-	 * 1) abort response
-	 * 2) abort timeout
+	 * 1) tmf response
+	 * 2) tmf timeout
 	 * 3) session is terminated or restarted or userspace has
 	 * given up on recovery
 	 */
-	wait_event_interruptible(conn->ehwait,
-				 sc->SCp.phase != session->age ||
+	wait_event_interruptible(conn->ehwait, age != session->age ||
 				 session->state != ISCSI_STATE_LOGGED_IN ||
-				 conn->tmabort_state != TMABORT_INITIAL);
+				 conn->tmf_state != TMF_QUEUED);
 	if (signal_pending(current))
 		flush_signals(current);
-	del_timer_sync(&conn->tmabort_timer);
+	del_timer_sync(&conn->tmf_timer);
+
 	mutex_lock(&session->eh_mutex);
 	spin_lock_bh(&session->lock);
+	/* if the session drops it will clean up the mtask */
+	if (age != session->age ||
+	    session->state != ISCSI_STATE_LOGGED_IN)
+		return -ENOTCONN;
 	return 0;
 }
 
 /*
- * session lock must be held
+ * Fail commands. session lock held and recv side suspended and xmit
+ * thread flushed
  */
-static struct iscsi_mgmt_task *
-iscsi_remove_mgmt_task(struct kfifo *fifo, uint32_t itt)
+static void fail_all_commands(struct iscsi_conn *conn, unsigned lun)
 {
-	int i, nr_tasks = __kfifo_len(fifo) / sizeof(void*);
-	struct iscsi_mgmt_task *task;
+	struct iscsi_cmd_task *ctask, *tmp;
 
-	debug_scsi("searching %d tasks\n", nr_tasks);
-
-	for (i = 0; i < nr_tasks; i++) {
-		__kfifo_get(fifo, (void*)&task, sizeof(void*));
-		debug_scsi("check task %u\n", task->itt);
-
-		if (task->itt == itt) {
-			debug_scsi("matched task\n");
-			return task;
-		}
-
-		__kfifo_put(fifo, (void*)&task, sizeof(void*));
-	}
-	return NULL;
-}
-
-static int iscsi_ctask_mtask_cleanup(struct iscsi_cmd_task *ctask)
-{
-	struct iscsi_conn *conn = ctask->conn;
-	struct iscsi_session *session = conn->session;
-
-	if (!ctask->mtask)
-		return -EINVAL;
-
-	if (!iscsi_remove_mgmt_task(conn->mgmtqueue, ctask->mtask->itt))
-		list_del(&ctask->mtask->running);
-	__kfifo_put(session->mgmtpool.queue, (void*)&ctask->mtask,
-		    sizeof(void*));
-	ctask->mtask = NULL;
-	return 0;
-}
-
-/*
- * session lock must be held
- */
-static void fail_command(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask,
-			 int err)
-{
-	struct scsi_cmnd *sc;
-
-	sc = ctask->sc;
-	if (!sc)
-		return;
-
-	if (ctask->state == ISCSI_TASK_PENDING)
-		/*
-		 * cmd never made it to the xmit thread, so we should not count
-		 * the cmd in the sequencing
-		 */
-		conn->session->queued_cmdsn--;
-	else
-		conn->session->tt->cleanup_cmd_task(conn, ctask);
-	iscsi_ctask_mtask_cleanup(ctask);
-
-	sc->result = err;
-	scsi_set_resid(sc, scsi_bufflen(sc));
-	if (conn->ctask == ctask)
+	if (conn->ctask && (conn->ctask->sc->device->lun == lun || lun == -1))
 		conn->ctask = NULL;
-	/* release ref from queuecommand */
-	__iscsi_put_ctask(ctask);
+
+	/* flush pending */
+	list_for_each_entry_safe(ctask, tmp, &conn->xmitqueue, running) {
+		if (lun == ctask->sc->device->lun || lun == -1) {
+			debug_scsi("failing pending sc %p itt 0x%x\n",
+				   ctask->sc, ctask->itt);
+			fail_command(conn, ctask, DID_BUS_BUSY << 16);
+		}
+	}
+
+	list_for_each_entry_safe(ctask, tmp, &conn->requeue, running) {
+		if (lun == ctask->sc->device->lun || lun == -1) {
+			debug_scsi("failing requeued sc %p itt 0x%x\n",
+				   ctask->sc, ctask->itt);
+			fail_command(conn, ctask, DID_BUS_BUSY << 16);
+		}
+	}
+
+	/* fail all other running */
+	list_for_each_entry_safe(ctask, tmp, &conn->run_list, running) {
+		if (lun == ctask->sc->device->lun || lun == -1) {
+			debug_scsi("failing in progress sc %p itt 0x%x\n",
+				   ctask->sc, ctask->itt);
+			fail_command(conn, ctask, DID_BUS_BUSY << 16);
+		}
+	}
 }
 
 static void iscsi_suspend_tx(struct iscsi_conn *conn)
@@ -1178,13 +1285,126 @@ static void iscsi_start_tx(struct iscsi_conn *conn)
 	scsi_queue_work(conn->session->host, &conn->xmitwork);
 }
 
+static enum scsi_eh_timer_return iscsi_eh_cmd_timed_out(struct scsi_cmnd *scmd)
+{
+	struct iscsi_cls_session *cls_session;
+	struct iscsi_session *session;
+	struct iscsi_conn *conn;
+	enum scsi_eh_timer_return rc = EH_NOT_HANDLED;
+
+	cls_session = starget_to_session(scsi_target(scmd->device));
+	session = class_to_transport_session(cls_session);
+
+	debug_scsi("scsi cmd %p timedout\n", scmd);
+
+	spin_lock(&session->lock);
+	if (session->state != ISCSI_STATE_LOGGED_IN) {
+		/*
+		 * We are probably in the middle of iscsi recovery so let
+		 * that complete and handle the error.
+		 */
+		rc = EH_RESET_TIMER;
+		goto done;
+	}
+
+	conn = session->leadconn;
+	if (!conn) {
+		/* In the middle of shuting down */
+		rc = EH_RESET_TIMER;
+		goto done;
+	}
+
+	if (!conn->recv_timeout && !conn->ping_timeout)
+		goto done;
+	/*
+	 * if the ping timedout then we are in the middle of cleaning up
+	 * and can let the iscsi eh handle it
+	 */
+	if (time_before_eq(conn->last_recv + (conn->recv_timeout * HZ) +
+			    (conn->ping_timeout * HZ), jiffies))
+		rc = EH_RESET_TIMER;
+	/*
+	 * if we are about to check the transport then give the command
+	 * more time
+	 */
+	if (time_before_eq(conn->last_recv + (conn->recv_timeout * HZ),
+			   jiffies))
+		rc = EH_RESET_TIMER;
+	/* if in the middle of checking the transport then give us more time */
+	if (conn->ping_mtask)
+		rc = EH_RESET_TIMER;
+done:
+	spin_unlock(&session->lock);
+	debug_scsi("return %s\n", rc == EH_RESET_TIMER ? "timer reset" : "nh");
+	return rc;
+}
+
+static void iscsi_check_transport_timeouts(unsigned long data)
+{
+	struct iscsi_conn *conn = (struct iscsi_conn *)data;
+	struct iscsi_session *session = conn->session;
+	unsigned long timeout, next_timeout = 0, last_recv;
+
+	spin_lock(&session->lock);
+	if (session->state != ISCSI_STATE_LOGGED_IN)
+		goto done;
+
+	timeout = conn->recv_timeout;
+	if (!timeout)
+		goto done;
+
+	timeout *= HZ;
+	last_recv = conn->last_recv;
+	if (time_before_eq(last_recv + timeout + (conn->ping_timeout * HZ),
+			   jiffies)) {
+		printk(KERN_ERR "ping timeout of %d secs expired, "
+		       "last rx %lu, last ping %lu, now %lu\n",
+		       conn->ping_timeout, last_recv,
+		       conn->last_ping, jiffies);
+		spin_unlock(&session->lock);
+		iscsi_conn_failure(conn, ISCSI_ERR_CONN_FAILED);
+		return;
+	}
+
+	if (time_before_eq(last_recv + timeout, jiffies)) {
+		if (time_before_eq(conn->last_ping, last_recv)) {
+			/* send a ping to try to provoke some traffic */
+			debug_scsi("Sending nopout as ping on conn %p\n", conn);
+			iscsi_send_nopout(conn, NULL);
+		}
+		next_timeout = last_recv + timeout + (conn->ping_timeout * HZ);
+	} else {
+		next_timeout = last_recv + timeout;
+	}
+
+	if (next_timeout) {
+		debug_scsi("Setting next tmo %lu\n", next_timeout);
+		mod_timer(&conn->transport_timer, next_timeout);
+	}
+done:
+	spin_unlock(&session->lock);
+}
+
+static void iscsi_prep_abort_task_pdu(struct iscsi_cmd_task *ctask,
+				      struct iscsi_tm *hdr)
+{
+	memset(hdr, 0, sizeof(*hdr));
+	hdr->opcode = ISCSI_OP_SCSI_TMFUNC | ISCSI_OP_IMMEDIATE;
+	hdr->flags = ISCSI_TM_FUNC_ABORT_TASK & ISCSI_FLAG_TM_FUNC_MASK;
+	hdr->flags |= ISCSI_FLAG_CMD_FINAL;
+	memcpy(hdr->lun, ctask->hdr->lun, sizeof(hdr->lun));
+	hdr->rtt = ctask->hdr->itt;
+	hdr->refcmdsn = ctask->hdr->cmdsn;
+}
+
 int iscsi_eh_abort(struct scsi_cmnd *sc)
 {
 	struct Scsi_Host *host = sc->device->host;
 	struct iscsi_session *session = iscsi_hostdata(host->hostdata);
-	struct iscsi_cmd_task *ctask;
 	struct iscsi_conn *conn;
-	int rc;
+	struct iscsi_cmd_task *ctask;
+	struct iscsi_tm *hdr;
+	int rc, age;
 
 	mutex_lock(&session->eh_mutex);
 	spin_lock_bh(&session->lock);
@@ -1199,19 +1419,23 @@ int iscsi_eh_abort(struct scsi_cmnd *sc)
 		return SUCCESS;
 	}
 
-	ctask = (struct iscsi_cmd_task *)sc->SCp.ptr;
-	conn = ctask->conn;
-
-	conn->eh_abort_cnt++;
-	debug_scsi("aborting [sc %p itt 0x%x]\n", sc, ctask->itt);
-
 	/*
 	 * If we are not logged in or we have started a new session
 	 * then let the host reset code handle this
 	 */
-	if (session->state != ISCSI_STATE_LOGGED_IN ||
-	    sc->SCp.phase != session->age)
-		goto failed;
+	if (!session->leadconn || session->state != ISCSI_STATE_LOGGED_IN ||
+	    sc->SCp.phase != session->age) {
+		spin_unlock_bh(&session->lock);
+		mutex_unlock(&session->eh_mutex);
+		return FAILED;
+	}
+
+	conn = session->leadconn;
+	conn->eh_abort_cnt++;
+	age = session->age;
+
+	ctask = (struct iscsi_cmd_task *)sc->SCp.ptr;
+	debug_scsi("aborting [sc %p itt 0x%x]\n", sc, ctask->itt);
 
 	/* ctask completed before time out */
 	if (!ctask->sc) {
@@ -1219,27 +1443,26 @@ int iscsi_eh_abort(struct scsi_cmnd *sc)
 		goto success;
 	}
 
-	/* what should we do here ? */
-	if (conn->ctask == ctask) {
-		printk(KERN_INFO "iscsi: sc %p itt 0x%x partially sent. "
-		       "Failing abort\n", sc, ctask->itt);
-		goto failed;
-	}
-
 	if (ctask->state == ISCSI_TASK_PENDING) {
 		fail_command(conn, ctask, DID_ABORT << 16);
 		goto success;
 	}
 
-	conn->tmabort_state = TMABORT_INITIAL;
-	rc = iscsi_exec_abort_task(sc, ctask);
-	if (rc || sc->SCp.phase != session->age ||
-	    session->state != ISCSI_STATE_LOGGED_IN)
+	/* only have one tmf outstanding at a time */
+	if (conn->tmf_state != TMF_INITIAL)
 		goto failed;
-	iscsi_ctask_mtask_cleanup(ctask);
+	conn->tmf_state = TMF_QUEUED;
 
-	switch (conn->tmabort_state) {
-	case TMABORT_SUCCESS:
+	hdr = &conn->tmhdr;
+	iscsi_prep_abort_task_pdu(ctask, hdr);
+
+	if (iscsi_exec_task_mgmt_fn(conn, hdr, age, session->abort_timeout)) {
+		rc = FAILED;
+		goto failed;
+	}
+
+	switch (conn->tmf_state) {
+	case TMF_SUCCESS:
 		spin_unlock_bh(&session->lock);
 		iscsi_suspend_tx(conn);
 		/*
@@ -1248,22 +1471,26 @@ int iscsi_eh_abort(struct scsi_cmnd *sc)
 		write_lock_bh(conn->recv_lock);
 		spin_lock(&session->lock);
 		fail_command(conn, ctask, DID_ABORT << 16);
+		conn->tmf_state = TMF_INITIAL;
 		spin_unlock(&session->lock);
 		write_unlock_bh(conn->recv_lock);
 		iscsi_start_tx(conn);
 		goto success_unlocked;
-	case TMABORT_NOT_FOUND:
-		if (!ctask->sc) {
+	case TMF_TIMEDOUT:
+		spin_unlock_bh(&session->lock);
+		iscsi_conn_failure(conn, ISCSI_ERR_CONN_FAILED);
+		goto failed_unlocked;
+	case TMF_NOT_FOUND:
+		if (!sc->SCp.ptr) {
+			conn->tmf_state = TMF_INITIAL;
 			/* ctask completed before tmf abort response */
 			debug_scsi("sc completed while abort in progress\n");
 			goto success;
 		}
 		/* fall through */
 	default:
-		/* timedout or failed */
-		spin_unlock_bh(&session->lock);
-		iscsi_conn_failure(conn, ISCSI_ERR_CONN_FAILED);
-		goto failed_unlocked;
+		conn->tmf_state = TMF_INITIAL;
+		goto failed;
 	}
 
 success:
@@ -1276,65 +1503,152 @@ success_unlocked:
 failed:
 	spin_unlock_bh(&session->lock);
 failed_unlocked:
-	debug_scsi("abort failed [sc %lx itt 0x%x]\n", (long)sc, ctask->itt);
+	debug_scsi("abort failed [sc %p itt 0x%x]\n", sc,
+		    ctask ? ctask->itt : 0);
 	mutex_unlock(&session->eh_mutex);
 	return FAILED;
 }
 EXPORT_SYMBOL_GPL(iscsi_eh_abort);
 
-int
-iscsi_pool_init(struct iscsi_queue *q, int max, void ***items, int item_size)
+static void iscsi_prep_lun_reset_pdu(struct scsi_cmnd *sc, struct iscsi_tm *hdr)
 {
-	int i;
+	memset(hdr, 0, sizeof(*hdr));
+	hdr->opcode = ISCSI_OP_SCSI_TMFUNC | ISCSI_OP_IMMEDIATE;
+	hdr->flags = ISCSI_TM_FUNC_LOGICAL_UNIT_RESET & ISCSI_FLAG_TM_FUNC_MASK;
+	hdr->flags |= ISCSI_FLAG_CMD_FINAL;
+	int_to_scsilun(sc->device->lun, (struct scsi_lun *)hdr->lun);
+	hdr->rtt = RESERVED_ITT;
+}
 
-	*items = kmalloc(max * sizeof(void*), GFP_KERNEL);
-	if (*items == NULL)
-		return -ENOMEM;
+int iscsi_eh_device_reset(struct scsi_cmnd *sc)
+{
+	struct Scsi_Host *host = sc->device->host;
+	struct iscsi_session *session = iscsi_hostdata(host->hostdata);
+	struct iscsi_conn *conn;
+	struct iscsi_tm *hdr;
+	int rc = FAILED;
+
+	debug_scsi("LU Reset [sc %p lun %u]\n", sc, sc->device->lun);
+
+	mutex_lock(&session->eh_mutex);
+	spin_lock_bh(&session->lock);
+	/*
+	 * Just check if we are not logged in. We cannot check for
+	 * the phase because the reset could come from a ioctl.
+	 */
+	if (!session->leadconn || session->state != ISCSI_STATE_LOGGED_IN)
+		goto unlock;
+	conn = session->leadconn;
+
+	/* only have one tmf outstanding at a time */
+	if (conn->tmf_state != TMF_INITIAL)
+		goto unlock;
+	conn->tmf_state = TMF_QUEUED;
+
+	hdr = &conn->tmhdr;
+	iscsi_prep_lun_reset_pdu(sc, hdr);
+
+	if (iscsi_exec_task_mgmt_fn(conn, hdr, session->age,
+				    session->lu_reset_timeout)) {
+		rc = FAILED;
+		goto unlock;
+	}
+
+	switch (conn->tmf_state) {
+	case TMF_SUCCESS:
+		break;
+	case TMF_TIMEDOUT:
+		spin_unlock_bh(&session->lock);
+		iscsi_conn_failure(conn, ISCSI_ERR_CONN_FAILED);
+		goto done;
+	default:
+		conn->tmf_state = TMF_INITIAL;
+		goto unlock;
+	}
+
+	rc = SUCCESS;
+	spin_unlock_bh(&session->lock);
+
+	iscsi_suspend_tx(conn);
+	/* need to grab the recv lock then session lock */
+	write_lock_bh(conn->recv_lock);
+	spin_lock(&session->lock);
+	fail_all_commands(conn, sc->device->lun);
+	conn->tmf_state = TMF_INITIAL;
+	spin_unlock(&session->lock);
+	write_unlock_bh(conn->recv_lock);
+
+	iscsi_start_tx(conn);
+	goto done;
+
+unlock:
+	spin_unlock_bh(&session->lock);
+done:
+	debug_scsi("iscsi_eh_device_reset %s\n",
+		  rc == SUCCESS ? "SUCCESS" : "FAILED");
+	mutex_unlock(&session->eh_mutex);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(iscsi_eh_device_reset);
+
+/*
+ * Pre-allocate a pool of @max items of @item_size. By default, the pool
+ * should be accessed via kfifo_{get,put} on q->queue.
+ * Optionally, the caller can obtain the array of object pointers
+ * by passing in a non-NULL @items pointer
+ */
+int
+iscsi_pool_init(struct iscsi_pool *q, int max, void ***items, int item_size)
+{
+	int i, num_arrays = 1;
+
+	memset(q, 0, sizeof(*q));
 
 	q->max = max;
-	q->pool = kmalloc(max * sizeof(void*), GFP_KERNEL);
-	if (q->pool == NULL) {
-		kfree(*items);
-		return -ENOMEM;
-	}
+
+	/* If the user passed an items pointer, he wants a copy of
+	 * the array. */
+	if (items)
+		num_arrays++;
+	q->pool = kzalloc(num_arrays * max * sizeof(void*), GFP_KERNEL);
+	if (q->pool == NULL)
+		goto enomem;
 
 	q->queue = kfifo_init((void*)q->pool, max * sizeof(void*),
 			      GFP_KERNEL, NULL);
-	if (q->queue == ERR_PTR(-ENOMEM)) {
-		kfree(q->pool);
-		kfree(*items);
-		return -ENOMEM;
-	}
+	if (q->queue == ERR_PTR(-ENOMEM))
+		goto enomem;
 
 	for (i = 0; i < max; i++) {
-		q->pool[i] = kmalloc(item_size, GFP_KERNEL);
+		q->pool[i] = kzalloc(item_size, GFP_KERNEL);
 		if (q->pool[i] == NULL) {
-			int j;
-
-			for (j = 0; j < i; j++)
-				kfree(q->pool[j]);
-
-			kfifo_free(q->queue);
-			kfree(q->pool);
-			kfree(*items);
-			return -ENOMEM;
+			q->max = i;
+			goto enomem;
 		}
-		memset(q->pool[i], 0, item_size);
-		(*items)[i] = q->pool[i];
 		__kfifo_put(q->queue, (void*)&q->pool[i], sizeof(void*));
 	}
+
+	if (items) {
+		*items = q->pool + max;
+		memcpy(*items, q->pool, max * sizeof(void *));
+	}
+
 	return 0;
+
+enomem:
+	iscsi_pool_free(q);
+	return -ENOMEM;
 }
 EXPORT_SYMBOL_GPL(iscsi_pool_init);
 
-void iscsi_pool_free(struct iscsi_queue *q, void **items)
+void iscsi_pool_free(struct iscsi_pool *q)
 {
 	int i;
 
 	for (i = 0; i < q->max; i++)
-		kfree(items[i]);
-	kfree(q->pool);
-	kfree(items);
+		kfree(q->pool[i]);
+	if (q->pool)
+		kfree(q->pool);
 }
 EXPORT_SYMBOL_GPL(iscsi_pool_free);
 
@@ -1387,7 +1701,7 @@ iscsi_session_setup(struct iscsi_transport *iscsit,
 		qdepth = ISCSI_DEF_CMD_PER_LUN;
 	}
 
-	if (cmds_max < 2 || (cmds_max & (cmds_max - 1)) ||
+	if (!is_power_of_2(cmds_max) ||
 	    cmds_max >= ISCSI_MGMT_ITT_OFFSET) {
 		if (cmds_max != 0)
 			printk(KERN_ERR "iscsi: invalid can_queue of %d. "
@@ -1411,12 +1725,16 @@ iscsi_session_setup(struct iscsi_transport *iscsit,
 	shost->max_cmd_len = iscsit->max_cmd_len;
 	shost->transportt = scsit;
 	shost->transportt->create_work_queue = 1;
+	shost->transportt->eh_timed_out = iscsi_eh_cmd_timed_out;
 	*hostno = shost->host_no;
 
 	session = iscsi_hostdata(shost->hostdata);
 	memset(session, 0, sizeof(struct iscsi_session));
 	session->host = shost;
 	session->state = ISCSI_STATE_FREE;
+	session->fast_abort = 1;
+	session->lu_reset_timeout = 15;
+	session->abort_timeout = 10;
 	session->mgmtpool_max = ISCSI_MGMT_CMDS_MAX;
 	session->cmds_max = cmds_max;
 	session->queued_cmdsn = session->cmdsn = initial_cmdsn;
@@ -1479,9 +1797,9 @@ module_put:
 cls_session_fail:
 	scsi_remove_host(shost);
 add_host_fail:
-	iscsi_pool_free(&session->mgmtpool, (void**)session->mgmt_cmds);
+	iscsi_pool_free(&session->mgmtpool);
 mgmtpool_alloc_fail:
-	iscsi_pool_free(&session->cmdpool, (void**)session->cmds);
+	iscsi_pool_free(&session->cmdpool);
 cmdpool_alloc_fail:
 	scsi_host_put(shost);
 	return NULL;
@@ -1501,11 +1819,11 @@ void iscsi_session_teardown(struct iscsi_cls_session *cls_session)
 	struct iscsi_session *session = iscsi_hostdata(shost->hostdata);
 	struct module *owner = cls_session->transport->owner;
 
-	iscsi_unblock_session(cls_session);
+	iscsi_remove_session(cls_session);
 	scsi_remove_host(shost);
 
-	iscsi_pool_free(&session->mgmtpool, (void**)session->mgmt_cmds);
-	iscsi_pool_free(&session->cmdpool, (void**)session->cmds);
+	iscsi_pool_free(&session->mgmtpool);
+	iscsi_pool_free(&session->cmdpool);
 
 	kfree(session->password);
 	kfree(session->password_in);
@@ -1516,7 +1834,7 @@ void iscsi_session_teardown(struct iscsi_cls_session *cls_session)
 	kfree(session->hwaddress);
 	kfree(session->initiatorname);
 
-	iscsi_destroy_session(cls_session);
+	iscsi_free_session(cls_session);
 	scsi_host_put(shost);
 	module_put(owner);
 }
@@ -1546,17 +1864,17 @@ iscsi_conn_setup(struct iscsi_cls_session *cls_session, uint32_t conn_idx)
 	conn->c_stage = ISCSI_CONN_INITIAL_STAGE;
 	conn->id = conn_idx;
 	conn->exp_statsn = 0;
-	conn->tmabort_state = TMABORT_INITIAL;
+	conn->tmf_state = TMF_INITIAL;
+
+	init_timer(&conn->transport_timer);
+	conn->transport_timer.data = (unsigned long)conn;
+	conn->transport_timer.function = iscsi_check_transport_timeouts;
+
 	INIT_LIST_HEAD(&conn->run_list);
 	INIT_LIST_HEAD(&conn->mgmt_run_list);
+	INIT_LIST_HEAD(&conn->mgmtqueue);
 	INIT_LIST_HEAD(&conn->xmitqueue);
-
-	/* initialize general immediate & non-immediate PDU commands queue */
-	conn->mgmtqueue = kfifo_alloc(session->mgmtpool_max * sizeof(void*),
-			                GFP_KERNEL, NULL);
-	if (conn->mgmtqueue == ERR_PTR(-ENOMEM))
-		goto mgmtqueue_alloc_fail;
-
+	INIT_LIST_HEAD(&conn->requeue);
 	INIT_WORK(&conn->xmitwork, iscsi_xmitworker);
 
 	/* allocate login_mtask used for the login/text sequences */
@@ -1574,7 +1892,7 @@ iscsi_conn_setup(struct iscsi_cls_session *cls_session, uint32_t conn_idx)
 		goto login_mtask_data_alloc_fail;
 	conn->login_mtask->data = conn->data = data;
 
-	init_timer(&conn->tmabort_timer);
+	init_timer(&conn->tmf_timer);
 	init_waitqueue_head(&conn->ehwait);
 
 	return cls_conn;
@@ -1583,8 +1901,6 @@ login_mtask_data_alloc_fail:
 	__kfifo_put(session->mgmtpool.queue, (void*)&conn->login_mtask,
 		    sizeof(void*));
 login_mtask_alloc_fail:
-	kfifo_free(conn->mgmtqueue);
-mgmtqueue_alloc_fail:
 	iscsi_destroy_conn(cls_conn);
 	return NULL;
 }
@@ -1603,8 +1919,9 @@ void iscsi_conn_teardown(struct iscsi_cls_conn *cls_conn)
 	struct iscsi_session *session = conn->session;
 	unsigned long flags;
 
+	del_timer_sync(&conn->transport_timer);
+
 	spin_lock_bh(&session->lock);
-	set_bit(ISCSI_SUSPEND_BIT, &conn->suspend_tx);
 	conn->c_stage = ISCSI_CONN_CLEANUP_WAIT;
 	if (session->leadconn == conn) {
 		/*
@@ -1637,7 +1954,7 @@ void iscsi_conn_teardown(struct iscsi_cls_conn *cls_conn)
 	}
 
 	/* flush queued up work because we free the connection below */
-	scsi_flush_work(session->host);
+	iscsi_suspend_tx(conn);
 
 	spin_lock_bh(&session->lock);
 	kfree(conn->data);
@@ -1647,8 +1964,6 @@ void iscsi_conn_teardown(struct iscsi_cls_conn *cls_conn)
 	if (session->leadconn == conn)
 		session->leadconn = NULL;
 	spin_unlock_bh(&session->lock);
-
-	kfifo_free(conn->mgmtqueue);
 
 	iscsi_destroy_conn(cls_conn);
 }
@@ -1672,10 +1987,28 @@ int iscsi_conn_start(struct iscsi_cls_conn *cls_conn)
 		return -EINVAL;
 	}
 
+	if (conn->ping_timeout && !conn->recv_timeout) {
+		printk(KERN_ERR "iscsi: invalid recv timeout of zero "
+		      "Using 5 seconds\n.");
+		conn->recv_timeout = 5;
+	}
+
+	if (conn->recv_timeout && !conn->ping_timeout) {
+		printk(KERN_ERR "iscsi: invalid ping timeout of zero "
+		      "Using 5 seconds.\n");
+		conn->ping_timeout = 5;
+	}
+
 	spin_lock_bh(&session->lock);
 	conn->c_stage = ISCSI_CONN_STARTED;
 	session->state = ISCSI_STATE_LOGGED_IN;
 	session->queued_cmdsn = session->cmdsn;
+
+	conn->last_recv = jiffies;
+	conn->last_ping = jiffies;
+	if (conn->recv_timeout && conn->ping_timeout)
+		mod_timer(&conn->transport_timer,
+			  jiffies + (conn->recv_timeout * HZ));
 
 	switch(conn->stop_stage) {
 	case STOP_CONN_RECOVER:
@@ -1684,7 +2017,7 @@ int iscsi_conn_start(struct iscsi_cls_conn *cls_conn)
 		 * commands after successful recovery
 		 */
 		conn->stop_stage = 0;
-		conn->tmabort_state = TMABORT_INITIAL;
+		conn->tmf_state = TMF_INITIAL;
 		session->age++;
 		spin_unlock_bh(&session->lock);
 
@@ -1709,54 +2042,26 @@ flush_control_queues(struct iscsi_session *session, struct iscsi_conn *conn)
 	struct iscsi_mgmt_task *mtask, *tmp;
 
 	/* handle pending */
-	while (__kfifo_get(conn->mgmtqueue, (void*)&mtask, sizeof(void*))) {
-		if (mtask == conn->login_mtask)
-			continue;
+	list_for_each_entry_safe(mtask, tmp, &conn->mgmtqueue, running) {
 		debug_scsi("flushing pending mgmt task itt 0x%x\n", mtask->itt);
-		__kfifo_put(session->mgmtpool.queue, (void*)&mtask,
-			    sizeof(void*));
+		iscsi_free_mgmt_task(conn, mtask);
 	}
 
 	/* handle running */
 	list_for_each_entry_safe(mtask, tmp, &conn->mgmt_run_list, running) {
 		debug_scsi("flushing running mgmt task itt 0x%x\n", mtask->itt);
-		list_del(&mtask->running);
-
-		if (mtask == conn->login_mtask)
-			continue;
-		__kfifo_put(session->mgmtpool.queue, (void*)&mtask,
-			   sizeof(void*));
+		iscsi_free_mgmt_task(conn, mtask);
 	}
 
 	conn->mtask = NULL;
-}
-
-/* Fail commands. Mutex and session lock held and recv side suspended */
-static void fail_all_commands(struct iscsi_conn *conn)
-{
-	struct iscsi_cmd_task *ctask, *tmp;
-
-	/* flush pending */
-	list_for_each_entry_safe(ctask, tmp, &conn->xmitqueue, running) {
-		debug_scsi("failing pending sc %p itt 0x%x\n", ctask->sc,
-			   ctask->itt);
-		fail_command(conn, ctask, DID_BUS_BUSY << 16);
-	}
-
-	/* fail all other running */
-	list_for_each_entry_safe(ctask, tmp, &conn->run_list, running) {
-		debug_scsi("failing in progress sc %p itt 0x%x\n",
-			   ctask->sc, ctask->itt);
-		fail_command(conn, ctask, DID_BUS_BUSY << 16);
-	}
-
-	conn->ctask = NULL;
 }
 
 static void iscsi_start_session_recovery(struct iscsi_session *session,
 					 struct iscsi_conn *conn, int flag)
 {
 	int old_stop_stage;
+
+	del_timer_sync(&conn->transport_timer);
 
 	mutex_lock(&session->eh_mutex);
 	spin_lock_bh(&session->lock);
@@ -1818,7 +2123,7 @@ static void iscsi_start_session_recovery(struct iscsi_session *session,
 	 * flush queues.
 	 */
 	spin_lock_bh(&session->lock);
-	fail_all_commands(conn);
+	fail_all_commands(conn, -1);
 	flush_control_queues(session, conn);
 	spin_unlock_bh(&session->lock);
 	mutex_unlock(&session->eh_mutex);
@@ -1869,6 +2174,21 @@ int iscsi_set_param(struct iscsi_cls_conn *cls_conn,
 	uint32_t value;
 
 	switch(param) {
+	case ISCSI_PARAM_FAST_ABORT:
+		sscanf(buf, "%d", &session->fast_abort);
+		break;
+	case ISCSI_PARAM_ABORT_TMO:
+		sscanf(buf, "%d", &session->abort_timeout);
+		break;
+	case ISCSI_PARAM_LU_RESET_TMO:
+		sscanf(buf, "%d", &session->lu_reset_timeout);
+		break;
+	case ISCSI_PARAM_PING_TMO:
+		sscanf(buf, "%d", &conn->ping_timeout);
+		break;
+	case ISCSI_PARAM_RECV_TMO:
+		sscanf(buf, "%d", &conn->recv_timeout);
+		break;
 	case ISCSI_PARAM_MAX_RECV_DLENGTH:
 		sscanf(buf, "%d", &conn->max_recv_dlength);
 		break;
@@ -1983,6 +2303,15 @@ int iscsi_session_get_param(struct iscsi_cls_session *cls_session,
 	int len;
 
 	switch(param) {
+	case ISCSI_PARAM_FAST_ABORT:
+		len = sprintf(buf, "%d\n", session->fast_abort);
+		break;
+	case ISCSI_PARAM_ABORT_TMO:
+		len = sprintf(buf, "%d\n", session->abort_timeout);
+		break;
+	case ISCSI_PARAM_LU_RESET_TMO:
+		len = sprintf(buf, "%d\n", session->lu_reset_timeout);
+		break;
 	case ISCSI_PARAM_INITIAL_R2T_EN:
 		len = sprintf(buf, "%d\n", session->initial_r2t_en);
 		break;
@@ -2040,6 +2369,12 @@ int iscsi_conn_get_param(struct iscsi_cls_conn *cls_conn,
 	int len;
 
 	switch(param) {
+	case ISCSI_PARAM_PING_TMO:
+		len = sprintf(buf, "%u\n", conn->ping_timeout);
+		break;
+	case ISCSI_PARAM_RECV_TMO:
+		len = sprintf(buf, "%u\n", conn->recv_timeout);
+		break;
 	case ISCSI_PARAM_MAX_RECV_DLENGTH:
 		len = sprintf(buf, "%u\n", conn->max_recv_dlength);
 		break;

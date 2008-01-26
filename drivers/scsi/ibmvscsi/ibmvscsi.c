@@ -629,6 +629,16 @@ static int ibmvscsi_send_srp_event(struct srp_event_struct *evt_struct,
 		list_del(&evt_struct->list);
 		del_timer(&evt_struct->timer);
 
+		/* If send_crq returns H_CLOSED, return SCSI_MLQUEUE_HOST_BUSY.
+		 * Firmware will send a CRQ with a transport event (0xFF) to
+		 * tell this client what has happened to the transport.  This
+		 * will be handled in ibmvscsi_handle_crq()
+		 */
+		if (rc == H_CLOSED) {
+			dev_warn(hostdata->dev, "send warning. "
+			         "Receive queue closed, will retry.\n");
+			goto send_busy;
+		}
 		dev_err(hostdata->dev, "send error %d\n", rc);
 		atomic_inc(&hostdata->request_limit);
 		goto send_error;
@@ -976,57 +986,73 @@ static int ibmvscsi_eh_abort_handler(struct scsi_cmnd *cmd)
 	int rsp_rc;
 	unsigned long flags;
 	u16 lun = lun_from_dev(cmd->device);
+	unsigned long wait_switch = 0;
 
 	/* First, find this command in our sent list so we can figure
 	 * out the correct tag
 	 */
 	spin_lock_irqsave(hostdata->host->host_lock, flags);
-	found_evt = NULL;
-	list_for_each_entry(tmp_evt, &hostdata->sent, list) {
-		if (tmp_evt->cmnd == cmd) {
-			found_evt = tmp_evt;
-			break;
+	wait_switch = jiffies + (init_timeout * HZ);
+	do {
+		found_evt = NULL;
+		list_for_each_entry(tmp_evt, &hostdata->sent, list) {
+			if (tmp_evt->cmnd == cmd) {
+				found_evt = tmp_evt;
+				break;
+			}
 		}
-	}
 
-	if (!found_evt) {
-		spin_unlock_irqrestore(hostdata->host->host_lock, flags);
-		return SUCCESS;
-	}
+		if (!found_evt) {
+			spin_unlock_irqrestore(hostdata->host->host_lock, flags);
+			return SUCCESS;
+		}
 
-	evt = get_event_struct(&hostdata->pool);
-	if (evt == NULL) {
-		spin_unlock_irqrestore(hostdata->host->host_lock, flags);
-		sdev_printk(KERN_ERR, cmd->device, "failed to allocate abort event\n");
-		return FAILED;
-	}
+		evt = get_event_struct(&hostdata->pool);
+		if (evt == NULL) {
+			spin_unlock_irqrestore(hostdata->host->host_lock, flags);
+			sdev_printk(KERN_ERR, cmd->device,
+				"failed to allocate abort event\n");
+			return FAILED;
+		}
 	
-	init_event_struct(evt,
-			  sync_completion,
-			  VIOSRP_SRP_FORMAT,
-			  init_timeout);
+		init_event_struct(evt,
+				  sync_completion,
+				  VIOSRP_SRP_FORMAT,
+				  init_timeout);
 
-	tsk_mgmt = &evt->iu.srp.tsk_mgmt;
+		tsk_mgmt = &evt->iu.srp.tsk_mgmt;
 	
-	/* Set up an abort SRP command */
-	memset(tsk_mgmt, 0x00, sizeof(*tsk_mgmt));
-	tsk_mgmt->opcode = SRP_TSK_MGMT;
-	tsk_mgmt->lun = ((u64) lun) << 48;
-	tsk_mgmt->tsk_mgmt_func = SRP_TSK_ABORT_TASK;
-	tsk_mgmt->task_tag = (u64) found_evt;
+		/* Set up an abort SRP command */
+		memset(tsk_mgmt, 0x00, sizeof(*tsk_mgmt));
+		tsk_mgmt->opcode = SRP_TSK_MGMT;
+		tsk_mgmt->lun = ((u64) lun) << 48;
+		tsk_mgmt->tsk_mgmt_func = SRP_TSK_ABORT_TASK;
+		tsk_mgmt->task_tag = (u64) found_evt;
 
-	sdev_printk(KERN_INFO, cmd->device, "aborting command. lun 0x%lx, tag 0x%lx\n",
-		    tsk_mgmt->lun, tsk_mgmt->task_tag);
+		evt->sync_srp = &srp_rsp;
 
-	evt->sync_srp = &srp_rsp;
-	init_completion(&evt->comp);
-	rsp_rc = ibmvscsi_send_srp_event(evt, hostdata, init_timeout * 2);
+		init_completion(&evt->comp);
+		rsp_rc = ibmvscsi_send_srp_event(evt, hostdata, init_timeout * 2);
+
+		if (rsp_rc != SCSI_MLQUEUE_HOST_BUSY)
+			break;
+
+		spin_unlock_irqrestore(hostdata->host->host_lock, flags);
+		msleep(10);
+		spin_lock_irqsave(hostdata->host->host_lock, flags);
+	} while (time_before(jiffies, wait_switch));
+
 	spin_unlock_irqrestore(hostdata->host->host_lock, flags);
+
 	if (rsp_rc != 0) {
 		sdev_printk(KERN_ERR, cmd->device,
 			    "failed to send abort() event. rc=%d\n", rsp_rc);
 		return FAILED;
 	}
+
+	sdev_printk(KERN_INFO, cmd->device,
+                    "aborting command. lun 0x%lx, tag 0x%lx\n",
+		    (((u64) lun) << 48), (u64) found_evt);
 
 	wait_for_completion(&evt->comp);
 
@@ -1099,40 +1125,55 @@ static int ibmvscsi_eh_device_reset_handler(struct scsi_cmnd *cmd)
 	int rsp_rc;
 	unsigned long flags;
 	u16 lun = lun_from_dev(cmd->device);
+	unsigned long wait_switch = 0;
 
 	spin_lock_irqsave(hostdata->host->host_lock, flags);
-	evt = get_event_struct(&hostdata->pool);
-	if (evt == NULL) {
-		spin_unlock_irqrestore(hostdata->host->host_lock, flags);
-		sdev_printk(KERN_ERR, cmd->device, "failed to allocate reset event\n");
-		return FAILED;
-	}
+	wait_switch = jiffies + (init_timeout * HZ);
+	do {
+		evt = get_event_struct(&hostdata->pool);
+		if (evt == NULL) {
+			spin_unlock_irqrestore(hostdata->host->host_lock, flags);
+			sdev_printk(KERN_ERR, cmd->device,
+				"failed to allocate reset event\n");
+			return FAILED;
+		}
 	
-	init_event_struct(evt,
-			  sync_completion,
-			  VIOSRP_SRP_FORMAT,
-			  init_timeout);
+		init_event_struct(evt,
+				  sync_completion,
+				  VIOSRP_SRP_FORMAT,
+				  init_timeout);
 
-	tsk_mgmt = &evt->iu.srp.tsk_mgmt;
+		tsk_mgmt = &evt->iu.srp.tsk_mgmt;
 
-	/* Set up a lun reset SRP command */
-	memset(tsk_mgmt, 0x00, sizeof(*tsk_mgmt));
-	tsk_mgmt->opcode = SRP_TSK_MGMT;
-	tsk_mgmt->lun = ((u64) lun) << 48;
-	tsk_mgmt->tsk_mgmt_func = SRP_TSK_LUN_RESET;
+		/* Set up a lun reset SRP command */
+		memset(tsk_mgmt, 0x00, sizeof(*tsk_mgmt));
+		tsk_mgmt->opcode = SRP_TSK_MGMT;
+		tsk_mgmt->lun = ((u64) lun) << 48;
+		tsk_mgmt->tsk_mgmt_func = SRP_TSK_LUN_RESET;
 
-	sdev_printk(KERN_INFO, cmd->device, "resetting device. lun 0x%lx\n",
-		    tsk_mgmt->lun);
+		evt->sync_srp = &srp_rsp;
 
-	evt->sync_srp = &srp_rsp;
-	init_completion(&evt->comp);
-	rsp_rc = ibmvscsi_send_srp_event(evt, hostdata, init_timeout * 2);
+		init_completion(&evt->comp);
+		rsp_rc = ibmvscsi_send_srp_event(evt, hostdata, init_timeout * 2);
+
+		if (rsp_rc != SCSI_MLQUEUE_HOST_BUSY)
+			break;
+
+		spin_unlock_irqrestore(hostdata->host->host_lock, flags);
+		msleep(10);
+		spin_lock_irqsave(hostdata->host->host_lock, flags);
+	} while (time_before(jiffies, wait_switch));
+
 	spin_unlock_irqrestore(hostdata->host->host_lock, flags);
+
 	if (rsp_rc != 0) {
 		sdev_printk(KERN_ERR, cmd->device,
 			    "failed to send reset event. rc=%d\n", rsp_rc);
 		return FAILED;
 	}
+
+	sdev_printk(KERN_INFO, cmd->device, "resetting device. lun 0x%lx\n",
+		    (((u64) lun) << 48));
 
 	wait_for_completion(&evt->comp);
 
@@ -1386,8 +1427,10 @@ static int ibmvscsi_slave_configure(struct scsi_device *sdev)
 	unsigned long lock_flags = 0;
 
 	spin_lock_irqsave(shost->host_lock, lock_flags);
-	if (sdev->type == TYPE_DISK)
+	if (sdev->type == TYPE_DISK) {
 		sdev->allow_restart = 1;
+		sdev->timeout = 60 * HZ;
+	}
 	scsi_adjust_queue_depth(sdev, 0, shost->cmd_per_lun);
 	spin_unlock_irqrestore(shost->host_lock, lock_flags);
 	return 0;

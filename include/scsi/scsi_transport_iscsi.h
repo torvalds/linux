@@ -118,7 +118,7 @@ struct iscsi_transport {
 			 char *data, uint32_t data_size);
 	void (*get_stats) (struct iscsi_cls_conn *conn,
 			   struct iscsi_stats *stats);
-	void (*init_cmd_task) (struct iscsi_cmd_task *ctask);
+	int (*init_cmd_task) (struct iscsi_cmd_task *ctask);
 	void (*init_mgmt_task) (struct iscsi_conn *conn,
 				struct iscsi_mgmt_task *mtask);
 	int (*xmit_cmd_task) (struct iscsi_conn *conn,
@@ -176,6 +176,7 @@ struct iscsi_cls_conn {
 #define ISCSI_STATE_TERMINATE		4
 #define ISCSI_STATE_IN_RECOVERY		5
 #define ISCSI_STATE_RECOVERY_FAILED	6
+#define ISCSI_STATE_LOGGING_OUT		7
 
 struct iscsi_cls_session {
 	struct list_head sess_list;		/* item in session_list */
@@ -185,6 +186,7 @@ struct iscsi_cls_session {
 	/* recovery fields */
 	int recovery_tmo;
 	struct delayed_work recovery_work;
+	struct work_struct unbind_work;
 
 	int target_id;
 
@@ -205,6 +207,8 @@ struct iscsi_cls_session {
 struct iscsi_host {
 	struct list_head sessions;
 	struct mutex mutex;
+	struct workqueue_struct *unbind_workq;
+	char unbind_workq_name[KOBJ_NAME_LEN];
 };
 
 /*
@@ -214,8 +218,8 @@ extern struct iscsi_cls_session *iscsi_alloc_session(struct Scsi_Host *shost,
 					struct iscsi_transport *transport);
 extern int iscsi_add_session(struct iscsi_cls_session *session,
 			     unsigned int target_id);
-extern int iscsi_if_create_session_done(struct iscsi_cls_conn *conn);
-extern int iscsi_if_destroy_session_done(struct iscsi_cls_conn *conn);
+extern int iscsi_session_event(struct iscsi_cls_session *session,
+			       enum iscsi_uevent_e event);
 extern struct iscsi_cls_session *iscsi_create_session(struct Scsi_Host *shost,
 						struct iscsi_transport *t,
 						unsigned int target_id);

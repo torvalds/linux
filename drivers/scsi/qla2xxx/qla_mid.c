@@ -39,7 +39,7 @@ qla2x00_vp_stop_timer(scsi_qla_host_t *vha)
 	}
 }
 
-uint32_t
+static uint32_t
 qla24xx_allocate_vp_id(scsi_qla_host_t *vha)
 {
 	uint32_t vp_id;
@@ -47,16 +47,15 @@ qla24xx_allocate_vp_id(scsi_qla_host_t *vha)
 
 	/* Find an empty slot and assign an vp_id */
 	down(&ha->vport_sem);
-	vp_id = find_first_zero_bit((unsigned long *)ha->vp_idx_map,
-				MAX_MULTI_ID_FABRIC);
-	if (vp_id > MAX_MULTI_ID_FABRIC) {
-		DEBUG15(printk ("vp_id %d is bigger than MAX_MULTI_ID_FABRID\n",
-		    vp_id));
+	vp_id = find_first_zero_bit(ha->vp_idx_map, ha->max_npiv_vports + 1);
+	if (vp_id > ha->max_npiv_vports) {
+		DEBUG15(printk ("vp_id %d is bigger than max-supported %d.\n",
+		    vp_id, ha->max_npiv_vports));
 		up(&ha->vport_sem);
 		return vp_id;
 	}
 
-	set_bit(vp_id, (unsigned long *)ha->vp_idx_map);
+	set_bit(vp_id, ha->vp_idx_map);
 	ha->num_vhosts++;
 	vha->vp_idx = vp_id;
 	list_add_tail(&vha->vp_list, &ha->vp_list);
@@ -73,12 +72,12 @@ qla24xx_deallocate_vp_id(scsi_qla_host_t *vha)
 	down(&ha->vport_sem);
 	vp_id = vha->vp_idx;
 	ha->num_vhosts--;
-	clear_bit(vp_id, (unsigned long *)ha->vp_idx_map);
+	clear_bit(vp_id, ha->vp_idx_map);
 	list_del(&vha->vp_list);
 	up(&ha->vport_sem);
 }
 
-scsi_qla_host_t *
+static scsi_qla_host_t *
 qla24xx_find_vhost_by_name(scsi_qla_host_t *ha, uint8_t *port_name)
 {
 	scsi_qla_host_t *vha;
@@ -216,11 +215,7 @@ qla2x00_alert_all_vps(scsi_qla_host_t *ha, uint16_t *mb)
 	if (ha->parent)
 		return;
 
-	i = find_next_bit((unsigned long *)ha->vp_idx_map,
-	    MAX_MULTI_ID_FABRIC + 1, 1);
-	for (;i <= MAX_MULTI_ID_FABRIC;
-	    i = find_next_bit((unsigned long *)ha->vp_idx_map,
-	    MAX_MULTI_ID_FABRIC + 1, i + 1)) {
+	for_each_mapped_vp_idx(ha, i) {
 		vp_idx_matched = 0;
 
 		list_for_each_entry(vha, &ha->vp_list, vp_list) {
@@ -270,7 +265,7 @@ qla2x00_vp_abort_isp(scsi_qla_host_t *vha)
 	qla24xx_enable_vp(vha);
 }
 
-int
+static int
 qla2x00_do_dpc_vp(scsi_qla_host_t *vha)
 {
 	if (test_and_clear_bit(VP_IDX_ACQUIRED, &vha->vp_flags)) {
@@ -311,11 +306,7 @@ qla2x00_do_dpc_all_vps(scsi_qla_host_t *ha)
 
 	clear_bit(VP_DPC_NEEDED, &ha->dpc_flags);
 
-	i = find_next_bit((unsigned long *)ha->vp_idx_map,
-	    MAX_MULTI_ID_FABRIC + 1, 1);
-	for (;i <= MAX_MULTI_ID_FABRIC;
-	    i = find_next_bit((unsigned long *)ha->vp_idx_map,
-	    MAX_MULTI_ID_FABRIC + 1, i + 1)) {
+	for_each_mapped_vp_idx(ha, i) {
 		vp_idx_matched = 0;
 
 		list_for_each_entry(vha, &ha->vp_list, vp_list) {
@@ -350,15 +341,17 @@ qla24xx_vport_create_req_sanity_check(struct fc_vport *fc_vport)
 
 	/* Check up unique WWPN */
 	u64_to_wwn(fc_vport->port_name, port_name);
+	if (!memcmp(port_name, ha->port_name, WWN_SIZE))
+		return VPCERR_BAD_WWN;
 	vha = qla24xx_find_vhost_by_name(ha, port_name);
 	if (vha)
 		return VPCERR_BAD_WWN;
 
 	/* Check up max-npiv-supports */
 	if (ha->num_vhosts > ha->max_npiv_vports) {
-		DEBUG15(printk("scsi(%ld): num_vhosts %d is bigger than "
-		    "max_npv_vports %d.\n", ha->host_no,
-		    (uint16_t) ha->num_vhosts, (int) ha->max_npiv_vports));
+		DEBUG15(printk("scsi(%ld): num_vhosts %ud is bigger than "
+		    "max_npv_vports %ud.\n", ha->host_no,
+		    ha->num_vhosts, ha->max_npiv_vports));
 		return VPCERR_UNSUPPORTED;
 	}
 	return 0;
@@ -412,8 +405,9 @@ qla24xx_create_vhost(struct fc_vport *fc_vport)
 	}
 	vha->mgmt_svr_loop_id = 10 + vha->vp_idx;
 
-	init_MUTEX(&vha->mbx_cmd_sem);
-	init_MUTEX_LOCKED(&vha->mbx_intr_sem);
+	init_completion(&vha->mbx_cmd_comp);
+	complete(&vha->mbx_cmd_comp);
+	init_completion(&vha->mbx_intr_comp);
 
 	INIT_LIST_HEAD(&vha->list);
 	INIT_LIST_HEAD(&vha->fcports);
@@ -450,7 +444,7 @@ qla24xx_create_vhost(struct fc_vport *fc_vport)
 	num_hosts++;
 
 	down(&ha->vport_sem);
-	set_bit(vha->vp_idx, (unsigned long *)ha->vp_idx_map);
+	set_bit(vha->vp_idx, ha->vp_idx_map);
 	ha->cur_vport_count++;
 	up(&ha->vport_sem);
 

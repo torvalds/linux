@@ -287,6 +287,24 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	pcmd = (struct lpfc_dmabuf *) cmdiocb->context2;
 	lp = (uint32_t *) pcmd->virt;
 	sp = (struct serv_parm *) ((uint8_t *) lp + sizeof (uint32_t));
+	if (wwn_to_u64(sp->portName.u.wwn) == 0) {
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+				 "0140 PLOGI Reject: invalid nname\n");
+		stat.un.b.lsRjtRsnCode = LSRJT_UNABLE_TPC;
+		stat.un.b.lsRjtRsnCodeExp = LSEXP_INVALID_PNAME;
+		lpfc_els_rsp_reject(vport, stat.un.lsRjtError, cmdiocb, ndlp,
+			NULL);
+		return 0;
+	}
+	if (wwn_to_u64(sp->nodeName.u.wwn) == 0) {
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+				 "0141 PLOGI Reject: invalid pname\n");
+		stat.un.b.lsRjtRsnCode = LSRJT_UNABLE_TPC;
+		stat.un.b.lsRjtRsnCodeExp = LSEXP_INVALID_NNAME;
+		lpfc_els_rsp_reject(vport, stat.un.lsRjtError, cmdiocb, ndlp,
+			NULL);
+		return 0;
+	}
 	if ((lpfc_check_sparm(vport, ndlp, sp, CLASS3) == 0)) {
 		/* Reject this request because invalid parameters */
 		stat.un.b.lsRjtRsnCode = LSRJT_UNABLE_TPC;
@@ -343,8 +361,7 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		lpfc_config_link(phba, mbox);
 		mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 		mbox->vport = vport;
-		rc = lpfc_sli_issue_mbox
-			(phba, mbox, (MBX_NOWAIT | MBX_STOP_IOCB));
+		rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
 		if (rc == MBX_NOT_FINISHED) {
 			mempool_free(mbox, phba->mbox_mem_pool);
 			goto out;
@@ -407,6 +424,61 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			ndlp, mbox);
 		return 1;
 	}
+
+	/* If the remote NPort logs into us, before we can initiate
+	 * discovery to them, cleanup the NPort from discovery accordingly.
+	 */
+	if (ndlp->nlp_state == NLP_STE_NPR_NODE) {
+		spin_lock_irq(shost->host_lock);
+		ndlp->nlp_flag &= ~NLP_DELAY_TMO;
+		spin_unlock_irq(shost->host_lock);
+		del_timer_sync(&ndlp->nlp_delayfunc);
+		ndlp->nlp_last_elscmd = 0;
+
+		if (!list_empty(&ndlp->els_retry_evt.evt_listp))
+			list_del_init(&ndlp->els_retry_evt.evt_listp);
+
+		if (ndlp->nlp_flag & NLP_NPR_2B_DISC) {
+			spin_lock_irq(shost->host_lock);
+			ndlp->nlp_flag &= ~NLP_NPR_2B_DISC;
+			spin_unlock_irq(shost->host_lock);
+
+			if ((ndlp->nlp_flag & NLP_ADISC_SND) &&
+				(vport->num_disc_nodes)) {
+				/* Check to see if there are more
+				 * ADISCs to be sent
+				 */
+				lpfc_more_adisc(vport);
+
+				if ((vport->num_disc_nodes == 0) &&
+					(vport->fc_npr_cnt))
+					lpfc_els_disc_plogi(vport);
+
+				if (vport->num_disc_nodes == 0) {
+					spin_lock_irq(shost->host_lock);
+					vport->fc_flag &= ~FC_NDISC_ACTIVE;
+					spin_unlock_irq(shost->host_lock);
+					lpfc_can_disctmo(vport);
+					lpfc_end_rscn(vport);
+				}
+			}
+			else if (vport->num_disc_nodes) {
+				/* Check to see if there are more
+				 * PLOGIs to be sent
+				 */
+				lpfc_more_plogi(vport);
+
+				if (vport->num_disc_nodes == 0) {
+					spin_lock_irq(shost->host_lock);
+					vport->fc_flag &= ~FC_NDISC_ACTIVE;
+					spin_unlock_irq(shost->host_lock);
+					lpfc_can_disctmo(vport);
+					lpfc_end_rscn(vport);
+				}
+			}
+		}
+	}
+
 	lpfc_els_rsp_acc(vport, ELS_CMD_PLOGI, cmdiocb, ndlp, mbox);
 	return 1;
 
@@ -501,12 +573,9 @@ lpfc_rcv_logo(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		spin_unlock_irq(shost->host_lock);
 
 		ndlp->nlp_last_elscmd = ELS_CMD_PLOGI;
-		ndlp->nlp_prev_state = ndlp->nlp_state;
-		lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
-	} else {
-		ndlp->nlp_prev_state = ndlp->nlp_state;
-		lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNUSED_NODE);
 	}
+	ndlp->nlp_prev_state = ndlp->nlp_state;
+	lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
 
 	spin_lock_irq(shost->host_lock);
 	ndlp->nlp_flag &= ~NLP_NPR_ADISC;
@@ -594,6 +663,25 @@ lpfc_disc_illegal(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	return ndlp->nlp_state;
 }
 
+static uint32_t
+lpfc_cmpl_plogi_illegal(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
+		  void *arg, uint32_t evt)
+{
+	/* This transition is only legal if we previously
+	 * rcv'ed a PLOGI. Since we don't want 2 discovery threads
+	 * working on the same NPortID, do nothing for this thread
+	 * to stop it.
+	 */
+	if (!(ndlp->nlp_flag & NLP_RCV_PLOGI)) {
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+			 "0253 Illegal State Transition: node x%x "
+			 "event x%x, state x%x Data: x%x x%x\n",
+			 ndlp->nlp_DID, evt, ndlp->nlp_state, ndlp->nlp_rpi,
+			 ndlp->nlp_flag);
+	}
+	return ndlp->nlp_state;
+}
+
 /* Start of Discovery State Machine routines */
 
 static uint32_t
@@ -605,11 +693,8 @@ lpfc_rcv_plogi_unused_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	cmdiocb = (struct lpfc_iocbq *) arg;
 
 	if (lpfc_rcv_plogi(vport, ndlp, cmdiocb)) {
-		ndlp->nlp_prev_state = NLP_STE_UNUSED_NODE;
-		lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNUSED_NODE);
 		return ndlp->nlp_state;
 	}
-	lpfc_drop_node(vport, ndlp);
 	return NLP_STE_FREED_NODE;
 }
 
@@ -618,7 +703,6 @@ lpfc_rcv_els_unused_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			 void *arg, uint32_t evt)
 {
 	lpfc_issue_els_logo(vport, ndlp, 0);
-	lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNUSED_NODE);
 	return ndlp->nlp_state;
 }
 
@@ -633,7 +717,6 @@ lpfc_rcv_logo_unused_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	ndlp->nlp_flag |= NLP_LOGO_ACC;
 	spin_unlock_irq(shost->host_lock);
 	lpfc_els_rsp_acc(vport, ELS_CMD_ACC, cmdiocb, ndlp, NULL);
-	lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNUSED_NODE);
 
 	return ndlp->nlp_state;
 }
@@ -642,7 +725,6 @@ static uint32_t
 lpfc_cmpl_logo_unused_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			   void *arg, uint32_t evt)
 {
-	lpfc_drop_node(vport, ndlp);
 	return NLP_STE_FREED_NODE;
 }
 
@@ -650,7 +732,6 @@ static uint32_t
 lpfc_device_rm_unused_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			   void *arg, uint32_t evt)
 {
-	lpfc_drop_node(vport, ndlp);
 	return NLP_STE_FREED_NODE;
 }
 
@@ -752,6 +833,7 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_vport *vport,
 			    uint32_t evt)
 {
 	struct lpfc_hba    *phba = vport->phba;
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_iocbq  *cmdiocb, *rspiocb;
 	struct lpfc_dmabuf *pcmd, *prsp, *mp;
 	uint32_t *lp;
@@ -778,6 +860,12 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_vport *vport,
 
 	lp = (uint32_t *) prsp->virt;
 	sp = (struct serv_parm *) ((uint8_t *) lp + sizeof (uint32_t));
+	if (wwn_to_u64(sp->portName.u.wwn) == 0 ||
+	    wwn_to_u64(sp->nodeName.u.wwn) == 0) {
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+				 "0142 PLOGI RSP: Invalid WWN.\n");
+		goto out;
+	}
 	if (!lpfc_check_sparm(vport, ndlp, sp, CLASS3))
 		goto out;
 	/* PLOGI chkparm OK */
@@ -828,13 +916,15 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_vport *vport,
 		}
 		mbox->context2 = lpfc_nlp_get(ndlp);
 		mbox->vport = vport;
-		if (lpfc_sli_issue_mbox(phba, mbox,
-					(MBX_NOWAIT | MBX_STOP_IOCB))
+		if (lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT)
 		    != MBX_NOT_FINISHED) {
 			lpfc_nlp_set_state(vport, ndlp,
 					   NLP_STE_REG_LOGIN_ISSUE);
 			return ndlp->nlp_state;
 		}
+		/* decrement node reference count to the failed mbox
+		 * command
+		 */
 		lpfc_nlp_put(ndlp);
 		mp = (struct lpfc_dmabuf *) mbox->context1;
 		lpfc_mbuf_free(phba, mp->virt, mp->phys);
@@ -864,10 +954,24 @@ out:
 				 "0261 Cannot Register NameServer login\n");
 	}
 
-	/* Free this node since the driver cannot login or has the wrong
-	   sparm */
-	lpfc_drop_node(vport, ndlp);
+	spin_lock_irq(shost->host_lock);
+	ndlp->nlp_flag |= NLP_DEFER_RM;
+	spin_unlock_irq(shost->host_lock);
 	return NLP_STE_FREED_NODE;
+}
+
+static uint32_t
+lpfc_cmpl_logo_plogi_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
+			   void *arg, uint32_t evt)
+{
+	return ndlp->nlp_state;
+}
+
+static uint32_t
+lpfc_cmpl_reglogin_plogi_issue(struct lpfc_vport *vport,
+	struct lpfc_nodelist *ndlp, void *arg, uint32_t evt)
+{
+	return ndlp->nlp_state;
 }
 
 static uint32_t
@@ -1137,7 +1241,7 @@ lpfc_rcv_logo_reglogin_issue(struct lpfc_vport *vport,
 		   (ndlp == (struct lpfc_nodelist *) mb->context2)) {
 			mp = (struct lpfc_dmabuf *) (mb->context1);
 			if (mp) {
-				lpfc_mbuf_free(phba, mp->virt, mp->phys);
+				__lpfc_mbuf_free(phba, mp->virt, mp->phys);
 				kfree(mp);
 			}
 			lpfc_nlp_put(ndlp);
@@ -1197,8 +1301,8 @@ lpfc_cmpl_reglogin_reglogin_issue(struct lpfc_vport *vport,
 		 * retry discovery.
 		 */
 		if (mb->mbxStatus == MBXERR_RPI_FULL) {
-			ndlp->nlp_prev_state = NLP_STE_UNUSED_NODE;
-			lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNUSED_NODE);
+			ndlp->nlp_prev_state = NLP_STE_REG_LOGIN_ISSUE;
+			lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
 			return ndlp->nlp_state;
 		}
 
@@ -1378,7 +1482,7 @@ out:
 		lpfc_issue_els_logo(vport, ndlp, 0);
 
 		ndlp->nlp_prev_state = NLP_STE_PRLI_ISSUE;
-		lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNUSED_NODE);
+		lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
 		return ndlp->nlp_state;
 	}
 
@@ -1753,7 +1857,7 @@ lpfc_cmpl_plogi_npr_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 
 	irsp = &rspiocb->iocb;
 	if (irsp->ulpStatus) {
-		lpfc_drop_node(vport, ndlp);
+		ndlp->nlp_flag |= NLP_DEFER_RM;
 		return NLP_STE_FREED_NODE;
 	}
 	return ndlp->nlp_state;
@@ -1942,9 +2046,9 @@ static uint32_t (*lpfc_disc_action[NLP_STE_MAX_STATE * NLP_EVT_MAX_EVENT])
 	lpfc_rcv_els_plogi_issue,	/* RCV_PRLO        */
 	lpfc_cmpl_plogi_plogi_issue,	/* CMPL_PLOGI      */
 	lpfc_disc_illegal,		/* CMPL_PRLI       */
-	lpfc_disc_illegal,		/* CMPL_LOGO       */
+	lpfc_cmpl_logo_plogi_issue,	/* CMPL_LOGO       */
 	lpfc_disc_illegal,		/* CMPL_ADISC      */
-	lpfc_disc_illegal,		/* CMPL_REG_LOGIN  */
+	lpfc_cmpl_reglogin_plogi_issue,/* CMPL_REG_LOGIN  */
 	lpfc_device_rm_plogi_issue,	/* DEVICE_RM       */
 	lpfc_device_recov_plogi_issue,	/* DEVICE_RECOVERY */
 
@@ -1968,7 +2072,7 @@ static uint32_t (*lpfc_disc_action[NLP_STE_MAX_STATE * NLP_EVT_MAX_EVENT])
 	lpfc_rcv_padisc_reglogin_issue,	/* RCV_ADISC       */
 	lpfc_rcv_padisc_reglogin_issue,	/* RCV_PDISC       */
 	lpfc_rcv_prlo_reglogin_issue,	/* RCV_PRLO        */
-	lpfc_disc_illegal,		/* CMPL_PLOGI      */
+	lpfc_cmpl_plogi_illegal,	/* CMPL_PLOGI      */
 	lpfc_disc_illegal,		/* CMPL_PRLI       */
 	lpfc_disc_illegal,		/* CMPL_LOGO       */
 	lpfc_disc_illegal,		/* CMPL_ADISC      */
@@ -1982,7 +2086,7 @@ static uint32_t (*lpfc_disc_action[NLP_STE_MAX_STATE * NLP_EVT_MAX_EVENT])
 	lpfc_rcv_padisc_prli_issue,	/* RCV_ADISC       */
 	lpfc_rcv_padisc_prli_issue,	/* RCV_PDISC       */
 	lpfc_rcv_prlo_prli_issue,	/* RCV_PRLO        */
-	lpfc_disc_illegal,		/* CMPL_PLOGI      */
+	lpfc_cmpl_plogi_illegal,	/* CMPL_PLOGI      */
 	lpfc_cmpl_prli_prli_issue,	/* CMPL_PRLI       */
 	lpfc_disc_illegal,		/* CMPL_LOGO       */
 	lpfc_disc_illegal,		/* CMPL_ADISC      */

@@ -1051,6 +1051,7 @@ qla25xx_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 	struct qla25xx_fw_dump *fw;
 	uint32_t	ext_mem_cnt;
 	void		*nxt;
+	struct qla2xxx_fce_chain *fcec;
 
 	risc_address = ext_mem_cnt = 0;
 	flags = 0;
@@ -1321,9 +1322,30 @@ qla25xx_fw_dump(scsi_qla_host_t *ha, int hardware_locked)
 	if (rval != QLA_SUCCESS)
 		goto qla25xx_fw_dump_failed_0;
 
+	/* Fibre Channel Trace Buffer. */
 	nxt = qla2xxx_copy_queues(ha, nxt);
 	if (ha->eft)
 		memcpy(nxt, ha->eft, ntohl(ha->fw_dump->eft_size));
+
+	/* Fibre Channel Event Buffer. */
+	if (!ha->fce)
+		goto qla25xx_fw_dump_failed_0;
+
+	ha->fw_dump->version |= __constant_htonl(DUMP_CHAIN_VARIANT);
+
+	fcec = nxt + ntohl(ha->fw_dump->eft_size);
+	fcec->type = __constant_htonl(DUMP_CHAIN_FCE | DUMP_CHAIN_LAST);
+	fcec->chain_size = htonl(sizeof(struct qla2xxx_fce_chain) +
+	    fce_calc_size(ha->fce_bufs));
+	fcec->size = htonl(fce_calc_size(ha->fce_bufs));
+	fcec->addr_l = htonl(LSD(ha->fce_dma));
+	fcec->addr_h = htonl(MSD(ha->fce_dma));
+
+	iter_reg = fcec->eregs;
+	for (cnt = 0; cnt < 8; cnt++)
+		*iter_reg++ = htonl(ha->fce_mb[cnt]);
+
+	memcpy(iter_reg, ha->fce, ntohl(fcec->size));
 
 qla25xx_fw_dump_failed_0:
 	if (rval != QLA_SUCCESS) {
@@ -1426,21 +1448,6 @@ qla2x00_print_scsi_cmd(struct scsi_cmnd * cmd)
 		return;
 
 	printk("  sp flags=0x%x\n", sp->flags);
-}
-
-void
-qla2x00_dump_pkt(void *pkt)
-{
-	uint32_t i;
-	uint8_t *data = (uint8_t *) pkt;
-
-	for (i = 0; i < 64; i++) {
-		if (!(i % 4))
-			printk("\n%02x: ", i);
-
-		printk("%02x ", data[i]);
-	}
-	printk("\n");
 }
 
 #if defined(QL_DEBUG_ROUTINES)

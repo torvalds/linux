@@ -187,29 +187,13 @@ static void asd_get_response_tasklet(struct asd_ascb *ascb,
 	ts->buf_valid_size = 0;
 	edb = asd_ha->seq.edb_arr[edb_id + escb->edb_index];
 	r = edb->vaddr;
-	if (task->task_proto == SAS_PROTO_SSP) {
+	if (task->task_proto == SAS_PROTOCOL_SSP) {
 		struct ssp_response_iu *iu =
 			r + 16 + sizeof(struct ssp_frame_hdr);
 
 		ts->residual = le32_to_cpu(*(__le32 *)r);
-		ts->resp = SAS_TASK_COMPLETE;
-		if (iu->datapres == 0)
-			ts->stat = iu->status;
-		else if (iu->datapres == 1)
-			ts->stat = iu->resp_data[3];
-		else if (iu->datapres == 2) {
-			ts->stat = SAM_CHECK_COND;
-			ts->buf_valid_size = min((u32) SAS_STATUS_BUF_SIZE,
-					 be32_to_cpu(iu->sense_data_len));
-			memcpy(ts->buf, iu->sense_data, ts->buf_valid_size);
-			if (iu->status != SAM_CHECK_COND) {
-				ASD_DPRINTK("device %llx sent sense data, but "
-					    "stat(0x%x) is not CHECK_CONDITION"
-					    "\n",
-					    SAS_ADDR(task->dev->sas_addr),
-					    iu->status);
-			}
-		}
+
+		sas_ssp_task_response(&asd_ha->pcidev->dev, task, iu);
 	}  else {
 		struct ata_task_resp *resp = (void *) &ts->buf[0];
 
@@ -341,14 +325,14 @@ Again:
 	}
 
 	switch (task->task_proto) {
-	case SATA_PROTO:
-	case SAS_PROTO_STP:
+	case SAS_PROTOCOL_SATA:
+	case SAS_PROTOCOL_STP:
 		asd_unbuild_ata_ascb(ascb);
 		break;
-	case SAS_PROTO_SMP:
+	case SAS_PROTOCOL_SMP:
 		asd_unbuild_smp_ascb(ascb);
 		break;
-	case SAS_PROTO_SSP:
+	case SAS_PROTOCOL_SSP:
 		asd_unbuild_ssp_ascb(ascb);
 	default:
 		break;
@@ -586,17 +570,17 @@ int asd_execute_task(struct sas_task *task, const int num,
 	list_for_each_entry(a, &alist, list) {
 		t = a->uldd_task;
 		a->uldd_timer = 1;
-		if (t->task_proto & SAS_PROTO_STP)
-			t->task_proto = SAS_PROTO_STP;
+		if (t->task_proto & SAS_PROTOCOL_STP)
+			t->task_proto = SAS_PROTOCOL_STP;
 		switch (t->task_proto) {
-		case SATA_PROTO:
-		case SAS_PROTO_STP:
+		case SAS_PROTOCOL_SATA:
+		case SAS_PROTOCOL_STP:
 			res = asd_build_ata_ascb(a, t, gfp_flags);
 			break;
-		case SAS_PROTO_SMP:
+		case SAS_PROTOCOL_SMP:
 			res = asd_build_smp_ascb(a, t, gfp_flags);
 			break;
-		case SAS_PROTO_SSP:
+		case SAS_PROTOCOL_SSP:
 			res = asd_build_ssp_ascb(a, t, gfp_flags);
 			break;
 		default:
@@ -633,14 +617,14 @@ out_err_unmap:
 			t->task_state_flags &= ~SAS_TASK_AT_INITIATOR;
 			spin_unlock_irqrestore(&t->task_state_lock, flags);
 			switch (t->task_proto) {
-			case SATA_PROTO:
-			case SAS_PROTO_STP:
+			case SAS_PROTOCOL_SATA:
+			case SAS_PROTOCOL_STP:
 				asd_unbuild_ata_ascb(a);
 				break;
-			case SAS_PROTO_SMP:
+			case SAS_PROTOCOL_SMP:
 				asd_unbuild_smp_ascb(a);
 				break;
-			case SAS_PROTO_SSP:
+			case SAS_PROTOCOL_SSP:
 				asd_unbuild_ssp_ascb(a);
 			default:
 				break;

@@ -91,8 +91,6 @@ enum discover_event {
 
 /* ---------- Expander Devices ---------- */
 
-#define ETASK 0xFA
-
 #define to_dom_device(_obj) container_of(_obj, struct domain_device, dev_obj)
 #define to_dev_attr(_attr)  container_of(_attr, struct domain_dev_attribute,\
                                          attr)
@@ -122,8 +120,8 @@ struct ex_phy {
 	u8   attached_sata_dev:1;
 	u8   attached_sata_ps:1;
 
-	enum sas_proto attached_tproto;
-	enum sas_proto attached_iproto;
+	enum sas_protocol attached_tproto;
+	enum sas_protocol attached_iproto;
 
 	u8   attached_sas_addr[SAS_ADDR_SIZE];
 	u8   attached_phy_id;
@@ -191,8 +189,8 @@ struct domain_device {
 
         struct list_head dev_list_node;
 
-        enum sas_proto    iproto;
-        enum sas_proto    tproto;
+        enum sas_protocol    iproto;
+        enum sas_protocol    tproto;
 
         struct sas_rphy *rphy;
 
@@ -245,8 +243,8 @@ struct asd_sas_port {
 	enum sas_class   class;
 	u8               sas_addr[SAS_ADDR_SIZE];
 	u8               attached_sas_addr[SAS_ADDR_SIZE];
-	enum sas_proto   iproto;
-	enum sas_proto   tproto;
+	enum sas_protocol   iproto;
+	enum sas_protocol   tproto;
 
 	enum sas_oob_mode oob_mode;
 
@@ -289,8 +287,8 @@ struct asd_sas_phy {
 
 	int            id;	  /* must be set */
 	enum sas_class class;
-	enum sas_proto iproto;
-	enum sas_proto tproto;
+	enum sas_protocol iproto;
+	enum sas_protocol tproto;
 
 	enum sas_phy_type  type;
 	enum sas_phy_role  role;
@@ -537,7 +535,7 @@ struct sas_task {
 	spinlock_t   task_state_lock;
 	unsigned     task_state_flags;
 
-	enum   sas_proto      task_proto;
+	enum   sas_protocol      task_proto;
 
 	/* Used by the discovery code. */
 	struct timer_list     timer;
@@ -563,7 +561,7 @@ struct sas_task {
 	struct work_struct abort_work;
 };
 
-
+extern struct kmem_cache *sas_task_cache;
 
 #define SAS_TASK_STATE_PENDING      1
 #define SAS_TASK_STATE_DONE         2
@@ -573,7 +571,6 @@ struct sas_task {
 
 static inline struct sas_task *sas_alloc_task(gfp_t flags)
 {
-	extern struct kmem_cache *sas_task_cache;
 	struct sas_task *task = kmem_cache_zalloc(sas_task_cache, flags);
 
 	if (task) {
@@ -590,7 +587,6 @@ static inline struct sas_task *sas_alloc_task(gfp_t flags)
 static inline void sas_free_task(struct sas_task *task)
 {
 	if (task) {
-		extern struct kmem_cache *sas_task_cache;
 		BUG_ON(!list_empty(&task->list));
 		kmem_cache_free(sas_task_cache, task);
 	}
@@ -676,4 +672,8 @@ extern int sas_ioctl(struct scsi_device *sdev, int cmd, void __user *arg);
 
 extern int sas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 			   struct request *req);
+
+extern void sas_ssp_task_response(struct device *dev, struct sas_task *task,
+				  struct ssp_response_iu *iu);
+
 #endif /* _SASLIB_H_ */

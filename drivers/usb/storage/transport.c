@@ -459,6 +459,22 @@ static int usb_stor_bulk_transfer_sglist(struct us_data *us, unsigned int pipe,
 }
 
 /*
+ * Common used function. Transfer a complete command
+ * via usb_stor_bulk_transfer_sglist() above. Set cmnd resid
+ */
+int usb_stor_bulk_srb(struct us_data* us, unsigned int pipe,
+		      struct scsi_cmnd* srb)
+{
+	unsigned int partial;
+	int result = usb_stor_bulk_transfer_sglist(us, pipe, scsi_sglist(srb),
+				      scsi_sg_count(srb), scsi_bufflen(srb),
+				      &partial);
+
+	scsi_set_resid(srb, scsi_bufflen(srb) - partial);
+	return result;
+}
+
+/*
  * Transfer an entire SCSI command's worth of data payload over the bulk
  * pipe.
  *
@@ -508,7 +524,7 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 	int result;
 
 	/* send the command to the transport layer */
-	srb->resid = 0;
+	scsi_set_resid(srb, 0);
 	result = us->transport(srb, us);
 
 	/* if the command gets aborted by the higher layers, we need to
@@ -568,7 +584,7 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 	 * A short transfer on a command where we don't expect it
 	 * is unusual, but it doesn't mean we need to auto-sense.
 	 */
-	if ((srb->resid > 0) &&
+	if ((scsi_get_resid(srb) > 0) &&
 	    !((srb->cmnd[0] == REQUEST_SENSE) ||
 	      (srb->cmnd[0] == INQUIRY) ||
 	      (srb->cmnd[0] == MODE_SENSE) ||
@@ -593,7 +609,7 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 			srb->cmd_len = 12;
 
 		/* issue the auto-sense command */
-		srb->resid = 0;
+		scsi_set_resid(srb, 0);
 		temp_result = us->transport(us->srb, us);
 
 		/* let's clean up right away */
@@ -649,7 +665,7 @@ void usb_stor_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 
 	/* Did we transfer less than the minimum amount required? */
 	if (srb->result == SAM_STAT_GOOD &&
-			srb->request_bufflen - srb->resid < srb->underflow)
+			scsi_bufflen(srb) - scsi_get_resid(srb) < srb->underflow)
 		srb->result = (DID_ERROR << 16) | (SUGGEST_RETRY << 24);
 
 	return;
@@ -708,7 +724,7 @@ void usb_stor_stop_transport(struct us_data *us)
 
 int usb_stor_CBI_transport(struct scsi_cmnd *srb, struct us_data *us)
 {
-	unsigned int transfer_length = srb->request_bufflen;
+	unsigned int transfer_length = scsi_bufflen(srb);
 	unsigned int pipe = 0;
 	int result;
 
@@ -737,9 +753,7 @@ int usb_stor_CBI_transport(struct scsi_cmnd *srb, struct us_data *us)
 	if (transfer_length) {
 		pipe = srb->sc_data_direction == DMA_FROM_DEVICE ? 
 				us->recv_bulk_pipe : us->send_bulk_pipe;
-		result = usb_stor_bulk_transfer_sg(us, pipe,
-					srb->request_buffer, transfer_length,
-					srb->use_sg, &srb->resid);
+		result = usb_stor_bulk_srb(us, pipe, srb);
 		US_DEBUGP("CBI data stage result is 0x%x\n", result);
 
 		/* if we stalled the data transfer it means command failed */
@@ -808,7 +822,7 @@ int usb_stor_CBI_transport(struct scsi_cmnd *srb, struct us_data *us)
  */
 int usb_stor_CB_transport(struct scsi_cmnd *srb, struct us_data *us)
 {
-	unsigned int transfer_length = srb->request_bufflen;
+	unsigned int transfer_length = scsi_bufflen(srb);
 	int result;
 
 	/* COMMAND STAGE */
@@ -836,9 +850,7 @@ int usb_stor_CB_transport(struct scsi_cmnd *srb, struct us_data *us)
 	if (transfer_length) {
 		unsigned int pipe = srb->sc_data_direction == DMA_FROM_DEVICE ? 
 				us->recv_bulk_pipe : us->send_bulk_pipe;
-		result = usb_stor_bulk_transfer_sg(us, pipe,
-					srb->request_buffer, transfer_length,
-					srb->use_sg, &srb->resid);
+		result = usb_stor_bulk_srb(us, pipe, srb);
 		US_DEBUGP("CB data stage result is 0x%x\n", result);
 
 		/* if we stalled the data transfer it means command failed */
@@ -904,7 +916,7 @@ int usb_stor_Bulk_transport(struct scsi_cmnd *srb, struct us_data *us)
 {
 	struct bulk_cb_wrap *bcb = (struct bulk_cb_wrap *) us->iobuf;
 	struct bulk_cs_wrap *bcs = (struct bulk_cs_wrap *) us->iobuf;
-	unsigned int transfer_length = srb->request_bufflen;
+	unsigned int transfer_length = scsi_bufflen(srb);
 	unsigned int residue;
 	int result;
 	int fake_sense = 0;
@@ -955,9 +967,7 @@ int usb_stor_Bulk_transport(struct scsi_cmnd *srb, struct us_data *us)
 	if (transfer_length) {
 		unsigned int pipe = srb->sc_data_direction == DMA_FROM_DEVICE ? 
 				us->recv_bulk_pipe : us->send_bulk_pipe;
-		result = usb_stor_bulk_transfer_sg(us, pipe,
-					srb->request_buffer, transfer_length,
-					srb->use_sg, &srb->resid);
+		result = usb_stor_bulk_srb(us, pipe, srb);
 		US_DEBUGP("Bulk data transfer result 0x%x\n", result);
 		if (result == USB_STOR_XFER_ERROR)
 			return USB_STOR_TRANSPORT_ERROR;
@@ -1036,7 +1046,8 @@ int usb_stor_Bulk_transport(struct scsi_cmnd *srb, struct us_data *us)
 	if (residue) {
 		if (!(us->flags & US_FL_IGNORE_RESIDUE)) {
 			residue = min(residue, transfer_length);
-			srb->resid = max(srb->resid, (int) residue);
+			scsi_set_resid(srb, max(scsi_get_resid(srb),
+			                                       (int) residue));
 		}
 	}
 

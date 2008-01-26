@@ -33,6 +33,7 @@ typedef enum _lpfc_ctx_cmd {
 struct lpfc_iocbq {
 	/* lpfc_iocbqs are used in double linked lists */
 	struct list_head list;
+	struct list_head clist;
 	uint16_t iotag;         /* pre-assigned IO tag */
 	uint16_t rsvd1;
 
@@ -44,6 +45,7 @@ struct lpfc_iocbq {
 #define LPFC_IO_FCP		4	/* FCP command -- iocbq in scsi_buf */
 #define LPFC_DRIVER_ABORTED	8	/* driver aborted this request */
 #define LPFC_IO_FABRIC		0x10	/* Iocb send using fabric scheduler */
+#define LPFC_DELAY_MEM_FREE	0x20    /* Defer free'ing of FC data */
 
 	uint8_t abort_count;
 	uint8_t rsvd2;
@@ -92,8 +94,6 @@ typedef struct lpfcMboxq {
 #define MBX_POLL        1	/* poll mailbox till command done, then
 				   return */
 #define MBX_NOWAIT      2	/* issue command then return immediately */
-#define MBX_STOP_IOCB   4	/* Stop iocb processing till mbox cmds
-				   complete */
 
 #define LPFC_MAX_RING_MASK  4	/* max num of rctl/type masks allowed per
 				   ring */
@@ -129,9 +129,7 @@ struct lpfc_sli_ring {
 	uint16_t flag;		/* ring flags */
 #define LPFC_DEFERRED_RING_EVENT 0x001	/* Deferred processing a ring event */
 #define LPFC_CALL_RING_AVAILABLE 0x002	/* indicates cmd was full */
-#define LPFC_STOP_IOCB_MBX       0x010	/* Stop processing IOCB cmds mbox */
 #define LPFC_STOP_IOCB_EVENT     0x020	/* Stop processing IOCB cmds event */
-#define LPFC_STOP_IOCB_MASK      0x030	/* Stop processing IOCB cmds mask */
 	uint16_t abtsiotag;	/* tracks next iotag to use for ABTS */
 
 	uint32_t local_getidx;   /* last available cmd index (from cmdGetInx) */
@@ -163,9 +161,12 @@ struct lpfc_sli_ring {
 	struct list_head iocb_continueq;
 	uint16_t iocb_continueq_cnt;	/* current length of queue */
 	uint16_t iocb_continueq_max;	/* max length */
+	struct list_head iocb_continue_saveq;
 
 	struct lpfc_sli_ring_mask prt[LPFC_MAX_RING_MASK];
 	uint32_t num_mask;	/* number of mask entries in prt array */
+	void (*lpfc_sli_rcv_async_status) (struct lpfc_hba *,
+		struct lpfc_sli_ring *, struct lpfc_iocbq *);
 
 	struct lpfc_sli_ring_stat stats;	/* SLI statistical info */
 
@@ -198,9 +199,6 @@ struct lpfc_hbq_init {
 	uint32_t init_count;	/* number to allocate when initialized */
 	uint32_t add_count;	/* number to allocate when starved */
 } ;
-
-#define LPFC_MAX_HBQ 16
-
 
 /* Structure used to hold SLI statistical counters and info */
 struct lpfc_sli_stat {

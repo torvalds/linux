@@ -32,11 +32,12 @@ EXPORT_SYMBOL_GPL(scsi_nl_sock);
 
 
 /**
- * scsi_nl_rcv_msg -
- *    Receive message handler. Extracts message from a receive buffer.
+ * scsi_nl_rcv_msg - Receive message handler.
+ * @skb:		socket receive buffer
+ *
+ * Description: Extracts message from a receive buffer.
  *    Validates message header and calls appropriate transport message handler
  *
- * @skb:		socket receive buffer
  *
  **/
 static void
@@ -99,9 +100,7 @@ next_msg:
 
 
 /**
- * scsi_nl_rcv_event -
- *    Event handler for a netlink socket.
- *
+ * scsi_nl_rcv_event - Event handler for a netlink socket.
  * @this:		event notifier block
  * @event:		event type
  * @ptr:		event payload
@@ -129,9 +128,7 @@ static struct notifier_block scsi_netlink_notifier = {
 
 
 /**
- * scsi_netlink_init -
- *    Called by SCSI subsystem to intialize the SCSI transport netlink
- *    interface
+ * scsi_netlink_init - Called by SCSI subsystem to intialize the SCSI transport netlink interface
  *
  **/
 void
@@ -160,9 +157,7 @@ scsi_netlink_init(void)
 
 
 /**
- * scsi_netlink_exit -
- *    Called by SCSI subsystem to disable the SCSI transport netlink
- *    interface
+ * scsi_netlink_exit - Called by SCSI subsystem to disable the SCSI transport netlink interface
  *
  **/
 void

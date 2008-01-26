@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2007 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2008 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -45,6 +45,10 @@
 #define LPFC_MIN_DEVLOSS_TMO 1
 #define LPFC_MAX_DEVLOSS_TMO 255
 
+#define LPFC_MAX_LINK_SPEED 8
+#define LPFC_LINK_SPEED_BITMAP 0x00000117
+#define LPFC_LINK_SPEED_STRING "0, 1, 2, 4, 8"
+
 static void
 lpfc_jedec_to_ascii(int incr, char hdw[])
 {
@@ -83,6 +87,15 @@ lpfc_serialnum_show(struct class_device *cdev, char *buf)
 	struct lpfc_hba   *phba = vport->phba;
 
 	return snprintf(buf, PAGE_SIZE, "%s\n",phba->SerialNumber);
+}
+
+static ssize_t
+lpfc_temp_sensor_show(struct class_device *cdev, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+	return snprintf(buf, PAGE_SIZE, "%d\n",phba->temp_sensor_support);
 }
 
 static ssize_t
@@ -178,12 +191,9 @@ lpfc_state_show(struct class_device *cdev, char *buf)
 	case LPFC_LINK_UP:
 	case LPFC_CLEAR_LA:
 	case LPFC_HBA_READY:
-		len += snprintf(buf + len, PAGE_SIZE-len, "Link Up - \n");
+		len += snprintf(buf + len, PAGE_SIZE-len, "Link Up - ");
 
 		switch (vport->port_state) {
-			len += snprintf(buf + len, PAGE_SIZE-len,
-					"initializing\n");
-			break;
 		case LPFC_LOCAL_CFG_LINK:
 			len += snprintf(buf + len, PAGE_SIZE-len,
 					"Configuring Link\n");
@@ -252,8 +262,7 @@ lpfc_issue_lip(struct Scsi_Host *shost)
 	int mbxstatus = MBXERR_ERROR;
 
 	if ((vport->fc_flag & FC_OFFLINE_MODE) ||
-	    (phba->sli.sli_flag & LPFC_BLOCK_MGMT_IO) ||
-	    (vport->port_state != LPFC_VPORT_READY))
+	    (phba->sli.sli_flag & LPFC_BLOCK_MGMT_IO))
 		return -EPERM;
 
 	pmboxq = mempool_alloc(phba->mbox_mem_pool,GFP_KERNEL);
@@ -305,12 +314,14 @@ lpfc_do_offline(struct lpfc_hba *phba, uint32_t type)
 
 	psli = &phba->sli;
 
+	/* Wait a little for things to settle down, but not
+	 * long enough for dev loss timeout to expire.
+	 */
 	for (i = 0; i < psli->num_rings; i++) {
 		pring = &psli->ring[i];
-		/* The linkdown event takes 30 seconds to timeout. */
 		while (pring->txcmplq_cnt) {
 			msleep(10);
-			if (cnt++ > 3000) {
+			if (cnt++ > 500) {  /* 5 secs */
 				lpfc_printf_log(phba,
 					KERN_WARNING, LOG_INIT,
 					"0466 Outstanding IO when "
@@ -335,6 +346,9 @@ lpfc_selective_reset(struct lpfc_hba *phba)
 {
 	struct completion online_compl;
 	int status = 0;
+
+	if (!phba->cfg_enable_hba_reset)
+		return -EIO;
 
 	status = lpfc_do_offline(phba, LPFC_EVT_OFFLINE);
 
@@ -409,6 +423,8 @@ lpfc_board_mode_store(struct class_device *cdev, const char *buf, size_t count)
 	struct completion online_compl;
 	int status=0;
 
+	if (!phba->cfg_enable_hba_reset)
+		return -EACCES;
 	init_completion(&online_compl);
 
 	if(strncmp(buf, "online", sizeof("online") - 1) == 0) {
@@ -908,6 +924,8 @@ static CLASS_DEVICE_ATTR(used_rpi, S_IRUGO, lpfc_used_rpi_show, NULL);
 static CLASS_DEVICE_ATTR(max_xri, S_IRUGO, lpfc_max_xri_show, NULL);
 static CLASS_DEVICE_ATTR(used_xri, S_IRUGO, lpfc_used_xri_show, NULL);
 static CLASS_DEVICE_ATTR(npiv_info, S_IRUGO, lpfc_npiv_info_show, NULL);
+static CLASS_DEVICE_ATTR(lpfc_temp_sensor, S_IRUGO, lpfc_temp_sensor_show,
+			 NULL);
 
 
 static char *lpfc_soft_wwn_key = "C99G71SL8032A";
@@ -971,6 +989,14 @@ lpfc_soft_wwpn_store(struct class_device *cdev, const char *buf, size_t count)
 	unsigned int i, j, cnt=count;
 	u8 wwpn[8];
 
+	if (!phba->cfg_enable_hba_reset)
+		return -EACCES;
+	spin_lock_irq(&phba->hbalock);
+	if (phba->over_temp_state == HBA_OVER_TEMP) {
+		spin_unlock_irq(&phba->hbalock);
+		return -EACCES;
+	}
+	spin_unlock_irq(&phba->hbalock);
 	/* count may include a LF at end of string */
 	if (buf[cnt-1] == '\n')
 		cnt--;
@@ -1102,7 +1128,13 @@ MODULE_PARM_DESC(lpfc_sli_mode, "SLI mode selector:"
 		 " 2 - select SLI-2 even on SLI-3 capable HBAs,"
 		 " 3 - select SLI-3");
 
-LPFC_ATTR_R(enable_npiv, 0, 0, 1, "Enable NPIV functionality");
+int lpfc_enable_npiv = 0;
+module_param(lpfc_enable_npiv, int, 0);
+MODULE_PARM_DESC(lpfc_enable_npiv, "Enable NPIV functionality");
+lpfc_param_show(enable_npiv);
+lpfc_param_init(enable_npiv, 0, 0, 1);
+static CLASS_DEVICE_ATTR(lpfc_enable_npiv, S_IRUGO,
+			 lpfc_enable_npiv_show, NULL);
 
 /*
 # lpfc_nodev_tmo: If set, it will hold all I/O errors on devices that disappear
@@ -1248,6 +1280,13 @@ LPFC_VPORT_ATTR_HEX_RW(log_verbose, 0x0, 0x0, 0xffff,
 		       "Verbose logging bit-mask");
 
 /*
+# lpfc_enable_da_id: This turns on the DA_ID CT command that deregisters
+# objects that have been registered with the nameserver after login.
+*/
+LPFC_VPORT_ATTR_R(enable_da_id, 0, 0, 1,
+		  "Deregister nameserver objects before LOGO");
+
+/*
 # lun_queue_depth:  This parameter is used to limit the number of outstanding
 # commands per FCP LUN. Value range is [1,128]. Default value is 30.
 */
@@ -1369,7 +1408,33 @@ LPFC_VPORT_ATTR_R(scan_down, 1, 0, 1,
 # Set loop mode if you want to run as an NL_Port. Value range is [0,0x6].
 # Default value is 0.
 */
-LPFC_ATTR_RW(topology, 0, 0, 6, "Select Fibre Channel topology");
+static int
+lpfc_topology_set(struct lpfc_hba *phba, int val)
+{
+	int err;
+	uint32_t prev_val;
+	if (val >= 0 && val <= 6) {
+		prev_val = phba->cfg_topology;
+		phba->cfg_topology = val;
+		err = lpfc_issue_lip(lpfc_shost_from_vport(phba->pport));
+		if (err)
+			phba->cfg_topology = prev_val;
+		return err;
+	}
+	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		"%d:0467 lpfc_topology attribute cannot be set to %d, "
+		"allowed range is [0, 6]\n",
+		phba->brd_no, val);
+	return -EINVAL;
+}
+static int lpfc_topology = 0;
+module_param(lpfc_topology, int, 0);
+MODULE_PARM_DESC(lpfc_topology, "Select Fibre Channel topology");
+lpfc_param_show(topology)
+lpfc_param_init(topology, 0, 0, 6)
+lpfc_param_store(topology)
+static CLASS_DEVICE_ATTR(lpfc_topology, S_IRUGO | S_IWUSR,
+		lpfc_topology_show, lpfc_topology_store);
 
 /*
 # lpfc_link_speed: Link speed selection for initializing the Fibre Channel
@@ -1381,7 +1446,59 @@ LPFC_ATTR_RW(topology, 0, 0, 6, "Select Fibre Channel topology");
 #       8  = 8 Gigabaud
 # Value range is [0,8]. Default value is 0.
 */
-LPFC_ATTR_R(link_speed, 0, 0, 8, "Select link speed");
+static int
+lpfc_link_speed_set(struct lpfc_hba *phba, int val)
+{
+	int err;
+	uint32_t prev_val;
+
+	if (((val == LINK_SPEED_1G) && !(phba->lmt & LMT_1Gb)) ||
+		((val == LINK_SPEED_2G) && !(phba->lmt & LMT_2Gb)) ||
+		((val == LINK_SPEED_4G) && !(phba->lmt & LMT_4Gb)) ||
+		((val == LINK_SPEED_8G) && !(phba->lmt & LMT_8Gb)) ||
+		((val == LINK_SPEED_10G) && !(phba->lmt & LMT_10Gb)))
+		return -EINVAL;
+
+	if ((val >= 0 && val <= LPFC_MAX_LINK_SPEED)
+		&& (LPFC_LINK_SPEED_BITMAP & (1 << val))) {
+		prev_val = phba->cfg_link_speed;
+		phba->cfg_link_speed = val;
+		err = lpfc_issue_lip(lpfc_shost_from_vport(phba->pport));
+		if (err)
+			phba->cfg_link_speed = prev_val;
+		return err;
+	}
+
+	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+		"%d:0469 lpfc_link_speed attribute cannot be set to %d, "
+		"allowed range is [0, 8]\n",
+		phba->brd_no, val);
+	return -EINVAL;
+}
+
+static int lpfc_link_speed = 0;
+module_param(lpfc_link_speed, int, 0);
+MODULE_PARM_DESC(lpfc_link_speed, "Select link speed");
+lpfc_param_show(link_speed)
+static int
+lpfc_link_speed_init(struct lpfc_hba *phba, int val)
+{
+	if ((val >= 0 && val <= LPFC_MAX_LINK_SPEED)
+		&& (LPFC_LINK_SPEED_BITMAP & (1 << val))) {
+		phba->cfg_link_speed = val;
+		return 0;
+	}
+	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			"0454 lpfc_link_speed attribute cannot "
+			"be set to %d, allowed values are "
+			"["LPFC_LINK_SPEED_STRING"]\n", val);
+	phba->cfg_link_speed = 0;
+	return -EINVAL;
+}
+
+lpfc_param_store(link_speed)
+static CLASS_DEVICE_ATTR(lpfc_link_speed, S_IRUGO | S_IWUSR,
+		lpfc_link_speed_show, lpfc_link_speed_store);
 
 /*
 # lpfc_fcp_class:  Determines FC class to use for the FCP protocol.
@@ -1479,7 +1596,30 @@ LPFC_ATTR_RW(poll_tmo, 10, 1, 255,
 */
 LPFC_ATTR_R(use_msi, 0, 0, 1, "Use Message Signaled Interrupts, if possible");
 
+/*
+# lpfc_enable_hba_reset: Allow or prevent HBA resets to the hardware.
+#       0  = HBA resets disabled
+#       1  = HBA resets enabled (default)
+# Value range is [0,1]. Default value is 1.
+*/
+LPFC_ATTR_R(enable_hba_reset, 1, 0, 1, "Enable HBA resets from the driver.");
 
+/*
+# lpfc_enable_hba_heartbeat: Enable HBA heartbeat timer..
+#       0  = HBA Heartbeat disabled
+#       1  = HBA Heartbeat enabled (default)
+# Value range is [0,1]. Default value is 1.
+*/
+LPFC_ATTR_R(enable_hba_heartbeat, 1, 0, 1, "Enable HBA Heartbeat.");
+
+/*
+ * lpfc_sg_seg_cnt: Initial Maximum DMA Segment Count
+ * This value can be set to values between 64 and 256. The default value is
+ * 64, but may be increased to allow for larger Max I/O sizes. The scsi layer
+ * will be allowed to request I/Os of sizes up to (MAX_SEG_COUNT * SEG_SIZE).
+ */
+LPFC_ATTR_R(sg_seg_cnt, LPFC_DEFAULT_SG_SEG_CNT, LPFC_DEFAULT_SG_SEG_CNT,
+	    LPFC_MAX_SG_SEG_CNT, "Max Scatter Gather Segment Count");
 
 struct class_device_attribute *lpfc_hba_attrs[] = {
 	&class_device_attr_info,
@@ -1494,6 +1634,7 @@ struct class_device_attribute *lpfc_hba_attrs[] = {
 	&class_device_attr_state,
 	&class_device_attr_num_discovered_ports,
 	&class_device_attr_lpfc_drvr_version,
+	&class_device_attr_lpfc_temp_sensor,
 	&class_device_attr_lpfc_log_verbose,
 	&class_device_attr_lpfc_lun_queue_depth,
 	&class_device_attr_lpfc_hba_queue_depth,
@@ -1530,6 +1671,9 @@ struct class_device_attribute *lpfc_hba_attrs[] = {
 	&class_device_attr_lpfc_soft_wwnn,
 	&class_device_attr_lpfc_soft_wwpn,
 	&class_device_attr_lpfc_soft_wwn_enable,
+	&class_device_attr_lpfc_enable_hba_reset,
+	&class_device_attr_lpfc_enable_hba_heartbeat,
+	&class_device_attr_lpfc_sg_seg_cnt,
 	NULL,
 };
 
@@ -1552,6 +1696,7 @@ struct class_device_attribute *lpfc_vport_attrs[] = {
 	&class_device_attr_lpfc_max_luns,
 	&class_device_attr_nport_evt_cnt,
 	&class_device_attr_npiv_info,
+	&class_device_attr_lpfc_enable_da_id,
 	NULL,
 };
 
@@ -1727,13 +1872,18 @@ sysfs_mbox_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 
 	spin_lock_irq(&phba->hbalock);
 
+	if (phba->over_temp_state == HBA_OVER_TEMP) {
+		sysfs_mbox_idle(phba);
+		spin_unlock_irq(&phba->hbalock);
+		return  -EACCES;
+	}
+
 	if (off == 0 &&
 	    phba->sysfs_mbox.state  == SMBOX_WRITING &&
 	    phba->sysfs_mbox.offset >= 2 * sizeof(uint32_t)) {
 
 		switch (phba->sysfs_mbox.mbox->mb.mbxCommand) {
 			/* Offline only */
-		case MBX_WRITE_NV:
 		case MBX_INIT_LINK:
 		case MBX_DOWN_LINK:
 		case MBX_CONFIG_LINK:
@@ -1744,9 +1894,7 @@ sysfs_mbox_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 		case MBX_DUMP_CONTEXT:
 		case MBX_RUN_DIAGS:
 		case MBX_RESTART:
-		case MBX_FLASH_WR_ULA:
 		case MBX_SET_MASK:
-		case MBX_SET_SLIM:
 		case MBX_SET_DEBUG:
 			if (!(vport->fc_flag & FC_OFFLINE_MODE)) {
 				printk(KERN_WARNING "mbox_read:Command 0x%x "
@@ -1756,6 +1904,8 @@ sysfs_mbox_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 				spin_unlock_irq(&phba->hbalock);
 				return -EPERM;
 			}
+		case MBX_WRITE_NV:
+		case MBX_WRITE_VPARMS:
 		case MBX_LOAD_SM:
 		case MBX_READ_NV:
 		case MBX_READ_CONFIG:
@@ -1772,6 +1922,8 @@ sysfs_mbox_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 		case MBX_LOAD_EXP_ROM:
 		case MBX_BEACON:
 		case MBX_DEL_LD_ENTRY:
+		case MBX_SET_VARIABLE:
+		case MBX_WRITE_WWN:
 			break;
 		case MBX_READ_SPARM64:
 		case MBX_READ_LA:
@@ -1788,6 +1940,17 @@ sysfs_mbox_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 		default:
 			printk(KERN_WARNING "mbox_read: Unknown Command 0x%x\n",
 			       phba->sysfs_mbox.mbox->mb.mbxCommand);
+			sysfs_mbox_idle(phba);
+			spin_unlock_irq(&phba->hbalock);
+			return -EPERM;
+		}
+
+		/* If HBA encountered an error attention, allow only DUMP
+		 * mailbox command until the HBA is restarted.
+		 */
+		if ((phba->pport->stopped) &&
+			(phba->sysfs_mbox.mbox->mb.mbxCommand
+				!= MBX_DUMP_MEMORY)) {
 			sysfs_mbox_idle(phba);
 			spin_unlock_irq(&phba->hbalock);
 			return -EPERM;
@@ -1993,7 +2156,8 @@ lpfc_get_host_speed(struct Scsi_Host *shost)
 				fc_host_speed(shost) = FC_PORTSPEED_UNKNOWN;
 			break;
 		}
-	}
+	} else
+		fc_host_speed(shost) = FC_PORTSPEED_UNKNOWN;
 
 	spin_unlock_irq(shost->host_lock);
 }
@@ -2013,7 +2177,7 @@ lpfc_get_host_fabric_name (struct Scsi_Host *shost)
 		node_name = wwn_to_u64(phba->fc_fabparam.nodeName.u.wwn);
 	else
 		/* fabric is local port if there is no F/FL_Port */
-		node_name = wwn_to_u64(vport->fc_nodename.u.wwn);
+		node_name = 0;
 
 	spin_unlock_irq(shost->host_lock);
 
@@ -2337,8 +2501,6 @@ struct fc_function_template lpfc_transport_functions = {
 	.dev_loss_tmo_callbk = lpfc_dev_loss_tmo_callbk,
 	.terminate_rport_io = lpfc_terminate_rport_io,
 
-	.vport_create = lpfc_vport_create,
-	.vport_delete = lpfc_vport_delete,
 	.dd_fcvport_size = sizeof(struct lpfc_vport *),
 };
 
@@ -2414,21 +2576,23 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_poll_tmo_init(phba, lpfc_poll_tmo);
 	lpfc_enable_npiv_init(phba, lpfc_enable_npiv);
 	lpfc_use_msi_init(phba, lpfc_use_msi);
+	lpfc_enable_hba_reset_init(phba, lpfc_enable_hba_reset);
+	lpfc_enable_hba_heartbeat_init(phba, lpfc_enable_hba_heartbeat);
 	phba->cfg_poll = lpfc_poll;
 	phba->cfg_soft_wwnn = 0L;
 	phba->cfg_soft_wwpn = 0L;
-	/*
-	 * The total number of segments is the configuration value plus 2
-	 * since the IOCB need a command and response bde.
-	 */
-	phba->cfg_sg_seg_cnt = LPFC_SG_SEG_CNT + 2;
+	lpfc_sg_seg_cnt_init(phba, lpfc_sg_seg_cnt);
+	/* Also reinitialize the host templates with new values. */
+	lpfc_vport_template.sg_tablesize = phba->cfg_sg_seg_cnt;
+	lpfc_template.sg_tablesize = phba->cfg_sg_seg_cnt;
 	/*
 	 * Since the sg_tablesize is module parameter, the sg_dma_buf_size
-	 * used to create the sg_dma_buf_pool must be dynamically calculated
+	 * used to create the sg_dma_buf_pool must be dynamically calculated.
+	 * 2 segments are added since the IOCB needs a command and response bde.
 	 */
 	phba->cfg_sg_dma_buf_size = sizeof(struct fcp_cmnd) +
 			sizeof(struct fcp_rsp) +
-			(phba->cfg_sg_seg_cnt * sizeof(struct ulp_bde64));
+			((phba->cfg_sg_seg_cnt + 2) * sizeof(struct ulp_bde64));
 	lpfc_hba_queue_depth_init(phba, lpfc_hba_queue_depth);
 	return;
 }
@@ -2448,5 +2612,6 @@ lpfc_get_vport_cfgparam(struct lpfc_vport *vport)
 	lpfc_discovery_threads_init(vport, lpfc_discovery_threads);
 	lpfc_max_luns_init(vport, lpfc_max_luns);
 	lpfc_scan_down_init(vport, lpfc_scan_down);
+	lpfc_enable_da_id_init(vport, lpfc_enable_da_id);
 	return;
 }

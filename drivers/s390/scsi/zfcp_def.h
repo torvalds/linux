@@ -118,7 +118,7 @@ zfcp_address_to_sg(void *address, struct scatterlist *list, unsigned int size)
 
 #define ZFCP_SBAL_TIMEOUT               (5*HZ)
 
-#define ZFCP_TYPE2_RECOVERY_TIME        (8*HZ)
+#define ZFCP_TYPE2_RECOVERY_TIME        8	/* seconds */
 
 /* queue polling (values in microseconds) */
 #define ZFCP_MAX_INPUT_THRESHOLD 	5000	/* FIXME: tune */
@@ -139,7 +139,7 @@ zfcp_address_to_sg(void *address, struct scatterlist *list, unsigned int size)
 #define ZFCP_STATUS_READS_RECOM		        FSF_STATUS_READS_RECOM
 
 /* Do 1st retry in 1 second, then double the timeout for each following retry */
-#define ZFCP_EXCHANGE_CONFIG_DATA_FIRST_SLEEP	100
+#define ZFCP_EXCHANGE_CONFIG_DATA_FIRST_SLEEP	1
 #define ZFCP_EXCHANGE_CONFIG_DATA_RETRIES	7
 
 /* timeout value for "default timer" for fsf requests */
@@ -983,10 +983,6 @@ struct zfcp_unit {
         struct scsi_device     *device;        /* scsi device struct pointer */
 	struct zfcp_erp_action erp_action;     /* pending error recovery */
         atomic_t               erp_counter;
-	wait_queue_head_t      scsi_scan_wq;   /* can be used to wait until
-						  all scsi_scan_target
-						  requests have been
-						  completed. */
 };
 
 /* FSF request */
@@ -1124,6 +1120,20 @@ zfcp_reqlist_find(struct zfcp_adapter *adapter, unsigned long req_id)
 	list_for_each_entry(request, &adapter->req_list[idx], list)
 		if (request->req_id == req_id)
 			return request;
+	return NULL;
+}
+
+static inline struct zfcp_fsf_req *
+zfcp_reqlist_find_safe(struct zfcp_adapter *adapter, struct zfcp_fsf_req *req)
+{
+	struct zfcp_fsf_req *request;
+	unsigned int idx;
+
+	for (idx = 0; idx < REQUEST_LIST_SIZE; idx++) {
+		list_for_each_entry(request, &adapter->req_list[idx], list)
+			if (request == req)
+				return request;
+	}
 	return NULL;
 }
 

@@ -329,7 +329,7 @@ int scsi_debug_queuecommand(struct scsi_cmnd * SCpnt, done_funct_t done)
 	if (done == NULL)
 		return 0;	/* assume mid level reprocessing command */
 
-	SCpnt->resid = 0;
+	scsi_set_resid(SCpnt, 0);
 	if ((SCSI_DEBUG_OPT_NOISE & scsi_debug_opts) && cmd) {
 		printk(KERN_INFO "scsi_debug: cmd ");
 		for (k = 0, len = SCpnt->cmd_len; k < len; ++k)
@@ -603,26 +603,16 @@ static int fill_from_dev_buffer(struct scsi_cmnd * scp, unsigned char * arr,
 	void * kaddr_off;
 	struct scatterlist * sg;
 
-	if (0 == scp->request_bufflen)
+	if (0 == scsi_bufflen(scp))
 		return 0;
-	if (NULL == scp->request_buffer)
+	if (NULL == scsi_sglist(scp))
 		return (DID_ERROR << 16);
 	if (! ((scp->sc_data_direction == DMA_BIDIRECTIONAL) ||
 	      (scp->sc_data_direction == DMA_FROM_DEVICE)))
 		return (DID_ERROR << 16);
-	if (0 == scp->use_sg) {
-		req_len = scp->request_bufflen;
-		act_len = (req_len < arr_len) ? req_len : arr_len;
-		memcpy(scp->request_buffer, arr, act_len);
-		if (scp->resid)
-			scp->resid -= act_len;
-		else
-			scp->resid = req_len - act_len;
-		return 0;
-	}
 	active = 1;
 	req_len = act_len = 0;
-	scsi_for_each_sg(scp, sg, scp->use_sg, k) {
+	scsi_for_each_sg(scp, sg, scsi_sg_count(scp), k) {
 		if (active) {
 			kaddr = (unsigned char *)
 				kmap_atomic(sg_page(sg), KM_USER0);
@@ -640,10 +630,10 @@ static int fill_from_dev_buffer(struct scsi_cmnd * scp, unsigned char * arr,
 		}
 		req_len += sg->length;
 	}
-	if (scp->resid)
-		scp->resid -= act_len;
+	if (scsi_get_resid(scp))
+		scsi_set_resid(scp, scsi_get_resid(scp) - act_len);
 	else
-		scp->resid = req_len - act_len;
+		scsi_set_resid(scp, req_len - act_len);
 	return 0;
 }
 
@@ -656,22 +646,15 @@ static int fetch_to_dev_buffer(struct scsi_cmnd * scp, unsigned char * arr,
 	void * kaddr_off;
 	struct scatterlist * sg;
 
-	if (0 == scp->request_bufflen)
+	if (0 == scsi_bufflen(scp))
 		return 0;
-	if (NULL == scp->request_buffer)
+	if (NULL == scsi_sglist(scp))
 		return -1;
 	if (! ((scp->sc_data_direction == DMA_BIDIRECTIONAL) ||
 	      (scp->sc_data_direction == DMA_TO_DEVICE)))
 		return -1;
-	if (0 == scp->use_sg) {
-		req_len = scp->request_bufflen;
-		len = (req_len < max_arr_len) ? req_len : max_arr_len;
-		memcpy(arr, scp->request_buffer, len);
-		return len;
-	}
-	sg = scsi_sglist(scp);
 	req_len = fin = 0;
-	for (k = 0; k < scp->use_sg; ++k, sg = sg_next(sg)) {
+	scsi_for_each_sg(scp, sg, scsi_sg_count(scp), k) {
 		kaddr = (unsigned char *)kmap_atomic(sg_page(sg), KM_USER0);
 		if (NULL == kaddr)
 			return -1;

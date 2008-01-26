@@ -161,12 +161,6 @@ void zfcp_hba_dbf_event_fsf_response(struct zfcp_fsf_req *fsf_req)
 		   (fsf_req->fsf_command == FSF_QTCB_OPEN_LUN)) {
 		strncpy(rec->tag2, "open", ZFCP_DBF_TAG_SIZE);
 		level = 4;
-	} else if ((prot_status_qual->doubleword[0] != 0) ||
-		   (prot_status_qual->doubleword[1] != 0) ||
-		   (fsf_status_qual->doubleword[0] != 0) ||
-		   (fsf_status_qual->doubleword[1] != 0)) {
-		strncpy(rec->tag2, "qual", ZFCP_DBF_TAG_SIZE);
-		level = 3;
 	} else {
 		strncpy(rec->tag2, "norm", ZFCP_DBF_TAG_SIZE);
 		level = 6;

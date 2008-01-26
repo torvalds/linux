@@ -108,7 +108,7 @@ static void sas_scsi_task_done(struct sas_task *task)
 			break;
 		case SAM_CHECK_COND:
 			memcpy(sc->sense_buffer, ts->buf,
-			       max(SCSI_SENSE_BUFFERSIZE, ts->buf_valid_size));
+			       min(SCSI_SENSE_BUFFERSIZE, ts->buf_valid_size));
 			stat = SAM_CHECK_COND;
 			break;
 		default:
@@ -148,7 +148,6 @@ static struct sas_task *sas_create_task(struct scsi_cmnd *cmd,
 	if (!task)
 		return NULL;
 
-	*(u32 *)cmd->sense_buffer = 0;
 	task->uldd_task = cmd;
 	ASSIGN_SAS_TASK(cmd, task);
 
@@ -200,6 +199,10 @@ int sas_queue_up(struct sas_task *task)
  */
 int sas_queuecommand(struct scsi_cmnd *cmd,
 		     void (*scsi_done)(struct scsi_cmnd *))
+	__releases(host->host_lock)
+	__acquires(dev->sata_dev.ap->lock)
+	__releases(dev->sata_dev.ap->lock)
+	__acquires(host->host_lock)
 {
 	int res = 0;
 	struct domain_device *dev = cmd_to_domain_dev(cmd);
@@ -410,7 +413,7 @@ static int sas_recover_I_T(struct domain_device *dev)
 }
 
 /* Find the sas_phy that's attached to this device */
-struct sas_phy *find_local_sas_phy(struct domain_device *dev)
+static struct sas_phy *find_local_sas_phy(struct domain_device *dev)
 {
 	struct domain_device *pdev = dev->parent;
 	struct ex_phy *exphy = NULL;

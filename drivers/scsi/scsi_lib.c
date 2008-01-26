@@ -175,7 +175,7 @@ int scsi_queue_insert(struct scsi_cmnd *cmd, int reason)
  *
  * returns the req->errors value which is the scsi_cmnd result
  * field.
- **/
+ */
 int scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 		 int data_direction, void *buffer, unsigned bufflen,
 		 unsigned char *sense, int timeout, int retries, int flags)
@@ -274,7 +274,7 @@ static void scsi_bi_endio(struct bio *bio, int error)
 /**
  * scsi_req_map_sg - map a scatterlist into a request
  * @rq:		request to fill
- * @sg:		scatterlist
+ * @sgl:	scatterlist
  * @nsegs:	number of elements
  * @bufflen:	len of buffer
  * @gfp:	memory allocation flags
@@ -365,14 +365,16 @@ free_bios:
  * @sdev:	scsi device
  * @cmd:	scsi command
  * @cmd_len:	length of scsi cdb
- * @data_direction: data direction
+ * @data_direction: DMA_TO_DEVICE, DMA_FROM_DEVICE, or DMA_NONE
  * @buffer:	data buffer (this can be a kernel buffer or scatterlist)
  * @bufflen:	len of buffer
  * @use_sg:	if buffer is a scatterlist this is the number of elements
  * @timeout:	request timeout in seconds
  * @retries:	number of times to retry request
- * @flags:	or into request flags
- **/
+ * @privdata:	data passed to done()
+ * @done:	callback function when done
+ * @gfp:	memory allocation flags
+ */
 int scsi_execute_async(struct scsi_device *sdev, const unsigned char *cmd,
 		       int cmd_len, int data_direction, void *buffer, unsigned bufflen,
 		       int use_sg, int timeout, int retries, void *privdata,
@@ -439,7 +441,7 @@ static void scsi_init_cmd_errh(struct scsi_cmnd *cmd)
 {
 	cmd->serial_number = 0;
 	cmd->resid = 0;
-	memset(cmd->sense_buffer, 0, sizeof cmd->sense_buffer);
+	memset(cmd->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
 	if (cmd->cmd_len == 0)
 		cmd->cmd_len = COMMAND_SIZE(cmd->cmnd[0]);
 }
@@ -524,7 +526,7 @@ static void scsi_run_queue(struct request_queue *q)
 	struct Scsi_Host *shost = sdev->host;
 	unsigned long flags;
 
-	if (sdev->single_lun)
+	if (scsi_target(sdev)->single_lun)
 		scsi_single_lun_run(sdev);
 
 	spin_lock_irqsave(shost->host_lock, flags);
@@ -1102,7 +1104,6 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
  *
  * Returns:     0 on success
  *		BLKPREP_DEFER if the failure is retryable
- *		BLKPREP_KILL if the failure is fatal
  */
 static int scsi_init_io(struct scsi_cmnd *cmd)
 {
@@ -1136,17 +1137,9 @@ static int scsi_init_io(struct scsi_cmnd *cmd)
 	 * each segment.
 	 */
 	count = blk_rq_map_sg(req->q, req, cmd->request_buffer);
-	if (likely(count <= cmd->use_sg)) {
-		cmd->use_sg = count;
-		return BLKPREP_OK;
-	}
-
-	printk(KERN_ERR "Incorrect number of segments after building list\n");
-	printk(KERN_ERR "counted %d, received %d\n", count, cmd->use_sg);
-	printk(KERN_ERR "req nr_sec %lu, cur_nr_sec %u\n", req->nr_sectors,
-			req->current_nr_sectors);
-
-	return BLKPREP_KILL;
+	BUG_ON(count > cmd->use_sg);
+	cmd->use_sg = count;
+	return BLKPREP_OK;
 }
 
 static struct scsi_cmnd *scsi_get_cmd_from_req(struct scsi_device *sdev,
@@ -1557,7 +1550,7 @@ static void scsi_request_fn(struct request_queue *q)
 
 		if (!scsi_host_queue_ready(q, shost, sdev))
 			goto not_ready;
-		if (sdev->single_lun) {
+		if (scsi_target(sdev)->single_lun) {
 			if (scsi_target(sdev)->starget_sdev_user &&
 			    scsi_target(sdev)->starget_sdev_user != sdev)
 				goto not_ready;
@@ -1675,6 +1668,14 @@ struct request_queue *__scsi_alloc_queue(struct Scsi_Host *shost,
 
 	if (!shost->use_clustering)
 		clear_bit(QUEUE_FLAG_CLUSTER, &q->queue_flags);
+
+	/*
+	 * set a reasonable default alignment on word boundaries: the
+	 * host and device may alter it using
+	 * blk_queue_update_dma_alignment() later.
+	 */
+	blk_queue_dma_alignment(q, 0x03);
+
 	return q;
 }
 EXPORT_SYMBOL(__scsi_alloc_queue);
@@ -1804,7 +1805,7 @@ void scsi_exit_queue(void)
  *	@timeout: command timeout
  *	@retries: number of retries before failing
  *	@data: returns a structure abstracting the mode header data
- *	@sense: place to put sense data (or NULL if no sense to be collected).
+ *	@sshdr: place to put sense data (or NULL if no sense to be collected).
  *		must be SCSI_SENSE_BUFFERSIZE big.
  *
  *	Returns zero if successful; negative error number or scsi
@@ -1871,8 +1872,7 @@ scsi_mode_select(struct scsi_device *sdev, int pf, int sp, int modepage,
 EXPORT_SYMBOL_GPL(scsi_mode_select);
 
 /**
- *	scsi_mode_sense - issue a mode sense, falling back from 10 to 
- *		six bytes if necessary.
+ *	scsi_mode_sense - issue a mode sense, falling back from 10 to six bytes if necessary.
  *	@sdev:	SCSI device to be queried
  *	@dbd:	set if mode sense will allow block descriptors to be returned
  *	@modepage: mode page being requested
@@ -1881,13 +1881,13 @@ EXPORT_SYMBOL_GPL(scsi_mode_select);
  *	@timeout: command timeout
  *	@retries: number of retries before failing
  *	@data: returns a structure abstracting the mode header data
- *	@sense: place to put sense data (or NULL if no sense to be collected).
+ *	@sshdr: place to put sense data (or NULL if no sense to be collected).
  *		must be SCSI_SENSE_BUFFERSIZE big.
  *
  *	Returns zero if unsuccessful, or the header offset (either 4
  *	or 8 depending on whether a six or ten byte command was
  *	issued) if successful.
- **/
+ */
 int
 scsi_mode_sense(struct scsi_device *sdev, int dbd, int modepage,
 		  unsigned char *buffer, int len, int timeout, int retries,
@@ -1981,40 +1981,69 @@ scsi_mode_sense(struct scsi_device *sdev, int dbd, int modepage,
 }
 EXPORT_SYMBOL(scsi_mode_sense);
 
+/**
+ *	scsi_test_unit_ready - test if unit is ready
+ *	@sdev:	scsi device to change the state of.
+ *	@timeout: command timeout
+ *	@retries: number of retries before failing
+ *	@sshdr_external: Optional pointer to struct scsi_sense_hdr for
+ *		returning sense. Make sure that this is cleared before passing
+ *		in.
+ *
+ *	Returns zero if unsuccessful or an error if TUR failed.  For
+ *	removable media, a return of NOT_READY or UNIT_ATTENTION is
+ *	translated to success, with the ->changed flag updated.
+ **/
 int
-scsi_test_unit_ready(struct scsi_device *sdev, int timeout, int retries)
+scsi_test_unit_ready(struct scsi_device *sdev, int timeout, int retries,
+		     struct scsi_sense_hdr *sshdr_external)
 {
 	char cmd[] = {
 		TEST_UNIT_READY, 0, 0, 0, 0, 0,
 	};
-	struct scsi_sense_hdr sshdr;
+	struct scsi_sense_hdr *sshdr;
 	int result;
-	
-	result = scsi_execute_req(sdev, cmd, DMA_NONE, NULL, 0, &sshdr,
-				  timeout, retries);
+
+	if (!sshdr_external)
+		sshdr = kzalloc(sizeof(*sshdr), GFP_KERNEL);
+	else
+		sshdr = sshdr_external;
+
+	/* try to eat the UNIT_ATTENTION if there are enough retries */
+	do {
+		result = scsi_execute_req(sdev, cmd, DMA_NONE, NULL, 0, sshdr,
+					  timeout, retries);
+	} while ((driver_byte(result) & DRIVER_SENSE) &&
+		 sshdr && sshdr->sense_key == UNIT_ATTENTION &&
+		 --retries);
+
+	if (!sshdr)
+		/* could not allocate sense buffer, so can't process it */
+		return result;
 
 	if ((driver_byte(result) & DRIVER_SENSE) && sdev->removable) {
 
-		if ((scsi_sense_valid(&sshdr)) &&
-		    ((sshdr.sense_key == UNIT_ATTENTION) ||
-		     (sshdr.sense_key == NOT_READY))) {
+		if ((scsi_sense_valid(sshdr)) &&
+		    ((sshdr->sense_key == UNIT_ATTENTION) ||
+		     (sshdr->sense_key == NOT_READY))) {
 			sdev->changed = 1;
 			result = 0;
 		}
 	}
+	if (!sshdr_external)
+		kfree(sshdr);
 	return result;
 }
 EXPORT_SYMBOL(scsi_test_unit_ready);
 
 /**
- *	scsi_device_set_state - Take the given device through the device
- *		state model.
+ *	scsi_device_set_state - Take the given device through the device state model.
  *	@sdev:	scsi device to change the state of.
  *	@state:	state to change to.
  *
  *	Returns zero if unsuccessful or an error if the requested 
  *	transition is illegal.
- **/
+ */
 int
 scsi_device_set_state(struct scsi_device *sdev, enum scsi_device_state state)
 {
@@ -2264,7 +2293,7 @@ EXPORT_SYMBOL_GPL(sdev_evt_send_simple);
  *	Must be called with user context, may sleep.
  *
  *	Returns zero if unsuccessful or an error if not.
- **/
+ */
 int
 scsi_device_quiesce(struct scsi_device *sdev)
 {
@@ -2289,7 +2318,7 @@ EXPORT_SYMBOL(scsi_device_quiesce);
  *	queues.
  *
  *	Must be called with user context, may sleep.
- **/
+ */
 void
 scsi_device_resume(struct scsi_device *sdev)
 {
@@ -2326,8 +2355,7 @@ scsi_target_resume(struct scsi_target *starget)
 EXPORT_SYMBOL(scsi_target_resume);
 
 /**
- * scsi_internal_device_block - internal function to put a device
- *				temporarily into the SDEV_BLOCK state
+ * scsi_internal_device_block - internal function to put a device temporarily into the SDEV_BLOCK state
  * @sdev:	device to block
  *
  * Block request made by scsi lld's to temporarily stop all
@@ -2342,7 +2370,7 @@ EXPORT_SYMBOL(scsi_target_resume);
  *	state, all commands are deferred until the scsi lld reenables
  *	the device with scsi_device_unblock or device_block_tmo fires.
  *	This routine assumes the host_lock is held on entry.
- **/
+ */
 int
 scsi_internal_device_block(struct scsi_device *sdev)
 {
@@ -2382,7 +2410,7 @@ EXPORT_SYMBOL_GPL(scsi_internal_device_block);
  *	(which must be a legal transition) allowing the midlayer to
  *	goose the queue for this device.  This routine assumes the 
  *	host_lock is held upon entry.
- **/
+ */
 int
 scsi_internal_device_unblock(struct scsi_device *sdev)
 {
@@ -2460,7 +2488,7 @@ EXPORT_SYMBOL_GPL(scsi_target_unblock);
 
 /**
  * scsi_kmap_atomic_sg - find and atomically map an sg-elemnt
- * @sg:		scatter-gather list
+ * @sgl:	scatter-gather list
  * @sg_count:	number of segments in sg
  * @offset:	offset in bytes into sg, on return offset into the mapped area
  * @len:	bytes to map, on return number of bytes mapped
@@ -2509,8 +2537,7 @@ void *scsi_kmap_atomic_sg(struct scatterlist *sgl, int sg_count,
 EXPORT_SYMBOL(scsi_kmap_atomic_sg);
 
 /**
- * scsi_kunmap_atomic_sg - atomically unmap a virtual address, previously
- *			   mapped with scsi_kmap_atomic_sg
+ * scsi_kunmap_atomic_sg - atomically unmap a virtual address, previously mapped with scsi_kmap_atomic_sg
  * @virt:	virtual address to be unmapped
  */
 void scsi_kunmap_atomic_sg(void *virt)

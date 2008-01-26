@@ -498,7 +498,7 @@ static int sas_execute_task(struct sas_task *task, void *buffer, int size,
 			goto ex_err;
 		}
 		wait_for_completion(&task->completion);
-		res = -ETASK;
+		res = -ECOMM;
 		if (task->task_state_flags & SAS_TASK_STATE_ABORTED) {
 			int res2;
 			SAS_DPRINTK("task aborted, flags:0x%x\n",

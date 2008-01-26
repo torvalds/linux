@@ -207,10 +207,9 @@ void sym_set_cam_result_error(struct sym_hcb *np, struct sym_ccb *cp, int resid)
 			/*
 			 *  Bounce back the sense data to user.
 			 */
-			memset(&cmd->sense_buffer, 0, sizeof(cmd->sense_buffer));
+			memset(&cmd->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
 			memcpy(cmd->sense_buffer, cp->sns_bbuf,
-			      min(sizeof(cmd->sense_buffer),
-				  (size_t)SYM_SNS_BBUF_LEN));
+			       min(SCSI_SENSE_BUFFERSIZE, SYM_SNS_BBUF_LEN));
 #if 0
 			/*
 			 *  If the device reports a UNIT ATTENTION condition 
@@ -609,22 +608,24 @@ static int sym_eh_handler(int op, char *opname, struct scsi_cmnd *cmd)
 	 */
 #define WAIT_FOR_PCI_RECOVERY	35
 	if (pci_channel_offline(pdev)) {
-		struct completion *io_reset;
 		int finished_reset = 0;
 		init_completion(&eh_done);
 		spin_lock_irq(shost->host_lock);
 		/* Make sure we didn't race */
 		if (pci_channel_offline(pdev)) {
-			if (!sym_data->io_reset)
-				sym_data->io_reset = &eh_done;
-			io_reset = sym_data->io_reset;
+			BUG_ON(sym_data->io_reset);
+			sym_data->io_reset = &eh_done;
 		} else {
 			finished_reset = 1;
 		}
 		spin_unlock_irq(shost->host_lock);
 		if (!finished_reset)
-			finished_reset = wait_for_completion_timeout(io_reset,
+			finished_reset = wait_for_completion_timeout
+						(sym_data->io_reset,
 						WAIT_FOR_PCI_RECOVERY*HZ);
+		spin_lock_irq(shost->host_lock);
+		sym_data->io_reset = NULL;
+		spin_unlock_irq(shost->host_lock);
 		if (!finished_reset)
 			return SCSI_FAILED;
 	}
@@ -1744,7 +1745,7 @@ static int __devinit sym2_probe(struct pci_dev *pdev,
 	return -ENODEV;
 }
 
-static void __devexit sym2_remove(struct pci_dev *pdev)
+static void sym2_remove(struct pci_dev *pdev)
 {
 	struct Scsi_Host *shost = pci_get_drvdata(pdev);
 
@@ -1879,7 +1880,6 @@ static void sym2_io_resume(struct pci_dev *pdev)
 	spin_lock_irq(shost->host_lock);
 	if (sym_data->io_reset)
 		complete_all(sym_data->io_reset);
-	sym_data->io_reset = NULL;
 	spin_unlock_irq(shost->host_lock);
 }
 
@@ -2056,7 +2056,7 @@ static struct pci_driver sym2_driver = {
 	.name		= NAME53C8XX,
 	.id_table	= sym2_id_table,
 	.probe		= sym2_probe,
-	.remove		= __devexit_p(sym2_remove),
+	.remove		= sym2_remove,
 	.err_handler 	= &sym2_err_handler,
 };
 

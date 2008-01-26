@@ -839,7 +839,14 @@ static void ata_scsi_dev_config(struct scsi_device *sdev,
 	if (dev->class == ATA_DEV_ATAPI) {
 		struct request_queue *q = sdev->request_queue;
 		blk_queue_max_hw_segments(q, q->max_hw_segments - 1);
-	}
+
+		/* set the min alignment */
+		blk_queue_update_dma_alignment(sdev->request_queue,
+					       ATA_DMA_PAD_SZ - 1);
+	} else
+		/* ATA devices must be sector aligned */
+		blk_queue_update_dma_alignment(sdev->request_queue,
+					       ATA_SECT_SIZE - 1);
 
 	if (dev->class == ATA_DEV_ATA)
 		sdev->manage_start_stop = 1;
@@ -878,7 +885,7 @@ int ata_scsi_slave_config(struct scsi_device *sdev)
 	if (dev)
 		ata_scsi_dev_config(sdev, dev);
 
-	return 0;	/* scsi layer doesn't check return value, sigh */
+	return 0;
 }
 
 /**

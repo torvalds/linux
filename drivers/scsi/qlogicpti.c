@@ -871,11 +871,12 @@ static inline int load_cmd(struct scsi_cmnd *Cmnd, struct Command_Entry *cmd,
 	struct scatterlist *sg, *s;
 	int i, n;
 
-	if (Cmnd->use_sg) {
+	if (scsi_bufflen(Cmnd)) {
 		int sg_count;
 
-		sg = (struct scatterlist *) Cmnd->request_buffer;
-		sg_count = sbus_map_sg(qpti->sdev, sg, Cmnd->use_sg, Cmnd->sc_data_direction);
+		sg = scsi_sglist(Cmnd);
+		sg_count = sbus_map_sg(qpti->sdev, sg, scsi_sg_count(Cmnd),
+		                                      Cmnd->sc_data_direction);
 
 		ds = cmd->dataseg;
 		cmd->segment_cnt = sg_count;
@@ -914,16 +915,6 @@ static inline int load_cmd(struct scsi_cmnd *Cmnd, struct Command_Entry *cmd,
 			}
 			sg_count -= n;
 		}
-	} else if (Cmnd->request_bufflen) {
-		Cmnd->SCp.ptr = (char *)(unsigned long)
-			sbus_map_single(qpti->sdev,
-					Cmnd->request_buffer,
-					Cmnd->request_bufflen,
-					Cmnd->sc_data_direction);
-
-		cmd->dataseg[0].d_base = (u32) ((unsigned long)Cmnd->SCp.ptr);
-		cmd->dataseg[0].d_count = Cmnd->request_bufflen;
-		cmd->segment_cnt = 1;
 	} else {
 		cmd->dataseg[0].d_base = 0;
 		cmd->dataseg[0].d_count = 0;
@@ -1151,7 +1142,7 @@ static struct scsi_cmnd *qlogicpti_intr_handler(struct qlogicpti *qpti)
 
 		if (sts->state_flags & SF_GOT_SENSE)
 			memcpy(Cmnd->sense_buffer, sts->req_sense_data,
-			       sizeof(Cmnd->sense_buffer));
+			       SCSI_SENSE_BUFFERSIZE);
 
 		if (sts->hdr.entry_type == ENTRY_STATUS)
 			Cmnd->result =
@@ -1159,17 +1150,11 @@ static struct scsi_cmnd *qlogicpti_intr_handler(struct qlogicpti *qpti)
 		else
 			Cmnd->result = DID_ERROR << 16;
 
-		if (Cmnd->use_sg) {
+		if (scsi_bufflen(Cmnd))
 			sbus_unmap_sg(qpti->sdev,
-				      (struct scatterlist *)Cmnd->request_buffer,
-				      Cmnd->use_sg,
+				      scsi_sglist(Cmnd), scsi_sg_count(Cmnd),
 				      Cmnd->sc_data_direction);
-		} else if (Cmnd->request_bufflen) {
-			sbus_unmap_single(qpti->sdev,
-					  (__u32)((unsigned long)Cmnd->SCp.ptr),
-					  Cmnd->request_bufflen,
-					  Cmnd->sc_data_direction);
-		}
+
 		qpti->cmd_count[Cmnd->device->id]--;
 		sbus_writew(out_ptr, qpti->qregs + MBOX5);
 		Cmnd->host_scribble = (unsigned char *) done_queue;

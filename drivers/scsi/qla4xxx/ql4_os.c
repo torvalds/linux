@@ -298,8 +298,7 @@ void qla4xxx_destroy_sess(struct ddb_entry *ddb_entry)
 		return;
 
 	if (ddb_entry->conn) {
-		iscsi_if_destroy_session_done(ddb_entry->conn);
-		iscsi_destroy_conn(ddb_entry->conn);
+		atomic_set(&ddb_entry->state, DDB_STATE_DEAD);
 		iscsi_remove_session(ddb_entry->sess);
 	}
 	iscsi_free_session(ddb_entry->sess);
@@ -309,6 +308,7 @@ int qla4xxx_add_sess(struct ddb_entry *ddb_entry)
 {
 	int err;
 
+	ddb_entry->sess->recovery_tmo = ddb_entry->ha->port_down_retry_count;
 	err = iscsi_add_session(ddb_entry->sess, ddb_entry->fw_ddb_index);
 	if (err) {
 		DEBUG2(printk(KERN_ERR "Could not add session.\n"));
@@ -321,9 +321,6 @@ int qla4xxx_add_sess(struct ddb_entry *ddb_entry)
 		DEBUG2(printk(KERN_ERR "Could not add connection.\n"));
 		return -ENOMEM;
 	}
-
-	ddb_entry->sess->recovery_tmo = ddb_entry->ha->port_down_retry_count;
-	iscsi_if_create_session_done(ddb_entry->conn);
 	return 0;
 }
 
