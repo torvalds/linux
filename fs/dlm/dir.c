@@ -319,6 +319,9 @@ static int get_entry(struct dlm_ls *ls, int nodeid, char *name,
 
 	write_unlock(&ls->ls_dirtbl[bucket].lock);
 
+	if (namelen > DLM_RESNAME_MAXLEN)
+		return -EINVAL;
+
 	de = kzalloc(sizeof(struct dlm_direntry) + namelen, GFP_KERNEL);
 	if (!de)
 		return -ENOMEM;
