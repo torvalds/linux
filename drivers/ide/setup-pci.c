@@ -363,6 +363,8 @@ static ide_hwif_t *ide_hwif_configure(struct pci_dev *dev, const struct ide_port
 	unsigned long ctl = 0, base = 0;
 	ide_hwif_t *hwif;
 	u8 bootable = (d->host_flags & IDE_HFLAG_BOOTABLE) ? 1 : 0;
+	u8 oldnoprobe = 0;
+	struct hw_regs_s hw;
 
 	if ((d->host_flags & IDE_HFLAG_ISA_PORTS) == 0) {
 		/*  Possibly we should fail if these checks report true */
@@ -385,22 +387,25 @@ static ide_hwif_t *ide_hwif_configure(struct pci_dev *dev, const struct ide_port
 	}
 	if ((hwif = ide_match_hwif(base, bootable, d->name)) == NULL)
 		return NULL;	/* no room in ide_hwifs[] */
-	if (hwif->io_ports[IDE_DATA_OFFSET] != base ||
-	    hwif->io_ports[IDE_CONTROL_OFFSET] != (ctl | 2)) {
-		hw_regs_t hw;
 
-		memset(&hw, 0, sizeof(hw));
-		ide_std_init_ports(&hw, base, ctl | 2);
-		memcpy(hwif->io_ports, hw.io_ports, sizeof(hwif->io_ports));
-		hwif->noprobe = 0;
-	}
-	hwif->chipset = d->chipset ? d->chipset : ide_pci;
+	memset(&hw, 0, sizeof(hw));
+	hw.irq = hwif->irq ? hwif->irq : irq;
+	hw.dev = &dev->dev;
+	hw.chipset = d->chipset ? d->chipset : ide_pci;
+	ide_std_init_ports(&hw, base, ctl | 2);
+
+	if (hwif->io_ports[IDE_DATA_OFFSET] == base &&
+	    hwif->io_ports[IDE_CONTROL_OFFSET] == (ctl | 2))
+		oldnoprobe = hwif->noprobe;
+
+	ide_init_port_hw(hwif, &hw);
+
+	hwif->noprobe = oldnoprobe;
+
 	hwif->pci_dev = dev;
 	hwif->cds = d;
 	hwif->channel = port;
 
-	if (!hwif->irq)
-		hwif->irq = irq;
 	if (mate) {
 		hwif->mate = mate;
 		mate->mate = hwif;
@@ -535,12 +540,8 @@ void ide_pci_setup_ports(struct pci_dev *dev, const struct ide_port_info *d, int
 		if ((hwif = ide_hwif_configure(dev, d, mate, port, pciirq)) == NULL)
 			continue;
 
-		/* setup proper ancestral information */
-		hwif->gendev.parent = &dev->dev;
-
 		*(idx + port) = hwif->index;
 
-		
 		if (d->init_iops)
 			d->init_iops(hwif);
 
