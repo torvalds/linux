@@ -35,8 +35,8 @@ ccwgroup_bus_match (struct device * dev, struct device_driver * drv)
 	struct ccwgroup_device *gdev;
 	struct ccwgroup_driver *gdrv;
 
-	gdev = container_of(dev, struct ccwgroup_device, dev);
-	gdrv = container_of(drv, struct ccwgroup_driver, driver);
+	gdev = to_ccwgroupdev(dev);
+	gdrv = to_ccwgroupdrv(drv);
 
 	if (gdev->creator_id == gdrv->driver_id)
 		return 1;

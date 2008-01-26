@@ -787,8 +787,8 @@ int sch_is_pseudo_sch(struct subchannel *sch)
 static int
 css_bus_match (struct device *dev, struct device_driver *drv)
 {
-	struct subchannel *sch = container_of (dev, struct subchannel, dev);
-	struct css_driver *driver = container_of (drv, struct css_driver, drv);
+	struct subchannel *sch = to_subchannel(dev);
+	struct css_driver *driver = to_cssdriver(drv);
 
 	if (sch->st == driver->subchannel_type)
 		return 1;
@@ -802,7 +802,7 @@ css_probe (struct device *dev)
 	struct subchannel *sch;
 
 	sch = to_subchannel(dev);
-	sch->driver = container_of (dev->driver, struct css_driver, drv);
+	sch->driver = to_cssdriver(dev->driver);
 	return (sch->driver->probe ? sch->driver->probe(sch) : 0);
 }
 

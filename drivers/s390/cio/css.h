@@ -134,6 +134,8 @@ struct css_driver {
 	void (*shutdown)(struct subchannel *);
 };
 
+#define to_cssdriver(n) container_of(n, struct css_driver, drv)
+
 /*
  * all css_drivers have the css_bus_type
  */
