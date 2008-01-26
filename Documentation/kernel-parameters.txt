@@ -370,8 +370,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			configured.  Potentially dangerous and should only be
 			used if you are entirely sure of the consequences.
 
-	chandev=	[HW,NET] Generic channel device initialisation
-
 	checkreqprot	[SELINUX] Set initial checkreqprot flag value.
 			Format: { "0" | "1" }
 			See security/selinux/Kconfig help text.
@@ -381,6 +379,12 @@ and is between 256 and 4096 characters. It is defined in the file
 			Default value is set via a kernel config option.
 			Value can be changed at runtime via
 				/selinux/checkreqprot.
+
+	cio_ignore=	[S390]
+			See Documentation/s390/CommonIO for details.
+
+	cio_msg=	[S390]
+			See Documentation/s390/CommonIO for details.
 
 	clock=		[BUGS=X86-32, HW] gettimeofday clocksource override.
 			[Deprecated]
