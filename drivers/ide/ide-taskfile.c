@@ -77,6 +77,10 @@ void ide_tf_load(ide_drive_t *drive, ide_task_t *task)
 		"lbam 0x%02x lbah 0x%02x dev 0x%02x cmd 0x%02x\n",
 		drive->name, tf->feature, tf->nsect, tf->lbal,
 		tf->lbam, tf->lbah, tf->device, tf->command);
+	printk("%s: hob: nsect 0x%02x lbal 0x%02x "
+		"lbam 0x%02x lbah 0x%02x\n",
+		drive->name, tf->hob_nsect, tf->hob_lbal,
+		tf->hob_lbam, tf->hob_lbah);
 #endif
 
 	if (IDE_CONTROL_REG)

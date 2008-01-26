@@ -219,12 +219,7 @@ static ide_startstop_t __ide_do_rw_disk(ide_drive_t *drive, struct request *rq, 
 			tf->lbal   = (u8) block;
 			tf->lbam   = (u8)(block >>  8);
 			tf->lbah   = (u8)(block >> 16);
-#ifdef DEBUG
-			printk("%s: 0x%02x%02x 0x%02x%02x%02x%02x%02x%02x\n",
-				drive->name, tf->hob_nsect, tf->nsect,
-				tf->hob_lbah, tf->hob_lbam, tf->hob_lbal,
-				tf->lbah, tf->lbam, tf->lbal);
-#endif
+
 			task.tf_flags |= (IDE_TFLAG_LBA48 | IDE_TFLAG_OUT_HOB);
 		} else {
 			tf->nsect  = nsectors & 0xff;
