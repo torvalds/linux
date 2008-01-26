@@ -346,8 +346,17 @@ static void ide_pio_multi(ide_drive_t *drive, unsigned int write)
 static void ide_pio_datablock(ide_drive_t *drive, struct request *rq,
 				     unsigned int write)
 {
+	u8 saved_io_32bit = drive->io_32bit;
+
 	if (rq->bio)	/* fs request */
 		rq->errors = 0;
+
+	if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE) {
+		ide_task_t *task = rq->special;
+
+		if (task->tf_flags & IDE_TFLAG_IO_16BIT)
+			drive->io_32bit = 0;
+	}
 
 	touch_softlockup_watchdog();
 
@@ -360,6 +369,8 @@ static void ide_pio_datablock(ide_drive_t *drive, struct request *rq,
 		ide_pio_sector(drive, write);
 		break;
 	}
+
+	drive->io_32bit = saved_io_32bit;
 }
 
 static ide_startstop_t task_error(ide_drive_t *drive, struct request *rq,
@@ -555,7 +566,6 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 	unsigned int taskin	= 0;
 	unsigned int taskout	= 0;
 	u16 nsect		= 0;
-	u8 io_32bit		= drive->io_32bit;
 	char __user *buf = (char __user *)arg;
 
 //	printk("IDE Taskfile ...\n");
@@ -608,7 +618,7 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 
 	args.data_phase = req_task->data_phase;
 
-	args.tf_flags = IDE_TFLAG_OUT_DEVICE;
+	args.tf_flags = IDE_TFLAG_IO_16BIT | IDE_TFLAG_OUT_DEVICE;
 	if (drive->addressing == 1)
 		args.tf_flags |= IDE_TFLAG_LBA48;
 
@@ -646,7 +656,6 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 	if (req_task->in_flags.b.data)
 		args.tf_flags |= IDE_TFLAG_IN_DATA;
 
-	drive->io_32bit = 0;
 	switch(req_task->data_phase) {
 		case TASKFILE_MULTI_OUT:
 			if (!drive->mult_count) {
@@ -741,8 +750,6 @@ abort:
 	kfree(inbuf);
 
 //	printk("IDE Taskfile ioctl ended. rc = %i\n", err);
-
-	drive->io_32bit = io_32bit;
 
 	return err;
 }

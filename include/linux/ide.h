@@ -931,6 +931,8 @@ enum {
 	IDE_TFLAG_IN_TF			= IDE_TFLAG_IN_NSECT |
 					  IDE_TFLAG_IN_LBA,
 	IDE_TFLAG_IN_DEVICE		= (1 << 29),
+	/* force 16-bit I/O operations */
+	IDE_TFLAG_IO_16BIT		= (1 << 30),
 };
 
 struct ide_taskfile {
