@@ -593,6 +593,7 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 	ide_hwif_t *hwif;
 	int h;
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
+	hw_regs_t hw;
 
 	/*
 	 * Find an empty HWIF; if none available, return -ENOMEM.
@@ -632,15 +633,11 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 		return -ENOMEM;
 	}
 
-	if (hwif->io_ports[IDE_DATA_OFFSET] != cmd_base) {
-		hw_regs_t hw;
-
-		/* Initialize the IO registers */
-		memset(&hw, 0, sizeof(hw));
-		sgiioc4_init_hwif_ports(&hw, cmd_base, ctl, irqport);
-		memcpy(hwif->io_ports, hw.io_ports, sizeof(hwif->io_ports));
-		hwif->noprobe = !hwif->io_ports[IDE_DATA_OFFSET];
-	}
+	/* Initialize the IO registers */
+	memset(&hw, 0, sizeof(hw));
+	sgiioc4_init_hwif_ports(&hw, cmd_base, ctl, irqport);
+	memcpy(hwif->io_ports, hw.io_ports, sizeof(hwif->io_ports));
+	hwif->noprobe = 0;
 
 	hwif->irq = dev->irq;
 	hwif->chipset = ide_pci;
