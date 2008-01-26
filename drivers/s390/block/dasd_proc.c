@@ -142,7 +142,7 @@ static void dasd_devices_stop(struct seq_file *m, void *v)
 {
 }
 
-static struct seq_operations dasd_devices_seq_ops = {
+static const struct seq_operations dasd_devices_seq_ops = {
 	.start		= dasd_devices_start,
 	.next		= dasd_devices_next,
 	.stop		= dasd_devices_stop,

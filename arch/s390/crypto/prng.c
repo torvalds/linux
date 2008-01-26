@@ -146,7 +146,7 @@ static ssize_t prng_read(struct file *file, char __user *ubuf, size_t nbytes,
 	return ret;
 }
 
-static struct file_operations prng_fops = {
+static const struct file_operations prng_fops = {
 	.owner		= THIS_MODULE,
 	.open		= &prng_open,
 	.release	= NULL,
