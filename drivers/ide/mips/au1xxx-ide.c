@@ -625,12 +625,13 @@ static int au_ide_probe(struct device *dev)
 	/* FIXME:  This might possibly break PCMCIA IDE devices */
 
 	hwif                            = &ide_hwifs[pdev->id];
-	hwif->irq			= ahwif->irq;
-	hwif->chipset                   = ide_au1xxx;
 
 	memset(&hw, 0, sizeof(hw));
 	auide_setup_ports(&hw, ahwif);
-	memcpy(hwif->io_ports, hw.io_ports, sizeof(hwif->io_ports));
+	hw.irq = ahwif->irq;
+	hw.chipset = ide_au1xxx;
+
+	ide_init_port_hw(hwif, &hw);
 
 	hwif->ultra_mask                = 0x0;  /* Disable Ultra DMA */
 #ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
@@ -644,7 +645,6 @@ static int au_ide_probe(struct device *dev)
 	hwif->pio_mask = ATA_PIO4;
 	hwif->host_flags = IDE_HFLAG_POST_SET_MODE;
 
-	hwif->noprobe = 0;
 	hwif->drives[0].unmask          = 1;
 	hwif->drives[1].unmask          = 1;
 
