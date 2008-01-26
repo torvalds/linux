@@ -370,6 +370,8 @@ void ide_end_drive_cmd (ide_drive_t *drive, u8 stat, u8 err)
 		if (args) {
 			args[0] = stat;
 			args[1] = err;
+			/* be sure we're looking at the low order bits */
+			hwif->OUTB(drive->ctl & ~0x80, IDE_CONTROL_REG);
 			args[2] = hwif->INB(IDE_NSECTOR_REG);
 		}
 	} else if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE) {
