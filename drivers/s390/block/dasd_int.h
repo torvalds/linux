@@ -64,13 +64,7 @@
  * SECTION: Type definitions
  */
 struct dasd_device;
-
-typedef enum {
-	dasd_era_fatal = -1,	/* no chance to recover		     */
-	dasd_era_none = 0,	/* don't recover, everything alright */
-	dasd_era_msg = 1,	/* don't recover, just report...     */
-	dasd_era_recover = 2	/* recovery action recommended	     */
-} dasd_era_t;
+struct dasd_block;
 
 /* BIT DEFINITIONS FOR SENSE DATA */
 #define DASD_SENSE_BIT_0 0x80
@@ -151,19 +145,22 @@ do { \
 
 struct dasd_ccw_req {
 	unsigned int magic;		/* Eye catcher */
-        struct list_head list;		/* list_head for request queueing. */
+	struct list_head devlist;	/* for dasd_device request queue */
+	struct list_head blocklist;	/* for dasd_block request queue */
 
 	/* Where to execute what... */
-	struct dasd_device *device;	/* device the request is for */
+	struct dasd_block *block;	/* the originating block device */
+	struct dasd_device *memdev;	/* the device used to allocate this */
+	struct dasd_device *startdev;	/* device the request is started on */
 	struct ccw1 *cpaddr;		/* address of channel program */
-	char status;	        	/* status of this request */
+	char status;			/* status of this request */
 	short retries;			/* A retry counter */
 	unsigned long flags;        	/* flags of this request */
 
 	/* ... and how */
 	unsigned long starttime;	/* jiffies time of request start */
 	int expires;			/* expiration period in jiffies */
-	char lpm;               	/* logical path mask */
+	char lpm;			/* logical path mask */
 	void *data;			/* pointer to data area */
 
 	/* these are important for recovering erroneous requests          */
@@ -178,20 +175,27 @@ struct dasd_ccw_req {
 	unsigned long long endclk;	/* TOD-clock of request termination */
 
         /* Callback that is called after reaching final status. */
-        void (*callback)(struct dasd_ccw_req *, void *data);
-        void *callback_data;
+	void (*callback)(struct dasd_ccw_req *, void *data);
+	void *callback_data;
 };
 
 /*
  * dasd_ccw_req -> status can be:
  */
-#define DASD_CQR_FILLED   0x00	/* request is ready to be processed */
-#define DASD_CQR_QUEUED   0x01	/* request is queued to be processed */
-#define DASD_CQR_IN_IO    0x02	/* request is currently in IO */
-#define DASD_CQR_DONE     0x03	/* request is completed successfully */
-#define DASD_CQR_ERROR    0x04	/* request is completed with error */
-#define DASD_CQR_FAILED   0x05	/* request is finally failed */
-#define DASD_CQR_CLEAR    0x06	/* request is clear pending */
+#define DASD_CQR_FILLED 	0x00	/* request is ready to be processed */
+#define DASD_CQR_DONE		0x01	/* request is completed successfully */
+#define DASD_CQR_NEED_ERP	0x02	/* request needs recovery action */
+#define DASD_CQR_IN_ERP 	0x03	/* request is in recovery */
+#define DASD_CQR_FAILED 	0x04	/* request is finally failed */
+#define DASD_CQR_TERMINATED	0x05	/* request was stopped by driver */
+
+#define DASD_CQR_QUEUED 	0x80	/* request is queued to be processed */
+#define DASD_CQR_IN_IO		0x81	/* request is currently in IO */
+#define DASD_CQR_ERROR		0x82	/* request is completed with error */
+#define DASD_CQR_CLEAR_PENDING	0x83	/* request is clear pending */
+#define DASD_CQR_CLEARED	0x84	/* request was cleared */
+#define DASD_CQR_SUCCESS	0x85	/* request was successfull */
+
 
 /* per dasd_ccw_req flags */
 #define DASD_CQR_FLAGS_USE_ERP   0	/* use ERP for this request */
@@ -214,52 +218,71 @@ struct dasd_discipline {
 
 	struct list_head list;	/* used for list of disciplines */
 
-        /*
-         * Device recognition functions. check_device is used to verify
-         * the sense data and the information returned by read device
-         * characteristics. It returns 0 if the discipline can be used
-         * for the device in question.
-         * do_analysis is used in the step from device state "basic" to
-         * state "accept". It returns 0 if the device can be made ready,
-         * it returns -EMEDIUMTYPE if the device can't be made ready or
-         * -EAGAIN if do_analysis started a ccw that needs to complete
-         * before the analysis may be repeated.
-         */
-        int (*check_device)(struct dasd_device *);
-	int (*do_analysis) (struct dasd_device *);
+	/*
+	 * Device recognition functions. check_device is used to verify
+	 * the sense data and the information returned by read device
+	 * characteristics. It returns 0 if the discipline can be used
+	 * for the device in question. uncheck_device is called during
+	 * device shutdown to deregister a device from its discipline.
+	 */
+	int (*check_device) (struct dasd_device *);
+	void (*uncheck_device) (struct dasd_device *);
 
-        /*
-         * Device operation functions. build_cp creates a ccw chain for
-         * a block device request, start_io starts the request and
-         * term_IO cancels it (e.g. in case of a timeout). format_device
-         * returns a ccw chain to be used to format the device.
-         */
+	/*
+	 * do_analysis is used in the step from device state "basic" to
+	 * state "accept". It returns 0 if the device can be made ready,
+	 * it returns -EMEDIUMTYPE if the device can't be made ready or
+	 * -EAGAIN if do_analysis started a ccw that needs to complete
+	 * before the analysis may be repeated.
+	 */
+	int (*do_analysis) (struct dasd_block *);
+
+	/*
+	 * Last things to do when a device is set online, and first things
+	 * when it is set offline.
+	 */
+	int (*ready_to_online) (struct dasd_device *);
+	int (*online_to_ready) (struct dasd_device *);
+
+	/*
+	 * Device operation functions. build_cp creates a ccw chain for
+	 * a block device request, start_io starts the request and
+	 * term_IO cancels it (e.g. in case of a timeout). format_device
+	 * returns a ccw chain to be used to format the device.
+	 * handle_terminated_request allows to examine a cqr and prepare
+	 * it for retry.
+	 */
 	struct dasd_ccw_req *(*build_cp) (struct dasd_device *,
+					  struct dasd_block *,
 					  struct request *);
 	int (*start_IO) (struct dasd_ccw_req *);
 	int (*term_IO) (struct dasd_ccw_req *);
+	void (*handle_terminated_request) (struct dasd_ccw_req *);
 	struct dasd_ccw_req *(*format_device) (struct dasd_device *,
 					       struct format_data_t *);
 	int (*free_cp) (struct dasd_ccw_req *, struct request *);
-        /*
-         * Error recovery functions. examine_error() returns a value that
-         * indicates what to do for an error condition. If examine_error()
+
+	/*
+	 * Error recovery functions. examine_error() returns a value that
+	 * indicates what to do for an error condition. If examine_error()
 	 * returns 'dasd_era_recover' erp_action() is called to create a
-         * special error recovery ccw. erp_postaction() is called after
-         * an error recovery ccw has finished its execution. dump_sense
-         * is called for every error condition to print the sense data
-         * to the console.
-         */
-	dasd_era_t(*examine_error) (struct dasd_ccw_req *, struct irb *);
+	 * special error recovery ccw. erp_postaction() is called after
+	 * an error recovery ccw has finished its execution. dump_sense
+	 * is called for every error condition to print the sense data
+	 * to the console.
+	 */
 	dasd_erp_fn_t(*erp_action) (struct dasd_ccw_req *);
 	dasd_erp_fn_t(*erp_postaction) (struct dasd_ccw_req *);
 	void (*dump_sense) (struct dasd_device *, struct dasd_ccw_req *,
 			    struct irb *);
 
+	void (*handle_unsolicited_interrupt) (struct dasd_device *,
+					      struct irb *);
+
         /* i/o control functions. */
-	int (*fill_geometry) (struct dasd_device *, struct hd_geometry *);
+	int (*fill_geometry) (struct dasd_block *, struct hd_geometry *);
 	int (*fill_info) (struct dasd_device *, struct dasd_information2_t *);
-	int (*ioctl) (struct dasd_device *, unsigned int, void __user *);
+	int (*ioctl) (struct dasd_block *, unsigned int, void __user *);
 };
 
 extern struct dasd_discipline *dasd_diag_discipline_pointer;
@@ -267,12 +290,18 @@ extern struct dasd_discipline *dasd_diag_discipline_pointer;
 /*
  * Unique identifier for dasd device.
  */
+#define UA_NOT_CONFIGURED  0x00
+#define UA_BASE_DEVICE	   0x01
+#define UA_BASE_PAV_ALIAS  0x02
+#define UA_HYPER_PAV_ALIAS 0x03
+
 struct dasd_uid {
-	__u8 alias;
+	__u8 type;
 	char vendor[4];
 	char serial[15];
 	__u16 ssid;
-	__u8 unit_addr;
+	__u8 real_unit_addr;
+	__u8 base_unit_addr;
 };
 
 /*
@@ -293,14 +322,9 @@ struct dasd_uid {
 
 struct dasd_device {
 	/* Block device stuff. */
-	struct gendisk *gdp;
-	struct request_queue *request_queue;
-	spinlock_t request_queue_lock;
-	struct block_device *bdev;
+	struct dasd_block *block;
+
         unsigned int devindex;
-	unsigned long blocks;	   /* size of volume in blocks */
-	unsigned int bp_block;	   /* bytes per block */
-	unsigned int s2b_shift;	   /* log2 (bp_block/512) */
 	unsigned long flags;	   /* per device flags */
 	unsigned short features;   /* copy of devmap-features (read-only!) */
 
@@ -316,9 +340,8 @@ struct dasd_device {
 	int state, target;
 	int stopped;		/* device (ccw_device_start) was stopped */
 
-	/* Open and reference count. */
+	/* reference count. */
         atomic_t ref_count;
-	atomic_t open_count;
 
 	/* ccw queue and memory for static ccw/erp buffers. */
 	struct list_head ccw_queue;
@@ -337,20 +360,45 @@ struct dasd_device {
 
 	struct ccw_device *cdev;
 
+	/* hook for alias management */
+	struct list_head alias_list;
+};
+
+struct dasd_block {
+	/* Block device stuff. */
+	struct gendisk *gdp;
+	struct request_queue *request_queue;
+	spinlock_t request_queue_lock;
+	struct block_device *bdev;
+	atomic_t open_count;
+
+	unsigned long blocks;	   /* size of volume in blocks */
+	unsigned int bp_block;	   /* bytes per block */
+	unsigned int s2b_shift;	   /* log2 (bp_block/512) */
+
+	struct dasd_device *base;
+	struct list_head ccw_queue;
+	spinlock_t queue_lock;
+
+	atomic_t tasklet_scheduled;
+	struct tasklet_struct tasklet;
+	struct timer_list timer;
+
 #ifdef CONFIG_DASD_PROFILE
 	struct dasd_profile_info_t profile;
 #endif
 };
+
+
 
 /* reasons why device (ccw_device_start) was stopped */
 #define DASD_STOPPED_NOT_ACC 1         /* not accessible */
 #define DASD_STOPPED_QUIESCE 2         /* Quiesced */
 #define DASD_STOPPED_PENDING 4         /* long busy */
 #define DASD_STOPPED_DC_WAIT 8         /* disconnected, wait */
-#define DASD_STOPPED_DC_EIO  16        /* disconnected, return -EIO */
+#define DASD_STOPPED_SU      16        /* summary unit check handling */
 
 /* per device flags */
-#define DASD_FLAG_DSC_ERROR	2	/* return -EIO when disconnected */
 #define DASD_FLAG_OFFLINE	3	/* device is in offline processing */
 #define DASD_FLAG_EER_SNSS	4	/* A SNSS is required */
 #define DASD_FLAG_EER_IN_USE	5	/* A SNSS request is running */
@@ -489,6 +537,9 @@ dasd_kmalloc_set_cda(struct ccw1 *ccw, void *cda, struct dasd_device *device)
 struct dasd_device *dasd_alloc_device(void);
 void dasd_free_device(struct dasd_device *);
 
+struct dasd_block *dasd_alloc_block(void);
+void dasd_free_block(struct dasd_block *);
+
 void dasd_enable_device(struct dasd_device *);
 void dasd_set_target_state(struct dasd_device *, int);
 void dasd_kick_device(struct dasd_device *);
@@ -497,18 +548,23 @@ void dasd_add_request_head(struct dasd_ccw_req *);
 void dasd_add_request_tail(struct dasd_ccw_req *);
 int  dasd_start_IO(struct dasd_ccw_req *);
 int  dasd_term_IO(struct dasd_ccw_req *);
-void dasd_schedule_bh(struct dasd_device *);
+void dasd_schedule_device_bh(struct dasd_device *);
+void dasd_schedule_block_bh(struct dasd_block *);
 int  dasd_sleep_on(struct dasd_ccw_req *);
 int  dasd_sleep_on_immediatly(struct dasd_ccw_req *);
 int  dasd_sleep_on_interruptible(struct dasd_ccw_req *);
-void dasd_set_timer(struct dasd_device *, int);
-void dasd_clear_timer(struct dasd_device *);
+void dasd_device_set_timer(struct dasd_device *, int);
+void dasd_device_clear_timer(struct dasd_device *);
+void dasd_block_set_timer(struct dasd_block *, int);
+void dasd_block_clear_timer(struct dasd_block *);
 int  dasd_cancel_req(struct dasd_ccw_req *);
+int dasd_flush_device_queue(struct dasd_device *);
 int dasd_generic_probe (struct ccw_device *, struct dasd_discipline *);
 void dasd_generic_remove (struct ccw_device *cdev);
 int dasd_generic_set_online(struct ccw_device *, struct dasd_discipline *);
 int dasd_generic_set_offline (struct ccw_device *cdev);
 int dasd_generic_notify(struct ccw_device *, int);
+void dasd_generic_handle_state_change(struct dasd_device *);
 
 int dasd_generic_read_dev_chars(struct dasd_device *, char *, void **, int);
 
@@ -542,10 +598,10 @@ int dasd_busid_known(char *);
 /* externals in dasd_gendisk.c */
 int  dasd_gendisk_init(void);
 void dasd_gendisk_exit(void);
-int dasd_gendisk_alloc(struct dasd_device *);
-void dasd_gendisk_free(struct dasd_device *);
-int dasd_scan_partitions(struct dasd_device *);
-void dasd_destroy_partitions(struct dasd_device *);
+int dasd_gendisk_alloc(struct dasd_block *);
+void dasd_gendisk_free(struct dasd_block *);
+int dasd_scan_partitions(struct dasd_block *);
+void dasd_destroy_partitions(struct dasd_block *);
 
 /* externals in dasd_ioctl.c */
 int  dasd_ioctl(struct inode *, struct file *, unsigned int, unsigned long);
@@ -563,19 +619,8 @@ struct dasd_ccw_req *dasd_alloc_erp_request(char *, int, int,
 void dasd_free_erp_request(struct dasd_ccw_req *, struct dasd_device *);
 void dasd_log_sense(struct dasd_ccw_req *, struct irb *);
 
-/* externals in dasd_3370_erp.c */
-dasd_era_t dasd_3370_erp_examine(struct dasd_ccw_req *, struct irb *);
-
 /* externals in dasd_3990_erp.c */
-dasd_era_t dasd_3990_erp_examine(struct dasd_ccw_req *, struct irb *);
 struct dasd_ccw_req *dasd_3990_erp_action(struct dasd_ccw_req *);
-
-/* externals in dasd_9336_erp.c */
-dasd_era_t dasd_9336_erp_examine(struct dasd_ccw_req *, struct irb *);
-
-/* externals in dasd_9336_erp.c */
-dasd_era_t dasd_9343_erp_examine(struct dasd_ccw_req *, struct irb *);
-struct dasd_ccw_req *dasd_9343_erp_action(struct dasd_ccw_req *);
 
 /* externals in dasd_eer.c */
 #ifdef CONFIG_DASD_EER

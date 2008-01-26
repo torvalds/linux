@@ -38,15 +38,15 @@ dasd_ioctl_api_version(void __user *argp)
 static int
 dasd_ioctl_enable(struct block_device *bdev)
 {
-	struct dasd_device *device = bdev->bd_disk->private_data;
+	struct dasd_block *block = bdev->bd_disk->private_data;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
 
-	dasd_enable_device(device);
+	dasd_enable_device(block->base);
 	/* Formatting the dasd device can change the capacity. */
 	mutex_lock(&bdev->bd_mutex);
-	i_size_write(bdev->bd_inode, (loff_t)get_capacity(device->gdp) << 9);
+	i_size_write(bdev->bd_inode, (loff_t)get_capacity(block->gdp) << 9);
 	mutex_unlock(&bdev->bd_mutex);
 	return 0;
 }
@@ -58,7 +58,7 @@ dasd_ioctl_enable(struct block_device *bdev)
 static int
 dasd_ioctl_disable(struct block_device *bdev)
 {
-	struct dasd_device *device = bdev->bd_disk->private_data;
+	struct dasd_block *block = bdev->bd_disk->private_data;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
@@ -71,7 +71,7 @@ dasd_ioctl_disable(struct block_device *bdev)
 	 * using the BIODASDFMT ioctl. Therefore the correct state for the
 	 * device is DASD_STATE_BASIC that allows to do basic i/o.
 	 */
-	dasd_set_target_state(device, DASD_STATE_BASIC);
+	dasd_set_target_state(block->base, DASD_STATE_BASIC);
 	/*
 	 * Set i_size to zero, since read, write, etc. check against this
 	 * value.
@@ -85,19 +85,19 @@ dasd_ioctl_disable(struct block_device *bdev)
 /*
  * Quiesce device.
  */
-static int
-dasd_ioctl_quiesce(struct dasd_device *device)
+static int dasd_ioctl_quiesce(struct dasd_block *block)
 {
 	unsigned long flags;
+	struct dasd_device *base;
 
+	base = block->base;
 	if (!capable (CAP_SYS_ADMIN))
 		return -EACCES;
 
-	DEV_MESSAGE (KERN_DEBUG, device, "%s",
-		     "Quiesce IO on device");
-	spin_lock_irqsave(get_ccwdev_lock(device->cdev), flags);
-	device->stopped |= DASD_STOPPED_QUIESCE;
-	spin_unlock_irqrestore(get_ccwdev_lock(device->cdev), flags);
+	DEV_MESSAGE(KERN_DEBUG, base, "%s", "Quiesce IO on device");
+	spin_lock_irqsave(get_ccwdev_lock(base->cdev), flags);
+	base->stopped |= DASD_STOPPED_QUIESCE;
+	spin_unlock_irqrestore(get_ccwdev_lock(base->cdev), flags);
 	return 0;
 }
 
@@ -105,22 +105,21 @@ dasd_ioctl_quiesce(struct dasd_device *device)
 /*
  * Quiesce device.
  */
-static int
-dasd_ioctl_resume(struct dasd_device *device)
+static int dasd_ioctl_resume(struct dasd_block *block)
 {
 	unsigned long flags;
+	struct dasd_device *base;
 
+	base = block->base;
 	if (!capable (CAP_SYS_ADMIN))
 		return -EACCES;
 
-	DEV_MESSAGE (KERN_DEBUG, device, "%s",
-		     "resume IO on device");
+	DEV_MESSAGE(KERN_DEBUG, base, "%s", "resume IO on device");
+	spin_lock_irqsave(get_ccwdev_lock(base->cdev), flags);
+	base->stopped &= ~DASD_STOPPED_QUIESCE;
+	spin_unlock_irqrestore(get_ccwdev_lock(base->cdev), flags);
 
-	spin_lock_irqsave(get_ccwdev_lock(device->cdev), flags);
-	device->stopped &= ~DASD_STOPPED_QUIESCE;
-	spin_unlock_irqrestore(get_ccwdev_lock(device->cdev), flags);
-
-	dasd_schedule_bh (device);
+	dasd_schedule_block_bh(block);
 	return 0;
 }
 
@@ -130,22 +129,23 @@ dasd_ioctl_resume(struct dasd_device *device)
  * commands to format a single unit of the device. In terms of the ECKD
  * devices this means CCWs are generated to format a single track.
  */
-static int
-dasd_format(struct dasd_device * device, struct format_data_t * fdata)
+static int dasd_format(struct dasd_block *block, struct format_data_t *fdata)
 {
 	struct dasd_ccw_req *cqr;
+	struct dasd_device *base;
 	int rc;
 
-	if (device->discipline->format_device == NULL)
+	base = block->base;
+	if (base->discipline->format_device == NULL)
 		return -EPERM;
 
-	if (device->state != DASD_STATE_BASIC) {
-		DEV_MESSAGE(KERN_WARNING, device, "%s",
+	if (base->state != DASD_STATE_BASIC) {
+		DEV_MESSAGE(KERN_WARNING, base, "%s",
 			    "dasd_format: device is not disabled! ");
 		return -EBUSY;
 	}
 
-	DBF_DEV_EVENT(DBF_NOTICE, device,
+	DBF_DEV_EVENT(DBF_NOTICE, base,
 		      "formatting units %d to %d (%d B blocks) flags %d",
 		      fdata->start_unit,
 		      fdata->stop_unit, fdata->blksize, fdata->intensity);
@@ -156,20 +156,20 @@ dasd_format(struct dasd_device * device, struct format_data_t * fdata)
 	 * enabling the device later.
 	 */
 	if (fdata->start_unit == 0) {
-		struct block_device *bdev = bdget_disk(device->gdp, 0);
+		struct block_device *bdev = bdget_disk(block->gdp, 0);
 		bdev->bd_inode->i_blkbits = blksize_bits(fdata->blksize);
 		bdput(bdev);
 	}
 
 	while (fdata->start_unit <= fdata->stop_unit) {
-		cqr = device->discipline->format_device(device, fdata);
+		cqr = base->discipline->format_device(base, fdata);
 		if (IS_ERR(cqr))
 			return PTR_ERR(cqr);
 		rc = dasd_sleep_on_interruptible(cqr);
-		dasd_sfree_request(cqr, cqr->device);
+		dasd_sfree_request(cqr, cqr->memdev);
 		if (rc) {
 			if (rc != -ERESTARTSYS)
-				DEV_MESSAGE(KERN_ERR, device,
+				DEV_MESSAGE(KERN_ERR, base,
 					    " Formatting of unit %d failed "
 					    "with rc = %d",
 					    fdata->start_unit, rc);
@@ -186,7 +186,7 @@ dasd_format(struct dasd_device * device, struct format_data_t * fdata)
 static int
 dasd_ioctl_format(struct block_device *bdev, void __user *argp)
 {
-	struct dasd_device *device = bdev->bd_disk->private_data;
+	struct dasd_block *block = bdev->bd_disk->private_data;
 	struct format_data_t fdata;
 
 	if (!capable(CAP_SYS_ADMIN))
@@ -194,51 +194,47 @@ dasd_ioctl_format(struct block_device *bdev, void __user *argp)
 	if (!argp)
 		return -EINVAL;
 
-	if (device->features & DASD_FEATURE_READONLY)
+	if (block->base->features & DASD_FEATURE_READONLY)
 		return -EROFS;
 	if (copy_from_user(&fdata, argp, sizeof(struct format_data_t)))
 		return -EFAULT;
 	if (bdev != bdev->bd_contains) {
-		DEV_MESSAGE(KERN_WARNING, device, "%s",
+		DEV_MESSAGE(KERN_WARNING, block->base, "%s",
 			    "Cannot low-level format a partition");
 		return -EINVAL;
 	}
-	return dasd_format(device, &fdata);
+	return dasd_format(block, &fdata);
 }
 
 #ifdef CONFIG_DASD_PROFILE
 /*
  * Reset device profile information
  */
-static int
-dasd_ioctl_reset_profile(struct dasd_device *device)
+static int dasd_ioctl_reset_profile(struct dasd_block *block)
 {
-	memset(&device->profile, 0, sizeof (struct dasd_profile_info_t));
+	memset(&block->profile, 0, sizeof(struct dasd_profile_info_t));
 	return 0;
 }
 
 /*
  * Return device profile information
  */
-static int
-dasd_ioctl_read_profile(struct dasd_device *device, void __user *argp)
+static int dasd_ioctl_read_profile(struct dasd_block *block, void __user *argp)
 {
 	if (dasd_profile_level == DASD_PROFILE_OFF)
 		return -EIO;
-	if (copy_to_user(argp, &device->profile,
-			 sizeof (struct dasd_profile_info_t)))
+	if (copy_to_user(argp, &block->profile,
+			 sizeof(struct dasd_profile_info_t)))
 		return -EFAULT;
 	return 0;
 }
 #else
-static int
-dasd_ioctl_reset_profile(struct dasd_device *device)
+static int dasd_ioctl_reset_profile(struct dasd_block *block)
 {
 	return -ENOSYS;
 }
 
-static int
-dasd_ioctl_read_profile(struct dasd_device *device, void __user *argp)
+static int dasd_ioctl_read_profile(struct dasd_block *block, void __user *argp)
 {
 	return -ENOSYS;
 }
@@ -247,87 +243,88 @@ dasd_ioctl_read_profile(struct dasd_device *device, void __user *argp)
 /*
  * Return dasd information. Used for BIODASDINFO and BIODASDINFO2.
  */
-static int
-dasd_ioctl_information(struct dasd_device *device,
-		unsigned int cmd, void __user *argp)
+static int dasd_ioctl_information(struct dasd_block *block,
+				  unsigned int cmd, void __user *argp)
 {
 	struct dasd_information2_t *dasd_info;
 	unsigned long flags;
 	int rc;
+	struct dasd_device *base;
 	struct ccw_device *cdev;
 	struct ccw_dev_id dev_id;
 
-	if (!device->discipline->fill_info)
+	base = block->base;
+	if (!base->discipline->fill_info)
 		return -EINVAL;
 
 	dasd_info = kzalloc(sizeof(struct dasd_information2_t), GFP_KERNEL);
 	if (dasd_info == NULL)
 		return -ENOMEM;
 
-	rc = device->discipline->fill_info(device, dasd_info);
+	rc = base->discipline->fill_info(base, dasd_info);
 	if (rc) {
 		kfree(dasd_info);
 		return rc;
 	}
 
-	cdev = device->cdev;
+	cdev = base->cdev;
 	ccw_device_get_id(cdev, &dev_id);
 
 	dasd_info->devno = dev_id.devno;
-	dasd_info->schid = _ccw_device_get_subchannel_number(device->cdev);
+	dasd_info->schid = _ccw_device_get_subchannel_number(base->cdev);
 	dasd_info->cu_type = cdev->id.cu_type;
 	dasd_info->cu_model = cdev->id.cu_model;
 	dasd_info->dev_type = cdev->id.dev_type;
 	dasd_info->dev_model = cdev->id.dev_model;
-	dasd_info->status = device->state;
+	dasd_info->status = base->state;
 	/*
 	 * The open_count is increased for every opener, that includes
 	 * the blkdev_get in dasd_scan_partitions.
 	 * This must be hidden from user-space.
 	 */
-	dasd_info->open_count = atomic_read(&device->open_count);
-	if (!device->bdev)
+	dasd_info->open_count = atomic_read(&block->open_count);
+	if (!block->bdev)
 		dasd_info->open_count++;
 
 	/*
 	 * check if device is really formatted
 	 * LDL / CDL was returned by 'fill_info'
 	 */
-	if ((device->state < DASD_STATE_READY) ||
-	    (dasd_check_blocksize(device->bp_block)))
+	if ((base->state < DASD_STATE_READY) ||
+	    (dasd_check_blocksize(block->bp_block)))
 		dasd_info->format = DASD_FORMAT_NONE;
 
 	dasd_info->features |=
-		((device->features & DASD_FEATURE_READONLY) != 0);
+		((base->features & DASD_FEATURE_READONLY) != 0);
 
-	if (device->discipline)
-		memcpy(dasd_info->type, device->discipline->name, 4);
+	if (base->discipline)
+		memcpy(dasd_info->type, base->discipline->name, 4);
 	else
 		memcpy(dasd_info->type, "none", 4);
 
-	if (device->request_queue->request_fn) {
+	if (block->request_queue->request_fn) {
 		struct list_head *l;
 #ifdef DASD_EXTENDED_PROFILING
 		{
 			struct list_head *l;
-			spin_lock_irqsave(&device->lock, flags);
-			list_for_each(l, &device->request_queue->queue_head)
+			spin_lock_irqsave(&block->lock, flags);
+			list_for_each(l, &block->request_queue->queue_head)
 				dasd_info->req_queue_len++;
-			spin_unlock_irqrestore(&device->lock, flags);
+			spin_unlock_irqrestore(&block->lock, flags);
 		}
 #endif				/* DASD_EXTENDED_PROFILING */
-		spin_lock_irqsave(get_ccwdev_lock(device->cdev), flags);
-		list_for_each(l, &device->ccw_queue)
+		spin_lock_irqsave(get_ccwdev_lock(base->cdev), flags);
+		list_for_each(l, &base->ccw_queue)
 			dasd_info->chanq_len++;
-		spin_unlock_irqrestore(get_ccwdev_lock(device->cdev),
+		spin_unlock_irqrestore(get_ccwdev_lock(base->cdev),
 				       flags);
 	}
 
 	rc = 0;
 	if (copy_to_user(argp, dasd_info,
 			 ((cmd == (unsigned int) BIODASDINFO2) ?
-			  sizeof (struct dasd_information2_t) :
-			  sizeof (struct dasd_information_t))))
+			  sizeof(struct dasd_information2_t) :
+			  sizeof(struct dasd_information_t))))
 		rc = -EFAULT;
 	kfree(dasd_info);
 	return rc;
@@ -339,7 +336,7 @@ dasd_ioctl_information(struct dasd_device *device,
 static int
 dasd_ioctl_set_ro(struct block_device *bdev, void __user *argp)
 {
-	struct dasd_device *device =  bdev->bd_disk->private_data;
+	struct dasd_block *block =  bdev->bd_disk->private_data;
 	int intval;
 
 	if (!capable(CAP_SYS_ADMIN))
@@ -351,11 +348,10 @@ dasd_ioctl_set_ro(struct block_device *bdev, void __user *argp)
 		return -EFAULT;
 
 	set_disk_ro(bdev->bd_disk, intval);
-	return dasd_set_feature(device->cdev, DASD_FEATURE_READONLY, intval);
+	return dasd_set_feature(block->base->cdev, DASD_FEATURE_READONLY, intval);
 }
 
-static int
-dasd_ioctl_readall_cmb(struct dasd_device *device, unsigned int cmd,
+static int dasd_ioctl_readall_cmb(struct dasd_block *block, unsigned int cmd,
 		unsigned long arg)
 {
 	struct cmbdata __user *argp = (void __user *) arg;
@@ -363,7 +359,7 @@ dasd_ioctl_readall_cmb(struct dasd_device *device, unsigned int cmd,
 	struct cmbdata data;
 	int ret;
 
-	ret = cmf_readall(device->cdev, &data);
+	ret = cmf_readall(block->base->cdev, &data);
 	if (!ret && copy_to_user(argp, &data, min(size, sizeof(*argp))))
 		return -EFAULT;
 	return ret;
@@ -374,10 +370,10 @@ dasd_ioctl(struct inode *inode, struct file *file,
 	   unsigned int cmd, unsigned long arg)
 {
 	struct block_device *bdev = inode->i_bdev;
-	struct dasd_device *device = bdev->bd_disk->private_data;
+	struct dasd_block *block = bdev->bd_disk->private_data;
 	void __user *argp = (void __user *)arg;
 
-	if (!device)
+	if (!block)
                 return -ENODEV;
 
 	if ((_IOC_DIR(cmd) != _IOC_NONE) && !arg) {
@@ -391,33 +387,33 @@ dasd_ioctl(struct inode *inode, struct file *file,
 	case BIODASDENABLE:
 		return dasd_ioctl_enable(bdev);
 	case BIODASDQUIESCE:
-		return dasd_ioctl_quiesce(device);
+		return dasd_ioctl_quiesce(block);
 	case BIODASDRESUME:
-		return dasd_ioctl_resume(device);
+		return dasd_ioctl_resume(block);
 	case BIODASDFMT:
 		return dasd_ioctl_format(bdev, argp);
 	case BIODASDINFO:
-		return dasd_ioctl_information(device, cmd, argp);
+		return dasd_ioctl_information(block, cmd, argp);
 	case BIODASDINFO2:
-		return dasd_ioctl_information(device, cmd, argp);
+		return dasd_ioctl_information(block, cmd, argp);
 	case BIODASDPRRD:
-		return dasd_ioctl_read_profile(device, argp);
+		return dasd_ioctl_read_profile(block, argp);
 	case BIODASDPRRST:
-		return dasd_ioctl_reset_profile(device);
+		return dasd_ioctl_reset_profile(block);
 	case BLKROSET:
 		return dasd_ioctl_set_ro(bdev, argp);
 	case DASDAPIVER:
 		return dasd_ioctl_api_version(argp);
 	case BIODASDCMFENABLE:
-		return enable_cmf(device->cdev);
+		return enable_cmf(block->base->cdev);
 	case BIODASDCMFDISABLE:
-		return disable_cmf(device->cdev);
+		return disable_cmf(block->base->cdev);
 	case BIODASDREADALLCMB:
-		return dasd_ioctl_readall_cmb(device, cmd, arg);
+		return dasd_ioctl_readall_cmb(block, cmd, arg);
 	default:
 		/* if the discipline has an ioctl method try it. */
-		if (device->discipline->ioctl) {
-			int rval = device->discipline->ioctl(device, cmd, argp);
+		if (block->base->discipline->ioctl) {
+			int rval = block->base->discipline->ioctl(block, cmd, argp);
 			if (rval != -ENOIOCTLCMD)
 				return rval;
 		}

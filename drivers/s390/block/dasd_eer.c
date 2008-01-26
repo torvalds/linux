@@ -336,7 +336,7 @@ static void dasd_eer_write_snss_trigger(struct dasd_device *device,
 	unsigned long flags;
 	struct eerbuffer *eerb;
 
-	snss_rc = (cqr->status == DASD_CQR_FAILED) ? -EIO : 0;
+	snss_rc = (cqr->status == DASD_CQR_DONE) ? 0 : -EIO;
 	if (snss_rc)
 		data_size = 0;
 	else
@@ -404,10 +404,11 @@ void dasd_eer_snss(struct dasd_device *device)
 		set_bit(DASD_FLAG_EER_SNSS, &device->flags);
 		return;
 	}
+	/* cdev is already locked, can't use dasd_add_request_head */
 	clear_bit(DASD_FLAG_EER_SNSS, &device->flags);
 	cqr->status = DASD_CQR_QUEUED;
-	list_add(&cqr->list, &device->ccw_queue);
-	dasd_schedule_bh(device);
+	list_add(&cqr->devlist, &device->ccw_queue);
+	dasd_schedule_device_bh(device);
 }
 
 /*
@@ -415,7 +416,7 @@ void dasd_eer_snss(struct dasd_device *device)
  */
 static void dasd_eer_snss_cb(struct dasd_ccw_req *cqr, void *data)
 {
-        struct dasd_device *device = cqr->device;
+	struct dasd_device *device = cqr->startdev;
 	unsigned long flags;
 
 	dasd_eer_write(device, cqr, DASD_EER_STATECHANGE);
@@ -458,7 +459,7 @@ int dasd_eer_enable(struct dasd_device *device)
 	if (!cqr)
 		return -ENOMEM;
 
-	cqr->device = device;
+	cqr->startdev = device;
 	cqr->retries = 255;
 	cqr->expires = 10 * HZ;
 	clear_bit(DASD_CQR_FLAGS_USE_ERP, &cqr->flags);
