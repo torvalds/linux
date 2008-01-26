@@ -77,6 +77,9 @@ int macide_ack_intr(ide_hwif_t* hwif)
 	return 0;
 }
 
+static const char *mac_ide_name[] =
+	{ "Quadra", "Powerbook", "Powerbook Baboon" };
+
 /*
  * Probe for a Macintosh IDE interface
  */
@@ -109,6 +112,9 @@ static int __init macide_init(void)
 		return -ENODEV;
 	}
 
+	printk(KERN_INFO "ide: Macintosh %s IDE controller\n",
+			 mac_ide_name[macintosh_config->ide_type - 1]);
+
 	hwif = ide_find_port(hw.io_ports[IDE_DATA_OFFSET]);
 	if (hwif) {
 		u8 index = hwif->index;
@@ -128,14 +134,6 @@ static int __init macide_init(void)
 		}
 
 		hwif->mmio = 1;
-		if (macintosh_config->ide_type == MAC_IDE_QUADRA)
-			printk(KERN_INFO "ide%d: Macintosh Quadra IDE interface\n", index);
-		else if (macintosh_config->ide_type == MAC_IDE_PB)
-			printk(KERN_INFO "ide%d: Macintosh Powerbook IDE interface\n", index);
-		else if (macintosh_config->ide_type == MAC_IDE_BABOON)
-			printk(KERN_INFO "ide%d: Macintosh Powerbook Baboon IDE interface\n", index);
-		else
-			printk(KERN_INFO "ide%d: Unknown Macintosh IDE interface\n", index);
 
 		ide_device_add(idx);
 	}

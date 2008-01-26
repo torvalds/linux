@@ -121,6 +121,8 @@ static int __init q40ide_init(void)
     if (!MACH_IS_Q40)
       return -ENODEV;
 
+    printk(KERN_INFO "ide: Q40 IDE controller\n");
+
     for (i = 0; i < Q40IDE_NUM_HWIFS; i++) {
 	hw_regs_t hw;
 

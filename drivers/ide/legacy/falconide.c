@@ -67,6 +67,8 @@ static int __init falconide_init(void)
     if (MACH_IS_ATARI && ATARIHW_PRESENT(IDE)) {
 	hw_regs_t hw;
 
+	printk(KERN_INFO "ide: Falcon IDE controller\n");
+
 	ide_setup_ports(&hw, ATA_HD_BASE, falconide_offsets,
 			0, 0, NULL,
 //			falconide_iops,
@@ -79,8 +81,6 @@ static int __init falconide_init(void)
 
 		ide_init_port_data(hwif, index);
 		ide_init_port_hw(hwif, &hw);
-
-		printk("ide%d: Falcon IDE interface\n", index);
 
 		ide_device_add(idx);
 	}

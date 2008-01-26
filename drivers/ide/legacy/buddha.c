@@ -112,6 +112,7 @@ typedef enum BuddhaType_Enum {
     BOARD_BUDDHA, BOARD_CATWEASEL, BOARD_XSURF
 } BuddhaType;
 
+static const char *buddha_board_name[] = { "Buddha", "Catweasel", "X-Surf" };
 
     /*
      *  Check and acknowledge the interrupt status
@@ -197,7 +198,10 @@ fail_base2:
 		/* X-Surf doesn't have this.  IRQs are always on */
 		if (type != BOARD_XSURF)
 			z_writeb(0, buddha_board+BUDDHA_IRQ_MR);
-		
+
+		printk(KERN_INFO "ide: %s IDE controller\n",
+				 buddha_board_name[type]);
+
 		for(i=0;i<buddha_num_hwifs;i++) {
 			if(type != BOARD_XSURF) {
 				ide_setup_ports(&hw, (buddha_board+buddha_bases[i]),
@@ -223,19 +227,6 @@ fail_base2:
 				ide_init_port_hw(hwif, &hw);
 
 				hwif->mmio = 1;
-				printk("ide%d: ", index);
-				switch(type) {
-				case BOARD_BUDDHA:
-					printk("Buddha");
-					break;
-				case BOARD_CATWEASEL:
-					printk("Catweasel");
-					break;
-				case BOARD_XSURF:
-					printk("X-Surf");
-					break;
-				}
-				printk(" IDE interface\n");
 
 				idx[i] = index;
 			}
