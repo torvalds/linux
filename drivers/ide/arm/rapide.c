@@ -58,8 +58,6 @@ rapide_probe(struct expansion_card *ec, const struct ecard_id *id)
 		hwif->mmio = 1;
 		default_hwif_mmiops(hwif);
 
-		hwif->hwif_data = base;
-
 		idx[0] = hwif->index;
 
 		ide_device_add(idx);
