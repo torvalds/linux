@@ -156,6 +156,8 @@ void __init buddha_init(void)
 
 	while ((z = zorro_find_device(ZORRO_WILDCARD, z))) {
 		unsigned long board;
+		u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
+
 		if (z->id == ZORRO_PROD_INDIVIDUAL_COMPUTERS_BUDDHA) {
 			buddha_num_hwifs = BUDDHA_NUM_HWIFS;
 			type=BOARD_BUDDHA;
@@ -233,8 +235,12 @@ fail_base2:
 					printk("X-Surf");
 					break;
 				}
-				printk(" IDE interface\n");	    
-			}		      
+				printk(" IDE interface\n");
+
+				idx[i] = index;
+			}
 		}
+
+		ide_device_add(idx);
 	}
 }

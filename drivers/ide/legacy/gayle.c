@@ -113,6 +113,7 @@ static int gayle_ack_intr_a1200(ide_hwif_t *hwif)
 void __init gayle_init(void)
 {
     int a4000, i;
+    u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
     if (!MACH_IS_AMIGA)
 	return;
@@ -183,7 +184,11 @@ found:
 		    break;
 #endif /* CONFIG_BLK_DEV_IDEDOUBLER */
 	    }
+
+	    idx[i] = index;
 	} else
 	    release_mem_region(res_start, res_n);
     }
+
+    ide_device_add(idx);
 }

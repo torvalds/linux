@@ -116,6 +116,7 @@ void __init q40ide_init(void)
     int i;
     ide_hwif_t *hwif;
     const char *name;
+    u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
     if (!MACH_IS_Q40)
       return ;
@@ -146,7 +147,11 @@ void __init q40ide_init(void)
 		ide_init_port_data(hwif, hwif->index);
 		ide_init_port_hw(hwif, &hw);
 		hwif->mmio = 1;
+
+		idx[i] = hwif->index;
 	}
     }
+
+    ide_device_add(idx);
 }
 

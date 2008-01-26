@@ -89,6 +89,7 @@ void __init h8300_ide_init(void)
 	hw_regs_t hw;
 	ide_hwif_t *hwif;
 	int index;
+	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
 	if (!request_region(CONFIG_H8300_IDE_BASE, H8300_IDE_GAP*8, "ide-h8300"))
 		goto out_busy;
@@ -111,6 +112,11 @@ void __init h8300_ide_init(void)
 	ide_init_port_hw(hwif, &hw);
 	hwif_setup(hwif);
 	printk(KERN_INFO "ide%d: H8/300 generic IDE interface\n", index);
+
+	idx[0] = index;
+
+	ide_device_add(idx);
+
 	return;
 
 out_busy:

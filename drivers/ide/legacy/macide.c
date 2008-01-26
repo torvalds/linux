@@ -112,6 +112,7 @@ void __init macide_init(void)
 	hwif = ide_find_port(hw.io_ports[IDE_DATA_OFFSET]);
 	if (hwif) {
 		u8 index = hwif->index;
+		u8 idx[4] = { index, 0xff, 0xff, 0xff };
 
 		ide_init_port_data(hwif, index);
 		ide_init_port_hw(hwif, &hw);
@@ -135,5 +136,7 @@ void __init macide_init(void)
 			printk(KERN_INFO "ide%d: Macintosh Powerbook Baboon IDE interface\n", index);
 		else
 			printk(KERN_INFO "ide%d: Unknown Macintosh IDE interface\n", index);
+
+		ide_device_add(idx);
 	}
 }

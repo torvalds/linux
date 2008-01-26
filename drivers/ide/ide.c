@@ -1555,6 +1555,7 @@ done:
 extern void __init pnpide_init(void);
 extern void __exit pnpide_exit(void);
 extern void __init h8300_ide_init(void);
+extern void __init mpc8xx_ide_probe(void);
 
 /*
  * probe_for_hwifs() finds/initializes "known" IDE interfaces
@@ -1618,6 +1619,9 @@ static void __init probe_for_hwifs (void)
 #endif
 #ifdef CONFIG_H8300
 	h8300_ide_init();
+#endif
+#ifdef BLK_DEV_MPC8xx_IDE
+	mpc8xx_ide_probe();
 #endif
 }
 

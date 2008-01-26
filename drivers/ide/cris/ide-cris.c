@@ -758,9 +758,8 @@ void __init
 init_e100_ide (void)
 {
 	hw_regs_t hw;
-	int ide_offsets[IDE_NR_PORTS];
-	int h;
-	int i;
+	int ide_offsets[IDE_NR_PORTS], h, i;
+	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
 	printk("ide: ETRAX FS built-in ATA DMA controller\n");
 
@@ -808,6 +807,8 @@ init_e100_ide (void)
 		hwif->drives[1].autotune = 1;
 		hwif->ultra_mask = cris_ultra_mask;
 		hwif->mwdma_mask = 0x07; /* Multiword DMA 0-2 */
+
+		idx[h] = hwif->index;
 	}
 
 	/* Reset pulse */
@@ -820,6 +821,8 @@ init_e100_ide (void)
 	cris_ide_set_speed(TYPE_PIO, ATA_PIO4_SETUP, ATA_PIO4_STROBE, ATA_PIO4_HOLD);
 	cris_ide_set_speed(TYPE_DMA, 0, ATA_DMA2_STROBE, ATA_DMA2_HOLD);
 	cris_ide_set_speed(TYPE_UDMA, ATA_UDMA2_CYC, ATA_UDMA2_DVS, 0);
+
+	ide_device_add(idx);
 }
 
 static cris_dma_descr_type mydescr __attribute__ ((__aligned__(16)));
