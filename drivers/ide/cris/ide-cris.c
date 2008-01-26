@@ -673,9 +673,12 @@ static void cris_ide_input_data (ide_drive_t *drive, void *, unsigned int);
 static void cris_ide_output_data (ide_drive_t *drive, void *, unsigned int);
 static void cris_atapi_input_bytes(ide_drive_t *drive, void *, unsigned int);
 static void cris_atapi_output_bytes(ide_drive_t *drive, void *, unsigned int);
-static int cris_dma_on (ide_drive_t *drive);
 
-static void cris_dma_off(ide_drive_t *drive)
+static void cris_dma_host_off(ide_drive_t *drive)
+{
+}
+
+static void cris_dma_host_on(ide_drive_t *drive)
 {
 }
 
@@ -799,9 +802,8 @@ init_e100_ide (void)
 		hwif->OUTBSYNC = &cris_ide_outbsync;
 		hwif->INB = &cris_ide_inb;
 		hwif->INW = &cris_ide_inw;
-		hwif->dma_host_off = &cris_dma_off;
-		hwif->dma_host_on = &cris_dma_on;
-		hwif->dma_off_quietly = &cris_dma_off;
+		hwif->dma_host_off = &cris_dma_host_off;
+		hwif->dma_host_on = &cris_dma_host_on;
 		hwif->cbl = ATA_CBL_PATA40;
 		hwif->host_flags |= IDE_HFLAG_NO_ATAPI_DMA;
 		hwif->pio_mask = ATA_PIO4,
@@ -822,12 +824,6 @@ init_e100_ide (void)
 	cris_ide_set_speed(TYPE_DMA, 0, ATA_DMA2_STROBE, ATA_DMA2_HOLD);
 	cris_ide_set_speed(TYPE_UDMA, ATA_UDMA2_CYC, ATA_UDMA2_DVS, 0);
 }
-
-static int cris_dma_on (ide_drive_t *drive)
-{
-	return 0;
-}
-
 
 static cris_dma_descr_type mydescr __attribute__ ((__aligned__(16)));
 
