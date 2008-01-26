@@ -620,8 +620,10 @@ static int set_multcount(ide_drive_t *drive, int arg)
 
 	if (drive->special.b.set_multmode)
 		return -EBUSY;
+
 	ide_init_drive_cmd (&rq);
-	rq.cmd_type = REQ_TYPE_ATA_CMD;
+	rq.cmd_type = REQ_TYPE_ATA_TASKFILE;
+
 	drive->mult_req = arg;
 	drive->special.b.set_multmode = 1;
 	(void) ide_do_drive_cmd (drive, &rq, ide_wait);

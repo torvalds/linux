@@ -880,7 +880,7 @@ int set_pio_mode(ide_drive_t *drive, int arg)
 		return -EBUSY;
 
 	ide_init_drive_cmd(&rq);
-	rq.cmd_type = REQ_TYPE_ATA_CMD;
+	rq.cmd_type = REQ_TYPE_ATA_TASKFILE;
 
 	drive->tune_req = (u8) arg;
 	drive->special.b.set_tune = 1;

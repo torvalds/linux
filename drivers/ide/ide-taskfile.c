@@ -781,7 +781,7 @@ int ide_cmd_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 		struct request rq;
 
 		ide_init_drive_cmd(&rq);
-		rq.cmd_type = REQ_TYPE_ATA_CMD;
+		rq.cmd_type = REQ_TYPE_ATA_TASKFILE;
 
 		return ide_do_drive_cmd(drive, &rq, ide_wait);
 	}
