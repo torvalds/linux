@@ -1969,9 +1969,10 @@ dasd_generic_probe (struct ccw_device *cdev,
 		ret = ccw_device_set_online(cdev);
 	if (ret)
 		printk(KERN_WARNING
-		       "dasd_generic_probe: could not initially online "
-		       "ccw-device %s\n", cdev->dev.bus_id);
-	return ret;
+		       "dasd_generic_probe: could not initially "
+		       "online ccw-device %s; return code: %d\n",
+		       cdev->dev.bus_id, ret);
+	return 0;
 }
 
 /*
