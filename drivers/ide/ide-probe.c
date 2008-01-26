@@ -848,25 +848,6 @@ static void probe_hwif(ide_hwif_t *hwif)
 	}
 }
 
-static int hwif_init(ide_hwif_t *hwif);
-static void hwif_register_devices(ide_hwif_t *hwif);
-
-static int probe_hwif_init(ide_hwif_t *hwif)
-{
-	probe_hwif(hwif);
-
-	if (!hwif_init(hwif)) {
-		printk(KERN_INFO "%s: failed to initialize IDE interface\n",
-				 hwif->name);
-		return -1;
-	}
-
-	if (hwif->present)
-		hwif_register_devices(hwif);
-
-	return 0;
-}
-
 #if MAX_HWIFS > 1
 /*
  * save_match() is used to simplify logic in init_irq() below.
@@ -1394,11 +1375,26 @@ EXPORT_SYMBOL_GPL(ideprobe_init);
 
 int ide_device_add(u8 idx[4])
 {
+	ide_hwif_t *hwif;
 	int i, rc = 0;
 
 	for (i = 0; i < 4; i++) {
-		if (idx[i] != 0xff)
-			rc |= probe_hwif_init(&ide_hwifs[idx[i]]);
+		if (idx[i] == 0xff)
+			continue;
+
+		hwif = &ide_hwifs[idx[i]];
+
+		probe_hwif(hwif);
+
+		if (hwif_init(hwif) == 0) {
+			printk(KERN_INFO "%s: failed to initialize IDE "
+					 "interface\n", hwif->name);
+			rc = -1;
+			continue;
+		}
+
+		if (hwif->present)
+			hwif_register_devices(hwif);
 	}
 
 	for (i = 0; i < 4; i++) {
