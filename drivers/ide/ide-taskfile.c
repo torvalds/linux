@@ -408,16 +408,13 @@ static ide_startstop_t task_error(ide_drive_t *drive, struct request *rq,
 	return ide_error(drive, s, stat);
 }
 
-static void task_end_request(ide_drive_t *drive, struct request *rq, u8 stat)
+void task_end_request(ide_drive_t *drive, struct request *rq, u8 stat)
 {
 	if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE) {
-		ide_task_t *task = rq->special;
+		u8 err = drive->hwif->INB(IDE_ERROR_REG);
 
-		if (task->tf_flags & IDE_TFLAG_FLAGGED) {
-			u8 err = drive->hwif->INB(IDE_ERROR_REG);
-			ide_end_drive_cmd(drive, stat, err);
-			return;
-		}
+		ide_end_drive_cmd(drive, stat, err);
+		return;
 	}
 
 	if (rq->rq_disk) {

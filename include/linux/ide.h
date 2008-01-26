@@ -993,6 +993,8 @@ void ide_pktcmd_tf_load(ide_drive_t *, u32, u16, u8);
 
 ide_startstop_t do_rw_taskfile(ide_drive_t *, ide_task_t *);
 
+void task_end_request(ide_drive_t *, struct request *, u8);
+
 int ide_raw_taskfile(ide_drive_t *, ide_task_t *, u8 *, u16);
 int ide_no_data_taskfile(ide_drive_t *, ide_task_t *);
 
