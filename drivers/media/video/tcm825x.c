@@ -851,7 +851,7 @@ static int tcm825x_probe(struct i2c_client *client)
 	sensor->platform_data = client->dev.platform_data;
 
 	if (sensor->platform_data == NULL
-	    && !sensor->platform_data->is_okay())
+	    || !sensor->platform_data->is_okay())
 		return -ENODEV;
 
 	sensor->v4l2_int_device = &tcm825x_int_device;
