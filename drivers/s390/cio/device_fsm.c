@@ -32,9 +32,9 @@ device_is_online(struct subchannel *sch)
 {
 	struct ccw_device *cdev;
 
-	if (!sch->dev.driver_data)
+	cdev = sch_get_cdev(sch);
+	if (!cdev)
 		return 0;
-	cdev = sch->dev.driver_data;
 	return (cdev->private->state == DEV_STATE_ONLINE);
 }
 
@@ -43,9 +43,9 @@ device_is_disconnected(struct subchannel *sch)
 {
 	struct ccw_device *cdev;
 
-	if (!sch->dev.driver_data)
+	cdev = sch_get_cdev(sch);
+	if (!cdev)
 		return 0;
-	cdev = sch->dev.driver_data;
 	return (cdev->private->state == DEV_STATE_DISCONNECTED ||
 		cdev->private->state == DEV_STATE_DISCONNECTED_SENSE_ID);
 }
@@ -55,9 +55,9 @@ device_set_disconnected(struct subchannel *sch)
 {
 	struct ccw_device *cdev;
 
-	if (!sch->dev.driver_data)
+	cdev = sch_get_cdev(sch);
+	if (!cdev)
 		return;
-	cdev = sch->dev.driver_data;
 	ccw_device_set_timeout(cdev, 0);
 	cdev->private->flags.fake_irb = 0;
 	cdev->private->state = DEV_STATE_DISCONNECTED;
@@ -67,7 +67,7 @@ void device_set_intretry(struct subchannel *sch)
 {
 	struct ccw_device *cdev;
 
-	cdev = sch->dev.driver_data;
+	cdev = sch_get_cdev(sch);
 	if (!cdev)
 		return;
 	cdev->private->flags.intretry = 1;
@@ -77,7 +77,7 @@ int device_trigger_verify(struct subchannel *sch)
 {
 	struct ccw_device *cdev;
 
-	cdev = sch->dev.driver_data;
+	cdev = sch_get_cdev(sch);
 	if (!cdev || !cdev->online)
 		return -EINVAL;
 	dev_fsm_event(cdev, DEV_EVENT_VERIFY);
@@ -175,9 +175,9 @@ device_kill_pending_timer(struct subchannel *sch)
 {
 	struct ccw_device *cdev;
 
-	if (!sch->dev.driver_data)
+	cdev = sch_get_cdev(sch);
+	if (!cdev)
 		return;
-	cdev = sch->dev.driver_data;
 	ccw_device_set_timeout(cdev, 0);
 }
 
@@ -992,7 +992,7 @@ void device_kill_io(struct subchannel *sch)
 	int ret;
 	struct ccw_device *cdev;
 
-	cdev = sch->dev.driver_data;
+	cdev = sch_get_cdev(sch);
 	ret = ccw_device_cancel_halt_clear(cdev);
 	if (ret == -EBUSY) {
 		ccw_device_set_timeout(cdev, 3*HZ);
@@ -1062,9 +1062,9 @@ device_trigger_reprobe(struct subchannel *sch)
 {
 	struct ccw_device *cdev;
 
-	if (!sch->dev.driver_data)
+	cdev = sch_get_cdev(sch);
+	if (!cdev)
 		return;
-	cdev = sch->dev.driver_data;
 	if (cdev->private->state != DEV_STATE_DISCONNECTED)
 		return;
 

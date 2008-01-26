@@ -34,6 +34,8 @@ struct io_subchannel_private {
 } __attribute__ ((aligned(8)));
 
 #define to_io_private(n) ((struct io_subchannel_private *)n->private)
+#define sch_get_cdev(n) (dev_get_drvdata(&n->dev))
+#define sch_set_cdev(n, c) (dev_set_drvdata(&n->dev, c))
 
 #define MAX_CIWS 8
 

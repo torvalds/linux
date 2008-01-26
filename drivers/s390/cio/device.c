@@ -773,7 +773,7 @@ static void sch_attach_device(struct subchannel *sch,
 {
 	css_update_ssd_info(sch);
 	spin_lock_irq(sch->lock);
-	sch->dev.driver_data = cdev;
+	sch_set_cdev(sch, cdev);
 	cdev->private->schid = sch->schid;
 	cdev->ccwlock = sch->lock;
 	device_trigger_reprobe(sch);
@@ -795,7 +795,7 @@ static void sch_attach_disconnected_device(struct subchannel *sch,
 		put_device(&other_sch->dev);
 		return;
 	}
-	other_sch->dev.driver_data = NULL;
+	sch_set_cdev(other_sch, NULL);
 	/* No need to keep a subchannel without ccw device around. */
 	css_sch_device_unregister(other_sch);
 	put_device(&other_sch->dev);
@@ -831,12 +831,12 @@ static void sch_create_and_recog_new_device(struct subchannel *sch)
 		return;
 	}
 	spin_lock_irq(sch->lock);
-	sch->dev.driver_data = cdev;
+	sch_set_cdev(sch, cdev);
 	spin_unlock_irq(sch->lock);
 	/* Start recognition for the new ccw device. */
 	if (io_subchannel_recog(cdev, sch)) {
 		spin_lock_irq(sch->lock);
-		sch->dev.driver_data = NULL;
+		sch_set_cdev(sch, NULL);
 		spin_unlock_irq(sch->lock);
 		if (cdev->dev.release)
 			cdev->dev.release(&cdev->dev);
@@ -940,7 +940,7 @@ io_subchannel_register(struct work_struct *work)
 			      cdev->private->dev_id.devno, ret);
 		put_device(&cdev->dev);
 		spin_lock_irqsave(sch->lock, flags);
-		sch->dev.driver_data = NULL;
+		sch_set_cdev(sch, NULL);
 		spin_unlock_irqrestore(sch->lock, flags);
 		kfree (cdev->private);
 		kfree (cdev);
@@ -1022,7 +1022,7 @@ io_subchannel_recog(struct ccw_device *cdev, struct subchannel *sch)
 	int rc;
 	struct ccw_device_private *priv;
 
-	sch->dev.driver_data = cdev;
+	sch_set_cdev(sch, cdev);
 	sch->driver = &io_subchannel_driver;
 	cdev->ccwlock = sch->lock;
 
@@ -1082,7 +1082,7 @@ static void ccw_device_move_to_sch(struct work_struct *work)
 	}
 	if (former_parent) {
 		spin_lock_irq(former_parent->lock);
-		former_parent->dev.driver_data = NULL;
+		sch_set_cdev(former_parent, NULL);
 		spin_unlock_irq(former_parent->lock);
 		css_sch_device_unregister(former_parent);
 		/* Reset intparm to zeroes. */
@@ -1100,7 +1100,7 @@ static void io_subchannel_irq(struct subchannel *sch)
 {
 	struct ccw_device *cdev;
 
-	cdev = sch->dev.driver_data;
+	cdev = sch_get_cdev(sch);
 
 	CIO_TRACE_EVENT(3, "IRQ");
 	CIO_TRACE_EVENT(3, sch->dev.bus_id);
@@ -1116,13 +1116,13 @@ io_subchannel_probe (struct subchannel *sch)
 	unsigned long flags;
 	struct ccw_dev_id dev_id;
 
-	if (sch->dev.driver_data) {
+	cdev = sch_get_cdev(sch);
+	if (cdev) {
 		/*
 		 * This subchannel already has an associated ccw_device.
 		 * Register it and exit. This happens for all early
 		 * device, e.g. the console.
 		 */
-		cdev = sch->dev.driver_data;
 		cdev->dev.groups = ccwdev_attr_groups;
 		device_initialize(&cdev->dev);
 		ccw_device_register(cdev);
@@ -1173,7 +1173,7 @@ io_subchannel_probe (struct subchannel *sch)
 	rc = io_subchannel_recog(cdev, sch);
 	if (rc) {
 		spin_lock_irqsave(sch->lock, flags);
-		sch->dev.driver_data = NULL;
+		sch_set_cdev(sch, NULL);
 		spin_unlock_irqrestore(sch->lock, flags);
 		if (cdev->dev.release)
 			cdev->dev.release(&cdev->dev);
@@ -1189,12 +1189,12 @@ io_subchannel_remove (struct subchannel *sch)
 	struct ccw_device *cdev;
 	unsigned long flags;
 
-	if (!sch->dev.driver_data)
+	cdev = sch_get_cdev(sch);
+	if (!cdev)
 		return 0;
-	cdev = sch->dev.driver_data;
 	/* Set ccw device to not operational and drop reference. */
 	spin_lock_irqsave(cdev->ccwlock, flags);
-	sch->dev.driver_data = NULL;
+	sch_set_cdev(sch, NULL);
 	cdev->private->state = DEV_STATE_NOT_OPER;
 	spin_unlock_irqrestore(cdev->ccwlock, flags);
 	ccw_device_unregister(cdev);
@@ -1207,7 +1207,7 @@ static int io_subchannel_notify(struct subchannel *sch, int event)
 {
 	struct ccw_device *cdev;
 
-	cdev = sch->dev.driver_data;
+	cdev = sch_get_cdev(sch);
 	if (!cdev)
 		return 0;
 	if (!cdev->drv)
@@ -1221,7 +1221,7 @@ static void io_subchannel_verify(struct subchannel *sch)
 {
 	struct ccw_device *cdev;
 
-	cdev = sch->dev.driver_data;
+	cdev = sch_get_cdev(sch);
 	if (cdev)
 		dev_fsm_event(cdev, DEV_EVENT_VERIFY);
 }
@@ -1230,7 +1230,7 @@ static void io_subchannel_ioterm(struct subchannel *sch)
 {
 	struct ccw_device *cdev;
 
-	cdev = sch->dev.driver_data;
+	cdev = sch_get_cdev(sch);
 	if (!cdev)
 		return;
 	/* Internal I/O will be retried by the interrupt handler. */
@@ -1248,7 +1248,7 @@ io_subchannel_shutdown(struct subchannel *sch)
 	struct ccw_device *cdev;
 	int ret;
 
-	cdev = sch->dev.driver_data;
+	cdev = sch_get_cdev(sch);
 
 	if (cio_is_console(sch->schid))
 		return;

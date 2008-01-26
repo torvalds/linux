@@ -111,7 +111,7 @@ ccwgroup_release (struct device *dev)
 	gdev = to_ccwgroupdev(dev);
 
 	for (i = 0; i < gdev->count; i++) {
-		gdev->cdev[i]->dev.driver_data = NULL;
+		dev_set_drvdata(&gdev->cdev[i]->dev, NULL);
 		put_device(&gdev->cdev[i]->dev);
 	}
 	kfree(gdev);
@@ -196,11 +196,11 @@ int ccwgroup_create(struct device *root, unsigned int creator_id,
 			goto error;
 		}
 		/* Don't allow a device to belong to more than one group. */
-		if (gdev->cdev[i]->dev.driver_data) {
+		if (dev_get_drvdata(&gdev->cdev[i]->dev)) {
 			rc = -EINVAL;
 			goto error;
 		}
-		gdev->cdev[i]->dev.driver_data = gdev;
+		dev_set_drvdata(&gdev->cdev[i]->dev, gdev);
 	}
 
 	gdev->creator_id = creator_id;
@@ -234,8 +234,8 @@ int ccwgroup_create(struct device *root, unsigned int creator_id,
 error:
 	for (i = 0; i < argc; i++)
 		if (gdev->cdev[i]) {
-			if (gdev->cdev[i]->dev.driver_data == gdev)
-				gdev->cdev[i]->dev.driver_data = NULL;
+			if (dev_get_drvdata(&gdev->cdev[i]->dev) == gdev)
+				dev_set_drvdata(&gdev->cdev[i]->dev, NULL);
 			put_device(&gdev->cdev[i]->dev);
 		}
 	mutex_unlock(&gdev->reg_mutex);
@@ -463,8 +463,8 @@ __ccwgroup_get_gdev_by_cdev(struct ccw_device *cdev)
 {
 	struct ccwgroup_device *gdev;
 
-	if (cdev->dev.driver_data) {
-		gdev = (struct ccwgroup_device *)cdev->dev.driver_data;
+	gdev = dev_get_drvdata(&cdev->dev);
+	if (gdev) {
 		if (get_device(&gdev->dev)) {
 			mutex_lock(&gdev->reg_mutex);
 			if (device_is_registered(&gdev->dev))
