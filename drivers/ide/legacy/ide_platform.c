@@ -28,39 +28,27 @@ static struct {
 	int index;
 } hwif_prop;
 
-static ide_hwif_t *__devinit plat_ide_locate_hwif(void __iomem *base,
-	    void __iomem *ctrl, struct pata_platform_info *pdata, int irq,
-	    int mmio)
+static void __devinit plat_ide_setup_ports(hw_regs_t *hw,
+					   void __iomem *base,
+					   void __iomem *ctrl,
+					   struct pata_platform_info *pdata,
+					   int irq)
 {
 	unsigned long port = (unsigned long)base;
-	ide_hwif_t *hwif = ide_find_port(port);
 	int i;
 
-	if (hwif == NULL)
-		goto out;
-
-	hwif->io_ports[IDE_DATA_OFFSET] = port;
+	hw->io_ports[IDE_DATA_OFFSET] = port;
 
 	port += (1 << pdata->ioport_shift);
 	for (i = IDE_ERROR_OFFSET; i <= IDE_STATUS_OFFSET;
 	     i++, port += (1 << pdata->ioport_shift))
-		hwif->io_ports[i] = port;
+		hw->io_ports[i] = port;
 
-	hwif->io_ports[IDE_CONTROL_OFFSET] = (unsigned long)ctrl;
+	hw->io_ports[IDE_CONTROL_OFFSET] = (unsigned long)ctrl;
 
-	hwif->irq = irq;
+	hw->irq = irq;
 
-	hwif->chipset = ide_generic;
-
-	if (mmio) {
-		hwif->mmio = 1;
-		default_hwif_mmiops(hwif);
-	}
-
-	hwif_prop.hwif = hwif;
-	hwif_prop.index = hwif->index;
-out:
-	return hwif;
+	hw->chipset = ide_generic;
 }
 
 static int __devinit plat_ide_probe(struct platform_device *pdev)
@@ -71,6 +59,7 @@ static int __devinit plat_ide_probe(struct platform_device *pdev)
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 	int ret = 0;
 	int mmio = 0;
+	hw_regs_t hw;
 
 	pdata = pdev->dev.platform_data;
 
@@ -106,15 +95,27 @@ static int __devinit plat_ide_probe(struct platform_device *pdev)
 			res_alt->start, res_alt->end - res_alt->start + 1);
 	}
 
-	hwif = plat_ide_locate_hwif(hwif_prop.plat_ide_mapbase,
-	         hwif_prop.plat_ide_alt_mapbase, pdata, res_irq->start, mmio);
-
+	hwif = ide_find_port((unsigned long)hwif_prop.plat_ide_mapbase);
 	if (!hwif) {
 		ret = -ENODEV;
 		goto out;
 	}
-	hwif->gendev.parent = &pdev->dev;
-	hwif->noprobe = 0;
+
+	memset(&hw, 0, sizeof(hw));
+	plat_ide_setup_ports(&hw, hwif_prop.plat_ide_mapbase,
+			     hwif_prop.plat_ide_alt_mapbase,
+			     pdata, res_irq->start);
+	hw.dev = &pdev->dev;
+
+	ide_init_port_hw(hwif, &hw);
+
+	if (mmio) {
+		hwif->mmio = 1;
+		default_hwif_mmiops(hwif);
+	}
+
+	hwif_prop.hwif = hwif;
+	hwif_prop.index = hwif->index;
 
 	idx[0] = hwif->index;
 

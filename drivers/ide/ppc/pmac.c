@@ -1012,12 +1012,11 @@ pmac_ide_do_resume(ide_hwif_t *hwif)
  * rare machines unfortunately, but it's better this way.
  */
 static int
-pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
+pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif, hw_regs_t *hw)
 {
 	struct device_node *np = pmif->node;
 	const int *bidp;
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
-	hw_regs_t hw;
 
 	pmif->cable_80 = 0;
 	pmif->broken_dma = pmif->broken_dma_warn = 0;
@@ -1103,11 +1102,9 @@ pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 	/* Tell common code _not_ to mess with resources */
 	hwif->mmio = 1;
 	hwif->hwif_data = pmif;
-	memset(&hw, 0, sizeof(hw));
-	pmac_ide_init_hwif_ports(&hw, pmif->regbase, 0, &hwif->irq);
-	memcpy(hwif->io_ports, hw.io_ports, sizeof(hwif->io_ports));
-	hwif->chipset = ide_pmac;
-	hwif->noprobe = !hwif->io_ports[IDE_DATA_OFFSET] || pmif->mediabay;
+	hw->chipset = ide_pmac;
+	ide_init_port_hw(hwif, hw);
+	hwif->noprobe = pmif->mediabay;
 	hwif->hold = pmif->mediabay;
 	hwif->cbl = pmif->cable_80 ? ATA_CBL_PATA80 : ATA_CBL_PATA40;
 	hwif->drives[0].unmask = 1;
@@ -1163,6 +1160,7 @@ pmac_ide_macio_attach(struct macio_dev *mdev, const struct of_device_id *match)
 	ide_hwif_t *hwif;
 	pmac_ide_hwif_t *pmif;
 	int i, rc;
+	hw_regs_t hw;
 
 	i = 0;
 	while (i < MAX_HWIFS && (ide_hwifs[i].io_ports[IDE_DATA_OFFSET] != 0
@@ -1205,7 +1203,6 @@ pmac_ide_macio_attach(struct macio_dev *mdev, const struct of_device_id *match)
 	regbase = (unsigned long) base;
 
 	hwif->pci_dev = mdev->bus->pdev;
-	hwif->gendev.parent = &mdev->ofdev.dev;
 
 	pmif->mdev = mdev;
 	pmif->node = mdev->ofdev.node;
@@ -1223,7 +1220,12 @@ pmac_ide_macio_attach(struct macio_dev *mdev, const struct of_device_id *match)
 #endif /* CONFIG_BLK_DEV_IDEDMA_PMAC */
 	dev_set_drvdata(&mdev->ofdev.dev, hwif);
 
-	rc = pmac_ide_setup_device(pmif, hwif);
+	memset(&hw, 0, sizeof(hw));
+	pmac_ide_init_hwif_ports(&hw, pmif->regbase, 0, NULL);
+	hw.irq = irq;
+	hw.dev = &mdev->ofdev.dev;
+
+	rc = pmac_ide_setup_device(pmif, hwif, &hw);
 	if (rc != 0) {
 		/* The inteface is released to the common IDE layer */
 		dev_set_drvdata(&mdev->ofdev.dev, NULL);
@@ -1282,6 +1284,7 @@ pmac_ide_pci_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	void __iomem *base;
 	unsigned long rbase, rlen;
 	int i, rc;
+	hw_regs_t hw;
 
 	np = pci_device_to_OF_node(pdev);
 	if (np == NULL) {
@@ -1315,7 +1318,6 @@ pmac_ide_pci_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	hwif->pci_dev = pdev;
-	hwif->gendev.parent = &pdev->dev;
 	pmif->mdev = NULL;
 	pmif->node = np;
 
@@ -1332,7 +1334,12 @@ pmac_ide_pci_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	pci_set_drvdata(pdev, hwif);
 
-	rc = pmac_ide_setup_device(pmif, hwif);
+	memset(&hw, 0, sizeof(hw));
+	pmac_ide_init_hwif_ports(&hw, pmif->regbase, 0, NULL);
+	hw.irq = pdev->irq;
+	hw.dev = &pdev->dev;
+
+	rc = pmac_ide_setup_device(pmif, hwif, &hw);
 	if (rc != 0) {
 		/* The inteface is released to the common IDE layer */
 		pci_set_drvdata(pdev, NULL);

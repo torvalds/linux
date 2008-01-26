@@ -636,14 +636,13 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 	/* Initialize the IO registers */
 	memset(&hw, 0, sizeof(hw));
 	sgiioc4_init_hwif_ports(&hw, cmd_base, ctl, irqport);
-	memcpy(hwif->io_ports, hw.io_ports, sizeof(hwif->io_ports));
-	hwif->noprobe = 0;
+	hw.irq = dev->irq;
+	hw.chipset = ide_pci;
+	hw.dev = &dev->dev;
+	ide_init_port_hw(hwif, &hw);
 
-	hwif->irq = dev->irq;
-	hwif->chipset = ide_pci;
 	hwif->pci_dev = dev;
 	hwif->channel = 0;	/* Single Channel chip */
-	hwif->gendev.parent = &dev->dev;/* setup proper ancestral information */
 
 	/* The IOC4 uses MMIO rather than Port IO. */
 	default_hwif_mmiops(hwif);

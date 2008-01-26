@@ -675,6 +675,17 @@ void ide_setup_ports (	hw_regs_t *hw,
  */
 }
 
+void ide_init_port_hw(ide_hwif_t *hwif, hw_regs_t *hw)
+{
+	memcpy(hwif->io_ports, hw->io_ports, sizeof(hwif->io_ports));
+	hwif->irq = hw->irq;
+	hwif->noprobe = 0;
+	hwif->chipset = hw->chipset;
+	hwif->gendev.parent = hw->dev;
+	hwif->ack_intr = hw->ack_intr;
+}
+EXPORT_SYMBOL_GPL(ide_init_port_hw);
+
 /**
  *	ide_register_hw		-	register IDE interface
  *	@hw: hardware registers
@@ -729,13 +740,9 @@ found:
 	}
 	if (hwif->present)
 		return -1;
-	memcpy(hwif->io_ports, hw->io_ports, sizeof(hwif->io_ports));
-	hwif->irq = hw->irq;
-	hwif->noprobe = 0;
+
+	ide_init_port_hw(hwif, hw);
 	hwif->quirkproc = quirkproc;
-	hwif->chipset = hw->chipset;
-	hwif->gendev.parent = hw->dev;
-	hwif->ack_intr = hw->ack_intr;
 
 	if (initializing == 0) {
 		u8 idx[4] = { index, 0xff, 0xff, 0xff };

@@ -198,6 +198,7 @@ typedef struct hw_regs_s {
 } hw_regs_t;
 
 struct hwif_s * ide_find_port(unsigned long);
+void ide_init_port_hw(struct hwif_s *, hw_regs_t *);
 
 struct ide_drive_s;
 int ide_register_hw(hw_regs_t *, void (*)(struct ide_drive_s *), int,
