@@ -452,7 +452,6 @@ static void mv_qc_prep(struct ata_queued_cmd *qc);
 static void mv_qc_prep_iie(struct ata_queued_cmd *qc);
 static unsigned int mv_qc_issue(struct ata_queued_cmd *qc);
 static void mv_error_handler(struct ata_port *ap);
-static void mv_post_int_cmd(struct ata_queued_cmd *qc);
 static void mv_eh_freeze(struct ata_port *ap);
 static void mv_eh_thaw(struct ata_port *ap);
 static void mv6_dev_config(struct ata_device *dev);
@@ -541,7 +540,6 @@ static const struct ata_port_operations mv5_ops = {
 	.irq_on			= ata_irq_on,
 
 	.error_handler		= mv_error_handler,
-	.post_internal_cmd	= mv_post_int_cmd,
 	.freeze			= mv_eh_freeze,
 	.thaw			= mv_eh_thaw,
 
@@ -570,7 +568,6 @@ static const struct ata_port_operations mv6_ops = {
 	.irq_on			= ata_irq_on,
 
 	.error_handler		= mv_error_handler,
-	.post_internal_cmd	= mv_post_int_cmd,
 	.freeze			= mv_eh_freeze,
 	.thaw			= mv_eh_thaw,
 	.qc_defer		= ata_std_qc_defer,
@@ -599,7 +596,6 @@ static const struct ata_port_operations mv_iie_ops = {
 	.irq_on			= ata_irq_on,
 
 	.error_handler		= mv_error_handler,
-	.post_internal_cmd	= mv_post_int_cmd,
 	.freeze			= mv_eh_freeze,
 	.thaw			= mv_eh_thaw,
 	.qc_defer		= ata_std_qc_defer,
@@ -2422,11 +2418,6 @@ static void mv_error_handler(struct ata_port *ap)
 {
 	ata_do_eh(ap, mv_prereset, ata_std_softreset,
 		  mv_hardreset, mv_postreset);
-}
-
-static void mv_post_int_cmd(struct ata_queued_cmd *qc)
-{
-	mv_stop_dma(qc->ap);
 }
 
 static void mv_eh_freeze(struct ata_port *ap)
