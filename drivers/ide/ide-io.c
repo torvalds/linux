@@ -638,19 +638,22 @@ static ide_startstop_t drive_cmd_intr (ide_drive_t *drive)
 {
 	struct request *rq = HWGROUP(drive)->rq;
 	ide_hwif_t *hwif = HWIF(drive);
-	u8 *args = (u8 *) rq->buffer;
-	u8 stat = hwif->INB(IDE_STATUS_REG);
+	u8 *args = (u8 *)rq->buffer, pio_in = (args && args[3]) ? 1 : 0, stat;
 
-	local_irq_enable_in_hardirq();
-	if (rq->cmd_type == REQ_TYPE_ATA_CMD &&
-	    (stat & DRQ_STAT) && args && args[3]) {
+	if (pio_in) {
 		u8 io_32bit = drive->io_32bit;
+		stat = hwif->INB(IDE_STATUS_REG);
+		if ((stat & DRQ_STAT) == 0)
+			goto out;
 		drive->io_32bit = 0;
 		hwif->ata_input_data(drive, &args[4], args[3] * SECTOR_WORDS);
 		drive->io_32bit = io_32bit;
 		stat = wait_drive_not_busy(drive);
+	} else {
+		local_irq_enable_in_hardirq();
+		stat = hwif->INB(IDE_STATUS_REG);
 	}
-
+out:
 	if (!OK_STAT(stat, READY_STAT, BAD_STAT))
 		return ide_error(drive, "drive_cmd", stat);
 		/* calls ide_end_drive_cmd */
