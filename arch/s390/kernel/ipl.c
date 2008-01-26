@@ -1096,8 +1096,12 @@ static struct shutdown_action vmcmd_action = {SHUTDOWN_ACTION_VMCMD_STR,
 
 static void stop_run(struct shutdown_trigger *trigger)
 {
-	signal_processor(smp_processor_id(), sigp_stop_and_store_status);
-	for (;;);
+	if (strcmp(trigger->name, ON_PANIC_STR) == 0)
+		disabled_wait((unsigned long) __builtin_return_address(0));
+	else {
+		signal_processor(smp_processor_id(), sigp_stop);
+		for (;;);
+	}
 }
 
 static struct shutdown_action stop_action = {SHUTDOWN_ACTION_STOP_STR,
