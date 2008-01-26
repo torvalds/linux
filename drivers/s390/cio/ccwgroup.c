@@ -75,8 +75,10 @@ static void ccwgroup_ungroup_callback(struct device *dev)
 	struct ccwgroup_device *gdev = to_ccwgroupdev(dev);
 
 	mutex_lock(&gdev->reg_mutex);
-	__ccwgroup_remove_symlinks(gdev);
-	device_unregister(dev);
+	if (device_is_registered(&gdev->dev)) {
+		__ccwgroup_remove_symlinks(gdev);
+		device_unregister(dev);
+	}
 	mutex_unlock(&gdev->reg_mutex);
 }
 
