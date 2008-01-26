@@ -58,64 +58,6 @@ struct pgid {
 	__u32 tod_high;		/* high word TOD clock */
 } __attribute__ ((packed));
 
-#define MAX_CIWS 8
-
-/*
- * sense-id response buffer layout
- */
-struct senseid {
-	/* common part */
-	__u8  reserved;     	/* always 0x'FF' */
-	__u16 cu_type;	     	/* control unit type */
-	__u8  cu_model;     	/* control unit model */
-	__u16 dev_type;     	/* device type */
-	__u8  dev_model;    	/* device model */
-	__u8  unused;	     	/* padding byte */
-	/* extended part */
-	struct ciw ciw[MAX_CIWS];	/* variable # of CIWs */
-}  __attribute__ ((packed,aligned(4)));
-
-struct ccw_device_private {
-	struct ccw_device *cdev;
-	struct subchannel *sch;
-	int state;		/* device state */
-	atomic_t onoff;
-	unsigned long registered;
-	struct ccw_dev_id dev_id;	/* device id */
-	struct subchannel_id schid;	/* subchannel number */
-	__u8 imask;		/* lpm mask for SNID/SID/SPGID */
-	int iretry;		/* retry counter SNID/SID/SPGID */
-	struct {
-		unsigned int fast:1;	/* post with "channel end" */
-		unsigned int repall:1;	/* report every interrupt status */
-		unsigned int pgroup:1;  /* do path grouping */
-		unsigned int force:1;   /* allow forced online */
-	} __attribute__ ((packed)) options;
-	struct {
-		unsigned int pgid_single:1; /* use single path for Set PGID */
-		unsigned int esid:1;        /* Ext. SenseID supported by HW */
-		unsigned int dosense:1;	    /* delayed SENSE required */
-		unsigned int doverify:1;    /* delayed path verification */
-		unsigned int donotify:1;    /* call notify function */
-		unsigned int recog_done:1;  /* dev. recog. complete */
-		unsigned int fake_irb:1;    /* deliver faked irb */
-		unsigned int intretry:1;    /* retry internal operation */
-	} __attribute__((packed)) flags;
-	unsigned long intparm;	/* user interruption parameter */
-	struct qdio_irq *qdio_data;
-	struct irb irb;		/* device status */
-	struct senseid senseid;	/* SenseID info */
-	struct pgid pgid[8];	/* path group IDs per chpid*/
-	struct ccw1 iccws[2];	/* ccws for SNID/SID/SPGID commands */
-	struct work_struct kick_work;
-	wait_queue_head_t wait_q;
-	struct timer_list timer;
-	void *cmb;			/* measurement information */
-	struct list_head cmb_list;	/* list of measured devices */
-	u64 cmb_start_time;		/* clock value of cmb reset */
-	void *cmb_wait;			/* deferred cmb enable/disable */
-};
-
 /*
  * A css driver handles all subchannels of one type.
  * Currently, we only care about I/O subchannels (type 0), these

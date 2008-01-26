@@ -28,6 +28,7 @@
 #include "css.h"
 #include "device.h"
 #include "ioasm.h"
+#include "io_sch.h"
 
 /******************* bus type handling ***********************/
 
@@ -1143,6 +1144,11 @@ io_subchannel_probe (struct subchannel *sch)
 	 */
 	dev_id.devno = sch->schib.pmcw.dev;
 	dev_id.ssid = sch->schid.ssid;
+	/* Allocate I/O subchannel private data. */
+	sch->private = kzalloc(sizeof(struct io_subchannel_private),
+			       GFP_KERNEL | GFP_DMA);
+	if (!sch->private)
+		return -ENOMEM;
 	cdev = get_disc_ccwdev_by_dev_id(&dev_id, NULL);
 	if (!cdev)
 		cdev = get_orphaned_ccwdev_by_dev_id(to_css(sch->dev.parent),
@@ -1160,9 +1166,10 @@ io_subchannel_probe (struct subchannel *sch)
 		return 0;
 	}
 	cdev = io_subchannel_create_ccwdev(sch);
-	if (IS_ERR(cdev))
+	if (IS_ERR(cdev)) {
+		kfree(sch->private);
 		return PTR_ERR(cdev);
-
+	}
 	rc = io_subchannel_recog(cdev, sch);
 	if (rc) {
 		spin_lock_irqsave(sch->lock, flags);
@@ -1170,6 +1177,7 @@ io_subchannel_probe (struct subchannel *sch)
 		spin_unlock_irqrestore(sch->lock, flags);
 		if (cdev->dev.release)
 			cdev->dev.release(&cdev->dev);
+		kfree(sch->private);
 	}
 
 	return rc;
@@ -1191,6 +1199,7 @@ io_subchannel_remove (struct subchannel *sch)
 	spin_unlock_irqrestore(cdev->ccwlock, flags);
 	ccw_device_unregister(cdev);
 	put_device(&cdev->dev);
+	kfree(sch->private);
 	return 0;
 }
 
@@ -1279,6 +1288,9 @@ ccw_device_console_enable (struct ccw_device *cdev, struct subchannel *sch)
 {
 	int rc;
 
+	/* Attach subchannel private data. */
+	sch->private = cio_get_console_priv();
+	memset(sch->private, 0, sizeof(struct io_subchannel_private));
 	/* Initialize the ccw_device structure. */
 	cdev->dev.parent= &sch->dev;
 	rc = io_subchannel_recog(cdev, sch);

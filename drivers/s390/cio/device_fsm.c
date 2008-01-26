@@ -96,29 +96,32 @@ static void ccw_timeout_log(struct ccw_device *cdev)
 {
 	struct schib schib;
 	struct subchannel *sch;
+	struct io_subchannel_private *private;
 	int cc;
 
 	sch = to_subchannel(cdev->dev.parent);
+	private = to_io_private(sch);
 	cc = stsch(sch->schid, &schib);
 
 	printk(KERN_WARNING "cio: ccw device timeout occurred at %llx, "
 	       "device information:\n", get_clock());
 	printk(KERN_WARNING "cio: orb:\n");
 	print_hex_dump(KERN_WARNING, "cio:  ", DUMP_PREFIX_NONE, 16, 1,
-		       &sch->orb, sizeof(sch->orb), 0);
+		       &private->orb, sizeof(private->orb), 0);
 	printk(KERN_WARNING "cio: ccw device bus id: %s\n", cdev->dev.bus_id);
 	printk(KERN_WARNING "cio: subchannel bus id: %s\n", sch->dev.bus_id);
 	printk(KERN_WARNING "cio: subchannel lpm: %02x, opm: %02x, "
 	       "vpm: %02x\n", sch->lpm, sch->opm, sch->vpm);
 
-	if ((void *)(addr_t)sch->orb.cpa == &sch->sense_ccw ||
-	    (void *)(addr_t)sch->orb.cpa == cdev->private->iccws)
+	if ((void *)(addr_t)private->orb.cpa == &private->sense_ccw ||
+	    (void *)(addr_t)private->orb.cpa == cdev->private->iccws)
 		printk(KERN_WARNING "cio: last channel program (intern):\n");
 	else
 		printk(KERN_WARNING "cio: last channel program:\n");
 
 	print_hex_dump(KERN_WARNING, "cio:  ", DUMP_PREFIX_NONE, 16, 1,
-		       (void *)(addr_t)sch->orb.cpa, sizeof(struct ccw1), 0);
+		       (void *)(addr_t)private->orb.cpa,
+		       sizeof(struct ccw1), 0);
 	printk(KERN_WARNING "cio: ccw device state: %d\n",
 	       cdev->private->state);
 	printk(KERN_WARNING "cio: store subchannel returned: cc=%d\n", cc);
@@ -1078,7 +1081,7 @@ device_trigger_reprobe(struct subchannel *sch)
 	sch->schib.pmcw.ena = 0;
 	if ((sch->lpm & (sch->lpm - 1)) != 0)
 		sch->schib.pmcw.mp = 1;
-	sch->schib.pmcw.intparm = (__u32)(unsigned long)sch;
+	sch->schib.pmcw.intparm = (u32)(addr_t)sch;
 	/* We should also udate ssd info, but this has to wait. */
 	/* Check if this is another device which appeared on the same sch. */
 	if (sch->schib.pmcw.dev != cdev->private->dev_id.devno) {

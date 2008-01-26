@@ -5,6 +5,8 @@
 #include <asm/atomic.h>
 #include <linux/wait.h>
 
+#include "io_sch.h"
+
 /*
  * states of the device statemachine
  */

@@ -77,7 +77,7 @@ css_alloc_subchannel(struct subchannel_id schid)
 	 * This is fine even on 64bit since the subchannel is always located
 	 * under 2G.
 	 */
-	sch->schib.pmcw.intparm = (__u32)(unsigned long)sch;
+	sch->schib.pmcw.intparm = (u32)(addr_t)sch;
 	ret = cio_modify(sch);
 	if (ret) {
 		kfree(sch->lock);

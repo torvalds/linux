@@ -28,6 +28,7 @@
 #include "css.h"
 #include "chsc.h"
 #include "ioasm.h"
+#include "io_sch.h"
 #include "blacklist.h"
 #include "cio_debug.h"
 #include "chp.h"
@@ -182,33 +183,35 @@ cio_start_key (struct subchannel *sch,	/* subchannel structure */
 {
 	char dbf_txt[15];
 	int ccode;
+	struct orb *orb;
 
-	CIO_TRACE_EVENT (4, "stIO");
-	CIO_TRACE_EVENT (4, sch->dev.bus_id);
+	CIO_TRACE_EVENT(4, "stIO");
+	CIO_TRACE_EVENT(4, sch->dev.bus_id);
 
+	orb = &to_io_private(sch)->orb;
 	/* sch is always under 2G. */
-	sch->orb.intparm = (__u32)(unsigned long)sch;
-	sch->orb.fmt = 1;
+	orb->intparm = (u32)(addr_t)sch;
+	orb->fmt = 1;
 
-	sch->orb.pfch = sch->options.prefetch == 0;
-	sch->orb.spnd = sch->options.suspend;
-	sch->orb.ssic = sch->options.suspend && sch->options.inter;
-	sch->orb.lpm = (lpm != 0) ? lpm : sch->lpm;
+	orb->pfch = sch->options.prefetch == 0;
+	orb->spnd = sch->options.suspend;
+	orb->ssic = sch->options.suspend && sch->options.inter;
+	orb->lpm = (lpm != 0) ? lpm : sch->lpm;
 #ifdef CONFIG_64BIT
 	/*
 	 * for 64 bit we always support 64 bit IDAWs with 4k page size only
 	 */
-	sch->orb.c64 = 1;
-	sch->orb.i2k = 0;
+	orb->c64 = 1;
+	orb->i2k = 0;
 #endif
-	sch->orb.key = key >> 4;
+	orb->key = key >> 4;
 	/* issue "Start Subchannel" */
-	sch->orb.cpa = (__u32) __pa (cpa);
-	ccode = ssch (sch->schid, &sch->orb);
+	orb->cpa = (__u32) __pa(cpa);
+	ccode = ssch(sch->schid, orb);
 
 	/* process condition code */
-	sprintf (dbf_txt, "ccode:%d", ccode);
-	CIO_TRACE_EVENT (4, dbf_txt);
+	sprintf(dbf_txt, "ccode:%d", ccode);
+	CIO_TRACE_EVENT(4, dbf_txt);
 
 	switch (ccode) {
 	case 0:
@@ -423,7 +426,7 @@ cio_enable_subchannel (struct subchannel *sch, unsigned int isc)
 	for (retry = 5, ret = 0; retry > 0; retry--) {
 		sch->schib.pmcw.ena = 1;
 		sch->schib.pmcw.isc = isc;
-		sch->schib.pmcw.intparm = (__u32)(unsigned long)sch;
+		sch->schib.pmcw.intparm = (u32)(addr_t)sch;
 		ret = cio_modify(sch);
 		if (ret == -ENODEV)
 			break;
@@ -696,7 +699,13 @@ do_IRQ (struct pt_regs *regs)
 
 #ifdef CONFIG_CCW_CONSOLE
 static struct subchannel console_subchannel;
+static struct io_subchannel_private console_priv;
 static int console_subchannel_in_use;
+
+void *cio_get_console_priv(void)
+{
+	return &console_priv;
+}
 
 /*
  * busy wait for the next interrupt on the console
@@ -802,7 +811,7 @@ cio_probe_console(void)
 	ctl_set_bit(6, 24);
 	console_subchannel.schib.pmcw.isc = 7;
 	console_subchannel.schib.pmcw.intparm =
-		(__u32)(unsigned long)&console_subchannel;
+		(u32)(addr_t)&console_subchannel;
 	ret = cio_modify(&console_subchannel);
 	if (ret) {
 		console_subchannel_in_use = 0;
