@@ -1340,52 +1340,19 @@ static void hwif_register_devices(ide_hwif_t *hwif)
 	}
 }
 
-int ideprobe_init (void)
-{
-	unsigned int index;
-	int probe[MAX_HWIFS];
-
-	memset(probe, 0, MAX_HWIFS * sizeof(int));
-	for (index = 0; index < MAX_HWIFS; ++index)
-		probe[index] = !ide_hwifs[index].present;
-
-	for (index = 0; index < MAX_HWIFS; ++index)
-		if (probe[index])
-			probe_hwif(&ide_hwifs[index]);
-	for (index = 0; index < MAX_HWIFS; ++index)
-		if (probe[index])
-			hwif_init(&ide_hwifs[index]);
-	for (index = 0; index < MAX_HWIFS; ++index) {
-		if (probe[index]) {
-			ide_hwif_t *hwif = &ide_hwifs[index];
-			if (!hwif->present)
-				continue;
-			if (hwif->chipset == ide_unknown || hwif->chipset == ide_forced)
-				hwif->chipset = ide_generic;
-			hwif_register_devices(hwif);
-		}
-	}
-	for (index = 0; index < MAX_HWIFS; ++index)
-		if (probe[index])
-			ide_proc_register_port(&ide_hwifs[index]);
-	return 0;
-}
-
-EXPORT_SYMBOL_GPL(ideprobe_init);
-
-int ide_device_add(u8 idx[4])
+int ide_device_add_all(u8 idx[MAX_HWIFS])
 {
 	ide_hwif_t *hwif;
 	int i, rc = 0;
 
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < MAX_HWIFS; i++) {
 		if (idx[i] == 0xff)
 			continue;
 
 		probe_hwif(&ide_hwifs[idx[i]]);
 	}
 
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < MAX_HWIFS; i++) {
 		if (idx[i] == 0xff)
 			continue;
 
@@ -1399,7 +1366,7 @@ int ide_device_add(u8 idx[4])
 		}
 	}
 
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < MAX_HWIFS; i++) {
 		if (idx[i] == 0xff)
 			continue;
 
@@ -1413,12 +1380,23 @@ int ide_device_add(u8 idx[4])
 		}
 	}
 
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < MAX_HWIFS; i++) {
 		if (idx[i] != 0xff)
 			ide_proc_register_port(&ide_hwifs[idx[i]]);
 	}
 
 	return rc;
 }
+EXPORT_SYMBOL_GPL(ide_device_add_all);
 
+int ide_device_add(u8 idx[4])
+{
+	u8 idx_all[MAX_HWIFS];
+	int i;
+
+	for (i = 0; i < MAX_HWIFS; i++)
+		idx_all[i] = (i < 4) ? idx[i] : 0xff;
+
+	return ide_device_add_all(idx_all);
+}
 EXPORT_SYMBOL_GPL(ide_device_add);

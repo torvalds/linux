@@ -1011,8 +1011,6 @@ extern void do_ide_request(struct request_queue *);
 
 void ide_init_disk(struct gendisk *, ide_drive_t *);
 
-extern int ideprobe_init(void);
-
 #ifdef CONFIG_IDEPCI_PCIBUS_ORDER
 extern void ide_scan_pcibus(int scan_direction) __init;
 extern int __ide_pci_register_driver(struct pci_driver *driver, struct module *owner, const char *mod_name);
@@ -1203,6 +1201,7 @@ void ide_unregister_region(struct gendisk *);
 
 void ide_undecoded_slave(ide_drive_t *);
 
+int ide_device_add_all(u8 idx[MAX_HWIFS]);
 int ide_device_add(u8 idx[4]);
 
 static inline void *ide_get_hwifdata (ide_hwif_t * hwif)
