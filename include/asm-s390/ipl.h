@@ -143,6 +143,10 @@ enum diag308_opt {
 	DIAG308_IPL_OPT_DUMP	= 0x20,
 };
 
+enum diag308_flags {
+	DIAG308_FLAGS_LP_VALID	= 0x80,
+};
+
 enum diag308_rc {
 	DIAG308_RC_OK	= 1,
 };

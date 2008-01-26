@@ -595,7 +595,9 @@ static int reipl_set_type(enum ipl_type type)
 
 	switch(type) {
 	case IPL_TYPE_CCW:
-		if (MACHINE_IS_VM)
+		if (diag308_set_works)
+			reipl_method = REIPL_METHOD_CCW_DIAG;
+		else if (MACHINE_IS_VM)
 			reipl_method = REIPL_METHOD_CCW_VM;
 		else
 			reipl_method = REIPL_METHOD_CCW_CIO;
@@ -659,8 +661,6 @@ void reipl_run(struct shutdown_trigger *trigger)
 	switch (reipl_method) {
 	case REIPL_METHOD_CCW_CIO:
 		devid.devno = reipl_block_ccw->ipl_info.ccw.devno;
-		if (ipl_info.type == IPL_TYPE_CCW && devid.devno == ipl_devno)
-			diag308(DIAG308_IPL, NULL);
 		devid.ssid  = 0;
 		reipl_ccw_dev(&devid);
 		break;
@@ -745,6 +745,7 @@ static int __init reipl_ccw_init(void)
 	reipl_block_ccw->hdr.version = IPL_PARM_BLOCK_VERSION;
 	reipl_block_ccw->hdr.blk0_len = IPL_PARM_BLK0_CCW_LEN;
 	reipl_block_ccw->hdr.pbt = DIAG308_IPL_TYPE_CCW;
+	reipl_block_ccw->hdr.flags = DIAG308_FLAGS_LP_VALID;
 	/* check if read scp info worked and set loadparm */
 	if (sclp_ipl_info.is_valid)
 		memcpy(reipl_block_ccw->ipl_info.ccw.load_param,
@@ -753,8 +754,7 @@ static int __init reipl_ccw_init(void)
 		/* read scp info failed: set empty loadparm (EBCDIC blanks) */
 		memset(reipl_block_ccw->ipl_info.ccw.load_param, 0x40,
 		       LOADPARM_LEN);
-	/* FIXME: check for diag308_set_works when enabling diag ccw reipl */
-	if (!MACHINE_IS_VM)
+	if (!MACHINE_IS_VM && !diag308_set_works)
 		sys_reipl_ccw_loadparm_attr.attr.mode = S_IRUGO;
 	if (ipl_info.type == IPL_TYPE_CCW)
 		reipl_block_ccw->ipl_info.ccw.devno = ipl_devno;
@@ -876,7 +876,9 @@ static int dump_set_type(enum dump_type type)
 		return -EINVAL;
 	switch (type) {
 	case DUMP_TYPE_CCW:
-		if (MACHINE_IS_VM)
+		if (diag308_set_works)
+			dump_method = DUMP_METHOD_CCW_DIAG;
+		else if (MACHINE_IS_VM)
 			dump_method = DUMP_METHOD_CCW_VM;
 		else
 			dump_method = DUMP_METHOD_CCW_CIO;
