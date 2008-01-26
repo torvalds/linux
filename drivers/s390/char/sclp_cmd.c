@@ -2,7 +2,8 @@
  *  drivers/s390/char/sclp_cmd.c
  *
  *    Copyright IBM Corp. 2007
- *    Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>
+ *    Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>,
+ *		 Peter Oberparleiter <peter.oberparleiter@de.ibm.com>
  */
 
 #include <linux/completion.h>
@@ -10,6 +11,7 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <asm/chpid.h>
 #include <asm/sclp.h>
 #include "sclp.h"
 
@@ -316,4 +318,123 @@ int sclp_cpu_configure(u8 cpu)
 int sclp_cpu_deconfigure(u8 cpu)
 {
 	return do_cpu_configure(SCLP_CMDW_DECONFIGURE_CPU | cpu << 8);
+}
+
+/*
+ * Channel path configuration related functions.
+ */
+
+#define SCLP_CMDW_CONFIGURE_CHPATH		0x000f0001
+#define SCLP_CMDW_DECONFIGURE_CHPATH		0x000e0001
+#define SCLP_CMDW_READ_CHPATH_INFORMATION	0x00030001
+
+struct chp_cfg_sccb {
+	struct sccb_header header;
+	u8 ccm;
+	u8 reserved[6];
+	u8 cssid;
+} __attribute__((packed));
+
+static int do_chp_configure(sclp_cmdw_t cmd)
+{
+	struct chp_cfg_sccb *sccb;
+	int rc;
+
+	if (!SCLP_HAS_CHP_RECONFIG)
+		return -EOPNOTSUPP;
+	/* Prepare sccb. */
+	sccb = (struct chp_cfg_sccb *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
+	if (!sccb)
+		return -ENOMEM;
+	sccb->header.length = sizeof(*sccb);
+	rc = do_sync_request(cmd, sccb);
+	if (rc)
+		goto out;
+	switch (sccb->header.response_code) {
+	case 0x0020:
+	case 0x0120:
+	case 0x0440:
+	case 0x0450:
+		break;
+	default:
+		printk(KERN_WARNING TAG "configure channel-path failed "
+		       "(cmd=0x%08x, response=0x%04x)\n", cmd,
+		       sccb->header.response_code);
+		rc = -EIO;
+		break;
+	}
+out:
+	free_page((unsigned long) sccb);
+	return rc;
+}
+
+/**
+ * sclp_chp_configure - perform configure channel-path sclp command
+ * @chpid: channel-path ID
+ *
+ * Perform configure channel-path command sclp command for specified chpid.
+ * Return 0 after command successfully finished, non-zero otherwise.
+ */
+int sclp_chp_configure(struct chp_id chpid)
+{
+	return do_chp_configure(SCLP_CMDW_CONFIGURE_CHPATH | chpid.id << 8);
+}
+
+/**
+ * sclp_chp_deconfigure - perform deconfigure channel-path sclp command
+ * @chpid: channel-path ID
+ *
+ * Perform deconfigure channel-path command sclp command for specified chpid
+ * and wait for completion. On success return 0. Return non-zero otherwise.
+ */
+int sclp_chp_deconfigure(struct chp_id chpid)
+{
+	return do_chp_configure(SCLP_CMDW_DECONFIGURE_CHPATH | chpid.id << 8);
+}
+
+struct chp_info_sccb {
+	struct sccb_header header;
+	u8 recognized[SCLP_CHP_INFO_MASK_SIZE];
+	u8 standby[SCLP_CHP_INFO_MASK_SIZE];
+	u8 configured[SCLP_CHP_INFO_MASK_SIZE];
+	u8 ccm;
+	u8 reserved[6];
+	u8 cssid;
+} __attribute__((packed));
+
+/**
+ * sclp_chp_read_info - perform read channel-path information sclp command
+ * @info: resulting channel-path information data
+ *
+ * Perform read channel-path information sclp command and wait for completion.
+ * On success, store channel-path information in @info and return 0. Return
+ * non-zero otherwise.
+ */
+int sclp_chp_read_info(struct sclp_chp_info *info)
+{
+	struct chp_info_sccb *sccb;
+	int rc;
+
+	if (!SCLP_HAS_CHP_INFO)
+		return -EOPNOTSUPP;
+	/* Prepare sccb. */
+	sccb = (struct chp_info_sccb *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
+	if (!sccb)
+		return -ENOMEM;
+	sccb->header.length = sizeof(*sccb);
+	rc = do_sync_request(SCLP_CMDW_READ_CHPATH_INFORMATION, sccb);
+	if (rc)
+		goto out;
+	if (sccb->header.response_code != 0x0010) {
+		printk(KERN_WARNING TAG "read channel-path info failed "
+		       "(response=0x%04x)\n", sccb->header.response_code);
+		rc = -EIO;
+		goto out;
+	}
+	memcpy(info->recognized, sccb->recognized, SCLP_CHP_INFO_MASK_SIZE);
+	memcpy(info->standby, sccb->standby, SCLP_CHP_INFO_MASK_SIZE);
+	memcpy(info->configured, sccb->configured, SCLP_CHP_INFO_MASK_SIZE);
+out:
+	free_page((unsigned long) sccb);
+	return rc;
 }
