@@ -395,11 +395,7 @@ static int auide_dma_test_irq(ide_drive_t *drive)
 	return 0;
 }
 
-static void auide_dma_host_on(ide_drive_t *drive)
-{
-}
-
-static void auide_dma_host_off(ide_drive_t *drive)
+static void auide_dma_host_set(ide_drive_t *drive, int on)
 {
 }
 
@@ -674,13 +670,12 @@ static int au_ide_probe(struct device *dev)
 
 	hwif->mdma_filter		= &auide_mdma_filter;
 
+	hwif->dma_host_set		= &auide_dma_host_set;
 	hwif->dma_exec_cmd              = &auide_dma_exec_cmd;
 	hwif->dma_start                 = &auide_dma_start;
 	hwif->ide_dma_end               = &auide_dma_end;
 	hwif->dma_setup                 = &auide_dma_setup;
 	hwif->ide_dma_test_irq          = &auide_dma_test_irq;
-	hwif->dma_host_off		= &auide_dma_host_off;
-	hwif->dma_host_on		= &auide_dma_host_on;
 	hwif->dma_lost_irq		= &auide_dma_lost_irq;
 #else /* !CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA */
 	hwif->channel                   = 0;

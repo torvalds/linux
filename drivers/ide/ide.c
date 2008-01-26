@@ -433,14 +433,13 @@ static void ide_hwif_restore(ide_hwif_t *hwif, ide_hwif_t *tmp_hwif)
 	hwif->atapi_input_bytes		= tmp_hwif->atapi_input_bytes;
 	hwif->atapi_output_bytes	= tmp_hwif->atapi_output_bytes;
 
+	hwif->dma_host_set		= tmp_hwif->dma_host_set;
 	hwif->dma_setup			= tmp_hwif->dma_setup;
 	hwif->dma_exec_cmd		= tmp_hwif->dma_exec_cmd;
 	hwif->dma_start			= tmp_hwif->dma_start;
 	hwif->ide_dma_end		= tmp_hwif->ide_dma_end;
 	hwif->ide_dma_test_irq		= tmp_hwif->ide_dma_test_irq;
 	hwif->ide_dma_clear_irq		= tmp_hwif->ide_dma_clear_irq;
-	hwif->dma_host_on		= tmp_hwif->dma_host_on;
-	hwif->dma_host_off		= tmp_hwif->dma_host_off;
 	hwif->dma_lost_irq		= tmp_hwif->dma_lost_irq;
 	hwif->dma_timeout		= tmp_hwif->dma_timeout;
 
@@ -834,7 +833,7 @@ int set_using_dma(ide_drive_t *drive, int arg)
 	if (!drive->id || !(drive->id->capability & 1))
 		goto out;
 
-	if (hwif->dma_host_on == NULL)
+	if (hwif->dma_host_set == NULL)
 		goto out;
 
 	err = -EBUSY;

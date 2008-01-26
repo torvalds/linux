@@ -674,11 +674,7 @@ static void cris_ide_output_data (ide_drive_t *drive, void *, unsigned int);
 static void cris_atapi_input_bytes(ide_drive_t *drive, void *, unsigned int);
 static void cris_atapi_output_bytes(ide_drive_t *drive, void *, unsigned int);
 
-static void cris_dma_host_off(ide_drive_t *drive)
-{
-}
-
-static void cris_dma_host_on(ide_drive_t *drive)
+static void cris_dma_host_set(ide_drive_t *drive, int on)
 {
 }
 
@@ -792,6 +788,7 @@ init_e100_ide (void)
 		hwif->ata_output_data = &cris_ide_output_data;
 		hwif->atapi_input_bytes = &cris_atapi_input_bytes;
 		hwif->atapi_output_bytes = &cris_atapi_output_bytes;
+		hwif->dma_host_set = &cris_dma_host_set;
 		hwif->ide_dma_end = &cris_dma_end;
 		hwif->dma_setup = &cris_dma_setup;
 		hwif->dma_exec_cmd = &cris_dma_exec_cmd;
@@ -802,8 +799,6 @@ init_e100_ide (void)
 		hwif->OUTBSYNC = &cris_ide_outbsync;
 		hwif->INB = &cris_ide_inb;
 		hwif->INW = &cris_ide_inw;
-		hwif->dma_host_off = &cris_dma_host_off;
-		hwif->dma_host_on = &cris_dma_host_on;
 		hwif->cbl = ATA_CBL_PATA40;
 		hwif->host_flags |= IDE_HFLAG_NO_ATAPI_DMA;
 		hwif->pio_mask = ATA_PIO4,

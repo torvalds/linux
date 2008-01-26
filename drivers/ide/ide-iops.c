@@ -742,8 +742,8 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 //		msleep(50);
 
 #ifdef CONFIG_BLK_DEV_IDEDMA
-	if (hwif->dma_host_on)	/* check if host supports DMA */
-		hwif->dma_host_off(drive);
+	if (hwif->dma_host_set)	/* check if host supports DMA */
+		hwif->dma_host_set(drive, 0);
 #endif
 
 	/* Skip setting PIO flow-control modes on pre-EIDE drives */
@@ -801,8 +801,8 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 #ifdef CONFIG_BLK_DEV_IDEDMA
 	if ((speed >= XFER_SW_DMA_0 || (hwif->host_flags & IDE_HFLAG_VDMA)) &&
 	    drive->using_dma)
-		hwif->dma_host_on(drive);
-	else if (hwif->dma_host_on)	/* check if host supports DMA */
+		hwif->dma_host_set(drive, 1);
+	else if (hwif->dma_host_set)	/* check if host supports DMA */
 		ide_dma_off_quietly(drive);
 #endif
 

@@ -287,11 +287,7 @@ static void icside_set_dma_mode(ide_drive_t *drive, const u8 xfer_mode)
 		ide_xfer_verbose(xfer_mode), 2000 / drive->drive_data);
 }
 
-static void icside_dma_host_off(ide_drive_t *drive)
-{
-}
-
-static void icside_dma_host_on(ide_drive_t *drive)
+static void icside_dma_host_set(ide_drive_t *drive, int on)
 {
 }
 
@@ -410,8 +406,7 @@ static void icside_dma_init(ide_hwif_t *hwif)
 	hwif->dmatable_dma	= 0;
 	hwif->set_dma_mode	= icside_set_dma_mode;
 
-	hwif->dma_host_off	= icside_dma_host_off;
-	hwif->dma_host_on	= icside_dma_host_on;
+	hwif->dma_host_set	= icside_dma_host_set;
 	hwif->dma_setup		= icside_dma_setup;
 	hwif->dma_exec_cmd	= icside_dma_exec_cmd;
 	hwif->dma_start		= icside_dma_start;

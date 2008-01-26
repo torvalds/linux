@@ -288,13 +288,10 @@ sgiioc4_ide_dma_test_irq(ide_drive_t * drive)
 	return sgiioc4_checkirq(HWIF(drive));
 }
 
-static void sgiioc4_dma_host_on(ide_drive_t * drive)
+static void sgiioc4_dma_host_set(ide_drive_t *drive, int on)
 {
-}
-
-static void sgiioc4_dma_host_off(ide_drive_t * drive)
-{
-	sgiioc4_clearirq(drive);
+	if (!on)
+		sgiioc4_clearirq(drive);
 }
 
 static void
@@ -578,12 +575,11 @@ ide_init_sgiioc4(ide_hwif_t * hwif)
 
 	hwif->mwdma_mask = ATA_MWDMA2_ONLY;
 
+	hwif->dma_host_set = &sgiioc4_dma_host_set;
 	hwif->dma_setup = &sgiioc4_ide_dma_setup;
 	hwif->dma_start = &sgiioc4_ide_dma_start;
 	hwif->ide_dma_end = &sgiioc4_ide_dma_end;
 	hwif->ide_dma_test_irq = &sgiioc4_ide_dma_test_irq;
-	hwif->dma_host_on = &sgiioc4_dma_host_on;
-	hwif->dma_host_off = &sgiioc4_dma_host_off;
 	hwif->dma_lost_irq = &sgiioc4_dma_lost_irq;
 	hwif->dma_timeout = &ide_dma_timeout;
 }

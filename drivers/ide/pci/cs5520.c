@@ -107,18 +107,10 @@ static void cs5520_set_dma_mode(ide_drive_t *drive, const u8 speed)
  *	ATAPI is harder so disable it for now using IDE_HFLAG_NO_ATAPI_DMA
  */
 
-static void cs5520_dma_host_on(ide_drive_t *drive)
+static void cs5520_dma_host_set(ide_drive_t *drive, int on)
 {
-	drive->vdma = 1;
-
-	ide_dma_host_on(drive);
-}
-
-static void cs5520_dma_host_off(ide_drive_t *drive)
-{
-	drive->vdma = 0;
-
-	ide_dma_host_off(drive);
+	drive->vdma = on;
+	ide_dma_host_set(drive, on);
 }
 
 static void __devinit init_hwif_cs5520(ide_hwif_t *hwif)
@@ -129,8 +121,7 @@ static void __devinit init_hwif_cs5520(ide_hwif_t *hwif)
 	if (hwif->dma_base == 0)
 		return;
 
-	hwif->dma_host_on  = &cs5520_dma_host_on;
-	hwif->dma_host_off = &cs5520_dma_host_off;
+	hwif->dma_host_set = &cs5520_dma_host_set;
 }
 
 #define DECLARE_CS_DEV(name_str)				\
