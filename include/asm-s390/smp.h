@@ -90,6 +90,8 @@ extern void __cpu_die (unsigned int cpu);
 extern void cpu_die (void) __attribute__ ((noreturn));
 extern int __cpu_up (unsigned int cpu);
 
+extern int smp_call_function_mask(cpumask_t mask, void (*func)(void *),
+	void *info, int wait);
 #endif
 
 #ifndef CONFIG_SMP
