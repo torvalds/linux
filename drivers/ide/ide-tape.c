@@ -1690,6 +1690,11 @@ static int idetape_end_request(ide_drive_t *drive, int uptodate, int nr_sects)
 	if (error)
 		tape->failed_pc = NULL;
 
+	if (!blk_special_request(rq)) {
+		ide_end_request(drive, uptodate, nr_sects);
+		return 0;
+	}
+
 	spin_lock_irqsave(&tape->spinlock, flags);
 
 	/* The request was a pipelined data transfer request */
