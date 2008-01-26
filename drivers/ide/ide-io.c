@@ -659,8 +659,8 @@ static ide_startstop_t drive_cmd_intr (ide_drive_t *drive)
 		stat = hwif->INB(IDE_STATUS_REG);
 	}
 
-	if (!OK_STAT(stat, READY_STAT, BAD_STAT))
-		return ide_error(drive, "drive_cmd", stat);
+	if (!OK_STAT(stat, (pio_in ? 0 : READY_STAT), BAD_STAT))
+		return ide_error(drive, __FUNCTION__, stat);
 		/* calls ide_end_drive_cmd */
 	ide_end_drive_cmd(drive, stat, hwif->INB(IDE_ERROR_REG));
 	return ide_stopped;
