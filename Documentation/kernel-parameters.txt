@@ -370,6 +370,9 @@ and is between 256 and 4096 characters. It is defined in the file
 			configured.  Potentially dangerous and should only be
 			used if you are entirely sure of the consequences.
 
+	ccw_timeout_log [S390]
+			See Documentation/s390/CommonIO for details.
+
 	checkreqprot	[SELINUX] Set initial checkreqprot flag value.
 			Format: { "0" | "1" }
 			See security/selinux/Kconfig help text.

@@ -25,6 +25,8 @@
 #include "ioasm.h"
 #include "chp.h"
 
+static int timeout_log_enabled;
+
 int
 device_is_online(struct subchannel *sch)
 {
@@ -82,6 +84,52 @@ int device_trigger_verify(struct subchannel *sch)
 	return 0;
 }
 
+static int __init ccw_timeout_log_setup(char *unused)
+{
+	timeout_log_enabled = 1;
+	return 1;
+}
+
+__setup("ccw_timeout_log", ccw_timeout_log_setup);
+
+static void ccw_timeout_log(struct ccw_device *cdev)
+{
+	struct schib schib;
+	struct subchannel *sch;
+	int cc;
+
+	sch = to_subchannel(cdev->dev.parent);
+	cc = stsch(sch->schid, &schib);
+
+	printk(KERN_WARNING "cio: ccw device timeout occurred at %llx, "
+	       "device information:\n", get_clock());
+	printk(KERN_WARNING "cio: orb:\n");
+	print_hex_dump(KERN_WARNING, "cio:  ", DUMP_PREFIX_NONE, 16, 1,
+		       &sch->orb, sizeof(sch->orb), 0);
+	printk(KERN_WARNING "cio: ccw device bus id: %s\n", cdev->dev.bus_id);
+	printk(KERN_WARNING "cio: subchannel bus id: %s\n", sch->dev.bus_id);
+	printk(KERN_WARNING "cio: subchannel lpm: %02x, opm: %02x, "
+	       "vpm: %02x\n", sch->lpm, sch->opm, sch->vpm);
+
+	if ((void *)(addr_t)sch->orb.cpa == &sch->sense_ccw ||
+	    (void *)(addr_t)sch->orb.cpa == cdev->private->iccws)
+		printk(KERN_WARNING "cio: last channel program (intern):\n");
+	else
+		printk(KERN_WARNING "cio: last channel program:\n");
+
+	print_hex_dump(KERN_WARNING, "cio:  ", DUMP_PREFIX_NONE, 16, 1,
+		       (void *)(addr_t)sch->orb.cpa, sizeof(struct ccw1), 0);
+	printk(KERN_WARNING "cio: ccw device state: %d\n",
+	       cdev->private->state);
+	printk(KERN_WARNING "cio: store subchannel returned: cc=%d\n", cc);
+	printk(KERN_WARNING "cio: schib:\n");
+	print_hex_dump(KERN_WARNING, "cio:  ", DUMP_PREFIX_NONE, 16, 1,
+		       &schib, sizeof(schib), 0);
+	printk(KERN_WARNING "cio: ccw device flags:\n");
+	print_hex_dump(KERN_WARNING, "cio:  ", DUMP_PREFIX_NONE, 16, 1,
+		       &cdev->private->flags, sizeof(cdev->private->flags), 0);
+}
+
 /*
  * Timeout function. It just triggers a DEV_EVENT_TIMEOUT.
  */
@@ -92,6 +140,8 @@ ccw_device_timeout(unsigned long data)
 
 	cdev = (struct ccw_device *) data;
 	spin_lock_irq(cdev->ccwlock);
+	if (timeout_log_enabled)
+		ccw_timeout_log(cdev);
 	dev_fsm_event(cdev, DEV_EVENT_TIMEOUT);
 	spin_unlock_irq(cdev->ccwlock);
 }
