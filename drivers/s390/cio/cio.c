@@ -56,39 +56,37 @@ __setup ("cio_msg=", cio_setup);
 
 /*
  * Function: cio_debug_init
- * Initializes three debug logs (under /proc/s390dbf) for common I/O:
- * - cio_msg logs the messages which are printk'ed when CONFIG_DEBUG_IO is on
+ * Initializes three debug logs for common I/O:
+ * - cio_msg logs generic cio messages
  * - cio_trace logs the calling of different functions
- * - cio_crw logs the messages which are printk'ed when CONFIG_DEBUG_CRW is on
- * debug levels depend on CONFIG_DEBUG_IO resp. CONFIG_DEBUG_CRW
+ * - cio_crw logs machine check related cio messages
  */
-static int __init
-cio_debug_init (void)
+static int __init cio_debug_init(void)
 {
-	cio_debug_msg_id = debug_register ("cio_msg", 16, 4, 16*sizeof (long));
+	cio_debug_msg_id = debug_register("cio_msg", 16, 4, 16 * sizeof(long));
 	if (!cio_debug_msg_id)
 		goto out_unregister;
-	debug_register_view (cio_debug_msg_id, &debug_sprintf_view);
-	debug_set_level (cio_debug_msg_id, 2);
-	cio_debug_trace_id = debug_register ("cio_trace", 16, 4, 16);
+	debug_register_view(cio_debug_msg_id, &debug_sprintf_view);
+	debug_set_level(cio_debug_msg_id, 2);
+	cio_debug_trace_id = debug_register("cio_trace", 16, 4, 16);
 	if (!cio_debug_trace_id)
 		goto out_unregister;
-	debug_register_view (cio_debug_trace_id, &debug_hex_ascii_view);
-	debug_set_level (cio_debug_trace_id, 2);
-	cio_debug_crw_id = debug_register ("cio_crw", 4, 4, 16*sizeof (long));
+	debug_register_view(cio_debug_trace_id, &debug_hex_ascii_view);
+	debug_set_level(cio_debug_trace_id, 2);
+	cio_debug_crw_id = debug_register("cio_crw", 16, 4, 16 * sizeof(long));
 	if (!cio_debug_crw_id)
 		goto out_unregister;
-	debug_register_view (cio_debug_crw_id, &debug_sprintf_view);
-	debug_set_level (cio_debug_crw_id, 2);
+	debug_register_view(cio_debug_crw_id, &debug_sprintf_view);
+	debug_set_level(cio_debug_crw_id, 4);
 	return 0;
 
 out_unregister:
 	if (cio_debug_msg_id)
-		debug_unregister (cio_debug_msg_id);
+		debug_unregister(cio_debug_msg_id);
 	if (cio_debug_trace_id)
-		debug_unregister (cio_debug_trace_id);
+		debug_unregister(cio_debug_trace_id);
 	if (cio_debug_crw_id)
-		debug_unregister (cio_debug_crw_id);
+		debug_unregister(cio_debug_crw_id);
 	printk(KERN_WARNING"cio: could not initialize debugging\n");
 	return -1;
 }
@@ -567,7 +565,7 @@ cio_validate_subchannel (struct subchannel *sch, struct subchannel_id schid)
 	 */
 	if (sch->st != 0) {
 		CIO_DEBUG(KERN_INFO, 0,
-			  "cio: Subchannel 0.%x.%04x reports "
+			  "Subchannel 0.%x.%04x reports "
 			  "non-I/O subchannel type %04X\n",
 			  sch->schid.ssid, sch->schid.sch_no, sch->st);
 		/* We stop here for non-io subchannels. */
@@ -600,7 +598,7 @@ cio_validate_subchannel (struct subchannel *sch, struct subchannel_id schid)
 	sch->lpm = sch->schib.pmcw.pam & sch->opm;
 
 	CIO_DEBUG(KERN_INFO, 0,
-		  "cio: Detected device %04x on subchannel 0.%x.%04X"
+		  "Detected device %04x on subchannel 0.%x.%04X"
 		  " - PIM = %02X, PAM = %02X, POM = %02X\n",
 		  sch->schib.pmcw.dev, sch->schid.ssid,
 		  sch->schid.sch_no, sch->schib.pmcw.pim,
