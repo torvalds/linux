@@ -119,7 +119,7 @@ subsys_initcall(glantank_pci_init);
  * GLAN Tank machine initialization.
  */
 static struct physmap_flash_data glantank_flash_data = {
-	.width		= 1,
+	.width		= 2,
 };
 
 static struct resource glantank_flash_resource = {
