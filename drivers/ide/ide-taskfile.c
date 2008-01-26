@@ -750,7 +750,8 @@ abort:
 }
 #endif
 
-int ide_wait_cmd (ide_drive_t *drive, u8 cmd, u8 nsect, u8 feature, u8 sectors, u8 *buf)
+static int ide_wait_cmd(ide_drive_t *drive, u8 cmd, u8 nsect, u8 feature,
+			u8 sectors, u8 *buf)
 {
 	struct request rq;
 	u8 buffer[4];
