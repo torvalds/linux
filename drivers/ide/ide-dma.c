@@ -471,7 +471,7 @@ EXPORT_SYMBOL(ide_dma_off);
 
 void ide_dma_host_on(ide_drive_t *drive)
 {
-	if (drive->using_dma) {
+	if (1) {
 		ide_hwif_t *hwif	= HWIF(drive);
 		u8 unit			= (drive->select.b.unit & 0x01);
 		u8 dma_stat		= hwif->INB(hwif->dma_status);

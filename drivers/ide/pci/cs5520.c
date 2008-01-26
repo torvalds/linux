@@ -109,8 +109,7 @@ static void cs5520_set_dma_mode(ide_drive_t *drive, const u8 speed)
 
 static void cs5520_dma_host_on(ide_drive_t *drive)
 {
-	if (drive->using_dma)
-		drive->vdma = 1;
+	drive->vdma = 1;
 
 	ide_dma_host_on(drive);
 }
