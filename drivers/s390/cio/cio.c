@@ -23,7 +23,7 @@
 #include <asm/reset.h>
 #include <asm/ipl.h>
 #include <asm/chpid.h>
-#include "airq.h"
+#include <asm/airq.h>
 #include "cio.h"
 #include "css.h"
 #include "chsc.h"

@@ -99,6 +99,7 @@ extern int cio_get_options (struct subchannel *);
 extern int cio_modify (struct subchannel *);
 
 int cio_create_sch_lock(struct subchannel *);
+void do_adapter_IO(void);
 
 /* Use with care. */
 #ifdef CONFIG_CCW_CONSOLE
