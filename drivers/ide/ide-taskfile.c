@@ -759,6 +759,7 @@ int ide_wait_cmd (ide_drive_t *drive, u8 cmd, u8 nsect, u8 feature, u8 sectors, 
 		buf = buffer;
 	memset(buf, 0, 4 + SECTOR_WORDS * 4 * sectors);
 	ide_init_drive_cmd(&rq);
+	rq.cmd_type = REQ_TYPE_ATA_CMD;
 	rq.buffer = buf;
 	*buf++ = cmd;
 	*buf++ = nsect;
@@ -778,7 +779,10 @@ int ide_cmd_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 
 	if (NULL == (void *) arg) {
 		struct request rq;
+
 		ide_init_drive_cmd(&rq);
+		rq.cmd_type = REQ_TYPE_ATA_CMD;
+
 		return ide_do_drive_cmd(drive, &rq, ide_wait);
 	}
 

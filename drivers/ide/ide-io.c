@@ -1672,7 +1672,6 @@ irqreturn_t ide_intr (int irq, void *dev_id)
 void ide_init_drive_cmd (struct request *rq)
 {
 	memset(rq, 0, sizeof(*rq));
-	rq->cmd_type = REQ_TYPE_ATA_CMD;
 	rq->ref_count = 1;
 }
 
