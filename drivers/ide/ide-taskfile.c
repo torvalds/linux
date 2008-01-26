@@ -436,7 +436,7 @@ static ide_startstop_t task_in_intr(ide_drive_t *drive)
 	u8 stat = hwif->INB(IDE_STATUS_REG);
 
 	/* new way for dealing with premature shared PCI interrupts */
-	if (!OK_STAT(stat, DATA_READY, BAD_R_STAT)) {
+	if (!OK_STAT(stat, DRQ_STAT, BAD_R_STAT)) {
 		if (stat & (ERR_STAT | DRQ_STAT))
 			return task_error(drive, rq, __FUNCTION__, stat);
 		/* No data yet, so wait for another IRQ. */
@@ -493,7 +493,7 @@ static ide_startstop_t pre_task_out_intr(ide_drive_t *drive, struct request *rq)
 {
 	ide_startstop_t startstop;
 
-	if (ide_wait_stat(&startstop, drive, DATA_READY,
+	if (ide_wait_stat(&startstop, drive, DRQ_STAT,
 			  drive->bad_wstat, WAIT_DRQ)) {
 		printk(KERN_ERR "%s: no DRQ after issuing %sWRITE%s\n",
 				drive->name,
