@@ -1042,7 +1042,7 @@ chsc_determine_css_characteristics(void)
 
 	scsc_area = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!scsc_area) {
-		CIO_MSG_EVENT(0, "Was not able to determine available"
+		CIO_MSG_EVENT(0, "Was not able to determine available "
 			      "CHSCs due to no memory.\n");
 		return -ENOMEM;
 	}
