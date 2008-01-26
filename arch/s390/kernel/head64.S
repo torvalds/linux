@@ -157,7 +157,7 @@ startup_continue:
 	.long	0xb2b10000		# store facility list
 	tm	0xc8,0x08		# check bit for clearing-by-ASCE
 	bno	0f-.LPG1(%r13)
-	lhi	%r1,2094
+	lhi	%r1,2048
 	lhi	%r2,0
 	.long	0xb98e2001
 	oi	7(%r12),0x80		# set IDTE flag

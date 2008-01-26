@@ -42,11 +42,11 @@ static inline void __tlb_flush_global(void)
 /*
  * Flush all tlb entries of a page table on all cpus.
  */
-static inline void __tlb_flush_idte(pgd_t *pgd)
+static inline void __tlb_flush_idte(unsigned long asce)
 {
 	asm volatile(
 		"	.insn	rrf,0xb98e0000,0,%0,%1,0"
-		: : "a" (2048), "a" (__pa(pgd) & PAGE_MASK) : "cc" );
+		: : "a" (2048), "a" (asce) : "cc" );
 }
 
 static inline void __tlb_flush_mm(struct mm_struct * mm)
@@ -61,11 +61,11 @@ static inline void __tlb_flush_mm(struct mm_struct * mm)
 	 * only ran on the local cpu.
 	 */
 	if (MACHINE_HAS_IDTE) {
-		pgd_t *shadow_pgd = get_shadow_table(mm->pgd);
+		pgd_t *shadow = get_shadow_table(mm->pgd);
 
-		if (shadow_pgd)
-			__tlb_flush_idte(shadow_pgd);
-		__tlb_flush_idte(mm->pgd);
+		if (shadow)
+			__tlb_flush_idte((unsigned long) shadow | mm->context);
+		__tlb_flush_idte((unsigned long) mm->pgd | mm->context);
 		return;
 	}
 	preempt_disable();

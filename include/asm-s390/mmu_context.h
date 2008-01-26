@@ -12,10 +12,15 @@
 #include <asm/pgalloc.h>
 #include <asm-generic/mm_hooks.h>
 
-/*
- * get a new mmu context.. S390 don't know about contexts.
- */
-#define init_new_context(tsk,mm)        0
+static inline int init_new_context(struct task_struct *tsk,
+				   struct mm_struct *mm)
+{
+	mm->context = _ASCE_TABLE_LENGTH | _ASCE_USER_BITS;
+#ifdef CONFIG_64BIT
+	mm->context |= _ASCE_TYPE_REGION3;
+#endif
+	return 0;
+}
 
 #define destroy_context(mm)             do { } while (0)
 
@@ -27,19 +32,11 @@
 
 static inline void update_mm(struct mm_struct *mm, struct task_struct *tsk)
 {
-	pgd_t *pgd = mm->pgd;
-	unsigned long asce_bits;
-
-	/* Calculate asce bits from the first pgd table entry. */
-	asce_bits = _ASCE_TABLE_LENGTH | _ASCE_USER_BITS;
-#ifdef CONFIG_64BIT
-	asce_bits |= _ASCE_TYPE_REGION3;
-#endif
-	S390_lowcore.user_asce = asce_bits | __pa(pgd);
+	S390_lowcore.user_asce = mm->context | __pa(mm->pgd);
 	if (switch_amode) {
 		/* Load primary space page table origin. */
-		pgd_t *shadow_pgd = get_shadow_table(pgd) ? : pgd;
-		S390_lowcore.user_exec_asce = asce_bits | __pa(shadow_pgd);
+		pgd_t *shadow_pgd = get_shadow_table(mm->pgd) ? : mm->pgd;
+		S390_lowcore.user_exec_asce = mm->context | __pa(shadow_pgd);
 		asm volatile(LCTL_OPCODE" 1,1,%0\n"
 			     : : "m" (S390_lowcore.user_exec_asce) );
 	} else
