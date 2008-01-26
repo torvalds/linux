@@ -55,6 +55,7 @@ rapide_probe(struct expansion_card *ec, const struct ecard_id *id)
 
 	hwif = rapide_locate_hwif(base, base + 0x818, 1 << 6, ec->irq);
 	if (hwif) {
+		hwif->chipset = ide_generic;
 		hwif->hwif_data = base;
 		hwif->gendev.parent = &ec->dev;
 		hwif->noprobe = 0;
