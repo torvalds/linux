@@ -86,13 +86,13 @@ FixPerRegisters(struct task_struct *task)
 		per_info->control_regs.bits.storage_alt_space_ctl = 0;
 }
 
-static void set_single_step(struct task_struct *task)
+void user_enable_single_step(struct task_struct *task)
 {
 	task->thread.per_info.single_step = 1;
 	FixPerRegisters(task);
 }
 
-static void clear_single_step(struct task_struct *task)
+void user_disable_single_step(struct task_struct *task)
 {
 	task->thread.per_info.single_step = 0;
 	FixPerRegisters(task);
@@ -107,7 +107,7 @@ void
 ptrace_disable(struct task_struct *child)
 {
 	/* make sure the single step bit is not set. */
-	clear_single_step(child);
+	user_disable_single_step(child);
 }
 
 #ifndef CONFIG_64BIT
@@ -651,7 +651,7 @@ do_ptrace(struct task_struct *child, long request, long addr, long data)
 			clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 		child->exit_code = data;
 		/* make sure the single step bit is not set. */
-		clear_single_step(child);
+		user_disable_single_step(child);
 		wake_up_process(child);
 		return 0;
 
@@ -665,7 +665,7 @@ do_ptrace(struct task_struct *child, long request, long addr, long data)
 			return 0;
 		child->exit_code = SIGKILL;
 		/* make sure the single step bit is not set. */
-		clear_single_step(child);
+		user_disable_single_step(child);
 		wake_up_process(child);
 		return 0;
 
@@ -675,10 +675,7 @@ do_ptrace(struct task_struct *child, long request, long addr, long data)
 			return -EIO;
 		clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 		child->exit_code = data;
-		if (data)
-			set_tsk_thread_flag(child, TIF_SINGLE_STEP);
-		else
-			set_single_step(child);
+		user_enable_single_step(child);
 		/* give it a chance to run. */
 		wake_up_process(child);
 		return 0;
