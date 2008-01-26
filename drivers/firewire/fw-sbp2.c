@@ -149,15 +149,17 @@ struct sbp2_target {
 
 	unsigned workarounds;
 	struct list_head lu_list;
+
+	unsigned int mgt_orb_timeout;
 };
 
 /*
  * Per section 7.4.8 of the SBP-2 spec, a mgt_ORB_timeout value can be
- * provided in the config rom.  A high timeout value really only matters
- * on initial login, where we'll just use 20s rather than hassling with
- * reading the config rom, since it really wouldn't buy us much.
+ * provided in the config rom. Most devices do provide a value, which
+ * we'll use for login management orbs, but with some sane limits.
  */
-#define SBP2_LOGIN_ORB_TIMEOUT		20000	/* Timeout in ms */
+#define SBP2_MIN_LOGIN_ORB_TIMEOUT	5000U	/* Timeout in ms */
+#define SBP2_MAX_LOGIN_ORB_TIMEOUT	40000U	/* Timeout in ms */
 #define SBP2_ORB_TIMEOUT		2000	/* Timeout in ms */
 #define SBP2_ORB_NULL			0x80000000
 #define SBP2_MAX_SG_ELEMENT_LENGTH	0xf000
@@ -166,6 +168,7 @@ struct sbp2_target {
 #define SBP2_DIRECTION_FROM_MEDIA	0x1
 
 /* Unit directory keys */
+#define SBP2_CSR_UNIT_CHARACTERISTICS	0x3a
 #define SBP2_CSR_FIRMWARE_REVISION	0x3c
 #define SBP2_CSR_LOGICAL_UNIT_NUMBER	0x14
 #define SBP2_CSR_LOGICAL_UNIT_DIRECTORY	0xd4
@@ -527,7 +530,7 @@ sbp2_send_management_orb(struct sbp2_logical_unit *lu, int node_id,
 		orb->request.misc |=
 			MANAGEMENT_ORB_RECONNECT(2) |
 			MANAGEMENT_ORB_EXCLUSIVE(sbp2_param_exclusive_login);
-		timeout = SBP2_LOGIN_ORB_TIMEOUT;
+		timeout = lu->tgt->mgt_orb_timeout;
 	} else {
 		timeout = SBP2_ORB_TIMEOUT;
 	}
@@ -777,6 +780,7 @@ static int sbp2_scan_unit_dir(struct sbp2_target *tgt, u32 *directory,
 {
 	struct fw_csr_iterator ci;
 	int key, value;
+	unsigned int timeout;
 
 	fw_csr_iterator_init(&ci, directory);
 	while (fw_csr_iterator_next(&ci, &key, &value)) {
@@ -797,6 +801,21 @@ static int sbp2_scan_unit_dir(struct sbp2_target *tgt, u32 *directory,
 
 		case SBP2_CSR_FIRMWARE_REVISION:
 			*firmware_revision = value;
+			break;
+
+		case SBP2_CSR_UNIT_CHARACTERISTICS:
+			/* the timeout value is stored in 500ms units */
+			timeout = ((unsigned int) value >> 8 & 0xff) * 500;
+			timeout = max(timeout, SBP2_MIN_LOGIN_ORB_TIMEOUT);
+			tgt->mgt_orb_timeout =
+				  min(timeout, SBP2_MAX_LOGIN_ORB_TIMEOUT);
+
+			if (timeout > tgt->mgt_orb_timeout)
+				fw_notify("%s: config rom contains %ds "
+					  "management ORB timeout, limiting "
+					  "to %ds\n", tgt->unit->device.bus_id,
+					  timeout / 1000,
+					  tgt->mgt_orb_timeout / 1000);
 			break;
 
 		case SBP2_CSR_LOGICAL_UNIT_NUMBER:
