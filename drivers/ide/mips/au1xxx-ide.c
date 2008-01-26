@@ -677,15 +677,14 @@ static int au_ide_probe(struct device *dev)
 	hwif->dma_setup                 = &auide_dma_setup;
 	hwif->ide_dma_test_irq          = &auide_dma_test_irq;
 	hwif->dma_lost_irq		= &auide_dma_lost_irq;
-#else /* !CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA */
+#endif
 	hwif->channel                   = 0;
-	hwif->hold                      = 1;
 	hwif->select_data               = 0;    /* no chipset-specific code */
 	hwif->config_data               = 0;    /* no chipset-specific code */
 
 	hwif->drives[0].autotune        = 1;    /* 1=autotune, 2=noautotune, 0=default */
 	hwif->drives[1].autotune	= 1;
-#endif
+
 	hwif->drives[0].no_io_32bit	= 1;
 	hwif->drives[1].no_io_32bit	= 1;
 
