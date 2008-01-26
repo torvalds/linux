@@ -147,7 +147,9 @@ void ata_exec_command(struct ata_port *ap, const struct ata_taskfile *tf)
  *	@tf: ATA taskfile register set for storing input
  *
  *	Reads ATA taskfile registers for currently-selected device
- *	into @tf.
+ *	into @tf. Assumes the device has a fully SFF compliant task file
+ *	layout and behaviour. If you device does not (eg has a different
+ *	status method) then you will need to provide a replacement tf_read
  *
  *	LOCKING:
  *	Inherited from caller.
@@ -156,7 +158,7 @@ void ata_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
 {
 	struct ata_ioports *ioaddr = &ap->ioaddr;
 
-	tf->command = ata_chk_status(ap);
+	tf->command = ata_check_status(ap);
 	tf->feature = ioread8(ioaddr->error_addr);
 	tf->nsect = ioread8(ioaddr->nsect_addr);
 	tf->lbal = ioread8(ioaddr->lbal_addr);
@@ -415,7 +417,7 @@ void ata_bmdma_drive_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
 	ap->hsm_task_state = HSM_ST_IDLE;
 
 	if (qc && (qc->tf.protocol == ATA_PROT_DMA ||
-		   qc->tf.protocol == ATA_PROT_ATAPI_DMA)) {
+		   qc->tf.protocol == ATAPI_PROT_DMA)) {
 		u8 host_stat;
 
 		host_stat = ap->ops->bmdma_status(ap);
@@ -549,7 +551,7 @@ int ata_pci_init_bmdma(struct ata_host *host)
 		return rc;
 
 	/* request and iomap DMA region */
-	rc = pcim_iomap_regions(pdev, 1 << 4, DRV_NAME);
+	rc = pcim_iomap_regions(pdev, 1 << 4, dev_driver_string(gdev));
 	if (rc) {
 		dev_printk(KERN_ERR, gdev, "failed to request/iomap BAR4\n");
 		return -ENOMEM;
@@ -619,7 +621,8 @@ int ata_pci_init_sff_host(struct ata_host *host)
 			continue;
 		}
 
-		rc = pcim_iomap_regions(pdev, 0x3 << base, DRV_NAME);
+		rc = pcim_iomap_regions(pdev, 0x3 << base,
+					dev_driver_string(gdev));
 		if (rc) {
 			dev_printk(KERN_WARNING, gdev,
 				   "failed to request/iomap BARs for port %d "
@@ -711,6 +714,99 @@ int ata_pci_prepare_sff_host(struct pci_dev *pdev,
 }
 
 /**
+ *	ata_pci_activate_sff_host - start SFF host, request IRQ and register it
+ *	@host: target SFF ATA host
+ *	@irq_handler: irq_handler used when requesting IRQ(s)
+ *	@sht: scsi_host_template to use when registering the host
+ *
+ *	This is the counterpart of ata_host_activate() for SFF ATA
+ *	hosts.  This separate helper is necessary because SFF hosts
+ *	use two separate interrupts in legacy mode.
+ *
+ *	LOCKING:
+ *	Inherited from calling layer (may sleep).
+ *
+ *	RETURNS:
+ *	0 on success, -errno otherwise.
+ */
+int ata_pci_activate_sff_host(struct ata_host *host,
+			      irq_handler_t irq_handler,
+			      struct scsi_host_template *sht)
+{
+	struct device *dev = host->dev;
+	struct pci_dev *pdev = to_pci_dev(dev);
+	const char *drv_name = dev_driver_string(host->dev);
+	int legacy_mode = 0, rc;
+
+	rc = ata_host_start(host);
+	if (rc)
+		return rc;
+
+	if ((pdev->class >> 8) == PCI_CLASS_STORAGE_IDE) {
+		u8 tmp8, mask;
+
+		/* TODO: What if one channel is in native mode ... */
+		pci_read_config_byte(pdev, PCI_CLASS_PROG, &tmp8);
+		mask = (1 << 2) | (1 << 0);
+		if ((tmp8 & mask) != mask)
+			legacy_mode = 1;
+#if defined(CONFIG_NO_ATA_LEGACY)
+		/* Some platforms with PCI limits cannot address compat
+		   port space. In that case we punt if their firmware has
+		   left a device in compatibility mode */
+		if (legacy_mode) {
+			printk(KERN_ERR "ata: Compatibility mode ATA is not supported on this platform, skipping.\n");
+			return -EOPNOTSUPP;
+		}
+#endif
+	}
+
+	if (!devres_open_group(dev, NULL, GFP_KERNEL))
+		return -ENOMEM;
+
+	if (!legacy_mode && pdev->irq) {
+		rc = devm_request_irq(dev, pdev->irq, irq_handler,
+				      IRQF_SHARED, drv_name, host);
+		if (rc)
+			goto out;
+
+		ata_port_desc(host->ports[0], "irq %d", pdev->irq);
+		ata_port_desc(host->ports[1], "irq %d", pdev->irq);
+	} else if (legacy_mode) {
+		if (!ata_port_is_dummy(host->ports[0])) {
+			rc = devm_request_irq(dev, ATA_PRIMARY_IRQ(pdev),
+					      irq_handler, IRQF_SHARED,
+					      drv_name, host);
+			if (rc)
+				goto out;
+
+			ata_port_desc(host->ports[0], "irq %d",
+				      ATA_PRIMARY_IRQ(pdev));
+		}
+
+		if (!ata_port_is_dummy(host->ports[1])) {
+			rc = devm_request_irq(dev, ATA_SECONDARY_IRQ(pdev),
+					      irq_handler, IRQF_SHARED,
+					      drv_name, host);
+			if (rc)
+				goto out;
+
+			ata_port_desc(host->ports[1], "irq %d",
+				      ATA_SECONDARY_IRQ(pdev));
+		}
+	}
+
+	rc = ata_host_register(host, sht);
+ out:
+	if (rc == 0)
+		devres_remove_group(dev, NULL);
+	else
+		devres_release_group(dev, NULL);
+
+	return rc;
+}
+
+/**
  *	ata_pci_init_one - Initialize/register PCI IDE host controller
  *	@pdev: Controller to be initialized
  *	@ppi: array of port_info, must be enough for two ports
@@ -739,8 +835,6 @@ int ata_pci_init_one(struct pci_dev *pdev,
 	struct device *dev = &pdev->dev;
 	const struct ata_port_info *pi = NULL;
 	struct ata_host *host = NULL;
-	u8 mask;
-	int legacy_mode = 0;
 	int i, rc;
 
 	DPRINTK("ENTER\n");
@@ -762,95 +856,24 @@ int ata_pci_init_one(struct pci_dev *pdev,
 	if (!devres_open_group(dev, NULL, GFP_KERNEL))
 		return -ENOMEM;
 
-	/* FIXME: Really for ATA it isn't safe because the device may be
-	   multi-purpose and we want to leave it alone if it was already
-	   enabled. Secondly for shared use as Arjan says we want refcounting
-
-	   Checking dev->is_enabled is insufficient as this is not set at
-	   boot for the primary video which is BIOS enabled
-	  */
-
 	rc = pcim_enable_device(pdev);
 	if (rc)
-		goto err_out;
+		goto out;
 
-	if ((pdev->class >> 8) == PCI_CLASS_STORAGE_IDE) {
-		u8 tmp8;
-
-		/* TODO: What if one channel is in native mode ... */
-		pci_read_config_byte(pdev, PCI_CLASS_PROG, &tmp8);
-		mask = (1 << 2) | (1 << 0);
-		if ((tmp8 & mask) != mask)
-			legacy_mode = 1;
-#if defined(CONFIG_NO_ATA_LEGACY)
-		/* Some platforms with PCI limits cannot address compat
-		   port space. In that case we punt if their firmware has
-		   left a device in compatibility mode */
-		if (legacy_mode) {
-			printk(KERN_ERR "ata: Compatibility mode ATA is not supported on this platform, skipping.\n");
-			rc = -EOPNOTSUPP;
-			goto err_out;
-		}
-#endif
-	}
-
-	/* prepare host */
+	/* prepare and activate SFF host */
 	rc = ata_pci_prepare_sff_host(pdev, ppi, &host);
 	if (rc)
-		goto err_out;
+		goto out;
 
 	pci_set_master(pdev);
+	rc = ata_pci_activate_sff_host(host, pi->port_ops->irq_handler,
+				       pi->sht);
+ out:
+	if (rc == 0)
+		devres_remove_group(&pdev->dev, NULL);
+	else
+		devres_release_group(&pdev->dev, NULL);
 
-	/* start host and request IRQ */
-	rc = ata_host_start(host);
-	if (rc)
-		goto err_out;
-
-	if (!legacy_mode && pdev->irq) {
-		/* We may have no IRQ assigned in which case we can poll. This
-		   shouldn't happen on a sane system but robustness is cheap
-		   in this case */
-		rc = devm_request_irq(dev, pdev->irq, pi->port_ops->irq_handler,
-				      IRQF_SHARED, DRV_NAME, host);
-		if (rc)
-			goto err_out;
-
-		ata_port_desc(host->ports[0], "irq %d", pdev->irq);
-		ata_port_desc(host->ports[1], "irq %d", pdev->irq);
-	} else if (legacy_mode) {
-		if (!ata_port_is_dummy(host->ports[0])) {
-			rc = devm_request_irq(dev, ATA_PRIMARY_IRQ(pdev),
-					      pi->port_ops->irq_handler,
-					      IRQF_SHARED, DRV_NAME, host);
-			if (rc)
-				goto err_out;
-
-			ata_port_desc(host->ports[0], "irq %d",
-				      ATA_PRIMARY_IRQ(pdev));
-		}
-
-		if (!ata_port_is_dummy(host->ports[1])) {
-			rc = devm_request_irq(dev, ATA_SECONDARY_IRQ(pdev),
-					      pi->port_ops->irq_handler,
-					      IRQF_SHARED, DRV_NAME, host);
-			if (rc)
-				goto err_out;
-
-			ata_port_desc(host->ports[1], "irq %d",
-				      ATA_SECONDARY_IRQ(pdev));
-		}
-	}
-
-	/* register */
-	rc = ata_host_register(host, pi->sht);
-	if (rc)
-		goto err_out;
-
-	devres_remove_group(dev, NULL);
-	return 0;
-
-err_out:
-	devres_release_group(dev, NULL);
 	return rc;
 }
 

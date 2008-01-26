@@ -42,13 +42,13 @@ static int ixp4xx_set_mode(struct ata_link *link, struct ata_device **error)
 	return 0;
 }
 
-static void ixp4xx_mmio_data_xfer(struct ata_device *adev, unsigned char *buf,
-				unsigned int buflen, int write_data)
+static unsigned int ixp4xx_mmio_data_xfer(struct ata_device *dev,
+				unsigned char *buf, unsigned int buflen, int rw)
 {
 	unsigned int i;
 	unsigned int words = buflen >> 1;
 	u16 *buf16 = (u16 *) buf;
-	struct ata_port *ap = adev->link->ap;
+	struct ata_port *ap = dev->link->ap;
 	void __iomem *mmio = ap->ioaddr.data_addr;
 	struct ixp4xx_pata_data *data = ap->host->dev->platform_data;
 
@@ -59,30 +59,32 @@ static void ixp4xx_mmio_data_xfer(struct ata_device *adev, unsigned char *buf,
 	udelay(100);
 
 	/* Transfer multiple of 2 bytes */
-	if (write_data) {
-		for (i = 0; i < words; i++)
-			writew(buf16[i], mmio);
-	} else {
+	if (rw == READ)
 		for (i = 0; i < words; i++)
 			buf16[i] = readw(mmio);
-	}
+	else
+		for (i = 0; i < words; i++)
+			writew(buf16[i], mmio);
 
 	/* Transfer trailing 1 byte, if any. */
 	if (unlikely(buflen & 0x01)) {
 		u16 align_buf[1] = { 0 };
 		unsigned char *trailing_buf = buf + buflen - 1;
 
-		if (write_data) {
-			memcpy(align_buf, trailing_buf, 1);
-			writew(align_buf[0], mmio);
-		} else {
+		if (rw == READ) {
 			align_buf[0] = readw(mmio);
 			memcpy(trailing_buf, align_buf, 1);
+		} else {
+			memcpy(align_buf, trailing_buf, 1);
+			writew(align_buf[0], mmio);
 		}
+		words++;
 	}
 
 	udelay(100);
 	*data->cs0_cfg |= 0x01;
+
+	return words << 1;
 }
 
 static struct scsi_host_template ixp4xx_sht = {

@@ -224,6 +224,7 @@ static void pata_icside_bmdma_setup(struct ata_queued_cmd *qc)
 	struct pata_icside_state *state = ap->host->private_data;
 	struct scatterlist *sg, *rsg = state->sg;
 	unsigned int write = qc->tf.flags & ATA_TFLAG_WRITE;
+	unsigned int si;
 
 	/*
 	 * We are simplex; BUG if we try to fiddle with DMA
@@ -234,7 +235,7 @@ static void pata_icside_bmdma_setup(struct ata_queued_cmd *qc)
 	/*
 	 * Copy ATAs scattered sg list into a contiguous array of sg
 	 */
-	ata_for_each_sg(sg, qc) {
+	for_each_sg(qc->sg, sg, qc->n_elem, si) {
 		memcpy(rsg, sg, sizeof(*sg));
 		rsg++;
 	}

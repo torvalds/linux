@@ -450,19 +450,19 @@ static void pdc_atapi_pkt(struct ata_queued_cmd *qc)
 	struct pdc_port_priv *pp = ap->private_data;
 	u8 *buf = pp->pkt;
 	u32 *buf32 = (u32 *) buf;
-	unsigned int dev_sel, feature, nbytes;
+	unsigned int dev_sel, feature;
 
 	/* set control bits (byte 0), zero delay seq id (byte 3),
 	 * and seq id (byte 2)
 	 */
 	switch (qc->tf.protocol) {
-	case ATA_PROT_ATAPI_DMA:
+	case ATAPI_PROT_DMA:
 		if (!(qc->tf.flags & ATA_TFLAG_WRITE))
 			buf32[0] = cpu_to_le32(PDC_PKT_READ);
 		else
 			buf32[0] = 0;
 		break;
-	case ATA_PROT_ATAPI_NODATA:
+	case ATAPI_PROT_NODATA:
 		buf32[0] = cpu_to_le32(PDC_PKT_NODATA);
 		break;
 	default:
@@ -473,45 +473,37 @@ static void pdc_atapi_pkt(struct ata_queued_cmd *qc)
 	buf32[2] = 0;				/* no next-packet */
 
 	/* select drive */
-	if (sata_scr_valid(&ap->link)) {
+	if (sata_scr_valid(&ap->link))
 		dev_sel = PDC_DEVICE_SATA;
-	} else {
-		dev_sel = ATA_DEVICE_OBS;
-		if (qc->dev->devno != 0)
-			dev_sel |= ATA_DEV1;
-	}
+	else
+		dev_sel = qc->tf.device;
+
 	buf[12] = (1 << 5) | ATA_REG_DEVICE;
 	buf[13] = dev_sel;
 	buf[14] = (1 << 5) | ATA_REG_DEVICE | PDC_PKT_CLEAR_BSY;
 	buf[15] = dev_sel; /* once more, waiting for BSY to clear */
 
 	buf[16] = (1 << 5) | ATA_REG_NSECT;
-	buf[17] = 0x00;
+	buf[17] = qc->tf.nsect;
 	buf[18] = (1 << 5) | ATA_REG_LBAL;
-	buf[19] = 0x00;
+	buf[19] = qc->tf.lbal;
 
 	/* set feature and byte counter registers */
-	if (qc->tf.protocol != ATA_PROT_ATAPI_DMA) {
+	if (qc->tf.protocol != ATAPI_PROT_DMA)
 		feature = PDC_FEATURE_ATAPI_PIO;
-		/* set byte counter register to real transfer byte count */
-		nbytes = qc->nbytes;
-		if (nbytes > 0xffff)
-			nbytes = 0xffff;
-	} else {
+	else
 		feature = PDC_FEATURE_ATAPI_DMA;
-		/* set byte counter register to 0 */
-		nbytes = 0;
-	}
+
 	buf[20] = (1 << 5) | ATA_REG_FEATURE;
 	buf[21] = feature;
 	buf[22] = (1 << 5) | ATA_REG_BYTEL;
-	buf[23] = nbytes & 0xFF;
+	buf[23] = qc->tf.lbam;
 	buf[24] = (1 << 5) | ATA_REG_BYTEH;
-	buf[25] = (nbytes >> 8) & 0xFF;
+	buf[25] = qc->tf.lbah;
 
 	/* send ATAPI packet command 0xA0 */
 	buf[26] = (1 << 5) | ATA_REG_CMD;
-	buf[27] = ATA_CMD_PACKET;
+	buf[27] = qc->tf.command;
 
 	/* select drive and check DRQ */
 	buf[28] = (1 << 5) | ATA_REG_DEVICE | PDC_PKT_WAIT_DRDY;
@@ -541,17 +533,15 @@ static void pdc_fill_sg(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct scatterlist *sg;
-	unsigned int idx;
 	const u32 SG_COUNT_ASIC_BUG = 41*4;
+	unsigned int si, idx;
+	u32 len;
 
 	if (!(qc->flags & ATA_QCFLAG_DMAMAP))
 		return;
 
-	WARN_ON(qc->__sg == NULL);
-	WARN_ON(qc->n_elem == 0 && qc->pad_len == 0);
-
 	idx = 0;
-	ata_for_each_sg(sg, qc) {
+	for_each_sg(qc->sg, sg, qc->n_elem, si) {
 		u32 addr, offset;
 		u32 sg_len, len;
 
@@ -578,29 +568,27 @@ static void pdc_fill_sg(struct ata_queued_cmd *qc)
 		}
 	}
 
-	if (idx) {
-		u32 len = le32_to_cpu(ap->prd[idx - 1].flags_len);
+	len = le32_to_cpu(ap->prd[idx - 1].flags_len);
 
-		if (len > SG_COUNT_ASIC_BUG) {
-			u32 addr;
+	if (len > SG_COUNT_ASIC_BUG) {
+		u32 addr;
 
-			VPRINTK("Splitting last PRD.\n");
+		VPRINTK("Splitting last PRD.\n");
 
-			addr = le32_to_cpu(ap->prd[idx - 1].addr);
-			ap->prd[idx - 1].flags_len = cpu_to_le32(len - SG_COUNT_ASIC_BUG);
-			VPRINTK("PRD[%u] = (0x%X, 0x%X)\n", idx - 1, addr, SG_COUNT_ASIC_BUG);
+		addr = le32_to_cpu(ap->prd[idx - 1].addr);
+		ap->prd[idx - 1].flags_len = cpu_to_le32(len - SG_COUNT_ASIC_BUG);
+		VPRINTK("PRD[%u] = (0x%X, 0x%X)\n", idx - 1, addr, SG_COUNT_ASIC_BUG);
 
-			addr = addr + len - SG_COUNT_ASIC_BUG;
-			len = SG_COUNT_ASIC_BUG;
-			ap->prd[idx].addr = cpu_to_le32(addr);
-			ap->prd[idx].flags_len = cpu_to_le32(len);
-			VPRINTK("PRD[%u] = (0x%X, 0x%X)\n", idx, addr, len);
+		addr = addr + len - SG_COUNT_ASIC_BUG;
+		len = SG_COUNT_ASIC_BUG;
+		ap->prd[idx].addr = cpu_to_le32(addr);
+		ap->prd[idx].flags_len = cpu_to_le32(len);
+		VPRINTK("PRD[%u] = (0x%X, 0x%X)\n", idx, addr, len);
 
-			idx++;
-		}
-
-		ap->prd[idx - 1].flags_len |= cpu_to_le32(ATA_PRD_EOT);
+		idx++;
 	}
+
+	ap->prd[idx - 1].flags_len |= cpu_to_le32(ATA_PRD_EOT);
 }
 
 static void pdc_qc_prep(struct ata_queued_cmd *qc)
@@ -627,14 +615,14 @@ static void pdc_qc_prep(struct ata_queued_cmd *qc)
 		pdc_pkt_footer(&qc->tf, pp->pkt, i);
 		break;
 
-	case ATA_PROT_ATAPI:
+	case ATAPI_PROT_PIO:
 		pdc_fill_sg(qc);
 		break;
 
-	case ATA_PROT_ATAPI_DMA:
+	case ATAPI_PROT_DMA:
 		pdc_fill_sg(qc);
 		/*FALLTHROUGH*/
-	case ATA_PROT_ATAPI_NODATA:
+	case ATAPI_PROT_NODATA:
 		pdc_atapi_pkt(qc);
 		break;
 
@@ -754,8 +742,8 @@ static inline unsigned int pdc_host_intr(struct ata_port *ap,
 	switch (qc->tf.protocol) {
 	case ATA_PROT_DMA:
 	case ATA_PROT_NODATA:
-	case ATA_PROT_ATAPI_DMA:
-	case ATA_PROT_ATAPI_NODATA:
+	case ATAPI_PROT_DMA:
+	case ATAPI_PROT_NODATA:
 		qc->err_mask |= ac_err_mask(ata_wait_idle(ap));
 		ata_qc_complete(qc);
 		handled = 1;
@@ -900,7 +888,7 @@ static inline void pdc_packet_start(struct ata_queued_cmd *qc)
 static unsigned int pdc_qc_issue_prot(struct ata_queued_cmd *qc)
 {
 	switch (qc->tf.protocol) {
-	case ATA_PROT_ATAPI_NODATA:
+	case ATAPI_PROT_NODATA:
 		if (qc->dev->flags & ATA_DFLAG_CDB_INTR)
 			break;
 		/*FALLTHROUGH*/
@@ -908,7 +896,7 @@ static unsigned int pdc_qc_issue_prot(struct ata_queued_cmd *qc)
 		if (qc->tf.flags & ATA_TFLAG_POLLING)
 			break;
 		/*FALLTHROUGH*/
-	case ATA_PROT_ATAPI_DMA:
+	case ATAPI_PROT_DMA:
 	case ATA_PROT_DMA:
 		pdc_packet_start(qc);
 		return 0;
@@ -922,16 +910,14 @@ static unsigned int pdc_qc_issue_prot(struct ata_queued_cmd *qc)
 
 static void pdc_tf_load_mmio(struct ata_port *ap, const struct ata_taskfile *tf)
 {
-	WARN_ON(tf->protocol == ATA_PROT_DMA ||
-		tf->protocol == ATA_PROT_ATAPI_DMA);
+	WARN_ON(tf->protocol == ATA_PROT_DMA || tf->protocol == ATAPI_PROT_DMA);
 	ata_tf_load(ap, tf);
 }
 
 static void pdc_exec_command_mmio(struct ata_port *ap,
 				  const struct ata_taskfile *tf)
 {
-	WARN_ON(tf->protocol == ATA_PROT_DMA ||
-		tf->protocol == ATA_PROT_ATAPI_DMA);
+	WARN_ON(tf->protocol == ATA_PROT_DMA || tf->protocol == ATAPI_PROT_DMA);
 	ata_exec_command(ap, tf);
 }
 

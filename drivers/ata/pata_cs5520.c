@@ -198,7 +198,7 @@ static int __devinit cs5520_init_one(struct pci_dev *pdev, const struct pci_devi
 	};
 	const struct ata_port_info *ppi[2];
 	u8 pcicfg;
-	void *iomap[5];
+	void __iomem *iomap[5];
 	struct ata_host *host;
 	struct ata_ioports *ioaddr;
 	int i, rc;

@@ -35,6 +35,7 @@
 #include <linux/workqueue.h>
 #include <scsi/scsi_host.h>
 #include <linux/acpi.h>
+#include <linux/cdrom.h>
 
 /*
  * Define if arch has non-standard setup.  This is a _PCI_ standard
@@ -143,10 +144,11 @@ enum {
 	ATA_DFLAG_NCQ_OFF	= (1 << 13), /* device limited to non-NCQ mode */
 	ATA_DFLAG_SPUNDOWN	= (1 << 14), /* XXX: for spindown_compat */
 	ATA_DFLAG_SLEEPING	= (1 << 15), /* device is sleeping */
-	ATA_DFLAG_INIT_MASK	= (1 << 16) - 1,
+	ATA_DFLAG_DUBIOUS_XFER	= (1 << 16), /* data transfer not verified */
+	ATA_DFLAG_INIT_MASK	= (1 << 24) - 1,
 
-	ATA_DFLAG_DETACH	= (1 << 16),
-	ATA_DFLAG_DETACHED	= (1 << 17),
+	ATA_DFLAG_DETACH	= (1 << 24),
+	ATA_DFLAG_DETACHED	= (1 << 25),
 
 	ATA_DEV_UNKNOWN		= 0,	/* unknown device */
 	ATA_DEV_ATA		= 1,	/* ATA device */
@@ -217,9 +219,7 @@ enum {
 
 	/* struct ata_queued_cmd flags */
 	ATA_QCFLAG_ACTIVE	= (1 << 0), /* cmd not yet ack'd to scsi lyer */
-	ATA_QCFLAG_SG		= (1 << 1), /* have s/g table? */
-	ATA_QCFLAG_SINGLE	= (1 << 2), /* no s/g, just a single buffer */
-	ATA_QCFLAG_DMAMAP	= ATA_QCFLAG_SG | ATA_QCFLAG_SINGLE,
+	ATA_QCFLAG_DMAMAP	= (1 << 1), /* SG table is DMA mapped */
 	ATA_QCFLAG_IO		= (1 << 3), /* standard IO command */
 	ATA_QCFLAG_RESULT_TF	= (1 << 4), /* result TF requested */
 	ATA_QCFLAG_CLEAR_EXCL	= (1 << 5), /* clear excl_link on completion */
@@ -266,19 +266,15 @@ enum {
 	PORT_DISABLED		= 2,
 
 	/* encoding various smaller bitmaps into a single
-	 * unsigned int bitmap
+	 * unsigned long bitmap
 	 */
-	ATA_BITS_PIO		= 7,
-	ATA_BITS_MWDMA		= 5,
-	ATA_BITS_UDMA		= 8,
+	ATA_NR_PIO_MODES	= 7,
+	ATA_NR_MWDMA_MODES	= 5,
+	ATA_NR_UDMA_MODES	= 8,
 
 	ATA_SHIFT_PIO		= 0,
-	ATA_SHIFT_MWDMA		= ATA_SHIFT_PIO + ATA_BITS_PIO,
-	ATA_SHIFT_UDMA		= ATA_SHIFT_MWDMA + ATA_BITS_MWDMA,
-
-	ATA_MASK_PIO		= ((1 << ATA_BITS_PIO) - 1) << ATA_SHIFT_PIO,
-	ATA_MASK_MWDMA		= ((1 << ATA_BITS_MWDMA) - 1) << ATA_SHIFT_MWDMA,
-	ATA_MASK_UDMA		= ((1 << ATA_BITS_UDMA) - 1) << ATA_SHIFT_UDMA,
+	ATA_SHIFT_MWDMA		= ATA_SHIFT_PIO + ATA_NR_PIO_MODES,
+	ATA_SHIFT_UDMA		= ATA_SHIFT_MWDMA + ATA_NR_MWDMA_MODES,
 
 	/* size of buffer to pad xfers ending on unaligned boundaries */
 	ATA_DMA_PAD_SZ		= 4,
@@ -349,6 +345,21 @@ enum {
 	ATA_DMA_MASK_ATA	= (1 << 0),	/* DMA on ATA Disk */
 	ATA_DMA_MASK_ATAPI	= (1 << 1),	/* DMA on ATAPI */
 	ATA_DMA_MASK_CFA	= (1 << 2),	/* DMA on CF Card */
+
+	/* ATAPI command types */
+	ATAPI_READ		= 0,		/* READs */
+	ATAPI_WRITE		= 1,		/* WRITEs */
+	ATAPI_READ_CD		= 2,		/* READ CD [MSF] */
+	ATAPI_MISC		= 3,		/* the rest */
+};
+
+enum ata_xfer_mask {
+	ATA_MASK_PIO		= ((1LU << ATA_NR_PIO_MODES) - 1)
+					<< ATA_SHIFT_PIO,
+	ATA_MASK_MWDMA		= ((1LU << ATA_NR_MWDMA_MODES) - 1)
+					<< ATA_SHIFT_MWDMA,
+	ATA_MASK_UDMA		= ((1LU << ATA_NR_UDMA_MODES) - 1)
+					<< ATA_SHIFT_UDMA,
 };
 
 enum hsm_task_states {
@@ -447,7 +458,7 @@ struct ata_queued_cmd {
 	unsigned int		tag;
 	unsigned int		n_elem;
 	unsigned int		n_iter;
-	unsigned int		orig_n_elem;
+	unsigned int		mapped_n_elem;
 
 	int			dma_dir;
 
@@ -455,17 +466,18 @@ struct ata_queued_cmd {
 	unsigned int		sect_size;
 
 	unsigned int		nbytes;
+	unsigned int		raw_nbytes;
 	unsigned int		curbytes;
 
 	struct scatterlist	*cursg;
 	unsigned int		cursg_ofs;
 
+	struct scatterlist	*last_sg;
+	struct scatterlist	saved_last_sg;
 	struct scatterlist	sgent;
-	struct scatterlist	pad_sgent;
-	void			*buf_virt;
+	struct scatterlist	extra_sg[2];
 
-	/* DO NOT iterate over __sg manually, use ata_for_each_sg() */
-	struct scatterlist	*__sg;
+	struct scatterlist	*sg;
 
 	unsigned int		err_mask;
 	struct ata_taskfile	result_tf;
@@ -482,7 +494,7 @@ struct ata_port_stats {
 };
 
 struct ata_ering_entry {
-	int			is_io;
+	unsigned int		eflags;
 	unsigned int		err_mask;
 	u64			timestamp;
 };
@@ -522,9 +534,9 @@ struct ata_device {
 	unsigned int		cdb_len;
 
 	/* per-dev xfer mask */
-	unsigned int		pio_mask;
-	unsigned int		mwdma_mask;
-	unsigned int		udma_mask;
+	unsigned long		pio_mask;
+	unsigned long		mwdma_mask;
+	unsigned long		udma_mask;
 
 	/* for CHS addressing */
 	u16			cylinders;	/* Number of cylinders */
@@ -560,6 +572,8 @@ struct ata_eh_context {
 	int			tries[ATA_MAX_DEVICES];
 	unsigned int		classes[ATA_MAX_DEVICES];
 	unsigned int		did_probe_mask;
+	unsigned int		saved_ncq_enabled;
+	u8			saved_xfer_mode[ATA_MAX_DEVICES];
 };
 
 struct ata_acpi_drive
@@ -686,7 +700,8 @@ struct ata_port_operations {
 	void (*bmdma_setup) (struct ata_queued_cmd *qc);
 	void (*bmdma_start) (struct ata_queued_cmd *qc);
 
-	void (*data_xfer) (struct ata_device *, unsigned char *, unsigned int, int);
+	unsigned int (*data_xfer) (struct ata_device *dev, unsigned char *buf,
+				   unsigned int buflen, int rw);
 
 	int (*qc_defer) (struct ata_queued_cmd *qc);
 	void (*qc_prep) (struct ata_queued_cmd *qc);
@@ -832,8 +847,6 @@ extern int ata_busy_sleep(struct ata_port *ap,
 			  unsigned long timeout_pat, unsigned long timeout);
 extern void ata_wait_after_reset(struct ata_port *ap, unsigned long deadline);
 extern int ata_wait_ready(struct ata_port *ap, unsigned long deadline);
-extern void ata_port_queue_task(struct ata_port *ap, work_func_t fn,
-				void *data, unsigned long delay);
 extern u32 ata_wait_register(void __iomem *reg, u32 mask, u32 val,
 			     unsigned long interval_msec,
 			     unsigned long timeout_msec);
@@ -848,6 +861,16 @@ extern void ata_tf_read(struct ata_port *ap, struct ata_taskfile *tf);
 extern void ata_tf_to_fis(const struct ata_taskfile *tf,
 			  u8 pmp, int is_cmd, u8 *fis);
 extern void ata_tf_from_fis(const u8 *fis, struct ata_taskfile *tf);
+extern unsigned long ata_pack_xfermask(unsigned long pio_mask,
+			unsigned long mwdma_mask, unsigned long udma_mask);
+extern void ata_unpack_xfermask(unsigned long xfer_mask,
+			unsigned long *pio_mask, unsigned long *mwdma_mask,
+			unsigned long *udma_mask);
+extern u8 ata_xfer_mask2mode(unsigned long xfer_mask);
+extern unsigned long ata_xfer_mode2mask(u8 xfer_mode);
+extern int ata_xfer_mode2shift(unsigned long xfer_mode);
+extern const char *ata_mode_string(unsigned long xfer_mask);
+extern unsigned long ata_id_xfermask(const u16 *id);
 extern void ata_noop_dev_select(struct ata_port *ap, unsigned int device);
 extern void ata_std_dev_select(struct ata_port *ap, unsigned int device);
 extern u8 ata_check_status(struct ata_port *ap);
@@ -856,17 +879,15 @@ extern void ata_exec_command(struct ata_port *ap, const struct ata_taskfile *tf)
 extern int ata_port_start(struct ata_port *ap);
 extern int ata_sff_port_start(struct ata_port *ap);
 extern irqreturn_t ata_interrupt(int irq, void *dev_instance);
-extern void ata_data_xfer(struct ata_device *adev, unsigned char *buf,
-			  unsigned int buflen, int write_data);
-extern void ata_data_xfer_noirq(struct ata_device *adev, unsigned char *buf,
-				unsigned int buflen, int write_data);
+extern unsigned int ata_data_xfer(struct ata_device *dev,
+			unsigned char *buf, unsigned int buflen, int rw);
+extern unsigned int ata_data_xfer_noirq(struct ata_device *dev,
+			unsigned char *buf, unsigned int buflen, int rw);
 extern int ata_std_qc_defer(struct ata_queued_cmd *qc);
 extern void ata_dumb_qc_prep(struct ata_queued_cmd *qc);
 extern void ata_qc_prep(struct ata_queued_cmd *qc);
 extern void ata_noop_qc_prep(struct ata_queued_cmd *qc);
 extern unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc);
-extern void ata_sg_init_one(struct ata_queued_cmd *qc, void *buf,
-		unsigned int buflen);
 extern void ata_sg_init(struct ata_queued_cmd *qc, struct scatterlist *sg,
 		 unsigned int n_elem);
 extern unsigned int ata_dev_classify(const struct ata_taskfile *tf);
@@ -875,7 +896,6 @@ extern void ata_id_string(const u16 *id, unsigned char *s,
 			  unsigned int ofs, unsigned int len);
 extern void ata_id_c_string(const u16 *id, unsigned char *s,
 			    unsigned int ofs, unsigned int len);
-extern void ata_id_to_dma_mode(struct ata_device *dev, u8 unknown);
 extern void ata_bmdma_setup(struct ata_queued_cmd *qc);
 extern void ata_bmdma_start(struct ata_queued_cmd *qc);
 extern void ata_bmdma_stop(struct ata_queued_cmd *qc);
@@ -910,6 +930,7 @@ extern u8 ata_irq_on(struct ata_port *ap);
 extern int ata_cable_40wire(struct ata_port *ap);
 extern int ata_cable_80wire(struct ata_port *ap);
 extern int ata_cable_sata(struct ata_port *ap);
+extern int ata_cable_ignore(struct ata_port *ap);
 extern int ata_cable_unknown(struct ata_port *ap);
 
 /*
@@ -917,11 +938,13 @@ extern int ata_cable_unknown(struct ata_port *ap);
  */
 
 extern unsigned int ata_pio_need_iordy(const struct ata_device *);
+extern const struct ata_timing *ata_timing_find_mode(u8 xfer_mode);
 extern int ata_timing_compute(struct ata_device *, unsigned short,
 			      struct ata_timing *, int, int);
 extern void ata_timing_merge(const struct ata_timing *,
 			     const struct ata_timing *, struct ata_timing *,
 			     unsigned int);
+extern u8 ata_timing_cycle2mode(unsigned int xfer_shift, int cycle);
 
 enum {
 	ATA_TIMING_SETUP	= (1 << 0),
@@ -948,15 +971,40 @@ static inline const struct ata_acpi_gtm *ata_acpi_init_gtm(struct ata_port *ap)
 		return &ap->__acpi_init_gtm;
 	return NULL;
 }
-extern int ata_acpi_cbl_80wire(struct ata_port *ap);
 int ata_acpi_stm(struct ata_port *ap, const struct ata_acpi_gtm *stm);
 int ata_acpi_gtm(struct ata_port *ap, struct ata_acpi_gtm *stm);
+unsigned long ata_acpi_gtm_xfermask(struct ata_device *dev,
+				    const struct ata_acpi_gtm *gtm);
+int ata_acpi_cbl_80wire(struct ata_port *ap, const struct ata_acpi_gtm *gtm);
 #else
 static inline const struct ata_acpi_gtm *ata_acpi_init_gtm(struct ata_port *ap)
 {
 	return NULL;
 }
-static inline int ata_acpi_cbl_80wire(struct ata_port *ap) { return 0; }
+
+static inline int ata_acpi_stm(const struct ata_port *ap,
+			       struct ata_acpi_gtm *stm)
+{
+	return -ENOSYS;
+}
+
+static inline int ata_acpi_gtm(const struct ata_port *ap,
+			       struct ata_acpi_gtm *stm)
+{
+	return -ENOSYS;
+}
+
+static inline unsigned int ata_acpi_gtm_xfermask(struct ata_device *dev,
+					const struct ata_acpi_gtm *gtm)
+{
+	return 0;
+}
+
+static inline int ata_acpi_cbl_80wire(struct ata_port *ap,
+				      const struct ata_acpi_gtm *gtm)
+{
+	return 0;
+}
 #endif
 
 #ifdef CONFIG_PCI
@@ -985,8 +1033,12 @@ extern int ata_pci_init_bmdma(struct ata_host *host);
 extern int ata_pci_prepare_sff_host(struct pci_dev *pdev,
 				    const struct ata_port_info * const * ppi,
 				    struct ata_host **r_host);
+extern int ata_pci_activate_sff_host(struct ata_host *host,
+				     irq_handler_t irq_handler,
+				     struct scsi_host_template *sht);
 extern int pci_test_config_bits(struct pci_dev *pdev, const struct pci_bits *bits);
-extern unsigned long ata_pci_default_filter(struct ata_device *, unsigned long);
+extern unsigned long ata_pci_default_filter(struct ata_device *dev,
+					    unsigned long xfer_mask);
 #endif /* CONFIG_PCI */
 
 /*
@@ -1073,35 +1125,6 @@ extern void ata_port_desc(struct ata_port *ap, const char *fmt, ...)
 extern void ata_port_pbar_desc(struct ata_port *ap, int bar, ssize_t offset,
 			       const char *name);
 #endif
-
-/*
- * qc helpers
- */
-static inline struct scatterlist *
-ata_qc_first_sg(struct ata_queued_cmd *qc)
-{
-	qc->n_iter = 0;
-	if (qc->n_elem)
-		return qc->__sg;
-	if (qc->pad_len)
-		return &qc->pad_sgent;
-	return NULL;
-}
-
-static inline struct scatterlist *
-ata_qc_next_sg(struct scatterlist *sg, struct ata_queued_cmd *qc)
-{
-	if (sg == &qc->pad_sgent)
-		return NULL;
-	if (++qc->n_iter < qc->n_elem)
-		return sg_next(sg);
-	if (qc->pad_len)
-		return &qc->pad_sgent;
-	return NULL;
-}
-
-#define ata_for_each_sg(sg, qc) \
-	for (sg = ata_qc_first_sg(qc); sg; sg = ata_qc_next_sg(sg, qc))
 
 static inline unsigned int ata_tag_valid(unsigned int tag)
 {
@@ -1337,15 +1360,17 @@ static inline void ata_tf_init(struct ata_device *dev, struct ata_taskfile *tf)
 static inline void ata_qc_reinit(struct ata_queued_cmd *qc)
 {
 	qc->dma_dir = DMA_NONE;
-	qc->__sg = NULL;
+	qc->sg = NULL;
 	qc->flags = 0;
 	qc->cursg = NULL;
 	qc->cursg_ofs = 0;
-	qc->nbytes = qc->curbytes = 0;
+	qc->nbytes = qc->raw_nbytes = qc->curbytes = 0;
 	qc->n_elem = 0;
+	qc->mapped_n_elem = 0;
 	qc->n_iter = 0;
 	qc->err_mask = 0;
 	qc->pad_len = 0;
+	qc->last_sg = NULL;
 	qc->sect_size = ATA_SECT_SIZE;
 
 	ata_tf_init(qc->dev, &qc->tf);
@@ -1360,6 +1385,27 @@ static inline int ata_try_flush_cache(const struct ata_device *dev)
 	return ata_id_wcache_enabled(dev->id) ||
 	       ata_id_has_flush(dev->id) ||
 	       ata_id_has_flush_ext(dev->id);
+}
+
+static inline int atapi_cmd_type(u8 opcode)
+{
+	switch (opcode) {
+	case GPCMD_READ_10:
+	case GPCMD_READ_12:
+		return ATAPI_READ;
+
+	case GPCMD_WRITE_10:
+	case GPCMD_WRITE_12:
+	case GPCMD_WRITE_AND_VERIFY_10:
+		return ATAPI_WRITE;
+
+	case GPCMD_READ_CD:
+	case GPCMD_READ_CD_MSF:
+		return ATAPI_READ_CD;
+
+	default:
+		return ATAPI_MISC;
+	}
 }
 
 static inline unsigned int ac_err_mask(u8 status)

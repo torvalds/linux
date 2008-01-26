@@ -46,9 +46,26 @@
 #include "libata.h"
 
 enum {
+	/* speed down verdicts */
 	ATA_EH_SPDN_NCQ_OFF		= (1 << 0),
 	ATA_EH_SPDN_SPEED_DOWN		= (1 << 1),
 	ATA_EH_SPDN_FALLBACK_TO_PIO	= (1 << 2),
+	ATA_EH_SPDN_KEEP_ERRORS		= (1 << 3),
+
+	/* error flags */
+	ATA_EFLAG_IS_IO			= (1 << 0),
+	ATA_EFLAG_DUBIOUS_XFER		= (1 << 1),
+
+	/* error categories */
+	ATA_ECAT_NONE			= 0,
+	ATA_ECAT_ATA_BUS		= 1,
+	ATA_ECAT_TOUT_HSM		= 2,
+	ATA_ECAT_UNK_DEV		= 3,
+	ATA_ECAT_DUBIOUS_NONE		= 4,
+	ATA_ECAT_DUBIOUS_ATA_BUS	= 5,
+	ATA_ECAT_DUBIOUS_TOUT_HSM	= 6,
+	ATA_ECAT_DUBIOUS_UNK_DEV	= 7,
+	ATA_ECAT_NR			= 8,
 };
 
 /* Waiting in ->prereset can never be reliable.  It's sometimes nice
@@ -213,12 +230,13 @@ void ata_port_pbar_desc(struct ata_port *ap, int bar, ssize_t offset,
 	if (offset < 0)
 		ata_port_desc(ap, "%s %s%llu@0x%llx", name, type, len, start);
 	else
-		ata_port_desc(ap, "%s 0x%llx", name, start + offset);
+		ata_port_desc(ap, "%s 0x%llx", name,
+				start + (unsigned long long)offset);
 }
 
 #endif /* CONFIG_PCI */
 
-static void ata_ering_record(struct ata_ering *ering, int is_io,
+static void ata_ering_record(struct ata_ering *ering, unsigned int eflags,
 			     unsigned int err_mask)
 {
 	struct ata_ering_entry *ent;
@@ -229,9 +247,18 @@ static void ata_ering_record(struct ata_ering *ering, int is_io,
 	ering->cursor %= ATA_ERING_SIZE;
 
 	ent = &ering->ring[ering->cursor];
-	ent->is_io = is_io;
+	ent->eflags = eflags;
 	ent->err_mask = err_mask;
 	ent->timestamp = get_jiffies_64();
+}
+
+static struct ata_ering_entry *ata_ering_top(struct ata_ering *ering)
+{
+	struct ata_ering_entry *ent = &ering->ring[ering->cursor];
+
+	if (ent->err_mask)
+		return ent;
+	return NULL;
 }
 
 static void ata_ering_clear(struct ata_ering *ering)
@@ -445,9 +472,20 @@ void ata_scsi_error(struct Scsi_Host *host)
 		spin_lock_irqsave(ap->lock, flags);
 
 		__ata_port_for_each_link(link, ap) {
+			struct ata_eh_context *ehc = &link->eh_context;
+			struct ata_device *dev;
+
 			memset(&link->eh_context, 0, sizeof(link->eh_context));
 			link->eh_context.i = link->eh_info;
 			memset(&link->eh_info, 0, sizeof(link->eh_info));
+
+			ata_link_for_each_dev(dev, link) {
+				int devno = dev->devno;
+
+				ehc->saved_xfer_mode[devno] = dev->xfer_mode;
+				if (ata_ncq_enabled(dev))
+					ehc->saved_ncq_enabled |= 1 << devno;
+			}
 		}
 
 		ap->pflags |= ATA_PFLAG_EH_IN_PROGRESS;
@@ -1260,10 +1298,10 @@ static unsigned int atapi_eh_request_sense(struct ata_queued_cmd *qc)
 
 	/* is it pointless to prefer PIO for "safety reasons"? */
 	if (ap->flags & ATA_FLAG_PIO_DMA) {
-		tf.protocol = ATA_PROT_ATAPI_DMA;
+		tf.protocol = ATAPI_PROT_DMA;
 		tf.feature |= ATAPI_PKT_DMA;
 	} else {
-		tf.protocol = ATA_PROT_ATAPI;
+		tf.protocol = ATAPI_PROT_PIO;
 		tf.lbam = SCSI_SENSE_BUFFERSIZE;
 		tf.lbah = 0;
 	}
@@ -1451,20 +1489,29 @@ static unsigned int ata_eh_analyze_tf(struct ata_queued_cmd *qc,
 	return action;
 }
 
-static int ata_eh_categorize_error(int is_io, unsigned int err_mask)
+static int ata_eh_categorize_error(unsigned int eflags, unsigned int err_mask,
+				   int *xfer_ok)
 {
+	int base = 0;
+
+	if (!(eflags & ATA_EFLAG_DUBIOUS_XFER))
+		*xfer_ok = 1;
+
+	if (!*xfer_ok)
+		base = ATA_ECAT_DUBIOUS_NONE;
+
 	if (err_mask & AC_ERR_ATA_BUS)
-		return 1;
+		return base + ATA_ECAT_ATA_BUS;
 
 	if (err_mask & AC_ERR_TIMEOUT)
-		return 2;
+		return base + ATA_ECAT_TOUT_HSM;
 
-	if (is_io) {
+	if (eflags & ATA_EFLAG_IS_IO) {
 		if (err_mask & AC_ERR_HSM)
-			return 2;
+			return base + ATA_ECAT_TOUT_HSM;
 		if ((err_mask &
 		     (AC_ERR_DEV|AC_ERR_MEDIA|AC_ERR_INVALID)) == AC_ERR_DEV)
-			return 3;
+			return base + ATA_ECAT_UNK_DEV;
 	}
 
 	return 0;
@@ -1472,18 +1519,22 @@ static int ata_eh_categorize_error(int is_io, unsigned int err_mask)
 
 struct speed_down_verdict_arg {
 	u64 since;
-	int nr_errors[4];
+	int xfer_ok;
+	int nr_errors[ATA_ECAT_NR];
 };
 
 static int speed_down_verdict_cb(struct ata_ering_entry *ent, void *void_arg)
 {
 	struct speed_down_verdict_arg *arg = void_arg;
-	int cat = ata_eh_categorize_error(ent->is_io, ent->err_mask);
+	int cat;
 
 	if (ent->timestamp < arg->since)
 		return -1;
 
+	cat = ata_eh_categorize_error(ent->eflags, ent->err_mask,
+				      &arg->xfer_ok);
 	arg->nr_errors[cat]++;
+
 	return 0;
 }
 
@@ -1495,22 +1546,48 @@ static int speed_down_verdict_cb(struct ata_ering_entry *ent, void *void_arg)
  *	whether NCQ needs to be turned off, transfer speed should be
  *	stepped down, or falling back to PIO is necessary.
  *
- *	Cat-1 is ATA_BUS error for any command.
+ *	ECAT_ATA_BUS	: ATA_BUS error for any command
  *
- *	Cat-2 is TIMEOUT for any command or HSM violation for known
- *	supported commands.
+ *	ECAT_TOUT_HSM	: TIMEOUT for any command or HSM violation for
+ *			  IO commands
  *
- *	Cat-3 is is unclassified DEV error for known supported
- *	command.
+ *	ECAT_UNK_DEV	: Unknown DEV error for IO commands
  *
- *	NCQ needs to be turned off if there have been more than 3
- *	Cat-2 + Cat-3 errors during last 10 minutes.
+ *	ECAT_DUBIOUS_*	: Identical to above three but occurred while
+ *			  data transfer hasn't been verified.
  *
- *	Speed down is necessary if there have been more than 3 Cat-1 +
- *	Cat-2 errors or 10 Cat-3 errors during last 10 minutes.
+ *	Verdicts are
  *
- *	Falling back to PIO mode is necessary if there have been more
- *	than 10 Cat-1 + Cat-2 + Cat-3 errors during last 5 minutes.
+ *	NCQ_OFF		: Turn off NCQ.
+ *
+ *	SPEED_DOWN	: Speed down transfer speed but don't fall back
+ *			  to PIO.
+ *
+ *	FALLBACK_TO_PIO	: Fall back to PIO.
+ *
+ *	Even if multiple verdicts are returned, only one action is
+ *	taken per error.  An action triggered by non-DUBIOUS errors
+ *	clears ering, while one triggered by DUBIOUS_* errors doesn't.
+ *	This is to expedite speed down decisions right after device is
+ *	initially configured.
+ *
+ *	The followings are speed down rules.  #1 and #2 deal with
+ *	DUBIOUS errors.
+ *
+ *	1. If more than one DUBIOUS_ATA_BUS or DUBIOUS_TOUT_HSM errors
+ *	   occurred during last 5 mins, SPEED_DOWN and FALLBACK_TO_PIO.
+ *
+ *	2. If more than one DUBIOUS_TOUT_HSM or DUBIOUS_UNK_DEV errors
+ *	   occurred during last 5 mins, NCQ_OFF.
+ *
+ *	3. If more than 8 ATA_BUS, TOUT_HSM or UNK_DEV errors
+ *	   ocurred during last 5 mins, FALLBACK_TO_PIO
+ *
+ *	4. If more than 3 TOUT_HSM or UNK_DEV errors occurred
+ *	   during last 10 mins, NCQ_OFF.
+ *
+ *	5. If more than 3 ATA_BUS or TOUT_HSM errors, or more than 6
+ *	   UNK_DEV errors occurred during last 10 mins, SPEED_DOWN.
  *
  *	LOCKING:
  *	Inherited from caller.
@@ -1525,23 +1602,38 @@ static unsigned int ata_eh_speed_down_verdict(struct ata_device *dev)
 	struct speed_down_verdict_arg arg;
 	unsigned int verdict = 0;
 
+	/* scan past 5 mins of error history */
+	memset(&arg, 0, sizeof(arg));
+	arg.since = j64 - min(j64, j5mins);
+	ata_ering_map(&dev->ering, speed_down_verdict_cb, &arg);
+
+	if (arg.nr_errors[ATA_ECAT_DUBIOUS_ATA_BUS] +
+	    arg.nr_errors[ATA_ECAT_DUBIOUS_TOUT_HSM] > 1)
+		verdict |= ATA_EH_SPDN_SPEED_DOWN |
+			ATA_EH_SPDN_FALLBACK_TO_PIO | ATA_EH_SPDN_KEEP_ERRORS;
+
+	if (arg.nr_errors[ATA_ECAT_DUBIOUS_TOUT_HSM] +
+	    arg.nr_errors[ATA_ECAT_DUBIOUS_UNK_DEV] > 1)
+		verdict |= ATA_EH_SPDN_NCQ_OFF | ATA_EH_SPDN_KEEP_ERRORS;
+
+	if (arg.nr_errors[ATA_ECAT_ATA_BUS] +
+	    arg.nr_errors[ATA_ECAT_TOUT_HSM] +
+	    arg.nr_errors[ATA_ECAT_UNK_DEV] > 6)
+		verdict |= ATA_EH_SPDN_FALLBACK_TO_PIO;
+
 	/* scan past 10 mins of error history */
 	memset(&arg, 0, sizeof(arg));
 	arg.since = j64 - min(j64, j10mins);
 	ata_ering_map(&dev->ering, speed_down_verdict_cb, &arg);
 
-	if (arg.nr_errors[2] + arg.nr_errors[3] > 3)
+	if (arg.nr_errors[ATA_ECAT_TOUT_HSM] +
+	    arg.nr_errors[ATA_ECAT_UNK_DEV] > 3)
 		verdict |= ATA_EH_SPDN_NCQ_OFF;
-	if (arg.nr_errors[1] + arg.nr_errors[2] > 3 || arg.nr_errors[3] > 10)
+
+	if (arg.nr_errors[ATA_ECAT_ATA_BUS] +
+	    arg.nr_errors[ATA_ECAT_TOUT_HSM] > 3 ||
+	    arg.nr_errors[ATA_ECAT_UNK_DEV] > 6)
 		verdict |= ATA_EH_SPDN_SPEED_DOWN;
-
-	/* scan past 3 mins of error history */
-	memset(&arg, 0, sizeof(arg));
-	arg.since = j64 - min(j64, j5mins);
-	ata_ering_map(&dev->ering, speed_down_verdict_cb, &arg);
-
-	if (arg.nr_errors[1] + arg.nr_errors[2] + arg.nr_errors[3] > 10)
-		verdict |= ATA_EH_SPDN_FALLBACK_TO_PIO;
 
 	return verdict;
 }
@@ -1549,7 +1641,7 @@ static unsigned int ata_eh_speed_down_verdict(struct ata_device *dev)
 /**
  *	ata_eh_speed_down - record error and speed down if necessary
  *	@dev: Failed device
- *	@is_io: Did the device fail during normal IO?
+ *	@eflags: mask of ATA_EFLAG_* flags
  *	@err_mask: err_mask of the error
  *
  *	Record error and examine error history to determine whether
@@ -1563,18 +1655,20 @@ static unsigned int ata_eh_speed_down_verdict(struct ata_device *dev)
  *	RETURNS:
  *	Determined recovery action.
  */
-static unsigned int ata_eh_speed_down(struct ata_device *dev, int is_io,
-				      unsigned int err_mask)
+static unsigned int ata_eh_speed_down(struct ata_device *dev,
+				unsigned int eflags, unsigned int err_mask)
 {
+	struct ata_link *link = dev->link;
+	int xfer_ok = 0;
 	unsigned int verdict;
 	unsigned int action = 0;
 
 	/* don't bother if Cat-0 error */
-	if (ata_eh_categorize_error(is_io, err_mask) == 0)
+	if (ata_eh_categorize_error(eflags, err_mask, &xfer_ok) == 0)
 		return 0;
 
 	/* record error and determine whether speed down is necessary */
-	ata_ering_record(&dev->ering, is_io, err_mask);
+	ata_ering_record(&dev->ering, eflags, err_mask);
 	verdict = ata_eh_speed_down_verdict(dev);
 
 	/* turn off NCQ? */
@@ -1590,7 +1684,7 @@ static unsigned int ata_eh_speed_down(struct ata_device *dev, int is_io,
 	/* speed down? */
 	if (verdict & ATA_EH_SPDN_SPEED_DOWN) {
 		/* speed down SATA link speed if possible */
-		if (sata_down_spd_limit(dev->link) == 0) {
+		if (sata_down_spd_limit(link) == 0) {
 			action |= ATA_EH_HARDRESET;
 			goto done;
 		}
@@ -1618,10 +1712,10 @@ static unsigned int ata_eh_speed_down(struct ata_device *dev, int is_io,
 	}
 
 	/* Fall back to PIO?  Slowing down to PIO is meaningless for
-	 * SATA.  Consider it only for PATA.
+	 * SATA ATA devices.  Consider it only for PATA and SATAPI.
 	 */
 	if ((verdict & ATA_EH_SPDN_FALLBACK_TO_PIO) && (dev->spdn_cnt >= 2) &&
-	    (dev->link->ap->cbl != ATA_CBL_SATA) &&
+	    (link->ap->cbl != ATA_CBL_SATA || dev->class == ATA_DEV_ATAPI) &&
 	    (dev->xfer_shift != ATA_SHIFT_PIO)) {
 		if (ata_down_xfermask_limit(dev, ATA_DNXFER_FORCE_PIO) == 0) {
 			dev->spdn_cnt = 0;
@@ -1633,7 +1727,8 @@ static unsigned int ata_eh_speed_down(struct ata_device *dev, int is_io,
 	return 0;
  done:
 	/* device has been slowed down, blow error history */
-	ata_ering_clear(&dev->ering);
+	if (!(verdict & ATA_EH_SPDN_KEEP_ERRORS))
+		ata_ering_clear(&dev->ering);
 	return action;
 }
 
@@ -1653,8 +1748,8 @@ static void ata_eh_link_autopsy(struct ata_link *link)
 	struct ata_port *ap = link->ap;
 	struct ata_eh_context *ehc = &link->eh_context;
 	struct ata_device *dev;
-	unsigned int all_err_mask = 0;
-	int tag, is_io = 0;
+	unsigned int all_err_mask = 0, eflags = 0;
+	int tag;
 	u32 serror;
 	int rc;
 
@@ -1713,15 +1808,15 @@ static void ata_eh_link_autopsy(struct ata_link *link)
 		ehc->i.dev = qc->dev;
 		all_err_mask |= qc->err_mask;
 		if (qc->flags & ATA_QCFLAG_IO)
-			is_io = 1;
+			eflags |= ATA_EFLAG_IS_IO;
 	}
 
 	/* enforce default EH actions */
 	if (ap->pflags & ATA_PFLAG_FROZEN ||
 	    all_err_mask & (AC_ERR_HSM | AC_ERR_TIMEOUT))
 		ehc->i.action |= ATA_EH_SOFTRESET;
-	else if ((is_io && all_err_mask) ||
-		 (!is_io && (all_err_mask & ~AC_ERR_DEV)))
+	else if (((eflags & ATA_EFLAG_IS_IO) && all_err_mask) ||
+		 (!(eflags & ATA_EFLAG_IS_IO) && (all_err_mask & ~AC_ERR_DEV)))
 		ehc->i.action |= ATA_EH_REVALIDATE;
 
 	/* If we have offending qcs and the associated failed device,
@@ -1743,8 +1838,11 @@ static void ata_eh_link_autopsy(struct ata_link *link)
 		      ata_dev_enabled(link->device))))
 	    dev = link->device;
 
-	if (dev)
-		ehc->i.action |= ata_eh_speed_down(dev, is_io, all_err_mask);
+	if (dev) {
+		if (dev->flags & ATA_DFLAG_DUBIOUS_XFER)
+			eflags |= ATA_EFLAG_DUBIOUS_XFER;
+		ehc->i.action |= ata_eh_speed_down(dev, eflags, all_err_mask);
+	}
 
 	DPRINTK("EXIT\n");
 }
@@ -1880,8 +1978,8 @@ static void ata_eh_link_report(struct ata_link *link)
 				[ATA_PROT_PIO]		= "pio",
 				[ATA_PROT_DMA]		= "dma",
 				[ATA_PROT_NCQ]		= "ncq",
-				[ATA_PROT_ATAPI]	= "pio",
-				[ATA_PROT_ATAPI_DMA]	= "dma",
+				[ATAPI_PROT_PIO]	= "pio",
+				[ATAPI_PROT_DMA]	= "dma",
 			};
 
 			snprintf(data_buf, sizeof(data_buf), " %s %u %s",
@@ -1889,7 +1987,7 @@ static void ata_eh_link_report(struct ata_link *link)
 				 dma_str[qc->dma_dir]);
 		}
 
-		if (is_atapi_taskfile(&qc->tf))
+		if (ata_is_atapi(qc->tf.protocol))
 			snprintf(cdb_buf, sizeof(cdb_buf),
 				 "cdb %02x %02x %02x %02x %02x %02x %02x %02x  "
 				 "%02x %02x %02x %02x %02x %02x %02x %02x\n         ",
@@ -2329,6 +2427,58 @@ static int ata_eh_revalidate_and_attach(struct ata_link *link,
 	return rc;
 }
 
+/**
+ *	ata_set_mode - Program timings and issue SET FEATURES - XFER
+ *	@link: link on which timings will be programmed
+ *	@r_failed_dev: out paramter for failed device
+ *
+ *	Set ATA device disk transfer mode (PIO3, UDMA6, etc.).  If
+ *	ata_set_mode() fails, pointer to the failing device is
+ *	returned in @r_failed_dev.
+ *
+ *	LOCKING:
+ *	PCI/etc. bus probe sem.
+ *
+ *	RETURNS:
+ *	0 on success, negative errno otherwise
+ */
+int ata_set_mode(struct ata_link *link, struct ata_device **r_failed_dev)
+{
+	struct ata_port *ap = link->ap;
+	struct ata_device *dev;
+	int rc;
+
+	/* if data transfer is verified, clear DUBIOUS_XFER on ering top */
+	ata_link_for_each_dev(dev, link) {
+		if (!(dev->flags & ATA_DFLAG_DUBIOUS_XFER)) {
+			struct ata_ering_entry *ent;
+
+			ent = ata_ering_top(&dev->ering);
+			if (ent)
+				ent->eflags &= ~ATA_EFLAG_DUBIOUS_XFER;
+		}
+	}
+
+	/* has private set_mode? */
+	if (ap->ops->set_mode)
+		rc = ap->ops->set_mode(link, r_failed_dev);
+	else
+		rc = ata_do_set_mode(link, r_failed_dev);
+
+	/* if transfer mode has changed, set DUBIOUS_XFER on device */
+	ata_link_for_each_dev(dev, link) {
+		struct ata_eh_context *ehc = &link->eh_context;
+		u8 saved_xfer_mode = ehc->saved_xfer_mode[dev->devno];
+		u8 saved_ncq = !!(ehc->saved_ncq_enabled & (1 << dev->devno));
+
+		if (dev->xfer_mode != saved_xfer_mode ||
+		    ata_ncq_enabled(dev) != saved_ncq)
+			dev->flags |= ATA_DFLAG_DUBIOUS_XFER;
+	}
+
+	return rc;
+}
+
 static int ata_link_nr_enabled(struct ata_link *link)
 {
 	struct ata_device *dev;
@@ -2375,6 +2525,24 @@ static int ata_eh_skip_recovery(struct ata_link *link)
 	return 1;
 }
 
+static int ata_eh_schedule_probe(struct ata_device *dev)
+{
+	struct ata_eh_context *ehc = &dev->link->eh_context;
+
+	if (!(ehc->i.probe_mask & (1 << dev->devno)) ||
+	    (ehc->did_probe_mask & (1 << dev->devno)))
+		return 0;
+
+	ata_eh_detach_dev(dev);
+	ata_dev_init(dev);
+	ehc->did_probe_mask |= (1 << dev->devno);
+	ehc->i.action |= ATA_EH_SOFTRESET;
+	ehc->saved_xfer_mode[dev->devno] = 0;
+	ehc->saved_ncq_enabled &= ~(1 << dev->devno);
+
+	return 1;
+}
+
 static int ata_eh_handle_dev_fail(struct ata_device *dev, int err)
 {
 	struct ata_eh_context *ehc = &dev->link->eh_context;
@@ -2406,16 +2574,9 @@ static int ata_eh_handle_dev_fail(struct ata_device *dev, int err)
 		if (ata_link_offline(dev->link))
 			ata_eh_detach_dev(dev);
 
-		/* probe if requested */
-		if ((ehc->i.probe_mask & (1 << dev->devno)) &&
-		    !(ehc->did_probe_mask & (1 << dev->devno))) {
-			ata_eh_detach_dev(dev);
-			ata_dev_init(dev);
-
+		/* schedule probe if necessary */
+		if (ata_eh_schedule_probe(dev))
 			ehc->tries[dev->devno] = ATA_EH_DEV_TRIES;
-			ehc->did_probe_mask |= (1 << dev->devno);
-			ehc->i.action |= ATA_EH_SOFTRESET;
-		}
 
 		return 1;
 	} else {
@@ -2492,14 +2653,9 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 			if (dev->flags & ATA_DFLAG_DETACH)
 				ata_eh_detach_dev(dev);
 
-			if (!ata_dev_enabled(dev) &&
-			    ((ehc->i.probe_mask & (1 << dev->devno)) &&
-			     !(ehc->did_probe_mask & (1 << dev->devno)))) {
-				ata_eh_detach_dev(dev);
-				ata_dev_init(dev);
-				ehc->did_probe_mask |= (1 << dev->devno);
-				ehc->i.action |= ATA_EH_SOFTRESET;
-			}
+			/* schedule probe if necessary */
+			if (!ata_dev_enabled(dev))
+				ata_eh_schedule_probe(dev);
 		}
 	}
 
@@ -2747,6 +2903,7 @@ static void ata_eh_handle_port_suspend(struct ata_port *ap)
 	if (ap->ops->port_suspend)
 		rc = ap->ops->port_suspend(ap, ap->pm_mesg);
 
+	ata_acpi_set_state(ap, PMSG_SUSPEND);
  out:
 	/* report result */
 	spin_lock_irqsave(ap->lock, flags);
@@ -2791,6 +2948,8 @@ static void ata_eh_handle_port_resume(struct ata_port *ap)
 	spin_unlock_irqrestore(ap->lock, flags);
 
 	WARN_ON(!(ap->pflags & ATA_PFLAG_SUSPENDED));
+
+	ata_acpi_set_state(ap, PMSG_ON);
 
 	if (ap->ops->port_resume)
 		rc = ap->ops->port_resume(ap);

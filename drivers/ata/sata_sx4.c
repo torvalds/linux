@@ -334,7 +334,7 @@ static inline void pdc20621_ata_sg(struct ata_taskfile *tf, u8 *buf,
 {
 	u32 addr;
 	unsigned int dw = PDC_DIMM_APKT_PRD >> 2;
-	u32 *buf32 = (u32 *) buf;
+	__le32 *buf32 = (__le32 *) buf;
 
 	/* output ATA packet S/G table */
 	addr = PDC_20621_DIMM_BASE + PDC_20621_DIMM_DATA +
@@ -356,7 +356,7 @@ static inline void pdc20621_host_sg(struct ata_taskfile *tf, u8 *buf,
 {
 	u32 addr;
 	unsigned int dw = PDC_DIMM_HPKT_PRD >> 2;
-	u32 *buf32 = (u32 *) buf;
+	__le32 *buf32 = (__le32 *) buf;
 
 	/* output Host DMA packet S/G table */
 	addr = PDC_20621_DIMM_BASE + PDC_20621_DIMM_DATA +
@@ -377,7 +377,7 @@ static inline unsigned int pdc20621_ata_pkt(struct ata_taskfile *tf,
 					    unsigned int portno)
 {
 	unsigned int i, dw;
-	u32 *buf32 = (u32 *) buf;
+	__le32 *buf32 = (__le32 *) buf;
 	u8 dev_reg;
 
 	unsigned int dimm_sg = PDC_20621_DIMM_BASE +
@@ -429,7 +429,8 @@ static inline void pdc20621_host_pkt(struct ata_taskfile *tf, u8 *buf,
 				     unsigned int portno)
 {
 	unsigned int dw;
-	u32 tmp, *buf32 = (u32 *) buf;
+	u32 tmp;
+	__le32 *buf32 = (__le32 *) buf;
 
 	unsigned int host_sg = PDC_20621_DIMM_BASE +
 			       (PDC_DIMM_WINDOW_STEP * portno) +
@@ -473,7 +474,7 @@ static void pdc20621_dma_prep(struct ata_queued_cmd *qc)
 	void __iomem *mmio = ap->host->iomap[PDC_MMIO_BAR];
 	void __iomem *dimm_mmio = ap->host->iomap[PDC_DIMM_BAR];
 	unsigned int portno = ap->port_no;
-	unsigned int i, idx, total_len = 0, sgt_len;
+	unsigned int i, si, idx, total_len = 0, sgt_len;
 	u32 *buf = (u32 *) &pp->dimm_buf[PDC_DIMM_HEADER_SZ];
 
 	WARN_ON(!(qc->flags & ATA_QCFLAG_DMAMAP));
@@ -487,7 +488,7 @@ static void pdc20621_dma_prep(struct ata_queued_cmd *qc)
 	 * Build S/G table
 	 */
 	idx = 0;
-	ata_for_each_sg(sg, qc) {
+	for_each_sg(qc->sg, sg, qc->n_elem, si) {
 		buf[idx++] = cpu_to_le32(sg_dma_address(sg));
 		buf[idx++] = cpu_to_le32(sg_dma_len(sg));
 		total_len += sg_dma_len(sg);
@@ -700,7 +701,7 @@ static unsigned int pdc20621_qc_issue_prot(struct ata_queued_cmd *qc)
 		pdc20621_packet_start(qc);
 		return 0;
 
-	case ATA_PROT_ATAPI_DMA:
+	case ATAPI_PROT_DMA:
 		BUG();
 		break;
 

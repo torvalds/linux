@@ -158,8 +158,8 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	struct Scsi_Host *host = sas_ha->core.shost;
 	struct sas_internal *i = to_sas_internal(host->transportt);
 	struct scatterlist *sg;
-	unsigned int num = 0;
 	unsigned int xfer = 0;
+	unsigned int si;
 
 	task = sas_alloc_task(GFP_ATOMIC);
 	if (!task)
@@ -176,22 +176,20 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 
 	ata_tf_to_fis(&qc->tf, 1, 0, (u8*)&task->ata_task.fis);
 	task->uldd_task = qc;
-	if (is_atapi_taskfile(&qc->tf)) {
+	if (ata_is_atapi(qc->tf.protocol)) {
 		memcpy(task->ata_task.atapi_packet, qc->cdb, qc->dev->cdb_len);
 		task->total_xfer_len = qc->nbytes + qc->pad_len;
 		task->num_scatter = qc->pad_len ? qc->n_elem + 1 : qc->n_elem;
 	} else {
-		ata_for_each_sg(sg, qc) {
-			num++;
+		for_each_sg(qc->sg, sg, qc->n_elem, si)
 			xfer += sg->length;
-		}
 
 		task->total_xfer_len = xfer;
-		task->num_scatter = num;
+		task->num_scatter = si;
 	}
 
 	task->data_dir = qc->dma_dir;
-	task->scatter = qc->__sg;
+	task->scatter = qc->sg;
 	task->ata_task.retry_count = 1;
 	task->task_state_flags = SAS_TASK_STATE_PENDING;
 	qc->lldd_task = task;
@@ -200,7 +198,7 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	case ATA_PROT_NCQ:
 		task->ata_task.use_ncq = 1;
 		/* fall through */
-	case ATA_PROT_ATAPI_DMA:
+	case ATAPI_PROT_DMA:
 	case ATA_PROT_DMA:
 		task->ata_task.dma_xfer = 1;
 		break;

@@ -517,7 +517,7 @@ static struct ata_queued_cmd *ata_scsi_qc_new(struct ata_device *dev,
 		qc->scsicmd = cmd;
 		qc->scsidone = done;
 
-		qc->__sg = scsi_sglist(cmd);
+		qc->sg = scsi_sglist(cmd);
 		qc->n_elem = scsi_sg_count(cmd);
 	} else {
 		cmd->result = (DID_OK << 16) | (QUEUE_FULL << 1);
@@ -2210,7 +2210,7 @@ unsigned int ata_scsiop_read_cap(struct ata_scsi_args *args, u8 *rbuf,
 
 		/* sector size */
 		ATA_SCSI_RBUF_SET(6, ATA_SECT_SIZE >> 8);
-		ATA_SCSI_RBUF_SET(7, ATA_SECT_SIZE);
+		ATA_SCSI_RBUF_SET(7, ATA_SECT_SIZE & 0xff);
 	} else {
 		/* sector count, 64-bit */
 		ATA_SCSI_RBUF_SET(0, last_lba >> (8 * 7));
@@ -2224,7 +2224,7 @@ unsigned int ata_scsiop_read_cap(struct ata_scsi_args *args, u8 *rbuf,
 
 		/* sector size */
 		ATA_SCSI_RBUF_SET(10, ATA_SECT_SIZE >> 8);
-		ATA_SCSI_RBUF_SET(11, ATA_SECT_SIZE);
+		ATA_SCSI_RBUF_SET(11, ATA_SECT_SIZE & 0xff);
 	}
 
 	return 0;
@@ -2331,7 +2331,7 @@ static void atapi_request_sense(struct ata_queued_cmd *qc)
 	DPRINTK("ATAPI request sense\n");
 
 	/* FIXME: is this needed? */
-	memset(cmd->sense_buffer, 0, sizeof(cmd->sense_buffer));
+	memset(cmd->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
 
 	ap->ops->tf_read(ap, &qc->tf);
 
@@ -2341,7 +2341,9 @@ static void atapi_request_sense(struct ata_queued_cmd *qc)
 
 	ata_qc_reinit(qc);
 
-	ata_sg_init_one(qc, cmd->sense_buffer, sizeof(cmd->sense_buffer));
+	/* setup sg table and init transfer direction */
+	sg_init_one(&qc->sgent, cmd->sense_buffer, SCSI_SENSE_BUFFERSIZE);
+	ata_sg_init(qc, &qc->sgent, 1);
 	qc->dma_dir = DMA_FROM_DEVICE;
 
 	memset(&qc->cdb, 0, qc->dev->cdb_len);
@@ -2352,10 +2354,10 @@ static void atapi_request_sense(struct ata_queued_cmd *qc)
 	qc->tf.command = ATA_CMD_PACKET;
 
 	if (ata_pio_use_silly(ap)) {
-		qc->tf.protocol = ATA_PROT_ATAPI_DMA;
+		qc->tf.protocol = ATAPI_PROT_DMA;
 		qc->tf.feature |= ATAPI_PKT_DMA;
 	} else {
-		qc->tf.protocol = ATA_PROT_ATAPI;
+		qc->tf.protocol = ATAPI_PROT_PIO;
 		qc->tf.lbam = SCSI_SENSE_BUFFERSIZE;
 		qc->tf.lbah = 0;
 	}
@@ -2526,12 +2528,12 @@ static unsigned int atapi_xlat(struct ata_queued_cmd *qc)
 	if (using_pio || nodata) {
 		/* no data, or PIO data xfer */
 		if (nodata)
-			qc->tf.protocol = ATA_PROT_ATAPI_NODATA;
+			qc->tf.protocol = ATAPI_PROT_NODATA;
 		else
-			qc->tf.protocol = ATA_PROT_ATAPI;
+			qc->tf.protocol = ATAPI_PROT_PIO;
 	} else {
 		/* DMA data xfer */
-		qc->tf.protocol = ATA_PROT_ATAPI_DMA;
+		qc->tf.protocol = ATAPI_PROT_DMA;
 		qc->tf.feature |= ATAPI_PKT_DMA;
 
 		if (atapi_dmadir && (scmd->sc_data_direction != DMA_TO_DEVICE))
@@ -2688,6 +2690,24 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 	const u8 *cdb = scmd->cmnd;
 
 	if ((tf->protocol = ata_scsi_map_proto(cdb[1])) == ATA_PROT_UNKNOWN)
+		goto invalid_fld;
+
+	/*
+	 * Filter TPM commands by default. These provide an
+	 * essentially uncontrolled encrypted "back door" between
+	 * applications and the disk. Set libata.allow_tpm=1 if you
+	 * have a real reason for wanting to use them. This ensures
+	 * that installed software cannot easily mess stuff up without
+	 * user intent. DVR type users will probably ship with this enabled
+	 * for movie content management.
+	 *
+	 * Note that for ATA8 we can issue a DCS change and DCS freeze lock
+	 * for this and should do in future but that it is not sufficient as
+	 * DCS is an optional feature set. Thus we also do the software filter
+	 * so that we comply with the TC consortium stated goal that the user
+	 * can turn off TC features of their system.
+	 */
+	if (tf->command >= 0x5C && tf->command <= 0x5F && !libata_allow_tpm)
 		goto invalid_fld;
 
 	/* We may not issue DMA commands if no DMA mode is set */
