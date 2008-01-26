@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/cy82c693.c		Version 0.42	Oct 23, 2007
+ * linux/drivers/ide/pci/cy82c693.c		Version 0.43	Nov 7, 2007
  *
  *  Copyright (C) 1998-2000 Andreas S. Krebs (akrebs@altavista.net), Maintainer
  *  Copyright (C) 1998-2002 Andre Hedrick <andre@linux-ide.org>, Integrator
@@ -182,10 +182,7 @@ static void cy82c693_dma_enable (ide_drive_t *drive, int mode, int single)
 
 	if (mode>2)	/* make sure we set a valid mode */
 		mode = 2;
-			   
-	if (mode > drive->id->tDMA)  /* to be absolutly sure we have a valid mode */
-		mode = drive->id->tDMA;
-	
+
 	index = (HWIF(drive)->channel==0) ? CY82_INDEX_CHANNEL0 : CY82_INDEX_CHANNEL1;
 
 #if CY82C693_DEBUG_LOGS
@@ -250,7 +247,10 @@ static int cy82c693_ide_dma_on (ide_drive_t *drive)
 
 			mmode = id->dma_mword & (id->dma_mword >> 8);
 			smode = id->dma_1word & (id->dma_1word >> 8);
-			       		      
+
+			mmode &= ATA_MWDMA2;
+			smode &= ATA_SWDMA2;
+
 			if (mmode != 0) {
 				/* enable multi */
 				cy82c693_dma_enable(drive, (mmode >> 1), 0);
