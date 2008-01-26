@@ -26,6 +26,7 @@
 #include <asm/byteorder.h>
 #include <linux/swap.h>
 #include <linux/pipe_fs_i.h>
+#include <linux/mpage.h>
 
 #define MLOG_MASK_PREFIX ML_FILE_IO
 #include <cluster/masklog.h>
@@ -139,7 +140,8 @@ static int ocfs2_get_block(struct inode *inode, sector_t iblock,
 {
 	int err = 0;
 	unsigned int ext_flags;
-	u64 p_blkno, past_eof;
+	u64 max_blocks = bh_result->b_size >> inode->i_blkbits;
+	u64 p_blkno, count, past_eof;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 
 	mlog_entry("(0x%p, %llu, 0x%p, %d)\n", inode,
@@ -155,7 +157,7 @@ static int ocfs2_get_block(struct inode *inode, sector_t iblock,
 		goto bail;
 	}
 
-	err = ocfs2_extent_map_get_blocks(inode, iblock, &p_blkno, NULL,
+	err = ocfs2_extent_map_get_blocks(inode, iblock, &p_blkno, &count,
 					  &ext_flags);
 	if (err) {
 		mlog(ML_ERROR, "Error %d from get_blocks(0x%p, %llu, 1, "
@@ -163,6 +165,9 @@ static int ocfs2_get_block(struct inode *inode, sector_t iblock,
 		     (unsigned long long)p_blkno);
 		goto bail;
 	}
+
+	if (max_blocks < count)
+		count = max_blocks;
 
 	/*
 	 * ocfs2 never allocates in this function - the only time we
@@ -177,6 +182,8 @@ static int ocfs2_get_block(struct inode *inode, sector_t iblock,
 	/* Treat the unwritten extent as a hole for zeroing purposes. */
 	if (p_blkno && !(ext_flags & OCFS2_EXT_UNWRITTEN))
 		map_bh(bh_result, inode->i_sb, p_blkno);
+
+	bh_result->b_size = count << inode->i_blkbits;
 
 	if (!ocfs2_sparse_alloc(osb)) {
 		if (p_blkno == 0) {
@@ -210,7 +217,7 @@ int ocfs2_read_inline_data(struct inode *inode, struct page *page,
 			   struct buffer_head *di_bh)
 {
 	void *kaddr;
-	unsigned int size;
+	loff_t size;
 	struct ocfs2_dinode *di = (struct ocfs2_dinode *)di_bh->b_data;
 
 	if (!(le16_to_cpu(di->i_dyn_features) & OCFS2_INLINE_DATA_FL)) {
@@ -224,8 +231,9 @@ int ocfs2_read_inline_data(struct inode *inode, struct page *page,
 	if (size > PAGE_CACHE_SIZE ||
 	    size > ocfs2_max_inline_data(inode->i_sb)) {
 		ocfs2_error(inode->i_sb,
-			    "Inode %llu has with inline data has bad size: %u",
-			    (unsigned long long)OCFS2_I(inode)->ip_blkno, size);
+			    "Inode %llu has with inline data has bad size: %Lu",
+			    (unsigned long long)OCFS2_I(inode)->ip_blkno,
+			    (unsigned long long)size);
 		return -EROFS;
 	}
 
@@ -275,7 +283,7 @@ static int ocfs2_readpage(struct file *file, struct page *page)
 
 	mlog_entry("(0x%p, %lu)\n", file, (page ? page->index : 0));
 
-	ret = ocfs2_meta_lock_with_page(inode, NULL, 0, page);
+	ret = ocfs2_inode_lock_with_page(inode, NULL, 0, page);
 	if (ret != 0) {
 		if (ret == AOP_TRUNCATED_PAGE)
 			unlock = 0;
@@ -285,7 +293,7 @@ static int ocfs2_readpage(struct file *file, struct page *page)
 
 	if (down_read_trylock(&oi->ip_alloc_sem) == 0) {
 		ret = AOP_TRUNCATED_PAGE;
-		goto out_meta_unlock;
+		goto out_inode_unlock;
 	}
 
 	/*
@@ -305,30 +313,77 @@ static int ocfs2_readpage(struct file *file, struct page *page)
 		goto out_alloc;
 	}
 
-	ret = ocfs2_data_lock_with_page(inode, 0, page);
-	if (ret != 0) {
-		if (ret == AOP_TRUNCATED_PAGE)
-			unlock = 0;
-		mlog_errno(ret);
-		goto out_alloc;
-	}
-
 	if (oi->ip_dyn_features & OCFS2_INLINE_DATA_FL)
 		ret = ocfs2_readpage_inline(inode, page);
 	else
 		ret = block_read_full_page(page, ocfs2_get_block);
 	unlock = 0;
 
-	ocfs2_data_unlock(inode, 0);
 out_alloc:
 	up_read(&OCFS2_I(inode)->ip_alloc_sem);
-out_meta_unlock:
-	ocfs2_meta_unlock(inode, 0);
+out_inode_unlock:
+	ocfs2_inode_unlock(inode, 0);
 out:
 	if (unlock)
 		unlock_page(page);
 	mlog_exit(ret);
 	return ret;
+}
+
+/*
+ * This is used only for read-ahead. Failures or difficult to handle
+ * situations are safe to ignore.
+ *
+ * Right now, we don't bother with BH_Boundary - in-inode extent lists
+ * are quite large (243 extents on 4k blocks), so most inodes don't
+ * grow out to a tree. If need be, detecting boundary extents could
+ * trivially be added in a future version of ocfs2_get_block().
+ */
+static int ocfs2_readpages(struct file *filp, struct address_space *mapping,
+			   struct list_head *pages, unsigned nr_pages)
+{
+	int ret, err = -EIO;
+	struct inode *inode = mapping->host;
+	struct ocfs2_inode_info *oi = OCFS2_I(inode);
+	loff_t start;
+	struct page *last;
+
+	/*
+	 * Use the nonblocking flag for the dlm code to avoid page
+	 * lock inversion, but don't bother with retrying.
+	 */
+	ret = ocfs2_inode_lock_full(inode, NULL, 0, OCFS2_LOCK_NONBLOCK);
+	if (ret)
+		return err;
+
+	if (down_read_trylock(&oi->ip_alloc_sem) == 0) {
+		ocfs2_inode_unlock(inode, 0);
+		return err;
+	}
+
+	/*
+	 * Don't bother with inline-data. There isn't anything
+	 * to read-ahead in that case anyway...
+	 */
+	if (oi->ip_dyn_features & OCFS2_INLINE_DATA_FL)
+		goto out_unlock;
+
+	/*
+	 * Check whether a remote node truncated this file - we just
+	 * drop out in that case as it's not worth handling here.
+	 */
+	last = list_entry(pages->prev, struct page, lru);
+	start = (loff_t)last->index << PAGE_CACHE_SHIFT;
+	if (start >= i_size_read(inode))
+		goto out_unlock;
+
+	err = mpage_readpages(mapping, pages, nr_pages, ocfs2_get_block);
+
+out_unlock:
+	up_read(&oi->ip_alloc_sem);
+	ocfs2_inode_unlock(inode, 0);
+
+	return err;
 }
 
 /* Note: Because we don't support holes, our allocation has
@@ -452,7 +507,7 @@ static sector_t ocfs2_bmap(struct address_space *mapping, sector_t block)
 	 * accessed concurrently from multiple nodes.
 	 */
 	if (!INODE_JOURNAL(inode)) {
-		err = ocfs2_meta_lock(inode, NULL, 0);
+		err = ocfs2_inode_lock(inode, NULL, 0);
 		if (err) {
 			if (err != -ENOENT)
 				mlog_errno(err);
@@ -467,7 +522,7 @@ static sector_t ocfs2_bmap(struct address_space *mapping, sector_t block)
 
 	if (!INODE_JOURNAL(inode)) {
 		up_read(&OCFS2_I(inode)->ip_alloc_sem);
-		ocfs2_meta_unlock(inode, 0);
+		ocfs2_inode_unlock(inode, 0);
 	}
 
 	if (err) {
@@ -638,34 +693,12 @@ static ssize_t ocfs2_direct_IO(int rw,
 	if (OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL)
 		return 0;
 
-	if (!ocfs2_sparse_alloc(OCFS2_SB(inode->i_sb))) {
-		/*
-		 * We get PR data locks even for O_DIRECT.  This
-		 * allows concurrent O_DIRECT I/O but doesn't let
-		 * O_DIRECT with extending and buffered zeroing writes
-		 * race.  If they did race then the buffered zeroing
-		 * could be written back after the O_DIRECT I/O.  It's
-		 * one thing to tell people not to mix buffered and
-		 * O_DIRECT writes, but expecting them to understand
-		 * that file extension is also an implicit buffered
-		 * write is too much.  By getting the PR we force
-		 * writeback of the buffered zeroing before
-		 * proceeding.
-		 */
-		ret = ocfs2_data_lock(inode, 0);
-		if (ret < 0) {
-			mlog_errno(ret);
-			goto out;
-		}
-		ocfs2_data_unlock(inode, 0);
-	}
-
 	ret = blockdev_direct_IO_no_locking(rw, iocb, inode,
 					    inode->i_sb->s_bdev, iov, offset,
 					    nr_segs, 
 					    ocfs2_direct_IO_get_blocks,
 					    ocfs2_dio_end_io);
-out:
+
 	mlog_exit(ret);
 	return ret;
 }
@@ -1754,7 +1787,7 @@ static int ocfs2_write_begin(struct file *file, struct address_space *mapping,
 	struct buffer_head *di_bh = NULL;
 	struct inode *inode = mapping->host;
 
-	ret = ocfs2_meta_lock(inode, &di_bh, 1);
+	ret = ocfs2_inode_lock(inode, &di_bh, 1);
 	if (ret) {
 		mlog_errno(ret);
 		return ret;
@@ -1769,30 +1802,22 @@ static int ocfs2_write_begin(struct file *file, struct address_space *mapping,
 	 */
 	down_write(&OCFS2_I(inode)->ip_alloc_sem);
 
-	ret = ocfs2_data_lock(inode, 1);
-	if (ret) {
-		mlog_errno(ret);
-		goto out_fail;
-	}
-
 	ret = ocfs2_write_begin_nolock(mapping, pos, len, flags, pagep,
 				       fsdata, di_bh, NULL);
 	if (ret) {
 		mlog_errno(ret);
-		goto out_fail_data;
+		goto out_fail;
 	}
 
 	brelse(di_bh);
 
 	return 0;
 
-out_fail_data:
-	ocfs2_data_unlock(inode, 1);
 out_fail:
 	up_write(&OCFS2_I(inode)->ip_alloc_sem);
 
 	brelse(di_bh);
-	ocfs2_meta_unlock(inode, 1);
+	ocfs2_inode_unlock(inode, 1);
 
 	return ret;
 }
@@ -1908,15 +1933,15 @@ static int ocfs2_write_end(struct file *file, struct address_space *mapping,
 
 	ret = ocfs2_write_end_nolock(mapping, pos, len, copied, page, fsdata);
 
-	ocfs2_data_unlock(inode, 1);
 	up_write(&OCFS2_I(inode)->ip_alloc_sem);
-	ocfs2_meta_unlock(inode, 1);
+	ocfs2_inode_unlock(inode, 1);
 
 	return ret;
 }
 
 const struct address_space_operations ocfs2_aops = {
 	.readpage	= ocfs2_readpage,
+	.readpages	= ocfs2_readpages,
 	.writepage	= ocfs2_writepage,
 	.write_begin	= ocfs2_write_begin,
 	.write_end	= ocfs2_write_end,

@@ -29,7 +29,7 @@
 
 #include "ver.h"
 
-#define OCFS2_BUILD_VERSION "1.3.3"
+#define OCFS2_BUILD_VERSION "1.5.0"
 
 #define VERSION_STR "OCFS2 " OCFS2_BUILD_VERSION
 

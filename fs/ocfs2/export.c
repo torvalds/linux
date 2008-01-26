@@ -58,7 +58,7 @@ static struct dentry *ocfs2_get_dentry(struct super_block *sb,
 		return ERR_PTR(-ESTALE);
 	}
 
-	inode = ocfs2_iget(OCFS2_SB(sb), handle->ih_blkno, 0);
+	inode = ocfs2_iget(OCFS2_SB(sb), handle->ih_blkno, 0, 0);
 
 	if (IS_ERR(inode))
 		return (void *)inode;
@@ -95,7 +95,7 @@ static struct dentry *ocfs2_get_parent(struct dentry *child)
 	mlog(0, "find parent of directory %llu\n",
 	     (unsigned long long)OCFS2_I(dir)->ip_blkno);
 
-	status = ocfs2_meta_lock(dir, NULL, 0);
+	status = ocfs2_inode_lock(dir, NULL, 0);
 	if (status < 0) {
 		if (status != -ENOENT)
 			mlog_errno(status);
@@ -109,7 +109,7 @@ static struct dentry *ocfs2_get_parent(struct dentry *child)
 		goto bail_unlock;
 	}
 
-	inode = ocfs2_iget(OCFS2_SB(dir->i_sb), blkno, 0);
+	inode = ocfs2_iget(OCFS2_SB(dir->i_sb), blkno, 0, 0);
 	if (IS_ERR(inode)) {
 		mlog(ML_ERROR, "Unable to create inode %llu\n",
 		     (unsigned long long)blkno);
@@ -126,7 +126,7 @@ static struct dentry *ocfs2_get_parent(struct dentry *child)
 	parent->d_op = &ocfs2_dentry_ops;
 
 bail_unlock:
-	ocfs2_meta_unlock(dir, 0);
+	ocfs2_inode_unlock(dir, 0);
 
 bail:
 	mlog_exit_ptr(parent);

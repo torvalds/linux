@@ -440,14 +440,8 @@ config OCFS2_FS
 	  Tools web page:      http://oss.oracle.com/projects/ocfs2-tools
 	  OCFS2 mailing lists: http://oss.oracle.com/projects/ocfs2/mailman/
 
-	  Note: Features which OCFS2 does not support yet:
-	          - extended attributes
-	          - quotas
-	          - cluster aware flock
-	          - Directory change notification (F_NOTIFY)
-	          - Distributed Caching (F_SETLEASE/F_GETLEASE/break_lease)
-	          - POSIX ACLs
-	          - readpages / writepages (not user visible)
+	  For more information on OCFS2, see the file
+	  <file:Documentation/filesystems/ocfs2.txt>.
 
 config OCFS2_DEBUG_MASKLOG
 	bool "OCFS2 logging support"
@@ -1028,8 +1022,8 @@ config HUGETLB_PAGE
 	def_bool HUGETLBFS
 
 config CONFIGFS_FS
-	tristate "Userspace-driven configuration filesystem (EXPERIMENTAL)"
-	depends on SYSFS && EXPERIMENTAL
+	tristate "Userspace-driven configuration filesystem"
+	depends on SYSFS
 	help
 	  configfs is a ram-based filesystem that provides the converse
 	  of sysfs's functionality. Where sysfs is a filesystem-based

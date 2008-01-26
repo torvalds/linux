@@ -20,6 +20,7 @@
 
 #include "ocfs2_fs.h"
 #include "ioctl.h"
+#include "resize.h"
 
 #include <linux/ext2_fs.h>
 
@@ -27,14 +28,14 @@ static int ocfs2_get_inode_attr(struct inode *inode, unsigned *flags)
 {
 	int status;
 
-	status = ocfs2_meta_lock(inode, NULL, 0);
+	status = ocfs2_inode_lock(inode, NULL, 0);
 	if (status < 0) {
 		mlog_errno(status);
 		return status;
 	}
 	ocfs2_get_inode_flags(OCFS2_I(inode));
 	*flags = OCFS2_I(inode)->ip_attr;
-	ocfs2_meta_unlock(inode, 0);
+	ocfs2_inode_unlock(inode, 0);
 
 	mlog_exit(status);
 	return status;
@@ -52,7 +53,7 @@ static int ocfs2_set_inode_attr(struct inode *inode, unsigned flags,
 
 	mutex_lock(&inode->i_mutex);
 
-	status = ocfs2_meta_lock(inode, &bh, 1);
+	status = ocfs2_inode_lock(inode, &bh, 1);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
@@ -100,7 +101,7 @@ static int ocfs2_set_inode_attr(struct inode *inode, unsigned flags,
 
 	ocfs2_commit_trans(osb, handle);
 bail_unlock:
-	ocfs2_meta_unlock(inode, 1);
+	ocfs2_inode_unlock(inode, 1);
 bail:
 	mutex_unlock(&inode->i_mutex);
 
@@ -115,8 +116,10 @@ int ocfs2_ioctl(struct inode * inode, struct file * filp,
 	unsigned int cmd, unsigned long arg)
 {
 	unsigned int flags;
+	int new_clusters;
 	int status;
 	struct ocfs2_space_resv sr;
+	struct ocfs2_new_group_input input;
 
 	switch (cmd) {
 	case OCFS2_IOC_GETFLAGS:
@@ -140,6 +143,23 @@ int ocfs2_ioctl(struct inode * inode, struct file * filp,
 			return -EFAULT;
 
 		return ocfs2_change_file_space(filp, cmd, &sr);
+	case OCFS2_IOC_GROUP_EXTEND:
+		if (!capable(CAP_SYS_RESOURCE))
+			return -EPERM;
+
+		if (get_user(new_clusters, (int __user *)arg))
+			return -EFAULT;
+
+		return ocfs2_group_extend(inode, new_clusters);
+	case OCFS2_IOC_GROUP_ADD:
+	case OCFS2_IOC_GROUP_ADD64:
+		if (!capable(CAP_SYS_RESOURCE))
+			return -EPERM;
+
+		if (copy_from_user(&input, (int __user *) arg, sizeof(input)))
+			return -EFAULT;
+
+		return ocfs2_group_add(inode, &input);
 	default:
 		return -ENOTTY;
 	}
@@ -162,6 +182,9 @@ long ocfs2_compat_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 	case OCFS2_IOC_RESVSP64:
 	case OCFS2_IOC_UNRESVSP:
 	case OCFS2_IOC_UNRESVSP64:
+	case OCFS2_IOC_GROUP_EXTEND:
+	case OCFS2_IOC_GROUP_ADD:
+	case OCFS2_IOC_GROUP_ADD64:
 		break;
 	default:
 		return -ENOIOCTLCMD;

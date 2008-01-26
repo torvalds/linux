@@ -4731,7 +4731,7 @@ int __ocfs2_flush_truncate_log(struct ocfs2_super *osb)
 
 	mutex_lock(&data_alloc_inode->i_mutex);
 
-	status = ocfs2_meta_lock(data_alloc_inode, &data_alloc_bh, 1);
+	status = ocfs2_inode_lock(data_alloc_inode, &data_alloc_bh, 1);
 	if (status < 0) {
 		mlog_errno(status);
 		goto out_mutex;
@@ -4753,7 +4753,7 @@ int __ocfs2_flush_truncate_log(struct ocfs2_super *osb)
 
 out_unlock:
 	brelse(data_alloc_bh);
-	ocfs2_meta_unlock(data_alloc_inode, 1);
+	ocfs2_inode_unlock(data_alloc_inode, 1);
 
 out_mutex:
 	mutex_unlock(&data_alloc_inode->i_mutex);
@@ -5077,7 +5077,7 @@ static int ocfs2_free_cached_items(struct ocfs2_super *osb,
 
 	mutex_lock(&inode->i_mutex);
 
-	ret = ocfs2_meta_lock(inode, &di_bh, 1);
+	ret = ocfs2_inode_lock(inode, &di_bh, 1);
 	if (ret) {
 		mlog_errno(ret);
 		goto out_mutex;
@@ -5118,7 +5118,7 @@ out_journal:
 	ocfs2_commit_trans(osb, handle);
 
 out_unlock:
-	ocfs2_meta_unlock(inode, 1);
+	ocfs2_inode_unlock(inode, 1);
 	brelse(di_bh);
 out_mutex:
 	mutex_unlock(&inode->i_mutex);

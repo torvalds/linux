@@ -35,7 +35,6 @@ Features which OCFS2 does not support yet:
 	- Directory change notification (F_NOTIFY)
 	- Distributed Caching (F_SETLEASE/F_GETLEASE/break_lease)
 	- POSIX ACLs
-	- readpages / writepages (not user visible)
 
 Mount options
 =============
@@ -62,3 +61,18 @@ data=writeback		Data ordering is not preserved, data may be written
 preferred_slot=0(*)	During mount, try to use this filesystem slot first. If
 			it is in use by another node, the first empty one found
 			will be chosen. Invalid values will be ignored.
+commit=nrsec	(*)	Ocfs2 can be told to sync all its data and metadata
+			every 'nrsec' seconds. The default value is 5 seconds.
+			This means that if you lose your power, you will lose
+			as much as the latest 5 seconds of work (your
+			filesystem will not be damaged though, thanks to the
+			journaling).  This default value (or any low value)
+			will hurt performance, but it's good for data-safety.
+			Setting it to 0 will have the same effect as leaving
+			it at the default (5 seconds).
+			Setting it to very large values will improve
+			performance.
+localalloc=8(*)		Allows custom localalloc size in MB. If the value is too
+			large, the fs will silently revert it to the default.
+			Localalloc is not enabled for local mounts.
+localflocks		This disables cluster aware flock.

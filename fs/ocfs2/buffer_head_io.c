@@ -79,7 +79,7 @@ int ocfs2_write_block(struct ocfs2_super *osb, struct buffer_head *bh,
 		 * information for this bh as it's not marked locally
 		 * uptodate. */
 		ret = -EIO;
-		brelse(bh);
+		put_bh(bh);
 	}
 
 	mutex_unlock(&OCFS2_I(inode)->ip_io_mutex);
@@ -256,7 +256,7 @@ int ocfs2_read_blocks(struct ocfs2_super *osb, u64 block, int nr,
 				 * for this bh as it's not marked locally
 				 * uptodate. */
 				status = -EIO;
-				brelse(bh);
+				put_bh(bh);
 				bhs[i] = NULL;
 				continue;
 			}
@@ -279,4 +279,65 @@ bail:
 
 	mlog_exit(status);
 	return status;
+}
+
+/* Check whether the blkno is the super block or one of the backups. */
+static void ocfs2_check_super_or_backup(struct super_block *sb,
+					sector_t blkno)
+{
+	int i;
+	u64 backup_blkno;
+
+	if (blkno == OCFS2_SUPER_BLOCK_BLKNO)
+		return;
+
+	for (i = 0; i < OCFS2_MAX_BACKUP_SUPERBLOCKS; i++) {
+		backup_blkno = ocfs2_backup_super_blkno(sb, i);
+		if (backup_blkno == blkno)
+			return;
+	}
+
+	BUG();
+}
+
+/*
+ * Write super block and backups doesn't need to collaborate with journal,
+ * so we don't need to lock ip_io_mutex and inode doesn't need to bea passed
+ * into this function.
+ */
+int ocfs2_write_super_or_backup(struct ocfs2_super *osb,
+				struct buffer_head *bh)
+{
+	int ret = 0;
+
+	mlog_entry_void();
+
+	BUG_ON(buffer_jbd(bh));
+	ocfs2_check_super_or_backup(osb->sb, bh->b_blocknr);
+
+	if (ocfs2_is_hard_readonly(osb) || ocfs2_is_soft_readonly(osb)) {
+		ret = -EROFS;
+		goto out;
+	}
+
+	lock_buffer(bh);
+	set_buffer_uptodate(bh);
+
+	/* remove from dirty list before I/O. */
+	clear_buffer_dirty(bh);
+
+	get_bh(bh); /* for end_buffer_write_sync() */
+	bh->b_end_io = end_buffer_write_sync;
+	submit_bh(WRITE, bh);
+
+	wait_on_buffer(bh);
+
+	if (!buffer_uptodate(bh)) {
+		ret = -EIO;
+		put_bh(bh);
+	}
+
+out:
+	mlog_exit(ret);
+	return ret;
 }

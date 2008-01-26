@@ -168,7 +168,7 @@ static int ocfs2_page_mkwrite(struct vm_area_struct *vma, struct page *page)
 	 * node. Taking the data lock will also ensure that we don't
 	 * attempt page truncation as part of a downconvert.
 	 */
-	ret = ocfs2_meta_lock(inode, &di_bh, 1);
+	ret = ocfs2_inode_lock(inode, &di_bh, 1);
 	if (ret < 0) {
 		mlog_errno(ret);
 		goto out;
@@ -181,21 +181,12 @@ static int ocfs2_page_mkwrite(struct vm_area_struct *vma, struct page *page)
 	 */
 	down_write(&OCFS2_I(inode)->ip_alloc_sem);
 
-	ret = ocfs2_data_lock(inode, 1);
-	if (ret < 0) {
-		mlog_errno(ret);
-		goto out_meta_unlock;
-	}
-
 	ret = __ocfs2_page_mkwrite(inode, di_bh, page);
 
-	ocfs2_data_unlock(inode, 1);
-
-out_meta_unlock:
 	up_write(&OCFS2_I(inode)->ip_alloc_sem);
 
 	brelse(di_bh);
-	ocfs2_meta_unlock(inode, 1);
+	ocfs2_inode_unlock(inode, 1);
 
 out:
 	ret2 = ocfs2_vm_op_unblock_sigs(&oldset);
@@ -214,13 +205,13 @@ int ocfs2_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	int ret = 0, lock_level = 0;
 
-	ret = ocfs2_meta_lock_atime(file->f_dentry->d_inode,
+	ret = ocfs2_inode_lock_atime(file->f_dentry->d_inode,
 				    file->f_vfsmnt, &lock_level);
 	if (ret < 0) {
 		mlog_errno(ret);
 		goto out;
 	}
-	ocfs2_meta_unlock(file->f_dentry->d_inode, lock_level);
+	ocfs2_inode_unlock(file->f_dentry->d_inode, lock_level);
 out:
 	vma->vm_ops = &ocfs2_file_vm_ops;
 	vma->vm_flags |= VM_CAN_NONLINEAR;

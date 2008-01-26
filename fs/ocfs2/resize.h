@@ -1,7 +1,11 @@
 /* -*- mode: c; c-basic-offset: 8; -*-
  * vim: noexpandtab sw=8 ts=8 sts=0:
  *
- * Copyright (C) 2005 Oracle.  All rights reserved.
+ * resize.h
+ *
+ * Function prototypes
+ *
+ * Copyright (C) 2007 Oracle.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public
@@ -19,27 +23,10 @@
  * Boston, MA 021110-1307, USA.
  */
 
-#ifndef OCFS2_ENDIAN_H
-#define OCFS2_ENDIAN_H
+#ifndef OCFS2_RESIZE_H
+#define OCFS2_RESIZE_H
 
-static inline void le16_add_cpu(__le16 *var, u16 val)
-{
-	*var = cpu_to_le16(le16_to_cpu(*var) + val);
-}
+int ocfs2_group_extend(struct inode * inode, int new_clusters);
+int ocfs2_group_add(struct inode *inode, struct ocfs2_new_group_input *input);
 
-static inline void le32_add_cpu(__le32 *var, u32 val)
-{
-	*var = cpu_to_le32(le32_to_cpu(*var) + val);
-}
-
-static inline void le64_add_cpu(__le64 *var, u64 val)
-{
-	*var = cpu_to_le64(le64_to_cpu(*var) + val);
-}
-
-static inline void be32_add_cpu(__be32 *var, u32 val)
-{
-	*var = cpu_to_be32(be32_to_cpu(*var) + val);
-}
-
-#endif /* OCFS2_ENDIAN_H */
+#endif /* OCFS2_RESIZE_H */

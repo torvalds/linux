@@ -128,9 +128,9 @@ static int ocfs2_match_dentry(struct dentry *dentry,
 /*
  * Walk the inode alias list, and find a dentry which has a given
  * parent. ocfs2_dentry_attach_lock() wants to find _any_ alias as it
- * is looking for a dentry_lock reference. The vote thread is looking
- * to unhash aliases, so we allow it to skip any that already have
- * that property.
+ * is looking for a dentry_lock reference. The downconvert thread is
+ * looking to unhash aliases, so we allow it to skip any that already
+ * have that property.
  */
 struct dentry *ocfs2_find_local_alias(struct inode *inode,
 				      u64 parent_blkno,
@@ -266,7 +266,7 @@ int ocfs2_dentry_attach_lock(struct dentry *dentry,
 	dl->dl_count = 0;
 	/*
 	 * Does this have to happen below, for all attaches, in case
-	 * the struct inode gets blown away by votes?
+	 * the struct inode gets blown away by the downconvert thread?
 	 */
 	dl->dl_inode = igrab(inode);
 	dl->dl_parent_blkno = parent_blkno;

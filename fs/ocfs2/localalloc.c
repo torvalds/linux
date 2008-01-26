@@ -75,18 +75,12 @@ static int ocfs2_local_alloc_new_window(struct ocfs2_super *osb,
 static int ocfs2_local_alloc_slide_window(struct ocfs2_super *osb,
 					  struct inode *local_alloc_inode);
 
-/*
- * Determine how large our local alloc window should be, in bits.
- *
- * These values (and the behavior in ocfs2_alloc_should_use_local) have
- * been chosen so that most allocations, including new block groups go
- * through local alloc.
- */
 static inline int ocfs2_local_alloc_window_bits(struct ocfs2_super *osb)
 {
-	BUG_ON(osb->s_clustersize_bits < 12);
+	BUG_ON(osb->s_clustersize_bits > 20);
 
-	return 2048 >> (osb->s_clustersize_bits - 12);
+	/* Size local alloc windows by the megabyte */
+	return osb->local_alloc_size << (20 - osb->s_clustersize_bits);
 }
 
 /*
@@ -96,18 +90,23 @@ static inline int ocfs2_local_alloc_window_bits(struct ocfs2_super *osb)
 int ocfs2_alloc_should_use_local(struct ocfs2_super *osb, u64 bits)
 {
 	int la_bits = ocfs2_local_alloc_window_bits(osb);
+	int ret = 0;
 
 	if (osb->local_alloc_state != OCFS2_LA_ENABLED)
-		return 0;
+		goto bail;
 
 	/* la_bits should be at least twice the size (in clusters) of
 	 * a new block group. We want to be sure block group
 	 * allocations go through the local alloc, so allow an
 	 * allocation to take up to half the bitmap. */
 	if (bits > (la_bits / 2))
-		return 0;
+		goto bail;
 
-	return 1;
+	ret = 1;
+bail:
+	mlog(0, "state=%d, bits=%llu, la_bits=%d, ret=%d\n",
+	     osb->local_alloc_state, (unsigned long long)bits, la_bits, ret);
+	return ret;
 }
 
 int ocfs2_load_local_alloc(struct ocfs2_super *osb)
@@ -120,6 +119,19 @@ int ocfs2_load_local_alloc(struct ocfs2_super *osb)
 	struct ocfs2_local_alloc *la;
 
 	mlog_entry_void();
+
+	if (ocfs2_mount_local(osb))
+		goto bail;
+
+	if (osb->local_alloc_size == 0)
+		goto bail;
+
+	if (ocfs2_local_alloc_window_bits(osb) >= osb->bitmap_cpg) {
+		mlog(ML_NOTICE, "Requested local alloc window %d is larger "
+		     "than max possible %u. Using defaults.\n",
+		     ocfs2_local_alloc_window_bits(osb), (osb->bitmap_cpg - 1));
+		osb->local_alloc_size = OCFS2_DEFAULT_LOCAL_ALLOC_SIZE;
+	}
 
 	/* read the alloc off disk */
 	inode = ocfs2_get_system_file_inode(osb, LOCAL_ALLOC_SYSTEM_INODE,
@@ -181,6 +193,9 @@ bail:
 	if (inode)
 		iput(inode);
 
+	mlog(0, "Local alloc window bits = %d\n",
+	     ocfs2_local_alloc_window_bits(osb));
+
 	mlog_exit(status);
 	return status;
 }
@@ -231,7 +246,7 @@ void ocfs2_shutdown_local_alloc(struct ocfs2_super *osb)
 
 	mutex_lock(&main_bm_inode->i_mutex);
 
-	status = ocfs2_meta_lock(main_bm_inode, &main_bm_bh, 1);
+	status = ocfs2_inode_lock(main_bm_inode, &main_bm_bh, 1);
 	if (status < 0) {
 		mlog_errno(status);
 		goto out_mutex;
@@ -286,7 +301,7 @@ out_unlock:
 	if (main_bm_bh)
 		brelse(main_bm_bh);
 
-	ocfs2_meta_unlock(main_bm_inode, 1);
+	ocfs2_inode_unlock(main_bm_inode, 1);
 
 out_mutex:
 	mutex_unlock(&main_bm_inode->i_mutex);
@@ -399,7 +414,7 @@ int ocfs2_complete_local_alloc_recovery(struct ocfs2_super *osb,
 
 	mutex_lock(&main_bm_inode->i_mutex);
 
-	status = ocfs2_meta_lock(main_bm_inode, &main_bm_bh, 1);
+	status = ocfs2_inode_lock(main_bm_inode, &main_bm_bh, 1);
 	if (status < 0) {
 		mlog_errno(status);
 		goto out_mutex;
@@ -424,7 +439,7 @@ int ocfs2_complete_local_alloc_recovery(struct ocfs2_super *osb,
 	ocfs2_commit_trans(osb, handle);
 
 out_unlock:
-	ocfs2_meta_unlock(main_bm_inode, 1);
+	ocfs2_inode_unlock(main_bm_inode, 1);
 
 out_mutex:
 	mutex_unlock(&main_bm_inode->i_mutex);
@@ -520,6 +535,9 @@ bail:
 		mutex_unlock(&local_alloc_inode->i_mutex);
 		iput(local_alloc_inode);
 	}
+
+	mlog(0, "bits=%d, slot=%d, ret=%d\n", bits_wanted, osb->slot_num,
+	     status);
 
 	mlog_exit(status);
 	return status;

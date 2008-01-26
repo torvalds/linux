@@ -1,9 +1,9 @@
 /* -*- mode: c; c-basic-offset: 8; -*-
  * vim: noexpandtab sw=8 ts=8 sts=0:
  *
- * vote.h
+ * locks.h
  *
- * description here
+ * Function prototypes for Userspace file locking support
  *
  * Copyright (C) 2002, 2004 Oracle.  All rights reserved.
  *
@@ -23,26 +23,9 @@
  * Boston, MA 021110-1307, USA.
  */
 
+#ifndef OCFS2_LOCKS_H
+#define OCFS2_LOCKS_H
 
-#ifndef VOTE_H
-#define VOTE_H
+int ocfs2_flock(struct file *file, int cmd, struct file_lock *fl);
 
-int ocfs2_vote_thread(void *arg);
-static inline void ocfs2_kick_vote_thread(struct ocfs2_super *osb)
-{
-	spin_lock(&osb->vote_task_lock);
-	/* make sure the voting thread gets a swipe at whatever changes
-	 * the caller may have made to the voting state */
-	osb->vote_wake_sequence++;
-	spin_unlock(&osb->vote_task_lock);
-	wake_up(&osb->vote_event);
-}
-
-int ocfs2_request_mount_vote(struct ocfs2_super *osb);
-int ocfs2_request_umount_vote(struct ocfs2_super *osb);
-int ocfs2_register_net_handlers(struct ocfs2_super *osb);
-void ocfs2_unregister_net_handlers(struct ocfs2_super *osb);
-
-void ocfs2_remove_node_from_vote_queues(struct ocfs2_super *osb,
-					int node_num);
-#endif
+#endif /* OCFS2_LOCKS_H */

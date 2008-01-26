@@ -101,8 +101,6 @@ static inline int ocfs2_block_group_reasonably_empty(struct ocfs2_group_desc *bg
 static inline u32 ocfs2_desc_bitmap_to_cluster_off(struct inode *inode,
 						   u64 bg_blkno,
 						   u16 bg_bit_off);
-static inline u64 ocfs2_which_cluster_group(struct inode *inode,
-					    u32 cluster);
 static inline void ocfs2_block_to_cluster_group(struct inode *inode,
 						u64 data_blkno,
 						u64 *bg_blkno,
@@ -114,7 +112,7 @@ void ocfs2_free_alloc_context(struct ocfs2_alloc_context *ac)
 
 	if (inode) {
 		if (ac->ac_which != OCFS2_AC_USE_LOCAL)
-			ocfs2_meta_unlock(inode, 1);
+			ocfs2_inode_unlock(inode, 1);
 
 		mutex_unlock(&inode->i_mutex);
 
@@ -131,9 +129,9 @@ static u32 ocfs2_bits_per_group(struct ocfs2_chain_list *cl)
 }
 
 /* somewhat more expensive than our other checks, so use sparingly. */
-static int ocfs2_check_group_descriptor(struct super_block *sb,
-					struct ocfs2_dinode *di,
-					struct ocfs2_group_desc *gd)
+int ocfs2_check_group_descriptor(struct super_block *sb,
+				 struct ocfs2_dinode *di,
+				 struct ocfs2_group_desc *gd)
 {
 	unsigned int max_bits;
 
@@ -412,7 +410,7 @@ static int ocfs2_reserve_suballoc_bits(struct ocfs2_super *osb,
 
 	mutex_lock(&alloc_inode->i_mutex);
 
-	status = ocfs2_meta_lock(alloc_inode, &bh, 1);
+	status = ocfs2_inode_lock(alloc_inode, &bh, 1);
 	if (status < 0) {
 		mutex_unlock(&alloc_inode->i_mutex);
 		iput(alloc_inode);
@@ -1443,8 +1441,7 @@ static inline u32 ocfs2_desc_bitmap_to_cluster_off(struct inode *inode,
 
 /* given a cluster offset, calculate which block group it belongs to
  * and return that block offset. */
-static inline u64 ocfs2_which_cluster_group(struct inode *inode,
-					    u32 cluster)
+u64 ocfs2_which_cluster_group(struct inode *inode, u32 cluster)
 {
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	u32 group_no;
@@ -1519,8 +1516,9 @@ int __ocfs2_claim_clusters(struct ocfs2_super *osb,
 		if (min_clusters > (osb->bitmap_cpg - 1)) {
 			/* The only paths asking for contiguousness
 			 * should know about this already. */
-			mlog(ML_ERROR, "minimum allocation requested exceeds "
-				       "group bitmap size!");
+			mlog(ML_ERROR, "minimum allocation requested %u exceeds "
+			     "group bitmap size %u!\n", min_clusters,
+			     osb->bitmap_cpg);
 			status = -ENOSPC;
 			goto bail;
 		}

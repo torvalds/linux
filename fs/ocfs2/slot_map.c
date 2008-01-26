@@ -48,25 +48,6 @@ static void __ocfs2_fill_slot(struct ocfs2_slot_info *si,
 			      s16 slot_num,
 			      s16 node_num);
 
-/* Use the slot information we've collected to create a map of mounted
- * nodes. Should be holding an EX on super block. assumes slot info is
- * up to date. Note that we call this *after* we find a slot, so our
- * own node should be set in the map too... */
-void ocfs2_populate_mounted_map(struct ocfs2_super *osb)
-{
-	int i;
-	struct ocfs2_slot_info *si = osb->slot_info;
-
-	spin_lock(&si->si_lock);
-
-	for (i = 0; i < si->si_size; i++)
-		if (si->si_global_node_nums[i] != OCFS2_INVALID_SLOT)
-			ocfs2_node_map_set_bit(osb, &osb->mounted_map,
-					      si->si_global_node_nums[i]);
-
-	spin_unlock(&si->si_lock);
-}
-
 /* post the slot information on disk into our slot_info struct. */
 void ocfs2_update_slot_info(struct ocfs2_slot_info *si)
 {
