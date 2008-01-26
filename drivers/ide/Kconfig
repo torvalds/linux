@@ -374,7 +374,19 @@ config BLK_DEV_IDEPCI
 	bool
 
 config IDEPCI_PCIBUS_ORDER
-	def_bool BLK_DEV_IDE=y && BLK_DEV_IDEPCI
+	bool "Probe IDE PCI devices in the PCI bus order (DEPRECATED)"
+	depends on BLK_DEV_IDE=y && BLK_DEV_IDEPCI
+	default y
+	help
+	  Probe IDE PCI devices in the order in which they appear on the
+	  PCI bus (i.e. 00:1f.1 PCI device before 02:01.0 PCI device)
+	  instead of the order in which IDE PCI host drivers are loaded.
+
+	  Please note that this method of assuring stable naming of
+	  IDE devices is unreliable and use other means for achieving
+	  it (i.e. udev).
+
+	  If in doubt, say N.
 
 # TODO: split it on per host driver config options (or module parameters)
 config BLK_DEV_OFFBOARD
