@@ -1437,6 +1437,7 @@ static void mv_err_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
 		ata_ehi_hotplugged(ehi);
 		ata_ehi_push_desc(ehi, edma_err_cause & EDMA_ERR_DEV_DCON ?
 			"dev disconnect" : "dev connect");
+		action |= ATA_EH_HARDRESET;
 	}
 
 	if (IS_GEN_I(hpriv)) {
@@ -1465,7 +1466,7 @@ static void mv_err_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
 	}
 
 	/* Clear EDMA now that SERR cleanup done */
-	writelfl(0, port_mmio + EDMA_ERR_IRQ_CAUSE_OFS);
+	writelfl(~edma_err_cause, port_mmio + EDMA_ERR_IRQ_CAUSE_OFS);
 
 	if (!err_mask) {
 		err_mask = AC_ERR_OTHER;
