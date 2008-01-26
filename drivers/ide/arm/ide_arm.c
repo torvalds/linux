@@ -35,7 +35,6 @@ void __init ide_arm_init(void)
 
 	hwif = ide_find_port(hw.io_ports[IDE_DATA_OFFSET]);
 	if (hwif) {
-		ide_init_port_data(hwif, hwif->index);
 		ide_init_port_hw(hwif, &hw);
 	}
 }

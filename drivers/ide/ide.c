@@ -218,9 +218,6 @@ static void __init init_ide_data (void)
 			ide_init_default_irq(hwif->io_ports[IDE_DATA_OFFSET]);
 #endif
 	}
-#ifdef CONFIG_IDE_ARM
-	ide_arm_init();
-#endif
 }
 
 /**
@@ -1774,6 +1771,9 @@ static int __init ide_init(void)
 
 	proc_ide_create();
 
+#ifdef CONFIG_IDE_ARM
+	ide_arm_init();
+#endif
 #ifdef CONFIG_BLK_DEV_ALI14XX
 	if (probe_ali14xx)
 		(void)ali14xx_init();
