@@ -281,6 +281,7 @@ static int
 sgiioc4_ide_dma_on(ide_drive_t * drive)
 {
 	drive->using_dma = 1;
+	ide_toggle_bounce(drive, 1);
 
 	return 0;
 }
@@ -288,6 +289,7 @@ sgiioc4_ide_dma_on(ide_drive_t * drive)
 static void sgiioc4_dma_off_quietly(ide_drive_t *drive)
 {
 	drive->using_dma = 0;
+	ide_toggle_bounce(drive, 0);
 
 	drive->hwif->dma_host_off(drive);
 }
