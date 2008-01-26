@@ -1252,7 +1252,6 @@ static void mv_qc_prep(struct ata_queued_cmd *qc)
 		flags |= CRQB_FLAG_READ;
 	WARN_ON(MV_MAX_Q_DEPTH <= qc->tag);
 	flags |= qc->tag << CRQB_TAG_SHIFT;
-	flags |= qc->tag << CRQB_IOID_SHIFT;	/* 50xx appears to ignore this*/
 
 	/* get current queue index from software */
 	in_index = pp->req_idx & MV_MAX_Q_DEPTH_MASK;
@@ -1345,8 +1344,7 @@ static void mv_qc_prep_iie(struct ata_queued_cmd *qc)
 
 	WARN_ON(MV_MAX_Q_DEPTH <= qc->tag);
 	flags |= qc->tag << CRQB_TAG_SHIFT;
-	flags |= qc->tag << CRQB_IOID_SHIFT;	/* "I/O Id" is -really-
-						   what we use as our tag */
+	flags |= qc->tag << CRQB_HOSTQ_SHIFT;
 
 	/* get current queue index from software */
 	in_index = pp->req_idx & MV_MAX_Q_DEPTH_MASK;
@@ -1587,13 +1585,8 @@ static void mv_intr_edma(struct ata_port *ap)
 		 * support for queueing.  this works transparently for
 		 * queued and non-queued modes.
 		 */
-		else if (IS_GEN_II(hpriv))
-			tag = (le16_to_cpu(pp->crpb[out_index].id)
-				>> CRPB_IOID_SHIFT_6) & 0x3f;
-
-		else /* IS_GEN_IIE */
-			tag = (le16_to_cpu(pp->crpb[out_index].id)
-				>> CRPB_IOID_SHIFT_7) & 0x3f;
+		else
+			tag = le16_to_cpu(pp->crpb[out_index].id) & 0x1f;
 
 		qc = ata_qc_from_tag(ap, tag);
 
