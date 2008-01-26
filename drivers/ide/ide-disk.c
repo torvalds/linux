@@ -975,6 +975,17 @@ static ide_driver_t idedisk_driver = {
 #endif
 };
 
+static int idedisk_set_doorlock(ide_drive_t *drive, int on)
+{
+	ide_task_t task;
+
+	memset(&task, 0, sizeof(task));
+	task.tf.command = on ? WIN_DOORLOCK : WIN_DOORUNLOCK;
+	task.tf_flags = IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE;
+
+	return ide_no_data_taskfile(drive, &task);
+}
+
 static int idedisk_open(struct inode *inode, struct file *filp)
 {
 	struct gendisk *disk = inode->i_bdev->bd_disk;
@@ -989,17 +1000,13 @@ static int idedisk_open(struct inode *inode, struct file *filp)
 	idkp->openers++;
 
 	if (drive->removable && idkp->openers == 1) {
-		ide_task_t args;
-		memset(&args, 0, sizeof(ide_task_t));
-		args.tf.command = WIN_DOORLOCK;
-		args.tf_flags = IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE;
 		check_disk_change(inode->i_bdev);
 		/*
 		 * Ignore the return code from door_lock,
 		 * since the open() has already succeeded,
 		 * and the door_lock is irrelevant at this point.
 		 */
-		if (drive->doorlocking && ide_no_data_taskfile(drive, &args))
+		if (drive->doorlocking && idedisk_set_doorlock(drive, 1))
 			drive->doorlocking = 0;
 	}
 	return 0;
@@ -1015,11 +1022,7 @@ static int idedisk_release(struct inode *inode, struct file *filp)
 		ide_cacheflush_p(drive);
 
 	if (drive->removable && idkp->openers == 1) {
-		ide_task_t args;
-		memset(&args, 0, sizeof(ide_task_t));
-		args.tf.command = WIN_DOORUNLOCK;
-		args.tf_flags = IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE;
-		if (drive->doorlocking && ide_no_data_taskfile(drive, &args))
+		if (drive->doorlocking && idedisk_set_doorlock(drive, 0))
 			drive->doorlocking = 0;
 	}
 
