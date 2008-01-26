@@ -796,32 +796,36 @@ css_bus_match (struct device *dev, struct device_driver *drv)
 	return 0;
 }
 
-static int
-css_probe (struct device *dev)
+static int css_probe(struct device *dev)
 {
 	struct subchannel *sch;
+	int ret;
 
 	sch = to_subchannel(dev);
 	sch->driver = to_cssdriver(dev->driver);
-	return (sch->driver->probe ? sch->driver->probe(sch) : 0);
+	ret = sch->driver->probe ? sch->driver->probe(sch) : 0;
+	if (ret)
+		sch->driver = NULL;
+	return ret;
 }
 
-static int
-css_remove (struct device *dev)
+static int css_remove(struct device *dev)
+{
+	struct subchannel *sch;
+	int ret;
+
+	sch = to_subchannel(dev);
+	ret = sch->driver->remove ? sch->driver->remove(sch) : 0;
+	sch->driver = NULL;
+	return ret;
+}
+
+static void css_shutdown(struct device *dev)
 {
 	struct subchannel *sch;
 
 	sch = to_subchannel(dev);
-	return (sch->driver->remove ? sch->driver->remove(sch) : 0);
-}
-
-static void
-css_shutdown (struct device *dev)
-{
-	struct subchannel *sch;
-
-	sch = to_subchannel(dev);
-	if (sch->driver->shutdown)
+	if (sch->driver && sch->driver->shutdown)
 		sch->driver->shutdown(sch);
 }
 
