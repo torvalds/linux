@@ -234,33 +234,6 @@ void smp_send_stop(void)
 }
 
 /*
- * Reboot, halt and power_off routines for SMP.
- */
-void machine_restart_smp(char *__unused)
-{
-	smp_send_stop();
-	do_reipl();
-}
-
-void machine_halt_smp(void)
-{
-	smp_send_stop();
-	if (MACHINE_IS_VM && strlen(vmhalt_cmd) > 0)
-		__cpcmd(vmhalt_cmd, NULL, 0, NULL);
-	signal_processor(smp_processor_id(), sigp_stop_and_store_status);
-	for (;;);
-}
-
-void machine_power_off_smp(void)
-{
-	smp_send_stop();
-	if (MACHINE_IS_VM && strlen(vmpoff_cmd) > 0)
-		__cpcmd(vmpoff_cmd, NULL, 0, NULL);
-	signal_processor(smp_processor_id(), sigp_stop_and_store_status);
-	for (;;);
-}
-
-/*
  * This is the main routine where commands issued by other
  * cpus are handled.
  */

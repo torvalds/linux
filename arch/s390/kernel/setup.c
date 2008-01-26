@@ -126,75 +126,6 @@ void __cpuinit cpu_init(void)
 }
 
 /*
- * VM halt and poweroff setup routines
- */
-char vmhalt_cmd[128] = "";
-char vmpoff_cmd[128] = "";
-static char vmpanic_cmd[128] = "";
-
-static void strncpy_skip_quote(char *dst, char *src, int n)
-{
-        int sx, dx;
-
-        dx = 0;
-        for (sx = 0; src[sx] != 0; sx++) {
-                if (src[sx] == '"') continue;
-                dst[dx++] = src[sx];
-                if (dx >= n) break;
-        }
-}
-
-static int __init vmhalt_setup(char *str)
-{
-        strncpy_skip_quote(vmhalt_cmd, str, 127);
-        vmhalt_cmd[127] = 0;
-        return 1;
-}
-
-__setup("vmhalt=", vmhalt_setup);
-
-static int __init vmpoff_setup(char *str)
-{
-        strncpy_skip_quote(vmpoff_cmd, str, 127);
-        vmpoff_cmd[127] = 0;
-        return 1;
-}
-
-__setup("vmpoff=", vmpoff_setup);
-
-static int vmpanic_notify(struct notifier_block *self, unsigned long event,
-			  void *data)
-{
-	if (MACHINE_IS_VM && strlen(vmpanic_cmd) > 0)
-		cpcmd(vmpanic_cmd, NULL, 0, NULL);
-
-	return NOTIFY_OK;
-}
-
-#define PANIC_PRI_VMPANIC	0
-
-static struct notifier_block vmpanic_nb = {
-	.notifier_call = vmpanic_notify,
-	.priority = PANIC_PRI_VMPANIC
-};
-
-static int __init vmpanic_setup(char *str)
-{
-	static int register_done __initdata = 0;
-
-	strncpy_skip_quote(vmpanic_cmd, str, 127);
-	vmpanic_cmd[127] = 0;
-	if (!register_done) {
-		register_done = 1;
-		atomic_notifier_chain_register(&panic_notifier_list,
-					       &vmpanic_nb);
-	}
-	return 1;
-}
-
-__setup("vmpanic=", vmpanic_setup);
-
-/*
  * condev= and conmode= setup parameter.
  */
 
@@ -307,38 +238,6 @@ static void __init setup_zfcpdump(unsigned int console_devno)
 #else
 static inline void setup_zfcpdump(unsigned int console_devno) {}
 #endif /* CONFIG_ZFCPDUMP */
-
-#ifdef CONFIG_SMP
-void (*_machine_restart)(char *command) = machine_restart_smp;
-void (*_machine_halt)(void) = machine_halt_smp;
-void (*_machine_power_off)(void) = machine_power_off_smp;
-#else
-/*
- * Reboot, halt and power_off routines for non SMP.
- */
-static void do_machine_restart_nonsmp(char * __unused)
-{
-	do_reipl();
-}
-
-static void do_machine_halt_nonsmp(void)
-{
-        if (MACHINE_IS_VM && strlen(vmhalt_cmd) > 0)
-		__cpcmd(vmhalt_cmd, NULL, 0, NULL);
-        signal_processor(smp_processor_id(), sigp_stop_and_store_status);
-}
-
-static void do_machine_power_off_nonsmp(void)
-{
-        if (MACHINE_IS_VM && strlen(vmpoff_cmd) > 0)
-		__cpcmd(vmpoff_cmd, NULL, 0, NULL);
-        signal_processor(smp_processor_id(), sigp_stop_and_store_status);
-}
-
-void (*_machine_restart)(char *command) = do_machine_restart_nonsmp;
-void (*_machine_halt)(void) = do_machine_halt_nonsmp;
-void (*_machine_power_off)(void) = do_machine_power_off_nonsmp;
-#endif
 
  /*
  * Reboot, halt and power_off stubs. They just call _machine_restart,
@@ -913,7 +812,7 @@ setup_arch(char **cmdline_p)
 
 	parse_early_param();
 
-	setup_ipl_info();
+	setup_ipl();
 	setup_memory_end();
 	setup_addressing_mode();
 	setup_memory();

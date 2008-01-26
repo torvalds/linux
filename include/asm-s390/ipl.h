@@ -83,6 +83,8 @@ extern u32 dump_prefix_page;
 extern unsigned int zfcpdump_prefix_array[];
 
 extern void do_reipl(void);
+extern void do_halt(void);
+extern void do_poff(void);
 extern void ipl_save_parameters(void);
 
 enum {
@@ -118,7 +120,7 @@ struct ipl_info
 };
 
 extern struct ipl_info ipl_info;
-extern void setup_ipl_info(void);
+extern void setup_ipl(void);
 
 /*
  * DIAG 308 support
