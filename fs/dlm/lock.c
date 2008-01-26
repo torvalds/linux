@@ -436,11 +436,15 @@ static int find_rsb(struct dlm_ls *ls, char *name, int namelen,
 {
 	struct dlm_rsb *r, *tmp;
 	uint32_t hash, bucket;
-	int error = 0;
+	int error = -EINVAL;
+
+	if (namelen > DLM_RESNAME_MAXLEN)
+		goto out;
 
 	if (dlm_no_directory(ls))
 		flags |= R_CREATE;
 
+	error = 0;
 	hash = jhash(name, namelen, 0);
 	bucket = hash & (ls->ls_rsbtbl_size - 1);
 
