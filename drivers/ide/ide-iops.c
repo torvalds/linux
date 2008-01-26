@@ -799,7 +799,7 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 
  skip:
 #ifdef CONFIG_BLK_DEV_IDEDMA
-	if (speed >= XFER_SW_DMA_0)
+	if (speed >= XFER_SW_DMA_0 || (hwif->host_flags & IDE_HFLAG_VDMA))
 		hwif->dma_host_on(drive);
 	else if (hwif->ide_dma_on)	/* check if host supports DMA */
 		hwif->dma_off_quietly(drive);

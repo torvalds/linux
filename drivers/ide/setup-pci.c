@@ -165,13 +165,17 @@ static unsigned long ide_get_or_set_dma_base(const struct ide_port_info *d, ide_
 
 		dma_base = pci_resource_start(dev, baridx);
 
-		if (dma_base == 0)
+		if (dma_base == 0) {
 			printk(KERN_ERR "%s: DMA base is invalid\n", d->name);
+			return 0;
+		}
 	}
 
-	if ((d->host_flags & IDE_HFLAG_CS5520) == 0 && dma_base) {
+	if (hwif->channel)
+		dma_base += 8;
+
+	if ((d->host_flags & IDE_HFLAG_CS5520) == 0) {
 		u8 simplex_stat = 0;
-		dma_base += hwif->channel ? 8 : 0;
 
 		switch(dev->device) {
 			case PCI_DEVICE_ID_AL_M5219:
