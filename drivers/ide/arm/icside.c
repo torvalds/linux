@@ -291,22 +291,8 @@ static void icside_dma_host_off(ide_drive_t *drive)
 {
 }
 
-static void icside_dma_off_quietly(ide_drive_t *drive)
-{
-	drive->using_dma = 0;
-	ide_toggle_bounce(drive, 0);
-}
-
 static void icside_dma_host_on(ide_drive_t *drive)
 {
-}
-
-static int icside_dma_on(ide_drive_t *drive)
-{
-	drive->using_dma = 1;
-	ide_toggle_bounce(drive, 1);
-
-	return 0;
 }
 
 static int icside_dma_end(ide_drive_t *drive)
@@ -425,9 +411,7 @@ static void icside_dma_init(ide_hwif_t *hwif)
 	hwif->set_dma_mode	= icside_set_dma_mode;
 
 	hwif->dma_host_off	= icside_dma_host_off;
-	hwif->dma_off_quietly	= icside_dma_off_quietly;
 	hwif->dma_host_on	= icside_dma_host_on;
-	hwif->ide_dma_on	= icside_dma_on;
 	hwif->dma_setup		= icside_dma_setup;
 	hwif->dma_exec_cmd	= icside_dma_exec_cmd;
 	hwif->dma_start		= icside_dma_start;

@@ -220,7 +220,7 @@ static void sc1200_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	}
 	if (mode != -1) {
 		printk("SC1200: %s: changing (U)DMA mode\n", drive->name);
-		hwif->dma_off_quietly(drive);
+		ide_dma_off_quietly(drive);
 		if (ide_set_dma_mode(drive, mode) == 0)
 			hwif->dma_host_on(drive);
 		return;

@@ -399,22 +399,8 @@ static void auide_dma_host_on(ide_drive_t *drive)
 {
 }
 
-static int auide_dma_on(ide_drive_t *drive)
-{
-	drive->using_dma = 1;
-	ide_toggle_bounce(drive, 1);
-
-	return 0;
-}
-
 static void auide_dma_host_off(ide_drive_t *drive)
 {
-}
-
-static void auide_dma_off_quietly(ide_drive_t *drive)
-{
-	drive->using_dma = 0;
-	ide_toggle_bounce(drive, 0);
 }
 
 static void auide_dma_lost_irq(ide_drive_t *drive)
@@ -684,7 +670,6 @@ static int au_ide_probe(struct device *dev)
 	hwif->set_dma_mode		= &auide_set_dma_mode;
 
 #ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
-	hwif->dma_off_quietly		= &auide_dma_off_quietly;
 	hwif->dma_timeout		= &auide_dma_timeout;
 
 	hwif->mdma_filter		= &auide_mdma_filter;
@@ -697,7 +682,6 @@ static int au_ide_probe(struct device *dev)
 	hwif->dma_host_off		= &auide_dma_host_off;
 	hwif->dma_host_on		= &auide_dma_host_on;
 	hwif->dma_lost_irq		= &auide_dma_lost_irq;
-	hwif->ide_dma_on                = &auide_dma_on;
 #else /* !CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA */
 	hwif->channel                   = 0;
 	hwif->hold                      = 1;

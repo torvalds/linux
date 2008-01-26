@@ -742,7 +742,7 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 //		msleep(50);
 
 #ifdef CONFIG_BLK_DEV_IDEDMA
-	if (hwif->ide_dma_on)	/* check if host supports DMA */
+	if (hwif->dma_host_on)	/* check if host supports DMA */
 		hwif->dma_host_off(drive);
 #endif
 
@@ -801,8 +801,8 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 #ifdef CONFIG_BLK_DEV_IDEDMA
 	if (speed >= XFER_SW_DMA_0 || (hwif->host_flags & IDE_HFLAG_VDMA))
 		hwif->dma_host_on(drive);
-	else if (hwif->ide_dma_on)	/* check if host supports DMA */
-		hwif->dma_off_quietly(drive);
+	else if (hwif->dma_host_on)	/* check if host supports DMA */
+		ide_dma_off_quietly(drive);
 #endif
 
 	switch(speed) {
@@ -1012,10 +1012,10 @@ static void check_dma_crc(ide_drive_t *drive)
 {
 #ifdef CONFIG_BLK_DEV_IDEDMA
 	if (drive->crc_count) {
-		drive->hwif->dma_off_quietly(drive);
+		ide_dma_off_quietly(drive);
 		ide_set_xfer_rate(drive, ide_auto_reduce_xfer(drive));
 		if (drive->current_speed >= XFER_SW_DMA_0)
-			(void) HWIF(drive)->ide_dma_on(drive);
+			ide_dma_on(drive);
 	} else
 		ide_dma_off(drive);
 #endif

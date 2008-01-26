@@ -833,7 +833,7 @@ static void probe_hwif(ide_hwif_t *hwif)
 
 			drive->nice1 = 1;
 
-			if (hwif->ide_dma_on)
+			if (hwif->dma_host_on)
 				ide_set_dma(drive);
 		}
 	}

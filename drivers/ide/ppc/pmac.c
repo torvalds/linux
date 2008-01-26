@@ -1748,8 +1748,6 @@ pmac_ide_setup_dma(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 		return;
 	}
 
-	hwif->dma_off_quietly = &ide_dma_off_quietly;
-	hwif->ide_dma_on = &__ide_dma_on;
 	hwif->dma_setup = &pmac_ide_dma_setup;
 	hwif->dma_exec_cmd = &pmac_ide_dma_exec_cmd;
 	hwif->dma_start = &pmac_ide_dma_start;

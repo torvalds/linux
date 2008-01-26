@@ -75,7 +75,7 @@ static int __ide_end_request(ide_drive_t *drive, struct request *rq,
 	 */
 	if (drive->state == DMA_PIO_RETRY && drive->retry_pio <= 3) {
 		drive->state = 0;
-		HWGROUP(drive)->hwif->ide_dma_on(drive);
+		ide_dma_on(drive);
 	}
 
 	if (!end_that_request_chunk(rq, uptodate, nr_bytes)) {
@@ -219,7 +219,7 @@ static ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *
 		 * we could be smarter and check for current xfer_speed
 		 * in struct drive etc...
 		 */
-		if (drive->hwif->ide_dma_on == NULL)
+		if (drive->hwif->dma_host_on == NULL)
 			break;
 		/*
 		 * TODO: respect ->using_dma setting
@@ -787,7 +787,7 @@ static ide_startstop_t do_special (ide_drive_t *drive)
 
 			if (hwif->host_flags & IDE_HFLAG_SET_PIO_MODE_KEEP_DMA) {
 				if (keep_dma)
-					hwif->ide_dma_on(drive);
+					ide_dma_on(drive);
 			}
 		}
 
@@ -1334,7 +1334,7 @@ static ide_startstop_t ide_dma_timeout_retry(ide_drive_t *drive, int error)
 	 */
 	drive->retry_pio++;
 	drive->state = DMA_PIO_RETRY;
-	hwif->dma_off_quietly(drive);
+	ide_dma_off_quietly(drive);
 
 	/*
 	 * un-busy drive etc (hwgroup->busy is cleared on return) and
