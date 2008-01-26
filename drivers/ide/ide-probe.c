@@ -1405,8 +1405,12 @@ int ide_device_add(u8 idx[4])
 
 		hwif = &ide_hwifs[idx[i]];
 
-		if (hwif->present)
+		if (hwif->present) {
+			if (hwif->chipset == ide_unknown ||
+			    hwif->chipset == ide_forced)
+				hwif->chipset = ide_generic;
 			hwif_register_devices(hwif);
+		}
 	}
 
 	for (i = 0; i < 4; i++) {
