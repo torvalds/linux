@@ -139,6 +139,7 @@ static const char *ad_slave_vols[] = {
 	"Headphone Playback Volume",
 	"Mono Playback Volume",
 	"Speaker Playback Volume",
+	"IEC958 Playback Volume",
 	NULL
 };
 
@@ -151,6 +152,7 @@ static const char *ad_slave_sws[] = {
 	"Headphone Playback Switch",
 	"Mono Playback Switch",
 	"Speaker Playback Switch",
+	"IEC958 Playback Switch",
 	NULL
 };
 
@@ -3078,6 +3080,7 @@ static const char *ad1884_slave_vols[] = {
 	"Internal Mic Playback Volume",
 	"Docking Mic Playback Volume"
 	"Beep Playback Volume",
+	"IEC958 Playback Volume",
 	NULL
 };
 
