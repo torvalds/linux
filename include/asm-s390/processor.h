@@ -59,9 +59,6 @@ extern void s390_adjust_jiffies(void);
 extern void print_cpu_info(struct cpuinfo_S390 *);
 extern int get_cpu_capability(unsigned int *);
 
-/* Lazy FPU handling on uni-processor */
-extern struct task_struct *last_task_used_math;
-
 /*
  * User space process size: 2GB for 31 bit, 4TB for 64 bit.
  */
@@ -95,7 +92,6 @@ struct thread_struct {
         unsigned long ksp;              /* kernel stack pointer             */
 	mm_segment_t mm_segment;
         unsigned long prot_addr;        /* address of protection-excep.     */
-        unsigned int error_code;        /* error-code of last prog-excep.   */
         unsigned int trap_no;
         per_struct per_info;
 	/* Used to give failing instruction back to user for ieee exceptions */
