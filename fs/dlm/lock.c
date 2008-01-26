@@ -4266,6 +4266,7 @@ static struct dlm_lkb *search_remid(struct dlm_rsb *r, int nodeid,
 	return NULL;
 }
 
+/* needs at least dlm_rcom + rcom_lock */
 static int receive_rcom_lock_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 				  struct dlm_rsb *r, struct dlm_rcom *rc)
 {
@@ -4315,6 +4316,7 @@ static int receive_rcom_lock_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
    the given values and send back our lkid.  We send back our lkid by sending
    back the rcom_lock struct we got but with the remid field filled in. */
 
+/* needs at least dlm_rcom + rcom_lock */
 int dlm_recover_master_copy(struct dlm_ls *ls, struct dlm_rcom *rc)
 {
 	struct rcom_lock *rl = (struct rcom_lock *) rc->rc_buf;
@@ -4370,6 +4372,7 @@ int dlm_recover_master_copy(struct dlm_ls *ls, struct dlm_rcom *rc)
 	return error;
 }
 
+/* needs at least dlm_rcom + rcom_lock */
 int dlm_recover_process_copy(struct dlm_ls *ls, struct dlm_rcom *rc)
 {
 	struct rcom_lock *rl = (struct rcom_lock *) rc->rc_buf;

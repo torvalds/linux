@@ -357,6 +357,7 @@ int dlm_send_rcom_lock(struct dlm_rsb *r, struct dlm_lkb *lkb)
 	return error;
 }
 
+/* needs at least dlm_rcom + rcom_lock */
 static void receive_rcom_lock(struct dlm_ls *ls, struct dlm_rcom *rc_in)
 {
 	struct dlm_rcom *rc;
@@ -448,6 +449,8 @@ static int is_old_reply(struct dlm_ls *ls, struct dlm_rcom *rc)
 
 void dlm_receive_rcom(struct dlm_ls *ls, struct dlm_rcom *rc, int nodeid)
 {
+	int lock_size = sizeof(struct dlm_rcom) + sizeof(struct rcom_lock);
+
 	if (dlm_recovery_stopped(ls) && (rc->rc_type != DLM_RCOM_STATUS)) {
 		log_debug(ls, "ignoring recovery message %x from %d",
 			  rc->rc_type, nodeid);
@@ -471,6 +474,8 @@ void dlm_receive_rcom(struct dlm_ls *ls, struct dlm_rcom *rc, int nodeid)
 		break;
 
 	case DLM_RCOM_LOCK:
+		if (rc->rc_header.h_length < lock_size)
+			goto Eshort;
 		receive_rcom_lock(ls, rc);
 		break;
 
@@ -487,13 +492,18 @@ void dlm_receive_rcom(struct dlm_ls *ls, struct dlm_rcom *rc, int nodeid)
 		break;
 
 	case DLM_RCOM_LOCK_REPLY:
+		if (rc->rc_header.h_length < lock_size)
+			goto Eshort;
 		dlm_recover_process_copy(ls, rc);
 		break;
 
 	default:
 		log_error(ls, "receive_rcom bad type %d", rc->rc_type);
 	}
- out:
+out:
 	return;
+Eshort:
+	log_error(ls, "recovery message %x from %d is too short",
+			  rc->rc_type, nodeid);
 }
 
