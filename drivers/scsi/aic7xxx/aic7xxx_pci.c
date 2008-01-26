@@ -2020,6 +2020,7 @@ ahc_pci_chip_init(struct ahc_softc *ahc)
 	return (ahc_chip_init(ahc));
 }
 
+#ifdef CONFIG_PM
 void
 ahc_pci_resume(struct ahc_softc *ahc)
 {
@@ -2051,6 +2052,7 @@ ahc_pci_resume(struct ahc_softc *ahc)
 		ahc_release_seeprom(&sd);
 	}
 }
+#endif
 
 static int
 ahc_aic785X_setup(struct ahc_softc *ahc)
