@@ -1382,9 +1382,14 @@ int ide_device_add(u8 idx[4])
 		if (idx[i] == 0xff)
 			continue;
 
-		hwif = &ide_hwifs[idx[i]];
+		probe_hwif(&ide_hwifs[idx[i]]);
+	}
 
-		probe_hwif(hwif);
+	for (i = 0; i < 4; i++) {
+		if (idx[i] == 0xff)
+			continue;
+
+		hwif = &ide_hwifs[idx[i]];
 
 		if (hwif_init(hwif) == 0) {
 			printk(KERN_INFO "%s: failed to initialize IDE "
@@ -1392,6 +1397,13 @@ int ide_device_add(u8 idx[4])
 			rc = -1;
 			continue;
 		}
+	}
+
+	for (i = 0; i < 4; i++) {
+		if (idx[i] == 0xff)
+			continue;
+
+		hwif = &ide_hwifs[idx[i]];
 
 		if (hwif->present)
 			hwif_register_devices(hwif);
