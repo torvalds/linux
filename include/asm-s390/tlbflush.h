@@ -106,9 +106,23 @@ static inline void __tlb_flush_mm_cond(struct mm_struct * mm)
  */
 #define flush_tlb()				do { } while (0)
 #define flush_tlb_all()				do { } while (0)
-#define flush_tlb_mm(mm)			__tlb_flush_mm_cond(mm)
 #define flush_tlb_page(vma, addr)		do { } while (0)
-#define flush_tlb_range(vma, start, end)	__tlb_flush_mm_cond(mm)
-#define flush_tlb_kernel_range(start, end)	__tlb_flush_mm(&init_mm)
+
+static inline void flush_tlb_mm(struct mm_struct *mm)
+{
+	__tlb_flush_mm_cond(mm);
+}
+
+static inline void flush_tlb_range(struct vm_area_struct *vma,
+				   unsigned long start, unsigned long end)
+{
+	__tlb_flush_mm_cond(vma->vm_mm);
+}
+
+static inline void flush_tlb_kernel_range(unsigned long start,
+					  unsigned long end)
+{
+	__tlb_flush_mm(&init_mm);
+}
 
 #endif /* _S390_TLBFLUSH_H */
