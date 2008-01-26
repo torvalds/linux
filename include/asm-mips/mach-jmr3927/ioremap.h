@@ -25,7 +25,7 @@ static inline void __iomem *plat_ioremap(phys_t offset, unsigned long size,
 {
 #define TXX9_DIRECTMAP_BASE	0xff000000ul
 	if (offset >= TXX9_DIRECTMAP_BASE &&
-	    offset < TXX9_DIRECTMAP_BASE + 0xf0000)
+	    offset < TXX9_DIRECTMAP_BASE + 0xff0000)
 		return (void __iomem *)offset;
 	return NULL;
 }
