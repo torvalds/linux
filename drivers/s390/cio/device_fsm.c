@@ -641,9 +641,10 @@ ccw_device_verify_done(struct ccw_device *cdev, int err)
 	default:
 		/* Reset oper notify indication after verify error. */
 		cdev->private->flags.donotify = 0;
-		if (cdev->online)
+		if (cdev->online) {
+			ccw_device_set_timeout(cdev, 0);
 			dev_fsm_event(cdev, DEV_EVENT_NOTOPER);
-		else
+		} else
 			ccw_device_done(cdev, DEV_STATE_NOT_OPER);
 		break;
 	}
