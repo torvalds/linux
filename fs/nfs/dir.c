@@ -537,12 +537,6 @@ static int nfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 
 	lock_kernel();
 
-	res = nfs_revalidate_mapping_nolock(inode, filp->f_mapping);
-	if (res < 0) {
-		unlock_kernel();
-		return res;
-	}
-
 	/*
 	 * filp->f_pos points to the dirent entry number.
 	 * *desc->dir_cookie has the cookie for the next entry. We have
@@ -564,6 +558,10 @@ static int nfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	desc->entry = &my_entry;
 
 	nfs_block_sillyrename(dentry);
+	res = nfs_revalidate_mapping_nolock(inode, filp->f_mapping);
+	if (res < 0)
+		goto out;
+
 	while(!desc->entry->eof) {
 		res = readdir_search_pagecache(desc);
 
@@ -594,6 +592,7 @@ static int nfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 			break;
 		}
 	}
+out:
 	nfs_unblock_sillyrename(dentry);
 	unlock_kernel();
 	if (res > 0)

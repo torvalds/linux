@@ -138,7 +138,7 @@ static int nfs_do_call_unlink(struct dentry *parent, struct inode *dir, struct n
 		spin_lock(&alias->d_lock);
 		if (!(alias->d_flags & DCACHE_NFSFS_RENAMED)) {
 			alias->d_fsdata = data;
-			alias->d_flags ^= DCACHE_NFSFS_RENAMED;
+			alias->d_flags |= DCACHE_NFSFS_RENAMED;
 			ret = 1;
 		}
 		spin_unlock(&alias->d_lock);
