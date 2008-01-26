@@ -408,6 +408,7 @@ int ccwgroup_driver_register(struct ccwgroup_driver *cdriver)
 	/* register our new driver with the core */
 	cdriver->driver.bus = &ccwgroup_bus_type;
 	cdriver->driver.name = cdriver->name;
+	cdriver->driver.owner = cdriver->owner;
 
 	return driver_register(&cdriver->driver);
 }

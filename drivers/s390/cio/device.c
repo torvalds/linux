@@ -125,6 +125,7 @@ static void io_subchannel_ioterm(struct subchannel *);
 static void io_subchannel_shutdown(struct subchannel *);
 
 static struct css_driver io_subchannel_driver = {
+	.owner = THIS_MODULE,
 	.subchannel_type = SUBCHANNEL_TYPE_IO,
 	.name = "io_subchannel",
 	.irq = io_subchannel_irq,
@@ -1476,6 +1477,7 @@ int ccw_driver_register(struct ccw_driver *cdriver)
 
 	drv->bus = &ccw_bus_type;
 	drv->name = cdriver->name;
+	drv->owner = cdriver->owner;
 
 	return driver_register(drv);
 }

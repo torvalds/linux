@@ -65,6 +65,7 @@ struct pgid {
  */
 struct subchannel;
 struct css_driver {
+	struct module *owner;
 	unsigned int subchannel_type;
 	struct device_driver drv;
 	void (*irq)(struct subchannel *);

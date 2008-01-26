@@ -862,6 +862,7 @@ int css_driver_register(struct css_driver *cdrv)
 {
 	cdrv->drv.name = cdrv->name;
 	cdrv->drv.bus = &css_bus_type;
+	cdrv->drv.owner = cdrv->owner;
 	return driver_register(&cdrv->drv);
 }
 EXPORT_SYMBOL_GPL(css_driver_register);
