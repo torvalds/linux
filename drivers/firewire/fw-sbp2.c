@@ -716,7 +716,11 @@ static void sbp2_login(struct work_struct *work)
 	sdev = __scsi_add_device(shost, 0, 0,
 				 scsilun_to_int(&eight_bytes_lun), lu);
 	if (IS_ERR(sdev)) {
-		sbp2_send_management_orb(lu, node_id, generation,
+		smp_rmb(); /* generation may have changed */
+		generation = device->generation;
+		smp_rmb(); /* node_id must not be older than generation */
+
+		sbp2_send_management_orb(lu, device->node_id, generation,
 				SBP2_LOGOUT_REQUEST, lu->login_id, NULL);
 		/*
 		 * Set this back to sbp2_login so we fall back and
