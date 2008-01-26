@@ -99,7 +99,7 @@ int taskfile_lib_get_identify (ide_drive_t *drive, u8 *buf)
 		args.tf.command = WIN_IDENTIFY;
 	else
 		args.tf.command = WIN_PIDENTIFY;
-	args.tf_flags	= IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE;
+	args.tf_flags	= IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
 	args.data_phase	= TASKFILE_IN;
 	return ide_raw_taskfile(drive, &args, buf, 1);
 }
@@ -618,9 +618,10 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 
 	args.data_phase = req_task->data_phase;
 
-	args.tf_flags = IDE_TFLAG_IO_16BIT | IDE_TFLAG_OUT_DEVICE;
+	args.tf_flags = IDE_TFLAG_IO_16BIT | IDE_TFLAG_DEVICE |
+			IDE_TFLAG_IN_TF;
 	if (drive->addressing == 1)
-		args.tf_flags |= IDE_TFLAG_LBA48;
+		args.tf_flags |= (IDE_TFLAG_LBA48 | IDE_TFLAG_IN_HOB);
 
 	if (req_task->out_flags.all) {
 		args.tf_flags |= IDE_TFLAG_FLAGGED;
@@ -836,7 +837,7 @@ int ide_task_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 	memset(&task, 0, sizeof(task));
 	memcpy(&task.tf_array[7], &args[1], 6);
 	task.tf.command = args[0];
-	task.tf_flags = IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE;
+	task.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
 
 	err = ide_no_data_taskfile(drive, &task);
 

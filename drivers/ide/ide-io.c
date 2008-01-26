@@ -231,7 +231,7 @@ static ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *
 	return ide_stopped;
 
 out_do_tf:
-	args->tf_flags	 = IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE;
+	args->tf_flags	 = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
 	args->data_phase = TASKFILE_NO_DATA;
 	return do_rw_taskfile(drive, args);
 }
@@ -384,10 +384,6 @@ void ide_end_drive_cmd (ide_drive_t *drive, u8 stat, u8 err)
 
 			tf->error = err;
 			tf->status = stat;
-
-			args->tf_flags |= (IDE_TFLAG_IN_TF|IDE_TFLAG_IN_DEVICE);
-			if (args->tf_flags & IDE_TFLAG_LBA48)
-				args->tf_flags |= IDE_TFLAG_IN_HOB;
 
 			ide_tf_read(drive, args);
 		}
@@ -712,7 +708,7 @@ static ide_startstop_t ide_disk_special(ide_drive_t *drive)
 		return ide_stopped;
 	}
 
-	args.tf_flags = IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE |
+	args.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE |
 			IDE_TFLAG_CUSTOM_HANDLER;
 
 	do_rw_taskfile(drive, &args);
