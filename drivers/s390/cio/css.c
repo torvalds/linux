@@ -51,6 +51,62 @@ for_each_subchannel(int(*fn)(struct subchannel_id, void *), void *data)
 	return ret;
 }
 
+struct cb_data {
+	void *data;
+	struct idset *set;
+	int (*fn_known_sch)(struct subchannel *, void *);
+	int (*fn_unknown_sch)(struct subchannel_id, void *);
+};
+
+static int call_fn_known_sch(struct device *dev, void *data)
+{
+	struct subchannel *sch = to_subchannel(dev);
+	struct cb_data *cb = data;
+	int rc = 0;
+
+	idset_sch_del(cb->set, sch->schid);
+	if (cb->fn_known_sch)
+		rc = cb->fn_known_sch(sch, cb->data);
+	return rc;
+}
+
+static int call_fn_unknown_sch(struct subchannel_id schid, void *data)
+{
+	struct cb_data *cb = data;
+	int rc = 0;
+
+	if (idset_sch_contains(cb->set, schid))
+		rc = cb->fn_unknown_sch(schid, cb->data);
+	return rc;
+}
+
+int for_each_subchannel_staged(int (*fn_known)(struct subchannel *, void *),
+			       int (*fn_unknown)(struct subchannel_id,
+			       void *), void *data)
+{
+	struct cb_data cb;
+	int rc;
+
+	cb.set = idset_sch_new();
+	if (!cb.set)
+		return -ENOMEM;
+	idset_fill(cb.set);
+	cb.data = data;
+	cb.fn_known_sch = fn_known;
+	cb.fn_unknown_sch = fn_unknown;
+	/* Process registered subchannels. */
+	rc = bus_for_each_dev(&css_bus_type, NULL, &cb, call_fn_known_sch);
+	if (rc)
+		goto out;
+	/* Process unregistered subchannels. */
+	if (fn_unknown)
+		rc = for_each_subchannel(call_fn_unknown_sch, &cb);
+out:
+	idset_free(cb.set);
+
+	return rc;
+}
+
 static struct subchannel *
 css_alloc_subchannel(struct subchannel_id schid)
 {
@@ -402,20 +458,56 @@ static int __init slow_subchannel_init(void)
 	return 0;
 }
 
+static int slow_eval_known_fn(struct subchannel *sch, void *data)
+{
+	int eval;
+	int rc;
+
+	spin_lock_irq(&slow_subchannel_lock);
+	eval = idset_sch_contains(slow_subchannel_set, sch->schid);
+	idset_sch_del(slow_subchannel_set, sch->schid);
+	spin_unlock_irq(&slow_subchannel_lock);
+	if (eval) {
+		rc = css_evaluate_known_subchannel(sch, 1);
+		if (rc == -EAGAIN)
+			css_schedule_eval(sch->schid);
+	}
+	return 0;
+}
+
+static int slow_eval_unknown_fn(struct subchannel_id schid, void *data)
+{
+	int eval;
+	int rc = 0;
+
+	spin_lock_irq(&slow_subchannel_lock);
+	eval = idset_sch_contains(slow_subchannel_set, schid);
+	idset_sch_del(slow_subchannel_set, schid);
+	spin_unlock_irq(&slow_subchannel_lock);
+	if (eval) {
+		rc = css_evaluate_new_subchannel(schid, 1);
+		switch (rc) {
+		case -EAGAIN:
+			css_schedule_eval(schid);
+			rc = 0;
+			break;
+		case -ENXIO:
+		case -ENOMEM:
+		case -EIO:
+			/* These should abort looping */
+			break;
+		default:
+			rc = 0;
+		}
+	}
+	return rc;
+}
+
 static void css_slow_path_func(struct work_struct *unused)
 {
-	struct subchannel_id schid;
-
 	CIO_TRACE_EVENT(4, "slowpath");
-	spin_lock_irq(&slow_subchannel_lock);
-	init_subchannel_id(&schid);
-	while (idset_sch_get_first(slow_subchannel_set, &schid)) {
-		idset_sch_del(slow_subchannel_set, schid);
-		spin_unlock_irq(&slow_subchannel_lock);
-		css_evaluate_subchannel(schid, 1);
-		spin_lock_irq(&slow_subchannel_lock);
-	}
-	spin_unlock_irq(&slow_subchannel_lock);
+	for_each_subchannel_staged(slow_eval_known_fn, slow_eval_unknown_fn,
+				   NULL);
 }
 
 static DECLARE_WORK(slow_path_work, css_slow_path_func);
@@ -444,20 +536,12 @@ void css_schedule_eval_all(void)
 /* Reprobe subchannel if unregistered. */
 static int reprobe_subchannel(struct subchannel_id schid, void *data)
 {
-	struct subchannel *sch;
 	int ret;
 
 	CIO_MSG_EVENT(6, "cio: reprobe 0.%x.%04x\n",
 		      schid.ssid, schid.sch_no);
 	if (need_reprobe)
 		return -EAGAIN;
-
-	sch = get_subchannel_by_schid(schid);
-	if (sch) {
-		/* Already known. */
-		put_device(&sch->dev);
-		return 0;
-	}
 
 	ret = css_probe_device(schid);
 	switch (ret) {
@@ -486,7 +570,7 @@ static void reprobe_all(struct work_struct *unused)
 	/* Make sure initial subchannel scan is done. */
 	wait_event(ccw_device_init_wq,
 		   atomic_read(&ccw_device_init_count) == 0);
-	ret = for_each_subchannel(reprobe_subchannel, NULL);
+	ret = for_each_subchannel_staged(NULL, reprobe_subchannel, NULL);
 
 	CIO_MSG_EVENT(2, "reprobe done (rc=%d, need_reprobe=%d)\n", ret,
 		      need_reprobe);

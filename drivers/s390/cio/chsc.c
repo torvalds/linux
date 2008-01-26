@@ -136,17 +136,13 @@ static void terminate_internal_io(struct subchannel *sch)
 		sch->driver->termination(sch);
 }
 
-static int
-s390_subchannel_remove_chpid(struct device *dev, void *data)
+static int s390_subchannel_remove_chpid(struct subchannel *sch, void *data)
 {
 	int j;
 	int mask;
-	struct subchannel *sch;
-	struct chp_id *chpid;
+	struct chp_id *chpid = data;
 	struct schib schib;
 
-	sch = to_subchannel(dev);
-	chpid = data;
 	for (j = 0; j < 8; j++) {
 		mask = 0x80 >> j;
 		if ((sch->schib.pmcw.pim & mask) &&
@@ -202,12 +198,10 @@ void chsc_chp_offline(struct chp_id chpid)
 
 	if (chp_get_status(chpid) <= 0)
 		return;
-	bus_for_each_dev(&css_bus_type, NULL, &chpid,
-			 s390_subchannel_remove_chpid);
+	for_each_subchannel_staged(s390_subchannel_remove_chpid, NULL, &chpid);
 }
 
-static int
-s390_process_res_acc_new_sch(struct subchannel_id schid)
+static int s390_process_res_acc_new_sch(struct subchannel_id schid, void *data)
 {
 	struct schib schib;
 	/*
@@ -253,18 +247,10 @@ static int get_res_chpid_mask(struct chsc_ssd_info *ssd,
 	return 0;
 }
 
-static int
-__s390_process_res_acc(struct subchannel_id schid, void *data)
+static int __s390_process_res_acc(struct subchannel *sch, void *data)
 {
 	int chp_mask, old_lpm;
-	struct res_acc_data *res_data;
-	struct subchannel *sch;
-
-	res_data = data;
-	sch = get_subchannel_by_schid(schid);
-	if (!sch)
-		/* Check if a subchannel is newly available. */
-		return s390_process_res_acc_new_sch(schid);
+	struct res_acc_data *res_data = data;
 
 	spin_lock_irq(sch->lock);
 	chp_mask = get_res_chpid_mask(&sch->ssd_info, res_data);
@@ -283,7 +269,7 @@ __s390_process_res_acc(struct subchannel_id schid, void *data)
 		sch->driver->verify(sch);
 out:
 	spin_unlock_irq(sch->lock);
-	put_device(&sch->dev);
+
 	return 0;
 }
 
@@ -306,7 +292,8 @@ static void s390_process_res_acc (struct res_acc_data *res_data)
 	 * The more information we have (info), the less scanning
 	 * will we have to do.
 	 */
-	for_each_subchannel(__s390_process_res_acc, res_data);
+	for_each_subchannel_staged(__s390_process_res_acc,
+				   s390_process_res_acc_new_sch, res_data);
 }
 
 static int
@@ -500,8 +487,7 @@ void chsc_process_crw(void)
 	} while (sei_area->flags & 0x80);
 }
 
-static int
-__chp_add_new_sch(struct subchannel_id schid)
+static int __chp_add_new_sch(struct subchannel_id schid, void *data)
 {
 	struct schib schib;
 
@@ -515,33 +501,25 @@ __chp_add_new_sch(struct subchannel_id schid)
 }
 
 
-static int
-__chp_add(struct subchannel_id schid, void *data)
+static int __chp_add(struct subchannel *sch, void *data)
 {
 	int i, mask;
-	struct chp_id *chpid;
-	struct subchannel *sch;
+	struct chp_id *chpid = data;
 
-	chpid = data;
-	sch = get_subchannel_by_schid(schid);
-	if (!sch)
-		/* Check if the subchannel is now available. */
-		return __chp_add_new_sch(schid);
 	spin_lock_irq(sch->lock);
 	for (i=0; i<8; i++) {
 		mask = 0x80 >> i;
 		if ((sch->schib.pmcw.pim & mask) &&
-		    (sch->schib.pmcw.chpid[i] == chpid->id)) {
-			if (stsch(sch->schid, &sch->schib) != 0) {
-				/* Endgame. */
-				spin_unlock_irq(sch->lock);
-				return -ENXIO;
-			}
+		    (sch->schib.pmcw.chpid[i] == chpid->id))
 			break;
-		}
 	}
 	if (i==8) {
 		spin_unlock_irq(sch->lock);
+		return 0;
+	}
+	if (stsch(sch->schid, &sch->schib)) {
+		spin_unlock_irq(sch->lock);
+		css_schedule_eval(sch->schid);
 		return 0;
 	}
 	sch->lpm = ((sch->schib.pmcw.pim &
@@ -553,7 +531,7 @@ __chp_add(struct subchannel_id schid, void *data)
 		sch->driver->verify(sch);
 
 	spin_unlock_irq(sch->lock);
-	put_device(&sch->dev);
+
 	return 0;
 }
 
@@ -565,7 +543,8 @@ void chsc_chp_online(struct chp_id chpid)
 	CIO_TRACE_EVENT(2, dbf_txt);
 
 	if (chp_get_status(chpid) != 0)
-		for_each_subchannel(__chp_add, &chpid);
+		for_each_subchannel_staged(__chp_add, __chp_add_new_sch,
+					   &chpid);
 }
 
 static void __s390_subchannel_vary_chpid(struct subchannel *sch,
@@ -616,25 +595,17 @@ static void __s390_subchannel_vary_chpid(struct subchannel *sch,
 	spin_unlock_irqrestore(sch->lock, flags);
 }
 
-static int s390_subchannel_vary_chpid_off(struct device *dev, void *data)
+static int s390_subchannel_vary_chpid_off(struct subchannel *sch, void *data)
 {
-	struct subchannel *sch;
-	struct chp_id *chpid;
-
-	sch = to_subchannel(dev);
-	chpid = data;
+	struct chp_id *chpid = data;
 
 	__s390_subchannel_vary_chpid(sch, *chpid, 0);
 	return 0;
 }
 
-static int s390_subchannel_vary_chpid_on(struct device *dev, void *data)
+static int s390_subchannel_vary_chpid_on(struct subchannel *sch, void *data)
 {
-	struct subchannel *sch;
-	struct chp_id *chpid;
-
-	sch = to_subchannel(dev);
-	chpid = data;
+	struct chp_id *chpid = data;
 
 	__s390_subchannel_vary_chpid(sch, *chpid, 1);
 	return 0;
@@ -644,13 +615,7 @@ static int
 __s390_vary_chpid_on(struct subchannel_id schid, void *data)
 {
 	struct schib schib;
-	struct subchannel *sch;
 
-	sch = get_subchannel_by_schid(schid);
-	if (sch) {
-		put_device(&sch->dev);
-		return 0;
-	}
 	if (stsch_err(schid, &schib))
 		/* We're through */
 		return -ENXIO;
@@ -670,12 +635,13 @@ int chsc_chp_vary(struct chp_id chpid, int on)
 	 * Redo PathVerification on the devices the chpid connects to
 	 */
 
-	bus_for_each_dev(&css_bus_type, NULL, &chpid, on ?
-			 s390_subchannel_vary_chpid_on :
-			 s390_subchannel_vary_chpid_off);
 	if (on)
-		/* Scan for new devices on varied on path. */
-		for_each_subchannel(__s390_vary_chpid_on, NULL);
+		for_each_subchannel_staged(s390_subchannel_vary_chpid_on,
+					   __s390_vary_chpid_on, &chpid);
+	else
+		for_each_subchannel_staged(s390_subchannel_vary_chpid_off,
+					   NULL, &chpid);
+
 	return 0;
 }
 

@@ -91,6 +91,9 @@ extern void css_driver_unregister(struct css_driver *);
 extern void css_sch_device_unregister(struct subchannel *);
 extern struct subchannel * get_subchannel_by_schid(struct subchannel_id);
 extern int css_init_done;
+int for_each_subchannel_staged(int (*fn_known)(struct subchannel *, void *),
+			       int (*fn_unknown)(struct subchannel_id,
+			       void *), void *data);
 extern int for_each_subchannel(int(*fn)(struct subchannel_id, void *), void *);
 extern void css_process_crw(int, int);
 extern void css_reiterate_subchannels(void);
