@@ -294,6 +294,7 @@ static void icside_dma_host_off(ide_drive_t *drive)
 static void icside_dma_off_quietly(ide_drive_t *drive)
 {
 	drive->using_dma = 0;
+	ide_toggle_bounce(drive, 0);
 }
 
 static void icside_dma_host_on(ide_drive_t *drive)
@@ -303,6 +304,7 @@ static void icside_dma_host_on(ide_drive_t *drive)
 static int icside_dma_on(ide_drive_t *drive)
 {
 	drive->using_dma = 1;
+	ide_toggle_bounce(drive, 1);
 
 	return 0;
 }
