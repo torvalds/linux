@@ -1133,8 +1133,6 @@ pmac_ide_setup_device(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif, hw_regs_t *hw)
 		hwif->noprobe = 0;
 #endif /* CONFIG_PMAC_MEDIABAY */
 
-	hwif->sg_max_nents = MAX_DCMDS;
-
 #ifdef CONFIG_BLK_DEV_IDEDMA_PMAC
 	/* has a DBDMA controller channel */
 	if (pmif->dma_regs)
@@ -1750,6 +1748,8 @@ pmac_ide_setup_dma(pmac_ide_hwif_t *pmif, ide_hwif_t *hwif)
 		       hwif->name);
 		return;
 	}
+
+	hwif->sg_max_nents = MAX_DCMDS;
 
 	hwif->dma_host_set = &pmac_ide_dma_host_set;
 	hwif->dma_setup = &pmac_ide_dma_setup;
