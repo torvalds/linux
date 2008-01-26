@@ -236,10 +236,10 @@ static int vmem_add_mem(unsigned long start, unsigned long size)
 {
 	int ret;
 
-	ret = vmem_add_range(start, size);
+	ret = vmem_add_mem_map(start, size);
 	if (ret)
 		return ret;
-	return vmem_add_mem_map(start, size);
+	return vmem_add_range(start, size);
 }
 
 /*
