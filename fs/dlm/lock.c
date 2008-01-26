@@ -4271,7 +4271,6 @@ static int receive_rcom_lock_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 				  struct dlm_rsb *r, struct dlm_rcom *rc)
 {
 	struct rcom_lock *rl = (struct rcom_lock *) rc->rc_buf;
-	int lvblen;
 
 	lkb->lkb_nodeid = rc->rc_header.h_nodeid;
 	lkb->lkb_ownpid = le32_to_cpu(rl->rl_ownpid);
@@ -4288,11 +4287,13 @@ static int receive_rcom_lock_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 	lkb->lkb_astaddr = (void *) (long) (rl->rl_asts & AST_COMP);
 
 	if (lkb->lkb_exflags & DLM_LKF_VALBLK) {
+		int lvblen = rc->rc_header.h_length - sizeof(struct dlm_rcom) -
+			 sizeof(struct rcom_lock);
+		if (lvblen > ls->ls_lvblen)
+			return -EINVAL;
 		lkb->lkb_lvbptr = dlm_allocate_lvb(ls);
 		if (!lkb->lkb_lvbptr)
 			return -ENOMEM;
-		lvblen = rc->rc_header.h_length - sizeof(struct dlm_rcom) -
-			 sizeof(struct rcom_lock);
 		memcpy(lkb->lkb_lvbptr, rl->rl_lvb, lvblen);
 	}
 
