@@ -1542,7 +1542,7 @@ dasd_eckd_performance(struct dasd_device *device, void __user *argp)
 	prssdp = (struct dasd_psf_prssd_data *) cqr->data;
 	memset(prssdp, 0, sizeof (struct dasd_psf_prssd_data));
 	prssdp->order = PSF_ORDER_PRSSD;
-	prssdp->suborder = 0x01;	/* Perfomance Statistics */
+	prssdp->suborder = 0x01;	/* Performance Statistics */
 	prssdp->varies[1] = 0x01;	/* Perf Statistics for the Subsystem */
 
 	ccw = cqr->cpaddr;

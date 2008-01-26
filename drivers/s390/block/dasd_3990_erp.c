@@ -2620,7 +2620,7 @@ dasd_3990_erp_handle_match_erp(struct dasd_ccw_req *erp_head,
  * DASD_3990_ERP_ACTION
  *
  * DESCRIPTION
- *   controll routine for 3990 erp actions.
+ *   control routine for 3990 erp actions.
  *   Has to be called with the queue lock (namely the s390_irq_lock) acquired.
  *
  * PARAMETER

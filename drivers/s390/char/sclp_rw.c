@@ -76,7 +76,7 @@ sclp_make_buffer(void *page, unsigned short columns, unsigned short htab)
 }
 
 /*
- * Return a pointer to the orignal page that has been used to create
+ * Return a pointer to the original page that has been used to create
  * the buffer.
  */
 void *
