@@ -454,7 +454,7 @@ static ide_startstop_t task_in_intr(ide_drive_t *drive)
 	/* If it was the last datablock check status and finish transfer. */
 	if (!hwif->nleft) {
 		stat = wait_drive_not_busy(drive);
-		if (!OK_STAT(stat, 0, BAD_R_STAT))
+		if (!OK_STAT(stat, 0, BAD_STAT))
 			return task_error(drive, rq, __FUNCTION__, stat);
 		task_end_request(drive, rq, stat);
 		return ide_stopped;
