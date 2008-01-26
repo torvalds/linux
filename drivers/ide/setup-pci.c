@@ -555,8 +555,6 @@ void ide_pci_setup_ports(struct pci_dev *dev, const struct ide_port_info *d, int
 		    (d->host_flags & IDE_HFLAG_FORCE_LEGACY_IRQS))
 			hwif->irq = port ? 15 : 14;
 
-		hwif->fixup = d->fixup;
-
 		hwif->host_flags = d->host_flags;
 		hwif->pio_mask = d->pio_mask;
 

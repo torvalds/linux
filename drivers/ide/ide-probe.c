@@ -235,9 +235,6 @@ static inline void do_identify (ide_drive_t *drive, u8 cmd)
 	drive->media = ide_disk;
 	printk("%s DISK drive\n", (id->config == 0x848a) ? "CFA" : "ATA" );
 
-	if (hwif->quirkproc)
-		drive->quirk_list = hwif->quirkproc(drive);
-
 	return;
 
 err_misc:
@@ -676,19 +673,18 @@ out:
 
 /**
  *	ide_undecoded_slave	-	look for bad CF adapters
- *	@hwif: interface
+ *	@drive1: drive
  *
  *	Analyse the drives on the interface and attempt to decide if we
  *	have the same drive viewed twice. This occurs with crap CF adapters
  *	and PCMCIA sometimes.
  */
 
-void ide_undecoded_slave(ide_hwif_t *hwif)
+void ide_undecoded_slave(ide_drive_t *drive1)
 {
-	ide_drive_t *drive0 = &hwif->drives[0];
-	ide_drive_t *drive1 = &hwif->drives[1];
+	ide_drive_t *drive0 = &drive1->hwif->drives[0];
 
-	if (drive0->present == 0 || drive1->present == 0)
+	if ((drive1->dn & 1) == 0 || drive0->present == 0)
 		return;
 
 	/* If the models don't match they are not the same product */
@@ -817,8 +813,12 @@ static void probe_hwif(ide_hwif_t *hwif)
 		return;
 	}
 
-	if (hwif->fixup)
-		hwif->fixup(hwif);
+	for (unit = 0; unit < MAX_DRIVES; unit++) {
+		ide_drive_t *drive = &hwif->drives[unit];
+
+		if (drive->present && hwif->quirkproc)
+			hwif->quirkproc(drive);
+	}
 
 	for (unit = 0; unit < MAX_DRIVES; ++unit) {
 		ide_drive_t *drive = &hwif->drives[unit];

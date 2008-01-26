@@ -199,7 +199,8 @@ typedef struct hw_regs_s {
 
 struct hwif_s * ide_find_port(unsigned long);
 
-int ide_register_hw(hw_regs_t *, void (*)(struct hwif_s *), int,
+struct ide_drive_s;
+int ide_register_hw(hw_regs_t *, void (*)(struct ide_drive_s *), int,
 		    struct hwif_s **);
 
 void ide_setup_ports(	hw_regs_t *hw,
@@ -527,14 +528,12 @@ typedef struct hwif_s {
 	/* special host masking for drive selection */
 	void	(*maskproc)(ide_drive_t *, int);
 	/* check host's drive quirk list */
-	int	(*quirkproc)(ide_drive_t *);
+	void	(*quirkproc)(ide_drive_t *);
 	/* driver soft-power interface */
 	int	(*busproc)(ide_drive_t *, int);
 #endif
 	u8 (*mdma_filter)(ide_drive_t *);
 	u8 (*udma_filter)(ide_drive_t *);
-
-	void (*fixup)(struct hwif_s *);
 
 	void (*ata_input_data)(ide_drive_t *, void *, u32);
 	void (*ata_output_data)(ide_drive_t *, void *, u32);
@@ -1108,7 +1107,6 @@ struct ide_port_info {
 	void			(*init_iops)(ide_hwif_t *);
 	void                    (*init_hwif)(ide_hwif_t *);
 	void			(*init_dma)(ide_hwif_t *, unsigned long);
-	void			(*fixup)(ide_hwif_t *);
 	ide_pci_enablebit_t	enablebits[2];
 	hwif_chipset_t		chipset;
 	u8			extra;
@@ -1203,7 +1201,7 @@ extern void ide_unregister (unsigned int index);
 void ide_register_region(struct gendisk *);
 void ide_unregister_region(struct gendisk *);
 
-void ide_undecoded_slave(ide_hwif_t *);
+void ide_undecoded_slave(ide_drive_t *);
 
 int ide_device_add(u8 idx[4]);
 

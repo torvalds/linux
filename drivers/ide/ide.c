@@ -414,8 +414,6 @@ static void ide_hwif_restore(ide_hwif_t *hwif, ide_hwif_t *tmp_hwif)
 	hwif->cds			= tmp_hwif->cds;
 #endif
 
-	hwif->fixup			= tmp_hwif->fixup;
-
 	hwif->set_pio_mode		= tmp_hwif->set_pio_mode;
 	hwif->set_dma_mode		= tmp_hwif->set_dma_mode;
 	hwif->mdma_filter		= tmp_hwif->mdma_filter;
@@ -680,7 +678,7 @@ void ide_setup_ports (	hw_regs_t *hw,
 /**
  *	ide_register_hw		-	register IDE interface
  *	@hw: hardware registers
- *	@fixup: fixup function
+ *	@quirkproc: quirkproc function
  *	@initializing: set while initializing built-in drivers
  *	@hwifp: pointer to returned hwif
  *
@@ -690,7 +688,7 @@ void ide_setup_ports (	hw_regs_t *hw,
  *	Returns -1 on error.
  */
 
-int ide_register_hw(hw_regs_t *hw, void (*fixup)(ide_hwif_t *),
+int ide_register_hw(hw_regs_t *hw, void (*quirkproc)(ide_drive_t *),
 		    int initializing, ide_hwif_t **hwifp)
 {
 	int index, retry = 1;
@@ -726,7 +724,7 @@ found:
 	memcpy(hwif->io_ports, hw->io_ports, sizeof(hwif->io_ports));
 	hwif->irq = hw->irq;
 	hwif->noprobe = 0;
-	hwif->fixup = fixup;
+	hwif->quirkproc = quirkproc;
 	hwif->chipset = hw->chipset;
 	hwif->gendev.parent = hw->dev;
 	hwif->ack_intr = hw->ack_intr;
