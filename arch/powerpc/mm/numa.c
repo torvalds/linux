@@ -24,8 +24,6 @@
 
 static int numa_enabled = 1;
 
-static char *cmdline __initdata;
-
 static int numa_debug;
 #define dbg(args...) if (numa_debug) { printk(KERN_INFO args); }
 
@@ -40,43 +38,6 @@ EXPORT_SYMBOL(node_data);
 static bootmem_data_t __initdata plat_node_bdata[MAX_NUMNODES];
 static int min_common_depth;
 static int n_mem_addr_cells, n_mem_size_cells;
-
-static int __cpuinit fake_numa_create_new_node(unsigned long end_pfn,
-						unsigned int *nid)
-{
-	unsigned long long mem;
-	char *p = cmdline;
-	static unsigned int fake_nid = 0;
-	static unsigned long long curr_boundary = 0;
-
-	*nid = fake_nid;
-	if (!p)
-		return 0;
-
-	mem = memparse(p, &p);
-	if (!mem)
-		return 0;
-
-	if (mem < curr_boundary)
-		return 0;
-
-	curr_boundary = mem;
-
-	if ((end_pfn << PAGE_SHIFT) > mem) {
-		/*
-		 * Skip commas and spaces
-		 */
-		while (*p == ',' || *p == ' ' || *p == '\t')
-			p++;
-
-		cmdline = p;
-		fake_nid++;
-		*nid = fake_nid;
-		dbg("created new fake_node with id %d\n", fake_nid);
-		return 1;
-	}
-	return 0;
-}
 
 static void __cpuinit map_cpu_to_node(int cpu, int node)
 {
@@ -383,13 +344,11 @@ static void __init parse_drconf_memory(struct device_node *memory)
 			if (nid == 0xffff || nid >= MAX_NUMNODES)
 				nid = default_nid;
 		}
+		node_set_online(nid);
 
 		size = numa_enforce_memory_limit(start, lmb_size);
 		if (!size)
 			continue;
-
-		fake_numa_create_new_node(((start + size) >> PAGE_SHIFT), &nid);
-		node_set_online(nid);
 
 		add_active_range(nid, start >> PAGE_SHIFT,
 				 (start >> PAGE_SHIFT) + (size >> PAGE_SHIFT));
@@ -470,6 +429,7 @@ new_range:
 		nid = of_node_to_nid_single(memory);
 		if (nid < 0)
 			nid = default_nid;
+		node_set_online(nid);
 
 		if (!(size = numa_enforce_memory_limit(start, size))) {
 			if (--ranges)
@@ -477,9 +437,6 @@ new_range:
 			else
 				continue;
 		}
-
-		fake_numa_create_new_node(((start + size) >> PAGE_SHIFT), &nid);
-		node_set_online(nid);
 
 		add_active_range(nid, start >> PAGE_SHIFT,
 				(start >> PAGE_SHIFT) + (size >> PAGE_SHIFT));
@@ -504,7 +461,7 @@ static void __init setup_nonnuma(void)
 	unsigned long top_of_ram = lmb_end_of_DRAM();
 	unsigned long total_ram = lmb_phys_mem_size();
 	unsigned long start_pfn, end_pfn;
-	unsigned int i, nid = 0;
+	unsigned int i;
 
 	printk(KERN_DEBUG "Top of RAM: 0x%lx, Total RAM: 0x%lx\n",
 	       top_of_ram, total_ram);
@@ -514,11 +471,9 @@ static void __init setup_nonnuma(void)
 	for (i = 0; i < lmb.memory.cnt; ++i) {
 		start_pfn = lmb.memory.region[i].base >> PAGE_SHIFT;
 		end_pfn = start_pfn + lmb_size_pages(&lmb.memory, i);
-
-		fake_numa_create_new_node(end_pfn, &nid);
-		add_active_range(nid, start_pfn, end_pfn);
-		node_set_online(nid);
+		add_active_range(0, start_pfn, end_pfn);
 	}
+	node_set_online(0);
 }
 
 void __init dump_numa_cpu_topology(void)
@@ -746,10 +701,6 @@ static int __init early_numa(char *p)
 
 	if (strstr(p, "debug"))
 		numa_debug = 1;
-
-	p = strstr(p, "fake=");
-	if (p)
-		cmdline = p + strlen("fake=");
 
 	return 0;
 }
