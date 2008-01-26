@@ -158,9 +158,10 @@
 					};
 				};
 
-				ds1743@1,0 {
+				nvram@1,0 {
 					/* NVRAM & RTC */
-					compatible = "ds1743";
+					compatible = "ds1743-nvram";
+					#bytes = <2000>;
 					reg = <1 0 2000>;
 				};
 

@@ -36,6 +36,7 @@ static __initdata struct of_device_id walnut_of_bus[] = {
 static int __init walnut_device_probe(void)
 {
 	of_platform_bus_probe(NULL, walnut_of_bus, NULL);
+	of_instantiate_rtc();
 
 	return 0;
 }

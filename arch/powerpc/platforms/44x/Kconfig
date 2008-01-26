@@ -13,6 +13,7 @@ config EBONY
 	default y
 	select 440GP
 	select PCI
+	select OF_RTC
 	help
 	  This option enables support for the IBM PPC440GP evaluation board.
 
@@ -53,6 +54,19 @@ config RAINIER
 	help
 	  This option enables support for the AMCC PPC440GRX evaluation board.
 
+config WARP
+	bool "PIKA Warp"
+	depends on 44x
+	default n
+	select 440EP
+	help
+	  This option enables support for the PIKA Warp(tm) Appliance. The Warp
+          is a small computer replacement with up to 9 ports of FXO/FXS plus VOIP
+	  stations and trunks.
+
+	  See http://www.pikatechnologies.com/ and follow the "PIKA for Computer
+	  Telephony Developers" link for more information.
+
 #config LUAN
 #	bool "Luan"
 #	depends on 44x
@@ -75,6 +89,7 @@ config 440EP
 	select PPC_FPU
 	select IBM440EP_ERR42
 	select IBM_NEW_EMAC_ZMII
+	select USB_ARCH_HAS_OHCI
 
 config 440EPX
 	bool

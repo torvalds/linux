@@ -18,6 +18,7 @@
 
 #include <linux/init.h>
 #include <linux/of_platform.h>
+#include <linux/rtc.h>
 
 #include <asm/machdep.h>
 #include <asm/prom.h>
@@ -38,6 +39,7 @@ static __initdata struct of_device_id ebony_of_bus[] = {
 static int __init ebony_device_probe(void)
 {
 	of_platform_bus_probe(NULL, ebony_of_bus, NULL);
+	of_instantiate_rtc();
 
 	return 0;
 }

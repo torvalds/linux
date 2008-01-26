@@ -37,4 +37,6 @@ extern int of_platform_bus_probe(struct device_node *root,
 
 extern struct of_device *of_find_device_by_phandle(phandle ph);
 
+extern void of_instantiate_rtc(void);
+
 #endif	/* _ASM_POWERPC_OF_PLATFORM_H */
