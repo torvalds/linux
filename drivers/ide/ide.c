@@ -694,6 +694,15 @@ int ide_register_hw(hw_regs_t *hw, void (*quirkproc)(ide_drive_t *),
 	int index, retry = 1;
 	ide_hwif_t *hwif;
 
+	if (initializing) {
+		hwif = ide_find_port(hw->io_ports[IDE_DATA_OFFSET]);
+		if (hwif) {
+			index = hwif->index;
+			goto found;
+		}
+		return -1;
+	}
+
 	do {
 		for (index = 0; index < MAX_HWIFS; ++index) {
 			hwif = &ide_hwifs[index];
@@ -704,8 +713,7 @@ int ide_register_hw(hw_regs_t *hw, void (*quirkproc)(ide_drive_t *),
 			hwif = &ide_hwifs[index];
 			if (hwif->hold)
 				continue;
-			if ((!hwif->present && !hwif->mate && !initializing) ||
-			    (!hwif->io_ports[IDE_DATA_OFFSET] && initializing))
+			if (!hwif->present && hwif->mate == NULL)
 				goto found;
 		}
 		for (index = 0; index < MAX_HWIFS; index++)
