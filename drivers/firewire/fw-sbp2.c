@@ -141,15 +141,13 @@ struct sbp2_logical_unit {
 struct sbp2_target {
 	struct kref kref;
 	struct fw_unit *unit;
+	struct list_head lu_list;
 
 	u64 management_agent_address;
 	int directory_id;
 	int node_id;
 	int address_high;
-
-	unsigned workarounds;
-	struct list_head lu_list;
-
+	unsigned int workarounds;
 	unsigned int mgt_orb_timeout;
 };
 
@@ -160,7 +158,7 @@ struct sbp2_target {
  */
 #define SBP2_MIN_LOGIN_ORB_TIMEOUT	5000U	/* Timeout in ms */
 #define SBP2_MAX_LOGIN_ORB_TIMEOUT	40000U	/* Timeout in ms */
-#define SBP2_ORB_TIMEOUT		2000	/* Timeout in ms */
+#define SBP2_ORB_TIMEOUT		2000U	/* Timeout in ms */
 #define SBP2_ORB_NULL			0x80000000
 #define SBP2_MAX_SG_ELEMENT_LENGTH	0xf000
 
@@ -297,7 +295,7 @@ struct sbp2_command_orb {
 static const struct {
 	u32 firmware_revision;
 	u32 model;
-	unsigned workarounds;
+	unsigned int workarounds;
 } sbp2_workarounds_table[] = {
 	/* DViCO Momobay CX-1 with TSB42AA9 bridge */ {
 		.firmware_revision	= 0x002800,
@@ -836,7 +834,7 @@ static void sbp2_init_workarounds(struct sbp2_target *tgt, u32 model,
 				  u32 firmware_revision)
 {
 	int i;
-	unsigned w = sbp2_param_workarounds;
+	unsigned int w = sbp2_param_workarounds;
 
 	if (w)
 		fw_notify("Please notify linux1394-devel@lists.sourceforge.net "
@@ -1197,7 +1195,7 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 	struct sbp2_logical_unit *lu = cmd->device->hostdata;
 	struct fw_device *device = fw_device(lu->tgt->unit->device.parent);
 	struct sbp2_command_orb *orb;
-	unsigned max_payload;
+	unsigned int max_payload;
 	int retval = SCSI_MLQUEUE_HOST_BUSY;
 
 	/*
