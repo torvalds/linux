@@ -110,13 +110,13 @@ static int gayle_ack_intr_a1200(ide_hwif_t *hwif)
      *  Probe for a Gayle IDE interface (and optionally for an IDE doubler)
      */
 
-void __init gayle_init(void)
+static int __init gayle_init(void)
 {
     int a4000, i;
     u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
     if (!MACH_IS_AMIGA)
-	return;
+	return -ENODEV;
 
     if ((a4000 = AMIGAHW_PRESENT(A4000_IDE)) || AMIGAHW_PRESENT(A1200_IDE))
 	goto found;
@@ -126,7 +126,7 @@ void __init gayle_init(void)
 			  NULL))
 	goto found;
 #endif
-    return;
+    return -ENODEV;
 
 found:
     for (i = 0; i < GAYLE_NUM_PROBE_HWIFS; i++) {
@@ -191,4 +191,8 @@ found:
     }
 
     ide_device_add(idx);
+
+    return 0;
 }
+
+module_init(gayle_init);

@@ -143,7 +143,7 @@ static int xsurf_ack_intr(ide_hwif_t *hwif)
      *  Probe for a Buddha or Catweasel IDE interface
      */
 
-void __init buddha_init(void)
+static int __init buddha_init(void)
 {
 	hw_regs_t hw;
 	ide_hwif_t *hwif;
@@ -243,4 +243,8 @@ fail_base2:
 
 		ide_device_add(idx);
 	}
+
+	return 0;
 }
+
+module_init(buddha_init);

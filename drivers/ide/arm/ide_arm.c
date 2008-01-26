@@ -24,7 +24,7 @@
 # define IDE_ARM_IRQ	IRQ_HARDDISK
 #endif
 
-void __init ide_arm_init(void)
+static int __init ide_arm_init(void)
 {
 	ide_hwif_t *hwif;
 	hw_regs_t hw;
@@ -41,4 +41,8 @@ void __init ide_arm_init(void)
 
 		ide_device_add(idx);
 	}
+
+	return 0;
 }
+
+module_init(ide_arm_init);

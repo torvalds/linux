@@ -766,21 +766,20 @@ static int __init ide_scan_pcidev(struct pci_dev *dev)
 
 /**
  *	ide_scan_pcibus		-	perform the initial IDE driver scan
- *	@scan_direction: set for reverse order scanning
  *
  *	Perform the initial bus rather than driver ordered scan of the
  *	PCI drivers. After this all IDE pci handling becomes standard
  *	module ordering not traditionally ordered.
  */
- 	
-void __init ide_scan_pcibus (int scan_direction)
+
+int __init ide_scan_pcibus(void)
 {
 	struct pci_dev *dev = NULL;
 	struct pci_driver *d;
 	struct list_head *l, *n;
 
 	pre_init = 0;
-	if (!scan_direction)
+	if (!ide_scan_direction)
 		while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)))
 			ide_scan_pcidev(dev);
 	else
@@ -801,5 +800,7 @@ void __init ide_scan_pcibus (int scan_direction)
 			printk(KERN_ERR "%s: failed to register %s driver\n",
 					__FUNCTION__, d->driver.mod_name);
 	}
+
+	return 0;
 }
 #endif

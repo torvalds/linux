@@ -478,8 +478,7 @@ int probe_qd65xx = 0;
 module_param_named(probe, probe_qd65xx, bool, 0);
 MODULE_PARM_DESC(probe, "probe for QD65xx chipsets");
 
-/* Can be called directly from ide.c. */
-int __init qd65xx_init(void)
+static int __init qd65xx_init(void)
 {
 	if (probe_qd65xx == 0)
 		return -ENODEV;
@@ -492,9 +491,7 @@ int __init qd65xx_init(void)
 	return 0;
 }
 
-#ifdef MODULE
 module_init(qd65xx_init);
-#endif
 
 MODULE_AUTHOR("Samuel Thibault");
 MODULE_DESCRIPTION("support of qd65xx vlb ide chipset");

@@ -81,7 +81,7 @@ int macide_ack_intr(ide_hwif_t* hwif)
  * Probe for a Macintosh IDE interface
  */
 
-void __init macide_init(void)
+static int __init macide_init(void)
 {
 	hw_regs_t hw;
 	ide_hwif_t *hwif;
@@ -106,7 +106,7 @@ void __init macide_init(void)
 				IRQ_BABOON_1);
 		break;
 	default:
-		return;
+		return -ENODEV;
 	}
 
 	hwif = ide_find_port(hw.io_ports[IDE_DATA_OFFSET]);
@@ -139,4 +139,8 @@ void __init macide_init(void)
 
 		ide_device_add(idx);
 	}
+
+	return 0;
 }
+
+module_init(macide_init);

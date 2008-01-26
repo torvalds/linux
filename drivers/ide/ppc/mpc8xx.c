@@ -839,7 +839,7 @@ void m8xx_ide_init(void)
 	ppc_ide_md.ide_init_hwif        = m8xx_ide_init_hwif_ports;
 }
 
-void __init mpc8xx_ide_probe(void)
+static int __init mpc8xx_ide_probe(void)
 {
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
@@ -851,4 +851,8 @@ void __init mpc8xx_ide_probe(void)
 #endif
 
 	ide_device_add(idx);
+
+	return 0;
 }
+
+module_init(mpc8xx_ide_probe);

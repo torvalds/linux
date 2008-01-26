@@ -84,7 +84,7 @@ static inline void hwif_setup(ide_hwif_t *hwif)
 	hwif->INSL  = NULL;
 }
 
-void __init h8300_ide_init(void)
+static int __init h8300_ide_init(void)
 {
 	hw_regs_t hw;
 	ide_hwif_t *hwif;
@@ -104,7 +104,7 @@ void __init h8300_ide_init(void)
 	hwif = ide_find_port(hw.io_ports[IDE_DATA_OFFSET]);
 	if (hwif == NULL) {
 		printk(KERN_ERR "ide-h8300: IDE I/F register failed\n");
-		return;
+		return -ENOENT;
 	}
 
 	index = hwif->index;
@@ -117,8 +117,12 @@ void __init h8300_ide_init(void)
 
 	ide_device_add(idx);
 
-	return;
+	return 0;
 
 out_busy:
 	printk(KERN_ERR "ide-h8300: IDE I/F resource already used.\n");
+
+	return -EBUSY;
 }
+
+module_init(h8300_ide_init);

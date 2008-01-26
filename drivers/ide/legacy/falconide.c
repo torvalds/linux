@@ -62,7 +62,7 @@ EXPORT_SYMBOL(falconide_intr_lock);
      *  Probe for a Falcon IDE interface
      */
 
-void __init falconide_init(void)
+static int __init falconide_init(void)
 {
     if (MACH_IS_ATARI && ATARIHW_PRESENT(IDE)) {
 	hw_regs_t hw;
@@ -84,4 +84,9 @@ void __init falconide_init(void)
 
 		ide_device_add(idx);
 	}
+    }
+
+    return 0;
 }
+
+module_init(falconide_init);

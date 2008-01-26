@@ -754,8 +754,7 @@ static void cris_set_dma_mode(ide_drive_t *drive, const u8 speed)
 		cris_ide_set_speed(TYPE_DMA, 0, strobe, hold);
 }
 
-void __init
-init_e100_ide (void)
+static int __init init_e100_ide(void)
 {
 	hw_regs_t hw;
 	int ide_offsets[IDE_NR_PORTS], h, i;
@@ -823,6 +822,8 @@ init_e100_ide (void)
 	cris_ide_set_speed(TYPE_UDMA, ATA_UDMA2_CYC, ATA_UDMA2_DVS, 0);
 
 	ide_device_add(idx);
+
+	return 0;
 }
 
 static cris_dma_descr_type mydescr __attribute__ ((__aligned__(16)));
@@ -1056,3 +1057,5 @@ static void cris_dma_start(ide_drive_t *drive)
 		LED_DISK_READ(1);
 	}
 }
+
+module_init(init_e100_ide);

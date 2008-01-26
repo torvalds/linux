@@ -7,41 +7,37 @@
 # Note : at this point, these files are compiled on all systems.
 # In the future, some of these should be built conditionally.
 #
-# First come modules that register themselves with the core
+# link order is important here
 
 EXTRA_CFLAGS				+= -Idrivers/ide
 
-obj-$(CONFIG_BLK_DEV_IDE)		+= pci/
-
 ide-core-y += ide.o ide-io.o ide-iops.o ide-lib.o ide-probe.o ide-taskfile.o
 
-ide-core-$(CONFIG_BLK_DEV_CMD640)	+= pci/cmd640.o
-
-# Core IDE code - must come before legacy
+# core IDE code
 ide-core-$(CONFIG_BLK_DEV_IDEPCI)	+= setup-pci.o
 ide-core-$(CONFIG_BLK_DEV_IDEDMA)	+= ide-dma.o
 ide-core-$(CONFIG_IDE_PROC_FS)		+= ide-proc.o
-ide-core-$(CONFIG_BLK_DEV_IDEPNP)	+= ide-pnp.o
 ide-core-$(CONFIG_BLK_DEV_IDEACPI)	+= ide-acpi.o
 
-# built-in only drivers from arm/
-ide-core-$(CONFIG_IDE_ARM)		+= arm/ide_arm.o
-
-# built-in only drivers from legacy/
-ide-core-$(CONFIG_BLK_DEV_BUDDHA)	+= legacy/buddha.o
-ide-core-$(CONFIG_BLK_DEV_FALCON_IDE)	+= legacy/falconide.o
-ide-core-$(CONFIG_BLK_DEV_GAYLE)	+= legacy/gayle.o
-ide-core-$(CONFIG_BLK_DEV_MAC_IDE)	+= legacy/macide.o
-ide-core-$(CONFIG_BLK_DEV_Q40IDE)	+= legacy/q40ide.o
-
-# built-in only drivers from ppc/
-ide-core-$(CONFIG_BLK_DEV_MPC8xx_IDE)	+= ppc/mpc8xx.o
-ide-core-$(CONFIG_BLK_DEV_IDE_PMAC)	+= ppc/pmac.o
-
-# built-in only drivers from h8300/
-ide-core-$(CONFIG_IDE_H8300)		+= h8300/ide-h8300.o
-
 obj-$(CONFIG_BLK_DEV_IDE)		+= ide-core.o
+
+ifeq ($(CONFIG_IDE_ARM), y)
+	ide-arm-core-y += arm/ide_arm.o
+	obj-y += ide-arm-core.o
+endif
+
+obj-$(CONFIG_BLK_DEV_IDE)		+= legacy/ pci/
+
+obj-$(CONFIG_IDEPCI_PCIBUS_ORDER)	+= ide-scan-pci.o
+
+ifeq ($(CONFIG_BLK_DEV_CMD640), y)
+	cmd640-core-y += pci/cmd640.o
+	obj-y += cmd640-core.o
+endif
+
+obj-$(CONFIG_BLK_DEV_IDE)		+= cris/ ppc/
+obj-$(CONFIG_BLK_DEV_IDEPNP)		+= ide-pnp.o
+obj-$(CONFIG_IDE_H8300)			+= h8300/
 obj-$(CONFIG_IDE_GENERIC)		+= ide-generic.o
 
 obj-$(CONFIG_BLK_DEV_IDEDISK)		+= ide-disk.o
@@ -49,6 +45,20 @@ obj-$(CONFIG_BLK_DEV_IDECD)		+= ide-cd.o
 obj-$(CONFIG_BLK_DEV_IDETAPE)		+= ide-tape.o
 obj-$(CONFIG_BLK_DEV_IDEFLOPPY)		+= ide-floppy.o
 
-obj-$(CONFIG_BLK_DEV_IDE)		+= legacy/ arm/ mips/
-obj-$(CONFIG_BLK_DEV_HD)		+= legacy/
-obj-$(CONFIG_ETRAX_IDE)		+= cris/
+ifeq ($(CONFIG_BLK_DEV_IDECS), y)
+	ide-cs-core-y += legacy/ide-cs.o
+	obj-y += ide-cs-core.o
+endif
+
+ifeq ($(CONFIG_BLK_DEV_PLATFORM), y)
+	ide-platform-core-y += legacy/ide_platform.o
+	obj-y += ide-platform-core.o
+endif
+
+obj-$(CONFIG_BLK_DEV_IDE)		+= arm/ mips/
+
+# old hd driver must be last
+ifeq ($(CONFIG_BLK_DEV_HD), y)
+	hd-core-y += legacy/hd.o
+	obj-y += hd-core.o
+endif

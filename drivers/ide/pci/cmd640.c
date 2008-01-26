@@ -706,9 +706,9 @@ static int pci_conf2(void)
 }
 
 /*
- * Probe for a cmd640 chipset, and initialize it if found.  Called from ide.c
+ * Probe for a cmd640 chipset, and initialize it if found.
  */
-int __init ide_probe_for_cmd640x (void)
+static int __init cmd640x_init(void)
 {
 #ifdef CONFIG_BLK_DEV_CMD640_ENHANCED
 	int second_port_toggled = 0;
@@ -883,3 +883,7 @@ int __init ide_probe_for_cmd640x (void)
 	return 1;
 }
 
+module_param_named(probe_vlb, cmd640_vlb, bool, 0);
+MODULE_PARM_DESC(probe_vlb, "probe for VLB version of CMD640 chipset");
+
+module_init(cmd640x_init);

@@ -111,7 +111,7 @@ static const char *q40_ide_names[Q40IDE_NUM_HWIFS]={
  *  Probe for Q40 IDE interfaces
  */
 
-void __init q40ide_init(void)
+static int __init q40ide_init(void)
 {
     int i;
     ide_hwif_t *hwif;
@@ -119,7 +119,7 @@ void __init q40ide_init(void)
     u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
     if (!MACH_IS_Q40)
-      return ;
+      return -ENODEV;
 
     for (i = 0; i < Q40IDE_NUM_HWIFS; i++) {
 	hw_regs_t hw;
@@ -153,5 +153,8 @@ void __init q40ide_init(void)
     }
 
     ide_device_add(idx);
+
+    return 0;
 }
 
+module_init(q40ide_init);
