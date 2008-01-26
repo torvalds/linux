@@ -1095,6 +1095,8 @@ enum {
 	/* unmask IRQs */
 	IDE_HFLAG_UNMASK_IRQS		= (1 << 25),
 	IDE_HFLAG_ABUSE_SET_DMA_MODE	= (1 << 26),
+	/* host is CY82C693 */
+	IDE_HFLAG_CY82C693		= (1 << 27),
 };
 
 #ifdef CONFIG_BLK_DEV_OFFBOARD

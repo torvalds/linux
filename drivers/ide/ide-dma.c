@@ -755,6 +755,7 @@ EXPORT_SYMBOL_GPL(ide_find_dma_mode);
 
 static int ide_tune_dma(ide_drive_t *drive)
 {
+	ide_hwif_t *hwif = drive->hwif;
 	u8 speed;
 
 	if (noautodma || drive->nodma || (drive->id->capability & 1) == 0)
@@ -767,15 +768,21 @@ static int ide_tune_dma(ide_drive_t *drive)
 	if (ide_id_dma_bug(drive))
 		return 0;
 
-	if (drive->hwif->host_flags & IDE_HFLAG_TRUST_BIOS_FOR_DMA)
+	if (hwif->host_flags & IDE_HFLAG_TRUST_BIOS_FOR_DMA)
 		return config_drive_for_dma(drive);
 
 	speed = ide_max_dma_mode(drive);
 
-	if (!speed)
-		return 0;
+	if (!speed) {
+		 /* is this really correct/needed? */
+		if ((hwif->host_flags & IDE_HFLAG_CY82C693) &&
+		    ide_dma_good_drive(drive))
+			return 1;
+		else
+			return 0;
+	}
 
-	if (drive->hwif->host_flags & IDE_HFLAG_NO_SET_MODE)
+	if (hwif->host_flags & IDE_HFLAG_NO_SET_MODE)
 		return 0;
 
 	if (ide_set_dma_mode(drive, speed))
