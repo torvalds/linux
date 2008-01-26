@@ -2030,7 +2030,7 @@ static int dme1737_i2c_get_features(int sio_cip, struct dme1737_data *data)
 
 	/* Check device ID
 	 * The DME1737 can return either 0x78 or 0x77 as its device ID. */
-	reg = dme1737_sio_inb(sio_cip, 0x20);
+	reg = force_id ? force_id : dme1737_sio_inb(sio_cip, 0x20);
 	if (!(reg == 0x77 || reg == 0x78)) {
 		err = -ENODEV;
 		goto exit;
