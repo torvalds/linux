@@ -1408,8 +1408,7 @@ __tiqdio_inbound_processing(struct qdio_q *q, int spare_ind_was_set)
 	if (q->hydra_gives_outbound_pcis) {
 		if (!q->siga_sync_done_on_thinints) {
 			SYNC_MEMORY_ALL;
-		} else if ((!q->siga_sync_done_on_outb_tis)&&
-			 (q->hydra_gives_outbound_pcis)) {
+		} else if (!q->siga_sync_done_on_outb_tis) {
 			SYNC_MEMORY_ALL_OUTB;
 		}
 	} else {
