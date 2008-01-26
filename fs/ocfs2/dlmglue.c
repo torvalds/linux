@@ -43,6 +43,7 @@
 #include <cluster/masklog.h>
 
 #include "ocfs2.h"
+#include "ocfs2_lockingver.h"
 
 #include "alloc.h"
 #include "dcache.h"
@@ -256,6 +257,31 @@ static struct ocfs2_lock_res_ops ocfs2_inode_open_lops = {
 static struct ocfs2_lock_res_ops ocfs2_flock_lops = {
 	.get_osb	= ocfs2_get_file_osb,
 	.flags		= 0,
+};
+
+/*
+ * This is the filesystem locking protocol version.
+ *
+ * Whenever the filesystem does new things with locks (adds or removes a
+ * lock, orders them differently, does different things underneath a lock),
+ * the version must be changed.  The protocol is negotiated when joining
+ * the dlm domain.  A node may join the domain if its major version is
+ * identical to all other nodes and its minor version is greater than
+ * or equal to all other nodes.  When its minor version is greater than
+ * the other nodes, it will run at the minor version specified by the
+ * other nodes.
+ *
+ * If a locking change is made that will not be compatible with older
+ * versions, the major number must be increased and the minor version set
+ * to zero.  If a change merely adds a behavior that can be disabled when
+ * speaking to older versions, the minor version must be increased.  If a
+ * change adds a fully backwards compatible change (eg, LVB changes that
+ * are just ignored by older versions), the version does not need to be
+ * updated.
+ */
+const struct dlm_protocol_version ocfs2_locking_protocol = {
+	.pv_major = OCFS2_LOCKING_PROTOCOL_MAJOR,
+	.pv_minor = OCFS2_LOCKING_PROTOCOL_MINOR,
 };
 
 static inline int ocfs2_is_inode_lock(struct ocfs2_lock_res *lockres)
@@ -2506,7 +2532,8 @@ int ocfs2_dlm_init(struct ocfs2_super *osb)
 	dlm_key = crc32_le(0, osb->uuid_str, strlen(osb->uuid_str));
 
 	/* for now, uuid == domain */
-	dlm = dlm_register_domain(osb->uuid_str, dlm_key);
+	dlm = dlm_register_domain(osb->uuid_str, dlm_key,
+				  &osb->osb_locking_proto);
 	if (IS_ERR(dlm)) {
 		status = PTR_ERR(dlm);
 		mlog_errno(status);
