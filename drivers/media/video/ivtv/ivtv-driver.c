@@ -54,7 +54,6 @@
 #include "ivtv-vbi.h"
 #include "ivtv-routing.h"
 #include "ivtv-gpio.h"
-#include "ivtv-yuv.h"
 
 #include <media/tveeprom.h>
 #include <media/saa7115.h>
@@ -1052,9 +1051,6 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 		retval = -ENOMEM;
 		goto free_io;
 	}
-
-	/* Check yuv output filter table */
-	if (itv->has_cx23415) ivtv_yuv_filter_check(itv);
 
 	ivtv_gpio_init(itv);
 
