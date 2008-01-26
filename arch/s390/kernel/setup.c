@@ -920,7 +920,7 @@ setup_arch(char **cmdline_p)
 
 void __cpuinit print_cpu_info(struct cpuinfo_S390 *cpuinfo)
 {
-   printk("cpu %d "
+   printk(KERN_INFO "cpu %d "
 #ifdef CONFIG_SMP
            "phys_idx=%d "
 #endif
