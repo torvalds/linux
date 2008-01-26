@@ -559,7 +559,9 @@ setup_resources(void)
 	data_resource.start = (unsigned long) &_etext;
 	data_resource.end = (unsigned long) &_edata - 1;
 
-	for (i = 0; i < MEMORY_CHUNKS && memory_chunk[i].size > 0; i++) {
+	for (i = 0; i < MEMORY_CHUNKS; i++) {
+		if (!memory_chunk[i].size)
+			continue;
 		res = alloc_bootmem_low(sizeof(struct resource));
 		res->flags = IORESOURCE_BUSY | IORESOURCE_MEM;
 		switch (memory_chunk[i].type) {
@@ -629,6 +631,27 @@ static void __init setup_memory_end(void)
 
 	max_mem = memory_end ? min(VMALLOC_START, memory_end) : VMALLOC_START;
 	memory_end = min(max_mem, memory_end);
+
+	/*
+	 * Make sure all chunks are MAX_ORDER aligned so we don't need the
+	 * extra checks that HOLES_IN_ZONE would require.
+	 */
+	for (i = 0; i < MEMORY_CHUNKS; i++) {
+		unsigned long start, end;
+		struct mem_chunk *chunk;
+		unsigned long align;
+
+		chunk = &memory_chunk[i];
+		align = 1UL << (MAX_ORDER + PAGE_SHIFT - 1);
+		start = (chunk->addr + align - 1) & ~(align - 1);
+		end = (chunk->addr + chunk->size) & ~(align - 1);
+		if (start >= end)
+			memset(chunk, 0, sizeof(*chunk));
+		else {
+			chunk->addr = start;
+			chunk->size = end - start;
+		}
+	}
 
 	for (i = 0; i < MEMORY_CHUNKS; i++) {
 		struct mem_chunk *chunk = &memory_chunk[i];

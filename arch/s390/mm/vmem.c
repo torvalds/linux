@@ -376,7 +376,7 @@ static int __init vmem_convert_memory_chunk(void)
 	int i;
 
 	mutex_lock(&vmem_mutex);
-	for (i = 0; i < MEMORY_CHUNKS && memory_chunk[i].size > 0; i++) {
+	for (i = 0; i < MEMORY_CHUNKS; i++) {
 		if (!memory_chunk[i].size)
 			continue;
 		seg = kzalloc(sizeof(*seg), GFP_KERNEL);

@@ -276,9 +276,6 @@ source "kernel/Kconfig.preempt"
 
 source "mm/Kconfig"
 
-config HOLES_IN_ZONE
-	def_bool y
-
 comment "I/O subsystem configuration"
 
 config MACHCHK_WARNING
