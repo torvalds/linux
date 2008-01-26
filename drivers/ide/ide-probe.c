@@ -350,22 +350,19 @@ static int try_to_identify (ide_drive_t *drive, u8 cmd)
 	 * the irq handler isn't expecting.
 	 */
 	if (IDE_CONTROL_REG) {
-		u8 ctl = drive->ctl | 2;
 		if (!hwif->irq) {
 			autoprobe = 1;
 			cookie = probe_irq_on();
-			/* enable device irq */
-			ctl &= ~2;
 		}
-		hwif->OUTB(ctl, IDE_CONTROL_REG);
+		ide_set_irq(drive, autoprobe);
 	}
 
 	retval = actual_try_to_identify(drive, cmd);
 
 	if (autoprobe) {
 		int irq;
-		/* mask device irq */
-		hwif->OUTB(drive->ctl|2, IDE_CONTROL_REG);
+
+		ide_set_irq(drive, 0);
 		/* clear drive IRQ */
 		(void) hwif->INB(IDE_STATUS_REG);
 		udelay(5);
@@ -653,8 +650,7 @@ static int wait_hwif_ready(ide_hwif_t *hwif)
 		/* Ignore disks that we will not probe for later. */
 		if (!drive->noprobe || drive->present) {
 			SELECT_DRIVE(drive);
-			if (IDE_CONTROL_REG)
-				hwif->OUTB(drive->ctl, IDE_CONTROL_REG);
+			ide_set_irq(drive, 1);
 			mdelay(2);
 			rc = ide_wait_not_busy(hwif, 35000);
 			if (rc)

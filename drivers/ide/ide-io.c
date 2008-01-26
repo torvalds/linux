@@ -939,8 +939,7 @@ static void ide_check_pm_state(ide_drive_t *drive, struct request *rq)
 		if (rc)
 			printk(KERN_WARNING "%s: bus not ready on wakeup\n", drive->name);
 		SELECT_DRIVE(drive);
-		if (IDE_CONTROL_REG)
-			HWIF(drive)->OUTB(drive->ctl, IDE_CONTROL_REG);
+		ide_set_irq(drive, 1);
 		rc = ide_wait_not_busy(HWIF(drive), 100000);
 		if (rc)
 			printk(KERN_WARNING "%s: drive not ready on wakeup\n", drive->name);
@@ -1213,15 +1212,13 @@ static void ide_do_request (ide_hwgroup_t *hwgroup, int masked_irq)
 		}
 	again:
 		hwif = HWIF(drive);
-		if (hwgroup->hwif->sharing_irq &&
-		    hwif != hwgroup->hwif &&
-		    hwif->io_ports[IDE_CONTROL_OFFSET]) {
+		if (hwgroup->hwif->sharing_irq && hwif != hwgroup->hwif) {
 			/*
 			 * set nIEN for previous hwif, drives in the
 			 * quirk_list may not like intr setups/cleanups
 			 */
 			if (drive->quirk_list != 1)
-				hwif->OUTB(drive->ctl | 2, IDE_CONTROL_REG);
+				ide_set_irq(drive, 0);
 		}
 		hwgroup->hwif = hwif;
 		hwgroup->drive = drive;

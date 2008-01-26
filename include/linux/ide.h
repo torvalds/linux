@@ -1302,4 +1302,9 @@ static inline ide_drive_t *ide_get_paired_drive(ide_drive_t *drive)
 	return &hwif->drives[(drive->dn ^ 1) & 1];
 }
 
+static inline void ide_set_irq(ide_drive_t *drive, int on)
+{
+	drive->hwif->OUTB(drive->ctl | (on ? 0 : 2), IDE_CONTROL_REG);
+}
+
 #endif /* _IDE_H */

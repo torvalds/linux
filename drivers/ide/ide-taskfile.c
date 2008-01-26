@@ -83,8 +83,7 @@ void ide_tf_load(ide_drive_t *drive, ide_task_t *task)
 		tf->hob_lbam, tf->hob_lbah);
 #endif
 
-	if (IDE_CONTROL_REG)
-		hwif->OUTB(drive->ctl, IDE_CONTROL_REG); /* clear nIEN */
+	ide_set_irq(drive, 1);
 
 	if ((task->tf_flags & IDE_TFLAG_NO_SELECT_MASK) == 0)
 		SELECT_MASK(drive, 0);
