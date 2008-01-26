@@ -454,8 +454,7 @@ int ide_set_xfer_rate(ide_drive_t *drive, u8 rate)
 static void ide_dump_opcode(ide_drive_t *drive)
 {
 	struct request *rq;
-	u8 opcode = 0;
-	int found = 0;
+	ide_task_t *task = NULL;
 
 	spin_lock(&ide_lock);
 	rq = NULL;
@@ -464,25 +463,15 @@ static void ide_dump_opcode(ide_drive_t *drive)
 	spin_unlock(&ide_lock);
 	if (!rq)
 		return;
-	if (rq->cmd_type == REQ_TYPE_ATA_CMD) {
-		char *args = rq->buffer;
-		if (args) {
-			opcode = args[0];
-			found = 1;
-		}
-	} else if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE) {
-		ide_task_t *args = rq->special;
-		if (args) {
-			opcode = args->tf.command;
-			found = 1;
-		}
-	}
+
+	if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE)
+		task = rq->special;
 
 	printk("ide: failed opcode was: ");
-	if (!found)
-		printk("unknown\n");
+	if (task == NULL)
+		printk(KERN_CONT "unknown\n");
 	else
-		printk("0x%02x\n", opcode);
+		printk(KERN_CONT "0x%02x\n", task->tf.command);
 }
 
 u64 ide_get_lba_addr(struct ide_taskfile *tf, int lba48)
