@@ -13,6 +13,7 @@
  *  -- Benjamin Herrenschmidt (01/11/03) benh@kernel.crashing.org
  *
  * Copyright (C) 2006-2007 MontaVista Software, Inc. <source@mvista.com>
+ * Copyright (C)      2007 Bartlomiej Zolnierkiewicz
  */
 
 #include <linux/types.h>
@@ -90,14 +91,8 @@ static void sl82c105_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	drive->drive_data &= 0xffff0000;
 	drive->drive_data |= drv_ctrl;
 
-	if (!drive->using_dma) {
-		/*
-		 * If we are actually using MW DMA, then we can not
-		 * reprogram the interface drive control register.
-		 */
-		pci_write_config_word(dev, reg,  drv_ctrl);
-		pci_read_config_word (dev, reg, &drv_ctrl);
-	}
+	pci_write_config_word(dev, reg,  drv_ctrl);
+	pci_read_config_word (dev, reg, &drv_ctrl);
 
 	printk(KERN_DEBUG "%s: selected %s (%dns) (%04X)\n", drive->name,
 			  ide_xfer_verbose(pio + XFER_PIO_0),
@@ -123,17 +118,6 @@ static void sl82c105_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	 */
 	drive->drive_data &= 0x0000ffff;
 	drive->drive_data |= (unsigned long)drv_ctrl << 16;
-
-	/*
-	 * If we are already using DMA, we just reprogram
-	 * the drive control register.
-	 */
-	if (drive->using_dma) {
-		struct pci_dev *dev	= HWIF(drive)->pci_dev;
-		int reg 		= 0x44 + drive->dn * 4;
-
-		pci_write_config_word(dev, reg, drv_ctrl);
-	}
 }
 
 /*
@@ -201,6 +185,11 @@ static void sl82c105_dma_start(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif	= HWIF(drive);
 	struct pci_dev *dev	= hwif->pci_dev;
+	int reg 		= 0x44 + drive->dn * 4;
+
+	DBG(("%s(drive:%s)\n", __FUNCTION__, drive->name));
+
+	pci_write_config_word(dev, reg, drive->drive_data >> 16);
 
 	sl82c105_reset_host(dev);
 	ide_dma_start(drive);
@@ -214,32 +203,19 @@ static void sl82c105_dma_timeout(ide_drive_t *drive)
 	ide_dma_timeout(drive);
 }
 
-static int sl82c105_ide_dma_on(ide_drive_t *drive)
-{
-	struct pci_dev *dev	= HWIF(drive)->pci_dev;
-	int rc, reg 		= 0x44 + drive->dn * 4;
-
-	DBG(("sl82c105_ide_dma_on(drive:%s)\n", drive->name));
-
-	rc = __ide_dma_on(drive);
-	if (rc == 0) {
-		pci_write_config_word(dev, reg, drive->drive_data >> 16);
-
-		printk(KERN_INFO "%s: DMA enabled\n", drive->name);
-	}
-	return rc;
-}
-
-static void sl82c105_dma_off_quietly(ide_drive_t *drive)
+static int sl82c105_dma_end(ide_drive_t *drive)
 {
 	struct pci_dev *dev	= HWIF(drive)->pci_dev;
 	int reg 		= 0x44 + drive->dn * 4;
+	int ret;
 
-	DBG(("sl82c105_dma_off_quietly(drive:%s)\n", drive->name));
+	DBG(("%s(drive:%s)\n", __FUNCTION__, drive->name));
+
+	ret = __ide_dma_end(drive);
 
 	pci_write_config_word(dev, reg, drive->drive_data);
 
-	ide_dma_off_quietly(drive);
+	return ret;
 }
 
 /*
@@ -369,10 +345,9 @@ static void __devinit init_hwif_sl82c105(ide_hwif_t *hwif)
 
 	hwif->mwdma_mask = ATA_MWDMA2;
 
-	hwif->ide_dma_on		= &sl82c105_ide_dma_on;
-	hwif->dma_off_quietly		= &sl82c105_dma_off_quietly;
 	hwif->dma_lost_irq		= &sl82c105_dma_lost_irq;
 	hwif->dma_start			= &sl82c105_dma_start;
+	hwif->ide_dma_end		= &sl82c105_dma_end;
 	hwif->dma_timeout		= &sl82c105_dma_timeout;
 
 	if (hwif->mate)
