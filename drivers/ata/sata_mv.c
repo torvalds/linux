@@ -29,7 +29,13 @@
   I distinctly remember a couple workarounds (one related to PCI-X)
   are still needed.
 
-  4) Add NCQ support (easy to intermediate, once new-EH support appears)
+  2) Improve/fix IRQ and error handling sequences.
+
+  3) ATAPI support (Marvell claims the 60xx/70xx chips can do it).
+
+  4) Think about TCQ support here, and for libata in general
+  with controllers that suppport it via host-queuing hardware
+  (a software-only implementation could be a nightmare).
 
   5) Investigate problems with PCI Message Signalled Interrupts (MSI).
 
@@ -53,8 +59,6 @@
   Target mode, for those without docs, is the ability to directly
   connect two SATA controllers.
 
-  13) Verify that 7042 is fully supported.  I only have a 6042.
-
 */
 
 
@@ -73,7 +77,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"sata_mv"
-#define DRV_VERSION	"1.01"
+#define DRV_VERSION	"1.20"
 
 enum {
 	/* BAR's are enumerated in terms of pci_resource_start() terms */
