@@ -640,7 +640,6 @@ static ide_startstop_t drive_cmd_intr (ide_drive_t *drive)
 	ide_hwif_t *hwif = HWIF(drive);
 	u8 *args = (u8 *) rq->buffer;
 	u8 stat = hwif->INB(IDE_STATUS_REG);
-	int retries = 10;
 
 	local_irq_enable_in_hardirq();
 	if (rq->cmd_type == REQ_TYPE_ATA_CMD &&
@@ -649,8 +648,7 @@ static ide_startstop_t drive_cmd_intr (ide_drive_t *drive)
 		drive->io_32bit = 0;
 		hwif->ata_input_data(drive, &args[4], args[3] * SECTOR_WORDS);
 		drive->io_32bit = io_32bit;
-		while (((stat = hwif->INB(IDE_STATUS_REG)) & BUSY_STAT) && retries--)
-			udelay(100);
+		stat = wait_drive_not_busy(drive);
 	}
 
 	if (!OK_STAT(stat, READY_STAT, BAD_STAT))
