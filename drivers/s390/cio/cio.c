@@ -147,7 +147,7 @@ cio_tpi(void)
 	spin_lock(sch->lock);
 	memcpy (&sch->schib.scsw, &irb->scsw, sizeof (struct scsw));
 	if (sch->driver && sch->driver->irq)
-		sch->driver->irq(&sch->dev);
+		sch->driver->irq(sch);
 	spin_unlock(sch->lock);
 	irq_exit ();
 	_local_bh_enable();
@@ -680,7 +680,7 @@ do_IRQ (struct pt_regs *regs)
 				sizeof (irb->scsw));
 			/* Call interrupt handler if there is one. */
 			if (sch->driver && sch->driver->irq)
-				sch->driver->irq(&sch->dev);
+				sch->driver->irq(sch);
 		}
 		if (sch)
 			spin_unlock(sch->lock);

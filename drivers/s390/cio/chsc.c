@@ -132,7 +132,7 @@ static void terminate_internal_io(struct subchannel *sch)
 	device_set_intretry(sch);
 	/* Call handler. */
 	if (sch->driver && sch->driver->termination)
-		sch->driver->termination(&sch->dev);
+		sch->driver->termination(sch);
 }
 
 static int
@@ -172,12 +172,12 @@ s390_subchannel_remove_chpid(struct device *dev, void *data)
 			terminate_internal_io(sch);
 			/* Re-start path verification. */
 			if (sch->driver && sch->driver->verify)
-				sch->driver->verify(&sch->dev);
+				sch->driver->verify(sch);
 		}
 	} else {
 		/* trigger path verification. */
 		if (sch->driver && sch->driver->verify)
-			sch->driver->verify(&sch->dev);
+			sch->driver->verify(sch);
 		else if (sch->lpm == mask)
 			goto out_unreg;
 	}
@@ -279,7 +279,7 @@ __s390_process_res_acc(struct subchannel_id schid, void *data)
 	if (!old_lpm && sch->lpm)
 		device_trigger_reprobe(sch);
 	else if (sch->driver && sch->driver->verify)
-		sch->driver->verify(&sch->dev);
+		sch->driver->verify(sch);
 out:
 	spin_unlock_irq(sch->lock);
 	put_device(&sch->dev);
@@ -549,7 +549,7 @@ __chp_add(struct subchannel_id schid, void *data)
 		    | mask) & sch->opm;
 
 	if (sch->driver && sch->driver->verify)
-		sch->driver->verify(&sch->dev);
+		sch->driver->verify(sch);
 
 	spin_unlock_irq(sch->lock);
 	put_device(&sch->dev);
@@ -589,7 +589,7 @@ static void __s390_subchannel_vary_chpid(struct subchannel *sch,
 			if (!old_lpm)
 				device_trigger_reprobe(sch);
 			else if (sch->driver && sch->driver->verify)
-				sch->driver->verify(&sch->dev);
+				sch->driver->verify(sch);
 			break;
 		}
 		sch->opm &= ~mask;
@@ -603,13 +603,13 @@ static void __s390_subchannel_vary_chpid(struct subchannel *sch,
 				terminate_internal_io(sch);
 				/* Re-start path verification. */
 				if (sch->driver && sch->driver->verify)
-					sch->driver->verify(&sch->dev);
+					sch->driver->verify(sch);
 			}
 		} else if (!sch->lpm) {
 			if (device_trigger_verify(sch) != 0)
 				css_schedule_eval(sch->schid);
 		} else if (sch->driver && sch->driver->verify)
-			sch->driver->verify(&sch->dev);
+			sch->driver->verify(sch);
 		break;
 	}
 	spin_unlock_irqrestore(sch->lock, flags);

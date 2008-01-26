@@ -399,7 +399,7 @@ ccw_device_oper_notify(struct work_struct *work)
 	sch = to_subchannel(cdev->dev.parent);
 	if (sch->driver && sch->driver->notify) {
 		spin_unlock_irqrestore(cdev->ccwlock, flags);
-		ret = sch->driver->notify(&sch->dev, CIO_OPER);
+		ret = sch->driver->notify(sch, CIO_OPER);
 		spin_lock_irqsave(cdev->ccwlock, flags);
 	} else
 		ret = 0;
@@ -1272,22 +1272,5 @@ fsm_func_t *dev_jumptable[NR_DEV_STATES][NR_DEV_EVENTS] = {
 		[DEV_EVENT_VERIFY]	= ccw_device_update_cmfblock,
 	},
 };
-
-/*
- * io_subchannel_irq is called for "real" interrupts or for status
- * pending conditions on msch.
- */
-void
-io_subchannel_irq (struct device *pdev)
-{
-	struct ccw_device *cdev;
-
-	cdev = to_subchannel(pdev)->dev.driver_data;
-
-	CIO_TRACE_EVENT (3, "IRQ");
-	CIO_TRACE_EVENT (3, pdev->bus_id);
-	if (cdev)
-		dev_fsm_event(cdev, DEV_EVENT_INTERRUPT);
-}
 
 EXPORT_SYMBOL_GPL(ccw_device_set_timeout);

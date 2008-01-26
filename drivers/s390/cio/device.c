@@ -115,11 +115,12 @@ static int ccw_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 struct bus_type ccw_bus_type;
 
-static int io_subchannel_probe (struct subchannel *);
-static int io_subchannel_remove (struct subchannel *);
-static int io_subchannel_notify(struct device *, int);
-static void io_subchannel_verify(struct device *);
-static void io_subchannel_ioterm(struct device *);
+static void io_subchannel_irq(struct subchannel *);
+static int io_subchannel_probe(struct subchannel *);
+static int io_subchannel_remove(struct subchannel *);
+static int io_subchannel_notify(struct subchannel *, int);
+static void io_subchannel_verify(struct subchannel *);
+static void io_subchannel_ioterm(struct subchannel *);
 static void io_subchannel_shutdown(struct subchannel *);
 
 static struct css_driver io_subchannel_driver = {
@@ -1096,6 +1097,18 @@ out:
 	put_device(&cdev->dev);
 }
 
+static void io_subchannel_irq(struct subchannel *sch)
+{
+	struct ccw_device *cdev;
+
+	cdev = sch->dev.driver_data;
+
+	CIO_TRACE_EVENT(3, "IRQ");
+	CIO_TRACE_EVENT(3, sch->dev.bus_id);
+	if (cdev)
+		dev_fsm_event(cdev, DEV_EVENT_INTERRUPT);
+}
+
 static int
 io_subchannel_probe (struct subchannel *sch)
 {
@@ -1183,12 +1196,11 @@ io_subchannel_remove (struct subchannel *sch)
 	return 0;
 }
 
-static int
-io_subchannel_notify(struct device *dev, int event)
+static int io_subchannel_notify(struct subchannel *sch, int event)
 {
 	struct ccw_device *cdev;
 
-	cdev = dev->driver_data;
+	cdev = sch->dev.driver_data;
 	if (!cdev)
 		return 0;
 	if (!cdev->drv)
@@ -1198,22 +1210,20 @@ io_subchannel_notify(struct device *dev, int event)
 	return cdev->drv->notify ? cdev->drv->notify(cdev, event) : 0;
 }
 
-static void
-io_subchannel_verify(struct device *dev)
+static void io_subchannel_verify(struct subchannel *sch)
 {
 	struct ccw_device *cdev;
 
-	cdev = dev->driver_data;
+	cdev = sch->dev.driver_data;
 	if (cdev)
 		dev_fsm_event(cdev, DEV_EVENT_VERIFY);
 }
 
-static void
-io_subchannel_ioterm(struct device *dev)
+static void io_subchannel_ioterm(struct subchannel *sch)
 {
 	struct ccw_device *cdev;
 
-	cdev = dev->driver_data;
+	cdev = sch->dev.driver_data;
 	if (!cdev)
 		return;
 	/* Internal I/O will be retried by the interrupt handler. */

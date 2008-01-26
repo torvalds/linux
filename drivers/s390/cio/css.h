@@ -125,10 +125,10 @@ struct subchannel;
 struct css_driver {
 	unsigned int subchannel_type;
 	struct device_driver drv;
-	void (*irq)(struct device *);
-	int (*notify)(struct device *, int);
-	void (*verify)(struct device *);
-	void (*termination)(struct device *);
+	void (*irq)(struct subchannel *);
+	int (*notify)(struct subchannel *, int);
+	void (*verify)(struct subchannel *);
+	void (*termination)(struct subchannel *);
 	int (*probe)(struct subchannel *);
 	int (*remove)(struct subchannel *);
 	void (*shutdown)(struct subchannel *);

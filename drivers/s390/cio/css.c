@@ -293,7 +293,7 @@ static int css_evaluate_known_subchannel(struct subchannel *sch, int slow)
 		action = UNREGISTER;
 		if (sch->driver && sch->driver->notify) {
 			spin_unlock_irqrestore(sch->lock, flags);
-			ret = sch->driver->notify(&sch->dev, event);
+			ret = sch->driver->notify(sch, event);
 			spin_lock_irqsave(sch->lock, flags);
 			if (ret)
 				action = NONE;
