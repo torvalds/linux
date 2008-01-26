@@ -834,19 +834,19 @@ static void mv_set_edma_ptrs(void __iomem *port_mmio,
  *      LOCKING:
  *      Inherited from caller.
  */
-static void mv_start_dma(void __iomem *base, struct mv_host_priv *hpriv,
+static void mv_start_dma(void __iomem *port_mmio, struct mv_host_priv *hpriv,
 			 struct mv_port_priv *pp)
 {
 	if (!(pp->pp_flags & MV_PP_FLAG_EDMA_EN)) {
 		/* clear EDMA event indicators, if any */
-		writelfl(0, base + EDMA_ERR_IRQ_CAUSE_OFS);
+		writelfl(0, port_mmio + EDMA_ERR_IRQ_CAUSE_OFS);
 
-		mv_set_edma_ptrs(base, hpriv, pp);
+		mv_set_edma_ptrs(port_mmio, hpriv, pp);
 
-		writelfl(EDMA_EN, base + EDMA_CMD_OFS);
+		writelfl(EDMA_EN, port_mmio + EDMA_CMD_OFS);
 		pp->pp_flags |= MV_PP_FLAG_EDMA_EN;
 	}
-	WARN_ON(!(EDMA_EN & readl(base + EDMA_CMD_OFS)));
+	WARN_ON(!(EDMA_EN & readl(port_mmio + EDMA_CMD_OFS)));
 }
 
 /**
