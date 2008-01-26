@@ -643,8 +643,13 @@ static ide_startstop_t drive_cmd_intr (ide_drive_t *drive)
 	if (pio_in) {
 		u8 io_32bit = drive->io_32bit;
 		stat = hwif->INB(IDE_STATUS_REG);
-		if ((stat & DRQ_STAT) == 0)
-			goto out;
+		if (!OK_STAT(stat, DRQ_STAT, BAD_R_STAT)) {
+			if (stat & (ERR_STAT | DRQ_STAT))
+				return ide_error(drive, __FUNCTION__, stat);
+			ide_set_handler(drive, &drive_cmd_intr, WAIT_WORSTCASE,
+					NULL);
+			return ide_started;
+		}
 		drive->io_32bit = 0;
 		hwif->ata_input_data(drive, &args[4], args[3] * SECTOR_WORDS);
 		drive->io_32bit = io_32bit;
@@ -653,7 +658,7 @@ static ide_startstop_t drive_cmd_intr (ide_drive_t *drive)
 		local_irq_enable_in_hardirq();
 		stat = hwif->INB(IDE_STATUS_REG);
 	}
-out:
+
 	if (!OK_STAT(stat, READY_STAT, BAD_STAT))
 		return ide_error(drive, "drive_cmd", stat);
 		/* calls ide_end_drive_cmd */
