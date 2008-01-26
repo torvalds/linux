@@ -219,35 +219,8 @@ static int sl82c105_dma_end(ide_drive_t *drive)
 }
 
 /*
- * Ok, that is nasty, but we must make sure the DMA timings
- * won't be used for a PIO access. The solution here is
- * to make sure the 16 bits mode is diabled on the channel
- * when DMA is enabled, thus causing the chip to use PIO0
- * timings for those operations.
- */
-static void sl82c105_selectproc(ide_drive_t *drive)
-{
-	ide_hwif_t *hwif	= HWIF(drive);
-	struct pci_dev *dev	= hwif->pci_dev;
-	u32 val, old, mask;
-
-	//DBG(("sl82c105_selectproc(drive:%s)\n", drive->name));
-
-	mask = hwif->channel ? CTRL_P1F16 : CTRL_P0F16;
-	old = val = (u32)pci_get_drvdata(dev);
-	if (drive->using_dma)
-		val &= ~mask;
-	else
-		val |= mask;
-	if (old != val) {
-		pci_write_config_dword(dev, 0x40, val);	
-		pci_set_drvdata(dev, (void *)val);
-	}
-}
-
-/*
  * ATA reset will clear the 16 bits mode in the control
- * register, we need to update our cache
+ * register, we need to reprogram it
  */
 static void sl82c105_resetproc(ide_drive_t *drive)
 {
@@ -257,7 +230,8 @@ static void sl82c105_resetproc(ide_drive_t *drive)
 	DBG(("sl82c105_resetproc(drive:%s)\n", drive->name));
 
 	pci_read_config_dword(dev, 0x40, &val);
-	pci_set_drvdata(dev, (void *)val);
+	val |= (CTRL_P1F16 | CTRL_P0F16);
+	pci_write_config_dword(dev, 0x40, val);
 }
 
 /*
@@ -310,7 +284,6 @@ static unsigned int __devinit init_chipset_sl82c105(struct pci_dev *dev, const c
 	pci_read_config_dword(dev, 0x40, &val);
 	val |= CTRL_P0EN | CTRL_P0F16 | CTRL_P1F16;
 	pci_write_config_dword(dev, 0x40, val);
-	pci_set_drvdata(dev, (void *)val);
 
 	return dev->irq;
 }
@@ -326,7 +299,6 @@ static void __devinit init_hwif_sl82c105(ide_hwif_t *hwif)
 
 	hwif->set_pio_mode	= &sl82c105_set_pio_mode;
 	hwif->set_dma_mode	= &sl82c105_set_dma_mode;
-	hwif->selectproc	= &sl82c105_selectproc;
 	hwif->resetproc 	= &sl82c105_resetproc;
 
 	if (!hwif->dma_base)
