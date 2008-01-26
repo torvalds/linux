@@ -1303,7 +1303,7 @@ static int __init ide_setup(char *s)
 	if (s[0] == 'h' && s[1] == 'd' && s[2] >= 'a' && s[2] <= max_drive) {
 		const char *hd_words[] = {
 			"none", "noprobe", "nowerr", "cdrom", "nodma",
-			"autotune", "noautotune", "minus8", "swapdata", "bswap",
+			"autotune", "noautotune", "-8", "-9", "-10",
 			"noflush", "remap", "remap63", "scsi", NULL };
 		unit = s[2] - 'a';
 		hw   = unit / MAX_DRIVES;
@@ -1339,10 +1339,6 @@ static int __init ide_setup(char *s)
 			case -7: /* "noautotune" */
 				drive->autotune = IDE_TUNE_NOAUTO;
 				goto obsolete_option;
-			case -9: /* "swapdata" */
-			case -10: /* "bswap" */
-				drive->bswap = 1;
-				goto done;
 			case -11: /* noflush */
 				drive->noflush = 1;
 				goto done;

@@ -35,34 +35,6 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
-static void ata_bswap_data (void *buffer, int wcount)
-{
-	u16 *p = buffer;
-
-	while (wcount--) {
-		*p = *p << 8 | *p >> 8; p++;
-		*p = *p << 8 | *p >> 8; p++;
-	}
-}
-
-static void taskfile_input_data(ide_drive_t *drive, void *buffer, u32 wcount)
-{
-	HWIF(drive)->ata_input_data(drive, buffer, wcount);
-	if (drive->bswap)
-		ata_bswap_data(buffer, wcount);
-}
-
-static void taskfile_output_data(ide_drive_t *drive, void *buffer, u32 wcount)
-{
-	if (drive->bswap) {
-		ata_bswap_data(buffer, wcount);
-		HWIF(drive)->ata_output_data(drive, buffer, wcount);
-		ata_bswap_data(buffer, wcount);
-	} else {
-		HWIF(drive)->ata_output_data(drive, buffer, wcount);
-	}
-}
-
 void ide_tf_load(ide_drive_t *drive, ide_task_t *task)
 {
 	ide_hwif_t *hwif = drive->hwif;
@@ -352,9 +324,9 @@ static void ide_pio_sector(ide_drive_t *drive, unsigned int write)
 
 	/* do the actual data transfer */
 	if (write)
-		taskfile_output_data(drive, buf, SECTOR_WORDS);
+		hwif->ata_output_data(drive, buf, SECTOR_WORDS);
 	else
-		taskfile_input_data(drive, buf, SECTOR_WORDS);
+		hwif->ata_input_data(drive, buf, SECTOR_WORDS);
 
 	kunmap_atomic(buf, KM_BIO_SRC_IRQ);
 #ifdef CONFIG_HIGHMEM

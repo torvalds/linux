@@ -244,10 +244,6 @@ Summary of ide driver parameters for kernel command line
 
  "hdx=nodma"		: disallow DMA
 
- "hdx=swapdata"		: when the drive is a disk, byte swap all data
-
- "hdx=bswap"		: same as above..........
-
  "hdx=scsi"		: the return of the ide-scsi flag, this is useful for
  			  allowing ide-floppy, ide-tape, and ide-cdrom|writers
  			  to use ide-scsi emulation on a device specific option.
