@@ -617,7 +617,7 @@ EXPORT_SYMBOL_GPL(real_memory_size);
 static void __init setup_memory_end(void)
 {
 	unsigned long memory_size;
-	unsigned long max_mem, max_phys;
+	unsigned long max_mem;
 	int i;
 
 #if defined(CONFIG_ZFCPDUMP) || defined(CONFIG_ZFCPDUMP_MODULE)
@@ -625,10 +625,10 @@ static void __init setup_memory_end(void)
 		memory_end = ZFCPDUMP_HSA_SIZE;
 #endif
 	memory_size = 0;
-	max_phys = VMALLOC_END_INIT - VMALLOC_MIN_SIZE;
 	memory_end &= PAGE_MASK;
 
-	max_mem = memory_end ? min(max_phys, memory_end) : max_phys;
+	max_mem = memory_end ? min(VMALLOC_START, memory_end) : VMALLOC_START;
+	memory_end = min(max_mem, memory_end);
 
 	for (i = 0; i < MEMORY_CHUNKS; i++) {
 		struct mem_chunk *chunk = &memory_chunk[i];
