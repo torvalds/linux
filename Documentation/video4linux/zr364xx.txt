@@ -25,7 +25,7 @@ modprobe zr364xx debug=X mode=Y
  - debug      : set to 1 to enable verbose debug messages
  - mode       : 0 = 320x240, 1 = 160x120, 2 = 640x480
 You can then use the camera with V4L2 compatible applications, for example Ekiga.
-To capture a single image, try this: dd if=/dev/video0 of=test.jpg bs=1 count=1
+To capture a single image, try this: dd if=/dev/video0 of=test.jpg bs=1M count=1
 
 links :
 http://mxhaard.free.fr/ (support for many others cams including some Aiptek PocketDV)
