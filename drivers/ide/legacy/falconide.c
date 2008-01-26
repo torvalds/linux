@@ -66,15 +66,19 @@ void __init falconide_init(void)
 {
     if (MACH_IS_ATARI && ATARIHW_PRESENT(IDE)) {
 	hw_regs_t hw;
-	int index;
 
 	ide_setup_ports(&hw, ATA_HD_BASE, falconide_offsets,
 			0, 0, NULL,
 //			falconide_iops,
 			IRQ_MFP_IDE);
-	index = ide_register_hw(&hw, NULL, 1, NULL);
 
-	if (index != -1)
-	    printk("ide%d: Falcon IDE interface\n", index);
-    }
+	hwif = ide_find_port(hw.io_ports[IDE_DATA_OFFSET]);
+	if (hwif) {
+		u8 index = hwif->index;
+
+		ide_init_port_data(hwif, index);
+		ide_init_port_hw(hwif, &hw);
+
+		printk("ide%d: Falcon IDE interface\n", index);
+	}
 }

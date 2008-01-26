@@ -133,7 +133,6 @@ found:
 	ide_ack_intr_t *ack_intr;
 	hw_regs_t hw;
 	ide_hwif_t *hwif;
-	int index;
 	unsigned long phys_base, res_start, res_n;
 
 	if (a4000) {
@@ -165,8 +164,13 @@ found:
 //			&gayle_iops,
 			IRQ_AMIGA_PORTS);
 
-	index = ide_register_hw(&hw, NULL, 1, &hwif);
-	if (index != -1) {
+	hwif = ide_find_port(base);
+	if (hwif) {
+	    u8 index = hwif->index;
+
+	    ide_init_port_data(hwif, index);
+	    ide_init_port_hw(hwif, &hw);
+
 	    hwif->mmio = 1;
 	    switch (i) {
 		case 0:

@@ -88,7 +88,7 @@ void __init h8300_ide_init(void)
 {
 	hw_regs_t hw;
 	ide_hwif_t *hwif;
-	int idx;
+	int index;
 
 	if (!request_region(CONFIG_H8300_IDE_BASE, H8300_IDE_GAP*8, "ide-h8300"))
 		goto out_busy;
@@ -100,14 +100,17 @@ void __init h8300_ide_init(void)
 	hw_setup(&hw);
 
 	/* register if */
-	idx = ide_register_hw(&hw, NULL, 1, &hwif);
-	if (idx == -1) {
+	hwif = ide_find_port(hw.io_ports[IDE_DATA_OFFSET]);
+	if (hwif == NULL) {
 		printk(KERN_ERR "ide-h8300: IDE I/F register failed\n");
 		return;
 	}
 
+	index = hwif->index;
+	ide_init_port_data(hwif, index);
+	ide_init_port_hw(hwif, &hw);
 	hwif_setup(hwif);
-	printk(KERN_INFO "ide%d: H8/300 generic IDE interface\n", idx);
+	printk(KERN_INFO "ide%d: H8/300 generic IDE interface\n", index);
 	return;
 
 out_busy:

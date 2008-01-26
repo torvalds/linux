@@ -116,7 +116,7 @@ EXPORT_SYMBOL(ide_hwifs);
 /*
  * Do not even *think* about calling this!
  */
-static void init_hwif_data(ide_hwif_t *hwif, unsigned int index)
+void ide_init_port_data(ide_hwif_t *hwif, unsigned int index)
 {
 	unsigned int unit;
 
@@ -159,6 +159,7 @@ static void init_hwif_data(ide_hwif_t *hwif, unsigned int index)
 		init_completion(&drive->gendev_rel_comp);
 	}
 }
+EXPORT_SYMBOL_GPL(ide_init_port_data);
 
 static void init_hwif_default(ide_hwif_t *hwif, unsigned int index)
 {
@@ -210,7 +211,7 @@ static void __init init_ide_data (void)
 	/* Initialise all interface structures */
 	for (index = 0; index < MAX_HWIFS; ++index) {
 		hwif = &ide_hwifs[index];
-		init_hwif_data(hwif, index);
+		ide_init_port_data(hwif, index);
 		init_hwif_default(hwif, index);
 #if !defined(CONFIG_PPC32) || !defined(CONFIG_PCI)
 		hwif->irq =
@@ -609,7 +610,7 @@ void ide_unregister(unsigned int index)
 	tmp_hwif = *hwif;
 
 	/* restore hwif data to pristine status */
-	init_hwif_data(hwif, index);
+	ide_init_port_data(hwif, index);
 	init_hwif_default(hwif, index);
 
 	ide_hwif_restore(hwif, &tmp_hwif);
@@ -690,29 +691,19 @@ EXPORT_SYMBOL_GPL(ide_init_port_hw);
  *	ide_register_hw		-	register IDE interface
  *	@hw: hardware registers
  *	@quirkproc: quirkproc function
- *	@initializing: set while initializing built-in drivers
  *	@hwifp: pointer to returned hwif
  *
  *	Register an IDE interface, specifying exactly the registers etc.
- *	Set init=1 iff calling before probes have taken place.
  *
  *	Returns -1 on error.
  */
 
 int ide_register_hw(hw_regs_t *hw, void (*quirkproc)(ide_drive_t *),
-		    int initializing, ide_hwif_t **hwifp)
+		    ide_hwif_t **hwifp)
 {
 	int index, retry = 1;
 	ide_hwif_t *hwif;
-
-	if (initializing) {
-		hwif = ide_find_port(hw->io_ports[IDE_DATA_OFFSET]);
-		if (hwif) {
-			index = hwif->index;
-			goto found;
-		}
-		return -1;
-	}
+	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
 	do {
 		for (index = 0; index < MAX_HWIFS; ++index) {
@@ -735,7 +726,7 @@ found:
 	if (hwif->present)
 		ide_unregister(index);
 	else if (!hwif->hold) {
-		init_hwif_data(hwif, index);
+		ide_init_port_data(hwif, index);
 		init_hwif_default(hwif, index);
 	}
 	if (hwif->present)
@@ -744,16 +735,14 @@ found:
 	ide_init_port_hw(hwif, hw);
 	hwif->quirkproc = quirkproc;
 
-	if (initializing == 0) {
-		u8 idx[4] = { index, 0xff, 0xff, 0xff };
+	idx[0] = index;
 
-		ide_device_add(idx);
-	}
+	ide_device_add(idx);
 
 	if (hwifp)
 		*hwifp = hwif;
 
-	return (initializing || hwif->present) ? index : -1;
+	return hwif->present ? index : -1;
 }
 
 EXPORT_SYMBOL(ide_register_hw);
@@ -1076,7 +1065,7 @@ int generic_ide_ioctl(ide_drive_t *drive, struct file *file, struct block_device
 			ide_init_hwif_ports(&hw, (unsigned long) args[0],
 					    (unsigned long) args[1], NULL);
 			hw.irq = args[2];
-			if (ide_register_hw(&hw, NULL, 0, NULL) == -1)
+			if (ide_register_hw(&hw, NULL, NULL) == -1)
 				return -EIO;
 			return 0;
 		}

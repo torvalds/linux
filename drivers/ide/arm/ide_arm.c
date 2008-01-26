@@ -26,10 +26,16 @@
 
 void __init ide_arm_init(void)
 {
+	ide_hwif_t *hwif;
 	hw_regs_t hw;
 
 	memset(&hw, 0, sizeof(hw));
 	ide_std_init_ports(&hw, IDE_ARM_IO, IDE_ARM_IO + 0x206);
 	hw.irq = IDE_ARM_IRQ;
-	ide_register_hw(&hw, NULL, 1, NULL);
+
+	hwif = ide_find_port(hw.io_ports[IDE_DATA_OFFSET]);
+	if (hwif) {
+		ide_init_port_data(hwif, hwif->index);
+		ide_init_port_hw(hwif, &hw);
+	}
 }

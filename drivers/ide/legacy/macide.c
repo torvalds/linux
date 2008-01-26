@@ -85,7 +85,6 @@ void __init macide_init(void)
 {
 	hw_regs_t hw;
 	ide_hwif_t *hwif;
-	int index = -1;
 
 	switch (macintosh_config->ide_type) {
 	case MAC_IDE_QUADRA:
@@ -93,40 +92,40 @@ void __init macide_init(void)
 				0, 0, macide_ack_intr,
 //				quadra_ide_iops,
 				IRQ_NUBUS_F);
-		index = ide_register_hw(&hw, NULL, 1, &hwif);
 		break;
 	case MAC_IDE_PB:
 		ide_setup_ports(&hw, IDE_BASE, macide_offsets,
 				0, 0, macide_ack_intr,
 //				macide_pb_iops,
 				IRQ_NUBUS_C);
-		index = ide_register_hw(&hw, NULL, 1, &hwif);
 		break;
 	case MAC_IDE_BABOON:
 		ide_setup_ports(&hw, BABOON_BASE, macide_offsets,
 				0, 0, NULL,
 //				macide_baboon_iops,
 				IRQ_BABOON_1);
-		index = ide_register_hw(&hw, NULL, 1, &hwif);
-		if (index == -1) break;
-		if (macintosh_config->ident == MAC_MODEL_PB190) {
+		break;
+	default:
+		return;
+	}
 
+	hwif = ide_find_port(hw.io_ports[IDE_DATA_OFFSET]);
+	if (hwif) {
+		u8 index = hwif->index;
+
+		ide_init_port_data(hwif, index);
+		ide_init_port_hw(hwif, &hw);
+
+		if (macintosh_config->ide_type == MAC_IDE_BABOON &&
+		    macintosh_config->ident == MAC_MODEL_PB190) {
 			/* Fix breakage in ide-disk.c: drive capacity	*/
 			/* is not initialized for drives without a 	*/
 			/* hardware ID, and we can't get that without	*/
 			/* probing the drive which freezes a 190.	*/
-
-			ide_drive_t *drive = &ide_hwifs[index].drives[0];
+			ide_drive_t *drive = &hwif->drives[0];
 			drive->capacity64 = drive->cyl*drive->head*drive->sect;
-
 		}
-		break;
 
-	default:
-	    return;
-	}
-
-        if (index != -1) {
 		hwif->mmio = 1;
 		if (macintosh_config->ide_type == MAC_IDE_QUADRA)
 			printk(KERN_INFO "ide%d: Macintosh Quadra IDE interface\n", index);

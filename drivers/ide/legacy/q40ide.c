@@ -115,7 +115,6 @@ void __init q40ide_init(void)
 {
     int i;
     ide_hwif_t *hwif;
-    int index;
     const char *name;
 
     if (!MACH_IS_Q40)
@@ -141,10 +140,13 @@ void __init q40ide_init(void)
 			0, NULL,
 //			m68kide_iops,
 			q40ide_default_irq(pcide_bases[i]));
-	index = ide_register_hw(&hw, NULL, 1, &hwif);
-	// **FIXME**
-	if (index != -1)
+
+	hwif = ide_find_port(hw.io_ports[IDE_DATA_OFFSET]);
+	if (hwif) {
+		ide_init_port_data(hwif, hwif->index);
+		ide_init_port_hw(hwif, &hw);
 		hwif->mmio = 1;
+	}
     }
 }
 

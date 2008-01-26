@@ -147,7 +147,7 @@ void __init buddha_init(void)
 {
 	hw_regs_t hw;
 	ide_hwif_t *hwif;
-	int i, index;
+	int i;
 
 	struct zorro_dev *z = NULL;
 	u_long buddha_board = 0;
@@ -213,8 +213,13 @@ fail_base2:
 						IRQ_AMIGA_PORTS);
 			}	
 
-			index = ide_register_hw(&hw, NULL, 1, &hwif);
-			if (index != -1) {
+			hwif = ide_find_port(hw.io_ports[IDE_DATA_OFFSET]);
+			if (hwif) {
+				u8 index = hwif->index;
+
+				ide_init_port_data(hwif, index);
+				ide_init_port_hw(hwif, &hw);
+
 				hwif->mmio = 1;
 				printk("ide%d: ", index);
 				switch(type) {
