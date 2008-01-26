@@ -59,6 +59,29 @@ void _raw_spin_lock_wait(raw_spinlock_t *lp)
 }
 EXPORT_SYMBOL(_raw_spin_lock_wait);
 
+void _raw_spin_lock_wait_flags(raw_spinlock_t *lp, unsigned long flags)
+{
+	int count = spin_retry;
+	unsigned int cpu = ~smp_processor_id();
+
+	local_irq_restore(flags);
+	while (1) {
+		if (count-- <= 0) {
+			unsigned int owner = lp->owner_cpu;
+			if (owner != 0)
+				_raw_yield_cpu(~owner);
+			count = spin_retry;
+		}
+		if (__raw_spin_is_locked(lp))
+			continue;
+		local_irq_disable();
+		if (_raw_compare_and_swap(&lp->owner_cpu, 0, cpu) == 0)
+			return;
+		local_irq_restore(flags);
+	}
+}
+EXPORT_SYMBOL(_raw_spin_lock_wait_flags);
+
 int _raw_spin_trylock_retry(raw_spinlock_t *lp)
 {
 	unsigned int cpu = ~smp_processor_id();
