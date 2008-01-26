@@ -89,7 +89,8 @@ int chsc_get_ssd_info(struct subchannel_id schid, struct chsc_ssd_info *ssd)
 	/* Copy data */
 	ret = 0;
 	memset(ssd, 0, sizeof(struct chsc_ssd_info));
-	if ((ssd_area->st != 0) && (ssd_area->st != 2))
+	if ((ssd_area->st != SUBCHANNEL_TYPE_IO) &&
+	    (ssd_area->st != SUBCHANNEL_TYPE_MSG))
 		goto out_free;
 	ssd->path_mask = ssd_area->path_mask;
 	ssd->fla_valid_mask = ssd_area->fla_valid_mask;
@@ -158,7 +159,7 @@ s390_subchannel_remove_chpid(struct device *dev, void *data)
 	spin_lock_irq(sch->lock);
 
 	stsch(sch->schid, &schib);
-	if (!schib.pmcw.dnv)
+	if (!css_sch_is_valid(&schib))
 		goto out_unreg;
 	memcpy(&sch->schib, &schib, sizeof(struct schib));
 	/* Check for single path devices. */

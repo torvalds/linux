@@ -406,8 +406,8 @@ cio_modify (struct subchannel *sch)
 /*
  * Enable subchannel.
  */
-int
-cio_enable_subchannel (struct subchannel *sch, unsigned int isc)
+int cio_enable_subchannel(struct subchannel *sch, unsigned int isc,
+			  u32 intparm)
 {
 	char dbf_txt[15];
 	int ccode;
@@ -426,7 +426,7 @@ cio_enable_subchannel (struct subchannel *sch, unsigned int isc)
 	for (retry = 5, ret = 0; retry > 0; retry--) {
 		sch->schib.pmcw.ena = 1;
 		sch->schib.pmcw.isc = isc;
-		sch->schib.pmcw.intparm = (u32)(addr_t)sch;
+		sch->schib.pmcw.intparm = intparm;
 		ret = cio_modify(sch);
 		if (ret == -ENODEV)
 			break;
@@ -577,11 +577,8 @@ cio_validate_subchannel (struct subchannel *sch, struct subchannel_id schid)
 	}
 
 	/* Initialization for io subchannels. */
-	if (!sch->schib.pmcw.dnv) {
-		/* io subchannel but device number is invalid. */
-		err = -ENODEV;
-		goto out;
-	}
+	if (!css_sch_is_valid(&sch->schib))
+		return -ENODEV;
 	/* Devno is valid. */
 	if (is_blacklisted (sch->schid.ssid, sch->schib.pmcw.dev)) {
 		/*
@@ -745,9 +742,9 @@ cio_test_for_console(struct subchannel_id schid, void *data)
 {
 	if (stsch_err(schid, &console_subchannel.schib) != 0)
 		return -ENXIO;
-	if (console_subchannel.schib.pmcw.dnv &&
-	    console_subchannel.schib.pmcw.dev ==
-	    console_devno) {
+	if ((console_subchannel.schib.pmcw.st == SUBCHANNEL_TYPE_IO) &&
+	    console_subchannel.schib.pmcw.dnv &&
+	    (console_subchannel.schib.pmcw.dev == console_devno)) {
 		console_irq = schid.sch_no;
 		return 1; /* found */
 	}
@@ -765,6 +762,7 @@ cio_get_console_sch_no(void)
 		/* VM provided us with the irq number of the console. */
 		schid.sch_no = console_irq;
 		if (stsch(schid, &console_subchannel.schib) != 0 ||
+		    (console_subchannel.schib.pmcw.st != SUBCHANNEL_TYPE_IO) ||
 		    !console_subchannel.schib.pmcw.dnv)
 			return -1;
 		console_devno = console_subchannel.schib.pmcw.dev;
@@ -1029,7 +1027,7 @@ static int __reipl_subchannel_match(struct subchannel_id schid, void *data)
 
 	if (stsch_reset(schid, &schib))
 		return -ENXIO;
-	if (schib.pmcw.dnv &&
+	if ((schib.pmcw.st == SUBCHANNEL_TYPE_IO) && schib.pmcw.dnv &&
 	    (schib.pmcw.dev == match_id->devid.devno) &&
 	    (schid.ssid == match_id->devid.ssid)) {
 		match_id->schid = schid;
@@ -1074,6 +1072,8 @@ int __init cio_get_iplinfo(struct cio_iplinfo *iplinfo)
 	if (!schid.one)
 		return -ENODEV;
 	if (stsch(schid, &schib))
+		return -ENODEV;
+	if (schib.pmcw.st != SUBCHANNEL_TYPE_IO)
 		return -ENODEV;
 	if (!schib.pmcw.dnv)
 		return -ENODEV;

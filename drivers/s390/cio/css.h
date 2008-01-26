@@ -136,6 +136,8 @@ void css_schedule_eval(struct subchannel_id schid);
 void css_schedule_eval_all(void);
 
 int sch_is_pseudo_sch(struct subchannel *);
+struct schib;
+int css_sch_is_valid(struct schib *);
 
 extern struct workqueue_struct *slow_path_wq;
 

@@ -237,11 +237,25 @@ get_subchannel_by_schid(struct subchannel_id schid)
 	return dev ? to_subchannel(dev) : NULL;
 }
 
+/**
+ * css_sch_is_valid() - check if a subchannel is valid
+ * @schib: subchannel information block for the subchannel
+ */
+int css_sch_is_valid(struct schib *schib)
+{
+	if ((schib->pmcw.st == SUBCHANNEL_TYPE_IO) && !schib->pmcw.dnv)
+		return 0;
+	return 1;
+}
+EXPORT_SYMBOL_GPL(css_sch_is_valid);
+
 static int css_get_subchannel_status(struct subchannel *sch)
 {
 	struct schib schib;
 
-	if (stsch(sch->schid, &schib) || !schib.pmcw.dnv)
+	if (stsch(sch->schid, &schib))
+		return CIO_GONE;
+	if (!css_sch_is_valid(&schib))
 		return CIO_GONE;
 	if (sch->schib.pmcw.dnv && (schib.pmcw.dev != sch->schib.pmcw.dev))
 		return CIO_REVALIDATE;
@@ -349,7 +363,7 @@ static int css_evaluate_new_subchannel(struct subchannel_id schid, int slow)
 		/* Will be done on the slow path. */
 		return -EAGAIN;
 	}
-	if (stsch_err(schid, &schib) || !schib.pmcw.dnv) {
+	if (stsch_err(schid, &schib) || !css_sch_is_valid(&schib)) {
 		/* Unusable - ignore. */
 		return 0;
 	}

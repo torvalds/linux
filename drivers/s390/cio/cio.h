@@ -60,7 +60,7 @@ struct subchannel {
 	enum {
 		SUBCHANNEL_TYPE_IO = 0,
 		SUBCHANNEL_TYPE_CHSC = 1,
-		SUBCHANNEL_TYPE_MESSAGE = 2,
+		SUBCHANNEL_TYPE_MSG = 2,
 		SUBCHANNEL_TYPE_ADM = 3,
 	} st;			/* subchannel type */
 
@@ -85,7 +85,7 @@ struct subchannel {
 #define to_subchannel(n) container_of(n, struct subchannel, dev)
 
 extern int cio_validate_subchannel (struct subchannel *, struct subchannel_id);
-extern int cio_enable_subchannel (struct subchannel *, unsigned int);
+extern int cio_enable_subchannel(struct subchannel *, unsigned int, u32);
 extern int cio_disable_subchannel (struct subchannel *);
 extern int cio_cancel (struct subchannel *);
 extern int cio_clear (struct subchannel *);
