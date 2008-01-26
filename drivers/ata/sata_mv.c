@@ -1590,13 +1590,12 @@ static void mv_intr_edma(struct ata_port *ap)
 
 		qc = ata_qc_from_tag(ap, tag);
 
-		/* lower 8 bits of status are EDMA_ERR_IRQ_CAUSE_OFS
-		 * bits (WARNING: might not necessarily be associated
-		 * with this command), which -should- be clear
-		 * if all is well
+		/* For non-NCQ mode, the lower 8 bits of status
+		 * are from EDMA_ERR_IRQ_CAUSE_OFS,
+		 * which should be zero if all went well.
 		 */
 		status = le16_to_cpu(pp->crpb[out_index].flags);
-		if (unlikely(status & 0xff)) {
+		if ((status & 0xff) && !(pp->pp_flags & MV_PP_FLAG_NCQ_EN)) {
 			mv_err_intr(ap, qc);
 			return;
 		}
