@@ -1287,6 +1287,7 @@ static void __init shutdown_actions_init(void)
 static int __init s390_ipl_init(void)
 {
 	reipl_probe();
+	sclp_get_ipl_info(&sclp_ipl_info);
 	shutdown_actions_init();
 	shutdown_triggers_init();
 	return 0;
