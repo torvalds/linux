@@ -88,10 +88,16 @@ config CRYPTO_DEV_HIFN_795X
 	select CRYPTO_DES
 	select CRYPTO_ALGAPI
 	select CRYPTO_BLKCIPHER
+	select HW_RANDOM if CRYPTO_DEV_HIFN_795X_RNG
 	depends on PCI
 	help
 	  This option allows you to have support for HIFN 795x crypto adapters.
 
-
+config CRYPTO_DEV_HIFN_795X_RNG
+	bool "HIFN 795x random number generator"
+	depends on CRYPTO_DEV_HIFN_795X
+	help
+	  Select this option if you want to enable the random number generator
+	  on the HIFN 795x crypto adapters.
 
 endif # CRYPTO_HW
