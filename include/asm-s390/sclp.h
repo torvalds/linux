@@ -46,7 +46,6 @@ int sclp_get_cpu_info(struct sclp_cpu_info *info);
 int sclp_cpu_configure(u8 cpu);
 int sclp_cpu_deconfigure(u8 cpu);
 void sclp_read_info_early(void);
-void sclp_read_cpu_info_early(void);
 void sclp_facilities_detect(void);
 unsigned long long sclp_memory_detect(void);
 int sclp_sdias_blk_count(void);

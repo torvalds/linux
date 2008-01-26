@@ -35,8 +35,6 @@ extern void machine_restart_smp(char *);
 extern void machine_halt_smp(void);
 extern void machine_power_off_smp(void);
 
-extern void smp_setup_cpu_possible_map(void);
-
 #define NO_PROC_ID		0xFF		/* No processor magic marker */
 
 /*
@@ -103,7 +101,6 @@ static inline void smp_send_stop(void)
 
 #define hard_smp_processor_id()		0
 #define smp_cpu_not_running(cpu)	1
-#define smp_setup_cpu_possible_map()	do { } while (0)
 #endif
 
 extern union save_area *zfcpdump_save_areas[NR_CPUS + 1];

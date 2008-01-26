@@ -922,7 +922,6 @@ setup_arch(char **cmdline_p)
 
         cpu_init();
         __cpu_logical_map[0] = S390_lowcore.cpu_data.cpu_addr;
-	smp_setup_cpu_possible_map();
 
 	/*
 	 * Setup capabilities (ELF_HWCAP & ELF_PLATFORM).

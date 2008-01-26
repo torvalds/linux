@@ -54,7 +54,7 @@ EXPORT_SYMBOL(lowcore_ptr);
 cpumask_t cpu_online_map = CPU_MASK_NONE;
 EXPORT_SYMBOL(cpu_online_map);
 
-cpumask_t cpu_possible_map = CPU_MASK_NONE;
+cpumask_t cpu_possible_map = CPU_MASK_ALL;
 EXPORT_SYMBOL(cpu_possible_map);
 
 static struct task_struct *current_set[NR_CPUS];
@@ -399,7 +399,7 @@ static void __init smp_get_save_area(unsigned int cpu, unsigned int phy_cpu)
 		       "kernel was compiled with NR_CPUS=%i\n", cpu, NR_CPUS);
 		return;
 	}
-	zfcpdump_save_areas[cpu] = alloc_bootmem(sizeof(union save_area));
+	zfcpdump_save_areas[cpu] = kmalloc(sizeof(union save_area), GFP_KERNEL);
 	__cpu_logical_map[CPU_INIT_NO] = (__u16) phy_cpu;
 	while (signal_processor(CPU_INIT_NO, sigp_stop_and_store_status) ==
 	       sigp_busy)
@@ -435,67 +435,6 @@ static int cpu_stopped(int cpu)
 	return 0;
 }
 
-/*
- * Lets check how many CPUs we have.
- */
-static void __init smp_count_cpus(unsigned int *configured_cpus,
-				  unsigned int *standby_cpus)
-{
-	unsigned int cpu;
-	struct sclp_cpu_info *info;
-	u16 boot_cpu_addr, cpu_addr;
-
-	boot_cpu_addr = S390_lowcore.cpu_data.cpu_addr;
-	current_thread_info()->cpu = 0;
-	*configured_cpus = 1;
-	*standby_cpus = 0;
-
-	info = alloc_bootmem_pages(sizeof(*info));
-	if (!info)
-		disabled_wait((unsigned long) __builtin_return_address(0));
-
-	/* Use sigp detection algorithm if sclp doesn't work. */
-	if (sclp_get_cpu_info(info)) {
-		smp_use_sigp_detection = 1;
-		for (cpu = 0; cpu <= 65535; cpu++) {
-			if (cpu == boot_cpu_addr)
-				continue;
-			__cpu_logical_map[CPU_INIT_NO] = cpu;
-			if (cpu_stopped(CPU_INIT_NO))
-				(*configured_cpus)++;
-		}
-		goto out;
-	}
-
-	if (info->has_cpu_type) {
-		for (cpu = 0; cpu < info->combined; cpu++) {
-			if (info->cpu[cpu].address == boot_cpu_addr) {
-				smp_cpu_type = info->cpu[cpu].type;
-				break;
-			}
-		}
-	}
-	/* Count cpus. */
-	for (cpu = 0; cpu < info->combined; cpu++) {
-		if (info->has_cpu_type && info->cpu[cpu].type != smp_cpu_type)
-			continue;
-		cpu_addr = info->cpu[cpu].address;
-		if (cpu_addr == boot_cpu_addr)
-			continue;
-		__cpu_logical_map[CPU_INIT_NO] = cpu_addr;
-		if (!cpu_stopped(CPU_INIT_NO)) {
-			(*standby_cpus)++;
-			continue;
-		}
-		smp_get_save_area(*configured_cpus, cpu_addr);
-		(*configured_cpus)++;
-	}
-out:
-	printk(KERN_INFO "CPUs: %d configured, %d standby\n",
-	       *configured_cpus, *standby_cpus);
-	free_bootmem((unsigned long) info, sizeof(*info));
-}
-
 static int cpu_known(int cpu_id)
 {
 	int cpu;
@@ -529,7 +468,7 @@ static int smp_rescan_cpus_sigp(cpumask_t avail)
 	return 0;
 }
 
-static int __init_refok smp_rescan_cpus_sclp(cpumask_t avail)
+static int smp_rescan_cpus_sclp(cpumask_t avail)
 {
 	struct sclp_cpu_info *info;
 	int cpu_id, logical_cpu, cpu;
@@ -538,10 +477,7 @@ static int __init_refok smp_rescan_cpus_sclp(cpumask_t avail)
 	logical_cpu = first_cpu(avail);
 	if (logical_cpu == NR_CPUS)
 		return 0;
-	if (slab_is_available())
-		info = kmalloc(sizeof(*info), GFP_KERNEL);
-	else
-		info = alloc_bootmem(sizeof(*info));
+	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 	rc = sclp_get_cpu_info(info);
@@ -564,10 +500,7 @@ static int __init_refok smp_rescan_cpus_sclp(cpumask_t avail)
 			break;
 	}
 out:
-	if (slab_is_available())
-		kfree(info);
-	else
-		free_bootmem((unsigned long) info, sizeof(*info));
+	kfree(info);
 	return rc;
 }
 
@@ -575,13 +508,69 @@ static int smp_rescan_cpus(void)
 {
 	cpumask_t avail;
 
-	cpus_setall(avail);
-	cpus_and(avail, avail, cpu_possible_map);
-	cpus_andnot(avail, avail, cpu_present_map);
+	cpus_xor(avail, cpu_possible_map, cpu_present_map);
 	if (smp_use_sigp_detection)
 		return smp_rescan_cpus_sigp(avail);
 	else
 		return smp_rescan_cpus_sclp(avail);
+}
+
+static void __init smp_detect_cpus(void)
+{
+	unsigned int cpu, c_cpus, s_cpus;
+	struct sclp_cpu_info *info;
+	u16 boot_cpu_addr, cpu_addr;
+
+	c_cpus = 1;
+	s_cpus = 0;
+	boot_cpu_addr = S390_lowcore.cpu_data.cpu_addr;
+	info = kmalloc(sizeof(*info), GFP_KERNEL);
+	if (!info)
+		panic("smp_detect_cpus failed to allocate memory\n");
+	/* Use sigp detection algorithm if sclp doesn't work. */
+	if (sclp_get_cpu_info(info)) {
+		smp_use_sigp_detection = 1;
+		for (cpu = 0; cpu <= 65535; cpu++) {
+			if (cpu == boot_cpu_addr)
+				continue;
+			__cpu_logical_map[CPU_INIT_NO] = cpu;
+			if (!cpu_stopped(CPU_INIT_NO))
+				continue;
+			smp_get_save_area(c_cpus, cpu);
+			c_cpus++;
+		}
+		goto out;
+	}
+
+	if (info->has_cpu_type) {
+		for (cpu = 0; cpu < info->combined; cpu++) {
+			if (info->cpu[cpu].address == boot_cpu_addr) {
+				smp_cpu_type = info->cpu[cpu].type;
+				break;
+			}
+		}
+	}
+
+	for (cpu = 0; cpu < info->combined; cpu++) {
+		if (info->has_cpu_type && info->cpu[cpu].type != smp_cpu_type)
+			continue;
+		cpu_addr = info->cpu[cpu].address;
+		if (cpu_addr == boot_cpu_addr)
+			continue;
+		__cpu_logical_map[CPU_INIT_NO] = cpu_addr;
+		if (!cpu_stopped(CPU_INIT_NO)) {
+			s_cpus++;
+			continue;
+		}
+		smp_get_save_area(c_cpus, cpu_addr);
+		c_cpus++;
+	}
+out:
+	kfree(info);
+	printk(KERN_INFO "CPUs: %d configured, %d standby\n", c_cpus, s_cpus);
+	lock_cpu_hotplug();
+	smp_rescan_cpus();
+	unlock_cpu_hotplug();
 }
 
 /*
@@ -674,40 +663,19 @@ int __cpu_up(unsigned int cpu)
 	return 0;
 }
 
-static unsigned int __initdata additional_cpus;
-static unsigned int __initdata possible_cpus;
-
-void __init smp_setup_cpu_possible_map(void)
-{
-	unsigned int pos_cpus, cpu;
-	unsigned int configured_cpus, standby_cpus;
-
-	smp_count_cpus(&configured_cpus, &standby_cpus);
-	pos_cpus = min(configured_cpus + standby_cpus + additional_cpus,
-		       (unsigned int) NR_CPUS);
-	if (possible_cpus)
-		pos_cpus = min(possible_cpus, (unsigned int) NR_CPUS);
-	for (cpu = 0; cpu < pos_cpus; cpu++)
-		cpu_set(cpu, cpu_possible_map);
-	cpu_present_map = cpumask_of_cpu(0);
-	smp_rescan_cpus();
-}
-
-#ifdef CONFIG_HOTPLUG_CPU
-
-static int __init setup_additional_cpus(char *s)
-{
-	additional_cpus = simple_strtoul(s, NULL, 0);
-	return 0;
-}
-early_param("additional_cpus", setup_additional_cpus);
-
 static int __init setup_possible_cpus(char *s)
 {
-	possible_cpus = simple_strtoul(s, NULL, 0);
+	int pcpus, cpu;
+
+	pcpus = simple_strtoul(s, NULL, 0);
+	cpu_possible_map = cpumask_of_cpu(0);
+	for (cpu = 1; cpu < pcpus && cpu < NR_CPUS; cpu++)
+		cpu_set(cpu, cpu_possible_map);
 	return 0;
 }
 early_param("possible_cpus", setup_possible_cpus);
+
+#ifdef CONFIG_HOTPLUG_CPU
 
 int __cpu_disable(void)
 {
@@ -768,6 +736,8 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	unsigned int cpu;
 	int i;
 
+	smp_detect_cpus();
+
 	/* request the 0x1201 emergency signal external interrupt */
 	if (register_external_interrupt(0x1201, do_ext_call_interrupt) != 0)
 		panic("Couldn't request external interrupt 0x1201");
@@ -816,6 +786,8 @@ void __init smp_prepare_boot_cpu(void)
 {
 	BUG_ON(smp_processor_id() != 0);
 
+	current_thread_info()->cpu = 0;
+	cpu_set(0, cpu_present_map);
 	cpu_set(0, cpu_online_map);
 	S390_lowcore.percpu_offset = __per_cpu_offset[0];
 	current_set[0] = current;

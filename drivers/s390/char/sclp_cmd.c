@@ -191,9 +191,6 @@ struct read_cpu_info_sccb {
 	u8	reserved[4096 - 16];
 } __attribute__((packed, aligned(PAGE_SIZE)));
 
-static struct read_cpu_info_sccb __initdata early_read_cpu_info_sccb;
-static struct sclp_cpu_info __initdata sclp_cpu_info;
-
 static void sclp_fill_cpu_info(struct sclp_cpu_info *info,
 			       struct read_cpu_info_sccb *sccb)
 {
@@ -208,48 +205,16 @@ static void sclp_fill_cpu_info(struct sclp_cpu_info *info,
 	       info->combined * sizeof(struct sclp_cpu_entry));
 }
 
-void __init sclp_read_cpu_info_early(void)
-{
-	int rc;
-	struct read_cpu_info_sccb *sccb;
-
-	if (!SCLP_HAS_CPU_INFO)
-		return;
-
-	sccb = &early_read_cpu_info_sccb;
-	do {
-		memset(sccb, 0, sizeof(*sccb));
-		sccb->header.length = sizeof(*sccb);
-		rc = sclp_cmd_sync_early(SCLP_CMDW_READ_CPU_INFO, sccb);
-	} while (rc == -EBUSY);
-
-	if (rc)
-		return;
-	if (sccb->header.response_code != 0x10)
-		return;
-	sclp_fill_cpu_info(&sclp_cpu_info, sccb);
-}
-
-static int __init sclp_get_cpu_info_early(struct sclp_cpu_info *info)
-{
-	if (!SCLP_HAS_CPU_INFO)
-		return -EOPNOTSUPP;
-	*info = sclp_cpu_info;
-	return 0;
-}
-
-static int sclp_get_cpu_info_late(struct sclp_cpu_info *info)
+int sclp_get_cpu_info(struct sclp_cpu_info *info)
 {
 	int rc;
 	struct read_cpu_info_sccb *sccb;
 
 	if (!SCLP_HAS_CPU_INFO)
 		return -EOPNOTSUPP;
-	sccb = (struct read_cpu_info_sccb *)  __get_free_page(GFP_KERNEL
-							      | GFP_DMA);
+	sccb = (void *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!sccb)
 		return -ENOMEM;
-	memset(sccb, 0, sizeof(*sccb));
 	sccb->header.length = sizeof(*sccb);
 	rc = do_sync_request(SCLP_CMDW_READ_CPU_INFO, sccb);
 	if (rc)
@@ -264,13 +229,6 @@ static int sclp_get_cpu_info_late(struct sclp_cpu_info *info)
 out:
 	free_page((unsigned long) sccb);
 	return rc;
-}
-
-int __init_refok sclp_get_cpu_info(struct sclp_cpu_info *info)
-{
-	if (slab_is_available())
-		return sclp_get_cpu_info_late(info);
-	return sclp_get_cpu_info_early(info);
 }
 
 struct cpu_configure_sccb {
