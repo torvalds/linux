@@ -61,6 +61,8 @@ device_set_disconnected(struct subchannel *sch)
 	ccw_device_set_timeout(cdev, 0);
 	cdev->private->flags.fake_irb = 0;
 	cdev->private->state = DEV_STATE_DISCONNECTED;
+	if (cdev->online)
+		ccw_device_schedule_recovery();
 }
 
 void device_set_intretry(struct subchannel *sch)

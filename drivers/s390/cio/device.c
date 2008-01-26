@@ -17,6 +17,7 @@
 #include <linux/list.h>
 #include <linux/device.h>
 #include <linux/workqueue.h>
+#include <linux/timer.h>
 
 #include <asm/ccwdev.h>
 #include <asm/cio.h>
@@ -29,6 +30,11 @@
 #include "device.h"
 #include "ioasm.h"
 #include "io_sch.h"
+
+static struct timer_list recovery_timer;
+static spinlock_t recovery_lock;
+static int recovery_phase;
+static const unsigned long recovery_delay[] = { 3, 30, 300 };
 
 /******************* bus type handling ***********************/
 
@@ -142,6 +148,8 @@ struct workqueue_struct *ccw_device_notify_work;
 wait_queue_head_t ccw_device_init_wq;
 atomic_t ccw_device_init_count;
 
+static void recovery_func(unsigned long data);
+
 static int __init
 init_ccw_bus_type (void)
 {
@@ -149,6 +157,7 @@ init_ccw_bus_type (void)
 
 	init_waitqueue_head(&ccw_device_init_wq);
 	atomic_set(&ccw_device_init_count, 0);
+	setup_timer(&recovery_timer, recovery_func, 0);
 
 	ccw_device_work = create_singlethread_workqueue("cio");
 	if (!ccw_device_work)
@@ -1501,6 +1510,60 @@ ccw_device_get_subchannel_id(struct ccw_device *cdev)
 
 	sch = to_subchannel(cdev->dev.parent);
 	return sch->schid;
+}
+
+static int recovery_check(struct device *dev, void *data)
+{
+	struct ccw_device *cdev = to_ccwdev(dev);
+	int *redo = data;
+
+	spin_lock_irq(cdev->ccwlock);
+	switch (cdev->private->state) {
+	case DEV_STATE_DISCONNECTED:
+		CIO_MSG_EVENT(3, "recovery: trigger 0.%x.%04x\n",
+			      cdev->private->dev_id.ssid,
+			      cdev->private->dev_id.devno);
+		dev_fsm_event(cdev, DEV_EVENT_VERIFY);
+		*redo = 1;
+		break;
+	case DEV_STATE_DISCONNECTED_SENSE_ID:
+		*redo = 1;
+		break;
+	}
+	spin_unlock_irq(cdev->ccwlock);
+
+	return 0;
+}
+
+static void recovery_func(unsigned long data)
+{
+	int redo = 0;
+
+	bus_for_each_dev(&ccw_bus_type, NULL, &redo, recovery_check);
+	if (redo) {
+		spin_lock_irq(&recovery_lock);
+		if (!timer_pending(&recovery_timer)) {
+			if (recovery_phase < ARRAY_SIZE(recovery_delay) - 1)
+				recovery_phase++;
+			mod_timer(&recovery_timer, jiffies +
+				  recovery_delay[recovery_phase] * HZ);
+		}
+		spin_unlock_irq(&recovery_lock);
+	} else
+		CIO_MSG_EVENT(2, "recovery: end\n");
+}
+
+void ccw_device_schedule_recovery(void)
+{
+	unsigned long flags;
+
+	CIO_MSG_EVENT(2, "recovery: schedule\n");
+	spin_lock_irqsave(&recovery_lock, flags);
+	if (!timer_pending(&recovery_timer) || (recovery_phase != 0)) {
+		recovery_phase = 0;
+		mod_timer(&recovery_timer, jiffies + recovery_delay[0] * HZ);
+	}
+	spin_unlock_irqrestore(&recovery_lock, flags);
 }
 
 MODULE_LICENSE("GPL");
