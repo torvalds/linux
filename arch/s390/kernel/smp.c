@@ -568,9 +568,9 @@ static void __init smp_detect_cpus(void)
 out:
 	kfree(info);
 	printk(KERN_INFO "CPUs: %d configured, %d standby\n", c_cpus, s_cpus);
-	lock_cpu_hotplug();
+	get_online_cpus();
 	smp_rescan_cpus();
-	unlock_cpu_hotplug();
+	put_online_cpus();
 }
 
 /*
@@ -872,7 +872,7 @@ static ssize_t cpu_configure_store(struct sys_device *dev, const char *buf,
 		return -EINVAL;
 
 	mutex_lock(&smp_cpu_state_mutex);
-	lock_cpu_hotplug();
+	get_online_cpus();
 	rc = -EBUSY;
 	if (cpu_online(cpu))
 		goto out;
@@ -896,7 +896,7 @@ static ssize_t cpu_configure_store(struct sys_device *dev, const char *buf,
 		break;
 	}
 out:
-	unlock_cpu_hotplug();
+	put_online_cpus();
 	mutex_unlock(&smp_cpu_state_mutex);
 	return rc ? rc : count;
 }
@@ -1044,7 +1044,7 @@ static ssize_t rescan_store(struct sys_device *dev, const char *buf,
 	int rc;
 
 	mutex_lock(&smp_cpu_state_mutex);
-	lock_cpu_hotplug();
+	get_online_cpus();
 	newcpus = cpu_present_map;
 	rc = smp_rescan_cpus();
 	if (rc)
@@ -1057,7 +1057,7 @@ static ssize_t rescan_store(struct sys_device *dev, const char *buf,
 	}
 	rc = 0;
 out:
-	unlock_cpu_hotplug();
+	put_online_cpus();
 	mutex_unlock(&smp_cpu_state_mutex);
 	return rc ? rc : count;
 }
