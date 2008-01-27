@@ -17,6 +17,7 @@
 #include <linux/kvm_host.h>
 #include "irq.h"
 #include "mmu.h"
+#include "i8254.h"
 
 #include <linux/clocksource.h>
 #include <linux/kvm.h>
@@ -818,6 +819,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_SET_TSS_ADDR:
 	case KVM_CAP_EXT_CPUID:
 	case KVM_CAP_CLOCKSOURCE:
+	case KVM_CAP_PIT:
 		r = 1;
 		break;
 	case KVM_CAP_VAPIC:
@@ -1593,6 +1595,12 @@ long kvm_arch_vm_ioctl(struct file *filp,
 			}
 		} else
 			goto out;
+		break;
+	case KVM_CREATE_PIT:
+		r = -ENOMEM;
+		kvm->arch.vpit = kvm_create_pit(kvm);
+		if (kvm->arch.vpit)
+			r = 0;
 		break;
 	case KVM_IRQ_LINE: {
 		struct kvm_irq_level irq_event;
@@ -3372,6 +3380,7 @@ static void kvm_free_vcpus(struct kvm *kvm)
 
 void kvm_arch_destroy_vm(struct kvm *kvm)
 {
+	kvm_free_pit(kvm);
 	kfree(kvm->arch.vpic);
 	kfree(kvm->arch.vioapic);
 	kvm_free_vcpus(kvm);

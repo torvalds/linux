@@ -23,6 +23,7 @@
 #include <linux/kvm_host.h>
 
 #include "irq.h"
+#include "i8254.h"
 
 /*
  * check if there is pending interrupt without
@@ -66,6 +67,7 @@ EXPORT_SYMBOL_GPL(kvm_cpu_get_interrupt);
 void kvm_inject_pending_timer_irqs(struct kvm_vcpu *vcpu)
 {
 	kvm_inject_apic_timer_irqs(vcpu);
+	kvm_inject_pit_timer_irqs(vcpu);
 	/* TODO: PIT, RTC etc. */
 }
 EXPORT_SYMBOL_GPL(kvm_inject_pending_timer_irqs);
@@ -73,6 +75,7 @@ EXPORT_SYMBOL_GPL(kvm_inject_pending_timer_irqs);
 void kvm_timer_intr_post(struct kvm_vcpu *vcpu, int vec)
 {
 	kvm_apic_timer_intr_post(vcpu, vec);
+	kvm_pit_timer_intr_post(vcpu, vec);
 	/* TODO: PIT, RTC etc. */
 }
 EXPORT_SYMBOL_GPL(kvm_timer_intr_post);

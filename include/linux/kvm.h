@@ -236,6 +236,7 @@ struct kvm_vapic_addr {
 #define KVM_CAP_CLOCKSOURCE 8
 #define KVM_CAP_NR_VCPUS 9       /* returns max vcpus per vm */
 #define KVM_CAP_NR_MEMSLOTS 10   /* returns max memory slots per vm */
+#define KVM_CAP_PIT 11
 
 /*
  * ioctls for VM fds
@@ -258,6 +259,7 @@ struct kvm_vapic_addr {
 #define KVM_IRQ_LINE		  _IOW(KVMIO, 0x61, struct kvm_irq_level)
 #define KVM_GET_IRQCHIP		  _IOWR(KVMIO, 0x62, struct kvm_irqchip)
 #define KVM_SET_IRQCHIP		  _IOR(KVMIO,  0x63, struct kvm_irqchip)
+#define KVM_CREATE_PIT		  _IO(KVMIO,  0x64)
 
 /*
  * ioctls for vcpu fds

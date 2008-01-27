@@ -298,6 +298,7 @@ struct kvm_arch{
 	struct list_head active_mmu_pages;
 	struct kvm_pic *vpic;
 	struct kvm_ioapic *vioapic;
+	struct kvm_pit *vpit;
 
 	int round_robin_prev_vcpu;
 	unsigned int tss_addr;
