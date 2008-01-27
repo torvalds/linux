@@ -216,6 +216,12 @@ static struct platform_device rtc_device = {
 };
 #endif
 
+#if defined(CONFIG_FB_HITACHI_TX09) || defined(CONFIG_FB_HITACHI_TX09_MODULE)
+static struct platform_device hitachi_fb_device = {
+	.name = "hitachi-tx09",
+};
+#endif
+
 #if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
 static struct resource smc91x_resources[] = {
 	{
@@ -374,6 +380,10 @@ static struct platform_device bfin_pata_device = {
 #endif
 
 static struct platform_device *cm_bf537_devices[] __initdata = {
+#if defined(CONFIG_FB_HITACHI_TX09) || defined(CONFIG_FB_HITACHI_TX09_MODULE)
+	&hitachi_fb_device,
+#endif
+
 #if defined(CONFIG_RTC_DRV_BFIN) || defined(CONFIG_RTC_DRV_BFIN_MODULE)
 	&rtc_device,
 #endif

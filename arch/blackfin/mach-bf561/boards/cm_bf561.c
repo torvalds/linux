@@ -198,6 +198,13 @@ static struct platform_device bfin_spi0_device = {
 #endif  /* spi master and devices */
 
 
+#if defined(CONFIG_FB_HITACHI_TX09) || defined(CONFIG_FB_HITACHI_TX09_MODULE)
+static struct platform_device hitachi_fb_device = {
+	.name = "hitachi-tx09",
+};
+#endif
+
+
 #if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
 
 static struct resource smc91x_resources[] = {
@@ -314,6 +321,10 @@ static struct platform_device bfin_pata_device = {
 #endif
 
 static struct platform_device *cm_bf561_devices[] __initdata = {
+
+#if defined(CONFIG_FB_HITACHI_TX09) || defined(CONFIG_FB_HITACHI_TX09_MODULE)
+	&hitachi_fb_device,
+#endif
 
 #if defined(CONFIG_SERIAL_BFIN) || defined(CONFIG_SERIAL_BFIN_MODULE)
 	&bfin_uart_device,
