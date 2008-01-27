@@ -113,9 +113,9 @@ bail:
 	return status;
 }
 
-int ocfs2_ioctl(struct inode * inode, struct file * filp,
-	unsigned int cmd, unsigned long arg)
+long ocfs2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	unsigned int flags;
 	int new_clusters;
 	int status;
@@ -169,9 +169,6 @@ int ocfs2_ioctl(struct inode * inode, struct file * filp,
 #ifdef CONFIG_COMPAT
 long ocfs2_compat_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
-	int ret;
-
 	switch (cmd) {
 	case OCFS2_IOC32_GETFLAGS:
 		cmd = OCFS2_IOC_GETFLAGS;
@@ -191,9 +188,6 @@ long ocfs2_compat_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 		return -ENOIOCTLCMD;
 	}
 
-	lock_kernel();
-	ret = ocfs2_ioctl(inode, file, cmd, arg);
-	unlock_kernel();
-	return ret;
+	return ocfs2_ioctl(file, cmd, arg);
 }
 #endif
