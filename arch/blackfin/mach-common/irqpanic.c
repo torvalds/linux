@@ -46,9 +46,6 @@ void irq_panic(int reason, struct pt_regs *regs) __attribute__ ((l1_text));
  */
 asmlinkage void irq_panic(int reason, struct pt_regs *regs)
 {
-	int sig = 0;
-	siginfo_t info;
-
 #ifdef CONFIG_DEBUG_ICACHE_CHECK
 	unsigned int cmd, tag, ca, cache_hi, cache_lo, *pa;
 	unsigned short i, j, die;
@@ -136,53 +133,6 @@ asmlinkage void irq_panic(int reason, struct pt_regs *regs)
 	}
 #endif
 
-	printk(KERN_EMERG "\n");
-	printk(KERN_EMERG "Exception: IRQ 0x%x entered\n", reason);
-	printk(KERN_EMERG " code=[0x%08lx],   stack frame=0x%08lx,  "
-	    " bad PC=0x%08lx\n",
-	    (unsigned long)regs->seqstat,
-	    (unsigned long)regs,
-	    (unsigned long)regs->pc);
-	if (reason == 0x5) {
-		printk(KERN_EMERG "----------- HARDWARE ERROR -----------\n");
-
-		/* There is only need to check for Hardware Errors, since other
-		 * EXCEPTIONS are handled in TRAPS.c (MH)
-		 */
-		switch (regs->seqstat & SEQSTAT_HWERRCAUSE) {
-		case (SEQSTAT_HWERRCAUSE_SYSTEM_MMR):	/* System MMR Error */
-			info.si_code = BUS_ADRALN;
-			sig = SIGBUS;
-			printk(KERN_EMERG HWC_x2(KERN_EMERG));
-			break;
-		case (SEQSTAT_HWERRCAUSE_EXTERN_ADDR):	/* External Memory Addressing Error */
-			info.si_code = BUS_ADRERR;
-			sig = SIGBUS;
-			printk(KERN_EMERG HWC_x3(KERN_EMERG));
-			break;
-		case (SEQSTAT_HWERRCAUSE_PERF_FLOW):	/* Performance Monitor Overflow */
-			printk(KERN_EMERG HWC_x12(KERN_EMERG));
-			break;
-		case (SEQSTAT_HWERRCAUSE_RAISE_5):	/* RAISE 5 instruction */
-			printk(KERN_EMERG HWC_x18(KERN_EMERG));
-			break;
-		default:	/* Reserved */
-			printk(KERN_EMERG HWC_default(KERN_EMERG));
-			break;
-		}
-	}
-
-	regs->ipend = bfin_read_IPEND();
-	dump_bfin_process(regs);
-	dump_bfin_mem((void *)regs->pc);
-	show_regs(regs);
-	if (0 == (info.si_signo = sig) || 0 == user_mode(regs))	/* in kernelspace */
-		panic("Unhandled IRQ or exceptions!\n");
-	else {			/* in userspace */
-		info.si_errno = 0;
-		info.si_addr = (void *)regs->pc;
-		force_sig_info(sig, &info, current);
-	}
 }
 
 #ifdef CONFIG_HARDWARE_PM

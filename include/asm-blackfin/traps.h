@@ -45,6 +45,10 @@
 #define VEC_CPLB_I_M	(44)
 #define VEC_CPLB_I_MHIT	(45)
 #define VEC_ILL_RES	(46)	/* including unvalid supervisor mode insn */
+/* The hardware reserves (63) for future use - we use it to tell our
+ * normal exception handling code we have a hardware error
+ */
+#define VEC_HWERR	(63)
 
 #ifndef __ASSEMBLY__
 

@@ -433,6 +433,36 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	/* 0x3D - Reserved, Caught by default */
 	/* 0x3E - Reserved, Caught by default */
 	/* 0x3F - Reserved, Caught by default */
+	case VEC_HWERR:
+		info.si_code = BUS_ADRALN;
+		sig = SIGBUS;
+		switch (fp->seqstat & SEQSTAT_HWERRCAUSE) {
+		/* System MMR Error */
+		case (SEQSTAT_HWERRCAUSE_SYSTEM_MMR):
+			info.si_code = BUS_ADRALN;
+			sig = SIGBUS;
+			printk(KERN_NOTICE HWC_x2(KERN_NOTICE));
+			break;
+		/* External Memory Addressing Error */
+		case (SEQSTAT_HWERRCAUSE_EXTERN_ADDR):
+			info.si_code = BUS_ADRERR;
+			sig = SIGBUS;
+			printk(KERN_NOTICE HWC_x3(KERN_NOTICE));
+			break;
+		/* Performance Monitor Overflow */
+		case (SEQSTAT_HWERRCAUSE_PERF_FLOW):
+			printk(KERN_NOTICE HWC_x12(KERN_NOTICE));
+			break;
+		/* RAISE 5 instruction */
+		case (SEQSTAT_HWERRCAUSE_RAISE_5):
+			printk(KERN_NOTICE HWC_x18(KERN_NOTICE));
+			break;
+		default:        /* Reserved */
+			printk(KERN_NOTICE HWC_default(KERN_NOTICE));
+			break;
+		}
+		CHK_DEBUGGER_TRAP();
+		break;
 	default:
 		info.si_code = TRAP_ILLTRAP;
 		sig = SIGTRAP;
@@ -447,7 +477,11 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	if (sig != SIGTRAP) {
 		unsigned long stack;
 		dump_bfin_process(fp);
-		dump_bfin_mem((void *)fp->retx);
+		/* Is it an interrupt, or an exception? */
+		if (trapnr == VEC_HWERR)
+			dump_bfin_mem((void *)fp->pc);
+		else
+			dump_bfin_mem((void *)fp->retx);
 		show_regs(fp);
 
 		/* Print out the trace buffer if it makes sense */
@@ -672,12 +706,11 @@ void dump_bfin_mem(void *retaddr)
 			 * context, which should mean an oops is happening
 			 */
 			if (oops_in_progress && x >= 0x0040 && x <= 0x0047 && i <= 0)
-				panic("\n\nWARNING : You should reconfigure"
+				printk(KERN_EMERG "\n"
+					KERN_EMERG "WARNING : You should reconfigure"
 					" the kernel to turn on\n"
-					" 'Hardware error interrupt"
-					" debugging'\n"
-					" The rest of this error"
-					" is meanless\n");
+					KERN_EMERG " 'Hardware error interrupt debugging'\n"
+					KERN_EMERG " The rest of this error is meanless\n");
 #endif
 			if (i == (unsigned int)retaddr)
 				printk("[%04x]", x);
@@ -698,6 +731,10 @@ void show_regs(struct pt_regs *fp)
 	printk(KERN_NOTICE "\n" KERN_NOTICE "SEQUENCER STATUS:\n");
 	printk(KERN_NOTICE " SEQSTAT: %08lx  IPEND: %04lx  SYSCFG: %04lx\n",
 		(long)fp->seqstat, fp->ipend, fp->syscfg);
+	printk(KERN_NOTICE "  HWERRCAUSE: 0x%lx\n",
+		(fp->seqstat & SEQSTAT_HWERRCAUSE) >> 14);
+	printk(KERN_NOTICE "  EXCAUSE   : 0x%lx\n",
+		fp->seqstat & SEQSTAT_EXCAUSE);
 
 	decode_address(buf, fp->rete);
 	printk(KERN_NOTICE " RETE: %s\n", buf);
@@ -708,9 +745,10 @@ void show_regs(struct pt_regs *fp)
 	decode_address(buf, fp->rets);
 	printk(KERN_NOTICE " RETS: %s\n", buf);
 	decode_address(buf, fp->pc);
-	printk(KERN_NOTICE " PC: %s\n", buf);
+	printk(KERN_NOTICE " PC  : %s\n", buf);
 
-	if ((long)fp->seqstat & SEQSTAT_EXCAUSE) {
+	if (((long)fp->seqstat &  SEQSTAT_EXCAUSE) &&
+	    (((long)fp->seqstat & SEQSTAT_EXCAUSE) != VEC_HWERR)) {
 		decode_address(buf, bfin_read_DCPLB_FAULT_ADDR());
 		printk(KERN_NOTICE "DCPLB_FAULT_ADDR: %s\n", buf);
 		decode_address(buf, bfin_read_ICPLB_FAULT_ADDR());
