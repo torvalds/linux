@@ -24,6 +24,7 @@
 #include <asm/arch/ohci.h>
 #include <asm/arch/pm.h>
 #include <asm/arch/dma.h>
+#include <asm/arch/i2c.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -422,6 +423,11 @@ struct platform_device pxa27x_device_i2c_power = {
 	.resource	= i2c_power_resources,
 	.num_resources	= ARRAY_SIZE(i2c_power_resources),
 };
+
+void __init pxa_set_i2c_power_info(struct i2c_pxa_platform_data *info)
+{
+	pxa27x_device_i2c_power.dev.platform_data = info;
+}
 
 static struct platform_device *devices[] __initdata = {
 	&pxa_device_mci,

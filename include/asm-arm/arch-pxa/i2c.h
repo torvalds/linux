@@ -65,7 +65,13 @@ struct i2c_pxa_platform_data {
 	unsigned int		slave_addr;
 	struct i2c_slave_client	*slave;
 	unsigned int		class;
+	int			use_pio;
 };
 
 extern void pxa_set_i2c_info(struct i2c_pxa_platform_data *info);
+
+#ifdef CONFIG_PXA27x
+extern void pxa_set_i2c_power_info(struct i2c_pxa_platform_data *info);
+#endif
+
 #endif
