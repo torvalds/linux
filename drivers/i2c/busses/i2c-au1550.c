@@ -30,14 +30,22 @@
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/i2c.h>
+#include <linux/slab.h>
 
 #include <asm/mach-au1x00/au1xxx.h>
 #include <asm/mach-au1x00/au1xxx_psc.h>
 
-#include "i2c-au1550.h"
+struct i2c_au1550_data {
+	u32	psc_base;
+	int	xfer_timeout;
+	int	ack_timeout;
+	struct i2c_adapter adap;
+	struct resource *ioarea;
+};
 
 static int
 wait_xfer_done(struct i2c_au1550_data *adap)
@@ -299,18 +307,48 @@ static const struct i2c_algorithm au1550_algo = {
  * Prior to calling us, the 50MHz clock frequency and routing
  * must have been set up for the PSC indicated by the adapter.
  */
-int
-i2c_au1550_add_bus(struct i2c_adapter *i2c_adap)
+static int __devinit
+i2c_au1550_probe(struct platform_device *pdev)
 {
-	struct i2c_au1550_data *adap = i2c_adap->algo_data;
-	volatile psc_smb_t	*sp;
-	u32	stat;
+	struct i2c_au1550_data *priv;
+	volatile psc_smb_t *sp;
+	struct resource *r;
+	u32 stat;
+	int ret;
 
-	i2c_adap->algo = &au1550_algo;
+	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!r) {
+		ret = -ENODEV;
+		goto out;
+	}
+
+	priv = kzalloc(sizeof(struct i2c_au1550_data), GFP_KERNEL);
+	if (!priv) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	priv->ioarea = request_mem_region(r->start, r->end - r->start + 1,
+					  pdev->name);
+	if (!priv->ioarea) {
+		ret = -EBUSY;
+		goto out_mem;
+	}
+
+	priv->psc_base = r->start;
+	priv->xfer_timeout = 200;
+	priv->ack_timeout = 200;
+
+	priv->adap.id = I2C_HW_AU1550_PSC;
+	priv->adap.nr = pdev->id;
+	priv->adap.algo = &au1550_algo;
+	priv->adap.algo_data = priv;
+	priv->adap.dev.parent = &pdev->dev;
+	strlcpy(priv->adap.name, "Au1xxx PSC I2C", sizeof(priv->adap.name));
 
 	/* Now, set up the PSC for SMBus PIO mode.
 	*/
-	sp = (volatile psc_smb_t *)(adap->psc_base);
+	sp = (volatile psc_smb_t *)priv->psc_base;
 	sp->psc_ctrl = PSC_CTRL_DISABLE;
 	au_sync();
 	sp->psc_sel = PSC_SEL_PS_SMBUSMODE;
@@ -348,87 +386,87 @@ i2c_au1550_add_bus(struct i2c_adapter *i2c_adap)
 		au_sync();
 	} while ((stat & PSC_SMBSTAT_DR) == 0);
 
-	return i2c_add_adapter(i2c_adap);
+	ret = i2c_add_numbered_adapter(&priv->adap);
+	if (ret == 0) {
+		platform_set_drvdata(pdev, priv);
+		return 0;
+	}
+
+	/* disable the PSC */
+	sp->psc_smbcfg = 0;
+	sp->psc_ctrl = PSC_CTRL_DISABLE;
+	au_sync();
+
+	release_resource(priv->ioarea);
+	kfree(priv->ioarea);
+out_mem:
+	kfree(priv);
+out:
+	return ret;
 }
 
-
-int
-i2c_au1550_del_bus(struct i2c_adapter *adap)
+static int __devexit
+i2c_au1550_remove(struct platform_device *pdev)
 {
-	return i2c_del_adapter(adap);
-}
+	struct i2c_au1550_data *priv = platform_get_drvdata(pdev);
+	volatile psc_smb_t *sp = (volatile psc_smb_t *)priv->psc_base;
 
-static int
-pb1550_reg(struct i2c_client *client)
-{
+	platform_set_drvdata(pdev, NULL);
+	i2c_del_adapter(&priv->adap);
+	sp->psc_smbcfg = 0;
+	sp->psc_ctrl = PSC_CTRL_DISABLE;
+	au_sync();
+	release_resource(priv->ioarea);
+	kfree(priv->ioarea);
+	kfree(priv);
 	return 0;
 }
 
 static int
-pb1550_unreg(struct i2c_client *client)
+i2c_au1550_suspend(struct platform_device *pdev, pm_message_t state)
 {
+	struct i2c_au1550_data *priv = platform_get_drvdata(pdev);
+	volatile psc_smb_t *sp = (volatile psc_smb_t *)priv->psc_base;
+
+	sp->psc_ctrl = PSC_CTRL_SUSPEND;
+	au_sync();
 	return 0;
 }
 
-static struct i2c_au1550_data pb1550_i2c_info = {
-	SMBUS_PSC_BASE, 200, 200
-};
-
-static struct i2c_adapter pb1550_board_adapter = {
-	name:              "pb1550 adapter",
-	id:                I2C_HW_AU1550_PSC,
-	algo:              NULL,
-	algo_data:         &pb1550_i2c_info,
-	client_register:   pb1550_reg,
-	client_unregister: pb1550_unreg,
-};
-
-/* BIG hack to support the control interface on the Wolfson WM8731
- * audio codec on the Pb1550 board.  We get an address and two data
- * bytes to write, create an i2c message, and send it across the
- * i2c transfer function.  We do this here because we have access to
- * the i2c adapter structure.
- */
-static struct i2c_msg wm_i2c_msg;  /* We don't want this stuff on the stack */
-static	u8 i2cbuf[2];
-
-int
-pb1550_wm_codec_write(u8 addr, u8 reg, u8 val)
+static int
+i2c_au1550_resume(struct platform_device *pdev)
 {
-	wm_i2c_msg.addr = addr;
-	wm_i2c_msg.flags = 0;
-	wm_i2c_msg.buf = i2cbuf;
-	wm_i2c_msg.len = 2;
-	i2cbuf[0] = reg;
-	i2cbuf[1] = val;
+	struct i2c_au1550_data *priv = platform_get_drvdata(pdev);
+	volatile psc_smb_t *sp = (volatile psc_smb_t *)priv->psc_base;
 
-	return pb1550_board_adapter.algo->master_xfer(&pb1550_board_adapter, &wm_i2c_msg, 1);
+	sp->psc_ctrl = PSC_CTRL_ENABLE;
+	au_sync();
+	while (!(sp->psc_smbstat & PSC_SMBSTAT_SR))
+		au_sync();
+	return 0;
 }
+
+static struct platform_driver au1xpsc_smbus_driver = {
+	.driver = {
+		.name	= "au1xpsc_smbus",
+		.owner	= THIS_MODULE,
+	},
+	.probe		= i2c_au1550_probe,
+	.remove		= __devexit_p(i2c_au1550_remove),
+	.suspend	= i2c_au1550_suspend,
+	.resume		= i2c_au1550_resume,
+};
 
 static int __init
 i2c_au1550_init(void)
 {
-	printk(KERN_INFO "Au1550 I2C: ");
-
-	/* This is where we would set up a 50MHz clock source
-	 * and routing.  On the Pb1550, the SMBus is PSC2, which
-	 * uses a shared clock with USB.  This has been already
-	 * configured by Yamon as a 48MHz clock, close enough
-	 * for our work.
-	 */
-        if (i2c_au1550_add_bus(&pb1550_board_adapter) < 0) {
-		printk("failed to initialize.\n");
-                return -ENODEV;
-	}
-
-	printk("initialized.\n");
-	return 0;
+	return platform_driver_register(&au1xpsc_smbus_driver);
 }
 
 static void __exit
 i2c_au1550_exit(void)
 {
-	i2c_au1550_del_bus(&pb1550_board_adapter);
+	platform_driver_unregister(&au1xpsc_smbus_driver);
 }
 
 MODULE_AUTHOR("Dan Malek, Embedded Edge, LLC.");

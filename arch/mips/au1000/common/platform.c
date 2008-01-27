@@ -270,6 +270,24 @@ static struct platform_device smc91x_device = {
 
 #endif
 
+/* All Alchemy demoboards with I2C have this #define in their headers */
+#ifdef SMBUS_PSC_BASE
+static struct resource pbdb_smbus_resources[] = {
+	{
+		.start	= SMBUS_PSC_BASE,
+		.end	= SMBUS_PSC_BASE + 0x24 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device pbdb_smbus_device = {
+	.name		= "au1xpsc_smbus",
+	.id		= 0,	/* bus number */
+	.num_resources	= ARRAY_SIZE(pbdb_smbus_resources),
+	.resource	= pbdb_smbus_resources,
+};
+#endif
+
 static struct platform_device *au1xxx_platform_devices[] __initdata = {
 	&au1xxx_usb_ohci_device,
 	&au1x00_pcmcia_device,
@@ -286,6 +304,9 @@ static struct platform_device *au1xxx_platform_devices[] __initdata = {
 #endif
 #ifdef CONFIG_MIPS_DB1200
 	&smc91x_device,
+#endif
+#ifdef SMBUS_PSC_BASE
+	&pbdb_smbus_device,
 #endif
 };
 
