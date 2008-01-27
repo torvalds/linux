@@ -1086,7 +1086,6 @@ i2c_new_probed_device(struct i2c_adapter *adap,
 		return NULL;
 	}
 
-	mutex_lock(&adap->clist_lock);
 	for (i = 0; addr_list[i] != I2C_CLIENT_END; i++) {
 		/* Check address validity */
 		if (addr_list[i] < 0x03 || addr_list[i] > 0x77) {
@@ -1124,7 +1123,6 @@ i2c_new_probed_device(struct i2c_adapter *adap,
 				break;
 		}
 	}
-	mutex_unlock(&adap->clist_lock);
 
 	if (addr_list[i] == I2C_CLIENT_END) {
 		dev_dbg(&adap->dev, "Probing failed, no device found\n");
