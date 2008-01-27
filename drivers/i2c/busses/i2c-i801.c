@@ -502,7 +502,7 @@ static s32 i801_access(struct i2c_adapter * adap, u16 addr,
 	/* Some BIOSes don't like it when PEC is enabled at reboot or resume
 	   time, so we forcibly disable it after every transaction. Turn off
 	   E32B for the same reason. */
-	if (hwpec)
+	if (hwpec || block)
 		outb_p(inb_p(SMBAUXCTL) & ~(SMBAUXCTL_CRC | SMBAUXCTL_E32B),
 		       SMBAUXCTL);
 
@@ -624,6 +624,11 @@ static int __devinit i801_probe(struct pci_dev *dev, const struct pci_device_id 
 		dev_dbg(&dev->dev, "SMBus using interrupt SMI#\n");
 	else
 		dev_dbg(&dev->dev, "SMBus using PCI Interrupt\n");
+
+	/* Clear special mode bits */
+	if (i801_features & (FEATURE_SMBUS_PEC | FEATURE_BLOCK_BUFFER))
+		outb_p(inb_p(SMBAUXCTL) & ~(SMBAUXCTL_CRC | SMBAUXCTL_E32B),
+		       SMBAUXCTL);
 
 	/* set up the sysfs linkage to our parent device */
 	i801_adapter.dev.parent = &dev->dev;
