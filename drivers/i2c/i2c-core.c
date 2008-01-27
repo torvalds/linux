@@ -199,6 +199,25 @@ static struct bus_type i2c_bus_type = {
 	.resume		= i2c_device_resume,
 };
 
+
+/**
+ * i2c_verify_client - return parameter as i2c_client, or NULL
+ * @dev: device, probably from some driver model iterator
+ *
+ * When traversing the driver model tree, perhaps using driver model
+ * iterators like @device_for_each_child(), you can't assume very much
+ * about the nodes you find.  Use this function to avoid oopses caused
+ * by wrongly treating some non-I2C device as an i2c_client.
+ */
+struct i2c_client *i2c_verify_client(struct device *dev)
+{
+	return (dev->bus == &i2c_bus_type)
+			? to_i2c_client(dev)
+			: NULL;
+}
+EXPORT_SYMBOL(i2c_verify_client);
+
+
 /**
  * i2c_new_device - instantiate an i2c device for use with a new style driver
  * @adap: the adapter managing the device
@@ -670,28 +689,19 @@ EXPORT_SYMBOL(i2c_del_driver);
 
 /* ------------------------------------------------------------------------- */
 
-static int __i2c_check_addr(struct i2c_adapter *adapter, unsigned int addr)
+static int __i2c_check_addr(struct device *dev, void *addrp)
 {
-	struct list_head   *item;
-	struct i2c_client  *client;
+	struct i2c_client	*client = i2c_verify_client(dev);
+	int			addr = *(int *)addrp;
 
-	list_for_each(item,&adapter->clients) {
-		client = list_entry(item, struct i2c_client, list);
-		if (client->addr == addr)
-			return -EBUSY;
-	}
+	if (client && client->addr == addr)
+		return -EBUSY;
 	return 0;
 }
 
 static int i2c_check_addr(struct i2c_adapter *adapter, int addr)
 {
-	int rval;
-
-	mutex_lock(&adapter->clist_lock);
-	rval = __i2c_check_addr(adapter, addr);
-	mutex_unlock(&adapter->clist_lock);
-
-	return rval;
+	return device_for_each_child(&adapter->dev, &addr, __i2c_check_addr);
 }
 
 int i2c_attach_client(struct i2c_client *client)
@@ -700,7 +710,7 @@ int i2c_attach_client(struct i2c_client *client)
 	int res = 0;
 
 	mutex_lock(&adapter->clist_lock);
-	if (__i2c_check_addr(client->adapter, client->addr)) {
+	if (i2c_check_addr(client->adapter, client->addr)) {
 		res = -EBUSY;
 		goto out_unlock;
 	}
@@ -804,24 +814,28 @@ void i2c_release_client(struct i2c_client *client)
 }
 EXPORT_SYMBOL(i2c_release_client);
 
+struct i2c_cmd_arg {
+	unsigned	cmd;
+	void		*arg;
+};
+
+static int i2c_cmd(struct device *dev, void *_arg)
+{
+	struct i2c_client	*client = i2c_verify_client(dev);
+	struct i2c_cmd_arg	*arg = _arg;
+
+	if (client && client->driver && client->driver->command)
+		client->driver->command(client, arg->cmd, arg->arg);
+	return 0;
+}
+
 void i2c_clients_command(struct i2c_adapter *adap, unsigned int cmd, void *arg)
 {
-	struct list_head  *item;
-	struct i2c_client *client;
+	struct i2c_cmd_arg	cmd_arg;
 
-	mutex_lock(&adap->clist_lock);
-	list_for_each(item,&adap->clients) {
-		client = list_entry(item, struct i2c_client, list);
-		if (!try_module_get(client->driver->driver.owner))
-			continue;
-		if (NULL != client->driver->command) {
-			mutex_unlock(&adap->clist_lock);
-			client->driver->command(client,cmd,arg);
-			mutex_lock(&adap->clist_lock);
-		}
-		module_put(client->driver->driver.owner);
-       }
-       mutex_unlock(&adap->clist_lock);
+	cmd_arg.cmd = cmd;
+	cmd_arg.arg = arg;
+	device_for_each_child(&adap->dev, &cmd_arg, i2c_cmd);
 }
 EXPORT_SYMBOL(i2c_clients_command);
 
@@ -1087,7 +1101,7 @@ i2c_new_probed_device(struct i2c_adapter *adap,
 		}
 
 		/* Check address availability */
-		if (__i2c_check_addr(adap, addr_list[i])) {
+		if (i2c_check_addr(adap, addr_list[i])) {
 			dev_dbg(&adap->dev, "Address 0x%02x already in "
 				"use, not probing\n", addr_list[i]);
 			continue;
