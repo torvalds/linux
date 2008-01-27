@@ -1975,6 +1975,26 @@ io_during_grace_disallowed(struct inode *inode, int flags)
 		&& mandatory_lock(inode);
 }
 
+static int check_stateid_generation(stateid_t *in, stateid_t *ref)
+{
+	/* If the client sends us a stateid from the future, it's buggy: */
+	if (in->si_generation > ref->si_generation)
+		return nfserr_bad_stateid;
+	/*
+	 * The following, however, can happen.  For example, if the
+	 * client sends an open and some IO at the same time, the open
+	 * may bump si_generation while the IO is still in flight.
+	 * Thanks to hard links and renames, the client never knows what
+	 * file an open will affect.  So it could avoid that situation
+	 * only by serializing all opens and IO from the same open
+	 * owner.  To recover from the old_stateid error, the client
+	 * will just have to retry the IO:
+	 */
+	if (in->si_generation < ref->si_generation)
+		return nfserr_old_stateid;
+	return nfs_ok;
+}
+
 /*
 * Checks for stateid operations
 */
@@ -2023,12 +2043,8 @@ nfs4_preprocess_stateid_op(struct svc_fh *current_fh, stateid_t *stateid, int fl
 			goto out;
 		stidp = &stp->st_stateid;
 	}
-	if (stateid->si_generation > stidp->si_generation)
-		goto out;
-
-	/* OLD STATEID */
-	status = nfserr_old_stateid;
-	if (stateid->si_generation < stidp->si_generation)
+	status = check_stateid_generation(stateid, stidp);
+	if (status)
 		goto out;
 	if (stp) {
 		if ((status = nfs4_check_openmode(stp,flags)))
@@ -2065,6 +2081,7 @@ nfs4_preprocess_seqid_op(struct svc_fh *current_fh, u32 seqid, stateid_t *statei
 {
 	struct nfs4_stateid *stp;
 	struct nfs4_stateowner *sop;
+	__be32 status;
 
 	dprintk("NFSD: preprocess_seqid_op: seqid=%d " 
 			"stateid = (%08x/%08x/%08x/%08x)\n", seqid,
@@ -2150,15 +2167,9 @@ nfs4_preprocess_seqid_op(struct svc_fh *current_fh, u32 seqid, stateid_t *statei
 				" confirmed yet!\n");
 		return nfserr_bad_stateid;
 	}
-	if (stateid->si_generation > stp->st_stateid.si_generation) {
-		dprintk("NFSD: preprocess_seqid_op: future stateid?!\n");
-		return nfserr_bad_stateid;
-	}
-
-	if (stateid->si_generation < stp->st_stateid.si_generation) {
-		dprintk("NFSD: preprocess_seqid_op: old stateid!\n");
-		return nfserr_old_stateid;
-	}
+	status = check_stateid_generation(stateid, &stp->st_stateid);
+	if (status)
+		return status;
 	renew_client(sop->so_client);
 	return nfs_ok;
 
