@@ -978,7 +978,7 @@ static int i2c_probe_address(struct i2c_adapter *adapter, int addr, int kind,
 }
 
 int i2c_probe(struct i2c_adapter *adapter,
-	      struct i2c_client_address_data *address_data,
+	      const struct i2c_client_address_data *address_data,
 	      int (*found_proc) (struct i2c_adapter *, int, int))
 {
 	int i, err;
@@ -987,7 +987,7 @@ int i2c_probe(struct i2c_adapter *adapter,
 	/* Force entries are done first, and are not affected by ignore
 	   entries */
 	if (address_data->forces) {
-		unsigned short **forces = address_data->forces;
+		const unsigned short * const *forces = address_data->forces;
 		int kind;
 
 		for (kind = 0; forces[kind]; kind++) {

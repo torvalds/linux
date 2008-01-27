@@ -34,7 +34,7 @@ struct v4l2_i2c_driver_data {
 };
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data;
-static struct i2c_client_address_data addr_data;
+static const struct i2c_client_address_data addr_data;
 static struct i2c_driver v4l2_i2c_driver_legacy;
 static char v4l2_i2c_drv_name_legacy[32];
 
