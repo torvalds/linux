@@ -309,7 +309,6 @@ static struct i2c_adapter mpc_ops = {
 	.algo = &mpc_algo,
 	.class = I2C_CLASS_HWMON,
 	.timeout = 1,
-	.retries = 1
 };
 
 static int fsl_i2c_probe(struct platform_device *pdev)

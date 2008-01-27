@@ -736,7 +736,6 @@ static int __devinit iic_probe(struct ocp_device *ocp){
 	adap->client_register = NULL;
 	adap->client_unregister = NULL;
 	adap->timeout = 1;
-	adap->retries = 1;
 
 	/*
 	 * If "dev->idx" is negative we consider it as zero.

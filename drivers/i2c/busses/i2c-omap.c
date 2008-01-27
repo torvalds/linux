@@ -362,8 +362,6 @@ omap_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 
 	omap_i2c_enable_clocks(dev);
 
-	/* REVISIT: initialize and use adap->retries. This is an optional
-	 * feature */
 	if ((r = omap_i2c_wait_for_bb(dev)) < 0)
 		goto out;
 
