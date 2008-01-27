@@ -112,5 +112,5 @@ const struct file_operations jfs_file_operations = {
 	.splice_write	= generic_file_splice_write,
 	.fsync		= jfs_fsync,
 	.release	= jfs_release,
-	.ioctl		= jfs_ioctl,
+	.unlocked_ioctl = jfs_ioctl,
 };
