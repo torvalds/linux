@@ -318,6 +318,10 @@ static int __devinit vt596_probe(struct pci_dev *pdev,
 	unsigned char temp;
 	int error = -ENODEV;
 
+	/* driver_data might come from user-space, so check it */
+	if (id->driver_data & 1 || id->driver_data > 0xff)
+		return -EINVAL;
+
 	/* Determine the address of the SMBus areas */
 	if (force_addr) {
 		vt596_smba = force_addr & 0xfff0;
@@ -455,6 +459,7 @@ static struct pci_driver vt596_driver = {
 	.name		= "vt596_smbus",
 	.id_table	= vt596_ids,
 	.probe		= vt596_probe,
+	.dynids.use_driver_data = 1,
 };
 
 static int __init i2c_vt596_init(void)
