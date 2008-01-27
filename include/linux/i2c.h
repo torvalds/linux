@@ -317,7 +317,6 @@ struct i2c_adapter {
 
 	int nr;
 	struct list_head clients;
-	struct list_head list;
 	char name[48];
 	struct completion dev_released;
 };

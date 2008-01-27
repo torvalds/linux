@@ -34,11 +34,11 @@
 #include <linux/mutex.h>
 #include <linux/completion.h>
 #include <asm/uaccess.h>
+#include <asm/semaphore.h>
 
 #include "i2c-core.h"
 
 
-static LIST_HEAD(adapters);
 static LIST_HEAD(drivers);
 static DEFINE_MUTEX(core_lists);
 static DEFINE_IDR(i2c_adapter_idr);
@@ -331,7 +331,6 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 	INIT_LIST_HEAD(&adap->clients);
 
 	mutex_lock(&core_lists);
-	list_add_tail(&adap->list, &adapters);
 
 	/* Add the adapter to the driver core.
 	 * If the parent pointer is not set up,
@@ -368,7 +367,6 @@ out_unlock:
 	return res;
 
 out_list:
-	list_del(&adap->list);
 	idr_remove(&i2c_adapter_idr, adap->nr);
 	goto out_unlock;
 }
@@ -473,7 +471,6 @@ EXPORT_SYMBOL_GPL(i2c_add_numbered_adapter);
 int i2c_del_adapter(struct i2c_adapter *adap)
 {
 	struct list_head  *item, *_n;
-	struct i2c_adapter *adap_from_list;
 	struct i2c_driver *driver;
 	struct i2c_client *client;
 	int res = 0;
@@ -481,11 +478,7 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 	mutex_lock(&core_lists);
 
 	/* First make sure that this adapter was ever added */
-	list_for_each_entry(adap_from_list, &adapters, list) {
-		if (adap_from_list == adap)
-			break;
-	}
-	if (adap_from_list != adap) {
+	if (idr_find(&i2c_adapter_idr, adap->nr) != adap) {
 		pr_debug("i2c-core: attempting to delete unregistered "
 			 "adapter [%s]\n", adap->name);
 		res = -EINVAL;
@@ -529,7 +522,6 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 	/* clean up the sysfs representation */
 	init_completion(&adap->dev_released);
 	device_unregister(&adap->dev);
-	list_del(&adap->list);
 
 	/* wait for sysfs to drop all references */
 	wait_for_completion(&adap->dev_released);
@@ -592,9 +584,12 @@ int i2c_register_driver(struct module *owner, struct i2c_driver *driver)
 	if (driver->attach_adapter) {
 		struct i2c_adapter *adapter;
 
-		list_for_each_entry(adapter, &adapters, list) {
+		down(&i2c_adapter_class.sem);
+		list_for_each_entry(adapter, &i2c_adapter_class.devices,
+				    dev.node) {
 			driver->attach_adapter(adapter);
 		}
+		up(&i2c_adapter_class.sem);
 	}
 
 	mutex_unlock(&core_lists);
@@ -609,7 +604,7 @@ EXPORT_SYMBOL(i2c_register_driver);
  */
 void i2c_del_driver(struct i2c_driver *driver)
 {
-	struct list_head   *item1, *item2, *_n;
+	struct list_head   *item2, *_n;
 	struct i2c_client  *client;
 	struct i2c_adapter *adap;
 
@@ -623,8 +618,8 @@ void i2c_del_driver(struct i2c_driver *driver)
 	 * attached. If so, detach them to be able to kill the driver
 	 * afterwards.
 	 */
-	list_for_each(item1,&adapters) {
-		adap = list_entry(item1, struct i2c_adapter, list);
+	down(&i2c_adapter_class.sem);
+	list_for_each_entry(adap, &i2c_adapter_class.devices, dev.node) {
 		if (driver->detach_adapter) {
 			if (driver->detach_adapter(adap)) {
 				dev_err(&adap->dev, "detach_adapter failed "
@@ -648,6 +643,7 @@ void i2c_del_driver(struct i2c_driver *driver)
 			}
 		}
 	}
+	up(&i2c_adapter_class.sem);
 
  unregister:
 	driver_unregister(&driver->driver);

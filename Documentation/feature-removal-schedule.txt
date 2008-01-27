@@ -191,15 +191,6 @@ Who:	Kay Sievers <kay.sievers@suse.de>
 
 ---------------------------
 
-What:	i2c_adapter.list
-When:	July 2007
-Why:	Superfluous, this list duplicates the one maintained by the driver
-	core.
-Who:	Jean Delvare <khali@linux-fr.org>,
-	David Brownell <dbrownell@users.sourceforge.net>
-
----------------------------
-
 What:	ACPI procfs interface
 When:	July 2008
 Why:	ACPI sysfs conversion should be finished by January 2008.
