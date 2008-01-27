@@ -317,7 +317,7 @@ config VCO_MULT
 	range 1 64
 	default "22" if BFIN533_EZKIT
 	default "45" if BFIN533_STAMP
-	default "20" if (BFIN537_STAMP || BFIN527_EZKIT)
+	default "20" if (BFIN537_STAMP || BFIN527_EZKIT || BFIN548_EZKIT)
 	default "22" if BFIN533_BLUETECHNIX_CM
 	default "20" if BFIN537_BLUETECHNIX_CM
 	default "20" if BFIN561_BLUETECHNIX_CM
@@ -354,7 +354,7 @@ config SCLK_DIV
 	range 1 15
 	default 5 if BFIN533_EZKIT
 	default 5 if BFIN533_STAMP
-	default 4 if (BFIN537_STAMP || BFIN527_EZKIT)
+	default 4 if (BFIN537_STAMP || BFIN527_EZKIT || BFIN548_EZKIT)
 	default 5 if BFIN533_BLUETECHNIX_CM
 	default 4 if BFIN537_BLUETECHNIX_CM
 	default 4 if BFIN561_BLUETECHNIX_CM
@@ -409,6 +409,7 @@ config MEM_SIZE
 	default  32 if BFIN533_EZKIT
 	default  64 if BFIN527_EZKIT
 	default  64 if BFIN537_STAMP
+	default  64 if BFIN548_EZKIT
 	default  64 if BFIN561_EZKIT
 	default 128 if BFIN533_STAMP
 	default  64 if PNAV10
@@ -416,6 +417,7 @@ config MEM_SIZE
 
 config MEM_ADD_WIDTH
 	int "SDRAM Memory Address Width"
+	depends on (!BF54x)
 	default  9 if BFIN533_EZKIT
 	default  9 if BFIN561_EZKIT
 	default  9 if H8606_HVSISTEMAS
@@ -423,6 +425,19 @@ config MEM_ADD_WIDTH
 	default 10 if BFIN537_STAMP
 	default 11 if BFIN533_STAMP
 	default 10 if PNAV10
+
+
+choice
+	prompt "DDR SDRAM Chip Type"
+	depends on BFIN548_EZKIT
+	default MEM_MT46V32M16_5B
+
+config MEM_MT46V32M16_6T
+        bool "MT46V32M16_6T"
+
+config MEM_MT46V32M16_5B
+        bool "MT46V32M16_5B"
+endchoice
 
 config ENET_FLASH_PIN
 	int "PF port/pin used for flash and ethernet sharing"
