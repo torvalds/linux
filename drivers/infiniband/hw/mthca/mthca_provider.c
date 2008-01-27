@@ -1256,6 +1256,8 @@ static int mthca_init_node_data(struct mthca_dev *dev)
 		goto out;
 	}
 
+	if (mthca_is_memfree(dev))
+		dev->rev_id = be32_to_cpup((__be32 *) (out_mad->data + 32));
 	memcpy(&dev->ib_dev.node_guid, out_mad->data + 12, 8);
 
 out:

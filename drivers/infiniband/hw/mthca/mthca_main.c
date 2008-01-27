@@ -735,7 +735,8 @@ static int mthca_init_hca(struct mthca_dev *mdev)
 	}
 
 	mdev->eq_table.inta_pin = adapter.inta_pin;
-	mdev->rev_id            = adapter.revision_id;
+	if (!mthca_is_memfree(mdev))
+		mdev->rev_id = adapter.revision_id;
 	memcpy(mdev->board_id, adapter.board_id, sizeof mdev->board_id);
 
 	return 0;
