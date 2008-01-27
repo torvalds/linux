@@ -100,7 +100,7 @@ struct isp1301 {
 
 #if	defined(CONFIG_TPS65010) || defined(CONFIG_TPS65010_MODULE)
 
-#include <asm/arch/tps65010.h>
+#include <linux/i2c/tps65010.h>
 
 #else
 

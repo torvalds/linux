@@ -31,7 +31,7 @@
 #include <linux/seq_file.h>
 #include <linux/mutex.h>
 
-#include <asm/arch/tps65010.h>
+#include <linux/i2c/tps65010.h>
 
 /*-------------------------------------------------------------------------*/
 

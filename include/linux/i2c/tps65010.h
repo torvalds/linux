@@ -1,4 +1,4 @@
-/* linux/include/asm-arm/arch-omap/tps65010.h
+/* linux/i2c/tps65010.h
  *
  * Functions to access TPS65010 power management device.
  *
@@ -25,8 +25,8 @@
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#ifndef __ASM_ARCH_TPS65010_H
-#define __ASM_ARCH_TPS65010_H
+#ifndef __LINUX_I2C_TPS65010_H
+#define __LINUX_I2C_TPS65010_H
 
 /*
  * ----------------------------------------------------------------------------
@@ -152,5 +152,5 @@ extern int tps65010_config_vregs1(unsigned value);
  */
 extern int tps65013_set_low_pwr(unsigned mode);
 
-#endif /*  __ASM_ARCH_TPS65010_H */
+#endif /*  __LINUX_I2C_TPS65010_H */
 

@@ -37,6 +37,8 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 
+#include <linux/i2c/tps65010.h>
+
 #include <asm/hardware.h>
 #include <asm/gpio.h>
 
@@ -46,7 +48,6 @@
 #include <asm/mach/flash.h>
 
 #include <asm/arch/usb.h>
-#include <asm/arch/tps65010.h>
 #include <asm/arch/mux.h>
 #include <asm/arch/tc.h>
 #include <asm/arch/common.h>

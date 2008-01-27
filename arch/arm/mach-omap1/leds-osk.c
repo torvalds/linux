@@ -5,13 +5,13 @@
  */
 #include <linux/init.h>
 #include <linux/workqueue.h>
+#include <linux/i2c/tps65010.h>
 
 #include <asm/hardware.h>
 #include <asm/leds.h>
 #include <asm/system.h>
 
 #include <asm/arch/gpio.h>
-#include <asm/arch/tps65010.h>
 
 #include "leds.h"
 

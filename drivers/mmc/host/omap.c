@@ -25,6 +25,7 @@
 #include <linux/mmc/card.h>
 #include <linux/clk.h>
 #include <linux/scatterlist.h>
+#include <linux/i2c/tps65010.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -35,7 +36,6 @@
 #include <asm/arch/dma.h>
 #include <asm/arch/mux.h>
 #include <asm/arch/fpga.h>
-#include <asm/arch/tps65010.h>
 
 #define	OMAP_MMC_REG_CMD	0x00
 #define	OMAP_MMC_REG_ARGL	0x04
