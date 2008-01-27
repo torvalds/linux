@@ -768,9 +768,10 @@ int i2c_detach_client(struct i2c_client *client)
 
 	mutex_lock(&adapter->clist_lock);
 	list_del(&client->list);
+	mutex_unlock(&adapter->clist_lock);
+
 	init_completion(&client->released);
 	device_unregister(&client->dev);
-	mutex_unlock(&adapter->clist_lock);
 	wait_for_completion(&client->released);
 
  out:
