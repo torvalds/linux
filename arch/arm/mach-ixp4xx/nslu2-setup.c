@@ -18,6 +18,7 @@
 #include <linux/serial.h>
 #include <linux/serial_8250.h>
 #include <linux/leds.h>
+#include <linux/i2c-gpio.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -41,7 +42,7 @@ static struct platform_device nslu2_flash = {
 	.resource		= &nslu2_flash_resource,
 };
 
-static struct ixp4xx_i2c_pins nslu2_i2c_gpio_pins = {
+static struct i2c_gpio_platform_data nslu2_i2c_gpio_data = {
 	.sda_pin		= NSLU2_SDA_PIN,
 	.scl_pin		= NSLU2_SCL_PIN,
 };
@@ -82,11 +83,12 @@ static struct platform_device nslu2_leds = {
 };
 #endif
 
-static struct platform_device nslu2_i2c_controller = {
-	.name			= "IXP4XX-I2C",
+static struct platform_device nslu2_i2c_gpio = {
+	.name			= "i2c-gpio",
 	.id			= 0,
-	.dev.platform_data	= &nslu2_i2c_gpio_pins,
-	.num_resources		= 0,
+	.dev	 = {
+		.platform_data	= &nslu2_i2c_gpio_data,
+	},
 };
 
 static struct platform_device nslu2_beeper = {
@@ -139,7 +141,7 @@ static struct platform_device nslu2_uart = {
 };
 
 static struct platform_device *nslu2_devices[] __initdata = {
-	&nslu2_i2c_controller,
+	&nslu2_i2c_gpio,
 	&nslu2_flash,
 	&nslu2_beeper,
 #ifdef CONFIG_LEDS_IXP4XX
