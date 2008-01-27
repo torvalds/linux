@@ -4,6 +4,7 @@
     Copyright (c) 1998 - 2002  Frodo Looijaard <frodol@dds.nl>,
     Philip Edelbrock <phil@netroedge.com>, and Mark D. Studebaker
     <mdsxyz123@yahoo.com>
+    Copyright (C) 2007         Jean Delvare <khali@linux-fr.org>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -46,7 +47,7 @@
   Hardware PEC                     yes
   Block buffer                     yes
   Block process call transaction   no
-  I2C block read transaction       no
+  I2C block read transaction       yes  (doesn't use the block buffer)
 
   See the file Documentation/i2c/busses/i2c-i801 for details.
 */
@@ -102,9 +103,9 @@
 #define I801_WORD_DATA		0x0C
 #define I801_PROC_CALL		0x10	/* unimplemented */
 #define I801_BLOCK_DATA		0x14
-#define I801_I2C_BLOCK_DATA	0x18	/* unimplemented */
+#define I801_I2C_BLOCK_DATA	0x18	/* ICH5 and later */
 #define I801_BLOCK_LAST		0x34
-#define I801_I2C_BLOCK_LAST	0x38	/* unimplemented */
+#define I801_I2C_BLOCK_LAST	0x38	/* ICH5 and later */
 #define I801_START		0x40
 #define I801_PEC_EN		0x80	/* ICH3 and later */
 
@@ -256,7 +257,8 @@ static int i801_block_transaction_by_block(union i2c_smbus_data *data,
 }
 
 static int i801_block_transaction_byte_by_byte(union i2c_smbus_data *data,
-					       char read_write, int hwpec)
+					       char read_write, int command,
+					       int hwpec)
 {
 	int i, len;
 	int smbcmd;
@@ -273,16 +275,24 @@ static int i801_block_transaction_byte_by_byte(union i2c_smbus_data *data,
 	}
 
 	for (i = 1; i <= len; i++) {
-		if (i == len && read_write == I2C_SMBUS_READ)
-			smbcmd = I801_BLOCK_LAST;
-		else
-			smbcmd = I801_BLOCK_DATA;
+		if (i == len && read_write == I2C_SMBUS_READ) {
+			if (command == I2C_SMBUS_I2C_BLOCK_DATA)
+				smbcmd = I801_I2C_BLOCK_LAST;
+			else
+				smbcmd = I801_BLOCK_LAST;
+		} else {
+			if (command == I2C_SMBUS_I2C_BLOCK_DATA
+			 && read_write == I2C_SMBUS_READ)
+				smbcmd = I801_I2C_BLOCK_DATA;
+			else
+				smbcmd = I801_BLOCK_DATA;
+		}
 		outb_p(smbcmd | ENABLE_INT9, SMBHSTCNT);
 
 		dev_dbg(&I801_dev->dev, "Block (pre %d): CNT=%02x, CMD=%02x, "
-			"ADD=%02x, DAT0=%02x, BLKDAT=%02x\n", i,
+			"ADD=%02x, DAT0=%02x, DAT1=%02x, BLKDAT=%02x\n", i,
 			inb_p(SMBHSTCNT), inb_p(SMBHSTCMD), inb_p(SMBHSTADD),
-			inb_p(SMBHSTDAT0), inb_p(SMBBLKDAT));
+			inb_p(SMBHSTDAT0), inb_p(SMBHSTDAT1), inb_p(SMBBLKDAT));
 
 		/* Make sure the SMBus host is ready to start transmitting */
 		temp = inb_p(SMBHSTSTS);
@@ -346,7 +356,8 @@ static int i801_block_transaction_byte_by_byte(union i2c_smbus_data *data,
 			dev_dbg(&I801_dev->dev, "Error: no response!\n");
 		}
 
-		if (i == 1 && read_write == I2C_SMBUS_READ) {
+		if (i == 1 && read_write == I2C_SMBUS_READ
+		 && command != I2C_SMBUS_I2C_BLOCK_DATA) {
 			len = inb_p(SMBHSTDAT0);
 			if (len < 1 || len > I2C_SMBUS_BLOCK_MAX)
 				return -1;
@@ -367,9 +378,9 @@ static int i801_block_transaction_byte_by_byte(union i2c_smbus_data *data,
 				temp);
 		}
 		dev_dbg(&I801_dev->dev, "Block (post %d): CNT=%02x, CMD=%02x, "
-			"ADD=%02x, DAT0=%02x, BLKDAT=%02x\n", i,
+			"ADD=%02x, DAT0=%02x, DAT1=%02x, BLKDAT=%02x\n", i,
 			inb_p(SMBHSTCNT), inb_p(SMBHSTCMD), inb_p(SMBHSTADD),
-			inb_p(SMBHSTDAT0), inb_p(SMBBLKDAT));
+			inb_p(SMBHSTDAT0), inb_p(SMBHSTDAT1), inb_p(SMBBLKDAT));
 
 		if (result < 0)
 			return result;
@@ -398,34 +409,38 @@ static int i801_block_transaction(union i2c_smbus_data *data, char read_write,
 			pci_read_config_byte(I801_dev, SMBHSTCFG, &hostc);
 			pci_write_config_byte(I801_dev, SMBHSTCFG,
 					      hostc | SMBHSTCFG_I2C_EN);
-		} else {
+		} else if (!(i801_features & FEATURE_I2C_BLOCK_READ)) {
 			dev_err(&I801_dev->dev,
-				"I2C_SMBUS_I2C_BLOCK_READ not DB!\n");
+				"I2C block read is unsupported!\n");
 			return -1;
 		}
 	}
 
-	if (read_write == I2C_SMBUS_WRITE) {
+	if (read_write == I2C_SMBUS_WRITE
+	 || command == I2C_SMBUS_I2C_BLOCK_DATA) {
 		if (data->block[0] < 1)
 			data->block[0] = 1;
 		if (data->block[0] > I2C_SMBUS_BLOCK_MAX)
 			data->block[0] = I2C_SMBUS_BLOCK_MAX;
 	} else {
-		data->block[0] = 32;	/* max for reads */
+		data->block[0] = 32;	/* max for SMBus block reads */
 	}
 
 	if ((i801_features & FEATURE_BLOCK_BUFFER)
+	 && !(command == I2C_SMBUS_I2C_BLOCK_DATA
+	      && read_write == I2C_SMBUS_READ)
 	 && i801_set_block_buffer_mode() == 0)
 		result = i801_block_transaction_by_block(data, read_write,
 							 hwpec);
 	else
 		result = i801_block_transaction_byte_by_byte(data, read_write,
-							     hwpec);
+							     command, hwpec);
 
 	if (result == 0 && hwpec)
 		i801_wait_hwpec();
 
-	if (command == I2C_SMBUS_I2C_BLOCK_DATA) {
+	if (command == I2C_SMBUS_I2C_BLOCK_DATA
+	 && read_write == I2C_SMBUS_WRITE) {
 		/* restore saved configuration register value */
 		pci_write_config_byte(I801_dev, SMBHSTCFG, hostc);
 	}
@@ -477,10 +492,21 @@ static s32 i801_access(struct i2c_adapter * adap, u16 addr,
 		xact = I801_WORD_DATA;
 		break;
 	case I2C_SMBUS_BLOCK_DATA:
-	case I2C_SMBUS_I2C_BLOCK_DATA:
 		outb_p(((addr & 0x7f) << 1) | (read_write & 0x01),
 		       SMBHSTADD);
 		outb_p(command, SMBHSTCMD);
+		block = 1;
+		break;
+	case I2C_SMBUS_I2C_BLOCK_DATA:
+		/* NB: page 240 of ICH5 datasheet shows that the R/#W
+		 * bit should be cleared here, even when reading */
+		outb_p((addr & 0x7f) << 1, SMBHSTADD);
+		if (read_write == I2C_SMBUS_READ) {
+			/* NB: page 240 of ICH5 datasheet also shows
+			 * that DATA1 is the cmd field when reading */
+			outb_p(command, SMBHSTDAT1);
+		} else
+			outb_p(command, SMBHSTCMD);
 		block = 1;
 		break;
 	case I2C_SMBUS_PROC_CALL:
@@ -531,7 +557,9 @@ static u32 i801_func(struct i2c_adapter *adapter)
 	return I2C_FUNC_SMBUS_QUICK | I2C_FUNC_SMBUS_BYTE |
 	       I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA |
 	       I2C_FUNC_SMBUS_BLOCK_DATA | I2C_FUNC_SMBUS_WRITE_I2C_BLOCK |
-	       ((i801_features & FEATURE_SMBUS_PEC) ? I2C_FUNC_SMBUS_PEC : 0);
+	       ((i801_features & FEATURE_SMBUS_PEC) ? I2C_FUNC_SMBUS_PEC : 0) |
+	       ((i801_features & FEATURE_I2C_BLOCK_READ) ?
+		I2C_FUNC_SMBUS_READ_I2C_BLOCK : 0);
 }
 
 static const struct i2c_algorithm smbus_algorithm = {
@@ -573,7 +601,6 @@ static int __devinit i801_probe(struct pci_dev *dev, const struct pci_device_id 
 	I801_dev = dev;
 	i801_features = 0;
 	switch (dev->device) {
-	case PCI_DEVICE_ID_INTEL_82801DB_3:
 	case PCI_DEVICE_ID_INTEL_82801EB_3:
 	case PCI_DEVICE_ID_INTEL_ESB_4:
 	case PCI_DEVICE_ID_INTEL_ICH6_16:
@@ -581,6 +608,9 @@ static int __devinit i801_probe(struct pci_dev *dev, const struct pci_device_id 
 	case PCI_DEVICE_ID_INTEL_ESB2_17:
 	case PCI_DEVICE_ID_INTEL_ICH8_5:
 	case PCI_DEVICE_ID_INTEL_ICH9_6:
+		i801_features |= FEATURE_I2C_BLOCK_READ;
+		/* fall through */
+	case PCI_DEVICE_ID_INTEL_82801DB_3:
 	case PCI_DEVICE_ID_INTEL_TOLAPAI_1:
 		i801_features |= FEATURE_SMBUS_PEC;
 		i801_features |= FEATURE_BLOCK_BUFFER;
@@ -698,9 +728,8 @@ static void __exit i2c_i801_exit(void)
 	pci_unregister_driver(&i801_driver);
 }
 
-MODULE_AUTHOR ("Frodo Looijaard <frodol@dds.nl>, "
-		"Philip Edelbrock <phil@netroedge.com>, "
-		"and Mark D. Studebaker <mdsxyz123@yahoo.com>");
+MODULE_AUTHOR("Mark D. Studebaker <mdsxyz123@yahoo.com>, "
+	      "Jean Delvare <khali@linux-fr.org>");
 MODULE_DESCRIPTION("I801 SMBus driver");
 MODULE_LICENSE("GPL");
 

@@ -17,9 +17,8 @@ Supported adapters:
    Datasheets: Publicly available at the Intel website
 
 Authors: 
-	Frodo Looijaard <frodol@dds.nl>, 
-	Philip Edelbrock <phil@netroedge.com>, 
 	Mark Studebaker <mdsxyz123@yahoo.com>
+	Jean Delvare <khali@linux-fr.org>
 
 
 Module Parameters
@@ -62,7 +61,7 @@ Not supported.
 I2C Block Read Support
 ----------------------
 
-Not supported at the moment.
+I2C block read is supported on the 82801EB (ICH5) and later chips.
 
 
 SMBus 2.0 Support
