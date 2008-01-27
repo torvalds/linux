@@ -357,10 +357,26 @@ static int sendbytes(struct i2c_adapter *i2c_adap, struct i2c_msg *msg)
 			count--;
 			temp++;
 			wrcount++;
-		} else { /* arbitration or no acknowledge */
-			dev_err(&i2c_adap->dev, "sendbytes: error - bailout.\n");
-			return (retval<0)? retval : -EFAULT;
-			        /* got a better one ?? */
+
+		/* A slave NAKing the master means the slave didn't like
+		 * something about the data it saw.  For example, maybe
+		 * the SMBus PEC was wrong.
+		 */
+		} else if (retval == 0) {
+			dev_err(&i2c_adap->dev, "sendbytes: NAK bailout.\n");
+			return -EIO;
+
+		/* Timeout; or (someday) lost arbitration
+		 *
+		 * FIXME Lost ARB implies retrying the transaction from
+		 * the first message, after the "winning" master issues
+		 * its STOP.  As a rule, upper layer code has no reason
+		 * to know or care about this ... it is *NOT* an error.
+		 */
+		} else {
+			dev_err(&i2c_adap->dev, "sendbytes: error %d\n",
+					retval);
+			return retval;
 		}
 	}
 	return wrcount;
