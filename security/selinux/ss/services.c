@@ -1744,6 +1744,9 @@ int security_genfs_sid(const char *fstype,
 	struct ocontext *c;
 	int rc = 0, cmp = 0;
 
+	while (path[0] == '/' && path[1] == '/')
+		path++;
+
 	POLICY_RDLOCK;
 
 	for (genfs = policydb.genfs; genfs; genfs = genfs->next) {
