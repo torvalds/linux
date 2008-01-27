@@ -20,7 +20,7 @@
  *  of peripherals are found on embedded SoC (System On a Chip)
  *  processors or highly integrated system controllers that have
  *  a host bridge and many peripherals.  Common examples where
- *  this is already used include the PPC4xx, PPC85xx, MPC52xx,
+ *  this is already used include the PPC4xx, MPC52xx,
  *  and MV64xxx parts.
  *
  *  This subsystem creates a standard OCP bus type within the

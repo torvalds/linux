@@ -212,60 +212,6 @@ label:
  * save (and later restore) the MSR via SPRN_CSRR1, which will still have
  * the MSR_DE bit set.
  */
-#ifdef CONFIG_E200
-#define DEBUG_EXCEPTION							      \
-	START_EXCEPTION(Debug);						      \
-	DEBUG_EXCEPTION_PROLOG;						      \
-									      \
-	/*								      \
-	 * If there is a single step or branch-taken exception in an	      \
-	 * exception entry sequence, it was probably meant to apply to	      \
-	 * the code where the exception occurred (since exception entry	      \
-	 * doesn't turn off DE automatically).  We simulate the effect	      \
-	 * of turning off DE on entry to an exception handler by turning      \
-	 * off DE in the CSRR1 value and clearing the debug status.	      \
-	 */								      \
-	mfspr	r10,SPRN_DBSR;		/* check single-step/branch taken */  \
-	andis.	r10,r10,DBSR_IC@h;					      \
-	beq+	2f;							      \
-									      \
-	lis	r10,KERNELBASE@h;	/* check if exception in vectors */   \
-	ori	r10,r10,KERNELBASE@l;					      \
-	cmplw	r12,r10;						      \
-	blt+	2f;			/* addr below exception vectors */    \
-									      \
-	lis	r10,Debug@h;						      \
-	ori	r10,r10,Debug@l;					      \
-	cmplw	r12,r10;						      \
-	bgt+	2f;			/* addr above exception vectors */    \
-									      \
-	/* here it looks like we got an inappropriate debug exception. */     \
-1:	rlwinm	r9,r9,0,~MSR_DE;	/* clear DE in the CDRR1 value */     \
-	lis	r10,DBSR_IC@h;		/* clear the IC event */	      \
-	mtspr	SPRN_DBSR,r10;						      \
-	/* restore state and get out */					      \
-	lwz	r10,_CCR(r11);						      \
-	lwz	r0,GPR0(r11);						      \
-	lwz	r1,GPR1(r11);						      \
-	mtcrf	0x80,r10;						      \
-	mtspr	SPRN_DSRR0,r12;						      \
-	mtspr	SPRN_DSRR1,r9;						      \
-	lwz	r9,GPR9(r11);						      \
-	lwz	r12,GPR12(r11);						      \
-	mtspr	DEBUG_SPRG,r8;						      \
-	BOOKE_LOAD_EXC_LEVEL_STACK(DEBUG); /* r8 points to the debug stack */ \
-	lwz	r10,GPR10-INT_FRAME_SIZE(r8);				      \
-	lwz	r11,GPR11-INT_FRAME_SIZE(r8);				      \
-	mfspr	r8,DEBUG_SPRG;						      \
-									      \
-	RFDI;								      \
-	b	.;							      \
-									      \
-	/* continue normal handling for a critical exception... */	      \
-2:	mfspr	r4,SPRN_DBSR;						      \
-	addi	r3,r1,STACK_FRAME_OVERHEAD;				      \
-	EXC_XFER_TEMPLATE(DebugException, 0x2002, (MSR_KERNEL & ~(MSR_ME|MSR_DE|MSR_CE)), NOCOPY, debug_transfer_to_handler, ret_from_debug_exc)
-#else
 #define DEBUG_EXCEPTION							      \
 	START_EXCEPTION(Debug);						      \
 	CRITICAL_EXCEPTION_PROLOG;					      \
@@ -318,7 +264,6 @@ label:
 2:	mfspr	r4,SPRN_DBSR;						      \
 	addi	r3,r1,STACK_FRAME_OVERHEAD;				      \
 	EXC_XFER_TEMPLATE(DebugException, 0x2002, (MSR_KERNEL & ~(MSR_ME|MSR_DE|MSR_CE)), NOCOPY, crit_transfer_to_handler, ret_from_crit_exc)
-#endif
 
 #define INSTRUCTION_STORAGE_EXCEPTION					      \
 	START_EXCEPTION(InstructionStorage)				      \

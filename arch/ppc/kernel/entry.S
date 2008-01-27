@@ -519,12 +519,7 @@ BEGIN_FTR_SECTION
 	stw	r12,THREAD+THREAD_VRSAVE(r2)
 END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 #endif /* CONFIG_ALTIVEC */
-#ifdef CONFIG_SPE
-	oris	r0,r0,MSR_SPE@h	 /* Disable SPE */
-	mfspr	r12,SPRN_SPEFSCR /* save spefscr register value */
-	stw	r12,THREAD+THREAD_SPEFSCR(r2)
-#endif /* CONFIG_SPE */
-	and.	r0,r0,r11	/* FP or altivec or SPE enabled? */
+	and.	r0,r0,r11	/* FP or altivec enabled? */
 	beq+	1f
 	andc	r11,r11,r0
 	MTMSRD(r11)
@@ -557,11 +552,6 @@ BEGIN_FTR_SECTION
 	mtspr	SPRN_VRSAVE,r0		/* if G4, restore VRSAVE reg */
 END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 #endif /* CONFIG_ALTIVEC */
-#ifdef CONFIG_SPE
-	lwz	r0,THREAD+THREAD_SPEFSCR(r2)
-	mtspr	SPRN_SPEFSCR,r0		/* restore SPEFSCR reg */
-#endif /* CONFIG_SPE */
-
 	lwz	r0,_CCR(r1)
 	mtcrf	0xFF,r0
 	/* r3-r12 are destroyed -- Cort */

@@ -58,12 +58,6 @@ extern unsigned int num_tlbcam_entries;
 extern void MMU_init_hw(void);
 extern unsigned long mmu_mapin_ram(void);
 
-#elif defined(CONFIG_FSL_BOOKE)
-#define flush_HPTE(pid, va, pg)	_tlbie(va, pid)
-extern void MMU_init_hw(void);
-extern unsigned long mmu_mapin_ram(void);
-extern void adjust_total_lowmem(void);
-
 #else
 /* anything except 4xx or 8xx */
 extern void MMU_init_hw(void);

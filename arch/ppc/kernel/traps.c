@@ -194,11 +194,7 @@ static inline int check_io_access(struct pt_regs *regs)
 /* On 4xx, the reason for the machine check or program exception
    is in the ESR. */
 #define get_reason(regs)	((regs)->dsisr)
-#ifndef CONFIG_FSL_BOOKE
 #define get_mc_reason(regs)	((regs)->dsisr)
-#else
-#define get_mc_reason(regs)	(mfspr(SPRN_MCSR))
-#endif
 #define REASON_FP		ESR_FP
 #define REASON_ILLEGAL		(ESR_PIL | ESR_PUO)
 #define REASON_PRIVILEGED	ESR_PPR
@@ -279,66 +275,6 @@ int machine_check_440A(struct pt_regs *regs)
 		/* Clear MCSR */
 		mtspr(SPRN_MCSR, mcsr);
 	}
-	return 0;
-}
-#elif defined(CONFIG_E500)
-int machine_check_e500(struct pt_regs *regs)
-{
-	unsigned long reason = get_mc_reason(regs);
-
-	printk("Machine check in kernel mode.\n");
-	printk("Caused by (from MCSR=%lx): ", reason);
-
-	if (reason & MCSR_MCP)
-		printk("Machine Check Signal\n");
-	if (reason & MCSR_ICPERR)
-		printk("Instruction Cache Parity Error\n");
-	if (reason & MCSR_DCP_PERR)
-		printk("Data Cache Push Parity Error\n");
-	if (reason & MCSR_DCPERR)
-		printk("Data Cache Parity Error\n");
-	if (reason & MCSR_BUS_IAERR)
-		printk("Bus - Instruction Address Error\n");
-	if (reason & MCSR_BUS_RAERR)
-		printk("Bus - Read Address Error\n");
-	if (reason & MCSR_BUS_WAERR)
-		printk("Bus - Write Address Error\n");
-	if (reason & MCSR_BUS_IBERR)
-		printk("Bus - Instruction Data Error\n");
-	if (reason & MCSR_BUS_RBERR)
-		printk("Bus - Read Data Bus Error\n");
-	if (reason & MCSR_BUS_WBERR)
-		printk("Bus - Read Data Bus Error\n");
-	if (reason & MCSR_BUS_IPERR)
-		printk("Bus - Instruction Parity Error\n");
-	if (reason & MCSR_BUS_RPERR)
-		printk("Bus - Read Parity Error\n");
-
-	return 0;
-}
-#elif defined(CONFIG_E200)
-int machine_check_e200(struct pt_regs *regs)
-{
-	unsigned long reason = get_mc_reason(regs);
-
-	printk("Machine check in kernel mode.\n");
-	printk("Caused by (from MCSR=%lx): ", reason);
-
-	if (reason & MCSR_MCP)
-		printk("Machine Check Signal\n");
-	if (reason & MCSR_CP_PERR)
-		printk("Cache Push Parity Error\n");
-	if (reason & MCSR_CPERR)
-		printk("Cache Parity Error\n");
-	if (reason & MCSR_EXCP_ERR)
-		printk("ISI, ITLB, or Bus Error on first instruction fetch for an exception handler\n");
-	if (reason & MCSR_BUS_IRERR)
-		printk("Bus - Read Bus Error on instruction fetch\n");
-	if (reason & MCSR_BUS_DRERR)
-		printk("Bus - Read Bus Error on data load\n");
-	if (reason & MCSR_BUS_WRERR)
-		printk("Bus - Write Bus Error on buffered store or cache line push\n");
-
 	return 0;
 }
 #else
@@ -865,63 +801,6 @@ void altivec_assist_exception(struct pt_regs *regs)
 	}
 }
 #endif /* CONFIG_ALTIVEC */
-
-#ifdef CONFIG_E500
-void performance_monitor_exception(struct pt_regs *regs)
-{
-	perf_irq(regs);
-}
-#endif
-
-#ifdef CONFIG_FSL_BOOKE
-void CacheLockingException(struct pt_regs *regs, unsigned long address,
-			   unsigned long error_code)
-{
-	/* We treat cache locking instructions from the user
-	 * as priv ops, in the future we could try to do
-	 * something smarter
-	 */
-	if (error_code & (ESR_DLK|ESR_ILK))
-		_exception(SIGILL, regs, ILL_PRVOPC, regs->nip);
-	return;
-}
-#endif /* CONFIG_FSL_BOOKE */
-
-#ifdef CONFIG_SPE
-void SPEFloatingPointException(struct pt_regs *regs)
-{
-	unsigned long spefscr;
-	int fpexc_mode;
-	int code = 0;
-
-	spefscr = current->thread.spefscr;
-	fpexc_mode = current->thread.fpexc_mode;
-
-	/* Hardware does not necessarily set sticky
-	 * underflow/overflow/invalid flags */
-	if ((spefscr & SPEFSCR_FOVF) && (fpexc_mode & PR_FP_EXC_OVF)) {
-		code = FPE_FLTOVF;
-		spefscr |= SPEFSCR_FOVFS;
-	}
-	else if ((spefscr & SPEFSCR_FUNF) && (fpexc_mode & PR_FP_EXC_UND)) {
-		code = FPE_FLTUND;
-		spefscr |= SPEFSCR_FUNFS;
-	}
-	else if ((spefscr & SPEFSCR_FDBZ) && (fpexc_mode & PR_FP_EXC_DIV))
-		code = FPE_FLTDIV;
-	else if ((spefscr & SPEFSCR_FINV) && (fpexc_mode & PR_FP_EXC_INV)) {
-		code = FPE_FLTINV;
-		spefscr |= SPEFSCR_FINVS;
-	}
-	else if ((spefscr & (SPEFSCR_FG | SPEFSCR_FX)) && (fpexc_mode & PR_FP_EXC_RES))
-		code = FPE_FLTRES;
-
-	current->thread.spefscr = spefscr;
-
-	_exception(SIGFPE, regs, code, regs->nip);
-	return;
-}
-#endif
 
 #ifdef CONFIG_BOOKE_WDT
 /*
