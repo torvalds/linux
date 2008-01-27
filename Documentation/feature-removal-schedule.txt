@@ -308,3 +308,10 @@ Why:	This driver has been marked obsolete for many years.
 Who:	Stephen Hemminger <shemminger@linux-foundation.org>
 
 ---------------------------
+
+What:	i2c-i810, i2c-prosavage and i2c-savage4
+When:	May 2008
+Why:	These drivers are superseded by i810fb, intelfb and savagefb.
+Who:	Jean Delvare <khali@linux-fr.org>
+
+---------------------------
