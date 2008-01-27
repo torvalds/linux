@@ -1381,6 +1381,7 @@ ENTRY(_sys_call_table)
 	.long _sys_set_robust_list
 	.long _sys_get_robust_list	/* 355 */
 	.long _sys_fallocate
+	.long _sys_semtimedop
 	.rept NR_syscalls-(.-_sys_call_table)/4
 	.long _sys_ni_syscall
 	.endr
