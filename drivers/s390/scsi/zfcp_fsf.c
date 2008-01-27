@@ -4224,10 +4224,10 @@ zfcp_fsf_send_fcp_command_task_handler(struct zfcp_fsf_req *fsf_req)
 
 		ZFCP_LOG_TRACE("%i bytes sense data provided by FCP\n",
 			       fcp_rsp_iu->fcp_sns_len);
-		memcpy(&scpnt->sense_buffer,
+		memcpy(scpnt->sense_buffer,
 		       zfcp_get_fcp_sns_info_ptr(fcp_rsp_iu), sns_len);
 		ZFCP_HEX_DUMP(ZFCP_LOG_LEVEL_TRACE,
-			      (void *) &scpnt->sense_buffer, sns_len);
+			      (void *)scpnt->sense_buffer, sns_len);
 	}
 
 	/* check for overrun */
