@@ -35,9 +35,6 @@ int chip_addr[10]:
 
 CAVEATS:
 
-There are independent arrays for byte/data and word/data commands.  Depending
-on if/how a target driver mixes them, you'll need to be careful.
-
 If your target driver polls some byte or word waiting for it to change, the
 stub could lock it up.  Use i2cset to unlock it.
 

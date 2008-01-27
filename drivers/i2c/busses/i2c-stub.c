@@ -1,8 +1,8 @@
 /*
-    i2c-stub.c - Part of lm_sensors, Linux kernel modules for hardware
-              monitoring
+    i2c-stub.c - I2C/SMBus chip emulator
 
     Copyright (c) 2004 Mark M. Hoffman <mhoffman@lightlink.com>
+    Copyright (C) 2007 Jean Delvare <khali@linux-fr.org>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -37,8 +37,8 @@ MODULE_PARM_DESC(chip_addr,
 
 struct stub_chip {
 	u8 pointer;
-	u8 bytes[256];
-	u16 words[256];
+	u16 words[256];		/* Byte operations use the LSB as per SMBus
+				   specification */
 };
 
 static struct stub_chip *stub_chips;
@@ -75,7 +75,7 @@ static s32 stub_xfer(struct i2c_adapter * adap, u16 addr, unsigned short flags,
 					"wrote 0x%02x.\n",
 					addr, command);
 		} else {
-			data->byte = chip->bytes[chip->pointer++];
+			data->byte = chip->words[chip->pointer++] & 0xff;
 			dev_dbg(&adap->dev, "smbus byte - addr 0x%02x, "
 					"read  0x%02x.\n",
 					addr, data->byte);
@@ -86,12 +86,13 @@ static s32 stub_xfer(struct i2c_adapter * adap, u16 addr, unsigned short flags,
 
 	case I2C_SMBUS_BYTE_DATA:
 		if (read_write == I2C_SMBUS_WRITE) {
-			chip->bytes[command] = data->byte;
+			chip->words[command] &= 0xff00;
+			chip->words[command] |= data->byte;
 			dev_dbg(&adap->dev, "smbus byte data - addr 0x%02x, "
 					"wrote 0x%02x at 0x%02x.\n",
 					addr, data->byte, command);
 		} else {
-			data->byte = chip->bytes[command];
+			data->byte = chip->words[command] & 0xff;
 			dev_dbg(&adap->dev, "smbus byte data - addr 0x%02x, "
 					"read  0x%02x at 0x%02x.\n",
 					addr, data->byte, command);
