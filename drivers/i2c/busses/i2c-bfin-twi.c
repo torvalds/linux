@@ -550,6 +550,7 @@ static int i2c_bfin_twi_probe(struct platform_device *dev)
 
 	p_adap = &iface->adap;
 	p_adap->id = I2C_HW_BLACKFIN;
+	p_adap->nr = dev->id;
 	strlcpy(p_adap->name, dev->name, sizeof(p_adap->name));
 	p_adap->algo = &bfin_twi_algorithm;
 	p_adap->algo_data = iface;
@@ -576,7 +577,7 @@ static int i2c_bfin_twi_probe(struct platform_device *dev)
 	bfin_write_TWI_CONTROL(bfin_read_TWI_CONTROL() | TWI_ENA);
 	SSYNC();
 
-	rc = i2c_add_adapter(p_adap);
+	rc = i2c_add_numbered_adapter(p_adap);
 	if (rc < 0)
 		free_irq(iface->irq, iface);
 	else
