@@ -450,7 +450,8 @@ recurse:
 	if (err)
 		goto out_free;
 
-	kobject_uevent(&b->kobj, KOBJ_ADD);
+	if (b)
+		kobject_uevent(&b->kobj, KOBJ_ADD);
 
 	return err;
 
