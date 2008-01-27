@@ -54,7 +54,7 @@
 
 #define MAX6900_I2C_ADDR		0xa0
 
-static unsigned short normal_i2c[] = {
+static const unsigned short normal_i2c[] = {
 	MAX6900_I2C_ADDR >> 1,
 	I2C_CLIENT_END
 };

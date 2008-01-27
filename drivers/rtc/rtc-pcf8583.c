@@ -40,7 +40,7 @@ struct pcf8583 {
 #define CTRL_ALARM	0x02
 #define CTRL_TIMER	0x01
 
-static unsigned short normal_i2c[] = { 0x50, I2C_CLIENT_END };
+static const unsigned short normal_i2c[] = { 0x50, I2C_CLIENT_END };
 
 /* Module parameters */
 I2C_CLIENT_INSMOD;

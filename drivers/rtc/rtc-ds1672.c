@@ -16,7 +16,7 @@
 #define DRV_VERSION "0.3"
 
 /* Addresses to scan: none. This chip cannot be detected. */
-static unsigned short normal_i2c[] = { I2C_CLIENT_END };
+static const unsigned short normal_i2c[] = { I2C_CLIENT_END };
 
 /* Insmod parameters */
 I2C_CLIENT_INSMOD;
