@@ -224,7 +224,8 @@ static int config_dma(struct bfin_bf54xfb_info *fbi)
 	set_dma_config(CH_EPPI0,
 		       set_bfin_dma_config(DIR_READ, DMA_FLOW_AUTO,
 					   INTR_DISABLE, DIMENSION_2D,
-					   DATA_SIZE_32));
+					   DATA_SIZE_32,
+					   DMA_NOSYNC_KEEP_DMA_BUF));
 	set_dma_x_count(CH_EPPI0, (LCD_X_RES * LCD_BPP) / DMA_BUS_SIZE);
 	set_dma_x_modify(CH_EPPI0, DMA_BUS_SIZE / 8);
 	set_dma_y_count(CH_EPPI0, LCD_Y_RES);
@@ -263,8 +264,7 @@ static int request_ports(struct bfin_bf54xfb_info *fbi)
 		}
 	}
 
-	gpio_direction_output(disp);
-	gpio_set_value(disp, 1);
+	gpio_direction_output(disp, 1);
 
 	return 0;
 }

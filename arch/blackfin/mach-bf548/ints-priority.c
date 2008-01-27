@@ -4,7 +4,7 @@
  * Author:       Michael Hennerich
  *
  * Created:
- * Description:  Set up the interupt priorities
+ * Description:  Set up the interrupt priorities
  *
  * Modified:
  *               Copyright 2004-2006 Analog Devices Inc.
@@ -58,7 +58,7 @@ void program_IAR(void)
 			    ((CONFIG_IRQ_PINT1 - 7) << IRQ_PINT1_POS) |
 			    ((CONFIG_IRQ_MDMAS0 - 7) << IRQ_MDMAS0_POS) |
 			    ((CONFIG_IRQ_MDMAS1 - 7) << IRQ_MDMAS1_POS) |
-			    ((CONFIG_IRQ_WATCHDOG - 7) << IRQ_WATCHDOG_POS));
+			    ((CONFIG_IRQ_WATCHDOG - 7) << IRQ_WATCH_POS));
 
 	bfin_write_SIC_IAR3(((CONFIG_IRQ_DMAC1_ERR - 7) << IRQ_DMAC1_ERR_POS) |
 			    ((CONFIG_IRQ_SPORT2_ERR - 7) << IRQ_SPORT2_ERR_POS) |

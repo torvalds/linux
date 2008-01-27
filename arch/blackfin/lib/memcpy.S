@@ -70,8 +70,8 @@ ENTRY(_memcpy)
 	/* Check for aligned data.*/
 
 	R3 = R1 | R0;
-	R0 = 0x3;
-	R3 = R3 & R0;
+	R1 = 0x3;
+	R3 = R3 & R1;
 	CC = R3;	/* low bits set on either address? */
 	IF CC JUMP .Lnot_aligned;
 
@@ -83,7 +83,6 @@ ENTRY(_memcpy)
 	/* less than eight bytes... */
 	P2 = R2;
 	LSETUP(.Lthree_start, .Lthree_end) LC0=P2;
-	R0 = R1;	/* setup src address for return */
 .Lthree_start:
 	R3 = B[P1++] (X);
 .Lthree_end:
@@ -95,7 +94,6 @@ ENTRY(_memcpy)
 	/* There's at least eight bytes to copy. */
 	P2 += -1;	/* because we unroll one iteration */
 	LSETUP(.Lword_loops, .Lword_loope) LC0=P2;
-	R0 = R1;
 	I1 = P1;
 	R3 = [I1++];
 #if ANOMALY_05000202
@@ -120,7 +118,6 @@ ENTRY(_memcpy)
 .Lnot_aligned:
 	/* From here, we're copying byte-by-byte. */
 	LSETUP (.Lbyte_start, .Lbyte_end) LC0=P2;
-	R0 = R1;	/* Save src address for return */
 .Lbyte_start:
 	R1 = B[P1++] (X);
 .Lbyte_end:
@@ -135,7 +132,6 @@ ENTRY(_memcpy)
 	 * Don't bother to work out alignment for
 	 * the reverse case.
 	 */
-	R0 = R1;	/* save src for later. */
 	P0 = P0 + P2;
 	P0 += -1;
 	P1 = P1 + P2;

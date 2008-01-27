@@ -88,7 +88,7 @@ Events         (highest priority)  EMU         0
 #define IRQ_PINT1		BFIN_IRQ(20)	/* PINT1 Interrupt */
 #define IRQ_MDMAS0		BFIN_IRQ(21)	/* MDMA Stream 0 Interrupt */
 #define IRQ_MDMAS1		BFIN_IRQ(22)	/* MDMA Stream 1 Interrupt */
-#define IRQ_WATCHDOG		BFIN_IRQ(23)	/* Watchdog Interrupt */
+#define IRQ_WATCH		BFIN_IRQ(23)	/* Watchdog Interrupt */
 #define IRQ_DMAC1_ERROR		BFIN_IRQ(24)	/* DMAC1 Status (Error) Interrupt */
 #define IRQ_SPORT2_ERROR	BFIN_IRQ(25)	/* SPORT2 Error Interrupt */
 #define IRQ_SPORT3_ERROR	BFIN_IRQ(26)	/* SPORT3 Error Interrupt */
@@ -406,7 +406,7 @@ Events         (highest priority)  EMU         0
 #define IRQ_PINT1_POS		16
 #define IRQ_MDMAS0_POS		20
 #define IRQ_MDMAS1_POS		24
-#define IRQ_WATCHDOG_POS	28
+#define IRQ_WATCH_POS		28
 
 /* IAR3 BIT FIELDS */
 #define IRQ_DMAC1_ERR_POS	0

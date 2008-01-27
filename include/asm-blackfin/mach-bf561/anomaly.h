@@ -7,7 +7,7 @@
  */
 
 /* This file shoule be up to date with:
- *  - Revision N, March 28, 2007; ADSP-BF561 Silicon Anomaly List
+ *  - Revision O, 11/15/2007; ADSP-BF561 Blackfin Processor Anomaly List
  */
 
 #ifndef _MACH_ANOMALY_H_
@@ -15,7 +15,7 @@
 
 /* We do not support 0.1, 0.2, or 0.4 silicon - sorry */
 #if __SILICON_REVISION__ < 3 || __SILICON_REVISION__ == 4
-# error Kernel will not work on BF561 silicon version 0.0, 0.1, 0.2, or 0.4
+# error will not work on BF561 silicon version 0.0, 0.1, 0.2, or 0.4
 #endif
 
 /* Multi-Issue Instruction with dsp32shiftimm in slot1 and P-reg Store in slot 2 Not Supported */
@@ -208,6 +208,8 @@
 #define ANOMALY_05000275 (__SILICON_REVISION__ > 2)
 /* Timing Requirements Change for External Frame Sync PPI Modes with Non-Zero PPI_DELAY */
 #define ANOMALY_05000276 (__SILICON_REVISION__ < 5)
+/* Writes to an I/O data register one SCLK cycle after an edge is detected may clear interrupt */
+#define ANOMALY_05000277 (__SILICON_REVISION__ < 3)
 /* Disabling Peripherals with DMA Running May Cause DMA System Instability */
 #define ANOMALY_05000278 (__SILICON_REVISION__ < 5)
 /* False Hardware Error Exception When ISR Context Is Not Restored */
@@ -246,6 +248,18 @@
 #define ANOMALY_05000332 (__SILICON_REVISION__ < 5)
 /* Flag Data Register Writes One SCLK Cycle After Edge Is Detected May Clear Interrupt Status */
 #define ANOMALY_05000333 (__SILICON_REVISION__ < 5)
+/* New Feature: Additional PPI Frame Sync Sampling Options (Not Available on Older Silicon) */
+#define ANOMALY_05000339 (__SILICON_REVISION__ < 5)
+/* Memory DMA FIFO Causes Throughput Degradation on Writes to External Memory */
+#define ANOMALY_05000343 (__SILICON_REVISION__ < 5)
+/* Serial Port (SPORT) Multichannel Transmit Failure when Channel 0 Is Disabled */
+#define ANOMALY_05000357 (1)
+/* Conflicting Column Address Widths Causes SDRAM Errors */
+#define ANOMALY_05000362 (1)
+/* PPI Underflow Error Goes Undetected in ITU-R 656 Mode */
+#define ANOMALY_05000366 (1)
+/* Possible RETS Register Corruption when Subroutine Is under 5 Cycles in Duration */
+#define ANOMALY_05000371 (1)
 
 /* Anomalies that don't exist on this proc */
 #define ANOMALY_05000158 (0)

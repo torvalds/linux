@@ -30,9 +30,12 @@
 #ifndef __BLACKFIN_MMU_CONTEXT_H__
 #define __BLACKFIN_MMU_CONTEXT_H__
 
+#include <linux/gfp.h>
+#include <linux/sched.h>
 #include <asm/setup.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>
+#include <asm/cplbinit.h>
 
 extern void *current_l1_stack_save;
 extern int nr_l1stack_tasks;
@@ -50,6 +53,12 @@ static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 static inline int
 init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 {
+#ifdef CONFIG_MPU
+	unsigned long p = __get_free_pages(GFP_KERNEL, page_mask_order);
+	mm->context.page_rwx_mask = (unsigned long *)p;
+	memset(mm->context.page_rwx_mask, 0,
+	       page_mask_nelts * 3 * sizeof(long));
+#endif
 	return 0;
 }
 
@@ -73,6 +82,11 @@ static inline void destroy_context(struct mm_struct *mm)
 		sram_free(tmp->addr);
 		kfree(tmp);
 	}
+#ifdef CONFIG_MPU
+	if (current_rwx_mask == mm->context.page_rwx_mask)
+		current_rwx_mask = NULL;
+	free_pages((unsigned long)mm->context.page_rwx_mask, page_mask_order);
+#endif
 }
 
 static inline unsigned long
@@ -106,9 +120,21 @@ activate_l1stack(struct mm_struct *mm, unsigned long sp_base)
 
 #define deactivate_mm(tsk,mm)	do { } while (0)
 
-static inline void activate_mm(struct mm_struct *prev_mm,
-			       struct mm_struct *next_mm)
+#define activate_mm(prev, next) switch_mm(prev, next, NULL)
+
+static inline void switch_mm(struct mm_struct *prev_mm, struct mm_struct *next_mm,
+			     struct task_struct *tsk)
 {
+	if (prev_mm == next_mm)
+		return;
+#ifdef CONFIG_MPU
+	if (prev_mm->context.page_rwx_mask == current_rwx_mask) {
+		flush_switched_cplbs();
+		set_mask_dcplbs(next_mm->context.page_rwx_mask);
+	}
+#endif
+
+	/* L1 stack switching.  */
 	if (!next_mm->context.l1_stack_save)
 		return;
 	if (next_mm->context.l1_stack_save == current_l1_stack_save)
@@ -120,10 +146,36 @@ static inline void activate_mm(struct mm_struct *prev_mm,
 	memcpy(l1_stack_base, current_l1_stack_save, l1_stack_len);
 }
 
-static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
-			     struct task_struct *tsk)
+#ifdef CONFIG_MPU
+static inline void protect_page(struct mm_struct *mm, unsigned long addr,
+				unsigned long flags)
 {
-	activate_mm(prev, next);
+	unsigned long *mask = mm->context.page_rwx_mask;
+	unsigned long page = addr >> 12;
+	unsigned long idx = page >> 5;
+	unsigned long bit = 1 << (page & 31);
+
+	if (flags & VM_MAYREAD)
+		mask[idx] |= bit;
+	else
+		mask[idx] &= ~bit;
+	mask += page_mask_nelts;
+	if (flags & VM_MAYWRITE)
+		mask[idx] |= bit;
+	else
+		mask[idx] &= ~bit;
+	mask += page_mask_nelts;
+	if (flags & VM_MAYEXEC)
+		mask[idx] |= bit;
+	else
+		mask[idx] &= ~bit;
 }
+
+static inline void update_protections(struct mm_struct *mm)
+{
+	flush_switched_cplbs();
+	set_mask_dcplbs(mm->context.page_rwx_mask);
+}
+#endif
 
 #endif

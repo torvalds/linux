@@ -75,6 +75,15 @@ ENTRY(_cplb_mgr)
 	* from the configuration table.
 	*/
 
+	/* A multi-word instruction can cross a page boundary. This means the
+	 * first part of the instruction can be in a valid page, but the
+	 * second part is not, and hence generates the instruction miss.
+	 * However, the fault address is for the start of the instruction,
+	 * not the part that's in the bad page. Therefore, we have to check
+	 * whether the fault address applies to a page that is already present
+	 * in the table.
+	 */
+
 	P4.L = LO(ICPLB_FAULT_ADDR);
 	P4.H = HI(ICPLB_FAULT_ADDR);
 
@@ -87,7 +96,7 @@ ENTRY(_cplb_mgr)
 	R4 = [P4];		/* Get faulting address*/
 	R6 = 64;		/* Advance past the fault address, which*/
 	R6 = R6 + R4;		/* we'll use if we find a match*/
-	R3 = ((16 << 8) | 2);	/* Extract mask, bits 16 and 17.*/
+	R3 = ((16 << 8) | 2);	/* Extract mask, two bits at posn 16 */
 
 	R5 = 0;
 .Lisearch:
@@ -125,7 +134,9 @@ ENTRY(_cplb_mgr)
 	P4.L = LO(IMEM_CONTROL);
 	P4.H = HI(IMEM_CONTROL);
 
-	/* disable cplbs */
+	/* Turn off CPLBs while we work, necessary according to HRM before
+	 * modifying CPLB descriptors
+	 */
 	R5 = [P4];		/* Control Register*/
 	BITCLR(R5,ENICPLB_P);
 	CLI R1;
@@ -179,7 +190,14 @@ ENTRY(_cplb_mgr)
 	[P0 - 4] = R0;
 	R0 = [P0 - 0x100];
 	[P0-0x104] = R0;
-.Lie_move:P0+=4;
+.Lie_move:
+	P0+=4;
+
+	/* Clear ICPLB_DATA15, in case we don't find a replacement
+	 * otherwise, we would have a duplicate entry, and will crash
+	 */
+	R0 = 0;
+	[P0 - 4] = R0;
 
 	/* We've made space in the ICPLB table, so that ICPLB15
 	 * is now free to be overwritten. Next, we have to determine
@@ -504,14 +522,23 @@ ENTRY(_cplb_mgr)
 	R0 = [P0++];	/* move data */
 	[P0 - 8] = R0;
 	R0 = [P0-0x104]	/* move address */
-.Lde_move: [P0-0x108] = R0;
+.Lde_move:
+	 [P0-0x108] = R0;
+
+.Lde_moved:
+	NOP;
+
+	/* Clear DCPLB_DATA15, in case we don't find a replacement
+	 * otherwise, we would have a duplicate entry, and will crash
+	 */
+	R0 = 0;
+	[P0 - 0x4] = R0;
 
 	/* We've now made space in DCPLB15 for the new CPLB to be
 	 * installed. The next stage is to locate a CPLB in the
 	 * config table that covers the faulting address.
 	 */
 
-.Lde_moved:NOP;
 	R0 = I0;		/* Our faulting address */
 
 	P2.L = _dpdt_table;

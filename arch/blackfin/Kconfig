@@ -85,10 +85,25 @@ config BF522
 	help
 	  BF522 Processor Support.
 
+config BF523
+	bool "BF523"
+	help
+	  BF523 Processor Support.
+
+config BF524
+	bool "BF524"
+	help
+	  BF524 Processor Support.
+
 config BF525
 	bool "BF525"
 	help
 	  BF525 Processor Support.
+
+config BF526
+	bool "BF526"
+	help
+	  BF526 Processor Support.
 
 config BF527
 	bool "BF527"
@@ -198,7 +213,7 @@ endchoice
 
 config BF52x
 	bool
-	depends on (BF522 || BF525 || BF527)
+	depends on (BF522 || BF523 || BF524 || BF525 || BF526 || BF527)
 	default y
 
 config BF53x
@@ -251,11 +266,6 @@ config MEM_MT48LC8M32B2B5_7
 config MEM_MT48LC32M16A2TG_75
 	bool
 	depends on (BFIN527_EZKIT)
-	default y
-
-config BFIN_SHARED_FLASH_ENET
-	bool
-	depends on (BFIN533_STAMP)
 	default y
 
 source "arch/blackfin/mach-bf527/Kconfig"
@@ -317,7 +327,7 @@ config VCO_MULT
 	range 1 64
 	default "22" if BFIN533_EZKIT
 	default "45" if BFIN533_STAMP
-	default "20" if (BFIN537_STAMP || BFIN527_EZKIT)
+	default "20" if (BFIN537_STAMP || BFIN527_EZKIT || BFIN548_EZKIT)
 	default "22" if BFIN533_BLUETECHNIX_CM
 	default "20" if BFIN537_BLUETECHNIX_CM
 	default "20" if BFIN561_BLUETECHNIX_CM
@@ -354,7 +364,7 @@ config SCLK_DIV
 	range 1 15
 	default 5 if BFIN533_EZKIT
 	default 5 if BFIN533_STAMP
-	default 4 if (BFIN537_STAMP || BFIN527_EZKIT)
+	default 4 if (BFIN537_STAMP || BFIN527_EZKIT || BFIN548_EZKIT)
 	default 5 if BFIN533_BLUETECHNIX_CM
 	default 4 if BFIN537_BLUETECHNIX_CM
 	default 4 if BFIN561_BLUETECHNIX_CM
@@ -371,7 +381,10 @@ config SCLK_DIV
 config MAX_VCO_HZ
 	int
 	default 600000000 if BF522
+	default 400000000 if BF523
+	default 400000000 if BF524
 	default 600000000 if BF525
+	default 400000000 if BF526
 	default 600000000 if BF527
 	default 400000000 if BF531
 	default 400000000 if BF532
@@ -383,6 +396,8 @@ config MAX_VCO_HZ
 	default 533333333 if BF539
 	default 600000000 if BF542
 	default 533333333 if BF544
+	default 600000000 if BF547
+	default 600000000 if BF548
 	default 533333333 if BF549
 	default 600000000 if BF561
 
@@ -409,6 +424,7 @@ config MEM_SIZE
 	default  32 if BFIN533_EZKIT
 	default  64 if BFIN527_EZKIT
 	default  64 if BFIN537_STAMP
+	default  64 if BFIN548_EZKIT
 	default  64 if BFIN561_EZKIT
 	default 128 if BFIN533_STAMP
 	default  64 if PNAV10
@@ -416,6 +432,7 @@ config MEM_SIZE
 
 config MEM_ADD_WIDTH
 	int "SDRAM Memory Address Width"
+	depends on (!BF54x)
 	default  9 if BFIN533_EZKIT
 	default  9 if BFIN561_EZKIT
 	default  9 if H8606_HVSISTEMAS
@@ -423,6 +440,19 @@ config MEM_ADD_WIDTH
 	default 10 if BFIN537_STAMP
 	default 11 if BFIN533_STAMP
 	default 10 if PNAV10
+
+
+choice
+	prompt "DDR SDRAM Chip Type"
+	depends on BFIN548_EZKIT
+	default MEM_MT46V32M16_5B
+
+config MEM_MT46V32M16_6T
+        bool "MT46V32M16_6T"
+
+config MEM_MT46V32M16_5B
+        bool "MT46V32M16_5B"
+endchoice
 
 config ENET_FLASH_PIN
 	int "PF port/pin used for flash and ethernet sharing"
@@ -447,40 +477,6 @@ config BOOT_LOAD
 	  Note that you need to keep this value above 4k (0x1000) as this
 	  memory region is used to capture NULL pointer references as well
 	  as some core kernel functions.
-
-comment "LED Status Indicators"
-	depends on (BFIN533_STAMP || BFIN533_BLUETECHNIX_CM)
-
-config BFIN_ALIVE_LED
-	bool "Enable Board Alive"
-	depends on (BFIN533_STAMP || BFIN533_BLUETECHNIX_CM)
-	default n
-	help
-	  Blink the LEDs you select when the kernel is running.  Helps detect
-	  a hung kernel.
-
-config BFIN_ALIVE_LED_NUM
-	int "LED"
-	depends on BFIN_ALIVE_LED
-	range 1 3 if BFIN533_STAMP
-	default "3" if BFIN533_STAMP
-	help
-	  Select the LED (marked on the board) for you to blink.
-
-config BFIN_IDLE_LED
-	bool "Enable System Load/Idle LED"
-	depends on (BFIN533_STAMP || BFIN533_BLUETECHNIX_CM)
-	default n
-	help
-	  Blinks the LED you select when to determine kernel load.
-
-config BFIN_IDLE_LED_NUM
-	int "LED"
-	depends on BFIN_IDLE_LED
-	range 1 3 if BFIN533_STAMP
-	default "2" if BFIN533_STAMP
-	help
-	  Select the LED (marked on the board) for you to blink.
 
 choice
 	prompt "Blackfin Exception Scratch Register"
@@ -527,41 +523,6 @@ config BFIN_SCRATCH_REG_CYCLES
 	  If you are unsure, please select "RETN".
 
 endchoice
-
-#
-# Sorry - but you need to put the hex address here -
-#
-
-# Flag Data register
-config BFIN_ALIVE_LED_PORT
-	hex
-	default 0xFFC00700 if (BFIN533_STAMP)
-
-# Peripheral Flag Direction Register
-config BFIN_ALIVE_LED_DPORT
-	hex
-	default 0xFFC00730 if (BFIN533_STAMP)
-
-config BFIN_ALIVE_LED_PIN
-	hex
-	default 0x04 if (BFIN533_STAMP && BFIN_ALIVE_LED_NUM = 1)
-	default 0x08 if (BFIN533_STAMP && BFIN_ALIVE_LED_NUM = 2)
-	default 0x10 if (BFIN533_STAMP && BFIN_ALIVE_LED_NUM = 3)
-
-config BFIN_IDLE_LED_PORT
-	hex
-	default 0xFFC00700 if (BFIN533_STAMP)
-
-# Peripheral Flag Direction Register
-config BFIN_IDLE_LED_DPORT
-	hex
-	default 0xFFC00730 if (BFIN533_STAMP)
-
-config BFIN_IDLE_LED_PIN
-	hex
-	default 0x04 if (BFIN533_STAMP && BFIN_IDLE_LED_NUM = 1)
-	default 0x08 if (BFIN533_STAMP && BFIN_IDLE_LED_NUM = 2)
-	default 0x10 if (BFIN533_STAMP && BFIN_IDLE_LED_NUM = 3)
 
 endmenu
 
@@ -799,6 +760,15 @@ config L1_MAX_PIECE
 	  Set the max memory pieces for the L1 SRAM allocation algorithm.
 	  Min value is 16. Max value is 1024.
 
+
+config MPU
+	bool "Enable the memory protection unit (EXPERIMENTAL)"
+	default n
+	help
+	  Use the processor's MPU to protect applications from accessing
+	  memory they do not own.  This comes at a performance penalty
+	  and is recommended only for debugging.
+
 comment "Asynchonous Memory Configuration"
 
 menu "EBIU_AMGCTL Global Control"
@@ -808,7 +778,6 @@ config C_AMCKEN
 
 config C_CDPRIO
 	bool "DMA has priority over core for ext. accesses"
-	depends on !BF54x
 	default n
 
 config C_B0PEN
@@ -949,8 +918,10 @@ endchoice
 config PM_WAKEUP_SIC_IWR
 	hex "Wakeup Events (SIC_IWR)"
 	depends on PM_WAKEUP_GPIO_BY_SIC_IWR
-	default 0x80000000 if (BF537 || BF536 || BF534)
-	default 0x100000 if (BF533 || BF532 || BF531)
+	default 0x8 if (BF537 || BF536 || BF534)
+	default 0x80 if (BF533 || BF532 || BF531)
+	default 0x80 if (BF54x)
+	default 0x80 if (BF52x)
 
 config PM_WAKEUP_GPIO_NUMBER
 	int "Wakeup GPIO number"

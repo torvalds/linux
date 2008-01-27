@@ -7,7 +7,7 @@ menu "BF548 Specific Configuration"
 config DEB_DMA_URGENT
 	bool "DMA has priority over core for ext. accesses"
 	depends on BF54x
-	default n
+	default y
 	help
 	  Treat any DEB1, DEB2 and DEB3 request as Urgent
 

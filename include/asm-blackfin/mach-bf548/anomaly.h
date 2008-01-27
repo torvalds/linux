@@ -7,7 +7,7 @@
  */
 
 /* This file shoule be up to date with:
- *  - Revision C, July 16, 2007; ADSP-BF549 Silicon Anomaly List
+ *  - Revision E, 11/28/2007; ADSP-BF542/BF544/BF547/BF548/BF549 Blackfin Processor Anomaly List
  */
 
 #ifndef _MACH_ANOMALY_H_
@@ -26,47 +26,59 @@
 /* Certain Data Cache Writethrough Modes Fail for Vddint <= 0.9V */
 #define ANOMALY_05000272 (1)
 /* False Hardware Error Exception when ISR context is not restored */
-#define ANOMALY_05000281 (1)
+#define ANOMALY_05000281 (__SILICON_REVISION__ < 1)
 /* SSYNCs After Writes To CAN/DMA MMR Registers Are Not Always Handled Correctly */
-#define ANOMALY_05000304 (1)
+#define ANOMALY_05000304 (__SILICON_REVISION__ < 1)
 /* False Hardware Errors Caused by Fetches at the Boundary of Reserved Memory */
 #define ANOMALY_05000310 (1)
 /* Errors When SSYNC, CSYNC, or Loads to LT, LB and LC Registers Are Interrupted */
-#define ANOMALY_05000312 (1)
+#define ANOMALY_05000312 (__SILICON_REVISION__ < 1)
 /* TWI Slave Boot Mode Is Not Functional */
-#define ANOMALY_05000324 (1)
+#define ANOMALY_05000324 (__SILICON_REVISION__ < 1)
 /* External FIFO Boot Mode Is Not Functional */
-#define ANOMALY_05000325 (1)
+#define ANOMALY_05000325 (__SILICON_REVISION__ < 1)
 /* Data Lost When Core and DMA Accesses Are Made to the USB FIFO Simultaneously */
-#define ANOMALY_05000327 (1)
+#define ANOMALY_05000327 (__SILICON_REVISION__ < 1)
 /* Incorrect Access of OTP_STATUS During otp_write() Function */
-#define ANOMALY_05000328 (1)
+#define ANOMALY_05000328 (__SILICON_REVISION__ < 1)
 /* Synchronous Burst Flash Boot Mode Is Not Functional */
-#define ANOMALY_05000329 (1)
+#define ANOMALY_05000329 (__SILICON_REVISION__ < 1)
 /* Host DMA Boot Mode Is Not Functional */
-#define ANOMALY_05000330 (1)
+#define ANOMALY_05000330 (__SILICON_REVISION__ < 1)
 /* Inadequate Timing Margins on DDR DQS to DQ and DQM Skew */
-#define ANOMALY_05000334 (1)
+#define ANOMALY_05000334 (__SILICON_REVISION__ < 1)
 /* Inadequate Rotary Debounce Logic Duration */
-#define ANOMALY_05000335 (1)
+#define ANOMALY_05000335 (__SILICON_REVISION__ < 1)
 /* Phantom Interrupt Occurs After First Configuration of Host DMA Port */
-#define ANOMALY_05000336 (1)
+#define ANOMALY_05000336 (__SILICON_REVISION__ < 1)
 /* Disallowed Configuration Prevents Subsequent Allowed Configuration on Host DMA Port */
-#define ANOMALY_05000337 (1)
+#define ANOMALY_05000337 (__SILICON_REVISION__ < 1)
 /* Slave-Mode SPI0 MISO Failure With CPHA = 0 */
-#define ANOMALY_05000338 (1)
+#define ANOMALY_05000338 (__SILICON_REVISION__ < 1)
 /* If Memory Reads Are Enabled on SDH or HOSTDP, Other DMAC1 Peripherals Cannot Read */
-#define ANOMALY_05000340 (1)
+#define ANOMALY_05000340 (__SILICON_REVISION__ < 1)
 /* Boot Host Wait (HWAIT) and Boot Host Wait Alternate (HWAITA) Signals Are Swapped */
-#define ANOMALY_05000344 (1)
+#define ANOMALY_05000344 (__SILICON_REVISION__ < 1)
 /* USB Calibration Value Is Not Intialized */
-#define ANOMALY_05000346 (1)
+#define ANOMALY_05000346 (__SILICON_REVISION__ < 1)
 /* Boot ROM Kernel Incorrectly Alters Reset Value of USB Register */
-#define ANOMALY_05000347 (1)
+#define ANOMALY_05000347 (__SILICON_REVISION__ < 1)
 /* Data Lost when Core Reads SDH Data FIFO */
-#define ANOMALY_05000349 (1)
+#define ANOMALY_05000349 (__SILICON_REVISION__ < 1)
 /* PLL Status Register Is Inaccurate */
-#define ANOMALY_05000351 (1)
+#define ANOMALY_05000351 (__SILICON_REVISION__ < 1)
+/* Serial Port (SPORT) Multichannel Transmit Failure when Channel 0 Is Disabled */
+#define ANOMALY_05000357 (1)
+/* External Memory Read Access Hangs Core With PLL Bypass */
+#define ANOMALY_05000360 (1)
+/* DMAs that Go Urgent during Tight Core Writes to External Memory Are Blocked */
+#define ANOMALY_05000365 (1)
+/* Addressing Conflict between Boot ROM and Asynchronous Memory */
+#define ANOMALY_05000369 (1)
+/* Mobile DDR Operation Not Functional */
+#define ANOMALY_05000377 (1)
+/* Security/Authentication Speedpath Causes Authentication To Fail To Initiate */
+#define ANOMALY_05000378 (1)
 
 /* Anomalies that don't exist on this proc */
 #define ANOMALY_05000125 (0)

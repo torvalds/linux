@@ -1095,8 +1095,8 @@
 
 #define              CMD_CRC_FAIL  0x1        /* CMD CRC Fail */
 #define              DAT_CRC_FAIL  0x2        /* Data CRC Fail */
-#define               CMD_TIMEOUT  0x4        /* CMD Time Out */
-#define               DAT_TIMEOUT  0x8        /* Data Time Out */
+#define               CMD_TIME_OUT  0x4        /* CMD Time Out */
+#define               DAT_TIME_OUT  0x8        /* Data Time Out */
 #define               TX_UNDERRUN  0x10       /* Transmit Underrun */
 #define                RX_OVERRUN  0x20       /* Receive Overrun */
 #define              CMD_RESP_END  0x40       /* CMD Response End */

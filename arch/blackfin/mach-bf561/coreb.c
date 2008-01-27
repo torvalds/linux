@@ -33,7 +33,9 @@
 #include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/uaccess.h>
+#include <linux/fs.h>
 #include <asm/dma.h>
+#include <asm/cacheflush.h>
 
 #define MODULE_VER		"v0.1"
 
@@ -90,11 +92,12 @@ static ssize_t coreb_write(struct file *file, const char *buf, size_t count,
 
 		coreb_dma_done = 0;
 
+		flush_dcache_range((unsigned long)buf, (unsigned long)(buf+len));
 		/* Source Channel */
 		set_dma_start_addr(CH_MEM_STREAM2_SRC, (unsigned long)buf);
 		set_dma_x_count(CH_MEM_STREAM2_SRC, len);
 		set_dma_x_modify(CH_MEM_STREAM2_SRC, sizeof(char));
-		set_dma_config(CH_MEM_STREAM2_SRC, RESTART);
+		set_dma_config(CH_MEM_STREAM2_SRC, 0);
 		/* Destination Channel */
 		set_dma_start_addr(CH_MEM_STREAM2_DEST, coreb_base + p);
 		set_dma_x_count(CH_MEM_STREAM2_DEST, len);
@@ -135,11 +138,12 @@ static ssize_t coreb_read(struct file *file, char *buf, size_t count,
 
 		coreb_dma_done = 0;
 
+		invalidate_dcache_range((unsigned long)buf, (unsigned long)(buf+len));
 		/* Source Channel */
 		set_dma_start_addr(CH_MEM_STREAM2_SRC, coreb_base + p);
 		set_dma_x_count(CH_MEM_STREAM2_SRC, len);
 		set_dma_x_modify(CH_MEM_STREAM2_SRC, sizeof(char));
-		set_dma_config(CH_MEM_STREAM2_SRC, RESTART);
+		set_dma_config(CH_MEM_STREAM2_SRC, 0);
 		/* Destination Channel */
 		set_dma_start_addr(CH_MEM_STREAM2_DEST, (unsigned long)buf);
 		set_dma_x_count(CH_MEM_STREAM2_DEST, len);
@@ -266,7 +270,7 @@ static int coreb_ioctl(struct inode *inode, struct file *file,
 		coreb_status |= COREB_IS_RUNNING;
 		bfin_write_SICA_SYSCR(bfin_read_SICA_SYSCR() & ~0x0020);
 		SSYNC();
-		spin_lock_irq(&coreb_lock);
+		spin_unlock_irq(&coreb_lock);
 		break;
 #if defined(CONFIG_BF561_COREB_RESET)
 	case CMD_COREB_STOP:
@@ -275,7 +279,7 @@ static int coreb_ioctl(struct inode *inode, struct file *file,
 		bfin_write_SICA_SYSCR(bfin_read_SICA_SYSCR() | 0x0020);
 		bfin_write_SICB_SYSCR(bfin_read_SICB_SYSCR() | 0x0080);
 		coreb_status &= ~COREB_IS_RUNNING;
-		spin_lock_irq(&coreb_lock);
+		spin_unlock_irq(&coreb_lock);
 		break;
 	case CMD_COREB_RESET:
 		printk(KERN_INFO "Resetting Core B\n");

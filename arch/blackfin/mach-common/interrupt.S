@@ -34,8 +34,12 @@
 #include <asm/entry.h>
 #include <asm/asm-offsets.h>
 #include <asm/trace.h>
+#include <asm/traps.h>
+#include <asm/thread_info.h>
 
 #include <asm/mach-common/context.S>
+
+.extern _ret_from_exception
 
 #ifdef CONFIG_I_ENTRY_L1
 .section .l1.text
@@ -117,8 +121,8 @@ __common_int_entry:
 
 #if ANOMALY_05000283 || ANOMALY_05000315
 	cc = r7 == r7;
-	p5.h = 0xffc0;
-	p5.l = 0x0014;
+	p5.h = HI(CHIPID);
+	p5.l = LO(CHIPID);
 	if cc jump 1f;
 	r7.l = W[p5];
 1:
@@ -134,26 +138,22 @@ __common_int_entry:
 
 /* interrupt routine for ivhw - 5 */
 ENTRY(_evt_ivhw)
-	SAVE_CONTEXT
+	SAVE_ALL_SYS
 #ifdef CONFIG_FRAME_POINTER
 	fp = 0;
 #endif
+
 #if ANOMALY_05000283
 	cc = r7 == r7;
-	p5.h = 0xffc0;
-	p5.l = 0x0014;
+	p5.h = HI(CHIPID);
+	p5.l = LO(CHIPID);
 	if cc jump 1f;
 	r7.l = W[p5];
 1:
 #endif
 
-	trace_buffer_stop(p0, r0);
-
-	r0 = IRQ_HWERR;
-	r1 = sp;
-
 #ifdef CONFIG_HARDWARE_PM
-	r7 = SEQSTAT;
+	r7 = [sp + PT_SEQSTAT];
 	r7 = r7 >>> 0xe;
 	r6 = 0x1F;
 	r7 = r7 & r6;
@@ -161,11 +161,29 @@ ENTRY(_evt_ivhw)
 	cc = r7 == r5;
 	if cc jump .Lcall_do_ovf; /* deal with performance counter overflow */
 #endif
+	# We are going to dump something out, so make sure we print IPEND properly
+	p2.l = lo(IPEND);
+	p2.h = hi(IPEND);
+	r0 = [p2];
+	[sp + PT_IPEND] = r0;
 
+	/* set the EXCAUSE to HWERR for trap_c */
+	r0 = [sp + PT_SEQSTAT];
+	R1.L = LO(VEC_HWERR);
+	R1.H = HI(VEC_HWERR);
+	R0 = R0 | R1;
+	[sp + PT_SEQSTAT] = R0;
+
+	r0 = sp;        /* stack frame pt_regs pointer argument ==> r0 */
 	SP += -12;
-	call _irq_panic;
+	call _trap_c;
 	SP += 12;
+
+	call _ret_from_exception;
+.Lcommon_restore_all_sys:
+	RESTORE_ALL_SYS
 	rti;
+
 #ifdef CONFIG_HARDWARE_PM
 .Lcall_do_ovf:
 
@@ -173,8 +191,10 @@ ENTRY(_evt_ivhw)
 	call _pm_overflow;
 	SP += 12;
 
-	jump .Lcommon_restore_context;
+	jump .Lcommon_restore_all_sys;
 #endif
+
+ENDPROC(_evt_ivhw)
 
 /* Interrupt routine for evt2 (NMI).
  * We don't actually use this, so just return.

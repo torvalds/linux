@@ -42,75 +42,6 @@
 static void time_sched_init(irqreturn_t(*timer_routine)
 			(int, void *));
 static unsigned long gettimeoffset(void);
-static inline void do_leds(void);
-
-#if (defined(CONFIG_BFIN_ALIVE_LED) || defined(CONFIG_BFIN_IDLE_LED))
-void __init init_leds(void)
-{
-	unsigned int tmp = 0;
-
-#if defined(CONFIG_BFIN_ALIVE_LED)
-	/* config pins as output. */
-	tmp = bfin_read_CONFIG_BFIN_ALIVE_LED_DPORT();
-	SSYNC();
-	bfin_write_CONFIG_BFIN_ALIVE_LED_DPORT(tmp | CONFIG_BFIN_ALIVE_LED_PIN);
-	SSYNC();
-
-	/*      First set led be off */
-	tmp = bfin_read_CONFIG_BFIN_ALIVE_LED_PORT();
-	SSYNC();
-	bfin_write_CONFIG_BFIN_ALIVE_LED_PORT(tmp | CONFIG_BFIN_ALIVE_LED_PIN);	/* light off */
-	SSYNC();
-#endif
-
-#if defined(CONFIG_BFIN_IDLE_LED)
-	/* config pins as output. */
-	tmp = bfin_read_CONFIG_BFIN_IDLE_LED_DPORT();
-	SSYNC();
-	bfin_write_CONFIG_BFIN_IDLE_LED_DPORT(tmp | CONFIG_BFIN_IDLE_LED_PIN);
-	SSYNC();
-
-	/*      First set led be off */
-	tmp = bfin_read_CONFIG_BFIN_IDLE_LED_PORT();
-	SSYNC();
-	bfin_write_CONFIG_BFIN_IDLE_LED_PORT(tmp | CONFIG_BFIN_IDLE_LED_PIN);	/* light off */
-	SSYNC();
-#endif
-}
-#else
-void __init init_leds(void)
-{
-}
-#endif
-
-#if defined(CONFIG_BFIN_ALIVE_LED)
-static inline void do_leds(void)
-{
-	static unsigned int count = 50;
-	static int flag;
-	unsigned short tmp = 0;
-
-	if (--count == 0) {
-		count = 50;
-		flag = ~flag;
-	}
-	tmp = bfin_read_CONFIG_BFIN_ALIVE_LED_PORT();
-	SSYNC();
-
-	if (flag)
-		tmp &= ~CONFIG_BFIN_ALIVE_LED_PIN;	/* light on */
-	else
-		tmp |= CONFIG_BFIN_ALIVE_LED_PIN;	/* light off */
-
-	bfin_write_CONFIG_BFIN_ALIVE_LED_PORT(tmp);
-	SSYNC();
-
-}
-#else
-static inline void do_leds(void)
-{
-}
-#endif
 
 static struct irqaction bfin_timer_irq = {
 	.name = "BFIN Timer Tick",
@@ -205,7 +136,6 @@ irqreturn_t timer_interrupt(int irq, void *dummy)
 	write_seqlock(&xtime_lock);
 
 	do_timer(1);
-	do_leds();
 
 #ifndef CONFIG_SMP
 	update_process_times(user_mode(get_irq_regs()));

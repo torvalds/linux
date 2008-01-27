@@ -76,6 +76,9 @@ enum dma_chan_status {
 #define INTR_ON_BUF    2
 #define INTR_ON_ROW    3
 
+#define DMA_NOSYNC_KEEP_DMA_BUF	0
+#define DMA_SYNC_RESTART	1
+
 struct dmasg {
 	unsigned long next_desc_addr;
 	unsigned long start_addr;
@@ -157,7 +160,8 @@ void set_dma_y_count(unsigned int channel, unsigned short y_count);
 void set_dma_y_modify(unsigned int channel, short y_modify);
 void set_dma_config(unsigned int channel, unsigned short config);
 unsigned short set_bfin_dma_config(char direction, char flow_mode,
-				   char intr_mode, char dma_mode, char width);
+				   char intr_mode, char dma_mode, char width,
+				   char syncmode);
 void set_dma_curr_addr(unsigned int channel, unsigned long addr);
 
 /* get curr status for polling */
