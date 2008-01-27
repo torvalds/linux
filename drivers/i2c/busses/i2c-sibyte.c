@@ -36,14 +36,6 @@ struct i2c_algo_sibyte_data {
 /* ----- global defines ----------------------------------------------- */
 #define SMB_CSR(a,r) ((long)(a->reg_base + r))
 
-/* ----- global variables --------------------------------------------- */
-
-/* module parameters:
- */
-static int bit_scan;	/* have a look at what's hanging 'round */
-module_param(bit_scan, int, 0);
-MODULE_PARM_DESC(bit_scan, "Scan for active chips on the bus");
-
 
 static int smbus_xfer(struct i2c_adapter *i2c_adap, u16 addr,
 		      unsigned short flags, char read_write,
@@ -140,9 +132,8 @@ static const struct i2c_algorithm i2c_sibyte_algo = {
 /*
  * registering functions to load algorithms at runtime
  */
-int i2c_sibyte_add_bus(struct i2c_adapter *i2c_adap, int speed)
+int __init i2c_sibyte_add_bus(struct i2c_adapter *i2c_adap, int speed)
 {
-	int i;
 	struct i2c_algo_sibyte_data *adap = i2c_adap->algo_data;
 
 	/* register new adapter to i2c module... */
@@ -151,24 +142,6 @@ int i2c_sibyte_add_bus(struct i2c_adapter *i2c_adap, int speed)
 	/* Set the frequency to 100 kHz */
 	csr_out32(speed, SMB_CSR(adap,R_SMB_FREQ));
 	csr_out32(0, SMB_CSR(adap,R_SMB_CONTROL));
-
-	/* scan bus */
-	if (bit_scan) {
-		union i2c_smbus_data data;
-		int rc;
-		printk(KERN_INFO " i2c-algo-sibyte.o: scanning bus %s.\n",
-		       i2c_adap->name);
-		for (i = 0x00; i < 0x7f; i++) {
-			/* XXXKW is this a realistic probe? */
-			rc = smbus_xfer(i2c_adap, i, 0, I2C_SMBUS_READ, 0,
-					I2C_SMBUS_BYTE_DATA, &data);
-			if (!rc) {
-				printk("(%02x)",i);
-			} else
-				printk(".");
-		}
-		printk("\n");
-	}
 
 	return i2c_add_adapter(i2c_adap);
 }
