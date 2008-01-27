@@ -122,7 +122,12 @@ static unsigned long i801_smba;
 static unsigned char i801_original_hstcfg;
 static struct pci_driver i801_driver;
 static struct pci_dev *I801_dev;
-static int isich4;
+
+#define FEATURE_SMBUS_PEC	(1 << 0)
+#define FEATURE_BLOCK_BUFFER	(1 << 1)
+#define FEATURE_BLOCK_PROC	(1 << 2)
+#define FEATURE_I2C_BLOCK_READ	(1 << 3)
+static unsigned int i801_features;
 
 static int i801_transaction(int xact)
 {
@@ -409,7 +414,8 @@ static int i801_block_transaction(union i2c_smbus_data *data, char read_write,
 		data->block[0] = 32;	/* max for reads */
 	}
 
-	if (isich4 && i801_set_block_buffer_mode() == 0 )
+	if ((i801_features & FEATURE_BLOCK_BUFFER)
+	 && i801_set_block_buffer_mode() == 0)
 		result = i801_block_transaction_by_block(data, read_write,
 							 hwpec);
 	else
@@ -435,7 +441,7 @@ static s32 i801_access(struct i2c_adapter * adap, u16 addr,
 	int block = 0;
 	int ret, xact = 0;
 
-	hwpec = isich4 && (flags & I2C_CLIENT_PEC)
+	hwpec = (i801_features & FEATURE_SMBUS_PEC) && (flags & I2C_CLIENT_PEC)
 		&& size != I2C_SMBUS_QUICK
 		&& size != I2C_SMBUS_I2C_BLOCK_DATA;
 
@@ -523,9 +529,9 @@ static s32 i801_access(struct i2c_adapter * adap, u16 addr,
 static u32 i801_func(struct i2c_adapter *adapter)
 {
 	return I2C_FUNC_SMBUS_QUICK | I2C_FUNC_SMBUS_BYTE |
-	    I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA |
-	    I2C_FUNC_SMBUS_BLOCK_DATA | I2C_FUNC_SMBUS_WRITE_I2C_BLOCK
-	     | (isich4 ? I2C_FUNC_SMBUS_PEC : 0);
+	       I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA |
+	       I2C_FUNC_SMBUS_BLOCK_DATA | I2C_FUNC_SMBUS_WRITE_I2C_BLOCK |
+	       ((i801_features & FEATURE_SMBUS_PEC) ? I2C_FUNC_SMBUS_PEC : 0);
 }
 
 static const struct i2c_algorithm smbus_algorithm = {
@@ -565,6 +571,7 @@ static int __devinit i801_probe(struct pci_dev *dev, const struct pci_device_id 
 	int err;
 
 	I801_dev = dev;
+	i801_features = 0;
 	switch (dev->device) {
 	case PCI_DEVICE_ID_INTEL_82801DB_3:
 	case PCI_DEVICE_ID_INTEL_82801EB_3:
@@ -575,10 +582,9 @@ static int __devinit i801_probe(struct pci_dev *dev, const struct pci_device_id 
 	case PCI_DEVICE_ID_INTEL_ICH8_5:
 	case PCI_DEVICE_ID_INTEL_ICH9_6:
 	case PCI_DEVICE_ID_INTEL_TOLAPAI_1:
-		isich4 = 1;
+		i801_features |= FEATURE_SMBUS_PEC;
+		i801_features |= FEATURE_BLOCK_BUFFER;
 		break;
-	default:
-		isich4 = 0;
 	}
 
 	err = pci_enable_device(dev);
