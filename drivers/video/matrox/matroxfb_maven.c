@@ -1232,7 +1232,7 @@ static int maven_shutdown_client(struct i2c_client* clnt) {
 	return 0;
 }
 
-static unsigned short normal_i2c[] = { MAVEN_I2CID, I2C_CLIENT_END };
+static const unsigned short normal_i2c[] = { MAVEN_I2CID, I2C_CLIENT_END };
 I2C_CLIENT_INSMOD;
 
 static struct i2c_driver maven_driver;

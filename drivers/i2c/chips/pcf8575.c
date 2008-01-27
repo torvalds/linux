@@ -33,7 +33,7 @@
 #include <linux/sysfs.h> /* sysfs_create_group() */
 
 /* Addresses to scan */
-static unsigned short normal_i2c[] = {
+static const unsigned short normal_i2c[] = {
 	0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,
 	I2C_CLIENT_END
 };

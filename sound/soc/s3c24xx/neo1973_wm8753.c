@@ -573,7 +573,7 @@ static struct snd_soc_device neo1973_snd_devdata = {
 
 static struct i2c_client client_template;
 
-static unsigned short normal_i2c[] = { 0x7C, I2C_CLIENT_END };
+static const unsigned short normal_i2c[] = { 0x7C, I2C_CLIENT_END };
 
 /* Magic definition of all other variables and things */
 I2C_CLIENT_INSMOD;
