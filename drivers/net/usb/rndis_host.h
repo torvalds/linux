@@ -82,6 +82,17 @@ struct rndis_msg_hdr {
 #define	RNDIS_STATUS_MEDIA_CONNECT	ccpu2(0x4001000b)
 #define	RNDIS_STATUS_MEDIA_DISCONNECT	ccpu2(0x4001000c)
 
+/* codes for OID_GEN_PHYSICAL_MEDIUM */
+#define	RNDIS_PHYSICAL_MEDIUM_UNSPECIFIED	ccpu2(0x00000000)
+#define	RNDIS_PHYSICAL_MEDIUM_WIRELESS_LAN	ccpu2(0x00000001)
+#define	RNDIS_PHYSICAL_MEDIUM_CABLE_MODEM	ccpu2(0x00000002)
+#define	RNDIS_PHYSICAL_MEDIUM_PHONE_LINE	ccpu2(0x00000003)
+#define	RNDIS_PHYSICAL_MEDIUM_POWER_LINE	ccpu2(0x00000004)
+#define	RNDIS_PHYSICAL_MEDIUM_DSL		ccpu2(0x00000005)
+#define	RNDIS_PHYSICAL_MEDIUM_FIBRE_CHANNEL	ccpu2(0x00000006)
+#define	RNDIS_PHYSICAL_MEDIUM_1394		ccpu2(0x00000007)
+#define	RNDIS_PHYSICAL_MEDIUM_WIRELESS_WAN	ccpu2(0x00000008)
+#define	RNDIS_PHYSICAL_MEDIUM_MAX		ccpu2(0x00000009)
 
 struct rndis_data_hdr {
 	__le32	msg_type;		/* RNDIS_MSG_PACKET */
@@ -222,6 +233,7 @@ struct rndis_keepalive_c {	/* IN (optionally OUT) */
 #define OID_802_3_PERMANENT_ADDRESS	ccpu2(0x01010101)
 #define OID_GEN_MAXIMUM_FRAME_SIZE	ccpu2(0x00010106)
 #define OID_GEN_CURRENT_PACKET_FILTER	ccpu2(0x0001010e)
+#define OID_GEN_PHYSICAL_MEDIUM		ccpu2(0x00010202)
 
 /* packet filter bits used by OID_GEN_CURRENT_PACKET_FILTER */
 #define RNDIS_PACKET_TYPE_DIRECTED		ccpu2(0x00000001)
@@ -244,10 +256,15 @@ struct rndis_keepalive_c {	/* IN (optionally OUT) */
 	RNDIS_PACKET_TYPE_ALL_MULTICAST | \
 	RNDIS_PACKET_TYPE_PROMISCUOUS)
 
+/* Flags to require specific physical medium type for generic_rndis_bind() */
+#define FLAG_RNDIS_PHYM_NOT_WIRELESS	0x0001
+#define FLAG_RNDIS_PHYM_WIRELESS	0x0002
+
 
 extern void rndis_status(struct usbnet *dev, struct urb *urb);
 extern int rndis_command(struct usbnet *dev, struct rndis_msg_hdr *buf);
-extern int generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf);
+extern int
+generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags);
 extern void rndis_unbind(struct usbnet *dev, struct usb_interface *intf);
 extern int rndis_rx_fixup(struct usbnet *dev, struct sk_buff *skb);
 extern struct sk_buff *

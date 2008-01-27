@@ -271,7 +271,8 @@ response_error:
 	return -EDOM;
 }
 
-int generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf)
+int
+generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
 {
 	int			retval;
 	struct net_device	*net = dev->net;
@@ -287,7 +288,7 @@ int generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf)
 		struct rndis_set_c	*set_c;
 		struct rndis_halt	*halt;
 	} u;
-	u32			tmp;
+	u32			tmp, *phym;
 	int			reply_len;
 	unsigned char		*bp;
 
@@ -358,6 +359,30 @@ int generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf)
 			dev->driver_info->early_init(dev) != 0)
 		goto halt_fail_and_release;
 
+	/* Check physical medium */
+	reply_len = sizeof *phym;
+	retval = rndis_query(dev, intf, u.buf, OID_GEN_PHYSICAL_MEDIUM,
+			0, (void **) &phym, &reply_len);
+	if (retval != 0)
+		/* OID is optional so don't fail here. */
+		*phym = RNDIS_PHYSICAL_MEDIUM_UNSPECIFIED;
+	if ((flags & FLAG_RNDIS_PHYM_WIRELESS) &&
+			*phym != RNDIS_PHYSICAL_MEDIUM_WIRELESS_LAN) {
+		if (netif_msg_probe(dev))
+			dev_dbg(&intf->dev, "driver requires wireless "
+				"physical medium, but device is not.\n");
+		retval = -ENODEV;
+		goto halt_fail_and_release;
+	}
+	if ((flags & FLAG_RNDIS_PHYM_NOT_WIRELESS) &&
+			*phym == RNDIS_PHYSICAL_MEDIUM_WIRELESS_LAN) {
+		if (netif_msg_probe(dev))
+			dev_dbg(&intf->dev, "driver requires non-wireless "
+				"physical medium, but device is wireless.\n");
+		retval = -ENODEV;
+		goto halt_fail_and_release;
+	}
+
 	/* Get designated host ethernet address */
 	reply_len = ETH_ALEN;
 	retval = rndis_query(dev, intf, u.buf, OID_802_3_PERMANENT_ADDRESS,
@@ -402,6 +427,11 @@ fail:
 	return retval;
 }
 EXPORT_SYMBOL_GPL(generic_rndis_bind);
+
+static int rndis_bind(struct usbnet *dev, struct usb_interface *intf)
+{
+	return generic_rndis_bind(dev, intf, FLAG_RNDIS_PHYM_NOT_WIRELESS);
+}
 
 void rndis_unbind(struct usbnet *dev, struct usb_interface *intf)
 {
@@ -518,7 +548,7 @@ EXPORT_SYMBOL_GPL(rndis_tx_fixup);
 static const struct driver_info	rndis_info = {
 	.description =	"RNDIS device",
 	.flags =	FLAG_ETHER | FLAG_FRAMING_RN | FLAG_NO_SETINT,
-	.bind =		generic_rndis_bind,
+	.bind =		rndis_bind,
 	.unbind =	rndis_unbind,
 	.status =	rndis_status,
 	.rx_fixup =	rndis_rx_fixup,
