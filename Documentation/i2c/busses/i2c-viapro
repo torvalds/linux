@@ -10,7 +10,7 @@ Supported adapters:
   * VIA Technologies, Inc. VT8231, VT8233, VT8233A
     Datasheet: available on request from VIA
 
-  * VIA Technologies, Inc. VT8235, VT8237R, VT8237A, VT8251
+  * VIA Technologies, Inc. VT8235, VT8237R, VT8237A, VT8237S, VT8251
     Datasheet: available on request and under NDA from VIA
 
   * VIA Technologies, Inc. CX700
@@ -46,6 +46,7 @@ Your lspci -n listing must show one of these :
  device 1106:3177   (VT8235)
  device 1106:3227   (VT8237R)
  device 1106:3337   (VT8237A)
+ device 1106:3372   (VT8237S)
  device 1106:3287   (VT8251)
  device 1106:8324   (CX700)
 

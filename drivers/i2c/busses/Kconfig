@@ -606,7 +606,7 @@ config I2C_VIAPRO
 	    VT8231
 	    VT8233/A
 	    VT8235
-	    VT8237R/A
+	    VT8237R/A/S
 	    VT8251
 	    CX700
 
