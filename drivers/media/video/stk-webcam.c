@@ -1314,6 +1314,9 @@ static struct file_operations v4l_stk_fops = {
 	.poll = v4l_stk_poll,
 	.mmap = v4l_stk_mmap,
 	.ioctl = video_ioctl2,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = v4l_compat_ioctl32,
+#endif
 	.llseek = no_llseek
 };
 
