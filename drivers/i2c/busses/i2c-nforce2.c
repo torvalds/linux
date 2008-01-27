@@ -351,6 +351,7 @@ static int __devinit nforce2_probe(struct pci_dev *dev, const struct pci_device_
 	pci_set_drvdata(dev, smbuses);
 
 	switch(dev->device) {
+	case PCI_DEVICE_ID_NVIDIA_NFORCE2_SMBUS:
 	case PCI_DEVICE_ID_NVIDIA_NFORCE_MCP51_SMBUS:
 	case PCI_DEVICE_ID_NVIDIA_NFORCE_MCP55_SMBUS:
 		smbuses[0].blockops = 1;
