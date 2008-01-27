@@ -238,6 +238,7 @@ void __init setup_arch(char **cmdline_p)
 	memory_end = _ramend - DMA_UNCACHED_REGION;
 
 	_ramstart = (unsigned long)__bss_stop;
+	_rambase = (unsigned long)_stext;
 #ifdef CONFIG_MPU
 	/* Round up to multiple of 4MB.  */
 	memory_start = (_ramstart + 0x3fffff) & ~0x3fffff;
