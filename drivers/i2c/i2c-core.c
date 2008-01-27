@@ -33,6 +33,8 @@
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
 #include <linux/completion.h>
+#include <linux/hardirq.h>
+#include <linux/irqflags.h>
 #include <asm/uaccess.h>
 #include <asm/semaphore.h>
 
@@ -861,7 +863,15 @@ int i2c_transfer(struct i2c_adapter * adap, struct i2c_msg *msgs, int num)
 		}
 #endif
 
-		mutex_lock_nested(&adap->bus_lock, adap->level);
+		if (in_atomic() || irqs_disabled()) {
+			ret = mutex_trylock(&adap->bus_lock);
+			if (!ret)
+				/* I2C activity is ongoing. */
+				return -EAGAIN;
+		} else {
+			mutex_lock_nested(&adap->bus_lock, adap->level);
+		}
+
 		ret = adap->algo->master_xfer(adap,msgs,num);
 		mutex_unlock(&adap->bus_lock);
 
