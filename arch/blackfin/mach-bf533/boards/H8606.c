@@ -346,6 +346,34 @@ static struct platform_device serial8250_device = {
 
 #endif
 
+#if defined(CONFIG_KEYBOARD_OPENCORES) || defined(CONFIG_KEYBOARD_OPENCORES_MODULE)
+
+/*
+ * Configuration for one OpenCores keyboard controller in FPGA at address 0x20200030,
+ * interrupt output wired to PF9. Change to suit different FPGA configuration
+ */
+
+static struct resource opencores_kbd_resources[] = {
+	[0] = {
+		.start	= 0x20200030,
+		.end	= 0x20300030 + 2,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_PF9,
+		.end	= IRQ_PF9,
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
+	},
+};
+
+static struct platform_device opencores_kbd_device = {
+	.id		= -1,
+	.name		= "opencores-kbd",
+	.resource	= opencores_kbd_resources,
+	.num_resources	= ARRAY_SIZE(opencores_kbd_resources),
+};
+#endif
+
 static struct platform_device *h8606_devices[] __initdata = {
 #if defined(CONFIG_RTC_DRV_BFIN) || defined(CONFIG_RTC_DRV_BFIN_MODULE)
 	&rtc_device,
@@ -373,6 +401,10 @@ static struct platform_device *h8606_devices[] __initdata = {
 
 #if defined(CONFIG_SERIAL_8250) || defined(CONFIG_SERIAL_8250_MODULE)
 	&serial8250_device,
+#endif
+
+#if defined(CONFIG_KEYBOARD_OPENCORES) || defined(CONFIG_KEYBOARD_OPENCORES_MODULE)
+	&opencores_kbd_device,
 #endif
 };
 
