@@ -709,13 +709,6 @@ int i2c_attach_client(struct i2c_client *client)
 	struct i2c_adapter *adapter = client->adapter;
 	int res = 0;
 
-	mutex_lock(&adapter->clist_lock);
-	if (i2c_check_addr(client->adapter, client->addr)) {
-		res = -EBUSY;
-		goto out_unlock;
-	}
-	list_add_tail(&client->list,&adapter->clients);
-
 	client->dev.parent = &client->adapter->dev;
 	client->dev.bus = &i2c_bus_type;
 
@@ -730,12 +723,16 @@ int i2c_attach_client(struct i2c_client *client)
 
 	snprintf(&client->dev.bus_id[0], sizeof(client->dev.bus_id),
 		"%d-%04x", i2c_adapter_id(adapter), client->addr);
-	dev_dbg(&adapter->dev, "client [%s] registered with bus id %s\n",
-		client->name, client->dev.bus_id);
 	res = device_register(&client->dev);
 	if (res)
-		goto out_list;
+		goto out_err;
+
+	mutex_lock(&adapter->clist_lock);
+	list_add_tail(&client->list, &adapter->clients);
 	mutex_unlock(&adapter->clist_lock);
+
+	dev_dbg(&adapter->dev, "client [%s] registered with bus id %s\n",
+		client->name, client->dev.bus_id);
 
 	if (adapter->client_register)  {
 		if (adapter->client_register(client)) {
@@ -747,12 +744,9 @@ int i2c_attach_client(struct i2c_client *client)
 
 	return 0;
 
-out_list:
-	list_del(&client->list);
+out_err:
 	dev_err(&adapter->dev, "Failed to attach i2c client %s at 0x%02x "
 		"(%d)\n", client->name, client->addr, res);
-out_unlock:
-	mutex_unlock(&adapter->clist_lock);
 	return res;
 }
 EXPORT_SYMBOL(i2c_attach_client);
