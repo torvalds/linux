@@ -696,8 +696,6 @@ int i2c_attach_client(struct i2c_client *client)
 	}
 	list_add_tail(&client->list,&adapter->clients);
 
-	client->usage_count = 0;
-
 	client->dev.parent = &client->adapter->dev;
 	client->dev.bus = &i2c_bus_type;
 
@@ -744,12 +742,6 @@ int i2c_detach_client(struct i2c_client *client)
 	struct i2c_adapter *adapter = client->adapter;
 	int res = 0;
 
-	if (client->usage_count > 0) {
-		dev_warn(&client->dev, "Client [%s] still busy, "
-			 "can't detach\n", client->name);
-		return -EBUSY;
-	}
-
 	if (adapter->client_unregister)  {
 		res = adapter->client_unregister(client);
 		if (res) {
@@ -772,50 +764,16 @@ int i2c_detach_client(struct i2c_client *client)
 }
 EXPORT_SYMBOL(i2c_detach_client);
 
-static int i2c_inc_use_client(struct i2c_client *client)
-{
-
-	if (!try_module_get(client->driver->driver.owner))
-		return -ENODEV;
-	if (!try_module_get(client->adapter->owner)) {
-		module_put(client->driver->driver.owner);
-		return -ENODEV;
-	}
-
-	return 0;
-}
-
-static void i2c_dec_use_client(struct i2c_client *client)
-{
-	module_put(client->driver->driver.owner);
-	module_put(client->adapter->owner);
-}
-
 int i2c_use_client(struct i2c_client *client)
 {
-	int ret;
-
-	ret = i2c_inc_use_client(client);
-	if (ret)
-		return ret;
-
-	client->usage_count++;
-
+	get_device(&client->dev);
 	return 0;
 }
 EXPORT_SYMBOL(i2c_use_client);
 
 int i2c_release_client(struct i2c_client *client)
 {
-	if (!client->usage_count) {
-		pr_debug("i2c-core: %s used one too many times\n",
-			 __FUNCTION__);
-		return -EPERM;
-	}
-
-	client->usage_count--;
-	i2c_dec_use_client(client);
-
+	put_device(&client->dev);
 	return 0;
 }
 EXPORT_SYMBOL(i2c_release_client);

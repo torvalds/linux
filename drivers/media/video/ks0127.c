@@ -764,7 +764,6 @@ static struct i2c_client ks0127_client_tmpl =
 	.addr = 0,
 	.adapter = NULL,
 	.driver = &i2c_driver_ks0127,
-	.usage_count = 0
 };
 
 static int ks0127_found_proc(struct i2c_adapter *adapter, int addr, int kind)
