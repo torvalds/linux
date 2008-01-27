@@ -163,15 +163,6 @@ static struct kset *bus_kset;
 
 #ifdef CONFIG_HOTPLUG
 /* Manually detach a device from its associated driver. */
-static int driver_helper(struct device *dev, void *data)
-{
-	const char *name = data;
-
-	if (strcmp(name, dev->bus_id) == 0)
-		return 1;
-	return 0;
-}
-
 static ssize_t driver_unbind(struct device_driver *drv,
 			     const char *buf, size_t count)
 {
@@ -179,7 +170,7 @@ static ssize_t driver_unbind(struct device_driver *drv,
 	struct device *dev;
 	int err = -ENODEV;
 
-	dev = bus_find_device(bus, NULL, (void *)buf, driver_helper);
+	dev = bus_find_device_by_name(bus, NULL, buf);
 	if (dev && dev->driver == drv) {
 		if (dev->parent)	/* Needed for USB */
 			down(&dev->parent->sem);
@@ -206,7 +197,7 @@ static ssize_t driver_bind(struct device_driver *drv,
 	struct device *dev;
 	int err = -ENODEV;
 
-	dev = bus_find_device(bus, NULL, (void *)buf, driver_helper);
+	dev = bus_find_device_by_name(bus, NULL, buf);
 	if (dev && dev->driver == NULL) {
 		if (dev->parent)	/* Needed for USB */
 			down(&dev->parent->sem);
@@ -250,7 +241,7 @@ static ssize_t store_drivers_probe(struct bus_type *bus,
 {
 	struct device *dev;
 
-	dev = bus_find_device(bus, NULL, (void *)buf, driver_helper);
+	dev = bus_find_device_by_name(bus, NULL, buf);
 	if (!dev)
 		return -ENODEV;
 	if (bus_rescan_devices_helper(dev, NULL) != 0)
@@ -337,6 +328,32 @@ struct device *bus_find_device(struct bus_type *bus,
 	return dev;
 }
 EXPORT_SYMBOL_GPL(bus_find_device);
+
+static int match_name(struct device *dev, void *data)
+{
+	const char *name = data;
+
+	if (strcmp(name, dev->bus_id) == 0)
+		return 1;
+	return 0;
+}
+
+/**
+ * bus_find_device_by_name - device iterator for locating a particular device of a specific name
+ * @bus: bus type
+ * @start: Device to begin with
+ * @name: name of the device to match
+ *
+ * This is similar to the bus_find_device() function above, but it handles
+ * searching by a name automatically, no need to write another strcmp matching
+ * function.
+ */
+struct device *bus_find_device_by_name(struct bus_type *bus,
+				       struct device *start, const char *name)
+{
+	return bus_find_device(bus, start, (void *)name, match_name);
+}
+EXPORT_SYMBOL_GPL(bus_find_device_by_name);
 
 static struct device_driver *next_driver(struct klist_iter *i)
 {

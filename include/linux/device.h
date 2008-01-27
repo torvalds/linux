@@ -84,6 +84,9 @@ int bus_for_each_dev(struct bus_type *bus, struct device *start, void *data,
 struct device *bus_find_device(struct bus_type *bus, struct device *start,
 			       void *data,
 			       int (*match)(struct device *dev, void *data));
+struct device *bus_find_device_by_name(struct bus_type *bus,
+				       struct device *start,
+				       const char *name);
 
 int __must_check bus_for_each_drv(struct bus_type *bus,
 				  struct device_driver *start, void *data,
