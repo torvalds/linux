@@ -1230,6 +1230,7 @@ void module_remove_modinfo_attrs(struct module *mod)
 int mod_sysfs_init(struct module *mod)
 {
 	int err;
+	struct kobject *kobj;
 
 	if (!module_sysfs_initialized) {
 		printk(KERN_ERR "%s: module sysfs not initialized\n",
@@ -1237,6 +1238,15 @@ int mod_sysfs_init(struct module *mod)
 		err = -EINVAL;
 		goto out;
 	}
+
+	kobj = kset_find_obj(module_kset, mod->name);
+	if (kobj) {
+		printk(KERN_ERR "%s: module is already loaded\n", mod->name);
+		kobject_put(kobj);
+		err = -EINVAL;
+		goto out;
+	}
+
 	mod->mkobj.mod = mod;
 
 	memset(&mod->mkobj.kobj, 0, sizeof(mod->mkobj.kobj));
