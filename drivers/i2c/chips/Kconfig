@@ -4,32 +4,6 @@
 
 menu "Miscellaneous I2C Chip support"
 
-config SENSORS_DS1337
-	tristate "Dallas DS1337 and DS1339 Real Time Clock (DEPRECATED)"
-	depends on EXPERIMENTAL
-	help
-	  If you say yes here you get support for Dallas Semiconductor
-	  DS1337 and DS1339 real-time clock chips.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called ds1337.
-
-	  This driver is deprecated and will be dropped soon. Use
-	  rtc-ds1307 instead.
-
-config SENSORS_DS1374
-	tristate "Dallas DS1374 Real Time Clock (DEPRECATED)"
-	depends on EXPERIMENTAL
-	help
-	  If you say yes here you get support for Dallas Semiconductor
-	  DS1374 real-time clock chips.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called ds1374.
-
-	  This driver is deprecated and will be dropped soon. Use
-	  rtc-ds1374 instead.
-
 config DS1682
 	tristate "Dallas DS1682 Total Elapsed Time Recorder with Alarm"
 	depends on EXPERIMENTAL
@@ -129,18 +103,6 @@ config TPS65010
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called tps65010.
-
-config SENSORS_M41T00
-	tristate "ST M41T00 RTC chip (DEPRECATED)"
-	depends on PPC32
-	help
-	  If you say yes here you get support for the ST M41T00 RTC chip.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called m41t00.
-
-	  This driver is deprecated and will be dropped soon. Use
-	  rtc-ds1307 or rtc-m41t80 instead.
 
 config SENSORS_MAX6875
 	tristate "Maxim MAX6875 Power supply supervisor"

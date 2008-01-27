@@ -838,27 +838,6 @@ katana_find_end_of_memory(void)
 	return bdp->bi_memsize;
 }
 
-#if defined(CONFIG_I2C_MV64XXX) && defined(CONFIG_SENSORS_M41T00)
-extern ulong	m41t00_get_rtc_time(void);
-extern int	m41t00_set_rtc_time(ulong);
-
-static int __init
-katana_rtc_hookup(void)
-{
-	struct timespec	tv;
-
-	ppc_md.get_rtc_time = m41t00_get_rtc_time;
-	ppc_md.set_rtc_time = m41t00_set_rtc_time;
-
-	tv.tv_nsec = 0;
-	tv.tv_sec = (ppc_md.get_rtc_time)();
-	do_settimeofday(&tv);
-
-	return 0;
-}
-late_initcall(katana_rtc_hookup);
-#endif
-
 #if defined(CONFIG_SERIAL_TEXT_DEBUG) && defined(CONFIG_SERIAL_MPSC_CONSOLE)
 static void __init
 katana_map_io(void)

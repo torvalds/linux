@@ -83,7 +83,6 @@
 #define I2C_DRIVERID_SAA7114	49	/* video decoder		*/
 #define I2C_DRIVERID_ZR36120	50     /* Zoran 36120 video encoder	*/
 #define I2C_DRIVERID_24LC32A	51	/* Microchip 24LC32A 32k EEPROM	*/
-#define I2C_DRIVERID_STM41T00	52	/* real time clock		*/
 #define I2C_DRIVERID_UDA1342	53	/* UDA1342 audio codec		*/
 #define I2C_DRIVERID_ADV7170	54	/* video encoder		*/
 #define I2C_DRIVERID_MAX1617	56	/* temp sensor			*/
@@ -95,7 +94,6 @@
 #define I2C_DRIVERID_TDA7313	62	/* TDA7313 audio processor	*/
 #define I2C_DRIVERID_MAX6900	63	/* MAX6900 real-time clock	*/
 #define I2C_DRIVERID_SAA7114H	64	/* video decoder		*/
-#define I2C_DRIVERID_DS1374	65	/* DS1374 real time clock	*/
 #define I2C_DRIVERID_TDA9874	66	/* TV sound decoder		*/
 #define I2C_DRIVERID_SAA6752HS	67	/* MPEG2 encoder		*/
 #define I2C_DRIVERID_TVEEPROM	68	/* TV EEPROM			*/

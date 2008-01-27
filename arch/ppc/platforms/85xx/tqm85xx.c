@@ -258,27 +258,6 @@ int tqm85xx_show_cpuinfo(struct seq_file *m)
 	return 0;
 }
 
-#if defined(CONFIG_I2C) && defined(CONFIG_SENSORS_DS1337)
-extern ulong ds1337_get_rtc_time(void);
-extern int ds1337_set_rtc_time(unsigned long nowtime);
-
-static int __init
-tqm85xx_rtc_hookup(void)
-{
-	struct timespec	tv;
-
-        ppc_md.set_rtc_time = ds1337_set_rtc_time;
-        ppc_md.get_rtc_time = ds1337_get_rtc_time;
-
-	tv.tv_nsec = 0;
-	tv.tv_sec = (ppc_md.get_rtc_time)();
-	do_settimeofday(&tv);
-
-	return 0;
-}
-late_initcall(tqm85xx_rtc_hookup);
-#endif
-
 #ifdef CONFIG_PCI
 /*
  * interrupt routing
