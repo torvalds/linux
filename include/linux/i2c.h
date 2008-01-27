@@ -140,7 +140,6 @@ struct i2c_driver {
 	int (*command)(struct i2c_client *client,unsigned int cmd, void *arg);
 
 	struct device_driver driver;
-	struct list_head list;
 };
 #define to_i2c_driver(d) container_of(d, struct i2c_driver, driver)
 

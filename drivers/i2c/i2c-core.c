@@ -39,7 +39,6 @@
 #include "i2c-core.h"
 
 
-static LIST_HEAD(drivers);
 static DEFINE_MUTEX(core_lists);
 static DEFINE_IDR(i2c_adapter_idr);
 
@@ -320,11 +319,21 @@ static void i2c_scan_static_board_info(struct i2c_adapter *adapter)
 	mutex_unlock(&__i2c_board_lock);
 }
 
+static int i2c_do_add_adapter(struct device_driver *d, void *data)
+{
+	struct i2c_driver *driver = to_i2c_driver(d);
+	struct i2c_adapter *adap = data;
+
+	if (driver->attach_adapter) {
+		/* We ignore the return code; if it fails, too bad */
+		driver->attach_adapter(adap);
+	}
+	return 0;
+}
+
 static int i2c_register_adapter(struct i2c_adapter *adap)
 {
-	int res = 0;
-	struct list_head   *item;
-	struct i2c_driver  *driver;
+	int res = 0, dummy;
 
 	mutex_init(&adap->bus_lock);
 	mutex_init(&adap->clist_lock);
@@ -355,12 +364,8 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 		i2c_scan_static_board_info(adap);
 
 	/* let legacy drivers scan this bus for matching devices */
-	list_for_each(item,&drivers) {
-		driver = list_entry(item, struct i2c_driver, list);
-		if (driver->attach_adapter)
-			/* We ignore the return code; if it fails, too bad */
-			driver->attach_adapter(adap);
-	}
+	dummy = bus_for_each_drv(&i2c_bus_type, NULL, adap,
+				 i2c_do_add_adapter);
 
 out_unlock:
 	mutex_unlock(&core_lists);
@@ -460,6 +465,21 @@ retry:
 }
 EXPORT_SYMBOL_GPL(i2c_add_numbered_adapter);
 
+static int i2c_do_del_adapter(struct device_driver *d, void *data)
+{
+	struct i2c_driver *driver = to_i2c_driver(d);
+	struct i2c_adapter *adapter = data;
+	int res;
+
+	if (!driver->detach_adapter)
+		return 0;
+	res = driver->detach_adapter(adapter);
+	if (res)
+		dev_err(&adapter->dev, "detach_adapter failed (%d) "
+			"for driver [%s]\n", res, driver->driver.name);
+	return res;
+}
+
 /**
  * i2c_del_adapter - unregister I2C adapter
  * @adap: the adapter being unregistered
@@ -471,7 +491,6 @@ EXPORT_SYMBOL_GPL(i2c_add_numbered_adapter);
 int i2c_del_adapter(struct i2c_adapter *adap)
 {
 	struct list_head  *item, *_n;
-	struct i2c_driver *driver;
 	struct i2c_client *client;
 	int res = 0;
 
@@ -485,16 +504,11 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 		goto out_unlock;
 	}
 
-	list_for_each(item,&drivers) {
-		driver = list_entry(item, struct i2c_driver, list);
-		if (driver->detach_adapter)
-			if ((res = driver->detach_adapter(adap))) {
-				dev_err(&adap->dev, "detach_adapter failed "
-					"for driver [%s]\n",
-					driver->driver.name);
-				goto out_unlock;
-			}
-	}
+	/* Tell drivers about this removal */
+	res = bus_for_each_drv(&i2c_bus_type, NULL, adap,
+			       i2c_do_del_adapter);
+	if (res)
+		goto out_unlock;
 
 	/* detach any active clients. This must be done first, because
 	 * it can fail; in which case we give up. */
@@ -577,7 +591,6 @@ int i2c_register_driver(struct module *owner, struct i2c_driver *driver)
 
 	mutex_lock(&core_lists);
 
-	list_add_tail(&driver->list,&drivers);
 	pr_debug("i2c-core: driver [%s] registered\n", driver->driver.name);
 
 	/* legacy drivers scan i2c busses directly */
@@ -647,7 +660,6 @@ void i2c_del_driver(struct i2c_driver *driver)
 
  unregister:
 	driver_unregister(&driver->driver);
-	list_del(&driver->list);
 	pr_debug("i2c-core: driver [%s] unregistered\n", driver->driver.name);
 
 	mutex_unlock(&core_lists);
