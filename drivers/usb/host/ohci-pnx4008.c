@@ -123,7 +123,6 @@ static struct i2c_client_address_data addr_data = {
 };
 
 struct i2c_driver isp1301_driver = {
-	.id = I2C_DRIVERID_I2CDEV,	/* Fake Id */
 	.class = I2C_CLASS_HWMON,
 	.attach_adapter = isp1301_probe,
 	.detach_client = isp1301_detach,

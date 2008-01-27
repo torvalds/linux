@@ -47,8 +47,6 @@
 
 #define LOG_TEMP		0			/* continously log temperature */
 
-#define I2C_DRIVERID_G4FAN	0x9001			/* fixme */
-
 static int 			do_probe( struct i2c_adapter *adapter, int addr, int kind);
 
 /* scan 0x48-0x4f (DS1775) and 0x2c-2x2f (ADM1030) */
@@ -357,7 +355,6 @@ static struct i2c_driver g4fan_driver = {
 	.driver = {
 		.name	= "therm_windtunnel",
 	},
-	.id		= I2C_DRIVERID_G4FAN,
 	.attach_adapter = do_attach,
 	.detach_client	= do_detach,
 };
