@@ -492,6 +492,7 @@ static void ieee80211_set_associated(struct net_device *dev,
 	ifsta->last_probe = jiffies;
 	ieee80211_led_assoc(local, assoc);
 
+	sdata->bss_conf.assoc = assoc;
 	ieee80211_bss_info_change_notify(sdata, changed);
 }
 
