@@ -82,7 +82,11 @@ core-y   += arch/$(ARCH)/mach-$(MACHINE)/
 core-y   += arch/$(ARCH)/mach-$(MACHINE)/boards/
 endif
 
-core-y	 += arch/$(ARCH)/kernel/cplb-nompu/
+ifeq ($(CONFIG_MPU),y)
+core-y	+= arch/$(ARCH)/kernel/cplb-mpu/
+else
+core-y	+= arch/$(ARCH)/kernel/cplb-nompu/
+endif
 
 libs-y   += arch/$(ARCH)/lib/
 

@@ -765,6 +765,15 @@ config L1_MAX_PIECE
 	  Set the max memory pieces for the L1 SRAM allocation algorithm.
 	  Min value is 16. Max value is 1024.
 
+
+config MPU
+	bool "Enable the memory protection unit (EXPERIMENTAL)"
+	default n
+	help
+	  Use the processor's MPU to protect applications from accessing
+	  memory they do not own.  This comes at a performance penalty
+	  and is recommended only for debugging.
+
 comment "Asynchonous Memory Configuration"
 
 menu "EBIU_AMGCTL Global Control"

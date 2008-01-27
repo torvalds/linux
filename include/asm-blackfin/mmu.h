@@ -24,7 +24,9 @@ typedef struct {
 	unsigned long	exec_fdpic_loadmap;
 	unsigned long	interp_fdpic_loadmap;
 #endif
-
+#ifdef CONFIG_MPU
+	unsigned long *page_rwx_mask;
+#endif
 } mm_context_t;
 
 #endif

@@ -184,13 +184,15 @@ static __init void free_init_pages(const char *what, unsigned long begin, unsign
 #ifdef CONFIG_BLK_DEV_INITRD
 void __init free_initrd_mem(unsigned long start, unsigned long end)
 {
+#ifndef CONFIG_MPU
 	free_init_pages("initrd memory", start, end);
+#endif
 }
 #endif
 
 void __init free_initmem(void)
 {
-#ifdef CONFIG_RAMKERNEL
+#if defined CONFIG_RAMKERNEL && !defined CONFIG_MPU
 	free_init_pages("unused kernel memory",
 			(unsigned long)(&__init_begin),
 			(unsigned long)(&__init_end));

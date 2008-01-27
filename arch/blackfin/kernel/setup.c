@@ -238,7 +238,12 @@ void __init setup_arch(char **cmdline_p)
 	memory_end = _ramend - DMA_UNCACHED_REGION;
 
 	_ramstart = (unsigned long)__bss_stop;
+#ifdef CONFIG_MPU
+	/* Round up to multiple of 4MB.  */
+	memory_start = (_ramstart + 0x3fffff) & ~0x3fffff;
+#else
 	memory_start = PAGE_ALIGN(_ramstart);
+#endif
 
 #if defined(CONFIG_MTD_UCLINUX)
 	/* generic memory mapped MTD driver */
@@ -306,6 +311,11 @@ void __init setup_arch(char **cmdline_p)
 #endif				/* CONFIG_DEBUG_HUNT_FOR_ZERO */
 	printk(KERN_NOTICE "Warning: limiting memory to %liMB due to hardware anomaly 05000263\n", memory_end >> 20);
 #endif				/* ANOMALY_05000263 */
+
+#ifdef CONFIG_MPU
+	page_mask_nelts = ((_ramend >> PAGE_SHIFT) + 31) / 32;
+	page_mask_order = get_order(3 * page_mask_nelts * sizeof(long));
+#endif
 
 #if !defined(CONFIG_MTD_UCLINUX)
 	memory_end -= SIZE_4K; /*In case there is no valid CPLB behind memory_end make sure we don't get to close*/
