@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/cifsproto.h
  *
- *   Copyright (c) International Business Machines  Corp., 2002,2007
+ *   Copyright (c) International Business Machines  Corp., 2002,2008
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -97,11 +97,14 @@ extern int cifs_get_inode_info_unix(struct inode **pinode,
 			const unsigned char *search_path,
 			struct super_block *sb, int xid);
 extern void acl_to_uid_mode(struct inode *inode, const char *search_path);
-extern int mode_to_acl(struct inode *inode, const char *path);
+extern int mode_to_acl(struct inode *inode, const char *path, __u64);
 
 extern int cifs_mount(struct super_block *, struct cifs_sb_info *, char *,
 			const char *);
 extern int cifs_umount(struct super_block *, struct cifs_sb_info *);
+#ifdef CONFIG_CIFS_DFS_UPCALL
+extern void dfs_shrink_umount_helper(struct vfsmount *vfsmnt);
+#endif
 void cifs_proc_init(void);
 void cifs_proc_clean(void);
 
@@ -153,7 +156,7 @@ extern int get_dfs_path(int xid, struct cifsSesInfo *pSesInfo,
 			const char *old_path,
 			const struct nls_table *nls_codepage,
 			unsigned int *pnum_referrals,
-			unsigned char **preferrals,
+			struct dfs_info3_param **preferrals,
 			int remap);
 extern void reset_cifs_unix_caps(int xid, struct cifsTconInfo *tcon,
 				 struct super_block *sb, struct smb_vol *vol);
@@ -342,6 +345,8 @@ extern int CIFSSMBSetEA(const int xid, struct cifsTconInfo *tcon,
 		const struct nls_table *nls_codepage, int remap_special_chars);
 extern int CIFSSMBGetCIFSACL(const int xid, struct cifsTconInfo *tcon,
 			__u16 fid, struct cifs_ntsd **acl_inf, __u32 *buflen);
+extern int CIFSSMBSetCIFSACL(const int, struct cifsTconInfo *, __u16,
+			struct cifs_ntsd *, __u32);
 extern int CIFSSMBGetPosixACL(const int xid, struct cifsTconInfo *tcon,
 		const unsigned char *searchName,
 		char *acl_inf, const int buflen, const int acl_type,

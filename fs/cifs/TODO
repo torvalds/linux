@@ -1,4 +1,4 @@
-Version 1.49 April 26, 2007
+Version 1.52 January 3, 2008
 
 A Partial List of Missing Features
 ==================================
@@ -16,16 +16,14 @@ SecurityDescriptors
 c) Better pam/winbind integration (e.g. to handle uid mapping
 better)
 
-d) Verify that Kerberos signing works
-
-e) Cleanup now unneeded SessSetup code in
+d) Cleanup now unneeded SessSetup code in
 fs/cifs/connect.c and add back in NTLMSSP code if any servers
 need it
 
-f) MD5-HMAC signing SMB PDUs when SPNEGO style SessionSetup 
-used (Kerberos or NTLMSSP). Signing alreadyimplemented for NTLM
-and raw NTLMSSP already. This is important when enabling
-extended security and mounting to Windows 2003 Servers
+e) ms-dfs and ms-dfs host name resolution cleanup
+
+f) fix NTLMv2 signing when two mounts with different users to same
+server.
 
 g) Directory entry caching relies on a 1 second timer, rather than 
 using FindNotify or equivalent.  - (started)

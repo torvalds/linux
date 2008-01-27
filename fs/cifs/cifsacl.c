@@ -129,6 +129,54 @@ int compare_sids(const struct cifs_sid *ctsid, const struct cifs_sid *cwsid)
 	return (1); /* sids compare/match */
 }
 
+
+/* copy ntsd, owner sid, and group sid from a security descriptor to another */
+static void copy_sec_desc(const struct cifs_ntsd *pntsd,
+				struct cifs_ntsd *pnntsd, __u32 sidsoffset)
+{
+	int i;
+
+	struct cifs_sid *owner_sid_ptr, *group_sid_ptr;
+	struct cifs_sid *nowner_sid_ptr, *ngroup_sid_ptr;
+
+	/* copy security descriptor control portion */
+	pnntsd->revision = pntsd->revision;
+	pnntsd->type = pntsd->type;
+	pnntsd->dacloffset = cpu_to_le32(sizeof(struct cifs_ntsd));
+	pnntsd->sacloffset = 0;
+	pnntsd->osidoffset = cpu_to_le32(sidsoffset);
+	pnntsd->gsidoffset = cpu_to_le32(sidsoffset + sizeof(struct cifs_sid));
+
+	/* copy owner sid */
+	owner_sid_ptr = (struct cifs_sid *)((char *)pntsd +
+				le32_to_cpu(pntsd->osidoffset));
+	nowner_sid_ptr = (struct cifs_sid *)((char *)pnntsd + sidsoffset);
+
+	nowner_sid_ptr->revision = owner_sid_ptr->revision;
+	nowner_sid_ptr->num_subauth = owner_sid_ptr->num_subauth;
+	for (i = 0; i < 6; i++)
+		nowner_sid_ptr->authority[i] = owner_sid_ptr->authority[i];
+	for (i = 0; i < 5; i++)
+		nowner_sid_ptr->sub_auth[i] = owner_sid_ptr->sub_auth[i];
+
+	/* copy group sid */
+	group_sid_ptr = (struct cifs_sid *)((char *)pntsd +
+				le32_to_cpu(pntsd->gsidoffset));
+	ngroup_sid_ptr = (struct cifs_sid *)((char *)pnntsd + sidsoffset +
+					sizeof(struct cifs_sid));
+
+	ngroup_sid_ptr->revision = group_sid_ptr->revision;
+	ngroup_sid_ptr->num_subauth = group_sid_ptr->num_subauth;
+	for (i = 0; i < 6; i++)
+		ngroup_sid_ptr->authority[i] = group_sid_ptr->authority[i];
+	for (i = 0; i < 5; i++)
+		ngroup_sid_ptr->sub_auth[i] =
+				cpu_to_le32(group_sid_ptr->sub_auth[i]);
+
+	return;
+}
+
+
 /*
    change posix mode to reflect permissions
    pmode is the existing mode (we only want to overwrite part of this
@@ -220,6 +268,33 @@ static void mode_to_access_flags(umode_t mode, umode_t bits_to_use,
 	return;
 }
 
+static __le16 fill_ace_for_sid(struct cifs_ace *pntace,
+			const struct cifs_sid *psid, __u64 nmode, umode_t bits)
+{
+	int i;
+	__u16 size = 0;
+	__u32 access_req = 0;
+
+	pntace->type = ACCESS_ALLOWED;
+	pntace->flags = 0x0;
+	mode_to_access_flags(nmode, bits, &access_req);
+	if (!access_req)
+		access_req = SET_MINIMUM_RIGHTS;
+	pntace->access_req = cpu_to_le32(access_req);
+
+	pntace->sid.revision = psid->revision;
+	pntace->sid.num_subauth = psid->num_subauth;
+	for (i = 0; i < 6; i++)
+		pntace->sid.authority[i] = psid->authority[i];
+	for (i = 0; i < psid->num_subauth; i++)
+		pntace->sid.sub_auth[i] = psid->sub_auth[i];
+
+	size = 1 + 1 + 2 + 4 + 1 + 1 + 6 + (psid->num_subauth * 4);
+	pntace->size = cpu_to_le16(size);
+
+	return (size);
+}
+
 
 #ifdef CONFIG_CIFS_DEBUG2
 static void dump_ace(struct cifs_ace *pace, char *end_of_acl)
@@ -243,7 +318,7 @@ static void dump_ace(struct cifs_ace *pace, char *end_of_acl)
 		int i;
 		cFYI(1, ("ACE revision %d num_auth %d type %d flags %d size %d",
 			pace->sid.revision, pace->sid.num_subauth, pace->type,
-			pace->flags, pace->size));
+			pace->flags, le16_to_cpu(pace->size)));
 		for (i = 0; i < num_subauth; ++i) {
 			cFYI(1, ("ACE sub_auth[%d]: 0x%x", i,
 				le32_to_cpu(pace->sid.sub_auth[i])));
@@ -346,6 +421,28 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
 }
 
 
+static int set_chmod_dacl(struct cifs_acl *pndacl, struct cifs_sid *pownersid,
+			struct cifs_sid *pgrpsid, __u64 nmode)
+{
+	__le16 size = 0;
+	struct cifs_acl *pnndacl;
+
+	pnndacl = (struct cifs_acl *)((char *)pndacl + sizeof(struct cifs_acl));
+
+	size += fill_ace_for_sid((struct cifs_ace *) ((char *)pnndacl + size),
+					pownersid, nmode, S_IRWXU);
+	size += fill_ace_for_sid((struct cifs_ace *)((char *)pnndacl + size),
+					pgrpsid, nmode, S_IRWXG);
+	size += fill_ace_for_sid((struct cifs_ace *)((char *)pnndacl + size),
+					 &sid_everyone, nmode, S_IRWXO);
+
+	pndacl->size = cpu_to_le16(size + sizeof(struct cifs_acl));
+	pndacl->num_aces = 3;
+
+	return (0);
+}
+
+
 static int parse_sid(struct cifs_sid *psid, char *end_of_acl)
 {
 	/* BB need to add parm so we can store the SID BB */
@@ -432,6 +529,46 @@ static int parse_sec_desc(struct cifs_ntsd *pntsd, int acl_len,
 }
 
 
+/* Convert permission bits from mode to equivalent CIFS ACL */
+static int build_sec_desc(struct cifs_ntsd *pntsd, struct cifs_ntsd *pnntsd,
+				int acl_len, struct inode *inode, __u64 nmode)
+{
+	int rc = 0;
+	__u32 dacloffset;
+	__u32 ndacloffset;
+	__u32 sidsoffset;
+	struct cifs_sid *owner_sid_ptr, *group_sid_ptr;
+	struct cifs_acl *dacl_ptr = NULL;  /* no need for SACL ptr */
+	struct cifs_acl *ndacl_ptr = NULL; /* no need for SACL ptr */
+
+	if ((inode == NULL) || (pntsd == NULL) || (pnntsd == NULL))
+		return (-EIO);
+
+	owner_sid_ptr = (struct cifs_sid *)((char *)pntsd +
+				le32_to_cpu(pntsd->osidoffset));
+	group_sid_ptr = (struct cifs_sid *)((char *)pntsd +
+				le32_to_cpu(pntsd->gsidoffset));
+
+	dacloffset = le32_to_cpu(pntsd->dacloffset);
+	dacl_ptr = (struct cifs_acl *)((char *)pntsd + dacloffset);
+
+	ndacloffset = sizeof(struct cifs_ntsd);
+	ndacl_ptr = (struct cifs_acl *)((char *)pnntsd + ndacloffset);
+	ndacl_ptr->revision = dacl_ptr->revision;
+	ndacl_ptr->size = 0;
+	ndacl_ptr->num_aces = 0;
+
+	rc = set_chmod_dacl(ndacl_ptr, owner_sid_ptr, group_sid_ptr, nmode);
+
+	sidsoffset = ndacloffset + le16_to_cpu(ndacl_ptr->size);
+
+	/* copy security descriptor control portion and owner and group sid */
+	copy_sec_desc(pntsd, pnntsd, sidsoffset);
+
+	return (rc);
+}
+
+
 /* Retrieve an ACL from the server */
 static struct cifs_ntsd *get_cifs_acl(u32 *pacllen, struct inode *inode,
 				       const char *path)
@@ -487,6 +624,64 @@ static struct cifs_ntsd *get_cifs_acl(u32 *pacllen, struct inode *inode,
 	return pntsd;
 }
 
+/* Set an ACL on the server */
+static int set_cifs_acl(struct cifs_ntsd *pnntsd, __u32 acllen,
+				struct inode *inode, const char *path)
+{
+	struct cifsFileInfo *open_file;
+	int unlock_file = FALSE;
+	int xid;
+	int rc = -EIO;
+	__u16 fid;
+	struct super_block *sb;
+	struct cifs_sb_info *cifs_sb;
+
+#ifdef CONFIG_CIFS_DEBUG2
+	cFYI(1, ("set ACL for %s from mode 0x%x", path, inode->i_mode));
+#endif
+
+	if (!inode)
+		return (rc);
+
+	sb = inode->i_sb;
+	if (sb == NULL)
+		return (rc);
+
+	cifs_sb = CIFS_SB(sb);
+	xid = GetXid();
+
+	open_file = find_readable_file(CIFS_I(inode));
+	if (open_file) {
+		unlock_file = TRUE;
+		fid = open_file->netfid;
+	} else {
+		int oplock = FALSE;
+		/* open file */
+		rc = CIFSSMBOpen(xid, cifs_sb->tcon, path, FILE_OPEN,
+				WRITE_DAC, 0, &fid, &oplock, NULL,
+				cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
+					CIFS_MOUNT_MAP_SPECIAL_CHR);
+		if (rc != 0) {
+			cERROR(1, ("Unable to open file to set ACL"));
+			FreeXid(xid);
+			return (rc);
+		}
+	}
+
+	rc = CIFSSMBSetCIFSACL(xid, cifs_sb->tcon, fid, pnntsd, acllen);
+#ifdef CONFIG_CIFS_DEBUG2
+	cFYI(1, ("SetCIFSACL rc = %d", rc));
+#endif
+	if (unlock_file == TRUE)
+		atomic_dec(&open_file->wrtPending);
+	else
+		CIFSSMBClose(xid, cifs_sb->tcon, fid);
+
+	FreeXid(xid);
+
+	return (rc);
+}
+
 /* Translate the CIFS ACL (simlar to NTFS ACL) for a file into mode bits */
 void acl_to_uid_mode(struct inode *inode, const char *path)
 {
@@ -510,24 +705,53 @@ void acl_to_uid_mode(struct inode *inode, const char *path)
 }
 
 /* Convert mode bits to an ACL so we can update the ACL on the server */
-int mode_to_acl(struct inode *inode, const char *path)
+int mode_to_acl(struct inode *inode, const char *path, __u64 nmode)
 {
 	int rc = 0;
 	__u32 acllen = 0;
-	struct cifs_ntsd *pntsd = NULL;
+	struct cifs_ntsd *pntsd = NULL; /* acl obtained from server */
+	struct cifs_ntsd *pnntsd = NULL; /* modified acl to be sent to server */
 
+#ifdef CONFIG_CIFS_DEBUG2
 	cFYI(1, ("set ACL from mode for %s", path));
+#endif
 
 	/* Get the security descriptor */
 	pntsd = get_cifs_acl(&acllen, inode, path);
 
-	/* Add/Modify the three ACEs for owner, group, everyone
-	   while retaining the other ACEs */
+	/* Add three ACEs for owner, group, everyone getting rid of
+	   other ACEs as chmod disables ACEs and set the security descriptor */
 
-	/* Set the security descriptor */
+	if (pntsd) {
+		/* allocate memory for the smb header,
+		   set security descriptor request security descriptor
+		   parameters, and secuirty descriptor itself */
 
+		pnntsd = kmalloc(acllen, GFP_KERNEL);
+		if (!pnntsd) {
+			cERROR(1, ("Unable to allocate security descriptor"));
+			kfree(pntsd);
+			return (-ENOMEM);
+		}
 
-	kfree(pntsd);
-	return rc;
+		rc = build_sec_desc(pntsd, pnntsd, acllen, inode, nmode);
+
+#ifdef CONFIG_CIFS_DEBUG2
+		cFYI(1, ("build_sec_desc rc: %d", rc));
+#endif
+
+		if (!rc) {
+			/* Set the security descriptor */
+			rc = set_cifs_acl(pnntsd, acllen, inode, path);
+#ifdef CONFIG_CIFS_DEBUG2
+			cFYI(1, ("set_cifs_acl rc: %d", rc));
+#endif
+		}
+
+		kfree(pnntsd);
+		kfree(pntsd);
+	}
+
+	return (rc);
 }
 #endif /* CONFIG_CIFS_EXPERIMENTAL */

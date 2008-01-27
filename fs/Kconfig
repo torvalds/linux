@@ -1899,13 +1899,15 @@ config CIFS
 	  file servers such as Windows 2000 (including Windows 2003, NT 4  
 	  and Windows XP) as well by Samba (which provides excellent CIFS
 	  server support for Linux and many other operating systems). Limited
-	  support for OS/2 and Windows ME and similar servers is provided as well.
+	  support for OS/2 and Windows ME and similar servers is provided as
+	  well.
 
-	  The intent of the cifs module is to provide an advanced
-	  network file system client for mounting to CIFS compliant servers,
-	  including support for dfs (hierarchical name space), secure per-user
-	  session establishment, safe distributed caching (oplock), optional
-	  packet signing, Unicode and other internationalization improvements. 
+	  The cifs module provides an advanced network file system
+	  client for mounting to CIFS compliant servers.  It includes
+	  support for DFS (hierarchical name space), secure per-user
+	  session establishment via Kerberos or NTLM or NTLMv2,
+	  safe distributed caching (oplock), optional packet
+	  signing, Unicode and other internationalization improvements.
 	  If you need to mount to Samba or Windows from this machine, say Y.
 
 config CIFS_STATS
@@ -1937,7 +1939,8 @@ config CIFS_WEAK_PW_HASH
 	  (since 1997) support stronger NTLM (and even NTLMv2 and Kerberos)
 	  security mechanisms. These hash the password more securely
 	  than the mechanisms used in the older LANMAN version of the
-          SMB protocol needed to establish sessions with old SMB servers.
+	  SMB protocol but LANMAN based authentication is needed to
+	  establish sessions with some old SMB servers.
 
 	  Enabling this option allows the cifs module to mount to older
 	  LANMAN based servers such as OS/2 and Windows 95, but such
@@ -1945,8 +1948,8 @@ config CIFS_WEAK_PW_HASH
 	  security mechanisms if you are on a public network.  Unless you
 	  have a need to access old SMB servers (and are on a private 
 	  network) you probably want to say N.  Even if this support
-	  is enabled in the kernel build, they will not be used
-	  automatically. At runtime LANMAN mounts are disabled but
+	  is enabled in the kernel build, LANMAN authentication will not be
+	  used automatically. At runtime LANMAN mounts are disabled but
 	  can be set to required (or optional) either in
 	  /proc/fs/cifs (see fs/cifs/README for more detail) or via an
 	  option on the mount command. This support is disabled by 
@@ -2012,11 +2015,21 @@ config CIFS_UPCALL
 	  depends on CIFS_EXPERIMENTAL
 	  depends on KEYS
 	  help
-	    Enables an upcall mechanism for CIFS which will be used to contact
-	    userspace helper utilities to provide SPNEGO packaged Kerberos
-	    tickets which are needed to mount to certain secure servers
+	    Enables an upcall mechanism for CIFS which accesses
+	    userspace helper utilities to provide SPNEGO packaged (RFC 4178)
+	    Kerberos tickets which are needed to mount to certain secure servers
 	    (for which more secure Kerberos authentication is required). If
 	    unsure, say N.
+
+config CIFS_DFS_UPCALL
+	  bool "DFS feature support (EXPERIMENTAL)"
+	  depends on CIFS_EXPERIMENTAL
+	  depends on KEYS
+	  help
+	    Enables an upcall mechanism for CIFS which contacts userspace
+	    helper utilities to provide server name resolution (host names to
+	    IP addresses) which is needed for implicit mounts of DFS junction
+	    points. If unsure, say N.
 
 config NCP_FS
 	tristate "NCP file system support (to mount NetWare volumes)"
