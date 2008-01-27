@@ -993,6 +993,10 @@ static int stk_vidioc_enum_fmt_cap(struct file *filp,
 		fmtd->pixelformat = V4L2_PIX_FMT_SBGGR8;
 		strcpy(fmtd->description, "Raw bayer");
 		break;
+	case 4:
+		fmtd->pixelformat = V4L2_PIX_FMT_YUYV;
+		strcpy(fmtd->description, "yuv4:2:2");
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -1048,6 +1052,7 @@ static int stk_vidioc_try_fmt_cap(struct file *filp,
 	case V4L2_PIX_FMT_RGB565:
 	case V4L2_PIX_FMT_RGB565X:
 	case V4L2_PIX_FMT_UYVY:
+	case V4L2_PIX_FMT_YUYV:
 	case V4L2_PIX_FMT_SBGGR8:
 		break;
 	default:
@@ -1403,7 +1408,7 @@ static int stk_camera_probe(struct usb_interface *interface,
 	dev->vsettings.brightness = 0x7fff;
 	dev->vsettings.palette = V4L2_PIX_FMT_RGB565;
 	dev->vsettings.mode = MODE_VGA;
-	dev->frame_size = 640*480*2;
+	dev->frame_size = 640 * 480 * 2;
 
 	INIT_LIST_HEAD(&dev->sio_avail);
 	INIT_LIST_HEAD(&dev->sio_full);
