@@ -99,9 +99,6 @@ struct mlx4_dev_cap {
 };
 
 struct mlx4_adapter {
-	u32  vendor_id;
-	u32  device_id;
-	u32  revision_id;
 	char board_id[MLX4_BOARD_ID_LEN];
 	u8   inta_pin;
 };
