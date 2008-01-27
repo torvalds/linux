@@ -105,7 +105,7 @@ wait_master_done(struct i2c_au1550_data *adap)
 }
 
 static int
-do_address(struct i2c_au1550_data *adap, unsigned int addr, int rd)
+do_address(struct i2c_au1550_data *adap, unsigned int addr, int rd, int q)
 {
 	volatile psc_smb_t	*sp;
 	u32			stat;
@@ -134,6 +134,10 @@ do_address(struct i2c_au1550_data *adap, unsigned int addr, int rd)
 	if (rd)
 		addr |= 1;
 
+	/* zero-byte xfers stop immediately */
+	if (q)
+		addr |= PSC_SMBTXRX_STP;
+
 	/* Put byte into fifo, start up master.
 	*/
 	sp->psc_smbtxrx = addr;
@@ -142,7 +146,7 @@ do_address(struct i2c_au1550_data *adap, unsigned int addr, int rd)
 	au_sync();
 	if (wait_ack(adap))
 		return -EIO;
-	return 0;
+	return (q) ? wait_master_done(adap) : 0;
 }
 
 static u32
@@ -262,7 +266,8 @@ au1550_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg *msgs, int num)
 
 	for (i = 0; !err && i < num; i++) {
 		p = &msgs[i];
-		err = do_address(adap, p->addr, p->flags & I2C_M_RD);
+		err = do_address(adap, p->addr, p->flags & I2C_M_RD,
+				 (p->len == 0));
 		if (err || !p->len)
 			continue;
 		if (p->flags & I2C_M_RD)
