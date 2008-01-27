@@ -361,6 +361,7 @@ static int __init fmi_init(void)
 	}
 	if (!request_region(io, 2, "radio-sf16fmi")) {
 		printk(KERN_ERR "radio-sf16fmi: port 0x%x already in use\n", io);
+		pnp_device_detach(dev);
 		return -EBUSY;
 	}
 
