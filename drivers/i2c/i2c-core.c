@@ -39,7 +39,7 @@
 #include "i2c-core.h"
 
 
-static DEFINE_MUTEX(core_lists);
+static DEFINE_MUTEX(core_lock);
 static DEFINE_IDR(i2c_adapter_idr);
 
 #define is_newstyle_driver(d) ((d)->probe || (d)->remove)
@@ -339,7 +339,7 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 	mutex_init(&adap->clist_lock);
 	INIT_LIST_HEAD(&adap->clients);
 
-	mutex_lock(&core_lists);
+	mutex_lock(&core_lock);
 
 	/* Add the adapter to the driver core.
 	 * If the parent pointer is not set up,
@@ -368,7 +368,7 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 				 i2c_do_add_adapter);
 
 out_unlock:
-	mutex_unlock(&core_lists);
+	mutex_unlock(&core_lock);
 	return res;
 
 out_list:
@@ -397,11 +397,11 @@ retry:
 	if (idr_pre_get(&i2c_adapter_idr, GFP_KERNEL) == 0)
 		return -ENOMEM;
 
-	mutex_lock(&core_lists);
+	mutex_lock(&core_lock);
 	/* "above" here means "above or equal to", sigh */
 	res = idr_get_new_above(&i2c_adapter_idr, adapter,
 				__i2c_first_dynamic_bus_num, &id);
-	mutex_unlock(&core_lists);
+	mutex_unlock(&core_lock);
 
 	if (res < 0) {
 		if (res == -EAGAIN)
@@ -446,7 +446,7 @@ retry:
 	if (idr_pre_get(&i2c_adapter_idr, GFP_KERNEL) == 0)
 		return -ENOMEM;
 
-	mutex_lock(&core_lists);
+	mutex_lock(&core_lock);
 	/* "above" here means "above or equal to", sigh;
 	 * we need the "equal to" result to force the result
 	 */
@@ -455,7 +455,7 @@ retry:
 		status = -EBUSY;
 		idr_remove(&i2c_adapter_idr, id);
 	}
-	mutex_unlock(&core_lists);
+	mutex_unlock(&core_lock);
 	if (status == -EAGAIN)
 		goto retry;
 
@@ -494,7 +494,7 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 	struct i2c_client *client;
 	int res = 0;
 
-	mutex_lock(&core_lists);
+	mutex_lock(&core_lock);
 
 	/* First make sure that this adapter was ever added */
 	if (idr_find(&i2c_adapter_idr, adap->nr) != adap) {
@@ -546,7 +546,7 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 	dev_dbg(&adap->dev, "adapter [%s] unregistered\n", adap->name);
 
  out_unlock:
-	mutex_unlock(&core_lists);
+	mutex_unlock(&core_lock);
 	return res;
 }
 EXPORT_SYMBOL(i2c_del_adapter);
@@ -589,7 +589,7 @@ int i2c_register_driver(struct module *owner, struct i2c_driver *driver)
 	if (res)
 		return res;
 
-	mutex_lock(&core_lists);
+	mutex_lock(&core_lock);
 
 	pr_debug("i2c-core: driver [%s] registered\n", driver->driver.name);
 
@@ -605,7 +605,7 @@ int i2c_register_driver(struct module *owner, struct i2c_driver *driver)
 		up(&i2c_adapter_class.sem);
 	}
 
-	mutex_unlock(&core_lists);
+	mutex_unlock(&core_lock);
 	return 0;
 }
 EXPORT_SYMBOL(i2c_register_driver);
@@ -621,7 +621,7 @@ void i2c_del_driver(struct i2c_driver *driver)
 	struct i2c_client  *client;
 	struct i2c_adapter *adap;
 
-	mutex_lock(&core_lists);
+	mutex_lock(&core_lock);
 
 	/* new-style driver? */
 	if (is_newstyle_driver(driver))
@@ -662,7 +662,7 @@ void i2c_del_driver(struct i2c_driver *driver)
 	driver_unregister(&driver->driver);
 	pr_debug("i2c-core: driver [%s] unregistered\n", driver->driver.name);
 
-	mutex_unlock(&core_lists);
+	mutex_unlock(&core_lock);
 }
 EXPORT_SYMBOL(i2c_del_driver);
 
@@ -1121,12 +1121,12 @@ struct i2c_adapter* i2c_get_adapter(int id)
 {
 	struct i2c_adapter *adapter;
 
-	mutex_lock(&core_lists);
+	mutex_lock(&core_lock);
 	adapter = (struct i2c_adapter *)idr_find(&i2c_adapter_idr, id);
 	if (adapter && !try_module_get(adapter->owner))
 		adapter = NULL;
 
-	mutex_unlock(&core_lists);
+	mutex_unlock(&core_lock);
 	return adapter;
 }
 EXPORT_SYMBOL(i2c_get_adapter);
