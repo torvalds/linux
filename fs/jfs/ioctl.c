@@ -117,3 +117,21 @@ long jfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	}
 }
 
+#ifdef CONFIG_COMPAT
+long jfs_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+{
+	/* While these ioctl numbers defined with 'long' and have different
+	 * numbers than the 64bit ABI,
+	 * the actual implementation only deals with ints and is compatible.
+	 */
+	switch (cmd) {
+	case JFS_IOC_GETFLAGS32:
+		cmd = JFS_IOC_GETFLAGS;
+		break;
+	case JFS_IOC_SETFLAGS32:
+		cmd = JFS_IOC_SETFLAGS;
+		break;
+	}
+	return jfs_ioctl(filp, cmd, arg);
+}
+#endif

@@ -1557,6 +1557,9 @@ const struct file_operations jfs_dir_operations = {
 	.readdir	= jfs_readdir,
 	.fsync		= jfs_fsync,
 	.unlocked_ioctl = jfs_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= jfs_compat_ioctl,
+#endif
 };
 
 static int jfs_ci_hash(struct dentry *dir, struct qstr *this)
