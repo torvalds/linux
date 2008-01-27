@@ -191,7 +191,6 @@
 #define I2C_HW_B_OMAHA		0x010014 /* Omaha I2C interface (ARM) */
 #define I2C_HW_B_GUIDE		0x010015 /* Guide bit-basher */
 #define I2C_HW_B_IXP2000	0x010016 /* GPIO on IXP2000 systems */
-#define I2C_HW_B_IXP4XX		0x010017 /* GPIO on IXP4XX systems */
 #define I2C_HW_B_S3VIA		0x010018 /* S3Via ProSavage adapter */
 #define I2C_HW_B_ZR36067	0x010019 /* Zoran-36057/36067 based boards */
 #define I2C_HW_B_PCILYNX	0x01001a /* TI PCILynx I2C adapter */

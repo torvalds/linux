@@ -225,14 +225,6 @@ Who:	Len Brown <len.brown@intel.com>
 
 ---------------------------
 
-What:	i2c-ixp2000, i2c-ixp4xx and scx200_i2c drivers
-When:	September 2007
-Why:	Obsolete. The new i2c-gpio driver replaces all hardware-specific
-	I2C-over-GPIO drivers.
-Who:	Jean Delvare <khali@linux-fr.org>
-
----------------------------
-
 What:	'time' kernel boot parameter
 When:	January 2008
 Why:	replaced by 'printk.time=<value>' so that printk timestamps can be

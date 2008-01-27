@@ -259,20 +259,6 @@ config I2C_IOP3XX
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-iop3xx.
 
-config I2C_IXP4XX
-	tristate "IXP4xx GPIO-Based I2C Interface (DEPRECATED)"
-	depends on ARCH_IXP4XX
-	select I2C_ALGOBIT
-	help
-	  Say Y here if you have an Intel IXP4xx(420,421,422,425) based 
-	  system and are using GPIO lines for an I2C bus.
-
-	  This support is also available as a module. If so, the module
-	  will be called i2c-ixp4xx.
-
-	  This driver is deprecated and will be dropped soon. Use i2c-gpio
-	  instead.
-
 config I2C_IXP2000
 	tristate "IXP2000 GPIO-Based I2C Interface (DEPRECATED)"
 	depends on ARCH_IXP2000
