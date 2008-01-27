@@ -25,6 +25,9 @@ The typical use-case is like this:
 	3. load the target sensors chip driver module
 	4. observe its behavior in the kernel log
 
+There's a script named i2c-stub-from-dump in the i2c-tools package which
+can load register values automatically from a chip dump.
+
 PARAMETERS:
 
 int chip_addr[10]:
