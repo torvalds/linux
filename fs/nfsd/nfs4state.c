@@ -2052,7 +2052,7 @@ nfs4_preprocess_stateid_op(struct svc_fh *current_fh, stateid_t *stateid, int fl
 		renew_client(stp->st_stateowner->so_client);
 		if (filpp)
 			*filpp = stp->st_vfs_file;
-	} else if (dp) {
+	} else {
 		if ((status = nfs4_check_delegmode(dp, flags)))
 			goto out;
 		renew_client(dp->dl_client);
