@@ -470,9 +470,8 @@ static int __init fmr2_init(void)
 
 	mutex_init(&lock);
 
-	if (request_region(io, 2, "sf16fmr2"))
-	{
-		printk(KERN_ERR "fmr2: port 0x%x already in use\n", io);
+	if (!request_region(io, 2, "sf16fmr2")) {
+		printk(KERN_ERR "radio-sf16fmr2: request_region failed!\n");
 		return -EBUSY;
 	}
 
