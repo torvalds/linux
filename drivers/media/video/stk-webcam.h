@@ -79,6 +79,7 @@ enum stk_status {
 #define unset_present(dev)	((dev)->status &= \
 					~(S_PRESENT|S_INITIALISED|S_STREAMING))
 #define set_initialised(dev)	((dev)->status |= S_INITIALISED)
+#define unset_initialised(dev)	((dev)->status &= ~S_INITIALISED)
 #define set_memallocd(dev)	((dev)->status |= S_MEMALLOCD)
 #define unset_memallocd(dev)	((dev)->status &= ~S_MEMALLOCD)
 #define set_streaming(dev)	((dev)->status |= S_STREAMING)
