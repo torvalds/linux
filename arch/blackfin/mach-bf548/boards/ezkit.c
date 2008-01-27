@@ -514,6 +514,29 @@ static struct platform_device i2c_bfin_twi1_device = {
 #endif
 #endif
 
+#if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
+#include <linux/gpio_keys.h>
+
+static struct gpio_keys_button bfin_gpio_keys_table[] = {
+	{BTN_0, GPIO_PB8, 1, "gpio-keys: BTN0"},
+	{BTN_1, GPIO_PB9, 1, "gpio-keys: BTN1"},
+	{BTN_2, GPIO_PB10, 1, "gpio-keys: BTN2"},
+	{BTN_3, GPIO_PB11, 1, "gpio-keys: BTN3"},
+};
+
+static struct gpio_keys_platform_data bfin_gpio_keys_data = {
+	.buttons        = bfin_gpio_keys_table,
+	.nbuttons       = ARRAY_SIZE(bfin_gpio_keys_table),
+};
+
+static struct platform_device bfin_device_gpiokeys = {
+	.name      = "gpio-keys",
+	.dev = {
+		.platform_data = &bfin_gpio_keys_data,
+	},
+};
+#endif
+
 static struct platform_device *ezkit_devices[] __initdata = {
 #if defined(CONFIG_RTC_DRV_BFIN) || defined(CONFIG_RTC_DRV_BFIN_MODULE)
 	&rtc_device,
@@ -561,6 +584,10 @@ static struct platform_device *ezkit_devices[] __initdata = {
 #if !defined(CONFIG_BF542)
 	&i2c_bfin_twi1_device,
 #endif
+#endif
+
+#if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
+	&bfin_device_gpiokeys,
 #endif
 };
 
