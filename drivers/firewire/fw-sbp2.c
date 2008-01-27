@@ -499,6 +499,9 @@ sbp2_send_management_orb(struct sbp2_logical_unit *lu, int node_id,
 	unsigned int timeout;
 	int retval = -ENOMEM;
 
+	if (function == SBP2_LOGOUT_REQUEST && fw_device_is_shutdown(device))
+		return 0;
+
 	orb = kzalloc(sizeof(*orb), GFP_ATOMIC);
 	if (orb == NULL)
 		return -ENOMEM;
@@ -619,16 +622,13 @@ static void sbp2_release_target(struct kref *kref)
 	struct sbp2_logical_unit *lu, *next;
 	struct Scsi_Host *shost =
 		container_of((void *)tgt, struct Scsi_Host, hostdata[0]);
-	struct fw_device *device = fw_device(tgt->unit->device.parent);
 
 	list_for_each_entry_safe(lu, next, &tgt->lu_list, link) {
 		if (lu->sdev)
 			scsi_remove_device(lu->sdev);
 
-		if (!fw_device_is_shutdown(device))
-			sbp2_send_management_orb(lu, tgt->node_id,
-					lu->generation, SBP2_LOGOUT_REQUEST,
-					lu->login_id, NULL);
+		sbp2_send_management_orb(lu, tgt->node_id, lu->generation,
+				SBP2_LOGOUT_REQUEST, lu->login_id, NULL);
 
 		fw_core_remove_address_handler(&lu->address_handler);
 		list_del(&lu->link);
@@ -672,6 +672,9 @@ static void sbp2_login(struct work_struct *work)
 	struct fw_device *device = fw_device(unit->device.parent);
 	struct sbp2_login_response response;
 	int generation, node_id, local_node_id;
+
+	if (fw_device_is_shutdown(device))
+		goto out;
 
 	generation    = device->generation;
 	smp_rmb();    /* node_id must not be older than generation */
@@ -943,6 +946,9 @@ static void sbp2_reconnect(struct work_struct *work)
 	struct fw_unit *unit = lu->tgt->unit;
 	struct fw_device *device = fw_device(unit->device.parent);
 	int generation, node_id, local_node_id;
+
+	if (fw_device_is_shutdown(device))
+		goto out;
 
 	generation    = device->generation;
 	smp_rmb();    /* node_id must not be older than generation */
