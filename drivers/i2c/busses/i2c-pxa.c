@@ -840,6 +840,32 @@ static const struct i2c_algorithm i2c_pxa_algorithm = {
 	.functionality	= i2c_pxa_functionality,
 };
 
+static void i2c_pxa_enable(struct platform_device *dev)
+{
+	if (cpu_is_pxa27x()) {
+		switch (dev->id) {
+		case 0:
+			pxa_gpio_mode(GPIO117_I2CSCL_MD);
+			pxa_gpio_mode(GPIO118_I2CSDA_MD);
+			break;
+		case 1:
+			local_irq_disable();
+			PCFR |= PCFR_PI2CEN;
+			local_irq_enable();
+			break;
+		}
+	}
+}
+
+static void i2c_pxa_disable(struct platform_device *dev)
+{
+	if (cpu_is_pxa27x() && dev->id == 1) {
+		local_irq_disable();
+		PCFR &= ~PCFR_PI2CEN;
+		local_irq_enable();
+	}
+}
+
 #define res_len(r)		((r)->end - (r)->start + 1)
 static int i2c_pxa_probe(struct platform_device *dev)
 {
@@ -899,24 +925,12 @@ static int i2c_pxa_probe(struct platform_device *dev)
 #endif
 
 	clk_enable(i2c->clk);
-#ifdef CONFIG_PXA27x
-	switch (dev->id) {
-	case 0:
-		pxa_gpio_mode(GPIO117_I2CSCL_MD);
-		pxa_gpio_mode(GPIO118_I2CSDA_MD);
-		break;
-	case 1:
-		local_irq_disable();
-		PCFR |= PCFR_PI2CEN;
-		local_irq_enable();
-	}
-#endif
+	i2c_pxa_enable(dev);
 
 	ret = request_irq(irq, i2c_pxa_handler, IRQF_DISABLED,
 			  i2c->adap.name, i2c);
 	if (ret)
 		goto ereqirq;
-
 
 	i2c_pxa_reset(i2c);
 
@@ -955,14 +969,7 @@ eadapt:
 	free_irq(irq, i2c);
 ereqirq:
 	clk_disable(i2c->clk);
-
-#ifdef CONFIG_PXA27x
-	if (dev->id == 1) {
-		local_irq_disable();
-		PCFR &= ~PCFR_PI2CEN;
-		local_irq_enable();
-	}
-#endif
+	i2c_pxa_disable(dev);
 eremap:
 	clk_put(i2c->clk);
 eclk:
@@ -983,14 +990,7 @@ static int i2c_pxa_remove(struct platform_device *dev)
 
 	clk_disable(i2c->clk);
 	clk_put(i2c->clk);
-
-#ifdef CONFIG_PXA27x
-	if (dev->id == 1) {
-		local_irq_disable();
-		PCFR &= ~PCFR_PI2CEN;
-		local_irq_enable();
-	}
-#endif
+	i2c_pxa_disable(dev);
 
 	release_mem_region(i2c->iobase, i2c->iosize);
 	kfree(i2c);
