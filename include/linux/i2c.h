@@ -259,6 +259,12 @@ i2c_new_probed_device(struct i2c_adapter *adap,
 		      struct i2c_board_info *info,
 		      unsigned short const *addr_list);
 
+/* For devices that use several addresses, use i2c_new_dummy() to make
+ * client handles for the extra addresses.
+ */
+extern struct i2c_client *
+i2c_new_dummy(struct i2c_adapter *adap, u16 address, const char *type);
+
 extern void i2c_unregister_device(struct i2c_client *);
 
 /* Mainboard arch_initcall() code should register all its I2C devices.

@@ -296,6 +296,50 @@ void i2c_unregister_device(struct i2c_client *client)
 EXPORT_SYMBOL_GPL(i2c_unregister_device);
 
 
+static int dummy_nop(struct i2c_client *client)
+{
+	return 0;
+}
+
+static struct i2c_driver dummy_driver = {
+	.driver.name	= "dummy",
+	.probe		= dummy_nop,
+	.remove		= dummy_nop,
+};
+
+/**
+ * i2c_new_dummy - return a new i2c device bound to a dummy driver
+ * @adapter: the adapter managing the device
+ * @address: seven bit address to be used
+ * @type: optional label used for i2c_client.name
+ * Context: can sleep
+ *
+ * This returns an I2C client bound to the "dummy" driver, intended for use
+ * with devices that consume multiple addresses.  Examples of such chips
+ * include various EEPROMS (like 24c04 and 24c08 models).
+ *
+ * These dummy devices have two main uses.  First, most I2C and SMBus calls
+ * except i2c_transfer() need a client handle; the dummy will be that handle.
+ * And second, this prevents the specified address from being bound to a
+ * different driver.
+ *
+ * This returns the new i2c client, which should be saved for later use with
+ * i2c_unregister_device(); or NULL to indicate an error.
+ */
+struct i2c_client *
+i2c_new_dummy(struct i2c_adapter *adapter, u16 address, const char *type)
+{
+	struct i2c_board_info info = {
+		.driver_name	= "dummy",
+		.addr		= address,
+	};
+
+	if (type)
+		strlcpy(info.type, type, sizeof info.type);
+	return i2c_new_device(adapter, &info);
+}
+EXPORT_SYMBOL_GPL(i2c_new_dummy);
+
 /* ------------------------------------------------------------------------- */
 
 /* I2C bus adapters -- one roots each I2C or SMBUS segment */
@@ -841,11 +885,24 @@ static int __init i2c_init(void)
 	retval = bus_register(&i2c_bus_type);
 	if (retval)
 		return retval;
-	return class_register(&i2c_adapter_class);
+	retval = class_register(&i2c_adapter_class);
+	if (retval)
+		goto bus_err;
+	retval = i2c_add_driver(&dummy_driver);
+	if (retval)
+		goto class_err;
+	return 0;
+
+class_err:
+	class_unregister(&i2c_adapter_class);
+bus_err:
+	bus_unregister(&i2c_bus_type);
+	return retval;
 }
 
 static void __exit i2c_exit(void)
 {
+	i2c_del_driver(&dummy_driver);
 	class_unregister(&i2c_adapter_class);
 	bus_unregister(&i2c_bus_type);
 }
