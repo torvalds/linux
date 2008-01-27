@@ -386,11 +386,8 @@ static inline int i2c_add_driver(struct i2c_driver *driver)
 extern int i2c_attach_client(struct i2c_client *);
 extern int i2c_detach_client(struct i2c_client *);
 
-/* Should be used to make sure that client-struct is valid and that it
-   is okay to access the i2c-client.
-   returns -ENODEV if client has gone in the meantime */
-extern int i2c_use_client(struct i2c_client *);
-extern int i2c_release_client(struct i2c_client *);
+extern struct i2c_client *i2c_use_client(struct i2c_client *client);
+extern void i2c_release_client(struct i2c_client *client);
 
 /* call the i2c_client->command() of all attached clients with
  * the given arguments */
