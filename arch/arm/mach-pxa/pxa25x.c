@@ -111,10 +111,13 @@ static const struct clkops clk_pxa25x_lcd_ops = {
  * 95.842MHz -> MMC 19.169MHz, I2C 31.949MHz, FICP 47.923MHz, USB 47.923MHz
  * 147.456MHz -> UART 14.7456MHz, AC97 12.288MHz, I2S 5.672MHz (allegedly)
  */
+static struct clk pxa25x_hwuart_clk =
+	INIT_CKEN("UARTCLK", HWUART, 14745600, 1, &pxa_device_hwuart.dev)
+;
+
 static struct clk pxa25x_clks[] = {
 	INIT_CK("LCDCLK", LCD, &clk_pxa25x_lcd_ops, &pxa_device_fb.dev),
 	INIT_CKEN("UARTCLK", FFUART, 14745600, 1, &pxa_device_ffuart.dev),
-	INIT_CKEN("UARTCLK", BTUART, 14745600, 1, &pxa_device_btuart.dev),
 	INIT_CKEN("UARTCLK", BTUART, 14745600, 1, &pxa_device_btuart.dev),
 	INIT_CKEN("UARTCLK", STUART, 14745600, 1, NULL),
 	INIT_CKEN("UDCCLK", USB, 47923000, 5, &pxa_device_udc.dev),
@@ -302,6 +305,10 @@ static struct platform_device *pxa25x_devices[] __initdata = {
 static int __init pxa25x_init(void)
 {
 	int ret = 0;
+
+	/* Only add HWUART for PXA255/26x; PXA210/250/27x do not have it. */
+	if (cpu_is_pxa25x())
+		clks_register(&pxa25x_hwuart_clk, 1);
 
 	if (cpu_is_pxa21x() || cpu_is_pxa25x()) {
 		clks_register(pxa25x_clks, ARRAY_SIZE(pxa25x_clks));
