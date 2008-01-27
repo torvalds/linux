@@ -529,7 +529,7 @@ zfcp_qdio_sbals_wipe(struct zfcp_fsf_req *fsf_req)
 
 
 /**
- * zfcp_qdio_sbale_fill - set address and lenght in current SBALE
+ * zfcp_qdio_sbale_fill - set address and length in current SBALE
  *	on request_queue
  */
 static void

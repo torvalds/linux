@@ -36,7 +36,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/notifier.h>
-
+#include <linux/utsname.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/system.h>
@@ -182,13 +182,15 @@ void cpu_idle(void)
 
 void show_regs(struct pt_regs *regs)
 {
-	struct task_struct *tsk = current;
-
-        printk("CPU:    %d    %s\n", task_thread_info(tsk)->cpu, print_tainted());
-        printk("Process %s (pid: %d, task: %p, ksp: %p)\n",
-	       current->comm, task_pid_nr(current), (void *) tsk,
-	       (void *) tsk->thread.ksp);
-
+	print_modules();
+	printk("CPU: %d %s %s %.*s\n",
+	       task_thread_info(current)->cpu, print_tainted(),
+	       init_utsname()->release,
+	       (int)strcspn(init_utsname()->version, " "),
+	       init_utsname()->version);
+	printk("Process %s (pid: %d, task: %p, ksp: %p)\n",
+	       current->comm, current->pid, current,
+	       (void *) current->thread.ksp);
 	show_registers(regs);
 	/* Show stack backtrace if pt_regs is from kernel mode */
 	if (!(regs->psw.mask & PSW_MASK_PSTATE))

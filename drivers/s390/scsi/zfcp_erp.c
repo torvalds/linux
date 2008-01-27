@@ -1286,7 +1286,7 @@ zfcp_erp_strategy_do_action(struct zfcp_erp_action *erp_action)
 	 * note: no lock in subsequent strategy routines
 	 * (this allows these routine to call schedule, e.g.
 	 * kmalloc with such flags or qdio_initialize & friends)
-	 * Note: in case of timeout, the seperate strategies will fail
+	 * Note: in case of timeout, the separate strategies will fail
 	 * anyhow. No need for a special action. Even worse, a nameserver
 	 * failure would not wake up waiting ports without the call.
 	 */

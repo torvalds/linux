@@ -1495,7 +1495,7 @@ tape_3590_unit_check(struct tape_device *device, struct tape_request *request,
 			   device->cdev->dev.bus_id);
 		return tape_3590_erp_basic(device, request, irb, -EPERM);
 	case 0x8013:
-		PRINT_WARN("(%s): Another host has priviliged access to the "
+		PRINT_WARN("(%s): Another host has privileged access to the "
 			   "tape device\n", device->cdev->dev.bus_id);
 		PRINT_WARN("(%s): To solve the problem unload the current "
 			   "cartridge!\n", device->cdev->dev.bus_id);

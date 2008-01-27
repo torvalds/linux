@@ -295,7 +295,7 @@ module_init(mon_init);
 module_exit(mon_exit);
 
 module_param_named(max_bufs, mon_max_bufs, int, 0644);
-MODULE_PARM_DESC(max_bufs, "Maximum number of sample monitor data buffers"
+MODULE_PARM_DESC(max_bufs, "Maximum number of sample monitor data buffers "
 		 "that can be active at one time");
 
 MODULE_AUTHOR("Melissa Howland <Melissa.Howland@us.ibm.com>");

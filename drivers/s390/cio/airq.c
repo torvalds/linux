@@ -1,12 +1,12 @@
 /*
  *  drivers/s390/cio/airq.c
- *   S/390 common I/O routines -- support for adapter interruptions
+ *    Support for adapter interruptions
  *
- *    Copyright (C) 1999-2002 IBM Deutschland Entwicklung GmbH,
- *			      IBM Corporation
- *    Author(s): Ingo Adlung (adlung@de.ibm.com)
- *		 Cornelia Huck (cornelia.huck@de.ibm.com)
- *		 Arnd Bergmann (arndb@de.ibm.com)
+ *    Copyright IBM Corp. 1999,2007
+ *    Author(s): Ingo Adlung <adlung@de.ibm.com>
+ *		 Cornelia Huck <cornelia.huck@de.ibm.com>
+ *		 Arnd Bergmann <arndb@de.ibm.com>
+ *		 Peter Oberparleiter <peter.oberparleiter@de.ibm.com>
  */
 
 #include <linux/init.h>
@@ -14,72 +14,131 @@
 #include <linux/slab.h>
 #include <linux/rcupdate.h>
 
+#include <asm/airq.h>
+
+#include "cio.h"
 #include "cio_debug.h"
-#include "airq.h"
 
-static adapter_int_handler_t adapter_handler;
+#define NR_AIRQS		32
+#define NR_AIRQS_PER_WORD	sizeof(unsigned long)
+#define NR_AIRQ_WORDS		(NR_AIRQS / NR_AIRQS_PER_WORD)
 
-/*
- * register for adapter interrupts
+union indicator_t {
+	unsigned long word[NR_AIRQ_WORDS];
+	unsigned char byte[NR_AIRQS];
+} __attribute__((packed));
+
+struct airq_t {
+	adapter_int_handler_t handler;
+	void *drv_data;
+};
+
+static union indicator_t indicators;
+static struct airq_t *airqs[NR_AIRQS];
+
+static int register_airq(struct airq_t *airq)
+{
+	int i;
+
+	for (i = 0; i < NR_AIRQS; i++)
+		if (!cmpxchg(&airqs[i], NULL, airq))
+			return i;
+	return -ENOMEM;
+}
+
+/**
+ * s390_register_adapter_interrupt() - register adapter interrupt handler
+ * @handler: adapter handler to be registered
+ * @drv_data: driver data passed with each call to the handler
  *
- * With HiperSockets the zSeries architecture provides for
- *  means of adapter interrups, pseudo I/O interrupts that are
- *  not tied to an I/O subchannel, but to an adapter. However,
- *  it doesn't disclose the info how to enable/disable them, but
- *  to recognize them only. Perhaps we should consider them
- *  being shared interrupts, and thus build a linked list
- *  of adapter handlers ... to be evaluated ...
+ * Returns:
+ *  Pointer to the indicator to be used on success
+ *  ERR_PTR() if registration failed
  */
-int
-s390_register_adapter_interrupt (adapter_int_handler_t handler)
+void *s390_register_adapter_interrupt(adapter_int_handler_t handler,
+				      void *drv_data)
 {
+	struct airq_t *airq;
+	char dbf_txt[16];
 	int ret;
-	char dbf_txt[15];
 
-	CIO_TRACE_EVENT (4, "rgaint");
-
-	if (handler == NULL)
-		ret = -EINVAL;
-	else
-		ret = (cmpxchg(&adapter_handler, NULL, handler) ? -EBUSY : 0);
-	if (!ret)
-		synchronize_sched();  /* Allow interrupts to complete. */
-
-	sprintf (dbf_txt, "ret:%d", ret);
-	CIO_TRACE_EVENT (4, dbf_txt);
-
-	return ret;
-}
-
-int
-s390_unregister_adapter_interrupt (adapter_int_handler_t handler)
-{
-	int ret;
-	char dbf_txt[15];
-
-	CIO_TRACE_EVENT (4, "urgaint");
-
-	if (handler == NULL)
-		ret = -EINVAL;
-	else {
-		adapter_handler = NULL;
-		synchronize_sched();  /* Allow interrupts to complete. */
-		ret = 0;
+	airq = kmalloc(sizeof(struct airq_t), GFP_KERNEL);
+	if (!airq) {
+		ret = -ENOMEM;
+		goto out;
 	}
-	sprintf (dbf_txt, "ret:%d", ret);
-	CIO_TRACE_EVENT (4, dbf_txt);
-
-	return ret;
+	airq->handler = handler;
+	airq->drv_data = drv_data;
+	ret = register_airq(airq);
+	if (ret < 0)
+		kfree(airq);
+out:
+	snprintf(dbf_txt, sizeof(dbf_txt), "rairq:%d", ret);
+	CIO_TRACE_EVENT(4, dbf_txt);
+	if (ret < 0)
+		return ERR_PTR(ret);
+	else
+		return &indicators.byte[ret];
 }
+EXPORT_SYMBOL(s390_register_adapter_interrupt);
 
-void
-do_adapter_IO (void)
+/**
+ * s390_unregister_adapter_interrupt - unregister adapter interrupt handler
+ * @ind: indicator for which the handler is to be unregistered
+ */
+void s390_unregister_adapter_interrupt(void *ind)
 {
-	CIO_TRACE_EVENT (6, "doaio");
+	struct airq_t *airq;
+	char dbf_txt[16];
+	int i;
 
-	if (adapter_handler)
-		(*adapter_handler) ();
+	i = (int) ((addr_t) ind) - ((addr_t) &indicators.byte[0]);
+	snprintf(dbf_txt, sizeof(dbf_txt), "urairq:%d", i);
+	CIO_TRACE_EVENT(4, dbf_txt);
+	indicators.byte[i] = 0;
+	airq = xchg(&airqs[i], NULL);
+	/*
+	 * Allow interrupts to complete. This will ensure that the airq handle
+	 * is no longer referenced by any interrupt handler.
+	 */
+	synchronize_sched();
+	kfree(airq);
 }
+EXPORT_SYMBOL(s390_unregister_adapter_interrupt);
 
-EXPORT_SYMBOL (s390_register_adapter_interrupt);
-EXPORT_SYMBOL (s390_unregister_adapter_interrupt);
+#define INDICATOR_MASK	(0xffUL << ((NR_AIRQS_PER_WORD - 1) * 8))
+
+void do_adapter_IO(void)
+{
+	int w;
+	int i;
+	unsigned long word;
+	struct airq_t *airq;
+
+	/*
+	 * Access indicator array in word-sized chunks to minimize storage
+	 * fetch operations.
+	 */
+	for (w = 0; w < NR_AIRQ_WORDS; w++) {
+		word = indicators.word[w];
+		i = w * NR_AIRQS_PER_WORD;
+		/*
+		 * Check bytes within word for active indicators.
+		 */
+		while (word) {
+			if (word & INDICATOR_MASK) {
+				airq = airqs[i];
+				if (likely(airq))
+					airq->handler(&indicators.byte[i],
+						      airq->drv_data);
+				else
+					/*
+					 * Reset ill-behaved indicator.
+					 */
+					indicators.byte[i] = 0;
+			}
+			word <<= 8;
+			i++;
+		}
+	}
+}

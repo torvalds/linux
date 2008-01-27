@@ -348,7 +348,7 @@ cio_ignore_write(struct file *file, const char __user *user_buf,
 	return user_len;
 }
 
-static struct seq_operations cio_ignore_proc_seq_ops = {
+static const struct seq_operations cio_ignore_proc_seq_ops = {
 	.start = cio_ignore_proc_seq_start,
 	.stop  = cio_ignore_proc_seq_stop,
 	.next  = cio_ignore_proc_seq_next,

@@ -516,7 +516,7 @@ static int __init aes_init(void)
 	/* z9 109 and z9 BC/EC only support 128 bit key length */
 	if (keylen_flag == AES_KEYLEN_128)
 		printk(KERN_INFO
-		       "aes_s390: hardware acceleration only available for"
+		       "aes_s390: hardware acceleration only available for "
 		       "128 bit keys\n");
 
 	ret = crypto_register_alg(&aes_alg);

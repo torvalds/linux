@@ -7,7 +7,6 @@
 
 typedef struct {
 	volatile unsigned int owner_cpu;
-	volatile unsigned int owner_pc;
 } __attribute__ ((aligned (4))) raw_spinlock_t;
 
 #define __RAW_SPIN_LOCK_UNLOCKED	{ 0 }

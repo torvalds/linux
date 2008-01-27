@@ -24,6 +24,7 @@
 #include "css.h"
 #include "device.h"
 #include "ioasm.h"
+#include "io_sch.h"
 
 /*
  * Input :
@@ -219,11 +220,13 @@ ccw_device_check_sense_id(struct ccw_device *cdev)
 		return -EAGAIN;
 	}
 	if (irb->scsw.cc == 3) {
-		if ((sch->orb.lpm &
-		     sch->schib.pmcw.pim & sch->schib.pmcw.pam) != 0)
+		u8 lpm;
+
+		lpm = to_io_private(sch)->orb.lpm;
+		if ((lpm & sch->schib.pmcw.pim & sch->schib.pmcw.pam) != 0)
 			CIO_MSG_EVENT(2, "SenseID : path %02X for device %04x "
 				      "on subchannel 0.%x.%04x is "
-				      "'not operational'\n", sch->orb.lpm,
+				      "'not operational'\n", lpm,
 				      cdev->private->dev_id.devno,
 				      sch->schid.ssid, sch->schid.sch_no);
 		return -EACCES;

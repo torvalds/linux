@@ -54,10 +54,15 @@ static int
 dasd_devices_show(struct seq_file *m, void *v)
 {
 	struct dasd_device *device;
+	struct dasd_block *block;
 	char *substr;
 
 	device = dasd_device_from_devindex((unsigned long) v - 1);
 	if (IS_ERR(device))
+		return 0;
+	if (device->block)
+		block = device->block;
+	else
 		return 0;
 	/* Print device number. */
 	seq_printf(m, "%s", device->cdev->dev.bus_id);
@@ -67,14 +72,14 @@ dasd_devices_show(struct seq_file *m, void *v)
 	else
 		seq_printf(m, "(none)");
 	/* Print kdev. */
-	if (device->gdp)
+	if (block->gdp)
 		seq_printf(m, " at (%3d:%6d)",
-			   device->gdp->major, device->gdp->first_minor);
+			   block->gdp->major, block->gdp->first_minor);
 	else
 		seq_printf(m, "  at (???:??????)");
 	/* Print device name. */
-	if (device->gdp)
-		seq_printf(m, " is %-8s", device->gdp->disk_name);
+	if (block->gdp)
+		seq_printf(m, " is %-8s", block->gdp->disk_name);
 	else
 		seq_printf(m, " is ????????");
 	/* Print devices features. */
@@ -100,14 +105,14 @@ dasd_devices_show(struct seq_file *m, void *v)
 	case DASD_STATE_READY:
 	case DASD_STATE_ONLINE:
 		seq_printf(m, "active ");
-		if (dasd_check_blocksize(device->bp_block))
+		if (dasd_check_blocksize(block->bp_block))
 			seq_printf(m, "n/f	 ");
 		else
 			seq_printf(m,
 				   "at blocksize: %d, %ld blocks, %ld MB",
-				   device->bp_block, device->blocks,
-				   ((device->bp_block >> 9) *
-				    device->blocks) >> 11);
+				   block->bp_block, block->blocks,
+				   ((block->bp_block >> 9) *
+				    block->blocks) >> 11);
 		break;
 	default:
 		seq_printf(m, "no stat");
@@ -137,7 +142,7 @@ static void dasd_devices_stop(struct seq_file *m, void *v)
 {
 }
 
-static struct seq_operations dasd_devices_seq_ops = {
+static const struct seq_operations dasd_devices_seq_ops = {
 	.start		= dasd_devices_start,
 	.next		= dasd_devices_next,
 	.stop		= dasd_devices_stop,

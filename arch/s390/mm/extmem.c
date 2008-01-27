@@ -83,7 +83,7 @@ struct dcss_segment {
 };
 
 static DEFINE_MUTEX(dcss_lock);
-static struct list_head dcss_list = LIST_HEAD_INIT(dcss_list);
+static LIST_HEAD(dcss_list);
 static char *segtype_string[] = { "SW", "EW", "SR", "ER", "SN", "EN", "SC",
 					"EW/EN-MIXED" };
 

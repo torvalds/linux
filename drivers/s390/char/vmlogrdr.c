@@ -683,7 +683,7 @@ static int vmlogrdr_register_driver(void)
 	/* Register with iucv driver */
 	ret = iucv_register(&vmlogrdr_iucv_handler, 1);
 	if (ret) {
-		printk (KERN_ERR "vmlogrdr: failed to register with"
+		printk (KERN_ERR "vmlogrdr: failed to register with "
 			"iucv driver\n");
 		goto out;
 	}

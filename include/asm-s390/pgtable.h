@@ -104,40 +104,26 @@ extern char empty_zero_page[PAGE_SIZE];
 
 #ifndef __ASSEMBLY__
 /*
- * Just any arbitrary offset to the start of the vmalloc VM area: the
- * current 8MB value just means that there will be a 8MB "hole" after the
- * physical memory until the kernel virtual memory starts.  That means that
- * any out-of-bounds memory accesses will hopefully be caught.
- * The vmalloc() routines leaves a hole of 4kB between each vmalloced
- * area for the same reason. ;)
- * vmalloc area starts at 4GB to prevent syscall table entry exchanging
- * from modules.
- */
-extern unsigned long vmalloc_end;
-
-#ifdef CONFIG_64BIT
-#define VMALLOC_ADDR	(max(0x100000000UL, (unsigned long) high_memory))
-#else
-#define VMALLOC_ADDR	((unsigned long) high_memory)
-#endif
-#define VMALLOC_OFFSET	(8*1024*1024)
-#define VMALLOC_START	((VMALLOC_ADDR + VMALLOC_OFFSET) & ~(VMALLOC_OFFSET-1))
-#define VMALLOC_END	vmalloc_end
-
-/*
- * We need some free virtual space to be able to do vmalloc.
- * VMALLOC_MIN_SIZE defines the minimum size of the vmalloc
- * area. On a machine with 2GB memory we make sure that we
- * have at least 128MB free space for vmalloc. On a machine
- * with 4TB we make sure we have at least 128GB.
+ * The vmalloc area will always be on the topmost area of the kernel
+ * mapping. We reserve 96MB (31bit) / 1GB (64bit) for vmalloc,
+ * which should be enough for any sane case.
+ * By putting vmalloc at the top, we maximise the gap between physical
+ * memory and vmalloc to catch misplaced memory accesses. As a side
+ * effect, this also makes sure that 64 bit module code cannot be used
+ * as system call address.
  */
 #ifndef __s390x__
-#define VMALLOC_MIN_SIZE	0x8000000UL
-#define VMALLOC_END_INIT	0x80000000UL
+#define VMALLOC_START	0x78000000UL
+#define VMALLOC_END	0x7e000000UL
+#define VMEM_MAP_MAX	0x80000000UL
 #else /* __s390x__ */
-#define VMALLOC_MIN_SIZE	0x2000000000UL
-#define VMALLOC_END_INIT	0x40000000000UL
+#define VMALLOC_START	0x3e000000000UL
+#define VMALLOC_END	0x3e040000000UL
+#define VMEM_MAP_MAX	0x40000000000UL
 #endif /* __s390x__ */
+
+#define VMEM_MAP	((struct page *) VMALLOC_END)
+#define VMEM_MAP_SIZE	((VMALLOC_START / PAGE_SIZE) * sizeof(struct page))
 
 /*
  * A 31 bit pagetable entry of S390 has following format:

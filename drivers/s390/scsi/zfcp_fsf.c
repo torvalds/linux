@@ -502,7 +502,7 @@ zfcp_fsf_fsfstatus_qual_eval(struct zfcp_fsf_req *fsf_req)
 		fsf_req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 		break;
 	case FSF_SQ_NO_RECOM:
-		ZFCP_LOG_NORMAL("bug: No recommendation could be given for a"
+		ZFCP_LOG_NORMAL("bug: No recommendation could be given for a "
 				"problem on the adapter %s "
 				"Stopping all operations on this adapter. ",
 				zfcp_get_busid_by_adapter(fsf_req->adapter));
@@ -813,7 +813,7 @@ zfcp_fsf_status_read_port_closed(struct zfcp_fsf_req *fsf_req)
 	read_unlock_irqrestore(&zfcp_data.config_lock, flags);
 
 	if (!port || (port->d_id != (status_buffer->d_id & ZFCP_DID_MASK))) {
-		ZFCP_LOG_NORMAL("bug: Reopen port indication received for"
+		ZFCP_LOG_NORMAL("bug: Reopen port indication received for "
 				"nonexisting port with d_id 0x%06x on "
 				"adapter %s. Ignored.\n",
 				status_buffer->d_id & ZFCP_DID_MASK,
@@ -2281,7 +2281,7 @@ zfcp_fsf_exchange_port_data(struct zfcp_erp_action *erp_action)
 				     &lock_flags, &fsf_req);
 	if (retval) {
 		ZFCP_LOG_INFO("error: Out of resources. Could not create an "
-			      "exchange port data request for"
+			      "exchange port data request for "
 			      "the adapter %s.\n",
 			      zfcp_get_busid_by_adapter(adapter));
 		write_unlock_irqrestore(&adapter->request_queue.queue_lock,
@@ -2340,7 +2340,7 @@ zfcp_fsf_exchange_port_data_sync(struct zfcp_adapter *adapter,
 				0, NULL, &lock_flags, &fsf_req);
 	if (retval) {
 		ZFCP_LOG_INFO("error: Out of resources. Could not create an "
-			      "exchange port data request for"
+			      "exchange port data request for "
 			      "the adapter %s.\n",
 			      zfcp_get_busid_by_adapter(adapter));
 		write_unlock_irqrestore(&adapter->request_queue.queue_lock,
@@ -4725,7 +4725,7 @@ zfcp_fsf_req_create(struct zfcp_adapter *adapter, u32 fsf_cmd, int req_flags,
 	/* allocate new FSF request */
 	fsf_req = zfcp_fsf_req_alloc(pool, req_flags);
 	if (unlikely(NULL == fsf_req)) {
-		ZFCP_LOG_DEBUG("error: Could not put an FSF request into"
+		ZFCP_LOG_DEBUG("error: Could not put an FSF request into "
 			       "the outbound (send) queue.\n");
 		ret = -ENOMEM;
 		goto failed_fsf_req;

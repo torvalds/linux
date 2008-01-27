@@ -56,8 +56,6 @@ typedef unsigned int sclp_cmdw_t;
 #define SCLP_CMDW_READ_EVENT_DATA	0x00770005
 #define SCLP_CMDW_WRITE_EVENT_DATA	0x00760005
 #define SCLP_CMDW_WRITE_EVENT_MASK	0x00780005
-#define SCLP_CMDW_READ_SCP_INFO		0x00020001
-#define SCLP_CMDW_READ_SCP_INFO_FORCED	0x00120001
 
 #define GDS_ID_MDSMU		0x1310
 #define GDS_ID_MDSROUTEINFO	0x1311
@@ -83,6 +81,8 @@ extern u64 sclp_facilities;
 
 #define SCLP_HAS_CHP_INFO	(sclp_facilities & 0x8000000000000000ULL)
 #define SCLP_HAS_CHP_RECONFIG	(sclp_facilities & 0x2000000000000000ULL)
+#define SCLP_HAS_CPU_INFO	(sclp_facilities & 0x0800000000000000ULL)
+#define SCLP_HAS_CPU_RECONFIG	(sclp_facilities & 0x0400000000000000ULL)
 
 struct gds_subvector {
 	u8	length;

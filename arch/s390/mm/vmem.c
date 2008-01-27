@@ -15,10 +15,6 @@
 #include <asm/setup.h>
 #include <asm/tlbflush.h>
 
-unsigned long vmalloc_end;
-EXPORT_SYMBOL(vmalloc_end);
-
-static struct page *vmem_map;
 static DEFINE_MUTEX(vmem_mutex);
 
 struct memory_segment {
@@ -188,8 +184,8 @@ static int vmem_add_mem_map(unsigned long start, unsigned long size)
 	pte_t  pte;
 	int ret = -ENOMEM;
 
-	map_start = vmem_map + PFN_DOWN(start);
-	map_end	= vmem_map + PFN_DOWN(start + size);
+	map_start = VMEM_MAP + PFN_DOWN(start);
+	map_end	= VMEM_MAP + PFN_DOWN(start + size);
 
 	start_addr = (unsigned long) map_start & PAGE_MASK;
 	end_addr = PFN_ALIGN((unsigned long) map_end);
@@ -240,10 +236,10 @@ static int vmem_add_mem(unsigned long start, unsigned long size)
 {
 	int ret;
 
-	ret = vmem_add_range(start, size);
+	ret = vmem_add_mem_map(start, size);
 	if (ret)
 		return ret;
-	return vmem_add_mem_map(start, size);
+	return vmem_add_range(start, size);
 }
 
 /*
@@ -254,7 +250,7 @@ static int insert_memory_segment(struct memory_segment *seg)
 {
 	struct memory_segment *tmp;
 
-	if (PFN_DOWN(seg->start + seg->size) > max_pfn ||
+	if (seg->start + seg->size >= VMALLOC_START ||
 	    seg->start + seg->size < seg->start)
 		return -ERANGE;
 
@@ -357,17 +353,15 @@ out:
 
 /*
  * map whole physical memory to virtual memory (identity mapping)
+ * we reserve enough space in the vmalloc area for vmemmap to hotplug
+ * additional memory segments.
  */
 void __init vmem_map_init(void)
 {
-	unsigned long map_size;
 	int i;
 
-	map_size = ALIGN(max_low_pfn, MAX_ORDER_NR_PAGES) * sizeof(struct page);
-	vmalloc_end = PFN_ALIGN(VMALLOC_END_INIT) - PFN_ALIGN(map_size);
-	vmem_map = (struct page *) vmalloc_end;
-	NODE_DATA(0)->node_mem_map = vmem_map;
-
+	BUILD_BUG_ON((unsigned long)VMEM_MAP + VMEM_MAP_SIZE > VMEM_MAP_MAX);
+	NODE_DATA(0)->node_mem_map = VMEM_MAP;
 	for (i = 0; i < MEMORY_CHUNKS && memory_chunk[i].size > 0; i++)
 		vmem_add_mem(memory_chunk[i].addr, memory_chunk[i].size);
 }
@@ -382,7 +376,7 @@ static int __init vmem_convert_memory_chunk(void)
 	int i;
 
 	mutex_lock(&vmem_mutex);
-	for (i = 0; i < MEMORY_CHUNKS && memory_chunk[i].size > 0; i++) {
+	for (i = 0; i < MEMORY_CHUNKS; i++) {
 		if (!memory_chunk[i].size)
 			continue;
 		seg = kzalloc(sizeof(*seg), GFP_KERNEL);

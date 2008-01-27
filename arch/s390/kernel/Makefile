@@ -31,7 +31,3 @@ S390_KEXEC_OBJS := machine_kexec.o crash.o
 S390_KEXEC_OBJS += $(if $(CONFIG_64BIT),relocate_kernel64.o,relocate_kernel.o)
 obj-$(CONFIG_KEXEC) += $(S390_KEXEC_OBJS)
 
-#
-# This is just to get the dependencies...
-#
-binfmt_elf32.o:	$(TOPDIR)/fs/binfmt_elf.c

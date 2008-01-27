@@ -53,44 +53,48 @@ _raw_compare_and_swap(volatile unsigned int *lock,
  */
 
 #define __raw_spin_is_locked(x) ((x)->owner_cpu != 0)
-#define __raw_spin_lock_flags(lock, flags) __raw_spin_lock(lock)
 #define __raw_spin_unlock_wait(lock) \
 	do { while (__raw_spin_is_locked(lock)) \
 		 _raw_spin_relax(lock); } while (0)
 
-extern void _raw_spin_lock_wait(raw_spinlock_t *, unsigned int pc);
-extern int _raw_spin_trylock_retry(raw_spinlock_t *, unsigned int pc);
+extern void _raw_spin_lock_wait(raw_spinlock_t *);
+extern void _raw_spin_lock_wait_flags(raw_spinlock_t *, unsigned long flags);
+extern int _raw_spin_trylock_retry(raw_spinlock_t *);
 extern void _raw_spin_relax(raw_spinlock_t *lock);
 
 static inline void __raw_spin_lock(raw_spinlock_t *lp)
 {
-	unsigned long pc = 1 | (unsigned long) __builtin_return_address(0);
 	int old;
 
 	old = _raw_compare_and_swap(&lp->owner_cpu, 0, ~smp_processor_id());
-	if (likely(old == 0)) {
-		lp->owner_pc = pc;
+	if (likely(old == 0))
 		return;
-	}
-	_raw_spin_lock_wait(lp, pc);
+	_raw_spin_lock_wait(lp);
+}
+
+static inline void __raw_spin_lock_flags(raw_spinlock_t *lp,
+					 unsigned long flags)
+{
+	int old;
+
+	old = _raw_compare_and_swap(&lp->owner_cpu, 0, ~smp_processor_id());
+	if (likely(old == 0))
+		return;
+	_raw_spin_lock_wait_flags(lp, flags);
 }
 
 static inline int __raw_spin_trylock(raw_spinlock_t *lp)
 {
-	unsigned long pc = 1 | (unsigned long) __builtin_return_address(0);
 	int old;
 
 	old = _raw_compare_and_swap(&lp->owner_cpu, 0, ~smp_processor_id());
-	if (likely(old == 0)) {
-		lp->owner_pc = pc;
+	if (likely(old == 0))
 		return 1;
-	}
-	return _raw_spin_trylock_retry(lp, pc);
+	return _raw_spin_trylock_retry(lp);
 }
 
 static inline void __raw_spin_unlock(raw_spinlock_t *lp)
 {
-	lp->owner_pc = 0;
 	_raw_compare_and_swap(&lp->owner_cpu, lp->owner_cpu, 0);
 }
 		
