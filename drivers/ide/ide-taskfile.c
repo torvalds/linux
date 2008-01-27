@@ -35,34 +35,6 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
-static void ata_bswap_data (void *buffer, int wcount)
-{
-	u16 *p = buffer;
-
-	while (wcount--) {
-		*p = *p << 8 | *p >> 8; p++;
-		*p = *p << 8 | *p >> 8; p++;
-	}
-}
-
-static void taskfile_input_data(ide_drive_t *drive, void *buffer, u32 wcount)
-{
-	HWIF(drive)->ata_input_data(drive, buffer, wcount);
-	if (drive->bswap)
-		ata_bswap_data(buffer, wcount);
-}
-
-static void taskfile_output_data(ide_drive_t *drive, void *buffer, u32 wcount)
-{
-	if (drive->bswap) {
-		ata_bswap_data(buffer, wcount);
-		HWIF(drive)->ata_output_data(drive, buffer, wcount);
-		ata_bswap_data(buffer, wcount);
-	} else {
-		HWIF(drive)->ata_output_data(drive, buffer, wcount);
-	}
-}
-
 void ide_tf_load(ide_drive_t *drive, ide_task_t *task)
 {
 	ide_hwif_t *hwif = drive->hwif;
@@ -77,10 +49,13 @@ void ide_tf_load(ide_drive_t *drive, ide_task_t *task)
 		"lbam 0x%02x lbah 0x%02x dev 0x%02x cmd 0x%02x\n",
 		drive->name, tf->feature, tf->nsect, tf->lbal,
 		tf->lbam, tf->lbah, tf->device, tf->command);
+	printk("%s: hob: nsect 0x%02x lbal 0x%02x "
+		"lbam 0x%02x lbah 0x%02x\n",
+		drive->name, tf->hob_nsect, tf->hob_lbal,
+		tf->hob_lbam, tf->hob_lbah);
 #endif
 
-	if (IDE_CONTROL_REG)
-		hwif->OUTB(drive->ctl, IDE_CONTROL_REG); /* clear nIEN */
+	ide_set_irq(drive, 1);
 
 	if ((task->tf_flags & IDE_TFLAG_NO_SELECT_MASK) == 0)
 		SELECT_MASK(drive, 0);
@@ -124,7 +99,7 @@ int taskfile_lib_get_identify (ide_drive_t *drive, u8 *buf)
 		args.tf.command = WIN_IDENTIFY;
 	else
 		args.tf.command = WIN_PIDENTIFY;
-	args.tf_flags	= IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE;
+	args.tf_flags	= IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
 	args.data_phase	= TASKFILE_IN;
 	return ide_raw_taskfile(drive, &args, buf, 1);
 }
@@ -285,7 +260,7 @@ static ide_startstop_t task_no_data_intr(ide_drive_t *drive)
 	return ide_stopped;
 }
 
-static u8 wait_drive_not_busy(ide_drive_t *drive)
+u8 wait_drive_not_busy(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = HWIF(drive);
 	int retries;
@@ -293,8 +268,7 @@ static u8 wait_drive_not_busy(ide_drive_t *drive)
 
 	/*
 	 * Last sector was transfered, wait until drive is ready.
-	 * This can take up to 10 usec, but we will wait max 1 ms
-	 * (drive_cmd_intr() waits that long).
+	 * This can take up to 10 usec, but we will wait max 1 ms.
 	 */
 	for (retries = 0; retries < 100; retries++) {
 		if ((stat = hwif->INB(IDE_STATUS_REG)) & BUSY_STAT)
@@ -349,9 +323,9 @@ static void ide_pio_sector(ide_drive_t *drive, unsigned int write)
 
 	/* do the actual data transfer */
 	if (write)
-		taskfile_output_data(drive, buf, SECTOR_WORDS);
+		hwif->ata_output_data(drive, buf, SECTOR_WORDS);
 	else
-		taskfile_input_data(drive, buf, SECTOR_WORDS);
+		hwif->ata_input_data(drive, buf, SECTOR_WORDS);
 
 	kunmap_atomic(buf, KM_BIO_SRC_IRQ);
 #ifdef CONFIG_HIGHMEM
@@ -371,8 +345,17 @@ static void ide_pio_multi(ide_drive_t *drive, unsigned int write)
 static void ide_pio_datablock(ide_drive_t *drive, struct request *rq,
 				     unsigned int write)
 {
+	u8 saved_io_32bit = drive->io_32bit;
+
 	if (rq->bio)	/* fs request */
 		rq->errors = 0;
+
+	if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE) {
+		ide_task_t *task = rq->special;
+
+		if (task->tf_flags & IDE_TFLAG_IO_16BIT)
+			drive->io_32bit = 0;
+	}
 
 	touch_softlockup_watchdog();
 
@@ -385,6 +368,8 @@ static void ide_pio_datablock(ide_drive_t *drive, struct request *rq,
 		ide_pio_sector(drive, write);
 		break;
 	}
+
+	drive->io_32bit = saved_io_32bit;
 }
 
 static ide_startstop_t task_error(ide_drive_t *drive, struct request *rq,
@@ -422,27 +407,22 @@ static ide_startstop_t task_error(ide_drive_t *drive, struct request *rq,
 	return ide_error(drive, s, stat);
 }
 
-static void task_end_request(ide_drive_t *drive, struct request *rq, u8 stat)
+void task_end_request(ide_drive_t *drive, struct request *rq, u8 stat)
 {
-	HWIF(drive)->cursg = NULL;
-
 	if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE) {
-		ide_task_t *task = rq->special;
+		u8 err = drive->hwif->INB(IDE_ERROR_REG);
 
-		if (task->tf_flags & IDE_TFLAG_FLAGGED) {
-			u8 err = drive->hwif->INB(IDE_ERROR_REG);
-			ide_end_drive_cmd(drive, stat, err);
-			return;
-		}
+		ide_end_drive_cmd(drive, stat, err);
+		return;
 	}
 
 	if (rq->rq_disk) {
 		ide_driver_t *drv;
 
 		drv = *(ide_driver_t **)rq->rq_disk->private_data;;
-		drv->end_request(drive, 1, rq->hard_nr_sectors);
+		drv->end_request(drive, 1, rq->nr_sectors);
 	} else
-		ide_end_request(drive, 1, rq->hard_nr_sectors);
+		ide_end_request(drive, 1, rq->nr_sectors);
 }
 
 /*
@@ -455,7 +435,7 @@ static ide_startstop_t task_in_intr(ide_drive_t *drive)
 	u8 stat = hwif->INB(IDE_STATUS_REG);
 
 	/* new way for dealing with premature shared PCI interrupts */
-	if (!OK_STAT(stat, DATA_READY, BAD_R_STAT)) {
+	if (!OK_STAT(stat, DRQ_STAT, BAD_R_STAT)) {
 		if (stat & (ERR_STAT | DRQ_STAT))
 			return task_error(drive, rq, __FUNCTION__, stat);
 		/* No data yet, so wait for another IRQ. */
@@ -468,7 +448,7 @@ static ide_startstop_t task_in_intr(ide_drive_t *drive)
 	/* If it was the last datablock check status and finish transfer. */
 	if (!hwif->nleft) {
 		stat = wait_drive_not_busy(drive);
-		if (!OK_STAT(stat, 0, BAD_R_STAT))
+		if (!OK_STAT(stat, 0, BAD_STAT))
 			return task_error(drive, rq, __FUNCTION__, stat);
 		task_end_request(drive, rq, stat);
 		return ide_stopped;
@@ -512,7 +492,7 @@ static ide_startstop_t pre_task_out_intr(ide_drive_t *drive, struct request *rq)
 {
 	ide_startstop_t startstop;
 
-	if (ide_wait_stat(&startstop, drive, DATA_READY,
+	if (ide_wait_stat(&startstop, drive, DRQ_STAT,
 			  drive->bad_wstat, WAIT_DRQ)) {
 		printk(KERN_ERR "%s: no DRQ after issuing %sWRITE%s\n",
 				drive->name,
@@ -580,7 +560,6 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 	unsigned int taskin	= 0;
 	unsigned int taskout	= 0;
 	u16 nsect		= 0;
-	u8 io_32bit		= drive->io_32bit;
 	char __user *buf = (char __user *)arg;
 
 //	printk("IDE Taskfile ...\n");
@@ -633,9 +612,10 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 
 	args.data_phase = req_task->data_phase;
 
-	args.tf_flags = IDE_TFLAG_OUT_DEVICE;
+	args.tf_flags = IDE_TFLAG_IO_16BIT | IDE_TFLAG_DEVICE |
+			IDE_TFLAG_IN_TF;
 	if (drive->addressing == 1)
-		args.tf_flags |= IDE_TFLAG_LBA48;
+		args.tf_flags |= (IDE_TFLAG_LBA48 | IDE_TFLAG_IN_HOB);
 
 	if (req_task->out_flags.all) {
 		args.tf_flags |= IDE_TFLAG_FLAGGED;
@@ -671,7 +651,6 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 	if (req_task->in_flags.b.data)
 		args.tf_flags |= IDE_TFLAG_IN_DATA;
 
-	drive->io_32bit = 0;
 	switch(req_task->data_phase) {
 		case TASKFILE_MULTI_OUT:
 			if (!drive->mult_count) {
@@ -767,41 +746,24 @@ abort:
 
 //	printk("IDE Taskfile ioctl ended. rc = %i\n", err);
 
-	drive->io_32bit = io_32bit;
-
 	return err;
 }
 #endif
 
-int ide_wait_cmd (ide_drive_t *drive, u8 cmd, u8 nsect, u8 feature, u8 sectors, u8 *buf)
-{
-	struct request rq;
-	u8 buffer[4];
-
-	if (!buf)
-		buf = buffer;
-	memset(buf, 0, 4 + SECTOR_WORDS * 4 * sectors);
-	ide_init_drive_cmd(&rq);
-	rq.buffer = buf;
-	*buf++ = cmd;
-	*buf++ = nsect;
-	*buf++ = feature;
-	*buf++ = sectors;
-	return ide_do_drive_cmd(drive, &rq, ide_wait);
-}
-
 int ide_cmd_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 {
-	int err = 0;
-	u8 args[4], *argbuf = args;
-	u8 xfer_rate = 0;
-	int argsize = 4;
+	u8 *buf = NULL;
+	int bufsize = 0, err = 0;
+	u8 args[4], xfer_rate = 0;
 	ide_task_t tfargs;
 	struct ide_taskfile *tf = &tfargs.tf;
 
 	if (NULL == (void *) arg) {
 		struct request rq;
+
 		ide_init_drive_cmd(&rq);
+		rq.cmd_type = REQ_TYPE_ATA_TASKFILE;
+
 		return ide_do_drive_cmd(drive, &rq, ide_wait);
 	}
 
@@ -810,23 +772,39 @@ int ide_cmd_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 
 	memset(&tfargs, 0, sizeof(ide_task_t));
 	tf->feature = args[2];
-	tf->nsect   = args[3];
-	tf->lbal    = args[1];
+	if (args[0] == WIN_SMART) {
+		tf->nsect = args[3];
+		tf->lbal  = args[1];
+		tf->lbam  = 0x4f;
+		tf->lbah  = 0xc2;
+		tfargs.tf_flags = IDE_TFLAG_OUT_TF | IDE_TFLAG_IN_NSECT;
+	} else {
+		tf->nsect = args[1];
+		tfargs.tf_flags = IDE_TFLAG_OUT_FEATURE |
+				  IDE_TFLAG_OUT_NSECT | IDE_TFLAG_IN_NSECT;
+	}
 	tf->command = args[0];
+	tfargs.data_phase = args[3] ? TASKFILE_IN : TASKFILE_NO_DATA;
 
 	if (args[3]) {
-		argsize = 4 + (SECTOR_WORDS * 4 * args[3]);
-		argbuf = kzalloc(argsize, GFP_KERNEL);
-		if (argbuf == NULL)
+		tfargs.tf_flags |= IDE_TFLAG_IO_16BIT;
+		bufsize = SECTOR_WORDS * 4 * args[3];
+		buf = kzalloc(bufsize, GFP_KERNEL);
+		if (buf == NULL)
 			return -ENOMEM;
 	}
+
 	if (set_transfer(drive, &tfargs)) {
 		xfer_rate = args[1];
 		if (ide_ata66_check(drive, &tfargs))
 			goto abort;
 	}
 
-	err = ide_wait_cmd(drive, args[0], args[1], args[2], args[3], argbuf);
+	err = ide_raw_taskfile(drive, &tfargs, buf, args[3]);
+
+	args[0] = tf->status;
+	args[1] = tf->error;
+	args[2] = tf->nsect;
 
 	if (!err && xfer_rate) {
 		/* active-retuning-calls future */
@@ -834,10 +812,13 @@ int ide_cmd_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 		ide_driveid_update(drive);
 	}
 abort:
-	if (copy_to_user((void __user *)arg, argbuf, argsize))
+	if (copy_to_user((void __user *)arg, &args, 4))
 		err = -EFAULT;
-	if (argsize > 4)
-		kfree(argbuf);
+	if (buf) {
+		if (copy_to_user((void __user *)(arg + 4), buf, bufsize))
+			err = -EFAULT;
+		kfree(buf);
+	}
 	return err;
 }
 
@@ -854,7 +835,7 @@ int ide_task_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 	memset(&task, 0, sizeof(task));
 	memcpy(&task.tf_array[7], &args[1], 6);
 	task.tf.command = args[0];
-	task.tf_flags = IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE;
+	task.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
 
 	err = ide_no_data_taskfile(drive, &task);
 

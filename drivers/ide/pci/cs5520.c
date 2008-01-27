@@ -71,7 +71,6 @@ static void cs5520_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	ide_hwif_t *hwif = HWIF(drive);
 	struct pci_dev *pdev = hwif->pci_dev;
 	int controller = drive->dn > 1 ? 1 : 0;
-	u8 reg;
 
 	/* FIXME: if DMA = 1 do we need to set the DMA bit here ? */
 
@@ -91,11 +90,6 @@ static void cs5520_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	pci_write_config_byte(pdev, 0x66 + 4*controller + (drive->dn&1),
 		(cs5520_pio_clocks[pio].recovery << 4) |
 		(cs5520_pio_clocks[pio].assert));
-		
-	/* Set the DMA enable/disable flag */
-	reg = inb(hwif->dma_base + 0x02 + 8*controller);
-	reg |= 1<<((drive->dn&1)+5);
-	outb(reg, hwif->dma_base + 0x02 + 8*controller);
 }
 
 static void cs5520_set_dma_mode(ide_drive_t *drive, const u8 speed)
@@ -109,13 +103,14 @@ static void cs5520_set_dma_mode(ide_drive_t *drive, const u8 speed)
  *	We wrap the DMA activate to set the vdma flag. This is needed
  *	so that the IDE DMA layer issues PIO not DMA commands over the
  *	DMA channel
+ *
+ *	ATAPI is harder so disable it for now using IDE_HFLAG_NO_ATAPI_DMA
  */
- 
-static int cs5520_dma_on(ide_drive_t *drive)
+
+static void cs5520_dma_host_set(ide_drive_t *drive, int on)
 {
-	/* ATAPI is harder so leave it for now */
-	drive->vdma = 1;
-	return 0;
+	drive->vdma = on;
+	ide_dma_host_set(drive, on);
 }
 
 static void __devinit init_hwif_cs5520(ide_hwif_t *hwif)
@@ -126,7 +121,7 @@ static void __devinit init_hwif_cs5520(ide_hwif_t *hwif)
 	if (hwif->dma_base == 0)
 		return;
 
-	hwif->ide_dma_on = &cs5520_dma_on;
+	hwif->dma_host_set = &cs5520_dma_host_set;
 }
 
 #define DECLARE_CS_DEV(name_str)				\

@@ -725,15 +725,18 @@ static void hpt3xx_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	hpt3xx_set_mode(drive, XFER_PIO_0 + pio);
 }
 
-static int hpt3xx_quirkproc(ide_drive_t *drive)
+static void hpt3xx_quirkproc(ide_drive_t *drive)
 {
 	struct hd_driveid *id	= drive->id;
 	const  char **list	= quirk_drives;
 
 	while (*list)
-		if (strstr(id->model, *list++))
-			return 1;
-	return 0;
+		if (strstr(id->model, *list++)) {
+			drive->quirk_list = 1;
+			return;
+		}
+
+	drive->quirk_list = 0;
 }
 
 static void hpt3xx_maskproc(ide_drive_t *drive, int mask)

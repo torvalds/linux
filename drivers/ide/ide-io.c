@@ -75,7 +75,7 @@ static int __ide_end_request(ide_drive_t *drive, struct request *rq,
 	 */
 	if (drive->state == DMA_PIO_RETRY && drive->retry_pio <= 3) {
 		drive->state = 0;
-		HWGROUP(drive)->hwif->ide_dma_on(drive);
+		ide_dma_on(drive);
 	}
 
 	if (!end_that_request_chunk(rq, uptodate, nr_bytes)) {
@@ -219,7 +219,7 @@ static ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *
 		 * we could be smarter and check for current xfer_speed
 		 * in struct drive etc...
 		 */
-		if (drive->hwif->ide_dma_on == NULL)
+		if (drive->hwif->dma_host_set == NULL)
 			break;
 		/*
 		 * TODO: respect ->using_dma setting
@@ -231,7 +231,7 @@ static ide_startstop_t ide_start_power_step(ide_drive_t *drive, struct request *
 	return ide_stopped;
 
 out_do_tf:
-	args->tf_flags	 = IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE;
+	args->tf_flags	 = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
 	args->data_phase = TASKFILE_NO_DATA;
 	return do_rw_taskfile(drive, args);
 }
@@ -354,7 +354,6 @@ void ide_tf_read(ide_drive_t *drive, ide_task_t *task)
  
 void ide_end_drive_cmd (ide_drive_t *drive, u8 stat, u8 err)
 {
-	ide_hwif_t *hwif = HWIF(drive);
 	unsigned long flags;
 	struct request *rq;
 
@@ -362,17 +361,7 @@ void ide_end_drive_cmd (ide_drive_t *drive, u8 stat, u8 err)
 	rq = HWGROUP(drive)->rq;
 	spin_unlock_irqrestore(&ide_lock, flags);
 
-	if (rq->cmd_type == REQ_TYPE_ATA_CMD) {
-		u8 *args = (u8 *) rq->buffer;
-		if (rq->errors == 0)
-			rq->errors = !OK_STAT(stat,READY_STAT,BAD_STAT);
-
-		if (args) {
-			args[0] = stat;
-			args[1] = err;
-			args[2] = hwif->INB(IDE_NSECTOR_REG);
-		}
-	} else if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE) {
+	if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE) {
 		ide_task_t *args = (ide_task_t *) rq->special;
 		if (rq->errors == 0)
 			rq->errors = !OK_STAT(stat,READY_STAT,BAD_STAT);
@@ -382,10 +371,6 @@ void ide_end_drive_cmd (ide_drive_t *drive, u8 stat, u8 err)
 
 			tf->error = err;
 			tf->status = stat;
-
-			args->tf_flags |= (IDE_TFLAG_IN_TF|IDE_TFLAG_IN_DEVICE);
-			if (args->tf_flags & IDE_TFLAG_LBA48)
-				args->tf_flags |= IDE_TFLAG_IN_HOB;
 
 			ide_tf_read(drive, args);
 		}
@@ -626,42 +611,6 @@ ide_startstop_t ide_abort(ide_drive_t *drive, const char *msg)
 		return __ide_abort(drive, rq);
 }
 
-/**
- *	drive_cmd_intr		- 	drive command completion interrupt
- *	@drive: drive the completion interrupt occurred on
- *
- *	drive_cmd_intr() is invoked on completion of a special DRIVE_CMD.
- *	We do any necessary data reading and then wait for the drive to
- *	go non busy. At that point we may read the error data and complete
- *	the request
- */
- 
-static ide_startstop_t drive_cmd_intr (ide_drive_t *drive)
-{
-	struct request *rq = HWGROUP(drive)->rq;
-	ide_hwif_t *hwif = HWIF(drive);
-	u8 *args = (u8 *) rq->buffer;
-	u8 stat = hwif->INB(IDE_STATUS_REG);
-	int retries = 10;
-
-	local_irq_enable_in_hardirq();
-	if (rq->cmd_type == REQ_TYPE_ATA_CMD &&
-	    (stat & DRQ_STAT) && args && args[3]) {
-		u8 io_32bit = drive->io_32bit;
-		drive->io_32bit = 0;
-		hwif->ata_input_data(drive, &args[4], args[3] * SECTOR_WORDS);
-		drive->io_32bit = io_32bit;
-		while (((stat = hwif->INB(IDE_STATUS_REG)) & BUSY_STAT) && retries--)
-			udelay(100);
-	}
-
-	if (!OK_STAT(stat, READY_STAT, BAD_STAT))
-		return ide_error(drive, "drive_cmd", stat);
-		/* calls ide_end_drive_cmd */
-	ide_end_drive_cmd(drive, stat, hwif->INB(IDE_ERROR_REG));
-	return ide_stopped;
-}
-
 static void ide_tf_set_specify_cmd(ide_drive_t *drive, struct ide_taskfile *tf)
 {
 	tf->nsect   = drive->sect;
@@ -710,7 +659,7 @@ static ide_startstop_t ide_disk_special(ide_drive_t *drive)
 		return ide_stopped;
 	}
 
-	args.tf_flags = IDE_TFLAG_OUT_TF | IDE_TFLAG_OUT_DEVICE |
+	args.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE |
 			IDE_TFLAG_CUSTOM_HANDLER;
 
 	do_rw_taskfile(drive, &args);
@@ -787,7 +736,7 @@ static ide_startstop_t do_special (ide_drive_t *drive)
 
 			if (hwif->host_flags & IDE_HFLAG_SET_PIO_MODE_KEEP_DMA) {
 				if (keep_dma)
-					hwif->ide_dma_on(drive);
+					ide_dma_on(drive);
 			}
 		}
 
@@ -847,16 +796,9 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
 		struct request *rq)
 {
 	ide_hwif_t *hwif = HWIF(drive);
-	u8 *args = rq->buffer;
-	ide_task_t ltask;
-	struct ide_taskfile *tf = &ltask.tf;
+	ide_task_t *task = rq->special;
 
-	if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE) {
-		ide_task_t *task = rq->special;
- 
-		if (task == NULL)
-			goto done;
-
+	if (task) {
 		hwif->data_phase = task->data_phase;
 
 		switch (hwif->data_phase) {
@@ -873,33 +815,6 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
 		return do_rw_taskfile(drive, task);
 	}
 
-	if (args == NULL)
-		goto done;
-
-	memset(&ltask, 0, sizeof(ltask));
-	if (rq->cmd_type == REQ_TYPE_ATA_CMD) {
-#ifdef DEBUG
-		printk("%s: DRIVE_CMD\n", drive->name);
-#endif
-		tf->feature = args[2];
-		if (args[0] == WIN_SMART) {
-			tf->nsect = args[3];
-			tf->lbal  = args[1];
-			tf->lbam  = 0x4f;
-			tf->lbah  = 0xc2;
-			ltask.tf_flags = IDE_TFLAG_OUT_TF;
-		} else {
-			tf->nsect = args[1];
-			ltask.tf_flags = IDE_TFLAG_OUT_FEATURE |
-					 IDE_TFLAG_OUT_NSECT;
-		}
- 	}
-	tf->command = args[0];
-	ide_tf_load(drive, &ltask);
-	ide_execute_command(drive, args[0], &drive_cmd_intr, WAIT_WORSTCASE, NULL);
-	return ide_started;
-
-done:
  	/*
  	 * NULL is actually a valid way of waiting for
  	 * all current requests to be flushed from the queue.
@@ -939,8 +854,7 @@ static void ide_check_pm_state(ide_drive_t *drive, struct request *rq)
 		if (rc)
 			printk(KERN_WARNING "%s: bus not ready on wakeup\n", drive->name);
 		SELECT_DRIVE(drive);
-		if (IDE_CONTROL_REG)
-			HWIF(drive)->OUTB(drive->ctl, IDE_CONTROL_REG);
+		ide_set_irq(drive, 1);
 		rc = ide_wait_not_busy(HWIF(drive), 100000);
 		if (rc)
 			printk(KERN_WARNING "%s: drive not ready on wakeup\n", drive->name);
@@ -1004,8 +918,7 @@ static ide_startstop_t start_request (ide_drive_t *drive, struct request *rq)
 		if (drive->current_speed == 0xff)
 			ide_config_drive_speed(drive, drive->desired_speed);
 
-		if (rq->cmd_type == REQ_TYPE_ATA_CMD ||
-		    rq->cmd_type == REQ_TYPE_ATA_TASKFILE)
+		if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE)
 			return execute_drive_cmd(drive, rq);
 		else if (blk_pm_request(rq)) {
 			struct request_pm_state *pm = rq->data;
@@ -1213,15 +1126,13 @@ static void ide_do_request (ide_hwgroup_t *hwgroup, int masked_irq)
 		}
 	again:
 		hwif = HWIF(drive);
-		if (hwgroup->hwif->sharing_irq &&
-		    hwif != hwgroup->hwif &&
-		    hwif->io_ports[IDE_CONTROL_OFFSET]) {
+		if (hwgroup->hwif->sharing_irq && hwif != hwgroup->hwif) {
 			/*
 			 * set nIEN for previous hwif, drives in the
 			 * quirk_list may not like intr setups/cleanups
 			 */
 			if (drive->quirk_list != 1)
-				hwif->OUTB(drive->ctl | 2, IDE_CONTROL_REG);
+				ide_set_irq(drive, 0);
 		}
 		hwgroup->hwif = hwif;
 		hwgroup->drive = drive;
@@ -1334,7 +1245,7 @@ static ide_startstop_t ide_dma_timeout_retry(ide_drive_t *drive, int error)
 	 */
 	drive->retry_pio++;
 	drive->state = DMA_PIO_RETRY;
-	hwif->dma_off_quietly(drive);
+	ide_dma_off_quietly(drive);
 
 	/*
 	 * un-busy drive etc (hwgroup->busy is cleared on return) and
@@ -1679,7 +1590,6 @@ irqreturn_t ide_intr (int irq, void *dev_id)
 void ide_init_drive_cmd (struct request *rq)
 {
 	memset(rq, 0, sizeof(*rq));
-	rq->cmd_type = REQ_TYPE_ATA_CMD;
 	rq->ref_count = 1;
 }
 

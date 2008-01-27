@@ -77,15 +77,17 @@ int macide_ack_intr(ide_hwif_t* hwif)
 	return 0;
 }
 
+static const char *mac_ide_name[] =
+	{ "Quadra", "Powerbook", "Powerbook Baboon" };
+
 /*
  * Probe for a Macintosh IDE interface
  */
 
-void __init macide_init(void)
+static int __init macide_init(void)
 {
 	hw_regs_t hw;
 	ide_hwif_t *hwif;
-	int index = -1;
 
 	switch (macintosh_config->ide_type) {
 	case MAC_IDE_QUADRA:
@@ -93,48 +95,50 @@ void __init macide_init(void)
 				0, 0, macide_ack_intr,
 //				quadra_ide_iops,
 				IRQ_NUBUS_F);
-		index = ide_register_hw(&hw, NULL, 1, &hwif);
 		break;
 	case MAC_IDE_PB:
 		ide_setup_ports(&hw, IDE_BASE, macide_offsets,
 				0, 0, macide_ack_intr,
 //				macide_pb_iops,
 				IRQ_NUBUS_C);
-		index = ide_register_hw(&hw, NULL, 1, &hwif);
 		break;
 	case MAC_IDE_BABOON:
 		ide_setup_ports(&hw, BABOON_BASE, macide_offsets,
 				0, 0, NULL,
 //				macide_baboon_iops,
 				IRQ_BABOON_1);
-		index = ide_register_hw(&hw, NULL, 1, &hwif);
-		if (index == -1) break;
-		if (macintosh_config->ident == MAC_MODEL_PB190) {
+		break;
+	default:
+		return -ENODEV;
+	}
 
+	printk(KERN_INFO "ide: Macintosh %s IDE controller\n",
+			 mac_ide_name[macintosh_config->ide_type - 1]);
+
+	hwif = ide_find_port(hw.io_ports[IDE_DATA_OFFSET]);
+	if (hwif) {
+		u8 index = hwif->index;
+		u8 idx[4] = { index, 0xff, 0xff, 0xff };
+
+		ide_init_port_data(hwif, index);
+		ide_init_port_hw(hwif, &hw);
+
+		if (macintosh_config->ide_type == MAC_IDE_BABOON &&
+		    macintosh_config->ident == MAC_MODEL_PB190) {
 			/* Fix breakage in ide-disk.c: drive capacity	*/
 			/* is not initialized for drives without a 	*/
 			/* hardware ID, and we can't get that without	*/
 			/* probing the drive which freezes a 190.	*/
-
-			ide_drive_t *drive = &ide_hwifs[index].drives[0];
+			ide_drive_t *drive = &hwif->drives[0];
 			drive->capacity64 = drive->cyl*drive->head*drive->sect;
-
 		}
-		break;
 
-	default:
-	    return;
-	}
-
-        if (index != -1) {
 		hwif->mmio = 1;
-		if (macintosh_config->ide_type == MAC_IDE_QUADRA)
-			printk(KERN_INFO "ide%d: Macintosh Quadra IDE interface\n", index);
-		else if (macintosh_config->ide_type == MAC_IDE_PB)
-			printk(KERN_INFO "ide%d: Macintosh Powerbook IDE interface\n", index);
-		else if (macintosh_config->ide_type == MAC_IDE_BABOON)
-			printk(KERN_INFO "ide%d: Macintosh Powerbook Baboon IDE interface\n", index);
-		else
-			printk(KERN_INFO "ide%d: Unknown Macintosh IDE interface\n", index);
+
+		ide_device_add(idx);
 	}
+
+	return 0;
 }
+
+module_init(macide_init);

@@ -673,9 +673,8 @@ static void cris_ide_input_data (ide_drive_t *drive, void *, unsigned int);
 static void cris_ide_output_data (ide_drive_t *drive, void *, unsigned int);
 static void cris_atapi_input_bytes(ide_drive_t *drive, void *, unsigned int);
 static void cris_atapi_output_bytes(ide_drive_t *drive, void *, unsigned int);
-static int cris_dma_on (ide_drive_t *drive);
 
-static void cris_dma_off(ide_drive_t *drive)
+static void cris_dma_host_set(ide_drive_t *drive, int on)
 {
 }
 
@@ -755,13 +754,11 @@ static void cris_set_dma_mode(ide_drive_t *drive, const u8 speed)
 		cris_ide_set_speed(TYPE_DMA, 0, strobe, hold);
 }
 
-void __init
-init_e100_ide (void)
+static int __init init_e100_ide(void)
 {
 	hw_regs_t hw;
-	int ide_offsets[IDE_NR_PORTS];
-	int h;
-	int i;
+	int ide_offsets[IDE_NR_PORTS], h, i;
+	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
 	printk("ide: ETRAX FS built-in ATA DMA controller\n");
 
@@ -778,9 +775,11 @@ init_e100_ide (void)
 		                ide_offsets,
 		                0, 0, cris_ide_ack_intr,
 		                ide_default_irq(0));
-		ide_register_hw(&hw, NULL, 1, &hwif);
+		hwif = ide_find_port(hw.io_ports[IDE_DATA_OFFSET]);
 		if (hwif == NULL)
 			continue;
+		ide_init_port_data(hwif, hwif->index);
+		ide_init_port_hw(hwif, &hw);
 		hwif->mmio = 1;
 		hwif->chipset = ide_etrax100;
 		hwif->set_pio_mode = &cris_set_pio_mode;
@@ -789,6 +788,7 @@ init_e100_ide (void)
 		hwif->ata_output_data = &cris_ide_output_data;
 		hwif->atapi_input_bytes = &cris_atapi_input_bytes;
 		hwif->atapi_output_bytes = &cris_atapi_output_bytes;
+		hwif->dma_host_set = &cris_dma_host_set;
 		hwif->ide_dma_end = &cris_dma_end;
 		hwif->dma_setup = &cris_dma_setup;
 		hwif->dma_exec_cmd = &cris_dma_exec_cmd;
@@ -799,9 +799,6 @@ init_e100_ide (void)
 		hwif->OUTBSYNC = &cris_ide_outbsync;
 		hwif->INB = &cris_ide_inb;
 		hwif->INW = &cris_ide_inw;
-		hwif->dma_host_off = &cris_dma_off;
-		hwif->dma_host_on = &cris_dma_on;
-		hwif->dma_off_quietly = &cris_dma_off;
 		hwif->cbl = ATA_CBL_PATA40;
 		hwif->host_flags |= IDE_HFLAG_NO_ATAPI_DMA;
 		hwif->pio_mask = ATA_PIO4,
@@ -809,6 +806,8 @@ init_e100_ide (void)
 		hwif->drives[1].autotune = 1;
 		hwif->ultra_mask = cris_ultra_mask;
 		hwif->mwdma_mask = 0x07; /* Multiword DMA 0-2 */
+
+		idx[h] = hwif->index;
 	}
 
 	/* Reset pulse */
@@ -821,13 +820,11 @@ init_e100_ide (void)
 	cris_ide_set_speed(TYPE_PIO, ATA_PIO4_SETUP, ATA_PIO4_STROBE, ATA_PIO4_HOLD);
 	cris_ide_set_speed(TYPE_DMA, 0, ATA_DMA2_STROBE, ATA_DMA2_HOLD);
 	cris_ide_set_speed(TYPE_UDMA, ATA_UDMA2_CYC, ATA_UDMA2_DVS, 0);
-}
 
-static int cris_dma_on (ide_drive_t *drive)
-{
+	ide_device_add(idx);
+
 	return 0;
 }
-
 
 static cris_dma_descr_type mydescr __attribute__ ((__aligned__(16)));
 
@@ -1060,3 +1057,5 @@ static void cris_dma_start(ide_drive_t *drive)
 		LED_DISK_READ(1);
 	}
 }
+
+module_init(init_e100_ide);

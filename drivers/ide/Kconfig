@@ -325,7 +325,7 @@ config BLK_DEV_PLATFORM
 	  If unsure, say N.
 
 config BLK_DEV_CMD640
-	bool "CMD640 chipset bugfix/support"
+	tristate "CMD640 chipset bugfix/support"
 	depends on X86
 	---help---
 	  The CMD-Technologies CMD640 IDE chip is used on many common 486 and
@@ -359,9 +359,8 @@ config BLK_DEV_CMD640_ENHANCED
 	  Otherwise say N.
 
 config BLK_DEV_IDEPNP
-	bool "PNP EIDE support"
+	tristate "PNP EIDE support"
 	depends on PNP
-	select IDE_GENERIC
 	help
 	  If you have a PnP (Plug and Play) compatible EIDE card and
 	  would like the kernel to automatically detect and activate
@@ -375,7 +374,19 @@ config BLK_DEV_IDEPCI
 	bool
 
 config IDEPCI_PCIBUS_ORDER
-	def_bool BLK_DEV_IDE=y && BLK_DEV_IDEPCI
+	bool "Probe IDE PCI devices in the PCI bus order (DEPRECATED)"
+	depends on BLK_DEV_IDE=y && BLK_DEV_IDEPCI
+	default y
+	help
+	  Probe IDE PCI devices in the order in which they appear on the
+	  PCI bus (i.e. 00:1f.1 PCI device before 02:01.0 PCI device)
+	  instead of the order in which IDE PCI host drivers are loaded.
+
+	  Please note that this method of assuring stable naming of
+	  IDE devices is unreliable and use other means for achieving
+	  it (i.e. udev).
+
+	  If in doubt, say N.
 
 # TODO: split it on per host driver config options (or module parameters)
 config BLK_DEV_OFFBOARD
@@ -789,7 +800,7 @@ config BLK_DEV_CELLEB
 endif
 
 config BLK_DEV_IDE_PMAC
-	bool "Builtin PowerMac IDE support"
+	tristate "Builtin PowerMac IDE support"
 	depends on PPC_PMAC && IDE=y && BLK_DEV_IDE=y
 	help
 	  This driver provides support for the built-in IDE controller on
@@ -843,8 +854,9 @@ config BLK_DEV_IDE_AU1XXX_SEQTS_PER_RQ
        depends on BLK_DEV_IDE_AU1XXX
 
 config IDE_ARM
-	def_bool ARM && (ARCH_CLPS7500 || ARCH_RPC || ARCH_SHARK)
-	select IDE_GENERIC
+	tristate "ARM IDE support"
+	depends on ARM && (ARCH_CLPS7500 || ARCH_RPC || ARCH_SHARK)
+	default y
 
 config BLK_DEV_IDE_ICSIDE
 	tristate "ICS IDE interface support"
@@ -876,10 +888,9 @@ config BLK_DEV_IDE_BAST
 	  Simtec BAST or the Thorcom VR1000
 
 config ETRAX_IDE
-	bool "ETRAX IDE support"
+	tristate "ETRAX IDE support"
 	depends on CRIS && BROKEN
 	select BLK_DEV_IDEDMA
-	select IDE_GENERIC
 	help
 	  Enables the ETRAX IDE driver.
 
@@ -911,17 +922,15 @@ config ETRAX_IDE_G27_RESET
 endchoice
 
 config IDE_H8300
-	bool "H8300 IDE support"
+	tristate "H8300 IDE support"
 	depends on H8300
-	select IDE_GENERIC
 	default y
 	help
 	  Enables the H8300 IDE driver.
 
 config BLK_DEV_GAYLE
-	bool "Amiga Gayle IDE interface support"
+	tristate "Amiga Gayle IDE interface support"
 	depends on AMIGA
-	select IDE_GENERIC
 	help
 	  This is the IDE driver for the Amiga Gayle IDE interface. It supports
 	  both the `A1200 style' and `A4000 style' of the Gayle IDE interface,
@@ -951,9 +960,8 @@ config BLK_DEV_IDEDOUBLER
 	  runtime using the "ide=doubler" kernel boot parameter.
 
 config BLK_DEV_BUDDHA
-	bool "Buddha/Catweasel/X-Surf IDE interface support (EXPERIMENTAL)"
+	tristate "Buddha/Catweasel/X-Surf IDE interface support (EXPERIMENTAL)"
 	depends on ZORRO && EXPERIMENTAL
-	select IDE_GENERIC
 	help
 	  This is the IDE driver for the IDE interfaces on the Buddha, 
 	  Catweasel and X-Surf expansion boards.  It supports up to two interfaces 
@@ -964,9 +972,8 @@ config BLK_DEV_BUDDHA
 	  to one of its IDE interfaces.
 
 config BLK_DEV_FALCON_IDE
-	bool "Falcon IDE interface support"
+	tristate "Falcon IDE interface support"
 	depends on ATARI
-	select IDE_GENERIC
 	help
 	  This is the IDE driver for the builtin IDE interface on the Atari
 	  Falcon. Say Y if you have a Falcon and want to use IDE devices (hard
@@ -974,9 +981,8 @@ config BLK_DEV_FALCON_IDE
 	  interface.
 
 config BLK_DEV_MAC_IDE
-	bool "Macintosh Quadra/Powerbook IDE interface support"
+	tristate "Macintosh Quadra/Powerbook IDE interface support"
 	depends on MAC
-	select IDE_GENERIC
 	help
 	  This is the IDE driver for the builtin IDE interface on some m68k
 	  Macintosh models. It supports both the `Quadra style' (used in
@@ -988,18 +994,16 @@ config BLK_DEV_MAC_IDE
 	  builtin IDE interface.
 
 config BLK_DEV_Q40IDE
-	bool "Q40/Q60 IDE interface support"
+	tristate "Q40/Q60 IDE interface support"
 	depends on Q40
-	select IDE_GENERIC
 	help
 	  Enable the on-board IDE controller in the Q40/Q60.  This should
 	  normally be on; disable it only if you are running a custom hard
 	  drive subsystem through an expansion card.
 
 config BLK_DEV_MPC8xx_IDE
-	bool "MPC8xx IDE support"
+	tristate "MPC8xx IDE support"
 	depends on 8xx && (LWMON || IVMS8 || IVML24 || TQM8xxL) && IDE=y && BLK_DEV_IDE=y && !PPC_MERGE
-	select IDE_GENERIC
 	help
 	  This option provides support for IDE on Motorola MPC8xx Systems.
 	  Please see 'Type of MPC8xx IDE interface' for details.

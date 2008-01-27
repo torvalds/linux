@@ -169,8 +169,7 @@ int probe_umc8672 = 0;
 module_param_named(probe, probe_umc8672, bool, 0);
 MODULE_PARM_DESC(probe, "probe for UMC8672 chipset");
 
-/* Can be called directly from ide.c. */
-int __init umc8672_init(void)
+static int __init umc8672_init(void)
 {
 	if (probe_umc8672 == 0)
 		goto out;
@@ -181,9 +180,7 @@ out:
 	return -ENODEV;;
 }
 
-#ifdef MODULE
 module_init(umc8672_init);
-#endif
 
 MODULE_AUTHOR("Wolfram Podien");
 MODULE_DESCRIPTION("Support for UMC 8672 IDE chipset");

@@ -277,21 +277,6 @@ sgiioc4_ide_dma_end(ide_drive_t * drive)
 	return dma_stat;
 }
 
-static int
-sgiioc4_ide_dma_on(ide_drive_t * drive)
-{
-	drive->using_dma = 1;
-
-	return 0;
-}
-
-static void sgiioc4_dma_off_quietly(ide_drive_t *drive)
-{
-	drive->using_dma = 0;
-
-	drive->hwif->dma_host_off(drive);
-}
-
 static void sgiioc4_set_dma_mode(ide_drive_t *drive, const u8 speed)
 {
 }
@@ -303,13 +288,10 @@ sgiioc4_ide_dma_test_irq(ide_drive_t * drive)
 	return sgiioc4_checkirq(HWIF(drive));
 }
 
-static void sgiioc4_dma_host_on(ide_drive_t * drive)
+static void sgiioc4_dma_host_set(ide_drive_t *drive, int on)
 {
-}
-
-static void sgiioc4_dma_host_off(ide_drive_t * drive)
-{
-	sgiioc4_clearirq(drive);
+	if (!on)
+		sgiioc4_clearirq(drive);
 }
 
 static void
@@ -593,14 +575,11 @@ ide_init_sgiioc4(ide_hwif_t * hwif)
 
 	hwif->mwdma_mask = ATA_MWDMA2_ONLY;
 
+	hwif->dma_host_set = &sgiioc4_dma_host_set;
 	hwif->dma_setup = &sgiioc4_ide_dma_setup;
 	hwif->dma_start = &sgiioc4_ide_dma_start;
 	hwif->ide_dma_end = &sgiioc4_ide_dma_end;
-	hwif->ide_dma_on = &sgiioc4_ide_dma_on;
-	hwif->dma_off_quietly = &sgiioc4_dma_off_quietly;
 	hwif->ide_dma_test_irq = &sgiioc4_ide_dma_test_irq;
-	hwif->dma_host_on = &sgiioc4_dma_host_on;
-	hwif->dma_host_off = &sgiioc4_dma_host_off;
 	hwif->dma_lost_irq = &sgiioc4_dma_lost_irq;
 	hwif->dma_timeout = &ide_dma_timeout;
 }
@@ -614,6 +593,7 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 	ide_hwif_t *hwif;
 	int h;
 	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
+	hw_regs_t hw;
 
 	/*
 	 * Find an empty HWIF; if none available, return -ENOMEM.
@@ -653,21 +633,16 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 		return -ENOMEM;
 	}
 
-	if (hwif->io_ports[IDE_DATA_OFFSET] != cmd_base) {
-		hw_regs_t hw;
+	/* Initialize the IO registers */
+	memset(&hw, 0, sizeof(hw));
+	sgiioc4_init_hwif_ports(&hw, cmd_base, ctl, irqport);
+	hw.irq = dev->irq;
+	hw.chipset = ide_pci;
+	hw.dev = &dev->dev;
+	ide_init_port_hw(hwif, &hw);
 
-		/* Initialize the IO registers */
-		memset(&hw, 0, sizeof(hw));
-		sgiioc4_init_hwif_ports(&hw, cmd_base, ctl, irqport);
-		memcpy(hwif->io_ports, hw.io_ports, sizeof(hwif->io_ports));
-		hwif->noprobe = !hwif->io_ports[IDE_DATA_OFFSET];
-	}
-
-	hwif->irq = dev->irq;
-	hwif->chipset = ide_pci;
 	hwif->pci_dev = dev;
 	hwif->channel = 0;	/* Single Channel chip */
-	hwif->gendev.parent = &dev->dev;/* setup proper ancestral information */
 
 	/* The IOC4 uses MMIO rather than Port IO. */
 	default_hwif_mmiops(hwif);

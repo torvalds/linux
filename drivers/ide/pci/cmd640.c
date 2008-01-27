@@ -706,9 +706,9 @@ static int pci_conf2(void)
 }
 
 /*
- * Probe for a cmd640 chipset, and initialize it if found.  Called from ide.c
+ * Probe for a cmd640 chipset, and initialize it if found.
  */
-int __init ide_probe_for_cmd640x (void)
+static int __init cmd640x_init(void)
 {
 #ifdef CONFIG_BLK_DEV_CMD640_ENHANCED
 	int second_port_toggled = 0;
@@ -717,6 +717,7 @@ int __init ide_probe_for_cmd640x (void)
 	const char *bus_type, *port2;
 	unsigned int index;
 	u8 b, cfr;
+	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
 
 	if (cmd640_vlb && probe_for_cmd640_vlb()) {
 		bus_type = "VLB";
@@ -768,6 +769,8 @@ int __init ide_probe_for_cmd640x (void)
 	cmd_hwif0->pio_mask = ATA_PIO5;
 	cmd_hwif0->set_pio_mode = &cmd640_set_pio_mode;
 #endif /* CONFIG_BLK_DEV_CMD640_ENHANCED */
+
+	idx[0] = cmd_hwif0->index;
 
 	/*
 	 * Ensure compatibility by always using the slowest timings
@@ -826,6 +829,8 @@ int __init ide_probe_for_cmd640x (void)
 		cmd_hwif1->pio_mask = ATA_PIO5;
 		cmd_hwif1->set_pio_mode = &cmd640_set_pio_mode;
 #endif /* CONFIG_BLK_DEV_CMD640_ENHANCED */
+
+		idx[1] = cmd_hwif1->index;
 	}
 	printk(KERN_INFO "%s: %sserialized, secondary interface %s\n", cmd_hwif1->name,
 		cmd_hwif0->serialized ? "" : "not ", port2);
@@ -872,6 +877,13 @@ int __init ide_probe_for_cmd640x (void)
 #ifdef CMD640_DUMP_REGS
 	cmd640_dump_regs();
 #endif
+
+	ide_device_add(idx);
+
 	return 1;
 }
 
+module_param_named(probe_vlb, cmd640_vlb, bool, 0);
+MODULE_PARM_DESC(probe_vlb, "probe for VLB version of CMD640 chipset");
+
+module_init(cmd640x_init);

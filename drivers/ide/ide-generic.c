@@ -14,10 +14,16 @@
 
 static int __init ide_generic_init(void)
 {
+	u8 idx[MAX_HWIFS];
+	int i;
+
 	if (ide_hwifs[0].io_ports[IDE_DATA_OFFSET])
 		ide_get_lock(NULL, NULL); /* for atari only */
 
-	(void)ideprobe_init();
+	for (i = 0; i < MAX_HWIFS; i++)
+		idx[i] = ide_hwifs[i].present ? 0xff : i;
+
+	ide_device_add_all(idx);
 
 	if (ide_hwifs[0].io_ports[IDE_DATA_OFFSET])
 		ide_release_lock();	/* for atari only */

@@ -395,24 +395,8 @@ static int auide_dma_test_irq(ide_drive_t *drive)
 	return 0;
 }
 
-static void auide_dma_host_on(ide_drive_t *drive)
+static void auide_dma_host_set(ide_drive_t *drive, int on)
 {
-}
-
-static int auide_dma_on(ide_drive_t *drive)
-{
-	drive->using_dma = 1;
-
-	return 0;
-}
-
-static void auide_dma_host_off(ide_drive_t *drive)
-{
-}
-
-static void auide_dma_off_quietly(ide_drive_t *drive)
-{
-	drive->using_dma = 0;
 }
 
 static void auide_dma_lost_irq(ide_drive_t *drive)
@@ -641,12 +625,13 @@ static int au_ide_probe(struct device *dev)
 	/* FIXME:  This might possibly break PCMCIA IDE devices */
 
 	hwif                            = &ide_hwifs[pdev->id];
-	hwif->irq			= ahwif->irq;
-	hwif->chipset                   = ide_au1xxx;
 
 	memset(&hw, 0, sizeof(hw));
 	auide_setup_ports(&hw, ahwif);
-	memcpy(hwif->io_ports, hw.io_ports, sizeof(hwif->io_ports));
+	hw.irq = ahwif->irq;
+	hw.chipset = ide_au1xxx;
+
+	ide_init_port_hw(hwif, &hw);
 
 	hwif->ultra_mask                = 0x0;  /* Disable Ultra DMA */
 #ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
@@ -660,7 +645,6 @@ static int au_ide_probe(struct device *dev)
 	hwif->pio_mask = ATA_PIO4;
 	hwif->host_flags = IDE_HFLAG_POST_SET_MODE;
 
-	hwif->noprobe = 0;
 	hwif->drives[0].unmask          = 1;
 	hwif->drives[1].unmask          = 1;
 
@@ -682,29 +666,25 @@ static int au_ide_probe(struct device *dev)
 	hwif->set_dma_mode		= &auide_set_dma_mode;
 
 #ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
-	hwif->dma_off_quietly		= &auide_dma_off_quietly;
 	hwif->dma_timeout		= &auide_dma_timeout;
 
 	hwif->mdma_filter		= &auide_mdma_filter;
 
+	hwif->dma_host_set		= &auide_dma_host_set;
 	hwif->dma_exec_cmd              = &auide_dma_exec_cmd;
 	hwif->dma_start                 = &auide_dma_start;
 	hwif->ide_dma_end               = &auide_dma_end;
 	hwif->dma_setup                 = &auide_dma_setup;
 	hwif->ide_dma_test_irq          = &auide_dma_test_irq;
-	hwif->dma_host_off		= &auide_dma_host_off;
-	hwif->dma_host_on		= &auide_dma_host_on;
 	hwif->dma_lost_irq		= &auide_dma_lost_irq;
-	hwif->ide_dma_on                = &auide_dma_on;
-#else /* !CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA */
+#endif
 	hwif->channel                   = 0;
-	hwif->hold                      = 1;
 	hwif->select_data               = 0;    /* no chipset-specific code */
 	hwif->config_data               = 0;    /* no chipset-specific code */
 
 	hwif->drives[0].autotune        = 1;    /* 1=autotune, 2=noautotune, 0=default */
 	hwif->drives[1].autotune	= 1;
-#endif
+
 	hwif->drives[0].no_io_32bit	= 1;
 	hwif->drives[1].no_io_32bit	= 1;
 
