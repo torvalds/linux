@@ -525,7 +525,8 @@ int s3c2410_dma_enqueue(unsigned int channel, void *id,
 		}
 	} else if (chan->state == S3C2410_DMA_IDLE) {
 		if (chan->flags & S3C2410_DMAF_AUTOSTART) {
-			s3c2410_dma_ctrl(chan->number, S3C2410_DMAOP_START);
+			s3c2410_dma_ctrl(chan->number | DMACH_LOW_LEVEL,
+					 S3C2410_DMAOP_START);
 		}
 	}
 
