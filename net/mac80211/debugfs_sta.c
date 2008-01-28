@@ -74,12 +74,11 @@ static ssize_t sta_flags_read(struct file *file, char __user *userbuf,
 {
 	char buf[100];
 	struct sta_info *sta = file->private_data;
-	int res = scnprintf(buf, sizeof(buf), "%s%s%s%s%s%s%s%s%s",
+	int res = scnprintf(buf, sizeof(buf), "%s%s%s%s%s%s%s%s",
 		sta->flags & WLAN_STA_AUTH ? "AUTH\n" : "",
 		sta->flags & WLAN_STA_ASSOC ? "ASSOC\n" : "",
 		sta->flags & WLAN_STA_PS ? "PS\n" : "",
 		sta->flags & WLAN_STA_TIM ? "TIM\n" : "",
-		sta->flags & WLAN_STA_PERM ? "PERM\n" : "",
 		sta->flags & WLAN_STA_AUTHORIZED ? "AUTHORIZED\n" : "",
 		sta->flags & WLAN_STA_SHORT_PREAMBLE ? "SHORT PREAMBLE\n" : "",
 		sta->flags & WLAN_STA_WME ? "WME\n" : "",

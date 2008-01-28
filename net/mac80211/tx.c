@@ -1471,12 +1471,10 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 	}
 
 	/*
-	 * If port access control is enabled, drop unicast frames to
-	 * unauthorised stations unless they are EAPOL frames from the
-	 * local station.
+	 * Drop unicast frames to unauthorised stations unless they are
+	 * EAPOL frames from the local station.
 	 */
-	if (unlikely(sdata->ieee802_1x_pac &&
-		     !is_multicast_ether_addr(hdr.addr1) &&
+	if (unlikely(!is_multicast_ether_addr(hdr.addr1) &&
 		     !(sta_flags & WLAN_STA_AUTHORIZED) &&
 		     !(ethertype == ETH_P_PAE &&
 		       compare_ether_addr(dev->dev_addr,

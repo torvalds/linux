@@ -1828,7 +1828,8 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	}
 
 	sta->dev = dev;
-	sta->flags |= WLAN_STA_AUTH | WLAN_STA_ASSOC | WLAN_STA_ASSOC_AP;
+	sta->flags |= WLAN_STA_AUTH | WLAN_STA_ASSOC | WLAN_STA_ASSOC_AP |
+		      WLAN_STA_AUTHORIZED;
 
 	rates = 0;
 	basic_rates = 0;
@@ -3790,6 +3791,8 @@ struct sta_info * ieee80211_ibss_add_sta(struct net_device *dev,
 	sta = sta_info_add(local, dev, addr, GFP_ATOMIC);
 	if (!sta)
 		return NULL;
+
+	sta->flags |= WLAN_STA_AUTHORIZED;
 
 	sta->supp_rates[local->hw.conf.channel->band] =
 		sdata->u.sta.supp_rates_bits[local->hw.conf.channel->band];

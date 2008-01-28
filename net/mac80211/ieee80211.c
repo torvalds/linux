@@ -804,6 +804,9 @@ int ieee80211_if_update_wds(struct net_device *dev, u8 *remote_addr)
 	sta = sta_info_add(local, dev, remote_addr, GFP_KERNEL);
 	if (!sta)
 		return -ENOMEM;
+
+	sta->flags |= WLAN_STA_AUTHORIZED;
+
 	sta_info_put(sta);
 
 	/* Remove STA entry for the old peer */

@@ -987,11 +987,11 @@ ieee80211_rx_h_remove_qos_control(struct ieee80211_txrx_data *rx)
 static int
 ieee80211_802_1x_port_control(struct ieee80211_txrx_data *rx)
 {
-	if (unlikely(rx->sdata->ieee802_1x_pac &&
-		     (!rx->sta || !(rx->sta->flags & WLAN_STA_AUTHORIZED)))) {
+	if (unlikely(!rx->sta || !(rx->sta->flags & WLAN_STA_AUTHORIZED))) {
 #ifdef CONFIG_MAC80211_DEBUG
-		printk(KERN_DEBUG "%s: dropped frame "
-		       "(unauthorized port)\n", rx->dev->name);
+		if (net_ratelimit())
+			printk(KERN_DEBUG "%s: dropped frame "
+			       "(unauthorized port)\n", rx->dev->name);
 #endif /* CONFIG_MAC80211_DEBUG */
 		return -EACCES;
 	}

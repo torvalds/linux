@@ -15,21 +15,35 @@
 #include <linux/kref.h>
 #include "ieee80211_key.h"
 
-/* Stations flags (struct sta_info::flags) */
-#define WLAN_STA_AUTH BIT(0)
-#define WLAN_STA_ASSOC BIT(1)
-#define WLAN_STA_PS BIT(2)
-#define WLAN_STA_TIM BIT(3) /* TIM bit is on for PS stations */
-#define WLAN_STA_PERM BIT(4) /* permanent; do not remove entry on expiration */
-#define WLAN_STA_AUTHORIZED BIT(5) /* If 802.1X is used, this flag is
-				    * controlling whether STA is authorized to
-				    * send and receive non-IEEE 802.1X frames
-				    */
-#define WLAN_STA_SHORT_PREAMBLE BIT(7)
-/* whether this is an AP that we are associated with as a client */
-#define WLAN_STA_ASSOC_AP BIT(8)
-#define WLAN_STA_WME BIT(9)
-#define WLAN_STA_WDS BIT(27)
+/**
+ * enum ieee80211_sta_info_flags - Stations flags
+ *
+ * These flags are used with &struct sta_info's @flags member.
+ *
+ * @WLAN_STA_AUTH: Station is authenticated.
+ * @WLAN_STA_ASSOC: Station is associated.
+ * @WLAN_STA_PS: Station is in power-save mode
+ * @WLAN_STA_TIM: TIM bit is on for this PS station (traffic buffered)
+ * @WLAN_STA_AUTHORIZED: Station is authorized to send/receive traffic.
+ *	This bit is always checked so needs to be enabled for all stations
+ *	when virtual port control is not in use.
+ * @WLAN_STA_SHORT_PREAMBLE: Station is capable of receiving short-preamble
+ *	frames.
+ * @WLAN_STA_ASSOC_AP: We're associated to that station, it is an AP.
+ * @WLAN_STA_WME: Station is a QoS-STA.
+ * @WLAN_STA_WDS: Station is one of our WDS peers.
+ */
+enum ieee80211_sta_info_flags {
+	WLAN_STA_AUTH		= 1<<0,
+	WLAN_STA_ASSOC		= 1<<1,
+	WLAN_STA_PS		= 1<<2,
+	WLAN_STA_TIM		= 1<<3,
+	WLAN_STA_AUTHORIZED	= 1<<4,
+	WLAN_STA_SHORT_PREAMBLE	= 1<<5,
+	WLAN_STA_ASSOC_AP	= 1<<6,
+	WLAN_STA_WME		= 1<<7,
+	WLAN_STA_WDS		= 1<<8,
+};
 
 #define STA_TID_NUM 16
 #define ADDBA_RESP_INTERVAL HZ
