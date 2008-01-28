@@ -413,11 +413,10 @@ static int should_deauth_infrastructure(struct lbs_private *priv,
 {
 	int ret = 0;
 
-	lbs_deb_enter(LBS_DEB_ASSOC);
-
 	if (priv->connect_status != LBS_CONNECTED)
 		return 0;
 
+	lbs_deb_enter(LBS_DEB_ASSOC);
 	if (test_bit(ASSOC_FLAG_SSID, &assoc_req->flags)) {
 		lbs_deb_assoc("Deauthenticating due to new SSID\n");
 		ret = 1;
@@ -456,7 +455,7 @@ static int should_deauth_infrastructure(struct lbs_private *priv,
 
 out:
 	lbs_deb_leave_args(LBS_DEB_ASSOC, "ret %d", ret);
-	return 0;
+	return ret;
 }
 
 
@@ -643,9 +642,7 @@ void lbs_association_worker(struct work_struct *work)
 		}
 
 		if (success) {
-			lbs_deb_assoc("ASSOC: associated to '%s', %s\n",
-				escape_essid(priv->curbssparams.ssid,
-				             priv->curbssparams.ssid_len),
+			lbs_deb_assoc("associated to %s\n",
 				print_mac(mac, priv->curbssparams.bssid));
 			lbs_prepare_and_send_command(priv,
 				CMD_802_11_RSSI,

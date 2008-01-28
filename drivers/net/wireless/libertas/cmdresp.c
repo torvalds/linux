@@ -74,7 +74,7 @@ void lbs_mac_event_disconnected(struct lbs_private *priv)
 		lbs_deb_cmd("disconnected, so exit PS mode\n");
 		lbs_ps_wakeup(priv, 0);
 	}
-	lbs_deb_leave(LBS_DEB_CMD);
+	lbs_deb_leave(LBS_DEB_ASSOC);
 }
 
 /**
