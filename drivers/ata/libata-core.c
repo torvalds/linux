@@ -4924,7 +4924,7 @@ void swap_buf_le16(u16 *buf, unsigned int buf_words)
  *	@dev: device to target
  *	@buf: data buffer
  *	@buflen: buffer length
- *	@write_data: read/write
+ *	@rw: read/write
  *
  *	Transfer data from/to the device data register by PIO.
  *
@@ -4970,7 +4970,7 @@ unsigned int ata_data_xfer(struct ata_device *dev, unsigned char *buf,
  *	@dev: device to target
  *	@buf: data buffer
  *	@buflen: buffer length
- *	@write_data: read/write
+ *	@rw: read/write
  *
  *	Transfer data from/to the device data register by PIO. Do the
  *	transfer with interrupts disabled.
