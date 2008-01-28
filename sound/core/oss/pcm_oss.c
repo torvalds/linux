@@ -1621,6 +1621,7 @@ static int snd_pcm_oss_sync(struct snd_pcm_oss_file *pcm_oss_file)
 					snd_pcm_format_set_silence(runtime->format,
 								   runtime->oss.buffer,
 								   size1);
+					size1 /= runtime->channels; /* frames */
 					fs = snd_enter_user();
 					snd_pcm_lib_write(substream, (void __user *)runtime->oss.buffer, size1);
 					snd_leave_user(fs);
