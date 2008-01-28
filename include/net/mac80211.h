@@ -445,12 +445,14 @@ struct ieee80211_rx_status {
  *
  * @IEEE80211_TX_STATUS_TX_FILTERED: The frame was not transmitted
  *	because the destination STA was in powersave mode.
- *
  * @IEEE80211_TX_STATUS_ACK: Frame was acknowledged
+ * @IEEE80211_TX_STATUS_AMPDU: The frame was aggregated, so status
+ * 	is for the whole aggregation.
  */
 enum ieee80211_tx_status_flags {
 	IEEE80211_TX_STATUS_TX_FILTERED	= 1<<0,
 	IEEE80211_TX_STATUS_ACK		= 1<<1,
+	IEEE80211_TX_STATUS_AMPDU	= 1<<2,
 };
 
 /**
@@ -461,24 +463,25 @@ enum ieee80211_tx_status_flags {
  *
  * @control: a copy of the &struct ieee80211_tx_control passed to the driver
  *	in the tx() callback.
- *
  * @flags: transmit status flags, defined above
- *
- * @ack_signal: signal strength of the ACK frame
- *
+ * @retry_count: number of retries
  * @excessive_retries: set to 1 if the frame was retried many times
  *	but not acknowledged
- *
- * @retry_count: number of retries
- *
+ * @ampdu_ack_len: number of aggregated frames.
+ * 	relevant only if IEEE80211_TX_STATUS_AMPDU was set.
+ * @ampdu_ack_map: block ack bit map for the aggregation.
+ * 	relevant only if IEEE80211_TX_STATUS_AMPDU was set.
+ * @ack_signal: signal strength of the ACK frame
  * @queue_length: ?? REMOVE
  * @queue_number: ?? REMOVE
  */
 struct ieee80211_tx_status {
 	struct ieee80211_tx_control control;
 	u8 flags;
-	bool excessive_retries;
 	u8 retry_count;
+	bool excessive_retries;
+	u8 ampdu_ack_len;
+	u64 ampdu_ack_map;
 	int ack_signal;
 	int queue_length;
 	int queue_number;
