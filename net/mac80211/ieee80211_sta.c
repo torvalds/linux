@@ -1403,14 +1403,23 @@ static void ieee80211_sta_process_delba(struct net_device *dev,
 
 #ifdef CONFIG_MAC80211_HT_DEBUG
 	if (net_ratelimit())
-		printk(KERN_DEBUG "delba from %s on tid %d reason code %d\n",
-			print_mac(mac, mgmt->sa), tid,
+		printk(KERN_DEBUG "delba from %s (%s) tid %d reason code %d\n",
+			print_mac(mac, mgmt->sa),
+			initiator ? "recipient" : "initiator", tid,
 			mgmt->u.action.u.delba.reason_code);
 #endif /* CONFIG_MAC80211_HT_DEBUG */
 
 	if (initiator == WLAN_BACK_INITIATOR)
 		ieee80211_sta_stop_rx_ba_session(dev, sta->addr, tid,
 						 WLAN_BACK_INITIATOR, 0);
+	else { /* WLAN_BACK_RECIPIENT */
+		spin_lock_bh(&sta->ampdu_mlme.ampdu_tx);
+		sta->ampdu_mlme.tid_tx[tid].state =
+				HT_AGG_STATE_OPERATIONAL;
+		spin_unlock_bh(&sta->ampdu_mlme.ampdu_tx);
+		ieee80211_stop_tx_ba_session(&local->hw, sta->addr, tid,
+					     WLAN_BACK_RECIPIENT);
+	}
 	sta_info_put(sta);
 }
 
