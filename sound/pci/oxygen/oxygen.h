@@ -66,6 +66,7 @@ struct oxygen {
 	struct snd_pcm_substream *streams[PCM_COUNT];
 	struct snd_kcontrol *controls[CONTROL_COUNT];
 	struct work_struct spdif_input_bits_work;
+	struct work_struct gpio_work;
 	wait_queue_head_t ac97_waitqueue;
 };
 
@@ -88,6 +89,7 @@ struct oxygen_model {
 	void (*update_dac_mute)(struct oxygen *chip);
 	void (*ac97_switch_hook)(struct oxygen *chip, unsigned int codec,
 				 unsigned int reg, int mute);
+	void (*gpio_changed)(struct oxygen *chip);
 	size_t model_data_size;
 	u8 dac_channels;
 	u8 used_channels;

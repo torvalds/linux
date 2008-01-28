@@ -85,7 +85,7 @@ static irqreturn_t oxygen_interrupt(int dummy, void *dev_id)
 	}
 
 	if (status & OXYGEN_INT_GPIO)
-		;
+		schedule_work(&chip->gpio_work);
 
 	if ((status & OXYGEN_INT_MIDI) && chip->midi)
 		snd_mpu401_uart_interrupt(0, chip->midi->private_data);
@@ -155,6 +155,14 @@ static void oxygen_spdif_input_bits_changed(struct work_struct *work)
 		snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       &chip->controls[CONTROL_SPDIF_INPUT_BITS]->id);
 	}
+}
+
+static void oxygen_gpio_changed(struct work_struct *work)
+{
+	struct oxygen *chip = container_of(work, struct oxygen, gpio_work);
+
+	if (chip->model->gpio_changed)
+		chip->model->gpio_changed(chip);
 }
 
 #ifdef CONFIG_PROC_FS
@@ -413,6 +421,7 @@ int __devinit oxygen_pci_probe(struct pci_dev *pci, int index, char *id,
 	mutex_init(&chip->mutex);
 	INIT_WORK(&chip->spdif_input_bits_work,
 		  oxygen_spdif_input_bits_changed);
+	INIT_WORK(&chip->gpio_work, oxygen_gpio_changed);
 	init_waitqueue_head(&chip->ac97_waitqueue);
 
 	err = pci_enable_device(pci);

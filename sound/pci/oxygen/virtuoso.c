@@ -136,6 +136,11 @@ MODULE_DEVICE_TABLE(pci, xonar_ids);
 /* register 23 */
 #define PCM1796_ID_MASK		0x1f
 
+struct xonar_data {
+	u8 is_d2x;
+	u8 has_power;
+};
+
 static void pcm1796_write(struct oxygen *chip, unsigned int codec,
 			  u8 reg, u8 value)
 {
@@ -153,7 +158,10 @@ static void pcm1796_write(struct oxygen *chip, unsigned int codec,
 
 static void xonar_init(struct oxygen *chip)
 {
+	struct xonar_data *data = chip->model_data;
 	unsigned int i;
+
+	data->is_d2x = chip->pci->subsystem_device == 0x82b7;
 
 	for (i = 0; i < 4; ++i) {
 		pcm1796_write(chip, i, 18, PCM1796_FMT_24_LJUST | PCM1796_ATLD);
@@ -169,6 +177,15 @@ static void xonar_init(struct oxygen *chip)
 	oxygen_write16_masked(chip, OXYGEN_GPIO_DATA,
 			      GPIO_CS5381_M_SINGLE,
 			      GPIO_CS5381_M_MASK | GPIO_ALT);
+	if (data->is_d2x) {
+		oxygen_clear_bits16(chip, OXYGEN_GPIO_CONTROL,
+				    GPIO_EXT_POWER);
+		oxygen_set_bits16(chip, OXYGEN_GPIO_INTERRUPT_MASK,
+				  GPIO_EXT_POWER);
+		chip->interrupt_mask |= OXYGEN_INT_GPIO;
+		data->has_power = !!(oxygen_read16(chip, OXYGEN_GPIO_DATA)
+				     & GPIO_EXT_POWER);
+	}
 	oxygen_ac97_set_bits(chip, 0, CM9780_JACK, CM9780_FMIC2MIC);
 	oxygen_ac97_clear_bits(chip, 0, CM9780_GPIO_STATUS, GPIO_LINE_MUTE);
 	msleep(300);
@@ -232,6 +249,27 @@ static void set_cs5381_params(struct oxygen *chip,
 		value = GPIO_CS5381_M_QUAD;
 	oxygen_write16_masked(chip, OXYGEN_GPIO_DATA,
 			      value, GPIO_CS5381_M_MASK);
+}
+
+static void xonar_gpio_changed(struct oxygen *chip)
+{
+	struct xonar_data *data = chip->model_data;
+	u8 has_power;
+
+	if (!data->is_d2x)
+		return;
+	has_power = !!(oxygen_read16(chip, OXYGEN_GPIO_DATA)
+		       & GPIO_EXT_POWER);
+	if (has_power != data->has_power) {
+		data->has_power = has_power;
+		if (has_power) {
+			snd_printk(KERN_NOTICE "power restored\n");
+		} else {
+			snd_printk(KERN_CRIT
+				   "Hey! Don't unplug the power cable!\n");
+			/* TODO: stop PCMs */
+		}
+	}
 }
 
 static void mute_ac97_ctl(struct oxygen *chip, unsigned int control)
@@ -360,6 +398,8 @@ static const struct oxygen_model model_xonar = {
 	.update_dac_volume = update_pcm1796_volume,
 	.update_dac_mute = update_pcm1796_mute,
 	.ac97_switch_hook = xonar_ac97_switch_hook,
+	.gpio_changed = xonar_gpio_changed,
+	.model_data_size = sizeof(struct xonar_data),
 	.dac_channels = 8,
 	.used_channels = OXYGEN_CHANNEL_B |
 			 OXYGEN_CHANNEL_C |
