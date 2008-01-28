@@ -45,6 +45,14 @@
 #define _COMPONENT              ACPI_PROCESSOR_COMPONENT
 ACPI_MODULE_NAME("processor_throttling");
 
+struct throttling_tstate {
+	unsigned int cpu;		/* cpu nr */
+	int target_state;		/* target T-state */
+};
+
+#define THROTTLING_PRECHANGE       (1)
+#define THROTTLING_POSTCHANGE      (2)
+
 static int acpi_processor_get_throttling(struct acpi_processor *pr);
 int acpi_processor_set_throttling(struct acpi_processor *pr, int state);
 
@@ -194,6 +202,70 @@ void acpi_processor_throttling_init(void)
 			"Assume no T-state coordination\n"));
 
 	return;
+}
+
+static int acpi_processor_throttling_notifier(unsigned long event, void *data)
+{
+	struct throttling_tstate *p_tstate = data;
+	struct acpi_processor *pr;
+	unsigned int cpu ;
+	int target_state;
+	struct acpi_processor_limit *p_limit;
+	struct acpi_processor_throttling *p_throttling;
+
+	cpu = p_tstate->cpu;
+	pr = processors[cpu];
+	if (!pr) {
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Invalid pr pointer\n"));
+		return 0;
+	}
+	if (!pr->flags.throttling) {
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Throttling control is "
+				"unsupported on CPU %d\n", cpu));
+		return 0;
+	}
+	target_state = p_tstate->target_state;
+	p_throttling = &(pr->throttling);
+	switch (event) {
+	case THROTTLING_PRECHANGE:
+		/*
+		 * Prechange event is used to choose one proper t-state,
+		 * which meets the limits of thermal, user and _TPC.
+		 */
+		p_limit = &pr->limit;
+		if (p_limit->thermal.tx > target_state)
+			target_state = p_limit->thermal.tx;
+		if (p_limit->user.tx > target_state)
+			target_state = p_limit->user.tx;
+		if (pr->throttling_platform_limit > target_state)
+			target_state = pr->throttling_platform_limit;
+		if (target_state >= p_throttling->state_count) {
+			printk(KERN_WARNING
+				"Exceed the limit of T-state \n");
+			target_state = p_throttling->state_count - 1;
+		}
+		p_tstate->target_state = target_state;
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "PreChange Event:"
+				"target T-state of CPU %d is T%d\n",
+				cpu, target_state));
+		break;
+	case THROTTLING_POSTCHANGE:
+		/*
+		 * Postchange event is only used to update the
+		 * T-state flag of acpi_processor_throttling.
+		 */
+		p_throttling->state = target_state;
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "PostChange Event:"
+				"CPU %d is switched to T%d\n",
+				cpu, target_state));
+		break;
+	default:
+		printk(KERN_WARNING
+			"Unsupported Throttling notifier event\n");
+		break;
+	}
+
+	return 0;
 }
 
 /*
