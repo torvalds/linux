@@ -782,11 +782,6 @@ extern int iwl4965_mac_ampdu_action(struct ieee80211_hw *hw,
 				    const u8 *addr, u16 tid, u16 *ssn);
 extern int iwl4965_check_empty_hw_queue(struct iwl4965_priv *priv, int sta_id,
 					u8 tid, int txq_id);
-#ifdef CONFIG_IWL4965_HT_AGG
-extern void iwl4965_turn_off_agg(struct iwl4965_priv *priv, u8 tid);
-extern void iwl4965_tl_get_stats(struct iwl4965_priv *priv,
-				struct ieee80211_hdr *hdr);
-#endif /* CONFIG_IWL4965_HT_AGG */
 #endif /*CONFIG_IWL4965_HT */
 /* Structures, enum, and defines specific to the 4965 */
 
@@ -797,18 +792,6 @@ struct iwl4965_kw {
 	void *v_addr;
 	size_t size;
 };
-
-#define TID_QUEUE_CELL_SPACING 50	/*mS */
-#define TID_QUEUE_MAX_SIZE     20
-#define TID_ROUND_VALUE        5	/* mS */
-#define TID_MAX_LOAD_COUNT     8
-
-#define TID_MAX_TIME_DIFF ((TID_QUEUE_MAX_SIZE - 1) * TID_QUEUE_CELL_SPACING)
-#define TIME_WRAP_AROUND(x, y) (((y) > (x)) ? (y) - (x) : (0-(x)) + (y))
-
-#define TID_ALL_ENABLED		0x7f
-#define TID_ALL_SPECIFIED       0xff
-#define TID_AGG_TPT_THREHOLD    0x0
 
 #define IWL_CHANNEL_WIDTH_20MHZ   0
 #define IWL_CHANNEL_WIDTH_40MHZ   1
@@ -834,37 +817,7 @@ struct iwl4965_kw {
 
 #define TX_POWER_IWL_ILLEGAL_VOLTAGE -10000
 
-struct iwl4965_traffic_load {
-	unsigned long time_stamp;
-	u32 packet_count[TID_QUEUE_MAX_SIZE];
-	u8 queue_count;
-	u8 head;
-	u32 total;
-};
-
-#ifdef CONFIG_IWL4965_HT_AGG
-/**
- * struct iwl4965_agg_control
- * @requested_ba: bit map of tids requesting aggregation/block-ack
- * @granted_ba: bit map of tids granted aggregation/block-ack
- */
-struct iwl4965_agg_control {
-	unsigned long next_retry;
-	u32 wait_for_agg_status;
-	u32 tid_retry;
-	u32 requested_ba;
-	u32 granted_ba;
-	u8 auto_agg;
-	u32 tid_traffic_load_threshold;
-	u32 ba_timeout;
-	struct iwl4965_traffic_load traffic_load[TID_MAX_LOAD_COUNT];
-};
-#endif /*CONFIG_IWL4965_HT_AGG */
-
 struct iwl4965_lq_mngr {
-#ifdef CONFIG_IWL4965_HT_AGG
-	struct iwl4965_agg_control agg_ctrl;
-#endif
 	spinlock_t lock;
 	s32 max_window_size;
 	s32 *expected_tpt;
@@ -876,7 +829,6 @@ struct iwl4965_lq_mngr {
 	u32 tx_packets;
 	u8 lq_ready;
 };
-
 
 /* Sensitivity and chain noise calibration */
 #define INTERFERENCE_DATA_AVAILABLE	__constant_cpu_to_le32(1)
@@ -1265,11 +1217,7 @@ struct iwl4965_priv {
 #endif
 	struct work_struct statistics_work;
 	struct timer_list statistics_periodic;
-
-#ifdef CONFIG_IWL4965_HT_AGG
-	struct work_struct agg_work;
-#endif
-};				/*iwl4965_priv */
+}; /*iwl4965_priv */
 
 static inline int iwl4965_is_associated(struct iwl4965_priv *priv)
 {

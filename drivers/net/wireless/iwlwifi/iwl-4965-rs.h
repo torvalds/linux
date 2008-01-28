@@ -212,6 +212,18 @@ enum {
 
 #define LQ_SIZE		2	/* 2 mode tables:  "Active" and "Search" */
 
+/* load per tid defines for A-MPDU activation */
+#define IWL_AGG_TPT_THREHOLD	0
+#define IWL_AGG_LOAD_THRESHOLD	10
+#define IWL_AGG_ALL_TID		0xff
+#define TID_QUEUE_CELL_SPACING	50	/*mS */
+#define TID_QUEUE_MAX_SIZE	20
+#define TID_ROUND_VALUE		5	/* mS */
+#define TID_MAX_LOAD_COUNT	8
+
+#define TID_MAX_TIME_DIFF ((TID_QUEUE_MAX_SIZE - 1) * TID_QUEUE_CELL_SPACING)
+#define TIME_WRAP_AROUND(x, y) (((y) > (x)) ? (y) - (x) : (0-(x)) + (y))
+
 extern const struct iwl4965_rate_info iwl4965_rates[IWL_RATE_COUNT];
 
 enum iwl4965_table_type {

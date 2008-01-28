@@ -3075,14 +3075,6 @@ static int iwl4965_tx_skb(struct iwl4965_priv *priv,
 	out_cmd->cmd.tx.dram_lsb_ptr = cpu_to_le32(scratch_phys);
 	out_cmd->cmd.tx.dram_msb_ptr = iwl_get_dma_hi_address(scratch_phys);
 
-#ifdef CONFIG_IWL4965_HT_AGG
-#ifdef CONFIG_IWL4965_HT
-	/* TODO: move this functionality to rate scaling */
-	iwl4965_tl_get_stats(priv, hdr);
-#endif /* CONFIG_IWL4965_HT_AGG */
-#endif /*CONFIG_IWL4965_HT */
-
-
 	if (!ieee80211_get_morefrag(hdr)) {
 		txq->need_update = 1;
 		if (qc) {
@@ -8102,18 +8094,6 @@ static void iwl4965_mac_reset_tsf(struct ieee80211_hw *hw)
 	spin_lock_irqsave(&priv->lock, flags);
 	memset(&priv->current_ht_config, 0, sizeof(struct iwl_ht_info));
 	spin_unlock_irqrestore(&priv->lock, flags);
-#ifdef CONFIG_IWL4965_HT_AGG
-/*	if (priv->lq_mngr.agg_ctrl.granted_ba)
-		iwl4965_turn_off_agg(priv, TID_ALL_SPECIFIED);*/
-
-	memset(&(priv->lq_mngr.agg_ctrl), 0, sizeof(struct iwl4965_agg_control));
-	priv->lq_mngr.agg_ctrl.tid_traffic_load_threshold = 10;
-	priv->lq_mngr.agg_ctrl.ba_timeout = 5000;
-	priv->lq_mngr.agg_ctrl.auto_agg = 1;
-
-	if (priv->lq_mngr.agg_ctrl.auto_agg)
-		priv->lq_mngr.agg_ctrl.requested_ba = TID_ALL_ENABLED;
-#endif /*CONFIG_IWL4965_HT_AGG */
 #endif /* CONFIG_IWL4965_HT */
 
 #ifdef CONFIG_IWL4965_QOS

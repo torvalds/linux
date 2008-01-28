@@ -83,7 +83,7 @@ struct iwl4965_rate_scale_data {
 /**
  * struct iwl4965_scale_tbl_info -- tx params and success history for all rates
  *
- * There are two of these in struct iwl_rate_scale_priv,
+ * There are two of these in struct iwl4965_lq_sta,
  * one for "active", and one for "search".
  */
 struct iwl4965_scale_tbl_info {
@@ -98,8 +98,23 @@ struct iwl4965_scale_tbl_info {
 	struct iwl4965_rate_scale_data win[IWL_RATE_COUNT]; /* rate histories */
 };
 
+#ifdef CONFIG_IWL4965_HT
+
+struct iwl4965_traffic_load {
+	unsigned long time_stamp;	/* age of the oldest statistics */
+	u32 packet_count[TID_QUEUE_MAX_SIZE];   /* packet count in this time
+						 * slice */
+	u32 total;			/* total num of packets during the
+					 * last TID_MAX_TIME_DIFF */
+	u8 queue_count;			/* number of queues that has
+					 * been used since the last cleanup */
+	u8 head;			/* start of the circular buffer */
+};
+
+#endif /* CONFIG_IWL4965_HT */
+
 /**
- * struct iwl_rate_scale_priv -- driver's rate scaling private structure
+ * struct iwl4965_lq_sta -- driver's rate scaling private structure
  *
  * Pointer to this gets passed back and forth between driver and mac80211.
  */
@@ -136,9 +151,16 @@ struct iwl4965_lq_sta {
 
 	struct iwl4965_link_quality_cmd lq;
 	struct iwl4965_scale_tbl_info lq_info[LQ_SIZE]; /* "active", "search" */
+#ifdef CONFIG_IWL4965_HT
+	struct iwl4965_traffic_load load[TID_MAX_LOAD_COUNT];
+	u8 tx_agg_tid_en;
+#endif
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct dentry *rs_sta_dbgfs_scale_table_file;
 	struct dentry *rs_sta_dbgfs_stats_table_file;
+#ifdef CONFIG_IWL4965_HT
+	struct dentry *rs_sta_dbgfs_tx_agg_tid_en_file;
+#endif
 	struct iwl4965_rate dbg_fixed;
 	struct iwl4965_priv *drv;
 #endif
@@ -268,6 +290,135 @@ static void rs_rate_scale_clear_window(struct iwl4965_rate_scale_data *window)
 	window->average_tpt = IWL_INVALID_VALUE;
 	window->stamp = 0;
 }
+
+#ifdef CONFIG_IWL4965_HT
+/*
+ *	removes the old data from the statistics. All data that is older than
+ *	TID_MAX_TIME_DIFF, will be deleted.
+ */
+static void rs_tl_rm_old_stats(struct iwl4965_traffic_load *tl, u32 curr_time)
+{
+	/* The oldest age we want to keep */
+	u32 oldest_time = curr_time - TID_MAX_TIME_DIFF;
+
+	while (tl->queue_count &&
+	       (tl->time_stamp < oldest_time)) {
+		tl->total -= tl->packet_count[tl->head];
+		tl->packet_count[tl->head] = 0;
+		tl->time_stamp += TID_QUEUE_CELL_SPACING;
+		tl->queue_count--;
+		tl->head++;
+		if (tl->head >= TID_QUEUE_MAX_SIZE)
+			tl->head = 0;
+	}
+}
+
+/*
+ *	increment traffic load value for tid and also remove
+ *	any old values if passed the certain time period
+ */
+static void rs_tl_add_packet(struct iwl4965_lq_sta *lq_data, u8 tid)
+{
+	u32 curr_time = jiffies_to_msecs(jiffies);
+	u32 time_diff;
+	s32 index;
+	struct iwl4965_traffic_load *tl = NULL;
+
+	if (tid >= TID_MAX_LOAD_COUNT)
+		return;
+
+	tl = &lq_data->load[tid];
+
+	curr_time -= curr_time % TID_ROUND_VALUE;
+
+	/* Happens only for the first packet. Initialize the data */
+	if (!(tl->queue_count)) {
+		tl->total = 1;
+		tl->time_stamp = curr_time;
+		tl->queue_count = 1;
+		tl->head = 0;
+		tl->packet_count[0] = 1;
+		return;
+	}
+
+	time_diff = TIME_WRAP_AROUND(tl->time_stamp, curr_time);
+	index = time_diff / TID_QUEUE_CELL_SPACING;
+
+	/* The history is too long: remove data that is older than */
+	/* TID_MAX_TIME_DIFF */
+	if (index >= TID_QUEUE_MAX_SIZE)
+		rs_tl_rm_old_stats(tl, curr_time);
+
+	index = (tl->head + index) % TID_QUEUE_MAX_SIZE;
+	tl->packet_count[index] = tl->packet_count[index] + 1;
+	tl->total = tl->total + 1;
+
+	if ((index + 1) > tl->queue_count)
+		tl->queue_count = index + 1;
+}
+
+/*
+	get the traffic load value for tid
+*/
+static u32 rs_tl_get_load(struct iwl4965_lq_sta *lq_data, u8 tid)
+{
+	u32 curr_time = jiffies_to_msecs(jiffies);
+	u32 time_diff;
+	s32 index;
+	struct iwl4965_traffic_load *tl = NULL;
+
+	if (tid >= TID_MAX_LOAD_COUNT)
+		return 0;
+
+	tl = &(lq_data->load[tid]);
+
+	curr_time -= curr_time % TID_ROUND_VALUE;
+
+	if (!(tl->queue_count))
+		return 0;
+
+	time_diff = TIME_WRAP_AROUND(tl->time_stamp, curr_time);
+	index = time_diff / TID_QUEUE_CELL_SPACING;
+
+	/* The history is too long: remove data that is older than */
+	/* TID_MAX_TIME_DIFF */
+	if (index >= TID_QUEUE_MAX_SIZE)
+		rs_tl_rm_old_stats(tl, curr_time);
+
+	return tl->total;
+}
+
+static void rs_tl_turn_on_agg_for_tid(struct iwl4965_priv *priv,
+				struct iwl4965_lq_sta *lq_data, u8 tid,
+				struct sta_info *sta)
+{
+	unsigned long state;
+	DECLARE_MAC_BUF(mac);
+
+	spin_lock_bh(&sta->ampdu_mlme.ampdu_tx);
+	state = sta->ampdu_mlme.tid_tx[tid].state;
+	spin_unlock_bh(&sta->ampdu_mlme.ampdu_tx);
+
+	if (state == HT_AGG_STATE_IDLE &&
+	    rs_tl_get_load(lq_data, tid) > IWL_AGG_LOAD_THRESHOLD) {
+		IWL_DEBUG_HT("Starting Tx agg: STA: %s tid: %d\n",
+				print_mac(mac, sta->addr), tid);
+		ieee80211_start_tx_ba_session(priv->hw, sta->addr, tid);
+	}
+}
+
+static void rs_tl_turn_on_agg(struct iwl4965_priv *priv, u8 tid,
+				struct iwl4965_lq_sta *lq_data,
+				struct sta_info *sta)
+{
+	if ((tid < TID_MAX_LOAD_COUNT))
+		rs_tl_turn_on_agg_for_tid(priv, lq_data, tid, sta);
+	else if (tid == IWL_AGG_ALL_TID)
+		for (tid = 0; tid < TID_MAX_LOAD_COUNT; tid++)
+			rs_tl_turn_on_agg_for_tid(priv, lq_data, tid, sta);
+}
+
+#endif /* CONFIG_IWLWIFI_HT */
 
 /**
  * rs_collect_tx_data - Update the success/failure sliding window
@@ -1134,7 +1285,7 @@ static int rs_switch_to_mimo(struct iwl4965_priv *priv,
 	return 0;
 #else
 	return -1;
-#endif				/*CONFIG_IWL4965_HT */
+#endif	/*CONFIG_IWL4965_HT */
 }
 
 /*
@@ -1197,7 +1348,7 @@ static int rs_switch_to_siso(struct iwl4965_priv *priv,
 #else
 	return -1;
 
-#endif				/*CONFIG_IWL4965_HT */
+#endif	/*CONFIG_IWL4965_HT */
 }
 
 /*
@@ -1354,6 +1505,7 @@ static int rs_move_siso_to_other(struct iwl4965_priv *priv,
 			break;
 		case IWL_SISO_SWITCH_GI:
 			IWL_DEBUG_HT("LQ: SISO SWITCH TO GI\n");
+
 			memcpy(search_tbl, tbl, sz);
 			search_tbl->action = 0;
 			if (search_tbl->is_SGI)
@@ -1418,6 +1570,7 @@ static int rs_move_mimo_to_other(struct iwl4965_priv *priv,
 		case IWL_MIMO_SWITCH_ANTENNA_A:
 		case IWL_MIMO_SWITCH_ANTENNA_B:
 			IWL_DEBUG_HT("LQ: MIMO SWITCH TO SISO\n");
+
 
 			/* Set up new search table for SISO */
 			memcpy(search_tbl, tbl, sz);
@@ -1603,6 +1756,10 @@ static void rs_rate_scale_perform(struct iwl4965_priv *priv,
 	u8 active_tbl = 0;
 	u8 done_search = 0;
 	u16 high_low;
+#ifdef CONFIG_IWL4965_HT
+	u8 tid = MAX_TID_COUNT;
+	__le16 *qc;
+#endif
 
 	IWL_DEBUG_RATE("rate scale calculate new rate for skb\n");
 
@@ -1623,6 +1780,13 @@ static void rs_rate_scale_perform(struct iwl4965_priv *priv,
 	}
 	lq_sta = (struct iwl4965_lq_sta *)sta->rate_ctrl_priv;
 
+#ifdef CONFIG_IWL4965_HT
+	qc = ieee80211_get_qos_ctrl(hdr);
+	if (qc) {
+		tid = (u8)(le16_to_cpu(*qc) & 0xf);
+		rs_tl_add_packet(lq_sta, tid);
+	}
+#endif
 	/*
 	 * Select rate-scale / modulation-mode table to work with in
 	 * the rest of this function:  "search" if searching for better
@@ -1943,15 +2107,14 @@ static void rs_rate_scale_perform(struct iwl4965_priv *priv,
 		 * mode for a while before next round of mode comparisons. */
 		if (lq_sta->enable_counter &&
 		    (lq_sta->action_counter >= IWL_ACTION_LIMIT)) {
-#ifdef CONFIG_IWL4965_HT_AGG
-			/* If appropriate, set up aggregation! */
-			if ((lq_sta->last_tpt > TID_AGG_TPT_THREHOLD) &&
-			    (priv->lq_mngr.agg_ctrl.auto_agg)) {
-				priv->lq_mngr.agg_ctrl.tid_retry =
-				    TID_ALL_SPECIFIED;
-				schedule_work(&priv->agg_work);
+#ifdef CONFIG_IWL4965_HT
+			if ((lq_sta->last_tpt > IWL_AGG_TPT_THREHOLD) &&
+			    (lq_sta->tx_agg_tid_en & (1 << tid)) &&
+			    (tid != MAX_TID_COUNT)) {
+				IWL_DEBUG_HT("try to aggregate tid %d\n", tid);
+				rs_tl_turn_on_agg(priv, tid, lq_sta, sta);
 			}
-#endif /*CONFIG_IWL4965_HT_AGG */
+#endif /*CONFIG_IWL4965_HT */
 			lq_sta->action_counter = 0;
 			rs_set_stay_in_table(0, lq_sta);
 		}
@@ -2209,6 +2372,8 @@ static void rs_rate_init(void *priv_rate, void *priv_sta,
 	IWL_DEBUG_HT("SISO RATE 0x%X MIMO RATE 0x%X\n",
 		     lq_sta->active_siso_rate,
 		     lq_sta->active_mimo_rate);
+	/* as default allow aggregation for all tids */
+	lq_sta->tx_agg_tid_en = IWL_AGG_ALL_TID;
 #endif /*CONFIG_IWL4965_HT*/
 #ifdef CONFIG_MAC80211_DEBUGFS
 	lq_sta->drv = priv;
@@ -2352,12 +2517,6 @@ static void rs_clear(void *priv_rate)
 	IWL_DEBUG_RATE("enter\n");
 
 	priv->lq_mngr.lq_ready = 0;
-#ifdef CONFIG_IWL4965_HT
-#ifdef CONFIG_IWL4965_HT_AGG
-	if (priv->lq_mngr.agg_ctrl.granted_ba)
-		iwl4965_turn_off_agg(priv, TID_ALL_SPECIFIED);
-#endif /*CONFIG_IWL4965_HT_AGG */
-#endif /* CONFIG_IWL4965_HT */
 
 	IWL_DEBUG_RATE("leave\n");
 }
@@ -2524,6 +2683,12 @@ static void rs_add_debugfs(void *priv, void *priv_sta,
 	lq_sta->rs_sta_dbgfs_stats_table_file =
 		debugfs_create_file("rate_stats_table", 0600, dir,
 			lq_sta, &rs_sta_dbgfs_stats_table_ops);
+#ifdef CONFIG_IWL4965_HT
+	lq_sta->rs_sta_dbgfs_tx_agg_tid_en_file =
+		debugfs_create_u8("tx_agg_tid_enable", 0600, dir,
+		&lq_sta->tx_agg_tid_en);
+#endif
+
 }
 
 static void rs_remove_debugfs(void *priv, void *priv_sta)
@@ -2531,6 +2696,9 @@ static void rs_remove_debugfs(void *priv, void *priv_sta)
 	struct iwl4965_lq_sta *lq_sta = priv_sta;
 	debugfs_remove(lq_sta->rs_sta_dbgfs_scale_table_file);
 	debugfs_remove(lq_sta->rs_sta_dbgfs_stats_table_file);
+#ifdef CONFIG_IWL4965_HT
+	debugfs_remove(lq_sta->rs_sta_dbgfs_tx_agg_tid_en_file);
+#endif
 }
 #endif
 
