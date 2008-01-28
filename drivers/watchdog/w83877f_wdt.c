@@ -373,20 +373,20 @@ static int __init w83877f_wdt_init(void)
 		goto err_out_region1;
 	}
 
-	rc = misc_register(&wdt_miscdev);
-	if (rc)
-	{
-		printk(KERN_ERR PFX "cannot register miscdev on minor=%d (err=%d)\n",
-			wdt_miscdev.minor, rc);
-		goto err_out_region2;
-	}
-
 	rc = register_reboot_notifier(&wdt_notifier);
 	if (rc)
 	{
 		printk(KERN_ERR PFX "cannot register reboot notifier (err=%d)\n",
 			rc);
-		goto err_out_miscdev;
+		goto err_out_region2;
+	}
+
+	rc = misc_register(&wdt_miscdev);
+	if (rc)
+	{
+		printk(KERN_ERR PFX "cannot register miscdev on minor=%d (err=%d)\n",
+			wdt_miscdev.minor, rc);
+		goto err_out_reboot;
 	}
 
 	printk(KERN_INFO PFX "WDT driver for W83877F initialised. timeout=%d sec (nowayout=%d)\n",
@@ -394,8 +394,8 @@ static int __init w83877f_wdt_init(void)
 
 	return 0;
 
-err_out_miscdev:
-	misc_deregister(&wdt_miscdev);
+err_out_reboot:
+	unregister_reboot_notifier(&wdt_notifier);
 err_out_region2:
 	release_region(WDT_PING,1);
 err_out_region1:

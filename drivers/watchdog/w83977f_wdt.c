@@ -494,20 +494,20 @@ static int __init w83977f_wdt_init(void)
 		goto err_out;
 	}
 
-	rc = misc_register(&wdt_miscdev);
-	if (rc)
-	{
-		printk(KERN_ERR PFX "cannot register miscdev on minor=%d (err=%d)\n",
-			wdt_miscdev.minor, rc);
-		goto err_out_region;
-	}
-
 	rc = register_reboot_notifier(&wdt_notifier);
 	if (rc)
 	{
 		printk(KERN_ERR PFX "cannot register reboot notifier (err=%d)\n",
 			rc);
-		goto err_out_miscdev;
+		goto err_out_region;
+	}
+
+	rc = misc_register(&wdt_miscdev);
+	if (rc)
+	{
+		printk(KERN_ERR PFX "cannot register miscdev on minor=%d (err=%d)\n",
+			wdt_miscdev.minor, rc);
+		goto err_out_reboot;
 	}
 
 	printk(KERN_INFO PFX "initialized. timeout=%d sec (nowayout=%d testmode=%d)\n",
@@ -515,8 +515,8 @@ static int __init w83977f_wdt_init(void)
 
 	return 0;
 
-err_out_miscdev:
-	misc_deregister(&wdt_miscdev);
+err_out_reboot:
+	unregister_reboot_notifier(&wdt_notifier);
 err_out_region:
 	release_region(IO_INDEX_PORT,2);
 err_out:
