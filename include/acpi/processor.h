@@ -176,6 +176,8 @@ struct acpi_processor_throttling {
 	u32 address;
 	u8 duty_offset;
 	u8 duty_width;
+	u8 tsd_valid_flag;
+	unsigned int shared_type;
 	struct acpi_processor_tx states[ACPI_PROCESSOR_MAX_THROTTLING];
 };
 
@@ -316,7 +318,7 @@ static inline int acpi_processor_ppc_has_changed(struct acpi_processor *pr)
 int acpi_processor_get_throttling_info(struct acpi_processor *pr);
 extern int acpi_processor_set_throttling(struct acpi_processor *pr, int state);
 extern struct file_operations acpi_processor_throttling_fops;
-
+extern void acpi_processor_throttling_init(void);
 /* in processor_idle.c */
 int acpi_processor_power_init(struct acpi_processor *pr,
 			      struct acpi_device *device);
