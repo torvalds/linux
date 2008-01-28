@@ -48,6 +48,4 @@ int lbs_send_deauthentication(struct lbs_private *priv);
 
 int lbs_associate(struct lbs_private *priv, struct assoc_request *assoc_req);
 
-void lbs_unset_basic_rate_flags(u8 *rates, size_t len);
-
 #endif

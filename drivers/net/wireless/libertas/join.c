@@ -99,23 +99,6 @@ static void lbs_set_basic_rate_flags(u8 *rates, size_t len)
 }
 
 /**
- *  @brief Unsets the MSB on basic rates
- *
- * Scan through an array and unset the MSB for basic data rates.
- *
- *  @param rates     buffer of data rates
- *  @param len       size of buffer
- */
-void lbs_unset_basic_rate_flags(u8 *rates, size_t len)
-{
-	int i;
-
-	for (i = 0; i < len; i++)
-		rates[i] &= 0x7f;
-}
-
-
-/**
  *  @brief Associate to a specific BSS discovered in a scan
  *
  *  @param priv      A pointer to struct lbs_private structure
