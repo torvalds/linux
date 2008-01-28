@@ -534,8 +534,7 @@ static void cfq_resort_rr_list(struct cfq_data *cfqd, struct cfq_queue *cfqq)
  * add to busy list of queues for service, trying to be fair in ordering
  * the pending list according to last request service
  */
-static inline void
-cfq_add_cfqq_rr(struct cfq_data *cfqd, struct cfq_queue *cfqq)
+static void cfq_add_cfqq_rr(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 {
 	BUG_ON(cfq_cfqq_on_rr(cfqq));
 	cfq_mark_cfqq_on_rr(cfqq);
@@ -548,8 +547,7 @@ cfq_add_cfqq_rr(struct cfq_data *cfqd, struct cfq_queue *cfqq)
  * Called when the cfqq no longer has requests pending, remove it from
  * the service tree.
  */
-static inline void
-cfq_del_cfqq_rr(struct cfq_data *cfqd, struct cfq_queue *cfqq)
+static void cfq_del_cfqq_rr(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 {
 	BUG_ON(!cfq_cfqq_on_rr(cfqq));
 	cfq_clear_cfqq_on_rr(cfqq);
@@ -564,7 +562,7 @@ cfq_del_cfqq_rr(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 /*
  * rb tree support functions
  */
-static inline void cfq_del_rq_rb(struct request *rq)
+static void cfq_del_rq_rb(struct request *rq)
 {
 	struct cfq_queue *cfqq = RQ_CFQQ(rq);
 	struct cfq_data *cfqd = cfqq->cfqd;
@@ -604,8 +602,7 @@ static void cfq_add_rq_rb(struct request *rq)
 	BUG_ON(!cfqq->next_rq);
 }
 
-static inline void
-cfq_reposition_rq_rb(struct cfq_queue *cfqq, struct request *rq)
+static void cfq_reposition_rq_rb(struct cfq_queue *cfqq, struct request *rq)
 {
 	elv_rb_del(&cfqq->sort_list, rq);
 	cfqq->queued[rq_is_sync(rq)]--;
@@ -742,8 +739,8 @@ static int cfq_allow_merge(struct request_queue *q, struct request *rq,
 	return 0;
 }
 
-static inline void
-__cfq_set_active_queue(struct cfq_data *cfqd, struct cfq_queue *cfqq)
+static void __cfq_set_active_queue(struct cfq_data *cfqd,
+				   struct cfq_queue *cfqq)
 {
 	if (cfqq) {
 		cfqq->slice_end = 0;
@@ -913,7 +910,7 @@ static void cfq_dispatch_insert(struct request_queue *q, struct request *rq)
 /*
  * return expired entry, or NULL to just start from scratch in rbtree
  */
-static inline struct request *cfq_check_fifo(struct cfq_queue *cfqq)
+static struct request *cfq_check_fifo(struct cfq_queue *cfqq)
 {
 	struct cfq_data *cfqd = cfqq->cfqd;
 	struct request *rq;
@@ -1042,7 +1039,7 @@ __cfq_dispatch_requests(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	return dispatched;
 }
 
-static inline int __cfq_forced_dispatch_cfqq(struct cfq_queue *cfqq)
+static int __cfq_forced_dispatch_cfqq(struct cfq_queue *cfqq)
 {
 	int dispatched = 0;
 
@@ -1330,8 +1327,7 @@ static void cfq_init_prio_data(struct cfq_queue *cfqq, struct io_context *ioc)
 	cfq_clear_cfqq_prio_changed(cfqq);
 }
 
-static inline void changed_ioprio(struct io_context *ioc,
-				  struct cfq_io_context *cic)
+static void changed_ioprio(struct io_context *ioc, struct cfq_io_context *cic)
 {
 	struct cfq_data *cfqd = cic->key;
 	struct cfq_queue *cfqq;
@@ -1547,9 +1543,8 @@ cfq_cic_lookup(struct cfq_data *cfqd, struct io_context *ioc)
  * the process specific cfq io context when entered from the block layer.
  * Also adds the cic to a per-cfqd list, used when this queue is removed.
  */
-static inline int
-cfq_cic_link(struct cfq_data *cfqd, struct io_context *ioc,
-	     struct cfq_io_context *cic, gfp_t gfp_mask)
+static int cfq_cic_link(struct cfq_data *cfqd, struct io_context *ioc,
+			struct cfq_io_context *cic, gfp_t gfp_mask)
 {
 	unsigned long flags;
 	int ret;
