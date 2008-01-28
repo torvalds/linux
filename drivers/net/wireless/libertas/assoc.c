@@ -181,17 +181,6 @@ int lbs_update_channel(struct lbs_private *priv)
 	return ret;
 }
 
-void lbs_sync_channel(struct work_struct *work)
-{
-	struct lbs_private *priv = container_of(work, struct lbs_private,
-		sync_channel);
-
-	lbs_deb_enter(LBS_DEB_ASSOC);
-	if (lbs_update_channel(priv))
-		lbs_pr_info("Channel synchronization failed.");
-	lbs_deb_leave(LBS_DEB_ASSOC);
-}
-
 static int assoc_helper_channel(struct lbs_private *priv,
                                 struct assoc_request * assoc_req)
 {
