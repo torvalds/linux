@@ -30,7 +30,7 @@
 
 		PowerPC,8378@0 {
 			device_type = "cpu";
-			reg = <0>;
+			reg = <0x0>;
 			d-cache-line-size = <32>;
 			i-cache-line-size = <32>;
 			d-cache-size = <32768>;
@@ -51,22 +51,22 @@
 		#size-cells = <1>;
 		compatible = "fsl,mpc8378-elbc", "fsl,elbc", "simple-bus";
 		reg = <0xe0005000 0x1000>;
-		interrupts = <77 8>;
+		interrupts = <77 0x8>;
 		interrupt-parent = <&ipic>;
 
 		// CS0 and CS1 are swapped when
 		// booting from nand, but the
 		// addresses are the same.
-		ranges = <0 0 0xfe000000 0x00800000
-		          1 0 0xe0600000 0x00008000
-		          2 0 0xf0000000 0x00020000
-		          3 0 0xfa000000 0x00008000>;
+		ranges = <0x0 0x0 0xfe000000 0x00800000
+		          0x1 0x0 0xe0600000 0x00008000
+		          0x2 0x0 0xf0000000 0x00020000
+		          0x3 0x0 0xfa000000 0x00008000>;
 
 		flash@0,0 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "cfi-flash";
-			reg = <0 0 0x800000>;
+			reg = <0x0 0x0 0x800000>;
 			bank-width = <2>;
 			device-width = <1>;
 		};
@@ -76,7 +76,7 @@
 			#size-cells = <1>;
 			compatible = "fsl,mpc8378-fcm-nand",
 			             "fsl,elbc-fcm-nand";
-			reg = <1 0 0x8000>;
+			reg = <0x1 0x0 0x8000>;
 
 			u-boot@0 {
 				reg = <0x0 0x100000>;
@@ -97,7 +97,7 @@
 		#size-cells = <1>;
 		device_type = "soc";
 		compatible = "simple-bus";
-		ranges = <0 0xe0000000 0x00100000>;
+		ranges = <0x0 0xe0000000 0x00100000>;
 		reg = <0xe0000000 0x00000200>;
 		bus-frequency = <0>;
 
@@ -113,8 +113,8 @@
 			cell-index = <0>;
 			compatible = "fsl-i2c";
 			reg = <0x3000 0x100>;
-			interrupts = <14 8>;
-			interrupt-parent = < &ipic >;
+			interrupts = <14 0x8>;
+			interrupt-parent = <&ipic>;
 			dfsrr;
 			rtc@68 {
 				device_type = "rtc";
@@ -129,8 +129,8 @@
 			cell-index = <1>;
 			compatible = "fsl-i2c";
 			reg = <0x3100 0x100>;
-			interrupts = <15 8>;
-			interrupt-parent = < &ipic >;
+			interrupts = <15 0x8>;
+			interrupt-parent = <&ipic>;
 			dfsrr;
 		};
 
@@ -138,8 +138,8 @@
 			cell-index = <0>;
 			compatible = "fsl,spi";
 			reg = <0x7000 0x1000>;
-			interrupts = <16 8>;
-			interrupt-parent = < &ipic >;
+			interrupts = <16 0x8>;
+			interrupt-parent = <&ipic>;
 			mode = "cpu";
 		};
 
@@ -149,8 +149,8 @@
 			reg = <0x23000 0x1000>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			interrupt-parent = < &ipic >;
-			interrupts = <38 8>;
+			interrupt-parent = <&ipic>;
+			interrupts = <38 0x8>;
 			phy_type = "utmi";
 		};
 
@@ -160,15 +160,15 @@
 			compatible = "fsl,gianfar-mdio";
 			reg = <0x24520 0x20>;
 			phy2: ethernet-phy@2 {
-				interrupt-parent = < &ipic >;
-				interrupts = <17 8>;
-				reg = <2>;
+				interrupt-parent = <&ipic>;
+				interrupts = <17 0x8>;
+				reg = <0x2>;
 				device_type = "ethernet-phy";
 			};
 			phy3: ethernet-phy@3 {
-				interrupt-parent = < &ipic >;
-				interrupts = <18 8>;
-				reg = <3>;
+				interrupt-parent = <&ipic>;
+				interrupts = <18 0x8>;
+				reg = <0x3>;
 				device_type = "ethernet-phy";
 			};
 		};
@@ -180,10 +180,10 @@
 			compatible = "gianfar";
 			reg = <0x24000 0x1000>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
-			interrupts = <32 8 33 8 34 8>;
+			interrupts = <32 0x8 33 0x8 34 0x8>;
 			phy-connection-type = "mii";
-			interrupt-parent = < &ipic >;
-			phy-handle = < &phy2 >;
+			interrupt-parent = <&ipic>;
+			phy-handle = <&phy2>;
 		};
 
 		enet1: ethernet@25000 {
@@ -193,10 +193,10 @@
 			compatible = "gianfar";
 			reg = <0x25000 0x1000>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
-			interrupts = <35 8 36 8 37 8>;
+			interrupts = <35 0x8 36 0x8 37 0x8>;
 			phy-connection-type = "mii";
-			interrupt-parent = < &ipic >;
-			phy-handle = < &phy3 >;
+			interrupt-parent = <&ipic>;
+			phy-handle = <&phy3>;
 		};
 
 		serial0: serial@4500 {
@@ -205,8 +205,8 @@
 			compatible = "ns16550";
 			reg = <0x4500 0x100>;
 			clock-frequency = <0>;
-			interrupts = <9 8>;
-			interrupt-parent = < &ipic >;
+			interrupts = <9 0x8>;
+			interrupt-parent = <&ipic>;
 		};
 
 		serial1: serial@4600 {
@@ -215,8 +215,8 @@
 			compatible = "ns16550";
 			reg = <0x4600 0x100>;
 			clock-frequency = <0>;
-			interrupts = <10 8>;
-			interrupt-parent = < &ipic >;
+			interrupts = <10 0x8>;
+			interrupt-parent = <&ipic>;
 		};
 
 		crypto@30000 {
@@ -224,8 +224,8 @@
 			device_type = "crypto";
 			compatible = "talitos";
 			reg = <0x30000 0x10000>;
-			interrupts = <11 8>;
-			interrupt-parent = < &ipic >;
+			interrupts = <11 0x8>;
+			interrupt-parent = <&ipic>;
 			/* Rev. 3.0 geometry */
 			num-channels = <4>;
 			channel-fifo-len = <24>;
@@ -254,23 +254,23 @@
 				/* IRQ5 = 21 = 0x15, IRQ6 = 0x16, IRQ7 = 23 = 0x17 */
 
 				/* IDSEL AD14 IRQ6 inta */
-				 0x7000 0 0 1 &ipic 22 8
+				 0x7000 0x0 0x0 0x1 &ipic 22 0x8
 
 				/* IDSEL AD15 IRQ5 inta, IRQ6 intb, IRQ7 intd */
-				 0x7800 0 0 1 &ipic 21 8
-				 0x7800 0 0 2 &ipic 22 8
-				 0x7800 0 0 4 &ipic 23 8
+				 0x7800 0x0 0x0 0x1 &ipic 21 0x8
+				 0x7800 0x0 0x0 0x2 &ipic 22 0x8
+				 0x7800 0x0 0x0 0x4 &ipic 23 0x8
 
 				/* IDSEL AD28 IRQ7 inta, IRQ5 intb IRQ6 intc*/
-				 0xE000 0 0 1 &ipic 23 8
-				 0xE000 0 0 2 &ipic 21 8
-				 0xE000 0 0 3 &ipic 22 8>;
-		interrupt-parent = < &ipic >;
-		interrupts = <66 8>;
+				 0xE000 0x0 0x0 0x1 &ipic 23 0x8
+				 0xE000 0x0 0x0 0x2 &ipic 21 0x8
+				 0xE000 0x0 0x0 0x3 &ipic 22 0x8>;
+		interrupt-parent = <&ipic>;
+		interrupts = <66 0x8>;
 		bus-range = <0 0>;
-		ranges = <0x02000000 0 0x90000000 0x90000000 0 0x10000000
-		          0x42000000 0 0x80000000 0x80000000 0 0x10000000
-		          0x01000000 0 0x00000000 0xe2000000 0 0x00100000>;
+		ranges = <0x02000000 0x0 0x90000000 0x90000000 0x0 0x10000000
+		          0x42000000 0x0 0x80000000 0x80000000 0x0 0x10000000
+		          0x01000000 0x0 0x00000000 0xe2000000 0x0 0x00100000>;
 		clock-frequency = <66666666>;
 		#interrupt-cells = <1>;
 		#size-cells = <2>;

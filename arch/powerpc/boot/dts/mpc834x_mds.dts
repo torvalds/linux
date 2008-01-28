@@ -32,7 +32,7 @@
 
 		PowerPC,8349@0 {
 			device_type = "cpu";
-			reg = <0>;
+			reg = <0x0>;
 			d-cache-line-size = <32>;
 			i-cache-line-size = <32>;
 			d-cache-size = <32768>;
@@ -73,7 +73,7 @@
 			cell-index = <0>;
 			compatible = "fsl-i2c";
 			reg = <0x3000 0x100>;
-			interrupts = <14 8>;
+			interrupts = <14 0x8>;
 			interrupt-parent = <&ipic>;
 			dfsrr;
 
@@ -89,7 +89,7 @@
 			cell-index = <1>;
 			compatible = "fsl-i2c";
 			reg = <0x3100 0x100>;
-			interrupts = <15 8>;
+			interrupts = <15 0x8>;
 			interrupt-parent = <&ipic>;
 			dfsrr;
 		};
@@ -98,7 +98,7 @@
 			cell-index = <0>;
 			compatible = "fsl,spi";
 			reg = <0x7000 0x1000>;
-			interrupts = <16 8>;
+			interrupts = <16 0x8>;
 			interrupt-parent = <&ipic>;
 			mode = "cpu";
 		};
@@ -111,7 +111,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			interrupt-parent = <&ipic>;
-			interrupts = <39 8>;
+			interrupts = <39 0x8>;
 			phy_type = "ulpi";
 			port1;
 		};
@@ -122,7 +122,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			interrupt-parent = <&ipic>;
-			interrupts = <38 8>;
+			interrupts = <38 0x8>;
 			dr_mode = "otg";
 			phy_type = "ulpi";
 		};
@@ -135,13 +135,13 @@
 
 			phy0: ethernet-phy@0 {
 				interrupt-parent = <&ipic>;
-				interrupts = <17 8>;
+				interrupts = <17 0x8>;
 				reg = <0x0>;
 				device_type = "ethernet-phy";
 			};
 			phy1: ethernet-phy@1 {
 				interrupt-parent = <&ipic>;
-				interrupts = <18 8>;
+				interrupts = <18 0x8>;
 				reg = <0x1>;
 				device_type = "ethernet-phy";
 			};
@@ -154,7 +154,7 @@
 			compatible = "gianfar";
 			reg = <0x24000 0x1000>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
-			interrupts = <32 8 33 8 34 8>;
+			interrupts = <32 0x8 33 0x8 34 0x8>;
 			interrupt-parent = <&ipic>;
 			phy-handle = <&phy0>;
 			linux,network-index = <0>;
@@ -167,7 +167,7 @@
 			compatible = "gianfar";
 			reg = <0x25000 0x1000>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
-			interrupts = <35 8 36 8 37 8>;
+			interrupts = <35 0x8 36 0x8 37 0x8>;
 			interrupt-parent = <&ipic>;
 			phy-handle = <&phy1>;
 			linux,network-index = <1>;
@@ -179,7 +179,7 @@
 			compatible = "ns16550";
 			reg = <0x4500 0x100>;
 			clock-frequency = <0>;
-			interrupts = <9 8>;
+			interrupts = <9 0x8>;
 			interrupt-parent = <&ipic>;
 		};
 
@@ -189,7 +189,7 @@
 			compatible = "ns16550";
 			reg = <0x4600 0x100>;
 			clock-frequency = <0>;
-			interrupts = <10 8>;
+			interrupts = <10 0x8>;
 			interrupt-parent = <&ipic>;
 		};
 
@@ -199,10 +199,10 @@
 			model = "SEC2";
 			compatible = "talitos";
 			reg = <0x30000 0x10000>;
-			interrupts = <11 8>;
+			interrupts = <11 0x8>;
 			interrupt-parent = <&ipic>;
 			num-channels = <4>;
-			channel-fifo-len = <0x18>;
+			channel-fifo-len = <24>;
 			exec-units-mask = <0x0000007e>;
 			/* desc mask is for rev2.0,
 			 * we need runtime fixup for >2.0 */
@@ -269,9 +269,9 @@
 				 0xc000 0x0 0x0 0x1 &ipic 21 0x8
 				 0xc000 0x0 0x0 0x2 &ipic 22 0x8
 				 0xc000 0x0 0x0 0x3 &ipic 23 0x8
-				 0xc000 0x0 0x0 0x4 &ipic 20 8>;
+				 0xc000 0x0 0x0 0x4 &ipic 20 0x8>;
 		interrupt-parent = <&ipic>;
-		interrupts = <66 8>;
+		interrupts = <66 0x8>;
 		bus-range = <0 0>;
 		ranges = <0x02000000 0x0 0x90000000 0x90000000 0x0 0x10000000
 			  0x42000000 0x0 0x80000000 0x80000000 0x0 0x10000000
@@ -330,9 +330,9 @@
 				 0xc000 0x0 0x0 0x1 &ipic 21 0x8
 				 0xc000 0x0 0x0 0x2 &ipic 22 0x8
 				 0xc000 0x0 0x0 0x3 &ipic 23 0x8
-				 0xc000 0x0 0x0 0x4 &ipic 20 8>;
+				 0xc000 0x0 0x0 0x4 &ipic 20 0x8>;
 		interrupt-parent = <&ipic>;
-		interrupts = <66 8>;
+		interrupts = <66 0x8>;
 		bus-range = <0 0>;
 		ranges = <0x02000000 0x0 0xb0000000 0xb0000000 0x0 0x10000000
 			  0x42000000 0x0 0xa0000000 0xa0000000 0x0 0x10000000
