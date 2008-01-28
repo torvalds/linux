@@ -1213,7 +1213,7 @@ acpi_status acpi_os_release_object(acpi_cache_t * cache, void *object)
  *
  *	Returns 0 on success
  */
-int acpi_dmi_dump(void)
+static int acpi_dmi_dump(void)
 {
 
 	if (!dmi_available)
