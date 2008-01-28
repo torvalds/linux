@@ -80,6 +80,8 @@ MODULE_DEVICE_TABLE(pci, xonar_ids);
 #define GPIO_ALT		0x0080
 #define GPIO_OUTPUT_ENABLE	0x0100
 
+#define GPIO_LINE_MUTE		CM9780_GPO0
+
 /* register 16 */
 #define PCM1796_ATL_MASK	0xff
 /* register 17 */
@@ -168,6 +170,7 @@ static void xonar_init(struct oxygen *chip)
 			      GPIO_CS5381_M_SINGLE,
 			      GPIO_CS5381_M_MASK | GPIO_ALT);
 	oxygen_ac97_set_bits(chip, 0, CM9780_JACK, CM9780_FMIC2MIC);
+	oxygen_ac97_clear_bits(chip, 0, CM9780_GPIO_STATUS, GPIO_LINE_MUTE);
 	msleep(300);
 	oxygen_set_bits16(chip, OXYGEN_GPIO_CONTROL, GPIO_OUTPUT_ENABLE);
 	oxygen_set_bits16(chip, OXYGEN_GPIO_DATA, GPIO_OUTPUT_ENABLE);
@@ -231,6 +234,47 @@ static void set_cs5381_params(struct oxygen *chip,
 			      value, GPIO_CS5381_M_MASK);
 }
 
+static void mute_ac97_ctl(struct oxygen *chip, unsigned int control)
+{
+	unsigned int index = chip->controls[control]->private_value & 0xff;
+	u16 value;
+
+	value = oxygen_read_ac97(chip, 0, index);
+	if (!(value & 0x8000)) {
+		oxygen_write_ac97(chip, 0, index, value | 0x8000);
+		snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
+			       &chip->controls[control]->id);
+	}
+}
+
+static void xonar_ac97_switch_hook(struct oxygen *chip,
+				   unsigned int reg, int mute)
+{
+	/* line-in is exclusive */
+	switch (reg) {
+	case AC97_LINE:
+		oxygen_write_ac97_masked(chip, 0, CM9780_GPIO_STATUS,
+					 mute ? GPIO_LINE_MUTE : 0,
+					 GPIO_LINE_MUTE);
+		if (!mute) {
+			mute_ac97_ctl(chip, CONTROL_MIC_CAPTURE_SWITCH);
+			mute_ac97_ctl(chip, CONTROL_CD_CAPTURE_SWITCH);
+			mute_ac97_ctl(chip, CONTROL_AUX_CAPTURE_SWITCH);
+		}
+		break;
+	case AC97_MIC:
+	case AC97_CD:
+	case AC97_VIDEO:
+	case AC97_AUX:
+		if (!mute) {
+			oxygen_ac97_set_bits(chip, 0, CM9780_GPIO_STATUS,
+					     GPIO_LINE_MUTE);
+			mute_ac97_ctl(chip, CONTROL_LINE_CAPTURE_SWITCH);
+		}
+		break;
+	}
+}
+
 static int pcm1796_volume_info(struct snd_kcontrol *ctl,
 			       struct snd_ctl_elem_info *info)
 {
@@ -288,7 +332,10 @@ static int xonar_control_filter(struct snd_kcontrol_new *template)
 		template->info = pcm1796_volume_info,
 		template->tlv.p = pcm1796_db_scale;
 	} else if (!strncmp(template->name, "CD Capture ", 11)) {
+		/* CD in is actually connected to the video in pin */
 		template->private_value ^= AC97_CD ^ AC97_VIDEO;
+	} else if (!strcmp(template->name, "Line Capture Volume")) {
+		return 1; /* line-in bypasses the AC'97 mixer */
 	}
 	return 0;
 }
@@ -310,6 +357,7 @@ static const struct oxygen_model model_xonar = {
 	.set_adc_params = set_cs5381_params,
 	.update_dac_volume = update_pcm1796_volume,
 	.update_dac_mute = update_pcm1796_mute,
+	.ac97_switch_hook = xonar_ac97_switch_hook,
 	.dac_channels = 8,
 	.used_channels = OXYGEN_CHANNEL_B |
 			 OXYGEN_CHANNEL_C |

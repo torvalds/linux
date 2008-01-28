@@ -337,8 +337,6 @@ static void __devinit oxygen_init(struct oxygen *chip)
 		oxygen_write_ac97(chip, 0, AC97_REC_GAIN, 0x8000);
 		oxygen_write_ac97(chip, 0, AC97_CENTER_LFE_MASTER, 0x8080);
 		oxygen_write_ac97(chip, 0, AC97_SURROUND_MASTER, 0x8080);
-		oxygen_ac97_clear_bits(chip, 0,
-				       CM9780_GPIO_STATUS, CM9780_GPO0);
 		/* power down unused ADCs and DACs */
 		oxygen_ac97_set_bits(chip, 0, AC97_POWERDOWN,
 				     AC97_PD_PR0 | AC97_PD_PR1);
