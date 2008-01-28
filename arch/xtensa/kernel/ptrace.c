@@ -43,32 +43,29 @@ int ptrace_getregs(struct task_struct *child, void __user *uregs)
 {
 	struct pt_regs *regs = task_pt_regs(child);
 	xtensa_gregset_t __user *gregset = uregs;
-	unsigned long wb = regs->windowbase;
-	unsigned long ws = regs->windowstart;
 	unsigned long wm = regs->wmask;
-	int ret = 0;
-	int live, last;
+	unsigned long wb = regs->windowbase;
+	int live, i;
 
 	if (!access_ok(VERIFY_WRITE, uregs, sizeof(xtensa_gregset_t)))
 		return -EIO;
 
-	/* Norm windowstart to a windowbase of 0. */
-
-	ws = ((ws>>wb) | (ws<<(WSBITS-wb))) & ((1<<WSBITS)-1);
-
-	ret |= __put_user(regs->pc, &gregset->pc);
-	ret |= __put_user(regs->ps & ~(1 << PS_EXCM_BIT), &gregset->ps);
-	ret |= __put_user(regs->lbeg, &gregset->lbeg);
-	ret |= __put_user(regs->lend, &gregset->lend);
-	ret |= __put_user(regs->lcount, &gregset->lcount);
-	ret |= __put_user(ws, &gregset->windowstart);
+	__put_user(regs->pc, &gregset->pc);
+	__put_user(regs->ps & ~(1 << PS_EXCM_BIT), &gregset->ps);
+	__put_user(regs->lbeg, &gregset->lbeg);
+	__put_user(regs->lend, &gregset->lend);
+	__put_user(regs->lcount, &gregset->lcount);
+	__put_user(regs->windowstart, &gregset->windowstart);
+	__put_user(regs->windowbase, &gregset->windowbase);
 
 	live = (wm & 2) ? 4 : (wm & 4) ? 8 : (wm & 8) ? 12 : 16;
-	last = XCHAL_NUM_AREGS - (wm >> 4) * 4;
-	ret |= __copy_to_user(gregset->a, regs->areg, live * 4);
-	ret |= __copy_to_user(gregset->a + last, regs->areg + last, (wm>>4)*16);
 
-	return ret ? -EFAULT : 0;
+	for (i = 0; i < live; i++)
+		__put_user(regs->areg[i],gregset->a+((wb*4+i)%XCHAL_NUM_AREGS));
+	for (i = XCHAL_NUM_AREGS - (wm >> 4) * 4; i < XCHAL_NUM_AREGS; i++)
+		__put_user(regs->areg[i],gregset->a+((wb*4+i)%XCHAL_NUM_AREGS));
+
+	return 0;
 }
 
 int ptrace_setregs(struct task_struct *child, void __user *uregs)
@@ -76,28 +73,35 @@ int ptrace_setregs(struct task_struct *child, void __user *uregs)
 	struct pt_regs *regs = task_pt_regs(child);
 	xtensa_gregset_t *gregset = uregs;
 	const unsigned long ps_mask = PS_CALLINC_MASK | PS_OWB_MASK;
-	unsigned long wm = regs->wmask;
 	unsigned long ps;
-	int ret = 0;
-	int live, last;
+	unsigned long wb;
 
 	if (!access_ok(VERIFY_WRITE, uregs, sizeof(xtensa_gregset_t)))
 		return -EIO;
 
-	ret |= __get_user(regs->pc, &gregset->pc);
-	ret |= __get_user(ps, &gregset->ps);
-	ret |= __get_user(regs->lbeg, &gregset->lbeg);
-	ret |= __get_user(regs->lend, &gregset->lend);
-	ret |= __get_user(regs->lcount, &gregset->lcount);
+	__get_user(regs->pc, &gregset->pc);
+	__get_user(ps, &gregset->ps);
+	__get_user(regs->lbeg, &gregset->lbeg);
+	__get_user(regs->lend, &gregset->lend);
+	__get_user(regs->lcount, &gregset->lcount);
+	__get_user(regs->windowstart, &gregset->windowstart);
+	__get_user(wb, &gregset->windowbase);
 
 	regs->ps = (regs->ps & ~ps_mask) | (ps & ps_mask) | (1 << PS_EXCM_BIT);
 
-	live = (wm & 2) ? 4 : (wm & 4) ? 8 : (wm & 8) ? 12 : 16;
-	last = XCHAL_NUM_AREGS - (wm >> 4) * 4;
-	ret |= __copy_from_user(regs->areg, gregset->a, live * 4);
-	ret |= __copy_from_user(regs->areg+last, gregset->a+last, (wm>>4)*16);
+	if (wb >= XCHAL_NUM_AREGS / 4)
+		return -EFAULT;
 
-	return ret ? -EFAULT : 0;
+	regs->windowbase = wb;
+
+	if (wb != 0 &&  __copy_from_user(regs->areg + XCHAL_NUM_AREGS - wb * 4,
+					 gregset->a, wb * 16))
+		return -EFAULT;
+
+	if (__copy_from_user(regs->areg, gregset->a + wb*4, (WSBITS-wb) * 16))
+		return -EFAULT;
+
+	return 0;
 }
 
 
