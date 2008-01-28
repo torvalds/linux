@@ -21,7 +21,7 @@ config PPC_83xx
 	bool "Freescale 83xx"
 	depends on 6xx
 	select FSL_SOC
-	select 83xx
+	select MPC83xx
 	select IPIC
 	select WANT_DEVICE_TREE
 

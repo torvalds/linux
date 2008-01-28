@@ -22,7 +22,7 @@
 #include "mpc83xx.h"
 
 
-#ifdef CONFIG_MPC834x
+#ifdef CONFIG_PPC_MPC834x
 int mpc834x_usb_cfg(void)
 {
 	unsigned long sccr, sicrl, sicrh;
@@ -96,7 +96,7 @@ int mpc834x_usb_cfg(void)
 	iounmap(immap);
 	return 0;
 }
-#endif /* CONFIG_MPC834x */
+#endif /* CONFIG_PPC_MPC834x */
 
 #ifdef CONFIG_PPC_MPC831x
 int mpc831x_usb_cfg(void)

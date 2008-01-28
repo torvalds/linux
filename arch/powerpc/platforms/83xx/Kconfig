@@ -1,11 +1,15 @@
-choice
-	prompt "83xx Board Type"
+menuconfig MPC83xx
+	bool "83xx Board Type"
 	depends on PPC_83xx
-	default MPC834x_MDS
+	select PPC_UDBG_16550
+	select PPC_INDIRECT_PCI
+
+if MPC83xx
 
 config MPC831x_RDB
 	bool "Freescale MPC831x RDB"
 	select DEFAULT_UIMAGE
+	select PPC_MPC831x
 	help
 	  This option enables support for the MPC8313 RDB and MPC8315 RDB boards.
 
@@ -13,6 +17,7 @@ config MPC832x_MDS
 	bool "Freescale MPC832x MDS"
 	select DEFAULT_UIMAGE
 	select QUICC_ENGINE
+	select PPC_MPC832x
 	help
 	  This option enables support for the MPC832x MDS evaluation board.
 
@@ -20,12 +25,14 @@ config MPC832x_RDB
 	bool "Freescale MPC832x RDB"
 	select DEFAULT_UIMAGE
 	select QUICC_ENGINE
+	select PPC_MPC832x
 	help
 	  This option enables support for the MPC8323 RDB board.
 
 config MPC834x_MDS
 	bool "Freescale MPC834x MDS"
 	select DEFAULT_UIMAGE
+	select PPC_MPC834x
 	help
 	  This option enables support for the MPC 834x MDS evaluation board.
 
@@ -37,6 +44,7 @@ config MPC834x_MDS
 config MPC834x_ITX
 	bool "Freescale MPC834x ITX"
 	select DEFAULT_UIMAGE
+	select PPC_MPC834x
 	help
 	  This option enables support for the MPC 834x ITX evaluation board.
 
@@ -53,49 +61,38 @@ config MPC836x_MDS
 config MPC837x_MDS
 	bool "Freescale MPC837x MDS"
 	select DEFAULT_UIMAGE
+	select PPC_MPC837x
 	help
 	  This option enables support for the MPC837x MDS Processor Board.
 
 config MPC837x_RDB
 	bool "Freescale MPC837x RDB"
 	select DEFAULT_UIMAGE
+	select PPC_MPC837x
 	help
 	  This option enables support for the MPC837x RDB Board.
 
 config SBC834x
 	bool "Wind River SBC834x"
 	select DEFAULT_UIMAGE
+	select PPC_MPC834x
 	help
 	  This option enables support for the Wind River SBC834x board.
 
-endchoice
+endif
 
+# used for usb
 config PPC_MPC831x
 	bool
-	select PPC_UDBG_16550
-	select PPC_INDIRECT_PCI
-	default y if MPC831x_RDB
 
+# used for math-emu
 config PPC_MPC832x
 	bool
-	select PPC_UDBG_16550
-	select PPC_INDIRECT_PCI
-	default y if MPC832x_MDS || MPC832x_RDB
 
-config MPC834x
+# used for usb
+config PPC_MPC834x
 	bool
-	select PPC_UDBG_16550
-	select PPC_INDIRECT_PCI
-	default y if MPC834x_MDS || MPC834x_ITX || SBC834x
 
-config PPC_MPC836x
-	bool
-	select PPC_UDBG_16550
-	select PPC_INDIRECT_PCI
-	default y if MPC836x_MDS
-
+# used for usb
 config PPC_MPC837x
 	bool
-	select PPC_UDBG_16550
-	select PPC_INDIRECT_PCI
-	default y if MPC837x_MDS || MPC837x_RDB

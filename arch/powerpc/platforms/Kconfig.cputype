@@ -93,10 +93,6 @@ config 6xx
 config 8xx
 	bool
 
-# this is temp to handle compat with arch=ppc
-config 83xx
-	bool
-
 config E500
 	bool
 
