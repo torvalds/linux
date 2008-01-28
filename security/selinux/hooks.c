@@ -583,8 +583,8 @@ static int bad_option(struct superblock_security_struct *sbsec, char flag,
  * Allow filesystems with binary mount data to explicitly set mount point
  * labeling information.
  */
-int selinux_set_mnt_opts(struct super_block *sb, char **mount_options,
-				 int *flags, int num_opts)
+static int selinux_set_mnt_opts(struct super_block *sb, char **mount_options,
+				int *flags, int num_opts)
 {
 	int rc = 0, i;
 	struct task_security_struct *tsec = current->security;
