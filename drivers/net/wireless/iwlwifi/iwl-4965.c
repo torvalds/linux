@@ -4732,7 +4732,7 @@ static void iwl4965_sta_modify_del_ba_tid(struct iwl4965_priv *priv,
 
 int iwl4965_mac_ampdu_action(struct ieee80211_hw *hw,
 			     enum ieee80211_ampdu_mlme_action action,
-			     const u8 *addr, u16 tid, u16 ssn)
+			     const u8 *addr, u16 tid, u16 *ssn)
 {
 	struct iwl4965_priv *priv = hw->priv;
 	int sta_id;
@@ -4744,7 +4744,7 @@ int iwl4965_mac_ampdu_action(struct ieee80211_hw *hw,
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
 		IWL_DEBUG_HT("start Rx\n");
-		iwl4965_sta_modify_add_ba_tid(priv, sta_id, tid, ssn);
+		iwl4965_sta_modify_add_ba_tid(priv, sta_id, tid, *ssn);
 		break;
 	case IEEE80211_AMPDU_RX_STOP:
 		IWL_DEBUG_HT("stop Rx\n");
