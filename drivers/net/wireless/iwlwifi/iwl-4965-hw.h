@@ -137,7 +137,7 @@ enum {
 #define EEPROM_SKU_CAP_OP_MODE_MRC                      (1 << 7)
 
 /* *regulatory* channel data from eeprom, one for each channel */
-struct iwl_eeprom_channel {
+struct iwl4965_eeprom_channel {
 	u8 flags;		/* flags copied from EEPROM */
 	s8 max_power_avg;	/* max power (dBm) on this chnl, limit 31 */
 } __attribute__ ((packed));
@@ -152,7 +152,7 @@ struct iwl_eeprom_channel {
  *   level.
  * Data copied from EEPROM.
  */
-struct iwl_eeprom_txpower_sample {
+struct iwl4965_eeprom_txpower_sample {
 	u8 gain_index;		/* index into power (gain) setup table ... */
 	s8 power;		/* ... for this pwr level for this chnl group */
 	u16 v_det;		/* PA output voltage */
@@ -166,8 +166,8 @@ struct iwl_eeprom_txpower_sample {
  * Data copied from EEPROM.
  * DO NOT ALTER THIS STRUCTURE!!!
  */
-struct iwl_eeprom_txpower_group {
-	struct iwl_eeprom_txpower_sample samples[5];	/* 5 power levels */
+struct iwl4965_eeprom_txpower_group {
+	struct iwl4965_eeprom_txpower_sample samples[5];	/* 5 power levels */
 	s32 a, b, c, d, e;	/* coefficients for voltage->power
 				 * formula (signed) */
 	s32 Fa, Fb, Fc, Fd, Fe;	/* these modify coeffs based on
@@ -185,7 +185,7 @@ struct iwl_eeprom_txpower_group {
  *   difference between current temperature and factory calib temperature.
  * Data copied from EEPROM.
  */
-struct iwl_eeprom_temperature_corr {
+struct iwl4965_eeprom_temperature_corr {
 	u32 Ta;
 	u32 Tb;
 	u32 Tc;
@@ -199,35 +199,35 @@ struct iwl_eeprom_temperature_corr {
 #define EEPROM_TX_POWER_VERSION        (2)
 #define EEPROM_TX_POWER_VERSION_NEW    (5)
 
-struct iwl_eeprom_calib_measure {
+struct iwl4965_eeprom_calib_measure {
 	u8 temperature;
 	u8 gain_idx;
 	u8 actual_pow;
 	s8 pa_det;
 } __attribute__ ((packed));
 
-struct iwl_eeprom_calib_ch_info {
+struct iwl4965_eeprom_calib_ch_info {
 	u8 ch_num;
-	struct iwl_eeprom_calib_measure measurements[EEPROM_TX_POWER_TX_CHAINS]
+	struct iwl4965_eeprom_calib_measure measurements[EEPROM_TX_POWER_TX_CHAINS]
 		[EEPROM_TX_POWER_MEASUREMENTS];
 } __attribute__ ((packed));
 
-struct iwl_eeprom_calib_subband_info {
+struct iwl4965_eeprom_calib_subband_info {
 	u8 ch_from;
 	u8 ch_to;
-	struct iwl_eeprom_calib_ch_info ch1;
-	struct iwl_eeprom_calib_ch_info ch2;
+	struct iwl4965_eeprom_calib_ch_info ch1;
+	struct iwl4965_eeprom_calib_ch_info ch2;
 } __attribute__ ((packed));
 
-struct iwl_eeprom_calib_info {
+struct iwl4965_eeprom_calib_info {
 	u8 saturation_power24;
 	u8 saturation_power52;
 	s16 voltage;		/* signed */
-	struct iwl_eeprom_calib_subband_info band_info[EEPROM_TX_POWER_BANDS];
+	struct iwl4965_eeprom_calib_subband_info band_info[EEPROM_TX_POWER_BANDS];
 } __attribute__ ((packed));
 
 
-struct iwl_eeprom {
+struct iwl4965_eeprom {
 	u8 reserved0[16];
 #define EEPROM_DEVICE_ID                    (2*0x08)	/* 2 bytes */
 	u16 device_id;	/* abs.ofs: 16 */
@@ -276,30 +276,30 @@ struct iwl_eeprom {
 #define EEPROM_REGULATORY_BAND_1            (2*0x62)	/* 2  bytes */
 	u16 band_1_count;	/* abs.ofs: 196 */
 #define EEPROM_REGULATORY_BAND_1_CHANNELS   (2*0x63)	/* 28 bytes */
-	struct iwl_eeprom_channel band_1_channels[14];	/* abs.ofs: 196 */
+	struct iwl4965_eeprom_channel band_1_channels[14];	/* abs.ofs: 196 */
 #define EEPROM_REGULATORY_BAND_2            (2*0x71)	/* 2  bytes */
 	u16 band_2_count;	/* abs.ofs: 226 */
 #define EEPROM_REGULATORY_BAND_2_CHANNELS   (2*0x72)	/* 26 bytes */
-	struct iwl_eeprom_channel band_2_channels[13];	/* abs.ofs: 228 */
+	struct iwl4965_eeprom_channel band_2_channels[13];	/* abs.ofs: 228 */
 #define EEPROM_REGULATORY_BAND_3            (2*0x7F)	/* 2  bytes */
 	u16 band_3_count;	/* abs.ofs: 254 */
 #define EEPROM_REGULATORY_BAND_3_CHANNELS   (2*0x80)	/* 24 bytes */
-	struct iwl_eeprom_channel band_3_channels[12];	/* abs.ofs: 256 */
+	struct iwl4965_eeprom_channel band_3_channels[12];	/* abs.ofs: 256 */
 #define EEPROM_REGULATORY_BAND_4            (2*0x8C)	/* 2  bytes */
 	u16 band_4_count;	/* abs.ofs: 280 */
 #define EEPROM_REGULATORY_BAND_4_CHANNELS   (2*0x8D)	/* 22 bytes */
-	struct iwl_eeprom_channel band_4_channels[11];	/* abs.ofs: 282 */
+	struct iwl4965_eeprom_channel band_4_channels[11];	/* abs.ofs: 282 */
 #define EEPROM_REGULATORY_BAND_5            (2*0x98)	/* 2  bytes */
 	u16 band_5_count;	/* abs.ofs: 304 */
 #define EEPROM_REGULATORY_BAND_5_CHANNELS   (2*0x99)	/* 12 bytes */
-	struct iwl_eeprom_channel band_5_channels[6];	/* abs.ofs: 306 */
+	struct iwl4965_eeprom_channel band_5_channels[6];	/* abs.ofs: 306 */
 
 	u8 reserved10[2];
 #define EEPROM_REGULATORY_BAND_24_FAT_CHANNELS (2*0xA0)	/* 14 bytes */
-	struct iwl_eeprom_channel band_24_channels[7];	/* abs.ofs: 320 */
+	struct iwl4965_eeprom_channel band_24_channels[7];	/* abs.ofs: 320 */
 	u8 reserved11[2];
 #define EEPROM_REGULATORY_BAND_52_FAT_CHANNELS (2*0xA8)	/* 22 bytes */
-	struct iwl_eeprom_channel band_52_channels[11];	/* abs.ofs: 336 */
+	struct iwl4965_eeprom_channel band_52_channels[11];	/* abs.ofs: 336 */
 	u8 reserved12[6];
 #define EEPROM_CALIB_VERSION_OFFSET            (2*0xB6)	/* 2 bytes */
 	u16 calib_version;	/* abs.ofs: 364 */
@@ -308,7 +308,7 @@ struct iwl_eeprom {
 	u16 satruation_power;	/* abs.ofs: 368 */
 	u8 reserved14[94];
 #define EEPROM_IWL_CALIB_TXPOWER_OFFSET        (2*0xE8)	/* 48  bytes */
-	struct iwl_eeprom_calib_info calib_info;	/* abs.ofs: 464 */
+	struct iwl4965_eeprom_calib_info calib_info;	/* abs.ofs: 464 */
 
 	u8 reserved16[140];	/* fill out to full 1024 byte block */
 
@@ -731,8 +731,8 @@ struct iwl_eeprom {
 #define TFD_TX_CMD_SLOTS 256
 #define TFD_CMD_SLOTS 32
 
-#define TFD_MAX_PAYLOAD_SIZE (sizeof(struct iwl_cmd) - \
-			      sizeof(struct iwl_cmd_meta))
+#define TFD_MAX_PAYLOAD_SIZE (sizeof(struct iwl4965_cmd) - \
+			      sizeof(struct iwl4965_cmd_meta))
 
 /*
  * RX related structures and functions
@@ -751,7 +751,7 @@ struct iwl_eeprom {
 #define IWL_MAX_INST_SIZE KDR_RTC_INST_SIZE
 #define IWL_MAX_DATA_SIZE KDR_RTC_DATA_SIZE
 
-static inline int iwl_hw_valid_rtc_data_addr(u32 addr)
+static inline int iwl4965_hw_valid_rtc_data_addr(u32 addr)
 {
 	return (addr >= RTC_DATA_LOWER_BOUND) &&
 	       (addr < KDR_RTC_DATA_UPPER_BOUND);
@@ -873,7 +873,7 @@ enum {
 #define CALIB_IWL_TX_ATTEN_GR5_LCH 20
 
 
-union iwl_tx_power_dual_stream {
+union iwl4965_tx_power_dual_stream {
 	struct {
 		u8 radio_tx_gain[2];
 		u8 dsp_predis_atten[2];
@@ -1115,20 +1115,20 @@ union iwl_tx_power_dual_stream {
 #define CSR_HW_IF_CONFIG_REG_BIT_MAC_SI		(0x00000100)
 #define CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI	(0x00000200)
 
-static inline u8 iwl_hw_get_rate(__le32 rate_n_flags)
+static inline u8 iwl4965_hw_get_rate(__le32 rate_n_flags)
 {
 	return le32_to_cpu(rate_n_flags) & 0xFF;
 }
-static inline u16 iwl_hw_get_rate_n_flags(__le32 rate_n_flags)
+static inline u16 iwl4965_hw_get_rate_n_flags(__le32 rate_n_flags)
 {
 	return le32_to_cpu(rate_n_flags) & 0xFFFF;
 }
-static inline __le32 iwl_hw_set_rate_n_flags(u8 rate, u16 flags)
+static inline __le32 iwl4965_hw_set_rate_n_flags(u8 rate, u16 flags)
 {
 	return cpu_to_le32(flags|(u16)rate);
 }
 
-struct iwl_tfd_frame_data {
+struct iwl4965_tfd_frame_data {
 	__le32 tb1_addr;
 
 	__le32 val1;
@@ -1156,7 +1156,7 @@ struct iwl_tfd_frame_data {
 #define IWL_tb2_len_SYM val2
 } __attribute__ ((packed));
 
-struct iwl_tfd_frame {
+struct iwl4965_tfd_frame {
 	__le32 val0;
 	/* __le32 rsvd1:24; */
 	/* __le32 num_tbs:5; */
@@ -1165,7 +1165,7 @@ struct iwl_tfd_frame {
 #define IWL_num_tbs_SYM val0
 	/* __le32 rsvd2:1; */
 	/* __le32 padding:2; */
-	struct iwl_tfd_frame_data pa[10];
+	struct iwl4965_tfd_frame_data pa[10];
 	__le32 reserved;
 } __attribute__ ((packed));
 
@@ -1191,9 +1191,9 @@ struct iwl4965_sched_queue_byte_cnt_tbl {
 		     sizeof(__le16)];
 } __attribute__ ((packed));
 
-/* Base physical address of iwl_shared is provided to KDR_SCD_DRAM_BASE_ADDR
- * and &iwl_shared.val0 is provided to FH_RSCSR_CHNL0_STTS_WPTR_REG */
-struct iwl_shared {
+/* Base physical address of iwl4965_shared is provided to KDR_SCD_DRAM_BASE_ADDR
+ * and &iwl4965_shared.val0 is provided to FH_RSCSR_CHNL0_STTS_WPTR_REG */
+struct iwl4965_shared {
 	struct iwl4965_sched_queue_byte_cnt_tbl
 	 queues_byte_cnt_tbls[IWL_MAX_NUM_QUEUES];
 	__le32 val0;
@@ -1225,4 +1225,4 @@ struct iwl_shared {
 	__le32 padding2;
 } __attribute__ ((packed));
 
-#endif /* __iwl_4965_hw_h__ */
+#endif /* __iwl4965_4965_hw_h__ */

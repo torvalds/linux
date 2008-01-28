@@ -1,8 +1,7 @@
 config IWL4965
 	tristate "Intel Wireless WiFi 4965AGN"
-	depends on m && PCI && MAC80211 && WLAN_80211 && EXPERIMENTAL
+	depends on PCI && MAC80211 && WLAN_80211 && EXPERIMENTAL
 	select FW_LOADER
-	default m
 	---help---
 	  Select to build the driver supporting the:
 
@@ -30,7 +29,6 @@ config IWL4965
 config IWL4965_QOS
 	bool "Enable Wireless QoS in iwl4965 driver"
 	depends on IWL4965
-	default y
 	---help---
 	  This option will enable wireless quality of service (QoS) for the
 	  iw4965 driver.
@@ -38,14 +36,12 @@ config IWL4965_QOS
 config IWL4965_SPECTRUM_MEASUREMENT
 	bool "Enable Spectrum Measurement in iw4965 driver"
 	depends on IWL4965
-	default y
 	---help---
 	  This option will enable spectrum measurement for the iwl4965 driver.
 
 config IWL4965_SENSITIVITY
 	bool "Enable Sensitivity Calibration in iwl4965 driver"
 	depends on IWL4965
-	default y
 	---help---
 	  This option will enable sensitivity calibration for the iwl4965
 	  driver.
@@ -54,7 +50,6 @@ config IWL4965_HT
 	bool "Enable 802.11n HT features in iwl4965 driver"
 	depends on EXPERIMENTAL
 	depends on IWL4965 && MAC80211_HT
-	default n
 	---help---
 	  This option enables IEEE 802.11n High Throughput features
 	  for the iwl4965 driver.
@@ -62,7 +57,6 @@ config IWL4965_HT
 config IWL4965_DEBUG
 	bool "Enable full debugging output in iwl4965 driver"
 	depends on IWL4965
-	default y
 	---help---
 	  This option will enable debug tracing output for the iwl4965
 	  driver.
@@ -88,9 +82,8 @@ config IWL4965_DEBUG
 
 config IWL3945
 	tristate "Intel PRO/Wireless 3945ABG/BG Network Connection"
-	depends on m && PCI && MAC80211 && WLAN_80211 && EXPERIMENTAL
+	depends on PCI && MAC80211 && WLAN_80211 && EXPERIMENTAL
 	select FW_LOADER
-	default m
 	---help---
 	  Select to build the driver supporting the:
 
@@ -118,7 +111,6 @@ config IWL3945
 config IWL3945_QOS
 	bool "Enable Wireless QoS in iwl3945 driver"
 	depends on IWL3945
-	default y
 	---help---
 	  This option will enable wireless quality of service (QoS) for the
 	  iwl3945 driver.
@@ -126,14 +118,12 @@ config IWL3945_QOS
 config IWL3945_SPECTRUM_MEASUREMENT
 	bool "Enable Spectrum Measurement in iwl3945 drivers"
 	depends on IWL3945
-	default y
 	---help---
 	  This option will enable spectrum measurement for the iwl3945 driver.
 
 config IWL3945_DEBUG
 	bool "Enable full debugging output in iwl3945 driver"
 	depends on IWL3945
-	default y
 	---help---
 	  This option will enable debug tracing output for the iwl3945
 	  driver.

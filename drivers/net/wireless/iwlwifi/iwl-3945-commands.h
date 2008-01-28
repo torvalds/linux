@@ -141,7 +141,7 @@ enum {
 
 #define IWL_CMD_FAILED_MSK 0x40
 
-struct iwl_cmd_header {
+struct iwl3945_cmd_header {
 	u8 cmd;
 	u8 flags;
 	/* We have 15 LSB to use as we please (MSB indicates
@@ -173,7 +173,7 @@ struct iwl_cmd_header {
 /*
  * REPLY_ALIVE = 0x1 (response only, not a command)
  */
-struct iwl_alive_resp {
+struct iwl3945_alive_resp {
 	u8 ucode_minor;
 	u8 ucode_major;
 	__le16 reserved1;
@@ -187,7 +187,7 @@ struct iwl_alive_resp {
 	__le32 is_valid;
 } __attribute__ ((packed));
 
-struct iwl_init_alive_resp {
+struct iwl3945_init_alive_resp {
 	u8 ucode_minor;
 	u8 ucode_major;
 	__le16 reserved1;
@@ -210,7 +210,7 @@ union tsf {
 /*
  * REPLY_ERROR = 0x2 (response only, not a command)
  */
-struct iwl_error_resp {
+struct iwl3945_error_resp {
 	__le32 error_type;
 	u8 cmd_id;
 	u8 reserved1;
@@ -279,7 +279,7 @@ enum {
 /*
  * REPLY_RXON = 0x10 (command, has simple generic response)
  */
-struct iwl_rxon_cmd {
+struct iwl3945_rxon_cmd {
 	u8 node_addr[6];
 	__le16 reserved1;
 	u8 bssid_addr[6];
@@ -301,7 +301,7 @@ struct iwl_rxon_cmd {
 /*
  * REPLY_RXON_ASSOC = 0x11 (command, has simple generic response)
  */
-struct iwl_rxon_assoc_cmd {
+struct iwl3945_rxon_assoc_cmd {
 	__le32 flags;
 	__le32 filter_flags;
 	u8 ofdm_basic_rates;
@@ -312,7 +312,7 @@ struct iwl_rxon_assoc_cmd {
 /*
  * REPLY_RXON_TIMING = 0x14 (command, has simple generic response)
  */
-struct iwl_rxon_time_cmd {
+struct iwl3945_rxon_time_cmd {
 	union tsf timestamp;
 	__le16 beacon_interval;
 	__le16 atim_window;
@@ -321,34 +321,34 @@ struct iwl_rxon_time_cmd {
 	__le16 reserved;
 } __attribute__ ((packed));
 
-struct iwl_tx_power {
+struct iwl3945_tx_power {
 	u8 tx_gain;		/* gain for analog radio */
 	u8 dsp_atten;		/* gain for DSP */
 } __attribute__ ((packed));
 
-struct iwl_power_per_rate {
+struct iwl3945_power_per_rate {
 	u8 rate;		/* plcp */
-	struct iwl_tx_power tpc;
+	struct iwl3945_tx_power tpc;
 	u8 reserved;
 } __attribute__ ((packed));
 
 /*
  * REPLY_CHANNEL_SWITCH = 0x72 (command, has simple generic response)
  */
-struct iwl_channel_switch_cmd {
+struct iwl3945_channel_switch_cmd {
 	u8 band;
 	u8 expect_beacon;
 	__le16 channel;
 	__le32 rxon_flags;
 	__le32 rxon_filter_flags;
 	__le32 switch_time;
-	struct iwl_power_per_rate power[IWL_MAX_RATES];
+	struct iwl3945_power_per_rate power[IWL_MAX_RATES];
 } __attribute__ ((packed));
 
 /*
  * CHANNEL_SWITCH_NOTIFICATION = 0x73 (notification only, not a command)
  */
-struct iwl_csa_notification {
+struct iwl3945_csa_notification {
 	__le16 band;
 	__le16 channel;
 	__le32 status;		/* 0 - OK, 1 - fail */
@@ -359,7 +359,7 @@ struct iwl_csa_notification {
  * Quality-of-Service (QOS) Commands & Responses:
  *
  *****************************************************************************/
-struct iwl_ac_qos {
+struct iwl3945_ac_qos {
 	__le16 cw_min;
 	__le16 cw_max;
 	u8 aifsn;
@@ -381,9 +381,9 @@ struct iwl_ac_qos {
 /*
  * REPLY_QOS_PARAM = 0x13 (command, has simple generic response)
  */
-struct iwl_qosparam_cmd {
+struct iwl3945_qosparam_cmd {
 	__le32 qos_flags;
-	struct iwl_ac_qos ac[AC_NUM];
+	struct iwl3945_ac_qos ac[AC_NUM];
 } __attribute__ ((packed));
 
 /******************************************************************************
@@ -442,7 +442,7 @@ struct iwl_qosparam_cmd {
 #define RATE_MCS_ANT_B_MSK	0x8000
 #define RATE_MCS_ANT_AB_MSK	0xc000
 
-struct iwl_keyinfo {
+struct iwl3945_keyinfo {
 	__le16 key_flags;
 	u8 tkip_rx_tsc_byte2;	/* TSC[2] for key mix ph1 detection */
 	u8 reserved1;
@@ -462,11 +462,11 @@ struct sta_id_modify {
 /*
  * REPLY_ADD_STA = 0x18 (command)
  */
-struct iwl_addsta_cmd {
+struct iwl3945_addsta_cmd {
 	u8 mode;
 	u8 reserved[3];
 	struct sta_id_modify sta;
-	struct iwl_keyinfo key;
+	struct iwl3945_keyinfo key;
 	__le32 station_flags;
 	__le32 station_flags_msk;
 	__le16 tid_disable_tx;
@@ -479,7 +479,7 @@ struct iwl_addsta_cmd {
 /*
  * REPLY_ADD_STA = 0x18 (response)
  */
-struct iwl_add_sta_resp {
+struct iwl3945_add_sta_resp {
 	u8 status;
 } __attribute__ ((packed));
 
@@ -491,7 +491,7 @@ struct iwl_add_sta_resp {
  *
  *****************************************************************************/
 
-struct iwl_rx_frame_stats {
+struct iwl3945_rx_frame_stats {
 	u8 phy_count;
 	u8 id;
 	u8 rssi;
@@ -501,7 +501,7 @@ struct iwl_rx_frame_stats {
 	u8 payload[0];
 } __attribute__ ((packed));
 
-struct iwl_rx_frame_hdr {
+struct iwl3945_rx_frame_hdr {
 	__le16 channel;
 	__le16 phy_flags;
 	u8 reserved1;
@@ -531,7 +531,7 @@ struct iwl_rx_frame_hdr {
 #define	RX_RES_STATUS_BAD_ICV_MIC	(0x1 << 11)
 #define	RX_RES_STATUS_BAD_KEY_TTAK	(0x2 << 11)
 
-struct iwl_rx_frame_end {
+struct iwl3945_rx_frame_end {
 	__le32 status;
 	__le64 timestamp;
 	__le32 beacon_timestamp;
@@ -545,10 +545,10 @@ struct iwl_rx_frame_end {
  * The actual offsets of the hdr and end are dynamic based on
  * stats.phy_count
  */
-struct iwl_rx_frame {
-	struct iwl_rx_frame_stats stats;
-	struct iwl_rx_frame_hdr hdr;
-	struct iwl_rx_frame_end end;
+struct iwl3945_rx_frame {
+	struct iwl3945_rx_frame_stats stats;
+	struct iwl3945_rx_frame_hdr hdr;
+	struct iwl3945_rx_frame_end end;
 } __attribute__ ((packed));
 
 /* Fixed (non-configurable) rx data from phy */
@@ -643,7 +643,7 @@ struct iwl4965_rx_mpdu_res_start {
  * TX command Frame life time
  */
 
-struct iwl_dram_scratch {
+struct iwl3945_dram_scratch {
 	u8 try_cnt;
 	u8 bt_kill_cnt;
 	__le16 reserved;
@@ -652,7 +652,7 @@ struct iwl_dram_scratch {
 /*
  * REPLY_TX = 0x1c (command)
  */
-struct iwl_tx_cmd {
+struct iwl3945_tx_cmd {
 	__le16 len;
 	__le16 next_frame_len;
 	__le32 tx_flags;
@@ -784,7 +784,7 @@ enum {
 /*
  * REPLY_TX = 0x1c (response)
  */
-struct iwl_tx_resp {
+struct iwl3945_tx_resp {
 	u8 failure_rts;
 	u8 failure_frame;
 	u8 bt_kill_count;
@@ -796,7 +796,7 @@ struct iwl_tx_resp {
 /*
  * REPLY_COMPRESSED_BA = 0xc5 (response only, not a command)
  */
-struct iwl_compressed_ba_resp {
+struct iwl3945_compressed_ba_resp {
 	__le32 sta_addr_lo32;
 	__le16 sta_addr_hi16;
 	__le16 reserved;
@@ -812,21 +812,21 @@ struct iwl_compressed_ba_resp {
 /*
  * REPLY_TX_PWR_TABLE_CMD = 0x97 (command, has simple generic response)
  */
-struct iwl_txpowertable_cmd {
+struct iwl3945_txpowertable_cmd {
 	u8 band;		/* 0: 5 GHz, 1: 2.4 GHz */
 	u8 reserved;
 	__le16 channel;
-	struct iwl_power_per_rate power[IWL_MAX_RATES];
+	struct iwl3945_power_per_rate power[IWL_MAX_RATES];
 } __attribute__ ((packed));
 
-struct iwl_rate_scaling_info {
+struct iwl3945_rate_scaling_info {
 	__le16 rate_n_flags;
 	u8 try_cnt;
 	u8 next_rate_index;
 } __attribute__ ((packed));
 
 /**
- * struct iwl_rate_scaling_cmd - Rate Scaling Command & Response
+ * struct iwl3945_rate_scaling_cmd - Rate Scaling Command & Response
  *
  * REPLY_RATE_SCALE = 0x47 (command, has simple generic response)
  *
@@ -840,16 +840,16 @@ struct iwl_rate_scaling_info {
  * when passed through ofdm_basic_rates on the REPLY_RXON
  * command would be bit 0 (1<<0)
  */
-struct iwl_rate_scaling_cmd {
+struct iwl3945_rate_scaling_cmd {
 	u8 table_id;
 	u8 reserved[3];
-	struct iwl_rate_scaling_info table[IWL_MAX_RATES];
+	struct iwl3945_rate_scaling_info table[IWL_MAX_RATES];
 } __attribute__ ((packed));
 
 /*
  * REPLY_BT_CONFIG = 0x9b (command, has simple generic response)
  */
-struct iwl_bt_cmd {
+struct iwl3945_bt_cmd {
 	u8 flags;
 	u8 lead_time;
 	u8 max_kill;
@@ -875,18 +875,18 @@ struct iwl_bt_cmd {
 				 RXON_FILTER_ASSOC_MSK           | \
 				 RXON_FILTER_BCON_AWARE_MSK)
 
-struct iwl_measure_channel {
+struct iwl3945_measure_channel {
 	__le32 duration;	/* measurement duration in extended beacon
 				 * format */
 	u8 channel;		/* channel to measure */
-	u8 type;		/* see enum iwl_measure_type */
+	u8 type;		/* see enum iwl3945_measure_type */
 	__le16 reserved;
 } __attribute__ ((packed));
 
 /*
  * REPLY_SPECTRUM_MEASUREMENT_CMD = 0x74 (command)
  */
-struct iwl_spectrum_cmd {
+struct iwl3945_spectrum_cmd {
 	__le16 len;		/* number of bytes starting from token */
 	u8 token;		/* token id */
 	u8 id;			/* measurement id -- 0 or 1 */
@@ -899,13 +899,13 @@ struct iwl_spectrum_cmd {
 	__le32 filter_flags;	/* rxon filter flags */
 	__le16 channel_count;	/* minimum 1, maximum 10 */
 	__le16 reserved3;
-	struct iwl_measure_channel channels[10];
+	struct iwl3945_measure_channel channels[10];
 } __attribute__ ((packed));
 
 /*
  * REPLY_SPECTRUM_MEASUREMENT_CMD = 0x74 (response)
  */
-struct iwl_spectrum_resp {
+struct iwl3945_spectrum_resp {
 	u8 token;
 	u8 id;			/* id of the prior command replaced, or 0xff */
 	__le16 status;		/* 0 - command will be handled
@@ -913,12 +913,12 @@ struct iwl_spectrum_resp {
 				 *     measurement) */
 } __attribute__ ((packed));
 
-enum iwl_measurement_state {
+enum iwl3945_measurement_state {
 	IWL_MEASUREMENT_START = 0,
 	IWL_MEASUREMENT_STOP = 1,
 };
 
-enum iwl_measurement_status {
+enum iwl3945_measurement_status {
 	IWL_MEASUREMENT_OK = 0,
 	IWL_MEASUREMENT_CONCURRENT = 1,
 	IWL_MEASUREMENT_CSA_CONFLICT = 2,
@@ -931,18 +931,18 @@ enum iwl_measurement_status {
 
 #define NUM_ELEMENTS_IN_HISTOGRAM 8
 
-struct iwl_measurement_histogram {
+struct iwl3945_measurement_histogram {
 	__le32 ofdm[NUM_ELEMENTS_IN_HISTOGRAM];	/* in 0.8usec counts */
 	__le32 cck[NUM_ELEMENTS_IN_HISTOGRAM];	/* in 1usec counts */
 } __attribute__ ((packed));
 
 /* clear channel availability counters */
-struct iwl_measurement_cca_counters {
+struct iwl3945_measurement_cca_counters {
 	__le32 ofdm;
 	__le32 cck;
 } __attribute__ ((packed));
 
-enum iwl_measure_type {
+enum iwl3945_measure_type {
 	IWL_MEASURE_BASIC = (1 << 0),
 	IWL_MEASURE_CHANNEL_LOAD = (1 << 1),
 	IWL_MEASURE_HISTOGRAM_RPI = (1 << 2),
@@ -955,7 +955,7 @@ enum iwl_measure_type {
 /*
  * SPECTRUM_MEASURE_NOTIFICATION = 0x75 (notification only, not a command)
  */
-struct iwl_spectrum_notification {
+struct iwl3945_spectrum_notification {
 	u8 id;			/* measurement id -- 0 or 1 */
 	u8 token;
 	u8 channel_index;	/* index in measurement channel list */
@@ -963,7 +963,7 @@ struct iwl_spectrum_notification {
 	__le32 start_time;	/* lower 32-bits of TSF */
 	u8 band;		/* 0 - 5.2GHz, 1 - 2.4GHz */
 	u8 channel;
-	u8 type;		/* see enum iwl_measurement_type */
+	u8 type;		/* see enum iwl3945_measurement_type */
 	u8 reserved1;
 	/* NOTE:  cca_ofdm, cca_cck, basic_type, and histogram are only only
 	 * valid if applicable for measurement type requested. */
@@ -973,9 +973,9 @@ struct iwl_spectrum_notification {
 	u8 basic_type;		/* 0 - bss, 1 - ofdm preamble, 2 -
 				 * unidentified */
 	u8 reserved2[3];
-	struct iwl_measurement_histogram histogram;
+	struct iwl3945_measurement_histogram histogram;
 	__le32 stop_time;	/* lower 32-bits of TSF */
-	__le32 status;		/* see iwl_measurement_status */
+	__le32 status;		/* see iwl3945_measurement_status */
 } __attribute__ ((packed));
 
 /******************************************************************************
@@ -985,7 +985,7 @@ struct iwl_spectrum_notification {
  *****************************************************************************/
 
 /**
- * struct iwl_powertable_cmd - Power Table Command
+ * struct iwl3945_powertable_cmd - Power Table Command
  * @flags: See below:
  *
  * POWER_TABLE_CMD = 0x77 (command, has simple generic response)
@@ -1017,7 +1017,7 @@ struct iwl_spectrum_notification {
 #define IWL_POWER_DRIVER_ALLOW_SLEEP_MSK	__constant_cpu_to_le32(1<<0)
 #define IWL_POWER_SLEEP_OVER_DTIM_MSK		__constant_cpu_to_le32(1<<2)
 #define IWL_POWER_PCI_PM_MSK			__constant_cpu_to_le32(1<<3)
-struct iwl_powertable_cmd {
+struct iwl3945_powertable_cmd {
 	__le32 flags;
 	__le32 rx_data_timeout;
 	__le32 tx_data_timeout;
@@ -1028,7 +1028,7 @@ struct iwl_powertable_cmd {
  * PM_SLEEP_NOTIFICATION = 0x7A (notification only, not a command)
  * 3945 and 4965 identical.
  */
-struct iwl_sleep_notification {
+struct iwl3945_sleep_notification {
 	u8 pm_sleep_mode;
 	u8 pm_wakeup_src;
 	__le16 reserved;
@@ -1058,14 +1058,14 @@ enum {
 #define CARD_STATE_CMD_DISABLE 0x00	/* Put card to sleep */
 #define CARD_STATE_CMD_ENABLE  0x01	/* Wake up card */
 #define CARD_STATE_CMD_HALT    0x02	/* Power down permanently */
-struct iwl_card_state_cmd {
+struct iwl3945_card_state_cmd {
 	__le32 status;		/* CARD_STATE_CMD_* request new power state */
 } __attribute__ ((packed));
 
 /*
  * CARD_STATE_NOTIFICATION = 0xa1 (notification only, not a command)
  */
-struct iwl_card_state_notif {
+struct iwl3945_card_state_notif {
 	__le32 flags;
 } __attribute__ ((packed));
 
@@ -1074,7 +1074,7 @@ struct iwl_card_state_notif {
 #define RF_CARD_DISABLED   0x04
 #define RXON_CARD_DISABLED 0x10
 
-struct iwl_ct_kill_config {
+struct iwl3945_ct_kill_config {
 	__le32   reserved;
 	__le32   critical_temperature_M;
 	__le32   critical_temperature_R;
@@ -1086,7 +1086,7 @@ struct iwl_ct_kill_config {
  *
  *****************************************************************************/
 
-struct iwl_scan_channel {
+struct iwl3945_scan_channel {
 	/* type is defined as:
 	 * 0:0 active (0 - passive)
 	 * 1:4 SSID direct
@@ -1095,12 +1095,12 @@ struct iwl_scan_channel {
 	 */
 	u8 type;
 	u8 channel;
-	struct iwl_tx_power tpc;
+	struct iwl3945_tx_power tpc;
 	__le16 active_dwell;
 	__le16 passive_dwell;
 } __attribute__ ((packed));
 
-struct iwl_ssid_ie {
+struct iwl3945_ssid_ie {
 	u8 id;
 	u8 len;
 	u8 ssid[32];
@@ -1114,7 +1114,7 @@ struct iwl_ssid_ie {
 /*
  * REPLY_SCAN_CMD = 0x80 (command)
  */
-struct iwl_scan_cmd {
+struct iwl3945_scan_cmd {
 	__le16 len;
 	u8 reserved0;
 	u8 channel_count;
@@ -1133,14 +1133,14 @@ struct iwl_scan_cmd {
 	__le32 flags;
 	__le32 filter_flags;
 
-	struct iwl_tx_cmd tx_cmd;
-	struct iwl_ssid_ie direct_scan[PROBE_OPTION_MAX];
+	struct iwl3945_tx_cmd tx_cmd;
+	struct iwl3945_ssid_ie direct_scan[PROBE_OPTION_MAX];
 
 	u8 data[0];
 	/*
 	 * The channels start after the probe request payload and are of type:
 	 *
-	 * struct iwl_scan_channel channels[0];
+	 * struct iwl3945_scan_channel channels[0];
 	 *
 	 * NOTE:  Only one band of channels can be scanned per pass.  You
 	 * can not mix 2.4GHz channels and 5.2GHz channels and must
@@ -1157,14 +1157,14 @@ struct iwl_scan_cmd {
 /*
  * REPLY_SCAN_CMD = 0x80 (response)
  */
-struct iwl_scanreq_notification {
+struct iwl3945_scanreq_notification {
 	__le32 status;		/* 1: okay, 2: cannot fulfill request */
 } __attribute__ ((packed));
 
 /*
  * SCAN_START_NOTIFICATION = 0x82 (notification only, not a command)
  */
-struct iwl_scanstart_notification {
+struct iwl3945_scanstart_notification {
 	__le32 tsf_low;
 	__le32 tsf_high;
 	__le32 beacon_timer;
@@ -1181,7 +1181,7 @@ struct iwl_scanstart_notification {
 /*
  * SCAN_RESULTS_NOTIFICATION = 0x83 (notification only, not a command)
  */
-struct iwl_scanresults_notification {
+struct iwl3945_scanresults_notification {
 	u8 channel;
 	u8 band;
 	u8 reserved[2];
@@ -1193,7 +1193,7 @@ struct iwl_scanresults_notification {
 /*
  * SCAN_COMPLETE_NOTIFICATION = 0x84 (notification only, not a command)
  */
-struct iwl_scancomplete_notification {
+struct iwl3945_scancomplete_notification {
 	u8 scanned_channels;
 	u8 status;
 	u8 reserved;
@@ -1212,8 +1212,8 @@ struct iwl_scancomplete_notification {
 /*
  * BEACON_NOTIFICATION = 0x90 (notification only, not a command)
  */
-struct iwl_beacon_notif {
-	struct iwl_tx_resp beacon_notify_hdr;
+struct iwl3945_beacon_notif {
+	struct iwl3945_tx_resp beacon_notify_hdr;
 	__le32 low_tsf;
 	__le32 high_tsf;
 	__le32 ibss_mgr_status;
@@ -1222,8 +1222,8 @@ struct iwl_beacon_notif {
 /*
  * REPLY_TX_BEACON = 0x91 (command, has simple generic response)
  */
-struct iwl_tx_beacon_cmd {
-	struct iwl_tx_cmd tx;
+struct iwl3945_tx_beacon_cmd {
+	struct iwl3945_tx_cmd tx;
 	__le16 tim_idx;
 	u8 tim_size;
 	u8 reserved1;
@@ -1345,7 +1345,7 @@ struct statistics_general {
  */
 #define IWL_STATS_CONF_CLEAR_STATS __constant_cpu_to_le32(0x1)	/* see above */
 #define IWL_STATS_CONF_DISABLE_NOTIF __constant_cpu_to_le32(0x2)/* see above */
-struct iwl_statistics_cmd {
+struct iwl3945_statistics_cmd {
 	__le32 configuration_flags;	/* IWL_STATS_CONF_* */
 } __attribute__ ((packed));
 
@@ -1366,7 +1366,7 @@ struct iwl_statistics_cmd {
  */
 #define STATISTICS_REPLY_FLG_BAND_24G_MSK         __constant_cpu_to_le32(0x2)
 #define STATISTICS_REPLY_FLG_FAT_MODE_MSK         __constant_cpu_to_le32(0x8)
-struct iwl_notif_statistics {
+struct iwl3945_notif_statistics {
 	__le32 flag;
 	struct statistics_rx rx;
 	struct statistics_tx tx;
@@ -1381,7 +1381,7 @@ struct iwl_notif_statistics {
  * then this notification will be sent. */
 #define CONSECUTIVE_MISSED_BCONS_TH 20
 
-struct iwl_missed_beacon_notif {
+struct iwl3945_missed_beacon_notif {
 	__le32 consequtive_missed_beacons;
 	__le32 total_missed_becons;
 	__le32 num_expected_beacons;
@@ -1397,12 +1397,12 @@ struct iwl_missed_beacon_notif {
 #define PHY_CALIBRATE_DIFF_GAIN_CMD (7)
 #define HD_TABLE_SIZE  (11)
 
-struct iwl_sensitivity_cmd {
+struct iwl3945_sensitivity_cmd {
 	__le16 control;
 	__le16 table[HD_TABLE_SIZE];
 } __attribute__ ((packed));
 
-struct iwl_calibration_cmd {
+struct iwl3945_calibration_cmd {
 	u8 opCode;
 	u8 flags;
 	__le16 reserved;
@@ -1425,7 +1425,7 @@ struct iwl_calibration_cmd {
  * For each of 3 possible LEDs (Activity/Link/Tech, selected by "id" field),
  * this command turns it on or off, or sets up a periodic blinking cycle.
  */
-struct iwl_led_cmd {
+struct iwl3945_led_cmd {
 	__le32 interval;	/* "interval" in uSec */
 	u8 id;			/* 1: Activity, 2: Link, 3: Tech */
 	u8 off;			/* # intervals off while blinking;
@@ -1441,27 +1441,27 @@ struct iwl_led_cmd {
  *
  *****************************************************************************/
 
-struct iwl_rx_packet {
+struct iwl3945_rx_packet {
 	__le32 len;
-	struct iwl_cmd_header hdr;
+	struct iwl3945_cmd_header hdr;
 	union {
-		struct iwl_alive_resp alive_frame;
-		struct iwl_rx_frame rx_frame;
-		struct iwl_tx_resp tx_resp;
-		struct iwl_spectrum_notification spectrum_notif;
-		struct iwl_csa_notification csa_notif;
-		struct iwl_error_resp err_resp;
-		struct iwl_card_state_notif card_state_notif;
-		struct iwl_beacon_notif beacon_status;
-		struct iwl_add_sta_resp add_sta;
-		struct iwl_sleep_notification sleep_notif;
-		struct iwl_spectrum_resp spectrum;
-		struct iwl_notif_statistics stats;
+		struct iwl3945_alive_resp alive_frame;
+		struct iwl3945_rx_frame rx_frame;
+		struct iwl3945_tx_resp tx_resp;
+		struct iwl3945_spectrum_notification spectrum_notif;
+		struct iwl3945_csa_notification csa_notif;
+		struct iwl3945_error_resp err_resp;
+		struct iwl3945_card_state_notif card_state_notif;
+		struct iwl3945_beacon_notif beacon_status;
+		struct iwl3945_add_sta_resp add_sta;
+		struct iwl3945_sleep_notification sleep_notif;
+		struct iwl3945_spectrum_resp spectrum;
+		struct iwl3945_notif_statistics stats;
 		__le32 status;
 		u8 raw[0];
 	} u;
 } __attribute__ ((packed));
 
-#define IWL_RX_FRAME_SIZE        (4 + sizeof(struct iwl_rx_frame))
+#define IWL_RX_FRAME_SIZE        (4 + sizeof(struct iwl3945_rx_frame))
 
-#endif				/* __iwl_3945_commands_h__ */
+#endif				/* __iwl3945_3945_commands_h__ */

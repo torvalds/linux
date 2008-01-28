@@ -133,7 +133,7 @@ enum {
 #define EEPROM_SKU_CAP_OP_MODE_MRC                      (1 << 7)
 
 /* *regulatory* channel data from eeprom, one for each channel */
-struct iwl_eeprom_channel {
+struct iwl3945_eeprom_channel {
 	u8 flags;		/* flags copied from EEPROM */
 	s8 max_power_avg;	/* max power (dBm) on this chnl, limit 31 */
 } __attribute__ ((packed));
@@ -148,7 +148,7 @@ struct iwl_eeprom_channel {
  *   level.
  * Data copied from EEPROM.
  */
-struct iwl_eeprom_txpower_sample {
+struct iwl3945_eeprom_txpower_sample {
 	u8 gain_index;		/* index into power (gain) setup table ... */
 	s8 power;		/* ... for this pwr level for this chnl group */
 	u16 v_det;		/* PA output voltage */
@@ -162,8 +162,8 @@ struct iwl_eeprom_txpower_sample {
  * Data copied from EEPROM.
  * DO NOT ALTER THIS STRUCTURE!!!
  */
-struct iwl_eeprom_txpower_group {
-	struct iwl_eeprom_txpower_sample samples[5];	/* 5 power levels */
+struct iwl3945_eeprom_txpower_group {
+	struct iwl3945_eeprom_txpower_sample samples[5];	/* 5 power levels */
 	s32 a, b, c, d, e;	/* coefficients for voltage->power
 				 * formula (signed) */
 	s32 Fa, Fb, Fc, Fd, Fe;	/* these modify coeffs based on
@@ -181,7 +181,7 @@ struct iwl_eeprom_txpower_group {
  *   difference between current temperature and factory calib temperature.
  * Data copied from EEPROM.
  */
-struct iwl_eeprom_temperature_corr {
+struct iwl3945_eeprom_temperature_corr {
 	u32 Ta;
 	u32 Tb;
 	u32 Tc;
@@ -189,7 +189,7 @@ struct iwl_eeprom_temperature_corr {
 	u32 Te;
 } __attribute__ ((packed));
 
-struct iwl_eeprom {
+struct iwl3945_eeprom {
 	u8 reserved0[16];
 #define EEPROM_DEVICE_ID                    (2*0x08)	/* 2 bytes */
 	u16 device_id;	/* abs.ofs: 16 */
@@ -232,23 +232,23 @@ struct iwl_eeprom {
 #define EEPROM_REGULATORY_BAND_1            (2*0x62)	/* 2  bytes */
 	u16 band_1_count;	/* abs.ofs: 196 */
 #define EEPROM_REGULATORY_BAND_1_CHANNELS   (2*0x63)	/* 28 bytes */
-	struct iwl_eeprom_channel band_1_channels[14];	/* abs.ofs: 196 */
+	struct iwl3945_eeprom_channel band_1_channels[14];	/* abs.ofs: 196 */
 #define EEPROM_REGULATORY_BAND_2            (2*0x71)	/* 2  bytes */
 	u16 band_2_count;	/* abs.ofs: 226 */
 #define EEPROM_REGULATORY_BAND_2_CHANNELS   (2*0x72)	/* 26 bytes */
-	struct iwl_eeprom_channel band_2_channels[13];	/* abs.ofs: 228 */
+	struct iwl3945_eeprom_channel band_2_channels[13];	/* abs.ofs: 228 */
 #define EEPROM_REGULATORY_BAND_3            (2*0x7F)	/* 2  bytes */
 	u16 band_3_count;	/* abs.ofs: 254 */
 #define EEPROM_REGULATORY_BAND_3_CHANNELS   (2*0x80)	/* 24 bytes */
-	struct iwl_eeprom_channel band_3_channels[12];	/* abs.ofs: 256 */
+	struct iwl3945_eeprom_channel band_3_channels[12];	/* abs.ofs: 256 */
 #define EEPROM_REGULATORY_BAND_4            (2*0x8C)	/* 2  bytes */
 	u16 band_4_count;	/* abs.ofs: 280 */
 #define EEPROM_REGULATORY_BAND_4_CHANNELS   (2*0x8D)	/* 22 bytes */
-	struct iwl_eeprom_channel band_4_channels[11];	/* abs.ofs: 282 */
+	struct iwl3945_eeprom_channel band_4_channels[11];	/* abs.ofs: 282 */
 #define EEPROM_REGULATORY_BAND_5            (2*0x98)	/* 2  bytes */
 	u16 band_5_count;	/* abs.ofs: 304 */
 #define EEPROM_REGULATORY_BAND_5_CHANNELS   (2*0x99)	/* 12 bytes */
-	struct iwl_eeprom_channel band_5_channels[6];	/* abs.ofs: 306 */
+	struct iwl3945_eeprom_channel band_5_channels[6];	/* abs.ofs: 306 */
 
 	u8 reserved9[194];
 
@@ -258,10 +258,10 @@ struct iwl_eeprom {
 #define EEPROM_TXPOWER_CALIB_GROUP3 0x2c0
 #define EEPROM_TXPOWER_CALIB_GROUP4 0x300
 #define IWL_NUM_TX_CALIB_GROUPS 5
-	struct iwl_eeprom_txpower_group groups[IWL_NUM_TX_CALIB_GROUPS];
+	struct iwl3945_eeprom_txpower_group groups[IWL_NUM_TX_CALIB_GROUPS];
 /* abs.ofs: 512 */
 #define EEPROM_CALIB_TEMPERATURE_CORRECT 0x340
-	struct iwl_eeprom_temperature_corr corrections;	/* abs.ofs: 832 */
+	struct iwl3945_eeprom_temperature_corr corrections;	/* abs.ofs: 832 */
 	u8 reserved16[172];	/* fill out to full 1024 byte block */
 } __attribute__ ((packed));
 
@@ -681,8 +681,8 @@ struct iwl_eeprom {
 #define TFD_TX_CMD_SLOTS 256
 #define TFD_CMD_SLOTS 32
 
-#define TFD_MAX_PAYLOAD_SIZE (sizeof(struct iwl_cmd) - \
-			      sizeof(struct iwl_cmd_meta))
+#define TFD_MAX_PAYLOAD_SIZE (sizeof(struct iwl3945_cmd) - \
+			      sizeof(struct iwl3945_cmd_meta))
 
 /*
  * RX related structures and functions
@@ -704,41 +704,41 @@ struct iwl_eeprom {
 #define IWL_MAX_DATA_SIZE ALM_RTC_DATA_SIZE
 #define IWL_MAX_NUM_QUEUES	8
 
-static inline int iwl_hw_valid_rtc_data_addr(u32 addr)
+static inline int iwl3945_hw_valid_rtc_data_addr(u32 addr)
 {
 	return (addr >= RTC_DATA_LOWER_BOUND) &&
 	       (addr < ALM_RTC_DATA_UPPER_BOUND);
 }
 
-/* Base physical address of iwl_shared is provided to FH_TSSR_CBB_BASE
- * and &iwl_shared.rx_read_ptr[0] is provided to FH_RCSR_RPTR_ADDR(0) */
-struct iwl_shared {
+/* Base physical address of iwl3945_shared is provided to FH_TSSR_CBB_BASE
+ * and &iwl3945_shared.rx_read_ptr[0] is provided to FH_RCSR_RPTR_ADDR(0) */
+struct iwl3945_shared {
 	__le32 tx_base_ptr[8];
 	__le32 rx_read_ptr[3];
 } __attribute__ ((packed));
 
-struct iwl_tfd_frame_data {
+struct iwl3945_tfd_frame_data {
 	__le32 addr;
 	__le32 len;
 } __attribute__ ((packed));
 
-struct iwl_tfd_frame {
+struct iwl3945_tfd_frame {
 	__le32 control_flags;
-	struct iwl_tfd_frame_data pa[4];
+	struct iwl3945_tfd_frame_data pa[4];
 	u8 reserved[28];
 } __attribute__ ((packed));
 
-static inline u8 iwl_hw_get_rate(__le16 rate_n_flags)
+static inline u8 iwl3945_hw_get_rate(__le16 rate_n_flags)
 {
 	return le16_to_cpu(rate_n_flags) & 0xFF;
 }
 
-static inline u16 iwl_hw_get_rate_n_flags(__le16 rate_n_flags)
+static inline u16 iwl3945_hw_get_rate_n_flags(__le16 rate_n_flags)
 {
 	return le16_to_cpu(rate_n_flags);
 }
 
-static inline __le16 iwl_hw_set_rate_n_flags(u8 rate, u16 flags)
+static inline __le16 iwl3945_hw_set_rate_n_flags(u8 rate, u16 flags)
 {
 	return cpu_to_le16((u16)rate|flags);
 }

@@ -26,18 +26,18 @@
  *
  *****************************************************************************/
 
-#ifndef __iwl_debug_h__
-#define __iwl_debug_h__
+#ifndef __iwl3945_debug_h__
+#define __iwl3945_debug_h__
 
 #ifdef CONFIG_IWL3945_DEBUG
-extern u32 iwl_debug_level;
+extern u32 iwl3945_debug_level;
 #define IWL_DEBUG(level, fmt, args...) \
-do { if (iwl_debug_level & (level)) \
+do { if (iwl3945_debug_level & (level)) \
   printk(KERN_ERR DRV_NAME": %c %s " fmt, \
 	 in_interrupt() ? 'I' : 'U', __FUNCTION__ , ## args); } while (0)
 
 #define IWL_DEBUG_LIMIT(level, fmt, args...) \
-do { if ((iwl_debug_level & (level)) && net_ratelimit()) \
+do { if ((iwl3945_debug_level & (level)) && net_ratelimit()) \
   printk(KERN_ERR DRV_NAME": %c %s " fmt, \
 	 in_interrupt() ? 'I' : 'U', __FUNCTION__ , ## args); } while (0)
 #else
@@ -68,7 +68,7 @@ static inline void IWL_DEBUG_LIMIT(int level, const char *fmt, ...)
  *
  * % cat /proc/net/iwl/debug_level
  *
- * you simply need to add your entry to the iwl_debug_levels array.
+ * you simply need to add your entry to the iwl3945_debug_levels array.
  *
  * If you do not see debug_level in /proc/net/iwl then you do not have
  * CONFIG_IWL3945_DEBUG defined in your kernel configuration

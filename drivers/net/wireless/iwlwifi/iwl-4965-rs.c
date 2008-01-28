@@ -65,11 +65,11 @@ static u8 rs_ht_to_legacy[] = {
 	IWL_RATE_48M_INDEX, IWL_RATE_54M_INDEX
 };
 
-struct iwl_rate {
+struct iwl4965_rate {
 	u32 rate_n_flags;
 } __attribute__ ((packed));
 
-struct iwl_rate_scale_data {
+struct iwl4965_rate_scale_data {
 	u64 data;
 	s32 success_counter;
 	s32 success_ratio;
@@ -78,19 +78,19 @@ struct iwl_rate_scale_data {
 	unsigned long stamp;
 };
 
-struct iwl_scale_tbl_info {
-	enum iwl_table_type lq_type;
-	enum iwl_antenna_type antenna_type;
+struct iwl4965_scale_tbl_info {
+	enum iwl4965_table_type lq_type;
+	enum iwl4965_antenna_type antenna_type;
 	u8 is_SGI;
 	u8 is_fat;
 	u8 is_dup;
 	u8 action;
 	s32 *expected_tpt;
-	struct iwl_rate current_rate;
-	struct iwl_rate_scale_data win[IWL_RATE_COUNT];
+	struct iwl4965_rate current_rate;
+	struct iwl4965_rate_scale_data win[IWL_RATE_COUNT];
 };
 
-struct iwl_rate_scale_priv {
+struct iwl4965_rate_scale_priv {
 	u8 active_tbl;
 	u8 enable_counter;
 	u8 stay_in_tbl;
@@ -115,31 +115,31 @@ struct iwl_rate_scale_priv {
 	u16 active_siso_rate;
 	u16 active_mimo_rate;
 	u16 active_rate_basic;
-	struct iwl_link_quality_cmd lq;
-	struct iwl_scale_tbl_info lq_info[LQ_SIZE];
+	struct iwl4965_link_quality_cmd lq;
+	struct iwl4965_scale_tbl_info lq_info[LQ_SIZE];
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct dentry *rs_sta_dbgfs_scale_table_file;
 	struct dentry *rs_sta_dbgfs_stats_table_file;
-	struct iwl_rate dbg_fixed;
-	struct iwl_priv *drv;
+	struct iwl4965_rate dbg_fixed;
+	struct iwl4965_priv *drv;
 #endif
 };
 
-static void rs_rate_scale_perform(struct iwl_priv *priv,
+static void rs_rate_scale_perform(struct iwl4965_priv *priv,
 				   struct net_device *dev,
 				   struct ieee80211_hdr *hdr,
 				   struct sta_info *sta);
-static void rs_fill_link_cmd(struct iwl_rate_scale_priv *lq_data,
-			     struct iwl_rate *tx_mcs,
-			     struct iwl_link_quality_cmd *tbl);
+static void rs_fill_link_cmd(struct iwl4965_rate_scale_priv *lq_data,
+			     struct iwl4965_rate *tx_mcs,
+			     struct iwl4965_link_quality_cmd *tbl);
 
 
 #ifdef CONFIG_MAC80211_DEBUGFS
-static void rs_dbgfs_set_mcs(struct iwl_rate_scale_priv *rs_priv,
-				struct iwl_rate *mcs, int index);
+static void rs_dbgfs_set_mcs(struct iwl4965_rate_scale_priv *rs_priv,
+				struct iwl4965_rate *mcs, int index);
 #else
-static void rs_dbgfs_set_mcs(struct iwl_rate_scale_priv *rs_priv,
-				struct iwl_rate *mcs, int index)
+static void rs_dbgfs_set_mcs(struct iwl4965_rate_scale_priv *rs_priv,
+				struct iwl4965_rate *mcs, int index)
 {}
 #endif
 static s32 expected_tpt_A[IWL_RATE_COUNT] = {
@@ -182,27 +182,27 @@ static s32 expected_tpt_mimo40MHzSGI[IWL_RATE_COUNT] = {
 	0, 0, 0, 0, 131, 131, 191, 222, 242, 270, 284, 289, 293
 };
 
-static int iwl_lq_sync_callback(struct iwl_priv *priv,
-				struct iwl_cmd *cmd, struct sk_buff *skb)
+static int iwl4965_lq_sync_callback(struct iwl4965_priv *priv,
+				struct iwl4965_cmd *cmd, struct sk_buff *skb)
 {
 	/*We didn't cache the SKB; let the caller free it */
 	return 1;
 }
 
-static inline u8 iwl_rate_get_rate(u32 rate_n_flags)
+static inline u8 iwl4965_rate_get_rate(u32 rate_n_flags)
 {
 	return (u8)(rate_n_flags & 0xFF);
 }
 
-static int rs_send_lq_cmd(struct iwl_priv *priv,
-			  struct iwl_link_quality_cmd *lq, u8 flags)
+static int rs_send_lq_cmd(struct iwl4965_priv *priv,
+			  struct iwl4965_link_quality_cmd *lq, u8 flags)
 {
 #ifdef CONFIG_IWL4965_DEBUG
 	int i;
 #endif
-	struct iwl_host_cmd cmd = {
+	struct iwl4965_host_cmd cmd = {
 		.id = REPLY_TX_LINK_QUALITY_CMD,
-		.len = sizeof(struct iwl_link_quality_cmd),
+		.len = sizeof(struct iwl4965_link_quality_cmd),
 		.meta.flags = flags,
 		.data = lq,
 	};
@@ -225,16 +225,16 @@ static int rs_send_lq_cmd(struct iwl_priv *priv,
 #endif
 
 	if (flags & CMD_ASYNC)
-		cmd.meta.u.callback = iwl_lq_sync_callback;
+		cmd.meta.u.callback = iwl4965_lq_sync_callback;
 
-	if (iwl_is_associated(priv) && priv->assoc_station_added &&
+	if (iwl4965_is_associated(priv) && priv->assoc_station_added &&
 	    priv->lq_mngr.lq_ready)
-		return  iwl_send_cmd(priv, &cmd);
+		return  iwl4965_send_cmd(priv, &cmd);
 
 	return 0;
 }
 
-static void rs_rate_scale_clear_window(struct iwl_rate_scale_data *window)
+static void rs_rate_scale_clear_window(struct iwl4965_rate_scale_data *window)
 {
 	window->data = 0;
 	window->success_counter = 0;
@@ -244,10 +244,10 @@ static void rs_rate_scale_clear_window(struct iwl_rate_scale_data *window)
 	window->stamp = 0;
 }
 
-static int rs_collect_tx_data(struct iwl_rate_scale_data *windows,
+static int rs_collect_tx_data(struct iwl4965_rate_scale_data *windows,
 			      int scale_index, s32 tpt, u32 status)
 {
-	struct iwl_rate_scale_data *window = NULL;
+	struct iwl4965_rate_scale_data *window = NULL;
 	u64 mask;
 	u8 win_size = IWL_RATE_MAX_WINDOW;
 	s32 fail_count;
@@ -295,24 +295,24 @@ static int rs_collect_tx_data(struct iwl_rate_scale_data *windows,
 	return 0;
 }
 
-static void rs_mcs_from_tbl(struct iwl_rate *mcs_rate,
-			   struct iwl_scale_tbl_info *tbl,
+static void rs_mcs_from_tbl(struct iwl4965_rate *mcs_rate,
+			   struct iwl4965_scale_tbl_info *tbl,
 			   int index, u8 use_green)
 {
 	if (is_legacy(tbl->lq_type)) {
-		mcs_rate->rate_n_flags = iwl_rates[index].plcp;
+		mcs_rate->rate_n_flags = iwl4965_rates[index].plcp;
 		if (index >= IWL_FIRST_CCK_RATE && index <= IWL_LAST_CCK_RATE)
 			mcs_rate->rate_n_flags |= RATE_MCS_CCK_MSK;
 
 	} else if (is_siso(tbl->lq_type)) {
 		if (index > IWL_LAST_OFDM_RATE)
 			index = IWL_LAST_OFDM_RATE;
-		 mcs_rate->rate_n_flags = iwl_rates[index].plcp_siso |
+		 mcs_rate->rate_n_flags = iwl4965_rates[index].plcp_siso |
 					  RATE_MCS_HT_MSK;
 	} else {
 		if (index > IWL_LAST_OFDM_RATE)
 			index = IWL_LAST_OFDM_RATE;
-		mcs_rate->rate_n_flags = iwl_rates[index].plcp_mimo |
+		mcs_rate->rate_n_flags = iwl4965_rates[index].plcp_mimo |
 					 RATE_MCS_HT_MSK;
 	}
 
@@ -349,14 +349,14 @@ static void rs_mcs_from_tbl(struct iwl_rate *mcs_rate,
 	}
 }
 
-static int rs_get_tbl_info_from_mcs(const struct iwl_rate *mcs_rate,
-				    int phymode, struct iwl_scale_tbl_info *tbl,
+static int rs_get_tbl_info_from_mcs(const struct iwl4965_rate *mcs_rate,
+				    int phymode, struct iwl4965_scale_tbl_info *tbl,
 				    int *rate_idx)
 {
 	int index;
 	u32 ant_msk;
 
-	index = iwl_rate_index_from_plcp(mcs_rate->rate_n_flags);
+	index = iwl4965_rate_index_from_plcp(mcs_rate->rate_n_flags);
 
 	if (index  == IWL_RATE_INVALID) {
 		*rate_idx = -1;
@@ -386,7 +386,7 @@ static int rs_get_tbl_info_from_mcs(const struct iwl_rate *mcs_rate,
 		}
 		*rate_idx = index;
 
-	} else if (iwl_rate_get_rate(mcs_rate->rate_n_flags)
+	} else if (iwl4965_rate_get_rate(mcs_rate->rate_n_flags)
 					<= IWL_RATE_SISO_60M_PLCP) {
 		tbl->lq_type = LQ_SISO;
 
@@ -426,8 +426,8 @@ static int rs_get_tbl_info_from_mcs(const struct iwl_rate *mcs_rate,
 	return 0;
 }
 
-static inline void rs_toggle_antenna(struct iwl_rate *new_rate,
-				     struct iwl_scale_tbl_info *tbl)
+static inline void rs_toggle_antenna(struct iwl4965_rate *new_rate,
+				     struct iwl4965_scale_tbl_info *tbl)
 {
 	if (tbl->antenna_type == ANT_AUX) {
 		tbl->antenna_type = ANT_MAIN;
@@ -440,7 +440,7 @@ static inline void rs_toggle_antenna(struct iwl_rate *new_rate,
 	}
 }
 
-static inline u8 rs_use_green(struct iwl_priv *priv)
+static inline u8 rs_use_green(struct iwl4965_priv *priv)
 {
 #ifdef CONFIG_IWL4965_HT
 	if (!priv->is_ht_enabled || !priv->current_assoc_ht.is_ht)
@@ -459,9 +459,9 @@ static inline u8 rs_use_green(struct iwl_priv *priv)
  * basic available rates.
  *
  */
-static void rs_get_supported_rates(struct iwl_rate_scale_priv *lq_data,
+static void rs_get_supported_rates(struct iwl4965_rate_scale_priv *lq_data,
 				   struct ieee80211_hdr *hdr,
-				   enum iwl_table_type rate_type,
+				   enum iwl4965_table_type rate_type,
 				   u16 *data_rate)
 {
 	if (is_legacy(rate_type))
@@ -512,7 +512,7 @@ static u16 rs_get_adjacent_rate(u8 index, u16 rate_mask, int rate_type)
 
 	low = index;
 	while (low != IWL_RATE_INVALID) {
-		low = iwl_rates[low].prev_rs;
+		low = iwl4965_rates[low].prev_rs;
 		if (low == IWL_RATE_INVALID)
 			break;
 		if (rate_mask & (1 << low))
@@ -522,7 +522,7 @@ static u16 rs_get_adjacent_rate(u8 index, u16 rate_mask, int rate_type)
 
 	high = index;
 	while (high != IWL_RATE_INVALID) {
-		high = iwl_rates[high].next_rs;
+		high = iwl4965_rates[high].next_rs;
 		if (high == IWL_RATE_INVALID)
 			break;
 		if (rate_mask & (1 << high))
@@ -533,9 +533,9 @@ static u16 rs_get_adjacent_rate(u8 index, u16 rate_mask, int rate_type)
 	return (high << 8) | low;
 }
 
-static void rs_get_lower_rate(struct iwl_rate_scale_priv *lq_data,
-			     struct iwl_scale_tbl_info *tbl, u8 scale_index,
-			     u8 ht_possible, struct iwl_rate *mcs_rate)
+static void rs_get_lower_rate(struct iwl4965_rate_scale_priv *lq_data,
+			     struct iwl4965_scale_tbl_info *tbl, u8 scale_index,
+			     u8 ht_possible, struct iwl4965_rate *mcs_rate)
 {
 	s32 low;
 	u16 rate_mask;
@@ -596,17 +596,17 @@ static void rs_tx_status(void *priv_rate,
 	int status;
 	u8 retries;
 	int rs_index, index = 0;
-	struct iwl_rate_scale_priv *lq;
-	struct iwl_link_quality_cmd *table;
+	struct iwl4965_rate_scale_priv *lq;
+	struct iwl4965_link_quality_cmd *table;
 	struct sta_info *sta;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-	struct iwl_priv *priv = (struct iwl_priv *)priv_rate;
+	struct iwl4965_priv *priv = (struct iwl4965_priv *)priv_rate;
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	struct iwl_rate_scale_data *window = NULL;
-	struct iwl_rate_scale_data *search_win = NULL;
-	struct iwl_rate tx_mcs;
-	struct iwl_scale_tbl_info tbl_type;
-	struct iwl_scale_tbl_info *curr_tbl, *search_tbl;
+	struct iwl4965_rate_scale_data *window = NULL;
+	struct iwl4965_rate_scale_data *search_win = NULL;
+	struct iwl4965_rate tx_mcs;
+	struct iwl4965_scale_tbl_info tbl_type;
+	struct iwl4965_scale_tbl_info *curr_tbl, *search_tbl;
 	u8 active_index = 0;
 	u16 fc = le16_to_cpu(hdr->frame_control);
 	s32 tpt = 0;
@@ -630,7 +630,7 @@ static void rs_tx_status(void *priv_rate,
 		return;
 	}
 
-	lq = (struct iwl_rate_scale_priv *)sta->rate_ctrl_priv;
+	lq = (struct iwl4965_rate_scale_priv *)sta->rate_ctrl_priv;
 
 	if (!priv->lq_mngr.lq_ready)
 		return;
@@ -648,9 +648,9 @@ static void rs_tx_status(void *priv_rate,
 	lq->antenna = lq->valid_antenna;
 	curr_tbl = &(lq->lq_info[active_index]);
 	search_tbl = &(lq->lq_info[(1 - active_index)]);
-	window = (struct iwl_rate_scale_data *)
+	window = (struct iwl4965_rate_scale_data *)
 	    &(curr_tbl->win[0]);
-	search_win = (struct iwl_rate_scale_data *)
+	search_win = (struct iwl4965_rate_scale_data *)
 	    &(search_tbl->win[0]);
 
 	tx_mcs.rate_n_flags = tx_resp->control.tx_rate;
@@ -751,7 +751,7 @@ static void rs_tx_status(void *priv_rate,
 }
 
 static u8 rs_is_ant_connected(u8 valid_antenna,
-			      enum iwl_antenna_type antenna_type)
+			      enum iwl4965_antenna_type antenna_type)
 {
 	if (antenna_type == ANT_AUX)
 		return ((valid_antenna & 0x2) ? 1:0);
@@ -764,7 +764,7 @@ static u8 rs_is_ant_connected(u8 valid_antenna,
 }
 
 static u8 rs_is_other_ant_connected(u8 valid_antenna,
-				    enum iwl_antenna_type antenna_type)
+				    enum iwl4965_antenna_type antenna_type)
 {
 	if (antenna_type == ANT_AUX)
 		return rs_is_ant_connected(valid_antenna, ANT_MAIN);
@@ -775,7 +775,7 @@ static u8 rs_is_other_ant_connected(u8 valid_antenna,
 }
 
 static void rs_set_stay_in_table(u8 is_legacy,
-				 struct iwl_rate_scale_priv *lq_data)
+				 struct iwl4965_rate_scale_priv *lq_data)
 {
 	IWL_DEBUG_HT("we are staying in the same table\n");
 	lq_data->stay_in_tbl = 1;
@@ -793,8 +793,8 @@ static void rs_set_stay_in_table(u8 is_legacy,
 	lq_data->total_success = 0;
 }
 
-static void rs_get_expected_tpt_table(struct iwl_rate_scale_priv *lq_data,
-				      struct iwl_scale_tbl_info *tbl)
+static void rs_get_expected_tpt_table(struct iwl4965_rate_scale_priv *lq_data,
+				      struct iwl4965_scale_tbl_info *tbl)
 {
 	if (is_legacy(tbl->lq_type)) {
 		if (!is_a_band(tbl->lq_type))
@@ -827,12 +827,12 @@ static void rs_get_expected_tpt_table(struct iwl_rate_scale_priv *lq_data,
 }
 
 #ifdef CONFIG_IWL4965_HT
-static s32 rs_get_best_rate(struct iwl_priv *priv,
-			    struct iwl_rate_scale_priv *lq_data,
-			    struct iwl_scale_tbl_info *tbl,
+static s32 rs_get_best_rate(struct iwl4965_priv *priv,
+			    struct iwl4965_rate_scale_priv *lq_data,
+			    struct iwl4965_scale_tbl_info *tbl,
 			    u16 rate_mask, s8 index, s8 rate)
 {
-	struct iwl_scale_tbl_info *active_tbl =
+	struct iwl4965_scale_tbl_info *active_tbl =
 	    &(lq_data->lq_info[lq_data->active_tbl]);
 	s32 new_rate, high, low, start_hi;
 	s32 active_sr = active_tbl->win[index].success_ratio;
@@ -886,9 +886,9 @@ static inline u8 rs_is_both_ant_supp(u8 valid_antenna)
 	return (rs_is_ant_connected(valid_antenna, ANT_BOTH));
 }
 
-static int rs_switch_to_mimo(struct iwl_priv *priv,
-			     struct iwl_rate_scale_priv *lq_data,
-			     struct iwl_scale_tbl_info *tbl, int index)
+static int rs_switch_to_mimo(struct iwl4965_priv *priv,
+			     struct iwl4965_rate_scale_priv *lq_data,
+			     struct iwl4965_scale_tbl_info *tbl, int index)
 {
 #ifdef CONFIG_IWL4965_HT
 	u16 rate_mask;
@@ -943,9 +943,9 @@ static int rs_switch_to_mimo(struct iwl_priv *priv,
 #endif				/*CONFIG_IWL4965_HT */
 }
 
-static int rs_switch_to_siso(struct iwl_priv *priv,
-			     struct iwl_rate_scale_priv *lq_data,
-			     struct iwl_scale_tbl_info *tbl, int index)
+static int rs_switch_to_siso(struct iwl4965_priv *priv,
+			     struct iwl4965_rate_scale_priv *lq_data,
+			     struct iwl4965_scale_tbl_info *tbl, int index)
 {
 #ifdef CONFIG_IWL4965_HT
 	u16 rate_mask;
@@ -999,18 +999,18 @@ static int rs_switch_to_siso(struct iwl_priv *priv,
 #endif				/*CONFIG_IWL4965_HT */
 }
 
-static int rs_move_legacy_other(struct iwl_priv *priv,
-				struct iwl_rate_scale_priv *lq_data,
+static int rs_move_legacy_other(struct iwl4965_priv *priv,
+				struct iwl4965_rate_scale_priv *lq_data,
 				int index)
 {
 	int ret = 0;
-	struct iwl_scale_tbl_info *tbl =
+	struct iwl4965_scale_tbl_info *tbl =
 	    &(lq_data->lq_info[lq_data->active_tbl]);
-	struct iwl_scale_tbl_info *search_tbl =
+	struct iwl4965_scale_tbl_info *search_tbl =
 	    &(lq_data->lq_info[(1 - lq_data->active_tbl)]);
-	struct iwl_rate_scale_data *window = &(tbl->win[index]);
-	u32 sz = (sizeof(struct iwl_scale_tbl_info) -
-		  (sizeof(struct iwl_rate_scale_data) * IWL_RATE_COUNT));
+	struct iwl4965_rate_scale_data *window = &(tbl->win[index]);
+	u32 sz = (sizeof(struct iwl4965_scale_tbl_info) -
+		  (sizeof(struct iwl4965_rate_scale_data) * IWL_RATE_COUNT));
 	u8 start_action = tbl->action;
 
 	for (; ;) {
@@ -1083,19 +1083,19 @@ static int rs_move_legacy_other(struct iwl_priv *priv,
 
 }
 
-static int rs_move_siso_to_other(struct iwl_priv *priv,
-				 struct iwl_rate_scale_priv *lq_data,
+static int rs_move_siso_to_other(struct iwl4965_priv *priv,
+				 struct iwl4965_rate_scale_priv *lq_data,
 				 int index)
 {
 	int ret;
 	u8 is_green = lq_data->is_green;
-	struct iwl_scale_tbl_info *tbl =
+	struct iwl4965_scale_tbl_info *tbl =
 	    &(lq_data->lq_info[lq_data->active_tbl]);
-	struct iwl_scale_tbl_info *search_tbl =
+	struct iwl4965_scale_tbl_info *search_tbl =
 	    &(lq_data->lq_info[(1 - lq_data->active_tbl)]);
-	struct iwl_rate_scale_data *window = &(tbl->win[index]);
-	u32 sz = (sizeof(struct iwl_scale_tbl_info) -
-		  (sizeof(struct iwl_rate_scale_data) * IWL_RATE_COUNT));
+	struct iwl4965_rate_scale_data *window = &(tbl->win[index]);
+	u32 sz = (sizeof(struct iwl4965_scale_tbl_info) -
+		  (sizeof(struct iwl4965_rate_scale_data) * IWL_RATE_COUNT));
 	u8 start_action = tbl->action;
 
 	for (;;) {
@@ -1173,18 +1173,18 @@ static int rs_move_siso_to_other(struct iwl_priv *priv,
 	return 0;
 }
 
-static int rs_move_mimo_to_other(struct iwl_priv *priv,
-				 struct iwl_rate_scale_priv *lq_data,
+static int rs_move_mimo_to_other(struct iwl4965_priv *priv,
+				 struct iwl4965_rate_scale_priv *lq_data,
 				 int index)
 {
 	int ret;
 	s8 is_green = lq_data->is_green;
-	struct iwl_scale_tbl_info *tbl =
+	struct iwl4965_scale_tbl_info *tbl =
 	    &(lq_data->lq_info[lq_data->active_tbl]);
-	struct iwl_scale_tbl_info *search_tbl =
+	struct iwl4965_scale_tbl_info *search_tbl =
 	    &(lq_data->lq_info[(1 - lq_data->active_tbl)]);
-	u32 sz = (sizeof(struct iwl_scale_tbl_info) -
-		  (sizeof(struct iwl_rate_scale_data) * IWL_RATE_COUNT));
+	u32 sz = (sizeof(struct iwl4965_scale_tbl_info) -
+		  (sizeof(struct iwl4965_rate_scale_data) * IWL_RATE_COUNT));
 	u8 start_action = tbl->action;
 
 	for (;;) {
@@ -1253,9 +1253,9 @@ static int rs_move_mimo_to_other(struct iwl_priv *priv,
 
 }
 
-static void rs_stay_in_table(struct iwl_rate_scale_priv *lq_data)
+static void rs_stay_in_table(struct iwl4965_rate_scale_priv *lq_data)
 {
-	struct iwl_scale_tbl_info *tbl;
+	struct iwl4965_scale_tbl_info *tbl;
 	int i;
 	int active_tbl;
 	int flush_interval_passed = 0;
@@ -1305,7 +1305,7 @@ static void rs_stay_in_table(struct iwl_rate_scale_priv *lq_data)
 	}
 }
 
-static void rs_rate_scale_perform(struct iwl_priv *priv,
+static void rs_rate_scale_perform(struct iwl4965_priv *priv,
 				  struct net_device *dev,
 				  struct ieee80211_hdr *hdr,
 				  struct sta_info *sta)
@@ -1314,7 +1314,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 	int high = IWL_RATE_INVALID;
 	int index;
 	int i;
-	struct iwl_rate_scale_data *window = NULL;
+	struct iwl4965_rate_scale_data *window = NULL;
 	int current_tpt = IWL_INVALID_VALUE;
 	int low_tpt = IWL_INVALID_VALUE;
 	int high_tpt = IWL_INVALID_VALUE;
@@ -1322,10 +1322,10 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 	s8 scale_action = 0;
 	u16 fc, rate_mask;
 	u8 update_lq = 0;
-	struct iwl_rate_scale_priv *lq_data;
-	struct iwl_scale_tbl_info *tbl, *tbl1;
+	struct iwl4965_rate_scale_priv *lq_data;
+	struct iwl4965_scale_tbl_info *tbl, *tbl1;
 	u16 rate_scale_index_msk = 0;
-	struct iwl_rate mcs_rate;
+	struct iwl4965_rate mcs_rate;
 	u8 is_green = 0;
 	u8 active_tbl = 0;
 	u8 done_search = 0;
@@ -1348,7 +1348,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 		IWL_DEBUG_RATE("still rate scaling not ready\n");
 		return;
 	}
-	lq_data = (struct iwl_rate_scale_priv *)sta->rate_ctrl_priv;
+	lq_data = (struct iwl4965_rate_scale_priv *)sta->rate_ctrl_priv;
 
 	if (!lq_data->search_better_tbl)
 		active_tbl = lq_data->active_tbl;
@@ -1445,7 +1445,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 			active_tbl = lq_data->active_tbl;
 			tbl = &(lq_data->lq_info[active_tbl]);
 
-			index = iwl_rate_index_from_plcp(
+			index = iwl4965_rate_index_from_plcp(
 				tbl->current_rate.rate_n_flags);
 
 			update_lq = 1;
@@ -1559,7 +1559,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 			for (i = 0; i < IWL_RATE_COUNT; i++)
 				rs_rate_scale_clear_window(&(tbl->win[i]));
 
-			index = iwl_rate_index_from_plcp(
+			index = iwl4965_rate_index_from_plcp(
 					tbl->current_rate.rate_n_flags);
 
 			IWL_DEBUG_HT("Switch current  mcs: %X index: %d\n",
@@ -1615,21 +1615,21 @@ out:
 }
 
 
-static void rs_initialize_lq(struct iwl_priv *priv,
+static void rs_initialize_lq(struct iwl4965_priv *priv,
 			     struct sta_info *sta)
 {
 	int i;
-	struct iwl_rate_scale_priv *lq;
-	struct iwl_scale_tbl_info *tbl;
+	struct iwl4965_rate_scale_priv *lq;
+	struct iwl4965_scale_tbl_info *tbl;
 	u8 active_tbl = 0;
 	int rate_idx;
 	u8 use_green = rs_use_green(priv);
-	struct iwl_rate mcs_rate;
+	struct iwl4965_rate mcs_rate;
 
 	if (!sta || !sta->rate_ctrl_priv)
 		goto out;
 
-	lq = (struct iwl_rate_scale_priv *)sta->rate_ctrl_priv;
+	lq = (struct iwl4965_rate_scale_priv *)sta->rate_ctrl_priv;
 	i = sta->last_txrate;
 
 	if ((lq->lq.sta_id == 0xff) &&
@@ -1646,7 +1646,7 @@ static void rs_initialize_lq(struct iwl_priv *priv,
 	if ((i < 0) || (i >= IWL_RATE_COUNT))
 		i = 0;
 
-	mcs_rate.rate_n_flags = iwl_rates[i].plcp ;
+	mcs_rate.rate_n_flags = iwl4965_rates[i].plcp ;
 	mcs_rate.rate_n_flags |= RATE_MCS_ANT_B_MSK;
 	mcs_rate.rate_n_flags &= ~RATE_MCS_ANT_A_MSK;
 
@@ -1676,8 +1676,8 @@ static void rs_get_rate(void *priv_rate, struct net_device *dev,
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct sta_info *sta;
-	struct iwl_priv *priv = (struct iwl_priv *)priv_rate;
-	struct iwl_rate_scale_priv *lq;
+	struct iwl4965_priv *priv = (struct iwl4965_priv *)priv_rate;
+	struct iwl4965_rate_scale_priv *lq;
 
 	IWL_DEBUG_RATE_LIMIT("rate scale calculate new rate for skb\n");
 
@@ -1690,17 +1690,17 @@ static void rs_get_rate(void *priv_rate, struct net_device *dev,
 		return;
 	}
 
-	lq = (struct iwl_rate_scale_priv *)sta->rate_ctrl_priv;
+	lq = (struct iwl4965_rate_scale_priv *)sta->rate_ctrl_priv;
 	i = sta->last_txrate;
 
 	if ((priv->iw_mode == IEEE80211_IF_TYPE_IBSS) && !lq->ibss_sta_added) {
-		u8 sta_id = iwl_hw_find_station(priv, hdr->addr1);
+		u8 sta_id = iwl4965_hw_find_station(priv, hdr->addr1);
 		DECLARE_MAC_BUF(mac);
 
 		if (sta_id == IWL_INVALID_STATION) {
 			IWL_DEBUG_RATE("LQ: ADD station %s\n",
 				       print_mac(mac, hdr->addr1));
-			sta_id = iwl_add_station(priv,
+			sta_id = iwl4965_add_station_flags(priv,
 						 hdr->addr1, 0, CMD_ASYNC);
 		}
 		if ((sta_id != IWL_INVALID_STATION)) {
@@ -1725,12 +1725,12 @@ static void rs_get_rate(void *priv_rate, struct net_device *dev,
 
 static void *rs_alloc_sta(void *priv, gfp_t gfp)
 {
-	struct iwl_rate_scale_priv *crl;
+	struct iwl4965_rate_scale_priv *crl;
 	int i, j;
 
 	IWL_DEBUG_RATE("create station rate scale window\n");
 
-	crl = kzalloc(sizeof(struct iwl_rate_scale_priv), gfp);
+	crl = kzalloc(sizeof(struct iwl4965_rate_scale_priv), gfp);
 
 	if (crl == NULL)
 		return NULL;
@@ -1750,8 +1750,8 @@ static void rs_rate_init(void *priv_rate, void *priv_sta,
 {
 	int i, j;
 	struct ieee80211_hw_mode *mode = local->oper_hw_mode;
-	struct iwl_priv *priv = (struct iwl_priv *)priv_rate;
-	struct iwl_rate_scale_priv *crl = priv_sta;
+	struct iwl4965_priv *priv = (struct iwl4965_priv *)priv_rate;
+	struct iwl4965_rate_scale_priv *crl = priv_sta;
 
 	crl->flush_timer = 0;
 	crl->supp_rates = sta->supp_rates;
@@ -1768,7 +1768,7 @@ static void rs_rate_init(void *priv_rate, void *priv_sta,
 
 	crl->ibss_sta_added = 0;
 	if (priv->iw_mode == IEEE80211_IF_TYPE_AP) {
-		u8 sta_id = iwl_hw_find_station(priv, sta->addr);
+		u8 sta_id = iwl4965_hw_find_station(priv, sta->addr);
 		DECLARE_MAC_BUF(mac);
 
 		/* for IBSS the call are from tasklet */
@@ -1778,7 +1778,7 @@ static void rs_rate_init(void *priv_rate, void *priv_sta,
 		if (sta_id == IWL_INVALID_STATION) {
 			IWL_DEBUG_RATE("LQ: ADD station %s\n",
 				       print_mac(mac, sta->addr));
-			sta_id = iwl_add_station(priv,
+			sta_id = iwl4965_add_station_flags(priv,
 						 sta->addr, 0, CMD_ASYNC);
 		}
 		if ((sta_id != IWL_INVALID_STATION)) {
@@ -1832,17 +1832,17 @@ static void rs_rate_init(void *priv_rate, void *priv_sta,
 	rs_initialize_lq(priv, sta);
 }
 
-static void rs_fill_link_cmd(struct iwl_rate_scale_priv *lq_data,
-			    struct iwl_rate *tx_mcs,
-			    struct iwl_link_quality_cmd *lq_cmd)
+static void rs_fill_link_cmd(struct iwl4965_rate_scale_priv *lq_data,
+			    struct iwl4965_rate *tx_mcs,
+			    struct iwl4965_link_quality_cmd *lq_cmd)
 {
 	int index = 0;
 	int rate_idx;
 	int repeat_rate = 0;
 	u8 ant_toggle_count = 0;
 	u8 use_ht_possible = 1;
-	struct iwl_rate new_rate;
-	struct iwl_scale_tbl_info tbl_type = { 0 };
+	struct iwl4965_rate new_rate;
+	struct iwl4965_scale_tbl_info tbl_type = { 0 };
 
 	rs_dbgfs_set_mcs(lq_data, tx_mcs, index);
 
@@ -1935,7 +1935,7 @@ static void rs_free(void *priv_rate)
 
 static void rs_clear(void *priv_rate)
 {
-	struct iwl_priv *priv = (struct iwl_priv *) priv_rate;
+	struct iwl4965_priv *priv = (struct iwl4965_priv *) priv_rate;
 
 	IWL_DEBUG_RATE("enter\n");
 
@@ -1952,7 +1952,7 @@ static void rs_clear(void *priv_rate)
 
 static void rs_free_sta(void *priv, void *priv_sta)
 {
-	struct iwl_rate_scale_priv *rs_priv = priv_sta;
+	struct iwl4965_rate_scale_priv *rs_priv = priv_sta;
 
 	IWL_DEBUG_RATE("enter\n");
 	kfree(rs_priv);
@@ -1966,8 +1966,8 @@ static int open_file_generic(struct inode *inode, struct file *file)
 	file->private_data = inode->i_private;
 	return 0;
 }
-static void rs_dbgfs_set_mcs(struct iwl_rate_scale_priv *rs_priv,
-				struct iwl_rate *mcs, int index)
+static void rs_dbgfs_set_mcs(struct iwl4965_rate_scale_priv *rs_priv,
+				struct iwl4965_rate *mcs, int index)
 {
 	u32 base_rate;
 
@@ -1991,7 +1991,7 @@ static void rs_dbgfs_set_mcs(struct iwl_rate_scale_priv *rs_priv,
 static ssize_t rs_sta_dbgfs_scale_table_write(struct file *file,
 			const char __user *user_buf, size_t count, loff_t *ppos)
 {
-	struct iwl_rate_scale_priv *rs_priv = file->private_data;
+	struct iwl4965_rate_scale_priv *rs_priv = file->private_data;
 	char buf[64];
 	int buf_size;
 	u32 parsed_rate;
@@ -2028,7 +2028,7 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 	int desc = 0;
 	int i = 0;
 
-	struct iwl_rate_scale_priv *rs_priv = file->private_data;
+	struct iwl4965_rate_scale_priv *rs_priv = file->private_data;
 
 	desc += sprintf(buff+desc, "sta_id %d\n", rs_priv->lq.sta_id);
 	desc += sprintf(buff+desc, "failed=%d success=%d rate=0%X\n",
@@ -2076,7 +2076,7 @@ static ssize_t rs_sta_dbgfs_stats_table_read(struct file *file,
 	int desc = 0;
 	int i, j;
 
-	struct iwl_rate_scale_priv *rs_priv = file->private_data;
+	struct iwl4965_rate_scale_priv *rs_priv = file->private_data;
 	for (i = 0; i < LQ_SIZE; i++) {
 		desc += sprintf(buff+desc, "%s type=%d SGI=%d FAT=%d DUP=%d\n"
 				"rate=0x%X\n",
@@ -2105,7 +2105,7 @@ static const struct file_operations rs_sta_dbgfs_stats_table_ops = {
 static void rs_add_debugfs(void *priv, void *priv_sta,
 					struct dentry *dir)
 {
-	struct iwl_rate_scale_priv *rs_priv = priv_sta;
+	struct iwl4965_rate_scale_priv *rs_priv = priv_sta;
 	rs_priv->rs_sta_dbgfs_scale_table_file =
 		debugfs_create_file("rate_scale_table", 0600, dir,
 				rs_priv, &rs_sta_dbgfs_scale_table_ops);
@@ -2116,7 +2116,7 @@ static void rs_add_debugfs(void *priv, void *priv_sta,
 
 static void rs_remove_debugfs(void *priv, void *priv_sta)
 {
-	struct iwl_rate_scale_priv *rs_priv = priv_sta;
+	struct iwl4965_rate_scale_priv *rs_priv = priv_sta;
 	debugfs_remove(rs_priv->rs_sta_dbgfs_scale_table_file);
 	debugfs_remove(rs_priv->rs_sta_dbgfs_stats_table_file);
 }
@@ -2139,11 +2139,11 @@ static struct rate_control_ops rs_ops = {
 #endif
 };
 
-int iwl_fill_rs_info(struct ieee80211_hw *hw, char *buf, u8 sta_id)
+int iwl4965_fill_rs_info(struct ieee80211_hw *hw, char *buf, u8 sta_id)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
-	struct iwl_priv *priv = hw->priv;
-	struct iwl_rate_scale_priv *rs_priv;
+	struct iwl4965_priv *priv = hw->priv;
+	struct iwl4965_rate_scale_priv *rs_priv;
 	struct sta_info *sta;
 	int count = 0, i;
 	u32 samples = 0, success = 0, good = 0;
@@ -2176,7 +2176,7 @@ int iwl_fill_rs_info(struct ieee80211_hw *hw, char *buf, u8 sta_id)
 		int active = rs_priv->active_tbl;
 
 		count +=
-		    sprintf(&buf[count], " %2dMbs: ", iwl_rates[i].ieee / 2);
+		    sprintf(&buf[count], " %2dMbs: ", iwl4965_rates[i].ieee / 2);
 
 		mask = (1ULL << (IWL_RATE_MAX_WINDOW - 1));
 		for (j = 0; j < IWL_RATE_MAX_WINDOW; j++, mask >>= 1)
@@ -2187,7 +2187,7 @@ int iwl_fill_rs_info(struct ieee80211_hw *hw, char *buf, u8 sta_id)
 		samples += rs_priv->lq_info[active].win[i].counter;
 		good += rs_priv->lq_info[active].win[i].success_counter;
 		success += rs_priv->lq_info[active].win[i].success_counter *
-			   iwl_rates[i].ieee;
+			   iwl4965_rates[i].ieee;
 
 		if (rs_priv->lq_info[active].win[i].stamp) {
 			int delta =
@@ -2201,7 +2201,7 @@ int iwl_fill_rs_info(struct ieee80211_hw *hw, char *buf, u8 sta_id)
 		} else
 			buf[count++] = '\n';
 
-		j = iwl_get_prev_ieee_rate(i);
+		j = iwl4965_get_prev_ieee_rate(i);
 		if (j == i)
 			break;
 		i = j;
@@ -2210,7 +2210,7 @@ int iwl_fill_rs_info(struct ieee80211_hw *hw, char *buf, u8 sta_id)
 	/* Display the average rate of all samples taken.
 	 *
 	 * NOTE:  We multiple # of samples by 2 since the IEEE measurement
-	 * added from iwl_rates is actually 2X the rate */
+	 * added from iwl4965_rates is actually 2X the rate */
 	if (samples)
 		count += sprintf(&buf[count],
 			 "\nAverage rate is %3d.%02dMbs over last %4dms\n"
@@ -2227,19 +2227,19 @@ int iwl_fill_rs_info(struct ieee80211_hw *hw, char *buf, u8 sta_id)
 	return count;
 }
 
-void iwl_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id)
+void iwl4965_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id)
 {
-	struct iwl_priv *priv = hw->priv;
+	struct iwl4965_priv *priv = hw->priv;
 
 	priv->lq_mngr.lq_ready = 1;
 }
 
-void iwl_rate_control_register(struct ieee80211_hw *hw)
+void iwl4965_rate_control_register(struct ieee80211_hw *hw)
 {
 	ieee80211_rate_control_register(&rs_ops);
 }
 
-void iwl_rate_control_unregister(struct ieee80211_hw *hw)
+void iwl4965_rate_control_unregister(struct ieee80211_hw *hw)
 {
 	ieee80211_rate_control_unregister(&rs_ops);
 }

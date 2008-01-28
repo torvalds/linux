@@ -27,7 +27,7 @@
 #ifndef __iwl_3945_rs_h__
 #define __iwl_3945_rs_h__
 
-struct iwl_rate_info {
+struct iwl3945_rate_info {
 	u8 plcp;
 	u8 ieee;
 	u8 prev_ieee;		/* previous rate in IEEE speeds */
@@ -159,11 +159,11 @@ enum {
 #define IWL_MIN_RSSI_VAL                 -100
 #define IWL_MAX_RSSI_VAL                    0
 
-extern const struct iwl_rate_info iwl_rates[IWL_RATE_COUNT];
+extern const struct iwl3945_rate_info iwl3945_rates[IWL_RATE_COUNT];
 
-static inline u8 iwl_get_prev_ieee_rate(u8 rate_index)
+static inline u8 iwl3945_get_prev_ieee_rate(u8 rate_index)
 {
-	u8 rate = iwl_rates[rate_index].prev_ieee;
+	u8 rate = iwl3945_rates[rate_index].prev_ieee;
 
 	if (rate == IWL_RATE_INVALID)
 		rate = rate_index;
@@ -171,40 +171,40 @@ static inline u8 iwl_get_prev_ieee_rate(u8 rate_index)
 }
 
 /**
- * iwl_fill_rs_info - Fill an output text buffer with the rate representation
+ * iwl3945_fill_rs_info - Fill an output text buffer with the rate representation
  *
  * NOTE:  This is provided as a quick mechanism for a user to visualize
  * the performance of the rate control algorithm and is not meant to be
  * parsed software.
  */
-extern int iwl_fill_rs_info(struct ieee80211_hw *, char *buf, u8 sta_id);
+extern int iwl3945_fill_rs_info(struct ieee80211_hw *, char *buf, u8 sta_id);
 
 /**
- * iwl_rate_scale_init - Initialize the rate scale table based on assoc info
+ * iwl3945_rate_scale_init - Initialize the rate scale table based on assoc info
  *
  * The specific throughput table used is based on the type of network
  * the associated with, including A, B, G, and G w/ TGG protection
  */
-extern void iwl_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id);
+extern void iwl3945_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id);
 
 /**
- * iwl_rate_control_register - Register the rate control algorithm callbacks
+ * iwl3945_rate_control_register - Register the rate control algorithm callbacks
  *
  * Since the rate control algorithm is hardware specific, there is no need
  * or reason to place it as a stand alone module.  The driver can call
- * iwl_rate_control_register in order to register the rate control callbacks
+ * iwl3945_rate_control_register in order to register the rate control callbacks
  * with the mac80211 subsystem.  This should be performed prior to calling
  * ieee80211_register_hw
  *
  */
-extern void iwl_rate_control_register(struct ieee80211_hw *hw);
+extern void iwl3945_rate_control_register(struct ieee80211_hw *hw);
 
 /**
- * iwl_rate_control_unregister - Unregister the rate control callbacks
+ * iwl3945_rate_control_unregister - Unregister the rate control callbacks
  *
  * This should be called after calling ieee80211_unregister_hw, but before
  * the driver is unloaded.
  */
-extern void iwl_rate_control_unregister(struct ieee80211_hw *hw);
+extern void iwl3945_rate_control_unregister(struct ieee80211_hw *hw);
 
 #endif

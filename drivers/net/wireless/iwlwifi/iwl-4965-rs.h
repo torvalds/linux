@@ -29,7 +29,7 @@
 
 #include "iwl-4965.h"
 
-struct iwl_rate_info {
+struct iwl4965_rate_info {
 	u8 plcp;
 	u8 plcp_siso;
 	u8 plcp_mimo;
@@ -197,9 +197,9 @@ enum {
 
 #define LQ_SIZE		2
 
-extern const struct iwl_rate_info iwl_rates[IWL_RATE_COUNT];
+extern const struct iwl4965_rate_info iwl4965_rates[IWL_RATE_COUNT];
 
-enum iwl_table_type {
+enum iwl4965_table_type {
 	LQ_NONE,
 	LQ_G,
 	LQ_A,
@@ -208,59 +208,59 @@ enum iwl_table_type {
 	LQ_MAX,
 };
 
-enum iwl_antenna_type {
+enum iwl4965_antenna_type {
 	ANT_NONE,
 	ANT_MAIN,
 	ANT_AUX,
 	ANT_BOTH,
 };
 
-static inline u8 iwl_get_prev_ieee_rate(u8 rate_index)
+static inline u8 iwl4965_get_prev_ieee_rate(u8 rate_index)
 {
-	u8 rate = iwl_rates[rate_index].prev_ieee;
+	u8 rate = iwl4965_rates[rate_index].prev_ieee;
 
 	if (rate == IWL_RATE_INVALID)
 		rate = rate_index;
 	return rate;
 }
 
-extern int iwl_rate_index_from_plcp(int plcp);
+extern int iwl4965_rate_index_from_plcp(int plcp);
 
 /**
- * iwl_fill_rs_info - Fill an output text buffer with the rate representation
+ * iwl4965_fill_rs_info - Fill an output text buffer with the rate representation
  *
  * NOTE:  This is provided as a quick mechanism for a user to visualize
  * the performance of the rate control algorithm and is not meant to be
  * parsed software.
  */
-extern int iwl_fill_rs_info(struct ieee80211_hw *, char *buf, u8 sta_id);
+extern int iwl4965_fill_rs_info(struct ieee80211_hw *, char *buf, u8 sta_id);
 
 /**
- * iwl_rate_scale_init - Initialize the rate scale table based on assoc info
+ * iwl4965_rate_scale_init - Initialize the rate scale table based on assoc info
  *
  * The specific throughput table used is based on the type of network
  * the associated with, including A, B, G, and G w/ TGG protection
  */
-extern void iwl_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id);
+extern void iwl4965_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id);
 
 /**
- * iwl_rate_control_register - Register the rate control algorithm callbacks
+ * iwl4965_rate_control_register - Register the rate control algorithm callbacks
  *
  * Since the rate control algorithm is hardware specific, there is no need
  * or reason to place it as a stand alone module.  The driver can call
- * iwl_rate_control_register in order to register the rate control callbacks
+ * iwl4965_rate_control_register in order to register the rate control callbacks
  * with the mac80211 subsystem.  This should be performed prior to calling
  * ieee80211_register_hw
  *
  */
-extern void iwl_rate_control_register(struct ieee80211_hw *hw);
+extern void iwl4965_rate_control_register(struct ieee80211_hw *hw);
 
 /**
- * iwl_rate_control_unregister - Unregister the rate control callbacks
+ * iwl4965_rate_control_unregister - Unregister the rate control callbacks
  *
  * This should be called after calling ieee80211_unregister_hw, but before
  * the driver is unloaded.
  */
-extern void iwl_rate_control_unregister(struct ieee80211_hw *hw);
+extern void iwl4965_rate_control_unregister(struct ieee80211_hw *hw);
 
 #endif
