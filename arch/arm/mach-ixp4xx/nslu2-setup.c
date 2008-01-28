@@ -18,6 +18,7 @@
 #include <linux/serial.h>
 #include <linux/serial_8250.h>
 #include <linux/leds.h>
+#include <linux/i2c.h>
 #include <linux/i2c-gpio.h>
 
 #include <asm/mach-types.h>
@@ -45,6 +46,12 @@ static struct platform_device nslu2_flash = {
 static struct i2c_gpio_platform_data nslu2_i2c_gpio_data = {
 	.sda_pin		= NSLU2_SDA_PIN,
 	.scl_pin		= NSLU2_SCL_PIN,
+};
+
+static struct i2c_board_info __initdata nslu2_i2c_board_info [] = {
+	{
+		I2C_BOARD_INFO("rtc-x1205", 0x6f),
+	},
 };
 
 #ifdef CONFIG_LEDS_IXP4XX
@@ -182,6 +189,9 @@ static void __init nslu2_init(void)
 		IXP4XX_EXP_BUS_BASE(0) + ixp4xx_exp_bus_size - 1;
 
 	pm_power_off = nslu2_power_off;
+
+	i2c_register_board_info(0, nslu2_i2c_board_info,
+				ARRAY_SIZE(nslu2_i2c_board_info));
 
 	/*
 	 * This is only useful on a modified machine, but it is valuable
