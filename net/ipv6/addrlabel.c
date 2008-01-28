@@ -106,6 +106,11 @@ static inline void ip6addrlbl_free(struct ip6addrlbl_entry *p)
 	kfree(p);
 }
 
+static void ip6addrlbl_free_rcu(struct rcu_head *h)
+{
+	ip6addrlbl_free(container_of(h, struct ip6addrlbl_entry, rcu));
+}
+
 static inline int ip6addrlbl_hold(struct ip6addrlbl_entry *p)
 {
 	return atomic_inc_not_zero(&p->refcnt);
@@ -114,12 +119,7 @@ static inline int ip6addrlbl_hold(struct ip6addrlbl_entry *p)
 static inline void ip6addrlbl_put(struct ip6addrlbl_entry *p)
 {
 	if (atomic_dec_and_test(&p->refcnt))
-		ip6addrlbl_free(p);
-}
-
-static void ip6addrlbl_free_rcu(struct rcu_head *h)
-{
-	ip6addrlbl_free(container_of(h, struct ip6addrlbl_entry, rcu));
+		call_rcu(&p->rcu, ip6addrlbl_free_rcu);
 }
 
 /* Find label */
@@ -240,7 +240,6 @@ static int __ip6addrlbl_add(struct ip6addrlbl_entry *newp, int replace)
 				}
 				hlist_replace_rcu(&p->list, &newp->list);
 				ip6addrlbl_put(p);
-				call_rcu(&p->rcu, ip6addrlbl_free_rcu);
 				goto out;
 			} else if ((p->prefixlen == newp->prefixlen && !p->ifindex) ||
 				   (p->prefixlen < newp->prefixlen)) {
@@ -300,7 +299,6 @@ static int __ip6addrlbl_del(const struct in6_addr *prefix, int prefixlen,
 		    ipv6_addr_equal(&p->prefix, prefix)) {
 			hlist_del_rcu(&p->list);
 			ip6addrlbl_put(p);
-			call_rcu(&p->rcu, ip6addrlbl_free_rcu);
 			ret = 0;
 			break;
 		}
