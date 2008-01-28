@@ -82,9 +82,7 @@ static void __init shark_map_io(void)
 static irqreturn_t
 shark_timer_interrupt(int irq, void *dev_id)
 {
-	write_seqlock(&xtime_lock);
 	timer_tick();
-	write_sequnlock(&xtime_lock);
 	return IRQ_HANDLED;
 }
 

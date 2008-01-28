@@ -99,8 +99,6 @@ static unsigned int last_jiffy_time;
 
 static int ep93xx_timer_interrupt(int irq, void *dev_id)
 {
-	write_seqlock(&xtime_lock);
-
 	__raw_writel(1, EP93XX_TIMER1_CLEAR);
 	while ((signed long)
 		(__raw_readl(EP93XX_TIMER4_VALUE_LOW) - last_jiffy_time)
@@ -108,8 +106,6 @@ static int ep93xx_timer_interrupt(int irq, void *dev_id)
 		last_jiffy_time += TIMER4_TICKS_PER_JIFFY;
 		timer_tick();
 	}
-
-	write_sequnlock(&xtime_lock);
 
 	return IRQ_HANDLED;
 }

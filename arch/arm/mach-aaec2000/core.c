@@ -130,12 +130,8 @@ static irqreturn_t
 aaec2000_timer_interrupt(int irq, void *dev_id)
 {
 	/* TODO: Check timer accuracy */
-	write_seqlock(&xtime_lock);
-
 	timer_tick();
 	TIMER1_CLEAR = 1;
-
-	write_sequnlock(&xtime_lock);
 
 	return IRQ_HANDLED;
 }
