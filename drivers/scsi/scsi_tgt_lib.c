@@ -359,8 +359,7 @@ static int scsi_tgt_init_cmd(struct scsi_cmnd *cmd, gfp_t gfp_mask)
 	int count;
 
 	cmd->use_sg = rq->nr_phys_segments;
-	cmd->request_buffer = scsi_alloc_sgtable(cmd, gfp_mask);
-	if (!cmd->request_buffer)
+	if (scsi_alloc_sgtable(cmd, gfp_mask))
 		return -ENOMEM;
 
 	cmd->request_bufflen = rq->data_len;

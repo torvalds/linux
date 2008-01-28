@@ -8,7 +8,6 @@
 #include <linux/scatterlist.h>
 
 struct request;
-struct scatterlist;
 struct Scsi_Host;
 struct scsi_device;
 
@@ -68,8 +67,8 @@ struct scsi_cmnd {
 	void *request_buffer;		/* Actual requested buffer */
 
 	/* These elements define the operation we ultimately want to perform */
+	struct sg_table sg_table;
 	unsigned short use_sg;	/* Number of pieces of scatter-gather */
-	unsigned short __use_sg;
 
 	unsigned underflow;	/* Return error if less than
 				   this amount is transferred */
@@ -128,14 +127,14 @@ extern void *scsi_kmap_atomic_sg(struct scatterlist *sg, int sg_count,
 				 size_t *offset, size_t *len);
 extern void scsi_kunmap_atomic_sg(void *virt);
 
-extern struct scatterlist *scsi_alloc_sgtable(struct scsi_cmnd *, gfp_t);
+extern int scsi_alloc_sgtable(struct scsi_cmnd *, gfp_t);
 extern void scsi_free_sgtable(struct scsi_cmnd *);
 
 extern int scsi_dma_map(struct scsi_cmnd *cmd);
 extern void scsi_dma_unmap(struct scsi_cmnd *cmd);
 
 #define scsi_sg_count(cmd) ((cmd)->use_sg)
-#define scsi_sglist(cmd) ((struct scatterlist *)(cmd)->request_buffer)
+#define scsi_sglist(cmd) ((cmd)->sg_table.sgl)
 #define scsi_bufflen(cmd) ((cmd)->request_bufflen)
 
 static inline void scsi_set_resid(struct scsi_cmnd *cmd, int resid)
