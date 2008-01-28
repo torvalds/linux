@@ -330,6 +330,42 @@ This is a collection of Kconfig tips, most of which aren't obvious at
 first glance and most of which have become idioms in several Kconfig
 files.
 
+Adding common features and make the usage configurable
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+It is a common idiom to implement a feature/functionality that are
+relevant for some architectures but not all.
+The recommended way to do so is to use a config variable named HAVE_*
+that is defined in a common Kconfig file and selected by the relevant
+architectures.
+An example is the generic IOMAP functionality.
+
+We would in lib/Kconfig see:
+
+# Generic IOMAP is used to ...
+config HAVE_GENERIC_IOMAP
+
+config GENERIC_IOMAP
+	depends on HAVE_GENERIC_IOMAP && FOO
+
+And in lib/Makefile we would see:
+obj-$(CONFIG_GENERIC_IOMAP) += iomap.o
+
+For each architecture using the generic IOMAP functionality we would see:
+
+config X86
+	select ...
+	select HAVE_GENERIC_IOMAP
+	select ...
+
+Note: we use the existing config option and avoid creating a new
+config variable to select HAVE_GENERIC_IOMAP.
+
+Note: the use of the internal config variable HAVE_GENERIC_IOMAP, it is
+introduced to overcome the limitation of select which will force a
+config option to 'y' no matter the dependencies.
+The dependencies are moved to the symbol GENERIC_IOMAP and we avoid the
+situation where select forces a symbol equals to 'y'.
+
 Build as module only
 ~~~~~~~~~~~~~~~~~~~~
 To restrict a component build to module-only, qualify its config symbol
