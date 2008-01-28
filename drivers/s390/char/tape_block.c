@@ -74,11 +74,10 @@ tapeblock_trigger_requeue(struct tape_device *device)
  * Post finished request.
  */
 static void
-tapeblock_end_request(struct request *req, int uptodate)
+tapeblock_end_request(struct request *req, int error)
 {
-	if (end_that_request_first(req, uptodate, req->hard_nr_sectors))
+	if (__blk_end_request(req, error, blk_rq_bytes(req)))
 		BUG();
-	end_that_request_last(req, uptodate);
 }
 
 static void
@@ -91,7 +90,7 @@ __tapeblock_end_request(struct tape_request *ccw_req, void *data)
 
 	device = ccw_req->device;
 	req = (struct request *) data;
-	tapeblock_end_request(req, ccw_req->rc == 0);
+	tapeblock_end_request(req, (ccw_req->rc == 0) ? 0 : -EIO);
 	if (ccw_req->rc == 0)
 		/* Update position. */
 		device->blk_data.block_position =
@@ -119,7 +118,7 @@ tapeblock_start_request(struct tape_device *device, struct request *req)
 	ccw_req = device->discipline->bread(device, req);
 	if (IS_ERR(ccw_req)) {
 		DBF_EVENT(1, "TBLOCK: bread failed\n");
-		tapeblock_end_request(req, 0);
+		tapeblock_end_request(req, -EIO);
 		return PTR_ERR(ccw_req);
 	}
 	ccw_req->callback = __tapeblock_end_request;
@@ -132,7 +131,7 @@ tapeblock_start_request(struct tape_device *device, struct request *req)
 		 * Start/enqueueing failed. No retries in
 		 * this case.
 		 */
-		tapeblock_end_request(req, 0);
+		tapeblock_end_request(req, -EIO);
 		device->discipline->free_bread(ccw_req);
 	}
 
@@ -177,7 +176,7 @@ tapeblock_requeue(struct work_struct *work) {
 		if (rq_data_dir(req) == WRITE) {
 			DBF_EVENT(1, "TBLOCK: Rejecting write request\n");
 			blkdev_dequeue_request(req);
-			tapeblock_end_request(req, 0);
+			tapeblock_end_request(req, -EIO);
 			continue;
 		}
 		spin_unlock_irq(&device->blk_data.request_queue_lock);
