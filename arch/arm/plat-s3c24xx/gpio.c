@@ -199,3 +199,19 @@ int s3c2410_gpio_getirq(unsigned int pin)
 }
 
 EXPORT_SYMBOL(s3c2410_gpio_getirq);
+
+int s3c2410_gpio_irq2pin(unsigned int irq)
+{
+	if (irq >= IRQ_EINT0 && irq <= IRQ_EINT3)
+		return S3C2410_GPF0 + (irq - IRQ_EINT0);
+
+	if (irq >= IRQ_EINT4 && irq <= IRQ_EINT7)
+		return S3C2410_GPF4 + (irq - IRQ_EINT4);
+
+	if (irq >= IRQ_EINT8 && irq <= IRQ_EINT23)
+		return S3C2410_GPG0 + (irq - IRQ_EINT8);
+
+	return -EINVAL;
+}
+
+EXPORT_SYMBOL(s3c2410_gpio_irq2pin);
