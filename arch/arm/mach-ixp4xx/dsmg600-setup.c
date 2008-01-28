@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/serial.h>
 #include <linux/serial_8250.h>
+#include <linux/i2c.h>
 #include <linux/i2c-gpio.h>
 
 #include <asm/mach-types.h>
@@ -48,6 +49,12 @@ static struct platform_device dsmg600_i2c_gpio = {
 	.id			= 0,
 	.dev	 = {
 		.platform_data	= &dsmg600_i2c_gpio_data,
+	},
+};
+
+static struct i2c_board_info __initdata dsmg600_i2c_board_info [] = {
+	{
+		I2C_BOARD_INFO("rtc-pcf8563", 0x51),
 	},
 };
 
@@ -157,6 +164,9 @@ static void __init dsmg600_init(void)
 		IXP4XX_EXP_BUS_BASE(0) + ixp4xx_exp_bus_size - 1;
 
 	pm_power_off = dsmg600_power_off;
+
+	i2c_register_board_info(0, dsmg600_i2c_board_info,
+				ARRAY_SIZE(dsmg600_i2c_board_info));
 
 	/* The UART is required on the DSM-G600 (Redboot cannot use the
 	 * NIC) -- do it here so that it does *not* get removed if
