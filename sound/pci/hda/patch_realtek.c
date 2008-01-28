@@ -8051,43 +8051,20 @@ static struct snd_kcontrol_new alc262_HP_BPC_WildWest_option_mixer[] = {
 	{ } /* end */
 };
 
-static struct hda_bind_ctls alc262_hp_t5735_bind_front_vol = {
-	.ops = &snd_hda_bind_vol,
-	.values = {
-		HDA_COMPOSE_AMP_VAL(0x0c, 3, 0, HDA_OUTPUT),
-		HDA_COMPOSE_AMP_VAL(0x0d, 3, 0, HDA_OUTPUT),
-		0
-	},
-};
-
-static struct hda_bind_ctls alc262_hp_t5735_bind_front_sw = {
-	.ops = &snd_hda_bind_sw,
-	.values = {
-		HDA_COMPOSE_AMP_VAL(0x14, 3, 0, HDA_OUTPUT),
-		HDA_COMPOSE_AMP_VAL(0x15, 3, 0, HDA_OUTPUT),
-		0
-	},
-};
-
 /* mute/unmute internal speaker according to the hp jack and mute state */
 static void alc262_hp_t5735_automute(struct hda_codec *codec, int force)
 {
 	struct alc_spec *spec = codec->spec;
-	unsigned int mute;
 
 	if (force || !spec->sense_updated) {
 		unsigned int present;
 		present = snd_hda_codec_read(codec, 0x15, 0,
 					     AC_VERB_GET_PIN_SENSE, 0);
-		spec->jack_present = (present & 0x80000000) != 0;
+		spec->jack_present = (present & AC_PINSENSE_PRESENCE) != 0;
 		spec->sense_updated = 1;
 	}
-	if (spec->jack_present)
-		mute = (0x7080 | ((0)<<8));  /* mute internal speaker */
-	else	/* unmute internal speaker if necessary */
-		mute = (0x7000 | ((0)<<8));
-       	snd_hda_codec_write(codec, 0x0c, 0,
-			    AC_VERB_SET_AMP_GAIN_MUTE, mute );
+	snd_hda_codec_amp_stereo(codec, 0x0c, HDA_OUTPUT, 0, HDA_AMP_MUTE,
+				 spec->jack_present ? HDA_AMP_MUTE : 0);
 }
 
 static void alc262_hp_t5735_unsol_event(struct hda_codec *codec,
@@ -8104,10 +8081,6 @@ static void alc262_hp_t5735_init_hook(struct hda_codec *codec)
 }
 
 static struct snd_kcontrol_new alc262_hp_t5735_mixer[] = {
-	HDA_BIND_VOL("PCM Playback Volume", &alc262_hp_t5735_bind_front_vol),
-	HDA_BIND_SW("PCM Playback Switch",&alc262_hp_t5735_bind_front_sw),
-	HDA_CODEC_VOLUME("LineOut Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("LineOut Playback Switch", 0x14, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Speaker Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Speaker Playback Switch", 0x14, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x0d, 0x0, HDA_OUTPUT),
