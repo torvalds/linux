@@ -283,14 +283,21 @@ static inline int TEMP_HYST_TO_REG(int val, int ix, int reg)
 /* Fan input RPM */
 static inline int FAN_FROM_REG(int reg, int tpc)
 {
-	return (reg == 0 || reg == 0xffff) ? 0 :
-		(tpc == 0) ? 90000 * 60 / reg : tpc * reg;
+	if (tpc) {
+		return tpc * reg;
+	} else {
+		return (reg == 0 || reg == 0xffff) ? 0 : 90000 * 60 / reg;
+	}
 }
 
 static inline int FAN_TO_REG(int val, int tpc)
 {
-	return SENSORS_LIMIT((tpc == 0) ? 90000 * 60 / val : val / tpc,
-			     0, 0xffff);
+	if (tpc) {
+		return SENSORS_LIMIT(val / tpc, 0, 0xffff);
+	} else {
+		return (val <= 0) ? 0xffff :
+			SENSORS_LIMIT(90000 * 60 / val, 0, 0xfffe);
+	}
 }
 
 /* Fan TPC (tach pulse count)
