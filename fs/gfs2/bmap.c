@@ -548,6 +548,9 @@ out_fail:
 	return error;
 }
 
+/*
+ * Deprecated: do not use in new code
+ */
 int gfs2_extent_map(struct inode *inode, u64 lblock, int *new, u64 *dblock, unsigned *extlen)
 {
 	struct buffer_head bh = { .b_state = 0, .b_blocknr = 0 };
@@ -1197,10 +1200,9 @@ int gfs2_write_alloc_required(struct gfs2_inode *ip, u64 offset,
 			      unsigned int len, int *alloc_required)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
-	u64 lblock, lblock_stop, dblock;
-	u32 extlen;
-	int new = 0;
-	int error = 0;
+	struct buffer_head bh;
+	unsigned int shift;
+	u64 lblock, lblock_stop, size;
 
 	*alloc_required = 0;
 
@@ -1214,6 +1216,8 @@ int gfs2_write_alloc_required(struct gfs2_inode *ip, u64 offset,
 		return 0;
 	}
 
+	*alloc_required = 1;
+	shift = sdp->sd_sb.sb_bsize_shift;
 	if (gfs2_is_dir(ip)) {
 		unsigned int bsize = sdp->sd_jbsize;
 		lblock = offset;
@@ -1221,27 +1225,25 @@ int gfs2_write_alloc_required(struct gfs2_inode *ip, u64 offset,
 		lblock_stop = offset + len + bsize - 1;
 		do_div(lblock_stop, bsize);
 	} else {
-		unsigned int shift = sdp->sd_sb.sb_bsize_shift;
 		u64 end_of_file = (ip->i_di.di_size + sdp->sd_sb.sb_bsize - 1) >> shift;
 		lblock = offset >> shift;
 		lblock_stop = (offset + len + sdp->sd_sb.sb_bsize - 1) >> shift;
-		if (lblock_stop > end_of_file) {
-			*alloc_required = 1;
+		if (lblock_stop > end_of_file)
 			return 0;
-		}
 	}
 
-	for (; lblock < lblock_stop; lblock += extlen) {
-		error = gfs2_extent_map(&ip->i_inode, lblock, &new, &dblock, &extlen);
-		if (error)
-			return error;
-
-		if (!dblock) {
-			*alloc_required = 1;
+	size = (lblock_stop - lblock) << shift;
+	do {
+		bh.b_state = 0;
+		bh.b_size = size;
+		gfs2_block_map(&ip->i_inode, lblock, &bh, 0);
+		if (!buffer_mapped(&bh))
 			return 0;
-		}
-	}
+		size -= bh.b_size;
+		lblock += (bh.b_size >> ip->i_inode.i_blkbits);
+	} while(size > 0);
 
+	*alloc_required = 0;
 	return 0;
 }
 
