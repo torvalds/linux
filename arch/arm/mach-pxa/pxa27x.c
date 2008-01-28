@@ -16,6 +16,7 @@
 #include <linux/init.h>
 #include <linux/suspend.h>
 #include <linux/platform_device.h>
+#include <linux/sysdev.h>
 
 #include <asm/hardware.h>
 #include <asm/irq.h>
@@ -196,7 +197,6 @@ enum {	SLEEP_SAVE_START = 0,
 
 	SLEEP_SAVE_PSTR,
 
-	SLEEP_SAVE_ICMR,
 	SLEEP_SAVE_CKEN,
 
 	SLEEP_SAVE_MDREFR,
@@ -223,7 +223,6 @@ void pxa27x_cpu_pm_save(unsigned long *sleep_save)
 	SAVE(PWER); SAVE(PCFR); SAVE(PRER);
 	SAVE(PFER); SAVE(PKWR);
 
-	SAVE(ICMR); ICMR = 0;
 	SAVE(CKEN);
 	SAVE(PSTR);
 
@@ -256,9 +255,6 @@ void pxa27x_cpu_pm_restore(unsigned long *sleep_save)
 
 	RESTORE(CKEN);
 
-	ICLR = 0;
-	ICCR = 1;
-	RESTORE(ICMR);
 	RESTORE(PSTR);
 }
 
@@ -409,9 +405,20 @@ static struct platform_device *devices[] __initdata = {
 	&pxa27x_device_ssp3,
 };
 
+static struct sys_device pxa27x_sysdev[] = {
+	{
+		.id	= 0,
+		.cls	= &pxa_irq_sysclass,
+	}, {
+		.id	= 1,
+		.cls	= &pxa_irq_sysclass,
+	},
+};
+
 static int __init pxa27x_init(void)
 {
-	int ret = 0;
+	int i, ret = 0;
+
 	if (cpu_is_pxa27x()) {
 		clks_register(pxa27x_clks, ARRAY_SIZE(pxa27x_clks));
 
@@ -420,8 +427,15 @@ static int __init pxa27x_init(void)
 
 		pxa27x_init_pm();
 
+		for (i = 0; i < ARRAY_SIZE(pxa27x_sysdev); i++) {
+			ret = sysdev_register(&pxa27x_sysdev[i]);
+			if (ret)
+				pr_err("failed to register sysdev[%d]\n", i);
+		}
+
 		ret = platform_add_devices(devices, ARRAY_SIZE(devices));
 	}
+
 	return ret;
 }
 

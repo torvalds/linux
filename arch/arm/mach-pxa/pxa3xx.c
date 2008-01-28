@@ -20,6 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/irq.h>
 #include <linux/io.h>
+#include <linux/sysdev.h>
 
 #include <asm/hardware.h>
 #include <asm/arch/pxa3xx-regs.h>
@@ -452,9 +453,19 @@ static struct platform_device *devices[] __initdata = {
 	&pxa3xx_device_ssp4,
 };
 
+static struct sys_device pxa3xx_sysdev[] = {
+	{
+		.id	= 0,
+		.cls	= &pxa_irq_sysclass,
+	}, {
+		.id	= 1,
+		.cls	= &pxa_irq_sysclass,
+	},
+};
+
 static int __init pxa3xx_init(void)
 {
-	int ret = 0;
+	int i, ret = 0;
 
 	if (cpu_is_pxa3xx()) {
 		clks_register(pxa3xx_clks, ARRAY_SIZE(pxa3xx_clks));
@@ -464,9 +475,16 @@ static int __init pxa3xx_init(void)
 
 		pxa3xx_init_pm();
 
-		return platform_add_devices(devices, ARRAY_SIZE(devices));
+		for (i = 0; i < ARRAY_SIZE(pxa3xx_sysdev); i++) {
+			ret = sysdev_register(&pxa3xx_sysdev[i]);
+			if (ret)
+				pr_err("failed to register sysdev[%d]\n", i);
+		}
+
+		ret = platform_add_devices(devices, ARRAY_SIZE(devices));
 	}
-	return 0;
+
+	return ret;
 }
 
 subsys_initcall(pxa3xx_init);

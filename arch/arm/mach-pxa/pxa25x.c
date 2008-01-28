@@ -21,6 +21,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/suspend.h>
+#include <linux/sysdev.h>
 
 #include <asm/hardware.h>
 #include <asm/arch/irqs.h>
@@ -165,7 +166,6 @@ enum {	SLEEP_SAVE_START = 0,
 
 	SLEEP_SAVE_PSTR,
 
-	SLEEP_SAVE_ICMR,
 	SLEEP_SAVE_CKEN,
 
 	SLEEP_SAVE_SIZE
@@ -184,7 +184,6 @@ static void pxa25x_cpu_pm_save(unsigned long *sleep_save)
 	SAVE(GAFR1_L); SAVE(GAFR1_U);
 	SAVE(GAFR2_L); SAVE(GAFR2_U);
 
-	SAVE(ICMR); ICMR = 0;
 	SAVE(CKEN);
 	SAVE(PSTR);
 
@@ -210,10 +209,6 @@ static void pxa25x_cpu_pm_restore(unsigned long *sleep_save)
 	PSSR = PSSR_RDH | PSSR_PH;
 
 	RESTORE(CKEN);
-
-	ICLR = 0;
-	ICCR = 1;
-	RESTORE(ICMR);
 	RESTORE(PSTR);
 }
 
@@ -304,9 +299,15 @@ static struct platform_device *pxa25x_devices[] __initdata = {
 	&pxa25x_device_assp,
 };
 
+static struct sys_device pxa25x_sysdev[] = {
+	{
+		.cls	= &pxa_irq_sysclass,
+	},
+};
+
 static int __init pxa25x_init(void)
 {
-	int ret = 0;
+	int i, ret = 0;
 
 	/* Only add HWUART for PXA255/26x; PXA210/250/27x do not have it. */
 	if (cpu_is_pxa25x())
@@ -320,9 +321,18 @@ static int __init pxa25x_init(void)
 
 		pxa25x_init_pm();
 
+		for (i = 0; i < ARRAY_SIZE(pxa25x_sysdev); i++) {
+			ret = sysdev_register(&pxa25x_sysdev[i]);
+			if (ret)
+				pr_err("failed to register sysdev[%d]\n", i);
+		}
+
 		ret = platform_add_devices(pxa25x_devices,
 					   ARRAY_SIZE(pxa25x_devices));
+		if (ret)
+			return ret;
 	}
+
 	/* Only add HWUART for PXA255/26x; PXA210/250/27x do not have it. */
 	if (cpu_is_pxa25x())
 		ret = platform_device_register(&pxa_device_hwuart);
