@@ -67,7 +67,9 @@ void kvm_io_bus_register_dev(struct kvm_io_bus *bus,
 
 struct kvm_vcpu {
 	struct kvm *kvm;
+#ifdef CONFIG_PREEMPT_NOTIFIERS
 	struct preempt_notifier preempt_notifier;
+#endif
 	int vcpu_id;
 	struct mutex mutex;
 	int   cpu;
