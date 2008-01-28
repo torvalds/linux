@@ -1,12 +1,15 @@
 config BCM43XX
-	tristate "Broadcom BCM43xx wireless support"
+	tristate "Broadcom BCM43xx wireless support (DEPRECATED)"
 	depends on PCI && IEEE80211 && IEEE80211_SOFTMAC && WLAN_80211 && EXPERIMENTAL
 	select WIRELESS_EXT
 	select FW_LOADER
 	select HW_RANDOM
 	---help---
-	  This is an experimental driver for the Broadcom 43xx wireless chip,
-	  found in the Apple Airport Extreme and various other devices.
+	  This is an experimental driver for the Broadcom 43xx wireless
+	  chip, found in the Apple Airport Extreme and various other
+	  devices.  This driver is deprecated and will be removed
+	  from the kernel in the near future.  It has been replaced
+	  by the b43 and b43legacy drivers.
 
 config BCM43XX_DEBUG
 	bool "Broadcom BCM43xx debugging (RECOMMENDED)"
