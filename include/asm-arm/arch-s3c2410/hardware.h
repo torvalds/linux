@@ -87,6 +87,18 @@ extern int s3c2410_gpio_irqfilter(unsigned int pin, unsigned int on,
 
 extern void s3c2410_gpio_pullup(unsigned int pin, unsigned int to);
 
+/* s3c2410_gpio_getpull
+ *
+ * Read the state of the pull-up on a given pin
+ *
+ * return:
+ *	< 0 => error code
+ *	  0 => enabled
+ *	  1 => disabled
+*/
+
+extern int s3c2410_gpio_getpull(unsigned int pin);
+
 extern void s3c2410_gpio_setpin(unsigned int pin, unsigned int to);
 
 extern unsigned int s3c2410_gpio_getpin(unsigned int pin);
