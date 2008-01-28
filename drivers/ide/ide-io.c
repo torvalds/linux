@@ -58,15 +58,19 @@ static int __ide_end_request(ide_drive_t *drive, struct request *rq,
 			     int uptodate, unsigned int nr_bytes, int dequeue)
 {
 	int ret = 1;
+	int error = 0;
+
+	if (uptodate <= 0)
+		error = uptodate ? uptodate : -EIO;
 
 	/*
 	 * if failfast is set on a request, override number of sectors and
 	 * complete the whole request right now
 	 */
-	if (blk_noretry_request(rq) && end_io_error(uptodate))
+	if (blk_noretry_request(rq) && error)
 		nr_bytes = rq->hard_nr_sectors << 9;
 
-	if (!blk_fs_request(rq) && end_io_error(uptodate) && !rq->errors)
+	if (!blk_fs_request(rq) && error && !rq->errors)
 		rq->errors = -EIO;
 
 	/*
@@ -78,14 +82,9 @@ static int __ide_end_request(ide_drive_t *drive, struct request *rq,
 		ide_dma_on(drive);
 	}
 
-	if (!end_that_request_chunk(rq, uptodate, nr_bytes)) {
-		add_disk_randomness(rq->rq_disk);
-		if (dequeue) {
-			if (!list_empty(&rq->queuelist))
-				blkdev_dequeue_request(rq);
+	if (!__blk_end_request(rq, error, nr_bytes)) {
+		if (dequeue)
 			HWGROUP(drive)->rq = NULL;
-		}
-		end_that_request_last(rq, uptodate);
 		ret = 0;
 	}
 
@@ -290,9 +289,9 @@ static void ide_complete_pm_request (ide_drive_t *drive, struct request *rq)
 		drive->blocked = 0;
 		blk_start_queue(drive->queue);
 	}
-	blkdev_dequeue_request(rq);
 	HWGROUP(drive)->rq = NULL;
-	end_that_request_last(rq, 1);
+	if (__blk_end_request(rq, 0, 0))
+		BUG();
 	spin_unlock_irqrestore(&ide_lock, flags);
 }
 
@@ -387,10 +386,10 @@ void ide_end_drive_cmd (ide_drive_t *drive, u8 stat, u8 err)
 	}
 
 	spin_lock_irqsave(&ide_lock, flags);
-	blkdev_dequeue_request(rq);
 	HWGROUP(drive)->rq = NULL;
 	rq->errors = err;
-	end_that_request_last(rq, !rq->errors);
+	if (__blk_end_request(rq, (rq->errors ? -EIO : 0), 0))
+		BUG();
 	spin_unlock_irqrestore(&ide_lock, flags);
 }
 
