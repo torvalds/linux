@@ -44,14 +44,51 @@
 #include <asm/plat-s3c24xx/clock.h>
 #include <asm/plat-s3c24xx/cpu.h>
 
+static int s3c2440_setparent_armclk(struct clk *clk, struct clk *parent)
+{
+	unsigned long camdivn;
+	unsigned long dvs;
+
+	if (parent == &clk_f)
+		dvs = 0;
+	else if (parent == &clk_h)
+		dvs = S3C2440_CAMDIVN_DVSEN;
+	else
+		return -EINVAL;
+
+	clk->parent = parent;
+
+	camdivn  = __raw_readl(S3C2440_CAMDIVN);
+	camdivn &= ~S3C2440_CAMDIVN_DVSEN;
+	camdivn |= dvs;
+	__raw_writel(camdivn, S3C2440_CAMDIVN);
+
+	return 0;
+}
+
+static struct clk clk_arm = {
+	.name		= "armclk",
+	.id		= -1,
+	.set_parent	= s3c2440_setparent_armclk,
+};
+
 static int s3c244x_clk_add(struct sys_device *sysdev)
 {
 	unsigned long camdivn = __raw_readl(S3C2440_CAMDIVN);
 	unsigned long clkdivn;
 	struct clk *clock_upll;
+	int ret;
 
 	printk("S3C244X: Clock Support, DVS %s\n",
 	       (camdivn & S3C2440_CAMDIVN_DVSEN) ? "on" : "off");
+
+	clk_arm.parent = (camdivn & S3C2440_CAMDIVN_DVSEN) ? &clk_h : &clk_f;
+
+	ret = s3c24xx_register_clock(&clk_arm);
+	if (ret < 0) {
+		printk(KERN_ERR "S3C24XX: Failed to add armclk (%d)\n", ret);
+		return ret;
+	}
 
 	clock_upll = clk_get(NULL, "upll");
 	if (IS_ERR(clock_upll)) {
