@@ -197,7 +197,7 @@ static void glock_free(struct gfs2_glock *gl)
  *
  */
 
-void gfs2_glock_hold(struct gfs2_glock *gl)
+static void gfs2_glock_hold(struct gfs2_glock *gl)
 {
 	atomic_inc(&gl->gl_ref);
 }
