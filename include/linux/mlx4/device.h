@@ -133,6 +133,11 @@ enum {
 	MLX4_STAT_RATE_OFFSET	= 5
 };
 
+static inline u64 mlx4_fw_ver(u64 major, u64 minor, u64 subminor)
+{
+	return (major << 32) | (minor << 16) | subminor;
+}
+
 struct mlx4_caps {
 	u64			fw_ver;
 	int			num_ports;

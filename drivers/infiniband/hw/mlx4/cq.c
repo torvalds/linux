@@ -326,6 +326,12 @@ static int mlx4_ib_poll_one(struct mlx4_ib_cq *cq,
 	is_error = (cqe->owner_sr_opcode & MLX4_CQE_OPCODE_MASK) ==
 		MLX4_CQE_OPCODE_ERROR;
 
+	if (unlikely((cqe->owner_sr_opcode & MLX4_CQE_OPCODE_MASK) == MLX4_OPCODE_NOP &&
+		     is_send)) {
+		printk(KERN_WARNING "Completion for NOP opcode detected!\n");
+		return -EINVAL;
+	}
+
 	if (!*cur_qp ||
 	    (be32_to_cpu(cqe->my_qpn) & 0xffffff) != (*cur_qp)->mqp.qpn) {
 		/*
@@ -348,8 +354,10 @@ static int mlx4_ib_poll_one(struct mlx4_ib_cq *cq,
 
 	if (is_send) {
 		wq = &(*cur_qp)->sq;
-		wqe_ctr = be16_to_cpu(cqe->wqe_index);
-		wq->tail += (u16) (wqe_ctr - (u16) wq->tail);
+		if (!(*cur_qp)->sq_signal_bits) {
+			wqe_ctr = be16_to_cpu(cqe->wqe_index);
+			wq->tail += (u16) (wqe_ctr - (u16) wq->tail);
+		}
 		wc->wr_id = wq->wrid[wq->tail & (wq->wqe_cnt - 1)];
 		++wq->tail;
 	} else if ((*cur_qp)->ibqp.srq) {
