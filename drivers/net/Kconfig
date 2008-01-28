@@ -3015,23 +3015,6 @@ config NET_FC
 	  adaptor below. You also should have said Y to "SCSI support" and
 	  "SCSI generic support".
 
-config SHAPER
-	tristate "Traffic Shaper (OBSOLETE)"
-	depends on EXPERIMENTAL
-	---help---
-	  The traffic shaper is a virtual network device that allows you to
-	  limit the rate of outgoing data flow over some other network device.
-	  The traffic that you want to slow down can then be routed through
-	  these virtual devices. See
-	  <file:Documentation/networking/shaper.txt> for more information.
-
-	  An alternative to this traffic shaper are traffic schedulers which
-	  you'll get if you say Y to "QoS and/or fair queuing" in
-	  "Networking options".
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called shaper.  If unsure, say N.
-
 config NETCONSOLE
 	tristate "Network console logging support (EXPERIMENTAL)"
 	depends on EXPERIMENTAL

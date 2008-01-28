@@ -280,15 +280,6 @@ Who:	Thomas Gleixner <tglx@linutronix.de>
 
 ---------------------------
 
-What:	shaper network driver
-When:	January 2008
-Files:	drivers/net/shaper.c, include/linux/if_shaper.h
-Why:	This driver has been marked obsolete for many years.
-	It was only designed to work on lower speed links and has design
-	flaws that lead to machine crashes. The qdisc infrastructure in
-	2.4 or later kernels, provides richer features and is more robust.
-Who:	Stephen Hemminger <shemminger@linux-foundation.org>
-
 ---------------------------
 
 What:	i2c-i810, i2c-prosavage and i2c-savage4

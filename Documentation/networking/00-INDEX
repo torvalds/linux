@@ -84,8 +84,6 @@ policy-routing.txt
 	- IP policy-based routing
 ray_cs.txt
 	- Raylink Wireless LAN card driver info.
-shaper.txt
-	- info on the module that can shape/limit transmitted traffic.
 sk98lin.txt
 	- Marvell Yukon Chipset / SysKonnect SK-98xx compliant Gigabit
 	  Ethernet Adapter family driver info
