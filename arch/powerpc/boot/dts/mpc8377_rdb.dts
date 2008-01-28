@@ -12,7 +12,7 @@
 /dts-v1/;
 
 / {
-	compatible = "fsl,mpc8377erdb";
+	compatible = "fsl,mpc8377rdb";
 	#address-cells = <1>;
 	#size-cells = <1>;
 
