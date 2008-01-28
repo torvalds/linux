@@ -1837,7 +1837,7 @@ type_check(symbol_t *symbol, expression_t *expression, int opcode)
 	int and_op;
 
 	and_op = FALSE;
-	if (opcode == AIC_OP_AND || opcode == AIC_OP_JNZ || AIC_OP_JZ)
+	if (opcode == AIC_OP_AND || opcode == AIC_OP_JNZ || opcode == AIC_OP_JZ)
 		and_op = TRUE;
 
 	/*
