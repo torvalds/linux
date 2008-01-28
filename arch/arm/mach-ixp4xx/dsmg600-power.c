@@ -26,14 +26,13 @@
 #include <linux/jiffies.h>
 #include <linux/timer.h>
 
+#include <asm/gpio.h>
 #include <asm/mach-types.h>
-
-extern void ctrl_alt_del(void);
 
 /* This is used to make sure the power-button pusher is serious.  The button
  * must be held until the value of this counter reaches zero.
  */
-static volatile int power_button_countdown;
+static int power_button_countdown;
 
 /* Must hold the button down for at least this many counts to be processed */
 #define PBUTTON_HOLDDOWN_COUNT 4 /* 2 secs */
@@ -47,22 +46,27 @@ static void dsmg600_power_handler(unsigned long data)
 	 * state of the power button.
 	 */
 
-	if (*IXP4XX_GPIO_GPINR & DSMG600_PB_BM) {
+	if (gpio_get_value(DSMG600_PB_GPIO)) {
 
 		/* IO Pin is 1 (button pushed) */
+		if (power_button_countdown > 0)
+			power_button_countdown--;
+
+	} else {
+
+		/* Done on button release, to allow for auto-power-on mods. */
 		if (power_button_countdown == 0) {
-			/* Signal init to do the ctrlaltdel action, this will bypass
-			 * init if it hasn't started and do a kernel_restart.
+			/* Signal init to do the ctrlaltdel action,
+			 * this will bypass init if it hasn't started
+			 * and do a kernel_restart.
 			 */
 			ctrl_alt_del();
 
 			/* Change the state of the power LED to "blink" */
 			gpio_line_set(DSMG600_LED_PWR_GPIO, IXP4XX_GPIO_LOW);
+		} else {
+			power_button_countdown = PBUTTON_HOLDDOWN_COUNT;
 		}
-		power_button_countdown--;
-
-	} else {
-		power_button_countdown = PBUTTON_HOLDDOWN_COUNT;
 	}
 
 	mod_timer(&dsmg600_power_timer, jiffies + msecs_to_jiffies(500));
@@ -81,12 +85,12 @@ static int __init dsmg600_power_init(void)
 	if (!(machine_is_dsmg600()))
 		return 0;
 
-	if (request_irq(DSMG600_RB_IRQ, &dsmg600_reset_handler,
+	if (request_irq(gpio_to_irq(DSMG600_RB_GPIO), &dsmg600_reset_handler,
 		IRQF_DISABLED | IRQF_TRIGGER_LOW, "DSM-G600 reset button",
 		NULL) < 0) {
 
 		printk(KERN_DEBUG "Reset Button IRQ %d not available\n",
-			DSMG600_RB_IRQ);
+			gpio_to_irq(DSMG600_RB_GPIO));
 
 		return -EIO;
 	}
@@ -114,7 +118,7 @@ static void __exit dsmg600_power_exit(void)
 
 	del_timer_sync(&dsmg600_power_timer);
 
-	free_irq(DSMG600_RB_IRQ, NULL);
+	free_irq(gpio_to_irq(DSMG600_RB_GPIO), NULL);
 }
 
 module_init(dsmg600_power_init);
