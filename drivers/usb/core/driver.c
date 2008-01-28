@@ -534,8 +534,8 @@ const struct usb_device_id *usb_match_id(struct usb_interface *interface,
 	   id->driver_info is the way to create an entry that
 	   indicates that the driver want to examine every
 	   device and interface. */
-	for (; id->idVendor || id->bDeviceClass || id->bInterfaceClass ||
-	       id->driver_info; id++) {
+	for (; id->idVendor || id->idProduct || id->bDeviceClass ||
+	       id->bInterfaceClass || id->driver_info; id++) {
 		if (usb_match_one_id(interface, id))
 			return id;
 	}
