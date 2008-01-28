@@ -43,20 +43,20 @@ static struct platform_device nas100d_flash = {
 static struct resource nas100d_led_resources[] = {
 	{
 		.name		= "wlan",   /* green led */
-		.start		= 0,
-		.end		= 0,
+		.start		= NAS100D_LED_WLAN_GPIO,
+		.end		= NAS100D_LED_WLAN_GPIO,
 		.flags		= IXP4XX_GPIO_LOW,
 	},
 	{
-		.name		= "ready",  /* blue power led (off is flashing!) */
-		.start		= 15,
-		.end		= 15,
+		.name		= "power",  /* blue power led (off=flashing) */
+		.start		= NAS100D_LED_PWR_GPIO,
+		.end		= NAS100D_LED_PWR_GPIO,
 		.flags		= IXP4XX_GPIO_LOW,
 	},
 	{
 		.name		= "disk",   /* yellow led */
-		.start		= 3,
-		.end		= 3,
+		.start		= NAS100D_LED_DISK_GPIO,
+		.end		= NAS100D_LED_DISK_GPIO,
 		.flags		= IXP4XX_GPIO_LOW,
 	},
 };

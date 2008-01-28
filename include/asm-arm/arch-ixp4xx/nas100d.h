@@ -38,15 +38,15 @@
 
 /* Buttons */
 
-#define NAS100D_PB_GPIO         14
-#define NAS100D_RB_GPIO         4
+#define NAS100D_PB_GPIO         14   /* power button */
+#define NAS100D_RB_GPIO         4    /* reset button */
+
+/* Power control */
+
 #define NAS100D_PO_GPIO         12   /* power off */
 
-#define NAS100D_PB_IRQ          IRQ_IXP4XX_GPIO14
-#define NAS100D_RB_IRQ          IRQ_IXP4XX_GPIO4
+/* LEDs */
 
-/*
-#define NAS100D_PB_BM           (1L << NAS100D_PB_GPIO)
-#define NAS100D_PO_BM           (1L << NAS100D_PO_GPIO)
-#define NAS100D_RB_BM           (1L << NAS100D_RB_GPIO)
-*/
+#define NAS100D_LED_WLAN_GPIO	0
+#define NAS100D_LED_DISK_GPIO	3
+#define NAS100D_LED_PWR_GPIO	15
