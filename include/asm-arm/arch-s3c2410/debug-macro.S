@@ -92,11 +92,9 @@
 #if defined(CONFIG_CPU_LLSERIAL_S3C2410_ONLY)
 #define fifo_full  fifo_full_s3c2410
 #define fifo_level fifo_level_s3c2410
-#warning 2410only
 #elif !defined(CONFIG_CPU_LLSERIAL_S3C2440_ONLY)
 #define fifo_full  fifo_full_s3c24xx
 #define fifo_level fifo_level_s3c24xx
-#warning generic
 #endif
 
 /* include the reset of the code which will do the work */
