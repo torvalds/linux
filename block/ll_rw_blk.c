@@ -721,6 +721,45 @@ void blk_queue_stack_limits(struct request_queue *t, struct request_queue *b)
 EXPORT_SYMBOL(blk_queue_stack_limits);
 
 /**
+ * blk_queue_dma_drain - Set up a drain buffer for excess dma.
+ *
+ * @q:  the request queue for the device
+ * @buf:	physically contiguous buffer
+ * @size:	size of the buffer in bytes
+ *
+ * Some devices have excess DMA problems and can't simply discard (or
+ * zero fill) the unwanted piece of the transfer.  They have to have a
+ * real area of memory to transfer it into.  The use case for this is
+ * ATAPI devices in DMA mode.  If the packet command causes a transfer
+ * bigger than the transfer size some HBAs will lock up if there
+ * aren't DMA elements to contain the excess transfer.  What this API
+ * does is adjust the queue so that the buf is always appended
+ * silently to the scatterlist.
+ *
+ * Note: This routine adjusts max_hw_segments to make room for
+ * appending the drain buffer.  If you call
+ * blk_queue_max_hw_segments() or blk_queue_max_phys_segments() after
+ * calling this routine, you must set the limit to one fewer than your
+ * device can support otherwise there won't be room for the drain
+ * buffer.
+ */
+int blk_queue_dma_drain(struct request_queue *q, void *buf,
+				unsigned int size)
+{
+	if (q->max_hw_segments < 2 || q->max_phys_segments < 2)
+		return -EINVAL;
+	/* make room for appending the drain */
+	--q->max_hw_segments;
+	--q->max_phys_segments;
+	q->dma_drain_buffer = buf;
+	q->dma_drain_size = size;
+
+	return 0;
+}
+
+EXPORT_SYMBOL_GPL(blk_queue_dma_drain);
+
+/**
  * blk_queue_segment_boundary - set boundary rules for segment merging
  * @q:  the request queue for the device
  * @mask:  the memory boundary mask
@@ -1373,6 +1412,16 @@ new_segment:
 		}
 		bvprv = bvec;
 	} /* segments in rq */
+
+	if (q->dma_drain_size) {
+		sg->page_link &= ~0x02;
+		sg = sg_next(sg);
+		sg_set_page(sg, virt_to_page(q->dma_drain_buffer),
+			    q->dma_drain_size,
+			    ((unsigned long)q->dma_drain_buffer) &
+			    (PAGE_SIZE - 1));
+		nsegs++;
+	}
 
 	if (sg)
 		sg_mark_end(sg);

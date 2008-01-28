@@ -48,6 +48,7 @@ static int sg_version_num = 30534;	/* 2 digits for each component */
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <linux/scatterlist.h>
+#include <linux/blktrace_api.h>
 
 #include "scsi.h"
 #include <scsi/scsi_dbg.h>
@@ -1067,6 +1068,17 @@ sg_ioctl(struct inode *inode, struct file *filp,
 	case BLKSECTGET:
 		return put_user(sdp->device->request_queue->max_sectors * 512,
 				ip);
+	case BLKTRACESETUP:
+		return blk_trace_setup(sdp->device->request_queue,
+				       sdp->disk->disk_name,
+				       sdp->device->sdev_gendev.devt,
+				       (char *)arg);
+	case BLKTRACESTART:
+		return blk_trace_startstop(sdp->device->request_queue, 1);
+	case BLKTRACESTOP:
+		return blk_trace_startstop(sdp->device->request_queue, 0);
+	case BLKTRACETEARDOWN:
+		return blk_trace_remove(sdp->device->request_queue);
 	default:
 		if (read_only)
 			return -EPERM;	/* don't know so take safe approach */
