@@ -460,6 +460,8 @@ static struct sys_device pxa3xx_sysdev[] = {
 	}, {
 		.id	= 1,
 		.cls	= &pxa_irq_sysclass,
+	}, {
+		.cls	= &pxa_gpio_sysclass,
 	},
 };
 

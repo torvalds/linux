@@ -172,11 +172,6 @@ static struct clk pxa27x_clks[] = {
 #define SAVE(x)		sleep_save[SLEEP_SAVE_##x] = x
 #define RESTORE(x)	x = sleep_save[SLEEP_SAVE_##x]
 
-#define RESTORE_GPLEVEL(n) do { \
-	GPSR##n = sleep_save[SLEEP_SAVE_GPLR##n]; \
-	GPCR##n = ~sleep_save[SLEEP_SAVE_GPLR##n]; \
-} while (0)
-
 /*
  * List of global PXA peripheral registers to preserve.
  * More ones like CP and general purpose register values are preserved
@@ -184,10 +179,6 @@ static struct clk pxa27x_clks[] = {
  */
 enum {	SLEEP_SAVE_START = 0,
 
-	SLEEP_SAVE_GPLR0, SLEEP_SAVE_GPLR1, SLEEP_SAVE_GPLR2, SLEEP_SAVE_GPLR3,
-	SLEEP_SAVE_GPDR0, SLEEP_SAVE_GPDR1, SLEEP_SAVE_GPDR2, SLEEP_SAVE_GPDR3,
-	SLEEP_SAVE_GRER0, SLEEP_SAVE_GRER1, SLEEP_SAVE_GRER2, SLEEP_SAVE_GRER3,
-	SLEEP_SAVE_GFER0, SLEEP_SAVE_GFER1, SLEEP_SAVE_GFER2, SLEEP_SAVE_GFER3,
 	SLEEP_SAVE_PGSR0, SLEEP_SAVE_PGSR1, SLEEP_SAVE_PGSR2, SLEEP_SAVE_PGSR3,
 
 	SLEEP_SAVE_GAFR0_L, SLEEP_SAVE_GAFR0_U,
@@ -208,10 +199,6 @@ enum {	SLEEP_SAVE_START = 0,
 
 void pxa27x_cpu_pm_save(unsigned long *sleep_save)
 {
-	SAVE(GPLR0); SAVE(GPLR1); SAVE(GPLR2); SAVE(GPLR3);
-	SAVE(GPDR0); SAVE(GPDR1); SAVE(GPDR2); SAVE(GPDR3);
-	SAVE(GRER0); SAVE(GRER1); SAVE(GRER2); SAVE(GRER3);
-	SAVE(GFER0); SAVE(GFER1); SAVE(GFER2); SAVE(GFER3);
 	SAVE(PGSR0); SAVE(PGSR1); SAVE(PGSR2); SAVE(PGSR3);
 
 	SAVE(GAFR0_L); SAVE(GAFR0_U);
@@ -225,9 +212,6 @@ void pxa27x_cpu_pm_save(unsigned long *sleep_save)
 
 	SAVE(CKEN);
 	SAVE(PSTR);
-
-	/* Clear GPIO transition detect bits */
-	GEDR0 = GEDR0; GEDR1 = GEDR1; GEDR2 = GEDR2; GEDR3 = GEDR3;
 }
 
 void pxa27x_cpu_pm_restore(unsigned long *sleep_save)
@@ -236,15 +220,10 @@ void pxa27x_cpu_pm_restore(unsigned long *sleep_save)
 	PSPR = 0;
 
 	/* restore registers */
-	RESTORE_GPLEVEL(0); RESTORE_GPLEVEL(1);
-	RESTORE_GPLEVEL(2); RESTORE_GPLEVEL(3);
-	RESTORE(GPDR0); RESTORE(GPDR1); RESTORE(GPDR2); RESTORE(GPDR3);
 	RESTORE(GAFR0_L); RESTORE(GAFR0_U);
 	RESTORE(GAFR1_L); RESTORE(GAFR1_U);
 	RESTORE(GAFR2_L); RESTORE(GAFR2_U);
 	RESTORE(GAFR3_L); RESTORE(GAFR3_U);
-	RESTORE(GRER0); RESTORE(GRER1); RESTORE(GRER2); RESTORE(GRER3);
-	RESTORE(GFER0); RESTORE(GFER1); RESTORE(GFER2); RESTORE(GFER3);
 	RESTORE(PGSR0); RESTORE(PGSR1); RESTORE(PGSR2); RESTORE(PGSR3);
 
 	RESTORE(MDREFR);
@@ -412,6 +391,8 @@ static struct sys_device pxa27x_sysdev[] = {
 	}, {
 		.id	= 1,
 		.cls	= &pxa_irq_sysclass,
+	}, {
+		.cls	= &pxa_gpio_sysclass,
 	},
 };
 
