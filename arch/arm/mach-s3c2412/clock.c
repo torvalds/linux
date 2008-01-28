@@ -684,6 +684,8 @@ int __init s3c2412_baseclk_add(void)
 	clk_usb_bus.parent = &clk_usbsrc;
 	clk_usb_bus.rate = 0x0;
 
+	clk_f.parent = &clk_msysclk;
+
 	s3c2412_clk_initparents();
 
 	for (ptr = 0; ptr < ARRAY_SIZE(clks); ptr++) {
