@@ -22,6 +22,7 @@
 #include <linux/device.h>
 #include <linux/signal.h>
 #include <linux/platform_device.h>
+#include <linux/clk.h>
 
 #include <asm/mach-types.h>
 #include <asm/hardware.h>
@@ -31,6 +32,8 @@
 #define PXA_UHC_MAX_PORTNUM    3
 
 #define UHCRHPS(x)              __REG2( 0x4C000050, (x)<<2 )
+
+static struct clk *usb_clk;
 
 /*
   PMM_NPS_MODE -- PMM Non-power switching mode
@@ -80,7 +83,7 @@ static int pxa27x_start_hc(struct device *dev)
 
 	inf = dev->platform_data;
 
-	pxa_set_cken(CKEN_USBHOST, 1);
+	clk_enable(usb_clk);
 
 	UHCHR |= UHCHR_FHR;
 	udelay(11);
@@ -123,7 +126,7 @@ static void pxa27x_stop_hc(struct device *dev)
 	UHCCOMS |= 1;
 	udelay(10);
 
-	pxa_set_cken(CKEN_USBHOST, 0);
+	clk_disable(usb_clk);
 }
 
 
@@ -157,6 +160,10 @@ int usb_hcd_pxa27x_probe (const struct hc_driver *driver, struct platform_device
 		pr_debug ("resource[1] is not IORESOURCE_IRQ");
 		return -ENOMEM;
 	}
+
+	usb_clk = clk_get(&pdev->dev, "USBCLK");
+	if (IS_ERR(usb_clk))
+		return PTR_ERR(usb_clk);
 
 	hcd = usb_create_hcd (driver, &pdev->dev, "pxa27x");
 	if (!hcd)
@@ -201,6 +208,7 @@ int usb_hcd_pxa27x_probe (const struct hc_driver *driver, struct platform_device
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
  err1:
 	usb_put_hcd(hcd);
+	clk_put(usb_clk);
 	return retval;
 }
 
@@ -225,6 +233,7 @@ void usb_hcd_pxa27x_remove (struct usb_hcd *hcd, struct platform_device *pdev)
 	iounmap(hcd->regs);
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
+	clk_put(usb_clk);
 }
 
 /*-------------------------------------------------------------------------*/

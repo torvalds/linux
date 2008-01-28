@@ -202,7 +202,7 @@ static struct resource innovator1510_smc91x_resources[] = {
 	[1] = {
 		.start	= OMAP1510_INT_ETHER,
 		.end	= OMAP1510_INT_ETHER,
-		.flags	= IORESOURCE_IRQ,
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
 	},
 };
 
@@ -269,7 +269,7 @@ static struct resource innovator1610_smc91x_resources[] = {
 	[1] = {
 		.start	= OMAP_GPIO_IRQ(0),
 		.end	= OMAP_GPIO_IRQ(0),
-		.flags	= IORESOURCE_IRQ,
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWEDGE,
 	},
 };
 

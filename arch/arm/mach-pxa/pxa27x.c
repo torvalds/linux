@@ -21,6 +21,7 @@
 #include <asm/irq.h>
 #include <asm/arch/irqs.h>
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/pxa2xx-regs.h>
 #include <asm/arch/ohci.h>
 #include <asm/arch/pm.h>
 #include <asm/arch/dma.h>
@@ -151,11 +152,12 @@ static struct clk pxa27x_clks[] = {
 	INIT_CKEN("I2CCLK", PWRI2C, 13000000, 0, &pxa27x_device_i2c_power.dev),
 	INIT_CKEN("KBDCLK", KEYPAD, 32768, 0, NULL),
 
+	INIT_CKEN("SSPCLK", SSP1, 13000000, 0, &pxa27x_device_ssp1.dev),
+	INIT_CKEN("SSPCLK", SSP2, 13000000, 0, &pxa27x_device_ssp2.dev),
+	INIT_CKEN("SSPCLK", SSP3, 13000000, 0, &pxa27x_device_ssp3.dev),
+
 	/*
 	INIT_CKEN("PWMCLK",  PWM0, 13000000, 0, NULL),
-	INIT_CKEN("SSPCLK",  SSP1, 13000000, 0, NULL),
-	INIT_CKEN("SSPCLK",  SSP2, 13000000, 0, NULL),
-	INIT_CKEN("SSPCLK",  SSP3, 13000000, 0, NULL),
 	INIT_CKEN("MSLCLK",  MSL,  48000000, 0, NULL),
 	INIT_CKEN("USIMCLK", USIM, 48000000, 0, NULL),
 	INIT_CKEN("MSTKCLK", MEMSTK, 19500000, 0, NULL),
@@ -264,12 +266,6 @@ void pxa27x_cpu_pm_enter(suspend_state_t state)
 {
 	extern void pxa_cpu_standby(void);
 
-	if (state == PM_SUSPEND_STANDBY)
-		CKEN = (1 << CKEN_MEMC) | (1 << CKEN_OSTIMER) |
-			(1 << CKEN_LCD) | (1 << CKEN_PWM0);
-	else
-		CKEN = (1 << CKEN_MEMC) | (1 << CKEN_OSTIMER);
-
 	/* ensure voltage-change sequencer not initiated, which hangs */
 	PCFR &= ~PCFR_FVC;
 
@@ -305,6 +301,8 @@ static void __init pxa27x_init_pm(void)
 {
 	pxa_cpu_pm_fns = &pxa27x_cpu_pm_fns;
 }
+#else
+static inline void pxa27x_init_pm(void) {}
 #endif
 
 /* PXA27x:  Various gpios can issue wakeup events.  This logic only
@@ -374,37 +372,6 @@ void __init pxa27x_init_irq(void)
  * device registration specific to PXA27x.
  */
 
-static u64 pxa27x_dmamask = 0xffffffffUL;
-
-static struct resource pxa27x_ohci_resources[] = {
-	[0] = {
-		.start  = 0x4C000000,
-		.end    = 0x4C00ff6f,
-		.flags  = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start  = IRQ_USBH1,
-		.end    = IRQ_USBH1,
-		.flags  = IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device pxa27x_device_ohci = {
-	.name		= "pxa27x-ohci",
-	.id		= -1,
-	.dev		= {
-		.dma_mask = &pxa27x_dmamask,
-		.coherent_dma_mask = 0xffffffff,
-	},
-	.num_resources  = ARRAY_SIZE(pxa27x_ohci_resources),
-	.resource       = pxa27x_ohci_resources,
-};
-
-void __init pxa_set_ohci_info(struct pxaohci_platform_data *info)
-{
-	pxa27x_device_ohci.dev.platform_data = info;
-}
-
 static struct resource i2c_power_resources[] = {
 	{
 		.start	= 0x40f00180,
@@ -430,18 +397,16 @@ void __init pxa_set_i2c_power_info(struct i2c_pxa_platform_data *info)
 }
 
 static struct platform_device *devices[] __initdata = {
-	&pxa_device_mci,
 	&pxa_device_udc,
-	&pxa_device_fb,
 	&pxa_device_ffuart,
 	&pxa_device_btuart,
 	&pxa_device_stuart,
-	&pxa_device_i2c,
 	&pxa_device_i2s,
-	&pxa_device_ficp,
 	&pxa_device_rtc,
 	&pxa27x_device_i2c_power,
-	&pxa27x_device_ohci,
+	&pxa27x_device_ssp1,
+	&pxa27x_device_ssp2,
+	&pxa27x_device_ssp3,
 };
 
 static int __init pxa27x_init(void)
@@ -452,9 +417,9 @@ static int __init pxa27x_init(void)
 
 		if ((ret = pxa_init_dma(32)))
 			return ret;
-#ifdef CONFIG_PM
+
 		pxa27x_init_pm();
-#endif
+
 		ret = platform_add_devices(devices, ARRAY_SIZE(devices));
 	}
 	return ret;

@@ -117,7 +117,7 @@ static struct resource voiceblue_smc91x_resources[] = {
 	[1] = {
 		.start	= OMAP_GPIO_IRQ(8),
 		.end	= OMAP_GPIO_IRQ(8),
-		.flags	= IORESOURCE_IRQ,
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
 	},
 };
 

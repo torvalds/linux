@@ -21,6 +21,7 @@
 
 #include <asm/arch/ssp.h>
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/regs-ssp.h>
 #include "sharpsl.h"
 
 static DEFINE_SPINLOCK(corgi_ssp_lock);

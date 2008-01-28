@@ -123,12 +123,15 @@ static struct clk pxa25x_clks[] = {
 	INIT_CKEN("UDCCLK", USB, 47923000, 5, &pxa_device_udc.dev),
 	INIT_CKEN("MMCCLK", MMC, 19169000, 0, &pxa_device_mci.dev),
 	INIT_CKEN("I2CCLK", I2C, 31949000, 0, &pxa_device_i2c.dev),
+
+	INIT_CKEN("SSPCLK",  SSP, 3686400, 0, &pxa25x_device_ssp.dev),
+	INIT_CKEN("SSPCLK", NSSP, 3686400, 0, &pxa25x_device_nssp.dev),
+	INIT_CKEN("SSPCLK", ASSP, 3686400, 0, &pxa25x_device_assp.dev),
+
 	/*
 	INIT_CKEN("PWMCLK",  PWM0, 3686400,  0, NULL),
 	INIT_CKEN("PWMCLK",  PWM0, 3686400,  0, NULL),
-	INIT_CKEN("SSPCLK",  SSP,  3686400,  0, NULL),
 	INIT_CKEN("I2SCLK",  I2S,  14745600, 0, NULL),
-	INIT_CKEN("NSSPCLK", NSSP, 3686400,  0, NULL),
 	*/
 	INIT_CKEN("FICPCLK", FICP, 47923000, 0, NULL),
 };
@@ -216,8 +219,6 @@ static void pxa25x_cpu_pm_restore(unsigned long *sleep_save)
 
 static void pxa25x_cpu_pm_enter(suspend_state_t state)
 {
-	CKEN = 0;
-
 	switch (state) {
 	case PM_SUSPEND_MEM:
 		/* set resume return address */
@@ -239,6 +240,8 @@ static void __init pxa25x_init_pm(void)
 {
 	pxa_cpu_pm_fns = &pxa25x_cpu_pm_fns;
 }
+#else
+static inline void pxa25x_init_pm(void) {}
 #endif
 
 /* PXA25x: supports wakeup from GPIO0..GPIO15 and RTC alarm
@@ -290,16 +293,15 @@ void __init pxa25x_init_irq(void)
 }
 
 static struct platform_device *pxa25x_devices[] __initdata = {
-	&pxa_device_mci,
 	&pxa_device_udc,
-	&pxa_device_fb,
 	&pxa_device_ffuart,
 	&pxa_device_btuart,
 	&pxa_device_stuart,
-	&pxa_device_i2c,
 	&pxa_device_i2s,
-	&pxa_device_ficp,
 	&pxa_device_rtc,
+	&pxa25x_device_ssp,
+	&pxa25x_device_nssp,
+	&pxa25x_device_assp,
 };
 
 static int __init pxa25x_init(void)
@@ -315,9 +317,9 @@ static int __init pxa25x_init(void)
 
 		if ((ret = pxa_init_dma(16)))
 			return ret;
-#ifdef CONFIG_PM
+
 		pxa25x_init_pm();
-#endif
+
 		ret = platform_add_devices(pxa25x_devices,
 					   ARRAY_SIZE(pxa25x_devices));
 	}

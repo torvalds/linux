@@ -126,7 +126,7 @@ static struct resource apollon_smc91x_resources[] = {
 	[1] = {
 		.start	= OMAP_GPIO_IRQ(APOLLON_ETHR_GPIO_IRQ),
 		.end	= OMAP_GPIO_IRQ(APOLLON_ETHR_GPIO_IRQ),
-		.flags	= IORESOURCE_IRQ,
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
 	},
 };
 

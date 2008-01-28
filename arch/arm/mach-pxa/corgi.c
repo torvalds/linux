@@ -21,6 +21,7 @@
 #include <linux/mmc/host.h>
 #include <linux/pm.h>
 #include <linux/backlight.h>
+#include <video/w100fb.h>
 
 #include <asm/setup.h>
 #include <asm/memory.h>
@@ -141,6 +142,136 @@ struct corgissp_machinfo corgi_ssp_machinfo = {
 
 
 /*
+ * LCD/Framebuffer
+ */
+static void w100_lcdtg_suspend(struct w100fb_par *par)
+{
+	corgi_lcdtg_suspend();
+}
+
+static void w100_lcdtg_init(struct w100fb_par *par)
+{
+	corgi_lcdtg_hw_init(par->xres);
+}
+
+
+static struct w100_tg_info corgi_lcdtg_info = {
+	.change  = w100_lcdtg_init,
+	.suspend = w100_lcdtg_suspend,
+	.resume  = w100_lcdtg_init,
+};
+
+static struct w100_mem_info corgi_fb_mem = {
+	.ext_cntl          = 0x00040003,
+	.sdram_mode_reg    = 0x00650021,
+	.ext_timing_cntl   = 0x10002a4a,
+	.io_cntl           = 0x7ff87012,
+	.size              = 0x1fffff,
+};
+
+static struct w100_gen_regs corgi_fb_regs = {
+	.lcd_format    = 0x00000003,
+	.lcdd_cntl1    = 0x01CC0000,
+	.lcdd_cntl2    = 0x0003FFFF,
+	.genlcd_cntl1  = 0x00FFFF0D,
+	.genlcd_cntl2  = 0x003F3003,
+	.genlcd_cntl3  = 0x000102aa,
+};
+
+static struct w100_gpio_regs corgi_fb_gpio = {
+	.init_data1   = 0x000000bf,
+	.init_data2   = 0x00000000,
+	.gpio_dir1    = 0x00000000,
+	.gpio_oe1     = 0x03c0feff,
+	.gpio_dir2    = 0x00000000,
+	.gpio_oe2     = 0x00000000,
+};
+
+static struct w100_mode corgi_fb_modes[] = {
+{
+	.xres            = 480,
+	.yres            = 640,
+	.left_margin     = 0x56,
+	.right_margin    = 0x55,
+	.upper_margin    = 0x03,
+	.lower_margin    = 0x00,
+	.crtc_ss         = 0x82360056,
+	.crtc_ls         = 0xA0280000,
+	.crtc_gs         = 0x80280028,
+	.crtc_vpos_gs    = 0x02830002,
+	.crtc_rev        = 0x00400008,
+	.crtc_dclk       = 0xA0000000,
+	.crtc_gclk       = 0x8015010F,
+	.crtc_goe        = 0x80100110,
+	.crtc_ps1_active = 0x41060010,
+	.pll_freq        = 75,
+	.fast_pll_freq   = 100,
+	.sysclk_src      = CLK_SRC_PLL,
+	.sysclk_divider  = 0,
+	.pixclk_src      = CLK_SRC_PLL,
+	.pixclk_divider  = 2,
+	.pixclk_divider_rotated = 6,
+},{
+	.xres            = 240,
+	.yres            = 320,
+	.left_margin     = 0x27,
+	.right_margin    = 0x2e,
+	.upper_margin    = 0x01,
+	.lower_margin    = 0x00,
+	.crtc_ss         = 0x81170027,
+	.crtc_ls         = 0xA0140000,
+	.crtc_gs         = 0xC0140014,
+	.crtc_vpos_gs    = 0x00010141,
+	.crtc_rev        = 0x00400008,
+	.crtc_dclk       = 0xA0000000,
+	.crtc_gclk       = 0x8015010F,
+	.crtc_goe        = 0x80100110,
+	.crtc_ps1_active = 0x41060010,
+	.pll_freq        = 0,
+	.fast_pll_freq   = 0,
+	.sysclk_src      = CLK_SRC_XTAL,
+	.sysclk_divider  = 0,
+	.pixclk_src      = CLK_SRC_XTAL,
+	.pixclk_divider  = 1,
+	.pixclk_divider_rotated = 1,
+},
+
+};
+
+static struct w100fb_mach_info corgi_fb_info = {
+	.tg         = &corgi_lcdtg_info,
+	.init_mode  = INIT_MODE_ROTATED,
+	.mem        = &corgi_fb_mem,
+	.regs       = &corgi_fb_regs,
+	.modelist   = &corgi_fb_modes[0],
+	.num_modes  = 2,
+	.gpio       = &corgi_fb_gpio,
+	.xtal_freq  = 12500000,
+	.xtal_dbl   = 0,
+};
+
+static struct resource corgi_fb_resources[] = {
+	[0] = {
+		.start   = 0x08000000,
+		.end     = 0x08ffffff,
+		.flags   = IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device corgifb_device = {
+	.name           = "w100fb",
+	.id             = -1,
+	.num_resources	= ARRAY_SIZE(corgi_fb_resources),
+	.resource	= corgi_fb_resources,
+	.dev            = {
+		.platform_data = &corgi_fb_info,
+		.parent = &corgissp_device.dev,
+	},
+
+};
+
+
+/*
  * Corgi Backlight Device
  */
 static void corgi_bl_kick_battery(void)
@@ -152,6 +283,21 @@ static void corgi_bl_kick_battery(void)
 		kick_batt();
 		symbol_put(sharpsl_battery_kick);
 	}
+}
+
+static void corgi_bl_set_intensity(int intensity)
+{
+	if (intensity > 0x10)
+		intensity += 0x10;
+
+	/* Bits 0-4 are accessed via the SSP interface */
+	corgi_ssp_blduty_set(intensity & 0x1f);
+
+	/* Bit 5 is via SCOOP */
+	if (intensity & 0x0020)
+		set_scoop_gpio(&corgiscoop_device.dev, CORGI_SCP_BACKLIGHT_CONT);
+	else
+		reset_scoop_gpio(&corgiscoop_device.dev, CORGI_SCP_BACKLIGHT_CONT);
 }
 
 static struct generic_bl_info corgi_bl_machinfo = {
@@ -190,9 +336,40 @@ static struct platform_device corgiled_device = {
 	.id		= -1,
 };
 
+
 /*
  * Corgi Touch Screen Device
  */
+static unsigned long (*get_hsync_invperiod)(struct device *dev);
+
+static void inline sharpsl_wait_sync(int gpio)
+{
+	while((GPLR(gpio) & GPIO_bit(gpio)) == 0);
+	while((GPLR(gpio) & GPIO_bit(gpio)) != 0);
+}
+
+static unsigned long corgi_get_hsync_invperiod(void)
+{
+	if (!get_hsync_invperiod)
+		get_hsync_invperiod = symbol_get(w100fb_get_hsynclen);
+	if (!get_hsync_invperiod)
+		return 0;
+
+	return get_hsync_invperiod(&corgifb_device.dev);
+}
+
+static void corgi_put_hsync(void)
+{
+	if (get_hsync_invperiod)
+		symbol_put(w100fb_get_hsynclen);
+	get_hsync_invperiod = NULL;
+}
+
+static void corgi_wait_hsync(void)
+{
+	sharpsl_wait_sync(CORGI_GPIO_HSYNC);
+}
+
 static struct resource corgits_resources[] = {
 	[0] = {
 		.start		= CORGI_IRQ_GPIO_TP_INT,
@@ -202,9 +379,9 @@ static struct resource corgits_resources[] = {
 };
 
 static struct corgits_machinfo  corgi_ts_machinfo = {
-	.get_hsync_len   = corgi_get_hsync_len,
-	.put_hsync       = corgi_put_hsync,
-	.wait_hsync      = corgi_wait_hsync,
+	.get_hsync_invperiod = corgi_get_hsync_invperiod,
+	.put_hsync           = corgi_put_hsync,
+	.wait_hsync          = corgi_wait_hsync,
 };
 
 static struct platform_device corgits_device = {
@@ -242,12 +419,10 @@ static int corgi_mci_init(struct device *dev, irq_handler_t corgi_detect_int, vo
 	err = request_irq(CORGI_IRQ_GPIO_nSD_DETECT, corgi_detect_int,
 			  IRQF_DISABLED | IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 			  "MMC card detect", data);
-	if (err) {
+	if (err)
 		printk(KERN_ERR "corgi_mci_init: MMC/SD: can't request MMC card detect IRQ\n");
-		return -1;
-	}
 
-	return 0;
+	return err;
 }
 
 static void corgi_mci_setpower(struct device *dev, unsigned int vdd)

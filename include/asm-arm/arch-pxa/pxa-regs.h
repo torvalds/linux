@@ -1597,175 +1597,9 @@
 #define PWER_GPIO15	PWER_GPIO (15)	/* GPIO [15] wake-up enable        */
 #define PWER_RTC	0x80000000	/* RTC alarm wake-up enable        */
 
-
 /*
- * SSP Serial Port Registers
- * PXA250, PXA255, PXA26x and PXA27x SSP controllers are all slightly different.
- * PXA255, PXA26x and PXA27x have extra ports, registers and bits.
+ * SSP Serial Port Registers - see include/asm-arm/arch-pxa/regs-ssp.h
  */
-
- /* Common PXA2xx bits first */
-#define SSCR0_DSS	(0x0000000f)	/* Data Size Select (mask) */
-#define SSCR0_DataSize(x)  ((x) - 1)	/* Data Size Select [4..16] */
-#define SSCR0_FRF	(0x00000030)	/* FRame Format (mask) */
-#define SSCR0_Motorola	(0x0 << 4)	/* Motorola's Serial Peripheral Interface (SPI) */
-#define SSCR0_TI	(0x1 << 4)	/* Texas Instruments' Synchronous Serial Protocol (SSP) */
-#define SSCR0_National	(0x2 << 4)	/* National Microwire */
-#define SSCR0_ECS	(1 << 6)	/* External clock select */
-#define SSCR0_SSE	(1 << 7)	/* Synchronous Serial Port Enable */
-#if defined(CONFIG_PXA25x)
-#define SSCR0_SCR	(0x0000ff00)	/* Serial Clock Rate (mask) */
-#define SSCR0_SerClkDiv(x) ((((x) - 2)/2) << 8) /* Divisor [2..512] */
-#elif defined(CONFIG_PXA27x)
-#define SSCR0_SCR	(0x000fff00)	/* Serial Clock Rate (mask) */
-#define SSCR0_SerClkDiv(x) (((x) - 1) << 8) /* Divisor [1..4096] */
-#define SSCR0_EDSS	(1 << 20)	/* Extended data size select */
-#define SSCR0_NCS	(1 << 21)	/* Network clock select */
-#define SSCR0_RIM	(1 << 22)	/* Receive FIFO overrrun interrupt mask */
-#define SSCR0_TUM	(1 << 23)	/* Transmit FIFO underrun interrupt mask */
-#define SSCR0_FRDC	(0x07000000)	/* Frame rate divider control (mask) */
-#define SSCR0_SlotsPerFrm(x) (((x) - 1) << 24)	/* Time slots per frame [1..8] */
-#define SSCR0_ADC	(1 << 30)	/* Audio clock select */
-#define SSCR0_MOD	(1 << 31)	/* Mode (normal or network) */
-#endif
-
-#define SSCR1_RIE	(1 << 0)	/* Receive FIFO Interrupt Enable */
-#define SSCR1_TIE	(1 << 1)	/* Transmit FIFO Interrupt Enable */
-#define SSCR1_LBM	(1 << 2)	/* Loop-Back Mode */
-#define SSCR1_SPO	(1 << 3)	/* Motorola SPI SSPSCLK polarity setting */
-#define SSCR1_SPH	(1 << 4)	/* Motorola SPI SSPSCLK phase setting */
-#define SSCR1_MWDS	(1 << 5)	/* Microwire Transmit Data Size */
-#define SSCR1_TFT	(0x000003c0)	/* Transmit FIFO Threshold (mask) */
-#define SSCR1_TxTresh(x) (((x) - 1) << 6) /* level [1..16] */
-#define SSCR1_RFT	(0x00003c00)	/* Receive FIFO Threshold (mask) */
-#define SSCR1_RxTresh(x) (((x) - 1) << 10) /* level [1..16] */
-
-#define SSSR_TNF	(1 << 2)	/* Transmit FIFO Not Full */
-#define SSSR_RNE	(1 << 3)	/* Receive FIFO Not Empty */
-#define SSSR_BSY	(1 << 4)	/* SSP Busy */
-#define SSSR_TFS	(1 << 5)	/* Transmit FIFO Service Request */
-#define SSSR_RFS	(1 << 6)	/* Receive FIFO Service Request */
-#define SSSR_ROR	(1 << 7)	/* Receive FIFO Overrun */
-
-#define SSCR0_TIM		(1 << 23)	/* Transmit FIFO Under Run Interrupt Mask */
-#define SSCR0_RIM		(1 << 22)	/* Receive FIFO Over Run interrupt Mask */
-#define SSCR0_NCS		(1 << 21)	/* Network Clock Select */
-#define SSCR0_EDSS		(1 << 20)	/* Extended Data Size Select */
-
-/* extra bits in PXA255, PXA26x and PXA27x SSP ports */
-#define SSCR0_TISSP		(1 << 4)	/* TI Sync Serial Protocol */
-#define SSCR0_PSP		(3 << 4)	/* PSP - Programmable Serial Protocol */
-#define SSCR1_TTELP		(1 << 31)	/* TXD Tristate Enable Last Phase */
-#define SSCR1_TTE		(1 << 30)	/* TXD Tristate Enable */
-#define SSCR1_EBCEI		(1 << 29)	/* Enable Bit Count Error interrupt */
-#define SSCR1_SCFR		(1 << 28)	/* Slave Clock free Running */
-#define SSCR1_ECRA		(1 << 27)	/* Enable Clock Request A */
-#define SSCR1_ECRB		(1 << 26)	/* Enable Clock request B */
-#define SSCR1_SCLKDIR	(1 << 25)	/* Serial Bit Rate Clock Direction */
-#define SSCR1_SFRMDIR	(1 << 24)	/* Frame Direction */
-#define SSCR1_RWOT		(1 << 23)	/* Receive Without Transmit */
-#define SSCR1_TRAIL		(1 << 22)	/* Trailing Byte */
-#define SSCR1_TSRE		(1 << 21)	/* Transmit Service Request Enable */
-#define SSCR1_RSRE		(1 << 20)	/* Receive Service Request Enable */
-#define SSCR1_TINTE		(1 << 19)	/* Receiver Time-out Interrupt enable */
-#define SSCR1_PINTE		(1 << 18)	/* Peripheral Trailing Byte Interupt Enable */
-#define SSCR1_STRF		(1 << 15)	/* Select FIFO or EFWR */
-#define SSCR1_EFWR		(1 << 14)	/* Enable FIFO Write/Read */
-
-#define SSSR_BCE		(1 << 23)	/* Bit Count Error */
-#define SSSR_CSS		(1 << 22)	/* Clock Synchronisation Status */
-#define SSSR_TUR		(1 << 21)	/* Transmit FIFO Under Run */
-#define SSSR_EOC		(1 << 20)	/* End Of Chain */
-#define SSSR_TINT		(1 << 19)	/* Receiver Time-out Interrupt */
-#define SSSR_PINT		(1 << 18)	/* Peripheral Trailing Byte Interrupt */
-
-#define SSPSP_FSRT		(1 << 25)	/* Frame Sync Relative Timing */
-#define SSPSP_DMYSTOP(x)	((x) << 23)	/* Dummy Stop */
-#define SSPSP_SFRMWDTH(x)	((x) << 16)	/* Serial Frame Width */
-#define SSPSP_SFRMDLY(x)	((x) << 9)	/* Serial Frame Delay */
-#define SSPSP_DMYSTRT(x)	((x) << 7)	/* Dummy Start */
-#define SSPSP_STRTDLY(x)	((x) << 4)	/* Start Delay */
-#define SSPSP_ETDS			(1 << 3)	/* End of Transfer data State */
-#define SSPSP_SFRMP			(1 << 2)	/* Serial Frame Polarity */
-#define SSPSP_SCMODE(x)		((x) << 0)	/* Serial Bit Rate Clock Mode */
-
-#define SSACD_SCDB		(1 << 3)	/* SSPSYSCLK Divider Bypass */
-#define SSACD_ACPS(x)		((x) << 4)	/* Audio clock PLL select */
-#define SSACD_ACDS(x)		((x) << 0)	/* Audio clock divider select */
-
-#define SSCR0_P1	__REG(0x41000000)  /* SSP Port 1 Control Register 0 */
-#define SSCR1_P1	__REG(0x41000004)  /* SSP Port 1 Control Register 1 */
-#define SSSR_P1		__REG(0x41000008)  /* SSP Port 1 Status Register */
-#define SSITR_P1	__REG(0x4100000C)  /* SSP Port 1 Interrupt Test Register */
-#define SSDR_P1		__REG(0x41000010)  /* (Write / Read) SSP Port 1 Data Write Register/SSP Data Read Register */
-
-/* Support existing PXA25x drivers */
-#define SSCR0		SSCR0_P1  /* SSP Control Register 0 */
-#define SSCR1		SSCR1_P1  /* SSP Control Register 1 */
-#define SSSR		SSSR_P1	  /* SSP Status Register */
-#define SSITR		SSITR_P1  /* SSP Interrupt Test Register */
-#define SSDR		SSDR_P1	  /* (Write / Read) SSP Data Write Register/SSP Data Read Register */
-
-/* PXA27x ports */
-#if defined (CONFIG_PXA27x)
-#define SSTO_P1		__REG(0x41000028)  /* SSP Port 1 Time Out Register */
-#define SSPSP_P1	__REG(0x4100002C)  /* SSP Port 1 Programmable Serial Protocol */
-#define SSTSA_P1	__REG(0x41000030)  /* SSP Port 1 Tx Timeslot Active */
-#define SSRSA_P1	__REG(0x41000034)  /* SSP Port 1 Rx Timeslot Active */
-#define SSTSS_P1	__REG(0x41000038)  /* SSP Port 1 Timeslot Status */
-#define SSACD_P1	__REG(0x4100003C)  /* SSP Port 1 Audio Clock Divider */
-#define SSCR0_P2	__REG(0x41700000)  /* SSP Port 2 Control Register 0 */
-#define SSCR1_P2	__REG(0x41700004)  /* SSP Port 2 Control Register 1 */
-#define SSSR_P2		__REG(0x41700008)  /* SSP Port 2 Status Register */
-#define SSITR_P2	__REG(0x4170000C)  /* SSP Port 2 Interrupt Test Register */
-#define SSDR_P2		__REG(0x41700010)  /* (Write / Read) SSP Port 2 Data Write Register/SSP Data Read Register */
-#define SSTO_P2		__REG(0x41700028)  /* SSP Port 2 Time Out Register */
-#define SSPSP_P2	__REG(0x4170002C)  /* SSP Port 2 Programmable Serial Protocol */
-#define SSTSA_P2	__REG(0x41700030)  /* SSP Port 2 Tx Timeslot Active */
-#define SSRSA_P2	__REG(0x41700034)  /* SSP Port 2 Rx Timeslot Active */
-#define SSTSS_P2	__REG(0x41700038)  /* SSP Port 2 Timeslot Status */
-#define SSACD_P2	__REG(0x4170003C)  /* SSP Port 2 Audio Clock Divider */
-#define SSCR0_P3	__REG(0x41900000)  /* SSP Port 3 Control Register 0 */
-#define SSCR1_P3	__REG(0x41900004)  /* SSP Port 3 Control Register 1 */
-#define SSSR_P3		__REG(0x41900008)  /* SSP Port 3 Status Register */
-#define SSITR_P3	__REG(0x4190000C)  /* SSP Port 3 Interrupt Test Register */
-#define SSDR_P3		__REG(0x41900010)  /* (Write / Read) SSP Port 3 Data Write Register/SSP Data Read Register */
-#define SSTO_P3		__REG(0x41900028)  /* SSP Port 3 Time Out Register */
-#define SSPSP_P3	__REG(0x4190002C)  /* SSP Port 3 Programmable Serial Protocol */
-#define SSTSA_P3	__REG(0x41900030)  /* SSP Port 3 Tx Timeslot Active */
-#define SSRSA_P3	__REG(0x41900034)  /* SSP Port 3 Rx Timeslot Active */
-#define SSTSS_P3	__REG(0x41900038)  /* SSP Port 3 Timeslot Status */
-#define SSACD_P3	__REG(0x4190003C)  /* SSP Port 3 Audio Clock Divider */
-#else /* PXA255 (only port 2) and PXA26x ports*/
-#define SSTO_P1		__REG(0x41000028)  /* SSP Port 1 Time Out Register */
-#define SSPSP_P1	__REG(0x4100002C)  /* SSP Port 1 Programmable Serial Protocol */
-#define SSCR0_P2	__REG(0x41400000)  /* SSP Port 2 Control Register 0 */
-#define SSCR1_P2	__REG(0x41400004)  /* SSP Port 2 Control Register 1 */
-#define SSSR_P2		__REG(0x41400008)  /* SSP Port 2 Status Register */
-#define SSITR_P2	__REG(0x4140000C)  /* SSP Port 2 Interrupt Test Register */
-#define SSDR_P2		__REG(0x41400010)  /* (Write / Read) SSP Port 2 Data Write Register/SSP Data Read Register */
-#define SSTO_P2		__REG(0x41400028)  /* SSP Port 2 Time Out Register */
-#define SSPSP_P2	__REG(0x4140002C)  /* SSP Port 2 Programmable Serial Protocol */
-#define SSCR0_P3	__REG(0x41500000)  /* SSP Port 3 Control Register 0 */
-#define SSCR1_P3	__REG(0x41500004)  /* SSP Port 3 Control Register 1 */
-#define SSSR_P3		__REG(0x41500008)  /* SSP Port 3 Status Register */
-#define SSITR_P3	__REG(0x4150000C)  /* SSP Port 3 Interrupt Test Register */
-#define SSDR_P3		__REG(0x41500010)  /* (Write / Read) SSP Port 3 Data Write Register/SSP Data Read Register */
-#define SSTO_P3		__REG(0x41500028)  /* SSP Port 3 Time Out Register */
-#define SSPSP_P3	__REG(0x4150002C)  /* SSP Port 3 Programmable Serial Protocol */
-#endif
-
-#define SSCR0_P(x) (*(((x) == 1) ? &SSCR0_P1 : ((x) == 2) ? &SSCR0_P2 : ((x) == 3) ? &SSCR0_P3 : NULL))
-#define SSCR1_P(x) (*(((x) == 1) ? &SSCR1_P1 : ((x) == 2) ? &SSCR1_P2 : ((x) == 3) ? &SSCR1_P3 : NULL))
-#define SSSR_P(x) (*(((x) == 1) ? &SSSR_P1 : ((x) == 2) ? &SSSR_P2 : ((x) == 3) ? &SSSR_P3 : NULL))
-#define SSITR_P(x) (*(((x) == 1) ? &SSITR_P1 : ((x) == 2) ? &SSITR_P2 : ((x) == 3) ? &SSITR_P3 : NULL))
-#define SSDR_P(x) (*(((x) == 1) ? &SSDR_P1 : ((x) == 2) ? &SSDR_P2 : ((x) == 3) ? &SSDR_P3 : NULL))
-#define SSTO_P(x) (*(((x) == 1) ? &SSTO_P1 : ((x) == 2) ? &SSTO_P2 : ((x) == 3) ? &SSTO_P3 : NULL))
-#define SSPSP_P(x) (*(((x) == 1) ? &SSPSP_P1 : ((x) == 2) ? &SSPSP_P2 : ((x) == 3) ? &SSPSP_P3 : NULL))
-#define SSTSA_P(x) (*(((x) == 1) ? &SSTSA_P1 : ((x) == 2) ? &SSTSA_P2 : ((x) == 3) ? &SSTSA_P3 : NULL))
-#define SSRSA_P(x) (*(((x) == 1) ? &SSRSA_P1 : ((x) == 2) ? &SSRSA_P2 : ((x) == 3) ? &SSRSA_P3 : NULL))
-#define SSTSS_P(x) (*(((x) == 1) ? &SSTSS_P1 : ((x) == 2) ? &SSTSS_P2 : ((x) == 3) ? &SSTSS_P3 : NULL))
-#define SSACD_P(x) (*(((x) == 1) ? &SSACD_P1 : ((x) == 2) ? &SSACD_P2 : ((x) == 3) ? &SSACD_P3 : NULL))
 
 /*
  * MultiMediaCard (MMC) controller - see drivers/mmc/host/pxamci.h
@@ -2014,70 +1848,7 @@
 
 #define LDCMD_PAL	(1 << 26)	/* instructs DMA to load palette buffer */
 
-/*
- * Memory controller
- */
-
-#define MDCNFG		__REG(0x48000000)  /* SDRAM Configuration Register 0 */
-#define MDREFR		__REG(0x48000004)  /* SDRAM Refresh Control Register */
-#define MSC0		__REG(0x48000008)  /* Static Memory Control Register 0 */
-#define MSC1		__REG(0x4800000C)  /* Static Memory Control Register 1 */
-#define MSC2		__REG(0x48000010)  /* Static Memory Control Register 2 */
-#define MECR		__REG(0x48000014)  /* Expansion Memory (PCMCIA/Compact Flash) Bus Configuration */
-#define SXLCR		__REG(0x48000018)  /* LCR value to be written to SDRAM-Timing Synchronous Flash */
-#define SXCNFG		__REG(0x4800001C)  /* Synchronous Static Memory Control Register */
-#define SXMRS		__REG(0x48000024)  /* MRS value to be written to Synchronous Flash or SMROM */
-#define MCMEM0		__REG(0x48000028)  /* Card interface Common Memory Space Socket 0 Timing */
-#define MCMEM1		__REG(0x4800002C)  /* Card interface Common Memory Space Socket 1 Timing */
-#define MCATT0		__REG(0x48000030)  /* Card interface Attribute Space Socket 0 Timing Configuration */
-#define MCATT1		__REG(0x48000034)  /* Card interface Attribute Space Socket 1 Timing Configuration */
-#define MCIO0		__REG(0x48000038)  /* Card interface I/O Space Socket 0 Timing Configuration */
-#define MCIO1		__REG(0x4800003C)  /* Card interface I/O Space Socket 1 Timing Configuration */
-#define MDMRS		__REG(0x48000040)  /* MRS value to be written to SDRAM */
-#define BOOT_DEF	__REG(0x48000044)  /* Read-Only Boot-Time Register. Contains BOOT_SEL and PKG_SEL */
-
-/*
- * More handy macros for PCMCIA
- *
- * Arg is socket number
- */
-#define MCMEM(s)	__REG2(0x48000028, (s)<<2 )  /* Card interface Common Memory Space Socket s Timing */
-#define MCATT(s)	__REG2(0x48000030, (s)<<2 )  /* Card interface Attribute Space Socket s Timing Configuration */
-#define MCIO(s)		__REG2(0x48000038, (s)<<2 )  /* Card interface I/O Space Socket s Timing Configuration */
-
-/* MECR register defines */
-#define MECR_NOS	(1 << 0)	/* Number Of Sockets: 0 -> 1 sock, 1 -> 2 sock */
-#define MECR_CIT	(1 << 1)	/* Card Is There: 0 -> no card, 1 -> card inserted */
-
-#define MDREFR_K0DB4	(1 << 29)	/* SDCLK0 Divide by 4 Control/Status */
-#define MDREFR_K2FREE	(1 << 25)	/* SDRAM Free-Running Control */
-#define MDREFR_K1FREE	(1 << 24)	/* SDRAM Free-Running Control */
-#define MDREFR_K0FREE	(1 << 23)	/* SDRAM Free-Running Control */
-#define MDREFR_SLFRSH	(1 << 22)	/* SDRAM Self-Refresh Control/Status */
-#define MDREFR_APD	(1 << 20)	/* SDRAM/SSRAM Auto-Power-Down Enable */
-#define MDREFR_K2DB2	(1 << 19)	/* SDCLK2 Divide by 2 Control/Status */
-#define MDREFR_K2RUN	(1 << 18)	/* SDCLK2 Run Control/Status */
-#define MDREFR_K1DB2	(1 << 17)	/* SDCLK1 Divide by 2 Control/Status */
-#define MDREFR_K1RUN	(1 << 16)	/* SDCLK1 Run Control/Status */
-#define MDREFR_E1PIN	(1 << 15)	/* SDCKE1 Level Control/Status */
-#define MDREFR_K0DB2	(1 << 14)	/* SDCLK0 Divide by 2 Control/Status */
-#define MDREFR_K0RUN	(1 << 13)	/* SDCLK0 Run Control/Status */
-#define MDREFR_E0PIN	(1 << 12)	/* SDCKE0 Level Control/Status */
-
-
 #ifdef CONFIG_PXA27x
-
-#define ARB_CNTRL	__REG(0x48000048)  /* Arbiter Control Register */
-
-#define ARB_DMA_SLV_PARK	(1<<31)	   /* Be parked with DMA slave when idle */
-#define ARB_CI_PARK		(1<<30)	   /* Be parked with Camera Interface when idle */
-#define ARB_EX_MEM_PARK 	(1<<29)	   /* Be parked with external MEMC when idle */
-#define ARB_INT_MEM_PARK	(1<<28)	   /* Be parked with internal MEMC when idle */
-#define ARB_USB_PARK		(1<<27)	   /* Be parked with USB when idle */
-#define ARB_LCD_PARK		(1<<26)	   /* Be parked with LCD when idle */
-#define ARB_DMA_PARK		(1<<25)	   /* Be parked with DMA when idle */
-#define ARB_CORE_PARK		(1<<24)	   /* Be parked with core when idle */
-#define ARB_LOCK_FLAG		(1<<23)	   /* Only Locking masters gain access to the bus */
 
 /*
  * Keypad
@@ -2134,74 +1905,6 @@
 #define KPMK_MKP        (0x1 << 31)
 #define KPAS_SO         (0x1 << 31)
 #define KPASMKPx_SO     (0x1 << 31)
-
-/*
- * UHC: USB Host Controller (OHCI-like) register definitions
- */
-#define UHC_BASE_PHYS	(0x4C000000)
-#define UHCREV		__REG(0x4C000000) /* UHC HCI Spec Revision */
-#define UHCHCON		__REG(0x4C000004) /* UHC Host Control Register */
-#define UHCCOMS		__REG(0x4C000008) /* UHC Command Status Register */
-#define UHCINTS		__REG(0x4C00000C) /* UHC Interrupt Status Register */
-#define UHCINTE		__REG(0x4C000010) /* UHC Interrupt Enable */
-#define UHCINTD		__REG(0x4C000014) /* UHC Interrupt Disable */
-#define UHCHCCA		__REG(0x4C000018) /* UHC Host Controller Comm. Area */
-#define UHCPCED		__REG(0x4C00001C) /* UHC Period Current Endpt Descr */
-#define UHCCHED		__REG(0x4C000020) /* UHC Control Head Endpt Descr */
-#define UHCCCED		__REG(0x4C000024) /* UHC Control Current Endpt Descr */
-#define UHCBHED		__REG(0x4C000028) /* UHC Bulk Head Endpt Descr */
-#define UHCBCED		__REG(0x4C00002C) /* UHC Bulk Current Endpt Descr */
-#define UHCDHEAD	__REG(0x4C000030) /* UHC Done Head */
-#define UHCFMI		__REG(0x4C000034) /* UHC Frame Interval */
-#define UHCFMR		__REG(0x4C000038) /* UHC Frame Remaining */
-#define UHCFMN		__REG(0x4C00003C) /* UHC Frame Number */
-#define UHCPERS		__REG(0x4C000040) /* UHC Periodic Start */
-#define UHCLS		__REG(0x4C000044) /* UHC Low Speed Threshold */
-
-#define UHCRHDA		__REG(0x4C000048) /* UHC Root Hub Descriptor A */
-#define UHCRHDA_NOCP	(1 << 12)	/* No over current protection */
-
-#define UHCRHDB		__REG(0x4C00004C) /* UHC Root Hub Descriptor B */
-#define UHCRHS		__REG(0x4C000050) /* UHC Root Hub Status */
-#define UHCRHPS1	__REG(0x4C000054) /* UHC Root Hub Port 1 Status */
-#define UHCRHPS2	__REG(0x4C000058) /* UHC Root Hub Port 2 Status */
-#define UHCRHPS3	__REG(0x4C00005C) /* UHC Root Hub Port 3 Status */
-
-#define UHCSTAT		__REG(0x4C000060) /* UHC Status Register */
-#define UHCSTAT_UPS3	(1 << 16)	/* USB Power Sense Port3 */
-#define UHCSTAT_SBMAI	(1 << 15)	/* System Bus Master Abort Interrupt*/
-#define UHCSTAT_SBTAI	(1 << 14)	/* System Bus Target Abort Interrupt*/
-#define UHCSTAT_UPRI	(1 << 13)	/* USB Port Resume Interrupt */
-#define UHCSTAT_UPS2	(1 << 12)	/* USB Power Sense Port 2 */
-#define UHCSTAT_UPS1	(1 << 11)	/* USB Power Sense Port 1 */
-#define UHCSTAT_HTA	(1 << 10)	/* HCI Target Abort */
-#define UHCSTAT_HBA	(1 << 8)	/* HCI Buffer Active */
-#define UHCSTAT_RWUE	(1 << 7)	/* HCI Remote Wake Up Event */
-
-#define UHCHR           __REG(0x4C000064) /* UHC Reset Register */
-#define UHCHR_SSEP3	(1 << 11)	/* Sleep Standby Enable for Port3 */
-#define UHCHR_SSEP2	(1 << 10)	/* Sleep Standby Enable for Port2 */
-#define UHCHR_SSEP1	(1 << 9)	/* Sleep Standby Enable for Port1 */
-#define UHCHR_PCPL	(1 << 7)	/* Power control polarity low */
-#define UHCHR_PSPL	(1 << 6)	/* Power sense polarity low */
-#define UHCHR_SSE	(1 << 5)	/* Sleep Standby Enable */
-#define UHCHR_UIT	(1 << 4)	/* USB Interrupt Test */
-#define UHCHR_SSDC	(1 << 3)	/* Simulation Scale Down Clock */
-#define UHCHR_CGR	(1 << 2)	/* Clock Generation Reset */
-#define UHCHR_FHR	(1 << 1)	/* Force Host Controller Reset */
-#define UHCHR_FSBIR	(1 << 0)	/* Force System Bus Iface Reset */
-
-#define UHCHIE          __REG(0x4C000068) /* UHC Interrupt Enable Register*/
-#define UHCHIE_UPS3IE	(1 << 14)	/* Power Sense Port3 IntEn */
-#define UHCHIE_UPRIE	(1 << 13)	/* Port Resume IntEn */
-#define UHCHIE_UPS2IE	(1 << 12)	/* Power Sense Port2 IntEn */
-#define UHCHIE_UPS1IE	(1 << 11)	/* Power Sense Port1 IntEn */
-#define UHCHIE_TAIE	(1 << 10)	/* HCI Interface Transfer Abort
-					   Interrupt Enable*/
-#define UHCHIE_HBAIE	(1 << 8)	/* HCI Buffer Active IntEn */
-#define UHCHIE_RWIE	(1 << 7)	/* Remote Wake-up IntEn */
-
-#define UHCHIT          __REG(0x4C00006C) /* UHC Interrupt Test register */
 
 /* Camera Interface */
 #define CICR0		__REG(0x50000000)
@@ -2349,6 +2052,77 @@
 #define IMPMSR_PS0_STANDBY_MODE	(0x1 << 0) /*    Standby mode */
 
 #endif
+
+#if defined(CONFIG_PXA27x) || defined(CONFIG_PXA3xx)
+/*
+ * UHC: USB Host Controller (OHCI-like) register definitions
+ */
+#define UHC_BASE_PHYS	(0x4C000000)
+#define UHCREV		__REG(0x4C000000) /* UHC HCI Spec Revision */
+#define UHCHCON		__REG(0x4C000004) /* UHC Host Control Register */
+#define UHCCOMS		__REG(0x4C000008) /* UHC Command Status Register */
+#define UHCINTS		__REG(0x4C00000C) /* UHC Interrupt Status Register */
+#define UHCINTE		__REG(0x4C000010) /* UHC Interrupt Enable */
+#define UHCINTD		__REG(0x4C000014) /* UHC Interrupt Disable */
+#define UHCHCCA		__REG(0x4C000018) /* UHC Host Controller Comm. Area */
+#define UHCPCED		__REG(0x4C00001C) /* UHC Period Current Endpt Descr */
+#define UHCCHED		__REG(0x4C000020) /* UHC Control Head Endpt Descr */
+#define UHCCCED		__REG(0x4C000024) /* UHC Control Current Endpt Descr */
+#define UHCBHED		__REG(0x4C000028) /* UHC Bulk Head Endpt Descr */
+#define UHCBCED		__REG(0x4C00002C) /* UHC Bulk Current Endpt Descr */
+#define UHCDHEAD	__REG(0x4C000030) /* UHC Done Head */
+#define UHCFMI		__REG(0x4C000034) /* UHC Frame Interval */
+#define UHCFMR		__REG(0x4C000038) /* UHC Frame Remaining */
+#define UHCFMN		__REG(0x4C00003C) /* UHC Frame Number */
+#define UHCPERS		__REG(0x4C000040) /* UHC Periodic Start */
+#define UHCLS		__REG(0x4C000044) /* UHC Low Speed Threshold */
+
+#define UHCRHDA		__REG(0x4C000048) /* UHC Root Hub Descriptor A */
+#define UHCRHDA_NOCP	(1 << 12)	/* No over current protection */
+
+#define UHCRHDB		__REG(0x4C00004C) /* UHC Root Hub Descriptor B */
+#define UHCRHS		__REG(0x4C000050) /* UHC Root Hub Status */
+#define UHCRHPS1	__REG(0x4C000054) /* UHC Root Hub Port 1 Status */
+#define UHCRHPS2	__REG(0x4C000058) /* UHC Root Hub Port 2 Status */
+#define UHCRHPS3	__REG(0x4C00005C) /* UHC Root Hub Port 3 Status */
+
+#define UHCSTAT		__REG(0x4C000060) /* UHC Status Register */
+#define UHCSTAT_UPS3	(1 << 16)	/* USB Power Sense Port3 */
+#define UHCSTAT_SBMAI	(1 << 15)	/* System Bus Master Abort Interrupt*/
+#define UHCSTAT_SBTAI	(1 << 14)	/* System Bus Target Abort Interrupt*/
+#define UHCSTAT_UPRI	(1 << 13)	/* USB Port Resume Interrupt */
+#define UHCSTAT_UPS2	(1 << 12)	/* USB Power Sense Port 2 */
+#define UHCSTAT_UPS1	(1 << 11)	/* USB Power Sense Port 1 */
+#define UHCSTAT_HTA	(1 << 10)	/* HCI Target Abort */
+#define UHCSTAT_HBA	(1 << 8)	/* HCI Buffer Active */
+#define UHCSTAT_RWUE	(1 << 7)	/* HCI Remote Wake Up Event */
+
+#define UHCHR           __REG(0x4C000064) /* UHC Reset Register */
+#define UHCHR_SSEP3	(1 << 11)	/* Sleep Standby Enable for Port3 */
+#define UHCHR_SSEP2	(1 << 10)	/* Sleep Standby Enable for Port2 */
+#define UHCHR_SSEP1	(1 << 9)	/* Sleep Standby Enable for Port1 */
+#define UHCHR_PCPL	(1 << 7)	/* Power control polarity low */
+#define UHCHR_PSPL	(1 << 6)	/* Power sense polarity low */
+#define UHCHR_SSE	(1 << 5)	/* Sleep Standby Enable */
+#define UHCHR_UIT	(1 << 4)	/* USB Interrupt Test */
+#define UHCHR_SSDC	(1 << 3)	/* Simulation Scale Down Clock */
+#define UHCHR_CGR	(1 << 2)	/* Clock Generation Reset */
+#define UHCHR_FHR	(1 << 1)	/* Force Host Controller Reset */
+#define UHCHR_FSBIR	(1 << 0)	/* Force System Bus Iface Reset */
+
+#define UHCHIE          __REG(0x4C000068) /* UHC Interrupt Enable Register*/
+#define UHCHIE_UPS3IE	(1 << 14)	/* Power Sense Port3 IntEn */
+#define UHCHIE_UPRIE	(1 << 13)	/* Port Resume IntEn */
+#define UHCHIE_UPS2IE	(1 << 12)	/* Power Sense Port2 IntEn */
+#define UHCHIE_UPS1IE	(1 << 11)	/* Power Sense Port1 IntEn */
+#define UHCHIE_TAIE	(1 << 10)	/* HCI Interface Transfer Abort
+					   Interrupt Enable*/
+#define UHCHIE_HBAIE	(1 << 8)	/* HCI Buffer Active IntEn */
+#define UHCHIE_RWIE	(1 << 7)	/* Remote Wake-up IntEn */
+
+#define UHCHIT          __REG(0x4C00006C) /* UHC Interrupt Test register */
+
+#endif /* CONFIG_PXA27x || CONFIG_PXA3xx */
 
 /* PWRMODE register M field values */
 

@@ -51,6 +51,50 @@ config PXA_SHARPSL
 	  SL-C3000 (Spitz), SL-C3100 (Borzoi) or SL-C6000x (Tosa)
 	  handheld computer.
 
+config ARCH_PXA_ESERIES
+	bool "PXA based Toshiba e-series PDAs"
+	select PXA25x
+
+config MACH_E330
+	bool "Toshiba e330"
+	default y
+	depends on ARCH_PXA_ESERIES
+	help
+	  Say Y here if you intend to run this kernel on a Toshiba
+	  e330 family PDA.
+
+config MACH_E740
+	bool "Toshiba e740"
+	default y
+	depends on ARCH_PXA_ESERIES
+	help
+	  Say Y here if you intend to run this kernel on a Toshiba
+	  e740 family PDA.
+
+config MACH_E750
+	bool "Toshiba e750"
+	default y
+	depends on ARCH_PXA_ESERIES
+	help
+	  Say Y here if you intend to run this kernel on a Toshiba
+	  e750 family PDA.
+
+config MACH_E400
+	bool "Toshiba e400"
+	default y
+	depends on ARCH_PXA_ESERIES
+	help
+	  Say Y here if you intend to run this kernel on a Toshiba
+	  e400 family PDA.
+
+config MACH_E800
+	bool "Toshiba e800"
+	default y
+	depends on ARCH_PXA_ESERIES
+	help
+	  Say Y here if you intend to run this kernel on a Toshiba
+	  e800 family PDA.
+
 config MACH_TRIZEPS4
 	bool "Keith und Koep Trizeps4 DIMM-Module"
 	select PXA27x
@@ -59,14 +103,43 @@ config MACH_EM_X270
 	bool "CompuLab EM-x270 platform"
 	select PXA27x
 
+config MACH_COLIBRI
+	bool "Toradex Colibri PX27x"
+	select PXA27x
+
 config MACH_ZYLONITE
 	bool "PXA3xx Development Platform"
 	select PXA3xx
+
+config MACH_LITTLETON
+	bool "PXA3xx Form Factor Platform (aka Littleton)"
+	select PXA3xx
+	select PXA_SSP
 
 config MACH_ARMCORE
 	bool "CompuLab CM-X270 modules"
 	select PXA27x
 	select IWMMXT
+
+config MACH_MAGICIAN
+	bool "Enable HTC Magician Support"
+	depends on ARCH_PXA
+	select PXA27x
+	select IWMMXT
+
+config MACH_PCM027
+	bool "Phytec phyCORE-PXA270 CPU module (PCM-027)"
+	select PXA27x
+	select IWMMXT
+
+endchoice
+
+choice
+	prompt "Used baseboard"
+	depends on MACH_PCM027
+
+config MACH_PCM990_BASEBOARD
+	bool "PHYTEC PCM-990 development board"
 
 endchoice
 

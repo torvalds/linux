@@ -104,7 +104,6 @@
  */
 extern struct platform_device corgiscoop_device;
 extern struct platform_device corgissp_device;
-extern struct platform_device corgifb_device;
 
 #endif /* __ASM_ARCH_CORGI_H  */
 
