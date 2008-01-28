@@ -41,8 +41,7 @@ extern struct crisv32_iopin crisv32_led_net0_red;
 extern struct crisv32_iopin crisv32_led_net1_green;
 extern struct crisv32_iopin crisv32_led_net1_red;
 
-static inline void crisv32_io_set(struct crisv32_iopin* iopin,
-			   int val)
+static inline void crisv32_io_set(struct crisv32_iopin *iopin, int val)
 {
 	long flags;
 	spin_lock_irqsave(&iopin->port->lock, flags);
@@ -79,59 +78,59 @@ int crisv32_io_get(struct crisv32_iopin* iopin,
 int crisv32_io_get_name(struct crisv32_iopin* iopin,
 			const char *name);
 
-#define LED_OFF    0x00
-#define LED_GREEN  0x01
-#define LED_RED    0x02
-#define LED_ORANGE (LED_GREEN | LED_RED)
+#define CRIS_LED_OFF    0x00
+#define CRIS_LED_GREEN  0x01
+#define CRIS_LED_RED    0x02
+#define CRIS_LED_ORANGE (CRIS_LED_GREEN | CRIS_LED_RED)
 
 #if (defined(CONFIG_ETRAX_NBR_LED_GRP_ONE) || defined(CONFIG_ETRAX_NBR_LED_GRP_TWO))
-#define LED_NETWORK_GRP0_SET(x)                          \
+#define CRIS_LED_NETWORK_GRP0_SET(x)                          \
 	do {                                             \
-		LED_NETWORK_GRP0_SET_G((x) & LED_GREEN); \
-		LED_NETWORK_GRP0_SET_R((x) & LED_RED);   \
+		CRIS_LED_NETWORK_GRP0_SET_G((x) & CRIS_LED_GREEN); \
+		CRIS_LED_NETWORK_GRP0_SET_R((x) & CRIS_LED_RED);   \
 	} while (0)
 #else
-#define LED_NETWORK_GRP0_SET(x) while (0) {}
+#define CRIS_LED_NETWORK_GRP0_SET(x) while (0) {}
 #endif
 
-#define LED_NETWORK_GRP0_SET_G(x) \
+#define CRIS_LED_NETWORK_GRP0_SET_G(x) \
 	crisv32_io_set(&crisv32_led_net0_green, !(x));
 
-#define LED_NETWORK_GRP0_SET_R(x) \
+#define CRIS_LED_NETWORK_GRP0_SET_R(x) \
 	crisv32_io_set(&crisv32_led_net0_red, !(x));
 
 #if defined(CONFIG_ETRAX_NBR_LED_GRP_TWO)
-#define LED_NETWORK_GRP1_SET(x)                          \
+#define CRIS_LED_NETWORK_GRP1_SET(x)                          \
 	do {                                             \
-		LED_NETWORK_GRP1_SET_G((x) & LED_GREEN); \
-		LED_NETWORK_GRP1_SET_R((x) & LED_RED);   \
+		CRIS_LED_NETWORK_GRP1_SET_G((x) & CRIS_LED_GREEN); \
+		CRIS_LED_NETWORK_GRP1_SET_R((x) & CRIS_LED_RED);   \
 	} while (0)
 #else
-#define LED_NETWORK_GRP1_SET(x) while (0) {}
+#define CRIS_LED_NETWORK_GRP1_SET(x) while (0) {}
 #endif
 
-#define LED_NETWORK_GRP1_SET_G(x) \
+#define CRIS_LED_NETWORK_GRP1_SET_G(x) \
 	crisv32_io_set(&crisv32_led_net1_green, !(x));
 
-#define LED_NETWORK_GRP1_SET_R(x) \
+#define CRIS_LED_NETWORK_GRP1_SET_R(x) \
 	crisv32_io_set(&crisv32_led_net1_red, !(x));
 
-#define LED_ACTIVE_SET(x)                           \
+#define CRIS_LED_ACTIVE_SET(x)                           \
 	do {                                        \
-		LED_ACTIVE_SET_G((x) & LED_GREEN);  \
-		LED_ACTIVE_SET_R((x) & LED_RED);    \
+		CRIS_LED_ACTIVE_SET_G((x) & CRIS_LED_GREEN);  \
+		CRIS_LED_ACTIVE_SET_R((x) & CRIS_LED_RED);    \
 	} while (0)
 
-#define LED_ACTIVE_SET_G(x) \
+#define CRIS_LED_ACTIVE_SET_G(x) \
 	crisv32_io_set(&crisv32_led2_green, !(x));
-#define LED_ACTIVE_SET_R(x) \
+#define CRIS_LED_ACTIVE_SET_R(x) \
 	crisv32_io_set(&crisv32_led2_red, !(x));
-#define LED_DISK_WRITE(x) \
+#define CRIS_LED_DISK_WRITE(x) \
          do{\
 		crisv32_io_set(&crisv32_led3_green, !(x)); \
 		crisv32_io_set(&crisv32_led3_red, !(x));   \
         }while(0)
-#define LED_DISK_READ(x) \
+#define CRIS_LED_DISK_READ(x) \
 	crisv32_io_set(&crisv32_led3_green, !(x));
 
 #endif
