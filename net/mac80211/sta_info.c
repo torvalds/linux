@@ -117,8 +117,10 @@ static void sta_info_release(struct kref *kref)
 	while ((skb = skb_dequeue(&sta->tx_filtered)) != NULL) {
 		dev_kfree_skb_any(skb);
 	}
-	for (i = 0; i <  STA_TID_NUM; i++)
+	for (i = 0; i <  STA_TID_NUM; i++) {
 		del_timer_sync(&sta->ampdu_mlme.tid_rx[i].session_timer);
+		del_timer_sync(&sta->ampdu_mlme.tid_tx[i].addba_resp_timer);
+	}
 	rate_control_free_sta(sta->rate_ctrl, sta->rate_ctrl_priv);
 	rate_control_put(sta->rate_ctrl);
 	kfree(sta);
@@ -157,17 +159,26 @@ struct sta_info * sta_info_add(struct ieee80211_local *local,
 	sta->local = local;
 	sta->dev = dev;
 	spin_lock_init(&sta->ampdu_mlme.ampdu_rx);
+	spin_lock_init(&sta->ampdu_mlme.ampdu_tx);
 	for (i = 0; i < STA_TID_NUM; i++) {
 		/* timer_to_tid must be initialized with identity mapping to
 		 * enable session_timer's data differentiation. refer to
 		 * sta_rx_agg_session_timer_expired for useage */
 		sta->timer_to_tid[i] = i;
+		/* tid to tx queue: initialize according to HW (0 is valid) */
+		sta->tid_to_tx_q[i] = local->hw.queues;
 		/* rx timers */
 		sta->ampdu_mlme.tid_rx[i].session_timer.function =
 			sta_rx_agg_session_timer_expired;
 		sta->ampdu_mlme.tid_rx[i].session_timer.data =
 			(unsigned long)&sta->timer_to_tid[i];
 		init_timer(&sta->ampdu_mlme.tid_rx[i].session_timer);
+		/* tx timers */
+		sta->ampdu_mlme.tid_tx[i].addba_resp_timer.function =
+			sta_addba_resp_timer_expired;
+		sta->ampdu_mlme.tid_tx[i].addba_resp_timer.data =
+			(unsigned long)&sta->timer_to_tid[i];
+		init_timer(&sta->ampdu_mlme.tid_tx[i].addba_resp_timer);
 	}
 	skb_queue_head_init(&sta->ps_tx_buf);
 	skb_queue_head_init(&sta->tx_filtered);
