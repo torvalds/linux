@@ -25,12 +25,13 @@ comment "Input core support is needed for USB HID input layer or HIDBP support"
 	depends on USB_HID && INPUT=n
 
 config USB_HIDINPUT_POWERBOOK
-	bool "Enable support for iBook/PowerBook/MacBook/MacBookPro special keys"
+	bool "Enable support for Apple laptop/aluminum USB special keys"
 	default n
 	depends on USB_HID
 	help
 	  Say Y here if you want support for the special keys (Fn, Numlock) on
-	  Apple iBooks, PowerBooks, MacBooks and MacBook Pros.
+	  Apple iBooks, PowerBooks, MacBooks, MacBook Pros and aluminum USB
+	  keyboards.
 
 	  If unsure, say N.
 
