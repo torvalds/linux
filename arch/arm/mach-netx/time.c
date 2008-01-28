@@ -33,11 +33,7 @@
 static irqreturn_t
 netx_timer_interrupt(int irq, void *dev_id)
 {
-	write_seqlock(&xtime_lock);
-
 	timer_tick();
-
-	write_sequnlock(&xtime_lock);
 
 	/* acknowledge interrupt */
 	writel(COUNTER_BIT(0), NETX_GPIO_IRQ);

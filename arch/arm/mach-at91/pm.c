@@ -80,6 +80,11 @@ static int at91_pm_verify_clocks(void)
 			pr_debug("AT91: PM - Suspend-to-RAM with USB still active\n");
 			return 0;
 		}
+	} else if (cpu_is_at91cap9()) {
+		if ((scsr & AT91CAP9_PMC_UHP) != 0) {
+			pr_debug("AT91: PM - Suspend-to-RAM with USB still active\n");
+			return 0;
+		}
 	}
 
 #ifdef CONFIG_AT91_PROGRAMMABLE_CLOCKS

@@ -122,6 +122,19 @@ void s3c2410_gpio_pullup(unsigned int pin, unsigned int to)
 
 EXPORT_SYMBOL(s3c2410_gpio_pullup);
 
+int s3c2410_gpio_getpull(unsigned int pin)
+{
+	void __iomem *base = S3C24XX_GPIO_BASE(pin);
+	unsigned long offs = S3C2410_GPIO_OFFSET(pin);
+
+	if (pin < S3C2410_GPIO_BANKB)
+		return -EINVAL;
+
+	return (__raw_readl(base + 0x08) & (1L << offs)) ? 1 : 0;
+}
+
+EXPORT_SYMBOL(s3c2410_gpio_getpull);
+
 void s3c2410_gpio_setpin(unsigned int pin, unsigned int to)
 {
 	void __iomem *base = S3C24XX_GPIO_BASE(pin);
@@ -186,3 +199,19 @@ int s3c2410_gpio_getirq(unsigned int pin)
 }
 
 EXPORT_SYMBOL(s3c2410_gpio_getirq);
+
+int s3c2410_gpio_irq2pin(unsigned int irq)
+{
+	if (irq >= IRQ_EINT0 && irq <= IRQ_EINT3)
+		return S3C2410_GPF0 + (irq - IRQ_EINT0);
+
+	if (irq >= IRQ_EINT4 && irq <= IRQ_EINT7)
+		return S3C2410_GPF4 + (irq - IRQ_EINT4);
+
+	if (irq >= IRQ_EINT8 && irq <= IRQ_EINT23)
+		return S3C2410_GPG0 + (irq - IRQ_EINT8);
+
+	return -EINVAL;
+}
+
+EXPORT_SYMBOL(s3c2410_gpio_irq2pin);

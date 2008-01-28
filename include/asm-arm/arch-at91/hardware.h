@@ -26,6 +26,8 @@
 #include <asm/arch/at91sam9263.h>
 #elif defined(CONFIG_ARCH_AT91SAM9RL)
 #include <asm/arch/at91sam9rl.h>
+#elif defined(CONFIG_ARCH_AT91CAP9)
+#include <asm/arch/at91cap9.h>
 #elif defined(CONFIG_ARCH_AT91X40)
 #include <asm/arch/at91x40.h>
 #else

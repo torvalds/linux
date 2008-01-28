@@ -5,16 +5,6 @@
 #ifndef __ASM_ARCH_GPIO_H
 #define __ASM_ARCH_GPIO_H
 
-#define GPIO_IN				0
-#define GPIO_OUT			1
-
-#define EP93XX_GPIO_LOW			0
-#define EP93XX_GPIO_HIGH		1
-
-extern void gpio_line_config(int line, int direction);
-extern int  gpio_line_get(int line);
-extern void gpio_line_set(int line, int value);
-
 /* GPIO port A.  */
 #define EP93XX_GPIO_LINE_A(x)		((x) + 0)
 #define EP93XX_GPIO_LINE_EGPIO0		EP93XX_GPIO_LINE_A(0)
@@ -38,7 +28,7 @@ extern void gpio_line_set(int line, int value);
 #define EP93XX_GPIO_LINE_EGPIO15	EP93XX_GPIO_LINE_B(7)
 
 /* GPIO port C.  */
-#define EP93XX_GPIO_LINE_C(x)		((x) + 16)
+#define EP93XX_GPIO_LINE_C(x)		((x) + 40)
 #define EP93XX_GPIO_LINE_ROW0		EP93XX_GPIO_LINE_C(0)
 #define EP93XX_GPIO_LINE_ROW1		EP93XX_GPIO_LINE_C(1)
 #define EP93XX_GPIO_LINE_ROW2		EP93XX_GPIO_LINE_C(2)
@@ -71,7 +61,7 @@ extern void gpio_line_set(int line, int value);
 #define EP93XX_GPIO_LINE_IDEDA2		EP93XX_GPIO_LINE_E(7)
 
 /* GPIO port F.  */
-#define EP93XX_GPIO_LINE_F(x)		((x) + 40)
+#define EP93XX_GPIO_LINE_F(x)		((x) + 16)
 #define EP93XX_GPIO_LINE_WP		EP93XX_GPIO_LINE_F(0)
 #define EP93XX_GPIO_LINE_MCCD1		EP93XX_GPIO_LINE_F(1)
 #define EP93XX_GPIO_LINE_MCCD2		EP93XX_GPIO_LINE_F(2)
@@ -103,5 +93,49 @@ extern void gpio_line_set(int line, int value);
 #define EP93XX_GPIO_LINE_DD6		EP93XX_GPIO_LINE_H(6)
 #define EP93XX_GPIO_LINE_DD7		EP93XX_GPIO_LINE_H(7)
 
+/* maximum value for gpio line identifiers */
+#define EP93XX_GPIO_LINE_MAX		EP93XX_GPIO_LINE_H(7)
+
+/* maximum value for irq capable line identifiers */
+#define EP93XX_GPIO_LINE_MAX_IRQ	EP93XX_GPIO_LINE_F(7)
+
+/* new generic GPIO API - see Documentation/gpio.txt */
+
+static inline int gpio_request(unsigned gpio, const char *label)
+{
+	if (gpio > EP93XX_GPIO_LINE_MAX)
+		return -EINVAL;
+	return 0;
+}
+
+static inline void gpio_free(unsigned gpio)
+{
+}
+
+int gpio_direction_input(unsigned gpio);
+int gpio_direction_output(unsigned gpio, int value);
+int gpio_get_value(unsigned gpio);
+void gpio_set_value(unsigned gpio, int value);
+
+#include <asm-generic/gpio.h> /* cansleep wrappers */
+
+/*
+ * Map GPIO A0..A7  (0..7)  to irq 64..71,
+ *          B0..B7  (7..15) to irq 72..79, and
+ *          F0..F7 (16..24) to irq 80..87.
+ */
+
+static inline int gpio_to_irq(unsigned gpio)
+{
+	if (gpio <= EP93XX_GPIO_LINE_MAX_IRQ)
+		return 64 + gpio;
+
+	return -EINVAL;
+}
+
+static inline int irq_to_gpio(unsigned irq)
+{
+	return irq - gpio_to_irq(0);
+}
 
 #endif

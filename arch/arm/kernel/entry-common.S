@@ -72,7 +72,7 @@ no_work_pending:
 	ldr	r1, [sp, #S_PSR]		@ get calling cpsr
 	ldr	lr, [sp, #S_PC]!		@ get pc
 	msr	spsr_cxsf, r1			@ save in spsr_svc
-	ldmdb	sp, {r0 - lr}^			@ get calling r1 - lr
+	ldmdb	sp, {r0 - lr}^			@ get calling r0 - lr
 	mov	r0, r0
 	add	sp, sp, #S_FRAME_SIZE - S_PC
 	movs	pc, lr				@ return & move spsr_svc into cpsr

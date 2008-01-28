@@ -16,6 +16,7 @@
 #include <asm/hardware.h>
 
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/pxa2xx-regs.h>
 
 #define MDREFR_KDIV	0x200a4000	// all banks
 #define CCCR_SLEEP	0x00000107	// L=7 2N=2 A=0 PPDIS=0 CPDIS=0
@@ -49,6 +50,7 @@ pxa_cpu_save_sp:
 	str	r0, [r1]
 	ldr	pc, [sp], #4
 
+#ifdef CONFIG_PXA27x
 /*
  * pxa27x_cpu_suspend()
  *
@@ -104,9 +106,11 @@ ENTRY(pxa27x_cpu_suspend)
 
 	@ align execution to a cache line
 	b	pxa_cpu_do_suspend
+#endif
 
+#ifdef CONFIG_PXA25x
 /*
- * pxa27x_cpu_suspend()
+ * pxa25x_cpu_suspend()
  *
  * Forces CPU into sleep state.
  *
@@ -169,6 +173,7 @@ ENTRY(pxa25x_cpu_suspend)
 	mcr	p14, 0, r0, c6, c0, 0
 	orr	r0, r0, #2			@ initiate change bit
 	b	pxa_cpu_do_suspend
+#endif
 
 	.ltorg
 	.align	5
@@ -208,7 +213,7 @@ pxa_cpu_do_suspend:
 20:	b	20b				@ loop waiting for sleep
 
 /*
- * cpu_pxa_resume()
+ * pxa_cpu_resume()
  *
  * entry point from bootloader into kernel during resume
  *

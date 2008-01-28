@@ -20,7 +20,7 @@
 #include "ucb1x00.h"
 
 #define UCB1X00_ATTR(name,input)\
-static ssize_t name##_show(struct device *dev, struct device_attribute *attr,
+static ssize_t name##_show(struct device *dev, struct device_attribute *attr, \
 			   char *buf)	\
 {								\
 	struct ucb1x00 *ucb = classdev_to_ucb1x00(dev);		\
@@ -38,17 +38,17 @@ UCB1X00_ATTR(batt_temp, UCB_ADC_INP_AD2);
 
 static int ucb1x00_assabet_add(struct ucb1x00_dev *dev)
 {
-	device_create_file(&dev->ucb->dev, &device_attr_vbatt);
-	device_create_file(&dev->ucb->dev, &device_attr_vcharger);
-	device_create_file(&dev->ucb->dev, &device_attr_batt_temp);
+	device_create_file(&dev->ucb->dev, &dev_attr_vbatt);
+	device_create_file(&dev->ucb->dev, &dev_attr_vcharger);
+	device_create_file(&dev->ucb->dev, &dev_attr_batt_temp);
 	return 0;
 }
 
 static void ucb1x00_assabet_remove(struct ucb1x00_dev *dev)
 {
-	device_remove_file(&dev->ucb->cdev, &device_attr_batt_temp);
-	device_remove_file(&dev->ucb->cdev, &device_attr_vcharger);
-	device_remove_file(&dev->ucb->cdev, &device_attr_vbatt);
+	device_remove_file(&dev->ucb->dev, &dev_attr_batt_temp);
+	device_remove_file(&dev->ucb->dev, &dev_attr_vcharger);
+	device_remove_file(&dev->ucb->dev, &dev_attr_vbatt);
 }
 
 static struct ucb1x00_driver ucb1x00_assabet_driver = {

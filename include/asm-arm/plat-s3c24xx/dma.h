@@ -32,6 +32,7 @@ struct s3c24xx_dma_map {
 	struct s3c24xx_dma_addr  hw_addr;
 
 	unsigned long		 channels[S3C2410_DMA_CHANNELS];
+	unsigned long		 channels_rx[S3C2410_DMA_CHANNELS];
 };
 
 struct s3c24xx_dma_selection {
@@ -41,6 +42,10 @@ struct s3c24xx_dma_selection {
 
 	void	(*select)(struct s3c2410_dma_chan *chan,
 			  struct s3c24xx_dma_map *map);
+
+	void	(*direction)(struct s3c2410_dma_chan *chan,
+			     struct s3c24xx_dma_map *map,
+			     enum s3c2410_dmasrc dir);
 };
 
 extern int s3c24xx_dma_init_map(struct s3c24xx_dma_selection *sel);

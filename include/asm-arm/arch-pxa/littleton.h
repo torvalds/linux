@@ -1,0 +1,6 @@
+#ifndef __ASM_ARCH_ZYLONITE_H
+#define __ASM_ARCH_ZYLONITE_H
+
+#define LITTLETON_ETH_PHYS	0x30000000
+
+#endif /* __ASM_ARCH_ZYLONITE_H */

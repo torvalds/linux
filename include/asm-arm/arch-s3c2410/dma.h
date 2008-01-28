@@ -214,6 +214,7 @@ struct s3c2410_dma_chan {
 	unsigned long		 dev_addr;
 	unsigned long		 load_timeout;
 	unsigned int		 flags;		/* channel flags */
+	unsigned int		 hw_cfg;	/* last hw config */
 
 	struct s3c24xx_dma_map	*map;		/* channel hw maps */
 

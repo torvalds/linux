@@ -50,6 +50,17 @@ extern unsigned int s3c2410_gpio_getcfg(unsigned int pin);
 
 extern int s3c2410_gpio_getirq(unsigned int pin);
 
+/* s3c2410_gpio_irq2pin
+ *
+ * turn the given irq number into the corresponding GPIO number
+ *
+ * returns:
+ *	< 0 = no pin
+ *	>=0 = gpio pin number
+*/
+
+extern int s3c2410_gpio_irq2pin(unsigned int irq);
+
 #ifdef CONFIG_CPU_S3C2400
 
 extern int s3c2400_gpio_getirq(unsigned int pin);
@@ -87,6 +98,18 @@ extern int s3c2410_gpio_irqfilter(unsigned int pin, unsigned int on,
 
 extern void s3c2410_gpio_pullup(unsigned int pin, unsigned int to);
 
+/* s3c2410_gpio_getpull
+ *
+ * Read the state of the pull-up on a given pin
+ *
+ * return:
+ *	< 0 => error code
+ *	  0 => enabled
+ *	  1 => disabled
+*/
+
+extern int s3c2410_gpio_getpull(unsigned int pin);
+
 extern void s3c2410_gpio_setpin(unsigned int pin, unsigned int to);
 
 extern unsigned int s3c2410_gpio_getpin(unsigned int pin);
@@ -99,6 +122,11 @@ extern int s3c2440_set_dsc(unsigned int pin, unsigned int value);
 
 #endif /* CONFIG_CPU_S3C2440 */
 
+#ifdef CONFIG_CPU_S3C2412
+
+extern int s3c2412_gpio_set_sleepcfg(unsigned int pin, unsigned int state);
+
+#endif /* CONFIG_CPU_S3C2412 */
 
 #endif /* __ASSEMBLY__ */
 

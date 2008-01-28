@@ -31,7 +31,6 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/interrupt.h>
 #include <linux/i2c.h>
 
 #include <linux/mtd/mtd.h>
@@ -112,7 +111,7 @@ static struct resource osk5912_smc91x_resources[] = {
 	[1] = {
 		.start	= OMAP_GPIO_IRQ(0),
 		.end	= OMAP_GPIO_IRQ(0),
-		.flags	= IORESOURCE_IRQ,
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
 	},
 };
 

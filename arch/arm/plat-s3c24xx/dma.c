@@ -525,7 +525,8 @@ int s3c2410_dma_enqueue(unsigned int channel, void *id,
 		}
 	} else if (chan->state == S3C2410_DMA_IDLE) {
 		if (chan->flags & S3C2410_DMAF_AUTOSTART) {
-			s3c2410_dma_ctrl(chan->number, S3C2410_DMAOP_START);
+			s3c2410_dma_ctrl(chan->number | DMACH_LOW_LEVEL,
+					 S3C2410_DMAOP_START);
 		}
 	}
 
@@ -787,7 +788,7 @@ int s3c2410_dma_request(unsigned int channel,
 
 	pr_debug("%s: channel initialised, %p\n", __FUNCTION__, chan);
 
-	return 0;
+	return chan->number | DMACH_LOW_LEVEL;
 }
 
 EXPORT_SYMBOL(s3c2410_dma_request);
@@ -1173,6 +1174,7 @@ int s3c2410_dma_devconfig(int channel,
 
 	chan->source = source;
 	chan->dev_addr = devaddr;
+	chan->hw_cfg = hwcfg;
 
 	switch (source) {
 	case S3C2410_DMASRC_HW:
@@ -1184,7 +1186,7 @@ int s3c2410_dma_devconfig(int channel,
 		dma_wrreg(chan, S3C2410_DMA_DIDSTC, (0<<1) | (0<<0));
 
 		chan->addr_reg = dma_regaddr(chan, S3C2410_DMA_DIDST);
-		return 0;
+		break;
 
 	case S3C2410_DMASRC_MEM:
 		/* source is memory */
@@ -1195,11 +1197,19 @@ int s3c2410_dma_devconfig(int channel,
 		dma_wrreg(chan, S3C2410_DMA_DIDSTC, hwcfg & 3);
 
 		chan->addr_reg = dma_regaddr(chan, S3C2410_DMA_DISRC);
-		return 0;
+		break;
+
+	default:
+		printk(KERN_ERR "dma%d: invalid source type (%d)\n",
+		       channel, source);
+
+		return -EINVAL;
 	}
 
-	printk(KERN_ERR "dma%d: invalid source type (%d)\n", channel, source);
-	return -EINVAL;
+	if (dma_sel.direction != NULL)
+		(dma_sel.direction)(chan, chan->map, source);
+
+	return 0;
 }
 
 EXPORT_SYMBOL(s3c2410_dma_devconfig);
@@ -1227,6 +1237,10 @@ int s3c2410_dma_getposition(dmach_t channel, dma_addr_t *src, dma_addr_t *dst)
 
 EXPORT_SYMBOL(s3c2410_dma_getposition);
 
+static struct s3c2410_dma_chan *to_dma_chan(struct sys_device *dev)
+{
+	return container_of(dev, struct s3c2410_dma_chan, dev);
+}
 
 /* system device class */
 
@@ -1234,7 +1248,7 @@ EXPORT_SYMBOL(s3c2410_dma_getposition);
 
 static int s3c2410_dma_suspend(struct sys_device *dev, pm_message_t state)
 {
-	struct s3c2410_dma_chan *cp = container_of(dev, struct s3c2410_dma_chan, dev);
+	struct s3c2410_dma_chan *cp = to_dma_chan(dev);
 
 	printk(KERN_DEBUG "suspending dma channel %d\n", cp->number);
 
@@ -1256,6 +1270,24 @@ static int s3c2410_dma_suspend(struct sys_device *dev, pm_message_t state)
 
 static int s3c2410_dma_resume(struct sys_device *dev)
 {
+	struct s3c2410_dma_chan *cp = to_dma_chan(dev);
+	unsigned int no = cp->number | DMACH_LOW_LEVEL;
+
+	/* restore channel's hardware configuration */
+
+	if (!cp->in_use)
+		return 0;
+
+	printk(KERN_INFO "dma%d: restoring configuration\n", cp->number);
+
+	s3c2410_dma_config(no, cp->xfer_unit, cp->dcon);
+	s3c2410_dma_devconfig(no, cp->source, cp->hw_cfg, cp->dev_addr);
+
+	/* re-select the dma source for this channel */
+
+	if (cp->map != NULL)
+		dma_sel.select(cp, cp->map);
+
 	return 0;
 }
 
@@ -1445,6 +1477,7 @@ static struct s3c2410_dma_chan *s3c2410_dma_map_channel(int channel)
 
  found:
 	dmach = &s3c2410_chans[ch];
+	dmach->map = ch_map;
 	dma_chan_map[channel] = dmach;
 
 	/* select the channel */

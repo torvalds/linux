@@ -280,6 +280,68 @@ static struct spi_board_info ek_spi_devices[] = {
  * LCD Controller
  */
 #if defined(CONFIG_FB_ATMEL) || defined(CONFIG_FB_ATMEL_MODULE)
+
+#if defined(CONFIG_FB_ATMEL_STN)
+
+/* STN */
+static struct fb_videomode at91_stn_modes[] = {
+        {
+		.name           = "SP06Q002 @ 75",
+		.refresh        = 75,
+		.xres           = 320,          .yres           = 240,
+		.pixclock       = KHZ2PICOS(1440),
+
+		.left_margin    = 1,            .right_margin   = 1,
+		.upper_margin   = 0,            .lower_margin   = 0,
+		.hsync_len      = 1,            .vsync_len      = 1,
+
+		.sync		= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+		.vmode          = FB_VMODE_NONINTERLACED,
+        },
+};
+
+static struct fb_monspecs at91fb_default_stn_monspecs = {
+        .manufacturer   = "HIT",
+        .monitor        = "SP06Q002",
+
+        .modedb         = at91_stn_modes,
+        .modedb_len     = ARRAY_SIZE(at91_stn_modes),
+        .hfmin          = 15000,
+        .hfmax          = 64000,
+        .vfmin          = 50,
+        .vfmax          = 150,
+};
+
+#define AT91SAM9261_DEFAULT_STN_LCDCON2	(ATMEL_LCDC_MEMOR_LITTLE \
+					| ATMEL_LCDC_DISTYPE_STNMONO \
+					| ATMEL_LCDC_CLKMOD_ALWAYSACTIVE \
+					| ATMEL_LCDC_IFWIDTH_4 \
+					| ATMEL_LCDC_SCANMOD_SINGLE)
+
+static void at91_lcdc_stn_power_control(int on)
+{
+	/* backlight */
+	if (on) {	/* power up */
+		at91_set_gpio_value(AT91_PIN_PC14, 0);
+		at91_set_gpio_value(AT91_PIN_PC15, 0);
+	} else {	/* power down */
+		at91_set_gpio_value(AT91_PIN_PC14, 1);
+		at91_set_gpio_value(AT91_PIN_PC15, 1);
+	}
+}
+
+static struct atmel_lcdfb_info __initdata ek_lcdc_data = {
+	.default_bpp			= 1,
+	.default_dmacon			= ATMEL_LCDC_DMAEN,
+	.default_lcdcon2		= AT91SAM9261_DEFAULT_STN_LCDCON2,
+	.default_monspecs		= &at91fb_default_stn_monspecs,
+	.atmel_lcdfb_power_control	= at91_lcdc_stn_power_control,
+	.guard_time			= 1,
+};
+
+#else
+
+/* TFT */
 static struct fb_videomode at91_tft_vga_modes[] = {
 	{
 	        .name           = "TX09D50VM1CCA @ 60",
@@ -296,7 +358,7 @@ static struct fb_videomode at91_tft_vga_modes[] = {
 	},
 };
 
-static struct fb_monspecs at91fb_default_monspecs = {
+static struct fb_monspecs at91fb_default_tft_monspecs = {
 	.manufacturer	= "HIT",
 	.monitor        = "TX09D50VM1CCA",
 
@@ -308,11 +370,11 @@ static struct fb_monspecs at91fb_default_monspecs = {
 	.vfmax		= 150,
 };
 
-#define AT91SAM9261_DEFAULT_LCDCON2 	(ATMEL_LCDC_MEMOR_LITTLE \
+#define AT91SAM9261_DEFAULT_TFT_LCDCON2	(ATMEL_LCDC_MEMOR_LITTLE \
 					| ATMEL_LCDC_DISTYPE_TFT    \
 					| ATMEL_LCDC_CLKMOD_ALWAYSACTIVE)
 
-static void at91_lcdc_power_control(int on)
+static void at91_lcdc_tft_power_control(int on)
 {
 	if (on)
 		at91_set_gpio_value(AT91_PIN_PA12, 0);	/* power up */
@@ -320,15 +382,15 @@ static void at91_lcdc_power_control(int on)
 		at91_set_gpio_value(AT91_PIN_PA12, 1);	/* power down */
 }
 
-/* Driver datas */
 static struct atmel_lcdfb_info __initdata ek_lcdc_data = {
 	.default_bpp			= 16,
 	.default_dmacon			= ATMEL_LCDC_DMAEN,
-	.default_lcdcon2		= AT91SAM9261_DEFAULT_LCDCON2,
-	.default_monspecs		= &at91fb_default_monspecs,
-	.atmel_lcdfb_power_control	= at91_lcdc_power_control,
+	.default_lcdcon2		= AT91SAM9261_DEFAULT_TFT_LCDCON2,
+	.default_monspecs		= &at91fb_default_tft_monspecs,
+	.atmel_lcdfb_power_control	= at91_lcdc_tft_power_control,
 	.guard_time			= 1,
 };
+#endif
 
 #else
 static struct atmel_lcdfb_info __initdata ek_lcdc_data;
@@ -342,25 +404,25 @@ static struct atmel_lcdfb_info __initdata ek_lcdc_data;
 static struct gpio_keys_button ek_buttons[] = {
 	{
 		.gpio		= AT91_PIN_PA27,
-		.keycode	= BTN_0,
+		.code		= BTN_0,
 		.desc		= "Button 0",
 		.active_low	= 1,
 	},
 	{
 		.gpio		= AT91_PIN_PA26,
-		.keycode	= BTN_1,
+		.code		= BTN_1,
 		.desc		= "Button 1",
 		.active_low	= 1,
 	},
 	{
 		.gpio		= AT91_PIN_PA25,
-		.keycode	= BTN_2,
+		.code		= BTN_2,
 		.desc		= "Button 2",
 		.active_low	= 1,
 	},
 	{
 		.gpio		= AT91_PIN_PA24,
-		.keycode	= BTN_3,
+		.code		= BTN_3,
 		.desc		= "Button 3",
 		.active_low	= 1,
 	}

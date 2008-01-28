@@ -277,6 +277,8 @@ serial21285_set_termios(struct uart_port *port, struct ktermios *termios,
 	if (termios->c_iflag & INPCK)
 		port->read_status_mask |= RXSTAT_FRAME | RXSTAT_PARITY;
 
+	tty_encode_baud_rate(tty,  baud, baud);
+
 	/*
 	 * Which character status flags should we ignore?
 	 */

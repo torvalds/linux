@@ -15,4 +15,13 @@ struct undef_hook {
 void register_undef_hook(struct undef_hook *hook);
 void unregister_undef_hook(struct undef_hook *hook);
 
+static inline int in_exception_text(unsigned long ptr)
+{
+	extern char __exception_text_start[];
+	extern char __exception_text_end[];
+
+	return ptr >= (unsigned long)&__exception_text_start &&
+	       ptr < (unsigned long)&__exception_text_end;
+}
+
 #endif

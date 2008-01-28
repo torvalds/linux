@@ -7,7 +7,11 @@
 
 #define FPSID			cr0
 #define FPSCR			cr1
+#define MVFR1			cr6
+#define MVFR0			cr7
 #define FPEXC			cr8
+#define FPINST			cr9
+#define FPINST2			cr10
 
 /* FPSID bits */
 #define FPSID_IMPLEMENTER_BIT	(24)
@@ -28,6 +32,19 @@
 /* FPEXC bits */
 #define FPEXC_EX		(1 << 31)
 #define FPEXC_EN		(1 << 30)
+#define FPEXC_DEX		(1 << 29)
+#define FPEXC_FP2V		(1 << 28)
+#define FPEXC_VV		(1 << 27)
+#define FPEXC_TFV		(1 << 26)
+#define FPEXC_LENGTH_BIT	(8)
+#define FPEXC_LENGTH_MASK	(7 << FPEXC_LENGTH_BIT)
+#define FPEXC_IDF		(1 << 7)
+#define FPEXC_IXF		(1 << 4)
+#define FPEXC_UFF		(1 << 3)
+#define FPEXC_OFF		(1 << 2)
+#define FPEXC_DZF		(1 << 1)
+#define FPEXC_IOF		(1 << 0)
+#define FPEXC_TRAP_MASK		(FPEXC_IDF|FPEXC_IXF|FPEXC_UFF|FPEXC_OFF|FPEXC_DZF|FPEXC_IOF)
 
 /* FPSCR bits */
 #define FPSCR_DEFAULT_NAN	(1<<25)
@@ -55,20 +72,9 @@
 #define FPSCR_IXC		(1<<4)
 #define FPSCR_IDC		(1<<7)
 
-/*
- * VFP9-S specific.
- */
-#define FPINST			cr9
-#define FPINST2			cr10
-
-/* FPEXC bits */
-#define FPEXC_FPV2		(1<<28)
-#define FPEXC_LENGTH_BIT	(8)
-#define FPEXC_LENGTH_MASK	(7 << FPEXC_LENGTH_BIT)
-#define FPEXC_INV		(1 << 7)
-#define FPEXC_UFC		(1 << 3)
-#define FPEXC_OFC		(1 << 2)
-#define FPEXC_IOC		(1 << 0)
+/* MVFR0 bits */
+#define MVFR0_A_SIMD_BIT	(0)
+#define MVFR0_A_SIMD_MASK	(0xf << MVFR0_A_SIMD_BIT)
 
 /* Bit patterns for decoding the packaged operation descriptors */
 #define VFPOPDESC_LENGTH_BIT	(9)

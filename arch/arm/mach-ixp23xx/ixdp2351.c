@@ -24,7 +24,6 @@
 #include <linux/tty.h>
 #include <linux/bitops.h>
 #include <linux/ioport.h>
-#include <linux/serial.h>
 #include <linux/serial_8250.h>
 #include <linux/serial_core.h>
 #include <linux/device.h>
@@ -44,7 +43,6 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/irq.h>
 #include <asm/mach/pci.h>
 
 /*

@@ -20,6 +20,8 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/init.h>
+#include <linux/debugfs.h>
+#include <linux/seq_file.h>
 #include <linux/module.h>
 
 #include <asm/io.h>
@@ -216,3 +218,84 @@ int irq_to_gpio(unsigned int irq)
 	return (irq - KS8695_IRQ_EXTERN0);
 }
 EXPORT_SYMBOL(irq_to_gpio);
+
+
+/* .... Debug interface ..................................................... */
+
+#ifdef CONFIG_DEBUG_FS
+
+static int ks8695_gpio_show(struct seq_file *s, void *unused)
+{
+	unsigned int enable[] = { IOPC_IOEINT0EN, IOPC_IOEINT1EN, IOPC_IOEINT2EN, IOPC_IOEINT3EN, IOPC_IOTIM0EN, IOPC_IOTIM1EN };
+	unsigned int intmask[] = { IOPC_IOEINT0TM, IOPC_IOEINT1TM, IOPC_IOEINT2TM, IOPC_IOEINT3TM };
+	unsigned long mode, ctrl, data;
+	int i;
+
+	mode = __raw_readl(KS8695_GPIO_VA + KS8695_IOPM);
+	ctrl = __raw_readl(KS8695_GPIO_VA + KS8695_IOPC);
+	data = __raw_readl(KS8695_GPIO_VA + KS8695_IOPD);
+
+	seq_printf(s, "Pin\tI/O\tFunction\tState\n\n");
+
+	for (i = KS8695_GPIO_0; i <= KS8695_GPIO_15 ; i++) {
+		seq_printf(s, "%i:\t", i);
+
+		seq_printf(s, "%s\t", (mode & IOPM_(i)) ? "Output" : "Input");
+
+		if (i <= KS8695_GPIO_3) {
+			if (ctrl & enable[i]) {
+				seq_printf(s, "EXT%i ", i);
+
+				switch ((ctrl & intmask[i]) >> (4 * i)) {
+					case IOPC_TM_LOW:
+						seq_printf(s, "(Low)");		break;
+					case IOPC_TM_HIGH:
+						seq_printf(s, "(High)");	break;
+					case IOPC_TM_RISING:
+						seq_printf(s, "(Rising)");	break;
+					case IOPC_TM_FALLING:
+						seq_printf(s, "(Falling)");	break;
+					case IOPC_TM_EDGE:
+						seq_printf(s, "(Edges)");	break;
+				}
+			}
+			else
+				seq_printf(s, "GPIO\t");
+		}
+		else if (i <= KS8695_GPIO_5) {
+			if (ctrl & enable[i])
+				seq_printf(s, "TOUT%i\t", i - KS8695_GPIO_4);
+			else
+				seq_printf(s, "GPIO\t");
+		}
+		else
+			seq_printf(s, "GPIO\t");
+
+		seq_printf(s, "\t");
+
+		seq_printf(s, "%i\n", (data & IOPD_(i)) ? 1 : 0);
+	}
+	return 0;
+}
+
+static int ks8695_gpio_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, ks8695_gpio_show, NULL);
+}
+
+static const struct file_operations ks8695_gpio_operations = {
+	.open		= ks8695_gpio_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int __init ks8695_gpio_debugfs_init(void)
+{
+	/* /sys/kernel/debug/ks8695_gpio */
+	(void) debugfs_create_file("ks8695_gpio", S_IFREG | S_IRUGO, NULL, NULL, &ks8695_gpio_operations);
+	return 0;
+}
+postcore_initcall(ks8695_gpio_debugfs_init);
+
+#endif

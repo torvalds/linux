@@ -16,7 +16,7 @@ int corgi_ssp_max1111_get(unsigned long data);
  */
 
 struct corgits_machinfo {
-	unsigned long (*get_hsync_len)(void);
+	unsigned long (*get_hsync_invperiod)(void);
 	void (*put_hsync)(void);
 	void (*wait_hsync)(void);
 };

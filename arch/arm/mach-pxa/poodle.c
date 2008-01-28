@@ -215,12 +215,10 @@ static int poodle_mci_init(struct device *dev, irq_handler_t poodle_detect_int, 
 	err = request_irq(POODLE_IRQ_GPIO_nSD_DETECT, poodle_detect_int,
 			  IRQF_DISABLED | IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 			  "MMC card detect", data);
-	if (err) {
+	if (err)
 		printk(KERN_ERR "poodle_mci_init: MMC/SD: can't request MMC card detect IRQ\n");
-		return -1;
-	}
 
-	return 0;
+	return err;
 }
 
 static void poodle_mci_setpower(struct device *dev, unsigned int vdd)

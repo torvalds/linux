@@ -308,7 +308,7 @@ config USB_S3C2410_DEBUG
 
 config USB_GADGET_AT91
 	boolean "AT91 USB Device Port"
-	depends on ARCH_AT91 && !ARCH_AT91SAM9RL
+	depends on ARCH_AT91 && !ARCH_AT91SAM9RL && !ARCH_AT91CAP9
 	select USB_GADGET_SELECTED
 	help
 	   Many Atmel AT91 processors (such as the AT91RM2000) have a

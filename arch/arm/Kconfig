@@ -180,8 +180,8 @@ config ARCH_AT91
 	bool "Atmel AT91"
 	select GENERIC_GPIO
 	help
-	  This enables support for systems based on the Atmel AT91RM9200
-	  and AT91SAM9xxx processors.
+	  This enables support for systems based on the Atmel AT91RM9200,
+	  AT91SAM9 and AT91CAP9 processors.
 
 config ARCH_CLPS7500
 	bool "Cirrus CL-PS7500FE"
@@ -217,6 +217,7 @@ config ARCH_EP93XX
 	bool "EP93xx-based"
 	select ARM_AMBA
 	select ARM_VIC
+	select GENERIC_GPIO
 	help
 	  This enables support for the Cirrus EP93xx series of CPUs.
 
@@ -333,6 +334,16 @@ config ARCH_MXC
 	help
 	  Support for Freescale MXC/iMX-based family of processors
 
+config ARCH_ORION
+	bool "Marvell Orion"
+	depends on MMU
+	select PCI
+	select GENERIC_GPIO
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+	help
+	  Support for Marvell Orion System on Chip family.
+
 config ARCH_PNX4008
 	bool "Philips Nexperia PNX4008 Mobile"
 	help
@@ -345,6 +356,7 @@ config ARCH_PXA
 	select GENERIC_GPIO
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
+	select TICK_ONESHOT
 	help
 	  Support for Intel/Marvell's PXA2xx/PXA3xx processor line.
 
@@ -366,6 +378,7 @@ config ARCH_SA1100
 	select ARCH_DISCONTIGMEM_ENABLE
 	select ARCH_MTD_XIP
 	select GENERIC_GPIO
+	select GENERIC_TIME
 	help
 	  Support for StrongARM 11x0 based boards.
 
@@ -409,6 +422,17 @@ config ARCH_OMAP
 	help
 	  Support for TI's OMAP platform (OMAP1 and OMAP2).
 
+config ARCH_MSM7X00A
+	bool "Qualcomm MSM7X00A"
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+	help
+	  Support for Qualcomm MSM7X00A based systems.  This runs on the ARM11
+	  apps processor of the MSM7X00A and depends on a shared memory
+	  interface to the ARM9 modem processor which runs the baseband stack
+	  and controls some vital subsystems (clock and power control, etc).
+	  <http://www.cdmatech.com/products/msm7200_chipset_solution.jsp>
+
 endchoice
 
 source "arch/arm/mach-clps711x/Kconfig"
@@ -440,6 +464,8 @@ source "arch/arm/plat-omap/Kconfig"
 source "arch/arm/mach-omap1/Kconfig"
 
 source "arch/arm/mach-omap2/Kconfig"
+
+source "arch/arm/mach-orion/Kconfig"
 
 source "arch/arm/plat-s3c24xx/Kconfig"
 source "arch/arm/plat-s3c/Kconfig"
@@ -476,6 +502,8 @@ source "arch/arm/mach-ns9xxx/Kconfig"
 source "arch/arm/mach-davinci/Kconfig"
 
 source "arch/arm/mach-ks8695/Kconfig"
+
+source "arch/arm/mach-msm/Kconfig"
 
 # Definitions to make life easier
 config ARCH_ACORN
@@ -657,6 +685,7 @@ config HZ
 	default 128 if ARCH_L7200
 	default 200 if ARCH_EBSA110 || ARCH_S3C2410
 	default OMAP_32K_TIMER_HZ if ARCH_OMAP && OMAP_32K_TIMER
+	default AT91_TIMER_HZ if ARCH_AT91
 	default 100
 
 config AEABI
@@ -716,7 +745,7 @@ config LEDS
 		   ARCH_OMAP || ARCH_P720T || ARCH_PXA_IDP || \
 		   ARCH_SA1100 || ARCH_SHARK || ARCH_VERSATILE || \
 		   ARCH_AT91 || MACH_TRIZEPS4 || ARCH_DAVINCI || \
-		   ARCH_KS8695
+		   ARCH_KS8695 || MACH_RD88F5182
 	help
 	  If you say Y here, the LEDs on your machine will be used
 	  to provide useful information about your current system status.
@@ -867,7 +896,7 @@ config KEXEC
 
 endmenu
 
-if (ARCH_SA1100 || ARCH_INTEGRATOR || ARCH_OMAP || ARCH_IMX )
+if (ARCH_SA1100 || ARCH_INTEGRATOR || ARCH_OMAP || ARCH_IMX || ARCH_PXA)
 
 menu "CPU Frequency scaling"
 
@@ -902,6 +931,12 @@ config CPU_FREQ_IMX
 	  This enables the CPUfreq driver for i.MX CPUs.
 
 	  If in doubt, say N.
+
+config CPU_FREQ_PXA
+	bool
+	depends on CPU_FREQ && ARCH_PXA && PXA25x
+	default y
+	select CPU_FREQ_DEFAULT_GOV_USERSPACE
 
 endmenu
 
@@ -951,7 +986,7 @@ config FPE_FASTFPE
 
 config VFP
 	bool "VFP-format floating point maths"
-	depends on CPU_V6 || CPU_ARM926T
+	depends on CPU_V6 || CPU_ARM926T || CPU_V7 || CPU_FEROCEON
 	help
 	  Say Y to include VFP support code in the kernel. This is needed
 	  if your hardware includes a VFP unit.
@@ -960,6 +995,18 @@ config VFP
 	  release notes and additional status information.
 
 	  Say N if your target does not have VFP hardware.
+
+config VFPv3
+	bool
+	depends on VFP
+	default y if CPU_V7
+
+config NEON
+	bool "Advanced SIMD (NEON) Extension support"
+	depends on VFPv3 && CPU_V7
+	help
+	  Say Y to include support code for NEON, the ARMv7 Advanced SIMD
+	  Extension.
 
 endmenu
 

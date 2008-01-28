@@ -45,8 +45,6 @@ static irqreturn_t mxc_timer_interrupt(int irq, void *dev_id)
 {
 	unsigned int next_match;
 
-	write_seqlock(&xtime_lock);
-
 	if (__raw_readl(MXC_GPT_GPTSR) & GPTSR_OF1) {
 		do {
 			timer_tick();
@@ -56,8 +54,6 @@ static irqreturn_t mxc_timer_interrupt(int irq, void *dev_id)
 		} while ((signed long)(next_match -
 				       __raw_readl(MXC_GPT_GPTCNT)) <= 0);
 	}
-
-	write_sequnlock(&xtime_lock);
 
 	return IRQ_HANDLED;
 }

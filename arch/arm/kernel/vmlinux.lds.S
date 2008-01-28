@@ -94,6 +94,7 @@ SECTIONS
 			TEXT_TEXT
 			SCHED_TEXT
 			LOCK_TEXT
+			KPROBES_TEXT
 #ifdef CONFIG_MMU
 			*(.fixup)
 #endif

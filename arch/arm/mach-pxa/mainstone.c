@@ -23,6 +23,7 @@
 #include <linux/ioport.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/backlight.h>
 
 #include <asm/types.h>
 #include <asm/setup.h>
@@ -38,6 +39,7 @@
 #include <asm/mach/flash.h>
 
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/pxa2xx-regs.h>
 #include <asm/arch/mainstone.h>
 #include <asm/arch/audio.h>
 #include <asm/arch/pxafb.h>
@@ -130,9 +132,13 @@ static struct sys_device mainstone_irq_device = {
 
 static int __init mainstone_irq_device_init(void)
 {
-	int ret = sysdev_class_register(&mainstone_irq_sysclass);
-	if (ret == 0)
-		ret = sysdev_register(&mainstone_irq_device);
+	int ret = -ENODEV;
+
+	if (machine_is_mainstone()) {
+		ret = sysdev_class_register(&mainstone_irq_sysclass);
+		if (ret == 0)
+			ret = sysdev_register(&mainstone_irq_device);
+	}
 	return ret;
 }
 
@@ -150,7 +156,7 @@ static struct resource smc91x_resources[] = {
 	[1] = {
 		.start	= MAINSTONE_IRQ(3),
 		.end	= MAINSTONE_IRQ(3),
-		.flags	= IORESOURCE_IRQ,
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
 	}
 };
 
@@ -263,21 +269,60 @@ static struct platform_device mst_flash_device[2] = {
 	},
 };
 
-static void mainstone_backlight_power(int on)
+#ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
+static int mainstone_backlight_update_status(struct backlight_device *bl)
 {
-	if (on) {
+	int brightness = bl->props.brightness;
+
+	if (bl->props.power != FB_BLANK_UNBLANK ||
+	    bl->props.fb_blank != FB_BLANK_UNBLANK)
+		brightness = 0;
+
+	if (brightness != 0) {
 		pxa_gpio_mode(GPIO16_PWM0_MD);
 		pxa_set_cken(CKEN_PWM0, 1);
-		PWM_CTRL0 = 0;
-		PWM_PWDUTY0 = 0x3ff;
-		PWM_PERVAL0 = 0x3ff;
-	} else {
-		PWM_CTRL0 = 0;
-		PWM_PWDUTY0 = 0x0;
-		PWM_PERVAL0 = 0x3FF;
-		pxa_set_cken(CKEN_PWM0, 0);
 	}
+	PWM_CTRL0 = 0;
+	PWM_PWDUTY0 = brightness;
+	PWM_PERVAL0 = bl->props.max_brightness;
+	if (brightness == 0)
+		pxa_set_cken(CKEN_PWM0, 0);
+	return 0; /* pointless return value */
 }
+
+static int mainstone_backlight_get_brightness(struct backlight_device *bl)
+{
+	return PWM_PWDUTY0;
+}
+
+static /*const*/ struct backlight_ops mainstone_backlight_ops = {
+	.update_status	= mainstone_backlight_update_status,
+	.get_brightness	= mainstone_backlight_get_brightness,
+};
+
+static void __init mainstone_backlight_register(void)
+{
+	struct backlight_device *bl;
+
+	bl = backlight_device_register("mainstone-bl", &pxa_device_fb.dev,
+				       NULL, &mainstone_backlight_ops);
+	if (IS_ERR(bl)) {
+		printk(KERN_ERR "mainstone: unable to register backlight: %ld\n",
+		       PTR_ERR(bl));
+		return;
+	}
+
+	/*
+	 * broken design - register-then-setup interfaces are
+	 * utterly broken by definition.
+	 */
+	bl->props.max_brightness = 1023;
+	bl->props.brightness = 1023;
+	backlight_update_status(bl);
+}
+#else
+#define mainstone_backlight_register()	do { } while (0)
+#endif
 
 static struct pxafb_mode_info toshiba_ltm04c380k_mode = {
 	.pixclock		= 50000,
@@ -311,7 +356,6 @@ static struct pxafb_mach_info mainstone_pxafb_info = {
 	.num_modes      	= 1,
 	.lccr0			= LCCR0_Act,
 	.lccr3			= LCCR3_PCP,
-	.pxafb_backlight_power	= mainstone_backlight_power,
 };
 
 static int mainstone_mci_init(struct device *dev, irq_handler_t mstone_detect_int, void *data)
@@ -335,12 +379,10 @@ static int mainstone_mci_init(struct device *dev, irq_handler_t mstone_detect_in
 
 	err = request_irq(MAINSTONE_MMC_IRQ, mstone_detect_int, IRQF_DISABLED,
 			     "MMC card detect", data);
-	if (err) {
+	if (err)
 		printk(KERN_ERR "mainstone_mci_init: MMC/SD: can't request MMC card detect IRQ\n");
-		return -1;
-	}
 
-	return 0;
+	return err;
 }
 
 static void mainstone_mci_setpower(struct device *dev, unsigned int vdd)
@@ -473,6 +515,7 @@ static void __init mainstone_init(void)
 		mainstone_pxafb_info.modes = &toshiba_ltm035a776c_mode;
 
 	set_pxa_fb_info(&mainstone_pxafb_info);
+	mainstone_backlight_register();
 
 	pxa_set_mci_info(&mainstone_mci_platform_data);
 	pxa_set_ficp_info(&mainstone_ficp_platform_data);

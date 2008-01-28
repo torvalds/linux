@@ -9,19 +9,21 @@
  * published by the Free Software Foundation.
  */
 
-#define FFUART		((volatile unsigned long *)0x40100000)
-#define BTUART		((volatile unsigned long *)0x40200000)
-#define STUART		((volatile unsigned long *)0x40700000)
-#define HWUART		((volatile unsigned long *)0x41600000)
+#include <linux/serial_reg.h>
+#include <asm/arch/pxa-regs.h>
+
+#define __REG(x)	((volatile unsigned long *)x)
 
 #define UART		FFUART
 
 
 static inline void putc(char c)
 {
-	while (!(UART[5] & 0x20))
+	if (!(UART[UART_IER] & IER_UUE))
+		return;
+	while (!(UART[UART_LSR] & LSR_TDRQ))
 		barrier();
-	UART[0] = c;
+	UART[UART_TX] = c;
 }
 
 /*

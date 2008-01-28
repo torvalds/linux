@@ -16,6 +16,7 @@
 #define __ASM_ARCH_MFP_PXA300_H
 
 #include <asm/arch/mfp.h>
+#include <asm/arch/mfp-pxa3xx.h>
 
 /* GPIO */
 #define GPIO46_GPIO		MFP_CFG(GPIO46, AF1)
