@@ -42,6 +42,7 @@
 #define DATA_DATA							\
 	*(.data)							\
 	*(.data.init.refok)						\
+	*(.ref.data)							\
 	DEV_KEEP(init.data)						\
 	DEV_KEEP(exit.data)						\
 	CPU_KEEP(init.data)						\
@@ -169,6 +170,7 @@
 									\
 	/* __*init sections */						\
 	__init_rodata : AT(ADDR(__init_rodata) - LOAD_OFFSET) {		\
+		*(.ref.rodata)						\
 		DEV_KEEP(init.rodata)					\
 		DEV_KEEP(exit.rodata)					\
 		CPU_KEEP(init.rodata)					\
@@ -202,6 +204,7 @@
 #define TEXT_TEXT							\
 		ALIGN_FUNCTION();					\
 		*(.text)						\
+		*(.ref.text)						\
 		*(.text.init.refok)					\
 		*(.exit.text.refok)					\
 	DEV_KEEP(init.text)						\

@@ -52,12 +52,26 @@
  * when early init has completed so all such references are potential bugs.
  * For exit sections the same issue exists.
  * The following markers are used for the cases where the reference to
- * the init/exit section (code or data) is valid and will teach modpost
- * not to issue a warning.
+ * the *init / *exit section (code or data) is valid and will teach
+ * modpost not to issue a warning.
  * The markers follow same syntax rules as __init / __initdata. */
-#define __init_refok     noinline __section(.text.init.refok)
-#define __initdata_refok          __section(.data.init.refok)
-#define __exit_refok     noinline __section(.exit.text.refok)
+#define __ref            __section(.ref.text) noinline
+#define __refdata        __section(.ref.data)
+#define __refconst       __section(.ref.rodata)
+
+/* backward compatibility note
+ *  A few places hardcode the old section names:
+ *  .text.init.refok
+ *  .data.init.refok
+ *  .exit.text.refok
+ *  They should be converted to use the defines from this file
+ */
+
+/* compatibility defines */
+#define __init_refok     __ref
+#define __initdata_refok __refdata
+#define __exit_refok     __ref
+
 
 #ifdef MODULE
 #define __exitused
@@ -93,11 +107,9 @@
 
 /* For assembly routines */
 #define __INIT		.section	".init.text","ax"
-#define __INIT_REFOK	.section	".text.init.refok","ax"
 #define __FINIT		.previous
 
 #define __INITDATA	.section	".init.data","aw"
-#define __INITDATA_REFOK .section	".data.init.refok","aw"
 
 #define __DEVINIT        .section	".devinit.text", "ax"
 #define __DEVINITDATA    .section	".devinit.data", "aw"
@@ -107,6 +119,14 @@
 
 #define __MEMINIT        .section	".meminit.text", "ax"
 #define __MEMINITDATA    .section	".meminit.data", "aw"
+
+/* silence warnings when references are OK */
+#define __REF            .section       ".ref.text", "ax"
+#define __REFDATA        .section       ".ref.data", "aw"
+#define __REFCONST       .section       ".ref.rodata", "aw"
+/* backward compatibility */
+#define __INIT_REFOK     .section	__REF
+#define __INITDATA_REFOK .section	__REFDATA
 
 #ifndef __ASSEMBLY__
 /*
