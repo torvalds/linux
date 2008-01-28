@@ -52,4 +52,6 @@
  * configuration space */
 #define VIRTIO_PCI_CONFIG		20
 
+/* Virtio ABI version, this must match exactly */
+#define VIRTIO_PCI_ABI_VERSION		0
 #endif

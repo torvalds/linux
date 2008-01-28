@@ -311,6 +311,12 @@ static int __devinit virtio_pci_probe(struct pci_dev *pci_dev,
 	if (pci_dev->device < 0x1000 || pci_dev->device > 0x103f)
 		return -ENODEV;
 
+	if (pci_dev->revision != VIRTIO_PCI_ABI_VERSION) {
+		printk(KERN_ERR "virtio_pci: expected ABI version %d, got %d\n",
+		       VIRTIO_PCI_ABI_VERSION, pci_dev->revision);
+		return -ENODEV;
+	}
+
 	/* allocate our structure and fill it out */
 	vp_dev = kzalloc(sizeof(struct virtio_pci_device), GFP_KERNEL);
 	if (vp_dev == NULL)
