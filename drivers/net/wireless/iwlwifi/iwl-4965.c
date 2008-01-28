@@ -79,6 +79,30 @@ const struct iwl4965_rate_info iwl4965_rates[IWL_RATE_COUNT] = {
 	IWL_DECLARE_RATE_INFO(60, 60, 48, INV, 48, INV, 48, INV),/* 60mbps */
 };
 
+#ifdef CONFIG_IWL4965_HT
+
+static const u16 default_tid_to_tx_fifo[] = {
+	IWL_TX_FIFO_AC1,
+	IWL_TX_FIFO_AC0,
+	IWL_TX_FIFO_AC0,
+	IWL_TX_FIFO_AC1,
+	IWL_TX_FIFO_AC2,
+	IWL_TX_FIFO_AC2,
+	IWL_TX_FIFO_AC3,
+	IWL_TX_FIFO_AC3,
+	IWL_TX_FIFO_NONE,
+	IWL_TX_FIFO_NONE,
+	IWL_TX_FIFO_NONE,
+	IWL_TX_FIFO_NONE,
+	IWL_TX_FIFO_NONE,
+	IWL_TX_FIFO_NONE,
+	IWL_TX_FIFO_NONE,
+	IWL_TX_FIFO_NONE,
+	IWL_TX_FIFO_AC3
+};
+
+#endif	/*CONFIG_IWL4965_HT */
+
 static int is_fat_channel(__le32 rxon_flags)
 {
 	return (rxon_flags & RXON_FLG_CHANNEL_MODE_PURE_40_MSK) ||
@@ -4185,6 +4209,7 @@ static void iwl4965_set_tx_status(struct iwl4965_priv *priv, int txq_id, int idx
 	tx_status->control.tx_rate = rate;
 }
 
+#endif/* CONFIG_IWL4965_HT_AGG */
 
 /**
  * iwl4965_sta_modify_enable_tid_tx - Enable Tx for this TID in station table
@@ -4204,7 +4229,6 @@ static void iwl4965_sta_modify_enable_tid_tx(struct iwl4965_priv *priv,
 	iwl4965_send_add_station(priv, &priv->stations[sta_id].sta, CMD_ASYNC);
 }
 
-
 /**
  * iwl4965_tx_status_reply_compressed_ba - Update tx status from block-ack
  *
@@ -4218,10 +4242,11 @@ static int iwl4965_tx_status_reply_compressed_ba(struct iwl4965_priv *priv,
 
 {
 	int i, sh, ack;
-	u16 ba_seq_ctl = le16_to_cpu(ba_resp->ba_seq_ctl);
-	u32 bitmap0, bitmap1;
-	u32 resp_bitmap0 = le32_to_cpu(ba_resp->ba_bitmap0);
-	u32 resp_bitmap1 = le32_to_cpu(ba_resp->ba_bitmap1);
+	u16 seq_ctl = le16_to_cpu(ba_resp->seq_ctl);
+	u16 scd_flow = le16_to_cpu(ba_resp->scd_flow);
+	u64 bitmap;
+	int successes = 0;
+	struct ieee80211_tx_status *tx_status;
 
 	if (unlikely(!agg->wait_for_ba))  {
 		IWL_ERROR("Received BA when not expected\n");
@@ -4230,17 +4255,15 @@ static int iwl4965_tx_status_reply_compressed_ba(struct iwl4965_priv *priv,
 
 	/* Mark that the expected block-ack response arrived */
 	agg->wait_for_ba = 0;
-	IWL_DEBUG_TX_REPLY("BA %d %d\n", agg->start_idx, ba_resp->ba_seq_ctl);
+	IWL_DEBUG_TX_REPLY("BA %d %d\n", agg->start_idx, ba_resp->seq_ctl);
 
 	/* Calculate shift to align block-ack bits with our Tx window bits */
-	sh = agg->start_idx - SEQ_TO_INDEX(ba_seq_ctl >> 4);
+	sh = agg->start_idx - SEQ_TO_INDEX(seq_ctl>>4);
 	if (sh < 0) /* tbw something is wrong with indices */
 		sh += 0x100;
 
 	/* don't use 64-bit values for now */
-	bitmap0 = resp_bitmap0 >> sh;
-	bitmap1 = resp_bitmap1 >> sh;
-	bitmap0 |= (resp_bitmap1 & ((1 << sh) | ((1 << sh) - 1))) << (32 - sh);
+	bitmap = le64_to_cpu(ba_resp->bitmap) >> sh;
 
 	if (agg->frame_count > (64 - sh)) {
 		IWL_DEBUG_TX_REPLY("more frames than bitmap size");
@@ -4249,23 +4272,106 @@ static int iwl4965_tx_status_reply_compressed_ba(struct iwl4965_priv *priv,
 
 	/* check for success or failure according to the
 	 * transmitted bitmap and block-ack bitmap */
-	bitmap0 &= agg->bitmap0;
-	bitmap1 &= agg->bitmap1;
+	bitmap &= agg->bitmap;
 
 	/* For each frame attempted in aggregation,
 	 * update driver's record of tx frame's status. */
 	for (i = 0; i < agg->frame_count ; i++) {
-		int idx = (agg->start_idx + i) & 0xff;
-		ack = bitmap0 & (1 << i);
+		ack = bitmap & (1 << i);
+		successes += !!ack;
 		IWL_DEBUG_TX_REPLY("%s ON i=%d idx=%d raw=%d\n",
-			ack? "ACK":"NACK", i, idx, agg->start_idx + i);
-		iwl4965_set_tx_status(priv, agg->txq_id, idx, ack, 0,
-			agg->rate_n_flags);
-
+			ack? "ACK":"NACK", i, (agg->start_idx + i) & 0xff,
+			agg->start_idx + i);
 	}
 
-	IWL_DEBUG_TX_REPLY("Bitmap %x%x\n", bitmap0, bitmap1);
+	tx_status = &priv->txq[scd_flow].txb[agg->start_idx].status;
+	tx_status->flags = IEEE80211_TX_STATUS_ACK;
+	tx_status->retry_count++;
+#ifdef CONFIG_IWL4965_HT_AGG
+	tx_status->flags |= IEEE80211_TX_STATUS_AGG_STATS;
+	tx_status->successes = successes;
+	tx_status->frame_count = agg->frame_count;
+#endif	/* CONFIG_IWL4965_HT_AGG */
+	tx_status->control.tx_rate = agg->rate_n_flags;
 
+	IWL_DEBUG_TX_REPLY("Bitmap %llx\n", bitmap);
+
+	return 0;
+}
+
+/**
+ * iwl4965_tx_queue_stop_scheduler - Stop queue, but keep configuration
+ */
+static void iwl4965_tx_queue_stop_scheduler(struct iwl4965_priv *priv,
+					    u16 txq_id)
+{
+	/* Simply stop the queue, but don't change any configuration;
+	 * the SCD_ACT_EN bit is the write-enable mask for the ACTIVE bit. */
+	iwl4965_write_prph(priv,
+		KDR_SCD_QUEUE_STATUS_BITS(txq_id),
+		(0 << SCD_QUEUE_STTS_REG_POS_ACTIVE)|
+		(1 << SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN));
+}
+
+/**
+ * txq_id must be greater than IWL_BACK_QUEUE_FIRST_ID
+ */
+static int iwl4965_tx_queue_agg_disable(struct iwl4965_priv *priv, u16 txq_id,
+					u16 ssn_idx, u8 tx_fifo)
+{
+	if (IWL_BACK_QUEUE_FIRST_ID > txq_id) {
+		IWL_WARNING("queue number too small: %d, must be > %d\n",
+				txq_id, IWL_BACK_QUEUE_FIRST_ID);
+		return -EINVAL;
+	}
+
+	iwl4965_tx_queue_stop_scheduler(priv, txq_id);
+
+	iwl4965_clear_bits_prph(priv, KDR_SCD_QUEUECHAIN_SEL, (1 << txq_id));
+
+	priv->txq[txq_id].q.read_ptr = (ssn_idx & 0xff);
+	priv->txq[txq_id].q.write_ptr = (ssn_idx & 0xff);
+	/* supposes that ssn_idx is valid (!= 0xFFF) */
+	iwl4965_set_wr_ptrs(priv, txq_id, ssn_idx);
+
+	iwl4965_clear_bits_prph(priv, KDR_SCD_INTERRUPT_MASK, (1 << txq_id));
+	iwl4965_txq_ctx_deactivate(priv, txq_id);
+	iwl4965_tx_queue_set_status(priv, &priv->txq[txq_id], tx_fifo, 0);
+
+	return 0;
+}
+
+int iwl4965_check_empty_hw_queue(struct iwl4965_priv *priv, int sta_id,
+					 u8 tid, int txq_id)
+{
+	struct iwl4965_queue *q = &priv->txq[txq_id].q;
+	u8 *addr = priv->stations[sta_id].sta.sta.addr;
+	struct iwl4965_tid_data *tid_data = &priv->stations[sta_id].tid[tid];
+
+	switch (priv->stations[sta_id].tid[tid].agg.state) {
+	case IWL_EMPTYING_HW_QUEUE_DELBA:
+		/* We are reclaiming the last packet of the */
+		/* aggregated HW queue */
+		if (txq_id  == tid_data->agg.txq_id &&
+		    q->read_ptr == q->write_ptr) {
+			u16 ssn = SEQ_TO_SN(tid_data->seq_number);
+			int tx_fifo = default_tid_to_tx_fifo[tid];
+			IWL_DEBUG_HT("HW queue empty: continue DELBA flow\n");
+			iwl4965_tx_queue_agg_disable(priv, txq_id,
+						     ssn, tx_fifo);
+			tid_data->agg.state = IWL_AGG_OFF;
+			ieee80211_stop_tx_ba_cb_irqsafe(priv->hw, addr, tid);
+		}
+		break;
+	case IWL_EMPTYING_HW_QUEUE_ADDBA:
+		/* We are reclaiming the last packet of the queue */
+		if (tid_data->tfds_in_queue == 0) {
+			IWL_DEBUG_HT("HW queue empty: continue ADDBA flow\n");
+			tid_data->agg.state = IWL_AGG_ON;
+			ieee80211_start_tx_ba_cb_irqsafe(priv->hw, addr, tid);
+		}
+		break;
+	}
 	return 0;
 }
 
@@ -4293,48 +4399,43 @@ static void iwl4965_rx_reply_compressed_ba(struct iwl4965_priv *priv,
 	int index;
 	struct iwl4965_tx_queue *txq = NULL;
 	struct iwl4965_ht_agg *agg;
+	DECLARE_MAC_BUF(mac);
 
 	/* "flow" corresponds to Tx queue */
-	u16 ba_resp_scd_flow = le16_to_cpu(ba_resp->scd_flow);
+	u16 scd_flow = le16_to_cpu(ba_resp->scd_flow);
 
 	/* "ssn" is start of block-ack Tx window, corresponds to index
 	 * (in Tx queue's circular buffer) of first TFD/frame in window */
 	u16 ba_resp_scd_ssn = le16_to_cpu(ba_resp->scd_ssn);
 
-	if (ba_resp_scd_flow >= ARRAY_SIZE(priv->txq)) {
+	if (scd_flow >= ARRAY_SIZE(priv->txq)) {
 		IWL_ERROR("BUG_ON scd_flow is bigger than number of queues");
 		return;
 	}
 
-	txq = &priv->txq[ba_resp_scd_flow];
+	txq = &priv->txq[scd_flow];
 	agg = &priv->stations[ba_resp->sta_id].tid[ba_resp->tid].agg;
 
 	/* Find index just before block-ack window */
 	index = iwl4965_queue_dec_wrap(ba_resp_scd_ssn & 0xff, txq->q.n_bd);
 
 	/* TODO: Need to get this copy more safely - now good for debug */
-/*
-	{
-	DECLARE_MAC_BUF(mac);
+
 	IWL_DEBUG_TX_REPLY("REPLY_COMPRESSED_BA [%d]Received from %s, "
 			   "sta_id = %d\n",
 			   agg->wait_for_ba,
 			   print_mac(mac, (u8*) &ba_resp->sta_addr_lo32),
 			   ba_resp->sta_id);
-	IWL_DEBUG_TX_REPLY("TID = %d, SeqCtl = %d, bitmap = 0x%X%X, scd_flow = "
+	IWL_DEBUG_TX_REPLY("TID = %d, SeqCtl = %d, bitmap = 0x%llx, scd_flow = "
 			   "%d, scd_ssn = %d\n",
 			   ba_resp->tid,
-			   ba_resp->ba_seq_ctl,
-			   ba_resp->ba_bitmap1,
-			   ba_resp->ba_bitmap0,
+			   ba_resp->seq_ctl,
+			   ba_resp->bitmap,
 			   ba_resp->scd_flow,
 			   ba_resp->scd_ssn);
-	IWL_DEBUG_TX_REPLY("DAT start_idx = %d, bitmap = 0x%X%X \n",
+	IWL_DEBUG_TX_REPLY("DAT start_idx = %d, bitmap = 0x%llx \n",
 			   agg->start_idx,
-			   agg->bitmap1,
-			   agg->bitmap0);
-	}
-*/
+			   agg->bitmap);
 
 	/* Update driver's record of ACK vs. not for each frame in window */
 	iwl4965_tx_status_reply_compressed_ba(priv, agg, ba_resp);
@@ -4342,23 +4443,17 @@ static void iwl4965_rx_reply_compressed_ba(struct iwl4965_priv *priv,
 	/* Release all TFDs before the SSN, i.e. all TFDs in front of
 	 * block-ack window (we assume that they've been successfully
 	 * transmitted ... if not, it's too late anyway). */
-	if (txq->q.read_ptr != (ba_resp_scd_ssn & 0xff))
-		iwl4965_tx_queue_reclaim(priv, ba_resp_scd_flow, index);
-
-}
-
-
-/**
- * iwl4965_tx_queue_stop_scheduler - Stop queue, but keep configuration
- */
-static void iwl4965_tx_queue_stop_scheduler(struct iwl4965_priv *priv, u16 txq_id)
-{
-	/* Simply stop the queue, but don't change any configuration;
-	 * the SCD_ACT_EN bit is the write-enable mask for the ACTIVE bit. */
-	iwl4965_write_prph(priv,
-		KDR_SCD_QUEUE_STATUS_BITS(txq_id),
-		(0 << SCD_QUEUE_STTS_REG_POS_ACTIVE)|
-		(1 << SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN));
+	if (txq->q.read_ptr != (ba_resp_scd_ssn & 0xff)) {
+		int freed = iwl4965_tx_queue_reclaim(priv, scd_flow, index);
+		priv->stations[ba_resp->sta_id].
+			tid[ba_resp->tid].tfds_in_queue -= freed;
+		if (iwl4965_queue_space(&txq->q) > txq->q.low_mark &&
+			priv->mac80211_registered &&
+			agg->state != IWL_EMPTYING_HW_QUEUE_DELBA)
+			ieee80211_wake_queue(priv->hw, scd_flow);
+		iwl4965_check_empty_hw_queue(priv, ba_resp->sta_id,
+			ba_resp->tid, scd_flow);
+	}
 }
 
 /**
@@ -4387,6 +4482,7 @@ static int iwl4965_tx_queue_set_q2ratid(struct iwl4965_priv *priv, u16 ra_tid,
 
 	return 0;
 }
+
 
 /**
  * iwl4965_tx_queue_agg_enable - Set up & enable aggregation for selected queue
@@ -4455,48 +4551,6 @@ static int iwl4965_tx_queue_agg_enable(struct iwl4965_priv *priv, int txq_id,
 	return 0;
 }
 
-/**
- * txq_id must be greater than IWL_BACK_QUEUE_FIRST_ID
- */
-static int iwl4965_tx_queue_agg_disable(struct iwl4965_priv *priv, u16 txq_id,
-					u16 ssn_idx, u8 tx_fifo)
-{
-	unsigned long flags;
-	int rc;
-
-	if (IWL_BACK_QUEUE_FIRST_ID > txq_id) {
-		IWL_WARNING("queue number too small: %d, must be > %d\n",
-				txq_id, IWL_BACK_QUEUE_FIRST_ID);
-		return -EINVAL;
-	}
-
-	spin_lock_irqsave(&priv->lock, flags);
-	rc = iwl4965_grab_nic_access(priv);
-	if (rc) {
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return rc;
-	}
-
-	iwl4965_tx_queue_stop_scheduler(priv, txq_id);
-
-	iwl4965_clear_bits_prph(priv, KDR_SCD_QUEUECHAIN_SEL, (1 << txq_id));
-
-	priv->txq[txq_id].q.read_ptr = (ssn_idx & 0xff);
-	priv->txq[txq_id].q.write_ptr = (ssn_idx & 0xff);
-	/* supposes that ssn_idx is valid (!= 0xFFF) */
-	iwl4965_set_wr_ptrs(priv, txq_id, ssn_idx);
-
-	iwl4965_clear_bits_prph(priv, KDR_SCD_INTERRUPT_MASK, (1 << txq_id));
-	iwl4965_txq_ctx_deactivate(priv, txq_id);
-	iwl4965_tx_queue_set_status(priv, &priv->txq[txq_id], tx_fifo, 0);
-
-	iwl4965_release_nic_access(priv);
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	return 0;
-}
-
-#endif/* CONFIG_IWL4965_HT_AGG */
 #endif /* CONFIG_IWL4965_HT */
 
 /**
@@ -4730,28 +4784,6 @@ static void iwl4965_sta_modify_del_ba_tid(struct iwl4965_priv *priv,
 	iwl4965_send_add_station(priv, &priv->stations[sta_id].sta, CMD_ASYNC);
 }
 
-#ifdef CONFIG_IWL4965_HT_AGG
-
-static const u16 default_tid_to_tx_fifo[] = {
-	IWL_TX_FIFO_AC1,
-	IWL_TX_FIFO_AC0,
-	IWL_TX_FIFO_AC0,
-	IWL_TX_FIFO_AC1,
-	IWL_TX_FIFO_AC2,
-	IWL_TX_FIFO_AC2,
-	IWL_TX_FIFO_AC3,
-	IWL_TX_FIFO_AC3,
-	IWL_TX_FIFO_NONE,
-	IWL_TX_FIFO_NONE,
-	IWL_TX_FIFO_NONE,
-	IWL_TX_FIFO_NONE,
-	IWL_TX_FIFO_NONE,
-	IWL_TX_FIFO_NONE,
-	IWL_TX_FIFO_NONE,
-	IWL_TX_FIFO_NONE,
-	IWL_TX_FIFO_AC3
-};
-
 /*
  * Find first available (lowest unused) Tx Queue, mark it "active".
  * Called only when finding queue for aggregation.
@@ -4768,69 +4800,78 @@ static int iwl4965_txq_ctx_activate_free(struct iwl4965_priv *priv)
 	return -1;
 }
 
-int iwl4965_mac_ht_tx_agg_start(struct ieee80211_hw *hw, u8 *da, u16 tid,
-			    u16 *start_seq_num)
+static int iwl4965_mac_ht_tx_agg_start(struct ieee80211_hw *hw, const u8 *da,
+				       u16 tid, u16 *start_seq_num)
 {
-
 	struct iwl4965_priv *priv = hw->priv;
 	int sta_id;
 	int tx_fifo;
 	int txq_id;
 	int ssn = -1;
+	int rc = 0;
 	unsigned long flags;
 	struct iwl4965_tid_data *tid_data;
 	DECLARE_MAC_BUF(mac);
 
-	/* Determine Tx DMA/FIFO channel for this Traffic ID */
 	if (likely(tid < ARRAY_SIZE(default_tid_to_tx_fifo)))
 		tx_fifo = default_tid_to_tx_fifo[tid];
 	else
 		return -EINVAL;
 
-	IWL_WARNING("iwl-AGG iwl4965_mac_ht_tx_agg_start on da=%s"
-		    " tid=%d\n", print_mac(mac, da), tid);
+	IWL_WARNING("%s on da = %s tid = %d\n",
+			__func__, print_mac(mac, da), tid);
 
-	/* Get index into station table */
 	sta_id = iwl4965_hw_find_station(priv, da);
 	if (sta_id == IWL_INVALID_STATION)
 		return -ENXIO;
 
-	/* Find available Tx queue for aggregation */
+	if (priv->stations[sta_id].tid[tid].agg.state != IWL_AGG_OFF) {
+		IWL_ERROR("Start AGG when state is not IWL_AGG_OFF !\n");
+		return -ENXIO;
+	}
+
 	txq_id = iwl4965_txq_ctx_activate_free(priv);
 	if (txq_id == -1)
 		return -ENXIO;
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
 	tid_data = &priv->stations[sta_id].tid[tid];
-
-	/* Get starting sequence number for 1st frame in block ack window.
-	 * We'll use least signif byte as 1st frame's index into Tx queue. */
 	ssn = SEQ_TO_SN(tid_data->seq_number);
 	tid_data->agg.txq_id = txq_id;
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
 	*start_seq_num = ssn;
-
-	/* Update driver's link quality manager */
-	iwl4965_ba_status(priv, tid, BA_STATUS_ACTIVE);
-
-	/* Set up and enable aggregation for selected Tx queue and FIFO */
-	return iwl4965_tx_queue_agg_enable(priv, txq_id, tx_fifo,
+	rc = iwl4965_tx_queue_agg_enable(priv, txq_id, tx_fifo,
 					   sta_id, tid, ssn);
+	if (rc)
+		return rc;
+
+	rc = 0;
+	if (tid_data->tfds_in_queue == 0) {
+		printk(KERN_ERR "HW queue is empty\n");
+		tid_data->agg.state = IWL_AGG_ON;
+		ieee80211_start_tx_ba_cb_irqsafe(hw, da, tid);
+	} else {
+		IWL_DEBUG_HT("HW queue is NOT empty: %d packets in HW queue\n",
+				tid_data->tfds_in_queue);
+		tid_data->agg.state = IWL_EMPTYING_HW_QUEUE_ADDBA;
+	}
+	return rc;
 }
 
-
-int iwl4965_mac_ht_tx_agg_stop(struct ieee80211_hw *hw, u8 *da, u16 tid)
+static int iwl4965_mac_ht_tx_agg_stop(struct ieee80211_hw *hw, const u8 *da,
+				      u16 tid)
 {
 
 	struct iwl4965_priv *priv = hw->priv;
 	int tx_fifo_id, txq_id, sta_id, ssn = -1;
 	struct iwl4965_tid_data *tid_data;
-	int rc;
+	int rc, write_ptr, read_ptr;
+	unsigned long flags;
 	DECLARE_MAC_BUF(mac);
 
 	if (!da) {
-		IWL_ERROR("%s: da = NULL\n", __func__);
+		IWL_ERROR("da = NULL\n");
 		return -EINVAL;
 	}
 
@@ -4844,33 +4885,44 @@ int iwl4965_mac_ht_tx_agg_stop(struct ieee80211_hw *hw, u8 *da, u16 tid)
 	if (sta_id == IWL_INVALID_STATION)
 		return -ENXIO;
 
+	if (priv->stations[sta_id].tid[tid].agg.state != IWL_AGG_ON)
+		IWL_WARNING("Stopping AGG while state not IWL_AGG_ON\n");
+
 	tid_data = &priv->stations[sta_id].tid[tid];
 	ssn = (tid_data->seq_number & IEEE80211_SCTL_SEQ) >> 4;
 	txq_id = tid_data->agg.txq_id;
+	write_ptr = priv->txq[txq_id].q.write_ptr;
+	read_ptr = priv->txq[txq_id].q.read_ptr;
 
+	/* The queue is not empty */
+	if (write_ptr != read_ptr) {
+		IWL_DEBUG_HT("Stopping a non empty AGG HW QUEUE\n");
+		priv->stations[sta_id].tid[tid].agg.state =
+				IWL_EMPTYING_HW_QUEUE_DELBA;
+		return 0;
+	}
+
+	IWL_DEBUG_HT("HW queue empty\n");;
+	priv->stations[sta_id].tid[tid].agg.state = IWL_AGG_OFF;
+
+	spin_lock_irqsave(&priv->lock, flags);
+	rc = iwl4965_grab_nic_access(priv);
+	if (rc) {
+		spin_unlock_irqrestore(&priv->lock, flags);
+		return rc;
+	}
 	rc = iwl4965_tx_queue_agg_disable(priv, txq_id, ssn, tx_fifo_id);
-	/* FIXME: need more safe way to handle error condition */
+	iwl4965_release_nic_access(priv);
+	spin_unlock_irqrestore(&priv->lock, flags);
+
 	if (rc)
 		return rc;
 
-	iwl4965_ba_status(priv, tid, BA_STATUS_INITIATOR_DELBA);
+	ieee80211_stop_tx_ba_cb_irqsafe(priv->hw, da, tid);
+
 	IWL_DEBUG_INFO("iwl4965_mac_ht_tx_agg_stop on da=%s tid=%d\n",
-		       print_mac(mac, da), tid);
+			print_mac(mac, da), tid);
 
-	return 0;
-}
-
-
-#endif /* CONFIG_IWL4965_HT_AGG */
-
-int iwl4965_mac_ht_tx_agg_start(struct ieee80211_hw *hw, const u8 *da, u16 tid,
-				u16 *start_seq_num)
-{
-	return 0;
-}
-
-int iwl4965_mac_ht_tx_agg_stop(struct ieee80211_hw *hw, const u8 *da, u16 tid)
-{
 	return 0;
 }
 
@@ -4924,9 +4976,7 @@ void iwl4965_hw_rx_handler_setup(struct iwl4965_priv *priv)
 	    iwl4965_rx_missed_beacon_notif;
 
 #ifdef CONFIG_IWL4965_HT
-#ifdef CONFIG_IWL4965_HT_AGG
 	priv->rx_handlers[REPLY_COMPRESSED_BA] = iwl4965_rx_reply_compressed_ba;
-#endif /* CONFIG_IWL4965_HT_AGG */
 #endif /* CONFIG_IWL4965_HT */
 }
 

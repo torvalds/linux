@@ -205,7 +205,7 @@ static void iwl4965_print_hex_dump(int level, void *p, u32 len)
  * See more detailed info in iwl-4965-hw.h.
  ***************************************************/
 
-static int iwl4965_queue_space(const struct iwl4965_queue *q)
+int iwl4965_queue_space(const struct iwl4965_queue *q)
 {
 	int s = q->read_ptr - q->write_ptr;
 
@@ -2972,11 +2972,10 @@ static int iwl4965_tx_skb(struct iwl4965_priv *priv,
 				__constant_cpu_to_le16(IEEE80211_SCTL_FRAG));
 		seq_number += 0x10;
 #ifdef CONFIG_IWL4965_HT
-#ifdef CONFIG_IWL4965_HT_AGG
 		/* aggregation is on for this <sta,tid> */
-		if (ctl->flags & IEEE80211_TXCTL_HT_MPDU_AGG)
+		if (ctl->flags & IEEE80211_TXCTL_AMPDU)
 			txq_id = priv->stations[sta_id].tid[tid].agg.txq_id;
-#endif /* CONFIG_IWL4965_HT_AGG */
+		priv->stations[sta_id].tid[tid].tfds_in_queue++;
 #endif /* CONFIG_IWL4965_HT */
 	}
 
@@ -3528,10 +3527,10 @@ int iwl4965_tx_queue_reclaim(struct iwl4965_priv *priv, int txq_id, int index)
 		nfreed++;
 	}
 
-	if (iwl4965_queue_space(q) > q->low_mark && (txq_id >= 0) &&
+/*	if (iwl4965_queue_space(q) > q->low_mark && (txq_id >= 0) &&
 			(txq_id != IWL_CMD_QUEUE_NUM) &&
 			priv->mac80211_registered)
-		ieee80211_wake_queue(priv->hw, txq_id);
+		ieee80211_wake_queue(priv->hw, txq_id); */
 
 
 	return nfreed;
@@ -3550,7 +3549,6 @@ static int iwl4965_is_tx_success(u32 status)
  *
  ******************************************************************************/
 #ifdef CONFIG_IWL4965_HT
-#ifdef CONFIG_IWL4965_HT_AGG
 
 static inline int iwl4965_get_ra_sta_id(struct iwl4965_priv *priv,
 				    struct ieee80211_hdr *hdr)
@@ -3585,11 +3583,11 @@ static inline u32 iwl4965_get_scd_ssn(struct iwl4965_tx_resp *tx_resp)
  */
 static int iwl4965_tx_status_reply_tx(struct iwl4965_priv *priv,
 				      struct iwl4965_ht_agg *agg,
-				      struct iwl4965_tx_resp *tx_resp,
+				      struct iwl4965_tx_resp_agg *tx_resp,
 				      u16 start_idx)
 {
-	u32 status;
-	__le32 *frame_status = &tx_resp->status;
+	u16 status;
+	struct agg_tx_status *frame_status = &tx_resp->status;
 	struct ieee80211_tx_status *tx_status = NULL;
 	struct ieee80211_hdr *hdr = NULL;
 	int i, sh;
@@ -3602,26 +3600,25 @@ static int iwl4965_tx_status_reply_tx(struct iwl4965_priv *priv,
 	agg->frame_count = tx_resp->frame_count;
 	agg->start_idx = start_idx;
 	agg->rate_n_flags = le32_to_cpu(tx_resp->rate_n_flags);
-	agg->bitmap0 = agg->bitmap1 = 0;
+	agg->bitmap = 0;
 
 	/* # frames attempted by Tx command */
 	if (agg->frame_count == 1) {
 		/* Only one frame was attempted; no block-ack will arrive */
-		struct iwl4965_tx_queue *txq ;
-		status = le32_to_cpu(frame_status[0]);
+		status = le16_to_cpu(frame_status[0].status);
+		seq  = le16_to_cpu(frame_status[0].sequence);
+		idx = SEQ_TO_INDEX(seq);
+		txq_id = SEQ_TO_QUEUE(seq);
 
-		txq_id = agg->txq_id;
-		txq = &priv->txq[txq_id];
 		/* FIXME: code repetition */
-		IWL_DEBUG_TX_REPLY("FrameCnt = %d, StartIdx=%d \n",
-				   agg->frame_count, agg->start_idx);
+		IWL_DEBUG_TX_REPLY("FrameCnt = %d, StartIdx=%d idx=%d\n",
+				   agg->frame_count, agg->start_idx, idx);
 
-		tx_status = &(priv->txq[txq_id].txb[txq->q.read_ptr].status);
+		tx_status = &(priv->txq[txq_id].txb[idx].status);
 		tx_status->retry_count = tx_resp->failure_frame;
 		tx_status->queue_number = status & 0xff;
-		tx_status->queue_length = tx_resp->bt_kill_count;
-		tx_status->queue_length |= tx_resp->failure_rts;
-
+		tx_status->queue_length = tx_resp->failure_rts;
+		tx_status->control.flags &= ~IEEE80211_TXCTL_AMPDU;
 		tx_status->flags = iwl4965_is_tx_success(status)?
 			IEEE80211_TX_STATUS_ACK : 0;
 		tx_status->control.tx_rate =
@@ -3642,8 +3639,8 @@ static int iwl4965_tx_status_reply_tx(struct iwl4965_priv *priv,
 		/* Construct bit-map of pending frames within Tx window */
 		for (i = 0; i < agg->frame_count; i++) {
 			u16 sc;
-			status = le32_to_cpu(frame_status[i]);
-			seq  = status >> 16;
+			status = le16_to_cpu(frame_status[i].status);
+			seq  = le16_to_cpu(frame_status[i].sequence);
 			idx = SEQ_TO_INDEX(seq);
 			txq_id = SEQ_TO_QUEUE(seq);
 
@@ -3687,20 +3684,18 @@ static int iwl4965_tx_status_reply_tx(struct iwl4965_priv *priv,
 					   start, (u32)(bitmap & 0xFFFFFFFF));
 		}
 
-		agg->bitmap0 = bitmap & 0xFFFFFFFF;
-		agg->bitmap1 = bitmap >> 32;
+		agg->bitmap = bitmap;
 		agg->start_idx = start;
 		agg->rate_n_flags = le32_to_cpu(tx_resp->rate_n_flags);
-		IWL_DEBUG_TX_REPLY("Frames %d start_idx=%d bitmap=0x%x\n",
+		IWL_DEBUG_TX_REPLY("Frames %d start_idx=%d bitmap=0x%llx\n",
 				   agg->frame_count, agg->start_idx,
-				   agg->bitmap0);
+				   agg->bitmap);
 
 		if (bitmap)
 			agg->wait_for_ba = 1;
 	}
 	return 0;
 }
-#endif
 #endif
 
 /**
@@ -3718,9 +3713,9 @@ static void iwl4965_rx_reply_tx(struct iwl4965_priv *priv,
 	struct iwl4965_tx_resp *tx_resp = (void *)&pkt->u.raw[0];
 	u32  status = le32_to_cpu(tx_resp->status);
 #ifdef CONFIG_IWL4965_HT
-#ifdef CONFIG_IWL4965_HT_AGG
-	int tid, sta_id;
-#endif
+	int tid = MAX_TID_COUNT, sta_id = IWL_INVALID_STATION;
+	struct ieee80211_hdr *hdr;
+	__le16 *qc;
 #endif
 
 	if ((index >= txq->q.n_bd) || (x2_queue_used(&txq->q, index) == 0)) {
@@ -3732,44 +3727,51 @@ static void iwl4965_rx_reply_tx(struct iwl4965_priv *priv,
 	}
 
 #ifdef CONFIG_IWL4965_HT
-#ifdef CONFIG_IWL4965_HT_AGG
-	if (txq->sched_retry) {
-		const u32 scd_ssn = iwl4965_get_scd_ssn(tx_resp);
-		struct ieee80211_hdr *hdr =
-			iwl4965_tx_queue_get_hdr(priv, txq_id, index);
-		struct iwl4965_ht_agg *agg = NULL;
-		__le16 *qc = ieee80211_get_qos_ctrl(hdr);
+	hdr = iwl4965_tx_queue_get_hdr(priv, txq_id, index);
+	qc = ieee80211_get_qos_ctrl(hdr);
 
-		if (qc == NULL) {
-			IWL_ERROR("BUG_ON qc is null!!!!\n");
-			return;
-		}
-
+	if (qc)
 		tid = le16_to_cpu(*qc) & 0xf;
 
-		sta_id = iwl4965_get_ra_sta_id(priv, hdr);
-		if (unlikely(sta_id == IWL_INVALID_STATION)) {
-			IWL_ERROR("Station not known for\n");
+	sta_id = iwl4965_get_ra_sta_id(priv, hdr);
+	if (txq->sched_retry && unlikely(sta_id == IWL_INVALID_STATION)) {
+		IWL_ERROR("Station not known\n");
+		return;
+	}
+
+	if (txq->sched_retry) {
+		const u32 scd_ssn = iwl4965_get_scd_ssn(tx_resp);
+		struct iwl4965_ht_agg *agg = NULL;
+
+		if (!qc)
 			return;
-		}
 
 		agg = &priv->stations[sta_id].tid[tid].agg;
 
-		iwl4965_tx_status_reply_tx(priv, agg, tx_resp, index);
+		iwl4965_tx_status_reply_tx(priv, agg,
+				(struct iwl4965_tx_resp_agg *)tx_resp, index);
 
 		if ((tx_resp->frame_count == 1) &&
 		    !iwl4965_is_tx_success(status)) {
 			/* TODO: send BAR */
 		}
 
-		if ((txq->q.read_ptr != (scd_ssn & 0xff))) {
+		if (txq->q.read_ptr != (scd_ssn & 0xff)) {
+			int freed;
 			index = iwl4965_queue_dec_wrap(scd_ssn & 0xff, txq->q.n_bd);
 			IWL_DEBUG_TX_REPLY("Retry scheduler reclaim scd_ssn "
 					   "%d index %d\n", scd_ssn , index);
-			iwl4965_tx_queue_reclaim(priv, txq_id, index);
+			freed = iwl4965_tx_queue_reclaim(priv, txq_id, index);
+			priv->stations[sta_id].tid[tid].tfds_in_queue -= freed;
+
+			if (iwl4965_queue_space(&txq->q) > txq->q.low_mark &&
+			    txq_id >= 0 && priv->mac80211_registered &&
+			    agg->state != IWL_EMPTYING_HW_QUEUE_DELBA)
+				ieee80211_wake_queue(priv->hw, txq_id);
+
+			iwl4965_check_empty_hw_queue(priv, sta_id, tid, txq_id);
 		}
 	} else {
-#endif /* CONFIG_IWL4965_HT_AGG */
 #endif /* CONFIG_IWL4965_HT */
 	tx_status = &(txq->txb[txq->q.read_ptr].status);
 
@@ -3790,12 +3792,21 @@ static void iwl4965_rx_reply_tx(struct iwl4965_priv *priv,
 		     tx_resp->failure_frame);
 
 	IWL_DEBUG_TX_REPLY("Tx queue reclaim %d\n", index);
-	if (index != -1)
-		iwl4965_tx_queue_reclaim(priv, txq_id, index);
+	if (index != -1) {
+		int freed = iwl4965_tx_queue_reclaim(priv, txq_id, index);
 #ifdef CONFIG_IWL4965_HT
-#ifdef CONFIG_IWL4965_HT_AGG
+		if (tid != MAX_TID_COUNT)
+			priv->stations[sta_id].tid[tid].tfds_in_queue -= freed;
+		if (iwl4965_queue_space(&txq->q) > txq->q.low_mark &&
+			(txq_id >= 0) &&
+			priv->mac80211_registered)
+			ieee80211_wake_queue(priv->hw, txq_id);
+		if (tid != MAX_TID_COUNT)
+			iwl4965_check_empty_hw_queue(priv, sta_id, tid, txq_id);
+#endif
 	}
-#endif /* CONFIG_IWL4965_HT_AGG */
+#ifdef CONFIG_IWL4965_HT
+	}
 #endif /* CONFIG_IWL4965_HT */
 
 	if (iwl_check_bits(status, TX_ABORT_REQUIRED_MSK))
@@ -9089,10 +9100,8 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	/* Default value; 4 EDCA QOS priorities */
 	hw->queues = 4;
 #ifdef CONFIG_IWL4965_HT
-#ifdef CONFIG_IWL4965_HT_AGG
 	/* Enhanced value; more queues, to support 11n aggregation */
 	hw->queues = 16;
-#endif /* CONFIG_IWL4965_HT_AGG */
 #endif /* CONFIG_IWL4965_HT */
 
 	spin_lock_init(&priv->lock);

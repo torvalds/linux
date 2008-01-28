@@ -433,7 +433,6 @@ struct iwl4965_rx_queue {
 #define IWL_INVALID_VALUE    -1
 
 #ifdef CONFIG_IWL4965_HT
-#ifdef CONFIG_IWL4965_HT_AGG
 /**
  * struct iwl4965_ht_agg -- aggregation status while waiting for block-ack
  * @txq_id: Tx queue used for Tx attempt
@@ -453,19 +452,22 @@ struct iwl4965_ht_agg {
 	u16 frame_count;
 	u16 wait_for_ba;
 	u16 start_idx;
-	u32 bitmap0;
-	u32 bitmap1;
+	u64 bitmap;
 	u32 rate_n_flags;
+#define IWL_AGG_OFF 0
+#define IWL_AGG_ON 1
+#define IWL_EMPTYING_HW_QUEUE_ADDBA 2
+#define IWL_EMPTYING_HW_QUEUE_DELBA 3
+	u8 state;
 };
-#endif /* CONFIG_IWL4965_HT_AGG */
+
 #endif /* CONFIG_IWL4965_HT */
 
 struct iwl4965_tid_data {
 	u16 seq_number;
+	u16 tfds_in_queue;
 #ifdef CONFIG_IWL4965_HT
-#ifdef CONFIG_IWL4965_HT_AGG
 	struct iwl4965_ht_agg agg;
-#endif	/* CONFIG_IWL4965_HT_AGG */
 #endif /* CONFIG_IWL4965_HT */
 };
 
@@ -743,7 +745,7 @@ extern u8 iwl4965_hw_find_station(struct iwl4965_priv *priv, const u8 *bssid);
 
 extern int iwl4965_hw_channel_switch(struct iwl4965_priv *priv, u16 channel);
 extern int iwl4965_tx_queue_reclaim(struct iwl4965_priv *priv, int txq_id, int index);
-
+extern int iwl4965_queue_space(const struct iwl4965_queue *q);
 struct iwl4965_priv;
 
 /*
@@ -778,6 +780,8 @@ extern void iwl4965_set_ht_add_station(struct iwl4965_priv *priv, u8 index,
 extern int iwl4965_mac_ampdu_action(struct ieee80211_hw *hw,
 				    enum ieee80211_ampdu_mlme_action action,
 				    const u8 *addr, u16 tid, u16 *ssn);
+extern int iwl4965_check_empty_hw_queue(struct iwl4965_priv *priv, int sta_id,
+					u8 tid, int txq_id);
 #ifdef CONFIG_IWL4965_HT_AGG
 extern void iwl4965_turn_off_agg(struct iwl4965_priv *priv, u8 tid);
 extern void iwl4965_tl_get_stats(struct iwl4965_priv *priv,
@@ -855,7 +859,7 @@ struct iwl4965_agg_control {
 	u32 ba_timeout;
 	struct iwl4965_traffic_load traffic_load[TID_MAX_LOAD_COUNT];
 };
-#endif				/*CONFIG_IWL4965_HT_AGG */
+#endif /*CONFIG_IWL4965_HT_AGG */
 
 struct iwl4965_lq_mngr {
 #ifdef CONFIG_IWL4965_HT_AGG

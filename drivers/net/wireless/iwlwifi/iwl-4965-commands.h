@@ -1300,6 +1300,25 @@ struct iwl4965_tx_resp {
 	__le32 status;	/* TX status (for aggregation status of 1st frame) */
 } __attribute__ ((packed));
 
+struct agg_tx_status {
+	__le16 status;
+	__le16 sequence;
+} __attribute__ ((packed));
+
+struct iwl4965_tx_resp_agg {
+	u8 frame_count;         /* 1 no aggregation, >1 aggregation */
+	u8 reserved1;
+	u8 failure_rts;
+	u8 failure_frame;
+	__le32 rate_n_flags;
+	__le16 wireless_media_time;
+	__le16 reserved3;
+	__le32 pa_power1;
+	__le32 pa_power2;
+	struct agg_tx_status status;    /* TX status (for aggregation status */
+					/* of 1st frame) */
+} __attribute__ ((packed));
+
 /*
  * REPLY_COMPRESSED_BA = 0xc5 (response only, not a command)
  *
@@ -1313,9 +1332,8 @@ struct iwl4965_compressed_ba_resp {
 	/* Index of recipient (BA-sending) station in uCode's station table */
 	u8 sta_id;
 	u8 tid;
-	__le16 ba_seq_ctl;
-	__le32 ba_bitmap0;
-	__le32 ba_bitmap1;
+	__le16 seq_ctl;
+	__le64 bitmap;
 	__le16 scd_flow;
 	__le16 scd_ssn;
 } __attribute__ ((packed));
