@@ -143,9 +143,12 @@ struct lbs_private {
 	wait_queue_head_t waitq;
 	struct workqueue_struct *work_thread;
 
+	/** Scanning */
 	struct delayed_work scan_work;
 	struct delayed_work assoc_work;
 	struct work_struct sync_channel;
+	/* remember which channel was scanned last, != 0 if currently scanning */
+	int scan_channel;
 
 	/** Hardware access */
 	int (*hw_host_to_card) (struct lbs_private *priv, u8 type, u8 *payload, u16 nb);
@@ -321,7 +324,6 @@ struct lbs_private {
 	struct cmd_ds_802_11_get_log logmsg;
 
 	u32 monitormode;
-	int last_scanned_channel;
 	u8 fw_ready;
 };
 
