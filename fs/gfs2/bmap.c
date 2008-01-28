@@ -166,7 +166,7 @@ int gfs2_unstuff_dinode(struct gfs2_inode *ip, struct page *page)
 		di->di_blocks = cpu_to_be64(ip->i_di.di_blocks);
 	}
 
-	ip->i_di.di_height = 1;
+	ip->i_height = 1;
 	di->di_height = cpu_to_be16(1);
 
 out_brelse:
@@ -174,43 +174,6 @@ out_brelse:
 out:
 	up_write(&ip->i_rw_mutex);
 	return error;
-}
-
-/**
- * calc_tree_height - Calculate the height of a metadata tree
- * @ip: The GFS2 inode
- * @size: The proposed size of the file
- *
- * Work out how tall a metadata tree needs to be in order to accommodate a
- * file of a particular size. If size is less than the current size of
- * the inode, then the current size of the inode is used instead of the
- * supplied one.
- *
- * Returns: the height the tree should be
- */
-
-static unsigned int calc_tree_height(struct gfs2_inode *ip, u64 size)
-{
-	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
-	u64 *arr;
-	unsigned int max, height;
-
-	if (ip->i_di.di_size > size)
-		size = ip->i_di.di_size;
-
-	if (gfs2_is_dir(ip)) {
-		arr = sdp->sd_jheightsize;
-		max = sdp->sd_max_jheight;
-	} else {
-		arr = sdp->sd_heightsize;
-		max = sdp->sd_max_height;
-	}
-
-	for (height = 0; height < max; height++)
-		if (arr[height] >= size)
-			break;
-
-	return height;
 }
 
 /**
@@ -225,7 +188,7 @@ static unsigned int calc_tree_height(struct gfs2_inode *ip, u64 size)
 static int build_height(struct inode *inode, unsigned height)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
-	unsigned new_height = height - ip->i_di.di_height;
+	unsigned new_height = height - ip->i_height;
 	struct buffer_head *dibh;
 	struct buffer_head *blocks[GFS2_MAX_META_HEIGHT];
 	struct gfs2_dinode *di;
@@ -234,7 +197,7 @@ static int build_height(struct inode *inode, unsigned height)
 	u64 bn;
 	unsigned n;
 
-	if (height <= ip->i_di.di_height)
+	if (height <= ip->i_height)
 		return 0;
 
 	error = gfs2_meta_inode_buffer(ip, &dibh);
@@ -270,10 +233,10 @@ static int build_height(struct inode *inode, unsigned height)
 	di = (struct gfs2_dinode *)dibh->b_data;
 	gfs2_buffer_clear_tail(dibh, sizeof(struct gfs2_dinode));
 	*(__be64 *)(di + 1) = cpu_to_be64(bn);
-	ip->i_di.di_height += new_height;
+	ip->i_height += new_height;
 	ip->i_di.di_blocks += new_height;
 	gfs2_set_inode_blocks(&ip->i_inode);
-	di->di_height = cpu_to_be16(ip->i_di.di_height);
+	di->di_height = cpu_to_be16(ip->i_height);
 	di->di_blocks = cpu_to_be64(ip->i_di.di_blocks);
 	brelse(dibh);
 	return error;
@@ -345,7 +308,7 @@ static void find_metapath(struct gfs2_inode *ip, u64 block,
 	u64 b = block;
 	unsigned int i;
 
-	for (i = ip->i_di.di_height; i--;)
+	for (i = ip->i_height; i--;)
 		mp->mp_list[i] = do_div(b, sdp->sd_inptrs);
 
 }
@@ -407,7 +370,7 @@ static int lookup_block(struct gfs2_inode *ip, struct buffer_head *bh,
 	if (!create)
 		return 0;
 
-	if (height == ip->i_di.di_height - 1 && !gfs2_is_dir(ip))
+	if (height == ip->i_height - 1 && !gfs2_is_dir(ip))
 		*block = gfs2_alloc_data(ip);
 	else
 		*block = gfs2_alloc_meta(ip);
@@ -458,8 +421,7 @@ int gfs2_block_map(struct inode *inode, sector_t lblock,
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct buffer_head *bh;
-	unsigned int bsize;
-	unsigned int height;
+	unsigned int bsize = sdp->sd_sb.sb_bsize;
 	unsigned int end_of_metadata;
 	unsigned int x;
 	int error = 0;
@@ -470,7 +432,7 @@ int gfs2_block_map(struct inode *inode, sector_t lblock,
 	struct metapath mp;
 	u64 size;
 	struct buffer_head *dibh = NULL;
-
+	const u64 *arr = sdp->sd_heightsize;
 	BUG_ON(maxlen == 0);
 
 	if (gfs2_assert_warn(sdp, !gfs2_is_stuffed(ip)))
@@ -480,23 +442,25 @@ int gfs2_block_map(struct inode *inode, sector_t lblock,
 	clear_buffer_mapped(bh_map);
 	clear_buffer_new(bh_map);
 	clear_buffer_boundary(bh_map);
-	bsize = gfs2_is_dir(ip) ? sdp->sd_jbsize : sdp->sd_sb.sb_bsize;
+	if (gfs2_is_dir(ip)) {
+		bsize = sdp->sd_jbsize;
+		arr = sdp->sd_jheightsize;
+	}
 	size = (lblock + 1) * bsize;
 
-	if (size > ip->i_di.di_size) {
-		height = calc_tree_height(ip, size);
-		if (ip->i_di.di_height < height) {
-			if (!create)
-				goto out_ok;
-	
-			error = build_height(inode, height);
-			if (error)
-				goto out_fail;
-		}
+	if (size > arr[ip->i_height]) {
+		u8 height = ip->i_height;
+		if (!create)
+			goto out_ok;
+		while (size > arr[height])
+			height++;
+		error = build_height(inode, height);
+		if (error)
+			goto out_fail;
 	}
 
 	find_metapath(ip, lblock, &mp);
-	end_of_metadata = ip->i_di.di_height - 1;
+	end_of_metadata = ip->i_height - 1;
 	error = gfs2_meta_inode_buffer(ip, &bh);
 	if (error)
 		goto out_fail;
@@ -624,7 +588,7 @@ static int recursive_scan(struct gfs2_inode *ip, struct buffer_head *dibh,
 	if (error)
 		goto out;
 
-	if (height < ip->i_di.di_height - 1)
+	if (height < ip->i_height - 1)
 		for (; top < bottom; top++, first = 0) {
 			if (!*top)
 				continue;
@@ -682,7 +646,7 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 		sm->sm_first = 0;
 	}
 
-	metadata = (height != ip->i_di.di_height - 1);
+	metadata = (height != ip->i_height - 1);
 	if (metadata)
 		revokes = (height) ? sdp->sd_inptrs : sdp->sd_diptrs;
 
@@ -807,7 +771,6 @@ static int do_grow(struct gfs2_inode *ip, u64 size)
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_alloc *al;
 	struct buffer_head *dibh;
-	unsigned int h;
 	int error;
 
 	al = gfs2_alloc_get(ip);
@@ -833,20 +796,23 @@ static int do_grow(struct gfs2_inode *ip, u64 size)
 		goto out_ipres;
 
 	if (size > sdp->sd_sb.sb_bsize - sizeof(struct gfs2_dinode)) {
+		const u64 *arr = sdp->sd_heightsize;
 		if (gfs2_is_stuffed(ip)) {
 			error = gfs2_unstuff_dinode(ip, NULL);
 			if (error)
 				goto out_end_trans;
 		}
 
-		h = calc_tree_height(ip, size);
-		if (ip->i_di.di_height < h) {
-			down_write(&ip->i_rw_mutex);
-			error = build_height(&ip->i_inode, h);
-			up_write(&ip->i_rw_mutex);
-			if (error)
-				goto out_end_trans;
+		down_write(&ip->i_rw_mutex);
+		if (size > arr[ip->i_height]) {
+			u8 height = ip->i_height;
+			while(size > arr[height])
+				height++;
+			error = build_height(&ip->i_inode, height);
 		}
+		up_write(&ip->i_rw_mutex);
+		if (error)
+			goto out_end_trans;
 	}
 
 	ip->i_di.di_size = size;
@@ -989,7 +955,7 @@ out:
 
 static int trunc_dealloc(struct gfs2_inode *ip, u64 size)
 {
-	unsigned int height = ip->i_di.di_height;
+	unsigned int height = ip->i_height;
 	u64 lblock;
 	struct metapath mp;
 	int error;
@@ -1040,7 +1006,7 @@ static int trunc_end(struct gfs2_inode *ip)
 		goto out;
 
 	if (!ip->i_di.di_size) {
-		ip->i_di.di_height = 0;
+		ip->i_height = 0;
 		ip->i_di.di_goal_meta =
 			ip->i_di.di_goal_data =
 			ip->i_no_addr;

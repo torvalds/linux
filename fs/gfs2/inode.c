@@ -248,12 +248,10 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 {
 	struct gfs2_dinode_host *di = &ip->i_di;
 	const struct gfs2_dinode *str = buf;
+	u16 height;
 
-	if (ip->i_no_addr != be64_to_cpu(str->di_num.no_addr)) {
-		if (gfs2_consist_inode(ip))
-			gfs2_dinode_print(ip);
-		return -EIO;
-	}
+	if (unlikely(ip->i_no_addr != be64_to_cpu(str->di_num.no_addr)))
+		goto corrupt;
 	ip->i_no_formal_ino = be64_to_cpu(str->di_num.no_formal_ino);
 	ip->i_inode.i_mode = be32_to_cpu(str->di_mode);
 	ip->i_inode.i_rdev = 0;
@@ -290,7 +288,10 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 
 	di->di_flags = be32_to_cpu(str->di_flags);
 	gfs2_set_inode_flags(&ip->i_inode);
-	di->di_height = be16_to_cpu(str->di_height);
+	height = be16_to_cpu(str->di_height);
+	if (unlikely(height > GFS2_MAX_META_HEIGHT))
+		goto corrupt;
+	ip->i_height = (u8)height;
 
 	di->di_depth = be16_to_cpu(str->di_depth);
 	di->di_entries = be32_to_cpu(str->di_entries);
@@ -300,6 +301,10 @@ static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
 		gfs2_set_aops(&ip->i_inode);
 
 	return 0;
+corrupt:
+	if (gfs2_consist_inode(ip))
+		gfs2_dinode_print(ip);
+	return -EIO;
 }
 
 /**
@@ -1401,7 +1406,7 @@ void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf)
 	str->di_generation = cpu_to_be64(di->di_generation);
 
 	str->di_flags = cpu_to_be32(di->di_flags);
-	str->di_height = cpu_to_be16(di->di_height);
+	str->di_height = cpu_to_be16(ip->i_height);
 	str->di_payload_format = cpu_to_be32(S_ISDIR(ip->i_inode.i_mode) &&
 					     !(ip->i_di.di_flags & GFS2_DIF_EXHASH) ?
 					     GFS2_FORMAT_DE : 0);
@@ -1430,7 +1435,6 @@ void gfs2_dinode_print(const struct gfs2_inode *ip)
 	printk(KERN_INFO "  di_goal_data = %llu\n",
 	       (unsigned long long)di->di_goal_data);
 	printk(KERN_INFO "  di_flags = 0x%.8X\n", di->di_flags);
-	printk(KERN_INFO "  di_height = %u\n", di->di_height);
 	printk(KERN_INFO "  di_depth = %u\n", di->di_depth);
 	printk(KERN_INFO "  di_entries = %u\n", di->di_entries);
 	printk(KERN_INFO "  di_eattr = %llu\n",

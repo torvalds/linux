@@ -12,7 +12,7 @@
 
 static inline int gfs2_is_stuffed(const struct gfs2_inode *ip)
 {
-	return !ip->i_di.di_height;
+	return !ip->i_height;
 }
 
 static inline int gfs2_is_jdata(const struct gfs2_inode *ip)

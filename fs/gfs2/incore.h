@@ -246,7 +246,6 @@ struct gfs2_dinode_host {
 	u64 di_goal_data;	/* data block goal */
 	u64 di_generation;	/* generation number for NFS */
 	u32 di_flags;		/* GFS2_DIF_... */
-	u16 di_height;		/* height of metadata */
 	/* These only apply to directories  */
 	u16 di_depth;		/* Number of bits in the table */
 	u32 di_entries;		/* The number of entries in the directory */
@@ -268,6 +267,7 @@ struct gfs2_inode {
 	u64 i_last_rg_alloc;
 
 	struct rw_semaphore i_rw_mutex;
+	u8 i_height;
 };
 
 /*
@@ -490,9 +490,9 @@ struct gfs2_sbd {
 	u32 sd_qc_per_block;
 	u32 sd_max_dirres;	/* Max blocks needed to add a directory entry */
 	u32 sd_max_height;	/* Max height of a file's metadata tree */
-	u64 sd_heightsize[GFS2_MAX_META_HEIGHT];
+	u64 sd_heightsize[GFS2_MAX_META_HEIGHT + 1];
 	u32 sd_max_jheight; /* Max height of journaled file's meta tree */
-	u64 sd_jheightsize[GFS2_MAX_META_HEIGHT];
+	u64 sd_jheightsize[GFS2_MAX_META_HEIGHT + 1];
 
 	struct gfs2_args sd_args;	/* Mount arguments */
 	struct gfs2_tune sd_tune;	/* Filesystem tuning structure */
