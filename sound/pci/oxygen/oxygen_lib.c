@@ -365,8 +365,7 @@ static void __devinit oxygen_init(struct oxygen *chip)
 		oxygen_write_ac97(chip, 1, AC97_AUX, 0x8808);
 		oxygen_write_ac97(chip, 1, AC97_PCM, 0x0808);
 		oxygen_write_ac97(chip, 1, AC97_REC_SEL, 0x0000);
-		oxygen_write_ac97(chip, 1, AC97_REC_GAIN, 0x8000);
-		oxygen_ac97_clear_bits(chip, 1, AC97_REC_GAIN, 0x1c00);
+		oxygen_write_ac97(chip, 1, AC97_REC_GAIN, 0x0000);
 		oxygen_ac97_set_bits(chip, 1, 0x6a, 0x0040);
 	}
 }

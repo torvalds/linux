@@ -247,9 +247,11 @@ static void mute_ac97_ctl(struct oxygen *chip, unsigned int control)
 	}
 }
 
-static void xonar_ac97_switch_hook(struct oxygen *chip,
+static void xonar_ac97_switch_hook(struct oxygen *chip, unsigned int codec,
 				   unsigned int reg, int mute)
 {
+	if (codec != 0)
+		return;
 	/* line-in is exclusive */
 	switch (reg) {
 	case AC97_LINE:

@@ -450,13 +450,14 @@ static int ac97_switch_get(struct snd_kcontrol *ctl,
 			   struct snd_ctl_elem_value *value)
 {
 	struct oxygen *chip = ctl->private_data;
+	unsigned int codec = (ctl->private_value >> 24) & 1;
 	unsigned int index = ctl->private_value & 0xff;
 	unsigned int bitnr = (ctl->private_value >> 8) & 0xff;
 	int invert = ctl->private_value & (1 << 16);
 	u16 reg;
 
 	mutex_lock(&chip->mutex);
-	reg = oxygen_read_ac97(chip, 0, index);
+	reg = oxygen_read_ac97(chip, codec, index);
 	mutex_unlock(&chip->mutex);
 	if (!(reg & (1 << bitnr)) ^ !invert)
 		value->value.integer.value[0] = 1;
@@ -469,6 +470,7 @@ static int ac97_switch_put(struct snd_kcontrol *ctl,
 			   struct snd_ctl_elem_value *value)
 {
 	struct oxygen *chip = ctl->private_data;
+	unsigned int codec = (ctl->private_value >> 24) & 1;
 	unsigned int index = ctl->private_value & 0xff;
 	unsigned int bitnr = (ctl->private_value >> 8) & 0xff;
 	int invert = ctl->private_value & (1 << 16);
@@ -476,7 +478,7 @@ static int ac97_switch_put(struct snd_kcontrol *ctl,
 	int change;
 
 	mutex_lock(&chip->mutex);
-	oldreg = oxygen_read_ac97(chip, 0, index);
+	oldreg = oxygen_read_ac97(chip, codec, index);
 	newreg = oldreg;
 	if (!value->value.integer.value[0] ^ !invert)
 		newreg |= 1 << bitnr;
@@ -484,9 +486,9 @@ static int ac97_switch_put(struct snd_kcontrol *ctl,
 		newreg &= ~(1 << bitnr);
 	change = newreg != oldreg;
 	if (change) {
-		oxygen_write_ac97(chip, 0, index, newreg);
+		oxygen_write_ac97(chip, codec, index, newreg);
 		if (bitnr == 15 && chip->model->ac97_switch_hook)
-			chip->model->ac97_switch_hook(chip, index,
+			chip->model->ac97_switch_hook(chip, codec, index,
 						      newreg & 0x8000);
 	}
 	mutex_unlock(&chip->mutex);
@@ -507,11 +509,12 @@ static int ac97_volume_get(struct snd_kcontrol *ctl,
 			   struct snd_ctl_elem_value *value)
 {
 	struct oxygen *chip = ctl->private_data;
-	unsigned int index = ctl->private_value;
+	unsigned int codec = (ctl->private_value >> 24) & 1;
+	unsigned int index = ctl->private_value & 0xff;
 	u16 reg;
 
 	mutex_lock(&chip->mutex);
-	reg = oxygen_read_ac97(chip, 0, index);
+	reg = oxygen_read_ac97(chip, codec, index);
 	mutex_unlock(&chip->mutex);
 	value->value.integer.value[0] = 31 - (reg & 0x1f);
 	value->value.integer.value[1] = 31 - ((reg >> 8) & 0x1f);
@@ -522,12 +525,13 @@ static int ac97_volume_put(struct snd_kcontrol *ctl,
 			   struct snd_ctl_elem_value *value)
 {
 	struct oxygen *chip = ctl->private_data;
-	unsigned int index = ctl->private_value;
+	unsigned int codec = (ctl->private_value >> 24) & 1;
+	unsigned int index = ctl->private_value & 0xff;
 	u16 oldreg, newreg;
 	int change;
 
 	mutex_lock(&chip->mutex);
-	oldreg = oxygen_read_ac97(chip, 0, index);
+	oldreg = oxygen_read_ac97(chip, codec, index);
 	newreg = oldreg;
 	newreg = (newreg & ~0x1f) |
 		(31 - (value->value.integer.value[0] & 0x1f));
@@ -535,30 +539,77 @@ static int ac97_volume_put(struct snd_kcontrol *ctl,
 		((31 - (value->value.integer.value[0] & 0x1f)) << 8);
 	change = newreg != oldreg;
 	if (change)
-		oxygen_write_ac97(chip, 0, index, newreg);
+		oxygen_write_ac97(chip, codec, index, newreg);
 	mutex_unlock(&chip->mutex);
 	return change;
 }
 
-#define AC97_SWITCH(xname, index, bitnr, invert) { \
+static int ac97_fp_rec_volume_info(struct snd_kcontrol *ctl,
+				   struct snd_ctl_elem_info *info)
+{
+	info->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	info->count = 2;
+	info->value.integer.min = 0;
+	info->value.integer.max = 7;
+	return 0;
+}
+
+static int ac97_fp_rec_volume_get(struct snd_kcontrol *ctl,
+				  struct snd_ctl_elem_value *value)
+{
+	struct oxygen *chip = ctl->private_data;
+	u16 reg;
+
+	mutex_lock(&chip->mutex);
+	reg = oxygen_read_ac97(chip, 1, AC97_REC_GAIN);
+	mutex_unlock(&chip->mutex);
+	value->value.integer.value[0] = reg & 7;
+	value->value.integer.value[1] = (reg >> 8) & 7;
+	return 0;
+}
+
+static int ac97_fp_rec_volume_put(struct snd_kcontrol *ctl,
+				  struct snd_ctl_elem_value *value)
+{
+	struct oxygen *chip = ctl->private_data;
+	u16 oldreg, newreg;
+	int change;
+
+	mutex_lock(&chip->mutex);
+	oldreg = oxygen_read_ac97(chip, 1, AC97_REC_GAIN);
+	newreg = oldreg & ~0x0707;
+	newreg = newreg | (value->value.integer.value[0] & 7);
+	newreg = newreg | ((value->value.integer.value[0] & 7) << 8);
+	change = newreg != oldreg;
+	if (change)
+		oxygen_write_ac97(chip, 1, AC97_REC_GAIN, newreg);
+	mutex_unlock(&chip->mutex);
+	return change;
+}
+
+#define AC97_SWITCH(xname, codec, index, bitnr, invert) { \
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
 		.name = xname, \
 		.info = snd_ctl_boolean_mono_info, \
 		.get = ac97_switch_get, \
 		.put = ac97_switch_put, \
-		.private_value = ((invert) << 16) | ((bitnr) << 8) | (index), \
+		.private_value = ((codec) << 24) | ((invert) << 16) | \
+				 ((bitnr) << 8) | (index), \
 	}
-#define AC97_VOLUME(xname, index) { \
+#define AC97_VOLUME(xname, codec, index) { \
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
 		.name = xname, \
+		.access = SNDRV_CTL_ELEM_ACCESS_READWRITE | \
+			  SNDRV_CTL_ELEM_ACCESS_TLV_READ, \
 		.info = ac97_volume_info, \
 		.get = ac97_volume_get, \
 		.put = ac97_volume_put, \
 		.tlv = { .p = ac97_db_scale, }, \
-		.private_value = (index), \
+		.private_value = ((codec) << 24) | (index), \
 	}
 
 static DECLARE_TLV_DB_SCALE(ac97_db_scale, -3450, 150, 0);
+static DECLARE_TLV_DB_SCALE(ac97_rec_db_scale, 0, 150, 0);
 
 static const struct snd_kcontrol_new controls[] = {
 	{
@@ -642,15 +693,31 @@ static const struct snd_kcontrol_new controls[] = {
 };
 
 static const struct snd_kcontrol_new ac97_controls[] = {
-	AC97_VOLUME("Mic Capture Volume", AC97_MIC),
-	AC97_SWITCH("Mic Capture Switch", AC97_MIC, 15, 1),
-	AC97_SWITCH("Mic Boost (+20dB)", AC97_MIC, 6, 0),
-	AC97_VOLUME("Line Capture Volume", AC97_LINE),
-	AC97_SWITCH("Line Capture Switch", AC97_LINE, 15, 1),
-	AC97_VOLUME("CD Capture Volume", AC97_CD),
-	AC97_SWITCH("CD Capture Switch", AC97_CD, 15, 1),
-	AC97_VOLUME("Aux Capture Volume", AC97_AUX),
-	AC97_SWITCH("Aux Capture Switch", AC97_AUX, 15, 1),
+	AC97_VOLUME("Mic Capture Volume", 0, AC97_MIC),
+	AC97_SWITCH("Mic Capture Switch", 0, AC97_MIC, 15, 1),
+	AC97_SWITCH("Mic Boost (+20dB)", 0, AC97_MIC, 6, 0),
+	AC97_VOLUME("Line Capture Volume", 0, AC97_LINE),
+	AC97_SWITCH("Line Capture Switch", 0, AC97_LINE, 15, 1),
+	AC97_VOLUME("CD Capture Volume", 0, AC97_CD),
+	AC97_SWITCH("CD Capture Switch", 0, AC97_CD, 15, 1),
+	AC97_VOLUME("Aux Capture Volume", 0, AC97_AUX),
+	AC97_SWITCH("Aux Capture Switch", 0, AC97_AUX, 15, 1),
+};
+
+static const struct snd_kcontrol_new ac97_fp_controls[] = {
+	AC97_VOLUME("Front Panel Playback Volume", 1, AC97_HEADPHONE),
+	AC97_SWITCH("Front Panel Playback Switch", 1, AC97_HEADPHONE, 15, 1),
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Front Panel Capture Volume",
+		.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
+			  SNDRV_CTL_ELEM_ACCESS_TLV_READ,
+		.info = ac97_fp_rec_volume_info,
+		.get = ac97_fp_rec_volume_get,
+		.put = ac97_fp_rec_volume_put,
+		.tlv = { .p = ac97_rec_db_scale, },
+	},
+	AC97_SWITCH("Front Panel Capture Switch", 1, AC97_REC_GAIN, 15, 1),
 };
 
 static void oxygen_any_ctl_free(struct snd_kcontrol *ctl)
@@ -714,6 +781,12 @@ int oxygen_mixer_init(struct oxygen *chip)
 	if (chip->has_ac97_0) {
 		err = add_controls(chip, ac97_controls,
 				   ARRAY_SIZE(ac97_controls));
+		if (err < 0)
+			return err;
+	}
+	if (chip->has_ac97_1) {
+		err = add_controls(chip, ac97_fp_controls,
+				   ARRAY_SIZE(ac97_fp_controls));
 		if (err < 0)
 			return err;
 	}
