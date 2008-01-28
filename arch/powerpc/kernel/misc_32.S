@@ -275,12 +275,6 @@ _GLOBAL(_tlbia)
 	/* Invalidate all entries in TLB1 */
 	li	r3, 0x0c
 	tlbivax	0,3
-	/* Invalidate all entries in TLB2 */
-	li	r3, 0x14
-	tlbivax	0,3
-	/* Invalidate all entries in TLB3 */
-	li	r3, 0x1c
-	tlbivax	0,3
 	msync
 #ifdef CONFIG_SMP
 	tlbsync
@@ -375,12 +369,8 @@ _GLOBAL(_tlbie)
 #elif defined(CONFIG_FSL_BOOKE)
 	rlwinm	r4, r3, 0, 0, 19
 	ori	r5, r4, 0x08	/* TLBSEL = 1 */
-	ori	r6, r4, 0x10	/* TLBSEL = 2 */
-	ori	r7, r4, 0x18	/* TLBSEL = 3 */
 	tlbivax	0, r4
 	tlbivax	0, r5
-	tlbivax	0, r6
-	tlbivax	0, r7
 	msync
 #if defined(CONFIG_SMP)
 	tlbsync
