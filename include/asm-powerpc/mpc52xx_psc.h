@@ -190,5 +190,53 @@ struct mpc52xx_psc_fifo {
 	u16		tflwfptr;	/* PSC + 0x9e */
 };
 
+#define MPC512x_PSC_FIFO_RESET_SLICE	0x80
+#define MPC512x_PSC_FIFO_ENABLE_SLICE	0x01
+#define MPC512x_PSC_FIFO_ENABLE_DMA	0x04
+
+#define MPC512x_PSC_FIFO_EMPTY		0x1
+#define MPC512x_PSC_FIFO_FULL		0x2
+#define MPC512x_PSC_FIFO_ALARM		0x4
+#define MPC512x_PSC_FIFO_URERR		0x8
+#define MPC512x_PSC_FIFO_ORERR		0x01
+#define MPC512x_PSC_FIFO_MEMERROR	0x02
+
+struct mpc512x_psc_fifo {
+	u32		reserved1[10];
+	u32		txcmd;		/* PSC + 0x80 */
+	u32		txalarm;	/* PSC + 0x84 */
+	u32		txsr;		/* PSC + 0x88 */
+	u32		txisr;		/* PSC + 0x8c */
+	u32		tximr;		/* PSC + 0x90 */
+	u32		txcnt;		/* PSC + 0x94 */
+	u32		txptr;		/* PSC + 0x98 */
+	u32		txsz;		/* PSC + 0x9c */
+	u32		reserved2[7];
+	union {
+		u8	txdata_8;
+		u16	txdata_16;
+		u32	txdata_32;
+	} txdata; 			/* PSC + 0xbc */
+#define txdata_8 txdata.txdata_8
+#define txdata_16 txdata.txdata_16
+#define txdata_32 txdata.txdata_32
+	u32		rxcmd;		/* PSC + 0xc0 */
+	u32		rxalarm;	/* PSC + 0xc4 */
+	u32		rxsr;		/* PSC + 0xc8 */
+	u32		rxisr;		/* PSC + 0xcc */
+	u32		rximr;		/* PSC + 0xd0 */
+	u32		rxcnt;		/* PSC + 0xd4 */
+	u32		rxptr;		/* PSC + 0xd8 */
+	u32		rxsz;		/* PSC + 0xdc */
+	u32		reserved3[7];
+	union {
+		u8	rxdata_8;
+		u16	rxdata_16;
+		u32	rxdata_32;
+	} rxdata; 			/* PSC + 0xfc */
+#define rxdata_8 rxdata.rxdata_8
+#define rxdata_16 rxdata.rxdata_16
+#define rxdata_32 rxdata.rxdata_32
+};
 
 #endif  /* __ASM_MPC52xx_PSC_H__ */
