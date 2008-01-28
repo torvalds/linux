@@ -353,7 +353,7 @@ static void clear_rgrpdi(struct gfs2_sbd *sdp)
 		}
 
 		kfree(rgd->rd_bits);
-		kfree(rgd);
+		kmem_cache_free(gfs2_rgrpd_cachep, rgd);
 	}
 }
 
@@ -516,7 +516,7 @@ static int read_rindex_entry(struct gfs2_inode *ip,
 		return error;
 	}
 
-	rgd = kzalloc(sizeof(struct gfs2_rgrpd), GFP_NOFS);
+	rgd = kmem_cache_zalloc(gfs2_rgrpd_cachep, GFP_NOFS);
 	error = -ENOMEM;
 	if (!rgd)
 		return error;
