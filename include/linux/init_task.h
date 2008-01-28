@@ -137,7 +137,6 @@ extern struct group_info init_groups;
 		.time_slice	= HZ, 					\
 		.nr_cpus_allowed = NR_CPUS,				\
 	},								\
-	.ioprio		= 0,						\
 	.tasks		= LIST_HEAD_INIT(tsk.tasks),			\
 	.ptrace_children= LIST_HEAD_INIT(tsk.ptrace_children),		\
 	.ptrace_list	= LIST_HEAD_INIT(tsk.ptrace_list),		\

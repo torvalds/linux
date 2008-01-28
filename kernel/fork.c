@@ -51,6 +51,7 @@
 #include <linux/random.h>
 #include <linux/tty.h>
 #include <linux/proc_fs.h>
+#include <linux/blkdev.h>
 
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
@@ -791,6 +792,31 @@ out:
 	return error;
 }
 
+static int copy_io(unsigned long clone_flags, struct task_struct *tsk)
+{
+#ifdef CONFIG_BLOCK
+	struct io_context *ioc = current->io_context;
+
+	if (!ioc)
+		return 0;
+	/*
+	 * Share io context with parent, if CLONE_IO is set
+	 */
+	if (clone_flags & CLONE_IO) {
+		tsk->io_context = ioc_task_link(ioc);
+		if (unlikely(!tsk->io_context))
+			return -ENOMEM;
+	} else if (ioprio_valid(ioc->ioprio)) {
+		tsk->io_context = alloc_io_context(GFP_KERNEL, -1);
+		if (unlikely(!tsk->io_context))
+			return -ENOMEM;
+
+		tsk->io_context->ioprio = ioc->ioprio;
+	}
+#endif
+	return 0;
+}
+
 /*
  *	Helper to unshare the files of the current task.
  *	We don't want to expose copy_files internals to
@@ -1156,15 +1182,17 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 		goto bad_fork_cleanup_mm;
 	if ((retval = copy_namespaces(clone_flags, p)))
 		goto bad_fork_cleanup_keys;
+	if ((retval = copy_io(clone_flags, p)))
+		goto bad_fork_cleanup_namespaces;
 	retval = copy_thread(0, clone_flags, stack_start, stack_size, p, regs);
 	if (retval)
-		goto bad_fork_cleanup_namespaces;
+		goto bad_fork_cleanup_io;
 
 	if (pid != &init_struct_pid) {
 		retval = -ENOMEM;
 		pid = alloc_pid(task_active_pid_ns(p));
 		if (!pid)
-			goto bad_fork_cleanup_namespaces;
+			goto bad_fork_cleanup_io;
 
 		if (clone_flags & CLONE_NEWPID) {
 			retval = pid_ns_prepare_proc(task_active_pid_ns(p));
@@ -1233,9 +1261,6 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 
 	/* Need tasklist lock for parent etc handling! */
 	write_lock_irq(&tasklist_lock);
-
-	/* for sys_ioprio_set(IOPRIO_WHO_PGRP) */
-	p->ioprio = current->ioprio;
 
 	/*
 	 * The task hasn't been attached yet, so its cpus_allowed mask will
@@ -1328,6 +1353,8 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 bad_fork_free_pid:
 	if (pid != &init_struct_pid)
 		free_pid(pid);
+bad_fork_cleanup_io:
+	put_io_context(p->io_context);
 bad_fork_cleanup_namespaces:
 	exit_task_namespaces(p);
 bad_fork_cleanup_keys:

@@ -3853,55 +3853,100 @@ int __init blk_dev_init(void)
 	return 0;
 }
 
+static void cfq_dtor(struct io_context *ioc)
+{
+	struct cfq_io_context *cic[1];
+	int r;
+
+	/*
+	 * We don't have a specific key to lookup with, so use the gang
+	 * lookup to just retrieve the first item stored. The cfq exit
+	 * function will iterate the full tree, so any member will do.
+	 */
+	r = radix_tree_gang_lookup(&ioc->radix_root, (void **) cic, 0, 1);
+	if (r > 0)
+		cic[0]->dtor(ioc);
+}
+
 /*
- * IO Context helper functions
+ * IO Context helper functions. put_io_context() returns 1 if there are no
+ * more users of this io context, 0 otherwise.
  */
-void put_io_context(struct io_context *ioc)
+int put_io_context(struct io_context *ioc)
 {
 	if (ioc == NULL)
-		return;
+		return 1;
 
 	BUG_ON(atomic_read(&ioc->refcount) == 0);
 
 	if (atomic_dec_and_test(&ioc->refcount)) {
-		struct cfq_io_context *cic;
-
 		rcu_read_lock();
 		if (ioc->aic && ioc->aic->dtor)
 			ioc->aic->dtor(ioc->aic);
-		if (ioc->cic_root.rb_node != NULL) {
-			struct rb_node *n = rb_first(&ioc->cic_root);
-
-			cic = rb_entry(n, struct cfq_io_context, rb_node);
-			cic->dtor(ioc);
-		}
 		rcu_read_unlock();
+		cfq_dtor(ioc);
 
 		kmem_cache_free(iocontext_cachep, ioc);
+		return 1;
 	}
+	return 0;
 }
 EXPORT_SYMBOL(put_io_context);
+
+static void cfq_exit(struct io_context *ioc)
+{
+	struct cfq_io_context *cic[1];
+	int r;
+
+	rcu_read_lock();
+	/*
+	 * See comment for cfq_dtor()
+	 */
+	r = radix_tree_gang_lookup(&ioc->radix_root, (void **) cic, 0, 1);
+	rcu_read_unlock();
+
+	if (r > 0)
+		cic[0]->exit(ioc);
+}
 
 /* Called by the exitting task */
 void exit_io_context(void)
 {
 	struct io_context *ioc;
-	struct cfq_io_context *cic;
 
 	task_lock(current);
 	ioc = current->io_context;
 	current->io_context = NULL;
 	task_unlock(current);
 
-	ioc->task = NULL;
-	if (ioc->aic && ioc->aic->exit)
-		ioc->aic->exit(ioc->aic);
-	if (ioc->cic_root.rb_node != NULL) {
-		cic = rb_entry(rb_first(&ioc->cic_root), struct cfq_io_context, rb_node);
-		cic->exit(ioc);
+	if (atomic_dec_and_test(&ioc->nr_tasks)) {
+		if (ioc->aic && ioc->aic->exit)
+			ioc->aic->exit(ioc->aic);
+		cfq_exit(ioc);
+
+		put_io_context(ioc);
+	}
+}
+
+struct io_context *alloc_io_context(gfp_t gfp_flags, int node)
+{
+	struct io_context *ret;
+
+	ret = kmem_cache_alloc_node(iocontext_cachep, gfp_flags, node);
+	if (ret) {
+		atomic_set(&ret->refcount, 1);
+		atomic_set(&ret->nr_tasks, 1);
+		spin_lock_init(&ret->lock);
+		ret->ioprio_changed = 0;
+		ret->ioprio = 0;
+		ret->last_waited = jiffies; /* doesn't matter... */
+		ret->nr_batch_requests = 0; /* because this is 0 */
+		ret->aic = NULL;
+		INIT_RADIX_TREE(&ret->radix_root, GFP_ATOMIC | __GFP_HIGH);
+		ret->ioc_data = NULL;
 	}
 
-	put_io_context(ioc);
+	return ret;
 }
 
 /*
@@ -3921,16 +3966,8 @@ static struct io_context *current_io_context(gfp_t gfp_flags, int node)
 	if (likely(ret))
 		return ret;
 
-	ret = kmem_cache_alloc_node(iocontext_cachep, gfp_flags, node);
+	ret = alloc_io_context(gfp_flags, node);
 	if (ret) {
-		atomic_set(&ret->refcount, 1);
-		ret->task = current;
-		ret->ioprio_changed = 0;
-		ret->last_waited = jiffies; /* doesn't matter... */
-		ret->nr_batch_requests = 0; /* because this is 0 */
-		ret->aic = NULL;
-		ret->cic_root.rb_node = NULL;
-		ret->ioc_data = NULL;
 		/* make sure set_task_ioprio() sees the settings above */
 		smp_wmb();
 		tsk->io_context = ret;
@@ -3947,10 +3984,18 @@ static struct io_context *current_io_context(gfp_t gfp_flags, int node)
  */
 struct io_context *get_io_context(gfp_t gfp_flags, int node)
 {
-	struct io_context *ret;
-	ret = current_io_context(gfp_flags, node);
-	if (likely(ret))
-		atomic_inc(&ret->refcount);
+	struct io_context *ret = NULL;
+
+	/*
+	 * Check for unlikely race with exiting task. ioc ref count is
+	 * zero when ioc is being detached.
+	 */
+	do {
+		ret = current_io_context(gfp_flags, node);
+		if (unlikely(!ret))
+			break;
+	} while (!atomic_inc_not_zero(&ret->refcount));
+
 	return ret;
 }
 EXPORT_SYMBOL(get_io_context);
