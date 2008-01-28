@@ -1144,25 +1144,11 @@ error:
 }
 EXPORT_SYMBOL_GPL(device_create);
 
-/**
- * find_device - finds a device that was created with device_create()
- * @class: pointer to the struct class that this device was registered with
- * @devt: the dev_t of the device that was previously registered
- */
-static struct device *find_device(struct class *class, dev_t devt)
+static int __match_devt(struct device *dev, void *data)
 {
-	struct device *dev = NULL;
-	struct device *dev_tmp;
+	dev_t *devt = data;
 
-	down(&class->sem);
-	list_for_each_entry(dev_tmp, &class->devices, node) {
-		if (dev_tmp->devt == devt) {
-			dev = dev_tmp;
-			break;
-		}
-	}
-	up(&class->sem);
-	return dev;
+	return dev->devt == *devt;
 }
 
 /**
@@ -1177,9 +1163,11 @@ void device_destroy(struct class *class, dev_t devt)
 {
 	struct device *dev;
 
-	dev = find_device(class, devt);
-	if (dev)
+	dev = class_find_device(class, &devt, __match_devt);
+	if (dev) {
+		put_device(dev);
 		device_unregister(dev);
+	}
 }
 EXPORT_SYMBOL_GPL(device_destroy);
 
@@ -1203,9 +1191,11 @@ void destroy_suspended_device(struct class *class, dev_t devt)
 {
 	struct device *dev;
 
-	dev = find_device(class, devt);
-	if (dev)
+	dev = class_find_device(class, &devt, __match_devt);
+	if (dev) {
 		device_pm_schedule_removal(dev);
+		put_device(dev);
+	}
 }
 EXPORT_SYMBOL_GPL(destroy_suspended_device);
 #endif /* CONFIG_PM_SLEEP */
