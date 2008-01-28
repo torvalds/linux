@@ -404,8 +404,10 @@ static int revoke_lo_scan_elements(struct gfs2_jdesc *jd, unsigned int start,
 			blkno = be64_to_cpu(*(__be64 *)(bh->b_data + offset));
 
 			error = gfs2_revoke_add(sdp, blkno, start);
-			if (error < 0)
+			if (error < 0) {
+				brelse(bh);
 				return error;
+			}
 			else if (error)
 				sdp->sd_found_revokes++;
 
