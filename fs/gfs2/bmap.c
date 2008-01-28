@@ -305,11 +305,10 @@ static void find_metapath(struct gfs2_inode *ip, u64 block,
 			  struct metapath *mp)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
-	u64 b = block;
 	unsigned int i;
 
 	for (i = ip->i_height; i--;)
-		mp->mp_list[i] = do_div(b, sdp->sd_inptrs);
+		mp->mp_list[i] = do_div(block, sdp->sd_inptrs);
 
 }
 
