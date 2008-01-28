@@ -407,6 +407,8 @@ struct ieee80211_sub_if_data *vif_to_sdata(struct ieee80211_vif *p)
 enum {
 	IEEE80211_RX_MSG	= 1,
 	IEEE80211_TX_STATUS_MSG	= 2,
+	IEEE80211_DELBA_MSG	= 3,
+	IEEE80211_ADDBA_MSG	= 4,
 };
 
 struct ieee80211_local {
@@ -627,6 +629,12 @@ struct ieee80211_local {
 #endif
 };
 
+/* this struct represents 802.11n's RA/TID combination */
+struct ieee80211_ra_tid {
+	u8 ra[ETH_ALEN];
+	u16 tid;
+};
+
 static inline struct ieee80211_local *hw_to_local(
 	struct ieee80211_hw *hw)
 {
@@ -782,9 +790,15 @@ int ieee80211_ht_cap_ie_to_ht_info(struct ieee80211_ht_cap *ht_cap_ie,
 int ieee80211_ht_addt_info_ie_to_ht_bss_info(
 			struct ieee80211_ht_addt_info *ht_add_info_ie,
 			struct ieee80211_ht_bss_info *bss_info);
+void ieee80211_send_addba_request(struct net_device *dev, const u8 *da,
+				  u16 tid, u8 dialog_token, u16 start_seq_num,
+				  u16 agg_size, u16 timeout);
+void ieee80211_send_delba(struct net_device *dev, const u8 *da, u16 tid,
+				u16 initiator, u16 reason_code);
 void ieee80211_sta_stop_rx_ba_session(struct net_device *dev, u8 *da,
 				u16 tid, u16 initiator, u16 reason);
 void sta_rx_agg_session_timer_expired(unsigned long data);
+void sta_addba_resp_timer_expired(unsigned long data);
 /* ieee80211_iface.c */
 int ieee80211_if_add(struct net_device *dev, const char *name,
 		     struct net_device **new_dev, int type);

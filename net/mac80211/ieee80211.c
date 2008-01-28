@@ -414,6 +414,329 @@ static int ieee80211_stop(struct net_device *dev)
 	return 0;
 }
 
+int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+	struct sta_info *sta;
+	struct ieee80211_sub_if_data *sdata;
+	u16 start_seq_num = 0;
+	u8 *state;
+	int ret;
+	DECLARE_MAC_BUF(mac);
+
+	if (tid >= STA_TID_NUM)
+		return -EINVAL;
+
+#ifdef CONFIG_MAC80211_HT_DEBUG
+	printk(KERN_DEBUG "Open BA session requested for %s tid %u\n",
+				print_mac(mac, ra), tid);
+#endif /* CONFIG_MAC80211_HT_DEBUG */
+
+	sta = sta_info_get(local, ra);
+	if (!sta) {
+		printk(KERN_DEBUG "Could not find the station\n");
+		return -ENOENT;
+	}
+
+	spin_lock_bh(&sta->ampdu_mlme.ampdu_tx);
+
+	/* we have tried too many times, receiver does not want A-MPDU */
+	if (sta->ampdu_mlme.tid_tx[tid].addba_req_num >	HT_AGG_MAX_RETRIES) {
+		ret = -EBUSY;
+		goto start_ba_exit;
+	}
+
+	state = &sta->ampdu_mlme.tid_tx[tid].state;
+	/* check if the TID is not in aggregation flow already */
+	if (*state != HT_AGG_STATE_IDLE) {
+#ifdef CONFIG_MAC80211_HT_DEBUG
+		printk(KERN_DEBUG "BA request denied - session is not "
+				 "idle on tid %u\n", tid);
+#endif /* CONFIG_MAC80211_HT_DEBUG */
+		ret = -EAGAIN;
+		goto start_ba_exit;
+	}
+
+	/* ensure that TX flow won't interrupt us
+	 * until the end of the call to requeue function */
+	spin_lock_bh(&local->mdev->queue_lock);
+
+	/* create a new queue for this aggregation */
+	/* ret = ieee80211_ht_agg_queue_add(local, sta, tid); */
+
+	/* case no queue is available to aggregation
+	 * don't switch to aggregation */
+	if (ret) {
+#ifdef CONFIG_MAC80211_HT_DEBUG
+		printk(KERN_DEBUG "BA request denied - no queue available for"
+					" tid %d\n", tid);
+#endif /* CONFIG_MAC80211_HT_DEBUG */
+		spin_unlock_bh(&local->mdev->queue_lock);
+		goto start_ba_exit;
+	}
+	sdata = IEEE80211_DEV_TO_SUB_IF(sta->dev);
+
+	/* Ok, the Addba frame hasn't been sent yet, but if the driver calls the
+	 * call back right away, it must see that the flow has begun */
+	*state |= HT_ADDBA_REQUESTED_MSK;
+
+	if (local->ops->ampdu_action)
+		ret = local->ops->ampdu_action(hw, IEEE80211_AMPDU_TX_START,
+						ra, tid, &start_seq_num);
+
+	if (ret) {
+		/* No need to requeue the packets in the agg queue, since we
+		 * held the tx lock: no packet could be enqueued to the newly
+		 * allocated queue */
+		/* ieee80211_ht_agg_queue_remove(local, sta, tid, 0); */
+#ifdef CONFIG_MAC80211_HT_DEBUG
+		printk(KERN_DEBUG "BA request denied - HW or queue unavailable"
+				" for tid %d\n", tid);
+#endif /* CONFIG_MAC80211_HT_DEBUG */
+		spin_unlock_bh(&local->mdev->queue_lock);
+		*state = HT_AGG_STATE_IDLE;
+		goto start_ba_exit;
+	}
+
+	/* Will put all the packets in the new SW queue */
+	/* ieee80211_requeue(local, ieee802_1d_to_ac[tid]); */
+	spin_unlock_bh(&local->mdev->queue_lock);
+
+	/* We have most probably almost emptied the legacy queue */
+	/* ieee80211_wake_queue(local_to_hw(local), ieee802_1d_to_ac[tid]); */
+
+	/* send an addBA request */
+	sta->ampdu_mlme.dialog_token_allocator++;
+	sta->ampdu_mlme.tid_tx[tid].dialog_token =
+			sta->ampdu_mlme.dialog_token_allocator;
+	sta->ampdu_mlme.tid_tx[tid].ssn = start_seq_num;
+
+	ieee80211_send_addba_request(sta->dev, ra, tid,
+			 sta->ampdu_mlme.tid_tx[tid].dialog_token,
+			 sta->ampdu_mlme.tid_tx[tid].ssn,
+			 0x40, 5000);
+
+	/* activate the timer for the recipient's addBA response */
+	sta->ampdu_mlme.tid_tx[tid].addba_resp_timer.expires =
+				jiffies + ADDBA_RESP_INTERVAL;
+	add_timer(&sta->ampdu_mlme.tid_tx[tid].addba_resp_timer);
+	printk(KERN_DEBUG "activated addBA response timer on tid %d\n", tid);
+
+start_ba_exit:
+	spin_unlock_bh(&sta->ampdu_mlme.ampdu_tx);
+	sta_info_put(sta);
+	return ret;
+}
+EXPORT_SYMBOL(ieee80211_start_tx_ba_session);
+
+int ieee80211_stop_tx_ba_session(struct ieee80211_hw *hw,
+				 u8 *ra, u16 tid,
+				 enum ieee80211_back_parties initiator)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+	struct sta_info *sta;
+	u8 *state;
+	int ret = 0;
+	DECLARE_MAC_BUF(mac);
+
+	if (tid >= STA_TID_NUM)
+		return -EINVAL;
+
+#ifdef CONFIG_MAC80211_HT_DEBUG
+	printk(KERN_DEBUG "Stop a BA session requested for %s tid %u\n",
+				print_mac(mac, ra), tid);
+#endif /* CONFIG_MAC80211_HT_DEBUG */
+
+	sta = sta_info_get(local, ra);
+	if (!sta)
+		return -ENOENT;
+
+	/* check if the TID is in aggregation */
+	state = &sta->ampdu_mlme.tid_tx[tid].state;
+	spin_lock_bh(&sta->ampdu_mlme.ampdu_tx);
+
+	if (*state != HT_AGG_STATE_OPERATIONAL) {
+#ifdef CONFIG_MAC80211_HT_DEBUG
+		printk(KERN_DEBUG "Try to stop Tx aggregation on"
+				" non active TID\n");
+#endif /* CONFIG_MAC80211_HT_DEBUG */
+		ret = -ENOENT;
+		goto stop_BA_exit;
+	}
+
+	ieee80211_stop_queue(hw, sta->tid_to_tx_q[tid]);
+
+	*state = HT_AGG_STATE_REQ_STOP_BA_MSK |
+		(initiator << HT_AGG_STATE_INITIATOR_SHIFT);
+
+	if (local->ops->ampdu_action)
+		ret = local->ops->ampdu_action(hw, IEEE80211_AMPDU_TX_STOP,
+						ra, tid, NULL);
+
+	/* case HW denied going back to legacy */
+	if (ret) {
+		WARN_ON(ret != -EBUSY);
+		*state = HT_AGG_STATE_OPERATIONAL;
+		ieee80211_wake_queue(hw, sta->tid_to_tx_q[tid]);
+		goto stop_BA_exit;
+	}
+
+stop_BA_exit:
+	spin_unlock_bh(&sta->ampdu_mlme.ampdu_tx);
+	sta_info_put(sta);
+	return ret;
+}
+EXPORT_SYMBOL(ieee80211_stop_tx_ba_session);
+
+void ieee80211_start_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u16 tid)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+	struct sta_info *sta;
+	u8 *state;
+	DECLARE_MAC_BUF(mac);
+
+	if (tid >= STA_TID_NUM) {
+		printk(KERN_DEBUG "Bad TID value: tid = %d (>= %d)\n",
+				tid, STA_TID_NUM);
+		return;
+	}
+
+	sta = sta_info_get(local, ra);
+	if (!sta) {
+		printk(KERN_DEBUG "Could not find station: %s\n",
+				print_mac(mac, ra));
+		return;
+	}
+
+	state = &sta->ampdu_mlme.tid_tx[tid].state;
+	spin_lock_bh(&sta->ampdu_mlme.ampdu_tx);
+
+	if (!(*state & HT_ADDBA_REQUESTED_MSK)) {
+		printk(KERN_DEBUG "addBA was not requested yet, state is %d\n",
+				*state);
+		spin_unlock_bh(&sta->ampdu_mlme.ampdu_tx);
+		sta_info_put(sta);
+		return;
+	}
+
+	WARN_ON_ONCE(*state & HT_ADDBA_DRV_READY_MSK);
+
+	*state |= HT_ADDBA_DRV_READY_MSK;
+
+	if (*state == HT_AGG_STATE_OPERATIONAL) {
+		printk(KERN_DEBUG "Aggregation is on for tid %d \n", tid);
+		ieee80211_wake_queue(hw, sta->tid_to_tx_q[tid]);
+	}
+	spin_unlock_bh(&sta->ampdu_mlme.ampdu_tx);
+	sta_info_put(sta);
+}
+EXPORT_SYMBOL(ieee80211_start_tx_ba_cb);
+
+void ieee80211_stop_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u8 tid)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+	struct sta_info *sta;
+	u8 *state;
+	int agg_queue;
+	DECLARE_MAC_BUF(mac);
+
+	if (tid >= STA_TID_NUM) {
+		printk(KERN_DEBUG "Bad TID value: tid = %d (>= %d)\n",
+				tid, STA_TID_NUM);
+		return;
+	}
+
+	printk(KERN_DEBUG "Stop a BA session requested on DA %s tid %d\n",
+				print_mac(mac, ra), tid);
+
+	sta = sta_info_get(local, ra);
+	if (!sta) {
+		printk(KERN_DEBUG "Could not find station: %s\n",
+				print_mac(mac, ra));
+		return;
+	}
+	state = &sta->ampdu_mlme.tid_tx[tid].state;
+
+	spin_lock_bh(&sta->ampdu_mlme.ampdu_tx);
+	if ((*state & HT_AGG_STATE_REQ_STOP_BA_MSK) == 0) {
+		printk(KERN_DEBUG "unexpected callback to A-MPDU stop\n");
+		sta_info_put(sta);
+		spin_unlock_bh(&sta->ampdu_mlme.ampdu_tx);
+		return;
+	}
+
+	if (*state & HT_AGG_STATE_INITIATOR_MSK)
+		ieee80211_send_delba(sta->dev, ra, tid,
+			WLAN_BACK_INITIATOR, WLAN_REASON_QSTA_NOT_USE);
+
+	agg_queue = sta->tid_to_tx_q[tid];
+
+	/* avoid ordering issues: we are the only one that can modify
+	 * the content of the qdiscs */
+	spin_lock_bh(&local->mdev->queue_lock);
+	/* remove the queue for this aggregation */
+	/* ieee80211_ht_agg_queue_remove(local, sta, tid, 1); */
+	spin_unlock_bh(&local->mdev->queue_lock);
+
+	/* we just requeued the all the frames that were in the removed
+	 * queue, and since we might miss a softirq we do netif_schedule.
+	 * ieee80211_wake_queue is not used here as this queue is not
+	 * necessarily stopped */
+	netif_schedule(local->mdev);
+	*state = HT_AGG_STATE_IDLE;
+	sta->ampdu_mlme.tid_tx[tid].addba_req_num = 0;
+	spin_unlock_bh(&sta->ampdu_mlme.ampdu_tx);
+
+	sta_info_put(sta);
+}
+EXPORT_SYMBOL(ieee80211_stop_tx_ba_cb);
+
+void ieee80211_start_tx_ba_cb_irqsafe(struct ieee80211_hw *hw,
+				      const u8 *ra, u16 tid)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+	struct ieee80211_ra_tid *ra_tid;
+	struct sk_buff *skb = dev_alloc_skb(0);
+
+	if (unlikely(!skb)) {
+		if (net_ratelimit())
+			printk(KERN_WARNING "%s: Not enough memory, "
+			       "dropping start BA session", skb->dev->name);
+		return;
+	}
+	ra_tid = (struct ieee80211_ra_tid *) &skb->cb;
+	memcpy(&ra_tid->ra, ra, ETH_ALEN);
+	ra_tid->tid = tid;
+
+	skb->pkt_type = IEEE80211_ADDBA_MSG;
+	skb_queue_tail(&local->skb_queue, skb);
+	tasklet_schedule(&local->tasklet);
+}
+EXPORT_SYMBOL(ieee80211_start_tx_ba_cb_irqsafe);
+
+void ieee80211_stop_tx_ba_cb_irqsafe(struct ieee80211_hw *hw,
+				     const u8 *ra, u16 tid)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+	struct ieee80211_ra_tid *ra_tid;
+	struct sk_buff *skb = dev_alloc_skb(0);
+
+	if (unlikely(!skb)) {
+		if (net_ratelimit())
+			printk(KERN_WARNING "%s: Not enough memory, "
+			       "dropping stop BA session", skb->dev->name);
+		return;
+	}
+	ra_tid = (struct ieee80211_ra_tid *) &skb->cb;
+	memcpy(&ra_tid->ra, ra, ETH_ALEN);
+	ra_tid->tid = tid;
+
+	skb->pkt_type = IEEE80211_DELBA_MSG;
+	skb_queue_tail(&local->skb_queue, skb);
+	tasklet_schedule(&local->tasklet);
+}
+EXPORT_SYMBOL(ieee80211_stop_tx_ba_cb_irqsafe);
+
 static void ieee80211_set_multicast_list(struct net_device *dev)
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
@@ -713,6 +1036,7 @@ static void ieee80211_tasklet_handler(unsigned long data)
 	struct sk_buff *skb;
 	struct ieee80211_rx_status rx_status;
 	struct ieee80211_tx_status *tx_status;
+	struct ieee80211_ra_tid *ra_tid;
 
 	while ((skb = skb_dequeue(&local->skb_queue)) ||
 	       (skb = skb_dequeue(&local->skb_queue_unreliable))) {
@@ -733,6 +1057,18 @@ static void ieee80211_tasklet_handler(unsigned long data)
 					    skb, tx_status);
 			kfree(tx_status);
 			break;
+		case IEEE80211_DELBA_MSG:
+			ra_tid = (struct ieee80211_ra_tid *) &skb->cb;
+			ieee80211_stop_tx_ba_cb(local_to_hw(local),
+						ra_tid->ra, ra_tid->tid);
+			dev_kfree_skb(skb);
+			break;
+		case IEEE80211_ADDBA_MSG:
+			ra_tid = (struct ieee80211_ra_tid *) &skb->cb;
+			ieee80211_start_tx_ba_cb(local_to_hw(local),
+						 ra_tid->ra, ra_tid->tid);
+			dev_kfree_skb(skb);
+			break ;
 		default: /* should never get here! */
 			printk(KERN_ERR "%s: Unknown message type (%d)\n",
 			       wiphy_name(local->hw.wiphy), skb->pkt_type);
