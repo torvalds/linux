@@ -680,7 +680,7 @@ static int do_strip(struct gfs2_inode *ip, struct buffer_head *dibh,
 	else
 		goto out; /* Nothing to do */
 
-	gfs2_rlist_alloc(&rlist, LM_ST_EXCLUSIVE, 0);
+	gfs2_rlist_alloc(&rlist, LM_ST_EXCLUSIVE);
 
 	for (x = 0; x < rlist.rl_rgrps; x++) {
 		struct gfs2_rgrpd *rgd;

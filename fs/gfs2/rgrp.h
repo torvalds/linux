@@ -1,6 +1,6 @@
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
- * Copyright (C) 2004-2006 Red Hat, Inc.  All rights reserved.
+ * Copyright (C) 2004-2008 Red Hat, Inc.  All rights reserved.
  *
  * This copyrighted material is made available to anyone wishing to use,
  * modify, copy, or redistribute it subject to the terms and conditions
@@ -64,8 +64,7 @@ struct gfs2_rgrp_list {
 
 void gfs2_rlist_add(struct gfs2_sbd *sdp, struct gfs2_rgrp_list *rlist,
 		    u64 block);
-void gfs2_rlist_alloc(struct gfs2_rgrp_list *rlist, unsigned int state,
-		      int flags);
+void gfs2_rlist_alloc(struct gfs2_rgrp_list *rlist, unsigned int state);
 void gfs2_rlist_free(struct gfs2_rgrp_list *rlist);
 u64 gfs2_ri_total(struct gfs2_sbd *sdp);
 

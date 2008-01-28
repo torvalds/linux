@@ -1,6 +1,6 @@
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
- * Copyright (C) 2004-2007 Red Hat, Inc.  All rights reserved.
+ * Copyright (C) 2004-2008 Red Hat, Inc.  All rights reserved.
  *
  * This copyrighted material is made available to anyone wishing to use,
  * modify, copy, or redistribute it subject to the terms and conditions
@@ -1699,8 +1699,7 @@ void gfs2_rlist_add(struct gfs2_sbd *sdp, struct gfs2_rgrp_list *rlist,
  *
  */
 
-void gfs2_rlist_alloc(struct gfs2_rgrp_list *rlist, unsigned int state,
-		      int flags)
+void gfs2_rlist_alloc(struct gfs2_rgrp_list *rlist, unsigned int state)
 {
 	unsigned int x;
 
@@ -1708,7 +1707,7 @@ void gfs2_rlist_alloc(struct gfs2_rgrp_list *rlist, unsigned int state,
 				GFP_NOFS | __GFP_NOFAIL);
 	for (x = 0; x < rlist->rl_rgrps; x++)
 		gfs2_holder_init(rlist->rl_rgd[x]->rd_gl,
-				state, flags,
+				state, 0,
 				&rlist->rl_ghs[x]);
 }
 
