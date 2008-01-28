@@ -176,25 +176,6 @@ work_notifysig:
 	jmp	@r1
 	 lds	r0, pr
 work_resched:
-#if defined(CONFIG_GUSA) && !defined(CONFIG_PREEMPT)
-	! gUSA handling
-	mov.l	@(OFF_SP,r15), r0	! get user space stack pointer
-	mov	r0, r1
-	shll	r0
-	bf/s	1f
-	 shll	r0
-	bf/s	1f
-	 mov	#OFF_PC, r0
-	! 				  SP >= 0xc0000000 : gUSA mark
-	mov.l	@(r0,r15), r2		! get user space PC (program counter)
-	mov.l	@(OFF_R0,r15), r3	! end point
-	cmp/hs	r3, r2			! r2 >= r3? 
-	bt	1f
-	add	r3, r1			! rewind point #2
-	mov.l	r1, @(r0,r15)		! reset PC to rewind point #2
-	!
-1:
-#endif
 	mov.l	1f, r1
 	jsr	@r1				! schedule
 	 nop
@@ -224,7 +205,7 @@ work_resched:
 syscall_exit_work:
 	! r0: current_thread_info->flags
 	! r8: current_thread_info
-	tst	#_TIF_SYSCALL_TRACE | _TIF_SINGLESTEP, r0
+	tst	#_TIF_SYSCALL_TRACE | _TIF_SINGLESTEP | _TIF_SYSCALL_AUDIT, r0
 	bt/s	work_pending
 	 tst	#_TIF_NEED_RESCHED, r0
 #ifdef CONFIG_TRACE_IRQFLAGS
@@ -234,6 +215,8 @@ syscall_exit_work:
 #endif
 	sti
 	! XXX setup arguments...
+	mov	r15, r4
+	mov	#1, r5
 	mov.l	4f, r0			! do_syscall_trace
 	jsr	@r0
 	 nop
@@ -244,6 +227,8 @@ syscall_exit_work:
 syscall_trace_entry:
 	!                     	Yes it is traced.
 	! XXX setup arguments...
+	mov     r15, r4
+	mov     #0, r5
 	mov.l	4f, r11		! Call do_syscall_trace which notifies
 	jsr	@r11	    	! superior (will chomp R[0-7])
 	 nop
@@ -366,7 +351,7 @@ ENTRY(system_call)
 	!
 	get_current_thread_info r8, r10
 	mov.l	@(TI_FLAGS,r8), r8
-	mov	#_TIF_SYSCALL_TRACE, r10
+	mov	#(_TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT), r10
 	tst	r10, r8
 	bf	syscall_trace_entry
 	!

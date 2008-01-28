@@ -74,8 +74,10 @@ register unsigned long current_stack_pointer asm("r15") __attribute_used__;
 static inline struct thread_info *current_thread_info(void)
 {
 	struct thread_info *ti;
-#ifdef CONFIG_CPU_HAS_SR_RB
-	__asm__("stc	r7_bank, %0" : "=r" (ti));
+#if defined(CONFIG_SUPERH64)
+	__asm__ __volatile__ ("getcon	cr17, %0" : "=r" (ti));
+#elif defined(CONFIG_CPU_HAS_SR_RB)
+	__asm__ __volatile__ ("stc	r7_bank, %0" : "=r" (ti));
 #else
 	unsigned long __dummy;
 
@@ -111,6 +113,7 @@ static inline struct thread_info *current_thread_info(void)
 #define TIF_NEED_RESCHED	2	/* rescheduling necessary */
 #define TIF_RESTORE_SIGMASK	3	/* restore signal mask in do_signal() */
 #define TIF_SINGLESTEP		4	/* singlestepping active */
+#define TIF_SYSCALL_AUDIT	5
 #define TIF_USEDFPU		16	/* FPU was used by this task this quantum (SMP) */
 #define TIF_POLLING_NRFLAG	17	/* true if poll_idle() is polling TIF_NEED_RESCHED */
 #define TIF_MEMDIE		18
@@ -121,6 +124,7 @@ static inline struct thread_info *current_thread_info(void)
 #define _TIF_NEED_RESCHED	(1<<TIF_NEED_RESCHED)
 #define _TIF_RESTORE_SIGMASK	(1<<TIF_RESTORE_SIGMASK)
 #define _TIF_SINGLESTEP		(1<<TIF_SINGLESTEP)
+#define _TIF_SYSCALL_AUDIT		(1<<TIF_SYSCALL_AUDIT)
 #define _TIF_USEDFPU		(1<<TIF_USEDFPU)
 #define _TIF_POLLING_NRFLAG	(1<<TIF_POLLING_NRFLAG)
 #define _TIF_FREEZE		(1<<TIF_FREEZE)

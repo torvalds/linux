@@ -149,6 +149,14 @@ ENTRY(exception_handler)
 	mov	#32,r8
 	cmp/hs	r8,r9
 	bt	trap_entry	! 64 > vec >= 32  is trap
+
+#if defined(CONFIG_SH_FPU)
+	mov     #13,r8
+	cmp/eq  r8,r9
+	bt      10f             ! fpu
+	nop
+#endif
+
 	mov.l	4f,r8
 	mov	r9,r4
 	shll2	r9
@@ -158,6 +166,10 @@ ENTRY(exception_handler)
 	cmp/eq	r9,r8
 	bf	3f
 	mov.l	8f,r8		! unhandled exception
+#if defined(CONFIG_SH_FPU)
+10:
+	mov.l	9f, r8		! unhandled exception
+#endif
 3:
 	mov.l	5f,r10
 	jmp	@r8
@@ -177,7 +189,10 @@ interrupt_entry:
 6:	.long	ret_from_irq
 7:	.long	do_IRQ
 8:	.long	do_exception_error
-	
+#ifdef CONFIG_SH_FPU
+9:	.long	fpu_error_trap_handler
+#endif
+
 trap_entry:
 	mov	#0x30,r8
 	cmp/ge	r8,r9		! vector 0x20-0x2f is systemcall
@@ -250,7 +265,7 @@ ENTRY(sh_bios_handler)
 1:	.long	gdb_vbr_vector
 #endif /* CONFIG_SH_STANDARD_BIOS */
 
-ENTRY(address_error_handler)
+ENTRY(address_error_trap_handler)
 	mov	r15,r4				! regs
 	add	#4,r4
 	mov	#OFF_PC,r0

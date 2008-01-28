@@ -12,6 +12,11 @@
 
 #define L1_CACHE_SHIFT	4
 
+#define SH_CACHE_VALID		1
+#define SH_CACHE_UPDATED	2
+#define SH_CACHE_COMBINED	4
+#define SH_CACHE_ASSOC		8
+
 #define CCR		0xffffffec	/* Address of Cache Control Register */
 
 #define CCR_CACHE_CE	0x01	/* Cache Enable */
@@ -28,7 +33,8 @@
 
 #if defined(CONFIG_CPU_SUBTYPE_SH7705) || \
     defined(CONFIG_CPU_SUBTYPE_SH7710) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7720)
+    defined(CONFIG_CPU_SUBTYPE_SH7720) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7721)
 #define CCR3	0xa40000b4
 #define CCR_CACHE_16KB  0x00010000
 #define CCR_CACHE_32KB	0x00020000

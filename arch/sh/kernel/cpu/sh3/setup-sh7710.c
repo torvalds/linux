@@ -73,18 +73,6 @@ static struct intc_group groups[] __initdata = {
 	INTC_GROUP(SIOF1, SIOF1_ERI, SIOF1_TXI, SIOF1_RXI, SIOF1_CCI),
 };
 
-static struct intc_prio priorities[] __initdata = {
-	INTC_PRIO(DMAC1, 7),
-	INTC_PRIO(DMAC2, 7),
-	INTC_PRIO(SCIF0, 3),
-	INTC_PRIO(SCIF1, 3),
-	INTC_PRIO(SIOF0, 3),
-	INTC_PRIO(SIOF1, 3),
-	INTC_PRIO(EDMAC0, 5),
-	INTC_PRIO(EDMAC1, 5),
-	INTC_PRIO(EDMAC2, 5),
-};
-
 static struct intc_prio_reg prio_registers[] __initdata = {
 	{ 0xfffffee2, 0, 16, 4, /* IPRA */ { TMU0, TMU1, TMU2, RTC } },
 	{ 0xfffffee4, 0, 16, 4, /* IPRB */ { WDT, REF, 0, 0 } },
@@ -101,7 +89,7 @@ static struct intc_prio_reg prio_registers[] __initdata = {
 };
 
 static DECLARE_INTC_DESC(intc_desc, "sh7710", vectors, groups,
-			 priorities, NULL, prio_registers, NULL);
+			 NULL, prio_registers, NULL);
 
 static struct intc_vect vectors_irq[] __initdata = {
 	INTC_VECT(IRQ0, 0x600), INTC_VECT(IRQ1, 0x620),
@@ -109,7 +97,7 @@ static struct intc_vect vectors_irq[] __initdata = {
 };
 
 static DECLARE_INTC_DESC(intc_desc_irq, "sh7710-irq", vectors_irq, NULL,
-			 priorities, NULL, prio_registers, NULL);
+			 NULL, prio_registers, NULL);
 
 static struct resource rtc_resources[] = {
 	[0] =	{

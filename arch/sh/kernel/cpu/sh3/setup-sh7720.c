@@ -85,9 +85,62 @@ static struct platform_device sci_device = {
 	},
 };
 
+static struct resource usb_ohci_resources[] = {
+	[0] = {
+		.start	= 0xA4428000,
+		.end	= 0xA44280FF,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 67,
+		.end	= 67,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static u64 usb_ohci_dma_mask = 0xffffffffUL;
+static struct platform_device usb_ohci_device = {
+	.name		= "sh_ohci",
+	.id		= -1,
+	.dev = {
+		.dma_mask		= &usb_ohci_dma_mask,
+		.coherent_dma_mask	= 0xffffffff,
+	},
+	.num_resources	= ARRAY_SIZE(usb_ohci_resources),
+	.resource	= usb_ohci_resources,
+};
+
+static struct resource usbf_resources[] = {
+	[0] = {
+		.name	= "sh_udc",
+		.start	= 0xA4420000,
+		.end	= 0xA44200FF,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.name	= "sh_udc",
+		.start	= 65,
+		.end	= 65,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device usbf_device = {
+	.name		= "sh_udc",
+	.id		= -1,
+	.dev = {
+		.dma_mask		= NULL,
+		.coherent_dma_mask	= 0xffffffff,
+	},
+	.num_resources	= ARRAY_SIZE(usbf_resources),
+	.resource	= usbf_resources,
+};
+
 static struct platform_device *sh7720_devices[] __initdata = {
 	&rtc_device,
 	&sci_device,
+	&usb_ohci_device,
+	&usbf_device,
 };
 
 static int __init sh7720_devices_setup(void)
@@ -127,8 +180,11 @@ static struct intc_vect vectors[] __initdata = {
 	INTC_VECT(USBF_SPD, 0x6e0),   INTC_VECT(DMAC1_DEI0, 0x800),
 	INTC_VECT(DMAC1_DEI1, 0x820), INTC_VECT(DMAC1_DEI2, 0x840),
 	INTC_VECT(DMAC1_DEI3, 0x860), INTC_VECT(LCDC, 0x900),
-	INTC_VECT(SSL, 0x980),        INTC_VECT(USBFI0, 0xa20),
-	INTC_VECT(USBFI1, 0xa40),     INTC_VECT(USBHI, 0xa60),
+#if defined(CONFIG_CPU_SUBTYPE_SH7720)
+	INTC_VECT(SSL, 0x980),
+#endif
+	INTC_VECT(USBFI0, 0xa20),     INTC_VECT(USBFI1, 0xa40),
+	INTC_VECT(USBHI, 0xa60),
 	INTC_VECT(DMAC2_DEI4, 0xb80), INTC_VECT(DMAC2_DEI5, 0xba0),
 	INTC_VECT(ADC, 0xbe0),        INTC_VECT(SCIF0, 0xc00),
 	INTC_VECT(SCIF1, 0xc20),      INTC_VECT(PINT07, 0xc80),
@@ -153,22 +209,16 @@ static struct intc_group groups[] __initdata = {
 	INTC_GROUP(MMC, MMCI0, MMCI1, MMCI2, MMCI3),
 };
 
-static struct intc_prio priorities[] __initdata = {
-	INTC_PRIO(SCIF0, 2),
-	INTC_PRIO(SCIF1, 2),
-	INTC_PRIO(DMAC1, 1),
-	INTC_PRIO(DMAC2, 1),
-	INTC_PRIO(RTC, 2),
-	INTC_PRIO(TMU, 2),
-	INTC_PRIO(TPU, 2),
-};
-
 static struct intc_prio_reg prio_registers[] __initdata = {
 	{ 0xA414FEE2UL, 0, 16, 4, /* IPRA */ { TMU0, TMU1, TMU2, RTC } },
 	{ 0xA414FEE4UL, 0, 16, 4, /* IPRB */ { WDT, REF_RCMI, SIM, 0 } },
 	{ 0xA4140016UL, 0, 16, 4, /* IPRC */ { IRQ3, IRQ2, IRQ1, IRQ0 } },
 	{ 0xA4140018UL, 0, 16, 4, /* IPRD */ { USBF_SPD, TMU_SUNI, IRQ5, IRQ4 } },
+#if defined(CONFIG_CPU_SUBTYPE_SH7720)
 	{ 0xA414001AUL, 0, 16, 4, /* IPRE */ { DMAC1, 0, LCDC, SSL } },
+#else
+	{ 0xA414001AUL, 0, 16, 4, /* IPRE */ { DMAC1, 0, LCDC, 0 } },
+#endif
 	{ 0xA4080000UL, 0, 16, 4, /* IPRF */ { ADC, DMAC2, USBFI, CMT } },
 	{ 0xA4080002UL, 0, 16, 4, /* IPRG */ { SCIF0, SCIF1, 0, 0 } },
 	{ 0xA4080004UL, 0, 16, 4, /* IPRH */ { PINT07, PINT815, TPU, IIC } },
@@ -177,7 +227,7 @@ static struct intc_prio_reg prio_registers[] __initdata = {
 };
 
 static DECLARE_INTC_DESC(intc_desc, "sh7720", vectors, groups,
-		priorities, NULL, prio_registers, NULL);
+		NULL, prio_registers, NULL);
 
 static struct intc_sense_reg sense_registers[] __initdata = {
 	{ INTC_ICR1, 16, 2, { 0, 0, IRQ5, IRQ4, IRQ3, IRQ2, IRQ1, IRQ0 } },
@@ -190,7 +240,7 @@ static struct intc_vect vectors_irq[] __initdata = {
 };
 
 static DECLARE_INTC_DESC(intc_irq_desc, "sh7720-irq", vectors_irq,
-		NULL, priorities, NULL, prio_registers, sense_registers);
+		NULL, NULL, prio_registers, sense_registers);
 
 void __init plat_irq_setup_pins(int mode)
 {

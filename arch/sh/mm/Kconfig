@@ -1,193 +1,3 @@
-#
-# Processor families
-#
-config CPU_SH2
-	bool
-
-config CPU_SH2A
-	bool
-	select CPU_SH2
-
-config CPU_SH3
-	bool
-	select CPU_HAS_INTEVT
-	select CPU_HAS_SR_RB
-
-config CPU_SH4
-	bool
-	select CPU_HAS_INTEVT
-	select CPU_HAS_SR_RB
-	select CPU_HAS_PTEA if !CPU_SH4A || CPU_SHX2
-	select CPU_HAS_FPU if !CPU_SH4AL_DSP
-
-config CPU_SH4A
-	bool
-	select CPU_SH4
-
-config CPU_SH4AL_DSP
-	bool
-	select CPU_SH4A
-	select CPU_HAS_DSP
-
-config CPU_SHX2
-	bool
-
-config CPU_SHX3
-	bool
-
-choice
-	prompt "Processor sub-type selection"
-
-#
-# Processor subtypes
-#
-
-# SH-2 Processor Support
-
-config CPU_SUBTYPE_SH7619
-	bool "Support SH7619 processor"
-	select CPU_SH2
-
-# SH-2A Processor Support
-
-config CPU_SUBTYPE_SH7206
-	bool "Support SH7206 processor"
-	select CPU_SH2A
-
-# SH-3 Processor Support
-
-config CPU_SUBTYPE_SH7705
-	bool "Support SH7705 processor"
-	select CPU_SH3
-
-config CPU_SUBTYPE_SH7706
-	bool "Support SH7706 processor"
-	select CPU_SH3
-	help
-	  Select SH7706 if you have a 133 Mhz SH-3 HD6417706 CPU.
-
-config CPU_SUBTYPE_SH7707
-	bool "Support SH7707 processor"
-	select CPU_SH3
-	help
-	  Select SH7707 if you have a  60 Mhz SH-3 HD6417707 CPU.
-
-config CPU_SUBTYPE_SH7708
-	bool "Support SH7708 processor"
-	select CPU_SH3
-	help
-	  Select SH7708 if you have a  60 Mhz SH-3 HD6417708S or
-	  if you have a 100 Mhz SH-3 HD6417708R CPU.
-
-config CPU_SUBTYPE_SH7709
-	bool "Support SH7709 processor"
-	select CPU_SH3
-	help
-	  Select SH7709 if you have a  80 Mhz SH-3 HD6417709 CPU.
-
-config CPU_SUBTYPE_SH7710
-	bool "Support SH7710 processor"
-	select CPU_SH3
-	select CPU_HAS_DSP
-	help
-	  Select SH7710 if you have a SH3-DSP SH7710 CPU.
-
-config CPU_SUBTYPE_SH7712
-	bool "Support SH7712 processor"
-	select CPU_SH3
-	select CPU_HAS_DSP
-	help
-	  Select SH7712 if you have a SH3-DSP SH7712 CPU.
-
-config CPU_SUBTYPE_SH7720
-	bool "Support SH7720 processor"
-	select CPU_SH3
-	select CPU_HAS_DSP
-	help
-	  Select SH7720 if you have a SH3-DSP SH7720 CPU.
-
-# SH-4 Processor Support
-
-config CPU_SUBTYPE_SH7750
-	bool "Support SH7750 processor"
-	select CPU_SH4
-	help
-	  Select SH7750 if you have a 200 Mhz SH-4 HD6417750 CPU.
-
-config CPU_SUBTYPE_SH7091
-	bool "Support SH7091 processor"
-	select CPU_SH4
-	help
-	  Select SH7091 if you have an SH-4 based Sega device (such as
-	  the Dreamcast, Naomi, and Naomi 2).
-
-config CPU_SUBTYPE_SH7750R
-	bool "Support SH7750R processor"
-	select CPU_SH4
-
-config CPU_SUBTYPE_SH7750S
-	bool "Support SH7750S processor"
-	select CPU_SH4
-
-config CPU_SUBTYPE_SH7751
-	bool "Support SH7751 processor"
-	select CPU_SH4
-	help
-	  Select SH7751 if you have a 166 Mhz SH-4 HD6417751 CPU,
-	  or if you have a HD6417751R CPU.
-
-config CPU_SUBTYPE_SH7751R
-	bool "Support SH7751R processor"
-	select CPU_SH4
-
-config CPU_SUBTYPE_SH7760
-	bool "Support SH7760 processor"
-	select CPU_SH4
-
-config CPU_SUBTYPE_SH4_202
-	bool "Support SH4-202 processor"
-	select CPU_SH4
-
-# SH-4A Processor Support
-
-config CPU_SUBTYPE_SH7770
-	bool "Support SH7770 processor"
-	select CPU_SH4A
-
-config CPU_SUBTYPE_SH7780
-	bool "Support SH7780 processor"
-	select CPU_SH4A
-
-config CPU_SUBTYPE_SH7785
-	bool "Support SH7785 processor"
-	select CPU_SH4A
-	select CPU_SHX2
-	select ARCH_SPARSEMEM_ENABLE
-	select SYS_SUPPORTS_NUMA
-
-config CPU_SUBTYPE_SHX3
-	bool "Support SH-X3 processor"
-	select CPU_SH4A
-	select CPU_SHX3
-	select ARCH_SPARSEMEM_ENABLE
-	select SYS_SUPPORTS_NUMA
-	select SYS_SUPPORTS_SMP
-
-# SH4AL-DSP Processor Support
-
-config CPU_SUBTYPE_SH7343
-	bool "Support SH7343 processor"
-	select CPU_SH4AL_DSP
-
-config CPU_SUBTYPE_SH7722
-	bool "Support SH7722 processor"
-	select CPU_SH4AL_DSP
-	select CPU_SHX2
-	select ARCH_SPARSEMEM_ENABLE
-	select SYS_SUPPORTS_NUMA
-
-endchoice
-
 menu "Memory management options"
 
 config QUICKLIST
@@ -207,7 +17,8 @@ config MMU
 
 config PAGE_OFFSET
 	hex
-	default "0x80000000" if MMU
+	default "0x80000000" if MMU && SUPERH32
+	default "0x20000000" if MMU && SUPERH64
 	default "0x00000000"
 
 config MEMORY_START
@@ -228,17 +39,28 @@ config MEMORY_START
 
 config MEMORY_SIZE
 	hex "Physical memory size"
-	default "0x00400000"
+	default "0x04000000"
 	help
 	  This sets the default memory size assumed by your SH kernel. It can
 	  be overridden as normal by the 'mem=' argument on the kernel command
 	  line. If unsure, consult your board specifications or just leave it
-	  as 0x00400000 which was the default value before this became
+	  as 0x04000000 which was the default value before this became
 	  configurable.
 
+# Physical addressing modes
+
+config 29BIT
+	def_bool !32BIT
+	depends on SUPERH32
+
 config 32BIT
+	bool
+	default y if CPU_SH5
+
+config PMB
 	bool "Support 32-bit physical addressing through PMB"
 	depends on MMU && (CPU_SUBTYPE_SH7780 || CPU_SUBTYPE_SH7785)
+	select 32BIT
 	default y
 	help
 	  If you say Y here, physical addressing will be extended to
@@ -256,7 +78,7 @@ config X2TLB
 
 config VSYSCALL
 	bool "Support vsyscall page"
-	depends on MMU
+	depends on MMU && (CPU_SH3 || CPU_SH4)
 	default y
 	help
 	  This will enable support for the kernel mapping a vDSO page
@@ -335,7 +157,7 @@ config PAGE_SIZE_8KB
 
 config PAGE_SIZE_64KB
 	bool "64kB"
-	depends on CPU_SH4
+	depends on CPU_SH4 || CPU_SH5
 	help
 	  This enables support for 64kB pages, possible on all SH-4
 	  CPUs and later.
@@ -344,7 +166,7 @@ endchoice
 
 choice
 	prompt "HugeTLB page size"
-	depends on HUGETLB_PAGE && CPU_SH4 && MMU
+	depends on HUGETLB_PAGE && (CPU_SH4 || CPU_SH5) && MMU
 	default HUGETLB_PAGE_SIZE_64K
 
 config HUGETLB_PAGE_SIZE_64K
@@ -364,6 +186,10 @@ config HUGETLB_PAGE_SIZE_4MB
 config HUGETLB_PAGE_SIZE_64MB
 	bool "64MB"
 	depends on X2TLB
+
+config HUGETLB_PAGE_SIZE_512MB
+	bool "512MB"
+	depends on CPU_SH5
 
 endchoice
 
@@ -392,12 +218,12 @@ config SH_DIRECT_MAPPED
 
 choice
 	prompt "Cache mode"
-	default CACHE_WRITEBACK if CPU_SH2A || CPU_SH3 || CPU_SH4
+	default CACHE_WRITEBACK if CPU_SH2A || CPU_SH3 || CPU_SH4 || CPU_SH5
 	default CACHE_WRITETHROUGH if (CPU_SH2 && !CPU_SH2A)
 
 config CACHE_WRITEBACK
 	bool "Write-back"
-	depends on CPU_SH2A || CPU_SH3 || CPU_SH4
+	depends on CPU_SH2A || CPU_SH3 || CPU_SH4 || CPU_SH5
 
 config CACHE_WRITETHROUGH
 	bool "Write-through"

@@ -5,7 +5,16 @@
  * Copyright (C) 1999, 2000  Niibe Yutaka
  *
  */
-
+#if defined(__SH5__) || defined(CONFIG_SUPERH64)
+struct pt_regs {
+	unsigned long long pc;
+	unsigned long long sr;
+	unsigned long long syscall_nr;
+	unsigned long long regs[63];
+	unsigned long long tregs[8];
+	unsigned long long pad[2];
+};
+#else
 /*
  * GCC defines register number like this:
  * -----------------------------
@@ -28,7 +37,7 @@
 
 #define REG_PR		17
 #define REG_SR		18
-#define REG_GBR      	19
+#define REG_GBR		19
 #define REG_MACH	20
 #define REG_MACL	21
 
@@ -80,10 +89,14 @@ struct pt_dspregs {
 
 #define	PTRACE_GETDSPREGS	55
 #define	PTRACE_SETDSPREGS	56
+#endif
 
 #ifdef __KERNEL__
-#define user_mode(regs) (((regs)->sr & 0x40000000)==0)
-#define instruction_pointer(regs) ((regs)->pc)
+#include <asm/addrspace.h>
+
+#define user_mode(regs)			(((regs)->sr & 0x40000000)==0)
+#define instruction_pointer(regs)	((unsigned long)(regs)->pc)
+
 extern void show_regs(struct pt_regs *);
 
 #ifdef CONFIG_SH_DSP
@@ -100,10 +113,13 @@ static inline unsigned long profile_pc(struct pt_regs *regs)
 {
 	unsigned long pc = instruction_pointer(regs);
 
-	if (pc >= 0xa0000000UL && pc < 0xc0000000UL)
+#ifdef P2SEG
+	if (pc >= P2SEG && pc < P3SEG)
 		pc -= 0x20000000;
+#endif
+
 	return pc;
 }
-#endif
+#endif /* __KERNEL__ */
 
 #endif /* __ASM_SH_PTRACE_H */

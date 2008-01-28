@@ -2,7 +2,9 @@
 #define __ASM_CPU_SH3_DMA_H
 
 
-#if defined(CONFIG_CPU_SUBTYPE_SH7720) || defined(CONFIG_CPU_SUBTYPE_SH7709)
+#if defined(CONFIG_CPU_SUBTYPE_SH7720) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7721) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7709)
 #define SH_DMAC_BASE	0xa4010020
 
 #define DMTE0_IRQ	48

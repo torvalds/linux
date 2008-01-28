@@ -6,8 +6,7 @@
 mainmenu "Linux/SuperH Kernel Configuration"
 
 config SUPERH
-	bool
-	default y
+	def_bool y
 	select EMBEDDED
 	help
 	  The SuperH is a RISC processor targeted for use in embedded systems
@@ -15,36 +14,36 @@ config SUPERH
 	  gaming console.  The SuperH port has a home page at
 	  <http://www.linux-sh.org/>.
 
+config SUPERH32
+	def_bool !SUPERH64
+
+config SUPERH64
+	def_bool y if CPU_SH5
+
 config RWSEM_GENERIC_SPINLOCK
-	bool
-	default y
+	def_bool y
 
 config RWSEM_XCHGADD_ALGORITHM
 	bool
 
 config GENERIC_BUG
 	def_bool y
-	depends on BUG
+	depends on BUG && SUPERH32
 
 config GENERIC_FIND_NEXT_BIT
-	bool
-	default y
+	def_bool y
 
 config GENERIC_HWEIGHT
-	bool
-	default y
+	def_bool y
 
 config GENERIC_HARDIRQS
-	bool
-	default y
+	def_bool y
 
 config GENERIC_IRQ_PROBE
-	bool
-	default y
+	def_bool y
 
 config GENERIC_CALIBRATE_DELAY
-	bool
-	default y
+	def_bool y
 
 config GENERIC_IOMAP
 	bool
@@ -75,20 +74,16 @@ config ARCH_MAY_HAVE_PC_FDC
 	bool
 
 config STACKTRACE_SUPPORT
-	bool
-	default y
+	def_bool y
 
 config LOCKDEP_SUPPORT
-	bool
-	default y
+	def_bool y
 
 config ARCH_HAS_ILOG2_U32
-	bool
-	default n
+	def_bool n
 
 config ARCH_HAS_ILOG2_U64
-	bool
-	default n
+	def_bool n
 
 config ARCH_NO_VIRT_TO_BUS
 	def_bool y
@@ -97,110 +92,234 @@ source "init/Kconfig"
 
 menu "System type"
 
-source "arch/sh/mm/Kconfig"
+#
+# Processor families
+#
+config CPU_SH2
+	bool
 
-menu "Processor features"
+config CPU_SH2A
+	bool
+	select CPU_SH2
+
+config CPU_SH3
+	bool
+	select CPU_HAS_INTEVT
+	select CPU_HAS_SR_RB
+
+config CPU_SH4
+	bool
+	select CPU_HAS_INTEVT
+	select CPU_HAS_SR_RB
+	select CPU_HAS_PTEA if !CPU_SH4A || CPU_SHX2
+	select CPU_HAS_FPU if !CPU_SH4AL_DSP
+
+config CPU_SH4A
+	bool
+	select CPU_SH4
+
+config CPU_SH4AL_DSP
+	bool
+	select CPU_SH4A
+	select CPU_HAS_DSP
+
+config CPU_SH5
+	bool
+	select CPU_HAS_FPU
+
+config CPU_SHX2
+	bool
+
+config CPU_SHX3
+	bool
 
 choice
-	prompt "Endianess selection" 
-	default CPU_LITTLE_ENDIAN
+	prompt "Processor sub-type selection"
+
+#
+# Processor subtypes
+#
+
+# SH-2 Processor Support
+
+config CPU_SUBTYPE_SH7619
+	bool "Support SH7619 processor"
+	select CPU_SH2
+
+# SH-2A Processor Support
+
+config CPU_SUBTYPE_SH7203
+	bool "Support SH7203 processor"
+	select CPU_SH2A
+	select CPU_HAS_FPU
+
+config CPU_SUBTYPE_SH7206
+	bool "Support SH7206 processor"
+	select CPU_SH2A
+
+config CPU_SUBTYPE_SH7263
+	bool "Support SH7263 processor"
+	select CPU_SH2A
+	select CPU_HAS_FPU
+
+# SH-3 Processor Support
+
+config CPU_SUBTYPE_SH7705
+	bool "Support SH7705 processor"
+	select CPU_SH3
+
+config CPU_SUBTYPE_SH7706
+	bool "Support SH7706 processor"
+	select CPU_SH3
 	help
-	  Some SuperH machines can be configured for either little or big
-	  endian byte order. These modes require different kernels.
+	  Select SH7706 if you have a 133 Mhz SH-3 HD6417706 CPU.
 
-config CPU_LITTLE_ENDIAN
-	bool "Little Endian"
+config CPU_SUBTYPE_SH7707
+	bool "Support SH7707 processor"
+	select CPU_SH3
+	help
+	  Select SH7707 if you have a  60 Mhz SH-3 HD6417707 CPU.
 
-config CPU_BIG_ENDIAN
-	bool "Big Endian"
+config CPU_SUBTYPE_SH7708
+	bool "Support SH7708 processor"
+	select CPU_SH3
+	help
+	  Select SH7708 if you have a  60 Mhz SH-3 HD6417708S or
+	  if you have a 100 Mhz SH-3 HD6417708R CPU.
+
+config CPU_SUBTYPE_SH7709
+	bool "Support SH7709 processor"
+	select CPU_SH3
+	help
+	  Select SH7709 if you have a  80 Mhz SH-3 HD6417709 CPU.
+
+config CPU_SUBTYPE_SH7710
+	bool "Support SH7710 processor"
+	select CPU_SH3
+	select CPU_HAS_DSP
+	help
+	  Select SH7710 if you have a SH3-DSP SH7710 CPU.
+
+config CPU_SUBTYPE_SH7712
+	bool "Support SH7712 processor"
+	select CPU_SH3
+	select CPU_HAS_DSP
+	help
+	  Select SH7712 if you have a SH3-DSP SH7712 CPU.
+
+config CPU_SUBTYPE_SH7720
+	bool "Support SH7720 processor"
+	select CPU_SH3
+	select CPU_HAS_DSP
+	help
+	  Select SH7720 if you have a SH3-DSP SH7720 CPU.
+
+config CPU_SUBTYPE_SH7721
+	bool "Support SH7721 processor"
+	select CPU_SH3
+	select CPU_HAS_DSP
+	help
+	  Select SH7721 if you have a SH3-DSP SH7721 CPU.
+
+# SH-4 Processor Support
+
+config CPU_SUBTYPE_SH7750
+	bool "Support SH7750 processor"
+	select CPU_SH4
+	help
+	  Select SH7750 if you have a 200 Mhz SH-4 HD6417750 CPU.
+
+config CPU_SUBTYPE_SH7091
+	bool "Support SH7091 processor"
+	select CPU_SH4
+	help
+	  Select SH7091 if you have an SH-4 based Sega device (such as
+	  the Dreamcast, Naomi, and Naomi 2).
+
+config CPU_SUBTYPE_SH7750R
+	bool "Support SH7750R processor"
+	select CPU_SH4
+
+config CPU_SUBTYPE_SH7750S
+	bool "Support SH7750S processor"
+	select CPU_SH4
+
+config CPU_SUBTYPE_SH7751
+	bool "Support SH7751 processor"
+	select CPU_SH4
+	help
+	  Select SH7751 if you have a 166 Mhz SH-4 HD6417751 CPU,
+	  or if you have a HD6417751R CPU.
+
+config CPU_SUBTYPE_SH7751R
+	bool "Support SH7751R processor"
+	select CPU_SH4
+
+config CPU_SUBTYPE_SH7760
+	bool "Support SH7760 processor"
+	select CPU_SH4
+
+config CPU_SUBTYPE_SH4_202
+	bool "Support SH4-202 processor"
+	select CPU_SH4
+
+# SH-4A Processor Support
+
+config CPU_SUBTYPE_SH7763
+	bool "Support SH7763 processor"
+	select CPU_SH4A
+	help
+	  Select SH7763 if you have a SH4A SH7763(R5S77631) CPU.
+
+config CPU_SUBTYPE_SH7770
+	bool "Support SH7770 processor"
+	select CPU_SH4A
+
+config CPU_SUBTYPE_SH7780
+	bool "Support SH7780 processor"
+	select CPU_SH4A
+
+config CPU_SUBTYPE_SH7785
+	bool "Support SH7785 processor"
+	select CPU_SH4A
+	select CPU_SHX2
+	select ARCH_SPARSEMEM_ENABLE
+	select SYS_SUPPORTS_NUMA
+
+config CPU_SUBTYPE_SHX3
+	bool "Support SH-X3 processor"
+	select CPU_SH4A
+	select CPU_SHX3
+	select ARCH_SPARSEMEM_ENABLE
+	select SYS_SUPPORTS_NUMA
+	select SYS_SUPPORTS_SMP
+
+# SH4AL-DSP Processor Support
+
+config CPU_SUBTYPE_SH7343
+	bool "Support SH7343 processor"
+	select CPU_SH4AL_DSP
+
+config CPU_SUBTYPE_SH7722
+	bool "Support SH7722 processor"
+	select CPU_SH4AL_DSP
+	select CPU_SHX2
+	select ARCH_SPARSEMEM_ENABLE
+	select SYS_SUPPORTS_NUMA
+
+# SH-5 Processor Support
+
+config CPU_SUBTYPE_SH5_101
+	bool "Support SH5-101 processor"
+	select CPU_SH5
+
+config CPU_SUBTYPE_SH5_103
+	bool "Support SH5-103 processor"
 
 endchoice
 
-config SH_FPU
-	bool "FPU support"
-	depends on CPU_HAS_FPU
-	default y
-	help
-	  Selecting this option will enable support for SH processors that
-	  have FPU units (ie, SH77xx).
-
-	  This option must be set in order to enable the FPU.
-
-config SH_FPU_EMU
-	bool "FPU emulation support"
-	depends on !SH_FPU && EXPERIMENTAL
-	default n
-	help
-	  Selecting this option will enable support for software FPU emulation.
-	  Most SH-3 users will want to say Y here, whereas most SH-4 users will
-	  want to say N.
-
-config SH_DSP
-	bool "DSP support"
-	depends on CPU_HAS_DSP
-	default y
-	help
-	  Selecting this option will enable support for SH processors that
-	  have DSP units (ie, SH2-DSP, SH3-DSP, and SH4AL-DSP).
-
-	  This option must be set in order to enable the DSP.
-
-config SH_ADC
-	bool "ADC support"
-	depends on CPU_SH3
-	default y
-	help
-	  Selecting this option will allow the Linux kernel to use SH3 on-chip
-	  ADC module.
-
-	  If unsure, say N.
-
-config SH_STORE_QUEUES
-	bool "Support for Store Queues"
-	depends on CPU_SH4
-	help
-	  Selecting this option will enable an in-kernel API for manipulating
-	  the store queues integrated in the SH-4 processors.
-
-config SPECULATIVE_EXECUTION
-	bool "Speculative subroutine return"
-	depends on CPU_SUBTYPE_SH7780 && EXPERIMENTAL
-	help
-	  This enables support for a speculative instruction fetch for
-	  subroutine return. There are various pitfalls associated with
-	  this, as outlined in the SH7780 hardware manual.
-
-	  If unsure, say N.
-
-config CPU_HAS_INTEVT
-	bool
-
-config CPU_HAS_MASKREG_IRQ
-	bool
-
-config CPU_HAS_IPR_IRQ
-	bool
-
-config CPU_HAS_SR_RB
-	bool
-	help
-	  This will enable the use of SR.RB register bank usage. Processors
-	  that are lacking this bit must have another method in place for
-	  accomplishing what is taken care of by the banked registers.
-
-	  See <file:Documentation/sh/register-banks.txt> for further
-	  information on SR.RB and register banking in the kernel in general.
-
-config CPU_HAS_PTEA
-	bool
-
-config CPU_HAS_DSP
-	bool
-
-config CPU_HAS_FPU
-	bool
-
-endmenu
+source "arch/sh/mm/Kconfig"
+source "arch/sh/Kconfig.cpu"
 
 menu "Board support"
 
@@ -321,13 +440,6 @@ config SH_SECUREEDGE5410
 	  This includes both the OEM SecureEdge products as well as the
 	  SME product line.
 
-config SH_HS7751RVOIP
-	bool "HS7751RVOIP"
-	depends on CPU_SUBTYPE_SH7751R
-	help
-	  Select HS7751RVOIP if configuring for a Renesas Technology
-	  Sales VoIP board.
-
 config SH_7710VOIPGW
 	bool "SH7710-VOIP-GW"
 	depends on CPU_SUBTYPE_SH7710
@@ -342,6 +454,14 @@ config SH_RTS7751R2D
 	help
 	  Select RTS7751R2D if configuring for a Renesas Technology
 	  Sales SH-Graphics board.
+
+config SH_SDK7780
+	bool "SDK7780R3"
+	depends on CPU_SUBTYPE_SH7780
+	select SYS_SUPPORTS_PCI
+	help
+	  Select SDK7780 if configuring for a Renesas SH7780 SDK7780R3
+	  evaluation board.
 
 config SH_HIGHLANDER
 	bool "Highlander"
@@ -399,41 +519,47 @@ config SH_MAGIC_PANEL_R2
 	help
 	  Select Magic Panel R2 if configuring for Magic Panel R2.
 
+config SH_CAYMAN
+	bool "Hitachi Cayman"
+	depends on CPU_SUBTYPE_SH5_101 || CPU_SUBTYPE_SH5_103
+	select SYS_SUPPORTS_PCI
+
 endmenu
 
-source "arch/sh/boards/renesas/hs7751rvoip/Kconfig"
 source "arch/sh/boards/renesas/rts7751r2d/Kconfig"
 source "arch/sh/boards/renesas/r7780rp/Kconfig"
+source "arch/sh/boards/renesas/sdk7780/Kconfig"
 source "arch/sh/boards/magicpanelr2/Kconfig"
 
 menu "Timer and clock configuration"
 
 config SH_TMU
-	bool "TMU timer support"
+	def_bool y
+	prompt "TMU timer support"
 	depends on CPU_SH3 || CPU_SH4
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
-	default y
 	help
 	  This enables the use of the TMU as the system timer.
 
 config SH_CMT
-	bool "CMT timer support"
+	def_bool y
+	prompt "CMT timer support"
 	depends on CPU_SH2
-	default y
 	help
 	  This enables the use of the CMT as the system timer.
 
 config SH_MTU2
-	bool "MTU2 timer support"
+	def_bool n
+	prompt "MTU2 timer support"
 	depends on CPU_SH2A
-	default n
 	help
 	  This enables the use of the MTU2 as the system timer.
 
 config SH_TIMER_IRQ
 	int
-	default "28" if CPU_SUBTYPE_SH7780 || CPU_SUBTYPE_SH7785
+	default "28" if CPU_SUBTYPE_SH7780 || CPU_SUBTYPE_SH7785 || \
+			CPU_SUBTYPE_SH7763
 	default "86" if CPU_SUBTYPE_SH7619
 	default "140" if CPU_SUBTYPE_SH7206
 	default "16"
@@ -445,7 +571,8 @@ config SH_PCLK_FREQ
 	default "32000000" if CPU_SUBTYPE_SH7722
 	default "33333333" if CPU_SUBTYPE_SH7770 || \
 			      CPU_SUBTYPE_SH7760 || CPU_SUBTYPE_SH7705 || \
-			      CPU_SUBTYPE_SH7206
+			      CPU_SUBTYPE_SH7203 || CPU_SUBTYPE_SH7206 || \
+			      CPU_SUBTYPE_SH7263
 	default "60000000" if CPU_SUBTYPE_SH7751 || CPU_SUBTYPE_SH7751R
 	default "66000000" if CPU_SUBTYPE_SH4_202
 	default "50000000"
@@ -456,7 +583,7 @@ config SH_PCLK_FREQ
 
 config SH_CLK_MD
 	int "CPU Mode Pin Setting"
-	depends on CPU_SUBTYPE_SH7619 || CPU_SUBTYPE_SH7206
+	depends on CPU_SH2
 	default 6 if CPU_SUBTYPE_SH7206
 	default 5 if CPU_SUBTYPE_SH7619
 	default 0
@@ -490,9 +617,8 @@ source "arch/sh/drivers/Kconfig"
 endmenu
 
 config ISA_DMA_API
-	bool
+	def_bool y
 	depends on SH_MPC1211
-	default y
 
 menu "Kernel features"
 
@@ -570,7 +696,7 @@ source "kernel/Kconfig.preempt"
 
 config GUSA
 	def_bool y
-	depends on !SMP
+	depends on !SMP && SUPERH32
 	help
 	  This enables support for gUSA (general UserSpace Atomicity).
 	  This is the default implementation for both UP and non-ll/sc
@@ -581,6 +707,16 @@ config GUSA
 
 	  This should only be disabled for special cases where alternate
 	  atomicity implementations exist.
+
+config GUSA_RB
+	bool "Implement atomic operations by roll-back (gRB) (EXPERIMENTAL)"
+	depends on GUSA && CPU_SH3 || (CPU_SH4 && !CPU_SH4A)
+	help
+	  Enabling this option will allow the kernel to implement some
+	  atomic operations using a software implemention of load-locked/
+	  store-conditional (LLSC). On machines which do not have hardware
+	  LLSC, this should be more efficient than the other alternative of
+	  disabling insterrupts around the atomic sequence.
 
 endmenu
 

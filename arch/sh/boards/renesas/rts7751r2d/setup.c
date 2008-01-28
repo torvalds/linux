@@ -13,34 +13,15 @@
 #include <linux/pata_platform.h>
 #include <linux/serial_8250.h>
 #include <linux/sm501.h>
+#include <linux/sm501-regs.h>
 #include <linux/pm.h>
+#include <linux/fb.h>
+#include <linux/spi/spi.h>
+#include <linux/spi/spi_bitbang.h>
 #include <asm/machvec.h>
 #include <asm/rts7751r2d.h>
-#include <asm/voyagergx.h>
 #include <asm/io.h>
-
-static void __init voyagergx_serial_init(void)
-{
-	unsigned long val;
-
-	/*
-	 * GPIO Control
-	 */
-	val = readl((void __iomem *)GPIO_MUX_HIGH);
-	val |= 0x00001fe0;
-	writel(val, (void __iomem *)GPIO_MUX_HIGH);
-
-	/*
-	 * Power Mode Gate
-	 */
-	val = readl((void __iomem *)POWER_MODE0_GATE);
-	val |= (POWER_MODE0_GATE_U0 | POWER_MODE0_GATE_U1);
-	writel(val, (void __iomem *)POWER_MODE0_GATE);
-
-	val = readl((void __iomem *)POWER_MODE1_GATE);
-	val |= (POWER_MODE1_GATE_U0 | POWER_MODE1_GATE_U1);
-	writel(val, (void __iomem *)POWER_MODE1_GATE);
-}
+#include <asm/spi.h>
 
 static struct resource cf_ide_resources[] = {
 	[0] = {
@@ -75,6 +56,43 @@ static struct platform_device cf_ide_device  = {
 	},
 };
 
+static struct spi_board_info spi_bus[] = {
+	{
+		.modalias	= "rtc-r9701",
+		.max_speed_hz	= 1000000,
+		.mode		= SPI_MODE_3,
+	},
+};
+
+static void r2d_chip_select(struct sh_spi_info *spi, int cs, int state)
+{
+	BUG_ON(cs != 0);  /* Single Epson RTC-9701JE attached on CS0 */
+	ctrl_outw(state == BITBANG_CS_ACTIVE, PA_RTCCE);
+}
+
+static struct sh_spi_info spi_info = {
+	.num_chipselect = 1,
+	.chip_select = r2d_chip_select,
+};
+
+static struct resource spi_sh_sci_resources[] = {
+	{
+		.start	= 0xffe00000,
+		.end	= 0xffe0001f,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device spi_sh_sci_device  = {
+	.name		= "spi_sh_sci",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(spi_sh_sci_resources),
+	.resource	= spi_sh_sci_resources,
+	.dev	= {
+		.platform_data	= &spi_info,
+	},
+};
+
 static struct resource heartbeat_resources[] = {
 	[0] = {
 		.start	= PA_OUTPORT,
@@ -93,11 +111,11 @@ static struct platform_device heartbeat_device = {
 #ifdef CONFIG_MFD_SM501
 static struct plat_serial8250_port uart_platform_data[] = {
 	{
-		.membase	= (void __iomem *)VOYAGER_UART_BASE,
-		.mapbase	= VOYAGER_UART_BASE,
+		.membase	= (void __iomem *)0xb3e30000,
+		.mapbase	= 0xb3e30000,
 		.iotype		= UPIO_MEM,
-		.irq		= IRQ_SM501_U0,
-		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST,
+		.irq		= IRQ_VOYAGER,
+		.flags		= UPF_BOOT_AUTOCONF | UPF_SHARE_IRQ,
 		.regshift	= 2,
 		.uartclk	= (9600 * 16),
 	},
@@ -124,14 +142,67 @@ static struct resource sm501_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[2]	= {
-		.start	= IRQ_SM501_CV,
+		.start	= IRQ_VOYAGER,
 		.flags	= IORESOURCE_IRQ,
 	},
+};
+
+static struct fb_videomode sm501_default_mode = {
+	.pixclock	= 35714,
+	.xres		= 640,
+	.yres		= 480,
+	.left_margin	= 105,
+	.right_margin	= 50,
+	.upper_margin	= 35,
+	.lower_margin	= 0,
+	.hsync_len	= 96,
+	.vsync_len	= 2,
+	.sync = FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+};
+
+static struct sm501_platdata_fbsub sm501_pdata_fbsub_pnl = {
+	.def_bpp	= 16,
+	.def_mode	= &sm501_default_mode,
+	.flags		= SM501FB_FLAG_USE_INIT_MODE |
+			  SM501FB_FLAG_USE_HWCURSOR |
+			  SM501FB_FLAG_USE_HWACCEL |
+			  SM501FB_FLAG_DISABLE_AT_EXIT,
+};
+
+static struct sm501_platdata_fbsub sm501_pdata_fbsub_crt = {
+	.flags		= (SM501FB_FLAG_USE_INIT_MODE |
+			   SM501FB_FLAG_USE_HWCURSOR |
+			   SM501FB_FLAG_USE_HWACCEL |
+			   SM501FB_FLAG_DISABLE_AT_EXIT),
+
+};
+
+static struct sm501_platdata_fb sm501_fb_pdata = {
+	.fb_route	= SM501_FB_OWN,
+	.fb_crt		= &sm501_pdata_fbsub_crt,
+	.fb_pnl		= &sm501_pdata_fbsub_pnl,
+	.flags		= SM501_FBPD_SWAP_FB_ENDIAN,
+};
+
+static struct sm501_initdata sm501_initdata = {
+	.gpio_high	= {
+		.set	= 0x00001fe0,
+		.mask	= 0x0,
+	},
+	.devices	= SM501_USE_USB_HOST,
+};
+
+static struct sm501_platdata sm501_platform_data = {
+	.init		= &sm501_initdata,
+	.fb		= &sm501_fb_pdata,
 };
 
 static struct platform_device sm501_device = {
 	.name		= "sm501",
 	.id		= -1,
+	.dev		= {
+		.platform_data	= &sm501_platform_data,
+	},
 	.num_resources	= ARRAY_SIZE(sm501_resources),
 	.resource	= sm501_resources,
 };
@@ -145,10 +216,12 @@ static struct platform_device *rts7751r2d_devices[] __initdata = {
 #endif
 	&cf_ide_device,
 	&heartbeat_device,
+	&spi_sh_sci_device,
 };
 
 static int __init rts7751r2d_devices_setup(void)
 {
+	spi_register_board_info(spi_bus, ARRAY_SIZE(spi_bus));
 	return platform_add_devices(rts7751r2d_devices,
 				    ARRAY_SIZE(rts7751r2d_devices));
 }
@@ -192,6 +265,7 @@ u8 rts7751r2d_readb(void __iomem *addr)
  */
 static void __init rts7751r2d_setup(char **cmdline_p)
 {
+	void __iomem *sm501_reg;
 	u16 ver = ctrl_inw(PA_VERREG);
 
 	printk(KERN_INFO "Renesas Technology Sales RTS7751R2D support.\n");
@@ -202,7 +276,30 @@ static void __init rts7751r2d_setup(char **cmdline_p)
 	ctrl_outw(0x0000, PA_OUTPORT);
 	pm_power_off = rts7751r2d_power_off;
 
-	voyagergx_serial_init();
+	/* sm501 dram configuration:
+	 * ColSizeX = 11 - External Memory Column Size: 256 words.
+	 * APX = 1 - External Memory Active to Pre-Charge Delay: 7 clocks.
+	 * RstX = 1 - External Memory Reset: Normal.
+	 * Rfsh = 1 - Local Memory Refresh to Command Delay: 12 clocks.
+	 * BwC =  1 - Local Memory Block Write Cycle Time: 2 clocks.
+	 * BwP =  1 - Local Memory Block Write to Pre-Charge Delay: 1 clock.
+	 * AP = 1 - Internal Memory Active to Pre-Charge Delay: 7 clocks.
+	 * Rst = 1 - Internal Memory Reset: Normal.
+	 * RA = 1 - Internal Memory Remain in Active State: Do not remain.
+	 */
+
+	sm501_reg = (void __iomem *)0xb3e00000 + SM501_DRAM_CONTROL;
+	writel(readl(sm501_reg) | 0x00f107c0, sm501_reg);
+
+	/*
+	 * Power Mode Gate - Enable UART0
+	 */
+
+	sm501_reg = (void __iomem *)0xb3e00000 + SM501_POWER_MODE_0_GATE;
+	writel(readl(sm501_reg) | (1 << SM501_GATE_UART0), sm501_reg);
+
+	sm501_reg = (void __iomem *)0xb3e00000 + SM501_POWER_MODE_1_GATE;
+	writel(readl(sm501_reg) | (1 << SM501_GATE_UART0), sm501_reg);
 }
 
 /*
@@ -215,8 +312,4 @@ static struct sh_machine_vector mv_rts7751r2d __initmv = {
 	.mv_irq_demux		= rts7751r2d_irq_demux,
 	.mv_writeb		= rts7751r2d_writeb,
 	.mv_readb		= rts7751r2d_readb,
-#if defined(CONFIG_MFD_SM501) && defined(CONFIG_USB_OHCI_HCD)
-	.mv_consistent_alloc	= voyagergx_consistent_alloc,
-	.mv_consistent_free	= voyagergx_consistent_free,
-#endif
 };

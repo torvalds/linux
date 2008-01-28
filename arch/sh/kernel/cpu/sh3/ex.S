@@ -36,7 +36,7 @@ ENTRY(exception_handling_table)
 	.long	exception_error	! address error store	/* 100 */
 #endif
 #if defined(CONFIG_SH_FPU)
-	.long	do_fpu_error		/* 120 */
+	.long	fpu_error_trap_handler	/* 120 */
 #else
 	.long	exception_error		/* 120 */
 #endif

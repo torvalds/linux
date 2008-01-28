@@ -52,6 +52,12 @@ typedef unsigned long long u64;
 
 typedef u32 dma_addr_t;
 
+#ifdef CONFIG_SUPERH32
+typedef u16 opcode_t;
+#else
+typedef u32 opcode_t;
+#endif
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* __KERNEL__ */

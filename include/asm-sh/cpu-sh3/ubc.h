@@ -12,7 +12,8 @@
 #define __ASM_CPU_SH3_UBC_H
 
 #if defined(CONFIG_CPU_SUBTYPE_SH7710) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7720)
+    defined(CONFIG_CPU_SUBTYPE_SH7720) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7721)
 #define UBC_BARA		0xa4ffffb0
 #define UBC_BAMRA		0xa4ffffb4
 #define UBC_BBRA		0xa4ffffb8

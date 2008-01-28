@@ -16,7 +16,8 @@
 #define SCLKACR			0xa4150008
 #define SCLKBCR			0xa415000c
 #define IrDACLKCR		0xa4150010
-#elif defined(CONFIG_CPU_SUBTYPE_SH7780)
+#elif defined(CONFIG_CPU_SUBTYPE_SH7763) || \
+      defined(CONFIG_CPU_SUBTYPE_SH7780)
 #define	FRQCR			0xffc80000
 #elif defined(CONFIG_CPU_SUBTYPE_SH7785)
 #define FRQCR0			0xffc80000

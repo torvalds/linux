@@ -12,7 +12,8 @@
 #ifndef _CPU_SH3_GPIO_H
 #define _CPU_SH3_GPIO_H
 
-#if defined(CONFIG_CPU_SUBTYPE_SH7720)
+#if defined(CONFIG_CPU_SUBTYPE_SH7720) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7721)
 
 /* Control registers */
 #define PORT_PACR	0xA4050100UL

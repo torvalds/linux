@@ -23,9 +23,7 @@
 
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 pgd_t swapper_pg_dir[PTRS_PER_PGD];
-
-void (*copy_page)(void *from, void *to);
-void (*clear_page)(void *to);
+unsigned long cached_to_uncached = 0;
 
 void show_mem(void)
 {
@@ -102,7 +100,8 @@ static void set_pte_phys(unsigned long addr, unsigned long phys, pgprot_t prot)
 
 	set_pte(pte, pfn_pte(phys >> PAGE_SHIFT, prot));
 
-	flush_tlb_one(get_asid(), addr);
+	if (cached_to_uncached)
+		flush_tlb_one(get_asid(), addr);
 }
 
 /*
@@ -131,6 +130,37 @@ void __set_fixmap(enum fixed_addresses idx, unsigned long phys, pgprot_t prot)
 
 	set_pte_phys(address, phys, prot);
 }
+
+void __init page_table_range_init(unsigned long start, unsigned long end,
+					 pgd_t *pgd_base)
+{
+	pgd_t *pgd;
+	pud_t *pud;
+	pmd_t *pmd;
+	int pgd_idx;
+	unsigned long vaddr;
+
+	vaddr = start & PMD_MASK;
+	end = (end + PMD_SIZE - 1) & PMD_MASK;
+	pgd_idx = pgd_index(vaddr);
+	pgd = pgd_base + pgd_idx;
+
+	for ( ; (pgd_idx < PTRS_PER_PGD) && (vaddr != end); pgd++, pgd_idx++) {
+		BUG_ON(pgd_none(*pgd));
+		pud = pud_offset(pgd, 0);
+		BUG_ON(pud_none(*pud));
+		pmd = pmd_offset(pud, 0);
+
+		if (!pmd_present(*pmd)) {
+			pte_t *pte_table;
+			pte_table = (pte_t *)alloc_bootmem_low_pages(PAGE_SIZE);
+			memset(pte_table, 0, PAGE_SIZE);
+			pmd_populate_kernel(&init_mm, pmd, pte_table);
+		}
+
+		vaddr += PMD_SIZE;
+	}
+}
 #endif	/* CONFIG_MMU */
 
 /*
@@ -150,6 +180,11 @@ void __init paging_init(void)
 	 * check for a null value. */
 	set_TTB(swapper_pg_dir);
 
+	/* Populate the relevant portions of swapper_pg_dir so that
+	 * we can use the fixmap entries without calling kmalloc.
+	 * pte's will be filled in by __set_fixmap(). */
+	page_table_range_init(FIXADDR_START, FIXADDR_TOP, swapper_pg_dir);
+
 	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
 
 	for_each_online_node(nid) {
@@ -167,9 +202,22 @@ void __init paging_init(void)
 	}
 
 	free_area_init_nodes(max_zone_pfns);
+
+	/* Set up the uncached fixmap */
+	set_fixmap_nocache(FIX_UNCACHED, __pa(&__uncached_start));
+
+#ifdef CONFIG_29BIT
+	/*
+	 * Handle trivial transitions between cached and uncached
+	 * segments, making use of the 1:1 mapping relationship in
+	 * 512MB lowmem.
+	 */
+	cached_to_uncached = P2SEG - P1SEG;
+#endif
 }
 
 static struct kcore_list kcore_mem, kcore_vmalloc;
+int after_bootmem = 0;
 
 void __init mem_init(void)
 {
@@ -202,17 +250,7 @@ void __init mem_init(void)
 	memset(empty_zero_page, 0, PAGE_SIZE);
 	__flush_wback_region(empty_zero_page, PAGE_SIZE);
 
-	/*
-	 * Setup wrappers for copy/clear_page(), these will get overridden
-	 * later in the boot process if a better method is available.
-	 */
-#ifdef CONFIG_MMU
-	copy_page = copy_page_slow;
-	clear_page = clear_page_slow;
-#else
-	copy_page = copy_page_nommu;
-	clear_page = clear_page_nommu;
-#endif
+	after_bootmem = 1;
 
 	codesize =  (unsigned long) &_etext - (unsigned long) &_text;
 	datasize =  (unsigned long) &_edata - (unsigned long) &_etext;

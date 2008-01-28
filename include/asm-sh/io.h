@@ -191,6 +191,8 @@ __BUILD_MEMORY_STRING(w, u16)
 
 #define mmiowb()	wmb()	/* synco on SH-4A, otherwise a nop */
 
+#define IO_SPACE_LIMIT 0xffffffff
+
 /*
  * This function provides a method for the generic case where a board-specific
  * ioport_map simply needs to return the port + some arbitrary port base.
@@ -226,6 +228,11 @@ static inline unsigned int ctrl_inl(unsigned long addr)
 	return *(volatile unsigned long*)addr;
 }
 
+static inline unsigned long long ctrl_inq(unsigned long addr)
+{
+	return *(volatile unsigned long long*)addr;
+}
+
 static inline void ctrl_outb(unsigned char b, unsigned long addr)
 {
 	*(volatile unsigned char*)addr = b;
@@ -241,49 +248,52 @@ static inline void ctrl_outl(unsigned int b, unsigned long addr)
         *(volatile unsigned long*)addr = b;
 }
 
+static inline void ctrl_outq(unsigned long long b, unsigned long addr)
+{
+	*(volatile unsigned long long*)addr = b;
+}
+
 static inline void ctrl_delay(void)
 {
+#ifdef P2SEG
 	ctrl_inw(P2SEG);
+#endif
 }
 
-#define IO_SPACE_LIMIT 0xffffffff
+/* Quad-word real-mode I/O, don't ask.. */
+unsigned long long peek_real_address_q(unsigned long long addr);
+unsigned long long poke_real_address_q(unsigned long long addr,
+				       unsigned long long val);
 
-#ifdef CONFIG_MMU
-/*
- * Change virtual addresses to physical addresses and vv.
- * These are trivial on the 1:1 Linux/SuperH mapping
- */
-static inline unsigned long virt_to_phys(volatile void *address)
-{
-	return PHYSADDR(address);
-}
+/* arch/sh/mm/ioremap_64.c */
+unsigned long onchip_remap(unsigned long addr, unsigned long size,
+			   const char *name);
+extern void onchip_unmap(unsigned long vaddr);
 
-static inline void *phys_to_virt(unsigned long address)
-{
-	return (void *)P1SEGADDR(address);
-}
-#else
-#define phys_to_virt(address)	((void *)(address))
+#if !defined(CONFIG_MMU)
 #define virt_to_phys(address)	((unsigned long)(address))
+#define phys_to_virt(address)	((void *)(address))
+#else
+#define virt_to_phys(address)	(__pa(address))
+#define phys_to_virt(address)	(__va(address))
 #endif
 
 /*
- * readX/writeX() are used to access memory mapped devices. On some
- * architectures the memory mapped IO stuff needs to be accessed
- * differently. On the x86 architecture, we just read/write the
- * memory location directly.
+ * On 32-bit SH, we traditionally have the whole physical address space
+ * mapped at all times (as MIPS does), so "ioremap()" and "iounmap()" do
+ * not need to do anything but place the address in the proper segment.
+ * This is true for P1 and P2 addresses, as well as some P3 ones.
+ * However, most of the P3 addresses and newer cores using extended
+ * addressing need to map through page tables, so the ioremap()
+ * implementation becomes a bit more complicated.
  *
- * On SH, we traditionally have the whole physical address space mapped
- * at all times (as MIPS does), so "ioremap()" and "iounmap()" do not
- * need to do anything but place the address in the proper segment. This
- * is true for P1 and P2 addresses, as well as some P3 ones. However,
- * most of the P3 addresses and newer cores using extended addressing
- * need to map through page tables, so the ioremap() implementation
- * becomes a bit more complicated. See arch/sh/mm/ioremap.c for
- * additional notes on this.
+ * See arch/sh/mm/ioremap.c for additional notes on this.
  *
  * We cheat a bit and always return uncachable areas until we've fixed
  * the drivers to handle caching properly.
+ *
+ * On the SH-5 the concept of segmentation in the 1:1 PXSEG sense simply
+ * doesn't exist, so everything must go through page tables.
  */
 #ifdef CONFIG_MMU
 void __iomem *__ioremap(unsigned long offset, unsigned long size,
@@ -297,6 +307,7 @@ void __iounmap(void __iomem *addr);
 static inline void __iomem *
 __ioremap_mode(unsigned long offset, unsigned long size, unsigned long flags)
 {
+#ifdef CONFIG_SUPERH32
 	unsigned long last_addr = offset + size - 1;
 
 	/*
@@ -311,6 +322,7 @@ __ioremap_mode(unsigned long offset, unsigned long size, unsigned long flags)
 
 		return (void __iomem *)P2SEGADDR(offset);
 	}
+#endif
 
 	return __ioremap(offset, size, flags);
 }

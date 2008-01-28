@@ -187,7 +187,7 @@ config BOUNCE
 config NR_QUICK
 	int
 	depends on QUICKLIST
-	default "2" if (SUPERH && !SUPERH64)
+	default "2" if SUPERH
 	default "1"
 
 config VIRT_TO_BUS

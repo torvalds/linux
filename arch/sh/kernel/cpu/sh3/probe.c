@@ -16,11 +16,11 @@
 #include <asm/cache.h>
 #include <asm/io.h>
 
-int __init detect_cpu_and_cache_system(void)
+int __uses_jump_to_uncached detect_cpu_and_cache_system(void)
 {
 	unsigned long addr0, addr1, data0, data1, data2, data3;
 
-	jump_to_P2();
+	jump_to_uncached();
 	/*
 	 * Check if the entry shadows or not.
 	 * When shadowed, it's 128-entry system.
@@ -48,7 +48,7 @@ int __init detect_cpu_and_cache_system(void)
 	ctrl_outl(data0&~SH_CACHE_VALID, addr0);
 	ctrl_outl(data2&~SH_CACHE_VALID, addr1);
 
-	back_to_P1();
+	back_to_cached();
 
 	boot_cpu_data.dcache.ways		= 4;
 	boot_cpu_data.dcache.entry_shift	= 4;
@@ -83,6 +83,9 @@ int __init detect_cpu_and_cache_system(void)
 #endif
 #if defined(CONFIG_CPU_SUBTYPE_SH7720)
 		boot_cpu_data.type = CPU_SH7720;
+#endif
+#if defined(CONFIG_CPU_SUBTYPE_SH7721)
+		boot_cpu_data.type = CPU_SH7721;
 #endif
 #if defined(CONFIG_CPU_SUBTYPE_SH7705)
 		boot_cpu_data.type = CPU_SH7705;

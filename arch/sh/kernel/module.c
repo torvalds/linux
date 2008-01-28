@@ -1,5 +1,15 @@
 /*  Kernel module help for SH.
 
+    SHcompact version by Kaz Kojima and Paul Mundt.
+
+    SHmedia bits:
+
+	Copyright 2004 SuperH (UK) Ltd
+	Author: Richard Curnow
+
+	Based on the sh version, and on code from the sh64-specific parts of
+	modutils, originally written by Richard Curnow and Ben Gaster.
+
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 2 of the License, or
@@ -20,12 +30,6 @@
 #include <linux/fs.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
-
-#if 0
-#define DEBUGP printk
-#else
-#define DEBUGP(fmt...)
-#endif
 
 void *module_alloc(unsigned long size)
 {
@@ -52,6 +56,7 @@ int module_frob_arch_sections(Elf_Ehdr *hdr,
 	return 0;
 }
 
+#ifdef CONFIG_SUPERH32
 #define COPY_UNALIGNED_WORD(sw, tw, align) \
 { \
 	void *__s = &(sw), *__t = &(tw); \
@@ -74,6 +79,10 @@ int module_frob_arch_sections(Elf_Ehdr *hdr,
 		break; \
 	} \
 }
+#else
+/* One thing SHmedia doesn't screw up! */
+#define COPY_UNALIGNED_WORD(sw, tw, align)	{ (tw) = (sw); }
+#endif
 
 int apply_relocate_add(Elf32_Shdr *sechdrs,
 		   const char *strtab,
@@ -89,8 +98,8 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 	uint32_t value;
 	int align;
 
-	DEBUGP("Applying relocate section %u to %u\n", relsec,
-	       sechdrs[relsec].sh_info);
+	pr_debug("Applying relocate section %u to %u\n", relsec,
+		 sechdrs[relsec].sh_info);
 	for (i = 0; i < sechdrs[relsec].sh_size / sizeof(*rel); i++) {
 		/* This is where to make the change */
 		location = (void *)sechdrs[sechdrs[relsec].sh_info].sh_addr
@@ -102,17 +111,44 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 		relocation = sym->st_value + rel[i].r_addend;
 		align = (int)location & 3;
 
+#ifdef CONFIG_SUPERH64
+		/* For text addresses, bit2 of the st_other field indicates
+		 * whether the symbol is SHmedia (1) or SHcompact (0).  If
+		 * SHmedia, the LSB of the symbol needs to be asserted
+		 * for the CPU to be in SHmedia mode when it starts executing
+		 * the branch target. */
+		relocation |= (sym->st_other & 4);
+#endif
+
 		switch (ELF32_R_TYPE(rel[i].r_info)) {
 		case R_SH_DIR32:
-	    		COPY_UNALIGNED_WORD (*location, value, align);
+			COPY_UNALIGNED_WORD (*location, value, align);
 			value += relocation;
-	    		COPY_UNALIGNED_WORD (value, *location, align);
+			COPY_UNALIGNED_WORD (value, *location, align);
 			break;
 		case R_SH_REL32:
-	  		relocation = (relocation - (Elf32_Addr) location);
-	    		COPY_UNALIGNED_WORD (*location, value, align);
+			relocation = (relocation - (Elf32_Addr) location);
+			COPY_UNALIGNED_WORD (*location, value, align);
 			value += relocation;
-	    		COPY_UNALIGNED_WORD (value, *location, align);
+			COPY_UNALIGNED_WORD (value, *location, align);
+			break;
+		case R_SH_IMM_LOW16:
+			*location = (*location & ~0x3fffc00) |
+				((relocation & 0xffff) << 10);
+			break;
+		case R_SH_IMM_MEDLOW16:
+			*location = (*location & ~0x3fffc00) |
+				(((relocation >> 16) & 0xffff) << 10);
+			break;
+		case R_SH_IMM_LOW16_PCREL:
+			relocation -= (Elf32_Addr) location;
+			*location = (*location & ~0x3fffc00) |
+				((relocation & 0xffff) << 10);
+			break;
+		case R_SH_IMM_MEDLOW16_PCREL:
+			relocation -= (Elf32_Addr) location;
+			*location = (*location & ~0x3fffc00) |
+				(((relocation >> 16) & 0xffff) << 10);
 			break;
 		default:
 			printk(KERN_ERR "module %s: Unknown relocation: %u\n",

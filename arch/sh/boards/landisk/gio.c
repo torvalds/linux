@@ -121,7 +121,7 @@ static int gio_ioctl(struct inode *inode, struct file *filp,
 	return 0;
 }
 
-static struct file_operations gio_fops = {
+static const struct file_operations gio_fops = {
 	.owner = THIS_MODULE,
 	.open = gio_open,	/* open */
 	.release = gio_close,	/* release */

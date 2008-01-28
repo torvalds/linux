@@ -25,7 +25,7 @@ static void __init check_bugs(void)
 	case CPU_SH7619:
 		*p++ = '2';
 		break;
-	case CPU_SH7206:
+	case CPU_SH7203 ... CPU_SH7263:
 		*p++ = '2';
 		*p++ = 'a';
 		break;
@@ -35,7 +35,7 @@ static void __init check_bugs(void)
 	case CPU_SH7750 ... CPU_SH4_501:
 		*p++ = '4';
 		break;
-	case CPU_SH7770 ... CPU_SHX3:
+	case CPU_SH7763 ... CPU_SHX3:
 		*p++ = '4';
 		*p++ = 'a';
 		break;
@@ -48,9 +48,16 @@ static void __init check_bugs(void)
 		*p++ = 's';
 		*p++ = 'p';
 		break;
-	default:
-		*p++ = '?';
-		*p++ = '!';
+	case CPU_SH5_101 ... CPU_SH5_103:
+		*p++ = '6';
+		*p++ = '4';
+		break;
+	case CPU_SH_NONE:
+		/*
+		 * Specifically use CPU_SH_NONE rather than default:,
+		 * so we're able to have the compiler whine about
+		 * unhandled enumerations.
+		 */
 		break;
 	}
 

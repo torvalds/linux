@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include <linux/log2.h>
 #include <asm/mmu_context.h>
 #include <asm/processor.h>
 #include <asm/uaccess.h>
@@ -20,9 +21,12 @@
 #include <asm/system.h>
 #include <asm/cacheflush.h>
 #include <asm/cache.h>
+#include <asm/elf.h>
 #include <asm/io.h>
-#include <asm/ubc.h>
 #include <asm/smp.h>
+#ifdef CONFIG_SUPERH32
+#include <asm/ubc.h>
+#endif
 
 /*
  * Generic wrapper for command line arguments to disable on-chip
@@ -61,25 +65,12 @@ static void __init speculative_execution_init(void)
 /*
  * Generic first-level cache init
  */
-static void __init cache_init(void)
+#ifdef CONFIG_SUPERH32
+static void __uses_jump_to_uncached cache_init(void)
 {
 	unsigned long ccr, flags;
 
-	/* First setup the rest of the I-cache info */
-	current_cpu_data.icache.entry_mask = current_cpu_data.icache.way_incr -
-				      current_cpu_data.icache.linesz;
-
-	current_cpu_data.icache.way_size = current_cpu_data.icache.sets *
-				    current_cpu_data.icache.linesz;
-
-	/* And the D-cache too */
-	current_cpu_data.dcache.entry_mask = current_cpu_data.dcache.way_incr -
-				      current_cpu_data.dcache.linesz;
-
-	current_cpu_data.dcache.way_size = current_cpu_data.dcache.sets *
-				    current_cpu_data.dcache.linesz;
-
-	jump_to_P2();
+	jump_to_uncached();
 	ccr = ctrl_inl(CCR);
 
 	/*
@@ -156,7 +147,31 @@ static void __init cache_init(void)
 #endif
 
 	ctrl_outl(flags, CCR);
-	back_to_P1();
+	back_to_cached();
+}
+#else
+#define cache_init()	do { } while (0)
+#endif
+
+#define CSHAPE(totalsize, linesize, assoc) \
+	((totalsize & ~0xff) | (linesize << 4) | assoc)
+
+#define CACHE_DESC_SHAPE(desc)	\
+	CSHAPE((desc).way_size * (desc).ways, ilog2((desc).linesz), (desc).ways)
+
+static void detect_cache_shape(void)
+{
+	l1d_cache_shape = CACHE_DESC_SHAPE(current_cpu_data.dcache);
+
+	if (current_cpu_data.dcache.flags & SH_CACHE_COMBINED)
+		l1i_cache_shape = l1d_cache_shape;
+	else
+		l1i_cache_shape = CACHE_DESC_SHAPE(current_cpu_data.icache);
+
+	if (current_cpu_data.flags & CPU_HAS_L2_CACHE)
+		l2_cache_shape = CACHE_DESC_SHAPE(current_cpu_data.scache);
+	else
+		l2_cache_shape = -1; /* No S-cache */
 }
 
 #ifdef CONFIG_SH_DSP
@@ -228,13 +243,31 @@ asmlinkage void __cpuinit sh_cpu_init(void)
 	if (current_cpu_data.type == CPU_SH_NONE)
 		panic("Unknown CPU");
 
+	/* First setup the rest of the I-cache info */
+	current_cpu_data.icache.entry_mask = current_cpu_data.icache.way_incr -
+				      current_cpu_data.icache.linesz;
+
+	current_cpu_data.icache.way_size = current_cpu_data.icache.sets *
+				    current_cpu_data.icache.linesz;
+
+	/* And the D-cache too */
+	current_cpu_data.dcache.entry_mask = current_cpu_data.dcache.way_incr -
+				      current_cpu_data.dcache.linesz;
+
+	current_cpu_data.dcache.way_size = current_cpu_data.dcache.sets *
+				    current_cpu_data.dcache.linesz;
+
 	/* Init the cache */
 	cache_init();
 
-	if (raw_smp_processor_id() == 0)
+	if (raw_smp_processor_id() == 0) {
 		shm_align_mask = max_t(unsigned long,
 				       current_cpu_data.dcache.way_size - 1,
 				       PAGE_SIZE - 1);
+
+		/* Boot CPU sets the cache shape */
+		detect_cache_shape();
+	}
 
 	/* Disable the FPU */
 	if (fpu_disabled) {
@@ -273,7 +306,10 @@ asmlinkage void __cpuinit sh_cpu_init(void)
 	 * like PTRACE_SINGLESTEP or doing hardware watchpoints in GDB.  So ..
 	 * we wake it up and hope that all is well.
 	 */
+#ifdef CONFIG_SUPERH32
 	if (raw_smp_processor_id() == 0)
 		ubc_wakeup();
+#endif
+
 	speculative_execution_init();
 }

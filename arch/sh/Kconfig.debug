@@ -1,8 +1,7 @@
 menu "Kernel hacking"
 
 config TRACE_IRQFLAGS_SUPPORT
-	bool
-	default y
+	def_bool y
 
 source "lib/Kconfig.debug"
 
@@ -30,12 +29,13 @@ config EARLY_SCIF_CONSOLE
 config EARLY_SCIF_CONSOLE_PORT
 	hex
 	depends on EARLY_SCIF_CONSOLE
-	default "0xffe00000" if CPU_SUBTYPE_SH7780
+ 	default "0xffe00000" if CPU_SUBTYPE_SH7780 || CPU_SUBTYPE_SH7763
 	default "0xffea0000" if CPU_SUBTYPE_SH7785
-	default "0xfffe9800" if CPU_SUBTYPE_SH7206
+	default "0xfffe8000" if CPU_SUBTYPE_SH7203
+	default "0xfffe9800" if CPU_SUBTYPE_SH7206 || CPU_SUBTYPE_SH7263
 	default "0xf8420000" if CPU_SUBTYPE_SH7619
 	default "0xa4400000" if CPU_SUBTYPE_SH7712 || CPU_SUBTYPE_SH7705
-	default "0xa4430000" if CPU_SUBTYPE_SH7720
+	default "0xa4430000" if CPU_SUBTYPE_SH7720 || CPU_SUBTYPE_SH7721
 	default "0xffc30000" if CPU_SUBTYPE_SHX3
 	default "0xffe80000" if CPU_SH4
 	default "0x00000000"
@@ -62,7 +62,7 @@ config DEBUG_BOOTMEM
 
 config DEBUG_STACKOVERFLOW
 	bool "Check for stack overflows"
-	depends on DEBUG_KERNEL
+	depends on DEBUG_KERNEL && SUPERH32
 	help
 	  This option will cause messages to be printed if free stack space
 	  drops below a certain limit.
@@ -88,7 +88,7 @@ config 4KSTACKS
 
 config IRQSTACKS
 	bool "Use separate kernel stacks when processing interrupts"
-	depends on DEBUG_KERNEL
+	depends on DEBUG_KERNEL && SUPERH32
 	help
 	  If you say Y here the kernel will use separate kernel stacks
 	  for handling hard and soft interrupts.  This can help avoid
@@ -119,19 +119,19 @@ config COMPILE_OPTIONS
 	depends on MORE_COMPILE_OPTIONS
 
 config KGDB_NMI
-	bool "Enter KGDB on NMI"
-	default n
+	def_bool n
+	prompt "Enter KGDB on NMI"
 
 config SH_KGDB_CONSOLE
-	bool "Console messages through GDB"
+	def_bool n
+	prompt "Console messages through GDB"
 	depends on !SERIAL_SH_SCI_CONSOLE && SERIAL_SH_SCI=y
 	select SERIAL_CORE_CONSOLE
-	default n
 
 config KGDB_SYSRQ
-	bool "Allow SysRq 'G' to enter KGDB"
+	def_bool y
+	prompt "Allow SysRq 'G' to enter KGDB"
 	depends on MAGIC_SYSRQ
-	default y
 
 comment "Serial port setup"
 
@@ -173,5 +173,30 @@ config KGDB_DEFBITS_7
 endchoice
 
 endmenu
+
+if SUPERH64
+
+config SH64_PROC_ASIDS
+	bool "Debug: report ASIDs through /proc/asids"
+	depends on PROC_FS
+
+config SH64_SR_WATCH
+	bool "Debug: set SR.WATCH to enable hardware watchpoints and trace"
+
+config POOR_MANS_STRACE
+	bool "Debug: enable rudimentary strace facility"
+	help
+	  This option allows system calls to be traced to the console.  It also
+	  aids in detecting kernel stack underflow.  It is useful for debugging
+	  early-userland problems (e.g. init incurring fatal exceptions.)
+
+config SH_ALPHANUMERIC
+	bool "Enable debug outputs to on-board alphanumeric display"
+	depends on SH_CAYMAN
+
+config SH_NO_BSS_INIT
+	bool "Avoid zeroing BSS (to speed-up startup on suitable platforms)"
+
+endif
 
 endmenu
