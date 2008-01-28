@@ -415,7 +415,7 @@ static int __init ulog_tg_init(void)
 
 	ret = xt_register_target(&ulog_tg_reg);
 	if (ret < 0) {
-		sock_release(nflognl->sk_socket);
+		netlink_kernel_release(nflognl);
 		return ret;
 	}
 	if (nflog)
@@ -434,7 +434,7 @@ static void __exit ulog_tg_exit(void)
 	if (nflog)
 		nf_log_unregister(&ipt_ulog_logger);
 	xt_unregister_target(&ulog_tg_reg);
-	sock_release(nflognl->sk_socket);
+	netlink_kernel_release(nflognl);
 
 	/* remove pending timers and free allocated skb's */
 	for (i = 0; i < ULOG_MAXNLGROUPS; i++) {

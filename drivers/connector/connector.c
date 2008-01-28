@@ -420,8 +420,7 @@ static int __devinit cn_init(void)
 
 	dev->cbdev = cn_queue_alloc_dev("cqueue", dev->nls);
 	if (!dev->cbdev) {
-		if (dev->nls->sk_socket)
-			sock_release(dev->nls->sk_socket);
+		netlink_kernel_release(dev->nls);
 		return -EINVAL;
 	}
 	
@@ -431,8 +430,7 @@ static int __devinit cn_init(void)
 	if (err) {
 		cn_already_initialized = 0;
 		cn_queue_free_dev(dev->cbdev);
-		if (dev->nls->sk_socket)
-			sock_release(dev->nls->sk_socket);
+		netlink_kernel_release(dev->nls);
 		return -EINVAL;
 	}
 
@@ -447,8 +445,7 @@ static void __devexit cn_fini(void)
 
 	cn_del_callback(&dev->id);
 	cn_queue_free_dev(dev->cbdev);
-	if (dev->nls->sk_socket)
-		sock_release(dev->nls->sk_socket);
+	netlink_kernel_release(dev->nls);
 }
 
 subsys_initcall(cn_init);

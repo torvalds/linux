@@ -605,7 +605,7 @@ cleanup_sysctl:
 	unregister_netdevice_notifier(&ipq_dev_notifier);
 	proc_net_remove(&init_net, IPQ_PROC_FS_NAME);
 cleanup_ipqnl:
-	sock_release(ipqnl->sk_socket);
+	netlink_kernel_release(ipqnl);
 	mutex_lock(&ipqnl_mutex);
 	mutex_unlock(&ipqnl_mutex);
 
@@ -624,7 +624,7 @@ static void __exit ip_queue_fini(void)
 	unregister_netdevice_notifier(&ipq_dev_notifier);
 	proc_net_remove(&init_net, IPQ_PROC_FS_NAME);
 
-	sock_release(ipqnl->sk_socket);
+	netlink_kernel_release(ipqnl);
 	mutex_lock(&ipqnl_mutex);
 	mutex_unlock(&ipqnl_mutex);
 

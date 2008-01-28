@@ -1405,6 +1405,17 @@ out_sock_release:
 }
 EXPORT_SYMBOL(netlink_kernel_create);
 
+
+void
+netlink_kernel_release(struct sock *sk)
+{
+	if (sk == NULL || sk->sk_socket == NULL)
+		return;
+	sock_release(sk->sk_socket);
+}
+EXPORT_SYMBOL(netlink_kernel_release);
+
+
 /**
  * netlink_change_ngroups - change number of multicast groups
  *

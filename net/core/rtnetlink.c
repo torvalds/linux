@@ -1384,7 +1384,7 @@ static void rtnetlink_net_exit(struct net *net)
 		 * free.
 		 */
 		sk->sk_net = get_net(&init_net);
-		sock_release(net->rtnl->sk_socket);
+		netlink_kernel_release(net->rtnl);
 		net->rtnl = NULL;
 	}
 }

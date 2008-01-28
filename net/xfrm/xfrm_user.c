@@ -2420,7 +2420,7 @@ static void __exit xfrm_user_exit(void)
 	xfrm_unregister_km(&netlink_mgr);
 	rcu_assign_pointer(xfrm_nl, NULL);
 	synchronize_rcu();
-	sock_release(nlsk->sk_socket);
+	netlink_kernel_release(nlsk);
 }
 
 module_init(xfrm_user_init);

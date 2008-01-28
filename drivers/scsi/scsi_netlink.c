@@ -164,7 +164,7 @@ void
 scsi_netlink_exit(void)
 {
 	if (scsi_nl_sock) {
-		sock_release(scsi_nl_sock->sk_socket);
+		netlink_kernel_release(scsi_nl_sock);
 		netlink_unregister_notifier(&scsi_netlink_notifier);
 	}
 

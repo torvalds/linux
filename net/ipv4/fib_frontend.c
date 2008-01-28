@@ -881,7 +881,7 @@ static void nl_fib_lookup_exit(struct net *net)
 	 * initial network namespace. So the socket will  be safe to free.
 	 */
 	net->ipv4.fibnl->sk_net = get_net(&init_net);
-	sock_release(net->ipv4.fibnl->sk_socket);
+	netlink_kernel_release(net->ipv4.fibnl);
 }
 
 static void fib_disable_ip(struct net_device *dev, int force)

@@ -307,7 +307,7 @@ static int __init ebt_ulog_init(void)
 	if (!ebtulognl)
 		ret = -ENOMEM;
 	else if ((ret = ebt_register_watcher(&ulog)))
-		sock_release(ebtulognl->sk_socket);
+		netlink_kernel_release(ebtulognl);
 
 	if (ret == 0)
 		nf_log_register(PF_BRIDGE, &ebt_ulog_logger);
@@ -333,7 +333,7 @@ static void __exit ebt_ulog_fini(void)
 		}
 		spin_unlock_bh(&ub->lock);
 	}
-	sock_release(ebtulognl->sk_socket);
+	netlink_kernel_release(ebtulognl);
 }
 
 module_init(ebt_ulog_init);
