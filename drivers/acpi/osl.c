@@ -120,7 +120,7 @@ static char osi_additional_string[OSI_STRING_LENGTH_MAX];
  */
 #define OSI_LINUX_ENABLE 0
 
-struct osi_linux {
+static struct osi_linux {
 	unsigned int	enable:1;
 	unsigned int	dmi:1;
 	unsigned int	cmdline:1;
