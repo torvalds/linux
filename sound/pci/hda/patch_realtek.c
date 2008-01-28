@@ -8099,29 +8099,9 @@ static struct hda_verb alc262_hp_t5735_verbs[] = {
 	{ }
 };
 
-static struct hda_bind_ctls alc262_hp_rp5700_bind_front_vol = {
-	.ops = &snd_hda_bind_vol,
-	.values = {
-		HDA_COMPOSE_AMP_VAL(0x0c, 3, 0, HDA_OUTPUT),
-		HDA_COMPOSE_AMP_VAL(0x0e, 3, 0, HDA_OUTPUT),
-		0
-	},
-};
-
-static struct hda_bind_ctls alc262_hp_rp5700_bind_front_sw = {
-	.ops = &snd_hda_bind_sw,
-	.values = {
-		HDA_COMPOSE_AMP_VAL(0x1b, 3, 0, HDA_OUTPUT),
-		HDA_COMPOSE_AMP_VAL(0x16, 3, 0, HDA_OUTPUT),
-		0
-	},
-};
-
 static struct snd_kcontrol_new alc262_hp_rp5700_mixer[] = {
-	HDA_BIND_VOL("PCM Playback Volume", &alc262_hp_rp5700_bind_front_vol),
-	HDA_BIND_SW("PCM Playback Switch", &alc262_hp_rp5700_bind_front_sw),
-	HDA_CODEC_VOLUME("Master Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Master Playback Switch", 0x1b, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Headphone Playback Switch", 0x1b, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Speaker Playback Volume", 0x0e, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Speaker Playback Switch", 0x16, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Line Playback Volume", 0x0b, 0x01, HDA_INPUT),
