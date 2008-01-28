@@ -1594,10 +1594,10 @@ void gfs2_glock_schedule_for_reclaim(struct gfs2_glock *gl)
 		gfs2_glock_hold(gl);
 		list_add(&gl->gl_reclaim, &sdp->sd_reclaim_list);
 		atomic_inc(&sdp->sd_reclaim_count);
-	}
-	spin_unlock(&sdp->sd_reclaim_lock);
-
-	wake_up(&sdp->sd_reclaim_wq);
+		spin_unlock(&sdp->sd_reclaim_lock);
+		wake_up(&sdp->sd_reclaim_wq);
+	} else
+		spin_unlock(&sdp->sd_reclaim_lock);
 }
 
 /**
