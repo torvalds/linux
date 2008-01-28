@@ -589,6 +589,11 @@ static int acpi_processor_get_throttling(struct acpi_processor *pr)
 	cpumask_t saved_mask;
 	int ret;
 
+	if (!pr)
+		return -EINVAL;
+
+	if (!pr->flags.throttling)
+		return -ENODEV;
 	/*
 	 * Migrate task to the cpu pointed by pr.
 	 */
@@ -743,6 +748,16 @@ int acpi_processor_set_throttling(struct acpi_processor *pr, int state)
 {
 	cpumask_t saved_mask;
 	int ret;
+
+	if (!pr)
+		return -EINVAL;
+
+	if (!pr->flags.throttling)
+		return -ENODEV;
+
+	if ((state < 0) || (state > (pr->throttling.state_count - 1)))
+		return -EINVAL;
+
 	/*
 	 * Migrate task to the cpu pointed by pr.
 	 */
