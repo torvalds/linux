@@ -696,6 +696,43 @@ int match(const char *sym, const char * const pat[])
 static const char *section_white_list[] =
 	{ ".debug*", ".stab*", ".note*", ".got*", ".toc*", NULL };
 
+/*
+ * Is this section one we do not want to check?
+ * This is often debug sections.
+ * If we are going to check this section then
+ * test if section name ends with a dot and a number.
+ * This is used to find sections where the linker have
+ * appended a dot-number to make the name unique.
+ * The cause of this is often a section specified in assembler
+ * without "ax" / "aw" and the same section used in .c
+ * code where gcc add these.
+ */
+static int check_section(const char *modname, const char *sec)
+{
+	const char *e = sec + strlen(sec) - 1;
+	if (match(sec, section_white_list))
+		return 1;
+
+	if (*e && isdigit(*e)) {
+		/* consume all digits */
+		while (*e && e != sec && isdigit(*e))
+			e--;
+		if (*e == '.') {
+			warn("%s (%s): unexpected section name.\n"
+			     "The (.[number]+) following section name are "
+			     "ld generated and not expected.\n"
+			     "Did you forget to use \"ax\"/\"aw\" "
+			     "in a .S file?\n"
+			     "Note that for example <linux/init.h> contains\n"
+			     "section definitions for use in .S files.\n\n",
+			     modname, sec);
+		}
+	}
+	return 0;
+}
+
+
+
 #define ALL_INIT_DATA_SECTIONS \
 	".init.data$", ".devinit.data$", ".cpuinit.data$", ".meminit.data$"
 #define ALL_EXIT_DATA_SECTIONS \
@@ -1311,8 +1348,9 @@ static void section_rela(const char *modname, struct elf_info *elf,
 	fromsec = sech_name(elf, sechdr);
 	fromsec += strlen(".rela");
 	/* if from section (name) is know good then skip it */
-	if (match(fromsec, section_white_list))
+	if (check_section(modname, fromsec))
 		return;
+
 	for (rela = start; rela < stop; rela++) {
 		r.r_offset = TO_NATIVE(rela->r_offset);
 #if KERNEL_ELFCLASS == ELFCLASS64
@@ -1354,7 +1392,7 @@ static void section_rel(const char *modname, struct elf_info *elf,
 	fromsec = sech_name(elf, sechdr);
 	fromsec += strlen(".rel");
 	/* if from section (name) is know good then skip it */
-	if (match(fromsec, section_white_list))
+	if (check_section(modname, fromsec))
 		return;
 
 	for (rel = start; rel < stop; rel++) {
