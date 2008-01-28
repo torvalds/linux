@@ -3219,8 +3219,8 @@ static int ocfs2_dentry_convert_worker(struct ocfs2_lock_res *lockres,
 	return UNBLOCK_CONTINUE_POST;
 }
 
-void ocfs2_process_blocked_lock(struct ocfs2_super *osb,
-				struct ocfs2_lock_res *lockres)
+static void ocfs2_process_blocked_lock(struct ocfs2_super *osb,
+				       struct ocfs2_lock_res *lockres)
 {
 	int status;
 	struct ocfs2_unblock_ctl ctl = {0, 0,};
