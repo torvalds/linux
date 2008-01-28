@@ -3,6 +3,7 @@
 
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
+#include <linux/wait.h>
 #include <linux/workqueue.h>
 #include "oxygen_regs.h"
 
@@ -65,6 +66,7 @@ struct oxygen {
 	struct snd_pcm_substream *streams[PCM_COUNT];
 	struct snd_kcontrol *controls[CONTROL_COUNT];
 	struct work_struct spdif_input_bits_work;
+	wait_queue_head_t ac97_waitqueue;
 };
 
 struct oxygen_model {

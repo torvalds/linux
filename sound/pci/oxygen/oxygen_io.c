@@ -85,14 +85,22 @@ EXPORT_SYMBOL(oxygen_write32_masked);
 
 static int oxygen_ac97_wait(struct oxygen *chip, unsigned int mask)
 {
-	unsigned long timeout = jiffies + msecs_to_jiffies(1);
-	do {
-		udelay(5);
-		cond_resched();
-		if (oxygen_read8(chip, OXYGEN_AC97_INTERRUPT_STATUS) & mask)
-			return 0;
-	} while (time_after_eq(timeout, jiffies));
-	return -EIO;
+	u8 status = 0;
+
+	/*
+	 * Reading the status register also clears the bits, so we have to save
+	 * the read bits in status.
+	 */
+	wait_event_timeout(chip->ac97_waitqueue,
+			   ({ status |= oxygen_read8(chip, OXYGEN_AC97_INTERRUPT_STATUS);
+			      status & mask; }),
+			   msecs_to_jiffies(1) + 1);
+	/*
+	 * Check even after a timeout because this function should not require
+	 * the AC'97 interrupt to be enabled.
+	 */
+	status |= oxygen_read8(chip, OXYGEN_AC97_INTERRUPT_STATUS);
+	return status & mask ? 0 : -EIO;
 }
 
 /*
