@@ -217,7 +217,7 @@ static int s3c2412_setparent_msysclk(struct clk *clk, struct clk *parent)
 
 	if (parent == &clk_mdivclk)
 		clksrc &= ~S3C2412_CLKSRC_MSYSCLK_MPLL;
-	else if (parent == &clk_upll)
+	else if (parent == &clk_mpll)
 		clksrc |= S3C2412_CLKSRC_MSYSCLK_MPLL;
 	else
 		return -EINVAL;
