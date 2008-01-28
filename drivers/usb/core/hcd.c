@@ -132,8 +132,8 @@ static const u8 usb2_rh_dev_descriptor [18] = {
 	0x01,       /*  __u8  bDeviceProtocol; [ usb 2.0 single TT ]*/
 	0x40,       /*  __u8  bMaxPacketSize0; 64 Bytes */
 
-	0x00, 0x00, /*  __le16 idVendor; */
- 	0x00, 0x00, /*  __le16 idProduct; */
+	0x6b, 0x1d, /*  __le16 idVendor; Linux Foundation */
+	0x02, 0x00, /*  __le16 idProduct; device 0x0002 */
 	KERNEL_VER, KERNEL_REL, /*  __le16 bcdDevice */
 
 	0x03,       /*  __u8  iManufacturer; */
@@ -155,8 +155,8 @@ static const u8 usb11_rh_dev_descriptor [18] = {
 	0x00,       /*  __u8  bDeviceProtocol; [ low/full speeds only ] */
 	0x40,       /*  __u8  bMaxPacketSize0; 64 Bytes */
 
-	0x00, 0x00, /*  __le16 idVendor; */
- 	0x00, 0x00, /*  __le16 idProduct; */
+	0x6b, 0x1d, /*  __le16 idVendor; Linux Foundation */
+	0x01, 0x00, /*  __le16 idProduct; device 0x0001 */
 	KERNEL_VER, KERNEL_REL, /*  __le16 bcdDevice */
 
 	0x03,       /*  __u8  iManufacturer; */
