@@ -68,6 +68,8 @@ struct machdep_calls {
 				       unsigned long vflags,
 				       int psize, int ssize);
 	long		(*hpte_remove)(unsigned long hpte_group);
+	void            (*hpte_removebolted)(unsigned long ea,
+					     int psize, int ssize);
 	void		(*flush_hash_range)(unsigned long number, int local);
 
 	/* special for kexec, to be called in real mode, linar mapping is

@@ -520,6 +520,20 @@ static void pSeries_lpar_hpte_invalidate(unsigned long slot, unsigned long va,
 	BUG_ON(lpar_rc != H_SUCCESS);
 }
 
+static void pSeries_lpar_hpte_removebolted(unsigned long ea,
+					   int psize, int ssize)
+{
+	unsigned long slot, vsid, va;
+
+	vsid = get_kernel_vsid(ea, ssize);
+	va = hpt_va(ea, vsid, ssize);
+
+	slot = pSeries_lpar_hpte_find(va, psize, ssize);
+	BUG_ON(slot == -1);
+
+	pSeries_lpar_hpte_invalidate(slot, va, psize, ssize, 0);
+}
+
 /* Flag bits for H_BULK_REMOVE */
 #define HBR_REQUEST	0x4000000000000000UL
 #define HBR_RESPONSE	0x8000000000000000UL
@@ -597,6 +611,7 @@ void __init hpte_init_lpar(void)
 	ppc_md.hpte_updateboltedpp = pSeries_lpar_hpte_updateboltedpp;
 	ppc_md.hpte_insert	= pSeries_lpar_hpte_insert;
 	ppc_md.hpte_remove	= pSeries_lpar_hpte_remove;
+	ppc_md.hpte_removebolted = pSeries_lpar_hpte_removebolted;
 	ppc_md.flush_hash_range	= pSeries_lpar_flush_hash_range;
 	ppc_md.hpte_clear_all   = pSeries_lpar_hptab_clear;
 }
