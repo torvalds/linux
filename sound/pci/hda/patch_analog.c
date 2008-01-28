@@ -925,6 +925,13 @@ static struct hda_amp_list ad1986a_loopbacks[] = {
 };
 #endif
 
+static int is_jack_available(struct hda_codec *codec, hda_nid_t nid)
+{
+	unsigned int conf = snd_hda_codec_read(codec, nid, 0,
+					       AC_VERB_GET_CONFIG_DEFAULT, 0);
+	return get_defcfg_connect(conf) != AC_JACK_PORT_NONE;
+}
+
 static int patch_ad1986a(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec;
@@ -984,7 +991,8 @@ static int patch_ad1986a(struct hda_codec *codec)
 		spec->multiout.max_channels = 2;
 		spec->multiout.num_dacs = 1;
 		spec->multiout.dac_nids = ad1986a_laptop_dac_nids;
-		spec->multiout.dig_out_nid = 0;
+		if (!is_jack_available(codec, 0x25))
+			spec->multiout.dig_out_nid = 0;
 		spec->input_mux = &ad1986a_laptop_eapd_capture_source;
 		break;
 	case AD1986A_LAPTOP_AUTOMUTE:
@@ -995,7 +1003,8 @@ static int patch_ad1986a(struct hda_codec *codec)
 		spec->multiout.max_channels = 2;
 		spec->multiout.num_dacs = 1;
 		spec->multiout.dac_nids = ad1986a_laptop_dac_nids;
-		spec->multiout.dig_out_nid = 0;
+		if (!is_jack_available(codec, 0x25))
+			spec->multiout.dig_out_nid = 0;
 		spec->input_mux = &ad1986a_laptop_eapd_capture_source;
 		codec->patch_ops.unsol_event = ad1986a_hp_unsol_event;
 		codec->patch_ops.init = ad1986a_hp_init;
