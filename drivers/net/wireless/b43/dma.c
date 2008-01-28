@@ -807,7 +807,7 @@ struct b43_dmaring *b43_setup_dmaring(struct b43_wldev *dev,
 		goto err_kfree_ring;
 	if (for_tx) {
 		ring->txhdr_cache = kcalloc(nr_slots,
-					    sizeof(struct b43_txhdr_fw4),
+					    b43_txhdr_size(dev),
 					    GFP_KERNEL);
 		if (!ring->txhdr_cache)
 			goto err_kfree_meta;
@@ -815,22 +815,21 @@ struct b43_dmaring *b43_setup_dmaring(struct b43_wldev *dev,
 		/* test for ability to dma to txhdr_cache */
 		dma_test = dma_map_single(dev->dev->dev,
 					  ring->txhdr_cache,
-					  sizeof(struct b43_txhdr_fw4),
+					  b43_txhdr_size(dev),
 					  DMA_TO_DEVICE);
 
 		if (dma_mapping_error(dma_test)) {
 			/* ugh realloc */
 			kfree(ring->txhdr_cache);
 			ring->txhdr_cache = kcalloc(nr_slots,
-						    sizeof(struct
-							   b43_txhdr_fw4),
+						    b43_txhdr_size(dev),
 						    GFP_KERNEL | GFP_DMA);
 			if (!ring->txhdr_cache)
 				goto err_kfree_meta;
 
 			dma_test = dma_map_single(dev->dev->dev,
 						  ring->txhdr_cache,
-						  sizeof(struct b43_txhdr_fw4),
+						  b43_txhdr_size(dev),
 						  DMA_TO_DEVICE);
 
 			if (dma_mapping_error(dma_test))
@@ -838,7 +837,7 @@ struct b43_dmaring *b43_setup_dmaring(struct b43_wldev *dev,
 		}
 
 		dma_unmap_single(dev->dev->dev,
-				 dma_test, sizeof(struct b43_txhdr_fw4),
+				 dma_test, b43_txhdr_size(dev),
 				 DMA_TO_DEVICE);
 	}
 
@@ -1122,6 +1121,7 @@ static int dma_tx_fragment(struct b43_dmaring *ring,
 	struct b43_dmadesc_meta *meta_hdr;
 	struct sk_buff *bounce_skb;
 	u16 cookie;
+	size_t hdrsize = b43_txhdr_size(ring->dev);
 
 #define SLOTS_PER_PACKET  2
 	B43_WARN_ON(skb_shinfo(skb)->nr_frags);
@@ -1131,17 +1131,17 @@ static int dma_tx_fragment(struct b43_dmaring *ring,
 	desc = ops->idx2desc(ring, slot, &meta_hdr);
 	memset(meta_hdr, 0, sizeof(*meta_hdr));
 
-	header = &(ring->txhdr_cache[slot * sizeof(struct b43_txhdr_fw4)]);
+	header = &(ring->txhdr_cache[slot * hdrsize]);
 	cookie = generate_cookie(ring, slot);
 	b43_generate_txhdr(ring->dev, header,
 			   skb->data, skb->len, ctl, cookie);
 
 	meta_hdr->dmaaddr = map_descbuffer(ring, (unsigned char *)header,
-					   sizeof(struct b43_txhdr_fw4), 1);
+					   hdrsize, 1);
 	if (dma_mapping_error(meta_hdr->dmaaddr))
 		return -EIO;
 	ops->fill_descriptor(ring, desc, meta_hdr->dmaaddr,
-			     sizeof(struct b43_txhdr_fw4), 1, 0, 0);
+			     hdrsize, 1, 0, 0);
 
 	/* Get a slot for the payload. */
 	slot = request_slot(ring);
@@ -1189,7 +1189,7 @@ out_free_bounce:
 	dev_kfree_skb_any(skb);
 out_unmap_hdr:
 	unmap_descbuffer(ring, meta_hdr->dmaaddr,
-			 sizeof(struct b43_txhdr_fw4), 1);
+			 hdrsize, 1);
 	return err;
 }
 
@@ -1298,7 +1298,7 @@ void b43_dma_handle_txstatus(struct b43_wldev *dev,
 					 1);
 		else
 			unmap_descbuffer(ring, meta->dmaaddr,
-					 sizeof(struct b43_txhdr_fw4), 1);
+					 b43_txhdr_size(dev), 1);
 
 		if (meta->is_last_fragment) {
 			B43_WARN_ON(!meta->skb);

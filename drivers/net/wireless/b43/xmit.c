@@ -177,13 +177,15 @@ static u8 b43_calc_fallback_rate(u8 bitrate)
 	return 0;
 }
 
-static void generate_txhdr_fw4(struct b43_wldev *dev,
-			       struct b43_txhdr_fw4 *txhdr,
-			       const unsigned char *fragment_data,
-			       unsigned int fragment_len,
-			       const struct ieee80211_tx_control *txctl,
-			       u16 cookie)
+/* Generate a TX data header. */
+void b43_generate_txhdr(struct b43_wldev *dev,
+			u8 *_txhdr,
+			const unsigned char *fragment_data,
+			unsigned int fragment_len,
+			const struct ieee80211_tx_control *txctl,
+			u16 cookie)
 {
+	struct b43_txhdr *txhdr = (struct b43_txhdr *)_txhdr;
 	const struct b43_phy *phy = &dev->phy;
 	const struct ieee80211_hdr *wlhdr =
 	    (const struct ieee80211_hdr *)fragment_data;
@@ -241,23 +243,30 @@ static void generate_txhdr_fw4(struct b43_wldev *dev,
 		plcp_fragment_len += txctl->icv_len;
 
 		key_idx = b43_kidx_to_fw(dev, key_idx);
-		mac_ctl |= (key_idx << B43_TX4_MAC_KEYIDX_SHIFT) &
-			   B43_TX4_MAC_KEYIDX;
-		mac_ctl |= (key->algorithm << B43_TX4_MAC_KEYALG_SHIFT) &
-			   B43_TX4_MAC_KEYALG;
+		mac_ctl |= (key_idx << B43_TXH_MAC_KEYIDX_SHIFT) &
+			   B43_TXH_MAC_KEYIDX;
+		mac_ctl |= (key->algorithm << B43_TXH_MAC_KEYALG_SHIFT) &
+			   B43_TXH_MAC_KEYALG;
 		wlhdr_len = ieee80211_get_hdrlen(fctl);
 		iv_len = min((size_t) txctl->iv_len,
 			     ARRAY_SIZE(txhdr->iv));
 		memcpy(txhdr->iv, ((u8 *) wlhdr) + wlhdr_len, iv_len);
 	}
-	b43_generate_plcp_hdr((struct b43_plcp_hdr4 *)(&txhdr->plcp),
-			      plcp_fragment_len, rate);
+	if (b43_is_old_txhdr_format(dev)) {
+		b43_generate_plcp_hdr((struct b43_plcp_hdr4 *)(&txhdr->old_format.plcp),
+				      plcp_fragment_len, rate);
+	} else {
+		b43_generate_plcp_hdr((struct b43_plcp_hdr4 *)(&txhdr->new_format.plcp),
+				      plcp_fragment_len, rate);
+	}
 	b43_generate_plcp_hdr((struct b43_plcp_hdr4 *)(&txhdr->plcp_fb),
 			      plcp_fragment_len, rate_fb);
 
 	/* Extra Frame Types */
 	if (rate_fb_ofdm)
-		extra_ft |= B43_TX4_EFT_FBOFDM;
+		extra_ft |= B43_TXH_EFT_FB_OFDM;
+	else
+		extra_ft |= B43_TXH_EFT_FB_CCK;
 
 	/* Set channel radio code. Note that the micrcode ORs 0x100 to
 	 * this value before comparing it to the value in SHM, if this
@@ -267,19 +276,27 @@ static void generate_txhdr_fw4(struct b43_wldev *dev,
 
 	/* PHY TX Control word */
 	if (rate_ofdm)
-		phy_ctl |= B43_TX4_PHY_OFDM;
+		phy_ctl |= B43_TXH_PHY_ENC_OFDM;
+	else
+		phy_ctl |= B43_TXH_PHY_ENC_CCK;
 	if (dev->short_preamble)
-		phy_ctl |= B43_TX4_PHY_SHORTPRMBL;
+		phy_ctl |= B43_TXH_PHY_SHORTPRMBL;
 
 	switch (b43_ieee80211_antenna_sanitize(dev, txctl->antenna_sel_tx)) {
 	case 0: /* Default */
-		phy_ctl |= B43_TX4_PHY_ANTLAST;
+		phy_ctl |= B43_TXH_PHY_ANT01AUTO;
 		break;
 	case 1: /* Antenna 0 */
-		phy_ctl |= B43_TX4_PHY_ANT0;
+		phy_ctl |= B43_TXH_PHY_ANT0;
 		break;
 	case 2: /* Antenna 1 */
-		phy_ctl |= B43_TX4_PHY_ANT1;
+		phy_ctl |= B43_TXH_PHY_ANT1;
+		break;
+	case 3: /* Antenna 2 */
+		phy_ctl |= B43_TXH_PHY_ANT2;
+		break;
+	case 4: /* Antenna 3 */
+		phy_ctl |= B43_TXH_PHY_ANT3;
 		break;
 	default:
 		B43_WARN_ON(1);
@@ -287,16 +304,16 @@ static void generate_txhdr_fw4(struct b43_wldev *dev,
 
 	/* MAC control */
 	if (!(txctl->flags & IEEE80211_TXCTL_NO_ACK))
-		mac_ctl |= B43_TX4_MAC_ACK;
+		mac_ctl |= B43_TXH_MAC_ACK;
 	if (!(((fctl & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_CTL) &&
 	      ((fctl & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_PSPOLL)))
-		mac_ctl |= B43_TX4_MAC_HWSEQ;
+		mac_ctl |= B43_TXH_MAC_HWSEQ;
 	if (txctl->flags & IEEE80211_TXCTL_FIRST_FRAGMENT)
-		mac_ctl |= B43_TX4_MAC_STMSDU;
+		mac_ctl |= B43_TXH_MAC_STMSDU;
 	if (phy->type == B43_PHYTYPE_A)
-		mac_ctl |= B43_TX4_MAC_5GHZ;
+		mac_ctl |= B43_TXH_MAC_5GHZ;
 	if (txctl->flags & IEEE80211_TXCTL_LONG_RETRY_LIMIT)
-		mac_ctl |= B43_TX4_MAC_LONGFRAME;
+		mac_ctl |= B43_TXH_MAC_LONGFRAME;
 
 	/* Generate the RTS or CTS-to-self frame */
 	if ((txctl->flags & IEEE80211_TXCTL_USE_RTS_CTS) ||
@@ -305,6 +322,7 @@ static void generate_txhdr_fw4(struct b43_wldev *dev,
 		struct ieee80211_hdr *hdr;
 		int rts_rate, rts_rate_fb;
 		int rts_rate_ofdm, rts_rate_fb_ofdm;
+		struct b43_plcp_hdr6 *plcp;
 
 		rts_rate = txctl->rts_cts_rate;
 		rts_rate_ofdm = b43_is_ofdm_rate(rts_rate);
@@ -312,58 +330,84 @@ static void generate_txhdr_fw4(struct b43_wldev *dev,
 		rts_rate_fb_ofdm = b43_is_ofdm_rate(rts_rate_fb);
 
 		if (txctl->flags & IEEE80211_TXCTL_USE_CTS_PROTECT) {
+			struct ieee80211_cts *cts;
+
+			if (b43_is_old_txhdr_format(dev)) {
+				cts = (struct ieee80211_cts *)
+					(txhdr->old_format.rts_frame);
+			} else {
+				cts = (struct ieee80211_cts *)
+					(txhdr->new_format.rts_frame);
+			}
 			ieee80211_ctstoself_get(dev->wl->hw, txctl->vif,
 						fragment_data, fragment_len,
-						txctl,
-						(struct ieee80211_cts *)(txhdr->
-									 rts_frame));
-			mac_ctl |= B43_TX4_MAC_SENDCTS;
+						txctl, cts);
+			mac_ctl |= B43_TXH_MAC_SENDCTS;
 			len = sizeof(struct ieee80211_cts);
 		} else {
+			struct ieee80211_rts *rts;
+
+			if (b43_is_old_txhdr_format(dev)) {
+				rts = (struct ieee80211_rts *)
+					(txhdr->old_format.rts_frame);
+			} else {
+				rts = (struct ieee80211_rts *)
+					(txhdr->new_format.rts_frame);
+			}
 			ieee80211_rts_get(dev->wl->hw, txctl->vif,
-					  fragment_data, fragment_len, txctl,
-					  (struct ieee80211_rts *)(txhdr->
-								   rts_frame));
-			mac_ctl |= B43_TX4_MAC_SENDRTS;
+					  fragment_data, fragment_len,
+					  txctl, rts);
+			mac_ctl |= B43_TXH_MAC_SENDRTS;
 			len = sizeof(struct ieee80211_rts);
 		}
 		len += FCS_LEN;
-		b43_generate_plcp_hdr((struct b43_plcp_hdr4 *)(&txhdr->
-							       rts_plcp), len,
-				      rts_rate);
-		b43_generate_plcp_hdr((struct b43_plcp_hdr4 *)(&txhdr->
-							       rts_plcp_fb),
+
+		/* Generate the PLCP headers for the RTS/CTS frame */
+		if (b43_is_old_txhdr_format(dev))
+			plcp = &txhdr->old_format.rts_plcp;
+		else
+			plcp = &txhdr->new_format.rts_plcp;
+		b43_generate_plcp_hdr((struct b43_plcp_hdr4 *)plcp,
+				      len, rts_rate);
+		plcp = &txhdr->rts_plcp_fb;
+		b43_generate_plcp_hdr((struct b43_plcp_hdr4 *)plcp,
 				      len, rts_rate_fb);
-		hdr = (struct ieee80211_hdr *)(&txhdr->rts_frame);
+
+		if (b43_is_old_txhdr_format(dev)) {
+			hdr = (struct ieee80211_hdr *)
+				(&txhdr->old_format.rts_frame);
+		} else {
+			hdr = (struct ieee80211_hdr *)
+				(&txhdr->new_format.rts_frame);
+		}
 		txhdr->rts_dur_fb = hdr->duration_id;
+
 		if (rts_rate_ofdm) {
-			extra_ft |= B43_TX4_EFT_RTSOFDM;
+			extra_ft |= B43_TXH_EFT_RTS_OFDM;
 			txhdr->phy_rate_rts =
 			    b43_plcp_get_ratecode_ofdm(rts_rate);
-		} else
+		} else {
+			extra_ft |= B43_TXH_EFT_RTS_CCK;
 			txhdr->phy_rate_rts =
 			    b43_plcp_get_ratecode_cck(rts_rate);
+		}
 		if (rts_rate_fb_ofdm)
-			extra_ft |= B43_TX4_EFT_RTSFBOFDM;
+			extra_ft |= B43_TXH_EFT_RTSFB_OFDM;
+		else
+			extra_ft |= B43_TXH_EFT_RTSFB_CCK;
 	}
 
 	/* Magic cookie */
-	txhdr->cookie = cpu_to_le16(cookie);
+	if (b43_is_old_txhdr_format(dev))
+		txhdr->old_format.cookie = cpu_to_le16(cookie);
+	else
+		txhdr->new_format.cookie = cpu_to_le16(cookie);
 
 	/* Apply the bitfields */
 	txhdr->mac_ctl = cpu_to_le32(mac_ctl);
 	txhdr->phy_ctl = cpu_to_le16(phy_ctl);
 	txhdr->extra_ft = extra_ft;
-}
 
-void b43_generate_txhdr(struct b43_wldev *dev,
-			u8 * txhdr,
-			const unsigned char *fragment_data,
-			unsigned int fragment_len,
-			const struct ieee80211_tx_control *txctl, u16 cookie)
-{
-	generate_txhdr_fw4(dev, (struct b43_txhdr_fw4 *)txhdr,
-			   fragment_data, fragment_len, txctl, cookie);
 }
 
 static s8 b43_rssi_postprocess(struct b43_wldev *dev,

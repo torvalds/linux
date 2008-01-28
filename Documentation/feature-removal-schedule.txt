@@ -345,3 +345,12 @@ What (Why):
 When:	January 2009 or Linux 2.7.0, whichever comes first
 Why:	Superseded by newer revisions or modules
 Who:	Jan Engelhardt <jengelh@computergmbh.de>
+
+---------------------------
+
+What:	b43 support for firmware revision < 410
+When:	July 2008
+Why:	The support code for the old firmware hurts code readability/maintainability
+	and slightly hurts runtime performance. Bugfixes for the old firmware
+	are not provided by Broadcom anymore.
+Who:	Michael Buesch <mb@bu3sch.de>

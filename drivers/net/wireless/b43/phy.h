@@ -180,6 +180,8 @@ enum {
 	B43_ANTENNA1,		/* Antenna 0 */
 	B43_ANTENNA_AUTO1,	/* Automatic, starting with antenna 1 */
 	B43_ANTENNA_AUTO0,	/* Automatic, starting with antenna 0 */
+	B43_ANTENNA2,
+	B43_ANTENNA3 = 8,
 
 	B43_ANTENNA_AUTO = B43_ANTENNA_AUTO0,
 	B43_ANTENNA_DEFAULT = B43_ANTENNA_AUTO,

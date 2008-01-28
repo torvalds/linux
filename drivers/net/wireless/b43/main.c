@@ -1569,11 +1569,17 @@ static void b43_release_firmware(struct b43_wldev *dev)
 	dev->fw.initvals_band = NULL;
 }
 
-static void b43_print_fw_helptext(struct b43_wl *wl)
+static void b43_print_fw_helptext(struct b43_wl *wl, bool error)
 {
-	b43err(wl, "You must go to "
+	const char *text;
+
+	text = "You must go to "
 	       "http://linuxwireless.org/en/users/Drivers/b43#devicefirmware "
-	       "and download the correct firmware (version 4).\n");
+	       "and download the latest firmware (version 4).\n";
+	if (error)
+		b43err(wl, text);
+	else
+		b43warn(wl, text);
 }
 
 static int do_request_fw(struct b43_wldev *dev,
@@ -1725,7 +1731,7 @@ static int b43_request_firmware(struct b43_wldev *dev)
 	return 0;
 
 err_load:
-	b43_print_fw_helptext(dev->wl);
+	b43_print_fw_helptext(dev->wl, 1);
 	goto error;
 
 err_no_ucode:
@@ -1795,7 +1801,7 @@ static int b43_upload_microcode(struct b43_wldev *dev)
 		i++;
 		if (i >= 50) {
 			b43err(dev->wl, "Microcode not responding\n");
-			b43_print_fw_helptext(dev->wl);
+			b43_print_fw_helptext(dev->wl, 1);
 			err = -ENODEV;
 			goto out;
 		}
@@ -1813,7 +1819,7 @@ static int b43_upload_microcode(struct b43_wldev *dev)
 		b43err(dev->wl, "YOUR FIRMWARE IS TOO OLD. Firmware from "
 		       "binary drivers older than version 4.x is unsupported. "
 		       "You must upgrade your firmware files.\n");
-		b43_print_fw_helptext(dev->wl);
+		b43_print_fw_helptext(dev->wl, 1);
 		b43_write32(dev, B43_MMIO_MACCTL, 0);
 		err = -EOPNOTSUPP;
 		goto out;
@@ -1827,7 +1833,13 @@ static int b43_upload_microcode(struct b43_wldev *dev)
 	dev->fw.rev = fwrev;
 	dev->fw.patch = fwpatch;
 
-      out:
+	if (b43_is_old_txhdr_format(dev)) {
+		b43warn(dev->wl, "You are using an old firmware image. "
+			"Support for old firmware will be removed in July 2008.\n");
+		b43_print_fw_helptext(dev->wl, 0);
+	}
+
+out:
 	return err;
 }
 
@@ -1887,7 +1899,7 @@ static int b43_write_initvals(struct b43_wldev *dev,
 
 err_format:
 	b43err(dev->wl, "Initial Values Firmware file-format error.\n");
-	b43_print_fw_helptext(dev->wl);
+	b43_print_fw_helptext(dev->wl, 1);
 
 	return -EPROTO;
 }
@@ -2149,13 +2161,19 @@ static void b43_mgmtframe_txantenna(struct b43_wldev *dev, int antenna)
 
 	switch (antenna) {
 	case B43_ANTENNA0:
-		ant |= B43_TX4_PHY_ANT0;
+		ant |= B43_TXH_PHY_ANT0;
 		break;
 	case B43_ANTENNA1:
-		ant |= B43_TX4_PHY_ANT1;
+		ant |= B43_TXH_PHY_ANT1;
+		break;
+	case B43_ANTENNA2:
+		ant |= B43_TXH_PHY_ANT2;
+		break;
+	case B43_ANTENNA3:
+		ant |= B43_TXH_PHY_ANT3;
 		break;
 	case B43_ANTENNA_AUTO:
-		ant |= B43_TX4_PHY_ANTLAST;
+		ant |= B43_TXH_PHY_ANT01AUTO;
 		break;
 	default:
 		B43_WARN_ON(1);
@@ -2165,15 +2183,15 @@ static void b43_mgmtframe_txantenna(struct b43_wldev *dev, int antenna)
 
 	/* For Beacons */
 	tmp = b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_BEACPHYCTL);
-	tmp = (tmp & ~B43_TX4_PHY_ANT) | ant;
+	tmp = (tmp & ~B43_TXH_PHY_ANT) | ant;
 	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_BEACPHYCTL, tmp);
 	/* For ACK/CTS */
 	tmp = b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_ACKCTSPHYCTL);
-	tmp = (tmp & ~B43_TX4_PHY_ANT) | ant;
+	tmp = (tmp & ~B43_TXH_PHY_ANT) | ant;
 	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_ACKCTSPHYCTL, tmp);
 	/* For Probe Resposes */
 	tmp = b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_PRPHYCTL);
-	tmp = (tmp & ~B43_TX4_PHY_ANT) | ant;
+	tmp = (tmp & ~B43_TXH_PHY_ANT) | ant;
 	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_PRPHYCTL, tmp);
 }
 
@@ -2738,6 +2756,10 @@ static int b43_antenna_from_ieee80211(struct b43_wldev *dev, u8 antenna)
 		return B43_ANTENNA0;
 	case 2:		/* Antenna 1 */
 		return B43_ANTENNA1;
+	case 3:		/* Antenna 2 */
+		return B43_ANTENNA2;
+	case 4:		/* Antenna 3 */
+		return B43_ANTENNA3;
 	default:
 		return B43_ANTENNA_DEFAULT;
 	}
