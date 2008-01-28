@@ -266,6 +266,7 @@ struct alc_spec {
 	/* for pin sensing */
 	unsigned int sense_updated: 1;
 	unsigned int jack_present: 1;
+	unsigned int master_sw: 1;
 
 	/* for virtual master */
 	hda_nid_t vmaster_nid;
@@ -3828,7 +3829,101 @@ static struct snd_kcontrol_new alc260_pc_beep_mixer[] = {
 	{ } /* end */
 };
 
+/* update HP, line and mono out pins according to the master switch */
+static void alc260_hp_master_update(struct hda_codec *codec,
+				    hda_nid_t hp, hda_nid_t line,
+				    hda_nid_t mono)
+{
+	struct alc_spec *spec = codec->spec;
+	unsigned int val = spec->master_sw ? PIN_HP : 0;
+	/* change HP and line-out pins */
+	snd_hda_codec_write(codec, 0x0f, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
+			    val);
+	snd_hda_codec_write(codec, 0x10, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
+			    val);
+	/* mono (speaker) depending on the HP jack sense */
+	val = (val && !spec->jack_present) ? PIN_OUT : 0;
+	snd_hda_codec_write(codec, 0x11, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
+			    val);
+}
+
+static int alc260_hp_master_sw_get(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct alc_spec *spec = codec->spec;
+	*ucontrol->value.integer.value = spec->master_sw;
+	return 0;
+}
+
+static int alc260_hp_master_sw_put(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct alc_spec *spec = codec->spec;
+	int val = !!*ucontrol->value.integer.value;
+	hda_nid_t hp, line, mono;
+
+	if (val == spec->master_sw)
+		return 0;
+	spec->master_sw = val;
+	hp = (kcontrol->private_value >> 16) & 0xff;
+	line = (kcontrol->private_value >> 8) & 0xff;
+	mono = kcontrol->private_value & 0xff;
+	alc260_hp_master_update(codec, hp, line, mono);
+	return 1;
+}
+
+static struct snd_kcontrol_new alc260_hp_output_mixer[] = {
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Master Playback Switch",
+		.info = snd_ctl_boolean_mono_info,
+		.get = alc260_hp_master_sw_get,
+		.put = alc260_hp_master_sw_put,
+		.private_value = (0x0f << 16) | (0x10 << 8) | 0x11
+	},
+	HDA_CODEC_VOLUME("Front Playback Volume", 0x08, 0x0, HDA_OUTPUT),
+	HDA_BIND_MUTE("Front Playback Switch", 0x08, 2, HDA_INPUT),
+	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x09, 0x0, HDA_OUTPUT),
+	HDA_BIND_MUTE("Headphone Playback Switch", 0x09, 2, HDA_INPUT),
+	HDA_CODEC_VOLUME_MONO("Speaker Playback Volume", 0x0a, 1, 0x0,
+			      HDA_OUTPUT),
+	HDA_BIND_MUTE_MONO("Speaker Playback Switch", 0x0a, 1, 2, HDA_INPUT),
+	{ } /* end */
+};
+
+static struct hda_verb alc260_hp_unsol_verbs[] = {
+	{0x10, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC880_HP_EVENT},
+	{},
+};
+
+static void alc260_hp_automute(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	unsigned int present;
+
+	present = snd_hda_codec_read(codec, 0x10, 0,
+				     AC_VERB_GET_PIN_SENSE, 0);
+	spec->jack_present = (present & AC_PINSENSE_PRESENCE) != 0;
+	alc260_hp_master_update(codec, 0x0f, 0x10, 0x11);
+}
+
+static void alc260_hp_unsol_event(struct hda_codec *codec, unsigned int res)
+{
+	if ((res >> 26) == ALC880_HP_EVENT)
+		alc260_hp_automute(codec);
+}
+
 static struct snd_kcontrol_new alc260_hp_3013_mixer[] = {
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Master Playback Switch",
+		.info = snd_ctl_boolean_mono_info,
+		.get = alc260_hp_master_sw_get,
+		.put = alc260_hp_master_sw_put,
+		.private_value = (0x10 << 16) | (0x15 << 8) | 0x11
+	},
 	HDA_CODEC_VOLUME("Front Playback Volume", 0x09, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Front Playback Switch", 0x10, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Aux-In Playback Volume", 0x07, 0x06, HDA_INPUT),
@@ -3839,6 +3934,29 @@ static struct snd_kcontrol_new alc260_hp_3013_mixer[] = {
 	HDA_CODEC_MUTE_MONO("Speaker Playback Switch", 0x11, 1, 0x0, HDA_OUTPUT),
 	{ } /* end */
 };
+
+static struct hda_verb alc260_hp_3013_unsol_verbs[] = {
+	{0x15, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC880_HP_EVENT},
+	{},
+};
+
+static void alc260_hp_3013_automute(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	unsigned int present;
+
+	present = snd_hda_codec_read(codec, 0x15, 0,
+				     AC_VERB_GET_PIN_SENSE, 0);
+	spec->jack_present = (present & AC_PINSENSE_PRESENCE) != 0;
+	alc260_hp_master_update(codec, 0x10, 0x15, 0x11);
+}
+
+static void alc260_hp_3013_unsol_event(struct hda_codec *codec,
+				       unsigned int res)
+{
+	if ((res >> 26) == ALC880_HP_EVENT)
+		alc260_hp_3013_automute(codec);
+}
 
 /* Fujitsu S702x series laptops.  ALC260 pin usage: Mic/Line jack = 0x12, 
  * HP jack = 0x14, CD audio =  0x16, internal speaker = 0x10.
@@ -4897,10 +5015,11 @@ static struct alc_config_preset alc260_presets[] = {
 		.input_mux = &alc260_capture_source,
 	},
 	[ALC260_HP] = {
-		.mixers = { alc260_base_output_mixer,
+		.mixers = { alc260_hp_output_mixer,
 			    alc260_input_mixer,
 			    alc260_capture_alt_mixer },
-		.init_verbs = { alc260_init_verbs },
+		.init_verbs = { alc260_init_verbs,
+				alc260_hp_unsol_verbs },
 		.num_dacs = ARRAY_SIZE(alc260_dac_nids),
 		.dac_nids = alc260_dac_nids,
 		.num_adc_nids = ARRAY_SIZE(alc260_hp_adc_nids),
@@ -4908,12 +5027,15 @@ static struct alc_config_preset alc260_presets[] = {
 		.num_channel_mode = ARRAY_SIZE(alc260_modes),
 		.channel_mode = alc260_modes,
 		.input_mux = &alc260_capture_source,
+		.unsol_event = alc260_hp_unsol_event,
+		.init_hook = alc260_hp_automute,
 	},
 	[ALC260_HP_3013] = {
 		.mixers = { alc260_hp_3013_mixer,
 			    alc260_input_mixer,
 			    alc260_capture_alt_mixer },
-		.init_verbs = { alc260_hp_3013_init_verbs },
+		.init_verbs = { alc260_hp_3013_init_verbs,
+				alc260_hp_3013_unsol_verbs },
 		.num_dacs = ARRAY_SIZE(alc260_dac_nids),
 		.dac_nids = alc260_dac_nids,
 		.num_adc_nids = ARRAY_SIZE(alc260_hp_adc_nids),
@@ -4921,6 +5043,8 @@ static struct alc_config_preset alc260_presets[] = {
 		.num_channel_mode = ARRAY_SIZE(alc260_modes),
 		.channel_mode = alc260_modes,
 		.input_mux = &alc260_capture_source,
+		.unsol_event = alc260_hp_3013_unsol_event,
+		.init_hook = alc260_hp_3013_automute,
 	},
 	[ALC260_FUJITSU_S702X] = {
 		.mixers = { alc260_fujitsu_mixer,
