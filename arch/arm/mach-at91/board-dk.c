@@ -183,6 +183,14 @@ static struct platform_device dk_flash = {
 	.num_resources	= 1,
 };
 
+static struct gpio_led dk_leds[] = {
+	{
+		.name			= "led0",
+		.gpio			= AT91_PIN_PB2,
+		.active_low		= 1,
+		.default_trigger	= "heartbeat",
+	}
+};
 
 static void __init dk_board_init(void)
 {
@@ -213,6 +221,8 @@ static void __init dk_board_init(void)
 	at91_add_device_nand(&dk_nand_data);
 	/* NOR Flash */
 	platform_device_register(&dk_flash);
+	/* LEDs */
+	at91_gpio_leds(dk_leds, ARRAY_SIZE(dk_leds));
 	/* VGA */
 //	dk_add_device_video();
 }

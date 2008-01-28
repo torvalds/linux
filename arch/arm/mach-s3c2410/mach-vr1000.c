@@ -365,7 +365,6 @@ static struct platform_device *vr1000_devices[] __initdata = {
 	&s3c_device_lcd,
 	&s3c_device_wdt,
 	&s3c_device_i2c,
-	&s3c_device_iis,
 	&s3c_device_adc,
 	&serial_device,
 	&vr1000_nor,

@@ -212,7 +212,7 @@ static void __mbox_rx_interrupt(struct omap_mbox *mbox)
 
 static irqreturn_t mbox_interrupt(int irq, void *p)
 {
-	struct omap_mbox *mbox = (struct omap_mbox *)p;
+	struct omap_mbox *mbox = p;
 
 	if (is_mbox_irq(mbox, IRQ_TX))
 		__mbox_tx_interrupt(mbox);

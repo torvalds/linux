@@ -13,6 +13,8 @@
 #include <linux/errno.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/debugfs.h>
+#include <linux/seq_file.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/module.h>
@@ -411,6 +413,66 @@ static void gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 	desc->chip->unmask(irq);
 	/* now it may re-trigger */
 }
+
+/*--------------------------------------------------------------------------*/
+
+#ifdef CONFIG_DEBUG_FS
+
+static int at91_gpio_show(struct seq_file *s, void *unused)
+{
+	int bank, j;
+
+	/* print heading */
+	seq_printf(s, "Pin\t");
+	for (bank = 0; bank < gpio_banks; bank++) {
+		seq_printf(s, "PIO%c\t", 'A' + bank);
+	};
+	seq_printf(s, "\n\n");
+
+	/* print pin status */
+	for (j = 0; j < 32; j++) {
+		seq_printf(s, "%i:\t", j);
+
+		for (bank = 0; bank < gpio_banks; bank++) {
+			unsigned	pin  = PIN_BASE + (32 * bank) + j;
+			void __iomem	*pio = pin_to_controller(pin);
+			unsigned	mask = pin_to_mask(pin);
+
+			if (__raw_readl(pio + PIO_PSR) & mask)
+				seq_printf(s, "GPIO:%s", __raw_readl(pio + PIO_PDSR) & mask ? "1" : "0");
+			else
+				seq_printf(s, "%s", __raw_readl(pio + PIO_ABSR) & mask ? "B" : "A");
+
+			seq_printf(s, "\t");
+		}
+
+		seq_printf(s, "\n");
+	}
+
+	return 0;
+}
+
+static int at91_gpio_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, at91_gpio_show, NULL);
+}
+
+static const struct file_operations at91_gpio_operations = {
+	.open		= at91_gpio_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int __init at91_gpio_debugfs_init(void)
+{
+	/* /sys/kernel/debug/at91_gpio */
+	(void) debugfs_create_file("at91_gpio", S_IFREG | S_IRUGO, NULL, NULL, &at91_gpio_operations);
+	return 0;
+}
+postcore_initcall(at91_gpio_debugfs_init);
+
+#endif
 
 /*--------------------------------------------------------------------------*/
 

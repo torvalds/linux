@@ -3,7 +3,7 @@
  *
  * Board support code for the GLAN Tank.
  *
- * Copyright (C) 2006 Martin Michlmayr <tbm@cyrius.com>
+ * Copyright (C) 2006, 2007 Martin Michlmayr <tbm@cyrius.com>
  * Copyright (C) 2006 Lennert Buytenhek <buytenh@wantstofly.org>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -21,6 +21,7 @@
 #include <linux/serial_core.h>
 #include <linux/serial_8250.h>
 #include <linux/mtd/physmap.h>
+#include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <asm/hardware.h>
 #include <asm/io.h>
@@ -118,7 +119,7 @@ subsys_initcall(glantank_pci_init);
  * GLAN Tank machine initialization.
  */
 static struct physmap_flash_data glantank_flash_data = {
-	.width		= 1,
+	.width		= 2,
 };
 
 static struct resource glantank_flash_resource = {
@@ -166,6 +167,13 @@ static struct platform_device glantank_serial_device = {
 	.resource	= &glantank_uart_resource,
 };
 
+static struct i2c_board_info __initdata glantank_i2c_devices[] = {
+	{
+		I2C_BOARD_INFO("rtc-rs5c372", 0x32),
+		.type = "rs5c372a",
+	},
+};
+
 static void glantank_power_off(void)
 {
 	__raw_writeb(0x01, 0xfe8d0004);
@@ -182,6 +190,9 @@ static void __init glantank_init_machine(void)
 	platform_device_register(&glantank_serial_device);
 	platform_device_register(&iop3xx_dma_0_channel);
 	platform_device_register(&iop3xx_dma_1_channel);
+
+	i2c_register_board_info(0, glantank_i2c_devices,
+		ARRAY_SIZE(glantank_i2c_devices));
 
 	pm_power_off = glantank_power_off;
 }

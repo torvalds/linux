@@ -98,16 +98,19 @@
 #define S3C2410_BANKCON_Tacp3		(0x1 << 2)
 #define S3C2410_BANKCON_Tacp4		(0x2 << 2)
 #define S3C2410_BANKCON_Tacp6		(0x3 << 2)
+#define S3C2410_BANKCON_Tacp_SHIFT	(2)
 
 #define S3C2410_BANKCON_Tcah0		(0x0 << 4)
 #define S3C2410_BANKCON_Tcah1		(0x1 << 4)
 #define S3C2410_BANKCON_Tcah2		(0x2 << 4)
 #define S3C2410_BANKCON_Tcah4		(0x3 << 4)
+#define S3C2410_BANKCON_Tcah_SHIFT	(4)
 
 #define S3C2410_BANKCON_Tcoh0		(0x0 << 6)
 #define S3C2410_BANKCON_Tcoh1		(0x1 << 6)
 #define S3C2410_BANKCON_Tcoh2		(0x2 << 6)
 #define S3C2410_BANKCON_Tcoh4		(0x3 << 6)
+#define S3C2410_BANKCON_Tcoh_SHIFT	(6)
 
 #define S3C2410_BANKCON_Tacc1		(0x0 << 8)
 #define S3C2410_BANKCON_Tacc2		(0x1 << 8)
@@ -117,16 +120,19 @@
 #define S3C2410_BANKCON_Tacc8		(0x5 << 8)
 #define S3C2410_BANKCON_Tacc10		(0x6 << 8)
 #define S3C2410_BANKCON_Tacc14		(0x7 << 8)
+#define S3C2410_BANKCON_Tacc_SHIFT	(8)
 
 #define S3C2410_BANKCON_Tcos0		(0x0 << 11)
 #define S3C2410_BANKCON_Tcos1		(0x1 << 11)
 #define S3C2410_BANKCON_Tcos2		(0x2 << 11)
 #define S3C2410_BANKCON_Tcos4		(0x3 << 11)
+#define S3C2410_BANKCON_Tcos_SHIFT	(11)
 
 #define S3C2410_BANKCON_Tacs0		(0x0 << 13)
 #define S3C2410_BANKCON_Tacs1		(0x1 << 13)
 #define S3C2410_BANKCON_Tacs2		(0x2 << 13)
 #define S3C2410_BANKCON_Tacs4		(0x3 << 13)
+#define S3C2410_BANKCON_Tacs_SHIFT	(13)
 
 #define S3C2410_BANKCON_SRAM		(0x0 << 15)
 #define S3C2400_BANKCON_EDODRAM		(0x2 << 15)

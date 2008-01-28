@@ -26,7 +26,6 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/leds.h>
-#include <linux/irq.h>
 
 #include <asm/hardware.h>
 #include <asm/mach-types.h>

@@ -49,5 +49,7 @@
 #define IOPC_TM_FALLING		(4)		/* Falling Edge Detection */
 #define IOPC_TM_EDGE		(6)		/* Both Edge Detection */
 
+/* Port Data Register */
+#define IOPD_(x)		(1 << (x))	/* Signal Level of GPIO Pin x */
 
 #endif

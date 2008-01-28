@@ -67,7 +67,7 @@
 #define		AT91_MATRIX_CS4A		(1 << 4)	/* Chip Select 4 Assignment */
 #define			AT91_MATRIX_CS4A_SMC		(0 << 4)
 #define			AT91_MATRIX_CS4A_SMC_CF1	(1 << 4)
-#define		AT91_MATRIX_CS5A		(1 << 5 )	/* Chip Select 5 Assignment */
+#define		AT91_MATRIX_CS5A		(1 << 5)	/* Chip Select 5 Assignment */
 #define			AT91_MATRIX_CS5A_SMC		(0 << 5)
 #define			AT91_MATRIX_CS5A_SMC_CF2	(1 << 5)
 #define		AT91_MATRIX_DBPUC		(1 << 8)	/* Data Bus Pull-up Configuration */

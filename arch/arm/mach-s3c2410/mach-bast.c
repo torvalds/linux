@@ -530,7 +530,7 @@ static struct s3c2410fb_mach_info __initdata bast_fb_info = {
 
 	.displays = bast_lcd_info,
 	.num_displays = ARRAY_SIZE(bast_lcd_info),
-	.default_display = 4,
+	.default_display = 1,
 };
 
 /* Standard BAST devices */
@@ -540,7 +540,6 @@ static struct platform_device *bast_devices[] __initdata = {
 	&s3c_device_lcd,
 	&s3c_device_wdt,
 	&s3c_device_i2c,
-	&s3c_device_iis,
  	&s3c_device_rtc,
 	&s3c_device_nand,
 	&bast_device_nor,

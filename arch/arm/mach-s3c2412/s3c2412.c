@@ -168,6 +168,8 @@ void __init s3c2412_init_clocks(int xtal)
 
 	fclk = s3c2410_get_pll(__raw_readl(S3C2410_MPLLCON), xtal*2);
 
+	clk_mpll.rate = fclk;
+
 	tmp = __raw_readl(S3C2410_CLKDIVN);
 
 	/* work out clock scalings */

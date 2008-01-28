@@ -44,7 +44,7 @@
 #define			AT91_MATRIX_DEFMSTR_TYPE_NONE	(0 << 16)
 #define			AT91_MATRIX_DEFMSTR_TYPE_LAST	(1 << 16)
 #define			AT91_MATRIX_DEFMSTR_TYPE_FIXED	(2 << 16)
-#define		AT91_MATRIX_FIXED_DEFMSTR	(7    << 18)	/* Fixed Index of Default Master */
+#define		AT91_MATRIX_FIXED_DEFMSTR	(0xf  << 18)	/* Fixed Index of Default Master */
 #define		AT91_MATRIX_ARBT		(3    << 24)	/* Arbitration Type */
 #define			AT91_MATRIX_ARBT_ROUND_ROBIN	(0 << 24)
 #define			AT91_MATRIX_ARBT_FIXED_PRIORITY	(1 << 24)

@@ -15,7 +15,9 @@
 
 #define EXTINT_OFF (IRQ_EINT4 - 4)
 
+/* these are exported for arch/arm/mach-* usage */
 extern struct irq_chip s3c_irq_level_chip;
+extern struct irq_chip s3c_irq_chip;
 
 static inline void
 s3c_irqsub_mask(unsigned int irqno, unsigned int parentbit,

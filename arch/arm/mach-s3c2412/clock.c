@@ -217,7 +217,7 @@ static int s3c2412_setparent_msysclk(struct clk *clk, struct clk *parent)
 
 	if (parent == &clk_mdivclk)
 		clksrc &= ~S3C2412_CLKSRC_MSYSCLK_MPLL;
-	else if (parent == &clk_upll)
+	else if (parent == &clk_mpll)
 		clksrc |= S3C2412_CLKSRC_MSYSCLK_MPLL;
 	else
 		return -EINVAL;
@@ -232,6 +232,45 @@ static struct clk clk_msysclk = {
 	.name		= "msysclk",
 	.id		= -1,
 	.set_parent	= s3c2412_setparent_msysclk,
+};
+
+static int s3c2412_setparent_armclk(struct clk *clk, struct clk *parent)
+{
+	unsigned long flags;
+	unsigned long clkdiv;
+	unsigned long dvs;
+
+	/* Note, we current equate fclk andf msysclk for S3C2412 */
+
+	if (parent == &clk_msysclk || parent == &clk_f)
+		dvs = 0;
+	else if (parent == &clk_h)
+		dvs = S3C2412_CLKDIVN_DVSEN;
+	else
+		return -EINVAL;
+
+	clk->parent = parent;
+
+	/* update this under irq lockdown, clkdivn is not protected
+	 * by the clock system. */
+
+	local_irq_save(flags);
+
+	clkdiv  = __raw_readl(S3C2410_CLKDIVN);
+	clkdiv &= ~S3C2412_CLKDIVN_DVSEN;
+	clkdiv |= dvs;
+	__raw_writel(clkdiv, S3C2410_CLKDIVN);
+
+	local_irq_restore(flags);
+
+	return 0;
+}
+
+static struct clk clk_armclk = {
+	.name		= "armclk",
+	.id		= -1,
+	.parent		= &clk_msysclk,
+	.set_parent	= s3c2412_setparent_armclk,
 };
 
 /* these next clocks have an divider immediately after them,
@@ -630,11 +669,13 @@ static struct clk *clks[] __initdata = {
 	&clk_erefclk,
 	&clk_urefclk,
 	&clk_mrefclk,
+	&clk_armclk,
 };
 
 int __init s3c2412_baseclk_add(void)
 {
 	unsigned long clkcon  = __raw_readl(S3C2410_CLKCON);
+	unsigned int dvs;
 	struct clk *clkp;
 	int ret;
 	int ptr;
@@ -642,6 +683,8 @@ int __init s3c2412_baseclk_add(void)
 	clk_upll.enable = s3c2412_upll_enable;
 	clk_usb_bus.parent = &clk_usbsrc;
 	clk_usb_bus.rate = 0x0;
+
+	clk_f.parent = &clk_msysclk;
 
 	s3c2412_clk_initparents();
 
@@ -654,6 +697,15 @@ int __init s3c2412_baseclk_add(void)
 			       clkp->name, ret);
 		}
 	}
+
+	/* set the dvs state according to what we got at boot time */
+
+	dvs = __raw_readl(S3C2410_CLKDIVN) & S3C2412_CLKDIVN_DVSEN;
+
+	if (dvs)
+		clk_armclk.parent = &clk_h;
+
+	printk(KERN_INFO "S3C2412: DVS is %s\n", dvs ? "on" : "off");
 
 	/* ensure usb bus clock is within correct rate of 48MHz */
 

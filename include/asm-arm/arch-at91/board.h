@@ -34,6 +34,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/device.h>
 #include <linux/i2c.h>
+#include <linux/leds.h>
 #include <linux/spi/spi.h>
 
  /* USB Device */
@@ -71,7 +72,7 @@ struct at91_eth_data {
 };
 extern void __init at91_add_device_eth(struct at91_eth_data *data);
 
-#if defined(CONFIG_ARCH_AT91SAM9260) || defined(CONFIG_ARCH_AT91SAM9263)
+#if defined(CONFIG_ARCH_AT91SAM9260) || defined(CONFIG_ARCH_AT91SAM9263) || defined(CONFIG_ARCH_AT91CAP9)
 #define eth_platform_data	at91_eth_data
 #endif
 
@@ -101,13 +102,23 @@ extern void __init at91_add_device_i2c(struct i2c_board_info *devices, int nr_de
 extern void __init at91_add_device_spi(struct spi_board_info *devices, int nr_devices);
 
  /* Serial */
+#define ATMEL_UART_CTS	0x01
+#define ATMEL_UART_RTS	0x02
+#define ATMEL_UART_DSR	0x04
+#define ATMEL_UART_DTR	0x08
+#define ATMEL_UART_DCD	0x10
+#define ATMEL_UART_RI	0x20
+
+extern void __init at91_register_uart(unsigned id, unsigned portnr, unsigned pins);
+extern void __init at91_set_serial_console(unsigned portnr);
+
 struct at91_uart_config {
 	unsigned short	console_tty;	/* tty number of serial console */
 	unsigned short	nr_tty;		/* number of serial tty's */
 	short		tty_map[];	/* map UART to tty number */
 };
 extern struct platform_device *atmel_default_console_device;
-extern void __init at91_init_serial(struct at91_uart_config *config);
+extern void __init __deprecated at91_init_serial(struct at91_uart_config *config);
 
 struct atmel_uart_data {
 	short		use_dma_tx;	/* use transmit DMA? */
@@ -115,6 +126,23 @@ struct atmel_uart_data {
 	void __iomem	*regs;		/* virtual base address, if any */
 };
 extern void __init at91_add_device_serial(void);
+
+/*
+ * SSC -- accessed through ssc_request(id).  Drivers don't bind to SSC
+ * platform devices.  Their SSC ID is part of their configuration data,
+ * along with information about which SSC signals they should use.
+ */
+#define ATMEL_SSC_TK	0x01
+#define ATMEL_SSC_TF	0x02
+#define ATMEL_SSC_TD	0x04
+#define ATMEL_SSC_TX	(ATMEL_SSC_TK | ATMEL_SSC_TF | ATMEL_SSC_TD)
+
+#define ATMEL_SSC_RK	0x10
+#define ATMEL_SSC_RF	0x20
+#define ATMEL_SSC_RD	0x40
+#define ATMEL_SSC_RX	(ATMEL_SSC_RK | ATMEL_SSC_RF | ATMEL_SSC_RD)
+
+extern void __init at91_add_device_ssc(unsigned id, unsigned pins);
 
  /* LCD Controller */
 struct atmel_lcdfb_info;
@@ -126,10 +154,12 @@ struct atmel_ac97_data {
 };
 extern void __init at91_add_device_ac97(struct atmel_ac97_data *data);
 
+ /* ISI */
+extern void __init at91_add_device_isi(void);
+
  /* LEDs */
-extern u8 at91_leds_cpu;
-extern u8 at91_leds_timer;
 extern void __init at91_init_leds(u8 cpu_led, u8 timer_led);
+extern void __init at91_gpio_leds(struct gpio_led *leds, int nr);
 
 /* FIXME: this needs a better location, but gets stuff building again */
 extern int at91_suspend_entering_slow_clock(void);

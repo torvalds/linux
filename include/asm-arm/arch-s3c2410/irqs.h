@@ -160,4 +160,7 @@
 #define NR_IRQS (IRQ_S3C2440_AC97+1)
 #endif
 
+/* Our FIQs are routable from IRQ_EINT0 to IRQ_ADCPARENT */
+#define FIQ_START		IRQ_EINT0
+
 #endif /* __ASM_ARCH_IRQ_H */

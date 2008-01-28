@@ -31,7 +31,6 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/interrupt.h>
 #include <linux/i2c.h>
 
 #include <linux/mtd/mtd.h>

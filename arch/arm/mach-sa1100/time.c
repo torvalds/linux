@@ -14,6 +14,7 @@
 #include <linux/irq.h>
 #include <linux/timex.h>
 #include <linux/signal.h>
+#include <linux/clocksource.h>
 
 #include <asm/mach/time.h>
 #include <asm/hardware.h>
@@ -33,23 +34,6 @@ static int sa1100_set_rtc(void)
 	}
 	RCNR = current_time;
 	return 0;
-}
-
-/* IRQs are disabled before entering here from do_gettimeofday() */
-static unsigned long sa1100_gettimeoffset (void)
-{
-	unsigned long ticks_to_match, elapsed, usec;
-
-	/* Get ticks before next timer match */
-	ticks_to_match = OSMR0 - OSCR;
-
-	/* We need elapsed ticks since last match */
-	elapsed = LATCH - ticks_to_match;
-
-	/* Now convert them to usec */
-	usec = (unsigned long)(elapsed * (tick_nsec / 1000))/LATCH;
-
-	return usec;
 }
 
 #ifdef CONFIG_NO_IDLE_HZ
@@ -92,6 +76,20 @@ static struct irqaction sa1100_timer_irq = {
 	.handler	= sa1100_timer_interrupt,
 };
 
+static cycle_t sa1100_read_oscr(void)
+{
+	return OSCR;
+}
+
+static struct clocksource cksrc_sa1100_oscr = {
+	.name		= "oscr",
+	.rating		= 200,
+	.read		= sa1100_read_oscr,
+	.mask		= CLOCKSOURCE_MASK(32),
+	.shift		= 20,
+	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
+};
+
 static void __init sa1100_timer_init(void)
 {
 	unsigned long flags;
@@ -105,6 +103,11 @@ static void __init sa1100_timer_init(void)
 	OIER = OIER_E0;		/* enable match on timer 0 to cause interrupts */
 	OSMR0 = OSCR + LATCH;	/* set initial match */
 	local_irq_restore(flags);
+
+	cksrc_sa1100_oscr.mult =
+		clocksource_hz2mult(CLOCK_TICK_RATE, cksrc_sa1100_oscr.shift);
+
+	clocksource_register(&cksrc_sa1100_oscr);
 }
 
 #ifdef CONFIG_NO_IDLE_HZ
@@ -178,7 +181,6 @@ struct sys_timer sa1100_timer = {
 	.init		= sa1100_timer_init,
 	.suspend	= sa1100_timer_suspend,
 	.resume		= sa1100_timer_resume,
-	.offset		= sa1100_gettimeoffset,
 #ifdef CONFIG_NO_IDLE_HZ
 	.dyn_tick	= &sa1100_dyn_tick,
 #endif

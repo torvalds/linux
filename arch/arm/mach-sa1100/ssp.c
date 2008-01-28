@@ -29,9 +29,8 @@ static irqreturn_t ssp_interrupt(int irq, void *dev_id)
 {
 	unsigned int status = Ser4SSSR;
 
-	if (status & SSSR_ROR) {
+	if (status & SSSR_ROR)
 		printk(KERN_WARNING "SSP: receiver overrun\n");
-	}
 
 	Ser4SSSR = SSSR_ROR;
 

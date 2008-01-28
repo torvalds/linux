@@ -639,7 +639,7 @@ static void omap_pm_finish(void)
 }
 
 
-static irqreturn_t  omap_wakeup_interrupt(int irq, void *dev)
+static irqreturn_t omap_wakeup_interrupt(int irq, void *dev)
 {
 	return IRQ_HANDLED;
 }
