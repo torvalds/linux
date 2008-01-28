@@ -53,7 +53,8 @@ static const char * const pm_tests[__TEST_AFTER_LAST] = {
 	[TEST_FREEZER] = "freezer",
 };
 
-static ssize_t pm_test_show(struct kset *kset, char *buf)
+static ssize_t pm_test_show(struct kobject *kobj, struct kobj_attribute *attr,
+				char *buf)
 {
 	char *s = buf;
 	int level;
@@ -73,7 +74,8 @@ static ssize_t pm_test_show(struct kset *kset, char *buf)
 	return (s - buf);
 }
 
-static ssize_t pm_test_store(struct kset *kset, const char *buf, size_t n)
+static ssize_t pm_test_store(struct kobject *kobj, struct kobj_attribute *attr,
+				const char *buf, size_t n)
 {
 	const char * const *s;
 	int level;
@@ -103,6 +105,7 @@ power_attr(pm_test);
 #else /* !CONFIG_PM_DEBUG */
 static inline int suspend_test(int level) { return 0; }
 #endif /* !CONFIG_PM_DEBUG */
+
 
 #ifdef CONFIG_SUSPEND
 
