@@ -3412,22 +3412,28 @@ void ieee80211_sta_scan_work(struct work_struct *work)
 
 	switch (local->scan_state) {
 	case SCAN_SET_CHANNEL:
-		/* get current scan band */
+		/*
+		 * Get current scan band. scan_band may be IEEE80211_NUM_BANDS
+		 * after we successfully scanned the last channel of the last
+		 * band (and the last band is supported by the hw)
+		 */
 		if (local->scan_band < IEEE80211_NUM_BANDS)
 			sband = local->hw.wiphy->bands[local->scan_band];
 		else
 			sband = NULL;
 
-		/* if we started at an unsupported one, advance */
-		while (!sband && local->scan_band < IEEE80211_NUM_BANDS) {
+		/*
+		 * If we are at an unsupported band and have more bands
+		 * left to scan, advance to the next supported one.
+		 */
+		while (!sband && local->scan_band < IEEE80211_NUM_BANDS - 1) {
 			local->scan_band++;
 			sband = local->hw.wiphy->bands[local->scan_band];
 			local->scan_channel_idx = 0;
 		}
 
-		if (!sband ||
-		    (local->scan_channel_idx >= sband->n_channels &&
-		     local->scan_band >= IEEE80211_NUM_BANDS)) {
+		/* if no more bands/channels left, complete scan */
+		if (!sband || local->scan_channel_idx >= sband->n_channels) {
 			ieee80211_scan_completed(local_to_hw(local));
 			return;
 		}
@@ -3449,8 +3455,14 @@ void ieee80211_sta_scan_work(struct work_struct *work)
 			}
 		}
 
+		/* advance state machine to next channel/band */
 		local->scan_channel_idx++;
 		if (local->scan_channel_idx >= sband->n_channels) {
+			/*
+			 * scan_band may end up == IEEE80211_NUM_BANDS, but
+			 * we'll catch that case above and complete the scan
+			 * if that is the case.
+			 */
 			local->scan_band++;
 			local->scan_channel_idx = 0;
 		}
