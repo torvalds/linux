@@ -152,21 +152,6 @@ out:
 	unlock_buffer(bd->bd_bh);
 }
 
-static void buf_lo_incore_commit(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
-{
-	struct list_head *head = &tr->tr_list_buf;
-	struct gfs2_bufdata *bd;
-
-	gfs2_log_lock(sdp);
-	while (!list_empty(head)) {
-		bd = list_entry(head->next, struct gfs2_bufdata, bd_list_tr);
-		list_del_init(&bd->bd_list_tr);
-		tr->tr_num_buf--;
-	}
-	gfs2_log_unlock(sdp);
-	gfs2_assert_warn(sdp, !tr->tr_num_buf);
-}
-
 static void buf_lo_before_commit(struct gfs2_sbd *sdp)
 {
 	struct buffer_head *bh;
@@ -737,7 +722,6 @@ static void databuf_lo_after_commit(struct gfs2_sbd *sdp, struct gfs2_ail *ai)
 
 const struct gfs2_log_operations gfs2_buf_lops = {
 	.lo_add = buf_lo_add,
-	.lo_incore_commit = buf_lo_incore_commit,
 	.lo_before_commit = buf_lo_before_commit,
 	.lo_after_commit = buf_lo_after_commit,
 	.lo_before_scan = buf_lo_before_scan,
@@ -763,7 +747,6 @@ const struct gfs2_log_operations gfs2_rg_lops = {
 
 const struct gfs2_log_operations gfs2_databuf_lops = {
 	.lo_add = databuf_lo_add,
-	.lo_incore_commit = buf_lo_incore_commit,
 	.lo_before_commit = databuf_lo_before_commit,
 	.lo_after_commit = databuf_lo_after_commit,
 	.lo_scan_elements = databuf_lo_scan_elements,
