@@ -4315,6 +4315,9 @@ static int sctp_copy_laddrs_old(struct sock *sk, __u16 port,
 		    (AF_INET6 == addr->a.sa.sa_family))
 			continue;
 		memcpy(&temp, &addr->a, sizeof(temp));
+		if (!temp.v4.sin_port)
+			temp.v4.sin_port = htons(port);
+
 		sctp_get_pf_specific(sk->sk_family)->addr_v4map(sctp_sk(sk),
 								&temp);
 		addrlen = sctp_get_af_specific(temp.sa.sa_family)->sockaddr_len;
@@ -4347,6 +4350,9 @@ static int sctp_copy_laddrs(struct sock *sk, __u16 port, void *to,
 		    (AF_INET6 == addr->a.sa.sa_family))
 			continue;
 		memcpy(&temp, &addr->a, sizeof(temp));
+		if (!temp.v4.sin_port)
+			temp.v4.sin_port = htons(port);
+
 		sctp_get_pf_specific(sk->sk_family)->addr_v4map(sctp_sk(sk),
 								&temp);
 		addrlen = sctp_get_af_specific(temp.sa.sa_family)->sockaddr_len;
