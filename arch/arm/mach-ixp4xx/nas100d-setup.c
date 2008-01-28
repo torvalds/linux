@@ -16,6 +16,7 @@
 #include <linux/serial.h>
 #include <linux/serial_8250.h>
 #include <linux/leds.h>
+#include <linux/i2c.h>
 #include <linux/i2c-gpio.h>
 
 #include <asm/mach-types.h>
@@ -37,6 +38,12 @@ static struct platform_device nas100d_flash = {
 	.dev.platform_data	= &nas100d_flash_data,
 	.num_resources		= 1,
 	.resource		= &nas100d_flash_resource,
+};
+
+static struct i2c_board_info __initdata nas100d_i2c_board_info [] = {
+	{
+		I2C_BOARD_INFO("rtc-pcf8563", 0x51),
+	},
 };
 
 #ifdef CONFIG_LEDS_IXP4XX
@@ -156,6 +163,9 @@ static void __init nas100d_init(void)
 		IXP4XX_EXP_BUS_BASE(0) + ixp4xx_exp_bus_size - 1;
 
 	pm_power_off = nas100d_power_off;
+
+	i2c_register_board_info(0, nas100d_i2c_board_info,
+				ARRAY_SIZE(nas100d_i2c_board_info));
 
 	/*
 	 * This is only useful on a modified machine, but it is valuable
