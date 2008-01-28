@@ -214,10 +214,12 @@
 		bus-frequency = <179A7B00>;
 
 		muram@10000 {
+ 			#address-cells = <1>;
+ 			#size-cells = <1>;
 			compatible = "fsl,qe-muram", "fsl,cpm-muram";
 			ranges = <0 00010000 0000c000>;
 
-			data-only@0{
+			data-only@0 {
 				compatible = "fsl,qe-muram-data",
 					     "fsl,cpm-muram-data";
 				reg = <0 c000>;

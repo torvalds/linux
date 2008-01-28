@@ -212,6 +212,8 @@
 		bus-frequency = <BCD3D80>;
 
 		muram@10000 {
+ 			#address-cells = <1>;
+ 			#size-cells = <1>;
 			compatible = "fsl,qe-muram", "fsl,cpm-muram";
 			ranges = <0 00010000 00004000>;
 
