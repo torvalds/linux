@@ -787,7 +787,7 @@ int s3c2410_dma_request(unsigned int channel,
 
 	pr_debug("%s: channel initialised, %p\n", __FUNCTION__, chan);
 
-	return 0;
+	return chan->number | DMACH_LOW_LEVEL;
 }
 
 EXPORT_SYMBOL(s3c2410_dma_request);
