@@ -246,6 +246,7 @@ struct ieee80211_tx_queue_stats_data {
  * @IEEE80211_TX_QUEUE_AFTER_BEACON: transmit queue for frames to be
  *	sent after a beacon
  * @IEEE80211_TX_QUEUE_BEACON: transmit queue for beacon frames
+ * @NUM_TX_DATA_QUEUES_AMPDU: adding more queues for A-MPDU
  */
 enum ieee80211_tx_queue {
 	IEEE80211_TX_QUEUE_DATA0,
@@ -261,11 +262,12 @@ enum ieee80211_tx_queue {
  * this struct need to have fixed values. As soon as it is removed, we can
  * fix these entries. */
 	IEEE80211_TX_QUEUE_AFTER_BEACON = 6,
-	IEEE80211_TX_QUEUE_BEACON = 7
+	IEEE80211_TX_QUEUE_BEACON = 7,
+	NUM_TX_DATA_QUEUES_AMPDU = 16
 };
 
 struct ieee80211_tx_queue_stats {
-	struct ieee80211_tx_queue_stats_data data[NUM_TX_DATA_QUEUES];
+	struct ieee80211_tx_queue_stats_data data[NUM_TX_DATA_QUEUES_AMPDU];
 };
 
 struct ieee80211_low_level_stats {
@@ -348,6 +350,8 @@ struct ieee80211_tx_control {
 #define IEEE80211_TXCTL_EAPOL_FRAME	(1<<11) /* internal to mac80211 */
 #define IEEE80211_TXCTL_SEND_AFTER_DTIM	(1<<12) /* send this frame after DTIM
 						 * beacon */
+#define IEEE80211_TXCTL_AMPDU		(1<<13) /* this frame should be sent
+						 * as part of an A-MPDU */
 	u32 flags;			       /* tx control flags defined
 						* above */
 	u8 key_idx;		/* keyidx from hw->set_key(), undefined if

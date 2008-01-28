@@ -462,7 +462,7 @@ int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 	spin_lock_bh(&local->mdev->queue_lock);
 
 	/* create a new queue for this aggregation */
-	/* ret = ieee80211_ht_agg_queue_add(local, sta, tid); */
+	ret = ieee80211_ht_agg_queue_add(local, sta, tid);
 
 	/* case no queue is available to aggregation
 	 * don't switch to aggregation */
@@ -488,7 +488,7 @@ int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 		/* No need to requeue the packets in the agg queue, since we
 		 * held the tx lock: no packet could be enqueued to the newly
 		 * allocated queue */
-		/* ieee80211_ht_agg_queue_remove(local, sta, tid, 0); */
+		 ieee80211_ht_agg_queue_remove(local, sta, tid, 0);
 #ifdef CONFIG_MAC80211_HT_DEBUG
 		printk(KERN_DEBUG "BA request denied - HW or queue unavailable"
 				" for tid %d\n", tid);
@@ -499,7 +499,7 @@ int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 	}
 
 	/* Will put all the packets in the new SW queue */
-	/* ieee80211_requeue(local, ieee802_1d_to_ac[tid]); */
+	ieee80211_requeue(local, ieee802_1d_to_ac[tid]);
 	spin_unlock_bh(&local->mdev->queue_lock);
 
 	/* We have most probably almost emptied the legacy queue */
@@ -675,7 +675,7 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u8 tid)
 	 * the content of the qdiscs */
 	spin_lock_bh(&local->mdev->queue_lock);
 	/* remove the queue for this aggregation */
-	/* ieee80211_ht_agg_queue_remove(local, sta, tid, 1); */
+	ieee80211_ht_agg_queue_remove(local, sta, tid, 1);
 	spin_unlock_bh(&local->mdev->queue_lock);
 
 	/* we just requeued the all the frames that were in the removed

@@ -1260,6 +1260,8 @@ int ieee80211_master_start_xmit(struct sk_buff *skb,
 		control.flags |= IEEE80211_TXCTL_REQUEUE;
 	if (pkt_data->flags & IEEE80211_TXPD_EAPOL_FRAME)
 		control.flags |= IEEE80211_TXCTL_EAPOL_FRAME;
+	if (pkt_data->flags & IEEE80211_TXPD_AMPDU)
+		control.flags |= IEEE80211_TXCTL_AMPDU;
 	control.queue = pkt_data->queue;
 
 	ret = ieee80211_tx(odev, skb, &control);

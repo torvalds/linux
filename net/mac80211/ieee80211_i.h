@@ -165,6 +165,7 @@ struct ieee80211_txrx_data {
 #define IEEE80211_TXPD_DO_NOT_ENCRYPT	BIT(1)
 #define IEEE80211_TXPD_REQUEUE		BIT(2)
 #define IEEE80211_TXPD_EAPOL_FRAME	BIT(3)
+#define IEEE80211_TXPD_AMPDU		BIT(4)
 /* Stored in sk_buff->cb */
 struct ieee80211_tx_packet_data {
 	int ifindex;
@@ -452,8 +453,8 @@ struct ieee80211_local {
 	struct sta_info *sta_hash[STA_HASH_SIZE];
 	struct timer_list sta_cleanup;
 
-	unsigned long state[NUM_TX_DATA_QUEUES];
-	struct ieee80211_tx_stored_packet pending_packet[NUM_TX_DATA_QUEUES];
+	unsigned long state[NUM_TX_DATA_QUEUES_AMPDU];
+	struct ieee80211_tx_stored_packet pending_packet[NUM_TX_DATA_QUEUES_AMPDU];
 	struct tasklet_struct tx_pending_tasklet;
 
 	/* number of interfaces with corresponding IFF_ flags */
