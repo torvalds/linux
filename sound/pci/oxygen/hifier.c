@@ -90,7 +90,7 @@ static void set_ak4396_params(struct oxygen *chip,
 	value = data->ak4396_ctl2 & ~AK4396_DFS_MASK;
 	if (params_rate(params) <= 54000)
 		value |= AK4396_DFS_NORMAL;
-	else if (params_rate(params) < 120000)
+	else if (params_rate(params) <= 108000)
 		value |= AK4396_DFS_DOUBLE;
 	else
 		value |= AK4396_DFS_QUAD;
