@@ -4286,12 +4286,9 @@ static int iwl4965_tx_status_reply_compressed_ba(struct iwl4965_priv *priv,
 
 	tx_status = &priv->txq[scd_flow].txb[agg->start_idx].status;
 	tx_status->flags = IEEE80211_TX_STATUS_ACK;
-	tx_status->retry_count++;
-#ifdef CONFIG_IWL4965_HT_AGG
-	tx_status->flags |= IEEE80211_TX_STATUS_AGG_STATS;
-	tx_status->successes = successes;
-	tx_status->frame_count = agg->frame_count;
-#endif	/* CONFIG_IWL4965_HT_AGG */
+	tx_status->flags |= IEEE80211_TX_STATUS_AMPDU;
+	tx_status->ampdu_ack_map = successes;
+	tx_status->ampdu_ack_len = agg->frame_count;
 	tx_status->control.tx_rate = agg->rate_n_flags;
 
 	IWL_DEBUG_TX_REPLY("Bitmap %llx\n", bitmap);

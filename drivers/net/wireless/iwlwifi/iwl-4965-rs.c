@@ -277,7 +277,8 @@ static void rs_rate_scale_clear_window(struct iwl4965_rate_scale_data *window)
  * packets.
  */
 static int rs_collect_tx_data(struct iwl4965_rate_scale_data *windows,
-			      int scale_index, s32 tpt, u32 status)
+			      int scale_index, s32 tpt, int retries,
+			      int successes)
 {
 	struct iwl4965_rate_scale_data *window = NULL;
 	u64 mask;
@@ -298,26 +299,33 @@ static int rs_collect_tx_data(struct iwl4965_rate_scale_data *windows,
 	 * subtract "1" from the success counter (this is the main reason
 	 * we keep these bitmaps!).
 	 */
-	if (window->counter >= win_size) {
-		window->counter = win_size - 1;
-		mask = 1;
-		mask = (mask << (win_size - 1));
-		if ((window->data & mask)) {
-			window->data &= ~mask;
-			window->success_counter = window->success_counter - 1;
+	while (retries > 0) {
+		if (window->counter >= win_size) {
+			window->counter = win_size - 1;
+			mask = 1;
+			mask = (mask << (win_size - 1));
+			if (window->data & mask) {
+				window->data &= ~mask;
+				window->success_counter =
+					window->success_counter - 1;
+			}
 		}
-	}
 
-	/* Increment frames-attempted counter */
-	window->counter = window->counter + 1;
+		/* Increment frames-attempted counter */
+		window->counter++;
 
-	/* Shift bitmap by one frame (throw away oldest history),
-	 * OR in "1", and increment "success" if this frame was successful. */
-	mask = window->data;
-	window->data = (mask << 1);
-	if (status != 0) {
-		window->success_counter = window->success_counter + 1;
-		window->data |= 0x1;
+		/* Shift bitmap by one frame (throw away oldest history),
+		 * OR in "1", and increment "success" if this
+		 * frame was successful. */
+		mask = window->data;
+		window->data = (mask << 1);
+		if (successes > 0) {
+			window->success_counter = window->success_counter + 1;
+			window->data |= 0x1;
+			successes--;
+		}
+
+		retries--;
 	}
 
 	/* Calculate current success ratio, avoid divide-by-0! */
@@ -677,6 +685,11 @@ static void rs_tx_status(void *priv_rate, struct net_device *dev,
 	if (!ieee80211_is_data(fc) || is_multicast_ether_addr(hdr->addr1))
 		return;
 
+	/* This packet was aggregated but doesn't carry rate scale info */
+	if ((tx_resp->control.flags & IEEE80211_TXCTL_AMPDU) &&
+	    !(tx_resp->flags & IEEE80211_TX_STATUS_AMPDU))
+		return;
+
 	retries = tx_resp->retry_count;
 
 	if (retries > 15)
@@ -766,7 +779,7 @@ static void rs_tx_status(void *priv_rate, struct net_device *dev,
 				tpt = search_tbl->expected_tpt[rs_index];
 			else
 				tpt = 0;
-			rs_collect_tx_data(search_win, rs_index, tpt, 0);
+			rs_collect_tx_data(search_win, rs_index, tpt, 1, 0);
 
 		/* Else if type matches "current/active" table,
 		 * add failure to "current/active" history */
@@ -777,7 +790,7 @@ static void rs_tx_status(void *priv_rate, struct net_device *dev,
 				tpt = curr_tbl->expected_tpt[rs_index];
 			else
 				tpt = 0;
-			rs_collect_tx_data(window, rs_index, tpt, 0);
+			rs_collect_tx_data(window, rs_index, tpt, 1, 0);
 		}
 
 		/* If not searching for a new mode, increment failed counter
@@ -818,9 +831,13 @@ static void rs_tx_status(void *priv_rate, struct net_device *dev,
 			tpt = search_tbl->expected_tpt[rs_index];
 		else
 			tpt = 0;
-		rs_collect_tx_data(search_win,
-				    rs_index, tpt, status);
-
+		if (tx_resp->control.flags & IEEE80211_TXCTL_AMPDU)
+			rs_collect_tx_data(search_win, rs_index, tpt,
+					   tx_resp->ampdu_ack_len,
+					   tx_resp->ampdu_ack_map);
+		else
+			rs_collect_tx_data(search_win, rs_index, tpt,
+					   1, status);
 	/* Else if type matches "current/active" table,
 	 * add final tx status to "current/active" history */
 	} else if ((tbl_type.lq_type == curr_tbl->lq_type) &&
@@ -830,16 +847,28 @@ static void rs_tx_status(void *priv_rate, struct net_device *dev,
 			tpt = curr_tbl->expected_tpt[rs_index];
 		else
 			tpt = 0;
-		rs_collect_tx_data(window, rs_index, tpt, status);
+		if (tx_resp->control.flags & IEEE80211_TXCTL_AMPDU)
+			rs_collect_tx_data(window, rs_index, tpt,
+					   tx_resp->ampdu_ack_len,
+					   tx_resp->ampdu_ack_map);
+		else
+			rs_collect_tx_data(window, rs_index, tpt,
+					   1, status);
 	}
 
 	/* If not searching for new mode, increment success/failed counter
 	 * ... these help determine when to start searching again */
 	if (lq_sta->stay_in_tbl) {
-		if (status)
-			lq_sta->total_success++;
-		else
-			lq_sta->total_failed++;
+		if (tx_resp->control.flags & IEEE80211_TXCTL_AMPDU) {
+			lq_sta->total_success += tx_resp->ampdu_ack_map;
+			lq_sta->total_failed +=
+			     (tx_resp->ampdu_ack_len - tx_resp->ampdu_ack_map);
+		} else {
+			if (status)
+				lq_sta->total_success++;
+			else
+				lq_sta->total_failed++;
+		}
 	}
 
 	/* See if there's a better rate or modulation mode to try. */
