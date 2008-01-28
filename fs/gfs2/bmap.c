@@ -384,6 +384,35 @@ static int lookup_block(struct gfs2_inode *ip, struct buffer_head *bh,
 	return 0;
 }
 
+static int lookup_metapath(struct inode *inode, struct metapath *mp,
+			   int create, int *new, u64 *dblock,
+			   struct buffer_head **dibh, struct buffer_head **bh)
+{
+	struct gfs2_inode *ip = GFS2_I(inode);
+	unsigned int end_of_metadata = ip->i_height - 1;
+	unsigned int x;
+	int ret = gfs2_meta_inode_buffer(ip, bh);
+	if (ret)
+		return ret;
+
+	*dibh = *bh;
+	get_bh(*dibh);
+
+	for (x = 0; x < end_of_metadata; x++) {
+		lookup_block(ip, *bh, x, mp, create, new, dblock);
+		brelse(*bh);
+		*bh = NULL;
+		if (!dblock)
+			return 0;
+
+		ret = gfs2_meta_indirect_buffer(ip, x+1, *dblock, *new, bh);
+		if (ret)
+			return ret;
+	}
+
+	return lookup_block(ip, *bh, end_of_metadata, mp, create, new, dblock);
+}
+
 static inline void bmap_lock(struct inode *inode, int create)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
@@ -419,10 +448,8 @@ int gfs2_block_map(struct inode *inode, sector_t lblock,
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
-	struct buffer_head *bh;
 	unsigned int bsize = sdp->sd_sb.sb_bsize;
-	unsigned int end_of_metadata;
-	unsigned int x;
+	struct buffer_head *bh = NULL;
 	int error = 0;
 	int new = 0;
 	u64 dblock = 0;
@@ -459,25 +486,11 @@ int gfs2_block_map(struct inode *inode, sector_t lblock,
 	}
 
 	find_metapath(ip, lblock, &mp);
-	end_of_metadata = ip->i_height - 1;
-	error = gfs2_meta_inode_buffer(ip, &bh);
-	if (error)
+	error = lookup_metapath(inode, &mp, create, &new, &dblock, &dibh, &bh);
+	if (error < 0)
 		goto out_fail;
-	dibh = bh;
-	get_bh(dibh);
+	boundary = error;
 
-	for (x = 0; x < end_of_metadata; x++) {
-		lookup_block(ip, bh, x, &mp, create, &new, &dblock);
-		brelse(bh);
-		if (!dblock)
-			goto out_ok;
-
-		error = gfs2_meta_indirect_buffer(ip, x+1, dblock, new, &bh);
-		if (error)
-			goto out_fail;
-	}
-
-	boundary = lookup_block(ip, bh, end_of_metadata, &mp, create, &new, &dblock);
 	if (dblock) {
 		map_bh(bh_map, inode->i_sb, dblock);
 		if (boundary)
@@ -489,6 +502,7 @@ int gfs2_block_map(struct inode *inode, sector_t lblock,
 			goto out_brelse;
 		}
 		while(--maxlen && !buffer_boundary(bh_map)) {
+			unsigned int end_of_metadata = ip->i_height - 1;
 			u64 eblock;
 
 			mp.mp_list[end_of_metadata]++;
@@ -501,7 +515,8 @@ int gfs2_block_map(struct inode *inode, sector_t lblock,
 		}
 	}
 out_brelse:
-	brelse(bh);
+	if (bh)
+		brelse(bh);
 out_ok:
 	error = 0;
 out_fail:
