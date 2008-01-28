@@ -1022,8 +1022,9 @@ static int dvb_init(struct saa7134_dev *dev)
 		}
 		break;
 	case SAA7134_BOARD_ASUS_EUROPA2_HYBRID:
-		dev->dvb.frontend = tda10046_attach(&medion_cardbus,
-						    &dev->i2c_adap);
+		dev->dvb.frontend = dvb_attach(tda10046_attach,
+					       &medion_cardbus,
+					       &dev->i2c_adap);
 		if (dev->dvb.frontend) {
 			dev->original_demod_sleep = dev->dvb.frontend->ops.sleep;
 			dev->dvb.frontend->ops.sleep = philips_europa_demod_sleep;
