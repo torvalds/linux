@@ -33,13 +33,36 @@
 
 #define STA_TID_NUM 16
 #define ADDBA_RESP_INTERVAL HZ
+#define HT_AGG_MAX_RETRIES		(0x3)
 
 #define HT_AGG_STATE_INITIATOR_SHIFT	(4)
 
+#define HT_ADDBA_REQUESTED_MSK		BIT(0)
+#define HT_ADDBA_DRV_READY_MSK		BIT(1)
+#define HT_ADDBA_RECEIVED_MSK		BIT(2)
 #define HT_AGG_STATE_REQ_STOP_BA_MSK	BIT(3)
-
+#define HT_AGG_STATE_INITIATOR_MSK      BIT(HT_AGG_STATE_INITIATOR_SHIFT)
 #define HT_AGG_STATE_IDLE		(0x0)
-#define HT_AGG_STATE_OPERATIONAL	(0x7)
+#define HT_AGG_STATE_OPERATIONAL	(HT_ADDBA_REQUESTED_MSK |	\
+					 HT_ADDBA_DRV_READY_MSK |	\
+					 HT_ADDBA_RECEIVED_MSK)
+
+/**
+ * struct tid_ampdu_tx - TID aggregation information (Tx).
+ *
+ * @state: TID's state in session state machine.
+ * @dialog_token: dialog token for aggregation session
+ * @ssn: Starting Sequence Number expected to be aggregated.
+ * @addba_resp_timer: timer for peer's response to addba request
+ * @addba_req_num: number of times addBA request has been sent.
+ */
+struct tid_ampdu_tx {
+	u8 state;
+	u8 dialog_token;
+	u16 ssn;
+	struct timer_list addba_resp_timer;
+	u8 addba_req_num;
+};
 
 /**
  * struct tid_ampdu_rx - TID aggregation information (Rx).
@@ -69,12 +92,18 @@ struct tid_ampdu_rx {
 /**
  * struct sta_ampdu_mlme - STA aggregation information.
  *
- * @tid_agg_info_rx: aggregation info for Rx per TID
+ * @tid_rx: aggregation info for Rx per TID
+ * @tid_tx: aggregation info for Tx per TID
  * @ampdu_rx: for locking sections in aggregation Rx flow
+ * @ampdu_tx: for locking sectionsi in aggregation Tx flow
+ * @dialog_token_allocator: dialog token enumerator for each new session;
  */
 struct sta_ampdu_mlme {
 	struct tid_ampdu_rx tid_rx[STA_TID_NUM];
+	struct tid_ampdu_tx tid_tx[STA_TID_NUM];
 	spinlock_t ampdu_rx;
+	spinlock_t ampdu_tx;
+	u8 dialog_token_allocator;
 };
 
 struct sta_info {
@@ -148,6 +177,7 @@ struct sta_info {
 					     of this STA */
 	struct sta_ampdu_mlme ampdu_mlme;
 	u8 timer_to_tid[STA_TID_NUM];	/* convert timer id to tid */
+	u8 tid_to_tx_q[STA_TID_NUM];	/* map tid to tx queue */
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct sta_info_debugfsdentries {
