@@ -1138,6 +1138,11 @@
 #define S3C2412_GPHSLPCON	S3C2410_GPIOREG(0x7C)
 
 /* definitions for each pin bit */
+#define S3C2412_GPIO_SLPCON_LOW	 ( 0x00 )
+#define S3C2412_GPIO_SLPCON_HIGH ( 0x01 )
+#define S3C2412_GPIO_SLPCON_IN   ( 0x02 )
+#define S3C2412_GPIO_SLPCON_PULL ( 0x03 )
+
 #define S3C2412_SLPCON_LOW(x)	( 0x00 << ((x) * 2))
 #define S3C2412_SLPCON_HIGH(x)	( 0x01 << ((x) * 2))
 #define S3C2412_SLPCON_IN(x)	( 0x02 << ((x) * 2))
