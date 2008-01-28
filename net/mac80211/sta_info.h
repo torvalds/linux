@@ -192,6 +192,7 @@ struct sta_info {
 		struct dentry *wme_rx_queue;
 		struct dentry *wme_tx_queue;
 #endif
+		struct dentry *agg_status;
 	} debugfs;
 #endif
 };
