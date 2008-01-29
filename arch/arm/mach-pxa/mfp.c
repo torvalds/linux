@@ -227,7 +227,7 @@ static int pxa3xx_mfp_resume(struct sys_device *d)
 }
 
 static struct sysdev_class mfp_sysclass = {
-	set_kset_name("mfp"),
+	.name		= "mfp",
 	.suspend	= pxa3xx_mfp_suspend,
 	.resume 	= pxa3xx_mfp_resume,
 };
