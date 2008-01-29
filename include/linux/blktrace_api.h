@@ -282,10 +282,10 @@ static inline void blk_add_trace_remap(struct request_queue *q, struct bio *bio,
 	__blk_add_trace(bt, from, bio->bi_size, bio->bi_rw, BLK_TA_REMAP, !bio_flagged(bio, BIO_UPTODATE), sizeof(r), &r);
 }
 
-extern int blk_trace_setup(request_queue_t *q, char *name, dev_t dev,
+extern int blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 			   char __user *arg);
-extern int blk_trace_startstop(request_queue_t *q, int start);
-extern int blk_trace_remove(request_queue_t *q);
+extern int blk_trace_startstop(struct request_queue *q, int start);
+extern int blk_trace_remove(struct request_queue *q);
 
 #else /* !CONFIG_BLK_DEV_IO_TRACE */
 #define blk_trace_ioctl(bdev, cmd, arg)		(-ENOTTY)
