@@ -19,7 +19,7 @@
 #define M_PERFCTL_SUPERVISOR		(1UL      <<  2)
 #define M_PERFCTL_USER			(1UL      <<  3)
 #define M_PERFCTL_INTERRUPT_ENABLE	(1UL      <<  4)
-#define M_PERFCTL_EVENT(event)		(((event) & 0x3f)  << 5)
+#define M_PERFCTL_EVENT(event)		(((event) & 0x3ff)  << 5)
 #define M_PERFCTL_VPEID(vpe)		((vpe)    << 16)
 #define M_PERFCTL_MT_EN(filter)		((filter) << 20)
 #define    M_TC_EN_ALL			M_PERFCTL_MT_EN(0)
