@@ -241,6 +241,8 @@ out:
 	return ret;
 }
 
+static struct lock_class_key jbd2_handle_key;
+
 /* Allocate a new handle.  This should probably be in a slab... */
 static handle_t *new_handle(int nblocks)
 {
@@ -250,6 +252,9 @@ static handle_t *new_handle(int nblocks)
 	memset(handle, 0, sizeof(*handle));
 	handle->h_buffer_credits = nblocks;
 	handle->h_ref = 1;
+
+	lockdep_init_map(&handle->h_lockdep_map, "jbd2_handle",
+						&jbd2_handle_key, 0);
 
 	return handle;
 }
@@ -293,7 +298,11 @@ handle_t *jbd2_journal_start(journal_t *journal, int nblocks)
 		jbd2_free_handle(handle);
 		current->journal_info = NULL;
 		handle = ERR_PTR(err);
+		goto out;
 	}
+
+	lock_acquire(&handle->h_lockdep_map, 0, 0, 0, 2, _THIS_IP_);
+out:
 	return handle;
 }
 
@@ -1418,6 +1427,8 @@ int jbd2_journal_stop(handle_t *handle)
 		spin_unlock(&transaction->t_handle_lock);
 		spin_unlock(&journal->j_state_lock);
 	}
+
+	lock_release(&handle->h_lockdep_map, 1, _THIS_IP_);
 
 	jbd2_free_handle(handle);
 	return err;
