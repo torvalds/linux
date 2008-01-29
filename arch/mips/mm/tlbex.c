@@ -860,6 +860,12 @@ static __init void build_tlb_write_entry(u32 **p, struct label **l,
 	case tlb_indexed: tlbw = i_tlbwi; break;
 	}
 
+	if (cpu_has_mips_r2) {
+		i_ehb(p);
+		tlbw(p);
+		return;
+	}
+
 	switch (current_cpu_type()) {
 	case CPU_R4000PC:
 	case CPU_R4000SC:
@@ -932,14 +938,6 @@ static __init void build_tlb_write_entry(u32 **p, struct label **l,
 		i_nop(p);
 		i_nop(p);
 		i_nop(p);
-		tlbw(p);
-		break;
-
-	case CPU_4KEC:
-	case CPU_24K:
-	case CPU_34K:
-	case CPU_74K:
-		i_ehb(p);
 		tlbw(p);
 		break;
 
