@@ -57,6 +57,8 @@ tstart:
 
 	SETUP_WAIT_STATES
 
+	GIO_INIT
+
 #ifdef CONFIG_SMP
 secondary_cpu_entry: /* Entry point for secondary CPUs */
 	di
