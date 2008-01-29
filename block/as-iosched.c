@@ -1275,9 +1275,13 @@ static void as_merged_requests(struct request_queue *q, struct request *req,
 			 * Don't copy here but swap, because when anext is
 			 * removed below, it must contain the unused context
 			 */
-			double_spin_lock(&rioc->lock, &nioc->lock, rioc < nioc);
-			swap_io_context(&rioc, &nioc);
-			double_spin_unlock(&rioc->lock, &nioc->lock, rioc < nioc);
+			if (rioc != nioc) {
+				double_spin_lock(&rioc->lock, &nioc->lock,
+								rioc < nioc);
+				swap_io_context(&rioc, &nioc);
+				double_spin_unlock(&rioc->lock, &nioc->lock,
+								rioc < nioc);
+			}
 		}
 	}
 
