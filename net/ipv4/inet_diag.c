@@ -259,8 +259,10 @@ static int inet_diag_get_exact(struct sk_buff *in_skb,
 	const struct inet_diag_handler *handler;
 
 	handler = inet_diag_lock_handler(nlh->nlmsg_type);
-	if (!handler)
-		return -ENOENT;
+	if (IS_ERR(handler)) {
+		err = PTR_ERR(handler);
+		goto unlock;
+	}
 
 	hashinfo = handler->idiag_hashinfo;
 	err = -EINVAL;
@@ -708,8 +710,8 @@ static int inet_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	struct inet_hashinfo *hashinfo;
 
 	handler = inet_diag_lock_handler(cb->nlh->nlmsg_type);
-	if (!handler)
-		goto no_handler;
+	if (IS_ERR(handler))
+		goto unlock;
 
 	hashinfo = handler->idiag_hashinfo;
 
@@ -838,7 +840,6 @@ done:
 	cb->args[2] = num;
 unlock:
 	inet_diag_unlock_handler(handler);
-no_handler:
 	return skb->len;
 }
 
