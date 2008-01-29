@@ -28,6 +28,7 @@
 #include <linux/workqueue.h>
 #include <linux/sched.h>
 #include <linux/wait.h>
+#include <linux/spinlock.h>
 #include <linux/mtd/mtd.h>
 
 #define OOPS_PAGE_SIZE 4096
@@ -42,6 +43,9 @@ struct mtdoops_context {
 	int nextcount;
 
 	void *oops_buf;
+
+	/* writecount and disabling ready are spin lock protected */
+	spinlock_t writecount_lock;
 	int ready;
 	int writecount;
 } oops_cxt;
@@ -290,11 +294,22 @@ static void mtdoops_console_sync(void)
 {
 	struct mtdoops_context *cxt = &oops_cxt;
 	struct mtd_info *mtd = cxt->mtd;
+	unsigned long flags;
 
 	if (!cxt->ready || !mtd || cxt->writecount == 0)
 		return;
 
+	/* 
+	 *  Once ready is 0 and we've held the lock no further writes to the 
+	 *  buffer will happen
+	 */
+	spin_lock_irqsave(&cxt->writecount_lock, flags);
+	if (!cxt->ready) {
+		spin_unlock_irqrestore(&cxt->writecount_lock, flags);
+		return;
+	}
 	cxt->ready = 0;
+	spin_unlock_irqrestore(&cxt->writecount_lock, flags);
 
 	schedule_work(&cxt->work_write);
 }
@@ -304,6 +319,7 @@ mtdoops_console_write(struct console *co, const char *s, unsigned int count)
 {
 	struct mtdoops_context *cxt = co->data;
 	struct mtd_info *mtd = cxt->mtd;
+	unsigned long flags;
 
 	if (!oops_in_progress) {
 		mtdoops_console_sync();
@@ -311,6 +327,13 @@ mtdoops_console_write(struct console *co, const char *s, unsigned int count)
 	}
 
 	if (!cxt->ready || !mtd)
+		return;
+
+	/* Locking on writecount ensures sequential writes to the buffer */
+	spin_lock_irqsave(&cxt->writecount_lock, flags);
+
+	/* Check ready status didn't change whilst waiting for the lock */
+	if (!cxt->ready)
 		return;
 
 	if (cxt->writecount == 0) {
@@ -324,6 +347,11 @@ mtdoops_console_write(struct console *co, const char *s, unsigned int count)
 
 	memcpy(cxt->oops_buf + cxt->writecount, s, count);
 	cxt->writecount += count;
+
+	spin_unlock_irqrestore(&cxt->writecount_lock, flags);
+
+	if (cxt->writecount == OOPS_PAGE_SIZE)
+		mtdoops_console_sync();
 }
 
 static int __init mtdoops_console_setup(struct console *co, char *options)
