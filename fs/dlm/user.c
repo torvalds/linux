@@ -24,8 +24,7 @@
 #include "lvb_table.h"
 #include "user.h"
 
-static const char *name_prefix="dlm";
-static struct miscdevice ctl_device;
+static const char name_prefix[] = "dlm";
 static const struct file_operations device_fops;
 
 #ifdef CONFIG_COMPAT
@@ -902,13 +901,15 @@ static const struct file_operations ctl_device_fops = {
 	.owner   = THIS_MODULE,
 };
 
+static struct miscdevice ctl_device = {
+	.name  = "dlm-control",
+	.fops  = &ctl_device_fops,
+	.minor = MISC_DYNAMIC_MINOR,
+};
+
 int dlm_user_init(void)
 {
 	int error;
-
-	ctl_device.name = "dlm-control";
-	ctl_device.fops = &ctl_device_fops;
-	ctl_device.minor = MISC_DYNAMIC_MINOR;
 
 	error = misc_register(&ctl_device);
 	if (error)
