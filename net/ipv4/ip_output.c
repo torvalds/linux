@@ -476,6 +476,7 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff*))
 	if (skb_shinfo(skb)->frag_list) {
 		struct sk_buff *frag;
 		int first_len = skb_pagelen(skb);
+		int truesizes = 0;
 
 		if (first_len - hlen > mtu ||
 		    ((first_len - hlen) & 7) ||
@@ -499,7 +500,7 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff*))
 				sock_hold(skb->sk);
 				frag->sk = skb->sk;
 				frag->destructor = sock_wfree;
-				skb->truesize -= frag->truesize;
+				truesizes += frag->truesize;
 			}
 		}
 
@@ -510,6 +511,7 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff*))
 		frag = skb_shinfo(skb)->frag_list;
 		skb_shinfo(skb)->frag_list = NULL;
 		skb->data_len = first_len - skb_headlen(skb);
+		skb->truesize -= truesizes;
 		skb->len = first_len;
 		iph->tot_len = htons(first_len);
 		iph->frag_off = htons(IP_MF);

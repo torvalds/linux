@@ -636,6 +636,7 @@ static int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 
 	if (skb_shinfo(skb)->frag_list) {
 		int first_len = skb_pagelen(skb);
+		int truesizes = 0;
 
 		if (first_len - hlen > mtu ||
 		    ((first_len - hlen) & 7) ||
@@ -658,7 +659,7 @@ static int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 				sock_hold(skb->sk);
 				frag->sk = skb->sk;
 				frag->destructor = sock_wfree;
-				skb->truesize -= frag->truesize;
+				truesizes += frag->truesize;
 			}
 		}
 
@@ -689,6 +690,7 @@ static int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 
 		first_len = skb_pagelen(skb);
 		skb->data_len = first_len - skb_headlen(skb);
+		skb->truesize -= truesizes;
 		skb->len = first_len;
 		ipv6_hdr(skb)->payload_len = htons(first_len -
 						   sizeof(struct ipv6hdr));
