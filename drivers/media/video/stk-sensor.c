@@ -225,7 +225,7 @@
 
 
 /* Returns 0 if OK */
-int stk_sensor_outb(struct stk_camera *dev, u8 reg, u8 val)
+static int stk_sensor_outb(struct stk_camera *dev, u8 reg, u8 val)
 {
 	int i = 0;
 	int tmpval = 0;
@@ -250,7 +250,7 @@ int stk_sensor_outb(struct stk_camera *dev, u8 reg, u8 val)
 		return 0;
 }
 
-int stk_sensor_inb(struct stk_camera *dev, u8 reg, u8 *val)
+static int stk_sensor_inb(struct stk_camera *dev, u8 reg, u8 *val)
 {
 	int i = 0;
 	int tmpval = 0;
