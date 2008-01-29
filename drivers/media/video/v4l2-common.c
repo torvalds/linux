@@ -973,6 +973,18 @@ u32 v4l2_ctrl_next(const u32 * const * ctrl_classes, u32 id)
 	return **ctrl_classes;
 }
 
+int v4l2_chip_match_host(u32 match_type, u32 match_chip)
+{
+	switch (match_type) {
+	case V4L2_CHIP_MATCH_HOST:
+		return match_chip == 0;
+	default:
+		return 0;
+	}
+}
+EXPORT_SYMBOL(v4l2_chip_match_host);
+
+#if defined(CONFIG_I2C) || (defined(CONFIG_I2C_MODULE) && defined(MODULE))
 int v4l2_chip_match_i2c_client(struct i2c_client *c, u32 match_type, u32 match_chip)
 {
 	switch (match_type) {
@@ -984,6 +996,7 @@ int v4l2_chip_match_i2c_client(struct i2c_client *c, u32 match_type, u32 match_c
 		return 0;
 	}
 }
+EXPORT_SYMBOL(v4l2_chip_match_i2c_client);
 
 int v4l2_chip_ident_i2c_client(struct i2c_client *c, struct v4l2_chip_ident *chip,
 		u32 ident, u32 revision)
@@ -1000,16 +1013,7 @@ int v4l2_chip_ident_i2c_client(struct i2c_client *c, struct v4l2_chip_ident *chi
 	}
 	return 0;
 }
-
-int v4l2_chip_match_host(u32 match_type, u32 match_chip)
-{
-	switch (match_type) {
-	case V4L2_CHIP_MATCH_HOST:
-		return match_chip == 0;
-	default:
-		return 0;
-	}
-}
+EXPORT_SYMBOL(v4l2_chip_ident_i2c_client);
 
 /* ----------------------------------------------------------------- */
 
@@ -1038,6 +1042,8 @@ int v4l2_i2c_attach(struct i2c_adapter *adapter, int address, struct i2c_driver 
 	}
 	return err != -ENOMEM ? 0 : err;
 }
+EXPORT_SYMBOL(v4l2_i2c_attach);
+#endif
 
 /* ----------------------------------------------------------------- */
 
@@ -1061,15 +1067,3 @@ EXPORT_SYMBOL(v4l2_ctrl_get_menu);
 EXPORT_SYMBOL(v4l2_ctrl_query_menu);
 EXPORT_SYMBOL(v4l2_ctrl_query_fill);
 EXPORT_SYMBOL(v4l2_ctrl_query_fill_std);
-
-EXPORT_SYMBOL(v4l2_chip_match_i2c_client);
-EXPORT_SYMBOL(v4l2_chip_ident_i2c_client);
-EXPORT_SYMBOL(v4l2_chip_match_host);
-
-EXPORT_SYMBOL(v4l2_i2c_attach);
-
-/*
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

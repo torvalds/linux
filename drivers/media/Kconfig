@@ -25,6 +25,11 @@ config VIDEO_DEV
 	  To compile this driver as a module, choose M here: the
 	  module will be called videodev.
 
+config VIDEO_V4L2_COMMON
+	tristate
+	depends on (I2C || I2C=n) && VIDEO_DEV
+	default (I2C || I2C=n) && VIDEO_DEV
+
 config VIDEO_V4L1
 	bool "Enable Video For Linux API 1 (DEPRECATED)"
 	depends on VIDEO_DEV
