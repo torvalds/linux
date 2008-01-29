@@ -19,7 +19,7 @@
 #include <asm/page.h>
 #include <asm/timex.h>
 #include <asm/mach/map.h>
-#include <asm/arch/orion.h>
+#include <asm/arch/hardware.h>
 #include "common.h"
 
 /*****************************************************************************
@@ -248,6 +248,40 @@ static struct platform_device orion_i2c = {
 		.platform_data = &orion_i2c_pdata,
 	},
 };
+
+/*****************************************************************************
+ * Sata port
+ ****************************************************************************/
+static struct resource orion_sata_resources[] = {
+        {
+                .name   = "sata base",
+                .start  = ORION_SATA_REG_BASE,
+                .end    = ORION_SATA_REG_BASE + 0x5000 - 1,
+                .flags  = IORESOURCE_MEM,
+        },
+	{
+                .name   = "sata irq",
+                .start  = IRQ_ORION_SATA,
+                .end    = IRQ_ORION_SATA,
+                .flags  = IORESOURCE_IRQ,
+        },
+};
+
+static struct platform_device orion_sata = {
+	.name           = "sata_mv",
+	.id             = 0,
+	.dev		= {
+		.coherent_dma_mask	= 0xffffffff,
+	},
+	.num_resources  = ARRAY_SIZE(orion_sata_resources),
+	.resource       = orion_sata_resources,
+};
+
+void __init orion_sata_init(struct mv_sata_platform_data *sata_data)
+{
+	orion_sata.dev.platform_data = sata_data;
+	platform_device_register(&orion_sata);
+}
 
 /*****************************************************************************
  * General
