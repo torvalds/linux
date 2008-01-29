@@ -665,18 +665,20 @@ static inline void ext4_show_quota_options(struct seq_file *seq, struct super_bl
  */
 static int ext4_show_options(struct seq_file *seq, struct vfsmount *vfs)
 {
+	int def_errors;
+	unsigned long def_mount_opts;
 	struct super_block *sb = vfs->mnt_sb;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct ext4_super_block *es = sbi->s_es;
-	unsigned long def_mount_opts;
 
 	def_mount_opts = le32_to_cpu(es->s_default_mount_opts);
+	def_errors     = le16_to_cpu(es->s_errors);
 
 	if (sbi->s_sb_block != 1)
 		seq_printf(seq, ",sb=%llu", sbi->s_sb_block);
 	if (test_opt(sb, MINIX_DF))
 		seq_puts(seq, ",minixdf");
-	if (test_opt(sb, GRPID))
+	if (test_opt(sb, GRPID) && !(def_mount_opts & EXT4_DEFM_BSDGROUPS))
 		seq_puts(seq, ",grpid");
 	if (!test_opt(sb, GRPID) && (def_mount_opts & EXT4_DEFM_BSDGROUPS))
 		seq_puts(seq, ",nogrpid");
@@ -689,25 +691,24 @@ static int ext4_show_options(struct seq_file *seq, struct vfsmount *vfs)
 		seq_printf(seq, ",resgid=%u", sbi->s_resgid);
 	}
 	if (test_opt(sb, ERRORS_RO)) {
-		int def_errors = le16_to_cpu(es->s_errors);
-
 		if (def_errors == EXT4_ERRORS_PANIC ||
 		    def_errors == EXT4_ERRORS_CONTINUE) {
 			seq_puts(seq, ",errors=remount-ro");
 		}
 	}
-	if (test_opt(sb, ERRORS_CONT))
+	if (test_opt(sb, ERRORS_CONT) && def_errors != EXT4_ERRORS_CONTINUE)
 		seq_puts(seq, ",errors=continue");
-	if (test_opt(sb, ERRORS_PANIC))
+	if (test_opt(sb, ERRORS_PANIC) && def_errors != EXT4_ERRORS_PANIC)
 		seq_puts(seq, ",errors=panic");
-	if (test_opt(sb, NO_UID32))
+	if (test_opt(sb, NO_UID32) && !(def_mount_opts & EXT4_DEFM_UID16))
 		seq_puts(seq, ",nouid32");
-	if (test_opt(sb, DEBUG))
+	if (test_opt(sb, DEBUG) && !(def_mount_opts & EXT4_DEFM_DEBUG))
 		seq_puts(seq, ",debug");
 	if (test_opt(sb, OLDALLOC))
 		seq_puts(seq, ",oldalloc");
 #ifdef CONFIG_EXT4DEV_FS_XATTR
-	if (test_opt(sb, XATTR_USER))
+	if (test_opt(sb, XATTR_USER) &&
+		!(def_mount_opts & EXT4_DEFM_XATTR_USER))
 		seq_puts(seq, ",user_xattr");
 	if (!test_opt(sb, XATTR_USER) &&
 	    (def_mount_opts & EXT4_DEFM_XATTR_USER)) {
@@ -715,7 +716,7 @@ static int ext4_show_options(struct seq_file *seq, struct vfsmount *vfs)
 	}
 #endif
 #ifdef CONFIG_EXT4DEV_FS_POSIX_ACL
-	if (test_opt(sb, POSIX_ACL))
+	if (test_opt(sb, POSIX_ACL) && !(def_mount_opts & EXT4_DEFM_ACL))
 		seq_puts(seq, ",acl");
 	if (!test_opt(sb, POSIX_ACL) && (def_mount_opts & EXT4_DEFM_ACL))
 		seq_puts(seq, ",noacl");
@@ -735,6 +736,10 @@ static int ext4_show_options(struct seq_file *seq, struct vfsmount *vfs)
 	if (test_opt(sb, I_VERSION))
 		seq_puts(seq, ",i_version");
 
+	/*
+	 * journal mode get enabled in different ways
+	 * So just print the value even if we didn't specify it
+	 */
 	if (test_opt(sb, DATA_FLAGS) == EXT4_MOUNT_JOURNAL_DATA)
 		seq_puts(seq, ",data=journal");
 	else if (test_opt(sb, DATA_FLAGS) == EXT4_MOUNT_ORDERED_DATA)
@@ -743,7 +748,6 @@ static int ext4_show_options(struct seq_file *seq, struct vfsmount *vfs)
 		seq_puts(seq, ",data=writeback");
 
 	ext4_show_quota_options(seq, sb);
-
 	return 0;
 }
 
