@@ -64,7 +64,7 @@ static void btrfs_put_super (struct super_block * sb)
 
 enum {
 	Opt_subvol, Opt_nodatasum, Opt_nodatacow, Opt_max_extent,
-	Opt_alloc_start, Opt_nobarrier, Opt_ssd, Opt_err,
+	Opt_max_inline, Opt_alloc_start, Opt_nobarrier, Opt_ssd, Opt_err,
 };
 
 static match_table_t tokens = {
@@ -73,6 +73,7 @@ static match_table_t tokens = {
 	{Opt_nodatacow, "nodatacow"},
 	{Opt_nobarrier, "nobarrier"},
 	{Opt_max_extent, "max_extent=%s"},
+	{Opt_max_inline, "max_inline=%s"},
 	{Opt_alloc_start, "alloc_start=%s"},
 	{Opt_ssd, "ssd"},
 	{Opt_err, NULL}
@@ -175,6 +176,22 @@ static int parse_options (char * options,
 							 root->sectorsize);
 					printk("btrfs: max_extent at %Lu\n",
 					       info->max_extent);
+				}
+			}
+			break;
+		case Opt_max_inline:
+			if (info) {
+				char *num = match_strdup(&args[0]);
+				if (num) {
+					info->max_inline =
+						btrfs_parse_size(num);
+					kfree(num);
+
+					info->max_inline = max_t(u64,
+							 info->max_inline,
+							 root->sectorsize);
+					printk("btrfs: max_inline at %Lu\n",
+					       info->max_inline);
 				}
 			}
 			break;

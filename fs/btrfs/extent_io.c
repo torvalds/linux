@@ -2451,7 +2451,6 @@ sector_t extent_bmap(struct address_space *mapping, sector_t iblock,
 		goto out;
 
 	sector = (em->block_start + start - em->start) >> inode->i_blkbits;
-printk("bmap finds %Lu %Lu block %Lu\n", em->start, em->len, em->block_start);
 out:
 	free_extent_map(em);
 	return sector;

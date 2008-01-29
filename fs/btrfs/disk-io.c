@@ -659,6 +659,7 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	fs_info->throttles = 0;
 	fs_info->mount_opt = 0;
 	fs_info->max_extent = (u64)-1;
+	fs_info->max_inline = 8192 * 1024;
 	fs_info->delalloc_bytes = 0;
 	fs_info->btree_inode = new_inode(sb);
 	fs_info->btree_inode->i_ino = 1;
