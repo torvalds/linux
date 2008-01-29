@@ -825,6 +825,7 @@ static inline void exit_io_context(void)
 {
 }
 
+struct io_context;
 static inline int put_io_context(struct io_context *ioc)
 {
 	return 1;
