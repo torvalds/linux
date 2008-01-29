@@ -307,14 +307,19 @@ static int cell_iommu_find_ioc(int nid, unsigned long *base)
 }
 
 static void cell_iommu_setup_page_tables(struct cbe_iommu *iommu,
-					 unsigned long base, unsigned long size)
+				unsigned long dbase, unsigned long dsize,
+				unsigned long fbase, unsigned long fsize)
 {
 	struct page *page;
 	int i;
 	unsigned long reg, segments, pages_per_segment, ptab_size, stab_size,
-		      n_pte_pages;
+		      n_pte_pages, base;
 
-	segments = size >> IO_SEGMENT_SHIFT;
+	base = dbase;
+	if (fsize != 0)
+		base = min(fbase, dbase);
+
+	segments = max(dbase + dsize, fbase + fsize) >> IO_SEGMENT_SHIFT;
 	pages_per_segment = 1ull << IO_PAGENO_BITS;
 
 	pr_debug("%s: iommu[%d]: segments: %lu, pages per segment: %lu\n",
@@ -366,7 +371,7 @@ static void cell_iommu_setup_page_tables(struct cbe_iommu *iommu,
 	}
 
 	pr_debug("Setting up IOMMU stab:\n");
-	for (i = 0; i * (1ul << IO_SEGMENT_SHIFT) < size; i++) {
+	for (i = base >> IO_SEGMENT_SHIFT; i < segments; i++) {
 		iommu->stab[i] = reg |
 			(__pa(iommu->ptab) + n_pte_pages * IOMMU_PAGE_SIZE * i);
 		pr_debug("\t[%d] 0x%016lx\n", i, iommu->stab[i]);
@@ -417,7 +422,7 @@ static void cell_iommu_enable_hardware(struct cbe_iommu *iommu)
 static void cell_iommu_setup_hardware(struct cbe_iommu *iommu,
 	unsigned long base, unsigned long size)
 {
-	cell_iommu_setup_page_tables(iommu, base, size);
+	cell_iommu_setup_page_tables(iommu, base, size, 0, 0);
 	cell_iommu_enable_hardware(iommu);
 }
 
