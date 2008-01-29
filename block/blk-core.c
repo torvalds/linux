@@ -32,6 +32,8 @@
 #include <linux/fault-inject.h>
 #include <linux/scatterlist.h>
 
+#include "blk.h"
+
 /*
  * for max sense size
  */
@@ -50,12 +52,12 @@ static void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
 /*
  * For the allocated request tables
  */
-static struct kmem_cache *request_cachep;
+struct kmem_cache *request_cachep;
 
 /*
  * For queue allocation
  */
-static struct kmem_cache *requestq_cachep;
+struct kmem_cache *blk_requestq_cachep = NULL;
 
 /*
  * For io context allocations
@@ -80,25 +82,7 @@ static DEFINE_PER_CPU(struct list_head, blk_cpu_done);
 /* Number of requests a "batching" process may submit */
 #define BLK_BATCH_REQ	32
 
-/*
- * Return the threshold (number of used requests) at which the queue is
- * considered to be congested.  It include a little hysteresis to keep the
- * context switch rate down.
- */
-static inline int queue_congestion_on_threshold(struct request_queue *q)
-{
-	return q->nr_congestion_on;
-}
-
-/*
- * The threshold at which a queue is considered to be uncongested
- */
-static inline int queue_congestion_off_threshold(struct request_queue *q)
-{
-	return q->nr_congestion_off;
-}
-
-static void blk_queue_congestion_threshold(struct request_queue *q)
+void blk_queue_congestion_threshold(struct request_queue *q)
 {
 	int nr;
 
@@ -817,397 +801,6 @@ void blk_queue_update_dma_alignment(struct request_queue *q, int mask)
 
 EXPORT_SYMBOL(blk_queue_update_dma_alignment);
 
-/**
- * blk_queue_find_tag - find a request by its tag and queue
- * @q:	 The request queue for the device
- * @tag: The tag of the request
- *
- * Notes:
- *    Should be used when a device returns a tag and you want to match
- *    it with a request.
- *
- *    no locks need be held.
- **/
-struct request *blk_queue_find_tag(struct request_queue *q, int tag)
-{
-	return blk_map_queue_find_tag(q->queue_tags, tag);
-}
-
-EXPORT_SYMBOL(blk_queue_find_tag);
-
-/**
- * __blk_free_tags - release a given set of tag maintenance info
- * @bqt:	the tag map to free
- *
- * Tries to free the specified @bqt@.  Returns true if it was
- * actually freed and false if there are still references using it
- */
-static int __blk_free_tags(struct blk_queue_tag *bqt)
-{
-	int retval;
-
-	retval = atomic_dec_and_test(&bqt->refcnt);
-	if (retval) {
-		BUG_ON(bqt->busy);
-
-		kfree(bqt->tag_index);
-		bqt->tag_index = NULL;
-
-		kfree(bqt->tag_map);
-		bqt->tag_map = NULL;
-
-		kfree(bqt);
-
-	}
-
-	return retval;
-}
-
-/**
- * __blk_queue_free_tags - release tag maintenance info
- * @q:  the request queue for the device
- *
- *  Notes:
- *    blk_cleanup_queue() will take care of calling this function, if tagging
- *    has been used. So there's no need to call this directly.
- **/
-static void __blk_queue_free_tags(struct request_queue *q)
-{
-	struct blk_queue_tag *bqt = q->queue_tags;
-
-	if (!bqt)
-		return;
-
-	__blk_free_tags(bqt);
-
-	q->queue_tags = NULL;
-	q->queue_flags &= ~(1 << QUEUE_FLAG_QUEUED);
-}
-
-
-/**
- * blk_free_tags - release a given set of tag maintenance info
- * @bqt:	the tag map to free
- *
- * For externally managed @bqt@ frees the map.  Callers of this
- * function must guarantee to have released all the queues that
- * might have been using this tag map.
- */
-void blk_free_tags(struct blk_queue_tag *bqt)
-{
-	if (unlikely(!__blk_free_tags(bqt)))
-		BUG();
-}
-EXPORT_SYMBOL(blk_free_tags);
-
-/**
- * blk_queue_free_tags - release tag maintenance info
- * @q:  the request queue for the device
- *
- *  Notes:
- *	This is used to disabled tagged queuing to a device, yet leave
- *	queue in function.
- **/
-void blk_queue_free_tags(struct request_queue *q)
-{
-	clear_bit(QUEUE_FLAG_QUEUED, &q->queue_flags);
-}
-
-EXPORT_SYMBOL(blk_queue_free_tags);
-
-static int
-init_tag_map(struct request_queue *q, struct blk_queue_tag *tags, int depth)
-{
-	struct request **tag_index;
-	unsigned long *tag_map;
-	int nr_ulongs;
-
-	if (q && depth > q->nr_requests * 2) {
-		depth = q->nr_requests * 2;
-		printk(KERN_ERR "%s: adjusted depth to %d\n",
-				__FUNCTION__, depth);
-	}
-
-	tag_index = kzalloc(depth * sizeof(struct request *), GFP_ATOMIC);
-	if (!tag_index)
-		goto fail;
-
-	nr_ulongs = ALIGN(depth, BITS_PER_LONG) / BITS_PER_LONG;
-	tag_map = kzalloc(nr_ulongs * sizeof(unsigned long), GFP_ATOMIC);
-	if (!tag_map)
-		goto fail;
-
-	tags->real_max_depth = depth;
-	tags->max_depth = depth;
-	tags->tag_index = tag_index;
-	tags->tag_map = tag_map;
-
-	return 0;
-fail:
-	kfree(tag_index);
-	return -ENOMEM;
-}
-
-static struct blk_queue_tag *__blk_queue_init_tags(struct request_queue *q,
-						   int depth)
-{
-	struct blk_queue_tag *tags;
-
-	tags = kmalloc(sizeof(struct blk_queue_tag), GFP_ATOMIC);
-	if (!tags)
-		goto fail;
-
-	if (init_tag_map(q, tags, depth))
-		goto fail;
-
-	tags->busy = 0;
-	atomic_set(&tags->refcnt, 1);
-	return tags;
-fail:
-	kfree(tags);
-	return NULL;
-}
-
-/**
- * blk_init_tags - initialize the tag info for an external tag map
- * @depth:	the maximum queue depth supported
- * @tags: the tag to use
- **/
-struct blk_queue_tag *blk_init_tags(int depth)
-{
-	return __blk_queue_init_tags(NULL, depth);
-}
-EXPORT_SYMBOL(blk_init_tags);
-
-/**
- * blk_queue_init_tags - initialize the queue tag info
- * @q:  the request queue for the device
- * @depth:  the maximum queue depth supported
- * @tags: the tag to use
- **/
-int blk_queue_init_tags(struct request_queue *q, int depth,
-			struct blk_queue_tag *tags)
-{
-	int rc;
-
-	BUG_ON(tags && q->queue_tags && tags != q->queue_tags);
-
-	if (!tags && !q->queue_tags) {
-		tags = __blk_queue_init_tags(q, depth);
-
-		if (!tags)
-			goto fail;
-	} else if (q->queue_tags) {
-		if ((rc = blk_queue_resize_tags(q, depth)))
-			return rc;
-		set_bit(QUEUE_FLAG_QUEUED, &q->queue_flags);
-		return 0;
-	} else
-		atomic_inc(&tags->refcnt);
-
-	/*
-	 * assign it, all done
-	 */
-	q->queue_tags = tags;
-	q->queue_flags |= (1 << QUEUE_FLAG_QUEUED);
-	INIT_LIST_HEAD(&q->tag_busy_list);
-	return 0;
-fail:
-	kfree(tags);
-	return -ENOMEM;
-}
-
-EXPORT_SYMBOL(blk_queue_init_tags);
-
-/**
- * blk_queue_resize_tags - change the queueing depth
- * @q:  the request queue for the device
- * @new_depth: the new max command queueing depth
- *
- *  Notes:
- *    Must be called with the queue lock held.
- **/
-int blk_queue_resize_tags(struct request_queue *q, int new_depth)
-{
-	struct blk_queue_tag *bqt = q->queue_tags;
-	struct request **tag_index;
-	unsigned long *tag_map;
-	int max_depth, nr_ulongs;
-
-	if (!bqt)
-		return -ENXIO;
-
-	/*
-	 * if we already have large enough real_max_depth.  just
-	 * adjust max_depth.  *NOTE* as requests with tag value
-	 * between new_depth and real_max_depth can be in-flight, tag
-	 * map can not be shrunk blindly here.
-	 */
-	if (new_depth <= bqt->real_max_depth) {
-		bqt->max_depth = new_depth;
-		return 0;
-	}
-
-	/*
-	 * Currently cannot replace a shared tag map with a new
-	 * one, so error out if this is the case
-	 */
-	if (atomic_read(&bqt->refcnt) != 1)
-		return -EBUSY;
-
-	/*
-	 * save the old state info, so we can copy it back
-	 */
-	tag_index = bqt->tag_index;
-	tag_map = bqt->tag_map;
-	max_depth = bqt->real_max_depth;
-
-	if (init_tag_map(q, bqt, new_depth))
-		return -ENOMEM;
-
-	memcpy(bqt->tag_index, tag_index, max_depth * sizeof(struct request *));
-	nr_ulongs = ALIGN(max_depth, BITS_PER_LONG) / BITS_PER_LONG;
-	memcpy(bqt->tag_map, tag_map, nr_ulongs * sizeof(unsigned long));
-
-	kfree(tag_index);
-	kfree(tag_map);
-	return 0;
-}
-
-EXPORT_SYMBOL(blk_queue_resize_tags);
-
-/**
- * blk_queue_end_tag - end tag operations for a request
- * @q:  the request queue for the device
- * @rq: the request that has completed
- *
- *  Description:
- *    Typically called when end_that_request_first() returns 0, meaning
- *    all transfers have been done for a request. It's important to call
- *    this function before end_that_request_last(), as that will put the
- *    request back on the free list thus corrupting the internal tag list.
- *
- *  Notes:
- *   queue lock must be held.
- **/
-void blk_queue_end_tag(struct request_queue *q, struct request *rq)
-{
-	struct blk_queue_tag *bqt = q->queue_tags;
-	int tag = rq->tag;
-
-	BUG_ON(tag == -1);
-
-	if (unlikely(tag >= bqt->real_max_depth))
-		/*
-		 * This can happen after tag depth has been reduced.
-		 * FIXME: how about a warning or info message here?
-		 */
-		return;
-
-	list_del_init(&rq->queuelist);
-	rq->cmd_flags &= ~REQ_QUEUED;
-	rq->tag = -1;
-
-	if (unlikely(bqt->tag_index[tag] == NULL))
-		printk(KERN_ERR "%s: tag %d is missing\n",
-		       __FUNCTION__, tag);
-
-	bqt->tag_index[tag] = NULL;
-
-	if (unlikely(!test_bit(tag, bqt->tag_map))) {
-		printk(KERN_ERR "%s: attempt to clear non-busy tag (%d)\n",
-		       __FUNCTION__, tag);
-		return;
-	}
-	/*
-	 * The tag_map bit acts as a lock for tag_index[bit], so we need
-	 * unlock memory barrier semantics.
-	 */
-	clear_bit_unlock(tag, bqt->tag_map);
-	bqt->busy--;
-}
-
-EXPORT_SYMBOL(blk_queue_end_tag);
-
-/**
- * blk_queue_start_tag - find a free tag and assign it
- * @q:  the request queue for the device
- * @rq:  the block request that needs tagging
- *
- *  Description:
- *    This can either be used as a stand-alone helper, or possibly be
- *    assigned as the queue &prep_rq_fn (in which case &struct request
- *    automagically gets a tag assigned). Note that this function
- *    assumes that any type of request can be queued! if this is not
- *    true for your device, you must check the request type before
- *    calling this function.  The request will also be removed from
- *    the request queue, so it's the drivers responsibility to readd
- *    it if it should need to be restarted for some reason.
- *
- *  Notes:
- *   queue lock must be held.
- **/
-int blk_queue_start_tag(struct request_queue *q, struct request *rq)
-{
-	struct blk_queue_tag *bqt = q->queue_tags;
-	int tag;
-
-	if (unlikely((rq->cmd_flags & REQ_QUEUED))) {
-		printk(KERN_ERR 
-		       "%s: request %p for device [%s] already tagged %d",
-		       __FUNCTION__, rq,
-		       rq->rq_disk ? rq->rq_disk->disk_name : "?", rq->tag);
-		BUG();
-	}
-
-	/*
-	 * Protect against shared tag maps, as we may not have exclusive
-	 * access to the tag map.
-	 */
-	do {
-		tag = find_first_zero_bit(bqt->tag_map, bqt->max_depth);
-		if (tag >= bqt->max_depth)
-			return 1;
-
-	} while (test_and_set_bit_lock(tag, bqt->tag_map));
-	/*
-	 * We need lock ordering semantics given by test_and_set_bit_lock.
-	 * See blk_queue_end_tag for details.
-	 */
-
-	rq->cmd_flags |= REQ_QUEUED;
-	rq->tag = tag;
-	bqt->tag_index[tag] = rq;
-	blkdev_dequeue_request(rq);
-	list_add(&rq->queuelist, &q->tag_busy_list);
-	bqt->busy++;
-	return 0;
-}
-
-EXPORT_SYMBOL(blk_queue_start_tag);
-
-/**
- * blk_queue_invalidate_tags - invalidate all pending tags
- * @q:  the request queue for the device
- *
- *  Description:
- *   Hardware conditions may dictate a need to stop all pending requests.
- *   In this case, we will safely clear the block side of the tag queue and
- *   readd all requests to the request queue in the right order.
- *
- *  Notes:
- *   queue lock must be held.
- **/
-void blk_queue_invalidate_tags(struct request_queue *q)
-{
-	struct list_head *tmp, *n;
-
-	list_for_each_safe(tmp, n, &q->tag_busy_list)
-		blk_requeue_request(q, list_entry_rq(tmp));
-}
-
-EXPORT_SYMBOL(blk_queue_invalidate_tags);
-
 void blk_dump_rq_flags(struct request *rq, char *msg)
 {
 	int bit;
@@ -1828,41 +1421,6 @@ void blk_run_queue(struct request_queue *q)
 }
 EXPORT_SYMBOL(blk_run_queue);
 
-/**
- * blk_cleanup_queue: - release a &struct request_queue when it is no longer needed
- * @kobj:    the kobj belonging of the request queue to be released
- *
- * Description:
- *     blk_cleanup_queue is the pair to blk_init_queue() or
- *     blk_queue_make_request().  It should be called when a request queue is
- *     being released; typically when a block device is being de-registered.
- *     Currently, its primary task it to free all the &struct request
- *     structures that were allocated to the queue and the queue itself.
- *
- * Caveat:
- *     Hopefully the low level driver will have finished any
- *     outstanding requests first...
- **/
-static void blk_release_queue(struct kobject *kobj)
-{
-	struct request_queue *q =
-		container_of(kobj, struct request_queue, kobj);
-	struct request_list *rl = &q->rq;
-
-	blk_sync_queue(q);
-
-	if (rl->rq_pool)
-		mempool_destroy(rl->rq_pool);
-
-	if (q->queue_tags)
-		__blk_queue_free_tags(q);
-
-	blk_trace_shutdown(q);
-
-	bdi_destroy(&q->backing_dev_info);
-	kmem_cache_free(requestq_cachep, q);
-}
-
 void blk_put_queue(struct request_queue *q)
 {
 	kobject_put(&q->kobj);
@@ -1908,14 +1466,12 @@ struct request_queue *blk_alloc_queue(gfp_t gfp_mask)
 }
 EXPORT_SYMBOL(blk_alloc_queue);
 
-static struct kobj_type queue_ktype;
-
 struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 {
 	struct request_queue *q;
 	int err;
 
-	q = kmem_cache_alloc_node(requestq_cachep,
+	q = kmem_cache_alloc_node(blk_requestq_cachep,
 				gfp_mask | __GFP_ZERO, node_id);
 	if (!q)
 		return NULL;
@@ -1924,13 +1480,13 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 	q->backing_dev_info.unplug_io_data = q;
 	err = bdi_init(&q->backing_dev_info);
 	if (err) {
-		kmem_cache_free(requestq_cachep, q);
+		kmem_cache_free(blk_requestq_cachep, q);
 		return NULL;
 	}
 
 	init_timer(&q->unplug_timer);
 
-	kobject_init(&q->kobj, &queue_ktype);
+	kobject_init(&q->kobj, &blk_queue_ktype);
 
 	mutex_init(&q->sysfs_lock);
 
@@ -1987,7 +1543,7 @@ blk_init_queue_node(request_fn_proc *rfn, spinlock_t *lock, int node_id)
 
 	q->node = node_id;
 	if (blk_init_free_list(q)) {
-		kmem_cache_free(requestq_cachep, q);
+		kmem_cache_free(blk_requestq_cachep, q);
 		return NULL;
 	}
 
@@ -4012,7 +3568,7 @@ int __init blk_dev_init(void)
 	request_cachep = kmem_cache_create("blkdev_requests",
 			sizeof(struct request), 0, SLAB_PANIC, NULL);
 
-	requestq_cachep = kmem_cache_create("blkdev_queue",
+	blk_requestq_cachep = kmem_cache_create("blkdev_queue",
 			sizeof(struct request_queue), 0, SLAB_PANIC, NULL);
 
 	iocontext_cachep = kmem_cache_create("blkdev_ioc",
@@ -4200,258 +3756,3 @@ void swap_io_context(struct io_context **ioc1, struct io_context **ioc2)
 }
 EXPORT_SYMBOL(swap_io_context);
 
-/*
- * sysfs parts below
- */
-struct queue_sysfs_entry {
-	struct attribute attr;
-	ssize_t (*show)(struct request_queue *, char *);
-	ssize_t (*store)(struct request_queue *, const char *, size_t);
-};
-
-static ssize_t
-queue_var_show(unsigned int var, char *page)
-{
-	return sprintf(page, "%d\n", var);
-}
-
-static ssize_t
-queue_var_store(unsigned long *var, const char *page, size_t count)
-{
-	char *p = (char *) page;
-
-	*var = simple_strtoul(p, &p, 10);
-	return count;
-}
-
-static ssize_t queue_requests_show(struct request_queue *q, char *page)
-{
-	return queue_var_show(q->nr_requests, (page));
-}
-
-static ssize_t
-queue_requests_store(struct request_queue *q, const char *page, size_t count)
-{
-	struct request_list *rl = &q->rq;
-	unsigned long nr;
-	int ret = queue_var_store(&nr, page, count);
-	if (nr < BLKDEV_MIN_RQ)
-		nr = BLKDEV_MIN_RQ;
-
-	spin_lock_irq(q->queue_lock);
-	q->nr_requests = nr;
-	blk_queue_congestion_threshold(q);
-
-	if (rl->count[READ] >= queue_congestion_on_threshold(q))
-		blk_set_queue_congested(q, READ);
-	else if (rl->count[READ] < queue_congestion_off_threshold(q))
-		blk_clear_queue_congested(q, READ);
-
-	if (rl->count[WRITE] >= queue_congestion_on_threshold(q))
-		blk_set_queue_congested(q, WRITE);
-	else if (rl->count[WRITE] < queue_congestion_off_threshold(q))
-		blk_clear_queue_congested(q, WRITE);
-
-	if (rl->count[READ] >= q->nr_requests) {
-		blk_set_queue_full(q, READ);
-	} else if (rl->count[READ]+1 <= q->nr_requests) {
-		blk_clear_queue_full(q, READ);
-		wake_up(&rl->wait[READ]);
-	}
-
-	if (rl->count[WRITE] >= q->nr_requests) {
-		blk_set_queue_full(q, WRITE);
-	} else if (rl->count[WRITE]+1 <= q->nr_requests) {
-		blk_clear_queue_full(q, WRITE);
-		wake_up(&rl->wait[WRITE]);
-	}
-	spin_unlock_irq(q->queue_lock);
-	return ret;
-}
-
-static ssize_t queue_ra_show(struct request_queue *q, char *page)
-{
-	int ra_kb = q->backing_dev_info.ra_pages << (PAGE_CACHE_SHIFT - 10);
-
-	return queue_var_show(ra_kb, (page));
-}
-
-static ssize_t
-queue_ra_store(struct request_queue *q, const char *page, size_t count)
-{
-	unsigned long ra_kb;
-	ssize_t ret = queue_var_store(&ra_kb, page, count);
-
-	spin_lock_irq(q->queue_lock);
-	q->backing_dev_info.ra_pages = ra_kb >> (PAGE_CACHE_SHIFT - 10);
-	spin_unlock_irq(q->queue_lock);
-
-	return ret;
-}
-
-static ssize_t queue_max_sectors_show(struct request_queue *q, char *page)
-{
-	int max_sectors_kb = q->max_sectors >> 1;
-
-	return queue_var_show(max_sectors_kb, (page));
-}
-
-static ssize_t
-queue_max_sectors_store(struct request_queue *q, const char *page, size_t count)
-{
-	unsigned long max_sectors_kb,
-			max_hw_sectors_kb = q->max_hw_sectors >> 1,
-			page_kb = 1 << (PAGE_CACHE_SHIFT - 10);
-	ssize_t ret = queue_var_store(&max_sectors_kb, page, count);
-
-	if (max_sectors_kb > max_hw_sectors_kb || max_sectors_kb < page_kb)
-		return -EINVAL;
-	/*
-	 * Take the queue lock to update the readahead and max_sectors
-	 * values synchronously:
-	 */
-	spin_lock_irq(q->queue_lock);
-	q->max_sectors = max_sectors_kb << 1;
-	spin_unlock_irq(q->queue_lock);
-
-	return ret;
-}
-
-static ssize_t queue_max_hw_sectors_show(struct request_queue *q, char *page)
-{
-	int max_hw_sectors_kb = q->max_hw_sectors >> 1;
-
-	return queue_var_show(max_hw_sectors_kb, (page));
-}
-
-
-static struct queue_sysfs_entry queue_requests_entry = {
-	.attr = {.name = "nr_requests", .mode = S_IRUGO | S_IWUSR },
-	.show = queue_requests_show,
-	.store = queue_requests_store,
-};
-
-static struct queue_sysfs_entry queue_ra_entry = {
-	.attr = {.name = "read_ahead_kb", .mode = S_IRUGO | S_IWUSR },
-	.show = queue_ra_show,
-	.store = queue_ra_store,
-};
-
-static struct queue_sysfs_entry queue_max_sectors_entry = {
-	.attr = {.name = "max_sectors_kb", .mode = S_IRUGO | S_IWUSR },
-	.show = queue_max_sectors_show,
-	.store = queue_max_sectors_store,
-};
-
-static struct queue_sysfs_entry queue_max_hw_sectors_entry = {
-	.attr = {.name = "max_hw_sectors_kb", .mode = S_IRUGO },
-	.show = queue_max_hw_sectors_show,
-};
-
-static struct queue_sysfs_entry queue_iosched_entry = {
-	.attr = {.name = "scheduler", .mode = S_IRUGO | S_IWUSR },
-	.show = elv_iosched_show,
-	.store = elv_iosched_store,
-};
-
-static struct attribute *default_attrs[] = {
-	&queue_requests_entry.attr,
-	&queue_ra_entry.attr,
-	&queue_max_hw_sectors_entry.attr,
-	&queue_max_sectors_entry.attr,
-	&queue_iosched_entry.attr,
-	NULL,
-};
-
-#define to_queue(atr) container_of((atr), struct queue_sysfs_entry, attr)
-
-static ssize_t
-queue_attr_show(struct kobject *kobj, struct attribute *attr, char *page)
-{
-	struct queue_sysfs_entry *entry = to_queue(attr);
-	struct request_queue *q =
-		container_of(kobj, struct request_queue, kobj);
-	ssize_t res;
-
-	if (!entry->show)
-		return -EIO;
-	mutex_lock(&q->sysfs_lock);
-	if (test_bit(QUEUE_FLAG_DEAD, &q->queue_flags)) {
-		mutex_unlock(&q->sysfs_lock);
-		return -ENOENT;
-	}
-	res = entry->show(q, page);
-	mutex_unlock(&q->sysfs_lock);
-	return res;
-}
-
-static ssize_t
-queue_attr_store(struct kobject *kobj, struct attribute *attr,
-		    const char *page, size_t length)
-{
-	struct queue_sysfs_entry *entry = to_queue(attr);
-	struct request_queue *q = container_of(kobj, struct request_queue, kobj);
-
-	ssize_t res;
-
-	if (!entry->store)
-		return -EIO;
-	mutex_lock(&q->sysfs_lock);
-	if (test_bit(QUEUE_FLAG_DEAD, &q->queue_flags)) {
-		mutex_unlock(&q->sysfs_lock);
-		return -ENOENT;
-	}
-	res = entry->store(q, page, length);
-	mutex_unlock(&q->sysfs_lock);
-	return res;
-}
-
-static struct sysfs_ops queue_sysfs_ops = {
-	.show	= queue_attr_show,
-	.store	= queue_attr_store,
-};
-
-static struct kobj_type queue_ktype = {
-	.sysfs_ops	= &queue_sysfs_ops,
-	.default_attrs	= default_attrs,
-	.release	= blk_release_queue,
-};
-
-int blk_register_queue(struct gendisk *disk)
-{
-	int ret;
-
-	struct request_queue *q = disk->queue;
-
-	if (!q || !q->request_fn)
-		return -ENXIO;
-
-	ret = kobject_add(&q->kobj, kobject_get(&disk->dev.kobj),
-			  "%s", "queue");
-	if (ret < 0)
-		return ret;
-
-	kobject_uevent(&q->kobj, KOBJ_ADD);
-
-	ret = elv_register_queue(q);
-	if (ret) {
-		kobject_uevent(&q->kobj, KOBJ_REMOVE);
-		kobject_del(&q->kobj);
-		return ret;
-	}
-
-	return 0;
-}
-
-void blk_unregister_queue(struct gendisk *disk)
-{
-	struct request_queue *q = disk->queue;
-
-	if (q && q->request_fn) {
-		elv_unregister_queue(q);
-
-		kobject_uevent(&q->kobj, KOBJ_REMOVE);
-		kobject_del(&q->kobj);
-		kobject_put(&disk->dev.kobj);
-	}
-}
