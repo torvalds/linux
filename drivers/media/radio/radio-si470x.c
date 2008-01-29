@@ -1439,11 +1439,10 @@ static void si470x_usb_driver_disconnect(struct usb_interface *intf)
 {
 	struct si470x_device *radio = usb_get_intfdata(intf);
 
-	del_timer_sync(&radio->timer);
-	flush_scheduled_work();
-
 	usb_set_intfdata(intf, NULL);
 	if (radio) {
+	       del_timer_sync(&radio->timer);
+	       flush_scheduled_work();
 		video_unregister_device(radio->videodev);
 		kfree(radio->buffer);
 		kfree(radio);
