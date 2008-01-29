@@ -102,6 +102,11 @@ static ssize_t queue_max_sectors_show(struct request_queue *q, char *page)
 	return queue_var_show(max_sectors_kb, (page));
 }
 
+static ssize_t queue_hw_sector_size_show(struct request_queue *q, char *page)
+{
+	return queue_var_show(q->hardsect_size, page);
+}
+
 static ssize_t
 queue_max_sectors_store(struct request_queue *q, const char *page, size_t count)
 {
@@ -160,12 +165,18 @@ static struct queue_sysfs_entry queue_iosched_entry = {
 	.store = elv_iosched_store,
 };
 
+static struct queue_sysfs_entry queue_hw_sector_size_entry = {
+	.attr = {.name = "hw_sector_size", .mode = S_IRUGO },
+	.show = queue_hw_sector_size_show,
+};
+
 static struct attribute *default_attrs[] = {
 	&queue_requests_entry.attr,
 	&queue_ra_entry.attr,
 	&queue_max_hw_sectors_entry.attr,
 	&queue_max_sectors_entry.attr,
 	&queue_iosched_entry.attr,
+	&queue_hw_sector_size_entry.attr,
 	NULL,
 };
 
