@@ -31,6 +31,11 @@
 #include <linux/in6.h>
 #endif
 
+static inline int aead_len(struct xfrm_algo_aead *alg)
+{
+	return sizeof(*alg) + ((alg->alg_key_len + 7) / 8);
+}
+
 static int verify_one_alg(struct nlattr **attrs, enum xfrm_attr_type_t type)
 {
 	struct nlattr *rt = attrs[type];
@@ -63,6 +68,22 @@ static int verify_one_alg(struct nlattr **attrs, enum xfrm_attr_type_t type)
 	default:
 		return -EINVAL;
 	}
+
+	algp->alg_name[CRYPTO_MAX_ALG_NAME - 1] = '\0';
+	return 0;
+}
+
+static int verify_aead(struct nlattr **attrs)
+{
+	struct nlattr *rt = attrs[XFRMA_ALG_AEAD];
+	struct xfrm_algo_aead *algp;
+
+	if (!rt)
+		return 0;
+
+	algp = nla_data(rt);
+	if (nla_len(rt) < aead_len(algp))
+		return -EINVAL;
 
 	algp->alg_name[CRYPTO_MAX_ALG_NAME - 1] = '\0';
 	return 0;
@@ -119,20 +140,28 @@ static int verify_newsa_info(struct xfrm_usersa_info *p,
 	switch (p->id.proto) {
 	case IPPROTO_AH:
 		if (!attrs[XFRMA_ALG_AUTH]	||
+		    attrs[XFRMA_ALG_AEAD]	||
 		    attrs[XFRMA_ALG_CRYPT]	||
 		    attrs[XFRMA_ALG_COMP])
 			goto out;
 		break;
 
 	case IPPROTO_ESP:
-		if ((!attrs[XFRMA_ALG_AUTH] &&
-		     !attrs[XFRMA_ALG_CRYPT])	||
-		    attrs[XFRMA_ALG_COMP])
+		if (attrs[XFRMA_ALG_COMP])
+			goto out;
+		if (!attrs[XFRMA_ALG_AUTH] &&
+		    !attrs[XFRMA_ALG_CRYPT] &&
+		    !attrs[XFRMA_ALG_AEAD])
+			goto out;
+		if ((attrs[XFRMA_ALG_AUTH] ||
+		     attrs[XFRMA_ALG_CRYPT]) &&
+		    attrs[XFRMA_ALG_AEAD])
 			goto out;
 		break;
 
 	case IPPROTO_COMP:
 		if (!attrs[XFRMA_ALG_COMP]	||
+		    attrs[XFRMA_ALG_AEAD]	||
 		    attrs[XFRMA_ALG_AUTH]	||
 		    attrs[XFRMA_ALG_CRYPT])
 			goto out;
@@ -143,6 +172,7 @@ static int verify_newsa_info(struct xfrm_usersa_info *p,
 	case IPPROTO_ROUTING:
 		if (attrs[XFRMA_ALG_COMP]	||
 		    attrs[XFRMA_ALG_AUTH]	||
+		    attrs[XFRMA_ALG_AEAD]	||
 		    attrs[XFRMA_ALG_CRYPT]	||
 		    attrs[XFRMA_ENCAP]		||
 		    attrs[XFRMA_SEC_CTX]	||
@@ -155,6 +185,8 @@ static int verify_newsa_info(struct xfrm_usersa_info *p,
 		goto out;
 	}
 
+	if ((err = verify_aead(attrs)))
+		goto out;
 	if ((err = verify_one_alg(attrs, XFRMA_ALG_AUTH)))
 		goto out;
 	if ((err = verify_one_alg(attrs, XFRMA_ALG_CRYPT)))
@@ -200,6 +232,31 @@ static int attach_one_algo(struct xfrm_algo **algpp, u8 *props,
 	*props = algo->desc.sadb_alg_id;
 
 	p = kmemdup(ualg, xfrm_alg_len(ualg), GFP_KERNEL);
+	if (!p)
+		return -ENOMEM;
+
+	strcpy(p->alg_name, algo->name);
+	*algpp = p;
+	return 0;
+}
+
+static int attach_aead(struct xfrm_algo_aead **algpp, u8 *props,
+		       struct nlattr *rta)
+{
+	struct xfrm_algo_aead *p, *ualg;
+	struct xfrm_algo_desc *algo;
+
+	if (!rta)
+		return 0;
+
+	ualg = nla_data(rta);
+
+	algo = xfrm_aead_get_byname(ualg->alg_name, ualg->alg_icv_len, 1);
+	if (!algo)
+		return -ENOSYS;
+	*props = algo->desc.sadb_alg_id;
+
+	p = kmemdup(ualg, aead_len(ualg), GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
 
@@ -286,6 +343,9 @@ static struct xfrm_state *xfrm_state_construct(struct xfrm_usersa_info *p,
 
 	copy_from_user_state(x, p);
 
+	if ((err = attach_aead(&x->aead, &x->props.ealgo,
+			       attrs[XFRMA_ALG_AEAD])))
+		goto error;
 	if ((err = attach_one_algo(&x->aalg, &x->props.aalgo,
 				   xfrm_aalg_get_byname,
 				   attrs[XFRMA_ALG_AUTH])))
@@ -510,6 +570,8 @@ static int copy_to_user_state_extra(struct xfrm_state *x,
 	if (x->lastused)
 		NLA_PUT_U64(skb, XFRMA_LASTUSED, x->lastused);
 
+	if (x->aead)
+		NLA_PUT(skb, XFRMA_ALG_AEAD, aead_len(x->aead), x->aead);
 	if (x->aalg)
 		NLA_PUT(skb, XFRMA_ALG_AUTH, xfrm_alg_len(x->aalg), x->aalg);
 	if (x->ealg)
@@ -1808,6 +1870,7 @@ static const int xfrm_msg_min[XFRM_NR_MSGTYPES] = {
 #undef XMSGSIZE
 
 static const struct nla_policy xfrma_policy[XFRMA_MAX+1] = {
+	[XFRMA_ALG_AEAD]	= { .len = sizeof(struct xfrm_algo_aead) },
 	[XFRMA_ALG_AUTH]	= { .len = sizeof(struct xfrm_algo) },
 	[XFRMA_ALG_CRYPT]	= { .len = sizeof(struct xfrm_algo) },
 	[XFRMA_ALG_COMP]	= { .len = sizeof(struct xfrm_algo) },
@@ -1972,6 +2035,8 @@ static int xfrm_notify_sa_flush(struct km_event *c)
 static inline size_t xfrm_sa_len(struct xfrm_state *x)
 {
 	size_t l = 0;
+	if (x->aead)
+		l += nla_total_size(aead_len(x->aead));
 	if (x->aalg)
 		l += nla_total_size(xfrm_alg_len(x->aalg));
 	if (x->ealg)

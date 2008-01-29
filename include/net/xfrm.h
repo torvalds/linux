@@ -159,6 +159,7 @@ struct xfrm_state
 	struct xfrm_algo	*aalg;
 	struct xfrm_algo	*ealg;
 	struct xfrm_algo	*calg;
+	struct xfrm_algo_aead	*aead;
 
 	/* Data for encapsulator */
 	struct xfrm_encap_tmpl	*encap;
@@ -1108,6 +1109,10 @@ static inline int xfrm_id_proto_match(u8 proto, u8 userproto)
 /*
  * xfrm algorithm information
  */
+struct xfrm_algo_aead_info {
+	u16 icv_truncbits;
+};
+
 struct xfrm_algo_auth_info {
 	u16 icv_truncbits;
 	u16 icv_fullbits;
@@ -1127,6 +1132,7 @@ struct xfrm_algo_desc {
 	char *compat;
 	u8 available:1;
 	union {
+		struct xfrm_algo_aead_info aead;
 		struct xfrm_algo_auth_info auth;
 		struct xfrm_algo_encr_info encr;
 		struct xfrm_algo_comp_info comp;
@@ -1343,6 +1349,8 @@ extern struct xfrm_algo_desc *xfrm_calg_get_byid(int alg_id);
 extern struct xfrm_algo_desc *xfrm_aalg_get_byname(char *name, int probe);
 extern struct xfrm_algo_desc *xfrm_ealg_get_byname(char *name, int probe);
 extern struct xfrm_algo_desc *xfrm_calg_get_byname(char *name, int probe);
+extern struct xfrm_algo_desc *xfrm_aead_get_byname(char *name, int icv_len,
+						   int probe);
 
 struct hash_desc;
 struct scatterlist;

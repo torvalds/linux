@@ -382,35 +382,53 @@ static void esp6_destroy(struct xfrm_state *x)
 	kfree(esp);
 }
 
-static int esp6_init_state(struct xfrm_state *x)
+static int esp_init_aead(struct xfrm_state *x)
 {
-	struct esp_data *esp = NULL;
+	struct esp_data *esp = x->data;
+	struct crypto_aead *aead;
+	int err;
+
+	aead = crypto_alloc_aead(x->aead->alg_name, 0, 0);
+	err = PTR_ERR(aead);
+	if (IS_ERR(aead))
+		goto error;
+
+	esp->aead = aead;
+
+	err = crypto_aead_setkey(aead, x->aead->alg_key,
+				 (x->aead->alg_key_len + 7) / 8);
+	if (err)
+		goto error;
+
+	err = crypto_aead_setauthsize(aead, x->aead->alg_icv_len / 8);
+	if (err)
+		goto error;
+
+error:
+	return err;
+}
+
+static int esp_init_authenc(struct xfrm_state *x)
+{
+	struct esp_data *esp = x->data;
 	struct crypto_aead *aead;
 	struct crypto_authenc_key_param *param;
 	struct rtattr *rta;
 	char *key;
 	char *p;
 	char authenc_name[CRYPTO_MAX_ALG_NAME];
-	u32 align;
 	unsigned int keylen;
 	int err;
 
+	err = -EINVAL;
 	if (x->ealg == NULL)
-		return -EINVAL;
+		goto error;
 
-	if (x->encap)
-		return -EINVAL;
-
+	err = -ENAMETOOLONG;
 	if (snprintf(authenc_name, CRYPTO_MAX_ALG_NAME, "authenc(%s,%s)",
 		     x->aalg ? x->aalg->alg_name : "digest_null",
 		     x->ealg->alg_name) >= CRYPTO_MAX_ALG_NAME)
-		return -ENAMETOOLONG;
-
-	esp = kzalloc(sizeof(*esp), GFP_KERNEL);
-	if (esp == NULL)
-		return -ENOMEM;
-
-	x->data = esp;
+		goto error;
 
 	aead = crypto_alloc_aead(authenc_name, 0, 0);
 	err = PTR_ERR(aead);
@@ -458,8 +476,6 @@ static int esp6_init_state(struct xfrm_state *x)
 			goto free_key;
 	}
 
-	esp->padlen = 0;
-
 	param->enckeylen = cpu_to_be32((x->ealg->alg_key_len + 7) / 8);
 	memcpy(p, x->ealg->alg_key, (x->ealg->alg_key_len + 7) / 8);
 
@@ -468,8 +484,37 @@ static int esp6_init_state(struct xfrm_state *x)
 free_key:
 	kfree(key);
 
+error:
+	return err;
+}
+
+static int esp6_init_state(struct xfrm_state *x)
+{
+	struct esp_data *esp;
+	struct crypto_aead *aead;
+	u32 align;
+	int err;
+
+	if (x->encap)
+		return -EINVAL;
+
+	esp = kzalloc(sizeof(*esp), GFP_KERNEL);
+	if (esp == NULL)
+		return -ENOMEM;
+
+	x->data = esp;
+
+	if (x->aead)
+		err = esp_init_aead(x);
+	else
+		err = esp_init_authenc(x);
+
 	if (err)
 		goto error;
+
+	aead = esp->aead;
+
+	esp->padlen = 0;
 
 	x->props.header_len = sizeof(struct ip_esp_hdr) +
 			      crypto_aead_ivsize(aead);
