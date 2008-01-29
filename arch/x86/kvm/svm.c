@@ -792,8 +792,10 @@ static void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 	vcpu->arch.cr0 = cr0;
 	cr0 |= X86_CR0_PG | X86_CR0_WP;
 	cr0 &= ~(X86_CR0_CD | X86_CR0_NW);
-	if (!vcpu->fpu_active)
+	if (!vcpu->fpu_active) {
+		svm->vmcb->control.intercept_exceptions |= (1 << NM_VECTOR);
 		cr0 |= X86_CR0_TS;
+	}
 	svm->vmcb->save.cr0 = cr0;
 }
 
