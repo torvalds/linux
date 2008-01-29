@@ -345,8 +345,6 @@ int em28xx_read_reg(struct em28xx *dev, u16 reg);
 int em28xx_write_regs_req(struct em28xx *dev, u8 req, u16 reg, char *buf,
 			  int len);
 int em28xx_write_regs(struct em28xx *dev, u16 reg, char *buf, int len);
-int em28xx_write_reg_bits(struct em28xx *dev, u16 reg, u8 val,
-			  u8 bitmask);
 int em28xx_set_audio_source(struct em28xx *dev);
 int em28xx_audio_analog_set(struct em28xx *dev);
 

@@ -1796,10 +1796,10 @@ void em28xx_unregister_extension(struct em28xx_ops *ops)
 }
 EXPORT_SYMBOL(em28xx_unregister_extension);
 
-struct video_device *em28xx_vdev_init(struct em28xx *dev,
-				      const struct video_device *template,
-				      const int type,
-				      const char *type_name)
+static struct video_device *em28xx_vdev_init(struct em28xx *dev,
+					     const struct video_device *template,
+					     const int type,
+					     const char *type_name)
 {
 	struct video_device *vfd;
 
