@@ -3443,6 +3443,11 @@ static int selinux_parse_skb(struct sk_buff *skb, struct avc_audit_data *ad,
 		break;
 	}
 
+	if (unlikely(ret))
+		printk(KERN_WARNING
+		       "SELinux: failure in selinux_parse_skb(),"
+		       " unable to parse packet\n");
+
 	return ret;
 }
 
@@ -3463,6 +3468,7 @@ static int selinux_parse_skb(struct sk_buff *skb, struct avc_audit_data *ad,
  */
 static int selinux_skb_peerlbl_sid(struct sk_buff *skb, u16 family, u32 *sid)
 {
+	int err;
 	u32 xfrm_sid;
 	u32 nlbl_sid;
 	u32 nlbl_type;
@@ -3470,10 +3476,13 @@ static int selinux_skb_peerlbl_sid(struct sk_buff *skb, u16 family, u32 *sid)
 	selinux_skb_xfrm_sid(skb, &xfrm_sid);
 	selinux_netlbl_skbuff_getsid(skb, family, &nlbl_type, &nlbl_sid);
 
-	if (security_net_peersid_resolve(nlbl_sid, nlbl_type,
-					 xfrm_sid,
-					 sid) != 0)
+	err = security_net_peersid_resolve(nlbl_sid, nlbl_type, xfrm_sid, sid);
+	if (unlikely(err)) {
+		printk(KERN_WARNING
+		       "SELinux: failure in selinux_skb_peerlbl_sid(),"
+		       " unable to determine packet's peer label\n");
 		return -EACCES;
+	}
 
 	return 0;
 }
@@ -3925,8 +3934,13 @@ static int selinux_sock_rcv_skb_iptables_compat(struct sock *sk,
 	err = security_port_sid(sk->sk_family, sk->sk_type,
 				sk->sk_protocol, ntohs(ad->u.net.sport),
 				&port_sid);
-	if (err)
+	if (unlikely(err)) {
+		printk(KERN_WARNING
+		       "SELinux: failure in"
+		       " selinux_sock_rcv_skb_iptables_compat(),"
+		       " network port label not found\n");
 		return err;
+	}
 	return avc_has_perm(sk_sid, port_sid, sk_class, recv_perm, ad);
 }
 
@@ -4343,8 +4357,13 @@ static int selinux_ip_postroute_iptables_compat(struct sock *sk,
 	err = security_port_sid(sk->sk_family, sk->sk_type,
 				sk->sk_protocol, ntohs(ad->u.net.dport),
 				&port_sid);
-	if (err)
+	if (unlikely(err)) {
+		printk(KERN_WARNING
+		       "SELinux: failure in"
+		       " selinux_ip_postroute_iptables_compat(),"
+		       " network port label not found\n");
 		return err;
+	}
 	return avc_has_perm(sk_sid, port_sid, sk_class, send_perm, ad);
 }
 

@@ -157,8 +157,12 @@ static int sel_netif_sid_slow(int ifindex, u32 *sid)
 	 * currently support containers */
 
 	dev = dev_get_by_index(&init_net, ifindex);
-	if (dev == NULL)
+	if (unlikely(dev == NULL)) {
+		printk(KERN_WARNING
+		       "SELinux: failure in sel_netif_sid_slow(),"
+		       " invalid network interface (%d)\n", ifindex);
 		return -ENOENT;
+	}
 
 	spin_lock_bh(&sel_netif_lock);
 	netif = sel_netif_find(ifindex);
@@ -184,8 +188,13 @@ static int sel_netif_sid_slow(int ifindex, u32 *sid)
 out:
 	spin_unlock_bh(&sel_netif_lock);
 	dev_put(dev);
-	if (ret != 0)
+	if (unlikely(ret)) {
+		printk(KERN_WARNING
+		       "SELinux: failure in sel_netif_sid_slow(),"
+		       " unable to determine network interface label (%d)\n",
+		       ifindex);
 		kfree(new);
+	}
 	return ret;
 }
 
