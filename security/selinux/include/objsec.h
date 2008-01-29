@@ -100,6 +100,15 @@ struct netif_security_struct {
 	u32 sid;			/* SID for this interface */
 };
 
+struct netnode_security_struct {
+	union {
+		__be32 ipv4;		/* IPv4 node address */
+		struct in6_addr ipv6;	/* IPv6 node address */
+	} addr;
+	u32 sid;			/* SID for this node */
+	u16 family;			/* address family */
+};
+
 struct sk_security_struct {
 	struct sock *sk;		/* back pointer to sk object */
 	u32 sid;			/* SID of this object */

@@ -76,6 +76,7 @@
 #include "avc.h"
 #include "objsec.h"
 #include "netif.h"
+#include "netnode.h"
 #include "xfrm.h"
 #include "netlabel.h"
 
@@ -3395,7 +3396,7 @@ out:
 #endif /* IPV6 */
 
 static int selinux_parse_skb(struct sk_buff *skb, struct avc_audit_data *ad,
-			     char **addrp, int *len, int src, u8 *proto)
+			     char **addrp, int src, u8 *proto)
 {
 	int ret = 0;
 
@@ -3404,7 +3405,6 @@ static int selinux_parse_skb(struct sk_buff *skb, struct avc_audit_data *ad,
 		ret = selinux_parse_skb_ipv4(skb, ad, proto);
 		if (ret || !addrp)
 			break;
-		*len = 4;
 		*addrp = (char *)(src ? &ad->u.net.v4info.saddr :
 					&ad->u.net.v4info.daddr);
 		break;
@@ -3414,7 +3414,6 @@ static int selinux_parse_skb(struct sk_buff *skb, struct avc_audit_data *ad,
 		ret = selinux_parse_skb_ipv6(skb, ad, proto);
 		if (ret || !addrp)
 			break;
-		*len = 16;
 		*addrp = (char *)(src ? &ad->u.net.v6info.saddr :
 					&ad->u.net.v6info.daddr);
 		break;
@@ -3614,7 +3613,7 @@ static int selinux_socket_bind(struct socket *sock, struct sockaddr *address, in
 			break;
 		}
 		
-		err = security_node_sid(family, addrp, addrlen, &sid);
+		err = sel_netnode_sid(addrp, family, &sid);
 		if (err)
 			goto out;
 		
@@ -3826,7 +3825,8 @@ static int selinux_socket_unix_may_send(struct socket *sock,
 }
 
 static int selinux_sock_rcv_skb_compat(struct sock *sk, struct sk_buff *skb,
-		struct avc_audit_data *ad, u16 family, char *addrp, int len)
+				       struct avc_audit_data *ad,
+				       u16 family, char *addrp)
 {
 	int err = 0;
 	u32 netif_perm, node_perm, node_sid, if_sid, recv_perm = 0;
@@ -3886,7 +3886,7 @@ static int selinux_sock_rcv_skb_compat(struct sock *sk, struct sk_buff *skb,
 	if (err)
 		goto out;
 	
-	err = security_node_sid(family, addrp, len, &node_sid);
+	err = sel_netnode_sid(addrp, family, &node_sid);
 	if (err)
 		goto out;
 	
@@ -3915,7 +3915,7 @@ static int selinux_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 {
 	u16 family;
 	char *addrp;
-	int len, err = 0;
+	int err = 0;
 	struct avc_audit_data ad;
 	struct sk_security_struct *sksec = sk->sk_security;
 
@@ -3931,13 +3931,12 @@ static int selinux_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	ad.u.net.netif = skb->iif;
 	ad.u.net.family = family;
 
-	err = selinux_parse_skb(skb, &ad, &addrp, &len, 1, NULL);
+	err = selinux_parse_skb(skb, &ad, &addrp, 1, NULL);
 	if (err)
 		goto out;
 
 	if (selinux_compat_net)
-		err = selinux_sock_rcv_skb_compat(sk, skb, &ad, family,
-						  addrp, len);
+		err = selinux_sock_rcv_skb_compat(sk, skb, &ad, family, addrp);
 	else
 		err = avc_has_perm(sksec->sid, skb->secmark, SECCLASS_PACKET,
 				   PACKET__RECV, &ad);
@@ -4158,9 +4157,11 @@ out:
 
 #ifdef CONFIG_NETFILTER
 
-static int selinux_ip_postroute_last_compat(struct sock *sk, struct net_device *dev,
+static int selinux_ip_postroute_last_compat(struct sock *sk,
+					    struct net_device *dev,
 					    struct avc_audit_data *ad,
-					    u16 family, char *addrp, int len)
+					    u16 family,
+					    char *addrp)
 {
 	int err = 0;
 	u32 netif_perm, node_perm, node_sid, if_sid, send_perm = 0;
@@ -4211,7 +4212,7 @@ static int selinux_ip_postroute_last_compat(struct sock *sk, struct net_device *
 	if (err)
 		goto out;
 		
-	err = security_node_sid(family, addrp, len, &node_sid);
+	err = sel_netnode_sid(addrp, family, &node_sid);
 	if (err)
 		goto out;
 	
@@ -4245,7 +4246,7 @@ static unsigned int selinux_ip_postroute_last(unsigned int hooknum,
                                               u16 family)
 {
 	char *addrp;
-	int len, err = 0;
+	int err = 0;
 	struct sock *sk;
 	struct avc_audit_data ad;
 	struct net_device *dev = (struct net_device *)out;
@@ -4262,13 +4263,13 @@ static unsigned int selinux_ip_postroute_last(unsigned int hooknum,
 	ad.u.net.netif = dev->ifindex;
 	ad.u.net.family = family;
 
-	err = selinux_parse_skb(skb, &ad, &addrp, &len, 0, &proto);
+	err = selinux_parse_skb(skb, &ad, &addrp, 0, &proto);
 	if (err)
 		goto out;
 
 	if (selinux_compat_net)
 		err = selinux_ip_postroute_last_compat(sk, dev, &ad,
-						       family, addrp, len);
+						       family, addrp);
 	else
 		err = avc_has_perm(sksec->sid, skb->secmark, SECCLASS_PACKET,
 				   PACKET__SEND, &ad);
