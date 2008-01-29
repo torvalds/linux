@@ -660,7 +660,11 @@ GLOBAL_ENTRY(fsys_bubble_down)
 	nop.i 0
 	;;
 	mov ar.rsc=0				// M2   set enforced lazy mode, pl 0, LE, loadrs=0
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+	mov.m r30=ar.itc			// M    get cycle for accounting
+#else
 	nop.m 0
+#endif
 	nop.i 0
 	;;
 	mov r23=ar.bspstore			// M2 (12 cyc) save ar.bspstore
@@ -682,6 +686,28 @@ GLOBAL_ENTRY(fsys_bubble_down)
 	cmp.ne pKStk,pUStk=r0,r0		// A    set pKStk <- 0, pUStk <- 1
 	br.call.sptk.many b7=ia64_syscall_setup	// B
 	;;
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+	// mov.m r30=ar.itc is called in advance
+	add r16=TI_AC_STAMP+IA64_TASK_SIZE,r2
+	add r17=TI_AC_LEAVE+IA64_TASK_SIZE,r2
+	;;
+	ld8 r18=[r16],TI_AC_STIME-TI_AC_STAMP	// time at last check in kernel
+	ld8 r19=[r17],TI_AC_UTIME-TI_AC_LEAVE	// time at leave kernel
+	;;
+	ld8 r20=[r16],TI_AC_STAMP-TI_AC_STIME	// cumulated stime
+	ld8 r21=[r17]				// cumulated utime
+	sub r22=r19,r18				// stime before leave kernel
+	;;
+	st8 [r16]=r30,TI_AC_STIME-TI_AC_STAMP	// update stamp
+	sub r18=r30,r19				// elapsed time in user mode
+	;;
+	add r20=r20,r22				// sum stime
+	add r21=r21,r18				// sum utime
+	;;
+	st8 [r16]=r20				// update stime
+	st8 [r17]=r21				// update utime
+	;;
+#endif
 	mov ar.rsc=0x3				// M2   set eager mode, pl 0, LE, loadrs=0
 	mov rp=r14				// I0   set the real return addr
 	and r3=_TIF_SYSCALL_TRACEAUDIT,r3	// A

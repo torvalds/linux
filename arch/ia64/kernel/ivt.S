@@ -805,8 +805,13 @@ ENTRY(break_fault)
 
 (p8)	adds r28=16,r28				// A    switch cr.iip to next bundle
 (p9)	adds r8=1,r8				// A    increment ei to next slot
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+	;;
+	mov b6=r30				// I0   setup syscall handler branch reg early
+#else
 	nop.i 0
 	;;
+#endif
 
 	mov.m r25=ar.unat			// M2 (5 cyc)
 	dep r29=r8,r29,41,2			// I0   insert new ei into cr.ipsr
@@ -817,7 +822,11 @@ ENTRY(break_fault)
 	//
 ///////////////////////////////////////////////////////////////////////
 	st1 [r16]=r0				// M2|3 clear current->thread.on_ustack flag
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+	mov.m r30=ar.itc			// M    get cycle for accounting
+#else
 	mov b6=r30				// I0   setup syscall handler branch reg early
+#endif
 	cmp.eq pKStk,pUStk=r0,r17		// A    were we on kernel stacks already?
 
 	and r9=_TIF_SYSCALL_TRACEAUDIT,r9	// A    mask trace or audit
@@ -829,6 +838,30 @@ ENTRY(break_fault)
 	cmp.eq p14,p0=r9,r0			// A    are syscalls being traced/audited?
 	br.call.sptk.many b7=ia64_syscall_setup	// B
 1:
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+	// mov.m r30=ar.itc is called in advance, and r13 is current
+	add r16=TI_AC_STAMP+IA64_TASK_SIZE,r13	// A
+	add r17=TI_AC_LEAVE+IA64_TASK_SIZE,r13	// A
+(pKStk)	br.cond.spnt .skip_accounting		// B	unlikely skip
+	;;
+	ld8 r18=[r16],TI_AC_STIME-TI_AC_STAMP	// M  get last stamp
+	ld8 r19=[r17],TI_AC_UTIME-TI_AC_LEAVE	// M  time at leave
+	;;
+	ld8 r20=[r16],TI_AC_STAMP-TI_AC_STIME	// M  cumulated stime
+	ld8 r21=[r17]				// M  cumulated utime
+	sub r22=r19,r18				// A  stime before leave
+	;;
+	st8 [r16]=r30,TI_AC_STIME-TI_AC_STAMP	// M  update stamp
+	sub r18=r30,r19				// A  elapsed time in user
+	;;
+	add r20=r20,r22				// A  sum stime
+	add r21=r21,r18				// A  sum utime
+	;;
+	st8 [r16]=r20				// M  update stime
+	st8 [r17]=r21				// M  update utime
+	;;
+.skip_accounting:
+#endif
 	mov ar.rsc=0x3				// M2   set eager mode, pl 0, LE, loadrs=0
 	nop 0
 	bsw.1					// B (6 cyc) regs are saved, switch to bank 1
@@ -928,6 +961,7 @@ END(interrupt)
 	 *	- r27: saved ar.rsc
 	 *	- r28: saved cr.iip
 	 *	- r29: saved cr.ipsr
+	 *	- r30: ar.itc for accounting (don't touch)
 	 *	- r31: saved pr
 	 *	-  b0: original contents (to be saved)
 	 * On exit:
@@ -1089,6 +1123,41 @@ END(dispatch_illegal_op_fault)
 // 0x4000 Entry 16 (size 64 bundles) Reserved
 	DBG_FAULT(16)
 	FAULT(16)
+
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+	/*
+	 * There is no particular reason for this code to be here, other than
+	 * that there happens to be space here that would go unused otherwise.
+	 * If this fault ever gets "unreserved", simply moved the following
+	 * code to a more suitable spot...
+	 *
+	 * account_sys_enter is called from SAVE_MIN* macros if accounting is
+	 * enabled and if the macro is entered from user mode.
+	 */
+ENTRY(account_sys_enter)
+	// mov.m r20=ar.itc is called in advance, and r13 is current
+	add r16=TI_AC_STAMP+IA64_TASK_SIZE,r13
+	add r17=TI_AC_LEAVE+IA64_TASK_SIZE,r13
+	;;
+	ld8 r18=[r16],TI_AC_STIME-TI_AC_STAMP	// time at last check in kernel
+	ld8 r19=[r17],TI_AC_UTIME-TI_AC_LEAVE	// time at left from kernel
+        ;;
+	ld8 r23=[r16],TI_AC_STAMP-TI_AC_STIME	// cumulated stime
+	ld8 r21=[r17]				// cumulated utime
+	sub r22=r19,r18				// stime before leave kernel
+	;;
+	st8 [r16]=r20,TI_AC_STIME-TI_AC_STAMP	// update stamp
+	sub r18=r20,r19				// elapsed time in user mode
+	;;
+	add r23=r23,r22				// sum stime
+	add r21=r21,r18				// sum utime
+	;;
+	st8 [r16]=r23				// update stime
+	st8 [r17]=r21				// update utime
+	;;
+	br.ret.sptk.many rp
+END(account_sys_enter)
+#endif
 
 	.org ia64_ivt+0x4400
 /////////////////////////////////////////////////////////////////////////////////////////

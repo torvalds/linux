@@ -1002,6 +1002,26 @@ GLOBAL_ENTRY(sched_clock)
 	br.ret.sptk.many rp
 END(sched_clock)
 
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+GLOBAL_ENTRY(cycle_to_cputime)
+	alloc r16=ar.pfs,1,0,0,0
+	addl r8=THIS_CPU(cpu_info) + IA64_CPUINFO_NSEC_PER_CYC_OFFSET,r0
+	;;
+	ldf8 f8=[r8]
+	;;
+	setf.sig f9=r32
+	;;
+	xmpy.lu f10=f9,f8	// calculate low 64 bits of 128-bit product	(4 cyc)
+	xmpy.hu f11=f9,f8	// calculate high 64 bits of 128-bit product
+	;;
+	getf.sig r8=f10		//						(5 cyc)
+	getf.sig r9=f11
+	;;
+	shrp r8=r9,r8,IA64_NSEC_PER_CYC_SHIFT
+	br.ret.sptk.many rp
+END(cycle_to_cputime)
+#endif /* CONFIG_VIRT_CPU_ACCOUNTING */
+
 GLOBAL_ENTRY(start_kernel_thread)
 	.prologue
 	.save rp, r0				// this is the end of the call-chain

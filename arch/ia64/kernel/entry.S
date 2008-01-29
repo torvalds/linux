@@ -710,6 +710,16 @@ ENTRY(ia64_leave_syscall)
 (pUStk)	cmp.eq.unc p6,p0=r0,r0		// p6 <- pUStk
 #endif
 .work_processed_syscall:
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+	adds r2=PT(LOADRS)+16,r12
+(pUStk)	mov.m r22=ar.itc			// fetch time at leave
+	adds r18=TI_FLAGS+IA64_TASK_SIZE,r13
+	;;
+(p6)	ld4 r31=[r18]				// load current_thread_info()->flags
+	ld8 r19=[r2],PT(B6)-PT(LOADRS)		// load ar.rsc value for "loadrs"
+	adds r3=PT(AR_BSPSTORE)+16,r12		// deferred
+	;;
+#else
 	adds r2=PT(LOADRS)+16,r12
 	adds r3=PT(AR_BSPSTORE)+16,r12
 	adds r18=TI_FLAGS+IA64_TASK_SIZE,r13
@@ -718,6 +728,7 @@ ENTRY(ia64_leave_syscall)
 	ld8 r19=[r2],PT(B6)-PT(LOADRS)		// load ar.rsc value for "loadrs"
 	nop.i 0
 	;;
+#endif
 	mov r16=ar.bsp				// M2  get existing backing store pointer
 	ld8 r18=[r2],PT(R9)-PT(B6)		// load b6
 (p6)	and r15=TIF_WORK_MASK,r31		// any work other than TIF_SYSCALL_TRACE?
@@ -737,12 +748,21 @@ ENTRY(ia64_leave_syscall)
 
 	ld8 r29=[r2],16		// M0|1 load cr.ipsr
 	ld8 r28=[r3],16		// M0|1 load cr.iip
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+(pUStk) add r14=TI_AC_LEAVE+IA64_TASK_SIZE,r13
+	;;
+	ld8 r30=[r2],16		// M0|1 load cr.ifs
+	ld8 r25=[r3],16		// M0|1 load ar.unat
+(pUStk) add r15=IA64_TASK_THREAD_ON_USTACK_OFFSET,r13
+	;;
+#else
 	mov r22=r0		// A    clear r22
 	;;
 	ld8 r30=[r2],16		// M0|1 load cr.ifs
 	ld8 r25=[r3],16		// M0|1 load ar.unat
 (pUStk) add r14=IA64_TASK_THREAD_ON_USTACK_OFFSET,r13
 	;;
+#endif
 	ld8 r26=[r2],PT(B0)-PT(AR_PFS)	// M0|1 load ar.pfs
 (pKStk)	mov r22=psr			// M2   read PSR now that interrupts are disabled
 	nop 0
@@ -759,7 +779,11 @@ ENTRY(ia64_leave_syscall)
 	ld8.fill r1=[r3],16			// M0|1 load r1
 (pUStk) mov r17=1				// A
 	;;
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+(pUStk) st1 [r15]=r17				// M2|3
+#else
 (pUStk) st1 [r14]=r17				// M2|3
+#endif
 	ld8.fill r13=[r3],16			// M0|1
 	mov f8=f0				// F    clear f8
 	;;
@@ -775,12 +799,22 @@ ENTRY(ia64_leave_syscall)
 	shr.u r18=r19,16		// I0|1 get byte size of existing "dirty" partition
 	cover				// B    add current frame into dirty partition & set cr.ifs
 	;;
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+	mov r19=ar.bsp			// M2   get new backing store pointer
+	st8 [r14]=r22			// M	save time at leave
+	mov f10=f0			// F    clear f10
+
+	mov r22=r0			// A	clear r22
+	movl r14=__kernel_syscall_via_epc // X
+	;;
+#else
 	mov r19=ar.bsp			// M2   get new backing store pointer
 	mov f10=f0			// F    clear f10
 
 	nop.m 0
 	movl r14=__kernel_syscall_via_epc // X
 	;;
+#endif
 	mov.m ar.csd=r0			// M2   clear ar.csd
 	mov.m ar.ccv=r0			// M2   clear ar.ccv
 	mov b7=r14			// I0   clear b7 (hint with __kernel_syscall_via_epc)
@@ -913,10 +947,18 @@ GLOBAL_ENTRY(ia64_leave_kernel)
 	adds r16=PT(CR_IPSR)+16,r12
 	adds r17=PT(CR_IIP)+16,r12
 
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+	.pred.rel.mutex pUStk,pKStk
+(pKStk)	mov r22=psr		// M2 read PSR now that interrupts are disabled
+(pUStk)	mov.m r22=ar.itc	// M  fetch time at leave
+	nop.i 0
+	;;
+#else
 (pKStk)	mov r22=psr		// M2 read PSR now that interrupts are disabled
 	nop.i 0
 	nop.i 0
 	;;
+#endif
 	ld8 r29=[r16],16	// load cr.ipsr
 	ld8 r28=[r17],16	// load cr.iip
 	;;
@@ -938,15 +980,37 @@ GLOBAL_ENTRY(ia64_leave_kernel)
 	;;
 	ld8.fill r12=[r16],16
 	ld8.fill r13=[r17],16
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+(pUStk)	adds r3=TI_AC_LEAVE+IA64_TASK_SIZE,r18
+#else
 (pUStk)	adds r18=IA64_TASK_THREAD_ON_USTACK_OFFSET,r18
+#endif
 	;;
 	ld8 r20=[r16],16	// ar.fpsr
 	ld8.fill r15=[r17],16
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+(pUStk)	adds r18=IA64_TASK_THREAD_ON_USTACK_OFFSET,r18	// deferred
+#endif
 	;;
 	ld8.fill r14=[r16],16
 	ld8.fill r2=[r17]
 (pUStk)	mov r17=1
 	;;
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+	//  mmi_ :  ld8 st1 shr;;         mmi_ : st8 st1 shr;;
+	//  mib  :  mov add br        ->  mib  : ld8 add br
+	//  bbb_ :  br  nop cover;;       mbb_ : mov br  cover;;
+	//
+	//  no one require bsp in r16 if (pKStk) branch is selected.
+(pUStk)	st8 [r3]=r22		// save time at leave
+(pUStk)	st1 [r18]=r17		// restore current->thread.on_ustack
+	shr.u r18=r19,16	// get byte size of existing "dirty" partition
+	;;
+	ld8.fill r3=[r16]	// deferred
+	LOAD_PHYS_STACK_REG_SIZE(r17)
+(pKStk)	br.cond.dpnt skip_rbs_switch
+	mov r16=ar.bsp		// get existing backing store pointer
+#else
 	ld8.fill r3=[r16]
 (pUStk)	st1 [r18]=r17		// restore current->thread.on_ustack
 	shr.u r18=r19,16	// get byte size of existing "dirty" partition
@@ -954,6 +1018,7 @@ GLOBAL_ENTRY(ia64_leave_kernel)
 	mov r16=ar.bsp		// get existing backing store pointer
 	LOAD_PHYS_STACK_REG_SIZE(r17)
 (pKStk)	br.cond.dpnt skip_rbs_switch
+#endif
 
 	/*
 	 * Restore user backing store.
