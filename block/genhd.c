@@ -337,7 +337,7 @@ static int show_partition(struct seq_file *part, void *v)
 	return 0;
 }
 
-struct seq_operations partitions_op = {
+const struct seq_operations partitions_op = {
 	.start	= part_start,
 	.next	= part_next,
 	.stop	= part_stop,
@@ -595,7 +595,7 @@ static int diskstats_show(struct seq_file *s, void *v)
 	return 0;
 }
 
-struct seq_operations diskstats_op = {
+const struct seq_operations diskstats_op = {
 	.start	= diskstats_start,
 	.next	= diskstats_next,
 	.stop	= diskstats_stop,
