@@ -467,7 +467,8 @@ do {									       \
 #define EXT4_MOUNT_USRQUOTA		0x100000 /* "old" user quota */
 #define EXT4_MOUNT_GRPQUOTA		0x200000 /* "old" group quota */
 #define EXT4_MOUNT_EXTENTS		0x400000 /* Extents support */
-
+#define EXT4_MOUNT_JOURNAL_CHECKSUM	0x800000 /* Journal checksums */
+#define EXT4_MOUNT_JOURNAL_ASYNC_COMMIT	0x1000000 /* Journal Async Commit */
 /* Compatibility, for having both ext2_fs.h and ext4_fs.h included at once */
 #ifndef _LINUX_EXT2_FS_H
 #define clear_opt(o, opt)		o &= ~EXT4_MOUNT_##opt

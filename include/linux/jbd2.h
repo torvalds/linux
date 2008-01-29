@@ -149,6 +149,28 @@ typedef struct journal_header_s
 	__be32		h_sequence;
 } journal_header_t;
 
+/*
+ * Checksum types.
+ */
+#define JBD2_CRC32_CHKSUM   1
+#define JBD2_MD5_CHKSUM     2
+#define JBD2_SHA1_CHKSUM    3
+
+#define JBD2_CRC32_CHKSUM_SIZE 4
+
+#define JBD2_CHECKSUM_BYTES (32 / sizeof(u32))
+/*
+ * Commit block header for storing transactional checksums:
+ */
+struct commit_header {
+	__be32		h_magic;
+	__be32          h_blocktype;
+	__be32          h_sequence;
+	unsigned char   h_chksum_type;
+	unsigned char   h_chksum_size;
+	unsigned char 	h_padding[2];
+	__be32 		h_chksum[JBD2_CHECKSUM_BYTES];
+};
 
 /*
  * The block tag: used to describe a single buffer in the journal.
@@ -242,14 +264,18 @@ typedef struct journal_superblock_s
 	((j)->j_format_version >= 2 &&					\
 	 ((j)->j_superblock->s_feature_incompat & cpu_to_be32((mask))))
 
-#define JBD2_FEATURE_INCOMPAT_REVOKE	0x00000001
-#define JBD2_FEATURE_INCOMPAT_64BIT	0x00000002
+#define JBD2_FEATURE_COMPAT_CHECKSUM	0x00000001
+
+#define JBD2_FEATURE_INCOMPAT_REVOKE		0x00000001
+#define JBD2_FEATURE_INCOMPAT_64BIT		0x00000002
+#define JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT	0x00000004
 
 /* Features known to this kernel version: */
-#define JBD2_KNOWN_COMPAT_FEATURES	0
+#define JBD2_KNOWN_COMPAT_FEATURES	JBD2_FEATURE_COMPAT_CHECKSUM
 #define JBD2_KNOWN_ROCOMPAT_FEATURES	0
 #define JBD2_KNOWN_INCOMPAT_FEATURES	(JBD2_FEATURE_INCOMPAT_REVOKE | \
-					 JBD2_FEATURE_INCOMPAT_64BIT)
+					JBD2_FEATURE_INCOMPAT_64BIT | \
+					JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT)
 
 #ifdef __KERNEL__
 
@@ -996,6 +1022,8 @@ extern int	   jbd2_journal_check_used_features
 extern int	   jbd2_journal_check_available_features
 		   (journal_t *, unsigned long, unsigned long, unsigned long);
 extern int	   jbd2_journal_set_features
+		   (journal_t *, unsigned long, unsigned long, unsigned long);
+extern void	   jbd2_journal_clear_features
 		   (journal_t *, unsigned long, unsigned long, unsigned long);
 extern int	   jbd2_journal_create     (journal_t *);
 extern int	   jbd2_journal_load       (journal_t *journal);

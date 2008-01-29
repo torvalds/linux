@@ -1578,6 +1578,32 @@ int jbd2_journal_set_features (journal_t *journal, unsigned long compat,
 	return 1;
 }
 
+/*
+ * jbd2_journal_clear_features () - Clear a given journal feature in the
+ * 				    superblock
+ * @journal: Journal to act on.
+ * @compat: bitmask of compatible features
+ * @ro: bitmask of features that force read-only mount
+ * @incompat: bitmask of incompatible features
+ *
+ * Clear a given journal feature as present on the
+ * superblock.
+ */
+void jbd2_journal_clear_features(journal_t *journal, unsigned long compat,
+				unsigned long ro, unsigned long incompat)
+{
+	journal_superblock_t *sb;
+
+	jbd_debug(1, "Clear features 0x%lx/0x%lx/0x%lx\n",
+		  compat, ro, incompat);
+
+	sb = journal->j_superblock;
+
+	sb->s_feature_compat    &= ~cpu_to_be32(compat);
+	sb->s_feature_ro_compat &= ~cpu_to_be32(ro);
+	sb->s_feature_incompat  &= ~cpu_to_be32(incompat);
+}
+EXPORT_SYMBOL(jbd2_journal_clear_features);
 
 /**
  * int jbd2_journal_update_format () - Update on-disk journal structure.

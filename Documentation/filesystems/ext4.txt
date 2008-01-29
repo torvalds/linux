@@ -89,6 +89,16 @@ When mounting an ext4 filesystem, the following option are accepted:
 extents			ext4 will use extents to address file data.  The
 			file system will no longer be mountable by ext3.
 
+journal_checksum	Enable checksumming of the journal transactions.
+			This will allow the recovery code in e2fsck and the
+			kernel to detect corruption in the kernel.  It is a
+			compatible change and will be ignored by older kernels.
+
+journal_async_commit	Commit block can be written to disk without waiting
+			for descriptor blocks. If enabled older kernels cannot
+			mount the device. This will enable 'journal_checksum'
+			internally.
+
 journal=update		Update the ext4 file system's journal to the current
 			format.
 

@@ -21,6 +21,7 @@
 #include <linux/mm.h>
 #include <linux/pagemap.h>
 #include <linux/jiffies.h>
+#include <linux/crc32.h>
 
 /*
  * Default IO end handler for temporary BJ_IO buffer_heads.
@@ -93,19 +94,23 @@ static int inverted_lock(journal_t *journal, struct buffer_head *bh)
 	return 1;
 }
 
-/* Done it all: now write the commit record.  We should have
+/*
+ * Done it all: now submit the commit record.  We should have
  * cleaned up our previous buffers by now, so if we are in abort
  * mode we can now just skip the rest of the journal write
  * entirely.
  *
  * Returns 1 if the journal needs to be aborted or 0 on success
  */
-static int journal_write_commit_record(journal_t *journal,
-					transaction_t *commit_transaction)
+static int journal_submit_commit_record(journal_t *journal,
+					transaction_t *commit_transaction,
+					struct buffer_head **cbh,
+					__u32 crc32_sum)
 {
 	struct journal_head *descriptor;
+	struct commit_header *tmp;
 	struct buffer_head *bh;
-	int i, ret;
+	int ret;
 	int barrier_done = 0;
 
 	if (is_journal_aborted(journal))
@@ -117,21 +122,33 @@ static int journal_write_commit_record(journal_t *journal,
 
 	bh = jh2bh(descriptor);
 
-	/* AKPM: buglet - add `i' to tmp! */
-	for (i = 0; i < bh->b_size; i += 512) {
-		journal_header_t *tmp = (journal_header_t*)bh->b_data;
-		tmp->h_magic = cpu_to_be32(JBD2_MAGIC_NUMBER);
-		tmp->h_blocktype = cpu_to_be32(JBD2_COMMIT_BLOCK);
-		tmp->h_sequence = cpu_to_be32(commit_transaction->t_tid);
+	tmp = (struct commit_header *)bh->b_data;
+	tmp->h_magic = cpu_to_be32(JBD2_MAGIC_NUMBER);
+	tmp->h_blocktype = cpu_to_be32(JBD2_COMMIT_BLOCK);
+	tmp->h_sequence = cpu_to_be32(commit_transaction->t_tid);
+
+	if (JBD2_HAS_COMPAT_FEATURE(journal,
+				    JBD2_FEATURE_COMPAT_CHECKSUM)) {
+		tmp->h_chksum_type 	= JBD2_CRC32_CHKSUM;
+		tmp->h_chksum_size 	= JBD2_CRC32_CHKSUM_SIZE;
+		tmp->h_chksum[0] 	= cpu_to_be32(crc32_sum);
 	}
 
-	JBUFFER_TRACE(descriptor, "write commit block");
+	JBUFFER_TRACE(descriptor, "submit commit block");
+	lock_buffer(bh);
+
 	set_buffer_dirty(bh);
-	if (journal->j_flags & JBD2_BARRIER) {
+	set_buffer_uptodate(bh);
+	bh->b_end_io = journal_end_buffer_io_sync;
+
+	if (journal->j_flags & JBD2_BARRIER &&
+		!JBD2_HAS_COMPAT_FEATURE(journal,
+					 JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT)) {
 		set_buffer_ordered(bh);
 		barrier_done = 1;
 	}
-	ret = sync_dirty_buffer(bh);
+	ret = submit_bh(WRITE, bh);
+
 	/* is it possible for another commit to fail at roughly
 	 * the same time as this one?  If so, we don't want to
 	 * trust the barrier flag in the super, but instead want
@@ -152,13 +169,71 @@ static int journal_write_commit_record(journal_t *journal,
 		clear_buffer_ordered(bh);
 		set_buffer_uptodate(bh);
 		set_buffer_dirty(bh);
-		ret = sync_dirty_buffer(bh);
+		ret = submit_bh(WRITE, bh);
 	}
-	put_bh(bh);		/* One for getblk() */
-	jbd2_journal_put_journal_head(descriptor);
-
-	return (ret == -EIO);
+	*cbh = bh;
+	return ret;
 }
+
+/*
+ * This function along with journal_submit_commit_record
+ * allows to write the commit record asynchronously.
+ */
+static int journal_wait_on_commit_record(struct buffer_head *bh)
+{
+	int ret = 0;
+
+	clear_buffer_dirty(bh);
+	wait_on_buffer(bh);
+
+	if (unlikely(!buffer_uptodate(bh)))
+		ret = -EIO;
+	put_bh(bh);            /* One for getblk() */
+	jbd2_journal_put_journal_head(bh2jh(bh));
+
+	return ret;
+}
+
+/*
+ * Wait for all submitted IO to complete.
+ */
+static int journal_wait_on_locked_list(journal_t *journal,
+				       transaction_t *commit_transaction)
+{
+	int ret = 0;
+	struct journal_head *jh;
+
+	while (commit_transaction->t_locked_list) {
+		struct buffer_head *bh;
+
+		jh = commit_transaction->t_locked_list->b_tprev;
+		bh = jh2bh(jh);
+		get_bh(bh);
+		if (buffer_locked(bh)) {
+			spin_unlock(&journal->j_list_lock);
+			wait_on_buffer(bh);
+			if (unlikely(!buffer_uptodate(bh)))
+				ret = -EIO;
+			spin_lock(&journal->j_list_lock);
+		}
+		if (!inverted_lock(journal, bh)) {
+			put_bh(bh);
+			spin_lock(&journal->j_list_lock);
+			continue;
+		}
+		if (buffer_jbd(bh) && jh->b_jlist == BJ_Locked) {
+			__jbd2_journal_unfile_buffer(jh);
+			jbd_unlock_bh_state(bh);
+			jbd2_journal_remove_journal_head(bh);
+			put_bh(bh);
+		} else {
+			jbd_unlock_bh_state(bh);
+		}
+		put_bh(bh);
+		cond_resched_lock(&journal->j_list_lock);
+	}
+	return ret;
+  }
 
 static void journal_do_submit_data(struct buffer_head **wbuf, int bufs)
 {
@@ -275,7 +350,21 @@ write_out_data:
 	journal_do_submit_data(wbuf, bufs);
 }
 
-static inline void write_tag_block(int tag_bytes, journal_block_tag_t *tag,
+static __u32 jbd2_checksum_data(__u32 crc32_sum, struct buffer_head *bh)
+{
+	struct page *page = bh->b_page;
+	char *addr;
+	__u32 checksum;
+
+	addr = kmap_atomic(page, KM_USER0);
+	checksum = crc32_be(crc32_sum,
+		(void *)(addr + offset_in_page(bh->b_data)), bh->b_size);
+	kunmap_atomic(addr, KM_USER0);
+
+	return checksum;
+}
+
+static void write_tag_block(int tag_bytes, journal_block_tag_t *tag,
 				   unsigned long long block)
 {
 	tag->t_blocknr = cpu_to_be32(block & (u32)~0);
@@ -307,6 +396,8 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	int tag_flag;
 	int i;
 	int tag_bytes = journal_tag_bytes(journal);
+	struct buffer_head *cbh = NULL; /* For transactional checksums */
+	__u32 crc32_sum = ~0;
 
 	/*
 	 * First job: lock down the current transaction and wait for
@@ -451,38 +542,15 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	journal_submit_data_buffers(journal, commit_transaction);
 
 	/*
-	 * Wait for all previously submitted IO to complete.
+	 * Wait for all previously submitted IO to complete if commit
+	 * record is to be written synchronously.
 	 */
 	spin_lock(&journal->j_list_lock);
-	while (commit_transaction->t_locked_list) {
-		struct buffer_head *bh;
+	if (!JBD2_HAS_INCOMPAT_FEATURE(journal,
+		JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT))
+		err = journal_wait_on_locked_list(journal,
+						commit_transaction);
 
-		jh = commit_transaction->t_locked_list->b_tprev;
-		bh = jh2bh(jh);
-		get_bh(bh);
-		if (buffer_locked(bh)) {
-			spin_unlock(&journal->j_list_lock);
-			wait_on_buffer(bh);
-			if (unlikely(!buffer_uptodate(bh)))
-				err = -EIO;
-			spin_lock(&journal->j_list_lock);
-		}
-		if (!inverted_lock(journal, bh)) {
-			put_bh(bh);
-			spin_lock(&journal->j_list_lock);
-			continue;
-		}
-		if (buffer_jbd(bh) && jh->b_jlist == BJ_Locked) {
-			__jbd2_journal_unfile_buffer(jh);
-			jbd_unlock_bh_state(bh);
-			jbd2_journal_remove_journal_head(bh);
-			put_bh(bh);
-		} else {
-			jbd_unlock_bh_state(bh);
-		}
-		put_bh(bh);
-		cond_resched_lock(&journal->j_list_lock);
-	}
 	spin_unlock(&journal->j_list_lock);
 
 	if (err)
@@ -656,6 +724,15 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 start_journal_io:
 			for (i = 0; i < bufs; i++) {
 				struct buffer_head *bh = wbuf[i];
+				/*
+				 * Compute checksum.
+				 */
+				if (JBD2_HAS_COMPAT_FEATURE(journal,
+					JBD2_FEATURE_COMPAT_CHECKSUM)) {
+					crc32_sum =
+					    jbd2_checksum_data(crc32_sum, bh);
+				}
+
 				lock_buffer(bh);
 				clear_buffer_dirty(bh);
 				set_buffer_uptodate(bh);
@@ -670,6 +747,23 @@ start_journal_io:
 			descriptor = NULL;
 			bufs = 0;
 		}
+	}
+
+	/* Done it all: now write the commit record asynchronously. */
+
+	if (JBD2_HAS_INCOMPAT_FEATURE(journal,
+		JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT)) {
+		err = journal_submit_commit_record(journal, commit_transaction,
+						 &cbh, crc32_sum);
+		if (err)
+			__jbd2_journal_abort_hard(journal);
+
+		spin_lock(&journal->j_list_lock);
+		err = journal_wait_on_locked_list(journal,
+						commit_transaction);
+		spin_unlock(&journal->j_list_lock);
+		if (err)
+			__jbd2_journal_abort_hard(journal);
 	}
 
 	/* Lo and behold: we have just managed to send a transaction to
@@ -771,8 +865,14 @@ wait_for_iobuf:
 
 	jbd_debug(3, "JBD: commit phase 6\n");
 
-	if (journal_write_commit_record(journal, commit_transaction))
-		err = -EIO;
+	if (!JBD2_HAS_INCOMPAT_FEATURE(journal,
+		JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT)) {
+		err = journal_submit_commit_record(journal, commit_transaction,
+						&cbh, crc32_sum);
+		if (err)
+			__jbd2_journal_abort_hard(journal);
+	}
+	err = journal_wait_on_commit_record(cbh);
 
 	if (err)
 		jbd2_journal_abort(journal, err);

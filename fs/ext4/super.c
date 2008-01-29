@@ -869,6 +869,7 @@ enum {
 	Opt_user_xattr, Opt_nouser_xattr, Opt_acl, Opt_noacl,
 	Opt_reservation, Opt_noreservation, Opt_noload, Opt_nobh, Opt_bh,
 	Opt_commit, Opt_journal_update, Opt_journal_inum, Opt_journal_dev,
+	Opt_journal_checksum, Opt_journal_async_commit,
 	Opt_abort, Opt_data_journal, Opt_data_ordered, Opt_data_writeback,
 	Opt_usrjquota, Opt_grpjquota, Opt_offusrjquota, Opt_offgrpjquota,
 	Opt_jqfmt_vfsold, Opt_jqfmt_vfsv0, Opt_quota, Opt_noquota,
@@ -908,6 +909,8 @@ static match_table_t tokens = {
 	{Opt_journal_update, "journal=update"},
 	{Opt_journal_inum, "journal=%u"},
 	{Opt_journal_dev, "journal_dev=%u"},
+	{Opt_journal_checksum, "journal_checksum"},
+	{Opt_journal_async_commit, "journal_async_commit"},
 	{Opt_abort, "abort"},
 	{Opt_data_journal, "data=journal"},
 	{Opt_data_ordered, "data=ordered"},
@@ -1094,6 +1097,13 @@ static int parse_options (char *options, struct super_block *sb,
 			if (match_int(&args[0], &option))
 				return 0;
 			*journal_devnum = option;
+			break;
+		case Opt_journal_checksum:
+			set_opt(sbi->s_mount_opt, JOURNAL_CHECKSUM);
+			break;
+		case Opt_journal_async_commit:
+			set_opt(sbi->s_mount_opt, JOURNAL_ASYNC_COMMIT);
+			set_opt(sbi->s_mount_opt, JOURNAL_CHECKSUM);
 			break;
 		case Opt_noload:
 			set_opt (sbi->s_mount_opt, NOLOAD);
@@ -2112,6 +2122,21 @@ static int ext4_fill_super (struct super_block *sb, void *data, int silent)
 				       JBD2_FEATURE_INCOMPAT_64BIT)) {
 		printk(KERN_ERR "ext4: Failed to set 64-bit journal feature\n");
 		goto failed_mount4;
+	}
+
+	if (test_opt(sb, JOURNAL_ASYNC_COMMIT)) {
+		jbd2_journal_set_features(sbi->s_journal,
+				JBD2_FEATURE_COMPAT_CHECKSUM, 0,
+				JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT);
+	} else if (test_opt(sb, JOURNAL_CHECKSUM)) {
+		jbd2_journal_set_features(sbi->s_journal,
+				JBD2_FEATURE_COMPAT_CHECKSUM, 0, 0);
+		jbd2_journal_clear_features(sbi->s_journal, 0, 0,
+				JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT);
+	} else {
+		jbd2_journal_clear_features(sbi->s_journal,
+				JBD2_FEATURE_COMPAT_CHECKSUM, 0,
+				JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT);
 	}
 
 	/* We have now updated the journal if required, so we can
