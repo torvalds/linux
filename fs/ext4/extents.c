@@ -2373,9 +2373,10 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 			ret = ext4_ext_convert_to_initialized(handle, inode,
 								path, iblock,
 								max_blocks);
-			if (ret <= 0)
+			if (ret <= 0) {
+				err = ret;
 				goto out2;
-			else
+			} else
 				allocated = ret;
 			goto outnew;
 		}
