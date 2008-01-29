@@ -1997,6 +1997,17 @@ static int ext4_fill_super (struct super_block *sb, void *data, int silent)
 
 	if (EXT4_BLOCKS_PER_GROUP(sb) == 0)
 		goto cantfind_ext4;
+
+	/* ensure blocks_count calculation below doesn't sign-extend */
+	if (ext4_blocks_count(es) + EXT4_BLOCKS_PER_GROUP(sb) <
+	    le32_to_cpu(es->s_first_data_block) + 1) {
+		printk(KERN_WARNING "EXT4-fs: bad geometry: block count %llu, "
+		       "first data block %u, blocks per group %lu\n",
+			ext4_blocks_count(es),
+			le32_to_cpu(es->s_first_data_block),
+			EXT4_BLOCKS_PER_GROUP(sb));
+		goto failed_mount;
+	}
 	blocks_count = (ext4_blocks_count(es) -
 			le32_to_cpu(es->s_first_data_block) +
 			EXT4_BLOCKS_PER_GROUP(sb) - 1);
