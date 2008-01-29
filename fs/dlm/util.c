@@ -1,7 +1,7 @@
 /******************************************************************************
 *******************************************************************************
 **
-**  Copyright (C) 2005 Red Hat, Inc.  All rights reserved.
+**  Copyright (C) 2005-2008 Red Hat, Inc.  All rights reserved.
 **
 **  This copyrighted material is made available to anyone wishing to use,
 **  modify, copy, or redistribute it subject to the terms and conditions
@@ -85,9 +85,7 @@ static int from_dlm_errno(int err)
 
 void dlm_message_out(struct dlm_message *ms)
 {
-	struct dlm_header *hd = (struct dlm_header *) ms;
-
-	header_out(hd);
+	header_out(&ms->m_header);
 
 	ms->m_type		= cpu_to_le32(ms->m_type);
 	ms->m_nodeid		= cpu_to_le32(ms->m_nodeid);
@@ -111,9 +109,7 @@ void dlm_message_out(struct dlm_message *ms)
 
 void dlm_message_in(struct dlm_message *ms)
 {
-	struct dlm_header *hd = (struct dlm_header *) ms;
-
-	header_in(hd);
+	header_in(&ms->m_header);
 
 	ms->m_type		= le32_to_cpu(ms->m_type);
 	ms->m_nodeid		= le32_to_cpu(ms->m_nodeid);
@@ -179,10 +175,9 @@ static void rcom_config_in(struct rcom_config *rf)
 
 void dlm_rcom_out(struct dlm_rcom *rc)
 {
-	struct dlm_header *hd = (struct dlm_header *) rc;
 	int type = rc->rc_type;
 
-	header_out(hd);
+	header_out(&rc->rc_header);
 
 	rc->rc_type		= cpu_to_le32(rc->rc_type);
 	rc->rc_result		= cpu_to_le32(rc->rc_result);
@@ -199,10 +194,9 @@ void dlm_rcom_out(struct dlm_rcom *rc)
 
 void dlm_rcom_in(struct dlm_rcom *rc)
 {
-	struct dlm_header *hd = (struct dlm_header *) rc;
 	int type;
 
-	header_in(hd);
+	header_in(&rc->rc_header);
 
 	rc->rc_type		= le32_to_cpu(rc->rc_type);
 	rc->rc_result		= le32_to_cpu(rc->rc_result);
