@@ -54,9 +54,6 @@ struct netlbl_domhsh_tbl {
  * hash table should be okay */
 static DEFINE_SPINLOCK(netlbl_domhsh_lock);
 static struct netlbl_domhsh_tbl *netlbl_domhsh = NULL;
-
-/* Default domain mapping */
-static DEFINE_SPINLOCK(netlbl_domhsh_def_lock);
 static struct netlbl_dom_map *netlbl_domhsh_def = NULL;
 
 /*
@@ -239,24 +236,22 @@ int netlbl_domhsh_add(struct netlbl_dom_map *entry,
 	INIT_RCU_HEAD(&entry->rcu);
 
 	rcu_read_lock();
+	spin_lock(&netlbl_domhsh_lock);
 	if (entry->domain != NULL) {
 		bkt = netlbl_domhsh_hash(entry->domain);
-		spin_lock(&netlbl_domhsh_lock);
 		if (netlbl_domhsh_search(entry->domain) == NULL)
 			list_add_tail_rcu(&entry->list,
 				    &rcu_dereference(netlbl_domhsh)->tbl[bkt]);
 		else
 			ret_val = -EEXIST;
-		spin_unlock(&netlbl_domhsh_lock);
 	} else {
 		INIT_LIST_HEAD(&entry->list);
-		spin_lock(&netlbl_domhsh_def_lock);
 		if (rcu_dereference(netlbl_domhsh_def) == NULL)
 			rcu_assign_pointer(netlbl_domhsh_def, entry);
 		else
 			ret_val = -EEXIST;
-		spin_unlock(&netlbl_domhsh_def_lock);
 	}
+	spin_unlock(&netlbl_domhsh_lock);
 	audit_buf = netlbl_audit_start_common(AUDIT_MAC_MAP_ADD, audit_info);
 	if (audit_buf != NULL) {
 		audit_log_format(audit_buf,
@@ -337,23 +332,16 @@ int netlbl_domhsh_remove(const char *domain, struct netlbl_audit *audit_info)
 					   entry->domain);
 		break;
 	}
-	if (entry != rcu_dereference(netlbl_domhsh_def)) {
-		spin_lock(&netlbl_domhsh_lock);
-		if (entry->valid) {
-			entry->valid = 0;
+	spin_lock(&netlbl_domhsh_lock);
+	if (entry->valid) {
+		entry->valid = 0;
+		if (entry != rcu_dereference(netlbl_domhsh_def))
 			list_del_rcu(&entry->list);
-			ret_val = 0;
-		}
-		spin_unlock(&netlbl_domhsh_lock);
-	} else {
-		spin_lock(&netlbl_domhsh_def_lock);
-		if (entry->valid) {
-			entry->valid = 0;
+		else
 			rcu_assign_pointer(netlbl_domhsh_def, NULL);
-			ret_val = 0;
-		}
-		spin_unlock(&netlbl_domhsh_def_lock);
+		ret_val = 0;
 	}
+	spin_unlock(&netlbl_domhsh_lock);
 
 	audit_buf = netlbl_audit_start_common(AUDIT_MAC_MAP_DEL, audit_info);
 	if (audit_buf != NULL) {
