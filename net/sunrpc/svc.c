@@ -531,6 +531,44 @@ svc_release_buffer(struct svc_rqst *rqstp)
 			put_page(rqstp->rq_pages[i]);
 }
 
+struct svc_rqst *
+svc_prepare_thread(struct svc_serv *serv, struct svc_pool *pool)
+{
+	struct svc_rqst	*rqstp;
+
+	rqstp = kzalloc(sizeof(*rqstp), GFP_KERNEL);
+	if (!rqstp)
+		goto out_enomem;
+
+	init_waitqueue_head(&rqstp->rq_wait);
+
+	serv->sv_nrthreads++;
+	spin_lock_bh(&pool->sp_lock);
+	pool->sp_nrthreads++;
+	list_add(&rqstp->rq_all, &pool->sp_all_threads);
+	spin_unlock_bh(&pool->sp_lock);
+	rqstp->rq_server = serv;
+	rqstp->rq_pool = pool;
+
+	rqstp->rq_argp = kmalloc(serv->sv_xdrsize, GFP_KERNEL);
+	if (!rqstp->rq_argp)
+		goto out_thread;
+
+	rqstp->rq_resp = kmalloc(serv->sv_xdrsize, GFP_KERNEL);
+	if (!rqstp->rq_resp)
+		goto out_thread;
+
+	if (!svc_init_buffer(rqstp, serv->sv_max_mesg))
+		goto out_thread;
+
+	return rqstp;
+out_thread:
+	svc_exit_thread(rqstp);
+out_enomem:
+	return ERR_PTR(-ENOMEM);
+}
+EXPORT_SYMBOL(svc_prepare_thread);
+
 /*
  * Create a thread in the given pool.  Caller must hold BKL.
  * On a NUMA or SMP machine, with a multi-pool serv, the thread
@@ -545,24 +583,11 @@ __svc_create_thread(svc_thread_fn func, struct svc_serv *serv,
 	int		have_oldmask = 0;
 	cpumask_t	oldmask;
 
-	rqstp = kzalloc(sizeof(*rqstp), GFP_KERNEL);
-	if (!rqstp)
+	rqstp = svc_prepare_thread(serv, pool);
+	if (IS_ERR(rqstp)) {
+		error = PTR_ERR(rqstp);
 		goto out;
-
-	init_waitqueue_head(&rqstp->rq_wait);
-
-	if (!(rqstp->rq_argp = kmalloc(serv->sv_xdrsize, GFP_KERNEL))
-	 || !(rqstp->rq_resp = kmalloc(serv->sv_xdrsize, GFP_KERNEL))
-	 || !svc_init_buffer(rqstp, serv->sv_max_mesg))
-		goto out_thread;
-
-	serv->sv_nrthreads++;
-	spin_lock_bh(&pool->sp_lock);
-	pool->sp_nrthreads++;
-	list_add(&rqstp->rq_all, &pool->sp_all_threads);
-	spin_unlock_bh(&pool->sp_lock);
-	rqstp->rq_server = serv;
-	rqstp->rq_pool = pool;
+	}
 
 	if (serv->sv_nrpools > 1)
 		have_oldmask = svc_pool_map_set_cpumask(pool->sp_id, &oldmask);
