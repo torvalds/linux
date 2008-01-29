@@ -132,7 +132,6 @@ config MACH_JAZZ
 	select I8253
 	select I8259
 	select ISA
-	select PCSPEAKER
 	select SYS_HAS_CPU_R4X00
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL if EXPERIMENTAL
@@ -378,7 +377,6 @@ config QEMU
 	select I8259
 	select IRQ_CPU
 	select ISA
-	select PCSPEAKER
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_HAS_EARLY_PRINTK
@@ -590,7 +588,6 @@ config SNI_RM
 	select I8253
 	select I8259
 	select ISA
-	select PCSPEAKER
 	select SWAP_IO_SPACE if CPU_BIG_ENDIAN
 	select SYS_HAS_CPU_R4X00
 	select SYS_HAS_CPU_R5000
@@ -1993,9 +1990,6 @@ config MMU
 	default y
 
 config I8253
-	bool
-
-config PCSPEAKER
 	bool
 
 config ZONE_DMA32
