@@ -901,11 +901,31 @@ int ext4_get_blocks_wrap(handle_t *handle, struct inode *inode, sector_t block,
 			int create, int extend_disksize)
 {
 	int retval;
-	if (create) {
-		down_write((&EXT4_I(inode)->i_data_sem));
+	/*
+	 * Try to see if we can get  the block without requesting
+	 * for new file system block.
+	 */
+	down_read((&EXT4_I(inode)->i_data_sem));
+	if (EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL) {
+		retval =  ext4_ext_get_blocks(handle, inode, block, max_blocks,
+				bh, 0, 0);
 	} else {
-		down_read((&EXT4_I(inode)->i_data_sem));
+		retval = ext4_get_blocks_handle(handle,
+				inode, block, max_blocks, bh, 0, 0);
 	}
+	up_read((&EXT4_I(inode)->i_data_sem));
+	if (!create || (retval > 0))
+		return retval;
+
+	/*
+	 * We need to allocate new blocks which will result
+	 * in i_data update
+	 */
+	down_write((&EXT4_I(inode)->i_data_sem));
+	/*
+	 * We need to check for EXT4 here because migrate
+	 * could have changed the inode type in between
+	 */
 	if (EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL) {
 		retval =  ext4_ext_get_blocks(handle, inode, block, max_blocks,
 				bh, create, extend_disksize);
@@ -913,11 +933,7 @@ int ext4_get_blocks_wrap(handle_t *handle, struct inode *inode, sector_t block,
 		retval = ext4_get_blocks_handle(handle, inode, block,
 				max_blocks, bh, create, extend_disksize);
 	}
-	if (create) {
-		up_write((&EXT4_I(inode)->i_data_sem));
-	} else {
-		up_read((&EXT4_I(inode)->i_data_sem));
-	}
+	up_write((&EXT4_I(inode)->i_data_sem));
 	return retval;
 }
 
