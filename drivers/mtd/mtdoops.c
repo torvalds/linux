@@ -103,7 +103,7 @@ static int mtdoops_inc_counter(struct mtdoops_context *cxt)
 
 	ret = mtd->read(mtd, cxt->nextpage * OOPS_PAGE_SIZE, 4,
 			&retlen, (u_char *) &count);
-	if ((retlen != 4) || (ret < 0)) {
+	if ((retlen != 4) || ((ret < 0) && (ret != -EUCLEAN))) {
 		printk(KERN_ERR "mtdoops: Read failure at %d (%td of 4 read)"
 				", err %d.\n", cxt->nextpage * OOPS_PAGE_SIZE,
 				retlen, ret);
@@ -136,8 +136,14 @@ static void mtdoops_prepare(struct mtdoops_context *cxt)
 			cxt->nextpage = 0;
 	}
 
-	while (mtd->block_isbad &&
-			mtd->block_isbad(mtd, cxt->nextpage * OOPS_PAGE_SIZE)) {
+	while (mtd->block_isbad) {
+		ret = mtd->block_isbad(mtd, cxt->nextpage * OOPS_PAGE_SIZE);
+		if (!ret)
+			break;
+		if (ret < 0) {
+			printk(KERN_ERR "mtdoops: block_isbad failed, aborting.\n");
+			return;
+		}
 badblock:
 		printk(KERN_WARNING "mtdoops: Bad block at %08x\n",
 				cxt->nextpage * OOPS_PAGE_SIZE);
@@ -154,15 +160,20 @@ badblock:
 	for (j = 0, ret = -1; (j < 3) && (ret < 0); j++)
 		ret = mtdoops_erase_block(mtd, cxt->nextpage * OOPS_PAGE_SIZE);
 
-	if (ret < 0) {
-		if (mtd->block_markbad)
-			mtd->block_markbad(mtd, cxt->nextpage * OOPS_PAGE_SIZE);
-		goto badblock;
+	if (ret >= 0) {
+		printk(KERN_DEBUG "mtdoops: Ready %d, %d \n", cxt->nextpage, cxt->nextcount);
+		cxt->ready = 1;
+		return;
 	}
 
-	printk(KERN_DEBUG "mtdoops: Ready %d, %d \n", cxt->nextpage, cxt->nextcount);
-
-	cxt->ready = 1;
+	if (mtd->block_markbad && (ret == -EIO)) {
+		ret = mtd->block_markbad(mtd, cxt->nextpage * OOPS_PAGE_SIZE);
+		if (ret < 0) {
+			printk(KERN_ERR "mtdoops: block_markbad failed, aborting.\n");
+			return;
+		}
+	}
+	goto badblock;
 }
 
 static void mtdoops_workfunc(struct work_struct *work)
@@ -176,12 +187,18 @@ static void mtdoops_workfunc(struct work_struct *work)
 static int find_next_position(struct mtdoops_context *cxt)
 {
 	struct mtd_info *mtd = cxt->mtd;
-	int page, maxpos = 0;
+	int ret, page, maxpos = 0;
 	u32 count, maxcount = 0xffffffff;
 	size_t retlen;
 
 	for (page = 0; page < cxt->oops_pages; page++) {
-		mtd->read(mtd, page * OOPS_PAGE_SIZE, 4, &retlen, (u_char *) &count);
+		ret = mtd->read(mtd, page * OOPS_PAGE_SIZE, 4, &retlen, (u_char *) &count);
+		if ((retlen != 4) || ((ret < 0) && (ret != -EUCLEAN))) {
+			printk(KERN_ERR "mtdoops: Read failure at %d (%td of 4 read)"
+				", err %d.\n", page * OOPS_PAGE_SIZE, retlen, ret);
+			continue;
+		}
+
 		if (count == 0xffffffff)
 			continue;
 		if (maxcount == 0xffffffff) {
