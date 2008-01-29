@@ -449,7 +449,7 @@ static inline void local_r4k_flush_cache_page(void *args)
 	 * If the page isn't marked valid, the page cannot possibly be
 	 * in the cache.
 	 */
-	if (!(pte_val(*ptep) & _PAGE_PRESENT))
+	if (!(pte_present(*ptep)))
 		return;
 
 	if ((mm == current->active_mm) && (pte_val(*ptep) & _PAGE_VALID))
