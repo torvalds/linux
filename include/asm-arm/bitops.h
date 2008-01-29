@@ -310,6 +310,8 @@ static inline int constant_fls(int x)
 		_find_first_zero_bit_le(p,sz)
 #define ext2_find_next_zero_bit(p,sz,off)	\
 		_find_next_zero_bit_le(p,sz,off)
+#define ext2_find_next_bit(p, sz, off) \
+		_find_next_bit_le(p, sz, off)
 
 /*
  * Minix is defined to use little-endian byte ordering.

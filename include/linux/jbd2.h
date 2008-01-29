@@ -149,6 +149,28 @@ typedef struct journal_header_s
 	__be32		h_sequence;
 } journal_header_t;
 
+/*
+ * Checksum types.
+ */
+#define JBD2_CRC32_CHKSUM   1
+#define JBD2_MD5_CHKSUM     2
+#define JBD2_SHA1_CHKSUM    3
+
+#define JBD2_CRC32_CHKSUM_SIZE 4
+
+#define JBD2_CHECKSUM_BYTES (32 / sizeof(u32))
+/*
+ * Commit block header for storing transactional checksums:
+ */
+struct commit_header {
+	__be32		h_magic;
+	__be32          h_blocktype;
+	__be32          h_sequence;
+	unsigned char   h_chksum_type;
+	unsigned char   h_chksum_size;
+	unsigned char 	h_padding[2];
+	__be32 		h_chksum[JBD2_CHECKSUM_BYTES];
+};
 
 /*
  * The block tag: used to describe a single buffer in the journal.
@@ -242,31 +264,25 @@ typedef struct journal_superblock_s
 	((j)->j_format_version >= 2 &&					\
 	 ((j)->j_superblock->s_feature_incompat & cpu_to_be32((mask))))
 
-#define JBD2_FEATURE_INCOMPAT_REVOKE	0x00000001
-#define JBD2_FEATURE_INCOMPAT_64BIT	0x00000002
+#define JBD2_FEATURE_COMPAT_CHECKSUM	0x00000001
+
+#define JBD2_FEATURE_INCOMPAT_REVOKE		0x00000001
+#define JBD2_FEATURE_INCOMPAT_64BIT		0x00000002
+#define JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT	0x00000004
 
 /* Features known to this kernel version: */
-#define JBD2_KNOWN_COMPAT_FEATURES	0
+#define JBD2_KNOWN_COMPAT_FEATURES	JBD2_FEATURE_COMPAT_CHECKSUM
 #define JBD2_KNOWN_ROCOMPAT_FEATURES	0
 #define JBD2_KNOWN_INCOMPAT_FEATURES	(JBD2_FEATURE_INCOMPAT_REVOKE | \
-					 JBD2_FEATURE_INCOMPAT_64BIT)
+					JBD2_FEATURE_INCOMPAT_64BIT | \
+					JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT)
 
 #ifdef __KERNEL__
 
 #include <linux/fs.h>
 #include <linux/sched.h>
 
-#define JBD2_ASSERTIONS
-#ifdef JBD2_ASSERTIONS
-#define J_ASSERT(assert)						\
-do {									\
-	if (!(assert)) {						\
-		printk (KERN_EMERG					\
-			"Assertion failure in %s() at %s:%d: \"%s\"\n",	\
-			__FUNCTION__, __FILE__, __LINE__, # assert);	\
-		BUG();							\
-	}								\
-} while (0)
+#define J_ASSERT(assert)	BUG_ON(!(assert))
 
 #if defined(CONFIG_BUFFER_DEBUG)
 void buffer_assertion_failure(struct buffer_head *bh);
@@ -281,10 +297,6 @@ void buffer_assertion_failure(struct buffer_head *bh);
 #define J_ASSERT_BH(bh, expr)	J_ASSERT(expr)
 #define J_ASSERT_JH(jh, expr)	J_ASSERT(expr)
 #endif
-
-#else
-#define J_ASSERT(assert)	do { } while (0)
-#endif		/* JBD2_ASSERTIONS */
 
 #if defined(JBD2_PARANOID_IOFAIL)
 #define J_EXPECT(expr, why...)		J_ASSERT(expr)
@@ -406,8 +418,22 @@ struct handle_s
 	unsigned int	h_sync:		1;	/* sync-on-close */
 	unsigned int	h_jdata:	1;	/* force data journaling */
 	unsigned int	h_aborted:	1;	/* fatal error on handle */
+
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	struct lockdep_map	h_lockdep_map;
+#endif
 };
 
+
+/*
+ * Some stats for checkpoint phase
+ */
+struct transaction_chp_stats_s {
+	unsigned long		cs_chp_time;
+	unsigned long		cs_forced_to_close;
+	unsigned long		cs_written;
+	unsigned long		cs_dropped;
+};
 
 /* The transaction_t type is the guts of the journaling mechanism.  It
  * tracks a compound transaction through its various states:
@@ -456,6 +482,8 @@ struct transaction_s
 	/*
 	 * Transaction's current state
 	 * [no locking - only kjournald2 alters this]
+	 * [j_list_lock] guards transition of a transaction into T_FINISHED
+	 * state and subsequent call of __jbd2_journal_drop_transaction()
 	 * FIXME: needs barriers
 	 * KLUDGE: [use j_state_lock]
 	 */
@@ -544,6 +572,21 @@ struct transaction_s
 	spinlock_t		t_handle_lock;
 
 	/*
+	 * Longest time some handle had to wait for running transaction
+	 */
+	unsigned long		t_max_wait;
+
+	/*
+	 * When transaction started
+	 */
+	unsigned long		t_start;
+
+	/*
+	 * Checkpointing stats [j_checkpoint_sem]
+	 */
+	struct transaction_chp_stats_s t_chp_stats;
+
+	/*
 	 * Number of outstanding updates running on this transaction
 	 * [t_handle_lock]
 	 */
@@ -573,6 +616,39 @@ struct transaction_s
 	int t_handle_count;
 
 };
+
+struct transaction_run_stats_s {
+	unsigned long		rs_wait;
+	unsigned long		rs_running;
+	unsigned long		rs_locked;
+	unsigned long		rs_flushing;
+	unsigned long		rs_logging;
+
+	unsigned long		rs_handle_count;
+	unsigned long		rs_blocks;
+	unsigned long		rs_blocks_logged;
+};
+
+struct transaction_stats_s {
+	int 			ts_type;
+	unsigned long		ts_tid;
+	union {
+		struct transaction_run_stats_s run;
+		struct transaction_chp_stats_s chp;
+	} u;
+};
+
+#define JBD2_STATS_RUN		1
+#define JBD2_STATS_CHECKPOINT	2
+
+static inline unsigned long
+jbd2_time_diff(unsigned long start, unsigned long end)
+{
+	if (end >= start)
+		return end - start;
+
+	return end + (MAX_JIFFY_OFFSET - start);
+}
 
 /**
  * struct journal_s - The journal_s type is the concrete type associated with
@@ -635,6 +711,12 @@ struct transaction_s
  * @j_wbufsize: maximum number of buffer_heads allowed in j_wbuf, the
  *	number that will fit in j_blocksize
  * @j_last_sync_writer: most recent pid which did a synchronous write
+ * @j_history: Buffer storing the transactions statistics history
+ * @j_history_max: Maximum number of transactions in the statistics history
+ * @j_history_cur: Current number of transactions in the statistics history
+ * @j_history_lock: Protect the transactions statistics history
+ * @j_proc_entry: procfs entry for the jbd statistics directory
+ * @j_stats: Overall statistics
  * @j_private: An opaque pointer to fs-private information.
  */
 
@@ -827,6 +909,19 @@ struct journal_s
 	pid_t			j_last_sync_writer;
 
 	/*
+	 * Journal statistics
+	 */
+	struct transaction_stats_s *j_history;
+	int			j_history_max;
+	int			j_history_cur;
+	/*
+	 * Protect the transactions statistics history
+	 */
+	spinlock_t		j_history_lock;
+	struct proc_dir_entry	*j_proc_entry;
+	struct transaction_stats_s j_stats;
+
+	/*
 	 * An opaque pointer to fs-private information.  ext3 puts its
 	 * superblock pointer here
 	 */
@@ -931,6 +1026,8 @@ extern int	   jbd2_journal_check_used_features
 extern int	   jbd2_journal_check_available_features
 		   (journal_t *, unsigned long, unsigned long, unsigned long);
 extern int	   jbd2_journal_set_features
+		   (journal_t *, unsigned long, unsigned long, unsigned long);
+extern void	   jbd2_journal_clear_features
 		   (journal_t *, unsigned long, unsigned long, unsigned long);
 extern int	   jbd2_journal_create     (journal_t *);
 extern int	   jbd2_journal_load       (journal_t *journal);

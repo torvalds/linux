@@ -199,7 +199,7 @@ flags_err:
 		 * need to allocate reservation structure for this inode
 		 * before set the window size
 		 */
-		mutex_lock(&ei->truncate_mutex);
+		down_write(&ei->i_data_sem);
 		if (!ei->i_block_alloc_info)
 			ext4_init_block_alloc_info(inode);
 
@@ -207,7 +207,7 @@ flags_err:
 			struct ext4_reserve_window_node *rsv = &ei->i_block_alloc_info->rsv_window_node;
 			rsv->rsv_goal_size = rsv_window_size;
 		}
-		mutex_unlock(&ei->truncate_mutex);
+		up_write(&ei->i_data_sem);
 		return 0;
 	}
 	case EXT4_IOC_GROUP_EXTEND: {
@@ -253,6 +253,9 @@ flags_err:
 
 		return err;
 	}
+
+	case EXT4_IOC_MIGRATE:
+		return ext4_ext_migrate(inode, filp, cmd, arg);
 
 	default:
 		return -ENOTTY;

@@ -124,6 +124,7 @@ extern int dir_notify_enable;
 #define MS_SHARED	(1<<20)	/* change to shared */
 #define MS_RELATIME	(1<<21)	/* Update atime relative to mtime/ctime. */
 #define MS_KERNMOUNT	(1<<22) /* this is a kern_mount call */
+#define MS_I_VERSION	(1<<23) /* Update inode I_version field */
 #define MS_ACTIVE	(1<<30)
 #define MS_NOUSER	(1<<31)
 
@@ -173,6 +174,7 @@ extern int dir_notify_enable;
 					((inode)->i_flags & (S_SYNC|S_DIRSYNC)))
 #define IS_MANDLOCK(inode)	__IS_FLG(inode, MS_MANDLOCK)
 #define IS_NOATIME(inode)   __IS_FLG(inode, MS_RDONLY|MS_NOATIME)
+#define IS_I_VERSION(inode)   __IS_FLG(inode, MS_I_VERSION)
 
 #define IS_NOQUOTA(inode)	((inode)->i_flags & S_NOQUOTA)
 #define IS_APPEND(inode)	((inode)->i_flags & S_APPEND)
@@ -599,7 +601,7 @@ struct inode {
 	uid_t			i_uid;
 	gid_t			i_gid;
 	dev_t			i_rdev;
-	unsigned long		i_version;
+	u64			i_version;
 	loff_t			i_size;
 #ifdef __NEED_I_SIZE_ORDERED
 	seqcount_t		i_size_seqcount;
@@ -1392,6 +1394,21 @@ static inline void inode_dec_link_count(struct inode *inode)
 {
 	drop_nlink(inode);
 	mark_inode_dirty(inode);
+}
+
+/**
+ * inode_inc_iversion - increments i_version
+ * @inode: inode that need to be updated
+ *
+ * Every time the inode is modified, the i_version field will be incremented.
+ * The filesystem has to be mounted with i_version flag
+ */
+
+static inline void inode_inc_iversion(struct inode *inode)
+{
+       spin_lock(&inode->i_lock);
+       inode->i_version++;
+       spin_unlock(&inode->i_lock);
 }
 
 extern void touch_atime(struct vfsmount *mnt, struct dentry *dentry);

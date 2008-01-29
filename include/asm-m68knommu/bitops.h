@@ -294,6 +294,8 @@ found_middle:
 	return result + ffz(__swab32(tmp));
 }
 
+#define ext2_find_next_bit(addr, size, off) \
+	generic_find_next_le_bit((unsigned long *)(addr), (size), (off))
 #include <asm-generic/bitops/minix.h>
 
 #endif /* __KERNEL__ */

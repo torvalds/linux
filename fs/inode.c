@@ -1276,6 +1276,11 @@ void file_update_time(struct file *file)
 		sync_it = 1;
 	}
 
+	if (IS_I_VERSION(inode)) {
+		inode_inc_iversion(inode);
+		sync_it = 1;
+	}
+
 	if (sync_it)
 		mark_inode_dirty_sync(inode);
 }

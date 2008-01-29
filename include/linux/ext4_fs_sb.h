@@ -35,9 +35,10 @@ struct ext4_sb_info {
 	unsigned long s_itb_per_group;	/* Number of inode table blocks per group */
 	unsigned long s_gdb_count;	/* Number of group descriptor blocks */
 	unsigned long s_desc_per_block;	/* Number of group descriptors per block */
-	unsigned long s_groups_count;	/* Number of groups in the fs */
+	ext4_group_t s_groups_count;	/* Number of groups in the fs */
 	unsigned long s_overhead_last;  /* Last calculated overhead */
 	unsigned long s_blocks_last;    /* Last seen block count */
+	loff_t s_bitmap_maxbytes;	/* max bytes for bitmap files */
 	struct buffer_head * s_sbh;	/* Buffer containing the super block */
 	struct ext4_super_block * s_es;	/* Pointer to the super block in the buffer */
 	struct buffer_head ** s_group_desc;
@@ -90,6 +91,58 @@ struct ext4_sb_info {
 	unsigned long s_ext_blocks;
 	unsigned long s_ext_extents;
 #endif
+
+	/* for buddy allocator */
+	struct ext4_group_info ***s_group_info;
+	struct inode *s_buddy_cache;
+	long s_blocks_reserved;
+	spinlock_t s_reserve_lock;
+	struct list_head s_active_transaction;
+	struct list_head s_closed_transaction;
+	struct list_head s_committed_transaction;
+	spinlock_t s_md_lock;
+	tid_t s_last_transaction;
+	unsigned short *s_mb_offsets, *s_mb_maxs;
+
+	/* tunables */
+	unsigned long s_stripe;
+	unsigned long s_mb_stream_request;
+	unsigned long s_mb_max_to_scan;
+	unsigned long s_mb_min_to_scan;
+	unsigned long s_mb_stats;
+	unsigned long s_mb_order2_reqs;
+	unsigned long s_mb_group_prealloc;
+	/* where last allocation was done - for stream allocation */
+	unsigned long s_mb_last_group;
+	unsigned long s_mb_last_start;
+
+	/* history to debug policy */
+	struct ext4_mb_history *s_mb_history;
+	int s_mb_history_cur;
+	int s_mb_history_max;
+	int s_mb_history_num;
+	struct proc_dir_entry *s_mb_proc;
+	spinlock_t s_mb_history_lock;
+	int s_mb_history_filter;
+
+	/* stats for buddy allocator */
+	spinlock_t s_mb_pa_lock;
+	atomic_t s_bal_reqs;	/* number of reqs with len > 1 */
+	atomic_t s_bal_success;	/* we found long enough chunks */
+	atomic_t s_bal_allocated;	/* in blocks */
+	atomic_t s_bal_ex_scanned;	/* total extents scanned */
+	atomic_t s_bal_goals;	/* goal hits */
+	atomic_t s_bal_breaks;	/* too long searches */
+	atomic_t s_bal_2orders;	/* 2^order hits */
+	spinlock_t s_bal_lock;
+	unsigned long s_mb_buddies_generated;
+	unsigned long long s_mb_generation_time;
+	atomic_t s_mb_lost_chunks;
+	atomic_t s_mb_preallocated;
+	atomic_t s_mb_discarded;
+
+	/* locality groups */
+	struct ext4_locality_group *s_locality_groups;
 };
 
 #endif	/* _LINUX_EXT4_FS_SB */

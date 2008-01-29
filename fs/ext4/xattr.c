@@ -480,7 +480,7 @@ ext4_xattr_release_block(handle_t *handle, struct inode *inode,
 		ea_bdebug(bh, "refcount now=0; freeing");
 		if (ce)
 			mb_cache_entry_free(ce);
-		ext4_free_blocks(handle, inode, bh->b_blocknr, 1);
+		ext4_free_blocks(handle, inode, bh->b_blocknr, 1, 1);
 		get_bh(bh);
 		ext4_forget(handle, 1, inode, bh, bh->b_blocknr);
 	} else {
@@ -821,7 +821,7 @@ inserted:
 			new_bh = sb_getblk(sb, block);
 			if (!new_bh) {
 getblk_failed:
-				ext4_free_blocks(handle, inode, block, 1);
+				ext4_free_blocks(handle, inode, block, 1, 1);
 				error = -EIO;
 				goto cleanup;
 			}

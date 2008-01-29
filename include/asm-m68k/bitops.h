@@ -410,6 +410,8 @@ static inline int ext2_find_next_zero_bit(const void *vaddr, unsigned size,
 	res = ext2_find_first_zero_bit (p, size - 32 * (p - addr));
 	return (p - addr) * 32 + res;
 }
+#define ext2_find_next_bit(addr, size, off) \
+	generic_find_next_le_bit((unsigned long *)(addr), (size), (off))
 
 #endif /* __KERNEL__ */
 
