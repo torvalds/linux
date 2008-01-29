@@ -873,6 +873,7 @@ static const char *slave_sws[] = {
 	"Speaker Playback Switch",
 	"External Speaker Playback Switch",
 	"Speaker2 Playback Switch",
+	"IEC958 Playback Switch",
 	NULL
 };
 

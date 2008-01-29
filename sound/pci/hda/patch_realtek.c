@@ -1492,6 +1492,7 @@ static const char *alc_slave_sws[] = {
 	"Headphone Playback Switch",
 	"Speaker Playback Switch",
 	"Mono Playback Switch",
+	"IEC958 Playback Switch",
 	NULL,
 };
 
