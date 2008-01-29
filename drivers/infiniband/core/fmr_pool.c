@@ -320,10 +320,13 @@ struct ib_fmr_pool *ib_create_fmr_pool(struct ib_pd             *pd,
 			.max_maps   = pool->max_remaps,
 			.page_shift = params->page_shift
 		};
+		int bytes_per_fmr = sizeof *fmr;
+
+		if (pool->cache_bucket)
+			bytes_per_fmr += params->max_pages_per_fmr * sizeof (u64);
 
 		for (i = 0; i < params->pool_size; ++i) {
-			fmr = kmalloc(sizeof *fmr + params->max_pages_per_fmr * sizeof (u64),
-				      GFP_KERNEL);
+			fmr = kmalloc(bytes_per_fmr, GFP_KERNEL);
 			if (!fmr) {
 				printk(KERN_WARNING PFX "failed to allocate fmr "
 				       "struct for FMR %d\n", i);
