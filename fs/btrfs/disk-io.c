@@ -274,7 +274,7 @@ int btree_readpage(struct file *file, struct page *page)
 	return extent_read_full_page(tree, page, btree_get_extent);
 }
 
-static int btree_releasepage(struct page *page, gfp_t unused_gfp_flags)
+static int btree_releasepage(struct page *page, gfp_t gfp_flags)
 {
 	struct extent_io_tree *tree;
 	struct extent_map_tree *map;
@@ -282,7 +282,7 @@ static int btree_releasepage(struct page *page, gfp_t unused_gfp_flags)
 
 	tree = &BTRFS_I(page->mapping->host)->io_tree;
 	map = &BTRFS_I(page->mapping->host)->extent_tree;
-	ret = try_release_extent_mapping(map, tree, page);
+	ret = try_release_extent_mapping(map, tree, page, gfp_flags);
 	if (ret == 1) {
 		ClearPagePrivate(page);
 		set_page_private(page, 0);

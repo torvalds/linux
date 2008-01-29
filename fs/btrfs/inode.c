@@ -331,7 +331,8 @@ out:
 	return ret;
 }
 
-int btrfs_readpage_end_io_hook(struct page *page, u64 start, u64 end)
+int btrfs_readpage_end_io_hook(struct page *page, u64 start, u64 end,
+			       struct extent_state *state)
 {
 	size_t offset = start - ((u64)page->index << PAGE_CACHE_SHIFT);
 	struct inode *inode = page->mapping->host;
@@ -347,7 +348,12 @@ int btrfs_readpage_end_io_hook(struct page *page, u64 start, u64 end)
 	    btrfs_test_flag(inode, NODATASUM))
 		return 0;
 
-	ret = get_state_private(io_tree, start, &private);
+	if (state->start == start) {
+		private = state->private;
+		ret = 0;
+	} else {
+		ret = get_state_private(io_tree, start, &private);
+	}
 	local_irq_save(flags);
 	kaddr = kmap_atomic(page, KM_IRQ0);
 	if (ret) {
@@ -1830,7 +1836,7 @@ out_unlock:
 }
 
 struct extent_map *btrfs_get_extent(struct inode *inode, struct page *page,
-				    size_t page_offset, u64 start, u64 len,
+				    size_t pg_offset, u64 start, u64 len,
 				    int create)
 {
 	int ret;
@@ -1865,7 +1871,10 @@ again:
 			       start, len, em->start, em->len);
 			WARN_ON(1);
 		}
-		goto out;
+		if (em->block_start == EXTENT_MAP_INLINE && page)
+			free_extent_map(em);
+		else
+			goto out;
 	}
 	em = alloc_extent_map(GFP_NOFS);
 	if (!em) {
@@ -1930,6 +1939,7 @@ again:
 		em->len = extent_end - extent_start;
 		goto insert;
 	} else if (found_type == BTRFS_FILE_EXTENT_INLINE) {
+		u64 page_start;
 		unsigned long ptr;
 		char *map;
 		size_t size;
@@ -1959,16 +1969,17 @@ again:
 			goto out;
 		}
 
-		extent_offset = ((u64)page->index << PAGE_CACHE_SHIFT) -
-			extent_start + page_offset;
-		copy_size = min_t(u64, PAGE_CACHE_SIZE - page_offset,
+		page_start = page_offset(page) + pg_offset;
+		extent_offset = page_start - extent_start;
+		copy_size = min_t(u64, PAGE_CACHE_SIZE - pg_offset,
 				size - extent_offset);
 		em->start = extent_start + extent_offset;
-		em->len = copy_size;
+		em->len = (copy_size + root->sectorsize - 1) &
+			~((u64)root->sectorsize - 1);
 		map = kmap(page);
 		ptr = btrfs_file_extent_inline_start(item) + extent_offset;
 		if (create == 0 && !PageUptodate(page)) {
-			read_extent_buffer(leaf, map + page_offset, ptr,
+			read_extent_buffer(leaf, map + pg_offset, ptr,
 					   copy_size);
 			flush_dcache_page(page);
 		} else if (create && PageUptodate(page)) {
@@ -1980,7 +1991,7 @@ again:
 				trans = btrfs_start_transaction(root, 1);
 				goto again;
 			}
-			write_extent_buffer(leaf, map + page_offset, ptr,
+			write_extent_buffer(leaf, map + pg_offset, ptr,
 					    copy_size);
 			btrfs_mark_buffer_dirty(leaf);
 		}
@@ -2077,7 +2088,7 @@ btrfs_readpages(struct file *file, struct address_space *mapping,
 				btrfs_get_extent);
 }
 
-static int btrfs_releasepage(struct page *page, gfp_t unused_gfp_flags)
+static int btrfs_releasepage(struct page *page, gfp_t gfp_flags)
 {
 	struct extent_io_tree *tree;
 	struct extent_map_tree *map;
@@ -2085,7 +2096,7 @@ static int btrfs_releasepage(struct page *page, gfp_t unused_gfp_flags)
 
 	tree = &BTRFS_I(page->mapping->host)->io_tree;
 	map = &BTRFS_I(page->mapping->host)->extent_tree;
-	ret = try_release_extent_mapping(map, tree, page);
+	ret = try_release_extent_mapping(map, tree, page, gfp_flags);
 	if (ret == 1) {
 		ClearPagePrivate(page);
 		set_page_private(page, 0);

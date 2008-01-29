@@ -23,19 +23,23 @@
 #define EXTENT_PAGE_PRIVATE 1
 #define EXTENT_PAGE_PRIVATE_FIRST_PAGE 3
 
+struct extent_state;
+
 struct extent_io_ops {
 	int (*fill_delalloc)(struct inode *inode, u64 start, u64 end);
 	int (*writepage_io_hook)(struct page *page, u64 start, u64 end);
 	int (*readpage_io_hook)(struct page *page, u64 start, u64 end);
-	int (*readpage_end_io_hook)(struct page *page, u64 start, u64 end);
-	void (*writepage_end_io_hook)(struct page *page, u64 start, u64 end);
+	int (*readpage_end_io_hook)(struct page *page, u64 start, u64 end,
+				    struct extent_state *state);
+	void (*writepage_end_io_hook)(struct page *page, u64 start, u64 end,
+				      struct extent_state *state);
 };
 
 struct extent_io_tree {
 	struct rb_root state;
 	struct address_space *mapping;
 	u64 dirty_bytes;
-	rwlock_t lock;
+	spinlock_t lock;
 	struct extent_io_ops *ops;
 	spinlock_t lru_lock;
 	struct list_head buffer_lru;
@@ -45,8 +49,8 @@ struct extent_io_tree {
 struct extent_state {
 	u64 start;
 	u64 end; /* inclusive */
-	int in_tree;
 	struct rb_node rb_node;
+	struct extent_io_tree *tree;
 	wait_queue_head_t wq;
 	atomic_t refs;
 	unsigned long state;
@@ -82,7 +86,8 @@ void extent_io_tree_init(struct extent_io_tree *tree,
 			  struct address_space *mapping, gfp_t mask);
 void extent_io_tree_empty_lru(struct extent_io_tree *tree);
 int try_release_extent_mapping(struct extent_map_tree *map,
-			       struct extent_io_tree *tree, struct page *page);
+			       struct extent_io_tree *tree, struct page *page,
+			       gfp_t mask);
 int lock_extent(struct extent_io_tree *tree, u64 start, u64 end, gfp_t mask);
 int unlock_extent(struct extent_io_tree *tree, u64 start, u64 end, gfp_t mask);
 int extent_read_full_page(struct extent_io_tree *tree, struct page *page,
