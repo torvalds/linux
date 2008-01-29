@@ -24,7 +24,6 @@ CONFIG_MIPS=y
 # CONFIG_PNX8550_STB810 is not set
 # CONFIG_PMC_MSP is not set
 # CONFIG_PMC_YOSEMITE is not set
-# CONFIG_QEMU is not set
 # CONFIG_SGI_IP22 is not set
 CONFIG_SGI_IP27=y
 # CONFIG_SGI_IP32 is not set

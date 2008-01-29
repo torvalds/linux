@@ -359,34 +359,6 @@ config PMC_YOSEMITE
 	  Yosemite is an evaluation board for the RM9000x2 processor
 	  manufactured by PMC-Sierra.
 
-config QEMU
-	bool "Qemu"
-	select CEVT_R4K
-	select CSRC_R4K
-	select DMA_COHERENT
-	select GENERIC_ISA_DMA
-	select HAVE_STD_PC_SERIAL_PORT
-	select I8253
-	select I8259
-	select IRQ_CPU
-	select ISA
-	select SWAP_IO_SPACE
-	select SYS_HAS_CPU_MIPS32_R1
-	select SYS_HAS_EARLY_PRINTK
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-	select GENERIC_HARDIRQS_NO__DO_IRQ
-	select NR_CPUS_DEFAULT_1
-	select SYS_SUPPORTS_SMP
-	help
-	  Qemu is a software emulator which among other architectures also
-	  can simulate a MIPS32 4Kc system.  This patch adds support for the
-	  system architecture that currently is being simulated by Qemu.  It
-	  will eventually be removed again when Qemu has the capability to
-	  simulate actual MIPS hardware platforms.  More information on Qemu
-	  can be found at http://www.linux-mips.org/wiki/Qemu.
-
 config SGI_IP22
 	bool "SGI IP22 (Indy/Indigo2)"
 	select ARC

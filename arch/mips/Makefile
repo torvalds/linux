@@ -355,14 +355,6 @@ cflags-$(CONFIG_PMC_YOSEMITE)	+= -Iinclude/asm-mips/mach-yosemite
 load-$(CONFIG_PMC_YOSEMITE)	+= 0xffffffff80100000
 
 #
-# Qemu simulating MIPS32 4Kc
-#
-core-$(CONFIG_QEMU)		+= arch/mips/qemu/
-cflags-$(CONFIG_QEMU)		+= -Iinclude/asm-mips/mach-qemu
-load-$(CONFIG_QEMU)		+= 0xffffffff80010000
-all-$(CONFIG_QEMU)		:= vmlinux.bin
-
-#
 # Basler eXcite
 #
 core-$(CONFIG_BASLER_EXCITE)	+= arch/mips/basler/excite/
