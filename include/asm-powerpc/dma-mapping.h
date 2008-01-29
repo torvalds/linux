@@ -76,6 +76,11 @@ static inline struct dma_mapping_ops *get_dma_ops(struct device *dev)
 	return dev->archdata.dma_ops;
 }
 
+static inline void set_dma_ops(struct device *dev, struct dma_mapping_ops *ops)
+{
+	dev->archdata.dma_ops = ops;
+}
+
 static inline int dma_supported(struct device *dev, u64 mask)
 {
 	struct dma_mapping_ops *dma_ops = get_dma_ops(dev);
