@@ -2836,7 +2836,7 @@ void t3_sge_init(struct adapter *adap, struct sge_params *p)
  *	defaults for the assorted SGE parameters, which admins can change until
  *	they are used to initialize the SGE.
  */
-void __devinit t3_sge_prep(struct adapter *adap, struct sge_params *p)
+void t3_sge_prep(struct adapter *adap, struct sge_params *p)
 {
 	int i;
 
