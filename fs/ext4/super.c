@@ -741,6 +741,8 @@ static int ext4_show_options(struct seq_file *seq, struct vfsmount *vfs)
 	if (test_opt(sb, I_VERSION))
 		seq_puts(seq, ",i_version");
 
+	if (sbi->s_stripe)
+		seq_printf(seq, ",stripe=%lu", sbi->s_stripe);
 	/*
 	 * journal mode get enabled in different ways
 	 * So just print the value even if we didn't specify it
