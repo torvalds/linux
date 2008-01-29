@@ -935,11 +935,14 @@ extern unsigned long ext4_count_free (struct buffer_head *, unsigned);
 /* inode.c */
 int ext4_forget(handle_t *handle, int is_metadata, struct inode *inode,
 		struct buffer_head *bh, ext4_fsblk_t blocknr);
-struct buffer_head * ext4_getblk (handle_t *, struct inode *, long, int, int *);
-struct buffer_head * ext4_bread (handle_t *, struct inode *, int, int, int *);
+struct buffer_head *ext4_getblk(handle_t *, struct inode *,
+						ext4_lblk_t, int, int *);
+struct buffer_head *ext4_bread(handle_t *, struct inode *,
+						ext4_lblk_t, int, int *);
 int ext4_get_blocks_handle(handle_t *handle, struct inode *inode,
-	sector_t iblock, unsigned long maxblocks, struct buffer_head *bh_result,
-	int create, int extend_disksize);
+				ext4_lblk_t iblock, unsigned long maxblocks,
+				struct buffer_head *bh_result,
+				int create, int extend_disksize);
 
 extern void ext4_read_inode (struct inode *);
 extern int  ext4_write_inode (struct inode *, int);
@@ -1068,7 +1071,7 @@ extern const struct inode_operations ext4_fast_symlink_inode_operations;
 extern int ext4_ext_tree_init(handle_t *handle, struct inode *);
 extern int ext4_ext_writepage_trans_blocks(struct inode *, int);
 extern int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
-			ext4_fsblk_t iblock,
+			ext4_lblk_t iblock,
 			unsigned long max_blocks, struct buffer_head *bh_result,
 			int create, int extend_disksize);
 extern void ext4_ext_truncate(struct inode *, struct page *);
@@ -1081,11 +1084,17 @@ ext4_get_blocks_wrap(handle_t *handle, struct inode *inode, sector_t block,
 			unsigned long max_blocks, struct buffer_head *bh,
 			int create, int extend_disksize)
 {
-	if (EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL)
-		return ext4_ext_get_blocks(handle, inode, block, max_blocks,
-					bh, create, extend_disksize);
-	return ext4_get_blocks_handle(handle, inode, block, max_blocks, bh,
-					create, extend_disksize);
+	int retval;
+	if (EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL) {
+		retval = ext4_ext_get_blocks(handle, inode,
+						(ext4_lblk_t)block, max_blocks,
+						bh, create, extend_disksize);
+	} else {
+		retval = ext4_get_blocks_handle(handle, inode,
+						(ext4_lblk_t)block, max_blocks,
+						bh, create, extend_disksize);
+	}
+	return retval;
 }
 
 

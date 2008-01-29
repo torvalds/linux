@@ -2914,7 +2914,7 @@ static ssize_t ext4_quota_read(struct super_block *sb, int type, char *data,
 			       size_t len, loff_t off)
 {
 	struct inode *inode = sb_dqopt(sb)->files[type];
-	sector_t blk = off >> EXT4_BLOCK_SIZE_BITS(sb);
+	ext4_lblk_t blk = off >> EXT4_BLOCK_SIZE_BITS(sb);
 	int err = 0;
 	int offset = off & (sb->s_blocksize - 1);
 	int tocopy;
@@ -2952,7 +2952,7 @@ static ssize_t ext4_quota_write(struct super_block *sb, int type,
 				const char *data, size_t len, loff_t off)
 {
 	struct inode *inode = sb_dqopt(sb)->files[type];
-	sector_t blk = off >> EXT4_BLOCK_SIZE_BITS(sb);
+	ext4_lblk_t blk = off >> EXT4_BLOCK_SIZE_BITS(sb);
 	int err = 0;
 	int offset = off & (sb->s_blocksize - 1);
 	int tocopy;

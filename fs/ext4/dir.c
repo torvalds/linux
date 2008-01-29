@@ -124,7 +124,7 @@ static int ext4_readdir(struct file * filp,
 	offset = filp->f_pos & (sb->s_blocksize - 1);
 
 	while (!error && !stored && filp->f_pos < inode->i_size) {
-		unsigned long blk = filp->f_pos >> EXT4_BLOCK_SIZE_BITS(sb);
+		ext4_lblk_t blk = filp->f_pos >> EXT4_BLOCK_SIZE_BITS(sb);
 		struct buffer_head map_bh;
 		struct buffer_head *bh = NULL;
 

@@ -51,7 +51,7 @@
 
 static struct buffer_head *ext4_append(handle_t *handle,
 					struct inode *inode,
-					u32 *block, int *err)
+					ext4_lblk_t *block, int *err)
 {
 	struct buffer_head *bh;
 
@@ -144,8 +144,8 @@ struct dx_map_entry
 	u16 size;
 };
 
-static inline unsigned dx_get_block (struct dx_entry *entry);
-static void dx_set_block (struct dx_entry *entry, unsigned value);
+static inline ext4_lblk_t dx_get_block(struct dx_entry *entry);
+static void dx_set_block(struct dx_entry *entry, ext4_lblk_t value);
 static inline unsigned dx_get_hash (struct dx_entry *entry);
 static void dx_set_hash (struct dx_entry *entry, unsigned value);
 static unsigned dx_get_count (struct dx_entry *entries);
@@ -166,7 +166,8 @@ static void dx_sort_map(struct dx_map_entry *map, unsigned count);
 static struct ext4_dir_entry_2 *dx_move_dirents (char *from, char *to,
 		struct dx_map_entry *offsets, int count);
 static struct ext4_dir_entry_2* dx_pack_dirents (char *base, int size);
-static void dx_insert_block (struct dx_frame *frame, u32 hash, u32 block);
+static void dx_insert_block(struct dx_frame *frame,
+					u32 hash, ext4_lblk_t block);
 static int ext4_htree_next_block(struct inode *dir, __u32 hash,
 				 struct dx_frame *frame,
 				 struct dx_frame *frames,
@@ -181,12 +182,12 @@ static int ext4_dx_add_entry(handle_t *handle, struct dentry *dentry,
  * Mask them off for now.
  */
 
-static inline unsigned dx_get_block (struct dx_entry *entry)
+static inline ext4_lblk_t dx_get_block(struct dx_entry *entry)
 {
 	return le32_to_cpu(entry->block) & 0x00ffffff;
 }
 
-static inline void dx_set_block (struct dx_entry *entry, unsigned value)
+static inline void dx_set_block(struct dx_entry *entry, ext4_lblk_t value)
 {
 	entry->block = cpu_to_le32(value);
 }
@@ -243,8 +244,8 @@ static void dx_show_index (char * label, struct dx_entry *entries)
 	int i, n = dx_get_count (entries);
 	printk("%s index ", label);
 	for (i = 0; i < n; i++) {
-		printk("%x->%u ", i? dx_get_hash(entries + i) :
-				0, dx_get_block(entries + i));
+		printk("%x->%lu ", i? dx_get_hash(entries + i) :
+				0, (unsigned long)dx_get_block(entries + i));
 	}
 	printk("\n");
 }
@@ -297,7 +298,8 @@ struct stats dx_show_entries(struct dx_hash_info *hinfo, struct inode *dir,
 	printk("%i indexed blocks...\n", count);
 	for (i = 0; i < count; i++, entries++)
 	{
-		u32 block = dx_get_block(entries), hash = i? dx_get_hash(entries): 0;
+		ext4_lblk_t block = dx_get_block(entries);
+		ext4_lblk_t hash  = i ? dx_get_hash(entries): 0;
 		u32 range = i < count - 1? (dx_get_hash(entries + 1) - hash): ~hash;
 		struct stats stats;
 		printk("%s%3u:%03u hash %8x/%8x ",levels?"":"   ", i, block, hash, range);
@@ -561,7 +563,7 @@ static inline struct ext4_dir_entry_2 *ext4_next_entry(struct ext4_dir_entry_2 *
  * into the tree.  If there is an error it is returned in err.
  */
 static int htree_dirblock_to_tree(struct file *dir_file,
-				  struct inode *dir, int block,
+				  struct inode *dir, ext4_lblk_t block,
 				  struct dx_hash_info *hinfo,
 				  __u32 start_hash, __u32 start_minor_hash)
 {
@@ -569,7 +571,8 @@ static int htree_dirblock_to_tree(struct file *dir_file,
 	struct ext4_dir_entry_2 *de, *top;
 	int err, count = 0;
 
-	dxtrace(printk("In htree dirblock_to_tree: block %d\n", block));
+	dxtrace(printk(KERN_INFO "In htree dirblock_to_tree: block %lu\n",
+							(unsigned long)block));
 	if (!(bh = ext4_bread (NULL, dir, block, 0, &err)))
 		return err;
 
@@ -621,9 +624,9 @@ int ext4_htree_fill_tree(struct file *dir_file, __u32 start_hash,
 	struct ext4_dir_entry_2 *de;
 	struct dx_frame frames[2], *frame;
 	struct inode *dir;
-	int block, err;
+	ext4_lblk_t block;
 	int count = 0;
-	int ret;
+	int ret, err;
 	__u32 hashval;
 
 	dxtrace(printk("In htree_fill_tree, start hash: %x:%x\n", start_hash,
@@ -753,7 +756,7 @@ static void dx_sort_map (struct dx_map_entry *map, unsigned count)
 	} while(more);
 }
 
-static void dx_insert_block(struct dx_frame *frame, u32 hash, u32 block)
+static void dx_insert_block(struct dx_frame *frame, u32 hash, ext4_lblk_t block)
 {
 	struct dx_entry *entries = frame->entries;
 	struct dx_entry *old = frame->at, *new = old + 1;
@@ -848,13 +851,14 @@ static struct buffer_head * ext4_find_entry (struct dentry *dentry,
 	struct super_block * sb;
 	struct buffer_head * bh_use[NAMEI_RA_SIZE];
 	struct buffer_head * bh, *ret = NULL;
-	unsigned long start, block, b;
+	ext4_lblk_t start, block, b;
 	int ra_max = 0;		/* Number of bh's in the readahead
 				   buffer, bh_use[] */
 	int ra_ptr = 0;		/* Current index into readahead
 				   buffer */
 	int num = 0;
-	int nblocks, i, err;
+	ext4_lblk_t  nblocks;
+	int i, err;
 	struct inode *dir = dentry->d_parent->d_inode;
 	int namelen;
 	const u8 *name;
@@ -915,7 +919,8 @@ restart:
 		if (!buffer_uptodate(bh)) {
 			/* read error, skip block & hope for the best */
 			ext4_error(sb, __FUNCTION__, "reading directory #%lu "
-				   "offset %lu", dir->i_ino, block);
+				   "offset %lu", dir->i_ino,
+				   (unsigned long)block);
 			brelse(bh);
 			goto next;
 		}
@@ -962,7 +967,7 @@ static struct buffer_head * ext4_dx_find_entry(struct dentry *dentry,
 	struct dx_frame frames[2], *frame;
 	struct ext4_dir_entry_2 *de, *top;
 	struct buffer_head *bh;
-	unsigned long block;
+	ext4_lblk_t block;
 	int retval;
 	int namelen = dentry->d_name.len;
 	const u8 *name = dentry->d_name.name;
@@ -1174,7 +1179,7 @@ static struct ext4_dir_entry_2 *do_split(handle_t *handle, struct inode *dir,
 	unsigned blocksize = dir->i_sb->s_blocksize;
 	unsigned count, continued;
 	struct buffer_head *bh2;
-	u32 newblock;
+	ext4_lblk_t newblock;
 	u32 hash2;
 	struct dx_map_entry *map;
 	char *data1 = (*bh)->b_data, *data2;
@@ -1221,8 +1226,9 @@ static struct ext4_dir_entry_2 *do_split(handle_t *handle, struct inode *dir,
 	split = count - move;
 	hash2 = map[split].hash;
 	continued = hash2 == map[split - 1].hash;
-	dxtrace(printk("Split block %i at %x, %i/%i\n",
-		dx_get_block(frame->at), hash2, split, count-split));
+	dxtrace(printk(KERN_INFO "Split block %lu at %x, %i/%i\n",
+			(unsigned long)dx_get_block(frame->at),
+					hash2, split, count-split));
 
 	/* Fancy dance to stay within two buffers */
 	de2 = dx_move_dirents(data1, data2, map + split, count - split);
@@ -1374,7 +1380,7 @@ static int make_indexed_dir(handle_t *handle, struct dentry *dentry,
 	int		retval;
 	unsigned	blocksize;
 	struct dx_hash_info hinfo;
-	u32		block;
+	ext4_lblk_t  block;
 	struct fake_dirent *fde;
 
 	blocksize =  dir->i_sb->s_blocksize;
@@ -1455,7 +1461,7 @@ static int ext4_add_entry (handle_t *handle, struct dentry *dentry,
 	int	retval;
 	int	dx_fallback=0;
 	unsigned blocksize;
-	u32 block, blocks;
+	ext4_lblk_t block, blocks;
 
 	sb = dir->i_sb;
 	blocksize = sb->s_blocksize;
@@ -1532,7 +1538,7 @@ static int ext4_dx_add_entry(handle_t *handle, struct dentry *dentry,
 		       dx_get_count(entries), dx_get_limit(entries)));
 	/* Need to split index? */
 	if (dx_get_count(entries) == dx_get_limit(entries)) {
-		u32 newblock;
+		ext4_lblk_t newblock;
 		unsigned icount = dx_get_count(entries);
 		int levels = frame - frames;
 		struct dx_entry *entries2;

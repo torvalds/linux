@@ -105,7 +105,7 @@ int ext4_forget(handle_t *handle, int is_metadata, struct inode *inode,
  */
 static unsigned long blocks_for_truncate(struct inode *inode)
 {
-	unsigned long needed;
+	ext4_lblk_t needed;
 
 	needed = inode->i_blocks >> (inode->i_sb->s_blocksize_bits - 9);
 
@@ -282,7 +282,8 @@ static int verify_chain(Indirect *from, Indirect *to)
  */
 
 static int ext4_block_to_path(struct inode *inode,
-			long i_block, int offsets[4], int *boundary)
+			ext4_lblk_t i_block,
+			ext4_lblk_t offsets[4], int *boundary)
 {
 	int ptrs = EXT4_ADDR_PER_BLOCK(inode->i_sb);
 	int ptrs_bits = EXT4_ADDR_PER_BLOCK_BITS(inode->i_sb);
@@ -349,7 +350,8 @@ static int ext4_block_to_path(struct inode *inode,
  *	or when it reads all @depth-1 indirect blocks successfully and finds
  *	the whole chain, all way to the data (returns %NULL, *err == 0).
  */
-static Indirect *ext4_get_branch(struct inode *inode, int depth, int *offsets,
+static Indirect *ext4_get_branch(struct inode *inode, int depth,
+				 ext4_lblk_t  *offsets,
 				 Indirect chain[4], int *err)
 {
 	struct super_block *sb = inode->i_sb;
@@ -445,7 +447,7 @@ static ext4_fsblk_t ext4_find_near(struct inode *inode, Indirect *ind)
  *	stores it in *@goal and returns zero.
  */
 
-static ext4_fsblk_t ext4_find_goal(struct inode *inode, long block,
+static ext4_fsblk_t ext4_find_goal(struct inode *inode, ext4_lblk_t block,
 		Indirect chain[4], Indirect *partial)
 {
 	struct ext4_block_alloc_info *block_i;
@@ -590,7 +592,7 @@ failed_out:
  */
 static int ext4_alloc_branch(handle_t *handle, struct inode *inode,
 			int indirect_blks, int *blks, ext4_fsblk_t goal,
-			int *offsets, Indirect *branch)
+			ext4_lblk_t *offsets, Indirect *branch)
 {
 	int blocksize = inode->i_sb->s_blocksize;
 	int i, n = 0;
@@ -680,7 +682,7 @@ failed:
  * chain to new block and return 0.
  */
 static int ext4_splice_branch(handle_t *handle, struct inode *inode,
-			long block, Indirect *where, int num, int blks)
+			ext4_lblk_t block, Indirect *where, int num, int blks)
 {
 	int i;
 	int err = 0;
@@ -784,12 +786,12 @@ err_out:
  * return < 0, error case.
  */
 int ext4_get_blocks_handle(handle_t *handle, struct inode *inode,
-		sector_t iblock, unsigned long maxblocks,
+		ext4_lblk_t iblock, unsigned long maxblocks,
 		struct buffer_head *bh_result,
 		int create, int extend_disksize)
 {
 	int err = -EIO;
-	int offsets[4];
+	ext4_lblk_t offsets[4];
 	Indirect chain[4];
 	Indirect *partial;
 	ext4_fsblk_t goal;
@@ -803,7 +805,8 @@ int ext4_get_blocks_handle(handle_t *handle, struct inode *inode,
 
 	J_ASSERT(!(EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL));
 	J_ASSERT(handle != NULL || create == 0);
-	depth = ext4_block_to_path(inode,iblock,offsets,&blocks_to_boundary);
+	depth = ext4_block_to_path(inode, iblock, offsets,
+					&blocks_to_boundary);
 
 	if (depth == 0)
 		goto out;
@@ -996,7 +999,7 @@ get_block:
  * `handle' can be NULL if create is zero
  */
 struct buffer_head *ext4_getblk(handle_t *handle, struct inode *inode,
-				long block, int create, int *errp)
+				ext4_lblk_t block, int create, int *errp)
 {
 	struct buffer_head dummy;
 	int fatal = 0, err;
@@ -1063,7 +1066,7 @@ err:
 }
 
 struct buffer_head *ext4_bread(handle_t *handle, struct inode *inode,
-			       int block, int create, int *err)
+			       ext4_lblk_t block, int create, int *err)
 {
 	struct buffer_head * bh;
 
@@ -1828,7 +1831,8 @@ int ext4_block_truncate_page(handle_t *handle, struct page *page,
 {
 	ext4_fsblk_t index = from >> PAGE_CACHE_SHIFT;
 	unsigned offset = from & (PAGE_CACHE_SIZE-1);
-	unsigned blocksize, iblock, length, pos;
+	unsigned blocksize, length, pos;
+	ext4_lblk_t iblock;
 	struct inode *inode = mapping->host;
 	struct buffer_head *bh;
 	int err = 0;
@@ -1964,7 +1968,7 @@ static inline int all_zeroes(__le32 *p, __le32 *q)
  *			(no partially truncated stuff there).  */
 
 static Indirect *ext4_find_shared(struct inode *inode, int depth,
-			int offsets[4], Indirect chain[4], __le32 *top)
+			ext4_lblk_t offsets[4], Indirect chain[4], __le32 *top)
 {
 	Indirect *partial, *p;
 	int k, err;
@@ -2289,12 +2293,12 @@ void ext4_truncate(struct inode *inode)
 	__le32 *i_data = ei->i_data;
 	int addr_per_block = EXT4_ADDR_PER_BLOCK(inode->i_sb);
 	struct address_space *mapping = inode->i_mapping;
-	int offsets[4];
+	ext4_lblk_t offsets[4];
 	Indirect chain[4];
 	Indirect *partial;
 	__le32 nr = 0;
 	int n;
-	long last_block;
+	ext4_lblk_t last_block;
 	unsigned blocksize = inode->i_sb->s_blocksize;
 	struct page *page;
 

@@ -27,6 +27,9 @@ typedef int ext4_grpblk_t;
 /* data type for filesystem-wide blocks number */
 typedef unsigned long long ext4_fsblk_t;
 
+/* data type for file logical block number */
+typedef __u32 ext4_lblk_t;
+
 struct ext4_reserve_window {
 	ext4_fsblk_t	_rsv_start;	/* First byte reserved */
 	ext4_fsblk_t	_rsv_end;	/* Last byte reserved or 0 */
@@ -48,7 +51,7 @@ struct ext4_block_alloc_info {
 	 * most-recently-allocated block in this file.
 	 * We use this for detecting linearly ascending allocation requests.
 	 */
-	__u32 last_alloc_logical_block;
+	ext4_lblk_t last_alloc_logical_block;
 	/*
 	 * Was i_next_alloc_goal in ext4_inode_info
 	 * is the *physical* companion to i_next_alloc_block.
@@ -67,7 +70,7 @@ struct ext4_block_alloc_info {
  */
 struct ext4_ext_cache {
 	ext4_fsblk_t	ec_start;
-	__u32		ec_block;
+	ext4_lblk_t	ec_block;
 	__u32		ec_len; /* must be 32bit to return holes */
 	__u32		ec_type;
 };
@@ -95,7 +98,7 @@ struct ext4_inode_info {
 	/* block reservation info */
 	struct ext4_block_alloc_info *i_block_alloc_info;
 
-	__u32	i_dir_start_lookup;
+	ext4_lblk_t		i_dir_start_lookup;
 #ifdef CONFIG_EXT4DEV_FS_XATTR
 	/*
 	 * Extended attributes can be read independently of the main file
