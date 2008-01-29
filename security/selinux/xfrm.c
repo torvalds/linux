@@ -46,11 +46,14 @@
 #include <net/checksum.h>
 #include <net/udp.h>
 #include <asm/semaphore.h>
+#include <asm/atomic.h>
 
 #include "avc.h"
 #include "objsec.h"
 #include "xfrm.h"
 
+/* Labeled XFRM instance counter */
+atomic_t selinux_xfrm_refcount = ATOMIC_INIT(0);
 
 /*
  * Returns true if an LSM/SELinux context
@@ -293,6 +296,9 @@ int selinux_xfrm_policy_alloc(struct xfrm_policy *xp,
 	BUG_ON(!uctx);
 
 	err = selinux_xfrm_sec_ctx_alloc(&xp->security, uctx, 0);
+	if (err == 0)
+		atomic_inc(&selinux_xfrm_refcount);
+
 	return err;
 }
 
@@ -340,10 +346,13 @@ int selinux_xfrm_policy_delete(struct xfrm_policy *xp)
 	struct xfrm_sec_ctx *ctx = xp->security;
 	int rc = 0;
 
-	if (ctx)
+	if (ctx) {
 		rc = avc_has_perm(tsec->sid, ctx->ctx_sid,
 				  SECCLASS_ASSOCIATION,
 				  ASSOCIATION__SETCONTEXT, NULL);
+		if (rc == 0)
+			atomic_dec(&selinux_xfrm_refcount);
+	}
 
 	return rc;
 }
@@ -360,6 +369,8 @@ int selinux_xfrm_state_alloc(struct xfrm_state *x, struct xfrm_user_sec_ctx *uct
 	BUG_ON(!x);
 
 	err = selinux_xfrm_sec_ctx_alloc(&x->security, uctx, secid);
+	if (err == 0)
+		atomic_inc(&selinux_xfrm_refcount);
 	return err;
 }
 
@@ -382,10 +393,13 @@ int selinux_xfrm_state_delete(struct xfrm_state *x)
 	struct xfrm_sec_ctx *ctx = x->security;
 	int rc = 0;
 
-	if (ctx)
+	if (ctx) {
 		rc = avc_has_perm(tsec->sid, ctx->ctx_sid,
 				  SECCLASS_ASSOCIATION,
 				  ASSOCIATION__SETCONTEXT, NULL);
+		if (rc == 0)
+			atomic_dec(&selinux_xfrm_refcount);
+	}
 
 	return rc;
 }

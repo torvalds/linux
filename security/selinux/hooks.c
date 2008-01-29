@@ -51,8 +51,10 @@
 #include <net/ip.h>		/* for local_port_range[] */
 #include <net/tcp.h>		/* struct or_callable used in sock_rcv_skb */
 #include <net/net_namespace.h>
+#include <net/netlabel.h>
 #include <asm/uaccess.h>
 #include <asm/ioctls.h>
+#include <asm/atomic.h>
 #include <linux/bitops.h>
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>	/* for network interface checks */
@@ -90,6 +92,9 @@ extern unsigned int policydb_loaded_version;
 extern int selinux_nlmsg_lookup(u16 sclass, u16 nlmsg_type, u32 *perm);
 extern int selinux_compat_net;
 extern struct security_operations *security_ops;
+
+/* SECMARK reference count */
+atomic_t selinux_secmark_refcount = ATOMIC_INIT(0);
 
 #ifdef CONFIG_SECURITY_SELINUX_DEVELOP
 int selinux_enforcing = 0;
@@ -155,6 +160,21 @@ static int selinux_getsecurity(u32 sid, void *buffer, size_t size)
 getsecurity_exit:
 	kfree(context);
 	return len;
+}
+
+/**
+ * selinux_secmark_enabled - Check to see if SECMARK is currently enabled
+ *
+ * Description:
+ * This function checks the SECMARK reference counter to see if any SECMARK
+ * targets are currently configured, if the reference counter is greater than
+ * zero SECMARK is considered to be enabled.  Returns true (1) if SECMARK is
+ * enabled, false (0) if SECMARK is disabled.
+ *
+ */
+static int selinux_secmark_enabled(void)
+{
+	return (atomic_read(&selinux_secmark_refcount) > 0);
 }
 
 /* Allocate and free functions for each kind of security blob. */
@@ -3931,7 +3951,6 @@ static int selinux_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	struct sk_security_struct *sksec = sk->sk_security;
 	u16 family = sk->sk_family;
 	u32 sk_sid = sksec->sid;
-	u32 peer_sid;
 	struct avc_audit_data ad;
 	char *addrp;
 
@@ -3957,15 +3976,24 @@ static int selinux_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 		return selinux_sock_rcv_skb_compat(sk, skb, &ad,
 						   family, addrp);
 
-	err = avc_has_perm(sk_sid, skb->secmark, SECCLASS_PACKET,
-			   PACKET__RECV, &ad);
-	if (err)
-		return err;
+	if (selinux_secmark_enabled()) {
+		err = avc_has_perm(sk_sid, skb->secmark, SECCLASS_PACKET,
+				   PACKET__RECV, &ad);
+		if (err)
+			return err;
+	}
 
-	err = selinux_skb_peerlbl_sid(skb, family, &peer_sid);
-	if (err)
-		return err;
-	return avc_has_perm(sk_sid, peer_sid, SECCLASS_PEER, PEER__RECV, &ad);
+	if (netlbl_enabled() || selinux_xfrm_enabled()) {
+		u32 peer_sid;
+
+		err = selinux_skb_peerlbl_sid(skb, family, &peer_sid);
+		if (err)
+			return err;
+		err = avc_has_perm(sk_sid, peer_sid, SECCLASS_PEER,
+				   PEER__RECV, &ad);
+	}
+
+	return err;
 }
 
 static int selinux_socket_getpeersec_stream(struct socket *sock, char __user *optval,
