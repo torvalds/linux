@@ -318,6 +318,7 @@ int btrfs_readpage_io_hook(struct page *page, u64 start, u64 end)
 		if (ret == -ENOENT || ret == -EFBIG)
 			ret = 0;
 		csum = 0;
+		printk("no csum found for inode %lu start %Lu\n", inode->i_ino, start);
 		goto out;
 	}
 	read_extent_buffer(path->nodes[0], &csum, (unsigned long)item,
@@ -336,7 +337,7 @@ int btrfs_readpage_end_io_hook(struct page *page, u64 start, u64 end)
 	struct inode *inode = page->mapping->host;
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
 	char *kaddr;
-	u64 private;
+	u64 private = ~(u32)0;
 	int ret;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	u32 csum = ~(u32)0;
@@ -362,8 +363,9 @@ int btrfs_readpage_end_io_hook(struct page *page, u64 start, u64 end)
 	return 0;
 
 zeroit:
-	printk("btrfs csum failed ino %lu off %llu\n",
-	       page->mapping->host->i_ino, (unsigned long long)start);
+	printk("btrfs csum failed ino %lu off %llu csum %u private %Lu\n",
+	       page->mapping->host->i_ino, (unsigned long long)start, csum,
+	       private);
 	memset(kaddr + offset, 1, end - start + 1);
 	flush_dcache_page(page);
 	kunmap_atomic(kaddr, KM_IRQ0);

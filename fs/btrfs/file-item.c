@@ -261,6 +261,10 @@ csum:
 found:
 	csum_result = btrfs_csum_data(root, data, csum_result, len);
 	btrfs_csum_final(csum_result, (char *)&csum_result);
+	if (csum_result == 0) {
+		printk("csum result is 0 for inode %lu offset %Lu\n", inode->i_ino, offset);
+	}
+
 	write_extent_buffer(leaf, &csum_result, (unsigned long)item,
 			    BTRFS_CRC32_SIZE);
 	btrfs_mark_buffer_dirty(path->nodes[0]);
