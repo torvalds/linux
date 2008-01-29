@@ -1113,6 +1113,7 @@ ext4_get_blocks_wrap(handle_t *handle, struct inode *inode, sector_t block,
 			int create, int extend_disksize)
 {
 	int retval;
+	mutex_lock(&EXT4_I(inode)->truncate_mutex);
 	if (EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL) {
 		retval = ext4_ext_get_blocks(handle, inode,
 						(ext4_lblk_t)block, max_blocks,
@@ -1122,6 +1123,7 @@ ext4_get_blocks_wrap(handle_t *handle, struct inode *inode, sector_t block,
 						(ext4_lblk_t)block, max_blocks,
 						bh, create, extend_disksize);
 	}
+	mutex_unlock(&EXT4_I(inode)->truncate_mutex);
 	return retval;
 }
 

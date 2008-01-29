@@ -2129,6 +2129,10 @@ out:
 	return err ? err : allocated;
 }
 
+/*
+ * Need to be called with
+ * mutex_lock(&EXT4_I(inode)->truncate_mutex);
+ */
 int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 			ext4_lblk_t iblock,
 			unsigned long max_blocks, struct buffer_head *bh_result,
@@ -2144,7 +2148,6 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 	__clear_bit(BH_New, &bh_result->b_state);
 	ext_debug("blocks %u/%lu requested for inode %u\n",
 			iblock, max_blocks, inode->i_ino);
-	mutex_lock(&EXT4_I(inode)->truncate_mutex);
 
 	/* check in cache */
 	goal = ext4_ext_in_cache(inode, iblock, &newex);
@@ -2318,8 +2321,6 @@ out2:
 		ext4_ext_drop_refs(path);
 		kfree(path);
 	}
-	mutex_unlock(&EXT4_I(inode)->truncate_mutex);
-
 	return err ? err : allocated;
 }
 
@@ -2449,6 +2450,7 @@ long ext4_fallocate(struct inode *inode, int mode, loff_t offset, loff_t len)
 	 * modify 1 super block, 1 block bitmap and 1 group descriptor.
 	 */
 	credits = EXT4_DATA_TRANS_BLOCKS(inode->i_sb) + 3;
+	mutex_lock(&EXT4_I(inode)->truncate_mutex)
 retry:
 	while (ret >= 0 && ret < max_blocks) {
 		block = block + ret;
@@ -2505,6 +2507,7 @@ retry:
 	if (ret == -ENOSPC && ext4_should_retry_alloc(inode->i_sb, &retries))
 		goto retry;
 
+	mutex_unlock(&EXT4_I(inode)->truncate_mutex)
 	/*
 	 * Time to update the file size.
 	 * Update only when preallocation was requested beyond the file size.
