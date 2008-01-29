@@ -241,6 +241,7 @@ int netlbl_unlabel_getattr(struct netlbl_lsm_secattr *secattr)
 	if (netlabel_unlabel_acceptflg == 0)
 		return -ENOMSG;
 	netlbl_secattr_init(secattr);
+	secattr->type = NETLBL_NLTYPE_UNLABELED;
 	return 0;
 }
 
