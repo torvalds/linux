@@ -692,27 +692,6 @@ fail:
 	return err;
 }
 
-static int btrfs_free_inode(struct btrfs_trans_handle *trans,
-			    struct btrfs_root *root,
-			    struct inode *inode)
-{
-	struct btrfs_path *path;
-	int ret;
-
-	clear_inode(inode);
-
-	path = btrfs_alloc_path();
-	BUG_ON(!path);
-	ret = btrfs_lookup_inode(trans, root, path,
-				 &BTRFS_I(inode)->location, -1);
-	if (ret > 0)
-		ret = -ENOENT;
-	if (!ret)
-		ret = btrfs_del_item(trans, root, path);
-	btrfs_free_path(path);
-	return ret;
-}
-
 /*
  * this can truncate away extent items, csum items and directory items.
  * It starts at a high offset and removes keys until it can't find
@@ -723,7 +702,8 @@ static int btrfs_free_inode(struct btrfs_trans_handle *trans,
  */
 static int btrfs_truncate_in_trans(struct btrfs_trans_handle *trans,
 				   struct btrfs_root *root,
-				   struct inode *inode)
+				   struct inode *inode,
+				   u32 min_type)
 {
 	int ret;
 	struct btrfs_path *path;
@@ -739,6 +719,8 @@ static int btrfs_truncate_in_trans(struct btrfs_trans_handle *trans,
 	u64 root_owner = 0;
 	int found_extent;
 	int del_item;
+	int pending_del_nr = 0;
+	int pending_del_slot = 0;
 	int extent_type = -1;
 
 	btrfs_drop_extent_cache(inode, inode->i_size, (u64)-1);
@@ -751,17 +733,19 @@ static int btrfs_truncate_in_trans(struct btrfs_trans_handle *trans,
 	key.offset = (u64)-1;
 	key.type = (u8)-1;
 
+	btrfs_init_path(path);
+search_again:
+	ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
+	if (ret < 0) {
+		goto error;
+	}
+	if (ret > 0) {
+		BUG_ON(path->slots[0] == 0);
+		path->slots[0]--;
+	}
+
 	while(1) {
-		btrfs_init_path(path);
 		fi = NULL;
-		ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
-		if (ret < 0) {
-			goto error;
-		}
-		if (ret > 0) {
-			BUG_ON(path->slots[0] == 0);
-			path->slots[0]--;
-		}
 		leaf = path->nodes[0];
 		btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
 		found_type = btrfs_key_type(&found_key);
@@ -769,10 +753,7 @@ static int btrfs_truncate_in_trans(struct btrfs_trans_handle *trans,
 		if (found_key.objectid != inode->i_ino)
 			break;
 
-		if (found_type != BTRFS_CSUM_ITEM_KEY &&
-		    found_type != BTRFS_DIR_ITEM_KEY &&
-		    found_type != BTRFS_DIR_INDEX_KEY &&
-		    found_type != BTRFS_EXTENT_DATA_KEY)
+		if (found_type < min_type)
 			break;
 
 		item_end = found_key.offset;
@@ -801,14 +782,17 @@ static int btrfs_truncate_in_trans(struct btrfs_trans_handle *trans,
 				found_type = BTRFS_INODE_ITEM_KEY;
 			} else if (found_type == BTRFS_EXTENT_ITEM_KEY) {
 				found_type = BTRFS_CSUM_ITEM_KEY;
+			} else if (found_type == BTRFS_EXTENT_DATA_KEY) {
+				found_type = BTRFS_XATTR_ITEM_KEY;
+			} else if (found_type == BTRFS_XATTR_ITEM_KEY) {
+				found_type = BTRFS_INODE_REF_KEY;
 			} else if (found_type) {
 				found_type--;
 			} else {
 				break;
 			}
 			btrfs_set_key_type(&key, found_type);
-			btrfs_release_path(root, path);
-			continue;
+			goto next;
 		}
 		if (found_key.offset >= inode->i_size)
 			del_item = 1;
@@ -860,13 +844,21 @@ static int btrfs_truncate_in_trans(struct btrfs_trans_handle *trans,
 		}
 delete:
 		if (del_item) {
-			ret = btrfs_del_item(trans, root, path);
-			if (ret)
-				goto error;
+			if (!pending_del_nr) {
+				/* no pending yet, add ourselves */
+				pending_del_slot = path->slots[0];
+				pending_del_nr = 1;
+			} else if (pending_del_nr &&
+				   path->slots[0] + 1 == pending_del_slot) {
+				/* hop on the pending chunk */
+				pending_del_nr++;
+				pending_del_slot = path->slots[0];
+			} else {
+				printk("bad pending slot %d pending_del_nr %d pending_del_slot %d\n", path->slots[0], pending_del_nr, pending_del_slot);
+			}
 		} else {
 			break;
 		}
-		btrfs_release_path(root, path);
 		if (found_extent) {
 			ret = btrfs_free_extent(trans, root, extent_start,
 						extent_num_bytes,
@@ -875,9 +867,36 @@ delete:
 						found_key.offset, 0);
 			BUG_ON(ret);
 		}
+next:
+		if (path->slots[0] == 0) {
+			if (pending_del_nr)
+				goto del_pending;
+			btrfs_release_path(root, path);
+			goto search_again;
+		}
+
+		path->slots[0]--;
+		if (pending_del_nr &&
+		    path->slots[0] + 1 != pending_del_slot) {
+			struct btrfs_key debug;
+del_pending:
+			btrfs_item_key_to_cpu(path->nodes[0], &debug,
+					      pending_del_slot);
+			ret = btrfs_del_items(trans, root, path,
+					      pending_del_slot,
+					      pending_del_nr);
+			BUG_ON(ret);
+			pending_del_nr = 0;
+			btrfs_release_path(root, path);
+			goto search_again;
+		}
 	}
 	ret = 0;
 error:
+	if (pending_del_nr) {
+		ret = btrfs_del_items(trans, root, path, pending_del_slot,
+				      pending_del_nr);
+	}
 	btrfs_release_path(root, path);
 	btrfs_free_path(path);
 	inode->i_sb->s_dirt = 1;
@@ -1067,16 +1086,12 @@ void btrfs_delete_inode(struct inode *inode)
 	trans = btrfs_start_transaction(root, 1);
 
 	btrfs_set_trans_block_group(trans, inode);
-	ret = btrfs_truncate_in_trans(trans, root, inode);
+	ret = btrfs_truncate_in_trans(trans, root, inode, 0);
 	if (ret)
 		goto no_delete_lock;
-	ret = btrfs_delete_xattrs(trans, root, inode);
-	if (ret)
-		goto no_delete_lock;
-	ret = btrfs_free_inode(trans, root, inode);
-	if (ret)
-		goto no_delete_lock;
+
 	nr = trans->blocks_used;
+	clear_inode(inode);
 
 	btrfs_end_transaction(trans, root);
 	mutex_unlock(&root->fs_info->fs_mutex);
@@ -2190,7 +2205,8 @@ static void btrfs_truncate(struct inode *inode)
 	btrfs_set_trans_block_group(trans, inode);
 
 	/* FIXME, add redo link to tree so we don't leak on crash */
-	ret = btrfs_truncate_in_trans(trans, root, inode);
+	ret = btrfs_truncate_in_trans(trans, root, inode,
+				      BTRFS_EXTENT_DATA_KEY);
 	btrfs_update_inode(trans, root, inode);
 	nr = trans->blocks_used;
 

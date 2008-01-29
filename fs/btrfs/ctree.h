@@ -1038,8 +1038,16 @@ void btrfs_release_path(struct btrfs_root *root, struct btrfs_path *p);
 struct btrfs_path *btrfs_alloc_path(void);
 void btrfs_free_path(struct btrfs_path *p);
 void btrfs_init_path(struct btrfs_path *p);
-int btrfs_del_item(struct btrfs_trans_handle *trans, struct btrfs_root *root,
-		   struct btrfs_path *path);
+int btrfs_del_items(struct btrfs_trans_handle *trans, struct btrfs_root *root,
+		   struct btrfs_path *path, int slot, int nr);
+
+static inline int btrfs_del_item(struct btrfs_trans_handle *trans,
+				 struct btrfs_root *root,
+				 struct btrfs_path *path)
+{
+	return btrfs_del_items(trans, root, path, path->slots[0], 1);
+}
+
 int btrfs_insert_item(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *root, struct btrfs_key *key, void *data, u32 data_size);
 int btrfs_insert_empty_item(struct btrfs_trans_handle *trans, struct btrfs_root

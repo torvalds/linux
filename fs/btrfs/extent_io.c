@@ -2863,7 +2863,6 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 	if (ret || !wait) {
 		return ret;
 	}
-
 	for (i = start_i; i < num_pages; i++) {
 		page = extent_buffer_page(eb, i);
 		wait_on_page_locked(page);

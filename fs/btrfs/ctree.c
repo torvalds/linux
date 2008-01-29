@@ -2514,34 +2514,36 @@ static int del_ptr(struct btrfs_trans_handle *trans, struct btrfs_root *root,
  * delete the item at the leaf level in path.  If that empties
  * the leaf, remove it from the tree
  */
-int btrfs_del_item(struct btrfs_trans_handle *trans, struct btrfs_root *root,
-		   struct btrfs_path *path)
+int btrfs_del_items(struct btrfs_trans_handle *trans, struct btrfs_root *root,
+		    struct btrfs_path *path, int slot, int nr)
 {
-	int slot;
 	struct extent_buffer *leaf;
 	struct btrfs_item *item;
-	int doff;
-	int dsize;
+	int last_off;
+	int dsize = 0;
 	int ret = 0;
 	int wret;
+	int i;
 	u32 nritems;
 
 	leaf = path->nodes[0];
-	slot = path->slots[0];
-	doff = btrfs_item_offset_nr(leaf, slot);
-	dsize = btrfs_item_size_nr(leaf, slot);
+	last_off = btrfs_item_offset_nr(leaf, slot + nr - 1);
+
+	for (i = 0; i < nr; i++)
+		dsize += btrfs_item_size_nr(leaf, slot + i);
+
 	nritems = btrfs_header_nritems(leaf);
 
-	if (slot != nritems - 1) {
+	if (slot + nr != nritems) {
 		int i;
 		int data_end = leaf_data_end(root, leaf);
 
 		memmove_extent_buffer(leaf, btrfs_leaf_data(leaf) +
 			      data_end + dsize,
 			      btrfs_leaf_data(leaf) + data_end,
-			      doff - data_end);
+			      last_off - data_end);
 
-		for (i = slot + 1; i < nritems; i++) {
+		for (i = slot + nr; i < nritems; i++) {
 			u32 ioff;
 
 			item = btrfs_item_nr(leaf, i);
@@ -2562,12 +2564,12 @@ int btrfs_del_item(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		}
 
 		memmove_extent_buffer(leaf, btrfs_item_nr_offset(slot),
-			      btrfs_item_nr_offset(slot + 1),
+			      btrfs_item_nr_offset(slot + nr),
 			      sizeof(struct btrfs_item) *
-			      (nritems - slot - 1));
+			      (nritems - slot - nr));
 	}
-	btrfs_set_header_nritems(leaf, nritems - 1);
-	nritems--;
+	btrfs_set_header_nritems(leaf, nritems - nr);
+	nritems -= nr;
 
 	/* delete the leaf if we've emptied it */
 	if (nritems == 0) {
@@ -2600,7 +2602,7 @@ int btrfs_del_item(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		}
 
 		/* delete the leaf if it is mostly empty */
-		if (used < BTRFS_LEAF_DATA_SIZE(root) / 3) {
+		if (used < BTRFS_LEAF_DATA_SIZE(root) / 4) {
 			/* push_leaf_left fixes the path.
 			 * make sure the path still points to our leaf
 			 * for possible call to del_ptr below
@@ -2608,13 +2610,13 @@ int btrfs_del_item(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 			slot = path->slots[1];
 			extent_buffer_get(leaf);
 
-			wret = push_leaf_right(trans, root, path, 1, 1);
+			wret = push_leaf_left(trans, root, path, 1, 1);
 			if (wret < 0 && wret != -ENOSPC)
 				ret = wret;
 
 			if (path->nodes[0] == leaf &&
 			    btrfs_header_nritems(leaf)) {
-				wret = push_leaf_left(trans, root, path, 1, 1);
+				wret = push_leaf_right(trans, root, path, 1, 1);
 				if (wret < 0 && wret != -ENOSPC)
 					ret = wret;
 			}
