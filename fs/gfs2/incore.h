@@ -69,7 +69,6 @@ struct gfs2_bitmap {
 };
 
 struct gfs2_rgrp_host {
-	u32 rg_flags;
 	u32 rg_free;
 	u32 rg_dinodes;
 	u64 rg_igeneration;
@@ -95,8 +94,9 @@ struct gfs2_rgrpd {
 	u32 rd_last_alloc_data;
 	u32 rd_last_alloc_meta;
 	struct gfs2_sbd *rd_sbd;
-	unsigned long rd_flags;
-#define GFS2_RDF_CHECK        0x0001          /* Need to check for unlinked inodes */
+	unsigned char rd_flags;
+#define GFS2_RDF_CHECK        0x01      /* Need to check for unlinked inodes */
+#define GFS2_RDF_NOALLOC      0x02      /* rg prohibits allocation */
 };
 
 enum gfs2_state_bits {

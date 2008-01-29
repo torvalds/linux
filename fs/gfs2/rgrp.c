@@ -655,21 +655,31 @@ int gfs2_rindex_hold(struct gfs2_sbd *sdp, struct gfs2_holder *ri_gh)
 	return error;
 }
 
-static void gfs2_rgrp_in(struct gfs2_rgrp_host *rg, const void *buf)
+static void gfs2_rgrp_in(struct gfs2_rgrpd *rgd, const void *buf)
 {
 	const struct gfs2_rgrp *str = buf;
+	struct gfs2_rgrp_host *rg = &rgd->rd_rg;
+	u32 rg_flags;
 
-	rg->rg_flags = be32_to_cpu(str->rg_flags);
+	rg_flags = be32_to_cpu(str->rg_flags);
+	if (rg_flags & GFS2_RGF_NOALLOC)
+		rgd->rd_flags |= GFS2_RDF_NOALLOC;
+	else
+		rgd->rd_flags &= ~GFS2_RDF_NOALLOC;
 	rg->rg_free = be32_to_cpu(str->rg_free);
 	rg->rg_dinodes = be32_to_cpu(str->rg_dinodes);
 	rg->rg_igeneration = be64_to_cpu(str->rg_igeneration);
 }
 
-static void gfs2_rgrp_out(const struct gfs2_rgrp_host *rg, void *buf)
+static void gfs2_rgrp_out(struct gfs2_rgrpd *rgd, void *buf)
 {
 	struct gfs2_rgrp *str = buf;
+	struct gfs2_rgrp_host *rg = &rgd->rd_rg;
+	u32 rg_flags = 0;
 
-	str->rg_flags = cpu_to_be32(rg->rg_flags);
+	if (rgd->rd_flags & GFS2_RDF_NOALLOC)
+		rg_flags |= GFS2_RGF_NOALLOC;
+	str->rg_flags = cpu_to_be32(rg_flags);
 	str->rg_free = cpu_to_be32(rg->rg_free);
 	str->rg_dinodes = cpu_to_be32(rg->rg_dinodes);
 	str->__pad = cpu_to_be32(0);
@@ -727,7 +737,7 @@ int gfs2_rgrp_bh_get(struct gfs2_rgrpd *rgd)
 	}
 
 	if (rgd->rd_rg_vn != gl->gl_vn) {
-		gfs2_rgrp_in(&rgd->rd_rg, (rgd->rd_bits[0].bi_bh)->b_data);
+		gfs2_rgrp_in(rgd, (rgd->rd_bits[0].bi_bh)->b_data);
 		rgd->rd_rg_vn = gl->gl_vn;
 	}
 
@@ -840,7 +850,7 @@ static int try_rgrp_fit(struct gfs2_rgrpd *rgd, struct gfs2_alloc *al)
 	struct gfs2_sbd *sdp = rgd->rd_sbd;
 	int ret = 0;
 
-	if (rgd->rd_rg.rg_flags & GFS2_RGF_NOALLOC)
+	if (rgd->rd_flags & GFS2_RDF_NOALLOC)
 		return 0;
 
 	spin_lock(&sdp->sd_rindex_spin);
@@ -1431,7 +1441,7 @@ u64 gfs2_alloc_data(struct gfs2_inode *ip)
 	rgd->rd_rg.rg_free--;
 
 	gfs2_trans_add_bh(rgd->rd_gl, rgd->rd_bits[0].bi_bh, 1);
-	gfs2_rgrp_out(&rgd->rd_rg, rgd->rd_bits[0].bi_bh->b_data);
+	gfs2_rgrp_out(rgd, rgd->rd_bits[0].bi_bh->b_data);
 
 	al->al_alloced++;
 
@@ -1476,7 +1486,7 @@ u64 gfs2_alloc_meta(struct gfs2_inode *ip)
 	rgd->rd_rg.rg_free--;
 
 	gfs2_trans_add_bh(rgd->rd_gl, rgd->rd_bits[0].bi_bh, 1);
-	gfs2_rgrp_out(&rgd->rd_rg, rgd->rd_bits[0].bi_bh->b_data);
+	gfs2_rgrp_out(rgd, rgd->rd_bits[0].bi_bh->b_data);
 
 	al->al_alloced++;
 
@@ -1519,7 +1529,7 @@ u64 gfs2_alloc_di(struct gfs2_inode *dip, u64 *generation)
 	rgd->rd_rg.rg_dinodes++;
 	*generation = rgd->rd_rg.rg_igeneration++;
 	gfs2_trans_add_bh(rgd->rd_gl, rgd->rd_bits[0].bi_bh, 1);
-	gfs2_rgrp_out(&rgd->rd_rg, rgd->rd_bits[0].bi_bh->b_data);
+	gfs2_rgrp_out(rgd, rgd->rd_bits[0].bi_bh->b_data);
 
 	al->al_alloced++;
 
@@ -1553,7 +1563,7 @@ void gfs2_free_data(struct gfs2_inode *ip, u64 bstart, u32 blen)
 	rgd->rd_rg.rg_free += blen;
 
 	gfs2_trans_add_bh(rgd->rd_gl, rgd->rd_bits[0].bi_bh, 1);
-	gfs2_rgrp_out(&rgd->rd_rg, rgd->rd_bits[0].bi_bh->b_data);
+	gfs2_rgrp_out(rgd, rgd->rd_bits[0].bi_bh->b_data);
 
 	gfs2_trans_add_rg(rgd);
 
@@ -1581,7 +1591,7 @@ void gfs2_free_meta(struct gfs2_inode *ip, u64 bstart, u32 blen)
 	rgd->rd_rg.rg_free += blen;
 
 	gfs2_trans_add_bh(rgd->rd_gl, rgd->rd_bits[0].bi_bh, 1);
-	gfs2_rgrp_out(&rgd->rd_rg, rgd->rd_bits[0].bi_bh->b_data);
+	gfs2_rgrp_out(rgd, rgd->rd_bits[0].bi_bh->b_data);
 
 	gfs2_trans_add_rg(rgd);
 
@@ -1601,7 +1611,7 @@ void gfs2_unlink_di(struct inode *inode)
 	if (!rgd)
 		return;
 	gfs2_trans_add_bh(rgd->rd_gl, rgd->rd_bits[0].bi_bh, 1);
-	gfs2_rgrp_out(&rgd->rd_rg, rgd->rd_bits[0].bi_bh->b_data);
+	gfs2_rgrp_out(rgd, rgd->rd_bits[0].bi_bh->b_data);
 	gfs2_trans_add_rg(rgd);
 }
 
@@ -1621,7 +1631,7 @@ static void gfs2_free_uninit_di(struct gfs2_rgrpd *rgd, u64 blkno)
 	rgd->rd_rg.rg_free++;
 
 	gfs2_trans_add_bh(rgd->rd_gl, rgd->rd_bits[0].bi_bh, 1);
-	gfs2_rgrp_out(&rgd->rd_rg, rgd->rd_bits[0].bi_bh->b_data);
+	gfs2_rgrp_out(rgd, rgd->rd_bits[0].bi_bh->b_data);
 
 	gfs2_statfs_change(sdp, 0, +1, -1);
 	gfs2_trans_add_rg(rgd);
