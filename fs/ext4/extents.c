@@ -61,7 +61,7 @@ static ext4_fsblk_t ext_pblock(struct ext4_extent *ex)
  * idx_pblock:
  * combine low and high parts of a leaf physical block number into ext4_fsblk_t
  */
-static ext4_fsblk_t idx_pblock(struct ext4_extent_idx *ix)
+ext4_fsblk_t idx_pblock(struct ext4_extent_idx *ix)
 {
 	ext4_fsblk_t block;
 
@@ -75,7 +75,7 @@ static ext4_fsblk_t idx_pblock(struct ext4_extent_idx *ix)
  * stores a large physical block number into an extent struct,
  * breaking it into parts
  */
-static void ext4_ext_store_pblock(struct ext4_extent *ex, ext4_fsblk_t pb)
+void ext4_ext_store_pblock(struct ext4_extent *ex, ext4_fsblk_t pb)
 {
 	ex->ee_start_lo = cpu_to_le32((unsigned long) (pb & 0xffffffff));
 	ex->ee_start_hi = cpu_to_le16((unsigned long) ((pb >> 31) >> 1) & 0xffff);

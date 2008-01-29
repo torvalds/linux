@@ -254,6 +254,9 @@ flags_err:
 		return err;
 	}
 
+	case EXT4_IOC_MIGRATE:
+		return ext4_ext_migrate(inode, filp, cmd, arg);
+
 	default:
 		return -ENOTTY;
 	}

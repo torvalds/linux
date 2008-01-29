@@ -243,6 +243,7 @@ struct ext4_new_group_data {
 #endif
 #define EXT4_IOC_GETRSVSZ		_IOR('f', 5, long)
 #define EXT4_IOC_SETRSVSZ		_IOW('f', 6, long)
+#define EXT4_IOC_MIGRATE		_IO('f', 7)
 
 /*
  * ioctl commands in 32 bit emulation
@@ -983,6 +984,9 @@ extern int ext4_ioctl (struct inode *, struct file *, unsigned int,
 		       unsigned long);
 extern long ext4_compat_ioctl (struct file *, unsigned int, unsigned long);
 
+/* migrate.c */
+extern int ext4_ext_migrate(struct inode *, struct file *, unsigned int,
+		       unsigned long);
 /* namei.c */
 extern int ext4_orphan_add(handle_t *, struct inode *);
 extern int ext4_orphan_del(handle_t *, struct inode *);
