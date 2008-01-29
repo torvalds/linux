@@ -1031,7 +1031,11 @@ ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
 			goto out_release;
 	}
 
+done:
 	pipe->nrbufs = pipe->curbuf = 0;
+	if (bytes > 0)
+		file_accessed(in);
+
 	return bytes;
 
 out_release:
@@ -1047,16 +1051,11 @@ out_release:
 			buf->ops = NULL;
 		}
 	}
-	pipe->nrbufs = pipe->curbuf = 0;
 
-	/*
-	 * If we transferred some data, return the number of bytes:
-	 */
-	if (bytes > 0)
-		return bytes;
+	if (!bytes)
+		bytes = ret;
 
-	return ret;
-
+	goto done;
 }
 EXPORT_SYMBOL(splice_direct_to_actor);
 
