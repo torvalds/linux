@@ -126,23 +126,24 @@ static unsigned char gfs2_testbit(struct gfs2_rgrpd *rgd, unsigned char *buffer,
  * Return: the block number (bitmap buffer scope) that was found
  */
 
-static u32 gfs2_bitfit(unsigned char *buffer, unsigned int buflen, u32 goal,
-		       unsigned char old_state)
+static u32 gfs2_bitfit(const u8 *buffer, unsigned int buflen, u32 goal,
+		       u8 old_state)
 {
-	unsigned char *byte;
+	const u8 *byte;
 	u32 blk = goal;
 	unsigned int bit, bitlong;
-	unsigned long *plong, plong55;
+	const unsigned long *plong;
+#if BITS_PER_LONG == 32
+	const unsigned long plong55 = 0x55555555;
+#else
+	const unsigned long plong55 = 0x5555555555555555;
+#endif
 
 	byte = buffer + (goal / GFS2_NBBY);
-	plong = (unsigned long *)(buffer + (goal / GFS2_NBBY));
+	plong = (const unsigned long *)(buffer + (goal / GFS2_NBBY));
 	bit = (goal % GFS2_NBBY) * GFS2_BIT_SIZE;
 	bitlong = bit;
-#if BITS_PER_LONG == 32
-	plong55 = 0x55555555;
-#else
-	plong55 = 0x5555555555555555;
-#endif
+
 	while (byte < buffer + buflen) {
 
 		if (bitlong == 0 && old_state == 0 && *plong == plong55) {
@@ -179,14 +180,14 @@ static u32 gfs2_bitfit(unsigned char *buffer, unsigned int buflen, u32 goal,
  * Returns: The number of bits
  */
 
-static u32 gfs2_bitcount(struct gfs2_rgrpd *rgd, unsigned char *buffer,
-			      unsigned int buflen, unsigned char state)
+static u32 gfs2_bitcount(struct gfs2_rgrpd *rgd, const u8 *buffer,
+			 unsigned int buflen, u8 state)
 {
-	unsigned char *byte = buffer;
-	unsigned char *end = buffer + buflen;
-	unsigned char state1 = state << 2;
-	unsigned char state2 = state << 4;
-	unsigned char state3 = state << 6;
+	const u8 *byte = buffer;
+	const u8 *end = buffer + buflen;
+	const u8 state1 = state << 2;
+	const u8 state2 = state << 4;
+	const u8 state3 = state << 6;
 	u32 count = 0;
 
 	for (; byte < end; byte++) {
@@ -1327,12 +1328,11 @@ static u32 rgblk_search(struct gfs2_rgrpd *rgd, u32 goal,
 	for (x = 0; x <= length; x++) {
 		/* The GFS2_BLKST_UNLINKED state doesn't apply to the clone
 		   bitmaps, so we must search the originals for that. */
+		const u8 *buffer = bi->bi_bh->b_data + bi->bi_offset;
 		if (old_state != GFS2_BLKST_UNLINKED && bi->bi_clone)
-			blk = gfs2_bitfit(bi->bi_clone + bi->bi_offset,
-					  bi->bi_len, goal, old_state);
-		else
-			blk = gfs2_bitfit(bi->bi_bh->b_data + bi->bi_offset,
-					  bi->bi_len, goal, old_state);
+			buffer = bi->bi_clone + bi->bi_offset;
+
+		blk = gfs2_bitfit(buffer, bi->bi_len, goal, old_state);
 		if (blk != BFITNOENT)
 			break;
 
