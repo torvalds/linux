@@ -2,6 +2,11 @@
  *
  * 	Added conditional policy language extensions
  *
+ *  Updated: Hewlett-Packard <paul.moore@hp.com>
+ *
+ *      Added support for the policy capability bitmap
+ *
+ * Copyright (C) 2007 Hewlett-Packard Development Company, L.P.
  * Copyright (C) 2003 - 2004 Tresys Technology, LLC
  * Copyright (C) 2004 Red Hat, Inc., James Morris <jmorris@redhat.com>
  *	This program is free software; you can redistribute it and/or modify
@@ -34,6 +39,11 @@
 #include "security.h"
 #include "objsec.h"
 #include "conditional.h"
+
+/* Policy capability filenames */
+static char *policycap_names[] = {
+	"network_peer_controls"
+};
 
 unsigned int selinux_checkreqprot = CONFIG_SECURITY_SELINUX_CHECKREQPROT_VALUE;
 
@@ -71,6 +81,9 @@ static int *bool_pending_values = NULL;
 /* global data for classes */
 static struct dentry *class_dir = NULL;
 static unsigned long last_class_ino;
+
+/* global data for policy capabilities */
+static struct dentry *policycap_dir = NULL;
 
 extern void selnl_notify_setenforce(int val);
 
@@ -111,10 +124,11 @@ enum sel_inos {
 
 static unsigned long sel_last_ino = SEL_INO_NEXT - 1;
 
-#define SEL_INITCON_INO_OFFSET 	0x01000000
-#define SEL_BOOL_INO_OFFSET	0x02000000
-#define SEL_CLASS_INO_OFFSET	0x04000000
-#define SEL_INO_MASK		0x00ffffff
+#define SEL_INITCON_INO_OFFSET		0x01000000
+#define SEL_BOOL_INO_OFFSET		0x02000000
+#define SEL_CLASS_INO_OFFSET		0x04000000
+#define SEL_POLICYCAP_INO_OFFSET	0x08000000
+#define SEL_INO_MASK			0x00ffffff
 
 #define TMPBUFLEN	12
 static ssize_t sel_read_enforce(struct file *filp, char __user *buf,
@@ -263,6 +277,7 @@ static const struct file_operations sel_policyvers_ops = {
 /* declaration for sel_write_load */
 static int sel_make_bools(void);
 static int sel_make_classes(void);
+static int sel_make_policycap(void);
 
 /* declaration for sel_make_class_dirs */
 static int sel_make_dir(struct inode *dir, struct dentry *dentry,
@@ -323,6 +338,12 @@ static ssize_t sel_write_load(struct file * file, const char __user * buf,
 	}
 
 	ret = sel_make_classes();
+	if (ret) {
+		length = ret;
+		goto out1;
+	}
+
+	ret = sel_make_policycap();
 	if (ret)
 		length = ret;
 	else
@@ -1399,6 +1420,24 @@ static const struct file_operations sel_perm_ops = {
 	.read		= sel_read_perm,
 };
 
+static ssize_t sel_read_policycap(struct file *file, char __user *buf,
+				  size_t count, loff_t *ppos)
+{
+	int value;
+	char tmpbuf[TMPBUFLEN];
+	ssize_t length;
+	unsigned long i_ino = file->f_path.dentry->d_inode->i_ino;
+
+	value = security_policycap_supported(i_ino & SEL_INO_MASK);
+	length = scnprintf(tmpbuf, TMPBUFLEN, "%d", value);
+
+	return simple_read_from_buffer(buf, count, ppos, tmpbuf, length);
+}
+
+static const struct file_operations sel_policycap_ops = {
+	.read		= sel_read_policycap,
+};
+
 static int sel_make_perm_files(char *objclass, int classvalue,
 				struct dentry *dir)
 {
@@ -1545,6 +1584,36 @@ out:
 	return rc;
 }
 
+static int sel_make_policycap(void)
+{
+	unsigned int iter;
+	struct dentry *dentry = NULL;
+	struct inode *inode = NULL;
+
+	sel_remove_entries(policycap_dir);
+
+	for (iter = 0; iter <= POLICYDB_CAPABILITY_MAX; iter++) {
+		if (iter < ARRAY_SIZE(policycap_names))
+			dentry = d_alloc_name(policycap_dir,
+					      policycap_names[iter]);
+		else
+			dentry = d_alloc_name(policycap_dir, "unknown");
+
+		if (dentry == NULL)
+			return -ENOMEM;
+
+		inode = sel_make_inode(policycap_dir->d_sb, S_IFREG | S_IRUGO);
+		if (inode == NULL)
+			return -ENOMEM;
+
+		inode->i_fop = &sel_policycap_ops;
+		inode->i_ino = iter | SEL_POLICYCAP_INO_OFFSET;
+		d_add(dentry, inode);
+	}
+
+	return 0;
+}
+
 static int sel_make_dir(struct inode *dir, struct dentry *dentry,
 			unsigned long *ino)
 {
@@ -1672,6 +1741,18 @@ static int sel_fill_super(struct super_block * sb, void * data, int silent)
 		goto err;
 
 	class_dir = dentry;
+
+	dentry = d_alloc_name(sb->s_root, "policy_capabilities");
+	if (!dentry) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	ret = sel_make_dir(root_inode, dentry, &sel_last_ino);
+	if (ret)
+		goto err;
+
+	policycap_dir = dentry;
 
 out:
 	return ret;

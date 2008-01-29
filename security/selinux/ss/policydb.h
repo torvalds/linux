@@ -241,6 +241,8 @@ struct policydb {
 	/* type -> attribute reverse mapping */
 	struct ebitmap *type_attr_map;
 
+	struct ebitmap policycaps;
+
 	unsigned int policyvers;
 
 	unsigned int reject_unknown : 1;

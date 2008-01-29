@@ -16,12 +16,13 @@
  * Updated: Hewlett-Packard <paul.moore@hp.com>
  *
  *      Added support for NetLabel
+ *      Added support for the policy capability bitmap
  *
  * Updated: Chad Sellers <csellers@tresys.com>
  *
  *  Added validation of kernel classes and permissions
  *
- * Copyright (C) 2006 Hewlett-Packard Development Company, L.P.
+ * Copyright (C) 2006, 2007 Hewlett-Packard Development Company, L.P.
  * Copyright (C) 2004-2006 Trusted Computer Solutions, Inc.
  * Copyright (C) 2003 - 2004, 2006 Tresys Technology, LLC
  * Copyright (C) 2003 Red Hat, Inc., James Morris <jmorris@redhat.com>
@@ -58,6 +59,8 @@
 
 extern void selnl_notify_policyload(u32 seqno);
 unsigned int policydb_loaded_version;
+
+int selinux_policycap_netpeer;
 
 /*
  * This is declared in avc.c
@@ -1299,6 +1302,12 @@ bad:
 	goto out;
 }
 
+static void security_load_policycaps(void)
+{
+	selinux_policycap_netpeer = ebitmap_get_bit(&policydb.policycaps,
+						  POLICYDB_CAPABILITY_NETPEER);
+}
+
 extern void selinux_complete_init(void);
 static int security_preserve_bools(struct policydb *p);
 
@@ -1346,6 +1355,7 @@ int security_load_policy(void *data, size_t len)
 			avtab_cache_destroy();
 			return -EINVAL;
 		}
+		security_load_policycaps();
 		policydb_loaded_version = policydb.policyvers;
 		ss_initialized = 1;
 		seqno = ++latest_granting;
@@ -1404,6 +1414,7 @@ int security_load_policy(void *data, size_t len)
 	POLICY_WRLOCK;
 	memcpy(&policydb, &newpolicydb, sizeof policydb);
 	sidtab_set(&sidtab, &newsidtab);
+	security_load_policycaps();
 	seqno = ++latest_granting;
 	policydb_loaded_version = policydb.policyvers;
 	POLICY_WRUNLOCK;
@@ -2146,6 +2157,60 @@ int security_get_reject_unknown(void)
 int security_get_allow_unknown(void)
 {
 	return policydb.allow_unknown;
+}
+
+/**
+ * security_get_policycaps - Query the loaded policy for its capabilities
+ * @len: the number of capability bits
+ * @values: the capability bit array
+ *
+ * Description:
+ * Get an array of the policy capabilities in @values where each entry in
+ * @values is either true (1) or false (0) depending the policy's support of
+ * that feature.  The policy capabilities are defined by the
+ * POLICYDB_CAPABILITY_* enums.  The size of the array is stored in @len and it
+ * is up to the caller to free the array in @values.  Returns zero on success,
+ * negative values on failure.
+ *
+ */
+int security_get_policycaps(int *len, int **values)
+{
+	int rc = -ENOMEM;
+	unsigned int iter;
+
+	POLICY_RDLOCK;
+
+	*values = kcalloc(POLICYDB_CAPABILITY_MAX, sizeof(int), GFP_ATOMIC);
+	if (*values == NULL)
+		goto out;
+	for (iter = 0; iter < POLICYDB_CAPABILITY_MAX; iter++)
+		(*values)[iter] = ebitmap_get_bit(&policydb.policycaps, iter);
+	*len = POLICYDB_CAPABILITY_MAX;
+
+out:
+	POLICY_RDUNLOCK;
+	return rc;
+}
+
+/**
+ * security_policycap_supported - Check for a specific policy capability
+ * @req_cap: capability
+ *
+ * Description:
+ * This function queries the currently loaded policy to see if it supports the
+ * capability specified by @req_cap.  Returns true (1) if the capability is
+ * supported, false (0) if it isn't supported.
+ *
+ */
+int security_policycap_supported(unsigned int req_cap)
+{
+	int rc;
+
+	POLICY_RDLOCK;
+	rc = ebitmap_get_bit(&policydb.policycaps, req_cap);
+	POLICY_RDUNLOCK;
+
+	return rc;
 }
 
 struct selinux_audit_rule {

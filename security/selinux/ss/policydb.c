@@ -13,6 +13,11 @@
  *
  * 	Added conditional policy language extensions
  *
+ * Updated: Hewlett-Packard <paul.moore@hp.com>
+ *
+ *      Added support for the policy capability bitmap
+ *
+ * Copyright (C) 2007 Hewlett-Packard Development Company, L.P.
  * Copyright (C) 2004-2005 Trusted Computer Solutions, Inc.
  * Copyright (C) 2003 - 2004 Tresys Technology, LLC
  *	This program is free software; you can redistribute it and/or modify
@@ -102,6 +107,11 @@ static struct policydb_compat_info policydb_compat[] = {
 		.sym_num        = SYM_NUM,
 		.ocon_num       = OCON_NUM,
 	},
+	{
+		.version	= POLICYDB_VERSION_POLCAP,
+		.sym_num	= SYM_NUM,
+		.ocon_num	= OCON_NUM,
+	}
 };
 
 static struct policydb_compat_info *policydb_lookup_compat(int version)
@@ -182,6 +192,8 @@ static int policydb_init(struct policydb *p)
 	rc = cond_policydb_init(p);
 	if (rc)
 		goto out_free_symtab;
+
+	ebitmap_init(&p->policycaps);
 
 out:
 	return rc;
@@ -673,8 +685,8 @@ void policydb_destroy(struct policydb *p)
 			ebitmap_destroy(&p->type_attr_map[i]);
 	}
 	kfree(p->type_attr_map);
-
 	kfree(p->undefined_perms);
+	ebitmap_destroy(&p->policycaps);
 
 	return;
 }
@@ -1553,6 +1565,10 @@ int policydb_read(struct policydb *p, void *fp)
 	}
 	p->reject_unknown = !!(le32_to_cpu(buf[1]) & REJECT_UNKNOWN);
 	p->allow_unknown = !!(le32_to_cpu(buf[1]) & ALLOW_UNKNOWN);
+
+	if (p->policyvers >= POLICYDB_VERSION_POLCAP &&
+	    ebitmap_read(&p->policycaps, fp) != 0)
+		goto bad;
 
 	info = policydb_lookup_compat(p->policyvers);
 	if (!info) {

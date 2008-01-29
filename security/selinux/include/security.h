@@ -25,13 +25,14 @@
 #define POLICYDB_VERSION_MLS		19
 #define POLICYDB_VERSION_AVTAB		20
 #define POLICYDB_VERSION_RANGETRANS	21
+#define POLICYDB_VERSION_POLCAP		22
 
 /* Range of policy versions we understand*/
 #define POLICYDB_VERSION_MIN   POLICYDB_VERSION_BASE
 #ifdef CONFIG_SECURITY_SELINUX_POLICYDB_VERSION_MAX
 #define POLICYDB_VERSION_MAX	CONFIG_SECURITY_SELINUX_POLICYDB_VERSION_MAX_VALUE
 #else
-#define POLICYDB_VERSION_MAX	POLICYDB_VERSION_RANGETRANS
+#define POLICYDB_VERSION_MAX	POLICYDB_VERSION_POLCAP
 #endif
 
 struct netlbl_lsm_secattr;
@@ -39,7 +40,18 @@ struct netlbl_lsm_secattr;
 extern int selinux_enabled;
 extern int selinux_mls_enabled;
 
+/* Policy capabilities */
+enum {
+	POLICYDB_CAPABILITY_NETPEER,
+	__POLICYDB_CAPABILITY_MAX
+};
+#define POLICYDB_CAPABILITY_MAX (__POLICYDB_CAPABILITY_MAX - 1)
+
+extern int selinux_policycap_netpeer;
+
 int security_load_policy(void * data, size_t len);
+
+int security_policycap_supported(unsigned int req_cap);
 
 #define SEL_VEC_MAX 32
 struct av_decision {
@@ -91,6 +103,7 @@ int security_get_classes(char ***classes, int *nclasses);
 int security_get_permissions(char *class, char ***perms, int *nperms);
 int security_get_reject_unknown(void);
 int security_get_allow_unknown(void);
+int security_get_policycaps(int *len, int **values);
 
 #define SECURITY_FS_USE_XATTR		1 /* use xattr */
 #define SECURITY_FS_USE_TRANS		2 /* use transition SIDs, e.g. devpts/tmpfs */
