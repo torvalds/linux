@@ -249,15 +249,7 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 }
 
 
-/* pre-rx handlers
- *
- * these don't have dev/sdata fields in the rx data
- * The sta value should also not be used because it may
- * be NULL even though a STA (in IBSS mode) will be added.
- */
-
-static ieee80211_txrx_result
-ieee80211_rx_h_parse_qos(struct ieee80211_txrx_data *rx)
+static void ieee80211_parse_qos(struct ieee80211_txrx_data *rx)
 {
 	u8 *data = rx->skb->data;
 	int tid;
@@ -290,8 +282,40 @@ ieee80211_rx_h_parse_qos(struct ieee80211_txrx_data *rx)
 	/* Set skb->priority to 1d tag if highest order bit of TID is not set.
 	 * For now, set skb->priority to 0 for other cases. */
 	rx->skb->priority = (tid > 7) ? 0 : tid;
+}
 
-	return TXRX_CONTINUE;
+static void ieee80211_verify_ip_alignment(struct ieee80211_txrx_data *rx)
+{
+#ifdef CONFIG_MAC80211_DEBUG_PACKET_ALIGNMENT
+	int hdrlen;
+
+	if (!WLAN_FC_DATA_PRESENT(rx->fc))
+		return;
+
+	/*
+	 * Drivers are required to align the payload data in a way that
+	 * guarantees that the contained IP header is aligned to a four-
+	 * byte boundary. In the case of regular frames, this simply means
+	 * aligning the payload to a four-byte boundary (because either
+	 * the IP header is directly contained, or IV/RFC1042 headers that
+	 * have a length divisible by four are in front of it.
+	 *
+	 * With A-MSDU frames, however, the payload data address must
+	 * yield two modulo four because there are 14-byte 802.3 headers
+	 * within the A-MSDU frames that push the IP header further back
+	 * to a multiple of four again. Thankfully, the specs were sane
+	 * enough this time around to require padding each A-MSDU subframe
+	 * to a length that is a multiple of four.
+	 *
+	 * Padding like atheros hardware adds which is inbetween the 802.11
+	 * header and the payload is not supported, the driver is required
+	 * to move the 802.11 header further back in that case.
+	 */
+	hdrlen = ieee80211_get_hdrlen(rx->fc);
+	if (rx->flags & IEEE80211_TXRXD_RX_AMSDU)
+		hdrlen += ETH_HLEN;
+	WARN_ON_ONCE(((unsigned long)(rx->skb->data + hdrlen)) & 3);
+#endif
 }
 
 
@@ -339,52 +363,6 @@ static u32 ieee80211_rx_load_stats(struct ieee80211_local *local,
 
 	return load;
 }
-
-#ifdef CONFIG_MAC80211_DEBUG_PACKET_ALIGNMENT
-static ieee80211_txrx_result
-ieee80211_rx_h_verify_ip_alignment(struct ieee80211_txrx_data *rx)
-{
-	int hdrlen;
-
-	if (!WLAN_FC_DATA_PRESENT(rx->fc))
-		return TXRX_CONTINUE;
-
-	/*
-	 * Drivers are required to align the payload data in a way that
-	 * guarantees that the contained IP header is aligned to a four-
-	 * byte boundary. In the case of regular frames, this simply means
-	 * aligning the payload to a four-byte boundary (because either
-	 * the IP header is directly contained, or IV/RFC1042 headers that
-	 * have a length divisible by four are in front of it.
-	 *
-	 * With A-MSDU frames, however, the payload data address must
-	 * yield two modulo four because there are 14-byte 802.3 headers
-	 * within the A-MSDU frames that push the IP header further back
-	 * to a multiple of four again. Thankfully, the specs were sane
-	 * enough this time around to require padding each A-MSDU subframe
-	 * to a length that is a multiple of four.
-	 *
-	 * Padding like atheros hardware adds which is inbetween the 802.11
-	 * header and the payload is not supported, the driver is required
-	 * to move the 802.11 header further back in that case.
-	 */
-	hdrlen = ieee80211_get_hdrlen(rx->fc);
-	if (rx->flags & IEEE80211_TXRXD_RX_AMSDU)
-		hdrlen += ETH_HLEN;
-	WARN_ON_ONCE(((unsigned long)(rx->skb->data + hdrlen)) & 3);
-
-	return TXRX_CONTINUE;
-}
-#endif
-
-ieee80211_rx_handler ieee80211_rx_pre_handlers[] =
-{
-	ieee80211_rx_h_parse_qos,
-#ifdef CONFIG_MAC80211_DEBUG_PACKET_ALIGNMENT
-	ieee80211_rx_h_verify_ip_alignment,
-#endif
-	NULL
-};
 
 /* rx handlers */
 
@@ -1747,9 +1725,9 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	if (unlikely(local->sta_sw_scanning || local->sta_hw_scanning))
 		rx.flags |= IEEE80211_TXRXD_RXIN_SCAN;
 
-	if (__ieee80211_invoke_rx_handlers(local, local->rx_pre_handlers, &rx,
-					   sta) != TXRX_CONTINUE)
-		goto end;
+	ieee80211_parse_qos(&rx);
+	ieee80211_verify_ip_alignment(&rx);
+
 	skb = rx.skb;
 
 	if (sta && !(sta->flags & (WLAN_STA_WDS | WLAN_STA_ASSOC_AP)) &&

@@ -480,7 +480,6 @@ struct ieee80211_local {
 			     * deliver multicast frames both back to wireless
 			     * media and to the local net stack */
 
-	ieee80211_rx_handler *rx_pre_handlers;
 	ieee80211_rx_handler *rx_handlers;
 	ieee80211_tx_handler *tx_handlers;
 
@@ -816,7 +815,6 @@ void ieee80211_regdomain_init(void);
 void ieee80211_set_default_regdomain(struct ieee80211_hw_mode *mode);
 
 /* rx handling */
-extern ieee80211_rx_handler ieee80211_rx_pre_handlers[];
 extern ieee80211_rx_handler ieee80211_rx_handlers[];
 
 /* tx handling */
