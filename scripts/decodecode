@@ -6,7 +6,19 @@
 # e.g., to decode an i386 oops on an x86_64 system, use:
 # AFLAGS=--32 decodecode < 386.oops
 
-T=`mktemp`
+cleanup() {
+	rm -f $T $T.s $T.o
+	exit 1
+}
+
+die() {
+	echo "$@"
+	exit 1
+}
+
+trap cleanup EXIT
+
+T=`mktemp` || die "cannot create temp file"
 code=
 
 while read i ; do
@@ -20,6 +32,7 @@ esac
 done
 
 if [ -z "$code" ]; then
+	rm $T
 	exit
 fi
 
@@ -48,4 +61,4 @@ echo -n "	.byte 0x" > $T.s
 echo $code >> $T.s
 as $AFLAGS -o $T.o $T.s
 objdump -S $T.o
-rm $T.o $T.s
+rm $T $T.s $T.o

@@ -23,7 +23,7 @@ SECTIONS
 	/* Sections to be discarded. */
 	/DISCARD/ : {
 	*(.exitcall.exit)
-	*(.exit.data)
+	EXIT_DATA
 	}
 
 	. = KERNELBASE;
@@ -76,17 +76,19 @@ SECTIONS
 
 	.init.text : {
 		_sinittext = .;
-		*(.init.text)
+		INIT_TEXT
 		_einittext = .;
 	}
 
 	/* .exit.text is discarded at runtime, not link time,
 	 * to deal with references from __bug_table
 	 */
-	.exit.text : { *(.exit.text) }
+	.exit.text : {
+		EXIT_TEXT
+	}
 
 	.init.data : {
-		*(.init.data);
+		INIT_DATA
 		__vtop_table_begin = .;
 		*(.vtop_fixup);
 		__vtop_table_end = .;

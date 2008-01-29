@@ -25,14 +25,13 @@ struct file {
 
 #define FILE_BUSY		0x0001
 #define FILE_SCANNED		0x0002
-#define FILE_PRINTED		0x0004
 
 typedef enum tristate {
 	no, mod, yes
 } tristate;
 
 enum expr_type {
-	E_NONE, E_OR, E_AND, E_NOT, E_EQUAL, E_UNEQUAL, E_CHOICE, E_SYMBOL, E_RANGE
+	E_NONE, E_OR, E_AND, E_NOT, E_EQUAL, E_UNEQUAL, E_LIST, E_SYMBOL, E_RANGE
 };
 
 union expr_data {
@@ -45,9 +44,12 @@ struct expr {
 	union expr_data left, right;
 };
 
-#define E_OR(dep1, dep2)	(((dep1)>(dep2))?(dep1):(dep2))
-#define E_AND(dep1, dep2)	(((dep1)<(dep2))?(dep1):(dep2))
-#define E_NOT(dep)		(2-(dep))
+#define EXPR_OR(dep1, dep2)	(((dep1)>(dep2))?(dep1):(dep2))
+#define EXPR_AND(dep1, dep2)	(((dep1)<(dep2))?(dep1):(dep2))
+#define EXPR_NOT(dep)		(2-(dep))
+
+#define expr_list_for_each_sym(l, e, s) \
+	for (e = (l); e && (s = e->right.sym); e = e->left.expr)
 
 struct expr_value {
 	struct expr *expr;
@@ -86,7 +88,6 @@ struct symbol {
 #define SYMBOL_CHECK		0x0008
 #define SYMBOL_CHOICE		0x0010
 #define SYMBOL_CHOICEVAL	0x0020
-#define SYMBOL_PRINTED		0x0040
 #define SYMBOL_VALID		0x0080
 #define SYMBOL_OPTIONAL		0x0100
 #define SYMBOL_WRITE		0x0200
@@ -105,7 +106,8 @@ struct symbol {
 #define SYMBOL_HASHMASK		0xff
 
 enum prop_type {
-	P_UNKNOWN, P_PROMPT, P_COMMENT, P_MENU, P_DEFAULT, P_CHOICE, P_SELECT, P_RANGE
+	P_UNKNOWN, P_PROMPT, P_COMMENT, P_MENU, P_DEFAULT, P_CHOICE,
+	P_SELECT, P_RANGE, P_ENV
 };
 
 struct property {

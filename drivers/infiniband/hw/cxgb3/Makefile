@@ -1,5 +1,4 @@
-EXTRA_CFLAGS += -I$(TOPDIR)/drivers/net/cxgb3 \
-		-I$(TOPDIR)/drivers/infiniband/hw/cxgb3/core
+EXTRA_CFLAGS += -Idrivers/net/cxgb3
 
 obj-$(CONFIG_INFINIBAND_CXGB3) += iw_cxgb3.o
 

@@ -96,9 +96,9 @@ SECTIONS
 	. = ALIGN(PAGE_SIZE);		/* Init code and data */
 	__init_begin = .;
 	_sinittext = .;
-	.init.text : C_PHYS(.init.text) { *(.init.text) }
+	.init.text : C_PHYS(.init.text) { INIT_TEXT }
 	_einittext = .;
-	.init.data : C_PHYS(.init.data) { *(.init.data) }
+	.init.data : C_PHYS(.init.data) { INIT_DATA }
 	. = ALIGN(L1_CACHE_BYTES);	/* Better if Cache Line aligned */
 	__setup_start = .;
 	.init.setup : C_PHYS(.init.setup) { *(.init.setup) }
@@ -134,8 +134,8 @@ SECTIONS
 	 * .exit.text is discarded at runtime, not link time, to deal with
 	 * references from __bug_table
 	 */
-	.exit.text : C_PHYS(.exit.text) { *(.exit.text) }
-	.exit.data : C_PHYS(.exit.data) { *(.exit.data) }
+	.exit.text : C_PHYS(.exit.text) { EXIT_TEXT }
+	.exit.data : C_PHYS(.exit.data) { EXIT_DATA }
 
 	. = ALIGN(PAGE_SIZE);
 	.bss : C_PHYS(.bss) {

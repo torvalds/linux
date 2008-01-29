@@ -46,21 +46,24 @@ use strict;
 # Note: This only supports 'c'.
 
 # usage:
-# kernel-doc [ -docbook | -html | -text | -man ]
+# kernel-doc [ -docbook | -html | -text | -man ] [ -no-doc-sections ]
 #           [ -function funcname [ -function funcname ...] ] c file(s)s > outputfile
 # or
 #           [ -nofunction funcname [ -function funcname ...] ] c file(s)s > outputfile
 #
 #  Set output format using one of -docbook -html -text or -man.  Default is man.
 #
+#  -no-doc-sections
+#	Do not output DOC: sections
+#
 #  -function funcname
-#	If set, then only generate documentation for the given function(s).  All
-#	other functions are ignored.
+#	If set, then only generate documentation for the given function(s) or
+#	DOC: section titles.  All other functions and DOC: sections are ignored.
 #
 #  -nofunction funcname
-#	If set, then only generate documentation for the other function(s).
-#	Cannot be used together with -function
-#	(yes, that's a bug -- perl hackers can fix it 8))
+#	If set, then only generate documentation for the other function(s)/DOC:
+#	sections. Cannot be used together with -function (yes, that's a bug --
+#	perl hackers can fix it 8))
 #
 #  c files - list of 'c' files to process
 #
@@ -182,10 +185,10 @@ my $blankline_html = $local_lt . "p" . $local_gt;	# was "<p>"
 my %highlights_xml = ( "([^=])\\\"([^\\\"<]+)\\\"", "\$1<quote>\$2</quote>",
 			$type_constant, "<constant>\$1</constant>",
 			$type_func, "<function>\$1</function>",
-			$type_struct, "<structname>\$1</structname>",
+			$type_struct_xml, "<structname>\$1</structname>",
 			$type_env, "<envar>\$1</envar>",
 			$type_param, "<parameter>\$1</parameter>" );
-my $blankline_xml = "</para><para>\n";
+my $blankline_xml = $local_lt . "/para" . $local_gt . $local_lt . "para" . $local_gt . "\n";
 
 # gnome, docbook format
 my %highlights_gnome = ( $type_constant, "<replaceable class=\"option\">\$1</replaceable>",
@@ -211,7 +214,7 @@ my $blankline_text = "";
 
 
 sub usage {
-    print "Usage: $0 [ -v ] [ -docbook | -html | -text | -man ]\n";
+    print "Usage: $0 [ -v ] [ -docbook | -html | -text | -man ] [ -no-doc-sections ]\n";
     print "         [ -function funcname [ -function funcname ...] ]\n";
     print "         [ -nofunction funcname [ -nofunction funcname ...] ]\n";
     print "         c source file(s) > outputfile\n";
@@ -225,6 +228,7 @@ if ($#ARGV==-1) {
 
 my $verbose = 0;
 my $output_mode = "man";
+my $no_doc_sections = 0;
 my %highlights = %highlights_man;
 my $blankline = $blankline_man;
 my $modulename = "Kernel API";
@@ -329,12 +333,14 @@ while ($ARGV[0] =~ m/^-(.*)/) {
 	usage();
     } elsif ($cmd eq '-filelist') {
 	    $filelist = shift @ARGV;
+    } elsif ($cmd eq '-no-doc-sections') {
+	    $no_doc_sections = 1;
     }
 }
 
 # get kernel version from env
 sub get_kernel_version() {
-    my $version;
+    my $version = 'unknown kernel version';
 
     if (defined($ENV{'KERNELVERSION'})) {
 	$version = $ENV{'KERNELVERSION'};
@@ -374,6 +380,29 @@ sub dump_section {
 }
 
 ##
+# dump DOC: section after checking that it should go out
+#
+sub dump_doc_section {
+    my $name = shift;
+    my $contents = join "\n", @_;
+
+    if ($no_doc_sections) {
+        return;
+    }
+
+    if (($function_only == 0) ||
+	( $function_only == 1 && defined($function_table{$name})) ||
+	( $function_only == 2 && !defined($function_table{$name})))
+    {
+	dump_section $name, $contents;
+	output_blockhead({'sectionlist' => \@sectionlist,
+			  'sections' => \%sections,
+			  'module' => $modulename,
+			  'content-only' => ($function_only != 0), });
+    }
+}
+
+##
 # output function
 #
 # parameterdescs, a hash.
@@ -394,7 +423,7 @@ sub output_highlight {
 #	confess "output_highlight got called with no args?\n";
 #   }
 
-    if ($output_mode eq "html") {
+    if ($output_mode eq "html" || $output_mode eq "xml") {
 	$contents = local_unescape($contents);
 	# convert data read & converted thru xml_escape() into &xyz; format:
 	$contents =~ s/\\\\\\/&/g;
@@ -564,8 +593,8 @@ sub output_function_html(%) {
     print "<hr>\n";
 }
 
-# output intro in html
-sub output_intro_html(%) {
+# output DOC: block header in html
+sub output_blockhead_html(%) {
     my %args = %{$_[0]};
     my ($parameter, $section);
     my $count;
@@ -871,7 +900,7 @@ sub output_typedef_xml(%) {
 }
 
 # output in XML DocBook
-sub output_intro_xml(%) {
+sub output_blockhead_xml(%) {
     my %args = %{$_[0]};
     my ($parameter, $section);
     my $count;
@@ -882,15 +911,23 @@ sub output_intro_xml(%) {
     # print out each section
     $lineprefix="   ";
     foreach $section (@{$args{'sectionlist'}}) {
-	print "<refsect1>\n <title>$section</title>\n <para>\n";
+	if (!$args{'content-only'}) {
+		print "<refsect1>\n <title>$section</title>\n";
+	}
 	if ($section =~ m/EXAMPLE/i) {
 	    print "<example><para>\n";
+	} else {
+	    print "<para>\n";
 	}
 	output_highlight($args{'sections'}{$section});
 	if ($section =~ m/EXAMPLE/i) {
 	    print "</para></example>\n";
+	} else {
+	    print "</para>";
 	}
-	print " </para>\n</refsect1>\n";
+	if (!$args{'content-only'}) {
+		print "\n</refsect1>\n";
+	}
     }
 
     print "\n\n";
@@ -1137,7 +1174,7 @@ sub output_typedef_man(%) {
     }
 }
 
-sub output_intro_man(%) {
+sub output_blockhead_man(%) {
     my %args = %{$_[0]};
     my ($parameter, $section);
     my $count;
@@ -1294,7 +1331,7 @@ sub output_struct_text(%) {
     output_section_text(@_);
 }
 
-sub output_intro_text(%) {
+sub output_blockhead_text(%) {
     my %args = %{$_[0]};
     my ($parameter, $section);
 
@@ -1325,9 +1362,9 @@ sub output_declaration {
 
 ##
 # generic output function - calls the right one based on current output mode.
-sub output_intro {
+sub output_blockhead {
     no strict 'refs';
-    my $func = "output_intro_".$output_mode;
+    my $func = "output_blockhead_".$output_mode;
     &$func(@_);
     $section_counter++;
 }
@@ -1926,9 +1963,7 @@ sub process_file($) {
 	} elsif ($state == 4) {
 		# Documentation block
 		if (/$doc_block/) {
-			dump_section($section, xml_escape($contents));
-			output_intro({'sectionlist' => \@sectionlist,
-				      'sections' => \%sections });
+			dump_doc_section($section, xml_escape($contents));
 			$contents = "";
 			$function = "";
 			%constants = ();
@@ -1946,9 +1981,7 @@ sub process_file($) {
 		}
 		elsif (/$doc_end/)
 		{
-			dump_section($section, xml_escape($contents));
-			output_intro({'sectionlist' => \@sectionlist,
-				      'sections' => \%sections });
+			dump_doc_section($section, xml_escape($contents));
 			$contents = "";
 			$function = "";
 			%constants = ();

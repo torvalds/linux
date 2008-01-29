@@ -65,6 +65,6 @@ extern struct sh_machine_vector sh_mv;
 #define get_system_type()	sh_mv.mv_name
 
 #define __initmv \
-	__attribute_used__ __attribute__((__section__ (".machvec.init")))
+	__used __section(.machvec.init)
 
 #endif /* _ASM_SH_MACHVEC_H */

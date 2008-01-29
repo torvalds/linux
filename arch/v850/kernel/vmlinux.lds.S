@@ -114,7 +114,7 @@
 #define DATA_CONTENTS							      \
 		__sdata = . ;						      \
 		DATA_DATA						      \
-			*(.exit.data)	/* 2.5 convention */		      \
+			EXIT_DATA	/* 2.5 convention */		      \
 			*(.data.exit)	/* 2.4 convention */		      \
 		. = ALIGN (16) ;					      \
 		*(.data.cacheline_aligned)				      \
@@ -157,9 +157,9 @@
 		. = ALIGN (4096) ;					      \
 		__init_start = . ;					      \
 			__sinittext = .;				      \
-			*(.init.text)	/* 2.5 convention */		      \
+			INIT_TEXT	/* 2.5 convention */		      \
 			__einittext = .;				      \
-			*(.init.data)					      \
+			INIT_DATA					      \
 			*(.text.init)	/* 2.4 convention */		      \
 			*(.data.init)					      \
 		INITCALL_CONTENTS					      \
@@ -170,7 +170,7 @@
 #define ROMK_INIT_RAM_CONTENTS						      \
 		. = ALIGN (4096) ;					      \
 		__init_start = . ;					      \
-			*(.init.data)	/* 2.5 convention */		      \
+			INIT_DATA	/* 2.5 convention */		      \
 			*(.data.init)	/* 2.4 convention */		      \
 		__init_end = . ;					      \
 		. = ALIGN (4096) ;
@@ -179,7 +179,7 @@
    should go into ROM.  */	
 #define ROMK_INIT_ROM_CONTENTS						      \
 			_sinittext = .;					      \
-			*(.init.text)	/* 2.5 convention */		      \
+			INIT_TEXT	/* 2.5 convention */		      \
 			_einittext = .;					      \
 			*(.text.init)	/* 2.4 convention */		      \
 		INITCALL_CONTENTS					      \

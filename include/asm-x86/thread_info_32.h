@@ -85,7 +85,7 @@ struct thread_info {
 
 
 /* how to get the current stack pointer from C */
-register unsigned long current_stack_pointer asm("esp") __attribute_used__;
+register unsigned long current_stack_pointer asm("esp") __used;
 
 /* how to get the thread information struct from C */
 static inline struct thread_info *current_thread_info(void)

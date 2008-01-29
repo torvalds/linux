@@ -27,8 +27,8 @@ SECTIONS
 {
   /* Sections to be discarded */
   /DISCARD/ : {
-	*(.exit.text)
-	*(.exit.data)
+	EXIT_TEXT
+	EXIT_DATA
 	*(.exitcall.exit)
 	*(.IA_64.unwind.exit.text)
 	*(.IA_64.unwind_info.exit.text)
@@ -119,12 +119,12 @@ SECTIONS
   .init.text : AT(ADDR(.init.text) - LOAD_OFFSET)
 	{
 	  _sinittext = .;
-	  *(.init.text)
+	  INIT_TEXT
 	  _einittext = .;
 	}
 
   .init.data : AT(ADDR(.init.data) - LOAD_OFFSET)
-	{ *(.init.data) }
+	{ INIT_DATA }
 
 #ifdef CONFIG_BLK_DEV_INITRD
   .init.ramfs : AT(ADDR(.init.ramfs) - LOAD_OFFSET)

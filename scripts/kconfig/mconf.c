@@ -8,17 +8,13 @@
  * i18n, 2005, Arnaldo Carvalho de Melo <acme@conectiva.com.br>
  */
 
-#include <sys/ioctl.h>
-#include <sys/wait.h>
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
-#include <signal.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
-#include <termios.h>
 #include <unistd.h>
 #include <locale.h>
 
@@ -275,8 +271,6 @@ search_help[] = N_(
 	"\n");
 
 static int indent;
-static struct termios ios_org;
-static int rows = 0, cols = 0;
 static struct menu *current_menu;
 static int child_count;
 static int single_menu_mode;
@@ -290,51 +284,16 @@ static void show_textbox(const char *title, const char *text, int r, int c);
 static void show_helptext(const char *title, const char *text);
 static void show_help(struct menu *menu);
 
-static void init_wsize(void)
-{
-	struct winsize ws;
-	char *env;
-
-	if (!ioctl(STDIN_FILENO, TIOCGWINSZ, &ws)) {
-		rows = ws.ws_row;
-		cols = ws.ws_col;
-	}
-
-	if (!rows) {
-		env = getenv("LINES");
-		if (env)
-			rows = atoi(env);
-		if (!rows)
-			rows = 24;
-	}
-	if (!cols) {
-		env = getenv("COLUMNS");
-		if (env)
-			cols = atoi(env);
-		if (!cols)
-			cols = 80;
-	}
-
-	if (rows < 19 || cols < 80) {
-		fprintf(stderr, N_("Your display is too small to run Menuconfig!\n"));
-		fprintf(stderr, N_("It must be at least 19 lines by 80 columns.\n"));
-		exit(1);
-	}
-
-	rows -= 4;
-	cols -= 5;
-}
-
 static void get_prompt_str(struct gstr *r, struct property *prop)
 {
 	int i, j;
 	struct menu *submenu[8], *menu;
 
-	str_printf(r, "Prompt: %s\n", prop->text);
-	str_printf(r, "  Defined at %s:%d\n", prop->menu->file->name,
+	str_printf(r, _("Prompt: %s\n"), _(prop->text));
+	str_printf(r, _("  Defined at %s:%d\n"), prop->menu->file->name,
 		prop->menu->lineno);
 	if (!expr_is_yes(prop->visible.expr)) {
-		str_append(r, "  Depends on: ");
+		str_append(r, _("  Depends on: "));
 		expr_gstr_print(prop->visible.expr, r);
 		str_append(r, "\n");
 	}
@@ -342,13 +301,13 @@ static void get_prompt_str(struct gstr *r, struct property *prop)
 	for (i = 0; menu != &rootmenu && i < 8; menu = menu->parent)
 		submenu[i++] = menu;
 	if (i > 0) {
-		str_printf(r, "  Location:\n");
+		str_printf(r, _("  Location:\n"));
 		for (j = 4; --i >= 0; j += 2) {
 			menu = submenu[i];
-			str_printf(r, "%*c-> %s", j, ' ', menu_get_prompt(menu));
+			str_printf(r, "%*c-> %s", j, ' ', _(menu_get_prompt(menu)));
 			if (menu->sym) {
 				str_printf(r, " (%s [=%s])", menu->sym->name ?
-					menu->sym->name : "<choice>",
+					menu->sym->name : _("<choice>"),
 					sym_get_string_value(menu->sym));
 			}
 			str_append(r, "\n");
@@ -378,7 +337,7 @@ static void get_symbol_str(struct gstr *r, struct symbol *sym)
 	if (hit)
 		str_append(r, "\n");
 	if (sym->rev_dep.expr) {
-		str_append(r, "  Selected by: ");
+		str_append(r, _("  Selected by: "));
 		expr_gstr_print(sym->rev_dep.expr, r);
 		str_append(r, "\n");
 	}
@@ -394,7 +353,7 @@ static struct gstr get_relations_str(struct symbol **sym_arr)
 	for (i = 0; sym_arr && (sym = sym_arr[i]); i++)
 		get_symbol_str(&res, sym);
 	if (!i)
-		str_append(&res, "No matches found.\n");
+		str_append(&res, _("No matches found.\n"));
 	return res;
 }
 
@@ -474,6 +433,7 @@ static void build_conf(struct menu *menu)
 			switch (prop->type) {
 			case P_MENU:
 				child_count++;
+				prompt = _(prompt);
 				if (single_menu_mode) {
 					item_make("%s%*c%s",
 						  menu->data ? "-->" : "++>",
@@ -489,7 +449,7 @@ static void build_conf(struct menu *menu)
 			case P_COMMENT:
 				if (prompt) {
 					child_count++;
-					item_make("   %*c*** %s ***", indent + 1, ' ', prompt);
+					item_make("   %*c*** %s ***", indent + 1, ' ', _(prompt));
 					item_set_tag(':');
 					item_set_data(menu);
 				}
@@ -497,7 +457,7 @@ static void build_conf(struct menu *menu)
 			default:
 				if (prompt) {
 					child_count++;
-					item_make("---%*c%s", indent + 1, ' ', prompt);
+					item_make("---%*c%s", indent + 1, ' ', _(prompt));
 					item_set_tag(':');
 					item_set_data(menu);
 				}
@@ -541,10 +501,10 @@ static void build_conf(struct menu *menu)
 			item_set_data(menu);
 		}
 
-		item_add_str("%*c%s", indent + 1, ' ', menu_get_prompt(menu));
+		item_add_str("%*c%s", indent + 1, ' ', _(menu_get_prompt(menu)));
 		if (val == yes) {
 			if (def_menu) {
-				item_add_str(" (%s)", menu_get_prompt(def_menu));
+				item_add_str(" (%s)", _(menu_get_prompt(def_menu)));
 				item_add_str("  --->");
 				if (def_menu->list) {
 					indent += 2;
@@ -556,7 +516,7 @@ static void build_conf(struct menu *menu)
 		}
 	} else {
 		if (menu == current_menu) {
-			item_make("---%*c%s", indent + 1, ' ', menu_get_prompt(menu));
+			item_make("---%*c%s", indent + 1, ' ', _(menu_get_prompt(menu)));
 			item_set_tag(':');
 			item_set_data(menu);
 			goto conf_childs;
@@ -599,17 +559,17 @@ static void build_conf(struct menu *menu)
 				tmp = indent - tmp + 4;
 				if (tmp < 0)
 					tmp = 0;
-				item_add_str("%*c%s%s", tmp, ' ', menu_get_prompt(menu),
+				item_add_str("%*c%s%s", tmp, ' ', _(menu_get_prompt(menu)),
 					     (sym_has_value(sym) || !sym_is_changable(sym)) ?
-					     "" : " (NEW)");
+					     "" : _(" (NEW)"));
 				item_set_tag('s');
 				item_set_data(menu);
 				goto conf_childs;
 			}
 		}
-		item_add_str("%*c%s%s", indent + 1, ' ', menu_get_prompt(menu),
+		item_add_str("%*c%s%s", indent + 1, ' ', _(menu_get_prompt(menu)),
 			  (sym_has_value(sym) || !sym_is_changable(sym)) ?
-			  "" : " (NEW)");
+			  "" : _(" (NEW)"));
 		if (menu->prompt->type == P_MENU) {
 			item_add_str("  --->");
 			return;
@@ -647,7 +607,7 @@ static void conf(struct menu *menu)
 			item_set_tag('S');
 		}
 		dialog_clear();
-		res = dialog_menu(prompt ? prompt : _("Main Menu"),
+		res = dialog_menu(prompt ? _(prompt) : _("Main Menu"),
 				  _(menu_instructions),
 				  active_menu, &s_scroll);
 		if (res == 1 || res == KEY_ESC || res == -ERRDISPLAYTOOSMALL)
@@ -694,7 +654,7 @@ static void conf(struct menu *menu)
 			if (sym)
 				show_help(submenu);
 			else
-				show_helptext("README", _(mconf_readme));
+				show_helptext(_("README"), _(mconf_readme));
 			break;
 		case 3:
 			if (item_is_tag('t')) {
@@ -752,13 +712,13 @@ static void show_help(struct menu *menu)
 		str_append(&help, nohelp_text);
 	}
 	get_symbol_str(&help, sym);
-	show_helptext(menu_get_prompt(menu), str_get(&help));
+	show_helptext(_(menu_get_prompt(menu)), str_get(&help));
 	str_free(&help);
 }
 
 static void conf_choice(struct menu *menu)
 {
-	const char *prompt = menu_get_prompt(menu);
+	const char *prompt = _(menu_get_prompt(menu));
 	struct menu *child;
 	struct symbol *active;
 
@@ -772,7 +732,7 @@ static void conf_choice(struct menu *menu)
 		for (child = menu->list; child; child = child->next) {
 			if (!menu_is_visible(child))
 				continue;
-			item_make("%s", menu_get_prompt(child));
+			item_make("%s", _(menu_get_prompt(child)));
 			item_set_data(child);
 			if (child->sym == active)
 				item_set_selected(1);
@@ -780,7 +740,7 @@ static void conf_choice(struct menu *menu)
 				item_set_tag('X');
 		}
 		dialog_clear();
-		res = dialog_checklist(prompt ? prompt : _("Main Menu"),
+		res = dialog_checklist(prompt ? _(prompt) : _("Main Menu"),
 					_(radiolist_instructions),
 					 15, 70, 6);
 		selected = item_activate_selected();
@@ -826,10 +786,10 @@ static void conf_string(struct menu *menu)
 			heading = _(inputbox_instructions_string);
 			break;
 		default:
-			heading = "Internal mconf error!";
+			heading = _("Internal mconf error!");
 		}
 		dialog_clear();
-		res = dialog_inputbox(prompt ? prompt : _("Main Menu"),
+		res = dialog_inputbox(prompt ? _(prompt) : _("Main Menu"),
 				      heading, 10, 75,
 				      sym_get_string_value(menu->sym));
 		switch (res) {
@@ -900,13 +860,9 @@ static void conf_save(void)
 	}
 }
 
-static void conf_cleanup(void)
-{
-	tcsetattr(1, TCSAFLUSH, &ios_org);
-}
-
 int main(int ac, char **av)
 {
+	int saved_x, saved_y;
 	char *mode;
 	int res;
 
@@ -923,11 +879,13 @@ int main(int ac, char **av)
 			single_menu_mode = 1;
 	}
 
-	tcgetattr(1, &ios_org);
-	atexit(conf_cleanup);
-	init_wsize();
-	reset_dialog();
-	init_dialog(NULL);
+	getyx(stdscr, saved_y, saved_x);
+	if (init_dialog(NULL)) {
+		fprintf(stderr, N_("Your display is too small to run Menuconfig!\n"));
+		fprintf(stderr, N_("It must be at least 19 lines by 80 columns.\n"));
+		return 1;
+	}
+
 	set_config_filename(conf_get_configname());
 	do {
 		conf(&rootmenu);
@@ -941,7 +899,7 @@ int main(int ac, char **av)
 		else
 			res = -1;
 	} while (res == KEY_ESC);
-	end_dialog();
+	end_dialog(saved_x, saved_y);
 
 	switch (res) {
 	case 0:
