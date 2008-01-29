@@ -160,6 +160,7 @@ static void i915_save_vga(struct drm_device *dev)
 		dev_priv->saveAR[i] = i915_read_ar(st01, i, 0);
 	inb(st01);
 	outb(dev_priv->saveAR_INDEX, VGA_AR_INDEX);
+	inb(st01);
 
 	/* Graphics controller registers */
 	for (i = 0; i < 9; i++)
@@ -225,6 +226,7 @@ static void i915_restore_vga(struct drm_device *dev)
 		i915_write_ar(st01, i, dev_priv->saveAR[i], 0);
 	inb(st01); /* switch back to index mode */
 	outb(dev_priv->saveAR_INDEX | 0x20, VGA_AR_INDEX);
+	inb(st01);
 
 	/* VGA color palette registers */
 	outb(dev_priv->saveDACMASK, VGA_DACMASK);
