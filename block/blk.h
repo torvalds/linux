@@ -14,14 +14,21 @@ void rq_init(struct request_queue *q, struct request *rq);
 void init_request_from_bio(struct request *req, struct bio *bio);
 void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
 			struct bio *bio);
-int ll_back_merge_fn(struct request_queue *q, struct request *req,
-		     struct bio *bio);
 void __blk_queue_free_tags(struct request_queue *q);
 
 void blk_unplug_work(struct work_struct *work);
 void blk_unplug_timeout(unsigned long data);
 
 struct io_context *current_io_context(gfp_t gfp_flags, int node);
+
+int ll_back_merge_fn(struct request_queue *q, struct request *req,
+		     struct bio *bio);
+int ll_front_merge_fn(struct request_queue *q, struct request *req, 
+		      struct bio *bio);
+int attempt_back_merge(struct request_queue *q, struct request *rq);
+int attempt_front_merge(struct request_queue *q, struct request *rq);
+void blk_recalc_rq_segments(struct request *rq);
+void blk_recalc_rq_sectors(struct request *rq, int nsect);
 
 void blk_queue_congestion_threshold(struct request_queue *q);
 
