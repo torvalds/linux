@@ -2694,7 +2694,6 @@ void ext4_read_inode(struct inode * inode)
 		inode->i_gid |= le16_to_cpu(raw_inode->i_gid_high) << 16;
 	}
 	inode->i_nlink = le16_to_cpu(raw_inode->i_links_count);
-	inode->i_size = le32_to_cpu(raw_inode->i_size);
 
 	ei->i_state = 0;
 	ei->i_dir_start_lookup = 0;
@@ -2720,15 +2719,11 @@ void ext4_read_inode(struct inode * inode)
 	ei->i_flags = le32_to_cpu(raw_inode->i_flags);
 	ei->i_file_acl = le32_to_cpu(raw_inode->i_file_acl_lo);
 	if (EXT4_SB(inode->i_sb)->s_es->s_creator_os !=
-	    cpu_to_le32(EXT4_OS_HURD))
+	    cpu_to_le32(EXT4_OS_HURD)) {
 		ei->i_file_acl |=
 			((__u64)le16_to_cpu(raw_inode->i_file_acl_high)) << 32;
-	if (!S_ISREG(inode->i_mode)) {
-		ei->i_dir_acl = le32_to_cpu(raw_inode->i_dir_acl);
-	} else {
-		inode->i_size |=
-			((__u64)le32_to_cpu(raw_inode->i_size_high)) << 32;
 	}
+	inode->i_size = ext4_isize(raw_inode);
 	ei->i_disksize = inode->i_size;
 	inode->i_generation = le32_to_cpu(raw_inode->i_generation);
 	ei->i_block_group = iloc.block_group;
@@ -2852,7 +2847,6 @@ static int ext4_do_update_inode(handle_t *handle,
 		raw_inode->i_gid_high = 0;
 	}
 	raw_inode->i_links_count = cpu_to_le16(inode->i_nlink);
-	raw_inode->i_size = cpu_to_le32(ei->i_disksize);
 
 	EXT4_INODE_SET_XTIME(i_ctime, inode, raw_inode);
 	EXT4_INODE_SET_XTIME(i_mtime, inode, raw_inode);
@@ -2867,32 +2861,27 @@ static int ext4_do_update_inode(handle_t *handle,
 		raw_inode->i_file_acl_high =
 			cpu_to_le16(ei->i_file_acl >> 32);
 	raw_inode->i_file_acl_lo = cpu_to_le32(ei->i_file_acl);
-	if (!S_ISREG(inode->i_mode)) {
-		raw_inode->i_dir_acl = cpu_to_le32(ei->i_dir_acl);
-	} else {
-		raw_inode->i_size_high =
-			cpu_to_le32(ei->i_disksize >> 32);
-		if (ei->i_disksize > 0x7fffffffULL) {
-			struct super_block *sb = inode->i_sb;
-			if (!EXT4_HAS_RO_COMPAT_FEATURE(sb,
-					EXT4_FEATURE_RO_COMPAT_LARGE_FILE) ||
-			    EXT4_SB(sb)->s_es->s_rev_level ==
-					cpu_to_le32(EXT4_GOOD_OLD_REV)) {
-			       /* If this is the first large file
-				* created, add a flag to the superblock.
-				*/
-				err = ext4_journal_get_write_access(handle,
-						EXT4_SB(sb)->s_sbh);
-				if (err)
-					goto out_brelse;
-				ext4_update_dynamic_rev(sb);
-				EXT4_SET_RO_COMPAT_FEATURE(sb,
+	ext4_isize_set(raw_inode, ei->i_disksize);
+	if (ei->i_disksize > 0x7fffffffULL) {
+		struct super_block *sb = inode->i_sb;
+		if (!EXT4_HAS_RO_COMPAT_FEATURE(sb,
+				EXT4_FEATURE_RO_COMPAT_LARGE_FILE) ||
+				EXT4_SB(sb)->s_es->s_rev_level ==
+				cpu_to_le32(EXT4_GOOD_OLD_REV)) {
+			/* If this is the first large file
+			 * created, add a flag to the superblock.
+			 */
+			err = ext4_journal_get_write_access(handle,
+					EXT4_SB(sb)->s_sbh);
+			if (err)
+				goto out_brelse;
+			ext4_update_dynamic_rev(sb);
+			EXT4_SET_RO_COMPAT_FEATURE(sb,
 					EXT4_FEATURE_RO_COMPAT_LARGE_FILE);
-				sb->s_dirt = 1;
-				handle->h_sync = 1;
-				err = ext4_journal_dirty_metadata(handle,
-						EXT4_SB(sb)->s_sbh);
-			}
+			sb->s_dirt = 1;
+			handle->h_sync = 1;
+			err = ext4_journal_dirty_metadata(handle,
+					EXT4_SB(sb)->s_sbh);
 		}
 	}
 	raw_inode->i_generation = cpu_to_le32(inode->i_generation);

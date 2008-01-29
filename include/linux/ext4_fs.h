@@ -275,7 +275,7 @@ struct ext4_mount_options {
 struct ext4_inode {
 	__le16	i_mode;		/* File mode */
 	__le16	i_uid;		/* Low 16 bits of Owner Uid */
-	__le32	i_size;		/* Size in bytes */
+	__le32	i_size_lo;	/* Size in bytes */
 	__le32	i_atime;	/* Access time */
 	__le32	i_ctime;	/* Inode Change time */
 	__le32	i_mtime;	/* Modification time */
@@ -298,7 +298,7 @@ struct ext4_inode {
 	__le32	i_block[EXT4_N_BLOCKS];/* Pointers to blocks */
 	__le32	i_generation;	/* File version (for NFS) */
 	__le32	i_file_acl_lo;	/* File ACL */
-	__le32	i_dir_acl;	/* Directory ACL */
+	__le32	i_size_high;
 	__le32	i_obso_faddr;	/* Obsoleted fragment address */
 	union {
 		struct {
@@ -330,7 +330,6 @@ struct ext4_inode {
 	__le32  i_crtime_extra; /* extra FileCreationtime (nsec << 2 | epoch) */
 };
 
-#define i_size_high	i_dir_acl
 
 #define EXT4_EPOCH_BITS 2
 #define EXT4_EPOCH_MASK ((1 << EXT4_EPOCH_BITS) - 1)
@@ -1049,7 +1048,17 @@ static inline void ext4_r_blocks_count_set(struct ext4_super_block *es,
 	es->s_r_blocks_count_hi = cpu_to_le32(blk >> 32);
 }
 
+static inline loff_t ext4_isize(struct ext4_inode *raw_inode)
+{
+	return ((loff_t)le32_to_cpu(raw_inode->i_size_high) << 32) |
+		le32_to_cpu(raw_inode->i_size_lo);
+}
 
+static inline void ext4_isize_set(struct ext4_inode *raw_inode, loff_t i_size)
+{
+	raw_inode->i_size_lo = cpu_to_le32(i_size);
+	raw_inode->i_size_high = cpu_to_le32(i_size >> 32);
+}
 
 #define ext4_std_error(sb, errno)				\
 do {								\

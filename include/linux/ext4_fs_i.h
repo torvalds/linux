@@ -85,7 +85,6 @@ struct ext4_inode_info {
 	__le32	i_data[15];	/* unconverted */
 	__u32	i_flags;
 	ext4_fsblk_t	i_file_acl;
-	__u32	i_dir_acl;
 	__u32	i_dtime;
 
 	/*
