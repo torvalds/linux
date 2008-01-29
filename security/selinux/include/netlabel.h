@@ -48,7 +48,6 @@ void selinux_netlbl_sk_security_clone(struct sk_security_struct *ssec,
 
 int selinux_netlbl_skbuff_getsid(struct sk_buff *skb,
 				 u16 family,
-				 u32 base_sid,
 				 u32 *type,
 				 u32 *sid);
 
@@ -89,7 +88,6 @@ static inline void selinux_netlbl_sk_security_clone(
 
 static inline int selinux_netlbl_skbuff_getsid(struct sk_buff *skb,
 					       u16 family,
-					       u32 base_sid,
 					       u32 *type,
 					       u32 *sid)
 {

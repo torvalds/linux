@@ -2547,50 +2547,10 @@ void selinux_audit_set_callback(int (*callback)(void))
 }
 
 #ifdef CONFIG_NETLABEL
-/*
- * NetLabel cache structure
- */
-#define NETLBL_CACHE(x)           ((struct selinux_netlbl_cache *)(x))
-#define NETLBL_CACHE_T_NONE       0
-#define NETLBL_CACHE_T_SID        1
-#define NETLBL_CACHE_T_MLS        2
-struct selinux_netlbl_cache {
-	u32 type;
-	union {
-		u32 sid;
-		struct mls_range mls_label;
-	} data;
-};
-
-/**
- * security_netlbl_cache_free - Free the NetLabel cached data
- * @data: the data to free
- *
- * Description:
- * This function is intended to be used as the free() callback inside the
- * netlbl_lsm_cache structure.
- *
- */
-static void security_netlbl_cache_free(const void *data)
-{
-	struct selinux_netlbl_cache *cache;
-
-	if (data == NULL)
-		return;
-
-	cache = NETLBL_CACHE(data);
-	switch (cache->type) {
-	case NETLBL_CACHE_T_MLS:
-		ebitmap_destroy(&cache->data.mls_label.level[0].cat);
-		break;
-	}
-	kfree(data);
-}
-
 /**
  * security_netlbl_cache_add - Add an entry to the NetLabel cache
  * @secattr: the NetLabel packet security attributes
- * @ctx: the SELinux context
+ * @sid: the SELinux SID
  *
  * Description:
  * Attempt to cache the context in @ctx, which was derived from the packet in
@@ -2599,60 +2559,46 @@ static void security_netlbl_cache_free(const void *data)
  *
  */
 static void security_netlbl_cache_add(struct netlbl_lsm_secattr *secattr,
-				      struct context *ctx)
+				      u32 sid)
 {
-	struct selinux_netlbl_cache *cache = NULL;
+	u32 *sid_cache;
 
+	sid_cache = kmalloc(sizeof(*sid_cache), GFP_ATOMIC);
+	if (sid_cache == NULL)
+		return;
 	secattr->cache = netlbl_secattr_cache_alloc(GFP_ATOMIC);
-	if (secattr->cache == NULL)
-		return;
-
-	cache = kzalloc(sizeof(*cache),	GFP_ATOMIC);
-	if (cache == NULL)
-		return;
-
-	cache->type = NETLBL_CACHE_T_MLS;
-	if (ebitmap_cpy(&cache->data.mls_label.level[0].cat,
-			&ctx->range.level[0].cat) != 0) {
-		kfree(cache);
+	if (secattr->cache == NULL) {
+		kfree(sid_cache);
 		return;
 	}
-	cache->data.mls_label.level[1].cat.highbit =
-		cache->data.mls_label.level[0].cat.highbit;
-	cache->data.mls_label.level[1].cat.node =
-		cache->data.mls_label.level[0].cat.node;
-	cache->data.mls_label.level[0].sens = ctx->range.level[0].sens;
-	cache->data.mls_label.level[1].sens = ctx->range.level[0].sens;
 
-	secattr->cache->free = security_netlbl_cache_free;
-	secattr->cache->data = (void *)cache;
+	*sid_cache = sid;
+	secattr->cache->free = kfree;
+	secattr->cache->data = sid_cache;
 	secattr->flags |= NETLBL_SECATTR_CACHE;
 }
 
 /**
  * security_netlbl_secattr_to_sid - Convert a NetLabel secattr to a SELinux SID
  * @secattr: the NetLabel packet security attributes
- * @base_sid: the SELinux SID to use as a context for MLS only attributes
  * @sid: the SELinux SID
  *
  * Description:
  * Convert the given NetLabel security attributes in @secattr into a
  * SELinux SID.  If the @secattr field does not contain a full SELinux
- * SID/context then use the context in @base_sid as the foundation.  If
- * possibile the 'cache' field of @secattr is set and the CACHE flag is set;
- * this is to allow the @secattr to be used by NetLabel to cache the secattr to
- * SID conversion for future lookups.  Returns zero on success, negative
- * values on failure.
+ * SID/context then use SECINITSID_NETMSG as the foundation.  If possibile the
+ * 'cache' field of @secattr is set and the CACHE flag is set; this is to
+ * allow the @secattr to be used by NetLabel to cache the secattr to SID
+ * conversion for future lookups.  Returns zero on success, negative values on
+ * failure.
  *
  */
 int security_netlbl_secattr_to_sid(struct netlbl_lsm_secattr *secattr,
-				   u32 base_sid,
 				   u32 *sid)
 {
 	int rc = -EIDRM;
 	struct context *ctx;
 	struct context ctx_new;
-	struct selinux_netlbl_cache *cache;
 
 	if (!ss_initialized) {
 		*sid = SECSID_NULL;
@@ -2662,43 +2608,13 @@ int security_netlbl_secattr_to_sid(struct netlbl_lsm_secattr *secattr,
 	POLICY_RDLOCK;
 
 	if (secattr->flags & NETLBL_SECATTR_CACHE) {
-		cache = NETLBL_CACHE(secattr->cache->data);
-		switch (cache->type) {
-		case NETLBL_CACHE_T_SID:
-			*sid = cache->data.sid;
-			rc = 0;
-			break;
-		case NETLBL_CACHE_T_MLS:
-			ctx = sidtab_search(&sidtab, base_sid);
-			if (ctx == NULL)
-				goto netlbl_secattr_to_sid_return;
-
-			ctx_new.user = ctx->user;
-			ctx_new.role = ctx->role;
-			ctx_new.type = ctx->type;
-			ctx_new.range.level[0].sens =
-				cache->data.mls_label.level[0].sens;
-			ctx_new.range.level[0].cat.highbit =
-				cache->data.mls_label.level[0].cat.highbit;
-			ctx_new.range.level[0].cat.node =
-				cache->data.mls_label.level[0].cat.node;
-			ctx_new.range.level[1].sens =
-				cache->data.mls_label.level[1].sens;
-			ctx_new.range.level[1].cat.highbit =
-				cache->data.mls_label.level[1].cat.highbit;
-			ctx_new.range.level[1].cat.node =
-				cache->data.mls_label.level[1].cat.node;
-
-			rc = sidtab_context_to_sid(&sidtab, &ctx_new, sid);
-			break;
-		default:
-			goto netlbl_secattr_to_sid_return;
-		}
+		*sid = *(u32 *)secattr->cache->data;
+		rc = 0;
 	} else if (secattr->flags & NETLBL_SECATTR_SECID) {
 		*sid = secattr->attr.secid;
 		rc = 0;
 	} else if (secattr->flags & NETLBL_SECATTR_MLS_LVL) {
-		ctx = sidtab_search(&sidtab, base_sid);
+		ctx = sidtab_search(&sidtab, SECINITSID_NETMSG);
 		if (ctx == NULL)
 			goto netlbl_secattr_to_sid_return;
 
@@ -2725,7 +2641,7 @@ int security_netlbl_secattr_to_sid(struct netlbl_lsm_secattr *secattr,
 		if (rc != 0)
 			goto netlbl_secattr_to_sid_return_cleanup;
 
-		security_netlbl_cache_add(secattr, &ctx_new);
+		security_netlbl_cache_add(secattr, *sid);
 
 		ebitmap_destroy(&ctx_new.range.level[0].cat);
 	} else {

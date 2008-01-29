@@ -124,7 +124,6 @@ int security_genfs_sid(const char *fstype, char *name, u16 sclass,
 
 #ifdef CONFIG_NETLABEL
 int security_netlbl_secattr_to_sid(struct netlbl_lsm_secattr *secattr,
-				   u32 base_sid,
 				   u32 *sid);
 
 int security_netlbl_sid_to_secattr(u32 sid,
@@ -132,7 +131,6 @@ int security_netlbl_sid_to_secattr(u32 sid,
 #else
 static inline int security_netlbl_secattr_to_sid(
 					    struct netlbl_lsm_secattr *secattr,
-					    u32 base_sid,
 					    u32 *sid)
 {
 	return -EIDRM;
