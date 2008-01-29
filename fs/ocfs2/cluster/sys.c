@@ -64,7 +64,7 @@ int o2cb_sys_init(void)
 {
 	int ret;
 
-	o2cb_kset = kset_create_and_add("o2cb", NULL, fs_kobj);
+	o2cb_kset = kset_create_and_add("o2cb", NULL, NULL);
 	if (!o2cb_kset)
 		return -ENOMEM;
 
