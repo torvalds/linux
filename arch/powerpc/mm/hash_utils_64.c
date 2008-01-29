@@ -471,7 +471,7 @@ void __init htab_initialize(void)
 	unsigned long table;
 	unsigned long pteg_count;
 	unsigned long mode_rw;
-	unsigned long base = 0, size = 0;
+	unsigned long base = 0, size = 0, limit;
 	int i;
 
 	extern unsigned long tce_alloc_start, tce_alloc_end;
@@ -505,9 +505,15 @@ void __init htab_initialize(void)
 		_SDR1 = 0; 
 	} else {
 		/* Find storage for the HPT.  Must be contiguous in
-		 * the absolute address space.
+		 * the absolute address space. On cell we want it to be
+		 * in the first 1 Gig.
 		 */
-		table = lmb_alloc(htab_size_bytes, htab_size_bytes);
+		if (machine_is(cell))
+			limit = 0x40000000;
+		else
+			limit = 0;
+
+		table = lmb_alloc_base(htab_size_bytes, htab_size_bytes, limit);
 
 		DBG("Hash table allocated at %lx, size: %lx\n", table,
 		    htab_size_bytes);
