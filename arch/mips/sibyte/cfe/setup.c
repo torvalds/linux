@@ -301,9 +301,6 @@ void __init prom_init(void)
 			 *  command line
 			 */
 			strcpy(arcs_cmdline, "root=/dev/ram0 ");
-#ifdef CONFIG_SIBYTE_PTSWARM
-			strcat(arcs_cmdline, "console=ttyS0,115200 ");
-#endif
 		} else {
 			/* The loader should have set the command line */
 			/* too early for panic to do any good */
