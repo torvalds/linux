@@ -65,6 +65,9 @@
 static DEFINE_MUTEX(module_mutex);
 static LIST_HEAD(modules);
 
+/* Waiting for a module to finish initializing? */
+static DECLARE_WAIT_QUEUE_HEAD(module_wq);
+
 static BLOCKING_NOTIFIER_HEAD(module_notify_list);
 
 int register_module_notifier(struct notifier_block * nb)
@@ -84,8 +87,11 @@ EXPORT_SYMBOL(unregister_module_notifier);
 static inline int strong_try_module_get(struct module *mod)
 {
 	if (mod && mod->state == MODULE_STATE_COMING)
+		return -EBUSY;
+	if (try_module_get(mod))
 		return 0;
-	return try_module_get(mod);
+	else
+		return -ENOENT;
 }
 
 static inline void add_taint_module(struct module *mod, unsigned flag)
@@ -539,11 +545,21 @@ static int already_uses(struct module *a, struct module *b)
 static int use_module(struct module *a, struct module *b)
 {
 	struct module_use *use;
-	int no_warn;
+	int no_warn, err;
 
 	if (b == NULL || already_uses(a, b)) return 1;
 
-	if (!strong_try_module_get(b))
+	/* If we're interrupted or time out, we fail. */
+	if (wait_event_interruptible_timeout(
+		    module_wq, (err = strong_try_module_get(b)) != -EBUSY,
+		    30 * HZ) <= 0) {
+		printk("%s: gave up waiting for init of module %s.\n",
+		       a->name, b->name);
+		return 0;
+	}
+
+	/* If strong_try_module_get() returned a different error, we fail. */
+	if (err)
 		return 0;
 
 	DEBUGP("Allocating new usage for %s.\n", a->name);
@@ -722,7 +738,7 @@ sys_delete_module(const char __user *name_user, unsigned int flags)
 		mutex_lock(&module_mutex);
 	}
 	/* Store the name of the last unloaded module for diagnostic purposes */
-	sprintf(last_unloaded_module, mod->name);
+	strlcpy(last_unloaded_module, mod->name, sizeof(last_unloaded_module));
 	free_module(mod);
 
  out:
@@ -816,7 +832,7 @@ static inline void module_unload_free(struct module *mod)
 
 static inline int use_module(struct module *a, struct module *b)
 {
-	return strong_try_module_get(b);
+	return strong_try_module_get(b) == 0;
 }
 
 static inline void module_unload_init(struct module *mod)
@@ -1214,6 +1230,7 @@ void module_remove_modinfo_attrs(struct module *mod)
 int mod_sysfs_init(struct module *mod)
 {
 	int err;
+	struct kobject *kobj;
 
 	if (!module_sysfs_initialized) {
 		printk(KERN_ERR "%s: module sysfs not initialized\n",
@@ -1221,6 +1238,15 @@ int mod_sysfs_init(struct module *mod)
 		err = -EINVAL;
 		goto out;
 	}
+
+	kobj = kset_find_obj(module_kset, mod->name);
+	if (kobj) {
+		printk(KERN_ERR "%s: module is already loaded\n", mod->name);
+		kobject_put(kobj);
+		err = -EINVAL;
+		goto out;
+	}
+
 	mod->mkobj.mod = mod;
 
 	memset(&mod->mkobj.kobj, 0, sizeof(mod->mkobj.kobj));
@@ -1278,6 +1304,17 @@ static void mod_kobject_remove(struct module *mod)
 }
 
 /*
+ * link the module with the whole machine is stopped with interrupts off
+ * - this defends against kallsyms not taking locks
+ */
+static int __link_module(void *_mod)
+{
+	struct module *mod = _mod;
+	list_add(&mod->list, &modules);
+	return 0;
+}
+
+/*
  * unlink the module with the whole machine is stopped with interrupts off
  * - this defends against kallsyms not taking locks
  */
@@ -1326,7 +1363,7 @@ void *__symbol_get(const char *symbol)
 
 	preempt_disable();
 	value = __find_symbol(symbol, &owner, &crc, 1);
-	if (value && !strong_try_module_get(owner))
+	if (value && strong_try_module_get(owner) != 0)
 		value = 0;
 	preempt_enable();
 
@@ -1889,7 +1926,7 @@ static struct module *load_module(void __user *umod,
 	set_license(mod, get_modinfo(sechdrs, infoindex, "license"));
 
 	if (strcmp(mod->name, "ndiswrapper") == 0)
-		add_taint(TAINT_PROPRIETARY_MODULE);
+		add_taint_module(mod, TAINT_PROPRIETARY_MODULE);
 	if (strcmp(mod->name, "driverloader") == 0)
 		add_taint_module(mod, TAINT_PROPRIETARY_MODULE);
 
@@ -2019,6 +2056,11 @@ static struct module *load_module(void __user *umod,
 		printk(KERN_WARNING "%s: Ignoring obsolete parameters\n",
 		       mod->name);
 
+	/* Now sew it into the lists so we can get lockdep and oops
+         * info during argument parsing.  Noone should access us, since
+         * strong_try_module_get() will fail. */
+	stop_machine_run(__link_module, mod, NR_CPUS);
+
 	/* Size of section 0 is 0, so this works well if no params */
 	err = parse_args(mod->name, mod->args,
 			 (struct kernel_param *)
@@ -2027,7 +2069,7 @@ static struct module *load_module(void __user *umod,
 			 / sizeof(struct kernel_param),
 			 NULL);
 	if (err < 0)
-		goto arch_cleanup;
+		goto unlink;
 
 	err = mod_sysfs_setup(mod,
 			      (struct kernel_param *)
@@ -2035,7 +2077,7 @@ static struct module *load_module(void __user *umod,
 			      sechdrs[setupindex].sh_size
 			      / sizeof(struct kernel_param));
 	if (err < 0)
-		goto arch_cleanup;
+		goto unlink;
 	add_sect_attrs(mod, hdr->e_shnum, secstrings, sechdrs);
 	add_notes_attrs(mod, hdr->e_shnum, secstrings, sechdrs);
 
@@ -2050,7 +2092,8 @@ static struct module *load_module(void __user *umod,
 	/* Done! */
 	return mod;
 
- arch_cleanup:
+ unlink:
+	stop_machine_run(__unlink_module, mod, NR_CPUS);
 	module_arch_cleanup(mod);
  cleanup:
 	kobject_del(&mod->mkobj.kobj);
@@ -2073,17 +2116,6 @@ static struct module *load_module(void __user *umod,
 	printk(KERN_ERR "Module len %lu truncated\n", len);
 	err = -ENOEXEC;
 	goto free_hdr;
-}
-
-/*
- * link the module with the whole machine is stopped with interrupts off
- * - this defends against kallsyms not taking locks
- */
-static int __link_module(void *_mod)
-{
-	struct module *mod = _mod;
-	list_add(&mod->list, &modules);
-	return 0;
 }
 
 /* This is where the real work happens */
@@ -2110,10 +2142,6 @@ sys_init_module(void __user *umod,
 		return PTR_ERR(mod);
 	}
 
-	/* Now sew it into the lists.  They won't access us, since
-           strong_try_module_get() will fail. */
-	stop_machine_run(__link_module, mod, NR_CPUS);
-
 	/* Drop lock so they can recurse */
 	mutex_unlock(&module_mutex);
 
@@ -2132,6 +2160,7 @@ sys_init_module(void __user *umod,
 		mutex_lock(&module_mutex);
 		free_module(mod);
 		mutex_unlock(&module_mutex);
+		wake_up(&module_wq);
 		return ret;
 	}
 
@@ -2146,6 +2175,7 @@ sys_init_module(void __user *umod,
 	mod->init_size = 0;
 	mod->init_text_size = 0;
 	mutex_unlock(&module_mutex);
+	wake_up(&module_wq);
 
 	return 0;
 }
@@ -2210,14 +2240,13 @@ static const char *get_ksymbol(struct module *mod,
 	return mod->strtab + mod->symtab[best].st_name;
 }
 
-/* For kallsyms to ask for address resolution.  NULL means not found.
-   We don't lock, as this is used for oops resolution and races are a
-   lesser concern. */
-/* FIXME: Risky: returns a pointer into a module w/o lock */
-const char *module_address_lookup(unsigned long addr,
-				  unsigned long *size,
-				  unsigned long *offset,
-				  char **modname)
+/* For kallsyms to ask for address resolution.  NULL means not found.  Careful
+ * not to lock to avoid deadlock on oopses, simply disable preemption. */
+char *module_address_lookup(unsigned long addr,
+			    unsigned long *size,
+			    unsigned long *offset,
+			    char **modname,
+			    char *namebuf)
 {
 	struct module *mod;
 	const char *ret = NULL;
@@ -2232,8 +2261,13 @@ const char *module_address_lookup(unsigned long addr,
 			break;
 		}
 	}
+	/* Make a copy in here where it's safe */
+	if (ret) {
+		strncpy(namebuf, ret, KSYM_NAME_LEN - 1);
+		ret = namebuf;
+	}
 	preempt_enable();
-	return ret;
+	return (char *)ret;
 }
 
 int lookup_module_symbol_name(unsigned long addr, char *symname)

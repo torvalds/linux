@@ -376,8 +376,6 @@ int param_get_string(char *buffer, struct kernel_param *kp)
 
 extern struct kernel_param __start___param[], __stop___param[];
 
-#define MAX_KBUILD_MODNAME KOBJ_NAME_LEN
-
 struct param_attribute
 {
 	struct module_attribute mattr;
@@ -587,7 +585,7 @@ static void __init param_sysfs_builtin(void)
 {
 	struct kernel_param *kp, *kp_begin = NULL;
 	unsigned int i, name_len, count = 0;
-	char modname[MAX_KBUILD_MODNAME + 1] = "";
+	char modname[MODULE_NAME_LEN + 1] = "";
 
 	for (i=0; i < __stop___param - __start___param; i++) {
 		char *dot;
@@ -595,12 +593,12 @@ static void __init param_sysfs_builtin(void)
 
 		kp = &__start___param[i];
 		max_name_len =
-			min_t(size_t, MAX_KBUILD_MODNAME, strlen(kp->name));
+			min_t(size_t, MODULE_NAME_LEN, strlen(kp->name));
 
 		dot = memchr(kp->name, '.', max_name_len);
 		if (!dot) {
 			DEBUGP("couldn't find period in first %d characters "
-			       "of %s\n", MAX_KBUILD_MODNAME, kp->name);
+			       "of %s\n", MODULE_NAME_LEN, kp->name);
 			continue;
 		}
 		name_len = dot - kp->name;
