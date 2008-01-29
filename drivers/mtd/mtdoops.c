@@ -67,10 +67,7 @@ static int mtdoops_erase_block(struct mtd_info *mtd, int offset)
 	erase.mtd = mtd;
 	erase.callback = mtdoops_erase_callback;
 	erase.addr = offset;
-	if (mtd->erasesize < OOPS_PAGE_SIZE)
-		erase.len = OOPS_PAGE_SIZE;
-	else
-		erase.len = mtd->erasesize;
+	erase.len = mtd->erasesize;
 	erase.priv = (u_long)&wait_q;
 
 	set_current_state(TASK_INTERRUPTIBLE);
@@ -271,12 +268,18 @@ static void mtdoops_notify_add(struct mtd_info *mtd)
 		return;
 	}
 
+	if (mtd->erasesize < OOPS_PAGE_SIZE) {
+		printk(KERN_ERR "Eraseblock size of MTD partition %d too small\n",
+				mtd->index);
+		return;
+	}
+
 	cxt->mtd = mtd;
 	cxt->oops_pages = mtd->size / OOPS_PAGE_SIZE;
 
 	find_next_position(cxt);
 
-	printk(KERN_DEBUG "mtdoops: Attached to MTD device %d\n", mtd->index);
+	printk(KERN_INFO "mtdoops: Attached to MTD device %d\n", mtd->index);
 }
 
 static void mtdoops_notify_remove(struct mtd_info *mtd)
@@ -377,7 +380,6 @@ static struct console mtdoops_console = {
 	.write		= mtdoops_console_write,
 	.setup		= mtdoops_console_setup,
 	.unblank	= mtdoops_console_sync,
-	.flags		= CON_PRINTBUFFER,
 	.index		= -1,
 	.data		= &oops_cxt,
 };
@@ -390,7 +392,7 @@ static int __init mtdoops_console_init(void)
 	cxt->oops_buf = vmalloc(OOPS_PAGE_SIZE);
 
 	if (!cxt->oops_buf) {
-		printk(KERN_ERR "Failed to allocate oops buffer workspace\n");
+		printk(KERN_ERR "Failed to allocate mtdoops buffer workspace\n");
 		return -ENOMEM;
 	}
 
