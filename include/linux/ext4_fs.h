@@ -493,6 +493,7 @@ do {									       \
 #define ext4_test_bit			ext2_test_bit
 #define ext4_find_first_zero_bit	ext2_find_first_zero_bit
 #define ext4_find_next_zero_bit		ext2_find_next_zero_bit
+#define ext4_find_next_bit		ext2_find_next_bit
 
 /*
  * Maximal mount counts between two filesystem checks
