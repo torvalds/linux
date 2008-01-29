@@ -3853,7 +3853,7 @@ static int selinux_sock_rcv_skb_compat(struct sock *sk, struct sk_buff *skb,
 	if (!skb->dev)
 		goto out;
 
-	err = sel_netif_sids(skb->dev, &if_sid, NULL);
+	err = sel_netif_sid(skb->iif, &if_sid);
 	if (err)
 		goto out;
 
@@ -4178,7 +4178,7 @@ static int selinux_ip_postroute_last_compat(struct sock *sk, struct net_device *
 
 	isec = inode->i_security;
 	
-	err = sel_netif_sids(dev, &if_sid, NULL);
+	err = sel_netif_sid(dev->ifindex, &if_sid);
 	if (err)
 		goto out;
 

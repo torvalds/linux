@@ -96,9 +96,8 @@ struct bprm_security_struct {
 };
 
 struct netif_security_struct {
-	struct net_device *dev;		/* back pointer */
-	u32 if_sid;			/* SID for this interface */
-	u32 msg_sid;			/* default SID for messages received on this interface */
+	int ifindex;			/* device index */
+	u32 sid;			/* SID for this interface */
 };
 
 struct sk_security_struct {

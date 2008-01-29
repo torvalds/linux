@@ -77,8 +77,7 @@ int security_get_user_sids(u32 callsid, char *username,
 int security_port_sid(u16 domain, u16 type, u8 protocol, u16 port,
 	u32 *out_sid);
 
-int security_netif_sid(char *name, u32 *if_sid,
-	u32 *msg_sid);
+int security_netif_sid(char *name, u32 *if_sid);
 
 int security_node_sid(u16 domain, void *addr, u32 addrlen,
 	u32 *out_sid);

@@ -1478,11 +1478,8 @@ out:
  * security_netif_sid - Obtain the SID for a network interface.
  * @name: interface name
  * @if_sid: interface SID
- * @msg_sid: default SID for received packets
  */
-int security_netif_sid(char *name,
-		       u32 *if_sid,
-		       u32 *msg_sid)
+int security_netif_sid(char *name, u32 *if_sid)
 {
 	int rc = 0;
 	struct ocontext *c;
@@ -1510,11 +1507,8 @@ int security_netif_sid(char *name,
 				goto out;
 		}
 		*if_sid = c->sid[0];
-		*msg_sid = c->sid[1];
-	} else {
+	} else
 		*if_sid = SECINITSID_NETIF;
-		*msg_sid = SECINITSID_NETMSG;
-	}
 
 out:
 	POLICY_RDUNLOCK;
