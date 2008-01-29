@@ -468,8 +468,6 @@ static inline void local_r4k_flush_cache_page(void *args)
 
 	if (cpu_has_dc_aliases || (exec && !cpu_has_ic_fills_f_dc)) {
 		r4k_blast_dcache_page(addr);
-		if (exec && !cpu_icache_snoops_remote_store)
-			r4k_blast_scache_page(addr);
 	}
 	if (exec) {
 		if (vaddr && cpu_has_vtag_icache && mm == current->active_mm) {
@@ -532,13 +530,6 @@ static inline void local_r4k_flush_icache_range(void *args)
 		} else {
 			R4600_HIT_CACHEOP_WAR_IMPL;
 			protected_blast_dcache_range(start, end);
-		}
-
-		if (!cpu_icache_snoops_remote_store && scache_size) {
-			if (end - start > scache_size)
-				r4k_blast_scache();
-			else
-				protected_blast_scache_range(start, end);
 		}
 	}
 
