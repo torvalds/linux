@@ -1630,7 +1630,7 @@ ext4_fsblk_t ext4_new_blocks(handle_t *handle, struct inode *inode,
 
 	sbi = EXT4_SB(sb);
 	es = EXT4_SB(sb)->s_es;
-	ext4_debug("goal=%lu.\n", goal);
+	ext4_debug("goal=%llu.\n", goal);
 	/*
 	 * Allocate a block from reservation only when
 	 * filesystem is mounted with reservation(default,-o reservation), and
@@ -1740,7 +1740,7 @@ retry_alloc:
 
 allocated:
 
-	ext4_debug("using block group %d(%d)\n",
+	ext4_debug("using block group %lu(%d)\n",
 			group_no, gdp->bg_free_blocks_count);
 
 	BUFFER_TRACE(gdp_bh, "get_write_access");
@@ -1898,7 +1898,7 @@ ext4_fsblk_t ext4_count_free_blocks(struct super_block *sb)
 	brelse(bitmap_bh);
 	printk("ext4_count_free_blocks: stored = %llu"
 		", computed = %llu, %llu\n",
-	       EXT4_FREE_BLOCKS_COUNT(es),
+		ext4_free_blocks_count(es),
 		desc_count, bitmap_count);
 	return bitmap_count;
 #else

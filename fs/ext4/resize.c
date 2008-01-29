@@ -206,7 +206,7 @@ static int setup_new_group_blocks(struct super_block *sb,
 	}
 
 	if (ext4_bg_has_super(sb, input->group)) {
-		ext4_debug("mark backup superblock %#04lx (+0)\n", start);
+		ext4_debug("mark backup superblock %#04llx (+0)\n", start);
 		ext4_set_bit(0, bh->b_data);
 	}
 
@@ -215,7 +215,7 @@ static int setup_new_group_blocks(struct super_block *sb,
 	     i < gdblocks; i++, block++, bit++) {
 		struct buffer_head *gdb;
 
-		ext4_debug("update backup group %#04lx (+%d)\n", block, bit);
+		ext4_debug("update backup group %#04llx (+%d)\n", block, bit);
 
 		if ((err = extend_or_restart_transaction(handle, 1, bh)))
 			goto exit_bh;
@@ -243,7 +243,7 @@ static int setup_new_group_blocks(struct super_block *sb,
 	     i < reserved_gdb; i++, block++, bit++) {
 		struct buffer_head *gdb;
 
-		ext4_debug("clear reserved block %#04lx (+%d)\n", block, bit);
+		ext4_debug("clear reserved block %#04llx (+%d)\n", block, bit);
 
 		if ((err = extend_or_restart_transaction(handle, 1, bh)))
 			goto exit_bh;
@@ -256,10 +256,10 @@ static int setup_new_group_blocks(struct super_block *sb,
 		ext4_set_bit(bit, bh->b_data);
 		brelse(gdb);
 	}
-	ext4_debug("mark block bitmap %#04x (+%ld)\n", input->block_bitmap,
+	ext4_debug("mark block bitmap %#04llx (+%llu)\n", input->block_bitmap,
 		   input->block_bitmap - start);
 	ext4_set_bit(input->block_bitmap - start, bh->b_data);
-	ext4_debug("mark inode bitmap %#04x (+%ld)\n", input->inode_bitmap,
+	ext4_debug("mark inode bitmap %#04llx (+%llu)\n", input->inode_bitmap,
 		   input->inode_bitmap - start);
 	ext4_set_bit(input->inode_bitmap - start, bh->b_data);
 
@@ -268,7 +268,7 @@ static int setup_new_group_blocks(struct super_block *sb,
 	     i < sbi->s_itb_per_group; i++, bit++, block++) {
 		struct buffer_head *it;
 
-		ext4_debug("clear inode block %#04lx (+%d)\n", block, bit);
+		ext4_debug("clear inode block %#04llx (+%d)\n", block, bit);
 
 		if ((err = extend_or_restart_transaction(handle, 1, bh)))
 			goto exit_bh;
@@ -291,7 +291,7 @@ static int setup_new_group_blocks(struct super_block *sb,
 	brelse(bh);
 
 	/* Mark unused entries in inode bitmap used */
-	ext4_debug("clear inode bitmap %#04x (+%ld)\n",
+	ext4_debug("clear inode bitmap %#04llx (+%llu)\n",
 		   input->inode_bitmap, input->inode_bitmap - start);
 	if (IS_ERR(bh = bclean(handle, sb, input->inode_bitmap))) {
 		err = PTR_ERR(bh);
@@ -1054,7 +1054,7 @@ int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
 	ext4_journal_dirty_metadata(handle, EXT4_SB(sb)->s_sbh);
 	sb->s_dirt = 1;
 	unlock_super(sb);
-	ext4_debug("freeing blocks %lu through %llu\n", o_blocks_count,
+	ext4_debug("freeing blocks %llu through %llu\n", o_blocks_count,
 		   o_blocks_count + add);
 	ext4_free_blocks_sb(handle, sb, o_blocks_count, add, &freed_blocks);
 	ext4_debug("freed blocks %llu through %llu\n", o_blocks_count,
