@@ -130,13 +130,15 @@ static int nfs_do_call_unlink(struct dentry *parent, struct inode *dir, struct n
 	alias = d_lookup(parent, &data->args.name);
 	if (alias != NULL) {
 		int ret = 0;
+
 		/*
 		 * Hey, we raced with lookup... See if we need to transfer
 		 * the sillyrename information to the aliased dentry.
 		 */
 		nfs_free_dname(data);
 		spin_lock(&alias->d_lock);
-		if (!(alias->d_flags & DCACHE_NFSFS_RENAMED)) {
+		if (alias->d_inode != NULL &&
+		    !(alias->d_flags & DCACHE_NFSFS_RENAMED)) {
 			alias->d_fsdata = data;
 			alias->d_flags |= DCACHE_NFSFS_RENAMED;
 			ret = 1;
