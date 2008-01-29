@@ -56,8 +56,25 @@ ext4_file_write(struct kiocb *iocb, const struct iovec *iov,
 	ssize_t ret;
 	int err;
 
-	ret = generic_file_aio_write(iocb, iov, nr_segs, pos);
+	/*
+	 * If we have encountered a bitmap-format file, the size limit
+	 * is smaller than s_maxbytes, which is for extent-mapped files.
+	 */
 
+	if (!(EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL)) {
+		struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
+		size_t length = iov_length(iov, nr_segs);
+
+		if (pos > sbi->s_bitmap_maxbytes)
+			return -EFBIG;
+
+		if (pos + length > sbi->s_bitmap_maxbytes) {
+			nr_segs = iov_shorten((struct iovec *)iov, nr_segs,
+					      sbi->s_bitmap_maxbytes - pos);
+		}
+	}
+
+	ret = generic_file_aio_write(iocb, iov, nr_segs, pos);
 	/*
 	 * Skip flushing if there was an error, or if nothing was written.
 	 */

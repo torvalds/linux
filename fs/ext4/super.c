@@ -1922,6 +1922,7 @@ static int ext4_fill_super (struct super_block *sb, void *data, int silent)
 		}
 	}
 
+	sbi->s_bitmap_maxbytes = ext4_max_bitmap_size(sb->s_blocksize_bits);
 	sb->s_maxbytes = ext4_max_size(sb->s_blocksize_bits);
 
 	if (le32_to_cpu(es->s_rev_level) == EXT4_GOOD_OLD_REV) {

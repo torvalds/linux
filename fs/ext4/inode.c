@@ -314,7 +314,10 @@ static int ext4_block_to_path(struct inode *inode,
 		offsets[n++] = i_block & (ptrs - 1);
 		final = ptrs;
 	} else {
-		ext4_warning(inode->i_sb, "ext4_block_to_path", "block > big");
+		ext4_warning(inode->i_sb, "ext4_block_to_path",
+				"block %u > max",
+				i_block + direct_blocks +
+				indirect_blocks + double_blocks);
 	}
 	if (boundary)
 		*boundary = final - 1 - (i_block & (ptrs - 1));
@@ -3090,6 +3093,17 @@ int ext4_setattr(struct dentry *dentry, struct iattr *attr)
 			inode->i_gid = attr->ia_gid;
 		error = ext4_mark_inode_dirty(handle, inode);
 		ext4_journal_stop(handle);
+	}
+
+	if (attr->ia_valid & ATTR_SIZE) {
+		if (!(EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL)) {
+			struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
+
+			if (attr->ia_size > sbi->s_bitmap_maxbytes) {
+				error = -EFBIG;
+				goto err_out;
+			}
+		}
 	}
 
 	if (S_ISREG(inode->i_mode) &&
