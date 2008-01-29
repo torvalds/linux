@@ -2056,7 +2056,7 @@ static sctp_ierror_t sctp_verify_param(const struct sctp_association *asoc,
 		break;
 
 	case SCTP_PARAM_HMAC_ALGO:
-		if (!sctp_auth_enable)
+		if (sctp_auth_enable)
 			break;
 		/* Fall Through */
 fallthrough:
