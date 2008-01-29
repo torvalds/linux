@@ -65,6 +65,9 @@
 static DEFINE_MUTEX(module_mutex);
 static LIST_HEAD(modules);
 
+/* Waiting for a module to finish initializing? */
+static DECLARE_WAIT_QUEUE_HEAD(module_wq);
+
 static BLOCKING_NOTIFIER_HEAD(module_notify_list);
 
 int register_module_notifier(struct notifier_block * nb)
@@ -84,8 +87,11 @@ EXPORT_SYMBOL(unregister_module_notifier);
 static inline int strong_try_module_get(struct module *mod)
 {
 	if (mod && mod->state == MODULE_STATE_COMING)
+		return -EBUSY;
+	if (try_module_get(mod))
 		return 0;
-	return try_module_get(mod);
+	else
+		return -ENOENT;
 }
 
 static inline void add_taint_module(struct module *mod, unsigned flag)
@@ -539,11 +545,21 @@ static int already_uses(struct module *a, struct module *b)
 static int use_module(struct module *a, struct module *b)
 {
 	struct module_use *use;
-	int no_warn;
+	int no_warn, err;
 
 	if (b == NULL || already_uses(a, b)) return 1;
 
-	if (!strong_try_module_get(b))
+	/* If we're interrupted or time out, we fail. */
+	if (wait_event_interruptible_timeout(
+		    module_wq, (err = strong_try_module_get(b)) != -EBUSY,
+		    30 * HZ) <= 0) {
+		printk("%s: gave up waiting for init of module %s.\n",
+		       a->name, b->name);
+		return 0;
+	}
+
+	/* If strong_try_module_get() returned a different error, we fail. */
+	if (err)
 		return 0;
 
 	DEBUGP("Allocating new usage for %s.\n", a->name);
@@ -816,7 +832,7 @@ static inline void module_unload_free(struct module *mod)
 
 static inline int use_module(struct module *a, struct module *b)
 {
-	return strong_try_module_get(b);
+	return strong_try_module_get(b) == 0;
 }
 
 static inline void module_unload_init(struct module *mod)
@@ -1326,7 +1342,7 @@ void *__symbol_get(const char *symbol)
 
 	preempt_disable();
 	value = __find_symbol(symbol, &owner, &crc, 1);
-	if (value && !strong_try_module_get(owner))
+	if (value && strong_try_module_get(owner) != 0)
 		value = 0;
 	preempt_enable();
 
@@ -2132,6 +2148,7 @@ sys_init_module(void __user *umod,
 		mutex_lock(&module_mutex);
 		free_module(mod);
 		mutex_unlock(&module_mutex);
+		wake_up(&module_wq);
 		return ret;
 	}
 
@@ -2146,6 +2163,7 @@ sys_init_module(void __user *umod,
 	mod->init_size = 0;
 	mod->init_text_size = 0;
 	mutex_unlock(&module_mutex);
+	wake_up(&module_wq);
 
 	return 0;
 }
