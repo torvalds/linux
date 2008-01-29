@@ -2524,7 +2524,6 @@ after_error_processing:
 		resend_cciss_cmd(h, cmd);
 		return;
 	}
-	cmd->rq->data_len = 0;
 	cmd->rq->completion_data = cmd;
 	blk_complete_request(cmd->rq);
 }
