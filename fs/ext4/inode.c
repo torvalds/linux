@@ -308,7 +308,7 @@ static int ext4_block_to_path(struct inode *inode,
 		final = ptrs;
 	} else {
 		ext4_warning(inode->i_sb, "ext4_block_to_path",
-				"block %u > max",
+				"block %lu > max",
 				i_block + direct_blocks +
 				indirect_blocks + double_blocks);
 	}
@@ -345,7 +345,7 @@ static int ext4_block_to_path(struct inode *inode,
  *	the whole chain, all way to the data (returns %NULL, *err == 0).
  *
  *      Need to be called with
- *      mutex_lock(&EXT4_I(inode)->truncate_mutex)
+ *      down_read(&EXT4_I(inode)->i_data_sem)
  */
 static Indirect *ext4_get_branch(struct inode *inode, int depth,
 				 ext4_lblk_t  *offsets,
@@ -777,7 +777,8 @@ err_out:
  *
  *
  * Need to be called with
- * mutex_lock(&EXT4_I(inode)->truncate_mutex)
+ * down_read(&EXT4_I(inode)->i_data_sem) if not allocating file system block
+ * (ie, create is zero). Otherwise down_write(&EXT4_I(inode)->i_data_sem)
  */
 int ext4_get_blocks_handle(handle_t *handle, struct inode *inode,
 		ext4_lblk_t iblock, unsigned long maxblocks,
@@ -865,7 +866,7 @@ int ext4_get_blocks_handle(handle_t *handle, struct inode *inode,
 		err = ext4_splice_branch(handle, inode, iblock,
 					partial, indirect_blks, count);
 	/*
-	 * i_disksize growing is protected by truncate_mutex.  Don't forget to
+	 * i_disksize growing is protected by i_data_sem.  Don't forget to
 	 * protect it if you're about to implement concurrent
 	 * ext4_get_block() -bzzz
 	*/
@@ -894,6 +895,31 @@ out:
 }
 
 #define DIO_CREDITS (EXT4_RESERVE_TRANS_BLOCKS + 32)
+
+int ext4_get_blocks_wrap(handle_t *handle, struct inode *inode, sector_t block,
+			unsigned long max_blocks, struct buffer_head *bh,
+			int create, int extend_disksize)
+{
+	int retval;
+	if (create) {
+		down_write((&EXT4_I(inode)->i_data_sem));
+	} else {
+		down_read((&EXT4_I(inode)->i_data_sem));
+	}
+	if (EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL) {
+		retval =  ext4_ext_get_blocks(handle, inode, block, max_blocks,
+				bh, create, extend_disksize);
+	} else {
+		retval = ext4_get_blocks_handle(handle, inode, block,
+				max_blocks, bh, create, extend_disksize);
+	}
+	if (create) {
+		up_write((&EXT4_I(inode)->i_data_sem));
+	} else {
+		up_read((&EXT4_I(inode)->i_data_sem));
+	}
+	return retval;
+}
 
 static int ext4_get_block(struct inode *inode, sector_t iblock,
 			struct buffer_head *bh_result, int create)
@@ -1399,7 +1425,7 @@ static int jbd2_journal_dirty_data_fn(handle_t *handle, struct buffer_head *bh)
  *	ext4_file_write() -> generic_file_write() -> __alloc_pages() -> ...
  *
  * Same applies to ext4_get_block().  We will deadlock on various things like
- * lock_journal and i_truncate_mutex.
+ * lock_journal and i_data_sem
  *
  * Setting PF_MEMALLOC here doesn't work - too many internal memory
  * allocations fail.
@@ -2325,7 +2351,7 @@ void ext4_truncate(struct inode *inode)
 	 * From here we block out all ext4_get_block() callers who want to
 	 * modify the block allocation tree.
 	 */
-	mutex_lock(&ei->truncate_mutex);
+	down_write(&ei->i_data_sem);
 
 	if (n == 1) {		/* direct blocks */
 		ext4_free_data(handle, inode, NULL, i_data+offsets[0],
@@ -2389,7 +2415,7 @@ do_indirects:
 
 	ext4_discard_reservation(inode);
 
-	mutex_unlock(&ei->truncate_mutex);
+	up_write(&ei->i_data_sem);
 	inode->i_mtime = inode->i_ctime = ext4_current_time(inode);
 	ext4_mark_inode_dirty(handle, inode);
 

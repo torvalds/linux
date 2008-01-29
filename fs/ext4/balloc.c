@@ -526,7 +526,7 @@ static inline int rsv_is_empty(struct ext4_reserve_window *rsv)
  * when setting the reservation window size through ioctl before the file
  * is open for write (needs block allocation).
  *
- * Needs truncate_mutex protection prior to call this function.
+ * Needs down_write(i_data_sem) protection prior to call this function.
  */
 void ext4_init_block_alloc_info(struct inode *inode)
 {

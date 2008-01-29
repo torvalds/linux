@@ -139,16 +139,16 @@ struct ext4_inode_info {
 	__u16 i_extra_isize;
 
 	/*
-	 * truncate_mutex is for serialising ext4_truncate() against
+	 * i_data_sem is for serialising ext4_truncate() against
 	 * ext4_getblock().  In the 2.4 ext2 design, great chunks of inode's
 	 * data tree are chopped off during truncate. We can't do that in
 	 * ext4 because whenever we perform intermediate commits during
 	 * truncate, the inode and all the metadata blocks *must* be in a
 	 * consistent state which allows truncation of the orphans to restart
 	 * during recovery.  Hence we must fix the get_block-vs-truncate race
-	 * by other means, so we have truncate_mutex.
+	 * by other means, so we have i_data_sem.
 	 */
-	struct mutex truncate_mutex;
+	struct rw_semaphore i_data_sem;
 	struct inode vfs_inode;
 
 	unsigned long i_ext_generation;

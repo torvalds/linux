@@ -1565,7 +1565,7 @@ static int ext4_ext_rm_idx(handle_t *handle, struct inode *inode,
  * This routine returns max. credits that the extent tree can consume.
  * It should be OK for low-performance paths like ->writepage()
  * To allow many writing processes to fit into a single transaction,
- * the caller should calculate credits under truncate_mutex and
+ * the caller should calculate credits under i_data_sem and
  * pass the actual path.
  */
 int ext4_ext_calc_credits_for_insert(struct inode *inode,
@@ -2131,7 +2131,8 @@ out:
 
 /*
  * Need to be called with
- * mutex_lock(&EXT4_I(inode)->truncate_mutex);
+ * down_read(&EXT4_I(inode)->i_data_sem) if not allocating file system block
+ * (ie, create is zero). Otherwise down_write(&EXT4_I(inode)->i_data_sem)
  */
 int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 			ext4_lblk_t iblock,
@@ -2350,7 +2351,7 @@ void ext4_ext_truncate(struct inode * inode, struct page *page)
 	if (page)
 		ext4_block_truncate_page(handle, page, mapping, inode->i_size);
 
-	mutex_lock(&EXT4_I(inode)->truncate_mutex);
+	down_write(&EXT4_I(inode)->i_data_sem);
 	ext4_ext_invalidate_cache(inode);
 
 	/*
@@ -2386,7 +2387,7 @@ out_stop:
 	if (inode->i_nlink)
 		ext4_orphan_del(handle, inode);
 
-	mutex_unlock(&EXT4_I(inode)->truncate_mutex);
+	up_write(&EXT4_I(inode)->i_data_sem);
 	ext4_journal_stop(handle);
 }
 
@@ -2450,7 +2451,7 @@ long ext4_fallocate(struct inode *inode, int mode, loff_t offset, loff_t len)
 	 * modify 1 super block, 1 block bitmap and 1 group descriptor.
 	 */
 	credits = EXT4_DATA_TRANS_BLOCKS(inode->i_sb) + 3;
-	mutex_lock(&EXT4_I(inode)->truncate_mutex)
+	down_write((&EXT4_I(inode)->i_data_sem));
 retry:
 	while (ret >= 0 && ret < max_blocks) {
 		block = block + ret;
@@ -2507,7 +2508,7 @@ retry:
 	if (ret == -ENOSPC && ext4_should_retry_alloc(inode->i_sb, &retries))
 		goto retry;
 
-	mutex_unlock(&EXT4_I(inode)->truncate_mutex)
+	up_write((&EXT4_I(inode)->i_data_sem));
 	/*
 	 * Time to update the file size.
 	 * Update only when preallocation was requested beyond the file size.

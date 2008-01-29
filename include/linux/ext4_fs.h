@@ -1107,27 +1107,10 @@ extern void ext4_ext_init(struct super_block *);
 extern void ext4_ext_release(struct super_block *);
 extern long ext4_fallocate(struct inode *inode, int mode, loff_t offset,
 			  loff_t len);
-static inline int
-ext4_get_blocks_wrap(handle_t *handle, struct inode *inode, sector_t block,
-			unsigned long max_blocks, struct buffer_head *bh,
-			int create, int extend_disksize)
-{
-	int retval;
-	mutex_lock(&EXT4_I(inode)->truncate_mutex);
-	if (EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL) {
-		retval = ext4_ext_get_blocks(handle, inode,
-						(ext4_lblk_t)block, max_blocks,
-						bh, create, extend_disksize);
-	} else {
-		retval = ext4_get_blocks_handle(handle, inode,
-						(ext4_lblk_t)block, max_blocks,
-						bh, create, extend_disksize);
-	}
-	mutex_unlock(&EXT4_I(inode)->truncate_mutex);
-	return retval;
-}
-
-
+extern int ext4_get_blocks_wrap(handle_t *handle, struct inode *inode,
+			sector_t block, unsigned long max_blocks,
+			struct buffer_head *bh, int create,
+			int extend_disksize);
 #endif	/* __KERNEL__ */
 
 #endif	/* _LINUX_EXT4_FS_H */

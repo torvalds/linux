@@ -593,7 +593,7 @@ static void init_once(struct kmem_cache *cachep, void *foo)
 #ifdef CONFIG_EXT4DEV_FS_XATTR
 	init_rwsem(&ei->xattr_sem);
 #endif
-	mutex_init(&ei->truncate_mutex);
+	init_rwsem(&ei->i_data_sem);
 	inode_init_once(&ei->vfs_inode);
 }
 
