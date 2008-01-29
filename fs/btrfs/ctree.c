@@ -2332,27 +2332,34 @@ int btrfs_extend_item(struct btrfs_trans_handle *trans,
  * Given a key and some data, insert an item into the tree.
  * This does all the path init required, making room in the tree if needed.
  */
-int btrfs_insert_empty_item(struct btrfs_trans_handle *trans,
+int btrfs_insert_empty_items(struct btrfs_trans_handle *trans,
 			    struct btrfs_root *root,
 			    struct btrfs_path *path,
-			    struct btrfs_key *cpu_key, u32 data_size)
+			    struct btrfs_key *cpu_key, u32 *data_size,
+			    int nr)
 {
 	struct extent_buffer *leaf;
 	struct btrfs_item *item;
 	int ret = 0;
 	int slot;
 	int slot_orig;
+	int i;
 	u32 nritems;
+	u32 total_size = 0;
+	u32 total_data = 0;
 	unsigned int data_end;
 	struct btrfs_disk_key disk_key;
 
-	btrfs_cpu_key_to_disk(&disk_key, cpu_key);
+	for (i = 0; i < nr; i++) {
+		total_data += data_size[i];
+	}
 
 	/* create a root if there isn't one */
 	if (!root->node)
 		BUG();
 
-	ret = btrfs_search_slot(trans, root, cpu_key, path, data_size, 1);
+	total_size = total_data + (nr - 1) * sizeof(struct btrfs_item);
+	ret = btrfs_search_slot(trans, root, cpu_key, path, total_size, 1);
 	if (ret == 0) {
 		return -EEXIST;
 	}
@@ -2366,10 +2373,10 @@ int btrfs_insert_empty_item(struct btrfs_trans_handle *trans,
 	data_end = leaf_data_end(root, leaf);
 
 	if (btrfs_leaf_free_space(root, leaf) <
-	    sizeof(struct btrfs_item) + data_size) {
+	    sizeof(struct btrfs_item) + total_size) {
 		btrfs_print_leaf(root, leaf);
 		printk("not enough freespace need %u have %d\n",
-		       data_size, btrfs_leaf_free_space(root, leaf));
+		       total_size, btrfs_leaf_free_space(root, leaf));
 		BUG();
 	}
 
@@ -2404,7 +2411,7 @@ int btrfs_insert_empty_item(struct btrfs_trans_handle *trans,
 			}
 
 			ioff = btrfs_item_offset(leaf, item);
-			btrfs_set_item_offset(leaf, item, ioff - data_size);
+			btrfs_set_item_offset(leaf, item, ioff - total_data);
 		}
 		if (leaf->map_token) {
 			unmap_extent_buffer(leaf, leaf->map_token, KM_USER1);
@@ -2412,23 +2419,27 @@ int btrfs_insert_empty_item(struct btrfs_trans_handle *trans,
 		}
 
 		/* shift the items */
-		memmove_extent_buffer(leaf, btrfs_item_nr_offset(slot + 1),
+		memmove_extent_buffer(leaf, btrfs_item_nr_offset(slot + nr),
 			      btrfs_item_nr_offset(slot),
 			      (nritems - slot) * sizeof(struct btrfs_item));
 
 		/* shift the data */
 		memmove_extent_buffer(leaf, btrfs_leaf_data(leaf) +
-			      data_end - data_size, btrfs_leaf_data(leaf) +
+			      data_end - total_data, btrfs_leaf_data(leaf) +
 			      data_end, old_data - data_end);
 		data_end = old_data;
 	}
 
 	/* setup the item for the new data */
-	btrfs_set_item_key(leaf, &disk_key, slot);
-	item = btrfs_item_nr(leaf, slot);
-	btrfs_set_item_offset(leaf, item, data_end - data_size);
-	btrfs_set_item_size(leaf, item, data_size);
-	btrfs_set_header_nritems(leaf, nritems + 1);
+	for (i = 0; i < nr; i++) {
+		btrfs_cpu_key_to_disk(&disk_key, cpu_key + i);
+		btrfs_set_item_key(leaf, &disk_key, slot + i);
+		item = btrfs_item_nr(leaf, slot + i);
+		btrfs_set_item_offset(leaf, item, data_end - data_size[i]);
+		data_end -= data_size[i];
+		btrfs_set_item_size(leaf, item, data_size[i]);
+	}
+	btrfs_set_header_nritems(leaf, nritems + nr);
 	btrfs_mark_buffer_dirty(leaf);
 
 	ret = 0;

@@ -1050,9 +1050,20 @@ static inline int btrfs_del_item(struct btrfs_trans_handle *trans,
 
 int btrfs_insert_item(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *root, struct btrfs_key *key, void *data, u32 data_size);
-int btrfs_insert_empty_item(struct btrfs_trans_handle *trans, struct btrfs_root
-			    *root, struct btrfs_path *path, struct btrfs_key
-			    *cpu_key, u32 data_size);
+int btrfs_insert_empty_items(struct btrfs_trans_handle *trans,
+			     struct btrfs_root *root,
+			     struct btrfs_path *path,
+			     struct btrfs_key *cpu_key, u32 *data_size, int nr);
+
+static inline int btrfs_insert_empty_item(struct btrfs_trans_handle *trans,
+					  struct btrfs_root *root,
+					  struct btrfs_path *path,
+					  struct btrfs_key *key,
+					  u32 data_size)
+{
+	return btrfs_insert_empty_items(trans, root, path, key, &data_size, 1);
+}
+
 int btrfs_next_leaf(struct btrfs_root *root, struct btrfs_path *path);
 int btrfs_prev_leaf(struct btrfs_root *root, struct btrfs_path *path);
 int btrfs_leaf_free_space(struct btrfs_root *root, struct extent_buffer *leaf);
