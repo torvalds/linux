@@ -252,4 +252,27 @@ static inline unsigned long elapsed_jiffies(unsigned long start,
 	return end + (MAX_JIFFY_OFFSET - start);
 }
 
+static inline u8 iwl_get_dma_hi_address(dma_addr_t addr)
+{
+	return sizeof(addr) > sizeof(u32) ? (addr >> 16) >> 16 : 0;
+}
+
+/* TODO: Move fw_desc functions to iwl-pci.ko */
+static inline void iwl_free_fw_desc(struct pci_dev *pci_dev,
+				    struct fw_desc *desc)
+{
+	if (desc->v_addr)
+		pci_free_consistent(pci_dev, desc->len,
+				    desc->v_addr, desc->p_addr);
+	desc->v_addr = NULL;
+	desc->len = 0;
+}
+
+static inline int iwl_alloc_fw_desc(struct pci_dev *pci_dev,
+				    struct fw_desc *desc)
+{
+	desc->v_addr = pci_alloc_consistent(pci_dev, desc->len, &desc->p_addr);
+	return (desc->v_addr != NULL) ? 0 : -ENOMEM;
+}
+
 #endif				/* __iwl_helpers_h__ */

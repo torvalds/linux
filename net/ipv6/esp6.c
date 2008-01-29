@@ -165,30 +165,31 @@ static int esp6_input(struct xfrm_state *x, struct sk_buff *skb)
 		goto out;
 	}
 
-	/* If integrity check is required, do this. */
-	if (esp->auth.icv_full_len) {
-		u8 sum[alen];
-
-		ret = esp_mac_digest(esp, skb, 0, skb->len - alen);
-		if (ret)
-			goto out;
-
-		if (skb_copy_bits(skb, skb->len - alen, sum, alen))
-			BUG();
-
-		if (unlikely(memcmp(esp->auth.work_icv, sum, alen))) {
-			x->stats.integrity_failed++;
-			ret = -EINVAL;
-			goto out;
-		}
-	}
-
 	if ((nfrags = skb_cow_data(skb, 0, &trailer)) < 0) {
 		ret = -EINVAL;
 		goto out;
 	}
 
 	skb->ip_summed = CHECKSUM_NONE;
+
+	spin_lock(&x->lock);
+
+	/* If integrity check is required, do this. */
+	if (esp->auth.icv_full_len) {
+		u8 sum[alen];
+
+		ret = esp_mac_digest(esp, skb, 0, skb->len - alen);
+		if (ret)
+			goto unlock;
+
+		if (skb_copy_bits(skb, skb->len - alen, sum, alen))
+			BUG();
+
+		if (unlikely(memcmp(esp->auth.work_icv, sum, alen))) {
+			ret = -EBADMSG;
+			goto unlock;
+		}
+	}
 
 	esph = (struct ip_esp_hdr *)skb->data;
 	iph = ipv6_hdr(skb);
@@ -198,15 +199,13 @@ static int esp6_input(struct xfrm_state *x, struct sk_buff *skb)
 		crypto_blkcipher_set_iv(tfm, esph->enc_data, esp->conf.ivlen);
 
 	{
-		u8 nexthdr[2];
 		struct scatterlist *sg = &esp->sgbuf[0];
-		u8 padlen;
 
 		if (unlikely(nfrags > ESP_NUM_FAST_SG)) {
 			sg = kmalloc(sizeof(struct scatterlist)*nfrags, GFP_ATOMIC);
 			if (!sg) {
 				ret = -ENOMEM;
-				goto out;
+				goto unlock;
 			}
 		}
 		sg_init_table(sg, nfrags);
@@ -216,8 +215,17 @@ static int esp6_input(struct xfrm_state *x, struct sk_buff *skb)
 		ret = crypto_blkcipher_decrypt(&desc, sg, sg, elen);
 		if (unlikely(sg != &esp->sgbuf[0]))
 			kfree(sg);
-		if (unlikely(ret))
-			goto out;
+	}
+
+unlock:
+	spin_unlock(&x->lock);
+
+	if (unlikely(ret))
+		goto out;
+
+	{
+		u8 nexthdr[2];
+		u8 padlen;
 
 		if (skb_copy_bits(skb, skb->len-alen-2, nexthdr, 2))
 			BUG();

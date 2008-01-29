@@ -186,8 +186,9 @@ EXPORT_SYMBOL(dev_mc_unsync);
 
 #ifdef CONFIG_PROC_FS
 static void *dev_mc_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(dev_base_lock)
 {
-	struct net *net = seq->private;
+	struct net *net = seq_file_net(seq);
 	struct net_device *dev;
 	loff_t off = 0;
 
@@ -206,6 +207,7 @@ static void *dev_mc_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void dev_mc_seq_stop(struct seq_file *seq, void *v)
+	__releases(dev_base_lock)
 {
 	read_unlock(&dev_base_lock);
 }
@@ -241,26 +243,8 @@ static const struct seq_operations dev_mc_seq_ops = {
 
 static int dev_mc_seq_open(struct inode *inode, struct file *file)
 {
-	struct seq_file *seq;
-	int res;
-	res = seq_open(file, &dev_mc_seq_ops);
-	if (!res) {
-		seq = file->private_data;
-		seq->private = get_proc_net(inode);
-		if (!seq->private) {
-			seq_release(inode, file);
-			res = -ENXIO;
-		}
-	}
-	return res;
-}
-
-static int dev_mc_seq_release(struct inode *inode, struct file *file)
-{
-	struct seq_file *seq = file->private_data;
-	struct net *net = seq->private;
-	put_net(net);
-	return seq_release(inode, file);
+	return seq_open_net(inode, file, &dev_mc_seq_ops,
+			    sizeof(struct seq_net_private));
 }
 
 static const struct file_operations dev_mc_seq_fops = {
@@ -268,7 +252,7 @@ static const struct file_operations dev_mc_seq_fops = {
 	.open    = dev_mc_seq_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
-	.release = dev_mc_seq_release,
+	.release = seq_release_net,
 };
 
 #endif

@@ -3,7 +3,7 @@
   Broadcom B43 wireless driver
 
   Copyright (c) 2005 Martin Langer <martin-langer@gmx.de>,
-                     Stefano Brivio <st3@riseup.net>
+                     Stefano Brivio <stefano.brivio@polimi.it>
                      Michael Buesch <mb@bu3sch.de>
                      Danny van Dyk <kugelfang@gentoo.org>
                      Andreas Jaggi <andreas.jaggi@waterwave.ch>
@@ -83,6 +83,9 @@ static inline int b43_is_ofdm_rate(int rate)
 {
 	return !b43_is_cck_rate(rate);
 }
+
+u8 b43_ieee80211_antenna_sanitize(struct b43_wldev *dev,
+				  u8 antenna_nr);
 
 void b43_tsf_read(struct b43_wldev *dev, u64 * tsf);
 void b43_tsf_write(struct b43_wldev *dev, u64 tsf);

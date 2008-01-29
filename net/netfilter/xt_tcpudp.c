@@ -10,7 +10,7 @@
 #include <linux/netfilter_ipv4/ip_tables.h>
 #include <linux/netfilter_ipv6/ip6_tables.h>
 
-MODULE_DESCRIPTION("x_tables match for TCP and UDP(-Lite), supports IPv4 and IPv6");
+MODULE_DESCRIPTION("Xtables: TCP, UDP and UDP-Lite match");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("xt_tcp");
 MODULE_ALIAS("xt_udp");
@@ -68,14 +68,9 @@ tcp_find_option(u_int8_t option,
 }
 
 static bool
-tcp_match(const struct sk_buff *skb,
-	  const struct net_device *in,
-	  const struct net_device *out,
-	  const struct xt_match *match,
-	  const void *matchinfo,
-	  int offset,
-	  unsigned int protoff,
-	  bool *hotdrop)
+tcp_mt(const struct sk_buff *skb, const struct net_device *in,
+       const struct net_device *out, const struct xt_match *match,
+       const void *matchinfo, int offset, unsigned int protoff, bool *hotdrop)
 {
 	struct tcphdr _tcph, *th;
 	const struct xt_tcp *tcpinfo = matchinfo;
@@ -134,11 +129,9 @@ tcp_match(const struct sk_buff *skb,
 
 /* Called when user tries to insert an entry of this type. */
 static bool
-tcp_checkentry(const char *tablename,
-	       const void *info,
-	       const struct xt_match *match,
-	       void *matchinfo,
-	       unsigned int hook_mask)
+tcp_mt_check(const char *tablename, const void *info,
+             const struct xt_match *match, void *matchinfo,
+             unsigned int hook_mask)
 {
 	const struct xt_tcp *tcpinfo = matchinfo;
 
@@ -147,14 +140,9 @@ tcp_checkentry(const char *tablename,
 }
 
 static bool
-udp_match(const struct sk_buff *skb,
-	  const struct net_device *in,
-	  const struct net_device *out,
-	  const struct xt_match *match,
-	  const void *matchinfo,
-	  int offset,
-	  unsigned int protoff,
-	  bool *hotdrop)
+udp_mt(const struct sk_buff *skb, const struct net_device *in,
+       const struct net_device *out, const struct xt_match *match,
+       const void *matchinfo, int offset, unsigned int protoff, bool *hotdrop)
 {
 	struct udphdr _udph, *uh;
 	const struct xt_udp *udpinfo = matchinfo;
@@ -182,11 +170,9 @@ udp_match(const struct sk_buff *skb,
 
 /* Called when user tries to insert an entry of this type. */
 static bool
-udp_checkentry(const char *tablename,
-	       const void *info,
-	       const struct xt_match *match,
-	       void *matchinfo,
-	       unsigned int hook_mask)
+udp_mt_check(const char *tablename, const void *info,
+             const struct xt_match *match, void *matchinfo,
+             unsigned int hook_mask)
 {
 	const struct xt_udp *udpinfo = matchinfo;
 
@@ -194,12 +180,12 @@ udp_checkentry(const char *tablename,
 	return !(udpinfo->invflags & ~XT_UDP_INV_MASK);
 }
 
-static struct xt_match xt_tcpudp_match[] __read_mostly = {
+static struct xt_match tcpudp_mt_reg[] __read_mostly = {
 	{
 		.name		= "tcp",
 		.family		= AF_INET,
-		.checkentry	= tcp_checkentry,
-		.match		= tcp_match,
+		.checkentry	= tcp_mt_check,
+		.match		= tcp_mt,
 		.matchsize	= sizeof(struct xt_tcp),
 		.proto		= IPPROTO_TCP,
 		.me		= THIS_MODULE,
@@ -207,8 +193,8 @@ static struct xt_match xt_tcpudp_match[] __read_mostly = {
 	{
 		.name		= "tcp",
 		.family		= AF_INET6,
-		.checkentry	= tcp_checkentry,
-		.match		= tcp_match,
+		.checkentry	= tcp_mt_check,
+		.match		= tcp_mt,
 		.matchsize	= sizeof(struct xt_tcp),
 		.proto		= IPPROTO_TCP,
 		.me		= THIS_MODULE,
@@ -216,8 +202,8 @@ static struct xt_match xt_tcpudp_match[] __read_mostly = {
 	{
 		.name		= "udp",
 		.family		= AF_INET,
-		.checkentry	= udp_checkentry,
-		.match		= udp_match,
+		.checkentry	= udp_mt_check,
+		.match		= udp_mt,
 		.matchsize	= sizeof(struct xt_udp),
 		.proto		= IPPROTO_UDP,
 		.me		= THIS_MODULE,
@@ -225,8 +211,8 @@ static struct xt_match xt_tcpudp_match[] __read_mostly = {
 	{
 		.name		= "udp",
 		.family		= AF_INET6,
-		.checkentry	= udp_checkentry,
-		.match		= udp_match,
+		.checkentry	= udp_mt_check,
+		.match		= udp_mt,
 		.matchsize	= sizeof(struct xt_udp),
 		.proto		= IPPROTO_UDP,
 		.me		= THIS_MODULE,
@@ -234,8 +220,8 @@ static struct xt_match xt_tcpudp_match[] __read_mostly = {
 	{
 		.name		= "udplite",
 		.family		= AF_INET,
-		.checkentry	= udp_checkentry,
-		.match		= udp_match,
+		.checkentry	= udp_mt_check,
+		.match		= udp_mt,
 		.matchsize	= sizeof(struct xt_udp),
 		.proto		= IPPROTO_UDPLITE,
 		.me		= THIS_MODULE,
@@ -243,24 +229,23 @@ static struct xt_match xt_tcpudp_match[] __read_mostly = {
 	{
 		.name		= "udplite",
 		.family		= AF_INET6,
-		.checkentry	= udp_checkentry,
-		.match		= udp_match,
+		.checkentry	= udp_mt_check,
+		.match		= udp_mt,
 		.matchsize	= sizeof(struct xt_udp),
 		.proto		= IPPROTO_UDPLITE,
 		.me		= THIS_MODULE,
 	},
 };
 
-static int __init xt_tcpudp_init(void)
+static int __init tcpudp_mt_init(void)
 {
-	return xt_register_matches(xt_tcpudp_match,
-				   ARRAY_SIZE(xt_tcpudp_match));
+	return xt_register_matches(tcpudp_mt_reg, ARRAY_SIZE(tcpudp_mt_reg));
 }
 
-static void __exit xt_tcpudp_fini(void)
+static void __exit tcpudp_mt_exit(void)
 {
-	xt_unregister_matches(xt_tcpudp_match, ARRAY_SIZE(xt_tcpudp_match));
+	xt_unregister_matches(tcpudp_mt_reg, ARRAY_SIZE(tcpudp_mt_reg));
 }
 
-module_init(xt_tcpudp_init);
-module_exit(xt_tcpudp_fini);
+module_init(tcpudp_mt_init);
+module_exit(tcpudp_mt_exit);

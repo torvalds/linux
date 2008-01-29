@@ -1039,7 +1039,7 @@ void hostap_80211_rx(struct net_device *dev, struct sk_buff *skb,
 		memcpy(skb_push(skb, ETH_ALEN), src, ETH_ALEN);
 		memcpy(skb_push(skb, ETH_ALEN), dst, ETH_ALEN);
 	} else {
-		u16 len;
+		__be16 len;
 		/* Leave Ethernet header part of hdr and full payload */
 		skb_pull(skb, hdrlen);
 		len = htons(skb->len);

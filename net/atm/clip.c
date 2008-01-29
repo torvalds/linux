@@ -285,7 +285,7 @@ static int clip_constructor(struct neighbour *neigh)
 	struct neigh_parms *parms;
 
 	pr_debug("clip_constructor (neigh %p, entry %p)\n", neigh, entry);
-	neigh->type = inet_addr_type(entry->ip);
+	neigh->type = inet_addr_type(&init_net, entry->ip);
 	if (neigh->type != RTN_UNICAST)
 		return -EINVAL;
 
@@ -534,7 +534,7 @@ static int clip_setentry(struct atm_vcc *vcc, __be32 ip)
 		unlink_clip_vcc(clip_vcc);
 		return 0;
 	}
-	error = ip_route_output_key(&rt, &fl);
+	error = ip_route_output_key(&init_net, &rt, &fl);
 	if (error)
 		return error;
 	neigh = __neigh_lookup(&clip_tbl, &ip, rt->u.dst.dev, 1);
@@ -903,6 +903,8 @@ static void *clip_seq_sub_iter(struct neigh_seq_state *_state,
 
 static void *clip_seq_start(struct seq_file *seq, loff_t * pos)
 {
+	struct clip_seq_state *state = seq->private;
+	state->ns.neigh_sub_iter = clip_seq_sub_iter;
 	return neigh_seq_start(seq, pos, &clip_tbl, NEIGH_SEQ_NEIGH_ONLY);
 }
 
@@ -932,36 +934,15 @@ static const struct seq_operations arp_seq_ops = {
 
 static int arp_seq_open(struct inode *inode, struct file *file)
 {
-	struct clip_seq_state *state;
-	struct seq_file *seq;
-	int rc = -EAGAIN;
-
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
-	if (!state) {
-		rc = -ENOMEM;
-		goto out_kfree;
-	}
-	state->ns.neigh_sub_iter = clip_seq_sub_iter;
-
-	rc = seq_open(file, &arp_seq_ops);
-	if (rc)
-		goto out_kfree;
-
-	seq = file->private_data;
-	seq->private = state;
-out:
-	return rc;
-
-out_kfree:
-	kfree(state);
-	goto out;
+	return seq_open_net(inode, file, &arp_seq_ops,
+			    sizeof(struct clip_seq_state));
 }
 
 static const struct file_operations arp_seq_fops = {
 	.open		= arp_seq_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release_private,
+	.release	= seq_release_net,
 	.owner		= THIS_MODULE
 };
 #endif

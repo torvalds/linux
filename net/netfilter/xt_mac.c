@@ -20,19 +20,14 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Netfilter Core Team <coreteam@netfilter.org>");
-MODULE_DESCRIPTION("iptables mac matching module");
+MODULE_DESCRIPTION("Xtables: MAC address match");
 MODULE_ALIAS("ipt_mac");
 MODULE_ALIAS("ip6t_mac");
 
 static bool
-match(const struct sk_buff *skb,
-      const struct net_device *in,
-      const struct net_device *out,
-      const struct xt_match *match,
-      const void *matchinfo,
-      int offset,
-      unsigned int protoff,
-      bool *hotdrop)
+mac_mt(const struct sk_buff *skb, const struct net_device *in,
+       const struct net_device *out, const struct xt_match *match,
+       const void *matchinfo, int offset, unsigned int protoff, bool *hotdrop)
 {
     const struct xt_mac_info *info = matchinfo;
 
@@ -44,38 +39,38 @@ match(const struct sk_buff *skb,
 		^ info->invert);
 }
 
-static struct xt_match xt_mac_match[] __read_mostly = {
+static struct xt_match mac_mt_reg[] __read_mostly = {
 	{
 		.name		= "mac",
 		.family		= AF_INET,
-		.match		= match,
+		.match		= mac_mt,
 		.matchsize	= sizeof(struct xt_mac_info),
-		.hooks		= (1 << NF_IP_PRE_ROUTING) |
-				  (1 << NF_IP_LOCAL_IN) |
-				  (1 << NF_IP_FORWARD),
+		.hooks		= (1 << NF_INET_PRE_ROUTING) |
+				  (1 << NF_INET_LOCAL_IN) |
+				  (1 << NF_INET_FORWARD),
 		.me		= THIS_MODULE,
 	},
 	{
 		.name		= "mac",
 		.family		= AF_INET6,
-		.match		= match,
+		.match		= mac_mt,
 		.matchsize	= sizeof(struct xt_mac_info),
-		.hooks		= (1 << NF_IP6_PRE_ROUTING) |
-				  (1 << NF_IP6_LOCAL_IN) |
-				  (1 << NF_IP6_FORWARD),
+		.hooks		= (1 << NF_INET_PRE_ROUTING) |
+				  (1 << NF_INET_LOCAL_IN) |
+				  (1 << NF_INET_FORWARD),
 		.me		= THIS_MODULE,
 	},
 };
 
-static int __init xt_mac_init(void)
+static int __init mac_mt_init(void)
 {
-	return xt_register_matches(xt_mac_match, ARRAY_SIZE(xt_mac_match));
+	return xt_register_matches(mac_mt_reg, ARRAY_SIZE(mac_mt_reg));
 }
 
-static void __exit xt_mac_fini(void)
+static void __exit mac_mt_exit(void)
 {
-	xt_unregister_matches(xt_mac_match, ARRAY_SIZE(xt_mac_match));
+	xt_unregister_matches(mac_mt_reg, ARRAY_SIZE(mac_mt_reg));
 }
 
-module_init(xt_mac_init);
-module_exit(xt_mac_fini);
+module_init(mac_mt_init);
+module_exit(mac_mt_exit);

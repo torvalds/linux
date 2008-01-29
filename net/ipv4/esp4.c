@@ -163,7 +163,7 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 	u8 nexthdr[2];
 	struct scatterlist *sg;
 	int padlen;
-	int err;
+	int err = -EINVAL;
 
 	if (!pskb_may_pull(skb, sizeof(*esph)))
 		goto out;
@@ -171,27 +171,30 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 	if (elen <= 0 || (elen & (blksize-1)))
 		goto out;
 
+	if ((err = skb_cow_data(skb, 0, &trailer)) < 0)
+		goto out;
+	nfrags = err;
+
+	skb->ip_summed = CHECKSUM_NONE;
+
+	spin_lock(&x->lock);
+
 	/* If integrity check is required, do this. */
 	if (esp->auth.icv_full_len) {
 		u8 sum[alen];
 
 		err = esp_mac_digest(esp, skb, 0, skb->len - alen);
 		if (err)
-			goto out;
+			goto unlock;
 
 		if (skb_copy_bits(skb, skb->len - alen, sum, alen))
 			BUG();
 
 		if (unlikely(memcmp(esp->auth.work_icv, sum, alen))) {
-			x->stats.integrity_failed++;
-			goto out;
+			err = -EBADMSG;
+			goto unlock;
 		}
 	}
-
-	if ((nfrags = skb_cow_data(skb, 0, &trailer)) < 0)
-		goto out;
-
-	skb->ip_summed = CHECKSUM_NONE;
 
 	esph = (struct ip_esp_hdr *)skb->data;
 
@@ -202,9 +205,10 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 	sg = &esp->sgbuf[0];
 
 	if (unlikely(nfrags > ESP_NUM_FAST_SG)) {
+		err = -ENOMEM;
 		sg = kmalloc(sizeof(struct scatterlist)*nfrags, GFP_ATOMIC);
 		if (!sg)
-			goto out;
+			goto unlock;
 	}
 	sg_init_table(sg, nfrags);
 	skb_to_sgvec(skb, sg,
@@ -213,12 +217,17 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 	err = crypto_blkcipher_decrypt(&desc, sg, sg, elen);
 	if (unlikely(sg != &esp->sgbuf[0]))
 		kfree(sg);
+
+unlock:
+	spin_unlock(&x->lock);
+
 	if (unlikely(err))
-		return err;
+		goto out;
 
 	if (skb_copy_bits(skb, skb->len-alen-2, nexthdr, 2))
 		BUG();
 
+	err = -EINVAL;
 	padlen = nexthdr[0];
 	if (padlen+2 >= elen)
 		goto out;
@@ -276,7 +285,7 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 	return nexthdr[1];
 
 out:
-	return -EINVAL;
+	return err;
 }
 
 static u32 esp4_get_mtu(struct xfrm_state *x, int mtu)

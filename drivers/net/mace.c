@@ -409,7 +409,7 @@ static inline void mace_clean_rings(struct mace_data *mp)
 
     /* free some skb's */
     for (i = 0; i < N_RX_RING; ++i) {
-	if (mp->rx_bufs[i] != 0) {
+	if (mp->rx_bufs[i] != NULL) {
 	    dev_kfree_skb(mp->rx_bufs[i]);
 	    mp->rx_bufs[i] = NULL;
 	}
@@ -441,7 +441,7 @@ static int mace_open(struct net_device *dev)
     cp = mp->rx_cmds;
     for (i = 0; i < N_RX_RING - 1; ++i) {
 	skb = dev_alloc_skb(RX_BUFLEN + 2);
-	if (skb == 0) {
+	if (!skb) {
 	    data = dummy_buf;
 	} else {
 	    skb_reserve(skb, 2);	/* so IP header lands on 4-byte bdry */
@@ -903,7 +903,7 @@ static irqreturn_t mace_rxdma_intr(int irq, void *dev_id)
 	out_le16(&cp->command, DBDMA_STOP);
 	/* got a packet, have a look at it */
 	skb = mp->rx_bufs[i];
-	if (skb == 0) {
+	if (!skb) {
 	    ++dev->stats.rx_dropped;
 	} else if (nb > 8) {
 	    data = skb->data;
@@ -953,9 +953,9 @@ static irqreturn_t mace_rxdma_intr(int irq, void *dev_id)
 	    break;
 	cp = mp->rx_cmds + i;
 	skb = mp->rx_bufs[i];
-	if (skb == 0) {
+	if (!skb) {
 	    skb = dev_alloc_skb(RX_BUFLEN + 2);
-	    if (skb != 0) {
+	    if (skb) {
 		skb_reserve(skb, 2);
 		mp->rx_bufs[i] = skb;
 	    }

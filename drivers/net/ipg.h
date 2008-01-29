@@ -1,20 +1,8 @@
 /*
- *
- * ipg.h
- *
  * Include file for Gigabit Ethernet device driver for Network
  * Interface Cards (NICs) utilizing the Tamarack Microelectronics
  * Inc. IPG Gigabit or Triple Speed Ethernet Media Access
  * Controller.
- *
- * Craig Rich
- * Sundance Technology, Inc.
- * 1485 Saratoga Avenue
- * Suite 200
- * San Jose, CA 95129
- * 408 873 4117
- * www.sundanceti.com
- * craig_rich@sundanceti.com
  */
 #ifndef __LINUX_IPG_H
 #define __LINUX_IPG_H
@@ -35,11 +23,6 @@
 #include <linux/skbuff.h>
 #include <linux/version.h>
 #include <asm/bitops.h>
-/*#include <asm/spinlock.h>*/
-
-#define DrvVer "2.09d"
-
-#define IPG_DEV_KFREE_SKB(skb) dev_kfree_skb_irq(skb)
 
 /*
  *	Constants
@@ -68,7 +51,7 @@
 /* I/O register offsets. */
 enum ipg_regs {
 	DMA_CTRL		= 0x00,
-	RX_DMA_STATUS		= 0x08, // Unused + reserved
+	RX_DMA_STATUS		= 0x08, /* Unused + reserved */
 	TFD_LIST_PTR_0		= 0x10,
 	TFD_LIST_PTR_1		= 0x14,
 	TX_DMA_BURST_THRESH	= 0x18,
@@ -81,22 +64,22 @@ enum ipg_regs {
 	RX_DMA_POLL_PERIOD	= 0x26,
 	DEBUG_CTRL		= 0x2c,
 	ASIC_CTRL		= 0x30,
-	FIFO_CTRL		= 0x38, // Unused
+	FIFO_CTRL		= 0x38, /* Unused */
 	FLOW_OFF_THRESH		= 0x3c,
 	FLOW_ON_THRESH		= 0x3e,
 	EEPROM_DATA		= 0x48,
 	EEPROM_CTRL		= 0x4a,
-	EXPROM_ADDR		= 0x4c, // Unused
-	EXPROM_DATA		= 0x50, // Unused
-	WAKE_EVENT		= 0x51, // Unused
-	COUNTDOWN		= 0x54, // Unused
+	EXPROM_ADDR		= 0x4c, /* Unused */
+	EXPROM_DATA		= 0x50, /* Unused */
+	WAKE_EVENT		= 0x51, /* Unused */
+	COUNTDOWN		= 0x54, /* Unused */
 	INT_STATUS_ACK		= 0x5a,
 	INT_ENABLE		= 0x5c,
-	INT_STATUS		= 0x5e, // Unused
+	INT_STATUS		= 0x5e, /* Unused */
 	TX_STATUS		= 0x60,
 	MAC_CTRL		= 0x6c,
-	VLAN_TAG		= 0x70, // Unused
-	PHY_SET			= 0x75,	// JES20040127EEPROM
+	VLAN_TAG		= 0x70, /* Unused */
+	PHY_SET			= 0x75,
 	PHY_CTRL		= 0x76,
 	STATION_ADDRESS_0	= 0x78,
 	STATION_ADDRESS_1	= 0x7a,
@@ -107,11 +90,11 @@ enum ipg_regs {
 	HASHTABLE_1		= 0x90,
 	RMON_STATISTICS_MASK	= 0x98,
 	STATISTICS_MASK		= 0x9c,
-	RX_JUMBO_FRAMES		= 0xbc, // Unused
-	TCP_CHECKSUM_ERRORS	= 0xc0, // Unused
-	IP_CHECKSUM_ERRORS	= 0xc2, // Unused
-	UDP_CHECKSUM_ERRORS	= 0xc4, // Unused
-	TX_JUMBO_FRAMES		= 0xf4  // Unused
+	RX_JUMBO_FRAMES		= 0xbc, /* Unused */
+	TCP_CHECKSUM_ERRORS	= 0xc0, /* Unused */
+	IP_CHECKSUM_ERRORS	= 0xc2, /* Unused */
+	UDP_CHECKSUM_ERRORS	= 0xc4, /* Unused */
+	TX_JUMBO_FRAMES		= 0xf4  /* Unused */
 };
 
 /* Ethernet MIB statistic register offsets. */
@@ -329,7 +312,7 @@ enum ipg_regs {
 #define IPG_RM_RECEIVEMULTICASTHASH     0x10
 #define IPG_RM_RECEIVEIPMULTICAST       0x20
 
-/* PhySet JES20040127EEPROM*/
+/* PhySet */
 #define IPG_PS_MEM_LENB9B               0x01
 #define IPG_PS_MEM_LEN9                 0x02
 #define IPG_PS_NON_COMPDET              0x04
@@ -386,8 +369,8 @@ enum ipg_regs {
 #define IPG_AC_RST_OUT                  0x01000000
 #define IPG_AC_INT_REQUEST              0x02000000
 #define IPG_AC_RESET_BUSY               0x04000000
-#define IPG_AC_LED_SPEED                0x08000000	//JES20040127EEPROM
-#define IPG_AC_LED_MODE_BIT_1           0x20000000	//JES20040127EEPROM
+#define IPG_AC_LED_SPEED                0x08000000
+#define IPG_AC_LED_MODE_BIT_1           0x20000000
 
 /* EepromCtrl */
 #define IPG_EC_RSVD_MASK                0x83FF
@@ -490,38 +473,34 @@ enum ipg_regs {
  *	Tune
  */
 
-/* Miscellaneous Constants. */
-#define   TRUE  1
-#define   FALSE 0
-
 /* Assign IPG_APPEND_FCS_ON_TX > 0 for auto FCS append on TX. */
-#define         IPG_APPEND_FCS_ON_TX         TRUE
+#define         IPG_APPEND_FCS_ON_TX         1
 
 /* Assign IPG_APPEND_FCS_ON_TX > 0 for auto FCS strip on RX. */
-#define         IPG_STRIP_FCS_ON_RX          TRUE
+#define         IPG_STRIP_FCS_ON_RX          1
 
 /* Assign IPG_DROP_ON_RX_ETH_ERRORS > 0 to drop RX frames with
  * Ethernet errors.
  */
-#define         IPG_DROP_ON_RX_ETH_ERRORS    TRUE
+#define         IPG_DROP_ON_RX_ETH_ERRORS    1
 
 /* Assign IPG_INSERT_MANUAL_VLAN_TAG > 0 to insert VLAN tags manually
  * (via TFC).
  */
-#define		IPG_INSERT_MANUAL_VLAN_TAG   FALSE
+#define		IPG_INSERT_MANUAL_VLAN_TAG   0
 
 /* Assign IPG_ADD_IPCHECKSUM_ON_TX > 0 for auto IP checksum on TX. */
-#define         IPG_ADD_IPCHECKSUM_ON_TX     FALSE
+#define         IPG_ADD_IPCHECKSUM_ON_TX     0
 
 /* Assign IPG_ADD_TCPCHECKSUM_ON_TX > 0 for auto TCP checksum on TX.
  * DO NOT USE FOR SILICON REVISIONS B3 AND EARLIER.
  */
-#define         IPG_ADD_TCPCHECKSUM_ON_TX    FALSE
+#define         IPG_ADD_TCPCHECKSUM_ON_TX    0
 
 /* Assign IPG_ADD_UDPCHECKSUM_ON_TX > 0 for auto UDP checksum on TX.
  * DO NOT USE FOR SILICON REVISIONS B3 AND EARLIER.
  */
-#define         IPG_ADD_UDPCHECKSUM_ON_TX    FALSE
+#define         IPG_ADD_UDPCHECKSUM_ON_TX    0
 
 /* If inserting VLAN tags manually, assign the IPG_MANUAL_VLAN_xx
  * constants as desired.
@@ -611,7 +590,7 @@ enum ipg_regs {
  * Define larger if expecting jumbo frames.
  */
 #ifdef JUMBO_FRAME
-//IPG_TXFRAG_SIZE must <= 0x2b00, or TX will crash
+/* IPG_TXFRAG_SIZE must <= 0x2b00, or TX will crash */
 #define		IPG_TXFRAG_SIZE		JUMBO_FRAME_SIZE
 #endif
 
@@ -619,7 +598,7 @@ enum ipg_regs {
  * Define larger if expecting jumbo frames.
  */
 #ifdef JUMBO_FRAME
-//4088=4096-8
+/* 4088 = 4096 - 8 */
 #define		IPG_RXFRAG_SIZE		__IPG_RXFRAG_SIZE
 #define     IPG_RXSUPPORT_SIZE   IPG_MAX_RXFRAME_SIZE
 #else
@@ -647,9 +626,9 @@ enum ipg_regs {
 #define		IPG_MINUSEDRFDSTOFREE	0x80
 
 /* specify the jumbo frame maximum size
- * per unit is 0x600 (the RxBuffer size that one RFD can carry)
+ * per unit is 0x600 (the rx_buffer size that one RFD can carry)
  */
-#define     MAX_JUMBOSIZE	        0x8	// max is 12K
+#define     MAX_JUMBOSIZE	        0x8	/* max is 12K */
 
 /* Key register values loaded at driver start up. */
 
@@ -753,8 +732,7 @@ enum ipg_regs {
  * Miscellaneous macros.
  */
 
-/* Marco for printing debug statements.
-#  define IPG_DDEBUG_MSG(args...) printk(KERN_DEBUG "IPG: " ## args) */
+/* Marco for printing debug statements. */
 #ifdef IPG_DEBUG
 #  define IPG_DEBUG_MSG(args...)
 #  define IPG_DDEBUG_MSG(args...) printk(KERN_DEBUG "IPG: " args)
@@ -789,11 +767,12 @@ struct ipg_rx {
 	__le64 frag_info;
 };
 
-struct SJumbo {
-	int FoundStart;
-	int CurrentSize;
+struct ipg_jumbo {
+	int found_start;
+	int current_size;
 	struct sk_buff *skb;
 };
+
 /* Structure of IPG NIC specific data. */
 struct ipg_nic_private {
 	void __iomem *ioaddr;
@@ -801,15 +780,14 @@ struct ipg_nic_private {
 	struct ipg_rx *rxd;
 	dma_addr_t txd_map;
 	dma_addr_t rxd_map;
-	struct sk_buff *TxBuff[IPG_TFDLIST_LENGTH];
-	struct sk_buff *RxBuff[IPG_RFDLIST_LENGTH];
+	struct sk_buff *tx_buff[IPG_TFDLIST_LENGTH];
+	struct sk_buff *rx_buff[IPG_RFDLIST_LENGTH];
 	unsigned int tx_current;
 	unsigned int tx_dirty;
 	unsigned int rx_current;
 	unsigned int rx_dirty;
-// Add by Grace 2005/05/19
 #ifdef JUMBO_FRAME
-	struct SJumbo Jumbo;
+	struct ipg_jumbo jumbo;
 #endif
 	unsigned int rx_buf_sz;
 	struct pci_dev *pdev;
@@ -818,13 +796,12 @@ struct ipg_nic_private {
 	spinlock_t lock;
 	int tenmbpsmode;
 
-	/*Jesse20040128EEPROM_VALUE */
-	u16 LED_Mode;
+	u16 led_mode;
 	u16 station_addr[3];	/* Station Address in EEPROM Reg 0x10..0x12 */
 
 	struct mutex		mii_mutex;
 	struct mii_if_info	mii_if;
-	int ResetCurrentTFD;
+	int reset_current_tfd;
 #ifdef IPG_DEBUG
 	int RFDlistendCount;
 	int RFDListCheckedCount;

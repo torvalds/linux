@@ -33,7 +33,6 @@
 
 #include "netxen_nic.h"
 #include "netxen_nic_hw.h"
-#define DEFINE_GLOBAL_RECV_CRB
 #include "netxen_nic_phan_reg.h"
 
 
@@ -161,7 +160,7 @@ struct netxen_recv_crb recv_crb_registers[] = {
 	    },
 	    /* Jumbo frames */
 	    {
-	    /* crb_rcv_producer_offset: */		    
+	    /* crb_rcv_producer_offset: */
 	    NETXEN_NIC_REG(0x1f8),
 	    /* crb_rcv_consumer_offset: */
 	    NETXEN_NIC_REG(0x1fc),
@@ -210,7 +209,7 @@ struct netxen_recv_crb recv_crb_registers[] = {
 	    },
 	    /* Jumbo frames */
 	    {
-	    /* crb_rcv_producer_offset: */ 
+	    /* crb_rcv_producer_offset: */
 	    NETXEN_NIC_REG(0x23c),
 	    /* crb_rcv_consumer_offset: */
 	    NETXEN_NIC_REG(0x240),
@@ -244,12 +243,15 @@ struct netxen_recv_crb recv_crb_registers[] = {
 	},
 };
 
-u64 ctx_addr_sig_regs[][3] = {
+static u64 ctx_addr_sig_regs[][3] = {
 	{NETXEN_NIC_REG(0x188), NETXEN_NIC_REG(0x18c), NETXEN_NIC_REG(0x1c0)},
 	{NETXEN_NIC_REG(0x190), NETXEN_NIC_REG(0x194), NETXEN_NIC_REG(0x1c4)},
 	{NETXEN_NIC_REG(0x198), NETXEN_NIC_REG(0x19c), NETXEN_NIC_REG(0x1c8)},
 	{NETXEN_NIC_REG(0x1a0), NETXEN_NIC_REG(0x1a4), NETXEN_NIC_REG(0x1cc)}
 };
+#define CRB_CTX_ADDR_REG_LO(FUNC_ID)		(ctx_addr_sig_regs[FUNC_ID][0])
+#define CRB_CTX_ADDR_REG_HI(FUNC_ID)		(ctx_addr_sig_regs[FUNC_ID][2])
+#define CRB_CTX_SIGNATURE_REG(FUNC_ID)		(ctx_addr_sig_regs[FUNC_ID][1])
 
 
 /*  PCI Windowing for DDR regions.  */
@@ -279,8 +281,8 @@ u64 ctx_addr_sig_regs[][3] = {
 
 #define NETXEN_NIC_WINDOW_MARGIN 0x100000
 
-unsigned long netxen_nic_pci_set_window(struct netxen_adapter *adapter,
-					unsigned long long addr);
+static unsigned long netxen_nic_pci_set_window(struct netxen_adapter *adapter,
+					       unsigned long long addr);
 void netxen_free_hw_resources(struct netxen_adapter *adapter);
 
 int netxen_nic_set_mac(struct net_device *netdev, void *p)
@@ -417,7 +419,7 @@ int netxen_nic_hw_resources(struct netxen_adapter *adapter)
 	adapter->ctx_desc->cmd_consumer_offset =
 	    cpu_to_le64(adapter->ctx_desc_phys_addr +
 			sizeof(struct netxen_ring_ctx));
-	adapter->cmd_consumer = (uint32_t *) (((char *)addr) +
+	adapter->cmd_consumer = (__le32 *) (((char *)addr) +
 					      sizeof(struct netxen_ring_ctx));
 
 	addr = netxen_alloc(adapter->ahw.pdev,
@@ -584,35 +586,35 @@ int netxen_is_flash_supported(struct netxen_adapter *adapter)
 }
 
 static int netxen_get_flash_block(struct netxen_adapter *adapter, int base,
-				  int size, u32 * buf)
+				  int size, __le32 * buf)
 {
 	int i, addr;
-	u32 *ptr32;
+	__le32 *ptr32;
+	u32 v;
 
 	addr = base;
 	ptr32 = buf;
 	for (i = 0; i < size / sizeof(u32); i++) {
-		if (netxen_rom_fast_read(adapter, addr, ptr32) == -1)
+		if (netxen_rom_fast_read(adapter, addr, &v) == -1)
 			return -1;
-		*ptr32 = cpu_to_le32(*ptr32);
+		*ptr32 = cpu_to_le32(v);
 		ptr32++;
 		addr += sizeof(u32);
 	}
 	if ((char *)buf + size > (char *)ptr32) {
-		u32 local;
-
-		if (netxen_rom_fast_read(adapter, addr, &local) == -1)
+		__le32 local;
+		if (netxen_rom_fast_read(adapter, addr, &v) == -1)
 			return -1;
-		local = cpu_to_le32(local);
+		local = cpu_to_le32(v);
 		memcpy(ptr32, &local, (char *)buf + size - (char *)ptr32);
 	}
 
 	return 0;
 }
 
-int netxen_get_flash_mac_addr(struct netxen_adapter *adapter, u64 mac[])
+int netxen_get_flash_mac_addr(struct netxen_adapter *adapter, __le64 mac[])
 {
-	u32 *pmac = (u32 *) & mac[0];
+	__le32 *pmac = (__le32 *) & mac[0];
 
 	if (netxen_get_flash_block(adapter,
 				   NETXEN_USER_START +
@@ -621,7 +623,7 @@ int netxen_get_flash_mac_addr(struct netxen_adapter *adapter, u64 mac[])
 				   FLASH_NUM_PORTS * sizeof(u64), pmac) == -1) {
 		return -1;
 	}
-	if (*mac == ~0ULL) {
+	if (*mac == cpu_to_le64(~0ULL)) {
 		if (netxen_get_flash_block(adapter,
 					   NETXEN_USER_START_OLD +
 					   offsetof(struct netxen_user_old_info,
@@ -629,7 +631,7 @@ int netxen_get_flash_mac_addr(struct netxen_adapter *adapter, u64 mac[])
 					   FLASH_NUM_PORTS * sizeof(u64),
 					   pmac) == -1)
 			return -1;
-		if (*mac == ~0ULL)
+		if (*mac == cpu_to_le64(~0ULL))
 			return -1;
 	}
 	return 0;
@@ -664,7 +666,7 @@ void netxen_nic_pci_change_crbwindow(struct netxen_adapter *adapter, u32 wndw)
 					NETXEN_PCIX_PH_REG(PCIX_CRB_WINDOW_F3));
 			break;
 		default:
-			printk(KERN_INFO "Changing the window for PCI function"
+			printk(KERN_INFO "Changing the window for PCI function "
 					"%d\n",	adapter->ahw.pci_func);
 			offset = PCI_OFFSET_SECOND_RANGE(adapter,
 					NETXEN_PCIX_PH_REG(PCIX_CRB_WINDOW));
@@ -886,11 +888,10 @@ void netxen_nic_read_w0(struct netxen_adapter *adapter, u32 index, u32 * value)
 	netxen_nic_pci_change_crbwindow(adapter, 1);
 }
 
-int netxen_pci_set_window_warning_count = 0;
+static int netxen_pci_set_window_warning_count;
 
-unsigned long
-netxen_nic_pci_set_window(struct netxen_adapter *adapter,
-			  unsigned long long addr)
+static  unsigned long netxen_nic_pci_set_window(struct netxen_adapter *adapter,
+						unsigned long long addr)
 {
 	static int ddr_mn_window = -1;
 	static int qdr_sn_window = -1;
@@ -952,16 +953,18 @@ netxen_nic_pci_set_window(struct netxen_adapter *adapter,
 	return addr;
 }
 
+#if 0
 int
 netxen_nic_erase_pxe(struct netxen_adapter *adapter)
 {
 	if (netxen_rom_fast_write(adapter, NETXEN_PXE_START, 0) == -1) {
-		printk(KERN_ERR "%s: erase pxe failed\n", 
+		printk(KERN_ERR "%s: erase pxe failed\n",
 			netxen_nic_driver_name);
 		return -1;
 	}
 	return 0;
 }
+#endif  /*  0  */
 
 int netxen_nic_get_board_info(struct netxen_adapter *adapter)
 {
@@ -1036,9 +1039,9 @@ int netxen_nic_set_mtu_xgb(struct netxen_adapter *adapter, int new_mtu)
 {
 	new_mtu += NETXEN_NIU_HDRSIZE + NETXEN_NIU_TLRSIZE;
 	if (physical_port[adapter->portnum] == 0)
-		netxen_nic_write_w0(adapter, NETXEN_NIU_XGE_MAX_FRAME_SIZE, 
+		netxen_nic_write_w0(adapter, NETXEN_NIU_XGE_MAX_FRAME_SIZE,
 				new_mtu);
-	else 
+	else
 		netxen_nic_write_w0(adapter, NETXEN_NIU_XG1_MAX_FRAME_SIZE,
 				new_mtu);
 	return 0;

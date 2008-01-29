@@ -60,12 +60,6 @@ static int ipv6_print_tuple(struct seq_file *s,
 			  NIP6(*((struct in6_addr *)tuple->dst.u3.ip6)));
 }
 
-static int ipv6_print_conntrack(struct seq_file *s,
-				const struct nf_conn *conntrack)
-{
-	return 0;
-}
-
 /*
  * Based on ipv6_skip_exthdr() in net/ipv6/exthdr.c
  *
@@ -258,79 +252,50 @@ static unsigned int ipv6_conntrack_local(unsigned int hooknum,
 	return ipv6_conntrack_in(hooknum, skb, in, out, okfn);
 }
 
-static struct nf_hook_ops ipv6_conntrack_ops[] = {
+static struct nf_hook_ops ipv6_conntrack_ops[] __read_mostly = {
 	{
 		.hook		= ipv6_defrag,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET6,
-		.hooknum	= NF_IP6_PRE_ROUTING,
+		.hooknum	= NF_INET_PRE_ROUTING,
 		.priority	= NF_IP6_PRI_CONNTRACK_DEFRAG,
 	},
 	{
 		.hook		= ipv6_conntrack_in,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET6,
-		.hooknum	= NF_IP6_PRE_ROUTING,
+		.hooknum	= NF_INET_PRE_ROUTING,
 		.priority	= NF_IP6_PRI_CONNTRACK,
 	},
 	{
 		.hook		= ipv6_conntrack_local,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET6,
-		.hooknum	= NF_IP6_LOCAL_OUT,
+		.hooknum	= NF_INET_LOCAL_OUT,
 		.priority	= NF_IP6_PRI_CONNTRACK,
 	},
 	{
 		.hook		= ipv6_defrag,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET6,
-		.hooknum	= NF_IP6_LOCAL_OUT,
+		.hooknum	= NF_INET_LOCAL_OUT,
 		.priority	= NF_IP6_PRI_CONNTRACK_DEFRAG,
 	},
 	{
 		.hook		= ipv6_confirm,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET6,
-		.hooknum	= NF_IP6_POST_ROUTING,
+		.hooknum	= NF_INET_POST_ROUTING,
 		.priority	= NF_IP6_PRI_LAST,
 	},
 	{
 		.hook		= ipv6_confirm,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET6,
-		.hooknum	= NF_IP6_LOCAL_IN,
+		.hooknum	= NF_INET_LOCAL_IN,
 		.priority	= NF_IP6_PRI_LAST-1,
 	},
 };
-
-#ifdef CONFIG_SYSCTL
-static ctl_table nf_ct_ipv6_sysctl_table[] = {
-	{
-		.procname	= "nf_conntrack_frag6_timeout",
-		.data		= &nf_frags_ctl.timeout,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-	},
-	{
-		.ctl_name	= NET_NF_CONNTRACK_FRAG6_LOW_THRESH,
-		.procname	= "nf_conntrack_frag6_low_thresh",
-		.data		= &nf_frags_ctl.low_thresh,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
-	},
-	{
-		.ctl_name	= NET_NF_CONNTRACK_FRAG6_HIGH_THRESH,
-		.procname	= "nf_conntrack_frag6_high_thresh",
-		.data		= &nf_frags_ctl.high_thresh,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
-	},
-	{ .ctl_name = 0 }
-};
-#endif
 
 #if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
 
@@ -376,7 +341,6 @@ struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv6 __read_mostly = {
 	.pkt_to_tuple		= ipv6_pkt_to_tuple,
 	.invert_tuple		= ipv6_invert_tuple,
 	.print_tuple		= ipv6_print_tuple,
-	.print_conntrack	= ipv6_print_conntrack,
 	.get_l4proto		= ipv6_get_l4proto,
 #if defined(CONFIG_NF_CT_NETLINK) || defined(CONFIG_NF_CT_NETLINK_MODULE)
 	.tuple_to_nlattr	= ipv6_tuple_to_nlattr,

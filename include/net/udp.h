@@ -65,6 +65,13 @@ extern rwlock_t udp_hash_lock;
 
 extern struct proto udp_prot;
 
+extern atomic_t udp_memory_allocated;
+
+/* sysctl variables for udp */
+extern int sysctl_udp_mem[3];
+extern int sysctl_udp_rmem_min;
+extern int sysctl_udp_wmem_min;
+
 struct sk_buff;
 
 /*
@@ -108,7 +115,7 @@ static inline void udp_lib_unhash(struct sock *sk)
 	write_lock_bh(&udp_hash_lock);
 	if (sk_del_node_init(sk)) {
 		inet_sk(sk)->num = 0;
-		sock_prot_dec_use(sk->sk_prot);
+		sock_prot_inuse_add(sk->sk_prot, -1);
 	}
 	write_unlock_bh(&udp_hash_lock);
 }
@@ -139,6 +146,12 @@ extern int 	udp_lib_setsockopt(struct sock *sk, int level, int optname,
 				   int (*push_pending_frames)(struct sock *));
 
 DECLARE_SNMP_STAT(struct udp_mib, udp_statistics);
+DECLARE_SNMP_STAT(struct udp_mib, udp_stats_in6);
+
+/* UDP-Lite does not have a standardized MIB yet, so we inherit from UDP */
+DECLARE_SNMP_STAT(struct udp_mib, udplite_statistics);
+DECLARE_SNMP_STAT(struct udp_mib, udplite_stats_in6);
+
 /*
  * 	SNMP statistics for UDP and UDP-Lite
  */
@@ -148,6 +161,25 @@ DECLARE_SNMP_STAT(struct udp_mib, udp_statistics);
 #define UDP_INC_STATS_BH(field, is_udplite) 			       do  {  \
 	if (is_udplite) SNMP_INC_STATS_BH(udplite_statistics, field);         \
 	else		SNMP_INC_STATS_BH(udp_statistics, field);    }  while(0)
+
+#define UDP6_INC_STATS_BH(field, is_udplite) 			      do  {  \
+	if (is_udplite) SNMP_INC_STATS_BH(udplite_stats_in6, field);         \
+	else		SNMP_INC_STATS_BH(udp_stats_in6, field);    } while(0)
+#define UDP6_INC_STATS_USER(field, is_udplite)			       do {    \
+	if (is_udplite) SNMP_INC_STATS_USER(udplite_stats_in6, field);         \
+	else		SNMP_INC_STATS_USER(udp_stats_in6, field);    } while(0)
+
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#define UDPX_INC_STATS_BH(sk, field) \
+	do { \
+		if ((sk)->sk_family == AF_INET) \
+			UDP_INC_STATS_BH(field, 0); \
+		else \
+			UDP6_INC_STATS_BH(field, 0); \
+	} while (0);
+#else
+#define UDPX_INC_STATS_BH(sk, field) UDP_INC_STATS_BH(field, 0)
+#endif
 
 /* /proc */
 struct udp_seq_afinfo {
@@ -173,4 +205,6 @@ extern void udp_proc_unregister(struct udp_seq_afinfo *afinfo);
 extern int  udp4_proc_init(void);
 extern void udp4_proc_exit(void);
 #endif
+
+extern void udp_init(void);
 #endif	/* _UDP_H */

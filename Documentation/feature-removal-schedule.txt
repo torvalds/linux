@@ -249,15 +249,6 @@ Who:  Tejun Heo <htejun@gmail.com>
 
 ---------------------------
 
-What:	iptables SAME target
-When:	1.1. 2008
-Files:	net/ipv4/netfilter/ipt_SAME.c, include/linux/netfilter_ipv4/ipt_SAME.h
-Why:	Obsolete for multiple years now, NAT core provides the same behaviour.
-	Unfixable broken wrt. 32/64 bit cleanness.
-Who:	Patrick McHardy <kaber@trash.net>
-
----------------------------
-
 What: The arch/ppc and include/asm-ppc directories
 When: Jun 2008
 Why:  The arch/powerpc tree is the merged architecture for ppc32 and ppc64
@@ -289,15 +280,6 @@ Who:	Thomas Gleixner <tglx@linutronix.de>
 
 ---------------------------
 
-What:	shaper network driver
-When:	January 2008
-Files:	drivers/net/shaper.c, include/linux/if_shaper.h
-Why:	This driver has been marked obsolete for many years.
-	It was only designed to work on lower speed links and has design
-	flaws that lead to machine crashes. The qdisc infrastructure in
-	2.4 or later kernels, provides richer features and is more robust.
-Who:	Stephen Hemminger <shemminger@linux-foundation.org>
-
 ---------------------------
 
 What:	i2c-i810, i2c-prosavage and i2c-savage4
@@ -306,3 +288,69 @@ Why:	These drivers are superseded by i810fb, intelfb and savagefb.
 Who:	Jean Delvare <khali@linux-fr.org>
 
 ---------------------------
+
+What:	bcm43xx wireless network driver
+When:	2.6.26
+Files:	drivers/net/wireless/bcm43xx
+Why:	This driver's functionality has been replaced by the
+	mac80211-based b43 and b43legacy drivers.
+Who:	John W. Linville <linville@tuxdriver.com>
+
+---------------------------
+
+What:	ieee80211 softmac wireless networking component
+When:	2.6.26 (or after removal of bcm43xx and port of zd1211rw to mac80211)
+Files:	net/ieee80211/softmac
+Why:	No in-kernel drivers will depend on it any longer.
+Who:	John W. Linville <linville@tuxdriver.com>
+
+---------------------------
+
+What:	rc80211-simple rate control algorithm for mac80211
+When:	2.6.26
+Files:	net/mac80211/rc80211-simple.c
+Why:	This algorithm was provided for reference but always exhibited bad
+	responsiveness and performance and has some serious flaws. It has been
+	replaced by rc80211-pid.
+Who:	Stefano Brivio <stefano.brivio@polimi.it>
+
+---------------------------
+
+What (Why):
+	- include/linux/netfilter_ipv4/ipt_TOS.h ipt_tos.h header files
+	  (superseded by xt_TOS/xt_tos target & match)
+
+	- "forwarding" header files like ipt_mac.h in
+	  include/linux/netfilter_ipv4/ and include/linux/netfilter_ipv6/
+
+	- xt_CONNMARK match revision 0
+	  (superseded by xt_CONNMARK match revision 1)
+
+	- xt_MARK target revisions 0 and 1
+	  (superseded by xt_MARK match revision 2)
+
+	- xt_connmark match revision 0
+	  (superseded by xt_connmark match revision 1)
+
+	- xt_conntrack match revision 0
+	  (superseded by xt_conntrack match revision 1)
+
+	- xt_iprange match revision 0,
+	  include/linux/netfilter_ipv4/ipt_iprange.h
+	  (superseded by xt_iprange match revision 1)
+
+	- xt_mark match revision 0
+	  (superseded by xt_mark match revision 1)
+
+When:	January 2009 or Linux 2.7.0, whichever comes first
+Why:	Superseded by newer revisions or modules
+Who:	Jan Engelhardt <jengelh@computergmbh.de>
+
+---------------------------
+
+What:	b43 support for firmware revision < 410
+When:	July 2008
+Why:	The support code for the old firmware hurts code readability/maintainability
+	and slightly hurts runtime performance. Bugfixes for the old firmware
+	are not provided by Broadcom anymore.
+Who:	Michael Buesch <mb@bu3sch.de>

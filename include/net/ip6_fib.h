@@ -99,16 +99,21 @@ struct rt6_info
 	u32				rt6i_flags;
 	u32				rt6i_metric;
 	atomic_t			rt6i_ref;
+
+	/* more non-fragment space at head required */
+	unsigned short			rt6i_nfheader_len;
+
+	u8				rt6i_protocol;
+
 	struct fib6_table		*rt6i_table;
 
 	struct rt6key			rt6i_dst;
-	struct rt6key			rt6i_src;
-
-	u8				rt6i_protocol;
 
 #ifdef CONFIG_XFRM
 	u32				rt6i_flow_cache_genid;
 #endif
+
+	struct rt6key			rt6i_src;
 };
 
 static inline struct inet6_dev *ip6_dst_idev(struct dst_entry *dst)
@@ -219,10 +224,20 @@ extern void			fib6_run_gc(unsigned long dummy);
 
 extern void			fib6_gc_cleanup(void);
 
-extern void			fib6_init(void);
+extern int			fib6_init(void);
 
-extern void			fib6_rules_init(void);
+#ifdef CONFIG_IPV6_MULTIPLE_TABLES
+extern int			fib6_rules_init(void);
 extern void			fib6_rules_cleanup(void);
-
+#else
+static inline int               fib6_rules_init(void)
+{
+	return 0;
+}
+static inline void              fib6_rules_cleanup(void)
+{
+	return ;
+}
+#endif
 #endif
 #endif

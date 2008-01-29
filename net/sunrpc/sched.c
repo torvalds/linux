@@ -811,9 +811,8 @@ EXPORT_SYMBOL_GPL(rpc_free);
 void rpc_init_task(struct rpc_task *task, struct rpc_clnt *clnt, int flags, const struct rpc_call_ops *tk_ops, void *calldata)
 {
 	memset(task, 0, sizeof(*task));
-	init_timer(&task->tk_timer);
-	task->tk_timer.data     = (unsigned long) task;
-	task->tk_timer.function = (void (*)(unsigned long)) rpc_run_timer;
+	setup_timer(&task->tk_timer, (void (*)(unsigned long))rpc_run_timer,
+			(unsigned long)task);
 	atomic_set(&task->tk_count, 1);
 	task->tk_client = clnt;
 	task->tk_flags  = flags;

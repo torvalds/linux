@@ -64,7 +64,7 @@ static unsigned int arpt_hook(unsigned int hook,
 	return arpt_do_table(skb, hook, in, out, &packet_filter);
 }
 
-static struct nf_hook_ops arpt_ops[] = {
+static struct nf_hook_ops arpt_ops[] __read_mostly = {
 	{
 		.hook		= arpt_hook,
 		.owner		= THIS_MODULE,

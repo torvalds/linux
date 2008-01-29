@@ -9,14 +9,21 @@ struct b43_phy;
 /*** PHY Registers ***/
 
 /* Routing */
-#define B43_PHYROUTE_OFDM_GPHY		0x400
-#define B43_PHYROUTE_EXT_GPHY		0x800
+#define B43_PHYROUTE			0x0C00 /* PHY register routing bits mask */
+#define  B43_PHYROUTE_BASE		0x0000 /* Base registers */
+#define  B43_PHYROUTE_OFDM_GPHY		0x0400 /* OFDM register routing for G-PHYs */
+#define  B43_PHYROUTE_EXT_GPHY		0x0800 /* Extended G-PHY registers */
+#define  B43_PHYROUTE_N_BMODE		0x0C00 /* N-PHY BMODE registers */
 
-/* Base registers. */
-#define B43_PHY_BASE(reg)		(reg)
-/* OFDM (A) registers of a G-PHY */
+/* CCK (B-PHY) registers. */
+#define B43_PHY_CCK(reg)		((reg) | B43_PHYROUTE_BASE)
+/* N-PHY registers. */
+#define B43_PHY_N(reg)			((reg) | B43_PHYROUTE_BASE)
+/* N-PHY BMODE registers. */
+#define B43_PHY_N_BMODE(reg)		((reg) | B43_PHYROUTE_N_BMODE)
+/* OFDM (A-PHY) registers. */
 #define B43_PHY_OFDM(reg)		((reg) | B43_PHYROUTE_OFDM_GPHY)
-/* Extended G-PHY registers */
+/* Extended G-PHY registers. */
 #define B43_PHY_EXTG(reg)		((reg) | B43_PHYROUTE_EXT_GPHY)
 
 /* OFDM (A) PHY Registers */
@@ -25,10 +32,13 @@ struct b43_phy;
 #define  B43_PHY_BBANDCFG_RXANT		0x180	/* RX Antenna selection */
 #define  B43_PHY_BBANDCFG_RXANT_SHIFT	7
 #define B43_PHY_PWRDOWN			B43_PHY_OFDM(0x03)	/* Powerdown */
-#define B43_PHY_CRSTHRES1		B43_PHY_OFDM(0x06)	/* CRS Threshold 1 */
+#define B43_PHY_CRSTHRES1_R1		B43_PHY_OFDM(0x06)	/* CRS Threshold 1 (phy.rev 1 only) */
 #define B43_PHY_LNAHPFCTL		B43_PHY_OFDM(0x1C)	/* LNA/HPF control */
+#define B43_PHY_LPFGAINCTL		B43_PHY_OFDM(0x20)	/* LPF Gain control */
 #define B43_PHY_ADIVRELATED		B43_PHY_OFDM(0x27)	/* FIXME rename */
 #define B43_PHY_CRS0			B43_PHY_OFDM(0x29)
+#define  B43_PHY_CRS0_EN		0x4000
+#define B43_PHY_PEAK_COUNT		B43_PHY_OFDM(0x30)
 #define B43_PHY_ANTDWELL		B43_PHY_OFDM(0x2B)	/* Antenna dwell */
 #define  B43_PHY_ANTDWELL_AUTODIV1	0x0100	/* Automatic RX diversity start antenna */
 #define B43_PHY_ENCORE			B43_PHY_OFDM(0x49)	/* "Encore" (RangeMax / BroadRange) */
@@ -37,6 +47,7 @@ struct b43_phy;
 #define B43_PHY_OFDM61			B43_PHY_OFDM(0x61)	/* FIXME rename */
 #define  B43_PHY_OFDM61_10		0x0010	/* FIXME rename */
 #define B43_PHY_IQBAL			B43_PHY_OFDM(0x69)	/* I/Q balance */
+#define B43_PHY_BBTXDC_BIAS		B43_PHY_OFDM(0x6B)	/* Baseband TX DC bias */
 #define B43_PHY_OTABLECTL		B43_PHY_OFDM(0x72)	/* OFDM table control (see below) */
 #define  B43_PHY_OTABLEOFF		0x03FF	/* OFDM table offset (see below) */
 #define  B43_PHY_OTABLENR		0xFC00	/* OFDM table number (see below) */
@@ -44,6 +55,9 @@ struct b43_phy;
 #define B43_PHY_OTABLEI			B43_PHY_OFDM(0x73)	/* OFDM table data I */
 #define B43_PHY_OTABLEQ			B43_PHY_OFDM(0x74)	/* OFDM table data Q */
 #define B43_PHY_HPWR_TSSICTL		B43_PHY_OFDM(0x78)	/* Hardware power TSSI control */
+#define B43_PHY_ADCCTL			B43_PHY_OFDM(0x7A)	/* ADC control */
+#define B43_PHY_IDLE_TSSI		B43_PHY_OFDM(0x7B)
+#define B43_PHY_A_TEMP_SENSE		B43_PHY_OFDM(0x7C)	/* A PHY temperature sense */
 #define B43_PHY_NRSSITHRES		B43_PHY_OFDM(0x8A)	/* NRSSI threshold */
 #define B43_PHY_ANTWRSETT		B43_PHY_OFDM(0x8C)	/* Antenna WR settle */
 #define  B43_PHY_ANTWRSETT_ARXDIV	0x2000	/* Automatic RX diversity enabled */
@@ -54,33 +68,35 @@ struct b43_phy;
 #define B43_PHY_N1N2GAIN		B43_PHY_OFDM(0xA2)
 #define B43_PHY_CLIPTHRES		B43_PHY_OFDM(0xA3)
 #define B43_PHY_CLIPN1P2THRES		B43_PHY_OFDM(0xA4)
+#define B43_PHY_CCKSHIFTBITS_WA		B43_PHY_OFDM(0xA5)	/* CCK shiftbits workaround, FIXME rename */
+#define B43_PHY_CCKSHIFTBITS		B43_PHY_OFDM(0xA7)	/* FIXME rename */
 #define B43_PHY_DIVSRCHIDX		B43_PHY_OFDM(0xA8)	/* Divider search gain/index */
 #define B43_PHY_CLIPP2THRES		B43_PHY_OFDM(0xA9)
 #define B43_PHY_CLIPP3THRES		B43_PHY_OFDM(0xAA)
 #define B43_PHY_DIVP1P2GAIN		B43_PHY_OFDM(0xAB)
 #define B43_PHY_DIVSRCHGAINBACK		B43_PHY_OFDM(0xAD)	/* Divider search gain back */
 #define B43_PHY_DIVSRCHGAINCHNG		B43_PHY_OFDM(0xAE)	/* Divider search gain change */
-#define B43_PHY_CRSTHRES1_R1		B43_PHY_OFDM(0xC0)	/* CRS Threshold 1 (rev 1 only) */
-#define B43_PHY_CRSTHRES2_R1		B43_PHY_OFDM(0xC1)	/* CRS Threshold 2 (rev 1 only) */
+#define B43_PHY_CRSTHRES1		B43_PHY_OFDM(0xC0)	/* CRS Threshold 1 (phy.rev >= 2 only) */
+#define B43_PHY_CRSTHRES2		B43_PHY_OFDM(0xC1)	/* CRS Threshold 2 (phy.rev >= 2 only) */
 #define B43_PHY_TSSIP_LTBASE		B43_PHY_OFDM(0x380)	/* TSSI power lookup table base */
 #define B43_PHY_DC_LTBASE		B43_PHY_OFDM(0x3A0)	/* DC lookup table base */
 #define B43_PHY_GAIN_LTBASE		B43_PHY_OFDM(0x3C0)	/* Gain lookup table base */
 
 /* CCK (B) PHY Registers */
-#define B43_PHY_VERSION_CCK		B43_PHY_BASE(0x00)	/* Versioning register for B-PHY */
-#define B43_PHY_CCKBBANDCFG		B43_PHY_BASE(0x01)	/* Contains antenna 0/1 control bit */
-#define B43_PHY_PGACTL			B43_PHY_BASE(0x15)	/* PGA control */
+#define B43_PHY_VERSION_CCK		B43_PHY_CCK(0x00)	/* Versioning register for B-PHY */
+#define B43_PHY_CCKBBANDCFG		B43_PHY_CCK(0x01)	/* Contains antenna 0/1 control bit */
+#define B43_PHY_PGACTL			B43_PHY_CCK(0x15)	/* PGA control */
 #define  B43_PHY_PGACTL_LPF		0x1000	/* Low pass filter (?) */
 #define  B43_PHY_PGACTL_LOWBANDW	0x0040	/* Low bandwidth flag */
 #define  B43_PHY_PGACTL_UNKNOWN		0xEFA0
-#define B43_PHY_FBCTL1			B43_PHY_BASE(0x18)	/* Frequency bandwidth control 1 */
-#define B43_PHY_ITSSI			B43_PHY_BASE(0x29)	/* Idle TSSI */
-#define B43_PHY_LO_LEAKAGE		B43_PHY_BASE(0x2D)	/* Measured LO leakage */
-#define B43_PHY_ENERGY			B43_PHY_BASE(0x33)	/* Energy */
-#define B43_PHY_SYNCCTL			B43_PHY_BASE(0x35)
-#define B43_PHY_FBCTL2			B43_PHY_BASE(0x38)	/* Frequency bandwidth control 2 */
-#define B43_PHY_DACCTL			B43_PHY_BASE(0x60)	/* DAC control */
-#define B43_PHY_RCCALOVER		B43_PHY_BASE(0x78)	/* RC calibration override */
+#define B43_PHY_FBCTL1			B43_PHY_CCK(0x18)	/* Frequency bandwidth control 1 */
+#define B43_PHY_ITSSI			B43_PHY_CCK(0x29)	/* Idle TSSI */
+#define B43_PHY_LO_LEAKAGE		B43_PHY_CCK(0x2D)	/* Measured LO leakage */
+#define B43_PHY_ENERGY			B43_PHY_CCK(0x33)	/* Energy */
+#define B43_PHY_SYNCCTL			B43_PHY_CCK(0x35)
+#define B43_PHY_FBCTL2			B43_PHY_CCK(0x38)	/* Frequency bandwidth control 2 */
+#define B43_PHY_DACCTL			B43_PHY_CCK(0x60)	/* DAC control */
+#define B43_PHY_RCCALOVER		B43_PHY_CCK(0x78)	/* RC calibration override */
 
 /* Extended G-PHY Registers */
 #define B43_PHY_CLASSCTL		B43_PHY_EXTG(0x02)	/* Classify control */
@@ -125,13 +141,14 @@ struct b43_phy;
 #define B43_OFDMTAB_DC			B43_OFDMTAB(0x0E, 7)
 #define B43_OFDMTAB_PWRDYN2		B43_OFDMTAB(0x0E, 12)
 #define B43_OFDMTAB_LNAGAIN		B43_OFDMTAB(0x0E, 13)
-//TODO
+#define B43_OFDMTAB_UNKNOWN_0F		B43_OFDMTAB(0x0F, 0)	//TODO rename
+#define B43_OFDMTAB_UNKNOWN_APHY	B43_OFDMTAB(0x0F, 7)	//TODO rename
 #define B43_OFDMTAB_LPFGAIN		B43_OFDMTAB(0x0F, 12)
 #define B43_OFDMTAB_RSSI		B43_OFDMTAB(0x10, 0)
-//TODO
+#define B43_OFDMTAB_UNKNOWN_11		B43_OFDMTAB(0x11, 4)	//TODO rename
 #define B43_OFDMTAB_AGC1_R1		B43_OFDMTAB(0x13, 0)
-#define B43_OFDMTAB_GAINX_R1		B43_OFDMTAB(0x14, 0)	//TODO rename
-#define B43_OFDMTAB_MINSIGSQ		B43_OFDMTAB(0x14, 1)
+#define B43_OFDMTAB_GAINX_R1		B43_OFDMTAB(0x14, 0)	//TODO remove!
+#define B43_OFDMTAB_MINSIGSQ		B43_OFDMTAB(0x14, 0)
 #define B43_OFDMTAB_AGC3_R1		B43_OFDMTAB(0x15, 0)
 #define B43_OFDMTAB_WRSSI_R1		B43_OFDMTAB(0x15, 4)
 #define B43_OFDMTAB_TSSI		B43_OFDMTAB(0x15, 0)
@@ -163,6 +180,8 @@ enum {
 	B43_ANTENNA1,		/* Antenna 0 */
 	B43_ANTENNA_AUTO1,	/* Automatic, starting with antenna 1 */
 	B43_ANTENNA_AUTO0,	/* Automatic, starting with antenna 0 */
+	B43_ANTENNA2,
+	B43_ANTENNA3 = 8,
 
 	B43_ANTENNA_AUTO = B43_ANTENNA_AUTO0,
 	B43_ANTENNA_DEFAULT = B43_ANTENNA_AUTO,
@@ -182,21 +201,21 @@ enum {
 #define B43_PHYVER_TYPE_SHIFT		8
 #define B43_PHYVER_VERSION		0x00FF
 
-void b43_raw_phy_lock(struct b43_wldev *dev);
-#define b43_phy_lock(dev, flags) \
-	do {					\
-		local_irq_save(flags);		\
-		b43_raw_phy_lock(dev);	\
-	} while (0)
-void b43_raw_phy_unlock(struct b43_wldev *dev);
-#define b43_phy_unlock(dev, flags) \
-	do {					\
-		b43_raw_phy_unlock(dev);	\
-		local_irq_restore(flags);	\
-	} while (0)
+void b43_phy_lock(struct b43_wldev *dev);
+void b43_phy_unlock(struct b43_wldev *dev);
 
+
+/* Read a value from a PHY register */
 u16 b43_phy_read(struct b43_wldev *dev, u16 offset);
+/* Write a value to a PHY register */
 void b43_phy_write(struct b43_wldev *dev, u16 offset, u16 val);
+/* Mask a PHY register with a mask */
+void b43_phy_mask(struct b43_wldev *dev, u16 offset, u16 mask);
+/* OR a PHY register with a bitmap */
+void b43_phy_set(struct b43_wldev *dev, u16 offset, u16 set);
+/* Mask and OR a PHY register with a mask and bitmap */
+void b43_phy_maskset(struct b43_wldev *dev, u16 offset, u16 mask, u16 set);
+
 
 int b43_phy_init_tssi2dbm_table(struct b43_wldev *dev);
 
@@ -260,8 +279,18 @@ extern const u8 b43_radio_channel_codes_bg[];
 void b43_radio_lock(struct b43_wldev *dev);
 void b43_radio_unlock(struct b43_wldev *dev);
 
+
+/* Read a value from a 16bit radio register */
 u16 b43_radio_read16(struct b43_wldev *dev, u16 offset);
+/* Write a value to a 16bit radio register */
 void b43_radio_write16(struct b43_wldev *dev, u16 offset, u16 val);
+/* Mask a 16bit radio register with a mask */
+void b43_radio_mask(struct b43_wldev *dev, u16 offset, u16 mask);
+/* OR a 16bit radio register with a bitmap */
+void b43_radio_set(struct b43_wldev *dev, u16 offset, u16 set);
+/* Mask and OR a PHY register with a mask and bitmap */
+void b43_radio_maskset(struct b43_wldev *dev, u16 offset, u16 mask, u16 set);
+
 
 u16 b43_radio_init2050(struct b43_wldev *dev);
 void b43_radio_init2060(struct b43_wldev *dev);

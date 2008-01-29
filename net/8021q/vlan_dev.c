@@ -3,7 +3,7 @@
  *		Ethernet-type device handling.
  *
  * Authors:	Ben Greear <greearb@candelatech.com>
- *              Please send support related email to: vlan@scry.wanfear.com
+ *              Please send support related email to: netdev@vger.kernel.org
  *              VLAN Home Page: http://www.candelatech.com/~greear/vlan.html
  *
  * Fixes:       Mar 22 2001: Martin Bokaemper <mbokaemper@unispherenetworks.com>
@@ -47,7 +47,7 @@
  *
  * TODO:  This needs a checkup, I'm ignorant here. --BLG
  */
-int vlan_dev_rebuild_header(struct sk_buff *skb)
+static int vlan_dev_rebuild_header(struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
 	struct vlan_ethhdr *veth = (struct vlan_ethhdr *)(skb->data);
@@ -60,9 +60,8 @@ int vlan_dev_rebuild_header(struct sk_buff *skb)
 		return arp_find(veth->h_dest, skb);
 #endif
 	default:
-		printk(VLAN_DBG
-		       "%s: unable to resolve type %X addresses.\n",
-		       dev->name, ntohs(veth->h_vlan_encapsulated_proto));
+		pr_debug("%s: unable to resolve type %X addresses.\n",
+			 dev->name, ntohs(veth->h_vlan_encapsulated_proto));
 
 		memcpy(veth->h_source, dev->dev_addr, ETH_ALEN);
 		break;
@@ -73,7 +72,7 @@ int vlan_dev_rebuild_header(struct sk_buff *skb)
 
 static inline struct sk_buff *vlan_check_reorder_header(struct sk_buff *skb)
 {
-	if (VLAN_DEV_INFO(skb->dev)->flags & VLAN_FLAG_REORDER_HDR) {
+	if (vlan_dev_info(skb->dev)->flags & VLAN_FLAG_REORDER_HDR) {
 		if (skb_shared(skb) || skb_cloned(skb)) {
 			struct sk_buff *nskb = skb_copy(skb, GFP_ATOMIC);
 			kfree_skb(skb);
@@ -88,6 +87,40 @@ static inline struct sk_buff *vlan_check_reorder_header(struct sk_buff *skb)
 	}
 
 	return skb;
+}
+
+static inline void vlan_set_encap_proto(struct sk_buff *skb,
+		struct vlan_hdr *vhdr)
+{
+	__be16 proto;
+	unsigned char *rawp;
+
+	/*
+	 * Was a VLAN packet, grab the encapsulated protocol, which the layer
+	 * three protocols care about.
+	 */
+
+	proto = vhdr->h_vlan_encapsulated_proto;
+	if (ntohs(proto) >= 1536) {
+		skb->protocol = proto;
+		return;
+	}
+
+	rawp = skb->data;
+	if (*(unsigned short *)rawp == 0xFFFF)
+		/*
+		 * This is a magic hack to spot IPX packets. Older Novell
+		 * breaks the protocol design and runs IPX over 802.3 without
+		 * an 802.2 LLC layer. We look for FFFF which isn't a used
+		 * 802.2 SSAP/DSAP. This won't work for fault tolerant netware
+		 * but does for the rest.
+		 */
+		skb->protocol = htons(ETH_P_802_3);
+	else
+		/*
+		 * Real 802.2 LLC
+		 */
+		skb->protocol = htons(ETH_P_802_2);
 }
 
 /*
@@ -107,115 +140,58 @@ static inline struct sk_buff *vlan_check_reorder_header(struct sk_buff *skb)
  *  SANITY NOTE 2: We are referencing to the VLAN_HDR frields, which MAY be
  *                 stored UNALIGNED in the memory.  RISC systems don't like
  *                 such cases very much...
- *  SANITY NOTE 2a:  According to Dave Miller & Alexey, it will always be aligned,
- *                 so there doesn't need to be any of the unaligned stuff.  It has
- *                 been commented out now...  --Ben
+ *  SANITY NOTE 2a: According to Dave Miller & Alexey, it will always be
+ *  		    aligned, so there doesn't need to be any of the unaligned
+ *  		    stuff.  It has been commented out now...  --Ben
  *
  */
 int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
-		  struct packet_type* ptype, struct net_device *orig_dev)
+		  struct packet_type *ptype, struct net_device *orig_dev)
 {
-	unsigned char *rawp = NULL;
 	struct vlan_hdr *vhdr;
 	unsigned short vid;
 	struct net_device_stats *stats;
 	unsigned short vlan_TCI;
-	__be16 proto;
 
-	if (dev->nd_net != &init_net) {
-		kfree_skb(skb);
-		return -1;
-	}
+	if (dev->nd_net != &init_net)
+		goto err_free;
 
-	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL)
-		return -1;
+	skb = skb_share_check(skb, GFP_ATOMIC);
+	if (skb == NULL)
+		goto err_free;
 
-	if (unlikely(!pskb_may_pull(skb, VLAN_HLEN))) {
-		kfree_skb(skb);
-		return -1;
-	}
+	if (unlikely(!pskb_may_pull(skb, VLAN_HLEN)))
+		goto err_free;
 
-	vhdr = (struct vlan_hdr *)(skb->data);
-
-	/* vlan_TCI = ntohs(get_unaligned(&vhdr->h_vlan_TCI)); */
+	vhdr = (struct vlan_hdr *)skb->data;
 	vlan_TCI = ntohs(vhdr->h_vlan_TCI);
-
 	vid = (vlan_TCI & VLAN_VID_MASK);
-
-#ifdef VLAN_DEBUG
-	printk(VLAN_DBG "%s: skb: %p vlan_id: %hx\n",
-		__FUNCTION__, skb, vid);
-#endif
-
-	/* Ok, we will find the correct VLAN device, strip the header,
-	 * and then go on as usual.
-	 */
-
-	/* We have 12 bits of vlan ID.
-	 *
-	 * We must not drop allow preempt until we hold a
-	 * reference to the device (netif_rx does that) or we
-	 * fail.
-	 */
 
 	rcu_read_lock();
 	skb->dev = __find_vlan_dev(dev, vid);
 	if (!skb->dev) {
-		rcu_read_unlock();
-
-#ifdef VLAN_DEBUG
-		printk(VLAN_DBG "%s: ERROR: No net_device for VID: %i on dev: %s [%i]\n",
-			__FUNCTION__, (unsigned int)(vid), dev->name, dev->ifindex);
-#endif
-		kfree_skb(skb);
-		return -1;
+		pr_debug("%s: ERROR: No net_device for VID: %u on dev: %s\n",
+			 __FUNCTION__, (unsigned int)vid, dev->name);
+		goto err_unlock;
 	}
 
 	skb->dev->last_rx = jiffies;
 
-	/* Bump the rx counters for the VLAN device. */
-	stats = vlan_dev_get_stats(skb->dev);
+	stats = &skb->dev->stats;
 	stats->rx_packets++;
 	stats->rx_bytes += skb->len;
 
-	/* Take off the VLAN header (4 bytes currently) */
 	skb_pull_rcsum(skb, VLAN_HLEN);
 
-	/* Ok, lets check to make sure the device (dev) we
-	 * came in on is what this VLAN is attached to.
-	 */
+	skb->priority = vlan_get_ingress_priority(skb->dev,
+						  ntohs(vhdr->h_vlan_TCI));
 
-	if (dev != VLAN_DEV_INFO(skb->dev)->real_dev) {
-		rcu_read_unlock();
+	pr_debug("%s: priority: %u for TCI: %hu\n",
+		 __FUNCTION__, skb->priority, ntohs(vhdr->h_vlan_TCI));
 
-#ifdef VLAN_DEBUG
-		printk(VLAN_DBG "%s: dropping skb: %p because came in on wrong device, dev: %s  real_dev: %s, skb_dev: %s\n",
-			__FUNCTION__, skb, dev->name,
-			VLAN_DEV_INFO(skb->dev)->real_dev->name,
-			skb->dev->name);
-#endif
-		kfree_skb(skb);
-		stats->rx_errors++;
-		return -1;
-	}
-
-	/*
-	 * Deal with ingress priority mapping.
-	 */
-	skb->priority = vlan_get_ingress_priority(skb->dev, ntohs(vhdr->h_vlan_TCI));
-
-#ifdef VLAN_DEBUG
-	printk(VLAN_DBG "%s: priority: %lu  for TCI: %hu (hbo)\n",
-		__FUNCTION__, (unsigned long)(skb->priority),
-		ntohs(vhdr->h_vlan_TCI));
-#endif
-
-	/* The ethernet driver already did the pkt_type calculations
-	 * for us...
-	 */
 	switch (skb->pkt_type) {
 	case PACKET_BROADCAST: /* Yeah, stats collect these together.. */
-		// stats->broadcast ++; // no such counter :-(
+		/* stats->broadcast ++; // no such counter :-( */
 		break;
 
 	case PACKET_MULTICAST:
@@ -224,109 +200,47 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 
 	case PACKET_OTHERHOST:
 		/* Our lower layer thinks this is not local, let's make sure.
-		 * This allows the VLAN to have a different MAC than the underlying
-		 * device, and still route correctly.
+		 * This allows the VLAN to have a different MAC than the
+		 * underlying device, and still route correctly.
 		 */
-		if (!compare_ether_addr(eth_hdr(skb)->h_dest, skb->dev->dev_addr)) {
-			/* It is for our (changed) MAC-address! */
+		if (!compare_ether_addr(eth_hdr(skb)->h_dest,
+					skb->dev->dev_addr))
 			skb->pkt_type = PACKET_HOST;
-		}
 		break;
 	default:
 		break;
 	}
 
-	/*  Was a VLAN packet, grab the encapsulated protocol, which the layer
-	 * three protocols care about.
-	 */
-	/* proto = get_unaligned(&vhdr->h_vlan_encapsulated_proto); */
-	proto = vhdr->h_vlan_encapsulated_proto;
+	vlan_set_encap_proto(skb, vhdr);
 
-	skb->protocol = proto;
-	if (ntohs(proto) >= 1536) {
-		/* place it back on the queue to be handled by
-		 * true layer 3 protocols.
-		 */
-
-		/* See if we are configured to re-write the VLAN header
-		 * to make it look like ethernet...
-		 */
-		skb = vlan_check_reorder_header(skb);
-
-		/* Can be null if skb-clone fails when re-ordering */
-		if (skb) {
-			netif_rx(skb);
-		} else {
-			/* TODO:  Add a more specific counter here. */
-			stats->rx_errors++;
-		}
-		rcu_read_unlock();
-		return 0;
-	}
-
-	rawp = skb->data;
-
-	/*
-	 * This is a magic hack to spot IPX packets. Older Novell breaks
-	 * the protocol design and runs IPX over 802.3 without an 802.2 LLC
-	 * layer. We look for FFFF which isn't a used 802.2 SSAP/DSAP. This
-	 * won't work for fault tolerant netware but does for the rest.
-	 */
-	if (*(unsigned short *)rawp == 0xFFFF) {
-		skb->protocol = htons(ETH_P_802_3);
-		/* place it back on the queue to be handled by true layer 3 protocols.
-		 */
-
-		/* See if we are configured to re-write the VLAN header
-		 * to make it look like ethernet...
-		 */
-		skb = vlan_check_reorder_header(skb);
-
-		/* Can be null if skb-clone fails when re-ordering */
-		if (skb) {
-			netif_rx(skb);
-		} else {
-			/* TODO:  Add a more specific counter here. */
-			stats->rx_errors++;
-		}
-		rcu_read_unlock();
-		return 0;
-	}
-
-	/*
-	 *	Real 802.2 LLC
-	 */
-	skb->protocol = htons(ETH_P_802_2);
-	/* place it back on the queue to be handled by upper layer protocols.
-	 */
-
-	/* See if we are configured to re-write the VLAN header
-	 * to make it look like ethernet...
-	 */
 	skb = vlan_check_reorder_header(skb);
-
-	/* Can be null if skb-clone fails when re-ordering */
-	if (skb) {
-		netif_rx(skb);
-	} else {
-		/* TODO:  Add a more specific counter here. */
+	if (!skb) {
 		stats->rx_errors++;
+		goto err_unlock;
 	}
+
+	netif_rx(skb);
 	rcu_read_unlock();
-	return 0;
+	return NET_RX_SUCCESS;
+
+err_unlock:
+	rcu_read_unlock();
+err_free:
+	kfree_skb(skb);
+	return NET_RX_DROP;
 }
 
-static inline unsigned short vlan_dev_get_egress_qos_mask(struct net_device* dev,
-							  struct sk_buff* skb)
+static inline unsigned short
+vlan_dev_get_egress_qos_mask(struct net_device *dev, struct sk_buff *skb)
 {
-	struct vlan_priority_tci_mapping *mp =
-		VLAN_DEV_INFO(dev)->egress_priority_map[(skb->priority & 0xF)];
+	struct vlan_priority_tci_mapping *mp;
 
+	mp = vlan_dev_info(dev)->egress_priority_map[(skb->priority & 0xF)];
 	while (mp) {
 		if (mp->priority == skb->priority) {
-			return mp->vlan_qos; /* This should already be shifted to mask
-					      * correctly with the VLAN's TCI
-					      */
+			return mp->vlan_qos; /* This should already be shifted
+					      * to mask correctly with the
+					      * VLAN's TCI */
 		}
 		mp = mp->next;
 	}
@@ -342,20 +256,20 @@ static inline unsigned short vlan_dev_get_egress_qos_mask(struct net_device* dev
  *  This is called when the SKB is moving down the stack towards the
  *  physical devices.
  */
-int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
-			 unsigned short type,
-			 const void *daddr, const void *saddr, unsigned len)
+static int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
+				unsigned short type,
+				const void *daddr, const void *saddr,
+				unsigned int len)
 {
 	struct vlan_hdr *vhdr;
 	unsigned short veth_TCI = 0;
 	int rc = 0;
 	int build_vlan_header = 0;
-	struct net_device *vdev = dev; /* save this for the bottom of the method */
+	struct net_device *vdev = dev;
 
-#ifdef VLAN_DEBUG
-	printk(VLAN_DBG "%s: skb: %p type: %hx len: %x vlan_id: %hx, daddr: %p\n",
-		__FUNCTION__, skb, type, len, VLAN_DEV_INFO(dev)->vlan_id, daddr);
-#endif
+	pr_debug("%s: skb: %p type: %hx len: %u vlan_id: %hx, daddr: %p\n",
+		 __FUNCTION__, skb, type, len, vlan_dev_info(dev)->vlan_id,
+		 daddr);
 
 	/* build vlan header only if re_order_header flag is NOT set.  This
 	 * fixes some programs that get confused when they see a VLAN device
@@ -365,7 +279,7 @@ int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 	 * header shuffling in the hard_start_xmit.  Users can turn off this
 	 * REORDER behaviour with the vconfig tool.
 	 */
-	if (!(VLAN_DEV_INFO(dev)->flags & VLAN_FLAG_REORDER_HDR))
+	if (!(vlan_dev_info(dev)->flags & VLAN_FLAG_REORDER_HDR))
 		build_vlan_header = 1;
 
 	if (build_vlan_header) {
@@ -373,29 +287,28 @@ int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 
 		/* build the four bytes that make this a VLAN header. */
 
-		/* Now, construct the second two bytes. This field looks something
-		 * like:
+		/* Now, construct the second two bytes. This field looks
+		 * something like:
 		 * usr_priority: 3 bits	 (high bits)
 		 * CFI		 1 bit
 		 * VLAN ID	 12 bits (low bits)
 		 *
 		 */
-		veth_TCI = VLAN_DEV_INFO(dev)->vlan_id;
+		veth_TCI = vlan_dev_info(dev)->vlan_id;
 		veth_TCI |= vlan_dev_get_egress_qos_mask(dev, skb);
 
 		vhdr->h_vlan_TCI = htons(veth_TCI);
 
 		/*
-		 *  Set the protocol type.
-		 *  For a packet of type ETH_P_802_3 we put the length in here instead.
-		 *  It is up to the 802.2 layer to carry protocol information.
+		 *  Set the protocol type. For a packet of type ETH_P_802_3 we
+		 *  put the length in here instead. It is up to the 802.2
+		 *  layer to carry protocol information.
 		 */
 
-		if (type != ETH_P_802_3) {
+		if (type != ETH_P_802_3)
 			vhdr->h_vlan_encapsulated_proto = htons(type);
-		} else {
+		else
 			vhdr->h_vlan_encapsulated_proto = htons(len);
-		}
 
 		skb->protocol = htons(ETH_P_8021Q);
 		skb_reset_network_header(skb);
@@ -405,16 +318,16 @@ int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 	if (saddr == NULL)
 		saddr = dev->dev_addr;
 
-	dev = VLAN_DEV_INFO(dev)->real_dev;
+	dev = vlan_dev_info(dev)->real_dev;
 
-	/* MPLS can send us skbuffs w/out enough space.	 This check will grow the
-	 * skb if it doesn't have enough headroom.  Not a beautiful solution, so
-	 * I'll tick a counter so that users can know it's happening...	 If they
-	 * care...
+	/* MPLS can send us skbuffs w/out enough space.	This check will grow
+	 * the skb if it doesn't have enough headroom. Not a beautiful solution,
+	 * so I'll tick a counter so that users can know it's happening...
+	 * If they care...
 	 */
 
-	/* NOTE:  This may still break if the underlying device is not the final
-	 * device (and thus there are more headers to add...)  It should work for
+	/* NOTE: This may still break if the underlying device is not the final
+	 * device (and thus there are more headers to add...) It should work for
 	 * good-ole-ethernet though.
 	 */
 	if (skb_headroom(skb) < dev->hard_header_len) {
@@ -422,14 +335,12 @@ int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 		skb = skb_realloc_headroom(sk_tmp, dev->hard_header_len);
 		kfree_skb(sk_tmp);
 		if (skb == NULL) {
-			struct net_device_stats *stats = vlan_dev_get_stats(vdev);
+			struct net_device_stats *stats = &vdev->stats;
 			stats->tx_dropped++;
 			return -ENOMEM;
 		}
-		VLAN_DEV_INFO(vdev)->cnt_inc_headroom_on_tx++;
-#ifdef VLAN_DEBUG
-		printk(VLAN_DBG "%s: %s: had to grow skb.\n", __FUNCTION__, vdev->name);
-#endif
+		vlan_dev_info(vdev)->cnt_inc_headroom_on_tx++;
+		pr_debug("%s: %s: had to grow skb\n", __FUNCTION__, vdev->name);
 	}
 
 	if (build_vlan_header) {
@@ -441,19 +352,19 @@ int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 		else if (rc < 0)
 			rc -= VLAN_HLEN;
 	} else
-		/* If here, then we'll just make a normal looking ethernet frame,
-		 * but, the hard_start_xmit method will insert the tag (it has to
-		 * be able to do this for bridged and other skbs that don't come
-		 * down the protocol stack in an orderly manner.
+		/* If here, then we'll just make a normal looking ethernet
+		 * frame, but, the hard_start_xmit method will insert the tag
+		 * (it has to be able to do this for bridged and other skbs
+		 * that don't come down the protocol stack in an orderly manner.
 		 */
 		rc = dev_hard_header(skb, dev, type, daddr, saddr, len);
 
 	return rc;
 }
 
-int vlan_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static int vlan_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct net_device_stats *stats = vlan_dev_get_stats(dev);
+	struct net_device_stats *stats = &dev->stats;
 	struct vlan_ethhdr *veth = (struct vlan_ethhdr *)(skb->data);
 
 	/* Handle non-VLAN frames if they are sent to us, for example by DHCP.
@@ -463,24 +374,22 @@ int vlan_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 */
 
 	if (veth->h_vlan_proto != htons(ETH_P_8021Q) ||
-		VLAN_DEV_INFO(dev)->flags & VLAN_FLAG_REORDER_HDR) {
+		vlan_dev_info(dev)->flags & VLAN_FLAG_REORDER_HDR) {
 		int orig_headroom = skb_headroom(skb);
 		unsigned short veth_TCI;
 
 		/* This is not a VLAN frame...but we can fix that! */
-		VLAN_DEV_INFO(dev)->cnt_encap_on_xmit++;
+		vlan_dev_info(dev)->cnt_encap_on_xmit++;
 
-#ifdef VLAN_DEBUG
-		printk(VLAN_DBG "%s: proto to encap: 0x%hx (hbo)\n",
-			__FUNCTION__, htons(veth->h_vlan_proto));
-#endif
+		pr_debug("%s: proto to encap: 0x%hx\n",
+			 __FUNCTION__, htons(veth->h_vlan_proto));
 		/* Construct the second two bytes. This field looks something
 		 * like:
 		 * usr_priority: 3 bits	 (high bits)
 		 * CFI		 1 bit
 		 * VLAN ID	 12 bits (low bits)
 		 */
-		veth_TCI = VLAN_DEV_INFO(dev)->vlan_id;
+		veth_TCI = vlan_dev_info(dev)->vlan_id;
 		veth_TCI |= vlan_dev_get_egress_qos_mask(dev, skb);
 
 		skb = __vlan_put_tag(skb, veth_TCI);
@@ -489,32 +398,33 @@ int vlan_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			return 0;
 		}
 
-		if (orig_headroom < VLAN_HLEN) {
-			VLAN_DEV_INFO(dev)->cnt_inc_headroom_on_tx++;
-		}
+		if (orig_headroom < VLAN_HLEN)
+			vlan_dev_info(dev)->cnt_inc_headroom_on_tx++;
 	}
 
-#ifdef VLAN_DEBUG
-	printk(VLAN_DBG "%s: about to send skb: %p to dev: %s\n",
+	pr_debug("%s: about to send skb: %p to dev: %s\n",
 		__FUNCTION__, skb, skb->dev->name);
-	printk(VLAN_DBG "  %2hx.%2hx.%2hx.%2xh.%2hx.%2hx %2hx.%2hx.%2hx.%2hx.%2hx.%2hx %4hx %4hx %4hx\n",
-	       veth->h_dest[0], veth->h_dest[1], veth->h_dest[2], veth->h_dest[3], veth->h_dest[4], veth->h_dest[5],
-	       veth->h_source[0], veth->h_source[1], veth->h_source[2], veth->h_source[3], veth->h_source[4], veth->h_source[5],
-	       veth->h_vlan_proto, veth->h_vlan_TCI, veth->h_vlan_encapsulated_proto);
-#endif
+	pr_debug("  " MAC_FMT " " MAC_FMT " %4hx %4hx %4hx\n",
+		 veth->h_dest[0], veth->h_dest[1], veth->h_dest[2],
+		 veth->h_dest[3], veth->h_dest[4], veth->h_dest[5],
+		 veth->h_source[0], veth->h_source[1], veth->h_source[2],
+		 veth->h_source[3], veth->h_source[4], veth->h_source[5],
+		 veth->h_vlan_proto, veth->h_vlan_TCI,
+		 veth->h_vlan_encapsulated_proto);
 
 	stats->tx_packets++; /* for statics only */
 	stats->tx_bytes += skb->len;
 
-	skb->dev = VLAN_DEV_INFO(dev)->real_dev;
+	skb->dev = vlan_dev_info(dev)->real_dev;
 	dev_queue_xmit(skb);
 
 	return 0;
 }
 
-int vlan_dev_hwaccel_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static int vlan_dev_hwaccel_hard_start_xmit(struct sk_buff *skb,
+					    struct net_device *dev)
 {
-	struct net_device_stats *stats = vlan_dev_get_stats(dev);
+	struct net_device_stats *stats = &dev->stats;
 	unsigned short veth_TCI;
 
 	/* Construct the second two bytes. This field looks something
@@ -523,25 +433,25 @@ int vlan_dev_hwaccel_hard_start_xmit(struct sk_buff *skb, struct net_device *dev
 	 * CFI		 1 bit
 	 * VLAN ID	 12 bits (low bits)
 	 */
-	veth_TCI = VLAN_DEV_INFO(dev)->vlan_id;
+	veth_TCI = vlan_dev_info(dev)->vlan_id;
 	veth_TCI |= vlan_dev_get_egress_qos_mask(dev, skb);
 	skb = __vlan_hwaccel_put_tag(skb, veth_TCI);
 
 	stats->tx_packets++;
 	stats->tx_bytes += skb->len;
 
-	skb->dev = VLAN_DEV_INFO(dev)->real_dev;
+	skb->dev = vlan_dev_info(dev)->real_dev;
 	dev_queue_xmit(skb);
 
 	return 0;
 }
 
-int vlan_dev_change_mtu(struct net_device *dev, int new_mtu)
+static int vlan_dev_change_mtu(struct net_device *dev, int new_mtu)
 {
 	/* TODO: gotta make sure the underlying layer can handle it,
 	 * maybe an IFF_VLAN_CAPABLE flag for devices?
 	 */
-	if (VLAN_DEV_INFO(dev)->real_dev->mtu < new_mtu)
+	if (vlan_dev_info(dev)->real_dev->mtu < new_mtu)
 		return -ERANGE;
 
 	dev->mtu = new_mtu;
@@ -552,7 +462,7 @@ int vlan_dev_change_mtu(struct net_device *dev, int new_mtu)
 void vlan_dev_set_ingress_priority(const struct net_device *dev,
 				   u32 skb_prio, short vlan_prio)
 {
-	struct vlan_dev_info *vlan = VLAN_DEV_INFO(dev);
+	struct vlan_dev_info *vlan = vlan_dev_info(dev);
 
 	if (vlan->ingress_priority_map[vlan_prio & 0x7] && !skb_prio)
 		vlan->nr_ingress_mappings--;
@@ -565,7 +475,7 @@ void vlan_dev_set_ingress_priority(const struct net_device *dev,
 int vlan_dev_set_egress_priority(const struct net_device *dev,
 				 u32 skb_prio, short vlan_prio)
 {
-	struct vlan_dev_info *vlan = VLAN_DEV_INFO(dev);
+	struct vlan_dev_info *vlan = vlan_dev_info(dev);
 	struct vlan_priority_tci_mapping *mp = NULL;
 	struct vlan_priority_tci_mapping *np;
 	u32 vlan_qos = (vlan_prio << 13) & 0xE000;
@@ -605,30 +515,28 @@ int vlan_dev_set_vlan_flag(const struct net_device *dev,
 {
 	/* verify flag is supported */
 	if (flag == VLAN_FLAG_REORDER_HDR) {
-		if (flag_val) {
-			VLAN_DEV_INFO(dev)->flags |= VLAN_FLAG_REORDER_HDR;
-		} else {
-			VLAN_DEV_INFO(dev)->flags &= ~VLAN_FLAG_REORDER_HDR;
-		}
+		if (flag_val)
+			vlan_dev_info(dev)->flags |= VLAN_FLAG_REORDER_HDR;
+		else
+			vlan_dev_info(dev)->flags &= ~VLAN_FLAG_REORDER_HDR;
 		return 0;
 	}
-	printk(KERN_ERR "%s: flag %i is not valid.\n", __FUNCTION__, flag);
 	return -EINVAL;
 }
 
 void vlan_dev_get_realdev_name(const struct net_device *dev, char *result)
 {
-	strncpy(result, VLAN_DEV_INFO(dev)->real_dev->name, 23);
+	strncpy(result, vlan_dev_info(dev)->real_dev->name, 23);
 }
 
 void vlan_dev_get_vid(const struct net_device *dev, unsigned short *result)
 {
-	*result = VLAN_DEV_INFO(dev)->vlan_id;
+	*result = vlan_dev_info(dev)->vlan_id;
 }
 
-int vlan_dev_open(struct net_device *dev)
+static int vlan_dev_open(struct net_device *dev)
 {
-	struct vlan_dev_info *vlan = VLAN_DEV_INFO(dev);
+	struct vlan_dev_info *vlan = vlan_dev_info(dev);
 	struct net_device *real_dev = vlan->real_dev;
 	int err;
 
@@ -650,9 +558,9 @@ int vlan_dev_open(struct net_device *dev)
 	return 0;
 }
 
-int vlan_dev_stop(struct net_device *dev)
+static int vlan_dev_stop(struct net_device *dev)
 {
-	struct net_device *real_dev = VLAN_DEV_INFO(dev)->real_dev;
+	struct net_device *real_dev = vlan_dev_info(dev)->real_dev;
 
 	dev_mc_unsync(real_dev, dev);
 	if (dev->flags & IFF_ALLMULTI)
@@ -666,9 +574,9 @@ int vlan_dev_stop(struct net_device *dev)
 	return 0;
 }
 
-int vlan_set_mac_address(struct net_device *dev, void *p)
+static int vlan_dev_set_mac_address(struct net_device *dev, void *p)
 {
-	struct net_device *real_dev = VLAN_DEV_INFO(dev)->real_dev;
+	struct net_device *real_dev = vlan_dev_info(dev)->real_dev;
 	struct sockaddr *addr = p;
 	int err;
 
@@ -692,16 +600,16 @@ out:
 	return 0;
 }
 
-int vlan_dev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+static int vlan_dev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
-	struct net_device *real_dev = VLAN_DEV_INFO(dev)->real_dev;
+	struct net_device *real_dev = vlan_dev_info(dev)->real_dev;
 	struct ifreq ifrr;
 	int err = -EOPNOTSUPP;
 
 	strncpy(ifrr.ifr_name, real_dev->name, IFNAMSIZ);
 	ifrr.ifr_ifru = ifr->ifr_ifru;
 
-	switch(cmd) {
+	switch (cmd) {
 	case SIOCGMIIPHY:
 	case SIOCGMIIREG:
 	case SIOCSMIIREG:
@@ -716,9 +624,9 @@ int vlan_dev_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return err;
 }
 
-void vlan_change_rx_flags(struct net_device *dev, int change)
+static void vlan_dev_change_rx_flags(struct net_device *dev, int change)
 {
-	struct net_device *real_dev = VLAN_DEV_INFO(dev)->real_dev;
+	struct net_device *real_dev = vlan_dev_info(dev)->real_dev;
 
 	if (change & IFF_ALLMULTI)
 		dev_set_allmulti(real_dev, dev->flags & IFF_ALLMULTI ? 1 : -1);
@@ -726,8 +634,78 @@ void vlan_change_rx_flags(struct net_device *dev, int change)
 		dev_set_promiscuity(real_dev, dev->flags & IFF_PROMISC ? 1 : -1);
 }
 
-/** Taken from Gleb + Lennert's VLAN code, and modified... */
-void vlan_dev_set_multicast_list(struct net_device *vlan_dev)
+static void vlan_dev_set_multicast_list(struct net_device *vlan_dev)
 {
-	dev_mc_sync(VLAN_DEV_INFO(vlan_dev)->real_dev, vlan_dev);
+	dev_mc_sync(vlan_dev_info(vlan_dev)->real_dev, vlan_dev);
+}
+
+/*
+ * vlan network devices have devices nesting below it, and are a special
+ * "super class" of normal network devices; split their locks off into a
+ * separate class since they always nest.
+ */
+static struct lock_class_key vlan_netdev_xmit_lock_key;
+
+static const struct header_ops vlan_header_ops = {
+	.create	 = vlan_dev_hard_header,
+	.rebuild = vlan_dev_rebuild_header,
+	.parse	 = eth_header_parse,
+};
+
+static int vlan_dev_init(struct net_device *dev)
+{
+	struct net_device *real_dev = vlan_dev_info(dev)->real_dev;
+	int subclass = 0;
+
+	/* IFF_BROADCAST|IFF_MULTICAST; ??? */
+	dev->flags  = real_dev->flags & ~IFF_UP;
+	dev->iflink = real_dev->ifindex;
+	dev->state  = (real_dev->state & ((1<<__LINK_STATE_NOCARRIER) |
+					  (1<<__LINK_STATE_DORMANT))) |
+		      (1<<__LINK_STATE_PRESENT);
+
+	/* ipv6 shared card related stuff */
+	dev->dev_id = real_dev->dev_id;
+
+	if (is_zero_ether_addr(dev->dev_addr))
+		memcpy(dev->dev_addr, real_dev->dev_addr, dev->addr_len);
+	if (is_zero_ether_addr(dev->broadcast))
+		memcpy(dev->broadcast, real_dev->broadcast, dev->addr_len);
+
+	if (real_dev->features & NETIF_F_HW_VLAN_TX) {
+		dev->header_ops      = real_dev->header_ops;
+		dev->hard_header_len = real_dev->hard_header_len;
+		dev->hard_start_xmit = vlan_dev_hwaccel_hard_start_xmit;
+	} else {
+		dev->header_ops      = &vlan_header_ops;
+		dev->hard_header_len = real_dev->hard_header_len + VLAN_HLEN;
+		dev->hard_start_xmit = vlan_dev_hard_start_xmit;
+	}
+
+	if (real_dev->priv_flags & IFF_802_1Q_VLAN)
+		subclass = 1;
+
+	lockdep_set_class_and_subclass(&dev->_xmit_lock,
+				&vlan_netdev_xmit_lock_key, subclass);
+	return 0;
+}
+
+void vlan_setup(struct net_device *dev)
+{
+	ether_setup(dev);
+
+	dev->priv_flags		|= IFF_802_1Q_VLAN;
+	dev->tx_queue_len	= 0;
+
+	dev->change_mtu		= vlan_dev_change_mtu;
+	dev->init		= vlan_dev_init;
+	dev->open		= vlan_dev_open;
+	dev->stop		= vlan_dev_stop;
+	dev->set_mac_address	= vlan_dev_set_mac_address;
+	dev->set_multicast_list	= vlan_dev_set_multicast_list;
+	dev->change_rx_flags	= vlan_dev_change_rx_flags;
+	dev->do_ioctl		= vlan_dev_ioctl;
+	dev->destructor		= free_netdev;
+
+	memset(dev->broadcast, 0, ETH_ALEN);
 }

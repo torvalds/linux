@@ -153,18 +153,19 @@ loop:
 #endif
 }
 
-static int dst_discard(struct sk_buff *skb)
+int dst_discard(struct sk_buff *skb)
 {
 	kfree_skb(skb);
 	return 0;
 }
+EXPORT_SYMBOL(dst_discard);
 
 void * dst_alloc(struct dst_ops * ops)
 {
 	struct dst_entry * dst;
 
 	if (ops->gc && atomic_read(&ops->entries) > ops->gc_thresh) {
-		if (ops->gc())
+		if (ops->gc(ops))
 			return NULL;
 	}
 	dst = kmem_cache_zalloc(ops->kmem_cachep, GFP_ATOMIC);
@@ -278,13 +279,13 @@ static inline void dst_ifdown(struct dst_entry *dst, struct net_device *dev,
 	if (!unregister) {
 		dst->input = dst->output = dst_discard;
 	} else {
-		dst->dev = init_net.loopback_dev;
+		dst->dev = dst->dev->nd_net->loopback_dev;
 		dev_hold(dst->dev);
 		dev_put(dev);
 		if (dst->neighbour && dst->neighbour->dev == dev) {
-			dst->neighbour->dev = init_net.loopback_dev;
+			dst->neighbour->dev = dst->dev;
+			dev_hold(dst->dev);
 			dev_put(dev);
-			dev_hold(dst->neighbour->dev);
 		}
 	}
 }

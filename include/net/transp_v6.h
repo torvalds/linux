@@ -17,16 +17,20 @@ extern struct proto tcpv6_prot;
 struct flowi;
 
 /* extention headers */
-extern void				ipv6_rthdr_init(void);
-extern void				ipv6_frag_init(void);
-extern void				ipv6_nodata_init(void);
-extern void				ipv6_destopt_init(void);
+extern int				ipv6_exthdrs_init(void);
+extern void				ipv6_exthdrs_exit(void);
+extern int				ipv6_frag_init(void);
+extern void				ipv6_frag_exit(void);
 
 /* transport protocols */
-extern void				rawv6_init(void);
-extern void				udpv6_init(void);
-extern void 				udplitev6_init(void);
-extern void				tcpv6_init(void);
+extern int				rawv6_init(void);
+extern void				rawv6_exit(void);
+extern int				udpv6_init(void);
+extern void				udpv6_exit(void);
+extern int 				udplitev6_init(void);
+extern void 				udplitev6_exit(void);
+extern int				tcpv6_init(void);
+extern void				tcpv6_exit(void);
 
 extern int				udpv6_connect(struct sock *sk,
 						      struct sockaddr *uaddr,

@@ -29,6 +29,8 @@
 #include <linux/init.h>
 
 #include <net/irda/irda.h>		/* irda_debug */
+#include <net/irda/irlmp.h>
+#include <net/irda/timer.h>
 #include <net/irda/irias_object.h>
 
 extern int  sysctl_discovery;
@@ -44,6 +46,8 @@ extern int  sysctl_max_tx_window;
 extern int  sysctl_max_noreply_time;
 extern int  sysctl_warn_noreply_time;
 extern int  sysctl_lap_keepalive_time;
+
+extern struct irlmp_cb *irlmp;
 
 /* this is needed for the proc_dointvec_minmax - Jean II */
 static int max_discovery_slots = 16;		/* ??? */
@@ -85,6 +89,27 @@ static int do_devname(ctl_table *table, int write, struct file *filp,
 	return ret;
 }
 
+
+static int do_discovery(ctl_table *table, int write, struct file *filp,
+                    void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+       int ret;
+
+       ret = proc_dointvec(table, write, filp, buffer, lenp, ppos);
+       if (ret)
+	       return ret;
+
+       if (irlmp == NULL)
+	       return -ENODEV;
+
+       if (sysctl_discovery)
+	       irlmp_start_discovery_timer(irlmp, sysctl_discovery_timeout*HZ);
+       else
+	       del_timer_sync(&irlmp->discovery_timer);
+
+       return ret;
+}
+
 /* One file */
 static ctl_table irda_table[] = {
 	{
@@ -93,7 +118,8 @@ static ctl_table irda_table[] = {
 		.data		= &sysctl_discovery,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
+		.proc_handler	= &do_discovery,
+		.strategy       = &sysctl_intvec
 	},
 	{
 		.ctl_name	= NET_IRDA_DEVNAME,
@@ -234,28 +260,10 @@ static ctl_table irda_table[] = {
 	{ .ctl_name = 0 }
 };
 
-/* One directory */
-static ctl_table irda_net_table[] = {
-	{
-		.ctl_name	= NET_IRDA,
-		.procname	= "irda",
-		.maxlen		= 0,
-		.mode		= 0555,
-		.child		= irda_table
-	},
-	{ .ctl_name = 0 }
-};
-
-/* The parent directory */
-static ctl_table irda_root_table[] = {
-	{
-		.ctl_name	= CTL_NET,
-		.procname	= "net",
-		.maxlen		= 0,
-		.mode		= 0555,
-		.child		= irda_net_table
-	},
-	{ .ctl_name = 0 }
+static struct ctl_path irda_path[] = {
+	{ .procname = "net", .ctl_name = CTL_NET, },
+	{ .procname = "irda", .ctl_name = NET_IRDA, },
+	{ }
 };
 
 static struct ctl_table_header *irda_table_header;
@@ -268,7 +276,7 @@ static struct ctl_table_header *irda_table_header;
  */
 int __init irda_sysctl_register(void)
 {
-	irda_table_header = register_sysctl_table(irda_root_table);
+	irda_table_header = register_sysctl_paths(irda_path, irda_table);
 	if (!irda_table_header)
 		return -ENOMEM;
 

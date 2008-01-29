@@ -144,9 +144,21 @@ config NETFILTER_DEBUG
 	  You can say Y here if you want to get additional messages useful in
 	  debugging the netfilter code.
 
+config NETFILTER_ADVANCED
+	bool "Advanced netfilter configuration"
+	depends on NETFILTER
+	default y
+	help
+	  If you say Y here you can select between all the netfilter modules.
+	  If you say N the more ununsual ones will not be shown and the
+	  basic ones needed by most people will default to 'M'.
+
+	  If unsure, say Y.
+
 config BRIDGE_NETFILTER
 	bool "Bridged IP/ARP packets filtering"
 	depends on BRIDGE && NETFILTER && INET
+	depends on NETFILTER_ADVANCED
 	default y
 	---help---
 	  Enabling this option will let arptables resp. iptables see bridged
@@ -218,6 +230,7 @@ endmenu
 endmenu
 
 source "net/ax25/Kconfig"
+source "net/can/Kconfig"
 source "net/irda/Kconfig"
 source "net/bluetooth/Kconfig"
 source "net/rxrpc/Kconfig"

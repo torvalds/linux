@@ -13,83 +13,20 @@
 #include <linux/igmp.h>
 #include <linux/inetdevice.h>
 #include <linux/seqlock.h>
+#include <linux/init.h>
 #include <net/snmp.h>
 #include <net/icmp.h>
 #include <net/ip.h>
 #include <net/route.h>
 #include <net/tcp.h>
+#include <net/udp.h>
 #include <net/cipso_ipv4.h>
 #include <net/inet_frag.h>
 
-/* From af_inet.c */
-extern int sysctl_ip_nonlocal_bind;
-
-#ifdef CONFIG_SYSCTL
 static int zero;
 static int tcp_retr1_max = 255;
 static int ip_local_port_range_min[] = { 1, 1 };
 static int ip_local_port_range_max[] = { 65535, 65535 };
-#endif
-
-struct ipv4_config ipv4_config;
-
-#ifdef CONFIG_SYSCTL
-
-static
-int ipv4_sysctl_forward(ctl_table *ctl, int write, struct file * filp,
-			void __user *buffer, size_t *lenp, loff_t *ppos)
-{
-	int val = IPV4_DEVCONF_ALL(FORWARDING);
-	int ret;
-
-	ret = proc_dointvec(ctl, write, filp, buffer, lenp, ppos);
-
-	if (write && IPV4_DEVCONF_ALL(FORWARDING) != val)
-		inet_forward_change();
-
-	return ret;
-}
-
-static int ipv4_sysctl_forward_strategy(ctl_table *table,
-			 int __user *name, int nlen,
-			 void __user *oldval, size_t __user *oldlenp,
-			 void __user *newval, size_t newlen)
-{
-	int *valp = table->data;
-	int new;
-
-	if (!newval || !newlen)
-		return 0;
-
-	if (newlen != sizeof(int))
-		return -EINVAL;
-
-	if (get_user(new, (int __user *)newval))
-		return -EFAULT;
-
-	if (new == *valp)
-		return 0;
-
-	if (oldval && oldlenp) {
-		size_t len;
-
-		if (get_user(len, oldlenp))
-			return -EFAULT;
-
-		if (len) {
-			if (len > table->maxlen)
-				len = table->maxlen;
-			if (copy_to_user(oldval, valp, len))
-				return -EFAULT;
-			if (put_user(len, oldlenp))
-				return -EFAULT;
-		}
-	}
-
-	*valp = new;
-	inet_forward_change();
-	return 1;
-}
 
 extern seqlock_t sysctl_port_range_lock;
 extern int sysctl_local_port_range[2];
@@ -256,7 +193,7 @@ static int strategy_allowed_congestion_control(ctl_table *table, int __user *nam
 
 }
 
-ctl_table ipv4_table[] = {
+static struct ctl_table ipv4_table[] = {
 	{
 		.ctl_name	= NET_IPV4_TCP_TIMESTAMPS,
 		.procname	= "tcp_timestamps",
@@ -288,15 +225,6 @@ ctl_table ipv4_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec
-	},
-	{
-		.ctl_name	= NET_IPV4_FORWARD,
-		.procname	= "ip_forward",
-		.data		= &IPV4_DEVCONF_ALL(FORWARDING),
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &ipv4_sysctl_forward,
-		.strategy	= &ipv4_sysctl_forward_strategy
 	},
 	{
 		.ctl_name	= NET_IPV4_DEFAULT_TTL,
@@ -356,37 +284,12 @@ ctl_table ipv4_table[] = {
 		.proc_handler	= &proc_dointvec
 	},
 	{
-		.ctl_name	= NET_IPV4_IPFRAG_HIGH_THRESH,
-		.procname	= "ipfrag_high_thresh",
-		.data		= &ip4_frags_ctl.high_thresh,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
-	},
-	{
-		.ctl_name	= NET_IPV4_IPFRAG_LOW_THRESH,
-		.procname	= "ipfrag_low_thresh",
-		.data		= &ip4_frags_ctl.low_thresh,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec
-	},
-	{
 		.ctl_name	= NET_IPV4_DYNADDR,
 		.procname	= "ip_dynaddr",
 		.data		= &sysctl_ip_dynaddr,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec
-	},
-	{
-		.ctl_name	= NET_IPV4_IPFRAG_TIME,
-		.procname	= "ipfrag_time",
-		.data		= &ip4_frags_ctl.timeout,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-		.strategy	= &sysctl_jiffies
 	},
 	{
 		.ctl_name	= NET_IPV4_TCP_KEEPALIVE_TIME,
@@ -731,23 +634,6 @@ ctl_table ipv4_table[] = {
 		.proc_handler	= &proc_dointvec
 	},
 	{
-		.ctl_name	= NET_IPV4_IPFRAG_SECRET_INTERVAL,
-		.procname	= "ipfrag_secret_interval",
-		.data		= &ip4_frags_ctl.secret_interval,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-		.strategy	= &sysctl_jiffies
-	},
-	{
-		.procname	= "ipfrag_max_dist",
-		.data		= &sysctl_ipfrag_max_dist,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_minmax,
-		.extra1		= &zero
-	},
-	{
 		.ctl_name	= NET_TCP_NO_METRICS_SAVE,
 		.procname	= "tcp_no_metrics_save",
 		.data		= &sysctl_tcp_nometrics_save,
@@ -885,9 +771,52 @@ ctl_table ipv4_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
 	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "udp_mem",
+		.data		= &sysctl_udp_mem,
+		.maxlen		= sizeof(sysctl_udp_mem),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_minmax,
+		.strategy	= &sysctl_intvec,
+		.extra1		= &zero
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "udp_rmem_min",
+		.data		= &sysctl_udp_rmem_min,
+		.maxlen		= sizeof(sysctl_udp_rmem_min),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_minmax,
+		.strategy	= &sysctl_intvec,
+		.extra1		= &zero
+	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "udp_wmem_min",
+		.data		= &sysctl_udp_wmem_min,
+		.maxlen		= sizeof(sysctl_udp_wmem_min),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_minmax,
+		.strategy	= &sysctl_intvec,
+		.extra1		= &zero
+	},
 	{ .ctl_name = 0 }
 };
 
-#endif /* CONFIG_SYSCTL */
+struct ctl_path net_ipv4_ctl_path[] = {
+	{ .procname = "net", .ctl_name = CTL_NET, },
+	{ .procname = "ipv4", .ctl_name = NET_IPV4, },
+	{ },
+};
+EXPORT_SYMBOL_GPL(net_ipv4_ctl_path);
 
-EXPORT_SYMBOL(ipv4_config);
+static __init int sysctl_ipv4_init(void)
+{
+	struct ctl_table_header *hdr;
+
+	hdr = register_sysctl_paths(net_ipv4_ctl_path, ipv4_table);
+	return hdr == NULL ? -ENOMEM : 0;
+}
+
+__initcall(sysctl_ipv4_init);

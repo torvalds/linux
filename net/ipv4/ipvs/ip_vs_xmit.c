@@ -16,8 +16,8 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/ip.h>
 #include <linux/tcp.h>                  /* for tcphdr */
+#include <net/ip.h>
 #include <net/tcp.h>                    /* for csum_tcpudp_magic */
 #include <net/udp.h>
 #include <net/icmp.h>                   /* for icmp_send */
@@ -59,7 +59,7 @@ __ip_vs_dst_check(struct ip_vs_dest *dest, u32 rtos, u32 cookie)
 	return dst;
 }
 
-static inline struct rtable *
+static struct rtable *
 __ip_vs_get_out_rt(struct ip_vs_conn *cp, u32 rtos)
 {
 	struct rtable *rt;			/* Route to the other host */
@@ -78,7 +78,7 @@ __ip_vs_get_out_rt(struct ip_vs_conn *cp, u32 rtos)
 						.tos = rtos, } },
 			};
 
-			if (ip_route_output_key(&rt, &fl)) {
+			if (ip_route_output_key(&init_net, &rt, &fl)) {
 				spin_unlock(&dest->dst_lock);
 				IP_VS_DBG_RL("ip_route_output error, "
 					     "dest: %u.%u.%u.%u\n",
@@ -101,7 +101,7 @@ __ip_vs_get_out_rt(struct ip_vs_conn *cp, u32 rtos)
 					.tos = rtos, } },
 		};
 
-		if (ip_route_output_key(&rt, &fl)) {
+		if (ip_route_output_key(&init_net, &rt, &fl)) {
 			IP_VS_DBG_RL("ip_route_output error, dest: "
 				     "%u.%u.%u.%u\n", NIPQUAD(cp->daddr));
 			return NULL;
@@ -129,7 +129,7 @@ ip_vs_dst_reset(struct ip_vs_dest *dest)
 do {							\
 	(skb)->ipvs_property = 1;			\
 	skb_forward_csum(skb);				\
-	NF_HOOK(PF_INET, NF_IP_LOCAL_OUT, (skb), NULL,	\
+	NF_HOOK(PF_INET, NF_INET_LOCAL_OUT, (skb), NULL,	\
 		(rt)->u.dst.dev, dst_output);		\
 } while (0)
 
@@ -170,7 +170,7 @@ ip_vs_bypass_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 
 	EnterFunction(10);
 
-	if (ip_route_output_key(&rt, &fl)) {
+	if (ip_route_output_key(&init_net, &rt, &fl)) {
 		IP_VS_DBG_RL("ip_vs_bypass_xmit(): ip_route_output error, "
 			     "dest: %u.%u.%u.%u\n", NIPQUAD(iph->daddr));
 		goto tx_error_icmp;
@@ -406,14 +406,12 @@ ip_vs_tunnel_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	iph->daddr		=	rt->rt_dst;
 	iph->saddr		=	rt->rt_src;
 	iph->ttl		=	old_iph->ttl;
-	iph->tot_len		=	htons(skb->len);
 	ip_select_ident(iph, &rt->u.dst, NULL);
-	ip_send_check(iph);
 
 	/* Another hack: avoid icmp_send in ip_fragment */
 	skb->local_df = 1;
 
-	IP_VS_XMIT(skb, rt);
+	ip_local_out(skb);
 
 	LeaveFunction(10);
 

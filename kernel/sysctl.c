@@ -157,8 +157,16 @@ static int proc_dointvec_taint(struct ctl_table *table, int write, struct file *
 #endif
 
 static struct ctl_table root_table[];
-static struct ctl_table_header root_table_header =
-	{ root_table, LIST_HEAD_INIT(root_table_header.ctl_entry) };
+static struct ctl_table_root sysctl_table_root;
+static struct ctl_table_header root_table_header = {
+	.ctl_table = root_table,
+	.ctl_entry = LIST_HEAD_INIT(sysctl_table_root.header_list),
+	.root = &sysctl_table_root,
+};
+static struct ctl_table_root sysctl_table_root = {
+	.root_list = LIST_HEAD_INIT(sysctl_table_root.root_list),
+	.header_list = LIST_HEAD_INIT(root_table_header.ctl_entry),
+};
 
 static struct ctl_table kern_table[];
 static struct ctl_table vm_table[];
@@ -192,14 +200,6 @@ static struct ctl_table root_table[] = {
 		.mode		= 0555,
 		.child		= vm_table,
 	},
-#ifdef CONFIG_NET
-	{
-		.ctl_name	= CTL_NET,
-		.procname	= "net",
-		.mode		= 0555,
-		.child		= net_table,
-	},
-#endif
 	{
 		.ctl_name	= CTL_FS,
 		.procname	= "fs",
@@ -1371,12 +1371,27 @@ void sysctl_head_finish(struct ctl_table_header *head)
 	spin_unlock(&sysctl_lock);
 }
 
-struct ctl_table_header *sysctl_head_next(struct ctl_table_header *prev)
+static struct list_head *
+lookup_header_list(struct ctl_table_root *root, struct nsproxy *namespaces)
 {
+	struct list_head *header_list;
+	header_list = &root->header_list;
+	if (root->lookup)
+		header_list = root->lookup(root, namespaces);
+	return header_list;
+}
+
+struct ctl_table_header *__sysctl_head_next(struct nsproxy *namespaces,
+					    struct ctl_table_header *prev)
+{
+	struct ctl_table_root *root;
+	struct list_head *header_list;
 	struct ctl_table_header *head;
 	struct list_head *tmp;
+
 	spin_lock(&sysctl_lock);
 	if (prev) {
+		head = prev;
 		tmp = &prev->ctl_entry;
 		unuse_table(prev);
 		goto next;
@@ -1390,12 +1405,36 @@ struct ctl_table_header *sysctl_head_next(struct ctl_table_header *prev)
 		spin_unlock(&sysctl_lock);
 		return head;
 	next:
+		root = head->root;
 		tmp = tmp->next;
-		if (tmp == &root_table_header.ctl_entry)
-			break;
+		header_list = lookup_header_list(root, namespaces);
+		if (tmp != header_list)
+			continue;
+
+		do {
+			root = list_entry(root->root_list.next,
+					struct ctl_table_root, root_list);
+			if (root == &sysctl_table_root)
+				goto out;
+			header_list = lookup_header_list(root, namespaces);
+		} while (list_empty(header_list));
+		tmp = header_list->next;
 	}
+out:
 	spin_unlock(&sysctl_lock);
 	return NULL;
+}
+
+struct ctl_table_header *sysctl_head_next(struct ctl_table_header *prev)
+{
+	return __sysctl_head_next(current->nsproxy, prev);
+}
+
+void register_sysctl_root(struct ctl_table_root *root)
+{
+	spin_lock(&sysctl_lock);
+	list_add_tail(&root->root_list, &sysctl_table_root.root_list);
+	spin_unlock(&sysctl_lock);
 }
 
 #ifdef CONFIG_SYSCTL_SYSCALL
@@ -1554,18 +1593,21 @@ static __init int sysctl_init(void)
 {
 	int err;
 	sysctl_set_parent(NULL, root_table);
-	err = sysctl_check_table(root_table);
+	err = sysctl_check_table(current->nsproxy, root_table);
 	return 0;
 }
 
 core_initcall(sysctl_init);
 
 /**
- * register_sysctl_table - register a sysctl hierarchy
+ * __register_sysctl_paths - register a sysctl hierarchy
+ * @root: List of sysctl headers to register on
+ * @namespaces: Data to compute which lists of sysctl entries are visible
+ * @path: The path to the directory the sysctl table is in.
  * @table: the top-level table structure
  *
  * Register a sysctl table hierarchy. @table should be a filled in ctl_table
- * array. An entry with a ctl_name of 0 terminates the table. 
+ * array. A completely 0 filled entry terminates the table.
  *
  * The members of the &struct ctl_table structure are used as follows:
  *
@@ -1628,25 +1670,99 @@ core_initcall(sysctl_init);
  * This routine returns %NULL on a failure to register, and a pointer
  * to the table header on success.
  */
-struct ctl_table_header *register_sysctl_table(struct ctl_table * table)
+struct ctl_table_header *__register_sysctl_paths(
+	struct ctl_table_root *root,
+	struct nsproxy *namespaces,
+	const struct ctl_path *path, struct ctl_table *table)
 {
-	struct ctl_table_header *tmp;
-	tmp = kmalloc(sizeof(struct ctl_table_header), GFP_KERNEL);
-	if (!tmp)
+	struct list_head *header_list;
+	struct ctl_table_header *header;
+	struct ctl_table *new, **prevp;
+	unsigned int n, npath;
+
+	/* Count the path components */
+	for (npath = 0; path[npath].ctl_name || path[npath].procname; ++npath)
+		;
+
+	/*
+	 * For each path component, allocate a 2-element ctl_table array.
+	 * The first array element will be filled with the sysctl entry
+	 * for this, the second will be the sentinel (ctl_name == 0).
+	 *
+	 * We allocate everything in one go so that we don't have to
+	 * worry about freeing additional memory in unregister_sysctl_table.
+	 */
+	header = kzalloc(sizeof(struct ctl_table_header) +
+			 (2 * npath * sizeof(struct ctl_table)), GFP_KERNEL);
+	if (!header)
 		return NULL;
-	tmp->ctl_table = table;
-	INIT_LIST_HEAD(&tmp->ctl_entry);
-	tmp->used = 0;
-	tmp->unregistering = NULL;
-	sysctl_set_parent(NULL, table);
-	if (sysctl_check_table(tmp->ctl_table)) {
-		kfree(tmp);
+
+	new = (struct ctl_table *) (header + 1);
+
+	/* Now connect the dots */
+	prevp = &header->ctl_table;
+	for (n = 0; n < npath; ++n, ++path) {
+		/* Copy the procname */
+		new->procname = path->procname;
+		new->ctl_name = path->ctl_name;
+		new->mode     = 0555;
+
+		*prevp = new;
+		prevp = &new->child;
+
+		new += 2;
+	}
+	*prevp = table;
+	header->ctl_table_arg = table;
+
+	INIT_LIST_HEAD(&header->ctl_entry);
+	header->used = 0;
+	header->unregistering = NULL;
+	header->root = root;
+	sysctl_set_parent(NULL, header->ctl_table);
+	if (sysctl_check_table(namespaces, header->ctl_table)) {
+		kfree(header);
 		return NULL;
 	}
 	spin_lock(&sysctl_lock);
-	list_add_tail(&tmp->ctl_entry, &root_table_header.ctl_entry);
+	header_list = lookup_header_list(root, namespaces);
+	list_add_tail(&header->ctl_entry, header_list);
 	spin_unlock(&sysctl_lock);
-	return tmp;
+
+	return header;
+}
+
+/**
+ * register_sysctl_table_path - register a sysctl table hierarchy
+ * @path: The path to the directory the sysctl table is in.
+ * @table: the top-level table structure
+ *
+ * Register a sysctl table hierarchy. @table should be a filled in ctl_table
+ * array. A completely 0 filled entry terminates the table.
+ *
+ * See __register_sysctl_paths for more details.
+ */
+struct ctl_table_header *register_sysctl_paths(const struct ctl_path *path,
+						struct ctl_table *table)
+{
+	return __register_sysctl_paths(&sysctl_table_root, current->nsproxy,
+					path, table);
+}
+
+/**
+ * register_sysctl_table - register a sysctl table hierarchy
+ * @table: the top-level table structure
+ *
+ * Register a sysctl table hierarchy. @table should be a filled in ctl_table
+ * array. A completely 0 filled entry terminates the table.
+ *
+ * See register_sysctl_paths for more details.
+ */
+struct ctl_table_header *register_sysctl_table(struct ctl_table *table)
+{
+	static const struct ctl_path null_path[] = { {} };
+
+	return register_sysctl_paths(null_path, table);
 }
 
 /**
@@ -1671,6 +1787,12 @@ void unregister_sysctl_table(struct ctl_table_header * header)
 
 #else /* !CONFIG_SYSCTL */
 struct ctl_table_header *register_sysctl_table(struct ctl_table * table)
+{
+	return NULL;
+}
+
+struct ctl_table_header *register_sysctl_paths(const struct ctl_path *path,
+						    struct ctl_table *table)
 {
 	return NULL;
 }
@@ -2733,6 +2855,7 @@ EXPORT_SYMBOL(proc_dostring);
 EXPORT_SYMBOL(proc_doulongvec_minmax);
 EXPORT_SYMBOL(proc_doulongvec_ms_jiffies_minmax);
 EXPORT_SYMBOL(register_sysctl_table);
+EXPORT_SYMBOL(register_sysctl_paths);
 EXPORT_SYMBOL(sysctl_intvec);
 EXPORT_SYMBOL(sysctl_jiffies);
 EXPORT_SYMBOL(sysctl_ms_jiffies);

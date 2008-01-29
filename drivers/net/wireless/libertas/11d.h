@@ -2,8 +2,8 @@
   * This header file contains data structures and
   * function declarations of 802.11d
   */
-#ifndef _WLAN_11D_
-#define _WLAN_11D_
+#ifndef _LBS_11D_
+#define _LBS_11D_
 
 #include "types.h"
 #include "defs.h"
@@ -52,7 +52,7 @@ struct cmd_ds_802_11d_domain_info {
 } __attribute__ ((packed));
 
 /** domain regulatory information */
-struct wlan_802_11d_domain_reg {
+struct lbs_802_11d_domain_reg {
 	/** country Code*/
 	u8 countrycode[COUNTRY_CODE_LEN];
 	/** No. of subband*/
@@ -78,26 +78,28 @@ struct region_code_mapping {
 	u8 code;
 };
 
-u8 libertas_get_scan_type_11d(u8 chan,
+struct lbs_private;
+
+u8 lbs_get_scan_type_11d(u8 chan,
 			  struct parsed_region_chan_11d *parsed_region_chan);
 
-u32 libertas_chan_2_freq(u8 chan, u8 band);
+u32 lbs_chan_2_freq(u8 chan, u8 band);
 
-void libertas_init_11d(wlan_private * priv);
+void lbs_init_11d(struct lbs_private *priv);
 
-int libertas_set_universaltable(wlan_private * priv, u8 band);
+int lbs_set_universaltable(struct lbs_private *priv, u8 band);
 
-int libertas_cmd_802_11d_domain_info(wlan_private * priv,
+int lbs_cmd_802_11d_domain_info(struct lbs_private *priv,
 				 struct cmd_ds_command *cmd, u16 cmdno,
 				 u16 cmdOption);
 
-int libertas_ret_802_11d_domain_info(wlan_private * priv,
+int lbs_ret_802_11d_domain_info(struct lbs_private *priv,
 				 struct cmd_ds_command *resp);
 
 struct bss_descriptor;
-int libertas_parse_dnld_countryinfo_11d(wlan_private * priv,
+int lbs_parse_dnld_countryinfo_11d(struct lbs_private *priv,
                                         struct bss_descriptor * bss);
 
-int libertas_create_dnld_countryinfo_11d(wlan_private * priv);
+int lbs_create_dnld_countryinfo_11d(struct lbs_private *priv);
 
-#endif				/* _WLAN_11D_ */
+#endif

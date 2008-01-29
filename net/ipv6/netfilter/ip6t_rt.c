@@ -21,7 +21,7 @@
 #include <linux/netfilter_ipv6/ip6t_rt.h>
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("IPv6 RT match");
+MODULE_DESCRIPTION("Xtables: IPv6 Routing Header match");
 MODULE_AUTHOR("Andras Kis-Szabo <kisza@sch.bme.hu>");
 
 /* Returns 1 if the id is matched by the range, 0 otherwise */
@@ -37,14 +37,9 @@ segsleft_match(u_int32_t min, u_int32_t max, u_int32_t id, bool invert)
 }
 
 static bool
-match(const struct sk_buff *skb,
-      const struct net_device *in,
-      const struct net_device *out,
-      const struct xt_match *match,
-      const void *matchinfo,
-      int offset,
-      unsigned int protoff,
-      bool *hotdrop)
+rt_mt6(const struct sk_buff *skb, const struct net_device *in,
+       const struct net_device *out, const struct xt_match *match,
+       const void *matchinfo, int offset, unsigned int protoff, bool *hotdrop)
 {
 	struct ipv6_rt_hdr _route;
 	const struct ipv6_rt_hdr *rh;
@@ -195,11 +190,9 @@ match(const struct sk_buff *skb,
 
 /* Called when user tries to insert an entry of this type. */
 static bool
-checkentry(const char *tablename,
-	   const void *entry,
-	   const struct xt_match *match,
-	   void *matchinfo,
-	   unsigned int hook_mask)
+rt_mt6_check(const char *tablename, const void *entry,
+             const struct xt_match *match, void *matchinfo,
+             unsigned int hook_mask)
 {
 	const struct ip6t_rt *rtinfo = matchinfo;
 
@@ -218,24 +211,24 @@ checkentry(const char *tablename,
 	return true;
 }
 
-static struct xt_match rt_match __read_mostly = {
+static struct xt_match rt_mt6_reg __read_mostly = {
 	.name		= "rt",
 	.family		= AF_INET6,
-	.match		= match,
+	.match		= rt_mt6,
 	.matchsize	= sizeof(struct ip6t_rt),
-	.checkentry	= checkentry,
+	.checkentry	= rt_mt6_check,
 	.me		= THIS_MODULE,
 };
 
-static int __init ip6t_rt_init(void)
+static int __init rt_mt6_init(void)
 {
-	return xt_register_match(&rt_match);
+	return xt_register_match(&rt_mt6_reg);
 }
 
-static void __exit ip6t_rt_fini(void)
+static void __exit rt_mt6_exit(void)
 {
-	xt_unregister_match(&rt_match);
+	xt_unregister_match(&rt_mt6_reg);
 }
 
-module_init(ip6t_rt_init);
-module_exit(ip6t_rt_fini);
+module_init(rt_mt6_init);
+module_exit(rt_mt6_exit);

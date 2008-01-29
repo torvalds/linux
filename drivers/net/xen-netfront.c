@@ -1073,7 +1073,7 @@ static void xennet_release_rx_bufs(struct netfront_info *np)
 		if (!xen_feature(XENFEAT_auto_translated_physmap)) {
 			/* Do all the remapping work and M2P updates. */
 			MULTI_mmu_update(mcl, np->rx_mmu, mmu - np->rx_mmu,
-					 0, DOMID_SELF);
+					 NULL, DOMID_SELF);
 			mcl++;
 			HYPERVISOR_multicall(np->rx_mcl, mcl - np->rx_mcl);
 		}

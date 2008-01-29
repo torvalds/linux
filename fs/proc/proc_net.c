@@ -22,8 +22,46 @@
 #include <linux/mount.h>
 #include <linux/nsproxy.h>
 #include <net/net_namespace.h>
+#include <linux/seq_file.h>
 
 #include "internal.h"
+
+
+int seq_open_net(struct inode *ino, struct file *f,
+		 const struct seq_operations *ops, int size)
+{
+	struct net *net;
+	struct seq_net_private *p;
+
+	BUG_ON(size < sizeof(*p));
+
+	net = get_proc_net(ino);
+	if (net == NULL)
+		return -ENXIO;
+
+	p = __seq_open_private(f, ops, size);
+	if (p == NULL) {
+		put_net(net);
+		return -ENOMEM;
+	}
+	p->net = net;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(seq_open_net);
+
+int seq_release_net(struct inode *ino, struct file *f)
+{
+	struct seq_file *seq;
+	struct seq_net_private *p;
+
+	seq = f->private_data;
+	p = seq->private;
+
+	put_net(p->net);
+	seq_release_private(ino, f);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(seq_release_net);
 
 
 struct proc_dir_entry *proc_net_fops_create(struct net *net,
@@ -58,6 +96,17 @@ static struct proc_dir_entry *proc_net_shadow(struct task_struct *task,
 	return task->nsproxy->net_ns->proc_net;
 }
 
+struct proc_dir_entry *proc_net_mkdir(struct net *net, const char *name,
+		struct proc_dir_entry *parent)
+{
+	struct proc_dir_entry *pde;
+	pde = proc_mkdir_mode(name, S_IRUGO | S_IXUGO, parent);
+	if (pde != NULL)
+		pde->data = net;
+	return pde;
+}
+EXPORT_SYMBOL_GPL(proc_net_mkdir);
+
 static __net_init int proc_net_ns_init(struct net *net)
 {
 	struct proc_dir_entry *root, *netd, *net_statd;
@@ -69,18 +118,16 @@ static __net_init int proc_net_ns_init(struct net *net)
 		goto out;
 
 	err = -EEXIST;
-	netd = proc_mkdir("net", root);
+	netd = proc_net_mkdir(net, "net", root);
 	if (!netd)
 		goto free_root;
 
 	err = -EEXIST;
-	net_statd = proc_mkdir("stat", netd);
+	net_statd = proc_net_mkdir(net, "stat", netd);
 	if (!net_statd)
 		goto free_net;
 
 	root->data = net;
-	netd->data = net;
-	net_statd->data = net;
 
 	net->proc_net_root = root;
 	net->proc_net = netd;

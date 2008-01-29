@@ -803,8 +803,8 @@
 /*
  * DMA descriptor defines.
  */
-#define TXD_DESC_SIZE			( 8 * sizeof(struct data_desc) )
-#define RXD_DESC_SIZE			( 8 * sizeof(struct data_desc) )
+#define TXD_DESC_SIZE			( 8 * sizeof(__le32) )
+#define RXD_DESC_SIZE			( 8 * sizeof(__le32) )
 
 /*
  * TX descriptor format for TX, PRIO, ATIM and Beacon Ring.
@@ -839,11 +839,21 @@
 
 /*
  * Word3 & 4: PLCP information
+ * The PLCP values should be treated as if they were BBP values.
  */
-#define TXD_W3_PLCP_SIGNAL		FIELD32(0x0000ffff)
-#define TXD_W3_PLCP_SERVICE		FIELD32(0xffff0000)
-#define TXD_W4_PLCP_LENGTH_LOW		FIELD32(0x0000ffff)
-#define TXD_W4_PLCP_LENGTH_HIGH		FIELD32(0xffff0000)
+#define TXD_W3_PLCP_SIGNAL		FIELD32(0x000000ff)
+#define TXD_W3_PLCP_SIGNAL_REGNUM	FIELD32(0x00007f00)
+#define TXD_W3_PLCP_SIGNAL_BUSY		FIELD32(0x00008000)
+#define TXD_W3_PLCP_SERVICE		FIELD32(0x00ff0000)
+#define TXD_W3_PLCP_SERVICE_REGNUM	FIELD32(0x7f000000)
+#define TXD_W3_PLCP_SERVICE_BUSY	FIELD32(0x80000000)
+
+#define TXD_W4_PLCP_LENGTH_LOW		FIELD32(0x000000ff)
+#define TXD_W3_PLCP_LENGTH_LOW_REGNUM	FIELD32(0x00007f00)
+#define TXD_W3_PLCP_LENGTH_LOW_BUSY	FIELD32(0x00008000)
+#define TXD_W4_PLCP_LENGTH_HIGH		FIELD32(0x00ff0000)
+#define TXD_W3_PLCP_LENGTH_HIGH_REGNUM	FIELD32(0x7f000000)
+#define TXD_W3_PLCP_LENGTH_HIGH_BUSY	FIELD32(0x80000000)
 
 /*
  * Word5

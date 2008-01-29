@@ -117,9 +117,9 @@ udp_manip_pkt(struct sk_buff *skb,
 		portptr = &hdr->dest;
 	}
 	if (hdr->check || skb->ip_summed == CHECKSUM_PARTIAL) {
-		nf_proto_csum_replace4(&hdr->check, skb, oldip, newip, 1);
-		nf_proto_csum_replace2(&hdr->check, skb, *portptr, newport,
-				       0);
+		inet_proto_csum_replace4(&hdr->check, skb, oldip, newip, 1);
+		inet_proto_csum_replace2(&hdr->check, skb, *portptr, newport,
+					 0);
 		if (!hdr->check)
 			hdr->check = CSUM_MANGLED_0;
 	}
@@ -127,7 +127,7 @@ udp_manip_pkt(struct sk_buff *skb,
 	return 1;
 }
 
-struct nf_nat_protocol nf_nat_protocol_udp = {
+const struct nf_nat_protocol nf_nat_protocol_udp = {
 	.name			= "UDP",
 	.protonum		= IPPROTO_UDP,
 	.me			= THIS_MODULE,

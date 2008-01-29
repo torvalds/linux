@@ -99,15 +99,10 @@ static struct sctp_transport *sctp_transport_init(struct sctp_transport *peer,
 	INIT_LIST_HEAD(&peer->send_ready);
 	INIT_LIST_HEAD(&peer->transports);
 
-	/* Set up the retransmission timer.  */
-	init_timer(&peer->T3_rtx_timer);
-	peer->T3_rtx_timer.function = sctp_generate_t3_rtx_event;
-	peer->T3_rtx_timer.data = (unsigned long)peer;
-
-	/* Set up the heartbeat timer. */
-	init_timer(&peer->hb_timer);
-	peer->hb_timer.function = sctp_generate_heartbeat_event;
-	peer->hb_timer.data = (unsigned long)peer;
+	setup_timer(&peer->T3_rtx_timer, sctp_generate_t3_rtx_event,
+			(unsigned long)peer);
+	setup_timer(&peer->hb_timer, sctp_generate_heartbeat_event,
+			(unsigned long)peer);
 
 	/* Initialize the 64-bit random nonce sent with heartbeat. */
 	get_random_bytes(&peer->hb_nonce, sizeof(peer->hb_nonce));

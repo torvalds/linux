@@ -107,7 +107,7 @@ static const int dn_rt_mtu_expires = 10 * 60 * HZ;
 
 static unsigned long dn_rt_deadline;
 
-static int dn_dst_gc(void);
+static int dn_dst_gc(struct dst_ops *ops);
 static struct dst_entry *dn_dst_check(struct dst_entry *, __u32);
 static struct dst_entry *dn_dst_negative_advice(struct dst_entry *);
 static void dn_dst_link_failure(struct sk_buff *);
@@ -185,7 +185,7 @@ static void dn_dst_check_expire(unsigned long dummy)
 	mod_timer(&dn_route_timer, now + decnet_dst_gc_interval * HZ);
 }
 
-static int dn_dst_gc(void)
+static int dn_dst_gc(struct dst_ops *ops)
 {
 	struct dn_route *rt, **rtp;
 	int i;
@@ -765,17 +765,6 @@ drop:
 }
 
 /*
- * Drop packet. This is used for endnodes and for
- * when we should not be forwarding packets from
- * this dest.
- */
-static int dn_blackhole(struct sk_buff *skb)
-{
-	kfree_skb(skb);
-	return NET_RX_DROP;
-}
-
-/*
  * Used to catch bugs. This should never normally get
  * called.
  */
@@ -995,7 +984,7 @@ source_ok:
 		 * here
 		 */
 		if (!try_hard) {
-			neigh = neigh_lookup_nodev(&dn_neigh_table, &fl.fld_dst);
+			neigh = neigh_lookup_nodev(&dn_neigh_table, &init_net, &fl.fld_dst);
 			if (neigh) {
 				if ((oldflp->oif &&
 				    (neigh->dev->ifindex != oldflp->oif)) ||
@@ -1207,7 +1196,8 @@ int dn_route_output_sock(struct dst_entry **pprt, struct flowi *fl, struct sock 
 
 	err = __dn_route_output_key(pprt, fl, flags & MSG_TRYHARD);
 	if (err == 0 && fl->proto) {
-		err = xfrm_lookup(pprt, fl, sk, !(flags & MSG_DONTWAIT));
+		err = xfrm_lookup(pprt, fl, sk, (flags & MSG_DONTWAIT) ?
+						0 : XFRM_LOOKUP_WAIT);
 	}
 	return err;
 }
@@ -1396,7 +1386,7 @@ make_route:
 		default:
 		case RTN_UNREACHABLE:
 		case RTN_BLACKHOLE:
-			rt->u.dst.input = dn_blackhole;
+			rt->u.dst.input = dst_discard;
 	}
 	rt->rt_flags = flags;
 	if (rt->u.dst.dev)
@@ -1522,6 +1512,7 @@ rtattr_failure:
  */
 static int dn_cache_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh, void *arg)
 {
+	struct net *net = in_skb->sk->sk_net;
 	struct rtattr **rta = arg;
 	struct rtmsg *rtm = NLMSG_DATA(nlh);
 	struct dn_route *rt = NULL;
@@ -1529,6 +1520,9 @@ static int dn_cache_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh, void 
 	int err;
 	struct sk_buff *skb;
 	struct flowi fl;
+
+	if (net != &init_net)
+		return -EINVAL;
 
 	memset(&fl, 0, sizeof(fl));
 	fl.proto = DNPROTO_NSP;
@@ -1557,7 +1551,7 @@ static int dn_cache_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh, void 
 			kfree_skb(skb);
 			return -ENODEV;
 		}
-		skb->protocol = __constant_htons(ETH_P_DNA_RT);
+		skb->protocol = htons(ETH_P_DNA_RT);
 		skb->dev = dev;
 		cb->src = fl.fld_src;
 		cb->dst = fl.fld_dst;
@@ -1594,7 +1588,7 @@ static int dn_cache_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh, void 
 		goto out_free;
 	}
 
-	return rtnl_unicast(skb, NETLINK_CB(in_skb).pid);
+	return rtnl_unicast(skb, &init_net, NETLINK_CB(in_skb).pid);
 
 out_free:
 	kfree_skb(skb);
@@ -1607,9 +1601,13 @@ out_free:
  */
 int dn_cache_dump(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	struct net *net = skb->sk->sk_net;
 	struct dn_route *rt;
 	int h, s_h;
 	int idx, s_idx;
+
+	if (net != &init_net)
+		return 0;
 
 	if (NLMSG_PAYLOAD(cb->nlh, 0) < sizeof(struct rtmsg))
 		return -EINVAL;
@@ -1752,8 +1750,7 @@ void __init dn_route_init(void)
 	dn_dst_ops.kmem_cachep =
 		kmem_cache_create("dn_dst_cache", sizeof(struct dn_route), 0,
 				  SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
-	init_timer(&dn_route_timer);
-	dn_route_timer.function = dn_dst_check_expire;
+	setup_timer(&dn_route_timer, dn_dst_check_expire, 0);
 	dn_route_timer.expires = jiffies + decnet_dst_gc_interval * HZ;
 	add_timer(&dn_route_timer);
 

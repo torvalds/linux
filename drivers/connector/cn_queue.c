@@ -104,7 +104,6 @@ int cn_queue_add_callback(struct cn_queue_dev *dev, char *name, struct cb_id *id
 		return -EINVAL;
 	}
 
-	cbq->nls = dev->nls;
 	cbq->seq = 0;
 	cbq->group = cbq->id.id.idx;
 
@@ -146,7 +145,6 @@ struct cn_queue_dev *cn_queue_alloc_dev(char *name, struct sock *nls)
 	spin_lock_init(&dev->queue_lock);
 
 	dev->nls = nls;
-	dev->netlink_groups = 0;
 
 	dev->cn_queue = create_workqueue(dev->name);
 	if (!dev->cn_queue) {

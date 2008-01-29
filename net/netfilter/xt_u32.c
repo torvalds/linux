@@ -88,11 +88,10 @@ static bool u32_match_it(const struct xt_u32 *data,
 	return true;
 }
 
-static bool u32_match(const struct sk_buff *skb,
-		      const struct net_device *in,
-		      const struct net_device *out,
-		      const struct xt_match *match, const void *matchinfo,
-		      int offset, unsigned int protoff, bool *hotdrop)
+static bool
+u32_mt(const struct sk_buff *skb, const struct net_device *in,
+       const struct net_device *out, const struct xt_match *match,
+       const void *matchinfo, int offset, unsigned int protoff, bool *hotdrop)
 {
 	const struct xt_u32 *data = matchinfo;
 	bool ret;
@@ -101,37 +100,37 @@ static bool u32_match(const struct sk_buff *skb,
 	return ret ^ data->invert;
 }
 
-static struct xt_match u32_reg[] __read_mostly = {
+static struct xt_match u32_mt_reg[] __read_mostly = {
 	{
 		.name       = "u32",
 		.family     = AF_INET,
-		.match      = u32_match,
+		.match      = u32_mt,
 		.matchsize  = sizeof(struct xt_u32),
 		.me         = THIS_MODULE,
 	},
 	{
 		.name       = "u32",
 		.family     = AF_INET6,
-		.match      = u32_match,
+		.match      = u32_mt,
 		.matchsize  = sizeof(struct xt_u32),
 		.me         = THIS_MODULE,
 	},
 };
 
-static int __init xt_u32_init(void)
+static int __init u32_mt_init(void)
 {
-	return xt_register_matches(u32_reg, ARRAY_SIZE(u32_reg));
+	return xt_register_matches(u32_mt_reg, ARRAY_SIZE(u32_mt_reg));
 }
 
-static void __exit xt_u32_exit(void)
+static void __exit u32_mt_exit(void)
 {
-	xt_unregister_matches(u32_reg, ARRAY_SIZE(u32_reg));
+	xt_unregister_matches(u32_mt_reg, ARRAY_SIZE(u32_mt_reg));
 }
 
-module_init(xt_u32_init);
-module_exit(xt_u32_exit);
+module_init(u32_mt_init);
+module_exit(u32_mt_exit);
 MODULE_AUTHOR("Jan Engelhardt <jengelh@computergmbh.de>");
-MODULE_DESCRIPTION("netfilter u32 match module");
+MODULE_DESCRIPTION("Xtables: arbitrary byte matching");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_u32");
 MODULE_ALIAS("ip6t_u32");

@@ -268,8 +268,8 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 				struct inet_connection_sock *icsk = inet_csk(sk);
 
 				local_bh_disable();
-				sock_prot_dec_use(sk->sk_prot);
-				sock_prot_inc_use(&tcp_prot);
+				sock_prot_inuse_add(sk->sk_prot, -1);
+				sock_prot_inuse_add(&tcp_prot, 1);
 				local_bh_enable();
 				sk->sk_prot = &tcp_prot;
 				icsk->icsk_af_ops = &ipv4_specific;
@@ -282,8 +282,8 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 				if (sk->sk_protocol == IPPROTO_UDPLITE)
 					prot = &udplite_prot;
 				local_bh_disable();
-				sock_prot_dec_use(sk->sk_prot);
-				sock_prot_inc_use(prot);
+				sock_prot_inuse_add(sk->sk_prot, -1);
+				sock_prot_inuse_add(prot, 1);
 				local_bh_enable();
 				sk->sk_prot = prot;
 				sk->sk_socket->ops = &inet_dgram_ops;
@@ -1128,9 +1128,10 @@ int compat_ipv6_getsockopt(struct sock *sk, int level, int optname,
 EXPORT_SYMBOL(compat_ipv6_getsockopt);
 #endif
 
-void __init ipv6_packet_init(void)
+int __init ipv6_packet_init(void)
 {
 	dev_add_pack(&ipv6_packet_type);
+	return 0;
 }
 
 void ipv6_packet_cleanup(void)

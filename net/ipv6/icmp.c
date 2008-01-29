@@ -63,6 +63,7 @@
 #include <net/ip6_route.h>
 #include <net/addrconf.h>
 #include <net/icmp.h>
+#include <net/xfrm.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -86,7 +87,7 @@ static int icmpv6_rcv(struct sk_buff *skb);
 
 static struct inet6_protocol icmpv6_protocol = {
 	.handler	=	icmpv6_rcv,
-	.flags		=	INET6_PROTO_FINAL,
+	.flags		=	INET6_PROTO_NOPOLICY|INET6_PROTO_FINAL,
 };
 
 static __inline__ int icmpv6_xmit_lock(void)
@@ -153,8 +154,6 @@ static int is_ineligible(struct sk_buff *skb)
 	return 0;
 }
 
-static int sysctl_icmpv6_time __read_mostly = 1*HZ;
-
 /*
  * Check the ICMP output rate limit
  */
@@ -185,7 +184,7 @@ static inline int icmpv6_xrlim_allow(struct sock *sk, int type,
 		res = 1;
 	} else {
 		struct rt6_info *rt = (struct rt6_info *)dst;
-		int tmo = sysctl_icmpv6_time;
+		int tmo = init_net.ipv6.sysctl.icmpv6_time;
 
 		/* Give more bandwidth to wider prefixes. */
 		if (rt->rt6i_dst.plen < 128)
@@ -310,8 +309,10 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 	struct ipv6_pinfo *np;
 	struct in6_addr *saddr = NULL;
 	struct dst_entry *dst;
+	struct dst_entry *dst2;
 	struct icmp6hdr tmp_hdr;
 	struct flowi fl;
+	struct flowi fl2;
 	struct icmpv6_msg msg;
 	int iif = 0;
 	int addr_type = 0;
@@ -331,7 +332,7 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 	 */
 	addr_type = ipv6_addr_type(&hdr->daddr);
 
-	if (ipv6_chk_addr(&hdr->daddr, skb->dev, 0))
+	if (ipv6_chk_addr(&init_net, &hdr->daddr, skb->dev, 0))
 		saddr = &hdr->daddr;
 
 	/*
@@ -418,9 +419,42 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 		goto out_dst_release;
 	}
 
-	if ((err = xfrm_lookup(&dst, &fl, sk, 0)) < 0)
+	/* No need to clone since we're just using its address. */
+	dst2 = dst;
+
+	err = xfrm_lookup(&dst, &fl, sk, 0);
+	switch (err) {
+	case 0:
+		if (dst != dst2)
+			goto route_done;
+		break;
+	case -EPERM:
+		dst = NULL;
+		break;
+	default:
+		goto out;
+	}
+
+	if (xfrm_decode_session_reverse(skb, &fl2, AF_INET6))
 		goto out;
 
+	if (ip6_dst_lookup(sk, &dst2, &fl))
+		goto out;
+
+	err = xfrm_lookup(&dst2, &fl, sk, XFRM_LOOKUP_ICMP);
+	if (err == -ENOENT) {
+		if (!dst)
+			goto out;
+		goto route_done;
+	}
+
+	dst_release(dst);
+	dst = dst2;
+
+	if (err)
+		goto out;
+
+route_done:
 	if (ipv6_addr_is_multicast(&fl.fl6_dst))
 		hlimit = np->mcast_hops;
 	else
@@ -555,9 +589,7 @@ out:
 
 static void icmpv6_notify(struct sk_buff *skb, int type, int code, __be32 info)
 {
-	struct in6_addr *saddr, *daddr;
 	struct inet6_protocol *ipprot;
-	struct sock *sk;
 	int inner_offset;
 	int hash;
 	u8 nexthdr;
@@ -579,9 +611,6 @@ static void icmpv6_notify(struct sk_buff *skb, int type, int code, __be32 info)
 	if (!pskb_may_pull(skb, inner_offset+8))
 		return;
 
-	saddr = &ipv6_hdr(skb)->saddr;
-	daddr = &ipv6_hdr(skb)->daddr;
-
 	/* BUGGG_FUTURE: we should try to parse exthdrs in this packet.
 	   Without this we will not able f.e. to make source routed
 	   pmtu discovery.
@@ -597,15 +626,7 @@ static void icmpv6_notify(struct sk_buff *skb, int type, int code, __be32 info)
 		ipprot->err_handler(skb, NULL, type, code, inner_offset, info);
 	rcu_read_unlock();
 
-	read_lock(&raw_v6_lock);
-	if ((sk = sk_head(&raw_v6_htable[hash])) != NULL) {
-		while ((sk = __raw_v6_lookup(sk, nexthdr, saddr, daddr,
-					    IP6CB(skb)->iif))) {
-			rawv6_err(sk, skb, NULL, type, code, inner_offset, info);
-			sk = sk_next(sk);
-		}
-	}
-	read_unlock(&raw_v6_lock);
+	raw6_icmp_error(skb, nexthdr, type, code, inner_offset, info);
 }
 
 /*
@@ -620,6 +641,25 @@ static int icmpv6_rcv(struct sk_buff *skb)
 	struct ipv6hdr *orig_hdr;
 	struct icmp6hdr *hdr;
 	int type;
+
+	if (!xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb)) {
+		int nh;
+
+		if (!(skb->sp && skb->sp->xvec[skb->sp->len - 1]->props.flags &
+				 XFRM_STATE_ICMP))
+			goto drop_no_count;
+
+		if (!pskb_may_pull(skb, sizeof(*hdr) + sizeof(*orig_hdr)))
+			goto drop_no_count;
+
+		nh = skb_network_offset(skb);
+		skb_set_network_header(skb, sizeof(*hdr));
+
+		if (!xfrm6_policy_check_reverse(NULL, XFRM_POLICY_IN, skb))
+			goto drop_no_count;
+
+		skb_set_network_header(skb, nh);
+	}
 
 	ICMP6_INC_STATS_BH(idev, ICMP6_MIB_INMSGS);
 
@@ -643,8 +683,7 @@ static int icmpv6_rcv(struct sk_buff *skb)
 		}
 	}
 
-	if (!pskb_pull(skb, sizeof(struct icmp6hdr)))
-		goto discard_it;
+	__skb_pull(skb, sizeof(*hdr));
 
 	hdr = icmp6_hdr(skb);
 
@@ -730,6 +769,7 @@ static int icmpv6_rcv(struct sk_buff *skb)
 
 discard_it:
 	ICMP6_INC_STATS_BH(idev, ICMP6_MIB_INERRORS);
+drop_no_count:
 	kfree_skb(skb);
 	return 0;
 }
@@ -865,16 +905,26 @@ int icmpv6_err_convert(int type, int code, int *err)
 EXPORT_SYMBOL(icmpv6_err_convert);
 
 #ifdef CONFIG_SYSCTL
-ctl_table ipv6_icmp_table[] = {
+ctl_table ipv6_icmp_table_template[] = {
 	{
 		.ctl_name	= NET_IPV6_ICMP_RATELIMIT,
 		.procname	= "ratelimit",
-		.data		= &sysctl_icmpv6_time,
+		.data		= &init_net.ipv6.sysctl.icmpv6_time,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec
 	},
 	{ .ctl_name = 0 },
 };
+
+struct ctl_table *ipv6_icmp_sysctl_init(struct net *net)
+{
+	struct ctl_table *table;
+
+	table = kmemdup(ipv6_icmp_table_template,
+			sizeof(ipv6_icmp_table_template),
+			GFP_KERNEL);
+	return table;
+}
 #endif
 

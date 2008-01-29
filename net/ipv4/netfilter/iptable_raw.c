@@ -7,7 +7,7 @@
 #include <linux/netfilter_ipv4/ip_tables.h>
 #include <net/ip.h>
 
-#define RAW_VALID_HOOKS ((1 << NF_IP_PRE_ROUTING) | (1 << NF_IP_LOCAL_OUT))
+#define RAW_VALID_HOOKS ((1 << NF_INET_PRE_ROUTING) | (1 << NF_INET_LOCAL_OUT))
 
 static struct
 {
@@ -21,12 +21,12 @@ static struct
 		.num_entries = 3,
 		.size = sizeof(struct ipt_standard) * 2 + sizeof(struct ipt_error),
 		.hook_entry = {
-			[NF_IP_PRE_ROUTING] = 0,
-			[NF_IP_LOCAL_OUT] = sizeof(struct ipt_standard)
+			[NF_INET_PRE_ROUTING] = 0,
+			[NF_INET_LOCAL_OUT] = sizeof(struct ipt_standard)
 		},
 		.underflow = {
-			[NF_IP_PRE_ROUTING] = 0,
-			[NF_IP_LOCAL_OUT]  = sizeof(struct ipt_standard)
+			[NF_INET_PRE_ROUTING] = 0,
+			[NF_INET_LOCAL_OUT]  = sizeof(struct ipt_standard)
 		},
 	},
 	.entries = {
@@ -74,18 +74,18 @@ ipt_local_hook(unsigned int hook,
 }
 
 /* 'raw' is the very first table. */
-static struct nf_hook_ops ipt_ops[] = {
+static struct nf_hook_ops ipt_ops[] __read_mostly = {
 	{
 		.hook = ipt_hook,
 		.pf = PF_INET,
-		.hooknum = NF_IP_PRE_ROUTING,
+		.hooknum = NF_INET_PRE_ROUTING,
 		.priority = NF_IP_PRI_RAW,
 		.owner = THIS_MODULE,
 	},
 	{
 		.hook = ipt_local_hook,
 		.pf = PF_INET,
-		.hooknum = NF_IP_LOCAL_OUT,
+		.hooknum = NF_INET_LOCAL_OUT,
 		.priority = NF_IP_PRI_RAW,
 		.owner = THIS_MODULE,
 	},

@@ -6,6 +6,7 @@
 #include <linux/netfilter.h>
 #include <linux/seq_file.h>
 #include <net/protocol.h>
+#include <net/netfilter/nf_log.h>
 
 #include "nf_internals.h"
 
@@ -14,12 +15,12 @@
 
 #define NF_LOG_PREFIXLEN		128
 
-static struct nf_logger *nf_loggers[NPROTO];
+static const struct nf_logger *nf_loggers[NPROTO] __read_mostly;
 static DEFINE_MUTEX(nf_log_mutex);
 
 /* return EBUSY if somebody else is registered, EEXIST if the same logger
  * is registred, 0 on success. */
-int nf_log_register(int pf, struct nf_logger *logger)
+int nf_log_register(int pf, const struct nf_logger *logger)
 {
 	int ret;
 
@@ -57,7 +58,7 @@ void nf_log_unregister_pf(int pf)
 }
 EXPORT_SYMBOL(nf_log_unregister_pf);
 
-void nf_log_unregister(struct nf_logger *logger)
+void nf_log_unregister(const struct nf_logger *logger)
 {
 	int i;
 
@@ -77,12 +78,12 @@ void nf_log_packet(int pf,
 		   const struct sk_buff *skb,
 		   const struct net_device *in,
 		   const struct net_device *out,
-		   struct nf_loginfo *loginfo,
+		   const struct nf_loginfo *loginfo,
 		   const char *fmt, ...)
 {
 	va_list args;
 	char prefix[NF_LOG_PREFIXLEN];
-	struct nf_logger *logger;
+	const struct nf_logger *logger;
 
 	rcu_read_lock();
 	logger = rcu_dereference(nf_loggers[pf]);
@@ -90,7 +91,6 @@ void nf_log_packet(int pf,
 		va_start(args, fmt);
 		vsnprintf(prefix, sizeof(prefix), fmt, args);
 		va_end(args);
-		/* We must read logging before nf_logfn[pf] */
 		logger->logfn(pf, hooknum, skb, in, out, loginfo, prefix);
 	} else if (net_ratelimit()) {
 		printk(KERN_WARNING "nf_log_packet: can\'t log since "

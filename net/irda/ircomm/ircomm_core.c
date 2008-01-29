@@ -363,6 +363,18 @@ void ircomm_process_data(struct ircomm_cb *self, struct sk_buff *skb)
 	clen = skb->data[0];
 
 	/*
+	 * Input validation check: a stir4200/mcp2150 combinations sometimes
+	 * results in frames with clen > remaining packet size. These are
+	 * illegal; if we throw away just this frame then it seems to carry on
+	 * fine
+	 */
+	if (unlikely(skb->len < (clen + 1))) {
+		IRDA_DEBUG(2, "%s() throwing away illegal frame\n",
+			   __FUNCTION__ );
+		return;
+	}
+
+	/*
 	 * If there are any data hiding in the control channel, we must
 	 * deliver it first. The side effect is that the control channel
 	 * will be removed from the skb

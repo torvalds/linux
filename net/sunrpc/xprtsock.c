@@ -838,8 +838,12 @@ static void xs_udp_data_ready(struct sock *sk, int len)
 		copied = repsize;
 
 	/* Suck it into the iovec, verify checksum if not done by hw. */
-	if (csum_partial_copy_to_xdr(&rovr->rq_private_buf, skb))
+	if (csum_partial_copy_to_xdr(&rovr->rq_private_buf, skb)) {
+		UDPX_INC_STATS_BH(sk, UDP_MIB_INERRORS);
 		goto out_unlock;
+	}
+
+	UDPX_INC_STATS_BH(sk, UDP_MIB_INDATAGRAMS);
 
 	/* Something worked... */
 	dst_confirm(skb->dst);

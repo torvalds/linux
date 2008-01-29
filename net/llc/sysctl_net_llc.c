@@ -92,31 +92,17 @@ static struct ctl_table llc_table[] = {
 	{ 0 },
 };
 
-static struct ctl_table llc_dir_table[] = {
-	{
-		.ctl_name	= NET_LLC,
-		.procname	= "llc",
-		.mode		= 0555,
-		.child		= llc_table,
-	},
-	{ 0 },
-};
-
-static struct ctl_table llc_root_table[] = {
-	{
-		.ctl_name	= CTL_NET,
-		.procname	= "net",
-		.mode		= 0555,
-		.child		= llc_dir_table,
-	},
-	{ 0 },
+static struct ctl_path llc_path[] = {
+	{ .procname = "net", .ctl_name = CTL_NET, },
+	{ .procname = "llc", .ctl_name = NET_LLC, },
+	{ }
 };
 
 static struct ctl_table_header *llc_table_header;
 
 int __init llc_sysctl_init(void)
 {
-	llc_table_header = register_sysctl_table(llc_root_table);
+	llc_table_header = register_sysctl_paths(llc_path, llc_table);
 
 	return llc_table_header ? 0 : -ENOMEM;
 }

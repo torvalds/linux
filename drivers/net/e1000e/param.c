@@ -262,13 +262,6 @@ void __devinit e1000e_check_options(struct e1000_adapter *adapter)
 					 .max = MAX_RXDELAY } }
 		};
 
-		/* modify min and default if 82573 for slow ping w/a,
-		 * a value greater than 8 needs to be set for RDTR */
-		if (adapter->flags & FLAG_HAS_ASPM) {
-			opt.def = 32;
-			opt.arg.r.min = 8;
-		}
-
 		if (num_RxIntDelay > bd) {
 			adapter->rx_int_delay = RxIntDelay[bd];
 			e1000_validate_option(&adapter->rx_int_delay, &opt,

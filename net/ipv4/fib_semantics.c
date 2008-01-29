@@ -47,8 +47,6 @@
 
 #include "fib_lookup.h"
 
-#define FSprintk(a...)
-
 static DEFINE_SPINLOCK(fib_info_lock);
 static struct hlist_head *fib_info_hash;
 static struct hlist_head *fib_info_laddrhash;
@@ -145,7 +143,7 @@ static const struct
 void free_fib_info(struct fib_info *fi)
 {
 	if (fi->fib_dead == 0) {
-		printk("Freeing alive fib_info %p\n", fi);
+		printk(KERN_WARNING "Freeing alive fib_info %p\n", fi);
 		return;
 	}
 	change_nexthops(fi) {
@@ -196,6 +194,15 @@ static __inline__ int nh_comp(const struct fib_info *fi, const struct fib_info *
 	return 0;
 }
 
+static inline unsigned int fib_devindex_hashfn(unsigned int val)
+{
+	unsigned int mask = DEVINDEX_HASHSIZE - 1;
+
+	return (val ^
+		(val >> DEVINDEX_HASHBITS) ^
+		(val >> (DEVINDEX_HASHBITS * 2))) & mask;
+}
+
 static inline unsigned int fib_info_hashfn(const struct fib_info *fi)
 {
 	unsigned int mask = (fib_hash_size - 1);
@@ -204,6 +211,9 @@ static inline unsigned int fib_info_hashfn(const struct fib_info *fi)
 	val ^= fi->fib_protocol;
 	val ^= (__force u32)fi->fib_prefsrc;
 	val ^= fi->fib_priority;
+	for_nexthops(fi) {
+		val ^= fib_devindex_hashfn(nh->nh_oif);
+	} endfor_nexthops(fi)
 
 	return (val ^ (val >> 7) ^ (val >> 12)) & mask;
 }
@@ -232,15 +242,6 @@ static struct fib_info *fib_find_info(const struct fib_info *nfi)
 	}
 
 	return NULL;
-}
-
-static inline unsigned int fib_devindex_hashfn(unsigned int val)
-{
-	unsigned int mask = DEVINDEX_HASHSIZE - 1;
-
-	return (val ^
-		(val >> DEVINDEX_HASHBITS) ^
-		(val >> (DEVINDEX_HASHBITS * 2))) & mask;
 }
 
 /* Check, that the gateway is already configured.
@@ -320,11 +321,11 @@ void rtmsg_fib(int event, __be32 key, struct fib_alias *fa,
 		kfree_skb(skb);
 		goto errout;
 	}
-	err = rtnl_notify(skb, info->pid, RTNLGRP_IPV4_ROUTE,
+	err = rtnl_notify(skb, info->nl_net, info->pid, RTNLGRP_IPV4_ROUTE,
 			  info->nlh, GFP_KERNEL);
 errout:
 	if (err < 0)
-		rtnl_set_sk_err(RTNLGRP_IPV4_ROUTE, err);
+		rtnl_set_sk_err(info->nl_net, RTNLGRP_IPV4_ROUTE, err);
 }
 
 /* Return the first fib alias matching TOS with
@@ -346,7 +347,7 @@ struct fib_alias *fib_find_alias(struct list_head *fah, u8 tos, u32 prio)
 }
 
 int fib_detect_death(struct fib_info *fi, int order,
-		     struct fib_info **last_resort, int *last_idx, int *dflt)
+		     struct fib_info **last_resort, int *last_idx, int dflt)
 {
 	struct neighbour *n;
 	int state = NUD_NONE;
@@ -358,10 +359,10 @@ int fib_detect_death(struct fib_info *fi, int order,
 	}
 	if (state==NUD_REACHABLE)
 		return 0;
-	if ((state&NUD_VALID) && order != *dflt)
+	if ((state&NUD_VALID) && order != dflt)
 		return 0;
 	if ((state&NUD_VALID) ||
-	    (*last_idx<0 && order > *dflt)) {
+	    (*last_idx<0 && order > dflt)) {
 		*last_resort = fi;
 		*last_idx = order;
 	}
@@ -518,7 +519,9 @@ static int fib_check_nh(struct fib_config *cfg, struct fib_info *fi,
 			struct fib_nh *nh)
 {
 	int err;
+	struct net *net;
 
+	net = cfg->fc_nlinfo.nl_net;
 	if (nh->nh_gw) {
 		struct fib_result res;
 
@@ -531,9 +534,9 @@ static int fib_check_nh(struct fib_config *cfg, struct fib_info *fi,
 
 			if (cfg->fc_scope >= RT_SCOPE_LINK)
 				return -EINVAL;
-			if (inet_addr_type(nh->nh_gw) != RTN_UNICAST)
+			if (inet_addr_type(net, nh->nh_gw) != RTN_UNICAST)
 				return -EINVAL;
-			if ((dev = __dev_get_by_index(&init_net, nh->nh_oif)) == NULL)
+			if ((dev = __dev_get_by_index(net, nh->nh_oif)) == NULL)
 				return -ENODEV;
 			if (!(dev->flags&IFF_UP))
 				return -ENETDOWN;
@@ -556,7 +559,7 @@ static int fib_check_nh(struct fib_config *cfg, struct fib_info *fi,
 			/* It is not necessary, but requires a bit of thinking */
 			if (fl.fl4_scope < RT_SCOPE_LINK)
 				fl.fl4_scope = RT_SCOPE_LINK;
-			if ((err = fib_lookup(&fl, &res)) != 0)
+			if ((err = fib_lookup(net, &fl, &res)) != 0)
 				return err;
 		}
 		err = -EINVAL;
@@ -580,7 +583,7 @@ out:
 		if (nh->nh_flags&(RTNH_F_PERVASIVE|RTNH_F_ONLINK))
 			return -EINVAL;
 
-		in_dev = inetdev_by_index(nh->nh_oif);
+		in_dev = inetdev_by_index(net, nh->nh_oif);
 		if (in_dev == NULL)
 			return -ENODEV;
 		if (!(in_dev->dev->flags&IFF_UP)) {
@@ -605,10 +608,10 @@ static inline unsigned int fib_laddr_hashfn(__be32 val)
 static struct hlist_head *fib_hash_alloc(int bytes)
 {
 	if (bytes <= PAGE_SIZE)
-		return kmalloc(bytes, GFP_KERNEL);
+		return kzalloc(bytes, GFP_KERNEL);
 	else
 		return (struct hlist_head *)
-			__get_free_pages(GFP_KERNEL, get_order(bytes));
+			__get_free_pages(GFP_KERNEL | __GFP_ZERO, get_order(bytes));
 }
 
 static void fib_hash_free(struct hlist_head *hash, int bytes)
@@ -712,12 +715,8 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 		if (!new_info_hash || !new_laddrhash) {
 			fib_hash_free(new_info_hash, bytes);
 			fib_hash_free(new_laddrhash, bytes);
-		} else {
-			memset(new_info_hash, 0, bytes);
-			memset(new_laddrhash, 0, bytes);
-
+		} else
 			fib_hash_move(new_info_hash, new_laddrhash, new_size);
-		}
 
 		if (!fib_hash_size)
 			goto failure;
@@ -799,7 +798,8 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 		if (nhs != 1 || nh->nh_gw)
 			goto err_inval;
 		nh->nh_scope = RT_SCOPE_NOWHERE;
-		nh->nh_dev = dev_get_by_index(&init_net, fi->fib_nh->nh_oif);
+		nh->nh_dev = dev_get_by_index(cfg->fc_nlinfo.nl_net,
+					      fi->fib_nh->nh_oif);
 		err = -ENODEV;
 		if (nh->nh_dev == NULL)
 			goto failure;
@@ -813,7 +813,8 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 	if (fi->fib_prefsrc) {
 		if (cfg->fc_type != RTN_LOCAL || !cfg->fc_dst ||
 		    fi->fib_prefsrc != cfg->fc_dst)
-			if (inet_addr_type(fi->fib_prefsrc) != RTN_LOCAL)
+			if (inet_addr_type(cfg->fc_nlinfo.nl_net,
+					   fi->fib_prefsrc) != RTN_LOCAL)
 				goto err_inval;
 	}
 
@@ -914,7 +915,8 @@ int fib_semantic_match(struct list_head *head, const struct flowi *flp,
 				continue;
 
 			default:
-				printk(KERN_DEBUG "impossible 102\n");
+				printk(KERN_WARNING "fib_semantic_match bad type %#x\n",
+					fa->fa_type);
 				return -EINVAL;
 			}
 		}

@@ -82,7 +82,7 @@ PNMI_STATIC int DiagActions(SK_AC *pAC, SK_IOC IoC, int action, SK_U32 Id,
 
 
 /* defines *******************************************************************/
-#define ID_TABLE_SIZE (sizeof(IdTable)/sizeof(IdTable[0]))
+#define ID_TABLE_SIZE	ARRAY_SIZE(IdTable)
 
 
 /* global variables **********************************************************/

@@ -74,7 +74,7 @@ ebt_nat_src(unsigned int hook, struct sk_buff *skb, const struct net_device *in
 	return ebt_do_table(hook, skb, in, out, &frame_nat);
 }
 
-static struct nf_hook_ops ebt_ops_nat[] = {
+static struct nf_hook_ops ebt_ops_nat[] __read_mostly = {
 	{
 		.hook		= ebt_nat_dst,
 		.owner		= THIS_MODULE,

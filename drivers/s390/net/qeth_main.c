@@ -3890,7 +3890,7 @@ qeth_verify_vlan_dev(struct net_device *dev, struct qeth_card *card)
 			break;
 		}
 	}
-	if (rc && !(VLAN_DEV_INFO(dev)->real_dev->priv == (void *)card))
+	if (rc && !(vlan_dev_info(dev)->real_dev->priv == (void *)card))
 		return 0;
 
 #endif
@@ -3930,7 +3930,7 @@ qeth_get_card_from_dev(struct net_device *dev)
 		card = (struct qeth_card *)dev->priv;
 	else if (rc == QETH_VLAN_CARD)
 		card = (struct qeth_card *)
-			VLAN_DEV_INFO(dev)->real_dev->priv;
+			vlan_dev_info(dev)->real_dev->priv;
 
 	QETH_DBF_TEXT_(trace, 4, "%d", rc);
 	return card ;
@@ -8340,7 +8340,7 @@ qeth_arp_constructor(struct neighbour *neigh)
 	neigh->parms = neigh_parms_clone(parms);
 	rcu_read_unlock();
 
-	neigh->type = inet_addr_type(*(__be32 *) neigh->primary_key);
+	neigh->type = inet_addr_type(&init_net, *(__be32 *) neigh->primary_key);
 	neigh->nud_state = NUD_NOARP;
 	neigh->ops = arp_direct_ops;
 	neigh->output = neigh->ops->queue_xmit;

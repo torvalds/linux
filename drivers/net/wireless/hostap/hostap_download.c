@@ -100,7 +100,7 @@ static int hfa384x_from_aux(struct net_device *dev, unsigned int addr, int len,
 
 #ifdef PRISM2_PCI
 	{
-		u16 *pos = (u16 *) buf;
+		__le16 *pos = (__le16 *) buf;
 		while (len > 0) {
 			*pos++ = HFA384X_INW_DATA(HFA384X_AUXDATA_OFF);
 			len -= 2;
@@ -131,7 +131,7 @@ static int hfa384x_to_aux(struct net_device *dev, unsigned int addr, int len,
 
 #ifdef PRISM2_PCI
 	{
-		u16 *pos = (u16 *) buf;
+		__le16 *pos = (__le16 *) buf;
 		while (len > 0) {
 			HFA384X_OUTW_DATA(*pos++, HFA384X_AUXDATA_OFF);
 			len -= 2;
@@ -147,7 +147,7 @@ static int hfa384x_to_aux(struct net_device *dev, unsigned int addr, int len,
 
 static int prism2_pda_ok(u8 *buf)
 {
-	u16 *pda = (u16 *) buf;
+	__le16 *pda = (__le16 *) buf;
 	int pos;
 	u16 len, pdr;
 
@@ -544,9 +544,9 @@ static int prism2_download_nonvolatile(local_info_t *local,
 	struct net_device *dev = local->dev;
 	int ret = 0, i;
 	struct {
-		u16 page;
-		u16 offset;
-		u16 len;
+		__le16 page;
+		__le16 offset;
+		__le16 len;
 	} dlbuffer;
 	u32 bufaddr;
 
@@ -565,14 +565,12 @@ static int prism2_download_nonvolatile(local_info_t *local,
 		goto out;
 	}
 
-	dlbuffer.page = le16_to_cpu(dlbuffer.page);
-	dlbuffer.offset = le16_to_cpu(dlbuffer.offset);
-	dlbuffer.len = le16_to_cpu(dlbuffer.len);
-
 	printk(KERN_DEBUG "Download buffer: %d bytes at 0x%04x:0x%04x\n",
-	       dlbuffer.len, dlbuffer.page, dlbuffer.offset);
+	       le16_to_cpu(dlbuffer.len),
+	       le16_to_cpu(dlbuffer.page),
+	       le16_to_cpu(dlbuffer.offset));
 
-	bufaddr = (dlbuffer.page << 7) + dlbuffer.offset;
+	bufaddr = (le16_to_cpu(dlbuffer.page) << 7) + le16_to_cpu(dlbuffer.offset);
 
 	local->hw_downloading = 1;
 

@@ -82,8 +82,6 @@ struct packet_type;
 struct rtable;
 struct sockaddr;
 
-extern void		ip_mc_dropsocket(struct sock *);
-extern void		ip_mc_dropdevice(struct net_device *dev);
 extern int		igmp_mc_proc_init(void);
 
 /*
@@ -102,6 +100,8 @@ extern int		ip_mc_output(struct sk_buff *skb);
 extern int		ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *));
 extern int		ip_do_nat(struct sk_buff *skb);
 extern void		ip_send_check(struct iphdr *ip);
+extern int		__ip_local_out(struct sk_buff *skb);
+extern int		ip_local_out(struct sk_buff *skb);
 extern int		ip_queue_xmit(struct sk_buff *skb, int ipfragok);
 extern void		ip_init(void);
 extern int		ip_append_data(struct sock *sk,
@@ -169,7 +169,7 @@ DECLARE_SNMP_STAT(struct linux_mib, net_statistics);
 #define NET_ADD_STATS_USER(field, adnd)	SNMP_ADD_STATS_USER(net_statistics, field, adnd)
 
 extern unsigned long snmp_fold_field(void *mib[], int offt);
-extern int snmp_mib_init(void *ptr[2], size_t mibsize, size_t mibalign);
+extern int snmp_mib_init(void *ptr[2], size_t mibsize);
 extern void snmp_mib_free(void *ptr[2]);
 
 extern void inet_get_local_port_range(int *low, int *high);
@@ -177,10 +177,7 @@ extern void inet_get_local_port_range(int *low, int *high);
 extern int sysctl_ip_default_ttl;
 extern int sysctl_ip_nonlocal_bind;
 
-/* From ip_fragment.c */
-struct inet_frags_ctl;
-extern struct inet_frags_ctl ip4_frags_ctl;
-extern int sysctl_ipfrag_max_dist;
+extern struct ctl_path net_ipv4_ctl_path[];
 
 /* From inetpeer.c */
 extern int inet_peer_threshold;
@@ -319,7 +316,7 @@ static __inline__ void inet_reset_saddr(struct sock *sk)
 extern int	ip_call_ra_chain(struct sk_buff *skb);
 
 /*
- *	Functions provided by ip_fragment.o
+ *	Functions provided by ip_fragment.c
  */
 
 enum ip_defrag_users
@@ -334,15 +331,14 @@ enum ip_defrag_users
 };
 
 int ip_defrag(struct sk_buff *skb, u32 user);
-int ip_frag_mem(void);
-int ip_frag_nqueues(void);
+int ip_frag_mem(struct net *net);
+int ip_frag_nqueues(struct net *net);
 
 /*
  *	Functions provided by ip_forward.c
  */
  
 extern int ip_forward(struct sk_buff *skb);
-extern int ip_net_unreachable(struct sk_buff *skb);
  
 /*
  *	Functions provided by ip_options.c
@@ -392,7 +388,5 @@ int ipv4_doint_and_flush_strategy(ctl_table *table, int __user *name, int nlen,
 #ifdef CONFIG_PROC_FS
 extern int ip_misc_proc_init(void);
 #endif
-
-extern struct ctl_table ipv4_table[];
 
 #endif	/* _IP_H */

@@ -73,8 +73,6 @@ static void macvlan_broadcast(struct sk_buff *skb,
 	for (i = 0; i < MACVLAN_HASH_SIZE; i++) {
 		hlist_for_each_entry_rcu(vlan, n, &port->vlan_hash[i], hlist) {
 			dev = vlan->dev;
-			if (unlikely(!(dev->flags & IFF_UP)))
-				continue;
 
 			nskb = skb_clone(skb, GFP_ATOMIC);
 			if (nskb == NULL) {
@@ -215,6 +213,29 @@ static int macvlan_stop(struct net_device *dev)
 	return 0;
 }
 
+static int macvlan_set_mac_address(struct net_device *dev, void *p)
+{
+	struct macvlan_dev *vlan = netdev_priv(dev);
+	struct net_device *lowerdev = vlan->lowerdev;
+	struct sockaddr *addr = p;
+	int err;
+
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EADDRNOTAVAIL;
+
+	if (!(dev->flags & IFF_UP))
+		goto out;
+
+	err = dev_unicast_add(lowerdev, addr->sa_data, ETH_ALEN);
+	if (err < 0)
+		return err;
+	dev_unicast_delete(lowerdev, dev->dev_addr, ETH_ALEN);
+
+out:
+	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
+	return 0;
+}
+
 static void macvlan_change_rx_flags(struct net_device *dev, int change)
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
@@ -302,6 +323,7 @@ static void macvlan_setup(struct net_device *dev)
 	dev->stop		= macvlan_stop;
 	dev->change_mtu		= macvlan_change_mtu;
 	dev->change_rx_flags	= macvlan_change_rx_flags;
+	dev->set_mac_address	= macvlan_set_mac_address;
 	dev->set_multicast_list	= macvlan_set_multicast_list;
 	dev->hard_start_xmit	= macvlan_hard_start_xmit;
 	dev->destructor		= free_netdev;
@@ -353,7 +375,7 @@ static void macvlan_transfer_operstate(struct net_device *dev)
 		if (!netif_carrier_ok(dev))
 			netif_carrier_on(dev);
 	} else {
-		if (netif_carrier_ok(lowerdev))
+		if (netif_carrier_ok(dev))
 			netif_carrier_off(dev);
 	}
 }

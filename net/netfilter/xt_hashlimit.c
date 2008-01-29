@@ -20,7 +20,11 @@
 #include <linux/mm.h>
 #include <linux/in.h>
 #include <linux/ip.h>
+#if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
 #include <linux/ipv6.h>
+#include <net/ipv6.h>
+#endif
+
 #include <net/net_namespace.h>
 
 #include <linux/netfilter/x_tables.h>
@@ -31,7 +35,7 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
-MODULE_DESCRIPTION("iptables match for limiting per hash-bucket");
+MODULE_DESCRIPTION("Xtables: per hash-bucket rate-limit match");
 MODULE_ALIAS("ipt_hashlimit");
 MODULE_ALIAS("ip6t_hashlimit");
 
@@ -47,10 +51,12 @@ struct dsthash_dst {
 			__be32 src;
 			__be32 dst;
 		} ip;
+#if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
 		struct {
 			__be32 src[4];
 			__be32 dst[4];
 		} ip6;
+#endif
 	} addr;
 	__be16 src_port;
 	__be16 dst_port;
@@ -104,7 +110,16 @@ static inline bool dst_cmp(const struct dsthash_ent *ent,
 static u_int32_t
 hash_dst(const struct xt_hashlimit_htable *ht, const struct dsthash_dst *dst)
 {
-	return jhash(dst, sizeof(*dst), ht->rnd) % ht->cfg.size;
+	u_int32_t hash = jhash2((const u32 *)dst,
+				sizeof(*dst)/sizeof(u32),
+				ht->rnd);
+	/*
+	 * Instead of returning hash % ht->cfg.size (implying a divide)
+	 * we return the high 32 bits of the (hash * ht->cfg.size) that will
+	 * give results between [0 and cfg.size-1] and same hash distribution,
+	 * but using a multiply, less expensive than a divide
+	 */
+	return ((u64)hash * ht->cfg.size) >> 32;
 }
 
 static struct dsthash_ent *
@@ -379,7 +394,7 @@ hashlimit_init_dst(const struct xt_hashlimit_htable *hinfo,
 		   const struct sk_buff *skb, unsigned int protoff)
 {
 	__be16 _ports[2], *ports;
-	int nexthdr;
+	u8 nexthdr;
 
 	memset(dst, 0, sizeof(*dst));
 
@@ -407,8 +422,9 @@ hashlimit_init_dst(const struct xt_hashlimit_htable *hinfo,
 		if (!(hinfo->cfg.mode &
 		      (XT_HASHLIMIT_HASH_DPT | XT_HASHLIMIT_HASH_SPT)))
 			return 0;
-		nexthdr = ipv6_find_hdr(skb, &protoff, -1, NULL);
-		if (nexthdr < 0)
+		nexthdr = ipv6_hdr(skb)->nexthdr;
+		protoff = ipv6_skip_exthdr(skb, sizeof(struct ipv6hdr), &nexthdr);
+		if ((int)protoff < 0)
 			return -1;
 		break;
 #endif
@@ -441,14 +457,10 @@ hashlimit_init_dst(const struct xt_hashlimit_htable *hinfo,
 }
 
 static bool
-hashlimit_match(const struct sk_buff *skb,
-		const struct net_device *in,
-		const struct net_device *out,
-		const struct xt_match *match,
-		const void *matchinfo,
-		int offset,
-		unsigned int protoff,
-		bool *hotdrop)
+hashlimit_mt(const struct sk_buff *skb, const struct net_device *in,
+             const struct net_device *out, const struct xt_match *match,
+             const void *matchinfo, int offset, unsigned int protoff,
+             bool *hotdrop)
 {
 	const struct xt_hashlimit_info *r =
 		((const struct xt_hashlimit_info *)matchinfo)->u.master;
@@ -500,11 +512,9 @@ hotdrop:
 }
 
 static bool
-hashlimit_checkentry(const char *tablename,
-		     const void *inf,
-		     const struct xt_match *match,
-		     void *matchinfo,
-		     unsigned int hook_mask)
+hashlimit_mt_check(const char *tablename, const void *inf,
+                   const struct xt_match *match, void *matchinfo,
+                   unsigned int hook_mask)
 {
 	struct xt_hashlimit_info *r = matchinfo;
 
@@ -548,7 +558,7 @@ hashlimit_checkentry(const char *tablename,
 }
 
 static void
-hashlimit_destroy(const struct xt_match *match, void *matchinfo)
+hashlimit_mt_destroy(const struct xt_match *match, void *matchinfo)
 {
 	const struct xt_hashlimit_info *r = matchinfo;
 
@@ -563,7 +573,7 @@ struct compat_xt_hashlimit_info {
 	compat_uptr_t master;
 };
 
-static void compat_from_user(void *dst, void *src)
+static void hashlimit_mt_compat_from_user(void *dst, void *src)
 {
 	int off = offsetof(struct compat_xt_hashlimit_info, hinfo);
 
@@ -571,7 +581,7 @@ static void compat_from_user(void *dst, void *src)
 	memset(dst + off, 0, sizeof(struct compat_xt_hashlimit_info) - off);
 }
 
-static int compat_to_user(void __user *dst, void *src)
+static int hashlimit_mt_compat_to_user(void __user *dst, void *src)
 {
 	int off = offsetof(struct compat_xt_hashlimit_info, hinfo);
 
@@ -579,35 +589,37 @@ static int compat_to_user(void __user *dst, void *src)
 }
 #endif
 
-static struct xt_match xt_hashlimit[] __read_mostly = {
+static struct xt_match hashlimit_mt_reg[] __read_mostly = {
 	{
 		.name		= "hashlimit",
 		.family		= AF_INET,
-		.match		= hashlimit_match,
+		.match		= hashlimit_mt,
 		.matchsize	= sizeof(struct xt_hashlimit_info),
 #ifdef CONFIG_COMPAT
 		.compatsize	= sizeof(struct compat_xt_hashlimit_info),
-		.compat_from_user = compat_from_user,
-		.compat_to_user	= compat_to_user,
+		.compat_from_user = hashlimit_mt_compat_from_user,
+		.compat_to_user	= hashlimit_mt_compat_to_user,
 #endif
-		.checkentry	= hashlimit_checkentry,
-		.destroy	= hashlimit_destroy,
+		.checkentry	= hashlimit_mt_check,
+		.destroy	= hashlimit_mt_destroy,
 		.me		= THIS_MODULE
 	},
+#if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
 	{
 		.name		= "hashlimit",
 		.family		= AF_INET6,
-		.match		= hashlimit_match,
+		.match		= hashlimit_mt,
 		.matchsize	= sizeof(struct xt_hashlimit_info),
 #ifdef CONFIG_COMPAT
 		.compatsize	= sizeof(struct compat_xt_hashlimit_info),
-		.compat_from_user = compat_from_user,
-		.compat_to_user	= compat_to_user,
+		.compat_from_user = hashlimit_mt_compat_from_user,
+		.compat_to_user	= hashlimit_mt_compat_to_user,
 #endif
-		.checkentry	= hashlimit_checkentry,
-		.destroy	= hashlimit_destroy,
+		.checkentry	= hashlimit_mt_check,
+		.destroy	= hashlimit_mt_destroy,
 		.me		= THIS_MODULE
 	},
+#endif
 };
 
 /* PROC stuff */
@@ -670,6 +682,7 @@ static int dl_seq_real_show(struct dsthash_ent *ent, int family,
 				 ntohs(ent->dst.dst_port),
 				 ent->rateinfo.credit, ent->rateinfo.credit_cap,
 				 ent->rateinfo.cost);
+#if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
 	case AF_INET6:
 		return seq_printf(s, "%ld " NIP6_FMT ":%u->"
 				     NIP6_FMT ":%u %u %u %u\n",
@@ -680,6 +693,7 @@ static int dl_seq_real_show(struct dsthash_ent *ent, int family,
 				 ntohs(ent->dst.dst_port),
 				 ent->rateinfo.credit, ent->rateinfo.credit_cap,
 				 ent->rateinfo.cost);
+#endif
 	default:
 		BUG();
 		return 0;
@@ -728,11 +742,12 @@ static const struct file_operations dl_file_ops = {
 	.release = seq_release
 };
 
-static int __init xt_hashlimit_init(void)
+static int __init hashlimit_mt_init(void)
 {
 	int err;
 
-	err = xt_register_matches(xt_hashlimit, ARRAY_SIZE(xt_hashlimit));
+	err = xt_register_matches(hashlimit_mt_reg,
+	      ARRAY_SIZE(hashlimit_mt_reg));
 	if (err < 0)
 		goto err1;
 
@@ -750,31 +765,36 @@ static int __init xt_hashlimit_init(void)
 				"entry\n");
 		goto err3;
 	}
+	err = 0;
+#if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
 	hashlimit_procdir6 = proc_mkdir("ip6t_hashlimit", init_net.proc_net);
 	if (!hashlimit_procdir6) {
 		printk(KERN_ERR "xt_hashlimit: unable to create proc dir "
 				"entry\n");
-		goto err4;
+		err = -ENOMEM;
 	}
-	return 0;
-err4:
+#endif
+	if (!err)
+		return 0;
 	remove_proc_entry("ipt_hashlimit", init_net.proc_net);
 err3:
 	kmem_cache_destroy(hashlimit_cachep);
 err2:
-	xt_unregister_matches(xt_hashlimit, ARRAY_SIZE(xt_hashlimit));
+	xt_unregister_matches(hashlimit_mt_reg, ARRAY_SIZE(hashlimit_mt_reg));
 err1:
 	return err;
 
 }
 
-static void __exit xt_hashlimit_fini(void)
+static void __exit hashlimit_mt_exit(void)
 {
 	remove_proc_entry("ipt_hashlimit", init_net.proc_net);
+#if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
 	remove_proc_entry("ip6t_hashlimit", init_net.proc_net);
+#endif
 	kmem_cache_destroy(hashlimit_cachep);
-	xt_unregister_matches(xt_hashlimit, ARRAY_SIZE(xt_hashlimit));
+	xt_unregister_matches(hashlimit_mt_reg, ARRAY_SIZE(hashlimit_mt_reg));
 }
 
-module_init(xt_hashlimit_init);
-module_exit(xt_hashlimit_fini);
+module_init(hashlimit_mt_init);
+module_exit(hashlimit_mt_exit);

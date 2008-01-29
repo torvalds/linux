@@ -7588,12 +7588,10 @@ static void __devinit niu_assign_netdev_ops(struct net_device *dev)
 static void __devinit niu_device_announce(struct niu *np)
 {
 	struct net_device *dev = np->dev;
-	int i;
+	DECLARE_MAC_BUF(mac);
 
-	pr_info("%s: NIU Ethernet ", dev->name);
-	for (i = 0; i < 6; i++)
-		printk("%2.2x%c", dev->dev_addr[i],
-		       i == 5 ? '\n' : ':');
+	pr_info("%s: NIU Ethernet %s\n",
+		dev->name, print_mac(mac, dev->dev_addr));
 
 	pr_info("%s: Port type[%s] mode[%s:%s] XCVR[%s] phy[%s]\n",
 		dev->name,

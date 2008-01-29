@@ -21,7 +21,7 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
-MODULE_DESCRIPTION("iptables ECN modification module");
+MODULE_DESCRIPTION("Xtables: Explicit Congestion Notification (ECN) flag modification");
 
 /* set ECT codepoint from IP header.
  * 	return false if there was an error. */
@@ -38,7 +38,7 @@ set_ect_ip(struct sk_buff *skb, const struct ipt_ECN_info *einfo)
 		oldtos = iph->tos;
 		iph->tos &= ~IPT_ECN_IP_MASK;
 		iph->tos |= (einfo->ip_ect & IPT_ECN_IP_MASK);
-		nf_csum_replace2(&iph->check, htons(oldtos), htons(iph->tos));
+		csum_replace2(&iph->check, htons(oldtos), htons(iph->tos));
 	}
 	return true;
 }
@@ -71,18 +71,15 @@ set_ect_tcp(struct sk_buff *skb, const struct ipt_ECN_info *einfo)
 	if (einfo->operation & IPT_ECN_OP_SET_CWR)
 		tcph->cwr = einfo->proto.tcp.cwr;
 
-	nf_proto_csum_replace2(&tcph->check, skb,
-				oldval, ((__be16 *)tcph)[6], 0);
+	inet_proto_csum_replace2(&tcph->check, skb,
+				 oldval, ((__be16 *)tcph)[6], 0);
 	return true;
 }
 
 static unsigned int
-target(struct sk_buff *skb,
-       const struct net_device *in,
-       const struct net_device *out,
-       unsigned int hooknum,
-       const struct xt_target *target,
-       const void *targinfo)
+ecn_tg(struct sk_buff *skb, const struct net_device *in,
+       const struct net_device *out, unsigned int hooknum,
+       const struct xt_target *target, const void *targinfo)
 {
 	const struct ipt_ECN_info *einfo = targinfo;
 
@@ -99,11 +96,9 @@ target(struct sk_buff *skb,
 }
 
 static bool
-checkentry(const char *tablename,
-	   const void *e_void,
-	   const struct xt_target *target,
-	   void *targinfo,
-	   unsigned int hook_mask)
+ecn_tg_check(const char *tablename, const void *e_void,
+             const struct xt_target *target, void *targinfo,
+             unsigned int hook_mask)
 {
 	const struct ipt_ECN_info *einfo = (struct ipt_ECN_info *)targinfo;
 	const struct ipt_entry *e = e_void;
@@ -127,25 +122,25 @@ checkentry(const char *tablename,
 	return true;
 }
 
-static struct xt_target ipt_ecn_reg __read_mostly = {
+static struct xt_target ecn_tg_reg __read_mostly = {
 	.name		= "ECN",
 	.family		= AF_INET,
-	.target		= target,
+	.target		= ecn_tg,
 	.targetsize	= sizeof(struct ipt_ECN_info),
 	.table		= "mangle",
-	.checkentry	= checkentry,
+	.checkentry	= ecn_tg_check,
 	.me		= THIS_MODULE,
 };
 
-static int __init ipt_ecn_init(void)
+static int __init ecn_tg_init(void)
 {
-	return xt_register_target(&ipt_ecn_reg);
+	return xt_register_target(&ecn_tg_reg);
 }
 
-static void __exit ipt_ecn_fini(void)
+static void __exit ecn_tg_exit(void)
 {
-	xt_unregister_target(&ipt_ecn_reg);
+	xt_unregister_target(&ecn_tg_reg);
 }
 
-module_init(ipt_ecn_init);
-module_exit(ipt_ecn_fini);
+module_init(ecn_tg_init);
+module_exit(ecn_tg_exit);

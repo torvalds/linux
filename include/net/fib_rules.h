@@ -22,6 +22,7 @@ struct fib_rule
 	u32			target;
 	struct fib_rule *	ctarget;
 	struct rcu_head		rcu;
+	struct net *		fr_net;
 };
 
 struct fib_lookup_arg
@@ -56,7 +57,7 @@ struct fib_rules_ops
 	int			(*fill)(struct fib_rule *, struct sk_buff *,
 					struct nlmsghdr *,
 					struct fib_rule_hdr *);
-	u32			(*default_pref)(void);
+	u32			(*default_pref)(struct fib_rules_ops *ops);
 	size_t			(*nlmsg_payload)(struct fib_rule *);
 
 	/* Called after modifications to the rules set, must flush
@@ -67,6 +68,7 @@ struct fib_rules_ops
 	const struct nla_policy	*policy;
 	struct list_head	rules_list;
 	struct module		*owner;
+	struct net		*fro_net;
 };
 
 #define FRA_GENERIC_POLICY \
@@ -101,8 +103,9 @@ static inline u32 frh_get_table(struct fib_rule_hdr *frh, struct nlattr **nla)
 	return frh->table;
 }
 
-extern int			fib_rules_register(struct fib_rules_ops *);
-extern int			fib_rules_unregister(struct fib_rules_ops *);
+extern int fib_rules_register(struct fib_rules_ops *);
+extern void fib_rules_unregister(struct fib_rules_ops *);
+extern void                     fib_rules_cleanup_ops(struct fib_rules_ops *);
 
 extern int			fib_rules_lookup(struct fib_rules_ops *,
 						 struct flowi *, int flags,

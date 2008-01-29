@@ -16,7 +16,7 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Yon Uriarte <yon@astaro.de>");
-MODULE_DESCRIPTION("iptables AH SPI match module");
+MODULE_DESCRIPTION("Xtables: IPv4 IPsec-AH SPI match");
 
 #ifdef DEBUG_CONNTRACK
 #define duprintf(format, args...) printk(format , ## args)
@@ -37,14 +37,9 @@ spi_match(u_int32_t min, u_int32_t max, u_int32_t spi, bool invert)
 }
 
 static bool
-match(const struct sk_buff *skb,
-      const struct net_device *in,
-      const struct net_device *out,
-      const struct xt_match *match,
-      const void *matchinfo,
-      int offset,
-      unsigned int protoff,
-      bool *hotdrop)
+ah_mt(const struct sk_buff *skb, const struct net_device *in,
+      const struct net_device *out, const struct xt_match *match,
+      const void *matchinfo, int offset, unsigned int protoff, bool *hotdrop)
 {
 	struct ip_auth_hdr _ahdr;
 	const struct ip_auth_hdr *ah;
@@ -72,11 +67,9 @@ match(const struct sk_buff *skb,
 
 /* Called when user tries to insert an entry of this type. */
 static bool
-checkentry(const char *tablename,
-	   const void *ip_void,
-	   const struct xt_match *match,
-	   void *matchinfo,
-	   unsigned int hook_mask)
+ah_mt_check(const char *tablename, const void *ip_void,
+            const struct xt_match *match, void *matchinfo,
+            unsigned int hook_mask)
 {
 	const struct ipt_ah *ahinfo = matchinfo;
 
@@ -88,25 +81,25 @@ checkentry(const char *tablename,
 	return true;
 }
 
-static struct xt_match ah_match __read_mostly = {
+static struct xt_match ah_mt_reg __read_mostly = {
 	.name		= "ah",
 	.family		= AF_INET,
-	.match		= match,
+	.match		= ah_mt,
 	.matchsize	= sizeof(struct ipt_ah),
 	.proto		= IPPROTO_AH,
-	.checkentry	= checkentry,
+	.checkentry	= ah_mt_check,
 	.me		= THIS_MODULE,
 };
 
-static int __init ipt_ah_init(void)
+static int __init ah_mt_init(void)
 {
-	return xt_register_match(&ah_match);
+	return xt_register_match(&ah_mt_reg);
 }
 
-static void __exit ipt_ah_fini(void)
+static void __exit ah_mt_exit(void)
 {
-	xt_unregister_match(&ah_match);
+	xt_unregister_match(&ah_mt_reg);
 }
 
-module_init(ipt_ah_init);
-module_exit(ipt_ah_fini);
+module_init(ah_mt_init);
+module_exit(ah_mt_exit);

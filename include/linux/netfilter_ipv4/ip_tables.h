@@ -156,10 +156,10 @@ struct ipt_getinfo
 	unsigned int valid_hooks;
 
 	/* Hook entry points: one per netfilter hook. */
-	unsigned int hook_entry[NF_IP_NUMHOOKS];
+	unsigned int hook_entry[NF_INET_NUMHOOKS];
 
 	/* Underflow points. */
-	unsigned int underflow[NF_IP_NUMHOOKS];
+	unsigned int underflow[NF_INET_NUMHOOKS];
 
 	/* Number of entries */
 	unsigned int num_entries;
@@ -185,10 +185,10 @@ struct ipt_replace
 	unsigned int size;
 
 	/* Hook entry points. */
-	unsigned int hook_entry[NF_IP_NUMHOOKS];
+	unsigned int hook_entry[NF_INET_NUMHOOKS];
 
 	/* Underflow points. */
-	unsigned int underflow[NF_IP_NUMHOOKS];
+	unsigned int underflow[NF_INET_NUMHOOKS];
 
 	/* Information about old entries: */
 	/* Number of counters (must be equal to current number of entries). */
@@ -229,60 +229,12 @@ ipt_get_target(struct ipt_entry *e)
 }
 
 /* fn returns 0 to continue iteration */
-#define IPT_MATCH_ITERATE(e, fn, args...)	\
-({						\
-	unsigned int __i;			\
-	int __ret = 0;				\
-	struct ipt_entry_match *__match;	\
-						\
-	for (__i = sizeof(struct ipt_entry);	\
-	     __i < (e)->target_offset;		\
-	     __i += __match->u.match_size) {	\
-		__match = (void *)(e) + __i;	\
-						\
-		__ret = fn(__match , ## args);	\
-		if (__ret != 0)			\
-			break;			\
-	}					\
-	__ret;					\
-})
+#define IPT_MATCH_ITERATE(e, fn, args...) \
+	XT_MATCH_ITERATE(struct ipt_entry, e, fn, ## args)
 
 /* fn returns 0 to continue iteration */
-#define IPT_ENTRY_ITERATE(entries, size, fn, args...)		\
-({								\
-	unsigned int __i;					\
-	int __ret = 0;						\
-	struct ipt_entry *__entry;				\
-								\
-	for (__i = 0; __i < (size); __i += __entry->next_offset) { \
-		__entry = (void *)(entries) + __i;		\
-								\
-		__ret = fn(__entry , ## args);			\
-		if (__ret != 0)					\
-			break;					\
-	}							\
-	__ret;							\
-})
-
-/* fn returns 0 to continue iteration */
-#define IPT_ENTRY_ITERATE_CONTINUE(entries, size, n, fn, args...) \
-({								\
-	unsigned int __i, __n;					\
-	int __ret = 0;						\
-	struct ipt_entry *__entry;				\
-								\
-	for (__i = 0, __n = 0; __i < (size);			\
-	     __i += __entry->next_offset, __n++) { 		\
-		__entry = (void *)(entries) + __i;		\
-		if (__n < n)					\
-			continue;				\
-								\
-		__ret = fn(__entry , ## args);			\
-		if (__ret != 0)					\
-			break;					\
-	}							\
-	__ret;							\
-})
+#define IPT_ENTRY_ITERATE(entries, size, fn, args...) \
+	XT_ENTRY_ITERATE(struct ipt_entry, entries, size, fn, ## args)
 
 /*
  *	Main firewall chains definitions and global var's definitions.
@@ -359,7 +311,27 @@ struct compat_ipt_entry
 	unsigned char elems[0];
 };
 
+/* Helper functions */
+static inline struct ipt_entry_target *
+compat_ipt_get_target(struct compat_ipt_entry *e)
+{
+	return (void *)e + e->target_offset;
+}
+
 #define COMPAT_IPT_ALIGN(s) 	COMPAT_XT_ALIGN(s)
+
+/* fn returns 0 to continue iteration */
+#define COMPAT_IPT_MATCH_ITERATE(e, fn, args...) \
+	XT_MATCH_ITERATE(struct compat_ipt_entry, e, fn, ## args)
+
+/* fn returns 0 to continue iteration */
+#define COMPAT_IPT_ENTRY_ITERATE(entries, size, fn, args...) \
+	XT_ENTRY_ITERATE(struct compat_ipt_entry, entries, size, fn, ## args)
+
+/* fn returns 0 to continue iteration */
+#define COMPAT_IPT_ENTRY_ITERATE_CONTINUE(entries, size, n, fn, args...) \
+	XT_ENTRY_ITERATE_CONTINUE(struct compat_ipt_entry, entries, size, n, \
+				  fn, ## args)
 
 #endif /* CONFIG_COMPAT */
 #endif /*__KERNEL__*/

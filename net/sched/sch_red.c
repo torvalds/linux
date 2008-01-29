@@ -177,21 +177,21 @@ static void red_destroy(struct Qdisc *sch)
 static struct Qdisc *red_create_dflt(struct Qdisc *sch, u32 limit)
 {
 	struct Qdisc *q;
-	struct rtattr *rta;
+	struct nlattr *nla;
 	int ret;
 
 	q = qdisc_create_dflt(sch->dev, &bfifo_qdisc_ops,
 			      TC_H_MAKE(sch->handle, 1));
 	if (q) {
-		rta = kmalloc(RTA_LENGTH(sizeof(struct tc_fifo_qopt)),
+		nla = kmalloc(nla_attr_size(sizeof(struct tc_fifo_qopt)),
 			      GFP_KERNEL);
-		if (rta) {
-			rta->rta_type = RTM_NEWQDISC;
-			rta->rta_len = RTA_LENGTH(sizeof(struct tc_fifo_qopt));
-			((struct tc_fifo_qopt *)RTA_DATA(rta))->limit = limit;
+		if (nla) {
+			nla->nla_type = RTM_NEWQDISC;
+			nla->nla_len = nla_attr_size(sizeof(struct tc_fifo_qopt));
+			((struct tc_fifo_qopt *)nla_data(nla))->limit = limit;
 
-			ret = q->ops->change(q, rta);
-			kfree(rta);
+			ret = q->ops->change(q, nla);
+			kfree(nla);
 
 			if (ret == 0)
 				return q;
@@ -201,23 +201,31 @@ static struct Qdisc *red_create_dflt(struct Qdisc *sch, u32 limit)
 	return NULL;
 }
 
-static int red_change(struct Qdisc *sch, struct rtattr *opt)
+static const struct nla_policy red_policy[TCA_RED_MAX + 1] = {
+	[TCA_RED_PARMS]	= { .len = sizeof(struct tc_red_qopt) },
+	[TCA_RED_STAB]	= { .len = RED_STAB_SIZE },
+};
+
+static int red_change(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct red_sched_data *q = qdisc_priv(sch);
-	struct rtattr *tb[TCA_RED_MAX];
+	struct nlattr *tb[TCA_RED_MAX + 1];
 	struct tc_red_qopt *ctl;
 	struct Qdisc *child = NULL;
+	int err;
 
-	if (opt == NULL || rtattr_parse_nested(tb, TCA_RED_MAX, opt))
+	if (opt == NULL)
 		return -EINVAL;
 
-	if (tb[TCA_RED_PARMS-1] == NULL ||
-	    RTA_PAYLOAD(tb[TCA_RED_PARMS-1]) < sizeof(*ctl) ||
-	    tb[TCA_RED_STAB-1] == NULL ||
-	    RTA_PAYLOAD(tb[TCA_RED_STAB-1]) < RED_STAB_SIZE)
+	err = nla_parse_nested(tb, TCA_RED_MAX, opt, red_policy);
+	if (err < 0)
+		return err;
+
+	if (tb[TCA_RED_PARMS] == NULL ||
+	    tb[TCA_RED_STAB] == NULL)
 		return -EINVAL;
 
-	ctl = RTA_DATA(tb[TCA_RED_PARMS-1]);
+	ctl = nla_data(tb[TCA_RED_PARMS]);
 
 	if (ctl->limit > 0) {
 		child = red_create_dflt(sch, ctl->limit);
@@ -235,7 +243,7 @@ static int red_change(struct Qdisc *sch, struct rtattr *opt)
 
 	red_set_parms(&q->parms, ctl->qth_min, ctl->qth_max, ctl->Wlog,
 				 ctl->Plog, ctl->Scell_log,
-				 RTA_DATA(tb[TCA_RED_STAB-1]));
+				 nla_data(tb[TCA_RED_STAB]));
 
 	if (skb_queue_empty(&sch->q))
 		red_end_of_idle_period(&q->parms);
@@ -244,7 +252,7 @@ static int red_change(struct Qdisc *sch, struct rtattr *opt)
 	return 0;
 }
 
-static int red_init(struct Qdisc* sch, struct rtattr *opt)
+static int red_init(struct Qdisc* sch, struct nlattr *opt)
 {
 	struct red_sched_data *q = qdisc_priv(sch);
 
@@ -255,7 +263,7 @@ static int red_init(struct Qdisc* sch, struct rtattr *opt)
 static int red_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct red_sched_data *q = qdisc_priv(sch);
-	struct rtattr *opts = NULL;
+	struct nlattr *opts = NULL;
 	struct tc_red_qopt opt = {
 		.limit		= q->limit,
 		.flags		= q->flags,
@@ -266,12 +274,14 @@ static int red_dump(struct Qdisc *sch, struct sk_buff *skb)
 		.Scell_log	= q->parms.Scell_log,
 	};
 
-	opts = RTA_NEST(skb, TCA_OPTIONS);
-	RTA_PUT(skb, TCA_RED_PARMS, sizeof(opt), &opt);
-	return RTA_NEST_END(skb, opts);
+	opts = nla_nest_start(skb, TCA_OPTIONS);
+	if (opts == NULL)
+		goto nla_put_failure;
+	NLA_PUT(skb, TCA_RED_PARMS, sizeof(opt), &opt);
+	return nla_nest_end(skb, opts);
 
-rtattr_failure:
-	return RTA_NEST_CANCEL(skb, opts);
+nla_put_failure:
+	return nla_nest_cancel(skb, opts);
 }
 
 static int red_dump_stats(struct Qdisc *sch, struct gnet_dump *d)
@@ -332,7 +342,7 @@ static void red_put(struct Qdisc *sch, unsigned long arg)
 }
 
 static int red_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
-			    struct rtattr **tca, unsigned long *arg)
+			    struct nlattr **tca, unsigned long *arg)
 {
 	return -ENOSYS;
 }
@@ -359,7 +369,7 @@ static struct tcf_proto **red_find_tcf(struct Qdisc *sch, unsigned long cl)
 	return NULL;
 }
 
-static struct Qdisc_class_ops red_class_ops = {
+static const struct Qdisc_class_ops red_class_ops = {
 	.graft		=	red_graft,
 	.leaf		=	red_leaf,
 	.get		=	red_get,
@@ -371,7 +381,7 @@ static struct Qdisc_class_ops red_class_ops = {
 	.dump		=	red_dump_class,
 };
 
-static struct Qdisc_ops red_qdisc_ops = {
+static struct Qdisc_ops red_qdisc_ops __read_mostly = {
 	.id		=	"red",
 	.priv_size	=	sizeof(struct red_sched_data),
 	.cl_ops		=	&red_class_ops,

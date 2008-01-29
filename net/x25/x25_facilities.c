@@ -205,9 +205,7 @@ int x25_create_facilities(unsigned char *buffer,
 	}
 
 	if (dte_facs->calling_len && (facil_mask & X25_MASK_CALLING_AE)) {
-		unsigned bytecount = (dte_facs->calling_len % 2) ?
-					dte_facs->calling_len / 2 + 1 :
-					dte_facs->calling_len / 2;
+		unsigned bytecount = (dte_facs->calling_len + 1) >> 1;
 		*p++ = X25_FAC_CALLING_AE;
 		*p++ = 1 + bytecount;
 		*p++ = dte_facs->calling_len;

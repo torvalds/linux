@@ -237,7 +237,6 @@ out:
  */
 void ecryptfs_release_netlink(void)
 {
-	if (ecryptfs_nl_sock && ecryptfs_nl_sock->sk_socket)
-		sock_release(ecryptfs_nl_sock->sk_socket);
+	netlink_kernel_release(ecryptfs_nl_sock);
 	ecryptfs_nl_sock = NULL;
 }

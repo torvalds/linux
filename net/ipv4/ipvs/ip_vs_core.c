@@ -423,7 +423,7 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 	   and the destination is RTN_UNICAST (and not local), then create
 	   a cache_bypass connection entry */
 	if (sysctl_ip_vs_cache_bypass && svc->fwmark
-	    && (inet_addr_type(iph->daddr) == RTN_UNICAST)) {
+	    && (inet_addr_type(&init_net, iph->daddr) == RTN_UNICAST)) {
 		int ret, cs;
 		struct ip_vs_conn *cp;
 
@@ -481,7 +481,7 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 
 
 /*
- *      It is hooked before NF_IP_PRI_NAT_SRC at the NF_IP_POST_ROUTING
+ *      It is hooked before NF_IP_PRI_NAT_SRC at the NF_INET_POST_ROUTING
  *      chain, and is used for VS/NAT.
  *      It detects packets for VS/NAT connections and sends the packets
  *      immediately. This can avoid that iptable_nat mangles the packets
@@ -679,7 +679,7 @@ static inline int is_tcp_reset(const struct sk_buff *skb)
 }
 
 /*
- *	It is hooked at the NF_IP_FORWARD chain, used only for VS/NAT.
+ *	It is hooked at the NF_INET_FORWARD chain, used only for VS/NAT.
  *	Check if outgoing packet belongs to the established ip_vs_conn,
  *      rewrite addresses of the packet and send it on its way...
  */
@@ -814,7 +814,7 @@ ip_vs_in_icmp(struct sk_buff *skb, int *related, unsigned int hooknum)
 
 	/* reassemble IP fragments */
 	if (ip_hdr(skb)->frag_off & htons(IP_MF | IP_OFFSET)) {
-		if (ip_vs_gather_frags(skb, hooknum == NF_IP_LOCAL_IN ?
+		if (ip_vs_gather_frags(skb, hooknum == NF_INET_LOCAL_IN ?
 					    IP_DEFRAG_VS_IN : IP_DEFRAG_VS_FWD))
 			return NF_STOLEN;
 	}
@@ -1003,12 +1003,12 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb,
 
 
 /*
- *	It is hooked at the NF_IP_FORWARD chain, in order to catch ICMP
+ *	It is hooked at the NF_INET_FORWARD chain, in order to catch ICMP
  *      related packets destined for 0.0.0.0/0.
  *      When fwmark-based virtual service is used, such as transparent
  *      cache cluster, TCP packets can be marked and routed to ip_vs_in,
  *      but ICMP destined for 0.0.0.0/0 cannot not be easily marked and
- *      sent to ip_vs_in_icmp. So, catch them at the NF_IP_FORWARD chain
+ *      sent to ip_vs_in_icmp. So, catch them at the NF_INET_FORWARD chain
  *      and send them to ip_vs_in_icmp.
  */
 static unsigned int
@@ -1025,43 +1025,42 @@ ip_vs_forward_icmp(unsigned int hooknum, struct sk_buff *skb,
 }
 
 
-/* After packet filtering, forward packet through VS/DR, VS/TUN,
-   or VS/NAT(change destination), so that filtering rules can be
-   applied to IPVS. */
-static struct nf_hook_ops ip_vs_in_ops = {
-	.hook		= ip_vs_in,
-	.owner		= THIS_MODULE,
-	.pf		= PF_INET,
-	.hooknum        = NF_IP_LOCAL_IN,
-	.priority       = 100,
-};
-
-/* After packet filtering, change source only for VS/NAT */
-static struct nf_hook_ops ip_vs_out_ops = {
-	.hook		= ip_vs_out,
-	.owner		= THIS_MODULE,
-	.pf		= PF_INET,
-	.hooknum        = NF_IP_FORWARD,
-	.priority       = 100,
-};
-
-/* After packet filtering (but before ip_vs_out_icmp), catch icmp
-   destined for 0.0.0.0/0, which is for incoming IPVS connections */
-static struct nf_hook_ops ip_vs_forward_icmp_ops = {
-	.hook		= ip_vs_forward_icmp,
-	.owner		= THIS_MODULE,
-	.pf		= PF_INET,
-	.hooknum        = NF_IP_FORWARD,
-	.priority       = 99,
-};
-
-/* Before the netfilter connection tracking, exit from POST_ROUTING */
-static struct nf_hook_ops ip_vs_post_routing_ops = {
-	.hook		= ip_vs_post_routing,
-	.owner		= THIS_MODULE,
-	.pf		= PF_INET,
-	.hooknum        = NF_IP_POST_ROUTING,
-	.priority       = NF_IP_PRI_NAT_SRC-1,
+static struct nf_hook_ops ip_vs_ops[] __read_mostly = {
+	/* After packet filtering, forward packet through VS/DR, VS/TUN,
+	 * or VS/NAT(change destination), so that filtering rules can be
+	 * applied to IPVS. */
+	{
+		.hook		= ip_vs_in,
+		.owner		= THIS_MODULE,
+		.pf		= PF_INET,
+		.hooknum        = NF_INET_LOCAL_IN,
+		.priority       = 100,
+	},
+	/* After packet filtering, change source only for VS/NAT */
+	{
+		.hook		= ip_vs_out,
+		.owner		= THIS_MODULE,
+		.pf		= PF_INET,
+		.hooknum        = NF_INET_FORWARD,
+		.priority       = 100,
+	},
+	/* After packet filtering (but before ip_vs_out_icmp), catch icmp
+	 * destined for 0.0.0.0/0, which is for incoming IPVS connections */
+	{
+		.hook		= ip_vs_forward_icmp,
+		.owner		= THIS_MODULE,
+		.pf		= PF_INET,
+		.hooknum        = NF_INET_FORWARD,
+		.priority       = 99,
+	},
+	/* Before the netfilter connection tracking, exit from POST_ROUTING */
+	{
+		.hook		= ip_vs_post_routing,
+		.owner		= THIS_MODULE,
+		.pf		= PF_INET,
+		.hooknum        = NF_INET_POST_ROUTING,
+		.priority       = NF_IP_PRI_NAT_SRC-1,
+	},
 };
 
 
@@ -1092,37 +1091,15 @@ static int __init ip_vs_init(void)
 		goto cleanup_app;
 	}
 
-	ret = nf_register_hook(&ip_vs_in_ops);
+	ret = nf_register_hooks(ip_vs_ops, ARRAY_SIZE(ip_vs_ops));
 	if (ret < 0) {
-		IP_VS_ERR("can't register in hook.\n");
+		IP_VS_ERR("can't register hooks.\n");
 		goto cleanup_conn;
-	}
-
-	ret = nf_register_hook(&ip_vs_out_ops);
-	if (ret < 0) {
-		IP_VS_ERR("can't register out hook.\n");
-		goto cleanup_inops;
-	}
-	ret = nf_register_hook(&ip_vs_post_routing_ops);
-	if (ret < 0) {
-		IP_VS_ERR("can't register post_routing hook.\n");
-		goto cleanup_outops;
-	}
-	ret = nf_register_hook(&ip_vs_forward_icmp_ops);
-	if (ret < 0) {
-		IP_VS_ERR("can't register forward_icmp hook.\n");
-		goto cleanup_postroutingops;
 	}
 
 	IP_VS_INFO("ipvs loaded.\n");
 	return ret;
 
-  cleanup_postroutingops:
-	nf_unregister_hook(&ip_vs_post_routing_ops);
-  cleanup_outops:
-	nf_unregister_hook(&ip_vs_out_ops);
-  cleanup_inops:
-	nf_unregister_hook(&ip_vs_in_ops);
   cleanup_conn:
 	ip_vs_conn_cleanup();
   cleanup_app:
@@ -1136,10 +1113,7 @@ static int __init ip_vs_init(void)
 
 static void __exit ip_vs_cleanup(void)
 {
-	nf_unregister_hook(&ip_vs_forward_icmp_ops);
-	nf_unregister_hook(&ip_vs_post_routing_ops);
-	nf_unregister_hook(&ip_vs_out_ops);
-	nf_unregister_hook(&ip_vs_in_ops);
+	nf_unregister_hooks(ip_vs_ops, ARRAY_SIZE(ip_vs_ops));
 	ip_vs_conn_cleanup();
 	ip_vs_app_cleanup();
 	ip_vs_protocol_cleanup();

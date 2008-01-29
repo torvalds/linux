@@ -828,8 +828,8 @@
  * DMA mappings for a transmitted packet.
  */
 struct gem_txd {
-	u64	control_word;
-	u64	buffer;
+	__le64	control_word;
+	__le64	buffer;
 };
 
 #define TXDCTRL_BUFSZ	0x0000000000007fffULL	/* Buffer Size		*/
@@ -863,8 +863,8 @@ struct gem_txd {
  * by the host driver just as in the TX descriptor case above.
  */
 struct gem_rxd {
-	u64	status_word;
-	u64	buffer;
+	__le64	status_word;
+	__le64	buffer;
 };
 
 #define RXDCTRL_TCPCSUM	0x000000000000ffffULL	/* TCP Pseudo-CSUM	*/

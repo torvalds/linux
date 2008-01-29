@@ -36,6 +36,12 @@ typedef enum {
 	FIRMWARE_TYPE_SYMBOL
 } fwtype_t;
 
+typedef struct {
+	union hermes_scan_info bss;
+	unsigned long last_scanned;
+	struct list_head list;
+} bss_element;
+
 struct orinoco_private {
 	void *card;	/* Pointer to card dependent structure */
 	int (*hard_reset)(struct orinoco_private *);
@@ -105,10 +111,12 @@ struct orinoco_private {
 	int promiscuous, mc_count;
 
 	/* Scanning support */
+	struct list_head bss_list;
+	struct list_head bss_free_list;
+	bss_element *bss_data;
+
 	int	scan_inprogress;	/* Scan pending... */
 	u32	scan_mode;		/* Type of scan done */
-	char *	scan_result;		/* Result of previous scan */
-	int	scan_len;		/* Lenght of result */
 };
 
 #ifdef ORINOCO_DEBUG

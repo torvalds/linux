@@ -2,7 +2,6 @@
 #define __NET_PKT_CLS_H
 
 #include <linux/pkt_cls.h>
-#include <net/net_namespace.h>
 #include <net/sch_generic.h>
 #include <net/act_api.h>
 
@@ -130,8 +129,8 @@ tcf_exts_exec(struct sk_buff *skb, struct tcf_exts *exts,
 	return 0;
 }
 
-extern int tcf_exts_validate(struct tcf_proto *tp, struct rtattr **tb,
-	                     struct rtattr *rate_tlv, struct tcf_exts *exts,
+extern int tcf_exts_validate(struct tcf_proto *tp, struct nlattr **tb,
+	                     struct nlattr *rate_tlv, struct tcf_exts *exts,
 	                     struct tcf_ext_map *map);
 extern void tcf_exts_destroy(struct tcf_proto *tp, struct tcf_exts *exts);
 extern void tcf_exts_change(struct tcf_proto *tp, struct tcf_exts *dst,
@@ -248,7 +247,7 @@ struct tcf_ematch_ops
 
 extern int tcf_em_register(struct tcf_ematch_ops *);
 extern int tcf_em_unregister(struct tcf_ematch_ops *);
-extern int tcf_em_tree_validate(struct tcf_proto *, struct rtattr *,
+extern int tcf_em_tree_validate(struct tcf_proto *, struct nlattr *,
 				struct tcf_ematch_tree *);
 extern void tcf_em_tree_destroy(struct tcf_proto *, struct tcf_ematch_tree *);
 extern int tcf_em_tree_dump(struct sk_buff *, struct tcf_ematch_tree *, int);
@@ -336,10 +335,12 @@ static inline int tcf_valid_offset(const struct sk_buff *skb,
 }
 
 #ifdef CONFIG_NET_CLS_IND
+#include <net/net_namespace.h>
+
 static inline int
-tcf_change_indev(struct tcf_proto *tp, char *indev, struct rtattr *indev_tlv)
+tcf_change_indev(struct tcf_proto *tp, char *indev, struct nlattr *indev_tlv)
 {
-	if (rtattr_strlcpy(indev, indev_tlv, IFNAMSIZ) >= IFNAMSIZ)
+	if (nla_strlcpy(indev, indev_tlv, IFNAMSIZ) >= IFNAMSIZ)
 		return -EINVAL;
 	return 0;
 }

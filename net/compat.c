@@ -20,7 +20,6 @@
 #include <linux/syscalls.h>
 #include <linux/filter.h>
 #include <linux/compat.h>
-#include <linux/netfilter_ipv4/ip_tables.h>
 #include <linux/security.h>
 
 #include <net/scm.h>
@@ -317,107 +316,6 @@ void scm_detach_fds_compat(struct msghdr *kmsg, struct scm_cookie *scm)
 }
 
 /*
- * For now, we assume that the compatibility and native version
- * of struct ipt_entry are the same - sfr.  FIXME
- */
-struct compat_ipt_replace {
-	char			name[IPT_TABLE_MAXNAMELEN];
-	u32			valid_hooks;
-	u32			num_entries;
-	u32			size;
-	u32			hook_entry[NF_IP_NUMHOOKS];
-	u32			underflow[NF_IP_NUMHOOKS];
-	u32			num_counters;
-	compat_uptr_t		counters;	/* struct ipt_counters * */
-	struct ipt_entry	entries[0];
-};
-
-static int do_netfilter_replace(int fd, int level, int optname,
-				char __user *optval, int optlen)
-{
-	struct compat_ipt_replace __user *urepl;
-	struct ipt_replace __user *repl_nat;
-	char name[IPT_TABLE_MAXNAMELEN];
-	u32 origsize, tmp32, num_counters;
-	unsigned int repl_nat_size;
-	int ret;
-	int i;
-	compat_uptr_t ucntrs;
-
-	urepl = (struct compat_ipt_replace __user *)optval;
-	if (get_user(origsize, &urepl->size))
-		return -EFAULT;
-
-	/* Hack: Causes ipchains to give correct error msg --RR */
-	if (optlen != sizeof(*urepl) + origsize)
-		return -ENOPROTOOPT;
-
-	/* XXX Assumes that size of ipt_entry is the same both in
-	 *     native and compat environments.
-	 */
-	repl_nat_size = sizeof(*repl_nat) + origsize;
-	repl_nat = compat_alloc_user_space(repl_nat_size);
-
-	ret = -EFAULT;
-	if (put_user(origsize, &repl_nat->size))
-		goto out;
-
-	if (!access_ok(VERIFY_READ, urepl, optlen) ||
-	    !access_ok(VERIFY_WRITE, repl_nat, optlen))
-		goto out;
-
-	if (__copy_from_user(name, urepl->name, sizeof(urepl->name)) ||
-	    __copy_to_user(repl_nat->name, name, sizeof(repl_nat->name)))
-		goto out;
-
-	if (__get_user(tmp32, &urepl->valid_hooks) ||
-	    __put_user(tmp32, &repl_nat->valid_hooks))
-		goto out;
-
-	if (__get_user(tmp32, &urepl->num_entries) ||
-	    __put_user(tmp32, &repl_nat->num_entries))
-		goto out;
-
-	if (__get_user(num_counters, &urepl->num_counters) ||
-	    __put_user(num_counters, &repl_nat->num_counters))
-		goto out;
-
-	if (__get_user(ucntrs, &urepl->counters) ||
-	    __put_user(compat_ptr(ucntrs), &repl_nat->counters))
-		goto out;
-
-	if (__copy_in_user(&repl_nat->entries[0],
-			   &urepl->entries[0],
-			   origsize))
-		goto out;
-
-	for (i = 0; i < NF_IP_NUMHOOKS; i++) {
-		if (__get_user(tmp32, &urepl->hook_entry[i]) ||
-		    __put_user(tmp32, &repl_nat->hook_entry[i]) ||
-		    __get_user(tmp32, &urepl->underflow[i]) ||
-		    __put_user(tmp32, &repl_nat->underflow[i]))
-			goto out;
-	}
-
-	/*
-	 * Since struct ipt_counters just contains two u_int64_t members
-	 * we can just do the access_ok check here and pass the (converted)
-	 * pointer into the standard syscall.  We hope that the pointer is
-	 * not misaligned ...
-	 */
-	if (!access_ok(VERIFY_WRITE, compat_ptr(ucntrs),
-		       num_counters * sizeof(struct ipt_counters)))
-		goto out;
-
-
-	ret = sys_setsockopt(fd, level, optname,
-			     (char __user *)repl_nat, repl_nat_size);
-
-out:
-	return ret;
-}
-
-/*
  * A struct sock_filter is architecture independent.
  */
 struct compat_sock_fprog {
@@ -484,10 +382,6 @@ asmlinkage long compat_sys_setsockopt(int fd, int level, int optname,
 {
 	int err;
 	struct socket *sock;
-
-	if (level == SOL_IPV6 && optname == IPT_SO_SET_REPLACE)
-		return do_netfilter_replace(fd, level, optname,
-					    optval, optlen);
 
 	if (optlen < 0)
 		return -EINVAL;

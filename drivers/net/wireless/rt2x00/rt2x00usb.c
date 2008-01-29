@@ -23,14 +23,10 @@
 	Abstract: rt2x00 generic usb device routines.
  */
 
-/*
- * Set enviroment defines for rt2x00.h
- */
-#define DRV_NAME "rt2x00usb"
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/usb.h>
+#include <linux/bug.h>
 
 #include "rt2x00.h"
 #include "rt2x00usb.h"
@@ -38,7 +34,7 @@
 /*
  * Interfacing with the HW.
  */
-int rt2x00usb_vendor_request(const struct rt2x00_dev *rt2x00dev,
+int rt2x00usb_vendor_request(struct rt2x00_dev *rt2x00dev,
 			     const u8 request, const u8 requesttype,
 			     const u16 offset, const u16 value,
 			     void *buffer, const u16 buffer_length,
@@ -51,6 +47,7 @@ int rt2x00usb_vendor_request(const struct rt2x00_dev *rt2x00dev,
 	unsigned int pipe =
 	    (requesttype == USB_VENDOR_REQUEST_IN) ?
 	    usb_rcvctrlpipe(usb_dev, 0) : usb_sndctrlpipe(usb_dev, 0);
+
 
 	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
 		status = usb_control_msg(usb_dev, pipe, request, requesttype,
@@ -76,12 +73,14 @@ int rt2x00usb_vendor_request(const struct rt2x00_dev *rt2x00dev,
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_vendor_request);
 
-int rt2x00usb_vendor_request_buff(const struct rt2x00_dev *rt2x00dev,
-				  const u8 request, const u8 requesttype,
-				  const u16 offset, void *buffer,
-				  const u16 buffer_length, const int timeout)
+int rt2x00usb_vendor_req_buff_lock(struct rt2x00_dev *rt2x00dev,
+				   const u8 request, const u8 requesttype,
+				   const u16 offset, void *buffer,
+				   const u16 buffer_length, const int timeout)
 {
 	int status;
+
+	BUG_ON(!mutex_is_locked(&rt2x00dev->usb_cache_mutex));
 
 	/*
 	 * Check for Cache availability.
@@ -103,6 +102,25 @@ int rt2x00usb_vendor_request_buff(const struct rt2x00_dev *rt2x00dev,
 
 	return status;
 }
+EXPORT_SYMBOL_GPL(rt2x00usb_vendor_req_buff_lock);
+
+int rt2x00usb_vendor_request_buff(struct rt2x00_dev *rt2x00dev,
+				  const u8 request, const u8 requesttype,
+				  const u16 offset, void *buffer,
+				  const u16 buffer_length, const int timeout)
+{
+	int status;
+
+	mutex_lock(&rt2x00dev->usb_cache_mutex);
+
+	status = rt2x00usb_vendor_req_buff_lock(rt2x00dev, request,
+						requesttype, offset, buffer,
+						buffer_length, timeout);
+
+	mutex_unlock(&rt2x00dev->usb_cache_mutex);
+
+	return status;
+}
 EXPORT_SYMBOL_GPL(rt2x00usb_vendor_request_buff);
 
 /*
@@ -113,7 +131,7 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 	struct data_entry *entry = (struct data_entry *)urb->context;
 	struct data_ring *ring = entry->ring;
 	struct rt2x00_dev *rt2x00dev = ring->rt2x00dev;
-	struct data_desc *txd = (struct data_desc *)entry->skb->data;
+	__le32 *txd = (__le32 *)entry->skb->data;
 	u32 word;
 	int tx_status;
 
@@ -158,20 +176,17 @@ int rt2x00usb_write_tx_data(struct rt2x00_dev *rt2x00dev,
 	struct usb_device *usb_dev =
 	    interface_to_usbdev(rt2x00dev_usb(rt2x00dev));
 	struct data_entry *entry = rt2x00_get_data_entry(ring);
-	int pipe = usb_sndbulkpipe(usb_dev, 1);
+	struct skb_desc *desc;
 	u32 length;
 
-	if (rt2x00_ring_full(ring)) {
-		ieee80211_stop_queue(rt2x00dev->hw, control->queue);
+	if (rt2x00_ring_full(ring))
 		return -EINVAL;
-	}
 
 	if (test_bit(ENTRY_OWNER_NIC, &entry->flags)) {
 		ERROR(rt2x00dev,
 		      "Arrived at non-free entry in the non-full queue %d.\n"
 		      "Please file bug report to %s.\n",
 		      control->queue, DRV_PROJECT);
-		ieee80211_stop_queue(rt2x00dev->hw, control->queue);
 		return -EINVAL;
 	}
 
@@ -181,12 +196,18 @@ int rt2x00usb_write_tx_data(struct rt2x00_dev *rt2x00dev,
 	skb_push(skb, ring->desc_size);
 	memset(skb->data, 0, ring->desc_size);
 
-	rt2x00lib_write_tx_desc(rt2x00dev, (struct data_desc *)skb->data,
-				(struct ieee80211_hdr *)(skb->data +
-							 ring->desc_size),
-				skb->len - ring->desc_size, control);
-	memcpy(&entry->tx_status.control, control, sizeof(*control));
-	entry->skb = skb;
+	/*
+	 * Fill in skb descriptor
+	 */
+	desc = get_skb_desc(skb);
+	desc->desc_len = ring->desc_size;
+	desc->data_len = skb->len - ring->desc_size;
+	desc->desc = skb->data;
+	desc->data = skb->data + ring->desc_size;
+	desc->ring = ring;
+	desc->entry = entry;
+
+	rt2x00lib_write_tx_desc(rt2x00dev, skb, control);
 
 	/*
 	 * USB devices cannot blindly pass the skb->len as the
@@ -199,14 +220,11 @@ int rt2x00usb_write_tx_data(struct rt2x00_dev *rt2x00dev,
 	 * Initialize URB and send the frame to the device.
 	 */
 	__set_bit(ENTRY_OWNER_NIC, &entry->flags);
-	usb_fill_bulk_urb(entry->priv, usb_dev, pipe,
+	usb_fill_bulk_urb(entry->priv, usb_dev, usb_sndbulkpipe(usb_dev, 1),
 			  skb->data, length, rt2x00usb_interrupt_txdone, entry);
 	usb_submit_urb(entry->priv, GFP_ATOMIC);
 
 	rt2x00_ring_index_inc(ring);
-
-	if (rt2x00_ring_full(ring))
-		ieee80211_stop_queue(rt2x00dev->hw, control->queue);
 
 	return 0;
 }
@@ -222,6 +240,7 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	struct rt2x00_dev *rt2x00dev = ring->rt2x00dev;
 	struct sk_buff *skb;
 	struct ieee80211_hdr *hdr;
+	struct skb_desc *skbdesc;
 	struct rxdata_entry_desc desc;
 	int header_size;
 	int frame_size;
@@ -238,7 +257,14 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	if (urb->actual_length < entry->ring->desc_size || urb->status)
 		goto skip_entry;
 
-	memset(&desc, 0x00, sizeof(desc));
+	/*
+	 * Fill in skb descriptor
+	 */
+	skbdesc = get_skb_desc(entry->skb);
+	skbdesc->ring = ring;
+	skbdesc->entry = entry;
+
+	memset(&desc, 0, sizeof(desc));
 	rt2x00dev->ops->lib->fill_rxdone(entry, &desc);
 
 	/*
@@ -264,9 +290,6 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	/*
 	 * The data behind the ieee80211 header must be
 	 * aligned on a 4 byte boundary.
-	 * After that trim the entire buffer down to only
-	 * contain the valid frame data excluding the device
-	 * descriptor.
 	 */
 	hdr = (struct ieee80211_hdr *)entry->skb->data;
 	header_size =
@@ -276,6 +299,16 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 		skb_push(entry->skb, 2);
 		memmove(entry->skb->data, entry->skb->data + 2, skb->len - 2);
 	}
+
+	/*
+	 * Trim the entire buffer down to only contain the valid frame data
+	 * excluding the device descriptor. The position of the descriptor
+	 * varies. This means that we should check where the descriptor is
+	 * and decide if we need to pull the data pointer to exclude the
+	 * device descriptor.
+	 */
+	if (skbdesc->data > skbdesc->desc)
+		skb_pull(entry->skb, skbdesc->desc_len);
 	skb_trim(entry->skb, desc.size);
 
 	/*
@@ -303,43 +336,6 @@ skip_entry:
 /*
  * Radio handlers
  */
-void rt2x00usb_enable_radio(struct rt2x00_dev *rt2x00dev)
-{
-	struct usb_device *usb_dev =
-	    interface_to_usbdev(rt2x00dev_usb(rt2x00dev));
-	struct data_ring *ring;
-	struct data_entry *entry;
-	unsigned int i;
-
-	/*
-	 * Initialize the TX rings
-	 */
-	txringall_for_each(rt2x00dev, ring) {
-		for (i = 0; i < ring->stats.limit; i++)
-			ring->entry[i].flags = 0;
-
-		rt2x00_ring_index_clear(ring);
-	}
-
-	/*
-	 * Initialize and start the RX ring.
-	 */
-	rt2x00_ring_index_clear(rt2x00dev->rx);
-
-	for (i = 0; i < rt2x00dev->rx->stats.limit; i++) {
-		entry = &rt2x00dev->rx->entry[i];
-
-		usb_fill_bulk_urb(entry->priv, usb_dev,
-				  usb_rcvbulkpipe(usb_dev, 1),
-				  entry->skb->data, entry->skb->len,
-				  rt2x00usb_interrupt_rxdone, entry);
-
-		__set_bit(ENTRY_OWNER_NIC, &entry->flags);
-		usb_submit_urb(entry->priv, GFP_ATOMIC);
-	}
-}
-EXPORT_SYMBOL_GPL(rt2x00usb_enable_radio);
-
 void rt2x00usb_disable_radio(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_ring *ring;
@@ -361,6 +357,29 @@ EXPORT_SYMBOL_GPL(rt2x00usb_disable_radio);
 /*
  * Device initialization handlers.
  */
+void rt2x00usb_init_rxentry(struct rt2x00_dev *rt2x00dev,
+			    struct data_entry *entry)
+{
+	struct usb_device *usb_dev =
+	     interface_to_usbdev(rt2x00dev_usb(rt2x00dev));
+
+	usb_fill_bulk_urb(entry->priv, usb_dev,
+			  usb_rcvbulkpipe(usb_dev, 1),
+			  entry->skb->data, entry->skb->len,
+			  rt2x00usb_interrupt_rxdone, entry);
+
+	__set_bit(ENTRY_OWNER_NIC, &entry->flags);
+	usb_submit_urb(entry->priv, GFP_ATOMIC);
+}
+EXPORT_SYMBOL_GPL(rt2x00usb_init_rxentry);
+
+void rt2x00usb_init_txentry(struct rt2x00_dev *rt2x00dev,
+			    struct data_entry *entry)
+{
+	entry->flags = 0;
+}
+EXPORT_SYMBOL_GPL(rt2x00usb_init_txentry);
+
 static int rt2x00usb_alloc_urb(struct rt2x00_dev *rt2x00dev,
 			       struct data_ring *ring)
 {
@@ -400,7 +419,7 @@ int rt2x00usb_initialize(struct rt2x00_dev *rt2x00dev)
 	struct sk_buff *skb;
 	unsigned int entry_size;
 	unsigned int i;
-	int status;
+	int uninitialized_var(status);
 
 	/*
 	 * Allocate DMA
@@ -507,6 +526,7 @@ int rt2x00usb_probe(struct usb_interface *usb_intf,
 	rt2x00dev->dev = usb_intf;
 	rt2x00dev->ops = ops;
 	rt2x00dev->hw = hw;
+	mutex_init(&rt2x00dev->usb_cache_mutex);
 
 	rt2x00dev->usb_maxpacket =
 	    usb_maxpacket(usb_dev, usb_sndbulkpipe(usb_dev, 1), 1);

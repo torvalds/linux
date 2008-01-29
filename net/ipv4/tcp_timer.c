@@ -114,13 +114,31 @@ static int tcp_orphan_retries(struct sock *sk, int alive)
 	return retries;
 }
 
+static void tcp_mtu_probing(struct inet_connection_sock *icsk, struct sock *sk)
+{
+	/* Black hole detection */
+	if (sysctl_tcp_mtu_probing) {
+		if (!icsk->icsk_mtup.enabled) {
+			icsk->icsk_mtup.enabled = 1;
+			tcp_sync_mss(sk, icsk->icsk_pmtu_cookie);
+		} else {
+			struct tcp_sock *tp = tcp_sk(sk);
+			int mss;
+
+			mss = tcp_mtu_to_mss(sk, icsk->icsk_mtup.search_low) >> 1;
+			mss = min(sysctl_tcp_base_mss, mss);
+			mss = max(mss, 68 - tp->tcp_header_len);
+			icsk->icsk_mtup.search_low = tcp_mss_to_mtu(sk, mss);
+			tcp_sync_mss(sk, icsk->icsk_pmtu_cookie);
+		}
+	}
+}
+
 /* A write timeout has occurred. Process the after effects. */
 static int tcp_write_timeout(struct sock *sk)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
-	struct tcp_sock *tp = tcp_sk(sk);
 	int retry_until;
-	int mss;
 
 	if ((1 << sk->sk_state) & (TCPF_SYN_SENT | TCPF_SYN_RECV)) {
 		if (icsk->icsk_retransmits)
@@ -129,18 +147,7 @@ static int tcp_write_timeout(struct sock *sk)
 	} else {
 		if (icsk->icsk_retransmits >= sysctl_tcp_retries1) {
 			/* Black hole detection */
-			if (sysctl_tcp_mtu_probing) {
-				if (!icsk->icsk_mtup.enabled) {
-					icsk->icsk_mtup.enabled = 1;
-					tcp_sync_mss(sk, icsk->icsk_pmtu_cookie);
-				} else {
-					mss = min(sysctl_tcp_base_mss,
-						  tcp_mtu_to_mss(sk, icsk->icsk_mtup.search_low)/2);
-					mss = max(mss, 68 - tp->tcp_header_len);
-					icsk->icsk_mtup.search_low = tcp_mss_to_mtu(sk, mss);
-					tcp_sync_mss(sk, icsk->icsk_pmtu_cookie);
-				}
-			}
+			tcp_mtu_probing(icsk, sk);
 
 			dst_negative_advice(&sk->sk_dst_cache);
 		}
@@ -179,7 +186,7 @@ static void tcp_delack_timer(unsigned long data)
 		goto out_unlock;
 	}
 
-	sk_stream_mem_reclaim(sk);
+	sk_mem_reclaim_partial(sk);
 
 	if (sk->sk_state == TCP_CLOSE || !(icsk->icsk_ack.pending & ICSK_ACK_TIMER))
 		goto out;
@@ -219,7 +226,7 @@ static void tcp_delack_timer(unsigned long data)
 
 out:
 	if (tcp_memory_pressure)
-		sk_stream_mem_reclaim(sk);
+		sk_mem_reclaim(sk);
 out_unlock:
 	bh_unlock_sock(sk);
 	sock_put(sk);
@@ -413,7 +420,7 @@ static void tcp_write_timer(unsigned long data)
 	TCP_CHECK_TIMER(sk);
 
 out:
-	sk_stream_mem_reclaim(sk);
+	sk_mem_reclaim(sk);
 out_unlock:
 	bh_unlock_sock(sk);
 	sock_put(sk);
@@ -507,7 +514,7 @@ static void tcp_keepalive_timer (unsigned long data)
 	}
 
 	TCP_CHECK_TIMER(sk);
-	sk_stream_mem_reclaim(sk);
+	sk_mem_reclaim(sk);
 
 resched:
 	inet_csk_reset_keepalive_timer (sk, elapsed);

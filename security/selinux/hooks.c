@@ -5281,7 +5281,7 @@ static struct nf_hook_ops selinux_ipv4_op = {
 	.hook =		selinux_ipv4_postroute_last,
 	.owner =	THIS_MODULE,
 	.pf =		PF_INET,
-	.hooknum =	NF_IP_POST_ROUTING,
+	.hooknum =	NF_INET_POST_ROUTING,
 	.priority =	NF_IP_PRI_SELINUX_LAST,
 };
 
@@ -5291,7 +5291,7 @@ static struct nf_hook_ops selinux_ipv6_op = {
 	.hook =		selinux_ipv6_postroute_last,
 	.owner =	THIS_MODULE,
 	.pf =		PF_INET6,
-	.hooknum =	NF_IP6_POST_ROUTING,
+	.hooknum =	NF_INET_POST_ROUTING,
 	.priority =	NF_IP6_PRI_SELINUX_LAST,
 };
 

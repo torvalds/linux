@@ -10,10 +10,12 @@
  */
 
 #include <linux/if_ether.h>
-#include <linux/compiler.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/icmpv6.h>
 #include <linux/netfilter_ipv6.h>
+#include <net/dst.h>
 #include <net/ipv6.h>
 #include <net/xfrm.h>
 
@@ -43,97 +45,50 @@ static int xfrm6_tunnel_check_size(struct sk_buff *skb)
 	return ret;
 }
 
-static inline int xfrm6_output_one(struct sk_buff *skb)
+int xfrm6_extract_output(struct xfrm_state *x, struct sk_buff *skb)
 {
-	struct dst_entry *dst = skb->dst;
-	struct xfrm_state *x = dst->xfrm;
-	struct ipv6hdr *iph;
 	int err;
 
-	if (x->outer_mode->flags & XFRM_MODE_FLAG_TUNNEL) {
-		err = xfrm6_tunnel_check_size(skb);
-		if (err)
-			goto error_nolock;
-	}
-
-	err = xfrm_output(skb);
+	err = xfrm6_tunnel_check_size(skb);
 	if (err)
-		goto error_nolock;
+		return err;
 
-	iph = ipv6_hdr(skb);
-	iph->payload_len = htons(skb->len - sizeof(*iph));
+	XFRM_MODE_SKB_CB(skb)->protocol = ipv6_hdr(skb)->nexthdr;
 
-	IP6CB(skb)->flags |= IP6SKB_XFRM_TRANSFORMED;
-	err = 0;
-
-out_exit:
-	return err;
-error_nolock:
-	kfree_skb(skb);
-	goto out_exit;
+	return xfrm6_extract_header(skb);
 }
 
-static int xfrm6_output_finish2(struct sk_buff *skb)
+int xfrm6_prepare_output(struct xfrm_state *x, struct sk_buff *skb)
 {
 	int err;
 
-	while (likely((err = xfrm6_output_one(skb)) == 0)) {
-		nf_reset(skb);
+	err = x->inner_mode->afinfo->extract_output(x, skb);
+	if (err)
+		return err;
 
-		err = nf_hook(PF_INET6, NF_IP6_LOCAL_OUT, skb, NULL,
-			      skb->dst->dev, dst_output);
-		if (unlikely(err != 1))
-			break;
+	memset(IP6CB(skb), 0, sizeof(*IP6CB(skb)));
+#ifdef CONFIG_NETFILTER
+	IP6CB(skb)->flags |= IP6SKB_XFRM_TRANSFORMED;
+#endif
 
-		if (!skb->dst->xfrm)
-			return dst_output(skb);
+	skb->protocol = htons(ETH_P_IPV6);
 
-		err = nf_hook(PF_INET6, NF_IP6_POST_ROUTING, skb, NULL,
-			      skb->dst->dev, xfrm6_output_finish2);
-		if (unlikely(err != 1))
-			break;
-	}
-
-	return err;
+	return x->outer_mode->output2(x, skb);
 }
+EXPORT_SYMBOL(xfrm6_prepare_output);
 
 static int xfrm6_output_finish(struct sk_buff *skb)
 {
-	struct sk_buff *segs;
-
-	if (!skb_is_gso(skb))
-		return xfrm6_output_finish2(skb);
+#ifdef CONFIG_NETFILTER
+	IP6CB(skb)->flags |= IP6SKB_XFRM_TRANSFORMED;
+#endif
 
 	skb->protocol = htons(ETH_P_IPV6);
-	segs = skb_gso_segment(skb, 0);
-	kfree_skb(skb);
-	if (unlikely(IS_ERR(segs)))
-		return PTR_ERR(segs);
-
-	do {
-		struct sk_buff *nskb = segs->next;
-		int err;
-
-		segs->next = NULL;
-		err = xfrm6_output_finish2(segs);
-
-		if (unlikely(err)) {
-			while ((segs = nskb)) {
-				nskb = segs->next;
-				segs->next = NULL;
-				kfree_skb(segs);
-			}
-			return err;
-		}
-
-		segs = nskb;
-	} while (segs);
-
-	return 0;
+	return xfrm_output(skb);
 }
 
 int xfrm6_output(struct sk_buff *skb)
 {
-	return NF_HOOK(PF_INET6, NF_IP6_POST_ROUTING, skb, NULL, skb->dst->dev,
+	return NF_HOOK(PF_INET6, NF_INET_POST_ROUTING, skb, NULL, skb->dst->dev,
 		       xfrm6_output_finish);
 }

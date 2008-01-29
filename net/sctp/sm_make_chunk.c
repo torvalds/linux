@@ -1275,6 +1275,9 @@ nodata:
 /* Release the memory occupied by a chunk.  */
 static void sctp_chunk_destroy(struct sctp_chunk *chunk)
 {
+	BUG_ON(!list_empty(&chunk->list));
+	list_del_init(&chunk->transmitted_list);
+
 	/* Free the chunk skb data and the SCTP_chunk stub itself. */
 	dev_kfree_skb(chunk->skb);
 
@@ -1285,9 +1288,6 @@ static void sctp_chunk_destroy(struct sctp_chunk *chunk)
 /* Possibly, free the chunk.  */
 void sctp_chunk_free(struct sctp_chunk *chunk)
 {
-	BUG_ON(!list_empty(&chunk->list));
-	list_del_init(&chunk->transmitted_list);
-
 	/* Release our reference on the message tracker. */
 	if (chunk->msg)
 		sctp_datamsg_put(chunk->msg);
@@ -1692,8 +1692,8 @@ no_hmac:
 
 	/* Also, add the destination address. */
 	if (list_empty(&retval->base.bind_addr.address_list)) {
-		sctp_add_bind_addr(&retval->base.bind_addr, &chunk->dest, 1,
-				GFP_ATOMIC);
+		sctp_add_bind_addr(&retval->base.bind_addr, &chunk->dest,
+				SCTP_ADDR_SRC, GFP_ATOMIC);
 	}
 
 	retval->next_tsn = retval->c.initial_tsn;
@@ -1836,6 +1836,39 @@ static int sctp_process_hn_param(const struct sctp_association *asoc,
 	return 0;
 }
 
+static int sctp_verify_ext_param(union sctp_params param)
+{
+	__u16 num_ext = ntohs(param.p->length) - sizeof(sctp_paramhdr_t);
+	int have_auth = 0;
+	int have_asconf = 0;
+	int i;
+
+	for (i = 0; i < num_ext; i++) {
+		switch (param.ext->chunks[i]) {
+		    case SCTP_CID_AUTH:
+			    have_auth = 1;
+			    break;
+		    case SCTP_CID_ASCONF:
+		    case SCTP_CID_ASCONF_ACK:
+			    have_asconf = 1;
+			    break;
+		}
+	}
+
+	/* ADD-IP Security: The draft requires us to ABORT or ignore the
+	 * INIT/INIT-ACK if ADD-IP is listed, but AUTH is not.  Do this
+	 * only if ADD-IP is turned on and we are not backward-compatible
+	 * mode.
+	 */
+	if (sctp_addip_noauth)
+		return 1;
+
+	if (sctp_addip_enable && !have_auth && have_asconf)
+		return 0;
+
+	return 1;
+}
+
 static void sctp_process_ext_param(struct sctp_association *asoc,
 				    union sctp_params param)
 {
@@ -1966,8 +1999,17 @@ static sctp_ierror_t sctp_verify_param(const struct sctp_association *asoc,
 	case SCTP_PARAM_UNRECOGNIZED_PARAMETERS:
 	case SCTP_PARAM_ECN_CAPABLE:
 	case SCTP_PARAM_ADAPTATION_LAYER_IND:
-	case SCTP_PARAM_SUPPORTED_EXT:
 		break;
+
+	case SCTP_PARAM_SUPPORTED_EXT:
+		if (!sctp_verify_ext_param(param))
+			return SCTP_IERROR_ABORT;
+		break;
+
+	case SCTP_PARAM_SET_PRIMARY:
+		if (sctp_addip_enable)
+			break;
+		goto fallthrough;
 
 	case SCTP_PARAM_HOST_NAME_ADDRESS:
 		/* Tell the peer, we won't support this param.  */
@@ -2134,10 +2176,11 @@ int sctp_process_init(struct sctp_association *asoc, sctp_cid_t cid,
 					!asoc->peer.peer_hmacs))
 		asoc->peer.auth_capable = 0;
 
-
-	/* If the peer claims support for ADD-IP without support
-	 * for AUTH, disable support for ADD-IP.
-	 * Do this only if backward compatible mode is turned off.
+	/* In a non-backward compatible mode, if the peer claims
+	 * support for ADD-IP but not AUTH,  the ADD-IP spec states
+	 * that we MUST ABORT the association. Section 6.  The section
+	 * also give us an option to silently ignore the packet, which
+	 * is what we'll do here.
 	 */
 	if (!sctp_addip_noauth &&
 	     (asoc->peer.asconf_capable && !asoc->peer.auth_capable)) {
@@ -2145,6 +2188,7 @@ int sctp_process_init(struct sctp_association *asoc, sctp_cid_t cid,
 						  SCTP_PARAM_DEL_IP |
 						  SCTP_PARAM_SET_PRIMARY);
 		asoc->peer.asconf_capable = 0;
+		goto clean_up;
 	}
 
 	/* Walk list of transports, removing transports in the UNKNOWN state. */
@@ -2286,6 +2330,8 @@ static int sctp_process_param(struct sctp_association *asoc,
 	sctp_scope_t scope;
 	time_t stale;
 	struct sctp_af *af;
+	union sctp_addr_param *addr_param;
+	struct sctp_transport *t;
 
 	/* We maintain all INIT parameters in network byte order all the
 	 * time.  This allows us to not worry about whether the parameters
@@ -2374,6 +2420,26 @@ static int sctp_process_param(struct sctp_association *asoc,
 
 	case SCTP_PARAM_ADAPTATION_LAYER_IND:
 		asoc->peer.adaptation_ind = param.aind->adaptation_ind;
+		break;
+
+	case SCTP_PARAM_SET_PRIMARY:
+		addr_param = param.v + sizeof(sctp_addip_param_t);
+
+		af = sctp_get_af_specific(param_type2af(param.p->type));
+		af->from_addr_param(&addr, addr_param,
+				    htons(asoc->peer.port), 0);
+
+		/* if the address is invalid, we can't process it.
+		 * XXX: see spec for what to do.
+		 */
+		if (!af->addr_valid(&addr, NULL, NULL))
+			break;
+
+		t = sctp_assoc_lookup_paddr(asoc, &addr);
+		if (!t)
+			break;
+
+		sctp_assoc_set_primary(asoc, t);
 		break;
 
 	case SCTP_PARAM_SUPPORTED_EXT:
@@ -2727,7 +2793,6 @@ static __be16 sctp_process_asconf_param(struct sctp_association *asoc,
 	struct sctp_transport *peer;
 	struct sctp_af *af;
 	union sctp_addr	addr;
-	struct list_head *pos;
 	union sctp_addr_param *addr_param;
 
 	addr_param = (union sctp_addr_param *)
@@ -2738,8 +2803,24 @@ static __be16 sctp_process_asconf_param(struct sctp_association *asoc,
 		return SCTP_ERROR_INV_PARAM;
 
 	af->from_addr_param(&addr, addr_param, htons(asoc->peer.port), 0);
+
+	/* ADDIP 4.2.1  This parameter MUST NOT contain a broadcast
+	 * or multicast address.
+	 * (note: wildcard is permitted and requires special handling so
+	 *  make sure we check for that)
+	 */
+	if (!af->is_any(&addr) && !af->addr_valid(&addr, NULL, asconf->skb))
+		return SCTP_ERROR_INV_PARAM;
+
 	switch (asconf_param->param_hdr.type) {
 	case SCTP_PARAM_ADD_IP:
+		/* Section 4.2.1:
+		 * If the address 0.0.0.0 or ::0 is provided, the source
+		 * address of the packet MUST be added.
+		 */
+		if (af->is_any(&addr))
+			memcpy(&addr, &asconf->source, sizeof(addr));
+
 		/* ADDIP 4.3 D9) If an endpoint receives an ADD IP address
 		 * request and does not have the local resources to add this
 		 * new address to the association, it MUST return an Error
@@ -2761,8 +2842,7 @@ static __be16 sctp_process_asconf_param(struct sctp_association *asoc,
 		 * MUST send an Error Cause TLV with the error cause set to the
 		 * new error code 'Request to Delete Last Remaining IP Address'.
 		 */
-		pos = asoc->peer.transport_addr_list.next;
-		if (pos->next == &asoc->peer.transport_addr_list)
+		if (asoc->peer.transport_count == 1)
 			return SCTP_ERROR_DEL_LAST_IP;
 
 		/* ADDIP 4.3 D8) If a request is received to delete an IP
@@ -2775,9 +2855,27 @@ static __be16 sctp_process_asconf_param(struct sctp_association *asoc,
 		if (sctp_cmp_addr_exact(sctp_source(asconf), &addr))
 			return SCTP_ERROR_DEL_SRC_IP;
 
-		sctp_assoc_del_peer(asoc, &addr);
+		/* Section 4.2.2
+		 * If the address 0.0.0.0 or ::0 is provided, all
+		 * addresses of the peer except	the source address of the
+		 * packet MUST be deleted.
+		 */
+		if (af->is_any(&addr)) {
+			sctp_assoc_set_primary(asoc, asconf->transport);
+			sctp_assoc_del_nonprimary_peers(asoc,
+							asconf->transport);
+		} else
+			sctp_assoc_del_peer(asoc, &addr);
 		break;
 	case SCTP_PARAM_SET_PRIMARY:
+		/* ADDIP Section 4.2.4
+		 * If the address 0.0.0.0 or ::0 is provided, the receiver
+		 * MAY mark the source address of the packet as its
+		 * primary.
+		 */
+		if (af->is_any(&addr))
+			memcpy(&addr.v4, sctp_source(asconf), sizeof(addr));
+
 		peer = sctp_assoc_lookup_paddr(asoc, &addr);
 		if (!peer)
 			return SCTP_ERROR_INV_PARAM;
@@ -2921,11 +3019,9 @@ done:
 	 * after freeing the reference to old asconf ack if any.
 	 */
 	if (asconf_ack) {
-		if (asoc->addip_last_asconf_ack)
-			sctp_chunk_free(asoc->addip_last_asconf_ack);
-
 		sctp_chunk_hold(asconf_ack);
-		asoc->addip_last_asconf_ack = asconf_ack;
+		list_add_tail(&asconf_ack->transmitted_list,
+			      &asoc->asconf_ack_list);
 	}
 
 	return asconf_ack;
@@ -2959,7 +3055,7 @@ static int sctp_asconf_param_success(struct sctp_association *asoc,
 		local_bh_disable();
 		list_for_each_entry(saddr, &bp->address_list, list) {
 			if (sctp_cmp_addr_exact(&saddr->a, &addr))
-				saddr->use_as_src = 1;
+				saddr->state = SCTP_ADDR_SRC;
 		}
 		local_bh_enable();
 		break;

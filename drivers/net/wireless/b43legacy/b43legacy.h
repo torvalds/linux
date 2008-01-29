@@ -19,6 +19,7 @@
 
 #include "debugfs.h"
 #include "leds.h"
+#include "rfkill.h"
 #include "phy.h"
 
 
@@ -275,6 +276,8 @@
 #define B43legacy_DEFAULT_SHORT_RETRY_LIMIT	7
 #define B43legacy_DEFAULT_LONG_RETRY_LIMIT	4
 
+#define B43legacy_PHY_TX_BADNESS_LIMIT		1000
+
 /* Max size of a security key */
 #define B43legacy_SEC_KEYSIZE		16
 /* Security algorithms. */
@@ -412,7 +415,6 @@ struct b43legacy_phy {
 	u8 calibrated:1;
 	u8 radio_rev;		/* Radio revision */
 
-	bool locked;		/* Only used in b43legacy_phy_{un}lock() */
 	bool dyn_tssi_tbl;	/* tssi2dbm is kmalloc()ed. */
 
 	/* ACI (adjacent channel interference) flags. */
@@ -455,11 +457,6 @@ struct b43legacy_phy {
 	s16 lna_gain;		/* LNA */
 	s16 pga_gain;		/* PGA */
 
-	/* PHY lock for core.rev < 3
-	 * This lock is only used by b43legacy_phy_{un}lock()
-	 */
-	spinlock_t lock;
-
 	/* Desired TX power level (in dBm). This is set by the user and
 	 * adjusted in b43legacy_phy_xmitpower(). */
 	u8 power_level;
@@ -483,9 +480,6 @@ struct b43legacy_phy {
 		u16 txpwr_offset;
 	};
 
-#ifdef CONFIG_B43LEGACY_DEBUG
-	bool manual_txpower_control; /* Manual TX-power control enabled? */
-#endif
 	/* Current Interference Mitigation mode */
 	int interfmode;
 	/* Stack of saved values from the Interference Mitigation code.
@@ -510,6 +504,16 @@ struct b43legacy_phy {
 	u16 lofcal;
 
 	u16 initval;
+
+	/* PHY TX errors counter. */
+	atomic_t txerr_cnt;
+
+#if B43legacy_DEBUG
+	/* Manual TX-power control enabled? */
+	bool manual_txpower_control;
+	/* PHY registers locked by b43legacy_phy_lock()? */
+	bool phy_locked;
+#endif /* B43legacy_DEBUG */
 };
 
 /* Data structures for DMA transmission, per 80211 core. */
@@ -571,10 +575,7 @@ struct b43legacy_wl {
 	 * at a time. General information about this interface follows.
 	 */
 
-	/* Opaque ID of the operating interface from the ieee80211
-	 * subsystem. Do not modify.
-	 */
-	int if_id;
+	struct ieee80211_vif *vif;
 	/* MAC address (can be NULL). */
 	u8 mac_addr[ETH_ALEN];
 	/* Current BSSID (can be NULL). */
@@ -592,9 +593,14 @@ struct b43legacy_wl {
 	u8 rng_initialized;
 	char rng_name[30 + 1];
 
+	/* The RF-kill button */
+	struct b43legacy_rfkill rfkill;
+
 	/* List of all wireless devices on this chip */
 	struct list_head devlist;
 	u8 nr_devs;
+
+	bool radiotap_enabled;
 };
 
 /* Pointers to the firmware data and meta information about it. */
@@ -663,8 +669,11 @@ struct b43legacy_wldev {
 	/* Various statistics about the physical device. */
 	struct b43legacy_stats stats;
 
-#define B43legacy_NR_LEDS		4
-	struct b43legacy_led leds[B43legacy_NR_LEDS];
+	/* The device LEDs. */
+	struct b43legacy_led led_tx;
+	struct b43legacy_led led_rx;
+	struct b43legacy_led led_assoc;
+	struct b43legacy_led led_radio;
 
 	/* Reason code of the last interrupt. */
 	u32 irq_reason;

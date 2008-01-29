@@ -88,7 +88,7 @@ static int cmtp_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long 
 			return err;
 
 		if (nsock->sk->sk_state != BT_CONNECTED) {
-			fput(nsock->file);
+			sockfd_put(nsock);
 			return -EBADFD;
 		}
 
@@ -97,7 +97,7 @@ static int cmtp_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long 
 			if (copy_to_user(argp, &ca, sizeof(ca)))
 				err = -EFAULT;
 		} else
-			fput(nsock->file);
+			sockfd_put(nsock);
 
 		return err;
 

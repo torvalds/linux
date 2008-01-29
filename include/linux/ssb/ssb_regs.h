@@ -147,6 +147,10 @@
 #define  SSB_IDLOW_SSBREV	0xF0000000 /* Sonics Backplane Revision code */
 #define  SSB_IDLOW_SSBREV_22	0x00000000 /* <= 2.2 */
 #define  SSB_IDLOW_SSBREV_23	0x10000000 /* 2.3 */
+#define  SSB_IDLOW_SSBREV_24	0x40000000 /* ?? Found in BCM4328 */
+#define  SSB_IDLOW_SSBREV_25	0x50000000 /* ?? Not Found yet */
+#define  SSB_IDLOW_SSBREV_26	0x60000000 /* ?? Found in some BCM4311/2 */
+#define  SSB_IDLOW_SSBREV_27	0x70000000 /* ?? Found in some BCM4311/2 */
 #define SSB_IDHIGH		0x0FFC     /* SB Identification High */
 #define  SSB_IDHIGH_RCLO	0x0000000F /* Revision Code (low part) */
 #define  SSB_IDHIGH_CC		0x00008FF0 /* Core Code */
@@ -162,11 +166,16 @@
  */
 #define SSB_SPROMSIZE_WORDS		64
 #define SSB_SPROMSIZE_BYTES		(SSB_SPROMSIZE_WORDS * sizeof(u16))
+#define SSB_SPROMSIZE_WORDS_R123	64
+#define SSB_SPROMSIZE_WORDS_R4		220
+#define SSB_SPROMSIZE_BYTES_R123	(SSB_SPROMSIZE_WORDS_R123 * sizeof(u16))
+#define SSB_SPROMSIZE_BYTES_R4		(SSB_SPROMSIZE_WORDS_R4 * sizeof(u16))
 #define SSB_SPROM_BASE			0x1000
 #define SSB_SPROM_REVISION		0x107E
 #define  SSB_SPROM_REVISION_REV		0x00FF	/* SPROM Revision number */
 #define  SSB_SPROM_REVISION_CRC		0xFF00	/* SPROM CRC8 value */
 #define  SSB_SPROM_REVISION_CRC_SHIFT	8
+
 /* SPROM Revision 1 */
 #define SSB_SPROM1_SPID			0x1004	/* Subsystem Product ID for PCI */
 #define SSB_SPROM1_SVID			0x1006	/* Subsystem Vendor ID for PCI */
@@ -184,10 +193,10 @@
 #define  SSB_SPROM1_BINF_BREV		0x00FF	/* Board Revision */
 #define  SSB_SPROM1_BINF_CCODE		0x0F00	/* Country Code */
 #define  SSB_SPROM1_BINF_CCODE_SHIFT	8
-#define  SSB_SPROM1_BINF_ANTA		0x3000	/* Available A-PHY antennas */
-#define  SSB_SPROM1_BINF_ANTA_SHIFT	12
-#define  SSB_SPROM1_BINF_ANTBG		0xC000	/* Available B-PHY antennas */
-#define  SSB_SPROM1_BINF_ANTBG_SHIFT	14
+#define  SSB_SPROM1_BINF_ANTBG		0x3000	/* Available B-PHY and G-PHY antennas */
+#define  SSB_SPROM1_BINF_ANTBG_SHIFT	12
+#define  SSB_SPROM1_BINF_ANTA		0xC000	/* Available A-PHY antennas */
+#define  SSB_SPROM1_BINF_ANTA_SHIFT	14
 #define SSB_SPROM1_PA0B0		0x105E
 #define SSB_SPROM1_PA0B1		0x1060
 #define SSB_SPROM1_PA0B2		0x1062
@@ -212,10 +221,11 @@
 #define  SSB_SPROM1_ITSSI_A_SHIFT	8
 #define SSB_SPROM1_BFLLO		0x1072	/* Boardflags (low 16 bits) */
 #define SSB_SPROM1_AGAIN		0x1074	/* Antenna Gain (in dBm Q5.2) */
-#define  SSB_SPROM1_AGAIN_A		0x00FF	/* A-PHY */
-#define  SSB_SPROM1_AGAIN_BG		0xFF00	/* B-PHY and G-PHY */
-#define  SSB_SPROM1_AGAIN_BG_SHIFT	8
-#define SSB_SPROM1_OEM			0x1076	/* 8 bytes OEM string (rev 1 only) */
+#define  SSB_SPROM1_AGAIN_BG		0x00FF	/* B-PHY and G-PHY */
+#define  SSB_SPROM1_AGAIN_BG_SHIFT	0
+#define  SSB_SPROM1_AGAIN_A		0xFF00	/* A-PHY */
+#define  SSB_SPROM1_AGAIN_A_SHIFT	8
+
 /* SPROM Revision 2 (inherits from rev 1) */
 #define SSB_SPROM2_BFLHI		0x1038	/* Boardflags (high 16 bits) */
 #define SSB_SPROM2_MAXP_A		0x103A	/* A-PHY Max Power */
@@ -232,7 +242,11 @@
 #define  SSB_SPROM2_OPO_VALUE		0x00FF
 #define  SSB_SPROM2_OPO_UNUSED		0xFF00
 #define SSB_SPROM2_CCODE		0x107C	/* Two char Country Code */
-/* SPROM Revision 3 (inherits from rev 2) */
+
+/* SPROM Revision 3 (inherits most data from rev 2) */
+#define SSB_SPROM3_IL0MAC		0x104A	/* 6 bytes MAC address for 802.11b/g */
+#define SSB_SPROM3_ET0MAC		0x1050	/* 6 bytes MAC address for Ethernet ?? */
+#define SSB_SPROM3_ET1MAC		0x1050	/* 6 bytes MAC address for 802.11a ?? */
 #define SSB_SPROM3_OFDMAPO		0x102C	/* A-PHY OFDM Mid Power Offset (4 bytes, BigEndian) */
 #define SSB_SPROM3_OFDMALPO		0x1030	/* A-PHY OFDM Low Power Offset (4 bytes, BigEndian) */
 #define SSB_SPROM3_OFDMAHPO		0x1034	/* A-PHY OFDM High Power Offset (4 bytes, BigEndian) */
@@ -250,6 +264,57 @@
 #define  SSB_SPROM3_CCKPO_11M		0xF000	/* 11M Rate PO */
 #define  SSB_SPROM3_CCKPO_11M_SHIFT	12
 #define  SSB_SPROM3_OFDMGPO		0x107A	/* G-PHY OFDM Power Offset (4 bytes, BigEndian) */
+
+/* SPROM Revision 4 */
+#define SSB_SPROM4_IL0MAC		0x104C	/* 6 byte MAC address for a/b/g/n */
+#define SSB_SPROM4_ET0MAC		0x1018	/* 6 bytes MAC address for Ethernet ?? */
+#define SSB_SPROM4_ET1MAC		0x1018	/* 6 bytes MAC address for 802.11a ?? */
+#define SSB_SPROM4_ETHPHY		0x105A	/* Ethernet PHY settings ?? */
+#define  SSB_SPROM4_ETHPHY_ET0A		0x001F	/* MII Address for enet0 */
+#define  SSB_SPROM4_ETHPHY_ET1A		0x03E0	/* MII Address for enet1 */
+#define  SSB_SPROM4_ETHPHY_ET1A_SHIFT	5
+#define  SSB_SPROM4_ETHPHY_ET0M		(1<<14)	/* MDIO for enet0 */
+#define  SSB_SPROM4_ETHPHY_ET1M		(1<<15)	/* MDIO for enet1 */
+#define SSB_SPROM4_CCODE		0x1052	/* Country Code (2 bytes) */
+#define SSB_SPROM4_ANTAVAIL		0x105D  /* Antenna available bitfields */
+#define SSB_SPROM4_ANTAVAIL_A		0x00FF	/* A-PHY bitfield */
+#define SSB_SPROM4_ANTAVAIL_A_SHIFT	0
+#define SSB_SPROM4_ANTAVAIL_BG		0xFF00	/* B-PHY and G-PHY bitfield */
+#define SSB_SPROM4_ANTAVAIL_BG_SHIFT	8
+#define SSB_SPROM4_BFLLO		0x1044	/* Boardflags (low 16 bits) */
+#define SSB_SPROM4_AGAIN01		0x105E	/* Antenna Gain (in dBm Q5.2) */
+#define  SSB_SPROM4_AGAIN0		0x00FF	/* Antenna 0 */
+#define  SSB_SPROM4_AGAIN0_SHIFT	0
+#define  SSB_SPROM4_AGAIN1		0xFF00	/* Antenna 1 */
+#define  SSB_SPROM4_AGAIN1_SHIFT	8
+#define SSB_SPROM4_AGAIN23		0x1060
+#define  SSB_SPROM4_AGAIN2		0x00FF	/* Antenna 2 */
+#define  SSB_SPROM4_AGAIN2_SHIFT	0
+#define  SSB_SPROM4_AGAIN3		0xFF00	/* Antenna 3 */
+#define  SSB_SPROM4_AGAIN3_SHIFT	8
+#define SSB_SPROM4_BFLHI		0x1046  /* Board Flags Hi */
+#define SSB_SPROM4_MAXP_BG		0x1080  /* Max Power BG in path 1 */
+#define  SSB_SPROM4_MAXP_BG_MASK	0x00FF  /* Mask for Max Power BG */
+#define  SSB_SPROM4_ITSSI_BG		0xFF00	/* Mask for path 1 itssi_bg */
+#define  SSB_SPROM4_ITSSI_BG_SHIFT	8
+#define SSB_SPROM4_MAXP_A		0x108A  /* Max Power A in path 1 */
+#define  SSB_SPROM4_MAXP_A_MASK		0x00FF  /* Mask for Max Power A */
+#define  SSB_SPROM4_ITSSI_A		0xFF00	/* Mask for path 1 itssi_a */
+#define  SSB_SPROM4_ITSSI_A_SHIFT	8
+#define SSB_SPROM4_GPIOA		0x1056	/* Gen. Purpose IO # 0 and 1 */
+#define  SSB_SPROM4_GPIOA_P0		0x00FF	/* Pin 0 */
+#define  SSB_SPROM4_GPIOA_P1		0xFF00	/* Pin 1 */
+#define  SSB_SPROM4_GPIOA_P1_SHIFT	8
+#define SSB_SPROM4_GPIOB		0x1058	/* Gen. Purpose IO # 2 and 3 */
+#define  SSB_SPROM4_GPIOB_P2		0x00FF	/* Pin 2 */
+#define  SSB_SPROM4_GPIOB_P3		0xFF00	/* Pin 3 */
+#define  SSB_SPROM4_GPIOB_P3_SHIFT	8
+#define SSB_SPROM4_PA0B0		0x1082	/* The paXbY locations are */
+#define SSB_SPROM4_PA0B1		0x1084	/*   only guesses */
+#define SSB_SPROM4_PA0B2		0x1086
+#define SSB_SPROM4_PA1B0		0x108E
+#define SSB_SPROM4_PA1B1		0x1090
+#define SSB_SPROM4_PA1B2		0x1092
 
 /* Values for SSB_SPROM1_BINF_CCODE */
 enum {

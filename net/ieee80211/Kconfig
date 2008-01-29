@@ -1,8 +1,9 @@
 config IEEE80211
-	tristate "Generic IEEE 802.11 Networking Stack"
+	tristate "Generic IEEE 802.11 Networking Stack (DEPRECATED)"
 	---help---
 	This option enables the hardware independent IEEE 802.11
-	networking stack.
+	networking stack.  This component is deprecated in favor of the
+	mac80211 component.
 
 config IEEE80211_DEBUG
 	bool "Enable full debugging output"

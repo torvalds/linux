@@ -545,6 +545,8 @@
 #define  SG_DIG_FIBER_MODE		 0x00008000
 #define  SG_DIG_REMOTE_FAULT_MASK	 0x00006000
 #define  SG_DIG_PAUSE_MASK		 0x00001800
+#define  SG_DIG_PAUSE_CAP		 0x00000800
+#define  SG_DIG_ASYM_PAUSE		 0x00001000
 #define  SG_DIG_GBIC_ENABLE		 0x00000400
 #define  SG_DIG_CHECK_END_ENABLE	 0x00000200
 #define  SG_DIG_SGMII_AUTONEG_TIMER	 0x00000100
@@ -556,6 +558,11 @@
 #define  SG_DIG_AUTONEG_LOW_ENABLE	 0x00000004
 #define  SG_DIG_REMOTE_LOOPBACK		 0x00000002
 #define  SG_DIG_LOOPBACK		 0x00000001
+#define  SG_DIG_COMMON_SETUP (SG_DIG_CRC16_CLEAR_N | \
+			      SG_DIG_LOCAL_DUPLEX_STATUS | \
+			      SG_DIG_LOCAL_LINK_STATUS | \
+			      (0x2 << SG_DIG_SPEED_STATUS_SHIFT) | \
+			      SG_DIG_FIBER_MODE | SG_DIG_GBIC_ENABLE)
 #define SG_DIG_STATUS			0x000005b4
 #define  SG_DIG_CRC16_BUS_MASK		 0xffff0000
 #define  SG_DIG_PARTNER_FAULT_MASK	 0x00600000 /* If !MRADV_CRC16_SELECT */
@@ -2103,13 +2110,18 @@ struct tg3_link_config {
 	u16				speed;
 	u8				duplex;
 	u8				autoneg;
+	u8				flowctrl;
+#define TG3_FLOW_CTRL_TX		0x01
+#define TG3_FLOW_CTRL_RX		0x02
 
 	/* Describes what we actually have. */
-	u16				active_speed;
+	u8				active_flowctrl;
+
 	u8				active_duplex;
 #define SPEED_INVALID		0xffff
 #define DUPLEX_INVALID		0xff
 #define AUTONEG_INVALID		0xff
+	u16				active_speed;
 
 	/* When we go in and out of low power mode we need
 	 * to swap with this state.
@@ -2337,8 +2349,6 @@ struct tg3 {
 #define TG3_FLAG_EEPROM_WRITE_PROT	0x00001000
 #define TG3_FLAG_NVRAM			0x00002000
 #define TG3_FLAG_NVRAM_BUFFERED		0x00004000
-#define TG3_FLAG_RX_PAUSE		0x00008000
-#define TG3_FLAG_TX_PAUSE		0x00010000
 #define TG3_FLAG_PCIX_MODE		0x00020000
 #define TG3_FLAG_PCI_HIGH_SPEED		0x00040000
 #define TG3_FLAG_PCI_32BIT		0x00080000

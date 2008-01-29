@@ -15,11 +15,11 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Netfilter Core Team <coreteam@netfilter.org>");
 MODULE_DESCRIPTION("ip6tables mangle table");
 
-#define MANGLE_VALID_HOOKS ((1 << NF_IP6_PRE_ROUTING) | \
-			    (1 << NF_IP6_LOCAL_IN) | \
-			    (1 << NF_IP6_FORWARD) | \
-			    (1 << NF_IP6_LOCAL_OUT) | \
-			    (1 << NF_IP6_POST_ROUTING))
+#define MANGLE_VALID_HOOKS ((1 << NF_INET_PRE_ROUTING) | \
+			    (1 << NF_INET_LOCAL_IN) | \
+			    (1 << NF_INET_FORWARD) | \
+			    (1 << NF_INET_LOCAL_OUT) | \
+			    (1 << NF_INET_POST_ROUTING))
 
 static struct
 {
@@ -33,18 +33,18 @@ static struct
 		.num_entries = 6,
 		.size = sizeof(struct ip6t_standard) * 5 + sizeof(struct ip6t_error),
 		.hook_entry = {
-			[NF_IP6_PRE_ROUTING] 	= 0,
-			[NF_IP6_LOCAL_IN]	= sizeof(struct ip6t_standard),
-			[NF_IP6_FORWARD]	= sizeof(struct ip6t_standard) * 2,
-			[NF_IP6_LOCAL_OUT] 	= sizeof(struct ip6t_standard) * 3,
-			[NF_IP6_POST_ROUTING]	= sizeof(struct ip6t_standard) * 4,
+			[NF_INET_PRE_ROUTING] 	= 0,
+			[NF_INET_LOCAL_IN]	= sizeof(struct ip6t_standard),
+			[NF_INET_FORWARD]	= sizeof(struct ip6t_standard) * 2,
+			[NF_INET_LOCAL_OUT] 	= sizeof(struct ip6t_standard) * 3,
+			[NF_INET_POST_ROUTING]	= sizeof(struct ip6t_standard) * 4,
 		},
 		.underflow = {
-			[NF_IP6_PRE_ROUTING] 	= 0,
-			[NF_IP6_LOCAL_IN]	= sizeof(struct ip6t_standard),
-			[NF_IP6_FORWARD]	= sizeof(struct ip6t_standard) * 2,
-			[NF_IP6_LOCAL_OUT] 	= sizeof(struct ip6t_standard) * 3,
-			[NF_IP6_POST_ROUTING]	= sizeof(struct ip6t_standard) * 4,
+			[NF_INET_PRE_ROUTING] 	= 0,
+			[NF_INET_LOCAL_IN]	= sizeof(struct ip6t_standard),
+			[NF_INET_FORWARD]	= sizeof(struct ip6t_standard) * 2,
+			[NF_INET_LOCAL_OUT] 	= sizeof(struct ip6t_standard) * 3,
+			[NF_INET_POST_ROUTING]	= sizeof(struct ip6t_standard) * 4,
 		},
 	},
 	.entries = {
@@ -120,40 +120,40 @@ ip6t_local_hook(unsigned int hook,
 	return ret;
 }
 
-static struct nf_hook_ops ip6t_ops[] = {
+static struct nf_hook_ops ip6t_ops[] __read_mostly = {
 	{
 		.hook		= ip6t_route_hook,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET6,
-		.hooknum	= NF_IP6_PRE_ROUTING,
+		.hooknum	= NF_INET_PRE_ROUTING,
 		.priority	= NF_IP6_PRI_MANGLE,
 	},
 	{
 		.hook		= ip6t_local_hook,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET6,
-		.hooknum	= NF_IP6_LOCAL_IN,
+		.hooknum	= NF_INET_LOCAL_IN,
 		.priority	= NF_IP6_PRI_MANGLE,
 	},
 	{
 		.hook		= ip6t_route_hook,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET6,
-		.hooknum	= NF_IP6_FORWARD,
+		.hooknum	= NF_INET_FORWARD,
 		.priority	= NF_IP6_PRI_MANGLE,
 	},
 	{
 		.hook		= ip6t_local_hook,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET6,
-		.hooknum	= NF_IP6_LOCAL_OUT,
+		.hooknum	= NF_INET_LOCAL_OUT,
 		.priority	= NF_IP6_PRI_MANGLE,
 	},
 	{
 		.hook		= ip6t_route_hook,
 		.owner		= THIS_MODULE,
 		.pf		= PF_INET6,
-		.hooknum	= NF_IP6_POST_ROUTING,
+		.hooknum	= NF_INET_POST_ROUTING,
 		.priority	= NF_IP6_PRI_MANGLE,
 	},
 };

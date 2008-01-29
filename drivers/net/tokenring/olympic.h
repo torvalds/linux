@@ -216,31 +216,31 @@
 /* xxxx These structures are all little endian in hardware. */
 
 struct olympic_tx_desc {
-	u32 buffer;
-	u32 status_length;
+	__le32 buffer;
+	__le32 status_length;
 };
 
 struct olympic_tx_status {
-	u32 status;
+	__le32 status;
 };
 
 struct olympic_rx_desc {
-	u32 buffer;
-	u32 res_length; 
+	__le32 buffer;
+	__le32 res_length; 
 };
 
 struct olympic_rx_status {
-	u32 fragmentcnt_framelen;
-	u32 status_buffercnt;
+	__le32 fragmentcnt_framelen;
+	__le32 status_buffercnt;
 };
 /* xxxx END These structures are all little endian in hardware. */
 /* xxxx There may be more, but I'm pretty sure about these */
 
 struct mac_receive_buffer {
-	u16 next ; 
+	__le16 next ; 
 	u8 padding ; 
 	u8 frame_status ;
-	u16 buffer_length ; 
+	__le16 buffer_length ; 
 	u8 frame_data ; 
 };
 

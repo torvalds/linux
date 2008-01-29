@@ -594,7 +594,7 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 				err = 0;
 				break;
 			}
-			dev = ip_dev_find(mreq.imr_address.s_addr);
+			dev = ip_dev_find(&init_net, mreq.imr_address.s_addr);
 			if (dev) {
 				mreq.imr_ifindex = dev->ifindex;
 				dev_put(dev);

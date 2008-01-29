@@ -212,29 +212,29 @@ static inline u8 ssb_crc8(u8 crc, u8 data)
 	return t[crc ^ data];
 }
 
-static u8 ssb_sprom_crc(const u16 *sprom)
+static u8 ssb_sprom_crc(const u16 *sprom, u16 size)
 {
 	int word;
 	u8 crc = 0xFF;
 
-	for (word = 0; word < SSB_SPROMSIZE_WORDS - 1; word++) {
+	for (word = 0; word < size - 1; word++) {
 		crc = ssb_crc8(crc, sprom[word] & 0x00FF);
 		crc = ssb_crc8(crc, (sprom[word] & 0xFF00) >> 8);
 	}
-	crc = ssb_crc8(crc, sprom[SPOFF(SSB_SPROM_REVISION)] & 0x00FF);
+	crc = ssb_crc8(crc, sprom[size - 1] & 0x00FF);
 	crc ^= 0xFF;
 
 	return crc;
 }
 
-static int sprom_check_crc(const u16 *sprom)
+static int sprom_check_crc(const u16 *sprom, u16 size)
 {
 	u8 crc;
 	u8 expected_crc;
 	u16 tmp;
 
-	crc = ssb_sprom_crc(sprom);
-	tmp = sprom[SPOFF(SSB_SPROM_REVISION)] & SSB_SPROM_REVISION_CRC;
+	crc = ssb_sprom_crc(sprom, size);
+	tmp = sprom[size - 1] & SSB_SPROM_REVISION_CRC;
 	expected_crc = tmp >> SSB_SPROM_REVISION_CRC_SHIFT;
 	if (crc != expected_crc)
 		return -EPROTO;
@@ -246,8 +246,8 @@ static void sprom_do_read(struct ssb_bus *bus, u16 *sprom)
 {
 	int i;
 
-	for (i = 0; i < SSB_SPROMSIZE_WORDS; i++)
-		sprom[i] = readw(bus->mmio + SSB_SPROM_BASE + (i * 2));
+	for (i = 0; i < bus->sprom_size; i++)
+		sprom[i] = ioread16(bus->mmio + SSB_SPROM_BASE + (i * 2));
 }
 
 static int sprom_do_write(struct ssb_bus *bus, const u16 *sprom)
@@ -255,6 +255,7 @@ static int sprom_do_write(struct ssb_bus *bus, const u16 *sprom)
 	struct pci_dev *pdev = bus->host_pci;
 	int i, err;
 	u32 spromctl;
+	u16 size = bus->sprom_size;
 
 	ssb_printk(KERN_NOTICE PFX "Writing SPROM. Do NOT turn off the power! Please stand by...\n");
 	err = pci_read_config_dword(pdev, SSB_SPROMCTL, &spromctl);
@@ -266,12 +267,12 @@ static int sprom_do_write(struct ssb_bus *bus, const u16 *sprom)
 		goto err_ctlreg;
 	ssb_printk(KERN_NOTICE PFX "[ 0%%");
 	msleep(500);
-	for (i = 0; i < SSB_SPROMSIZE_WORDS; i++) {
-		if (i == SSB_SPROMSIZE_WORDS / 4)
+	for (i = 0; i < size; i++) {
+		if (i == size / 4)
 			ssb_printk("25%%");
-		else if (i == SSB_SPROMSIZE_WORDS / 2)
+		else if (i == size / 2)
 			ssb_printk("50%%");
-		else if (i == (SSB_SPROMSIZE_WORDS / 4) * 3)
+		else if (i == (size * 3) / 4)
 			ssb_printk("75%%");
 		else if (i % 2)
 			ssb_printk(".");
@@ -296,24 +297,53 @@ err_ctlreg:
 	return err;
 }
 
-static void sprom_extract_r1(struct ssb_sprom_r1 *out, const u16 *in)
+static s8 r123_extract_antgain(u8 sprom_revision, const u16 *in,
+			       u16 mask, u16 shift)
+{
+	u16 v;
+	u8 gain;
+
+	v = in[SPOFF(SSB_SPROM1_AGAIN)];
+	gain = (v & mask) >> shift;
+	if (gain == 0xFF)
+		gain = 2; /* If unset use 2dBm */
+	if (sprom_revision == 1) {
+		/* Convert to Q5.2 */
+		gain <<= 2;
+	} else {
+		/* Q5.2 Fractional part is stored in 0xC0 */
+		gain = ((gain & 0xC0) >> 6) | ((gain & 0x3F) << 2);
+	}
+
+	return (s8)gain;
+}
+
+static void sprom_extract_r123(struct ssb_sprom *out, const u16 *in)
 {
 	int i;
 	u16 v;
+	s8 gain;
+	u16 loc[3];
 
-	SPEX(pci_spid, SSB_SPROM1_SPID, 0xFFFF, 0);
-	SPEX(pci_svid, SSB_SPROM1_SVID, 0xFFFF, 0);
-	SPEX(pci_pid, SSB_SPROM1_PID, 0xFFFF, 0);
+	if (out->revision == 3) {			/* rev 3 moved MAC */
+		loc[0] = SSB_SPROM3_IL0MAC;
+		loc[1] = SSB_SPROM3_ET0MAC;
+		loc[2] = SSB_SPROM3_ET1MAC;
+	} else {
+		loc[0] = SSB_SPROM1_IL0MAC;
+		loc[1] = SSB_SPROM1_ET0MAC;
+		loc[2] = SSB_SPROM1_ET1MAC;
+	}
 	for (i = 0; i < 3; i++) {
-		v = in[SPOFF(SSB_SPROM1_IL0MAC) + i];
+		v = in[SPOFF(loc[0]) + i];
 		*(((__be16 *)out->il0mac) + i) = cpu_to_be16(v);
 	}
 	for (i = 0; i < 3; i++) {
-		v = in[SPOFF(SSB_SPROM1_ET0MAC) + i];
+		v = in[SPOFF(loc[1]) + i];
 		*(((__be16 *)out->et0mac) + i) = cpu_to_be16(v);
 	}
 	for (i = 0; i < 3; i++) {
-		v = in[SPOFF(SSB_SPROM1_ET1MAC) + i];
+		v = in[SPOFF(loc[2]) + i];
 		*(((__be16 *)out->et1mac) + i) = cpu_to_be16(v);
 	}
 	SPEX(et0phyaddr, SSB_SPROM1_ETHPHY, SSB_SPROM1_ETHPHY_ET0A, 0);
@@ -324,9 +354,9 @@ static void sprom_extract_r1(struct ssb_sprom_r1 *out, const u16 *in)
 	SPEX(board_rev, SSB_SPROM1_BINF, SSB_SPROM1_BINF_BREV, 0);
 	SPEX(country_code, SSB_SPROM1_BINF, SSB_SPROM1_BINF_CCODE,
 	     SSB_SPROM1_BINF_CCODE_SHIFT);
-	SPEX(antenna_a, SSB_SPROM1_BINF, SSB_SPROM1_BINF_ANTA,
+	SPEX(ant_available_a, SSB_SPROM1_BINF, SSB_SPROM1_BINF_ANTA,
 	     SSB_SPROM1_BINF_ANTA_SHIFT);
-	SPEX(antenna_bg, SSB_SPROM1_BINF, SSB_SPROM1_BINF_ANTBG,
+	SPEX(ant_available_bg, SSB_SPROM1_BINF, SSB_SPROM1_BINF_ANTBG,
 	     SSB_SPROM1_BINF_ANTBG_SHIFT);
 	SPEX(pa0b0, SSB_SPROM1_PA0B0, 0xFFFF, 0);
 	SPEX(pa0b1, SSB_SPROM1_PA0B1, 0xFFFF, 0);
@@ -347,100 +377,108 @@ static void sprom_extract_r1(struct ssb_sprom_r1 *out, const u16 *in)
 	     SSB_SPROM1_ITSSI_A_SHIFT);
 	SPEX(itssi_bg, SSB_SPROM1_ITSSI, SSB_SPROM1_ITSSI_BG, 0);
 	SPEX(boardflags_lo, SSB_SPROM1_BFLLO, 0xFFFF, 0);
-	SPEX(antenna_gain_a, SSB_SPROM1_AGAIN, SSB_SPROM1_AGAIN_A, 0);
-	SPEX(antenna_gain_bg, SSB_SPROM1_AGAIN, SSB_SPROM1_AGAIN_BG,
-	     SSB_SPROM1_AGAIN_BG_SHIFT);
-	for (i = 0; i < 4; i++) {
-		v = in[SPOFF(SSB_SPROM1_OEM) + i];
-		*(((__le16 *)out->oem) + i) = cpu_to_le16(v);
-	}
+	if (out->revision >= 2)
+		SPEX(boardflags_hi, SSB_SPROM2_BFLHI, 0xFFFF, 0);
+
+	/* Extract the antenna gain values. */
+	gain = r123_extract_antgain(out->revision, in,
+				    SSB_SPROM1_AGAIN_BG,
+				    SSB_SPROM1_AGAIN_BG_SHIFT);
+	out->antenna_gain.ghz24.a0 = gain;
+	out->antenna_gain.ghz24.a1 = gain;
+	out->antenna_gain.ghz24.a2 = gain;
+	out->antenna_gain.ghz24.a3 = gain;
+	gain = r123_extract_antgain(out->revision, in,
+				    SSB_SPROM1_AGAIN_A,
+				    SSB_SPROM1_AGAIN_A_SHIFT);
+	out->antenna_gain.ghz5.a0 = gain;
+	out->antenna_gain.ghz5.a1 = gain;
+	out->antenna_gain.ghz5.a2 = gain;
+	out->antenna_gain.ghz5.a3 = gain;
 }
 
-static void sprom_extract_r2(struct ssb_sprom_r2 *out, const u16 *in)
+static void sprom_extract_r4(struct ssb_sprom *out, const u16 *in)
 {
 	int i;
 	u16 v;
 
-	SPEX(boardflags_hi, SSB_SPROM2_BFLHI,  0xFFFF, 0);
-	SPEX(maxpwr_a_hi, SSB_SPROM2_MAXP_A, SSB_SPROM2_MAXP_A_HI, 0);
-	SPEX(maxpwr_a_lo, SSB_SPROM2_MAXP_A, SSB_SPROM2_MAXP_A_LO,
-	     SSB_SPROM2_MAXP_A_LO_SHIFT);
-	SPEX(pa1lob0, SSB_SPROM2_PA1LOB0, 0xFFFF, 0);
-	SPEX(pa1lob1, SSB_SPROM2_PA1LOB1, 0xFFFF, 0);
-	SPEX(pa1lob2, SSB_SPROM2_PA1LOB2, 0xFFFF, 0);
-	SPEX(pa1hib0, SSB_SPROM2_PA1HIB0, 0xFFFF, 0);
-	SPEX(pa1hib1, SSB_SPROM2_PA1HIB1, 0xFFFF, 0);
-	SPEX(pa1hib2, SSB_SPROM2_PA1HIB2, 0xFFFF, 0);
-	SPEX(ofdm_pwr_off, SSB_SPROM2_OPO, SSB_SPROM2_OPO_VALUE, 0);
-	for (i = 0; i < 4; i++) {
-		v = in[SPOFF(SSB_SPROM2_CCODE) + i];
-		*(((__le16 *)out->country_str) + i) = cpu_to_le16(v);
+	/* extract the equivalent of the r1 variables */
+	for (i = 0; i < 3; i++) {
+		v = in[SPOFF(SSB_SPROM4_IL0MAC) + i];
+		*(((__be16 *)out->il0mac) + i) = cpu_to_be16(v);
 	}
+	for (i = 0; i < 3; i++) {
+		v = in[SPOFF(SSB_SPROM4_ET0MAC) + i];
+		*(((__be16 *)out->et0mac) + i) = cpu_to_be16(v);
+	}
+	for (i = 0; i < 3; i++) {
+		v = in[SPOFF(SSB_SPROM4_ET1MAC) + i];
+		*(((__be16 *)out->et1mac) + i) = cpu_to_be16(v);
+	}
+	SPEX(et0phyaddr, SSB_SPROM4_ETHPHY, SSB_SPROM4_ETHPHY_ET0A, 0);
+	SPEX(et1phyaddr, SSB_SPROM4_ETHPHY, SSB_SPROM4_ETHPHY_ET1A,
+	     SSB_SPROM4_ETHPHY_ET1A_SHIFT);
+	SPEX(country_code, SSB_SPROM4_CCODE, 0xFFFF, 0);
+	SPEX(boardflags_lo, SSB_SPROM4_BFLLO, 0xFFFF, 0);
+	SPEX(boardflags_hi, SSB_SPROM4_BFLHI, 0xFFFF, 0);
+	SPEX(ant_available_a, SSB_SPROM4_ANTAVAIL, SSB_SPROM4_ANTAVAIL_A,
+	     SSB_SPROM4_ANTAVAIL_A_SHIFT);
+	SPEX(ant_available_bg, SSB_SPROM4_ANTAVAIL, SSB_SPROM4_ANTAVAIL_BG,
+	     SSB_SPROM4_ANTAVAIL_BG_SHIFT);
+	SPEX(maxpwr_bg, SSB_SPROM4_MAXP_BG, SSB_SPROM4_MAXP_BG_MASK, 0);
+	SPEX(itssi_bg, SSB_SPROM4_MAXP_BG, SSB_SPROM4_ITSSI_BG,
+	     SSB_SPROM4_ITSSI_BG_SHIFT);
+	SPEX(maxpwr_a, SSB_SPROM4_MAXP_A, SSB_SPROM4_MAXP_A_MASK, 0);
+	SPEX(itssi_a, SSB_SPROM4_MAXP_A, SSB_SPROM4_ITSSI_A,
+	     SSB_SPROM4_ITSSI_A_SHIFT);
+	SPEX(gpio0, SSB_SPROM4_GPIOA, SSB_SPROM4_GPIOA_P0, 0);
+	SPEX(gpio1, SSB_SPROM4_GPIOA, SSB_SPROM4_GPIOA_P1,
+	     SSB_SPROM4_GPIOA_P1_SHIFT);
+	SPEX(gpio2, SSB_SPROM4_GPIOB, SSB_SPROM4_GPIOB_P2, 0);
+	SPEX(gpio3, SSB_SPROM4_GPIOB, SSB_SPROM4_GPIOB_P3,
+	     SSB_SPROM4_GPIOB_P3_SHIFT);
+
+	/* Extract the antenna gain values. */
+	SPEX(antenna_gain.ghz24.a0, SSB_SPROM4_AGAIN01,
+	     SSB_SPROM4_AGAIN0, SSB_SPROM4_AGAIN0_SHIFT);
+	SPEX(antenna_gain.ghz24.a1, SSB_SPROM4_AGAIN01,
+	     SSB_SPROM4_AGAIN1, SSB_SPROM4_AGAIN1_SHIFT);
+	SPEX(antenna_gain.ghz24.a2, SSB_SPROM4_AGAIN23,
+	     SSB_SPROM4_AGAIN2, SSB_SPROM4_AGAIN2_SHIFT);
+	SPEX(antenna_gain.ghz24.a3, SSB_SPROM4_AGAIN23,
+	     SSB_SPROM4_AGAIN3, SSB_SPROM4_AGAIN3_SHIFT);
+	memcpy(&out->antenna_gain.ghz5, &out->antenna_gain.ghz24,
+	       sizeof(out->antenna_gain.ghz5));
+
+	/* TODO - get remaining rev 4 stuff needed */
 }
 
-static void sprom_extract_r3(struct ssb_sprom_r3 *out, const u16 *in)
-{
-	out->ofdmapo  = (in[SPOFF(SSB_SPROM3_OFDMAPO) + 0] & 0xFF00) >> 8;
-	out->ofdmapo |= (in[SPOFF(SSB_SPROM3_OFDMAPO) + 0] & 0x00FF) << 8;
-	out->ofdmapo <<= 16;
-	out->ofdmapo |= (in[SPOFF(SSB_SPROM3_OFDMAPO) + 1] & 0xFF00) >> 8;
-	out->ofdmapo |= (in[SPOFF(SSB_SPROM3_OFDMAPO) + 1] & 0x00FF) << 8;
-
-	out->ofdmalpo  = (in[SPOFF(SSB_SPROM3_OFDMALPO) + 0] & 0xFF00) >> 8;
-	out->ofdmalpo |= (in[SPOFF(SSB_SPROM3_OFDMALPO) + 0] & 0x00FF) << 8;
-	out->ofdmalpo <<= 16;
-	out->ofdmalpo |= (in[SPOFF(SSB_SPROM3_OFDMALPO) + 1] & 0xFF00) >> 8;
-	out->ofdmalpo |= (in[SPOFF(SSB_SPROM3_OFDMALPO) + 1] & 0x00FF) << 8;
-
-	out->ofdmahpo  = (in[SPOFF(SSB_SPROM3_OFDMAHPO) + 0] & 0xFF00) >> 8;
-	out->ofdmahpo |= (in[SPOFF(SSB_SPROM3_OFDMAHPO) + 0] & 0x00FF) << 8;
-	out->ofdmahpo <<= 16;
-	out->ofdmahpo |= (in[SPOFF(SSB_SPROM3_OFDMAHPO) + 1] & 0xFF00) >> 8;
-	out->ofdmahpo |= (in[SPOFF(SSB_SPROM3_OFDMAHPO) + 1] & 0x00FF) << 8;
-
-	SPEX(gpioldc_on_cnt, SSB_SPROM3_GPIOLDC, SSB_SPROM3_GPIOLDC_ON,
-	     SSB_SPROM3_GPIOLDC_ON_SHIFT);
-	SPEX(gpioldc_off_cnt, SSB_SPROM3_GPIOLDC, SSB_SPROM3_GPIOLDC_OFF,
-	     SSB_SPROM3_GPIOLDC_OFF_SHIFT);
-	SPEX(cckpo_1M, SSB_SPROM3_CCKPO, SSB_SPROM3_CCKPO_1M, 0);
-	SPEX(cckpo_2M, SSB_SPROM3_CCKPO, SSB_SPROM3_CCKPO_2M,
-	     SSB_SPROM3_CCKPO_2M_SHIFT);
-	SPEX(cckpo_55M, SSB_SPROM3_CCKPO, SSB_SPROM3_CCKPO_55M,
-	     SSB_SPROM3_CCKPO_55M_SHIFT);
-	SPEX(cckpo_11M, SSB_SPROM3_CCKPO, SSB_SPROM3_CCKPO_11M,
-	     SSB_SPROM3_CCKPO_11M_SHIFT);
-
-	out->ofdmgpo  = (in[SPOFF(SSB_SPROM3_OFDMGPO) + 0] & 0xFF00) >> 8;
-	out->ofdmgpo |= (in[SPOFF(SSB_SPROM3_OFDMGPO) + 0] & 0x00FF) << 8;
-	out->ofdmgpo <<= 16;
-	out->ofdmgpo |= (in[SPOFF(SSB_SPROM3_OFDMGPO) + 1] & 0xFF00) >> 8;
-	out->ofdmgpo |= (in[SPOFF(SSB_SPROM3_OFDMGPO) + 1] & 0x00FF) << 8;
-}
-
-static int sprom_extract(struct ssb_bus *bus,
-			 struct ssb_sprom *out, const u16 *in)
+static int sprom_extract(struct ssb_bus *bus, struct ssb_sprom *out,
+			 const u16 *in, u16 size)
 {
 	memset(out, 0, sizeof(*out));
 
-	SPEX(revision, SSB_SPROM_REVISION, SSB_SPROM_REVISION_REV, 0);
-	SPEX(crc, SSB_SPROM_REVISION, SSB_SPROM_REVISION_CRC,
-	     SSB_SPROM_REVISION_CRC_SHIFT);
-
+	out->revision = in[size - 1] & 0x00FF;
+	ssb_dprintk(KERN_DEBUG PFX "SPROM revision %d detected.\n", out->revision);
 	if ((bus->chip_id & 0xFF00) == 0x4400) {
 		/* Workaround: The BCM44XX chip has a stupid revision
 		 * number stored in the SPROM.
 		 * Always extract r1. */
-		sprom_extract_r1(&out->r1, in);
+		out->revision = 1;
+		sprom_extract_r123(out, in);
+	} else if (bus->chip_id == 0x4321) {
+		/* the BCM4328 has a chipid == 0x4321 and a rev 4 SPROM */
+		out->revision = 4;
+		sprom_extract_r4(out, in);
 	} else {
 		if (out->revision == 0)
 			goto unsupported;
-		if (out->revision >= 1 && out->revision <= 3)
-			sprom_extract_r1(&out->r1, in);
-		if (out->revision >= 2 && out->revision <= 3)
-			sprom_extract_r2(&out->r2, in);
-		if (out->revision == 3)
-			sprom_extract_r3(&out->r3, in);
-		if (out->revision >= 4)
+		if (out->revision >= 1 && out->revision <= 3) {
+			sprom_extract_r123(out, in);
+		}
+		if (out->revision == 4)
+			sprom_extract_r4(out, in);
+		if (out->revision >= 5)
 			goto unsupported;
 	}
 
@@ -448,7 +486,7 @@ static int sprom_extract(struct ssb_bus *bus,
 unsupported:
 	ssb_printk(KERN_WARNING PFX "Unsupported SPROM revision %d "
 		   "detected. Will extract v1\n", out->revision);
-	sprom_extract_r1(&out->r1, in);
+	sprom_extract_r123(out, in);
 	return 0;
 }
 
@@ -458,16 +496,29 @@ static int ssb_pci_sprom_get(struct ssb_bus *bus,
 	int err = -ENOMEM;
 	u16 *buf;
 
-	buf = kcalloc(SSB_SPROMSIZE_WORDS, sizeof(u16), GFP_KERNEL);
+	buf = kcalloc(SSB_SPROMSIZE_WORDS_R123, sizeof(u16), GFP_KERNEL);
 	if (!buf)
 		goto out;
+	bus->sprom_size = SSB_SPROMSIZE_WORDS_R123;
 	sprom_do_read(bus, buf);
-	err = sprom_check_crc(buf);
+	err = sprom_check_crc(buf, bus->sprom_size);
 	if (err) {
-		ssb_printk(KERN_WARNING PFX
-			   "WARNING: Invalid SPROM CRC (corrupt SPROM)\n");
+		/* check for rev 4 sprom - has special signature */
+		if (buf[32] == 0x5372) {
+			kfree(buf);
+			buf = kcalloc(SSB_SPROMSIZE_WORDS_R4, sizeof(u16),
+				      GFP_KERNEL);
+			if (!buf)
+				goto out;
+			bus->sprom_size = SSB_SPROMSIZE_WORDS_R4;
+			sprom_do_read(bus, buf);
+			err = sprom_check_crc(buf, bus->sprom_size);
+		}
+		if (err)
+			ssb_printk(KERN_WARNING PFX "WARNING: Invalid"
+				   " SPROM CRC (corrupt SPROM)\n");
 	}
-	err = sprom_extract(bus, sprom, buf);
+	err = sprom_extract(bus, sprom, buf, bus->sprom_size);
 
 	kfree(buf);
 out:
@@ -581,29 +632,28 @@ const struct ssb_bus_ops ssb_pci_ops = {
 	.write32	= ssb_pci_write32,
 };
 
-static int sprom2hex(const u16 *sprom, char *buf, size_t buf_len)
+static int sprom2hex(const u16 *sprom, char *buf, size_t buf_len, u16 size)
 {
 	int i, pos = 0;
 
-	for (i = 0; i < SSB_SPROMSIZE_WORDS; i++) {
+	for (i = 0; i < size; i++)
 		pos += snprintf(buf + pos, buf_len - pos - 1,
 				"%04X", swab16(sprom[i]) & 0xFFFF);
-	}
 	pos += snprintf(buf + pos, buf_len - pos - 1, "\n");
 
 	return pos + 1;
 }
 
-static int hex2sprom(u16 *sprom, const char *dump, size_t len)
+static int hex2sprom(u16 *sprom, const char *dump, size_t len, u16 size)
 {
 	char tmp[5] = { 0 };
 	int cnt = 0;
 	unsigned long parsed;
 
-	if (len < SSB_SPROMSIZE_BYTES * 2)
+	if (len < size * 2)
 		return -EINVAL;
 
-	while (cnt < SSB_SPROMSIZE_WORDS) {
+	while (cnt < size) {
 		memcpy(tmp, dump, 4);
 		dump += 4;
 		parsed = simple_strtoul(tmp, NULL, 16);
@@ -627,7 +677,7 @@ static ssize_t ssb_pci_attr_sprom_show(struct device *pcidev,
 	if (!bus)
 		goto out;
 	err = -ENOMEM;
-	sprom = kcalloc(SSB_SPROMSIZE_WORDS, sizeof(u16), GFP_KERNEL);
+	sprom = kcalloc(bus->sprom_size, sizeof(u16), GFP_KERNEL);
 	if (!sprom)
 		goto out;
 
@@ -640,7 +690,7 @@ static ssize_t ssb_pci_attr_sprom_show(struct device *pcidev,
 	sprom_do_read(bus, sprom);
 	mutex_unlock(&bus->pci_sprom_mutex);
 
-	count = sprom2hex(sprom, buf, PAGE_SIZE);
+	count = sprom2hex(sprom, buf, PAGE_SIZE, bus->sprom_size);
 	err = 0;
 
 out_kfree:
@@ -662,15 +712,15 @@ static ssize_t ssb_pci_attr_sprom_store(struct device *pcidev,
 	if (!bus)
 		goto out;
 	err = -ENOMEM;
-	sprom = kcalloc(SSB_SPROMSIZE_WORDS, sizeof(u16), GFP_KERNEL);
+	sprom = kcalloc(bus->sprom_size, sizeof(u16), GFP_KERNEL);
 	if (!sprom)
 		goto out;
-	err = hex2sprom(sprom, buf, count);
+	err = hex2sprom(sprom, buf, count, bus->sprom_size);
 	if (err) {
 		err = -EINVAL;
 		goto out_kfree;
 	}
-	err = sprom_check_crc(sprom);
+	err = sprom_check_crc(sprom, bus->sprom_size);
 	if (err) {
 		err = -EINVAL;
 		goto out_kfree;

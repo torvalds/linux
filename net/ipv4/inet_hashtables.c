@@ -96,6 +96,7 @@ EXPORT_SYMBOL(inet_put_port);
  * exclusive lock release). It should be ifdefed really.
  */
 void inet_listen_wlock(struct inet_hashinfo *hashinfo)
+	__acquires(hashinfo->lhash_lock)
 {
 	write_lock(&hashinfo->lhash_lock);
 
@@ -190,6 +191,44 @@ sherry_cache:
 }
 EXPORT_SYMBOL_GPL(__inet_lookup_listener);
 
+struct sock * __inet_lookup_established(struct inet_hashinfo *hashinfo,
+				  const __be32 saddr, const __be16 sport,
+				  const __be32 daddr, const u16 hnum,
+				  const int dif)
+{
+	INET_ADDR_COOKIE(acookie, saddr, daddr)
+	const __portpair ports = INET_COMBINED_PORTS(sport, hnum);
+	struct sock *sk;
+	const struct hlist_node *node;
+	/* Optimize here for direct hit, only listening connections can
+	 * have wildcards anyways.
+	 */
+	unsigned int hash = inet_ehashfn(daddr, hnum, saddr, sport);
+	struct inet_ehash_bucket *head = inet_ehash_bucket(hashinfo, hash);
+	rwlock_t *lock = inet_ehash_lockp(hashinfo, hash);
+
+	prefetch(head->chain.first);
+	read_lock(lock);
+	sk_for_each(sk, node, &head->chain) {
+		if (INET_MATCH(sk, hash, acookie, saddr, daddr, ports, dif))
+			goto hit; /* You sunk my battleship! */
+	}
+
+	/* Must check for a TIME_WAIT'er before going to listener hash. */
+	sk_for_each(sk, node, &head->twchain) {
+		if (INET_TW_MATCH(sk, hash, acookie, saddr, daddr, ports, dif))
+			goto hit;
+	}
+	sk = NULL;
+out:
+	read_unlock(lock);
+	return sk;
+hit:
+	sock_hold(sk);
+	goto out;
+}
+EXPORT_SYMBOL_GPL(__inet_lookup_established);
+
 /* called with local bh disabled */
 static int __inet_check_established(struct inet_timewait_death_row *death_row,
 				    struct sock *sk, __u16 lport,
@@ -239,7 +278,7 @@ unique:
 	sk->sk_hash = hash;
 	BUG_TRAP(sk_unhashed(sk));
 	__sk_add_node(sk, &head->chain);
-	sock_prot_inc_use(sk->sk_prot);
+	sock_prot_inuse_add(sk->sk_prot, 1);
 	write_unlock(lock);
 
 	if (twp) {
@@ -266,6 +305,48 @@ static inline u32 inet_sk_port_offset(const struct sock *sk)
 	return secure_ipv4_port_ephemeral(inet->rcv_saddr, inet->daddr,
 					  inet->dport);
 }
+
+void __inet_hash_nolisten(struct inet_hashinfo *hashinfo, struct sock *sk)
+{
+	struct hlist_head *list;
+	rwlock_t *lock;
+	struct inet_ehash_bucket *head;
+
+	BUG_TRAP(sk_unhashed(sk));
+
+	sk->sk_hash = inet_sk_ehashfn(sk);
+	head = inet_ehash_bucket(hashinfo, sk->sk_hash);
+	list = &head->chain;
+	lock = inet_ehash_lockp(hashinfo, sk->sk_hash);
+
+	write_lock(lock);
+	__sk_add_node(sk, list);
+	sock_prot_inuse_add(sk->sk_prot, 1);
+	write_unlock(lock);
+}
+EXPORT_SYMBOL_GPL(__inet_hash_nolisten);
+
+void __inet_hash(struct inet_hashinfo *hashinfo, struct sock *sk)
+{
+	struct hlist_head *list;
+	rwlock_t *lock;
+
+	if (sk->sk_state != TCP_LISTEN) {
+		__inet_hash_nolisten(hashinfo, sk);
+		return;
+	}
+
+	BUG_TRAP(sk_unhashed(sk));
+	list = &hashinfo->listening_hash[inet_sk_listen_hashfn(sk)];
+	lock = &hashinfo->lhash_lock;
+
+	inet_listen_wlock(hashinfo);
+	__sk_add_node(sk, list);
+	sock_prot_inuse_add(sk->sk_prot, 1);
+	write_unlock(lock);
+	wake_up(&hashinfo->lhash_wait);
+}
+EXPORT_SYMBOL_GPL(__inet_hash);
 
 /*
  * Bind a port for a connect operation and hash it.
@@ -334,7 +415,7 @@ ok:
 		inet_bind_hash(sk, tb, port);
 		if (sk_unhashed(sk)) {
 			inet_sk(sk)->sport = htons(port);
-			__inet_hash(hinfo, sk, 0);
+			__inet_hash_nolisten(hinfo, sk);
 		}
 		spin_unlock(&head->lock);
 
@@ -351,7 +432,7 @@ ok:
 	tb  = inet_csk(sk)->icsk_bind_hash;
 	spin_lock_bh(&head->lock);
 	if (sk_head(&tb->owners) == sk && !sk->sk_bind_node.next) {
-		__inet_hash(hinfo, sk, 0);
+		__inet_hash_nolisten(hinfo, sk);
 		spin_unlock_bh(&head->lock);
 		return 0;
 	} else {

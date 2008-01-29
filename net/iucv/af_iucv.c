@@ -94,13 +94,6 @@ static void iucv_sock_clear_timer(struct sock *sk)
 	sk_stop_timer(sk, &sk->sk_timer);
 }
 
-static void iucv_sock_init_timer(struct sock *sk)
-{
-	init_timer(&sk->sk_timer);
-	sk->sk_timer.function = iucv_sock_timeout;
-	sk->sk_timer.data = (unsigned long)sk;
-}
-
 static struct sock *__iucv_get_sock_by_name(char *nm)
 {
 	struct sock *sk;
@@ -238,7 +231,7 @@ static struct sock *iucv_sock_alloc(struct socket *sock, int proto, gfp_t prio)
 	sk->sk_protocol = proto;
 	sk->sk_state	= IUCV_OPEN;
 
-	iucv_sock_init_timer(sk);
+	setup_timer(&sk->sk_timer, iucv_sock_timeout, (unsigned long)sk);
 
 	iucv_sock_link(&iucv_sk_list, sk);
 	return sk;

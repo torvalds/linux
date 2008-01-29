@@ -1,0 +1,70 @@
+XFRM proc - /proc/net/xfrm_* files
+==================================
+Masahide NAKAMURA <nakam@linux-ipv6.org>
+
+
+Transformation Statistics
+-------------------------
+xfrm_proc is a statistics shown factor dropped by transformation
+for developer.
+It is a counter designed from current transformation source code
+and defined like linux private MIB.
+
+Inbound statistics
+~~~~~~~~~~~~~~~~~~
+XfrmInError:
+	All errors which is not matched others
+XfrmInBufferError:
+	No buffer is left
+XfrmInHdrError:
+	Header error
+XfrmInNoStates:
+	No state is found
+	i.e. Either inbound SPI, address, or IPsec protocol at SA is wrong
+XfrmInStateProtoError:
+	Transformation protocol specific error
+	e.g. SA key is wrong
+XfrmInStateModeError:
+	Transformation mode specific error
+XfrmInSeqOutOfWindow:
+	Sequence out of window
+XfrmInStateExpired:
+	State is expired
+XfrmInStateMismatch:
+	State has mismatch option
+	e.g. UDP encapsulation type is mismatch
+XfrmInStateInvalid:
+	State is invalid
+XfrmInTmplMismatch:
+	No matching template for states
+	e.g. Inbound SAs are correct but SP rule is wrong
+XfrmInNoPols:
+	No policy is found for states
+	e.g. Inbound SAs are correct but no SP is found
+XfrmInPolBlock:
+	Policy discards
+XfrmInPolError:
+	Policy error
+
+Outbound errors
+~~~~~~~~~~~~~~~
+XfrmOutError:
+	All errors which is not matched others
+XfrmOutBundleGenError:
+	Bundle generation error
+XfrmOutBundleCheckError:
+	Bundle check error
+XfrmOutNoStates:
+	No state is found
+XfrmOutStateProtoError:
+	Transformation protocol specific error
+XfrmOutStateModeError:
+	Transformation mode specific error
+XfrmOutStateExpired:
+	State is expired
+XfrmOutPolBlock:
+	Policy discards
+XfrmOutPolDead:
+	Policy is dead
+XfrmOutPolError:
+	Policy error

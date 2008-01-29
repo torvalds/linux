@@ -4394,7 +4394,7 @@ static struct {
 	{"tx_fifo_errors"},
 	{"tx_packets"}
 };
-#define CAS_NUM_STAT_KEYS (sizeof(ethtool_cassini_statnames)/ETH_GSTRING_LEN)
+#define CAS_NUM_STAT_KEYS ARRAY_SIZE(ethtool_cassini_statnames)
 
 static struct {
 	const int offsets;	/* neg. values for 2nd arg to cas_read_phy */
@@ -5085,7 +5085,7 @@ static int __devinit cas_init_one(struct pci_dev *pdev,
 
 	/* give us access to cassini registers */
 	cp->regs = pci_iomap(pdev, 0, casreg_len);
-	if (cp->regs == 0UL) {
+	if (!cp->regs) {
 		dev_err(&pdev->dev, "Cannot map device registers, aborting.\n");
 		goto err_out_free_res;
 	}

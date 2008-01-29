@@ -76,14 +76,14 @@
 #define FW_WROPCODE_MNGT			0x1D
 #define FW_MNGTOPCODE_PKTSCHED_SET		0x00
 
-/* Maximum size of a WR sent from the host, limited by the SGE. 
+/* Maximum size of a WR sent from the host, limited by the SGE.
  *
- * Note: WR coming from ULP or TP are only limited by CIM. 
+ * Note: WR coming from ULP or TP are only limited by CIM.
  */
 #define FW_WR_SIZE			128
 
 /* Maximum number of outstanding WRs sent from the host. Value must be
- * programmed in the CTRL/TUNNEL/QP SGE Egress Context and used by 
+ * programmed in the CTRL/TUNNEL/QP SGE Egress Context and used by
  * offload modules to limit the number of WRs per connection.
  */
 #define FW_T3_WR_NUM			16
@@ -99,7 +99,7 @@
  * queues must start at SGE Egress Context FW_TUNNEL_SGEEC_START and must
  * start at 'TID' (or 'uP Token') FW_TUNNEL_TID_START.
  *
- * Ingress Traffic (e.g. DMA completion credit)  for TUNNEL Queue[i] is sent 
+ * Ingress Traffic (e.g. DMA completion credit)  for TUNNEL Queue[i] is sent
  * to RESP Queue[i].
  */
 #define FW_TUNNEL_NUM			8
@@ -116,10 +116,10 @@
 #define FW_CTRL_SGEEC_START		65528
 #define FW_CTRL_TID_START		65536
 
-/* FW_OFLD_NUM corresponds to the number of supported OFFLOAD Queues. These 
- * queues must start at SGE Egress Context FW_OFLD_SGEEC_START. 
- * 
- * Note: the 'uP Token' in the SGE Egress Context fields is irrelevant for 
+/* FW_OFLD_NUM corresponds to the number of supported OFFLOAD Queues. These
+ * queues must start at SGE Egress Context FW_OFLD_SGEEC_START.
+ *
+ * Note: the 'uP Token' in the SGE Egress Context fields is irrelevant for
  * OFFLOAD Queues, as the host is responsible for providing the correct TID in
  * every WR.
  *
@@ -129,14 +129,14 @@
 #define FW_OFLD_SGEEC_START		0
 
 /*
- * 
+ *
  */
 #define FW_RI_NUM			1
 #define FW_RI_SGEEC_START		65527
 #define FW_RI_TID_START			65552
 
 /*
- * The RX_PKT_TID 
+ * The RX_PKT_TID
  */
 #define FW_RX_PKT_NUM			1
 #define FW_RX_PKT_TID_START		65553

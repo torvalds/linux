@@ -677,7 +677,7 @@ struct ieee80211_probe_request {
 
 struct ieee80211_probe_response {
 	struct ieee80211_hdr_3addr header;
-	u32 time_stamp[2];
+	__le32 time_stamp[2];
 	__le16 beacon_interval;
 	__le16 capability;
 	/* SSID, supported rates, FH params, DS params,
@@ -718,8 +718,8 @@ struct ieee80211_txb {
 	u8 encrypted;
 	u8 rts_included;
 	u8 reserved;
-	__le16 frag_size;
-	__le16 payload_size;
+	u16 frag_size;
+	u16 payload_size;
 	struct sk_buff *fragments[0];
 };
 

@@ -8,36 +8,54 @@
  *
  */
 
-#include <linux/compiler.h>
+#include <linux/err.h>
+#include <linux/kernel.h>
 #include <linux/inetdevice.h>
+#include <net/dst.h>
 #include <net/xfrm.h>
 #include <net/ip.h>
 
 static struct dst_ops xfrm4_dst_ops;
 static struct xfrm_policy_afinfo xfrm4_policy_afinfo;
 
-static int xfrm4_dst_lookup(struct xfrm_dst **dst, struct flowi *fl)
+static struct dst_entry *xfrm4_dst_lookup(int tos, xfrm_address_t *saddr,
+					  xfrm_address_t *daddr)
 {
-	return __ip_route_output_key((struct rtable**)dst, fl);
-}
-
-static int xfrm4_get_saddr(xfrm_address_t *saddr, xfrm_address_t *daddr)
-{
-	struct rtable *rt;
-	struct flowi fl_tunnel = {
+	struct flowi fl = {
 		.nl_u = {
 			.ip4_u = {
+				.tos = tos,
 				.daddr = daddr->a4,
 			},
 		},
 	};
+	struct dst_entry *dst;
+	struct rtable *rt;
+	int err;
 
-	if (!xfrm4_dst_lookup((struct xfrm_dst **)&rt, &fl_tunnel)) {
-		saddr->a4 = rt->rt_src;
-		dst_release(&rt->u.dst);
-		return 0;
-	}
-	return -EHOSTUNREACH;
+	if (saddr)
+		fl.fl4_src = saddr->a4;
+
+	err = __ip_route_output_key(&init_net, &rt, &fl);
+	dst = &rt->u.dst;
+	if (err)
+		dst = ERR_PTR(err);
+	return dst;
+}
+
+static int xfrm4_get_saddr(xfrm_address_t *saddr, xfrm_address_t *daddr)
+{
+	struct dst_entry *dst;
+	struct rtable *rt;
+
+	dst = xfrm4_dst_lookup(0, NULL, daddr);
+	if (IS_ERR(dst))
+		return -EHOSTUNREACH;
+
+	rt = (struct rtable *)dst;
+	saddr->a4 = rt->rt_src;
+	dst_release(dst);
+	return 0;
 }
 
 static struct dst_entry *
@@ -61,142 +79,49 @@ __xfrm4_find_bundle(struct flowi *fl, struct xfrm_policy *policy)
 	return dst;
 }
 
-/* Allocate chain of dst_entry's, attach known xfrm's, calculate
- * all the metrics... Shortly, bundle a bundle.
- */
-
-static int
-__xfrm4_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int nx,
-		      struct flowi *fl, struct dst_entry **dst_p)
+static int xfrm4_get_tos(struct flowi *fl)
 {
-	struct dst_entry *dst, *dst_prev;
-	struct rtable *rt0 = (struct rtable*)(*dst_p);
-	struct rtable *rt = rt0;
-	struct flowi fl_tunnel = {
-		.nl_u = {
-			.ip4_u = {
-				.saddr = fl->fl4_src,
-				.daddr = fl->fl4_dst,
-				.tos = fl->fl4_tos
-			}
-		}
-	};
-	int i;
-	int err;
-	int header_len = 0;
-	int trailer_len = 0;
+	return fl->fl4_tos;
+}
 
-	dst = dst_prev = NULL;
-	dst_hold(&rt->u.dst);
-
-	for (i = 0; i < nx; i++) {
-		struct dst_entry *dst1 = dst_alloc(&xfrm4_dst_ops);
-		struct xfrm_dst *xdst;
-
-		if (unlikely(dst1 == NULL)) {
-			err = -ENOBUFS;
-			dst_release(&rt->u.dst);
-			goto error;
-		}
-
-		if (!dst)
-			dst = dst1;
-		else {
-			dst_prev->child = dst1;
-			dst1->flags |= DST_NOHASH;
-			dst_clone(dst1);
-		}
-
-		xdst = (struct xfrm_dst *)dst1;
-		xdst->route = &rt->u.dst;
-		xdst->genid = xfrm[i]->genid;
-
-		dst1->next = dst_prev;
-		dst_prev = dst1;
-
-		header_len += xfrm[i]->props.header_len;
-		trailer_len += xfrm[i]->props.trailer_len;
-
-		if (xfrm[i]->props.mode != XFRM_MODE_TRANSPORT) {
-			unsigned short encap_family = xfrm[i]->props.family;
-			switch (encap_family) {
-			case AF_INET:
-				fl_tunnel.fl4_dst = xfrm[i]->id.daddr.a4;
-				fl_tunnel.fl4_src = xfrm[i]->props.saddr.a4;
-				break;
-#if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
-			case AF_INET6:
-				ipv6_addr_copy(&fl_tunnel.fl6_dst, (struct in6_addr*)&xfrm[i]->id.daddr.a6);
-				ipv6_addr_copy(&fl_tunnel.fl6_src, (struct in6_addr*)&xfrm[i]->props.saddr.a6);
-				break;
-#endif
-			default:
-				BUG_ON(1);
-			}
-			err = xfrm_dst_lookup((struct xfrm_dst **)&rt,
-					      &fl_tunnel, encap_family);
-			if (err)
-				goto error;
-		} else
-			dst_hold(&rt->u.dst);
-	}
-
-	dst_prev->child = &rt->u.dst;
-	dst->path = &rt->u.dst;
-
-	*dst_p = dst;
-	dst = dst_prev;
-
-	dst_prev = *dst_p;
-	i = 0;
-	for (; dst_prev != &rt->u.dst; dst_prev = dst_prev->child) {
-		struct xfrm_dst *x = (struct xfrm_dst*)dst_prev;
-		x->u.rt.fl = *fl;
-
-		dst_prev->xfrm = xfrm[i++];
-		dst_prev->dev = rt->u.dst.dev;
-		if (rt->u.dst.dev)
-			dev_hold(rt->u.dst.dev);
-		dst_prev->obsolete	= -1;
-		dst_prev->flags	       |= DST_HOST;
-		dst_prev->lastuse	= jiffies;
-		dst_prev->header_len	= header_len;
-		dst_prev->nfheader_len	= 0;
-		dst_prev->trailer_len	= trailer_len;
-		memcpy(&dst_prev->metrics, &x->route->metrics, sizeof(dst_prev->metrics));
-
-		/* Copy neighbout for reachability confirmation */
-		dst_prev->neighbour	= neigh_clone(rt->u.dst.neighbour);
-		dst_prev->input		= rt->u.dst.input;
-		dst_prev->output = dst_prev->xfrm->outer_mode->afinfo->output;
-		if (rt0->peer)
-			atomic_inc(&rt0->peer->refcnt);
-		x->u.rt.peer = rt0->peer;
-		/* Sheit... I remember I did this right. Apparently,
-		 * it was magically lost, so this code needs audit */
-		x->u.rt.rt_flags = rt0->rt_flags&(RTCF_BROADCAST|RTCF_MULTICAST|RTCF_LOCAL);
-		x->u.rt.rt_type = rt0->rt_type;
-		x->u.rt.rt_src = rt0->rt_src;
-		x->u.rt.rt_dst = rt0->rt_dst;
-		x->u.rt.rt_gateway = rt0->rt_gateway;
-		x->u.rt.rt_spec_dst = rt0->rt_spec_dst;
-		x->u.rt.idev = rt0->idev;
-		in_dev_hold(rt0->idev);
-		header_len -= x->u.dst.xfrm->props.header_len;
-		trailer_len -= x->u.dst.xfrm->props.trailer_len;
-	}
-
-	xfrm_init_pmtu(dst);
+static int xfrm4_init_path(struct xfrm_dst *path, struct dst_entry *dst,
+			   int nfheader_len)
+{
 	return 0;
+}
 
-error:
-	if (dst)
-		dst_free(dst);
-	return err;
+static int xfrm4_fill_dst(struct xfrm_dst *xdst, struct net_device *dev)
+{
+	struct rtable *rt = (struct rtable *)xdst->route;
+
+	xdst->u.rt.fl = rt->fl;
+
+	xdst->u.dst.dev = dev;
+	dev_hold(dev);
+
+	xdst->u.rt.idev = in_dev_get(dev);
+	if (!xdst->u.rt.idev)
+		return -ENODEV;
+
+	xdst->u.rt.peer = rt->peer;
+	if (rt->peer)
+		atomic_inc(&rt->peer->refcnt);
+
+	/* Sheit... I remember I did this right. Apparently,
+	 * it was magically lost, so this code needs audit */
+	xdst->u.rt.rt_flags = rt->rt_flags & (RTCF_BROADCAST | RTCF_MULTICAST |
+					      RTCF_LOCAL);
+	xdst->u.rt.rt_type = rt->rt_type;
+	xdst->u.rt.rt_src = rt->rt_src;
+	xdst->u.rt.rt_dst = rt->rt_dst;
+	xdst->u.rt.rt_gateway = rt->rt_gateway;
+	xdst->u.rt.rt_spec_dst = rt->rt_spec_dst;
+
+	return 0;
 }
 
 static void
-_decode_session4(struct sk_buff *skb, struct flowi *fl)
+_decode_session4(struct sk_buff *skb, struct flowi *fl, int reverse)
 {
 	struct iphdr *iph = ip_hdr(skb);
 	u8 *xprth = skb_network_header(skb) + iph->ihl * 4;
@@ -212,8 +137,8 @@ _decode_session4(struct sk_buff *skb, struct flowi *fl)
 			if (pskb_may_pull(skb, xprth + 4 - skb->data)) {
 				__be16 *ports = (__be16 *)xprth;
 
-				fl->fl_ip_sport = ports[0];
-				fl->fl_ip_dport = ports[1];
+				fl->fl_ip_sport = ports[!!reverse];
+				fl->fl_ip_dport = ports[!reverse];
 			}
 			break;
 
@@ -255,12 +180,12 @@ _decode_session4(struct sk_buff *skb, struct flowi *fl)
 		}
 	}
 	fl->proto = iph->protocol;
-	fl->fl4_dst = iph->daddr;
-	fl->fl4_src = iph->saddr;
+	fl->fl4_dst = reverse ? iph->saddr : iph->daddr;
+	fl->fl4_src = reverse ? iph->daddr : iph->saddr;
 	fl->fl4_tos = iph->tos;
 }
 
-static inline int xfrm4_garbage_collect(void)
+static inline int xfrm4_garbage_collect(struct dst_ops *ops)
 {
 	xfrm4_policy_afinfo.garbage_collect();
 	return (atomic_read(&xfrm4_dst_ops.entries) > xfrm4_dst_ops.gc_thresh*2);
@@ -295,7 +220,8 @@ static void xfrm4_dst_ifdown(struct dst_entry *dst, struct net_device *dev,
 
 	xdst = (struct xfrm_dst *)dst;
 	if (xdst->u.rt.idev->dev == dev) {
-		struct in_device *loopback_idev = in_dev_get(init_net.loopback_dev);
+		struct in_device *loopback_idev =
+			in_dev_get(dev->nd_net->loopback_dev);
 		BUG_ON(!loopback_idev);
 
 		do {
@@ -318,6 +244,7 @@ static struct dst_ops xfrm4_dst_ops = {
 	.update_pmtu =		xfrm4_update_pmtu,
 	.destroy =		xfrm4_dst_destroy,
 	.ifdown =		xfrm4_dst_ifdown,
+	.local_out =		__ip_local_out,
 	.gc_thresh =		1024,
 	.entry_size =		sizeof(struct xfrm_dst),
 };
@@ -328,8 +255,10 @@ static struct xfrm_policy_afinfo xfrm4_policy_afinfo = {
 	.dst_lookup =		xfrm4_dst_lookup,
 	.get_saddr =		xfrm4_get_saddr,
 	.find_bundle = 		__xfrm4_find_bundle,
-	.bundle_create =	__xfrm4_bundle_create,
 	.decode_session =	_decode_session4,
+	.get_tos =		xfrm4_get_tos,
+	.init_path =		xfrm4_init_path,
+	.fill_dst =		xfrm4_fill_dst,
 };
 
 static void __init xfrm4_policy_init(void)

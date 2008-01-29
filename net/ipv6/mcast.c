@@ -903,9 +903,7 @@ int ipv6_dev_mc_inc(struct net_device *dev, struct in6_addr *addr)
 		return -ENOMEM;
 	}
 
-	init_timer(&mc->mca_timer);
-	mc->mca_timer.function = igmp6_timer_handler;
-	mc->mca_timer.data = (unsigned long) mc;
+	setup_timer(&mc->mca_timer, igmp6_timer_handler, (unsigned long)mc);
 
 	ipv6_addr_copy(&mc->mca_addr, addr);
 	mc->idev = idev;
@@ -1450,7 +1448,7 @@ static inline int mld_dev_queue_xmit2(struct sk_buff *skb)
 
 static inline int mld_dev_queue_xmit(struct sk_buff *skb)
 {
-	return NF_HOOK(PF_INET6, NF_IP6_POST_ROUTING, skb, NULL, skb->dev,
+	return NF_HOOK(PF_INET6, NF_INET_POST_ROUTING, skb, NULL, skb->dev,
 		       mld_dev_queue_xmit2);
 }
 
@@ -1471,7 +1469,7 @@ static void mld_sendpack(struct sk_buff *skb)
 	pmr->csum = csum_ipv6_magic(&pip6->saddr, &pip6->daddr, mldlen,
 		IPPROTO_ICMPV6, csum_partial(skb_transport_header(skb),
 					     mldlen, 0));
-	err = NF_HOOK(PF_INET6, NF_IP6_LOCAL_OUT, skb, NULL, skb->dev,
+	err = NF_HOOK(PF_INET6, NF_INET_LOCAL_OUT, skb, NULL, skb->dev,
 		mld_dev_queue_xmit);
 	if (!err) {
 		ICMP6MSGOUT_INC_STATS_BH(idev, ICMPV6_MLD2_REPORT);
@@ -1815,7 +1813,7 @@ static void igmp6_send(struct in6_addr *addr, struct net_device *dev, int type)
 
 	idev = in6_dev_get(skb->dev);
 
-	err = NF_HOOK(PF_INET6, NF_IP6_LOCAL_OUT, skb, NULL, skb->dev,
+	err = NF_HOOK(PF_INET6, NF_INET_LOCAL_OUT, skb, NULL, skb->dev,
 		mld_dev_queue_xmit);
 	if (!err) {
 		ICMP6MSGOUT_INC_STATS(idev, type);
@@ -2259,14 +2257,12 @@ void ipv6_mc_init_dev(struct inet6_dev *idev)
 	write_lock_bh(&idev->lock);
 	rwlock_init(&idev->mc_lock);
 	idev->mc_gq_running = 0;
-	init_timer(&idev->mc_gq_timer);
-	idev->mc_gq_timer.data = (unsigned long) idev;
-	idev->mc_gq_timer.function = &mld_gq_timer_expire;
+	setup_timer(&idev->mc_gq_timer, mld_gq_timer_expire,
+			(unsigned long)idev);
 	idev->mc_tomb = NULL;
 	idev->mc_ifc_count = 0;
-	init_timer(&idev->mc_ifc_timer);
-	idev->mc_ifc_timer.data = (unsigned long) idev;
-	idev->mc_ifc_timer.function = &mld_ifc_timer_expire;
+	setup_timer(&idev->mc_ifc_timer, mld_ifc_timer_expire,
+			(unsigned long)idev);
 	idev->mc_qrv = MLD_QRV_DEFAULT;
 	idev->mc_maxdelay = IGMP6_UNSOLICITED_IVAL;
 	idev->mc_v1_seen = 0;
@@ -2377,6 +2373,7 @@ static struct ifmcaddr6 *igmp6_mc_get_idx(struct seq_file *seq, loff_t pos)
 }
 
 static void *igmp6_mc_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(dev_base_lock)
 {
 	read_lock(&dev_base_lock);
 	return igmp6_mc_get_idx(seq, *pos);
@@ -2391,6 +2388,7 @@ static void *igmp6_mc_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void igmp6_mc_seq_stop(struct seq_file *seq, void *v)
+	__releases(dev_base_lock)
 {
 	struct igmp6_mc_iter_state *state = igmp6_mc_seq_private(seq);
 	if (likely(state->idev != NULL)) {
@@ -2520,6 +2518,7 @@ static struct ip6_sf_list *igmp6_mcf_get_idx(struct seq_file *seq, loff_t pos)
 }
 
 static void *igmp6_mcf_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(dev_base_lock)
 {
 	read_lock(&dev_base_lock);
 	return *pos ? igmp6_mcf_get_idx(seq, *pos - 1) : SEQ_START_TOKEN;
@@ -2537,6 +2536,7 @@ static void *igmp6_mcf_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void igmp6_mcf_seq_stop(struct seq_file *seq, void *v)
+	__releases(dev_base_lock)
 {
 	struct igmp6_mcf_iter_state *state = igmp6_mcf_seq_private(seq);
 	if (likely(state->im != NULL)) {

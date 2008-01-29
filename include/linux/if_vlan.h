@@ -16,11 +16,6 @@
 #ifdef __KERNEL__
 
 /* externally defined structs */
-struct vlan_group;
-struct net_device;
-struct packet_type;
-struct vlan_collection;
-struct vlan_dev_info;
 struct hlist_node;
 
 #include <linux/netdevice.h>
@@ -39,12 +34,30 @@ struct hlist_node;
 #define VLAN_ETH_DATA_LEN	1500	/* Max. octets in payload	 */
 #define VLAN_ETH_FRAME_LEN	1518	/* Max. octets in frame sans FCS */
 
+/*
+ * 	struct vlan_hdr - vlan header
+ * 	@h_vlan_TCI: priority and VLAN ID
+ *	@h_vlan_encapsulated_proto: packet type ID or len
+ */
+struct vlan_hdr {
+	__be16	h_vlan_TCI;
+	__be16	h_vlan_encapsulated_proto;
+};
+
+/**
+ *	struct vlan_ethhdr - vlan ethernet header (ethhdr + vlan_hdr)
+ *	@h_dest: destination ethernet address
+ *	@h_source: source ethernet address
+ *	@h_vlan_proto: ethernet protocol (always 0x8100)
+ *	@h_vlan_TCI: priority and VLAN ID
+ *	@h_vlan_encapsulated_proto: packet type ID or len
+ */
 struct vlan_ethhdr {
-   unsigned char	h_dest[ETH_ALEN];	   /* destination eth addr	*/
-   unsigned char	h_source[ETH_ALEN];	   /* source ether addr	*/
-   __be16               h_vlan_proto;              /* Should always be 0x8100 */
-   __be16               h_vlan_TCI;                /* Encapsulates priority and VLAN ID */
-   __be16		h_vlan_encapsulated_proto; /* packet type ID field (or len) */
+	unsigned char	h_dest[ETH_ALEN];
+	unsigned char	h_source[ETH_ALEN];
+	__be16		h_vlan_proto;
+	__be16		h_vlan_TCI;
+	__be16		h_vlan_encapsulated_proto;
 };
 
 #include <linux/skbuff.h>
@@ -54,17 +67,10 @@ static inline struct vlan_ethhdr *vlan_eth_hdr(const struct sk_buff *skb)
 	return (struct vlan_ethhdr *)skb_mac_header(skb);
 }
 
-struct vlan_hdr {
-   __be16               h_vlan_TCI;                /* Encapsulates priority and VLAN ID */
-   __be16               h_vlan_encapsulated_proto; /* packet type ID field (or len) */
-};
-
 #define VLAN_VID_MASK	0xfff
 
 /* found in socket.c */
 extern void vlan_ioctl_set(int (*hook)(struct net *, void __user *));
-
-#define VLAN_NAME "vlan"
 
 /* if this changes, algorithm will have to be reworked because this
  * depends on completely exhausting the VLAN identifier space.  Thus
@@ -76,19 +82,22 @@ extern void vlan_ioctl_set(int (*hook)(struct net *, void __user *));
 
 struct vlan_group {
 	int real_dev_ifindex; /* The ifindex of the ethernet(like) device the vlan is attached to. */
+	unsigned int		nr_vlans;
 	struct hlist_node	hlist;	/* linked list */
 	struct net_device **vlan_devices_arrays[VLAN_GROUP_ARRAY_SPLIT_PARTS];
 	struct rcu_head		rcu;
 };
 
-static inline struct net_device *vlan_group_get_device(struct vlan_group *vg, int vlan_id)
+static inline struct net_device *vlan_group_get_device(struct vlan_group *vg,
+						       unsigned int vlan_id)
 {
 	struct net_device **array;
 	array = vg->vlan_devices_arrays[vlan_id / VLAN_GROUP_ARRAY_PART_LEN];
 	return array[vlan_id % VLAN_GROUP_ARRAY_PART_LEN];
 }
 
-static inline void vlan_group_set_device(struct vlan_group *vg, int vlan_id,
+static inline void vlan_group_set_device(struct vlan_group *vg,
+					 unsigned int vlan_id,
 					 struct net_device *dev)
 {
 	struct net_device **array;
@@ -132,22 +141,18 @@ struct vlan_dev_info {
 	struct proc_dir_entry *dent;    /* Holds the proc data */
 	unsigned long cnt_inc_headroom_on_tx; /* How many times did we have to grow the skb on TX. */
 	unsigned long cnt_encap_on_xmit;      /* How many times did we have to encapsulate the skb on TX. */
-	struct net_device_stats dev_stats; /* Device stats (rx-bytes, tx-pkts, etc...) */
 };
 
-#define VLAN_DEV_INFO(x) ((struct vlan_dev_info *)(x->priv))
-
-/* inline functions */
-
-static inline struct net_device_stats *vlan_dev_get_stats(struct net_device *dev)
+static inline struct vlan_dev_info *vlan_dev_info(const struct net_device *dev)
 {
-	return &(VLAN_DEV_INFO(dev)->dev_stats);
+	return netdev_priv(dev);
 }
 
+/* inline functions */
 static inline __u32 vlan_get_ingress_priority(struct net_device *dev,
 					      unsigned short vlan_tag)
 {
-	struct vlan_dev_info *vip = VLAN_DEV_INFO(dev);
+	struct vlan_dev_info *vip = vlan_dev_info(dev);
 
 	return vip->ingress_priority_map[(vlan_tag >> 13) & 0x7];
 }
@@ -188,7 +193,7 @@ static inline int __vlan_hwaccel_rx(struct sk_buff *skb,
 
 	skb->dev->last_rx = jiffies;
 
-	stats = vlan_dev_get_stats(skb->dev);
+	stats = &skb->dev->stats;
 	stats->rx_packets++;
 	stats->rx_bytes += skb->len;
 
@@ -266,12 +271,12 @@ static inline struct sk_buff *__vlan_put_tag(struct sk_buff *skb, unsigned short
 	memmove(skb->data, skb->data + VLAN_HLEN, 2 * VLAN_ETH_ALEN);
 
 	/* first, the ethernet type */
-	veth->h_vlan_proto = __constant_htons(ETH_P_8021Q);
+	veth->h_vlan_proto = htons(ETH_P_8021Q);
 
 	/* now, the tag */
 	veth->h_vlan_TCI = htons(tag);
 
-	skb->protocol = __constant_htons(ETH_P_8021Q);
+	skb->protocol = htons(ETH_P_8021Q);
 	skb->mac_header -= VLAN_HLEN;
 	skb->network_header -= VLAN_HLEN;
 
@@ -326,7 +331,7 @@ static inline int __vlan_get_tag(struct sk_buff *skb, unsigned short *tag)
 {
 	struct vlan_ethhdr *veth = (struct vlan_ethhdr *)skb->data;
 
-	if (veth->h_vlan_proto != __constant_htons(ETH_P_8021Q)) {
+	if (veth->h_vlan_proto != htons(ETH_P_8021Q)) {
 		return -EINVAL;
 	}
 

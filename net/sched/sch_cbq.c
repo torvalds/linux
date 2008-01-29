@@ -1377,24 +1377,33 @@ static int cbq_set_fopt(struct cbq_class *cl, struct tc_cbq_fopt *fopt)
 	return 0;
 }
 
-static int cbq_init(struct Qdisc *sch, struct rtattr *opt)
+static const struct nla_policy cbq_policy[TCA_CBQ_MAX + 1] = {
+	[TCA_CBQ_LSSOPT]	= { .len = sizeof(struct tc_cbq_lssopt) },
+	[TCA_CBQ_WRROPT]	= { .len = sizeof(struct tc_cbq_wrropt) },
+	[TCA_CBQ_FOPT]		= { .len = sizeof(struct tc_cbq_fopt) },
+	[TCA_CBQ_OVL_STRATEGY]	= { .len = sizeof(struct tc_cbq_ovl) },
+	[TCA_CBQ_RATE]		= { .len = sizeof(struct tc_ratespec) },
+	[TCA_CBQ_RTAB]		= { .type = NLA_BINARY, .len = TC_RTAB_SIZE },
+	[TCA_CBQ_POLICE]	= { .len = sizeof(struct tc_cbq_police) },
+};
+
+static int cbq_init(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct cbq_sched_data *q = qdisc_priv(sch);
-	struct rtattr *tb[TCA_CBQ_MAX];
+	struct nlattr *tb[TCA_CBQ_MAX + 1];
 	struct tc_ratespec *r;
+	int err;
 
-	if (rtattr_parse_nested(tb, TCA_CBQ_MAX, opt) < 0 ||
-	    tb[TCA_CBQ_RTAB-1] == NULL || tb[TCA_CBQ_RATE-1] == NULL ||
-	    RTA_PAYLOAD(tb[TCA_CBQ_RATE-1]) < sizeof(struct tc_ratespec))
+	err = nla_parse_nested(tb, TCA_CBQ_MAX, opt, cbq_policy);
+	if (err < 0)
+		return err;
+
+	if (tb[TCA_CBQ_RTAB] == NULL || tb[TCA_CBQ_RATE] == NULL)
 		return -EINVAL;
 
-	if (tb[TCA_CBQ_LSSOPT-1] &&
-	    RTA_PAYLOAD(tb[TCA_CBQ_LSSOPT-1]) < sizeof(struct tc_cbq_lssopt))
-		return -EINVAL;
+	r = nla_data(tb[TCA_CBQ_RATE]);
 
-	r = RTA_DATA(tb[TCA_CBQ_RATE-1]);
-
-	if ((q->link.R_tab = qdisc_get_rtab(r, tb[TCA_CBQ_RTAB-1])) == NULL)
+	if ((q->link.R_tab = qdisc_get_rtab(r, tb[TCA_CBQ_RTAB])) == NULL)
 		return -EINVAL;
 
 	q->link.refcnt = 1;
@@ -1427,8 +1436,8 @@ static int cbq_init(struct Qdisc *sch, struct rtattr *opt)
 
 	cbq_link_class(&q->link);
 
-	if (tb[TCA_CBQ_LSSOPT-1])
-		cbq_set_lss(&q->link, RTA_DATA(tb[TCA_CBQ_LSSOPT-1]));
+	if (tb[TCA_CBQ_LSSOPT])
+		cbq_set_lss(&q->link, nla_data(tb[TCA_CBQ_LSSOPT]));
 
 	cbq_addprio(q, &q->link);
 	return 0;
@@ -1438,10 +1447,10 @@ static __inline__ int cbq_dump_rate(struct sk_buff *skb, struct cbq_class *cl)
 {
 	unsigned char *b = skb_tail_pointer(skb);
 
-	RTA_PUT(skb, TCA_CBQ_RATE, sizeof(cl->R_tab->rate), &cl->R_tab->rate);
+	NLA_PUT(skb, TCA_CBQ_RATE, sizeof(cl->R_tab->rate), &cl->R_tab->rate);
 	return skb->len;
 
-rtattr_failure:
+nla_put_failure:
 	nlmsg_trim(skb, b);
 	return -1;
 }
@@ -1463,10 +1472,10 @@ static __inline__ int cbq_dump_lss(struct sk_buff *skb, struct cbq_class *cl)
 	opt.minidle = (u32)(-cl->minidle);
 	opt.offtime = cl->offtime;
 	opt.change = ~0;
-	RTA_PUT(skb, TCA_CBQ_LSSOPT, sizeof(opt), &opt);
+	NLA_PUT(skb, TCA_CBQ_LSSOPT, sizeof(opt), &opt);
 	return skb->len;
 
-rtattr_failure:
+nla_put_failure:
 	nlmsg_trim(skb, b);
 	return -1;
 }
@@ -1481,10 +1490,10 @@ static __inline__ int cbq_dump_wrr(struct sk_buff *skb, struct cbq_class *cl)
 	opt.priority = cl->priority+1;
 	opt.cpriority = cl->cpriority+1;
 	opt.weight = cl->weight;
-	RTA_PUT(skb, TCA_CBQ_WRROPT, sizeof(opt), &opt);
+	NLA_PUT(skb, TCA_CBQ_WRROPT, sizeof(opt), &opt);
 	return skb->len;
 
-rtattr_failure:
+nla_put_failure:
 	nlmsg_trim(skb, b);
 	return -1;
 }
@@ -1498,10 +1507,10 @@ static __inline__ int cbq_dump_ovl(struct sk_buff *skb, struct cbq_class *cl)
 	opt.priority2 = cl->priority2+1;
 	opt.pad = 0;
 	opt.penalty = cl->penalty;
-	RTA_PUT(skb, TCA_CBQ_OVL_STRATEGY, sizeof(opt), &opt);
+	NLA_PUT(skb, TCA_CBQ_OVL_STRATEGY, sizeof(opt), &opt);
 	return skb->len;
 
-rtattr_failure:
+nla_put_failure:
 	nlmsg_trim(skb, b);
 	return -1;
 }
@@ -1515,11 +1524,11 @@ static __inline__ int cbq_dump_fopt(struct sk_buff *skb, struct cbq_class *cl)
 		opt.split = cl->split ? cl->split->classid : 0;
 		opt.defmap = cl->defmap;
 		opt.defchange = ~0;
-		RTA_PUT(skb, TCA_CBQ_FOPT, sizeof(opt), &opt);
+		NLA_PUT(skb, TCA_CBQ_FOPT, sizeof(opt), &opt);
 	}
 	return skb->len;
 
-rtattr_failure:
+nla_put_failure:
 	nlmsg_trim(skb, b);
 	return -1;
 }
@@ -1534,11 +1543,11 @@ static __inline__ int cbq_dump_police(struct sk_buff *skb, struct cbq_class *cl)
 		opt.police = cl->police;
 		opt.__res1 = 0;
 		opt.__res2 = 0;
-		RTA_PUT(skb, TCA_CBQ_POLICE, sizeof(opt), &opt);
+		NLA_PUT(skb, TCA_CBQ_POLICE, sizeof(opt), &opt);
 	}
 	return skb->len;
 
-rtattr_failure:
+nla_put_failure:
 	nlmsg_trim(skb, b);
 	return -1;
 }
@@ -1561,18 +1570,18 @@ static int cbq_dump_attr(struct sk_buff *skb, struct cbq_class *cl)
 static int cbq_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct cbq_sched_data *q = qdisc_priv(sch);
-	unsigned char *b = skb_tail_pointer(skb);
-	struct rtattr *rta;
+	struct nlattr *nest;
 
-	rta = (struct rtattr*)b;
-	RTA_PUT(skb, TCA_OPTIONS, 0, NULL);
+	nest = nla_nest_start(skb, TCA_OPTIONS);
+	if (nest == NULL)
+		goto nla_put_failure;
 	if (cbq_dump_attr(skb, &q->link) < 0)
-		goto rtattr_failure;
-	rta->rta_len = skb_tail_pointer(skb) - b;
+		goto nla_put_failure;
+	nla_nest_end(skb, nest);
 	return skb->len;
 
-rtattr_failure:
-	nlmsg_trim(skb, b);
+nla_put_failure:
+	nla_nest_cancel(skb, nest);
 	return -1;
 }
 
@@ -1590,8 +1599,7 @@ cbq_dump_class(struct Qdisc *sch, unsigned long arg,
 	       struct sk_buff *skb, struct tcmsg *tcm)
 {
 	struct cbq_class *cl = (struct cbq_class*)arg;
-	unsigned char *b = skb_tail_pointer(skb);
-	struct rtattr *rta;
+	struct nlattr *nest;
 
 	if (cl->tparent)
 		tcm->tcm_parent = cl->tparent->classid;
@@ -1600,15 +1608,16 @@ cbq_dump_class(struct Qdisc *sch, unsigned long arg,
 	tcm->tcm_handle = cl->classid;
 	tcm->tcm_info = cl->q->handle;
 
-	rta = (struct rtattr*)b;
-	RTA_PUT(skb, TCA_OPTIONS, 0, NULL);
+	nest = nla_nest_start(skb, TCA_OPTIONS);
+	if (nest == NULL)
+		goto nla_put_failure;
 	if (cbq_dump_attr(skb, cl) < 0)
-		goto rtattr_failure;
-	rta->rta_len = skb_tail_pointer(skb) - b;
+		goto nla_put_failure;
+	nla_nest_end(skb, nest);
 	return skb->len;
 
-rtattr_failure:
-	nlmsg_trim(skb, b);
+nla_put_failure:
+	nla_nest_cancel(skb, nest);
 	return -1;
 }
 
@@ -1753,45 +1762,23 @@ static void cbq_put(struct Qdisc *sch, unsigned long arg)
 }
 
 static int
-cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct rtattr **tca,
+cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct nlattr **tca,
 		 unsigned long *arg)
 {
 	int err;
 	struct cbq_sched_data *q = qdisc_priv(sch);
 	struct cbq_class *cl = (struct cbq_class*)*arg;
-	struct rtattr *opt = tca[TCA_OPTIONS-1];
-	struct rtattr *tb[TCA_CBQ_MAX];
+	struct nlattr *opt = tca[TCA_OPTIONS];
+	struct nlattr *tb[TCA_CBQ_MAX + 1];
 	struct cbq_class *parent;
 	struct qdisc_rate_table *rtab = NULL;
 
-	if (opt==NULL || rtattr_parse_nested(tb, TCA_CBQ_MAX, opt))
+	if (opt == NULL)
 		return -EINVAL;
 
-	if (tb[TCA_CBQ_OVL_STRATEGY-1] &&
-	    RTA_PAYLOAD(tb[TCA_CBQ_OVL_STRATEGY-1]) < sizeof(struct tc_cbq_ovl))
-		return -EINVAL;
-
-	if (tb[TCA_CBQ_FOPT-1] &&
-	    RTA_PAYLOAD(tb[TCA_CBQ_FOPT-1]) < sizeof(struct tc_cbq_fopt))
-		return -EINVAL;
-
-	if (tb[TCA_CBQ_RATE-1] &&
-	    RTA_PAYLOAD(tb[TCA_CBQ_RATE-1]) < sizeof(struct tc_ratespec))
-			return -EINVAL;
-
-	if (tb[TCA_CBQ_LSSOPT-1] &&
-	    RTA_PAYLOAD(tb[TCA_CBQ_LSSOPT-1]) < sizeof(struct tc_cbq_lssopt))
-			return -EINVAL;
-
-	if (tb[TCA_CBQ_WRROPT-1] &&
-	    RTA_PAYLOAD(tb[TCA_CBQ_WRROPT-1]) < sizeof(struct tc_cbq_wrropt))
-			return -EINVAL;
-
-#ifdef CONFIG_NET_CLS_ACT
-	if (tb[TCA_CBQ_POLICE-1] &&
-	    RTA_PAYLOAD(tb[TCA_CBQ_POLICE-1]) < sizeof(struct tc_cbq_police))
-			return -EINVAL;
-#endif
+	err = nla_parse_nested(tb, TCA_CBQ_MAX, opt, cbq_policy);
+	if (err < 0)
+		return err;
 
 	if (cl) {
 		/* Check parent */
@@ -1802,8 +1789,8 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct rtattr **t
 				return -EINVAL;
 		}
 
-		if (tb[TCA_CBQ_RATE-1]) {
-			rtab = qdisc_get_rtab(RTA_DATA(tb[TCA_CBQ_RATE-1]), tb[TCA_CBQ_RTAB-1]);
+		if (tb[TCA_CBQ_RATE]) {
+			rtab = qdisc_get_rtab(nla_data(tb[TCA_CBQ_RATE]), tb[TCA_CBQ_RTAB]);
 			if (rtab == NULL)
 				return -EINVAL;
 		}
@@ -1819,45 +1806,45 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct rtattr **t
 			qdisc_put_rtab(rtab);
 		}
 
-		if (tb[TCA_CBQ_LSSOPT-1])
-			cbq_set_lss(cl, RTA_DATA(tb[TCA_CBQ_LSSOPT-1]));
+		if (tb[TCA_CBQ_LSSOPT])
+			cbq_set_lss(cl, nla_data(tb[TCA_CBQ_LSSOPT]));
 
-		if (tb[TCA_CBQ_WRROPT-1]) {
+		if (tb[TCA_CBQ_WRROPT]) {
 			cbq_rmprio(q, cl);
-			cbq_set_wrr(cl, RTA_DATA(tb[TCA_CBQ_WRROPT-1]));
+			cbq_set_wrr(cl, nla_data(tb[TCA_CBQ_WRROPT]));
 		}
 
-		if (tb[TCA_CBQ_OVL_STRATEGY-1])
-			cbq_set_overlimit(cl, RTA_DATA(tb[TCA_CBQ_OVL_STRATEGY-1]));
+		if (tb[TCA_CBQ_OVL_STRATEGY])
+			cbq_set_overlimit(cl, nla_data(tb[TCA_CBQ_OVL_STRATEGY]));
 
 #ifdef CONFIG_NET_CLS_ACT
-		if (tb[TCA_CBQ_POLICE-1])
-			cbq_set_police(cl, RTA_DATA(tb[TCA_CBQ_POLICE-1]));
+		if (tb[TCA_CBQ_POLICE])
+			cbq_set_police(cl, nla_data(tb[TCA_CBQ_POLICE]));
 #endif
 
-		if (tb[TCA_CBQ_FOPT-1])
-			cbq_set_fopt(cl, RTA_DATA(tb[TCA_CBQ_FOPT-1]));
+		if (tb[TCA_CBQ_FOPT])
+			cbq_set_fopt(cl, nla_data(tb[TCA_CBQ_FOPT]));
 
 		if (cl->q->q.qlen)
 			cbq_activate_class(cl);
 
 		sch_tree_unlock(sch);
 
-		if (tca[TCA_RATE-1])
+		if (tca[TCA_RATE])
 			gen_replace_estimator(&cl->bstats, &cl->rate_est,
 					      &sch->dev->queue_lock,
-					      tca[TCA_RATE-1]);
+					      tca[TCA_RATE]);
 		return 0;
 	}
 
 	if (parentid == TC_H_ROOT)
 		return -EINVAL;
 
-	if (tb[TCA_CBQ_WRROPT-1] == NULL || tb[TCA_CBQ_RATE-1] == NULL ||
-	    tb[TCA_CBQ_LSSOPT-1] == NULL)
+	if (tb[TCA_CBQ_WRROPT] == NULL || tb[TCA_CBQ_RATE] == NULL ||
+	    tb[TCA_CBQ_LSSOPT] == NULL)
 		return -EINVAL;
 
-	rtab = qdisc_get_rtab(RTA_DATA(tb[TCA_CBQ_RATE-1]), tb[TCA_CBQ_RTAB-1]);
+	rtab = qdisc_get_rtab(nla_data(tb[TCA_CBQ_RATE]), tb[TCA_CBQ_RTAB]);
 	if (rtab == NULL)
 		return -EINVAL;
 
@@ -1912,8 +1899,8 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct rtattr **t
 		cl->share = cl->tparent;
 	cbq_adjust_levels(parent);
 	cl->minidle = -0x7FFFFFFF;
-	cbq_set_lss(cl, RTA_DATA(tb[TCA_CBQ_LSSOPT-1]));
-	cbq_set_wrr(cl, RTA_DATA(tb[TCA_CBQ_WRROPT-1]));
+	cbq_set_lss(cl, nla_data(tb[TCA_CBQ_LSSOPT]));
+	cbq_set_wrr(cl, nla_data(tb[TCA_CBQ_WRROPT]));
 	if (cl->ewma_log==0)
 		cl->ewma_log = q->link.ewma_log;
 	if (cl->maxidle==0)
@@ -1921,19 +1908,19 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct rtattr **t
 	if (cl->avpkt==0)
 		cl->avpkt = q->link.avpkt;
 	cl->overlimit = cbq_ovl_classic;
-	if (tb[TCA_CBQ_OVL_STRATEGY-1])
-		cbq_set_overlimit(cl, RTA_DATA(tb[TCA_CBQ_OVL_STRATEGY-1]));
+	if (tb[TCA_CBQ_OVL_STRATEGY])
+		cbq_set_overlimit(cl, nla_data(tb[TCA_CBQ_OVL_STRATEGY]));
 #ifdef CONFIG_NET_CLS_ACT
-	if (tb[TCA_CBQ_POLICE-1])
-		cbq_set_police(cl, RTA_DATA(tb[TCA_CBQ_POLICE-1]));
+	if (tb[TCA_CBQ_POLICE])
+		cbq_set_police(cl, nla_data(tb[TCA_CBQ_POLICE]));
 #endif
-	if (tb[TCA_CBQ_FOPT-1])
-		cbq_set_fopt(cl, RTA_DATA(tb[TCA_CBQ_FOPT-1]));
+	if (tb[TCA_CBQ_FOPT])
+		cbq_set_fopt(cl, nla_data(tb[TCA_CBQ_FOPT]));
 	sch_tree_unlock(sch);
 
-	if (tca[TCA_RATE-1])
+	if (tca[TCA_RATE])
 		gen_new_estimator(&cl->bstats, &cl->rate_est,
-				  &sch->dev->queue_lock, tca[TCA_RATE-1]);
+				  &sch->dev->queue_lock, tca[TCA_RATE]);
 
 	*arg = (unsigned long)cl;
 	return 0;
@@ -2045,7 +2032,7 @@ static void cbq_walk(struct Qdisc *sch, struct qdisc_walker *arg)
 	}
 }
 
-static struct Qdisc_class_ops cbq_class_ops = {
+static const struct Qdisc_class_ops cbq_class_ops = {
 	.graft		=	cbq_graft,
 	.leaf		=	cbq_leaf,
 	.qlen_notify	=	cbq_qlen_notify,
@@ -2061,7 +2048,7 @@ static struct Qdisc_class_ops cbq_class_ops = {
 	.dump_stats	=	cbq_dump_class_stats,
 };
 
-static struct Qdisc_ops cbq_qdisc_ops = {
+static struct Qdisc_ops cbq_qdisc_ops __read_mostly = {
 	.next		=	NULL,
 	.cl_ops		=	&cbq_class_ops,
 	.id		=	"cbq",

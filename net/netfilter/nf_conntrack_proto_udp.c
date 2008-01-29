@@ -21,6 +21,7 @@
 #include <linux/netfilter_ipv6.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_ecache.h>
+#include <net/netfilter/nf_log.h>
 
 static unsigned int nf_ct_udp_timeout __read_mostly = 30*HZ;
 static unsigned int nf_ct_udp_timeout_stream __read_mostly = 180*HZ;
@@ -57,13 +58,6 @@ static int udp_print_tuple(struct seq_file *s,
 	return seq_printf(s, "sport=%hu dport=%hu ",
 			  ntohs(tuple->src.u.udp.port),
 			  ntohs(tuple->dst.u.udp.port));
-}
-
-/* Print out the private part of the conntrack. */
-static int udp_print_conntrack(struct seq_file *s,
-			       const struct nf_conn *conntrack)
-{
-	return 0;
 }
 
 /* Returns verdict for packet, and may modify conntracktype */
@@ -128,9 +122,7 @@ static int udp_error(struct sk_buff *skb, unsigned int dataoff,
 	 * We skip checking packets on the outgoing path
 	 * because the checksum is assumed to be correct.
 	 * FIXME: Source route IP option packets --RR */
-	if (nf_conntrack_checksum &&
-	    ((pf == PF_INET && hooknum == NF_IP_PRE_ROUTING) ||
-	     (pf == PF_INET6 && hooknum == NF_IP6_PRE_ROUTING)) &&
+	if (nf_conntrack_checksum && hooknum == NF_INET_PRE_ROUTING &&
 	    nf_checksum(skb, hooknum, dataoff, IPPROTO_UDP, pf)) {
 		if (LOG_INVALID(IPPROTO_UDP))
 			nf_log_packet(pf, 0, skb, NULL, NULL, NULL,
@@ -194,7 +186,6 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_udp4 __read_mostly =
 	.pkt_to_tuple		= udp_pkt_to_tuple,
 	.invert_tuple		= udp_invert_tuple,
 	.print_tuple		= udp_print_tuple,
-	.print_conntrack	= udp_print_conntrack,
 	.packet			= udp_packet,
 	.new			= udp_new,
 	.error			= udp_error,
@@ -222,7 +213,6 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_udp6 __read_mostly =
 	.pkt_to_tuple		= udp_pkt_to_tuple,
 	.invert_tuple		= udp_invert_tuple,
 	.print_tuple		= udp_print_tuple,
-	.print_conntrack	= udp_print_conntrack,
 	.packet			= udp_packet,
 	.new			= udp_new,
 	.error			= udp_error,

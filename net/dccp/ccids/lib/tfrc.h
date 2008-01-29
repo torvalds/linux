@@ -3,10 +3,11 @@
 /*
  *  net/dccp/ccids/lib/tfrc.h
  *
- *  Copyright (c) 2005 The University of Waikato, Hamilton, New Zealand.
- *  Copyright (c) 2005 Ian McDonald <ian.mcdonald@jandi.co.nz>
- *  Copyright (c) 2005 Arnaldo Carvalho de Melo <acme@conectiva.com.br>
- *  Copyright (c) 2003 Nils-Erik Mattsson, Joacim Haggmark, Magnus Erixzon
+ *  Copyright (c) 2007   The University of Aberdeen, Scotland, UK
+ *  Copyright (c) 2005-6 The University of Waikato, Hamilton, New Zealand.
+ *  Copyright (c) 2005-6 Ian McDonald <ian.mcdonald@jandi.co.nz>
+ *  Copyright (c) 2005   Arnaldo Carvalho de Melo <acme@conectiva.com.br>
+ *  Copyright (c) 2003   Nils-Erik Mattsson, Joacim Haggmark, Magnus Erixzon
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -15,6 +16,17 @@
  */
 #include <linux/types.h>
 #include <asm/div64.h>
+#include "../../dccp.h"
+/* internal includes that this module exports: */
+#include "loss_interval.h"
+#include "packet_history.h"
+
+#ifdef CONFIG_IP_DCCP_TFRC_DEBUG
+extern int tfrc_debug;
+#define tfrc_pr_debug(format, a...)	DCCP_PR_DEBUG(tfrc_debug, format, ##a)
+#else
+#define tfrc_pr_debug(format, a...)
+#endif
 
 /* integer-arithmetic divisions of type (a * 1000000)/b */
 static inline u64 scaled_div(u64 a, u32 b)
@@ -35,6 +47,15 @@ static inline u32 scaled_div32(u64 a, u32 b)
 		return UINT_MAX;
 	}
 	return result;
+}
+
+/**
+ * tfrc_ewma  -  Exponentially weighted moving average
+ * @weight: Weight to be used as damping factor, in units of 1/10
+ */
+static inline u32 tfrc_ewma(const u32 avg, const u32 newval, const u8 weight)
+{
+	return avg ? (weight * avg + (10 - weight) * newval) / 10 : newval;
 }
 
 extern u32 tfrc_calc_x(u16 s, u32 R, u32 p);

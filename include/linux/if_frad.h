@@ -137,7 +137,7 @@ struct frhdr
 
    unsigned char  NLPID;
    unsigned char  OUI[3];
-   unsigned short PID;
+   __be16 PID;
 
 #define IP_NLPID pad 
 } __attribute__((packed));

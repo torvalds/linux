@@ -57,20 +57,6 @@ static void __irda_task_delete(struct irda_task *task);
 static hashbin_t *dongles = NULL;
 static hashbin_t *tasks = NULL;
 
-#ifdef CONFIG_IRDA_DEBUG
-static const char *task_state[] = {
-	"IRDA_TASK_INIT",
-	"IRDA_TASK_DONE",
-	"IRDA_TASK_WAIT",
-	"IRDA_TASK_WAIT1",
-	"IRDA_TASK_WAIT2",
-	"IRDA_TASK_WAIT3",
-	"IRDA_TASK_CHILD_INIT",
-	"IRDA_TASK_CHILD_WAIT",
-	"IRDA_TASK_CHILD_DONE",
-};
-#endif	/* CONFIG_IRDA_DEBUG */
-
 static void irda_task_timer_expired(void *data);
 
 int __init irda_device_init( void)
@@ -176,14 +162,6 @@ int irda_device_is_receiving(struct net_device *dev)
 	return req.ifr_receiving;
 }
 
-void irda_task_next_state(struct irda_task *task, IRDA_TASK_STATE state)
-{
-	IRDA_DEBUG(2, "%s(), state = %s\n", __FUNCTION__, task_state[state]);
-
-	task->state = state;
-}
-EXPORT_SYMBOL(irda_task_next_state);
-
 static void __irda_task_delete(struct irda_task *task)
 {
 	del_timer(&task->timer);
@@ -191,14 +169,13 @@ static void __irda_task_delete(struct irda_task *task)
 	kfree(task);
 }
 
-void irda_task_delete(struct irda_task *task)
+static void irda_task_delete(struct irda_task *task)
 {
 	/* Unregister task */
 	hashbin_remove(tasks, (long) task, NULL);
 
 	__irda_task_delete(task);
 }
-EXPORT_SYMBOL(irda_task_delete);
 
 /*
  * Function irda_task_kick (task)
@@ -272,51 +249,6 @@ static int irda_task_kick(struct irda_task *task)
 }
 
 /*
- * Function irda_task_execute (instance, function, finished)
- *
- *    This function registers and tries to execute tasks that may take some
- *    time to complete. We do it this hairy way since we may have been
- *    called from interrupt context, so it's not possible to use
- *    schedule_timeout()
- * Two important notes :
- *	o Make sure you irda_task_delete(task); in case you delete the
- *	  calling instance.
- *	o No real need to lock when calling this function, but you may
- *	  want to lock within the task handler.
- * Jean II
- */
-struct irda_task *irda_task_execute(void *instance,
-				    IRDA_TASK_CALLBACK function,
-				    IRDA_TASK_CALLBACK finished,
-				    struct irda_task *parent, void *param)
-{
-	struct irda_task *task;
-
-	IRDA_DEBUG(2, "%s()\n", __FUNCTION__);
-
-	task = kmalloc(sizeof(struct irda_task), GFP_ATOMIC);
-	if (!task)
-		return NULL;
-
-	task->state    = IRDA_TASK_INIT;
-	task->instance = instance;
-	task->function = function;
-	task->finished = finished;
-	task->parent   = parent;
-	task->param    = param;
-	task->magic    = IRDA_TASK_MAGIC;
-
-	init_timer(&task->timer);
-
-	/* Register task */
-	hashbin_insert(tasks, (irda_queue_t *) task, (long) task, NULL);
-
-	/* No time to waste, so lets get going! */
-	return irda_task_kick(task) ? NULL : task;
-}
-EXPORT_SYMBOL(irda_task_execute);
-
-/*
  * Function irda_task_timer_expired (data)
  *
  *    Task time has expired. We now try to execute task (again), and restart
@@ -363,105 +295,6 @@ struct net_device *alloc_irdadev(int sizeof_priv)
 	return alloc_netdev(sizeof_priv, "irda%d", irda_device_setup);
 }
 EXPORT_SYMBOL(alloc_irdadev);
-
-/*
- * Function irda_device_init_dongle (self, type, qos)
- *
- *    Initialize attached dongle.
- *
- * Important : request_module require us to call this function with
- * a process context and irq enabled. - Jean II
- */
-dongle_t *irda_device_dongle_init(struct net_device *dev, int type)
-{
-	struct dongle_reg *reg;
-	dongle_t *dongle = kzalloc(sizeof(dongle_t), GFP_KERNEL);
-
-	might_sleep();
-
-	spin_lock(&dongles->hb_spinlock);
-	reg = hashbin_find(dongles, type, NULL);
-
-#ifdef CONFIG_KMOD
-	/* Try to load the module needed */
-	if (!reg && capable(CAP_SYS_MODULE)) {
-		spin_unlock(&dongles->hb_spinlock);
-
-		request_module("irda-dongle-%d", type);
-
-		spin_lock(&dongles->hb_spinlock);
-		reg = hashbin_find(dongles, type, NULL);
-	}
-#endif
-
-	if (!reg || !try_module_get(reg->owner) ) {
-		IRDA_ERROR("IrDA: Unable to find requested dongle type %x\n",
-			   type);
-		kfree(dongle);
-		dongle = NULL;
-	}
-	if (dongle) {
-		/* Bind the registration info to this particular instance */
-		dongle->issue = reg;
-		dongle->dev = dev;
-	}
-	spin_unlock(&dongles->hb_spinlock);
-	return dongle;
-}
-EXPORT_SYMBOL(irda_device_dongle_init);
-
-/*
- * Function irda_device_dongle_cleanup (dongle)
- */
-int irda_device_dongle_cleanup(dongle_t *dongle)
-{
-	IRDA_ASSERT(dongle != NULL, return -1;);
-
-	dongle->issue->close(dongle);
-	module_put(dongle->issue->owner);
-	kfree(dongle);
-
-	return 0;
-}
-EXPORT_SYMBOL(irda_device_dongle_cleanup);
-
-/*
- * Function irda_device_register_dongle (dongle)
- */
-int irda_device_register_dongle(struct dongle_reg *new)
-{
-	spin_lock(&dongles->hb_spinlock);
-	/* Check if this dongle has been registered before */
-	if (hashbin_find(dongles, new->type, NULL)) {
-		IRDA_MESSAGE("%s: Dongle type %x already registered\n",
-			     __FUNCTION__, new->type);
-	} else {
-		/* Insert IrDA dongle into hashbin */
-		hashbin_insert(dongles, (irda_queue_t *) new, new->type, NULL);
-	}
-	spin_unlock(&dongles->hb_spinlock);
-
-	return 0;
-}
-EXPORT_SYMBOL(irda_device_register_dongle);
-
-/*
- * Function irda_device_unregister_dongle (dongle)
- *
- *    Unregister dongle, and remove dongle from list of registered dongles
- *
- */
-void irda_device_unregister_dongle(struct dongle_reg *dongle)
-{
-	struct dongle *node;
-
-	spin_lock(&dongles->hb_spinlock);
-	node = hashbin_remove(dongles, dongle->type, NULL);
-	if (!node)
-		IRDA_ERROR("%s: dongle not found!\n", __FUNCTION__);
-	spin_unlock(&dongles->hb_spinlock);
-}
-EXPORT_SYMBOL(irda_device_unregister_dongle);
 
 #ifdef CONFIG_ISA_DMA_API
 /*

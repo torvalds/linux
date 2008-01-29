@@ -646,6 +646,17 @@ M:	ecashin@coraid.com
 W:	http://www.coraid.com/support/linux
 S:	Supported
 
+ATHEROS ATH5K WIRELESS DRIVER
+P:	Jiri Slaby
+M:	jirislaby@gmail.com
+P:	Nick Kossifidis
+M:	mickflemm@gmail.com
+P:	Luis R. Rodriguez
+M:	mcgrof@gmail.com
+L:	linux-wireless@vger.kernel.org
+L:	ath5k-devel@lists.ath5k.org
+S:	Maintained
+
 ATL1 ETHERNET DRIVER
 P:	Jay Cliburn
 M:	jcliburn@gmail.com
@@ -809,7 +820,7 @@ P:	Stefano Brivio
 M:	stefano.brivio@polimi.it
 L:	linux-wireless@vger.kernel.org
 W:	http://bcm43xx.berlios.de/
-S:	Maintained
+S:	Obsolete
 
 BEFS FILE SYSTEM
 P:	Sergey S. Kostyliov
@@ -980,6 +991,15 @@ CAFE CMOS INTEGRATED CAMERA CONTROLLER DRIVER
 P:   	Jonathan Corbet
 M:	corbet@lwn.net
 L:	video4linux-list@redhat.com
+S:	Maintained
+
+CAN NETWORK LAYER
+P:	Urs Thuermann
+M:	urs.thuermann@volkswagen.de
+P:	Oliver Hartkopp
+M:	oliver.hartkopp@volkswagen.de
+L:	socketcan-core@lists.berlios.de
+W:	http://developer.berlios.de/projects/socketcan/
 S:	Maintained
 
 CALGARY x86-64 IOMMU
@@ -2027,10 +2047,12 @@ W:	http://sourceforge.net/projects/e1000/
 S:	Supported
 
 INTEL PRO/WIRELESS 2100 NETWORK CONNECTION SUPPORT
-P:	Yi Zhu
+P:	Zhu Yi
 M:	yi.zhu@intel.com
 P:	James Ketrenos
 M:	jketreno@linux.intel.com
+P:	Reinette Chatre
+M:	reinette.chatre@intel.com
 L:	linux-wireless@vger.kernel.org
 L:	ipw2100-devel@lists.sourceforge.net
 W:	http://lists.sourceforge.net/mailman/listinfo/ipw2100-devel
@@ -2038,10 +2060,12 @@ W:	http://ipw2100.sourceforge.net
 S:	Supported
 
 INTEL PRO/WIRELESS 2915ABG NETWORK CONNECTION SUPPORT
-P:	Yi Zhu
+P:	Zhu Yi
 M:	yi.zhu@intel.com
 P:	James Ketrenos
 M:	jketreno@linux.intel.com
+P:	Reinette Chatre
+M:	reinette.chatre@intel.com
 L:	linux-wireless@vger.kernel.org
 L:	ipw2100-devel@lists.sourceforge.net
 W:	http://lists.sourceforge.net/mailman/listinfo/ipw2100-devel
@@ -2051,6 +2075,8 @@ S:	Supported
 INTEL WIRELESS WIFI LINK (iwlwifi)
 P:	Zhu Yi
 M:	yi.zhu@intel.com
+P:	Reinette Chatre
+M:	reinette.chatre@intel.com
 L:	linux-wireless@vger.kernel.org
 L:	ipw3945-devel@lists.sourceforge.net
 W:	http://intellinuxwireless.org
@@ -2479,6 +2505,16 @@ P:	Jiri Benc
 M:	jbenc@suse.cz
 L:	linux-wireless@vger.kernel.org
 W:	http://linuxwireless.org/
+T:	git kernel.org:/pub/scm/linux/kernel/git/linville/wireless-2.6.git
+S:	Maintained
+
+MAC80211 PID RATE CONTROL
+P:	Stefano Brivio
+M:	stefano.brivio@polimi.it
+P:	Mattias Nissler
+M:	mattias.nissler@gmx.de
+L:	linux-wireless@vger.kernel.org
+W:	http://linuxwireless.org/en/developers/Documentation/mac80211/RateControl/PID
 T:	git kernel.org:/pub/scm/linux/kernel/git/linville/wireless-2.6.git
 S:	Maintained
 
@@ -3181,6 +3217,12 @@ RAPIDIO SUBSYSTEM
 P:	Matt Porter
 M:	mporter@kernel.crashing.org
 L:	linux-kernel@vger.kernel.org
+S:	Maintained
+
+RDC R6040 FAST ETHERNET DRIVER
+P:	Florian Fainelli
+M:	florian.fainelli@telecomint.eu
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 READ-COPY UPDATE (RCU)

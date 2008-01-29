@@ -6,7 +6,9 @@
 #define _XT_CONNTRACK_H
 
 #include <linux/netfilter/nf_conntrack_tuple_common.h>
-#include <linux/in.h>
+#ifdef __KERNEL__
+#	include <linux/in.h>
+#endif
 
 #define XT_CONNTRACK_STATE_BIT(ctinfo) (1 << ((ctinfo)%IP_CT_IS_REPLY+1))
 #define XT_CONNTRACK_STATE_INVALID (1 << 0)
@@ -60,4 +62,16 @@ struct xt_conntrack_info
 	/* Inverse flags */
 	u_int8_t invflags;
 };
+
+struct xt_conntrack_mtinfo1 {
+	union nf_inet_addr origsrc_addr, origsrc_mask;
+	union nf_inet_addr origdst_addr, origdst_mask;
+	union nf_inet_addr replsrc_addr, replsrc_mask;
+	union nf_inet_addr repldst_addr, repldst_mask;
+	u_int32_t expires_min, expires_max;
+	u_int16_t l4proto;
+	u_int8_t state_mask, status_mask;
+	u_int8_t match_flags, invert_flags;
+};
+
 #endif /*_XT_CONNTRACK_H*/

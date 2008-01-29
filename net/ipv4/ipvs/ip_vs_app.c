@@ -51,18 +51,13 @@ static DEFINE_MUTEX(__ip_vs_app_mutex);
  */
 static inline int ip_vs_app_get(struct ip_vs_app *app)
 {
-	/* test and get the module atomically */
-	if (app->module)
-		return try_module_get(app->module);
-	else
-		return 1;
+	return try_module_get(app->module);
 }
 
 
 static inline void ip_vs_app_put(struct ip_vs_app *app)
 {
-	if (app->module)
-		module_put(app->module);
+	module_put(app->module);
 }
 
 

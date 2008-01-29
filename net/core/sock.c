@@ -154,7 +154,7 @@ static const char *af_family_key_strings[AF_MAX+1] = {
   "sk_lock-AF_ASH"   , "sk_lock-AF_ECONET"   , "sk_lock-AF_ATMSVC"   ,
   "sk_lock-21"       , "sk_lock-AF_SNA"      , "sk_lock-AF_IRDA"     ,
   "sk_lock-AF_PPPOX" , "sk_lock-AF_WANPIPE"  , "sk_lock-AF_LLC"      ,
-  "sk_lock-27"       , "sk_lock-28"          , "sk_lock-29"          ,
+  "sk_lock-27"       , "sk_lock-28"          , "sk_lock-AF_CAN"      ,
   "sk_lock-AF_TIPC"  , "sk_lock-AF_BLUETOOTH", "sk_lock-IUCV"        ,
   "sk_lock-AF_RXRPC" , "sk_lock-AF_MAX"
 };
@@ -168,7 +168,7 @@ static const char *af_family_slock_key_strings[AF_MAX+1] = {
   "slock-AF_ASH"   , "slock-AF_ECONET"   , "slock-AF_ATMSVC"   ,
   "slock-21"       , "slock-AF_SNA"      , "slock-AF_IRDA"     ,
   "slock-AF_PPPOX" , "slock-AF_WANPIPE"  , "slock-AF_LLC"      ,
-  "slock-27"       , "slock-28"          , "slock-29"          ,
+  "slock-27"       , "slock-28"          , "slock-AF_CAN"      ,
   "slock-AF_TIPC"  , "slock-AF_BLUETOOTH", "slock-AF_IUCV"     ,
   "slock-AF_RXRPC" , "slock-AF_MAX"
 };
@@ -281,6 +281,11 @@ int sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	err = sk_filter(sk, skb);
 	if (err)
 		goto out;
+
+	if (!sk_rmem_schedule(sk, skb->truesize)) {
+		err = -ENOBUFS;
+		goto out;
+	}
 
 	skb->dev = NULL;
 	skb_set_owner_r(skb, sk);
@@ -419,6 +424,14 @@ out:
 	return ret;
 }
 
+static inline void sock_valbool_flag(struct sock *sk, int bit, int valbool)
+{
+	if (valbool)
+		sock_set_flag(sk, bit);
+	else
+		sock_reset_flag(sk, bit);
+}
+
 /*
  *	This is meant for all protocols to use and covers goings on
  *	at the socket level. Everything here is generic.
@@ -463,11 +476,8 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
 	case SO_DEBUG:
 		if (val && !capable(CAP_NET_ADMIN)) {
 			ret = -EACCES;
-		}
-		else if (valbool)
-			sock_set_flag(sk, SOCK_DBG);
-		else
-			sock_reset_flag(sk, SOCK_DBG);
+		} else
+			sock_valbool_flag(sk, SOCK_DBG, valbool);
 		break;
 	case SO_REUSEADDR:
 		sk->sk_reuse = valbool;
@@ -477,10 +487,7 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
 		ret = -ENOPROTOOPT;
 		break;
 	case SO_DONTROUTE:
-		if (valbool)
-			sock_set_flag(sk, SOCK_LOCALROUTE);
-		else
-			sock_reset_flag(sk, SOCK_LOCALROUTE);
+		sock_valbool_flag(sk, SOCK_LOCALROUTE, valbool);
 		break;
 	case SO_BROADCAST:
 		sock_valbool_flag(sk, SOCK_BROADCAST, valbool);
@@ -1105,7 +1112,9 @@ void sock_rfree(struct sk_buff *skb)
 {
 	struct sock *sk = skb->sk;
 
+	skb_truesize_check(skb);
 	atomic_sub(skb->truesize, &sk->sk_rmem_alloc);
+	sk_mem_uncharge(skb->sk, skb->truesize);
 }
 
 
@@ -1382,6 +1391,103 @@ int sk_wait_data(struct sock *sk, long *timeo)
 
 EXPORT_SYMBOL(sk_wait_data);
 
+/**
+ *	__sk_mem_schedule - increase sk_forward_alloc and memory_allocated
+ *	@sk: socket
+ *	@size: memory size to allocate
+ *	@kind: allocation type
+ *
+ *	If kind is SK_MEM_SEND, it means wmem allocation. Otherwise it means
+ *	rmem allocation. This function assumes that protocols which have
+ *	memory_pressure use sk_wmem_queued as write buffer accounting.
+ */
+int __sk_mem_schedule(struct sock *sk, int size, int kind)
+{
+	struct proto *prot = sk->sk_prot;
+	int amt = sk_mem_pages(size);
+	int allocated;
+
+	sk->sk_forward_alloc += amt * SK_MEM_QUANTUM;
+	allocated = atomic_add_return(amt, prot->memory_allocated);
+
+	/* Under limit. */
+	if (allocated <= prot->sysctl_mem[0]) {
+		if (prot->memory_pressure && *prot->memory_pressure)
+			*prot->memory_pressure = 0;
+		return 1;
+	}
+
+	/* Under pressure. */
+	if (allocated > prot->sysctl_mem[1])
+		if (prot->enter_memory_pressure)
+			prot->enter_memory_pressure();
+
+	/* Over hard limit. */
+	if (allocated > prot->sysctl_mem[2])
+		goto suppress_allocation;
+
+	/* guarantee minimum buffer size under pressure */
+	if (kind == SK_MEM_RECV) {
+		if (atomic_read(&sk->sk_rmem_alloc) < prot->sysctl_rmem[0])
+			return 1;
+	} else { /* SK_MEM_SEND */
+		if (sk->sk_type == SOCK_STREAM) {
+			if (sk->sk_wmem_queued < prot->sysctl_wmem[0])
+				return 1;
+		} else if (atomic_read(&sk->sk_wmem_alloc) <
+			   prot->sysctl_wmem[0])
+				return 1;
+	}
+
+	if (prot->memory_pressure) {
+		if (!*prot->memory_pressure ||
+		    prot->sysctl_mem[2] > atomic_read(prot->sockets_allocated) *
+		    sk_mem_pages(sk->sk_wmem_queued +
+				 atomic_read(&sk->sk_rmem_alloc) +
+				 sk->sk_forward_alloc))
+			return 1;
+	}
+
+suppress_allocation:
+
+	if (kind == SK_MEM_SEND && sk->sk_type == SOCK_STREAM) {
+		sk_stream_moderate_sndbuf(sk);
+
+		/* Fail only if socket is _under_ its sndbuf.
+		 * In this case we cannot block, so that we have to fail.
+		 */
+		if (sk->sk_wmem_queued + size >= sk->sk_sndbuf)
+			return 1;
+	}
+
+	/* Alas. Undo changes. */
+	sk->sk_forward_alloc -= amt * SK_MEM_QUANTUM;
+	atomic_sub(amt, prot->memory_allocated);
+	return 0;
+}
+
+EXPORT_SYMBOL(__sk_mem_schedule);
+
+/**
+ *	__sk_reclaim - reclaim memory_allocated
+ *	@sk: socket
+ */
+void __sk_mem_reclaim(struct sock *sk)
+{
+	struct proto *prot = sk->sk_prot;
+
+	atomic_sub(sk->sk_forward_alloc >> SK_MEM_QUANTUM_SHIFT,
+		   prot->memory_allocated);
+	sk->sk_forward_alloc &= SK_MEM_QUANTUM - 1;
+
+	if (prot->memory_pressure && *prot->memory_pressure &&
+	    (atomic_read(prot->memory_allocated) < prot->sysctl_mem[0]))
+		*prot->memory_pressure = 0;
+}
+
+EXPORT_SYMBOL(__sk_mem_reclaim);
+
+
 /*
  * Set of default routines for initialising struct proto_ops when
  * the protocol does not support a particular function. In certain
@@ -1496,7 +1602,7 @@ static void sock_def_error_report(struct sock *sk)
 	read_lock(&sk->sk_callback_lock);
 	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
 		wake_up_interruptible(sk->sk_sleep);
-	sk_wake_async(sk,0,POLL_ERR);
+	sk_wake_async(sk, SOCK_WAKE_IO, POLL_ERR);
 	read_unlock(&sk->sk_callback_lock);
 }
 
@@ -1505,7 +1611,7 @@ static void sock_def_readable(struct sock *sk, int len)
 	read_lock(&sk->sk_callback_lock);
 	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
 		wake_up_interruptible(sk->sk_sleep);
-	sk_wake_async(sk,1,POLL_IN);
+	sk_wake_async(sk, SOCK_WAKE_WAITD, POLL_IN);
 	read_unlock(&sk->sk_callback_lock);
 }
 
@@ -1522,7 +1628,7 @@ static void sock_def_write_space(struct sock *sk)
 
 		/* Should agree with poll, otherwise some programs break */
 		if (sock_writeable(sk))
-			sk_wake_async(sk, 2, POLL_OUT);
+			sk_wake_async(sk, SOCK_WAKE_SPACE, POLL_OUT);
 	}
 
 	read_unlock(&sk->sk_callback_lock);
@@ -1537,7 +1643,7 @@ void sk_send_sigurg(struct sock *sk)
 {
 	if (sk->sk_socket && sk->sk_socket->file)
 		if (send_sigurg(&sk->sk_socket->file->f_owner))
-			sk_wake_async(sk, 3, POLL_PRI);
+			sk_wake_async(sk, SOCK_WAKE_URG, POLL_PRI);
 }
 
 void sk_reset_timer(struct sock *sk, struct timer_list* timer,
@@ -1611,6 +1717,7 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 	sk->sk_stamp = ktime_set(-1L, -1L);
 
 	atomic_set(&sk->sk_refcnt, 1);
+	atomic_set(&sk->sk_drops, 0);
 }
 
 void fastcall lock_sock_nested(struct sock *sk, int subclass)
@@ -1801,65 +1908,15 @@ EXPORT_SYMBOL(sk_common_release);
 static DEFINE_RWLOCK(proto_list_lock);
 static LIST_HEAD(proto_list);
 
-#ifdef CONFIG_SMP
-/*
- * Define default functions to keep track of inuse sockets per protocol
- * Note that often used protocols use dedicated functions to get a speed increase.
- * (see DEFINE_PROTO_INUSE/REF_PROTO_INUSE)
- */
-static void inuse_add(struct proto *prot, int inc)
-{
-	per_cpu_ptr(prot->inuse_ptr, smp_processor_id())[0] += inc;
-}
-
-static int inuse_get(const struct proto *prot)
-{
-	int res = 0, cpu;
-	for_each_possible_cpu(cpu)
-		res += per_cpu_ptr(prot->inuse_ptr, cpu)[0];
-	return res;
-}
-
-static int inuse_init(struct proto *prot)
-{
-	if (!prot->inuse_getval || !prot->inuse_add) {
-		prot->inuse_ptr = alloc_percpu(int);
-		if (prot->inuse_ptr == NULL)
-			return -ENOBUFS;
-
-		prot->inuse_getval = inuse_get;
-		prot->inuse_add = inuse_add;
-	}
-	return 0;
-}
-
-static void inuse_fini(struct proto *prot)
-{
-	if (prot->inuse_ptr != NULL) {
-		free_percpu(prot->inuse_ptr);
-		prot->inuse_ptr = NULL;
-		prot->inuse_getval = NULL;
-		prot->inuse_add = NULL;
-	}
-}
-#else
-static inline int inuse_init(struct proto *prot)
-{
-	return 0;
-}
-
-static inline void inuse_fini(struct proto *prot)
-{
-}
-#endif
-
 int proto_register(struct proto *prot, int alloc_slab)
 {
 	char *request_sock_slab_name = NULL;
 	char *timewait_sock_slab_name;
 
-	if (inuse_init(prot))
+	if (sock_prot_inuse_init(prot) != 0) {
+		printk(KERN_CRIT "%s: Can't alloc inuse counters!\n", prot->name);
 		goto out;
+	}
 
 	if (alloc_slab) {
 		prot->slab = kmem_cache_create(prot->name, prot->obj_size, 0,
@@ -1927,7 +1984,7 @@ out_free_sock_slab:
 	kmem_cache_destroy(prot->slab);
 	prot->slab = NULL;
 out_free_inuse:
-	inuse_fini(prot);
+	sock_prot_inuse_free(prot);
 out:
 	return -ENOBUFS;
 }
@@ -1940,7 +1997,8 @@ void proto_unregister(struct proto *prot)
 	list_del(&prot->node);
 	write_unlock(&proto_list_lock);
 
-	inuse_fini(prot);
+	sock_prot_inuse_free(prot);
+
 	if (prot->slab != NULL) {
 		kmem_cache_destroy(prot->slab);
 		prot->slab = NULL;
@@ -1967,6 +2025,7 @@ EXPORT_SYMBOL(proto_unregister);
 
 #ifdef CONFIG_PROC_FS
 static void *proto_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(proto_list_lock)
 {
 	read_lock(&proto_list_lock);
 	return seq_list_start_head(&proto_list, *pos);
@@ -1978,6 +2037,7 @@ static void *proto_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void proto_seq_stop(struct seq_file *seq, void *v)
+	__releases(proto_list_lock)
 {
 	read_unlock(&proto_list_lock);
 }

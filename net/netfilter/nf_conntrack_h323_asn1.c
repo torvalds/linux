@@ -100,10 +100,10 @@ typedef struct {
 } bitstr_t;
 
 /* Tool Functions */
-#define INC_BIT(bs) if((++bs->bit)>7){bs->cur++;bs->bit=0;}
-#define INC_BITS(bs,b) if((bs->bit+=b)>7){bs->cur+=bs->bit>>3;bs->bit&=7;}
-#define BYTE_ALIGN(bs) if(bs->bit){bs->cur++;bs->bit=0;}
-#define CHECK_BOUND(bs,n) if(bs->cur+(n)>bs->end)return(H323_ERROR_BOUND)
+#define INC_BIT(bs) if((++(bs)->bit)>7){(bs)->cur++;(bs)->bit=0;}
+#define INC_BITS(bs,b) if(((bs)->bit+=(b))>7){(bs)->cur+=(bs)->bit>>3;(bs)->bit&=7;}
+#define BYTE_ALIGN(bs) if((bs)->bit){(bs)->cur++;(bs)->bit=0;}
+#define CHECK_BOUND(bs,n) if((bs)->cur+(n)>(bs)->end)return(H323_ERROR_BOUND)
 static unsigned get_len(bitstr_t * bs);
 static unsigned get_bit(bitstr_t * bs);
 static unsigned get_bits(bitstr_t * bs, unsigned b);

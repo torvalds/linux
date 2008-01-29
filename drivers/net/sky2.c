@@ -51,7 +51,7 @@
 #include "sky2.h"
 
 #define DRV_NAME		"sky2"
-#define DRV_VERSION		"1.20"
+#define DRV_VERSION		"1.21"
 #define PFX			DRV_NAME " "
 
 /*
@@ -64,7 +64,6 @@
 #define RX_LE_BYTES		(RX_LE_SIZE*sizeof(struct sky2_rx_le))
 #define RX_MAX_PENDING		(RX_LE_SIZE/6 - 2)
 #define RX_DEF_PENDING		RX_MAX_PENDING
-#define RX_SKB_ALIGN		8
 
 #define TX_RING_SIZE		512
 #define TX_DEF_PENDING		(TX_RING_SIZE - 1)
@@ -135,6 +134,8 @@ static const struct pci_device_id sky2_id_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x436A) }, /* 88E8058 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x436B) }, /* 88E8071 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x436C) }, /* 88E8072 */
+	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x436D) }, /* 88E8055 */
+	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4370) }, /* 88E8075 */
 	{ 0 }
 };
 
@@ -548,6 +549,7 @@ static void sky2_phy_init(struct sky2_hw *hw, unsigned port)
 
 	case CHIP_ID_YUKON_EC_U:
 	case CHIP_ID_YUKON_EX:
+	case CHIP_ID_YUKON_SUPR:
 		pg = gm_phy_read(hw, port, PHY_MARV_EXT_ADR);
 
 		/* select page 3 to access LED control register */
@@ -714,23 +716,33 @@ static void sky2_set_tx_stfwd(struct sky2_hw *hw, unsigned port)
 {
 	struct net_device *dev = hw->dev[port];
 
-	if (dev->mtu <= ETH_DATA_LEN)
-		sky2_write32(hw, SK_REG(port, TX_GMF_CTRL_T),
-			     TX_JUMBO_DIS | TX_STFW_ENA);
+	if ( (hw->chip_id == CHIP_ID_YUKON_EX &&
+	      hw->chip_rev != CHIP_REV_YU_EX_A0) ||
+	     hw->chip_id == CHIP_ID_YUKON_FE_P ||
+	     hw->chip_id == CHIP_ID_YUKON_SUPR) {
+		/* Yukon-Extreme B0 and further Extreme devices */
+		/* enable Store & Forward mode for TX */
 
-	else if (hw->chip_id != CHIP_ID_YUKON_EC_U)
-		sky2_write32(hw, SK_REG(port, TX_GMF_CTRL_T),
-			     TX_STFW_ENA | TX_JUMBO_ENA);
-	else {
-		/* set Tx GMAC FIFO Almost Empty Threshold */
-		sky2_write32(hw, SK_REG(port, TX_GMF_AE_THR),
-			     (ECU_JUMBO_WM << 16) | ECU_AE_THR);
+		if (dev->mtu <= ETH_DATA_LEN)
+			sky2_write32(hw, SK_REG(port, TX_GMF_CTRL_T),
+				     TX_JUMBO_DIS | TX_STFW_ENA);
 
-		sky2_write32(hw, SK_REG(port, TX_GMF_CTRL_T),
-			     TX_JUMBO_ENA | TX_STFW_DIS);
+		else
+			sky2_write32(hw, SK_REG(port, TX_GMF_CTRL_T),
+				     TX_JUMBO_ENA| TX_STFW_ENA);
+	} else {
+		if (dev->mtu <= ETH_DATA_LEN)
+			sky2_write32(hw, SK_REG(port, TX_GMF_CTRL_T), TX_STFW_ENA);
+		else {
+			/* set Tx GMAC FIFO Almost Empty Threshold */
+			sky2_write32(hw, SK_REG(port, TX_GMF_AE_THR),
+				     (ECU_JUMBO_WM << 16) | ECU_AE_THR);
 
-		/* Can't do offload because of lack of store/forward */
-		dev->features &= ~(NETIF_F_TSO | NETIF_F_SG | NETIF_F_ALL_CSUM);
+			sky2_write32(hw, SK_REG(port, TX_GMF_CTRL_T), TX_STFW_DIS);
+
+			/* Can't do offload because of lack of store/forward */
+			dev->features &= ~(NETIF_F_TSO | NETIF_F_SG | NETIF_F_ALL_CSUM);
+		}
 	}
 }
 
@@ -1174,24 +1186,32 @@ static void sky2_vlan_rx_register(struct net_device *dev, struct vlan_group *grp
 /*
  * Allocate an skb for receiving. If the MTU is large enough
  * make the skb non-linear with a fragment list of pages.
- *
- * It appears the hardware has a bug in the FIFO logic that
- * cause it to hang if the FIFO gets overrun and the receive buffer
- * is not 64 byte aligned. The buffer returned from netdev_alloc_skb is
- * aligned except if slab debugging is enabled.
  */
 static struct sk_buff *sky2_rx_alloc(struct sky2_port *sky2)
 {
 	struct sk_buff *skb;
-	unsigned long p;
 	int i;
 
-	skb = netdev_alloc_skb(sky2->netdev, sky2->rx_data_size + RX_SKB_ALIGN);
-	if (!skb)
-		goto nomem;
-
-	p = (unsigned long) skb->data;
-	skb_reserve(skb, ALIGN(p, RX_SKB_ALIGN) - p);
+	if (sky2->hw->flags & SKY2_HW_FIFO_HANG_CHECK) {
+		unsigned char *start;
+		/*
+		 * Workaround for a bug in FIFO that cause hang
+		 * if the FIFO if the receive buffer is not 64 byte aligned.
+		 * The buffer returned from netdev_alloc_skb is
+		 * aligned except if slab debugging is enabled.
+		 */
+		skb = netdev_alloc_skb(sky2->netdev, sky2->rx_data_size + 8);
+		if (!skb)
+			goto nomem;
+		start = PTR_ALIGN(skb->data, 8);
+		skb_reserve(skb, start - skb->data);
+	} else {
+		skb = netdev_alloc_skb(sky2->netdev,
+				       sky2->rx_data_size + NET_IP_ALIGN);
+		if (!skb)
+			goto nomem;
+		skb_reserve(skb, NET_IP_ALIGN);
+	}
 
 	for (i = 0; i < sky2->rx_nfrags; i++) {
 		struct page *page = alloc_page(GFP_ATOMIC);
@@ -1227,7 +1247,7 @@ static int sky2_rx_start(struct sky2_port *sky2)
 	struct sky2_hw *hw = sky2->hw;
 	struct rx_ring_info *re;
 	unsigned rxq = rxqaddr[sky2->port];
-	unsigned i, size, space, thresh;
+	unsigned i, size, thresh;
 
 	sky2->rx_put = sky2->rx_next = 0;
 	sky2_qset(hw, rxq);
@@ -1254,28 +1274,18 @@ static int sky2_rx_start(struct sky2_port *sky2)
 	/* Stopping point for hardware truncation */
 	thresh = (size - 8) / sizeof(u32);
 
-	/* Account for overhead of skb - to avoid order > 0 allocation */
-	space = SKB_DATA_ALIGN(size) + NET_SKB_PAD
-		+ sizeof(struct skb_shared_info);
-
-	sky2->rx_nfrags = space >> PAGE_SHIFT;
+	sky2->rx_nfrags = size >> PAGE_SHIFT;
 	BUG_ON(sky2->rx_nfrags > ARRAY_SIZE(re->frag_addr));
 
-	if (sky2->rx_nfrags != 0) {
-		/* Compute residue after pages */
-		space = sky2->rx_nfrags << PAGE_SHIFT;
+	/* Compute residue after pages */
+	size -= sky2->rx_nfrags << PAGE_SHIFT;
 
-		if (space < size)
-			size -= space;
-		else
-			size = 0;
+	/* Optimize to handle small packets and headers */
+	if (size < copybreak)
+		size = copybreak;
+	if (size < ETH_HLEN)
+		size = ETH_HLEN;
 
-		/* Optimize to handle small packets and headers */
-		if (size < copybreak)
-			size = copybreak;
-		if (size < ETH_HLEN)
-			size = ETH_HLEN;
-	}
 	sky2->rx_data_size = size;
 
 	/* Fill Rx ring */
@@ -2663,6 +2673,7 @@ static u32 sky2_mhz(const struct sky2_hw *hw)
 	case CHIP_ID_YUKON_EC:
 	case CHIP_ID_YUKON_EC_U:
 	case CHIP_ID_YUKON_EX:
+	case CHIP_ID_YUKON_SUPR:
 		return 125;
 
 	case CHIP_ID_YUKON_FE:
@@ -2746,6 +2757,15 @@ static int __devinit sky2_init(struct sky2_hw *hw)
 			| SKY2_HW_AUTO_TX_SUM
 			| SKY2_HW_ADV_POWER_CTL;
 		break;
+
+	case CHIP_ID_YUKON_SUPR:
+		hw->flags = SKY2_HW_GIGABIT
+			| SKY2_HW_NEWER_PHY
+			| SKY2_HW_NEW_LE
+			| SKY2_HW_AUTO_TX_SUM
+			| SKY2_HW_ADV_POWER_CTL;
+		break;
+
 	default:
 		dev_err(&hw->pdev->dev, "unsupported chip type 0x%x\n",
 			hw->chip_id);
@@ -2816,7 +2836,8 @@ static void sky2_reset(struct sky2_hw *hw)
 		sky2_write8(hw, SK_REG(i, GMAC_LINK_CTRL), GMLC_RST_SET);
 		sky2_write8(hw, SK_REG(i, GMAC_LINK_CTRL), GMLC_RST_CLR);
 
-		if (hw->chip_id == CHIP_ID_YUKON_EX)
+		if (hw->chip_id == CHIP_ID_YUKON_EX ||
+		    hw->chip_id == CHIP_ID_YUKON_SUPR)
 			sky2_write16(hw, SK_REG(i, GMAC_CTRL),
 				     GMC_BYP_MACSECRX_ON | GMC_BYP_MACSECTX_ON
 				     | GMC_BYP_RETR_ON);

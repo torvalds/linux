@@ -73,15 +73,17 @@ static void nf_ct_expectation_timed_out(unsigned long ul_expect)
 
 static unsigned int nf_ct_expect_dst_hash(const struct nf_conntrack_tuple *tuple)
 {
+	unsigned int hash;
+
 	if (unlikely(!nf_ct_expect_hash_rnd_initted)) {
 		get_random_bytes(&nf_ct_expect_hash_rnd, 4);
 		nf_ct_expect_hash_rnd_initted = 1;
 	}
 
-	return jhash2(tuple->dst.u3.all, ARRAY_SIZE(tuple->dst.u3.all),
+	hash = jhash2(tuple->dst.u3.all, ARRAY_SIZE(tuple->dst.u3.all),
 		      (((tuple->dst.protonum ^ tuple->src.l3num) << 16) |
-		       (__force __u16)tuple->dst.u.all) ^ nf_ct_expect_hash_rnd) %
-	       nf_ct_expect_hsize;
+		       (__force __u16)tuple->dst.u.all) ^ nf_ct_expect_hash_rnd);
+	return ((u64)hash * nf_ct_expect_hsize) >> 32;
 }
 
 struct nf_conntrack_expect *
@@ -226,8 +228,8 @@ struct nf_conntrack_expect *nf_ct_expect_alloc(struct nf_conn *me)
 EXPORT_SYMBOL_GPL(nf_ct_expect_alloc);
 
 void nf_ct_expect_init(struct nf_conntrack_expect *exp, int family,
-		       union nf_conntrack_address *saddr,
-		       union nf_conntrack_address *daddr,
+		       union nf_inet_addr *saddr,
+		       union nf_inet_addr *daddr,
 		       u_int8_t proto, __be16 *src, __be16 *dst)
 {
 	int len;

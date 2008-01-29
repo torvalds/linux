@@ -23,11 +23,6 @@
 	Abstract: rt2x00 rfkill routines.
  */
 
-/*
- * Set enviroment defines for rt2x00.h
- */
-#define DRV_NAME "rt2x00lib"
-
 #include <linux/input-polldev.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -68,8 +63,10 @@ static void rt2x00rfkill_poll(struct input_polled_dev *poll_dev)
 	struct rt2x00_dev *rt2x00dev = poll_dev->private;
 	int state = rt2x00dev->ops->lib->rfkill_poll(rt2x00dev);
 
-	if (rt2x00dev->rfkill->state != state)
+	if (rt2x00dev->rfkill->state != state) {
 		input_report_key(poll_dev->input, KEY_WLAN, 1);
+		input_report_key(poll_dev->input, KEY_WLAN, 0);
+	}
 }
 
 int rt2x00rfkill_register(struct rt2x00_dev *rt2x00dev)
@@ -91,6 +88,13 @@ int rt2x00rfkill_register(struct rt2x00_dev *rt2x00dev)
 		rfkill_unregister(rt2x00dev->rfkill);
 		return retval;
 	}
+
+	/*
+	 * Force initial poll which will detect the initial device state,
+	 * and correctly sends the signal to the rfkill layer about this
+	 * state.
+	 */
+	rt2x00rfkill_poll(rt2x00dev->poll_dev);
 
 	return 0;
 }
@@ -114,26 +118,41 @@ int rt2x00rfkill_allocate(struct rt2x00_dev *rt2x00dev)
 	rt2x00dev->rfkill = rfkill_allocate(device, RFKILL_TYPE_WLAN);
 	if (!rt2x00dev->rfkill) {
 		ERROR(rt2x00dev, "Failed to allocate rfkill handler.\n");
-		return -ENOMEM;
+		goto exit;
 	}
 
 	rt2x00dev->rfkill->name = rt2x00dev->ops->name;
 	rt2x00dev->rfkill->data = rt2x00dev;
-	rt2x00dev->rfkill->state = rt2x00dev->ops->lib->rfkill_poll(rt2x00dev);
+	rt2x00dev->rfkill->state = -1;
 	rt2x00dev->rfkill->toggle_radio = rt2x00rfkill_toggle_radio;
 
 	rt2x00dev->poll_dev = input_allocate_polled_device();
 	if (!rt2x00dev->poll_dev) {
 		ERROR(rt2x00dev, "Failed to allocate polled device.\n");
-		rfkill_free(rt2x00dev->rfkill);
-		return -ENOMEM;
+		goto exit_free_rfkill;
 	}
 
 	rt2x00dev->poll_dev->private = rt2x00dev;
 	rt2x00dev->poll_dev->poll = rt2x00rfkill_poll;
 	rt2x00dev->poll_dev->poll_interval = RFKILL_POLL_INTERVAL;
 
+	rt2x00dev->poll_dev->input->name = rt2x00dev->ops->name;
+	rt2x00dev->poll_dev->input->phys = wiphy_name(rt2x00dev->hw->wiphy);
+	rt2x00dev->poll_dev->input->id.bustype = BUS_HOST;
+	rt2x00dev->poll_dev->input->id.vendor = 0x1814;
+	rt2x00dev->poll_dev->input->id.product = rt2x00dev->chip.rt;
+	rt2x00dev->poll_dev->input->id.version = rt2x00dev->chip.rev;
+	rt2x00dev->poll_dev->input->dev.parent = device;
+	rt2x00dev->poll_dev->input->evbit[0] = BIT(EV_KEY);
+	set_bit(KEY_WLAN, rt2x00dev->poll_dev->input->keybit);
+
 	return 0;
+
+exit_free_rfkill:
+	rfkill_free(rt2x00dev->rfkill);
+
+exit:
+	return -ENOMEM;
 }
 
 void rt2x00rfkill_free(struct rt2x00_dev *rt2x00dev)

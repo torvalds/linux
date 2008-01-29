@@ -14,6 +14,8 @@
 #include <net/xfrm.h>
 #include <linux/pfkeyv2.h>
 #include <linux/ipsec.h>
+#include <linux/netfilter_ipv6.h>
+#include <net/dsfield.h>
 #include <net/ipv6.h>
 #include <net/addrconf.h>
 
@@ -168,18 +170,37 @@ __xfrm6_tmpl_sort(struct xfrm_tmpl **dst, struct xfrm_tmpl **src, int n)
 	return 0;
 }
 
+int xfrm6_extract_header(struct sk_buff *skb)
+{
+	struct ipv6hdr *iph = ipv6_hdr(skb);
+
+	XFRM_MODE_SKB_CB(skb)->id = 0;
+	XFRM_MODE_SKB_CB(skb)->frag_off = htons(IP_DF);
+	XFRM_MODE_SKB_CB(skb)->tos = ipv6_get_dsfield(iph);
+	XFRM_MODE_SKB_CB(skb)->ttl = iph->hop_limit;
+	memcpy(XFRM_MODE_SKB_CB(skb)->flow_lbl, iph->flow_lbl,
+	       sizeof(XFRM_MODE_SKB_CB(skb)->flow_lbl));
+
+	return 0;
+}
+
 static struct xfrm_state_afinfo xfrm6_state_afinfo = {
 	.family			= AF_INET6,
+	.proto			= IPPROTO_IPV6,
+	.eth_proto		= htons(ETH_P_IPV6),
 	.owner			= THIS_MODULE,
 	.init_tempsel		= __xfrm6_init_tempsel,
 	.tmpl_sort		= __xfrm6_tmpl_sort,
 	.state_sort		= __xfrm6_state_sort,
 	.output			= xfrm6_output,
+	.extract_input		= xfrm6_extract_input,
+	.extract_output		= xfrm6_extract_output,
+	.transport_finish	= xfrm6_transport_finish,
 };
 
-void __init xfrm6_state_init(void)
+int __init xfrm6_state_init(void)
 {
-	xfrm_state_register_afinfo(&xfrm6_state_afinfo);
+	return xfrm_state_register_afinfo(&xfrm6_state_afinfo);
 }
 
 void xfrm6_state_fini(void)

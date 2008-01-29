@@ -872,14 +872,22 @@ EXPORT_SYMBOL(ssb_clockspeed);
 
 static u32 ssb_tmslow_reject_bitmask(struct ssb_device *dev)
 {
+	u32 rev = ssb_read32(dev, SSB_IDLOW) & SSB_IDLOW_SSBREV;
+
 	/* The REJECT bit changed position in TMSLOW between
 	 * Backplane revisions. */
-	switch (ssb_read32(dev, SSB_IDLOW) & SSB_IDLOW_SSBREV) {
+	switch (rev) {
 	case SSB_IDLOW_SSBREV_22:
 		return SSB_TMSLOW_REJECT_22;
 	case SSB_IDLOW_SSBREV_23:
 		return SSB_TMSLOW_REJECT_23;
+	case SSB_IDLOW_SSBREV_24:     /* TODO - find the proper REJECT bits */
+	case SSB_IDLOW_SSBREV_25:     /* same here */
+	case SSB_IDLOW_SSBREV_26:     /* same here */
+	case SSB_IDLOW_SSBREV_27:     /* same here */
+		return SSB_TMSLOW_REJECT_23;	/* this is a guess */
 	default:
+		printk(KERN_INFO "ssb: Backplane Revision 0x%.8X\n", rev);
 		WARN_ON(1);
 	}
 	return (SSB_TMSLOW_REJECT_22 | SSB_TMSLOW_REJECT_23);

@@ -20,16 +20,17 @@
 #include <linux/socket.h>
 #include <linux/rtnetlink.h>
 #include <linux/gen_stats.h>
+#include <net/netlink.h>
 #include <net/gen_stats.h>
 
 
 static inline int
 gnet_stats_copy(struct gnet_dump *d, int type, void *buf, int size)
 {
-	RTA_PUT(d->skb, type, size, buf);
+	NLA_PUT(d->skb, type, size, buf);
 	return 0;
 
-rtattr_failure:
+nla_put_failure:
 	spin_unlock_bh(d->lock);
 	return -1;
 }
@@ -55,13 +56,14 @@ rtattr_failure:
 int
 gnet_stats_start_copy_compat(struct sk_buff *skb, int type, int tc_stats_type,
 	int xstats_type, spinlock_t *lock, struct gnet_dump *d)
+	__acquires(lock)
 {
 	memset(d, 0, sizeof(*d));
 
 	spin_lock_bh(lock);
 	d->lock = lock;
 	if (type)
-		d->tail = (struct rtattr *)skb_tail_pointer(skb);
+		d->tail = (struct nlattr *)skb_tail_pointer(skb);
 	d->skb = skb;
 	d->compat_tc_stats = tc_stats_type;
 	d->compat_xstats = xstats_type;
@@ -212,7 +214,7 @@ int
 gnet_stats_finish_copy(struct gnet_dump *d)
 {
 	if (d->tail)
-		d->tail->rta_len = skb_tail_pointer(d->skb) - (u8 *)d->tail;
+		d->tail->nla_len = skb_tail_pointer(d->skb) - (u8 *)d->tail;
 
 	if (d->compat_tc_stats)
 		if (gnet_stats_copy(d, d->compat_tc_stats, &d->tc_stats,

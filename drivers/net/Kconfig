@@ -912,6 +912,24 @@ config DM9000
 	  To compile this driver as a module, choose M here.  The module
 	  will be called dm9000.
 
+config ENC28J60
+	tristate "ENC28J60 support"
+	depends on EXPERIMENTAL && SPI && NET_ETHERNET
+	select CRC32
+	---help---
+	  Support for the Microchip EN28J60 ethernet chip.
+
+	  To compile this driver as a module, choose M here and read
+	  <file:Documentation/networking/net-modules.txt>.  The module will be
+	  called enc28j60.
+
+config ENC28J60_WRITEVERIFY
+	bool "Enable write verify"
+	depends on ENC28J60
+	---help---
+	  Enable the verify after the buffer write useful for debugging purpose.
+	  If unsure, say N.
+
 config SMC911X
 	tristate "SMSC LAN911[5678] support"
 	select CRC32
@@ -1584,6 +1602,18 @@ config 8139_OLD_RX_RESET
 	  experience problems, you can enable this option to restore the
 	  old RX-reset behavior.  If unsure, say N.
 
+config R6040
+	tristate "RDC R6040 Fast Ethernet Adapter support (EXPERIMENTAL)"
+	depends on NET_PCI && PCI
+	select CRC32
+	select MII
+	help
+	  This is a driver for the R6040 Fast Ethernet MACs found in the
+	  the RDC R-321x System-on-chips.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called r6040. This is recommended.
+
 config SIS900
 	tristate "SiS 900/7016 PCI Fast Ethernet Adapter support"
 	depends on NET_PCI && PCI
@@ -1785,7 +1815,7 @@ config DE620
 
 config SGISEEQ
 	tristate "SGI Seeq ethernet controller support"
-	depends on SGI_IP22
+	depends on SGI_HAS_SEEQ
 	help
 	  Say Y here if you have an Seeq based Ethernet network card. This is
 	  used in many Silicon Graphics machines.
@@ -1988,6 +2018,28 @@ config IP1000
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called ipg.  This is recommended.
+
+config IGB
+       tristate "Intel(R) 82575 PCI-Express Gigabit Ethernet support"
+       depends on PCI
+       ---help---
+         This driver supports Intel(R) 82575 gigabit ethernet family of
+         adapters.  For more information on how to identify your adapter, go
+         to the Adapter & Driver ID Guide at:
+
+         <http://support.intel.com/support/network/adapter/pro100/21397.htm>
+
+         For general information and support, go to the Intel support
+         website at:
+
+         <http://support.intel.com>
+
+         More specific information on configuring the driver is in
+         <file:Documentation/networking/e1000.txt>.
+
+         To compile this driver as a module, choose M here and read
+         <file:Documentation/networking/net-modules.txt>.  The module
+         will be called igb.
 
 source "drivers/net/ixp2000/Kconfig"
 
@@ -2560,6 +2612,7 @@ config PASEMI_MAC
 	tristate "PA Semi 1/10Gbit MAC"
 	depends on PPC64 && PCI
 	select PHYLIB
+	select INET_LRO
 	help
 	  This driver supports the on-chip 1/10Gbit Ethernet controller on
 	  PA Semi's PWRficient line of chips.
@@ -2584,6 +2637,16 @@ config TEHUTI
 	depends on PCI
 	help
 	  Tehuti Networks 10G Ethernet NIC
+
+config BNX2X
+	tristate "Broadcom NetXtremeII 10Gb support"
+	depends on PCI
+	select ZLIB_INFLATE
+	help
+	  This driver supports Broadcom NetXtremeII 10 gigabit Ethernet cards.
+	  To compile this driver as a module, choose M here: the module
+	  will be called bnx2x.  This is recommended.
+
 
 endif # NETDEV_10000
 
@@ -3014,23 +3077,6 @@ config NET_FC
 	  adaptor card in your computer; say Y here and to the driver for your
 	  adaptor below. You also should have said Y to "SCSI support" and
 	  "SCSI generic support".
-
-config SHAPER
-	tristate "Traffic Shaper (OBSOLETE)"
-	depends on EXPERIMENTAL
-	---help---
-	  The traffic shaper is a virtual network device that allows you to
-	  limit the rate of outgoing data flow over some other network device.
-	  The traffic that you want to slow down can then be routed through
-	  these virtual devices. See
-	  <file:Documentation/networking/shaper.txt> for more information.
-
-	  An alternative to this traffic shaper are traffic schedulers which
-	  you'll get if you say Y to "QoS and/or fair queuing" in
-	  "Networking options".
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called shaper.  If unsure, say N.
 
 config NETCONSOLE
 	tristate "Network console logging support (EXPERIMENTAL)"

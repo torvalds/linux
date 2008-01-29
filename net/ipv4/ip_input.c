@@ -204,22 +204,14 @@ static int ip_local_deliver_finish(struct sk_buff *skb)
 
 	rcu_read_lock();
 	{
-		/* Note: See raw.c and net/raw.h, RAWV4_HTABLE_SIZE==MAX_INET_PROTOS */
 		int protocol = ip_hdr(skb)->protocol;
-		int hash;
-		struct sock *raw_sk;
+		int hash, raw;
 		struct net_protocol *ipprot;
 
 	resubmit:
+		raw = raw_local_deliver(skb, protocol);
+
 		hash = protocol & (MAX_INET_PROTOS - 1);
-		raw_sk = sk_head(&raw_v4_htable[hash]);
-
-		/* If there maybe a raw socket we must check - if not we
-		 * don't care less
-		 */
-		if (raw_sk && !raw_v4_input(skb, ip_hdr(skb), hash))
-			raw_sk = NULL;
-
 		if ((ipprot = rcu_dereference(inet_protos[hash])) != NULL) {
 			int ret;
 
@@ -237,7 +229,7 @@ static int ip_local_deliver_finish(struct sk_buff *skb)
 			}
 			IP_INC_STATS_BH(IPSTATS_MIB_INDELIVERS);
 		} else {
-			if (!raw_sk) {
+			if (!raw) {
 				if (xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb)) {
 					IP_INC_STATS_BH(IPSTATS_MIB_INUNKNOWNPROTOS);
 					icmp_send(skb, ICMP_DEST_UNREACH,
@@ -268,7 +260,7 @@ int ip_local_deliver(struct sk_buff *skb)
 			return 0;
 	}
 
-	return NF_HOOK(PF_INET, NF_IP_LOCAL_IN, skb, skb->dev, NULL,
+	return NF_HOOK(PF_INET, NF_INET_LOCAL_IN, skb, skb->dev, NULL,
 		       ip_local_deliver_finish);
 }
 
@@ -347,7 +339,7 @@ static int ip_rcv_finish(struct sk_buff *skb)
 
 #ifdef CONFIG_NET_CLS_ROUTE
 	if (unlikely(skb->dst->tclassid)) {
-		struct ip_rt_acct *st = ip_rt_acct + 256*smp_processor_id();
+		struct ip_rt_acct *st = per_cpu_ptr(ip_rt_acct, smp_processor_id());
 		u32 idx = skb->dst->tclassid;
 		st[idx&0xFF].o_packets++;
 		st[idx&0xFF].o_bytes+=skb->len;
@@ -442,7 +434,7 @@ int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, 
 	/* Remove any debris in the socket control block */
 	memset(IPCB(skb), 0, sizeof(struct inet_skb_parm));
 
-	return NF_HOOK(PF_INET, NF_IP_PRE_ROUTING, skb, dev, NULL,
+	return NF_HOOK(PF_INET, NF_INET_PRE_ROUTING, skb, dev, NULL,
 		       ip_rcv_finish);
 
 inhdr_error:

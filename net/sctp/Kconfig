@@ -10,6 +10,7 @@ menuconfig IP_SCTP
 	select CRYPTO_HMAC
 	select CRYPTO_SHA1
 	select CRYPTO_MD5 if SCTP_HMAC_MD5
+	select LIBCRC32C
 	---help---
 	  Stream Control Transmission Protocol
 

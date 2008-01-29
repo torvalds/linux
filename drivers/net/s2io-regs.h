@@ -723,11 +723,17 @@ struct XENA_dev_config {
 	u64 rmac_cfg_key;
 #define RMAC_CFG_KEY(val)               vBIT(val,0,16)
 
-#define MAX_MAC_ADDRESSES           16
-#define MAX_MC_ADDRESSES            32	/* Multicast addresses */
-#define MAC_MAC_ADDR_START_OFFSET   0
-#define MAC_MC_ADDR_START_OFFSET    16
-#define MAC_MC_ALL_MC_ADDR_OFFSET   63	/* enables all multicast pkts */
+#define S2IO_MAC_ADDR_START_OFFSET	0
+
+#define S2IO_XENA_MAX_MC_ADDRESSES	64	/* multicast addresses */
+#define S2IO_HERC_MAX_MC_ADDRESSES	256
+
+#define S2IO_XENA_MAX_MAC_ADDRESSES	16
+#define S2IO_HERC_MAX_MAC_ADDRESSES	64
+
+#define S2IO_XENA_MC_ADDR_START_OFFSET	16
+#define S2IO_HERC_MC_ADDR_START_OFFSET	64
+
 	u64 rmac_addr_cmd_mem;
 #define RMAC_ADDR_CMD_MEM_WE                    s2BIT(7)
 #define RMAC_ADDR_CMD_MEM_RD                    0

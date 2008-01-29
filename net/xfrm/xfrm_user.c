@@ -1043,7 +1043,7 @@ static struct xfrm_policy *xfrm_policy_construct(struct xfrm_userpolicy_info *p,
 	return xp;
  error:
 	*errp = err;
-	kfree(xp);
+	xfrm_policy_destroy(xp);
 	return NULL;
 }
 
@@ -1986,8 +1986,8 @@ static inline size_t xfrm_sa_len(struct xfrm_state *x)
 	if (x->coaddr)
 		l += nla_total_size(sizeof(*x->coaddr));
 
-	/* Must count this as this may become non-zero behind our back. */
-	l += nla_total_size(sizeof(x->lastused));
+	/* Must count x->lastused as it may become non-zero behind our back. */
+	l += nla_total_size(sizeof(u64));
 
 	return l;
 }
@@ -2420,7 +2420,7 @@ static void __exit xfrm_user_exit(void)
 	xfrm_unregister_km(&netlink_mgr);
 	rcu_assign_pointer(xfrm_nl, NULL);
 	synchronize_rcu();
-	sock_release(nlsk->sk_socket);
+	netlink_kernel_release(nlsk);
 }
 
 module_init(xfrm_user_init);

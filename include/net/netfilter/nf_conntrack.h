@@ -223,8 +223,6 @@ extern void nf_conntrack_tcp_update(struct sk_buff *skb,
 /* Fake conntrack entry for untracked connections */
 extern struct nf_conn nf_conntrack_untracked;
 
-extern int nf_ct_no_defrag;
-
 /* Iterate over all conntracks: if iter returns true, it's deleted. */
 extern void
 nf_ct_iterate_cleanup(int (*iter)(struct nf_conn *i, void *data), void *data);
@@ -263,11 +261,6 @@ do {							\
 	__get_cpu_var(nf_conntrack_stat).count++;	\
 	local_bh_enable();				\
 } while (0)
-
-extern int
-nf_conntrack_register_cache(u_int32_t features, const char *name, size_t size);
-extern void
-nf_conntrack_unregister_cache(u_int32_t features);
 
 #endif /* __KERNEL__ */
 #endif /* _NF_CONNTRACK_H */

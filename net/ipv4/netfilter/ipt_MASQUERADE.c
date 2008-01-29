@@ -25,18 +25,16 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Netfilter Core Team <coreteam@netfilter.org>");
-MODULE_DESCRIPTION("iptables MASQUERADE target module");
+MODULE_DESCRIPTION("Xtables: automatic-address SNAT");
 
 /* Lock protects masq region inside conntrack */
 static DEFINE_RWLOCK(masq_lock);
 
 /* FIXME: Multiple targets. --RR */
 static bool
-masquerade_check(const char *tablename,
-		 const void *e,
-		 const struct xt_target *target,
-		 void *targinfo,
-		 unsigned int hook_mask)
+masquerade_tg_check(const char *tablename, const void *e,
+                    const struct xt_target *target, void *targinfo,
+                    unsigned int hook_mask)
 {
 	const struct nf_nat_multi_range_compat *mr = targinfo;
 
@@ -52,12 +50,9 @@ masquerade_check(const char *tablename,
 }
 
 static unsigned int
-masquerade_target(struct sk_buff *skb,
-		  const struct net_device *in,
-		  const struct net_device *out,
-		  unsigned int hooknum,
-		  const struct xt_target *target,
-		  const void *targinfo)
+masquerade_tg(struct sk_buff *skb, const struct net_device *in,
+              const struct net_device *out, unsigned int hooknum,
+              const struct xt_target *target, const void *targinfo)
 {
 	struct nf_conn *ct;
 	struct nf_conn_nat *nat;
@@ -67,7 +62,7 @@ masquerade_target(struct sk_buff *skb,
 	const struct rtable *rt;
 	__be32 newsrc;
 
-	NF_CT_ASSERT(hooknum == NF_IP_POST_ROUTING);
+	NF_CT_ASSERT(hooknum == NF_INET_POST_ROUTING);
 
 	ct = nf_ct_get(skb, &ctinfo);
 	nat = nfct_nat(ct);
@@ -100,7 +95,7 @@ masquerade_target(struct sk_buff *skb,
 		  mr->range[0].min, mr->range[0].max });
 
 	/* Hand modified range to generic setup. */
-	return nf_nat_setup_info(ct, &newrange, hooknum);
+	return nf_nat_setup_info(ct, &newrange, IP_NAT_MANIP_SRC);
 }
 
 static int
@@ -166,22 +161,22 @@ static struct notifier_block masq_inet_notifier = {
 	.notifier_call	= masq_inet_event,
 };
 
-static struct xt_target masquerade __read_mostly = {
+static struct xt_target masquerade_tg_reg __read_mostly = {
 	.name		= "MASQUERADE",
 	.family		= AF_INET,
-	.target		= masquerade_target,
+	.target		= masquerade_tg,
 	.targetsize	= sizeof(struct nf_nat_multi_range_compat),
 	.table		= "nat",
-	.hooks		= 1 << NF_IP_POST_ROUTING,
-	.checkentry	= masquerade_check,
+	.hooks		= 1 << NF_INET_POST_ROUTING,
+	.checkentry	= masquerade_tg_check,
 	.me		= THIS_MODULE,
 };
 
-static int __init ipt_masquerade_init(void)
+static int __init masquerade_tg_init(void)
 {
 	int ret;
 
-	ret = xt_register_target(&masquerade);
+	ret = xt_register_target(&masquerade_tg_reg);
 
 	if (ret == 0) {
 		/* Register for device down reports */
@@ -193,12 +188,12 @@ static int __init ipt_masquerade_init(void)
 	return ret;
 }
 
-static void __exit ipt_masquerade_fini(void)
+static void __exit masquerade_tg_exit(void)
 {
-	xt_unregister_target(&masquerade);
+	xt_unregister_target(&masquerade_tg_reg);
 	unregister_netdevice_notifier(&masq_dev_notifier);
 	unregister_inetaddr_notifier(&masq_inet_notifier);
 }
 
-module_init(ipt_masquerade_init);
-module_exit(ipt_masquerade_fini);
+module_init(masquerade_tg_init);
+module_exit(masquerade_tg_exit);

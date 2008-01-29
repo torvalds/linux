@@ -19,7 +19,7 @@
  * current block size.
  *
  * As SDIO is still new to the kernel, it is unfortunately common with
- * bugs in the host controllers related to that. One such bug is that 
+ * bugs in the host controllers related to that. One such bug is that
  * controllers cannot do transfers that aren't a multiple of 4 bytes.
  * If you don't have time to fix the host controller driver, you can
  * work around the problem by modifying if_sdio_host_to_card() and
@@ -40,11 +40,11 @@
 #include "dev.h"
 #include "if_sdio.h"
 
-static char *libertas_helper_name = NULL;
-module_param_named(helper_name, libertas_helper_name, charp, 0644);
+static char *lbs_helper_name = NULL;
+module_param_named(helper_name, lbs_helper_name, charp, 0644);
 
-static char *libertas_fw_name = NULL;
-module_param_named(fw_name, libertas_fw_name, charp, 0644);
+static char *lbs_fw_name = NULL;
+module_param_named(fw_name, lbs_fw_name, charp, 0644);
 
 static const struct sdio_device_id if_sdio_ids[] = {
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_LIBERTAS) },
@@ -82,7 +82,7 @@ struct if_sdio_packet {
 
 struct if_sdio_card {
 	struct sdio_func	*func;
-	wlan_private		*priv;
+	struct lbs_private	*priv;
 
 	int			model;
 	unsigned long		ioport;
@@ -134,32 +134,26 @@ static int if_sdio_handle_cmd(struct if_sdio_card *card,
 
 	lbs_deb_enter(LBS_DEB_SDIO);
 
-	spin_lock_irqsave(&card->priv->adapter->driver_lock, flags);
+	spin_lock_irqsave(&card->priv->driver_lock, flags);
 
-	if (!card->priv->adapter->cur_cmd) {
-		lbs_deb_sdio("discarding spurious response\n");
-		ret = 0;
-		goto out;
-	}
-
-	if (size > MRVDRV_SIZE_OF_CMD_BUFFER) {
+	if (size > LBS_CMD_BUFFER_SIZE) {
 		lbs_deb_sdio("response packet too large (%d bytes)\n",
 			(int)size);
 		ret = -E2BIG;
 		goto out;
 	}
 
-	memcpy(card->priv->adapter->cur_cmd->bufvirtualaddr, buffer, size);
+	memcpy(card->priv->upld_buf, buffer, size);
 	card->priv->upld_len = size;
 
 	card->int_cause |= MRVDRV_CMD_UPLD_RDY;
 
-	libertas_interrupt(card->priv->dev);
+	lbs_interrupt(card->priv);
 
 	ret = 0;
 
 out:
-	spin_unlock_irqrestore(&card->priv->adapter->driver_lock, flags);
+	spin_unlock_irqrestore(&card->priv->driver_lock, flags);
 
 	lbs_deb_leave_args(LBS_DEB_SDIO, "ret %d", ret);
 
@@ -194,7 +188,7 @@ static int if_sdio_handle_data(struct if_sdio_card *card,
 
 	memcpy(data, buffer, size);
 
-	libertas_process_rxed_packet(card->priv, skb);
+	lbs_process_rxed_packet(card->priv, skb);
 
 	ret = 0;
 
@@ -231,14 +225,14 @@ static int if_sdio_handle_event(struct if_sdio_card *card,
 		event <<= SBI_EVENT_CAUSE_SHIFT;
 	}
 
-	spin_lock_irqsave(&card->priv->adapter->driver_lock, flags);
+	spin_lock_irqsave(&card->priv->driver_lock, flags);
 
 	card->event = event;
 	card->int_cause |= MRVDRV_CARDEVENT;
 
-	libertas_interrupt(card->priv->dev);
+	lbs_interrupt(card->priv);
 
-	spin_unlock_irqrestore(&card->priv->adapter->driver_lock, flags);
+	spin_unlock_irqrestore(&card->priv->driver_lock, flags);
 
 	ret = 0;
 
@@ -454,7 +448,7 @@ static int if_sdio_prog_helper(struct if_sdio_card *card)
 
 		chunk_size = min(size, (size_t)60);
 
-		*((u32*)chunk_buffer) = cpu_to_le32(chunk_size);
+		*((__le32*)chunk_buffer) = cpu_to_le32(chunk_size);
 		memcpy(chunk_buffer + 4, firmware, chunk_size);
 /*
 		lbs_deb_sdio("sending %d bytes chunk\n", chunk_size);
@@ -694,7 +688,8 @@ out:
 /* Libertas callbacks                                              */
 /*******************************************************************/
 
-static int if_sdio_host_to_card(wlan_private *priv, u8 type, u8 *buf, u16 nb)
+static int if_sdio_host_to_card(struct lbs_private *priv,
+		u8 type, u8 *buf, u16 nb)
 {
 	int ret;
 	struct if_sdio_card *card;
@@ -775,7 +770,7 @@ out:
 	return ret;
 }
 
-static int if_sdio_get_int_status(wlan_private *priv, u8 *ireg)
+static int if_sdio_get_int_status(struct lbs_private *priv, u8 *ireg)
 {
 	struct if_sdio_card *card;
 
@@ -791,7 +786,7 @@ static int if_sdio_get_int_status(wlan_private *priv, u8 *ireg)
 	return 0;
 }
 
-static int if_sdio_read_event_cause(wlan_private *priv)
+static int if_sdio_read_event_cause(struct lbs_private *priv)
 {
 	struct if_sdio_card *card;
 
@@ -799,7 +794,7 @@ static int if_sdio_read_event_cause(wlan_private *priv)
 
 	card = priv->card;
 
-	priv->adapter->eventcause = card->event;
+	priv->eventcause = card->event;
 
 	lbs_deb_leave(LBS_DEB_SDIO);
 
@@ -834,12 +829,9 @@ static void if_sdio_interrupt(struct sdio_func *func)
 	 * Ignore the define name, this really means the card has
 	 * successfully received the command.
 	 */
-	if (cause & IF_SDIO_H_INT_DNLD) {
-		if ((card->priv->dnld_sent == DNLD_DATA_SENT) &&
-			(card->priv->adapter->connect_status == LIBERTAS_CONNECTED))
-			netif_wake_queue(card->priv->dev);
-		card->priv->dnld_sent = DNLD_RES_RECEIVED;
-	}
+	if (cause & IF_SDIO_H_INT_DNLD)
+		lbs_host_to_card_done(card->priv);
+
 
 	if (cause & IF_SDIO_H_INT_UPLD) {
 		ret = if_sdio_card_to_host(card);
@@ -857,7 +849,7 @@ static int if_sdio_probe(struct sdio_func *func,
 		const struct sdio_device_id *id)
 {
 	struct if_sdio_card *card;
-	wlan_private *priv;
+	struct lbs_private *priv;
 	int ret, i;
 	unsigned int model;
 	struct if_sdio_packet *packet;
@@ -905,15 +897,15 @@ static int if_sdio_probe(struct sdio_func *func,
 	card->helper = if_sdio_models[i].helper;
 	card->firmware = if_sdio_models[i].firmware;
 
-	if (libertas_helper_name) {
+	if (lbs_helper_name) {
 		lbs_deb_sdio("overriding helper firmware: %s\n",
-			libertas_helper_name);
-		card->helper = libertas_helper_name;
+			lbs_helper_name);
+		card->helper = lbs_helper_name;
 	}
 
-	if (libertas_fw_name) {
-		lbs_deb_sdio("overriding firmware: %s\n", libertas_fw_name);
-		card->firmware = libertas_fw_name;
+	if (lbs_fw_name) {
+		lbs_deb_sdio("overriding firmware: %s\n", lbs_fw_name);
+		card->firmware = lbs_fw_name;
 	}
 
 	sdio_claim_host(func);
@@ -951,7 +943,7 @@ static int if_sdio_probe(struct sdio_func *func,
 	if (ret)
 		goto reclaim;
 
-	priv = libertas_add_card(card, &func->dev);
+	priv = lbs_add_card(card, &func->dev);
 	if (!priv) {
 		ret = -ENOMEM;
 		goto reclaim;
@@ -964,7 +956,7 @@ static int if_sdio_probe(struct sdio_func *func,
 	priv->hw_get_int_status = if_sdio_get_int_status;
 	priv->hw_read_event_cause = if_sdio_read_event_cause;
 
-	priv->adapter->fw_ready = 1;
+	priv->fw_ready = 1;
 
 	/*
 	 * Enable interrupts now that everything is set up
@@ -975,7 +967,7 @@ static int if_sdio_probe(struct sdio_func *func,
 	if (ret)
 		goto reclaim;
 
-	ret = libertas_start_card(priv);
+	ret = lbs_start_card(priv);
 	if (ret)
 		goto err_activate_card;
 
@@ -987,7 +979,7 @@ out:
 err_activate_card:
 	flush_scheduled_work();
 	free_netdev(priv->dev);
-	kfree(priv->adapter);
+	kfree(priv);
 reclaim:
 	sdio_claim_host(func);
 release_int:
@@ -1017,11 +1009,11 @@ static void if_sdio_remove(struct sdio_func *func)
 
 	card = sdio_get_drvdata(func);
 
-	card->priv->adapter->surpriseremoved = 1;
+	card->priv->surpriseremoved = 1;
 
 	lbs_deb_sdio("call remove card\n");
-	libertas_stop_card(card->priv);
-	libertas_remove_card(card->priv);
+	lbs_stop_card(card->priv);
+	lbs_remove_card(card->priv);
 
 	flush_scheduled_work();
 
@@ -1052,7 +1044,7 @@ static struct sdio_driver if_sdio_driver = {
 /* Module functions                                                */
 /*******************************************************************/
 
-static int if_sdio_init_module(void)
+static int __init if_sdio_init_module(void)
 {
 	int ret = 0;
 
@@ -1068,7 +1060,7 @@ static int if_sdio_init_module(void)
 	return ret;
 }
 
-static void if_sdio_exit_module(void)
+static void __exit if_sdio_exit_module(void)
 {
 	lbs_deb_enter(LBS_DEB_SDIO);
 

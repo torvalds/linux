@@ -89,6 +89,8 @@ struct ieee80211_sta_bss {
 	size_t rsn_ie_len;
 	u8 *wmm_ie;
 	size_t wmm_ie_len;
+	u8 *ht_ie;
+	size_t ht_ie_len;
 #define IEEE80211_MAX_SUPP_RATES 32
 	u8 supp_rates[IEEE80211_MAX_SUPP_RATES];
 	size_t supp_rates_len;
@@ -121,6 +123,7 @@ typedef enum {
 /* frame is destined to interface currently processed (incl. multicast frames) */
 #define IEEE80211_TXRXD_RXRA_MATCH		BIT(5)
 #define IEEE80211_TXRXD_TX_INJECTED		BIT(6)
+#define IEEE80211_TXRXD_RX_AMSDU		BIT(7)
 struct ieee80211_txrx_data {
 	struct sk_buff *skb;
 	struct net_device *dev;
@@ -161,6 +164,7 @@ struct ieee80211_txrx_data {
 #define IEEE80211_TXPD_REQ_TX_STATUS	BIT(0)
 #define IEEE80211_TXPD_DO_NOT_ENCRYPT	BIT(1)
 #define IEEE80211_TXPD_REQUEUE		BIT(2)
+#define IEEE80211_TXPD_EAPOL_FRAME	BIT(3)
 /* Stored in sk_buff->cb */
 struct ieee80211_tx_packet_data {
 	int ifindex;
@@ -186,9 +190,14 @@ typedef ieee80211_txrx_result (*ieee80211_tx_handler)
 typedef ieee80211_txrx_result (*ieee80211_rx_handler)
 (struct ieee80211_txrx_data *rx);
 
+struct beacon_data {
+	u8 *head, *tail;
+	int head_len, tail_len;
+	int dtim_period;
+};
+
 struct ieee80211_if_ap {
-	u8 *beacon_head, *beacon_tail;
-	int beacon_head_len, beacon_tail_len;
+	struct beacon_data *beacon;
 
 	struct list_head vlans;
 
@@ -201,7 +210,7 @@ struct ieee80211_if_ap {
 	u8 tim[sizeof(unsigned long) * BITS_TO_LONGS(IEEE80211_MAX_AID + 1)];
 	atomic_t num_sta_ps; /* number of stations in PS mode */
 	struct sk_buff_head ps_bc_buf;
-	int dtim_period, dtim_count;
+	int dtim_count;
 	int force_unicast_rateidx; /* forced TX rateidx for unicast frames */
 	int max_ratectrl_rateidx; /* max TX rateidx for rate control */
 	int num_beacons; /* number of TXed beacon frames for this BSS */
@@ -282,15 +291,9 @@ struct ieee80211_if_sta {
 /* flags used in struct ieee80211_sub_if_data.flags */
 #define IEEE80211_SDATA_ALLMULTI	BIT(0)
 #define IEEE80211_SDATA_PROMISC		BIT(1)
-#define IEEE80211_SDATA_USE_PROTECTION	BIT(2) /* CTS protect ERP frames */
-/* use short preamble with IEEE 802.11b: this flag is set when the AP or beacon
- * generator reports that there are no present stations that cannot support short
- * preambles */
-#define IEEE80211_SDATA_SHORT_PREAMBLE	BIT(3)
-#define IEEE80211_SDATA_USERSPACE_MLME	BIT(4)
+#define IEEE80211_SDATA_USERSPACE_MLME	BIT(2)
 struct ieee80211_sub_if_data {
 	struct list_head list;
-	enum ieee80211_if_types type;
 
 	struct wireless_dev wdev;
 
@@ -303,11 +306,11 @@ struct ieee80211_sub_if_data {
 	unsigned int flags;
 
 	int drop_unencrypted;
-	int eapol; /* 0 = process EAPOL frames as normal data frames,
-		    * 1 = send EAPOL frames through wlan#ap to hostapd
-		    *     (default) */
-	int ieee802_1x; /* IEEE 802.1X PAE - drop packet to/from unauthorized
-			 * port */
+	/*
+	 * IEEE 802.1X Port access control in effect,
+	 * drop packets to/from unauthorized port
+	 */
+	int ieee802_1x_pac;
 
 	u16 sequence;
 
@@ -319,6 +322,15 @@ struct ieee80211_sub_if_data {
 	struct ieee80211_key *keys[NUM_DEFAULT_KEYS];
 	struct ieee80211_key *default_key;
 
+	/*
+	 * BSS configuration for this interface.
+	 *
+	 * FIXME: I feel bad putting this here when we already have a
+	 *	  bss pointer, but the bss pointer is just wrong when
+	 *	  you have multiple virtual STA mode interfaces...
+	 *	  This needs to be fixed.
+	 */
+	struct ieee80211_bss_conf bss_conf;
 	struct ieee80211_if_ap *bss; /* BSS that this device belongs to */
 
 	union {
@@ -336,8 +348,7 @@ struct ieee80211_sub_if_data {
 		struct {
 			struct dentry *channel_use;
 			struct dentry *drop_unencrypted;
-			struct dentry *eapol;
-			struct dentry *ieee8021_x;
+			struct dentry *ieee802_1x_pac;
 			struct dentry *state;
 			struct dentry *bssid;
 			struct dentry *prev_bssid;
@@ -356,30 +367,24 @@ struct ieee80211_sub_if_data {
 		struct {
 			struct dentry *channel_use;
 			struct dentry *drop_unencrypted;
-			struct dentry *eapol;
-			struct dentry *ieee8021_x;
+			struct dentry *ieee802_1x_pac;
 			struct dentry *num_sta_ps;
-			struct dentry *dtim_period;
 			struct dentry *dtim_count;
 			struct dentry *num_beacons;
 			struct dentry *force_unicast_rateidx;
 			struct dentry *max_ratectrl_rateidx;
 			struct dentry *num_buffered_multicast;
-			struct dentry *beacon_head_len;
-			struct dentry *beacon_tail_len;
 		} ap;
 		struct {
 			struct dentry *channel_use;
 			struct dentry *drop_unencrypted;
-			struct dentry *eapol;
-			struct dentry *ieee8021_x;
+			struct dentry *ieee802_1x_pac;
 			struct dentry *peer;
 		} wds;
 		struct {
 			struct dentry *channel_use;
 			struct dentry *drop_unencrypted;
-			struct dentry *eapol;
-			struct dentry *ieee8021_x;
+			struct dentry *ieee802_1x_pac;
 		} vlan;
 		struct {
 			struct dentry *mode;
@@ -387,7 +392,15 @@ struct ieee80211_sub_if_data {
 		struct dentry *default_key;
 	} debugfs;
 #endif
+	/* must be last, dynamically sized area in this! */
+	struct ieee80211_vif vif;
 };
+
+static inline
+struct ieee80211_sub_if_data *vif_to_sdata(struct ieee80211_vif *p)
+{
+	return container_of(p, struct ieee80211_sub_if_data, vif);
+}
 
 #define IEEE80211_DEV_TO_SUB_IF(dev) netdev_priv(dev)
 
@@ -470,7 +483,8 @@ struct ieee80211_local {
 
 	struct list_head interfaces;
 
-	int sta_scanning;
+	bool sta_sw_scanning;
+	bool sta_hw_scanning;
 	int scan_channel_idx;
 	enum { SCAN_SET_CHANNEL, SCAN_SEND_PROBE } scan_state;
 	unsigned long last_scan_completed;
@@ -483,10 +497,6 @@ struct ieee80211_local {
 	struct list_head sta_bss_list;
 	struct ieee80211_sta_bss *sta_bss_hash[STA_HASH_SIZE];
 	spinlock_t sta_bss_lock;
-#define IEEE80211_SCAN_MATCH_SSID BIT(0)
-#define IEEE80211_SCAN_WPA_ONLY BIT(1)
-#define IEEE80211_SCAN_EXTRA_INFO BIT(2)
-	int scan_flags;
 
 	/* SNMP counters */
 	/* dot11CountersTable */
@@ -503,8 +513,9 @@ struct ieee80211_local {
 
 #ifdef CONFIG_MAC80211_LEDS
 	int tx_led_counter, rx_led_counter;
-	struct led_trigger *tx_led, *rx_led, *assoc_led;
-	char tx_led_name[32], rx_led_name[32], assoc_led_name[32];
+	struct led_trigger *tx_led, *rx_led, *assoc_led, *radio_led;
+	char tx_led_name[32], rx_led_name[32],
+	     assoc_led_name[32], radio_led_name[32];
 #endif
 
 	u32 channel_use;
@@ -708,6 +719,9 @@ int ieee80211_if_update_wds(struct net_device *dev, u8 *remote_addr);
 void ieee80211_if_setup(struct net_device *dev);
 struct ieee80211_rate *ieee80211_get_rate(struct ieee80211_local *local,
 					  int phymode, int hwrate);
+int ieee80211_hw_config_ht(struct ieee80211_local *local, int enable_ht,
+			   struct ieee80211_ht_info *req_ht_cap,
+			   struct ieee80211_ht_bss_info *req_bss_cap);
 
 /* ieee80211_ioctl.c */
 extern const struct iw_handler_def ieee80211_iw_handler_def;
@@ -749,7 +763,8 @@ int ieee80211_sta_req_scan(struct net_device *dev, u8 *ssid, size_t ssid_len);
 void ieee80211_sta_req_auth(struct net_device *dev,
 			    struct ieee80211_if_sta *ifsta);
 int ieee80211_sta_scan_results(struct net_device *dev, char *buf, size_t len);
-void ieee80211_sta_rx_scan(struct net_device *dev, struct sk_buff *skb,
+ieee80211_txrx_result ieee80211_sta_rx_scan(struct net_device *dev,
+					    struct sk_buff *skb,
 			   struct ieee80211_rx_status *rx_status);
 void ieee80211_rx_bss_list_init(struct net_device *dev);
 void ieee80211_rx_bss_list_deinit(struct net_device *dev);
@@ -759,9 +774,17 @@ struct sta_info * ieee80211_ibss_add_sta(struct net_device *dev,
 					 u8 *addr);
 int ieee80211_sta_deauthenticate(struct net_device *dev, u16 reason);
 int ieee80211_sta_disassociate(struct net_device *dev, u16 reason);
-void ieee80211_erp_info_change_notify(struct net_device *dev, u8 changes);
+void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
+				      u32 changed);
 void ieee80211_reset_erp_info(struct net_device *dev);
-
+int ieee80211_ht_cap_ie_to_ht_info(struct ieee80211_ht_cap *ht_cap_ie,
+				   struct ieee80211_ht_info *ht_info);
+int ieee80211_ht_addt_info_ie_to_ht_bss_info(
+			struct ieee80211_ht_addt_info *ht_add_info_ie,
+			struct ieee80211_ht_bss_info *bss_info);
+void ieee80211_sta_stop_rx_ba_session(struct net_device *dev, u8 *da,
+				u16 tid, u16 initiator, u16 reason);
+void sta_rx_agg_session_timer_expired(unsigned long data);
 /* ieee80211_iface.c */
 int ieee80211_if_add(struct net_device *dev, const char *name,
 		     struct net_device **new_dev, int type);
@@ -793,8 +816,8 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb, struct net_device *dev);
 extern void *mac80211_wiphy_privid; /* for wiphy privid */
 extern const unsigned char rfc1042_header[6];
 extern const unsigned char bridge_tunnel_header[6];
-u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len);
-int ieee80211_is_eapol(const struct sk_buff *skb);
+u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len,
+			enum ieee80211_if_types type);
 int ieee80211_frame_duration(struct ieee80211_local *local, size_t len,
 			     int rate, int erp, int short_preamble);
 void mac80211_ev_michael_mic_failure(struct net_device *dev, int keyidx,

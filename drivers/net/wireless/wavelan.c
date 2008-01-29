@@ -49,27 +49,6 @@ static int __init wv_psa_to_irq(u8 irqval)
 	return -1;
 }
 
-#ifdef STRUCT_CHECK
-/*------------------------------------------------------------------*/
-/*
- * Sanity routine to verify the sizes of the various WaveLAN interface
- * structures.
- */
-static char *wv_struct_check(void)
-{
-#define	SC(t,s,n)	if (sizeof(t) != s) return(n);
-
-	SC(psa_t, PSA_SIZE, "psa_t");
-	SC(mmw_t, MMW_SIZE, "mmw_t");
-	SC(mmr_t, MMR_SIZE, "mmr_t");
-	SC(ha_t, HA_SIZE, "ha_t");
-
-#undef	SC
-
-	return ((char *) NULL);
-}				/* wv_struct_check */
-#endif				/* STRUCT_CHECK */
-
 /********************* HOST ADAPTER SUBROUTINES *********************/
 /*
  * Useful subroutines to manage the WaveLAN ISA interface
@@ -3740,7 +3719,7 @@ static int wv_check_ioaddr(unsigned long ioaddr, u8 * mac)
 	 * non-NCR/AT&T/Lucent ISA card.  See wavelan.p.h for detail on
 	 * how to configure your card.
 	 */
-	for (i = 0; i < (sizeof(MAC_ADDRESSES) / sizeof(char) / 3); i++)
+	for (i = 0; i < ARRAY_SIZE(MAC_ADDRESSES); i++)
 		if ((mac[0] == MAC_ADDRESSES[i][0]) &&
 		    (mac[1] == MAC_ADDRESSES[i][1]) &&
 		    (mac[2] == MAC_ADDRESSES[i][2]))
@@ -4215,14 +4194,11 @@ struct net_device * __init wavelan_probe(int unit)
 	int i;
 	int r = 0;
 
-#ifdef	STRUCT_CHECK
-	if (wv_struct_check() != (char *) NULL) {
-		printk(KERN_WARNING
-		       "%s: wavelan_probe(): structure/compiler botch: \"%s\"\n",
-		       dev->name, wv_struct_check());
-		return -ENODEV;
-	}
-#endif				/* STRUCT_CHECK */
+	/* compile-time check the sizes of structures */
+	BUILD_BUG_ON(sizeof(psa_t) != PSA_SIZE);
+	BUILD_BUG_ON(sizeof(mmw_t) != MMW_SIZE);
+	BUILD_BUG_ON(sizeof(mmr_t) != MMR_SIZE);
+	BUILD_BUG_ON(sizeof(ha_t) != HA_SIZE);
 
 	dev = alloc_etherdev(sizeof(net_local));
 	if (!dev)

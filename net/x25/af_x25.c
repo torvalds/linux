@@ -83,9 +83,9 @@ struct compat_x25_subscrip_struct {
 int x25_addr_ntoa(unsigned char *p, struct x25_address *called_addr,
 		  struct x25_address *calling_addr)
 {
-	int called_len, calling_len;
+	unsigned int called_len, calling_len;
 	char *called, *calling;
-	int i;
+	unsigned int i;
 
 	called_len  = (*p >> 0) & 0x0F;
 	calling_len = (*p >> 4) & 0x0F;

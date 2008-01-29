@@ -31,6 +31,7 @@
 #define SUCCESS 0
 #define FAILURE -1
 #define S2IO_MINUS_ONE 0xFFFFFFFFFFFFFFFFULL
+#define S2IO_DISABLE_MAC_ENTRY 0xFFFFFFFFFFFFULL
 #define S2IO_MAX_PCI_CONFIG_SPACE_REINIT 100
 #define S2IO_BIT_RESET 1
 #define S2IO_BIT_SET 2
@@ -359,6 +360,8 @@ struct stat_block {
 #define MAX_TX_FIFOS 8
 #define MAX_RX_RINGS 8
 
+#define FIFO_DEFAULT_NUM	1
+
 #define MAX_RX_DESC_1  (MAX_RX_RINGS * MAX_RX_BLOCKS_PER_RING * 127 )
 #define MAX_RX_DESC_2  (MAX_RX_RINGS * MAX_RX_BLOCKS_PER_RING * 85 )
 #define MAX_RX_DESC_3  (MAX_RX_RINGS * MAX_RX_BLOCKS_PER_RING * 85 )
@@ -458,6 +461,9 @@ struct config_param {
 #define MAX_MTU_JUMBO               (MAX_PYLD_JUMBO+18)
 #define MAX_MTU_JUMBO_VLAN          (MAX_PYLD_JUMBO+22)
 	u16 bus_speed;
+	int max_mc_addr;	/* xena=64 herc=256 */
+	int max_mac_addr;	/* xena=16 herc=64 */
+	int mc_start_offset;	/* xena=16 herc=64 */
 };
 
 /* Structure representing MAC Addrs */
@@ -715,8 +721,14 @@ struct fifo_info {
 	 */
 	struct tx_curr_get_info tx_curr_get_info;
 
+	/* Per fifo lock */
+	spinlock_t tx_lock;
+
+	/* Per fifo UFO in band structure */
+	u64 *ufo_in_band_v;
+
 	struct s2io_nic *nic;
-};
+} ____cacheline_aligned;
 
 /* Information related to the Tx and Rx FIFOs and Rings of Xena
  * is maintained in this structure.
@@ -826,7 +838,7 @@ struct s2io_nic {
 #define MAX_MAC_SUPPORTED   16
 #define MAX_SUPPORTED_MULTICASTS MAX_MAC_SUPPORTED
 
-	struct mac_addr def_mac_addr[MAX_MAC_SUPPORTED];
+	struct mac_addr def_mac_addr[256];
 
 	struct net_device_stats stats;
 	int high_dma_flag;
@@ -844,7 +856,6 @@ struct s2io_nic {
 
 	atomic_t rx_bufs_left[MAX_RX_RINGS];
 
-	spinlock_t tx_lock;
 	spinlock_t put_lock;
 
 #define PROMISC     1
@@ -853,7 +864,7 @@ struct s2io_nic {
 #define MAX_ADDRS_SUPPORTED 64
 	u16 usr_addr_count;
 	u16 mc_addr_count;
-	struct usr_addr usr_addrs[MAX_ADDRS_SUPPORTED];
+	struct usr_addr usr_addrs[256];
 
 	u16 m_cast_flg;
 	u16 all_multi_pos;
@@ -911,7 +922,6 @@ struct s2io_nic {
 	volatile unsigned long state;
 	spinlock_t	rx_lock;
 	u64		general_int_mask;
-	u64 *ufo_in_band_v;
 #define VPD_STRING_LEN 80
 	u8  product_name[VPD_STRING_LEN];
 	u8  serial_num[VPD_STRING_LEN];
@@ -1066,6 +1076,12 @@ static int s2io_add_isr(struct s2io_nic * sp);
 static void s2io_rem_isr(struct s2io_nic * sp);
 
 static void restore_xmsi_data(struct s2io_nic *nic);
+static void do_s2io_store_unicast_mc(struct s2io_nic *sp);
+static void do_s2io_restore_unicast_mc(struct s2io_nic *sp);
+static u64 do_s2io_read_unicast_mc(struct s2io_nic *sp, int offset);
+static int do_s2io_add_mc(struct s2io_nic *sp, u8 *addr);
+static int do_s2io_add_mac(struct s2io_nic *sp, u64 addr, int offset);
+static int do_s2io_delete_unicast_mc(struct s2io_nic *sp, u64 addr);
 
 static int
 s2io_club_tcp_session(u8 *buffer, u8 **tcp, u32 *tcp_len, struct lro **lro,

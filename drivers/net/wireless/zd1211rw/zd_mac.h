@@ -1,4 +1,7 @@
-/* zd_mac.h
+/* ZD1211 USB-WLAN driver for Linux
+ *
+ * Copyright (C) 2005-2007 Ulrich Kunitz <kune@deine-taler.de>
+ * Copyright (C) 2006-2007 Daniel Drake <dsd@gentoo.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,14 +21,11 @@
 #ifndef _ZD_MAC_H
 #define _ZD_MAC_H
 
-#include <linux/wireless.h>
 #include <linux/kernel.h>
-#include <linux/workqueue.h>
-#include <net/ieee80211.h>
-#include <net/ieee80211softmac.h>
+#include <net/mac80211.h>
 
 #include "zd_chip.h"
-#include "zd_netdev.h"
+#include "zd_ieee80211.h"
 
 struct zd_ctrlset {
 	u8     modulation;
@@ -57,7 +57,7 @@ struct zd_ctrlset {
 /* The two possible modulation types. Notify that 802.11b doesn't use the CCK
  * codeing for the 1 and 2 MBit/s rate. We stay with the term here to remain
  * consistent with uses the term at other places.
-  */
+ */
 #define ZD_CCK                  0x00
 #define ZD_OFDM                 0x10
 
@@ -141,58 +141,68 @@ struct rx_status {
 #define ZD_RX_CRC16_ERROR		0x40
 #define ZD_RX_ERROR			0x80
 
+enum mac_flags {
+	MAC_FIXED_CHANNEL = 0x01,
+};
+
 struct housekeeping {
 	struct delayed_work link_led_work;
 };
 
+/**
+ * struct zd_tx_skb_control_block - control block for tx skbuffs
+ * @control: &struct ieee80211_tx_control pointer
+ * @context: context pointer
+ *
+ * This structure is used to fill the cb field in an &sk_buff to transmit.
+ * The control field is NULL, if there is no requirement from the mac80211
+ * stack to report about the packet ACK. This is the case if the flag
+ * IEEE80211_TXCTL_NO_ACK is not set in &struct ieee80211_tx_control.
+ */
+struct zd_tx_skb_control_block {
+	struct ieee80211_tx_control *control;
+	struct ieee80211_hw *hw;
+	void *context;
+};
+
 #define ZD_MAC_STATS_BUFFER_SIZE 16
+
+#define ZD_MAC_MAX_ACK_WAITERS 10
 
 struct zd_mac {
 	struct zd_chip chip;
 	spinlock_t lock;
-	struct net_device *netdev;
-
-	/* Unlocked reading possible */
-	struct iw_statistics iw_stats;
-
+	struct ieee80211_hw *hw;
 	struct housekeeping housekeeping;
 	struct work_struct set_multicast_hash_work;
+	struct work_struct set_rts_cts_work;
+	struct work_struct set_rx_filter_work;
 	struct zd_mc_hash multicast_hash;
-	struct delayed_work set_rts_cts_work;
-	struct delayed_work set_basic_rates_work;
-
-	struct tasklet_struct rx_tasklet;
-	struct sk_buff_head rx_queue;
-
-	unsigned int stats_count;
-	u8 qual_buffer[ZD_MAC_STATS_BUFFER_SIZE];
-	u8 rssi_buffer[ZD_MAC_STATS_BUFFER_SIZE];
 	u8 regdomain;
 	u8 default_regdomain;
-	u8 requested_channel;
-
-	/* A bitpattern of cr_rates */
-	u16 basic_rates;
-
-	/* A zd_rate */
-	u8 rts_rate;
+	int type;
+	int associated;
+	struct sk_buff_head ack_wait_queue;
+	struct ieee80211_channel channels[14];
+	struct ieee80211_rate rates[12];
+	struct ieee80211_hw_mode modes[2];
 
 	/* Short preamble (used for RTS/CTS) */
 	unsigned int short_preamble:1;
 
 	/* flags to indicate update in progress */
 	unsigned int updating_rts_rate:1;
-	unsigned int updating_basic_rates:1;
+
+	/* whether to pass frames with CRC errors to stack */
+	unsigned int pass_failed_fcs:1;
+
+	/* whether to pass control frames to stack */
+	unsigned int pass_ctrl:1;
 };
 
-static inline struct ieee80211_device *zd_mac_to_ieee80211(struct zd_mac *mac)
+static inline struct zd_mac *zd_hw_mac(struct ieee80211_hw *hw)
 {
-	return zd_netdev_ieee80211(mac->netdev);
-}
-
-static inline struct zd_mac *zd_netdev_mac(struct net_device *netdev)
-{
-	return ieee80211softmac_priv(netdev);
+	return hw->priv;
 }
 
 static inline struct zd_mac *zd_chip_to_mac(struct zd_chip *chip)
@@ -205,35 +215,22 @@ static inline struct zd_mac *zd_usb_to_mac(struct zd_usb *usb)
 	return zd_chip_to_mac(zd_usb_to_chip(usb));
 }
 
+static inline u8 *zd_mac_get_perm_addr(struct zd_mac *mac)
+{
+	return mac->hw->wiphy->perm_addr;
+}
+
 #define zd_mac_dev(mac) (zd_chip_dev(&(mac)->chip))
 
-int zd_mac_init(struct zd_mac *mac,
-                struct net_device *netdev,
-		struct usb_interface *intf);
+struct ieee80211_hw *zd_mac_alloc_hw(struct usb_interface *intf);
 void zd_mac_clear(struct zd_mac *mac);
 
-int zd_mac_preinit_hw(struct zd_mac *mac);
-int zd_mac_init_hw(struct zd_mac *mac);
+int zd_mac_preinit_hw(struct ieee80211_hw *hw);
+int zd_mac_init_hw(struct ieee80211_hw *hw);
 
-int zd_mac_open(struct net_device *netdev);
-int zd_mac_stop(struct net_device *netdev);
-int zd_mac_set_mac_address(struct net_device *dev, void *p);
-void zd_mac_set_multicast_list(struct net_device *netdev);
-
-int zd_mac_rx_irq(struct zd_mac *mac, const u8 *buffer, unsigned int length);
-
-int zd_mac_set_regdomain(struct zd_mac *zd_mac, u8 regdomain);
-u8 zd_mac_get_regdomain(struct zd_mac *zd_mac);
-
-int zd_mac_request_channel(struct zd_mac *mac, u8 channel);
-u8 zd_mac_get_channel(struct zd_mac *mac);
-
-int zd_mac_set_mode(struct zd_mac *mac, u32 mode);
-int zd_mac_get_mode(struct zd_mac *mac, u32 *mode);
-
-int zd_mac_get_range(struct zd_mac *mac, struct iw_range *range);
-
-struct iw_statistics *zd_mac_get_wireless_stats(struct net_device *ndev);
+int zd_mac_rx(struct ieee80211_hw *hw, const u8 *buffer, unsigned int length);
+void zd_mac_tx_failed(struct ieee80211_hw *hw);
+void zd_mac_tx_to_dev(struct sk_buff *skb, int error);
 
 #ifdef DEBUG
 void zd_dump_rx_status(const struct rx_status *status);

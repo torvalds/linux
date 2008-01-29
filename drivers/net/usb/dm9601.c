@@ -101,17 +101,16 @@ static void dm_write_async_callback(struct urb *urb)
 	usb_free_urb(urb);
 }
 
-static void dm_write_async(struct usbnet *dev, u8 reg, u16 length, void *data)
+static void dm_write_async_helper(struct usbnet *dev, u8 reg, u8 value,
+				  u16 length, void *data)
 {
 	struct usb_ctrlrequest *req;
 	struct urb *urb;
 	int status;
 
-	devdbg(dev, "dm_write_async() reg=0x%02x length=%d", reg, length);
-
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb) {
-		deverr(dev, "Error allocating URB in dm_write_async!");
+		deverr(dev, "Error allocating URB in dm_write_async_helper!");
 		return;
 	}
 
@@ -123,8 +122,8 @@ static void dm_write_async(struct usbnet *dev, u8 reg, u16 length, void *data)
 	}
 
 	req->bRequestType = USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE;
-	req->bRequest = DM_WRITE_REGS;
-	req->wValue = 0;
+	req->bRequest = length ? DM_WRITE_REGS : DM_WRITE_REG;
+	req->wValue = cpu_to_le16(value);
 	req->wIndex = cpu_to_le16(reg);
 	req->wLength = cpu_to_le16(length);
 
@@ -142,45 +141,19 @@ static void dm_write_async(struct usbnet *dev, u8 reg, u16 length, void *data)
 	}
 }
 
+static void dm_write_async(struct usbnet *dev, u8 reg, u16 length, void *data)
+{
+	devdbg(dev, "dm_write_async() reg=0x%02x length=%d", reg, length);
+
+	dm_write_async_helper(dev, reg, 0, length, data);
+}
+
 static void dm_write_reg_async(struct usbnet *dev, u8 reg, u8 value)
 {
-	struct usb_ctrlrequest *req;
-	struct urb *urb;
-	int status;
-
 	devdbg(dev, "dm_write_reg_async() reg=0x%02x value=0x%02x",
 	       reg, value);
 
-	urb = usb_alloc_urb(0, GFP_ATOMIC);
-	if (!urb) {
-		deverr(dev, "Error allocating URB in dm_write_async!");
-		return;
-	}
-
-	req = kmalloc(sizeof(struct usb_ctrlrequest), GFP_ATOMIC);
-	if (!req) {
-		deverr(dev, "Failed to allocate memory for control request");
-		usb_free_urb(urb);
-		return;
-	}
-
-	req->bRequestType = USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE;
-	req->bRequest = DM_WRITE_REG;
-	req->wValue = cpu_to_le16(value);
-	req->wIndex = cpu_to_le16(reg);
-	req->wLength = 0;
-
-	usb_fill_control_urb(urb, dev->udev,
-			     usb_sndctrlpipe(dev->udev, 0),
-			     (void *)req, NULL, 0, dm_write_async_callback, req);
-
-	status = usb_submit_urb(urb, GFP_ATOMIC);
-	if (status < 0) {
-		deverr(dev, "Error submitting the control message: status=%d",
-		       status);
-		kfree(req);
-		usb_free_urb(urb);
-	}
+	dm_write_async_helper(dev, reg, value, 0, NULL);
 }
 
 static int dm_read_shared_word(struct usbnet *dev, int phy, u8 reg, u16 *value)

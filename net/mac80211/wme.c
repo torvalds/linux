@@ -28,6 +28,7 @@ struct ieee80211_sched_data
 	struct sk_buff_head requeued[TC_80211_MAX_QUEUES];
 };
 
+static const char llc_ip_hdr[8] = {0xAA, 0xAA, 0x3, 0, 0, 0, 0x08, 0};
 
 /* given a data frame determine the 802.1p/1d tag to use */
 static inline unsigned classify_1d(struct sk_buff *skb, struct Qdisc *qd)
@@ -54,12 +55,12 @@ static inline unsigned classify_1d(struct sk_buff *skb, struct Qdisc *qd)
 		return skb->priority - 256;
 
 	/* check there is a valid IP header present */
-	offset = ieee80211_get_hdrlen_from_skb(skb) + 8 /* LLC + proto */;
-	if (skb->protocol != __constant_htons(ETH_P_IP) ||
-	    skb->len < offset + sizeof(*ip))
+	offset = ieee80211_get_hdrlen_from_skb(skb);
+	if (skb->len < offset + sizeof(llc_ip_hdr) + sizeof(*ip) ||
+	    memcmp(skb->data + offset, llc_ip_hdr, sizeof(llc_ip_hdr)))
 		return 0;
 
-	ip = (struct iphdr *) (skb->data + offset);
+	ip = (struct iphdr *) (skb->data + offset + sizeof(llc_ip_hdr));
 
 	dscp = ip->tos & 0xfc;
 	if (dscp & 0x1c)
@@ -296,16 +297,16 @@ static void wme_qdiscop_destroy(struct Qdisc* qd)
 
 
 /* called whenever parameters are updated on existing qdisc */
-static int wme_qdiscop_tune(struct Qdisc *qd, struct rtattr *opt)
+static int wme_qdiscop_tune(struct Qdisc *qd, struct nlattr *opt)
 {
 /*	struct ieee80211_sched_data *q = qdisc_priv(qd);
 */
 	/* check our options block is the right size */
 	/* copy any options to our local structure */
 /*	Ignore options block for now - always use static mapping
-	struct tc_ieee80211_qopt *qopt = RTA_DATA(opt);
+	struct tc_ieee80211_qopt *qopt = nla_data(opt);
 
-	if (opt->rta_len < RTA_LENGTH(sizeof(*qopt)))
+	if (opt->nla_len < nla_attr_size(sizeof(*qopt)))
 		return -EINVAL;
 	memcpy(q->tag2queue, qopt->tag2queue, sizeof(qopt->tag2queue));
 */
@@ -314,7 +315,7 @@ static int wme_qdiscop_tune(struct Qdisc *qd, struct rtattr *opt)
 
 
 /* called during initial creation of qdisc on device */
-static int wme_qdiscop_init(struct Qdisc *qd, struct rtattr *opt)
+static int wme_qdiscop_init(struct Qdisc *qd, struct nlattr *opt)
 {
 	struct ieee80211_sched_data *q = qdisc_priv(qd);
 	struct net_device *dev = qd->dev;
@@ -369,10 +370,10 @@ static int wme_qdiscop_dump(struct Qdisc *qd, struct sk_buff *skb)
 	struct tc_ieee80211_qopt opt;
 
 	memcpy(&opt.tag2queue, q->tag2queue, TC_80211_MAX_TAG + 1);
-	RTA_PUT(skb, TCA_OPTIONS, sizeof(opt), &opt);
+	NLA_PUT(skb, TCA_OPTIONS, sizeof(opt), &opt);
 */	return skb->len;
 /*
-rtattr_failure:
+nla_put_failure:
 	skb_trim(skb, p - skb->data);*/
 	return -1;
 }
@@ -443,7 +444,7 @@ static void wme_classop_put(struct Qdisc *q, unsigned long cl)
 
 
 static int wme_classop_change(struct Qdisc *qd, u32 handle, u32 parent,
-			      struct rtattr **tca, unsigned long *arg)
+			      struct nlattr **tca, unsigned long *arg)
 {
 	unsigned long cl = *arg;
 	struct ieee80211_local *local = wdev_priv(qd->dev->ieee80211_ptr);
@@ -527,7 +528,7 @@ static struct tcf_proto ** wme_classop_find_tcf(struct Qdisc *qd,
 
 /* this qdisc is classful (i.e. has classes, some of which may have leaf qdiscs attached)
  * - these are the operations on the classes */
-static struct Qdisc_class_ops class_ops =
+static const struct Qdisc_class_ops class_ops =
 {
 	.graft = wme_classop_graft,
 	.leaf = wme_classop_leaf,
@@ -547,7 +548,7 @@ static struct Qdisc_class_ops class_ops =
 
 
 /* queueing discipline operations */
-static struct Qdisc_ops wme_qdisc_ops =
+static struct Qdisc_ops wme_qdisc_ops __read_mostly =
 {
 	.next = NULL,
 	.cl_ops = &class_ops,

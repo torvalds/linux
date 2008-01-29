@@ -22,7 +22,6 @@ void ieee80211_if_sdata_init(struct ieee80211_sub_if_data *sdata)
 
 	/* Default values for sub-interface parameters */
 	sdata->drop_unencrypted = 0;
-	sdata->eapol = 1;
 	for (i = 0; i < IEEE80211_FRAGMENT_MAX; i++)
 		skb_queue_head_init(&sdata->fragments[i].skb_list);
 
@@ -48,7 +47,7 @@ int ieee80211_if_add(struct net_device *dev, const char *name,
 	int ret;
 
 	ASSERT_RTNL();
-	ndev = alloc_netdev(sizeof(struct ieee80211_sub_if_data),
+	ndev = alloc_netdev(sizeof(*sdata) + local->hw.vif_data_size,
 			    name, ieee80211_if_setup);
 	if (!ndev)
 		return -ENOMEM;
@@ -67,7 +66,7 @@ int ieee80211_if_add(struct net_device *dev, const char *name,
 	sdata = IEEE80211_DEV_TO_SUB_IF(ndev);
 	ndev->ieee80211_ptr = &sdata->wdev;
 	sdata->wdev.wiphy = local->hw.wiphy;
-	sdata->type = IEEE80211_IF_TYPE_AP;
+	sdata->vif.type = IEEE80211_IF_TYPE_AP;
 	sdata->dev = ndev;
 	sdata->local = local;
 	ieee80211_if_sdata_init(sdata);
@@ -99,7 +98,7 @@ fail:
 void ieee80211_if_set_type(struct net_device *dev, int type)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	int oldtype = sdata->type;
+	int oldtype = sdata->vif.type;
 
 	/*
 	 * We need to call this function on the master interface
@@ -117,7 +116,7 @@ void ieee80211_if_set_type(struct net_device *dev, int type)
 
 	/* most have no BSS pointer */
 	sdata->bss = NULL;
-	sdata->type = type;
+	sdata->vif.type = type;
 
 	switch (type) {
 	case IEEE80211_IF_TYPE_WDS:
@@ -127,7 +126,6 @@ void ieee80211_if_set_type(struct net_device *dev, int type)
 		sdata->u.vlan.ap = NULL;
 		break;
 	case IEEE80211_IF_TYPE_AP:
-		sdata->u.ap.dtim_period = 2;
 		sdata->u.ap.force_unicast_rateidx = -1;
 		sdata->u.ap.max_ratectrl_rateidx = -1;
 		skb_queue_head_init(&sdata->u.ap.ps_bc_buf);
@@ -182,7 +180,7 @@ void ieee80211_if_reinit(struct net_device *dev)
 
 	ieee80211_if_sdata_deinit(sdata);
 
-	switch (sdata->type) {
+	switch (sdata->vif.type) {
 	case IEEE80211_IF_TYPE_INVALID:
 		/* cannot happen */
 		WARN_ON(1);
@@ -208,8 +206,7 @@ void ieee80211_if_reinit(struct net_device *dev)
 			}
 		}
 
-		kfree(sdata->u.ap.beacon_head);
-		kfree(sdata->u.ap.beacon_tail);
+		kfree(sdata->u.ap.beacon);
 
 		while ((skb = skb_dequeue(&sdata->u.ap.ps_bc_buf))) {
 			local->total_ps_buffered--;
@@ -280,7 +277,7 @@ int ieee80211_if_remove(struct net_device *dev, const char *name, int id)
 	ASSERT_RTNL();
 
 	list_for_each_entry_safe(sdata, n, &local->interfaces, list) {
-		if ((sdata->type == id || id == -1) &&
+		if ((sdata->vif.type == id || id == -1) &&
 		    strcmp(name, sdata->dev->name) == 0 &&
 		    sdata->dev != local->mdev) {
 			list_del_rcu(&sdata->list);

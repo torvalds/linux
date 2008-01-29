@@ -1011,9 +1011,8 @@ found:
 	INIT_LIST_HEAD(&xprt->free);
 	INIT_LIST_HEAD(&xprt->recv);
 	INIT_WORK(&xprt->task_cleanup, xprt_autoclose);
-	init_timer(&xprt->timer);
-	xprt->timer.function = xprt_init_autodisconnect;
-	xprt->timer.data = (unsigned long) xprt;
+	setup_timer(&xprt->timer, xprt_init_autodisconnect,
+			(unsigned long)xprt);
 	xprt->last_used = jiffies;
 	xprt->cwnd = RPC_INITCWND;
 	xprt->bind_index = 0;

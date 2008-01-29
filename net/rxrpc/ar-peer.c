@@ -57,7 +57,7 @@ static void rxrpc_assess_MTU_size(struct rxrpc_peer *peer)
 		BUG();
 	}
 
-	ret = ip_route_output_key(&rt, &fl);
+	ret = ip_route_output_key(&init_net, &rt, &fl);
 	if (ret < 0) {
 		_leave(" [route err %d]", ret);
 		return;

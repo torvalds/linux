@@ -49,31 +49,17 @@ static struct ctl_table atalk_table[] = {
 	{ 0 },
 };
 
-static struct ctl_table atalk_dir_table[] = {
-	{
-		.ctl_name	= NET_ATALK,
-		.procname	= "appletalk",
-		.mode		= 0555,
-		.child		= atalk_table,
-	},
-	{ 0 },
-};
-
-static struct ctl_table atalk_root_table[] = {
-	{
-		.ctl_name	= CTL_NET,
-		.procname	= "net",
-		.mode		= 0555,
-		.child		= atalk_dir_table,
-	},
-	{ 0 },
+static struct ctl_path atalk_path[] = {
+	{ .procname = "net", .ctl_name = CTL_NET, },
+	{ .procname = "appletalk", .ctl_name = NET_ATALK, },
+	{ }
 };
 
 static struct ctl_table_header *atalk_table_header;
 
 void atalk_register_sysctl(void)
 {
-	atalk_table_header = register_sysctl_table(atalk_root_table);
+	atalk_table_header = register_sysctl_paths(atalk_path, atalk_table);
 }
 
 void atalk_unregister_sysctl(void)

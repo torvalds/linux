@@ -16,6 +16,7 @@
  *	Changes:
  * Roger Venning <r.venning@telstra.com>:	6to4 support
  * Nate Thompson <nate@thebog.net>:		6to4 support
+ * Fred L. Templin <fltemplin@acm.org>:		isatap support
  */
 
 #include <linux/module.h>
@@ -181,6 +182,9 @@ static struct ip_tunnel * ipip6_tunnel_locate(struct ip_tunnel_parm *parms, int 
 	nt = netdev_priv(dev);
 	dev->init = ipip6_tunnel_init;
 	nt->parms = *parms;
+
+	if (parms->i_flags & SIT_ISATAP)
+		dev->priv_flags |= IFF_ISATAP;
 
 	if (register_netdevice(dev) < 0) {
 		free_netdev(dev);
@@ -364,6 +368,48 @@ static inline void ipip6_ecn_decapsulate(struct iphdr *iph, struct sk_buff *skb)
 		IP6_ECN_set_ce(ipv6_hdr(skb));
 }
 
+/* ISATAP (RFC4214) - check source address */
+static int
+isatap_srcok(struct sk_buff *skb, struct iphdr *iph, struct net_device *dev)
+{
+	struct neighbour *neigh;
+	struct dst_entry *dst;
+	struct rt6_info *rt;
+	struct flowi fl;
+	struct in6_addr *addr6;
+	struct in6_addr rtr;
+	struct ipv6hdr *iph6;
+	int ok = 0;
+
+	/* from onlink default router */
+	ipv6_addr_set(&rtr,  htonl(0xFE800000), 0, 0, 0);
+	ipv6_isatap_eui64(rtr.s6_addr + 8, iph->saddr);
+	if ((rt = rt6_get_dflt_router(&rtr, dev))) {
+		dst_release(&rt->u.dst);
+		return 1;
+	}
+
+	iph6 = ipv6_hdr(skb);
+	memset(&fl, 0, sizeof(fl));
+	fl.proto = iph6->nexthdr;
+	ipv6_addr_copy(&fl.fl6_dst, &iph6->saddr);
+	fl.oif = dev->ifindex;
+	security_skb_classify_flow(skb, &fl);
+
+	dst = ip6_route_output(NULL, &fl);
+	if (!dst->error && (dst->dev == dev) && (neigh = dst->neighbour)) {
+
+		addr6 = (struct in6_addr*)&neigh->primary_key;
+
+		/* from correct previous hop */
+		if (ipv6_addr_is_isatap(addr6) &&
+		    (addr6->s6_addr32[3] == iph->saddr))
+			ok = 1;
+	}
+	dst_release(dst);
+	return ok;
+}
+
 static int ipip6_rcv(struct sk_buff *skb)
 {
 	struct iphdr *iph;
@@ -382,6 +428,14 @@ static int ipip6_rcv(struct sk_buff *skb)
 		IPCB(skb)->flags = 0;
 		skb->protocol = htons(ETH_P_IPV6);
 		skb->pkt_type = PACKET_HOST;
+
+		if ((tunnel->dev->priv_flags & IFF_ISATAP) &&
+		    !isatap_srcok(skb, iph, tunnel->dev)) {
+			tunnel->stat.rx_errors++;
+			read_unlock(&ipip6_lock);
+			kfree_skb(skb);
+			return 0;
+		}
 		tunnel->stat.rx_packets++;
 		tunnel->stat.rx_bytes += skb->len;
 		skb->dev = tunnel->dev;
@@ -444,6 +498,29 @@ static int ipip6_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (skb->protocol != htons(ETH_P_IPV6))
 		goto tx_error;
 
+	/* ISATAP (RFC4214) - must come before 6to4 */
+	if (dev->priv_flags & IFF_ISATAP) {
+		struct neighbour *neigh = NULL;
+
+		if (skb->dst)
+			neigh = skb->dst->neighbour;
+
+		if (neigh == NULL) {
+			if (net_ratelimit())
+				printk(KERN_DEBUG "sit: nexthop == NULL\n");
+			goto tx_error;
+		}
+
+		addr6 = (struct in6_addr*)&neigh->primary_key;
+		addr_type = ipv6_addr_type(addr6);
+
+		if ((addr_type & IPV6_ADDR_UNICAST) &&
+		     ipv6_addr_is_isatap(addr6))
+			dst = addr6->s6_addr32[3];
+		else
+			goto tx_error;
+	}
+
 	if (!dst)
 		dst = try_6to4(&iph6->daddr);
 
@@ -480,7 +557,7 @@ static int ipip6_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 						.tos = RT_TOS(tos) } },
 				    .oif = tunnel->parms.link,
 				    .proto = IPPROTO_IPV6 };
-		if (ip_route_output_key(&rt, &fl)) {
+		if (ip_route_output_key(&init_net, &rt, &fl)) {
 			tunnel->stat.tx_carrier_errors++;
 			goto tx_error_icmp;
 		}
@@ -592,6 +669,42 @@ tx_error:
 	return 0;
 }
 
+static void ipip6_tunnel_bind_dev(struct net_device *dev)
+{
+	struct net_device *tdev = NULL;
+	struct ip_tunnel *tunnel;
+	struct iphdr *iph;
+
+	tunnel = netdev_priv(dev);
+	iph = &tunnel->parms.iph;
+
+	if (iph->daddr) {
+		struct flowi fl = { .nl_u = { .ip4_u =
+					      { .daddr = iph->daddr,
+						.saddr = iph->saddr,
+						.tos = RT_TOS(iph->tos) } },
+				    .oif = tunnel->parms.link,
+				    .proto = IPPROTO_IPV6 };
+		struct rtable *rt;
+		if (!ip_route_output_key(&init_net, &rt, &fl)) {
+			tdev = rt->u.dst.dev;
+			ip_rt_put(rt);
+		}
+		dev->flags |= IFF_POINTOPOINT;
+	}
+
+	if (!tdev && tunnel->parms.link)
+		tdev = __dev_get_by_index(&init_net, tunnel->parms.link);
+
+	if (tdev) {
+		dev->hard_header_len = tdev->hard_header_len + sizeof(struct iphdr);
+		dev->mtu = tdev->mtu - sizeof(struct iphdr);
+		if (dev->mtu < IPV6_MIN_MTU)
+			dev->mtu = IPV6_MIN_MTU;
+	}
+	dev->iflink = tunnel->parms.link;
+}
+
 static int
 ipip6_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 {
@@ -663,6 +776,11 @@ ipip6_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 			if (cmd == SIOCCHGTUNNEL) {
 				t->parms.iph.ttl = p.iph.ttl;
 				t->parms.iph.tos = p.iph.tos;
+				if (t->parms.link != p.link) {
+					t->parms.link = p.link;
+					ipip6_tunnel_bind_dev(dev);
+					netdev_state_change(dev);
+				}
 			}
 			if (copy_to_user(ifr->ifr_ifru.ifru_data, &t->parms, sizeof(p)))
 				err = -EFAULT;
@@ -731,12 +849,9 @@ static void ipip6_tunnel_setup(struct net_device *dev)
 
 static int ipip6_tunnel_init(struct net_device *dev)
 {
-	struct net_device *tdev = NULL;
 	struct ip_tunnel *tunnel;
-	struct iphdr *iph;
 
 	tunnel = netdev_priv(dev);
-	iph = &tunnel->parms.iph;
 
 	tunnel->dev = dev;
 	strcpy(tunnel->parms.name, dev->name);
@@ -744,31 +859,7 @@ static int ipip6_tunnel_init(struct net_device *dev)
 	memcpy(dev->dev_addr, &tunnel->parms.iph.saddr, 4);
 	memcpy(dev->broadcast, &tunnel->parms.iph.daddr, 4);
 
-	if (iph->daddr) {
-		struct flowi fl = { .nl_u = { .ip4_u =
-					      { .daddr = iph->daddr,
-						.saddr = iph->saddr,
-						.tos = RT_TOS(iph->tos) } },
-				    .oif = tunnel->parms.link,
-				    .proto = IPPROTO_IPV6 };
-		struct rtable *rt;
-		if (!ip_route_output_key(&rt, &fl)) {
-			tdev = rt->u.dst.dev;
-			ip_rt_put(rt);
-		}
-		dev->flags |= IFF_POINTOPOINT;
-	}
-
-	if (!tdev && tunnel->parms.link)
-		tdev = __dev_get_by_index(&init_net, tunnel->parms.link);
-
-	if (tdev) {
-		dev->hard_header_len = tdev->hard_header_len + sizeof(struct iphdr);
-		dev->mtu = tdev->mtu - sizeof(struct iphdr);
-		if (dev->mtu < IPV6_MIN_MTU)
-			dev->mtu = IPV6_MIN_MTU;
-	}
-	dev->iflink = tunnel->parms.link;
+	ipip6_tunnel_bind_dev(dev);
 
 	return 0;
 }

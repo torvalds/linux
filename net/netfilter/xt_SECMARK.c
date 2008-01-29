@@ -20,7 +20,7 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("James Morris <jmorris@redhat.com>");
-MODULE_DESCRIPTION("ip[6]tables SECMARK modification module");
+MODULE_DESCRIPTION("Xtables: packet security mark modification");
 MODULE_ALIAS("ipt_SECMARK");
 MODULE_ALIAS("ip6t_SECMARK");
 
@@ -28,10 +28,10 @@ MODULE_ALIAS("ip6t_SECMARK");
 
 static u8 mode;
 
-static unsigned int target(struct sk_buff *skb, const struct net_device *in,
-			   const struct net_device *out, unsigned int hooknum,
-			   const struct xt_target *target,
-			   const void *targinfo)
+static unsigned int
+secmark_tg(struct sk_buff *skb, const struct net_device *in,
+           const struct net_device *out, unsigned int hooknum,
+           const struct xt_target *target, const void *targinfo)
 {
 	u32 secmark = 0;
 	const struct xt_secmark_target_info *info = targinfo;
@@ -81,9 +81,10 @@ static bool checkentry_selinux(struct xt_secmark_target_info *info)
 	return true;
 }
 
-static bool checkentry(const char *tablename, const void *entry,
-		       const struct xt_target *target, void *targinfo,
-		       unsigned int hook_mask)
+static bool
+secmark_tg_check(const char *tablename, const void *entry,
+                 const struct xt_target *target, void *targinfo,
+                 unsigned int hook_mask)
 {
 	struct xt_secmark_target_info *info = targinfo;
 
@@ -109,12 +110,12 @@ static bool checkentry(const char *tablename, const void *entry,
 	return true;
 }
 
-static struct xt_target xt_secmark_target[] __read_mostly = {
+static struct xt_target secmark_tg_reg[] __read_mostly = {
 	{
 		.name		= "SECMARK",
 		.family		= AF_INET,
-		.checkentry	= checkentry,
-		.target		= target,
+		.checkentry	= secmark_tg_check,
+		.target		= secmark_tg,
 		.targetsize	= sizeof(struct xt_secmark_target_info),
 		.table		= "mangle",
 		.me		= THIS_MODULE,
@@ -122,24 +123,23 @@ static struct xt_target xt_secmark_target[] __read_mostly = {
 	{
 		.name		= "SECMARK",
 		.family		= AF_INET6,
-		.checkentry	= checkentry,
-		.target		= target,
+		.checkentry	= secmark_tg_check,
+		.target		= secmark_tg,
 		.targetsize	= sizeof(struct xt_secmark_target_info),
 		.table		= "mangle",
 		.me		= THIS_MODULE,
 	},
 };
 
-static int __init xt_secmark_init(void)
+static int __init secmark_tg_init(void)
 {
-	return xt_register_targets(xt_secmark_target,
-				   ARRAY_SIZE(xt_secmark_target));
+	return xt_register_targets(secmark_tg_reg, ARRAY_SIZE(secmark_tg_reg));
 }
 
-static void __exit xt_secmark_fini(void)
+static void __exit secmark_tg_exit(void)
 {
-	xt_unregister_targets(xt_secmark_target, ARRAY_SIZE(xt_secmark_target));
+	xt_unregister_targets(secmark_tg_reg, ARRAY_SIZE(secmark_tg_reg));
 }
 
-module_init(xt_secmark_init);
-module_exit(xt_secmark_fini);
+module_init(secmark_tg_init);
+module_exit(secmark_tg_exit);

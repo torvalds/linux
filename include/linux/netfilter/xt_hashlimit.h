@@ -29,9 +29,9 @@ struct hashlimit_cfg {
 struct xt_hashlimit_info {
 	char name [IFNAMSIZ];		/* name */
 	struct hashlimit_cfg cfg;
-	struct xt_hashlimit_htable *hinfo;
 
 	/* Used internally by the kernel */
+	struct xt_hashlimit_htable *hinfo;
 	union {
 		void *ptr;
 		struct xt_hashlimit_info *master;

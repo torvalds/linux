@@ -22,6 +22,7 @@
 #include <linux/netfilter_ipv6.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_ecache.h>
+#include <net/netfilter/nf_log.h>
 
 static unsigned int nf_ct_udplite_timeout __read_mostly = 30*HZ;
 static unsigned int nf_ct_udplite_timeout_stream __read_mostly = 180*HZ;
@@ -56,13 +57,6 @@ static int udplite_print_tuple(struct seq_file *s,
 	return seq_printf(s, "sport=%hu dport=%hu ",
 			  ntohs(tuple->src.u.udp.port),
 			  ntohs(tuple->dst.u.udp.port));
-}
-
-/* Print out the private part of the conntrack. */
-static int udplite_print_conntrack(struct seq_file *s,
-				   const struct nf_conn *conntrack)
-{
-	return 0;
 }
 
 /* Returns verdict for packet, and may modify conntracktype */
@@ -133,8 +127,7 @@ static int udplite_error(struct sk_buff *skb, unsigned int dataoff,
 
 	/* Checksum invalid? Ignore. */
 	if (nf_conntrack_checksum && !skb_csum_unnecessary(skb) &&
-	    ((pf == PF_INET && hooknum == NF_IP_PRE_ROUTING) ||
-	     (pf == PF_INET6 && hooknum == NF_IP6_PRE_ROUTING))) {
+	    hooknum == NF_INET_PRE_ROUTING) {
 		if (pf == PF_INET) {
 			struct iphdr *iph = ip_hdr(skb);
 
@@ -198,7 +191,6 @@ static struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite4 __read_mostly =
 	.pkt_to_tuple		= udplite_pkt_to_tuple,
 	.invert_tuple		= udplite_invert_tuple,
 	.print_tuple		= udplite_print_tuple,
-	.print_conntrack	= udplite_print_conntrack,
 	.packet			= udplite_packet,
 	.new			= udplite_new,
 	.error			= udplite_error,
@@ -222,7 +214,6 @@ static struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite6 __read_mostly =
 	.pkt_to_tuple		= udplite_pkt_to_tuple,
 	.invert_tuple		= udplite_invert_tuple,
 	.print_tuple		= udplite_print_tuple,
-	.print_conntrack	= udplite_print_conntrack,
 	.packet			= udplite_packet,
 	.new			= udplite_new,
 	.error			= udplite_error,

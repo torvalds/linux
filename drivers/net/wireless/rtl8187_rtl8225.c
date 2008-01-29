@@ -101,7 +101,7 @@ static void rtl8225_write_8051(struct ieee80211_hw *dev, u8 addr, __le16 data)
 	msleep(2);
 }
 
-void rtl8225_write(struct ieee80211_hw *dev, u8 addr, u16 data)
+static void rtl8225_write(struct ieee80211_hw *dev, u8 addr, u16 data)
 {
 	struct rtl8187_priv *priv = dev->priv;
 
@@ -111,7 +111,7 @@ void rtl8225_write(struct ieee80211_hw *dev, u8 addr, u16 data)
 		rtl8225_write_bitbang(dev, addr, data);
 }
 
-u16 rtl8225_read(struct ieee80211_hw *dev, u8 addr)
+static u16 rtl8225_read(struct ieee80211_hw *dev, u8 addr)
 {
 	struct rtl8187_priv *priv = dev->priv;
 	u16 reg80, reg82, reg84, out;
@@ -325,7 +325,7 @@ static void rtl8225_rf_set_tx_power(struct ieee80211_hw *dev, int channel)
 	msleep(1);
 }
 
-void rtl8225_rf_init(struct ieee80211_hw *dev)
+static void rtl8225_rf_init(struct ieee80211_hw *dev)
 {
 	struct rtl8187_priv *priv = dev->priv;
 	int i;
@@ -567,7 +567,7 @@ static const u8 rtl8225z2_gain_bg[] = {
 	0x63, 0x15, 0xc5  /* -66dBm */
 };
 
-void rtl8225z2_rf_init(struct ieee80211_hw *dev)
+static void rtl8225z2_rf_init(struct ieee80211_hw *dev)
 {
 	struct rtl8187_priv *priv = dev->priv;
 	int i;
@@ -715,7 +715,7 @@ void rtl8225z2_rf_init(struct ieee80211_hw *dev)
 	rtl818x_iowrite32(priv, (__le32 *)0xFF94, 0x3dc00002);
 }
 
-void rtl8225_rf_stop(struct ieee80211_hw *dev)
+static void rtl8225_rf_stop(struct ieee80211_hw *dev)
 {
 	u8 reg;
 	struct rtl8187_priv *priv = dev->priv;
@@ -731,15 +731,47 @@ void rtl8225_rf_stop(struct ieee80211_hw *dev)
 	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_NORMAL);
 }
 
-void rtl8225_rf_set_channel(struct ieee80211_hw *dev, int channel)
+static void rtl8225_rf_set_channel(struct ieee80211_hw *dev,
+				   struct ieee80211_conf *conf)
 {
 	struct rtl8187_priv *priv = dev->priv;
 
-	if (priv->rf_init == rtl8225_rf_init)
-		rtl8225_rf_set_tx_power(dev, channel);
+	if (priv->rf->init == rtl8225_rf_init)
+		rtl8225_rf_set_tx_power(dev, conf->channel);
 	else
-		rtl8225z2_rf_set_tx_power(dev, channel);
+		rtl8225z2_rf_set_tx_power(dev, conf->channel);
 
-	rtl8225_write(dev, 0x7, rtl8225_chan[channel - 1]);
+	rtl8225_write(dev, 0x7, rtl8225_chan[conf->channel - 1]);
 	msleep(10);
+}
+
+static const struct rtl818x_rf_ops rtl8225_ops = {
+	.name		= "rtl8225",
+	.init		= rtl8225_rf_init,
+	.stop		= rtl8225_rf_stop,
+	.set_chan	= rtl8225_rf_set_channel
+};
+
+static const struct rtl818x_rf_ops rtl8225z2_ops = {
+	.name		= "rtl8225z2",
+	.init		= rtl8225z2_rf_init,
+	.stop		= rtl8225_rf_stop,
+	.set_chan	= rtl8225_rf_set_channel
+};
+
+const struct rtl818x_rf_ops * rtl8187_detect_rf(struct ieee80211_hw *dev)
+{
+	u16 reg8, reg9;
+
+	rtl8225_write(dev, 0, 0x1B7);
+
+	reg8 = rtl8225_read(dev, 8);
+	reg9 = rtl8225_read(dev, 9);
+
+	rtl8225_write(dev, 0, 0x0B7);
+
+	if (reg8 != 0x588 || reg9 != 0x700)
+		return &rtl8225_ops;
+
+	return &rtl8225z2_ops;
 }

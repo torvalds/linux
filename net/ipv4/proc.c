@@ -53,14 +53,16 @@ static int sockstat_seq_show(struct seq_file *seq, void *v)
 {
 	socket_seq_show(seq);
 	seq_printf(seq, "TCP: inuse %d orphan %d tw %d alloc %d mem %d\n",
-		   sock_prot_inuse(&tcp_prot), atomic_read(&tcp_orphan_count),
+		   sock_prot_inuse_get(&tcp_prot),
+		   atomic_read(&tcp_orphan_count),
 		   tcp_death_row.tw_count, atomic_read(&tcp_sockets_allocated),
 		   atomic_read(&tcp_memory_allocated));
-	seq_printf(seq, "UDP: inuse %d\n", sock_prot_inuse(&udp_prot));
-	seq_printf(seq, "UDPLITE: inuse %d\n", sock_prot_inuse(&udplite_prot));
-	seq_printf(seq, "RAW: inuse %d\n", sock_prot_inuse(&raw_prot));
+	seq_printf(seq, "UDP: inuse %d mem %d\n", sock_prot_inuse_get(&udp_prot),
+		   atomic_read(&udp_memory_allocated));
+	seq_printf(seq, "UDPLITE: inuse %d\n", sock_prot_inuse_get(&udplite_prot));
+	seq_printf(seq, "RAW: inuse %d\n", sock_prot_inuse_get(&raw_prot));
 	seq_printf(seq,  "FRAG: inuse %d memory %d\n",
-			ip_frag_nqueues(), ip_frag_mem());
+			ip_frag_nqueues(&init_net), ip_frag_mem(&init_net));
 	return 0;
 }
 
@@ -309,7 +311,8 @@ static int snmp_seq_show(struct seq_file *seq, void *v)
 		seq_printf(seq, " %s", snmp4_ipstats_list[i].name);
 
 	seq_printf(seq, "\nIp: %d %d",
-		   IPV4_DEVCONF_ALL(FORWARDING) ? 1 : 2, sysctl_ip_default_ttl);
+		   IPV4_DEVCONF_ALL(&init_net, FORWARDING) ? 1 : 2,
+		   sysctl_ip_default_ttl);
 
 	for (i = 0; snmp4_ipstats_list[i].name != NULL; i++)
 		seq_printf(seq, " %lu",

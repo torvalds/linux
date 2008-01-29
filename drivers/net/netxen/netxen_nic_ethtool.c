@@ -86,7 +86,7 @@ static const char netxen_nic_gstrings_test[][ETH_GSTRING_LEN] = {
 	"Link_Test_on_offline"
 };
 
-#define NETXEN_NIC_TEST_LEN sizeof(netxen_nic_gstrings_test) / ETH_GSTRING_LEN
+#define NETXEN_NIC_TEST_LEN	ARRAY_SIZE(netxen_nic_gstrings_test)
 
 #define NETXEN_NIC_REGS_COUNT 42
 #define NETXEN_NIC_REGS_LEN (NETXEN_NIC_REGS_COUNT * sizeof(__le32))
@@ -423,11 +423,11 @@ netxen_nic_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 	if (eeprom->len == 0)
 		return -EINVAL;
 
-	eeprom->magic = (adapter->pdev)->vendor | 
+	eeprom->magic = (adapter->pdev)->vendor |
 			((adapter->pdev)->device << 16);
 	offset = eeprom->offset;
 
-	ret = netxen_rom_fast_read_words(adapter, offset, bytes, 
+	ret = netxen_rom_fast_read_words(adapter, offset, bytes,
 						eeprom->len);
 	if (ret < 0)
 		return ret;
@@ -453,16 +453,16 @@ netxen_nic_set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 				netxen_nic_driver_name);
 			return ret;
 		}
-		printk(KERN_INFO "%s: flash unlocked. \n", 
+		printk(KERN_INFO "%s: flash unlocked. \n",
 			netxen_nic_driver_name);
 		last_schedule_time = jiffies;
 		ret = netxen_flash_erase_secondary(adapter);
 		if (ret != FLASH_SUCCESS) {
-			printk(KERN_ERR "%s: Flash erase failed.\n", 
+			printk(KERN_ERR "%s: Flash erase failed.\n",
 				netxen_nic_driver_name);
 			return ret;
 		}
-		printk(KERN_INFO "%s: secondary flash erased successfully.\n", 
+		printk(KERN_INFO "%s: secondary flash erased successfully.\n",
 			netxen_nic_driver_name);
 		flash_start = 1;
 		return 0;
@@ -471,7 +471,7 @@ netxen_nic_set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 	if (offset == NETXEN_BOOTLD_START) {
 		ret = netxen_flash_erase_primary(adapter);
 		if (ret != FLASH_SUCCESS) {
-			printk(KERN_ERR "%s: Flash erase failed.\n", 
+			printk(KERN_ERR "%s: Flash erase failed.\n",
 				netxen_nic_driver_name);
 			return ret;
 		}
@@ -483,16 +483,16 @@ netxen_nic_set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 		if (ret != FLASH_SUCCESS)
 			return ret;
 
-		printk(KERN_INFO "%s: primary flash erased successfully\n", 
+		printk(KERN_INFO "%s: primary flash erased successfully\n",
 			netxen_nic_driver_name);
 
 		ret = netxen_backup_crbinit(adapter);
 		if (ret != FLASH_SUCCESS) {
-			printk(KERN_ERR "%s: CRBinit backup failed.\n", 
+			printk(KERN_ERR "%s: CRBinit backup failed.\n",
 				netxen_nic_driver_name);
 			return ret;
 		}
-		printk(KERN_INFO "%s: CRBinit backup done.\n", 
+		printk(KERN_INFO "%s: CRBinit backup done.\n",
 			netxen_nic_driver_name);
 		ready_to_flash = 1;
 	}
@@ -570,7 +570,7 @@ netxen_nic_get_pauseparam(struct net_device *dev,
 		else
 			pause->tx_pause = !(netxen_xg_get_xg1_mask(val));
 	} else {
-		printk(KERN_ERR"%s: Unknown board type: %x\n", 
+		printk(KERN_ERR"%s: Unknown board type: %x\n",
 				netxen_nic_driver_name, adapter->ahw.board_type);
 	}
 }
@@ -589,7 +589,7 @@ netxen_nic_set_pauseparam(struct net_device *dev,
 		/* set flow control */
 		netxen_nic_read_w0(adapter,
 					NETXEN_NIU_GB_MAC_CONFIG_0(port), &val);
-		
+
 		if (pause->rx_pause)
 			netxen_gb_rx_flowctl(val);
 		else
@@ -642,10 +642,10 @@ netxen_nic_set_pauseparam(struct net_device *dev,
 			else
 				netxen_xg_set_xg1_mask(val);
 		}
-		netxen_nic_write_w0(adapter, NETXEN_NIU_XG_PAUSE_CTL, val);			
+		netxen_nic_write_w0(adapter, NETXEN_NIU_XG_PAUSE_CTL, val);
 	} else {
 		printk(KERN_ERR "%s: Unknown board type: %x\n",
-				netxen_nic_driver_name, 
+				netxen_nic_driver_name,
 				adapter->ahw.board_type);
 	}
 	return 0;

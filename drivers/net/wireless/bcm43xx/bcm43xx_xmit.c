@@ -122,10 +122,10 @@ static void bcm43xx_generate_plcp_hdr(struct bcm43xx_plcp_hdr4 *plcp,
 	__u8 *raw = plcp->raw;
 
 	if (ofdm_modulation) {
-		*data = bcm43xx_plcp_get_ratecode_ofdm(bitrate);
+		u32 val = bcm43xx_plcp_get_ratecode_ofdm(bitrate);
 		assert(!(octets & 0xF000));
-		*data |= (octets << 5);
-		*data = cpu_to_le32(*data);
+		val |= (octets << 5);
+		*data = cpu_to_le32(val);
 	} else {
 		u32 plen;
 

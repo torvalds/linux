@@ -61,6 +61,16 @@ config B43_PCMCIA
 
 	  If unsure, say N.
 
+config B43_NPHY
+	bool "Pre IEEE 802.11n support (BROKEN)"
+	depends on B43 && EXPERIMENTAL && BROKEN
+	---help---
+	  Support for the IEEE 802.11n draft.
+
+	  THIS IS BROKEN AND DOES NOT WORK YET.
+
+	  SAY N.
+
 # This config option automatically enables b43 LEDS support,
 # if it's possible.
 config B43_LEDS
@@ -83,51 +93,3 @@ config B43_DEBUG
 
 	  Say Y, if you want to find out why the driver does not
 	  work for you.
-
-config B43_DMA
-	bool
-	depends on B43
-config B43_PIO
-	bool
-	depends on B43
-
-choice
-	prompt "Broadcom 43xx data transfer mode"
-	depends on B43
-	default B43_DMA_AND_PIO_MODE
-
-config B43_DMA_AND_PIO_MODE
-	bool "DMA + PIO"
-	select B43_DMA
-	select B43_PIO
-	---help---
-	  Include both, Direct Memory Access (DMA) and Programmed I/O (PIO)
-	  data transfer modes.
-	  The actually used mode is selectable through the module
-	  parameter "pio". If the module parameter is pio=0, DMA is used.
-	  Otherwise PIO is used. DMA is default.
-
-	  If unsure, choose this option.
-
-config B43_DMA_MODE
-	bool "DMA (Direct Memory Access) only"
-	select B43_DMA
-	---help---
-	  Only include Direct Memory Access (DMA).
-	  This reduces the size of the driver module, by omitting the PIO code.
-
-config B43_PIO_MODE
-	bool "PIO (Programmed I/O) only"
-	select B43_PIO
-	---help---
-	  Only include Programmed I/O (PIO).
-	  This reduces the size of the driver module, by omitting the DMA code.
-	  Please note that PIO transfers are slow (compared to DMA).
-
-	  Also note that not all devices of the 43xx series support PIO.
-	  The 4306 (Apple Airport Extreme and others) supports PIO, while
-	  the 4318 is known to _not_ support PIO.
-
-	  Only use PIO, if DMA does not work for you.
-
-endchoice

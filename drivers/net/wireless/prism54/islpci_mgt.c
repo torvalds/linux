@@ -460,7 +460,7 @@ islpci_mgt_transaction(struct net_device *ndev,
 
 	*recvframe = NULL;
 
-	if (down_interruptible(&priv->mgmt_sem))
+	if (mutex_lock_interruptible(&priv->mgmt_lock))
 		return -ERESTARTSYS;
 
 	prepare_to_wait(&priv->mgmt_wqueue, &wait, TASK_UNINTERRUPTIBLE);
@@ -504,7 +504,7 @@ islpci_mgt_transaction(struct net_device *ndev,
 	/* TODO: we should reset the device here */
  out:
 	finish_wait(&priv->mgmt_wqueue, &wait);
-	up(&priv->mgmt_sem);
+	mutex_unlock(&priv->mgmt_lock);
 	return err;
 }
 

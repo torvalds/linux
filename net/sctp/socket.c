@@ -174,7 +174,8 @@ static inline void sctp_set_owner_w(struct sctp_chunk *chunk)
 				sizeof(struct sctp_chunk);
 
 	atomic_add(sizeof(struct sctp_chunk), &sk->sk_wmem_alloc);
-	sk_charge_skb(sk, chunk->skb);
+	sk->sk_wmem_queued += chunk->skb->truesize;
+	sk_mem_charge(sk, chunk->skb->truesize);
 }
 
 /* Verify that this is a valid address. */
@@ -390,7 +391,7 @@ SCTP_STATIC int sctp_do_bind(struct sock *sk, union sctp_addr *addr, int len)
 	/* Add the address to the bind address list.
 	 * Use GFP_ATOMIC since BHs will be disabled.
 	 */
-	ret = sctp_add_bind_addr(bp, addr, 1, GFP_ATOMIC);
+	ret = sctp_add_bind_addr(bp, addr, SCTP_ADDR_SRC, GFP_ATOMIC);
 
 	/* Copy back into socket for getsockname() use. */
 	if (!ret) {
@@ -585,8 +586,8 @@ static int sctp_send_asconf_add_ip(struct sock		*sk,
 			addr = (union sctp_addr *)addr_buf;
 			af = sctp_get_af_specific(addr->v4.sin_family);
 			memcpy(&saveaddr, addr, af->sockaddr_len);
-			retval = sctp_add_bind_addr(bp, &saveaddr, 0,
-						    GFP_ATOMIC);
+			retval = sctp_add_bind_addr(bp, &saveaddr,
+						    SCTP_ADDR_NEW, GFP_ATOMIC);
 			addr_buf += af->sockaddr_len;
 		}
 	}
@@ -777,7 +778,7 @@ static int sctp_send_asconf_del_ip(struct sock		*sk,
 			af = sctp_get_af_specific(laddr->v4.sin_family);
 			list_for_each_entry(saddr, &bp->address_list, list) {
 				if (sctp_cmp_addr_exact(&saddr->a, laddr))
-					saddr->use_as_src = 0;
+					saddr->state = SCTP_ADDR_DEL;
 			}
 			addr_buf += af->sockaddr_len;
 		}
@@ -6008,7 +6009,8 @@ static void __sctp_write_space(struct sctp_association *asoc)
 			 */
 			if (sock->fasync_list &&
 			    !(sk->sk_shutdown & SEND_SHUTDOWN))
-				sock_wake_async(sock, 2, POLL_OUT);
+				sock_wake_async(sock,
+						SOCK_WAKE_SPACE, POLL_OUT);
 		}
 	}
 }
@@ -6034,10 +6036,10 @@ static void sctp_wfree(struct sk_buff *skb)
 	atomic_sub(sizeof(struct sctp_chunk), &sk->sk_wmem_alloc);
 
 	/*
-	 * This undoes what is done via sk_charge_skb
+	 * This undoes what is done via sctp_set_owner_w and sk_mem_charge
 	 */
 	sk->sk_wmem_queued   -= skb->truesize;
-	sk->sk_forward_alloc += skb->truesize;
+	sk_mem_uncharge(sk, skb->truesize);
 
 	sock_wfree(skb);
 	__sctp_write_space(asoc);
@@ -6058,9 +6060,9 @@ void sctp_sock_rfree(struct sk_buff *skb)
 	atomic_sub(event->rmem_len, &sk->sk_rmem_alloc);
 
 	/*
-	 * Mimic the behavior of sk_stream_rfree
+	 * Mimic the behavior of sock_rfree
 	 */
-	sk->sk_forward_alloc += event->rmem_len;
+	sk_mem_uncharge(sk, event->rmem_len);
 }
 
 

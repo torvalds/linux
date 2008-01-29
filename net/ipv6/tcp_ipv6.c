@@ -265,7 +265,7 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 	if (final_p)
 		ipv6_addr_copy(&fl.fl6_dst, final_p);
 
-	if ((err = __xfrm_lookup(&dst, &fl, sk, 1)) < 0) {
+	if ((err = __xfrm_lookup(&dst, &fl, sk, XFRM_LOOKUP_WAIT)) < 0) {
 		if (err == -EREMOTE)
 			err = ip6_dst_blackhole(sk, &dst, &fl);
 		if (err < 0)
@@ -733,7 +733,7 @@ static int tcp_v6_do_calc_md5_hash(char *md5_hash, struct tcp_md5sig_key *key,
 				   struct in6_addr *saddr,
 				   struct in6_addr *daddr,
 				   struct tcphdr *th, int protocol,
-				   int tcplen)
+				   unsigned int tcplen)
 {
 	struct scatterlist sg[4];
 	__u16 data_len;
@@ -818,7 +818,7 @@ static int tcp_v6_calc_md5_hash(char *md5_hash, struct tcp_md5sig_key *key,
 				struct dst_entry *dst,
 				struct request_sock *req,
 				struct tcphdr *th, int protocol,
-				int tcplen)
+				unsigned int tcplen)
 {
 	struct in6_addr *saddr, *daddr;
 
@@ -985,7 +985,7 @@ static void tcp_v6_send_reset(struct sock *sk, struct sk_buff *skb)
 	struct tcphdr *th = tcp_hdr(skb), *t1;
 	struct sk_buff *buff;
 	struct flowi fl;
-	int tot_len = sizeof(*th);
+	unsigned int tot_len = sizeof(*th);
 #ifdef CONFIG_TCP_MD5SIG
 	struct tcp_md5sig_key *key;
 #endif
@@ -1085,7 +1085,7 @@ static void tcp_v6_send_ack(struct tcp_timewait_sock *tw,
 	struct tcphdr *th = tcp_hdr(skb), *t1;
 	struct sk_buff *buff;
 	struct flowi fl;
-	int tot_len = sizeof(struct tcphdr);
+	unsigned int tot_len = sizeof(struct tcphdr);
 	__be32 *topt;
 #ifdef CONFIG_TCP_MD5SIG
 	struct tcp_md5sig_key *key;
@@ -2166,14 +2166,36 @@ static struct inet_protosw tcpv6_protosw = {
 				INET_PROTOSW_ICSK,
 };
 
-void __init tcpv6_init(void)
+int __init tcpv6_init(void)
 {
-	/* register inet6 protocol */
-	if (inet6_add_protocol(&tcpv6_protocol, IPPROTO_TCP) < 0)
-		printk(KERN_ERR "tcpv6_init: Could not register protocol\n");
-	inet6_register_protosw(&tcpv6_protosw);
+	int ret;
 
-	if (inet_csk_ctl_sock_create(&tcp6_socket, PF_INET6, SOCK_RAW,
-				     IPPROTO_TCP) < 0)
-		panic("Failed to create the TCPv6 control socket.\n");
+	ret = inet6_add_protocol(&tcpv6_protocol, IPPROTO_TCP);
+	if (ret)
+		goto out;
+
+	/* register inet6 protocol */
+	ret = inet6_register_protosw(&tcpv6_protosw);
+	if (ret)
+		goto out_tcpv6_protocol;
+
+	ret = inet_csk_ctl_sock_create(&tcp6_socket, PF_INET6,
+				       SOCK_RAW, IPPROTO_TCP);
+	if (ret)
+		goto out_tcpv6_protosw;
+out:
+	return ret;
+
+out_tcpv6_protocol:
+	inet6_del_protocol(&tcpv6_protocol, IPPROTO_TCP);
+out_tcpv6_protosw:
+	inet6_unregister_protosw(&tcpv6_protosw);
+	goto out;
+}
+
+void tcpv6_exit(void)
+{
+	sock_release(tcp6_socket);
+	inet6_unregister_protosw(&tcpv6_protosw);
+	inet6_del_protocol(&tcpv6_protocol, IPPROTO_TCP);
 }

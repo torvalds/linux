@@ -57,7 +57,7 @@ MODULE_LICENSE("GPL");
 
 struct if_cs_card {
 	struct pcmcia_device *p_dev;
-	wlan_private *priv;
+	struct lbs_private *priv;
 	void __iomem *iobase;
 };
 
@@ -243,7 +243,7 @@ static inline void if_cs_disable_ints(struct if_cs_card *card)
 
 static irqreturn_t if_cs_interrupt(int irq, void *data)
 {
-	struct if_cs_card *card = (struct if_cs_card *)data;
+	struct if_cs_card *card = data;
 	u16 int_cause;
 
 	lbs_deb_enter(LBS_DEB_CS);
@@ -253,25 +253,20 @@ static irqreturn_t if_cs_interrupt(int irq, void *data)
 		/* Not for us */
 		return IRQ_NONE;
 
-	} else if(int_cause == 0xffff) {
+	} else if (int_cause == 0xffff) {
 		/* Read in junk, the card has probably been removed */
-		card->priv->adapter->surpriseremoved = 1;
+		card->priv->surpriseremoved = 1;
 
 	} else {
-		if(int_cause & IF_CS_H_IC_TX_OVER) {
-			card->priv->dnld_sent = DNLD_RES_RECEIVED;
-			if (!card->priv->adapter->cur_cmd)
-				wake_up_interruptible(&card->priv->waitq);
-
-			if (card->priv->adapter->connect_status == LIBERTAS_CONNECTED)
-				netif_wake_queue(card->priv->dev);
-		}
+		if (int_cause & IF_CS_H_IC_TX_OVER)
+			lbs_host_to_card_done(card->priv);
 
 		/* clear interrupt */
 		if_cs_write16(card, IF_CS_C_INT_CAUSE, int_cause & IF_CS_C_IC_MASK);
 	}
-
-	libertas_interrupt(card->priv->dev);
+	spin_lock(&card->priv->driver_lock);
+	lbs_interrupt(card->priv);
+	spin_unlock(&card->priv->driver_lock);
 
 	return IRQ_HANDLED;
 }
@@ -286,7 +281,7 @@ static irqreturn_t if_cs_interrupt(int irq, void *data)
 /*
  * Called from if_cs_host_to_card to send a command to the hardware
  */
-static int if_cs_send_cmd(wlan_private *priv, u8 *buf, u16 nb)
+static int if_cs_send_cmd(struct lbs_private *priv, u8 *buf, u16 nb)
 {
 	struct if_cs_card *card = (struct if_cs_card *)priv->card;
 	int ret = -1;
@@ -331,7 +326,7 @@ done:
 /*
  * Called from if_cs_host_to_card to send a data to the hardware
  */
-static void if_cs_send_data(wlan_private *priv, u8 *buf, u16 nb)
+static void if_cs_send_data(struct lbs_private *priv, u8 *buf, u16 nb)
 {
 	struct if_cs_card *card = (struct if_cs_card *)priv->card;
 
@@ -354,7 +349,7 @@ static void if_cs_send_data(wlan_private *priv, u8 *buf, u16 nb)
 /*
  * Get the command result out of the card.
  */
-static int if_cs_receive_cmdres(wlan_private *priv, u8* data, u32 *len)
+static int if_cs_receive_cmdres(struct lbs_private *priv, u8 *data, u32 *len)
 {
 	int ret = -1;
 	u16 val;
@@ -369,7 +364,7 @@ static int if_cs_receive_cmdres(wlan_private *priv, u8* data, u32 *len)
 	}
 
 	*len = if_cs_read16(priv->card, IF_CS_C_CMD_LEN);
-	if ((*len == 0) || (*len > MRVDRV_SIZE_OF_CMD_BUFFER)) {
+	if ((*len == 0) || (*len > LBS_CMD_BUFFER_SIZE)) {
 		lbs_pr_err("card cmd buffer has invalid # of bytes (%d)\n", *len);
 		goto out;
 	}
@@ -379,6 +374,9 @@ static int if_cs_receive_cmdres(wlan_private *priv, u8* data, u32 *len)
 	if (*len & 1)
 		data[*len-1] = if_cs_read8(priv->card, IF_CS_C_CMD);
 
+	/* This is a workaround for a firmware that reports too much
+	 * bytes */
+	*len -= 8;
 	ret = 0;
 out:
 	lbs_deb_leave_args(LBS_DEB_CS, "ret %d, len %d", ret, *len);
@@ -386,7 +384,7 @@ out:
 }
 
 
-static struct sk_buff *if_cs_receive_data(wlan_private *priv)
+static struct sk_buff *if_cs_receive_data(struct lbs_private *priv)
 {
 	struct sk_buff *skb = NULL;
 	u16 len;
@@ -616,7 +614,10 @@ done:
 /********************************************************************/
 
 /* Send commands or data packets to the card */
-static int if_cs_host_to_card(wlan_private *priv, u8 type, u8 *buf, u16 nb)
+static int if_cs_host_to_card(struct lbs_private *priv,
+	u8 type,
+	u8 *buf,
+	u16 nb)
 {
 	int ret = -1;
 
@@ -641,18 +642,16 @@ static int if_cs_host_to_card(wlan_private *priv, u8 type, u8 *buf, u16 nb)
 }
 
 
-static int if_cs_get_int_status(wlan_private *priv, u8 *ireg)
+static int if_cs_get_int_status(struct lbs_private *priv, u8 *ireg)
 {
 	struct if_cs_card *card = (struct if_cs_card *)priv->card;
-	//wlan_adapter *adapter = priv->adapter;
 	int ret = 0;
 	u16 int_cause;
-	u8 *cmdbuf;
 	*ireg = 0;
 
 	lbs_deb_enter(LBS_DEB_CS);
 
-	if (priv->adapter->surpriseremoved)
+	if (priv->surpriseremoved)
 		goto out;
 
 	int_cause = if_cs_read16(card, IF_CS_C_INT_CAUSE) & IF_CS_C_IC_MASK;
@@ -668,7 +667,7 @@ sbi_get_int_status_exit:
 	/* is there a data packet for us? */
 	if (*ireg & IF_CS_C_S_RX_UPLD_RDY) {
 		struct sk_buff *skb = if_cs_receive_data(priv);
-		libertas_process_rxed_packet(priv, skb);
+		lbs_process_rxed_packet(priv, skb);
 		*ireg &= ~IF_CS_C_S_RX_UPLD_RDY;
 	}
 
@@ -678,31 +677,24 @@ sbi_get_int_status_exit:
 
 	/* Card has a command result for us */
 	if (*ireg & IF_CS_C_S_CMD_UPLD_RDY) {
-		spin_lock(&priv->adapter->driver_lock);
-		if (!priv->adapter->cur_cmd) {
-			cmdbuf = priv->upld_buf;
-			priv->adapter->hisregcpy &= ~IF_CS_C_S_RX_UPLD_RDY;
-		} else {
-			cmdbuf = priv->adapter->cur_cmd->bufvirtualaddr;
-		}
-
-		ret = if_cs_receive_cmdres(priv, cmdbuf, &priv->upld_len);
-		spin_unlock(&priv->adapter->driver_lock);
+		spin_lock(&priv->driver_lock);
+		ret = if_cs_receive_cmdres(priv, priv->upld_buf, &priv->upld_len);
+		spin_unlock(&priv->driver_lock);
 		if (ret < 0)
 			lbs_pr_err("could not receive cmd from card\n");
 	}
 
 out:
-	lbs_deb_leave_args(LBS_DEB_CS, "ret %d, ireg 0x%x, hisregcpy 0x%x", ret, *ireg, priv->adapter->hisregcpy);
+	lbs_deb_leave_args(LBS_DEB_CS, "ret %d, ireg 0x%x, hisregcpy 0x%x", ret, *ireg, priv->hisregcpy);
 	return ret;
 }
 
 
-static int if_cs_read_event_cause(wlan_private *priv)
+static int if_cs_read_event_cause(struct lbs_private *priv)
 {
 	lbs_deb_enter(LBS_DEB_CS);
 
-	priv->adapter->eventcause = (if_cs_read16(priv->card, IF_CS_C_STATUS) & IF_CS_C_S_STATUS_MASK) >> 5;
+	priv->eventcause = (if_cs_read16(priv->card, IF_CS_C_STATUS) & IF_CS_C_S_STATUS_MASK) >> 5;
 	if_cs_write16(priv->card, IF_CS_H_INT_CAUSE, IF_CS_H_IC_HOST_EVENT);
 
 	return 0;
@@ -746,7 +738,7 @@ static void if_cs_release(struct pcmcia_device *p_dev)
 static int if_cs_probe(struct pcmcia_device *p_dev)
 {
 	int ret = -ENOMEM;
-	wlan_private *priv;
+	struct lbs_private *priv;
 	struct if_cs_card *card;
 	/* CIS parsing */
 	tuple_t tuple;
@@ -856,7 +848,7 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 		goto out2;
 
 	/* Make this card known to the libertas driver */
-	priv = libertas_add_card(card, &p_dev->dev);
+	priv = lbs_add_card(card, &p_dev->dev);
 	if (!priv) {
 		ret = -ENOMEM;
 		goto out2;
@@ -869,7 +861,7 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 	priv->hw_get_int_status   = if_cs_get_int_status;
 	priv->hw_read_event_cause = if_cs_read_event_cause;
 
-	priv->adapter->fw_ready = 1;
+	priv->fw_ready = 1;
 
 	/* Now actually get the IRQ */
 	ret = request_irq(p_dev->irq.AssignedIRQ, if_cs_interrupt,
@@ -885,7 +877,7 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 	if_cs_enable_ints(card);
 
 	/* And finally bring the card up */
-	if (libertas_start_card(priv) != 0) {
+	if (lbs_start_card(priv) != 0) {
 		lbs_pr_err("could not activate card\n");
 		goto out3;
 	}
@@ -894,7 +886,7 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 	goto out;
 
 out3:
-	libertas_remove_card(priv);
+	lbs_remove_card(priv);
 out2:
 	ioport_unmap(card->iobase);
 out1:
@@ -917,8 +909,8 @@ static void if_cs_detach(struct pcmcia_device *p_dev)
 
 	lbs_deb_enter(LBS_DEB_CS);
 
-	libertas_stop_card(card->priv);
-	libertas_remove_card(card->priv);
+	lbs_stop_card(card->priv);
+	lbs_remove_card(card->priv);
 	if_cs_disable_ints(card);
 	if_cs_release(p_dev);
 	kfree(card);
@@ -939,7 +931,7 @@ static struct pcmcia_device_id if_cs_ids[] = {
 MODULE_DEVICE_TABLE(pcmcia, if_cs_ids);
 
 
-static struct pcmcia_driver libertas_driver = {
+static struct pcmcia_driver lbs_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
 		.name	= DRV_NAME,
@@ -955,7 +947,7 @@ static int __init if_cs_init(void)
 	int ret;
 
 	lbs_deb_enter(LBS_DEB_CS);
-	ret = pcmcia_register_driver(&libertas_driver);
+	ret = pcmcia_register_driver(&lbs_driver);
 	lbs_deb_leave(LBS_DEB_CS);
 	return ret;
 }
@@ -964,7 +956,7 @@ static int __init if_cs_init(void)
 static void __exit if_cs_exit(void)
 {
 	lbs_deb_enter(LBS_DEB_CS);
-	pcmcia_unregister_driver(&libertas_driver);
+	pcmcia_unregister_driver(&lbs_driver);
 	lbs_deb_leave(LBS_DEB_CS);
 }
 

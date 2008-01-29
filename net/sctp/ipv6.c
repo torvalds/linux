@@ -330,7 +330,7 @@ static void sctp_v6_get_saddr(struct sctp_association *asoc,
 	list_for_each_entry_rcu(laddr, &bp->address_list, list) {
 		if (!laddr->valid)
 			continue;
-		if ((laddr->use_as_src) &&
+		if ((laddr->state == SCTP_ADDR_SRC) &&
 		    (laddr->a.sa.sa_family == AF_INET6) &&
 		    (scope <= sctp_scope(&laddr->a))) {
 			bmatchlen = sctp_v6_addr_match_len(daddr, &laddr->a);
@@ -556,7 +556,7 @@ static int sctp_v6_available(union sctp_addr *addr, struct sctp_sock *sp)
 	if (!(type & IPV6_ADDR_UNICAST))
 		return 0;
 
-	return ipv6_chk_addr(in6, NULL, 0);
+	return ipv6_chk_addr(&init_net, in6, NULL, 0);
 }
 
 /* This function checks if the address is a valid address to be used for
@@ -858,7 +858,8 @@ static int sctp_inet6_bind_verify(struct sctp_sock *opt, union sctp_addr *addr)
 			dev = dev_get_by_index(&init_net, addr->v6.sin6_scope_id);
 			if (!dev)
 				return 0;
-			if (!ipv6_chk_addr(&addr->v6.sin6_addr, dev, 0)) {
+			if (!ipv6_chk_addr(&init_net, &addr->v6.sin6_addr,
+					   dev, 0)) {
 				dev_put(dev);
 				return 0;
 			}

@@ -137,7 +137,7 @@ static const char pcnet32_gstrings_test[][ETH_GSTRING_LEN] = {
 	"Loopback test  (offline)"
 };
 
-#define PCNET32_TEST_LEN (sizeof(pcnet32_gstrings_test) / ETH_GSTRING_LEN)
+#define PCNET32_TEST_LEN	ARRAY_SIZE(pcnet32_gstrings_test)
 
 #define PCNET32_NUM_REGS 136
 

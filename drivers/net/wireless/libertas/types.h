@@ -1,8 +1,8 @@
 /**
   * This header file contains definition for global types
   */
-#ifndef _WLAN_TYPES_
-#define _WLAN_TYPES_
+#ifndef _LBS_TYPES_H_
+#define _LBS_TYPES_H_
 
 #include <linux/if_ether.h>
 #include <asm/byteorder.h>
@@ -201,22 +201,11 @@ struct mrvlietypes_powercapability {
 	s8 maxpower;
 } __attribute__ ((packed));
 
-struct mrvlietypes_rssithreshold {
+/* used in CMD_802_11_SUBSCRIBE_EVENT for SNR, RSSI and Failure */
+struct mrvlietypes_thresholds {
 	struct mrvlietypesheader header;
-	u8 rssivalue;
-	u8 rssifreq;
-} __attribute__ ((packed));
-
-struct mrvlietypes_snrthreshold {
-	struct mrvlietypesheader header;
-	u8 snrvalue;
-	u8 snrfreq;
-} __attribute__ ((packed));
-
-struct mrvlietypes_failurecount {
-	struct mrvlietypesheader header;
-	u8 failvalue;
-	u8 Failfreq;
+	u8 value;
+	u8 freq;
 } __attribute__ ((packed));
 
 struct mrvlietypes_beaconsmissed {
@@ -250,4 +239,4 @@ struct mrvlietypes_ledgpio {
 	struct led_pin ledpin[1];
 } __attribute__ ((packed));
 
-#endif				/* _WLAN_TYPES_ */
+#endif

@@ -126,7 +126,7 @@ payload of each frame is reduced to 492 bytes.
 static u8 P802_1H_OUI[P80211_OUI_LEN] = { 0x00, 0x00, 0xf8 };
 static u8 RFC1042_OUI[P80211_OUI_LEN] = { 0x00, 0x00, 0x00 };
 
-static int ieee80211_copy_snap(u8 * data, u16 h_proto)
+static int ieee80211_copy_snap(u8 * data, __be16 h_proto)
 {
 	struct ieee80211_snap_hdr *snap;
 	u8 *oui;
@@ -136,7 +136,7 @@ static int ieee80211_copy_snap(u8 * data, u16 h_proto)
 	snap->ssap = 0xaa;
 	snap->ctrl = 0x03;
 
-	if (h_proto == 0x8137 || h_proto == 0x80f3)
+	if (h_proto == htons(ETH_P_AARP) || h_proto == htons(ETH_P_IPX))
 		oui = P802_1H_OUI;
 	else
 		oui = RFC1042_OUI;
@@ -144,7 +144,6 @@ static int ieee80211_copy_snap(u8 * data, u16 h_proto)
 	snap->oui[1] = oui[1];
 	snap->oui[2] = oui[2];
 
-	h_proto = htons(h_proto);
 	memcpy(data + SNAP_SIZE, &h_proto, sizeof(u16));
 
 	return SNAP_SIZE + sizeof(u16);
@@ -261,7 +260,8 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	    rts_required;
 	unsigned long flags;
 	struct net_device_stats *stats = &ieee->stats;
-	int ether_type, encrypt, host_encrypt, host_encrypt_msdu, host_build_iv;
+	int encrypt, host_encrypt, host_encrypt_msdu, host_build_iv;
+	__be16 ether_type;
 	int bytes, fc, hdr_len;
 	struct sk_buff *skb_frag;
 	struct ieee80211_hdr_3addrqos header = {/* Ensure zero initialized */
@@ -292,11 +292,11 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto success;
 	}
 
-	ether_type = ntohs(((struct ethhdr *)skb->data)->h_proto);
+	ether_type = ((struct ethhdr *)skb->data)->h_proto;
 
 	crypt = ieee->crypt[ieee->tx_keyidx];
 
-	encrypt = !(ether_type == ETH_P_PAE && ieee->ieee802_1x) &&
+	encrypt = !(ether_type == htons(ETH_P_PAE) && ieee->ieee802_1x) &&
 	    ieee->sec.encrypt;
 
 	host_encrypt = ieee->host_encrypt && encrypt && crypt;
@@ -304,7 +304,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	host_build_iv = ieee->host_build_iv && encrypt && crypt;
 
 	if (!encrypt && ieee->ieee802_1x &&
-	    ieee->drop_unencrypted && ether_type != ETH_P_PAE) {
+	    ieee->drop_unencrypted && ether_type != htons(ETH_P_PAE)) {
 		stats->tx_dropped++;
 		goto success;
 	}

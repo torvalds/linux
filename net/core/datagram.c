@@ -115,10 +115,10 @@ out_noerr:
 }
 
 /**
- *	skb_recv_datagram - Receive a datagram skbuff
+ *	__skb_recv_datagram - Receive a datagram skbuff
  *	@sk: socket
  *	@flags: MSG_ flags
- *	@noblock: blocking operation?
+ *	@peeked: returns non-zero if this packet has been seen before
  *	@err: error code returned
  *
  *	Get a datagram skbuff, understands the peeking, nonblocking wakeups
@@ -143,8 +143,8 @@ out_noerr:
  *	quite explicitly by POSIX 1003.1g, don't change them without having
  *	the standard around please.
  */
-struct sk_buff *skb_recv_datagram(struct sock *sk, unsigned flags,
-				  int noblock, int *err)
+struct sk_buff *__skb_recv_datagram(struct sock *sk, unsigned flags,
+				    int *peeked, int *err)
 {
 	struct sk_buff *skb;
 	long timeo;
@@ -156,7 +156,7 @@ struct sk_buff *skb_recv_datagram(struct sock *sk, unsigned flags,
 	if (error)
 		goto no_packet;
 
-	timeo = sock_rcvtimeo(sk, noblock);
+	timeo = sock_rcvtimeo(sk, flags & MSG_DONTWAIT);
 
 	do {
 		/* Again only user level code calls this function, so nothing
@@ -165,18 +165,19 @@ struct sk_buff *skb_recv_datagram(struct sock *sk, unsigned flags,
 		 * Look at current nfs client by the way...
 		 * However, this function was corrent in any case. 8)
 		 */
-		if (flags & MSG_PEEK) {
-			unsigned long cpu_flags;
+		unsigned long cpu_flags;
 
-			spin_lock_irqsave(&sk->sk_receive_queue.lock,
-					  cpu_flags);
-			skb = skb_peek(&sk->sk_receive_queue);
-			if (skb)
+		spin_lock_irqsave(&sk->sk_receive_queue.lock, cpu_flags);
+		skb = skb_peek(&sk->sk_receive_queue);
+		if (skb) {
+			*peeked = skb->peeked;
+			if (flags & MSG_PEEK) {
+				skb->peeked = 1;
 				atomic_inc(&skb->users);
-			spin_unlock_irqrestore(&sk->sk_receive_queue.lock,
-					       cpu_flags);
-		} else
-			skb = skb_dequeue(&sk->sk_receive_queue);
+			} else
+				__skb_unlink(skb, &sk->sk_receive_queue);
+		}
+		spin_unlock_irqrestore(&sk->sk_receive_queue.lock, cpu_flags);
 
 		if (skb)
 			return skb;
@@ -194,10 +195,21 @@ no_packet:
 	*err = error;
 	return NULL;
 }
+EXPORT_SYMBOL(__skb_recv_datagram);
+
+struct sk_buff *skb_recv_datagram(struct sock *sk, unsigned flags,
+				  int noblock, int *err)
+{
+	int peeked;
+
+	return __skb_recv_datagram(sk, flags | (noblock ? MSG_DONTWAIT : 0),
+				   &peeked, err);
+}
 
 void skb_free_datagram(struct sock *sk, struct sk_buff *skb)
 {
 	kfree_skb(skb);
+	sk_mem_reclaim(sk);
 }
 
 /**
@@ -217,20 +229,28 @@ void skb_free_datagram(struct sock *sk, struct sk_buff *skb)
  *	This function currently only disables BH when acquiring the
  *	sk_receive_queue lock.  Therefore it must not be used in a
  *	context where that lock is acquired in an IRQ context.
+ *
+ *	It returns 0 if the packet was removed by us.
  */
 
-void skb_kill_datagram(struct sock *sk, struct sk_buff *skb, unsigned int flags)
+int skb_kill_datagram(struct sock *sk, struct sk_buff *skb, unsigned int flags)
 {
+	int err = 0;
+
 	if (flags & MSG_PEEK) {
+		err = -ENOENT;
 		spin_lock_bh(&sk->sk_receive_queue.lock);
 		if (skb == skb_peek(&sk->sk_receive_queue)) {
 			__skb_unlink(skb, &sk->sk_receive_queue);
 			atomic_dec(&skb->users);
+			err = 0;
 		}
 		spin_unlock_bh(&sk->sk_receive_queue.lock);
 	}
 
 	kfree_skb(skb);
+	sk_mem_reclaim(sk);
+	return err;
 }
 
 EXPORT_SYMBOL(skb_kill_datagram);

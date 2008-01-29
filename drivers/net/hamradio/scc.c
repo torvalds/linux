@@ -201,7 +201,6 @@ static void z8530_init(void);
 
 static void init_channel(struct scc_channel *scc);
 static void scc_key_trx (struct scc_channel *scc, char tx);
-static irqreturn_t scc_isr(int irq, void *dev_id);
 static void scc_init_timer(struct scc_channel *scc);
 
 static int scc_net_alloc(const char *name, struct scc_channel *scc);
@@ -629,6 +628,7 @@ static void scc_isr_dispatch(struct scc_channel *scc, int vector)
 
 static irqreturn_t scc_isr(int irq, void *dev_id)
 {
+	int chip_irq = (long) dev_id;
 	unsigned char vector;	
 	struct scc_channel *scc;
 	struct scc_ctrl *ctrl;
@@ -665,7 +665,7 @@ static irqreturn_t scc_isr(int irq, void *dev_id)
 	ctrl = SCC_ctrl;
 	while (ctrl->chan_A)
 	{
-		if (ctrl->irq != irq)
+		if (ctrl->irq != chip_irq)
 		{
 			ctrl++;
 			continue;
@@ -1732,7 +1732,9 @@ static int scc_net_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 				
 			if (!Ivec[hwcfg.irq].used && hwcfg.irq)
 			{
-				if (request_irq(hwcfg.irq, scc_isr, IRQF_DISABLED, "AX.25 SCC", NULL))
+				if (request_irq(hwcfg.irq, scc_isr,
+						IRQF_DISABLED, "AX.25 SCC",
+						(void *)(long) hwcfg.irq))
 					printk(KERN_WARNING "z8530drv: warning, cannot get IRQ %d\n", hwcfg.irq);
 				else
 					Ivec[hwcfg.irq].used = 1;

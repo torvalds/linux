@@ -39,20 +39,20 @@ struct linux_wlan_ng_prism_hdr {
 } __attribute__ ((packed));
 
 struct linux_wlan_ng_cap_hdr {
-	u32 version;
-	u32 length;
-	u64 mactime;
-	u64 hosttime;
-	u32 phytype;
-	u32 channel;
-	u32 datarate;
-	u32 antenna;
-	u32 priority;
-	u32 ssi_type;
-	s32 ssi_signal;
-	s32 ssi_noise;
-	u32 preamble;
-	u32 encoding;
+	__be32 version;
+	__be32 length;
+	__be64 mactime;
+	__be64 hosttime;
+	__be32 phytype;
+	__be32 channel;
+	__be32 datarate;
+	__be32 antenna;
+	__be32 priority;
+	__be32 ssi_type;
+	__be32 ssi_signal;
+	__be32 ssi_noise;
+	__be32 preamble;
+	__be32 encoding;
 } __attribute__ ((packed));
 
 #define LWNG_CAP_DID_BASE   (4 | (1 << 6)) /* section 4, group 1 */
@@ -60,28 +60,28 @@ struct linux_wlan_ng_cap_hdr {
 
 struct hfa384x_rx_frame {
 	/* HFA384X RX frame descriptor */
-	u16 status; /* HFA384X_RX_STATUS_ flags */
-	u32 time; /* timestamp, 1 microsecond resolution */
+	__le16 status; /* HFA384X_RX_STATUS_ flags */
+	__le32 time; /* timestamp, 1 microsecond resolution */
 	u8 silence; /* 27 .. 154; seems to be 0 */
 	u8 signal; /* 27 .. 154 */
 	u8 rate; /* 10, 20, 55, or 110 */
 	u8 rxflow;
-	u32 reserved;
+	__le32 reserved;
 
 	/* 802.11 */
-	u16 frame_control;
-	u16 duration_id;
+	__le16 frame_control;
+	__le16 duration_id;
 	u8 addr1[6];
 	u8 addr2[6];
 	u8 addr3[6];
-	u16 seq_ctrl;
+	__le16 seq_ctrl;
 	u8 addr4[6];
-	u16 data_len;
+	__le16 data_len;
 
 	/* 802.3 */
 	u8 dst_addr[6];
 	u8 src_addr[6];
-	u16 len;
+	__be16 len;
 
 	/* followed by frame data; max 2304 bytes */
 } __attribute__ ((packed));
@@ -89,28 +89,28 @@ struct hfa384x_rx_frame {
 
 struct hfa384x_tx_frame {
 	/* HFA384X TX frame descriptor */
-	u16 status; /* HFA384X_TX_STATUS_ flags */
-	u16 reserved1;
-	u16 reserved2;
-	u32 sw_support;
+	__le16 status; /* HFA384X_TX_STATUS_ flags */
+	__le16 reserved1;
+	__le16 reserved2;
+	__le32 sw_support;
 	u8 retry_count; /* not yet implemented */
 	u8 tx_rate; /* Host AP only; 0 = firmware, or 10, 20, 55, 110 */
-	u16 tx_control; /* HFA384X_TX_CTRL_ flags */
+	__le16 tx_control; /* HFA384X_TX_CTRL_ flags */
 
 	/* 802.11 */
-	u16 frame_control; /* parts not used */
-	u16 duration_id;
+	__le16 frame_control; /* parts not used */
+	__le16 duration_id;
 	u8 addr1[6];
 	u8 addr2[6]; /* filled by firmware */
 	u8 addr3[6];
-	u16 seq_ctrl; /* filled by firmware */
+	__le16 seq_ctrl; /* filled by firmware */
 	u8 addr4[6];
-	u16 data_len;
+	__le16 data_len;
 
 	/* 802.3 */
 	u8 dst_addr[6];
 	u8 src_addr[6];
-	u16 len;
+	__be16 len;
 
 	/* followed by frame data; max 2304 bytes */
 } __attribute__ ((packed));
@@ -118,8 +118,8 @@ struct hfa384x_tx_frame {
 
 struct hfa384x_rid_hdr
 {
-	u16 len;
-	u16 rid;
+	__le16 len;
+	__le16 rid;
 } __attribute__ ((packed));
 
 
@@ -130,78 +130,78 @@ struct hfa384x_rid_hdr
 #define HFA384X_LEVEL_TO_dBm_sign(v) (v) * 100 / 255 - 100
 
 struct hfa384x_scan_request {
-	u16 channel_list;
-	u16 txrate; /* HFA384X_RATES_* */
+	__le16 channel_list;
+	__le16 txrate; /* HFA384X_RATES_* */
 } __attribute__ ((packed));
 
 struct hfa384x_hostscan_request {
-	u16 channel_list;
-	u16 txrate;
-	u16 target_ssid_len;
+	__le16 channel_list;
+	__le16 txrate;
+	__le16 target_ssid_len;
 	u8 target_ssid[32];
 } __attribute__ ((packed));
 
 struct hfa384x_join_request {
 	u8 bssid[6];
-	u16 channel;
+	__le16 channel;
 } __attribute__ ((packed));
 
 struct hfa384x_info_frame {
-	u16 len;
-	u16 type;
+	__le16 len;
+	__le16 type;
 } __attribute__ ((packed));
 
 struct hfa384x_comm_tallies {
-	u16 tx_unicast_frames;
-	u16 tx_multicast_frames;
-	u16 tx_fragments;
-	u16 tx_unicast_octets;
-	u16 tx_multicast_octets;
-	u16 tx_deferred_transmissions;
-	u16 tx_single_retry_frames;
-	u16 tx_multiple_retry_frames;
-	u16 tx_retry_limit_exceeded;
-	u16 tx_discards;
-	u16 rx_unicast_frames;
-	u16 rx_multicast_frames;
-	u16 rx_fragments;
-	u16 rx_unicast_octets;
-	u16 rx_multicast_octets;
-	u16 rx_fcs_errors;
-	u16 rx_discards_no_buffer;
-	u16 tx_discards_wrong_sa;
-	u16 rx_discards_wep_undecryptable;
-	u16 rx_message_in_msg_fragments;
-	u16 rx_message_in_bad_msg_fragments;
+	__le16 tx_unicast_frames;
+	__le16 tx_multicast_frames;
+	__le16 tx_fragments;
+	__le16 tx_unicast_octets;
+	__le16 tx_multicast_octets;
+	__le16 tx_deferred_transmissions;
+	__le16 tx_single_retry_frames;
+	__le16 tx_multiple_retry_frames;
+	__le16 tx_retry_limit_exceeded;
+	__le16 tx_discards;
+	__le16 rx_unicast_frames;
+	__le16 rx_multicast_frames;
+	__le16 rx_fragments;
+	__le16 rx_unicast_octets;
+	__le16 rx_multicast_octets;
+	__le16 rx_fcs_errors;
+	__le16 rx_discards_no_buffer;
+	__le16 tx_discards_wrong_sa;
+	__le16 rx_discards_wep_undecryptable;
+	__le16 rx_message_in_msg_fragments;
+	__le16 rx_message_in_bad_msg_fragments;
 } __attribute__ ((packed));
 
 struct hfa384x_comm_tallies32 {
-	u32 tx_unicast_frames;
-	u32 tx_multicast_frames;
-	u32 tx_fragments;
-	u32 tx_unicast_octets;
-	u32 tx_multicast_octets;
-	u32 tx_deferred_transmissions;
-	u32 tx_single_retry_frames;
-	u32 tx_multiple_retry_frames;
-	u32 tx_retry_limit_exceeded;
-	u32 tx_discards;
-	u32 rx_unicast_frames;
-	u32 rx_multicast_frames;
-	u32 rx_fragments;
-	u32 rx_unicast_octets;
-	u32 rx_multicast_octets;
-	u32 rx_fcs_errors;
-	u32 rx_discards_no_buffer;
-	u32 tx_discards_wrong_sa;
-	u32 rx_discards_wep_undecryptable;
-	u32 rx_message_in_msg_fragments;
-	u32 rx_message_in_bad_msg_fragments;
+	__le32 tx_unicast_frames;
+	__le32 tx_multicast_frames;
+	__le32 tx_fragments;
+	__le32 tx_unicast_octets;
+	__le32 tx_multicast_octets;
+	__le32 tx_deferred_transmissions;
+	__le32 tx_single_retry_frames;
+	__le32 tx_multiple_retry_frames;
+	__le32 tx_retry_limit_exceeded;
+	__le32 tx_discards;
+	__le32 rx_unicast_frames;
+	__le32 rx_multicast_frames;
+	__le32 rx_fragments;
+	__le32 rx_unicast_octets;
+	__le32 rx_multicast_octets;
+	__le32 rx_fcs_errors;
+	__le32 rx_discards_no_buffer;
+	__le32 tx_discards_wrong_sa;
+	__le32 rx_discards_wep_undecryptable;
+	__le32 rx_message_in_msg_fragments;
+	__le32 rx_message_in_bad_msg_fragments;
 } __attribute__ ((packed));
 
 struct hfa384x_scan_result_hdr {
-	u16 reserved;
-	u16 scan_reason;
+	__le16 reserved;
+	__le16 scan_reason;
 #define HFA384X_SCAN_IN_PROGRESS 0 /* no results available yet */
 #define HFA384X_SCAN_HOST_INITIATED 1
 #define HFA384X_SCAN_FIRMWARE_INITIATED 2
@@ -211,30 +211,30 @@ struct hfa384x_scan_result_hdr {
 #define HFA384X_SCAN_MAX_RESULTS 32
 
 struct hfa384x_scan_result {
-	u16 chid;
-	u16 anl;
-	u16 sl;
+	__le16 chid;
+	__le16 anl;
+	__le16 sl;
 	u8 bssid[6];
-	u16 beacon_interval;
-	u16 capability;
-	u16 ssid_len;
+	__le16 beacon_interval;
+	__le16 capability;
+	__le16 ssid_len;
 	u8 ssid[32];
 	u8 sup_rates[10];
-	u16 rate;
+	__le16 rate;
 } __attribute__ ((packed));
 
 struct hfa384x_hostscan_result {
-	u16 chid;
-	u16 anl;
-	u16 sl;
+	__le16 chid;
+	__le16 anl;
+	__le16 sl;
 	u8 bssid[6];
-	u16 beacon_interval;
-	u16 capability;
-	u16 ssid_len;
+	__le16 beacon_interval;
+	__le16 capability;
+	__le16 ssid_len;
 	u8 ssid[32];
 	u8 sup_rates[10];
-	u16 rate;
-	u16 atim;
+	__le16 rate;
+	__le16 atim;
 } __attribute__ ((packed));
 
 struct comm_tallies_sums {

@@ -91,6 +91,7 @@
  *   nla_reserve_nohdr(skb, len)	reserve room for an attribute w/o hdr
  *   nla_put(skb, type, len, data)	add attribute to skb
  *   nla_put_nohdr(skb, len, data)	add attribute w/o hdr
+ *   nla_append(skb, len, data)		append data to skb
  *
  * Attribute Construction for Basic Types:
  *   nla_put_u8(skb, type, value)	add u8 attribute to skb
@@ -217,6 +218,7 @@ struct nla_policy {
  */
 struct nl_info {
 	struct nlmsghdr		*nlh;
+	struct net		*nl_net;
 	u32			pid;
 };
 
@@ -253,6 +255,8 @@ extern int		nla_put(struct sk_buff *skb, int attrtype,
 				int attrlen, const void *data);
 extern int		nla_put_nohdr(struct sk_buff *skb, int attrlen,
 				      const void *data);
+extern int		nla_append(struct sk_buff *skb, int attrlen,
+				   const void *data);
 
 /**************************************************************************
  * Netlink Messages
@@ -862,7 +866,7 @@ static inline int nla_put_msecs(struct sk_buff *skb, int attrtype,
 
 #define NLA_PUT(skb, attrtype, attrlen, data) \
 	do { \
-		if (nla_put(skb, attrtype, attrlen, data) < 0) \
+		if (unlikely(nla_put(skb, attrtype, attrlen, data) < 0)) \
 			goto nla_put_failure; \
 	} while(0)
 
@@ -880,6 +884,9 @@ static inline int nla_put_msecs(struct sk_buff *skb, int attrtype,
 
 #define NLA_PUT_LE16(skb, attrtype, value) \
 	NLA_PUT_TYPE(skb, __le16, attrtype, value)
+
+#define NLA_PUT_BE16(skb, attrtype, value) \
+	NLA_PUT_TYPE(skb, __be16, attrtype, value)
 
 #define NLA_PUT_U32(skb, attrtype, value) \
 	NLA_PUT_TYPE(skb, u32, attrtype, value)
@@ -924,6 +931,15 @@ static inline __be32 nla_get_be32(struct nlattr *nla)
 static inline u16 nla_get_u16(struct nlattr *nla)
 {
 	return *(u16 *) nla_data(nla);
+}
+
+/**
+ * nla_get_be16 - return payload of __be16 attribute
+ * @nla: __be16 netlink attribute
+ */
+static inline __be16 nla_get_be16(struct nlattr *nla)
+{
+	return *(__be16 *) nla_data(nla);
 }
 
 /**

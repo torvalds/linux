@@ -9,6 +9,8 @@
 #include <asm/types.h>		/* For __uXX types */
 #include <linux/types.h>	/* For __beXX types in userland */
 
+#include <linux/sysctl.h>	/* For ctl_path */
+
 #define IP_VS_VERSION_CODE	0x010201
 #define NVERSION(version)			\
 	(version >> 16) & 0xFF,			\
@@ -676,7 +678,6 @@ extern const char *ip_vs_proto_name(unsigned proto);
 extern void ip_vs_init_hash_table(struct list_head *table, int rows);
 #define IP_VS_INIT_HASH_TABLE(t) ip_vs_init_hash_table(t, sizeof(t)/sizeof(t[0]))
 
-#define IP_VS_APP_TYPE_UNSPEC	0
 #define IP_VS_APP_TYPE_FTP	1
 
 /*
@@ -735,7 +736,6 @@ extern const char * ip_vs_state_name(__u16 proto, int state);
 
 extern void ip_vs_tcp_conn_listen(struct ip_vs_conn *cp);
 extern int ip_vs_check_template(struct ip_vs_conn *ct);
-extern void ip_vs_secure_tcp_set(int on);
 extern void ip_vs_random_dropentry(void);
 extern int ip_vs_conn_init(void);
 extern void ip_vs_conn_cleanup(void);
@@ -856,6 +856,7 @@ extern int sysctl_ip_vs_expire_quiescent_template;
 extern int sysctl_ip_vs_sync_threshold[2];
 extern int sysctl_ip_vs_nat_icmp_send;
 extern struct ip_vs_stats ip_vs_stats;
+extern struct ctl_path net_vs_ctl_path[];
 
 extern struct ip_vs_service *
 ip_vs_service_get(__u32 fwmark, __u16 protocol, __be32 vaddr, __be16 vport);

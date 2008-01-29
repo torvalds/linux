@@ -456,8 +456,9 @@ static int eexp_open(struct net_device *dev)
 	if (!dev->irq || !irqrmap[dev->irq])
 		return -ENXIO;
 
-	ret = request_irq(dev->irq,&eexp_irq,0,dev->name,dev);
-	if (ret) return ret;
+	ret = request_irq(dev->irq, &eexp_irq, 0, dev->name, dev);
+	if (ret)
+		return ret;
 
 	if (!request_region(ioaddr, EEXP_IO_EXTENT, "EtherExpress")) {
 		printk(KERN_WARNING "EtherExpress io port %x, is busy.\n"
@@ -768,7 +769,7 @@ static void eexp_cmd_clear(struct net_device *dev)
 	}
 }
 
-static irqreturn_t eexp_irq(int irq, void *dev_info)
+static irqreturn_t eexp_irq(int dummy, void *dev_info)
 {
 	struct net_device *dev = dev_info;
 	struct net_local *lp;
@@ -783,8 +784,7 @@ static irqreturn_t eexp_irq(int irq, void *dev_info)
 	old_read_ptr = inw(ioaddr+READ_PTR);
 	old_write_ptr = inw(ioaddr+WRITE_PTR);
 
-	outb(SIRQ_dis|irqrmap[irq],ioaddr+SET_IRQ);
-
+	outb(SIRQ_dis|irqrmap[dev->irq], ioaddr+SET_IRQ);
 
 	status = scb_status(dev);
 
@@ -851,7 +851,7 @@ static irqreturn_t eexp_irq(int irq, void *dev_info)
 
 	eexp_cmd_clear(dev);
 
-	outb(SIRQ_en|irqrmap[irq],ioaddr+SET_IRQ);
+	outb(SIRQ_en|irqrmap[dev->irq], ioaddr+SET_IRQ);
 
 #if NET_DEBUG > 6
 	printk("%s: leaving eexp_irq()\n", dev->name);

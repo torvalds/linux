@@ -223,7 +223,7 @@ nla_put_failure:
 	return -ENOBUFS;
 }
 
-static u32 fib6_rule_default_pref(void)
+static u32 fib6_rule_default_pref(struct fib_rules_ops *ops)
 {
 	return 0x3FFF;
 }
@@ -249,6 +249,7 @@ static struct fib_rules_ops fib6_rules_ops = {
 	.policy			= fib6_rule_policy,
 	.rules_list		= LIST_HEAD_INIT(fib6_rules_ops.rules_list),
 	.owner			= THIS_MODULE,
+	.fro_net		= &init_net,
 };
 
 static int __init fib6_default_rules_init(void)
@@ -265,10 +266,23 @@ static int __init fib6_default_rules_init(void)
 	return 0;
 }
 
-void __init fib6_rules_init(void)
+int __init fib6_rules_init(void)
 {
-	BUG_ON(fib6_default_rules_init());
-	fib_rules_register(&fib6_rules_ops);
+	int ret;
+
+	ret = fib6_default_rules_init();
+	if (ret)
+		goto out;
+
+	ret = fib_rules_register(&fib6_rules_ops);
+	if (ret)
+		goto out_default_rules_init;
+out:
+	return ret;
+
+out_default_rules_init:
+	fib_rules_cleanup_ops(&fib6_rules_ops);
+	goto out;
 }
 
 void fib6_rules_cleanup(void)

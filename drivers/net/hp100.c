@@ -1153,7 +1153,7 @@ static void hp100_init_pdls(struct net_device *dev)
 	printk("hp100: %s: init pdls\n", dev->name);
 #endif
 
-	if (0 == lp->page_vaddr_algn)
+	if (!lp->page_vaddr_algn)
 		printk("hp100: %s: Warning: lp->page_vaddr_algn not initialised!\n", dev->name);
 	else {
 		/* pageptr shall point into the DMA accessible memory region  */

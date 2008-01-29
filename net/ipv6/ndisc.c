@@ -533,7 +533,8 @@ static void __ndisc_send(struct net_device *dev,
 	idev = in6_dev_get(dst->dev);
 	IP6_INC_STATS(idev, IPSTATS_MIB_OUTREQUESTS);
 
-	err = NF_HOOK(PF_INET6, NF_IP6_LOCAL_OUT, skb, NULL, dst->dev, dst_output);
+	err = NF_HOOK(PF_INET6, NF_INET_LOCAL_OUT, skb, NULL, dst->dev,
+		      dst_output);
 	if (!err) {
 		ICMP6MSGOUT_INC_STATS(idev, type);
 		ICMP6_INC_STATS(idev, ICMP6_MIB_OUTMSGS);
@@ -555,7 +556,7 @@ static void ndisc_send_na(struct net_device *dev, struct neighbour *neigh,
 	};
 
 	/* for anycast or proxy, solicited_addr != src_addr */
-	ifp = ipv6_get_ifaddr(solicited_addr, dev, 1);
+	ifp = ipv6_get_ifaddr(&init_net, solicited_addr, dev, 1);
 	if (ifp) {
 		src_addr = solicited_addr;
 		if (ifp->flags & IFA_F_OPTIMISTIC)
@@ -615,7 +616,8 @@ void ndisc_send_rs(struct net_device *dev, struct in6_addr *saddr,
 	 * suppress the inclusion of the sllao.
 	 */
 	if (send_sllao) {
-		struct inet6_ifaddr *ifp = ipv6_get_ifaddr(saddr, dev, 1);
+		struct inet6_ifaddr *ifp = ipv6_get_ifaddr(&init_net, saddr,
+							   dev, 1);
 		if (ifp) {
 			if (ifp->flags & IFA_F_OPTIMISTIC)  {
 				send_sllao = 0;
@@ -652,7 +654,7 @@ static void ndisc_solicit(struct neighbour *neigh, struct sk_buff *skb)
 	struct in6_addr *target = (struct in6_addr *)&neigh->primary_key;
 	int probes = atomic_read(&neigh->probes);
 
-	if (skb && ipv6_chk_addr(&ipv6_hdr(skb)->saddr, dev, 1))
+	if (skb && ipv6_chk_addr(&init_net, &ipv6_hdr(skb)->saddr, dev, 1))
 		saddr = &ipv6_hdr(skb)->saddr;
 
 	if ((probes -= neigh->parms->ucast_probes) < 0) {
@@ -740,7 +742,7 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 
 	inc = ipv6_addr_is_multicast(daddr);
 
-	if ((ifp = ipv6_get_ifaddr(&msg->target, dev, 1)) != NULL) {
+	if ((ifp = ipv6_get_ifaddr(&init_net, &msg->target, dev, 1)) != NULL) {
 
 		if (ifp->flags & (IFA_F_TENTATIVE|IFA_F_OPTIMISTIC)) {
 			if (dad) {
@@ -788,7 +790,7 @@ static void ndisc_recv_ns(struct sk_buff *skb)
 		if (ipv6_chk_acast_addr(dev, &msg->target) ||
 		    (idev->cnf.forwarding &&
 		     (ipv6_devconf.proxy_ndp || idev->cnf.proxy_ndp) &&
-		     (pneigh = pneigh_lookup(&nd_tbl,
+		     (pneigh = pneigh_lookup(&nd_tbl, &init_net,
 					     &msg->target, dev, 0)) != NULL)) {
 			if (!(NEIGH_CB(skb)->flags & LOCALLY_ENQUEUED) &&
 			    skb->pkt_type != PACKET_HOST &&
@@ -898,7 +900,7 @@ static void ndisc_recv_na(struct sk_buff *skb)
 			return;
 		}
 	}
-	if ((ifp = ipv6_get_ifaddr(&msg->target, dev, 1))) {
+	if ((ifp = ipv6_get_ifaddr(&init_net, &msg->target, dev, 1))) {
 		if (ifp->flags & IFA_F_TENTATIVE) {
 			addrconf_dad_failure(ifp);
 			return;
@@ -929,7 +931,7 @@ static void ndisc_recv_na(struct sk_buff *skb)
 		 */
 		if (lladdr && !memcmp(lladdr, dev->dev_addr, dev->addr_len) &&
 		    ipv6_devconf.forwarding && ipv6_devconf.proxy_ndp &&
-		    pneigh_lookup(&nd_tbl, &msg->target, dev, 0)) {
+		    pneigh_lookup(&nd_tbl, &init_net, &msg->target, dev, 0)) {
 			/* XXX: idev->cnf.prixy_ndp */
 			goto out;
 		}
@@ -1048,7 +1050,8 @@ static void ndisc_ra_useropt(struct sk_buff *ra, struct nd_opt_hdr *opt)
 		&ipv6_hdr(ra)->saddr);
 	nlmsg_end(skb, nlh);
 
-	err = rtnl_notify(skb, 0, RTNLGRP_ND_USEROPT, NULL, GFP_ATOMIC);
+	err = rtnl_notify(skb, &init_net, 0, RTNLGRP_ND_USEROPT, NULL,
+			  GFP_ATOMIC);
 	if (err < 0)
 		goto errout;
 
@@ -1058,7 +1061,7 @@ nla_put_failure:
 	nlmsg_free(skb);
 	err = -EMSGSIZE;
 errout:
-	rtnl_set_sk_err(RTNLGRP_ND_USEROPT, err);
+	rtnl_set_sk_err(&init_net, RTNLGRP_ND_USEROPT, err);
 }
 
 static void ndisc_router_discovery(struct sk_buff *skb)
@@ -1294,11 +1297,11 @@ skip_defrtr:
 	}
 
 	if (ndopts.nd_useropts) {
-		struct nd_opt_hdr *opt;
-		for (opt = ndopts.nd_useropts;
-		     opt;
-		     opt = ndisc_next_useropt(opt, ndopts.nd_useropts_end)) {
-				ndisc_ra_useropt(skb, opt);
+		struct nd_opt_hdr *p;
+		for (p = ndopts.nd_useropts;
+		     p;
+		     p = ndisc_next_useropt(p, ndopts.nd_useropts_end)) {
+			ndisc_ra_useropt(skb, p);
 		}
 	}
 
@@ -1538,7 +1541,8 @@ void ndisc_send_redirect(struct sk_buff *skb, struct neighbour *neigh,
 	buff->dst = dst;
 	idev = in6_dev_get(dst->dev);
 	IP6_INC_STATS(idev, IPSTATS_MIB_OUTREQUESTS);
-	err = NF_HOOK(PF_INET6, NF_IP6_LOCAL_OUT, buff, NULL, dst->dev, dst_output);
+	err = NF_HOOK(PF_INET6, NF_INET_LOCAL_OUT, buff, NULL, dst->dev,
+		      dst_output);
 	if (!err) {
 		ICMP6MSGOUT_INC_STATS(idev, NDISC_REDIRECT);
 		ICMP6_INC_STATS(idev, ICMP6_MIB_OUTMSGS);

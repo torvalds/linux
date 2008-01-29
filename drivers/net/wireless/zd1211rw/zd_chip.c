@@ -1,4 +1,7 @@
-/* zd_chip.c
+/* ZD1211 USB-WLAN driver for Linux
+ *
+ * Copyright (C) 2005-2007 Ulrich Kunitz <kune@deine-taler.de>
+ * Copyright (C) 2006-2007 Daniel Drake <dsd@gentoo.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,12 +33,12 @@
 #include "zd_rf.h"
 
 void zd_chip_init(struct zd_chip *chip,
-	         struct net_device *netdev,
+	         struct ieee80211_hw *hw,
 		 struct usb_interface *intf)
 {
 	memset(chip, 0, sizeof(*chip));
 	mutex_init(&chip->mutex);
-	zd_usb_init(&chip->usb, netdev, intf);
+	zd_usb_init(&chip->usb, hw, intf);
 	zd_rf_init(&chip->rf);
 }
 
@@ -50,7 +53,7 @@ void zd_chip_clear(struct zd_chip *chip)
 
 static int scnprint_mac_oui(struct zd_chip *chip, char *buffer, size_t size)
 {
-	u8 *addr = zd_usb_to_netdev(&chip->usb)->dev_addr;
+	u8 *addr = zd_mac_get_perm_addr(zd_chip_to_mac(chip));
 	return scnprintf(buffer, size, "%02x-%02x-%02x",
 		         addr[0], addr[1], addr[2]);
 }
@@ -378,15 +381,18 @@ int zd_write_mac_addr(struct zd_chip *chip, const u8 *mac_addr)
 	};
 	DECLARE_MAC_BUF(mac);
 
-	reqs[0].value = (mac_addr[3] << 24)
-		      | (mac_addr[2] << 16)
-		      | (mac_addr[1] <<  8)
-		      |  mac_addr[0];
-	reqs[1].value = (mac_addr[5] <<  8)
-		      |  mac_addr[4];
-
-	dev_dbg_f(zd_chip_dev(chip),
-		"mac addr %s\n", print_mac(mac, mac_addr));
+	if (mac_addr) {
+		reqs[0].value = (mac_addr[3] << 24)
+			      | (mac_addr[2] << 16)
+			      | (mac_addr[1] <<  8)
+			      |  mac_addr[0];
+		reqs[1].value = (mac_addr[5] <<  8)
+			      |  mac_addr[4];
+		dev_dbg_f(zd_chip_dev(chip),
+			"mac addr %s\n", print_mac(mac, mac_addr));
+	} else {
+		dev_dbg_f(zd_chip_dev(chip), "set NULL mac\n");
+	}
 
 	mutex_lock(&chip->mutex);
 	r = zd_iowrite32a_locked(chip, reqs, ARRAY_SIZE(reqs));
@@ -980,7 +986,7 @@ static int print_fw_version(struct zd_chip *chip)
 	return 0;
 }
 
-static int set_mandatory_rates(struct zd_chip *chip, enum ieee80211_std std)
+static int set_mandatory_rates(struct zd_chip *chip, int mode)
 {
 	u32 rates;
 	ZD_ASSERT(mutex_is_locked(&chip->mutex));
@@ -988,11 +994,11 @@ static int set_mandatory_rates(struct zd_chip *chip, enum ieee80211_std std)
 	 * that the device is supporting. Until further notice we should try
 	 * to support 802.11g also for full speed USB.
 	 */
-	switch (std) {
-	case IEEE80211B:
+	switch (mode) {
+	case MODE_IEEE80211B:
 		rates = CR_RATE_1M|CR_RATE_2M|CR_RATE_5_5M|CR_RATE_11M;
 		break;
-	case IEEE80211G:
+	case MODE_IEEE80211G:
 		rates = CR_RATE_1M|CR_RATE_2M|CR_RATE_5_5M|CR_RATE_11M|
 			CR_RATE_6M|CR_RATE_12M|CR_RATE_24M;
 		break;
@@ -1003,24 +1009,17 @@ static int set_mandatory_rates(struct zd_chip *chip, enum ieee80211_std std)
 }
 
 int zd_chip_set_rts_cts_rate_locked(struct zd_chip *chip,
-	u8 rts_rate, int preamble)
+				    int preamble)
 {
-	int rts_mod = ZD_RX_CCK;
 	u32 value = 0;
 
-	/* Modulation bit */
-	if (ZD_MODULATION_TYPE(rts_rate) == ZD_OFDM)
-		rts_mod = ZD_RX_OFDM;
-
-	dev_dbg_f(zd_chip_dev(chip), "rts_rate=%x preamble=%x\n",
-		rts_rate, preamble);
-
-	value |= ZD_PURE_RATE(rts_rate) << RTSCTS_SH_RTS_RATE;
-	value |= rts_mod << RTSCTS_SH_RTS_MOD_TYPE;
+	dev_dbg_f(zd_chip_dev(chip), "preamble=%x\n", preamble);
 	value |= preamble << RTSCTS_SH_RTS_PMB_TYPE;
 	value |= preamble << RTSCTS_SH_CTS_PMB_TYPE;
 
-	/* We always send 11M self-CTS messages, like the vendor driver. */
+	/* We always send 11M RTS/self-CTS messages, like the vendor driver. */
+	value |= ZD_PURE_RATE(ZD_CCK_RATE_11M) << RTSCTS_SH_RTS_RATE;
+	value |= ZD_RX_CCK << RTSCTS_SH_RTS_MOD_TYPE;
 	value |= ZD_PURE_RATE(ZD_CCK_RATE_11M) << RTSCTS_SH_CTS_RATE;
 	value |= ZD_RX_CCK << RTSCTS_SH_CTS_MOD_TYPE;
 
@@ -1109,7 +1108,7 @@ int zd_chip_init_hw(struct zd_chip *chip)
 	 * It might be discussed, whether we should suppport pure b mode for
 	 * full speed USB.
 	 */
-	r = set_mandatory_rates(chip, IEEE80211G);
+	r = set_mandatory_rates(chip, MODE_IEEE80211G);
 	if (r)
 		goto out;
 	/* Disabling interrupts is certainly a smart thing here.
@@ -1320,12 +1319,17 @@ out:
 	return r;
 }
 
-int zd_chip_set_basic_rates_locked(struct zd_chip *chip, u16 cr_rates)
+int zd_chip_set_basic_rates(struct zd_chip *chip, u16 cr_rates)
 {
-	ZD_ASSERT((cr_rates & ~(CR_RATES_80211B | CR_RATES_80211G)) == 0);
-	dev_dbg_f(zd_chip_dev(chip), "%x\n", cr_rates);
+	int r;
 
-	return zd_iowrite32_locked(chip, cr_rates, CR_BASIC_RATE_TBL);
+	if (cr_rates & ~(CR_RATES_80211B|CR_RATES_80211G))
+		return -EINVAL;
+
+	mutex_lock(&chip->mutex);
+	r = zd_iowrite32_locked(chip, cr_rates, CR_BASIC_RATE_TBL);
+	mutex_unlock(&chip->mutex);
+	return r;
 }
 
 static int ofdm_qual_db(u8 status_quality, u8 zd_rate, unsigned int size)
@@ -1468,56 +1472,44 @@ u8 zd_rx_qual_percent(const void *rx_frame, unsigned int size,
 {
 	return (status->frame_status&ZD_RX_OFDM) ?
 		ofdm_qual_percent(status->signal_quality_ofdm,
-					  zd_rate_from_ofdm_plcp_header(rx_frame),
+				  zd_rate_from_ofdm_plcp_header(rx_frame),
 			          size) :
 		cck_qual_percent(status->signal_quality_cck);
 }
 
-u8 zd_rx_strength_percent(u8 rssi)
+/**
+ * zd_rx_rate - report zd-rate
+ * @rx_frame - received frame
+ * @rx_status - rx_status as given by the device
+ *
+ * This function converts the rate as encoded in the received packet to the
+ * zd-rate, we are using on other places in the driver.
+ */
+u8 zd_rx_rate(const void *rx_frame, const struct rx_status *status)
 {
-	int r = (rssi*100) / 41;
-	if (r > 100)
-		r = 100;
-	return (u8) r;
-}
-
-u16 zd_rx_rate(const void *rx_frame, const struct rx_status *status)
-{
-	static const u16 ofdm_rates[] = {
-		[ZD_OFDM_PLCP_RATE_6M]  = 60,
-		[ZD_OFDM_PLCP_RATE_9M]  = 90,
-		[ZD_OFDM_PLCP_RATE_12M] = 120,
-		[ZD_OFDM_PLCP_RATE_18M] = 180,
-		[ZD_OFDM_PLCP_RATE_24M] = 240,
-		[ZD_OFDM_PLCP_RATE_36M] = 360,
-		[ZD_OFDM_PLCP_RATE_48M] = 480,
-		[ZD_OFDM_PLCP_RATE_54M] = 540,
-	};
-	u16 rate;
+	u8 zd_rate;
 	if (status->frame_status & ZD_RX_OFDM) {
-		/* Deals with PLCP OFDM rate (not zd_rates) */
-		u8 ofdm_rate = zd_ofdm_plcp_header_rate(rx_frame);
-		rate = ofdm_rates[ofdm_rate & 0xf];
+		zd_rate = zd_rate_from_ofdm_plcp_header(rx_frame);
 	} else {
 		switch (zd_cck_plcp_header_signal(rx_frame)) {
 		case ZD_CCK_PLCP_SIGNAL_1M:
-			rate = 10;
+			zd_rate = ZD_CCK_RATE_1M;
 			break;
 		case ZD_CCK_PLCP_SIGNAL_2M:
-			rate = 20;
+			zd_rate = ZD_CCK_RATE_2M;
 			break;
 		case ZD_CCK_PLCP_SIGNAL_5M5:
-			rate = 55;
+			zd_rate = ZD_CCK_RATE_5_5M;
 			break;
 		case ZD_CCK_PLCP_SIGNAL_11M:
-			rate = 110;
+			zd_rate = ZD_CCK_RATE_11M;
 			break;
 		default:
-			rate = 0;
+			zd_rate = 0;
 		}
 	}
 
-	return rate;
+	return zd_rate;
 }
 
 int zd_chip_switch_radio_on(struct zd_chip *chip)
@@ -1557,20 +1549,22 @@ void zd_chip_disable_int(struct zd_chip *chip)
 	mutex_unlock(&chip->mutex);
 }
 
-int zd_chip_enable_rx(struct zd_chip *chip)
+int zd_chip_enable_rxtx(struct zd_chip *chip)
 {
 	int r;
 
 	mutex_lock(&chip->mutex);
+	zd_usb_enable_tx(&chip->usb);
 	r = zd_usb_enable_rx(&chip->usb);
 	mutex_unlock(&chip->mutex);
 	return r;
 }
 
-void zd_chip_disable_rx(struct zd_chip *chip)
+void zd_chip_disable_rxtx(struct zd_chip *chip)
 {
 	mutex_lock(&chip->mutex);
 	zd_usb_disable_rx(&chip->usb);
+	zd_usb_disable_tx(&chip->usb);
 	mutex_unlock(&chip->mutex);
 }
 

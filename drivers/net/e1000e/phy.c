@@ -49,8 +49,7 @@ static const u16 e1000_igp_2_cable_length_table[] =
 	  100, 105, 109, 113, 116, 119, 122, 124, 104, 109, 114, 118, 121,
 	  124};
 #define IGP02E1000_CABLE_LENGTH_TABLE_SIZE \
-		(sizeof(e1000_igp_2_cable_length_table) / \
-		 sizeof(e1000_igp_2_cable_length_table[0]))
+		ARRAY_SIZE(e1000_igp_2_cable_length_table)
 
 /**
  *  e1000e_check_reset_block_generic - Check if PHY reset is blocked

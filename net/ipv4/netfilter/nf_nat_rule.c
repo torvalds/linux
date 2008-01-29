@@ -24,7 +24,9 @@
 #include <net/netfilter/nf_nat_core.h>
 #include <net/netfilter/nf_nat_rule.h>
 
-#define NAT_VALID_HOOKS ((1<<NF_IP_PRE_ROUTING) | (1<<NF_IP_POST_ROUTING) | (1<<NF_IP_LOCAL_OUT))
+#define NAT_VALID_HOOKS ((1 << NF_INET_PRE_ROUTING) | \
+			 (1 << NF_INET_POST_ROUTING) | \
+			 (1 << NF_INET_LOCAL_OUT))
 
 static struct
 {
@@ -38,14 +40,14 @@ static struct
 		.num_entries = 4,
 		.size = sizeof(struct ipt_standard) * 3 + sizeof(struct ipt_error),
 		.hook_entry = {
-			[NF_IP_PRE_ROUTING] = 0,
-			[NF_IP_POST_ROUTING] = sizeof(struct ipt_standard),
-			[NF_IP_LOCAL_OUT] = sizeof(struct ipt_standard) * 2
+			[NF_INET_PRE_ROUTING] = 0,
+			[NF_INET_POST_ROUTING] = sizeof(struct ipt_standard),
+			[NF_INET_LOCAL_OUT] = sizeof(struct ipt_standard) * 2
 		},
 		.underflow = {
-			[NF_IP_PRE_ROUTING] = 0,
-			[NF_IP_POST_ROUTING] = sizeof(struct ipt_standard),
-			[NF_IP_LOCAL_OUT] = sizeof(struct ipt_standard) * 2
+			[NF_INET_PRE_ROUTING] = 0,
+			[NF_INET_POST_ROUTING] = sizeof(struct ipt_standard),
+			[NF_INET_LOCAL_OUT] = sizeof(struct ipt_standard) * 2
 		},
 	},
 	.entries = {
@@ -76,7 +78,7 @@ static unsigned int ipt_snat_target(struct sk_buff *skb,
 	enum ip_conntrack_info ctinfo;
 	const struct nf_nat_multi_range_compat *mr = targinfo;
 
-	NF_CT_ASSERT(hooknum == NF_IP_POST_ROUTING);
+	NF_CT_ASSERT(hooknum == NF_INET_POST_ROUTING);
 
 	ct = nf_ct_get(skb, &ctinfo);
 
@@ -85,7 +87,7 @@ static unsigned int ipt_snat_target(struct sk_buff *skb,
 			    ctinfo == IP_CT_RELATED + IP_CT_IS_REPLY));
 	NF_CT_ASSERT(out);
 
-	return nf_nat_setup_info(ct, &mr->range[0], hooknum);
+	return nf_nat_setup_info(ct, &mr->range[0], IP_NAT_MANIP_SRC);
 }
 
 /* Before 2.6.11 we did implicit source NAT if required. Warn about change. */
@@ -95,7 +97,7 @@ static void warn_if_extra_mangle(__be32 dstip, __be32 srcip)
 	struct flowi fl = { .nl_u = { .ip4_u = { .daddr = dstip } } };
 	struct rtable *rt;
 
-	if (ip_route_output_key(&rt, &fl) != 0)
+	if (ip_route_output_key(&init_net, &rt, &fl) != 0)
 		return;
 
 	if (rt->rt_src != srcip && !warned) {
@@ -118,20 +120,20 @@ static unsigned int ipt_dnat_target(struct sk_buff *skb,
 	enum ip_conntrack_info ctinfo;
 	const struct nf_nat_multi_range_compat *mr = targinfo;
 
-	NF_CT_ASSERT(hooknum == NF_IP_PRE_ROUTING ||
-		     hooknum == NF_IP_LOCAL_OUT);
+	NF_CT_ASSERT(hooknum == NF_INET_PRE_ROUTING ||
+		     hooknum == NF_INET_LOCAL_OUT);
 
 	ct = nf_ct_get(skb, &ctinfo);
 
 	/* Connection must be valid and new. */
 	NF_CT_ASSERT(ct && (ctinfo == IP_CT_NEW || ctinfo == IP_CT_RELATED));
 
-	if (hooknum == NF_IP_LOCAL_OUT &&
+	if (hooknum == NF_INET_LOCAL_OUT &&
 	    mr->range[0].flags & IP_NAT_RANGE_MAP_IPS)
 		warn_if_extra_mangle(ip_hdr(skb)->daddr,
 				     mr->range[0].min_ip);
 
-	return nf_nat_setup_info(ct, &mr->range[0], hooknum);
+	return nf_nat_setup_info(ct, &mr->range[0], IP_NAT_MANIP_DST);
 }
 
 static bool ipt_snat_checkentry(const char *tablename,
@@ -182,7 +184,7 @@ alloc_null_binding(struct nf_conn *ct, unsigned int hooknum)
 
 	pr_debug("Allocating NULL binding for %p (%u.%u.%u.%u)\n",
 		 ct, NIPQUAD(ip));
-	return nf_nat_setup_info(ct, &range, hooknum);
+	return nf_nat_setup_info(ct, &range, HOOK2MANIP(hooknum));
 }
 
 unsigned int
@@ -201,7 +203,7 @@ alloc_null_binding_confirmed(struct nf_conn *ct, unsigned int hooknum)
 
 	pr_debug("Allocating NULL binding for confirmed %p (%u.%u.%u.%u)\n",
 		 ct, NIPQUAD(ip));
-	return nf_nat_setup_info(ct, &range, hooknum);
+	return nf_nat_setup_info(ct, &range, HOOK2MANIP(hooknum));
 }
 
 int nf_nat_rule_find(struct sk_buff *skb,
@@ -227,7 +229,7 @@ static struct xt_target ipt_snat_reg __read_mostly = {
 	.target		= ipt_snat_target,
 	.targetsize	= sizeof(struct nf_nat_multi_range_compat),
 	.table		= "nat",
-	.hooks		= 1 << NF_IP_POST_ROUTING,
+	.hooks		= 1 << NF_INET_POST_ROUTING,
 	.checkentry	= ipt_snat_checkentry,
 	.family		= AF_INET,
 };
@@ -237,7 +239,7 @@ static struct xt_target ipt_dnat_reg __read_mostly = {
 	.target		= ipt_dnat_target,
 	.targetsize	= sizeof(struct nf_nat_multi_range_compat),
 	.table		= "nat",
-	.hooks		= (1 << NF_IP_PRE_ROUTING) | (1 << NF_IP_LOCAL_OUT),
+	.hooks		= (1 << NF_INET_PRE_ROUTING) | (1 << NF_INET_LOCAL_OUT),
 	.checkentry	= ipt_dnat_checkentry,
 	.family		= AF_INET,
 };

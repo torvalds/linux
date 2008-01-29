@@ -3,6 +3,7 @@
 #
 config XFRM
        bool
+       select CRYPTO
        depends on NET
 
 config XFRM_USER
@@ -32,6 +33,16 @@ config XFRM_MIGRATE
 	  association dynamically.  This feature is required, for
 	  instance, in a Mobile IPv6 environment with IPsec configuration
 	  where mobile nodes change their attachment point to the Internet.
+
+	  If unsure, say N.
+
+config XFRM_STATISTICS
+	bool "Transformation statistics (EXPERIMENTAL)"
+	depends on XFRM && PROC_FS && EXPERIMENTAL
+	---help---
+	  This statistics is not a SNMP/MIB specification but shows
+	  statistics about transformation error (or almost error) factor
+	  at packet processing for developer.
 
 	  If unsure, say N.
 

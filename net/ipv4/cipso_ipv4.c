@@ -63,7 +63,7 @@ struct cipso_v4_domhsh_entry {
  * probably be turned into a hash table or something similar so we
  * can do quick lookups. */
 static DEFINE_SPINLOCK(cipso_v4_doi_list_lock);
-static struct list_head cipso_v4_doi_list = LIST_HEAD_INIT(cipso_v4_doi_list);
+static LIST_HEAD(cipso_v4_doi_list);
 
 /* Label mapping cache */
 int cipso_v4_cache_enabled = 1;

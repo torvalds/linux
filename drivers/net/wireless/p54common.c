@@ -54,7 +54,7 @@ void p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw)
 		u32 code = le32_to_cpu(bootrec->code);
 		switch (code) {
 		case BR_CODE_COMPONENT_ID:
-			switch (be32_to_cpu(*bootrec->data)) {
+			switch (be32_to_cpu(*(__be32 *)bootrec->data)) {
 			case FW_FMAC:
 				printk(KERN_INFO "p54: FreeMAC firmware\n");
 				break;
@@ -78,14 +78,14 @@ void p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw)
 				fw_version = (unsigned char*)bootrec->data;
 			break;
 		case BR_CODE_DESCR:
-			priv->rx_start = le32_to_cpu(bootrec->data[1]);
+			priv->rx_start = le32_to_cpu(((__le32 *)bootrec->data)[1]);
 			/* FIXME add sanity checking */
-			priv->rx_end = le32_to_cpu(bootrec->data[2]) - 0x3500;
+			priv->rx_end = le32_to_cpu(((__le32 *)bootrec->data)[2]) - 0x3500;
 			break;
 		case BR_CODE_EXPOSED_IF:
 			exp_if = (struct bootrec_exp_if *) bootrec->data;
 			for (i = 0; i < (len * sizeof(*exp_if) / 4); i++)
-				if (exp_if[i].if_id == 0x1a)
+				if (exp_if[i].if_id == cpu_to_le16(0x1a))
 					priv->fw_var = le16_to_cpu(exp_if[i].variant);
 			break;
 		case BR_CODE_DEPENDENT_IF:
@@ -314,6 +314,7 @@ static void p54_rx_data(struct ieee80211_hw *dev, struct sk_buff *skb)
 	rx_status.phymode = MODE_IEEE80211G;
 	rx_status.antenna = hdr->antenna;
 	rx_status.mactime = le64_to_cpu(hdr->timestamp);
+	rx_status.flag |= RX_FLAG_TSFT;
 
 	skb_pull(skb, sizeof(*hdr));
 	skb_trim(skb, le16_to_cpu(hdr->len));
@@ -374,7 +375,7 @@ static void p54_rx_frame_sent(struct ieee80211_hw *dev, struct sk_buff *skb)
 			if ((entry_hdr->magic1 & cpu_to_le16(0x4000)) != 0)
 				pad = entry_data->align[0];
 
-			if (!status.control.flags & IEEE80211_TXCTL_NO_ACK) {
+			if (!(status.control.flags & IEEE80211_TXCTL_NO_ACK)) {
 				if (!(payload->status & 0x01))
 					status.flags |= IEEE80211_TX_STATUS_ACK;
 				else
@@ -853,7 +854,8 @@ static int p54_config(struct ieee80211_hw *dev, struct ieee80211_conf *conf)
 	return ret;
 }
 
-static int p54_config_interface(struct ieee80211_hw *dev, int if_id,
+static int p54_config_interface(struct ieee80211_hw *dev,
+				struct ieee80211_vif *vif,
 				struct ieee80211_if_conf *conf)
 {
 	struct p54_common *priv = dev->priv;

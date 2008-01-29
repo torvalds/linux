@@ -31,7 +31,7 @@ struct nf_conn;
 
 extern int get_h225_addr(struct nf_conn *ct, unsigned char *data,
 			 TransportAddress *taddr,
-			 union nf_conntrack_address *addr, __be16 *port);
+			 union nf_inet_addr *addr, __be16 *port);
 extern void nf_conntrack_h245_expect(struct nf_conn *new,
 				     struct nf_conntrack_expect *this);
 extern void nf_conntrack_q931_expect(struct nf_conn *new,
@@ -39,12 +39,12 @@ extern void nf_conntrack_q931_expect(struct nf_conn *new,
 extern int (*set_h245_addr_hook) (struct sk_buff *skb,
 				  unsigned char **data, int dataoff,
 				  H245_TransportAddress *taddr,
-				  union nf_conntrack_address *addr,
+				  union nf_inet_addr *addr,
 				  __be16 port);
 extern int (*set_h225_addr_hook) (struct sk_buff *skb,
 				  unsigned char **data, int dataoff,
 				  TransportAddress *taddr,
-				  union nf_conntrack_address *addr,
+				  union nf_inet_addr *addr,
 				  __be16 port);
 extern int (*set_sig_addr_hook) (struct sk_buff *skb,
 				 struct nf_conn *ct,

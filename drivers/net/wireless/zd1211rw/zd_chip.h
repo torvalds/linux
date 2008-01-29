@@ -1,4 +1,7 @@
-/* zd_chip.h
+/* ZD1211 USB-WLAN driver for Linux
+ *
+ * Copyright (C) 2005-2007 Ulrich Kunitz <kune@deine-taler.de>
+ * Copyright (C) 2006-2007 Daniel Drake <dsd@gentoo.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -433,9 +436,10 @@ enum {
 #define CR_GROUP_HASH_P2		CTL_REG(0x0628)
 
 #define CR_RX_TIMEOUT			CTL_REG(0x062C)
+
 /* Basic rates supported by the BSS. When producing ACK or CTS messages, the
  * device will use a rate in this table that is less than or equal to the rate
- * of the incoming frame which prompted the response */
+ * of the incoming frame which prompted the response. */
 #define CR_BASIC_RATE_TBL		CTL_REG(0x0630)
 #define CR_RATE_1M	(1 <<  0)	/* 802.11b */
 #define CR_RATE_2M	(1 <<  1)	/* 802.11b */
@@ -509,14 +513,37 @@ enum {
 #define CR_UNDERRUN_CNT			CTL_REG(0x0688)
 
 #define CR_RX_FILTER			CTL_REG(0x068c)
+#define RX_FILTER_ASSOC_REQUEST		(1 <<  0)
 #define RX_FILTER_ASSOC_RESPONSE	(1 <<  1)
+#define RX_FILTER_REASSOC_REQUEST	(1 <<  2)
 #define RX_FILTER_REASSOC_RESPONSE	(1 <<  3)
+#define RX_FILTER_PROBE_REQUEST		(1 <<  4)
 #define RX_FILTER_PROBE_RESPONSE	(1 <<  5)
+/* bits 6 and 7 reserved */
 #define RX_FILTER_BEACON		(1 <<  8)
+#define RX_FILTER_ATIM			(1 <<  9)
 #define RX_FILTER_DISASSOC		(1 << 10)
 #define RX_FILTER_AUTH			(1 << 11)
-#define AP_RX_FILTER			0x0400feff
-#define STA_RX_FILTER			0x0000ffff
+#define RX_FILTER_DEAUTH		(1 << 12)
+#define RX_FILTER_PSPOLL		(1 << 26)
+#define RX_FILTER_RTS			(1 << 27)
+#define RX_FILTER_CTS			(1 << 28)
+#define RX_FILTER_ACK			(1 << 29)
+#define RX_FILTER_CFEND			(1 << 30)
+#define RX_FILTER_CFACK			(1 << 31)
+
+/* Enable bits for all frames you are interested in. */
+#define STA_RX_FILTER	(RX_FILTER_ASSOC_REQUEST | RX_FILTER_ASSOC_RESPONSE | \
+	RX_FILTER_REASSOC_REQUEST | RX_FILTER_REASSOC_RESPONSE | \
+	RX_FILTER_PROBE_REQUEST | RX_FILTER_PROBE_RESPONSE | \
+	(0x3 << 6) /* vendor driver sets these reserved bits */ | \
+	RX_FILTER_BEACON | RX_FILTER_ATIM | RX_FILTER_DISASSOC | \
+	RX_FILTER_AUTH | RX_FILTER_DEAUTH | \
+	(0x7 << 13) /* vendor driver sets these reserved bits */ | \
+	RX_FILTER_PSPOLL | RX_FILTER_ACK) /* 0x2400ffff */
+
+#define RX_FILTER_CTRL (RX_FILTER_RTS | RX_FILTER_CTS | \
+	RX_FILTER_CFEND | RX_FILTER_CFACK)
 
 /* Monitor mode sets filter to 0xfffff */
 
@@ -730,7 +757,7 @@ static inline struct zd_chip *zd_rf_to_chip(struct zd_rf *rf)
 #define zd_chip_dev(chip) (&(chip)->usb.intf->dev)
 
 void zd_chip_init(struct zd_chip *chip,
-	         struct net_device *netdev,
+	         struct ieee80211_hw *hw,
 	         struct usb_interface *intf);
 void zd_chip_clear(struct zd_chip *chip);
 int zd_chip_read_mac_addr_fw(struct zd_chip *chip, u8 *addr);
@@ -835,14 +862,12 @@ int zd_chip_switch_radio_on(struct zd_chip *chip);
 int zd_chip_switch_radio_off(struct zd_chip *chip);
 int zd_chip_enable_int(struct zd_chip *chip);
 void zd_chip_disable_int(struct zd_chip *chip);
-int zd_chip_enable_rx(struct zd_chip *chip);
-void zd_chip_disable_rx(struct zd_chip *chip);
+int zd_chip_enable_rxtx(struct zd_chip *chip);
+void zd_chip_disable_rxtx(struct zd_chip *chip);
 int zd_chip_enable_hwint(struct zd_chip *chip);
 int zd_chip_disable_hwint(struct zd_chip *chip);
 int zd_chip_generic_patch_6m_band(struct zd_chip *chip, int channel);
-
-int zd_chip_set_rts_cts_rate_locked(struct zd_chip *chip,
-	u8 rts_rate, int preamble);
+int zd_chip_set_rts_cts_rate_locked(struct zd_chip *chip, int preamble);
 
 static inline int zd_get_encryption_type(struct zd_chip *chip, u32 *type)
 {
@@ -859,17 +884,7 @@ static inline int zd_chip_get_basic_rates(struct zd_chip *chip, u16 *cr_rates)
 	return zd_ioread16(chip, CR_BASIC_RATE_TBL, cr_rates);
 }
 
-int zd_chip_set_basic_rates_locked(struct zd_chip *chip, u16 cr_rates);
-
-static inline int zd_chip_set_basic_rates(struct zd_chip *chip, u16 cr_rates)
-{
-	int r;
-
-	mutex_lock(&chip->mutex);
-	r = zd_chip_set_basic_rates_locked(chip, cr_rates);
-	mutex_unlock(&chip->mutex);
-	return r;
-}
+int zd_chip_set_basic_rates(struct zd_chip *chip, u16 cr_rates);
 
 int zd_chip_lock_phy_regs(struct zd_chip *chip);
 int zd_chip_unlock_phy_regs(struct zd_chip *chip);
@@ -893,9 +908,8 @@ struct rx_status;
 
 u8 zd_rx_qual_percent(const void *rx_frame, unsigned int size,
 	               const struct rx_status *status);
-u8 zd_rx_strength_percent(u8 rssi);
 
-u16 zd_rx_rate(const void *rx_frame, const struct rx_status *status);
+u8 zd_rx_rate(const void *rx_frame, const struct rx_status *status);
 
 struct zd_mc_hash {
 	u32 low;

@@ -20,6 +20,7 @@
 #include <linux/netfilter_ipv4.h>
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_helper.h>
+#include <net/netfilter/nf_conntrack_ecache.h>
 #include <net/netfilter/nf_conntrack_expect.h>
 #include <net/netfilter/nf_nat.h>
 #include <net/netfilter/nf_nat_protocol.h>
@@ -180,8 +181,8 @@ nf_nat_mangle_tcp_packet(struct sk_buff *skb,
 								datalen, 0));
 		}
 	} else
-		nf_proto_csum_replace2(&tcph->check, skb,
-				       htons(oldlen), htons(datalen), 1);
+		inet_proto_csum_replace2(&tcph->check, skb,
+					 htons(oldlen), htons(datalen), 1);
 
 	if (rep_len != match_len) {
 		set_bit(IPS_SEQ_ADJUST_BIT, &ct->status);
@@ -191,6 +192,8 @@ nf_nat_mangle_tcp_packet(struct sk_buff *skb,
 		/* Tell TCP window tracking about seq change */
 		nf_conntrack_tcp_update(skb, ip_hdrlen(skb),
 					ct, CTINFO2DIR(ctinfo));
+
+		nf_conntrack_event_cache(IPCT_NATSEQADJ, skb);
 	}
 	return 1;
 }
@@ -270,8 +273,8 @@ nf_nat_mangle_udp_packet(struct sk_buff *skb,
 				udph->check = CSUM_MANGLED_0;
 		}
 	} else
-		nf_proto_csum_replace2(&udph->check, skb,
-				       htons(oldlen), htons(datalen), 1);
+		inet_proto_csum_replace2(&udph->check, skb,
+					 htons(oldlen), htons(datalen), 1);
 
 	return 1;
 }
@@ -310,10 +313,10 @@ sack_adjust(struct sk_buff *skb,
 			 ntohl(sack->start_seq), new_start_seq,
 			 ntohl(sack->end_seq), new_end_seq);
 
-		nf_proto_csum_replace4(&tcph->check, skb,
-				       sack->start_seq, new_start_seq, 0);
-		nf_proto_csum_replace4(&tcph->check, skb,
-				       sack->end_seq, new_end_seq, 0);
+		inet_proto_csum_replace4(&tcph->check, skb,
+					 sack->start_seq, new_start_seq, 0);
+		inet_proto_csum_replace4(&tcph->check, skb,
+					 sack->end_seq, new_end_seq, 0);
 		sack->start_seq = new_start_seq;
 		sack->end_seq = new_end_seq;
 		sackoff += sizeof(*sack);
@@ -397,8 +400,8 @@ nf_nat_seq_adjust(struct sk_buff *skb,
 	else
 		newack = htonl(ntohl(tcph->ack_seq) - other_way->offset_before);
 
-	nf_proto_csum_replace4(&tcph->check, skb, tcph->seq, newseq, 0);
-	nf_proto_csum_replace4(&tcph->check, skb, tcph->ack_seq, newack, 0);
+	inet_proto_csum_replace4(&tcph->check, skb, tcph->seq, newseq, 0);
+	inet_proto_csum_replace4(&tcph->check, skb, tcph->ack_seq, newack, 0);
 
 	pr_debug("Adjusting sequence number from %u->%u, ack from %u->%u\n",
 		 ntohl(tcph->seq), ntohl(newseq), ntohl(tcph->ack_seq),
@@ -430,15 +433,13 @@ void nf_nat_follow_master(struct nf_conn *ct,
 	range.flags = IP_NAT_RANGE_MAP_IPS;
 	range.min_ip = range.max_ip
 		= ct->master->tuplehash[!exp->dir].tuple.dst.u3.ip;
-	/* hook doesn't matter, but it has to do source manip */
-	nf_nat_setup_info(ct, &range, NF_IP_POST_ROUTING);
+	nf_nat_setup_info(ct, &range, IP_NAT_MANIP_SRC);
 
 	/* For DST manip, map port here to where it's expected. */
 	range.flags = (IP_NAT_RANGE_MAP_IPS | IP_NAT_RANGE_PROTO_SPECIFIED);
 	range.min = range.max = exp->saved_proto;
 	range.min_ip = range.max_ip
 		= ct->master->tuplehash[!exp->dir].tuple.src.u3.ip;
-	/* hook doesn't matter, but it has to do destination manip */
-	nf_nat_setup_info(ct, &range, NF_IP_PRE_ROUTING);
+	nf_nat_setup_info(ct, &range, IP_NAT_MANIP_DST);
 }
 EXPORT_SYMBOL(nf_nat_follow_master);

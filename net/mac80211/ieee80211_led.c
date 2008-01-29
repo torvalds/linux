@@ -43,6 +43,16 @@ void ieee80211_led_assoc(struct ieee80211_local *local, bool associated)
 		led_trigger_event(local->assoc_led, LED_OFF);
 }
 
+void ieee80211_led_radio(struct ieee80211_local *local, bool enabled)
+{
+	if (unlikely(!local->radio_led))
+		return;
+	if (enabled)
+		led_trigger_event(local->radio_led, LED_FULL);
+	else
+		led_trigger_event(local->radio_led, LED_OFF);
+}
+
 void ieee80211_led_init(struct ieee80211_local *local)
 {
 	local->rx_led = kzalloc(sizeof(struct led_trigger), GFP_KERNEL);
@@ -77,10 +87,25 @@ void ieee80211_led_init(struct ieee80211_local *local)
 			local->assoc_led = NULL;
 		}
 	}
+
+	local->radio_led = kzalloc(sizeof(struct led_trigger), GFP_KERNEL);
+	if (local->radio_led) {
+		snprintf(local->radio_led_name, sizeof(local->radio_led_name),
+			 "%sradio", wiphy_name(local->hw.wiphy));
+		local->radio_led->name = local->radio_led_name;
+		if (led_trigger_register(local->radio_led)) {
+			kfree(local->radio_led);
+			local->radio_led = NULL;
+		}
+	}
 }
 
 void ieee80211_led_exit(struct ieee80211_local *local)
 {
+	if (local->radio_led) {
+		led_trigger_unregister(local->radio_led);
+		kfree(local->radio_led);
+	}
 	if (local->assoc_led) {
 		led_trigger_unregister(local->assoc_led);
 		kfree(local->assoc_led);
@@ -94,6 +119,16 @@ void ieee80211_led_exit(struct ieee80211_local *local)
 		kfree(local->rx_led);
 	}
 }
+
+char *__ieee80211_get_radio_led_name(struct ieee80211_hw *hw)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+
+	if (local->radio_led)
+		return local->radio_led_name;
+	return NULL;
+}
+EXPORT_SYMBOL(__ieee80211_get_radio_led_name);
 
 char *__ieee80211_get_assoc_led_name(struct ieee80211_hw *hw)
 {

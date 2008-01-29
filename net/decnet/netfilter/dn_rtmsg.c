@@ -115,7 +115,7 @@ static inline void dnrmg_receive_user_skb(struct sk_buff *skb)
 	RCV_SKB_FAIL(-EINVAL);
 }
 
-static struct nf_hook_ops dnrmg_ops = {
+static struct nf_hook_ops dnrmg_ops __read_mostly = {
 	.hook		= dnrmg_hook,
 	.pf		= PF_DECnet,
 	.hooknum	= NF_DN_ROUTE,
@@ -137,7 +137,7 @@ static int __init dn_rtmsg_init(void)
 
 	rv = nf_register_hook(&dnrmg_ops);
 	if (rv) {
-		sock_release(dnrmg->sk_socket);
+		netlink_kernel_release(dnrmg);
 	}
 
 	return rv;
@@ -146,7 +146,7 @@ static int __init dn_rtmsg_init(void)
 static void __exit dn_rtmsg_fini(void)
 {
 	nf_unregister_hook(&dnrmg_ops);
-	sock_release(dnrmg->sk_socket);
+	netlink_kernel_release(dnrmg);
 }
 
 

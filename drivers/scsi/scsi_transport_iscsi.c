@@ -1558,7 +1558,7 @@ static __init int iscsi_transport_init(void)
 	return 0;
 
 release_nls:
-	sock_release(nls->sk_socket);
+	netlink_kernel_release(nls);
 unregister_session_class:
 	transport_class_unregister(&iscsi_session_class);
 unregister_conn_class:
@@ -1573,7 +1573,7 @@ unregister_transport_class:
 static void __exit iscsi_transport_exit(void)
 {
 	destroy_workqueue(iscsi_eh_timer_workq);
-	sock_release(nls->sk_socket);
+	netlink_kernel_release(nls);
 	transport_class_unregister(&iscsi_connection_class);
 	transport_class_unregister(&iscsi_session_class);
 	transport_class_unregister(&iscsi_host_class);

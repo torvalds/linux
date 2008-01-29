@@ -19,68 +19,160 @@ _b43_declare_plcp_hdr(6);
 #undef _b43_declare_plcp_hdr
 
 /* TX header for v4 firmware */
-struct b43_txhdr_fw4 {
-	__le32 mac_ctl;		/* MAC TX control */
-	__le16 mac_frame_ctl;	/* Copy of the FrameControl field */
+struct b43_txhdr {
+	__le32 mac_ctl;			/* MAC TX control */
+	__le16 mac_frame_ctl;		/* Copy of the FrameControl field */
 	__le16 tx_fes_time_norm;	/* TX FES Time Normal */
-	__le16 phy_ctl;		/* PHY TX control */
-	__le16 phy_ctl_0;	/* Unused */
-	__le16 phy_ctl_1;	/* Unused */
-	__le16 phy_ctl_rts_0;	/* Unused */
-	__le16 phy_ctl_rts_1;	/* Unused */
-	__u8 phy_rate;		/* PHY rate */
-	__u8 phy_rate_rts;	/* PHY rate for RTS/CTS */
-	__u8 extra_ft;		/* Extra Frame Types */
-	__u8 chan_radio_code;	/* Channel Radio Code */
-	__u8 iv[16];		/* Encryption IV */
-	__u8 tx_receiver[6];	/* TX Frame Receiver address */
-	__le16 tx_fes_time_fb;	/* TX FES Time Fallback */
-	struct b43_plcp_hdr6 rts_plcp_fb;	/* RTS fallback PLCP */
-	__le16 rts_dur_fb;	/* RTS fallback duration */
-	struct b43_plcp_hdr6 plcp_fb;	/* Fallback PLCP */
-	__le16 dur_fb;		/* Fallback duration */
-	__le16 mm_dur_time;	/* Unused */
-	__le16 mm_dur_time_fb;	/* Unused */
-	__le32 time_stamp;	/* Timestamp */
-	 PAD_BYTES(2);
-	__le16 cookie;		/* TX frame cookie */
-	__le16 tx_status;	/* TX status */
-	struct b43_plcp_hdr6 rts_plcp;	/* RTS PLCP */
-	__u8 rts_frame[16];	/* The RTS frame (if used) */
-	 PAD_BYTES(2);
-	struct b43_plcp_hdr6 plcp;	/* Main PLCP */
+	__le16 phy_ctl;			/* PHY TX control */
+	__le16 phy_ctl1;		/* PHY TX control word 1 */
+	__le16 phy_ctl1_fb;		/* PHY TX control word 1 for fallback rates */
+	__le16 phy_ctl1_rts;		/* PHY TX control word 1 RTS */
+	__le16 phy_ctl1_rts_fb;		/* PHY TX control word 1 RTS for fallback rates */
+	__u8 phy_rate;			/* PHY rate */
+	__u8 phy_rate_rts;		/* PHY rate for RTS/CTS */
+	__u8 extra_ft;			/* Extra Frame Types */
+	__u8 chan_radio_code;		/* Channel Radio Code */
+	__u8 iv[16];			/* Encryption IV */
+	__u8 tx_receiver[6];		/* TX Frame Receiver address */
+	__le16 tx_fes_time_fb;		/* TX FES Time Fallback */
+	struct b43_plcp_hdr6 rts_plcp_fb; /* RTS fallback PLCP header */
+	__le16 rts_dur_fb;		/* RTS fallback duration */
+	struct b43_plcp_hdr6 plcp_fb;	/* Fallback PLCP header */
+	__le16 dur_fb;			/* Fallback duration */
+	__le16 mimo_modelen;		/* MIMO mode length */
+	__le16 mimo_ratelen_fb;		/* MIMO fallback rate length */
+	__le32 timeout;			/* Timeout */
+
+	union {
+		/* The new r410 format. */
+		struct {
+			__le16 mimo_antenna;		/* MIMO antenna select */
+			__le16 preload_size;		/* Preload size */
+			PAD_BYTES(2);
+			__le16 cookie;			/* TX frame cookie */
+			__le16 tx_status;		/* TX status */
+			struct b43_plcp_hdr6 rts_plcp;	/* RTS PLCP header */
+			__u8 rts_frame[16];		/* The RTS frame (if used) */
+			PAD_BYTES(2);
+			struct b43_plcp_hdr6 plcp;	/* Main PLCP header */
+		} new_format __attribute__ ((__packed__));
+
+		/* The old r351 format. */
+		struct {
+			PAD_BYTES(2);
+			__le16 cookie;			/* TX frame cookie */
+			__le16 tx_status;		/* TX status */
+			struct b43_plcp_hdr6 rts_plcp;	/* RTS PLCP header */
+			__u8 rts_frame[16];		/* The RTS frame (if used) */
+			PAD_BYTES(2);
+			struct b43_plcp_hdr6 plcp;	/* Main PLCP header */
+		} old_format __attribute__ ((__packed__));
+
+	} __attribute__ ((__packed__));
 } __attribute__ ((__packed__));
 
 /* MAC TX control */
-#define B43_TX4_MAC_KEYIDX		0x0FF00000	/* Security key index */
-#define B43_TX4_MAC_KEYIDX_SHIFT	20
-#define B43_TX4_MAC_KEYALG		0x00070000	/* Security key algorithm */
-#define B43_TX4_MAC_KEYALG_SHIFT	16
-#define B43_TX4_MAC_LIFETIME	0x00001000
-#define B43_TX4_MAC_FRAMEBURST	0x00000800
-#define B43_TX4_MAC_SENDCTS		0x00000400
-#define B43_TX4_MAC_AMPDU		0x00000300
-#define B43_TX4_MAC_AMPDU_SHIFT	8
-#define B43_TX4_MAC_5GHZ		0x00000080
-#define B43_TX4_MAC_IGNPMQ		0x00000020
-#define B43_TX4_MAC_HWSEQ		0x00000010	/* Use Hardware Sequence Number */
-#define B43_TX4_MAC_STMSDU		0x00000008	/* Start MSDU */
-#define B43_TX4_MAC_SENDRTS		0x00000004
-#define B43_TX4_MAC_LONGFRAME	0x00000002
-#define B43_TX4_MAC_ACK		0x00000001
+#define B43_TXH_MAC_USEFBR		0x10000000 /* Use fallback rate for this AMPDU */
+#define B43_TXH_MAC_KEYIDX		0x0FF00000 /* Security key index */
+#define B43_TXH_MAC_KEYIDX_SHIFT	20
+#define B43_TXH_MAC_KEYALG		0x00070000 /* Security key algorithm */
+#define B43_TXH_MAC_KEYALG_SHIFT	16
+#define B43_TXH_MAC_AMIC		0x00008000 /* AMIC */
+#define B43_TXH_MAC_RIFS		0x00004000 /* Use RIFS */
+#define B43_TXH_MAC_LIFETIME		0x00002000 /* Lifetime */
+#define B43_TXH_MAC_FRAMEBURST		0x00001000 /* Frameburst */
+#define B43_TXH_MAC_SENDCTS		0x00000800 /* Send CTS-to-self */
+#define B43_TXH_MAC_AMPDU		0x00000600 /* AMPDU status */
+#define  B43_TXH_MAC_AMPDU_MPDU		0x00000000 /* Regular MPDU, not an AMPDU */
+#define  B43_TXH_MAC_AMPDU_FIRST	0x00000200 /* First MPDU or AMPDU */
+#define  B43_TXH_MAC_AMPDU_INTER	0x00000400 /* Intermediate MPDU or AMPDU */
+#define  B43_TXH_MAC_AMPDU_LAST		0x00000600 /* Last (or only) MPDU of AMPDU */
+#define B43_TXH_MAC_40MHZ		0x00000100 /* Use 40 MHz bandwidth */
+#define B43_TXH_MAC_5GHZ		0x00000080 /* 5GHz band */
+#define B43_TXH_MAC_DFCS		0x00000040 /* DFCS */
+#define B43_TXH_MAC_IGNPMQ		0x00000020 /* Ignore PMQ */
+#define B43_TXH_MAC_HWSEQ		0x00000010 /* Use Hardware Sequence Number */
+#define B43_TXH_MAC_STMSDU		0x00000008 /* Start MSDU */
+#define B43_TXH_MAC_SENDRTS		0x00000004 /* Send RTS */
+#define B43_TXH_MAC_LONGFRAME		0x00000002 /* Long frame */
+#define B43_TXH_MAC_ACK			0x00000001 /* Immediate ACK */
 
 /* Extra Frame Types */
-#define B43_TX4_EFT_FBOFDM		0x0001	/* Data frame fallback rate type */
-#define B43_TX4_EFT_RTSOFDM		0x0004	/* RTS/CTS rate type */
-#define B43_TX4_EFT_RTSFBOFDM	0x0010	/* RTS/CTS fallback rate type */
+#define B43_TXH_EFT_FB			0x03 /* Data frame fallback encoding */
+#define  B43_TXH_EFT_FB_CCK		0x00 /* CCK */
+#define  B43_TXH_EFT_FB_OFDM		0x01 /* OFDM */
+#define  B43_TXH_EFT_FB_EWC		0x02 /* EWC */
+#define  B43_TXH_EFT_FB_N		0x03 /* N */
+#define B43_TXH_EFT_RTS			0x0C /* RTS/CTS encoding */
+#define  B43_TXH_EFT_RTS_CCK		0x00 /* CCK */
+#define  B43_TXH_EFT_RTS_OFDM		0x04 /* OFDM */
+#define  B43_TXH_EFT_RTS_EWC		0x08 /* EWC */
+#define  B43_TXH_EFT_RTS_N		0x0C /* N */
+#define B43_TXH_EFT_RTSFB		0x30 /* RTS/CTS fallback encoding */
+#define  B43_TXH_EFT_RTSFB_CCK		0x00 /* CCK */
+#define  B43_TXH_EFT_RTSFB_OFDM		0x10 /* OFDM */
+#define  B43_TXH_EFT_RTSFB_EWC		0x20 /* EWC */
+#define  B43_TXH_EFT_RTSFB_N		0x30 /* N */
 
 /* PHY TX control word */
-#define B43_TX4_PHY_OFDM		0x0001	/* Data frame rate type */
-#define B43_TX4_PHY_SHORTPRMBL	0x0010	/* Use short preamble */
-#define B43_TX4_PHY_ANT		0x03C0	/* Antenna selection */
-#define  B43_TX4_PHY_ANT0		0x0000	/* Use antenna 0 */
-#define  B43_TX4_PHY_ANT1		0x0100	/* Use antenna 1 */
-#define  B43_TX4_PHY_ANTLAST	0x0300	/* Use last used antenna */
+#define B43_TXH_PHY_ENC			0x0003 /* Data frame encoding */
+#define  B43_TXH_PHY_ENC_CCK		0x0000 /* CCK */
+#define  B43_TXH_PHY_ENC_OFDM		0x0001 /* OFDM */
+#define  B43_TXH_PHY_ENC_EWC		0x0002 /* EWC */
+#define  B43_TXH_PHY_ENC_N		0x0003 /* N */
+#define B43_TXH_PHY_SHORTPRMBL		0x0010 /* Use short preamble */
+#define B43_TXH_PHY_ANT			0x03C0 /* Antenna selection */
+#define  B43_TXH_PHY_ANT0		0x0000 /* Use antenna 0 */
+#define  B43_TXH_PHY_ANT1		0x0040 /* Use antenna 1 */
+#define  B43_TXH_PHY_ANT01AUTO		0x00C0 /* Use antenna 0/1 auto */
+#define  B43_TXH_PHY_ANT2		0x0100 /* Use antenna 2 */
+#define  B43_TXH_PHY_ANT3		0x0200 /* Use antenna 3 */
+#define B43_TXH_PHY_TXPWR		0xFC00 /* TX power */
+#define B43_TXH_PHY_TXPWR_SHIFT		10
+
+/* PHY TX control word 1 */
+#define B43_TXH_PHY1_BW			0x0007 /* Bandwidth */
+#define  B43_TXH_PHY1_BW_10		0x0000 /* 10 MHz */
+#define  B43_TXH_PHY1_BW_10U		0x0001 /* 10 MHz upper */
+#define  B43_TXH_PHY1_BW_20		0x0002 /* 20 MHz */
+#define  B43_TXH_PHY1_BW_20U		0x0003 /* 20 MHz upper */
+#define  B43_TXH_PHY1_BW_40		0x0004 /* 40 MHz */
+#define  B43_TXH_PHY1_BW_40DUP		0x0005 /* 50 MHz duplicate */
+#define B43_TXH_PHY1_MODE		0x0038 /* Mode */
+#define  B43_TXH_PHY1_MODE_SISO		0x0000 /* SISO */
+#define  B43_TXH_PHY1_MODE_CDD		0x0008 /* CDD */
+#define  B43_TXH_PHY1_MODE_STBC		0x0010 /* STBC */
+#define  B43_TXH_PHY1_MODE_SDM		0x0018 /* SDM */
+#define B43_TXH_PHY1_CRATE		0x0700 /* Coding rate */
+#define  B43_TXH_PHY1_CRATE_1_2		0x0000 /* 1/2 */
+#define  B43_TXH_PHY1_CRATE_2_3		0x0100 /* 2/3 */
+#define  B43_TXH_PHY1_CRATE_3_4		0x0200 /* 3/4 */
+#define  B43_TXH_PHY1_CRATE_4_5		0x0300 /* 4/5 */
+#define  B43_TXH_PHY1_CRATE_5_6		0x0400 /* 5/6 */
+#define  B43_TXH_PHY1_CRATE_7_8		0x0600 /* 7/8 */
+#define B43_TXH_PHY1_MODUL		0x3800 /* Modulation scheme */
+#define  B43_TXH_PHY1_MODUL_BPSK	0x0000 /* BPSK */
+#define  B43_TXH_PHY1_MODUL_QPSK	0x0800 /* QPSK */
+#define  B43_TXH_PHY1_MODUL_QAM16	0x1000 /* QAM16 */
+#define  B43_TXH_PHY1_MODUL_QAM64	0x1800 /* QAM64 */
+#define  B43_TXH_PHY1_MODUL_QAM256	0x2000 /* QAM256 */
+
+
+/* r351 firmware compatibility stuff. */
+static inline
+bool b43_is_old_txhdr_format(struct b43_wldev *dev)
+{
+	return (dev->fw.rev <= 351);
+}
+
+static inline
+size_t b43_txhdr_size(struct b43_wldev *dev)
+{
+	if (b43_is_old_txhdr_format(dev))
+		return 100 + sizeof(struct b43_plcp_hdr6);
+	return 104 + sizeof(struct b43_plcp_hdr6);
+}
+
 
 void b43_generate_txhdr(struct b43_wldev *dev,
 			u8 * txhdr,

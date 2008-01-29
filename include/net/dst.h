@@ -50,14 +50,17 @@ struct dst_entry
 	unsigned long		expires;
 
 	unsigned short		header_len;	/* more space at head required */
-	unsigned short		nfheader_len;	/* more non-fragment space at head required */
 	unsigned short		trailer_len;	/* space to reserve at tail */
 
 	u32			metrics[RTAX_MAX];
 	struct dst_entry	*path;
 
 	unsigned long		rate_last;	/* rate limiting for ICMP */
-	unsigned long		rate_tokens;
+	unsigned int		rate_tokens;
+
+#ifdef CONFIG_NET_CLS_ROUTE
+	__u32			tclassid;
+#endif
 
 	struct neighbour	*neighbour;
 	struct hh_cache		*hh;
@@ -65,10 +68,6 @@ struct dst_entry
 
 	int			(*input)(struct sk_buff*);
 	int			(*output)(struct sk_buff*);
-
-#ifdef CONFIG_NET_CLS_ROUTE
-	__u32			tclassid;
-#endif
 
 	struct  dst_ops	        *ops;
 		
@@ -81,7 +80,6 @@ struct dst_entry
 		struct rt6_info   *rt6_next;
 		struct dn_route  *dn_next;
 	};
-	char			info[0];
 };
 
 
@@ -91,7 +89,7 @@ struct dst_ops
 	__be16			protocol;
 	unsigned		gc_thresh;
 
-	int			(*gc)(void);
+	int			(*gc)(struct dst_ops *ops);
 	struct dst_entry *	(*check)(struct dst_entry *, __u32 cookie);
 	void			(*destroy)(struct dst_entry *);
 	void			(*ifdown)(struct dst_entry *,
@@ -99,10 +97,12 @@ struct dst_ops
 	struct dst_entry *	(*negative_advice)(struct dst_entry *);
 	void			(*link_failure)(struct sk_buff *);
 	void			(*update_pmtu)(struct dst_entry *dst, u32 mtu);
+	int			(*local_out)(struct sk_buff *skb);
 	int			entry_size;
 
 	atomic_t		entries;
 	struct kmem_cache 		*kmem_cachep;
+	struct net              *dst_net;
 };
 
 #ifdef __KERNEL__
@@ -180,6 +180,7 @@ static inline struct dst_entry *dst_pop(struct dst_entry *dst)
 	return child;
 }
 
+extern int dst_discard(struct sk_buff *skb);
 extern void * dst_alloc(struct dst_ops * ops);
 extern void __dst_free(struct dst_entry * dst);
 extern struct dst_entry *dst_destroy(struct dst_entry * dst);
@@ -263,6 +264,12 @@ static inline struct dst_entry *dst_check(struct dst_entry *dst, u32 cookie)
 }
 
 extern void		dst_init(void);
+
+/* Flags for xfrm_lookup flags argument. */
+enum {
+	XFRM_LOOKUP_WAIT = 1 << 0,
+	XFRM_LOOKUP_ICMP = 1 << 1,
+};
 
 struct flowi;
 #ifndef CONFIG_XFRM

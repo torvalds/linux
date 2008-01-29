@@ -68,7 +68,7 @@ static u16 tx_get_next_word(struct bcm43xx_txhdr *txhdr,
 		source = packet;
 		i -= sizeof(*txhdr);
 	}
-	ret = le16_to_cpu( *((u16 *)(source + i)) );
+	ret = le16_to_cpu( *((__le16 *)(source + i)) );
 	*pos += 2;
 
 	return ret;
@@ -526,7 +526,7 @@ static void pio_rx_error(struct bcm43xx_pioqueue *queue,
 
 void bcm43xx_pio_rx(struct bcm43xx_pioqueue *queue)
 {
-	u16 preamble[21] = { 0 };
+	__le16 preamble[21] = { 0 };
 	struct bcm43xx_rxhdr *rxhdr;
 	u16 tmp, len, rxflags2;
 	int i, preamble_readwords;
@@ -601,7 +601,7 @@ data_ready:
 	skb_put(skb, len);
 	for (i = 0; i < len - 1; i += 2) {
 		tmp = bcm43xx_pio_read(queue, BCM43xx_PIO_RXDATA);
-		*((u16 *)(skb->data + i)) = cpu_to_le16(tmp);
+		*((__le16 *)(skb->data + i)) = cpu_to_le16(tmp);
 	}
 	if (len % 2) {
 		tmp = bcm43xx_pio_read(queue, BCM43xx_PIO_RXDATA);

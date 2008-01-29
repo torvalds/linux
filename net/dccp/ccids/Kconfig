@@ -1,9 +1,8 @@
 menu "DCCP CCIDs Configuration (EXPERIMENTAL)"
-	depends on IP_DCCP && EXPERIMENTAL
+	depends on EXPERIMENTAL
 
 config IP_DCCP_CCID2
 	tristate "CCID2 (TCP-Like) (EXPERIMENTAL)"
-	depends on IP_DCCP
 	def_tristate IP_DCCP
 	select IP_DCCP_ACKVEC
 	---help---
@@ -20,18 +19,9 @@ config IP_DCCP_CCID2
 	  to the user.  For example, a hypothetical application that
 	  transferred files over DCCP, using application-level retransmissions
 	  for lost packets, would prefer CCID 2 to CCID 3.  On-line games may
-	  also prefer CCID 2.
+	  also prefer CCID 2.  See RFC 4341 for further details.
 
-	  CCID 2 is further described in RFC 4341,
-	  http://www.ietf.org/rfc/rfc4341.txt
-
-	  This text was extracted from RFC 4340 (sec. 10.1),
-	  http://www.ietf.org/rfc/rfc4340.txt
-
-	  To compile this CCID as a module, choose M here: the module will be
-	  called dccp_ccid2.
-
-	  If in doubt, say M.
+	  CCID2 is the default CCID used by DCCP.
 
 config IP_DCCP_CCID2_DEBUG
 	  bool "CCID2 debugging messages"
@@ -47,8 +37,8 @@ config IP_DCCP_CCID2_DEBUG
 
 config IP_DCCP_CCID3
 	tristate "CCID3 (TCP-Friendly) (EXPERIMENTAL)"
-	depends on IP_DCCP
 	def_tristate IP_DCCP
+	select IP_DCCP_TFRC_LIB
 	---help---
 	  CCID 3 denotes TCP-Friendly Rate Control (TFRC), an equation-based
 	  rate-controlled congestion control mechanism.  TFRC is designed to
@@ -73,10 +63,6 @@ config IP_DCCP_CCID3
 	  called dccp_ccid3.
 
 	  If in doubt, say M.
-
-config IP_DCCP_TFRC_LIB
-	depends on IP_DCCP_CCID3
-	def_tristate IP_DCCP_CCID3
 
 config IP_DCCP_CCID3_DEBUG
 	  bool "CCID3 debugging messages"
@@ -121,5 +107,13 @@ config IP_DCCP_CCID3_RTO
 	    is serious network congestion: experimenting with larger values should
 	    therefore not be performed on WANs.
 
+config IP_DCCP_TFRC_LIB
+	tristate
+	default n
+
+config IP_DCCP_TFRC_DEBUG
+	bool
+	depends on IP_DCCP_TFRC_LIB
+	default y if IP_DCCP_CCID3_DEBUG
 
 endmenu
