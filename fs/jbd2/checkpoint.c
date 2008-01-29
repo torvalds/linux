@@ -232,7 +232,8 @@ __flush_batch(journal_t *journal, struct buffer_head **bhs, int *batch_count)
  * Called under jbd_lock_bh_state(jh2bh(jh)), and drops it
  */
 static int __process_buffer(journal_t *journal, struct journal_head *jh,
-			struct buffer_head **bhs, int *batch_count)
+			struct buffer_head **bhs, int *batch_count,
+			transaction_t *transaction)
 {
 	struct buffer_head *bh = jh2bh(jh);
 	int ret = 0;
@@ -250,6 +251,7 @@ static int __process_buffer(journal_t *journal, struct journal_head *jh,
 		transaction_t *t = jh->b_transaction;
 		tid_t tid = t->t_tid;
 
+		transaction->t_chp_stats.cs_forced_to_close++;
 		spin_unlock(&journal->j_list_lock);
 		jbd_unlock_bh_state(bh);
 		jbd2_log_start_commit(journal, tid);
@@ -279,6 +281,7 @@ static int __process_buffer(journal_t *journal, struct journal_head *jh,
 		bhs[*batch_count] = bh;
 		__buffer_relink_io(jh);
 		jbd_unlock_bh_state(bh);
+		transaction->t_chp_stats.cs_written++;
 		(*batch_count)++;
 		if (*batch_count == NR_BATCH) {
 			spin_unlock(&journal->j_list_lock);
@@ -322,6 +325,8 @@ int jbd2_log_do_checkpoint(journal_t *journal)
 	if (!journal->j_checkpoint_transactions)
 		goto out;
 	transaction = journal->j_checkpoint_transactions;
+	if (transaction->t_chp_stats.cs_chp_time == 0)
+		transaction->t_chp_stats.cs_chp_time = jiffies;
 	this_tid = transaction->t_tid;
 restart:
 	/*
@@ -346,7 +351,8 @@ restart:
 				retry = 1;
 				break;
 			}
-			retry = __process_buffer(journal, jh, bhs,&batch_count);
+			retry = __process_buffer(journal, jh, bhs, &batch_count,
+						 transaction);
 			if (!retry && lock_need_resched(&journal->j_list_lock)){
 				spin_unlock(&journal->j_list_lock);
 				retry = 1;

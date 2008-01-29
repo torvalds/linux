@@ -20,6 +20,7 @@
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/pagemap.h>
+#include <linux/jiffies.h>
 
 /*
  * Default IO end handler for temporary BJ_IO buffer_heads.
@@ -290,6 +291,7 @@ static inline void write_tag_block(int tag_bytes, journal_block_tag_t *tag,
  */
 void jbd2_journal_commit_transaction(journal_t *journal)
 {
+	struct transaction_stats_s stats;
 	transaction_t *commit_transaction;
 	struct journal_head *jh, *new_jh, *descriptor;
 	struct buffer_head **wbuf = journal->j_wbuf;
@@ -336,6 +338,11 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 
 	spin_lock(&journal->j_state_lock);
 	commit_transaction->t_state = T_LOCKED;
+
+	stats.u.run.rs_wait = commit_transaction->t_max_wait;
+	stats.u.run.rs_locked = jiffies;
+	stats.u.run.rs_running = jbd2_time_diff(commit_transaction->t_start,
+						stats.u.run.rs_locked);
 
 	spin_lock(&commit_transaction->t_handle_lock);
 	while (commit_transaction->t_updates) {
@@ -406,6 +413,10 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	 * Switch to a new revoke table.
 	 */
 	jbd2_journal_switch_revoke_table(journal);
+
+	stats.u.run.rs_flushing = jiffies;
+	stats.u.run.rs_locked = jbd2_time_diff(stats.u.run.rs_locked,
+					       stats.u.run.rs_flushing);
 
 	commit_transaction->t_state = T_FLUSH;
 	journal->j_committing_transaction = commit_transaction;
@@ -497,6 +508,12 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	 * metadata.  Loop over the transaction's entire buffer list:
 	 */
 	commit_transaction->t_state = T_COMMIT;
+
+	stats.u.run.rs_logging = jiffies;
+	stats.u.run.rs_flushing = jbd2_time_diff(stats.u.run.rs_flushing,
+						 stats.u.run.rs_logging);
+	stats.u.run.rs_blocks = commit_transaction->t_outstanding_credits;
+	stats.u.run.rs_blocks_logged = 0;
 
 	descriptor = NULL;
 	bufs = 0;
@@ -646,6 +663,7 @@ start_journal_io:
 				submit_bh(WRITE, bh);
 			}
 			cond_resched();
+			stats.u.run.rs_blocks_logged += bufs;
 
 			/* Force a new descriptor to be generated next
                            time round the loop. */
@@ -816,6 +834,7 @@ restart_loop:
 		cp_transaction = jh->b_cp_transaction;
 		if (cp_transaction) {
 			JBUFFER_TRACE(jh, "remove from old cp transaction");
+			cp_transaction->t_chp_stats.cs_dropped++;
 			__jbd2_journal_remove_checkpoint(jh);
 		}
 
@@ -889,6 +908,36 @@ restart_loop:
 	jbd_debug(3, "JBD: commit phase 8\n");
 
 	J_ASSERT(commit_transaction->t_state == T_COMMIT);
+
+	commit_transaction->t_start = jiffies;
+	stats.u.run.rs_logging = jbd2_time_diff(stats.u.run.rs_logging,
+						commit_transaction->t_start);
+
+	/*
+	 * File the transaction for history
+	 */
+	stats.ts_type = JBD2_STATS_RUN;
+	stats.ts_tid = commit_transaction->t_tid;
+	stats.u.run.rs_handle_count = commit_transaction->t_handle_count;
+	spin_lock(&journal->j_history_lock);
+	memcpy(journal->j_history + journal->j_history_cur, &stats,
+			sizeof(stats));
+	if (++journal->j_history_cur == journal->j_history_max)
+		journal->j_history_cur = 0;
+
+	/*
+	 * Calculate overall stats
+	 */
+	journal->j_stats.ts_tid++;
+	journal->j_stats.u.run.rs_wait += stats.u.run.rs_wait;
+	journal->j_stats.u.run.rs_running += stats.u.run.rs_running;
+	journal->j_stats.u.run.rs_locked += stats.u.run.rs_locked;
+	journal->j_stats.u.run.rs_flushing += stats.u.run.rs_flushing;
+	journal->j_stats.u.run.rs_logging += stats.u.run.rs_logging;
+	journal->j_stats.u.run.rs_handle_count += stats.u.run.rs_handle_count;
+	journal->j_stats.u.run.rs_blocks += stats.u.run.rs_blocks;
+	journal->j_stats.u.run.rs_blocks_logged += stats.u.run.rs_blocks_logged;
+	spin_unlock(&journal->j_history_lock);
 
 	commit_transaction->t_state = T_FINISHED;
 	J_ASSERT(commit_transaction == journal->j_committing_transaction);

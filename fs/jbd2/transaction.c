@@ -59,6 +59,8 @@ jbd2_get_transaction(journal_t *journal, transaction_t *transaction)
 
 	J_ASSERT(journal->j_running_transaction == NULL);
 	journal->j_running_transaction = transaction;
+	transaction->t_max_wait = 0;
+	transaction->t_start = jiffies;
 
 	return transaction;
 }
@@ -85,6 +87,7 @@ static int start_this_handle(journal_t *journal, handle_t *handle)
 	int nblocks = handle->h_buffer_credits;
 	transaction_t *new_transaction = NULL;
 	int ret = 0;
+	unsigned long ts = jiffies;
 
 	if (nblocks > journal->j_max_transaction_buffers) {
 		printk(KERN_ERR "JBD: %s wants too many credits (%d > %d)\n",
@@ -216,6 +219,12 @@ repeat_locked:
 
 	/* OK, account for the buffers that this operation expects to
 	 * use and add the handle to the running transaction. */
+
+	if (time_after(transaction->t_start, ts)) {
+		ts = jbd2_time_diff(ts, transaction->t_start);
+		if (ts > transaction->t_max_wait)
+			transaction->t_max_wait = ts;
+	}
 
 	handle->h_transaction = transaction;
 	transaction->t_outstanding_credits += nblocks;
