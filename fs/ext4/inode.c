@@ -2671,14 +2671,20 @@ static blkcnt_t ext4_inode_blocks(struct ext4_inode *raw_inode,
 					struct ext4_inode_info *ei)
 {
 	blkcnt_t i_blocks ;
-	struct super_block *sb = ei->vfs_inode.i_sb;
+	struct inode *inode = &(ei->vfs_inode);
+	struct super_block *sb = inode->i_sb;
 
 	if (EXT4_HAS_RO_COMPAT_FEATURE(sb,
 				EXT4_FEATURE_RO_COMPAT_HUGE_FILE)) {
 		/* we are using combined 48 bit field */
 		i_blocks = ((u64)le16_to_cpu(raw_inode->i_blocks_high)) << 32 |
 					le32_to_cpu(raw_inode->i_blocks_lo);
-		return i_blocks;
+		if (ei->i_flags & EXT4_HUGE_FILE_FL) {
+			/* i_blocks represent file system block size */
+			return i_blocks  << (inode->i_blkbits - 9);
+		} else {
+			return i_blocks;
+		}
 	} else {
 		return le32_to_cpu(raw_inode->i_blocks_lo);
 	}
@@ -2829,8 +2835,9 @@ static int ext4_inode_blocks_set(handle_t *handle,
 		 * i_blocks can be represnted in a 32 bit variable
 		 * as multiple of 512 bytes
 		 */
-		raw_inode->i_blocks_lo   = cpu_to_le32((u32)i_blocks);
+		raw_inode->i_blocks_lo   = cpu_to_le32(i_blocks);
 		raw_inode->i_blocks_high = 0;
+		ei->i_flags &= ~EXT4_HUGE_FILE_FL;
 	} else if (i_blocks <= 0xffffffffffffULL) {
 		/*
 		 * i_blocks can be represented in a 48 bit variable
@@ -2841,12 +2848,23 @@ static int ext4_inode_blocks_set(handle_t *handle,
 		if (err)
 			goto  err_out;
 		/* i_block is stored in the split  48 bit fields */
-		raw_inode->i_blocks_lo   = cpu_to_le32((u32)i_blocks);
+		raw_inode->i_blocks_lo   = cpu_to_le32(i_blocks);
 		raw_inode->i_blocks_high = cpu_to_le16(i_blocks >> 32);
+		ei->i_flags &= ~EXT4_HUGE_FILE_FL;
 	} else {
-		ext4_error(sb, __FUNCTION__,
-				"Wrong inode i_blocks count  %llu\n",
-				(unsigned long long)inode->i_blocks);
+		/*
+		 * i_blocks should be represented in a 48 bit variable
+		 * as multiple of  file system block size
+		 */
+		err = ext4_update_rocompat_feature(handle, sb,
+					    EXT4_FEATURE_RO_COMPAT_HUGE_FILE);
+		if (err)
+			goto  err_out;
+		ei->i_flags |= EXT4_HUGE_FILE_FL;
+		/* i_block is stored in file system block size */
+		i_blocks = i_blocks >> (inode->i_blkbits - 9);
+		raw_inode->i_blocks_lo   = cpu_to_le32(i_blocks);
+		raw_inode->i_blocks_high = cpu_to_le16(i_blocks >> 32);
 	}
 err_out:
 	return err;

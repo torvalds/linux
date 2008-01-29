@@ -1631,11 +1631,14 @@ static loff_t ext4_max_size(int bits)
 		upper_limit >>= (bits - 9);
 
 	} else {
-		/* We use 48 bit ext4_inode i_blocks */
+		/*
+		 * We use 48 bit ext4_inode i_blocks
+		 * With EXT4_HUGE_FILE_FL set the i_blocks
+		 * represent total number of blocks in
+		 * file system block size
+		 */
 		upper_limit = (1LL << 48) - 1;
 
-		/* total blocks in file system block size */
-		upper_limit >>= (bits - 9);
 	}
 
 	/* indirect blocks */
