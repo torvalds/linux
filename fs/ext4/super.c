@@ -736,6 +736,8 @@ static int ext4_show_options(struct seq_file *seq, struct vfsmount *vfs)
 		seq_puts(seq, ",nobh");
 	if (!test_opt(sb, EXTENTS))
 		seq_puts(seq, ",noextents");
+	if (!test_opt(sb, MBALLOC))
+		seq_puts(seq, ",nomballoc");
 	if (test_opt(sb, I_VERSION))
 		seq_puts(seq, ",i_version");
 
@@ -1903,6 +1905,11 @@ static int ext4_fill_super (struct super_block *sb, void *data, int silent)
 	 * User -o noextents to turn it off
 	 */
 	set_opt(sbi->s_mount_opt, EXTENTS);
+	/*
+	 * turn on mballoc feature by default in ext4 filesystem
+	 * User -o nomballoc to turn it off
+	 */
+	set_opt(sbi->s_mount_opt, MBALLOC);
 
 	if (!parse_options ((char *) data, sb, &journal_inum, &journal_devnum,
 			    NULL, 0))
