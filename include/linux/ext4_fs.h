@@ -282,7 +282,7 @@ struct ext4_inode {
 	__le32	i_dtime;	/* Deletion Time */
 	__le16	i_gid;		/* Low 16 bits of Group Id */
 	__le16	i_links_count;	/* Links count */
-	__le32	i_blocks;	/* Blocks count */
+	__le32	i_blocks_lo;	/* Blocks count */
 	__le32	i_flags;	/* File flags */
 	union {
 		struct {
@@ -302,7 +302,7 @@ struct ext4_inode {
 	__le32	i_obso_faddr;	/* Obsoleted fragment address */
 	union {
 		struct {
-			__le16	l_i_reserved1;	/* Obsoleted fragment number/size which are removed in ext4 */
+			__le16	l_i_blocks_high; /* were l_i_reserved1 */
 			__le16	l_i_file_acl_high;
 			__le16	l_i_uid_high;	/* these 2 fields */
 			__le16	l_i_gid_high;	/* were reserved2[0] */
@@ -404,6 +404,7 @@ do {									       \
 #if defined(__KERNEL__) || defined(__linux__)
 #define i_reserved1	osd1.linux1.l_i_reserved1
 #define i_file_acl_high	osd2.linux2.l_i_file_acl_high
+#define i_blocks_high	osd2.linux2.l_i_blocks_high
 #define i_uid_low	i_uid
 #define i_gid_low	i_gid
 #define i_uid_high	osd2.linux2.l_i_uid_high
@@ -670,6 +671,7 @@ static inline int ext4_valid_inum(struct super_block *sb, unsigned long ino)
 #define EXT4_FEATURE_RO_COMPAT_SPARSE_SUPER	0x0001
 #define EXT4_FEATURE_RO_COMPAT_LARGE_FILE	0x0002
 #define EXT4_FEATURE_RO_COMPAT_BTREE_DIR	0x0004
+#define EXT4_FEATURE_RO_COMPAT_HUGE_FILE        0x0008
 #define EXT4_FEATURE_RO_COMPAT_GDT_CSUM		0x0010
 #define EXT4_FEATURE_RO_COMPAT_DIR_NLINK	0x0020
 #define EXT4_FEATURE_RO_COMPAT_EXTRA_ISIZE	0x0040
@@ -681,6 +683,7 @@ static inline int ext4_valid_inum(struct super_block *sb, unsigned long ino)
 #define EXT4_FEATURE_INCOMPAT_META_BG		0x0010
 #define EXT4_FEATURE_INCOMPAT_EXTENTS		0x0040 /* extents support */
 #define EXT4_FEATURE_INCOMPAT_64BIT		0x0080
+#define EXT4_FEATURE_INCOMPAT_MMP               0x0100
 #define EXT4_FEATURE_INCOMPAT_FLEX_BG		0x0200
 
 #define EXT4_FEATURE_COMPAT_SUPP	EXT2_FEATURE_COMPAT_EXT_ATTR
@@ -695,7 +698,8 @@ static inline int ext4_valid_inum(struct super_block *sb, unsigned long ino)
 					 EXT4_FEATURE_RO_COMPAT_GDT_CSUM| \
 					 EXT4_FEATURE_RO_COMPAT_DIR_NLINK | \
 					 EXT4_FEATURE_RO_COMPAT_EXTRA_ISIZE | \
-					 EXT4_FEATURE_RO_COMPAT_BTREE_DIR)
+					 EXT4_FEATURE_RO_COMPAT_BTREE_DIR |\
+					 EXT4_FEATURE_RO_COMPAT_HUGE_FILE)
 
 /*
  * Default values for user and/or group using reserved blocks

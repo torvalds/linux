@@ -2667,6 +2667,22 @@ void ext4_get_inode_flags(struct ext4_inode_info *ei)
 	if (flags & S_DIRSYNC)
 		ei->i_flags |= EXT4_DIRSYNC_FL;
 }
+static blkcnt_t ext4_inode_blocks(struct ext4_inode *raw_inode,
+					struct ext4_inode_info *ei)
+{
+	blkcnt_t i_blocks ;
+	struct super_block *sb = ei->vfs_inode.i_sb;
+
+	if (EXT4_HAS_RO_COMPAT_FEATURE(sb,
+				EXT4_FEATURE_RO_COMPAT_HUGE_FILE)) {
+		/* we are using combined 48 bit field */
+		i_blocks = ((u64)le16_to_cpu(raw_inode->i_blocks_high)) << 32 |
+					le32_to_cpu(raw_inode->i_blocks_lo);
+		return i_blocks;
+	} else {
+		return le32_to_cpu(raw_inode->i_blocks_lo);
+	}
+}
 
 void ext4_read_inode(struct inode * inode)
 {
@@ -2715,8 +2731,8 @@ void ext4_read_inode(struct inode * inode)
 		 * recovery code: that's fine, we're about to complete
 		 * the process of deleting those. */
 	}
-	inode->i_blocks = le32_to_cpu(raw_inode->i_blocks);
 	ei->i_flags = le32_to_cpu(raw_inode->i_flags);
+	inode->i_blocks = ext4_inode_blocks(raw_inode, ei);
 	ei->i_file_acl = le32_to_cpu(raw_inode->i_file_acl_lo);
 	if (EXT4_SB(inode->i_sb)->s_es->s_creator_os !=
 	    cpu_to_le32(EXT4_OS_HURD)) {
@@ -2799,6 +2815,43 @@ bad_inode:
 	return;
 }
 
+static int ext4_inode_blocks_set(handle_t *handle,
+				struct ext4_inode *raw_inode,
+				struct ext4_inode_info *ei)
+{
+	struct inode *inode = &(ei->vfs_inode);
+	u64 i_blocks = inode->i_blocks;
+	struct super_block *sb = inode->i_sb;
+	int err = 0;
+
+	if (i_blocks <= ~0U) {
+		/*
+		 * i_blocks can be represnted in a 32 bit variable
+		 * as multiple of 512 bytes
+		 */
+		raw_inode->i_blocks_lo   = cpu_to_le32((u32)i_blocks);
+		raw_inode->i_blocks_high = 0;
+	} else if (i_blocks <= 0xffffffffffffULL) {
+		/*
+		 * i_blocks can be represented in a 48 bit variable
+		 * as multiple of 512 bytes
+		 */
+		err = ext4_update_rocompat_feature(handle, sb,
+					    EXT4_FEATURE_RO_COMPAT_HUGE_FILE);
+		if (err)
+			goto  err_out;
+		/* i_block is stored in the split  48 bit fields */
+		raw_inode->i_blocks_lo   = cpu_to_le32((u32)i_blocks);
+		raw_inode->i_blocks_high = cpu_to_le16(i_blocks >> 32);
+	} else {
+		ext4_error(sb, __FUNCTION__,
+				"Wrong inode i_blocks count  %llu\n",
+				(unsigned long long)inode->i_blocks);
+	}
+err_out:
+	return err;
+}
+
 /*
  * Post the struct inode info into an on-disk inode location in the
  * buffer-cache.  This gobbles the caller's reference to the
@@ -2853,7 +2906,8 @@ static int ext4_do_update_inode(handle_t *handle,
 	EXT4_INODE_SET_XTIME(i_atime, inode, raw_inode);
 	EXT4_EINODE_SET_XTIME(i_crtime, ei, raw_inode);
 
-	raw_inode->i_blocks = cpu_to_le32(inode->i_blocks);
+	if (ext4_inode_blocks_set(handle, raw_inode, ei))
+		goto out_brelse;
 	raw_inode->i_dtime = cpu_to_le32(ei->i_dtime);
 	raw_inode->i_flags = cpu_to_le32(ei->i_flags);
 	if (EXT4_SB(inode->i_sb)->s_es->s_creator_os !=

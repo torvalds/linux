@@ -1603,17 +1603,50 @@ static void ext4_orphan_cleanup (struct super_block * sb,
 
 /*
  * Maximal file size.  There is a direct, and {,double-,triple-}indirect
- * block limit, and also a limit of (2^32 - 1) 512-byte sectors in i_blocks.
- * We need to be 1 filesystem block less than the 2^32 sector limit.
+ * block limit, and also a limit of (2^48 - 1) 512-byte sectors in i_blocks.
+ * We need to be 1 filesystem block less than the 2^48 sector limit.
  */
 static loff_t ext4_max_size(int bits)
 {
 	loff_t res = EXT4_NDIR_BLOCKS;
-	/* This constant is calculated to be the largest file size for a
-	 * dense, 4k-blocksize file such that the total number of
+	int meta_blocks;
+	loff_t upper_limit;
+	/* This is calculated to be the largest file size for a
+	 * dense, file such that the total number of
 	 * sectors in the file, including data and all indirect blocks,
-	 * does not exceed 2^32. */
-	const loff_t upper_limit = 0x1ff7fffd000LL;
+	 * does not exceed 2^48 -1
+	 * __u32 i_blocks_lo and _u16 i_blocks_high representing the
+	 * total number of  512 bytes blocks of the file
+	 */
+
+	if (sizeof(blkcnt_t) < sizeof(u64)) {
+		/*
+		 * CONFIG_LSF is not enabled implies the inode
+		 * i_block represent total blocks in 512 bytes
+		 * 32 == size of vfs inode i_blocks * 8
+		 */
+		upper_limit = (1LL << 32) - 1;
+
+		/* total blocks in file system block size */
+		upper_limit >>= (bits - 9);
+
+	} else {
+		/* We use 48 bit ext4_inode i_blocks */
+		upper_limit = (1LL << 48) - 1;
+
+		/* total blocks in file system block size */
+		upper_limit >>= (bits - 9);
+	}
+
+	/* indirect blocks */
+	meta_blocks = 1;
+	/* double indirect blocks */
+	meta_blocks += 1 + (1LL << (bits-2));
+	/* tripple indirect blocks */
+	meta_blocks += 1 + (1LL << (bits-2)) + (1LL << (2*(bits-2)));
+
+	upper_limit -= meta_blocks;
+	upper_limit <<= bits;
 
 	res += 1LL << (bits-2);
 	res += 1LL << (2*(bits-2));
@@ -1621,6 +1654,10 @@ static loff_t ext4_max_size(int bits)
 	res <<= bits;
 	if (res > upper_limit)
 		res = upper_limit;
+
+	if (res > MAX_LFS_FILESIZE)
+		res = MAX_LFS_FILESIZE;
+
 	return res;
 }
 
@@ -1788,6 +1825,19 @@ static int ext4_fill_super (struct super_block *sb, void *data, int silent)
 		       "unsupported optional features (%x).\n",
 		       sb->s_id, le32_to_cpu(features));
 		goto failed_mount;
+	}
+	if (EXT4_HAS_RO_COMPAT_FEATURE(sb, EXT4_FEATURE_RO_COMPAT_HUGE_FILE)) {
+		/*
+		 * Large file size enabled file system can only be
+		 * mount if kernel is build with CONFIG_LSF
+		 */
+		if (sizeof(root->i_blocks) < sizeof(u64) &&
+				!(sb->s_flags & MS_RDONLY)) {
+			printk(KERN_ERR "EXT4-fs: %s: Filesystem with huge "
+					"files cannot be mounted read-write "
+					"without CONFIG_LSF.\n", sb->s_id);
+			goto failed_mount;
+		}
 	}
 	blocksize = BLOCK_SIZE << le32_to_cpu(es->s_log_block_size);
 
