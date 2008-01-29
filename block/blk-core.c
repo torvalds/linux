@@ -33,9 +33,7 @@
 
 #include "blk.h"
 
-static void drive_stat_acct(struct request *rq, int new_io);
 static int __make_request(struct request_queue *q, struct bio *bio);
-static void blk_recalc_rq_segments(struct request *rq);
 
 /*
  * For the allocated request tables
@@ -53,6 +51,21 @@ struct kmem_cache *blk_requestq_cachep = NULL;
 static struct workqueue_struct *kblockd_workqueue;
 
 static DEFINE_PER_CPU(struct list_head, blk_cpu_done);
+
+static void drive_stat_acct(struct request *rq, int new_io)
+{
+	int rw = rq_data_dir(rq);
+
+	if (!blk_fs_request(rq) || !rq->rq_disk)
+		return;
+
+	if (!new_io) {
+		__disk_stat_inc(rq->rq_disk, merges[rw]);
+	} else {
+		disk_round_stats(rq->rq_disk);
+		rq->rq_disk->in_flight++;
+	}
+}
 
 void blk_queue_congestion_threshold(struct request_queue *q)
 {
@@ -168,21 +181,6 @@ void blk_dump_rq_flags(struct request *rq, char *msg)
 
 EXPORT_SYMBOL(blk_dump_rq_flags);
 
-void blk_recount_segments(struct request_queue *q, struct bio *bio)
-{
-	struct request rq;
-	struct bio *nxt = bio->bi_next;
-	rq.q = q;
-	rq.bio = rq.biotail = bio;
-	bio->bi_next = NULL;
-	blk_recalc_rq_segments(&rq);
-	bio->bi_next = nxt;
-	bio->bi_phys_segments = rq.nr_phys_segments;
-	bio->bi_hw_segments = rq.nr_hw_segments;
-	bio->bi_flags |= (1 << BIO_SEG_VALID);
-}
-EXPORT_SYMBOL(blk_recount_segments);
-
 static void blk_recalc_rq_segments(struct request *rq)
 {
 	int nr_phys_segs;
@@ -254,6 +252,21 @@ new_hw_segment:
 	rq->nr_phys_segments = nr_phys_segs;
 	rq->nr_hw_segments = nr_hw_segs;
 }
+
+void blk_recount_segments(struct request_queue *q, struct bio *bio)
+{
+	struct request rq;
+	struct bio *nxt = bio->bi_next;
+	rq.q = q;
+	rq.bio = rq.biotail = bio;
+	bio->bi_next = NULL;
+	blk_recalc_rq_segments(&rq);
+	bio->bi_next = nxt;
+	bio->bi_phys_segments = rq.nr_phys_segments;
+	bio->bi_hw_segments = rq.nr_hw_segments;
+	bio->bi_flags |= (1 << BIO_SEG_VALID);
+}
+EXPORT_SYMBOL(blk_recount_segments);
 
 static int blk_phys_contig_segment(struct request_queue *q, struct bio *bio,
 				   struct bio *nxt)
@@ -1304,21 +1317,6 @@ void blk_insert_request(struct request_queue *q, struct request *rq,
 }
 
 EXPORT_SYMBOL(blk_insert_request);
-
-static void drive_stat_acct(struct request *rq, int new_io)
-{
-	int rw = rq_data_dir(rq);
-
-	if (!blk_fs_request(rq) || !rq->rq_disk)
-		return;
-
-	if (!new_io) {
-		__disk_stat_inc(rq->rq_disk, merges[rw]);
-	} else {
-		disk_round_stats(rq->rq_disk);
-		rq->rq_disk->in_flight++;
-	}
-}
 
 /*
  * add-request adds a request to the linked list.
