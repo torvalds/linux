@@ -738,7 +738,7 @@ sys_delete_module(const char __user *name_user, unsigned int flags)
 		mutex_lock(&module_mutex);
 	}
 	/* Store the name of the last unloaded module for diagnostic purposes */
-	sprintf(last_unloaded_module, mod->name);
+	strlcpy(last_unloaded_module, mod->name, sizeof(last_unloaded_module));
 	free_module(mod);
 
  out:
