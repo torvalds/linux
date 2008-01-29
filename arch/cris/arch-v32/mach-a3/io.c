@@ -114,8 +114,7 @@ int crisv32_io_get(struct crisv32_iopin *iopin,
 	return 0;
 }
 
-int crisv32_io_get_name(struct crisv32_iopin *iopin,
-	const char *name)
+int crisv32_io_get_name(struct crisv32_iopin *iopin, const char *name)
 {
 	int port;
 	int pin;
