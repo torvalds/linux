@@ -2052,11 +2052,11 @@ static void ext4_clear_blocks(handle_t *handle, struct inode *inode,
 	for (p = first; p < last; p++) {
 		u32 nr = le32_to_cpu(*p);
 		if (nr) {
-			struct buffer_head *bh;
+			struct buffer_head *tbh;
 
 			*p = 0;
-			bh = sb_find_get_block(inode->i_sb, nr);
-			ext4_forget(handle, 0, inode, bh, nr);
+			tbh = sb_find_get_block(inode->i_sb, nr);
+			ext4_forget(handle, 0, inode, tbh, nr);
 		}
 	}
 
@@ -2324,8 +2324,10 @@ void ext4_truncate(struct inode *inode)
 			return;
 	}
 
-	if (EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL)
-		return ext4_ext_truncate(inode, page);
+	if (EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL) {
+		ext4_ext_truncate(inode, page);
+		return;
+	}
 
 	handle = start_transaction(inode);
 	if (IS_ERR(handle)) {
@@ -3163,8 +3165,10 @@ ext4_reserve_inode_write(handle_t *handle, struct inode *inode,
  * Expand an inode by new_extra_isize bytes.
  * Returns 0 on success or negative error number on failure.
  */
-int ext4_expand_extra_isize(struct inode *inode, unsigned int new_extra_isize,
-			struct ext4_iloc iloc, handle_t *handle)
+static int ext4_expand_extra_isize(struct inode *inode,
+				   unsigned int new_extra_isize,
+				   struct ext4_iloc iloc,
+				   handle_t *handle)
 {
 	struct ext4_inode *raw_inode;
 	struct ext4_xattr_ibody_header *header;

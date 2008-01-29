@@ -1644,6 +1644,9 @@ static ext4_fsblk_t descriptor_loc(struct super_block *sb,
 
 
 static int ext4_fill_super (struct super_block *sb, void *data, int silent)
+				__releases(kernel_sem)
+				__acquires(kernel_sem)
+
 {
 	struct buffer_head * bh;
 	struct ext4_super_block *es = NULL;
