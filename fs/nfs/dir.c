@@ -1267,6 +1267,12 @@ out_err:
 	return error;
 }
 
+static void nfs_dentry_handle_enoent(struct dentry *dentry)
+{
+	if (dentry->d_inode != NULL && !d_unhashed(dentry))
+		d_delete(dentry);
+}
+
 static int nfs_rmdir(struct inode *dir, struct dentry *dentry)
 {
 	int error;
@@ -1279,6 +1285,8 @@ static int nfs_rmdir(struct inode *dir, struct dentry *dentry)
 	/* Ensure the VFS deletes this inode */
 	if (error == 0 && dentry->d_inode != NULL)
 		clear_nlink(dentry->d_inode);
+	else if (error == -ENOENT)
+		nfs_dentry_handle_enoent(dentry);
 	unlock_kernel();
 
 	return error;
@@ -1385,6 +1393,8 @@ static int nfs_safe_remove(struct dentry *dentry)
 		nfs_mark_for_revalidate(inode);
 	} else
 		error = NFS_PROTO(dir)->remove(dir, &dentry->d_name);
+	if (error == -ENOENT)
+		nfs_dentry_handle_enoent(dentry);
 out:
 	return error;
 }
@@ -1421,7 +1431,7 @@ static int nfs_unlink(struct inode *dir, struct dentry *dentry)
 	spin_unlock(&dentry->d_lock);
 	spin_unlock(&dcache_lock);
 	error = nfs_safe_remove(dentry);
-	if (!error) {
+	if (!error || error == -ENOENT) {
 		nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
 	} else if (need_rehash)
 		d_rehash(dentry);
@@ -1634,7 +1644,8 @@ out:
 		d_move(old_dentry, new_dentry);
 		nfs_set_verifier(new_dentry,
 					nfs_save_change_attribute(new_dir));
-	}
+	} else if (error == -ENOENT)
+		nfs_dentry_handle_enoent(old_dentry);
 
 	/* new dentry created? */
 	if (dentry)
