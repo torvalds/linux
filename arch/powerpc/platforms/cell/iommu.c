@@ -306,20 +306,13 @@ static int cell_iommu_find_ioc(int nid, unsigned long *base)
 	return -ENODEV;
 }
 
-static void cell_iommu_setup_hardware(struct cbe_iommu *iommu, unsigned long size)
+static void cell_iommu_setup_page_tables(struct cbe_iommu *iommu,
+					 unsigned long base, unsigned long size)
 {
 	struct page *page;
-	int ret, i;
+	int i;
 	unsigned long reg, segments, pages_per_segment, ptab_size, stab_size,
-		      n_pte_pages, xlate_base;
-	unsigned int virq;
-
-	if (cell_iommu_find_ioc(iommu->nid, &xlate_base))
-		panic("%s: missing IOC register mappings for node %d\n",
-		      __FUNCTION__, iommu->nid);
-
-	iommu->xlate_regs = ioremap(xlate_base, IOC_Reg_Size);
-	iommu->cmd_regs = iommu->xlate_regs + IOC_IOCmd_Offset;
+		      n_pte_pages;
 
 	segments = size >> IO_SEGMENT_SHIFT;
 	pages_per_segment = 1ull << IO_PAGENO_BITS;
@@ -378,6 +371,20 @@ static void cell_iommu_setup_hardware(struct cbe_iommu *iommu, unsigned long siz
 			(__pa(iommu->ptab) + n_pte_pages * IOMMU_PAGE_SIZE * i);
 		pr_debug("\t[%d] 0x%016lx\n", i, iommu->stab[i]);
 	}
+}
+
+static void cell_iommu_enable_hardware(struct cbe_iommu *iommu)
+{
+	int ret;
+	unsigned long reg, xlate_base;
+	unsigned int virq;
+
+	if (cell_iommu_find_ioc(iommu->nid, &xlate_base))
+		panic("%s: missing IOC register mappings for node %d\n",
+		      __FUNCTION__, iommu->nid);
+
+	iommu->xlate_regs = ioremap(xlate_base, IOC_Reg_Size);
+	iommu->cmd_regs = iommu->xlate_regs + IOC_IOCmd_Offset;
 
 	/* ensure that the STEs have updated */
 	mb();
@@ -405,6 +412,13 @@ static void cell_iommu_setup_hardware(struct cbe_iommu *iommu, unsigned long siz
 	/* turn on IO translation */
 	reg = in_be64(iommu->cmd_regs + IOC_IOCmd_Cfg) | IOC_IOCmd_Cfg_TE;
 	out_be64(iommu->cmd_regs + IOC_IOCmd_Cfg, reg);
+}
+
+static void cell_iommu_setup_hardware(struct cbe_iommu *iommu,
+	unsigned long base, unsigned long size)
+{
+	cell_iommu_setup_page_tables(iommu, base, size);
+	cell_iommu_enable_hardware(iommu);
 }
 
 #if 0/* Unused for now */
@@ -622,7 +636,7 @@ static void __init cell_iommu_init_one(struct device_node *np,
 		 base, base + size - 1);
 
 	/* Initialize the hardware */
-	cell_iommu_setup_hardware(iommu, size);
+	cell_iommu_setup_hardware(iommu, base, size);
 
 	/* Setup the iommu_table */
 	cell_iommu_setup_window(iommu, np, base, size,
