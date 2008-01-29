@@ -374,7 +374,7 @@ ext4_ext_binsearch_idx(struct inode *inode,
 	struct ext4_extent_idx *r, *l, *m;
 
 
-	ext_debug("binsearch for %lu(idx):  ", (unsigned long)block);
+	ext_debug("binsearch for %u(idx):  ", block);
 
 	l = EXT_FIRST_INDEX(eh) + 1;
 	r = EXT_LAST_INDEX(eh);
@@ -440,7 +440,7 @@ ext4_ext_binsearch(struct inode *inode,
 		return;
 	}
 
-	ext_debug("binsearch for %lu:  ", (unsigned long)block);
+	ext_debug("binsearch for %u:  ", block);
 
 	l = EXT_FIRST_EXTENT(eh) + 1;
 	r = EXT_LAST_EXTENT(eh);
@@ -766,7 +766,7 @@ static int ext4_ext_split(handle_t *handle, struct inode *inode,
 	while (k--) {
 		oldblock = newblock;
 		newblock = ablocks[--a];
-		bh = sb_getblk(inode->i_sb, (ext4_fsblk_t)newblock);
+		bh = sb_getblk(inode->i_sb, newblock);
 		if (!bh) {
 			err = -EIO;
 			goto cleanup;
@@ -786,9 +786,8 @@ static int ext4_ext_split(handle_t *handle, struct inode *inode,
 		fidx->ei_block = border;
 		ext4_idx_store_pblock(fidx, oldblock);
 
-		ext_debug("int.index at %d (block %llu): %lu -> %llu\n", i,
-				newblock, (unsigned long) le32_to_cpu(border),
-				oldblock);
+		ext_debug("int.index at %d (block %llu): %u -> %llu\n",
+				i, newblock, le32_to_cpu(border), oldblock);
 		/* copy indexes */
 		m = 0;
 		path[i].p_idx++;
@@ -1476,10 +1475,10 @@ ext4_ext_put_gap_in_cache(struct inode *inode, struct ext4_ext_path *path,
 	} else if (block < le32_to_cpu(ex->ee_block)) {
 		lblock = block;
 		len = le32_to_cpu(ex->ee_block) - block;
-		ext_debug("cache gap(before): %lu [%lu:%lu]",
-				(unsigned long) block,
-				(unsigned long) le32_to_cpu(ex->ee_block),
-				(unsigned long) ext4_ext_get_actual_len(ex));
+		ext_debug("cache gap(before): %u [%u:%u]",
+				block,
+				le32_to_cpu(ex->ee_block),
+				 ext4_ext_get_actual_len(ex));
 	} else if (block >= le32_to_cpu(ex->ee_block)
 			+ ext4_ext_get_actual_len(ex)) {
 		ext4_lblk_t next;
@@ -1487,10 +1486,10 @@ ext4_ext_put_gap_in_cache(struct inode *inode, struct ext4_ext_path *path,
 			+ ext4_ext_get_actual_len(ex);
 
 		next = ext4_ext_next_allocated_block(path);
-		ext_debug("cache gap(after): [%lu:%lu] %lu",
-				(unsigned long) le32_to_cpu(ex->ee_block),
-				(unsigned long) ext4_ext_get_actual_len(ex),
-				(unsigned long) block);
+		ext_debug("cache gap(after): [%u:%u] %u",
+				le32_to_cpu(ex->ee_block),
+				ext4_ext_get_actual_len(ex),
+				block);
 		BUG_ON(next == lblock);
 		len = next - lblock;
 	} else {
@@ -1498,7 +1497,7 @@ ext4_ext_put_gap_in_cache(struct inode *inode, struct ext4_ext_path *path,
 		BUG();
 	}
 
-	ext_debug(" -> %lu:%lu\n", (unsigned long) lblock, len);
+	ext_debug(" -> %u:%lu\n", lblock, len);
 	ext4_ext_put_in_cache(inode, lblock, len, 0, EXT4_EXT_CACHE_GAP);
 }
 
@@ -1520,11 +1519,9 @@ ext4_ext_in_cache(struct inode *inode, ext4_lblk_t block,
 		ex->ee_block = cpu_to_le32(cex->ec_block);
 		ext4_ext_store_pblock(ex, cex->ec_start);
 		ex->ee_len = cpu_to_le16(cex->ec_len);
-		ext_debug("%lu cached by %lu:%lu:%llu\n",
-				(unsigned long) block,
-				(unsigned long) cex->ec_block,
-				(unsigned long) cex->ec_len,
-				cex->ec_start);
+		ext_debug("%u cached by %u:%u:%llu\n",
+				block,
+				cex->ec_block, cex->ec_len, cex->ec_start);
 		return cex->ec_type;
 	}
 
@@ -2145,9 +2142,8 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 	unsigned long allocated = 0;
 
 	__clear_bit(BH_New, &bh_result->b_state);
-	ext_debug("blocks %lu/%lu requested for inode %u\n",
-			(unsigned long) iblock, max_blocks,
-			(unsigned) inode->i_ino);
+	ext_debug("blocks %u/%lu requested for inode %u\n",
+			iblock, max_blocks, inode->i_ino);
 	mutex_lock(&EXT4_I(inode)->truncate_mutex);
 
 	/* check in cache */
@@ -2210,7 +2206,7 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 			newblock = iblock - ee_block + ee_start;
 			/* number of remaining blocks in the extent */
 			allocated = ee_len - (iblock - ee_block);
-			ext_debug("%d fit into %lu:%d -> %llu\n", (int) iblock,
+			ext_debug("%u fit into %lu:%d -> %llu\n", iblock,
 					ee_block, ee_len, newblock);
 
 			/* Do not put uninitialized extent in the cache */
@@ -2470,9 +2466,8 @@ retry:
 		if (!ret) {
 			ext4_error(inode->i_sb, "ext4_fallocate",
 				   "ext4_ext_get_blocks returned 0! inode#%lu"
-				   ", block=%lu, max_blocks=%lu",
-				   inode->i_ino, (unsigned long)block,
-				   (unsigned long)max_blocks);
+				   ", block=%u, max_blocks=%lu",
+				   inode->i_ino, block, max_blocks);
 			ret = -EIO;
 			ext4_mark_inode_dirty(handle, inode);
 			ret2 = ext4_journal_stop(handle);
