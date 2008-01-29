@@ -2718,7 +2718,7 @@ void ext4_read_inode(struct inode * inode)
 	}
 	inode->i_blocks = le32_to_cpu(raw_inode->i_blocks);
 	ei->i_flags = le32_to_cpu(raw_inode->i_flags);
-	ei->i_file_acl = le32_to_cpu(raw_inode->i_file_acl);
+	ei->i_file_acl = le32_to_cpu(raw_inode->i_file_acl_lo);
 	if (EXT4_SB(inode->i_sb)->s_es->s_creator_os !=
 	    cpu_to_le32(EXT4_OS_HURD))
 		ei->i_file_acl |=
@@ -2866,7 +2866,7 @@ static int ext4_do_update_inode(handle_t *handle,
 	    cpu_to_le32(EXT4_OS_HURD))
 		raw_inode->i_file_acl_high =
 			cpu_to_le16(ei->i_file_acl >> 32);
-	raw_inode->i_file_acl = cpu_to_le32(ei->i_file_acl);
+	raw_inode->i_file_acl_lo = cpu_to_le32(ei->i_file_acl);
 	if (!S_ISREG(inode->i_mode)) {
 		raw_inode->i_dir_acl = cpu_to_le32(ei->i_dir_acl);
 	} else {

@@ -297,7 +297,7 @@ struct ext4_inode {
 	} osd1;				/* OS dependent 1 */
 	__le32	i_block[EXT4_N_BLOCKS];/* Pointers to blocks */
 	__le32	i_generation;	/* File version (for NFS) */
-	__le32	i_file_acl;	/* File ACL */
+	__le32	i_file_acl_lo;	/* File ACL */
 	__le32	i_dir_acl;	/* Directory ACL */
 	__le32	i_obso_faddr;	/* Obsoleted fragment address */
 	union {
