@@ -384,7 +384,7 @@ static void reset_phy(struct net_device *dev)
 	/* Wait until PHY reset is complete */
 	do {
 		read_phy(lp->phy_address, MII_BMCR, &bmcr);
-	} while (!(bmcr && BMCR_RESET));
+	} while (!(bmcr & BMCR_RESET));
 
 	disable_mdi();
 	spin_unlock_irq(&lp->lock);
