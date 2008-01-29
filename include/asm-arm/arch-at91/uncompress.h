@@ -22,7 +22,23 @@
 #define __ASM_ARCH_UNCOMPRESS_H
 
 #include <asm/io.h>
-#include <asm/arch/at91_dbgu.h>
+#include <linux/atmel_serial.h>
+
+#if defined(CONFIG_AT91_EARLY_DBGU)
+#define UART_OFFSET (AT91_DBGU + AT91_BASE_SYS)
+#elif defined(CONFIG_AT91_EARLY_USART0)
+#define UART_OFFSET AT91_USART0
+#elif defined(CONFIG_AT91_EARLY_USART1)
+#define UART_OFFSET AT91_USART1
+#elif defined(CONFIG_AT91_EARLY_USART2)
+#define UART_OFFSET AT91_USART2
+#elif defined(CONFIG_AT91_EARLY_USART3)
+#define UART_OFFSET AT91_USART3
+#elif defined(CONFIG_AT91_EARLY_USART4)
+#define UART_OFFSET AT91_USART4
+#elif defined(CONFIG_AT91_EARLY_USART5)
+#define UART_OFFSET AT91_USART5
+#endif
 
 /*
  * The following code assumes the serial port has already been
@@ -33,22 +49,22 @@
  */
 static void putc(int c)
 {
-#ifdef AT91_DBGU
-	void __iomem *sys = (void __iomem *) AT91_BASE_SYS;	/* physical address */
+#ifdef UART_OFFSET
+	void __iomem *sys = (void __iomem *) UART_OFFSET;	/* physical address */
 
-	while (!(__raw_readl(sys + AT91_DBGU_SR) & AT91_DBGU_TXRDY))
+	while (!(__raw_readl(sys + ATMEL_US_CSR) & ATMEL_US_TXRDY))
 		barrier();
-	__raw_writel(c, sys + AT91_DBGU_THR);
+	__raw_writel(c, sys + ATMEL_US_THR);
 #endif
 }
 
 static inline void flush(void)
 {
-#ifdef AT91_DBGU
-	void __iomem *sys = (void __iomem *) AT91_BASE_SYS;	/* physical address */
+#ifdef UART_OFFSET
+	void __iomem *sys = (void __iomem *) UART_OFFSET;	/* physical address */
 
 	/* wait for transmission to complete */
-	while (!(__raw_readl(sys + AT91_DBGU_SR) & AT91_DBGU_TXEMPTY))
+	while (!(__raw_readl(sys + ATMEL_US_CSR) & ATMEL_US_TXEMPTY))
 		barrier();
 #endif
 }

@@ -34,6 +34,7 @@
 #include <linux/tty_flip.h>
 #include <linux/platform_device.h>
 #include <linux/atmel_pdc.h>
+#include <linux/atmel_serial.h>
 
 #include <asm/io.h>
 
@@ -44,8 +45,6 @@
 #include <asm/arch/cpu.h>
 #include <asm/arch/gpio.h>
 #endif
-
-#include "atmel_serial.h"
 
 #if defined(CONFIG_SERIAL_ATMEL_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ

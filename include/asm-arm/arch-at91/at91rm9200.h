@@ -93,6 +93,11 @@
 #define AT91_RTC	(0xfffffe00 - AT91_BASE_SYS)	/* Real-Time Clock */
 #define AT91_MC		(0xffffff00 - AT91_BASE_SYS)	/* Memory Controllers */
 
+#define AT91_USART0	AT91RM9200_BASE_US0
+#define AT91_USART1	AT91RM9200_BASE_US1
+#define AT91_USART2	AT91RM9200_BASE_US2
+#define AT91_USART3	AT91RM9200_BASE_US3
+
 #define AT91_MATRIX	0	/* not supported */
 
 /*
