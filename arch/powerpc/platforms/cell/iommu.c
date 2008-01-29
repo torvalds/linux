@@ -507,16 +507,11 @@ static struct cbe_iommu *cell_iommu_for_node(int nid)
 
 static unsigned long cell_dma_direct_offset;
 
-static void cell_dma_dev_setup(struct device *dev)
+static void cell_dma_dev_setup_iommu(struct device *dev)
 {
 	struct iommu_window *window;
 	struct cbe_iommu *iommu;
 	struct dev_archdata *archdata = &dev->archdata;
-
-	if (get_pci_dma_ops() == &dma_direct_ops) {
-		archdata->dma_data = (void *)cell_dma_direct_offset;
-		return;
-	}
 
 	/* Current implementation uses the first window available in that
 	 * node's iommu. We -might- do something smarter later though it may
@@ -532,6 +527,18 @@ static void cell_dma_dev_setup(struct device *dev)
 	window = list_entry(iommu->windows.next, struct iommu_window, list);
 
 	archdata->dma_data = &window->table;
+}
+
+static void cell_dma_dev_setup(struct device *dev)
+{
+	struct dev_archdata *archdata = &dev->archdata;
+
+	if (get_pci_dma_ops() == &dma_iommu_ops)
+		cell_dma_dev_setup_iommu(dev);
+	else if (get_pci_dma_ops() == &dma_direct_ops)
+		archdata->dma_data = (void *)cell_dma_direct_offset;
+	else
+		BUG();
 }
 
 static void cell_pci_dma_dev_setup(struct pci_dev *dev)
