@@ -565,10 +565,9 @@ static int __init cell_iommu_get_window(struct device_node *np,
 	return 0;
 }
 
-static void __init cell_iommu_init_one(struct device_node *np, unsigned long offset)
+static struct cbe_iommu * __init cell_iommu_alloc(struct device_node *np)
 {
 	struct cbe_iommu *iommu;
-	unsigned long base, size;
 	int nid, i;
 
 	/* Get node ID */
@@ -576,7 +575,7 @@ static void __init cell_iommu_init_one(struct device_node *np, unsigned long off
 	if (nid < 0) {
 		printk(KERN_ERR "iommu: failed to get node for %s\n",
 		       np->full_name);
-		return;
+		return NULL;
 	}
 	pr_debug("iommu: setting up iommu for node %d (%s)\n",
 		 nid, np->full_name);
@@ -592,7 +591,7 @@ static void __init cell_iommu_init_one(struct device_node *np, unsigned long off
 	if (cbe_nr_iommus >= NR_IOMMUS) {
 		printk(KERN_ERR "iommu: too many IOMMUs detected ! (%s)\n",
 		       np->full_name);
-		return;
+		return NULL;
 	}
 
 	/* Init base fields */
@@ -602,6 +601,19 @@ static void __init cell_iommu_init_one(struct device_node *np, unsigned long off
 	iommu->nid = nid;
 	snprintf(iommu->name, sizeof(iommu->name), "iommu%d", i);
 	INIT_LIST_HEAD(&iommu->windows);
+
+	return iommu;
+}
+
+static void __init cell_iommu_init_one(struct device_node *np,
+				       unsigned long offset)
+{
+	struct cbe_iommu *iommu;
+	unsigned long base, size;
+
+	iommu = cell_iommu_alloc(np);
+	if (!iommu)
+		return;
 
 	/* Obtain a window for it */
 	cell_iommu_get_window(np, &base, &size);
