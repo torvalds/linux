@@ -314,7 +314,7 @@ core-$(CONFIG_MIPS_ATLAS)	+= arch/mips/mips-boards/atlas/
 cflags-$(CONFIG_MIPS_ATLAS)	+= -Iinclude/asm-mips/mach-atlas
 cflags-$(CONFIG_MIPS_ATLAS)	+= -Iinclude/asm-mips/mach-mips
 load-$(CONFIG_MIPS_ATLAS)	+= 0xffffffff80100000
-all-$(CONFIG_MIPS_ATLAS)	:= vmlinux.srec
+all-$(CONFIG_MIPS_ATLAS)	:= vmlinux.bin
 
 #
 # MIPS Malta board
@@ -322,7 +322,7 @@ all-$(CONFIG_MIPS_ATLAS)	:= vmlinux.srec
 core-$(CONFIG_MIPS_MALTA)	+= arch/mips/mips-boards/malta/
 cflags-$(CONFIG_MIPS_MALTA)	+= -Iinclude/asm-mips/mach-mips
 load-$(CONFIG_MIPS_MALTA)	+= 0xffffffff80100000
-all-$(CONFIG_MIPS_MALTA)	:= vmlinux.srec
+all-$(CONFIG_MIPS_MALTA)	:= vmlinux.bin
 
 #
 # MIPS SEAD board

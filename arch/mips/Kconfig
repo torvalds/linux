@@ -190,6 +190,7 @@ config LEMOTE_FULONG
 config MIPS_ATLAS
 	bool "MIPS Atlas board"
 	select BOOT_ELF32
+	select BOOT_RAW
 	select CEVT_R4K
 	select CSRC_R4K
 	select DMA_NONCOHERENT
@@ -222,6 +223,7 @@ config MIPS_MALTA
 	bool "MIPS Malta board"
 	select ARCH_MAY_HAVE_PC_FDC
 	select BOOT_ELF32
+	select BOOT_RAW
 	select CEVT_R4K
 	select CSRC_R4K
 	select DMA_NONCOHERENT
