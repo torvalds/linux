@@ -332,6 +332,7 @@ int netlbl_sock_getattr(struct sock *sk, struct netlbl_lsm_secattr *secattr)
 /**
  * netlbl_skbuff_getattr - Determine the security attributes of a packet
  * @skb: the packet
+ * @family: protocol family
  * @secattr: the security attributes
  *
  * Description:
@@ -342,6 +343,7 @@ int netlbl_sock_getattr(struct sock *sk, struct netlbl_lsm_secattr *secattr)
  *
  */
 int netlbl_skbuff_getattr(const struct sk_buff *skb,
+			  u16 family,
 			  struct netlbl_lsm_secattr *secattr)
 {
 	if (CIPSO_V4_OPTEXIST(skb) &&

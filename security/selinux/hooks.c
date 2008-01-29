@@ -3429,6 +3429,7 @@ static int selinux_parse_skb(struct sk_buff *skb, struct avc_audit_data *ad,
 /**
  * selinux_skb_extlbl_sid - Determine the external label of a packet
  * @skb: the packet
+ * @family: protocol family
  * @sid: the packet's SID
  *
  * Description:
@@ -3441,13 +3442,16 @@ static int selinux_parse_skb(struct sk_buff *skb, struct avc_audit_data *ad,
  * selinux_netlbl_skbuff_getsid().
  *
  */
-static void selinux_skb_extlbl_sid(struct sk_buff *skb, u32 *sid)
+static void selinux_skb_extlbl_sid(struct sk_buff *skb,
+				   u16 family,
+				   u32 *sid)
 {
 	u32 xfrm_sid;
 	u32 nlbl_sid;
 
 	selinux_skb_xfrm_sid(skb, &xfrm_sid);
 	if (selinux_netlbl_skbuff_getsid(skb,
+					 family,
 					 (xfrm_sid == SECSID_NULL ?
 					  SECINITSID_NETMSG : xfrm_sid),
 					 &nlbl_sid) != 0)
@@ -3940,7 +3944,7 @@ static int selinux_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	if (err)
 		goto out;
 
-	err = selinux_netlbl_sock_rcv_skb(sksec, skb, &ad);
+	err = selinux_netlbl_sock_rcv_skb(sksec, skb, family, &ad);
 	if (err)
 		goto out;
 
@@ -3996,18 +4000,25 @@ out:
 static int selinux_socket_getpeersec_dgram(struct socket *sock, struct sk_buff *skb, u32 *secid)
 {
 	u32 peer_secid = SECSID_NULL;
-	int err = 0;
+	u16 family;
 
-	if (sock && sock->sk->sk_family == PF_UNIX)
+	if (sock)
+		family = sock->sk->sk_family;
+	else if (skb && skb->sk)
+		family = skb->sk->sk_family;
+	else
+		goto out;
+
+	if (sock && family == PF_UNIX)
 		selinux_get_inode_sid(SOCK_INODE(sock), &peer_secid);
 	else if (skb)
-		selinux_skb_extlbl_sid(skb, &peer_secid);
+		selinux_skb_extlbl_sid(skb, family, &peer_secid);
 
-	if (peer_secid == SECSID_NULL)
-		err = -EINVAL;
+out:
 	*secid = peer_secid;
-
-	return err;
+	if (peer_secid == SECSID_NULL)
+		return -EINVAL;
+	return 0;
 }
 
 static int selinux_sk_alloc_security(struct sock *sk, int family, gfp_t priority)
@@ -4062,7 +4073,7 @@ static int selinux_inet_conn_request(struct sock *sk, struct sk_buff *skb,
 	u32 newsid;
 	u32 peersid;
 
-	selinux_skb_extlbl_sid(skb, &peersid);
+	selinux_skb_extlbl_sid(skb, sk->sk_family, &peersid);
 	if (peersid == SECSID_NULL) {
 		req->secid = sksec->sid;
 		req->peer_secid = SECSID_NULL;
@@ -4100,7 +4111,7 @@ static void selinux_inet_conn_established(struct sock *sk,
 {
 	struct sk_security_struct *sksec = sk->sk_security;
 
-	selinux_skb_extlbl_sid(skb, &sksec->peer_sid);
+	selinux_skb_extlbl_sid(skb, sk->sk_family, &sksec->peer_sid);
 }
 
 static void selinux_req_classify_flow(const struct request_sock *req,

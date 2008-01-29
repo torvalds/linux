@@ -144,6 +144,7 @@ void selinux_netlbl_sk_security_clone(struct sk_security_struct *ssec,
 /**
  * selinux_netlbl_skbuff_getsid - Get the sid of a packet using NetLabel
  * @skb: the packet
+ * @family: protocol family
  * @base_sid: the SELinux SID to use as a context for MLS only attributes
  * @sid: the SID
  *
@@ -153,7 +154,10 @@ void selinux_netlbl_sk_security_clone(struct sk_security_struct *ssec,
  * assign to the packet.  Returns zero on success, negative values on failure.
  *
  */
-int selinux_netlbl_skbuff_getsid(struct sk_buff *skb, u32 base_sid, u32 *sid)
+int selinux_netlbl_skbuff_getsid(struct sk_buff *skb,
+				 u16 family,
+				 u32 base_sid,
+				 u32 *sid)
 {
 	int rc;
 	struct netlbl_lsm_secattr secattr;
@@ -164,7 +168,7 @@ int selinux_netlbl_skbuff_getsid(struct sk_buff *skb, u32 base_sid, u32 *sid)
 	}
 
 	netlbl_secattr_init(&secattr);
-	rc = netlbl_skbuff_getattr(skb, &secattr);
+	rc = netlbl_skbuff_getattr(skb, family, &secattr);
 	if (rc == 0 && secattr.flags != NETLBL_SECATTR_NONE) {
 		rc = security_netlbl_secattr_to_sid(&secattr, base_sid, sid);
 		if (rc == 0 &&
@@ -292,6 +296,7 @@ int selinux_netlbl_inode_permission(struct inode *inode, int mask)
  * selinux_netlbl_sock_rcv_skb - Do an inbound access check using NetLabel
  * @sksec: the sock's sk_security_struct
  * @skb: the packet
+ * @family: protocol family
  * @ad: the audit data
  *
  * Description:
@@ -302,6 +307,7 @@ int selinux_netlbl_inode_permission(struct inode *inode, int mask)
  */
 int selinux_netlbl_sock_rcv_skb(struct sk_security_struct *sksec,
 				struct sk_buff *skb,
+				u16 family,
 				struct avc_audit_data *ad)
 {
 	int rc;
@@ -313,7 +319,7 @@ int selinux_netlbl_sock_rcv_skb(struct sk_security_struct *sksec,
 		return 0;
 
 	netlbl_secattr_init(&secattr);
-	rc = netlbl_skbuff_getattr(skb, &secattr);
+	rc = netlbl_skbuff_getattr(skb, family, &secattr);
 	if (rc == 0 && secattr.flags != NETLBL_SECATTR_NONE) {
 		rc = security_netlbl_secattr_to_sid(&secattr,
 						    SECINITSID_NETMSG,
