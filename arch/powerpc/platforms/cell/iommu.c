@@ -443,25 +443,36 @@ static struct iommu_window *find_window(struct cbe_iommu *iommu,
 }
 #endif
 
+static inline u32 cell_iommu_get_ioid(struct device_node *np)
+{
+	const u32 *ioid;
+
+	ioid = of_get_property(np, "ioid", NULL);
+	if (ioid == NULL) {
+		printk(KERN_WARNING "iommu: missing ioid for %s using 0\n",
+		       np->full_name);
+		return 0;
+	}
+
+	return *ioid;
+}
+
 static struct iommu_window * __init
 cell_iommu_setup_window(struct cbe_iommu *iommu, struct device_node *np,
 			unsigned long offset, unsigned long size,
 			unsigned long pte_offset)
 {
 	struct iommu_window *window;
-	const unsigned int *ioid;
+	u32 ioid;
 
-	ioid = of_get_property(np, "ioid", NULL);
-	if (ioid == NULL)
-		printk(KERN_WARNING "iommu: missing ioid for %s using 0\n",
-		       np->full_name);
+	ioid = cell_iommu_get_ioid(np);
 
 	window = kmalloc_node(sizeof(*window), GFP_KERNEL, iommu->nid);
 	BUG_ON(window == NULL);
 
 	window->offset = offset;
 	window->size = size;
-	window->ioid = ioid ? *ioid : 0;
+	window->ioid = ioid;
 	window->iommu = iommu;
 	window->pte_offset = pte_offset;
 
