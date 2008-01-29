@@ -22,8 +22,31 @@
 #include <linux/types.h>
 #include <linux/platform_device.h>
 #include <linux/leds.h>
+#include <linux/gpio_keys.h>
+#include <linux/input.h>
 
 #include <asm/gpio.h>
+
+static struct gpio_keys_button mtx1_gpio_button[] = {
+	{
+		.gpio = 207,
+		.code = BTN_0,
+		.desc = "System button",
+	}
+};
+
+static struct gpio_keys_platform_data mtx1_buttons_data = {
+	.buttons = mtx1_gpio_button,
+	.nbuttons = ARRAY_SIZE(mtx1_gpio_button),
+};
+
+static struct platform_device mtx1_button = {
+	.name = "gpio-keys",
+	.id = -1,
+	.dev = {
+		.platform_data = &mtx1_buttons_data,
+	}
+};
 
 static struct resource mtx1_wdt_res[] = {
 	[0] = {
@@ -66,11 +89,13 @@ static struct platform_device mtx1_gpio_leds = {
 
 static struct __initdata platform_device * mtx1_devs[] = {
 	&mtx1_gpio_leds,
-	&mtx1_wdt
+	&mtx1_wdt,
+	&mtx1_button
 };
 
 static int __init mtx1_register_devices(void)
 {
+	gpio_direction_input(207);
 	return platform_add_devices(mtx1_devs, ARRAY_SIZE(mtx1_devs));
 }
 

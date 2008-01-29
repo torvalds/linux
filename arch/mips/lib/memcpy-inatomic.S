@@ -9,6 +9,7 @@
  * Copyright (C) 1999, 2000, 01, 2002 Silicon Graphics, Inc.
  * Copyright (C) 2002 Broadcom, Inc.
  *   memcpy/copy_user author: Mark Vandevoorde
+ * Copyright (C) 2007  Maciej W. Rozycki
  *
  * Mnemonic names for arguments to memcpy/__copy_user
  */
@@ -175,7 +176,11 @@
 
 	.text
 	.set	noreorder
+#ifndef CONFIG_CPU_DADDI_WORKAROUNDS
 	.set	noat
+#else
+	.set	at=v1
+#endif
 
 /*
  * A combined memcpy/__copy_user
@@ -204,36 +209,36 @@ LEAF(__copy_user_inatomic)
 	and	t1, dst, ADDRMASK
 	PREF(	0, 1*32(src) )
 	PREF(	1, 1*32(dst) )
-	bnez	t2, copy_bytes_checklen
+	bnez	t2, .Lcopy_bytes_checklen
 	 and	t0, src, ADDRMASK
 	PREF(	0, 2*32(src) )
 	PREF(	1, 2*32(dst) )
-	bnez	t1, dst_unaligned
+	bnez	t1, .Ldst_unaligned
 	 nop
-	bnez	t0, src_unaligned_dst_aligned
+	bnez	t0, .Lsrc_unaligned_dst_aligned
 	/*
 	 * use delay slot for fall-through
 	 * src and dst are aligned; need to compute rem
 	 */
-both_aligned:
-	 SRL	t0, len, LOG_NBYTES+3    # +3 for 8 units/iter
-	beqz	t0, cleanup_both_aligned # len < 8*NBYTES
-	 and	rem, len, (8*NBYTES-1)	 # rem = len % (8*NBYTES)
+.Lboth_aligned:
+	 SRL	t0, len, LOG_NBYTES+3    	# +3 for 8 units/iter
+	beqz	t0, .Lcleanup_both_aligned	# len < 8*NBYTES
+	 and	rem, len, (8*NBYTES-1)	 	# rem = len % (8*NBYTES)
 	PREF(	0, 3*32(src) )
 	PREF(	1, 3*32(dst) )
 	.align	4
 1:
-EXC(	LOAD	t0, UNIT(0)(src),	l_exc)
-EXC(	LOAD	t1, UNIT(1)(src),	l_exc_copy)
-EXC(	LOAD	t2, UNIT(2)(src),	l_exc_copy)
-EXC(	LOAD	t3, UNIT(3)(src),	l_exc_copy)
+EXC(	LOAD	t0, UNIT(0)(src),	.Ll_exc)
+EXC(	LOAD	t1, UNIT(1)(src),	.Ll_exc_copy)
+EXC(	LOAD	t2, UNIT(2)(src),	.Ll_exc_copy)
+EXC(	LOAD	t3, UNIT(3)(src),	.Ll_exc_copy)
 	SUB	len, len, 8*NBYTES
-EXC(	LOAD	t4, UNIT(4)(src),	l_exc_copy)
-EXC(	LOAD	t7, UNIT(5)(src),	l_exc_copy)
+EXC(	LOAD	t4, UNIT(4)(src),	.Ll_exc_copy)
+EXC(	LOAD	t7, UNIT(5)(src),	.Ll_exc_copy)
 	STORE	t0, UNIT(0)(dst)
 	STORE	t1, UNIT(1)(dst)
-EXC(	LOAD	t0, UNIT(6)(src),	l_exc_copy)
-EXC(	LOAD	t1, UNIT(7)(src),	l_exc_copy)
+EXC(	LOAD	t0, UNIT(6)(src),	.Ll_exc_copy)
+EXC(	LOAD	t1, UNIT(7)(src),	.Ll_exc_copy)
 	ADD	src, src, 8*NBYTES
 	ADD	dst, dst, 8*NBYTES
 	STORE	t2, UNIT(-6)(dst)
@@ -250,39 +255,43 @@ EXC(	LOAD	t1, UNIT(7)(src),	l_exc_copy)
 	/*
 	 * len == rem == the number of bytes left to copy < 8*NBYTES
 	 */
-cleanup_both_aligned:
-	beqz	len, done
+.Lcleanup_both_aligned:
+	beqz	len, .Ldone
 	 sltu	t0, len, 4*NBYTES
-	bnez	t0, less_than_4units
+	bnez	t0, .Lless_than_4units
 	 and	rem, len, (NBYTES-1)	# rem = len % NBYTES
 	/*
 	 * len >= 4*NBYTES
 	 */
-EXC(	LOAD	t0, UNIT(0)(src),	l_exc)
-EXC(	LOAD	t1, UNIT(1)(src),	l_exc_copy)
-EXC(	LOAD	t2, UNIT(2)(src),	l_exc_copy)
-EXC(	LOAD	t3, UNIT(3)(src),	l_exc_copy)
+EXC(	LOAD	t0, UNIT(0)(src),	.Ll_exc)
+EXC(	LOAD	t1, UNIT(1)(src),	.Ll_exc_copy)
+EXC(	LOAD	t2, UNIT(2)(src),	.Ll_exc_copy)
+EXC(	LOAD	t3, UNIT(3)(src),	.Ll_exc_copy)
 	SUB	len, len, 4*NBYTES
 	ADD	src, src, 4*NBYTES
 	STORE	t0, UNIT(0)(dst)
 	STORE	t1, UNIT(1)(dst)
 	STORE	t2, UNIT(2)(dst)
 	STORE	t3, UNIT(3)(dst)
-	beqz	len, done
-	 ADD	dst, dst, 4*NBYTES
-less_than_4units:
+	.set	reorder				/* DADDI_WAR */
+	ADD	dst, dst, 4*NBYTES
+	beqz	len, .Ldone
+	.set	noreorder
+.Lless_than_4units:
 	/*
 	 * rem = len % NBYTES
 	 */
-	beq	rem, len, copy_bytes
+	beq	rem, len, .Lcopy_bytes
 	 nop
 1:
-EXC(	LOAD	t0, 0(src),		l_exc)
+EXC(	LOAD	t0, 0(src),		.Ll_exc)
 	ADD	src, src, NBYTES
 	SUB	len, len, NBYTES
 	STORE	t0, 0(dst)
+	.set	reorder				/* DADDI_WAR */
+	ADD	dst, dst, NBYTES
 	bne	rem, len, 1b
-	 ADD	dst, dst, NBYTES
+	.set	noreorder
 
 	/*
 	 * src and dst are aligned, need to copy rem bytes (rem < NBYTES)
@@ -296,17 +305,17 @@ EXC(	LOAD	t0, 0(src),		l_exc)
 	 * more instruction-level parallelism.
 	 */
 #define bits t2
-	beqz	len, done
+	beqz	len, .Ldone
 	 ADD	t1, dst, len	# t1 is just past last byte of dst
 	li	bits, 8*NBYTES
 	SLL	rem, len, 3	# rem = number of bits to keep
-EXC(	LOAD	t0, 0(src),		l_exc)
+EXC(	LOAD	t0, 0(src),		.Ll_exc)
 	SUB	bits, bits, rem	# bits = number of bits to discard
 	SHIFT_DISCARD t0, t0, bits
 	STREST	t0, -1(t1)
 	jr	ra
 	 move	len, zero
-dst_unaligned:
+.Ldst_unaligned:
 	/*
 	 * dst is unaligned
 	 * t0 = src & ADDRMASK
@@ -317,22 +326,22 @@ dst_unaligned:
 	 * Set match = (src and dst have same alignment)
 	 */
 #define match rem
-EXC(	LDFIRST	t3, FIRST(0)(src),	l_exc)
+EXC(	LDFIRST	t3, FIRST(0)(src),	.Ll_exc)
 	ADD	t2, zero, NBYTES
-EXC(	LDREST	t3, REST(0)(src),	l_exc_copy)
+EXC(	LDREST	t3, REST(0)(src),	.Ll_exc_copy)
 	SUB	t2, t2, t1	# t2 = number of bytes copied
 	xor	match, t0, t1
 	STFIRST t3, FIRST(0)(dst)
-	beq	len, t2, done
+	beq	len, t2, .Ldone
 	 SUB	len, len, t2
 	ADD	dst, dst, t2
-	beqz	match, both_aligned
+	beqz	match, .Lboth_aligned
 	 ADD	src, src, t2
 
-src_unaligned_dst_aligned:
+.Lsrc_unaligned_dst_aligned:
 	SRL	t0, len, LOG_NBYTES+2    # +2 for 4 units/iter
 	PREF(	0, 3*32(src) )
-	beqz	t0, cleanup_src_unaligned
+	beqz	t0, .Lcleanup_src_unaligned
 	 and	rem, len, (4*NBYTES-1)   # rem = len % 4*NBYTES
 	PREF(	1, 3*32(dst) )
 1:
@@ -342,15 +351,15 @@ src_unaligned_dst_aligned:
  * It's OK to load FIRST(N+1) before REST(N) because the two addresses
  * are to the same unit (unless src is aligned, but it's not).
  */
-EXC(	LDFIRST	t0, FIRST(0)(src),	l_exc)
-EXC(	LDFIRST	t1, FIRST(1)(src),	l_exc_copy)
+EXC(	LDFIRST	t0, FIRST(0)(src),	.Ll_exc)
+EXC(	LDFIRST	t1, FIRST(1)(src),	.Ll_exc_copy)
 	SUB     len, len, 4*NBYTES
-EXC(	LDREST	t0, REST(0)(src),	l_exc_copy)
-EXC(	LDREST	t1, REST(1)(src),	l_exc_copy)
-EXC(	LDFIRST	t2, FIRST(2)(src),	l_exc_copy)
-EXC(	LDFIRST	t3, FIRST(3)(src),	l_exc_copy)
-EXC(	LDREST	t2, REST(2)(src),	l_exc_copy)
-EXC(	LDREST	t3, REST(3)(src),	l_exc_copy)
+EXC(	LDREST	t0, REST(0)(src),	.Ll_exc_copy)
+EXC(	LDREST	t1, REST(1)(src),	.Ll_exc_copy)
+EXC(	LDFIRST	t2, FIRST(2)(src),	.Ll_exc_copy)
+EXC(	LDFIRST	t3, FIRST(3)(src),	.Ll_exc_copy)
+EXC(	LDREST	t2, REST(2)(src),	.Ll_exc_copy)
+EXC(	LDREST	t3, REST(3)(src),	.Ll_exc_copy)
 	PREF(	0, 9*32(src) )		# 0 is PREF_LOAD  (not streamed)
 	ADD	src, src, 4*NBYTES
 #ifdef CONFIG_CPU_SB1
@@ -361,32 +370,36 @@ EXC(	LDREST	t3, REST(3)(src),	l_exc_copy)
 	STORE	t2, UNIT(2)(dst)
 	STORE	t3, UNIT(3)(dst)
 	PREF(	1, 9*32(dst) )     	# 1 is PREF_STORE (not streamed)
+	.set	reorder				/* DADDI_WAR */
+	ADD	dst, dst, 4*NBYTES
 	bne	len, rem, 1b
-	 ADD	dst, dst, 4*NBYTES
+	.set	noreorder
 
-cleanup_src_unaligned:
-	beqz	len, done
+.Lcleanup_src_unaligned:
+	beqz	len, .Ldone
 	 and	rem, len, NBYTES-1  # rem = len % NBYTES
-	beq	rem, len, copy_bytes
+	beq	rem, len, .Lcopy_bytes
 	 nop
 1:
-EXC(	LDFIRST t0, FIRST(0)(src),	l_exc)
-EXC(	LDREST	t0, REST(0)(src),	l_exc_copy)
+EXC(	LDFIRST t0, FIRST(0)(src),	.Ll_exc)
+EXC(	LDREST	t0, REST(0)(src),	.Ll_exc_copy)
 	ADD	src, src, NBYTES
 	SUB	len, len, NBYTES
 	STORE	t0, 0(dst)
+	.set	reorder				/* DADDI_WAR */
+	ADD	dst, dst, NBYTES
 	bne	len, rem, 1b
-	 ADD	dst, dst, NBYTES
+	.set	noreorder
 
-copy_bytes_checklen:
-	beqz	len, done
+.Lcopy_bytes_checklen:
+	beqz	len, .Ldone
 	 nop
-copy_bytes:
+.Lcopy_bytes:
 	/* 0 < len < NBYTES  */
 #define COPY_BYTE(N)			\
-EXC(	lb	t0, N(src), l_exc);	\
+EXC(	lb	t0, N(src), .Ll_exc);	\
 	SUB	len, len, 1;		\
-	beqz	len, done;		\
+	beqz	len, .Ldone;		\
 	 sb	t0, N(dst)
 
 	COPY_BYTE(0)
@@ -397,16 +410,16 @@ EXC(	lb	t0, N(src), l_exc);	\
 	COPY_BYTE(4)
 	COPY_BYTE(5)
 #endif
-EXC(	lb	t0, NBYTES-2(src), l_exc)
+EXC(	lb	t0, NBYTES-2(src), .Ll_exc)
 	SUB	len, len, 1
 	jr	ra
 	 sb	t0, NBYTES-2(dst)
-done:
+.Ldone:
 	jr	ra
 	 nop
 	END(__copy_user_inatomic)
 
-l_exc_copy:
+.Ll_exc_copy:
 	/*
 	 * Copy bytes from src until faulting load address (or until a
 	 * lb faults)
@@ -421,12 +434,14 @@ l_exc_copy:
 	 nop
 	LOAD	t0, THREAD_BUADDR(t0)
 1:
-EXC(	lb	t1, 0(src),	l_exc)
+EXC(	lb	t1, 0(src),	.Ll_exc)
 	ADD	src, src, 1
 	sb	t1, 0(dst)	# can't fault -- we're copy_from_user
+	.set	reorder				/* DADDI_WAR */
+	ADD	dst, dst, 1
 	bne	src, t0, 1b
-	 ADD	dst, dst, 1
-l_exc:
+	.set	noreorder
+.Ll_exc:
 	LOAD	t0, TI_TASK($28)
 	 nop
 	LOAD	t0, THREAD_BUADDR(t0)	# t0 is just past last good address

@@ -42,70 +42,6 @@ void __init prom_grab_secondary(void)
 	              launchstack + LAUNCHSTACK_SIZE, 0);
 }
 
-/*
- * Detect available CPUs, populate phys_cpu_present_map before smp_init
- *
- * We don't want to start the secondary CPU yet nor do we have a nice probing
- * feature in PMON so we just assume presence of the secondary core.
- */
-void __init plat_smp_setup(void)
-{
-	int i;
-
-	cpus_clear(phys_cpu_present_map);
-
-	for (i = 0; i < 2; i++) {
-		cpu_set(i, phys_cpu_present_map);
-		__cpu_number_map[i]	= i;
-		__cpu_logical_map[i]	= i;
-	}
-}
-
-void __init plat_prepare_cpus(unsigned int max_cpus)
-{
-	/*
-	 * Be paranoid.  Enable the IPI only if we're really about to go SMP.
-	 */
-	if (cpus_weight(cpu_possible_map))
-		set_c0_status(STATUSF_IP5);
-}
-
-/*
- * Firmware CPU startup hook
- * Complicated by PMON's weird interface which tries to minimic the UNIX fork.
- * It launches the next * available CPU and copies some information on the
- * stack so the first thing we do is throw away that stuff and load useful
- * values into the registers ...
- */
-void __cpuinit prom_boot_secondary(int cpu, struct task_struct *idle)
-{
-	unsigned long gp = (unsigned long) task_thread_info(idle);
-	unsigned long sp = __KSTK_TOS(idle);
-
-	secondary_sp = sp;
-	secondary_gp = gp;
-
-	spin_unlock(&launch_lock);
-}
-
-/* Hook for after all CPUs are online */
-void prom_cpus_done(void)
-{
-}
-
-/*
- *  After we've done initial boot, this function is called to allow the
- *  board code to clean up state, if needed
- */
-void __cpuinit prom_init_secondary(void)
-{
-	set_c0_status(ST0_CO | ST0_IE | ST0_IM);
-}
-
-void __cpuinit prom_smp_finish(void)
-{
-}
-
 void titan_mailbox_irq(void)
 {
 	int cpu = smp_processor_id();
@@ -133,7 +69,7 @@ void titan_mailbox_irq(void)
 /*
  * Send inter-processor interrupt
  */
-void core_send_ipi(int cpu, unsigned int action)
+static void yos_send_ipi_single(int cpu, unsigned int action)
 {
 	/*
 	 * Generate an INTMSG so that it can be sent over to the
@@ -159,3 +95,86 @@ void core_send_ipi(int cpu, unsigned int action)
 		break;
 	}
 }
+
+static void yos_send_ipi_mask(cpumask_t mask, unsigned int action)
+{
+	unsigned int i;
+
+	for_each_cpu_mask(i, mask)
+		yos_send_ipi_single(i, action);
+}
+
+/*
+ *  After we've done initial boot, this function is called to allow the
+ *  board code to clean up state, if needed
+ */
+static void __cpuinit yos_init_secondary(void)
+{
+	set_c0_status(ST0_CO | ST0_IE | ST0_IM);
+}
+
+static void __cpuinit yos_smp_finish(void)
+{
+}
+
+/* Hook for after all CPUs are online */
+static void yos_cpus_done(void)
+{
+}
+
+/*
+ * Firmware CPU startup hook
+ * Complicated by PMON's weird interface which tries to minimic the UNIX fork.
+ * It launches the next * available CPU and copies some information on the
+ * stack so the first thing we do is throw away that stuff and load useful
+ * values into the registers ...
+ */
+static void __cpuinit yos_boot_secondary(int cpu, struct task_struct *idle)
+{
+	unsigned long gp = (unsigned long) task_thread_info(idle);
+	unsigned long sp = __KSTK_TOS(idle);
+
+	secondary_sp = sp;
+	secondary_gp = gp;
+
+	spin_unlock(&launch_lock);
+}
+
+/*
+ * Detect available CPUs, populate phys_cpu_present_map before smp_init
+ *
+ * We don't want to start the secondary CPU yet nor do we have a nice probing
+ * feature in PMON so we just assume presence of the secondary core.
+ */
+static void __init yos_smp_setup(void)
+{
+	int i;
+
+	cpus_clear(phys_cpu_present_map);
+
+	for (i = 0; i < 2; i++) {
+		cpu_set(i, phys_cpu_present_map);
+		__cpu_number_map[i]	= i;
+		__cpu_logical_map[i]	= i;
+	}
+}
+
+static void __init yos_prepare_cpus(unsigned int max_cpus)
+{
+	/*
+	 * Be paranoid.  Enable the IPI only if we're really about to go SMP.
+	 */
+	if (cpus_weight(cpu_possible_map))
+		set_c0_status(STATUSF_IP5);
+}
+
+struct plat_smp_ops yos_smp_ops = {
+	.send_ipi_single	= yos_send_ipi_single,
+	.send_ipi_mask		= yos_send_ipi_mask,
+	.init_secondary		= yos_init_secondary,
+	.smp_finish		= yos_smp_finish,
+	.cpus_done		= yos_cpus_done,
+	.boot_secondary		= yos_boot_secondary,
+	.smp_setup		= yos_smp_setup,
+	.prepare_cpus		= yos_prepare_cpus,
+};

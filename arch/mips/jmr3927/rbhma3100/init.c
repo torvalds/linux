@@ -52,10 +52,6 @@ void __init prom_init(void)
 		puts("Warning: TX3927 TLB off\n");
 #endif
 
-#ifdef CONFIG_TOSHIBA_JMR3927
-	mips_machtype = MACH_TOSHIBA_JMR3927;
-#endif
-
 	prom_init_cmdline();
 	add_memory_region(0, JMR3927_SDRAM_SIZE, BOOT_MEM_RAM);
 }

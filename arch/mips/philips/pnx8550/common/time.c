@@ -47,11 +47,6 @@ static struct clocksource pnx_clocksource = {
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-static void timer_ack(void)
-{
-	write_c0_compare(cpj);
-}
-
 static irqreturn_t pnx8xxx_timer_interrupt(int irq, void *dev_id)
 {
 	struct clock_event_device *c = dev_id;
@@ -94,29 +89,21 @@ static struct clock_event_device pnx8xxx_clockevent = {
 	.set_next_event = pnx8xxx_set_next_event,
 };
 
-/*
- * plat_time_init() - it does the following things:
- *
- * 1) plat_time_init() -
- * 	a) (optional) set up RTC routines,
- *      b) (optional) calibrate and set the mips_hpt_frequency
- *	    (only needed if you intended to use cpu counter as timer interrupt
- *	     source)
- */
+static inline void timer_ack(void)
+{
+	write_c0_compare(cpj);
+}
 
 __init void plat_time_init(void)
 {
-	unsigned int             configPR;
-	unsigned int             n;
-	unsigned int             m;
-	unsigned int             p;
-	unsigned int             pow2p;
+	unsigned int configPR;
+	unsigned int n;
+	unsigned int m;
+	unsigned int p;
+	unsigned int pow2p;
 
 	clockevents_register_device(&pnx8xxx_clockevent);
 	clocksource_register(&pnx_clocksource);
-
-	setup_irq(PNX8550_INT_TIMER1, &pnx8xxx_timer_irq);
-	setup_irq(PNX8550_INT_TIMER2, &monotonic_irqaction);
 
 	/* Timer 1 start */
 	configPR = read_c0_config7();
@@ -158,6 +145,6 @@ __init void plat_time_init(void)
 	write_c0_count2(0);
 	write_c0_compare2(0xffffffff);
 
+	setup_irq(PNX8550_INT_TIMER1, &pnx8xxx_timer_irq);
+	setup_irq(PNX8550_INT_TIMER2, &monotonic_irqaction);
 }
-
-

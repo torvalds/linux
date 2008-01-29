@@ -178,6 +178,7 @@ void __init plat_time_init(void)
 		sni_a20r_timer_setup();
 		break;
 	}
+	setup_pit_timer();
 }
 
 unsigned long read_persistent_clock(void)

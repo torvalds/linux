@@ -4,6 +4,7 @@
  * for more details.
  *
  * Copyright (C) 2003, 04, 05 Ralf Baechle (ralf@linux-mips.org)
+ * Copyright (C) 2007  Maciej W. Rozycki
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -12,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/proc_fs.h>
 
+#include <asm/bugs.h>
 #include <asm/cacheops.h>
 #include <asm/inst.h>
 #include <asm/io.h>
@@ -255,64 +257,58 @@ static inline void build_store_reg(int reg)
 	__build_store_reg(reg);
 }
 
-static inline void build_addiu_a2_a0(unsigned long offset)
+static inline void build_addiu_rt_rs(unsigned int rt, unsigned int rs,
+				     unsigned long offset)
 {
 	union mips_instruction mi;
 
 	BUG_ON(offset > 0x7fff);
 
-	mi.i_format.opcode     = cpu_has_64bit_gp_regs ? daddiu_op : addiu_op;
-	mi.i_format.rs         = 4;		/* $a0 */
-	mi.i_format.rt         = 6;		/* $a2 */
-	mi.i_format.simmediate = offset;
+	if (cpu_has_64bit_gp_regs && DADDI_WAR && r4k_daddiu_bug()) {
+		mi.i_format.opcode     = addiu_op;
+		mi.i_format.rs         = 0;	/* $zero */
+		mi.i_format.rt         = 25;	/* $t9 */
+		mi.i_format.simmediate = offset;
+		emit_instruction(mi);
 
+		mi.r_format.opcode     = spec_op;
+		mi.r_format.rs         = rs;
+		mi.r_format.rt         = 25;	/* $t9 */
+		mi.r_format.rd         = rt;
+		mi.r_format.re         = 0;
+		mi.r_format.func       = daddu_op;
+	} else {
+		mi.i_format.opcode     = cpu_has_64bit_gp_regs ?
+					 daddiu_op : addiu_op;
+		mi.i_format.rs         = rs;
+		mi.i_format.rt         = rt;
+		mi.i_format.simmediate = offset;
+	}
 	emit_instruction(mi);
+}
+
+static inline void build_addiu_a2_a0(unsigned long offset)
+{
+	build_addiu_rt_rs(6, 4, offset);	/* $a2, $a0, offset */
 }
 
 static inline void build_addiu_a2(unsigned long offset)
 {
-	union mips_instruction mi;
-
-	BUG_ON(offset > 0x7fff);
-
-	mi.i_format.opcode     = cpu_has_64bit_gp_regs ? daddiu_op : addiu_op;
-	mi.i_format.rs         = 6;		/* $a2 */
-	mi.i_format.rt         = 6;		/* $a2 */
-	mi.i_format.simmediate = offset;
-
-	emit_instruction(mi);
+	build_addiu_rt_rs(6, 6, offset);	/* $a2, $a2, offset */
 }
 
 static inline void build_addiu_a1(unsigned long offset)
 {
-	union mips_instruction mi;
-
-	BUG_ON(offset > 0x7fff);
-
-	mi.i_format.opcode     = cpu_has_64bit_gp_regs ? daddiu_op : addiu_op;
-	mi.i_format.rs         = 5;		/* $a1 */
-	mi.i_format.rt         = 5;		/* $a1 */
-	mi.i_format.simmediate = offset;
+	build_addiu_rt_rs(5, 5, offset);	/* $a1, $a1, offset */
 
 	load_offset -= offset;
-
-	emit_instruction(mi);
 }
 
 static inline void build_addiu_a0(unsigned long offset)
 {
-	union mips_instruction mi;
-
-	BUG_ON(offset > 0x7fff);
-
-	mi.i_format.opcode     = cpu_has_64bit_gp_regs ? daddiu_op : addiu_op;
-	mi.i_format.rs         = 4;		/* $a0 */
-	mi.i_format.rt         = 4;		/* $a0 */
-	mi.i_format.simmediate = offset;
+	build_addiu_rt_rs(4, 4, offset);	/* $a0, $a0, offset */
 
 	store_offset -= offset;
-
-	emit_instruction(mi);
 }
 
 static inline void build_bne(unsigned int *dest)

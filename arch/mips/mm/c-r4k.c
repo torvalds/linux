@@ -449,7 +449,7 @@ static inline void local_r4k_flush_cache_page(void *args)
 	 * If the page isn't marked valid, the page cannot possibly be
 	 * in the cache.
 	 */
-	if (!(pte_val(*ptep) & _PAGE_PRESENT))
+	if (!(pte_present(*ptep)))
 		return;
 
 	if ((mm == current->active_mm) && (pte_val(*ptep) & _PAGE_VALID))
@@ -468,8 +468,6 @@ static inline void local_r4k_flush_cache_page(void *args)
 
 	if (cpu_has_dc_aliases || (exec && !cpu_has_ic_fills_f_dc)) {
 		r4k_blast_dcache_page(addr);
-		if (exec && !cpu_icache_snoops_remote_store)
-			r4k_blast_scache_page(addr);
 	}
 	if (exec) {
 		if (vaddr && cpu_has_vtag_icache && mm == current->active_mm) {
@@ -533,13 +531,6 @@ static inline void local_r4k_flush_icache_range(void *args)
 			R4600_HIT_CACHEOP_WAR_IMPL;
 			protected_blast_dcache_range(start, end);
 		}
-
-		if (!cpu_icache_snoops_remote_store && scache_size) {
-			if (end - start > scache_size)
-				r4k_blast_scache();
-			else
-				protected_blast_scache_range(start, end);
-		}
 	}
 
 	if (end - start > icache_size)
@@ -598,7 +589,7 @@ static void r4k_dma_cache_inv(unsigned long addr, unsigned long size)
 		if (size >= scache_size)
 			r4k_blast_scache();
 		else
-			blast_scache_range(addr, addr + size);
+			blast_inv_scache_range(addr, addr + size);
 		return;
 	}
 
@@ -606,7 +597,7 @@ static void r4k_dma_cache_inv(unsigned long addr, unsigned long size)
 		r4k_blast_dcache();
 	} else {
 		R4600_HIT_CACHEOP_WAR_IMPL;
-		blast_dcache_range(addr, addr + size);
+		blast_inv_dcache_range(addr, addr + size);
 	}
 
 	bc_inv(addr, size);
@@ -989,6 +980,8 @@ static void __init probe_pcache(void)
 	case CPU_AU1100:
 	case CPU_AU1550:
 	case CPU_AU1200:
+	case CPU_AU1210:
+	case CPU_AU1250:
 		c->icache.flags |= MIPS_CACHE_IC_F_DC;
 		break;
 	}

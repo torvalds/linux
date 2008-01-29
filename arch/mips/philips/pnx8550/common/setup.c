@@ -74,7 +74,7 @@ struct resource standard_io_resources[] = {
 	},
 };
 
-#define STANDARD_IO_RESOURCES (sizeof(standard_io_resources)/sizeof(struct resource))
+#define STANDARD_IO_RESOURCES ARRAY_SIZE(standard_io_resources)
 
 extern struct resource pci_io_resource;
 extern struct resource pci_mem_resource;

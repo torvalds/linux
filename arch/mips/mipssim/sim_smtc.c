@@ -16,7 +16,7 @@
  *
  */
 /*
- * Simulator Platform-specific hooks for SMP operation
+ * Simulator Platform-specific hooks for SMTC operation
  */
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -29,65 +29,72 @@
 #include <asm/processor.h>
 #include <asm/system.h>
 #include <asm/mmu_context.h>
-#ifdef CONFIG_MIPS_MT_SMTC
 #include <asm/smtc_ipi.h>
-#endif /* CONFIG_MIPS_MT_SMTC */
 
 /* VPE/SMP Prototype implements platform interfaces directly */
-#if !defined(CONFIG_MIPS_MT_SMP)
 
 /*
  * Cause the specified action to be performed on a targeted "CPU"
  */
 
-void core_send_ipi(int cpu, unsigned int action)
+static void ssmtc_send_ipi_single(int cpu, unsigned int action)
 {
-#ifdef CONFIG_MIPS_MT_SMTC
 	smtc_send_ipi(cpu, LINUX_SMP_IPI, action);
-#endif /* CONFIG_MIPS_MT_SMTC */
-/* "CPU" may be TC of same VPE, VPE of same CPU, or different CPU */
-
+	/* "CPU" may be TC of same VPE, VPE of same CPU, or different CPU */
 }
 
-/*
- * Platform "CPU" startup hook
- */
-
-void __cpuinit prom_boot_secondary(int cpu, struct task_struct *idle)
+static inline void ssmtc_send_ipi_mask(cpumask_t mask, unsigned int action)
 {
-#ifdef CONFIG_MIPS_MT_SMTC
-	smtc_boot_secondary(cpu, idle);
-#endif /* CONFIG_MIPS_MT_SMTC */
+	unsigned int i;
+
+	for_each_cpu_mask(i, mask)
+		ssmtc_send_ipi_single(i, action);
 }
 
 /*
  * Post-config but pre-boot cleanup entry point
  */
-
-void __cpuinit prom_init_secondary(void)
+static void __cpuinit ssmtc_init_secondary(void)
 {
-#ifdef CONFIG_MIPS_MT_SMTC
 	void smtc_init_secondary(void);
 
 	smtc_init_secondary();
-#endif /* CONFIG_MIPS_MT_SMTC */
 }
 
-void plat_smp_setup(void)
+/*
+ * SMP initialization finalization entry point
+ */
+static void __cpuinit ssmtc_smp_finish(void)
 {
-#ifdef CONFIG_MIPS_MT_SMTC
+	smtc_smp_finish();
+}
+
+/*
+ * Hook for after all CPUs are online
+ */
+static void ssmtc_cpus_done(void)
+{
+}
+
+/*
+ * Platform "CPU" startup hook
+ */
+static void __cpuinit ssmtc_boot_secondary(int cpu, struct task_struct *idle)
+{
+	smtc_boot_secondary(cpu, idle);
+}
+
+static void __init ssmtc_smp_setup(void)
+{
 	if (read_c0_config3() & (1 << 2))
 		mipsmt_build_cpu_map(0);
-#endif /* CONFIG_MIPS_MT_SMTC */
 }
 
 /*
  * Platform SMP pre-initialization
  */
-
-void plat_prepare_cpus(unsigned int max_cpus)
+static void ssmtc_prepare_cpus(unsigned int max_cpus)
 {
-#ifdef CONFIG_MIPS_MT_SMTC
 	/*
 	 * As noted above, we can assume a single CPU for now
 	 * but it may be multithreaded.
@@ -96,28 +103,15 @@ void plat_prepare_cpus(unsigned int max_cpus)
 	if (read_c0_config3() & (1 << 2)) {
 		mipsmt_prepare_cpus();
 	}
-#endif /* CONFIG_MIPS_MT_SMTC */
 }
 
-/*
- * SMP initialization finalization entry point
- */
-
-void __cpuinit prom_smp_finish(void)
-{
-#ifdef CONFIG_MIPS_MT_SMTC
-	smtc_smp_finish();
-#endif /* CONFIG_MIPS_MT_SMTC */
-}
-
-/*
- * Hook for after all CPUs are online
- */
-
-void prom_cpus_done(void)
-{
-#ifdef CONFIG_MIPS_MT_SMTC
-
-#endif /* CONFIG_MIPS_MT_SMTC */
-}
-#endif /* CONFIG_MIPS32R2_MT_SMP */
+struct plat_smp_ops ssmtc_smp_ops = {
+	.send_ipi_single	= ssmtc_send_ipi_single,
+	.send_ipi_mask		= ssmtc_send_ipi_mask,
+	.init_secondary		= ssmtc_init_secondary,
+	.smp_finish		= ssmtc_smp_finish,
+	.cpus_done		= ssmtc_cpus_done,
+	.boot_secondary		= ssmtc_boot_secondary,
+	.smp_setup		= ssmtc_smp_setup,
+	.prepare_cpus		= ssmtc_prepare_cpus,
+};

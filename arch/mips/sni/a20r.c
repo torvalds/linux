@@ -117,10 +117,19 @@ static struct resource sc26xx_rsrc[] = {
 	}
 };
 
+static unsigned int sc26xx_data[2] = {
+	/* DTR   |   RTS    |   DSR    |   CTS     |   DCD     |   RI    */
+	(8 << 0) | (4 << 4) | (6 << 8) | (0 << 12) | (6 << 16) | (0 << 20),
+	(3 << 0) | (2 << 4) | (1 << 8) | (2 << 12) | (3 << 16) | (4 << 20)
+};
+
 static struct platform_device sc26xx_pdev = {
 	.name           = "SC26xx",
 	.num_resources  = ARRAY_SIZE(sc26xx_rsrc),
-	.resource       = sc26xx_rsrc
+	.resource       = sc26xx_rsrc,
+	.dev			= {
+		.platform_data	= sc26xx_data,
+	}
 };
 
 static u32 a20r_ack_hwint(void)
@@ -231,9 +240,9 @@ static int __init snirm_a20r_setup_devinit(void)
 	        platform_device_register(&sc26xx_pdev);
 	        platform_device_register(&a20r_serial8250_device);
 	        platform_device_register(&a20r_ds1216_device);
+		sni_eisa_root_init();
 	        break;
 	}
-
 	return 0;
 }
 

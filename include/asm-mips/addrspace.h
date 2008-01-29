@@ -127,7 +127,7 @@
 #define PHYS_TO_XKSEG_CACHED(p)		PHYS_TO_XKPHYS(K_CALG_COH_SHAREABLE, (p))
 #define XKPHYS_TO_PHYS(p)		((p) & TO_PHYS_MASK)
 #define PHYS_TO_XKPHYS(cm, a)		(_CONST64_(0x8000000000000000) | \
-					 ((cm)<<59) | (a))
+					 (_CONST64_(cm) << 59) | (a))
 
 /*
  * The ultimate limited of the 64-bit MIPS architecture:  2 bits for selecting

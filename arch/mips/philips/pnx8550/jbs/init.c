@@ -45,10 +45,7 @@ const char *get_system_type(void)
 
 void __init prom_init(void)
 {
-
 	unsigned long memsize;
-
-	mips_machtype = MACH_PHILIPS_JBS;
 
 	//memsize = 0x02800000; /* Trimedia uses memory above */
 	memsize = 0x08000000; /* Trimedia uses memory above */

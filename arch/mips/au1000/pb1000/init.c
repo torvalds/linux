@@ -52,8 +52,6 @@ void __init prom_init(void)
 	prom_argv = (char **) fw_arg1;
 	prom_envp = (char **) fw_arg2;
 
-	mips_machtype = MACH_PB1000;
-
 	prom_init_cmdline();
 	memsize_str = prom_getenv("memsize");
 	if (!memsize_str) {

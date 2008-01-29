@@ -17,7 +17,6 @@
 #include <asm/system.h>
 #include <asm/hardirq.h>
 #include <asm/mmu_context.h>
-#include <asm/smp.h>
 #include <asm/mipsmtregs.h>
 #include <asm/r4kcache.h>
 #include <asm/cacheflush.h>

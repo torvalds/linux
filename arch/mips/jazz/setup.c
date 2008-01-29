@@ -200,12 +200,19 @@ static struct platform_device jazz_cmos_pdev = {
 	.resource       = jazz_cmos_rsrc
 };
 
+static struct platform_device pcspeaker_pdev = {
+	.name           = "pcspkr",
+	.id		= -1,
+};
+
 static int __init jazz_setup_devinit(void)
 {
 	platform_device_register(&jazz_serial8250_device);
 	platform_device_register(&jazz_esp_pdev);
 	platform_device_register(&jazz_sonic_pdev);
 	platform_device_register(&jazz_cmos_pdev);
+	platform_device_register(&pcspeaker_pdev);
+
 	return 0;
 }
 

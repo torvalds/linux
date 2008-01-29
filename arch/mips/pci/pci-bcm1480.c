@@ -178,8 +178,8 @@ struct pci_ops bcm1480_pci_ops = {
 
 static struct resource bcm1480_mem_resource = {
 	.name	= "BCM1480 PCI MEM",
-	.start	= 0x30000000UL,
-	.end	= 0x3fffffffUL,
+	.start	= A_BCM1480_PHYS_PCI_MEM_MATCH_BYTES,
+	.end	= A_BCM1480_PHYS_PCI_MEM_MATCH_BYTES + 0xfffffffUL,
 	.flags	= IORESOURCE_MEM,
 };
 

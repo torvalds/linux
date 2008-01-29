@@ -22,6 +22,7 @@
 #include <linux/cpumask.h>
 #include <linux/interrupt.h>
 #include <linux/compiler.h>
+#include <linux/smp.h>
 
 #include <asm/atomic.h>
 #include <asm/cacheflush.h>
@@ -30,7 +31,6 @@
 #include <asm/system.h>
 #include <asm/hardirq.h>
 #include <asm/mmu_context.h>
-#include <asm/smp.h>
 #include <asm/time.h>
 #include <asm/mipsregs.h>
 #include <asm/mipsmtregs.h>
@@ -215,68 +215,67 @@ static void __init smp_tc_init(unsigned int tc, unsigned int mvpconf0)
 	write_tc_c0_tchalt(TCHALT_H);
 }
 
-/*
- * Common setup before any secondaries are started
- * Make sure all CPU's are in a sensible state before we boot any of the
- * secondarys
- */
-void __init plat_smp_setup(void)
+static void vsmp_send_ipi_single(int cpu, unsigned int action)
 {
-	unsigned int mvpconf0, ntc, tc, ncpu = 0;
+	int i;
+	unsigned long flags;
+	int vpflags;
+
+	local_irq_save(flags);
+
+	vpflags = dvpe();	/* cant access the other CPU's registers whilst MVPE enabled */
+
+	switch (action) {
+	case SMP_CALL_FUNCTION:
+		i = C_SW1;
+		break;
+
+	case SMP_RESCHEDULE_YOURSELF:
+	default:
+		i = C_SW0;
+		break;
+	}
+
+	/* 1:1 mapping of vpe and tc... */
+	settc(cpu);
+	write_vpe_c0_cause(read_vpe_c0_cause() | i);
+	evpe(vpflags);
+
+	local_irq_restore(flags);
+}
+
+static void vsmp_send_ipi_mask(cpumask_t mask, unsigned int action)
+{
+	unsigned int i;
+
+	for_each_cpu_mask(i, mask)
+		vsmp_send_ipi_single(i, action);
+}
+
+static void __cpuinit vsmp_init_secondary(void)
+{
+	/* Enable per-cpu interrupts */
+
+	/* This is Malta specific: IPI,performance and timer inetrrupts */
+	write_c0_status((read_c0_status() & ~ST0_IM ) |
+	                (STATUSF_IP0 | STATUSF_IP1 | STATUSF_IP6 | STATUSF_IP7));
+}
+
+static void __cpuinit vsmp_smp_finish(void)
+{
+	write_c0_compare(read_c0_count() + (8* mips_hpt_frequency/HZ));
 
 #ifdef CONFIG_MIPS_MT_FPAFF
 	/* If we have an FPU, enroll ourselves in the FPU-full mask */
 	if (cpu_has_fpu)
-		cpu_set(0, mt_fpu_cpumask);
+		cpu_set(smp_processor_id(), mt_fpu_cpumask);
 #endif /* CONFIG_MIPS_MT_FPAFF */
-	if (!cpu_has_mipsmt)
-		return;
 
-	/* disable MT so we can configure */
-	dvpe();
-	dmt();
-
-	/* Put MVPE's into 'configuration state' */
-	set_c0_mvpcontrol(MVPCONTROL_VPC);
-
-	mvpconf0 = read_c0_mvpconf0();
-	ntc = (mvpconf0 & MVPCONF0_PTC) >> MVPCONF0_PTC_SHIFT;
-
-	/* we'll always have more TC's than VPE's, so loop setting everything
-	   to a sensible state */
-	for (tc = 0; tc <= ntc; tc++) {
-		settc(tc);
-
-		smp_tc_init(tc, mvpconf0);
-		ncpu = smp_vpe_init(tc, mvpconf0, ncpu);
-	}
-
-	/* Release config state */
-	clear_c0_mvpcontrol(MVPCONTROL_VPC);
-
-	/* We'll wait until starting the secondaries before starting MVPE */
-
-	printk(KERN_INFO "Detected %i available secondary CPU(s)\n", ncpu);
+	local_irq_enable();
 }
 
-void __init plat_prepare_cpus(unsigned int max_cpus)
+static void vsmp_cpus_done(void)
 {
-	mips_mt_set_cpuoptions();
-
-	/* set up ipi interrupts */
-	if (cpu_has_vint) {
-		set_vi_handler(MIPS_CPU_IPI_RESCHED_IRQ, ipi_resched_dispatch);
-		set_vi_handler(MIPS_CPU_IPI_CALL_IRQ, ipi_call_dispatch);
-	}
-
-	cpu_ipi_resched_irq = MIPS_CPU_IRQ_BASE + MIPS_CPU_IPI_RESCHED_IRQ;
-	cpu_ipi_call_irq = MIPS_CPU_IRQ_BASE + MIPS_CPU_IPI_CALL_IRQ;
-
-	setup_irq(cpu_ipi_resched_irq, &irq_resched);
-	setup_irq(cpu_ipi_call_irq, &irq_call);
-
-	set_irq_handler(cpu_ipi_resched_irq, handle_percpu_irq);
-	set_irq_handler(cpu_ipi_call_irq, handle_percpu_irq);
 }
 
 /*
@@ -287,7 +286,7 @@ void __init plat_prepare_cpus(unsigned int max_cpus)
  * (unsigned long)idle->thread_info the gp
  * assumes a 1:1 mapping of TC => VPE
  */
-void __cpuinit prom_boot_secondary(int cpu, struct task_struct *idle)
+static void __cpuinit vsmp_boot_secondary(int cpu, struct task_struct *idle)
 {
 	struct thread_info *gp = task_thread_info(idle);
 	dvpe();
@@ -321,57 +320,81 @@ void __cpuinit prom_boot_secondary(int cpu, struct task_struct *idle)
 	evpe(EVPE_ENABLE);
 }
 
-void __cpuinit prom_init_secondary(void)
+/*
+ * Common setup before any secondaries are started
+ * Make sure all CPU's are in a sensible state before we boot any of the
+ * secondarys
+ */
+static void __init vsmp_smp_setup(void)
 {
-	/* Enable per-cpu interrupts */
-
-	/* This is Malta specific: IPI,performance and timer inetrrupts */
-	write_c0_status((read_c0_status() & ~ST0_IM ) |
-	                (STATUSF_IP0 | STATUSF_IP1 | STATUSF_IP6 | STATUSF_IP7));
-}
-
-void __cpuinit prom_smp_finish(void)
-{
-	write_c0_compare(read_c0_count() + (8* mips_hpt_frequency/HZ));
+	unsigned int mvpconf0, ntc, tc, ncpu = 0;
+	unsigned int nvpe;
 
 #ifdef CONFIG_MIPS_MT_FPAFF
 	/* If we have an FPU, enroll ourselves in the FPU-full mask */
 	if (cpu_has_fpu)
-		cpu_set(smp_processor_id(), mt_fpu_cpumask);
+		cpu_set(0, mt_fpu_cpumask);
 #endif /* CONFIG_MIPS_MT_FPAFF */
+	if (!cpu_has_mipsmt)
+		return;
 
-	local_irq_enable();
-}
+	/* disable MT so we can configure */
+	dvpe();
+	dmt();
 
-void prom_cpus_done(void)
-{
-}
+	/* Put MVPE's into 'configuration state' */
+	set_c0_mvpcontrol(MVPCONTROL_VPC);
 
-void core_send_ipi(int cpu, unsigned int action)
-{
-	int i;
-	unsigned long flags;
-	int vpflags;
+	mvpconf0 = read_c0_mvpconf0();
+	ntc = (mvpconf0 & MVPCONF0_PTC) >> MVPCONF0_PTC_SHIFT;
 
-	local_irq_save(flags);
+	nvpe = ((mvpconf0 & MVPCONF0_PVPE) >> MVPCONF0_PVPE_SHIFT) + 1;
+	smp_num_siblings = nvpe;
 
-	vpflags = dvpe();	/* cant access the other CPU's registers whilst MVPE enabled */
+	/* we'll always have more TC's than VPE's, so loop setting everything
+	   to a sensible state */
+	for (tc = 0; tc <= ntc; tc++) {
+		settc(tc);
 
-	switch (action) {
-	case SMP_CALL_FUNCTION:
-		i = C_SW1;
-		break;
-
-	case SMP_RESCHEDULE_YOURSELF:
-	default:
-		i = C_SW0;
-		break;
+		smp_tc_init(tc, mvpconf0);
+		ncpu = smp_vpe_init(tc, mvpconf0, ncpu);
 	}
 
-	/* 1:1 mapping of vpe and tc... */
-	settc(cpu);
-	write_vpe_c0_cause(read_vpe_c0_cause() | i);
-	evpe(vpflags);
+	/* Release config state */
+	clear_c0_mvpcontrol(MVPCONTROL_VPC);
 
-	local_irq_restore(flags);
+	/* We'll wait until starting the secondaries before starting MVPE */
+
+	printk(KERN_INFO "Detected %i available secondary CPU(s)\n", ncpu);
 }
+
+static void __init vsmp_prepare_cpus(unsigned int max_cpus)
+{
+	mips_mt_set_cpuoptions();
+
+	/* set up ipi interrupts */
+	if (cpu_has_vint) {
+		set_vi_handler(MIPS_CPU_IPI_RESCHED_IRQ, ipi_resched_dispatch);
+		set_vi_handler(MIPS_CPU_IPI_CALL_IRQ, ipi_call_dispatch);
+	}
+
+	cpu_ipi_resched_irq = MIPS_CPU_IRQ_BASE + MIPS_CPU_IPI_RESCHED_IRQ;
+	cpu_ipi_call_irq = MIPS_CPU_IRQ_BASE + MIPS_CPU_IPI_CALL_IRQ;
+
+	setup_irq(cpu_ipi_resched_irq, &irq_resched);
+	setup_irq(cpu_ipi_call_irq, &irq_call);
+
+	set_irq_handler(cpu_ipi_resched_irq, handle_percpu_irq);
+	set_irq_handler(cpu_ipi_call_irq, handle_percpu_irq);
+}
+
+struct plat_smp_ops vsmp_smp_ops = {
+	.send_ipi_single	= vsmp_send_ipi_single,
+	.send_ipi_mask		= vsmp_send_ipi_mask,
+	.init_secondary		= vsmp_init_secondary,
+	.smp_finish		= vsmp_smp_finish,
+	.cpus_done		= vsmp_cpus_done,
+	.boot_secondary		= vsmp_boot_secondary,
+	.smp_setup		= vsmp_smp_setup,
+	.prepare_cpus		= vsmp_prepare_cpus,
+};

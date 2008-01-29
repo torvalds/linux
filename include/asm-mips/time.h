@@ -31,20 +31,13 @@ extern int rtc_mips_set_time(unsigned long);
 extern int rtc_mips_set_mmss(unsigned long);
 
 /*
- * Timer interrupt functions.
- * mips_timer_state is needed for high precision timer calibration.
- */
-extern int (*mips_timer_state)(void);
-
-/*
  * board specific routines required by time_init().
  */
 extern void plat_time_init(void);
 
 /*
  * mips_hpt_frequency - must be set if you intend to use an R4k-compatible
- * counter as a timer interrupt source; otherwise it can be set up
- * automagically with an aid of mips_timer_state.
+ * counter as a timer interrupt source.
  */
 extern unsigned int mips_hpt_frequency;
 

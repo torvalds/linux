@@ -13,9 +13,11 @@
 #include <linux/interrupt.h>
 
 #include <linux/timer.h>
+#include <linux/mutex.h>
 
 #include "picvue.h"
 
+static DEFINE_MUTEX(pvc_mutex);
 static char pvc_lines[PVC_NLINES][PVC_LINELEN+1];
 static int pvc_linedata[PVC_NLINES];
 static struct proc_dir_entry *pvc_display_dir;
@@ -48,9 +50,9 @@ static int pvc_proc_read_line(char *page, char **start,
 		return 0;
 	}
 
-	down(&pvc_sem);
+	mutex_lock(&pvc_mutex);
 	page += sprintf(page, "%s\n", pvc_lines[lineno]);
-	up(&pvc_sem);
+	mutex_unlock(&pvc_mutex);
 
 	return page - origpage;
 }
@@ -73,10 +75,10 @@ static int pvc_proc_write_line(struct file *file, const char *buffer,
 	if (buffer[count-1] == '\n')
 		count--;
 
-	down(&pvc_sem);
+	mutex_lock(&pvc_mutex);
 	strncpy(pvc_lines[lineno], buffer, count);
 	pvc_lines[lineno][count] = '\0';
-	up(&pvc_sem);
+	mutex_unlock(&pvc_mutex);
 
 	tasklet_schedule(&pvc_display_tasklet);
 
@@ -89,7 +91,7 @@ static int pvc_proc_write_scroll(struct file *file, const char *buffer,
 	int origcount = count;
 	int cmd = simple_strtol(buffer, NULL, 10);
 
-	down(&pvc_sem);
+	mutex_lock(&pvc_mutex);
 	if (scroll_interval != 0)
 		del_timer(&timer);
 
@@ -106,7 +108,7 @@ static int pvc_proc_write_scroll(struct file *file, const char *buffer,
 		}
 		add_timer(&timer);
 	}
-	up(&pvc_sem);
+	mutex_unlock(&pvc_mutex);
 
 	return origcount;
 }
@@ -117,9 +119,9 @@ static int pvc_proc_read_scroll(char *page, char **start,
 {
 	char *origpage = page;
 
-	down(&pvc_sem);
+	mutex_lock(&pvc_mutex);
 	page += sprintf(page, "%d\n", scroll_dir * scroll_interval);
-	up(&pvc_sem);
+	mutex_unlock(&pvc_mutex);
 
 	return page - origpage;
 }

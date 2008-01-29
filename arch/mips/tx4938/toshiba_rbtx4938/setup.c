@@ -24,16 +24,12 @@
 
 #include <asm/wbflush.h>
 #include <asm/reboot.h>
-#include <asm/irq.h>
 #include <asm/time.h>
 #include <asm/txx9tmr.h>
-#include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/bootinfo.h>
 #include <asm/tx4938/rbtx4938.h>
 #ifdef CONFIG_SERIAL_TXX9
-#include <linux/tty.h>
-#include <linux/serial.h>
 #include <linux/serial_core.h>
 #endif
 #include <linux/spi/spi.h>
@@ -728,6 +724,8 @@ void __init tx4938_board_setup(void)
 	/* CCFG */
 	/* clear WatchDogReset,BusErrorOnWrite flag (W1C) */
 	tx4938_ccfgptr->ccfg |= TX4938_CCFG_WDRST | TX4938_CCFG_BEOW;
+	/* do reset on watchdog */
+	tx4938_ccfgptr->ccfg |= TX4938_CCFG_WR;
 	/* clear PCIC1 reset */
 	if (tx4938_ccfgptr->clkctr & TX4938_CLKCTR_PCIC1RST)
 		tx4938_ccfgptr->clkctr &= ~TX4938_CLKCTR_PCIC1RST;
@@ -855,7 +853,7 @@ void __init plat_time_init(void)
 				     txx9_gbus_clock / 2);
 }
 
-void __init toshiba_rbtx4938_setup(void)
+void __init plat_mem_setup(void)
 {
 	unsigned long long pcfg;
 	char *argptr;
@@ -1125,12 +1123,35 @@ static int __init rbtx4938_spi_init(void)
 }
 arch_initcall(rbtx4938_spi_init);
 
+/* Watchdog support */
+
+static int __init txx9_wdt_init(unsigned long base)
+{
+	struct resource res = {
+		.start	= base,
+		.end	= base + 0x100 - 1,
+		.flags	= IORESOURCE_MEM,
+		.parent	= &tx4938_reg_resource,
+	};
+	struct platform_device *dev =
+		platform_device_register_simple("txx9wdt", -1, &res, 1);
+	return IS_ERR(dev) ? PTR_ERR(dev) : 0;
+}
+
+static int __init rbtx4938_wdt_init(void)
+{
+	return txx9_wdt_init(TX4938_TMR_REG(2) & 0xfffffffffULL);
+}
+device_initcall(rbtx4938_wdt_init);
+
 /* Minimum CLK support */
 
 struct clk *clk_get(struct device *dev, const char *id)
 {
 	if (!strcmp(id, "spi-baseclk"))
 		return (struct clk *)(txx9_gbus_clock / 2 / 4);
+	if (!strcmp(id, "imbus_clk"))
+		return (struct clk *)(txx9_gbus_clock / 2);
 	return ERR_PTR(-ENOENT);
 }
 EXPORT_SYMBOL(clk_get);

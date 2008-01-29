@@ -135,8 +135,6 @@ void __init prom_init(void)
 #ifdef CONFIG_64BIT
 #	error 64 bit support not implemented
 #endif /* CONFIG_64BIT */
-
-	mips_machtype = MACH_TITAN_EXCITE;
 }
 
 /* This is called from free_initmem(), so we need to provide it */
