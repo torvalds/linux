@@ -1600,19 +1600,58 @@ static void ext4_orphan_cleanup (struct super_block * sb,
 #endif
 	sb->s_flags = s_flags; /* Restore MS_RDONLY status */
 }
+/*
+ * Maximal extent format file size.
+ * Resulting logical blkno at s_maxbytes must fit in our on-disk
+ * extent format containers, within a sector_t, and within i_blocks
+ * in the vfs.  ext4 inode has 48 bits of i_block in fsblock units,
+ * so that won't be a limiting factor.
+ *
+ * Note, this does *not* consider any metadata overhead for vfs i_blocks.
+ */
+static loff_t ext4_max_size(int blkbits)
+{
+	loff_t res;
+	loff_t upper_limit = MAX_LFS_FILESIZE;
+
+	/* small i_blocks in vfs inode? */
+	if (sizeof(blkcnt_t) < sizeof(u64)) {
+		/*
+		 * CONFIG_LSF is not enabled implies the inode
+		 * i_block represent total blocks in 512 bytes
+		 * 32 == size of vfs inode i_blocks * 8
+		 */
+		upper_limit = (1LL << 32) - 1;
+
+		/* total blocks in file system block size */
+		upper_limit >>= (blkbits - 9);
+		upper_limit <<= blkbits;
+	}
+
+	/* 32-bit extent-start container, ee_block */
+	res = 1LL << 32;
+	res <<= blkbits;
+	res -= 1;
+
+	/* Sanity check against vm- & vfs- imposed limits */
+	if (res > upper_limit)
+		res = upper_limit;
+
+	return res;
+}
 
 /*
- * Maximal file size.  There is a direct, and {,double-,triple-}indirect
+ * Maximal bitmap file size.  There is a direct, and {,double-,triple-}indirect
  * block limit, and also a limit of (2^48 - 1) 512-byte sectors in i_blocks.
  * We need to be 1 filesystem block less than the 2^48 sector limit.
  */
-static loff_t ext4_max_size(int bits)
+static loff_t ext4_max_bitmap_size(int bits)
 {
 	loff_t res = EXT4_NDIR_BLOCKS;
 	int meta_blocks;
 	loff_t upper_limit;
 	/* This is calculated to be the largest file size for a
-	 * dense, file such that the total number of
+	 * dense, bitmapped file such that the total number of
 	 * sectors in the file, including data and all indirect blocks,
 	 * does not exceed 2^48 -1
 	 * __u32 i_blocks_lo and _u16 i_blocks_high representing the
