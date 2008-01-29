@@ -381,11 +381,6 @@ new_segment:
 
 EXPORT_SYMBOL(blk_rq_map_sg);
 
-/*
- * the standard queue merge functions, can be overridden with device
- * specific ones if so desired
- */
-
 static inline int ll_new_mergeable(struct request_queue *q,
 				   struct request *req,
 				   struct bio *bio)
