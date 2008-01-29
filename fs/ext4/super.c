@@ -503,6 +503,7 @@ static void ext4_put_super (struct super_block * sb)
 	struct ext4_super_block *es = sbi->s_es;
 	int i;
 
+	ext4_mb_release(sb);
 	ext4_ext_release(sb);
 	ext4_xattr_put_super(sb);
 	jbd2_journal_destroy(sbi->s_journal);
@@ -569,6 +570,8 @@ static struct inode *ext4_alloc_inode(struct super_block *sb)
 	ei->i_block_alloc_info = NULL;
 	ei->vfs_inode.i_version = 1;
 	memset(&ei->i_cached_extent, 0, sizeof(struct ext4_ext_cache));
+	INIT_LIST_HEAD(&ei->i_prealloc_list);
+	spin_lock_init(&ei->i_prealloc_lock);
 	return &ei->vfs_inode;
 }
 
@@ -881,6 +884,7 @@ enum {
 	Opt_jqfmt_vfsold, Opt_jqfmt_vfsv0, Opt_quota, Opt_noquota,
 	Opt_ignore, Opt_barrier, Opt_err, Opt_resize, Opt_usrquota,
 	Opt_grpquota, Opt_extents, Opt_noextents, Opt_i_version,
+	Opt_mballoc, Opt_nomballoc, Opt_stripe,
 };
 
 static match_table_t tokens = {
@@ -935,6 +939,9 @@ static match_table_t tokens = {
 	{Opt_extents, "extents"},
 	{Opt_noextents, "noextents"},
 	{Opt_i_version, "i_version"},
+	{Opt_mballoc, "mballoc"},
+	{Opt_nomballoc, "nomballoc"},
+	{Opt_stripe, "stripe=%u"},
 	{Opt_err, NULL},
 	{Opt_resize, "resize"},
 };
@@ -1283,6 +1290,19 @@ clear_qf_name:
 		case Opt_i_version:
 			set_opt(sbi->s_mount_opt, I_VERSION);
 			sb->s_flags |= MS_I_VERSION;
+			break;
+		case Opt_mballoc:
+			set_opt(sbi->s_mount_opt, MBALLOC);
+			break;
+		case Opt_nomballoc:
+			clear_opt(sbi->s_mount_opt, MBALLOC);
+			break;
+		case Opt_stripe:
+			if (match_int(&args[0], &option))
+				return 0;
+			if (option < 0)
+				return 0;
+			sbi->s_stripe = option;
 			break;
 		default:
 			printk (KERN_ERR
@@ -1742,6 +1762,34 @@ static ext4_fsblk_t descriptor_loc(struct super_block *sb,
 	return (has_super + ext4_group_first_block_no(sb, bg));
 }
 
+/**
+ * ext4_get_stripe_size: Get the stripe size.
+ * @sbi: In memory super block info
+ *
+ * If we have specified it via mount option, then
+ * use the mount option value. If the value specified at mount time is
+ * greater than the blocks per group use the super block value.
+ * If the super block value is greater than blocks per group return 0.
+ * Allocator needs it be less than blocks per group.
+ *
+ */
+static unsigned long ext4_get_stripe_size(struct ext4_sb_info *sbi)
+{
+	unsigned long stride = le16_to_cpu(sbi->s_es->s_raid_stride);
+	unsigned long stripe_width =
+			le32_to_cpu(sbi->s_es->s_raid_stripe_width);
+
+	if (sbi->s_stripe && sbi->s_stripe <= sbi->s_blocks_per_group)
+		return sbi->s_stripe;
+
+	if (stripe_width <= sbi->s_blocks_per_group)
+		return stripe_width;
+
+	if (stride <= sbi->s_blocks_per_group)
+		return stride;
+
+	return 0;
+}
 
 static int ext4_fill_super (struct super_block *sb, void *data, int silent)
 				__releases(kernel_sem)
@@ -2091,6 +2139,8 @@ static int ext4_fill_super (struct super_block *sb, void *data, int silent)
 	sbi->s_rsv_window_head.rsv_goal_size = 0;
 	ext4_rsv_window_add(sb, &sbi->s_rsv_window_head);
 
+	sbi->s_stripe = ext4_get_stripe_size(sbi);
+
 	/*
 	 * set up enough so that it can read an inode
 	 */
@@ -2250,6 +2300,7 @@ static int ext4_fill_super (struct super_block *sb, void *data, int silent)
 		"writeback");
 
 	ext4_ext_init(sb);
+	ext4_mb_init(sb, needs_recovery);
 
 	lock_kernel();
 	return 0;
@@ -3232,9 +3283,15 @@ static struct file_system_type ext4dev_fs_type = {
 
 static int __init init_ext4_fs(void)
 {
-	int err = init_ext4_xattr();
+	int err;
+
+	err = init_ext4_mballoc();
 	if (err)
 		return err;
+
+	err = init_ext4_xattr();
+	if (err)
+		goto out2;
 	err = init_inodecache();
 	if (err)
 		goto out1;
@@ -3246,6 +3303,8 @@ out:
 	destroy_inodecache();
 out1:
 	exit_ext4_xattr();
+out2:
+	exit_ext4_mballoc();
 	return err;
 }
 
@@ -3254,6 +3313,7 @@ static void __exit exit_ext4_fs(void)
 	unregister_filesystem(&ext4dev_fs_type);
 	destroy_inodecache();
 	exit_ext4_xattr();
+	exit_ext4_mballoc();
 }
 
 MODULE_AUTHOR("Remy Card, Stephen Tweedie, Andrew Morton, Andreas Dilger, Theodore Ts'o and others");

@@ -20,6 +20,8 @@
 #include <linux/blkdev.h>
 #include <linux/magic.h>
 
+#include <linux/ext4_fs_i.h>
+
 /*
  * The second extended filesystem constants/structures
  */
@@ -50,6 +52,50 @@
 #else
 #define ext4_debug(f, a...)	do {} while (0)
 #endif
+
+#define EXT4_MULTIBLOCK_ALLOCATOR	1
+
+/* prefer goal again. length */
+#define EXT4_MB_HINT_MERGE		1
+/* blocks already reserved */
+#define EXT4_MB_HINT_RESERVED		2
+/* metadata is being allocated */
+#define EXT4_MB_HINT_METADATA		4
+/* first blocks in the file */
+#define EXT4_MB_HINT_FIRST		8
+/* search for the best chunk */
+#define EXT4_MB_HINT_BEST		16
+/* data is being allocated */
+#define EXT4_MB_HINT_DATA		32
+/* don't preallocate (for tails) */
+#define EXT4_MB_HINT_NOPREALLOC		64
+/* allocate for locality group */
+#define EXT4_MB_HINT_GROUP_ALLOC	128
+/* allocate goal blocks or none */
+#define EXT4_MB_HINT_GOAL_ONLY		256
+/* goal is meaningful */
+#define EXT4_MB_HINT_TRY_GOAL		512
+
+struct ext4_allocation_request {
+	/* target inode for block we're allocating */
+	struct inode *inode;
+	/* logical block in target inode */
+	ext4_lblk_t logical;
+	/* phys. target (a hint) */
+	ext4_fsblk_t goal;
+	/* the closest logical allocated block to the left */
+	ext4_lblk_t lleft;
+	/* phys. block for ^^^ */
+	ext4_fsblk_t pleft;
+	/* the closest logical allocated block to the right */
+	ext4_lblk_t lright;
+	/* phys. block for ^^^ */
+	ext4_fsblk_t pright;
+	/* how many blocks we want to allocate */
+	unsigned long len;
+	/* flags. see above EXT4_MB_HINT_* */
+	unsigned long flags;
+};
 
 /*
  * Special inodes numbers
@@ -474,6 +520,7 @@ do {									       \
 #define EXT4_MOUNT_JOURNAL_CHECKSUM	0x800000 /* Journal checksums */
 #define EXT4_MOUNT_JOURNAL_ASYNC_COMMIT	0x1000000 /* Journal Async Commit */
 #define EXT4_MOUNT_I_VERSION            0x2000000 /* i_version support */
+#define EXT4_MOUNT_MBALLOC		0x4000000 /* Buddy allocation support */
 /* Compatibility, for having both ext2_fs.h and ext4_fs.h included at once */
 #ifndef _LINUX_EXT2_FS_H
 #define clear_opt(o, opt)		o &= ~EXT4_MOUNT_##opt
@@ -912,7 +959,7 @@ extern ext4_fsblk_t ext4_new_blocks (handle_t *handle, struct inode *inode,
 extern ext4_fsblk_t ext4_new_blocks_old(handle_t *handle, struct inode *inode,
 			ext4_fsblk_t goal, unsigned long *count, int *errp);
 extern void ext4_free_blocks (handle_t *handle, struct inode *inode,
-			ext4_fsblk_t block, unsigned long count);
+			ext4_fsblk_t block, unsigned long count, int metadata);
 extern void ext4_free_blocks_sb (handle_t *handle, struct super_block *sb,
 				 ext4_fsblk_t block, unsigned long count,
 				unsigned long *pdquot_freed_blocks);
@@ -949,6 +996,20 @@ extern unsigned long ext4_count_free_inodes (struct super_block *);
 extern unsigned long ext4_count_dirs (struct super_block *);
 extern void ext4_check_inodes_bitmap (struct super_block *);
 extern unsigned long ext4_count_free (struct buffer_head *, unsigned);
+
+/* mballoc.c */
+extern long ext4_mb_stats;
+extern long ext4_mb_max_to_scan;
+extern int ext4_mb_init(struct super_block *, int);
+extern int ext4_mb_release(struct super_block *);
+extern ext4_fsblk_t ext4_mb_new_blocks(handle_t *,
+				struct ext4_allocation_request *, int *);
+extern int ext4_mb_reserve_blocks(struct super_block *, int);
+extern void ext4_mb_discard_inode_preallocations(struct inode *);
+extern int __init init_ext4_mballoc(void);
+extern void exit_ext4_mballoc(void);
+extern void ext4_mb_free_blocks(handle_t *, struct inode *,
+		unsigned long, unsigned long, int, unsigned long *);
 
 
 /* inode.c */
@@ -1079,6 +1140,19 @@ static inline void ext4_isize_set(struct ext4_inode *raw_inode, loff_t i_size)
 	raw_inode->i_size_lo = cpu_to_le32(i_size);
 	raw_inode->i_size_high = cpu_to_le32(i_size >> 32);
 }
+
+static inline
+struct ext4_group_info *ext4_get_group_info(struct super_block *sb,
+							ext4_group_t group)
+{
+	 struct ext4_group_info ***grp_info;
+	 long indexv, indexh;
+	 grp_info = EXT4_SB(sb)->s_group_info;
+	 indexv = group >> (EXT4_DESC_PER_BLOCK_BITS(sb));
+	 indexh = group & ((EXT4_DESC_PER_BLOCK(sb)) - 1);
+	 return grp_info[indexv][indexh];
+}
+
 
 #define ext4_std_error(sb, errno)				\
 do {								\

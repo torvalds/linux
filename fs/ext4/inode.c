@@ -551,7 +551,7 @@ static int ext4_alloc_blocks(handle_t *handle, struct inode *inode,
 	return ret;
 failed_out:
 	for (i = 0; i <index; i++)
-		ext4_free_blocks(handle, inode, new_blocks[i], 1);
+		ext4_free_blocks(handle, inode, new_blocks[i], 1, 0);
 	return ret;
 }
 
@@ -650,9 +650,9 @@ failed:
 		ext4_journal_forget(handle, branch[i].bh);
 	}
 	for (i = 0; i <indirect_blks; i++)
-		ext4_free_blocks(handle, inode, new_blocks[i], 1);
+		ext4_free_blocks(handle, inode, new_blocks[i], 1, 0);
 
-	ext4_free_blocks(handle, inode, new_blocks[i], num);
+	ext4_free_blocks(handle, inode, new_blocks[i], num, 0);
 
 	return err;
 }
@@ -749,9 +749,10 @@ err_out:
 	for (i = 1; i <= num; i++) {
 		BUFFER_TRACE(where[i].bh, "call jbd2_journal_forget");
 		ext4_journal_forget(handle, where[i].bh);
-		ext4_free_blocks(handle,inode,le32_to_cpu(where[i-1].key),1);
+		ext4_free_blocks(handle, inode,
+					le32_to_cpu(where[i-1].key), 1, 0);
 	}
-	ext4_free_blocks(handle, inode, le32_to_cpu(where[num].key), blks);
+	ext4_free_blocks(handle, inode, le32_to_cpu(where[num].key), blks, 0);
 
 	return err;
 }
@@ -2052,7 +2053,7 @@ static void ext4_clear_blocks(handle_t *handle, struct inode *inode,
 		}
 	}
 
-	ext4_free_blocks(handle, inode, block_to_free, count);
+	ext4_free_blocks(handle, inode, block_to_free, count, 0);
 }
 
 /**
@@ -2225,7 +2226,7 @@ static void ext4_free_branches(handle_t *handle, struct inode *inode,
 				ext4_journal_test_restart(handle, inode);
 			}
 
-			ext4_free_blocks(handle, inode, nr, 1);
+			ext4_free_blocks(handle, inode, nr, 1, 1);
 
 			if (parent_bh) {
 				/*

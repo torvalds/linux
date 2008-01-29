@@ -853,7 +853,7 @@ cleanup:
 		for (i = 0; i < depth; i++) {
 			if (!ablocks[i])
 				continue;
-			ext4_free_blocks(handle, inode, ablocks[i], 1);
+			ext4_free_blocks(handle, inode, ablocks[i], 1, 1);
 		}
 	}
 	kfree(ablocks);
@@ -1698,7 +1698,7 @@ static int ext4_ext_rm_idx(handle_t *handle, struct inode *inode,
 	ext_debug("index is empty, remove it, free block %llu\n", leaf);
 	bh = sb_find_get_block(inode->i_sb, leaf);
 	ext4_forget(handle, 1, inode, bh, leaf);
-	ext4_free_blocks(handle, inode, leaf, 1);
+	ext4_free_blocks(handle, inode, leaf, 1, 1);
 	return err;
 }
 
@@ -1759,8 +1759,10 @@ static int ext4_remove_blocks(handle_t *handle, struct inode *inode,
 {
 	struct buffer_head *bh;
 	unsigned short ee_len =  ext4_ext_get_actual_len(ex);
-	int i;
+	int i, metadata = 0;
 
+	if (S_ISDIR(inode->i_mode) || S_ISLNK(inode->i_mode))
+		metadata = 1;
 #ifdef EXTENTS_STATS
 	{
 		struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
@@ -1789,7 +1791,7 @@ static int ext4_remove_blocks(handle_t *handle, struct inode *inode,
 			bh = sb_find_get_block(inode->i_sb, start + i);
 			ext4_forget(handle, 0, inode, bh, start + i);
 		}
-		ext4_free_blocks(handle, inode, start, num);
+		ext4_free_blocks(handle, inode, start, num, metadata);
 	} else if (from == le32_to_cpu(ex->ee_block)
 		   && to <= le32_to_cpu(ex->ee_block) + ee_len - 1) {
 		printk(KERN_INFO "strange request: removal %u-%u from %u:%u\n",
@@ -2287,6 +2289,7 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 	ext4_fsblk_t goal, newblock;
 	int err = 0, depth, ret;
 	unsigned long allocated = 0;
+	struct ext4_allocation_request ar;
 
 	__clear_bit(BH_New, &bh_result->b_state);
 	ext_debug("blocks %u/%lu requested for inode %u\n",
@@ -2397,8 +2400,15 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 	if (S_ISREG(inode->i_mode) && (!EXT4_I(inode)->i_block_alloc_info))
 		ext4_init_block_alloc_info(inode);
 
-	/* allocate new block */
-	goal = ext4_ext_find_goal(inode, path, iblock);
+	/* find neighbour allocated blocks */
+	ar.lleft = iblock;
+	err = ext4_ext_search_left(inode, path, &ar.lleft, &ar.pleft);
+	if (err)
+		goto out2;
+	ar.lright = iblock;
+	err = ext4_ext_search_right(inode, path, &ar.lright, &ar.pright);
+	if (err)
+		goto out2;
 
 	/*
 	 * See if request is beyond maximum number of blocks we can have in
@@ -2421,7 +2431,18 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 		allocated = le16_to_cpu(newex.ee_len);
 	else
 		allocated = max_blocks;
-	newblock = ext4_new_blocks(handle, inode, goal, &allocated, &err);
+
+	/* allocate new block */
+	ar.inode = inode;
+	ar.goal = ext4_ext_find_goal(inode, path, iblock);
+	ar.logical = iblock;
+	ar.len = allocated;
+	if (S_ISREG(inode->i_mode))
+		ar.flags = EXT4_MB_HINT_DATA;
+	else
+		/* disable in-core preallocation for non-regular files */
+		ar.flags = 0;
+	newblock = ext4_mb_new_blocks(handle, &ar, &err);
 	if (!newblock)
 		goto out2;
 	ext_debug("allocate new block: goal %llu, found %llu/%lu\n",
@@ -2429,14 +2450,17 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 
 	/* try to insert new extent into found leaf and return */
 	ext4_ext_store_pblock(&newex, newblock);
-	newex.ee_len = cpu_to_le16(allocated);
+	newex.ee_len = cpu_to_le16(ar.len);
 	if (create == EXT4_CREATE_UNINITIALIZED_EXT)  /* Mark uninitialized */
 		ext4_ext_mark_uninitialized(&newex);
 	err = ext4_ext_insert_extent(handle, inode, path, &newex);
 	if (err) {
 		/* free data blocks we just allocated */
+		/* not a good idea to call discard here directly,
+		 * but otherwise we'd need to call it every free() */
+		ext4_mb_discard_inode_preallocations(inode);
 		ext4_free_blocks(handle, inode, ext_pblock(&newex),
-					le16_to_cpu(newex.ee_len));
+					le16_to_cpu(newex.ee_len), 0);
 		goto out2;
 	}
 
@@ -2445,6 +2469,7 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 
 	/* previous routine could use block we allocated */
 	newblock = ext_pblock(&newex);
+	allocated = le16_to_cpu(newex.ee_len);
 outnew:
 	__set_bit(BH_New, &bh_result->b_state);
 
@@ -2495,6 +2520,8 @@ void ext4_ext_truncate(struct inode * inode, struct page *page)
 
 	down_write(&EXT4_I(inode)->i_data_sem);
 	ext4_ext_invalidate_cache(inode);
+
+	ext4_mb_discard_inode_preallocations(inode);
 
 	/*
 	 * TODO: optimization is possible here.

@@ -158,6 +158,10 @@ struct ext4_inode_info {
 	 * struct timespec i_{a,c,m}time in the generic inode.
 	 */
 	struct timespec i_crtime;
+
+	/* mballoc */
+	struct list_head i_prealloc_list;
+	spinlock_t i_prealloc_lock;
 };
 
 #endif	/* _LINUX_EXT4_FS_I */

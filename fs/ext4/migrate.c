@@ -236,10 +236,10 @@ static int free_dind_blocks(handle_t *handle,
 	for (i = 0; i < max_entries; i++) {
 		if (tmp_idata[i])
 			ext4_free_blocks(handle, inode,
-					le32_to_cpu(tmp_idata[i]), 1);
+					le32_to_cpu(tmp_idata[i]), 1, 1);
 	}
 	put_bh(bh);
-	ext4_free_blocks(handle, inode, le32_to_cpu(i_data), 1);
+	ext4_free_blocks(handle, inode, le32_to_cpu(i_data), 1, 1);
 	return 0;
 }
 
@@ -267,7 +267,7 @@ static int free_tind_blocks(handle_t *handle,
 		}
 	}
 	put_bh(bh);
-	ext4_free_blocks(handle, inode, le32_to_cpu(i_data), 1);
+	ext4_free_blocks(handle, inode, le32_to_cpu(i_data), 1, 1);
 	return 0;
 }
 
@@ -278,7 +278,7 @@ static int free_ind_block(handle_t *handle, struct inode *inode)
 
 	if (ei->i_data[EXT4_IND_BLOCK])
 		ext4_free_blocks(handle, inode,
-				le32_to_cpu(ei->i_data[EXT4_IND_BLOCK]), 1);
+				le32_to_cpu(ei->i_data[EXT4_IND_BLOCK]), 1, 1);
 
 	if (ei->i_data[EXT4_DIND_BLOCK]) {
 		retval = free_dind_blocks(handle, inode,
@@ -365,7 +365,7 @@ static int free_ext_idx(handle_t *handle, struct inode *inode,
 		}
 	}
 	put_bh(bh);
-	ext4_free_blocks(handle, inode, block, 1);
+	ext4_free_blocks(handle, inode, block, 1, 1);
 	return retval;
 }
 

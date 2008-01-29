@@ -577,6 +577,8 @@ void ext4_discard_reservation(struct inode *inode)
 	struct ext4_reserve_window_node *rsv;
 	spinlock_t *rsv_lock = &EXT4_SB(inode->i_sb)->s_rsv_window_lock;
 
+	ext4_mb_discard_inode_preallocations(inode);
+
 	if (!block_i)
 		return;
 
@@ -785,19 +787,29 @@ error_return:
  * @inode:		inode
  * @block:		start physical block to free
  * @count:		number of blocks to count
+ * @metadata: 		Are these metadata blocks
  */
 void ext4_free_blocks(handle_t *handle, struct inode *inode,
-			ext4_fsblk_t block, unsigned long count)
+			ext4_fsblk_t block, unsigned long count,
+			int metadata)
 {
 	struct super_block * sb;
 	unsigned long dquot_freed_blocks;
 
+	/* this isn't the right place to decide whether block is metadata
+	 * inode.c/extents.c knows better, but for safety ... */
+	if (S_ISDIR(inode->i_mode) || S_ISLNK(inode->i_mode) ||
+			ext4_should_journal_data(inode))
+		metadata = 1;
+
 	sb = inode->i_sb;
-	if (!sb) {
-		printk ("ext4_free_blocks: nonexistent device");
-		return;
-	}
-	ext4_free_blocks_sb(handle, sb, block, count, &dquot_freed_blocks);
+
+	if (!test_opt(sb, MBALLOC) || !EXT4_SB(sb)->s_group_info)
+		ext4_free_blocks_sb(handle, sb, block, count,
+						&dquot_freed_blocks);
+	else
+		ext4_mb_free_blocks(handle, inode, block, count,
+						metadata, &dquot_freed_blocks);
 	if (dquot_freed_blocks)
 		DQUOT_FREE_BLOCK(inode, dquot_freed_blocks);
 	return;
@@ -1576,7 +1588,7 @@ int ext4_should_retry_alloc(struct super_block *sb, int *retries)
 }
 
 /**
- * ext4_new_blocks() -- core block(s) allocation function
+ * ext4_new_blocks_old() -- core block(s) allocation function
  * @handle:		handle to this transaction
  * @inode:		file inode
  * @goal:		given target block(filesystem wide)
@@ -1589,7 +1601,7 @@ int ext4_should_retry_alloc(struct super_block *sb, int *retries)
  * any specific goal block.
  *
  */
-ext4_fsblk_t ext4_new_blocks(handle_t *handle, struct inode *inode,
+ext4_fsblk_t ext4_new_blocks_old(handle_t *handle, struct inode *inode,
 			ext4_fsblk_t goal, unsigned long *count, int *errp)
 {
 	struct buffer_head *bitmap_bh = NULL;
@@ -1849,12 +1861,45 @@ out:
 }
 
 ext4_fsblk_t ext4_new_block(handle_t *handle, struct inode *inode,
-			ext4_fsblk_t goal, int *errp)
+		ext4_fsblk_t goal, int *errp)
 {
-	unsigned long count = 1;
+	struct ext4_allocation_request ar;
+	ext4_fsblk_t ret;
 
-	return ext4_new_blocks(handle, inode, goal, &count, errp);
+	if (!test_opt(inode->i_sb, MBALLOC)) {
+		unsigned long count = 1;
+		ret = ext4_new_blocks_old(handle, inode, goal, &count, errp);
+		return ret;
+	}
+
+	memset(&ar, 0, sizeof(ar));
+	ar.inode = inode;
+	ar.goal = goal;
+	ar.len = 1;
+	ret = ext4_mb_new_blocks(handle, &ar, errp);
+	return ret;
 }
+
+ext4_fsblk_t ext4_new_blocks(handle_t *handle, struct inode *inode,
+		ext4_fsblk_t goal, unsigned long *count, int *errp)
+{
+	struct ext4_allocation_request ar;
+	ext4_fsblk_t ret;
+
+	if (!test_opt(inode->i_sb, MBALLOC)) {
+		ret = ext4_new_blocks_old(handle, inode, goal, count, errp);
+		return ret;
+	}
+
+	memset(&ar, 0, sizeof(ar));
+	ar.inode = inode;
+	ar.goal = goal;
+	ar.len = *count;
+	ret = ext4_mb_new_blocks(handle, &ar, errp);
+	*count = ar.len;
+	return ret;
+}
+
 
 /**
  * ext4_count_free_blocks() -- count filesystem free blocks

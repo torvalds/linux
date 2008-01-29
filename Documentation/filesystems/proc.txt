@@ -857,6 +857,45 @@ CPUs.
 The   "procs_blocked" line gives  the  number of  processes currently blocked,
 waiting for I/O to complete.
 
+1.9 Ext4 file system parameters
+------------------------------
+Ext4 file system have one directory per partition under /proc/fs/ext4/
+# ls /proc/fs/ext4/hdc/
+group_prealloc  max_to_scan  mb_groups  mb_history  min_to_scan  order2_req
+stats  stream_req
+
+mb_groups:
+This file gives the details of mutiblock allocator buddy cache of free blocks
+
+mb_history:
+Multiblock allocation history.
+
+stats:
+This file indicate whether the multiblock allocator should start collecting
+statistics. The statistics are shown during unmount
+
+group_prealloc:
+The multiblock allocator normalize the block allocation request to
+group_prealloc filesystem blocks if we don't have strip value set.
+The stripe value can be specified at mount time or during mke2fs.
+
+max_to_scan:
+How long multiblock allocator can look for a best extent (in found extents)
+
+min_to_scan:
+How long multiblock allocator  must look for a best extent
+
+order2_req:
+Multiblock allocator use  2^N search using buddies only for requests greater
+than or equal to order2_req. The request size is specfied in file system
+blocks. A value of 2 indicate only if the requests are greater than or equal
+to 4 blocks.
+
+stream_req:
+Files smaller than stream_req are served by the stream allocator, whose
+purpose is to pack requests as close each to other as possible to
+produce smooth I/O traffic. Avalue of 16 indicate that file smaller than 16
+filesystem block size will use group based preallocation.
 
 ------------------------------------------------------------------------------
 Summary
