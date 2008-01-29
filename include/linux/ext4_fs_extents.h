@@ -223,5 +223,9 @@ extern unsigned int ext4_ext_check_overlap(struct inode *, struct ext4_extent *,
 extern int ext4_ext_insert_extent(handle_t *, struct inode *, struct ext4_ext_path *, struct ext4_extent *);
 extern struct ext4_ext_path *ext4_ext_find_extent(struct inode *, ext4_lblk_t,
 							struct ext4_ext_path *);
+extern int ext4_ext_search_left(struct inode *, struct ext4_ext_path *,
+						ext4_lblk_t *, ext4_fsblk_t *);
+extern int ext4_ext_search_right(struct inode *, struct ext4_ext_path *,
+						ext4_lblk_t *, ext4_fsblk_t *);
 #endif /* _LINUX_EXT4_EXTENTS */
 
