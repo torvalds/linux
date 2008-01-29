@@ -826,6 +826,10 @@ static int nfs_dentry_delete(struct dentry *dentry)
 		dentry->d_parent->d_name.name, dentry->d_name.name,
 		dentry->d_flags);
 
+	/* Unhash any dentry with a stale inode */
+	if (dentry->d_inode != NULL && NFS_STALE(dentry->d_inode))
+		return 1;
+
 	if (dentry->d_flags & DCACHE_NFSFS_RENAMED) {
 		/* Unhash it, so that ->d_iput() would be called */
 		return 1;
