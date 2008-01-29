@@ -25,7 +25,6 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
-#include <linux/spinlock.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/mii.h>
@@ -80,7 +79,7 @@ struct phy_device* phy_device_create(struct mii_bus *bus, int addr, int phy_id)
 
 	dev->state = PHY_DOWN;
 
-	spin_lock_init(&dev->lock);
+	mutex_init(&dev->lock);
 
 	return dev;
 }
@@ -656,7 +655,7 @@ static int phy_probe(struct device *dev)
 	if (!(phydrv->flags & PHY_HAS_INTERRUPT))
 		phydev->irq = PHY_POLL;
 
-	spin_lock_bh(&phydev->lock);
+	mutex_lock(&phydev->lock);
 
 	/* Start out supporting everything. Eventually,
 	 * a controller will attach, and may modify one
@@ -670,7 +669,7 @@ static int phy_probe(struct device *dev)
 	if (phydev->drv->probe)
 		err = phydev->drv->probe(phydev);
 
-	spin_unlock_bh(&phydev->lock);
+	mutex_unlock(&phydev->lock);
 
 	return err;
 
@@ -682,9 +681,9 @@ static int phy_remove(struct device *dev)
 
 	phydev = to_phy_device(dev);
 
-	spin_lock_bh(&phydev->lock);
+	mutex_lock(&phydev->lock);
 	phydev->state = PHY_DOWN;
-	spin_unlock_bh(&phydev->lock);
+	mutex_unlock(&phydev->lock);
 
 	if (phydev->drv->remove)
 		phydev->drv->remove(phydev);
