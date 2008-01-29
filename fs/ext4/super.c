@@ -1364,7 +1364,7 @@ static int ext4_check_descriptors (struct super_block * sb)
 	struct ext4_group_desc * gdp = NULL;
 	int desc_block = 0;
 	int flexbg_flag = 0;
-	int i;
+	ext4_group_t i;
 
 	if (EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_FLEX_BG))
 		flexbg_flag = 1;
@@ -1386,7 +1386,7 @@ static int ext4_check_descriptors (struct super_block * sb)
 		if (block_bitmap < first_block || block_bitmap > last_block)
 		{
 			ext4_error (sb, "ext4_check_descriptors",
-				    "Block bitmap for group %d"
+				    "Block bitmap for group %lu"
 				    " not in group (block %llu)!",
 				    i, block_bitmap);
 			return 0;
@@ -1395,7 +1395,7 @@ static int ext4_check_descriptors (struct super_block * sb)
 		if (inode_bitmap < first_block || inode_bitmap > last_block)
 		{
 			ext4_error (sb, "ext4_check_descriptors",
-				    "Inode bitmap for group %d"
+				    "Inode bitmap for group %lu"
 				    " not in group (block %llu)!",
 				    i, inode_bitmap);
 			return 0;
@@ -1405,17 +1405,16 @@ static int ext4_check_descriptors (struct super_block * sb)
 		    inode_table + sbi->s_itb_per_group - 1 > last_block)
 		{
 			ext4_error (sb, "ext4_check_descriptors",
-				    "Inode table for group %d"
+				    "Inode table for group %lu"
 				    " not in group (block %llu)!",
 				    i, inode_table);
 			return 0;
 		}
 		if (!ext4_group_desc_csum_verify(sbi, i, gdp)) {
 			ext4_error(sb, __FUNCTION__,
-				   "Checksum for group %d failed (%u!=%u)\n", i,
-				   le16_to_cpu(ext4_group_desc_csum(sbi, i,
-								    gdp)),
-				   le16_to_cpu(gdp->bg_checksum));
+				   "Checksum for group %lu failed (%u!=%u)\n",
+				    i, le16_to_cpu(ext4_group_desc_csum(sbi, i,
+				    gdp)), le16_to_cpu(gdp->bg_checksum));
 			return 0;
 		}
 		if (!flexbg_flag)
@@ -1428,7 +1427,6 @@ static int ext4_check_descriptors (struct super_block * sb)
 	sbi->s_es->s_free_inodes_count=cpu_to_le32(ext4_count_free_inodes(sb));
 	return 1;
 }
-
 
 /* ext4_orphan_cleanup() walks a singly-linked list of inodes (starting at
  * the superblock) which were deleted from all directories, but held open by
@@ -1570,7 +1568,7 @@ static ext4_fsblk_t descriptor_loc(struct super_block *sb,
 				ext4_fsblk_t logical_sb_block, int nr)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
-	unsigned long bg, first_meta_bg;
+	ext4_group_t bg, first_meta_bg;
 	int has_super = 0;
 
 	first_meta_bg = le32_to_cpu(sbi->s_es->s_first_meta_bg);
@@ -2678,7 +2676,7 @@ static int ext4_statfs (struct dentry * dentry, struct kstatfs * buf)
 	if (test_opt(sb, MINIX_DF)) {
 		sbi->s_overhead_last = 0;
 	} else if (sbi->s_blocks_last != ext4_blocks_count(es)) {
-		unsigned long ngroups = sbi->s_groups_count, i;
+		ext4_group_t ngroups = sbi->s_groups_count, i;
 		ext4_fsblk_t overhead = 0;
 		smp_rmb();
 

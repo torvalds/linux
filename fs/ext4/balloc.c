@@ -29,7 +29,7 @@
  * Calculate the block group number and offset, given a block number
  */
 void ext4_get_group_no_and_offset(struct super_block *sb, ext4_fsblk_t blocknr,
-		unsigned long *blockgrpp, ext4_grpblk_t *offsetp)
+		ext4_group_t *blockgrpp, ext4_grpblk_t *offsetp)
 {
 	struct ext4_super_block *es = EXT4_SB(sb)->s_es;
 	ext4_grpblk_t offset;
@@ -46,7 +46,7 @@ void ext4_get_group_no_and_offset(struct super_block *sb, ext4_fsblk_t blocknr,
 /* Initializes an uninitialized block bitmap if given, and returns the
  * number of blocks free in the group. */
 unsigned ext4_init_block_bitmap(struct super_block *sb, struct buffer_head *bh,
-				int block_group, struct ext4_group_desc *gdp)
+		 ext4_group_t block_group, struct ext4_group_desc *gdp)
 {
 	unsigned long start;
 	int bit, bit_max;
@@ -60,7 +60,7 @@ unsigned ext4_init_block_bitmap(struct super_block *sb, struct buffer_head *bh,
 		 * essentially implementing a per-group read-only flag. */
 		if (!ext4_group_desc_csum_verify(sbi, block_group, gdp)) {
 			ext4_error(sb, __FUNCTION__,
-				   "Checksum bad for group %u\n", block_group);
+				  "Checksum bad for group %lu\n", block_group);
 			gdp->bg_free_blocks_count = 0;
 			gdp->bg_free_inodes_count = 0;
 			gdp->bg_itable_unused = 0;
@@ -153,7 +153,7 @@ unsigned ext4_init_block_bitmap(struct super_block *sb, struct buffer_head *bh,
  *			group descriptor
  */
 struct ext4_group_desc * ext4_get_group_desc(struct super_block * sb,
-					     unsigned int block_group,
+					     ext4_group_t block_group,
 					     struct buffer_head ** bh)
 {
 	unsigned long group_desc;
@@ -164,7 +164,7 @@ struct ext4_group_desc * ext4_get_group_desc(struct super_block * sb,
 	if (block_group >= sbi->s_groups_count) {
 		ext4_error (sb, "ext4_get_group_desc",
 			    "block_group >= groups_count - "
-			    "block_group = %d, groups_count = %lu",
+			    "block_group = %lu, groups_count = %lu",
 			    block_group, sbi->s_groups_count);
 
 		return NULL;
@@ -176,7 +176,7 @@ struct ext4_group_desc * ext4_get_group_desc(struct super_block * sb,
 	if (!sbi->s_group_desc[group_desc]) {
 		ext4_error (sb, "ext4_get_group_desc",
 			    "Group descriptor not loaded - "
-			    "block_group = %d, group_desc = %lu, desc = %lu",
+			    "block_group = %lu, group_desc = %lu, desc = %lu",
 			     block_group, group_desc, offset);
 		return NULL;
 	}
@@ -200,7 +200,7 @@ struct ext4_group_desc * ext4_get_group_desc(struct super_block * sb,
  * Return buffer_head on success or NULL in case of failure.
  */
 struct buffer_head *
-read_block_bitmap(struct super_block *sb, unsigned int block_group)
+read_block_bitmap(struct super_block *sb, ext4_group_t block_group)
 {
 	struct ext4_group_desc * desc;
 	struct buffer_head * bh = NULL;
@@ -227,7 +227,7 @@ read_block_bitmap(struct super_block *sb, unsigned int block_group)
 	if (!bh)
 		ext4_error (sb, __FUNCTION__,
 			    "Cannot read block bitmap - "
-			    "block_group = %d, block_bitmap = %llu",
+			    "block_group = %lu, block_bitmap = %llu",
 			    block_group, bitmap_blk);
 	return bh;
 }
@@ -320,7 +320,7 @@ restart:
  */
 static int
 goal_in_my_reservation(struct ext4_reserve_window *rsv, ext4_grpblk_t grp_goal,
-			unsigned int group, struct super_block * sb)
+			ext4_group_t group, struct super_block *sb)
 {
 	ext4_fsblk_t group_first_block, group_last_block;
 
@@ -540,7 +540,7 @@ void ext4_free_blocks_sb(handle_t *handle, struct super_block *sb,
 {
 	struct buffer_head *bitmap_bh = NULL;
 	struct buffer_head *gd_bh;
-	unsigned long block_group;
+	ext4_group_t block_group;
 	ext4_grpblk_t bit;
 	unsigned long i;
 	unsigned long overflow;
@@ -920,9 +920,10 @@ claim_block(spinlock_t *lock, ext4_grpblk_t block, struct buffer_head *bh)
  * ext4_journal_release_buffer(), else we'll run out of credits.
  */
 static ext4_grpblk_t
-ext4_try_to_allocate(struct super_block *sb, handle_t *handle, int group,
-			struct buffer_head *bitmap_bh, ext4_grpblk_t grp_goal,
-			unsigned long *count, struct ext4_reserve_window *my_rsv)
+ext4_try_to_allocate(struct super_block *sb, handle_t *handle,
+			ext4_group_t group, struct buffer_head *bitmap_bh,
+			ext4_grpblk_t grp_goal, unsigned long *count,
+			struct ext4_reserve_window *my_rsv)
 {
 	ext4_fsblk_t group_first_block;
 	ext4_grpblk_t start, end;
@@ -1156,7 +1157,7 @@ static int find_next_reservable_window(
  */
 static int alloc_new_reservation(struct ext4_reserve_window_node *my_rsv,
 		ext4_grpblk_t grp_goal, struct super_block *sb,
-		unsigned int group, struct buffer_head *bitmap_bh)
+		ext4_group_t group, struct buffer_head *bitmap_bh)
 {
 	struct ext4_reserve_window_node *search_head;
 	ext4_fsblk_t group_first_block, group_end_block, start_block;
@@ -1354,7 +1355,7 @@ static void try_to_extend_reservation(struct ext4_reserve_window_node *my_rsv,
  */
 static ext4_grpblk_t
 ext4_try_to_allocate_with_rsv(struct super_block *sb, handle_t *handle,
-			unsigned int group, struct buffer_head *bitmap_bh,
+			ext4_group_t group, struct buffer_head *bitmap_bh,
 			ext4_grpblk_t grp_goal,
 			struct ext4_reserve_window_node * my_rsv,
 			unsigned long *count, int *errp)
@@ -1528,12 +1529,12 @@ ext4_fsblk_t ext4_new_blocks(handle_t *handle, struct inode *inode,
 {
 	struct buffer_head *bitmap_bh = NULL;
 	struct buffer_head *gdp_bh;
-	unsigned long group_no;
-	int goal_group;
+	ext4_group_t group_no;
+	ext4_group_t goal_group;
 	ext4_grpblk_t grp_target_blk;	/* blockgroup relative goal block */
 	ext4_grpblk_t grp_alloc_blk;	/* blockgroup-relative allocated block*/
 	ext4_fsblk_t ret_block;		/* filesyetem-wide allocated block */
-	int bgi;			/* blockgroup iteration index */
+	ext4_group_t bgi;			/* blockgroup iteration index */
 	int fatal = 0, err;
 	int performed_allocation = 0;
 	ext4_grpblk_t free_blocks;	/* number of free blocks in a group */
@@ -1544,10 +1545,7 @@ ext4_fsblk_t ext4_new_blocks(handle_t *handle, struct inode *inode,
 	struct ext4_reserve_window_node *my_rsv = NULL;
 	struct ext4_block_alloc_info *block_i;
 	unsigned short windowsz = 0;
-#ifdef EXT4FS_DEBUG
-	static int goal_hits, goal_attempts;
-#endif
-	unsigned long ngroups;
+	ext4_group_t ngroups;
 	unsigned long num = *count;
 
 	*errp = -ENOSPC;
@@ -1743,9 +1741,6 @@ allocated:
 	 * list of some description.  We don't know in advance whether
 	 * the caller wants to use it as metadata or data.
 	 */
-	ext4_debug("allocating block %lu. Goal hits %d of %d.\n",
-			ret_block, goal_hits, goal_attempts);
-
 	spin_lock(sb_bgl_lock(sbi, group_no));
 	if (gdp->bg_flags & cpu_to_le16(EXT4_BG_BLOCK_UNINIT))
 		gdp->bg_flags &= cpu_to_le16(~EXT4_BG_BLOCK_UNINIT);
@@ -1804,8 +1799,8 @@ ext4_fsblk_t ext4_count_free_blocks(struct super_block *sb)
 {
 	ext4_fsblk_t desc_count;
 	struct ext4_group_desc *gdp;
-	int i;
-	unsigned long ngroups = EXT4_SB(sb)->s_groups_count;
+	ext4_group_t i;
+	ext4_group_t ngroups = EXT4_SB(sb)->s_groups_count;
 #ifdef EXT4FS_DEBUG
 	struct ext4_super_block *es;
 	ext4_fsblk_t bitmap_count;
@@ -1829,7 +1824,7 @@ ext4_fsblk_t ext4_count_free_blocks(struct super_block *sb)
 			continue;
 
 		x = ext4_count_free(bitmap_bh, sb->s_blocksize);
-		printk("group %d: stored = %d, counted = %lu\n",
+		printk(KERN_DEBUG "group %lu: stored = %d, counted = %lu\n",
 			i, le16_to_cpu(gdp->bg_free_blocks_count), x);
 		bitmap_count += x;
 	}
@@ -1853,7 +1848,7 @@ ext4_fsblk_t ext4_count_free_blocks(struct super_block *sb)
 #endif
 }
 
-static inline int test_root(int a, int b)
+static inline int test_root(ext4_group_t a, int b)
 {
 	int num = b;
 
@@ -1862,7 +1857,7 @@ static inline int test_root(int a, int b)
 	return num == a;
 }
 
-static int ext4_group_sparse(int group)
+static int ext4_group_sparse(ext4_group_t group)
 {
 	if (group <= 1)
 		return 1;
@@ -1880,7 +1875,7 @@ static int ext4_group_sparse(int group)
  *	Return the number of blocks used by the superblock (primary or backup)
  *	in this group.  Currently this will be only 0 or 1.
  */
-int ext4_bg_has_super(struct super_block *sb, int group)
+int ext4_bg_has_super(struct super_block *sb, ext4_group_t group)
 {
 	if (EXT4_HAS_RO_COMPAT_FEATURE(sb,
 				EXT4_FEATURE_RO_COMPAT_SPARSE_SUPER) &&
@@ -1889,18 +1884,20 @@ int ext4_bg_has_super(struct super_block *sb, int group)
 	return 1;
 }
 
-static unsigned long ext4_bg_num_gdb_meta(struct super_block *sb, int group)
+static unsigned long ext4_bg_num_gdb_meta(struct super_block *sb,
+					ext4_group_t group)
 {
 	unsigned long metagroup = group / EXT4_DESC_PER_BLOCK(sb);
-	unsigned long first = metagroup * EXT4_DESC_PER_BLOCK(sb);
-	unsigned long last = first + EXT4_DESC_PER_BLOCK(sb) - 1;
+	ext4_group_t first = metagroup * EXT4_DESC_PER_BLOCK(sb);
+	ext4_group_t last = first + EXT4_DESC_PER_BLOCK(sb) - 1;
 
 	if (group == first || group == first + 1 || group == last)
 		return 1;
 	return 0;
 }
 
-static unsigned long ext4_bg_num_gdb_nometa(struct super_block *sb, int group)
+static unsigned long ext4_bg_num_gdb_nometa(struct super_block *sb,
+					ext4_group_t group)
 {
 	if (EXT4_HAS_RO_COMPAT_FEATURE(sb,
 				EXT4_FEATURE_RO_COMPAT_SPARSE_SUPER) &&
@@ -1918,7 +1915,7 @@ static unsigned long ext4_bg_num_gdb_nometa(struct super_block *sb, int group)
  *	(primary or backup) in this group.  In the future there may be a
  *	different number of descriptor blocks in each group.
  */
-unsigned long ext4_bg_num_gdb(struct super_block *sb, int group)
+unsigned long ext4_bg_num_gdb(struct super_block *sb, ext4_group_t group)
 {
 	unsigned long first_meta_bg =
 			le32_to_cpu(EXT4_SB(sb)->s_es->s_first_meta_bg);

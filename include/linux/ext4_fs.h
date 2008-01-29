@@ -830,7 +830,7 @@ struct ext4_iloc
 {
 	struct buffer_head *bh;
 	unsigned long offset;
-	unsigned long block_group;
+	ext4_group_t block_group;
 };
 
 static inline struct ext4_inode *ext4_raw_inode(struct ext4_iloc *iloc)
@@ -855,7 +855,7 @@ struct dir_private_info {
 
 /* calculate the first block number of the group */
 static inline ext4_fsblk_t
-ext4_group_first_block_no(struct super_block *sb, unsigned long group_no)
+ext4_group_first_block_no(struct super_block *sb, ext4_group_t group_no)
 {
 	return group_no * (ext4_fsblk_t)EXT4_BLOCKS_PER_GROUP(sb) +
 		le32_to_cpu(EXT4_SB(sb)->s_es->s_first_data_block);
@@ -886,8 +886,9 @@ extern unsigned int ext4_block_group(struct super_block *sb,
 			ext4_fsblk_t blocknr);
 extern ext4_grpblk_t ext4_block_group_offset(struct super_block *sb,
 			ext4_fsblk_t blocknr);
-extern int ext4_bg_has_super(struct super_block *sb, int group);
-extern unsigned long ext4_bg_num_gdb(struct super_block *sb, int group);
+extern int ext4_bg_has_super(struct super_block *sb, ext4_group_t group);
+extern unsigned long ext4_bg_num_gdb(struct super_block *sb,
+			ext4_group_t group);
 extern ext4_fsblk_t ext4_new_block (handle_t *handle, struct inode *inode,
 			ext4_fsblk_t goal, int *errp);
 extern ext4_fsblk_t ext4_new_blocks (handle_t *handle, struct inode *inode,
@@ -900,7 +901,7 @@ extern void ext4_free_blocks_sb (handle_t *handle, struct super_block *sb,
 extern ext4_fsblk_t ext4_count_free_blocks (struct super_block *);
 extern void ext4_check_blocks_bitmap (struct super_block *);
 extern struct ext4_group_desc * ext4_get_group_desc(struct super_block * sb,
-						    unsigned int block_group,
+						    ext4_group_t block_group,
 						    struct buffer_head ** bh);
 extern int ext4_should_retry_alloc(struct super_block *sb, int *retries);
 extern void ext4_init_block_alloc_info(struct inode *);

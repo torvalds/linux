@@ -28,7 +28,7 @@ static int verify_group_input(struct super_block *sb,
 	struct ext4_super_block *es = sbi->s_es;
 	ext4_fsblk_t start = ext4_blocks_count(es);
 	ext4_fsblk_t end = start + input->blocks_count;
-	unsigned group = input->group;
+	ext4_group_t group = input->group;
 	ext4_fsblk_t itend = input->inode_table + sbi->s_itb_per_group;
 	unsigned overhead = ext4_bg_has_super(sb, group) ?
 		(1 + ext4_bg_num_gdb(sb, group) +
@@ -357,7 +357,7 @@ static int verify_reserved_gdb(struct super_block *sb,
 			       struct buffer_head *primary)
 {
 	const ext4_fsblk_t blk = primary->b_blocknr;
-	const unsigned long end = EXT4_SB(sb)->s_groups_count;
+	const ext4_group_t end = EXT4_SB(sb)->s_groups_count;
 	unsigned three = 1;
 	unsigned five = 5;
 	unsigned seven = 7;
@@ -656,12 +656,12 @@ static void update_backups(struct super_block *sb,
 			   int blk_off, char *data, int size)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
-	const unsigned long last = sbi->s_groups_count;
+	const ext4_group_t last = sbi->s_groups_count;
 	const int bpg = EXT4_BLOCKS_PER_GROUP(sb);
 	unsigned three = 1;
 	unsigned five = 5;
 	unsigned seven = 7;
-	unsigned group;
+	ext4_group_t group;
 	int rest = sb->s_blocksize - size;
 	handle_t *handle;
 	int err = 0, err2;
@@ -716,7 +716,7 @@ static void update_backups(struct super_block *sb,
 exit_err:
 	if (err) {
 		ext4_warning(sb, __FUNCTION__,
-			     "can't update backup for group %d (err %d), "
+			     "can't update backup for group %lu (err %d), "
 			     "forcing fsck on next reboot", group, err);
 		sbi->s_mount_state &= ~EXT4_VALID_FS;
 		sbi->s_es->s_state &= cpu_to_le16(~EXT4_VALID_FS);
@@ -952,7 +952,7 @@ int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
 		      ext4_fsblk_t n_blocks_count)
 {
 	ext4_fsblk_t o_blocks_count;
-	unsigned long o_groups_count;
+	ext4_group_t o_groups_count;
 	ext4_grpblk_t last;
 	ext4_grpblk_t add;
 	struct buffer_head * bh;

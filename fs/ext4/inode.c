@@ -2464,7 +2464,8 @@ out_stop:
 static ext4_fsblk_t ext4_get_inode_block(struct super_block *sb,
 		unsigned long ino, struct ext4_iloc *iloc)
 {
-	unsigned long desc, group_desc, block_group;
+	unsigned long desc, group_desc;
+	ext4_group_t block_group;
 	unsigned long offset;
 	ext4_fsblk_t block;
 	struct buffer_head *bh;
@@ -2551,7 +2552,7 @@ static int __ext4_get_inode_loc(struct inode *inode,
 			struct ext4_group_desc *desc;
 			int inodes_per_buffer;
 			int inode_offset, i;
-			int block_group;
+			ext4_group_t block_group;
 			int start;
 
 			block_group = (inode->i_ino - 1) /

@@ -30,6 +30,9 @@ typedef unsigned long long ext4_fsblk_t;
 /* data type for file logical block number */
 typedef __u32 ext4_lblk_t;
 
+/* data type for block group number */
+typedef unsigned long ext4_group_t;
+
 struct ext4_reserve_window {
 	ext4_fsblk_t	_rsv_start;	/* First byte reserved */
 	ext4_fsblk_t	_rsv_end;	/* Last byte reserved or 0 */
@@ -92,7 +95,7 @@ struct ext4_inode_info {
 	 * place a file's data blocks near its inode block, and new inodes
 	 * near to their parent directory's inode.
 	 */
-	__u32	i_block_group;
+	ext4_group_t	i_block_group;
 	__u32	i_state;		/* Dynamic state flags for ext4 */
 
 	/* block reservation info */
