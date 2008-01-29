@@ -1585,15 +1585,6 @@ config CPU_HAS_SMARTMIPS
 config CPU_HAS_WB
 	bool
 
-config 64BIT_CONTEXT
-	bool "Save 64bit integer registers"
-	depends on 32BIT && CPU_LOONGSON2
-	help
-	  Loongson2 CPU is 64bit , when used in 32BIT mode, its integer
-	  registers can still be accessed as 64bit, mainly for multimedia
-	  instructions. We must have all 64bit save/restored to make sure
-	  those instructions to get correct result.
-
 #
 # Vectored interrupt mode is an R2 feature
 #
