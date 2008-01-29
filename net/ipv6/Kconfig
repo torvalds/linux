@@ -85,6 +85,7 @@ config INET6_ESP
 	depends on IPV6
 	select XFRM
 	select CRYPTO
+	select CRYPTO_AEAD
 	select CRYPTO_HMAC
 	select CRYPTO_MD5
 	select CRYPTO_CBC
