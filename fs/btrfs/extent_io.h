@@ -33,6 +33,10 @@ struct extent_io_ops {
 				    struct extent_state *state);
 	void (*writepage_end_io_hook)(struct page *page, u64 start, u64 end,
 				      struct extent_state *state);
+	int (*set_bit_hook)(struct inode *inode, u64 start, u64 end,
+			    unsigned long bits);
+	int (*clear_bit_hook)(struct inode *inode, u64 start, u64 end,
+			    unsigned long bits);
 };
 
 struct extent_io_tree {

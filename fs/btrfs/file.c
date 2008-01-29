@@ -323,10 +323,6 @@ static int noinline dirty_and_release_pages(struct btrfs_trans_handle *trans,
 		}
 		set_extent_delalloc(io_tree, start_pos, end_of_last_block,
 				 GFP_NOFS);
-		spin_lock(&root->fs_info->delalloc_lock);
-		root->fs_info->delalloc_bytes += (end_of_last_block + 1 -
-					  start_pos) - existing_delalloc;
-		spin_unlock(&root->fs_info->delalloc_lock);
 		btrfs_add_ordered_inode(inode);
 	} else {
 		u64 aligned_end;

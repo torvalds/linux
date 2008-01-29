@@ -2180,7 +2180,6 @@ static int noinline relocate_inode_pages(struct inode *inode, u64 start,
 	unsigned long last_index;
 	unsigned long i;
 	struct page *page;
-	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
 	struct file_ra_state *ra;
 
@@ -2219,11 +2218,6 @@ static int noinline relocate_inode_pages(struct inode *inode, u64 start,
 
 		set_extent_delalloc(io_tree, page_start,
 				    page_end, GFP_NOFS);
-
-		spin_lock(&root->fs_info->delalloc_lock);
-		root->fs_info->delalloc_bytes += PAGE_CACHE_SIZE -
-						 existing_delalloc;
-		spin_unlock(&root->fs_info->delalloc_lock);
 
 		unlock_extent(io_tree, page_start, page_end, GFP_NOFS);
 		set_page_dirty(page);

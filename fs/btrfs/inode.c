@@ -80,8 +80,6 @@ int btrfs_check_free_space(struct btrfs_root *root, u64 num_required,
 	u64 thresh;
 	int ret = 0;
 
-	return 0;
-
 	if (for_del)
 		thresh = total * 90;
 	else
@@ -249,7 +247,6 @@ not_found:
 static int run_delalloc_range(struct inode *inode, u64 start, u64 end)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	u64 num_bytes;
 	int ret;
 	mutex_lock(&root->fs_info->fs_mutex);
 	if (btrfs_test_opt(root, NODATACOW) ||
@@ -258,18 +255,32 @@ static int run_delalloc_range(struct inode *inode, u64 start, u64 end)
 	else
 		ret = cow_file_range(inode, start, end);
 
-	spin_lock(&root->fs_info->delalloc_lock);
-	num_bytes = end + 1 - start;
-	if (root->fs_info->delalloc_bytes < num_bytes) {
-		printk("delalloc accounting error total %llu sub %llu\n",
-		       root->fs_info->delalloc_bytes, num_bytes);
-	} else {
-		root->fs_info->delalloc_bytes -= num_bytes;
-	}
-	spin_unlock(&root->fs_info->delalloc_lock);
-
 	mutex_unlock(&root->fs_info->fs_mutex);
 	return ret;
+}
+
+int btrfs_set_bit_hook(struct inode *inode, u64 start, u64 end,
+		       unsigned long bits)
+{
+	if ((bits & EXTENT_DELALLOC)) {
+		struct btrfs_root *root = BTRFS_I(inode)->root;
+		spin_lock(&root->fs_info->delalloc_lock);
+		root->fs_info->delalloc_bytes += end - start + 1;
+		spin_unlock(&root->fs_info->delalloc_lock);
+	}
+	return 0;
+}
+
+int btrfs_clear_bit_hook(struct inode *inode, u64 start, u64 end,
+			 unsigned long bits)
+{
+	if ((bits & EXTENT_DELALLOC)) {
+		struct btrfs_root *root = BTRFS_I(inode)->root;
+		spin_lock(&root->fs_info->delalloc_lock);
+		root->fs_info->delalloc_bytes -= end - start + 1;
+		spin_unlock(&root->fs_info->delalloc_lock);
+	}
+	return 0;
 }
 
 int btrfs_writepage_io_hook(struct page *page, u64 start, u64 end)
@@ -908,27 +919,16 @@ static int btrfs_cow_one_page(struct inode *inode, struct page *page,
 {
 	char *kaddr;
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
-	struct btrfs_root *root = BTRFS_I(inode)->root;
 	u64 page_start = (u64)page->index << PAGE_CACHE_SHIFT;
 	u64 page_end = page_start + PAGE_CACHE_SIZE - 1;
-	u64 existing_delalloc;
-	u64 delalloc_start;
 	int ret = 0;
 
 	WARN_ON(!PageLocked(page));
 	set_page_extent_mapped(page);
 
 	lock_extent(io_tree, page_start, page_end, GFP_NOFS);
-	delalloc_start = page_start;
-	existing_delalloc = count_range_bits(&BTRFS_I(inode)->io_tree,
-					     &delalloc_start, page_end,
-					     PAGE_CACHE_SIZE, EXTENT_DELALLOC);
 	set_extent_delalloc(&BTRFS_I(inode)->io_tree, page_start,
 			    page_end, GFP_NOFS);
-
-	spin_lock(&root->fs_info->delalloc_lock);
-	root->fs_info->delalloc_bytes += PAGE_CACHE_SIZE - existing_delalloc;
-	spin_unlock(&root->fs_info->delalloc_lock);
 
 	if (zero_start != PAGE_CACHE_SIZE) {
 		kaddr = kmap(page);
@@ -2456,8 +2456,6 @@ int btrfs_defrag_file(struct file *file) {
 	unsigned long ra_index = 0;
 	u64 page_start;
 	u64 page_end;
-	u64 delalloc_start;
-	u64 existing_delalloc;
 	unsigned long i;
 	int ret;
 
@@ -2491,18 +2489,8 @@ int btrfs_defrag_file(struct file *file) {
 		page_end = page_start + PAGE_CACHE_SIZE - 1;
 
 		lock_extent(io_tree, page_start, page_end, GFP_NOFS);
-		delalloc_start = page_start;
-		existing_delalloc =
-			count_range_bits(&BTRFS_I(inode)->io_tree,
-					 &delalloc_start, page_end,
-					 PAGE_CACHE_SIZE, EXTENT_DELALLOC);
 		set_extent_delalloc(io_tree, page_start,
 				    page_end, GFP_NOFS);
-
-		spin_lock(&root->fs_info->delalloc_lock);
-		root->fs_info->delalloc_bytes += PAGE_CACHE_SIZE -
-						 existing_delalloc;
-		spin_unlock(&root->fs_info->delalloc_lock);
 
 		unlock_extent(io_tree, page_start, page_end, GFP_NOFS);
 		set_page_dirty(page);
