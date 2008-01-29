@@ -926,6 +926,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	AD1984
 	  basic		default configuration
 	  thinkpad	Lenovo Thinkpad T61/X61
+	  dell		Dell T3400
 
 	AD1986A
 	  6stack	6-jack, separate surrounds (default)

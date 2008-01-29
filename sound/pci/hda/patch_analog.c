@@ -3141,6 +3141,20 @@ static struct hda_input_mux ad1984_thinkpad_capture_source = {
 	},
 };
 
+
+/*
+ * Dell Precision T3400
+ */
+static struct hda_input_mux ad1984_dell_desktop_capture_source = {
+	.num_items = 3,
+	.items = {
+		{ "Front Mic", 0x0 },
+		{ "Line-In", 0x1 },
+		{ "Mix", 0x3 },
+	},
+};
+
+
 static struct snd_kcontrol_new ad1984_thinkpad_mixers[] = {
 	HDA_CODEC_VOLUME("PCM Playback Volume", 0x04, 0x0, HDA_OUTPUT),
 	/* HDA_CODEC_VOLUME_IDX("PCM Playback Volume", 1, 0x03, 0x0, HDA_OUTPUT), */
@@ -3200,6 +3214,44 @@ static struct hda_verb ad1984_thinkpad_init_verbs[] = {
 	{ } /* end */
 };
 
+/*
+ * Dell Precision T3400
+ */
+static struct snd_kcontrol_new ad1984_dell_desktop_mixers[] = {
+	HDA_CODEC_VOLUME("PCM Playback Volume", 0x04, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Headphone Playback Switch", 0x11, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Speaker Playback Switch", 0x12, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME_MONO("Mono Playback Volume", 0x13, 1, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE_MONO("Mono Playback Switch", 0x13, 1, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Front Mic Playback Volume", 0x20, 0x00, HDA_INPUT),
+	HDA_CODEC_MUTE("Front Mic Playback Switch", 0x20, 0x00, HDA_INPUT),
+	HDA_CODEC_VOLUME("Line-In Playback Volume", 0x20, 0x01, HDA_INPUT),
+	HDA_CODEC_MUTE("Line-In Playback Switch", 0x20, 0x01, HDA_INPUT),
+	/*
+	HDA_CODEC_VOLUME("PC Speaker Playback Volume", 0x20, 0x03, HDA_INPUT),
+	HDA_CODEC_MUTE("PC Speaker Playback Switch", 0x20, 0x03, HDA_INPUT),
+	*/
+	HDA_CODEC_VOLUME("Line-In Boost", 0x15, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Front Mic Boost", 0x14, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Capture Volume", 0x0c, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Capture Switch", 0x0c, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x0d, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE_IDX("Capture Switch", 1, 0x0d, 0x0, HDA_OUTPUT),
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		/* The multiple "Capture Source" controls confuse alsamixer
+		 * So call somewhat different..
+		 */
+		/* .name = "Capture Source", */
+		.name = "Input Source",
+		.count = 2,
+		.info = ad198x_mux_enum_info,
+		.get = ad198x_mux_enum_get,
+		.put = ad198x_mux_enum_put,
+	},
+	{ } /* end */
+};
+
 /* Digial MIC ADC NID 0x05 + 0x06 */
 static int ad1984_pcm_dmic_prepare(struct hda_pcm_stream *hinfo,
 				   struct hda_codec *codec,
@@ -3253,17 +3305,20 @@ static int ad1984_build_pcms(struct hda_codec *codec)
 enum {
 	AD1984_BASIC,
 	AD1984_THINKPAD,
+	AD1984_DELL_DESKTOP,
 	AD1984_MODELS
 };
 
 static const char *ad1984_models[AD1984_MODELS] = {
 	[AD1984_BASIC]		= "basic",
 	[AD1984_THINKPAD]	= "thinkpad",
+	[AD1984_DELL_DESKTOP]	= "dell_desktop",
 };
 
 static struct snd_pci_quirk ad1984_cfg_tbl[] = {
 	/* Lenovo Thinkpad T61/X61 */
 	SND_PCI_QUIRK(0x17aa, 0, "Lenovo Thinkpad", AD1984_THINKPAD),
+	SND_PCI_QUIRK(0x1028, 0x0214, "Dell T3400", AD1984_DELL_DESKTOP),
 	{}
 };
 
@@ -3289,6 +3344,11 @@ static int patch_ad1984(struct hda_codec *codec)
 		spec->input_mux = &ad1984_thinkpad_capture_source;
 		spec->mixers[0] = ad1984_thinkpad_mixers;
 		spec->init_verbs[spec->num_init_verbs++] = ad1984_thinkpad_init_verbs;
+		break;
+	case AD1984_DELL_DESKTOP:
+		spec->multiout.dig_out_nid = 0;
+		spec->input_mux = &ad1984_dell_desktop_capture_source;
+		spec->mixers[0] = ad1984_dell_desktop_mixers;
 		break;
 	}
 	return 0;
