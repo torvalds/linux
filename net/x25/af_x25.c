@@ -1652,7 +1652,7 @@ static int __init x25_init(void)
 
 	register_netdevice_notifier(&x25_dev_notifier);
 
-	printk(KERN_INFO "X.25 for Linux. Version 0.2 for Linux 2.1.15\n");
+	printk(KERN_INFO "X.25 for Linux Version 0.2\n");
 
 #ifdef CONFIG_SYSCTL
 	x25_register_sysctl();
