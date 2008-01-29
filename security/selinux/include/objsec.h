@@ -113,8 +113,8 @@ struct sk_security_struct {
 	struct sock *sk;		/* back pointer to sk object */
 	u32 sid;			/* SID of this object */
 	u32 peer_sid;			/* SID of peer */
-#ifdef CONFIG_NETLABEL
 	u16 sclass;			/* sock security class */
+#ifdef CONFIG_NETLABEL
 	enum {				/* NetLabel state */
 		NLBL_UNSET = 0,
 		NLBL_REQUIRE,

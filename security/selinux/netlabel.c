@@ -137,7 +137,6 @@ void selinux_netlbl_sk_security_clone(struct sk_security_struct *ssec,
 	 * lock as other threads could have access to ssec */
 	rcu_read_lock();
 	selinux_netlbl_sk_security_reset(newssec, ssec->sk->sk_family);
-	newssec->sclass = ssec->sclass;
 	rcu_read_unlock();
 }
 
@@ -146,6 +145,7 @@ void selinux_netlbl_sk_security_clone(struct sk_security_struct *ssec,
  * @skb: the packet
  * @family: protocol family
  * @base_sid: the SELinux SID to use as a context for MLS only attributes
+ * @type: NetLabel labeling protocol type
  * @sid: the SID
  *
  * Description:
@@ -157,6 +157,7 @@ void selinux_netlbl_sk_security_clone(struct sk_security_struct *ssec,
 int selinux_netlbl_skbuff_getsid(struct sk_buff *skb,
 				 u16 family,
 				 u32 base_sid,
+				 u32 *type,
 				 u32 *sid)
 {
 	int rc;
@@ -177,6 +178,7 @@ int selinux_netlbl_skbuff_getsid(struct sk_buff *skb,
 			netlbl_cache_add(skb, &secattr);
 	} else
 		*sid = SECSID_NULL;
+	*type = secattr.type;
 	netlbl_secattr_destroy(&secattr);
 
 	return rc;
@@ -194,12 +196,9 @@ int selinux_netlbl_skbuff_getsid(struct sk_buff *skb,
  */
 void selinux_netlbl_sock_graft(struct sock *sk, struct socket *sock)
 {
-	struct inode_security_struct *isec = SOCK_INODE(sock)->i_security;
 	struct sk_security_struct *sksec = sk->sk_security;
 	struct netlbl_lsm_secattr secattr;
 	u32 nlbl_peer_sid;
-
-	sksec->sclass = isec->sclass;
 
 	rcu_read_lock();
 
@@ -238,10 +237,7 @@ int selinux_netlbl_socket_post_create(struct socket *sock)
 {
 	int rc = 0;
 	struct sock *sk = sock->sk;
-	struct inode_security_struct *isec = SOCK_INODE(sock)->i_security;
 	struct sk_security_struct *sksec = sk->sk_security;
-
-	sksec->sclass = isec->sclass;
 
 	rcu_read_lock();
 	if (sksec->nlbl_state == NLBL_REQUIRE)
