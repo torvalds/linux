@@ -595,11 +595,12 @@ static void run_queue(struct gfs2_glock *gl)
 			blocked = rq_mutex(gh);
 		} else if (test_bit(GLF_DEMOTE, &gl->gl_flags)) {
 			blocked = rq_demote(gl);
-			if (gl->gl_waiters2 && !blocked) {
+			if (test_bit(GLF_WAITERS2, &gl->gl_flags) &&
+				     !blocked) {
 				set_bit(GLF_DEMOTE, &gl->gl_flags);
 				gl->gl_demote_state = LM_ST_UNLOCKED;
 			}
-			gl->gl_waiters2 = 0;
+			clear_bit(GLF_WAITERS2, &gl->gl_flags);
 		} else if (!list_empty(&gl->gl_waiters3)) {
 			gh = list_entry(gl->gl_waiters3.next,
 					struct gfs2_holder, gh_list);
@@ -710,7 +711,7 @@ static void handle_callback(struct gfs2_glock *gl, unsigned int state,
 	} else if (gl->gl_demote_state != LM_ST_UNLOCKED &&
 			gl->gl_demote_state != state) {
 		if (test_bit(GLF_DEMOTE_IN_PROGRESS,  &gl->gl_flags)) 
-			gl->gl_waiters2 = 1;
+			set_bit(GLF_WAITERS2, &gl->gl_flags);
 		else 
 			gl->gl_demote_state = LM_ST_UNLOCKED;
 	}

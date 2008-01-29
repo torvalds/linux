@@ -1,6 +1,6 @@
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
- * Copyright (C) 2004-2007 Red Hat, Inc.  All rights reserved.
+ * Copyright (C) 2004-2008 Red Hat, Inc.  All rights reserved.
  *
  * This copyrighted material is made available to anyone wishing to use,
  * modify, copy, or redistribute it subject to the terms and conditions
@@ -167,6 +167,7 @@ enum {
 	GLF_DIRTY		= 5,
 	GLF_DEMOTE_IN_PROGRESS	= 6,
 	GLF_LFLUSH		= 7,
+	GLF_WAITERS2		= 8,
 };
 
 struct gfs2_glock {
@@ -186,7 +187,6 @@ struct gfs2_glock {
 	struct list_head gl_holders;
 	struct list_head gl_waiters1;	/* HIF_MUTEX */
 	struct list_head gl_waiters3;	/* HIF_PROMOTE */
-	int gl_waiters2;		/* GIF_DEMOTE */
 
 	const struct gfs2_glock_operations *gl_ops;
 
