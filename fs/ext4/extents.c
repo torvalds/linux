@@ -1029,7 +1029,7 @@ ext4_ext_search_left(struct inode *inode, struct ext4_ext_path *path,
 {
 	struct ext4_extent_idx *ix;
 	struct ext4_extent *ex;
-	int depth;
+	int depth, ee_len;
 
 	BUG_ON(path == NULL);
 	depth = path->p_depth;
@@ -1043,6 +1043,7 @@ ext4_ext_search_left(struct inode *inode, struct ext4_ext_path *path,
 	 * first one in the file */
 
 	ex = path[depth].p_ext;
+	ee_len = ext4_ext_get_actual_len(ex);
 	if (*logical < le32_to_cpu(ex->ee_block)) {
 		BUG_ON(EXT_FIRST_EXTENT(path[depth].p_hdr) != ex);
 		while (--depth >= 0) {
@@ -1052,10 +1053,10 @@ ext4_ext_search_left(struct inode *inode, struct ext4_ext_path *path,
 		return 0;
 	}
 
-	BUG_ON(*logical < le32_to_cpu(ex->ee_block) + le16_to_cpu(ex->ee_len));
+	BUG_ON(*logical < (le32_to_cpu(ex->ee_block) + ee_len));
 
-	*logical = le32_to_cpu(ex->ee_block) + le16_to_cpu(ex->ee_len) - 1;
-	*phys = ext_pblock(ex) + le16_to_cpu(ex->ee_len) - 1;
+	*logical = le32_to_cpu(ex->ee_block) + ee_len - 1;
+	*phys = ext_pblock(ex) + ee_len - 1;
 	return 0;
 }
 
@@ -1075,7 +1076,7 @@ ext4_ext_search_right(struct inode *inode, struct ext4_ext_path *path,
 	struct ext4_extent_idx *ix;
 	struct ext4_extent *ex;
 	ext4_fsblk_t block;
-	int depth;
+	int depth, ee_len;
 
 	BUG_ON(path == NULL);
 	depth = path->p_depth;
@@ -1089,6 +1090,7 @@ ext4_ext_search_right(struct inode *inode, struct ext4_ext_path *path,
 	 * first one in the file */
 
 	ex = path[depth].p_ext;
+	ee_len = ext4_ext_get_actual_len(ex);
 	if (*logical < le32_to_cpu(ex->ee_block)) {
 		BUG_ON(EXT_FIRST_EXTENT(path[depth].p_hdr) != ex);
 		while (--depth >= 0) {
@@ -1100,7 +1102,7 @@ ext4_ext_search_right(struct inode *inode, struct ext4_ext_path *path,
 		return 0;
 	}
 
-	BUG_ON(*logical < le32_to_cpu(ex->ee_block) + le16_to_cpu(ex->ee_len));
+	BUG_ON(*logical < (le32_to_cpu(ex->ee_block) + ee_len));
 
 	if (ex != EXT_LAST_EXTENT(path[depth].p_hdr)) {
 		/* next allocated block in this leaf */
@@ -1316,7 +1318,7 @@ ext4_can_extents_be_merged(struct inode *inode, struct ext4_extent *ex1,
 	if (ext1_ee_len + ext2_ee_len > max_len)
 		return 0;
 #ifdef AGGRESSIVE_TEST
-	if (le16_to_cpu(ex1->ee_len) >= 4)
+	if (ext1_ee_len >= 4)
 		return 0;
 #endif
 
@@ -2313,7 +2315,7 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 				   - le32_to_cpu(newex.ee_block)
 				   + ext_pblock(&newex);
 			/* number of remaining blocks in the extent */
-			allocated = le16_to_cpu(newex.ee_len) -
+			allocated = ext4_ext_get_actual_len(&newex) -
 					(iblock - le32_to_cpu(newex.ee_block));
 			goto out;
 		} else {
@@ -2429,7 +2431,7 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 	newex.ee_len = cpu_to_le16(max_blocks);
 	err = ext4_ext_check_overlap(inode, &newex, path);
 	if (err)
-		allocated = le16_to_cpu(newex.ee_len);
+		allocated = ext4_ext_get_actual_len(&newex);
 	else
 		allocated = max_blocks;
 
@@ -2461,7 +2463,7 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 		 * but otherwise we'd need to call it every free() */
 		ext4_mb_discard_inode_preallocations(inode);
 		ext4_free_blocks(handle, inode, ext_pblock(&newex),
-					le16_to_cpu(newex.ee_len), 0);
+					ext4_ext_get_actual_len(&newex), 0);
 		goto out2;
 	}
 
@@ -2470,7 +2472,7 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 
 	/* previous routine could use block we allocated */
 	newblock = ext_pblock(&newex);
-	allocated = le16_to_cpu(newex.ee_len);
+	allocated = ext4_ext_get_actual_len(&newex);
 outnew:
 	__set_bit(BH_New, &bh_result->b_state);
 
