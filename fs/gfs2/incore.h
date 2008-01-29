@@ -191,7 +191,6 @@ struct gfs2_glock {
 	const struct gfs2_glock_operations *gl_ops;
 
 	struct gfs2_holder *gl_req_gh;
-	gfs2_glop_bh_t gl_req_bh;
 
 	void *gl_lock;
 	char *gl_lvb;
