@@ -373,6 +373,66 @@ void ext4_update_dynamic_rev(struct super_block *sb)
 	 */
 }
 
+int ext4_update_compat_feature(handle_t *handle,
+					struct super_block *sb, __u32 compat)
+{
+	int err = 0;
+	if (!EXT4_HAS_COMPAT_FEATURE(sb, compat)) {
+		err = ext4_journal_get_write_access(handle,
+				EXT4_SB(sb)->s_sbh);
+		if (err)
+			return err;
+		EXT4_SET_COMPAT_FEATURE(sb, compat);
+		sb->s_dirt = 1;
+		handle->h_sync = 1;
+		BUFFER_TRACE(EXT4_SB(sb)->s_sbh,
+					"call ext4_journal_dirty_met adata");
+		err = ext4_journal_dirty_metadata(handle,
+				EXT4_SB(sb)->s_sbh);
+	}
+	return err;
+}
+
+int ext4_update_rocompat_feature(handle_t *handle,
+					struct super_block *sb, __u32 rocompat)
+{
+	int err = 0;
+	if (!EXT4_HAS_RO_COMPAT_FEATURE(sb, rocompat)) {
+		err = ext4_journal_get_write_access(handle,
+				EXT4_SB(sb)->s_sbh);
+		if (err)
+			return err;
+		EXT4_SET_RO_COMPAT_FEATURE(sb, rocompat);
+		sb->s_dirt = 1;
+		handle->h_sync = 1;
+		BUFFER_TRACE(EXT4_SB(sb)->s_sbh,
+					"call ext4_journal_dirty_met adata");
+		err = ext4_journal_dirty_metadata(handle,
+				EXT4_SB(sb)->s_sbh);
+	}
+	return err;
+}
+
+int ext4_update_incompat_feature(handle_t *handle,
+					struct super_block *sb, __u32 incompat)
+{
+	int err = 0;
+	if (!EXT4_HAS_INCOMPAT_FEATURE(sb, incompat)) {
+		err = ext4_journal_get_write_access(handle,
+				EXT4_SB(sb)->s_sbh);
+		if (err)
+			return err;
+		EXT4_SET_INCOMPAT_FEATURE(sb, incompat);
+		sb->s_dirt = 1;
+		handle->h_sync = 1;
+		BUFFER_TRACE(EXT4_SB(sb)->s_sbh,
+					"call ext4_journal_dirty_met adata");
+		err = ext4_journal_dirty_metadata(handle,
+				EXT4_SB(sb)->s_sbh);
+	}
+	return err;
+}
+
 /*
  * Open the external journal device
  */

@@ -989,6 +989,12 @@ extern void ext4_abort (struct super_block *, const char *, const char *, ...)
 extern void ext4_warning (struct super_block *, const char *, const char *, ...)
 	__attribute__ ((format (printf, 3, 4)));
 extern void ext4_update_dynamic_rev (struct super_block *sb);
+extern int ext4_update_compat_feature(handle_t *handle, struct super_block *sb,
+					__u32 compat);
+extern int ext4_update_rocompat_feature(handle_t *handle,
+					struct super_block *sb,	__u32 rocompat);
+extern int ext4_update_incompat_feature(handle_t *handle,
+					struct super_block *sb,	__u32 incompat);
 extern ext4_fsblk_t ext4_block_bitmap(struct super_block *sb,
 				      struct ext4_group_desc *bg);
 extern ext4_fsblk_t ext4_inode_bitmap(struct super_block *sb,
