@@ -797,10 +797,6 @@ config DMA_COHERENT
 config DMA_IP27
 	bool
 
-config DMA_IP32
-	bool
-	select DMA_NEED_PCI_MAP_STATE
-
 config DMA_NONCOHERENT
 	bool
 	select DMA_NEED_PCI_MAP_STATE
