@@ -1973,7 +1973,7 @@ static int journal_init_jbd2_journal_head_cache(void)
 	jbd2_journal_head_cache = kmem_cache_create("jbd2_journal_head",
 				sizeof(struct journal_head),
 				0,		/* offset */
-				0,		/* flags */
+				SLAB_TEMPORARY,	/* flags */
 				NULL);		/* ctor */
 	retval = 0;
 	if (jbd2_journal_head_cache == 0) {
@@ -2269,7 +2269,7 @@ static int __init journal_init_handle_cache(void)
 	jbd2_handle_cache = kmem_cache_create("jbd2_journal_handle",
 				sizeof(handle_t),
 				0,		/* offset */
-				0,		/* flags */
+				SLAB_TEMPORARY,	/* flags */
 				NULL);		/* ctor */
 	if (jbd2_handle_cache == NULL) {
 		printk(KERN_EMERG "JBD: failed to create handle cache\n");

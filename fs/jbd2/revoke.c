@@ -171,13 +171,15 @@ int __init jbd2_journal_init_revoke_caches(void)
 {
 	jbd2_revoke_record_cache = kmem_cache_create("jbd2_revoke_record",
 					   sizeof(struct jbd2_revoke_record_s),
-					   0, SLAB_HWCACHE_ALIGN, NULL);
+					   0,
+					   SLAB_HWCACHE_ALIGN|SLAB_TEMPORARY,
+					   NULL);
 	if (jbd2_revoke_record_cache == 0)
 		return -ENOMEM;
 
 	jbd2_revoke_table_cache = kmem_cache_create("jbd2_revoke_table",
 					   sizeof(struct jbd2_revoke_table_s),
-					   0, 0, NULL);
+					   0, SLAB_TEMPORARY, NULL);
 	if (jbd2_revoke_table_cache == 0) {
 		kmem_cache_destroy(jbd2_revoke_record_cache);
 		jbd2_revoke_record_cache = NULL;
