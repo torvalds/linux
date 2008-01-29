@@ -2462,12 +2462,12 @@ retry:
 		ret = ext4_ext_get_blocks(handle, inode, block,
 					  max_blocks, &map_bh,
 					  EXT4_CREATE_UNINITIALIZED_EXT, 0);
-		WARN_ON(!ret);
-		if (!ret) {
+		WARN_ON(ret <= 0);
+		if (ret <= 0) {
 			ext4_error(inode->i_sb, "ext4_fallocate",
-				   "ext4_ext_get_blocks returned 0! inode#%lu"
-				   ", block=%u, max_blocks=%lu",
-				   inode->i_ino, block, max_blocks);
+				    "ext4_ext_get_blocks returned error: "
+				    "inode#%lu, block=%u, max_blocks=%lu",
+				    inode->i_ino, block, max_blocks);
 			ret = -EIO;
 			ext4_mark_inode_dirty(handle, inode);
 			ret2 = ext4_journal_stop(handle);
