@@ -63,7 +63,7 @@ static struct usb_device_id stkwebcam_table[] = {
 };
 MODULE_DEVICE_TABLE(usb, stkwebcam_table);
 
-void stk_camera_cleanup(struct kref *kref)
+static void stk_camera_cleanup(struct kref *kref)
 {
 	struct stk_camera *dev = to_stk_camera(kref);
 
