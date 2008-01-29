@@ -29,7 +29,6 @@
  */
 
 #include <linux/types.h>
-#include <linux/rcupdate.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/socket.h>
@@ -48,7 +47,6 @@
 #include "netlabel_unlabeled.h"
 
 /* Accept unlabeled packets flag */
-static DEFINE_SPINLOCK(netlabel_unlabel_acceptflg_lock);
 static u8 netlabel_unlabel_acceptflg = 0;
 
 /* NetLabel Generic NETLINK CIPSOv4 family */
@@ -84,11 +82,8 @@ static void netlbl_unlabel_acceptflg_set(u8 value,
 	struct audit_buffer *audit_buf;
 	u8 old_val;
 
-	spin_lock(&netlabel_unlabel_acceptflg_lock);
 	old_val = netlabel_unlabel_acceptflg;
 	netlabel_unlabel_acceptflg = value;
-	spin_unlock(&netlabel_unlabel_acceptflg_lock);
-
 	audit_buf = netlbl_audit_start_common(AUDIT_MAC_UNLBL_ALLOW,
 					      audit_info);
 	if (audit_buf != NULL) {
@@ -155,11 +150,9 @@ static int netlbl_unlabel_list(struct sk_buff *skb, struct genl_info *info)
 		goto list_failure;
 	}
 
-	rcu_read_lock();
 	ret_val = nla_put_u8(ans_skb,
 			     NLBL_UNLABEL_A_ACPTFLG,
 			     netlabel_unlabel_acceptflg);
-	rcu_read_unlock();
 	if (ret_val != 0)
 		goto list_failure;
 
@@ -245,17 +238,10 @@ int netlbl_unlabel_genl_init(void)
  */
 int netlbl_unlabel_getattr(struct netlbl_lsm_secattr *secattr)
 {
-	int ret_val;
-
-	rcu_read_lock();
-	if (netlabel_unlabel_acceptflg == 1) {
-		netlbl_secattr_init(secattr);
-		ret_val = 0;
-	} else
-		ret_val = -ENOMSG;
-	rcu_read_unlock();
-
-	return ret_val;
+	if (netlabel_unlabel_acceptflg == 0)
+		return -ENOMSG;
+	netlbl_secattr_init(secattr);
+	return 0;
 }
 
 /**

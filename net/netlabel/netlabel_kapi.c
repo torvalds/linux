@@ -34,6 +34,7 @@
 #include <net/netlabel.h>
 #include <net/cipso_ipv4.h>
 #include <asm/bug.h>
+#include <asm/atomic.h>
 
 #include "netlabel_domainhash.h"
 #include "netlabel_unlabeled.h"
@@ -262,7 +263,7 @@ int netlbl_enabled(void)
 	/* At some point we probably want to expose this mechanism to the user
 	 * as well so that admins can toggle NetLabel regardless of the
 	 * configuration */
-	return (netlbl_mgmt_protocount_value() > 0 ? 1 : 0);
+	return (atomic_read(&netlabel_mgmt_protocount) > 0);
 }
 
 /**
