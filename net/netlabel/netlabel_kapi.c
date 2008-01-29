@@ -312,7 +312,7 @@ socket_setattr_return:
  * @secattr: the security attributes
  *
  * Description:
- * Examines the given sock to see any NetLabel style labeling has been
+ * Examines the given sock to see if any NetLabel style labeling has been
  * applied to the sock, if so it parses the socket label and returns the
  * security attributes in @secattr.  Returns zero on success, negative values
  * on failure.
@@ -320,13 +320,7 @@ socket_setattr_return:
  */
 int netlbl_sock_getattr(struct sock *sk, struct netlbl_lsm_secattr *secattr)
 {
-	int ret_val;
-
-	ret_val = cipso_v4_sock_getattr(sk, secattr);
-	if (ret_val == 0)
-		return 0;
-
-	return netlbl_unlabel_getattr(secattr);
+	return cipso_v4_sock_getattr(sk, secattr);
 }
 
 /**
@@ -350,7 +344,7 @@ int netlbl_skbuff_getattr(const struct sk_buff *skb,
 	    cipso_v4_skbuff_getattr(skb, secattr) == 0)
 		return 0;
 
-	return netlbl_unlabel_getattr(secattr);
+	return netlbl_unlabel_getattr(skb, family, secattr);
 }
 
 /**
@@ -431,6 +425,10 @@ static int __init netlbl_init(void)
 	       "\n");
 
 	ret_val = netlbl_domhsh_init(NETLBL_DOMHSH_BITSIZE);
+	if (ret_val != 0)
+		goto init_failure;
+
+	ret_val = netlbl_unlabel_init(NETLBL_UNLHSH_BITSIZE);
 	if (ret_val != 0)
 		goto init_failure;
 

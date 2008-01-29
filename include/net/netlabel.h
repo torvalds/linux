@@ -67,7 +67,11 @@
  * NetLabel NETLINK protocol
  */
 
-#define NETLBL_PROTO_VERSION            1
+/* NetLabel NETLINK protocol version
+ *  1: initial version
+ *  2: added static labels for unlabeled connections
+ */
+#define NETLBL_PROTO_VERSION            2
 
 /* NetLabel NETLINK types/families */
 #define NETLBL_NLTYPE_NONE              0
