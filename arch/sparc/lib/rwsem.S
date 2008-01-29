@@ -7,7 +7,7 @@
 #include <asm/ptrace.h>
 #include <asm/psr.h>
 
-	.section .sched.text
+	.section .sched.text, "ax"
 	.align	4
 
 	.globl		___down_read

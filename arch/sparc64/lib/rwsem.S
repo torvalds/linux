@@ -6,7 +6,7 @@
 
 #include <asm/rwsem-const.h>
 
-	.section	.sched.text
+	.section	.sched.text, "ax"
 
 	.globl		__down_read
 __down_read:
