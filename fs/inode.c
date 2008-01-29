@@ -1243,23 +1243,6 @@ void touch_atime(struct vfsmount *mnt, struct dentry *dentry)
 EXPORT_SYMBOL(touch_atime);
 
 /**
- *     inode_inc_iversion      -       increments i_version
- *     @inode: inode that need to be updated
- *
- *     Every time the inode is modified, the i_version field
- *     will be incremented.
- *     The filesystem has to be mounted with i_version flag
- *
- */
-
-void inode_inc_iversion(struct inode *inode)
-{
-	spin_lock(&inode->i_lock);
-	inode->i_version++;
-	spin_unlock(&inode->i_lock);
-}
-
-/**
  *	file_update_time	-	update mtime and ctime time
  *	@file: file accessed
  *

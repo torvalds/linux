@@ -732,6 +732,8 @@ static int ext4_show_options(struct seq_file *seq, struct vfsmount *vfs)
 		seq_puts(seq, ",nobh");
 	if (!test_opt(sb, EXTENTS))
 		seq_puts(seq, ",noextents");
+	if (test_opt(sb, I_VERSION))
+		seq_puts(seq, ",i_version");
 
 	if (test_opt(sb, DATA_FLAGS) == EXT4_MOUNT_JOURNAL_DATA)
 		seq_puts(seq, ",data=journal");
@@ -874,7 +876,7 @@ enum {
 	Opt_usrjquota, Opt_grpjquota, Opt_offusrjquota, Opt_offgrpjquota,
 	Opt_jqfmt_vfsold, Opt_jqfmt_vfsv0, Opt_quota, Opt_noquota,
 	Opt_ignore, Opt_barrier, Opt_err, Opt_resize, Opt_usrquota,
-	Opt_grpquota, Opt_extents, Opt_noextents,
+	Opt_grpquota, Opt_extents, Opt_noextents, Opt_i_version,
 };
 
 static match_table_t tokens = {
@@ -928,6 +930,7 @@ static match_table_t tokens = {
 	{Opt_barrier, "barrier=%u"},
 	{Opt_extents, "extents"},
 	{Opt_noextents, "noextents"},
+	{Opt_i_version, "i_version"},
 	{Opt_err, NULL},
 	{Opt_resize, "resize"},
 };
@@ -1272,6 +1275,10 @@ clear_qf_name:
 			break;
 		case Opt_noextents:
 			clear_opt (sbi->s_mount_opt, EXTENTS);
+			break;
+		case Opt_i_version:
+			set_opt(sbi->s_mount_opt, I_VERSION);
+			sb->s_flags |= MS_I_VERSION;
 			break;
 		default:
 			printk (KERN_ERR
@@ -3197,7 +3204,6 @@ out:
 		i_size_write(inode, off+len-towrite);
 		EXT4_I(inode)->i_disksize = inode->i_size;
 	}
-	inode->i_version++;
 	inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 	ext4_mark_inode_dirty(handle, inode);
 	mutex_unlock(&inode->i_mutex);

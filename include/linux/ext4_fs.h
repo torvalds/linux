@@ -292,7 +292,7 @@ struct ext4_inode {
 	__le32	i_flags;	/* File flags */
 	union {
 		struct {
-			__u32  l_i_reserved1;
+			__le32  l_i_version;
 		} linux1;
 		struct {
 			__u32  h_i_translator;
@@ -334,6 +334,7 @@ struct ext4_inode {
 	__le32  i_atime_extra;  /* extra Access time      (nsec << 2 | epoch) */
 	__le32  i_crtime;       /* File Creation time */
 	__le32  i_crtime_extra; /* extra FileCreationtime (nsec << 2 | epoch) */
+	__le32  i_version_hi;	/* high 32 bits for 64-bit version */
 };
 
 
@@ -407,6 +408,8 @@ do {									       \
 				       raw_inode->xtime ## _extra);	       \
 } while (0)
 
+#define i_disk_version osd1.linux1.l_i_version
+
 #if defined(__KERNEL__) || defined(__linux__)
 #define i_reserved1	osd1.linux1.l_i_reserved1
 #define i_file_acl_high	osd2.linux2.l_i_file_acl_high
@@ -469,6 +472,7 @@ do {									       \
 #define EXT4_MOUNT_EXTENTS		0x400000 /* Extents support */
 #define EXT4_MOUNT_JOURNAL_CHECKSUM	0x800000 /* Journal checksums */
 #define EXT4_MOUNT_JOURNAL_ASYNC_COMMIT	0x1000000 /* Journal Async Commit */
+#define EXT4_MOUNT_I_VERSION            0x2000000 /* i_version support */
 /* Compatibility, for having both ext2_fs.h and ext4_fs.h included at once */
 #ifndef _LINUX_EXT2_FS_H
 #define clear_opt(o, opt)		o &= ~EXT4_MOUNT_##opt

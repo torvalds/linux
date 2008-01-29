@@ -2781,6 +2781,13 @@ void ext4_read_inode(struct inode * inode)
 	EXT4_INODE_GET_XTIME(i_atime, inode, raw_inode);
 	EXT4_EINODE_GET_XTIME(i_crtime, ei, raw_inode);
 
+	inode->i_version = le32_to_cpu(raw_inode->i_disk_version);
+	if (EXT4_INODE_SIZE(inode->i_sb) > EXT4_GOOD_OLD_INODE_SIZE) {
+		if (EXT4_FITS_IN_INODE(raw_inode, ei, i_version_hi))
+			inode->i_version |=
+			(__u64)(le32_to_cpu(raw_inode->i_version_hi)) << 32;
+	}
+
 	if (S_ISREG(inode->i_mode)) {
 		inode->i_op = &ext4_file_inode_operations;
 		inode->i_fop = &ext4_file_operations;
@@ -2963,8 +2970,14 @@ static int ext4_do_update_inode(handle_t *handle,
 	} else for (block = 0; block < EXT4_N_BLOCKS; block++)
 		raw_inode->i_block[block] = ei->i_data[block];
 
-	if (ei->i_extra_isize)
+	raw_inode->i_disk_version = cpu_to_le32(inode->i_version);
+	if (ei->i_extra_isize) {
+		if (EXT4_FITS_IN_INODE(raw_inode, ei, i_version_hi))
+			raw_inode->i_version_hi =
+			cpu_to_le32(inode->i_version >> 32);
 		raw_inode->i_extra_isize = cpu_to_le16(ei->i_extra_isize);
+	}
+
 
 	BUFFER_TRACE(bh, "call ext4_journal_dirty_metadata");
 	rc = ext4_journal_dirty_metadata(handle, bh);
@@ -3190,6 +3203,9 @@ int ext4_mark_iloc_dirty(handle_t *handle,
 		struct inode *inode, struct ext4_iloc *iloc)
 {
 	int err = 0;
+
+	if (test_opt(inode->i_sb, I_VERSION))
+		inode_inc_iversion(inode);
 
 	/* the do_update_inode consumes one bh->b_count */
 	get_bh(iloc->bh);
