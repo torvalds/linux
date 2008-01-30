@@ -28,6 +28,8 @@
 #include <linux/mm.h>
 #include "irq.h"
 
+#include <linux/kvm_host.h>
+
 /*
  * set irq level. If an edge is detected, then the IRR is set to 1
  */
@@ -181,10 +183,8 @@ int kvm_pic_read_irq(struct kvm_pic *s)
 	return intno;
 }
 
-static void pic_reset(void *opaque)
+void kvm_pic_reset(struct kvm_kpic_state *s)
 {
-	struct kvm_kpic_state *s = opaque;
-
 	s->last_irr = 0;
 	s->irr = 0;
 	s->imr = 0;
@@ -209,7 +209,7 @@ static void pic_ioport_write(void *opaque, u32 addr, u32 val)
 	addr &= 1;
 	if (addr == 0) {
 		if (val & 0x10) {
-			pic_reset(s);	/* init */
+			kvm_pic_reset(s);	/* init */
 			/*
 			 * deassert a pending interrupt
 			 */

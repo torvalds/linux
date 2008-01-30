@@ -63,17 +63,6 @@ struct x86_emulate_ops {
 			unsigned int bytes, struct kvm_vcpu *vcpu);
 
 	/*
-	 * write_std: Write bytes of standard (non-emulated/special) memory.
-	 *            Used for stack operations, and others.
-	 *  @addr:  [IN ] Linear address to which to write.
-	 *  @val:   [IN ] Value to write to memory (low-order bytes used as
-	 *                required).
-	 *  @bytes: [IN ] Number of bytes to write to memory.
-	 */
-	int (*write_std)(unsigned long addr, const void *val,
-			 unsigned int bytes, struct kvm_vcpu *vcpu);
-
-	/*
 	 * read_emulated: Read bytes from emulated/special memory area.
 	 *  @addr:  [IN ] Linear address from which to read.
 	 *  @val:   [OUT] Value read from memory, zero-extended to 'u_long'.
@@ -112,13 +101,50 @@ struct x86_emulate_ops {
 
 };
 
+/* Type, address-of, and value of an instruction's operand. */
+struct operand {
+	enum { OP_REG, OP_MEM, OP_IMM, OP_NONE } type;
+	unsigned int bytes;
+	unsigned long val, orig_val, *ptr;
+};
+
+struct fetch_cache {
+	u8 data[15];
+	unsigned long start;
+	unsigned long end;
+};
+
+struct decode_cache {
+	u8 twobyte;
+	u8 b;
+	u8 lock_prefix;
+	u8 rep_prefix;
+	u8 op_bytes;
+	u8 ad_bytes;
+	u8 rex_prefix;
+	struct operand src;
+	struct operand dst;
+	unsigned long *override_base;
+	unsigned int d;
+	unsigned long regs[NR_VCPU_REGS];
+	unsigned long eip;
+	/* modrm */
+	u8 modrm;
+	u8 modrm_mod;
+	u8 modrm_reg;
+	u8 modrm_rm;
+	u8 use_modrm_ea;
+	unsigned long modrm_ea;
+	unsigned long modrm_val;
+	struct fetch_cache fetch;
+};
+
 struct x86_emulate_ctxt {
 	/* Register state before/after emulation. */
 	struct kvm_vcpu *vcpu;
 
 	/* Linear faulting address (if emulating a page-faulting instruction). */
 	unsigned long eflags;
-	unsigned long cr2;
 
 	/* Emulated execution mode, represented by an X86EMUL_MODE value. */
 	int mode;
@@ -129,7 +155,15 @@ struct x86_emulate_ctxt {
 	unsigned long ss_base;
 	unsigned long gs_base;
 	unsigned long fs_base;
+
+	/* decode cache */
+
+	struct decode_cache decode;
 };
+
+/* Repeat String Operation Prefix */
+#define REPE_PREFIX  1
+#define REPNE_PREFIX    2
 
 /* Execution mode, passed to the emulator. */
 #define X86EMUL_MODE_REAL     0	/* Real mode.             */
@@ -144,12 +178,9 @@ struct x86_emulate_ctxt {
 #define X86EMUL_MODE_HOST X86EMUL_MODE_PROT64
 #endif
 
-/*
- * x86_emulate_memop: Emulate an instruction that faulted attempting to
- *                    read/write a 'special' memory area.
- * Returns -1 on failure, 0 on success.
- */
-int x86_emulate_memop(struct x86_emulate_ctxt *ctxt,
-		      struct x86_emulate_ops *ops);
+int x86_decode_insn(struct x86_emulate_ctxt *ctxt,
+		    struct x86_emulate_ops *ops);
+int x86_emulate_insn(struct x86_emulate_ctxt *ctxt,
+		     struct x86_emulate_ops *ops);
 
 #endif				/* __X86_EMULATE_H__ */

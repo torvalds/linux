@@ -26,7 +26,7 @@
  *  Based on Xen 3.1 code.
  */
 
-#include "kvm.h"
+#include <linux/kvm_host.h>
 #include <linux/kvm.h>
 #include <linux/mm.h>
 #include <linux/highmem.h>
@@ -34,14 +34,17 @@
 #include <linux/hrtimer.h>
 #include <linux/io.h>
 #include <asm/processor.h>
-#include <asm/msr.h>
 #include <asm/page.h>
 #include <asm/current.h>
-#include <asm/apicdef.h>
-#include <asm/io_apic.h>
-#include "irq.h"
-/* #define ioapic_debug(fmt,arg...) printk(KERN_WARNING fmt,##arg) */
+
+#include "ioapic.h"
+#include "lapic.h"
+
+#if 0
+#define ioapic_debug(fmt,arg...) printk(KERN_WARNING fmt,##arg)
+#else
 #define ioapic_debug(fmt, arg...)
+#endif
 static void ioapic_deliver(struct kvm_ioapic *vioapic, int irq);
 
 static unsigned long ioapic_read_indirect(struct kvm_ioapic *ioapic,
@@ -113,7 +116,7 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 	default:
 		index = (ioapic->ioregsel - 0x10) >> 1;
 
-		ioapic_debug("change redir index %x val %x", index, val);
+		ioapic_debug("change redir index %x val %x\n", index, val);
 		if (index >= IOAPIC_NUM_PINS)
 			return;
 		if (ioapic->ioregsel & 1) {
@@ -131,16 +134,16 @@ static void ioapic_write_indirect(struct kvm_ioapic *ioapic, u32 val)
 }
 
 static void ioapic_inj_irq(struct kvm_ioapic *ioapic,
-			   struct kvm_lapic *target,
+			   struct kvm_vcpu *vcpu,
 			   u8 vector, u8 trig_mode, u8 delivery_mode)
 {
-	ioapic_debug("irq %d trig %d deliv %d", vector, trig_mode,
+	ioapic_debug("irq %d trig %d deliv %d\n", vector, trig_mode,
 		     delivery_mode);
 
-	ASSERT((delivery_mode == dest_Fixed) ||
-	       (delivery_mode == dest_LowestPrio));
+	ASSERT((delivery_mode == IOAPIC_FIXED) ||
+	       (delivery_mode == IOAPIC_LOWEST_PRIORITY));
 
-	kvm_apic_set_irq(target, vector, trig_mode);
+	kvm_apic_set_irq(vcpu, vector, trig_mode);
 }
 
 static u32 ioapic_get_delivery_bitmask(struct kvm_ioapic *ioapic, u8 dest,
@@ -151,12 +154,12 @@ static u32 ioapic_get_delivery_bitmask(struct kvm_ioapic *ioapic, u8 dest,
 	struct kvm *kvm = ioapic->kvm;
 	struct kvm_vcpu *vcpu;
 
-	ioapic_debug("dest %d dest_mode %d", dest, dest_mode);
+	ioapic_debug("dest %d dest_mode %d\n", dest, dest_mode);
 
 	if (dest_mode == 0) {	/* Physical mode. */
 		if (dest == 0xFF) {	/* Broadcast. */
 			for (i = 0; i < KVM_MAX_VCPUS; ++i)
-				if (kvm->vcpus[i] && kvm->vcpus[i]->apic)
+				if (kvm->vcpus[i] && kvm->vcpus[i]->arch.apic)
 					mask |= 1 << i;
 			return mask;
 		}
@@ -164,8 +167,8 @@ static u32 ioapic_get_delivery_bitmask(struct kvm_ioapic *ioapic, u8 dest,
 			vcpu = kvm->vcpus[i];
 			if (!vcpu)
 				continue;
-			if (kvm_apic_match_physical_addr(vcpu->apic, dest)) {
-				if (vcpu->apic)
+			if (kvm_apic_match_physical_addr(vcpu->arch.apic, dest)) {
+				if (vcpu->arch.apic)
 					mask = 1 << i;
 				break;
 			}
@@ -175,11 +178,11 @@ static u32 ioapic_get_delivery_bitmask(struct kvm_ioapic *ioapic, u8 dest,
 			vcpu = kvm->vcpus[i];
 			if (!vcpu)
 				continue;
-			if (vcpu->apic &&
-			    kvm_apic_match_logical_addr(vcpu->apic, dest))
+			if (vcpu->arch.apic &&
+			    kvm_apic_match_logical_addr(vcpu->arch.apic, dest))
 				mask |= 1 << vcpu->vcpu_id;
 		}
-	ioapic_debug("mask %x", mask);
+	ioapic_debug("mask %x\n", mask);
 	return mask;
 }
 
@@ -191,41 +194,39 @@ static void ioapic_deliver(struct kvm_ioapic *ioapic, int irq)
 	u8 vector = ioapic->redirtbl[irq].fields.vector;
 	u8 trig_mode = ioapic->redirtbl[irq].fields.trig_mode;
 	u32 deliver_bitmask;
-	struct kvm_lapic *target;
 	struct kvm_vcpu *vcpu;
 	int vcpu_id;
 
 	ioapic_debug("dest=%x dest_mode=%x delivery_mode=%x "
-		     "vector=%x trig_mode=%x",
+		     "vector=%x trig_mode=%x\n",
 		     dest, dest_mode, delivery_mode, vector, trig_mode);
 
 	deliver_bitmask = ioapic_get_delivery_bitmask(ioapic, dest, dest_mode);
 	if (!deliver_bitmask) {
-		ioapic_debug("no target on destination");
+		ioapic_debug("no target on destination\n");
 		return;
 	}
 
 	switch (delivery_mode) {
-	case dest_LowestPrio:
-		target =
-		    kvm_apic_round_robin(ioapic->kvm, vector, deliver_bitmask);
-		if (target != NULL)
-			ioapic_inj_irq(ioapic, target, vector,
+	case IOAPIC_LOWEST_PRIORITY:
+		vcpu = kvm_get_lowest_prio_vcpu(ioapic->kvm, vector,
+				deliver_bitmask);
+		if (vcpu != NULL)
+			ioapic_inj_irq(ioapic, vcpu, vector,
 				       trig_mode, delivery_mode);
 		else
-			ioapic_debug("null round robin: "
-				     "mask=%x vector=%x delivery_mode=%x",
-				     deliver_bitmask, vector, dest_LowestPrio);
+			ioapic_debug("null lowest prio vcpu: "
+				     "mask=%x vector=%x delivery_mode=%x\n",
+				     deliver_bitmask, vector, IOAPIC_LOWEST_PRIORITY);
 		break;
-	case dest_Fixed:
+	case IOAPIC_FIXED:
 		for (vcpu_id = 0; deliver_bitmask != 0; vcpu_id++) {
 			if (!(deliver_bitmask & (1 << vcpu_id)))
 				continue;
 			deliver_bitmask &= ~(1 << vcpu_id);
 			vcpu = ioapic->kvm->vcpus[vcpu_id];
 			if (vcpu) {
-				target = vcpu->apic;
-				ioapic_inj_irq(ioapic, target, vector,
+				ioapic_inj_irq(ioapic, vcpu, vector,
 					       trig_mode, delivery_mode);
 			}
 		}
@@ -271,7 +272,7 @@ static int get_eoi_gsi(struct kvm_ioapic *ioapic, int vector)
 
 void kvm_ioapic_update_eoi(struct kvm *kvm, int vector)
 {
-	struct kvm_ioapic *ioapic = kvm->vioapic;
+	struct kvm_ioapic *ioapic = kvm->arch.vioapic;
 	union ioapic_redir_entry *ent;
 	int gsi;
 
@@ -304,7 +305,7 @@ static void ioapic_mmio_read(struct kvm_io_device *this, gpa_t addr, int len,
 	struct kvm_ioapic *ioapic = (struct kvm_ioapic *)this->private;
 	u32 result;
 
-	ioapic_debug("addr %lx", (unsigned long)addr);
+	ioapic_debug("addr %lx\n", (unsigned long)addr);
 	ASSERT(!(addr & 0xf));	/* check alignment */
 
 	addr &= 0xff;
@@ -341,8 +342,8 @@ static void ioapic_mmio_write(struct kvm_io_device *this, gpa_t addr, int len,
 	struct kvm_ioapic *ioapic = (struct kvm_ioapic *)this->private;
 	u32 data;
 
-	ioapic_debug("ioapic_mmio_write addr=%lx len=%d val=%p\n",
-		     addr, len, val);
+	ioapic_debug("ioapic_mmio_write addr=%p len=%d val=%p\n",
+		     (void*)addr, len, val);
 	ASSERT(!(addr & 0xf));	/* check alignment */
 	if (len == 4 || len == 8)
 		data = *(u32 *) val;
@@ -360,24 +361,38 @@ static void ioapic_mmio_write(struct kvm_io_device *this, gpa_t addr, int len,
 	case IOAPIC_REG_WINDOW:
 		ioapic_write_indirect(ioapic, data);
 		break;
+#ifdef	CONFIG_IA64
+	case IOAPIC_REG_EOI:
+		kvm_ioapic_update_eoi(ioapic->kvm, data);
+		break;
+#endif
 
 	default:
 		break;
 	}
 }
 
+void kvm_ioapic_reset(struct kvm_ioapic *ioapic)
+{
+	int i;
+
+	for (i = 0; i < IOAPIC_NUM_PINS; i++)
+		ioapic->redirtbl[i].fields.mask = 1;
+	ioapic->base_address = IOAPIC_DEFAULT_BASE_ADDRESS;
+	ioapic->ioregsel = 0;
+	ioapic->irr = 0;
+	ioapic->id = 0;
+}
+
 int kvm_ioapic_init(struct kvm *kvm)
 {
 	struct kvm_ioapic *ioapic;
-	int i;
 
 	ioapic = kzalloc(sizeof(struct kvm_ioapic), GFP_KERNEL);
 	if (!ioapic)
 		return -ENOMEM;
-	kvm->vioapic = ioapic;
-	for (i = 0; i < IOAPIC_NUM_PINS; i++)
-		ioapic->redirtbl[i].fields.mask = 1;
-	ioapic->base_address = IOAPIC_DEFAULT_BASE_ADDRESS;
+	kvm->arch.vioapic = ioapic;
+	kvm_ioapic_reset(ioapic);
 	ioapic->dev.read = ioapic_mmio_read;
 	ioapic->dev.write = ioapic_mmio_write;
 	ioapic->dev.in_range = ioapic_in_range;

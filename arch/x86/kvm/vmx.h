@@ -25,6 +25,9 @@
  *
  */
 
+/*
+ * Definitions of Primary Processor-Based VM-Execution Controls.
+ */
 #define CPU_BASED_VIRTUAL_INTR_PENDING          0x00000004
 #define CPU_BASED_USE_TSC_OFFSETING             0x00000008
 #define CPU_BASED_HLT_EXITING                   0x00000080
@@ -42,6 +45,12 @@
 #define CPU_BASED_MONITOR_EXITING               0x20000000
 #define CPU_BASED_PAUSE_EXITING                 0x40000000
 #define CPU_BASED_ACTIVATE_SECONDARY_CONTROLS   0x80000000
+/*
+ * Definitions of Secondary Processor-Based VM-Execution Controls.
+ */
+#define SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES 0x00000001
+#define SECONDARY_EXEC_WBINVD_EXITING		0x00000040
+
 
 #define PIN_BASED_EXT_INTR_MASK                 0x00000001
 #define PIN_BASED_NMI_EXITING                   0x00000008
@@ -53,8 +62,6 @@
 #define VM_ENTRY_IA32E_MODE                     0x00000200
 #define VM_ENTRY_SMM                            0x00000400
 #define VM_ENTRY_DEACT_DUAL_MONITOR             0x00000800
-
-#define SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES 0x00000001
 
 /* VMCS Encodings */
 enum vmcs_field {
@@ -89,6 +96,8 @@ enum vmcs_field {
 	TSC_OFFSET_HIGH                 = 0x00002011,
 	VIRTUAL_APIC_PAGE_ADDR          = 0x00002012,
 	VIRTUAL_APIC_PAGE_ADDR_HIGH     = 0x00002013,
+	APIC_ACCESS_ADDR		= 0x00002014,
+	APIC_ACCESS_ADDR_HIGH		= 0x00002015,
 	VMCS_LINK_POINTER               = 0x00002800,
 	VMCS_LINK_POINTER_HIGH          = 0x00002801,
 	GUEST_IA32_DEBUGCTL             = 0x00002802,
@@ -214,6 +223,8 @@ enum vmcs_field {
 #define EXIT_REASON_MSR_WRITE           32
 #define EXIT_REASON_MWAIT_INSTRUCTION   36
 #define EXIT_REASON_TPR_BELOW_THRESHOLD 43
+#define EXIT_REASON_APIC_ACCESS         44
+#define EXIT_REASON_WBINVD		54
 
 /*
  * Interruption-information format
@@ -230,13 +241,14 @@ enum vmcs_field {
 
 #define INTR_TYPE_EXT_INTR              (0 << 8) /* external interrupt */
 #define INTR_TYPE_EXCEPTION             (3 << 8) /* processor exception */
+#define INTR_TYPE_SOFT_INTR             (4 << 8) /* software interrupt */
 
 /*
  * Exit Qualifications for MOV for Control Register Access
  */
-#define CONTROL_REG_ACCESS_NUM          0x7     /* 2:0, number of control register */
+#define CONTROL_REG_ACCESS_NUM          0x7     /* 2:0, number of control reg.*/
 #define CONTROL_REG_ACCESS_TYPE         0x30    /* 5:4, access type */
-#define CONTROL_REG_ACCESS_REG          0xf00   /* 10:8, general purpose register */
+#define CONTROL_REG_ACCESS_REG          0xf00   /* 10:8, general purpose reg. */
 #define LMSW_SOURCE_DATA_SHIFT 16
 #define LMSW_SOURCE_DATA  (0xFFFF << LMSW_SOURCE_DATA_SHIFT) /* 16:31 lmsw source */
 #define REG_EAX                         (0 << 8)
@@ -259,11 +271,11 @@ enum vmcs_field {
 /*
  * Exit Qualifications for MOV for Debug Register Access
  */
-#define DEBUG_REG_ACCESS_NUM            0x7     /* 2:0, number of debug register */
+#define DEBUG_REG_ACCESS_NUM            0x7     /* 2:0, number of debug reg. */
 #define DEBUG_REG_ACCESS_TYPE           0x10    /* 4, direction of access */
 #define TYPE_MOV_TO_DR                  (0 << 4)
 #define TYPE_MOV_FROM_DR                (1 << 4)
-#define DEBUG_REG_ACCESS_REG            0xf00   /* 11:8, general purpose register */
+#define DEBUG_REG_ACCESS_REG            0xf00   /* 11:8, general purpose reg. */
 
 
 /* segment AR */
@@ -306,5 +318,7 @@ enum vmcs_field {
 #define MSR_IA32_FEATURE_CONTROL                0x3a
 #define MSR_IA32_FEATURE_CONTROL_LOCKED         0x1
 #define MSR_IA32_FEATURE_CONTROL_VMXON_ENABLED  0x4
+
+#define APIC_ACCESS_PAGE_PRIVATE_MEMSLOT	9
 
 #endif

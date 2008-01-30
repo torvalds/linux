@@ -1,9 +1,12 @@
 #
 # KVM configuration
 #
+config HAVE_KVM
+       bool
+
 menuconfig VIRTUALIZATION
 	bool "Virtualization"
-	depends on X86
+	depends on HAVE_KVM || X86
 	default y
 	---help---
 	  Say Y here to get to see options for using your Linux host to run other
@@ -16,7 +19,7 @@ if VIRTUALIZATION
 
 config KVM
 	tristate "Kernel-based Virtual Machine (KVM) support"
-	depends on X86 && EXPERIMENTAL
+	depends on HAVE_KVM && EXPERIMENTAL
 	select PREEMPT_NOTIFIERS
 	select ANON_INODES
 	---help---
