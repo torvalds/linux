@@ -36,10 +36,10 @@
  *	bit 3 == 1 means use of reserved bit detected
  *	bit 4 == 1 means fault was an instruction fetch
  */
-#define PF_PROT	(1<<0)
+#define PF_PROT		(1<<0)
 #define PF_WRITE	(1<<1)
-#define PF_USER	(1<<2)
-#define PF_RSVD	(1<<3)
+#define PF_USER		(1<<2)
+#define PF_RSVD		(1<<3)
 #define PF_INSTR	(1<<4)
 
 static inline int notify_page_fault(struct pt_regs *regs)
@@ -460,11 +460,15 @@ bad_area_nosemaphore:
 
 		if (show_unhandled_signals && unhandled_signal(tsk, SIGSEGV) &&
 		    printk_ratelimit()) {
-			printk("%s%s[%d]: segfault at %08lx ip %08lx "
-			    "sp %08lx error %lx\n",
-			    task_pid_nr(tsk) > 1 ? KERN_INFO : KERN_EMERG,
-			    tsk->comm, task_pid_nr(tsk), address, regs->ip,
-			    regs->sp, error_code);
+			printk(
+#ifdef CONFIG_X86_32
+			"%s%s[%d]: segfault at %08lx ip %08lx sp %08lx error %lx\n",
+#else
+			"%s%s[%d]: segfault at %lx ip %lx sp %lx error %lx\n",
+#endif
+			task_pid_nr(tsk) > 1 ? KERN_INFO : KERN_EMERG,
+			tsk->comm, task_pid_nr(tsk), address, regs->ip,
+			regs->sp, error_code);
 		}
 		tsk->thread.cr2 = address;
 		/* Kernel addresses are always protection faults */

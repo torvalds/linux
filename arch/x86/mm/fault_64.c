@@ -440,8 +440,11 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 	if (!(vma->vm_flags & VM_GROWSDOWN))
 		goto bad_area;
 	if (error_code & PF_USER) {
-		/* Allow userspace just enough access below the stack pointer
-		 * to let the 'enter' instruction work.
+		/*
+		 * Accessing the stack below %sp is always a bug.
+		 * The large cushion allows instructions like enter
+		 * and pusha to work.  ("enter $65535,$31" pushes
+		 * 32 pointers and then decrements %sp by 65535.)
 		 */
 		if (address + 65536 + 32 * sizeof(unsigned long) < regs->sp)
 			goto bad_area;
@@ -522,10 +525,14 @@ bad_area_nosemaphore:
 		if (show_unhandled_signals && unhandled_signal(tsk, SIGSEGV) &&
 		    printk_ratelimit()) {
 			printk(
-		       "%s%s[%d]: segfault at %lx ip %lx sp %lx error %lx\n",
-					tsk->pid > 1 ? KERN_INFO : KERN_EMERG,
-					tsk->comm, tsk->pid, address, regs->ip,
-					regs->sp, error_code);
+#ifdef CONFIG_X86_32
+			"%s%s[%d]: segfault at %08lx ip %08lx sp %08lx error %lx\n",
+#else
+			"%s%s[%d]: segfault at %lx ip %lx sp %lx error %lx\n",
+#endif
+			task_pid_nr(tsk) > 1 ? KERN_INFO : KERN_EMERG,
+			tsk->comm, task_pid_nr(tsk), address, regs->ip,
+			regs->sp, error_code);
 		}
 
 		tsk->thread.cr2 = address;
@@ -609,10 +616,12 @@ LIST_HEAD(pgd_list);
 
 void vmalloc_sync_all(void)
 {
-	/* Note that races in the updates of insync and start aren't
-	   problematic:
-	   insync can only get set bits added, and updates to start are only
-	   improving performance (without affecting correctness if undone). */
+	/*
+	 * Note that races in the updates of insync and start aren't
+	 * problematic: insync can only get set bits added, and updates to
+	 * start are only improving performance (without affecting correctness
+	 * if undone).
+	 */
 	static DECLARE_BITMAP(insync, PTRS_PER_PGD);
 	static unsigned long start = VMALLOC_START & PGDIR_MASK;
 	unsigned long address;
