@@ -71,6 +71,7 @@ $(obj)/%-syms.lds: $(obj)/%.so.dbg FORCE
 #
 obj-$(VDSO32-y)			+= vdso32-syms.lds
 vdso32.so-$(CONFIG_X86_32)	+= int80
+vdso32.so-$(CONFIG_COMPAT)	+= syscall
 vdso32.so-$(VDSO32-y)		+= sysenter
 
 CPPFLAGS_vdso32.lds = $(CPPFLAGS_vdso.lds)

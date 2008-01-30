@@ -6,9 +6,12 @@
  * routines are constant for all vsyscall implementations.
  */
 
-#include <asm/unistd.h>
+#include <asm/unistd_32.h>
 #include <asm/asm-offsets.h>
 
+#ifndef SYSCALL_ENTER_KERNEL
+#define	SYSCALL_ENTER_KERNEL	int $0x80
+#endif
 
 /* XXX
    Should these be named "_sigtramp" or something?
@@ -22,7 +25,7 @@ __kernel_sigreturn:
 .LSTART_sigreturn:
 	popl %eax		/* XXX does this mean it needs unwind info? */
 	movl $__NR_sigreturn, %eax
-	int $0x80
+	SYSCALL_ENTER_KERNEL
 .LEND_sigreturn:
 	.size __kernel_sigreturn,.-.LSTART_sigreturn
 
@@ -32,7 +35,7 @@ __kernel_sigreturn:
 __kernel_rt_sigreturn:
 .LSTART_rt_sigreturn:
 	movl $__NR_rt_sigreturn, %eax
-	int $0x80
+	SYSCALL_ENTER_KERNEL
 .LEND_rt_sigreturn:
 	.size __kernel_rt_sigreturn,.-.LSTART_rt_sigreturn
 	.balign 32
