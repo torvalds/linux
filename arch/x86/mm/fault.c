@@ -92,18 +92,13 @@ static int is_prefetch(struct pt_regs *regs, unsigned long addr,
 	unsigned char *max_instr;
 
 #ifdef CONFIG_X86_32
-# ifdef CONFIG_X86_PAE
-	/* If it was a exec fault on NX page, ignore */
-	if (nx_enabled && (error_code & PF_INSTR))
+	if (!(__supported_pte_mask & _PAGE_NX))
 		return 0;
-# else
-	return 0;
-# endif
-#else /* CONFIG_X86_64 */
+#endif
+
 	/* If it was a exec fault on NX page, ignore */
 	if (error_code & PF_INSTR)
 		return 0;
-#endif
 
 	instr = (unsigned char *)convert_ip_to_linear(current, regs);
 	max_instr = instr + 15;
