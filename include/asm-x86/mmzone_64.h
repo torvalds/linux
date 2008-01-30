@@ -41,6 +41,8 @@ static inline __attribute__((pure)) int phys_to_nid(unsigned long addr)
 #define node_end_pfn(nid)       (NODE_DATA(nid)->node_start_pfn + \
 				 NODE_DATA(nid)->node_spanned_pages)
 
+extern int early_pfn_to_nid(unsigned long pfn);
+
 #ifdef CONFIG_DISCONTIGMEM
 #define pfn_to_nid(pfn) phys_to_nid((unsigned long)(pfn) << PAGE_SHIFT)
 
