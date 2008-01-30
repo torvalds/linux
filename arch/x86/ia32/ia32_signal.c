@@ -472,7 +472,7 @@ int ia32_setup_frame(int sig, struct k_sigaction *ka,
 			restorer = VDSO32_SYMBOL(current->mm->context.vdso,
 						 sigreturn);
 		else
-			restorer = (void *)&frame->retcode;
+			restorer = &frame->retcode;
 	}
 	err |= __put_user(ptr_to_compat(restorer), &frame->pretcode);
 

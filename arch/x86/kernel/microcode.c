@@ -244,8 +244,8 @@ static int microcode_sanity_check(void *mc)
 		return 0;
 	/* check extended signature checksum */
 	for (i = 0; i < ext_sigcount; i++) {
-		ext_sig = (struct extended_signature *)((void *)ext_header
-			+ EXT_HEADER_SIZE + EXT_SIGNATURE_SIZE * i);
+		ext_sig = (void *)ext_header + EXT_HEADER_SIZE +
+			  EXT_SIGNATURE_SIZE * i;
 		sum = orig_sum
 			- (mc_header->sig + mc_header->pf + mc_header->cksum)
 			+ (ext_sig->sig + ext_sig->pf + ext_sig->cksum);
@@ -279,11 +279,9 @@ static int get_maching_microcode(void *mc, int cpu)
 	if (total_size <= get_datasize(mc_header) + MC_HEADER_SIZE)
 		return 0;
 
-	ext_header = (struct extended_sigtable *)(mc +
-			get_datasize(mc_header) + MC_HEADER_SIZE);
+	ext_header = mc + get_datasize(mc_header) + MC_HEADER_SIZE;
 	ext_sigcount = ext_header->count;
-	ext_sig = (struct extended_signature *)((void *)ext_header
-			+ EXT_HEADER_SIZE);
+	ext_sig = (void *)ext_header + EXT_HEADER_SIZE;
 	for (i = 0; i < ext_sigcount; i++) {
 		if (microcode_update_match(cpu, mc_header,
 				ext_sig->sig, ext_sig->pf))
@@ -539,7 +537,7 @@ static int cpu_request_microcode(int cpu)
 		pr_debug("ucode data file %s load failed\n", name);
 		return error;
 	}
-	buf = (void *)firmware->data;
+	buf = firmware->data;
 	size = firmware->size;
 	while ((offset = get_next_ucode_from_buffer(&mc, buf, size, offset))
 			> 0) {

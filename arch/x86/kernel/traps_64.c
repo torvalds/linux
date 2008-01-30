@@ -217,7 +217,7 @@ static unsigned long *in_exception_stack(unsigned cpu, unsigned long stack,
 static inline int valid_stack_ptr(struct thread_info *tinfo,
 			void *p, unsigned int size, void *end)
 {
-	void *t = (void *)tinfo;
+	void *t = tinfo;
 	if (end) {
 		if (p < end && p >= (end-THREAD_SIZE))
 			return 1;

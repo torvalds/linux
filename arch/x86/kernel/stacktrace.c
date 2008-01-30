@@ -24,7 +24,7 @@ static int save_stack_stack(void *data, char *name)
 
 static void save_stack_address(void *data, unsigned long addr, int reliable)
 {
-	struct stack_trace *trace = (struct stack_trace *)data;
+	struct stack_trace *trace = data;
 	if (trace->skip > 0) {
 		trace->skip--;
 		return;

@@ -953,7 +953,7 @@ int __kprobes kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 				       unsigned long val, void *data)
 {
-	struct die_args *args = (struct die_args *)data;
+	struct die_args *args = data;
 	int ret = NOTIFY_DONE;
 
 	if (args->regs && user_mode_vm(args->regs))

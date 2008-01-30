@@ -285,7 +285,7 @@ static void putstr(const char *s)
 static void* memset(void* s, int c, unsigned n)
 {
 	int i;
-	char *ss = (char*)s;
+	char *ss = s;
 
 	for (i=0;i<n;i++) ss[i] = c;
 	return s;
@@ -294,7 +294,8 @@ static void* memset(void* s, int c, unsigned n)
 static void* memcpy(void* dest, const void* src, unsigned n)
 {
 	int i;
-	char *d = (char *)dest, *s = (char *)src;
+	const char *s = src;
+	char *d = dest;
 
 	for (i=0;i<n;i++) d[i] = s[i];
 	return dest;

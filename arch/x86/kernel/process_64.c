@@ -470,7 +470,7 @@ static inline void set_32bit_tls(struct task_struct *t, int tls, u32 addr)
 		.limit_in_pages = 1,
 		.useable = 1,
 	};
-	struct desc_struct *desc = (void *)t->thread.tls_array;
+	struct desc_struct *desc = t->thread.tls_array;
 	desc += tls;
 	fill_ldt(desc, &ud);
 }
