@@ -25,7 +25,7 @@ const int ieee802_1d_to_ac[8] = { 2, 3, 3, 2, 1, 1, 0, 0 };
 
 struct ieee80211_sched_data
 {
-	unsigned long qdisc_pool;
+	unsigned long qdisc_pool[BITS_TO_LONGS(TC_80211_MAX_QUEUES)];
 	struct tcf_proto *filter_list;
 	struct Qdisc *queues[TC_80211_MAX_QUEUES];
 	struct sk_buff_head requeued[TC_80211_MAX_QUEUES];
@@ -158,7 +158,7 @@ static int wme_qdiscop_enqueue(struct sk_buff *skb, struct Qdisc* qd)
 		if (sta) {
 			int ampdu_queue = sta->tid_to_tx_q[tid];
 			if ((ampdu_queue < local->hw.queues) &&
-			    test_bit(ampdu_queue, &q->qdisc_pool)) {
+			    test_bit(ampdu_queue, q->qdisc_pool)) {
 				queue = ampdu_queue;
 				pkt_data->flags |= IEEE80211_TXPD_AMPDU;
 			} else {
@@ -191,7 +191,7 @@ static int wme_qdiscop_enqueue(struct sk_buff *skb, struct Qdisc* qd)
 		if (sta) {
 			int ampdu_queue = sta->tid_to_tx_q[tid];
 			if ((ampdu_queue < local->hw.queues) &&
-				test_bit(ampdu_queue, &q->qdisc_pool)) {
+				test_bit(ampdu_queue, q->qdisc_pool)) {
 				queue = ampdu_queue;
 				pkt_data->flags |= IEEE80211_TXPD_AMPDU;
 			} else {
@@ -272,7 +272,7 @@ static struct sk_buff *wme_qdiscop_dequeue(struct Qdisc* qd)
 				&local->state[queue])) ||
 		    (test_bit(IEEE80211_LINK_STATE_PENDING,
 				&local->state[queue])) ||
-			 (!test_bit(queue, &q->qdisc_pool)))
+			 (!test_bit(queue, q->qdisc_pool)))
 			continue;
 
 		/* there is space - try and get a frame */
@@ -396,7 +396,7 @@ static int wme_qdiscop_init(struct Qdisc *qd, struct nlattr *opt)
 
 	/* reserve all legacy QoS queues */
 	for (i = 0; i < min(IEEE80211_TX_QUEUE_DATA4, queues); i++)
-		set_bit(i, &q->qdisc_pool);
+		set_bit(i, q->qdisc_pool);
 
 	return err;
 }
@@ -657,7 +657,7 @@ int ieee80211_ht_agg_queue_add(struct ieee80211_local *local,
 
 	/* try to get a Qdisc from the pool */
 	for (i = IEEE80211_TX_QUEUE_BEACON; i < local->hw.queues; i++)
-		if (!test_and_set_bit(i, &q->qdisc_pool)) {
+		if (!test_and_set_bit(i, q->qdisc_pool)) {
 			ieee80211_stop_queue(local_to_hw(local), i);
 			sta->tid_to_tx_q[tid] = i;
 
@@ -668,9 +668,9 @@ int ieee80211_ht_agg_queue_add(struct ieee80211_local *local,
 #ifdef CONFIG_MAC80211_HT_DEBUG
 			if (net_ratelimit())
 				printk(KERN_DEBUG "allocated aggregation queue"
-					" %d tid %d addr %s pool=0x%lX\n",
+					" %d tid %d addr %s pool=0x%lX",
 					i, tid, print_mac(mac, sta->addr),
-					q->qdisc_pool);
+					q->qdisc_pool[0]);
 #endif /* CONFIG_MAC80211_HT_DEBUG */
 			return 0;
 		}
@@ -690,7 +690,7 @@ void ieee80211_ht_agg_queue_remove(struct ieee80211_local *local,
 	int agg_queue = sta->tid_to_tx_q[tid];
 
 	/* return the qdisc to the pool */
-	clear_bit(agg_queue, &q->qdisc_pool);
+	clear_bit(agg_queue, q->qdisc_pool);
 	sta->tid_to_tx_q[tid] = local->hw.queues;
 
 	if (requeue)
