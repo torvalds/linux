@@ -11,6 +11,7 @@
 
 #include "udf_sb.h"
 #include "udfend.h"
+#include "udf_i.h"
 
 #define UDF_PREALLOCATE
 #define UDF_DEFAULT_PREALLOC_BLOCKS	8
@@ -42,16 +43,24 @@ do { \
 #define UDF_NAME_LEN		256
 #define UDF_PATH_LEN		1023
 
-#define udf_file_entry_alloc_offset(inode)\
-	(UDF_I(inode)->i_use ?\
-		sizeof(struct unallocSpaceEntry) :\
-		((UDF_I(inode)->i_efe ?\
-			sizeof(struct extendedFileEntry) :\
-			sizeof(struct fileEntry)) + UDF_I(inode)->i_lenEAttr))
+static inline size_t udf_file_entry_alloc_offset(struct inode *inode)
+{
+	struct udf_inode_info *iinfo = UDF_I(inode);
+	if (iinfo->i_use)
+		return sizeof(struct unallocSpaceEntry);
+	else if (iinfo->i_efe)
+		return sizeof(struct extendedFileEntry) + iinfo->i_lenEAttr;
+	else
+		return sizeof(struct fileEntry) + iinfo->i_lenEAttr;
+}
 
-#define udf_ext0_offset(inode)\
-	(UDF_I(inode)->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB ?\
-		udf_file_entry_alloc_offset(inode) : 0)
+static inline size_t udf_ext0_offset(struct inode *inode)
+{
+	if (UDF_I(inode)->i_alloc_type == ICBTAG_FLAG_AD_IN_ICB)
+		return udf_file_entry_alloc_offset(inode);
+	else
+		return 0;
+}
 
 #define udf_get_lb_pblock(sb,loc,offset) udf_get_pblock((sb), (loc).logicalBlockNum, (loc).partitionReferenceNum, (offset))
 
