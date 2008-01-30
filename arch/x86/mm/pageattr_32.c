@@ -39,23 +39,26 @@ pte_t *lookup_address(unsigned long address, int *level)
 
 static void __set_pmd_pte(pte_t *kpte, unsigned long address, pte_t pte)
 {
-	struct page *page;
-
 	/* change init_mm */
 	set_pte_atomic(kpte, pte);
+#ifdef CONFIG_X86_32
 	if (SHARED_KERNEL_PMD)
 		return;
+	{
+		struct page *page;
 
-	for (page = pgd_list; page; page = (struct page *)page->index) {
-		pgd_t *pgd;
-		pud_t *pud;
-		pmd_t *pmd;
+		for (page = pgd_list; page; page = (struct page *)page->index) {
+			pgd_t *pgd;
+			pud_t *pud;
+			pmd_t *pmd;
 
-		pgd = (pgd_t *)page_address(page) + pgd_index(address);
-		pud = pud_offset(pgd, address);
-		pmd = pmd_offset(pud, address);
-		set_pte_atomic((pte_t *)pmd, pte);
+			pgd = (pgd_t *)page_address(page) + pgd_index(address);
+			pud = pud_offset(pgd, address);
+			pmd = pmd_offset(pud, address);
+			set_pte_atomic((pte_t *)pmd, pte);
+		}
 	}
+#endif
 }
 
 static int split_large_page(pte_t *kpte, unsigned long address)
@@ -89,7 +92,9 @@ static int split_large_page(pte_t *kpte, unsigned long address)
 	address = __pa(address);
 	addr = address & LARGE_PAGE_MASK;
 	pbase = (pte_t *)page_address(base);
+#ifdef CONFIG_X86_32
 	paravirt_alloc_pt(&init_mm, page_to_pfn(base));
+#endif
 
 	for (i = 0; i < PTRS_PER_PTE; i++, addr += PAGE_SIZE)
 		set_pte(&pbase[i], pfn_pte(addr >> PAGE_SHIFT, ref_prot));
@@ -109,15 +114,14 @@ out_unlock:
 	return 0;
 }
 
-static int __change_page_attr(struct page *page, pgprot_t prot)
+static int
+__change_page_attr(unsigned long address, struct page *page, pgprot_t prot)
 {
 	struct page *kpte_page;
-	unsigned long address;
 	int level, err = 0;
 	pte_t *kpte;
 
 	BUG_ON(PageHighMem(page));
-	address = (unsigned long)page_address(page);
 
 repeat:
 	kpte = lookup_address(address, &level);
@@ -146,51 +150,87 @@ repeat:
 	return err;
 }
 
-/*
- * Change the page attributes of an page in the linear mapping.
+/**
+ * change_page_attr_addr - Change page table attributes in linear mapping
+ * @address: Virtual address in linear mapping.
+ * @numpages: Number of pages to change
+ * @prot:    New page table attribute (PAGE_*)
+ *
+ * Change page attributes of a page in the direct mapping. This is a variant
+ * of change_page_attr() that also works on memory holes that do not have
+ * mem_map entry (pfn_valid() is false).
+ *
+ * See change_page_attr() documentation for more details.
+ */
+
+int change_page_attr_addr(unsigned long address, int numpages, pgprot_t prot)
+{
+	int err = 0, kernel_map = 0, i;
+
+#ifdef CONFIG_X86_64
+	if (address >= __START_KERNEL_map &&
+			address < __START_KERNEL_map + KERNEL_TEXT_SIZE) {
+
+		address = (unsigned long)__va(__pa(address));
+		kernel_map = 1;
+	}
+#endif
+
+	for (i = 0; i < numpages; i++, address += PAGE_SIZE) {
+		unsigned long pfn = __pa(address) >> PAGE_SHIFT;
+
+		if (!kernel_map || pte_present(pfn_pte(0, prot))) {
+			err = __change_page_attr(address, pfn_to_page(pfn), prot);
+			if (err)
+				break;
+		}
+#ifdef CONFIG_X86_64
+		/*
+		 * Handle kernel mapping too which aliases part of
+		 * lowmem:
+		 */
+		if (__pa(address) < KERNEL_TEXT_SIZE) {
+			unsigned long addr2;
+			pgprot_t prot2;
+
+			addr2 = __START_KERNEL_map + __pa(address);
+			/* Make sure the kernel mappings stay executable */
+			prot2 = pte_pgprot(pte_mkexec(pfn_pte(0, prot)));
+			err = __change_page_attr(addr2, pfn_to_page(pfn), prot2);
+		}
+#endif
+	}
+
+	return err;
+}
+
+/**
+ * change_page_attr - Change page table attributes in the linear mapping.
+ * @page: First page to change
+ * @numpages: Number of pages to change
+ * @prot: New protection/caching type (PAGE_*)
+ *
+ * Returns 0 on success, otherwise a negated errno.
  *
  * This should be used when a page is mapped with a different caching policy
  * than write-back somewhere - some CPUs do not like it when mappings with
  * different caching policies exist. This changes the page attributes of the
  * in kernel linear mapping too.
  *
- * The caller needs to ensure that there are no conflicting mappings elsewhere.
- * This function only deals with the kernel linear map.
+ * Caller must call global_flush_tlb() later to make the changes active.
  *
- * Caller must call global_flush_tlb() after this.
+ * The caller needs to ensure that there are no conflicting mappings elsewhere
+ * (e.g. in user space) * This function only deals with the kernel linear map.
+ *
+ * For MMIO areas without mem_map use change_page_attr_addr() instead.
  */
 int change_page_attr(struct page *page, int numpages, pgprot_t prot)
 {
-	int err = 0, i;
+	unsigned long addr = (unsigned long)page_address(page);
 
-	for (i = 0; i < numpages; i++, page++) {
-		err = __change_page_attr(page, prot);
-		if (err)
-			break;
-	}
-
-	return err;
+	return change_page_attr_addr(addr, numpages, prot);
 }
 EXPORT_SYMBOL(change_page_attr);
-
-int change_page_attr_addr(unsigned long addr, int numpages, pgprot_t prot)
-{
-	int i;
-	unsigned long pfn = (__pa(addr) >> PAGE_SHIFT);
-
-	for (i = 0; i < numpages; i++) {
-		if (!pfn_valid(pfn + i)) {
-			WARN_ON_ONCE(1);
-			break;
-		} else {
-			int level;
-			pte_t *pte = lookup_address(addr + i*PAGE_SIZE, &level);
-			BUG_ON(pte && pte_none(*pte));
-		}
-	}
-
-	return change_page_attr(virt_to_page(addr), i, prot);
-}
 
 static void flush_kernel_map(void *arg)
 {
