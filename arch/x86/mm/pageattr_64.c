@@ -86,7 +86,7 @@ repeat:
 	prot = canon_pgprot(prot);
 
 	if (level == 4) {
-		set_pte(kpte, mk_pte(page, prot));
+		set_pte_atomic(kpte, mk_pte(page, prot));
 	} else {
 		/*
 		 * split_large_page will take the reference for this
@@ -99,7 +99,7 @@ repeat:
 		if (!split)
 			return -ENOMEM;
 		pgprot_val(ref_prot2) &= ~_PAGE_NX;
-		set_pte(kpte, mk_pte(split, ref_prot2));
+		set_pte_atomic(kpte, mk_pte(split, ref_prot2));
 		goto repeat;
 	}
 
