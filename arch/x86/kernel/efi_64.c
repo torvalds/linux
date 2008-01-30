@@ -85,7 +85,7 @@ void __init efi_call_phys_prelog(void)
 	local_irq_save(efi_flags);
 	early_runtime_code_mapping_set_exec(1);
 	vaddress = (unsigned long)__va(0x0UL);
-	pgd_val(save_pgd) = pgd_val(*pgd_offset_k(0x0UL));
+	save_pgd = *pgd_offset_k(0x0UL);
 	set_pgd(pgd_offset_k(0x0UL), *pgd_offset_k(vaddress));
 	__flush_tlb_all();
 }
