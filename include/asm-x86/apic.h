@@ -112,6 +112,7 @@ extern void cache_APIC_registers(void);
 extern void sync_Arb_IDs(void);
 extern void init_bsp_APIC(void);
 extern void setup_local_APIC(void);
+extern void end_local_APIC_setup(void);
 extern void init_apic_mappings(void);
 extern void setup_boot_APIC_clock(void);
 extern void setup_secondary_APIC_clock(void);

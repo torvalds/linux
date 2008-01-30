@@ -210,6 +210,7 @@ void __cpuinit smp_callin(void)
 
 	Dprintk("CALLIN, before setup_local_APIC().\n");
 	setup_local_APIC();
+	end_local_APIC_setup();
 
 	/*
 	 * Get our bogomips.
@@ -883,6 +884,13 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	 * Switch from PIC to APIC mode.
 	 */
 	setup_local_APIC();
+
+	/*
+	 * Enable IO APIC before setting up error vector
+	 */
+	if (!skip_ioapic_setup && nr_ioapics)
+		enable_IO_APIC();
+	end_local_APIC_setup();
 
 	if (GET_APIC_ID(apic_read(APIC_ID)) != boot_cpu_id) {
 		panic("Boot APIC ID in local APIC unexpected (%d vs %d)",

@@ -677,7 +677,7 @@ void __init init_bsp_APIC(void)
  */
 void __cpuinit setup_local_APIC(void)
 {
-	unsigned int value, maxlvt;
+	unsigned int value;
 	int i, j;
 
 	value = apic_read(APIC_LVR);
@@ -773,32 +773,23 @@ void __cpuinit setup_local_APIC(void)
 	else
 		value = APIC_DM_NMI | APIC_LVT_MASKED;
 	apic_write(APIC_LVT1, value);
+}
 
+void __cpuinit lapic_setup_esr(void)
+{
+	unsigned maxlvt = lapic_get_maxlvt();
+
+	apic_write(APIC_LVTERR, ERROR_APIC_VECTOR);
 	/*
-	 * Now enable IO-APICs, actually call clear_IO_APIC
-	 * We need clear_IO_APIC before enabling vector on BP
+	 * spec says clear errors after enabling vector.
 	 */
-	if (!smp_processor_id() && !skip_ioapic_setup && nr_ioapics)
-		enable_IO_APIC();
+	if (maxlvt > 3)
+		apic_write(APIC_ESR, 0);
+}
 
-	{
-		unsigned oldvalue;
-		maxlvt = lapic_get_maxlvt();
-		oldvalue = apic_read(APIC_ESR);
-		value = ERROR_APIC_VECTOR;      // enables sending errors
-		apic_write(APIC_LVTERR, value);
-		/*
-		 * spec says clear errors after enabling vector.
-		 */
-		if (maxlvt > 3)
-			apic_write(APIC_ESR, 0);
-		value = apic_read(APIC_ESR);
-		if (value != oldvalue)
-			apic_printk(APIC_VERBOSE,
-			"ESR value after enabling vector: %08x, after %08x\n",
-			oldvalue, value);
-	}
-
+void __cpuinit end_local_APIC_setup(void)
+{
+	lapic_setup_esr();
 	nmi_watchdog_default();
 	setup_apic_nmi_watchdog(NULL);
 	apic_pm_activate();
@@ -878,6 +869,15 @@ int __init APIC_init_uniprocessor(void)
 	apic_write(APIC_ID, SET_APIC_ID(boot_cpu_id));
 
 	setup_local_APIC();
+
+	/*
+	 * Now enable IO-APICs, actually call clear_IO_APIC
+	 * We need clear_IO_APIC before enabling vector on BP
+	 */
+	if (!skip_ioapic_setup && nr_ioapics)
+		enable_IO_APIC();
+
+	end_local_APIC_setup();
 
 	if (smp_found_config && !skip_ioapic_setup && nr_ioapics)
 		setup_IO_APIC();
