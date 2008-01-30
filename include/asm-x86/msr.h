@@ -13,7 +13,7 @@
 #include <asm/asm.h>
 #include <asm/errno.h>
 
-static inline unsigned long long native_read_tscp(int *aux)
+static inline unsigned long long native_read_tscp(unsigned int *aux)
 {
 	unsigned long low, high;
 	asm volatile (".byte 0x0f,0x01,0xf9"
