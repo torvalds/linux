@@ -5,8 +5,6 @@
 #include <linux/mm.h>
 #include <linux/ptrace.h>
 
-#define LDT_SEGMENT 4
-
 unsigned long convert_rip_to_linear(struct task_struct *child, struct pt_regs *regs)
 {
 	unsigned long addr, seg;
@@ -20,7 +18,7 @@ unsigned long convert_rip_to_linear(struct task_struct *child, struct pt_regs *r
 	 * TLS segments are used for data, and the PNPBIOS
 	 * and APM bios ones we just ignore here.
 	 */
-	if (seg & LDT_SEGMENT) {
+	if ((seg & SEGMENT_TI_MASK) == SEGMENT_LDT) {
 		u32 *desc;
 		unsigned long base;
 
