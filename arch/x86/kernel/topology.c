@@ -33,7 +33,8 @@
 
 static DEFINE_PER_CPU(struct x86_cpu, cpu_devices);
 
-int __cpuinit arch_register_cpu(int num)
+#ifdef CONFIG_HOTPLUG_CPU
+int arch_register_cpu(int num)
 {
 	/*
 	 * CPU0 cannot be offlined due to several
@@ -44,21 +45,23 @@ int __cpuinit arch_register_cpu(int num)
 	 * Also certain PCI quirks require not to enable hotplug control
 	 * for all CPU's.
 	 */
-#ifdef CONFIG_HOTPLUG_CPU
 	if (num)
 		per_cpu(cpu_devices, num).cpu.hotpluggable = 1;
-#endif
-
 	return register_cpu(&per_cpu(cpu_devices, num).cpu, num);
 }
+EXPORT_SYMBOL(arch_register_cpu);
 
-#ifdef CONFIG_HOTPLUG_CPU
 void arch_unregister_cpu(int num)
 {
 	return unregister_cpu(&per_cpu(cpu_devices, num).cpu);
 }
-EXPORT_SYMBOL(arch_register_cpu);
 EXPORT_SYMBOL(arch_unregister_cpu);
+#else
+int arch_register_cpu(int num)
+{
+	return register_cpu(&per_cpu(cpu_devices, num).cpu, num);
+}
+EXPORT_SYMBOL(arch_register_cpu);
 #endif /*CONFIG_HOTPLUG_CPU*/
 
 static int __init topology_init(void)
