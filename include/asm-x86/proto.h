@@ -13,7 +13,6 @@ extern void pda_init(int);
 
 extern void early_idt_handler(void);
 
-extern void mcheck_init(struct cpuinfo_x86 *c);
 extern void init_memory_mapping(unsigned long start, unsigned long end);
 
 extern void system_call(void); 

@@ -59,6 +59,7 @@
 #include <asm/sections.h>
 #include <asm/dmi.h>
 #include <asm/cacheflush.h>
+#include <asm/mce.h>
 
 /*
  * Machine setup..
