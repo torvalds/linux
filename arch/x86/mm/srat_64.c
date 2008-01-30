@@ -416,7 +416,7 @@ static int __init find_node_by_addr(unsigned long addr)
 			break;
 		}
 	}
-	return i;
+	return ret;
 }
 
 /*
