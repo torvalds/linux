@@ -120,33 +120,6 @@ extern void detect_ht(struct cpuinfo_x86 *c);
 static inline void detect_ht(struct cpuinfo_x86 *c) {}
 #endif
 
-
-/*
- * Save the cr4 feature set we're using (ie
- * Pentium 4MB enable and PPro Global page
- * enable), so that any CPU's that boot up
- * after us can get the correct flags.
- */
-extern unsigned long mmu_cr4_features;
-
-static inline void set_in_cr4 (unsigned long mask)
-{
-	unsigned cr4;
-	mmu_cr4_features |= mask;
-	cr4 = read_cr4();
-	cr4 |= mask;
-	write_cr4(cr4);
-}
-
-static inline void clear_in_cr4 (unsigned long mask)
-{
-	unsigned cr4;
-	mmu_cr4_features &= ~mask;
-	cr4 = read_cr4();
-	cr4 &= ~mask;
-	write_cr4(cr4);
-}
-
 /* Stop speculative execution */
 static inline void sync_core(void)
 {
@@ -482,57 +455,6 @@ static inline void native_load_sp0(struct tss_struct *tss, struct thread_struct 
 		wrmsr(MSR_IA32_SYSENTER_CS, thread->sysenter_cs, 0);
 	}
 }
-
-
-static inline unsigned long native_get_debugreg(int regno)
-{
-	unsigned long val = 0; 	/* Damn you, gcc! */
-
-	switch (regno) {
-	case 0:
-		asm("movl %%db0, %0" :"=r" (val)); break;
-	case 1:
-		asm("movl %%db1, %0" :"=r" (val)); break;
-	case 2:
-		asm("movl %%db2, %0" :"=r" (val)); break;
-	case 3:
-		asm("movl %%db3, %0" :"=r" (val)); break;
-	case 6:
-		asm("movl %%db6, %0" :"=r" (val)); break;
-	case 7:
-		asm("movl %%db7, %0" :"=r" (val)); break;
-	default:
-		BUG();
-	}
-	return val;
-}
-
-static inline void native_set_debugreg(int regno, unsigned long value)
-{
-	switch (regno) {
-	case 0:
-		asm("movl %0,%%db0"	: /* no output */ :"r" (value));
-		break;
-	case 1:
-		asm("movl %0,%%db1"	: /* no output */ :"r" (value));
-		break;
-	case 2:
-		asm("movl %0,%%db2"	: /* no output */ :"r" (value));
-		break;
-	case 3:
-		asm("movl %0,%%db3"	: /* no output */ :"r" (value));
-		break;
-	case 6:
-		asm("movl %0,%%db6"	: /* no output */ :"r" (value));
-		break;
-	case 7:
-		asm("movl %0,%%db7"	: /* no output */ :"r" (value));
-		break;
-	default:
-		BUG();
-	}
-}
-
 /*
  * Set IOPL bits in EFLAGS from given mask
  */
@@ -552,20 +474,11 @@ static inline void native_set_iopl_mask(unsigned mask)
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
 #else
-#define paravirt_enabled() 0
 
 static inline void load_sp0(struct tss_struct *tss, struct thread_struct *thread)
 {
 	native_load_sp0(tss, thread);
 }
-
-/*
- * These special macros can be used to get or set a debugging register
- */
-#define get_debugreg(var, register)				\
-	(var) = native_get_debugreg(register)
-#define set_debugreg(value, register)				\
-	native_set_debugreg(register, value)
 
 #define set_iopl_mask native_set_iopl_mask
 #endif /* CONFIG_PARAVIRT */
