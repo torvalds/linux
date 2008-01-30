@@ -396,10 +396,10 @@ static void __init runtime_code_page_mkexec(void)
 		md = p;
 		end = md->phys_addr + (md->num_pages << EFI_PAGE_SHIFT);
 		if (md->type == EFI_RUNTIME_SERVICES_CODE &&
-		    (end >> PAGE_SHIFT) <= max_pfn_mapped)
-			change_page_attr_addr(md->virt_addr,
-					      md->num_pages,
-					      PAGE_KERNEL_EXEC_NOCACHE);
+		    (end >> PAGE_SHIFT) <= max_pfn_mapped) {
+			set_memory_x(md->virt_addr, md->num_pages);
+			set_memory_uc(md->virt_addr, md->num_pages);
+		}
 	}
 	__flush_tlb_all();
 }

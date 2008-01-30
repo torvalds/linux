@@ -556,8 +556,6 @@ void free_init_pages(char *what, unsigned long begin, unsigned long end)
 		init_page_count(virt_to_page(addr));
 		memset((void *)(addr & ~(PAGE_SIZE-1)),
 			POISON_FREE_INITMEM, PAGE_SIZE);
-		if (addr >= __START_KERNEL_map)
-			change_page_attr_addr(addr, 1, __pgprot(0));
 		free_page(addr);
 		totalram_pages++;
 	}
@@ -594,13 +592,13 @@ void mark_rodata_ro(void)
 	if (end <= start)
 		return;
 
-	change_page_attr_addr(start, (end - start) >> PAGE_SHIFT, PAGE_KERNEL_RO);
+	set_memory_ro(start, (end - start) >> PAGE_SHIFT);
 
 	printk(KERN_INFO "Write protecting the kernel read-only data: %luk\n",
 	       (end - start) >> 10);
 
 	/*
-	 * change_page_attr_addr() requires a global_flush_tlb() call after it.
+	 * set_memory_*() requires a global_flush_tlb() call after it.
 	 * We do this after the printk so that if something went wrong in the
 	 * change, the printk gets out at least to give a better debug hint
 	 * of who is the culprit.
@@ -609,11 +607,11 @@ void mark_rodata_ro(void)
 
 #ifdef CONFIG_CPA_DEBUG
 	printk("Testing CPA: undo %lx-%lx\n", start, end);
-	change_page_attr_addr(start, (end - start) >> PAGE_SHIFT, PAGE_KERNEL);
+	set_memory_rw(start, (end-start) >> PAGE_SHIFT);
 	global_flush_tlb();
 
 	printk("Testing CPA: again\n");
-	change_page_attr_addr(start, (end - start) >> PAGE_SHIFT, PAGE_KERNEL_RO);
+	set_memory_ro(start, (end-start) >> PAGE_SHIFT);
 	global_flush_tlb();
 #endif
 }

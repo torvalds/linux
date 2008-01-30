@@ -570,8 +570,7 @@ static __init int init_k8_gatt(struct agp_kern_info *info)
 	gatt = (void *)__get_free_pages(GFP_KERNEL, get_order(gatt_size));
 	if (!gatt)
 		panic("Cannot allocate GATT table");
-	if (change_page_attr_addr((unsigned long)gatt, gatt_size >> PAGE_SHIFT,
-				  PAGE_KERNEL_NOCACHE))
+	if (set_memory_uc((unsigned long)gatt, gatt_size >> PAGE_SHIFT))
 		panic("Could not set GART PTEs to uncacheable pages");
 	global_flush_tlb();
 

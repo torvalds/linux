@@ -88,9 +88,7 @@ static int vmlfb_alloc_vram_area(struct vram_area *va, unsigned max_order,
 {
 	gfp_t flags;
 	unsigned long i;
-	pgprot_t wc_pageprot;
 
-	wc_pageprot = PAGE_KERNEL_NOCACHE;
 	max_order++;
 	do {
 		/*
@@ -131,8 +129,7 @@ static int vmlfb_alloc_vram_area(struct vram_area *va, unsigned max_order,
 	 */
 
 	global_flush_tlb();
-	change_page_attr(virt_to_page(va->logical), va->size >> PAGE_SHIFT,
-			 wc_pageprot);
+	set_pages_uc(virt_to_page(va->logical), va->size >> PAGE_SHIFT);
 	global_flush_tlb();
 
 	printk(KERN_DEBUG MODULE_NAME
@@ -157,8 +154,8 @@ static void vmlfb_free_vram_area(struct vram_area *va)
 		 * Reset the linear kernel map caching policy.
 		 */
 
-		change_page_attr(virt_to_page(va->logical),
-				 va->size >> PAGE_SHIFT, PAGE_KERNEL);
+		set_pages_wb(virt_to_page(va->logical),
+				 va->size >> PAGE_SHIFT);
 		global_flush_tlb();
 
 		/*

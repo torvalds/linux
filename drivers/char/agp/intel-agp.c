@@ -210,8 +210,8 @@ static void *i8xx_alloc_pages(void)
 	if (page == NULL)
 		return NULL;
 
-	if (change_page_attr(page, 4, PAGE_KERNEL_NOCACHE) < 0) {
-		change_page_attr(page, 4, PAGE_KERNEL);
+	if (set_pages_uc(page, 4) < 0) {
+		set_pages_wb(page, 4);
 		global_flush_tlb();
 		__free_pages(page, 2);
 		return NULL;
@@ -230,7 +230,7 @@ static void i8xx_destroy_pages(void *addr)
 		return;
 
 	page = virt_to_page(addr);
-	change_page_attr(page, 4, PAGE_KERNEL);
+	set_pages_wb(page, 4);
 	global_flush_tlb();
 	put_page(page);
 	__free_pages(page, 2);
