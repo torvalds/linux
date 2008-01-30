@@ -1069,7 +1069,7 @@ void __apicdebuginit print_local_APIC(void * dummy)
 	v = apic_read(APIC_LVR);
 	printk(KERN_INFO "... APIC VERSION: %08x\n", v);
 	ver = GET_APIC_VERSION(v);
-	maxlvt = get_maxlvt();
+	maxlvt = lapic_get_maxlvt();
 
 	v = apic_read(APIC_TASKPRI);
 	printk(KERN_DEBUG "... APIC TASKPRI: %08x (%02x)\n", v, v & APIC_TPRI_MASK);

@@ -466,7 +466,7 @@ static int __cpuinit wakeup_secondary_via_INIT(int phys_apicid, unsigned int sta
 	 */
 	Dprintk("#startup loops: %d.\n", num_starts);
 
-	maxlvt = get_maxlvt();
+	maxlvt = lapic_get_maxlvt();
 
 	for (j = 1; j <= num_starts; j++) {
 		Dprintk("Sending STARTUP #%d.\n",j);
