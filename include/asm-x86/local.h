@@ -7,15 +7,14 @@
 #include <asm/atomic.h>
 #include <asm/asm.h>
 
-typedef struct
-{
+typedef struct {
 	atomic_long_t a;
 } local_t;
 
 #define LOCAL_INIT(i)	{ ATOMIC_LONG_INIT(i) }
 
 #define local_read(l)	atomic_long_read(&(l)->a)
-#define local_set(l,i)	atomic_long_set(&(l)->a, (i))
+#define local_set(l, i)	atomic_long_set(&(l)->a, (i))
 
 static inline void local_inc(local_t *l)
 {
@@ -137,7 +136,7 @@ static inline long local_add_return(long i, local_t *l)
 	long __i;
 #ifdef CONFIG_M386
 	unsigned long flags;
-	if(unlikely(boot_cpu_data.x86 <= 3))
+	if (unlikely(boot_cpu_data.x86 <= 3))
 		goto no_xadd;
 #endif
 	/* Modern 486+ processor */
@@ -160,11 +159,11 @@ no_xadd: /* Legacy 386 processor */
 
 static inline long local_sub_return(long i, local_t *l)
 {
-	return local_add_return(-i,l);
+	return local_add_return(-i, l);
 }
 
-#define local_inc_return(l)  (local_add_return(1,l))
-#define local_dec_return(l)  (local_sub_return(1,l))
+#define local_inc_return(l)  (local_add_return(1, l))
+#define local_dec_return(l)  (local_sub_return(1, l))
 
 #define local_cmpxchg(l, o, n) \
 	(cmpxchg_local(&((l)->a.counter), (o), (n)))
@@ -202,8 +201,8 @@ static inline long local_sub_return(long i, local_t *l)
  */
 #define __local_inc(l)		local_inc(l)
 #define __local_dec(l)		local_dec(l)
-#define __local_add(i,l)	local_add((i),(l))
-#define __local_sub(i,l)	local_sub((i),(l))
+#define __local_add(i, l)	local_add((i), (l))
+#define __local_sub(i, l)	local_sub((i), (l))
 
 /* Use these for per-cpu local_t variables: on some archs they are
  * much more efficient than these naive implementations.  Note they take
