@@ -60,7 +60,7 @@ unsigned int boot_cpu_id = -1U;
 EXPORT_SYMBOL(boot_cpu_id);
 
 /* Internal processor count */
-unsigned int num_processors __cpuinitdata = 0;
+unsigned int num_processors;
 
 unsigned disabled_cpus __cpuinitdata;
 
