@@ -1,28 +1,29 @@
-/* 
- * Copyright 2002 Andi Kleen, SuSE Labs. 
+/*
+ * Copyright 2002 Andi Kleen, SuSE Labs.
  * Thanks to Ben LaHaise for precious feedback.
- */ 
+ */
 
-#include <linux/mm.h>
-#include <linux/sched.h>
 #include <linux/highmem.h>
 #include <linux/module.h>
+#include <linux/sched.h>
 #include <linux/slab.h>
-#include <asm/uaccess.h>
+#include <linux/mm.h>
+
 #include <asm/processor.h>
 #include <asm/tlbflush.h>
-#include <asm/pgalloc.h>
 #include <asm/sections.h>
+#include <asm/uaccess.h>
+#include <asm/pgalloc.h>
 
 static DEFINE_SPINLOCK(cpa_lock);
 static struct list_head df_list = LIST_HEAD_INIT(df_list);
 
-
-pte_t *lookup_address(unsigned long address) 
-{ 
+pte_t *lookup_address(unsigned long address)
+{
 	pgd_t *pgd = pgd_offset_k(address);
 	pud_t *pud;
 	pmd_t *pmd;
+
 	if (pgd_none(*pgd))
 		return NULL;
 	pud = pud_offset(pgd, address);
@@ -33,21 +34,22 @@ pte_t *lookup_address(unsigned long address)
 		return NULL;
 	if (pmd_large(*pmd))
 		return (pte_t *)pmd;
-        return pte_offset_kernel(pmd, address);
-} 
 
-static struct page *split_large_page(unsigned long address, pgprot_t prot,
-					pgprot_t ref_prot)
-{ 
-	int i; 
+	return pte_offset_kernel(pmd, address);
+}
+
+static struct page *
+split_large_page(unsigned long address, pgprot_t prot, pgprot_t ref_prot)
+{
 	unsigned long addr;
 	struct page *base;
 	pte_t *pbase;
+	int i;
 
 	spin_unlock_irq(&cpa_lock);
 	base = alloc_pages(GFP_KERNEL, 0);
 	spin_lock_irq(&cpa_lock);
-	if (!base) 
+	if (!base)
 		return NULL;
 
 	/*
@@ -58,22 +60,24 @@ static struct page *split_large_page(unsigned long address, pgprot_t prot,
 	page_private(base) = 0;
 
 	address = __pa(address);
-	addr = address & LARGE_PAGE_MASK; 
+	addr = address & LARGE_PAGE_MASK;
 	pbase = (pte_t *)page_address(base);
 	paravirt_alloc_pt(&init_mm, page_to_pfn(base));
+
 	for (i = 0; i < PTRS_PER_PTE; i++, addr += PAGE_SIZE) {
-               set_pte(&pbase[i], pfn_pte(addr >> PAGE_SHIFT,
-                                          addr == address ? prot : ref_prot));
+		set_pte(&pbase[i], pfn_pte(addr >> PAGE_SHIFT,
+					   addr == address ? prot : ref_prot));
 	}
 	return base;
-} 
+}
 
 static void cache_flush_page(struct page *p)
-{ 
-	void *adr = page_address(p);
+{
+	void *addr = page_address(p);
 	int i;
+
 	for (i = 0; i < PAGE_SIZE; i += boot_cpu_data.x86_clflush_size)
-		clflush(adr+i);
+		clflush(addr + i);
 }
 
 static void flush_kernel_map(void *arg)
@@ -83,23 +87,27 @@ static void flush_kernel_map(void *arg)
 
 	/* High level code is not ready for clflush yet */
 	if (0 && cpu_has_clflush) {
-		list_for_each_entry (p, lh, lru)
+		list_for_each_entry(p, lh, lru)
 			cache_flush_page(p);
-	} else if (boot_cpu_data.x86_model >= 4)
-		wbinvd();
+	} else {
+		if (boot_cpu_data.x86_model >= 4)
+			wbinvd();
+	}
 
-	/* Flush all to work around Errata in early athlons regarding 
-	 * large page flushing. 
+	/*
+	 * Flush all to work around Errata in early athlons regarding
+	 * large page flushing.
 	 */
-	__flush_tlb_all(); 	
+	__flush_tlb_all();
 }
 
-static void set_pmd_pte(pte_t *kpte, unsigned long address, pte_t pte) 
-{ 
-	struct page *page;
+static void set_pmd_pte(pte_t *kpte, unsigned long address, pte_t pte)
+{
 	unsigned long flags;
+	struct page *page;
 
-	set_pte_atomic(kpte, pte); 	/* change init_mm */
+	/* change init_mm */
+	set_pte_atomic(kpte, pte);
 	if (SHARED_KERNEL_PMD)
 		return;
 
@@ -108,6 +116,7 @@ static void set_pmd_pte(pte_t *kpte, unsigned long address, pte_t pte)
 		pgd_t *pgd;
 		pud_t *pud;
 		pmd_t *pmd;
+
 		pgd = (pgd_t *)page_address(page) + pgd_index(address);
 		pud = pud_offset(pgd, address);
 		pmd = pmd_offset(pud, address);
@@ -116,9 +125,9 @@ static void set_pmd_pte(pte_t *kpte, unsigned long address, pte_t pte)
 	spin_unlock_irqrestore(&pgd_lock, flags);
 }
 
-/* 
- * No more special protections in this 2/4MB area - revert to a
- * large page again. 
+/*
+ * No more special protections in this 2/4MB area - revert to a large
+ * page again.
  */
 static inline void revert_page(struct page *kpte_page, unsigned long address)
 {
@@ -142,12 +151,11 @@ static inline void save_page(struct page *kpte_page)
 		list_add(&kpte_page->lru, &df_list);
 }
 
-static int
-__change_page_attr(struct page *page, pgprot_t prot)
-{ 
-	pte_t *kpte; 
-	unsigned long address;
+static int __change_page_attr(struct page *page, pgprot_t prot)
+{
 	struct page *kpte_page;
+	unsigned long address;
+	pte_t *kpte;
 
 	BUG_ON(PageHighMem(page));
 	address = (unsigned long)page_address(page);
@@ -155,16 +163,17 @@ __change_page_attr(struct page *page, pgprot_t prot)
 	kpte = lookup_address(address);
 	if (!kpte)
 		return -EINVAL;
+
 	kpte_page = virt_to_page(kpte);
 	BUG_ON(PageLRU(kpte_page));
 	BUG_ON(PageCompound(kpte_page));
 
-	if (pgprot_val(prot) != pgprot_val(PAGE_KERNEL)) { 
+	if (pgprot_val(prot) != pgprot_val(PAGE_KERNEL)) {
 		if (!pte_huge(*kpte)) {
-			set_pte_atomic(kpte, mk_pte(page, prot)); 
+			set_pte_atomic(kpte, mk_pte(page, prot));
 		} else {
-			pgprot_t ref_prot;
 			struct page *split;
+			pgprot_t ref_prot;
 
 			ref_prot =
 			((address & LARGE_PAGE_MASK) < (unsigned long)&_etext)
@@ -172,16 +181,19 @@ __change_page_attr(struct page *page, pgprot_t prot)
 			split = split_large_page(address, prot, ref_prot);
 			if (!split)
 				return -ENOMEM;
-			set_pmd_pte(kpte,address,mk_pte(split, ref_prot));
+
+			set_pmd_pte(kpte, address, mk_pte(split, ref_prot));
 			kpte_page = split;
 		}
 		page_private(kpte_page)++;
-	} else if (!pte_huge(*kpte)) {
-		set_pte_atomic(kpte, mk_pte(page, PAGE_KERNEL));
-		BUG_ON(page_private(kpte_page) == 0);
-		page_private(kpte_page)--;
-	} else
-		BUG();
+	} else {
+		if (!pte_huge(*kpte)) {
+			set_pte_atomic(kpte, mk_pte(page, PAGE_KERNEL));
+			BUG_ON(page_private(kpte_page) == 0);
+			page_private(kpte_page)--;
+		} else
+			BUG();
+	}
 
 	/*
 	 * If the pte was reserved, it means it was created at boot
@@ -197,7 +209,7 @@ __change_page_attr(struct page *page, pgprot_t prot)
 		}
 	}
 	return 0;
-} 
+}
 
 static inline void flush_map(struct list_head *l)
 {
@@ -211,32 +223,33 @@ static inline void flush_map(struct list_head *l)
  * than write-back somewhere - some CPUs do not like it when mappings with
  * different caching policies exist. This changes the page attributes of the
  * in kernel linear mapping too.
- * 
+ *
  * The caller needs to ensure that there are no conflicting mappings elsewhere.
  * This function only deals with the kernel linear map.
- * 
+ *
  * Caller must call global_flush_tlb() after this.
  */
 int change_page_attr(struct page *page, int numpages, pgprot_t prot)
 {
-	int err = 0; 
-	int i; 
 	unsigned long flags;
+	int err = 0, i;
 
 	spin_lock_irqsave(&cpa_lock, flags);
-	for (i = 0; i < numpages; i++, page++) { 
+	for (i = 0; i < numpages; i++, page++) {
 		err = __change_page_attr(page, prot);
-		if (err) 
-			break; 
-	} 	
+		if (err)
+			break;
+	}
 	spin_unlock_irqrestore(&cpa_lock, flags);
+
 	return err;
 }
+EXPORT_SYMBOL(change_page_attr);
 
 void global_flush_tlb(void)
 {
-	struct list_head l;
 	struct page *pg, *next;
+	struct list_head l;
 
 	BUG_ON(irqs_disabled());
 
@@ -253,26 +266,28 @@ void global_flush_tlb(void)
 		__free_page(pg);
 	}
 }
+EXPORT_SYMBOL(global_flush_tlb);
 
 #ifdef CONFIG_DEBUG_PAGEALLOC
 void kernel_map_pages(struct page *page, int numpages, int enable)
 {
 	if (PageHighMem(page))
 		return;
-	if (!enable)
+	if (!enable) {
 		debug_check_no_locks_freed(page_address(page),
 					   numpages * PAGE_SIZE);
+	}
 
-	/* the return value is ignored - the calls cannot fail,
+	/*
+	 * the return value is ignored - the calls cannot fail,
 	 * large pages are disabled at boot time.
 	 */
 	change_page_attr(page, numpages, enable ? PAGE_KERNEL : __pgprot(0));
-	/* we should perform an IPI and flush all tlbs,
+
+	/*
+	 * we should perform an IPI and flush all tlbs,
 	 * but that can deadlock->flush only current cpu.
 	 */
 	__flush_tlb_all();
 }
 #endif
-
-EXPORT_SYMBOL(change_page_attr);
-EXPORT_SYMBOL(global_flush_tlb);
