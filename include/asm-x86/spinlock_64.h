@@ -127,7 +127,7 @@ static inline void __raw_read_lock(raw_rwlock_t *rw)
 		     "jns 1f\n"
 		     "call __read_lock_failed\n\t"
 		     "1:\n"
-		     ::"D" (rw), "i" (RW_LOCK_BIAS) : "memory");
+		     ::"D" (rw) : "memory");
 }
 
 static inline void __raw_write_lock(raw_rwlock_t *rw)
@@ -167,8 +167,8 @@ static inline void __raw_read_unlock(raw_rwlock_t *rw)
 
 static inline void __raw_write_unlock(raw_rwlock_t *rw)
 {
-	asm volatile(LOCK_PREFIX "addl $" RW_LOCK_BIAS_STR ", %0"
-				: "+m" (rw->lock) : : "memory");
+	asm volatile(LOCK_PREFIX "addl %1, %0"
+		     : "+m" (rw->lock) : "i" (RW_LOCK_BIAS) : "memory");
 }
 
 #define _raw_spin_relax(lock)	cpu_relax()
