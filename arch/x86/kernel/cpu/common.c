@@ -60,13 +60,9 @@ EXPORT_PER_CPU_SYMBOL_GPL(gdt_page);
 __u32 cleared_cpu_caps[NCAPINTS] __cpuinitdata;
 
 static int cachesize_override __cpuinitdata = -1;
-static int disable_x86_fxsr __cpuinitdata;
 static int disable_x86_serial_nr __cpuinitdata = 1;
-static int disable_x86_sep __cpuinitdata;
 
 struct cpu_dev * cpu_devs[X86_VENDOR_NUM] = {};
-
-extern int disable_pse;
 
 static void __cpuinit default_init(struct cpuinfo_x86 * c)
 {
@@ -216,16 +212,8 @@ static void __cpuinit get_cpu_vendor(struct cpuinfo_x86 *c, int early)
 
 static int __init x86_fxsr_setup(char * s)
 {
-	/* Tell all the other CPUs to not use it... */
-	disable_x86_fxsr = 1;
-
-	/*
-	 * ... and clear the bits early in the boot_cpu_data
-	 * so that the bootup process doesn't try to do this
-	 * either.
-	 */
-	clear_bit(X86_FEATURE_FXSR, boot_cpu_data.x86_capability);
-	clear_bit(X86_FEATURE_XMM, boot_cpu_data.x86_capability);
+	setup_clear_cpu_cap(X86_FEATURE_FXSR);
+	setup_clear_cpu_cap(X86_FEATURE_XMM);
 	return 1;
 }
 __setup("nofxsr", x86_fxsr_setup);
@@ -233,7 +221,7 @@ __setup("nofxsr", x86_fxsr_setup);
 
 static int __init x86_sep_setup(char * s)
 {
-	disable_x86_sep = 1;
+	setup_clear_cpu_cap(X86_FEATURE_SEP);
 	return 1;
 }
 __setup("nosep", x86_sep_setup);
@@ -462,19 +450,6 @@ void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 	if ( tsc_disable )
 		clear_bit(X86_FEATURE_TSC, c->x86_capability);
 
-	/* FXSR disabled? */
-	if (disable_x86_fxsr) {
-		clear_bit(X86_FEATURE_FXSR, c->x86_capability);
-		clear_bit(X86_FEATURE_XMM, c->x86_capability);
-	}
-
-	/* SEP disabled? */
-	if (disable_x86_sep)
-		clear_bit(X86_FEATURE_SEP, c->x86_capability);
-
-	if (disable_pse)
-		clear_bit(X86_FEATURE_PSE, c->x86_capability);
-
 	/* If the model name is still unset, do table lookup. */
 	if ( !c->x86_model_id[0] ) {
 		char *p;
@@ -629,8 +604,7 @@ void __init early_cpu_init(void)
 	/* pse is not compatible with on-the-fly unmapping,
 	 * disable it even if the cpus claim to support it.
 	 */
-	clear_bit(X86_FEATURE_PSE, boot_cpu_data.x86_capability);
-	disable_pse = 1;
+	setup_clear_cpu_cap(X86_FEATURE_PSE);
 #endif
 }
 

@@ -68,8 +68,6 @@
    address, and must not be in the .bss segment! */
 unsigned long init_pg_tables_end __initdata = ~0UL;
 
-int disable_pse __cpuinitdata = 0;
-
 /*
  * Machine setup..
  */
@@ -242,8 +240,7 @@ static int __init parse_mem(char *arg)
 		return -EINVAL;
 
 	if (strcmp(arg, "nopentium") == 0) {
-		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_PSE);
-		disable_pse = 1;
+		setup_clear_cpu_cap(X86_FEATURE_PSE);
 	} else {
 		/* If the user specifies memory size, we
 		 * limit the BIOS-provided memory map to
