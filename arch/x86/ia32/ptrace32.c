@@ -37,11 +37,11 @@
 
 #define R32(l,q)							\
 	case offsetof(struct user32, regs.l):				\
-		stack[offsetof(struct pt_regs, q) / 8] = val; break
+		regs->q = val; break;
 
 static int putreg32(struct task_struct *child, unsigned regno, u32 val)
 {
-	__u64 *stack = (__u64 *)task_pt_regs(child);
+	struct pt_regs *regs = task_pt_regs(child);
 
 	switch (regno) {
 	case offsetof(struct user32, regs.fs):
@@ -65,12 +65,12 @@ static int putreg32(struct task_struct *child, unsigned regno, u32 val)
 	case offsetof(struct user32, regs.ss):
 		if ((val & 3) != 3)
 			return -EIO;
-		stack[offsetof(struct pt_regs, ss)/8] = val & 0xffff;
+		regs->ss = val & 0xffff;
 		break;
 	case offsetof(struct user32, regs.cs):
 		if ((val & 3) != 3)
 			return -EIO;
-		stack[offsetof(struct pt_regs, cs)/8] = val & 0xffff;
+		regs->cs = val & 0xffff;
 		break;
 
 	R32(ebx, bx);
@@ -84,9 +84,7 @@ static int putreg32(struct task_struct *child, unsigned regno, u32 val)
 	R32(eip, ip);
 	R32(esp, sp);
 
-	case offsetof(struct user32, regs.eflags): {
-		__u64 *flags = &stack[offsetof(struct pt_regs, flags)/8];
-
+	case offsetof(struct user32, regs.eflags):
 		val &= FLAG_MASK;
 		/*
 		 * If the user value contains TF, mark that
@@ -97,9 +95,8 @@ static int putreg32(struct task_struct *child, unsigned regno, u32 val)
 			clear_tsk_thread_flag(child, TIF_FORCED_TF);
 		else if (test_tsk_thread_flag(child, TIF_FORCED_TF))
 			val |= X86_EFLAGS_TF;
-		*flags = val | (*flags & ~FLAG_MASK);
+		regs->flags = val | (regs->flags & ~FLAG_MASK);
 		break;
-	}
 
 	case offsetof(struct user32, u_debugreg[0]) ...
 		offsetof(struct user32, u_debugreg[7]):
@@ -123,11 +120,11 @@ static int putreg32(struct task_struct *child, unsigned regno, u32 val)
 
 #define R32(l,q)							\
 	case offsetof(struct user32, regs.l):				\
-		*val = stack[offsetof(struct pt_regs, q)/8]; break
+		*val = regs->q; break
 
 static int getreg32(struct task_struct *child, unsigned regno, u32 *val)
 {
-	__u64 *stack = (__u64 *)task_pt_regs(child);
+	struct pt_regs *regs = task_pt_regs(child);
 
 	switch (regno) {
 	case offsetof(struct user32, regs.fs):
@@ -160,7 +157,7 @@ static int getreg32(struct task_struct *child, unsigned regno, u32 *val)
 		/*
 		 * If the debugger set TF, hide it from the readout.
 		 */
-		*val = stack[offsetof(struct pt_regs, flags)/8];
+		*val = regs->flags;
 		if (test_tsk_thread_flag(child, TIF_FORCED_TF))
 			*val &= ~X86_EFLAGS_TF;
 		break;
