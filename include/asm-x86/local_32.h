@@ -1,35 +1,21 @@
 #ifndef _ARCH_I386_LOCAL_H
 #define _ARCH_I386_LOCAL_H
 
-#include <linux/percpu.h>
-#include <asm/system.h>
-#include <asm/atomic.h>
-
-typedef struct
-{
-	atomic_long_t a;
-} local_t;
-
-#define LOCAL_INIT(i)	{ ATOMIC_LONG_INIT(i) }
-
-#define local_read(l)	atomic_long_read(&(l)->a)
-#define local_set(l,i)	atomic_long_set(&(l)->a, (i))
-
-static __inline__ void local_inc(local_t *l)
+static inline void local_inc(local_t *l)
 {
 	__asm__ __volatile__(
 		"incl %0"
 		:"+m" (l->a.counter));
 }
 
-static __inline__ void local_dec(local_t *l)
+static inline void local_dec(local_t *l)
 {
 	__asm__ __volatile__(
 		"decl %0"
 		:"+m" (l->a.counter));
 }
 
-static __inline__ void local_add(long i, local_t *l)
+static inline void local_add(long i, local_t *l)
 {
 	__asm__ __volatile__(
 		"addl %1,%0"
@@ -37,7 +23,7 @@ static __inline__ void local_add(long i, local_t *l)
 		:"ir" (i));
 }
 
-static __inline__ void local_sub(long i, local_t *l)
+static inline void local_sub(long i, local_t *l)
 {
 	__asm__ __volatile__(
 		"subl %1,%0"
@@ -54,7 +40,7 @@ static __inline__ void local_sub(long i, local_t *l)
  * true if the result is zero, or false for all
  * other cases.
  */
-static __inline__ int local_sub_and_test(long i, local_t *l)
+static inline int local_sub_and_test(long i, local_t *l)
 {
 	unsigned char c;
 
@@ -73,7 +59,7 @@ static __inline__ int local_sub_and_test(long i, local_t *l)
  * returns true if the result is 0, or false for all other
  * cases.
  */
-static __inline__ int local_dec_and_test(local_t *l)
+static inline int local_dec_and_test(local_t *l)
 {
 	unsigned char c;
 
@@ -92,7 +78,7 @@ static __inline__ int local_dec_and_test(local_t *l)
  * and returns true if the result is zero, or false for all
  * other cases.
  */
-static __inline__ int local_inc_and_test(local_t *l)
+static inline int local_inc_and_test(local_t *l)
 {
 	unsigned char c;
 
@@ -112,7 +98,7 @@ static __inline__ int local_inc_and_test(local_t *l)
  * if the result is negative, or false when
  * result is greater than or equal to zero.
  */
-static __inline__ int local_add_negative(long i, local_t *l)
+static inline int local_add_negative(long i, local_t *l)
 {
 	unsigned char c;
 
@@ -130,7 +116,7 @@ static __inline__ int local_add_negative(long i, local_t *l)
  *
  * Atomically adds @i to @l and returns @i + @l
  */
-static __inline__ long local_add_return(long i, local_t *l)
+static inline long local_add_return(long i, local_t *l)
 {
 	long __i;
 #ifdef CONFIG_M386
@@ -156,7 +142,7 @@ no_xadd: /* Legacy 386 processor */
 #endif
 }
 
-static __inline__ long local_sub_return(long i, local_t *l)
+static inline long local_sub_return(long i, local_t *l)
 {
 	return local_add_return(-i,l);
 }
