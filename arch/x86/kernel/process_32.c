@@ -588,7 +588,7 @@ int dump_task_regs(struct task_struct *tsk, elf_gregset_t *regs)
 }
 
 #ifdef CONFIG_SECCOMP
-void hard_disable_TSC(void)
+static void hard_disable_TSC(void)
 {
 	write_cr4(read_cr4() | X86_CR4_TSD);
 }
@@ -603,7 +603,7 @@ void disable_TSC(void)
 		hard_disable_TSC();
 	preempt_enable();
 }
-void hard_enable_TSC(void)
+static void hard_enable_TSC(void)
 {
 	write_cr4(read_cr4() & ~X86_CR4_TSD);
 }
