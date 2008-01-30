@@ -53,7 +53,7 @@ ioremap_change_attr(unsigned long phys_addr, unsigned long size,
  		 * Must use a address here and not struct page because the phys addr
 		 * can be a in hole between nodes and not have an memmap entry.
 		 */
-		err = change_page_attr_addr(vaddr,npages,__pgprot(__PAGE_KERNEL|flags));
+		err = change_page_attr_addr(vaddr,npages,MAKE_GLOBAL(__PAGE_KERNEL|flags));
 		if (!err)
 			global_flush_tlb();
 	}
@@ -91,7 +91,7 @@ void __iomem * __ioremap(unsigned long phys_addr, unsigned long size, unsigned l
 	if (phys_addr >= ISA_START_ADDRESS && last_addr < ISA_END_ADDRESS)
 		return (__force void __iomem *)phys_to_virt(phys_addr);
 
-	pgprot = __pgprot(__PAGE_KERNEL_EXEC | _PAGE_GLOBAL | flags);
+	pgprot = MAKE_GLOBAL(__PAGE_KERNEL | flags);
 	/*
 	 * Mappings have to be page-aligned
 	 */
