@@ -227,6 +227,7 @@ asmlinkage long sys32_ptrace(long request, u32 pid, u32 addr, u32 data)
 	case PTRACE_KILL:
 	case PTRACE_CONT:
 	case PTRACE_SINGLESTEP:
+	case PTRACE_SINGLEBLOCK:
 	case PTRACE_DETACH:
 	case PTRACE_SYSCALL:
 	case PTRACE_OLDSETOPTIONS:

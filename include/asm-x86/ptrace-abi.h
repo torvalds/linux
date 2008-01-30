@@ -78,4 +78,6 @@
 # define PTRACE_SYSEMU_SINGLESTEP 32
 #endif
 
+#define PTRACE_SINGLEBLOCK	33	/* resume execution until next branch */
+
 #endif
