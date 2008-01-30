@@ -92,10 +92,12 @@ sched_clock(void) __attribute__((alias("native_sched_clock")));
 
 static int tsc_unstable;
 
-inline int check_tsc_unstable(void)
+int check_tsc_unstable(void)
 {
 	return tsc_unstable;
 }
+EXPORT_SYMBOL_GPL(check_tsc_unstable);
+
 #ifdef CONFIG_CPU_FREQ
 
 /* Frequency scaling support. Adjust the TSC based timer when the cpu frequency
