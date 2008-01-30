@@ -66,14 +66,15 @@ static u32 __init allocate_aperture(void)
 	 */
 	p = __alloc_bootmem_nopanic(aper_size, aper_size, 0);
 	if (!p || __pa(p)+aper_size > 0xffffffff) {
-		printk("Cannot allocate aperture memory hole (%p,%uK)\n",
-		       p, aper_size>>10);
+		printk(KERN_ERR
+			"Cannot allocate aperture memory hole (%p,%uK)\n",
+				p, aper_size>>10);
 		if (p)
 			free_bootmem(__pa(p), aper_size);
 		return 0;
 	}
-	printk("Mapping aperture over %d KB of RAM @ %lx\n",
-	       aper_size >> 10, __pa(p));
+	printk(KERN_INFO "Mapping aperture over %d KB of RAM @ %lx\n",
+			aper_size >> 10, __pa(p));
 	insert_aperture_resource((u32)__pa(p), aper_size);
 
 	return (u32)__pa(p);
@@ -83,18 +84,20 @@ static int __init aperture_valid(u64 aper_base, u32 aper_size)
 {
 	if (!aper_base)
 		return 0;
+
 	if (aper_size < 64*1024*1024) {
-		printk("Aperture too small (%d MB)\n", aper_size>>20);
+		printk(KERN_ERR "Aperture too small (%d MB)\n", aper_size>>20);
 		return 0;
 	}
 	if (aper_base + aper_size > 0x100000000UL) {
-		printk("Aperture beyond 4GB. Ignoring.\n");
+		printk(KERN_ERR "Aperture beyond 4GB. Ignoring.\n");
 		return 0;
 	}
 	if (e820_any_mapped(aper_base, aper_base + aper_size, E820_RAM)) {
-		printk("Aperture pointing to e820 RAM. Ignoring.\n");
+		printk(KERN_ERR "Aperture pointing to e820 RAM. Ignoring.\n");
 		return 0;
 	}
+
 	return 1;
 }
 
@@ -133,10 +136,10 @@ static __u32 __init read_agp(int num, int slot, int func, int cap, u32 *order)
 	u32 aper_low, aper_hi;
 	u64 aper;
 
-	printk("AGP bridge at %02x:%02x:%02x\n", num, slot, func);
+	printk(KERN_INFO "AGP bridge at %02x:%02x:%02x\n", num, slot, func);
 	apsizereg = read_pci_config_16(num, slot, func, cap + 0x14);
 	if (apsizereg == 0xffffffff) {
-		printk("APSIZE in AGP bridge unreadable\n");
+		printk(KERN_ERR "APSIZE in AGP bridge unreadable\n");
 		return 0;
 	}
 
@@ -153,8 +156,8 @@ static __u32 __init read_agp(int num, int slot, int func, int cap, u32 *order)
 	aper_hi = read_pci_config(num, slot, func, 0x14);
 	aper = (aper_low & ~((1<<22)-1)) | ((u64)aper_hi << 32);
 
-	printk("Aperture from AGP @ %Lx size %u MB (APSIZE %x)\n",
-	       aper, 32 << *order, apsizereg);
+	printk(KERN_INFO "Aperture from AGP @ %Lx size %u MB (APSIZE %x)\n",
+			aper, 32 << *order, apsizereg);
 
 	if (!aperture_valid(aper, (32*1024*1024) << *order))
 		return 0;
@@ -210,7 +213,7 @@ static __u32 __init search_agp_bridge(u32 *order, int *valid_agp)
 			}
 		}
 	}
-	printk("No AGP bridge found\n");
+	printk(KERN_INFO "No AGP bridge found\n");
 
 	return 0;
 }
@@ -240,8 +243,8 @@ void __init gart_iommu_hole_init(void)
 		aper_base = read_pci_config(0, num, 3, 0x94) & 0x7fff;
 		aper_base <<= 25;
 
-		printk("CPU %d: aperture @ %Lx size %u MB\n", num-24,
-		       aper_base, aper_size>>20);
+		printk(KERN_INFO "CPU %d: aperture @ %Lx size %u MB\n",
+				num-24, aper_base, aper_size>>20);
 
 		if (!aperture_valid(aper_base, aper_size)) {
 			fix = 1;
@@ -277,10 +280,13 @@ void __init gart_iommu_hole_init(void)
 		   force_iommu ||
 		   valid_agp ||
 		   fallback_aper_force) {
-		printk("Your BIOS doesn't leave a aperture memory hole\n");
-		printk("Please enable the IOMMU option in the BIOS setup\n");
-		printk("This costs you %d MB of RAM\n",
-		       32 << fallback_aper_order);
+		printk(KERN_ERR
+			"Your BIOS doesn't leave a aperture memory hole\n");
+		printk(KERN_ERR
+			"Please enable the IOMMU option in the BIOS setup\n");
+		printk(KERN_ERR
+			"This costs you %d MB of RAM\n",
+				32 << fallback_aper_order);
 
 		aper_order = fallback_aper_order;
 		aper_alloc = allocate_aperture();
