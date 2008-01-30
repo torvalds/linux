@@ -87,7 +87,11 @@ static __cpuinit void check_tsc_warp(void)
 			nr_warps++;
 			__raw_spin_unlock(&sync_lock);
 		}
-
+	}
+	if (!(now-start)) {
+		printk("Warning: zero tsc calibration delta: %Ld [max: %Ld]\n",
+			now-start, end-start);
+		WARN_ON(1);
 	}
 }
 
