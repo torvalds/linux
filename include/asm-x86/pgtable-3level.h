@@ -15,9 +15,19 @@
 #define pgd_ERROR(e) \
 	printk("%s:%d: bad pgd %p(%016Lx).\n", __FILE__, __LINE__, &(e), pgd_val(e))
 
-#define pud_none(pud)				0
-#define pud_bad(pud)				0
-#define pud_present(pud)			1
+
+static inline int pud_none(pud_t pud)
+{
+	return pud_val(pud) == 0;
+}
+static inline int pud_bad(pud_t pud)
+{
+	return (pud_val(pud) & ~(PTE_MASK | _KERNPG_TABLE | _PAGE_USER)) != 0;
+}
+static inline int pud_present(pud_t pud)
+{
+	return pud_val(pud) & _PAGE_PRESENT;
+}
 
 /* Rules for using set_pte: the pte being assigned *must* be
  * either not present or in a state where the hardware will
@@ -58,7 +68,7 @@ static inline void native_set_pmd(pmd_t *pmdp, pmd_t pmd)
 }
 static inline void native_set_pud(pud_t *pudp, pud_t pud)
 {
-	*pudp = pud;
+	set_64bit((unsigned long long *)(pudp),native_pud_val(pud));
 }
 
 /*
@@ -81,13 +91,20 @@ static inline void native_pmd_clear(pmd_t *pmd)
 	*(tmp + 1) = 0;
 }
 
-/*
- * Pentium-II erratum A13: in PAE mode we explicitly have to flush
- * the TLB via cr3 if the top-level pgd is changed...
- * We do not let the generic code free and clear pgd entries due to
- * this erratum.
- */
-static inline void pud_clear (pud_t * pud) { }
+static inline void pud_clear(pud_t *pudp)
+{
+	set_pud(pudp, __pud(0));
+
+	/*
+	 * Pentium-II erratum A13: in PAE mode we explicitly have to flush
+	 * the TLB via cr3 if the top-level pgd is changed...
+	 *
+	 * XXX I don't think we need to worry about this here, since
+	 * when clearing the pud, the calling code needs to flush the
+	 * tlb anyway.  But do it now for safety's sake. - jsgf
+	 */
+	write_cr3(read_cr3());
+}
 
 #define pud_page(pud) \
 ((struct page *) __va(pud_val(pud) & PAGE_MASK))

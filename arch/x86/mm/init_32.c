@@ -704,19 +704,6 @@ int arch_add_memory(int nid, u64 start, u64 size)
 }
 #endif
 
-struct kmem_cache *pmd_cache;
-
-void __init pgtable_cache_init(void)
-{
-	if (PTRS_PER_PMD > 1) {
-		pmd_cache = kmem_cache_create("pmd",
-					      PTRS_PER_PMD*sizeof(pmd_t),
-					      PTRS_PER_PMD*sizeof(pmd_t),
-					      SLAB_PANIC,
-					      pmd_ctor);
-	}
-}
-
 /*
  * This function cannot be __init, since exceptions don't work in that
  * section.  Put this after the callers, so that it cannot be inlined.
