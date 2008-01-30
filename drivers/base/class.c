@@ -863,7 +863,7 @@ EXPORT_SYMBOL_GPL(class_for_each_device);
  * The callback should return 0 if the device doesn't match and non-zero
  * if it does.  If the callback returns non-zero, this function will
  * return to the caller and not iterate over any more devices.
-
+ *
  * Note, you will need to drop the reference with put_device() after use.
  *
  * We hold class->sem in this function, so it can not be
