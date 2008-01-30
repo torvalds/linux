@@ -305,49 +305,53 @@ repeat:
  * Modules and drivers should use the set_memory_* APIs instead.
  */
 
+#define HIGH_MAP_START	__START_KERNEL_map
+#define HIGH_MAP_END	(__START_KERNEL_map + KERNEL_TEXT_SIZE)
+
 static int
 change_page_attr_addr(unsigned long address, pgprot_t mask_set,
-							pgprot_t mask_clr)
+		      pgprot_t mask_clr)
 {
-	int err = 0, kernel_map = 0;
-	unsigned long pfn;
-
-#ifdef CONFIG_X86_64
-	if (address >= __START_KERNEL_map &&
-			address < __START_KERNEL_map + KERNEL_TEXT_SIZE) {
-
-		address = (unsigned long)__va(__pa((void *)address));
-		kernel_map = 1;
-	}
-#endif
-
-	pfn = __pa(address) >> PAGE_SHIFT;
-
-	if (!kernel_map || 1) {
-		err = __change_page_attr(address, pfn, mask_set, mask_clr);
-		if (err)
-			return err;
-	}
+	unsigned long phys_addr = __pa(address);
+	unsigned long pfn = phys_addr >> PAGE_SHIFT;
+	int err;
 
 #ifdef CONFIG_X86_64
 	/*
-	 * Handle kernel mapping too which aliases part of
-	 * lowmem:
+	 * If we are inside the high mapped kernel range, then we
+	 * fixup the low mapping first. __va() returns the virtual
+	 * address in the linear mapping:
 	 */
-	if (__pa(address) < KERNEL_TEXT_SIZE) {
-		unsigned long addr2;
-
-		addr2 = __pa(address) + __START_KERNEL_map - phys_base;
-		/* Make sure the kernel mappings stay executable */
-		pgprot_val(mask_clr) |= _PAGE_NX;
-		/*
-		 * Our high aliases are imprecise, so do not propagate
-		 * failures back to users:
-		 */
-		__change_page_attr(addr2, pfn, mask_set, mask_clr);
-	}
+	if (within(address, HIGH_MAP_START, HIGH_MAP_END))
+		address = (unsigned long) __va(phys_addr);
 #endif
 
+	err = __change_page_attr(address, pfn, mask_set, mask_clr);
+	if (err)
+		return err;
+
+#ifdef CONFIG_X86_64
+	/*
+	 * If the physical address is inside the kernel map, we need
+	 * to touch the high mapped kernel as well:
+	 */
+	if (within(phys_addr, 0, KERNEL_TEXT_SIZE)) {
+		/*
+		 * Calc the high mapping address. See __phys_addr()
+		 * for the non obvious details.
+		 */
+		address = phys_addr + HIGH_MAP_START - phys_base;
+		/* Make sure the kernel mappings stay executable */
+		pgprot_val(mask_clr) |= _PAGE_NX;
+
+		/*
+		 * Our high aliases are imprecise, because we check
+		 * everything between 0 and KERNEL_TEXT_SIZE, so do
+		 * not propagate lookup failures back to users:
+		 */
+		__change_page_attr(address, pfn, mask_set, mask_clr);
+	}
+#endif
 	return err;
 }
 
