@@ -542,6 +542,13 @@ void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 }
 #endif
 
+static __init int setup_noclflush(char *arg)
+{
+	setup_clear_cpu_cap(X86_FEATURE_CLFLSH);
+	return 1;
+}
+__setup("noclflush", setup_noclflush);
+
 void __cpuinit print_cpu_info(struct cpuinfo_x86 *c)
 {
 	char *vendor = NULL;
