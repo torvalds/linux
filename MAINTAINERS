@@ -932,8 +932,6 @@ M:	maxk@qualcomm.com
 S:	Maintained
 
 BONDING DRIVER
-P:	Chad Tindel
-M:	ctindel@users.sourceforge.net
 P:	Jay Vosburgh
 M:	fubar@us.ibm.com
 L:	bonding-devel@lists.sourceforge.net
