@@ -31,7 +31,7 @@
 #include <linux/mmzone.h>
 #include <asm/cpu.h>
 
-static struct i386_cpu cpu_devices[NR_CPUS];
+static DEFINE_PER_CPU(struct x86_cpu, cpu_devices);
 
 int __cpuinit arch_register_cpu(int num)
 {
@@ -46,16 +46,16 @@ int __cpuinit arch_register_cpu(int num)
 	 */
 #ifdef CONFIG_HOTPLUG_CPU
 	if (num)
-		cpu_devices[num].cpu.hotpluggable = 1;
+		per_cpu(cpu_devices, num).cpu.hotpluggable = 1;
 #endif
 
-	return register_cpu(&cpu_devices[num].cpu, num);
+	return register_cpu(&per_cpu(cpu_devices, num).cpu, num);
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
 void arch_unregister_cpu(int num)
 {
-	return unregister_cpu(&cpu_devices[num].cpu);
+	return unregister_cpu(&per_cpu(cpu_devices, num).cpu);
 }
 EXPORT_SYMBOL(arch_register_cpu);
 EXPORT_SYMBOL(arch_unregister_cpu);
