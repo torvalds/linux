@@ -677,7 +677,7 @@ out_of_memory:
 		goto again;
 	}
 	printk("VM: killing process %s\n", tsk->comm);
-	if (error_code & 4)
+	if (error_code & PF_USER)
 		do_group_exit(SIGKILL);
 	goto no_context;
 

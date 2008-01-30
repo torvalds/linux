@@ -404,7 +404,8 @@ void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
 	 * protection error (error_code & 9) == 0.
 	 */
 	if (unlikely(address >= TASK_SIZE)) {
-		if (!(error_code & 0x0000000d) && vmalloc_fault(address) >= 0)
+		if (!(error_code & (PF_RSVD|PF_USER|PF_PROT)) &&
+		    vmalloc_fault(address) >= 0)
 			return;
 		if (notify_page_fault(regs))
 			return;
@@ -603,7 +604,7 @@ no_context:
 		__typeof__(pte_val(__pte(0))) page;
 
 #ifdef CONFIG_X86_PAE
-		if (error_code & 16) {
+		if (error_code & PF_INSTR) {
 			pte_t *pte = lookup_address(address);
 
 			if (pte && pte_present(*pte) && !pte_exec_kernel(*pte))
@@ -674,7 +675,7 @@ out_of_memory:
 		goto survive;
 	}
 	printk("VM: killing process %s\n", tsk->comm);
-	if (error_code & 4)
+	if (error_code & PF_USER)
 		do_group_exit(SIGKILL);
 	goto no_context;
 
