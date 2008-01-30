@@ -7,29 +7,8 @@
 extern unsigned long end_pfn;
 extern unsigned long end_pfn_map;
 
-/*
- * These are used to make use of C type-checking..
- */
-typedef struct { unsigned long pmd; } pmd_t;
-typedef struct { unsigned long pud; } pud_t;
-typedef struct { unsigned long pgd; } pgd_t;
-#define PTE_MASK	PHYSICAL_PAGE_MASK
-
-typedef struct { unsigned long pgprot; } pgprot_t;
 
 extern unsigned long phys_base;
-
-#define pte_val(x)	((x).pte)
-#define pmd_val(x)	((x).pmd)
-#define pud_val(x)	((x).pud)
-#define pgd_val(x)	((x).pgd)
-#define pgprot_val(x)	((x).pgprot)
-
-#define __pte(x) ((pte_t) { (x) } )
-#define __pmd(x) ((pmd_t) { (x) } )
-#define __pud(x) ((pud_t) { (x) } )
-#define __pgd(x) ((pgd_t) { (x) } )
-#define __pgprot(x)	((pgprot_t) { (x) } )
 
 #endif /* !__ASSEMBLY__ */
 
