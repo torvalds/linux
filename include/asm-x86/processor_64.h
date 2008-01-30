@@ -18,8 +18,6 @@
 #include <linux/personality.h>
 #include <asm/desc_defs.h>
 
-extern char ignore_irq13;
-
 extern void identify_cpu(struct cpuinfo_x86 *);
 
 /*
@@ -67,9 +65,6 @@ DECLARE_PER_CPU(struct orig_ist, orig_ist);
 #define INIT_TSS  { \
 	.x86_tss.sp0 = (unsigned long)&init_stack + sizeof(init_stack) \
 }
-
-#define INIT_MMAP \
-{ &init_mm, 0, 0, NULL, PAGE_SHARED, VM_READ | VM_WRITE | VM_EXEC, 1, NULL, NULL }
 
 #define start_thread(regs,new_rip,new_rsp) do { \
 	asm volatile("movl %0,%%fs; movl %0,%%es; movl %0,%%ds": :"r" (0));	 \
@@ -143,14 +138,5 @@ static inline void prefetchw(void *x)
 			  X86_FEATURE_3DNOW,
 			  "r" (x));
 } 
-
-
-#define stack_current() \
-({								\
-	struct thread_info *ti;					\
-	asm("andq %%rsp,%0; ":"=r" (ti) : "0" (CURRENT_MASK));	\
-	ti->task;					\
-})
-
 
 #endif /* __ASM_X86_64_PROCESSOR_H */
