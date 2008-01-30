@@ -2,7 +2,7 @@
 *******************************************************************************
 **
 **  Copyright (C) Sistina Software, Inc.  1997-2003  All rights reserved.
-**  Copyright (C) 2004-2007 Red Hat, Inc.  All rights reserved.
+**  Copyright (C) 2004-2008 Red Hat, Inc.  All rights reserved.
 **
 **  This copyrighted material is made available to anyone wishing to use,
 **  modify, copy, or redistribute it subject to the terms and conditions
@@ -58,8 +58,12 @@ static void copy_from_cb(void *dst, const void *base, unsigned offset,
 int dlm_process_incoming_buffer(int nodeid, const void *base,
 				unsigned offset, unsigned len, unsigned limit)
 {
-	unsigned char __tmp[DLM_INBUF_LEN];
-	struct dlm_header *msg = (struct dlm_header *) __tmp;
+	union {
+		unsigned char __buf[DLM_INBUF_LEN];
+		/* this is to force proper alignment on some arches */
+		struct dlm_header dlm;
+	} __tmp;
+	struct dlm_header *msg = &__tmp.dlm;
 	int ret = 0;
 	int err = 0;
 	uint16_t msglen;
@@ -100,8 +104,7 @@ int dlm_process_incoming_buffer(int nodeid, const void *base,
 		   in the buffer on the stack (which should work for most
 		   ordinary messages). */
 
-		if (msglen > sizeof(__tmp) &&
-		    msg == (struct dlm_header *) __tmp) {
+		if (msglen > DLM_INBUF_LEN && msg == &__tmp.dlm) {
 			msg = kmalloc(dlm_config.ci_buffer_size, GFP_KERNEL);
 			if (msg == NULL)
 				return ret;
@@ -119,7 +122,7 @@ int dlm_process_incoming_buffer(int nodeid, const void *base,
 		dlm_receive_buffer(msg, nodeid);
 	}
 
-	if (msg != (struct dlm_header *) __tmp)
+	if (msg != &__tmp.dlm)
 		kfree(msg);
 
 	return err ? err : ret;
