@@ -50,4 +50,4 @@ __kernel_vsyscall:
 /*
  * Get the common code for the sigreturn entry points.
  */
-#include "vsyscall-sigreturn_32.S"
+#include "sigreturn.S"

@@ -70,9 +70,9 @@ __kernel_rt_sigreturn:
 	   be the value of the stack pointer in the caller.  This means
 	   that we must define the CFA of this body of code to be the
 	   saved value of the stack pointer in the sigcontext.  Which
-	   also means that there is no fixed relation to the other 
+	   also means that there is no fixed relation to the other
 	   saved registers, which means that we must use DW_CFA_expression
-	   to compute their addresses.  It also means that when we 
+	   to compute their addresses.  It also means that when we
 	   adjust the stack with the popl, we have to do it all over again.  */
 
 #define do_cfa_expr(offset)						\

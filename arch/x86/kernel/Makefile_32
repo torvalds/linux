@@ -56,6 +56,9 @@ $(obj)/vsyscall_32.o: $(obj)/vsyscall-int80_32.so $(obj)/vsyscall-sysenter_32.so
 targets += $(foreach F,int80 sysenter,vsyscall-$F_32.o vsyscall-$F_32.so)
 targets += vsyscall-note_32.o vsyscall_32.lds
 
+$(obj)/vsyscall-%_32.o: $(src)/../vdso/vdso32/%.S
+	$(call if_changed_dep,as_o_S)
+
 # The DSO images are built using a special linker script.
 quiet_cmd_syscall = SYSCALL $@
       cmd_syscall = $(CC) -m elf_i386 -nostdlib $(SYSCFLAGS_$(@F)) \

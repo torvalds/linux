@@ -139,5 +139,4 @@ __kernel_rt_sigreturn:
 	.align 4
 .LENDFDE3:
 
-#include "../../x86/kernel/vsyscall-note_32.S"
-
+#include "../vdso/vdso32/note.S"
