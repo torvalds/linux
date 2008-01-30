@@ -6805,9 +6805,6 @@ struct bnx2 {
 	int			irq_nvecs;
 };
 
-static u32 bnx2_reg_rd_ind(struct bnx2 *bp, u32 offset);
-static void bnx2_reg_wr_ind(struct bnx2 *bp, u32 offset, u32 val);
-
 #define REG_RD(bp, offset)					\
 	readl(bp->regview + offset)
 
@@ -6816,12 +6813,6 @@ static void bnx2_reg_wr_ind(struct bnx2 *bp, u32 offset, u32 val);
 
 #define REG_WR16(bp, offset, val)				\
 	writew(val, bp->regview + offset)
-
-#define REG_RD_IND(bp, offset)					\
-	bnx2_reg_rd_ind(bp, offset)
-
-#define REG_WR_IND(bp, offset, val)				\
-	bnx2_reg_wr_ind(bp, offset, val)
 
 /* Indirect context access.  Unlike the MBQ_WR, these macros will not
  * trigger a chip event. */
