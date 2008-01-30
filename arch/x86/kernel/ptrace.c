@@ -45,90 +45,120 @@
 static long *pt_regs_access(struct pt_regs *regs, unsigned long regno)
 {
 	BUILD_BUG_ON(offsetof(struct pt_regs, bx) != 0);
+	regno >>= 2;
 	if (regno > FS)
 		--regno;
 	return &regs->bx + regno;
 }
 
-static int putreg(struct task_struct *child,
-	unsigned long regno, unsigned long value)
+static u16 get_segment_reg(struct task_struct *task, unsigned long offset)
 {
-	struct pt_regs *regs = task_pt_regs(child);
-	regno >>= 2;
-	switch (regno) {
-	case GS:
-		if (value && (value & 3) != 3)
-			return -EIO;
-		child->thread.gs = value;
-		if (child == current)
+	/*
+	 * Returning the value truncates it to 16 bits.
+	 */
+	unsigned int retval;
+	if (offset != offsetof(struct user_regs_struct, gs))
+		retval = *pt_regs_access(task_pt_regs(task), offset);
+	else {
+		retval = task->thread.gs;
+		if (task == current)
+			savesegment(gs, retval);
+	}
+	return retval;
+}
+
+static int set_segment_reg(struct task_struct *task,
+			   unsigned long offset, u16 value)
+{
+	/*
+	 * The value argument was already truncated to 16 bits.
+	 */
+	if (value && (value & 3) != 3)
+		return -EIO;
+
+	if (offset != offsetof(struct user_regs_struct, gs))
+		*pt_regs_access(task_pt_regs(task), offset) = value;
+	else {
+		task->thread.gs = value;
+		if (task == current)
 			/*
 			 * The user-mode %gs is not affected by
 			 * kernel entry, so we must update the CPU.
 			 */
 			loadsegment(gs, value);
-		return 0;
-	case DS:
-	case ES:
-	case FS:
-		if (value && (value & 3) != 3)
-			return -EIO;
-		value &= 0xffff;
-		break;
-	case SS:
-	case CS:
-		if ((value & 3) != 3)
-			return -EIO;
-		value &= 0xffff;
-		break;
-	case EFL:
-		value &= FLAG_MASK;
-		/*
-		 * If the user value contains TF, mark that
-		 * it was not "us" (the debugger) that set it.
-		 * If not, make sure it stays set if we had.
-		 */
-		if (value & X86_EFLAGS_TF)
-			clear_tsk_thread_flag(child, TIF_FORCED_TF);
-		else if (test_tsk_thread_flag(child, TIF_FORCED_TF))
-			value |= X86_EFLAGS_TF;
-		value |= regs->flags & ~FLAG_MASK;
-		break;
 	}
-	*pt_regs_access(regs, regno) = value;
+
 	return 0;
 }
 
-static unsigned long getreg(struct task_struct *child, unsigned long regno)
+static unsigned long get_flags(struct task_struct *task)
 {
-	struct pt_regs *regs = task_pt_regs(child);
-	unsigned long retval = ~0UL;
+	unsigned long retval = task_pt_regs(task)->flags;
 
-	regno >>= 2;
-	switch (regno) {
-	case EFL:
-		/*
-		 * If the debugger set TF, hide it from the readout.
-		 */
-		retval = regs->flags;
-		if (test_tsk_thread_flag(child, TIF_FORCED_TF))
-			retval &= ~X86_EFLAGS_TF;
-		break;
-	case GS:
-		retval = child->thread.gs;
-		if (child == current)
-			savesegment(gs, retval);
-		break;
-	case DS:
-	case ES:
-	case FS:
-	case SS:
-	case CS:
-		retval = 0xffff;
-		/* fall through */
-	default:
-		retval &= *pt_regs_access(regs, regno);
-	}
+	/*
+	 * If the debugger set TF, hide it from the readout.
+	 */
+	if (test_tsk_thread_flag(task, TIF_FORCED_TF))
+		retval &= ~X86_EFLAGS_TF;
+
 	return retval;
+}
+
+static int set_flags(struct task_struct *task, unsigned long value)
+{
+	struct pt_regs *regs = task_pt_regs(task);
+
+	/*
+	 * If the user value contains TF, mark that
+	 * it was not "us" (the debugger) that set it.
+	 * If not, make sure it stays set if we had.
+	 */
+	if (value & X86_EFLAGS_TF)
+		clear_tsk_thread_flag(task, TIF_FORCED_TF);
+	else if (test_tsk_thread_flag(task, TIF_FORCED_TF))
+		value |= X86_EFLAGS_TF;
+
+	regs->flags = (regs->flags & ~FLAG_MASK) | (value & FLAG_MASK);
+
+	return 0;
+}
+
+static int putreg(struct task_struct *child,
+		  unsigned long offset, unsigned long value)
+{
+	switch (offset) {
+	case offsetof(struct user_regs_struct, cs):
+	case offsetof(struct user_regs_struct, ds):
+	case offsetof(struct user_regs_struct, es):
+	case offsetof(struct user_regs_struct, fs):
+	case offsetof(struct user_regs_struct, gs):
+	case offsetof(struct user_regs_struct, ss):
+		return set_segment_reg(child, offset, value);
+
+	case offsetof(struct user_regs_struct, flags):
+		return set_flags(child, value);
+	}
+
+	*pt_regs_access(task_pt_regs(child), offset) = value;
+	return 0;
+}
+
+static unsigned long getreg(struct task_struct *task, unsigned long offset)
+{
+	switch (offset) {
+	case offsetof(struct user_regs_struct, cs):
+	case offsetof(struct user_regs_struct, ds):
+	case offsetof(struct user_regs_struct, es):
+	case offsetof(struct user_regs_struct, fs):
+	case offsetof(struct user_regs_struct, gs):
+	case offsetof(struct user_regs_struct, ss):
+		return get_segment_reg(task, offset);
+
+	case offsetof(struct user_regs_struct, flags):
+		return get_flags(task);
+	}
+
+	return *pt_regs_access(task_pt_regs(task), offset);
 }
 
 /*
