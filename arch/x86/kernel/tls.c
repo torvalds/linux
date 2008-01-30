@@ -26,7 +26,7 @@ static int get_free_idx(void)
 
 /*
  * Set a given TLS descriptor:
- * When you want addresses > 32bit use arch_prctl() 
+ * When you want addresses > 32bit use arch_prctl()
  */
 int do_set_thread_area(struct thread_struct *t, struct user_desc __user *u_info)
 {
@@ -76,9 +76,9 @@ int do_set_thread_area(struct thread_struct *t, struct user_desc __user *u_info)
 }
 
 asmlinkage long sys32_set_thread_area(struct user_desc __user *u_info)
-{ 
-	return do_set_thread_area(&current->thread, u_info); 
-} 
+{
+	return do_set_thread_area(&current->thread, u_info);
+}
 
 
 /*
@@ -88,7 +88,7 @@ asmlinkage long sys32_set_thread_area(struct user_desc __user *u_info)
 #define GET_LIMIT(desc) ( \
 	((desc)->a & 0x0ffff) | \
 	 ((desc)->b & 0xf0000) )
-	
+
 #define GET_32BIT(desc)		(((desc)->b >> 22) & 1)
 #define GET_CONTENTS(desc)	(((desc)->b >> 10) & 3)
 #define GET_WRITABLE(desc)	(((desc)->b >>  9) & 1)
@@ -130,7 +130,7 @@ int do_get_thread_area(struct thread_struct *t, struct user_desc __user *u_info)
 asmlinkage long sys32_get_thread_area(struct user_desc __user *u_info)
 {
 	return do_get_thread_area(&current->thread, u_info);
-} 
+}
 
 
 int ia32_child_tls(struct task_struct *p, struct pt_regs *childregs)
@@ -139,17 +139,17 @@ int ia32_child_tls(struct task_struct *p, struct pt_regs *childregs)
 	struct user_desc info;
 	struct user_desc __user *cp;
 	int idx;
-	
+
 	cp = (void __user *)childregs->rsi;
 	if (copy_from_user(&info, cp, sizeof(info)))
 		return -EFAULT;
 	if (LDT_empty(&info))
 		return -EINVAL;
-	
+
 	idx = info.entry_number;
 	if (idx < GDT_ENTRY_TLS_MIN || idx > GDT_ENTRY_TLS_MAX)
 		return -EINVAL;
-	
+
 	desc = (struct n_desc_struct *)(p->thread.tls_array) + idx - GDT_ENTRY_TLS_MIN;
 	desc->a = LDT_entry_a(&info);
 	desc->b = LDT_entry_b(&info);
