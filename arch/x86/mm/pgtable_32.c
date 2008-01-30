@@ -205,27 +205,18 @@ struct page *pte_alloc_one(struct mm_struct *mm, unsigned long address)
  * vmalloc faults work because attached pagetables are never freed.
  * -- wli
  */
-DEFINE_SPINLOCK(pgd_lock);
-struct page *pgd_list;
-
 static inline void pgd_list_add(pgd_t *pgd)
 {
 	struct page *page = virt_to_page(pgd);
-	page->index = (unsigned long)pgd_list;
-	if (pgd_list)
-		set_page_private(pgd_list, (unsigned long)&page->index);
-	pgd_list = page;
-	set_page_private(page, (unsigned long)&pgd_list);
+
+	list_add(&page->lru, &pgd_list);
 }
 
 static inline void pgd_list_del(pgd_t *pgd)
 {
-	struct page *next, **pprev, *page = virt_to_page(pgd);
-	next = (struct page *)page->index;
-	pprev = (struct page **)page_private(page);
-	*pprev = next;
-	if (next)
-		set_page_private(next, (unsigned long)pprev);
+	struct page *page = virt_to_page(pgd);
+
+	list_del(&page->lru);
 }
 
 

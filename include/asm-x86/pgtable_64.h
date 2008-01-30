@@ -240,9 +240,6 @@ static inline unsigned long pmd_bad(pmd_t pmd)
 #define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val(pte) })
 #define __swp_entry_to_pte(x)		((pte_t) { .pte = (x).val })
 
-extern spinlock_t pgd_lock;
-extern struct list_head pgd_list;
-
 extern int kern_addr_valid(unsigned long addr); 
 
 #define io_remap_pfn_range(vma, vaddr, pfn, size, prot)		\

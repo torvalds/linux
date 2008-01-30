@@ -907,10 +907,8 @@ do_sigbus:
 	force_sig_info_fault(SIGBUS, BUS_ADRERR, address, tsk);
 }
 
-#ifdef CONFIG_X86_64
 DEFINE_SPINLOCK(pgd_lock);
 LIST_HEAD(pgd_list);
-#endif
 
 void vmalloc_sync_all(void)
 {
@@ -935,13 +933,11 @@ void vmalloc_sync_all(void)
 			struct page *page;
 
 			spin_lock_irqsave(&pgd_lock, flags);
-			for (page = pgd_list; page; page =
-					(struct page *)page->index)
+			list_for_each_entry(page, &pgd_list, lru) {
 				if (!vmalloc_sync_one(page_address(page),
-								address)) {
-					BUG_ON(page != pgd_list);
+						      address))
 					break;
-				}
+			}
 			spin_unlock_irqrestore(&pgd_lock, flags);
 			if (!page)
 				set_bit(pgd_index(address), insync);

@@ -131,6 +131,8 @@ extern pteval_t __PAGE_KERNEL, __PAGE_KERNEL_EXEC;
 extern unsigned long empty_zero_page[PAGE_SIZE/sizeof(unsigned long)];
 #define ZERO_PAGE(vaddr) (virt_to_page(empty_zero_page))
 
+extern spinlock_t pgd_lock;
+extern struct list_head pgd_list;
 
 /*
  * The following only work if pte_present() is true.

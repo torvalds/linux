@@ -175,7 +175,7 @@ static void __set_pmd_pte(pte_t *kpte, unsigned long address, pte_t pte)
 	if (!SHARED_KERNEL_PMD) {
 		struct page *page;
 
-		for (page = pgd_list; page; page = (struct page *)page->index) {
+		list_for_each_entry(page, &pgd_list, lru) {
 			pgd_t *pgd;
 			pud_t *pud;
 			pmd_t *pmd;
