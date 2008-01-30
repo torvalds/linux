@@ -126,10 +126,11 @@ out_unlock:
 static int
 __change_page_attr(unsigned long address, struct page *page, pgprot_t prot)
 {
-	pgprot_t ref_prot2, oldprot;
 	struct page *kpte_page;
 	int level, err = 0;
 	pte_t *kpte;
+
+	BUG_ON(PageHighMem(page));
 
 repeat:
 	kpte = lookup_address(address, &level);
@@ -137,19 +138,24 @@ repeat:
 		return 0;
 
 	kpte_page = virt_to_page(kpte);
-	oldprot = pte_pgprot(*kpte);
 	BUG_ON(PageLRU(kpte_page));
 	BUG_ON(PageCompound(kpte_page));
-	prot = canon_pgprot(prot);
+
+	/*
+	 * Better fail early if someone sets the kernel text to NX.
+	 * Does not cover __inittext
+	 */
+	BUG_ON(address >= (unsigned long)&_text &&
+		address < (unsigned long)&_etext &&
+	       (pgprot_val(prot) & _PAGE_NX));
 
 	if (level == 4) {
-		set_pte_atomic(kpte, mk_pte(page, prot));
+		set_pte_atomic(kpte, mk_pte(page, canon_pgprot(prot)));
 	} else {
 		err = split_large_page(kpte, address);
 		if (!err)
 			goto repeat;
 	}
-
 	return err;
 }
 
