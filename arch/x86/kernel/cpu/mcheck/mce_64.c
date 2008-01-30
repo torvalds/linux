@@ -63,7 +63,7 @@ static DECLARE_WAIT_QUEUE_HEAD(mce_wait);
  * separate MCEs from kernel messages to avoid bogus bug reports.
  */
 
-struct mce_log mcelog = {
+static struct mce_log mcelog = {
 	MCE_LOG_SIGNATURE,
 	MCE_LOG_LEN,
 };
