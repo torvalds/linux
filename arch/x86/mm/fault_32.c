@@ -173,6 +173,44 @@ static void force_sig_info_fault(int si_signo, int si_code,
 	force_sig_info(si_signo, &info, tsk);
 }
 
+void dump_pagetable(unsigned long address)
+{
+	__typeof__(pte_val(__pte(0))) page;
+
+	page = read_cr3();
+	page = ((__typeof__(page) *) __va(page))[address >> PGDIR_SHIFT];
+#ifdef CONFIG_X86_PAE
+	printk("*pdpt = %016Lx ", page);
+	if ((page >> PAGE_SHIFT) < max_low_pfn
+	    && page & _PAGE_PRESENT) {
+		page &= PAGE_MASK;
+		page = ((__typeof__(page) *) __va(page))[(address >> PMD_SHIFT)
+		                                         & (PTRS_PER_PMD - 1)];
+		printk(KERN_CONT "*pde = %016Lx ", page);
+		page &= ~_PAGE_NX;
+	}
+#else
+	printk("*pde = %08lx ", page);
+#endif
+
+	/*
+	 * We must not directly access the pte in the highpte
+	 * case if the page table is located in highmem.
+	 * And let's rather not kmap-atomic the pte, just in case
+	 * it's allocated already.
+	 */
+	if ((page >> PAGE_SHIFT) < max_low_pfn
+	    && (page & _PAGE_PRESENT)
+	    && !(page & _PAGE_PSE)) {
+		page &= PAGE_MASK;
+		page = ((__typeof__(page) *) __va(page))[(address >> PAGE_SHIFT)
+		                                         & (PTRS_PER_PTE - 1)];
+		printk("*pte = %0*Lx ", sizeof(page)*2, (u64)page);
+	}
+
+	printk("\n");
+}
+
 void do_invalid_op(struct pt_regs *, unsigned long);
 
 static inline pmd_t *vmalloc_sync_one(pgd_t *pgd, unsigned long address)
@@ -572,7 +610,6 @@ no_context:
 	bust_spinlocks(1);
 
 	if (oops_may_print()) {
-		__typeof__(pte_val(__pte(0))) page;
 
 #ifdef CONFIG_X86_PAE
 		if (error_code & PF_INSTR) {
@@ -593,38 +630,7 @@ no_context:
 		printk(" at virtual address %08lx\n", address);
 		printk(KERN_ALERT "printing ip: %08lx ", regs->ip);
 
-		page = read_cr3();
-		page = ((__typeof__(page) *) __va(page))[address >> PGDIR_SHIFT];
-#ifdef CONFIG_X86_PAE
-		printk("*pdpt = %016Lx ", page);
-		if ((page >> PAGE_SHIFT) < max_low_pfn
-		    && page & _PAGE_PRESENT) {
-			page &= PAGE_MASK;
-			page = ((__typeof__(page) *) __va(page))[(address >> PMD_SHIFT)
-			                                         & (PTRS_PER_PMD - 1)];
-			printk(KERN_CONT "*pde = %016Lx ", page);
-			page &= ~_PAGE_NX;
-		}
-#else
-		printk("*pde = %08lx ", page);
-#endif
-
-		/*
-		 * We must not directly access the pte in the highpte
-		 * case if the page table is located in highmem.
-		 * And let's rather not kmap-atomic the pte, just in case
-		 * it's allocated already.
-		 */
-		if ((page >> PAGE_SHIFT) < max_low_pfn
-		    && (page & _PAGE_PRESENT)
-		    && !(page & _PAGE_PSE)) {
-			page &= PAGE_MASK;
-			page = ((__typeof__(page) *) __va(page))[(address >> PAGE_SHIFT)
-			                                         & (PTRS_PER_PTE - 1)];
-			printk("*pte = %0*Lx ", sizeof(page)*2, (u64)page);
-		}
-
-		printk("\n");
+		dump_pagetable(address);
 	}
 
 	tsk->thread.cr2 = address;
