@@ -2,8 +2,12 @@
 #define _ASM_X86_SYSTEM_H_
 
 #include <asm/asm.h>
+#include <asm/segment.h>
+#include <asm/cpufeature.h>
+#include <asm/cmpxchg.h>
 
 #include <linux/kernel.h>
+#include <linux/irqflags.h>
 
 #ifdef CONFIG_X86_32
 #define AT_VECTOR_SIZE_ARCH 2 /* entries in ARCH_DLINFO */
@@ -34,7 +38,10 @@ extern struct task_struct *FASTCALL(__switch_to(struct task_struct *prev,
 		      "2" (prev), "d" (next));				\
 } while (0)
 
-# include "system_32.h"
+/*
+ * disable hlt during certain critical i/o operations
+ */
+#define HAVE_DISABLE_HLT
 #else
 #define __SAVE(reg, offset) "movq %%" #reg ",(14-" #offset ")*8(%%rsp)\n\t"
 #define __RESTORE(reg, offset) "movq (14-" #offset ")*8(%%rsp),%%" #reg "\n\t"
@@ -69,7 +76,6 @@ extern struct task_struct *FASTCALL(__switch_to(struct task_struct *prev,
 	       [thread_info] "i" (offsetof(struct task_struct, stack)),   \
 	       [pda_pcurrent] "i" (offsetof(struct x8664_pda, pcurrent))  \
 	     : "memory", "cc" __EXTRA_CLOBBER)
-# include "system_64.h"
 #endif
 
 #ifdef __KERNEL__
@@ -235,6 +241,22 @@ static inline void native_wbinvd(void)
 #define read_cr4_safe()	(native_read_cr4_safe())
 #define write_cr4(x)	(native_write_cr4(x))
 #define wbinvd()	(native_wbinvd())
+
+#ifdef CONFIG_X86_64
+
+static inline unsigned long read_cr8(void)
+{
+	unsigned long cr8;
+	asm volatile("movq %%cr8,%0" : "=r" (cr8));
+	return cr8;
+}
+
+static inline void write_cr8(unsigned long val)
+{
+	asm volatile("movq %0,%%cr8" :: "r" (val) : "memory");
+}
+
+#endif
 
 /* Clear the 'TS' bit */
 #define clts()		(native_clts())
