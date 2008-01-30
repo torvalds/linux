@@ -18,6 +18,7 @@
 #include <asm/fixmap.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
+#include <asm/pgalloc.h>
 
 enum ioremap_mode {
 	IOR_MODE_UNCACHED,
@@ -326,6 +327,7 @@ void __init early_ioremap_clear(void)
 
 	pgd = early_ioremap_pgd(fix_to_virt(FIX_BTMAP_BEGIN));
 	*pgd = 0;
+	paravirt_release_pt(__pa(pgd) >> PAGE_SHIFT);
 	__flush_tlb_all();
 }
 
