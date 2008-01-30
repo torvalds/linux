@@ -45,6 +45,7 @@
 #include <asm/mtrr.h>
 #include <asm/uaccess.h>
 #include <asm/system.h>
+#include <asm/vsyscall.h>
 #include <asm/io.h>
 #include <asm/smp.h>
 #include <asm/msr.h>
@@ -453,6 +454,7 @@ void __init setup_arch(char **cmdline_p)
 #endif
 	reserve_crashkernel();
 	paging_init();
+	map_vsyscall();
 
 	early_quirks();
 

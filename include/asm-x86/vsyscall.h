@@ -36,6 +36,8 @@ extern volatile unsigned long __jiffies;
 extern int vgetcpu_mode;
 extern struct timezone sys_tz;
 
+extern void map_vsyscall(void);
+
 #endif /* __KERNEL__ */
 
 #endif /* _ASM_X86_64_VSYSCALL_H_ */
