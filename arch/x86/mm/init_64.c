@@ -606,6 +606,16 @@ void mark_rodata_ro(void)
 	 * of who is the culprit.
 	 */
 	global_flush_tlb();
+
+#ifdef CONFIG_CPA_DEBUG
+	printk("Testing CPA: undo %lx-%lx\n", start, end);
+	change_page_attr_addr(start, (end - start) >> PAGE_SHIFT, PAGE_KERNEL);
+	global_flush_tlb();
+
+	printk("Testing CPA: again\n");
+	change_page_attr_addr(start, (end - start) >> PAGE_SHIFT, PAGE_KERNEL_RO);
+	global_flush_tlb();
+#endif
 }
 #endif
 

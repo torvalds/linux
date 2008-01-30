@@ -799,6 +799,20 @@ void mark_rodata_ro(void)
 		change_page_attr(virt_to_page(start),
 		                 size >> PAGE_SHIFT, PAGE_KERNEL_RX);
 		printk("Write protecting the kernel text: %luk\n", size >> 10);
+
+#ifdef CONFIG_CPA_DEBUG
+		global_flush_tlb();
+
+		printk("Testing CPA: Reverting %lx-%lx\n", start, start+size);
+		change_page_attr(virt_to_page(start), size>>PAGE_SHIFT,
+				 PAGE_KERNEL_EXEC);
+		global_flush_tlb();
+
+		printk("Testing CPA: write protecting again\n");
+		change_page_attr(virt_to_page(start), size>>PAGE_SHIFT,
+				PAGE_KERNEL_RX);
+		global_flush_tlb();
+#endif
 	}
 #endif
 	start += size;
@@ -815,6 +829,18 @@ void mark_rodata_ro(void)
 	 * of who is the culprit.
 	 */
 	global_flush_tlb();
+
+#ifdef CONFIG_CPA_DEBUG
+	printk("Testing CPA: undo %lx-%lx\n", start, start + size);
+	change_page_attr(virt_to_page(start), size >> PAGE_SHIFT,
+				PAGE_KERNEL);
+	global_flush_tlb();
+
+	printk("Testing CPA: write protecting again\n");
+	change_page_attr(virt_to_page(start), size >> PAGE_SHIFT,
+				PAGE_KERNEL_RO);
+	global_flush_tlb();
+#endif
 }
 #endif
 
