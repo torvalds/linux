@@ -774,6 +774,13 @@ void __cpuinit setup_local_APIC(void)
 		value = APIC_DM_NMI | APIC_LVT_MASKED;
 	apic_write(APIC_LVT1, value);
 
+	/*
+	 * Now enable IO-APICs, actually call clear_IO_APIC
+	 * We need clear_IO_APIC before enabling vector on BP
+	 */
+	if (!smp_processor_id() && !skip_ioapic_setup && nr_ioapics)
+		enable_IO_APIC();
+
 	{
 		unsigned oldvalue;
 		maxlvt = lapic_get_maxlvt();

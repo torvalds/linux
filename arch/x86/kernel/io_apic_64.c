@@ -1172,7 +1172,7 @@ void __apicdebuginit print_PIC(void)
 
 #endif  /*  0  */
 
-static void __init enable_IO_APIC(void)
+void __init enable_IO_APIC(void)
 {
 	union IO_APIC_reg_01 reg_01;
 	int i8259_apic, i8259_pin;
@@ -1789,7 +1789,10 @@ __setup("no_timer_check", notimercheck);
 
 void __init setup_IO_APIC(void)
 {
-	enable_IO_APIC();
+
+	/*
+	 * calling enable_IO_APIC() is moved to setup_local_APIC for BP
+	 */
 
 	if (acpi_ioapic)
 		io_apic_irqs = ~0;	/* all IRQs go through IOAPIC */
