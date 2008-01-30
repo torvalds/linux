@@ -20,12 +20,14 @@
 
 #include <linux/slab.h>
 #include <linux/crc32.h>
+#include <linux/kmod.h>
 
 /* Needed for AOP_TRUNCATED_PAGE in mlog_errno() */
 #include <linux/fs.h>
 
 #include "cluster/masklog.h"
 #include "cluster/nodemanager.h"
+#include "cluster/heartbeat.h"
 
 #include "stackglue.h"
 
@@ -301,6 +303,13 @@ int ocfs2_cluster_connect(const char *group,
 		goto out;
 	}
 
+	/* for now we only have one cluster/node, make sure we see it
+	 * in the heartbeat universe */
+	if (!o2hb_check_local_node_heartbeating()) {
+		rc = -EINVAL;
+		goto out;
+	}
+
 	new_conn = kzalloc(sizeof(struct ocfs2_cluster_connection),
 			   GFP_KERNEL);
 	if (!new_conn) {
@@ -359,6 +368,7 @@ out:
 	return rc;
 }
 
+
 int ocfs2_cluster_disconnect(struct ocfs2_cluster_connection *conn)
 {
 	struct dlm_ctxt *dlm = conn->cc_lockspace;
@@ -371,6 +381,46 @@ int ocfs2_cluster_disconnect(struct ocfs2_cluster_connection *conn)
 	kfree(conn);
 
 	return 0;
+}
+
+static void o2hb_stop(const char *group)
+{
+	int ret;
+	char *argv[5], *envp[3];
+
+	argv[0] = (char *)o2nm_get_hb_ctl_path();
+	argv[1] = "-K";
+	argv[2] = "-u";
+	argv[3] = (char *)group;
+	argv[4] = NULL;
+
+	mlog(0, "Run: %s %s %s %s\n", argv[0], argv[1], argv[2], argv[3]);
+
+	/* minimal command environment taken from cpu_run_sbin_hotplug */
+	envp[0] = "HOME=/";
+	envp[1] = "PATH=/sbin:/bin:/usr/sbin:/usr/bin";
+	envp[2] = NULL;
+
+	ret = call_usermodehelper(argv[0], argv, envp, UMH_WAIT_PROC);
+	if (ret < 0)
+		mlog_errno(ret);
+}
+
+/*
+ * Hangup is a hack for tools compatibility.  Older ocfs2-tools software
+ * expects the filesystem to call "ocfs2_hb_ctl" during unmount.  This
+ * happens regardless of whether the DLM got started, so we can't do it
+ * in ocfs2_cluster_disconnect().  We bring the o2hb_stop() function into
+ * the glue and provide a "hangup" API for super.c to call.
+ *
+ * Other stacks will eventually provide a NULL ->hangup() pointer.
+ */
+void ocfs2_cluster_hangup(const char *group, int grouplen)
+{
+	BUG_ON(group == NULL);
+	BUG_ON(group[grouplen] != '\0');
+
+	o2hb_stop(group);
 }
 
 int ocfs2_cluster_this_node(unsigned int *node)

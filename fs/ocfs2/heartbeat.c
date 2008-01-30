@@ -28,7 +28,6 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/highmem.h>
-#include <linux/kmod.h>
 
 #define MLOG_MASK_PREFIX ML_SUPER
 #include <cluster/masklog.h>
@@ -81,38 +80,6 @@ void ocfs2_do_node_down(int node_num, void *data)
 	}
 
 	ocfs2_recovery_thread(osb, node_num);
-}
-
-void ocfs2_stop_heartbeat(struct ocfs2_super *osb)
-{
-	int ret;
-	char *argv[5], *envp[3];
-
-	if (ocfs2_mount_local(osb))
-		return;
-
-	if (!osb->uuid_str) {
-		/* This can happen if we don't get far enough in mount... */
-		mlog(0, "No UUID with which to stop heartbeat!\n\n");
-		return;
-	}
-
-	argv[0] = (char *)o2nm_get_hb_ctl_path();
-	argv[1] = "-K";
-	argv[2] = "-u";
-	argv[3] = osb->uuid_str;
-	argv[4] = NULL;
-
-	mlog(0, "Run: %s %s %s %s\n", argv[0], argv[1], argv[2], argv[3]);
-
-	/* minimal command environment taken from cpu_run_sbin_hotplug */
-	envp[0] = "HOME=/";
-	envp[1] = "PATH=/sbin:/bin:/usr/sbin:/usr/bin";
-	envp[2] = NULL;
-
-	ret = call_usermodehelper(argv[0], argv, envp, UMH_WAIT_PROC);
-	if (ret < 0)
-		mlog_errno(ret);
 }
 
 static inline void __ocfs2_node_map_set_bit(struct ocfs2_node_map *map,

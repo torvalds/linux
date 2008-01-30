@@ -29,7 +29,6 @@
 void ocfs2_init_node_maps(struct ocfs2_super *osb);
 
 void ocfs2_do_node_down(int node_num, void *data);
-void ocfs2_stop_heartbeat(struct ocfs2_super *osb);
 
 /* node map functions - used to keep track of mounted and in-recovery
  * nodes. */

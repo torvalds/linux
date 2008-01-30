@@ -32,10 +32,6 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 
-#include <cluster/heartbeat.h>
-#include <cluster/nodemanager.h>
-#include <cluster/tcp.h>
-
 #define MLOG_MASK_PREFIX ML_DLM_GLUE
 #include <cluster/masklog.h>
 

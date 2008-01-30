@@ -74,6 +74,7 @@ int ocfs2_cluster_connect(const char *group,
 			  void *recovery_data,
 			  struct ocfs2_cluster_connection **conn);
 int ocfs2_cluster_disconnect(struct ocfs2_cluster_connection *conn);
+void ocfs2_cluster_hangup(const char *group, int grouplen);
 int ocfs2_cluster_this_node(unsigned int *node);
 
 int ocfs2_dlm_lock(struct ocfs2_cluster_connection *conn,

@@ -40,8 +40,7 @@
 #include <linux/crc32.h>
 #include <linux/debugfs.h>
 #include <linux/mount.h>
-
-#include <cluster/nodemanager.h>
+#include <linux/seq_file.h>
 
 #define MLOG_MASK_PREFIX ML_SUPER
 #include <cluster/masklog.h>
@@ -577,15 +576,6 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 	if (!ocfs2_parse_options(sb, data, &parsed_options, 0)) {
 		status = -EINVAL;
 		goto read_super_error;
-	}
-
-	/* for now we only have one cluster/node, make sure we see it
-	 * in the heartbeat universe */
-	if (parsed_options.mount_opt & OCFS2_MOUNT_HB_LOCAL) {
-		if (!o2hb_check_local_node_heartbeating()) {
-			status = -EINVAL;
-			goto read_super_error;
-		}
 	}
 
 	/* probe for superblock */
@@ -1275,8 +1265,15 @@ static void ocfs2_dismount_volume(struct super_block *sb, int mnt_err)
 
 	debugfs_remove(osb->osb_debug_root);
 
-	if (!mnt_err)
-		ocfs2_stop_heartbeat(osb);
+	/*
+	 * This is a small hack to move ocfs2_hb_ctl into stackglue.
+	 * If we're dismounting due to mount error, mount.ocfs2 will clean
+	 * up heartbeat.  If we're a local mount, there is no heartbeat.
+	 * If we failed before we got a uuid_str yet, we can't stop
+	 * heartbeat.  Otherwise, do it.
+	 */
+	if (!mnt_err && !ocfs2_mount_local(osb) && osb->uuid_str)
+		ocfs2_cluster_hangup(osb->uuid_str, strlen(osb->uuid_str));
 
 	atomic_set(&osb->vol_state, VOLUME_DISMOUNTED);
 

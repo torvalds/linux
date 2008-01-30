@@ -36,10 +36,6 @@
 #include <linux/mutex.h>
 #include <linux/jbd.h>
 
-#include "cluster/nodemanager.h"
-#include "cluster/heartbeat.h"
-#include "cluster/tcp.h"
-
 /* For union ocfs2_dlm_lksb */
 #include "stackglue.h"
 
