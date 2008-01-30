@@ -139,29 +139,6 @@ static inline int wrmsr_safe(u32 __msr, u32 __low, u32 __high)
 	} while(0)
 #endif	/* !CONFIG_PARAVIRT */
 
-#ifdef CONFIG_SMP
-void rdmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 *l, u32 *h);
-void wrmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h);
-int rdmsr_safe_on_cpu(unsigned int cpu, u32 msr_no, u32 *l, u32 *h);
-int wrmsr_safe_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h);
-#else  /*  CONFIG_SMP  */
-static inline void rdmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 *l, u32 *h)
-{
-	rdmsr(msr_no, *l, *h);
-}
-static inline void wrmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h)
-{
-	wrmsr(msr_no, l, h);
-}
-static inline int rdmsr_safe_on_cpu(unsigned int cpu, u32 msr_no, u32 *l, u32 *h)
-{
-	return rdmsr_safe(msr_no, l, h);
-}
-static inline int wrmsr_safe_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h)
-{
-	return wrmsr_safe(msr_no, l, h);
-}
-#endif  /*  CONFIG_SMP  */
 #endif  /* ! __ASSEMBLY__ */
 #endif  /* __KERNEL__ */
 
@@ -327,6 +304,12 @@ static inline unsigned int cpuid_edx(unsigned int op)
 			:"c"(msr), "i"(-EIO), "0"(0));			\
 	  ret__; })
 
+#endif  /* __ASSEMBLY__ */
+
+#endif  /* !__i386__ */
+
+#ifndef __ASSEMBLY__
+
 #ifdef CONFIG_SMP
 void rdmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 *l, u32 *h);
 void wrmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h);
@@ -351,8 +334,6 @@ static inline int wrmsr_safe_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h)
 }
 #endif  /* CONFIG_SMP */
 #endif  /* __KERNEL__ */
-#endif  /* __ASSEMBLY__ */
-
-#endif  /* !__i386__ */
+#endif /* __ASSEMBLY__ */
 
 #endif
