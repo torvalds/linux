@@ -44,6 +44,7 @@
 #include <linux/ptrace.h>
 #include <linux/string.h>
 #include <linux/slab.h>
+#include <linux/hardirq.h>
 #include <linux/preempt.h>
 #include <linux/module.h>
 #include <linux/kdebug.h>
@@ -951,12 +952,14 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 			ret = NOTIFY_STOP;
 		break;
 	case DIE_GPF:
-		/* kprobe_running() needs smp_processor_id() */
-		preempt_disable();
-		if (kprobe_running() &&
+		/*
+		 * To be potentially processing a kprobe fault and to
+		 * trust the result from kprobe_running(), we have
+		 * be non-preemptible.
+		 */
+		if (!preemptible() && kprobe_running() &&
 		    kprobe_fault_handler(args->regs, args->trapnr))
 			ret = NOTIFY_STOP;
-		preempt_enable();
 		break;
 	default:
 		break;
