@@ -33,6 +33,7 @@ static inline unsigned long long native_read_tscp(int *aux)
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__
 
+#include <asm/asm.h>
 #include <asm/errno.h>
 
 static inline unsigned long long native_read_msr(unsigned int msr)
@@ -48,14 +49,14 @@ static inline unsigned long long native_read_msr_safe(unsigned int msr,
 {
 	unsigned long long val;
 
-	asm volatile("2: rdmsr ; xorl %0,%0\n"
+	asm volatile("2: rdmsr ; xor %0,%0\n"
 		     "1:\n\t"
 		     ".section .fixup,\"ax\"\n\t"
-		     "3:  movl %3,%0 ; jmp 1b\n\t"
+		     "3:  mov %3,%0 ; jmp 1b\n\t"
 		     ".previous\n\t"
 		     ".section __ex_table,\"a\"\n"
-		     "   .align 4\n\t"
-		     "   .long	2b,3b\n\t"
+		     _ASM_ALIGN "\n\t"
+		     _ASM_PTR " 2b,3b\n\t"
 		     ".previous"
 		     : "=r" (*err), "=A" (val)
 		     : "c" (msr), "i" (-EFAULT));
@@ -73,14 +74,14 @@ static inline int native_write_msr_safe(unsigned int msr,
 					unsigned low, unsigned high)
 {
 	int err;
-	asm volatile("2: wrmsr ; xorl %0,%0\n"
+	asm volatile("2: wrmsr ; xor %0,%0\n"
 		     "1:\n\t"
 		     ".section .fixup,\"ax\"\n\t"
-		     "3:  movl %4,%0 ; jmp 1b\n\t"
+		     "3:  mov %4,%0 ; jmp 1b\n\t"
 		     ".previous\n\t"
 		     ".section __ex_table,\"a\"\n"
-		     "   .align 4\n\t"
-		     "   .long	2b,3b\n\t"
+		     _ASM_ALIGN "\n\t"
+		     _ASM_PTR " 2b,3b\n\t"
 		     ".previous"
 		     : "=a" (err)
 		     : "c" (msr), "0" (low), "d" (high),
