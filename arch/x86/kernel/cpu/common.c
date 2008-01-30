@@ -572,6 +572,17 @@ void __cpuinit print_cpu_info(struct cpuinfo_x86 *c)
 		printk("\n");
 }
 
+static __init int setup_disablecpuid(char *arg)
+{
+	int bit;
+	if (get_option(&arg, &bit) && bit < NCAPINTS*32)
+		setup_clear_cpu_cap(bit);
+	else
+		return 0;
+	return 1;
+}
+__setup("clearcpuid=", setup_disablecpuid);
+
 cpumask_t cpu_initialized __cpuinitdata = CPU_MASK_NONE;
 
 /* This is hacky. :)
