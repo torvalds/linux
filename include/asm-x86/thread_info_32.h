@@ -138,6 +138,7 @@ static inline struct thread_info *current_thread_info(void)
 #define TIF_IO_BITMAP		18	/* uses I/O bitmap */
 #define TIF_FREEZE		19	/* is freezing for suspend */
 #define TIF_NOTSC		20	/* TSC is not accessible in userland */
+#define TIF_FORCED_TF		21	/* true if TF in eflags artificially */
 
 #define _TIF_SYSCALL_TRACE	(1<<TIF_SYSCALL_TRACE)
 #define _TIF_SIGPENDING		(1<<TIF_SIGPENDING)
@@ -153,6 +154,7 @@ static inline struct thread_info *current_thread_info(void)
 #define _TIF_IO_BITMAP		(1<<TIF_IO_BITMAP)
 #define _TIF_FREEZE		(1<<TIF_FREEZE)
 #define _TIF_NOTSC		(1<<TIF_NOTSC)
+#define _TIF_FORCED_TF		(1<<TIF_FORCED_TF)
 
 /* work to do on interrupt/exception return */
 #define _TIF_WORK_MASK \

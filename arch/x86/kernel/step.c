@@ -135,7 +135,7 @@ void user_enable_single_step(struct task_struct *child)
 	if (is_setting_trap_flag(child, regs))
 		return;
 
-	child->ptrace |= PT_DTRACE;
+	set_tsk_thread_flag(child, TIF_FORCED_TF);
 }
 
 void user_disable_single_step(struct task_struct *child)
@@ -144,9 +144,6 @@ void user_disable_single_step(struct task_struct *child)
 	clear_tsk_thread_flag(child, TIF_SINGLESTEP);
 
 	/* But touch TF only if it was set by us.. */
-	if (child->ptrace & PT_DTRACE) {
-		struct pt_regs *regs = task_pt_regs(child);
-		regs->eflags &= ~X86_EFLAGS_TF;
-		child->ptrace &= ~PT_DTRACE;
-	}
+	if (test_and_clear_tsk_thread_flag(child, TIF_FORCED_TF))
+		task_pt_regs(child)->eflags &= ~X86_EFLAGS_TF;
 }

@@ -89,6 +89,15 @@ static int putreg32(struct task_struct *child, unsigned regno, u32 val)
 		__u64 *flags = &stack[offsetof(struct pt_regs, eflags)/8];
 
 		val &= FLAG_MASK;
+		/*
+		 * If the user value contains TF, mark that
+		 * it was not "us" (the debugger) that set it.
+		 * If not, make sure it stays set if we had.
+		 */
+		if (val & X86_EFLAGS_TF)
+			clear_tsk_thread_flag(child, TIF_FORCED_TF);
+		else if (test_tsk_thread_flag(child, TIF_FORCED_TF))
+			val |= X86_EFLAGS_TF;
 		*flags = val | (*flags & ~FLAG_MASK);
 		break;
 	}
@@ -179,8 +188,16 @@ static int getreg32(struct task_struct *child, unsigned regno, u32 *val)
 	R32(eax, rax);
 	R32(orig_eax, orig_rax);
 	R32(eip, rip);
-	R32(eflags, eflags);
 	R32(esp, rsp);
+
+	case offsetof(struct user32, regs.eflags):
+		/*
+		 * If the debugger set TF, hide it from the readout.
+		 */
+		*val = stack[offsetof(struct pt_regs, eflags)/8];
+		if (test_tsk_thread_flag(child, TIF_FORCED_TF))
+			*val &= ~X86_EFLAGS_TF;
+		break;
 
 	case offsetof(struct user32, u_debugreg[0]):
 		*val = child->thread.debugreg0;
@@ -425,4 +442,3 @@ asmlinkage long sys32_ptrace(long request, u32 pid, u32 addr, u32 data)
 	put_task_struct(child);
 	return ret;
 }
-

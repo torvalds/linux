@@ -143,6 +143,15 @@ static int putreg(struct task_struct *child,
 			return 0;
 		case offsetof(struct user_regs_struct, eflags):
 			value &= FLAG_MASK;
+			/*
+			 * If the user value contains TF, mark that
+			 * it was not "us" (the debugger) that set it.
+			 * If not, make sure it stays set if we had.
+			 */
+			if (value & X86_EFLAGS_TF)
+				clear_tsk_thread_flag(child, TIF_FORCED_TF);
+			else if (test_tsk_thread_flag(child, TIF_FORCED_TF))
+				value |= X86_EFLAGS_TF;
 			tmp = get_stack_long(child, EFL_OFFSET); 
 			tmp &= ~FLAG_MASK; 
 			value |= tmp;
@@ -189,6 +198,17 @@ static unsigned long getreg(struct task_struct *child, unsigned long regno)
 			if (child->thread.gsindex != GS_TLS_SEL)
 				return 0;
 			return get_desc_base(&child->thread.tls_array[GS_TLS]);
+		case offsetof(struct user_regs_struct, eflags):
+			/*
+			 * If the debugger set TF, hide it from the readout.
+			 */
+			regno = regno - sizeof(struct pt_regs);
+			val = get_stack_long(child, regno);
+			if (test_tsk_thread_flag(child, TIF_IA32))
+				val &= 0xffffffff;
+			if (test_tsk_thread_flag(child, TIF_FORCED_TF))
+				val &= ~X86_EFLAGS_TF;
+			return val;
 		default:
 			regno = regno - sizeof(struct pt_regs);
 			val = get_stack_long(child, regno);

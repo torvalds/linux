@@ -104,6 +104,15 @@ static int putreg(struct task_struct *child,
 			break;
 		case EFL:
 			value &= FLAG_MASK;
+			/*
+			 * If the user value contains TF, mark that
+			 * it was not "us" (the debugger) that set it.
+			 * If not, make sure it stays set if we had.
+			 */
+			if (value & X86_EFLAGS_TF)
+				clear_tsk_thread_flag(child, TIF_FORCED_TF);
+			else if (test_tsk_thread_flag(child, TIF_FORCED_TF))
+				value |= X86_EFLAGS_TF;
 			value |= get_stack_long(child, EFL_OFFSET) & ~FLAG_MASK;
 			break;
 	}
@@ -119,6 +128,14 @@ static unsigned long getreg(struct task_struct *child,
 	unsigned long retval = ~0UL;
 
 	switch (regno >> 2) {
+		case EFL:
+			/*
+			 * If the debugger set TF, hide it from the readout.
+			 */
+			retval = get_stack_long(child, EFL_OFFSET);
+			if (test_tsk_thread_flag(child, TIF_FORCED_TF))
+				retval &= ~X86_EFLAGS_TF;
+			break;
 		case GS:
 			retval = child->thread.gs;
 			break;
