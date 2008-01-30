@@ -349,6 +349,7 @@ void __init dmi_scan_machine(void)
 			rc = dmi_present(q);
 			if (!rc) {
 				dmi_available = 1;
+				dmi_iounmap(p, 0x10000);
 				return;
 			}
 		}
