@@ -291,23 +291,28 @@ static inline void __init early_clear_fixmap(enum fixed_addresses idx)
 		__early_set_fixmap(idx, 0, __pgprot(0));
 }
 
+
+int __initdata early_ioremap_nested;
+
 void __init *early_ioremap(unsigned long phys_addr, unsigned long size)
 {
 	unsigned long offset, last_addr;
-	unsigned int nrpages;
-	enum fixed_addresses idx;
+	unsigned int nrpages, nesting;
+	enum fixed_addresses idx0, idx;
+
+	WARN_ON(system_state != SYSTEM_BOOTING);
+
+	nesting = early_ioremap_nested;
 
 	/* Don't allow wraparound or zero size */
 	last_addr = phys_addr + size - 1;
 	if (!size || last_addr < phys_addr)
 		return NULL;
 
-	/*
-	 * Don't remap the low PCI/ISA area, it's always mapped..
-	 */
-	if (phys_addr >= ISA_START_ADDRESS && last_addr < ISA_END_ADDRESS)
-		return phys_to_virt(phys_addr);
+	if (nesting >= FIX_BTMAPS_NESTING)
+		return NULL;
 
+	early_ioremap_nested++;
 	/*
 	 * Mappings have to be page-aligned
 	 */
@@ -325,14 +330,16 @@ void __init *early_ioremap(unsigned long phys_addr, unsigned long size)
 	/*
 	 * Ok, go for it..
 	 */
-	idx = FIX_BTMAP_BEGIN;
+	idx0 = FIX_BTMAP_BEGIN - NR_FIX_BTMAPS*nesting;
+	idx = idx0;
 	while (nrpages > 0) {
 		early_set_fixmap(idx, phys_addr);
 		phys_addr += PAGE_SIZE;
 		--idx;
 		--nrpages;
 	}
-	return (void*) (offset + fix_to_virt(FIX_BTMAP_BEGIN));
+
+	return (void*) (offset + fix_to_virt(idx0));
 }
 
 void __init early_iounmap(void *addr, unsigned long size)
@@ -341,17 +348,26 @@ void __init early_iounmap(void *addr, unsigned long size)
 	unsigned long offset;
 	unsigned int nrpages;
 	enum fixed_addresses idx;
+	unsigned int nesting;
+
+	nesting = --early_ioremap_nested;
 
 	virt_addr = (unsigned long)addr;
 	if (virt_addr < fix_to_virt(FIX_BTMAP_BEGIN))
 		return;
+
 	offset = virt_addr & ~PAGE_MASK;
 	nrpages = PAGE_ALIGN(offset + size - 1) >> PAGE_SHIFT;
 
-	idx = FIX_BTMAP_BEGIN;
+	idx = FIX_BTMAP_BEGIN - NR_FIX_BTMAPS*nesting;
 	while (nrpages > 0) {
 		early_clear_fixmap(idx);
 		--idx;
 		--nrpages;
 	}
+}
+
+void __this_fixmap_does_not_exist(void)
+{
+	WARN_ON(1);
 }

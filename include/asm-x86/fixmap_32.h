@@ -65,7 +65,7 @@ enum fixed_addresses {
 #endif
 #ifdef CONFIG_X86_VISWS_APIC
 	FIX_CO_CPU,	/* Cobalt timer */
-	FIX_CO_APIC,	/* Cobalt APIC Redirection Table */ 
+	FIX_CO_APIC,	/* Cobalt APIC Redirection Table */
 	FIX_LI_PCIA,	/* Lithium PCI Bridge A */
 	FIX_LI_PCIB,	/* Lithium PCI Bridge B */
 #endif
@@ -74,7 +74,7 @@ enum fixed_addresses {
 #endif
 #ifdef CONFIG_X86_CYCLONE_TIMER
 	FIX_CYCLONE_TIMER, /*cyclone timer register*/
-#endif 
+#endif
 #ifdef CONFIG_HIGHMEM
 	FIX_KMAP_BEGIN,	/* reserved pte's for temporary kernel mappings */
 	FIX_KMAP_END = FIX_KMAP_BEGIN+(KM_TYPE_NR*NR_CPUS)-1,
@@ -91,9 +91,10 @@ enum fixed_addresses {
 #endif
 	__end_of_permanent_fixed_addresses,
 	/* temporary boot-time mappings, used before ioremap() is functional */
-#define NR_FIX_BTMAPS	16
+#define NR_FIX_BTMAPS		16
+#define FIX_BTMAPS_NESTING	4
 	FIX_BTMAP_END = __end_of_permanent_fixed_addresses,
-	FIX_BTMAP_BEGIN = FIX_BTMAP_END + NR_FIX_BTMAPS - 1,
+	FIX_BTMAP_BEGIN = FIX_BTMAP_END + NR_FIX_BTMAPS*FIX_BTMAPS_NESTING - 1,
 	FIX_WP_TEST,
 	__end_of_fixed_addresses
 };
