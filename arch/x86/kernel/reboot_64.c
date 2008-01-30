@@ -9,6 +9,7 @@
 #include <linux/pm.h>
 #include <linux/kdebug.h>
 #include <linux/sched.h>
+#include <acpi/reboot.h>
 #include <asm/io.h>
 #include <asm/delay.h>
 #include <asm/desc.h>
@@ -29,7 +30,8 @@ EXPORT_SYMBOL(pm_power_off);
 static long no_idt[3];
 static enum { 
 	BOOT_TRIPLE = 't',
-	BOOT_KBD = 'k'
+	BOOT_KBD = 'k',
+	BOOT_ACPI = 'a'
 } reboot_type = BOOT_KBD;
 static int reboot_mode = 0;
 int reboot_force;
@@ -39,6 +41,7 @@ int reboot_force;
    cold   Set the cold reboot flag
    triple Force a triple fault (init)
    kbd    Use the keyboard controller. cold reset (default)
+   acpi   Use the RESET_REG in the FADT
    force  Avoid anything that could hang.
  */ 
 static int __init reboot_setup(char *str)
@@ -54,6 +57,7 @@ static int __init reboot_setup(char *str)
 			break;
 
 		case 't':
+		case 'a':
 		case 'b':
 		case 'k':
 			reboot_type = *str;
@@ -144,6 +148,11 @@ void machine_emergency_restart(void)
 			load_idt((const struct desc_ptr *)&no_idt);
 			__asm__ __volatile__("int3");
 
+			reboot_type = BOOT_KBD;
+			break;
+
+		case BOOT_ACPI:
+			acpi_reboot();
 			reboot_type = BOOT_KBD;
 			break;
 		}      
