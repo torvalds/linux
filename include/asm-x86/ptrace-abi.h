@@ -85,9 +85,9 @@
 */
 struct ptrace_bts_config {
 	/* requested or actual size of BTS buffer in bytes */
-	unsigned long size;
+	unsigned int size;
 	/* bitmask of below flags */
-	unsigned long flags;
+	unsigned int flags;
 };
 
 #define PTRACE_BTS_O_TRACE	0x1 /* branch trace */

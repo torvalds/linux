@@ -39,16 +39,16 @@ enum bts_qualifier {
 };
 
 struct bts_struct {
-	enum bts_qualifier qualifier;
+	u64 qualifier;
 	union {
 		/* BTS_BRANCH */
 		struct {
-			long from_ip;
-			long to_ip;
+			u64 from_ip;
+			u64 to_ip;
 		} lbr;
 		/* BTS_TASK_ARRIVES or
 		   BTS_TASK_DEPARTS */
-		unsigned long jiffies;
+		u64 jiffies;
 	} variant;
 };
 
@@ -64,7 +64,7 @@ extern int ds_get_bts_index(void *);
 extern int ds_set_overflow(void *, int);
 extern int ds_get_overflow(void *);
 extern int ds_clear(void *);
-extern int ds_read_bts(void *, size_t, struct bts_struct *);
+extern int ds_read_bts(void *, int, struct bts_struct *);
 extern int ds_write_bts(void *, const struct bts_struct *);
 extern unsigned long ds_debugctl_mask(void);
 extern void __cpuinit ds_init_intel(struct cpuinfo_x86 *c);

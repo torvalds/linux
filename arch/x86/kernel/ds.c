@@ -111,53 +111,53 @@ static struct ds_configuration ds_cfg;
  * Accessor functions for some DS and BTS fields using the above
  * global ptrace_bts_cfg.
  */
-static inline void *get_bts_buffer_base(char *base)
+static inline unsigned long get_bts_buffer_base(char *base)
 {
-	return *(void **)(base + ds_cfg.bts_buffer_base.offset);
+	return *(unsigned long *)(base + ds_cfg.bts_buffer_base.offset);
 }
-static inline void set_bts_buffer_base(char *base, void *value)
+static inline void set_bts_buffer_base(char *base, unsigned long value)
 {
-	(*(void **)(base + ds_cfg.bts_buffer_base.offset)) = value;
+	(*(unsigned long *)(base + ds_cfg.bts_buffer_base.offset)) = value;
 }
-static inline void *get_bts_index(char *base)
+static inline unsigned long get_bts_index(char *base)
 {
-	return *(void **)(base + ds_cfg.bts_index.offset);
+	return *(unsigned long *)(base + ds_cfg.bts_index.offset);
 }
-static inline void set_bts_index(char *base, void *value)
+static inline void set_bts_index(char *base, unsigned long value)
 {
-	(*(void **)(base + ds_cfg.bts_index.offset)) = value;
+	(*(unsigned long *)(base + ds_cfg.bts_index.offset)) = value;
 }
-static inline void *get_bts_absolute_maximum(char *base)
+static inline unsigned long get_bts_absolute_maximum(char *base)
 {
-	return *(void **)(base + ds_cfg.bts_absolute_maximum.offset);
+	return *(unsigned long *)(base + ds_cfg.bts_absolute_maximum.offset);
 }
-static inline void set_bts_absolute_maximum(char *base, void *value)
+static inline void set_bts_absolute_maximum(char *base, unsigned long value)
 {
-	(*(void **)(base + ds_cfg.bts_absolute_maximum.offset)) = value;
+	(*(unsigned long *)(base + ds_cfg.bts_absolute_maximum.offset)) = value;
 }
-static inline void *get_bts_interrupt_threshold(char *base)
+static inline unsigned long get_bts_interrupt_threshold(char *base)
 {
-	return *(void **)(base + ds_cfg.bts_interrupt_threshold.offset);
+	return *(unsigned long *)(base + ds_cfg.bts_interrupt_threshold.offset);
 }
-static inline void set_bts_interrupt_threshold(char *base, void *value)
+static inline void set_bts_interrupt_threshold(char *base, unsigned long value)
 {
-	(*(void **)(base + ds_cfg.bts_interrupt_threshold.offset)) = value;
+	(*(unsigned long *)(base + ds_cfg.bts_interrupt_threshold.offset)) = value;
 }
-static inline long get_from_ip(char *base)
+static inline unsigned long get_from_ip(char *base)
 {
-	return *(long *)(base + ds_cfg.from_ip.offset);
+	return *(unsigned long *)(base + ds_cfg.from_ip.offset);
 }
-static inline void set_from_ip(char *base, long value)
+static inline void set_from_ip(char *base, unsigned long value)
 {
-	(*(long *)(base + ds_cfg.from_ip.offset)) = value;
+	(*(unsigned long *)(base + ds_cfg.from_ip.offset)) = value;
 }
-static inline long get_to_ip(char *base)
+static inline unsigned long get_to_ip(char *base)
 {
-	return *(long *)(base + ds_cfg.to_ip.offset);
+	return *(unsigned long *)(base + ds_cfg.to_ip.offset);
 }
-static inline void set_to_ip(char *base, long value)
+static inline void set_to_ip(char *base, unsigned long value)
 {
-	(*(long *)(base + ds_cfg.to_ip.offset)) = value;
+	(*(unsigned long *)(base + ds_cfg.to_ip.offset)) = value;
 }
 static inline unsigned char get_info_type(char *base)
 {
@@ -180,7 +180,7 @@ static inline void set_info_data(char *base, unsigned long value)
 int ds_allocate(void **dsp, size_t bts_size_in_bytes)
 {
 	size_t bts_size_in_records;
-	void *bts;
+	unsigned long bts;
 	void *ds;
 
 	if (!ds_cfg.sizeof_ds || !ds_cfg.sizeof_bts)
@@ -197,7 +197,7 @@ int ds_allocate(void **dsp, size_t bts_size_in_bytes)
 	if (bts_size_in_bytes <= 0)
 		return -EINVAL;
 
-	bts = kzalloc(bts_size_in_bytes, GFP_KERNEL);
+	bts = (unsigned long)kzalloc(bts_size_in_bytes, GFP_KERNEL);
 
 	if (!bts)
 		return -ENOMEM;
@@ -205,7 +205,7 @@ int ds_allocate(void **dsp, size_t bts_size_in_bytes)
 	ds = kzalloc(ds_cfg.sizeof_ds, GFP_KERNEL);
 
 	if (!ds) {
-		kfree(bts);
+		kfree((void *)bts);
 		return -ENOMEM;
 	}
 
@@ -221,7 +221,7 @@ int ds_allocate(void **dsp, size_t bts_size_in_bytes)
 int ds_free(void **dsp)
 {
 	if (*dsp)
-		kfree(get_bts_buffer_base(*dsp));
+		kfree((void *)get_bts_buffer_base(*dsp));
 	kfree(*dsp);
 	*dsp = 0;
 
@@ -230,7 +230,7 @@ int ds_free(void **dsp)
 
 int ds_get_bts_size(void *ds)
 {
-	size_t size_in_bytes;
+	int size_in_bytes;
 
 	if (!ds_cfg.sizeof_ds || !ds_cfg.sizeof_bts)
 		return -EOPNOTSUPP;
@@ -246,7 +246,7 @@ int ds_get_bts_size(void *ds)
 
 int ds_get_bts_end(void *ds)
 {
-	size_t size_in_bytes = ds_get_bts_size(ds);
+	int size_in_bytes = ds_get_bts_size(ds);
 
 	if (size_in_bytes <= 0)
 		return size_in_bytes;
@@ -256,7 +256,7 @@ int ds_get_bts_end(void *ds)
 
 int ds_get_bts_index(void *ds)
 {
-	size_t index_offset_in_bytes;
+	int index_offset_in_bytes;
 
 	if (!ds_cfg.sizeof_ds || !ds_cfg.sizeof_bts)
 		return -EOPNOTSUPP;
@@ -288,19 +288,19 @@ int ds_get_overflow(void *ds)
 int ds_clear(void *ds)
 {
 	int bts_size = ds_get_bts_size(ds);
-	void *bts_base;
+	unsigned long bts_base;
 
 	if (bts_size <= 0)
 		return bts_size;
 
 	bts_base = get_bts_buffer_base(ds);
-	memset(bts_base, 0, bts_size);
+	memset((void *)bts_base, 0, bts_size);
 
 	set_bts_index(ds, bts_base);
 	return 0;
 }
 
-int ds_read_bts(void *ds, size_t index, struct bts_struct *out)
+int ds_read_bts(void *ds, int index, struct bts_struct *out)
 {
 	void *bts;
 
@@ -313,8 +313,7 @@ int ds_read_bts(void *ds, size_t index, struct bts_struct *out)
 	if (index >= ds_get_bts_size(ds))
 		return -EINVAL;
 
-	bts = get_bts_buffer_base(ds);
-	bts = (char *)bts + (index * ds_cfg.sizeof_bts);
+	bts = (void *)(get_bts_buffer_base(ds) + (index * ds_cfg.sizeof_bts));
 
 	memset(out, 0, sizeof(*out));
 	if (get_from_ip(bts) == BTS_ESCAPE_ADDRESS) {
@@ -326,12 +325,12 @@ int ds_read_bts(void *ds, size_t index, struct bts_struct *out)
 		out->variant.lbr.to_ip   = get_to_ip(bts);
 	}
 
-	return 0;
+	return sizeof(*out);;
 }
 
 int ds_write_bts(void *ds, const struct bts_struct *in)
 {
-	void *bts;
+	unsigned long bts;
 
 	if (!ds_cfg.sizeof_ds || !ds_cfg.sizeof_bts)
 		return -EOPNOTSUPP;
@@ -341,33 +340,33 @@ int ds_write_bts(void *ds, const struct bts_struct *in)
 
 	bts = get_bts_index(ds);
 
-	memset(bts, 0, ds_cfg.sizeof_bts);
+	memset((void *)bts, 0, ds_cfg.sizeof_bts);
 	switch (in->qualifier) {
 	case BTS_INVALID:
 		break;
 
 	case BTS_BRANCH:
-		set_from_ip(bts, in->variant.lbr.from_ip);
-		set_to_ip(bts, in->variant.lbr.to_ip);
+		set_from_ip((void *)bts, in->variant.lbr.from_ip);
+		set_to_ip((void *)bts, in->variant.lbr.to_ip);
 		break;
 
 	case BTS_TASK_ARRIVES:
 	case BTS_TASK_DEPARTS:
-		set_from_ip(bts, BTS_ESCAPE_ADDRESS);
-		set_info_type(bts, in->qualifier);
-		set_info_data(bts, in->variant.jiffies);
+		set_from_ip((void *)bts, BTS_ESCAPE_ADDRESS);
+		set_info_type((void *)bts, in->qualifier);
+		set_info_data((void *)bts, in->variant.jiffies);
 		break;
 
 	default:
 		return -EINVAL;
 	}
 
-	bts = (char *)bts + ds_cfg.sizeof_bts;
+	bts = bts + ds_cfg.sizeof_bts;
 	if (bts >= get_bts_absolute_maximum(ds))
 		bts = get_bts_buffer_base(ds);
 	set_bts_index(ds, bts);
 
-	return 0;
+	return ds_cfg.sizeof_bts;
 }
 
 unsigned long ds_debugctl_mask(void)

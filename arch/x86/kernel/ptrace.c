@@ -558,7 +558,7 @@ static int ptrace_bts_read_record(struct task_struct *child,
 
 	retval = ds_read_bts((void *)child->thread.ds_area_msr,
 			     bts_index, &ret);
-	if (retval)
+	if (retval < 0)
 		return retval;
 
 	if (copy_to_user(out, &ret, sizeof(ret)))
