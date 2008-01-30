@@ -706,20 +706,17 @@ int __init mtrr_trim_uncached_memory(unsigned long end_pfn)
 
 	/* kvm/qemu doesn't have mtrr set right, don't trim them all */
 	if (!highest_addr) {
-		printk(KERN_WARNING "***************\n");
-		printk(KERN_WARNING "**** WARNING: likely strange cpu\n");
-		printk(KERN_WARNING "**** MTRRs all blank, cpu in qemu?\n");
-		printk(KERN_WARNING "***************\n");
+		printk(KERN_WARNING "WARNING: strange, CPU MTRRs all blank?\n");
+		WARN_ON(1);
 		return 0;
 	}
 
 	if ((highest_addr >> PAGE_SHIFT) < end_pfn) {
-		printk(KERN_WARNING "***************\n");
-		printk(KERN_WARNING "**** WARNING: likely BIOS bug\n");
-		printk(KERN_WARNING "**** MTRRs don't cover all of "
-		       "memory, trimmed %ld pages\n", end_pfn -
-		       (highest_addr >> PAGE_SHIFT));
-		printk(KERN_WARNING "***************\n");
+		printk(KERN_WARNING "WARNING: BIOS bug: CPU MTRRs don't cover"
+			" all of memory, losing %LdMB of RAM.\n",
+			(((u64)end_pfn << PAGE_SHIFT) - highest_addr) >> 20);
+
+		WARN_ON(1);
 
 		printk(KERN_INFO "update e820 for mtrr\n");
 		trim_start = highest_addr;
