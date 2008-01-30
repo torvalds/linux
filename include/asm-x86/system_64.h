@@ -1,7 +1,6 @@
 #ifndef __ASM_SYSTEM_H
 #define __ASM_SYSTEM_H
 
-#include <linux/kernel.h>
 #include <asm/segment.h>
 #include <asm/cmpxchg.h>
 
@@ -47,78 +46,6 @@
 		       [pda_pcurrent] "i" (offsetof(struct x8664_pda, pcurrent))   \
 		     : "memory", "cc" __EXTRA_CLOBBER)
     
-extern void load_gs_index(unsigned); 
-
-/*
- * Clear and set 'TS' bit respectively
- */
-#define clts() __asm__ __volatile__ ("clts")
-
-static inline unsigned long read_cr0(void)
-{ 
-	unsigned long cr0;
-	asm volatile("movq %%cr0,%0" : "=r" (cr0));
-	return cr0;
-}
-
-static inline void write_cr0(unsigned long val) 
-{ 
-	asm volatile("movq %0,%%cr0" :: "r" (val));
-}
-
-static inline unsigned long read_cr2(void)
-{
-	unsigned long cr2;
-	asm volatile("movq %%cr2,%0" : "=r" (cr2));
-	return cr2;
-}
-
-static inline void write_cr2(unsigned long val)
-{
-	asm volatile("movq %0,%%cr2" :: "r" (val));
-}
-
-static inline unsigned long read_cr3(void)
-{ 
-	unsigned long cr3;
-	asm volatile("movq %%cr3,%0" : "=r" (cr3));
-	return cr3;
-}
-
-static inline void write_cr3(unsigned long val)
-{
-	asm volatile("movq %0,%%cr3" :: "r" (val) : "memory");
-}
-
-static inline unsigned long read_cr4(void)
-{ 
-	unsigned long cr4;
-	asm volatile("movq %%cr4,%0" : "=r" (cr4));
-	return cr4;
-}
-
-static inline void write_cr4(unsigned long val)
-{ 
-	asm volatile("movq %0,%%cr4" :: "r" (val) : "memory");
-}
-
-static inline unsigned long read_cr8(void)
-{
-	unsigned long cr8;
-	asm volatile("movq %%cr8,%0" : "=r" (cr8));
-	return cr8;
-}
-
-static inline void write_cr8(unsigned long val)
-{
-	asm volatile("movq %0,%%cr8" :: "r" (val) : "memory");
-}
-
-#define stts() write_cr0(8 | read_cr0())
-
-#define wbinvd() \
-	__asm__ __volatile__ ("wbinvd": : :"memory")
-
 #endif	/* __KERNEL__ */
 
 #ifdef CONFIG_SMP
@@ -147,6 +74,18 @@ static inline void write_cr8(unsigned long val)
 #define set_mb(var, value) do { (void) xchg(&var, value); } while (0)
 
 #define warn_if_not_ulong(x) do { unsigned long foo; (void) (&(x) == &foo); } while (0)
+
+static inline unsigned long read_cr8(void)
+{
+	unsigned long cr8;
+	asm volatile("movq %%cr8,%0" : "=r" (cr8));
+	return cr8;
+}
+
+static inline void write_cr8(unsigned long val)
+{
+	asm volatile("movq %0,%%cr8" :: "r" (val) : "memory");
+}
 
 #include <linux/irqflags.h>
 
