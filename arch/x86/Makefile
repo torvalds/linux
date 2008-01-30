@@ -15,18 +15,15 @@ export BITS
 ifeq ($(CONFIG_X86_32),y)
         BITS := 32
         UTS_MACHINE := i386
+        CHECKFLAGS += -D__i386__
 
-        HAS_BIARCH := $(call cc-option-yn, -m32)
-        ifeq ($(HAS_BIARCH),y)
-                AS := $(AS) --32
-                LD := $(LD) -m elf_i386
-                CC := $(CC) -m32
-        endif
+        biarch := $(call cc-option,-m32)
+        KBUILD_AFLAGS += $(biarch)
+        KBUILD_CFLAGS += $(biarch)
 
         ifdef CONFIG_RELOCATABLE
                 LDFLAGS_vmlinux := --emit-relocs
         endif
-        CHECKFLAGS += -D__i386__
 
         KBUILD_CFLAGS += -msoft-float -mregparm=3 -freg-struct-return
 
