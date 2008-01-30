@@ -851,39 +851,6 @@ static int __init smp_sanity_check(unsigned max_cpus)
 	return 0;
 }
 
-/*
- * Copy data used in early init routines from the initial arrays to the
- * per cpu data areas.  These arrays then become expendable and the
- * *_ptrs are zeroed indicating that the static arrays are gone.
- */
-void __init smp_set_apicids(void)
-{
-	int cpu;
-
-	for_each_possible_cpu(cpu) {
-		if (per_cpu_offset(cpu)) {
-			per_cpu(x86_cpu_to_apicid, cpu) =
-						x86_cpu_to_apicid_init[cpu];
-#ifdef CONFIG_NUMA
-			per_cpu(x86_cpu_to_node_map, cpu) =
-						x86_cpu_to_node_map_init[cpu];
-#endif
-			per_cpu(x86_bios_cpu_apicid, cpu) =
-						x86_bios_cpu_apicid_init[cpu];
-		}
-		else
-			printk(KERN_NOTICE "per_cpu_offset zero for cpu %d\n",
-									cpu);
-	}
-
-	/* indicate the early static arrays are gone */
-	x86_cpu_to_apicid_early_ptr = NULL;
-#ifdef CONFIG_NUMA
-	x86_cpu_to_node_map_early_ptr = NULL;
-#endif
-	x86_bios_cpu_apicid_early_ptr = NULL;
-}
-
 static void __init smp_cpu_index_default(void)
 {
 	int i;
@@ -906,7 +873,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	smp_cpu_index_default();
 	current_cpu_data = boot_cpu_data;
 	current_thread_info()->cpu = 0;  /* needed? */
-	smp_set_apicids();
 	set_cpu_sibling_map(0);
 
 	if (smp_sanity_check(max_cpus) < 0) {

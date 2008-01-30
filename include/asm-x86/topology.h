@@ -30,15 +30,29 @@
 #include <asm/mpspec.h>
 
 /* Mappings between logical cpu number and node number */
+#ifdef CONFIG_X86_32
+extern u8 cpu_to_node_map[];
+
+#else
 DECLARE_PER_CPU(u16, x86_cpu_to_node_map);
 extern u16 x86_cpu_to_node_map_init[];
 extern void *x86_cpu_to_node_map_early_ptr;
+#endif
+
 extern cpumask_t node_to_cpumask_map[];
 
 #define NUMA_NO_NODE	((u16)(~0))
 
 /* Returns the number of the node containing CPU 'cpu' */
+#ifdef CONFIG_X86_32
+#define early_cpu_to_node(cpu)	cpu_to_node(cpu)
 static inline int cpu_to_node(int cpu)
+{
+	return cpu_to_node_map[cpu];
+}
+
+#else /* CONFIG_X86_64 */
+static inline int early_cpu_to_node(int cpu)
 {
 	u16 *cpu_to_node_map = x86_cpu_to_node_map_early_ptr;
 
@@ -49,6 +63,15 @@ static inline int cpu_to_node(int cpu)
 	else
 		return NUMA_NO_NODE;
 }
+
+static inline int cpu_to_node(int cpu)
+{
+	if(per_cpu_offset(cpu))
+		return per_cpu(x86_cpu_to_node_map, cpu);
+	else
+		return NUMA_NO_NODE;
+}
+#endif /* CONFIG_X86_64 */
 
 /*
  * Returns the number of the node containing Node 'node'. This
