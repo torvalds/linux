@@ -11,38 +11,14 @@
  *  RTC support code taken from arch/i386/kernel/timers/time_hpet.c
  */
 
-#include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/interrupt.h>
-#include <linux/init.h>
-#include <linux/mc146818rtc.h>
-#include <linux/time.h>
-#include <linux/ioport.h>
-#include <linux/module.h>
-#include <linux/device.h>
-#include <linux/sysdev.h>
-#include <linux/bcd.h>
-#include <linux/notifier.h>
-#include <linux/cpu.h>
-#include <linux/kallsyms.h>
-#include <linux/acpi.h>
 #include <linux/clockchips.h>
+#include <linux/init.h>
+#include <linux/interrupt.h>
+#include <linux/module.h>
+#include <linux/time.h>
 
-#ifdef CONFIG_ACPI
-#include <acpi/achware.h>	/* for PM timer frequency */
-#include <acpi/acpi_bus.h>
-#endif
 #include <asm/i8253.h>
-#include <asm/pgtable.h>
-#include <asm/vsyscall.h>
-#include <asm/timex.h>
-#include <asm/proto.h>
 #include <asm/hpet.h>
-#include <asm/sections.h>
-#include <linux/hpet.h>
-#include <asm/apic.h>
-#include <asm/hpet.h>
-#include <asm/mpspec.h>
 #include <asm/nmi.h>
 #include <asm/vgtod.h>
 
