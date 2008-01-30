@@ -46,7 +46,7 @@ pte_t *lookup_address(unsigned long address, int *level)
 }
 
 static struct page *
-split_large_page(unsigned long address, pgprot_t prot, pgprot_t ref_prot)
+split_large_page(unsigned long address, pgprot_t ref_prot)
 {
 	unsigned long addr;
 	struct page *base;
@@ -60,10 +60,9 @@ split_large_page(unsigned long address, pgprot_t prot, pgprot_t ref_prot)
 	address = __pa(address);
 	addr = address & LARGE_PAGE_MASK;
 	pbase = (pte_t *)page_address(base);
-	for (i = 0; i < PTRS_PER_PTE; i++, addr += PAGE_SIZE) {
-		pbase[i] = pfn_pte(addr >> PAGE_SHIFT,
-				   addr == address ? prot : ref_prot);
-	}
+	for (i = 0; i < PTRS_PER_PTE; i++, addr += PAGE_SIZE)
+		pbase[i] = pfn_pte(addr >> PAGE_SHIFT, ref_prot);
+
 	return base;
 }
 
@@ -76,6 +75,7 @@ __change_page_attr(unsigned long address, unsigned long pfn, pgprot_t prot,
 	pgprot_t ref_prot2, oldprot;
 	int level;
 
+repeat:
 	kpte = lookup_address(address, &level);
 	if (!kpte)
 		return 0;
@@ -98,12 +98,12 @@ __change_page_attr(unsigned long address, unsigned long pfn, pgprot_t prot,
 			struct page *split;
 
 			ref_prot2 = pte_pgprot(pte_clrhuge(*kpte));
-			split = split_large_page(address, prot, ref_prot2);
+			split = split_large_page(address, ref_prot2);
 			if (!split)
 				return -ENOMEM;
 			pgprot_val(ref_prot2) &= ~_PAGE_NX;
 			set_pte(kpte, mk_pte(split, ref_prot2));
-			kpte_page = split;
+			goto repeat;
 		}
 	} else {
 		if (level == 4) {
