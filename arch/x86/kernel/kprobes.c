@@ -159,7 +159,7 @@ struct kretprobe_blackpoint kretprobe_blacklist[] = {
 const int kretprobe_blacklist_size = ARRAY_SIZE(kretprobe_blacklist);
 
 /* Insert a jump instruction at address 'from', which jumps to address 'to'.*/
-static __always_inline void set_jmp_op(void *from, void *to)
+static void __kprobes set_jmp_op(void *from, void *to)
 {
 	struct __arch_jmp_op {
 		char op;
@@ -174,7 +174,7 @@ static __always_inline void set_jmp_op(void *from, void *to)
  * Returns non-zero if opcode is boostable.
  * RIP relative instructions are adjusted at copying time in 64 bits mode
  */
-static __always_inline int can_boost(kprobe_opcode_t *opcodes)
+static int __kprobes can_boost(kprobe_opcode_t *opcodes)
 {
 	kprobe_opcode_t opcode;
 	kprobe_opcode_t *orig_opcodes = opcodes;
@@ -392,13 +392,13 @@ static void __kprobes set_current_kprobe(struct kprobe *p, struct pt_regs *regs,
 		kcb->kprobe_saved_flags &= ~X86_EFLAGS_IF;
 }
 
-static __always_inline void clear_btf(void)
+static void __kprobes clear_btf(void)
 {
 	if (test_thread_flag(TIF_DEBUGCTLMSR))
 		wrmsr(MSR_IA32_DEBUGCTLMSR, 0, 0);
 }
 
-static __always_inline void restore_btf(void)
+static void __kprobes restore_btf(void)
 {
 	if (test_thread_flag(TIF_DEBUGCTLMSR))
 		wrmsr(MSR_IA32_DEBUGCTLMSR, current->thread.debugctlmsr, 0);
@@ -409,7 +409,7 @@ static void __kprobes prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
 	clear_btf();
 	regs->flags |= X86_EFLAGS_TF;
 	regs->flags &= ~X86_EFLAGS_IF;
-	/*single step inline if the instruction is an int3*/
+	/* single step inline if the instruction is an int3 */
 	if (p->opcode == BREAKPOINT_INSTRUCTION)
 		regs->ip = (unsigned long)p->addr;
 	else
@@ -767,7 +767,7 @@ static void __kprobes resume_execution(struct kprobe *p,
 	case 0xe8:	/* call relative - Fix return addr */
 		*tos = orig_ip + (*tos - copy_ip);
 		break;
-#ifndef CONFIG_X86_64
+#ifdef CONFIG_X86_32
 	case 0x9a:	/* call absolute -- same as call absolute, indirect */
 		*tos = orig_ip + (*tos - copy_ip);
 		goto no_change;
@@ -813,8 +813,6 @@ static void __kprobes resume_execution(struct kprobe *p,
 
 no_change:
 	restore_btf();
-
-	return;
 }
 
 /*
