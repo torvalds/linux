@@ -89,15 +89,15 @@ static inline physid_mask_t apicid_to_cpu_present(int phys_apicid)
 	return physid_mask_of_physid(phys_apicid);
 }
 
-static inline int mpc_apic_id(struct mpc_config_processor *m, 
-			struct mpc_config_translation *translation_record)
+static inline int mpc_apic_id(struct mpc_config_processor *m,
+			      struct mpc_config_translation *translation_record)
 {
-	printk("Processor #%d %ld:%ld APIC version %d\n",
-			m->mpc_apicid,
-			(m->mpc_cpufeature & CPU_FAMILY_MASK) >> 8,
-			(m->mpc_cpufeature & CPU_MODEL_MASK) >> 4,
-			m->mpc_apicver);
-	return (m->mpc_apicid);
+	printk("Processor #%d %u:%u APIC version %d\n",
+	       m->mpc_apicid,
+	       (m->mpc_cpufeature & CPU_FAMILY_MASK) >> 8,
+	       (m->mpc_cpufeature & CPU_MODEL_MASK) >> 4,
+	       m->mpc_apicver);
+	return m->mpc_apicid;
 }
 
 static inline void setup_portio_remap(void)
