@@ -130,8 +130,13 @@ static int split_large_page(pte_t *kpte, unsigned long address)
 		set_pte(&pbase[i], pfn_pte(addr >> PAGE_SHIFT, ref_prot));
 
 	/*
-	 * Install the new, split up pagetable:
+	 * Install the new, split up pagetable. Important detail here:
+	 *
+	 * On Intel the NX bit of all levels must be cleared to make a
+	 * page executable. See section 4.13.2 of Intel 64 and IA-32
+	 * Architectures Software Developer's Manual).
 	 */
+	ref_prot = pte_pgprot(pte_mkexec(pte_clrhuge(*kpte)));
 	__set_pmd_pte(kpte, address, mk_pte(base, ref_prot));
 	base = NULL;
 
