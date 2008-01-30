@@ -356,15 +356,15 @@ void alternatives_smp_switch(int smp)
 	spin_lock_irqsave(&smp_alt, flags);
 	if (smp) {
 		printk(KERN_INFO "SMP alternatives: switching to SMP code\n");
-		clear_bit(X86_FEATURE_UP, boot_cpu_data.x86_capability);
-		clear_bit(X86_FEATURE_UP, cpu_data(0).x86_capability);
+		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_UP);
+		clear_cpu_cap(&cpu_data(0), X86_FEATURE_UP);
 		list_for_each_entry(mod, &smp_alt_modules, next)
 			alternatives_smp_lock(mod->locks, mod->locks_end,
 					      mod->text, mod->text_end);
 	} else {
 		printk(KERN_INFO "SMP alternatives: switching to UP code\n");
-		set_bit(X86_FEATURE_UP, boot_cpu_data.x86_capability);
-		set_bit(X86_FEATURE_UP, cpu_data(0).x86_capability);
+		set_cpu_cap(&boot_cpu_data, X86_FEATURE_UP);
+		set_cpu_cap(&cpu_data(0), X86_FEATURE_UP);
 		list_for_each_entry(mod, &smp_alt_modules, next)
 			alternatives_smp_unlock(mod->locks, mod->locks_end,
 						mod->text, mod->text_end);
@@ -431,8 +431,9 @@ void __init alternative_instructions(void)
 	if (smp_alt_once) {
 		if (1 == num_possible_cpus()) {
 			printk(KERN_INFO "SMP alternatives: switching to UP code\n");
-			set_bit(X86_FEATURE_UP, boot_cpu_data.x86_capability);
-			set_bit(X86_FEATURE_UP, cpu_data(0).x86_capability);
+			set_cpu_cap(&boot_cpu_data, X86_FEATURE_UP);
+			set_cpu_cap(&cpu_data(0), X86_FEATURE_UP);
+
 			alternatives_smp_unlock(__smp_locks, __smp_locks_end,
 						_text, _etext);
 		}

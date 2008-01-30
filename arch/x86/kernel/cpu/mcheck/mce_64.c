@@ -80,7 +80,7 @@ void mce_log(struct mce *mce)
 			/* When the buffer fills up discard new entries. Assume
 			   that the earlier errors are the more interesting. */
 			if (entry >= MCE_LOG_LEN) {
-				set_bit(MCE_OVERFLOW, &mcelog.flags);
+				set_bit(MCE_OVERFLOW, (unsigned long *)&mcelog.flags);
 				return;
 			}
 			/* Old left over entry. Skip. */

@@ -1078,7 +1078,7 @@ static int __init detect_init_APIC (void)
 		printk(KERN_WARNING "Could not enable APIC!\n");
 		return -1;
 	}
-	set_bit(X86_FEATURE_APIC, boot_cpu_data.x86_capability);
+	set_cpu_cap(&boot_cpu_data, X86_FEATURE_APIC);
 	mp_lapic_addr = APIC_DEFAULT_PHYS_BASE;
 
 	/* The BIOS may have set up the APIC at some other address */
@@ -1168,7 +1168,7 @@ fake_ioapic_page:
 int __init APIC_init_uniprocessor (void)
 {
 	if (enable_local_apic < 0)
-		clear_bit(X86_FEATURE_APIC, boot_cpu_data.x86_capability);
+		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_APIC);
 
 	if (!smp_found_config && !cpu_has_apic)
 		return -1;
@@ -1180,7 +1180,7 @@ int __init APIC_init_uniprocessor (void)
 	    APIC_INTEGRATED(apic_version[boot_cpu_physical_apicid])) {
 		printk(KERN_ERR "BIOS bug, local APIC #%d not detected!...\n",
 		       boot_cpu_physical_apicid);
-		clear_bit(X86_FEATURE_APIC, boot_cpu_data.x86_capability);
+		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_APIC);
 		return -1;
 	}
 
@@ -1536,7 +1536,7 @@ early_param("lapic", parse_lapic);
 static int __init parse_nolapic(char *arg)
 {
 	enable_local_apic = -1;
-	clear_bit(X86_FEATURE_APIC, boot_cpu_data.x86_capability);
+	clear_cpu_cap(&boot_cpu_data, X86_FEATURE_APIC);
 	return 0;
 }
 early_param("nolapic", parse_nolapic);

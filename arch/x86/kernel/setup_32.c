@@ -238,7 +238,7 @@ static int __init parse_mem(char *arg)
 		return -EINVAL;
 
 	if (strcmp(arg, "nopentium") == 0) {
-		clear_bit(X86_FEATURE_PSE, boot_cpu_data.x86_capability);
+		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_PSE);
 		disable_pse = 1;
 	} else {
 		/* If the user specifies memory size, we

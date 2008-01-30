@@ -1211,7 +1211,7 @@ early_param("apic", apic_set_verbosity);
 static __init int setup_disableapic(char *str)
 {
 	disable_apic = 1;
-	clear_bit(X86_FEATURE_APIC, boot_cpu_data.x86_capability);
+	clear_cpu_cap(&boot_cpu_data, X86_FEATURE_APIC);
 	return 0;
 }
 early_param("disableapic", setup_disableapic);

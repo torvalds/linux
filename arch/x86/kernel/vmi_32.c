@@ -963,19 +963,19 @@ static int __init parse_vmi(char *arg)
 		return -EINVAL;
 
 	if (!strcmp(arg, "disable_pge")) {
-		clear_bit(X86_FEATURE_PGE, boot_cpu_data.x86_capability);
+		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_PGE);
 		disable_pge = 1;
 	} else if (!strcmp(arg, "disable_pse")) {
-		clear_bit(X86_FEATURE_PSE, boot_cpu_data.x86_capability);
+		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_PSE);
 		disable_pse = 1;
 	} else if (!strcmp(arg, "disable_sep")) {
-		clear_bit(X86_FEATURE_SEP, boot_cpu_data.x86_capability);
+		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_SEP);
 		disable_sep = 1;
 	} else if (!strcmp(arg, "disable_tsc")) {
-		clear_bit(X86_FEATURE_TSC, boot_cpu_data.x86_capability);
+		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_TSC);
 		disable_tsc = 1;
 	} else if (!strcmp(arg, "disable_mtrr")) {
-		clear_bit(X86_FEATURE_MTRR, boot_cpu_data.x86_capability);
+		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_MTRR);
 		disable_mtrr = 1;
 	} else if (!strcmp(arg, "disable_timer")) {
 		disable_vmi_timer = 1;
