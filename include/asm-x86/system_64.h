@@ -141,13 +141,6 @@ static inline void write_cr8(unsigned long val)
 
 #endif	/* __KERNEL__ */
 
-static inline void clflush(volatile void *__p)
-{
-	asm volatile("clflush %0" : "+m" (*(char __force *)__p));
-}
-
-#define nop() __asm__ __volatile__ ("nop")
-
 #ifdef CONFIG_SMP
 #define smp_mb()	mb()
 #define smp_rmb()	barrier()
@@ -176,10 +169,5 @@ static inline void clflush(volatile void *__p)
 #define warn_if_not_ulong(x) do { unsigned long foo; (void) (&(x) == &foo); } while (0)
 
 #include <linux/irqflags.h>
-
-void cpu_idle_wait(void);
-
-extern unsigned long arch_align_stack(unsigned long sp);
-extern void free_init_pages(char *what, unsigned long begin, unsigned long end);
 
 #endif

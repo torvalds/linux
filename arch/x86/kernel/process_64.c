@@ -99,7 +99,7 @@ void exit_idle(void)
  * We use this if we don't have any better
  * idle routine..
  */
-static void default_idle(void)
+void default_idle(void)
 {
 	current_thread_info()->status &= ~TS_POLLING;
 	/*
