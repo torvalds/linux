@@ -173,8 +173,17 @@ static void force_sig_info_fault(int si_signo, int si_code,
 	force_sig_info(si_signo, &info, tsk);
 }
 
+#ifdef CONFIG_X86_64
+static int bad_address(void *p)
+{
+	unsigned long dummy;
+	return probe_kernel_address((unsigned long *)p, dummy);
+}
+#endif
+
 void dump_pagetable(unsigned long address)
 {
+#ifdef CONFIG_X86_32
 	__typeof__(pte_val(__pte(0))) page;
 
 	page = read_cr3();
@@ -209,8 +218,42 @@ void dump_pagetable(unsigned long address)
 	}
 
 	printk("\n");
+#else /* CONFIG_X86_64 */
+	pgd_t *pgd;
+	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *pte;
+
+	pgd = (pgd_t *)read_cr3();
+
+	pgd = __va((unsigned long)pgd & PHYSICAL_PAGE_MASK);
+	pgd += pgd_index(address);
+	if (bad_address(pgd)) goto bad;
+	printk("PGD %lx ", pgd_val(*pgd));
+	if (!pgd_present(*pgd)) goto ret;
+
+	pud = pud_offset(pgd, address);
+	if (bad_address(pud)) goto bad;
+	printk("PUD %lx ", pud_val(*pud));
+	if (!pud_present(*pud))	goto ret;
+
+	pmd = pmd_offset(pud, address);
+	if (bad_address(pmd)) goto bad;
+	printk("PMD %lx ", pmd_val(*pmd));
+	if (!pmd_present(*pmd) || pmd_large(*pmd)) goto ret;
+
+	pte = pte_offset_kernel(pmd, address);
+	if (bad_address(pte)) goto bad;
+	printk("PTE %lx", pte_val(*pte));
+ret:
+	printk("\n");
+	return;
+bad:
+	printk("BAD\n");
+#endif
 }
 
+#ifdef CONFIG_X86_32
 static inline pmd_t *vmalloc_sync_one(pgd_t *pgd, unsigned long address)
 {
 	unsigned index = pgd_index(address);
@@ -246,6 +289,7 @@ static inline pmd_t *vmalloc_sync_one(pgd_t *pgd, unsigned long address)
 		BUG_ON(pmd_page(*pmd) != pmd_page(*pmd_k));
 	return pmd_k;
 }
+#endif
 
 #ifdef CONFIG_X86_64
 static const char errata93_warning[] =
@@ -326,6 +370,7 @@ static int is_f00f_bug(struct pt_regs *regs, unsigned long address)
 static void show_fault_oops(struct pt_regs *regs, unsigned long error_code,
 			    unsigned long address)
 {
+#ifdef CONFIG_X86_32
 	if (!oops_may_print())
 		return;
 
@@ -350,7 +395,39 @@ static void show_fault_oops(struct pt_regs *regs, unsigned long error_code,
 	printk(KERN_ALERT "IP:");
 	printk_address(regs->ip, 1);
 	dump_pagetable(address);
+#else /* CONFIG_X86_64 */
+	printk(KERN_ALERT "BUG: unable to handle kernel ");
+	if (address < PAGE_SIZE)
+		printk(KERN_CONT "NULL pointer dereference");
+	else
+		printk(KERN_CONT "paging request");
+	printk(KERN_CONT " at %016lx\n", address);
+
+	printk(KERN_ALERT "IP:");
+	printk_address(regs->ip, 1);
+	dump_pagetable(address);
+#endif
 }
+
+#ifdef CONFIG_X86_64
+static noinline void pgtable_bad(unsigned long address, struct pt_regs *regs,
+				 unsigned long error_code)
+{
+	unsigned long flags = oops_begin();
+	struct task_struct *tsk;
+
+	printk(KERN_ALERT "%s: Corrupted page table at address %lx\n",
+	       current->comm, address);
+	dump_pagetable(address);
+	tsk = current;
+	tsk->thread.cr2 = address;
+	tsk->thread.trap_no = 14;
+	tsk->thread.error_code = error_code;
+	if (__die("Bad pagetable", regs, error_code))
+		regs = NULL;
+	oops_end(flags, regs, SIGKILL);
+}
+#endif
 
 /*
  * Handle a fault on the vmalloc or module mapping area
@@ -706,6 +783,7 @@ do_sigbus:
 
 void vmalloc_sync_all(void)
 {
+#ifdef CONFIG_X86_32
 	/*
 	 * Note that races in the updates of insync and start aren't
 	 * problematic: insync can only get set bits added, and updates to
@@ -740,4 +818,42 @@ void vmalloc_sync_all(void)
 		if (address == start && test_bit(pgd_index(address), insync))
 			start = address + PGDIR_SIZE;
 	}
+#else /* CONFIG_X86_64 */
+	/*
+	 * Note that races in the updates of insync and start aren't
+	 * problematic: insync can only get set bits added, and updates to
+	 * start are only improving performance (without affecting correctness
+	 * if undone).
+	 */
+	static DECLARE_BITMAP(insync, PTRS_PER_PGD);
+	static unsigned long start = VMALLOC_START & PGDIR_MASK;
+	unsigned long address;
+
+	for (address = start; address <= VMALLOC_END; address += PGDIR_SIZE) {
+		if (!test_bit(pgd_index(address), insync)) {
+			const pgd_t *pgd_ref = pgd_offset_k(address);
+			struct page *page;
+
+			if (pgd_none(*pgd_ref))
+				continue;
+			spin_lock(&pgd_lock);
+			list_for_each_entry(page, &pgd_list, lru) {
+				pgd_t *pgd;
+				pgd = (pgd_t *)page_address(page) + pgd_index(address);
+				if (pgd_none(*pgd))
+					set_pgd(pgd, *pgd_ref);
+				else
+					BUG_ON(pgd_page_vaddr(*pgd) != pgd_page_vaddr(*pgd_ref));
+			}
+			spin_unlock(&pgd_lock);
+			set_bit(pgd_index(address), insync);
+		}
+		if (address == start)
+			start = address + PGDIR_SIZE;
+	}
+	/* Check that there is no need to do the same for the modules area. */
+	BUILD_BUG_ON(!(MODULES_VADDR > __START_KERNEL));
+	BUILD_BUG_ON(!(((MODULES_END - 1) & PGDIR_MASK) ==
+				(__START_KERNEL & PGDIR_MASK)));
+#endif
 }

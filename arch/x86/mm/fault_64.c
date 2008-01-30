@@ -176,14 +176,52 @@ static void force_sig_info_fault(int si_signo, int si_code,
 	force_sig_info(si_signo, &info, tsk);
 }
 
+#ifdef CONFIG_X86_64
 static int bad_address(void *p)
 {
 	unsigned long dummy;
 	return probe_kernel_address((unsigned long *)p, dummy);
 }
+#endif
 
 void dump_pagetable(unsigned long address)
 {
+#ifdef CONFIG_X86_32
+	__typeof__(pte_val(__pte(0))) page;
+
+	page = read_cr3();
+	page = ((__typeof__(page) *) __va(page))[address >> PGDIR_SHIFT];
+#ifdef CONFIG_X86_PAE
+	printk("*pdpt = %016Lx ", page);
+	if ((page >> PAGE_SHIFT) < max_low_pfn
+	    && page & _PAGE_PRESENT) {
+		page &= PAGE_MASK;
+		page = ((__typeof__(page) *) __va(page))[(address >> PMD_SHIFT)
+		                                         & (PTRS_PER_PMD - 1)];
+		printk(KERN_CONT "*pde = %016Lx ", page);
+		page &= ~_PAGE_NX;
+	}
+#else
+	printk("*pde = %08lx ", page);
+#endif
+
+	/*
+	 * We must not directly access the pte in the highpte
+	 * case if the page table is located in highmem.
+	 * And let's rather not kmap-atomic the pte, just in case
+	 * it's allocated already.
+	 */
+	if ((page >> PAGE_SHIFT) < max_low_pfn
+	    && (page & _PAGE_PRESENT)
+	    && !(page & _PAGE_PSE)) {
+		page &= PAGE_MASK;
+		page = ((__typeof__(page) *) __va(page))[(address >> PAGE_SHIFT)
+		                                         & (PTRS_PER_PTE - 1)];
+		printk("*pte = %0*Lx ", sizeof(page)*2, (u64)page);
+	}
+
+	printk("\n");
+#else /* CONFIG_X86_64 */
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
@@ -215,7 +253,46 @@ ret:
 	return;
 bad:
 	printk("BAD\n");
+#endif
 }
+
+#ifdef CONFIG_X86_32
+static inline pmd_t *vmalloc_sync_one(pgd_t *pgd, unsigned long address)
+{
+	unsigned index = pgd_index(address);
+	pgd_t *pgd_k;
+	pud_t *pud, *pud_k;
+	pmd_t *pmd, *pmd_k;
+
+	pgd += index;
+	pgd_k = init_mm.pgd + index;
+
+	if (!pgd_present(*pgd_k))
+		return NULL;
+
+	/*
+	 * set_pgd(pgd, *pgd_k); here would be useless on PAE
+	 * and redundant with the set_pmd() on non-PAE. As would
+	 * set_pud.
+	 */
+
+	pud = pud_offset(pgd, address);
+	pud_k = pud_offset(pgd_k, address);
+	if (!pud_present(*pud_k))
+		return NULL;
+
+	pmd = pmd_offset(pud, address);
+	pmd_k = pmd_offset(pud_k, address);
+	if (!pmd_present(*pmd_k))
+		return NULL;
+	if (!pmd_present(*pmd)) {
+		set_pmd(pmd, *pmd_k);
+		arch_flush_lazy_mmu_mode();
+	} else
+		BUG_ON(pmd_page(*pmd) != pmd_page(*pmd_k));
+	return pmd_k;
+}
+#endif
 
 #ifdef CONFIG_X86_64
 static const char errata93_warning[] =
@@ -296,6 +373,32 @@ static int is_f00f_bug(struct pt_regs *regs, unsigned long address)
 static void show_fault_oops(struct pt_regs *regs, unsigned long error_code,
 			    unsigned long address)
 {
+#ifdef CONFIG_X86_32
+	if (!oops_may_print())
+		return;
+
+#ifdef CONFIG_X86_PAE
+	if (error_code & PF_INSTR) {
+		int level;
+		pte_t *pte = lookup_address(address, &level);
+
+		if (pte && pte_present(*pte) && !pte_exec(*pte))
+			printk(KERN_CRIT "kernel tried to execute "
+				"NX-protected page - exploit attempt? "
+				"(uid: %d)\n", current->uid);
+	}
+#endif
+	printk(KERN_ALERT "BUG: unable to handle kernel ");
+	if (address < PAGE_SIZE)
+		printk(KERN_CONT "NULL pointer dereference");
+	else
+		printk(KERN_CONT "paging request");
+	printk(KERN_CONT " at %08lx\n", address);
+
+	printk(KERN_ALERT "IP:");
+	printk_address(regs->ip, 1);
+	dump_pagetable(address);
+#else /* CONFIG_X86_64 */
 	printk(KERN_ALERT "BUG: unable to handle kernel ");
 	if (address < PAGE_SIZE)
 		printk(KERN_CONT "NULL pointer dereference");
@@ -306,8 +409,10 @@ static void show_fault_oops(struct pt_regs *regs, unsigned long error_code,
 	printk(KERN_ALERT "IP:");
 	printk_address(regs->ip, 1);
 	dump_pagetable(address);
+#endif
 }
 
+#ifdef CONFIG_X86_64
 static noinline void pgtable_bad(unsigned long address, struct pt_regs *regs,
 				 unsigned long error_code)
 {
@@ -325,6 +430,7 @@ static noinline void pgtable_bad(unsigned long address, struct pt_regs *regs,
 		regs = NULL;
 	oops_end(flags, regs, SIGKILL);
 }
+#endif
 
 /*
  * Handle a fault on the vmalloc area
@@ -590,12 +696,15 @@ bad_area:
 bad_area_nosemaphore:
 	/* User mode accesses just cause a SIGSEGV */
 	if (error_code & PF_USER) {
-
 		/*
 		 * It's possible to have interrupts off here.
 		 */
 		local_irq_enable();
 
+		/*
+		 * Valid to do another page fault here because this one came
+		 * from user space.
+		 */
 		if (is_prefetch(regs, address, error_code))
 			return;
 
@@ -696,6 +805,42 @@ LIST_HEAD(pgd_list);
 
 void vmalloc_sync_all(void)
 {
+#ifdef CONFIG_X86_32
+	/*
+	 * Note that races in the updates of insync and start aren't
+	 * problematic: insync can only get set bits added, and updates to
+	 * start are only improving performance (without affecting correctness
+	 * if undone).
+	 */
+	static DECLARE_BITMAP(insync, PTRS_PER_PGD);
+	static unsigned long start = TASK_SIZE;
+	unsigned long address;
+
+	if (SHARED_KERNEL_PMD)
+		return;
+
+	BUILD_BUG_ON(TASK_SIZE & ~PGDIR_MASK);
+	for (address = start; address >= TASK_SIZE; address += PGDIR_SIZE) {
+		if (!test_bit(pgd_index(address), insync)) {
+			unsigned long flags;
+			struct page *page;
+
+			spin_lock_irqsave(&pgd_lock, flags);
+			for (page = pgd_list; page; page =
+					(struct page *)page->index)
+				if (!vmalloc_sync_one(page_address(page),
+								address)) {
+					BUG_ON(page != pgd_list);
+					break;
+				}
+			spin_unlock_irqrestore(&pgd_lock, flags);
+			if (!page)
+				set_bit(pgd_index(address), insync);
+		}
+		if (address == start && test_bit(pgd_index(address), insync))
+			start = address + PGDIR_SIZE;
+	}
+#else /* CONFIG_X86_64 */
 	/*
 	 * Note that races in the updates of insync and start aren't
 	 * problematic: insync can only get set bits added, and updates to
@@ -732,4 +877,5 @@ void vmalloc_sync_all(void)
 	BUILD_BUG_ON(!(MODULES_VADDR > __START_KERNEL));
 	BUILD_BUG_ON(!(((MODULES_END - 1) & PGDIR_MASK) ==
 				(__START_KERNEL & PGDIR_MASK)));
+#endif
 }
