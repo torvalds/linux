@@ -2,7 +2,7 @@
 # Makefile for the linux i386-specific parts of the memory manager.
 #
 
-obj-y	:= init_32.o pgtable_32.o fault_32.o ioremap_32.o extable.o pageattr.o mmap.o
+obj-y	:= init_32.o pgtable_32.o fault_32.o ioremap.o extable.o pageattr.o mmap.o
 
 obj-$(CONFIG_CPA_DEBUG) += pageattr-test.o
 obj-$(CONFIG_NUMA) += discontig_32.o
