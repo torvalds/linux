@@ -83,11 +83,6 @@ DECLARE_PER_CPU(struct cpuinfo_x86, cpu_info);
 extern char ignore_irq13;
 
 extern void identify_cpu(struct cpuinfo_x86 *);
-extern void print_cpu_info(struct cpuinfo_x86 *);
-extern void init_scattered_cpuid_features(struct cpuinfo_x86 *c);
-extern unsigned int init_intel_cacheinfo(struct cpuinfo_x86 *c);
-extern unsigned short num_cache_leaves;
-
 
 /*
  * User space process size. 47bits minus one guard page.
@@ -101,8 +96,6 @@ extern unsigned short num_cache_leaves;
 
 #define TASK_SIZE 		(test_thread_flag(TIF_IA32) ? IA32_PAGE_OFFSET : TASK_SIZE64)
 #define TASK_SIZE_OF(child) 	((test_tsk_thread_flag(child, TIF_IA32)) ? IA32_PAGE_OFFSET : TASK_SIZE64)
-
-#define TASK_UNMAPPED_BASE	PAGE_ALIGN(TASK_SIZE/3)
 
 /*
  * Size of io_bitmap.
@@ -226,66 +219,14 @@ struct thread_struct {
 	set_fs(USER_DS);							 \
 } while(0) 
 
-struct task_struct;
-struct mm_struct;
-
-/* Free all resources held by a thread. */
-extern void release_thread(struct task_struct *);
-
-/* Prepare to copy thread state - unlazy all lazy status */
-extern void prepare_to_copy(struct task_struct *tsk);
-
-/*
- * create a kernel thread without removing it from tasklists
- */
-extern long kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
-
 /*
  * Return saved PC of a blocked thread.
  * What is this good for? it will be always the scheduler or ret_from_fork.
  */
 #define thread_saved_pc(t) (*(unsigned long *)((t)->thread.sp - 8))
 
-extern unsigned long get_wchan(struct task_struct *p);
 #define task_pt_regs(tsk) ((struct pt_regs *)(tsk)->thread.sp0 - 1)
-#define KSTK_EIP(tsk) (task_pt_regs(tsk)->ip)
 #define KSTK_ESP(tsk) -1 /* sorry. doesn't work for syscall. */
-
-
-struct microcode_header {
-	unsigned int hdrver;
-	unsigned int rev;
-	unsigned int date;
-	unsigned int sig;
-	unsigned int cksum;
-	unsigned int ldrver;
-	unsigned int pf;
-	unsigned int datasize;
-	unsigned int totalsize;
-	unsigned int reserved[3];
-};
-
-struct microcode {
-	struct microcode_header hdr;
-	unsigned int bits[0];
-};
-
-typedef struct microcode microcode_t;
-typedef struct microcode_header microcode_header_t;
-
-/* microcode format is extended from prescott processors */
-struct extended_signature {
-	unsigned int sig;
-	unsigned int pf;
-	unsigned int cksum;
-};
-
-struct extended_sigtable {
-	unsigned int count;
-	unsigned int cksum;
-	unsigned int reserved[3];
-	struct extended_signature sigs[0];
-};
 
 
 #if defined(CONFIG_MPSC) || defined(CONFIG_MCORE2)
@@ -331,20 +272,6 @@ struct extended_sigtable {
 
 #define ASM_NOP_MAX 8
 
-/* REP NOP (PAUSE) is a good thing to insert into busy-wait loops. */
-static inline void rep_nop(void)
-{
-	__asm__ __volatile__("rep;nop": : :"memory");
-}
-
-/* Stop speculative execution */
-static inline void sync_core(void)
-{ 
-	int tmp;
-	asm volatile("cpuid" : "=a" (tmp) : "0" (1) : "ebx","ecx","edx","memory");
-} 
-
-#define ARCH_HAS_PREFETCHW 1
 static inline void prefetchw(void *x) 
 { 
 	alternative_input("prefetcht0 (%1)",
@@ -353,42 +280,6 @@ static inline void prefetchw(void *x)
 			  "r" (x));
 } 
 
-#define ARCH_HAS_SPINLOCK_PREFETCH 1
-
-#define spin_lock_prefetch(x)  prefetchw(x)
-
-#define cpu_relax()   rep_nop()
-
-static inline void __monitor(const void *eax, unsigned long ecx,
-		unsigned long edx)
-{
-	/* "monitor %eax,%ecx,%edx;" */
-	asm volatile(
-		".byte 0x0f,0x01,0xc8;"
-		: :"a" (eax), "c" (ecx), "d"(edx));
-}
-
-static inline void __mwait(unsigned long eax, unsigned long ecx)
-{
-	/* "mwait %eax,%ecx;" */
-	asm volatile(
-		".byte 0x0f,0x01,0xc9;"
-		: :"a" (eax), "c" (ecx));
-}
-
-static inline void __sti_mwait(unsigned long eax, unsigned long ecx)
-{
-	/* "mwait %eax,%ecx;" */
-	asm volatile(
-		"sti; .byte 0x0f,0x01,0xc9;"
-		: :"a" (eax), "c" (ecx));
-}
-
-extern void mwait_idle_with_hints(unsigned long eax, unsigned long ecx);
-
-extern int force_mwait;
-
-extern void select_idle_routine(const struct cpuinfo_x86 *c);
 
 #define stack_current() \
 ({								\
@@ -397,12 +288,5 @@ extern void select_idle_routine(const struct cpuinfo_x86 *c);
 	ti->task;					\
 })
 
-#define cache_line_size() (boot_cpu_data.x86_cache_alignment)
-
-extern unsigned long boot_option_idle_override;
-/* Boot loader type from the setup header */
-extern int bootloader_type;
-
-#define HAVE_ARCH_PICK_MMAP_LAYOUT 1
 
 #endif /* __ASM_X86_64_PROCESSOR_H */
