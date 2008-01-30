@@ -9,6 +9,9 @@
 #define GDT_ENTRY_BOOT_DS	(GDT_ENTRY_BOOT_CS + 1)
 #define __BOOT_DS		(GDT_ENTRY_BOOT_DS * 8)
 
+#define GDT_ENTRY_BOOT_TSS	(GDT_ENTRY_BOOT_CS + 2)
+#define __BOOT_TSS		(GDT_ENTRY_BOOT_TSS * 8)
+
 #ifdef CONFIG_X86_32
 /*
  * The layout of the per-CPU GDT under Linux:

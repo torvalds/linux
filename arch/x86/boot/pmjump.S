@@ -36,6 +36,7 @@ protected_mode_jump:
 	addl	%ebx, 2f
 
 	movw	$__BOOT_DS, %cx
+	movw	$__BOOT_TSS, %di
 
 	movl	%cr0, %edx
 	orb	$1, %dl			# Protected mode (PE) bit
@@ -63,6 +64,9 @@ in_pm32:
 	# a valid stack if some debugging hack wants to use it.
 	addl	%ebx, %esp
 
+	# Set up TR to make Intel VT happy
+	ltr	%di
+
 	# Clear registers to allow for future extensions to the
 	# 32-bit boot protocol
 	xorl	%ecx, %ecx
@@ -70,6 +74,9 @@ in_pm32:
 	xorl	%ebx, %ebx
 	xorl	%ebp, %ebp
 	xorl	%edi, %edi
+
+	# Set up LDTR to make Intel VT happy
+	lldt	%cx
 
 	jmpl	*%eax			# Jump to the 32-bit entrypoint
 
