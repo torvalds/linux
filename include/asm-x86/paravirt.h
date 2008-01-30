@@ -230,28 +230,32 @@ struct pv_mmu_ops {
 	void (*pte_update_defer)(struct mm_struct *mm,
 				 unsigned long addr, pte_t *ptep);
 
+	pteval_t (*pte_val)(pte_t);
+	pte_t (*make_pte)(pteval_t pte);
+
+	pgdval_t (*pgd_val)(pgd_t);
+	pgd_t (*make_pgd)(pgdval_t pgd);
+
+#if PAGETABLE_LEVELS >= 3
 #ifdef CONFIG_X86_PAE
 	void (*set_pte_atomic)(pte_t *ptep, pte_t pteval);
 	void (*set_pte_present)(struct mm_struct *mm, unsigned long addr,
 				pte_t *ptep, pte_t pte);
-	void (*set_pud)(pud_t *pudp, pud_t pudval);
 	void (*pte_clear)(struct mm_struct *mm, unsigned long addr, pte_t *ptep);
 	void (*pmd_clear)(pmd_t *pmdp);
 
-	unsigned long long (*pte_val)(pte_t);
-	unsigned long long (*pmd_val)(pmd_t);
-	unsigned long long (*pgd_val)(pgd_t);
+#endif	/* CONFIG_X86_PAE */
 
-	pte_t (*make_pte)(unsigned long long pte);
-	pmd_t (*make_pmd)(unsigned long long pmd);
-	pgd_t (*make_pgd)(unsigned long long pgd);
-#else
-	unsigned long (*pte_val)(pte_t);
-	unsigned long (*pgd_val)(pgd_t);
+	void (*set_pud)(pud_t *pudp, pud_t pudval);
 
-	pte_t (*make_pte)(unsigned long pte);
-	pgd_t (*make_pgd)(unsigned long pgd);
-#endif
+	pmdval_t (*pmd_val)(pmd_t);
+	pmd_t (*make_pmd)(pmdval_t pmd);
+
+#if PAGETABLE_LEVELS == 4
+	pudval_t (*pud_val)(pud_t);
+	pud_t (*make_pud)(pudval_t pud);
+#endif	/* PAGETABLE_LEVELS == 4 */
+#endif	/* PAGETABLE_LEVELS >= 3 */
 
 #ifdef CONFIG_HIGHPTE
 	void *(*kmap_atomic_pte)(struct page *page, enum km_type type);
