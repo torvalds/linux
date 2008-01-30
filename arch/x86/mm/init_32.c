@@ -39,6 +39,7 @@
 #include <asm/fixmap.h>
 #include <asm/e820.h>
 #include <asm/apic.h>
+#include <asm/bugs.h>
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
 #include <asm/pgalloc.h>
@@ -50,7 +51,7 @@ unsigned int __VMALLOC_RESERVE = 128 << 20;
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 unsigned long highstart_pfn, highend_pfn;
 
-static int noinline do_test_wp_bit(void);
+static noinline int do_test_wp_bit(void);
 
 /*
  * Creates a middle page table and puts a pointer to it in the
@@ -61,7 +62,7 @@ static pmd_t * __init one_md_table_init(pgd_t *pgd)
 {
 	pud_t *pud;
 	pmd_t *pmd_table;
-		
+
 #ifdef CONFIG_X86_PAE
 	if (!(pgd_val(*pgd) & _PAGE_PRESENT)) {
 		pmd_table = (pmd_t *) alloc_bootmem_low_pages(PAGE_SIZE);
@@ -69,18 +70,18 @@ static pmd_t * __init one_md_table_init(pgd_t *pgd)
 		paravirt_alloc_pd(&init_mm, __pa(pmd_table) >> PAGE_SHIFT);
 		set_pgd(pgd, __pgd(__pa(pmd_table) | _PAGE_PRESENT));
 		pud = pud_offset(pgd, 0);
-		if (pmd_table != pmd_offset(pud, 0))
-			BUG();
+		BUG_ON(pmd_table != pmd_offset(pud, 0));
 	}
 #endif
 	pud = pud_offset(pgd, 0);
 	pmd_table = pmd_offset(pud, 0);
+
 	return pmd_table;
 }
 
 /*
  * Create a page table and place a pointer to it in a middle page
- * directory entry.
+ * directory entry:
  */
 static pte_t * __init one_page_table_init(pmd_t *pmd)
 {
@@ -90,9 +91,10 @@ static pte_t * __init one_page_table_init(pmd_t *pmd)
 #ifdef CONFIG_DEBUG_PAGEALLOC
 		page_table = (pte_t *) alloc_bootmem_pages(PAGE_SIZE);
 #endif
-		if (!page_table)
+		if (!page_table) {
 			page_table =
 				(pte_t *)alloc_bootmem_low_pages(PAGE_SIZE);
+		}
 
 		paravirt_alloc_pt(&init_mm, __pa(page_table) >> PAGE_SHIFT);
 		set_pmd(pmd, __pmd(__pa(page_table) | _PAGE_TABLE));
@@ -103,22 +105,21 @@ static pte_t * __init one_page_table_init(pmd_t *pmd)
 }
 
 /*
- * This function initializes a certain range of kernel virtual memory 
+ * This function initializes a certain range of kernel virtual memory
  * with new bootmem page tables, everywhere page tables are missing in
  * the given range.
- */
-
-/*
- * NOTE: The pagetables are allocated contiguous on the physical space 
- * so we can cache the place of the first one and move around without 
+ *
+ * NOTE: The pagetables are allocated contiguous on the physical space
+ * so we can cache the place of the first one and move around without
  * checking the pgd every time.
  */
-static void __init page_table_range_init (unsigned long start, unsigned long end, pgd_t *pgd_base)
+static void __init
+page_table_range_init(unsigned long start, unsigned long end, pgd_t *pgd_base)
 {
-	pgd_t *pgd;
-	pmd_t *pmd;
 	int pgd_idx, pmd_idx;
 	unsigned long vaddr;
+	pgd_t *pgd;
+	pmd_t *pmd;
 
 	vaddr = start;
 	pgd_idx = pgd_index(vaddr);
@@ -128,7 +129,8 @@ static void __init page_table_range_init (unsigned long start, unsigned long end
 	for ( ; (pgd_idx < PTRS_PER_PGD) && (vaddr != end); pgd++, pgd_idx++) {
 		pmd = one_md_table_init(pgd);
 		pmd = pmd + pmd_index(vaddr);
-		for (; (pmd_idx < PTRS_PER_PMD) && (vaddr != end); pmd++, pmd_idx++) {
+		for (; (pmd_idx < PTRS_PER_PMD) && (vaddr != end);
+							pmd++, pmd_idx++) {
 			one_page_table_init(pmd);
 
 			vaddr += PMD_SIZE;
@@ -145,17 +147,17 @@ static inline int is_kernel_text(unsigned long addr)
 }
 
 /*
- * This maps the physical memory to kernel virtual address space, a total 
- * of max_low_pfn pages, by creating page tables starting from address 
- * PAGE_OFFSET.
+ * This maps the physical memory to kernel virtual address space, a total
+ * of max_low_pfn pages, by creating page tables starting from address
+ * PAGE_OFFSET:
  */
 static void __init kernel_physical_mapping_init(pgd_t *pgd_base)
 {
+	int pgd_idx, pmd_idx, pte_ofs;
 	unsigned long pfn;
 	pgd_t *pgd;
 	pmd_t *pmd;
 	pte_t *pte;
-	int pgd_idx, pmd_idx, pte_ofs;
 
 	pgd_idx = pgd_index(PAGE_OFFSET);
 	pgd = pgd_base + pgd_idx;
@@ -165,40 +167,43 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base)
 		pmd = one_md_table_init(pgd);
 		if (pfn >= max_low_pfn)
 			continue;
+
 		for (pmd_idx = 0;
 		     pmd_idx < PTRS_PER_PMD && pfn < max_low_pfn;
 		     pmd++, pmd_idx++) {
-			unsigned int address = pfn * PAGE_SIZE + PAGE_OFFSET;
+			unsigned int addr = pfn * PAGE_SIZE + PAGE_OFFSET;
 
-			/* Map with big pages if possible, otherwise
-			   create normal page tables. */
+			/*
+			 * Map with big pages if possible, otherwise
+			 * create normal page tables:
+			 */
 			if (cpu_has_pse) {
-				unsigned int address2;
+				unsigned int addr2;
 				pgprot_t prot = PAGE_KERNEL_LARGE;
 
-				address2 = (pfn + PTRS_PER_PTE - 1) * PAGE_SIZE +
+				addr2 = (pfn + PTRS_PER_PTE-1) * PAGE_SIZE +
 					PAGE_OFFSET + PAGE_SIZE-1;
 
-				if (is_kernel_text(address) ||
-				    is_kernel_text(address2))
+				if (is_kernel_text(addr) ||
+				    is_kernel_text(addr2))
 					prot = PAGE_KERNEL_LARGE_EXEC;
 
 				set_pmd(pmd, pfn_pmd(pfn, prot));
 
 				pfn += PTRS_PER_PTE;
-			} else {
-				pte = one_page_table_init(pmd);
+				continue;
+			}
+			pte = one_page_table_init(pmd);
 
-				for (pte_ofs = 0;
-				     pte_ofs < PTRS_PER_PTE && pfn < max_low_pfn;
-				     pte++, pfn++, pte_ofs++, address += PAGE_SIZE) {
-					pgprot_t prot = PAGE_KERNEL;
+			for (pte_ofs = 0;
+			     pte_ofs < PTRS_PER_PTE && pfn < max_low_pfn;
+			     pte++, pfn++, pte_ofs++, addr += PAGE_SIZE) {
+				pgprot_t prot = PAGE_KERNEL;
 
-					if (is_kernel_text(address))
-						prot = PAGE_KERNEL_EXEC;
+				if (is_kernel_text(addr))
+					prot = PAGE_KERNEL_EXEC;
 
-					set_pte(pte, pfn_pte(pfn, prot));
-				}
+				set_pte(pte, pfn_pte(pfn, prot));
 			}
 		}
 	}
@@ -215,14 +220,19 @@ static inline int page_kills_ppro(unsigned long pagenr)
 pte_t *kmap_pte;
 pgprot_t kmap_prot;
 
-#define kmap_get_fixmap_pte(vaddr)					\
-	pte_offset_kernel(pmd_offset(pud_offset(pgd_offset_k(vaddr), vaddr), (vaddr)), (vaddr))
+static inline pte_t *kmap_get_fixmap_pte(unsigned long vaddr)
+{
+	return pte_offset_kernel(pmd_offset(pud_offset(pgd_offset_k(vaddr),
+			vaddr), vaddr), vaddr);
+}
 
 static void __init kmap_init(void)
 {
 	unsigned long kmap_vstart;
 
-	/* cache the first kmap pte */
+	/*
+	 * Cache the first kmap pte:
+	 */
 	kmap_vstart = __fix_to_virt(FIX_KMAP_BEGIN);
 	kmap_pte = kmap_get_fixmap_pte(kmap_vstart);
 
@@ -231,11 +241,11 @@ static void __init kmap_init(void)
 
 static void __init permanent_kmaps_init(pgd_t *pgd_base)
 {
+	unsigned long vaddr;
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
-	unsigned long vaddr;
 
 	vaddr = PKMAP_BASE;
 	page_table_range_init(vaddr, vaddr + PAGE_SIZE*LAST_PKMAP, pgd_base);
@@ -244,7 +254,7 @@ static void __init permanent_kmaps_init(pgd_t *pgd_base)
 	pud = pud_offset(pgd, vaddr);
 	pmd = pmd_offset(pud, vaddr);
 	pte = pte_offset_kernel(pmd, vaddr);
-	pkmap_page_table = pte;	
+	pkmap_page_table = pte;
 }
 
 static void __meminit free_new_highpage(struct page *page)
@@ -263,7 +273,8 @@ void __init add_one_highpage_init(struct page *page, int pfn, int bad_ppro)
 		SetPageReserved(page);
 }
 
-static int __meminit add_one_highpage_hotplug(struct page *page, unsigned long pfn)
+static int __meminit
+add_one_highpage_hotplug(struct page *page, unsigned long pfn)
 {
 	free_new_highpage(page);
 	totalram_pages++;
@@ -271,6 +282,7 @@ static int __meminit add_one_highpage_hotplug(struct page *page, unsigned long p
 	max_mapnr = max(pfn, max_mapnr);
 #endif
 	num_physpages++;
+
 	return 0;
 }
 
@@ -278,7 +290,7 @@ static int __meminit add_one_highpage_hotplug(struct page *page, unsigned long p
  * Not currently handling the NUMA case.
  * Assuming single node and all memory that
  * has been added dynamically that would be
- * onlined here is in HIGHMEM
+ * onlined here is in HIGHMEM.
  */
 void __meminit online_page(struct page *page)
 {
@@ -286,13 +298,11 @@ void __meminit online_page(struct page *page)
 	add_one_highpage_hotplug(page, page_to_pfn(page));
 }
 
-
-#ifdef CONFIG_NUMA
-extern void set_highmem_pages_init(int);
-#else
+#ifndef CONFIG_NUMA
 static void __init set_highmem_pages_init(int bad_ppro)
 {
 	int pfn;
+
 	for (pfn = highstart_pfn; pfn < highend_pfn; pfn++) {
 		/*
 		 * Holes under sparsemem might not have no mem_map[]:
@@ -302,23 +312,18 @@ static void __init set_highmem_pages_init(int bad_ppro)
 	}
 	totalram_pages += totalhigh_pages;
 }
-#endif /* CONFIG_FLATMEM */
+#endif /* !CONFIG_NUMA */
 
 #else
-#define kmap_init() do { } while (0)
-#define permanent_kmaps_init(pgd_base) do { } while (0)
-#define set_highmem_pages_init(bad_ppro) do { } while (0)
+# define kmap_init()				do { } while (0)
+# define permanent_kmaps_init(pgd_base)		do { } while (0)
+# define set_highmem_pages_init(bad_ppro)	do { } while (0)
 #endif /* CONFIG_HIGHMEM */
 
 pteval_t __PAGE_KERNEL = _PAGE_KERNEL;
 EXPORT_SYMBOL(__PAGE_KERNEL);
-pteval_t __PAGE_KERNEL_EXEC = _PAGE_KERNEL_EXEC;
 
-#ifdef CONFIG_NUMA
-extern void __init remap_numa_kva(void);
-#else
-#define remap_numa_kva() do {} while (0)
-#endif
+pteval_t __PAGE_KERNEL_EXEC = _PAGE_KERNEL_EXEC;
 
 void __init native_pagetable_setup_start(pgd_t *base)
 {
@@ -382,10 +387,10 @@ void __init native_pagetable_setup_done(pgd_t *base)
  * be partially populated, and so it avoids stomping on any existing
  * mappings.
  */
-static void __init pagetable_init (void)
+static void __init pagetable_init(void)
 {
-	unsigned long vaddr, end;
 	pgd_t *pgd_base = swapper_pg_dir;
+	unsigned long vaddr, end;
 
 	paravirt_pagetable_setup_start(pgd_base);
 
@@ -424,7 +429,7 @@ static void __init pagetable_init (void)
  * driver might have split up a kernel 4MB mapping.
  */
 char __nosavedata swsusp_pg_dir[PAGE_SIZE]
-	__attribute__ ((aligned (PAGE_SIZE)));
+	__attribute__ ((aligned(PAGE_SIZE)));
 
 static inline void save_pg_dir(void)
 {
@@ -436,7 +441,7 @@ static inline void save_pg_dir(void)
 }
 #endif
 
-void zap_low_mappings (void)
+void zap_low_mappings(void)
 {
 	int i;
 
@@ -448,23 +453,24 @@ void zap_low_mappings (void)
 	 * Note that "pgd_clear()" doesn't do it for
 	 * us, because pgd_clear() is a no-op on i386.
 	 */
-	for (i = 0; i < USER_PTRS_PER_PGD; i++)
+	for (i = 0; i < USER_PTRS_PER_PGD; i++) {
 #ifdef CONFIG_X86_PAE
 		set_pgd(swapper_pg_dir+i, __pgd(1 + __pa(empty_zero_page)));
 #else
 		set_pgd(swapper_pg_dir+i, __pgd(0));
 #endif
+	}
 	flush_tlb_all();
 }
 
-int nx_enabled = 0;
+int nx_enabled;
 
 pteval_t __supported_pte_mask __read_mostly = ~_PAGE_NX;
 EXPORT_SYMBOL_GPL(__supported_pte_mask);
 
 #ifdef CONFIG_X86_PAE
 
-static int disable_nx __initdata = 0;
+static int disable_nx __initdata;
 
 /*
  * noexec = on|off
@@ -481,11 +487,14 @@ static int __init noexec_setup(char *str)
 			__supported_pte_mask |= _PAGE_NX;
 			disable_nx = 0;
 		}
-	} else if (!strcmp(str,"off")) {
-		disable_nx = 1;
-		__supported_pte_mask &= ~_PAGE_NX;
-	} else
-		return -EINVAL;
+	} else {
+		if (!strcmp(str, "off")) {
+			disable_nx = 1;
+			__supported_pte_mask &= ~_PAGE_NX;
+		} else {
+			return -EINVAL;
+		}
+	}
 
 	return 0;
 }
@@ -497,6 +506,7 @@ static void __init set_nx(void)
 
 	if (cpu_has_pae && (cpuid_eax(0x80000000) > 0x80000001)) {
 		cpuid(0x80000001, &v[0], &v[1], &v[2], &v[3]);
+
 		if ((v[3] & (1 << 20)) && !disable_nx) {
 			rdmsr(MSR_EFER, l, h);
 			l |= EFER_NX;
@@ -506,7 +516,6 @@ static void __init set_nx(void)
 		}
 	}
 }
-
 #endif
 
 /*
@@ -523,7 +532,6 @@ void __init paging_init(void)
 	if (nx_enabled)
 		printk("NX (Execute Disable) protection: active\n");
 #endif
-
 	pagetable_init();
 
 	load_cr3(swapper_pg_dir);
@@ -547,7 +555,6 @@ void __init paging_init(void)
  * used to involve black magic jumps to work around some nasty CPU bugs,
  * but fortunately the switch to using exceptions got rid of all that.
  */
-
 static void __init test_wp_bit(void)
 {
 	printk("Checking if this processor honours the WP bit even in supervisor mode... ");
@@ -567,19 +574,16 @@ static void __init test_wp_bit(void)
 	}
 }
 
-static struct kcore_list kcore_mem, kcore_vmalloc; 
+static struct kcore_list kcore_mem, kcore_vmalloc;
 
 void __init mem_init(void)
 {
-	extern int ppro_with_ram_bug(void);
 	int codesize, reservedpages, datasize, initsize;
-	int tmp;
-	int bad_ppro;
+	int tmp, bad_ppro;
 
 #ifdef CONFIG_FLATMEM
 	BUG_ON(!mem_map);
 #endif
-	
 	bad_ppro = ppro_with_ram_bug();
 
 #ifdef CONFIG_HIGHMEM
@@ -591,14 +595,13 @@ void __init mem_init(void)
 		BUG();
 	}
 #endif
- 
 	/* this will put all low memory onto the freelists */
 	totalram_pages += free_all_bootmem();
 
 	reservedpages = 0;
 	for (tmp = 0; tmp < max_low_pfn; tmp++)
 		/*
-		 * Only count reserved RAM pages
+		 * Only count reserved RAM pages:
 		 */
 		if (page_is_ram(tmp) && PageReserved(pfn_to_page(tmp)))
 			reservedpages++;
@@ -609,11 +612,12 @@ void __init mem_init(void)
 	datasize =  (unsigned long) &_edata - (unsigned long) &_etext;
 	initsize =  (unsigned long) &__init_end - (unsigned long) &__init_begin;
 
-	kclist_add(&kcore_mem, __va(0), max_low_pfn << PAGE_SHIFT); 
-	kclist_add(&kcore_vmalloc, (void *)VMALLOC_START, 
+	kclist_add(&kcore_mem, __va(0), max_low_pfn << PAGE_SHIFT);
+	kclist_add(&kcore_vmalloc, (void *)VMALLOC_START,
 		   VMALLOC_END-VMALLOC_START);
 
-	printk(KERN_INFO "Memory: %luk/%luk available (%dk kernel code, %dk reserved, %dk data, %dk init, %ldk highmem)\n",
+	printk(KERN_INFO "Memory: %luk/%luk available (%dk kernel code, "
+			"%dk reserved, %dk data, %dk init, %ldk highmem)\n",
 		(unsigned long) nr_free_pages() << (PAGE_SHIFT-10),
 		num_physpages << (PAGE_SHIFT-10),
 		codesize >> 10,
@@ -625,44 +629,45 @@ void __init mem_init(void)
 
 #if 1 /* double-sanity-check paranoia */
 	printk("virtual kernel memory layout:\n"
-	       "    fixmap  : 0x%08lx - 0x%08lx   (%4ld kB)\n"
+		"    fixmap  : 0x%08lx - 0x%08lx   (%4ld kB)\n"
 #ifdef CONFIG_HIGHMEM
-	       "    pkmap   : 0x%08lx - 0x%08lx   (%4ld kB)\n"
+		"    pkmap   : 0x%08lx - 0x%08lx   (%4ld kB)\n"
 #endif
-	       "    vmalloc : 0x%08lx - 0x%08lx   (%4ld MB)\n"
-	       "    lowmem  : 0x%08lx - 0x%08lx   (%4ld MB)\n"
-	       "      .init : 0x%08lx - 0x%08lx   (%4ld kB)\n"
-	       "      .data : 0x%08lx - 0x%08lx   (%4ld kB)\n"
-	       "      .text : 0x%08lx - 0x%08lx   (%4ld kB)\n",
-	       FIXADDR_START, FIXADDR_TOP,
-	       (FIXADDR_TOP - FIXADDR_START) >> 10,
-
-#ifdef CONFIG_HIGHMEM
-	       PKMAP_BASE, PKMAP_BASE+LAST_PKMAP*PAGE_SIZE,
-	       (LAST_PKMAP*PAGE_SIZE) >> 10,
-#endif
-
-	       VMALLOC_START, VMALLOC_END,
-	       (VMALLOC_END - VMALLOC_START) >> 20,
-
-	       (unsigned long)__va(0), (unsigned long)high_memory,
-	       ((unsigned long)high_memory - (unsigned long)__va(0)) >> 20,
-
-	       (unsigned long)&__init_begin, (unsigned long)&__init_end,
-	       ((unsigned long)&__init_end - (unsigned long)&__init_begin) >> 10,
-
-	       (unsigned long)&_etext, (unsigned long)&_edata,
-	       ((unsigned long)&_edata - (unsigned long)&_etext) >> 10,
-
-	       (unsigned long)&_text, (unsigned long)&_etext,
-	       ((unsigned long)&_etext - (unsigned long)&_text) >> 10);
+		"    vmalloc : 0x%08lx - 0x%08lx   (%4ld MB)\n"
+		"    lowmem  : 0x%08lx - 0x%08lx   (%4ld MB)\n"
+		"      .init : 0x%08lx - 0x%08lx   (%4ld kB)\n"
+		"      .data : 0x%08lx - 0x%08lx   (%4ld kB)\n"
+		"      .text : 0x%08lx - 0x%08lx   (%4ld kB)\n",
+		FIXADDR_START, FIXADDR_TOP,
+		(FIXADDR_TOP - FIXADDR_START) >> 10,
 
 #ifdef CONFIG_HIGHMEM
-	BUG_ON(PKMAP_BASE+LAST_PKMAP*PAGE_SIZE > FIXADDR_START);
-	BUG_ON(VMALLOC_END                     > PKMAP_BASE);
+		PKMAP_BASE, PKMAP_BASE+LAST_PKMAP*PAGE_SIZE,
+		(LAST_PKMAP*PAGE_SIZE) >> 10,
 #endif
-	BUG_ON(VMALLOC_START                   > VMALLOC_END);
-	BUG_ON((unsigned long)high_memory      > VMALLOC_START);
+
+		VMALLOC_START, VMALLOC_END,
+		(VMALLOC_END - VMALLOC_START) >> 20,
+
+		(unsigned long)__va(0), (unsigned long)high_memory,
+		((unsigned long)high_memory - (unsigned long)__va(0)) >> 20,
+
+		(unsigned long)&__init_begin, (unsigned long)&__init_end,
+		((unsigned long)&__init_end -
+		 (unsigned long)&__init_begin) >> 10,
+
+		(unsigned long)&_etext, (unsigned long)&_edata,
+		((unsigned long)&_edata - (unsigned long)&_etext) >> 10,
+
+		(unsigned long)&_text, (unsigned long)&_etext,
+		((unsigned long)&_etext - (unsigned long)&_text) >> 10);
+
+#ifdef CONFIG_HIGHMEM
+	BUG_ON(PKMAP_BASE + LAST_PKMAP*PAGE_SIZE	> FIXADDR_START);
+	BUG_ON(VMALLOC_END				> PKMAP_BASE);
+#endif
+	BUG_ON(VMALLOC_START				> VMALLOC_END);
+	BUG_ON((unsigned long)high_memory		> VMALLOC_START);
 #endif /* double-sanity-check paranoia */
 
 #ifdef CONFIG_X86_PAE
@@ -693,45 +698,45 @@ int arch_add_memory(int nid, u64 start, u64 size)
 
 	return __add_pages(zone, start_pfn, nr_pages);
 }
-
 #endif
 
 struct kmem_cache *pmd_cache;
 
 void __init pgtable_cache_init(void)
 {
-	if (PTRS_PER_PMD > 1)
+	if (PTRS_PER_PMD > 1) {
 		pmd_cache = kmem_cache_create("pmd",
 					      PTRS_PER_PMD*sizeof(pmd_t),
 					      PTRS_PER_PMD*sizeof(pmd_t),
 					      SLAB_PANIC,
 					      pmd_ctor);
+	}
 }
 
 /*
  * This function cannot be __init, since exceptions don't work in that
  * section.  Put this after the callers, so that it cannot be inlined.
  */
-static int noinline do_test_wp_bit(void)
+static noinline int do_test_wp_bit(void)
 {
 	char tmp_reg;
 	int flag;
 
 	__asm__ __volatile__(
-		"	movb %0,%1	\n"
-		"1:	movb %1,%0	\n"
-		"	xorl %2,%2	\n"
+		"	movb %0, %1	\n"
+		"1:	movb %1, %0	\n"
+		"	xorl %2, %2	\n"
 		"2:			\n"
-		".section __ex_table,\"a\"\n"
+		".section __ex_table, \"a\"\n"
 		"	.align 4	\n"
-		"	.long 1b,2b	\n"
+		"	.long 1b, 2b	\n"
 		".previous		\n"
 		:"=m" (*(char *)fix_to_virt(FIX_WP_TEST)),
 		 "=q" (tmp_reg),
 		 "=r" (flag)
 		:"2" (1)
 		:"memory");
-	
+
 	return flag;
 }
 
@@ -824,4 +829,3 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 	free_init_pages("initrd memory", start, end);
 }
 #endif
-
