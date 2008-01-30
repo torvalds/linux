@@ -67,12 +67,12 @@ static __cpuinit void check_tsc_warp(void)
 
 		/*
 		 * Be nice every now and then (and also check whether
-		 * measurement is done [we also insert a 100 million
+		 * measurement is done [we also insert a 10 million
 		 * loops safety exit, so we dont lock up in case the
 		 * TSC readout is totally broken]):
 		 */
 		if (unlikely(!(i & 7))) {
-			if (now > end || i > 100000000)
+			if (now > end || i > 10000000)
 				break;
 			cpu_relax();
 			touch_nmi_watchdog();
