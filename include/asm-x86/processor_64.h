@@ -117,14 +117,6 @@ struct orig_ist {
 };
 DECLARE_PER_CPU(struct orig_ist, orig_ist);
 
-#ifdef CONFIG_X86_VSMP
-#define ARCH_MIN_TASKALIGN	(1 << INTERNODE_CACHE_SHIFT)
-#define ARCH_MIN_MMSTRUCT_ALIGN	(1 << INTERNODE_CACHE_SHIFT)
-#else
-#define ARCH_MIN_TASKALIGN	16
-#define ARCH_MIN_MMSTRUCT_ALIGN	0
-#endif
-
 #define INIT_THREAD  { \
 	.sp0 = (unsigned long)&init_stack + sizeof(init_stack) \
 }

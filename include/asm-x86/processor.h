@@ -22,6 +22,14 @@ static inline void *current_text_addr(void)
 	return pc;
 }
 
+#ifdef CONFIG_X86_VSMP
+#define ARCH_MIN_TASKALIGN	(1 << INTERNODE_CACHE_SHIFT)
+#define ARCH_MIN_MMSTRUCT_ALIGN	(1 << INTERNODE_CACHE_SHIFT)
+#else
+#define ARCH_MIN_TASKALIGN	16
+#define ARCH_MIN_MMSTRUCT_ALIGN	0
+#endif
+
 static inline void native_cpuid(unsigned int *eax, unsigned int *ebx,
 					 unsigned int *ecx, unsigned int *edx)
 {
