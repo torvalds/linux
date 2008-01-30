@@ -211,8 +211,6 @@ void dump_pagetable(unsigned long address)
 	printk("\n");
 }
 
-void do_invalid_op(struct pt_regs *, unsigned long);
-
 static inline pmd_t *vmalloc_sync_one(pgd_t *pgd, unsigned long address)
 {
 	unsigned index = pgd_index(address);
@@ -288,6 +286,26 @@ static int is_errata93(struct pt_regs *regs, unsigned long address)
 	return 0;
 }
 
+void do_invalid_op(struct pt_regs *, unsigned long);
+
+static int is_f00f_bug(struct pt_regs *regs, unsigned long address)
+{
+#ifdef CONFIG_X86_F00F_BUG
+	unsigned long nr;
+	/*
+	 * Pentium F0 0F C7 C8 bug workaround.
+	 */
+	if (boot_cpu_data.f00f_bug) {
+		nr = (address - idt_descr.address) >> 3;
+
+		if (nr == 6) {
+			do_invalid_op(regs, 0);
+			return 1;
+		}
+	}
+#endif
+	return 0;
+}
 
 /*
  * Handle a fault on the vmalloc or module mapping area
@@ -570,21 +588,8 @@ bad_area_nosemaphore:
 		return;
 	}
 
-#ifdef CONFIG_X86_F00F_BUG
-	/*
-	 * Pentium F0 0F C7 C8 bug workaround.
-	 */
-	if (boot_cpu_data.f00f_bug) {
-		unsigned long nr;
-
-		nr = (address - idt_descr.address) >> 3;
-
-		if (nr == 6) {
-			do_invalid_op(regs, 0);
-			return;
-		}
-	}
-#endif
+	if (is_f00f_bug(regs, address))
+		return;
 
 no_context:
 	/* Are we prepared to handle this kernel fault?  */

@@ -256,6 +256,27 @@ static int is_errata93(struct pt_regs *regs, unsigned long address)
 	return 0;
 }
 
+void do_invalid_op(struct pt_regs *, unsigned long);
+
+static int is_f00f_bug(struct pt_regs *regs, unsigned long address)
+{
+#ifdef CONFIG_X86_F00F_BUG
+	unsigned long nr;
+	/*
+	 * Pentium F0 0F C7 C8 bug workaround.
+	 */
+	if (boot_cpu_data.f00f_bug) {
+		nr = (address - idt_descr.address) >> 3;
+
+		if (nr == 6) {
+			do_invalid_op(regs, 0);
+			return 1;
+		}
+	}
+#endif
+	return 0;
+}
+
 static noinline void pgtable_bad(unsigned long address, struct pt_regs *regs,
 				 unsigned long error_code)
 {
@@ -580,6 +601,9 @@ bad_area_nosemaphore:
 		force_sig_info_fault(SIGSEGV, si_code, address, tsk);
 		return;
 	}
+
+	if (is_f00f_bug(regs, address))
+		return;
 
 no_context:
 	/* Are we prepared to handle this kernel fault?  */
