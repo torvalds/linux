@@ -118,6 +118,14 @@ extern unsigned long long __PAGE_KERNEL, __PAGE_KERNEL_EXEC;
 #ifndef __ASSEMBLY__
 
 /*
+ * ZERO_PAGE is a global shared page that is always zero: used
+ * for zero-mapped memory areas etc..
+ */
+extern unsigned long empty_zero_page[PAGE_SIZE/sizeof(unsigned long)];
+#define ZERO_PAGE(vaddr) (virt_to_page(empty_zero_page))
+
+
+/*
  * The following only work if pte_present() is true.
  * Undefined behaviour if not..
  */

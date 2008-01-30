@@ -25,12 +25,6 @@
 struct mm_struct;
 struct vm_area_struct;
 
-/*
- * ZERO_PAGE is a global shared page that is always zero: used
- * for zero-mapped memory areas etc..
- */
-#define ZERO_PAGE(vaddr) (virt_to_page(empty_zero_page))
-extern unsigned long empty_zero_page[1024];
 extern pgd_t swapper_pg_dir[1024];
 extern struct kmem_cache *pmd_cache;
 extern spinlock_t pgd_lock;
