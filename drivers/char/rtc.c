@@ -110,6 +110,8 @@ static int rtc_has_irq = 1;
 #define hpet_set_rtc_irq_bit(arg)		0
 #define hpet_rtc_timer_init()			do { } while (0)
 #define hpet_rtc_dropped_irq()			0
+#define hpet_register_irq_handler(h)		0
+#define hpet_unregister_irq_handler(h)		0
 #ifdef RTC_IRQ
 static irqreturn_t hpet_rtc_interrupt(int irq, void *dev_id)
 {
@@ -1027,7 +1029,15 @@ no_irq:
 
 #ifdef RTC_IRQ
 	if (is_hpet_enabled()) {
+		int err;
+
 		rtc_int_handler_ptr = hpet_rtc_interrupt;
+		err = hpet_register_irq_handler(rtc_interrupt);
+		if (err != 0) {
+			printk(KERN_WARNING "hpet_register_irq_handler failed "
+					"in rtc_init().");
+			return err;
+		}
 	} else {
 		rtc_int_handler_ptr = rtc_interrupt;
 	}
@@ -1050,6 +1060,7 @@ no_irq:
 	if (misc_register(&rtc_dev)) {
 #ifdef RTC_IRQ
 		free_irq(RTC_IRQ, NULL);
+		hpet_unregister_irq_handler(rtc_interrupt);
 		rtc_has_irq = 0;
 #endif
 		rtc_release_region();
@@ -1141,8 +1152,10 @@ static void __exit rtc_exit(void)
 #else
 	rtc_release_region();
 #ifdef RTC_IRQ
-	if (rtc_has_irq)
+	if (rtc_has_irq) {
 		free_irq(RTC_IRQ, NULL);
+		hpet_unregister_irq_handler(hpet_rtc_interrupt);
+	}
 #endif
 #endif /* CONFIG_SPARC32 */
 }

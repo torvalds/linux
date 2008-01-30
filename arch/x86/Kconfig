@@ -390,7 +390,7 @@ config HPET_TIMER
 
 config HPET_EMULATE_RTC
 	def_bool y
-	depends on HPET_TIMER && RTC=y
+	depends on HPET_TIMER && (RTC=y || RTC=m)
 
 # Mark as embedded because too many people got it wrong.
 # The code disables itself when not needed.

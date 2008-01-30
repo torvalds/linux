@@ -705,8 +705,6 @@ irqreturn_t hpet_rtc_interrupt(int irq, void *dev_id)
 		rtc_int_flag |= (RTC_IRQF | (RTC_NUM_INTS << 8));
 		if (irq_handler)
 			irq_handler(rtc_int_flag, dev_id);
-
-		rtc_interrupt(rtc_int_flag, dev_id);
 	}
 	return IRQ_HANDLED;
 }
