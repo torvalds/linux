@@ -1011,14 +1011,20 @@ static irqreturn_t nv_adma_interrupt(int irq, void *dev_instance)
 			}
 
 			if (status & (NV_ADMA_STAT_DONE |
-				      NV_ADMA_STAT_CPBERR)) {
-				u32 check_commands;
+				      NV_ADMA_STAT_CPBERR |
+				      NV_ADMA_STAT_CMD_COMPLETE)) {
+				u32 check_commands = notifier_clears[i];
 				int pos, error = 0;
 
-				if (ata_tag_valid(ap->link.active_tag))
-					check_commands = 1 << ap->link.active_tag;
-				else
-					check_commands = ap->link.sactive;
+				if (status & NV_ADMA_STAT_CPBERR) {
+					/* Check all active commands */
+					if (ata_tag_valid(ap->link.active_tag))
+						check_commands = 1 <<
+							ap->link.active_tag;
+					else
+						check_commands = ap->
+							link.sactive;
+				}
 
 				/** Check CPBs for completed commands */
 				while ((pos = ffs(check_commands)) && !error) {
