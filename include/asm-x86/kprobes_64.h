@@ -34,6 +34,7 @@ struct kprobe;
 
 typedef u8 kprobe_opcode_t;
 #define BREAKPOINT_INSTRUCTION	0xcc
+#define RELATIVEJUMP_INSTRUCTION 0xe9
 #define MAX_INSN_SIZE 15
 #define MAX_STACK_SIZE 64
 #define MIN_STACK_SIZE(ADDR) (((MAX_STACK_SIZE) < \
@@ -52,6 +53,15 @@ extern void arch_remove_kprobe(struct kprobe *p);
 struct arch_specific_insn {
 	/* copy of the original instruction */
 	kprobe_opcode_t *insn;
+	/*
+	 * boostable = -1: This instruction type is not boostable.
+	 * boostable = 0: This instruction type is boostable.
+	 * boostable = 1: This instruction has been boosted: we have
+	 * added a relative jump after the instruction copy in insn,
+	 * so no single-step and fixup are needed (unless there's
+	 * a post_handler or break_handler).
+	 */
+	int boostable;
 };
 
 struct prev_kprobe {
