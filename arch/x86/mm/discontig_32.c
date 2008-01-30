@@ -32,6 +32,7 @@
 #include <linux/kexec.h>
 #include <linux/pfn.h>
 #include <linux/swap.h>
+#include <linux/acpi.h>
 
 #include <asm/e820.h>
 #include <asm/setup.h>
@@ -103,14 +104,10 @@ extern unsigned long highend_pfn, highstart_pfn;
 
 #define LARGE_PAGE_BYTES (PTRS_PER_PTE * PAGE_SIZE)
 
-static unsigned long node_remap_start_pfn[MAX_NUMNODES];
 unsigned long node_remap_size[MAX_NUMNODES];
-static unsigned long node_remap_offset[MAX_NUMNODES];
 static void *node_remap_start_vaddr[MAX_NUMNODES];
 void set_pmd_pfn(unsigned long vaddr, unsigned long pfn, pgprot_t flags);
 
-static void *node_remap_end_vaddr[MAX_NUMNODES];
-static void *node_remap_alloc_vaddr[MAX_NUMNODES];
 static unsigned long kva_start_pfn;
 static unsigned long kva_pages;
 /*
@@ -166,6 +163,22 @@ static void __init allocate_pgdat(int nid)
 		min_low_pfn += PFN_UP(sizeof(pg_data_t));
 	}
 }
+
+#ifdef CONFIG_DISCONTIGMEM
+/*
+ * In the discontig memory model, a portion of the kernel virtual area (KVA)
+ * is reserved and portions of nodes are mapped using it. This is to allow
+ * node-local memory to be allocated for structures that would normally require
+ * ZONE_NORMAL. The memory is allocated with alloc_remap() and callers
+ * should be prepared to allocate from the bootmem allocator instead. This KVA
+ * mechanism is incompatible with SPARSEMEM as it makes assumptions about the
+ * layout of memory that are broken if alloc_remap() succeeds for some of the
+ * map and fails for others
+ */
+static unsigned long node_remap_start_pfn[MAX_NUMNODES];
+static void *node_remap_end_vaddr[MAX_NUMNODES];
+static void *node_remap_alloc_vaddr[MAX_NUMNODES];
+static unsigned long node_remap_offset[MAX_NUMNODES];
 
 void *alloc_remap(int nid, unsigned long size)
 {
@@ -263,6 +276,40 @@ static unsigned long calculate_numa_remap_pages(void)
 	return reserve_pages;
 }
 
+static void init_remap_allocator(int nid)
+{
+	node_remap_start_vaddr[nid] = pfn_to_kaddr(
+			kva_start_pfn + node_remap_offset[nid]);
+	node_remap_end_vaddr[nid] = node_remap_start_vaddr[nid] +
+		(node_remap_size[nid] * PAGE_SIZE);
+	node_remap_alloc_vaddr[nid] = node_remap_start_vaddr[nid] +
+		ALIGN(sizeof(pg_data_t), PAGE_SIZE);
+
+	printk ("node %d will remap to vaddr %08lx - %08lx\n", nid,
+		(ulong) node_remap_start_vaddr[nid],
+		(ulong) pfn_to_kaddr(highstart_pfn
+		   + node_remap_offset[nid] + node_remap_size[nid]));
+}
+#else
+void *alloc_remap(int nid, unsigned long size)
+{
+	return NULL;
+}
+
+static unsigned long calculate_numa_remap_pages(void)
+{
+	return 0;
+}
+
+static void init_remap_allocator(int nid)
+{
+}
+
+void __init remap_numa_kva(void)
+{
+}
+#endif /* CONFIG_DISCONTIGMEM */
+
 extern void setup_bootmem_allocator(void);
 unsigned long __init setup_memory(void)
 {
@@ -326,19 +373,9 @@ unsigned long __init setup_memory(void)
 	printk("Low memory ends at vaddr %08lx\n",
 			(ulong) pfn_to_kaddr(max_low_pfn));
 	for_each_online_node(nid) {
-		node_remap_start_vaddr[nid] = pfn_to_kaddr(
-				kva_start_pfn + node_remap_offset[nid]);
-		/* Init the node remap allocator */
-		node_remap_end_vaddr[nid] = node_remap_start_vaddr[nid] +
-			(node_remap_size[nid] * PAGE_SIZE);
-		node_remap_alloc_vaddr[nid] = node_remap_start_vaddr[nid] +
-			ALIGN(sizeof(pg_data_t), PAGE_SIZE);
+		init_remap_allocator(nid);
 
 		allocate_pgdat(nid);
-		printk ("node %d will remap to vaddr %08lx - %08lx\n", nid,
-			(ulong) node_remap_start_vaddr[nid],
-			(ulong) pfn_to_kaddr(highstart_pfn
-			   + node_remap_offset[nid] + node_remap_size[nid]));
 	}
 	printk("High memory starts at vaddr %08lx\n",
 			(ulong) pfn_to_kaddr(highstart_pfn));
@@ -439,3 +476,29 @@ int memory_add_physaddr_to_nid(u64 addr)
 
 EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
 #endif
+
+#ifndef CONFIG_HAVE_ARCH_PARSE_SRAT
+/*
+ * XXX FIXME: Make SLIT table parsing available to 32-bit NUMA
+ *
+ * These stub functions are needed to compile 32-bit NUMA when SRAT is
+ * not set. There are functions in srat_64.c for parsing this table
+ * and it may be possible to make them common functions.
+ */
+void acpi_numa_slit_init (struct acpi_table_slit *slit)
+{
+	printk(KERN_INFO "ACPI: No support for parsing SLIT table\n");
+}
+
+void acpi_numa_processor_affinity_init (struct acpi_srat_cpu_affinity *pa)
+{
+}
+
+void acpi_numa_memory_affinity_init (struct acpi_srat_mem_affinity *ma)
+{
+}
+
+void acpi_numa_arch_fixup(void)
+{
+}
+#endif /* CONFIG_HAVE_ARCH_PARSE_SRAT */
