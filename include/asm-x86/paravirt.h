@@ -5,6 +5,7 @@
 
 #ifdef CONFIG_PARAVIRT
 #include <asm/page.h>
+#include <asm/asm.h>
 
 /* Bitmask of what can be clobbered: usually at least eax. */
 #define CLBR_NONE 0x0
@@ -281,7 +282,8 @@ extern struct pv_mmu_ops pv_mmu_ops;
 #define _paravirt_alt(insn_string, type, clobber)	\
 	"771:\n\t" insn_string "\n" "772:\n"		\
 	".pushsection .parainstructions,\"a\"\n"	\
-	"  .long 771b\n"				\
+	_ASM_ALIGN "\n"					\
+	_ASM_PTR " 771b\n"				\
 	"  .byte " type "\n"				\
 	"  .byte 772b-771b\n"				\
 	"  .short " clobber "\n"			\
@@ -1159,16 +1161,24 @@ static inline unsigned long __raw_local_irq_save(void)
 
 #define PARA_PATCH(struct, off)	((PARAVIRT_PATCH_##struct + (off)) / 4)
 
-#define PARA_SITE(ptype, clobbers, ops)		\
+#define _PVSITE(ptype, clobbers, ops, word, algn)	\
 771:;						\
 	ops;					\
 772:;						\
 	.pushsection .parainstructions,"a";	\
-	 .long 771b;				\
+	 .align	algn;				\
+	 word 771b;				\
 	 .byte ptype;				\
 	 .byte 772b-771b;			\
 	 .short clobbers;			\
 	.popsection
+
+
+#ifdef CONFIG_X86_64
+#define PARA_SITE(ptype, clobbers, ops) _PVSITE(ptype, clobbers, ops, .quad, 8)
+#else
+#define PARA_SITE(ptype, clobbers, ops) _PVSITE(ptype, clobbers, ops, .long, 4)
+#endif
 
 #define INTERRUPT_RETURN						\
 	PARA_SITE(PARA_PATCH(pv_cpu_ops, PV_CPU_iret), CLBR_NONE,	\
