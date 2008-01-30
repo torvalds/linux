@@ -901,7 +901,7 @@ static short ibmlana_adapter_ids[] __initdata = {
 	0x0000
 };
 
-static char *ibmlana_adapter_names[] __initdata = {
+static char *ibmlana_adapter_names[] __devinitdata = {
 	"IBM LAN Adapter/A",
 	NULL
 };
