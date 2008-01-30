@@ -178,6 +178,14 @@ SECTIONS
   }
   __con_initcall_end = .;
   SECURITY_INIT
+
+  . = ALIGN(8);
+  .parainstructions : AT(ADDR(.parainstructions) - LOAD_OFFSET) {
+  __parainstructions = .;
+       *(.parainstructions)
+  __parainstructions_end = .;
+  }
+
   . = ALIGN(8);
   __alt_instructions = .;
   .altinstructions : AT(ADDR(.altinstructions) - LOAD_OFFSET) {
