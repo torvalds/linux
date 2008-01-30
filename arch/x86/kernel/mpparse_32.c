@@ -721,7 +721,7 @@ static int __init smp_scan_config (unsigned long base, unsigned long length)
 	unsigned long *bp = phys_to_virt(base);
 	struct intel_mp_floating *mpf;
 
-	Dprintk("Scan SMP from %p for %ld bytes.\n", bp,length);
+	printk(KERN_INFO "Scan SMP from %p for %ld bytes.\n", bp,length);
 	if (sizeof(*mpf) != 16)
 		printk("Error: MPF size\n");
 
@@ -734,8 +734,8 @@ static int __init smp_scan_config (unsigned long base, unsigned long length)
 				|| (mpf->mpf_specification == 4)) ) {
 
 			smp_found_config = 1;
-			printk(KERN_INFO "found SMP MP-table at %08lx\n",
-						virt_to_phys(mpf));
+			printk(KERN_INFO "found SMP MP-table at [%p] %08lx\n",
+				mpf, virt_to_phys(mpf));
 			reserve_bootmem(virt_to_phys(mpf), PAGE_SIZE);
 			if (mpf->mpf_physptr) {
 				/*
