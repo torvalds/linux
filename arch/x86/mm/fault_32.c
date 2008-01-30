@@ -61,6 +61,7 @@ static inline int notify_page_fault(struct pt_regs *regs)
 #endif
 }
 
+#ifdef CONFIG_X86_32
 /*
  * Return EIP plus the CS segment base.  The segment limit is also
  * adjusted, clamped to the kernel/user address space (whichever is
@@ -135,26 +136,61 @@ static inline unsigned long get_segment_eip(struct pt_regs *regs,
 		*eip_limit = seg_limit;
 	return ip + base;
 }
+#endif
 
 /*
+ * X86_32
  * Sometimes AMD Athlon/Opteron CPUs report invalid exceptions on prefetch.
  * Check that here and ignore it.
+ *
+ * X86_64
+ * Sometimes the CPU reports invalid exceptions on prefetch.
+ * Check that here and ignore it.
+ *
+ * Opcode checker based on code by Richard Brunner
  */
-static int __is_prefetch(struct pt_regs *regs, unsigned long addr)
+static int is_prefetch(struct pt_regs *regs, unsigned long addr,
+		       unsigned long error_code)
 {
-	unsigned long limit;
-	unsigned char *instr = (unsigned char *)get_segment_eip(regs, &limit);
+	unsigned char *instr;
 	int scan_more = 1;
 	int prefetch = 0;
-	int i;
+	unsigned char *max_instr;
 
-	for (i = 0; scan_more && i < 15; i++) {
+#ifdef CONFIG_X86_32
+	unsigned long limit;
+	if (unlikely(boot_cpu_data.x86_vendor == X86_VENDOR_AMD &&
+		     boot_cpu_data.x86 >= 6)) {
+		/* Catch an obscure case of prefetch inside an NX page. */
+		if (nx_enabled && (error_code & PF_INSTR))
+			return 0;
+	} else {
+		return 0;
+	}
+	instr = (unsigned char *)get_segment_eip(regs, &limit);
+#else
+	/* If it was a exec fault ignore */
+	if (error_code & PF_INSTR)
+		return 0;
+	instr = (unsigned char __user *)convert_rip_to_linear(current, regs);
+#endif
+
+	max_instr = instr + 15;
+
+#ifdef CONFIG_X86_64
+	if (user_mode(regs) && instr >= (unsigned char *)TASK_SIZE)
+		return 0;
+#endif
+
+	while (scan_more && instr < max_instr) {
 		unsigned char opcode;
 		unsigned char instr_hi;
 		unsigned char instr_lo;
 
+#ifdef CONFIG_X86_32
 		if (instr > (unsigned char *)limit)
 			break;
+#endif
 		if (probe_kernel_address(instr, opcode))
 			break;
 
@@ -196,8 +232,10 @@ static int __is_prefetch(struct pt_regs *regs, unsigned long addr)
 		case 0x00:
 			/* Prefetch instruction is 0x0F0D or 0x0F18 */
 			scan_more = 0;
+#ifdef CONFIG_X86_32
 			if (instr > (unsigned char *)limit)
 				break;
+#endif
 			if (probe_kernel_address(instr, opcode))
 				break;
 			prefetch = (instr_lo == 0xF) &&
@@ -209,19 +247,6 @@ static int __is_prefetch(struct pt_regs *regs, unsigned long addr)
 		}
 	}
 	return prefetch;
-}
-
-static inline int is_prefetch(struct pt_regs *regs, unsigned long addr,
-			      unsigned long error_code)
-{
-	if (unlikely(boot_cpu_data.x86_vendor == X86_VENDOR_AMD &&
-		     boot_cpu_data.x86 >= 6)) {
-		/* Catch an obscure case of prefetch inside an NX page. */
-		if (nx_enabled && (error_code & 16))
-			return 0;
-		return __is_prefetch(regs, addr);
-	}
-	return 0;
 }
 
 static noinline void force_sig_info_fault(int si_signo, int si_code,
@@ -273,6 +298,42 @@ static inline pmd_t *vmalloc_sync_one(pgd_t *pgd, unsigned long address)
 		BUG_ON(pmd_page(*pmd) != pmd_page(*pmd_k));
 	return pmd_k;
 }
+
+#ifdef CONFIG_X86_64
+static const char errata93_warning[] =
+KERN_ERR "******* Your BIOS seems to not contain a fix for K8 errata #93\n"
+KERN_ERR "******* Working around it, but it may cause SEGVs or burn power.\n"
+KERN_ERR "******* Please consider a BIOS update.\n"
+KERN_ERR "******* Disabling USB legacy in the BIOS may also help.\n";
+
+/* Workaround for K8 erratum #93 & buggy BIOS.
+   BIOS SMM functions are required to use a specific workaround
+   to avoid corruption of the 64bit RIP register on C stepping K8.
+   A lot of BIOS that didn't get tested properly miss this.
+   The OS sees this as a page fault with the upper 32bits of RIP cleared.
+   Try to work around it here.
+   Note we only handle faults in kernel here. */
+
+static int is_errata93(struct pt_regs *regs, unsigned long address)
+{
+	static int warned;
+	if (address != regs->ip)
+		return 0;
+	if ((address >> 32) != 0)
+		return 0;
+	address |= 0xffffffffUL << 32;
+	if ((address >= (u64)_stext && address <= (u64)_etext) ||
+	    (address >= MODULES_VADDR && address <= MODULES_END)) {
+		if (!warned) {
+			printk(errata93_warning);
+			warned = 1;
+		}
+		regs->ip = address;
+		return 1;
+	}
+	return 0;
+}
+#endif
 
 /*
  * Handle a fault on the vmalloc or module mapping area
