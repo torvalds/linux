@@ -221,6 +221,8 @@ ENTRY(startup_32_smp)
 	movl %eax,%es
 	movl %eax,%fs
 	movl %eax,%gs
+#endif /* CONFIG_SMP */
+3:
 
 /*
  *	New page tables may be in 4Mbyte page mode and may
@@ -267,8 +269,6 @@ ENTRY(startup_32_smp)
 	wrmsr
 
 6:
-#endif /* CONFIG_SMP */
-3:
 
 /*
  * Enable paging
