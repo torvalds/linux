@@ -291,7 +291,7 @@ pte_t xen_make_pte(unsigned long pte)
 	if (pte & _PAGE_PRESENT)
 		pte = phys_to_machine(XPADDR(pte)).maddr;
 
-	pte &= ~_PAGE_PCD;
+	pte &= ~(_PAGE_PCD | _PAGE_PWT);
 
 	return (pte_t){ pte };
 }
