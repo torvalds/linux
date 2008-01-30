@@ -9,16 +9,13 @@
 
 #include <linux/string.h>
 #include <linux/smp.h>
-#include <asm/desc_defs.h>
 
 #include <asm/segment.h>
-#include <asm/mmu.h>
 
 extern struct desc_struct cpu_gdt_table[GDT_ENTRIES];
 
 #define load_TR_desc() asm volatile("ltr %w0"::"r" (GDT_ENTRY_TSS*8))
 #define load_LDT_desc() asm volatile("lldt %w0"::"r" (GDT_ENTRY_LDT*8))
-#define clear_LDT()  asm volatile("lldt %w0"::"r" (0))
 
 static inline unsigned long __store_tr(void)
 {
@@ -30,7 +27,6 @@ static inline unsigned long __store_tr(void)
 
 #define store_tr(tr) (tr) = __store_tr()
 
-extern gate_desc idt_table[];
 extern struct desc_ptr cpu_gdt_descr[];
 
 static inline void write_ldt_entry(struct desc_struct *ldt,
@@ -138,22 +134,18 @@ static inline void set_tss_desc(unsigned cpu, void *addr)
 		IO_BITMAP_OFFSET + IO_BITMAP_BYTES + sizeof(unsigned long) - 1);
 }
 
-static inline void set_ldt_desc(unsigned cpu, void *addr, int size)
+static inline void set_ldt(void *addr, int entries)
 {
-	set_tssldt_descriptor(&get_cpu_gdt_table(cpu)[GDT_ENTRY_LDT],
-			     (unsigned long)addr, DESC_LDT, size * 8 - 1);
-}
+	if (likely(entries == 0))
+		__asm__ __volatile__("lldt %w0"::"q" (0));
+	else {
+		unsigned cpu = smp_processor_id();
 
-#define LDT_empty(info) (\
-	(info)->base_addr	== 0	&& \
-	(info)->limit		== 0	&& \
-	(info)->contents	== 0	&& \
-	(info)->read_exec_only	== 1	&& \
-	(info)->seg_32bit	== 0	&& \
-	(info)->limit_in_pages	== 0	&& \
-	(info)->seg_not_present	== 1	&& \
-	(info)->useable		== 0	&& \
-	(info)->lm		== 0)
+		set_tssldt_descriptor(&get_cpu_gdt_table(cpu)[GDT_ENTRY_LDT],
+			     (unsigned long)addr, DESC_LDT, entries * 8 - 1);
+		__asm__ __volatile__("lldt %w0"::"q" (GDT_ENTRY_LDT*8));
+	}
+}
 
 static inline void load_TLS(struct thread_struct *t, unsigned int cpu)
 {
@@ -164,32 +156,6 @@ static inline void load_TLS(struct thread_struct *t, unsigned int cpu)
 		gdt[i] = t->tls_array[i];
 }
 
-/*
- * load one particular LDT into the current CPU
- */
-static inline void load_LDT_nolock(mm_context_t *pc, int cpu)
-{
-	int count = pc->size;
-
-	if (likely(!count)) {
-		clear_LDT();
-		return;
-	}
-
-	set_ldt_desc(cpu, pc->ldt, count);
-	load_LDT_desc();
-}
-
-static inline void load_LDT(mm_context_t *pc)
-{
-	int cpu = get_cpu();
-
-	load_LDT_nolock(pc, cpu);
-	put_cpu();
-}
-
-extern struct desc_ptr idt_descr;
-
 static inline unsigned long get_desc_base(const void *ptr)
 {
 	const u32 *desc = ptr;
@@ -199,7 +165,6 @@ static inline unsigned long get_desc_base(const void *ptr)
 		(desc[1] & 0xff000000);
 	return base;
 }
-
 #endif /* !__ASSEMBLY__ */
 
 #endif
