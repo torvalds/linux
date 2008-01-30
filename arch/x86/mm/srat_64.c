@@ -151,69 +151,12 @@ acpi_numa_processor_affinity_init(struct acpi_srat_cpu_affinity *pa)
 	       pxm, pa->apic_id, node);
 }
 
-#ifdef CONFIG_MEMORY_HOTPLUG_RESERVE
-/*
- * Protect against too large hotadd areas that would fill up memory.
- */
-static int hotadd_enough_memory(struct bootnode *nd)
-{
-	static unsigned long allocated;
-	static unsigned long last_area_end;
-	unsigned long pages = (nd->end - nd->start) >> PAGE_SHIFT;
-	long mem = pages * sizeof(struct page);
-	unsigned long addr;
-	unsigned long allowed;
-	unsigned long oldpages = pages;
-
-	if (mem < 0)
-		return 0;
-	allowed = (end_pfn - absent_pages_in_range(0, end_pfn)) * PAGE_SIZE;
-	allowed = (allowed / 100) * hotadd_percent;
-	if (allocated + mem > allowed) {
-		unsigned long range;
-		/* Give them at least part of their hotadd memory upto hotadd_percent
-		   It would be better to spread the limit out
-		   over multiple hotplug areas, but that is too complicated
-		   right now */
-		if (allocated >= allowed)
-			return 0;
-		range = allowed - allocated;
-		pages = (range / PAGE_SIZE);
-		mem = pages * sizeof(struct page);
-		nd->end = nd->start + range;
-	}
-	/* Not completely fool proof, but a good sanity check */
-	addr = find_e820_area(last_area_end, end_pfn<<PAGE_SHIFT, mem);
-	if (addr == -1UL)
-		return 0;
-	if (pages != oldpages)
-		printk(KERN_NOTICE "SRAT: Hotadd area limited to %lu bytes\n",
-			pages << PAGE_SHIFT);
-	last_area_end = addr + mem;
-	allocated += mem;
-	return 1;
-}
-
-static int update_end_of_memory(unsigned long end)
-{
-	found_add_area = 1;
-	if ((end >> PAGE_SHIFT) > end_pfn)
-		end_pfn = end >> PAGE_SHIFT;
-	return 1;
-}
-
-static inline int save_add_info(void)
-{
-	return hotadd_percent > 0;
-}
-#else
 int update_end_of_memory(unsigned long end) {return -1;}
 static int hotadd_enough_memory(struct bootnode *nd) {return 1;}
 #ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
 static inline int save_add_info(void) {return 1;}
 #else
 static inline int save_add_info(void) {return 0;}
-#endif
 #endif
 /*
  * Update nodes_add and decide if to include add are in the zone.

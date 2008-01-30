@@ -153,12 +153,10 @@ int __init compute_hash_shift(struct bootnode *nodes, int numnodes)
 	return shift;
 }
 
-#ifdef CONFIG_SPARSEMEM
 int early_pfn_to_nid(unsigned long pfn)
 {
 	return phys_to_nid(pfn << PAGE_SHIFT);
 }
-#endif
 
 static void * __init early_node_mem(int nodeid, unsigned long start,
 				    unsigned long end, unsigned long size)
@@ -635,23 +633,4 @@ void __init init_cpu_to_node(void)
 	}
 }
 
-#ifdef CONFIG_DISCONTIGMEM
-/*
- * Functions to convert PFNs from/to per node page addresses.
- * These are out of line because they are quite big.
- * They could be all tuned by pre caching more state.
- * Should do that.
- */
 
-int pfn_valid(unsigned long pfn)
-{
-	unsigned nid;
-	if (pfn >= num_physpages)
-		return 0;
-	nid = pfn_to_nid(pfn);
-	if (nid == 0xff)
-		return 0;
-	return pfn >= node_start_pfn(nid) && (pfn) < node_end_pfn(nid);
-}
-EXPORT_SYMBOL(pfn_valid);
-#endif

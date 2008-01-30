@@ -43,12 +43,6 @@ static inline __attribute__((pure)) int phys_to_nid(unsigned long addr)
 
 extern int early_pfn_to_nid(unsigned long pfn);
 
-#ifdef CONFIG_DISCONTIGMEM
-#define pfn_to_nid(pfn) phys_to_nid((unsigned long)(pfn) << PAGE_SHIFT)
-
-extern int pfn_valid(unsigned long pfn);
-#endif
-
 #ifdef CONFIG_NUMA_EMU
 #define FAKE_NODE_MIN_SIZE	(64*1024*1024)
 #define FAKE_NODE_MIN_HASH_MASK	(~(FAKE_NODE_MIN_SIZE - 1uL))

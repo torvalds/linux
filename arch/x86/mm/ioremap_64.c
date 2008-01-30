@@ -86,23 +86,6 @@ void __iomem * __ioremap(unsigned long phys_addr, unsigned long size, unsigned l
 	if (phys_addr >= ISA_START_ADDRESS && last_addr < ISA_END_ADDRESS)
 		return (__force void __iomem *)phys_to_virt(phys_addr);
 
-#ifdef CONFIG_FLATMEM
-	/*
-	 * Don't allow anybody to remap normal RAM that we're using..
-	 */
-	if (last_addr < virt_to_phys(high_memory)) {
-		char *t_addr, *t_end;
- 		struct page *page;
-
-		t_addr = __va(phys_addr);
-		t_end = t_addr + (size - 1);
-	   
-		for(page = virt_to_page(t_addr); page <= virt_to_page(t_end); page++)
-			if(!PageReserved(page))
-				return NULL;
-	}
-#endif
-
 	pgprot = __pgprot(_PAGE_PRESENT | _PAGE_RW | _PAGE_GLOBAL
 			  | _PAGE_DIRTY | _PAGE_ACCESSED | flags);
 	/*

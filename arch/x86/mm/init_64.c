@@ -486,34 +486,6 @@ EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
 
 #endif /* CONFIG_MEMORY_HOTPLUG */
 
-#ifdef CONFIG_MEMORY_HOTPLUG_RESERVE
-/*
- * Memory Hotadd without sparsemem. The mem_maps have been allocated in advance,
- * just online the pages.
- */
-int __add_pages(struct zone *z, unsigned long start_pfn, unsigned long nr_pages)
-{
-	int err = -EIO;
-	unsigned long pfn;
-	unsigned long total = 0, mem = 0;
-	for (pfn = start_pfn; pfn < start_pfn + nr_pages; pfn++) {
-		if (pfn_valid(pfn)) {
-			online_page(pfn_to_page(pfn));
-			err = 0;
-			mem++;
-		}
-		total++;
-	}
-	if (!err) {
-		z->spanned_pages += total;
-		z->present_pages += mem;
-		z->zone_pgdat->node_spanned_pages += total;
-		z->zone_pgdat->node_present_pages += mem;
-	}
-	return err;
-}
-#endif
-
 static struct kcore_list kcore_mem, kcore_vmalloc, kcore_kernel, kcore_modules,
 			 kcore_vsyscall;
 
