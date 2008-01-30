@@ -634,8 +634,7 @@ static unsigned int mce_poll(struct file *file, poll_table *wait)
 	return 0;
 }
 
-static int mce_ioctl(struct inode *i, struct file *f,unsigned int cmd,
-		     unsigned long arg)
+static long mce_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 {
 	int __user *p = (int __user *)arg;
 
@@ -664,7 +663,7 @@ static const struct file_operations mce_chrdev_ops = {
 	.release = mce_release,
 	.read = mce_read,
 	.poll = mce_poll,
-	.ioctl = mce_ioctl,
+	.unlocked_ioctl = mce_ioctl,
 };
 
 static struct miscdevice mce_log_device = {
