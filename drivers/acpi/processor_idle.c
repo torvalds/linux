@@ -534,6 +534,7 @@ static void acpi_processor_idle(void)
 		break;
 
 	case ACPI_STATE_C3:
+		acpi_unlazy_tlb(smp_processor_id());
 		/*
 		 * Must be done before busmaster disable as we might
 		 * need to access HPET !
@@ -1423,6 +1424,7 @@ static int acpi_idle_enter_simple(struct cpuidle_device *dev,
 		return 0;
 	}
 
+	acpi_unlazy_tlb(smp_processor_id());
 	/*
 	 * Must be done before busmaster disable as we might need to
 	 * access HPET !

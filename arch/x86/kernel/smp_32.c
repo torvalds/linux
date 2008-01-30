@@ -256,13 +256,14 @@ static DEFINE_SPINLOCK(tlbstate_lock);
  * We need to reload %cr3 since the page tables may be going
  * away from under us..
  */
-void leave_mm(unsigned long cpu)
+void leave_mm(int cpu)
 {
 	if (per_cpu(cpu_tlbstate, cpu).state == TLBSTATE_OK)
 		BUG();
 	cpu_clear(cpu, per_cpu(cpu_tlbstate, cpu).active_mm->cpu_vm_mask);
 	load_cr3(swapper_pg_dir);
 }
+EXPORT_SYMBOL_GPL(leave_mm);
 
 /*
  *

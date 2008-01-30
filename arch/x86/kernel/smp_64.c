@@ -69,13 +69,14 @@ static DEFINE_PER_CPU(union smp_flush_state, flush_state);
  * We cannot call mmdrop() because we are in interrupt context,
  * instead update mm->cpu_vm_mask.
  */
-static inline void leave_mm(int cpu)
+void leave_mm(int cpu)
 {
 	if (read_pda(mmu_state) == TLBSTATE_OK)
 		BUG();
 	cpu_clear(cpu, read_pda(active_mm)->cpu_vm_mask);
 	load_cr3(swapper_pg_dir);
 }
+EXPORT_SYMBOL_GPL(leave_mm);
 
 /*
  *

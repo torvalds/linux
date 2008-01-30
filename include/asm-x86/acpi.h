@@ -27,6 +27,7 @@
 
 #include <asm/numa.h>
 #include <asm/processor.h>
+#include <asm/mmu.h>
 
 #define COMPILER_DEPENDENT_INT64   long long
 #define COMPILER_DEPENDENT_UINT64  unsigned long long
@@ -166,5 +167,7 @@ static inline void acpi_fake_nodes(const struct bootnode *fake_nodes,
 {
 }
 #endif
+
+#define acpi_unlazy_tlb(x)	leave_mm(x)
 
 #endif /*__X86_ASM_ACPI_H*/
