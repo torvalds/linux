@@ -9,6 +9,7 @@
 #define PAGE_MASK	(~(PAGE_SIZE-1))
 
 #define PHYSICAL_PAGE_MASK	(PAGE_MASK & __PHYSICAL_MASK)
+#define PTE_MASK		PHYSICAL_PAGE_MASK
 
 #define LARGE_PAGE_SIZE		(_AC(1,UL) << PMD_SHIFT)
 #define LARGE_PAGE_MASK		(~(LARGE_PAGE_SIZE-1))
@@ -24,8 +25,13 @@
 #define __PHYSICAL_MASK		((_AC(1,UL) << __PHYSICAL_MASK_SHIFT) - 1)
 #define __VIRTUAL_MASK		((_AC(1,UL) << __VIRTUAL_MASK_SHIFT) - 1)
 
+#ifndef __ASSEMBLY__
+#include <linux/types.h>
+#endif
 
 #ifdef CONFIG_X86_64
+#define PAGETABLE_LEVELS	4
+
 #define THREAD_ORDER	1
 #define THREAD_SIZE  (PAGE_SIZE << THREAD_ORDER)
 #define CURRENT_MASK (~(THREAD_SIZE-1))
