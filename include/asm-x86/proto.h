@@ -67,8 +67,6 @@ extern void setup_node_bootmem(int nodeid, unsigned long start, unsigned long en
 
 extern void check_efer(void);
 
-extern void select_idle_routine(const struct cpuinfo_x86 *c);
-
 extern unsigned long table_start, table_end;
 
 extern int exception_trace;
@@ -79,8 +77,6 @@ extern int reboot_force;
 extern int notsc_setup(char *);
 
 extern int gsi_irq_sharing(int gsi);
-
-extern int force_mwait;
 
 long do_arch_prctl(struct task_struct *task, int code, unsigned long addr);
 
