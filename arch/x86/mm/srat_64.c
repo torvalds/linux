@@ -323,7 +323,7 @@ static int __init nodes_cover_memory(const struct bootnode *nodes)
 	return 1;
 }
 
-static void unparse_node(int node)
+static void __init unparse_node(int node)
 {
 	int i;
 	node_clear(node, nodes_parsed);
