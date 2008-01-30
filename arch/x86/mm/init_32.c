@@ -780,6 +780,13 @@ void free_init_pages(char *what, unsigned long begin, unsigned long end)
 {
 	unsigned long addr;
 
+	/*
+	 * We just marked the kernel text read only above, now that
+	 * we are going to free part of that, we need to make that
+	 * writeable first.
+	 */
+	set_memory_rw(begin, (end - begin) >> PAGE_SHIFT);
+
 	for (addr = begin; addr < end; addr += PAGE_SIZE) {
 		ClearPageReserved(virt_to_page(addr));
 		init_page_count(virt_to_page(addr));

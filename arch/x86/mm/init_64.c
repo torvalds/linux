@@ -570,6 +570,7 @@ void free_init_pages(char *what, unsigned long begin, unsigned long end)
 	 * 2Mb kernel mapping just for this debug feature.
 	 */
 	if (begin >= __START_KERNEL_map) {
+		set_memory_rw(begin, (end - begin)/PAGE_SIZE);
 		set_memory_np(begin, (end - begin)/PAGE_SIZE);
 		set_memory_nx(begin, (end - begin)/PAGE_SIZE);
 	}
