@@ -175,7 +175,7 @@ static void clocksource_check_watchdog(struct clocksource *cs)
 			if (watchdog)
 				del_timer(&watchdog_timer);
 			watchdog = cs;
-			init_timer(&watchdog_timer);
+			init_timer_deferrable(&watchdog_timer);
 			watchdog_timer.function = clocksource_watchdog;
 
 			/* Reset watchdog cycles */
