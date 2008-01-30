@@ -48,9 +48,9 @@ struct gate_struct64 {
 	u32 zero1;
 } __attribute__((packed));
 
-#define PTR_LOW(x) ((unsigned long)(x) & 0xFFFF)
-#define PTR_MIDDLE(x) (((unsigned long)(x) >> 16) & 0xFFFF)
-#define PTR_HIGH(x) ((unsigned long)(x) >> 32)
+#define PTR_LOW(x) ((unsigned long long)(x) & 0xFFFF)
+#define PTR_MIDDLE(x) (((unsigned long long)(x) >> 16) & 0xFFFF)
+#define PTR_HIGH(x) ((unsigned long long)(x) >> 32)
 
 enum {
 	DESC_TSS = 0x9,
