@@ -228,7 +228,7 @@ __meminit void *early_ioremap(unsigned long addr, unsigned long size)
 		addr &= PMD_MASK;
 		for (i = 0; i < pmds; i++, addr += PMD_SIZE)
 			set_pmd(pmd+i, __pmd(addr | __PAGE_KERNEL_LARGE_EXEC));
-		__flush_tlb();
+		__flush_tlb_all();
 		return (void *)vaddr;
 	next:
 		;
@@ -249,7 +249,7 @@ __meminit void early_iounmap(void *addr, unsigned long size)
 	pmd = level2_kernel_pgt + pmd_index(vaddr);
 	for (i = 0; i < pmds; i++)
 		pmd_clear(pmd + i);
-	__flush_tlb();
+	__flush_tlb_all();
 }
 
 static void __meminit
@@ -317,7 +317,7 @@ static void __meminit phys_pud_init(pud_t *pud_page, unsigned long addr, unsigne
 		spin_unlock(&init_mm.page_table_lock);
 		unmap_low_page(pmd);
 	}
-	__flush_tlb();
+	__flush_tlb_all();
 } 
 
 static void __init find_early_table_space(unsigned long end)
