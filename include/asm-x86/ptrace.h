@@ -150,6 +150,13 @@ enum {
 extern void user_enable_single_step(struct task_struct *);
 extern void user_disable_single_step(struct task_struct *);
 
+extern void user_enable_block_step(struct task_struct *);
+#ifdef CONFIG_X86_DEBUGCTLMSR
+#define arch_has_block_step()	(1)
+#else
+#define arch_has_block_step()	(boot_cpu_data.x86 >= 6)
+#endif
+
 struct user_desc;
 extern int do_get_thread_area(struct task_struct *p, int idx,
 			      struct user_desc __user *info);

@@ -837,6 +837,12 @@ fastcall void __kprobes do_debug(struct pt_regs * regs, long error_code)
 
 	get_debugreg(condition, 6);
 
+	/*
+	 * The processor cleared BTF, so don't mark that we need it set.
+	 */
+	clear_tsk_thread_flag(tsk, TIF_DEBUGCTLMSR);
+	tsk->thread.debugctlmsr = 0;
+
 	if (notify_die(DIE_DEBUG, "debug", regs, condition, error_code,
 					SIGTRAP) == NOTIFY_STOP)
 		return;

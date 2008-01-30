@@ -107,7 +107,10 @@ static int is_setting_trap_flag(struct task_struct *child, struct pt_regs *regs)
 	return 0;
 }
 
-void user_enable_single_step(struct task_struct *child)
+/*
+ * Enable single-stepping.  Return nonzero if user mode is not using TF itself.
+ */
+static int enable_single_step(struct task_struct *child)
 {
 	struct pt_regs *regs = task_pt_regs(child);
 
@@ -122,7 +125,7 @@ void user_enable_single_step(struct task_struct *child)
 	 * If TF was already set, don't do anything else
 	 */
 	if (regs->eflags & X86_EFLAGS_TF)
-		return;
+		return 0;
 
 	/* Set TF on the kernel stack.. */
 	regs->eflags |= X86_EFLAGS_TF;
@@ -133,13 +136,68 @@ void user_enable_single_step(struct task_struct *child)
 	 * won't clear it by hand later.
 	 */
 	if (is_setting_trap_flag(child, regs))
-		return;
+		return 0;
 
 	set_tsk_thread_flag(child, TIF_FORCED_TF);
+
+	return 1;
+}
+
+/*
+ * Install this value in MSR_IA32_DEBUGCTLMSR whenever child is running.
+ */
+static void write_debugctlmsr(struct task_struct *child, unsigned long val)
+{
+	child->thread.debugctlmsr = val;
+
+	if (child != current)
+		return;
+
+#ifdef CONFIG_X86_64
+	wrmsrl(MSR_IA32_DEBUGCTLMSR, val);
+#else
+	wrmsr(MSR_IA32_DEBUGCTLMSR, val, 0);
+#endif
+}
+
+/*
+ * Enable single or block step.
+ */
+static void enable_step(struct task_struct *child, bool block)
+{
+	/*
+	 * Make sure block stepping (BTF) is not enabled unless it should be.
+	 * Note that we don't try to worry about any is_setting_trap_flag()
+	 * instructions after the first when using block stepping.
+	 * So noone should try to use debugger block stepping in a program
+	 * that uses user-mode single stepping itself.
+	 */
+	if (enable_single_step(child) && block) {
+		set_tsk_thread_flag(child, TIF_DEBUGCTLMSR);
+		write_debugctlmsr(child, DEBUGCTLMSR_BTF);
+	} else if (test_and_clear_tsk_thread_flag(child, TIF_DEBUGCTLMSR)) {
+		write_debugctlmsr(child, 0);
+	}
+}
+
+void user_enable_single_step(struct task_struct *child)
+{
+	enable_step(child, 0);
+}
+
+void user_enable_block_step(struct task_struct *child)
+{
+	enable_step(child, 1);
 }
 
 void user_disable_single_step(struct task_struct *child)
 {
+	/*
+	 * Make sure block stepping (BTF) is disabled.
+	 */
+	if (test_and_clear_tsk_thread_flag(child, TIF_DEBUGCTLMSR))
+		write_debugctlmsr(child, 0);
+
 	/* Always clear TIF_SINGLESTEP... */
 	clear_tsk_thread_flag(child, TIF_SINGLESTEP);
 
