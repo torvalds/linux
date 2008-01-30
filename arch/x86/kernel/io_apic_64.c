@@ -1439,7 +1439,7 @@ static void ack_apic_level(unsigned int irq)
 	int do_unmask_irq = 0;
 
 	irq_complete_move(irq);
-#if defined(CONFIG_GENERIC_PENDING_IRQ) || defined(CONFIG_IRQBALANCE)
+#ifdef CONFIG_GENERIC_PENDING_IRQ
 	/* If we are moving the irq we need to mask it */
 	if (unlikely(irq_desc[irq].status & IRQ_MOVE_PENDING)) {
 		do_unmask_irq = 1;
