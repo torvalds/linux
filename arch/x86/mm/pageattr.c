@@ -357,8 +357,6 @@ int change_page_attr_clear(unsigned long addr, int numpages, pgprot_t prot)
 	return change_page_attr_addr(addr, numpages, prot);
 }
 
-
-
 int set_memory_uc(unsigned long addr, int numpages)
 {
 	pgprot_t uncached;
@@ -402,7 +400,6 @@ int set_memory_ro(unsigned long addr, int numpages)
 	pgprot_val(rw) = _PAGE_RW;
 	return change_page_attr_clear(addr, numpages, rw);
 }
-EXPORT_SYMBOL(set_memory_ro);
 
 int set_memory_rw(unsigned long addr, int numpages)
 {
@@ -411,7 +408,14 @@ int set_memory_rw(unsigned long addr, int numpages)
 	pgprot_val(rw) = _PAGE_RW;
 	return change_page_attr_set(addr, numpages, rw);
 }
-EXPORT_SYMBOL(set_memory_rw);
+
+int set_memory_np(unsigned long addr, int numpages)
+{
+	pgprot_t present;
+
+	pgprot_val(present) = _PAGE_PRESENT;
+	return change_page_attr_clear(addr, numpages, present);
+}
 
 int set_pages_uc(struct page *page, int numpages)
 {
@@ -461,7 +465,6 @@ int set_pages_ro(struct page *page, int numpages)
 	pgprot_val(rw) = _PAGE_RW;
 	return change_page_attr_clear(addr, numpages, rw);
 }
-EXPORT_SYMBOL(set_pages_ro);
 
 int set_pages_rw(struct page *page, int numpages)
 {
@@ -471,8 +474,6 @@ int set_pages_rw(struct page *page, int numpages)
 	pgprot_val(rw) = _PAGE_RW;
 	return change_page_attr_set(addr, numpages, rw);
 }
-EXPORT_SYMBOL(set_pages_rw);
-
 
 void clflush_cache_range(void *addr, int size)
 {
@@ -503,6 +504,20 @@ void global_flush_tlb(void)
 EXPORT_SYMBOL(global_flush_tlb);
 
 #ifdef CONFIG_DEBUG_PAGEALLOC
+
+static int __set_pages_p(struct page *page, int numpages)
+{
+	unsigned long addr = (unsigned long)page_address(page);
+	return change_page_attr_set(addr, numpages,
+				__pgprot(_PAGE_PRESENT | _PAGE_RW));
+}
+
+static int __set_pages_np(struct page *page, int numpages)
+{
+	unsigned long addr = (unsigned long)page_address(page);
+	return change_page_attr_clear(addr, numpages, __pgprot(_PAGE_PRESENT));
+}
+
 void kernel_map_pages(struct page *page, int numpages, int enable)
 {
 	if (PageHighMem(page))
@@ -522,7 +537,10 @@ void kernel_map_pages(struct page *page, int numpages, int enable)
 	 * The return value is ignored - the calls cannot fail,
 	 * large pages are disabled at boot time:
 	 */
-	change_page_attr(page, numpages, enable ? PAGE_KERNEL : __pgprot(0));
+	if (enable)
+		__set_pages_p(page, numpages);
+	else
+		__set_pages_np(page, numpages);
 
 	/*
 	 * We should perform an IPI and flush all tlbs,
