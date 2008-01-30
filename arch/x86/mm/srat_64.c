@@ -346,8 +346,12 @@ int __init acpi_scan_nodes(unsigned long start, unsigned long end)
 	/* First clean up the node list */
 	for (i = 0; i < MAX_NUMNODES; i++) {
 		cutoff_node(i, start, end);
-		/* ZZZ why was this needed. At least add a comment */
-		if (nodes[i].end && (nodes[i].end - nodes[i].start) < NODE_MIN_SIZE) {
+		/*
+		 * don't confuse VM with a node that doesn't have the
+		 * minimum memory.
+		 */
+		if (nodes[i].end &&
+			(nodes[i].end - nodes[i].start) < NODE_MIN_SIZE) {
 			unparse_node(i);
 			node_set_offline(i);
 		}

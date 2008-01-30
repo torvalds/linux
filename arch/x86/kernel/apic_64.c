@@ -1175,14 +1175,15 @@ __cpuinit int apic_is_clustered_box(void)
 {
 	int i, clusters, zeros;
 	unsigned id;
+	u16 *bios_cpu_apicid = x86_bios_cpu_apicid_early_ptr;
 	DECLARE_BITMAP(clustermap, NUM_APIC_CLUSTERS);
 
 	bitmap_zero(clustermap, NUM_APIC_CLUSTERS);
 
 	for (i = 0; i < NR_CPUS; i++) {
 		/* are we being called early in kernel startup? */
-		if (x86_bios_cpu_apicid_early_ptr) {
-			id = ((u16 *)x86_bios_cpu_apicid_early_ptr)[i];
+		if (bios_cpu_apicid) {
+			id = bios_cpu_apicid[i];
 		}
 		else if (i < nr_cpu_ids) {
 			if (cpu_present(i))

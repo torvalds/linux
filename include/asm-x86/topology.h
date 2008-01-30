@@ -40,7 +40,7 @@ extern cpumask_t node_to_cpumask_map[];
 /* Returns the number of the node containing CPU 'cpu' */
 static inline int cpu_to_node(int cpu)
 {
-	u16 *cpu_to_node_map = (u16 *)x86_cpu_to_node_map_early_ptr;
+	u16 *cpu_to_node_map = x86_cpu_to_node_map_early_ptr;
 
 	if (cpu_to_node_map)
 		return cpu_to_node_map[cpu];

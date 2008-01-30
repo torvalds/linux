@@ -562,7 +562,7 @@ __cpuinit void numa_add_cpu(int cpu)
 
 void __cpuinit numa_set_node(int cpu, int node)
 {
-	u16 *cpu_to_node_map = (u16 *)x86_cpu_to_node_map_early_ptr;
+	u16 *cpu_to_node_map = x86_cpu_to_node_map_early_ptr;
 
 	cpu_pda(cpu)->nodenumber = node;
 

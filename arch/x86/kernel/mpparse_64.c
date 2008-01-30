@@ -122,7 +122,7 @@ static void __cpuinit MP_processor_info(struct mpc_config_processor *m)
 	physid_set(m->mpc_apicid, phys_cpu_present_map);
  	if (m->mpc_cpuflag & CPU_BOOTPROCESSOR) {
  		/*
- 		 * x86_bios_cpu_apicid is required to have processors listed
+		 * x86_bios_cpu_apicid is required to have processors listed
  		 * in same order as logical cpu numbers. Hence the first
  		 * entry is BSP, and so on.
  		 */
@@ -130,8 +130,8 @@ static void __cpuinit MP_processor_info(struct mpc_config_processor *m)
  	}
 	/* are we being called early in kernel startup? */
 	if (x86_cpu_to_apicid_early_ptr) {
-		u16 *cpu_to_apicid = (u16 *)x86_cpu_to_apicid_early_ptr;
-		u16 *bios_cpu_apicid = (u16 *)x86_bios_cpu_apicid_early_ptr;
+		u16 *cpu_to_apicid = x86_cpu_to_apicid_early_ptr;
+		u16 *bios_cpu_apicid = x86_bios_cpu_apicid_early_ptr;
 
 		cpu_to_apicid[cpu] = m->mpc_apicid;
 		bios_cpu_apicid[cpu] = m->mpc_apicid;
