@@ -39,11 +39,11 @@ static void __init mpc5200_simple_setup_arch(void)
 	if (ppc_md.progress)
 		ppc_md.progress("mpc5200_simple_setup_arch()", 0);
 
+	/* Map important registers from the internal memory map */
+	mpc52xx_map_common_devices();
+
 	/* Some mpc5200 & mpc5200b related configuration */
 	mpc5200_setup_xlb_arbiter();
-
-	/* Map wdt for mpc52xx_restart() */
-	mpc52xx_map_wdt();
 
 	mpc52xx_setup_pci();
 }

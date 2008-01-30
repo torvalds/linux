@@ -10,12 +10,6 @@
  * option) any later version.
  */
 
-/*
- * WARNING: Do not depend on this tree layout remaining static just yet.
- * The MPC5200 device tree conventions are still in flux
- * Keep an eye on the linuxppc-dev mailing list for more details
- */
-
 / {
 	model = "tqc,tqm5200";
 	compatible = "tqc,tqm5200";
@@ -45,29 +39,28 @@
 	};
 
 	soc5200@f0000000 {
-		model = "fsl,mpc5200";
-		compatible = "fsl,mpc5200";
-		revision = "";			// from bootloader
-		device_type = "soc";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "fsl,mpc5200-immr";
 		ranges = <0 f0000000 0000c000>;
 		reg = <f0000000 00000100>;
 		bus-frequency = <0>;		// from bootloader
 		system-frequency = <0>;		// from bootloader
 
 		cdm@200 {
-			compatible = "mpc5200-cdm";
+			compatible = "fsl,mpc5200-cdm";
 			reg = <200 38>;
 		};
 
-		mpc5200_pic: pic@500 {
+		mpc5200_pic: interrupt-controller@500 {
 			// 5200 interrupts are encoded into two levels;
 			interrupt-controller;
 			#interrupt-cells = <3>;
-			compatible = "mpc5200-pic";
+			compatible = "fsl,mpc5200-pic";
 			reg = <500 80>;
 		};
 
-		gpt@600 {	// General Purpose Timer
+		timer@600 {	// General Purpose Timer
 			compatible = "fsl,mpc5200-gpt";
 			reg = <600 10>;
 			interrupts = <1 9 0>;
@@ -76,21 +69,21 @@
 		};
 
 		gpio@b00 {
-			compatible = "mpc5200-gpio";
+			compatible = "fsl,mpc5200-gpio";
 			reg = <b00 40>;
 			interrupts = <1 7 0>;
 			interrupt-parent = <&mpc5200_pic>;
 		};
 
 		usb@1000 {
-			compatible = "mpc5200-ohci","ohci-be";
+			compatible = "fsl,mpc5200-ohci","ohci-be";
 			reg = <1000 ff>;
 			interrupts = <2 6 0>;
 			interrupt-parent = <&mpc5200_pic>;
 		};
 
 		dma-controller@1200 {
-			compatible = "mpc5200-bestcomm";
+			compatible = "fsl,mpc5200-bestcomm";
 			reg = <1200 80>;
 			interrupts = <3 0 0  3 1 0  3 2 0  3 3 0
 			              3 4 0  3 5 0  3 6 0  3 7 0
@@ -100,13 +93,13 @@
 		};
 
 		xlb@1f00 {
-			compatible = "mpc5200-xlb";
+			compatible = "fsl,mpc5200-xlb";
 			reg = <1f00 100>;
 		};
 
 		serial@2000 {		// PSC1
 			device_type = "serial";
-			compatible = "mpc5200-psc-uart";
+			compatible = "fsl,mpc5200-psc-uart";
 			port-number = <0>;  // Logical port assignment
 			reg = <2000 100>;
 			interrupts = <2 1 0>;
@@ -115,7 +108,7 @@
 
 		serial@2200 {		// PSC2
 			device_type = "serial";
-			compatible = "mpc5200-psc-uart";
+			compatible = "fsl,mpc5200-psc-uart";
 			port-number = <1>;  // Logical port assignment
 			reg = <2200 100>;
 			interrupts = <2 2 0>;
@@ -124,7 +117,7 @@
 
 		serial@2400 {		// PSC3
 			device_type = "serial";
-			compatible = "mpc5200-psc-uart";
+			compatible = "fsl,mpc5200-psc-uart";
 			port-number = <2>;  // Logical port assignment
 			reg = <2400 100>;
 			interrupts = <2 3 0>;
@@ -133,22 +126,22 @@
 
 		ethernet@3000 {
 			device_type = "network";
-			compatible = "mpc5200-fec";
+			compatible = "fsl,mpc5200-fec";
 			reg = <3000 800>;
-			local-mac-address = [ 00 00 00 00 00 00 ]; /* Filled in by U-Boot */
+			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <2 5 0>;
 			interrupt-parent = <&mpc5200_pic>;
 		};
 
 		ata@3a00 {
-			compatible = "mpc5200-ata";
+			compatible = "fsl,mpc5200-ata";
 			reg = <3a00 100>;
 			interrupts = <2 7 0>;
 			interrupt-parent = <&mpc5200_pic>;
 		};
 
 		i2c@3d40 {
-			compatible = "mpc5200-i2c","fsl-i2c";
+			compatible = "fsl,mpc5200-i2c","fsl-i2c";
 			reg = <3d40 40>;
 			interrupts = <2 10 0>;
 			interrupt-parent = <&mpc5200_pic>;
@@ -156,7 +149,7 @@
 		};
 
 		sram@8000 {
-			compatible = "mpc5200-sram";
+			compatible = "fsl,mpc5200-sram";
 			reg = <8000 4000>;
 		};
 	};

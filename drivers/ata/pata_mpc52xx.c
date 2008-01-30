@@ -494,10 +494,8 @@ mpc52xx_ata_resume(struct of_device *op)
 
 
 static struct of_device_id mpc52xx_ata_of_match[] = {
-	{
-		.type		= "ata",
-		.compatible	= "mpc5200-ata",
-	},
+	{ .compatible = "fsl,mpc5200-ata", },
+	{ .compatible = "mpc5200-ata", },
 	{},
 };
 

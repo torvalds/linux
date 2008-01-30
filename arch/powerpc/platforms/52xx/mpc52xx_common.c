@@ -13,10 +13,28 @@
 #undef DEBUG
 
 #include <linux/kernel.h>
+#include <linux/spinlock.h>
 #include <linux/of_platform.h>
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/mpc52xx.h>
+
+/* MPC5200 device tree match tables */
+static struct of_device_id mpc52xx_xlb_ids[] __initdata = {
+	{ .compatible = "fsl,mpc5200-xlb", },
+	{ .compatible = "mpc5200-xlb", },
+	{}
+};
+static struct of_device_id mpc52xx_bus_ids[] __initdata = {
+	{ .compatible = "fsl,mpc5200-immr", },
+	{ .compatible = "fsl,mpc5200b-immr", },
+	{ .compatible = "fsl,lpb", },
+
+	/* depreciated matches; shouldn't be used in new device trees */
+	{ .type = "builtin", .compatible = "mpc5200", }, /* efika */
+	{ .type = "soc", .compatible = "mpc5200", }, /* lite5200 */
+	{}
+};
 
 /*
  * This variable is mapped in mpc52xx_map_wdt() and used in mpc52xx_restart().
@@ -24,7 +42,9 @@
  * from interrupt context while node mapping (which calls ioremap())
  * cannot be used at such point.
  */
-static volatile struct mpc52xx_gpt *mpc52xx_wdt = NULL;
+static spinlock_t mpc52xx_lock = SPIN_LOCK_UNLOCKED;
+static struct mpc52xx_gpt __iomem *mpc52xx_wdt;
+static struct mpc52xx_cdm __iomem *mpc52xx_cdm;
 
 /**
  * 	mpc52xx_find_ipb_freq - Find the IPB bus frequency for a device
@@ -65,7 +85,7 @@ mpc5200_setup_xlb_arbiter(void)
 	struct device_node *np;
 	struct mpc52xx_xlb  __iomem *xlb;
 
-	np = of_find_compatible_node(NULL, NULL, "mpc5200-xlb");
+	np = of_find_matching_node(NULL, mpc52xx_xlb_ids);
 	xlb = of_iomap(np, 0);
 	of_node_put(np);
 	if (!xlb) {
@@ -88,16 +108,11 @@ mpc5200_setup_xlb_arbiter(void)
 	iounmap(xlb);
 }
 
-static struct of_device_id mpc52xx_bus_ids[] __initdata= {
-	{ .compatible = "fsl,mpc5200-immr", },
-	{ .compatible = "fsl,lpb", },
-
-	/* depreciated matches; shouldn't be used in new device trees */
-	{ .type = "builtin", .compatible = "mpc5200", }, /* efika */
-	{ .type = "soc", .compatible = "mpc5200", }, /* lite5200 */
-	{},
-};
-
+/**
+ * mpc52xx_declare_of_platform_devices: register internal devices and children
+ *					of the localplus bus to the of_platform
+ *					bus.
+ */
 void __init
 mpc52xx_declare_of_platform_devices(void)
 {
@@ -107,35 +122,87 @@ mpc52xx_declare_of_platform_devices(void)
 			"Error while probing of_platform bus\n");
 }
 
+/*
+ * match tables used by mpc52xx_map_common_devices()
+ */
+static struct of_device_id mpc52xx_gpt_ids[] __initdata = {
+	{ .compatible = "fsl,mpc5200-gpt", },
+	{ .compatible = "mpc5200-gpt", }, /* old */
+	{}
+};
+static struct of_device_id mpc52xx_cdm_ids[] __initdata = {
+	{ .compatible = "fsl,mpc5200-cdm", },
+	{ .compatible = "mpc5200-cdm", }, /* old */
+	{}
+};
+
+/**
+ * mpc52xx_map_common_devices: iomap devices required by common code
+ */
 void __init
-mpc52xx_map_wdt(void)
+mpc52xx_map_common_devices(void)
 {
-	const void *has_wdt;
 	struct device_node *np;
 
 	/* mpc52xx_wdt is mapped here and used in mpc52xx_restart,
 	 * possibly from a interrupt context. wdt is only implement
 	 * on a gpt0, so check has-wdt property before mapping.
 	 */
-	for_each_compatible_node(np, NULL, "fsl,mpc5200-gpt") {
-		has_wdt = of_get_property(np, "fsl,has-wdt", NULL);
-		if (has_wdt) {
+	for_each_matching_node(np, mpc52xx_gpt_ids) {
+		if (of_get_property(np, "fsl,has-wdt", NULL) ||
+		    of_get_property(np, "has-wdt", NULL)) {
 			mpc52xx_wdt = of_iomap(np, 0);
 			of_node_put(np);
-			return;
+			break;
 		}
 	}
-	for_each_compatible_node(np, NULL, "mpc5200-gpt") {
-		has_wdt = of_get_property(np, "has-wdt", NULL);
-		if (has_wdt) {
-			mpc52xx_wdt = of_iomap(np, 0);
-			of_node_put(np);
-			return;
-		}
 
-	}
+	/* Clock Distribution Module, used by PSC clock setting function */
+	np = of_find_matching_node(NULL, mpc52xx_cdm_ids);
+	mpc52xx_cdm = of_iomap(np, 0);
+	of_node_put(np);
 }
 
+/**
+ * mpc52xx_set_psc_clkdiv: Set clock divider in the CDM for PSC ports
+ *
+ * @psc_id: id of psc port; must be 1,2,3 or 6
+ * @clkdiv: clock divider value to put into CDM PSC register.
+ */
+int mpc52xx_set_psc_clkdiv(int psc_id, int clkdiv)
+{
+	unsigned long flags;
+	u16 __iomem *reg;
+	u32 val;
+	u32 mask;
+	u32 mclken_div;
+
+	if (!mpc52xx_cdm)
+		return -ENODEV;
+
+	mclken_div = 0x8000 | (clkdiv & 0x1FF);
+	switch (psc_id) {
+	case 1: reg = &mpc52xx_cdm->mclken_div_psc1; mask = 0x20; break;
+	case 2: reg = &mpc52xx_cdm->mclken_div_psc2; mask = 0x40; break;
+	case 3: reg = &mpc52xx_cdm->mclken_div_psc3; mask = 0x80; break;
+	case 6: reg = &mpc52xx_cdm->mclken_div_psc6; mask = 0x10; break;
+	default:
+		return -ENODEV;
+	}
+
+	/* Set the rate and enable the clock */
+	spin_lock_irqsave(&mpc52xx_lock, flags);
+	out_be16(reg, mclken_div);
+	val = in_be32(&mpc52xx_cdm->clk_enables);
+	out_be32(&mpc52xx_cdm->clk_enables, val | mask);
+	spin_unlock_irqrestore(&mpc52xx_lock, flags);
+
+	return 0;
+}
+
+/**
+ * mpc52xx_restart: ppc_md->restart hook for mpc5200 using the watchdog timer
+ */
 void
 mpc52xx_restart(char *cmd)
 {

@@ -32,6 +32,19 @@
  *
  */
 
+/* mpc5200 device tree match tables */
+static struct of_device_id mpc5200_cdm_ids[] __initdata = {
+	{ .compatible = "fsl,mpc5200-cdm", },
+	{ .compatible = "mpc5200-cdm", },
+	{}
+};
+
+static struct of_device_id mpc5200_gpio_ids[] __initdata = {
+	{ .compatible = "fsl,mpc5200-gpio", },
+	{ .compatible = "mpc5200-gpio", },
+	{}
+};
+
 /*
  * Fix clock configuration.
  *
@@ -44,9 +57,8 @@ lite5200_fix_clock_config(void)
 {
 	struct device_node *np;
 	struct mpc52xx_cdm  __iomem *cdm;
-
 	/* Map zones */
-	np = of_find_compatible_node(NULL, NULL, "mpc5200-cdm");
+	np = of_find_matching_node(NULL, mpc5200_cdm_ids);
 	cdm = of_iomap(np, 0);
 	of_node_put(np);
 	if (!cdm) {
@@ -81,7 +93,7 @@ lite5200_fix_port_config(void)
 	struct mpc52xx_gpio __iomem *gpio;
 	u32 port_config;
 
-	np = of_find_compatible_node(NULL, NULL, "mpc5200-gpio");
+	np = of_find_matching_node(NULL, mpc5200_gpio_ids);
 	gpio = of_iomap(np, 0);
 	of_node_put(np);
 	if (!gpio) {
@@ -140,15 +152,15 @@ static void __init lite5200_setup_arch(void)
 	if (ppc_md.progress)
 		ppc_md.progress("lite5200_setup_arch()", 0);
 
-	/* Fix things that firmware should have done. */
-	lite5200_fix_clock_config();
-	lite5200_fix_port_config();
+	/* Map important registers from the internal memory map */
+	mpc52xx_map_common_devices();
 
 	/* Some mpc5200 & mpc5200b related configuration */
 	mpc5200_setup_xlb_arbiter();
 
-	/* Map wdt for mpc52xx_restart() */
-	mpc52xx_map_wdt();
+	/* Fix things that firmware should have done. */
+	lite5200_fix_clock_config();
+	lite5200_fix_port_config();
 
 #ifdef CONFIG_PM
 	mpc52xx_suspend.board_suspend_prepare = lite5200_suspend_prepare;

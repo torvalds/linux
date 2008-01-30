@@ -177,11 +177,9 @@ static int mpc52xx_fec_mdio_remove(struct of_device *of)
 
 
 static struct of_device_id mpc52xx_fec_mdio_match[] = {
-	{
-		.type = "mdio",
-		.compatible = "mpc5200b-fec-phy",
-	},
-	{},
+	{ .compatible = "fsl,mpc5200b-mdio", },
+	{ .compatible = "mpc5200b-fec-phy", },
+	{}
 };
 
 struct of_platform_driver mpc52xx_fec_mdio_driver = {
