@@ -118,6 +118,7 @@ struct cpuinfo_x86 {
 extern struct cpuinfo_x86 boot_cpu_data;
 extern struct cpuinfo_x86 new_cpu_data;
 extern struct tss_struct doublefault_tss;
+extern __u32 cleared_cpu_caps[NCAPINTS];
 
 #ifdef CONFIG_SMP
 DECLARE_PER_CPU(struct cpuinfo_x86, cpu_info);

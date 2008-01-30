@@ -80,6 +80,8 @@
 struct cpuinfo_x86 boot_cpu_data __read_mostly;
 EXPORT_SYMBOL(boot_cpu_data);
 
+__u32 cleared_cpu_caps[NCAPINTS] __cpuinitdata;
+
 unsigned long mmu_cr4_features;
 
 /* Boot loader ID as an integer, for the benefit of proc_dointvec */
@@ -1012,6 +1014,10 @@ void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 		for (i = 0; i < NCAPINTS; i++)
 			boot_cpu_data.x86_capability[i] &= c->x86_capability[i];
 	}
+
+	/* Clear all flags overriden by options */
+	for (i = 0; i < NCAPINTS; i++)
+		c->x86_capability[i] ^= cleared_cpu_caps[i];
 
 #ifdef CONFIG_X86_MCE
 	mcheck_init(c);

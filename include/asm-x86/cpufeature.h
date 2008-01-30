@@ -131,6 +131,10 @@
 
 #define set_cpu_cap(c, bit)	set_bit(bit, (unsigned long *)((c)->x86_capability))
 #define clear_cpu_cap(c, bit)	clear_bit(bit, (unsigned long *)((c)->x86_capability))
+#define setup_clear_cpu_cap(bit) do { \
+	clear_cpu_cap(&boot_cpu_data, bit);	\
+	set_bit(bit, cleared_cpu_caps); 	\
+} while (0)
 
 #define cpu_has_fpu		boot_cpu_has(X86_FEATURE_FPU)
 #define cpu_has_vme		boot_cpu_has(X86_FEATURE_VME)

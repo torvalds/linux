@@ -57,6 +57,8 @@ DEFINE_PER_CPU(struct gdt_page, gdt_page) = { .gdt = {
 } };
 EXPORT_PER_CPU_SYMBOL_GPL(gdt_page);
 
+__u32 cleared_cpu_caps[NCAPINTS] __cpuinitdata;
+
 static int cachesize_override __cpuinitdata = -1;
 static int disable_x86_fxsr __cpuinitdata;
 static int disable_x86_serial_nr __cpuinitdata = 1;
@@ -496,6 +498,10 @@ void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 		for ( i = 0 ; i < NCAPINTS ; i++ )
 			boot_cpu_data.x86_capability[i] &= c->x86_capability[i];
 	}
+
+	/* Clear all flags overriden by options */
+	for (i = 0; i < NCAPINTS; i++)
+		c->x86_capability[i] ^= cleared_cpu_caps[i];
 
 	/* Init Machine Check Exception if available. */
 	mcheck_init(c);
