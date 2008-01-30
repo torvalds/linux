@@ -194,21 +194,6 @@
 #undef  cpu_has_centaur_mcr
 #define cpu_has_centaur_mcr	0
 
-#undef  cpu_has_pse
-#define cpu_has_pse		1
-
-#undef  cpu_has_pge
-#define cpu_has_pge		1
-
-#undef  cpu_has_xmm
-#define cpu_has_xmm		1
-
-#undef  cpu_has_xmm2
-#define cpu_has_xmm2		1
-
-#undef  cpu_has_fxsr
-#define cpu_has_fxsr		1
-
 #endif /* CONFIG_X86_64 */
 
 #endif /* _ASM_X86_CPUFEATURE_H */
