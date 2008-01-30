@@ -73,10 +73,10 @@ static void set_mandatory_flags_band(struct ieee80211_supported_band *sband,
 				want--;
 			}
 
-			if (sband->bitrates[i].bitrate == 10 ||
-			    sband->bitrates[i].bitrate == 20 ||
-			    sband->bitrates[i].bitrate == 55 ||
-			    sband->bitrates[i].bitrate == 110)
+			if (sband->bitrates[i].bitrate != 10 &&
+			    sband->bitrates[i].bitrate != 20 &&
+			    sband->bitrates[i].bitrate != 55 &&
+			    sband->bitrates[i].bitrate != 110)
 				sband->bitrates[i].flags |=
 					IEEE80211_RATE_ERP_G;
 		}
