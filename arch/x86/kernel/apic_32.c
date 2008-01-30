@@ -563,6 +563,9 @@ static void local_apic_timer_interrupt(void)
 		return;
 	}
 
+	/*
+	 * the NMI deadlock-detector uses this.
+	 */
 	per_cpu(irq_stat, cpu).apic_timer_irqs++;
 
 	evt->event_handler(evt);
@@ -617,7 +620,7 @@ int setup_profiling_timer(unsigned int multiplier)
 void clear_local_APIC(void)
 {
 	int maxlvt = lapic_get_maxlvt();
-	unsigned long v;
+	u32 v;
 
 	/*
 	 * Masking an LVT entry can trigger a local APIC error
@@ -1210,50 +1213,6 @@ int __init APIC_init_uniprocessor (void)
 }
 
 /*
- * APIC command line parameters
- */
-static int __init parse_lapic(char *arg)
-{
-	enable_local_apic = 1;
-	return 0;
-}
-early_param("lapic", parse_lapic);
-
-static int __init parse_nolapic(char *arg)
-{
-	enable_local_apic = -1;
-	clear_bit(X86_FEATURE_APIC, boot_cpu_data.x86_capability);
-	return 0;
-}
-early_param("nolapic", parse_nolapic);
-
-static int __init parse_disable_lapic_timer(char *arg)
-{
-	local_apic_timer_disabled = 1;
-	return 0;
-}
-early_param("nolapic_timer", parse_disable_lapic_timer);
-
-static int __init parse_lapic_timer_c2_ok(char *arg)
-{
-	local_apic_timer_c2_ok = 1;
-	return 0;
-}
-early_param("lapic_timer_c2_ok", parse_lapic_timer_c2_ok);
-
-static int __init apic_set_verbosity(char *str)
-{
-	if (strcmp("debug", str) == 0)
-		apic_verbosity = APIC_DEBUG;
-	else if (strcmp("verbose", str) == 0)
-		apic_verbosity = APIC_VERBOSE;
-	return 1;
-}
-
-__setup("apic=", apic_set_verbosity);
-
-
-/*
  * Local APIC interrupts
  */
 
@@ -1565,3 +1524,46 @@ device_initcall(init_lapic_sysfs);
 static void apic_pm_activate(void) { }
 
 #endif	/* CONFIG_PM */
+
+/*
+ * APIC command line parameters
+ */
+static int __init parse_lapic(char *arg)
+{
+	enable_local_apic = 1;
+	return 0;
+}
+early_param("lapic", parse_lapic);
+
+static int __init parse_nolapic(char *arg)
+{
+	enable_local_apic = -1;
+	clear_bit(X86_FEATURE_APIC, boot_cpu_data.x86_capability);
+	return 0;
+}
+early_param("nolapic", parse_nolapic);
+
+static int __init parse_disable_lapic_timer(char *arg)
+{
+	local_apic_timer_disabled = 1;
+	return 0;
+}
+early_param("nolapic_timer", parse_disable_lapic_timer);
+
+static int __init parse_lapic_timer_c2_ok(char *arg)
+{
+	local_apic_timer_c2_ok = 1;
+	return 0;
+}
+early_param("lapic_timer_c2_ok", parse_lapic_timer_c2_ok);
+
+static int __init apic_set_verbosity(char *str)
+{
+	if (strcmp("debug", str) == 0)
+		apic_verbosity = APIC_DEBUG;
+	else if (strcmp("verbose", str) == 0)
+		apic_verbosity = APIC_VERBOSE;
+	return 1;
+}
+__setup("apic=", apic_set_verbosity);
+
