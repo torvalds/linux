@@ -47,10 +47,10 @@
 #include <asm/numa.h>
 
 #ifndef Dprintk
-#define Dprintk(x...)
+# define Dprintk(x...)
 #endif
 
-const struct dma_mapping_ops* dma_ops;
+const struct dma_mapping_ops *dma_ops;
 EXPORT_SYMBOL(dma_ops);
 
 static unsigned long dma_reserve __initdata;
@@ -67,22 +67,26 @@ void show_mem(void)
 {
 	long i, total = 0, reserved = 0;
 	long shared = 0, cached = 0;
-	pg_data_t *pgdat;
 	struct page *page;
+	pg_data_t *pgdat;
 
 	printk(KERN_INFO "Mem-info:\n");
 	show_free_areas();
-	printk(KERN_INFO "Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
+	printk(KERN_INFO "Free swap:       %6ldkB\n",
+		nr_swap_pages << (PAGE_SHIFT-10));
 
 	for_each_online_pgdat(pgdat) {
-               for (i = 0; i < pgdat->node_spanned_pages; ++i) {
-			/* this loop can take a while with 256 GB and 4k pages
-			   so update the NMI watchdog */
-			if (unlikely(i % MAX_ORDER_NR_PAGES == 0)) {
+		for (i = 0; i < pgdat->node_spanned_pages; ++i) {
+			/*
+			 * This loop can take a while with 256 GB and
+			 * 4k pages so defer the NMI watchdog:
+			 */
+			if (unlikely(i % MAX_ORDER_NR_PAGES == 0))
 				touch_nmi_watchdog();
-			}
+
 			if (!pfn_valid(pgdat->node_start_pfn + i))
 				continue;
+
 			page = pfn_to_page(pgdat->node_start_pfn + i);
 			total++;
 			if (PageReserved(page))
@@ -91,32 +95,37 @@ void show_mem(void)
 				cached++;
 			else if (page_count(page))
 				shared += page_count(page) - 1;
-               }
+		}
 	}
-	printk(KERN_INFO "%lu pages of RAM\n", total);
-	printk(KERN_INFO "%lu reserved pages\n",reserved);
-	printk(KERN_INFO "%lu pages shared\n",shared);
-	printk(KERN_INFO "%lu pages swap cached\n",cached);
+	printk(KERN_INFO "%lu pages of RAM\n",		total);
+	printk(KERN_INFO "%lu reserved pages\n",	reserved);
+	printk(KERN_INFO "%lu pages shared\n",		shared);
+	printk(KERN_INFO "%lu pages swap cached\n",	cached);
 }
 
 int after_bootmem;
 
 static __init void *spp_getpage(void)
-{ 
+{
 	void *ptr;
+
 	if (after_bootmem)
-		ptr = (void *) get_zeroed_page(GFP_ATOMIC); 
+		ptr = (void *) get_zeroed_page(GFP_ATOMIC);
 	else
 		ptr = alloc_bootmem_pages(PAGE_SIZE);
-	if (!ptr || ((unsigned long)ptr & ~PAGE_MASK))
-		panic("set_pte_phys: cannot allocate page data %s\n", after_bootmem?"after bootmem":"");
+
+	if (!ptr || ((unsigned long)ptr & ~PAGE_MASK)) {
+		panic("set_pte_phys: cannot allocate page data %s\n",
+			after_bootmem ? "after bootmem" : "");
+	}
 
 	Dprintk("spp_getpage %p\n", ptr);
-	return ptr;
-} 
 
-static __init void set_pte_phys(unsigned long vaddr,
-			 unsigned long phys, pgprot_t prot)
+	return ptr;
+}
+
+static __init void
+set_pte_phys(unsigned long vaddr, unsigned long phys, pgprot_t prot)
 {
 	pgd_t *pgd;
 	pud_t *pud;
@@ -132,10 +141,11 @@ static __init void set_pte_phys(unsigned long vaddr,
 	}
 	pud = pud_offset(pgd, vaddr);
 	if (pud_none(*pud)) {
-		pmd = (pmd_t *) spp_getpage(); 
+		pmd = (pmd_t *) spp_getpage();
 		set_pud(pud, __pud(__pa(pmd) | _KERNPG_TABLE | _PAGE_USER));
 		if (pmd != pmd_offset(pud, 0)) {
-			printk("PAGETABLE BUG #01! %p <-> %p\n", pmd, pmd_offset(pud,0));
+			printk("PAGETABLE BUG #01! %p <-> %p\n",
+				pmd, pmd_offset(pud, 0));
 			return;
 		}
 	}
@@ -164,8 +174,8 @@ static __init void set_pte_phys(unsigned long vaddr,
 }
 
 /* NOTE: this is meant to be run only at boot */
-void __init 
-__set_fixmap (enum fixed_addresses idx, unsigned long phys, pgprot_t prot)
+void __init
+__set_fixmap(enum fixed_addresses idx, unsigned long phys, pgprot_t prot)
 {
 	unsigned long address = __fix_to_virt(idx);
 
@@ -180,18 +190,19 @@ static unsigned long __initdata table_start;
 static unsigned long __meminitdata table_end;
 
 static __meminit void *alloc_low_page(unsigned long *phys)
-{ 
+{
 	unsigned long pfn = table_end++;
 	void *adr;
 
 	if (after_bootmem) {
 		adr = (void *)get_zeroed_page(GFP_ATOMIC);
 		*phys = __pa(adr);
+
 		return adr;
 	}
 
-	if (pfn >= end_pfn) 
-		panic("alloc_low_page: ran out of memory"); 
+	if (pfn >= end_pfn)
+		panic("alloc_low_page: ran out of memory");
 
 	adr = early_ioremap(pfn * PAGE_SIZE, PAGE_SIZE);
 	memset(adr, 0, PAGE_SIZE);
@@ -200,44 +211,49 @@ static __meminit void *alloc_low_page(unsigned long *phys)
 }
 
 static __meminit void unmap_low_page(void *adr)
-{ 
-
+{
 	if (after_bootmem)
 		return;
 
 	early_iounmap(adr, PAGE_SIZE);
-} 
+}
 
 /* Must run before zap_low_mappings */
 __meminit void *early_ioremap(unsigned long addr, unsigned long size)
 {
-	unsigned long vaddr;
 	pmd_t *pmd, *last_pmd;
+	unsigned long vaddr;
 	int i, pmds;
 
 	pmds = ((addr & ~PMD_MASK) + size + ~PMD_MASK) / PMD_SIZE;
 	vaddr = __START_KERNEL_map;
 	pmd = level2_kernel_pgt;
 	last_pmd = level2_kernel_pgt + PTRS_PER_PMD - 1;
+
 	for (; pmd <= last_pmd; pmd++, vaddr += PMD_SIZE) {
 		for (i = 0; i < pmds; i++) {
 			if (pmd_present(pmd[i]))
-				goto next;
+				goto continue_outer_loop;
 		}
 		vaddr += addr & ~PMD_MASK;
 		addr &= PMD_MASK;
+
 		for (i = 0; i < pmds; i++, addr += PMD_SIZE)
 			set_pmd(pmd+i, __pmd(addr | __PAGE_KERNEL_LARGE_EXEC));
 		__flush_tlb_all();
+
 		return (void *)vaddr;
-	next:
+continue_outer_loop:
 		;
 	}
 	printk("early_ioremap(0x%lx, %lu) failed\n", addr, size);
+
 	return NULL;
 }
 
-/* To avoid virtual aliases later */
+/*
+ * To avoid virtual aliases later:
+ */
 __meminit void early_iounmap(void *addr, unsigned long size)
 {
 	unsigned long vaddr;
@@ -247,8 +263,10 @@ __meminit void early_iounmap(void *addr, unsigned long size)
 	vaddr = (unsigned long)addr;
 	pmds = ((vaddr & ~PMD_MASK) + size + ~PMD_MASK) / PMD_SIZE;
 	pmd = level2_kernel_pgt + pmd_index(vaddr);
+
 	for (i = 0; i < pmds; i++)
 		pmd_clear(pmd + i);
+
 	__flush_tlb_all();
 }
 
@@ -262,9 +280,10 @@ phys_pmd_init(pmd_t *pmd_page, unsigned long address, unsigned long end)
 		pmd_t *pmd = pmd_page + pmd_index(address);
 
 		if (address >= end) {
-			if (!after_bootmem)
+			if (!after_bootmem) {
 				for (; i < PTRS_PER_PMD; i++, pmd++)
 					set_pmd(pmd, __pmd(0));
+			}
 			break;
 		}
 
@@ -280,19 +299,19 @@ phys_pmd_init(pmd_t *pmd_page, unsigned long address, unsigned long end)
 static void __meminit
 phys_pmd_update(pud_t *pud, unsigned long address, unsigned long end)
 {
-	pmd_t *pmd = pmd_offset(pud,0);
+	pmd_t *pmd = pmd_offset(pud, 0);
 	spin_lock(&init_mm.page_table_lock);
 	phys_pmd_init(pmd, address, end);
 	spin_unlock(&init_mm.page_table_lock);
 	__flush_tlb_all();
 }
 
-static void __meminit phys_pud_init(pud_t *pud_page, unsigned long addr, unsigned long end)
-{ 
+static void __meminit
+phys_pud_init(pud_t *pud_page, unsigned long addr, unsigned long end)
+{
 	int i = pud_index(addr);
 
-
-	for (; i < PTRS_PER_PUD; i++, addr = (addr & PUD_MASK) + PUD_SIZE ) {
+	for (; i < PTRS_PER_PUD; i++, addr = (addr & PUD_MASK) + PUD_SIZE) {
 		unsigned long pmd_phys;
 		pud_t *pud = pud_page + pud_index(addr);
 		pmd_t *pmd;
@@ -300,10 +319,11 @@ static void __meminit phys_pud_init(pud_t *pud_page, unsigned long addr, unsigne
 		if (addr >= end)
 			break;
 
-		if (!after_bootmem && !e820_any_mapped(addr,addr+PUD_SIZE,0)) {
-			set_pud(pud, __pud(0)); 
+		if (!after_bootmem &&
+				!e820_any_mapped(addr, addr+PUD_SIZE, 0)) {
+			set_pud(pud, __pud(0));
 			continue;
-		} 
+		}
 
 		if (pud_val(*pud)) {
 			phys_pmd_update(pud, addr, end);
@@ -311,14 +331,16 @@ static void __meminit phys_pud_init(pud_t *pud_page, unsigned long addr, unsigne
 		}
 
 		pmd = alloc_low_page(&pmd_phys);
+
 		spin_lock(&init_mm.page_table_lock);
 		set_pud(pud, __pud(pmd_phys | _KERNPG_TABLE));
 		phys_pmd_init(pmd, addr, end);
 		spin_unlock(&init_mm.page_table_lock);
+
 		unmap_low_page(pmd);
 	}
 	__flush_tlb_all();
-} 
+}
 
 static void __init find_early_table_space(unsigned long end)
 {
@@ -329,11 +351,13 @@ static void __init find_early_table_space(unsigned long end)
 	tables = round_up(puds * sizeof(pud_t), PAGE_SIZE) +
 		 round_up(pmds * sizeof(pmd_t), PAGE_SIZE);
 
- 	/* RED-PEN putting page tables only on node 0 could
- 	   cause a hotspot and fill up ZONE_DMA. The page tables
- 	   need roughly 0.5KB per GB. */
- 	start = 0x8000;
- 	table_start = find_e820_area(start, end, tables);
+	/*
+	 * RED-PEN putting page tables only on node 0 could
+	 * cause a hotspot and fill up ZONE_DMA. The page tables
+	 * need roughly 0.5KB per GB.
+	 */
+	start = 0x8000;
+	table_start = find_e820_area(start, end, tables);
 	if (table_start == -1UL)
 		panic("Cannot find space for the kernel page tables");
 
@@ -345,20 +369,23 @@ static void __init find_early_table_space(unsigned long end)
 		(table_start << PAGE_SHIFT) + tables);
 }
 
-/* Setup the direct mapping of the physical memory at PAGE_OFFSET.
-   This runs before bootmem is initialized and gets pages directly from the 
-   physical memory. To access them they are temporarily mapped. */
+/*
+ * Setup the direct mapping of the physical memory at PAGE_OFFSET.
+ * This runs before bootmem is initialized and gets pages directly from
+ * the physical memory. To access them they are temporarily mapped.
+ */
 void __init_refok init_memory_mapping(unsigned long start, unsigned long end)
-{ 
-	unsigned long next; 
+{
+	unsigned long next;
 
 	Dprintk("init_memory_mapping\n");
 
-	/* 
+	/*
 	 * Find space for the kernel direct mapping tables.
-	 * Later we should allocate these tables in the local node of the memory
-	 * mapped.  Unfortunately this is done currently before the nodes are 
-	 * discovered.
+	 *
+	 * Later we should allocate these tables in the local node of the
+	 * memory mapped. Unfortunately this is done currently before the
+	 * nodes are discovered.
 	 */
 	if (!after_bootmem)
 		find_early_table_space(end);
@@ -367,8 +394,8 @@ void __init_refok init_memory_mapping(unsigned long start, unsigned long end)
 	end = (unsigned long)__va(end);
 
 	for (; start < end; start = next) {
-		unsigned long pud_phys; 
 		pgd_t *pgd = pgd_offset_k(start);
+		unsigned long pud_phys;
 		pud_t *pud;
 
 		if (after_bootmem)
@@ -377,13 +404,13 @@ void __init_refok init_memory_mapping(unsigned long start, unsigned long end)
 			pud = alloc_low_page(&pud_phys);
 
 		next = start + PGDIR_SIZE;
-		if (next > end) 
-			next = end; 
+		if (next > end)
+			next = end;
 		phys_pud_init(pud, __pa(start), __pa(next));
 		if (!after_bootmem)
 			set_pgd(pgd_offset_k(start), mk_kernel_pgd(pud_phys));
 		unmap_low_page(pud);
-	} 
+	}
 
 	if (!after_bootmem)
 		mmu_cr4_features = read_cr4();
@@ -396,6 +423,7 @@ void __init_refok init_memory_mapping(unsigned long start, unsigned long end)
 void __init paging_init(void)
 {
 	unsigned long max_zone_pfns[MAX_NR_ZONES];
+
 	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
 	max_zone_pfns[ZONE_DMA] = MAX_DMA_PFN;
 	max_zone_pfns[ZONE_DMA32] = MAX_DMA32_PFN;
@@ -407,39 +435,48 @@ void __init paging_init(void)
 }
 #endif
 
-/* Unmap a kernel mapping if it exists. This is useful to avoid prefetches
-   from the CPU leading to inconsistent cache lines. address and size
-   must be aligned to 2MB boundaries. 
-   Does nothing when the mapping doesn't exist. */
-void __init clear_kernel_mapping(unsigned long address, unsigned long size) 
+/*
+ * Unmap a kernel mapping if it exists. This is useful to avoid
+ * prefetches from the CPU leading to inconsistent cache lines.
+ * address and size must be aligned to 2MB boundaries.
+ * Does nothing when the mapping doesn't exist.
+ */
+void __init clear_kernel_mapping(unsigned long address, unsigned long size)
 {
 	unsigned long end = address + size;
 
 	BUG_ON(address & ~LARGE_PAGE_MASK);
-	BUG_ON(size & ~LARGE_PAGE_MASK); 
-	
-	for (; address < end; address += LARGE_PAGE_SIZE) { 
+	BUG_ON(size & ~LARGE_PAGE_MASK);
+
+	for (; address < end; address += LARGE_PAGE_SIZE) {
 		pgd_t *pgd = pgd_offset_k(address);
 		pud_t *pud;
 		pmd_t *pmd;
+
 		if (pgd_none(*pgd))
 			continue;
+
 		pud = pud_offset(pgd, address);
 		if (pud_none(*pud))
-			continue; 
+			continue;
+
 		pmd = pmd_offset(pud, address);
 		if (!pmd || pmd_none(*pmd))
-			continue; 
-		if (0 == (pmd_val(*pmd) & _PAGE_PSE)) { 
-			/* Could handle this, but it should not happen currently. */
-			printk(KERN_ERR 
-	       "clear_kernel_mapping: mapping has been split. will leak memory\n"); 
-			pmd_ERROR(*pmd); 
+			continue;
+
+		if (!(pmd_val(*pmd) & _PAGE_PSE)) {
+			/*
+			 * Could handle this, but it should not happen
+			 * currently:
+			 */
+			printk(KERN_ERR "clear_kernel_mapping: "
+				"mapping has been split. will leak memory\n");
+			pmd_ERROR(*pmd);
 		}
-		set_pmd(pmd, __pmd(0)); 		
+		set_pmd(pmd, __pmd(0));
 	}
 	__flush_tlb_all();
-} 
+}
 
 /*
  * Memory hotplug specific functions
@@ -466,15 +503,12 @@ int arch_add_memory(int nid, u64 start, u64 size)
 	unsigned long nr_pages = size >> PAGE_SHIFT;
 	int ret;
 
-	init_memory_mapping(start, (start + size -1));
+	init_memory_mapping(start, start + size-1);
 
 	ret = __add_pages(zone, start_pfn, nr_pages);
 	if (ret)
-		goto error;
+		printk("%s: Problem encountered in __add_pages!\n", __func__);
 
-	return ret;
-error:
-	printk("%s: Problem encountered in __add_pages!\n", __func__);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(arch_add_memory);
@@ -489,8 +523,8 @@ EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
 
 #endif /* CONFIG_MEMORY_HOTPLUG */
 
-static struct kcore_list kcore_mem, kcore_vmalloc, kcore_kernel, kcore_modules,
-			 kcore_vsyscall;
+static struct kcore_list kcore_mem, kcore_vmalloc, kcore_kernel,
+			 kcore_modules, kcore_vsyscall;
 
 void __init mem_init(void)
 {
@@ -518,7 +552,6 @@ void __init mem_init(void)
 #endif
 	reservedpages = end_pfn - totalram_pages -
 					absent_pages_in_range(0, end_pfn);
-
 	after_bootmem = 1;
 
 	codesize =  (unsigned long) &_etext - (unsigned long) &_text;
@@ -526,15 +559,16 @@ void __init mem_init(void)
 	initsize =  (unsigned long) &__init_end - (unsigned long) &__init_begin;
 
 	/* Register memory areas for /proc/kcore */
-	kclist_add(&kcore_mem, __va(0), max_low_pfn << PAGE_SHIFT); 
-	kclist_add(&kcore_vmalloc, (void *)VMALLOC_START, 
+	kclist_add(&kcore_mem, __va(0), max_low_pfn << PAGE_SHIFT);
+	kclist_add(&kcore_vmalloc, (void *)VMALLOC_START,
 		   VMALLOC_END-VMALLOC_START);
 	kclist_add(&kcore_kernel, &_stext, _end - _stext);
 	kclist_add(&kcore_modules, (void *)MODULES_VADDR, MODULES_LEN);
-	kclist_add(&kcore_vsyscall, (void *)VSYSCALL_START, 
+	kclist_add(&kcore_vsyscall, (void *)VSYSCALL_START,
 				 VSYSCALL_END - VSYSCALL_START);
 
-	printk("Memory: %luk/%luk available (%ldk kernel code, %ldk reserved, %ldk data, %ldk init)\n",
+	printk("Memory: %luk/%luk available (%ldk kernel code, "
+				"%ldk reserved, %ldk data, %ldk init)\n",
 		(unsigned long) nr_free_pages() << (PAGE_SHIFT-10),
 		end_pfn << (PAGE_SHIFT-10),
 		codesize >> 10,
@@ -561,6 +595,7 @@ void free_init_pages(char *what, unsigned long begin, unsigned long end)
 	set_memory_np(begin, (end - begin) >> PAGE_SHIFT);
 #else
 	printk(KERN_INFO "Freeing %s: %luk freed\n", what, (end - begin) >> 10);
+
 	for (addr = begin; addr < end; addr += PAGE_SIZE) {
 		ClearPageReserved(virt_to_page(addr));
 		init_page_count(virt_to_page(addr));
@@ -596,7 +631,7 @@ void mark_rodata_ro(void)
 #ifdef CONFIG_KPROBES
 	start = (unsigned long)__start_rodata;
 #endif
-	
+
 	end = (unsigned long)__end_rodata;
 	start = (start + PAGE_SIZE - 1) & PAGE_MASK;
 	end &= PAGE_MASK;
@@ -627,17 +662,21 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 }
 #endif
 
-void __init reserve_bootmem_generic(unsigned long phys, unsigned len) 
-{ 
+void __init reserve_bootmem_generic(unsigned long phys, unsigned len)
+{
 #ifdef CONFIG_NUMA
 	int nid = phys_to_nid(phys);
 #endif
 	unsigned long pfn = phys >> PAGE_SHIFT;
+
 	if (pfn >= end_pfn) {
-		/* This can happen with kdump kernels when accessing firmware
-		   tables. */
+		/*
+		 * This can happen with kdump kernels when accessing
+		 * firmware tables:
+		 */
 		if (pfn < end_pfn_map)
 			return;
+
 		printk(KERN_ERR "reserve_bootmem: illegal reserve %lx %u\n",
 				phys, len);
 		return;
@@ -645,9 +684,9 @@ void __init reserve_bootmem_generic(unsigned long phys, unsigned len)
 
 	/* Should check here against the e820 map to avoid double free */
 #ifdef CONFIG_NUMA
-  	reserve_bootmem_node(NODE_DATA(nid), phys, len);
-#else       		
-	reserve_bootmem(phys, len);    
+	reserve_bootmem_node(NODE_DATA(nid), phys, len);
+#else
+	reserve_bootmem(phys, len);
 #endif
 	if (phys+len <= MAX_DMA_PFN*PAGE_SIZE) {
 		dma_reserve += len / PAGE_SIZE;
@@ -655,46 +694,49 @@ void __init reserve_bootmem_generic(unsigned long phys, unsigned len)
 	}
 }
 
-int kern_addr_valid(unsigned long addr) 
-{ 
+int kern_addr_valid(unsigned long addr)
+{
 	unsigned long above = ((long)addr) >> __VIRTUAL_MASK_SHIFT;
-       pgd_t *pgd;
-       pud_t *pud;
-       pmd_t *pmd;
-       pte_t *pte;
+	pgd_t *pgd;
+	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *pte;
 
 	if (above != 0 && above != -1UL)
-		return 0; 
-	
+		return 0;
+
 	pgd = pgd_offset_k(addr);
 	if (pgd_none(*pgd))
 		return 0;
 
 	pud = pud_offset(pgd, addr);
 	if (pud_none(*pud))
-		return 0; 
+		return 0;
 
 	pmd = pmd_offset(pud, addr);
 	if (pmd_none(*pmd))
 		return 0;
+
 	if (pmd_large(*pmd))
 		return pfn_valid(pmd_pfn(*pmd));
 
 	pte = pte_offset_kernel(pmd, addr);
 	if (pte_none(*pte))
 		return 0;
+
 	return pfn_valid(pte_pfn(*pte));
 }
 
-/* A pseudo VMA to allow ptrace access for the vsyscall page.  This only
-   covers the 64bit vsyscall page now. 32bit has a real VMA now and does
-   not need special handling anymore. */
-
+/*
+ * A pseudo VMA to allow ptrace access for the vsyscall page.  This only
+ * covers the 64bit vsyscall page now. 32bit has a real VMA now and does
+ * not need special handling anymore:
+ */
 static struct vm_area_struct gate_vma = {
-	.vm_start = VSYSCALL_START,
-	.vm_end = VSYSCALL_START + (VSYSCALL_MAPPED_PAGES << PAGE_SHIFT),
-	.vm_page_prot = PAGE_READONLY_EXEC,
-	.vm_flags = VM_READ | VM_EXEC
+	.vm_start	= VSYSCALL_START,
+	.vm_end		= VSYSCALL_START + (VSYSCALL_MAPPED_PAGES * PAGE_SIZE),
+	.vm_page_prot	= PAGE_READONLY_EXEC,
+	.vm_flags	= VM_READ | VM_EXEC
 };
 
 struct vm_area_struct *get_gate_vma(struct task_struct *tsk)
@@ -709,14 +751,17 @@ struct vm_area_struct *get_gate_vma(struct task_struct *tsk)
 int in_gate_area(struct task_struct *task, unsigned long addr)
 {
 	struct vm_area_struct *vma = get_gate_vma(task);
+
 	if (!vma)
 		return 0;
+
 	return (addr >= vma->vm_start) && (addr < vma->vm_end);
 }
 
-/* Use this when you have no reliable task/vma, typically from interrupt
- * context.  It is less reliable than using the task's vma and may give
- * false positives.
+/*
+ * Use this when you have no reliable task/vma, typically from interrupt
+ * context. It is less reliable than using the task's vma and may give
+ * false positives:
  */
 int in_gate_area_no_task(unsigned long addr)
 {
@@ -736,8 +781,8 @@ const char *arch_vma_name(struct vm_area_struct *vma)
 /*
  * Initialise the sparsemem vmemmap using huge-pages at the PMD level.
  */
-int __meminit vmemmap_populate(struct page *start_page,
-						unsigned long size, int node)
+int __meminit
+vmemmap_populate(struct page *start_page, unsigned long size, int node)
 {
 	unsigned long addr = (unsigned long)start_page;
 	unsigned long end = (unsigned long)(start_page + size);
@@ -752,6 +797,7 @@ int __meminit vmemmap_populate(struct page *start_page,
 		pgd = vmemmap_pgd_populate(addr, node);
 		if (!pgd)
 			return -ENOMEM;
+
 		pud = vmemmap_pud_populate(pgd, addr, node);
 		if (!pud)
 			return -ENOMEM;
@@ -759,19 +805,22 @@ int __meminit vmemmap_populate(struct page *start_page,
 		pmd = pmd_offset(pud, addr);
 		if (pmd_none(*pmd)) {
 			pte_t entry;
-			void *p = vmemmap_alloc_block(PMD_SIZE, node);
+			void *p;
+
+			p = vmemmap_alloc_block(PMD_SIZE, node);
 			if (!p)
 				return -ENOMEM;
 
-			entry = pfn_pte(__pa(p) >> PAGE_SHIFT, PAGE_KERNEL_LARGE);
+			entry = pfn_pte(__pa(p) >> PAGE_SHIFT,
+							PAGE_KERNEL_LARGE);
 			set_pmd(pmd, __pmd(pte_val(entry)));
 
 			printk(KERN_DEBUG " [%lx-%lx] PMD ->%p on node %d\n",
 				addr, addr + PMD_SIZE - 1, p, node);
-		} else
+		} else {
 			vmemmap_verify((pte_t *)pmd, node, addr, next);
+		}
 	}
-
 	return 0;
 }
 #endif
