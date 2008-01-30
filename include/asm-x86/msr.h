@@ -7,6 +7,27 @@
 # include <linux/types.h>
 #endif
 
+#ifdef __KERNEL__
+#ifndef __ASSEMBLY__
+static inline unsigned long long native_read_tscp(int *aux)
+{
+	unsigned long low, high;
+	asm volatile (".byte 0x0f,0x01,0xf9"
+		      : "=a" (low), "=d" (high), "=c" (*aux));
+	return low | ((u64)high >> 32);
+}
+
+#define rdtscp(low, high, aux)						\
+       do {                                                            \
+		unsigned long long _val = native_read_tscp(&(aux));     \
+		(low) = (u32)_val;                                      \
+		(high) = (u32)(_val >> 32);                             \
+       } while (0)
+
+#define rdtscpll(val, aux) (val) = native_read_tscp(&(aux))
+#endif
+#endif
+
 #ifdef __i386__
 
 #ifdef __KERNEL__
@@ -178,20 +199,12 @@ static inline int wrmsr_safe(u32 __msr, u32 __low, u32 __high)
 #define rdtscl(low) \
      __asm__ __volatile__ ("rdtsc" : "=a" (low) : : "edx")
 
-#define rdtscp(low,high,aux) \
-     __asm__ __volatile__ (".byte 0x0f,0x01,0xf9" : "=a" (low), "=d" (high), "=c" (aux))
 
 #define rdtscll(val) do { \
      unsigned int __a,__d; \
      __asm__ __volatile__("rdtsc" : "=a" (__a), "=d" (__d)); \
      (val) = ((unsigned long)__a) | (((unsigned long)__d)<<32); \
 } while(0)
-
-#define rdtscpll(val, aux) do { \
-     unsigned long __a, __d; \
-     __asm__ __volatile__ (".byte 0x0f,0x01,0xf9" : "=a" (__a), "=d" (__d), "=c" (aux)); \
-     (val) = (__d << 32) | __a; \
-} while (0)
 
 #define write_tsc(val1,val2) wrmsr(0x10, val1, val2)
 
