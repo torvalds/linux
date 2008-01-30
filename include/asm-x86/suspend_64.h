@@ -45,8 +45,6 @@ struct saved_context {
 #define loaddebug(thread,register) \
 	set_debugreg((thread)->debugreg##register, register)
 
-extern void fix_processor_context(void);
-
 /* routines for saving/restoring kernel state */
 extern int acpi_save_state_mem(void);
 extern char core_restore_code;

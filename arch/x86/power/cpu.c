@@ -19,7 +19,7 @@ unsigned long saved_context_esp, saved_context_ebp;
 unsigned long saved_context_esi, saved_context_edi;
 unsigned long saved_context_eflags;
 
-void __save_processor_state(struct saved_context *ctxt)
+static void __save_processor_state(struct saved_context *ctxt)
 {
 	mtrr_save_fixed_ranges(NULL);
 	kernel_fpu_begin();
@@ -86,7 +86,7 @@ static void fix_processor_context(void)
 
 }
 
-void __restore_processor_state(struct saved_context *ctxt)
+static void __restore_processor_state(struct saved_context *ctxt)
 {
 	/*
 	 * control registers

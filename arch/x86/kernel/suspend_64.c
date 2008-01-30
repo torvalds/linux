@@ -17,6 +17,8 @@
 /* References to section boundaries */
 extern const void __nosave_begin, __nosave_end;
 
+static void fix_processor_context(void);
+
 struct saved_context saved_context;
 
 /**
@@ -34,7 +36,7 @@ struct saved_context saved_context;
  *	needed by kernel A, so that it can operate correctly after the resume
  *	regardless of what kernel B does in the meantime.
  */
-void __save_processor_state(struct saved_context *ctxt)
+static void __save_processor_state(struct saved_context *ctxt)
 {
 	kernel_fpu_begin();
 
@@ -89,7 +91,7 @@ static void do_fpu_end(void)
  *		by __save_processor_state()
  *	@ctxt - structure to load the registers contents from
  */
-void __restore_processor_state(struct saved_context *ctxt)
+static void __restore_processor_state(struct saved_context *ctxt)
 {
 	/*
 	 * control registers
@@ -133,7 +135,7 @@ void restore_processor_state(void)
 	__restore_processor_state(&saved_context);
 }
 
-void fix_processor_context(void)
+static void fix_processor_context(void)
 {
 	int cpu = smp_processor_id();
 	struct tss_struct *t = &per_cpu(init_tss, cpu);
