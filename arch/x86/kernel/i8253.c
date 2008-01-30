@@ -197,7 +197,15 @@ static struct clocksource clocksource_pit = {
 
 static int __init init_pit_clocksource(void)
 {
-	if (num_possible_cpus() > 1) /* PIT does not scale! */
+	 /*
+	  * Several reasons not to register PIT as a clocksource:
+	  *
+	  * - On SMP PIT does not scale due to i8253_lock
+	  * - when HPET is enabled
+	  * - when local APIC timer is active (PIT is switched off)
+	  */
+	if (num_possible_cpus() > 1 || is_hpet_enabled() ||
+	    pit_clockevent.mode != CLOCK_EVT_MODE_PERIODIC)
 		return 0;
 
 	clocksource_pit.mult = clocksource_hz2mult(CLOCK_TICK_RATE, 20);
