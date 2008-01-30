@@ -75,8 +75,7 @@ config X86_FIND_SMP_CONFIG
 
 config X86_MPPARSE
 	def_bool y
-	depends on X86_LOCAL_APIC && !X86_VISWS
-	depends on X86_32
+	depends on (X86_32 && (X86_LOCAL_APIC && !X86_VISWS)) || X86_64
 
 config DOUBLEFAULT
 	default y
