@@ -6,8 +6,10 @@ extern void pci_remove_sysfs_dev_files(struct pci_dev *pdev);
 extern void pci_cleanup_rom(struct pci_dev *dev);
 
 /* Firmware callbacks */
-extern pci_power_t (*platform_pci_choose_state)(struct pci_dev *dev, pm_message_t state);
-extern int (*platform_pci_set_power_state)(struct pci_dev *dev, pci_power_t state);
+extern pci_power_t (*platform_pci_choose_state)(struct pci_dev *dev,
+						pm_message_t state);
+extern int (*platform_pci_set_power_state)(struct pci_dev *dev,
+						pci_power_t state);
 
 extern int pci_user_read_config_byte(struct pci_dev *dev, int where, u8 *val);
 extern int pci_user_read_config_word(struct pci_dev *dev, int where, u16 *val);
@@ -69,7 +71,7 @@ extern struct class_device_attribute class_device_attr_cpuaffinity;
  *                        PCI device id structure
  * @id: single PCI device id structure to match
  * @dev: the PCI device structure to match against
- * 
+ *
  * Returns the matching pci_device_id structure or %NULL if there is no match.
  */
 static inline const struct pci_device_id *
