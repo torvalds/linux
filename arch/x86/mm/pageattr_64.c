@@ -82,6 +82,8 @@ static void flush_kernel_map(void *arg)
 	struct list_head *l = (struct list_head *)arg;
 	struct page *pg;
 
+	__flush_tlb_all();
+
 	/* When clflush is available always use it because it is
 	   much cheaper than WBINVD. */
 	/* clflush is still broken. Disable for now. */
@@ -94,7 +96,6 @@ static void flush_kernel_map(void *arg)
 			clflush_cache_range(addr, PAGE_SIZE);
 		}
 	}
-	__flush_tlb_all();
 }
 
 static inline void flush_map(struct list_head *l)

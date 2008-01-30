@@ -87,6 +87,12 @@ static void flush_kernel_map(void *arg)
 	struct list_head *lh = (struct list_head *)arg;
 	struct page *p;
 
+	/*
+	 * Flush all to work around Errata in early athlons regarding
+	 * large page flushing.
+	 */
+	__flush_tlb_all();
+
 	/* High level code is not ready for clflush yet */
 	if (0 && cpu_has_clflush) {
 		list_for_each_entry(p, lh, lru)
@@ -95,12 +101,6 @@ static void flush_kernel_map(void *arg)
 		if (boot_cpu_data.x86_model >= 4)
 			wbinvd();
 	}
-
-	/*
-	 * Flush all to work around Errata in early athlons regarding
-	 * large page flushing.
-	 */
-	__flush_tlb_all();
 }
 
 static void set_pmd_pte(pte_t *kpte, unsigned long address, pte_t pte)
