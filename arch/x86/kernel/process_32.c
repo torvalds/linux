@@ -571,22 +571,6 @@ void dump_thread(struct pt_regs * regs, struct user * dump)
 }
 EXPORT_SYMBOL(dump_thread);
 
-/*
- * Capture the user space registers if the task is not running (in user space)
- */
-int dump_task_regs(struct task_struct *tsk, elf_gregset_t *regs)
-{
-	struct pt_regs ptregs = *task_pt_regs(tsk);
-	ptregs.cs &= 0xffff;
-	ptregs.ds &= 0xffff;
-	ptregs.es &= 0xffff;
-	ptregs.ss &= 0xffff;
-
-	elf_core_copy_regs(regs, &ptregs);
-
-	return 1;
-}
-
 #ifdef CONFIG_SECCOMP
 static void hard_disable_TSC(void)
 {

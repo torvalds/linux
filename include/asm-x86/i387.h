@@ -328,20 +328,6 @@ static inline void clear_fpu(struct task_struct *tsk)
 #endif	/* CONFIG_X86_64 */
 
 /*
- * ptrace request handlers...
- */
-extern int get_fpregs(struct user_i387_struct __user *buf,
-		      struct task_struct *tsk);
-extern int set_fpregs(struct task_struct *tsk,
-		      struct user_i387_struct __user *buf);
-
-struct user_fxsr_struct;
-extern int get_fpxregs(struct user_fxsr_struct __user *buf,
-		       struct task_struct *tsk);
-extern int set_fpxregs(struct task_struct *tsk,
-		       struct user_fxsr_struct __user *buf);
-
-/*
  * i387 state interaction
  */
 static inline unsigned short get_fpu_cwd(struct task_struct *tsk)

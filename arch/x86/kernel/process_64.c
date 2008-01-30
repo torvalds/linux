@@ -544,24 +544,6 @@ out:
  */
 #define loaddebug(thread, r) set_debugreg(thread->debugreg ## r, r)
 
-/*
- * Capture the user space registers if the task is not running (in user space)
- */
-int dump_task_regs(struct task_struct *tsk, elf_gregset_t *regs)
-{
-	struct pt_regs *pp, ptregs;
-
-	pp = task_pt_regs(tsk);
-
-	ptregs = *pp;
-	ptregs.cs &= 0xffff;
-	ptregs.ss &= 0xffff;
-
-	elf_core_copy_regs(regs, &ptregs);
-
-	return 1;
-}
-
 static inline void __switch_to_xtra(struct task_struct *prev_p,
 				    struct task_struct *next_p,
 				    struct tss_struct *tss)
@@ -929,4 +911,3 @@ unsigned long arch_randomize_brk(struct mm_struct *mm)
 	unsigned long range_end = mm->brk + 0x02000000;
 	return randomize_range(mm->brk, range_end, 0) ? : mm->brk;
 }
-

@@ -104,28 +104,6 @@ typedef struct user_fxsr_struct elf_fpxregset_t;
 	_r->ax = 0; \
 } while (0)
 
-/* regs is struct pt_regs, pr_reg is elf_gregset_t (which is
-   now struct_user_regs, they are different) */
-
-#define ELF_CORE_COPY_REGS(pr_reg, regs)		\
-	pr_reg[0] = regs->bx;				\
-	pr_reg[1] = regs->cx;				\
-	pr_reg[2] = regs->dx;				\
-	pr_reg[3] = regs->si;				\
-	pr_reg[4] = regs->di;				\
-	pr_reg[5] = regs->bp;				\
-	pr_reg[6] = regs->ax;				\
-	pr_reg[7] = regs->ds & 0xffff;			\
-	pr_reg[8] = regs->es & 0xffff;			\
-	pr_reg[9] = regs->fs & 0xffff;			\
-	savesegment(gs,pr_reg[10]);			\
-	pr_reg[11] = regs->orig_ax;			\
-	pr_reg[12] = regs->ip;				\
-	pr_reg[13] = regs->cs & 0xffff;			\
-	pr_reg[14] = regs->flags;			\
-	pr_reg[15] = regs->sp;				\
-	pr_reg[16] = regs->ss & 0xffff;
-
 #define ELF_PLATFORM	(utsname()->machine)
 #define set_personality_64bit()	do { } while (0)
 extern unsigned int vdso_enabled;
@@ -158,41 +136,6 @@ extern unsigned int vdso_enabled;
 	cur->thread.ds = 0; cur->thread.es = 0;		  \
 	clear_thread_flag(TIF_IA32);			  \
 } while (0)
-
-/* regs is struct pt_regs, pr_reg is elf_gregset_t (which is
-   now struct_user_regs, they are different). Assumes current is the process
-   getting dumped. */
-
-#define ELF_CORE_COPY_REGS(pr_reg, regs)  do {			\
-	unsigned v;						\
-	(pr_reg)[0] = (regs)->r15;				\
-	(pr_reg)[1] = (regs)->r14;				\
-	(pr_reg)[2] = (regs)->r13;				\
-	(pr_reg)[3] = (regs)->r12;				\
-	(pr_reg)[4] = (regs)->bp;				\
-	(pr_reg)[5] = (regs)->bx;				\
-	(pr_reg)[6] = (regs)->r11;				\
-	(pr_reg)[7] = (regs)->r10;				\
-	(pr_reg)[8] = (regs)->r9;				\
-	(pr_reg)[9] = (regs)->r8;				\
-	(pr_reg)[10] = (regs)->ax;				\
-	(pr_reg)[11] = (regs)->cx;				\
-	(pr_reg)[12] = (regs)->dx;				\
-	(pr_reg)[13] = (regs)->si;				\
-	(pr_reg)[14] = (regs)->di;				\
-	(pr_reg)[15] = (regs)->orig_ax;			\
-	(pr_reg)[16] = (regs)->ip;				\
-	(pr_reg)[17] = (regs)->cs;				\
-	(pr_reg)[18] = (regs)->flags;				\
-	(pr_reg)[19] = (regs)->sp;				\
-	(pr_reg)[20] = (regs)->ss;				\
-	(pr_reg)[21] = current->thread.fs;			\
-	(pr_reg)[22] = current->thread.gs;			\
-	asm("movl %%ds,%0" : "=r" (v)); (pr_reg)[23] = v;	\
-	asm("movl %%es,%0" : "=r" (v)); (pr_reg)[24] = v;	\
-	asm("movl %%fs,%0" : "=r" (v)); (pr_reg)[25] = v;	\
-	asm("movl %%gs,%0" : "=r" (v)); (pr_reg)[26] = v;	\
-} while(0);
 
 /* I'm not sure if we can use '-' here */
 #define ELF_PLATFORM       ("x86_64")
@@ -236,18 +179,7 @@ extern int vdso_enabled;
 
 struct task_struct;
 
-extern int dump_task_regs (struct task_struct *, elf_gregset_t *);
-extern int dump_task_fpu (struct task_struct *, elf_fpregset_t *);
-
-#define ELF_CORE_COPY_TASK_REGS(tsk, elf_regs) dump_task_regs(tsk, elf_regs)
-#define ELF_CORE_COPY_FPREGS(tsk, elf_fpregs) dump_task_fpu(tsk, elf_fpregs)
-
 #ifdef CONFIG_X86_32
-extern int dump_task_extended_fpu (struct task_struct *,
-				   struct user_fxsr_struct *);
-#define ELF_CORE_COPY_XFPREGS(tsk, elf_xfpregs) \
-	dump_task_extended_fpu(tsk, elf_xfpregs)
-#define ELF_CORE_XFPREG_TYPE NT_PRXFPREG
 
 #define VDSO_HIGH_BASE		(__fix_to_virt(FIX_VDSO))
 

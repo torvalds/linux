@@ -454,113 +454,26 @@ int restore_i387_ia32(struct _fpstate_ia32 __user *buf)
 	return err;
 }
 
-#endif	/* CONFIG_X86_32 || CONFIG_IA32_EMULATION */
-
-#ifdef CONFIG_X86_64
-
-int get_fpregs(struct user_i387_struct __user *buf, struct task_struct *tsk)
-{
-	return xfpregs_get(tsk, NULL, 0, sizeof(*buf), NULL, buf);
-}
-
-int set_fpregs(struct task_struct *tsk, struct user_i387_struct __user *buf)
-{
-	return xfpregs_set(tsk, NULL, 0, sizeof(*buf), NULL, buf);
-}
-
-#else
-
-int get_fpregs(struct user_i387_struct __user *buf, struct task_struct *tsk)
-{
-	return fpregs_get(tsk, NULL, 0, sizeof(*buf), NULL, buf);
-}
-
-int set_fpregs(struct task_struct *tsk, struct user_i387_struct __user *buf)
-{
-	return fpregs_set(tsk, NULL, 0, sizeof(*buf), NULL, buf);
-}
-
-int get_fpxregs(struct user_fxsr_struct __user *buf, struct task_struct *tsk)
-{
-	return xfpregs_get(tsk, NULL, 0, sizeof(*buf), NULL, buf);
-}
-
-int set_fpxregs(struct task_struct *tsk, struct user_fxsr_struct __user *buf)
-{
-	return xfpregs_get(tsk, NULL, 0, sizeof(*buf), NULL, buf);
-}
-
-#endif
-
 /*
  * FPU state for core dumps.
+ * This is only used for a.out dumps now.
+ * It is declared generically using elf_fpregset_t (which is
+ * struct user_i387_struct) but is in fact only used for 32-bit
+ * dumps, so on 64-bit it is really struct user_i387_ia32_struct.
  */
-
-static inline void copy_fpu_fsave(struct task_struct *tsk,
-				  struct user_i387_struct *fpu)
-{
-	memcpy(fpu, &tsk->thread.i387.fsave,
-	       sizeof(struct user_i387_struct));
-}
-
-static inline void copy_fpu_fxsave(struct task_struct *tsk,
-				   struct user_i387_struct *fpu)
-{
-	unsigned short *to;
-	unsigned short *from;
-	int i;
-
-	memcpy(fpu, &tsk->thread.i387.fxsave, 7 * sizeof(long));
-
-	to = (unsigned short *)&fpu->st_space[0];
-	from = (unsigned short *)&tsk->thread.i387.fxsave.st_space[0];
-	for (i = 0; i < 8; i++, to += 5, from += 8)
-		memcpy(to, from, 5 * sizeof(unsigned short));
-}
-
 int dump_fpu(struct pt_regs *regs, struct user_i387_struct *fpu)
 {
 	int fpvalid;
 	struct task_struct *tsk = current;
 
 	fpvalid = !!used_math();
-	if (fpvalid) {
-		unlazy_fpu(tsk);
-		if (cpu_has_fxsr) {
-			copy_fpu_fxsave(tsk, fpu);
-		} else {
-			copy_fpu_fsave(tsk, fpu);
-		}
-	}
+	if (fpvalid)
+		fpvalid = !fpregs_get(tsk, NULL,
+				      0, sizeof(struct user_i387_ia32_struct),
+				      fpu, NULL);
 
 	return fpvalid;
 }
 EXPORT_SYMBOL(dump_fpu);
 
-int dump_task_fpu(struct task_struct *tsk, struct user_i387_struct *fpu)
-{
-	int fpvalid = !!tsk_used_math(tsk);
-
-	if (fpvalid) {
-		if (tsk == current)
-			unlazy_fpu(tsk);
-		if (cpu_has_fxsr)
-			copy_fpu_fxsave(tsk, fpu);
-		else
-			copy_fpu_fsave(tsk, fpu);
-	}
-	return fpvalid;
-}
-
-int dump_task_extended_fpu(struct task_struct *tsk,
-			   struct user32_fxsr_struct *fpu)
-{
-	int fpvalid = tsk_used_math(tsk) && cpu_has_fxsr;
-
-	if (fpvalid) {
-		if (tsk == current)
-		       unlazy_fpu(tsk);
-		memcpy(fpu, &tsk->thread.i387.fxsave, sizeof(*fpu));
-	}
-	return fpvalid;
-}
+#endif	/* CONFIG_X86_32 || CONFIG_IA32_EMULATION */

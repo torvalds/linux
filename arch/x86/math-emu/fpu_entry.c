@@ -761,17 +761,3 @@ int fpregs_soft_get(struct task_struct *target,
 
 	return ret;
 }
-
-int save_i387_soft(void *s387, struct _fpstate __user *buf)
-{
-	return fpregs_soft_get(current, NULL,
-			       0, sizeof(struct user_i387_struct),
-			       NULL, buf) ? -1 : 1;
-}
-
-int restore_i387_soft(void *s387, struct _fpstate __user *buf)
-{
-	return fpregs_soft_set(current, NULL,
-			       0, sizeof(struct user_i387_struct),
-			       NULL, buf) ? -1 : 1;
-}
