@@ -32,10 +32,13 @@ static void __init fix_hypertransport_config(int num, int slot, int func)
 	 */
 	htcfg = read_pci_config(num, slot, func, 0x68);
 	if (htcfg & (1 << 18)) {
-		printk(KERN_INFO "Detected use of extended apic ids on hypertransport bus\n");
+		printk(KERN_INFO "Detected use of extended apic ids "
+				 "on hypertransport bus\n");
 		if ((htcfg & (1 << 17)) == 0) {
-			printk(KERN_INFO "Enabling hypertransport extended apic interrupt broadcast\n");
-			printk(KERN_INFO "Note this is a bios bug, please contact your hw vendor\n");
+			printk(KERN_INFO "Enabling hypertransport extended "
+					 "apic interrupt broadcast\n");
+			printk(KERN_INFO "Note this is a bios bug, "
+					 "please contact your hw vendor\n");
 			htcfg |= (1 << 17);
 			write_pci_config(num, slot, func, 0x68, htcfg);
 		}
@@ -130,6 +133,43 @@ static struct chipset early_qrk[] __initdata = {
 	{}
 };
 
+static void check_dev_quirk(int num, int slot, int func)
+{
+	u16 class;
+	u16 vendor;
+	u16 device;
+	u8 type;
+	int i;
+
+	class = read_pci_config_16(num, slot, func, PCI_CLASS_DEVICE);
+
+	if (class == 0xffff)
+		return;
+
+	vendor = read_pci_config_16(num, slot, func, PCI_VENDOR_ID);
+
+	device = read_pci_config_16(num, slot, func, PCI_DEVICE_ID);
+
+	for (i = 0; early_qrk[i].f != NULL; i++) {
+		if (((early_qrk[i].vendor == PCI_ANY_ID) ||
+			(early_qrk[i].vendor == vendor)) &&
+			((early_qrk[i].device == PCI_ANY_ID) ||
+			(early_qrk[i].device == device)) &&
+			(!((early_qrk[i].class ^ class) &
+			    early_qrk[i].class_mask))) {
+				if ((early_qrk[i].flags &
+				     QFLAG_DONE) != QFLAG_DONE)
+					early_qrk[i].f(num, slot, func);
+				early_qrk[i].flags |= QFLAG_APPLIED;
+			}
+	}
+
+	type = read_pci_config_byte(num, slot, func,
+				    PCI_HEADER_TYPE);
+	if (!(type & 0x80))
+		return;
+}
+
 void __init early_quirks(void)
 {
 	int num, slot, func;
@@ -138,45 +178,8 @@ void __init early_quirks(void)
 		return;
 
 	/* Poor man's PCI discovery */
-	for (num = 0; num < 32; num++) {
-		for (slot = 0; slot < 32; slot++) {
-			for (func = 0; func < 8; func++) {
-				u16 class;
-				u16 vendor;
-				u16 device;
-				u8 type;
-				int i;
-
-				class = read_pci_config_16(num,slot,func,
-							PCI_CLASS_REVISION);
-				if (class == 0xffff)
-					break;
-
-				vendor = read_pci_config_16(num, slot, func,
-							 PCI_VENDOR_ID);
-
-				device = read_pci_config_16(num, slot, func,
-							PCI_DEVICE_ID);
-
-				for(i=0;early_qrk[i].f != NULL;i++) {
-					if (((early_qrk[i].vendor == PCI_ANY_ID) ||
-					    (early_qrk[i].vendor == vendor)) &&
-					   ((early_qrk[i].device == PCI_ANY_ID) ||
-					    (early_qrk[i].device == device)) &&
-					   (!((early_qrk[i].class ^ class) &
-					     early_qrk[i].class_mask))) {
-						if ((early_qrk[i].flags & QFLAG_DONE) != QFLAG_DONE)
-							early_qrk[i].f(num, slot, func);
-						early_qrk[i].flags |= QFLAG_APPLIED;
-
-					}
-				}
-
-				type = read_pci_config_byte(num, slot, func,
-							    PCI_HEADER_TYPE);
-				if (!(type & 0x80))
-					break;
-			}
-		}
-	}
+	for (num = 0; num < 32; num++)
+		for (slot = 0; slot < 32; slot++)
+			for (func = 0; func < 8; func++)
+				check_dev_quirk(num, slot, func);
 }
