@@ -118,36 +118,32 @@ static inline unsigned long print_context_stack(struct thread_info *tinfo,
 				unsigned long *stack, unsigned long bp,
 				const struct stacktrace_ops *ops, void *data)
 {
-#ifdef	CONFIG_FRAME_POINTER
 	struct stack_frame *frame = (struct stack_frame *)bp;
-	while (valid_stack_ptr(tinfo, frame, sizeof(*frame))) {
-		struct stack_frame *next;
-		unsigned long addr;
 
-		addr = frame->return_address;
-		if (__kernel_text_address(addr))
-			ops->address(data, addr, 1);
-		/*
-		 * break out of recursive entries (such as
-		 * end_of_stack_stop_unwind_function). Also,
-		 * we can never allow a frame pointer to
-		 * move downwards!
-		 */
-		next = frame->next_frame;
-		bp = (unsigned long) next;
-		if (next <= frame)
-			break;
-		frame = next;
-	}
-#else
+	/*
+	 * if EBP is "deeper" into the stack than the actual stack pointer,
+	 * we need to rewind the stack pointer a little to start at the
+	 * first stack frame, but only if EBP is in this stack frame.
+	 */
+	if (stack > (unsigned long *) bp
+			&& valid_stack_ptr(tinfo, frame, sizeof(*frame)))
+		stack = (unsigned long *) bp;
+
 	while (valid_stack_ptr(tinfo, stack, sizeof(*stack))) {
 		unsigned long addr;
 
-		addr = *stack++;
-		if (__kernel_text_address(addr))
-			ops->address(data, addr, 1);
+		addr = *stack;
+		if (__kernel_text_address(addr)) {
+			if ((unsigned long) stack == bp + 4) {
+				ops->address(data, addr, 1);
+				frame = frame->next_frame;
+				bp = (unsigned long) frame;
+			} else {
+				ops->address(data, addr, 0);
+			}
+		}
+		stack++;
 	}
-#endif
 	return bp;
 }
 
