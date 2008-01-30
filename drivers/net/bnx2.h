@@ -6814,13 +6814,6 @@ struct bnx2 {
 #define REG_WR16(bp, offset, val)				\
 	writew(val, bp->regview + offset)
 
-/* Indirect context access.  Unlike the MBQ_WR, these macros will not
- * trigger a chip event. */
-static void bnx2_ctx_wr(struct bnx2 *bp, u32 cid_addr, u32 offset, u32 val);
-
-#define CTX_WR(bp, cid_addr, offset, val)			\
-	bnx2_ctx_wr(bp, cid_addr, offset, val)
-
 struct cpu_reg {
 	u32 mode;
 	u32 mode_value_halt;

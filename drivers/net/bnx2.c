@@ -2237,7 +2237,7 @@ bnx2_init_context(struct bnx2 *bp)
 
 			/* Zero out the context. */
 			for (offset = 0; offset < PHY_CTX_SIZE; offset += 4)
-				CTX_WR(bp, vcid_addr, offset, 0);
+				bnx2_ctx_wr(bp, vcid_addr, offset, 0);
 		}
 	}
 }
@@ -4523,6 +4523,7 @@ static void
 bnx2_init_tx_context(struct bnx2 *bp, u32 cid)
 {
 	u32 val, offset0, offset1, offset2, offset3;
+	u32 cid_addr = GET_CID_ADDR(cid);
 
 	if (CHIP_NUM(bp) == CHIP_NUM_5709) {
 		offset0 = BNX2_L2CTX_TYPE_XI;
@@ -4536,16 +4537,16 @@ bnx2_init_tx_context(struct bnx2 *bp, u32 cid)
 		offset3 = BNX2_L2CTX_TBDR_BHADDR_LO;
 	}
 	val = BNX2_L2CTX_TYPE_TYPE_L2 | BNX2_L2CTX_TYPE_SIZE_L2;
-	CTX_WR(bp, GET_CID_ADDR(cid), offset0, val);
+	bnx2_ctx_wr(bp, cid_addr, offset0, val);
 
 	val = BNX2_L2CTX_CMD_TYPE_TYPE_L2 | (8 << 16);
-	CTX_WR(bp, GET_CID_ADDR(cid), offset1, val);
+	bnx2_ctx_wr(bp, cid_addr, offset1, val);
 
 	val = (u64) bp->tx_desc_mapping >> 32;
-	CTX_WR(bp, GET_CID_ADDR(cid), offset2, val);
+	bnx2_ctx_wr(bp, cid_addr, offset2, val);
 
 	val = (u64) bp->tx_desc_mapping & 0xffffffff;
-	CTX_WR(bp, GET_CID_ADDR(cid), offset3, val);
+	bnx2_ctx_wr(bp, cid_addr, offset3, val);
 }
 
 static void
@@ -4615,21 +4616,21 @@ bnx2_init_rx_ring(struct bnx2 *bp)
 	bnx2_init_rxbd_rings(bp->rx_desc_ring, bp->rx_desc_mapping,
 			     bp->rx_buf_use_size, bp->rx_max_ring);
 
-	CTX_WR(bp, rx_cid_addr, BNX2_L2CTX_PG_BUF_SIZE, 0);
+	bnx2_ctx_wr(bp, rx_cid_addr, BNX2_L2CTX_PG_BUF_SIZE, 0);
 	if (bp->rx_pg_ring_size) {
 		bnx2_init_rxbd_rings(bp->rx_pg_desc_ring,
 				     bp->rx_pg_desc_mapping,
 				     PAGE_SIZE, bp->rx_max_pg_ring);
 		val = (bp->rx_buf_use_size << 16) | PAGE_SIZE;
-		CTX_WR(bp, rx_cid_addr, BNX2_L2CTX_PG_BUF_SIZE, val);
-		CTX_WR(bp, rx_cid_addr, BNX2_L2CTX_RBDC_KEY,
+		bnx2_ctx_wr(bp, rx_cid_addr, BNX2_L2CTX_PG_BUF_SIZE, val);
+		bnx2_ctx_wr(bp, rx_cid_addr, BNX2_L2CTX_RBDC_KEY,
 		       BNX2_L2CTX_RBDC_JUMBO_KEY);
 
 		val = (u64) bp->rx_pg_desc_mapping[0] >> 32;
-		CTX_WR(bp, rx_cid_addr, BNX2_L2CTX_NX_PG_BDHADDR_HI, val);
+		bnx2_ctx_wr(bp, rx_cid_addr, BNX2_L2CTX_NX_PG_BDHADDR_HI, val);
 
 		val = (u64) bp->rx_pg_desc_mapping[0] & 0xffffffff;
-		CTX_WR(bp, rx_cid_addr, BNX2_L2CTX_NX_PG_BDHADDR_LO, val);
+		bnx2_ctx_wr(bp, rx_cid_addr, BNX2_L2CTX_NX_PG_BDHADDR_LO, val);
 
 		if (CHIP_NUM(bp) == CHIP_NUM_5709)
 			REG_WR(bp, BNX2_MQ_MAP_L2_3, BNX2_MQ_MAP_L2_3_DEFAULT);
@@ -4638,13 +4639,13 @@ bnx2_init_rx_ring(struct bnx2 *bp)
 	val = BNX2_L2CTX_CTX_TYPE_CTX_BD_CHN_TYPE_VALUE;
 	val |= BNX2_L2CTX_CTX_TYPE_SIZE_L2;
 	val |= 0x02 << 8;
-	CTX_WR(bp, rx_cid_addr, BNX2_L2CTX_CTX_TYPE, val);
+	bnx2_ctx_wr(bp, rx_cid_addr, BNX2_L2CTX_CTX_TYPE, val);
 
 	val = (u64) bp->rx_desc_mapping[0] >> 32;
-	CTX_WR(bp, rx_cid_addr, BNX2_L2CTX_NX_BDHADDR_HI, val);
+	bnx2_ctx_wr(bp, rx_cid_addr, BNX2_L2CTX_NX_BDHADDR_HI, val);
 
 	val = (u64) bp->rx_desc_mapping[0] & 0xffffffff;
-	CTX_WR(bp, rx_cid_addr, BNX2_L2CTX_NX_BDHADDR_LO, val);
+	bnx2_ctx_wr(bp, rx_cid_addr, BNX2_L2CTX_NX_BDHADDR_LO, val);
 
 	ring_prod = prod = bnapi->rx_pg_prod;
 	for (i = 0; i < bp->rx_pg_ring_size; i++) {
