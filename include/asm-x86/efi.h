@@ -33,9 +33,6 @@ extern unsigned long asmlinkage efi_call_phys(void *, ...);
 #define efi_call_virt6(f, a1, a2, a3, a4, a5, a6)	\
 	efi_call_virt(f, a1, a2, a3, a4, a5, a6)
 
-#define efi_early_ioremap(addr, size)		bt_ioremap(addr, size)
-#define efi_early_iounmap(vaddr, size)		bt_iounmap(vaddr, size)
-
 #define efi_ioremap(addr, size)			ioremap(addr, size)
 
 #define end_pfn_map				max_low_pfn
@@ -91,12 +88,7 @@ extern u64 efi_call6(void *fp, u64 arg1, u64 arg2, u64 arg3,
 	efi_call6((void *)(efi.systab->runtime->f), (u64)(a1), (u64)(a2), \
 		  (u64)(a3), (u64)(a4), (u64)(a5), (u64)(a6))
 
-#define efi_early_ioremap(addr, size)		early_ioremap(addr, size)
-#define efi_early_iounmap(vaddr, size)		early_iounmap(vaddr, size)
-
 extern void *efi_ioremap(unsigned long offset, unsigned long size);
-
-extern int efi_time;
 
 #endif /* CONFIG_X86_32 */
 

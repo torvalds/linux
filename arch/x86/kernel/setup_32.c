@@ -577,9 +577,9 @@ static void __init relocate_initrd(void)
 		if (clen > MAX_MAP_CHUNK-slop)
 			clen = MAX_MAP_CHUNK-slop;
 		mapaddr = ramdisk_image & PAGE_MASK;
-		p = bt_ioremap(mapaddr, clen+slop);
+		p = early_ioremap(mapaddr, clen+slop);
 		memcpy(q, p+slop, clen);
-		bt_iounmap(p, clen+slop);
+		early_iounmap(p, clen+slop);
 		q += clen;
 		ramdisk_image += clen;
 		ramdisk_size  -= clen;
@@ -697,7 +697,7 @@ void __init setup_arch(char **cmdline_p)
 	memcpy(&boot_cpu_data, &new_cpu_data, sizeof(new_cpu_data));
 	pre_setup_arch_hook();
 	early_cpu_init();
-	bt_ioremap_init();
+	early_ioremap_init();
 
 #ifdef CONFIG_EFI
 	if (!strncmp((char *)&boot_params.efi_info.efi_loader_signature,

@@ -256,12 +256,12 @@ void __init efi_init(void)
 	memmap.desc_version = boot_params.efi_info.efi_memdesc_version;
 	memmap.desc_size = boot_params.efi_info.efi_memdesc_size;
 
-	efi.systab = efi_early_ioremap((unsigned long)efi_phys.systab,
-				       sizeof(efi_system_table_t));
+	efi.systab = early_ioremap((unsigned long)efi_phys.systab,
+				   sizeof(efi_system_table_t));
 	if (efi.systab == NULL)
 		printk(KERN_ERR "Couldn't map the EFI system table!\n");
 	memcpy(&efi_systab, efi.systab, sizeof(efi_system_table_t));
-	efi_early_iounmap(efi.systab, sizeof(efi_system_table_t));
+	early_iounmap(efi.systab, sizeof(efi_system_table_t));
 	efi.systab = &efi_systab;
 
 	/*
@@ -278,14 +278,14 @@ void __init efi_init(void)
 	/*
 	 * Show what we know for posterity
 	 */
-	c16 = tmp = efi_early_ioremap(efi.systab->fw_vendor, 2);
+	c16 = tmp = early_ioremap(efi.systab->fw_vendor, 2);
 	if (c16) {
 		for (i = 0; i < sizeof(vendor) && *c16; ++i)
 			vendor[i] = *c16++;
 		vendor[i] = '\0';
 	} else
 		printk(KERN_ERR PFX "Could not map the firmware vendor!\n");
-	efi_early_iounmap(tmp, 2);
+	early_iounmap(tmp, 2);
 
 	printk(KERN_INFO "EFI v%u.%.02u by %s \n",
 	       efi.systab->hdr.revision >> 16,
@@ -294,7 +294,7 @@ void __init efi_init(void)
 	/*
 	 * Let's see what config tables the firmware passed to us.
 	 */
-	config_tables = efi_early_ioremap(
+	config_tables = early_ioremap(
 		efi.systab->tables,
 		efi.systab->nr_tables * sizeof(efi_config_table_t));
 	if (config_tables == NULL)
@@ -328,7 +328,7 @@ void __init efi_init(void)
 		}
 	}
 	printk("\n");
-	efi_early_iounmap(config_tables,
+	early_iounmap(config_tables,
 			  efi.systab->nr_tables * sizeof(efi_config_table_t));
 
 	/*
@@ -337,8 +337,8 @@ void __init efi_init(void)
 	 * address of several of the EFI runtime functions, needed to
 	 * set the firmware into virtual mode.
 	 */
-	runtime = efi_early_ioremap((unsigned long)efi.systab->runtime,
-				    sizeof(efi_runtime_services_t));
+	runtime = early_ioremap((unsigned long)efi.systab->runtime,
+				sizeof(efi_runtime_services_t));
 	if (runtime != NULL) {
 		/*
 		 * We will only need *early* access to the following
@@ -357,11 +357,11 @@ void __init efi_init(void)
 	} else
 		printk(KERN_ERR "Could not map the EFI runtime service "
 		       "table!\n");
-	efi_early_iounmap(runtime, sizeof(efi_runtime_services_t));
+	early_iounmap(runtime, sizeof(efi_runtime_services_t));
 
 	/* Map the EFI memory map */
-	memmap.map = efi_early_ioremap((unsigned long)memmap.phys_map,
-				       memmap.nr_map * memmap.desc_size);
+	memmap.map = early_ioremap((unsigned long)memmap.phys_map,
+				   memmap.nr_map * memmap.desc_size);
 	if (memmap.map == NULL)
 		printk(KERN_ERR "Could not map the EFI memory map!\n");
 	memmap.map_end = memmap.map + (memmap.nr_map * memmap.desc_size);

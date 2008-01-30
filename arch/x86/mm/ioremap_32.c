@@ -212,36 +212,36 @@ static __initdata int after_paging_init;
 static __initdata unsigned long bm_pte[1024]
 				__attribute__((aligned(PAGE_SIZE)));
 
-static inline unsigned long * __init bt_ioremap_pgd(unsigned long addr)
+static inline unsigned long * __init early_ioremap_pgd(unsigned long addr)
 {
 	return (unsigned long *)swapper_pg_dir + ((addr >> 22) & 1023);
 }
 
-static inline unsigned long * __init bt_ioremap_pte(unsigned long addr)
+static inline unsigned long * __init early_ioremap_pte(unsigned long addr)
 {
 	return bm_pte + ((addr >> PAGE_SHIFT) & 1023);
 }
 
-void __init bt_ioremap_init(void)
+void __init early_ioremap_init(void)
 {
 	unsigned long *pgd;
 
-	pgd = bt_ioremap_pgd(fix_to_virt(FIX_BTMAP_BEGIN));
+	pgd = early_ioremap_pgd(fix_to_virt(FIX_BTMAP_BEGIN));
 	*pgd = __pa(bm_pte) | _PAGE_TABLE;
 	memset(bm_pte, 0, sizeof(bm_pte));
-	BUG_ON(pgd != bt_ioremap_pgd(fix_to_virt(FIX_BTMAP_END)));
+	BUG_ON(pgd != early_ioremap_pgd(fix_to_virt(FIX_BTMAP_END)));
 }
 
-void __init bt_ioremap_clear(void)
+void __init early_ioremap_clear(void)
 {
 	unsigned long *pgd;
 
-	pgd = bt_ioremap_pgd(fix_to_virt(FIX_BTMAP_BEGIN));
+	pgd = early_ioremap_pgd(fix_to_virt(FIX_BTMAP_BEGIN));
 	*pgd = 0;
 	__flush_tlb_all();
 }
 
-void __init bt_ioremap_reset(void)
+void __init early_ioremap_reset(void)
 {
 	enum fixed_addresses idx;
 	unsigned long *pte, phys, addr;
@@ -249,7 +249,7 @@ void __init bt_ioremap_reset(void)
 	after_paging_init = 1;
 	for (idx = FIX_BTMAP_BEGIN; idx <= FIX_BTMAP_END; idx--) {
 		addr = fix_to_virt(idx);
-		pte = bt_ioremap_pte(addr);
+		pte = early_ioremap_pte(addr);
 		if (!*pte & _PAGE_PRESENT) {
 			phys = *pte & PAGE_MASK;
 			set_fixmap(idx, phys);
@@ -257,7 +257,7 @@ void __init bt_ioremap_reset(void)
 	}
 }
 
-static void __init __bt_set_fixmap(enum fixed_addresses idx,
+static void __init __early_set_fixmap(enum fixed_addresses idx,
 				   unsigned long phys, pgprot_t flags)
 {
 	unsigned long *pte, addr = __fix_to_virt(idx);
@@ -266,7 +266,7 @@ static void __init __bt_set_fixmap(enum fixed_addresses idx,
 		BUG();
 		return;
 	}
-	pte = bt_ioremap_pte(addr);
+	pte = early_ioremap_pte(addr);
 	if (pgprot_val(flags))
 		*pte = (phys & PAGE_MASK) | pgprot_val(flags);
 	else
@@ -274,24 +274,24 @@ static void __init __bt_set_fixmap(enum fixed_addresses idx,
 	__flush_tlb_one(addr);
 }
 
-static inline void __init bt_set_fixmap(enum fixed_addresses idx,
+static inline void __init early_set_fixmap(enum fixed_addresses idx,
 					unsigned long phys)
 {
 	if (after_paging_init)
 		set_fixmap(idx, phys);
 	else
-		__bt_set_fixmap(idx, phys, PAGE_KERNEL);
+		__early_set_fixmap(idx, phys, PAGE_KERNEL);
 }
 
-static inline void __init bt_clear_fixmap(enum fixed_addresses idx)
+static inline void __init early_clear_fixmap(enum fixed_addresses idx)
 {
 	if (after_paging_init)
 		clear_fixmap(idx);
 	else
-		__bt_set_fixmap(idx, 0, __pgprot(0));
+		__early_set_fixmap(idx, 0, __pgprot(0));
 }
 
-void __init *bt_ioremap(unsigned long phys_addr, unsigned long size)
+void __init *early_ioremap(unsigned long phys_addr, unsigned long size)
 {
 	unsigned long offset, last_addr;
 	unsigned int nrpages;
@@ -327,7 +327,7 @@ void __init *bt_ioremap(unsigned long phys_addr, unsigned long size)
 	 */
 	idx = FIX_BTMAP_BEGIN;
 	while (nrpages > 0) {
-		bt_set_fixmap(idx, phys_addr);
+		early_set_fixmap(idx, phys_addr);
 		phys_addr += PAGE_SIZE;
 		--idx;
 		--nrpages;
@@ -335,7 +335,7 @@ void __init *bt_ioremap(unsigned long phys_addr, unsigned long size)
 	return (void*) (offset + fix_to_virt(FIX_BTMAP_BEGIN));
 }
 
-void __init bt_iounmap(void *addr, unsigned long size)
+void __init early_iounmap(void *addr, unsigned long size)
 {
 	unsigned long virt_addr;
 	unsigned long offset;
@@ -350,7 +350,7 @@ void __init bt_iounmap(void *addr, unsigned long size)
 
 	idx = FIX_BTMAP_BEGIN;
 	while (nrpages > 0) {
-		bt_clear_fixmap(idx);
+		early_clear_fixmap(idx);
 		--idx;
 		--nrpages;
 	}

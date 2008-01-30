@@ -297,7 +297,7 @@ int __init get_memcfg_from_srat(void)
 	}
 
 	rsdt = (struct acpi_table_rsdt *)
-	    bt_ioremap(rsdp->rsdt_physical_address, sizeof(struct acpi_table_rsdt));
+	    early_ioremap(rsdp->rsdt_physical_address, sizeof(struct acpi_table_rsdt));
 
 	if (!rsdt) {
 		printk(KERN_WARNING
@@ -337,11 +337,11 @@ int __init get_memcfg_from_srat(void)
 	for (i = 0; i < tables; i++) {
 		/* Map in header, then map in full table length. */
 		header = (struct acpi_table_header *)
-			bt_ioremap(saved_rsdt.table.table_offset_entry[i], sizeof(struct acpi_table_header));
+			early_ioremap(saved_rsdt.table.table_offset_entry[i], sizeof(struct acpi_table_header));
 		if (!header)
 			break;
 		header = (struct acpi_table_header *)
-			bt_ioremap(saved_rsdt.table.table_offset_entry[i], header->length);
+			early_ioremap(saved_rsdt.table.table_offset_entry[i], header->length);
 		if (!header)
 			break;
 

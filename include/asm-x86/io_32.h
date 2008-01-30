@@ -135,20 +135,20 @@ static inline void __iomem * ioremap(unsigned long offset, unsigned long size)
 extern void iounmap(volatile void __iomem *addr);
 
 /*
- * bt_ioremap() and bt_iounmap() are for temporary early boot-time
+ * early_ioremap() and early_iounmap() are for temporary early boot-time
  * mappings, before the real ioremap() is functional.
  * A boot-time mapping is currently limited to at most 16 pages.
  */
-extern void bt_ioremap_init(void);
-extern void bt_ioremap_clear(void);
-extern void bt_ioremap_reset(void);
-extern void *bt_ioremap(unsigned long offset, unsigned long size);
-extern void bt_iounmap(void *addr, unsigned long size);
+extern void early_ioremap_init(void);
+extern void early_ioremap_clear(void);
+extern void early_ioremap_reset(void);
+extern void *early_ioremap(unsigned long offset, unsigned long size);
+extern void early_iounmap(void *addr, unsigned long size);
 extern void __iomem *fix_ioremap(unsigned idx, unsigned long phys);
 
 /* Use early IO mappings for DMI because it's initialized early */
-#define dmi_ioremap bt_ioremap
-#define dmi_iounmap bt_iounmap
+#define dmi_ioremap early_ioremap
+#define dmi_iounmap early_iounmap
 #define dmi_alloc alloc_bootmem
 
 /*

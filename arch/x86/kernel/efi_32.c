@@ -117,7 +117,7 @@ void __init efi_map_memmap(void)
 {
 	memmap.map = NULL;
 
-	memmap.map = bt_ioremap((unsigned long) memmap.phys_map,
+	memmap.map = early_ioremap((unsigned long) memmap.phys_map,
 			(memmap.nr_map * memmap.desc_size));
 	if (memmap.map == NULL)
 		printk(KERN_ERR "Could not remap the EFI memmap!\n");
