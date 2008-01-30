@@ -22,6 +22,7 @@
 #include <asm/pgtable.h>
 #include <asm/system.h>
 #include <asm/processor.h>
+#include <asm/prctl.h>
 #include <asm/i387.h>
 #include <asm/debugreg.h>
 #include <asm/ldt.h>
@@ -260,12 +261,22 @@ static int putreg(struct task_struct *child,
 		case offsetof(struct user_regs_struct,fs_base):
 			if (value >= TASK_SIZE_OF(child))
 				return -EIO;
-			child->thread.fs = value;
+			/*
+			 * When changing the segment base, use do_arch_prctl
+			 * to set either thread.fs or thread.fsindex and the
+			 * corresponding GDT slot.
+			 */
+			if (child->thread.fs != value)
+				return do_arch_prctl(child, ARCH_SET_FS, value);
 			return 0;
 		case offsetof(struct user_regs_struct,gs_base):
+			/*
+			 * Exactly the same here as the %fs handling above.
+			 */
 			if (value >= TASK_SIZE_OF(child))
 				return -EIO;
-			child->thread.gs = value;
+			if (child->thread.gs != value)
+				return do_arch_prctl(child, ARCH_SET_GS, value);
 			return 0;
 		case offsetof(struct user_regs_struct, eflags):
 			value &= FLAG_MASK;
@@ -296,9 +307,25 @@ static unsigned long getreg(struct task_struct *child, unsigned long regno)
 		case offsetof(struct user_regs_struct, es):
 			return child->thread.es; 
 		case offsetof(struct user_regs_struct, fs_base):
-			return child->thread.fs;
+			/*
+			 * do_arch_prctl may have used a GDT slot instead of
+			 * the MSR.  To userland, it appears the same either
+			 * way, except the %fs segment selector might not be 0.
+			 */
+			if (child->thread.fs != 0)
+				return child->thread.fs;
+			if (child->thread.fsindex != FS_TLS_SEL)
+				return 0;
+			return get_desc_base(&child->thread.tls_array[FS_TLS]);
 		case offsetof(struct user_regs_struct, gs_base):
-			return child->thread.gs;
+			/*
+			 * Exactly the same here as the %fs handling above.
+			 */
+			if (child->thread.gs != 0)
+				return child->thread.gs;
+			if (child->thread.gsindex != GS_TLS_SEL)
+				return 0;
+			return get_desc_base(&child->thread.tls_array[GS_TLS]);
 		default:
 			regno = regno - sizeof(struct pt_regs);
 			val = get_stack_long(child, regno);
