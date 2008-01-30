@@ -72,6 +72,9 @@ config GENERIC_BUG
 config GENERIC_HWEIGHT
 	def_bool y
 
+config GENERIC_GPIO
+	def_bool n
+
 config ARCH_MAY_HAVE_PC_FDC
 	def_bool y
 
