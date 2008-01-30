@@ -564,7 +564,7 @@ static ssize_t mce_read(struct file *filp, char __user *ubuf, size_t usize,
 			loff_t *off)
 {
 	unsigned long *cpu_tsc;
-	static DECLARE_MUTEX(mce_read_sem);
+	static DEFINE_MUTEX(mce_read_mutex);
 	unsigned next;
 	char __user *buf = ubuf;
 	int i, err;
@@ -573,12 +573,12 @@ static ssize_t mce_read(struct file *filp, char __user *ubuf, size_t usize,
 	if (!cpu_tsc)
 		return -ENOMEM;
 
-	down(&mce_read_sem);
+	mutex_lock(&mce_read_mutex);
 	next = rcu_dereference(mcelog.next);
 
 	/* Only supports full reads right now */
 	if (*off != 0 || usize < MCE_LOG_LEN*sizeof(struct mce)) {
-		up(&mce_read_sem);
+		mutex_unlock(&mce_read_mutex);
 		kfree(cpu_tsc);
 		return -EINVAL;
 	}
@@ -621,7 +621,7 @@ static ssize_t mce_read(struct file *filp, char __user *ubuf, size_t usize,
 			memset(&mcelog.entry[i], 0, sizeof(struct mce));
 		}
 	}
-	up(&mce_read_sem);
+	mutex_unlock(&mce_read_mutex);
 	kfree(cpu_tsc);
 	return err ? -EFAULT : buf - ubuf;
 }
