@@ -466,19 +466,19 @@ extern struct {
 #ifdef CONFIG_NUMA
 
 /* which logical CPUs are on which nodes */
-cpumask_t node_2_cpu_mask[MAX_NUMNODES] __read_mostly =
+cpumask_t node_to_cpumask_map[MAX_NUMNODES] __read_mostly =
 				{ [0 ... MAX_NUMNODES-1] = CPU_MASK_NONE };
-EXPORT_SYMBOL(node_2_cpu_mask);
+EXPORT_SYMBOL(node_to_cpumask_map);
 /* which node each logical CPU is on */
-int cpu_2_node[NR_CPUS] __read_mostly = { [0 ... NR_CPUS-1] = 0 };
-EXPORT_SYMBOL(cpu_2_node);
+int cpu_to_node_map[NR_CPUS] __read_mostly = { [0 ... NR_CPUS-1] = 0 };
+EXPORT_SYMBOL(cpu_to_node_map);
 
 /* set up a mapping between cpu and node. */
 static inline void map_cpu_to_node(int cpu, int node)
 {
 	printk("Mapping cpu %d to node %d\n", cpu, node);
-	cpu_set(cpu, node_2_cpu_mask[node]);
-	cpu_2_node[cpu] = node;
+	cpu_set(cpu, node_to_cpumask_map[node]);
+	cpu_to_node_map[cpu] = node;
 }
 
 /* undo a mapping between cpu and node. */
@@ -488,8 +488,8 @@ static inline void unmap_cpu_to_node(int cpu)
 
 	printk("Unmapping cpu %d from all nodes\n", cpu);
 	for (node = 0; node < MAX_NUMNODES; node ++)
-		cpu_clear(cpu, node_2_cpu_mask[node]);
-	cpu_2_node[cpu] = 0;
+		cpu_clear(cpu, node_to_cpumask_map[node]);
+	cpu_to_node_map[cpu] = 0;
 }
 #else /* !CONFIG_NUMA */
 

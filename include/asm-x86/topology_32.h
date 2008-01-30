@@ -39,13 +39,13 @@
 #include <linux/cpumask.h>
 
 /* Mappings between logical cpu number and node number */
-extern cpumask_t node_2_cpu_mask[];
-extern int cpu_2_node[];
+extern cpumask_t node_to_cpumask_map[];
+extern int cpu_to_node_map[];
 
 /* Returns the number of the node containing CPU 'cpu' */
 static inline int cpu_to_node(int cpu)
 { 
-	return cpu_2_node[cpu];
+	return cpu_to_node_map[cpu];
 }
 
 /* Returns the number of the node containing Node 'node'.  This architecture is flat, 
@@ -55,7 +55,7 @@ static inline int cpu_to_node(int cpu)
 /* Returns a bitmask of CPUs on Node 'node'. */
 static inline cpumask_t node_to_cpumask(int node)
 {
-	return node_2_cpu_mask[node];
+	return node_to_cpumask_map[node];
 }
 
 /* Returns the number of the first CPU on Node 'node'. */
