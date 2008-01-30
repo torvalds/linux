@@ -9,17 +9,12 @@
 #include <linux/slab.h>
 #include <linux/mm.h>
 
+#include <asm/e820.h>
 #include <asm/processor.h>
 #include <asm/tlbflush.h>
 #include <asm/sections.h>
 #include <asm/uaccess.h>
 #include <asm/pgalloc.h>
-
-/*
- * We must allow the BIOS range to be executable:
- */
-#define BIOS_BEGIN		0x000a0000
-#define BIOS_END		0x00100000
 
 static inline int
 within(unsigned long addr, unsigned long start, unsigned long end)
