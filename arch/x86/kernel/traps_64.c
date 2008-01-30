@@ -904,7 +904,7 @@ clear_dr7:
 
 clear_TF_reenable:
 	set_tsk_thread_flag(tsk, TIF_SINGLESTEP);
-	regs->flags &= ~TF_MASK;
+	regs->flags &= ~X86_EFLAGS_TF;
 	preempt_conditional_cli(regs);
 }
 

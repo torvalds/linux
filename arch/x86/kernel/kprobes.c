@@ -387,9 +387,9 @@ static void __kprobes set_current_kprobe(struct kprobe *p, struct pt_regs *regs,
 {
 	__get_cpu_var(current_kprobe) = p;
 	kcb->kprobe_saved_flags = kcb->kprobe_old_flags
-		= (regs->flags & (TF_MASK | IF_MASK));
+		= (regs->flags & (X86_EFLAGS_TF | X86_EFLAGS_IF));
 	if (is_IF_modifier(p->ainsn.insn))
-		kcb->kprobe_saved_flags &= ~IF_MASK;
+		kcb->kprobe_saved_flags &= ~X86_EFLAGS_IF;
 }
 
 static __always_inline void clear_btf(void)
@@ -407,8 +407,8 @@ static __always_inline void restore_btf(void)
 static void __kprobes prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
 {
 	clear_btf();
-	regs->flags |= TF_MASK;
-	regs->flags &= ~IF_MASK;
+	regs->flags |= X86_EFLAGS_TF;
+	regs->flags &= ~X86_EFLAGS_IF;
 	/*single step inline if the instruction is an int3*/
 	if (p->opcode == BREAKPOINT_INSTRUCTION)
 		regs->ip = (unsigned long)p->addr;
@@ -454,7 +454,7 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 		if (p) {
 			if (kcb->kprobe_status == KPROBE_HIT_SS &&
 				*p->ainsn.insn == BREAKPOINT_INSTRUCTION) {
-				regs->flags &= ~TF_MASK;
+				regs->flags &= ~X86_EFLAGS_TF;
 				regs->flags |= kcb->kprobe_saved_flags;
 				goto no_kprobe;
 #ifdef CONFIG_X86_64
@@ -749,10 +749,10 @@ static void __kprobes resume_execution(struct kprobe *p,
 		insn++;
 #endif
 
-	regs->flags &= ~TF_MASK;
+	regs->flags &= ~X86_EFLAGS_TF;
 	switch (*insn) {
 	case 0x9c:	/* pushfl */
-		*tos &= ~(TF_MASK | IF_MASK);
+		*tos &= ~(X86_EFLAGS_TF | X86_EFLAGS_IF);
 		*tos |= kcb->kprobe_old_flags;
 		break;
 	case 0xc2:	/* iret/ret/lret */
@@ -852,7 +852,7 @@ out:
 	 * will have TF set, in which case, continue the remaining processing
 	 * of do_debug, as if this is not a probe hit.
 	 */
-	if (regs->flags & TF_MASK)
+	if (regs->flags & X86_EFLAGS_TF)
 		return 0;
 
 	return 1;
@@ -982,7 +982,7 @@ int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 	 */
 	memcpy(kcb->jprobes_stack, (kprobe_opcode_t *)addr,
 	       MIN_STACK_SIZE(addr));
-	regs->flags &= ~IF_MASK;
+	regs->flags &= ~X86_EFLAGS_IF;
 	trace_hardirqs_off();
 	regs->ip = (unsigned long)(jp->entry);
 	return 1;

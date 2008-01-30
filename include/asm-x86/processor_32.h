@@ -19,7 +19,6 @@
 #include <asm/percpu.h>
 #include <linux/cpumask.h>
 #include <linux/init.h>
-#include <asm/processor-flags.h>
 #include <asm/desc_defs.h>
 
 static inline int desc_empty(const void *ptr)

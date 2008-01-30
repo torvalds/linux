@@ -88,7 +88,7 @@ struct kprobe_ctlblk {
  */
 static inline void restore_interrupts(struct pt_regs *regs)
 {
-	if (regs->flags & IF_MASK)
+	if (regs->flags & X86_EFLAGS_IF)
 		local_irq_enable();
 }
 
