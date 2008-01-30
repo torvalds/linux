@@ -275,19 +275,12 @@ static unsigned long xen_store_tr(void)
 
 static void xen_set_ldt(const void *addr, unsigned entries)
 {
-	unsigned long linear_addr = (unsigned long)addr;
 	struct mmuext_op *op;
 	struct multicall_space mcs = xen_mc_entry(sizeof(*op));
 
 	op = mcs.args;
 	op->cmd = MMUEXT_SET_LDT;
-	if (linear_addr) {
-		/* ldt my be vmalloced, use arbitrary_virt_to_machine */
-		xmaddr_t maddr;
-		maddr = arbitrary_virt_to_machine((unsigned long)addr);
-		linear_addr = (unsigned long)maddr.maddr;
-	}
-	op->arg1.linear_addr = linear_addr;
+	op->arg1.linear_addr = (unsigned long)addr;
 	op->arg2.nr_ents = entries;
 
 	MULTI_mmuext_op(mcs.mc, op, 1, NULL, DOMID_SELF);

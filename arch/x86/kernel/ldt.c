@@ -12,7 +12,6 @@
 #include <linux/mm.h>
 #include <linux/smp.h>
 #include <linux/vmalloc.h>
-#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -40,7 +39,7 @@ static int alloc_ldt(mm_context_t *pc, int mincount, int reload)
 	if (mincount * LDT_ENTRY_SIZE > PAGE_SIZE)
 		newldt = vmalloc(mincount * LDT_ENTRY_SIZE);
 	else
-		newldt = kmalloc(mincount * LDT_ENTRY_SIZE, GFP_KERNEL);
+		newldt = (void *)__get_free_page(GFP_KERNEL);
 
 	if (!newldt)
 		return -ENOMEM;
@@ -78,7 +77,7 @@ static int alloc_ldt(mm_context_t *pc, int mincount, int reload)
 		if (oldsize * LDT_ENTRY_SIZE > PAGE_SIZE)
 			vfree(oldldt);
 		else
-			kfree(oldldt);
+			put_page(virt_to_page(oldldt));
 	}
 	return 0;
 }
@@ -129,7 +128,7 @@ void destroy_context(struct mm_struct *mm)
 		if (mm->context.size * LDT_ENTRY_SIZE > PAGE_SIZE)
 			vfree(mm->context.ldt);
 		else
-			kfree(mm->context.ldt);
+			put_page(virt_to_page(mm->context.ldt));
 		mm->context.size = 0;
 	}
 }
