@@ -176,14 +176,6 @@ static inline void clone_pgd_range(pgd_t *dst, pgd_t *src, int count)
 #define pmd_page_vaddr(pmd) \
 		((unsigned long) __va(pmd_val(pmd) & PAGE_MASK))
 
-/*
- * Helper function that returns the kernel pagetable entry controlling
- * the virtual address 'address'. NULL means no pagetable entry present.
- * NOTE: the return type is pte_t but if the pmd is PSE then we return it
- * as a pte too.
- */
-extern pte_t *lookup_address(unsigned long address, int *level);
-
 #if defined(CONFIG_HIGHPTE)
 #define pte_offset_map(dir, address) \
 	((pte_t *)kmap_atomic_pte(pmd_page(*(dir)),KM_PTE0) + pte_index(address))
