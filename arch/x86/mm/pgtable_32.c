@@ -294,6 +294,70 @@ static void pgd_dtor(void *pgd)
 #define UNSHARED_PTRS_PER_PGD				\
 	(SHARED_KERNEL_PMD ? USER_PTRS_PER_PGD : PTRS_PER_PGD)
 
+#ifdef CONFIG_X86_PAE
+/*
+ * Mop up any pmd pages which may still be attached to the pgd.
+ * Normally they will be freed by munmap/exit_mmap, but any pmd we
+ * preallocate which never got a corresponding vma will need to be
+ * freed manually.
+ */
+static void pgd_mop_up_pmds(pgd_t *pgdp)
+{
+	int i;
+
+	for(i = 0; i < USER_PTRS_PER_PGD; i++) {
+		pgd_t pgd = pgdp[i];
+
+		if (pgd_val(pgd) != 0) {
+			pmd_t *pmd = (pmd_t *)pgd_page_vaddr(pgd);
+
+			pgdp[i] = native_make_pgd(0);
+
+			paravirt_release_pd(pgd_val(pgd) >> PAGE_SHIFT);
+			pmd_free(pmd);
+		}
+	}
+}
+
+/*
+ * In PAE mode, we need to do a cr3 reload (=tlb flush) when
+ * updating the top-level pagetable entries to guarantee the
+ * processor notices the update.  Since this is expensive, and
+ * all 4 top-level entries are used almost immediately in a
+ * new process's life, we just pre-populate them here.
+ */
+static int pgd_prepopulate_pmd(struct mm_struct *mm, pgd_t *pgd)
+{
+	pud_t *pud;
+	unsigned long addr;
+	int i;
+
+	pud = pud_offset(pgd, 0);
+ 	for (addr = i = 0; i < USER_PTRS_PER_PGD; i++, pud++, addr += PUD_SIZE) {
+		pmd_t *pmd = pmd_alloc_one(mm, addr);
+
+		if (!pmd) {
+			pgd_mop_up_pmds(pgd);
+			return 0;
+		}
+
+		pud_populate(mm, pud, pmd);
+	}
+
+	return 1;
+}
+#else  /* !CONFIG_X86_PAE */
+/* No need to prepopulate any pagetable entries in non-PAE modes. */
+static int pgd_prepopulate_pmd(struct mm_struct *mm, pgd_t *pgd)
+{
+	return 1;
+}
+
+static void pgd_mop_up_pmds(pgd_t *pgd)
+{
+}
+#endif	/* CONFIG_X86_PAE */
+
 /* If we allocate a pmd for part of the kernel address space, then
    make sure its initialized with the appropriate kernel mappings.
    Otherwise use a cached zeroed pmd.  */
@@ -341,6 +405,11 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 		paravirt_alloc_pd(mm, __pa(pmd) >> PAGE_SHIFT);
 		set_pgd(&pgd[i], __pgd(1 + __pa(pmd)));
 	}
+	if (pgd && !pgd_prepopulate_pmd(mm, pgd)) {
+		quicklist_free(0, pgd_dtor, pgd);
+		pgd = NULL;
+	}
+
 	return pgd;
 
 out_oom:
@@ -367,6 +436,7 @@ void pgd_free(pgd_t *pgd)
 			pmd_cache_free(pmd, i);
 		}
 	/* in the non-PAE case, free_pgtables() clears user pgd entries */
+	pgd_mop_up_pmds(pgd);
 	quicklist_free(0, pgd_dtor, pgd);
 }
 
