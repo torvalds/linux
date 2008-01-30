@@ -60,7 +60,7 @@ static void xen_idle(void)
 /*
  * Set the bit indicating "nosegneg" library variants should be used.
  */
-static void fiddle_vdso(void)
+static void __init fiddle_vdso(void)
 {
 	extern const char vdso32_default_start;
 	u32 *mask = VDSO32_SYMBOL(&vdso32_default_start, NOTE_MASK);
