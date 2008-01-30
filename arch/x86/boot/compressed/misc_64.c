@@ -338,7 +338,8 @@ static void error(char *x)
 	putstr(x);
 	putstr("\n\n -- System halted");
 
-	while(1);	/* Halt */
+	while (1)
+		asm("hlt");
 }
 
 asmlinkage void decompress_kernel(void *rmode, unsigned long heap,
