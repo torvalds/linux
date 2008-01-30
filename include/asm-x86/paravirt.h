@@ -998,6 +998,16 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 		PVOP_VCALL4(pv_mmu_ops.set_pte_at, mm, addr, ptep, pte.pte);
 }
 
+static inline void set_pmd(pmd_t *pmdp, pmd_t pmd)
+{
+	pmdval_t val = native_pmd_val(pmd);
+
+	if (sizeof(pmdval_t) > sizeof(long))
+		PVOP_VCALL3(pv_mmu_ops.set_pmd, pmdp, val, (u64)val >> 32);
+	else
+		PVOP_VCALL2(pv_mmu_ops.set_pmd, pmdp, val);
+}
+
 #ifdef CONFIG_X86_PAE
 /* Special-case pte-setting operations for PAE, which can't update a
    64-bit pte atomically */
@@ -1019,6 +1029,11 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr,
 {
 	PVOP_VCALL3(pv_mmu_ops.pte_clear, mm, addr, ptep);
 }
+
+static inline void pmd_clear(pmd_t *pmdp)
+{
+	PVOP_VCALL1(pv_mmu_ops.pmd_clear, pmdp);
+}
 #else  /* !CONFIG_X86_PAE */
 static inline void set_pte_atomic(pte_t *ptep, pte_t pte)
 {
@@ -1035,6 +1050,11 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr,
 			     pte_t *ptep)
 {
 	set_pte_at(mm, addr, ptep, __pte(0));
+}
+
+static inline void pmd_clear(pmd_t *pmdp)
+{
+	set_pmd(pmdp, __pmd(0));
 }
 #endif	/* CONFIG_X86_PAE */
 
@@ -1070,33 +1090,10 @@ static inline pmdval_t pmd_val(pmd_t pmd)
 
 #ifdef CONFIG_X86_PAE
 
-static inline void set_pmd(pmd_t *pmdp, pmd_t pmdval)
-{
-	PVOP_VCALL3(pv_mmu_ops.set_pmd, pmdp,
-		    pmdval.pmd, pmdval.pmd >> 32);
-}
-
 static inline void set_pud(pud_t *pudp, pud_t pudval)
 {
 	PVOP_VCALL3(pv_mmu_ops.set_pud, pudp,
 		    pudval.pgd.pgd, pudval.pgd.pgd >> 32);
-}
-
-static inline void pmd_clear(pmd_t *pmdp)
-{
-	PVOP_VCALL1(pv_mmu_ops.pmd_clear, pmdp);
-}
-
-#else  /* !CONFIG_X86_PAE */
-
-static inline void set_pmd(pmd_t *pmdp, pmd_t pmdval)
-{
-	PVOP_VCALL2(pv_mmu_ops.set_pmd, pmdp, pmdval.pud.pgd.pgd);
-}
-
-static inline void pmd_clear(pmd_t *pmdp)
-{
-	set_pmd(pmdp, __pmd(0));
 }
 
 #endif	/* CONFIG_X86_PAE */
