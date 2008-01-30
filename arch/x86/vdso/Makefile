@@ -6,13 +6,13 @@
 vobjs-y := vdso-note.o vclock_gettime.o vgetcpu.o vvar.o
 
 # files to link into kernel
-obj-y := vma.o vdso.o vdso-syms.o
+obj-y := vma.o vdso.o
 
 vobjs := $(foreach F,$(vobjs-y),$(obj)/$F)
 
 $(obj)/vdso.o: $(obj)/vdso.so
 
-targets += vdso.so vdso.so.dbg vdso.lds $(vobjs-y) vdso-syms.o
+targets += vdso.so vdso.so.dbg vdso.lds $(vobjs-y)
 
 # The DSO images are built using a special linker script.
 quiet_cmd_syscall = SYSCALL $@
@@ -42,17 +42,6 @@ CFL := $(PROFILING) -mcmodel=small -fPIC -g0 -O2 -fasynchronous-unwind-tables -m
 
 $(obj)/vclock_gettime.o: KBUILD_CFLAGS = $(CFL)
 $(obj)/vgetcpu.o: KBUILD_CFLAGS = $(CFL)
-
-# We also create a special relocatable object that should mirror the symbol
-# table and layout of the linked DSO.  With ld -R we can then refer to
-# these symbols in the kernel code rather than hand-coded addresses.
-extra-y += vdso-syms.o
-$(obj)/built-in.o: $(obj)/vdso-syms.o
-$(obj)/built-in.o: ld_flags += -R $(obj)/vdso-syms.o
-
-SYSCFLAGS_vdso-syms.o = -r -d
-$(obj)/vdso-syms.o: $(src)/vdso.lds $(vobjs) FORCE
-	$(call if_changed,syscall)
 
 targets += vdso-syms.lds
 obj-y += vdso-syms.lds
