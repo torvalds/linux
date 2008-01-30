@@ -398,16 +398,23 @@ struct pv_mmu_ops pv_mmu_ops = {
 	.kmap_atomic_pte = kmap_atomic,
 #endif
 
+#if PAGETABLE_LEVELS >= 3
 #ifdef CONFIG_X86_PAE
 	.set_pte_atomic = native_set_pte_atomic,
 	.set_pte_present = native_set_pte_present,
-	.set_pud = native_set_pud,
 	.pte_clear = native_pte_clear,
 	.pmd_clear = native_pmd_clear,
-
+#endif
+	.set_pud = native_set_pud,
 	.pmd_val = native_pmd_val,
 	.make_pmd = native_make_pmd,
+
+#if PAGETABLE_LEVELS == 4
+	.pud_val = native_pud_val,
+	.make_pud = native_make_pud,
+	.set_pgd = native_set_pgd,
 #endif
+#endif /* PAGETABLE_LEVELS >= 3 */
 
 	.pte_val = native_pte_val,
 	.pgd_val = native_pgd_val,
