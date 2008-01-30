@@ -441,6 +441,8 @@ struct usb_device_id em28xx_id_table [] = {
 			.driver_info = EM2820_BOARD_PINNACLE_DVC_90 },
 	{ USB_DEVICE(0x2040, 0x6500),
 			.driver_info = EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900 },
+	{ USB_DEVICE(0x2040, 0x6502),
+			.driver_info = EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900 },
 	{ USB_DEVICE(0x2040, 0x6513),
 			.driver_info = EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950 },
 	{ USB_DEVICE(0x0ccd, 0x0042),
