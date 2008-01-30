@@ -661,19 +661,19 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 
 	/* Bit 31 in normal CPUID used for nonstandard 3DNow ID;
 	   3DNow is IDd by bit 31 in extended CPUID (1*32+31) anyway */
-	clear_bit(0*32+31, &c->x86_capability);
+	clear_bit(0*32+31, (unsigned long *)&c->x86_capability);
 
 	/* On C+ stepping K8 rep microcode works well for copy/memset */
 	level = cpuid_eax(1);
 	if (c->x86 == 15 && ((level >= 0x0f48 && level < 0x0f50) ||
 			     level >= 0x0f58))
-		set_bit(X86_FEATURE_REP_GOOD, &c->x86_capability);
+		set_bit(X86_FEATURE_REP_GOOD, (unsigned long *)&c->x86_capability);
 	if (c->x86 == 0x10 || c->x86 == 0x11)
-		set_bit(X86_FEATURE_REP_GOOD, &c->x86_capability);
+		set_bit(X86_FEATURE_REP_GOOD, (unsigned long *)&c->x86_capability);
 
 	/* Enable workaround for FXSAVE leak */
 	if (c->x86 >= 6)
-		set_bit(X86_FEATURE_FXSAVE_LEAK, &c->x86_capability);
+		set_bit(X86_FEATURE_FXSAVE_LEAK, (unsigned long *)&c->x86_capability);
 
 	level = get_model_name(c);
 	if (!level) {
@@ -689,7 +689,7 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 
 	/* c->x86_power is 8000_0007 edx. Bit 8 is constant TSC */
 	if (c->x86_power & (1<<8))
-		set_bit(X86_FEATURE_CONSTANT_TSC, &c->x86_capability);
+		set_bit(X86_FEATURE_CONSTANT_TSC, (unsigned long *)&c->x86_capability);
 
 	/* Multi core CPU? */
 	if (c->extended_cpuid_level >= 0x80000008)
@@ -702,14 +702,14 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 		num_cache_leaves = 3;
 
 	if (c->x86 == 0xf || c->x86 == 0x10 || c->x86 == 0x11)
-		set_bit(X86_FEATURE_K8, &c->x86_capability);
+		set_bit(X86_FEATURE_K8, (unsigned long *)&c->x86_capability);
 
 	/* RDTSC can be speculated around */
-	clear_bit(X86_FEATURE_SYNC_RDTSC, &c->x86_capability);
+	clear_bit(X86_FEATURE_SYNC_RDTSC, (unsigned long *)&c->x86_capability);
 
 	/* Family 10 doesn't support C states in MWAIT so don't use it */
 	if (c->x86 == 0x10 && !force_mwait)
-		clear_bit(X86_FEATURE_MWAIT, &c->x86_capability);
+		clear_bit(X86_FEATURE_MWAIT, (unsigned long *)&c->x86_capability);
 
 	if (amd_apic_timer_broken())
 		disable_apic_timer = 1;
@@ -811,16 +811,17 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 		unsigned eax = cpuid_eax(10);
 		/* Check for version and the number of counters */
 		if ((eax & 0xff) && (((eax>>8) & 0xff) > 1))
-			set_bit(X86_FEATURE_ARCH_PERFMON, &c->x86_capability);
+			set_bit(X86_FEATURE_ARCH_PERFMON,
+				(unsigned long *)&c->x86_capability);
 	}
 
 	if (cpu_has_ds) {
 		unsigned int l1, l2;
 		rdmsr(MSR_IA32_MISC_ENABLE, l1, l2);
 		if (!(l1 & (1<<11)))
-			set_bit(X86_FEATURE_BTS, c->x86_capability);
+			set_bit(X86_FEATURE_BTS, (unsigned long *)c->x86_capability);
 		if (!(l1 & (1<<12)))
-			set_bit(X86_FEATURE_PEBS, c->x86_capability);
+			set_bit(X86_FEATURE_PEBS, (unsigned long *)c->x86_capability);
 	}
 
 	n = c->extended_cpuid_level;
@@ -839,13 +840,13 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 		c->x86_cache_alignment = c->x86_clflush_size * 2;
 	if ((c->x86 == 0xf && c->x86_model >= 0x03) ||
 	    (c->x86 == 0x6 && c->x86_model >= 0x0e))
-		set_bit(X86_FEATURE_CONSTANT_TSC, &c->x86_capability);
+		set_bit(X86_FEATURE_CONSTANT_TSC, (unsigned long *)&c->x86_capability);
 	if (c->x86 == 6)
-		set_bit(X86_FEATURE_REP_GOOD, &c->x86_capability);
+		set_bit(X86_FEATURE_REP_GOOD, (unsigned long *)&c->x86_capability);
 	if (c->x86 == 15)
-		set_bit(X86_FEATURE_SYNC_RDTSC, &c->x86_capability);
+		set_bit(X86_FEATURE_SYNC_RDTSC, (unsigned long *)&c->x86_capability);
 	else
-		clear_bit(X86_FEATURE_SYNC_RDTSC, &c->x86_capability);
+		clear_bit(X86_FEATURE_SYNC_RDTSC, (unsigned long *)&c->x86_capability);
 	c->x86_max_cores = intel_num_cpu_cores(c);
 
 	srat_detect_node();
