@@ -30,7 +30,7 @@ static inline unsigned long __store_tr(void)
 
 #define store_tr(tr) (tr) = __store_tr()
 
-extern struct gate_struct idt_table[];
+extern gate_desc idt_table[];
 extern struct desc_ptr cpu_gdt_descr[];
 
 static inline void write_ldt_entry(struct desc_struct *ldt,
@@ -58,7 +58,7 @@ static inline void store_gdt(struct desc_ptr *ptr)
 static inline void _set_gate(void *adr, unsigned type, unsigned long func,
 			     unsigned dpl, unsigned ist)
 {
-	struct gate_struct s;
+	gate_desc s;
 
 	s.offset_low = PTR_LOW(func);
 	s.segment = __KERNEL_CS;

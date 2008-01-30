@@ -3,6 +3,7 @@
 
 #include <asm/ldt.h>
 #include <asm/segment.h>
+#include <asm/desc_defs.h>
 
 #ifndef __ASSEMBLY__
 
@@ -24,7 +25,7 @@ static inline struct desc_struct *get_cpu_gdt_table(unsigned int cpu)
 }
 
 extern struct desc_ptr idt_descr;
-extern struct desc_struct idt_table[];
+extern gate_desc idt_table[];
 extern void set_intr_gate(unsigned int irq, void * addr);
 
 static inline void pack_descriptor(__u32 *a, __u32 *b,
@@ -35,11 +36,11 @@ static inline void pack_descriptor(__u32 *a, __u32 *b,
 		(limit & 0x000f0000) | ((type & 0xff) << 8) | ((flags & 0xf) << 20);
 }
 
-static inline void pack_gate(__u32 *a, __u32 *b,
+static inline void pack_gate(gate_desc *gate,
 	unsigned long base, unsigned short seg, unsigned char type, unsigned char flags)
 {
-	*a = (seg << 16) | (base & 0xffff);
-	*b = (base & 0xffff0000) | ((type & 0xff) << 8) | (flags & 0xff);
+	gate->a = (seg << 16) | (base & 0xffff);
+	gate->b = (base & 0xffff0000) | ((type & 0xff) << 8) | (flags & 0xff);
 }
 
 #define DESCTYPE_LDT 	0x82	/* present, system, DPL-0, LDT */
@@ -139,9 +140,9 @@ static inline void native_load_tls(struct thread_struct *t, unsigned int cpu)
 
 static inline void _set_gate(int gate, unsigned int type, void *addr, unsigned short seg)
 {
-	__u32 a, b;
-	pack_gate(&a, &b, (unsigned long)addr, seg, type, 0);
-	write_idt_entry(idt_table, gate, a, b);
+	gate_desc g;
+	pack_gate(&g, (unsigned long)addr, seg, type, 0);
+	write_idt_entry(idt_table, gate, g.a, g.b);
 }
 
 static inline void __set_tss_desc(unsigned int cpu, unsigned int entry, const void *addr)

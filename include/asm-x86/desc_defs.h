@@ -39,7 +39,7 @@ enum {
 };
 
 // 16byte gate
-struct gate_struct {
+struct gate_struct64 {
 	u16 offset_low;
 	u16 segment;
 	unsigned ist : 3, zero0 : 5, type : 5, dpl : 2, p : 1;
@@ -66,6 +66,12 @@ struct ldttss_desc {
 	u32 base3;
 	u32 zero1;
 } __attribute__((packed));
+
+#ifdef CONFIG_X86_64
+typedef struct gate_struct64 gate_desc;
+#else
+typedef struct desc_struct gate_desc;
+#endif
 
 struct desc_ptr {
 	unsigned short size;
