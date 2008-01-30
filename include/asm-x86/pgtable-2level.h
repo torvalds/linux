@@ -33,7 +33,6 @@ static inline void native_set_pmd(pmd_t *pmdp, pmd_t pmd)
 #define set_pte_atomic(pteptr, pteval) set_pte(pteptr,pteval)
 #define set_pte_present(mm,addr,ptep,pteval) set_pte_at(mm,addr,ptep,pteval)
 
-#define pte_clear(mm,addr,xp)	do { set_pte_at(mm, addr, xp, __pte(0)); } while (0)
 #define pmd_clear(xp)	do { set_pmd(xp, __pmd(0)); } while (0)
 
 static inline void native_pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *xp)

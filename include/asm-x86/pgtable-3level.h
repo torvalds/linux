@@ -101,7 +101,6 @@ static inline void native_pmd_clear(pmd_t *pmd)
 #define set_pte_atomic(ptep, pte)		native_set_pte_atomic(ptep, pte)
 #define set_pmd(pmdp, pmd)			native_set_pmd(pmdp, pmd)
 #define set_pud(pudp, pud)			native_set_pud(pudp, pud)
-#define pte_clear(mm, addr, ptep)		native_pte_clear(mm, addr, ptep)
 #define pmd_clear(pmd)				native_pmd_clear(pmd)
 #endif
 
