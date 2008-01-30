@@ -31,7 +31,7 @@ static void intel_machine_check(struct pt_regs * regs, long error_code)
 		smp_processor_id(), mcgsth, mcgstl);
 
 	for (i = 0; i < nr_mce_banks; i++) {
-		rdmsr(MSR_IA32_MC0_STATUS+i*4,low, high);
+		rdmsr(MSR_IA32_MC0_STATUS+i*4, low, high);
 		if (high & (1<<31)) {
 			char misc[20];
 			char addr[24];
