@@ -95,6 +95,5 @@ extern void *efi_ioremap(unsigned long offset, unsigned long size);
 extern void efi_reserve_bootmem(void);
 extern void efi_call_phys_prelog(void);
 extern void efi_call_phys_epilog(void);
-extern void runtime_code_page_mkexec(void);
 
 #endif

@@ -40,6 +40,8 @@
 #include <asm/setup.h>
 #include <asm/efi.h>
 #include <asm/time.h>
+#include <asm/cacheflush.h>
+#include <asm/tlbflush.h>
 
 #define EFI_DEBUG	1
 #define PFX 		"EFI: "
@@ -379,6 +381,32 @@ void __init efi_init(void)
 #endif
 }
 
+#if defined(CONFIG_X86_64) || defined(CONFIG_X86_PAE)
+static void __init runtime_code_page_mkexec(void)
+{
+	efi_memory_desc_t *md;
+	unsigned long end;
+	void *p;
+
+	if (!(__supported_pte_mask & _PAGE_NX))
+		return;
+
+	/* Make EFI runtime service code area executable */
+	for (p = memmap.map; p < memmap.map_end; p += memmap.desc_size) {
+		md = p;
+		end = md->phys_addr + (md->num_pages << EFI_PAGE_SHIFT);
+		if (md->type == EFI_RUNTIME_SERVICES_CODE &&
+		    (end >> PAGE_SHIFT) <= end_pfn_map)
+			change_page_attr_addr(md->virt_addr,
+					      md->num_pages,
+					      PAGE_KERNEL_EXEC_NOCACHE);
+	}
+	__flush_tlb_all();
+}
+#else
+static inline void __init runtime_code_page_mkexec(void) { }
+#endif
+
 /*
  * This function will switch the EFI runtime services to virtual mode.
  * Essentially, look through the EFI memmap and map every region that
@@ -399,9 +427,9 @@ void __init efi_enter_virtual_mode(void)
 		md = p;
 		if (!(md->attribute & EFI_MEMORY_RUNTIME))
 			continue;
+		end = md->phys_addr + (md->num_pages << EFI_PAGE_SHIFT);
 		if ((md->attribute & EFI_MEMORY_WB) &&
-		    (((md->phys_addr + (md->num_pages<<EFI_PAGE_SHIFT)) >>
-		      PAGE_SHIFT) < end_pfn_map))
+		    ((end >> PAGE_SHIFT) <= end_pfn_map))
 			md->virt_addr = (unsigned long)__va(md->phys_addr);
 		else
 			md->virt_addr = (unsigned long)
@@ -410,7 +438,6 @@ void __init efi_enter_virtual_mode(void)
 		if (!md->virt_addr)
 			printk(KERN_ERR PFX "ioremap of 0x%llX failed!\n",
 			       (unsigned long long)md->phys_addr);
-		end = md->phys_addr + (md->num_pages << EFI_PAGE_SHIFT);
 		if ((md->phys_addr <= (unsigned long)efi_phys.systab) &&
 		    ((unsigned long)efi_phys.systab < end))
 			efi.systab = (efi_system_table_t *)(unsigned long)
@@ -448,9 +475,7 @@ void __init efi_enter_virtual_mode(void)
 	efi.get_next_high_mono_count = virt_efi_get_next_high_mono_count;
 	efi.reset_system = virt_efi_reset_system;
 	efi.set_virtual_address_map = virt_efi_set_virtual_address_map;
-#ifdef CONFIG_X86_64
 	runtime_code_page_mkexec();
-#endif
 }
 
 /*

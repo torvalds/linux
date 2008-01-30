@@ -33,7 +33,6 @@
 #include <asm/e820.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
-#include <asm/cacheflush.h>
 #include <asm/proto.h>
 #include <asm/efi.h>
 
@@ -55,7 +54,7 @@ static void __init early_mapping_set_exec(unsigned long start,
 		else
 			set_pte(kpte, __pte((pte_val(*kpte) | _PAGE_NX) & \
 					    __supported_pte_mask));
-		if (pte_huge(*kpte))
+		if (level == 4)
 			start = (start + PMD_SIZE) & PMD_MASK;
 		else
 			start = (start + PAGE_SIZE) & PAGE_MASK;
@@ -66,6 +65,9 @@ static void __init early_runtime_code_mapping_set_exec(int executable)
 {
 	efi_memory_desc_t *md;
 	void *p;
+
+	if (!(__supported_pte_mask & _PAGE_NX))
+		return;
 
 	/* Make EFI runtime service code area executable */
 	for (p = memmap.map; p < memmap.map_end; p += memmap.desc_size) {
@@ -116,22 +118,6 @@ void __init efi_reserve_bootmem(void)
 				memmap.nr_map * memmap.desc_size);
 }
 
-void __init runtime_code_page_mkexec(void)
-{
-	efi_memory_desc_t *md;
-	void *p;
-
-	/* Make EFI runtime service code area executable */
-	for (p = memmap.map; p < memmap.map_end; p += memmap.desc_size) {
-		md = p;
-		if (md->type == EFI_RUNTIME_SERVICES_CODE)
-			change_page_attr_addr(md->virt_addr,
-					      md->num_pages,
-					      PAGE_KERNEL_EXEC);
-	}
-	__flush_tlb_all();
-}
-
 void __iomem * __init efi_ioremap(unsigned long offset,
 				  unsigned long size)
 {
@@ -146,8 +132,8 @@ void __iomem * __init efi_ioremap(unsigned long offset,
 		return NULL;
 
 	for (i = 0; i < pages; i++) {
-		set_fixmap_nocache(FIX_EFI_IO_MAP_FIRST_PAGE - pages_mapped,
-				   offset);
+		__set_fixmap(FIX_EFI_IO_MAP_FIRST_PAGE - pages_mapped,
+			     offset, PAGE_KERNEL_EXEC_NOCACHE);
 		offset += PAGE_SIZE;
 		pages_mapped++;
 	}
