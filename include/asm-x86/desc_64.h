@@ -11,51 +11,6 @@
 
 #include <asm/segment.h>
 
-static inline void _set_gate(int gate, unsigned type, unsigned long func,
-			     unsigned dpl, unsigned ist)
-{
-	gate_desc s;
-
-	s.offset_low = PTR_LOW(func);
-	s.segment = __KERNEL_CS;
-	s.ist = ist;
-	s.p = 1;
-	s.dpl = dpl;
-	s.zero0 = 0;
-	s.zero1 = 0;
-	s.type = type;
-	s.offset_middle = PTR_MIDDLE(func);
-	s.offset_high = PTR_HIGH(func);
-	/*
-	 * does not need to be atomic because it is only done once at
-	 * setup time
-	 */
-	write_idt_entry(idt_table, gate, &s);
-}
-
-static inline void set_intr_gate(int nr, void *func)
-{
-	BUG_ON((unsigned)nr > 0xFF);
-	_set_gate(nr, GATE_INTERRUPT, (unsigned long) func, 0, 0);
-}
-
-static inline void set_intr_gate_ist(int nr, void *func, unsigned ist)
-{
-	BUG_ON((unsigned)nr > 0xFF);
-	_set_gate(nr, GATE_INTERRUPT, (unsigned long) func, 0, ist);
-}
-
-static inline void set_system_gate(int nr, void *func)
-{
-	BUG_ON((unsigned)nr > 0xFF);
-	_set_gate(nr, GATE_INTERRUPT, (unsigned long) func, 3, 0);
-}
-
-static inline void set_system_gate_ist(int nr, void *func, unsigned ist)
-{
-	_set_gate(nr, GATE_INTERRUPT, (unsigned long) func, 3, ist);
-}
-
 static inline void set_tss_desc(unsigned cpu, void *addr)
 {
 	struct desc_struct *d = get_cpu_gdt_table(cpu);

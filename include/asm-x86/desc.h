@@ -33,6 +33,22 @@ extern struct desc_struct cpu_gdt_table[GDT_ENTRIES];
 extern struct desc_ptr cpu_gdt_descr[];
 /* the cpu gdt accessor */
 #define get_cpu_gdt_table(x) ((struct desc_struct *)cpu_gdt_descr[x].address)
+
+static inline void pack_gate(gate_desc *gate, unsigned type, unsigned long func,
+			     unsigned dpl, unsigned ist, unsigned seg)
+{
+	gate->offset_low = PTR_LOW(func);
+	gate->segment = __KERNEL_CS;
+	gate->ist = ist;
+	gate->p = 1;
+	gate->dpl = dpl;
+	gate->zero0 = 0;
+	gate->zero1 = 0;
+	gate->type = type;
+	gate->offset_middle = PTR_MIDDLE(func);
+	gate->offset_high = PTR_HIGH(func);
+}
+
 #else
 struct gdt_page {
 	struct desc_struct gdt[GDT_ENTRIES];
@@ -43,6 +59,16 @@ static inline struct desc_struct *get_cpu_gdt_table(unsigned int cpu)
 {
 	return per_cpu(gdt_page, cpu).gdt;
 }
+
+static inline void pack_gate(gate_desc *gate, unsigned char type,
+       unsigned long base, unsigned dpl, unsigned flags, unsigned short seg)
+
+{
+	gate->a = (seg << 16) | (base & 0xffff);
+	gate->b = (base & 0xffff0000) |
+		  (((0x80 | type | (dpl << 5)) & 0xff) << 8);
+}
+
 #endif
 
 #ifdef CONFIG_PARAVIRT
@@ -241,6 +267,72 @@ static inline void load_LDT(mm_context_t *pc)
 static inline unsigned long get_desc_base(struct desc_struct *desc)
 {
 	return desc->base0 | ((desc->base1) << 16) | ((desc->base2) << 24);
+}
+static inline void _set_gate(int gate, unsigned type, void *addr,
+			      unsigned dpl, unsigned ist, unsigned seg)
+{
+	gate_desc s;
+	pack_gate(&s, type, (unsigned long)addr, dpl, ist, seg);
+	/*
+	 * does not need to be atomic because it is only done once at
+	 * setup time
+	 */
+	write_idt_entry(idt_table, gate, &s);
+}
+
+/*
+ * This needs to use 'idt_table' rather than 'idt', and
+ * thus use the _nonmapped_ version of the IDT, as the
+ * Pentium F0 0F bugfix can have resulted in the mapped
+ * IDT being write-protected.
+ */
+static inline void set_intr_gate(unsigned int n, void *addr)
+{
+	BUG_ON((unsigned)n > 0xFF);
+	_set_gate(n, GATE_INTERRUPT, addr, 0, 0, __KERNEL_CS);
+}
+
+/*
+ * This routine sets up an interrupt gate at directory privilege level 3.
+ */
+static inline void set_system_intr_gate(unsigned int n, void *addr)
+{
+	BUG_ON((unsigned)n > 0xFF);
+	_set_gate(n, GATE_INTERRUPT, addr, 0x3, 0, __KERNEL_CS);
+}
+
+static inline void set_trap_gate(unsigned int n, void *addr)
+{
+	BUG_ON((unsigned)n > 0xFF);
+	_set_gate(n, GATE_TRAP, addr, 0, 0, __KERNEL_CS);
+}
+
+static inline void set_system_gate(unsigned int n, void *addr)
+{
+	BUG_ON((unsigned)n > 0xFF);
+#ifdef CONFIG_X86_32
+	_set_gate(n, GATE_TRAP, addr, 0x3, 0, __KERNEL_CS);
+#else
+	_set_gate(n, GATE_INTERRUPT, addr, 0x3, 0, __KERNEL_CS);
+#endif
+}
+
+static inline void set_task_gate(unsigned int n, unsigned int gdt_entry)
+{
+	BUG_ON((unsigned)n > 0xFF);
+	_set_gate(n, GATE_TASK, (void *)0, 0, 0, (gdt_entry<<3));
+}
+
+static inline void set_intr_gate_ist(int n, void *addr, unsigned ist)
+{
+	BUG_ON((unsigned)n > 0xFF);
+	_set_gate(n, GATE_INTERRUPT, addr, 0, ist, __KERNEL_CS);
+}
+
+static inline void set_system_gate_ist(int n, void *addr, unsigned ist)
+{
+	BUG_ON((unsigned)n > 0xFF);
+	_set_gate(n, GATE_INTERRUPT, addr, 0x3, ist, __KERNEL_CS);
 }
 
 #else
