@@ -15,7 +15,14 @@ arch_prepare_suspend(void)
 	return 0;
 }
 
-/* Image of the saved processor state. If you touch this, fix acpi/wakeup.S. */
+/*
+ * Image of the saved processor state, used by the low level ACPI suspend to
+ * RAM code and by the low level hibernation code.
+ *
+ * If you modify it, fix arch/x86/kernel/acpi/wakeup_64.S and make sure that
+ * __save/__restore_processor_state(), defined in arch/x86/kernel/suspend_64.c,
+ * still work as required.
+ */
 struct saved_context {
 	struct pt_regs regs;
   	u16 ds, es, fs, gs, ss;
