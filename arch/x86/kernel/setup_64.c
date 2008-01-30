@@ -77,7 +77,7 @@ unsigned long saved_video_mode;
 
 int force_mwait __cpuinitdata;
 
-/* 
+/*
  * Early DMI memory
  */
 int dmi_alloc_index;
@@ -169,12 +169,12 @@ contig_initmem_init(unsigned long start_pfn, unsigned long end_pfn)
 	bootmap_size = bootmem_bootmap_pages(end_pfn)<<PAGE_SHIFT;
 	bootmap = find_e820_area(0, end_pfn<<PAGE_SHIFT, bootmap_size);
 	if (bootmap == -1L)
-		panic("Cannot find bootmem map of size %ld\n",bootmap_size);
+		panic("Cannot find bootmem map of size %ld\n", bootmap_size);
 	bootmap_size = init_bootmem(bootmap >> PAGE_SHIFT, end_pfn);
 	e820_register_active_regions(0, start_pfn, end_pfn);
 	free_bootmem_with_active_regions(0, end_pfn);
 	reserve_bootmem(bootmap, bootmap_size);
-} 
+}
 #endif
 
 #if defined(CONFIG_EDD) || defined(CONFIG_EDD_MODULE)
@@ -208,7 +208,8 @@ static void __init reserve_crashkernel(void)
 	unsigned long long crash_size, crash_base;
 	int ret;
 
-	free_mem = ((unsigned long long)max_low_pfn - min_low_pfn) << PAGE_SHIFT;
+	free_mem =
+		((unsigned long long)max_low_pfn - min_low_pfn) << PAGE_SHIFT;
 
 	ret = parse_crashkernel(boot_command_line, free_mem,
 			&crash_size, &crash_base);
@@ -240,7 +241,7 @@ unsigned __initdata ebda_size;
 static void discover_ebda(void)
 {
 	/*
-	 * there is a real-mode segmented pointer pointing to the 
+	 * there is a real-mode segmented pointer pointing to the
 	 * 4K EBDA area at 0x40E
 	 */
 	ebda_addr = *(unsigned short *)__va(EBDA_ADDR_POINTER);
@@ -259,6 +260,8 @@ static void discover_ebda(void)
 
 void __init setup_arch(char **cmdline_p)
 {
+	unsigned i;
+
 	printk(KERN_INFO "Command line: %s\n", boot_command_line);
 
 	ROOT_DEV = old_decode_dev(boot_params.hdr.root_dev);
@@ -345,13 +348,13 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 #ifdef CONFIG_NUMA
-	numa_initmem_init(0, end_pfn); 
+	numa_initmem_init(0, end_pfn);
 #else
 	contig_initmem_init(0, end_pfn);
 #endif
 
 	/* Reserve direct mapping */
-	reserve_bootmem_generic(table_start << PAGE_SHIFT, 
+	reserve_bootmem_generic(table_start << PAGE_SHIFT,
 				(table_end - table_start) << PAGE_SHIFT);
 
 	/* reserve kernel */
@@ -379,14 +382,14 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 #ifdef CONFIG_ACPI_SLEEP
-       /*
-        * Reserve low memory region for sleep support.
-        */
+	/*
+	 * Reserve low memory region for sleep support.
+	 */
        acpi_reserve_bootmem();
 #endif
-	/*
-	 * Find and reserve possible boot-time SMP configuration:
-	 */
+       /*
+	* Find and reserve possible boot-time SMP configuration:
+	*/
 	find_smp_config();
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (boot_params.hdr.type_of_loader && boot_params.hdr.ramdisk_image) {
@@ -437,16 +440,13 @@ void __init setup_arch(char **cmdline_p)
 
 	/*
 	 * We trust e820 completely. No explicit ROM probing in memory.
- 	 */
+	 */
 	e820_reserve_resources(&code_resource, &data_resource, &bss_resource);
 	e820_mark_nosave_regions();
 
-	{
-	unsigned i;
 	/* request I/O space for devices used on all i[345]86 PCs */
 	for (i = 0; i < ARRAY_SIZE(standard_io_resources); i++)
 		request_resource(&ioport_resource, &standard_io_resources[i]);
-	}
 
 	e820_setup_gap();
 
@@ -483,9 +483,10 @@ static void __cpuinit display_cacheinfo(struct cpuinfo_x86 *c)
 
 	if (n >= 0x80000005) {
 		cpuid(0x80000005, &dummy, &ebx, &ecx, &edx);
-		printk(KERN_INFO "CPU: L1 I Cache: %dK (%d bytes/line), D cache %dK (%d bytes/line)\n",
-			edx>>24, edx&0xFF, ecx>>24, ecx&0xFF);
-		c->x86_cache_size=(ecx>>24)+(edx>>24);
+		printk(KERN_INFO "CPU: L1 I Cache: %dK (%d bytes/line), "
+		       "D cache %dK (%d bytes/line)\n",
+		       edx>>24, edx&0xFF, ecx>>24, ecx&0xFF);
+		c->x86_cache_size = (ecx>>24) + (edx>>24);
 		/* On K8 L1 TLB is inclusive, so don't count it */
 		c->x86_tlbsize = 0;
 	}
@@ -501,9 +502,9 @@ static void __cpuinit display_cacheinfo(struct cpuinfo_x86 *c)
 	}
 
 	if (n >= 0x80000007)
-		cpuid(0x80000007, &dummy, &dummy, &dummy, &c->x86_power); 
+		cpuid(0x80000007, &dummy, &dummy, &dummy, &c->x86_power);
 	if (n >= 0x80000008) {
-		cpuid(0x80000008, &eax, &dummy, &dummy, &dummy); 
+		cpuid(0x80000008, &eax, &dummy, &dummy, &dummy);
 		c->x86_virt_bits = (eax >> 8) & 0xff;
 		c->x86_phys_bits = eax & 0xff;
 	}
@@ -512,14 +513,15 @@ static void __cpuinit display_cacheinfo(struct cpuinfo_x86 *c)
 #ifdef CONFIG_NUMA
 static int nearby_node(int apicid)
 {
-	int i;
+	int i, node;
+
 	for (i = apicid - 1; i >= 0; i--) {
-		int node = apicid_to_node[i];
+		node = apicid_to_node[i];
 		if (node != NUMA_NO_NODE && node_online(node))
 			return node;
 	}
 	for (i = apicid + 1; i < MAX_LOCAL_APIC; i++) {
-		int node = apicid_to_node[i];
+		node = apicid_to_node[i];
 		if (node != NUMA_NO_NODE && node_online(node))
 			return node;
 	}
@@ -559,27 +561,29 @@ static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
 	c->phys_proc_id = phys_pkg_id(bits);
 
 #ifdef CONFIG_NUMA
-  	node = c->phys_proc_id;
- 	if (apicid_to_node[apicid] != NUMA_NO_NODE)
- 		node = apicid_to_node[apicid];
- 	if (!node_online(node)) {
- 		/* Two possibilities here:
- 		   - The CPU is missing memory and no node was created.
- 		   In that case try picking one from a nearby CPU
- 		   - The APIC IDs differ from the HyperTransport node IDs
- 		   which the K8 northbridge parsing fills in.
- 		   Assume they are all increased by a constant offset,
- 		   but in the same order as the HT nodeids.
- 		   If that doesn't result in a usable node fall back to the
- 		   path for the previous case.  */
+	node = c->phys_proc_id;
+	if (apicid_to_node[apicid] != NUMA_NO_NODE)
+		node = apicid_to_node[apicid];
+	if (!node_online(node)) {
+		/* Two possibilities here:
+		   - The CPU is missing memory and no node was created.
+		   In that case try picking one from a nearby CPU
+		   - The APIC IDs differ from the HyperTransport node IDs
+		   which the K8 northbridge parsing fills in.
+		   Assume they are all increased by a constant offset,
+		   but in the same order as the HT nodeids.
+		   If that doesn't result in a usable node fall back to the
+		   path for the previous case.  */
+
 		int ht_nodeid = apicid - (cpu_data(0).phys_proc_id << bits);
- 		if (ht_nodeid >= 0 &&
- 		    apicid_to_node[ht_nodeid] != NUMA_NO_NODE)
- 			node = apicid_to_node[ht_nodeid];
- 		/* Pick a nearby node */
- 		if (!node_online(node))
- 			node = nearby_node(apicid);
- 	}
+
+		if (ht_nodeid >= 0 &&
+		    apicid_to_node[ht_nodeid] != NUMA_NO_NODE)
+			node = apicid_to_node[ht_nodeid];
+		/* Pick a nearby node */
+		if (!node_online(node))
+			node = nearby_node(apicid);
+	}
 	numa_set_node(cpu, node);
 
 	printk(KERN_INFO "CPU %d/%x -> Node %d\n", cpu, apicid, node);
@@ -599,8 +603,8 @@ static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
 /* AMD systems with C1E don't have a working lAPIC timer. Check for that. */
 static __cpuinit int amd_apic_timer_broken(void)
 {
-	u32 lo, hi;
-	u32 eax = cpuid_eax(CPUID_PROCESSOR_SIGNATURE);
+	u32 lo, hi, eax = cpuid_eax(CPUID_PROCESSOR_SIGNATURE);
+
 	switch (eax & CPUID_XFAM) {
 	case CPUID_XFAM_K8:
 		if ((eax & CPUID_XMOD) < CPUID_XMOD_REV_F)
@@ -628,7 +632,7 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 	/*
 	 * Disable TLB flush filter by setting HWCR.FFDIS on K8
 	 * bit 6 of msr C001_0015
- 	 *
+	 *
 	 * Errata 63 for SH-B3 steppings
 	 * Errata 122 for all steppings (F+ have it disabled by default)
 	 */
@@ -642,10 +646,11 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 	/* Bit 31 in normal CPUID used for nonstandard 3DNow ID;
 	   3DNow is IDd by bit 31 in extended CPUID (1*32+31) anyway */
 	clear_bit(0*32+31, &c->x86_capability);
-	
+
 	/* On C+ stepping K8 rep microcode works well for copy/memset */
 	level = cpuid_eax(1);
-	if (c->x86 == 15 && ((level >= 0x0f48 && level < 0x0f50) || level >= 0x0f58))
+	if (c->x86 == 15 && ((level >= 0x0f48 && level < 0x0f50) ||
+			     level >= 0x0f58))
 		set_bit(X86_FEATURE_REP_GOOD, &c->x86_capability);
 	if (c->x86 == 0x10 || c->x86 == 0x11)
 		set_bit(X86_FEATURE_REP_GOOD, &c->x86_capability);
@@ -656,14 +661,14 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 
 	level = get_model_name(c);
 	if (!level) {
-		switch (c->x86) { 
+		switch (c->x86) {
 		case 15:
 			/* Should distinguish Models here, but this is only
 			   a fallback anyways. */
 			strcpy(c->x86_model_id, "Hammer");
-			break; 
-		} 
-	} 
+			break;
+		}
+	}
 	display_cacheinfo(c);
 
 	/* c->x86_power is 8000_0007 edx. Bit 8 is constant TSC */
@@ -697,25 +702,26 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 static void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_SMP
-	u32 	eax, ebx, ecx, edx;
-	int 	index_msb, core_bits;
+	u32 eax, ebx, ecx, edx;
+	int index_msb, core_bits;
 
 	cpuid(1, &eax, &ebx, &ecx, &edx);
 
 
 	if (!cpu_has(c, X86_FEATURE_HT))
 		return;
- 	if (cpu_has(c, X86_FEATURE_CMP_LEGACY))
+	if (cpu_has(c, X86_FEATURE_CMP_LEGACY))
 		goto out;
 
 	smp_num_siblings = (ebx & 0xff0000) >> 16;
 
 	if (smp_num_siblings == 1) {
 		printk(KERN_INFO  "CPU: Hyper-Threading is disabled\n");
-	} else if (smp_num_siblings > 1 ) {
+	} else if (smp_num_siblings > 1) {
 
 		if (smp_num_siblings > NR_CPUS) {
-			printk(KERN_WARNING "CPU: Unsupported number of the siblings %d", smp_num_siblings);
+			printk(KERN_WARNING "CPU: Unsupported number of "
+			       "siblings %d", smp_num_siblings);
 			smp_num_siblings = 1;
 			return;
 		}
@@ -725,7 +731,7 @@ static void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 
 		smp_num_siblings = smp_num_siblings / c->x86_max_cores;
 
-		index_msb = get_count_order(smp_num_siblings) ;
+		index_msb = get_count_order(smp_num_siblings);
 
 		core_bits = get_count_order(c->x86_max_cores);
 
@@ -734,8 +740,10 @@ static void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 	}
 out:
 	if ((c->x86_max_cores * smp_num_siblings) > 1) {
-		printk(KERN_INFO  "CPU: Physical Processor ID: %d\n", c->phys_proc_id);
-		printk(KERN_INFO  "CPU: Processor Core ID: %d\n", c->cpu_core_id);
+		printk(KERN_INFO  "CPU: Physical Processor ID: %d\n",
+		       c->phys_proc_id);
+		printk(KERN_INFO  "CPU: Processor Core ID: %d\n",
+		       c->cpu_core_id);
 	}
 
 #endif
@@ -783,7 +791,7 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 	unsigned n;
 
 	init_intel_cacheinfo(c);
-	if (c->cpuid_level > 9 ) {
+	if (c->cpuid_level > 9) {
 		unsigned eax = cpuid_eax(10);
 		/* Check for version and the number of counters */
 		if ((eax & 0xff) && (((eax>>8) & 0xff) > 1))
@@ -822,7 +830,7 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 		set_bit(X86_FEATURE_SYNC_RDTSC, &c->x86_capability);
 	else
 		clear_bit(X86_FEATURE_SYNC_RDTSC, &c->x86_capability);
- 	c->x86_max_cores = intel_num_cpu_cores(c);
+	c->x86_max_cores = intel_num_cpu_cores(c);
 
 	srat_detect_node();
 }
@@ -869,7 +877,7 @@ static void __cpuinit early_identify_cpu(struct cpuinfo_x86 *c)
 	      (unsigned int *)&c->x86_vendor_id[0],
 	      (unsigned int *)&c->x86_vendor_id[8],
 	      (unsigned int *)&c->x86_vendor_id[4]);
-		
+
 	get_cpu_vendor(c);
 
 	/* Initialize the standard set of capabilities */
@@ -887,7 +895,7 @@ static void __cpuinit early_identify_cpu(struct cpuinfo_x86 *c)
 			c->x86 += (tfms >> 20) & 0xff;
 		if (c->x86 >= 0x6)
 			c->x86_model += ((tfms >> 16) & 0xF) << 4;
-		if (c->x86_capability[0] & (1<<19)) 
+		if (c->x86_capability[0] & (1<<19))
 			c->x86_clflush_size = ((misc >> 8) & 0xff) * 8;
 	} else {
 		/* Have CPUID level 0 only - unheard of */
@@ -959,7 +967,7 @@ void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 	}
 
 	select_idle_routine(c);
-	detect_ht(c); 
+	detect_ht(c);
 
 	/*
 	 * On SMP, boot_cpu_data holds the common feature set between
@@ -969,7 +977,7 @@ void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 	 */
 	if (c != &boot_cpu_data) {
 		/* AND the already accumulated flags with these */
-		for (i = 0 ; i < NCAPINTS ; i++)
+		for (i = 0; i < NCAPINTS; i++)
 			boot_cpu_data.x86_capability[i] &= c->x86_capability[i];
 	}
 
@@ -982,17 +990,16 @@ void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 	numa_add_cpu(smp_processor_id());
 #endif
 }
- 
 
 void __cpuinit print_cpu_info(struct cpuinfo_x86 *c)
 {
 	if (c->x86_model_id[0])
-		printk("%s", c->x86_model_id);
+		printk(KERN_INFO "%s", c->x86_model_id);
 
-	if (c->x86_mask || c->cpuid_level >= 0) 
-		printk(" stepping %02x\n", c->x86_mask);
+	if (c->x86_mask || c->cpuid_level >= 0)
+		printk(KERN_CONT " stepping %02x\n", c->x86_mask);
 	else
-		printk("\n");
+		printk(KERN_CONT "\n");
 }
 
 /*
@@ -1002,9 +1009,9 @@ void __cpuinit print_cpu_info(struct cpuinfo_x86 *c)
 static int show_cpuinfo(struct seq_file *m, void *v)
 {
 	struct cpuinfo_x86 *c = v;
-	int cpu = 0;
+	int cpu = 0, i;
 
-	/* 
+	/*
 	 * These flag bits must match the definitions in <asm/cpufeature.h>.
 	 * NULL means this bit is undefined or reserved; either way it doesn't
 	 * have meaning as far as Linux is concerned.  Note that it's important
@@ -1014,10 +1021,10 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	 */
 	static const char *const x86_cap_flags[] = {
 		/* Intel-defined */
-	        "fpu", "vme", "de", "pse", "tsc", "msr", "pae", "mce",
-	        "cx8", "apic", NULL, "sep", "mtrr", "pge", "mca", "cmov",
-	        "pat", "pse36", "pn", "clflush", NULL, "dts", "acpi", "mmx",
-	        "fxsr", "sse", "sse2", "ss", "ht", "tm", "ia64", "pbe",
+		"fpu", "vme", "de", "pse", "tsc", "msr", "pae", "mce",
+		"cx8", "apic", NULL, "sep", "mtrr", "pge", "mca", "cmov",
+		"pat", "pse36", "pn", "clflush", NULL, "dts", "acpi", "mmx",
+		"fxsr", "sse", "sse2", "ss", "ht", "tm", "ia64", "pbe",
 
 		/* AMD-defined */
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
@@ -1084,34 +1091,35 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	cpu = c->cpu_index;
 #endif
 
-	seq_printf(m,"processor\t: %u\n"
-		     "vendor_id\t: %s\n"
-		     "cpu family\t: %d\n"
-		     "model\t\t: %d\n"
-		     "model name\t: %s\n",
-		     (unsigned)cpu,
-		     c->x86_vendor_id[0] ? c->x86_vendor_id : "unknown",
-		     c->x86,
-		     (int)c->x86_model,
-		     c->x86_model_id[0] ? c->x86_model_id : "unknown");
-	
+	seq_printf(m, "processor\t: %u\n"
+		   "vendor_id\t: %s\n"
+		   "cpu family\t: %d\n"
+		   "model\t\t: %d\n"
+		   "model name\t: %s\n",
+		   (unsigned)cpu,
+		   c->x86_vendor_id[0] ? c->x86_vendor_id : "unknown",
+		   c->x86,
+		   (int)c->x86_model,
+		   c->x86_model_id[0] ? c->x86_model_id : "unknown");
+
 	if (c->x86_mask || c->cpuid_level >= 0)
 		seq_printf(m, "stepping\t: %d\n", c->x86_mask);
 	else
 		seq_printf(m, "stepping\t: unknown\n");
-	
-	if (cpu_has(c,X86_FEATURE_TSC)) {
+
+	if (cpu_has(c, X86_FEATURE_TSC)) {
 		unsigned int freq = cpufreq_quick_get((unsigned)cpu);
+
 		if (!freq)
 			freq = cpu_khz;
 		seq_printf(m, "cpu MHz\t\t: %u.%03u\n",
-			     freq / 1000, (freq % 1000));
+			   freq / 1000, (freq % 1000));
 	}
 
 	/* Cache size */
-	if (c->x86_cache_size >= 0) 
+	if (c->x86_cache_size >= 0)
 		seq_printf(m, "cache size\t: %d KB\n", c->x86_cache_size);
-	
+
 #ifdef CONFIG_SMP
 	if (smp_num_siblings * c->x86_max_cores > 1) {
 		seq_printf(m, "physical id\t: %d\n", c->phys_proc_id);
@@ -1120,48 +1128,43 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		seq_printf(m, "core id\t\t: %d\n", c->cpu_core_id);
 		seq_printf(m, "cpu cores\t: %d\n", c->booted_cores);
 	}
-#endif	
+#endif
 
 	seq_printf(m,
-	        "fpu\t\t: yes\n"
-	        "fpu_exception\t: yes\n"
-	        "cpuid level\t: %d\n"
-	        "wp\t\t: yes\n"
-	        "flags\t\t:",
+		   "fpu\t\t: yes\n"
+		   "fpu_exception\t: yes\n"
+		   "cpuid level\t: %d\n"
+		   "wp\t\t: yes\n"
+		   "flags\t\t:",
 		   c->cpuid_level);
 
-	{ 
-		int i; 
-		for ( i = 0 ; i < 32*NCAPINTS ; i++ )
-			if (cpu_has(c, i) && x86_cap_flags[i] != NULL)
-				seq_printf(m, " %s", x86_cap_flags[i]);
-	}
-		
+	for (i = 0; i < 32*NCAPINTS; i++)
+		if (cpu_has(c, i) && x86_cap_flags[i] != NULL)
+			seq_printf(m, " %s", x86_cap_flags[i]);
+
 	seq_printf(m, "\nbogomips\t: %lu.%02lu\n",
 		   c->loops_per_jiffy/(500000/HZ),
 		   (c->loops_per_jiffy/(5000/HZ)) % 100);
 
-	if (c->x86_tlbsize > 0) 
+	if (c->x86_tlbsize > 0)
 		seq_printf(m, "TLB size\t: %d 4K pages\n", c->x86_tlbsize);
 	seq_printf(m, "clflush size\t: %d\n", c->x86_clflush_size);
 	seq_printf(m, "cache_alignment\t: %d\n", c->x86_cache_alignment);
 
-	seq_printf(m, "address sizes\t: %u bits physical, %u bits virtual\n", 
+	seq_printf(m, "address sizes\t: %u bits physical, %u bits virtual\n",
 		   c->x86_phys_bits, c->x86_virt_bits);
 
 	seq_printf(m, "power management:");
-	{
-		unsigned i;
-		for (i = 0; i < 32; i++) 
-			if (c->x86_power & (1 << i)) {
-				if (i < ARRAY_SIZE(x86_power_flags) &&
-					x86_power_flags[i])
-					seq_printf(m, "%s%s",
-						x86_power_flags[i][0]?" ":"",
-						x86_power_flags[i]);
-				else
-					seq_printf(m, " [%d]", i);
-			}
+	for (i = 0; i < 32; i++) {
+		if (c->x86_power & (1 << i)) {
+			if (i < ARRAY_SIZE(x86_power_flags) &&
+			    x86_power_flags[i])
+				seq_printf(m, "%s%s",
+					   x86_power_flags[i][0]?" ":"",
+					   x86_power_flags[i]);
+			else
+				seq_printf(m, " [%d]", i);
+		}
 	}
 
 	seq_printf(m, "\n\n");
@@ -1189,7 +1192,7 @@ static void c_stop(struct seq_file *m, void *v)
 }
 
 struct seq_operations cpuinfo_op = {
-	.start =c_start,
+	.start = c_start,
 	.next =	c_next,
 	.stop =	c_stop,
 	.show =	show_cpuinfo,
