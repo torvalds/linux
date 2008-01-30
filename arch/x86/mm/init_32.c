@@ -65,7 +65,7 @@ static pmd_t * __init one_md_table_init(pgd_t *pgd)
 	if (!(pgd_val(*pgd) & _PAGE_PRESENT)) {
 		pmd_table = (pmd_t *) alloc_bootmem_low_pages(PAGE_SIZE);
 
-		paravirt_alloc_pd(__pa(pmd_table) >> PAGE_SHIFT);
+		paravirt_alloc_pd(&init_mm, __pa(pmd_table) >> PAGE_SHIFT);
 		set_pgd(pgd, __pgd(__pa(pmd_table) | _PAGE_PRESENT));
 		pud = pud_offset(pgd, 0);
 		if (pmd_table != pmd_offset(pud, 0))
@@ -365,7 +365,7 @@ void __init native_pagetable_setup_start(pgd_t *base)
 	memset(&base[USER_PTRS_PER_PGD], 0,
 	       KERNEL_PGD_PTRS * sizeof(pgd_t));
 #else
-	paravirt_alloc_pd(__pa(swapper_pg_dir) >> PAGE_SHIFT);
+	paravirt_alloc_pd(&init_mm, __pa(base) >> PAGE_SHIFT);
 #endif
 }
 

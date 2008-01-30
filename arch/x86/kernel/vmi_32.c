@@ -398,7 +398,7 @@ static void vmi_allocate_pt(struct mm_struct *mm, u32 pfn)
 	vmi_ops.allocate_page(pfn, VMI_PAGE_L1, 0, 0, 0);
 }
 
-static void vmi_allocate_pd(u32 pfn)
+static void vmi_allocate_pd(struct mm_struct *mm, u32 pfn)
 {
  	/*
 	 * This call comes in very early, before mem_map is setup.

@@ -221,7 +221,7 @@ struct pv_mmu_ops {
 
 	/* Hooks for allocating/releasing pagetable pages */
 	void (*alloc_pt)(struct mm_struct *mm, u32 pfn);
-	void (*alloc_pd)(u32 pfn);
+	void (*alloc_pd)(struct mm_struct *mm, u32 pfn);
 	void (*alloc_pd_clone)(u32 pfn, u32 clonepfn, u32 start, u32 count);
 	void (*release_pt)(u32 pfn);
 	void (*release_pd)(u32 pfn);
@@ -903,9 +903,9 @@ static inline void paravirt_release_pt(unsigned pfn)
 	PVOP_VCALL1(pv_mmu_ops.release_pt, pfn);
 }
 
-static inline void paravirt_alloc_pd(unsigned pfn)
+static inline void paravirt_alloc_pd(struct mm_struct *mm, unsigned pfn)
 {
-	PVOP_VCALL1(pv_mmu_ops.alloc_pd, pfn);
+	PVOP_VCALL2(pv_mmu_ops.alloc_pd, mm, pfn);
 }
 
 static inline void paravirt_alloc_pd_clone(unsigned pfn, unsigned clonepfn,

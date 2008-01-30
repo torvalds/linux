@@ -330,13 +330,15 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 	if (PTRS_PER_PMD == 1 || !pgd)
 		return pgd;
 
+	mm->pgd = pgd;		/* so that alloc_pd can use it */
+
  	for (i = 0; i < UNSHARED_PTRS_PER_PGD; ++i) {
 		pmd_t *pmd = pmd_cache_alloc(i);
 
 		if (!pmd)
 			goto out_oom;
 
-		paravirt_alloc_pd(__pa(pmd) >> PAGE_SHIFT);
+		paravirt_alloc_pd(mm, __pa(pmd) >> PAGE_SHIFT);
 		set_pgd(&pgd[i], __pgd(1 + __pa(pmd)));
 	}
 	return pgd;
