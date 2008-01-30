@@ -278,26 +278,6 @@ extern unsigned long thread_saved_pc(struct task_struct *tsk);
 
 #define KSTK_ESP(task) (task_pt_regs(task)->sp)
 
-static inline void native_load_sp0(struct tss_struct *tss, struct thread_struct *thread)
-{
-	tss->x86_tss.sp0 = thread->sp0;
-	/* This can only happen when SEP is enabled, no need to test "SEP"arately */
-	if (unlikely(tss->x86_tss.ss1 != thread->sysenter_cs)) {
-		tss->x86_tss.ss1 = thread->sysenter_cs;
-		wrmsr(MSR_IA32_SYSENTER_CS, thread->sysenter_cs, 0);
-	}
-}
-
-#ifdef CONFIG_PARAVIRT
-#include <asm/paravirt.h>
-#else
-
-static inline void load_sp0(struct tss_struct *tss, struct thread_struct *thread)
-{
-	native_load_sp0(tss, thread);
-}
-#endif /* CONFIG_PARAVIRT */
-
 /* generic versions from gas */
 #define GENERIC_NOP1	".byte 0x90\n"
 #define GENERIC_NOP2    	".byte 0x89,0xf6\n"

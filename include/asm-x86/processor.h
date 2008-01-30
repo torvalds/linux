@@ -193,8 +193,22 @@ static inline void native_set_iopl_mask(unsigned mask)
 #endif
 }
 
+static inline void native_load_sp0(struct tss_struct *tss,
+				   struct thread_struct *thread)
+{
+	tss->x86_tss.sp0 = thread->sp0;
+#ifdef CONFIG_X86_32
+	/* Only happens when SEP is enabled, no need to test "SEP"arately */
+	if (unlikely(tss->x86_tss.ss1 != thread->sysenter_cs)) {
+		tss->x86_tss.ss1 = thread->sysenter_cs;
+		wrmsr(MSR_IA32_SYSENTER_CS, thread->sysenter_cs, 0);
+	}
+#endif
+}
 
-#ifndef CONFIG_PARAVIRT
+#ifdef CONFIG_PARAVIRT
+#include <asm/paravirt.h>
+#else
 #define __cpuid native_cpuid
 #define paravirt_enabled() 0
 
@@ -205,6 +219,12 @@ static inline void native_set_iopl_mask(unsigned mask)
 	(var) = native_get_debugreg(register)
 #define set_debugreg(value, register)				\
 	native_set_debugreg(register, value)
+
+static inline void load_sp0(struct tss_struct *tss,
+			    struct thread_struct *thread)
+{
+	native_load_sp0(tss, thread);
+}
 
 #define set_iopl_mask native_set_iopl_mask
 #endif /* CONFIG_PARAVIRT */
