@@ -2801,14 +2801,11 @@ void bond_loadbalance_arp_mon(struct work_struct *work)
 	}
 
 	if (do_failover) {
-		rtnl_lock();
 		write_lock_bh(&bond->curr_slave_lock);
 
 		bond_select_active_slave(bond);
 
 		write_unlock_bh(&bond->curr_slave_lock);
-		rtnl_unlock();
-
 	}
 
 re_arm:
@@ -2865,8 +2862,6 @@ void bond_activebackup_arp_mon(struct work_struct *work)
 
 				slave->link = BOND_LINK_UP;
 
-				rtnl_lock();
-
 				write_lock_bh(&bond->curr_slave_lock);
 
 				if ((!bond->curr_active_slave) &&
@@ -2902,7 +2897,6 @@ void bond_activebackup_arp_mon(struct work_struct *work)
 				}
 
 				write_unlock_bh(&bond->curr_slave_lock);
-				rtnl_unlock();
 			}
 		} else {
 			read_lock(&bond->curr_slave_lock);
@@ -2972,15 +2966,12 @@ void bond_activebackup_arp_mon(struct work_struct *work)
 			       bond->dev->name,
 			       slave->dev->name);
 
-			rtnl_lock();
 			write_lock_bh(&bond->curr_slave_lock);
 
 			bond_select_active_slave(bond);
 			slave = bond->curr_active_slave;
 
 			write_unlock_bh(&bond->curr_slave_lock);
-
-			rtnl_unlock();
 
 			bond->current_arp_slave = slave;
 
@@ -2999,12 +2990,9 @@ void bond_activebackup_arp_mon(struct work_struct *work)
 			       bond->primary_slave->dev->name);
 
 			/* primary is up so switch to it */
-			rtnl_lock();
 			write_lock_bh(&bond->curr_slave_lock);
 			bond_change_active_slave(bond, bond->primary_slave);
 			write_unlock_bh(&bond->curr_slave_lock);
-
-			rtnl_unlock();
 
 			slave = bond->primary_slave;
 			slave->jiffies = jiffies;
