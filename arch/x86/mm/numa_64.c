@@ -11,6 +11,7 @@
 #include <linux/ctype.h>
 #include <linux/module.h>
 #include <linux/nodemask.h>
+#include <linux/sched.h>
 
 #include <asm/e820.h>
 #include <asm/proto.h>
@@ -30,12 +31,12 @@ bootmem_data_t plat_node_bdata[MAX_NUMNODES];
 
 struct memnode memnode;
 
-int cpu_to_node_map[NR_CPUS] __read_mostly = {
+u16 cpu_to_node_map[NR_CPUS] __read_mostly = {
 	[0 ... NR_CPUS-1] = NUMA_NO_NODE
 };
 EXPORT_SYMBOL(cpu_to_node_map);
 
-unsigned char apicid_to_node[MAX_LOCAL_APIC] __cpuinitdata = {
+u16 apicid_to_node[MAX_LOCAL_APIC] __cpuinitdata = {
 	[0 ... MAX_LOCAL_APIC-1] = NUMA_NO_NODE
 };
 
@@ -543,7 +544,9 @@ void __init numa_initmem_init(unsigned long start_pfn, unsigned long end_pfn)
 	node_set(0, node_possible_map);
 	for (i = 0; i < NR_CPUS; i++)
 		numa_set_node(i, 0);
-	node_to_cpumask_map[0] = cpumask_of_cpu(0);
+	/* we can't use cpumask_of_cpu() yet */
+	memset(&node_to_cpumask_map[0], 0, sizeof(node_to_cpumask_map[0]));
+	cpu_set(0, node_to_cpumask_map[0]);
 	e820_register_active_regions(0, start_pfn, end_pfn);
 	setup_node_bootmem(0, start_pfn << PAGE_SHIFT, end_pfn << PAGE_SHIFT);
 }

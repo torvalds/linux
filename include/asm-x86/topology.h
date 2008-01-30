@@ -30,7 +30,7 @@
 #include <asm/mpspec.h>
 
 /* Mappings between logical cpu number and node number */
-extern int cpu_to_node_map[];
+extern u16 cpu_to_node_map[];
 extern cpumask_t node_to_cpumask_map[];
 
 /* Returns the number of the node containing CPU 'cpu' */
