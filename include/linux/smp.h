@@ -78,6 +78,8 @@ int on_each_cpu(void (*func) (void *info), void *info, int retry, int wait);
  */
 void smp_prepare_boot_cpu(void);
 
+extern unsigned int setup_max_cpus;
+
 #else /* !SMP */
 
 /*
