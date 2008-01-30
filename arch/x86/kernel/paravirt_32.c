@@ -60,7 +60,7 @@ DEF_NATIVE(pv_irq_ops, irq_enable, "sti");
 DEF_NATIVE(pv_irq_ops, restore_fl, "push %eax; popf");
 DEF_NATIVE(pv_irq_ops, save_fl, "pushf; pop %eax");
 DEF_NATIVE(pv_cpu_ops, iret, "iret");
-DEF_NATIVE(pv_cpu_ops, irq_enable_sysexit, "sti; sysexit");
+DEF_NATIVE(pv_cpu_ops, irq_enable_syscall_ret, "sti; sysexit");
 DEF_NATIVE(pv_mmu_ops, read_cr2, "mov %cr2, %eax");
 DEF_NATIVE(pv_mmu_ops, write_cr3, "mov %eax, %cr3");
 DEF_NATIVE(pv_mmu_ops, read_cr3, "mov %cr3, %eax");
@@ -88,7 +88,7 @@ static unsigned native_patch(u8 type, u16 clobbers, void *ibuf,
 	SITE(pv_irq_ops, restore_fl);
 	SITE(pv_irq_ops, save_fl);
 	SITE(pv_cpu_ops, iret);
-	SITE(pv_cpu_ops, irq_enable_sysexit);
+	SITE(pv_cpu_ops, irq_enable_syscall_ret);
 	SITE(pv_mmu_ops, read_cr2);
 	SITE(pv_mmu_ops, read_cr3);
 	SITE(pv_mmu_ops, write_cr3);
@@ -186,7 +186,7 @@ unsigned paravirt_patch_default(u8 type, u16 clobbers, void *insnbuf,
 		/* If the operation is a nop, then nop the callsite */
 		ret = paravirt_patch_nop();
 	else if (type == PARAVIRT_PATCH(pv_cpu_ops.iret) ||
-		 type == PARAVIRT_PATCH(pv_cpu_ops.irq_enable_sysexit))
+		 type == PARAVIRT_PATCH(pv_cpu_ops.irq_enable_syscall_ret))
 		/* If operation requires a jmp, then jmp */
 		ret = paravirt_patch_jmp(insnbuf, opfunc, addr, len);
 	else
@@ -237,7 +237,7 @@ static void native_flush_tlb_single(unsigned long addr)
 
 /* These are in entry.S */
 extern void native_iret(void);
-extern void native_irq_enable_sysexit(void);
+extern void native_irq_enable_syscall_ret(void);
 
 static int __init print_banner(void)
 {
@@ -384,7 +384,7 @@ struct pv_cpu_ops pv_cpu_ops = {
 	.write_idt_entry = write_dt_entry,
 	.load_esp0 = native_load_esp0,
 
-	.irq_enable_sysexit = native_irq_enable_sysexit,
+	.irq_enable_syscall_ret = native_irq_enable_syscall_ret,
 	.iret = native_iret,
 
 	.set_iopl_mask = native_set_iopl_mask,

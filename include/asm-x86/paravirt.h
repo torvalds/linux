@@ -121,7 +121,7 @@ struct pv_cpu_ops {
 	u64 (*read_pmc)(void);
 
 	/* These two are jmp to, not actually called. */
-	void (*irq_enable_sysexit)(void);
+	void (*irq_enable_syscall_ret)(void);
 	void (*iret)(void);
 
 	struct pv_lazy_ops lazy_mode;
@@ -1138,9 +1138,10 @@ static inline unsigned long __raw_local_irq_save(void)
 		  call *%cs:pv_irq_ops+PV_IRQ_irq_enable;		\
 		  popl %edx; popl %ecx; popl %eax)
 
-#define ENABLE_INTERRUPTS_SYSEXIT					       \
-	PARA_SITE(PARA_PATCH(pv_cpu_ops, PV_CPU_irq_enable_sysexit), CLBR_NONE,\
-		  jmp *%cs:pv_cpu_ops+PV_CPU_irq_enable_sysexit)
+#define ENABLE_INTERRUPTS_SYSCALL_RET					\
+	PARA_SITE(PARA_PATCH(pv_cpu_ops, PV_CPU_irq_enable_syscall_ret),\
+		  CLBR_NONE,						\
+		  jmp *%cs:pv_cpu_ops+PV_CPU_irq_enable_syscall_ret)
 
 #define GET_CR0_INTO_EAX			\
 	push %ecx; push %edx;			\

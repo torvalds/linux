@@ -953,7 +953,7 @@ static const struct pv_cpu_ops xen_cpu_ops __initdata = {
 	.read_pmc = native_read_pmc,
 
 	.iret = (void *)&hypercall_page[__HYPERVISOR_iret],
-	.irq_enable_sysexit = NULL,  /* never called */
+	.irq_enable_syscall_ret = NULL,  /* never called */
 
 	.load_tr_desc = paravirt_nop,
 	.set_ldt = xen_set_ldt,
