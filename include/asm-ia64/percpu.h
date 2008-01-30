@@ -16,28 +16,11 @@
 #include <linux/threads.h>
 
 #ifdef HAVE_MODEL_SMALL_ATTRIBUTE
-# define __SMALL_ADDR_AREA	__attribute__((__model__ (__small__)))
-#else
-# define __SMALL_ADDR_AREA
+# define PER_CPU_ATTRIBUTES	__attribute__((__model__ (__small__)))
 #endif
 
 #define DECLARE_PER_CPU(type, name)				\
-	extern __SMALL_ADDR_AREA __typeof__(type) per_cpu__##name
-
-/* Separate out the type, so (int[3], foo) works. */
-#define DEFINE_PER_CPU(type, name)				\
-	__attribute__((__section__(".data.percpu")))		\
-	__SMALL_ADDR_AREA __typeof__(type) per_cpu__##name
-
-#ifdef CONFIG_SMP
-#define DEFINE_PER_CPU_SHARED_ALIGNED(type, name)			\
-	__attribute__((__section__(".data.percpu.shared_aligned")))	\
-	__SMALL_ADDR_AREA __typeof__(type) per_cpu__##name		\
-	____cacheline_aligned_in_smp
-#else
-#define DEFINE_PER_CPU_SHARED_ALIGNED(type, name)	\
-	DEFINE_PER_CPU(type, name)
-#endif
+	extern PER_CPU_ATTRIBUTES __typeof__(type) per_cpu__##name
 
 /*
  * Pretty much a literal copy of asm-generic/percpu.h, except that percpu_modcopy() is an
@@ -67,9 +50,6 @@ extern void *per_cpu_init(void);
 #define per_cpu_init()				(__phys_per_cpu_start)
 
 #endif	/* SMP */
-
-#define EXPORT_PER_CPU_SYMBOL(var)		EXPORT_SYMBOL(per_cpu__##var)
-#define EXPORT_PER_CPU_SYMBOL_GPL(var)		EXPORT_SYMBOL_GPL(per_cpu__##var)
 
 /*
  * Be extremely careful when taking the address of this variable!  Due to virtual
