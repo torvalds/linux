@@ -342,12 +342,13 @@ void alternatives_smp_switch(int smp)
 
 #ifdef CONFIG_LOCKDEP
 	/*
-	 * A not yet fixed binutils section handling bug prevents
-	 * alternatives-replacement from working reliably, so turn
-	 * it off:
+	 * Older binutils section handling bug prevented
+	 * alternatives-replacement from working reliably.
+	 *
+	 * If this still occurs then you should see a hang
+	 * or crash shortly after this line:
 	 */
-	printk("lockdep: not fixing up alternatives.\n");
-	return;
+	printk("lockdep: fixing up alternatives.\n");
 #endif
 
 	if (noreplace_smp || smp_alt_once)
