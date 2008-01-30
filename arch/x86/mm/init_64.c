@@ -569,22 +569,6 @@ void free_init_pages(char *what, unsigned long begin, unsigned long end)
 		free_page(addr);
 		totalram_pages++;
 	}
-#ifdef CONFIG_DEBUG_RODATA
-	/*
-	 * This will make the __init pages not present and
-	 * not executable, so that any attempt to use a
-	 * __init function from now on will fault immediately
-	 * rather than supriously later when memory gets reused.
-	 *
-	 * We only do this for DEBUG_RODATA to not break up the
-	 * 2Mb kernel mapping just for this debug feature.
-	 */
-	if (begin >= __START_KERNEL_map) {
-		set_memory_rw(begin, (end - begin)/PAGE_SIZE);
-		set_memory_np(begin, (end - begin)/PAGE_SIZE);
-		set_memory_nx(begin, (end - begin)/PAGE_SIZE);
-	}
-#endif
 #endif
 }
 

@@ -40,7 +40,7 @@ comment "Page alloc debug is incompatible with Software Suspend on i386"
 
 config DEBUG_PAGEALLOC
 	bool "Debug page memory allocations"
-	depends on DEBUG_KERNEL
+	depends on DEBUG_KERNEL && X86_32
 	help
 	  Unmap pages from the kernel linear mapping after free_pages().
 	  This results in a large slowdown, but helps to find certain types

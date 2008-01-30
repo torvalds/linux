@@ -781,8 +781,6 @@ void mark_rodata_ro(void)
 
 void free_init_pages(char *what, unsigned long begin, unsigned long end)
 {
-	unsigned long addr;
-
 #ifdef CONFIG_DEBUG_PAGEALLOC
 	/*
 	 * If debugging page accesses then do not free this memory but
@@ -793,6 +791,8 @@ void free_init_pages(char *what, unsigned long begin, unsigned long end)
 		begin, PAGE_ALIGN(end));
 	set_memory_np(begin, (end - begin) >> PAGE_SHIFT);
 #else
+	unsigned long addr;
+
 	/*
 	 * We just marked the kernel text read only above, now that
 	 * we are going to free part of that, we need to make that

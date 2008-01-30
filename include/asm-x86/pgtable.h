@@ -240,6 +240,7 @@ enum {
 	PG_LEVEL_NONE,
 	PG_LEVEL_4K,
 	PG_LEVEL_2M,
+	PG_LEVEL_1G,
 };
 
 /*

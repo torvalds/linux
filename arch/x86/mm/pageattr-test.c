@@ -15,8 +15,7 @@
 #include <asm/kdebug.h>
 
 enum {
-	NTEST			= 400,
-	LOWEST_LEVEL		= PG_LEVEL_4K,
+	NTEST			= 4000,
 #ifdef CONFIG_X86_64
 	LPS			= (1 << PMD_SHIFT),
 #elif defined(CONFIG_X86_PAE)
@@ -59,10 +58,10 @@ static __init int print_split(struct split_state *s)
 			continue;
 		}
 
-		if (level == 2 && sizeof(long) == 8) {
+		if (level == PG_LEVEL_1G && sizeof(long) == 8) {
 			s->gpg++;
 			i += GPS/PAGE_SIZE;
-		} else if (level != LOWEST_LEVEL) {
+		} else if (level == PG_LEVEL_2M) {
 			if (!(pte_val(*pte) & _PAGE_PSE)) {
 				printk(KERN_ERR
 					"%lx level %d but not PSE %Lx\n",
@@ -162,7 +161,7 @@ static __init int exercise_pageattr(void)
 			continue;
 		}
 
-		err = __change_page_attr_clear(addr[i], len[i],
+		err = change_page_attr_clear(addr[i], len[i],
 					       __pgprot(_PAGE_GLOBAL));
 		if (err < 0) {
 			printk(KERN_ERR "CPA %d failed %d\n", i, err);
@@ -175,7 +174,7 @@ static __init int exercise_pageattr(void)
 				pte ? (u64)pte_val(*pte) : 0ULL);
 			failed++;
 		}
-		if (level != LOWEST_LEVEL) {
+		if (level != PG_LEVEL_4K) {
 			printk(KERN_ERR "CPA %lx: unexpected level %d\n",
 				addr[i], level);
 			failed++;
@@ -183,7 +182,6 @@ static __init int exercise_pageattr(void)
 
 	}
 	vfree(bm);
-	cpa_flush_all();
 
 	failed += print_split(&sb);
 
@@ -197,7 +195,7 @@ static __init int exercise_pageattr(void)
 			failed++;
 			continue;
 		}
-		err = __change_page_attr_set(addr[i], len[i],
+		err = change_page_attr_set(addr[i], len[i],
 					     __pgprot(_PAGE_GLOBAL));
 		if (err < 0) {
 			printk(KERN_ERR "CPA reverting failed: %d\n", err);
@@ -211,7 +209,6 @@ static __init int exercise_pageattr(void)
 		}
 
 	}
-	cpa_flush_all();
 
 	failed += print_split(&sc);
 
