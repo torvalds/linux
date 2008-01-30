@@ -80,10 +80,11 @@ extern irqreturn_t hpet_rtc_interrupt(int irq, void *dev_id);
 
 #endif /* CONFIG_HPET_EMULATE_RTC */
 
-#else
+#else /* CONFIG_HPET_TIMER */
 
 static inline int hpet_enable(void) { return 0; }
 static inline unsigned long hpet_readl(unsigned long a) { return 0; }
+static inline int is_hpet_enabled(void) { return 0; }
 
-#endif /* CONFIG_HPET_TIMER */
+#endif
 #endif /* ASM_X86_HPET_H */
