@@ -37,9 +37,8 @@ pte_t *lookup_address(unsigned long address, int *level)
 	return pte_offset_kernel(pmd, address);
 }
 
-static void set_pmd_pte(pte_t *kpte, unsigned long address, pte_t pte)
+static void __set_pmd_pte(pte_t *kpte, unsigned long address, pte_t pte)
 {
-	unsigned long flags;
 	struct page *page;
 
 	/* change init_mm */
@@ -47,7 +46,6 @@ static void set_pmd_pte(pte_t *kpte, unsigned long address, pte_t pte)
 	if (SHARED_KERNEL_PMD)
 		return;
 
-	spin_lock_irqsave(&pgd_lock, flags);
 	for (page = pgd_list; page; page = (struct page *)page->index) {
 		pgd_t *pgd;
 		pud_t *pud;
@@ -58,12 +56,12 @@ static void set_pmd_pte(pte_t *kpte, unsigned long address, pte_t pte)
 		pmd = pmd_offset(pud, address);
 		set_pte_atomic((pte_t *)pmd, pte);
 	}
-	spin_unlock_irqrestore(&pgd_lock, flags);
 }
 
 static int split_large_page(pte_t *kpte, unsigned long address)
 {
 	pgprot_t ref_prot = pte_pgprot(pte_clrhuge(*kpte));
+	unsigned long flags;
 	unsigned long addr;
 	pte_t *pbase, *tmp;
 	struct page *base;
@@ -73,7 +71,7 @@ static int split_large_page(pte_t *kpte, unsigned long address)
 	if (!base)
 		return -ENOMEM;
 
-	down_write(&init_mm.mmap_sem);
+	spin_lock_irqsave(&pgd_lock, flags);
 	/*
 	 * Check for races, another CPU might have split this page
 	 * up for us already:
@@ -95,11 +93,11 @@ static int split_large_page(pte_t *kpte, unsigned long address)
 	/*
 	 * Install the new, split up pagetable:
 	 */
-	set_pmd_pte(kpte, address, mk_pte(base, ref_prot));
+	__set_pmd_pte(kpte, address, mk_pte(base, ref_prot));
 	base = NULL;
 
 out_unlock:
-	up_write(&init_mm.mmap_sem);
+	spin_unlock_irqrestore(&pgd_lock, flags);
 
 	if (base)
 		__free_pages(base, 0);
