@@ -51,37 +51,37 @@ static int putreg(struct task_struct *child,
 	struct pt_regs *regs = task_pt_regs(child);
 	regno >>= 2;
 	switch (regno) {
-		case GS:
-			if (value && (value & 3) != 3)
-				return -EIO;
-			child->thread.gs = value;
-			return 0;
-		case DS:
-		case ES:
-		case FS:
-			if (value && (value & 3) != 3)
-				return -EIO;
-			value &= 0xffff;
-			break;
-		case SS:
-		case CS:
-			if ((value & 3) != 3)
-				return -EIO;
-			value &= 0xffff;
-			break;
-		case EFL:
-			value &= FLAG_MASK;
-			/*
-			 * If the user value contains TF, mark that
-			 * it was not "us" (the debugger) that set it.
-			 * If not, make sure it stays set if we had.
-			 */
-			if (value & X86_EFLAGS_TF)
-				clear_tsk_thread_flag(child, TIF_FORCED_TF);
-			else if (test_tsk_thread_flag(child, TIF_FORCED_TF))
-				value |= X86_EFLAGS_TF;
-			value |= regs->flags & ~FLAG_MASK;
-			break;
+	case GS:
+		if (value && (value & 3) != 3)
+			return -EIO;
+		child->thread.gs = value;
+		return 0;
+	case DS:
+	case ES:
+	case FS:
+		if (value && (value & 3) != 3)
+			return -EIO;
+		value &= 0xffff;
+		break;
+	case SS:
+	case CS:
+		if ((value & 3) != 3)
+			return -EIO;
+		value &= 0xffff;
+		break;
+	case EFL:
+		value &= FLAG_MASK;
+		/*
+		 * If the user value contains TF, mark that
+		 * it was not "us" (the debugger) that set it.
+		 * If not, make sure it stays set if we had.
+		 */
+		if (value & X86_EFLAGS_TF)
+			clear_tsk_thread_flag(child, TIF_FORCED_TF);
+		else if (test_tsk_thread_flag(child, TIF_FORCED_TF))
+			value |= X86_EFLAGS_TF;
+		value |= regs->flags & ~FLAG_MASK;
+		break;
 	}
 	*pt_regs_access(regs, regno) = value;
 	return 0;
@@ -94,26 +94,26 @@ static unsigned long getreg(struct task_struct *child, unsigned long regno)
 
 	regno >>= 2;
 	switch (regno) {
-		case EFL:
-			/*
-			 * If the debugger set TF, hide it from the readout.
-			 */
-			retval = regs->flags;
-			if (test_tsk_thread_flag(child, TIF_FORCED_TF))
-				retval &= ~X86_EFLAGS_TF;
-			break;
-		case GS:
-			retval = child->thread.gs;
-			break;
-		case DS:
-		case ES:
-		case FS:
-		case SS:
-		case CS:
-			retval = 0xffff;
-			/* fall through */
-		default:
-			retval &= *pt_regs_access(regs, regno);
+	case EFL:
+		/*
+		 * If the debugger set TF, hide it from the readout.
+		 */
+		retval = regs->flags;
+		if (test_tsk_thread_flag(child, TIF_FORCED_TF))
+			retval &= ~X86_EFLAGS_TF;
+		break;
+	case GS:
+		retval = child->thread.gs;
+		break;
+	case DS:
+	case ES:
+	case FS:
+	case SS:
+	case CS:
+		retval = 0xffff;
+		/* fall through */
+	default:
+		retval &= *pt_regs_access(regs, regno);
 	}
 	return retval;
 }
@@ -190,7 +190,7 @@ static int ptrace_set_debugreg(struct task_struct *child,
  * Make sure the single step bit is not set.
  */
 void ptrace_disable(struct task_struct *child)
-{ 
+{
 	user_disable_single_step(child);
 	clear_tsk_thread_flag(child, TIF_SYSCALL_EMU);
 }
@@ -203,7 +203,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 	switch (request) {
 	/* when I and D space are separate, these will need to be fixed. */
-	case PTRACE_PEEKTEXT: /* read word at location addr. */ 
+	case PTRACE_PEEKTEXT: /* read word at location addr. */
 	case PTRACE_PEEKDATA:
 		ret = generic_ptrace_peekdata(child, addr, data);
 		break;
@@ -213,7 +213,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		unsigned long tmp;
 
 		ret = -EIO;
-		if ((addr & 3) || addr < 0 || 
+		if ((addr & 3) || addr < 0 ||
 		    addr > sizeof(struct user) - 3)
 			break;
 
@@ -238,7 +238,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 	case PTRACE_POKEUSR: /* write the word at location addr in the USER area */
 		ret = -EIO;
-		if ((addr & 3) || addr < 0 || 
+		if ((addr & 3) || addr < 0 ||
 		    addr > sizeof(struct user) - 3)
 			break;
 
