@@ -311,6 +311,22 @@ static inline void __init early_clear_fixmap(enum fixed_addresses idx)
 
 int __initdata early_ioremap_nested;
 
+static int __init check_early_ioremap_leak(void)
+{
+	if (!early_ioremap_nested)
+		return 0;
+
+	printk(KERN_WARNING
+		"Debug warning: early ioremap leak of %d areas detected.\n",
+			early_ioremap_nested);
+	printk(KERN_WARNING
+		"please boot with early_ioremap_debug and report the dmesg.\n");
+	WARN_ON(1);
+
+	return 1;
+}
+late_initcall(check_early_ioremap_leak);
+
 void __init *early_ioremap(unsigned long phys_addr, unsigned long size)
 {
 	unsigned long offset, last_addr;
