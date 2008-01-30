@@ -106,8 +106,8 @@ static int ioremap_change_attr(unsigned long phys_addr, unsigned long size,
  * have to convert them into an offset in a page-aligned mapping, but the
  * caller shouldn't need to know that small detail.
  */
-void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
-			unsigned long flags)
+static void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
+			       unsigned long flags)
 {
 	void __iomem *addr;
 	struct vm_struct *area;
@@ -164,7 +164,6 @@ void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
 
 	return (void __iomem *) (offset + (char __iomem *)addr);
 }
-EXPORT_SYMBOL(__ioremap);
 
 /**
  * ioremap_nocache     -   map bus memory into CPU space
@@ -192,6 +191,12 @@ void __iomem *ioremap_nocache(unsigned long phys_addr, unsigned long size)
 	return __ioremap(phys_addr, size, _PAGE_PCD | _PAGE_PWT);
 }
 EXPORT_SYMBOL(ioremap_nocache);
+
+void __iomem *ioremap_cache(unsigned long phys_addr, unsigned long size)
+{
+	return __ioremap(phys_addr, size, 0);
+}
+EXPORT_SYMBOL(ioremap_cache);
 
 /**
  * iounmap - Free a IO remapping

@@ -100,8 +100,6 @@ static inline void * phys_to_virt(unsigned long address)
  */
 #define page_to_phys(page)    ((dma_addr_t)page_to_pfn(page) << PAGE_SHIFT)
 
-extern void __iomem * __ioremap(unsigned long offset, unsigned long size, unsigned long flags);
-
 /**
  * ioremap     -   map bus memory into CPU space
  * @offset:    bus address of the memory
@@ -116,18 +114,13 @@ extern void __iomem * __ioremap(unsigned long offset, unsigned long size, unsign
  * If the area you are trying to map is a PCI BAR you should have a
  * look at pci_iomap().
  */
-extern void __iomem * ioremap_nocache(unsigned long offset, unsigned long size);
-
-static inline void __iomem *
-ioremap_cache(unsigned long offset, unsigned long size)
-{
-	return __ioremap(offset, size, 0);
-}
+extern void __iomem *ioremap_nocache(unsigned long offset, unsigned long size);
+extern void __iomem *ioremap_cache(unsigned long offset, unsigned long size);
 
 /*
  * The default ioremap() behavior is non-cached:
  */
-static inline void __iomem * ioremap(unsigned long offset, unsigned long size)
+static inline void __iomem *ioremap(unsigned long offset, unsigned long size)
 {
 	return ioremap_nocache(offset, size);
 }
