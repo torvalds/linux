@@ -1033,9 +1033,7 @@ ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
 
 done:
 	pipe->nrbufs = pipe->curbuf = 0;
-	if (bytes > 0)
-		file_accessed(in);
-
+	file_accessed(in);
 	return bytes;
 
 out_release:
