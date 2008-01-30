@@ -904,19 +904,9 @@ int __kprobes kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 		 * In case the user-specified fault handler returned
 		 * zero, try to fix up.
 		 */
-#ifdef CONFIG_X86_64
-		{
-			const struct exception_table_entry *fixup;
-			fixup = search_exception_tables(regs->ip);
-			if (fixup) {
-				regs->ip = fixup->fixup;
-				return 1;
-			}
-		}
-#else
 		if (fixup_exception(regs))
 			return 1;
-#endif
+
 		/*
 		 * fixup routine could not handle it,
 		 * Let do_page_fault() fix it.
