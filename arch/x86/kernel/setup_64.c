@@ -999,7 +999,6 @@ void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 		break;
 	}
 
-	select_idle_routine(c);
 	detect_ht(c);
 
 	/*
@@ -1017,6 +1016,8 @@ void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 #ifdef CONFIG_X86_MCE
 	mcheck_init(c);
 #endif
+	select_idle_routine(c);
+
 	if (c != &boot_cpu_data)
 		mtrr_ap_init();
 #ifdef CONFIG_NUMA
