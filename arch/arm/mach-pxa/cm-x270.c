@@ -29,6 +29,7 @@
 #include <asm/mach/map.h>
 
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/pxa2xx-regs.h>
 #include <asm/arch/pxafb.h>
 #include <asm/arch/ohci.h>
 #include <asm/arch/mmc.h>
