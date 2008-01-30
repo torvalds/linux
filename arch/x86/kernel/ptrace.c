@@ -32,10 +32,15 @@
 
 /*
  * Determines which flags the user has access to [1 = access, 0 = no access].
- * Prohibits changing ID(21), VIP(20), VIF(19), VM(17), NT(14), IOPL(12-13), IF(9).
- * Also masks reserved bits (31-22, 15, 5, 3, 1).
  */
-#define FLAG_MASK 0x00050dd5
+#define FLAG_MASK_32		((unsigned long)			\
+				 (X86_EFLAGS_CF | X86_EFLAGS_PF |	\
+				  X86_EFLAGS_AF | X86_EFLAGS_ZF |	\
+				  X86_EFLAGS_SF | X86_EFLAGS_TF |	\
+				  X86_EFLAGS_DF | X86_EFLAGS_OF |	\
+				  X86_EFLAGS_RF | X86_EFLAGS_AC))
+
+#define FLAG_MASK		FLAG_MASK_32
 
 static long *pt_regs_access(struct pt_regs *regs, unsigned long regno)
 {
