@@ -35,14 +35,10 @@
   *  - Arnaldo Carvalho de Melo <acme@conectiva.com.br>
   */
 
-#ifndef CONFIG_UDELAY_IO_DELAY
-extern void io_delay_init(void);
-#else
-static inline void io_delay_init(void)
-{
-}
-#endif
 extern void native_io_delay(void);
+
+extern int io_delay_type;
+extern void io_delay_init(void);
 
 static inline void slow_down_io(void)
 {

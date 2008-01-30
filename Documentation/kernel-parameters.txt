@@ -795,12 +795,14 @@ and is between 256 and 4096 characters. It is defined in the file
 			then look in the higher range.
 
 	io_delay=	[X86-32,X86-64] I/O delay method
-		standard
-			Standard port 0x80 delay
-		alternate
-			Alternate port 0xed delay
+		0x80
+			Standard port 0x80 based delay
+		0xed
+			Alternate port 0xed based delay (needed on some systems)
 		udelay
-			Simple two microsecond delay
+			Simple two microseconds delay
+		none
+			No delay
 
 	io7=		[HW] IO7 for Marvel based alpha systems
 			See comment before marvel_specify_io7 in

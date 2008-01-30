@@ -112,13 +112,78 @@ config IOMMU_LEAK
 	  Add a simple leak tracer to the IOMMU code. This is useful when you
 	  are debugging a buggy device driver that leaks IOMMU mappings.
 
-config UDELAY_IO_DELAY
-	bool "Delay I/O through udelay instead of outb"
-	depends on DEBUG_KERNEL
+#
+# IO delay types:
+#
+
+config IO_DELAY_TYPE_0X80
+	int
+	default "0"
+
+config IO_DELAY_TYPE_0XED
+	int
+	default "1"
+
+config IO_DELAY_TYPE_UDELAY
+	int
+	default "2"
+
+config IO_DELAY_TYPE_NONE
+	int
+	default "3"
+
+choice
+	prompt "IO delay type"
+	default IO_DELAY_0X80
+
+config IO_DELAY_0X80
+	bool "port 0x80 based port-IO delay [recommended]"
 	help
-	  Make inb_p/outb_p use udelay() based delays by default. Please note
-	  that udelay() does not have the same bus-level side-effects that
-	  the normal outb based delay does meaning this could cause drivers
-	  to change behaviour and/or bugs to surface.
+	  This is the traditional Linux IO delay used for in/out_p.
+	  It is the most tested hence safest selection here.
+
+config IO_DELAY_0XED
+	bool "port 0xed based port-IO delay"
+	help
+	  Use port 0xed as the IO delay. This frees up port 0x80 which is
+	  often used as a hardware-debug port.
+
+config IO_DELAY_UDELAY
+	bool "udelay based port-IO delay"
+	help
+	  Use udelay(2) as the IO delay method. This provides the delay
+	  while not having any side-effect on the IO port space.
+
+config IO_DELAY_NONE
+	bool "no port-IO delay"
+	help
+	  No port-IO delay. Will break on old boxes that require port-IO
+	  delay for certain operations. Should work on most new machines.
+
+endchoice
+
+if IO_DELAY_0X80
+config DEFAULT_IO_DELAY_TYPE
+	int
+	default IO_DELAY_TYPE_0X80
+endif
+
+if IO_DELAY_0XED
+config DEFAULT_IO_DELAY_TYPE
+	int
+	default IO_DELAY_TYPE_0XED
+endif
+
+if IO_DELAY_UDELAY
+config DEFAULT_IO_DELAY_TYPE
+	int
+	default IO_DELAY_TYPE_UDELAY
+endif
+
+if IO_DELAY_NONE
+config DEFAULT_IO_DELAY_TYPE
+	int
+	default IO_DELAY_TYPE_NONE
+endif
 
 endmenu

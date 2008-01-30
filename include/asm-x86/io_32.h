@@ -250,14 +250,10 @@ static inline void flush_write_buffers(void)
 
 #endif /* __KERNEL__ */
 
-#ifndef CONFIG_UDELAY_IO_DELAY
-extern void io_delay_init(void);
-#else
-static inline void io_delay_init(void)
-{
-}
-#endif
 extern void native_io_delay(void);
+
+extern int io_delay_type;
+extern void io_delay_init(void);
 
 #if defined(CONFIG_PARAVIRT)
 #include <asm/paravirt.h>
