@@ -475,14 +475,16 @@ good_area:
 	else
 		tsk->min_flt++;
 
+#ifdef CONFIG_X86_32
 	/*
 	 * Did it hit the DOS screen memory VA from vm86 mode?
 	 */
-	if (regs->flags & VM_MASK) {
+	if (v8086_mode(regs)) {
 		unsigned long bit = (address - 0xA0000) >> PAGE_SHIFT;
 		if (bit < 32)
 			tsk->thread.screen_bitmap |= 1 << bit;
 	}
+#endif
 	up_read(&mm->mmap_sem);
 	return;
 
