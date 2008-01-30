@@ -156,15 +156,6 @@ static inline void load_TLS(struct thread_struct *t, unsigned int cpu)
 		gdt[i] = t->tls_array[i];
 }
 
-static inline unsigned long get_desc_base(const void *ptr)
-{
-	const u32 *desc = ptr;
-	unsigned long base;
-	base = ((desc[0] >> 16)  & 0x0000ffff) |
-		((desc[1] << 16) & 0x00ff0000) |
-		(desc[1] & 0xff000000);
-	return base;
-}
 #endif /* !__ASSEMBLY__ */
 
 #endif

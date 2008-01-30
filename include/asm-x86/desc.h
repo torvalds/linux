@@ -69,6 +69,11 @@ static inline void load_LDT(mm_context_t *pc)
 	preempt_enable();
 }
 
+static inline unsigned long get_desc_base(struct desc_struct *desc)
+{
+	return desc->base0 | ((desc->base1) << 16) | ((desc->base2) << 24);
+}
+
 #else
 /*
  * GET_DESC_BASE reads the descriptor base of the specified segment.
