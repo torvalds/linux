@@ -61,13 +61,13 @@ static void set_pmd_pte(pte_t *kpte, unsigned long address, pte_t pte)
 	spin_unlock_irqrestore(&pgd_lock, flags);
 }
 
-static int
-split_large_page(pte_t *kpte, unsigned long address, pgprot_t ref_prot)
+static int split_large_page(pte_t *kpte, unsigned long address)
 {
-	int i, level;
+	pgprot_t ref_prot = pte_pgprot(pte_clrhuge(*kpte));
 	unsigned long addr;
 	pte_t *pbase, *tmp;
 	struct page *base;
+	int i, level;
 
 	base = alloc_pages(GFP_KERNEL, 0);
 	if (!base)
@@ -109,11 +109,9 @@ out_unlock:
 
 static int __change_page_attr(struct page *page, pgprot_t prot)
 {
-	pgprot_t ref_prot = PAGE_KERNEL;
 	struct page *kpte_page;
 	unsigned long address;
 	int level, err = 0;
-	pgprot_t oldprot;
 	pte_t *kpte;
 
 	BUG_ON(PageHighMem(page));
@@ -124,7 +122,6 @@ repeat:
 	if (!kpte)
 		return -EINVAL;
 
-	oldprot = pte_pgprot(*kpte);
 	kpte_page = virt_to_page(kpte);
 	BUG_ON(PageLRU(kpte_page));
 	BUG_ON(PageCompound(kpte_page));
@@ -137,16 +134,10 @@ repeat:
 		address < (unsigned long)&_etext &&
 	       (pgprot_val(prot) & _PAGE_NX));
 
-	if ((address & LARGE_PAGE_MASK) < (unsigned long)&_etext)
-		ref_prot = PAGE_KERNEL_EXEC;
-
-	ref_prot = canon_pgprot(ref_prot);
-	prot = canon_pgprot(prot);
-
 	if (level == 3) {
-		set_pte_atomic(kpte, mk_pte(page, prot));
+		set_pte_atomic(kpte, mk_pte(page, canon_pgprot(prot)));
 	} else {
-		err = split_large_page(kpte, address, ref_prot);
+		err = split_large_page(kpte, address);
 		if (!err)
 			goto repeat;
 	}
