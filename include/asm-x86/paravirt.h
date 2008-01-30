@@ -1227,6 +1227,12 @@ static inline unsigned long __raw_local_irq_save(void)
 	push %ecx; push %edx;			\
 	call *pv_cpu_ops+PV_CPU_read_cr0;	\
 	pop %edx; pop %ecx
+#else
+#define GET_CR2_INTO_RCX			\
+	call *pv_mmu_ops+PV_MMU_read_cr2;	\
+	movq %rax, %rcx;			\
+	xorq %rax, %rax;
+
 #endif
 
 #endif /* __ASSEMBLY__ */
