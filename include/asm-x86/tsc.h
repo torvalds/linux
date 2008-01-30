@@ -73,8 +73,7 @@ int check_tsc_unstable(void);
 extern void check_tsc_sync_source(int cpu);
 extern void check_tsc_sync_target(void);
 
-#ifdef CONFIG_X86_64
 extern void tsc_calibrate(void);
-#endif
+extern int notsc_setup(char *);
 
 #endif

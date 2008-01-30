@@ -51,11 +51,8 @@ extern void check_efer(void);
 extern unsigned long table_start, table_end;
 
 extern int exception_trace;
-extern unsigned cpu_khz;
-extern unsigned tsc_khz;
 
 extern int reboot_force;
-extern int notsc_setup(char *);
 
 extern int gsi_irq_sharing(int gsi);
 
