@@ -38,8 +38,6 @@ extern u32 pmtmr_ioport;
 #endif
 extern int nohpet;
 
-extern void early_printk(const char *fmt, ...) __attribute__((format(printf,1,2)));
-
 extern void numa_initmem_init(unsigned long start_pfn, unsigned long end_pfn);
 extern unsigned long numa_free_all_bootmem(void);
 
@@ -49,15 +47,9 @@ extern void load_gs_index(unsigned gs);
 
 extern unsigned long end_pfn_map; 
 
-extern void show_trace(struct task_struct *, struct pt_regs *, unsigned long * rsp);
-extern void show_registers(struct pt_regs *regs);
-
 extern void exception_table_check(void);
 
 extern void swap_low_mappings(void);
-
-extern void __show_regs(struct pt_regs * regs);
-extern void show_regs(struct pt_regs * regs);
 
 extern void syscall32_cpu_init(void);
 

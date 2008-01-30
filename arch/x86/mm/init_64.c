@@ -43,6 +43,7 @@
 #include <asm/proto.h>
 #include <asm/smp.h>
 #include <asm/sections.h>
+#include <asm/kdebug.h>
 
 #ifndef Dprintk
 #define Dprintk(x...)

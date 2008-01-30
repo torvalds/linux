@@ -22,10 +22,15 @@ enum die_val {
 	DIE_PAGE_FAULT,
 };
 
+extern void early_printk(const char *fmt, ...) __attribute__((format(printf,1,2)));
 extern void printk_address(unsigned long address);
 extern void die(const char *,struct pt_regs *,long);
 extern void __die(const char *,struct pt_regs *,long);
 extern void show_registers(struct pt_regs *regs);
+extern void __show_registers(struct pt_regs *, int all);
+extern void show_trace(struct task_struct *, struct pt_regs *, unsigned long *);
+extern void __show_regs(struct pt_regs *regs);
+extern void show_regs(struct pt_regs *regs);
 extern void dump_pagetable(unsigned long);
 extern unsigned long oops_begin(void);
 extern void oops_end(unsigned long);

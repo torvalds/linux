@@ -26,6 +26,7 @@
 #include <asm/proto.h>
 #include <asm/setup.h>
 #include <asm/sections.h>
+#include <asm/kdebug.h>
 
 struct e820map e820;
 

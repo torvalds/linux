@@ -19,6 +19,7 @@
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <asm/sections.h>
+#include <asm/kdebug.h>
 
 static void __init zap_identity_mappings(void)
 {
