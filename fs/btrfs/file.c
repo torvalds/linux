@@ -591,8 +591,7 @@ next_slot:
 				}
 			}
 			bookend = 1;
-			if (found_inline && start <= key.offset &&
-			    inline_limit < extent_end)
+			if (found_inline && start <= key.offset)
 				keep = 1;
 		}
 		/* truncate existing extent */
@@ -672,11 +671,10 @@ next_slot:
 			if (!bookend)
 				continue;
 		}
-		if (bookend && found_inline && start <= key.offset &&
-		    inline_limit < extent_end && key.offset <= inline_limit) {
+		if (bookend && found_inline && start <= key.offset) {
 			u32 new_size;
 			new_size = btrfs_file_extent_calc_inline_size(
-						   extent_end - inline_limit);
+						   extent_end - end);
 			btrfs_truncate_item(trans, root, path, new_size, 0);
 		}
 		/* create bookend, splitting the extent in two */
