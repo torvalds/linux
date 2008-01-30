@@ -137,6 +137,17 @@ enum {
 };
 #endif /* __KERNEL__ */
 #endif /* !__i386__ */
+
+#ifdef __KERNEL__
+
+struct user_desc;
+extern int do_get_thread_area(struct task_struct *p, int idx,
+			      struct user_desc __user *info);
+extern int do_set_thread_area(struct task_struct *p, int idx,
+			      struct user_desc __user *info, int can_allocate);
+
+#endif /* __KERNEL__ */
+
 #endif /* !__ASSEMBLY__ */
 
 #endif

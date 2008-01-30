@@ -474,23 +474,19 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		   64bit debugger to fully examine them too. Better
 		   don't use it against 64bit processes, use
 		   PTRACE_ARCH_PRCTL instead. */
-	case PTRACE_SET_THREAD_AREA: {
-		struct user_desc __user *p;
-		int old; 
-		p = (struct user_desc __user *)data;
-		get_user(old,  &p->entry_number); 
-		put_user(addr, &p->entry_number);
-		ret = do_set_thread_area(&child->thread, p);
-		put_user(old,  &p->entry_number); 
-		break;
 	case PTRACE_GET_THREAD_AREA:
-		p = (struct user_desc __user *)data;
-		get_user(old,  &p->entry_number); 
-		put_user(addr, &p->entry_number);
-		ret = do_get_thread_area(&child->thread, p);
-		put_user(old,  &p->entry_number); 
+		if (addr < 0)
+			return -EIO;
+		ret = do_get_thread_area(child, addr,
+					 (struct user_desc __user *) data);
+
 		break;
-	} 
+	case PTRACE_SET_THREAD_AREA:
+		if (addr < 0)
+			return -EIO;
+		ret = do_set_thread_area(child, addr,
+					 (struct user_desc __user *) data, 0);
+		break;
 #endif
 		/* normal 64bit interface to access TLS data. 
 		   Works just like arch_prctl, except that the arguments
