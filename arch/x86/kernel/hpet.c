@@ -6,7 +6,6 @@
 #include <linux/init.h>
 #include <linux/sysdev.h>
 #include <linux/pm.h>
-#include <linux/delay.h>
 
 #include <asm/fixmap.h>
 #include <asm/hpet.h>
