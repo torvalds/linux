@@ -211,6 +211,8 @@ struct gfs2_glock {
 	struct delayed_work gl_work;
 };
 
+#define GFS2_MIN_LVB_SIZE 32	/* Min size of LVB that gfs2 supports */
+
 struct gfs2_alloc {
 	/* Quota stuff */
 

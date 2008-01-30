@@ -26,7 +26,6 @@
 #include "glock.h"
 #include "glops.h"
 #include "inode.h"
-#include "lm.h"
 #include "mount.h"
 #include "ops_fstype.h"
 #include "ops_dentry.h"
@@ -361,6 +360,13 @@ static int map_journal_extents(struct gfs2_sbd *sdp)
 		prev_db = db;
 	}
 	return rc;
+}
+
+static void gfs2_lm_others_may_mount(struct gfs2_sbd *sdp)
+{
+	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
+		sdp->sd_lockstruct.ls_ops->lm_others_may_mount(
+					sdp->sd_lockstruct.ls_lockspace);
 }
 
 static int init_journal(struct gfs2_sbd *sdp, int undo)
@@ -702,6 +708,69 @@ fail_quotad:
 fail:
 	kthread_stop(sdp->sd_logd_process);
 	return error;
+}
+
+/**
+ * gfs2_lm_mount - mount a locking protocol
+ * @sdp: the filesystem
+ * @args: mount arguements
+ * @silent: if 1, don't complain if the FS isn't a GFS2 fs
+ *
+ * Returns: errno
+ */
+
+static int gfs2_lm_mount(struct gfs2_sbd *sdp, int silent)
+{
+	char *proto = sdp->sd_proto_name;
+	char *table = sdp->sd_table_name;
+	int flags = 0;
+	int error;
+
+	if (sdp->sd_args.ar_spectator)
+		flags |= LM_MFLAG_SPECTATOR;
+
+	fs_info(sdp, "Trying to join cluster \"%s\", \"%s\"\n", proto, table);
+
+	error = gfs2_mount_lockproto(proto, table, sdp->sd_args.ar_hostdata,
+				     gfs2_glock_cb, sdp,
+				     GFS2_MIN_LVB_SIZE, flags,
+				     &sdp->sd_lockstruct, &sdp->sd_kobj);
+	if (error) {
+		fs_info(sdp, "can't mount proto=%s, table=%s, hostdata=%s\n",
+			proto, table, sdp->sd_args.ar_hostdata);
+		goto out;
+	}
+
+	if (gfs2_assert_warn(sdp, sdp->sd_lockstruct.ls_lockspace) ||
+	    gfs2_assert_warn(sdp, sdp->sd_lockstruct.ls_ops) ||
+	    gfs2_assert_warn(sdp, sdp->sd_lockstruct.ls_lvb_size >=
+				  GFS2_MIN_LVB_SIZE)) {
+		gfs2_unmount_lockproto(&sdp->sd_lockstruct);
+		goto out;
+	}
+
+	if (sdp->sd_args.ar_spectator)
+		snprintf(sdp->sd_fsname, GFS2_FSNAME_LEN, "%s.s", table);
+	else
+		snprintf(sdp->sd_fsname, GFS2_FSNAME_LEN, "%s.%u", table,
+			 sdp->sd_lockstruct.ls_jid);
+
+	fs_info(sdp, "Joined cluster. Now mounting FS...\n");
+
+	if ((sdp->sd_lockstruct.ls_flags & LM_LSFLAG_LOCAL) &&
+	    !sdp->sd_args.ar_ignore_local_fs) {
+		sdp->sd_args.ar_localflocks = 1;
+		sdp->sd_args.ar_localcaching = 1;
+	}
+
+out:
+	return error;
+}
+
+void gfs2_lm_unmount(struct gfs2_sbd *sdp)
+{
+	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
+		gfs2_unmount_lockproto(&sdp->sd_lockstruct);
 }
 
 /**

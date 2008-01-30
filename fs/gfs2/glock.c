@@ -35,7 +35,6 @@
 #include "glock.h"
 #include "glops.h"
 #include "inode.h"
-#include "lm.h"
 #include "lops.h"
 #include "meta_io.h"
 #include "quota.h"
@@ -183,7 +182,8 @@ static void glock_free(struct gfs2_glock *gl)
 	struct gfs2_sbd *sdp = gl->gl_sbd;
 	struct inode *aspace = gl->gl_aspace;
 
-	gfs2_lm_put_lock(sdp, gl->gl_lock);
+	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
+		sdp->sd_lockstruct.ls_ops->lm_put_lock(gl->gl_lock);
 
 	if (aspace)
 		gfs2_aspace_put(aspace);
@@ -291,6 +291,16 @@ static void glock_work_func(struct work_struct *work)
 	run_queue(gl);
 	spin_unlock(&gl->gl_spin);
 	gfs2_glock_put(gl);
+}
+
+static int gfs2_lm_get_lock(struct gfs2_sbd *sdp, struct lm_lockname *name,
+		     void **lockp)
+{
+	int error = -EIO;
+	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
+		error = sdp->sd_lockstruct.ls_ops->lm_get_lock(
+				sdp->sd_lockstruct.ls_lockspace, name, lockp);
+	return error;
 }
 
 /**
@@ -882,6 +892,17 @@ out:
 		gfs2_holder_wake(gh);
 }
 
+static unsigned int gfs2_lm_lock(struct gfs2_sbd *sdp, void *lock,
+				 unsigned int cur_state, unsigned int req_state,
+				 unsigned int flags)
+{
+	int ret = 0;
+	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
+		ret = sdp->sd_lockstruct.ls_ops->lm_lock(lock, cur_state,
+							 req_state, flags);
+	return ret;
+}
+
 /**
  * gfs2_glock_xmote_th - Call into the lock module to acquire or change a glock
  * @gl: The glock in question
@@ -920,6 +941,15 @@ static void gfs2_glock_xmote_th(struct gfs2_glock *gl, struct gfs2_holder *gh)
 		gfs2_assert_warn(sdp, lck_ret == LM_OUT_ASYNC);
 	else
 		xmote_bh(gl, lck_ret);
+}
+
+static unsigned int gfs2_lm_unlock(struct gfs2_sbd *sdp, void *lock,
+				   unsigned int cur_state)
+{
+	int ret = 0;
+	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
+		ret =  sdp->sd_lockstruct.ls_ops->lm_unlock(lock, cur_state);
+	return ret;
 }
 
 /**
@@ -964,6 +994,7 @@ static void gfs2_glock_drop_th(struct gfs2_glock *gl)
 static void do_cancels(struct gfs2_holder *gh)
 {
 	struct gfs2_glock *gl = gh->gh_gl;
+	struct gfs2_sbd *sdp = gl->gl_sbd;
 
 	spin_lock(&gl->gl_spin);
 
@@ -972,7 +1003,8 @@ static void do_cancels(struct gfs2_holder *gh)
 	       !list_empty(&gh->gh_list)) {
 		if (!(gl->gl_req_gh && (gl->gl_req_gh->gh_flags & GL_NOCANCEL))) {
 			spin_unlock(&gl->gl_spin);
-			gfs2_lm_cancel(gl->gl_sbd, gl->gl_lock);
+			if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
+				sdp->sd_lockstruct.ls_ops->lm_cancel(gl->gl_lock);
 			msleep(100);
 			spin_lock(&gl->gl_spin);
 		} else {
@@ -1426,6 +1458,14 @@ void gfs2_glock_dq_uninit_m(unsigned int num_gh, struct gfs2_holder *ghs)
 		gfs2_glock_dq_uninit(&ghs[x]);
 }
 
+static int gfs2_lm_hold_lvb(struct gfs2_sbd *sdp, void *lock, char **lvbp)
+{
+	int error = -EIO;
+	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
+		error = sdp->sd_lockstruct.ls_ops->lm_hold_lvb(lock, lvbp);
+	return error;
+}
+
 /**
  * gfs2_lvb_hold - attach a LVB from a glock
  * @gl: The glock in question
@@ -1461,12 +1501,15 @@ int gfs2_lvb_hold(struct gfs2_glock *gl)
 
 void gfs2_lvb_unhold(struct gfs2_glock *gl)
 {
+	struct gfs2_sbd *sdp = gl->gl_sbd;
+
 	gfs2_glock_hold(gl);
 	gfs2_glmutex_lock(gl);
 
 	gfs2_assert(gl->gl_sbd, atomic_read(&gl->gl_lvb_count) > 0);
 	if (atomic_dec_and_test(&gl->gl_lvb_count)) {
-		gfs2_lm_unhold_lvb(gl->gl_sbd, gl->gl_lock, gl->gl_lvb);
+		if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
+			sdp->sd_lockstruct.ls_ops->lm_unhold_lvb(gl->gl_lock, gl->gl_lvb);
 		gl->gl_lvb = NULL;
 		gfs2_glock_put(gl);
 	}

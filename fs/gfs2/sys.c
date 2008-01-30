@@ -20,7 +20,6 @@
 
 #include "gfs2.h"
 #include "incore.h"
-#include "lm.h"
 #include "sys.h"
 #include "super.h"
 #include "glock.h"

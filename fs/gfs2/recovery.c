@@ -20,7 +20,6 @@
 #include "bmap.h"
 #include "glock.h"
 #include "glops.h"
-#include "lm.h"
 #include "lops.h"
 #include "meta_io.h"
 #include "recovery.h"
@@ -424,6 +423,16 @@ static int clean_journal(struct gfs2_jdesc *jd, struct gfs2_log_header_host *hea
 
 	return error;
 }
+
+
+static void gfs2_lm_recovery_done(struct gfs2_sbd *sdp, unsigned int jid,
+				  unsigned int message)
+{
+	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
+		sdp->sd_lockstruct.ls_ops->lm_recovery_done(
+			sdp->sd_lockstruct.ls_lockspace, jid, message);
+}
+
 
 /**
  * gfs2_recover_journal - recovery a given journal

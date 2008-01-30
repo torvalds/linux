@@ -30,7 +30,6 @@
 #include "glock.h"
 #include "glops.h"
 #include "inode.h"
-#include "lm.h"
 #include "log.h"
 #include "meta_io.h"
 #include "quota.h"
@@ -594,6 +593,36 @@ static int gfs2_setlease(struct file *file, long arg, struct file_lock **fl)
 	if (!sdp->sd_args.ar_localflocks)
 		return -EINVAL;
 	return generic_setlease(file, arg, fl);
+}
+
+static int gfs2_lm_plock_get(struct gfs2_sbd *sdp, struct lm_lockname *name,
+		      struct file *file, struct file_lock *fl)
+{
+	int error = -EIO;
+	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
+		error = sdp->sd_lockstruct.ls_ops->lm_plock_get(
+				sdp->sd_lockstruct.ls_lockspace, name, file, fl);
+	return error;
+}
+
+static int gfs2_lm_plock(struct gfs2_sbd *sdp, struct lm_lockname *name,
+		  struct file *file, int cmd, struct file_lock *fl)
+{
+	int error = -EIO;
+	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
+		error = sdp->sd_lockstruct.ls_ops->lm_plock(
+				sdp->sd_lockstruct.ls_lockspace, name, file, cmd, fl);
+	return error;
+}
+
+static int gfs2_lm_punlock(struct gfs2_sbd *sdp, struct lm_lockname *name,
+		    struct file *file, struct file_lock *fl)
+{
+	int error = -EIO;
+	if (likely(!test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
+		error = sdp->sd_lockstruct.ls_ops->lm_punlock(
+				sdp->sd_lockstruct.ls_lockspace, name, file, fl);
+	return error;
 }
 
 /**
