@@ -33,14 +33,14 @@ static inline cycles_t get_cycles(void)
 }
 
 /* Like get_cycles, but make sure the CPU is synchronized. */
-static __always_inline cycles_t get_cycles_sync(void)
+static __always_inline cycles_t __get_cycles_sync(void)
 {
 	unsigned long long ret;
 	unsigned eax, edx;
 
 	/*
-  	 * Use RDTSCP if possible; it is guaranteed to be synchronous
- 	 * and doesn't cause a VMEXIT on Hypervisors
+	 * Use RDTSCP if possible; it is guaranteed to be synchronous
+	 * and doesn't cause a VMEXIT on Hypervisors
 	 */
 	alternative_io(ASM_NOP3, ".byte 0x0f,0x01,0xf9", X86_FEATURE_RDTSCP,
 		       ASM_OUTPUT2("=a" (eax), "=d" (edx)),
@@ -55,10 +55,39 @@ static __always_inline cycles_t get_cycles_sync(void)
 	 */
 	alternative_io("cpuid", ASM_NOP2, X86_FEATURE_SYNC_RDTSC,
 			  "=a" (eax), "0" (1) : "ebx","ecx","edx","memory");
-	rdtscll(ret);
 
+	return 0;
+}
+
+static __always_inline cycles_t get_cycles_sync(void)
+{
+	unsigned long long ret;
+	ret = __get_cycles_sync();
+	if (!ret)
+		rdtscll(ret);
 	return ret;
 }
+
+#ifdef CONFIG_PARAVIRT
+/*
+ * For paravirt guests, some functionalities are executed through function
+ * pointers in the various pvops structures.
+ * These function pointers exist inside the kernel and can not
+ * be accessed by user space. To avoid this, we make a copy of the
+ * get_cycles_sync (called in kernel) but force the use of native_read_tsc.
+ * Ideally, the guest should set up it's own clock and vread
+ */
+static __always_inline long long vget_cycles_sync(void)
+{
+	unsigned long long ret;
+	ret = __get_cycles_sync();
+	if (!ret)
+		ret = native_read_tsc();
+	return ret;
+}
+#else
+# define vget_cycles_sync() get_cycles_sync()
+#endif
 
 extern void tsc_init(void);
 extern void mark_tsc_unstable(char *reason);
