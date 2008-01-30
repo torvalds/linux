@@ -355,6 +355,8 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 
 	si_code = SEGV_MAPERR;
 
+	if (notify_page_fault(regs))
+		return;
 
 	/*
 	 * We fault-in kernel-space virtual memory on-demand. The
@@ -380,17 +382,12 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 			if (vmalloc_fault(address) >= 0)
 				return;
 		}
-		if (notify_page_fault(regs))
-			return;
 		/*
 		 * Don't take the mm semaphore here. If we fixup a prefetch
 		 * fault we could otherwise deadlock.
 		 */
 		goto bad_area_nosemaphore;
 	}
-
-	if (notify_page_fault(regs))
-		return;
 
 	if (likely(regs->flags & X86_EFLAGS_IF))
 		local_irq_enable();

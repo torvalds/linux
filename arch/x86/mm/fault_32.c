@@ -295,12 +295,17 @@ void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
 	 */
 	trace_hardirqs_fixup();
 
+	tsk = current;
+	mm = tsk->mm;
+	prefetchw(&mm->mmap_sem);
+
 	/* get the address */
 	address = read_cr2();
 
-	tsk = current;
-
 	si_code = SEGV_MAPERR;
+
+	if (notify_page_fault(regs))
+		return;
 
 	/*
 	 * We fault-in kernel-space virtual memory on-demand. The
@@ -319,8 +324,6 @@ void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
 		if (!(error_code & (PF_RSVD|PF_USER|PF_PROT)) &&
 		    vmalloc_fault(address) >= 0)
 			return;
-		if (notify_page_fault(regs))
-			return;
 		/*
 		 * Don't take the mm semaphore here. If we fixup a prefetch
 		 * fault we could otherwise deadlock.
@@ -328,15 +331,10 @@ void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
 		goto bad_area_nosemaphore;
 	}
 
-	if (notify_page_fault(regs))
-		return;
-
 	/* It's safe to allow irq's after cr2 has been saved and the vmalloc
 	   fault has been handled. */
 	if (regs->flags & (X86_EFLAGS_IF|VM_MASK))
 		local_irq_enable();
-
-	mm = tsk->mm;
 
 	/*
 	 * If we're in an interrupt, have no user context or are running in an
