@@ -6,7 +6,7 @@ config TRACE_IRQFLAGS_SUPPORT
 source "lib/Kconfig.debug"
 
 config EARLY_PRINTK
-	bool "Early printk" if EMBEDDED && DEBUG_KERNEL && X86_32
+	bool "Early printk" if EMBEDDED
 	default y
 	help
 	  Write kernel log output directly into the VGA buffer or to a serial

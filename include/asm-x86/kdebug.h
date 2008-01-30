@@ -22,7 +22,6 @@ enum die_val {
 	DIE_PAGE_FAULT,
 };
 
-extern void early_printk(const char *fmt, ...) __attribute__((format(printf,1,2)));
 extern void printk_address(unsigned long address);
 extern void die(const char *,struct pt_regs *,long);
 extern int __must_check __die(const char *, struct pt_regs *, long);

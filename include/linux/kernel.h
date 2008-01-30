@@ -194,6 +194,9 @@ static inline int log_buf_read(int idx) { return 0; }
 static inline int log_buf_copy(char *dest, int idx, int len) { return 0; }
 #endif
 
+extern void __attribute__((format(printf, 1, 2)))
+	early_printk(const char *fmt, ...);
+
 unsigned long int_sqrt(unsigned long);
 
 extern int printk_ratelimit(void);

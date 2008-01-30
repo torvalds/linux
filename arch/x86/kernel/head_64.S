@@ -267,6 +267,7 @@ init_rsp:
 bad_address:
 	jmp bad_address
 
+#ifdef CONFIG_EARLY_PRINTK
 .macro early_idt_tramp first, last
 	.ifgt \last-\first
 	early_idt_tramp \first, \last-1
@@ -281,8 +282,10 @@ early_idt_handlers:
 	early_idt_tramp 64, 127
 	early_idt_tramp 128, 191
 	early_idt_tramp 192, 255
+#endif
 
 ENTRY(early_idt_handler)
+#ifdef CONFIG_EARLY_PRINTK
 	cmpl $2,early_recursion_flag(%rip)
 	jz  1f
 	incl early_recursion_flag(%rip)
@@ -311,8 +314,11 @@ ENTRY(early_idt_handler)
 	movq 8(%rsp),%rsi	# get rip again
 	call __print_symbol
 #endif
+#endif /* EARLY_PRINTK */
 1:	hlt
 	jmp 1b
+
+#ifdef CONFIG_EARLY_PRINTK
 early_recursion_flag:
 	.long 0
 
@@ -320,6 +326,7 @@ early_idt_msg:
 	.asciz "PANIC: early exception %02lx rip %lx:%lx error %lx cr2 %lx\n"
 early_idt_ripmsg:
 	.asciz "RIP %s\n"
+#endif /* CONFIG_EARLY_PRINTK */
 
 .balign PAGE_SIZE
 
