@@ -4,59 +4,6 @@
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__
 
-#include <linux/string.h>
-
-#ifdef CONFIG_X86_USE_3DNOW
-
-#include <asm/mmx.h>
-
-static inline void clear_page(void *page)
-{
-	mmx_clear_page(page);
-}
-
-static inline void copy_page(void *to, void *from)
-{
-	mmx_copy_page(to, from);
-}
-
-#else
-
-/*
- *	On older X86 processors it's not a win to use MMX here it seems.
- *	Maybe the K6-III ?
- */
- 
-static inline void clear_page(void *page)
-{
-	memset(page, 0, PAGE_SIZE);
-}
-
-static inline void copy_page(void *to, void *from)
-{
-	memcpy(to, from, PAGE_SIZE);
-}
-
-#endif
-
-struct page;
-
-static void inline clear_user_page(void *page, unsigned long vaddr,
-				struct page *pg)
-{
-	clear_page(page);
-}
-
-static void inline copy_user_page(void *to, void *from, unsigned long vaddr,
-				struct page *topage)
-{
-	copy_page(to, from);
-}
-
-#define __alloc_zeroed_user_highpage(movableflags, vma, vaddr) \
-	alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO | movableflags, vma, vaddr)
-#define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
-
 /*
  * These are used to make use of C type-checking..
  */

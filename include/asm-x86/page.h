@@ -70,6 +70,11 @@
 #define KERNEL_TEXT_SIZE  (40*1024*1024)
 #define KERNEL_TEXT_START _AC(0xffffffff80000000, UL)
 
+#ifndef __ASSEMBLY__
+void clear_page(void *page);
+void copy_page(void *to, void *from);
+#endif	/* !__ASSEMBLY__ */
+
 #endif	/* CONFIG_X86_64 */
 
 #ifdef CONFIG_X86_32
@@ -98,6 +103,34 @@
 #define HAVE_ARCH_HUGETLB_UNMAPPED_AREA
 #endif
 
+#ifndef __ASSEMBLY__
+#ifdef CONFIG_X86_USE_3DNOW
+#include <asm/mmx.h>
+
+static inline void clear_page(void *page)
+{
+	mmx_clear_page(page);
+}
+
+static inline void copy_page(void *to, void *from)
+{
+	mmx_copy_page(to, from);
+}
+#else  /* !CONFIG_X86_USE_3DNOW */
+#include <linux/string.h>
+
+static inline void clear_page(void *page)
+{
+	memset(page, 0, PAGE_SIZE);
+}
+
+static inline void copy_page(void *to, void *from)
+{
+	memcpy(to, from, PAGE_SIZE);
+}
+#endif	/* CONFIG_X86_3DNOW */
+#endif	/* !__ASSEMBLY__ */
+
 #endif	/* CONFIG_X86_32 */
 
 #define PAGE_OFFSET		((unsigned long)__PAGE_OFFSET)
@@ -105,6 +138,28 @@
 #define VM_DATA_DEFAULT_FLAGS \
 	(((current->personality & READ_IMPLIES_EXEC) ? VM_EXEC : 0 ) | \
 	 VM_READ | VM_WRITE | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
+
+
+#ifndef __ASSEMBLY__
+struct page;
+
+static void inline clear_user_page(void *page, unsigned long vaddr,
+				struct page *pg)
+{
+	clear_page(page);
+}
+
+static void inline copy_user_page(void *to, void *from, unsigned long vaddr,
+				struct page *topage)
+{
+	copy_page(to, from);
+}
+
+#define __alloc_zeroed_user_highpage(movableflags, vma, vaddr) \
+	alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO | movableflags, vma, vaddr)
+#define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
+
+#endif	/* __ASSEMBLY__ */
 
 
 #ifdef CONFIG_X86_32

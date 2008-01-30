@@ -7,26 +7,6 @@
 extern unsigned long end_pfn;
 extern unsigned long end_pfn_map;
 
-void clear_page(void *page);
-void copy_page(void *to, void *from);
-
-struct page;
-
-static void inline clear_user_page(void *page, unsigned long vaddr,
-				struct page *pg)
-{
-	clear_page(page);
-}
-
-static void inline copy_user_page(void *to, void *from, unsigned long vaddr,
-				struct page *topage)
-{
-	copy_page(to, from);
-}
-
-#define __alloc_zeroed_user_highpage(movableflags, vma, vaddr) \
-	alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO | movableflags, vma, vaddr)
-#define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
 /*
  * These are used to make use of C type-checking..
  */
