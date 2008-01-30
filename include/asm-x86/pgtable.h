@@ -189,6 +189,8 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 
 #define pte_pgprot(x) __pgprot(pte_val(x) & (0xfff | _PAGE_NX))
 
+#define canon_pgprot(p) __pgprot(pgprot_val(p) & __supported_pte_mask)
+
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
 #else  /* !CONFIG_PARAVIRT */
