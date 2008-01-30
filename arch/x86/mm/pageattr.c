@@ -312,10 +312,10 @@ static int change_page_attr_set(unsigned long addr, int numpages,
 	for (i = 0; i < numpages ; i++) {
 
 		pte = lookup_address(addr, &level);
-		if (pte)
-			current_prot = pte_pgprot(*pte);
-		else
-			pgprot_val(current_prot) = 0;
+		if (!pte)
+			return -EINVAL;
+
+		current_prot = pte_pgprot(*pte);
 
 		pgprot_val(new_prot) =
 			pgprot_val(current_prot) | pgprot_val(prot);
@@ -356,11 +356,12 @@ static int change_page_attr_clear(unsigned long addr, int numpages,
 	int i, ret;
 
 	for (i = 0; i < numpages; i++) {
+
 		pte = lookup_address(addr, &level);
-		if (pte)
-			current_prot = pte_pgprot(*pte);
-		else
-			pgprot_val(current_prot) = 0;
+		if (!pte)
+			return -EINVAL;
+
+		current_prot = pte_pgprot(*pte);
 
 		pgprot_val(new_prot) =
 				pgprot_val(current_prot) & ~pgprot_val(prot);
