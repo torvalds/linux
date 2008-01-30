@@ -286,6 +286,22 @@ static int is_errata93(struct pt_regs *regs, unsigned long address)
 	return 0;
 }
 
+/*
+ * Work around K8 erratum #100 K8 in compat mode occasionally jumps to illegal
+ * addresses >4GB.  We catch this in the page fault handler because these
+ * addresses are not reachable. Just detect this case and return.  Any code
+ * segment in LDT is compatibility mode.
+ */
+static int is_errata100(struct pt_regs *regs, unsigned long address)
+{
+#ifdef CONFIG_X86_64
+	if ((regs->cs == __USER32_CS || (regs->cs & (1<<2))) &&
+	    (address >> 32))
+		return 1;
+#endif
+	return 0;
+}
+
 void do_invalid_op(struct pt_regs *, unsigned long);
 
 static int is_f00f_bug(struct pt_regs *regs, unsigned long address)
@@ -564,6 +580,9 @@ bad_area_nosemaphore:
 		 * from user space.
 		 */
 		if (is_prefetch(regs, address, error_code))
+			return;
+
+		if (is_errata100(regs, address))
 			return;
 
 		if (show_unhandled_signals && unhandled_signal(tsk, SIGSEGV) &&
