@@ -21,6 +21,8 @@
 #include <asm/hpet.h>
 #include <asm/nmi.h>
 #include <asm/vgtod.h>
+#include <asm/time.h>
+#include <asm/timer.h>
 
 volatile unsigned long __jiffies __section_jiffies = INITIAL_JIFFIES;
 
@@ -54,7 +56,7 @@ static irqreturn_t timer_event_interrupt(int irq, void *dev_id)
 /* calibrate_cpu is used on systems with fixed rate TSCs to determine
  * processor frequency */
 #define TICK_COUNT 100000000
-static unsigned int __init tsc_calibrate_cpu_khz(void)
+unsigned long __init native_calculate_cpu_khz(void)
 {
 	int tsc_start, tsc_now;
 	int i, no_ctr_free;
@@ -104,20 +106,23 @@ static struct irqaction irq0 = {
 	.name		= "timer"
 };
 
-void __init time_init(void)
+void __init hpet_time_init(void)
 {
 	if (!hpet_enable())
 		setup_pit_timer();
 
 	setup_irq(0, &irq0);
+}
 
+void __init time_init(void)
+{
 	tsc_calibrate();
 
 	cpu_khz = tsc_khz;
 	if (cpu_has(&boot_cpu_data, X86_FEATURE_CONSTANT_TSC) &&
 		boot_cpu_data.x86_vendor == X86_VENDOR_AMD &&
 		boot_cpu_data.x86 == 16)
-		cpu_khz = tsc_calibrate_cpu_khz();
+		cpu_khz = calculate_cpu_khz();
 
 	if (unsynchronized_tsc())
 		mark_tsc_unstable("TSCs unsynchronized");
@@ -130,4 +135,5 @@ void __init time_init(void)
 	printk(KERN_INFO "time.c: Detected %d.%03d MHz processor.\n",
 		cpu_khz / 1000, cpu_khz % 1000);
 	init_tsc_clocksource();
+	late_time_init = choose_time_init();
 }
