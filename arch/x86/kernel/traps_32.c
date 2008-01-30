@@ -125,7 +125,8 @@ static inline unsigned long print_context_stack(struct thread_info *tinfo,
 		unsigned long addr;
 
 		addr = frame->return_address;
-		ops->address(data, addr);
+		if (__kernel_text_address(addr))
+			ops->address(data, addr);
 		/*
 		 * break out of recursive entries (such as
 		 * end_of_stack_stop_unwind_function). Also,
@@ -133,6 +134,7 @@ static inline unsigned long print_context_stack(struct thread_info *tinfo,
 		 * move downwards!
 		 */
 		next = frame->next_frame;
+		bp = (unsigned long) next;
 		if (next <= frame)
 			break;
 		frame = next;
