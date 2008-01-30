@@ -139,6 +139,9 @@ extern void iounmap(volatile void __iomem *addr);
  * mappings, before the real ioremap() is functional.
  * A boot-time mapping is currently limited to at most 16 pages.
  */
+extern void bt_ioremap_init(void);
+extern void bt_ioremap_clear(void);
+extern void bt_ioremap_reset(void);
 extern void *bt_ioremap(unsigned long offset, unsigned long size);
 extern void bt_iounmap(void *addr, unsigned long size);
 extern void __iomem *fix_ioremap(unsigned idx, unsigned long phys);
