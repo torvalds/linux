@@ -31,7 +31,7 @@ EXPORT_SYMBOL(__phys_addr);
  * conflicts.
  */
 static int ioremap_change_attr(unsigned long phys_addr, unsigned long size,
-			       unsigned long flags)
+			       pgprot_t prot)
 {
 	int err = 0;
 	if (phys_addr + size - 1 < (end_pfn_map << PAGE_SHIFT)) {
@@ -50,8 +50,8 @@ static int ioremap_change_attr(unsigned long phys_addr, unsigned long size,
 		 * the phys addr can be a in hole between nodes and
 		 * not have an memmap entry.
 		 */
-		err = change_page_attr_addr(vaddr,npages,
-					    MAKE_GLOBAL(__PAGE_KERNEL|flags));
+		err = change_page_attr_addr(vaddr, npages, prot);
+
 		if (!err)
 			global_flush_tlb();
 	}
@@ -97,7 +97,7 @@ void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
 	/*
 	 * Ok, go for it..
 	 */
-	area = get_vm_area(size, VM_IOREMAP | (flags << 20));
+	area = get_vm_area(size, VM_IOREMAP);
 	if (!area)
 		return NULL;
 	area->phys_addr = phys_addr;
@@ -107,8 +107,7 @@ void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
 		remove_vm_area((void *)(PAGE_MASK & (unsigned long) addr));
 		return NULL;
 	}
-	if (flags && ioremap_change_attr(phys_addr, size, flags) < 0) {
-		area->flags &= 0xffffff;
+	if (ioremap_change_attr(phys_addr, size, pgprot) < 0) {
 		vunmap(addr);
 		return NULL;
 	}
@@ -180,8 +179,7 @@ void iounmap(volatile void __iomem *addr)
 	}
 
 	/* Reset the direct mapping. Can block */
-	if (p->flags >> 20)
-		ioremap_change_attr(p->phys_addr, p->size, 0);
+	ioremap_change_attr(p->phys_addr, p->size, PAGE_KERNEL);
 
 	/* Finally remove it */
 	o = remove_vm_area((void *)addr);

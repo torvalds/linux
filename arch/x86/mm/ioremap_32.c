@@ -74,7 +74,7 @@ void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
 	/*
 	 * Ok, go for it..
 	 */
-	area = get_vm_area(size, VM_IOREMAP | (flags << 20));
+	area = get_vm_area(size, VM_IOREMAP);
 	if (!area)
 		return NULL;
 	area->phys_addr = phys_addr;
@@ -189,7 +189,7 @@ void iounmap(volatile void __iomem *addr)
 	}
 
 	/* Reset the direct mapping. Can block */
-	if ((p->flags >> 20) && p->phys_addr < virt_to_phys(high_memory) - 1) {
+	if (p->phys_addr < virt_to_phys(high_memory) - 1) {
 		change_page_attr(virt_to_page(__va(p->phys_addr)),
 				 get_vm_area_size(p) >> PAGE_SHIFT,
 				 PAGE_KERNEL);
