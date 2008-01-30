@@ -19,6 +19,11 @@
 #define _PAGE_BIT_UNUSED3	11
 #define _PAGE_BIT_NX           63       /* No execute: only valid after cpuid check */
 
+/*
+ * Note: we use _AC(1, L) instead of _AC(1, UL) so that we get a
+ * sign-extended value on 32-bit with all 1's in the upper word,
+ * which preserves the upper pte values on 64-bit ptes:
+ */
 #define _PAGE_PRESENT	(_AC(1, L)<<_PAGE_BIT_PRESENT)
 #define _PAGE_RW	(_AC(1, L)<<_PAGE_BIT_RW)
 #define _PAGE_USER	(_AC(1, L)<<_PAGE_BIT_USER)
