@@ -84,8 +84,7 @@ void __iomem * __ioremap(unsigned long phys_addr, unsigned long size, unsigned l
 	if (phys_addr >= ISA_START_ADDRESS && last_addr < ISA_END_ADDRESS)
 		return (__force void __iomem *)phys_to_virt(phys_addr);
 
-	pgprot = __pgprot(_PAGE_PRESENT | _PAGE_RW | _PAGE_GLOBAL
-			  | _PAGE_DIRTY | _PAGE_ACCESSED | flags);
+	pgprot = __pgprot(__PAGE_KERNEL_EXEC | _PAGE_GLOBAL | flags);
 	/*
 	 * Mappings have to be page-aligned
 	 */
