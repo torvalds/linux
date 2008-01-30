@@ -4,6 +4,8 @@
 #ifdef __KERNEL__
 
 #include <linux/futex.h>
+
+#include <asm/asm.h>
 #include <asm/errno.h>
 #include <asm/system.h>
 #include <asm/processor.h>
@@ -17,13 +19,13 @@
 	jmp	2b\n\
 	.previous\n\
 	.section __ex_table,\"a\"\n\
-	.align	8\n\
-	.long	1b,3b\n\
+	.align	8\n"						\
+	_ASM_PTR "1b,3b\n					\
 	.previous"						\
 	: "=r" (oldval), "=r" (ret), "+m" (*uaddr)		\
 	: "i" (-EFAULT), "0" (oparg), "1" (0))
 
-#define __futex_atomic_op2(insn, ret, oldval, uaddr, oparg) \
+#define __futex_atomic_op2(insn, ret, oldval, uaddr, oparg)	\
   __asm__ __volatile (						\
 "1:	movl	%2, %0\n\
 	movl	%0, %3\n"					\
@@ -35,8 +37,8 @@
 	jmp	3b\n\
 	.previous\n\
 	.section __ex_table,\"a\"\n\
-	.align	8\n\
-	.long	1b,4b,2b,4b\n\
+	.align	8\n"						\
+	_ASM_PTR "1b,4b,2b,4b\n					\
 	.previous"						\
 	: "=&a" (oldval), "=&r" (ret), "+m" (*uaddr),		\
 	  "=&r" (tem)						\
@@ -56,36 +58,32 @@ futex_atomic_op_inuser (int encoded_op, int __user *uaddr)
 	if (! access_ok (VERIFY_WRITE, uaddr, sizeof(int)))
 		return -EFAULT;
 
+#ifndef CONFIG_X86_BSWAP
+	if (op == FUTEX_OP_SET && boot_cpu_data.x86 == 3)
+		return -ENOSYS;
+#endif
+
 	pagefault_disable();
 
-	if (op == FUTEX_OP_SET)
+	switch (op) {
+	case FUTEX_OP_SET:
 		__futex_atomic_op1("xchgl %0, %2", ret, oldval, uaddr, oparg);
-	else {
-#ifndef CONFIG_X86_BSWAP
-		if (boot_cpu_data.x86 == 3)
-			ret = -ENOSYS;
-		else
-#endif
-		switch (op) {
-		case FUTEX_OP_ADD:
-			__futex_atomic_op1(LOCK_PREFIX "xaddl %0, %2", ret,
-					   oldval, uaddr, oparg);
-			break;
-		case FUTEX_OP_OR:
-			__futex_atomic_op2("orl %4, %3", ret, oldval, uaddr,
-					   oparg);
-			break;
-		case FUTEX_OP_ANDN:
-			__futex_atomic_op2("andl %4, %3", ret, oldval, uaddr,
-					   ~oparg);
-			break;
-		case FUTEX_OP_XOR:
-			__futex_atomic_op2("xorl %4, %3", ret, oldval, uaddr,
-					   oparg);
-			break;
-		default:
-			ret = -ENOSYS;
-		}
+		break;
+	case FUTEX_OP_ADD:
+		__futex_atomic_op1(LOCK_PREFIX "xaddl %0, %2", ret, oldval,
+				   uaddr, oparg);
+		break;
+	case FUTEX_OP_OR:
+		__futex_atomic_op2("orl %4, %3", ret, oldval, uaddr, oparg);
+		break;
+	case FUTEX_OP_ANDN:
+		__futex_atomic_op2("andl %4, %3", ret, oldval, uaddr, ~oparg);
+		break;
+	case FUTEX_OP_XOR:
+		__futex_atomic_op2("xorl %4, %3", ret, oldval, uaddr, oparg);
+		break;
+	default:
+		ret = -ENOSYS;
 	}
 
 	pagefault_enable();
@@ -120,7 +118,7 @@ futex_atomic_cmpxchg_inatomic(int __user *uaddr, int oldval, int newval)
 
 		"	.section __ex_table, \"a\"		\n"
 		"	.align  8				\n"
-		"	.long   1b,3b				\n"
+			_ASM_PTR " 1b,3b			\n"
 		"	.previous				\n"
 
 		: "=a" (oldval), "+m" (*uaddr)
