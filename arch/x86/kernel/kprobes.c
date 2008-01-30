@@ -171,6 +171,19 @@ static void __kprobes set_jmp_op(void *from, void *to)
 }
 
 /*
+ * Check for the REX prefix which can only exist on X86_64
+ * X86_32 always returns 0
+ */
+static int __kprobes is_REX_prefix(kprobe_opcode_t *insn)
+{
+#ifdef CONFIG_X86_64
+	if ((*insn & 0xf0) == 0x40)
+		return 1;
+#endif
+	return 0;
+}
+
+/*
  * Returns non-zero if opcode is boostable.
  * RIP relative instructions are adjusted at copying time in 64 bits mode
  */
@@ -239,14 +252,14 @@ static int __kprobes is_IF_modifier(kprobe_opcode_t *insn)
 	case 0x9d:		/* popf/popfd */
 		return 1;
 	}
-#ifdef CONFIG_X86_64
+
 	/*
-	 * on 64 bit x86, 0x40-0x4f are prefixes so we need to look
+	 * on X86_64, 0x40-0x4f are REX prefixes so we need to look
 	 * at the next byte instead.. but of course not recurse infinitely
 	 */
-	if (*insn  >= 0x40 && *insn <= 0x4f)
+	if (is_REX_prefix(insn))
 		return is_IF_modifier(++insn);
-#endif
+
 	return 0;
 }
 
@@ -284,7 +297,7 @@ static void __kprobes fix_riprel(struct kprobe *p)
 	}
 
 	/* Skip REX instruction prefix.  */
-	if ((*insn & 0xf0) == 0x40)
+	if (is_REX_prefix(insn))
 		++insn;
 
 	if (*insn == 0x0f) {
@@ -748,11 +761,9 @@ static void __kprobes resume_execution(struct kprobe *p,
 	unsigned long orig_ip = (unsigned long)p->addr;
 	kprobe_opcode_t *insn = p->ainsn.insn;
 
-#ifdef CONFIG_X86_64
 	/*skip the REX prefix*/
-	if (*insn >= 0x40 && *insn <= 0x4f)
+	if (is_REX_prefix(insn))
 		insn++;
-#endif
 
 	regs->flags &= ~X86_EFLAGS_TF;
 	switch (*insn) {
