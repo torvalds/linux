@@ -9,6 +9,7 @@
 #include <asm/msr.h>
 #include <asm/system.h>
 #include <asm/cpufeature.h>
+#include <asm/processor-flags.h>
 #include <asm/tlbflush.h>
 #include "mtrr.h"
 
@@ -350,7 +351,7 @@ static void prepare_set(void) __acquires(set_atomicity_lock)
 	spin_lock(&set_atomicity_lock);
 
 	/*  Enter the no-fill (CD=1, NW=0) cache mode and flush caches. */
-	cr0 = read_cr0() | 0x40000000;	/* set CD flag */
+	cr0 = read_cr0() | X86_CR0_CD;
 	write_cr0(cr0);
 	wbinvd();
 

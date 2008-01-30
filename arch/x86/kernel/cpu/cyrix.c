@@ -5,6 +5,7 @@
 #include <asm/dma.h>
 #include <asm/io.h>
 #include <asm/processor-cyrix.h>
+#include <asm/processor-flags.h>
 #include <asm/timer.h>
 #include <asm/pci-direct.h>
 #include <asm/tsc.h>
@@ -126,15 +127,12 @@ static void __cpuinit set_cx86_reorder(void)
 
 static void __cpuinit set_cx86_memwb(void)
 {
-	u32 cr0;
-
 	printk(KERN_INFO "Enable Memory-Write-back mode on Cyrix/NSC processor.\n");
 
 	/* CCR2 bit 2: unlock NW bit */
 	setCx86(CX86_CCR2, getCx86(CX86_CCR2) & ~0x04);
 	/* set 'Not Write-through' */
-	cr0 = 0x20000000;
-	write_cr0(read_cr0() | cr0);
+	write_cr0(read_cr0() | X86_CR0_NW);
 	/* CCR2 bit 2: lock NW bit and set WT1 */
 	setCx86(CX86_CCR2, getCx86(CX86_CCR2) | 0x14 );
 }
