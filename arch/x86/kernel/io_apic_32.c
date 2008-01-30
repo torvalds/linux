@@ -35,6 +35,7 @@
 #include <linux/htirq.h>
 #include <linux/freezer.h>
 #include <linux/kthread.h>
+#include <linux/jiffies.h>	/* time_after() */
 
 #include <asm/io.h>
 #include <asm/smp.h>
@@ -349,7 +350,7 @@ static void set_ioapic_affinity_irq(unsigned int irq, cpumask_t cpumask)
 # include <asm/processor.h>	/* kernel_thread() */
 # include <linux/kernel_stat.h>	/* kstat */
 # include <linux/slab.h>		/* kmalloc() */
-# include <linux/timer.h>	/* time_after() */
+# include <linux/timer.h>
  
 #define IRQBALANCE_CHECK_ARCH -999
 #define MAX_BALANCED_IRQ_INTERVAL	(5*HZ)
@@ -1898,7 +1899,7 @@ static int __init timer_irq_works(void)
 	 * might have cached one ExtINT interrupt.  Finally, at
 	 * least one tick may be lost due to delays.
 	 */
-	if (jiffies - t1 > 4)
+	if (time_after(jiffies, t1 + 4))
 		return 1;
 
 	return 0;

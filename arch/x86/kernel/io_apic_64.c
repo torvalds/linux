@@ -32,6 +32,7 @@
 #include <linux/msi.h>
 #include <linux/htirq.h>
 #include <linux/dmar.h>
+#include <linux/jiffies.h>
 #ifdef CONFIG_ACPI
 #include <acpi/acpi_bus.h>
 #endif
@@ -1299,7 +1300,7 @@ static int __init timer_irq_works(void)
 	 */
 
 	/* jiffies wrap? */
-	if (jiffies - t1 > 4)
+	if (time_after(jiffies, t1 + 4))
 		return 1;
 	return 0;
 }
