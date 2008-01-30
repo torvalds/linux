@@ -644,12 +644,12 @@ void __init setup_arch(char **cmdline_p)
 	rd_doload = ((boot_params.hdr.ram_size & RAMDISK_LOAD_FLAG) != 0);
 #endif
 	ARCH_SETUP
+
+	printk(KERN_INFO "BIOS-provided physical RAM map:\n");
+	print_memory_map(memory_setup());
+
 	if (efi_enabled)
 		efi_init();
-	else {
-		printk(KERN_INFO "BIOS-provided physical RAM map:\n");
-		print_memory_map(memory_setup());
-	}
 
 	copy_edd();
 
@@ -769,14 +769,8 @@ static int __init request_standard_resources(void)
 	int i;
 
 	printk(KERN_INFO "Setting up standard PCI resources\n");
-	if (efi_enabled)
-		efi_initialize_iomem_resources(&code_resource,
-				&data_resource, &bss_resource);
-	else
-		legacy_init_iomem_resources(&code_resource,
-				&data_resource, &bss_resource);
+	init_iomem_resources(&code_resource, &data_resource, &bss_resource);
 
-	/* EFI systems may still have VGA */
 	request_resource(&iomem_resource, &video_ram_resource);
 
 	/* request I/O space for devices used on all i[345]86 PCs */

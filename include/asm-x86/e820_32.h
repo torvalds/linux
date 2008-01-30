@@ -28,7 +28,7 @@ extern void register_bootmem_low_pages(unsigned long max_low_pfn);
 extern void e820_register_memory(void);
 extern void limit_regions(unsigned long long size);
 extern void print_memory_map(char *who);
-extern void legacy_init_iomem_resources(struct resource *code_resource,
+extern void init_iomem_resources(struct resource *code_resource,
 			    struct resource *data_resource,
 			    struct resource *bss_resource);
 

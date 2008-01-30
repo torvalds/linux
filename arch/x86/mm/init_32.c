@@ -27,7 +27,6 @@
 #include <linux/bootmem.h>
 #include <linux/slab.h>
 #include <linux/proc_fs.h>
-#include <linux/efi.h>
 #include <linux/memory_hotplug.h>
 #include <linux/initrd.h>
 #include <linux/cpumask.h>
@@ -215,23 +214,6 @@ int page_is_ram(unsigned long pagenr)
 {
 	int i;
 	unsigned long addr, end;
-
-	if (efi_enabled) {
-		efi_memory_desc_t *md;
-		void *p;
-
-		for (p = memmap.map; p < memmap.map_end; p += memmap.desc_size) {
-			md = p;
-			if (!is_available_memory(md))
-				continue;
-			addr = (md->phys_addr+PAGE_SIZE-1) >> PAGE_SHIFT;
-			end = (md->phys_addr + (md->num_pages << EFI_PAGE_SHIFT)) >> PAGE_SHIFT;
-
-			if ((pagenr >= addr) && (pagenr < end))
-				return 1;
-		}
-		return 0;
-	}
 
 	for (i = 0; i < e820.nr_map; i++) {
 

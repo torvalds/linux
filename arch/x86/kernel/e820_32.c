@@ -7,7 +7,6 @@
 #include <linux/kexec.h>
 #include <linux/module.h>
 #include <linux/mm.h>
-#include <linux/efi.h>
 #include <linux/pfn.h>
 #include <linux/uaccess.h>
 #include <linux/suspend.h>
@@ -181,7 +180,7 @@ static void __init probe_roms(void)
  * Request address space for all standard RAM and ROM resources
  * and also for regions reported as reserved by the e820.
  */
-void __init legacy_init_iomem_resources(struct resource *code_resource,
+void __init init_iomem_resources(struct resource *code_resource,
 		struct resource *data_resource,
 		struct resource *bss_resource)
 {
@@ -261,19 +260,17 @@ void __init add_memory_region(unsigned long long start,
 {
 	int x;
 
-	if (!efi_enabled) {
-       		x = e820.nr_map;
+	x = e820.nr_map;
 
-		if (x == E820MAX) {
-		    printk(KERN_ERR "Ooops! Too many entries in the memory map!\n");
-		    return;
-		}
-
-		e820.map[x].addr = start;
-		e820.map[x].size = size;
-		e820.map[x].type = type;
-		e820.nr_map++;
+	if (x == E820MAX) {
+		printk(KERN_ERR "Ooops! Too many entries in the memory map!\n");
+		return;
 	}
+
+	e820.map[x].addr = start;
+	e820.map[x].size = size;
+	e820.map[x].type = type;
+	e820.nr_map++;
 } /* add_memory_region */
 
 /*
@@ -489,29 +486,6 @@ int __init copy_e820_map(struct e820entry * biosmap, int nr_map)
 }
 
 /*
- * Callback for efi_memory_walk.
- */
-static int __init
-efi_find_max_pfn(unsigned long start, unsigned long end, void *arg)
-{
-	unsigned long *max_pfn = arg, pfn;
-
-	if (start < end) {
-		pfn = PFN_UP(end -1);
-		if (pfn > *max_pfn)
-			*max_pfn = pfn;
-	}
-	return 0;
-}
-
-static int __init
-efi_memory_present_wrapper(unsigned long start, unsigned long end, void *arg)
-{
-	memory_present(0, PFN_UP(start), PFN_DOWN(end));
-	return 0;
-}
-
-/*
  * Find the highest page frame number we have available
  */
 void __init find_max_pfn(void)
@@ -519,11 +493,6 @@ void __init find_max_pfn(void)
 	int i;
 
 	max_pfn = 0;
-	if (efi_enabled) {
-		efi_memmap_walk(efi_find_max_pfn, &max_pfn);
-		efi_memmap_walk(efi_memory_present_wrapper, NULL);
-		return;
-	}
 
 	for (i = 0; i < e820.nr_map; i++) {
 		unsigned long start, end;
@@ -541,34 +510,12 @@ void __init find_max_pfn(void)
 }
 
 /*
- * Free all available memory for boot time allocation.  Used
- * as a callback function by efi_memory_walk()
- */
-
-static int __init
-free_available_memory(unsigned long start, unsigned long end, void *arg)
-{
-	/* check max_low_pfn */
-	if (start >= (max_low_pfn << PAGE_SHIFT))
-		return 0;
-	if (end >= (max_low_pfn << PAGE_SHIFT))
-		end = max_low_pfn << PAGE_SHIFT;
-	if (start < end)
-		free_bootmem(start, end - start);
-
-	return 0;
-}
-/*
  * Register fully available low RAM pages with the bootmem allocator.
  */
 void __init register_bootmem_low_pages(unsigned long max_low_pfn)
 {
 	int i;
 
-	if (efi_enabled) {
-		efi_memmap_walk(free_available_memory, NULL);
-		return;
-	}
 	for (i = 0; i < e820.nr_map; i++) {
 		unsigned long curr_pfn, last_pfn, size;
 		/*
@@ -676,56 +623,12 @@ void __init print_memory_map(char *who)
 	}
 }
 
-static __init __always_inline void efi_limit_regions(unsigned long long size)
-{
-	unsigned long long current_addr = 0;
-	efi_memory_desc_t *md, *next_md;
-	void *p, *p1;
-	int i, j;
-
-	j = 0;
-	p1 = memmap.map;
-	for (p = p1, i = 0; p < memmap.map_end; p += memmap.desc_size, i++) {
-		md = p;
-		next_md = p1;
-		current_addr = md->phys_addr +
-			PFN_PHYS(md->num_pages);
-		if (is_available_memory(md)) {
-			if (md->phys_addr >= size) continue;
-			memcpy(next_md, md, memmap.desc_size);
-			if (current_addr >= size) {
-				next_md->num_pages -=
-					PFN_UP(current_addr-size);
-			}
-			p1 += memmap.desc_size;
-			next_md = p1;
-			j++;
-		} else if ((md->attribute & EFI_MEMORY_RUNTIME) ==
-			   EFI_MEMORY_RUNTIME) {
-			/* In order to make runtime services
-			 * available we have to include runtime
-			 * memory regions in memory map */
-			memcpy(next_md, md, memmap.desc_size);
-			p1 += memmap.desc_size;
-			next_md = p1;
-			j++;
-		}
-	}
-	memmap.nr_map = j;
-	memmap.map_end = memmap.map +
-		(memmap.nr_map * memmap.desc_size);
-}
-
 void __init limit_regions(unsigned long long size)
 {
 	unsigned long long current_addr;
 	int i;
 
 	print_memory_map("limit_regions start");
-	if (efi_enabled) {
-		efi_limit_regions(size);
-		return;
-	}
 	for (i = 0; i < e820.nr_map; i++) {
 		current_addr = e820.map[i].addr + e820.map[i].size;
 		if (current_addr < size)
