@@ -27,10 +27,8 @@ static inline cycles_t get_cycles(void)
 	if (!cpu_has_tsc)
 		return 0;
 #endif
-
-#if defined(CONFIG_X86_GENERIC) || defined(CONFIG_X86_TSC)
 	rdtscll(ret);
-#endif
+
 	return ret;
 }
 
