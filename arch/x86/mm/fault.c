@@ -435,6 +435,51 @@ static noinline void pgtable_bad(unsigned long address, struct pt_regs *regs,
 #endif
 
 /*
+ * Handle a spurious fault caused by a stale TLB entry.  This allows
+ * us to lazily refresh the TLB when increasing the permissions of a
+ * kernel page (RO -> RW or NX -> X).  Doing it eagerly is very
+ * expensive since that implies doing a full cross-processor TLB
+ * flush, even if no stale TLB entries exist on other processors.
+ * There are no security implications to leaving a stale TLB when
+ * increasing the permissions on a page.
+ */
+static int spurious_fault(unsigned long address,
+			  unsigned long error_code)
+{
+	pgd_t *pgd;
+	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *pte;
+
+	/* Reserved-bit violation or user access to kernel space? */
+	if (error_code & (PF_USER | PF_RSVD))
+		return 0;
+
+	pgd = init_mm.pgd + pgd_index(address);
+	if (!pgd_present(*pgd))
+		return 0;
+
+	pud = pud_offset(pgd, address);
+	if (!pud_present(*pud))
+		return 0;
+
+	pmd = pmd_offset(pud, address);
+	if (!pmd_present(*pmd))
+		return 0;
+
+	pte = pte_offset_kernel(pmd, address);
+	if (!pte_present(*pte))
+		return 0;
+
+	if ((error_code & PF_WRITE) && !pte_write(*pte))
+		return 0;
+	if ((error_code & PF_INSTR) && !pte_exec(*pte))
+		return 0;
+
+	return 1;
+}
+
+/*
  * X86_32
  * Handle a fault on the vmalloc or module mapping area
  *
@@ -568,6 +613,11 @@ void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
 		if (!(error_code & (PF_RSVD|PF_USER|PF_PROT)) &&
 		    vmalloc_fault(address) >= 0)
 			return;
+
+		/* Can handle a stale RO->RW TLB */
+		if (spurious_fault(address, error_code))
+			return;
+
 		/*
 		 * Don't take the mm semaphore here. If we fixup a prefetch
 		 * fault we could otherwise deadlock.
@@ -598,6 +648,11 @@ void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
 			if (vmalloc_fault(address) >= 0)
 				return;
 		}
+
+		/* Can handle a stale RO->RW TLB */
+		if (spurious_fault(address, error_code))
+			return;
+
 		/*
 		 * Don't take the mm semaphore here. If we fixup a prefetch
 		 * fault we could otherwise deadlock.
