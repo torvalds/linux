@@ -17,11 +17,6 @@
 #include <asm/e820.h>
 #include <asm/setup.h>
 
-#ifdef CONFIG_EFI
-int efi_enabled = 0;
-EXPORT_SYMBOL(efi_enabled);
-#endif
-
 struct e820map e820;
 struct change_member {
 	struct e820entry *pbios; /* pointer to original bios entry */

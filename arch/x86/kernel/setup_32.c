@@ -618,16 +618,9 @@ void __init setup_arch(char **cmdline_p)
 	pre_setup_arch_hook();
 	early_cpu_init();
 
-	/*
-	 * FIXME: This isn't an official loader_type right
-	 * now but does currently work with elilo.
-	 * If we were configured as an EFI kernel, check to make
-	 * sure that we were loaded correctly from elilo and that
-	 * the system table is valid.  If not, then initialize normally.
-	 */
 #ifdef CONFIG_EFI
-	if ((boot_params.hdr.type_of_loader == 0x50) &&
-	    boot_params.efi_info.efi_systab)
+	if (!strncmp((char *)&boot_params.efi_info.efi_loader_signature,
+		     "EL32", 4))
 		efi_enabled = 1;
 #endif
 

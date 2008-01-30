@@ -2,6 +2,48 @@
 #define _ASM_X86_EFI_H
 
 #ifdef CONFIG_X86_32
+
+extern unsigned long asmlinkage efi_call_phys(void *, ...);
+
+#define efi_call_phys0(f)		efi_call_phys(f)
+#define efi_call_phys1(f, a1)		efi_call_phys(f, a1)
+#define efi_call_phys2(f, a1, a2)	efi_call_phys(f, a1, a2)
+#define efi_call_phys3(f, a1, a2, a3)	efi_call_phys(f, a1, a2, a3)
+#define efi_call_phys4(f, a1, a2, a3, a4)	\
+	efi_call_phys(f, a1, a2, a3, a4)
+#define efi_call_phys5(f, a1, a2, a3, a4, a5)	\
+	efi_call_phys(f, a1, a2, a3, a4, a5)
+#define efi_call_phys6(f, a1, a2, a3, a4, a5, a6)	\
+	efi_call_phys(f, a1, a2, a3, a4, a5, a6)
+/*
+ * Wrap all the virtual calls in a way that forces the parameters on the stack.
+ */
+
+#define efi_call_virt(f, args...) \
+     ((efi_##f##_t __attribute__((regparm(0)))*)efi.systab->runtime->f)(args)
+
+#define efi_call_virt0(f)		efi_call_virt(f)
+#define efi_call_virt1(f, a1)		efi_call_virt(f, a1)
+#define efi_call_virt2(f, a1, a2)	efi_call_virt(f, a1, a2)
+#define efi_call_virt3(f, a1, a2, a3)	efi_call_virt(f, a1, a2, a3)
+#define efi_call_virt4(f, a1, a2, a3, a4)	\
+	efi_call_virt(f, a1, a2, a3, a4)
+#define efi_call_virt5(f, a1, a2, a3, a4, a5)	\
+	efi_call_virt(f, a1, a2, a3, a4, a5)
+#define efi_call_virt6(f, a1, a2, a3, a4, a5, a6)	\
+	efi_call_virt(f, a1, a2, a3, a4, a5, a6)
+/*
+ * We require an early boot_ioremap mapping mechanism initially
+ */
+extern void *boot_ioremap(unsigned long, unsigned long);
+
+#define efi_early_ioremap(addr, size)		boot_ioremap(addr, size)
+#define efi_early_iounmap(vaddr, size)
+
+#define efi_ioremap(addr, size)			ioremap(addr, size)
+
+#define end_pfn_map				max_low_pfn
+
 #else /* !CONFIG_X86_32 */
 
 #define MAX_EFI_IO_PAGES	100
