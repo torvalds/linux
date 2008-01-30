@@ -53,7 +53,6 @@ static inline void __raw_spin_lock_flags(raw_spinlock_t *lock,
 		"\n1:\t"
 		LOCK_PREFIX " ; decb %[slock]\n\t"
 		"jns 5f\n"
-		"2:\t"
 		"testl $0x200, %[flags]\n\t"
 		"jz 4f\n\t"
 		STI_STRING "\n"

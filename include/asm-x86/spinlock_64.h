@@ -27,13 +27,13 @@ static inline void __raw_spin_lock(raw_spinlock_t *lock)
 	asm volatile(
 		"\n1:\t"
 		LOCK_PREFIX " ; decl %0\n\t"
-		"jns 2f\n"
-		"3:\n"
+		"jns 3f\n"
+		"2:\t"
 		"rep;nop\n\t"
 		"cmpl $0,%0\n\t"
-		"jle 3b\n\t"
+		"jle 2b\n\t"
 		"jmp 1b\n"
-		"2:\t"
+		"3:\n\t"
 		: "+m" (lock->slock) : : "memory");
 }
 
@@ -51,25 +51,26 @@ static inline void __raw_spin_lock_flags(raw_spinlock_t *lock,
 {
 	asm volatile(
 		"\n1:\t"
-		LOCK_PREFIX " ; decl %0\n\t"
+		LOCK_PREFIX " ; decl %[slock]\n\t"
 		"jns 5f\n"
-		"testl $0x200, %1\n\t"	/* interrupts were disabled? */
+		"testl $0x200, %[flags]\n\t"
 		"jz 4f\n\t"
 		STI_STRING "\n"
 		"3:\t"
 		"rep;nop\n\t"
-		"cmpl $0, %0\n\t"
+		"cmpl $0, %[slock]\n\t"
 		"jle 3b\n\t"
 		CLI_STRING "\n\t"
 		"jmp 1b\n"
 		"4:\t"
 		"rep;nop\n\t"
-		"cmpl $0, %0\n\t"
+		"cmpl $0, %[slock]\n\t"
 		"jg 1b\n\t"
 		"jmp 4b\n"
 		"5:\n\t"
-		: "+m" (lock->slock)
-		: "r" ((unsigned)flags) CLI_STI_INPUT_ARGS
+		: [slock] "+m" (lock->slock)
+		: [flags] "r" ((unsigned)flags)
+		  CLI_STI_INPUT_ARGS
 		: "memory" CLI_STI_CLOBBERS);
 }
 #endif
