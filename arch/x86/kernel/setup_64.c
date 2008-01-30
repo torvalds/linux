@@ -888,10 +888,7 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 		set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
 	if (c->x86 == 6)
 		set_cpu_cap(c, X86_FEATURE_REP_GOOD);
-	if (c->x86 == 15)
-		set_cpu_cap(c, X86_FEATURE_SYNC_RDTSC);
-	else
-		clear_cpu_cap(c, X86_FEATURE_SYNC_RDTSC);
+	set_cpu_cap(c, X86_FEATURE_LFENCE_RDTSC);
 	c->x86_max_cores = intel_num_cpu_cores(c);
 
 	srat_detect_node();
