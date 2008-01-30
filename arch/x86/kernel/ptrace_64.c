@@ -43,44 +43,6 @@
 #define FLAG_MASK 0x54dd5UL
 
 /*
- * eflags and offset of eflags on child stack..
- */
-#define EFLAGS offsetof(struct pt_regs, eflags)
-#define EFL_OFFSET ((int)(EFLAGS-sizeof(struct pt_regs)))
-
-/*
- * this routine will get a word off of the processes privileged stack. 
- * the offset is how far from the base addr as stored in the TSS.  
- * this routine assumes that all the privileged stacks are in our
- * data space.
- */   
-static inline unsigned long get_stack_long(struct task_struct *task, int offset)
-{
-	unsigned char *stack;
-
-	stack = (unsigned char *)task->thread.rsp0;
-	stack += offset;
-	return (*((unsigned long *)stack));
-}
-
-/*
- * this routine will put a word on the processes privileged stack. 
- * the offset is how far from the base addr as stored in the TSS.  
- * this routine assumes that all the privileged stacks are in our
- * data space.
- */
-static inline long put_stack_long(struct task_struct *task, int offset,
-	unsigned long data)
-{
-	unsigned char * stack;
-
-	stack = (unsigned char *) task->thread.rsp0;
-	stack += offset;
-	*(unsigned long *) stack = data;
-	return 0;
-}
-
-/*
  * Called by kernel/ptrace.c when detaching..
  *
  * Make sure the single step bit is not set.
@@ -90,11 +52,16 @@ void ptrace_disable(struct task_struct *child)
 	user_disable_single_step(child);
 }
 
+static unsigned long *pt_regs_access(struct pt_regs *regs, unsigned long offset)
+{
+	BUILD_BUG_ON(offsetof(struct pt_regs, r15) != 0);
+	return &regs->r15 + (offset / sizeof(regs->r15));
+}
+
 static int putreg(struct task_struct *child,
 	unsigned long regno, unsigned long value)
 {
-	unsigned long tmp; 
-	
+	struct pt_regs *regs = task_pt_regs(child);
 	switch (regno) {
 		case offsetof(struct user_regs_struct,fs):
 			if (value && (value & 3) != 3)
@@ -152,9 +119,7 @@ static int putreg(struct task_struct *child,
 				clear_tsk_thread_flag(child, TIF_FORCED_TF);
 			else if (test_tsk_thread_flag(child, TIF_FORCED_TF))
 				value |= X86_EFLAGS_TF;
-			tmp = get_stack_long(child, EFL_OFFSET); 
-			tmp &= ~FLAG_MASK; 
-			value |= tmp;
+			value |= regs->eflags & ~FLAG_MASK;
 			break;
 		case offsetof(struct user_regs_struct,cs): 
 			if ((value & 3) != 3)
@@ -162,12 +127,13 @@ static int putreg(struct task_struct *child,
 			value &= 0xffff;
 			break;
 	}
-	put_stack_long(child, regno - sizeof(struct pt_regs), value);
+	*pt_regs_access(regs, regno) = value;
 	return 0;
 }
 
 static unsigned long getreg(struct task_struct *child, unsigned long regno)
 {
+	struct pt_regs *regs = task_pt_regs(child);
 	unsigned long val;
 	switch (regno) {
 		case offsetof(struct user_regs_struct, fs):
@@ -202,16 +168,14 @@ static unsigned long getreg(struct task_struct *child, unsigned long regno)
 			/*
 			 * If the debugger set TF, hide it from the readout.
 			 */
-			regno = regno - sizeof(struct pt_regs);
-			val = get_stack_long(child, regno);
+			val = regs->eflags;
 			if (test_tsk_thread_flag(child, TIF_IA32))
 				val &= 0xffffffff;
 			if (test_tsk_thread_flag(child, TIF_FORCED_TF))
 				val &= ~X86_EFLAGS_TF;
 			return val;
 		default:
-			regno = regno - sizeof(struct pt_regs);
-			val = get_stack_long(child, regno);
+			val = *pt_regs_access(regs, regno);
 			if (test_tsk_thread_flag(child, TIF_IA32))
 				val &= 0xffffffff;
 			return val;
