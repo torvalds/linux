@@ -8,6 +8,16 @@
 
 #define VDSO_PRELINK 0xffffffffff700000
 
+/*
+ * Symbols we define here called VDSO* get their values into vdso-syms.lds
+ * and become visible to the kernel itself.
+ */
+VDSO64_PRELINK = VDSO_PRELINK;
+
+#define VEXTERN(x)	VDSO64_ ## x = vdso_ ## x;
+#include "vextern.h"
+#undef	VEXTERN
+
 SECTIONS
 {
   . = VDSO_PRELINK + SIZEOF_HEADERS;
