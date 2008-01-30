@@ -11,6 +11,7 @@
  * Description:
  *
  * Modified:
+ * 		2006-12-19 Aidan Williams, multicast hash support
  *		Copyright 2004-2006 Analog Devices Inc.
  *
  * Bugs:	Enter bugs at http://blackfin.uclinux.org/
@@ -800,6 +801,39 @@ static void bf537mac_timeout(struct net_device *dev)
 	netif_wake_queue(dev);
 }
 
+static void bf537mac_multicast_hash(struct net_device *dev)
+{
+	u32 emac_hashhi, emac_hashlo;
+	struct dev_mc_list *dmi = dev->mc_list;
+	char *addrs;
+	int i;
+	u32 crc;
+
+	emac_hashhi = emac_hashlo = 0;
+
+	for (i = 0; i < dev->mc_count; i++) {
+		addrs = dmi->dmi_addr;
+		dmi = dmi->next;
+
+		/* skip non-multicast addresses */
+		if (!(*addrs & 1))
+			continue;
+
+		crc = ether_crc(ETH_ALEN, addrs);
+		crc >>= 26;
+
+		if (crc & 0x20)
+			emac_hashhi |= 1 << (crc & 0x1f);
+		else
+			emac_hashlo |= 1 << (crc & 0x1f);
+	}
+
+	bfin_write_EMAC_HASHHI(emac_hashhi);
+	bfin_write_EMAC_HASHLO(emac_hashlo);
+
+	return;
+}
+
 /*
  * This routine will, depending on the values passed to it,
  * either make it accept multicast packets, go into
@@ -815,11 +849,17 @@ static void bf537mac_set_multicast_list(struct net_device *dev)
 		sysctl = bfin_read_EMAC_OPMODE();
 		sysctl |= RAF;
 		bfin_write_EMAC_OPMODE(sysctl);
-	} else if (dev->flags & IFF_ALLMULTI || dev->mc_count) {
+	} else if (dev->flags & IFF_ALLMULTI) {
 		/* accept all multicast */
 		sysctl = bfin_read_EMAC_OPMODE();
 		sysctl |= PAM;
 		bfin_write_EMAC_OPMODE(sysctl);
+	} else if (dev->mc_count) {
+		/* set up multicast hash table */
+		sysctl = bfin_read_EMAC_OPMODE();
+		sysctl |= HM;
+		bfin_write_EMAC_OPMODE(sysctl);
+		bf537mac_multicast_hash(dev);
 	} else {
 		/* clear promisc or multicast mode */
 		sysctl = bfin_read_EMAC_OPMODE();
