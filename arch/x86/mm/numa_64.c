@@ -31,15 +31,15 @@ bootmem_data_t plat_node_bdata[MAX_NUMNODES];
 
 struct memnode memnode;
 
-u16 x86_cpu_to_node_map_init[NR_CPUS] = {
+int x86_cpu_to_node_map_init[NR_CPUS] = {
 	[0 ... NR_CPUS-1] = NUMA_NO_NODE
 };
 void *x86_cpu_to_node_map_early_ptr;
-DEFINE_PER_CPU(u16, x86_cpu_to_node_map) = NUMA_NO_NODE;
+DEFINE_PER_CPU(int, x86_cpu_to_node_map) = NUMA_NO_NODE;
 EXPORT_PER_CPU_SYMBOL(x86_cpu_to_node_map);
 EXPORT_SYMBOL(x86_cpu_to_node_map_early_ptr);
 
-u16 apicid_to_node[MAX_LOCAL_APIC] __cpuinitdata = {
+s16 apicid_to_node[MAX_LOCAL_APIC] __cpuinitdata = {
 	[0 ... MAX_LOCAL_APIC-1] = NUMA_NO_NODE
 };
 
@@ -63,7 +63,7 @@ static int __init populate_memnodemap(const struct bootnode *nodes,
 	unsigned long addr, end;
 	int i, res = -1;
 
-	memset(memnodemap, 0xff, memnodemapsize);
+	memset(memnodemap, 0xff, sizeof(s16)*memnodemapsize);
 	for (i = 0; i < numnodes; i++) {
 		addr = nodes[i].start;
 		end = nodes[i].end;
@@ -72,7 +72,7 @@ static int __init populate_memnodemap(const struct bootnode *nodes,
 		if ((end >> shift) >= memnodemapsize)
 			return 0;
 		do {
-			if (memnodemap[addr >> shift] != 0xff)
+			if (memnodemap[addr >> shift] != NUMA_NO_NODE)
 				return -1;
 			memnodemap[addr >> shift] = i;
 			addr += (1UL << shift);
@@ -533,7 +533,7 @@ __cpuinit void numa_add_cpu(int cpu)
 
 void __cpuinit numa_set_node(int cpu, int node)
 {
-	u16 *cpu_to_node_map = x86_cpu_to_node_map_early_ptr;
+	int *cpu_to_node_map = x86_cpu_to_node_map_early_ptr;
 
 	cpu_pda(cpu)->nodenumber = node;
 

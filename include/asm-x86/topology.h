@@ -31,11 +31,11 @@
 
 /* Mappings between logical cpu number and node number */
 #ifdef CONFIG_X86_32
-extern u8 cpu_to_node_map[];
+extern int cpu_to_node_map[];
 
 #else
-DECLARE_PER_CPU(u16, x86_cpu_to_node_map);
-extern u16 x86_cpu_to_node_map_init[];
+DECLARE_PER_CPU(int, x86_cpu_to_node_map);
+extern int x86_cpu_to_node_map_init[];
 extern void *x86_cpu_to_node_map_early_ptr;
 /* Returns the number of the current Node. */
 #define numa_node_id()		(early_cpu_to_node(raw_smp_processor_id()))
@@ -43,7 +43,7 @@ extern void *x86_cpu_to_node_map_early_ptr;
 
 extern cpumask_t node_to_cpumask_map[];
 
-#define NUMA_NO_NODE	((u16)(~0))
+#define NUMA_NO_NODE	(-1)
 
 /* Returns the number of the node containing CPU 'cpu' */
 #ifdef CONFIG_X86_32
@@ -56,7 +56,7 @@ static inline int cpu_to_node(int cpu)
 #else /* CONFIG_X86_64 */
 static inline int early_cpu_to_node(int cpu)
 {
-	u16 *cpu_to_node_map = x86_cpu_to_node_map_early_ptr;
+	int *cpu_to_node_map = x86_cpu_to_node_map_early_ptr;
 
 	if (cpu_to_node_map)
 		return cpu_to_node_map[cpu];
