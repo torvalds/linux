@@ -512,7 +512,7 @@ bad_area_nosemaphore:
 		    printk_ratelimit()) {
 			printk(
 #ifdef CONFIG_X86_32
-			"%s%s[%d]: segfault at %08lx ip %08lx sp %08lx error %lx\n",
+			"%s%s[%d]: segfault at %lx ip %08lx sp %08lx error %lx\n",
 #else
 			"%s%s[%d]: segfault at %lx ip %lx sp %lx error %lx\n",
 #endif
