@@ -319,9 +319,11 @@ static inline void kb_wait(void)
 {
 	int i;
 
-	for (i = 0; i < 0x10000; i++)
-		if ((inb_p(0x64) & 0x02) == 0)
+	for (i = 0; i < 0x10000; i++) {
+		if ((inb(0x64) & 0x02) == 0)
 			break;
+		udelay(2);
+	}
 }
 
 void machine_emergency_restart(void)
