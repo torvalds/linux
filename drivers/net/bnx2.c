@@ -4438,18 +4438,21 @@ bnx2_init_chip(struct bnx2 *bp)
 	}
 
 	if (bp->flags & BNX2_FLAG_USING_MSIX) {
+		u32 base = ((BNX2_TX_VEC - 1) * BNX2_HC_SB_CONFIG_SIZE) +
+			   BNX2_HC_SB_CONFIG_1;
+
 		REG_WR(bp, BNX2_HC_MSIX_BIT_VECTOR,
 		       BNX2_HC_MSIX_BIT_VECTOR_VAL);
 
-		REG_WR(bp, BNX2_HC_SB_CONFIG_1,
+		REG_WR(bp, base,
 			BNX2_HC_SB_CONFIG_1_TX_TMR_MODE |
 			BNX2_HC_SB_CONFIG_1_ONE_SHOT);
 
-		REG_WR(bp, BNX2_HC_TX_QUICK_CONS_TRIP_1,
+		REG_WR(bp, base + BNX2_HC_TX_QUICK_CONS_TRIP_OFF,
 			(bp->tx_quick_cons_trip_int << 16) |
 			 bp->tx_quick_cons_trip);
 
-		REG_WR(bp, BNX2_HC_TX_TICKS_1,
+		REG_WR(bp, base + BNX2_HC_TX_TICKS_OFF,
 			(bp->tx_ticks_int << 16) | bp->tx_ticks);
 
 		val |= BNX2_HC_CONFIG_SB_ADDR_INC_128B;
