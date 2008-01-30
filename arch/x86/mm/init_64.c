@@ -226,7 +226,7 @@ __meminit void *early_ioremap(unsigned long addr, unsigned long size)
 		vaddr += addr & ~PMD_MASK;
 		addr &= PMD_MASK;
 		for (i = 0; i < pmds; i++, addr += PMD_SIZE)
-			set_pmd(pmd + i,__pmd(addr | __PAGE_KERNEL_LARGE_EXEC));
+			set_pmd(pmd+i, __pmd(addr | __PAGE_KERNEL_LARGE_EXEC));
 		__flush_tlb();
 		return (void *)vaddr;
 	next:

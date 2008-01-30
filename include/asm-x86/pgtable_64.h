@@ -154,22 +154,22 @@ static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm, unsigned long 
 #define _PAGE_BIT_GLOBAL	8	/* Global TLB entry PPro+ */
 #define _PAGE_BIT_NX           63       /* No execute: only valid after cpuid check */
 
-#define _PAGE_PRESENT	(_AC(1,UL)<<_PAGE_BIT_PRESENT)
-#define _PAGE_RW	(_AC(1,UL)<<_PAGE_BIT_RW)
-#define _PAGE_USER	(_AC(1,UL)<<_PAGE_BIT_USER)
-#define _PAGE_PWT	(_AC(1,UL)<<_PAGE_BIT_PWT)
-#define _PAGE_PCD	(_AC(1,UL)<<_PAGE_BIT_PCD)
-#define _PAGE_ACCESSED	(_AC(1,UL)<<_PAGE_BIT_ACCESSED)
-#define _PAGE_DIRTY	(_AC(1,UL)<<_PAGE_BIT_DIRTY)
+#define _PAGE_PRESENT	(_AC(1, UL)<<_PAGE_BIT_PRESENT)
+#define _PAGE_RW	(_AC(1, UL)<<_PAGE_BIT_RW)
+#define _PAGE_USER	(_AC(1, UL)<<_PAGE_BIT_USER)
+#define _PAGE_PWT	(_AC(1, UL)<<_PAGE_BIT_PWT)
+#define _PAGE_PCD	(_AC(1, UL)<<_PAGE_BIT_PCD)
+#define _PAGE_ACCESSED	(_AC(1, UL)<<_PAGE_BIT_ACCESSED)
+#define _PAGE_DIRTY	(_AC(1, UL)<<_PAGE_BIT_DIRTY)
 /* 2MB page */
-#define _PAGE_PSE	(_AC(1,UL)<<_PAGE_BIT_PSE)
+#define _PAGE_PSE	(_AC(1, UL)<<_PAGE_BIT_PSE)
 /* nonlinear file mapping, saved PTE; unset:swap */
-#define _PAGE_FILE	(_AC(1,UL)<<_PAGE_BIT_FILE)
+#define _PAGE_FILE	(_AC(1, UL)<<_PAGE_BIT_FILE)
 /* Global TLB entry */
-#define _PAGE_GLOBAL	(_AC(1,UL)<<_PAGE_BIT_GLOBAL)
+#define _PAGE_GLOBAL	(_AC(1, UL)<<_PAGE_BIT_GLOBAL)
 
 #define _PAGE_PROTNONE	0x080	/* If not present */
-#define _PAGE_NX        (_AC(1,UL)<<_PAGE_BIT_NX)
+#define _PAGE_NX        (_AC(1, UL)<<_PAGE_BIT_NX)
 
 #define _PAGE_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER | _PAGE_ACCESSED | _PAGE_DIRTY)
 #define _KERNPG_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_ACCESSED | _PAGE_DIRTY)
