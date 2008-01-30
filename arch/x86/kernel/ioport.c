@@ -1,6 +1,6 @@
 /*
  * This contains the io-permission bitmap code - written by obz, with changes
- * by Linus.
+ * by Linus. 32/64 bits code unification by Miguel Botón.
  */
 
 #include <linux/sched.h>
@@ -36,7 +36,7 @@ asmlinkage long sys_ioperm(unsigned long from, unsigned long num, int turn_on)
 {
 	struct thread_struct * t = &current->thread;
 	struct tss_struct * tss;
-	unsigned long i, max_long;
+	unsigned int i, max_long, bytes, bytes_updated;
 
 	if ((from + num <= from) || (from + num > IO_BITMAP_BITS))
 		return -EINVAL;
@@ -79,8 +79,12 @@ asmlinkage long sys_ioperm(unsigned long from, unsigned long num, int turn_on)
 		if (t->io_bitmap_ptr[i] != ~0UL)
 			max_long = i;
 
-	t->io_bitmap_max = (max_long + 1) * sizeof(unsigned long);
+	bytes = (max_long + 1) * sizeof(unsigned long);
+	bytes_updated = max(bytes, t->io_bitmap_max);
 
+	t->io_bitmap_max = bytes;
+
+#ifdef CONFIG_X86_32
 	/*
 	 * Sets the lazy trigger so that the next I/O operation will
 	 * reload the correct bitmap.
@@ -89,6 +93,10 @@ asmlinkage long sys_ioperm(unsigned long from, unsigned long num, int turn_on)
 	 */
 	tss->x86_tss.io_bitmap_base = INVALID_IO_BITMAP_OFFSET_LAZY;
 	tss->io_bitmap_owner = NULL;
+#else
+	/* Update the TSS: */
+	memcpy(tss->io_bitmap, t->io_bitmap_ptr, bytes_updated);
+#endif
 
 	put_cpu();
 
@@ -105,13 +113,12 @@ asmlinkage long sys_ioperm(unsigned long from, unsigned long num, int turn_on)
  * on system-call entry - see also fork() and the signal handling
  * code.
  */
-
+#ifdef CONFIG_X86_32
 asmlinkage long sys_iopl(unsigned long regsp)
 {
 	volatile struct pt_regs *regs = (struct pt_regs *)&regsp;
 	unsigned int level = regs->bx;
 	unsigned int old = (regs->flags >> 12) & 3;
-	struct thread_struct *t = &current->thread;
 
 	if (level > 3)
 		return -EINVAL;
@@ -120,10 +127,24 @@ asmlinkage long sys_iopl(unsigned long regsp)
 		if (!capable(CAP_SYS_RAWIO))
 			return -EPERM;
 	}
-
-	t->iopl = level << 12;
-	regs->flags = (regs->flags & ~X86_EFLAGS_IOPL) | t->iopl;
-	set_iopl_mask(t->iopl);
+	regs->flags = (regs->flags & ~X86_EFLAGS_IOPL) | (level << 12);
 
 	return 0;
 }
+#else
+asmlinkage long sys_iopl(unsigned int level, struct pt_regs *regs)
+{
+	unsigned int old = (regs->flags >> 12) & 3;
+
+	if (level > 3)
+		return -EINVAL;
+	/* Trying to gain more privileges? */
+	if (level > old) {
+		if (!capable(CAP_SYS_RAWIO))
+			return -EPERM;
+	}
+	regs->flags = (regs->flags & ~X86_EFLAGS_IOPL) | (level << 12);
+
+	return 0;
+}
+#endif
