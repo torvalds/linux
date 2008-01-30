@@ -435,6 +435,13 @@ static inline void native_load_sp0(struct tss_struct *tss,
 #endif
 }
 
+static inline void native_swapgs(void)
+{
+#ifdef CONFIG_X86_64
+	asm volatile("swapgs" ::: "memory");
+#endif
+}
+
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
 #else
@@ -456,6 +463,7 @@ static inline void load_sp0(struct tss_struct *tss,
 }
 
 #define set_iopl_mask native_set_iopl_mask
+#define SWAPGS	swapgs
 #endif /* CONFIG_PARAVIRT */
 
 /*
