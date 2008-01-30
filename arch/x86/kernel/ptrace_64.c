@@ -170,7 +170,7 @@ static int is_setting_trap_flag(struct task_struct *child, struct pt_regs *regs)
 	return 0;
 }
 
-static void set_singlestep(struct task_struct *child)
+void user_enable_single_step(struct task_struct *child)
 {
 	struct pt_regs *regs = task_pt_regs(child);
 
@@ -201,7 +201,7 @@ static void set_singlestep(struct task_struct *child)
 	child->ptrace |= PT_DTRACE;
 }
 
-static void clear_singlestep(struct task_struct *child)
+void user_disable_single_step(struct task_struct *child)
 {
 	/* Always clear TIF_SINGLESTEP... */
 	clear_tsk_thread_flag(child, TIF_SINGLESTEP);
@@ -221,7 +221,7 @@ static void clear_singlestep(struct task_struct *child)
  */
 void ptrace_disable(struct task_struct *child)
 { 
-	clear_singlestep(child);
+	user_disable_single_step(child);
 }
 
 static int putreg(struct task_struct *child,
@@ -461,7 +461,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		clear_tsk_thread_flag(child, TIF_SINGLESTEP);
 		child->exit_code = data;
 		/* make sure the single step bit is not set. */
-		clear_singlestep(child);
+		user_disable_single_step(child);
 		wake_up_process(child);
 		ret = 0;
 		break;
@@ -504,7 +504,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		clear_tsk_thread_flag(child, TIF_SINGLESTEP);
 		child->exit_code = SIGKILL;
 		/* make sure the single step bit is not set. */
-		clear_singlestep(child);
+		user_disable_single_step(child);
 		wake_up_process(child);
 		break;
 
@@ -513,7 +513,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		if (!valid_signal(data))
 			break;
 		clear_tsk_thread_flag(child,TIF_SYSCALL_TRACE);
-		set_singlestep(child);
+		user_enable_single_step(child);
 		child->exit_code = data;
 		/* give it a chance to run. */
 		wake_up_process(child);
