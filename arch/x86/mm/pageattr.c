@@ -304,7 +304,7 @@ static int change_page_attr_addr(unsigned long address, pgprot_t prot)
 static int change_page_attr_set(unsigned long addr, int numpages,
 								pgprot_t prot)
 {
-	pgprot_t current_prot;
+	pgprot_t current_prot, new_prot;
 	int level;
 	pte_t *pte;
 	int i, ret;
@@ -317,9 +317,10 @@ static int change_page_attr_set(unsigned long addr, int numpages,
 		else
 			pgprot_val(current_prot) = 0;
 
-		pgprot_val(prot) = pgprot_val(current_prot) | pgprot_val(prot);
+		pgprot_val(new_prot) =
+			pgprot_val(current_prot) | pgprot_val(prot);
 
-		ret = change_page_attr_addr(addr, prot);
+		ret = change_page_attr_addr(addr, new_prot);
 		if (ret)
 			return ret;
 		addr += PAGE_SIZE;
@@ -349,7 +350,7 @@ static int change_page_attr_set(unsigned long addr, int numpages,
 static int change_page_attr_clear(unsigned long addr, int numpages,
 								pgprot_t prot)
 {
-	pgprot_t current_prot;
+	pgprot_t current_prot, new_prot;
 	int level;
 	pte_t *pte;
 	int i, ret;
@@ -361,10 +362,10 @@ static int change_page_attr_clear(unsigned long addr, int numpages,
 		else
 			pgprot_val(current_prot) = 0;
 
-		pgprot_val(prot) =
+		pgprot_val(new_prot) =
 				pgprot_val(current_prot) & ~pgprot_val(prot);
 
-		ret = change_page_attr_addr(addr, prot);
+		ret = change_page_attr_addr(addr, new_prot);
 		if (ret)
 			return ret;
 		addr += PAGE_SIZE;
