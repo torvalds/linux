@@ -27,13 +27,6 @@ enum {
 	GPS			= (1<<30)
 };
 
-#ifdef CONFIG_X86_64
-# include <asm/proto.h>
-# define max_mapped		end_pfn_map
-#else
-# define max_mapped		max_low_pfn
-#endif
-
 struct split_state {
 	long lpg, gpg, spg, exec;
 	long min_exec, max_exec;
@@ -48,7 +41,7 @@ static __init int print_split(struct split_state *s)
 	s->lpg = s->gpg = s->spg = s->exec = 0;
 	s->min_exec = ~0UL;
 	s->max_exec = 0;
-	for (i = 0; i < max_mapped; ) {
+	for (i = 0; i < max_pfn_mapped; ) {
 		unsigned long addr = (unsigned long)__va(i << PAGE_SHIFT);
 		int level;
 		pte_t *pte;
@@ -97,8 +90,8 @@ static __init int print_split(struct split_state *s)
 
 	expected = (s->gpg*GPS + s->lpg*LPS)/PAGE_SIZE + s->spg + missed;
 	if (expected != i) {
-		printk(KERN_ERR "CPA max_mapped %lu but expected %lu\n",
-			max_mapped, expected);
+		printk(KERN_ERR "CPA max_pfn_mapped %lu but expected %lu\n",
+			max_pfn_mapped, expected);
 		return 1;
 	}
 	return err;
@@ -120,22 +113,22 @@ static __init int exercise_pageattr(void)
 
 	printk(KERN_INFO "CPA exercising pageattr\n");
 
-	bm = vmalloc((max_mapped + 7) / 8);
+	bm = vmalloc((max_pfn_mapped + 7) / 8);
 	if (!bm) {
 		printk(KERN_ERR "CPA Cannot vmalloc bitmap\n");
 		return -ENOMEM;
 	}
-	memset(bm, 0, (max_mapped + 7) / 8);
+	memset(bm, 0, (max_pfn_mapped + 7) / 8);
 
 	failed += print_split(&sa);
 	srandom32(100);
 
 	for (i = 0; i < NTEST; i++) {
-		unsigned long pfn = random32() % max_mapped;
+		unsigned long pfn = random32() % max_pfn_mapped;
 
 		addr[i] = (unsigned long)__va(pfn << PAGE_SHIFT);
 		len[i] = random32() % 100;
-		len[i] = min_t(unsigned long, len[i], max_mapped - pfn - 1);
+		len[i] = min_t(unsigned long, len[i], max_pfn_mapped - pfn - 1);
 
 		if (len[i] == 0)
 			len[i] = 1;

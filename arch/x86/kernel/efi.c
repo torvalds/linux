@@ -396,7 +396,7 @@ static void __init runtime_code_page_mkexec(void)
 		md = p;
 		end = md->phys_addr + (md->num_pages << EFI_PAGE_SHIFT);
 		if (md->type == EFI_RUNTIME_SERVICES_CODE &&
-		    (end >> PAGE_SHIFT) <= end_pfn_map)
+		    (end >> PAGE_SHIFT) <= max_pfn_mapped)
 			change_page_attr_addr(md->virt_addr,
 					      md->num_pages,
 					      PAGE_KERNEL_EXEC_NOCACHE);
@@ -429,7 +429,7 @@ void __init efi_enter_virtual_mode(void)
 			continue;
 		end = md->phys_addr + (md->num_pages << EFI_PAGE_SHIFT);
 		if ((md->attribute & EFI_MEMORY_WB) &&
-		    ((end >> PAGE_SHIFT) <= end_pfn_map))
+		    ((end >> PAGE_SHIFT) <= max_pfn_mapped))
 			md->virt_addr = (unsigned long)__va(md->phys_addr);
 		else
 			md->virt_addr = (unsigned long)

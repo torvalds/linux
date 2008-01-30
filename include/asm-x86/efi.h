@@ -35,8 +35,6 @@ extern unsigned long asmlinkage efi_call_phys(void *, ...);
 
 #define efi_ioremap(addr, size)			ioremap(addr, size)
 
-#define end_pfn_map				max_low_pfn
-
 #else /* !CONFIG_X86_32 */
 
 #define MAX_EFI_IO_PAGES	100
