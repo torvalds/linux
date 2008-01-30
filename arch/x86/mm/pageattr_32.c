@@ -29,10 +29,10 @@ pte_t *lookup_address(unsigned long address, int *level)
 	pmd = pmd_offset(pud, address);
 	if (pmd_none(*pmd))
 		return NULL;
-	*level = 2;
+	*level = 3;
 	if (pmd_large(*pmd))
 		return (pte_t *)pmd;
-	*level = 3;
+	*level = 4;
 
 	return pte_offset_kernel(pmd, address);
 }
@@ -136,7 +136,7 @@ repeat:
 		address < (unsigned long)&_etext &&
 	       (pgprot_val(prot) & _PAGE_NX));
 
-	if (level == 3) {
+	if (level == 4) {
 		set_pte_atomic(kpte, mk_pte(page, canon_pgprot(prot)));
 	} else {
 		err = split_large_page(kpte, address);

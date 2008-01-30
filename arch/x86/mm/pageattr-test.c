@@ -20,10 +20,10 @@ enum {
 	LOWEST_LEVEL		= 4,
 	LPS			= (1 << PMD_SHIFT),
 #elif defined(CONFIG_X86_PAE)
-	LOWEST_LEVEL		= 3,
+	LOWEST_LEVEL		= 4,
 	LPS			= (1 << PMD_SHIFT),
 #else
-	LOWEST_LEVEL		= 3, /* lookup_address lies here */
+	LOWEST_LEVEL		= 4, /* lookup_address lies here */
 	LPS			= (1 << 22),
 #endif
 	GPS			= (1<<30)
