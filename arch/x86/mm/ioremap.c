@@ -19,6 +19,11 @@
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 
+enum ioremap_mode {
+	IOR_MODE_UNCACHED,
+	IOR_MODE_CACHED,
+};
+
 #ifdef CONFIG_X86_64
 
 unsigned long __phys_addr(unsigned long x)
@@ -64,18 +69,16 @@ int page_is_ram(unsigned long pagenr)
  * Fix up the linear direct mapping of the kernel to avoid cache attribute
  * conflicts.
  */
-static int ioremap_change_attr(unsigned long phys_addr, unsigned long size,
-			       pgprot_t prot)
+static int ioremap_change_attr(unsigned long paddr, unsigned long size,
+			       enum ioremap_mode mode)
 {
-	unsigned long npages, vaddr, last_addr = phys_addr + size - 1;
+	unsigned long vaddr = (unsigned long)__va(paddr);
+	unsigned long nrpages = size >> PAGE_SHIFT;
 	int err, level;
 
 	/* No change for pages after the last mapping */
-	if (last_addr >= (max_pfn_mapped << PAGE_SHIFT))
+	if ((paddr + size - 1) >= (max_pfn_mapped << PAGE_SHIFT))
 		return 0;
-
-	npages = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	vaddr = (unsigned long) __va(phys_addr);
 
 	/*
 	 * If there is no identity map for this address,
@@ -84,13 +87,15 @@ static int ioremap_change_attr(unsigned long phys_addr, unsigned long size,
 	if (!lookup_address(vaddr, &level))
 		return 0;
 
-	/*
-	 * Must use an address here and not struct page because the
-	 * phys addr can be a in hole between nodes and not have a
-	 * memmap entry.
-	 */
-	err = change_page_attr_addr(vaddr, npages, prot);
-
+	switch (mode) {
+	case IOR_MODE_UNCACHED:
+	default:
+		err = set_memory_uc(vaddr, nrpages);
+		break;
+	case IOR_MODE_CACHED:
+		err = set_memory_wb(vaddr, nrpages);
+		break;
+	}
 	if (!err)
 		global_flush_tlb();
 
@@ -107,12 +112,12 @@ static int ioremap_change_attr(unsigned long phys_addr, unsigned long size,
  * caller shouldn't need to know that small detail.
  */
 static void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
-			       unsigned long flags)
+			       enum ioremap_mode mode)
 {
 	void __iomem *addr;
 	struct vm_struct *area;
 	unsigned long offset, last_addr;
-	pgprot_t pgprot;
+	pgprot_t prot;
 
 	/* Don't allow wraparound or zero size */
 	last_addr = phys_addr + size - 1;
@@ -134,7 +139,15 @@ static void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
 			return NULL;
 	}
 
-	pgprot = MAKE_GLOBAL(__PAGE_KERNEL | flags);
+	switch (mode) {
+	case IOR_MODE_UNCACHED:
+	default:
+		prot = PAGE_KERNEL_NOCACHE;
+		break;
+	case IOR_MODE_CACHED:
+		prot = PAGE_KERNEL;
+		break;
+	}
 
 	/*
 	 * Mappings have to be page-aligned
@@ -152,12 +165,12 @@ static void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
 	area->phys_addr = phys_addr;
 	addr = (void __iomem *) area->addr;
 	if (ioremap_page_range((unsigned long)addr, (unsigned long)addr + size,
-			       phys_addr, pgprot)) {
+			       phys_addr, prot)) {
 		remove_vm_area((void *)(PAGE_MASK & (unsigned long) addr));
 		return NULL;
 	}
 
-	if (ioremap_change_attr(phys_addr, size, pgprot) < 0) {
+	if (ioremap_change_attr(phys_addr, size, mode) < 0) {
 		vunmap(addr);
 		return NULL;
 	}
@@ -188,13 +201,13 @@ static void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
  */
 void __iomem *ioremap_nocache(unsigned long phys_addr, unsigned long size)
 {
-	return __ioremap(phys_addr, size, _PAGE_PCD | _PAGE_PWT);
+	return __ioremap(phys_addr, size, IOR_MODE_UNCACHED);
 }
 EXPORT_SYMBOL(ioremap_nocache);
 
 void __iomem *ioremap_cache(unsigned long phys_addr, unsigned long size)
 {
-	return __ioremap(phys_addr, size, 0);
+	return __ioremap(phys_addr, size, IOR_MODE_CACHED);
 }
 EXPORT_SYMBOL(ioremap_cache);
 
@@ -242,7 +255,7 @@ void iounmap(volatile void __iomem *addr)
 	}
 
 	/* Reset the direct mapping. Can block */
-	ioremap_change_attr(p->phys_addr, p->size, PAGE_KERNEL);
+	ioremap_change_attr(p->phys_addr, p->size, IOR_MODE_CACHED);
 
 	/* Finally remove it */
 	o = remove_vm_area((void *)addr);
