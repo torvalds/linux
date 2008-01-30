@@ -91,6 +91,11 @@ static inline pudval_t native_pud_val(pud_t pud)
 }
 #else	/* PAGETABLE_LEVELS == 3 */
 #include <asm-generic/pgtable-nopud.h>
+
+static inline pudval_t native_pud_val(pud_t pud)
+{
+	return native_pgd_val(pud.pgd);
+}
 #endif	/* PAGETABLE_LEVELS == 4 */
 
 typedef struct { pmdval_t pmd; } pmd_t;
@@ -106,6 +111,11 @@ static inline pmdval_t native_pmd_val(pmd_t pmd)
 }
 #else  /* PAGETABLE_LEVELS == 2 */
 #include <asm-generic/pgtable-nopmd.h>
+
+static inline pmdval_t native_pmd_val(pmd_t pmd)
+{
+	return native_pgd_val(pmd.pud.pgd);
+}
 #endif	/* PAGETABLE_LEVELS >= 3 */
 
 static inline pte_t native_make_pte(pteval_t val)
