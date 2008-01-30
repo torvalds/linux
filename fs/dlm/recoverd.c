@@ -67,17 +67,18 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 	dlm_astd_resume();
 
 	/*
+	 * Free non-master tossed rsb's.  Master rsb's are kept on toss
+	 * list and put on root list to be included in resdir recovery.
+	 */
+
+	dlm_clear_toss_list(ls);
+
+	/*
 	 * This list of root rsb's will be the basis of most of the recovery
 	 * routines.
 	 */
 
 	dlm_create_root_list(ls);
-
-	/*
-	 * Free all the tossed rsb's so we don't have to recover them.
-	 */
-
-	dlm_clear_toss_list(ls);
 
 	/*
 	 * Add or remove nodes from the lockspace's ls_nodes list.
