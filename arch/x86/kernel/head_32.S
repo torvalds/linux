@@ -502,6 +502,7 @@ early_fault:
 	call printk
 #endif
 #endif
+	call dump_stack
 hlt_loop:
 	hlt
 	jmp hlt_loop
