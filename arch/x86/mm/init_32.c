@@ -530,7 +530,7 @@ void __init paging_init(void)
 #ifdef CONFIG_X86_PAE
 	set_nx();
 	if (nx_enabled)
-		printk("NX (Execute Disable) protection: active\n");
+		printk(KERN_INFO "NX (Execute Disable) protection: active\n");
 #endif
 	pagetable_init();
 
@@ -557,7 +557,8 @@ void __init paging_init(void)
  */
 static void __init test_wp_bit(void)
 {
-	printk("Checking if this processor honours the WP bit even in supervisor mode... ");
+	printk(KERN_INFO
+  "Checking if this processor honours the WP bit even in supervisor mode...");
 
 	/* Any page-aligned address will do, the test is non-destructive */
 	__set_fixmap(FIX_WP_TEST, __pa(&swapper_pg_dir), PAGE_READONLY);
@@ -565,12 +566,13 @@ static void __init test_wp_bit(void)
 	clear_fixmap(FIX_WP_TEST);
 
 	if (!boot_cpu_data.wp_works_ok) {
-		printk("No.\n");
+		printk(KERN_CONT "No.\n");
 #ifdef CONFIG_X86_WP_WORKS_OK
-		panic("This kernel doesn't support CPU's with broken WP. Recompile it for a 386!");
+		panic(
+  "This kernel doesn't support CPU's with broken WP. Recompile it for a 386!");
 #endif
 	} else {
-		printk("Ok.\n");
+		printk(KERN_CONT "Ok.\n");
 	}
 }
 
@@ -588,10 +590,12 @@ void __init mem_init(void)
 
 #ifdef CONFIG_HIGHMEM
 	/* check that fixmap and pkmap do not overlap */
-	if (PKMAP_BASE+LAST_PKMAP*PAGE_SIZE >= FIXADDR_START) {
-		printk(KERN_ERR "fixmap and kmap areas overlap - this will crash\n");
+	if (PKMAP_BASE + LAST_PKMAP*PAGE_SIZE >= FIXADDR_START) {
+		printk(KERN_ERR
+			"fixmap and kmap areas overlap - this will crash\n");
 		printk(KERN_ERR "pkstart: %lxh pkend: %lxh fixstart %lxh\n",
-				PKMAP_BASE, PKMAP_BASE+LAST_PKMAP*PAGE_SIZE, FIXADDR_START);
+				PKMAP_BASE, PKMAP_BASE + LAST_PKMAP*PAGE_SIZE,
+				FIXADDR_START);
 		BUG();
 	}
 #endif
@@ -628,7 +632,7 @@ void __init mem_init(void)
 	       );
 
 #if 1 /* double-sanity-check paranoia */
-	printk("virtual kernel memory layout:\n"
+	printk(KERN_INFO "virtual kernel memory layout:\n"
 		"    fixmap  : 0x%08lx - 0x%08lx   (%4ld kB)\n"
 #ifdef CONFIG_HIGHMEM
 		"    pkmap   : 0x%08lx - 0x%08lx   (%4ld kB)\n"
@@ -756,13 +760,15 @@ void mark_rodata_ro(void)
 #endif
 	{
 		set_pages_ro(virt_to_page(start), size >> PAGE_SHIFT);
-		printk("Write protecting the kernel text: %luk\n", size >> 10);
+		printk(KERN_INFO "Write protecting the kernel text: %luk\n",
+			size >> 10);
 
 #ifdef CONFIG_CPA_DEBUG
-		printk("Testing CPA: Reverting %lx-%lx\n", start, start+size);
+		printk(KERN_INFO "Testing CPA: Reverting %lx-%lx\n",
+			start, start+size);
 		set_pages_rw(virt_to_page(start), size>>PAGE_SHIFT);
 
-		printk("Testing CPA: write protecting again\n");
+		printk(KERN_INFO "Testing CPA: write protecting again\n");
 		set_pages_ro(virt_to_page(start), size>>PAGE_SHIFT);
 #endif
 	}
@@ -770,15 +776,15 @@ void mark_rodata_ro(void)
 	start += size;
 	size = (unsigned long)__end_rodata - start;
 	set_pages_ro(virt_to_page(start), size >> PAGE_SHIFT);
-	printk("Write protecting the kernel read-only data: %luk\n",
-	       size >> 10);
+	printk(KERN_INFO "Write protecting the kernel read-only data: %luk\n",
+		size >> 10);
 	rodata_test();
 
 #ifdef CONFIG_CPA_DEBUG
-	printk("Testing CPA: undo %lx-%lx\n", start, start + size);
+	printk(KERN_INFO "Testing CPA: undo %lx-%lx\n", start, start + size);
 	set_pages_rw(virt_to_page(start), size >> PAGE_SHIFT);
 
-	printk("Testing CPA: write protecting again\n");
+	printk(KERN_INFO "Testing CPA: write protecting again\n");
 	set_pages_ro(virt_to_page(start), size >> PAGE_SHIFT);
 #endif
 }
