@@ -158,7 +158,7 @@ extern int acpi_scan_nodes(unsigned long start, unsigned long end);
 #ifdef CONFIG_X86_64
 # define NR_NODE_MEMBLKS (MAX_NUMNODES*2)
 #endif
-extern void __init acpi_fake_nodes(const struct bootnode *fake_nodes,
+extern void acpi_fake_nodes(const struct bootnode *fake_nodes,
 				   int num_nodes);
 #else
 static inline void acpi_fake_nodes(const struct bootnode *fake_nodes,
