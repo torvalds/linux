@@ -2,6 +2,7 @@
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/user.h>
+#include <linux/regset.h>
 
 #include <asm/uaccess.h>
 #include <asm/desc.h>
@@ -9,6 +10,8 @@
 #include <asm/ldt.h>
 #include <asm/processor.h>
 #include <asm/proto.h>
+
+#include "tls.h"
 
 /*
  * sys_alloc_thread_area: get a yet unused TLS descriptor index.
@@ -25,7 +28,7 @@ static int get_free_idx(void)
 }
 
 static void set_tls_desc(struct task_struct *p, int idx,
-			 const struct user_desc *info)
+			 const struct user_desc *info, int n)
 {
 	struct thread_struct *t = &p->thread;
 	struct desc_struct *desc = &t->tls_array[idx - GDT_ENTRY_TLS_MIN];
@@ -36,10 +39,14 @@ static void set_tls_desc(struct task_struct *p, int idx,
 	 */
 	cpu = get_cpu();
 
-	if (LDT_empty(info))
-		desc->a = desc->b = 0;
-	else
-		fill_ldt(desc, info);
+	while (n-- > 0) {
+		if (LDT_empty(info))
+			desc->a = desc->b = 0;
+		else
+			fill_ldt(desc, info);
+		++info;
+		++desc;
+	}
 
 	if (t == &current->thread)
 		load_TLS(t, cpu);
@@ -77,7 +84,7 @@ int do_set_thread_area(struct task_struct *p, int idx,
 	if (idx < GDT_ENTRY_TLS_MIN || idx > GDT_ENTRY_TLS_MAX)
 		return -EINVAL;
 
-	set_tls_desc(p, idx, &info);
+	set_tls_desc(p, idx, &info, 1);
 
 	return 0;
 }
@@ -133,4 +140,74 @@ int do_get_thread_area(struct task_struct *p, int idx,
 asmlinkage int sys_get_thread_area(struct user_desc __user *u_info)
 {
 	return do_get_thread_area(current, -1, u_info);
+}
+
+int regset_tls_active(struct task_struct *target,
+		      const struct user_regset *regset)
+{
+	struct thread_struct *t = &target->thread;
+	int n = GDT_ENTRY_TLS_ENTRIES;
+	while (n > 0 && desc_empty(&t->tls_array[n - 1]))
+		--n;
+	return n;
+}
+
+int regset_tls_get(struct task_struct *target, const struct user_regset *regset,
+		   unsigned int pos, unsigned int count,
+		   void *kbuf, void __user *ubuf)
+{
+	const struct desc_struct *tls;
+
+	if (pos > GDT_ENTRY_TLS_ENTRIES * sizeof(struct user_desc) ||
+	    (pos % sizeof(struct user_desc)) != 0 ||
+	    (count % sizeof(struct user_desc)) != 0)
+		return -EINVAL;
+
+	pos /= sizeof(struct user_desc);
+	count /= sizeof(struct user_desc);
+
+	tls = &target->thread.tls_array[pos];
+
+	if (kbuf) {
+		struct user_desc *info = kbuf;
+		while (count-- > 0)
+			fill_user_desc(info++, GDT_ENTRY_TLS_MIN + pos++,
+				       tls++);
+	} else {
+		struct user_desc __user *u_info = ubuf;
+		while (count-- > 0) {
+			struct user_desc info;
+			fill_user_desc(&info, GDT_ENTRY_TLS_MIN + pos++, tls++);
+			if (__copy_to_user(u_info++, &info, sizeof(info)))
+				return -EFAULT;
+		}
+	}
+
+	return 0;
+}
+
+int regset_tls_set(struct task_struct *target, const struct user_regset *regset,
+		   unsigned int pos, unsigned int count,
+		   const void *kbuf, const void __user *ubuf)
+{
+	struct user_desc infobuf[GDT_ENTRY_TLS_ENTRIES];
+	const struct user_desc *info;
+
+	if (pos > GDT_ENTRY_TLS_ENTRIES * sizeof(struct user_desc) ||
+	    (pos % sizeof(struct user_desc)) != 0 ||
+	    (count % sizeof(struct user_desc)) != 0)
+		return -EINVAL;
+
+	if (kbuf)
+		info = kbuf;
+	else if (__copy_from_user(infobuf, ubuf, count))
+		return -EFAULT;
+	else
+		info = infobuf;
+
+	set_tls_desc(target,
+		     GDT_ENTRY_TLS_MIN + (pos / sizeof(struct user_desc)),
+		     info, count / sizeof(struct user_desc));
+
+	return 0;
 }
