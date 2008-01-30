@@ -23,7 +23,7 @@ static void log2_kernel(FPU_REG const *arg, u_char argsign,
 /*--- poly_l2() -------------------------------------------------------------+
  |   Base 2 logarithm by a polynomial approximation.                         |
  +---------------------------------------------------------------------------*/
-void poly_l2(FPU_REG * st0_ptr, FPU_REG * st1_ptr, u_char st1_sign)
+void poly_l2(FPU_REG *st0_ptr, FPU_REG *st1_ptr, u_char st1_sign)
 {
 	long int exponent, expon, expon_expon;
 	Xsig accumulator, expon_accum, yaccum;
@@ -178,7 +178,7 @@ static const unsigned long leadterm = 0xb8000000;
  |   Base 2 logarithm by a polynomial approximation.                         |
  |   log2(x+1)                                                               |
  +---------------------------------------------------------------------------*/
-static void log2_kernel(FPU_REG const *arg, u_char argsign, Xsig * accum_result,
+static void log2_kernel(FPU_REG const *arg, u_char argsign, Xsig *accum_result,
 			long int *expon)
 {
 	long int exponent, adj;

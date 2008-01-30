@@ -122,7 +122,7 @@ struct fpu__reg {
 
 typedef void (*FUNC) (void);
 typedef struct fpu__reg FPU_REG;
-typedef void (*FUNC_ST0) (FPU_REG * st0_ptr, u_char st0_tag);
+typedef void (*FUNC_ST0) (FPU_REG *st0_ptr, u_char st0_tag);
 typedef struct {
 	u_char address_size, operand_size, segment;
 } overrides;
@@ -166,7 +166,7 @@ extern u_char const data_sizes_16[32];
 #define signpositive(a) ( (signbyte(a) & 0x80) == 0 )
 #define signnegative(a) (signbyte(a) & 0x80)
 
-static inline void reg_copy(FPU_REG const *x, FPU_REG * y)
+static inline void reg_copy(FPU_REG const *x, FPU_REG *y)
 {
 	*(short *)&(y->exp) = *(const short *)&(x->exp);
 	*(long long *)&(y->sigl) = *(const long long *)&(x->sigl);
@@ -187,8 +187,8 @@ static inline void reg_copy(FPU_REG const *x, FPU_REG * y)
 /*----- Prototypes for functions written in assembler -----*/
 /* extern void reg_move(FPU_REG *a, FPU_REG *b); */
 
-asmlinkage int FPU_normalize(FPU_REG * x);
-asmlinkage int FPU_normalize_nuo(FPU_REG * x);
+asmlinkage int FPU_normalize(FPU_REG *x);
+asmlinkage int FPU_normalize_nuo(FPU_REG *x);
 asmlinkage int FPU_u_sub(FPU_REG const *arg1, FPU_REG const *arg2,
 			 FPU_REG * answ, unsigned int control_w, u_char sign,
 			 int expa, int expb);
@@ -200,12 +200,12 @@ asmlinkage int FPU_u_div(FPU_REG const *arg1, FPU_REG const *arg2,
 asmlinkage int FPU_u_add(FPU_REG const *arg1, FPU_REG const *arg2,
 			 FPU_REG * answ, unsigned int control_w, u_char sign,
 			 int expa, int expb);
-asmlinkage int wm_sqrt(FPU_REG * n, int dummy1, int dummy2,
+asmlinkage int wm_sqrt(FPU_REG *n, int dummy1, int dummy2,
 		       unsigned int control_w, u_char sign);
 asmlinkage unsigned FPU_shrx(void *l, unsigned x);
 asmlinkage unsigned FPU_shrxs(void *v, unsigned x);
 asmlinkage unsigned long FPU_div_small(unsigned long long *x, unsigned long y);
-asmlinkage int FPU_round(FPU_REG * arg, unsigned int extent, int dummy,
+asmlinkage int FPU_round(FPU_REG *arg, unsigned int extent, int dummy,
 			 unsigned int control_w, u_char sign);
 
 #ifndef MAKING_PROTO

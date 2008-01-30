@@ -33,12 +33,12 @@ asmlinkage void polynomial_Xsig(Xsig *, const unsigned long long *x,
 
 asmlinkage void mul32_Xsig(Xsig *, const unsigned long mult);
 asmlinkage void mul64_Xsig(Xsig *, const unsigned long long *mult);
-asmlinkage void mul_Xsig_Xsig(Xsig * dest, const Xsig * mult);
+asmlinkage void mul_Xsig_Xsig(Xsig *dest, const Xsig *mult);
 
 asmlinkage void shr_Xsig(Xsig *, const int n);
 asmlinkage int round_Xsig(Xsig *);
 asmlinkage int norm_Xsig(Xsig *);
-asmlinkage void div_Xsig(Xsig * x1, const Xsig * x2, const Xsig * dest);
+asmlinkage void div_Xsig(Xsig *x1, const Xsig *x2, const Xsig *dest);
 
 /* Macro to extract the most significant 32 bits from a long long */
 #define LL_MSW(x)     (((unsigned long *)&x)[1])
@@ -70,7 +70,7 @@ static inline unsigned long mul_32_32(const unsigned long arg1,
 }
 
 /* Add the 12 byte Xsig x2 to Xsig dest, with no checks for overflow. */
-static inline void add_Xsig_Xsig(Xsig * dest, const Xsig * x2)
+static inline void add_Xsig_Xsig(Xsig *dest, const Xsig *x2)
 {
 	asm volatile ("movl %1,%%edi; movl %2,%%esi;\n"
 		      "movl (%%esi),%%eax; addl %%eax,(%%edi);\n"
@@ -84,7 +84,7 @@ static inline void add_Xsig_Xsig(Xsig * dest, const Xsig * x2)
 /* Note: the constraints in the asm statement didn't always work properly
    with gcc 2.5.8.  Changing from using edi to using ecx got around the
    problem, but keep fingers crossed! */
-static inline void add_two_Xsig(Xsig * dest, const Xsig * x2, long int *exp)
+static inline void add_two_Xsig(Xsig *dest, const Xsig *x2, long int *exp)
 {
 	asm volatile ("movl %2,%%ecx; movl %3,%%esi;\n"
 		      "movl (%%esi),%%eax; addl %%eax,(%%ecx);\n"
@@ -101,7 +101,7 @@ static inline void add_two_Xsig(Xsig * dest, const Xsig * x2, long int *exp)
 
 /* Negate (subtract from 1.0) the 12 byte Xsig */
 /* This is faster in a loop on my 386 than using the "neg" instruction. */
-static inline void negate_Xsig(Xsig * x)
+static inline void negate_Xsig(Xsig *x)
 {
 	asm volatile ("movl %1,%%esi;\n"
 		      "xorl %%ecx,%%ecx;\n"

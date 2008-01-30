@@ -30,7 +30,7 @@ static void rem_kernel(unsigned long long st0, unsigned long long *y,
 /* Limited measurements show no results worse than 64 bit precision
    except for the results for arguments close to 2^63, where the
    precision of the result sometimes degrades to about 63.9 bits */
-static int trig_arg(FPU_REG * st0_ptr, int even)
+static int trig_arg(FPU_REG *st0_ptr, int even)
 {
 	FPU_REG tmp;
 	u_char tmptag;
@@ -176,7 +176,7 @@ static void convert_l2reg(long const *arg, int deststnr)
 	return;
 }
 
-static void single_arg_error(FPU_REG * st0_ptr, u_char st0_tag)
+static void single_arg_error(FPU_REG *st0_ptr, u_char st0_tag)
 {
 	if (st0_tag == TAG_Empty)
 		FPU_stack_underflow();	/* Puts a QNaN in st(0) */
@@ -188,7 +188,7 @@ static void single_arg_error(FPU_REG * st0_ptr, u_char st0_tag)
 #endif /* PARANOID */
 }
 
-static void single_arg_2_error(FPU_REG * st0_ptr, u_char st0_tag)
+static void single_arg_2_error(FPU_REG *st0_ptr, u_char st0_tag)
 {
 	int isNaN;
 
@@ -229,7 +229,7 @@ static void single_arg_2_error(FPU_REG * st0_ptr, u_char st0_tag)
 
 /*---------------------------------------------------------------------------*/
 
-static void f2xm1(FPU_REG * st0_ptr, u_char tag)
+static void f2xm1(FPU_REG *st0_ptr, u_char tag)
 {
 	FPU_REG a;
 
@@ -272,7 +272,7 @@ static void f2xm1(FPU_REG * st0_ptr, u_char tag)
 	}
 }
 
-static void fptan(FPU_REG * st0_ptr, u_char st0_tag)
+static void fptan(FPU_REG *st0_ptr, u_char st0_tag)
 {
 	FPU_REG *st_new_ptr;
 	int q;
@@ -351,7 +351,7 @@ static void fptan(FPU_REG * st0_ptr, u_char st0_tag)
 	single_arg_2_error(st0_ptr, st0_tag);
 }
 
-static void fxtract(FPU_REG * st0_ptr, u_char st0_tag)
+static void fxtract(FPU_REG *st0_ptr, u_char st0_tag)
 {
 	FPU_REG *st_new_ptr;
 	u_char sign;
@@ -444,7 +444,7 @@ static void fincstp(void)
 	top++;
 }
 
-static void fsqrt_(FPU_REG * st0_ptr, u_char st0_tag)
+static void fsqrt_(FPU_REG *st0_ptr, u_char st0_tag)
 {
 	int expon;
 
@@ -502,7 +502,7 @@ static void fsqrt_(FPU_REG * st0_ptr, u_char st0_tag)
 
 }
 
-static void frndint_(FPU_REG * st0_ptr, u_char st0_tag)
+static void frndint_(FPU_REG *st0_ptr, u_char st0_tag)
 {
 	int flags, tag;
 
@@ -546,7 +546,7 @@ static void frndint_(FPU_REG * st0_ptr, u_char st0_tag)
 		single_arg_error(st0_ptr, st0_tag);
 }
 
-static int fsin(FPU_REG * st0_ptr, u_char tag)
+static int fsin(FPU_REG *st0_ptr, u_char tag)
 {
 	u_char arg_sign = getsign(st0_ptr);
 
@@ -607,7 +607,7 @@ static int fsin(FPU_REG * st0_ptr, u_char tag)
 	}
 }
 
-static int f_cos(FPU_REG * st0_ptr, u_char tag)
+static int f_cos(FPU_REG *st0_ptr, u_char tag)
 {
 	u_char st0_sign;
 
@@ -677,12 +677,12 @@ static int f_cos(FPU_REG * st0_ptr, u_char tag)
 	}
 }
 
-static void fcos(FPU_REG * st0_ptr, u_char st0_tag)
+static void fcos(FPU_REG *st0_ptr, u_char st0_tag)
 {
 	f_cos(st0_ptr, st0_tag);
 }
 
-static void fsincos(FPU_REG * st0_ptr, u_char st0_tag)
+static void fsincos(FPU_REG *st0_ptr, u_char st0_tag)
 {
 	FPU_REG *st_new_ptr;
 	FPU_REG arg;
@@ -775,7 +775,7 @@ static void rem_kernel(unsigned long long st0, unsigned long long *y,
 /* Remainder of st(0) / st(1) */
 /* This routine produces exact results, i.e. there is never any
    rounding or truncation, etc of the result. */
-static void do_fprem(FPU_REG * st0_ptr, u_char st0_tag, int round)
+static void do_fprem(FPU_REG *st0_ptr, u_char st0_tag, int round)
 {
 	FPU_REG *st1_ptr = &st(1);
 	u_char st1_tag = FPU_gettagi(1);
@@ -1017,7 +1017,7 @@ static void do_fprem(FPU_REG * st0_ptr, u_char st0_tag, int round)
 }
 
 /* ST(1) <- ST(1) * log ST;  pop ST */
-static void fyl2x(FPU_REG * st0_ptr, u_char st0_tag)
+static void fyl2x(FPU_REG *st0_ptr, u_char st0_tag)
 {
 	FPU_REG *st1_ptr = &st(1), exponent;
 	u_char st1_tag = FPU_gettagi(1);
@@ -1188,7 +1188,7 @@ static void fyl2x(FPU_REG * st0_ptr, u_char st0_tag)
 	FPU_pop();
 }
 
-static void fpatan(FPU_REG * st0_ptr, u_char st0_tag)
+static void fpatan(FPU_REG *st0_ptr, u_char st0_tag)
 {
 	FPU_REG *st1_ptr = &st(1);
 	u_char st1_tag = FPU_gettagi(1);
@@ -1298,17 +1298,17 @@ static void fpatan(FPU_REG * st0_ptr, u_char st0_tag)
 	set_precision_flag_up();	/* We do not really know if up or down */
 }
 
-static void fprem(FPU_REG * st0_ptr, u_char st0_tag)
+static void fprem(FPU_REG *st0_ptr, u_char st0_tag)
 {
 	do_fprem(st0_ptr, st0_tag, RC_CHOP);
 }
 
-static void fprem1(FPU_REG * st0_ptr, u_char st0_tag)
+static void fprem1(FPU_REG *st0_ptr, u_char st0_tag)
 {
 	do_fprem(st0_ptr, st0_tag, RC_RND);
 }
 
-static void fyl2xp1(FPU_REG * st0_ptr, u_char st0_tag)
+static void fyl2xp1(FPU_REG *st0_ptr, u_char st0_tag)
 {
 	u_char sign, sign1;
 	FPU_REG *st1_ptr = &st(1), a, b;
@@ -1477,7 +1477,7 @@ static void fyl2xp1(FPU_REG * st0_ptr, u_char st0_tag)
 
 }
 
-static void fscale(FPU_REG * st0_ptr, u_char st0_tag)
+static void fscale(FPU_REG *st0_ptr, u_char st0_tag)
 {
 	FPU_REG *st1_ptr = &st(1);
 	u_char st1_tag = FPU_gettagi(1);

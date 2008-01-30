@@ -16,7 +16,7 @@
 #include "status_w.h"
 #include "reg_constant.h"
 
-static void fchs(FPU_REG * st0_ptr, u_char st0tag)
+static void fchs(FPU_REG *st0_ptr, u_char st0tag)
 {
 	if (st0tag ^ TAG_Empty) {
 		signbyte(st0_ptr) ^= SIGN_NEG;
@@ -25,7 +25,7 @@ static void fchs(FPU_REG * st0_ptr, u_char st0tag)
 		FPU_stack_underflow();
 }
 
-static void fabs(FPU_REG * st0_ptr, u_char st0tag)
+static void fabs(FPU_REG *st0_ptr, u_char st0tag)
 {
 	if (st0tag ^ TAG_Empty) {
 		setpositive(st0_ptr);
@@ -34,7 +34,7 @@ static void fabs(FPU_REG * st0_ptr, u_char st0tag)
 		FPU_stack_underflow();
 }
 
-static void ftst_(FPU_REG * st0_ptr, u_char st0tag)
+static void ftst_(FPU_REG *st0_ptr, u_char st0tag)
 {
 	switch (st0tag) {
 	case TAG_Zero:
@@ -85,7 +85,7 @@ static void ftst_(FPU_REG * st0_ptr, u_char st0tag)
 	}
 }
 
-static void fxam(FPU_REG * st0_ptr, u_char st0tag)
+static void fxam(FPU_REG *st0_ptr, u_char st0tag)
 {
 	int c = 0;
 	switch (st0tag) {

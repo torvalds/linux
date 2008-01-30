@@ -13,7 +13,7 @@
 #include "exception.h"
 #include "fpu_emu.h"
 
-int FPU_to_exp16(FPU_REG const *a, FPU_REG * x)
+int FPU_to_exp16(FPU_REG const *a, FPU_REG *x)
 {
 	int sign = getsign(a);
 

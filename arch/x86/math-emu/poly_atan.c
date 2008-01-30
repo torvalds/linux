@@ -48,8 +48,8 @@ static const Xsig pi_signif = MK_XSIG(0xc90fdaa2, 0x2168c234, 0xc4c6628b);
 /*--- poly_atan() -----------------------------------------------------------+
  |                                                                           |
  +---------------------------------------------------------------------------*/
-void poly_atan(FPU_REG * st0_ptr, u_char st0_tag,
-	       FPU_REG * st1_ptr, u_char st1_tag)
+void poly_atan(FPU_REG *st0_ptr, u_char st0_tag,
+	       FPU_REG *st1_ptr, u_char st1_tag)
 {
 	u_char transformed, inverted, sign1, sign2;
 	int exponent;

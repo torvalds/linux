@@ -374,7 +374,7 @@ asmlinkage void FPU_exception(int n)
 
 /* Real operation attempted on a NaN. */
 /* Returns < 0 if the exception is unmasked */
-int real_1op_NaN(FPU_REG * a)
+int real_1op_NaN(FPU_REG *a)
 {
 	int signalling, isNaN;
 
@@ -573,7 +573,7 @@ asmlinkage int denormal_operand(void)
 	}
 }
 
-asmlinkage int arith_overflow(FPU_REG * dest)
+asmlinkage int arith_overflow(FPU_REG *dest)
 {
 	int tag = TAG_Valid;
 
@@ -601,7 +601,7 @@ asmlinkage int arith_overflow(FPU_REG * dest)
 
 }
 
-asmlinkage int arith_underflow(FPU_REG * dest)
+asmlinkage int arith_underflow(FPU_REG *dest)
 {
 	int tag = TAG_Valid;
 

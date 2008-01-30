@@ -49,7 +49,7 @@ static const Xsig *shiftterm[] = { &shiftterm0, &shiftterm1,
 /*--- poly_2xm1() -----------------------------------------------------------+
  | Requires st(0) which is TAG_Valid and < 1.                                |
  +---------------------------------------------------------------------------*/
-int poly_2xm1(u_char sign, FPU_REG * arg, FPU_REG * result)
+int poly_2xm1(u_char sign, FPU_REG *arg, FPU_REG *result)
 {
 	long int exponent, shift;
 	unsigned long long Xll;

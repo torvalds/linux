@@ -47,7 +47,7 @@ static const unsigned long long twothirds = 0xaaaaaaaaaaaaaaabLL;
 /*--- poly_tan() ------------------------------------------------------------+
  |                                                                           |
  +---------------------------------------------------------------------------*/
-void poly_tan(FPU_REG * st0_ptr)
+void poly_tan(FPU_REG *st0_ptr)
 {
 	long int exponent;
 	int invert;

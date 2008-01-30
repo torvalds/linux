@@ -126,7 +126,7 @@ static u_char const type_table[64] = {
 u_char emulating = 0;
 #endif /* RE_ENTRANT_CHECKING */
 
-static int valid_prefix(u_char * Byte, u_char __user ** fpu_eip,
+static int valid_prefix(u_char *Byte, u_char __user ** fpu_eip,
 			overrides * override);
 
 asmlinkage void math_emulate(long arg)
@@ -580,7 +580,7 @@ asmlinkage void math_emulate(long arg)
    all prefix bytes, further changes are needed in the emulator code
    which accesses user address space. Access to separate segments is
    important for msdos emulation. */
-static int valid_prefix(u_char * Byte, u_char __user ** fpu_eip,
+static int valid_prefix(u_char *Byte, u_char __user **fpu_eip,
 			overrides * override)
 {
 	u_char byte;
@@ -673,7 +673,7 @@ void math_abort(struct info *info, unsigned int signal)
 #define sstatus_word() \
   ((S387->swd & ~SW_Top & 0xffff) | ((S387->ftop << SW_Top_Shift) & SW_Top))
 
-int restore_i387_soft(void *s387, struct _fpstate __user * buf)
+int restore_i387_soft(void *s387, struct _fpstate __user *buf)
 {
 	u_char __user *d = (u_char __user *) buf;
 	int offset, other, i, tags, regnr, tag, newtop;

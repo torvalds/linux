@@ -54,7 +54,7 @@ static const unsigned long long neg_terms_h[N_COEFF_NH] = {
 /*--- poly_sine() -----------------------------------------------------------+
  |                                                                           |
  +---------------------------------------------------------------------------*/
-void poly_sine(FPU_REG * st0_ptr)
+void poly_sine(FPU_REG *st0_ptr)
 {
 	int exponent, echange;
 	Xsig accumulator, argSqrd, argTo4;
@@ -197,7 +197,7 @@ void poly_sine(FPU_REG * st0_ptr)
 /*--- poly_cos() ------------------------------------------------------------+
  |                                                                           |
  +---------------------------------------------------------------------------*/
-void poly_cos(FPU_REG * st0_ptr)
+void poly_cos(FPU_REG *st0_ptr)
 {
 	FPU_REG result;
 	long int exponent, exp2, echange;

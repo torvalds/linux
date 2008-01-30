@@ -35,7 +35,7 @@
 #define SINGLE_Ebias 127
 #define SINGLE_Emin (-126)	/* smallest valid exponent */
 
-static u_char normalize_no_excep(FPU_REG * r, int exp, int sign)
+static u_char normalize_no_excep(FPU_REG *r, int exp, int sign)
 {
 	u_char tag;
 
@@ -49,7 +49,7 @@ static u_char normalize_no_excep(FPU_REG * r, int exp, int sign)
 	return tag;
 }
 
-int FPU_tagof(FPU_REG * ptr)
+int FPU_tagof(FPU_REG *ptr)
 {
 	int exp;
 
@@ -78,7 +78,7 @@ int FPU_tagof(FPU_REG * ptr)
 }
 
 /* Get a long double from user memory */
-int FPU_load_extended(long double __user * s, int stnr)
+int FPU_load_extended(long double __user *s, int stnr)
 {
 	FPU_REG *sti_ptr = &st(stnr);
 
@@ -91,7 +91,7 @@ int FPU_load_extended(long double __user * s, int stnr)
 }
 
 /* Get a double from user memory */
-int FPU_load_double(double __user * dfloat, FPU_REG * loaded_data)
+int FPU_load_double(double __user *dfloat, FPU_REG *loaded_data)
 {
 	int exp, tag, negative;
 	unsigned m64, l64;
@@ -152,7 +152,7 @@ int FPU_load_double(double __user * dfloat, FPU_REG * loaded_data)
 }
 
 /* Get a float from user memory */
-int FPU_load_single(float __user * single, FPU_REG * loaded_data)
+int FPU_load_single(float __user *single, FPU_REG *loaded_data)
 {
 	unsigned m32;
 	int exp, tag, negative;
@@ -206,7 +206,7 @@ int FPU_load_single(float __user * single, FPU_REG * loaded_data)
 }
 
 /* Get a long long from user memory */
-int FPU_load_int64(long long __user * _s)
+int FPU_load_int64(long long __user *_s)
 {
 	long long s;
 	int sign;
@@ -236,7 +236,7 @@ int FPU_load_int64(long long __user * _s)
 }
 
 /* Get a long from user memory */
-int FPU_load_int32(long __user * _s, FPU_REG * loaded_data)
+int FPU_load_int32(long __user *_s, FPU_REG *loaded_data)
 {
 	long s;
 	int negative;
@@ -265,7 +265,7 @@ int FPU_load_int32(long __user * _s, FPU_REG * loaded_data)
 }
 
 /* Get a short from user memory */
-int FPU_load_int16(short __user * _s, FPU_REG * loaded_data)
+int FPU_load_int16(short __user *_s, FPU_REG *loaded_data)
 {
 	int s, negative;
 
@@ -294,7 +294,7 @@ int FPU_load_int16(short __user * _s, FPU_REG * loaded_data)
 }
 
 /* Get a packed bcd array from user memory */
-int FPU_load_bcd(u_char __user * s)
+int FPU_load_bcd(u_char __user *s)
 {
 	FPU_REG *st0_ptr = &st(0);
 	int pos;
@@ -333,7 +333,7 @@ int FPU_load_bcd(u_char __user * s)
 /*===========================================================================*/
 
 /* Put a long double into user memory */
-int FPU_store_extended(FPU_REG * st0_ptr, u_char st0_tag,
+int FPU_store_extended(FPU_REG *st0_ptr, u_char st0_tag,
 		       long double __user * d)
 {
 	/*
@@ -375,7 +375,7 @@ int FPU_store_extended(FPU_REG * st0_ptr, u_char st0_tag,
 }
 
 /* Put a double into user memory */
-int FPU_store_double(FPU_REG * st0_ptr, u_char st0_tag, double __user * dfloat)
+int FPU_store_double(FPU_REG *st0_ptr, u_char st0_tag, double __user *dfloat)
 {
 	unsigned long l[2];
 	unsigned long increment = 0;	/* avoid gcc warnings */
@@ -565,7 +565,7 @@ int FPU_store_double(FPU_REG * st0_ptr, u_char st0_tag, double __user * dfloat)
 }
 
 /* Put a float into user memory */
-int FPU_store_single(FPU_REG * st0_ptr, u_char st0_tag, float __user * single)
+int FPU_store_single(FPU_REG *st0_ptr, u_char st0_tag, float __user *single)
 {
 	long templ = 0;
 	unsigned long increment = 0;	/* avoid gcc warnings */
@@ -754,7 +754,7 @@ int FPU_store_single(FPU_REG * st0_ptr, u_char st0_tag, float __user * single)
 }
 
 /* Put a long long into user memory */
-int FPU_store_int64(FPU_REG * st0_ptr, u_char st0_tag, long long __user * d)
+int FPU_store_int64(FPU_REG *st0_ptr, u_char st0_tag, long long __user *d)
 {
 	FPU_REG t;
 	long long tll;
@@ -804,7 +804,7 @@ int FPU_store_int64(FPU_REG * st0_ptr, u_char st0_tag, long long __user * d)
 }
 
 /* Put a long into user memory */
-int FPU_store_int32(FPU_REG * st0_ptr, u_char st0_tag, long __user * d)
+int FPU_store_int32(FPU_REG *st0_ptr, u_char st0_tag, long __user *d)
 {
 	FPU_REG t;
 	int precision_loss;
@@ -850,7 +850,7 @@ int FPU_store_int32(FPU_REG * st0_ptr, u_char st0_tag, long __user * d)
 }
 
 /* Put a short into user memory */
-int FPU_store_int16(FPU_REG * st0_ptr, u_char st0_tag, short __user * d)
+int FPU_store_int16(FPU_REG *st0_ptr, u_char st0_tag, short __user *d)
 {
 	FPU_REG t;
 	int precision_loss;
@@ -896,7 +896,7 @@ int FPU_store_int16(FPU_REG * st0_ptr, u_char st0_tag, short __user * d)
 }
 
 /* Put a packed bcd array into user memory */
-int FPU_store_bcd(FPU_REG * st0_ptr, u_char st0_tag, u_char __user * d)
+int FPU_store_bcd(FPU_REG *st0_ptr, u_char st0_tag, u_char __user *d)
 {
 	FPU_REG t;
 	unsigned long long ll;
@@ -971,7 +971,7 @@ int FPU_store_bcd(FPU_REG * st0_ptr, u_char st0_tag, u_char __user * d)
 /* Overflow is signalled by a non-zero return value (in eax).
    In the case of overflow, the returned significand always has the
    largest possible value */
-int FPU_round_to_int(FPU_REG * r, u_char tag)
+int FPU_round_to_int(FPU_REG *r, u_char tag)
 {
 	u_char very_big;
 	unsigned eax;
@@ -1028,7 +1028,7 @@ int FPU_round_to_int(FPU_REG * r, u_char tag)
 
 /*===========================================================================*/
 
-u_char __user *fldenv(fpu_addr_modes addr_modes, u_char __user * s)
+u_char __user *fldenv(fpu_addr_modes addr_modes, u_char __user *s)
 {
 	unsigned short tag_word = 0;
 	u_char tag;
@@ -1121,7 +1121,7 @@ u_char __user *fldenv(fpu_addr_modes addr_modes, u_char __user * s)
 	return s;
 }
 
-void frstor(fpu_addr_modes addr_modes, u_char __user * data_address)
+void frstor(fpu_addr_modes addr_modes, u_char __user *data_address)
 {
 	int i, regnr;
 	u_char __user *s = fldenv(addr_modes, data_address);
@@ -1144,7 +1144,7 @@ void frstor(fpu_addr_modes addr_modes, u_char __user * data_address)
 
 }
 
-u_char __user *fstenv(fpu_addr_modes addr_modes, u_char __user * d)
+u_char __user *fstenv(fpu_addr_modes addr_modes, u_char __user *d)
 {
 	if ((addr_modes.default_mode == VM86) ||
 	    ((addr_modes.default_mode == PM16)
@@ -1200,7 +1200,7 @@ u_char __user *fstenv(fpu_addr_modes addr_modes, u_char __user * d)
 	return d;
 }
 
-void fsave(fpu_addr_modes addr_modes, u_char __user * data_address)
+void fsave(fpu_addr_modes addr_modes, u_char __user *data_address)
 {
 	u_char __user *d;
 	int offset = (top & 7) * 10, other = 80 - offset;
