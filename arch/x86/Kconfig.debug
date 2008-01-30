@@ -205,6 +205,7 @@ config DEBUG_BOOT_PARAMS
 
 config CPA_DEBUG
 	bool "CPA self test code"
+	depends on DEBUG_KERNEL
 	help
 	  Do change_page_attr self tests at boot.
 
