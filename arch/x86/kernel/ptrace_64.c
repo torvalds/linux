@@ -67,21 +67,29 @@ static int putreg(struct task_struct *child,
 		if (value && (value & 3) != 3)
 			return -EIO;
 		child->thread.fsindex = value & 0xffff;
+		if (child == current)
+			loadsegment(fs, child->thread.fsindex);
 		return 0;
 	case offsetof(struct user_regs_struct,gs):
 		if (value && (value & 3) != 3)
 			return -EIO;
 		child->thread.gsindex = value & 0xffff;
+		if (child == current)
+			load_gs_index(child->thread.gsindex);
 		return 0;
 	case offsetof(struct user_regs_struct,ds):
 		if (value && (value & 3) != 3)
 			return -EIO;
 		child->thread.ds = value & 0xffff;
+		if (child == current)
+			loadsegment(ds, child->thread.ds);
 		return 0;
 	case offsetof(struct user_regs_struct,es):
 		if (value && (value & 3) != 3)
 			return -EIO;
 		child->thread.es = value & 0xffff;
+		if (child == current)
+			loadsegment(es, child->thread.es);
 		return 0;
 	case offsetof(struct user_regs_struct,ss):
 		if ((value & 3) != 3)
@@ -135,14 +143,32 @@ static unsigned long getreg(struct task_struct *child, unsigned long regno)
 {
 	struct pt_regs *regs = task_pt_regs(child);
 	unsigned long val;
+	unsigned int seg;
 	switch (regno) {
 	case offsetof(struct user_regs_struct, fs):
+		if (child == current) {
+			/* Older gas can't assemble movq %?s,%r?? */
+			asm("movl %%fs,%0" : "=r" (seg));
+			return seg;
+		}
 		return child->thread.fsindex;
 	case offsetof(struct user_regs_struct, gs):
+		if (child == current) {
+			asm("movl %%gs,%0" : "=r" (seg));
+			return seg;
+		}
 		return child->thread.gsindex;
 	case offsetof(struct user_regs_struct, ds):
+		if (child == current) {
+			asm("movl %%ds,%0" : "=r" (seg));
+			return seg;
+		}
 		return child->thread.ds;
 	case offsetof(struct user_regs_struct, es):
+		if (child == current) {
+			asm("movl %%es,%0" : "=r" (seg));
+			return seg;
+		}
 		return child->thread.es;
 	case offsetof(struct user_regs_struct, fs_base):
 		/*
@@ -152,7 +178,10 @@ static unsigned long getreg(struct task_struct *child, unsigned long regno)
 		 */
 		if (child->thread.fs != 0)
 			return child->thread.fs;
-		if (child->thread.fsindex != FS_TLS_SEL)
+		seg = child->thread.fsindex;
+		if (child == current)
+			asm("movl %%fs,%0" : "=r" (seg));
+		if (seg != FS_TLS_SEL)
 			return 0;
 		return get_desc_base(&child->thread.tls_array[FS_TLS]);
 	case offsetof(struct user_regs_struct, gs_base):
@@ -161,7 +190,10 @@ static unsigned long getreg(struct task_struct *child, unsigned long regno)
 		 */
 		if (child->thread.gs != 0)
 			return child->thread.gs;
-		if (child->thread.gsindex != GS_TLS_SEL)
+		seg = child->thread.gsindex;
+		if (child == current)
+			asm("movl %%gs,%0" : "=r" (seg));
+		if (seg != GS_TLS_SEL)
 			return 0;
 		return get_desc_base(&child->thread.tls_array[GS_TLS]);
 	case offsetof(struct user_regs_struct, flags):
