@@ -26,7 +26,7 @@
  * Interrupt entry/exit code at both C and assembly level
  */
 
-extern void (*interrupt[NR_IRQS])(void);
+extern void (*const interrupt[NR_IRQS])(void);
 
 #ifdef CONFIG_SMP
 void reschedule_interrupt(void);

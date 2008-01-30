@@ -583,7 +583,7 @@ END(syscall_badsys)
  * Build the entry stubs and pointer table with
  * some assembler magic.
  */
-.data
+.section .rodata,"a"
 ENTRY(interrupt)
 .text
 
