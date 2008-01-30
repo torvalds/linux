@@ -308,6 +308,11 @@ extern struct pv_mmu_ops pv_mmu_ops;
 #define paravirt_alt(insn_string)					\
 	_paravirt_alt(insn_string, "%c[paravirt_typenum]", "%c[paravirt_clobber]")
 
+/* Simple instruction patching code. */
+#define DEF_NATIVE(ops, name, code) 					\
+	extern const char start_##ops##_##name[], end_##ops##_##name[];	\
+	asm("start_" #ops "_" #name ": " code "; end_" #ops "_" #name ":")
+
 unsigned paravirt_patch_nop(void);
 unsigned paravirt_patch_ignore(unsigned len);
 unsigned paravirt_patch_call(void *insnbuf,
@@ -321,6 +326,9 @@ unsigned paravirt_patch_default(u8 type, u16 clobbers, void *insnbuf,
 
 unsigned paravirt_patch_insns(void *insnbuf, unsigned len,
 			      const char *start, const char *end);
+
+unsigned native_patch(u8 type, u16 clobbers, void *ibuf,
+		      unsigned long addr, unsigned len);
 
 int paravirt_disable_iospace(void);
 
