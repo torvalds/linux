@@ -63,6 +63,21 @@ static int __init mfgpt_disable(char *s)
 }
 __setup("nomfgpt", mfgpt_disable);
 
+/* Reset the MFGPT timers. This is required by some broken BIOSes which already
+ * do the same and leave the system in an unstable state. TinyBIOS 0.98 is
+ * affected at least (0.99 is OK with MFGPT workaround left to off).
+ */
+static int __init mfgpt_fix(char *s)
+{
+	u32 val, dummy;
+
+	/* The following udocumented bit resets the MFGPT timers */
+	val = 0xFF; dummy = 0;
+	wrmsr(0x5140002B, val, dummy);
+	return 1;
+}
+__setup("mfgptfix", mfgpt_fix);
+
 /*
  * Check whether any MFGPTs are available for the kernel to use.  In most
  * cases, firmware that uses AMD's VSA code will claim all timers during

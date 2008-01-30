@@ -1092,6 +1092,11 @@ and is between 256 and 4096 characters. It is defined in the file
 			Multi-Function General Purpose Timers on AMD Geode
 			platforms.
 
+	mfgptfix	[X86-32] Fix MFGPT timers on AMD Geode platforms when
+			the BIOS has incorrectly applied a workaround. TinyBIOS
+			version 0.98 is known to be affected, 0.99 fixes the
+			problem by letting the user disable the workaround.
+
 	mga=		[HW,DRM]
 
 	mousedev.tap_time=
