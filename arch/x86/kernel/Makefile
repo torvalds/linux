@@ -67,7 +67,10 @@ obj-$(CONFIG_MGEODE_LX)		+= geode_32.o mfgpt_32.o
 
 obj-$(CONFIG_VMI)		+= vmi_32.o vmiclock_32.o
 obj-$(CONFIG_PARAVIRT)		+= paravirt.o paravirt_patch_$(BITS).o
+
+ifdef CONFIG_INPUT_PCSPKR
 obj-y				+= pcspeaker.o
+endif
 
 obj-$(CONFIG_SCx200)		+= scx200_32.o
 
