@@ -23,13 +23,14 @@
 #include <linux/uaccess.h>
 #include <linux/syscalls.h>
 #include <linux/mm.h>
+#include <linux/ktime.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include "lg.h"
 
 /*H:120 This is the core hypercall routine: where the Guest gets what it wants.
  * Or gets killed.  Or, in the case of LHCALL_CRASH, both. */
-static void do_hcall(struct lguest *lg, struct hcall_args *args)
+static void do_hcall(struct lg_cpu *cpu, struct hcall_args *args)
 {
 	switch (args->arg0) {
 	case LHCALL_FLUSH_ASYNC:
@@ -39,60 +40,62 @@ static void do_hcall(struct lguest *lg, struct hcall_args *args)
 	case LHCALL_LGUEST_INIT:
 		/* You can't get here unless you're already initialized.  Don't
 		 * do that. */
-		kill_guest(lg, "already have lguest_data");
+		kill_guest(cpu, "already have lguest_data");
 		break;
-	case LHCALL_CRASH: {
-		/* Crash is such a trivial hypercall that we do it in four
+	case LHCALL_SHUTDOWN: {
+		/* Shutdown is such a trivial hypercall that we do it in four
 		 * lines right here. */
 		char msg[128];
 		/* If the lgread fails, it will call kill_guest() itself; the
 		 * kill_guest() with the message will be ignored. */
-		__lgread(lg, msg, args->arg1, sizeof(msg));
+		__lgread(cpu, msg, args->arg1, sizeof(msg));
 		msg[sizeof(msg)-1] = '\0';
-		kill_guest(lg, "CRASH: %s", msg);
+		kill_guest(cpu, "CRASH: %s", msg);
+		if (args->arg2 == LGUEST_SHUTDOWN_RESTART)
+			cpu->lg->dead = ERR_PTR(-ERESTART);
 		break;
 	}
 	case LHCALL_FLUSH_TLB:
 		/* FLUSH_TLB comes in two flavors, depending on the
 		 * argument: */
 		if (args->arg1)
-			guest_pagetable_clear_all(lg);
+			guest_pagetable_clear_all(cpu);
 		else
-			guest_pagetable_flush_user(lg);
+			guest_pagetable_flush_user(cpu);
 		break;
 
 	/* All these calls simply pass the arguments through to the right
 	 * routines. */
 	case LHCALL_NEW_PGTABLE:
-		guest_new_pagetable(lg, args->arg1);
+		guest_new_pagetable(cpu, args->arg1);
 		break;
 	case LHCALL_SET_STACK:
-		guest_set_stack(lg, args->arg1, args->arg2, args->arg3);
+		guest_set_stack(cpu, args->arg1, args->arg2, args->arg3);
 		break;
 	case LHCALL_SET_PTE:
-		guest_set_pte(lg, args->arg1, args->arg2, __pte(args->arg3));
+		guest_set_pte(cpu, args->arg1, args->arg2, __pte(args->arg3));
 		break;
 	case LHCALL_SET_PMD:
-		guest_set_pmd(lg, args->arg1, args->arg2);
+		guest_set_pmd(cpu->lg, args->arg1, args->arg2);
 		break;
 	case LHCALL_SET_CLOCKEVENT:
-		guest_set_clockevent(lg, args->arg1);
+		guest_set_clockevent(cpu, args->arg1);
 		break;
 	case LHCALL_TS:
 		/* This sets the TS flag, as we saw used in run_guest(). */
-		lg->ts = args->arg1;
+		cpu->ts = args->arg1;
 		break;
 	case LHCALL_HALT:
 		/* Similarly, this sets the halted flag for run_guest(). */
-		lg->halted = 1;
+		cpu->halted = 1;
 		break;
 	case LHCALL_NOTIFY:
-		lg->pending_notify = args->arg1;
+		cpu->pending_notify = args->arg1;
 		break;
 	default:
 		/* It should be an architecture-specific hypercall. */
-		if (lguest_arch_do_hcall(lg, args))
-			kill_guest(lg, "Bad hypercall %li\n", args->arg0);
+		if (lguest_arch_do_hcall(cpu, args))
+			kill_guest(cpu, "Bad hypercall %li\n", args->arg0);
 	}
 }
 /*:*/
@@ -104,13 +107,13 @@ static void do_hcall(struct lguest *lg, struct hcall_args *args)
  * Guest put them in the ring, but we also promise the Guest that they will
  * happen before any normal hypercall (which is why we check this before
  * checking for a normal hcall). */
-static void do_async_hcalls(struct lguest *lg)
+static void do_async_hcalls(struct lg_cpu *cpu)
 {
 	unsigned int i;
 	u8 st[LHCALL_RING_SIZE];
 
 	/* For simplicity, we copy the entire call status array in at once. */
-	if (copy_from_user(&st, &lg->lguest_data->hcall_status, sizeof(st)))
+	if (copy_from_user(&st, &cpu->lg->lguest_data->hcall_status, sizeof(st)))
 		return;
 
 	/* We process "struct lguest_data"s hcalls[] ring once. */
@@ -119,7 +122,7 @@ static void do_async_hcalls(struct lguest *lg)
 		/* We remember where we were up to from last time.  This makes
 		 * sure that the hypercalls are done in the order the Guest
 		 * places them in the ring. */
-		unsigned int n = lg->next_hcall;
+		unsigned int n = cpu->next_hcall;
 
 		/* 0xFF means there's no call here (yet). */
 		if (st[n] == 0xFF)
@@ -127,65 +130,65 @@ static void do_async_hcalls(struct lguest *lg)
 
 		/* OK, we have hypercall.  Increment the "next_hcall" cursor,
 		 * and wrap back to 0 if we reach the end. */
-		if (++lg->next_hcall == LHCALL_RING_SIZE)
-			lg->next_hcall = 0;
+		if (++cpu->next_hcall == LHCALL_RING_SIZE)
+			cpu->next_hcall = 0;
 
 		/* Copy the hypercall arguments into a local copy of
 		 * the hcall_args struct. */
-		if (copy_from_user(&args, &lg->lguest_data->hcalls[n],
+		if (copy_from_user(&args, &cpu->lg->lguest_data->hcalls[n],
 				   sizeof(struct hcall_args))) {
-			kill_guest(lg, "Fetching async hypercalls");
+			kill_guest(cpu, "Fetching async hypercalls");
 			break;
 		}
 
 		/* Do the hypercall, same as a normal one. */
-		do_hcall(lg, &args);
+		do_hcall(cpu, &args);
 
 		/* Mark the hypercall done. */
-		if (put_user(0xFF, &lg->lguest_data->hcall_status[n])) {
-			kill_guest(lg, "Writing result for async hypercall");
+		if (put_user(0xFF, &cpu->lg->lguest_data->hcall_status[n])) {
+			kill_guest(cpu, "Writing result for async hypercall");
 			break;
 		}
 
 		/* Stop doing hypercalls if they want to notify the Launcher:
 		 * it needs to service this first. */
-		if (lg->pending_notify)
+		if (cpu->pending_notify)
 			break;
 	}
 }
 
 /* Last of all, we look at what happens first of all.  The very first time the
  * Guest makes a hypercall, we end up here to set things up: */
-static void initialize(struct lguest *lg)
+static void initialize(struct lg_cpu *cpu)
 {
 	/* You can't do anything until you're initialized.  The Guest knows the
 	 * rules, so we're unforgiving here. */
-	if (lg->hcall->arg0 != LHCALL_LGUEST_INIT) {
-		kill_guest(lg, "hypercall %li before INIT", lg->hcall->arg0);
+	if (cpu->hcall->arg0 != LHCALL_LGUEST_INIT) {
+		kill_guest(cpu, "hypercall %li before INIT", cpu->hcall->arg0);
 		return;
 	}
 
-	if (lguest_arch_init_hypercalls(lg))
-		kill_guest(lg, "bad guest page %p", lg->lguest_data);
+	if (lguest_arch_init_hypercalls(cpu))
+		kill_guest(cpu, "bad guest page %p", cpu->lg->lguest_data);
 
 	/* The Guest tells us where we're not to deliver interrupts by putting
 	 * the range of addresses into "struct lguest_data". */
-	if (get_user(lg->noirq_start, &lg->lguest_data->noirq_start)
-	    || get_user(lg->noirq_end, &lg->lguest_data->noirq_end))
-		kill_guest(lg, "bad guest page %p", lg->lguest_data);
+	if (get_user(cpu->lg->noirq_start, &cpu->lg->lguest_data->noirq_start)
+	    || get_user(cpu->lg->noirq_end, &cpu->lg->lguest_data->noirq_end))
+		kill_guest(cpu, "bad guest page %p", cpu->lg->lguest_data);
 
 	/* We write the current time into the Guest's data page once so it can
 	 * set its clock. */
-	write_timestamp(lg);
+	write_timestamp(cpu);
 
 	/* page_tables.c will also do some setup. */
-	page_table_guest_data_init(lg);
+	page_table_guest_data_init(cpu);
 
 	/* This is the one case where the above accesses might have been the
 	 * first write to a Guest page.  This may have caused a copy-on-write
 	 * fault, but the old page might be (read-only) in the Guest
 	 * pagetable. */
-	guest_pagetable_clear_all(lg);
+	guest_pagetable_clear_all(cpu);
 }
 
 /*H:100
@@ -194,27 +197,27 @@ static void initialize(struct lguest *lg)
  * Remember from the Guest, hypercalls come in two flavors: normal and
  * asynchronous.  This file handles both of types.
  */
-void do_hypercalls(struct lguest *lg)
+void do_hypercalls(struct lg_cpu *cpu)
 {
 	/* Not initialized yet?  This hypercall must do it. */
-	if (unlikely(!lg->lguest_data)) {
+	if (unlikely(!cpu->lg->lguest_data)) {
 		/* Set up the "struct lguest_data" */
-		initialize(lg);
+		initialize(cpu);
 		/* Hcall is done. */
-		lg->hcall = NULL;
+		cpu->hcall = NULL;
 		return;
 	}
 
 	/* The Guest has initialized.
 	 *
 	 * Look in the hypercall ring for the async hypercalls: */
-	do_async_hcalls(lg);
+	do_async_hcalls(cpu);
 
 	/* If we stopped reading the hypercall ring because the Guest did a
 	 * NOTIFY to the Launcher, we want to return now.  Otherwise we do
 	 * the hypercall. */
-	if (!lg->pending_notify) {
-		do_hcall(lg, lg->hcall);
+	if (!cpu->pending_notify) {
+		do_hcall(cpu, cpu->hcall);
 		/* Tricky point: we reset the hcall pointer to mark the
 		 * hypercall as "done".  We use the hcall pointer rather than
 		 * the trap number to indicate a hypercall is pending.
@@ -225,16 +228,17 @@ void do_hypercalls(struct lguest *lg)
 		 * Launcher, the run_guest() loop will exit without running the
 		 * Guest.  When it comes back it would try to re-run the
 		 * hypercall. */
-		lg->hcall = NULL;
+		cpu->hcall = NULL;
 	}
 }
 
 /* This routine supplies the Guest with time: it's used for wallclock time at
  * initial boot and as a rough time source if the TSC isn't available. */
-void write_timestamp(struct lguest *lg)
+void write_timestamp(struct lg_cpu *cpu)
 {
 	struct timespec now;
 	ktime_get_real_ts(&now);
-	if (copy_to_user(&lg->lguest_data->time, &now, sizeof(struct timespec)))
-		kill_guest(lg, "Writing timestamp");
+	if (copy_to_user(&cpu->lg->lguest_data->time,
+			 &now, sizeof(struct timespec)))
+		kill_guest(cpu, "Writing timestamp");
 }
