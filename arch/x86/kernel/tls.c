@@ -24,6 +24,29 @@ static int get_free_idx(void)
 	return -ESRCH;
 }
 
+static void set_tls_desc(struct task_struct *p, int idx,
+			 const struct user_desc *info)
+{
+	struct thread_struct *t = &p->thread;
+	struct desc_struct *desc = &t->tls_array[idx - GDT_ENTRY_TLS_MIN];
+	int cpu;
+
+	/*
+	 * We must not get preempted while modifying the TLS.
+	 */
+	cpu = get_cpu();
+
+	if (LDT_empty(info))
+		desc->a = desc->b = 0;
+	else
+		fill_ldt(desc, info);
+
+	if (t == &current->thread)
+		load_TLS(t, cpu);
+
+	put_cpu();
+}
+
 /*
  * Set a given TLS descriptor:
  */
@@ -31,10 +54,7 @@ int do_set_thread_area(struct task_struct *p, int idx,
 		       struct user_desc __user *u_info,
 		       int can_allocate)
 {
-	struct thread_struct *t = &p->thread;
 	struct user_desc info;
-	u32 *desc;
-	int cpu;
 
 	if (copy_from_user(&info, u_info, sizeof(info)))
 		return -EFAULT;
@@ -57,23 +77,8 @@ int do_set_thread_area(struct task_struct *p, int idx,
 	if (idx < GDT_ENTRY_TLS_MIN || idx > GDT_ENTRY_TLS_MAX)
 		return -EINVAL;
 
-	desc = (u32 *) &t->tls_array[idx - GDT_ENTRY_TLS_MIN];
+	set_tls_desc(p, idx, &info);
 
-	/*
-	 * We must not get preempted while modifying the TLS.
-	 */
-	cpu = get_cpu();
-
-	if (LDT_empty(&info)) {
-		desc[0] = 0;
-		desc[1] = 0;
-	} else
-		fill_ldt((struct desc_struct *)desc, &info);
-
-	if (t == &current->thread)
-		load_TLS(t, cpu);
-
-	put_cpu();
 	return 0;
 }
 
@@ -87,42 +92,38 @@ asmlinkage int sys_set_thread_area(struct user_desc __user *u_info)
  * Get the current Thread-Local Storage area:
  */
 
-#define GET_LIMIT(desc)		(((desc)[0] & 0x0ffff) | ((desc)[1] & 0xf0000))
-#define GET_32BIT(desc)		(((desc)[1] >> 22) & 1)
-#define GET_CONTENTS(desc)	(((desc)[1] >> 10) & 3)
-#define GET_WRITABLE(desc)	(((desc)[1] >>  9) & 1)
-#define GET_LIMIT_PAGES(desc)	(((desc)[1] >> 23) & 1)
-#define GET_PRESENT(desc)	(((desc)[1] >> 15) & 1)
-#define GET_USEABLE(desc)	(((desc)[1] >> 20) & 1)
-#define GET_LONGMODE(desc)	(((desc)[1] >> 21) & 1)
+static void fill_user_desc(struct user_desc *info, int idx,
+			   const struct desc_struct *desc)
+
+{
+	memset(info, 0, sizeof(*info));
+	info->entry_number = idx;
+	info->base_addr = get_desc_base(desc);
+	info->limit = get_desc_limit(desc);
+	info->seg_32bit = desc->d;
+	info->contents = desc->type >> 2;
+	info->read_exec_only = !(desc->type & 2);
+	info->limit_in_pages = desc->g;
+	info->seg_not_present = !desc->p;
+	info->useable = desc->avl;
+#ifdef CONFIG_X86_64
+	info->lm = desc->l;
+#endif
+}
 
 int do_get_thread_area(struct task_struct *p, int idx,
 		       struct user_desc __user *u_info)
 {
-	struct thread_struct *t = &p->thread;
 	struct user_desc info;
-	u32 *desc;
 
 	if (idx == -1 && get_user(idx, &u_info->entry_number))
 		return -EFAULT;
+
 	if (idx < GDT_ENTRY_TLS_MIN || idx > GDT_ENTRY_TLS_MAX)
 		return -EINVAL;
 
-	desc = (u32 *) &t->tls_array[idx - GDT_ENTRY_TLS_MIN];
-
-	memset(&info, 0, sizeof(struct user_desc));
-	info.entry_number = idx;
-	info.base_addr = get_desc_base((struct desc_struct *)desc);
-	info.limit = GET_LIMIT(desc);
-	info.seg_32bit = GET_32BIT(desc);
-	info.contents = GET_CONTENTS(desc);
-	info.read_exec_only = !GET_WRITABLE(desc);
-	info.limit_in_pages = GET_LIMIT_PAGES(desc);
-	info.seg_not_present = !GET_PRESENT(desc);
-	info.useable = GET_USEABLE(desc);
-#ifdef CONFIG_X86_64
-	info.lm = GET_LONGMODE(desc);
-#endif
+	fill_user_desc(&info, idx,
+		       &p->thread.tls_array[idx - GDT_ENTRY_TLS_MIN]);
 
 	if (copy_to_user(u_info, &info, sizeof(info)))
 		return -EFAULT;

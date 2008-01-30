@@ -7,7 +7,8 @@
 #include <asm/mmu.h>
 #include <linux/smp.h>
 
-static inline void fill_ldt(struct desc_struct *desc, struct user_desc *info)
+static inline void fill_ldt(struct desc_struct *desc,
+			    const struct user_desc *info)
 {
 	desc->limit0 = info->limit & 0x0ffff;
 	desc->base0 = info->base_addr & 0x0000ffff;
@@ -275,10 +276,16 @@ static inline void load_LDT(mm_context_t *pc)
 	preempt_enable();
 }
 
-static inline unsigned long get_desc_base(struct desc_struct *desc)
+static inline unsigned long get_desc_base(const struct desc_struct *desc)
 {
 	return desc->base0 | ((desc->base1) << 16) | ((desc->base2) << 24);
 }
+
+static inline unsigned long get_desc_limit(const struct desc_struct *desc)
+{
+	return desc->limit0 | (desc->limit << 16);
+}
+
 static inline void _set_gate(int gate, unsigned type, void *addr,
 			      unsigned dpl, unsigned ist, unsigned seg)
 {
