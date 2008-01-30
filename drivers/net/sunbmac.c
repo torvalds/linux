@@ -1075,7 +1075,7 @@ static const struct ethtool_ops bigmac_ethtool_ops = {
 	.get_link		= bigmac_get_link,
 };
 
-static int __init bigmac_ether_init(struct sbus_dev *qec_sdev)
+static int __devinit bigmac_ether_init(struct sbus_dev *qec_sdev)
 {
 	struct net_device *dev;
 	static int version_printed;
