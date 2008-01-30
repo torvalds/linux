@@ -954,6 +954,9 @@ static void __cpuinit early_identify_cpu(struct cpuinfo_x86 *c)
 	case X86_VENDOR_AMD:
 		early_init_amd(c);
 		break;
+	case X86_VENDOR_INTEL:
+		early_init_intel(c);
+		break;
 	}
 
 }
@@ -1020,14 +1023,6 @@ void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 	numa_add_cpu(smp_processor_id());
 #endif
 
-	switch (c->x86_vendor) {
-	case X86_VENDOR_AMD:
-		early_init_amd(c);
-		break;
-	case X86_VENDOR_INTEL:
-		early_init_intel(c);
-		break;
-	}
 }
 
 void __cpuinit print_cpu_info(struct cpuinfo_x86 *c)
