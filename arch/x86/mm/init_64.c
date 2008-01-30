@@ -573,7 +573,6 @@ void free_init_pages(char *what, unsigned long begin, unsigned long end)
 		set_memory_rw(begin, (end - begin)/PAGE_SIZE);
 		set_memory_np(begin, (end - begin)/PAGE_SIZE);
 		set_memory_nx(begin, (end - begin)/PAGE_SIZE);
-		rodata_test();
 	}
 #endif
 }
@@ -613,6 +612,8 @@ void mark_rodata_ro(void)
 
 	printk(KERN_INFO "Write protecting the kernel read-only data: %luk\n",
 	       (end - start) >> 10);
+
+	rodata_test();
 
 #ifdef CONFIG_CPA_DEBUG
 	printk("Testing CPA: undo %lx-%lx\n", start, end);
