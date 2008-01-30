@@ -405,7 +405,7 @@ static DECLARE_WAIT_QUEUE_HEAD(apm_waitqueue);
 static DECLARE_WAIT_QUEUE_HEAD(apm_suspend_waitqueue);
 static struct apm_user *	user_list;
 static DEFINE_SPINLOCK(user_list_lock);
-static const struct desc_struct	bad_bios_desc = { 0, 0x00409200 };
+static const struct desc_struct	bad_bios_desc = { { { 0, 0x00409200 } } };
 
 static const char		driver_version[] = "1.16ac";	/* no spaces */
 

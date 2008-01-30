@@ -11,17 +11,26 @@
 
 #include <linux/types.h>
 
+/*
+ * FIXME: Acessing the desc_struct through its fields is more elegant,
+ * and should be the one valid thing to do. However, a lot of open code
+ * still touches the a and b acessors, and doing this allow us to do it
+ * incrementally. We keep the signature as a struct, rather than an union,
+ * so we can get rid of it transparently in the future -- glommer
+ */
 // 8 byte segment descriptor
 struct desc_struct {
-	u16 limit0;
-	u16 base0;
-	unsigned base1 : 8, type : 4, s : 1, dpl : 2, p : 1;
-	unsigned limit : 4, avl : 1, l : 1, d : 1, g : 1, base2 : 8;
-} __attribute__((packed));
+	union {
+		struct { unsigned int a, b; };
+		struct {
+			u16 limit0;
+			u16 base0;
+			unsigned base1: 8, type: 4, s: 1, dpl: 2, p: 1;
+			unsigned limit: 4, avl: 1, l: 1, d: 1, g: 1, base2: 8;
+		};
 
-struct n_desc_struct {
-	unsigned int a,b;
-};
+	};
+} __attribute__((packed));
 
 enum {
 	GATE_INTERRUPT = 0xE,

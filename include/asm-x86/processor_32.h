@@ -20,13 +20,10 @@
 #include <linux/cpumask.h>
 #include <linux/init.h>
 #include <asm/processor-flags.h>
+#include <asm/desc_defs.h>
 
 /* flag for disabling the tsc */
 extern int tsc_disable;
-
-struct desc_struct {
-	unsigned long a,b;
-};
 
 static inline int desc_empty(const void *ptr)
 {
