@@ -91,27 +91,27 @@ __kernel_rt_sigreturn:
 	.sleb128 offset;		/*       offset */		\
 1:
 
-	do_cfa_expr(SIGCONTEXT_esp+4)
-	do_expr(0, SIGCONTEXT_eax+4)
-	do_expr(1, SIGCONTEXT_ecx+4)
-	do_expr(2, SIGCONTEXT_edx+4)
-	do_expr(3, SIGCONTEXT_ebx+4)
-	do_expr(5, SIGCONTEXT_ebp+4)
-	do_expr(6, SIGCONTEXT_esi+4)
-	do_expr(7, SIGCONTEXT_edi+4)
-	do_expr(8, SIGCONTEXT_eip+4)
+	do_cfa_expr(IA32_SIGCONTEXT_esp+4)
+	do_expr(0, IA32_SIGCONTEXT_eax+4)
+	do_expr(1, IA32_SIGCONTEXT_ecx+4)
+	do_expr(2, IA32_SIGCONTEXT_edx+4)
+	do_expr(3, IA32_SIGCONTEXT_ebx+4)
+	do_expr(5, IA32_SIGCONTEXT_ebp+4)
+	do_expr(6, IA32_SIGCONTEXT_esi+4)
+	do_expr(7, IA32_SIGCONTEXT_edi+4)
+	do_expr(8, IA32_SIGCONTEXT_eip+4)
 
 	.byte 0x42	/* DW_CFA_advance_loc 2 -- nop; popl eax. */
 
-	do_cfa_expr(SIGCONTEXT_esp)
-	do_expr(0, SIGCONTEXT_eax)
-	do_expr(1, SIGCONTEXT_ecx)
-	do_expr(2, SIGCONTEXT_edx)
-	do_expr(3, SIGCONTEXT_ebx)
-	do_expr(5, SIGCONTEXT_ebp)
-	do_expr(6, SIGCONTEXT_esi)
-	do_expr(7, SIGCONTEXT_edi)
-	do_expr(8, SIGCONTEXT_eip)
+	do_cfa_expr(IA32_SIGCONTEXT_esp)
+	do_expr(0, IA32_SIGCONTEXT_eax)
+	do_expr(1, IA32_SIGCONTEXT_ecx)
+	do_expr(2, IA32_SIGCONTEXT_edx)
+	do_expr(3, IA32_SIGCONTEXT_ebx)
+	do_expr(5, IA32_SIGCONTEXT_ebp)
+	do_expr(6, IA32_SIGCONTEXT_esi)
+	do_expr(7, IA32_SIGCONTEXT_edi)
+	do_expr(8, IA32_SIGCONTEXT_eip)
 
 	.align 4
 .LENDFDEDLSI1:
@@ -128,15 +128,15 @@ __kernel_rt_sigreturn:
 	   slightly less complicated than the above, since we don't
 	   modify the stack pointer in the process.  */
 
-	do_cfa_expr(RT_SIGFRAME_sigcontext-4 + SIGCONTEXT_esp)
-	do_expr(0, RT_SIGFRAME_sigcontext-4 + SIGCONTEXT_eax)
-	do_expr(1, RT_SIGFRAME_sigcontext-4 + SIGCONTEXT_ecx)
-	do_expr(2, RT_SIGFRAME_sigcontext-4 + SIGCONTEXT_edx)
-	do_expr(3, RT_SIGFRAME_sigcontext-4 + SIGCONTEXT_ebx)
-	do_expr(5, RT_SIGFRAME_sigcontext-4 + SIGCONTEXT_ebp)
-	do_expr(6, RT_SIGFRAME_sigcontext-4 + SIGCONTEXT_esi)
-	do_expr(7, RT_SIGFRAME_sigcontext-4 + SIGCONTEXT_edi)
-	do_expr(8, RT_SIGFRAME_sigcontext-4 + SIGCONTEXT_eip)
+	do_cfa_expr(IA32_RT_SIGFRAME_sigcontext-4 + IA32_SIGCONTEXT_esp)
+	do_expr(0, IA32_RT_SIGFRAME_sigcontext-4 + IA32_SIGCONTEXT_eax)
+	do_expr(1, IA32_RT_SIGFRAME_sigcontext-4 + IA32_SIGCONTEXT_ecx)
+	do_expr(2, IA32_RT_SIGFRAME_sigcontext-4 + IA32_SIGCONTEXT_edx)
+	do_expr(3, IA32_RT_SIGFRAME_sigcontext-4 + IA32_SIGCONTEXT_ebx)
+	do_expr(5, IA32_RT_SIGFRAME_sigcontext-4 + IA32_SIGCONTEXT_ebp)
+	do_expr(6, IA32_RT_SIGFRAME_sigcontext-4 + IA32_SIGCONTEXT_esi)
+	do_expr(7, IA32_RT_SIGFRAME_sigcontext-4 + IA32_SIGCONTEXT_edi)
+	do_expr(8, IA32_RT_SIGFRAME_sigcontext-4 + IA32_SIGCONTEXT_eip)
 
 	.align 4
 .LENDFDEDLSI2:

@@ -38,15 +38,15 @@ void foo(void);
 
 void foo(void)
 {
-	OFFSET(SIGCONTEXT_eax, sigcontext, eax);
-	OFFSET(SIGCONTEXT_ebx, sigcontext, ebx);
-	OFFSET(SIGCONTEXT_ecx, sigcontext, ecx);
-	OFFSET(SIGCONTEXT_edx, sigcontext, edx);
-	OFFSET(SIGCONTEXT_esi, sigcontext, esi);
-	OFFSET(SIGCONTEXT_edi, sigcontext, edi);
-	OFFSET(SIGCONTEXT_ebp, sigcontext, ebp);
-	OFFSET(SIGCONTEXT_esp, sigcontext, esp);
-	OFFSET(SIGCONTEXT_eip, sigcontext, eip);
+	OFFSET(IA32_SIGCONTEXT_eax, sigcontext, eax);
+	OFFSET(IA32_SIGCONTEXT_ebx, sigcontext, ebx);
+	OFFSET(IA32_SIGCONTEXT_ecx, sigcontext, ecx);
+	OFFSET(IA32_SIGCONTEXT_edx, sigcontext, edx);
+	OFFSET(IA32_SIGCONTEXT_esi, sigcontext, esi);
+	OFFSET(IA32_SIGCONTEXT_edi, sigcontext, edi);
+	OFFSET(IA32_SIGCONTEXT_ebp, sigcontext, ebp);
+	OFFSET(IA32_SIGCONTEXT_esp, sigcontext, esp);
+	OFFSET(IA32_SIGCONTEXT_eip, sigcontext, eip);
 	BLANK();
 
 	OFFSET(CPUINFO_x86, cpuinfo_x86, x86);
@@ -94,7 +94,7 @@ void foo(void)
 	BLANK();
 
 	OFFSET(EXEC_DOMAIN_handler, exec_domain, handler);
-	OFFSET(RT_SIGFRAME_sigcontext, rt_sigframe, uc.uc_mcontext);
+	OFFSET(IA32_RT_SIGFRAME_sigcontext, rt_sigframe, uc.uc_mcontext);
 	BLANK();
 
 	OFFSET(pbe_address, pbe, address);
