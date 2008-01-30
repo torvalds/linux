@@ -37,9 +37,6 @@
  */
 #define FLAG_MASK 0x00050dd5
 
-/* set's the trap flag. */
-#define TRAP_FLAG 0x100
-
 /*
  * Offset of eflags on child stack..
  */
@@ -235,11 +232,11 @@ static void set_singlestep(struct task_struct *child)
 	/*
 	 * If TF was already set, don't do anything else
 	 */
-	if (regs->eflags & TRAP_FLAG)
+	if (regs->eflags & X86_EFLAGS_TF)
 		return;
 
 	/* Set TF on the kernel stack.. */
-	regs->eflags |= TRAP_FLAG;
+	regs->eflags |= X86_EFLAGS_TF;
 
 	/*
 	 * ..but if TF is changed by the instruction we will trace,
@@ -260,7 +257,7 @@ static void clear_singlestep(struct task_struct *child)
 	/* But touch TF only if it was set by us.. */
 	if (child->ptrace & PT_DTRACE) {
 		struct pt_regs *regs = get_child_regs(child);
-		regs->eflags &= ~TRAP_FLAG;
+		regs->eflags &= ~X86_EFLAGS_TF;
 		child->ptrace &= ~PT_DTRACE;
 	}
 }
