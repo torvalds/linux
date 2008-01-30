@@ -83,10 +83,10 @@ static inline void init_MUTEX_LOCKED (struct semaphore *sem)
 	sema_init(sem, 0);
 }
 
-fastcall void __down_failed(void /* special register calling convention */);
-fastcall int  __down_failed_interruptible(void  /* params in registers */);
-fastcall int  __down_failed_trylock(void  /* params in registers */);
-fastcall void __up_wakeup(void /* special register calling convention */);
+void __down_failed(void /* special register calling convention */);
+int  __down_failed_interruptible(void  /* params in registers */);
+int  __down_failed_trylock(void  /* params in registers */);
+void __up_wakeup(void /* special register calling convention */);
 
 /*
  * This is ugly, but we want the default case to fall through.

@@ -59,17 +59,17 @@ extern unsigned boot_cpu_id;
 #define setup_secondary_clock setup_secondary_APIC_clock
 #endif
 
-static inline fastcall void native_apic_write(unsigned long reg, u32 v)
+static inline void native_apic_write(unsigned long reg, u32 v)
 {
 	*((volatile u32 *)(APIC_BASE + reg)) = v;
 }
 
-static inline fastcall void native_apic_write_atomic(unsigned long reg, u32 v)
+static inline void native_apic_write_atomic(unsigned long reg, u32 v)
 {
 	(void) xchg((u32*)(APIC_BASE + reg), v);
 }
 
-static inline fastcall u32 native_apic_read(unsigned long reg)
+static inline u32 native_apic_read(unsigned long reg)
 {
 	return *((volatile u32 *)(APIC_BASE + reg));
 }
