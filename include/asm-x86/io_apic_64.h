@@ -127,6 +127,8 @@ extern int io_apic_get_redir_entries (int ioapic);
 extern int io_apic_set_pci_routing (int ioapic, int pin, int irq, int, int);
 #endif
 
+extern void ioapic_init_mappings(void);
+
 extern int sis_apic_bug; /* dummy */ 
 
 #endif

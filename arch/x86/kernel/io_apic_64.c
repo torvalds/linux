@@ -35,6 +35,7 @@
 #ifdef CONFIG_ACPI
 #include <acpi/acpi_bus.h>
 #endif
+#include <linux/bootmem.h>
 
 #include <asm/idle.h>
 #include <asm/io.h>
@@ -2287,4 +2288,93 @@ void __init setup_ioapic_dest(void)
 	}
 }
 #endif
+
+#define IOAPIC_RESOURCE_NAME_SIZE 11
+
+static struct resource *ioapic_resources;
+
+static struct resource * __init ioapic_setup_resources(void)
+{
+	unsigned long n;
+	struct resource *res;
+	char *mem;
+	int i;
+
+	if (nr_ioapics <= 0)
+		return NULL;
+
+	n = IOAPIC_RESOURCE_NAME_SIZE + sizeof(struct resource);
+	n *= nr_ioapics;
+
+	mem = alloc_bootmem(n);
+	res = (void *)mem;
+
+	if (mem != NULL) {
+		memset(mem, 0, n);
+		mem += sizeof(struct resource) * nr_ioapics;
+
+		for (i = 0; i < nr_ioapics; i++) {
+			res[i].name = mem;
+			res[i].flags = IORESOURCE_MEM | IORESOURCE_BUSY;
+			sprintf(mem,  "IOAPIC %u", i);
+			mem += IOAPIC_RESOURCE_NAME_SIZE;
+		}
+	}
+
+	ioapic_resources = res;
+
+	return res;
+}
+
+void __init ioapic_init_mappings(void)
+{
+	unsigned long ioapic_phys, idx = FIX_IO_APIC_BASE_0;
+	struct resource *ioapic_res;
+	int i;
+
+	ioapic_res = ioapic_setup_resources();
+	for (i = 0; i < nr_ioapics; i++) {
+		if (smp_found_config) {
+			ioapic_phys = mp_ioapics[i].mpc_apicaddr;
+		} else {
+			ioapic_phys = (unsigned long)
+				alloc_bootmem_pages(PAGE_SIZE);
+			ioapic_phys = __pa(ioapic_phys);
+		}
+		set_fixmap_nocache(idx, ioapic_phys);
+		apic_printk(APIC_VERBOSE,
+			    "mapped IOAPIC to %016lx (%016lx)\n",
+			    __fix_to_virt(idx), ioapic_phys);
+		idx++;
+
+		if (ioapic_res != NULL) {
+			ioapic_res->start = ioapic_phys;
+			ioapic_res->end = ioapic_phys + (4 * 1024) - 1;
+			ioapic_res++;
+		}
+	}
+}
+
+static int __init ioapic_insert_resources(void)
+{
+	int i;
+	struct resource *r = ioapic_resources;
+
+	if (!r) {
+		printk(KERN_ERR
+		       "IO APIC resources could be not be allocated.\n");
+		return -1;
+	}
+
+	for (i = 0; i < nr_ioapics; i++) {
+		insert_resource(&iomem_resource, r);
+		r++;
+	}
+
+	return 0;
+}
+
+/* Insert the IO APIC resources after PCI initialization has occured to handle
+ * IO APICS that are mapped in on a BAR in PCI space. */
+late_initcall(ioapic_insert_resources);
 

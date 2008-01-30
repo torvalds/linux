@@ -433,6 +433,7 @@ void __init setup_arch(char **cmdline_p)
 	if (smp_found_config)
 		get_smp_config();
 	init_apic_mappings();
+	ioapic_init_mappings();
 
 	/*
 	 * We trust e820 completely. No explicit ROM probing in memory.
