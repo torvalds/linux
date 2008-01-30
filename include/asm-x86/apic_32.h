@@ -17,8 +17,6 @@
 #define APIC_VERBOSE 1
 #define APIC_DEBUG   2
 
-extern int apic_verbosity;
-
 /*
  * Define the default level of output to be very little
  * This can be turned up by using apic=verbose for more
@@ -34,6 +32,11 @@ extern int apic_verbosity;
 extern void generic_apic_probe(void);
 
 #ifdef CONFIG_X86_LOCAL_APIC
+
+extern int apic_verbosity;
+extern int timer_over_8254;
+extern int local_apic_timer_c2_ok;
+extern int local_apic_timer_disabled;
 
 /*
  * Basic functions accessing APICs.
@@ -65,9 +68,9 @@ static __inline fastcall unsigned long native_apic_read(unsigned long reg)
 	return *((volatile unsigned long *)(APIC_BASE+reg));
 }
 
-void apic_wait_icr_idle(void);
-unsigned long safe_apic_wait_icr_idle(void);
-int get_physical_broadcast(void);
+extern void apic_wait_icr_idle(void);
+extern unsigned long safe_apic_wait_icr_idle(void);
+extern int get_physical_broadcast(void);
 
 #ifdef CONFIG_X86_GOOD_APIC
 # define FORCE_READ_AROUND_WRITE 0
@@ -94,29 +97,23 @@ static inline void ack_APIC_irq(void)
 
 extern int lapic_get_maxlvt(void);
 extern void clear_local_APIC(void);
-extern void connect_bsp_APIC (void);
-extern void disconnect_bsp_APIC (int virt_wire_setup);
-extern void disable_local_APIC (void);
-extern void lapic_shutdown (void);
-extern int verify_local_APIC (void);
-extern void cache_APIC_registers (void);
-extern void sync_Arb_IDs (void);
-extern void init_bsp_APIC (void);
-extern void setup_local_APIC (void);
-extern void init_apic_mappings (void);
-extern void smp_local_timer_interrupt (void);
-extern void setup_boot_APIC_clock (void);
-extern void setup_secondary_APIC_clock (void);
-extern int APIC_init_uniprocessor (void);
-
-extern void enable_NMI_through_LVT0 (void * dummy);
+extern void connect_bsp_APIC(void);
+extern void disconnect_bsp_APIC(int virt_wire_setup);
+extern void disable_local_APIC(void);
+extern void lapic_shutdown(void);
+extern int verify_local_APIC(void);
+extern void cache_APIC_registers(void);
+extern void sync_Arb_IDs(void);
+extern void init_bsp_APIC(void);
+extern void setup_local_APIC(void);
+extern void init_apic_mappings(void);
+extern void smp_local_timer_interrupt(void);
+extern void setup_boot_APIC_clock(void);
+extern void setup_secondary_APIC_clock(void);
+extern int APIC_init_uniprocessor(void);
+extern void enable_NMI_through_LVT0(void *dummy);
 
 #define ARCH_APICTIMER_STOPS_ON_C3	1
-
-extern int timer_over_8254;
-extern int local_apic_timer_c2_ok;
-
-extern int local_apic_timer_disabled;
 
 #else /* !CONFIG_X86_LOCAL_APIC */
 static inline void lapic_shutdown(void) { }

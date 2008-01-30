@@ -98,7 +98,7 @@
 #define		APIC_SEND_PENDING		(1<<12)
 #define		APIC_MODE_MASK			0x700
 #define		GET_APIC_DELIVERY_MODE(x)	(((x)>>8)&0x7)
-#define		SET_APIC_DELIVERY_MODE(x,y)	(((x)&~0x700)|((y)<<8))
+#define		SET_APIC_DELIVERY_MODE(x, y)	(((x)&~0x700)|((y)<<8))
 #define			APIC_MODE_FIXED		0x0
 #define			APIC_MODE_NMI		0x4
 #define			APIC_MODE_EXTINT	0x7
@@ -116,6 +116,14 @@
 #define		APIC_TDR_DIV_32		0x8
 #define		APIC_TDR_DIV_64		0x9
 #define		APIC_TDR_DIV_128	0xA
+
+#define K8_APIC_EXT_LVT_BASE		0x500
+#define K8_APIC_EXT_INT_MSG_FIX		0x0
+#define K8_APIC_EXT_INT_MSG_SMI		0x2
+#define K8_APIC_EXT_INT_MSG_NMI		0x4
+#define K8_APIC_EXT_INT_MSG_EXT		0x7
+#define K8_APIC_EXT_LVT_ENTRY_THRESHOLD	0
+
 #define APIC_BASE (fix_to_virt(FIX_APIC_BASE))
 
 #ifdef CONFIG_X86_32

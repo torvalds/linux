@@ -64,35 +64,28 @@ static inline void ack_APIC_irq(void)
 	apic_write(APIC_EOI, 0);
 }
 
-extern int get_maxlvt (void);
-extern void clear_local_APIC (void);
-extern void connect_bsp_APIC (void);
-extern void disconnect_bsp_APIC (int virt_wire_setup);
-extern void disable_local_APIC (void);
-extern void lapic_shutdown (void);
-extern int verify_local_APIC (void);
-extern void cache_APIC_registers (void);
-extern void sync_Arb_IDs (void);
-extern void init_bsp_APIC (void);
-extern void setup_local_APIC (void);
-extern void init_apic_mappings (void);
-extern void smp_local_timer_interrupt (void);
-extern void setup_boot_APIC_clock (void);
-extern void setup_secondary_APIC_clock (void);
-extern int APIC_init_uniprocessor (void);
+extern int get_maxlvt(void);
+extern void clear_local_APIC(void);
+extern void connect_bsp_APIC(void);
+extern void disconnect_bsp_APIC(int virt_wire_setup);
+extern void disable_local_APIC(void);
+extern void lapic_shutdown(void);
+extern int verify_local_APIC(void);
+extern void cache_APIC_registers(void);
+extern void sync_Arb_IDs(void);
+extern void init_bsp_APIC(void);
+extern void setup_local_APIC(void);
+extern void init_apic_mappings(void);
+extern void smp_local_timer_interrupt(void);
+extern void setup_boot_APIC_clock(void);
+extern void setup_secondary_APIC_clock(void);
+extern int APIC_init_uniprocessor(void);
 extern void setup_apic_routing(void);
 
 extern void setup_APIC_extended_lvt(unsigned char lvt_off, unsigned char vector,
 				    unsigned char msg_type, unsigned char mask);
 
 extern int apic_is_clustered_box(void);
-
-#define K8_APIC_EXT_LVT_BASE    0x500
-#define K8_APIC_EXT_INT_MSG_FIX 0x0
-#define K8_APIC_EXT_INT_MSG_SMI 0x2
-#define K8_APIC_EXT_INT_MSG_NMI 0x4
-#define K8_APIC_EXT_INT_MSG_EXT 0x7
-#define K8_APIC_EXT_LVT_ENTRY_THRESHOLD    0
 
 #define ARCH_APICTIMER_STOPS_ON_C3	1
 
