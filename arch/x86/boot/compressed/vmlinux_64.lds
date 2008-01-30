@@ -7,11 +7,15 @@ SECTIONS
 	 * address 0.
 	 */
 	. = 0;
-	.text :	{
+	.text.head : {
 		_head = . ;
 		*(.text.head)
 		_ehead = . ;
-		*(.text.compressed)
+	}
+	.rodata.compressed : {
+		*(.rodata.compressed)
+	}
+	.text :	{
 		_text = .; 	/* Text */
 		*(.text)
 		*(.text.*)

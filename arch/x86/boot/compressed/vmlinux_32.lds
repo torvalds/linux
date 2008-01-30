@@ -12,8 +12,8 @@ SECTIONS
 		*(.text.head)
 		_ehead = . ;
 	}
-	.data.compressed : {
-		*(.data.compressed)
+	.rodata.compressed : {
+		*(.rodata.compressed)
 	}
 	.text :	{
 		_text = .; 	/* Text */
