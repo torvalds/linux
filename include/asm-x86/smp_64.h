@@ -27,7 +27,7 @@ extern int smp_call_function_mask(cpumask_t mask, void (*func)(void *),
 				  void *info, int wait);
 
 extern u16 __initdata x86_cpu_to_apicid_init[];
-extern void *x86_cpu_to_apicid_ptr;
+extern void *x86_cpu_to_apicid_early_ptr;
 extern u16 bios_cpu_apicid[];
 
 DECLARE_PER_CPU(cpumask_t, cpu_sibling_map);

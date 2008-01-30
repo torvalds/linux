@@ -125,14 +125,9 @@ static void __cpuinit MP_processor_info(struct mpc_config_processor *m)
 		cpu = 0;
  	}
 	bios_cpu_apicid[cpu] = m->mpc_apicid;
-	/*
-	 * We get called early in the the start_kernel initialization
-	 * process when the per_cpu data area is not yet setup, so we
-	 * use a static array that is removed after the per_cpu data
-	 * area is created.
-	 */
-	if (x86_cpu_to_apicid_ptr) {
-		u16 *x86_cpu_to_apicid = (u16 *)x86_cpu_to_apicid_ptr;
+	/* are we being called early in kernel startup? */
+	if (x86_cpu_to_apicid_early_ptr) {
+		u16 *x86_cpu_to_apicid = (u16 *)x86_cpu_to_apicid_early_ptr;
 		x86_cpu_to_apicid[cpu] = m->mpc_apicid;
 	} else {
 		per_cpu(x86_cpu_to_apicid, cpu) = m->mpc_apicid;

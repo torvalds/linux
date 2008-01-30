@@ -360,7 +360,7 @@ void __init setup_arch(char **cmdline_p)
 
 #ifdef CONFIG_SMP
 	/* setup to use the static apicid table during kernel startup */
-	x86_cpu_to_apicid_ptr = (void *)&x86_cpu_to_apicid_init;
+	x86_cpu_to_apicid_early_ptr = (void *)&x86_cpu_to_apicid_init;
 #endif
 
 #ifdef CONFIG_ACPI

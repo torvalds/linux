@@ -852,23 +852,25 @@ static int __init smp_sanity_check(unsigned max_cpus)
 }
 
 /*
- * Copy apicid's found by MP_processor_info from initial array to the per cpu
- * data area.  The x86_cpu_to_apicid_init array is then expendable and the
- * x86_cpu_to_apicid_ptr is zeroed indicating that the static array is no
- * longer available.
+ * Copy data used in early init routines from the initial arrays to the
+ * per cpu data areas.  These arrays then become expendable and the
+ * *_ptrs are zeroed indicating that the static arrays are gone.
  */
 void __init smp_set_apicids(void)
 {
 	int cpu;
 
-	for_each_cpu_mask(cpu, cpu_possible_map) {
+	for_each_possible_cpu(cpu) {
 		if (per_cpu_offset(cpu))
 			per_cpu(x86_cpu_to_apicid, cpu) =
 						x86_cpu_to_apicid_init[cpu];
+		else
+			printk(KERN_NOTICE "per_cpu_offset zero for cpu %d\n",
+									cpu);
 	}
 
-	/* indicate the static array will be going away soon */
-	x86_cpu_to_apicid_ptr = NULL;
+	/* indicate the early static arrays are gone */
+	x86_cpu_to_apicid_early_ptr = NULL;
 }
 
 static void __init smp_cpu_index_default(void)
