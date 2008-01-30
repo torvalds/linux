@@ -238,6 +238,8 @@ struct thread_struct {
 	int		ioperm;
 	unsigned long	*io_bitmap_ptr;
 	unsigned io_bitmap_max;
+/* MSR_IA32_DEBUGCTLMSR value to switch in if TIF_DEBUGCTLMSR is set.  */
+	unsigned long	debugctlmsr;
 /* cached TLS descriptors. */
 	u64 tls_array[GDT_ENTRY_TLS_ENTRIES];
 } __attribute__((aligned(16)));

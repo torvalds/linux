@@ -555,6 +555,9 @@ static inline void __switch_to_xtra(struct task_struct *prev_p,
 	prev = &prev_p->thread,
 	next = &next_p->thread;
 
+	if (next->debugctlmsr != prev->debugctlmsr)
+		wrmsrl(MSR_IA32_DEBUGCTLMSR, next->debugctlmsr);
+
 	if (test_tsk_thread_flag(next_p, TIF_DEBUG)) {
 		loaddebug(next, 0);
 		loaddebug(next, 1);

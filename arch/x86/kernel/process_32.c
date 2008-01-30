@@ -602,9 +602,13 @@ static noinline void
 __switch_to_xtra(struct task_struct *prev_p, struct task_struct *next_p,
 		 struct tss_struct *tss)
 {
-	struct thread_struct *next;
+	struct thread_struct *prev, *next;
 
+	prev = &prev_p->thread;
 	next = &next_p->thread;
+
+	if (next->debugctlmsr != prev->debugctlmsr)
+		wrmsr(MSR_IA32_DEBUGCTLMSR, next->debugctlmsr, 0);
 
 	if (test_tsk_thread_flag(next_p, TIF_DEBUG)) {
 		set_debugreg(next->debugreg[0], 0);
