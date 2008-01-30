@@ -71,6 +71,12 @@ static inline void pack_gate(gate_desc *gate, unsigned char type,
 
 #endif
 
+static inline int desc_empty(const void *ptr)
+{
+	const u32 *desc = ptr;
+	return !(desc[0] | desc[1]);
+}
+
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
 #else

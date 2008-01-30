@@ -21,12 +21,6 @@
 #include <linux/init.h>
 #include <asm/desc_defs.h>
 
-static inline int desc_empty(const void *ptr)
-{
-	const u32 *desc = ptr;
-	return !(desc[0] | desc[1]);
-}
-
 /*
  * Default implementation of macro that returns current
  * instruction pointer ("program counter").
