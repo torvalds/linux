@@ -25,21 +25,24 @@ static int __init vsmp_init(void)
 		return 0;
 
 	/* Check if we are running on a ScaleMP vSMP box */
-	if ((read_pci_config_16(0, 0x1f, 0, PCI_VENDOR_ID) != PCI_VENDOR_ID_SCALEMP) ||
-	    (read_pci_config_16(0, 0x1f, 0, PCI_DEVICE_ID) != PCI_DEVICE_ID_SCALEMP_VSMP_CTL))
+	if ((read_pci_config_16(0, 0x1f, 0, PCI_VENDOR_ID) !=
+	     PCI_VENDOR_ID_SCALEMP) ||
+	    (read_pci_config_16(0, 0x1f, 0, PCI_DEVICE_ID) !=
+	     PCI_DEVICE_ID_SCALEMP_VSMP_CTL))
 		return 0;
 
 	/* set vSMP magic bits to indicate vSMP capable kernel */
 	address = ioremap(read_pci_config(0, 0x1f, 0, PCI_BASE_ADDRESS_0), 8);
 	cap = readl(address);
 	ctl = readl(address + 4);
-	printk("vSMP CTL: capabilities:0x%08x  control:0x%08x\n", cap, ctl);
+	printk(KERN_INFO "vSMP CTL: capabilities:0x%08x  control:0x%08x\n",
+	       cap, ctl);
 	if (cap & ctl & (1 << 4)) {
 		/* Turn on vSMP IRQ fastpath handling (see system.h) */
 		ctl &= ~(1 << 4);
 		writel(ctl, address + 4);
 		ctl = readl(address + 4);
-		printk("vSMP CTL: control set to:0x%08x\n", ctl);
+		printk(KERN_INFO "vSMP CTL: control set to:0x%08x\n", ctl);
 	}
 
 	iounmap(address);
