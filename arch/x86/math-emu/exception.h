@@ -9,7 +9,6 @@
 #ifndef _EXCEPTION_H_
 #define _EXCEPTION_H_
 
-
 #ifdef __ASSEMBLY__
 #define	Const_(x)	$##x
 #else
@@ -20,8 +19,8 @@
 #include "fpu_emu.h"
 #endif /* SW_C1 */
 
-#define FPU_BUSY        Const_(0x8000)   /* FPU busy bit (8087 compatibility) */
-#define EX_ErrorSummary Const_(0x0080)   /* Error summary status */
+#define FPU_BUSY        Const_(0x8000)	/* FPU busy bit (8087 compatibility) */
+#define EX_ErrorSummary Const_(0x0080)	/* Error summary status */
 /* Special exceptions: */
 #define	EX_INTERNAL	Const_(0x8000)	/* Internal error in wm-FPU-emu */
 #define EX_StackOver	Const_(0x0041|SW_C1)	/* stack overflow */
@@ -34,10 +33,8 @@
 #define EX_Denormal	Const_(0x0002)	/* denormalized operand */
 #define EX_Invalid	Const_(0x0001)	/* invalid operation */
 
-
 #define PRECISION_LOST_UP    Const_((EX_Precision | SW_C1))
 #define PRECISION_LOST_DOWN  Const_(EX_Precision)
-
 
 #ifndef __ASSEMBLY__
 
@@ -48,6 +45,6 @@
 #define	EXCEPTION(x)	FPU_exception(x)
 #endif
 
-#endif /* __ASSEMBLY__ */ 
+#endif /* __ASSEMBLY__ */
 
 #endif /* _EXCEPTION_H_ */
