@@ -24,8 +24,5 @@
 #define MAX_PHYSMEM_BITS	32
 #endif
 
-/* XXX: FIXME -- wli */
-#define kern_addr_valid(kaddr)  (0)
-
 #endif /* CONFIG_SPARSEMEM */
 #endif /* _I386_SPARSEMEM_H */

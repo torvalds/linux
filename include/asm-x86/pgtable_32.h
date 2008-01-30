@@ -497,9 +497,15 @@ static inline void paravirt_pagetable_setup_done(pgd_t *base)
 
 #endif /* !__ASSEMBLY__ */
 
+/*
+ * kern_addr_valid() is (1) for FLATMEM and (0) for
+ * SPARSEMEM and DISCONTIGMEM
+ */
 #ifdef CONFIG_FLATMEM
 #define kern_addr_valid(addr)	(1)
-#endif /* CONFIG_FLATMEM */
+#else
+#define kern_addr_valid(kaddr)	(0)
+#endif
 
 #define io_remap_pfn_range(vma, vaddr, pfn, size, prot)		\
 		remap_pfn_range(vma, vaddr, pfn, size, prot)
