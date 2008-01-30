@@ -1159,8 +1159,6 @@ static inline unsigned long __raw_local_irq_save(void)
 
 #else  /* __ASSEMBLY__ */
 
-#define PARA_PATCH(struct, off)	((PARAVIRT_PATCH_##struct + (off)) / 4)
-
 #define _PVSITE(ptype, clobbers, ops, word, algn)	\
 771:;						\
 	ops;					\
@@ -1175,8 +1173,14 @@ static inline unsigned long __raw_local_irq_save(void)
 
 
 #ifdef CONFIG_X86_64
+#define PV_SAVE_REGS   pushq %rax; pushq %rdi; pushq %rcx; pushq %rdx
+#define PV_RESTORE_REGS popq %rdx; popq %rcx; popq %rdi; popq %rax
+#define PARA_PATCH(struct, off)        ((PARAVIRT_PATCH_##struct + (off)) / 8)
 #define PARA_SITE(ptype, clobbers, ops) _PVSITE(ptype, clobbers, ops, .quad, 8)
 #else
+#define PV_SAVE_REGS   pushl %eax; pushl %edi; pushl %ecx; pushl %edx
+#define PV_RESTORE_REGS popl %edx; popl %ecx; popl %edi; popl %eax
+#define PARA_PATCH(struct, off)        ((PARAVIRT_PATCH_##struct + (off)) / 4)
 #define PARA_SITE(ptype, clobbers, ops) _PVSITE(ptype, clobbers, ops, .long, 4)
 #endif
 
@@ -1186,25 +1190,27 @@ static inline unsigned long __raw_local_irq_save(void)
 
 #define DISABLE_INTERRUPTS(clobbers)					\
 	PARA_SITE(PARA_PATCH(pv_irq_ops, PV_IRQ_irq_disable), clobbers, \
-		  pushl %eax; pushl %ecx; pushl %edx;			\
+		  PV_SAVE_REGS;			\
 		  call *%cs:pv_irq_ops+PV_IRQ_irq_disable;		\
-		  popl %edx; popl %ecx; popl %eax)			\
+		  PV_RESTORE_REGS;)			\
 
 #define ENABLE_INTERRUPTS(clobbers)					\
 	PARA_SITE(PARA_PATCH(pv_irq_ops, PV_IRQ_irq_enable), clobbers,	\
-		  pushl %eax; pushl %ecx; pushl %edx;			\
+		  PV_SAVE_REGS;			\
 		  call *%cs:pv_irq_ops+PV_IRQ_irq_enable;		\
-		  popl %edx; popl %ecx; popl %eax)
+		  PV_RESTORE_REGS;)
 
 #define ENABLE_INTERRUPTS_SYSCALL_RET					\
 	PARA_SITE(PARA_PATCH(pv_cpu_ops, PV_CPU_irq_enable_syscall_ret),\
 		  CLBR_NONE,						\
 		  jmp *%cs:pv_cpu_ops+PV_CPU_irq_enable_syscall_ret)
 
+#ifdef CONFIG_X86_32
 #define GET_CR0_INTO_EAX			\
 	push %ecx; push %edx;			\
 	call *pv_cpu_ops+PV_CPU_read_cr0;	\
 	pop %edx; pop %ecx
+#endif
 
 #endif /* __ASSEMBLY__ */
 #endif /* CONFIG_PARAVIRT */
