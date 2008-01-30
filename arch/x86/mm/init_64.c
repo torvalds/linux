@@ -573,6 +573,7 @@ void free_init_pages(char *what, unsigned long begin, unsigned long end)
 		set_memory_rw(begin, (end - begin)/PAGE_SIZE);
 		set_memory_np(begin, (end - begin)/PAGE_SIZE);
 		set_memory_nx(begin, (end - begin)/PAGE_SIZE);
+		rodata_test();
 	}
 #endif
 }
@@ -585,6 +586,8 @@ void free_initmem(void)
 }
 
 #ifdef CONFIG_DEBUG_RODATA
+const int rodata_test_data = 0xC3;
+EXPORT_SYMBOL_GPL(rodata_test_data);
 
 void mark_rodata_ro(void)
 {

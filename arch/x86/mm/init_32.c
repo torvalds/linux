@@ -736,6 +736,8 @@ static int noinline do_test_wp_bit(void)
 }
 
 #ifdef CONFIG_DEBUG_RODATA
+const int rodata_test_data = 0xC3;
+EXPORT_SYMBOL_GPL(rodata_test_data);
 
 void mark_rodata_ro(void)
 {
@@ -765,6 +767,7 @@ void mark_rodata_ro(void)
 	set_pages_ro(virt_to_page(start), size >> PAGE_SHIFT);
 	printk("Write protecting the kernel read-only data: %luk\n",
 	       size >> 10);
+	rodata_test();
 
 #ifdef CONFIG_CPA_DEBUG
 	printk("Testing CPA: undo %lx-%lx\n", start, start + size);

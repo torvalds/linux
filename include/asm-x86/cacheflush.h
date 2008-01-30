@@ -47,5 +47,12 @@ void clflush_cache_range(void *addr, int size);
 #ifdef CONFIG_DEBUG_RODATA
 void mark_rodata_ro(void);
 #endif
+#ifdef CONFIG_DEBUG_RODATA_TEST
+void rodata_test(void);
+#else
+static inline void rodata_test(void)
+{
+}
+#endif
 
 #endif
