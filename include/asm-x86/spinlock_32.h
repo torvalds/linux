@@ -99,7 +99,7 @@ static inline int __raw_spin_trylock(raw_spinlock_t *lock)
 
 static inline void __raw_spin_unlock(raw_spinlock_t *lock)
 {
-	asm volatile("movb $1,%0" : "+m" (lock->slock) :: "memory");
+	asm volatile("movb $1,%0" : "=m" (lock->slock) :: "memory");
 }
 
 #else

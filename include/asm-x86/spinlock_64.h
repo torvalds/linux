@@ -34,7 +34,7 @@ static inline void __raw_spin_lock(raw_spinlock_t *lock)
 		"jle 3b\n\t"
 		"jmp 1b\n"
 		"2:\t"
-		: "=m" (lock->slock) : : "memory");
+		: "+m" (lock->slock) : : "memory");
 }
 
 /*
@@ -80,7 +80,7 @@ static inline int __raw_spin_trylock(raw_spinlock_t *lock)
 
 	asm volatile(
 		"xchgl %0,%1"
-		:"=q" (oldval), "=m" (lock->slock)
+		:"=q" (oldval), "+m" (lock->slock)
 		:"0" (0) : "memory");
 
 	return oldval > 0;
@@ -162,13 +162,13 @@ static inline int __raw_write_trylock(raw_rwlock_t *lock)
 
 static inline void __raw_read_unlock(raw_rwlock_t *rw)
 {
-	asm volatile(LOCK_PREFIX "incl %0" :"=m" (rw->lock) : : "memory");
+	asm volatile(LOCK_PREFIX "incl %0" :"+m" (rw->lock) : : "memory");
 }
 
 static inline void __raw_write_unlock(raw_rwlock_t *rw)
 {
-	asm volatile(LOCK_PREFIX "addl $" RW_LOCK_BIAS_STR ",%0"
-				: "=m" (rw->lock) : : "memory");
+	asm volatile(LOCK_PREFIX "addl $" RW_LOCK_BIAS_STR ", %0"
+				: "+m" (rw->lock) : : "memory");
 }
 
 #define _raw_spin_relax(lock)	cpu_relax()
