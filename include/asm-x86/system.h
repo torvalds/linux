@@ -9,8 +9,14 @@
 #include <linux/kernel.h>
 #include <linux/irqflags.h>
 
+/* entries in ARCH_DLINFO: */
+#ifdef CONFIG_IA32_EMULATION
+# define AT_VECTOR_SIZE_ARCH 2
+#else
+# define AT_VECTOR_SIZE_ARCH 1
+#endif
+
 #ifdef CONFIG_X86_32
-#define AT_VECTOR_SIZE_ARCH 2 /* entries in ARCH_DLINFO */
 
 struct task_struct; /* one of the stranger aspects of C forward declarations */
 extern struct task_struct *FASTCALL(__switch_to(struct task_struct *prev,
@@ -56,7 +62,7 @@ extern struct task_struct *FASTCALL(__switch_to(struct task_struct *prev,
 
 /* Save restore flags to clear handle leaking NT */
 #define switch_to(prev, next, last) \
-	asm volatile(SAVE_CONTEXT					  \
+	asm volatile(SAVE_CONTEXT						    \
 	     "movq %%rsp,%P[threadrsp](%[prev])\n\t" /* save RSP */	  \
 	     "movq %P[threadrsp](%[next]),%%rsp\n\t" /* restore RSP */	  \
 	     "call __switch_to\n\t"					  \
