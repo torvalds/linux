@@ -283,7 +283,7 @@ END(resume_kernel)
    the vsyscall page.  See vsyscall-sysentry.S, which defines the symbol.  */
 
 	# sysenter call handler stub
-ENTRY(sysenter_entry)
+ENTRY(ia32_sysenter_target)
 	CFI_STARTPROC simple
 	CFI_SIGNAL_FRAME
 	CFI_DEF_CFA esp, 0
@@ -360,7 +360,7 @@ sysenter_past_esp:
 	.align 4
 	.long 1b,2b
 .popsection
-ENDPROC(sysenter_entry)
+ENDPROC(ia32_sysenter_target)
 
 	# system call handler stub
 ENTRY(system_call)
@@ -768,7 +768,7 @@ label:						\
 
 KPROBE_ENTRY(debug)
 	RING0_INT_FRAME
-	cmpl $sysenter_entry,(%esp)
+	cmpl $ia32_sysenter_target,(%esp)
 	jne debug_stack_correct
 	FIX_STACK(12, debug_stack_correct, debug_esp_fix_insn)
 debug_stack_correct:
@@ -799,7 +799,7 @@ KPROBE_ENTRY(nmi)
 	popl %eax
 	CFI_ADJUST_CFA_OFFSET -4
 	je nmi_espfix_stack
-	cmpl $sysenter_entry,(%esp)
+	cmpl $ia32_sysenter_target,(%esp)
 	je nmi_stack_fixup
 	pushl %eax
 	CFI_ADJUST_CFA_OFFSET 4
@@ -812,7 +812,7 @@ KPROBE_ENTRY(nmi)
 	popl %eax
 	CFI_ADJUST_CFA_OFFSET -4
 	jae nmi_stack_correct
-	cmpl $sysenter_entry,12(%esp)
+	cmpl $ia32_sysenter_target,12(%esp)
 	je nmi_debug_stack_check
 nmi_stack_correct:
 	/* We have a RING0_INT_FRAME here */

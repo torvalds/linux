@@ -54,7 +54,7 @@ static int __init vdso_setup(char *s)
 
 __setup("vdso=", vdso_setup);
 
-extern asmlinkage void sysenter_entry(void);
+extern asmlinkage void ia32_sysenter_target(void);
 
 static __init void reloc_symtab(Elf32_Ehdr *ehdr,
 				unsigned offset, unsigned size)
@@ -187,7 +187,7 @@ void enable_sep_cpu(void)
 	tss->x86_tss.esp1 = sizeof(struct tss_struct) + (unsigned long) tss;
 	wrmsr(MSR_IA32_SYSENTER_CS, __KERNEL_CS, 0);
 	wrmsr(MSR_IA32_SYSENTER_ESP, tss->x86_tss.esp1, 0);
-	wrmsr(MSR_IA32_SYSENTER_EIP, (unsigned long) sysenter_entry, 0);
+	wrmsr(MSR_IA32_SYSENTER_EIP, (unsigned long) ia32_sysenter_target, 0);
 	put_cpu();	
 }
 
