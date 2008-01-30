@@ -169,7 +169,8 @@ void syscall_init(void)
 #endif
 
 	/* Flags to clear on syscall */
-	wrmsrl(MSR_SYSCALL_MASK, EF_TF|EF_DF|EF_IE|0x3000); 
+	wrmsrl(MSR_SYSCALL_MASK,
+	       X86_EFLAGS_TF|X86_EFLAGS_DF|X86_EFLAGS_IF|X86_EFLAGS_IOPL);
 }
 
 void __cpuinit check_efer(void)
