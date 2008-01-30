@@ -463,12 +463,13 @@ static int ptrace_set_debugreg(struct task_struct *child,
 void ptrace_disable(struct task_struct *child)
 {
 	user_disable_single_step(child);
+#ifdef TIF_SYSCALL_EMU
 	clear_tsk_thread_flag(child, TIF_SYSCALL_EMU);
+#endif
 }
 
 long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 {
-	struct user * dummy = NULL;
 	int i, ret;
 	unsigned long __user *datap = (unsigned long __user *)data;
 
@@ -484,18 +485,17 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		unsigned long tmp;
 
 		ret = -EIO;
-		if ((addr & 3) || addr < 0 ||
-		    addr > sizeof(struct user) - 3)
+		if ((addr & (sizeof(data) - 1)) || addr < 0 ||
+		    addr >= sizeof(struct user))
 			break;
 
 		tmp = 0;  /* Default return condition */
-		if(addr < FRAME_SIZE*sizeof(long))
+		if (addr < sizeof(struct user_regs_struct))
 			tmp = getreg(child, addr);
-		if(addr >= (long) &dummy->u_debugreg[0] &&
-		   addr <= (long) &dummy->u_debugreg[7]){
-			addr -= (long) &dummy->u_debugreg[0];
-			addr = addr >> 2;
-			tmp = ptrace_get_debugreg(child, addr);
+		else if (addr >= offsetof(struct user, u_debugreg[0]) &&
+			 addr <= offsetof(struct user, u_debugreg[7])) {
+			addr -= offsetof(struct user, u_debugreg[0]);
+			tmp = ptrace_get_debugreg(child, addr / sizeof(data));
 		}
 		ret = put_user(tmp, datap);
 		break;
@@ -509,34 +509,26 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 	case PTRACE_POKEUSR: /* write the word at location addr in the USER area */
 		ret = -EIO;
-		if ((addr & 3) || addr < 0 ||
-		    addr > sizeof(struct user) - 3)
+		if ((addr & (sizeof(data) - 1)) || addr < 0 ||
+		    addr >= sizeof(struct user))
 			break;
 
-		if (addr < FRAME_SIZE*sizeof(long)) {
+		if (addr < sizeof(struct user_regs_struct))
 			ret = putreg(child, addr, data);
-			break;
+		else if (addr >= offsetof(struct user, u_debugreg[0]) &&
+			 addr <= offsetof(struct user, u_debugreg[7])) {
+			addr -= offsetof(struct user, u_debugreg[0]);
+			ret = ptrace_set_debugreg(child,
+						  addr / sizeof(data), data);
 		}
-		/* We need to be very careful here.  We implicitly
-		   want to modify a portion of the task_struct, and we
-		   have to be selective about what portions we allow someone
-		   to modify. */
-
-		  ret = -EIO;
-		  if(addr >= (long) &dummy->u_debugreg[0] &&
-		     addr <= (long) &dummy->u_debugreg[7]){
-			  addr -= (long) &dummy->u_debugreg;
-			  addr = addr >> 2;
-			  ret = ptrace_set_debugreg(child, addr, data);
-		  }
-		  break;
+		break;
 
 	case PTRACE_GETREGS: { /* Get all gp regs from the child. */
-	  	if (!access_ok(VERIFY_WRITE, datap, FRAME_SIZE*sizeof(long))) {
+		if (!access_ok(VERIFY_WRITE, datap, sizeof(struct user_regs_struct))) {
 			ret = -EIO;
 			break;
 		}
-		for ( i = 0; i < FRAME_SIZE*sizeof(long); i += sizeof(long) ) {
+		for (i = 0; i < sizeof(struct user_regs_struct); i += sizeof(long)) {
 			__put_user(getreg(child, i), datap);
 			datap++;
 		}
@@ -546,11 +538,11 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 	case PTRACE_SETREGS: { /* Set all gp regs in the child. */
 		unsigned long tmp;
-	  	if (!access_ok(VERIFY_READ, datap, FRAME_SIZE*sizeof(long))) {
+		if (!access_ok(VERIFY_READ, datap, sizeof(struct user_regs_struct))) {
 			ret = -EIO;
 			break;
 		}
-		for ( i = 0; i < FRAME_SIZE*sizeof(long); i += sizeof(long) ) {
+		for (i = 0; i < sizeof(struct user_regs_struct); i += sizeof(long)) {
 			__get_user(tmp, datap);
 			putreg(child, i, tmp);
 			datap++;
@@ -584,6 +576,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		break;
 	}
 
+#ifdef CONFIG_X86_32
 	case PTRACE_GETFPXREGS: { /* Get the child extended FPU state. */
 		if (!access_ok(VERIFY_WRITE, datap,
 			       sizeof(struct user_fxsr_struct))) {
@@ -606,7 +599,9 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		ret = set_fpxregs(child, (struct user_fxsr_struct __user *)data);
 		break;
 	}
+#endif
 
+#if defined CONFIG_X86_32 || defined CONFIG_IA32_EMULATION
 	case PTRACE_GET_THREAD_AREA:
 		if (addr < 0)
 			return -EIO;
@@ -620,6 +615,16 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		ret = do_set_thread_area(child, addr,
 					 (struct user_desc __user *) data, 0);
 		break;
+#endif
+
+#ifdef CONFIG_X86_64
+		/* normal 64bit interface to access TLS data.
+		   Works just like arch_prctl, except that the arguments
+		   are reversed. */
+	case PTRACE_ARCH_PRCTL:
+		ret = do_arch_prctl(child, data, addr);
+		break;
+#endif
 
 	default:
 		ret = ptrace_request(child, request, addr, data);
