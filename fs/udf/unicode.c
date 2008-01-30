@@ -82,9 +82,6 @@ static int udf_build_ustr_exact(struct ustr *dest, dstring *ptr, int exactsize)
  * PURPOSE
  *	Convert OSTA Compressed Unicode to the UTF-8 equivalent.
  *
- * DESCRIPTION
- *	This routine is only called by udf_filldir().
- *
  * PRE-CONDITIONS
  *	utf			Pointer to UTF-8 output buffer.
  *	ocu			Pointer to OSTA Compressed Unicode input buffer
@@ -98,43 +95,39 @@ static int udf_build_ustr_exact(struct ustr *dest, dstring *ptr, int exactsize)
  *	November 12, 1997 - Andrew E. Mileski
  *	Written, tested, and released.
  */
-int udf_CS0toUTF8(struct ustr *utf_o, struct ustr *ocu_i)
+int udf_CS0toUTF8(struct ustr *utf_o, const struct ustr *ocu_i)
 {
-	uint8_t *ocu;
-	uint32_t c;
+	const uint8_t *ocu;
 	uint8_t cmp_id, ocu_len;
 	int i;
 
-	ocu = ocu_i->u_name;
-
 	ocu_len = ocu_i->u_len;
-	cmp_id = ocu_i->u_cmpID;
-	utf_o->u_len = 0;
-
 	if (ocu_len == 0) {
 		memset(utf_o, 0, sizeof(struct ustr));
-		utf_o->u_cmpID = 0;
-		utf_o->u_len = 0;
 		return 0;
 	}
 
-	if ((cmp_id != 8) && (cmp_id != 16)) {
+	cmp_id = ocu_i->u_cmpID;
+	if (cmp_id != 8 && cmp_id != 16) {
+		memset(utf_o, 0, sizeof(struct ustr));
 		printk(KERN_ERR "udf: unknown compression code (%d) stri=%s\n",
 		       cmp_id, ocu_i->u_name);
 		return 0;
 	}
 
+	ocu = ocu_i->u_name;
+	utf_o->u_len = 0;
 	for (i = 0; (i < ocu_len) && (utf_o->u_len <= (UDF_NAME_LEN - 3));) {
 
 		/* Expand OSTA compressed Unicode to Unicode */
-		c = ocu[i++];
+		uint32_t c = ocu[i++];
 		if (cmp_id == 16)
 			c = (c << 8) | ocu[i++];
 
 		/* Compress Unicode to UTF-8 */
-		if (c < 0x80U) {
+		if (c < 0x80U)
 			utf_o->u_name[utf_o->u_len++] = (uint8_t)c;
-		} else if (c < 0x800U) {
+		else if (c < 0x800U) {
 			utf_o->u_name[utf_o->u_len++] =
 						(uint8_t)(0xc0 | (c >> 6));
 			utf_o->u_name[utf_o->u_len++] =
