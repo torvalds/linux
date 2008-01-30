@@ -129,6 +129,52 @@ int generic_ptrace_pokedata(struct task_struct *tsk, long addr, long data);
 #define force_successful_syscall_return() do { } while (0)
 #endif
 
+/*
+ * <asm/ptrace.h> should define the following things inside #ifdef __KERNEL__.
+ *
+ * These do-nothing inlines are used when the arch does not
+ * implement single-step.  The kerneldoc comments are here
+ * to document the interface for all arch definitions.
+ */
+
+#ifndef arch_has_single_step
+/**
+ * arch_has_single_step - does this CPU support user-mode single-step?
+ *
+ * If this is defined, then there must be function declarations or
+ * inlines for user_enable_single_step() and user_disable_single_step().
+ * arch_has_single_step() should evaluate to nonzero iff the machine
+ * supports instruction single-step for user mode.
+ * It can be a constant or it can test a CPU feature bit.
+ */
+#define arch_has_single_step()		(0)
+
+/**
+ * user_enable_single_step - single-step in user-mode task
+ * @task: either current or a task stopped in %TASK_TRACED
+ *
+ * This can only be called when arch_has_single_step() has returned nonzero.
+ * Set @task so that when it returns to user mode, it will trap after the
+ * next single instruction executes.
+ */
+static inline void user_enable_single_step(struct task_struct *task)
+{
+	BUG();			/* This can never be called.  */
+}
+
+/**
+ * user_disable_single_step - cancel user-mode single-step
+ * @task: either current or a task stopped in %TASK_TRACED
+ *
+ * Clear @task of the effects of user_enable_single_step().  This can
+ * be called whether or not user_enable_single_step() was ever called
+ * on @task, and even if arch_has_single_step() returned zero.
+ */
+static inline void user_disable_single_step(struct task_struct *task)
+{
+}
+#endif	/* arch_has_single_step */
+
 #endif
 
 #endif
