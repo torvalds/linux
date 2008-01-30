@@ -112,4 +112,13 @@ config IOMMU_LEAK
 	  Add a simple leak tracer to the IOMMU code. This is useful when you
 	  are debugging a buggy device driver that leaks IOMMU mappings.
 
+config UDELAY_IO_DELAY
+	bool "Delay I/O through udelay instead of outb"
+	depends on DEBUG_KERNEL
+	help
+	  Make inb_p/outb_p use udelay() based delays by default. Please note
+	  that udelay() does not have the same bus-level side-effects that
+	  the normal outb based delay does meaning this could cause drivers
+	  to change behaviour and/or bugs to surface.
+
 endmenu

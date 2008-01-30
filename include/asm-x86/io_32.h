@@ -250,10 +250,14 @@ static inline void flush_write_buffers(void)
 
 #endif /* __KERNEL__ */
 
-static inline void native_io_delay(void)
+#ifndef CONFIG_UDELAY_IO_DELAY
+extern void io_delay_init(void);
+#else
+static inline void io_delay_init(void)
 {
-	asm volatile("outb %%al,$0x80" : : : "memory");
 }
+#endif
+extern void native_io_delay(void);
 
 #if defined(CONFIG_PARAVIRT)
 #include <asm/paravirt.h>

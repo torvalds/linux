@@ -794,6 +794,14 @@ and is between 256 and 4096 characters. It is defined in the file
 			for translation below 32 bit and if not available
 			then look in the higher range.
 
+	io_delay=	[X86-32,X86-64] I/O delay method
+		standard
+			Standard port 0x80 delay
+		alternate
+			Alternate port 0xed delay
+		udelay
+			Simple two microsecond delay
+
 	io7=		[HW] IO7 for Marvel based alpha systems
 			See comment before marvel_specify_io7 in
 			arch/alpha/kernel/core_marvel.c.
