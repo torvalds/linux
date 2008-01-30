@@ -275,7 +275,7 @@ static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm, unsigned long 
 #define __HAVE_ARCH_PTEP_SET_WRPROTECT
 static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
-	clear_bit(_PAGE_BIT_RW, &ptep->pte);
+	clear_bit(_PAGE_BIT_RW, (unsigned long *)&ptep->pte);
 	pte_update(mm, addr, ptep);
 }
 
