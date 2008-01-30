@@ -37,7 +37,6 @@
 #include <asm/hpet.h>
 #include <asm/time.h>
 
-#include "io_ports.h"
 #include "do_timer.h"
 
 unsigned int cpu_khz;	/* Detected as we calibrate the TSC */

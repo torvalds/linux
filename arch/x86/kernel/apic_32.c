@@ -43,8 +43,6 @@
 #include <mach_apicdef.h>
 #include <mach_ipi.h>
 
-#include "io_ports.h"
-
 /*
  * Sanity check
  */

@@ -35,7 +35,6 @@
 #include <asm/i8253.h>
 
 #include <irq_vectors.h>
-#include "io_ports.h"
 
 #define VMI_ONESHOT  (VMI_ALARM_IS_ONESHOT  | VMI_CYCLES_REAL | vmi_get_alarm_wiring())
 #define VMI_PERIODIC (VMI_ALARM_IS_PERIODIC | VMI_CYCLES_REAL | vmi_get_alarm_wiring())

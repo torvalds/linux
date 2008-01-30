@@ -235,8 +235,6 @@
 #include <asm/paravirt.h>
 #include <asm/reboot.h>
 
-#include "io_ports.h"
-
 #if defined(CONFIG_APM_DISPLAY_BLANK) && defined(CONFIG_VT)
 extern int (*console_blank_hook)(int);
 #endif

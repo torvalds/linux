@@ -48,8 +48,6 @@
 #include <mach_apic.h>
 #include <mach_apicdef.h>
 
-#include "io_ports.h"
-
 int (*ioapic_renumber_irq)(int ioapic, int irq);
 atomic_t irq_mis_count;
 

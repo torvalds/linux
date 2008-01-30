@@ -21,8 +21,6 @@
 #include <asm/arch_hooks.h>
 #include <asm/i8259.h>
 
-#include <io_ports.h>
-
 /*
  * This is the 'legacy' 8259A Programmable Interrupt Controller,
  * present in the majority of PC/AT boxes.
