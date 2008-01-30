@@ -79,8 +79,10 @@ split_large_page(pte_t *kpte, unsigned long address, pgprot_t ref_prot)
 	 * up for us already:
 	 */
 	tmp = lookup_address(address, &level);
-	if (tmp != kpte)
+	if (tmp != kpte) {
+		WARN_ON_ONCE(1);
 		goto out_unlock;
+	}
 
 	address = __pa(address);
 	addr = address & LARGE_PAGE_MASK;
@@ -181,17 +183,19 @@ EXPORT_SYMBOL(change_page_attr);
 int change_page_attr_addr(unsigned long addr, int numpages, pgprot_t prot)
 {
 	int i;
-	unsigned long pfn = (addr >> PAGE_SHIFT);
+	unsigned long pfn = (__pa(addr) >> PAGE_SHIFT);
 
 	for (i = 0; i < numpages; i++) {
 		if (!pfn_valid(pfn + i)) {
+			WARN_ON_ONCE(1);
 			break;
 		} else {
 			int level;
 			pte_t *pte = lookup_address(addr + i*PAGE_SIZE, &level);
-			BUG_ON(pte && !pte_none(*pte));
+			BUG_ON(pte && pte_none(*pte));
 		}
 	}
+
 	return change_page_attr(virt_to_page(addr), i, prot);
 }
 

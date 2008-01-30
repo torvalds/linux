@@ -106,12 +106,6 @@ static __init int print_split(struct split_state *s)
 	return err;
 }
 
-static __init int state_same(struct split_state *a, struct split_state *b)
-{
-	return a->lpg == b->lpg && a->gpg == b->gpg && a->spg == b->spg &&
-		a->exec == b->exec;
-}
-
 static unsigned long __initdata addr[NTEST];
 static unsigned int __initdata len[NTEST];
 
@@ -229,8 +223,6 @@ static __init int exercise_pageattr(void)
 	global_flush_tlb();
 
 	failed += print_split(&sc);
-	if (!state_same(&sa, &sc))
-		failed++;
 
 	if (failed)
 		printk(KERN_ERR "CPA selftests NOT PASSED. Please report.\n");
