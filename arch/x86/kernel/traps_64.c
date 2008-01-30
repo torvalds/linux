@@ -642,11 +642,14 @@ static void __kprobes do_trap(int trapnr, int signr, char *str,
 		tsk->thread.trap_no = trapnr;
 
 		if (show_unhandled_signals && unhandled_signal(tsk, signr) &&
-		    printk_ratelimit())
+		    printk_ratelimit()) {
 			printk(KERN_INFO
-			       "%s[%d] trap %s ip:%lx sp:%lx error:%lx\n",
+			       "%s[%d] trap %s ip:%lx sp:%lx error:%lx",
 			       tsk->comm, tsk->pid, str,
 			       regs->ip, regs->sp, error_code);
+			print_vma_addr(" in ", regs->ip);
+			printk("\n");
+		}
 
 		if (info)
 			force_sig_info(signr, info, tsk);
@@ -741,11 +744,14 @@ asmlinkage void __kprobes do_general_protection(struct pt_regs * regs,
 		tsk->thread.trap_no = 13;
 
 		if (show_unhandled_signals && unhandled_signal(tsk, SIGSEGV) &&
-		    printk_ratelimit())
+		    printk_ratelimit()) {
 			printk(KERN_INFO
-		       "%s[%d] general protection ip:%lx sp:%lx error:%lx\n",
+		       "%s[%d] general protection ip:%lx sp:%lx error:%lx",
 			       tsk->comm, tsk->pid,
 			       regs->ip, regs->sp, error_code);
+			print_vma_addr(" in ", regs->ip);
+			printk("\n");
+		}
 
 		force_sig(SIGSEGV, tsk);
 		return;

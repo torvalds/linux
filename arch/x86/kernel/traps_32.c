@@ -609,11 +609,14 @@ void __kprobes do_general_protection(struct pt_regs * regs,
 	current->thread.error_code = error_code;
 	current->thread.trap_no = 13;
 	if (show_unhandled_signals && unhandled_signal(current, SIGSEGV) &&
-	    printk_ratelimit())
+	    printk_ratelimit()) {
 		printk(KERN_INFO
-		    "%s[%d] general protection ip:%lx sp:%lx error:%lx\n",
+		    "%s[%d] general protection ip:%lx sp:%lx error:%lx",
 		    current->comm, task_pid_nr(current),
 		    regs->ip, regs->sp, error_code);
+		print_vma_addr(" in ", regs->ip);
+		printk("\n");
+	}
 
 	force_sig(SIGSEGV, current);
 	return;

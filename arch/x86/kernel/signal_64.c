@@ -484,9 +484,12 @@ do_notify_resume(struct pt_regs *regs, void *unused, __u32 thread_info_flags)
 void signal_fault(struct pt_regs *regs, void __user *frame, char *where)
 { 
 	struct task_struct *me = current; 
-	if (show_unhandled_signals && printk_ratelimit())
-		printk("%s[%d] bad frame in %s frame:%p ip:%lx sp:%lx orax:%lx\n",
+	if (show_unhandled_signals && printk_ratelimit()) {
+		printk("%s[%d] bad frame in %s frame:%p ip:%lx sp:%lx orax:%lx",
 	       me->comm,me->pid,where,frame,regs->ip,regs->sp,regs->orig_ax);
+		print_vma_addr(" in ", regs->ip);
+		printk("\n");
+	}
 
 	force_sig(SIGSEGV, me); 
 } 

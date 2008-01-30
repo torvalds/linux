@@ -198,12 +198,15 @@ asmlinkage int sys_sigreturn(unsigned long __unused)
 	return ax;
 
 badframe:
-	if (show_unhandled_signals && printk_ratelimit())
+	if (show_unhandled_signals && printk_ratelimit()) {
 		printk("%s%s[%d] bad frame in sigreturn frame:%p ip:%lx"
-		       " sp:%lx oeax:%lx\n",
+		       " sp:%lx oeax:%lx",
 		    task_pid_nr(current) > 1 ? KERN_INFO : KERN_EMERG,
 		    current->comm, task_pid_nr(current), frame, regs->ip,
 		    regs->sp, regs->orig_ax);
+		print_vma_addr(" in ", regs->ip);
+		printk("\n");
+	}
 
 	force_sig(SIGSEGV, current);
 	return 0;

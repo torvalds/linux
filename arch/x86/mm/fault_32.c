@@ -514,11 +514,13 @@ bad_area_nosemaphore:
 #ifdef CONFIG_X86_32
 			"%s%s[%d]: segfault at %lx ip %08lx sp %08lx error %lx",
 #else
-			"%s%s[%d]: segfault at %lx ip %lx sp %lx error %lx\n",
+			"%s%s[%d]: segfault at %lx ip %lx sp %lx error %lx",
 #endif
 			task_pid_nr(tsk) > 1 ? KERN_INFO : KERN_EMERG,
 			tsk->comm, task_pid_nr(tsk), address, regs->ip,
 			regs->sp, error_code);
+			print_vma_addr(" in ", regs->ip);
+			printk("\n");
 		}
 		tsk->thread.cr2 = address;
 		/* Kernel addresses are always protection faults */
