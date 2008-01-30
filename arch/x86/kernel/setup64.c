@@ -228,7 +228,7 @@ void __cpuinit cpu_init (void)
 	 * and set up the GDT descriptor:
 	 */
 	if (cpu)
- 		memcpy(cpu_gdt(cpu), cpu_gdt_table, GDT_SIZE);
+		memcpy(get_cpu_gdt_table(cpu), cpu_gdt_table, GDT_SIZE);
 
 	cpu_gdt_descr[cpu].size = GDT_SIZE;
 	load_gdt((const struct desc_ptr *)&cpu_gdt_descr[cpu]);

@@ -297,7 +297,7 @@ static void __cpuinit vsyscall_set_cpu(int cpu)
 	/* Store cpu number in limit so that it can be loaded quickly
 	   in user space in vgetcpu.
 	   12 bits for the CPU and 8 bits for the node. */
-	d = (unsigned long *)(cpu_gdt(cpu) + GDT_ENTRY_PER_CPU);
+	d = (unsigned long *)(get_cpu_gdt_table(cpu) + GDT_ENTRY_PER_CPU);
 	*d = 0x0f40000000000ULL;
 	*d |= cpu;
 	*d |= (node & 0xf) << 12;
