@@ -38,6 +38,15 @@ extern struct desc_struct default_ldt[];
 extern struct gate_struct idt_table[];
 extern struct desc_ptr cpu_gdt_descr[];
 
+static inline void write_ldt_entry(struct desc_struct *ldt,
+				   int entry, u32 entry_low, u32 entry_high)
+{
+	__u32 *lp = (__u32 *)((entry << 3) + (char *)ldt);
+
+	lp[0] = entry_low;
+	lp[1] = entry_high;
+}
+
 /* the cpu gdt accessor */
 #define cpu_gdt(_cpu) ((struct desc_struct *)cpu_gdt_descr[_cpu].address)
 
