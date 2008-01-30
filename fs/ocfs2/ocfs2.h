@@ -218,7 +218,7 @@ struct ocfs2_super
 	unsigned int s_atime_quantum;
 
 	unsigned int max_slots;
-	s16 node_num;
+	unsigned int node_num;
 	int slot_num;
 	int preferred_slot;
 	int s_sectsize_bits;

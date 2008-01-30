@@ -73,8 +73,6 @@ static void ocfs2_set_slot(struct ocfs2_slot_info *si,
 			   int slot_num, unsigned int node_num)
 {
 	BUG_ON((slot_num < 0) || (slot_num >= si->si_num_slots));
-	BUG_ON((node_num == O2NM_INVALID_NODE_NUM) ||
-	       (node_num >= O2NM_MAX_NODES));
 
 	si->si_slots[slot_num].sl_valid = 1;
 	si->si_slots[slot_num].sl_node_num = node_num;

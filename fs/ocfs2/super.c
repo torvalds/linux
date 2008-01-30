@@ -694,7 +694,7 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 	if (ocfs2_mount_local(osb))
 		snprintf(nodestr, sizeof(nodestr), "local");
 	else
-		snprintf(nodestr, sizeof(nodestr), "%d", osb->node_num);
+		snprintf(nodestr, sizeof(nodestr), "%u", osb->node_num);
 
 	printk(KERN_INFO "ocfs2: Mounting device (%s) on (node %s, slot %d) "
 	       "with %s data mode.\n",
@@ -1145,16 +1145,17 @@ static int ocfs2_fill_local_node_info(struct ocfs2_super *osb)
 	 * desirable. */
 	if (ocfs2_mount_local(osb))
 		osb->node_num = 0;
-	else
-		osb->node_num = o2nm_this_node();
-
-	if (osb->node_num == O2NM_MAX_NODES) {
-		mlog(ML_ERROR, "could not find this host's node number\n");
-		status = -ENOENT;
-		goto bail;
+	else {
+		status = ocfs2_cluster_this_node(&osb->node_num);
+		if (status < 0) {
+			mlog_errno(status);
+			mlog(ML_ERROR,
+			     "could not find this host's node number\n");
+			goto bail;
+		}
 	}
 
-	mlog(0, "I am node %d\n", osb->node_num);
+	mlog(0, "I am node %u\n", osb->node_num);
 
 	status = 0;
 bail:
@@ -1282,7 +1283,7 @@ static void ocfs2_dismount_volume(struct super_block *sb, int mnt_err)
 	if (ocfs2_mount_local(osb))
 		snprintf(nodestr, sizeof(nodestr), "local");
 	else
-		snprintf(nodestr, sizeof(nodestr), "%d", osb->node_num);
+		snprintf(nodestr, sizeof(nodestr), "%u", osb->node_num);
 
 	printk(KERN_INFO "ocfs2: Unmounting device (%s) on (node %s)\n",
 	       osb->dev_str, nodestr);
@@ -1384,7 +1385,6 @@ static int ocfs2_initialize_super(struct super_block *sb,
 
 	osb->s_atime_quantum = OCFS2_DEFAULT_ATIME_QUANTUM;
 
-	osb->node_num = O2NM_INVALID_NODE_NUM;
 	osb->slot_num = OCFS2_INVALID_SLOT;
 
 	osb->local_alloc_state = OCFS2_LA_UNUSED;

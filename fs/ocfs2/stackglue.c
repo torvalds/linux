@@ -25,6 +25,8 @@
 #include <linux/fs.h>
 
 #include "cluster/masklog.h"
+#include "cluster/nodemanager.h"
+
 #include "stackglue.h"
 
 static struct ocfs2_locking_protocol *lproto;
@@ -368,6 +370,21 @@ int ocfs2_cluster_disconnect(struct ocfs2_cluster_connection *conn)
 	kfree(priv);
 	kfree(conn);
 
+	return 0;
+}
+
+int ocfs2_cluster_this_node(unsigned int *node)
+{
+	int node_num;
+
+	node_num = o2nm_this_node();
+	if (node_num == O2NM_INVALID_NODE_NUM)
+		return -ENOENT;
+
+	if (node_num >= O2NM_MAX_NODES)
+		return -EOVERFLOW;
+
+	*node = node_num;
 	return 0;
 }
 
