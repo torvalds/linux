@@ -78,6 +78,7 @@ typedef struct user_fxsr_struct elf_fpxregset_t;
 #include <asm/processor.h>
 #include <asm/system.h>		/* for savesegment */
 #include <asm/desc.h>
+#include <asm/vdso.h>
 
 /*
  * This is used to ensure we don't load something for the wrong architecture.
@@ -247,17 +248,9 @@ extern int dump_task_extended_fpu (struct task_struct *,
 
 #define VDSO_HIGH_BASE		(__fix_to_virt(FIX_VDSO))
 #define VDSO_CURRENT_BASE	((unsigned long)current->mm->context.vdso)
-#define VDSO_PRELINK		0
 
-#define VDSO_SYM(x) \
-		(VDSO_CURRENT_BASE + (unsigned long)(x) - VDSO_PRELINK)
-
-#define VDSO_HIGH_EHDR		((const struct elfhdr *) VDSO_HIGH_BASE)
-#define VDSO_EHDR		((const struct elfhdr *) VDSO_CURRENT_BASE)
-
-extern void __kernel_vsyscall;
-
-#define VDSO_ENTRY		VDSO_SYM(&__kernel_vsyscall)
+#define VDSO_ENTRY \
+	((unsigned long) VDSO32_SYMBOL(VDSO_CURRENT_BASE, vsyscall))
 
 /* update AT_VECTOR_SIZE_ARCH if the number of NEW_AUX_ENT entries changes */
 

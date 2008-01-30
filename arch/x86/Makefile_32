@@ -110,7 +110,8 @@ libs-y 					+= arch/x86/lib/
 core-y					+= arch/x86/kernel/ \
 					   arch/x86/mm/ \
 					   $(mcore-y)/ \
-					   arch/x86/crypto/
+					   arch/x86/crypto/ \
+					   arch/x86/vdso/
 drivers-$(CONFIG_MATH_EMULATION)	+= arch/x86/math-emu/
 drivers-$(CONFIG_PCI)			+= arch/x86/pci/
 # must be linked after kernel/

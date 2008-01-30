@@ -23,6 +23,7 @@
 #include <asm/ucontext.h>
 #include <asm/uaccess.h>
 #include <asm/i387.h>
+#include <asm/vdso.h>
 #include "sigframe_32.h"
 
 #define DEBUG_SIG 0
@@ -362,7 +363,7 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 	}
 
 	if (current->binfmt->hasvdso)
-		restorer = (void *)VDSO_SYM(&__kernel_sigreturn);
+		restorer = VDSO32_SYMBOL(current->mm->context.vdso, sigreturn);
 	else
 		restorer = (void *)&frame->retcode;
 	if (ka->sa.sa_flags & SA_RESTORER)
@@ -459,7 +460,7 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 		goto give_sigsegv;
 
 	/* Set up to return from userspace.  */
-	restorer = (void *)VDSO_SYM(&__kernel_rt_sigreturn);
+	restorer = VDSO32_SYMBOL(current->mm->context.vdso, rt_sigreturn);
 	if (ka->sa.sa_flags & SA_RESTORER)
 		restorer = ka->sa.sa_restorer;
 	err |= __put_user(restorer, &frame->pretcode);

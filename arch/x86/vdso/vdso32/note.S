@@ -35,10 +35,9 @@ ELFNOTE_END
 
 #include "../../xen/vdso.h"	/* Defines VDSO_NOTE_NONEGSEG_BIT.  */
 
-	.globl VDSO_NOTE_MASK
 ELFNOTE_START(GNU, 2, "a")
 	.long 1			/* ncaps */
-VDSO_NOTE_MASK:
+VDSO32_NOTE_MASK:		/* Symbol used by arch/x86/xen/setup.c */
 	.long 0			/* mask */
 	.byte VDSO_NOTE_NONEGSEG_BIT; .asciz "nosegneg"	/* bit, name */
 ELFNOTE_END

@@ -111,8 +111,6 @@ void foo(void)
 	DEFINE(PTRS_PER_PMD, PTRS_PER_PMD);
 	DEFINE(PTRS_PER_PGD, PTRS_PER_PGD);
 
-	DEFINE(VDSO_PRELINK_asm, VDSO_PRELINK);
-
 	OFFSET(crypto_tfm_ctx_offset, crypto_tfm, __crt_ctx);
 
 #ifdef CONFIG_PARAVIRT

@@ -45,8 +45,7 @@ __kernel_vsyscall:
 	/* 14: System call restart point is here! (SYSENTER_RETURN-2) */
 	jmp .Lenter_kernel
 	/* 16: System call normal return point is here! */
-	.globl SYSENTER_RETURN	/* Symbol used by sysenter.c  */
-SYSENTER_RETURN:
+VDSO32_SYSENTER_RETURN:	/* Symbol used by sysenter.c via vdso32-syms.h */
 	pop %ebp
 .Lpop_ebp:
 	pop %edx

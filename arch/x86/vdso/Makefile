@@ -14,7 +14,8 @@ vdso-install-$(VDSO32-y)	+= $(vdso32-y:=.so)
 vobjs-y := vdso-note.o vclock_gettime.o vgetcpu.o vvar.o
 
 # files to link into kernel
-obj-y := vma.o vdso.o
+obj-$(VDSO64-y)			+= vma.o vdso.o
+obj-$(CONFIG_X86_32)		+= vdso32.o
 
 vobjs := $(foreach F,$(vobjs-y),$(obj)/$F)
 
@@ -52,7 +53,7 @@ $(obj)/vclock_gettime.o: KBUILD_CFLAGS = $(CFL)
 $(obj)/vgetcpu.o: KBUILD_CFLAGS = $(CFL)
 
 targets += vdso-syms.lds
-obj-y += vdso-syms.lds
+obj-$(VDSO64-y)			+= vdso-syms.lds
 
 #
 # Match symbols in the DSO that look like VDSO*; produce a file of constants.
@@ -68,6 +69,7 @@ $(obj)/%-syms.lds: $(obj)/%.so.dbg FORCE
 #
 # Build multiple 32-bit vDSO images to choose from at boot time.
 #
+obj-$(VDSO32-y)			+= vdso32-syms.lds
 vdso32.so-$(CONFIG_X86_32)	+= int80
 vdso32.so-$(VDSO32-y)		+= sysenter
 
@@ -83,6 +85,8 @@ targets += $(vdso32.so-y:%=vdso32-%.so.dbg) $(vdso32.so-y:%=vdso32-%.so)
 targets += vdso32/note.o $(vdso32.so-y:%=vdso32/%.o)
 
 extra-y	+= $(vdso32.so-y:%=vdso32-%.so)
+
+$(obj)/vdso32.o: $(vdso32.so-y:%=$(obj)/vdso32-%.so)
 
 KBUILD_AFLAGS_32 := $(filter-out -m64,$(KBUILD_AFLAGS))
 $(vdso32.so-y:%=$(obj)/vdso32-%.so.dbg): KBUILD_AFLAGS = $(KBUILD_AFLAGS_32)

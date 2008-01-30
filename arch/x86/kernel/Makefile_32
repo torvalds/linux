@@ -33,7 +33,7 @@ obj-$(CONFIG_X86_NUMAQ)		+= numaq_32.o
 obj-$(CONFIG_X86_SUMMIT_NUMA)	+= summit_32.o
 obj-$(CONFIG_KPROBES)		+= kprobes_32.o
 obj-$(CONFIG_MODULES)		+= module_32.o
-obj-y				+= sysenter_32.o vsyscall_32.o
+obj-y				+= sysenter_32.o
 obj-$(CONFIG_ACPI_SRAT) 	+= srat_32.o
 obj-$(CONFIG_EFI) 		+= efi_32.o efi_stub_32.o
 obj-$(CONFIG_DOUBLEFAULT) 	+= doublefault_32.o
@@ -48,44 +48,3 @@ obj-$(CONFIG_PARAVIRT)		+= paravirt_32.o
 obj-y				+= pcspeaker.o
 
 obj-$(CONFIG_SCx200)		+= scx200_32.o
-
-# vsyscall_32.o contains the vsyscall DSO images as __initdata.
-# We must build both images before we can assemble it.
-# Note: kbuild does not track this dependency due to usage of .incbin
-$(obj)/vsyscall_32.o: $(obj)/vsyscall-int80_32.so $(obj)/vsyscall-sysenter_32.so
-targets += $(foreach F,int80 sysenter,vsyscall-$F_32.o vsyscall-$F_32.so)
-targets += vsyscall-note_32.o vsyscall_32.lds
-
-$(obj)/vsyscall-%_32.o: $(src)/../vdso/vdso32/%.S
-	$(call if_changed_dep,as_o_S)
-
-# The DSO images are built using a special linker script.
-quiet_cmd_syscall = SYSCALL $@
-      cmd_syscall = $(CC) -m elf_i386 -nostdlib $(SYSCFLAGS_$(@F)) \
-		          -Wl,-T,$(filter-out FORCE,$^) -o $@
-
-export CPPFLAGS_vsyscall_32.lds += -P -C -Ui386
-
-vsyscall-flags = -shared -s -Wl,-soname=linux-gate.so.1 \
-		 $(call ld-option, -Wl$(comma)--hash-style=sysv)
-SYSCFLAGS_vsyscall-sysenter_32.so	= $(vsyscall-flags)
-SYSCFLAGS_vsyscall-int80_32.so	= $(vsyscall-flags)
-
-$(obj)/vsyscall-int80_32.so $(obj)/vsyscall-sysenter_32.so: \
-$(obj)/vsyscall-%.so: $(src)/vsyscall_32.lds \
-		      $(obj)/vsyscall-%.o $(obj)/vsyscall-note_32.o FORCE
-	$(call if_changed,syscall)
-
-# We also create a special relocatable object that should mirror the symbol
-# table and layout of the linked DSO.  With ld -R we can then refer to
-# these symbols in the kernel code rather than hand-coded addresses.
-extra-y += vsyscall-syms.o
-$(obj)/built-in.o: $(obj)/vsyscall-syms.o
-$(obj)/built-in.o: ld_flags += -R $(obj)/vsyscall-syms.o
-
-SYSCFLAGS_vsyscall-syms.o = -r
-$(obj)/vsyscall-syms.o: $(src)/vsyscall_32.lds \
-			$(obj)/vsyscall-sysenter_32.o $(obj)/vsyscall-note_32.o FORCE
-	$(call if_changed,syscall)
-
-

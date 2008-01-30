@@ -23,6 +23,7 @@
 #include <asm/unistd.h>
 #include <asm/elf.h>
 #include <asm/tlbflush.h>
+#include <asm/vdso.h>
 
 enum {
 	VDSO_DISABLED = 0,
@@ -259,9 +260,6 @@ int __init sysenter_setup(void)
 	return 0;
 }
 
-/* Defined in vsyscall-sysenter.S */
-extern void SYSENTER_RETURN;
-
 /* Setup a VMA at program startup for the vsyscall page */
 int arch_setup_additional_pages(struct linux_binprm *bprm, int exstack)
 {
@@ -308,7 +306,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int exstack)
 
 	current->mm->context.vdso = (void *)addr;
 	current_thread_info()->sysenter_return =
-		(void *)VDSO_SYM(&SYSENTER_RETURN);
+		VDSO32_SYMBOL(addr, SYSENTER_RETURN);
 
   up_fail:
 	up_write(&mm->mmap_sem);
