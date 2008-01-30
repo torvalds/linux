@@ -259,6 +259,8 @@ struct pv_mmu_ops {
 #if PAGETABLE_LEVELS == 4
 	pudval_t (*pud_val)(pud_t);
 	pud_t (*make_pud)(pudval_t pud);
+
+	void (*set_pgd)(pgd_t *pudp, pgd_t pgdval);
 #endif	/* PAGETABLE_LEVELS == 4 */
 #endif	/* PAGETABLE_LEVELS >= 3 */
 
@@ -1065,6 +1067,59 @@ static inline void set_pud(pud_t *pudp, pud_t pud)
 		PVOP_VCALL2(pv_mmu_ops.set_pud, pudp,
 			    val);
 }
+#if PAGETABLE_LEVELS == 4
+static inline pud_t __pud(pudval_t val)
+{
+	pudval_t ret;
+
+	if (sizeof(pudval_t) > sizeof(long))
+		ret = PVOP_CALL2(pudval_t, pv_mmu_ops.make_pud,
+				 val, (u64)val >> 32);
+	else
+		ret = PVOP_CALL1(pudval_t, pv_mmu_ops.make_pud,
+				 val);
+
+	return (pud_t) { ret };
+}
+
+static inline pudval_t pud_val(pud_t pud)
+{
+	pudval_t ret;
+
+	if (sizeof(pudval_t) > sizeof(long))
+		ret =  PVOP_CALL2(pudval_t, pv_mmu_ops.pud_val,
+				  pud.pud, (u64)pud.pud >> 32);
+	else
+		ret =  PVOP_CALL1(pudval_t, pv_mmu_ops.pud_val,
+				  pud.pud);
+
+	return ret;
+}
+
+static inline void set_pgd(pgd_t *pgdp, pgd_t pgd)
+{
+	pgdval_t val = native_pgd_val(pgd);
+
+	if (sizeof(pgdval_t) > sizeof(long))
+		PVOP_VCALL3(pv_mmu_ops.set_pgd, pgdp,
+			    val, (u64)val >> 32);
+	else
+		PVOP_VCALL2(pv_mmu_ops.set_pgd, pgdp,
+			    val);
+}
+
+static inline void pgd_clear(pgd_t *pgdp)
+{
+	set_pgd(pgdp, __pgd(0));
+}
+
+static inline void pud_clear(pud_t *pudp)
+{
+	set_pud(pudp, __pud(0));
+}
+
+#endif	/* PAGETABLE_LEVELS == 4 */
+
 #endif	/* PAGETABLE_LEVELS >= 3 */
 
 #ifdef CONFIG_X86_PAE
