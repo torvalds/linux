@@ -333,10 +333,10 @@ void __init setup_arch(char **cmdline_p)
 
 #ifdef CONFIG_SMP
 	/* setup to use the early static init tables during kernel startup */
-	x86_cpu_to_apicid_early_ptr = (void *)&x86_cpu_to_apicid_init;
-	x86_bios_cpu_apicid_early_ptr = (void *)&x86_bios_cpu_apicid_init;
+	x86_cpu_to_apicid_early_ptr = (void *)x86_cpu_to_apicid_init;
+	x86_bios_cpu_apicid_early_ptr = (void *)x86_bios_cpu_apicid_init;
 #ifdef CONFIG_NUMA
-	x86_cpu_to_node_map_early_ptr = (void *)&x86_cpu_to_node_map_init;
+	x86_cpu_to_node_map_early_ptr = (void *)x86_cpu_to_node_map_init;
 #endif
 #endif
 
