@@ -133,7 +133,7 @@ static struct chipset early_qrk[] __initdata = {
 	{}
 };
 
-static void check_dev_quirk(int num, int slot, int func)
+static void __init check_dev_quirk(int num, int slot, int func)
 {
 	u16 class;
 	u16 vendor;
