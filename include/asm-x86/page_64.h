@@ -41,6 +41,7 @@
 #ifndef __ASSEMBLY__
 
 extern unsigned long end_pfn;
+extern unsigned long end_pfn_map;
 
 void clear_page(void *);
 void copy_page(void *, void *);

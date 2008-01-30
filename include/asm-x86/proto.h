@@ -41,8 +41,6 @@ extern void reserve_bootmem_generic(unsigned long phys, unsigned len);
 
 extern void load_gs_index(unsigned gs);
 
-extern unsigned long end_pfn_map; 
-
 extern void exception_table_check(void);
 
 extern void swap_low_mappings(void);
