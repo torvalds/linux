@@ -28,11 +28,15 @@ static __init int find_northbridge(void)
 		u32 header;
 
 		header = read_pci_config(0, num, 0, 0x00);
-		if (header != (PCI_VENDOR_ID_AMD | (0x1100<<16)))
+		if (header != (PCI_VENDOR_ID_AMD | (0x1100<<16)) &&
+			header != (PCI_VENDOR_ID_AMD | (0x1200<<16)) &&
+			header != (PCI_VENDOR_ID_AMD | (0x1300<<16)))
 			continue;
 
 		header = read_pci_config(0, num, 1, 0x00);
-		if (header != (PCI_VENDOR_ID_AMD | (0x1101<<16)))
+		if (header != (PCI_VENDOR_ID_AMD | (0x1101<<16)) &&
+			header != (PCI_VENDOR_ID_AMD | (0x1201<<16)) &&
+			header != (PCI_VENDOR_ID_AMD | (0x1301<<16)))
 			continue;
 		return num;
 	}
