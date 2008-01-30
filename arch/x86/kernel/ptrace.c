@@ -634,6 +634,8 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	return ret;
 }
 
+#ifdef CONFIG_X86_32
+
 void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs, int error_code)
 {
 	struct siginfo info;
@@ -731,3 +733,65 @@ out:
 		audit_syscall_exit(AUDITSC_RESULT(regs->ax), regs->ax);
 	return 1;
 }
+
+#else  /* CONFIG_X86_64 */
+
+static void syscall_trace(struct pt_regs *regs)
+{
+
+#if 0
+	printk("trace %s ip %lx sp %lx ax %d origrax %d caller %lx tiflags %x ptrace %x\n",
+	       current->comm,
+	       regs->ip, regs->sp, regs->ax, regs->orig_ax, __builtin_return_address(0),
+	       current_thread_info()->flags, current->ptrace);
+#endif
+
+	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD)
+				? 0x80 : 0));
+	/*
+	 * this isn't the same as continuing with a signal, but it will do
+	 * for normal use.  strace only continues with a signal if the
+	 * stopping signal is not SIGTRAP.  -brl
+	 */
+	if (current->exit_code) {
+		send_sig(current->exit_code, current, 1);
+		current->exit_code = 0;
+	}
+}
+
+asmlinkage void syscall_trace_enter(struct pt_regs *regs)
+{
+	/* do the secure computing check first */
+	secure_computing(regs->orig_ax);
+
+	if (test_thread_flag(TIF_SYSCALL_TRACE)
+	    && (current->ptrace & PT_PTRACED))
+		syscall_trace(regs);
+
+	if (unlikely(current->audit_context)) {
+		if (test_thread_flag(TIF_IA32)) {
+			audit_syscall_entry(AUDIT_ARCH_I386,
+					    regs->orig_ax,
+					    regs->bx, regs->cx,
+					    regs->dx, regs->si);
+		} else {
+			audit_syscall_entry(AUDIT_ARCH_X86_64,
+					    regs->orig_ax,
+					    regs->di, regs->si,
+					    regs->dx, regs->r10);
+		}
+	}
+}
+
+asmlinkage void syscall_trace_leave(struct pt_regs *regs)
+{
+	if (unlikely(current->audit_context))
+		audit_syscall_exit(AUDITSC_RESULT(regs->ax), regs->ax);
+
+	if ((test_thread_flag(TIF_SYSCALL_TRACE)
+	     || test_thread_flag(TIF_SINGLESTEP))
+	    && (current->ptrace & PT_PTRACED))
+		syscall_trace(regs);
+}
+
+#endif	/* CONFIG_X86_32 */
