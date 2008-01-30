@@ -130,3 +130,5 @@ $(vdso-install-y): %.so: $(obj)/%.so.dbg FORCE
 
 PHONY += vdso_install $(vdso-install-y)
 vdso_install: $(vdso-install-y)
+
+clean-files := vdso32-syscall* vdso32-sysenter* vdso32-int80*
