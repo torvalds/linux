@@ -243,7 +243,22 @@ void __init early_ioremap_init(void)
 	pgd = early_ioremap_pgd(fix_to_virt(FIX_BTMAP_BEGIN));
 	*pgd = __pa(bm_pte) | _PAGE_TABLE;
 	memset(bm_pte, 0, sizeof(bm_pte));
-	BUG_ON(pgd != early_ioremap_pgd(fix_to_virt(FIX_BTMAP_END)));
+	/*
+	 * The boot-ioremap range spans multiple pgds, for which
+	 * we are not prepared:
+	 */
+	if (pgd != early_ioremap_pgd(fix_to_virt(FIX_BTMAP_END))) {
+		WARN_ON(1);
+		printk("pgd %p != %p\n",
+			pgd, early_ioremap_pgd(fix_to_virt(FIX_BTMAP_END)));
+		printk("fix_to_virt(FIX_BTMAP_BEGIN): %08lx\n",
+			fix_to_virt(FIX_BTMAP_BEGIN));
+		printk("fix_to_virt(FIX_BTMAP_END):   %08lx\n",
+			fix_to_virt(FIX_BTMAP_END));
+
+		printk("FIX_BTMAP_END:       %d\n", FIX_BTMAP_END);
+		printk("FIX_BTMAP_BEGIN:     %d\n", FIX_BTMAP_BEGIN);
+	}
 }
 
 void __init early_ioremap_clear(void)
