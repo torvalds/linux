@@ -620,12 +620,80 @@ static int ptrace_bts_drain(struct task_struct *child,
 	return i;
 }
 
+static int ptrace_bts_realloc(struct task_struct *child,
+			      int size, int reduce_size)
+{
+	unsigned long rlim, vm;
+	int ret, old_size;
+
+	if (size < 0)
+		return -EINVAL;
+
+	old_size = ds_get_bts_size((void *)child->thread.ds_area_msr);
+	if (old_size < 0)
+		return old_size;
+
+	ret = ds_free((void **)&child->thread.ds_area_msr);
+	if (ret < 0)
+		goto out;
+
+	size >>= PAGE_SHIFT;
+	old_size >>= PAGE_SHIFT;
+
+	current->mm->total_vm  -= old_size;
+	current->mm->locked_vm -= old_size;
+
+	if (size == 0)
+		goto out;
+
+	rlim = current->signal->rlim[RLIMIT_AS].rlim_cur >> PAGE_SHIFT;
+	vm = current->mm->total_vm  + size;
+	if (rlim < vm) {
+		ret = -ENOMEM;
+
+		if (!reduce_size)
+			goto out;
+
+		size = rlim - current->mm->total_vm;
+		if (size <= 0)
+			goto out;
+	}
+
+	rlim = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur >> PAGE_SHIFT;
+	vm = current->mm->locked_vm  + size;
+	if (rlim < vm) {
+		ret = -ENOMEM;
+
+		if (!reduce_size)
+			goto out;
+
+		size = rlim - current->mm->locked_vm;
+		if (size <= 0)
+			goto out;
+	}
+
+	ret = ds_allocate((void **)&child->thread.ds_area_msr,
+			  size << PAGE_SHIFT);
+	if (ret < 0)
+		goto out;
+
+	current->mm->total_vm  += size;
+	current->mm->locked_vm += size;
+
+out:
+	if (child->thread.ds_area_msr)
+		set_tsk_thread_flag(child, TIF_DS_AREA_MSR);
+	else
+		clear_tsk_thread_flag(child, TIF_DS_AREA_MSR);
+
+	return ret;
+}
+
 static int ptrace_bts_config(struct task_struct *child,
 			     const struct ptrace_bts_config __user *ucfg)
 {
 	struct ptrace_bts_config cfg;
-	unsigned long debugctl_mask;
-	int bts_size, ret;
+	int bts_size, ret = 0;
 	void *ds;
 
 	if (copy_from_user(&cfg, ucfg, sizeof(cfg)))
@@ -638,59 +706,46 @@ static int ptrace_bts_config(struct task_struct *child,
 		if (bts_size < 0)
 			return bts_size;
 	}
+	cfg.size = PAGE_ALIGN(cfg.size);
 
 	if (bts_size != cfg.size) {
-		ret = ds_free((void **)&child->thread.ds_area_msr);
+		ret = ptrace_bts_realloc(child, cfg.size,
+					 cfg.flags & PTRACE_BTS_O_CUT_SIZE);
 		if (ret < 0)
-			return ret;
+			goto errout;
 
-		if (cfg.size > 0)
-			ret = ds_allocate((void **)&child->thread.ds_area_msr,
-					  cfg.size);
 		ds = (void *)child->thread.ds_area_msr;
-		if (ds)
-			set_tsk_thread_flag(child, TIF_DS_AREA_MSR);
-		else
-			clear_tsk_thread_flag(child, TIF_DS_AREA_MSR);
-
-		if (ret < 0)
-			return ret;
-
-		bts_size = ds_get_bts_size(ds);
-		if (bts_size <= 0)
-			return bts_size;
 	}
 
-	if (ds) {
-		if (cfg.flags & PTRACE_BTS_O_SIGNAL) {
-			ret = ds_set_overflow(ds, DS_O_SIGNAL);
-		} else {
-			ret = ds_set_overflow(ds, DS_O_WRAP);
-		}
-		if (ret < 0)
-			return ret;
-	}
+	if (cfg.flags & PTRACE_BTS_O_SIGNAL)
+		ret = ds_set_overflow(ds, DS_O_SIGNAL);
+	else
+		ret = ds_set_overflow(ds, DS_O_WRAP);
+	if (ret < 0)
+		goto errout;
 
-	debugctl_mask = ds_debugctl_mask();
-	if (ds && (cfg.flags & PTRACE_BTS_O_TRACE)) {
-		child->thread.debugctlmsr |= debugctl_mask;
-		set_tsk_thread_flag(child, TIF_DEBUGCTLMSR);
-	} else {
-		/* there is no way for us to check whether we 'own'
-		 * the respective bits in the DEBUGCTL MSR, we're
-		 * about to clear */
-		child->thread.debugctlmsr &= ~debugctl_mask;
+	if (cfg.flags & PTRACE_BTS_O_TRACE)
+		child->thread.debugctlmsr |= ds_debugctl_mask();
+	else
+		child->thread.debugctlmsr &= ~ds_debugctl_mask();
 
-		if (!child->thread.debugctlmsr)
-			clear_tsk_thread_flag(child, TIF_DEBUGCTLMSR);
-	}
-
-	if (ds && (cfg.flags & PTRACE_BTS_O_SCHED))
+	if (cfg.flags & PTRACE_BTS_O_SCHED)
 		set_tsk_thread_flag(child, TIF_BTS_TRACE_TS);
 	else
 		clear_tsk_thread_flag(child, TIF_BTS_TRACE_TS);
 
-	return 0;
+out:
+	if (child->thread.debugctlmsr)
+		set_tsk_thread_flag(child, TIF_DEBUGCTLMSR);
+	else
+		clear_tsk_thread_flag(child, TIF_DEBUGCTLMSR);
+
+	return ret;
+
+errout:
+	child->thread.debugctlmsr &= ~ds_debugctl_mask();
+	clear_tsk_thread_flag(child, TIF_BTS_TRACE_TS);
+	goto out;
 }
 
 static int ptrace_bts_status(struct task_struct *child,
@@ -726,7 +781,7 @@ void ptrace_bts_take_timestamp(struct task_struct *tsk,
 {
 	struct bts_struct rec = {
 		.qualifier = qualifier,
-		.variant.jiffies = jiffies
+		.variant.jiffies = jiffies_64
 	};
 
 	ptrace_bts_write_record(tsk, &rec);
@@ -743,10 +798,12 @@ void ptrace_disable(struct task_struct *child)
 #ifdef TIF_SYSCALL_EMU
 	clear_tsk_thread_flag(child, TIF_SYSCALL_EMU);
 #endif
-	ptrace_bts_config(child, /* options = */ 0);
 	if (child->thread.ds_area_msr) {
-	    ds_free((void **)&child->thread.ds_area_msr);
-	    clear_tsk_thread_flag(child, TIF_DS_AREA_MSR);
+		ptrace_bts_realloc(child, 0, 0);
+		child->thread.debugctlmsr &= ~ds_debugctl_mask();
+		if (!child->thread.debugctlmsr)
+			clear_tsk_thread_flag(child, TIF_DEBUGCTLMSR);
+		clear_tsk_thread_flag(child, TIF_BTS_TRACE_TS);
 	}
 }
 
