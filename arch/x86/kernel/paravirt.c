@@ -238,18 +238,18 @@ static DEFINE_PER_CPU(enum paravirt_lazy_mode, paravirt_lazy_mode) = PARAVIRT_LA
 
 static inline void enter_lazy(enum paravirt_lazy_mode mode)
 {
-	BUG_ON(x86_read_percpu(paravirt_lazy_mode) != PARAVIRT_LAZY_NONE);
+	BUG_ON(__get_cpu_var(paravirt_lazy_mode) != PARAVIRT_LAZY_NONE);
 	BUG_ON(preemptible());
 
-	x86_write_percpu(paravirt_lazy_mode, mode);
+	__get_cpu_var(paravirt_lazy_mode) = mode;
 }
 
 void paravirt_leave_lazy(enum paravirt_lazy_mode mode)
 {
-	BUG_ON(x86_read_percpu(paravirt_lazy_mode) != mode);
+	BUG_ON(__get_cpu_var(paravirt_lazy_mode) != mode);
 	BUG_ON(preemptible());
 
-	x86_write_percpu(paravirt_lazy_mode, PARAVIRT_LAZY_NONE);
+	__get_cpu_var(paravirt_lazy_mode) = PARAVIRT_LAZY_NONE;
 }
 
 void paravirt_enter_lazy_mmu(void)
@@ -274,7 +274,7 @@ void paravirt_leave_lazy_cpu(void)
 
 enum paravirt_lazy_mode paravirt_get_lazy_mode(void)
 {
-	return x86_read_percpu(paravirt_lazy_mode);
+	return __get_cpu_var(paravirt_lazy_mode);
 }
 
 struct pv_info pv_info = {
