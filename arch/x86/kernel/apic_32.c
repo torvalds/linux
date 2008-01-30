@@ -46,7 +46,7 @@
 /*
  * Sanity check
  */
-#if (SPURIOUS_APIC_VECTOR & 0x0F) != 0x0F
+#if ((SPURIOUS_APIC_VECTOR & 0x0F) != 0x0F)
 # error SPURIOUS_APIC_VECTOR definition error
 #endif
 
@@ -55,7 +55,7 @@
  *
  * -1=force-disable, +1=force-enable
  */
-static int enable_local_apic __initdata = 0;
+static int enable_local_apic __initdata;
 
 /* Local APIC timer verification ok */
 static int local_apic_timer_verify_ok;
@@ -432,7 +432,7 @@ void __init setup_boot_APIC_clock(void)
 			       "with PM Timer: %ldms instead of 100ms\n",
 			       (long)res);
 			/* Correct the lapic counter value */
-			res = (((u64) delta ) * pm_100ms);
+			res = (((u64) delta) * pm_100ms);
 			do_div(res, deltapm);
 			printk(KERN_INFO "APIC delta adjusted to PM-Timer: "
 			       "%lu (%ld)\n", (unsigned long) res, delta);
@@ -976,7 +976,8 @@ void __cpuinit setup_local_APIC(void)
 		value |= APIC_LVT_LEVEL_TRIGGER;
 	apic_write_around(APIC_LVT1, value);
 
-	if (integrated && !esr_disable) {		/* !82489DX */
+	if (integrated && !esr_disable) {
+		/* !82489DX */
 		maxlvt = lapic_get_maxlvt();
 		if (maxlvt > 3)		/* Due to the Pentium erratum 3AP. */
 			apic_write(APIC_ESR, 0);
@@ -1262,7 +1263,7 @@ void smp_error_interrupt(struct pt_regs *regs)
 	   6: Received illegal vector
 	   7: Illegal register address
 	*/
-	printk (KERN_DEBUG "APIC error on CPU%d: %02lx(%02lx)\n",
+	printk(KERN_DEBUG "APIC error on CPU%d: %02lx(%02lx)\n",
 		smp_processor_id(), v , v1);
 	irq_exit();
 }
@@ -1349,7 +1350,7 @@ void disconnect_bsp_APIC(int virt_wire_setup)
 			value = apic_read(APIC_LVT0);
 			value &= ~(APIC_MODE_MASK | APIC_SEND_PENDING |
 				APIC_INPUT_POLARITY | APIC_LVT_REMOTE_IRR |
-				APIC_LVT_LEVEL_TRIGGER | APIC_LVT_MASKED );
+				APIC_LVT_LEVEL_TRIGGER | APIC_LVT_MASKED);
 			value |= APIC_LVT_REMOTE_IRR | APIC_SEND_PENDING;
 			value = SET_APIC_DELIVERY_MODE(value, APIC_MODE_EXTINT);
 			apic_write_around(APIC_LVT0, value);
