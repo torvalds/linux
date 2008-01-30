@@ -41,7 +41,14 @@ ioremap_change_attr(unsigned long phys_addr, unsigned long size,
 	if (phys_addr + size - 1 < (end_pfn_map << PAGE_SHIFT)) {
 		unsigned long npages = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
 		unsigned long vaddr = (unsigned long) __va(phys_addr);
+		int level;
 
+		/*
+		 * If there is no identity map for this address,
+		 * change_page_attr_addr is unnecessary
+		 */
+		if (!lookup_address(vaddr, &level))
+			return err;
 		/*
  		 * Must use a address here and not struct page because the phys addr
 		 * can be a in hole between nodes and not have an memmap entry.
