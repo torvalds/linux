@@ -84,31 +84,25 @@ VDSO32_SYSENTER_RETURN:	/* Symbol used by sysenter.c via vdso32-syms.h */
 	.uleb128 0
 	/* What follows are the instructions for the table generation.
 	   We have to record all changes of the stack pointer.  */
-	.byte 0x04		/* DW_CFA_advance_loc4 */
-	.long .Lpush_ecx-.LSTART_vsyscall
+	.byte 0x40 + (.Lpush_ecx-.LSTART_vsyscall) /* DW_CFA_advance_loc */
 	.byte 0x0e		/* DW_CFA_def_cfa_offset */
 	.byte 0x08		/* RA at offset 8 now */
-	.byte 0x04		/* DW_CFA_advance_loc4 */
-	.long .Lpush_edx-.Lpush_ecx
+	.byte 0x40 + (.Lpush_edx-.Lpush_ecx) /* DW_CFA_advance_loc */
 	.byte 0x0e		/* DW_CFA_def_cfa_offset */
 	.byte 0x0c		/* RA at offset 12 now */
-	.byte 0x04		/* DW_CFA_advance_loc4 */
-	.long .Lenter_kernel-.Lpush_edx
+	.byte 0x40 + (.Lenter_kernel-.Lpush_edx) /* DW_CFA_advance_loc */
 	.byte 0x0e		/* DW_CFA_def_cfa_offset */
 	.byte 0x10		/* RA at offset 16 now */
 	.byte 0x85, 0x04	/* DW_CFA_offset %ebp -16 */
 	/* Finally the epilogue.  */
-	.byte 0x04		/* DW_CFA_advance_loc4 */
-	.long .Lpop_ebp-.Lenter_kernel
+	.byte 0x40 + (.Lpop_ebp-.Lenter_kernel)	/* DW_CFA_advance_loc */
 	.byte 0x0e		/* DW_CFA_def_cfa_offset */
 	.byte 0x0c		/* RA at offset 12 now */
 	.byte 0xc5		/* DW_CFA_restore %ebp */
-	.byte 0x04		/* DW_CFA_advance_loc4 */
-	.long .Lpop_edx-.Lpop_ebp
+	.byte 0x40 + (.Lpop_edx-.Lpop_ebp) /* DW_CFA_advance_loc */
 	.byte 0x0e		/* DW_CFA_def_cfa_offset */
 	.byte 0x08		/* RA at offset 8 now */
-	.byte 0x04		/* DW_CFA_advance_loc4 */
-	.long .Lpop_ecx-.Lpop_edx
+	.byte 0x40 + (.Lpop_ecx-.Lpop_edx) /* DW_CFA_advance_loc */
 	.byte 0x0e		/* DW_CFA_def_cfa_offset */
 	.byte 0x04		/* RA at offset 4 now */
 	.align 4
