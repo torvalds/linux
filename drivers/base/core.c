@@ -27,9 +27,17 @@
 int (*platform_notify)(struct device *dev) = NULL;
 int (*platform_notify_remove)(struct device *dev) = NULL;
 
-/*
- * sysfs bindings for devices.
- */
+#ifdef CONFIG_BLOCK
+static inline int device_is_not_partition(struct device *dev)
+{
+	return !(dev->type == &part_type);
+}
+#else
+static inline int device_is_not_partition(struct device *dev)
+{
+	return 1;
+}
+#endif
 
 /**
  * dev_driver_string - Return a device's driver name, if at all possible
@@ -652,14 +660,14 @@ static int device_add_class_symlinks(struct device *dev)
 #ifdef CONFIG_SYSFS_DEPRECATED
 	/* stacked class devices need a symlink in the class directory */
 	if (dev->kobj.parent != &dev->class->subsys.kobj &&
-	    dev->type != &part_type) {
+	    device_is_not_partition(dev)) {
 		error = sysfs_create_link(&dev->class->subsys.kobj, &dev->kobj,
 					  dev->bus_id);
 		if (error)
 			goto out_subsys;
 	}
 
-	if (dev->parent && dev->type != &part_type) {
+	if (dev->parent && device_is_not_partition(dev)) {
 		struct device *parent = dev->parent;
 		char *class_name;
 
@@ -688,11 +696,11 @@ static int device_add_class_symlinks(struct device *dev)
 	return 0;
 
 out_device:
-	if (dev->parent && dev->type != &part_type)
+	if (dev->parent && device_is_not_partition(dev))
 		sysfs_remove_link(&dev->kobj, "device");
 out_busid:
 	if (dev->kobj.parent != &dev->class->subsys.kobj &&
-	    dev->type != &part_type)
+	    device_is_not_partition(dev))
 		sysfs_remove_link(&dev->class->subsys.kobj, dev->bus_id);
 #else
 	/* link in the class directory pointing to the device */
@@ -701,7 +709,7 @@ out_busid:
 	if (error)
 		goto out_subsys;
 
-	if (dev->parent && dev->type != &part_type) {
+	if (dev->parent && device_is_not_partition(dev)) {
 		error = sysfs_create_link(&dev->kobj, &dev->parent->kobj,
 					  "device");
 		if (error)
@@ -725,7 +733,7 @@ static void device_remove_class_symlinks(struct device *dev)
 		return;
 
 #ifdef CONFIG_SYSFS_DEPRECATED
-	if (dev->parent && dev->type != &part_type) {
+	if (dev->parent && device_is_not_partition(dev)) {
 		char *class_name;
 
 		class_name = make_class_name(dev->class->name, &dev->kobj);
@@ -737,10 +745,10 @@ static void device_remove_class_symlinks(struct device *dev)
 	}
 
 	if (dev->kobj.parent != &dev->class->subsys.kobj &&
-	    dev->type != &part_type)
+	    device_is_not_partition(dev))
 		sysfs_remove_link(&dev->class->subsys.kobj, dev->bus_id);
 #else
-	if (dev->parent && dev->type != &part_type)
+	if (dev->parent && device_is_not_partition(dev))
 		sysfs_remove_link(&dev->kobj, "device");
 
 	sysfs_remove_link(&dev->class->subsys.kobj, dev->bus_id);

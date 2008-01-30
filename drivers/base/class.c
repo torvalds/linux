@@ -149,7 +149,7 @@ int class_register(struct class *cls)
 	if (error)
 		return error;
 
-#ifdef CONFIG_SYSFS_DEPRECATED
+#if defined(CONFIG_SYSFS_DEPRECATED) && defined(CONFIG_BLOCK)
 	/* let the block class directory show up in the root of sysfs */
 	if (cls != &block_class)
 		cls->subsys.kobj.kset = class_kset;
