@@ -852,6 +852,12 @@ int hpet_alloc(struct hpet_data *hdp)
 
 		timer = &hpet->hpet_timers[devp - hpetp->hp_dev];
 
+		/* Check if there's already an IRQ assigned to the timer */
+		if (hdp->hd_irq[i]) {
+			hpetp->hp_dev[i].hd_hdwirq = hdp->hd_irq[i];
+			continue;
+		}
+
 		hpet_config = readq(&timer->hpet_config);
 		irq_bitmap = (hpet_config & Tn_INT_ROUTE_CAP_MASK)
 			>> Tn_INT_ROUTE_CAP_SHIFT;

@@ -117,7 +117,8 @@ int is_hpet_enabled(void)
 static void hpet_reserve_platform_timers(unsigned long id)
 {
 	struct hpet __iomem *hpet = hpet_virt_address;
-	unsigned int nrtimers;
+	struct hpet_timer __iomem *timer = &hpet->hpet_timers[2];
+	unsigned int nrtimers, i;
 	struct hpet_data hd;
 
 	nrtimers = ((id & HPET_ID_NUMBER) >> HPET_ID_NUMBER_SHIFT) + 1;
@@ -135,10 +136,9 @@ static void hpet_reserve_platform_timers(unsigned long id)
 	hd.hd_irq[0] = HPET_LEGACY_8254;
 	hd.hd_irq[1] = HPET_LEGACY_RTC;
 
-	/*
-	 * IRQs for the other timers are assigned dynamically
-	 * in hpet_alloc
-	 */
+       for (i = 2; i < nrtimers; timer++, i++)
+	       hd.hd_irq[i] = (timer->hpet_config & Tn_INT_ROUTE_CNF_MASK) >>
+		       Tn_INT_ROUTE_CNF_SHIFT;
 	hpet_alloc(&hd);
 }
 #else
