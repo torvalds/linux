@@ -177,7 +177,7 @@ static __init int exercise_pageattr(void)
 			continue;
 		}
 
-		err = change_page_attr(virt_to_page(addr[i]), len[i],
+		err = change_page_attr_addr(addr[i], len[i],
 			    pte_pgprot(pte_clrhuge(pte_clrglobal(pte0))));
 		if (err < 0) {
 			printk(KERN_ERR "CPA %d failed %d\n", i, err);
@@ -212,7 +212,7 @@ static __init int exercise_pageattr(void)
 			failed++;
 			continue;
 		}
-		err = change_page_attr(virt_to_page(addr[i]), len[i],
+		err = change_page_attr_addr(addr[i], len[i],
 					  pte_pgprot(pte_mkglobal(*pte)));
 		if (err < 0) {
 			printk(KERN_ERR "CPA reverting failed: %d\n", err);
