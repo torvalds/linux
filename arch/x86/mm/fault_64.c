@@ -298,7 +298,6 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 	struct mm_struct *mm;
 	struct vm_area_struct * vma;
 	unsigned long address;
-	const struct exception_table_entry *fixup;
 	int write, fault;
 	unsigned long flags;
 	siginfo_t info;
@@ -508,9 +507,7 @@ bad_area_nosemaphore:
 no_context:
 	
 	/* Are we prepared to handle this kernel fault?  */
-	fixup = search_exception_tables(regs->ip);
-	if (fixup) {
-		regs->ip = fixup->fixup;
+	if (fixup_exception(regs)) {
 		return;
 	}
 
