@@ -99,7 +99,7 @@ config IP6_NF_MATCH_HL
 config IP6_NF_MATCH_IPV6HEADER
 	tristate '"ipv6header" IPv6 Extension Headers Match'
 	depends on IP6_NF_IPTABLES
-	depends on NETFILTER_ADVANCED
+	default m if NETFILTER_ADVANCED=n
 	help
 	  This module allows one to match packets based upon
 	  the ipv6 extension headers.
