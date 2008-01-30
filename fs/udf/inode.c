@@ -1101,42 +1101,36 @@ static void __udf_read_inode(struct inode *inode)
 	fe = (struct fileEntry *)bh->b_data;
 
 	if (fe->icbTag.strategyType == cpu_to_le16(4096)) {
-		struct buffer_head *ibh = NULL, *nbh = NULL;
-		struct indirectEntry *ie;
+		struct buffer_head *ibh;
 
 		ibh = udf_read_ptagged(inode->i_sb, iinfo->i_location, 1,
 					&ident);
-		if (ident == TAG_IDENT_IE) {
-			if (ibh) {
-				kernel_lb_addr loc;
-				ie = (struct indirectEntry *)ibh->b_data;
+		if (ident == TAG_IDENT_IE && ibh) {
+			struct buffer_head *nbh = NULL;
+			kernel_lb_addr loc;
+			struct indirectEntry *ie;
 
-				loc = lelb_to_cpu(ie->indirectICB.extLocation);
+			ie = (struct indirectEntry *)ibh->b_data;
+			loc = lelb_to_cpu(ie->indirectICB.extLocation);
 
-				if (ie->indirectICB.extLength &&
-				    (nbh = udf_read_ptagged(inode->i_sb, loc, 0,
-							    &ident))) {
-					if (ident == TAG_IDENT_FE ||
-					    ident == TAG_IDENT_EFE) {
-						memcpy(&iinfo->i_location,
-						       &loc,
-						       sizeof(kernel_lb_addr));
-						brelse(bh);
-						brelse(ibh);
-						brelse(nbh);
-						__udf_read_inode(inode);
-						return;
-					} else {
-						brelse(nbh);
-						brelse(ibh);
-					}
-				} else {
+			if (ie->indirectICB.extLength &&
+				(nbh = udf_read_ptagged(inode->i_sb, loc, 0,
+							&ident))) {
+				if (ident == TAG_IDENT_FE ||
+					ident == TAG_IDENT_EFE) {
+					memcpy(&iinfo->i_location,
+						&loc,
+						sizeof(kernel_lb_addr));
+					brelse(bh);
 					brelse(ibh);
+					brelse(nbh);
+					__udf_read_inode(inode);
+					return;
 				}
+				brelse(nbh);
 			}
-		} else {
-			brelse(ibh);
 		}
+		brelse(ibh);
 	} else if (fe->icbTag.strategyType != cpu_to_le16(4)) {
 		printk(KERN_ERR "udf: unsupported strategy type: %d\n",
 		       le16_to_cpu(fe->icbTag.strategyType));
