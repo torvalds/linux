@@ -89,7 +89,7 @@
 #define		AT91_MCI_ENDRX		(1 <<  6)	/* End of RX Buffer */
 #define		AT91_MCI_ENDTX		(1 <<  7)	/* End fo TX Buffer */
 #define		AT91_MCI_SDIOIRQA	(1 <<  8)	/* SDIO Interrupt for Slot A */
-#define		At91_MCI_SDIOIRQB	(1 <<  9)	/* SDIO Interrupt for Slot B [AT91RM9200 only] */
+#define		AT91_MCI_SDIOIRQB	(1 <<  9)	/* SDIO Interrupt for Slot B */
 #define		AT91_MCI_RXBUFF		(1 << 14)	/* RX Buffer Full */
 #define		AT91_MCI_TXBUFE		(1 << 15)	/* TX Buffer Empty */
 #define		AT91_MCI_RINDE		(1 << 16)	/* Response Index Error */
