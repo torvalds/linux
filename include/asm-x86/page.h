@@ -47,6 +47,9 @@
 
 
 #ifndef __ASSEMBLY__
+
+extern int page_is_ram(unsigned long pagenr);
+
 struct page;
 
 static void inline clear_user_page(void *page, unsigned long vaddr,

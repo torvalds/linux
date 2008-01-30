@@ -31,6 +31,30 @@ EXPORT_SYMBOL(__phys_addr);
 
 #endif
 
+int page_is_ram(unsigned long pagenr)
+{
+	unsigned long addr, end;
+	int i;
+
+	for (i = 0; i < e820.nr_map; i++) {
+		/*
+		 * Not usable memory:
+		 */
+		if (e820.map[i].type != E820_RAM)
+			continue;
+		/*
+		 *	!!!FIXME!!! Some BIOSen report areas as RAM that
+		 *	are not. Notably the 640->1Mb area. We need a sanity
+		 *	check here.
+		 */
+		addr = (e820.map[i].addr + PAGE_SIZE-1) >> PAGE_SHIFT;
+		end = (e820.map[i].addr + e820.map[i].size) >> PAGE_SHIFT;
+		if ((pagenr >= addr) && (pagenr < end))
+			return 1;
+	}
+	return 0;
+}
+
 /*
  * Fix up the linear direct mapping of the kernel to avoid cache attribute
  * conflicts.

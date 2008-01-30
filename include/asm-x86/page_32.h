@@ -73,7 +73,6 @@ extern int nx_enabled;
  */
 extern unsigned int __VMALLOC_RESERVE;
 extern int sysctl_legacy_va_layout;
-extern int page_is_ram(unsigned long pagenr);
 
 #define VMALLOC_RESERVE		((unsigned long)__VMALLOC_RESERVE)
 #define MAXMEM			(-__PAGE_OFFSET-__VMALLOC_RESERVE)
