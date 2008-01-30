@@ -247,7 +247,7 @@ void __init early_ioremap_reset(void)
 	unsigned long *pte, phys, addr;
 
 	after_paging_init = 1;
-	for (idx = FIX_BTMAP_BEGIN; idx <= FIX_BTMAP_END; idx--) {
+	for (idx = FIX_BTMAP_BEGIN; idx >= FIX_BTMAP_END; idx--) {
 		addr = fix_to_virt(idx);
 		pte = early_ioremap_pte(addr);
 		if (!*pte & _PAGE_PRESENT) {
