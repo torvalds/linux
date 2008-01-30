@@ -19,15 +19,6 @@
  * (the type definitions are in asm/spinlock_types.h)
  */
 
-#ifdef CONFIG_PARAVIRT
-#include <asm/paravirt.h>
-#else
-#define CLI_STRING	"cli"
-#define STI_STRING	"sti"
-#define CLI_STI_CLOBBERS
-#define CLI_STI_INPUT_ARGS
-#endif /* CONFIG_PARAVIRT */
-
 #ifdef CONFIG_X86_32
 typedef char _slock_t;
 # define LOCK_INS_DEC "decb"
