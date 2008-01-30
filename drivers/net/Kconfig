@@ -1992,7 +1992,7 @@ config E1000_DISABLE_PACKET_SPLIT
 
 config E1000E
 	tristate "Intel(R) PRO/1000 PCI-Express Gigabit Ethernet support"
-	depends on PCI && EXPERIMENTAL
+	depends on PCI
 	---help---
 	  This driver supports the PCI-Express Intel(R) PRO/1000 gigabit
 	  ethernet family of adapters. For PCI or PCI-X e1000 adapters,
@@ -2008,6 +2008,9 @@ config E1000E
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called e1000e.
+
+config E1000E_ENABLED
+	def_bool E1000E != n
 
 config IP1000
 	tristate "IP1000 Gigabit Ethernet support"
