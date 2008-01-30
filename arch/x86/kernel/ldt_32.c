@@ -17,7 +17,7 @@
 #include <asm/desc.h>
 #include <asm/mmu_context.h>
 
-#ifdef CONFIG_SMP /* avoids "defined but not used" warnig */
+#ifdef CONFIG_SMP
 static void flush_ldt(void *null)
 {
 	if (current->active_mm)
@@ -34,19 +34,20 @@ static int alloc_ldt(mm_context_t *pc, int mincount, int reload)
 	if (mincount <= pc->size)
 		return 0;
 	oldsize = pc->size;
-	mincount = (mincount+511)&(~511);
-	if (mincount*LDT_ENTRY_SIZE > PAGE_SIZE)
-		newldt = vmalloc(mincount*LDT_ENTRY_SIZE);
+	mincount = (mincount + 511) & (~511);
+	if (mincount * LDT_ENTRY_SIZE > PAGE_SIZE)
+		newldt = vmalloc(mincount * LDT_ENTRY_SIZE);
 	else
-		newldt = kmalloc(mincount*LDT_ENTRY_SIZE, GFP_KERNEL);
+		newldt = kmalloc(mincount * LDT_ENTRY_SIZE, GFP_KERNEL);
 
 	if (!newldt)
 		return -ENOMEM;
 
 	if (oldsize)
-		memcpy(newldt, pc->ldt, oldsize*LDT_ENTRY_SIZE);
+		memcpy(newldt, pc->ldt, oldsize * LDT_ENTRY_SIZE);
 	oldldt = pc->ldt;
-	memset(newldt+oldsize*LDT_ENTRY_SIZE, 0, (mincount-oldsize)*LDT_ENTRY_SIZE);
+	memset(newldt + oldsize * LDT_ENTRY_SIZE, 0,
+	       (mincount - oldsize) * LDT_ENTRY_SIZE);
 	pc->ldt = newldt;
 	wmb();
 	pc->size = mincount;
@@ -55,6 +56,7 @@ static int alloc_ldt(mm_context_t *pc, int mincount, int reload)
 	if (reload) {
 #ifdef CONFIG_SMP
 		cpumask_t mask;
+
 		preempt_disable();
 		load_LDT(pc);
 		mask = cpumask_of_cpu(smp_processor_id());
@@ -66,7 +68,7 @@ static int alloc_ldt(mm_context_t *pc, int mincount, int reload)
 #endif
 	}
 	if (oldsize) {
-		if (oldsize*LDT_ENTRY_SIZE > PAGE_SIZE)
+		if (oldsize * LDT_ENTRY_SIZE > PAGE_SIZE)
 			vfree(oldldt);
 		else
 			kfree(oldldt);
@@ -77,9 +79,10 @@ static int alloc_ldt(mm_context_t *pc, int mincount, int reload)
 static inline int copy_ldt(mm_context_t *new, mm_context_t *old)
 {
 	int err = alloc_ldt(new, old->size, 0);
+
 	if (err < 0)
 		return err;
-	memcpy(new->ldt, old->ldt, old->size*LDT_ENTRY_SIZE);
+	memcpy(new->ldt, old->ldt, old->size * LDT_ENTRY_SIZE);
 	return 0;
 }
 
@@ -89,7 +92,7 @@ static inline int copy_ldt(mm_context_t *new, mm_context_t *old)
  */
 int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 {
-	struct mm_struct * old_mm;
+	struct mm_struct *old_mm;
 	int retval = 0;
 
 	mutex_init(&mm->context.lock);
@@ -111,7 +114,7 @@ void destroy_context(struct mm_struct *mm)
 	if (mm->context.size) {
 		if (mm == current->active_mm)
 			clear_LDT();
-		if (mm->context.size*LDT_ENTRY_SIZE > PAGE_SIZE)
+		if (mm->context.size * LDT_ENTRY_SIZE > PAGE_SIZE)
 			vfree(mm->context.ldt);
 		else
 			kfree(mm->context.ldt);
@@ -119,19 +122,19 @@ void destroy_context(struct mm_struct *mm)
 	}
 }
 
-static int read_ldt(void __user * ptr, unsigned long bytecount)
+static int read_ldt(void __user *ptr, unsigned long bytecount)
 {
 	int err;
 	unsigned long size;
-	struct mm_struct * mm = current->mm;
+	struct mm_struct *mm = current->mm;
 
 	if (!mm->context.size)
 		return 0;
-	if (bytecount > LDT_ENTRY_SIZE*LDT_ENTRIES)
-		bytecount = LDT_ENTRY_SIZE*LDT_ENTRIES;
+	if (bytecount > LDT_ENTRY_SIZE * LDT_ENTRIES)
+		bytecount = LDT_ENTRY_SIZE * LDT_ENTRIES;
 
 	mutex_lock(&mm->context.lock);
-	size = mm->context.size*LDT_ENTRY_SIZE;
+	size = mm->context.size * LDT_ENTRY_SIZE;
 	if (size > bytecount)
 		size = bytecount;
 
@@ -143,7 +146,7 @@ static int read_ldt(void __user * ptr, unsigned long bytecount)
 		goto error_return;
 	if (size != bytecount) {
 		/* zero-fill the rest */
-		if (clear_user(ptr+size, bytecount-size) != 0) {
+		if (clear_user(ptr + size, bytecount - size) != 0) {
 			err = -EFAULT;
 			goto error_return;
 		}
@@ -153,13 +156,13 @@ error_return:
 	return err;
 }
 
-static int read_default_ldt(void __user * ptr, unsigned long bytecount)
+static int read_default_ldt(void __user *ptr, unsigned long bytecount)
 {
 	int err;
 	unsigned long size;
 
 	err = 0;
-	size = 5*sizeof(struct desc_struct);
+	size = 5 * sizeof(struct desc_struct);
 	if (size > bytecount)
 		size = bytecount;
 
@@ -170,9 +173,9 @@ static int read_default_ldt(void __user * ptr, unsigned long bytecount)
 	return err;
 }
 
-static int write_ldt(void __user * ptr, unsigned long bytecount, int oldmode)
+static int write_ldt(void __user *ptr, unsigned long bytecount, int oldmode)
 {
-	struct mm_struct * mm = current->mm;
+	struct mm_struct *mm = current->mm;
 	__u32 entry_1, entry_2;
 	int error;
 	struct user_desc ldt_info;
@@ -180,7 +183,7 @@ static int write_ldt(void __user * ptr, unsigned long bytecount, int oldmode)
 	error = -EINVAL;
 	if (bytecount != sizeof(ldt_info))
 		goto out;
-	error = -EFAULT; 	
+	error = -EFAULT;
 	if (copy_from_user(&ldt_info, ptr, sizeof(ldt_info)))
 		goto out;
 
@@ -196,13 +199,14 @@ static int write_ldt(void __user * ptr, unsigned long bytecount, int oldmode)
 
 	mutex_lock(&mm->context.lock);
 	if (ldt_info.entry_number >= mm->context.size) {
-		error = alloc_ldt(&current->mm->context, ldt_info.entry_number+1, 1);
+		error = alloc_ldt(&current->mm->context,
+				  ldt_info.entry_number + 1, 1);
 		if (error < 0)
 			goto out_unlock;
 	}
 
-   	/* Allow LDTs to be cleared by the user. */
-   	if (ldt_info.base_addr == 0 && ldt_info.limit == 0) {
+	/* Allow LDTs to be cleared by the user. */
+	if (ldt_info.base_addr == 0 && ldt_info.limit == 0) {
 		if (oldmode || LDT_empty(&ldt_info)) {
 			entry_1 = 0;
 			entry_2 = 0;
@@ -217,7 +221,8 @@ static int write_ldt(void __user * ptr, unsigned long bytecount, int oldmode)
 
 	/* Install the new entry ...  */
 install:
-	write_ldt_entry(mm->context.ldt, ldt_info.entry_number, entry_1, entry_2);
+	write_ldt_entry(mm->context.ldt, ldt_info.entry_number, entry_1,
+			entry_2);
 	error = 0;
 
 out_unlock:
@@ -226,7 +231,8 @@ out:
 	return error;
 }
 
-asmlinkage int sys_modify_ldt(int func, void __user *ptr, unsigned long bytecount)
+asmlinkage int sys_modify_ldt(int func, void __user *ptr,
+			      unsigned long bytecount)
 {
 	int ret = -ENOSYS;
 
