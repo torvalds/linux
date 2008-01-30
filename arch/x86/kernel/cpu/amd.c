@@ -300,9 +300,6 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 		local_apic_timer_disabled = 1;
 #endif
 
-	if (c->x86 == 0x10 && !force_mwait)
-		clear_bit(X86_FEATURE_MWAIT, c->x86_capability);
-
 	/* K6s reports MCEs but don't actually have all the MSRs */
 	if (c->x86 < 6)
 		clear_bit(X86_FEATURE_MCE, c->x86_capability);

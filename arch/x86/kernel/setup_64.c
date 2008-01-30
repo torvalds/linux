@@ -761,10 +761,6 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 	/* MFENCE stops RDTSC speculation */
 	set_cpu_cap(c, X86_FEATURE_MFENCE_RDTSC);
 
-	/* Family 10 doesn't support C states in MWAIT so don't use it */
-	if (c->x86 == 0x10 && !force_mwait)
-		clear_cpu_cap(c, X86_FEATURE_MWAIT);
-
 	if (amd_apic_timer_broken())
 		disable_apic_timer = 1;
 }
