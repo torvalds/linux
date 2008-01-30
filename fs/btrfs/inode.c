@@ -1001,7 +1001,7 @@ static int btrfs_setattr(struct dentry *dentry, struct iattr *attr)
 
 		u64 mask = root->sectorsize - 1;
 		u64 pos = (inode->i_size + mask) & ~mask;
-		u64 block_end = attr->ia_size | mask;
+		u64 block_end = (attr->ia_size + mask) & ~mask;
 		u64 hole_start;
 		u64 hole_size;
 		u64 alloc_hint = 0;
@@ -1022,7 +1022,7 @@ static int btrfs_setattr(struct dentry *dentry, struct iattr *attr)
 
 		btrfs_truncate_page(inode->i_mapping, inode->i_size);
 
-		lock_extent(io_tree, pos, block_end, GFP_NOFS);
+		lock_extent(io_tree, pos, block_end - 1, GFP_NOFS);
 		hole_size = block_end - hole_start;
 
 		mutex_lock(&root->fs_info->fs_mutex);
@@ -1043,7 +1043,7 @@ static int btrfs_setattr(struct dentry *dentry, struct iattr *attr)
 		}
 		btrfs_end_transaction(trans, root);
 		mutex_unlock(&root->fs_info->fs_mutex);
-		unlock_extent(io_tree, pos, block_end, GFP_NOFS);
+		unlock_extent(io_tree, pos, block_end - 1, GFP_NOFS);
 		if (err)
 			return err;
 	}
