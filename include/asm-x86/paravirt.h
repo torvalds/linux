@@ -978,18 +978,37 @@ static inline pgdval_t pgd_val(pgd_t pgd)
 	return ret;
 }
 
-#ifdef CONFIG_X86_PAE
-static inline pmd_t __pmd(unsigned long long val)
+#if PAGETABLE_LEVELS >= 3
+static inline pmd_t __pmd(pmdval_t val)
 {
-	return (pmd_t) { PVOP_CALL2(unsigned long long, pv_mmu_ops.make_pmd,
-				    val, val >> 32) };
+	pmdval_t ret;
+
+	if (sizeof(pmdval_t) > sizeof(long))
+		ret = PVOP_CALL2(pmdval_t, pv_mmu_ops.make_pmd,
+				 val, (u64)val >> 32);
+	else
+		ret = PVOP_CALL1(pmdval_t, pv_mmu_ops.make_pmd,
+				 val);
+
+	return (pmd_t) { ret };
 }
 
-static inline unsigned long long pmd_val(pmd_t x)
+static inline pmdval_t pmd_val(pmd_t pmd)
 {
-	return PVOP_CALL2(unsigned long long, pv_mmu_ops.pmd_val,
-			  x.pmd, x.pmd >> 32);
+	pmdval_t ret;
+
+	if (sizeof(pmdval_t) > sizeof(long))
+		ret =  PVOP_CALL2(pmdval_t, pv_mmu_ops.pmd_val,
+				  pmd.pmd, (u64)pmd.pmd >> 32);
+	else
+		ret =  PVOP_CALL1(pmdval_t, pv_mmu_ops.pmd_val,
+				  pmd.pmd);
+
+	return ret;
 }
+#endif	/* PAGETABLE_LEVELS >= 3 */
+
+#ifdef CONFIG_X86_PAE
 
 static inline void set_pte(pte_t *ptep, pte_t pteval)
 {
