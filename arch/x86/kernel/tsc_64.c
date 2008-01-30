@@ -273,15 +273,8 @@ __cpuinit int unsynchronized_tsc(void)
 		return 1;
 #endif
 
-	if (boot_cpu_has(X86_FEATURE_CONSTANT_TSC)) {
-#ifdef CONFIG_ACPI
-		/* But TSC doesn't tick in C3 so don't use it there */
-		if (acpi_gbl_FADT.header.length > 0 &&
-		    acpi_gbl_FADT.C3latency < 1000)
-			return 1;
-#endif
+	if (boot_cpu_has(X86_FEATURE_CONSTANT_TSC))
 		return 0;
-	}
 
 	/* Assume multi socket systems are not synchronized */
 	return num_present_cpus() > 1;
