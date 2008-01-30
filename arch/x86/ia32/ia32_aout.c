@@ -25,6 +25,7 @@
 #include <linux/binfmts.h>
 #include <linux/personality.h>
 #include <linux/init.h>
+#include <linux/jiffies.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -359,13 +360,14 @@ static int load_aout_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 #ifdef WARN_OLD
 		static unsigned long error_time, error_time2;
 		if ((ex.a_text & 0xfff || ex.a_data & 0xfff) &&
-		    (N_MAGIC(ex) != NMAGIC) && (jiffies-error_time2) > 5*HZ) {
+		    (N_MAGIC(ex) != NMAGIC) &&
+				time_after(jiffies, error_time2 + 5*HZ)) {
 			printk(KERN_NOTICE "executable not page aligned\n");
 			error_time2 = jiffies;
 		}
 
 		if ((fd_offset & ~PAGE_MASK) != 0 &&
-		    (jiffies - error_time) > 5*HZ) {
+			    time_after(jiffies, error_time + 5*HZ)) {
 			printk(KERN_WARNING
 			       "fd_offset is not page aligned. Please convert "
 			       "program: %s\n",
@@ -484,7 +486,7 @@ static int load_aout_library(struct file *file)
 
 #ifdef WARN_OLD
 		static unsigned long error_time;
-		if ((jiffies-error_time) > 5*HZ) {
+		if (time_after(jiffies, error_time + 5*HZ)) {
 			printk(KERN_WARNING
 			       "N_TXTOFF is not page aligned. Please convert "
 			       "library: %s\n",
