@@ -61,13 +61,13 @@ config DEBUG_PER_CPU_MAPS
 
 config DEBUG_RODATA
 	bool "Write protect kernel read-only data structures"
+	default y
 	depends on DEBUG_KERNEL
 	help
 	  Mark the kernel read-only data as write-protected in the pagetables,
 	  in order to catch accidental (and incorrect) writes to such const
-	  data. This option may have a slight performance impact because a
-	  portion of the kernel code won't be covered by a 2MB TLB anymore.
-	  If in doubt, say "N".
+	  data. This is recommended so that we can catch kernel bugs sooner.
+	  If in doubt, say "Y".
 
 config 4KSTACKS
 	bool "Use 4Kb for kernel stacks instead of 8Kb"
