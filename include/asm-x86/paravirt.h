@@ -1085,52 +1085,68 @@ struct paravirt_patch_site {
 extern struct paravirt_patch_site __parainstructions[],
 	__parainstructions_end[];
 
+#ifdef CONFIG_X86_32
+#define PV_SAVE_REGS "pushl %%ecx; pushl %%edx;"
+#define PV_RESTORE_REGS "popl %%edx; popl %%ecx"
+#define PV_FLAGS_ARG "0"
+#define PV_EXTRA_CLOBBERS
+#define PV_VEXTRA_CLOBBERS
+#else
+/* We save some registers, but all of them, that's too much. We clobber all
+ * caller saved registers but the argument parameter */
+#define PV_SAVE_REGS "pushq %%rdi;"
+#define PV_RESTORE_REGS "popq %%rdi;"
+#define PV_EXTRA_CLOBBERS EXTRA_CLOBBERS, "rcx" , "rdx"
+#define PV_VEXTRA_CLOBBERS EXTRA_CLOBBERS, "rdi", "rcx" , "rdx"
+#define PV_FLAGS_ARG "D"
+#endif
+
 static inline unsigned long __raw_local_save_flags(void)
 {
 	unsigned long f;
 
-	asm volatile(paravirt_alt("pushl %%ecx; pushl %%edx;"
+	asm volatile(paravirt_alt(PV_SAVE_REGS
 				  PARAVIRT_CALL
-				  "popl %%edx; popl %%ecx")
+				  PV_RESTORE_REGS)
 		     : "=a"(f)
 		     : paravirt_type(pv_irq_ops.save_fl),
 		       paravirt_clobber(CLBR_EAX)
-		     : "memory", "cc");
+		     : "memory", "cc" PV_VEXTRA_CLOBBERS);
 	return f;
 }
 
 static inline void raw_local_irq_restore(unsigned long f)
 {
-	asm volatile(paravirt_alt("pushl %%ecx; pushl %%edx;"
+	asm volatile(paravirt_alt(PV_SAVE_REGS
 				  PARAVIRT_CALL
-				  "popl %%edx; popl %%ecx")
+				  PV_RESTORE_REGS)
 		     : "=a"(f)
-		     : "0"(f),
+		     : PV_FLAGS_ARG(f),
 		       paravirt_type(pv_irq_ops.restore_fl),
 		       paravirt_clobber(CLBR_EAX)
-		     : "memory", "cc");
+		     : "memory", "cc" PV_EXTRA_CLOBBERS);
 }
 
 static inline void raw_local_irq_disable(void)
 {
-	asm volatile(paravirt_alt("pushl %%ecx; pushl %%edx;"
+	asm volatile(paravirt_alt(PV_SAVE_REGS
 				  PARAVIRT_CALL
-				  "popl %%edx; popl %%ecx")
+				  PV_RESTORE_REGS)
 		     :
 		     : paravirt_type(pv_irq_ops.irq_disable),
 		       paravirt_clobber(CLBR_EAX)
-		     : "memory", "eax", "cc");
+		     : "memory", "eax", "cc" PV_EXTRA_CLOBBERS);
 }
 
 static inline void raw_local_irq_enable(void)
 {
-	asm volatile(paravirt_alt("pushl %%ecx; pushl %%edx;"
+	asm volatile(paravirt_alt(PV_SAVE_REGS
 				  PARAVIRT_CALL
-				  "popl %%edx; popl %%ecx")
+				  PV_RESTORE_REGS)
 		     :
 		     : paravirt_type(pv_irq_ops.irq_enable),
 		       paravirt_clobber(CLBR_EAX)
-		     : "memory", "eax", "cc");
+		     : "memory", "eax", "cc" PV_EXTRA_CLOBBERS);
 }
 
 static inline unsigned long __raw_local_irq_save(void)
@@ -1204,6 +1220,7 @@ static inline unsigned long __raw_local_irq_save(void)
 	PARA_SITE(PARA_PATCH(pv_cpu_ops, PV_CPU_irq_enable_syscall_ret),\
 		  CLBR_NONE,						\
 		  jmp *%cs:pv_cpu_ops+PV_CPU_irq_enable_syscall_ret)
+
 
 #ifdef CONFIG_X86_32
 #define GET_CR0_INTO_EAX			\
