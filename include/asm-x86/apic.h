@@ -117,7 +117,7 @@ extern void init_apic_mappings(void);
 extern void setup_boot_APIC_clock(void);
 extern void setup_secondary_APIC_clock(void);
 extern int APIC_init_uniprocessor(void);
-extern void enable_NMI_through_LVT0(void *dummy);
+extern void enable_NMI_through_LVT0(void);
 
 /*
  * On 32bit this is mach-xxx local

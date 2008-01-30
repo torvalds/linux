@@ -1566,7 +1566,7 @@ static struct hw_interrupt_type lapic_irq_type __read_mostly = {
 	.end = end_lapic_irq,
 };
 
-static void setup_nmi (void)
+static void __init setup_nmi(void)
 {
 	/*
  	 * Dirty trick to enable the NMI watchdog ...
@@ -1579,7 +1579,7 @@ static void setup_nmi (void)
 	 */ 
 	printk(KERN_INFO "activating NMI Watchdog ...");
 
-	enable_NMI_through_LVT0(NULL);
+	enable_NMI_through_LVT0();
 
 	printk(" done.\n");
 }
@@ -1655,7 +1655,7 @@ static inline void unlock_ExtINT_logic(void)
  *
  * FIXME: really need to revamp this for modern platforms only.
  */
-static inline void check_timer(void)
+static inline void __init check_timer(void)
 {
 	struct irq_cfg *cfg = irq_cfg + 0;
 	int apic1, pin1, apic2, pin2;

@@ -130,7 +130,7 @@ u32 safe_apic_wait_icr_idle(void)
 /**
  * enable_NMI_through_LVT0 - enable NMI through local vector table 0
  */
-void enable_NMI_through_LVT0(void *dummy)
+void __cpuinit enable_NMI_through_LVT0(void)
 {
 	unsigned int v;
 
