@@ -529,35 +529,6 @@ static void __init set_nx(void)
 	}
 }
 
-/*
- * Enables/disables executability of a given kernel page and
- * returns the previous setting.
- */
-int __init set_kernel_exec(unsigned long vaddr, int enable)
-{
-	pte_t *pte;
-	int ret = 1;
-	int level;
-
-	if (!nx_enabled)
-		goto out;
-
-	pte = lookup_address(vaddr, &level);
-	BUG_ON(!pte);
-
-	if (!pte_exec(*pte))
-		ret = 0;
-
-	if (enable)
-		pte->pte_high &= ~(1 << (_PAGE_BIT_NX - 32));
-	else
-		pte->pte_high |= 1 << (_PAGE_BIT_NX - 32);
-	pte_update_defer(&init_mm, vaddr, pte);
-	__flush_tlb_all();
-out:
-	return ret;
-}
-
 #endif
 
 /*

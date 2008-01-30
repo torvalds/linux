@@ -184,18 +184,6 @@ static inline void clone_pgd_range(pgd_t *dst, pgd_t *src, int count)
  */
 extern pte_t *lookup_address(unsigned long address, int *level);
 
-/*
- * Make a given kernel text page executable/non-executable.
- * Returns the previous executability setting of that page (which
- * is used to restore the previous state). Used by the SMP bootup code.
- * NOTE: this is an __init function for security reasons.
- */
-#ifdef CONFIG_X86_PAE
- extern int set_kernel_exec(unsigned long vaddr, int enable);
-#else
- static inline int set_kernel_exec(unsigned long vaddr, int enable) { return 0;}
-#endif
-
 #if defined(CONFIG_HIGHPTE)
 #define pte_offset_map(dir, address) \
 	((pte_t *)kmap_atomic_pte(pmd_page(*(dir)),KM_PTE0) + pte_index(address))

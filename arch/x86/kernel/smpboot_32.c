@@ -107,7 +107,6 @@ u8 apicid_2_node[MAX_APICID];
 extern const unsigned char trampoline_data [];
 extern const unsigned char trampoline_end  [];
 static unsigned char *trampoline_base;
-static int trampoline_exec;
 
 static void map_cpu_to_logical_apicid(void);
 
@@ -139,10 +138,6 @@ void __init smp_alloc_memory(void)
 	 */
 	if (__pa(trampoline_base) >= 0x9F000)
 		BUG();
-	/*
-	 * Make the SMP trampoline executable:
-	 */
-	trampoline_exec = set_kernel_exec((unsigned long)trampoline_base, 1);
 }
 
 /*
@@ -1290,12 +1285,6 @@ void __init native_smp_cpus_done(unsigned int max_cpus)
 	setup_ioapic_dest();
 #endif
 	zap_low_mappings();
-#ifndef CONFIG_HOTPLUG_CPU
-	/*
-	 * Disable executability of the SMP trampoline:
-	 */
-	set_kernel_exec((unsigned long)trampoline_base, trampoline_exec);
-#endif
 }
 
 void __init smp_intr_init(void)
