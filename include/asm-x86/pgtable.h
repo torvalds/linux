@@ -69,7 +69,7 @@
 #define _PAGE_KERNEL (_PAGE_KERNEL_EXEC | _PAGE_NX)
 
 #ifndef __ASSEMBLY__
-extern unsigned long long __PAGE_KERNEL, __PAGE_KERNEL_EXEC;
+extern pteval_t __PAGE_KERNEL, __PAGE_KERNEL_EXEC;
 #endif	/* __ASSEMBLY__ */
 #else
 #define __PAGE_KERNEL_EXEC						\

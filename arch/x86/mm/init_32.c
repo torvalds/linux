@@ -332,9 +332,9 @@ static void __init set_highmem_pages_init(int bad_ppro)
 #define set_highmem_pages_init(bad_ppro) do { } while (0)
 #endif /* CONFIG_HIGHMEM */
 
-unsigned long long __PAGE_KERNEL = _PAGE_KERNEL;
+pteval_t __PAGE_KERNEL = _PAGE_KERNEL;
 EXPORT_SYMBOL(__PAGE_KERNEL);
-unsigned long long __PAGE_KERNEL_EXEC = _PAGE_KERNEL_EXEC;
+pteval_t __PAGE_KERNEL_EXEC = _PAGE_KERNEL_EXEC;
 
 #ifdef CONFIG_NUMA
 extern void __init remap_numa_kva(void);
