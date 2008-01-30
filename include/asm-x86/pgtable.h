@@ -19,18 +19,18 @@
 #define _PAGE_BIT_UNUSED3	11
 #define _PAGE_BIT_NX           63       /* No execute: only valid after cpuid check */
 
-#define _PAGE_PRESENT	(_AC(1, UL)<<_PAGE_BIT_PRESENT)
-#define _PAGE_RW	(_AC(1, UL)<<_PAGE_BIT_RW)
-#define _PAGE_USER	(_AC(1, UL)<<_PAGE_BIT_USER)
-#define _PAGE_PWT	(_AC(1, UL)<<_PAGE_BIT_PWT)
-#define _PAGE_PCD	(_AC(1, UL)<<_PAGE_BIT_PCD)
-#define _PAGE_ACCESSED	(_AC(1, UL)<<_PAGE_BIT_ACCESSED)
-#define _PAGE_DIRTY	(_AC(1, UL)<<_PAGE_BIT_DIRTY)
-#define _PAGE_PSE	(_AC(1, UL)<<_PAGE_BIT_PSE)	/* 2MB page */
-#define _PAGE_GLOBAL	(_AC(1, UL)<<_PAGE_BIT_GLOBAL)	/* Global TLB entry */
-#define _PAGE_UNUSED1	(_AC(1, UL)<<_PAGE_BIT_UNUSED1)
-#define _PAGE_UNUSED2	(_AC(1, UL)<<_PAGE_BIT_UNUSED2)
-#define _PAGE_UNUSED3	(_AC(1, UL)<<_PAGE_BIT_UNUSED3)
+#define _PAGE_PRESENT	(_AC(1, L)<<_PAGE_BIT_PRESENT)
+#define _PAGE_RW	(_AC(1, L)<<_PAGE_BIT_RW)
+#define _PAGE_USER	(_AC(1, L)<<_PAGE_BIT_USER)
+#define _PAGE_PWT	(_AC(1, L)<<_PAGE_BIT_PWT)
+#define _PAGE_PCD	(_AC(1, L)<<_PAGE_BIT_PCD)
+#define _PAGE_ACCESSED	(_AC(1, L)<<_PAGE_BIT_ACCESSED)
+#define _PAGE_DIRTY	(_AC(1, L)<<_PAGE_BIT_DIRTY)
+#define _PAGE_PSE	(_AC(1, L)<<_PAGE_BIT_PSE)	/* 2MB page */
+#define _PAGE_GLOBAL	(_AC(1, L)<<_PAGE_BIT_GLOBAL)	/* Global TLB entry */
+#define _PAGE_UNUSED1	(_AC(1, L)<<_PAGE_BIT_UNUSED1)
+#define _PAGE_UNUSED2	(_AC(1, L)<<_PAGE_BIT_UNUSED2)
+#define _PAGE_UNUSED3	(_AC(1, L)<<_PAGE_BIT_UNUSED3)
 
 #if defined(CONFIG_X86_64) || defined(CONFIG_X86_PAE)
 #define _PAGE_NX	(_AC(1, ULL) << _PAGE_BIT_NX)
