@@ -46,9 +46,6 @@
 #include <asm/nmi.h>
 #include <asm/vgtod.h>
 
-DEFINE_SPINLOCK(rtc_lock);
-EXPORT_SYMBOL(rtc_lock);
-
 volatile unsigned long __jiffies __section_jiffies = INITIAL_JIFFIES;
 
 unsigned long profile_pc(struct pt_regs *regs)
@@ -69,103 +66,6 @@ unsigned long profile_pc(struct pt_regs *regs)
 }
 EXPORT_SYMBOL(profile_pc);
 
-/* Routines for accessing the CMOS RAM/RTC. */
-unsigned char rtc_cmos_read(unsigned char addr)
-{
-	unsigned char val;
-	lock_cmos_prefix(addr);
-	outb_p(addr, RTC_PORT(0));
-	val = inb_p(RTC_PORT(1));
-	lock_cmos_suffix(addr);
-	return val;
-}
-EXPORT_SYMBOL(rtc_cmos_read);
-
-void rtc_cmos_write(unsigned char val, unsigned char addr)
-{
-	lock_cmos_prefix(addr);
-	outb_p(addr, RTC_PORT(0));
-	outb_p(val, RTC_PORT(1));
-	lock_cmos_suffix(addr);
-}
-EXPORT_SYMBOL(rtc_cmos_write);
-
-/*
- * In order to set the CMOS clock precisely, set_rtc_mmss has to be called 500
- * ms after the second nowtime has started, because when nowtime is written
- * into the registers of the CMOS clock, it will jump to the next second
- * precisely 500 ms later. Check the Motorola MC146818A or Dallas DS12887 data
- * sheet for details.
- */
-
-static int set_rtc_mmss(unsigned long nowtime)
-{
-	int retval = 0;
-	int real_seconds, real_minutes, cmos_minutes;
-	unsigned char control, freq_select;
-	unsigned long flags;
-
-/*
- * set_rtc_mmss is called when irqs are enabled, so disable irqs here
- */
-	spin_lock_irqsave(&rtc_lock, flags);
-/*
- * Tell the clock it's being set and stop it.
- */
-	control = CMOS_READ(RTC_CONTROL);
-	CMOS_WRITE(control | RTC_SET, RTC_CONTROL);
-
-	freq_select = CMOS_READ(RTC_FREQ_SELECT);
-	CMOS_WRITE(freq_select | RTC_DIV_RESET2, RTC_FREQ_SELECT);
-
-	cmos_minutes = CMOS_READ(RTC_MINUTES);
-		BCD_TO_BIN(cmos_minutes);
-
-/*
- * since we're only adjusting minutes and seconds, don't interfere with hour
- * overflow. This avoids messing with unknown time zones but requires your RTC
- * not to be off by more than 15 minutes. Since we're calling it only when
- * our clock is externally synchronized using NTP, this shouldn't be a problem.
- */
-
-	real_seconds = nowtime % 60;
-	real_minutes = nowtime / 60;
-	if (((abs(real_minutes - cmos_minutes) + 15) / 30) & 1)
-		real_minutes += 30;		/* correct for half hour time zone */
-	real_minutes %= 60;
-
-	if (abs(real_minutes - cmos_minutes) >= 30) {
-		printk(KERN_WARNING "time.c: can't update CMOS clock "
-		       "from %d to %d\n", cmos_minutes, real_minutes);
-		retval = -1;
-	} else {
-		BIN_TO_BCD(real_seconds);
-		BIN_TO_BCD(real_minutes);
-		CMOS_WRITE(real_seconds, RTC_SECONDS);
-		CMOS_WRITE(real_minutes, RTC_MINUTES);
-	}
-
-/*
- * The following flags have to be released exactly in this order, otherwise the
- * DS12887 (popular MC146818A clone with integrated battery and quartz) will
- * not reset the oscillator and will not update precisely 500 ms later. You
- * won't find this mentioned in the Dallas Semiconductor data sheets, but who
- * believes data sheets anyway ... -- Markus Kuhn
- */
-
-	CMOS_WRITE(control, RTC_CONTROL);
-	CMOS_WRITE(freq_select, RTC_FREQ_SELECT);
-
-	spin_unlock_irqrestore(&rtc_lock, flags);
-
-	return retval;
-}
-
-int update_persistent_clock(struct timespec now)
-{
-	return set_rtc_mmss(now.tv_sec);
-}
-
 static irqreturn_t timer_event_interrupt(int irq, void *dev_id)
 {
 	add_pda(irq0_irqs, 1);
@@ -173,63 +73,6 @@ static irqreturn_t timer_event_interrupt(int irq, void *dev_id)
 	global_clock_event->event_handler(global_clock_event);
 
 	return IRQ_HANDLED;
-}
-
-unsigned long read_persistent_clock(void)
-{
-	unsigned int year, mon, day, hour, min, sec;
-	unsigned long flags;
-	unsigned century = 0;
-
-	spin_lock_irqsave(&rtc_lock, flags);
-	/*
-	 * if UIP is clear, then we have >= 244 microseconds before RTC
-	 * registers will be updated.  Spec sheet says that this is the
-	 * reliable way to read RTC - registers invalid (off bus) during update
-	 */
-	while ((CMOS_READ(RTC_FREQ_SELECT) & RTC_UIP))
-		cpu_relax();
-
-
-	/* now read all RTC registers while stable with interrupts disabled */
-	sec = CMOS_READ(RTC_SECONDS);
-	min = CMOS_READ(RTC_MINUTES);
-	hour = CMOS_READ(RTC_HOURS);
-	day = CMOS_READ(RTC_DAY_OF_MONTH);
-	mon = CMOS_READ(RTC_MONTH);
-	year = CMOS_READ(RTC_YEAR);
-#ifdef CONFIG_ACPI
-	if (acpi_gbl_FADT.header.revision >= FADT2_REVISION_ID &&
-				acpi_gbl_FADT.century)
-		century = CMOS_READ(acpi_gbl_FADT.century);
-#endif
-	spin_unlock_irqrestore(&rtc_lock, flags);
-
-	/*
-	 * We know that x86-64 always uses BCD format, no need to check the
-	 * config register.
-	 */
-
-	BCD_TO_BIN(sec);
-	BCD_TO_BIN(min);
-	BCD_TO_BIN(hour);
-	BCD_TO_BIN(day);
-	BCD_TO_BIN(mon);
-	BCD_TO_BIN(year);
-
-	if (century) {
-		BCD_TO_BIN(century);
-		year += century * 100;
-		printk(KERN_INFO "Extended CMOS year: %d\n", century * 100);
-	} else {
-		/*
-		 * x86-64 systems only exists since 2002.
-		 * This will work up to Dec 31, 2100
-		 */
-		year += 2000;
-	}
-
-	return mktime(year, mon, day, hour, min, sec);
 }
 
 /* calibrate_cpu is used on systems with fixed rate TSCs to determine

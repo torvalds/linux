@@ -1,10 +1,31 @@
 /*
  * RTC related functions
  */
+#include <linux/acpi.h>
 #include <linux/bcd.h>
 #include <linux/mc146818rtc.h>
 
 #include <asm/time.h>
+
+#ifdef CONFIG_X86_32
+# define CMOS_YEARS_OFFS 1900
+/*
+ * This is a special lock that is owned by the CPU and holds the index
+ * register we are working with.  It is required for NMI access to the
+ * CMOS/RTC registers.  See include/asm-i386/mc146818rtc.h for details.
+ */
+volatile unsigned long cmos_lock = 0;
+EXPORT_SYMBOL(cmos_lock);
+#else
+/*
+ * x86-64 systems only exists since 2002.
+ * This will work up to Dec 31, 2100
+ */
+# define CMOS_YEARS_OFFS 2000
+#endif
+
+DEFINE_SPINLOCK(rtc_lock);
+EXPORT_SYMBOL(rtc_lock);
 
 /*
  * In order to set the CMOS clock precisely, set_rtc_mmss has to be
@@ -22,10 +43,12 @@ int mach_set_rtc_mmss(unsigned long nowtime)
 	int real_seconds, real_minutes, cmos_minutes;
 	unsigned char save_control, save_freq_select;
 
-	save_control = CMOS_READ(RTC_CONTROL); /* tell the clock it's being set */
+	 /* tell the clock it's being set */
+	save_control = CMOS_READ(RTC_CONTROL);
 	CMOS_WRITE((save_control|RTC_SET), RTC_CONTROL);
 
-	save_freq_select = CMOS_READ(RTC_FREQ_SELECT); /* stop and reset prescaler */
+	/* stop and reset prescaler */
+	save_freq_select = CMOS_READ(RTC_FREQ_SELECT);
 	CMOS_WRITE((save_freq_select|RTC_DIV_RESET2), RTC_FREQ_SELECT);
 
 	cmos_minutes = CMOS_READ(RTC_MINUTES);
@@ -40,8 +63,9 @@ int mach_set_rtc_mmss(unsigned long nowtime)
 	 */
 	real_seconds = nowtime % 60;
 	real_minutes = nowtime / 60;
+	/* correct for half hour time zone */
 	if (((abs(real_minutes - cmos_minutes) + 15)/30) & 1)
-		real_minutes += 30;		/* correct for half hour time zone */
+		real_minutes += 30;
 	real_minutes %= 60;
 
 	if (abs(real_minutes - cmos_minutes) < 30) {
@@ -73,18 +97,32 @@ int mach_set_rtc_mmss(unsigned long nowtime)
 
 unsigned long mach_get_cmos_time(void)
 {
-	unsigned int year, mon, day, hour, min, sec;
+	unsigned int year, mon, day, hour, min, sec, century = 0;
 
-	do {
-		sec = CMOS_READ(RTC_SECONDS);
-		min = CMOS_READ(RTC_MINUTES);
-		hour = CMOS_READ(RTC_HOURS);
-		day = CMOS_READ(RTC_DAY_OF_MONTH);
-		mon = CMOS_READ(RTC_MONTH);
-		year = CMOS_READ(RTC_YEAR);
-	} while (sec != CMOS_READ(RTC_SECONDS));
+	/*
+	 * If UIP is clear, then we have >= 244 microseconds before
+	 * RTC registers will be updated.  Spec sheet says that this
+	 * is the reliable way to read RTC - registers. If UIP is set
+	 * then the register access might be invalid.
+	 */
+	while ((CMOS_READ(RTC_FREQ_SELECT) & RTC_UIP))
+		cpu_relax();
 
-	if (!(CMOS_READ(RTC_CONTROL) & RTC_DM_BINARY) || RTC_ALWAYS_BCD) {
+	sec = CMOS_READ(RTC_SECONDS);
+	min = CMOS_READ(RTC_MINUTES);
+	hour = CMOS_READ(RTC_HOURS);
+	day = CMOS_READ(RTC_DAY_OF_MONTH);
+	mon = CMOS_READ(RTC_MONTH);
+	year = CMOS_READ(RTC_YEAR);
+
+#if defined(CONFIG_ACPI) && defined(CONFIG_X86_64)
+	/* CHECKME: Is this really 64bit only ??? */
+	if (acpi_gbl_FADT.header.revision >= FADT2_REVISION_ID &&
+	    acpi_gbl_FADT.century)
+		century = CMOS_READ(acpi_gbl_FADT.century);
+#endif
+
+	if (RTC_ALWAYS_BCD || !(CMOS_READ(RTC_CONTROL) & RTC_DM_BINARY)) {
 		BCD_TO_BIN(sec);
 		BCD_TO_BIN(min);
 		BCD_TO_BIN(hour);
@@ -93,23 +131,18 @@ unsigned long mach_get_cmos_time(void)
 		BCD_TO_BIN(year);
 	}
 
-	year += 1900;
-	if (year < 1970)
-		year += 100;
+	if (century) {
+		BCD_TO_BIN(century);
+		year += century * 100;
+		printk(KERN_INFO "Extended CMOS year: %d\n", century * 100);
+	} else {
+		year += CMOS_YEARS_OFFS;
+		if (year < 1970)
+			year += 100;
+	}
 
 	return mktime(year, mon, day, hour, min, sec);
 }
-
-DEFINE_SPINLOCK(rtc_lock);
-EXPORT_SYMBOL(rtc_lock);
-
-/*
- * This is a special lock that is owned by the CPU and holds the index
- * register we are working with.  It is required for NMI access to the
- * CMOS/RTC registers.  See include/asm-i386/mc146818rtc.h for details.
- */
-volatile unsigned long cmos_lock = 0;
-EXPORT_SYMBOL(cmos_lock);
 
 /* Routines for accessing the CMOS RAM/RTC. */
 unsigned char rtc_cmos_read(unsigned char addr)
@@ -138,8 +171,6 @@ static int set_rtc_mmss(unsigned long nowtime)
 	int retval;
 	unsigned long flags;
 
-	/* gets recalled with irq locally disabled */
-	/* XXX - does irqsave resolve this? -johnstul */
 	spin_lock_irqsave(&rtc_lock, flags);
 	retval = set_wallclock(nowtime);
 	spin_unlock_irqrestore(&rtc_lock, flags);
@@ -150,8 +181,7 @@ static int set_rtc_mmss(unsigned long nowtime)
 /* not static: needed by APM */
 unsigned long read_persistent_clock(void)
 {
-	unsigned long retval;
-	unsigned long flags;
+	unsigned long retval, flags;
 
 	spin_lock_irqsave(&rtc_lock, flags);
 	retval = get_wallclock();
