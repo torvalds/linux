@@ -152,13 +152,13 @@ static void intel_machine_check(struct pt_regs * regs, long error_code)
 	if (mcgstl & (1<<0))	/* Recoverable ? */
 		recover=0;
 
-	printk (KERN_EMERG "CPU %d: Machine Check Exception: %08x%08x\n",
+	printk(KERN_EMERG "CPU %d: Machine Check Exception: %08x%08x\n",
 		smp_processor_id(), mcgsth, mcgstl);
 
 	if (mce_num_extended_msrs > 0) {
 		struct intel_mce_extended_msrs dbg;
 		intel_get_extended_msrs(&dbg);
-		printk (KERN_DEBUG "CPU %d: EIP: %08x EFLAGS: %08x\n"
+		printk(KERN_DEBUG "CPU %d: EIP: %08x EFLAGS: %08x\n"
 			"\teax: %08x ebx: %08x ecx: %08x edx: %08x\n"
 			"\tesi: %08x edi: %08x ebp: %08x esp: %08x\n",
 			smp_processor_id(), dbg.eip, dbg.eflags,
@@ -166,8 +166,8 @@ static void intel_machine_check(struct pt_regs * regs, long error_code)
 			dbg.esi, dbg.edi, dbg.ebp, dbg.esp);
 	}
 
-	for (i=0; i<nr_mce_banks; i++) {
-		rdmsr (MSR_IA32_MC0_STATUS+i*4,low, high);
+	for (i = 0; i < nr_mce_banks; i++) {
+		rdmsr(MSR_IA32_MC0_STATUS+i*4,low, high);
 		if (high & (1<<31)) {
 			char misc[20];
 			char addr[24];
@@ -178,14 +178,14 @@ static void intel_machine_check(struct pt_regs * regs, long error_code)
 				recover |= 2;
 			high &= ~(1<<31);
 			if (high & (1<<27)) {
-				rdmsr (MSR_IA32_MC0_MISC+i*4, alow, ahigh);
-				snprintf (misc, 20, "[%08x%08x]", ahigh, alow);
+				rdmsr(MSR_IA32_MC0_MISC+i*4, alow, ahigh);
+				snprintf(misc, 20, "[%08x%08x]", ahigh, alow);
 			}
 			if (high & (1<<26)) {
-				rdmsr (MSR_IA32_MC0_ADDR+i*4, alow, ahigh);
-				snprintf (addr, 24, " at %08x%08x", ahigh, alow);
+				rdmsr(MSR_IA32_MC0_ADDR+i*4, alow, ahigh);
+				snprintf(addr, 24, " at %08x%08x", ahigh, alow);
 			}
-			printk (KERN_EMERG "CPU %d: Bank %d: %08x%08x%s%s\n",
+			printk(KERN_EMERG "CPU %d: Bank %d: %08x%08x%s%s\n",
 				smp_processor_id(), i, high, low, misc, addr);
 		}
 	}
