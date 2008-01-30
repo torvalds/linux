@@ -48,31 +48,6 @@
     
 #endif	/* __KERNEL__ */
 
-#ifdef CONFIG_SMP
-#define smp_mb()	mb()
-#define smp_rmb()	barrier()
-#define smp_wmb()	barrier()
-#define smp_read_barrier_depends()	do {} while(0)
-#else
-#define smp_mb()	barrier()
-#define smp_rmb()	barrier()
-#define smp_wmb()	barrier()
-#define smp_read_barrier_depends()	do {} while(0)
-#endif
-
-    
-/*
- * Force strict CPU ordering.
- * And yes, this is required on UP too when we're talking
- * to devices.
- */
-#define mb() 	asm volatile("mfence":::"memory")
-#define rmb()	asm volatile("lfence":::"memory")
-#define wmb()	asm volatile("sfence" ::: "memory")
-
-#define read_barrier_depends()	do {} while(0)
-#define set_mb(var, value) do { (void) xchg(&var, value); } while (0)
-
 static inline unsigned long read_cr8(void)
 {
 	unsigned long cr8;
