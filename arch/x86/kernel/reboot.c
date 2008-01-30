@@ -1,21 +1,25 @@
-#include <linux/mm.h>
 #include <linux/module.h>
-#include <linux/delay.h>
 #include <linux/init.h>
-#include <linux/interrupt.h>
-#include <linux/mc146818rtc.h>
-#include <linux/efi.h>
-#include <linux/dmi.h>
-#include <linux/ctype.h>
-#include <linux/pm.h>
 #include <linux/reboot.h>
-#include <asm/uaccess.h>
+#include <linux/init.h>
+#include <linux/pm.h>
+#include <linux/efi.h>
+#include <acpi/reboot.h>
+#include <asm/io.h>
 #include <asm/apic.h>
-#include <asm/hpet.h>
 #include <asm/desc.h>
-#include "mach_reboot.h"
+#include <asm/hpet.h>
 #include <asm/reboot_fixups.h>
 #include <asm/reboot.h>
+
+#ifdef CONFIG_X86_32
+# include <linux/dmi.h>
+# include <linux/ctype.h>
+# include <linux/mc146818rtc.h>
+# include <asm/pgtable.h>
+#else
+# include <asm/iommu.h>
+#endif
 
 /*
  * Power off function, if any
@@ -23,42 +27,68 @@
 void (*pm_power_off)(void);
 EXPORT_SYMBOL(pm_power_off);
 
+static long no_idt[3];
 static int reboot_mode;
-static int reboot_thru_bios;
+enum reboot_type reboot_type = BOOT_KBD;
+int reboot_force;
 
-#ifdef CONFIG_SMP
+#if defined(CONFIG_X86_32) && defined(CONFIG_SMP)
 static int reboot_cpu = -1;
 #endif
+
+/* reboot=b[ios] | s[mp] | t[riple] | k[bd] | e[fi] [, [w]arm | [c]old]
+   warm   Don't set the cold reboot flag
+   cold   Set the cold reboot flag
+   bios   Reboot by jumping through the BIOS (only for X86_32)
+   smp    Reboot by executing reset on BSP or other CPU (only for X86_32)
+   triple Force a triple fault (init)
+   kbd    Use the keyboard controller. cold reset (default)
+   acpi   Use the RESET_REG in the FADT
+   efi    Use efi reset_system runtime service
+   force  Avoid anything that could hang.
+ */
 static int __init reboot_setup(char *str)
 {
-	while(1) {
+	for (;;) {
 		switch (*str) {
-		case 'w': /* "warm" reboot (no memory testing etc) */
+		case 'w':
 			reboot_mode = 0x1234;
 			break;
-		case 'c': /* "cold" reboot (with memory testing etc) */
-			reboot_mode = 0x0;
+
+		case 'c':
+			reboot_mode = 0;
 			break;
-		case 'b': /* "bios" reboot by jumping through the BIOS */
-			reboot_thru_bios = 1;
-			break;
-		case 'h': /* "hard" reboot by toggling RESET and/or crashing the CPU */
-			reboot_thru_bios = 0;
-			break;
+
+#ifdef CONFIG_X86_32
 #ifdef CONFIG_SMP
-		case 's': /* "smp" reboot by executing reset on BSP or other CPU*/
+		case 's':
 			if (isdigit(*(str+1))) {
 				reboot_cpu = (int) (*(str+1) - '0');
 				if (isdigit(*(str+2)))
 					reboot_cpu = reboot_cpu*10 + (int)(*(str+2) - '0');
 			}
-				/* we will leave sorting out the final value 
-				when we are ready to reboot, since we might not
- 				have set up boot_cpu_id or smp_num_cpu */
+				/* we will leave sorting out the final value
+				   when we are ready to reboot, since we might not
+				   have set up boot_cpu_id or smp_num_cpu */
 			break;
+#endif /* CONFIG_SMP */
+
+		case 'b':
 #endif
+		case 'a':
+		case 'k':
+		case 't':
+		case 'e':
+			reboot_type = *str;
+			break;
+
+		case 'f':
+			reboot_force = 1;
+			break;
 		}
-		if((str = strchr(str,',')) != NULL)
+
+		str = strchr(str, ',');
+		if (str)
 			str++;
 		else
 			break;
@@ -68,18 +98,21 @@ static int __init reboot_setup(char *str)
 
 __setup("reboot=", reboot_setup);
 
+
+#ifdef CONFIG_X86_32
 /*
  * Reboot options and system auto-detection code provided by
  * Dell Inc. so their systems "just work". :-)
  */
 
 /*
- * Some machines require the "reboot=b"  commandline option, this quirk makes that automatic.
+ * Some machines require the "reboot=b"  commandline option,
+ * this quirk makes that automatic.
  */
 static int __init set_bios_reboot(const struct dmi_system_id *d)
 {
-	if (!reboot_thru_bios) {
-		reboot_thru_bios = 1;
+	if (reboot_type != BOOT_BIOS) {
+		reboot_type = BOOT_BIOS;
 		printk(KERN_INFO "%s series board detected. Selecting BIOS-method for reboots.\n", d->ident);
 	}
 	return 0;
@@ -143,7 +176,6 @@ static int __init reboot_init(void)
 	dmi_check_system(reboot_dmi_table);
 	return 0;
 }
-
 core_initcall(reboot_init);
 
 /* The following code and data reboots the machine by switching to real
@@ -152,7 +184,6 @@ core_initcall(reboot_init);
    controller to pulse the CPU reset line, which is more thorough, but
    doesn't work with at least one type of 486 motherboard.  It is easy
    to stop this code working; hence the copious comments. */
-
 static unsigned long long
 real_mode_gdt_entries [3] =
 {
@@ -163,9 +194,7 @@ real_mode_gdt_entries [3] =
 
 static struct desc_ptr
 real_mode_gdt = { sizeof (real_mode_gdt_entries) - 1, (long)real_mode_gdt_entries },
-real_mode_idt = { 0x3ff, 0 },
-no_idt = { 0, 0 };
-
+real_mode_idt = { 0x3ff, 0 };
 
 /* This is 16-bit protected mode code to disable paging and the cache,
    switch to real mode and jump to the BIOS reset code.
@@ -185,7 +214,6 @@ no_idt = { 0, 0 };
 
    More could be done here to set up the registers as if a CPU reset had
    occurred; hopefully real BIOSs don't assume much. */
-
 static unsigned char real_mode_switch [] =
 {
 	0x66, 0x0f, 0x20, 0xc0,			/*    movl  %cr0,%eax        */
@@ -223,7 +251,6 @@ void machine_real_restart(unsigned char *code, int length)
 	   `outb_p' is needed instead of just `outb'.  Use it to be on the
 	   safe side.  (Yes, CMOS_WRITE does outb_p's. -  Paul G.)
 	 */
-
 	spin_lock(&rtc_lock);
 	CMOS_WRITE(0x00, 0x8f);
 	spin_unlock(&rtc_lock);
@@ -231,9 +258,8 @@ void machine_real_restart(unsigned char *code, int length)
 	/* Remap the kernel at virtual address zero, as well as offset zero
 	   from the kernel segment.  This assumes the kernel segment starts at
 	   virtual address PAGE_OFFSET. */
-
-	memcpy (swapper_pg_dir, swapper_pg_dir + USER_PGD_PTRS,
-		sizeof (swapper_pg_dir [0]) * KERNEL_PGD_PTRS);
+	memcpy(swapper_pg_dir, swapper_pg_dir + USER_PGD_PTRS,
+		sizeof(swapper_pg_dir [0]) * KERNEL_PGD_PTRS);
 
 	/*
 	 * Use `swapper_pg_dir' as our page directory.
@@ -245,7 +271,6 @@ void machine_real_restart(unsigned char *code, int length)
 	   boot)".  This seems like a fairly standard thing that gets set by
 	   REBOOT.COM programs, and the previous reset routine did this
 	   too. */
-
 	*((unsigned short *)0x472) = reboot_mode;
 
 	/* For the switch to real mode, copy some code to low memory.  It has
@@ -253,19 +278,16 @@ void machine_real_restart(unsigned char *code, int length)
 	   has to have the same physical and virtual address, because it turns
 	   off paging.  Copy it near the end of the first page, out of the way
 	   of BIOS variables. */
-
-	memcpy ((void *) (0x1000 - sizeof (real_mode_switch) - 100),
+	memcpy((void *)(0x1000 - sizeof(real_mode_switch) - 100),
 		real_mode_switch, sizeof (real_mode_switch));
-	memcpy ((void *) (0x1000 - 100), code, length);
+	memcpy((void *)(0x1000 - 100), code, length);
 
 	/* Set up the IDT for real mode. */
-
 	load_idt(&real_mode_idt);
 
 	/* Set up a GDT from which we can load segment descriptors for real
 	   mode.  The GDT is not used in real mode; it is just needed here to
 	   prepare the descriptors. */
-
 	load_gdt(&real_mode_gdt);
 
 	/* Load the data segment registers, and thus the descriptors ready for
@@ -273,7 +295,6 @@ void machine_real_restart(unsigned char *code, int length)
 	   selector value being loaded here.  This is so that the segment
 	   registers don't have to be reloaded after switching to real mode:
 	   the values are consistent for real mode operation already. */
-
 	__asm__ __volatile__ ("movl $0x0010,%%eax\n"
 				"\tmovl %%eax,%%ds\n"
 				"\tmovl %%eax,%%es\n"
@@ -284,130 +305,145 @@ void machine_real_restart(unsigned char *code, int length)
 	/* Jump to the 16-bit code that we copied earlier.  It disables paging
 	   and the cache, switches to real mode, and jumps to the BIOS reset
 	   entry point. */
-
 	__asm__ __volatile__ ("ljmp $0x0008,%0"
 				:
-				: "i" ((void *) (0x1000 - sizeof (real_mode_switch) - 100)));
+				: "i" ((void *)(0x1000 - sizeof (real_mode_switch) - 100)));
 }
 #ifdef CONFIG_APM_MODULE
 EXPORT_SYMBOL(machine_real_restart);
 #endif
 
-static void native_machine_shutdown(void)
+#endif /* CONFIG_X86_32 */
+
+static inline void kb_wait(void)
 {
+	int i;
+
+	for (i = 0; i < 0x10000; i++)
+		if ((inb_p(0x64) & 0x02) == 0)
+			break;
+}
+
+void machine_emergency_restart(void)
+{
+	int i;
+
+	/* Tell the BIOS if we want cold or warm reboot */
+	*((unsigned short *)__va(0x472)) = reboot_mode;
+
+	for (;;) {
+		/* Could also try the reset bit in the Hammer NB */
+		switch (reboot_type) {
+		case BOOT_KBD:
+			for (i = 0; i < 10; i++) {
+				kb_wait();
+				udelay(50);
+				outb(0xfe, 0x64); /* pulse reset low */
+				udelay(50);
+			}
+
+		case BOOT_TRIPLE:
+			load_idt((const struct desc_ptr *)&no_idt);
+			__asm__ __volatile__("int3");
+
+			reboot_type = BOOT_KBD;
+			break;
+
+#ifdef CONFIG_X86_32
+		case BOOT_BIOS:
+			machine_real_restart(jump_to_bios, sizeof(jump_to_bios));
+
+			reboot_type = BOOT_KBD;
+			break;
+#endif
+
+		case BOOT_ACPI:
+			acpi_reboot();
+			reboot_type = BOOT_KBD;
+			break;
+
+
+		case BOOT_EFI:
+			if (efi_enabled)
+				efi.reset_system(reboot_mode ? EFI_RESET_WARM : EFI_RESET_COLD,
+						 EFI_SUCCESS, 0, NULL);
+
+			reboot_type = BOOT_KBD;
+			break;
+		}
+	}
+}
+
+void machine_shutdown(void)
+{
+	/* Stop the cpus and apics */
 #ifdef CONFIG_SMP
 	int reboot_cpu_id;
 
 	/* The boot cpu is always logical cpu 0 */
 	reboot_cpu_id = 0;
 
+#ifdef CONFIG_X86_32
 	/* See if there has been given a command line override */
 	if ((reboot_cpu != -1) && (reboot_cpu < NR_CPUS) &&
-		cpu_isset(reboot_cpu, cpu_online_map)) {
+		cpu_isset(reboot_cpu, cpu_online_map))
 		reboot_cpu_id = reboot_cpu;
-	}
+#endif
 
-	/* Make certain the cpu I'm rebooting on is online */
-	if (!cpu_isset(reboot_cpu_id, cpu_online_map)) {
+	/* Make certain the cpu I'm about to reboot on is online */
+	if (!cpu_isset(reboot_cpu_id, cpu_online_map))
 		reboot_cpu_id = smp_processor_id();
-	}
 
 	/* Make certain I only run on the appropriate processor */
 	set_cpus_allowed(current, cpumask_of_cpu(reboot_cpu_id));
 
-	/* O.K. Now that I'm on the appropriate processor, stop
-	 * all of the others, and disable their local APICs.
+	/* O.K Now that I'm on the appropriate processor,
+	 * stop all of the others.
 	 */
-
 	smp_send_stop();
-#endif /* CONFIG_SMP */
+#endif
 
 	lapic_shutdown();
 
 #ifdef CONFIG_X86_IO_APIC
 	disable_IO_APIC();
 #endif
+
 #ifdef CONFIG_HPET_TIMER
 	hpet_disable();
 #endif
+
+#ifdef CONFIG_X86_64
+	pci_iommu_shutdown();
+#endif
 }
 
-void __attribute__((weak)) mach_reboot_fixups(void)
+void machine_restart(char *__unused)
 {
-}
+	printk("machine restart\n");
 
-static void native_machine_emergency_restart(void)
-{
-	if (!reboot_thru_bios) {
-		if (efi_enabled) {
-			efi.reset_system(EFI_RESET_COLD, EFI_SUCCESS, 0, NULL);
-			load_idt(&no_idt);
-			__asm__ __volatile__("int3");
-		}
-		/* rebooting needs to touch the page at absolute addr 0 */
-		*((unsigned short *)__va(0x472)) = reboot_mode;
-		for (;;) {
-			mach_reboot_fixups(); /* for board specific fixups */
-			mach_reboot();
-			/* That didn't work - force a triple fault.. */
-			load_idt(&no_idt);
-			__asm__ __volatile__("int3");
-		}
-	}
-	if (efi_enabled)
-		efi.reset_system(EFI_RESET_WARM, EFI_SUCCESS, 0, NULL);
-
-	machine_real_restart(jump_to_bios, sizeof(jump_to_bios));
-}
-
-static void native_machine_restart(char * __unused)
-{
-	machine_shutdown();
-	machine_emergency_restart();
-}
-
-static void native_machine_halt(void)
-{
-}
-
-static void native_machine_power_off(void)
-{
-	if (pm_power_off) {
+	if (!reboot_force)
 		machine_shutdown();
-		pm_power_off();
-	}
-}
-
-
-struct machine_ops machine_ops = {
-	.power_off = native_machine_power_off,
-	.shutdown = native_machine_shutdown,
-	.emergency_restart = native_machine_emergency_restart,
-	.restart = native_machine_restart,
-	.halt = native_machine_halt,
-};
-
-void machine_power_off(void)
-{
-	machine_ops.power_off();
-}
-
-void machine_shutdown(void)
-{
-	machine_ops.shutdown();
-}
-
-void machine_emergency_restart(void)
-{
-	machine_ops.emergency_restart();
-}
-
-void machine_restart(char *cmd)
-{
-	machine_ops.restart(cmd);
+	machine_emergency_restart();
 }
 
 void machine_halt(void)
 {
-	machine_ops.halt();
 }
+
+void machine_power_off(void)
+{
+	if (pm_power_off) {
+		if (!reboot_force)
+			machine_shutdown();
+		pm_power_off();
+	}
+}
+
+struct machine_ops machine_ops = {
+	.power_off = machine_power_off,
+	.shutdown = machine_shutdown,
+	.emergency_restart = machine_emergency_restart,
+	.restart = machine_restart,
+	.halt = machine_halt
+};
