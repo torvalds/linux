@@ -240,35 +240,6 @@ void __init setup_node_bootmem(int nodeid, unsigned long start,
 	node_set_online(nodeid);
 }
 
-#ifdef CONFIG_FLAT_NODE_MEM_MAP
-/* Initialize final allocator for a zone */
-static void __init flat_setup_node_zones(int nodeid)
-{
-	unsigned long start_pfn, end_pfn, memmapsize, limit;
-
-	start_pfn = node_start_pfn(nodeid);
-	end_pfn = node_end_pfn(nodeid);
-
-	Dprintk(KERN_INFO "Setting up memmap for node %d %lx-%lx\n",
-		nodeid, start_pfn, end_pfn);
-
-	/*
-	 * Try to allocate mem_map at end to not fill up precious <4GB
-	 * memory.
-	 */
-	memmapsize = sizeof(struct page) * (end_pfn-start_pfn);
-	limit = end_pfn << PAGE_SHIFT;
-
-	NODE_DATA(nodeid)->node_mem_map =
-		__alloc_bootmem_core(NODE_DATA(nodeid)->bdata,
-				     memmapsize, SMP_CACHE_BYTES,
-				     round_down(limit - memmapsize, PAGE_SIZE),
-				     limit);
-}
-#else
-#define flat_setup_node_zones(i) do {} while (0)
-#endif
-
 /*
  * There are unfortunately some poorly designed mainboards around that
  * only connect memory to a single CPU. This breaks the 1:1 cpu->node
@@ -599,9 +570,6 @@ void __init paging_init(void)
 
 	sparse_memory_present_with_active_regions(MAX_NUMNODES);
 	sparse_init();
-
-	for_each_online_node(i)
-		flat_setup_node_zones(i);
 
 	free_area_init_nodes(max_zone_pfns);
 }
