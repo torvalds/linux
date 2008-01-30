@@ -9,6 +9,7 @@
 
 .text
 #include <linux/threads.h>
+#include <linux/init.h>
 #include <linux/linkage.h>
 #include <asm/segment.h>
 #include <asm/page.h>
@@ -151,7 +152,9 @@ WEAK(xen_entry)
 	/* Unknown implementation; there's really
 	   nothing we can do at this point. */
 	ud2a
-.data
+
+	__INITDATA
+
 subarch_entries:
 	.long default_entry		/* normal x86/PC */
 	.long lguest_entry		/* lguest hypervisor */
