@@ -359,25 +359,25 @@ void init_8259A(int auto_eoi)
 	outb(0xff, PIC_SLAVE_IMR);	/* mask all of 8259A-2 */
 
 	/*
-	 * outb_p - this has to work on a wide range of PC hardware.
+	 * outb_pic - this has to work on a wide range of PC hardware.
 	 */
-	outb_p(0x11, PIC_MASTER_CMD);	/* ICW1: select 8259A-1 init */
+	outb_pic(0x11, PIC_MASTER_CMD);	/* ICW1: select 8259A-1 init */
 	/* ICW2: 8259A-1 IR0-7 mapped to 0x30-0x37 */
-	outb_p(IRQ0_VECTOR, PIC_MASTER_IMR);
+	outb_pic(IRQ0_VECTOR, PIC_MASTER_IMR);
 	/* 8259A-1 (the master) has a slave on IR2 */
-	outb_p(0x04, PIC_MASTER_IMR);
+	outb_pic(0x04, PIC_MASTER_IMR);
 	if (auto_eoi)	/* master does Auto EOI */
-		outb_p(MASTER_ICW4_DEFAULT | PIC_ICW4_AEOI, PIC_MASTER_IMR);
+		outb_pic(MASTER_ICW4_DEFAULT | PIC_ICW4_AEOI, PIC_MASTER_IMR);
 	else		/* master expects normal EOI */
-		outb_p(MASTER_ICW4_DEFAULT, PIC_MASTER_IMR);
+		outb_pic(MASTER_ICW4_DEFAULT, PIC_MASTER_IMR);
 
-	outb_p(0x11, PIC_SLAVE_CMD);	/* ICW1: select 8259A-2 init */
+	outb_pic(0x11, PIC_SLAVE_CMD);	/* ICW1: select 8259A-2 init */
 	/* ICW2: 8259A-2 IR0-7 mapped to 0x38-0x3f */
-	outb_p(IRQ8_VECTOR, PIC_SLAVE_IMR);
+	outb_pic(IRQ8_VECTOR, PIC_SLAVE_IMR);
 	/* 8259A-2 is a slave on master's IR2 */
-	outb_p(PIC_CASCADE_IR, PIC_SLAVE_IMR);
+	outb_pic(PIC_CASCADE_IR, PIC_SLAVE_IMR);
 	/* (slave's support for AEOI in flat mode is to be investigated) */
-	outb_p(SLAVE_ICW4_DEFAULT, PIC_SLAVE_IMR);
+	outb_pic(SLAVE_ICW4_DEFAULT, PIC_SLAVE_IMR);
 
 	if (auto_eoi)
 		/*

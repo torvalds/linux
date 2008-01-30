@@ -29,4 +29,7 @@ extern void enable_8259A_irq(unsigned int irq);
 extern void disable_8259A_irq(unsigned int irq);
 extern unsigned int startup_8259A_irq(unsigned int irq);
 
+#define inb_pic		inb_p
+#define outb_pic	outb_p
+
 #endif	/* __ASM_I8259_H__ */
