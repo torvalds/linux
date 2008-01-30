@@ -9,6 +9,11 @@
 #ifdef CONFIG_X86_32
 #define asmlinkage CPP_ASMLINKAGE __attribute__((regparm(0)))
 #define prevent_tail_call(ret) __asm__ ("" : "=r" (ret) : "0" (ret))
+/*
+ * For 32-bit UML - mark functions implemented in assembly that use
+ * regparm input parameters:
+ */
+#define asmregparm __attribute__((regparm(3)))
 #endif
 
 #ifdef CONFIG_X86_ALIGNMENT_16

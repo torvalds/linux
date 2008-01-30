@@ -13,6 +13,10 @@
 #define asmlinkage CPP_ASMLINKAGE
 #endif
 
+#ifndef asmregparm
+# define asmregparm
+#endif
+
 #ifndef prevent_tail_call
 # define prevent_tail_call(ret) do { } while (0)
 #endif
