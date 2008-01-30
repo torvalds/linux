@@ -263,15 +263,16 @@ static int __kprobes is_IF_modifier(kprobe_opcode_t *insn)
 	return 0;
 }
 
-#ifdef CONFIG_X86_64
 /*
  * Adjust the displacement if the instruction uses the %rip-relative
  * addressing mode.
  * If it does, Return the address of the 32-bit displacement word.
  * If not, return null.
+ * Only applicable to 64-bit x86.
  */
 static void __kprobes fix_riprel(struct kprobe *p)
 {
+#ifdef CONFIG_X86_64
 	u8 *insn = p->ainsn.insn;
 	s64 disp;
 	int need_modrm;
@@ -335,15 +336,15 @@ static void __kprobes fix_riprel(struct kprobe *p)
 			*(s32 *)insn = (s32) disp;
 		}
 	}
-}
 #endif
+}
 
 static void __kprobes arch_copy_kprobe(struct kprobe *p)
 {
 	memcpy(p->ainsn.insn, p->addr, MAX_INSN_SIZE * sizeof(kprobe_opcode_t));
-#ifdef CONFIG_X86_64
+
 	fix_riprel(p);
-#endif
+
 	if (can_boost(p->addr))
 		p->ainsn.boostable = 0;
 	else
