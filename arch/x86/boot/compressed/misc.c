@@ -15,6 +15,11 @@
  * we just keep it from happening
  */
 #undef CONFIG_PARAVIRT
+#ifdef CONFIG_X86_64
+#define _LINUX_STRING_H_ 1
+#define __LINUX_BITMAP_H 1
+#endif
+
 #include <linux/linkage.h>
 #include <linux/screen_info.h>
 #include <asm/io.h>
@@ -190,10 +195,20 @@ static void *memcpy(void *dest, const void *src, unsigned n);
 
 static void putstr(const char *);
 
-static unsigned long free_mem_ptr;
-static unsigned long free_mem_end_ptr;
+#ifdef CONFIG_X86_64
+#define memptr long
+#else
+#define memptr unsigned
+#endif
 
+static memptr free_mem_ptr;
+static memptr free_mem_end_ptr;
+
+#ifdef CONFIG_X86_64
+#define HEAP_SIZE             0x7000
+#else
 #define HEAP_SIZE             0x4000
+#endif
 
 static char *vidmem = (char *)0xb8000;
 static int vidport;
@@ -234,7 +249,7 @@ static void gzip_mark(void **ptr)
 
 static void gzip_release(void **ptr)
 {
-	free_mem_ptr = (unsigned long) *ptr;
+	free_mem_ptr = (memptr) *ptr;
 }
  
 static void scroll(void)
@@ -251,8 +266,10 @@ static void putstr(const char *s)
 	int x,y,pos;
 	char c;
 
+#ifdef CONFIG_X86_32
 	if (RM_SCREEN_INFO.orig_video_mode == 0 && lines == 0 && cols == 0)
 		return;
+#endif
 
 	x = RM_SCREEN_INFO.orig_x;
 	y = RM_SCREEN_INFO.orig_y;
@@ -348,7 +365,7 @@ static void error(char *x)
 		asm("hlt");
 }
 
-asmlinkage void decompress_kernel(void *rmode, unsigned long heap,
+asmlinkage void decompress_kernel(void *rmode, memptr heap,
 				  uch *input_data, unsigned long input_len,
 				  uch *output)
 {
@@ -372,6 +389,12 @@ asmlinkage void decompress_kernel(void *rmode, unsigned long heap,
 	insize = input_len;
 	inptr  = 0;
 
+#ifdef CONFIG_X86_64
+	if ((ulg)output & (__KERNEL_ALIGN - 1))
+		error("Destination address not 2M aligned");
+	if ((ulg)output >= 0xffffffffffUL)
+		error("Destination address too large");
+#else
 	if ((u32)output & (CONFIG_PHYSICAL_ALIGN -1))
 		error("Destination address not CONFIG_PHYSICAL_ALIGN aligned");
 	if (heap > ((-__PAGE_OFFSET-(512<<20)-1) & 0x7fffffff))
@@ -379,6 +402,7 @@ asmlinkage void decompress_kernel(void *rmode, unsigned long heap,
 #ifndef CONFIG_RELOCATABLE
 	if ((u32)output != LOAD_PHYSICAL_ADDR)
 		error("Wrong destination address");
+#endif
 #endif
 
 	makecrc();
