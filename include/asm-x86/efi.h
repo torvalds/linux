@@ -32,13 +32,9 @@ extern unsigned long asmlinkage efi_call_phys(void *, ...);
 	efi_call_virt(f, a1, a2, a3, a4, a5)
 #define efi_call_virt6(f, a1, a2, a3, a4, a5, a6)	\
 	efi_call_virt(f, a1, a2, a3, a4, a5, a6)
-/*
- * We require an early boot_ioremap mapping mechanism initially
- */
-extern void *boot_ioremap(unsigned long, unsigned long);
 
-#define efi_early_ioremap(addr, size)		boot_ioremap(addr, size)
-#define efi_early_iounmap(vaddr, size)
+#define efi_early_ioremap(addr, size)		bt_ioremap(addr, size)
+#define efi_early_iounmap(vaddr, size)		bt_iounmap(vaddr, size)
 
 #define efi_ioremap(addr, size)			ioremap(addr, size)
 

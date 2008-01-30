@@ -8,4 +8,3 @@ obj-$(CONFIG_CPA_DEBUG) += pageattr-test.o
 obj-$(CONFIG_NUMA) += discontig_32.o
 obj-$(CONFIG_HUGETLB_PAGE) += hugetlbpage.o
 obj-$(CONFIG_HIGHMEM) += highmem_32.o
-obj-$(CONFIG_BOOT_IOREMAP) += boot_ioremap_32.o

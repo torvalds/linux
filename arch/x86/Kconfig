@@ -1009,12 +1009,6 @@ config IRQBALANCE
 	  The default yes will allow the kernel to do irq load balancing.
 	  Saying no will keep the kernel from doing irq load balancing.
 
-# turning this on wastes a bunch of space.
-# Summit needs it only when NUMA is on
-config BOOT_IOREMAP
-	def_bool y
-	depends on X86_32 && (((X86_SUMMIT || X86_GENERICARCH) && NUMA) || (X86 && EFI))
-
 config SECCOMP
 	def_bool y
 	prompt "Enable seccomp to safely compute untrusted bytecode"
