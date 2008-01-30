@@ -1464,10 +1464,12 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 			dev_set_allmulti(slave_dev, 1);
 		}
 
+		netif_tx_lock_bh(bond_dev);
 		/* upload master's mc_list to new slave */
 		for (dmi = bond_dev->mc_list; dmi; dmi = dmi->next) {
 			dev_mc_add (slave_dev, dmi->dmi_addr, dmi->dmi_addrlen, 0);
 		}
+		netif_tx_unlock_bh(bond_dev);
 	}
 
 	if (bond->params.mode == BOND_MODE_8023AD) {
@@ -1821,7 +1823,9 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 		}
 
 		/* flush master's mc_list from slave */
+		netif_tx_lock_bh(bond_dev);
 		bond_mc_list_flush(bond_dev, slave_dev);
+		netif_tx_unlock_bh(bond_dev);
 	}
 
 	netdev_set_master(slave_dev, NULL);
@@ -1942,7 +1946,9 @@ static int bond_release_all(struct net_device *bond_dev)
 			}
 
 			/* flush master's mc_list from slave */
+			netif_tx_lock_bh(bond_dev);
 			bond_mc_list_flush(bond_dev, slave_dev);
+			netif_tx_unlock_bh(bond_dev);
 		}
 
 		netdev_set_master(slave_dev, NULL);
@@ -3937,8 +3943,6 @@ static void bond_set_multicast_list(struct net_device *bond_dev)
 	struct bonding *bond = bond_dev->priv;
 	struct dev_mc_list *dmi;
 
-	write_lock_bh(&bond->lock);
-
 	/*
 	 * Do promisc before checking multicast_mode
 	 */
@@ -3958,6 +3962,8 @@ static void bond_set_multicast_list(struct net_device *bond_dev)
 	if (!(bond_dev->flags & IFF_ALLMULTI) && (bond->flags & IFF_ALLMULTI)) {
 		bond_set_allmulti(bond, -1);
 	}
+
+	read_lock(&bond->lock);
 
 	bond->flags = bond_dev->flags;
 
@@ -3979,7 +3985,7 @@ static void bond_set_multicast_list(struct net_device *bond_dev)
 	bond_mc_list_destroy(bond);
 	bond_mc_list_copy(bond_dev->mc_list, bond, GFP_ATOMIC);
 
-	write_unlock_bh(&bond->lock);
+	read_unlock(&bond->lock);
 }
 
 /*
@@ -4526,7 +4532,9 @@ static void bond_free_all(void)
 		struct net_device *bond_dev = bond->dev;
 
 		bond_work_cancel_all(bond);
+		netif_tx_lock_bh(bond_dev);
 		bond_mc_list_destroy(bond);
+		netif_tx_unlock_bh(bond_dev);
 		/* Release the bonded slaves */
 		bond_release_all(bond_dev);
 		bond_deinit(bond_dev);
