@@ -655,7 +655,7 @@ static inline void __run_timers(struct tvec_base *base)
 				int preempt_count = preempt_count();
 				fn(data);
 				if (preempt_count != preempt_count()) {
-					printk(KERN_WARNING "huh, entered %p "
+					printk(KERN_ERR "huh, entered %p "
 					       "with preempt_count %08x, exited"
 					       " with %08x?\n",
 					       fn, preempt_count,
