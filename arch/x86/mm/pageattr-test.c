@@ -162,8 +162,8 @@ static __init int exercise_pageattr(void)
 			continue;
 		}
 
-		err = change_page_attr_clear(addr[i], len[i],
-						__pgprot(_PAGE_GLOBAL));
+		err = __change_page_attr_clear(addr[i], len[i],
+					       __pgprot(_PAGE_GLOBAL));
 		if (err < 0) {
 			printk(KERN_ERR "CPA %d failed %d\n", i, err);
 			failed++;
@@ -197,8 +197,8 @@ static __init int exercise_pageattr(void)
 			failed++;
 			continue;
 		}
-		err = change_page_attr_set(addr[i], len[i],
-							__pgprot(_PAGE_GLOBAL));
+		err = __change_page_attr_set(addr[i], len[i],
+					     __pgprot(_PAGE_GLOBAL));
 		if (err < 0) {
 			printk(KERN_ERR "CPA reverting failed: %d\n", err);
 			failed++;

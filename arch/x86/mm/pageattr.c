@@ -301,8 +301,8 @@ static int change_page_attr_addr(unsigned long address, pgprot_t prot)
  * This function is different from change_page_attr() in that only selected bits
  * are impacted, all other bits remain as is.
  */
-static int change_page_attr_set(unsigned long addr, int numpages,
-								pgprot_t prot)
+static int __change_page_attr_set(unsigned long addr, int numpages,
+				  pgprot_t prot)
 {
 	pgprot_t current_prot, new_prot;
 	int level;
@@ -325,7 +325,17 @@ static int change_page_attr_set(unsigned long addr, int numpages,
 			return ret;
 		addr += PAGE_SIZE;
 	}
+
 	return 0;
+}
+
+static int change_page_attr_set(unsigned long addr, int numpages, pgprot_t prot)
+{
+	int ret = __change_page_attr_set(addr, numpages, prot);
+
+	global_flush_tlb();
+	return ret;
+
 }
 
 /**
@@ -347,8 +357,8 @@ static int change_page_attr_set(unsigned long addr, int numpages,
  * This function is different from change_page_attr() in that only selected bits
  * are impacted, all other bits remain as is.
  */
-static int change_page_attr_clear(unsigned long addr, int numpages,
-								pgprot_t prot)
+static int __change_page_attr_clear(unsigned long addr, int numpages,
+				    pgprot_t prot)
 {
 	pgprot_t current_prot, new_prot;
 	int level;
@@ -371,81 +381,59 @@ static int change_page_attr_clear(unsigned long addr, int numpages,
 			return ret;
 		addr += PAGE_SIZE;
 	}
+
 	return 0;
+}
+
+static int change_page_attr_clear(unsigned long addr, int numpages,
+				  pgprot_t prot)
+{
+	int ret = __change_page_attr_clear(addr, numpages, prot);
+
+	global_flush_tlb();
+	return ret;
+
 }
 
 int set_memory_uc(unsigned long addr, int numpages)
 {
-	int err;
-
-	err = change_page_attr_set(addr, numpages,
-				__pgprot(_PAGE_PCD | _PAGE_PWT));
-	global_flush_tlb();
-	return err;
+	return change_page_attr_set(addr, numpages,
+				    __pgprot(_PAGE_PCD | _PAGE_PWT));
 }
 EXPORT_SYMBOL(set_memory_uc);
 
 int set_memory_wb(unsigned long addr, int numpages)
 {
-	int err;
-
-	err = change_page_attr_clear(addr, numpages,
-				__pgprot(_PAGE_PCD | _PAGE_PWT));
-	global_flush_tlb();
-	return err;
+	return change_page_attr_clear(addr, numpages,
+				      __pgprot(_PAGE_PCD | _PAGE_PWT));
 }
 EXPORT_SYMBOL(set_memory_wb);
 
 int set_memory_x(unsigned long addr, int numpages)
 {
-	int err;
-
-	err = change_page_attr_clear(addr, numpages,
-				__pgprot(_PAGE_NX));
-	global_flush_tlb();
-	return err;
+	return change_page_attr_clear(addr, numpages, __pgprot(_PAGE_NX));
 }
 EXPORT_SYMBOL(set_memory_x);
 
 int set_memory_nx(unsigned long addr, int numpages)
 {
-	int err;
-
-	err = change_page_attr_set(addr, numpages,
-				__pgprot(_PAGE_NX));
-	global_flush_tlb();
-	return err;
+	return change_page_attr_set(addr, numpages, __pgprot(_PAGE_NX));
 }
 EXPORT_SYMBOL(set_memory_nx);
 
 int set_memory_ro(unsigned long addr, int numpages)
 {
-	int err;
-
-	err = change_page_attr_clear(addr, numpages,
-				__pgprot(_PAGE_RW));
-	global_flush_tlb();
-	return err;
+	return change_page_attr_clear(addr, numpages, __pgprot(_PAGE_RW));
 }
 
 int set_memory_rw(unsigned long addr, int numpages)
 {
-	int err;
-
-	err = change_page_attr_set(addr, numpages,
-				__pgprot(_PAGE_RW));
-	global_flush_tlb();
-	return err;
+	return change_page_attr_set(addr, numpages, __pgprot(_PAGE_RW));
 }
 
 int set_memory_np(unsigned long addr, int numpages)
 {
-	int err;
-
-	err = change_page_attr_clear(addr, numpages,
-				__pgprot(_PAGE_PRESENT));
-	global_flush_tlb();
-	return err;
+	return change_page_attr_clear(addr, numpages, __pgprot(_PAGE_PRESENT));
 }
 
 int set_pages_uc(struct page *page, int numpages)
@@ -500,14 +488,17 @@ int set_pages_rw(struct page *page, int numpages)
 static int __set_pages_p(struct page *page, int numpages)
 {
 	unsigned long addr = (unsigned long)page_address(page);
-	return change_page_attr_set(addr, numpages,
-				__pgprot(_PAGE_PRESENT | _PAGE_RW));
+
+	return __change_page_attr_set(addr, numpages,
+				      __pgprot(_PAGE_PRESENT | _PAGE_RW));
 }
 
 static int __set_pages_np(struct page *page, int numpages)
 {
 	unsigned long addr = (unsigned long)page_address(page);
-	return change_page_attr_clear(addr, numpages, __pgprot(_PAGE_PRESENT));
+
+	return __change_page_attr_clear(addr, numpages,
+					__pgprot(_PAGE_PRESENT));
 }
 
 void kernel_map_pages(struct page *page, int numpages, int enable)
