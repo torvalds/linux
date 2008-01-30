@@ -591,6 +591,7 @@ static int ptrace_bts_clear(struct task_struct *child)
 }
 
 static int ptrace_bts_drain(struct task_struct *child,
+			    long size,
 			    struct bts_struct __user *out)
 {
 	int end, i;
@@ -602,6 +603,9 @@ static int ptrace_bts_drain(struct task_struct *child,
 	end = ds_get_bts_index(ds);
 	if (end <= 0)
 		return end;
+
+	if (size < (end * sizeof(struct bts_struct)))
+		return -EIO;
 
 	for (i = 0; i < end; i++, out++) {
 		struct bts_struct ret;
@@ -617,7 +621,7 @@ static int ptrace_bts_drain(struct task_struct *child,
 
 	ds_clear(ds);
 
-	return i;
+	return end;
 }
 
 static int ptrace_bts_realloc(struct task_struct *child,
@@ -690,14 +694,21 @@ out:
 }
 
 static int ptrace_bts_config(struct task_struct *child,
+			     long cfg_size,
 			     const struct ptrace_bts_config __user *ucfg)
 {
 	struct ptrace_bts_config cfg;
 	int bts_size, ret = 0;
 	void *ds;
 
+	if (cfg_size < sizeof(cfg))
+		return -EIO;
+
 	if (copy_from_user(&cfg, ucfg, sizeof(cfg)))
 		return -EFAULT;
+
+	if ((int)cfg.size < 0)
+		return -EINVAL;
 
 	bts_size = 0;
 	ds = (void *)child->thread.ds_area_msr;
@@ -734,6 +745,8 @@ static int ptrace_bts_config(struct task_struct *child,
 	else
 		clear_tsk_thread_flag(child, TIF_BTS_TRACE_TS);
 
+	ret = sizeof(cfg);
+
 out:
 	if (child->thread.debugctlmsr)
 		set_tsk_thread_flag(child, TIF_DEBUGCTLMSR);
@@ -749,10 +762,14 @@ errout:
 }
 
 static int ptrace_bts_status(struct task_struct *child,
+			     long cfg_size,
 			     struct ptrace_bts_config __user *ucfg)
 {
 	void *ds = (void *)child->thread.ds_area_msr;
 	struct ptrace_bts_config cfg;
+
+	if (cfg_size < sizeof(cfg))
+		return -EIO;
 
 	memset(&cfg, 0, sizeof(cfg));
 
@@ -923,12 +940,12 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 	case PTRACE_BTS_CONFIG:
 		ret = ptrace_bts_config
-			(child, (struct ptrace_bts_config __user *)addr);
+			(child, data, (struct ptrace_bts_config __user *)addr);
 		break;
 
 	case PTRACE_BTS_STATUS:
 		ret = ptrace_bts_status
-			(child, (struct ptrace_bts_config __user *)addr);
+			(child, data, (struct ptrace_bts_config __user *)addr);
 		break;
 
 	case PTRACE_BTS_SIZE:
@@ -946,7 +963,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 	case PTRACE_BTS_DRAIN:
 		ret = ptrace_bts_drain
-			(child, (struct bts_struct __user *) addr);
+			(child, data, (struct bts_struct __user *) addr);
 		break;
 
 	default:

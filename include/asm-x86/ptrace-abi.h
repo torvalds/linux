@@ -99,13 +99,15 @@ struct ptrace_bts_config {
 
 #define PTRACE_BTS_CONFIG	40
 /* Configure branch trace recording.
-   DATA is ignored, ADDR points to a struct ptrace_bts_config.
+   ADDR points to a struct ptrace_bts_config.
+   DATA gives the size of that buffer.
    A new buffer is allocated, iff the size changes.
+   Returns the number of bytes read.
 */
 #define PTRACE_BTS_STATUS	41
-/* Return the current configuration.
-   DATA is ignored, ADDR points to a struct ptrace_bts_config
-   that will contain the result.
+/* Return the current configuration in a struct ptrace_bts_config
+   pointed to by ADDR; DATA gives the size of that buffer.
+   Returns the number of bytes written.
 */
 #define PTRACE_BTS_SIZE		42
 /* Return the number of available BTS records.
@@ -123,8 +125,8 @@ struct ptrace_bts_config {
 */
 #define PTRACE_BTS_DRAIN	45
 /* Read all available BTS records and clear the buffer.
-   DATA is ignored. ADDR points to an array of struct bts_struct of
-   suitable size.
+   ADDR points to an array of struct bts_struct.
+   DATA gives the size of that buffer.
    BTS records are read from oldest to newest.
    Returns number of BTS records drained.
 */
