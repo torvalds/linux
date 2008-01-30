@@ -203,7 +203,7 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 	}
 #endif
 
-	if (cpu_has_xmm)
+	if (cpu_has_xmm2)
 		set_bit(X86_FEATURE_LFENCE_RDTSC, c->x86_capability);
 	if (c->x86 == 15) {
 		set_bit(X86_FEATURE_P4, c->x86_capability);
