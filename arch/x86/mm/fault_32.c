@@ -249,7 +249,7 @@ static int is_prefetch(struct pt_regs *regs, unsigned long addr,
 	return prefetch;
 }
 
-static noinline void force_sig_info_fault(int si_signo, int si_code,
+static void force_sig_info_fault(int si_signo, int si_code,
 	unsigned long address, struct task_struct *tsk)
 {
 	siginfo_t info;

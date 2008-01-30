@@ -252,6 +252,18 @@ static int is_prefetch(struct pt_regs *regs, unsigned long addr,
 	return prefetch;
 }
 
+static void force_sig_info_fault(int si_signo, int si_code,
+	unsigned long address, struct task_struct *tsk)
+{
+	siginfo_t info;
+
+	info.si_signo = si_signo;
+	info.si_errno = 0;
+	info.si_code = si_code;
+	info.si_addr = (void __user *)address;
+	force_sig_info(si_signo, &info, tsk);
+}
+
 static int bad_address(void *p)
 {
 	unsigned long dummy;
@@ -415,7 +427,7 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 	unsigned long address;
 	int write, fault;
 	unsigned long flags;
-	siginfo_t info;
+	int si_code;
 
 	/*
 	 * We can fault from pretty much anywhere, with unknown IRQ state.
@@ -429,7 +441,7 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 	/* get the address */
 	address = read_cr2();
 
-	info.si_code = SEGV_MAPERR;
+	si_code = SEGV_MAPERR;
 
 
 	/*
@@ -532,7 +544,7 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
  * we can handle it..
  */
 good_area:
-	info.si_code = SEGV_ACCERR;
+	si_code = SEGV_ACCERR;
 	write = 0;
 	switch (error_code & (PF_PROT|PF_WRITE)) {
 	default:	/* 3: write, present */
@@ -611,11 +623,8 @@ bad_area_nosemaphore:
 		/* Kernel addresses are always protection faults */
 		tsk->thread.error_code = error_code | (address >= TASK_SIZE);
 		tsk->thread.trap_no = 14;
-		info.si_signo = SIGSEGV;
-		info.si_errno = 0;
-		/* info.si_code has been set above */
-		info.si_addr = (void __user *)address;
-		force_sig_info(SIGSEGV, &info, tsk);
+
+		force_sig_info_fault(SIGSEGV, si_code, address, tsk);
 		return;
 	}
 
@@ -682,11 +691,7 @@ do_sigbus:
 	tsk->thread.cr2 = address;
 	tsk->thread.error_code = error_code;
 	tsk->thread.trap_no = 14;
-	info.si_signo = SIGBUS;
-	info.si_errno = 0;
-	info.si_code = BUS_ADRERR;
-	info.si_addr = (void __user *)address;
-	force_sig_info(SIGBUS, &info, tsk);
+	force_sig_info_fault(SIGBUS, BUS_ADRERR, address, tsk);
 	return;
 }
 
