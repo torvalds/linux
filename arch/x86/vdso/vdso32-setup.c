@@ -377,6 +377,39 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int exstack)
 
 __initcall(sysenter_setup);
 
+#ifdef CONFIG_SYSCTL
+/* Register vsyscall32 into the ABI table */
+#include <linux/sysctl.h>
+
+static ctl_table abi_table2[] = {
+	{
+		.procname	= "vsyscall32",
+		.data		= &sysctl_vsyscall32,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec
+	},
+	{}
+};
+
+static ctl_table abi_root_table2[] = {
+	{
+		.ctl_name = CTL_ABI,
+		.procname = "abi",
+		.mode = 0555,
+		.child = abi_table2
+	},
+	{}
+};
+
+static __init int ia32_binfmt_init(void)
+{
+	register_sysctl_table(abi_root_table2);
+	return 0;
+}
+__initcall(ia32_binfmt_init);
+#endif
+
 #else  /* CONFIG_X86_32 */
 
 const char *arch_vma_name(struct vm_area_struct *vma)

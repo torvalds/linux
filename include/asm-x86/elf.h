@@ -73,6 +73,9 @@ typedef struct user_fxsr_struct elf_fpxregset_t;
 #endif
 
 #ifdef __KERNEL__
+#include <asm/vdso.h>
+
+extern unsigned int vdso_enabled;
 
 /*
  * This is used to ensure we don't load something for the wrong architecture.
@@ -84,7 +87,6 @@ typedef struct user_fxsr_struct elf_fpxregset_t;
 #include <asm/processor.h>
 #include <asm/system.h>		/* for savesegment */
 #include <asm/desc.h>
-#include <asm/vdso.h>
 
 #define elf_check_arch(x)	elf_check_arch_ia32(x)
 
@@ -106,7 +108,6 @@ typedef struct user_fxsr_struct elf_fpxregset_t;
 
 #define ELF_PLATFORM	(utsname()->machine)
 #define set_personality_64bit()	do { } while (0)
-extern unsigned int vdso_enabled;
 
 #else /* CONFIG_X86_32 */
 
@@ -118,29 +119,57 @@ extern unsigned int vdso_enabled;
 #define elf_check_arch(x) \
 	((x)->e_machine == EM_X86_64)
 
+#define compat_elf_check_arch(x)	elf_check_arch_ia32(x)
+
+static inline void start_ia32_thread(struct pt_regs *regs, u32 ip, u32 sp)
+{
+	asm volatile("movl %0,%%fs" :: "r" (0));
+	asm volatile("movl %0,%%es; movl %0,%%ds" : : "r" (__USER32_DS));
+	load_gs_index(0);
+	regs->ip = ip;
+	regs->sp = sp;
+	regs->flags = X86_EFLAGS_IF;
+	regs->cs = __USER32_CS;
+	regs->ss = __USER32_DS;
+}
+
+static inline void elf_common_init(struct thread_struct *t,
+				   struct pt_regs *regs, const u16 ds)
+{
+	regs->ax = regs->bx = regs->cx = regs->dx = 0;
+	regs->si = regs->di = regs->bp = 0;
+	regs->r8 = regs->r9 = regs->r10 = regs->r11 = 0;
+	regs->r12 = regs->r13 = regs->r14 = regs->r15 = 0;
+	t->fs = t->gs = 0;
+	t->fsindex = t->gsindex = 0;
+	t->ds = t->es = ds;
+}
+
 #define ELF_PLAT_INIT(_r, load_addr)	do {		  \
-	struct task_struct *cur = current;		  \
-	(_r)->bx = 0; (_r)->cx = 0; (_r)->dx = 0;	  \
-	(_r)->si = 0; (_r)->di = 0; (_r)->bp = 0;	  \
-	(_r)->ax = 0;					  \
-	(_r)->r8 = 0;					  \
-	(_r)->r9 = 0;					  \
-	(_r)->r10 = 0;					  \
-	(_r)->r11 = 0;					  \
-	(_r)->r12 = 0;					  \
-	(_r)->r13 = 0;					  \
-	(_r)->r14 = 0;					  \
-	(_r)->r15 = 0;					  \
-	cur->thread.fs = 0; cur->thread.gs = 0;		  \
-	cur->thread.fsindex = 0; cur->thread.gsindex = 0; \
-	cur->thread.ds = 0; cur->thread.es = 0;		  \
+	elf_common_init(&current->thread, _r, 0);	  \
 	clear_thread_flag(TIF_IA32);			  \
 } while (0)
+
+#define	COMPAT_ELF_PLAT_INIT(regs, load_addr)	\
+	elf_common_init(&current->thread, regs, __USER_DS)
+#define	compat_start_thread(regs, ip, sp)	do {		\
+		start_ia32_thread(regs, ip, sp);		\
+		set_fs(USER_DS);				\
+	} while (0)
+#define COMPAT_SET_PERSONALITY(ex, ibcs2)	do {		\
+		if (test_thread_flag(TIF_IA32))			\
+			clear_thread_flag(TIF_ABI_PENDING);	\
+		else						\
+			set_thread_flag(TIF_ABI_PENDING);	\
+		current->personality |= force_personality32;	\
+	} while (0)
+#define COMPAT_ELF_PLATFORM			("i686")
 
 /* I'm not sure if we can use '-' here */
 #define ELF_PLATFORM       ("x86_64")
 extern void set_personality_64bit(void);
-extern int vdso_enabled;
+extern unsigned int sysctl_vsyscall32;
+extern int force_personality32;
 
 #endif /* !CONFIG_X86_32 */
 
@@ -179,17 +208,19 @@ extern int vdso_enabled;
 
 struct task_struct;
 
-#ifdef CONFIG_X86_32
-
-#define VDSO_HIGH_BASE		(__fix_to_virt(FIX_VDSO))
-
-/* update AT_VECTOR_SIZE_ARCH if the number of NEW_AUX_ENT entries changes */
-
-#define ARCH_DLINFO \
+#define	ARCH_DLINFO_IA32(vdso_enabled) \
 do if (vdso_enabled) {							\
 		NEW_AUX_ENT(AT_SYSINFO,	VDSO_ENTRY);			\
 		NEW_AUX_ENT(AT_SYSINFO_EHDR, VDSO_CURRENT_BASE);	\
 } while (0)
+
+#ifdef CONFIG_X86_32
+
+#define VDSO_HIGH_BASE		(__fix_to_virt(FIX_VDSO))
+
+#define ARCH_DLINFO		ARCH_DLINFO_IA32(vdso_enabled)
+
+/* update AT_VECTOR_SIZE_ARCH if the number of NEW_AUX_ENT entries changes */
 
 #else /* CONFIG_X86_32 */
 
@@ -203,6 +234,12 @@ do if (vdso_enabled) {						\
 	NEW_AUX_ENT(AT_SYSINFO_EHDR,(unsigned long)current->mm->context.vdso);\
 } while (0)
 
+#define AT_SYSINFO		32
+
+#define COMPAT_ARCH_DLINFO	ARCH_DLINFO_IA32(sysctl_vsyscall32)
+
+#define COMPAT_ELF_ET_DYN_BASE	(TASK_UNMAPPED_BASE + 0x1000000)
+
 #endif /* !CONFIG_X86_32 */
 
 #define VDSO_CURRENT_BASE	((unsigned long)current->mm->context.vdso)
@@ -215,6 +252,9 @@ struct linux_binprm;
 #define ARCH_HAS_SETUP_ADDITIONAL_PAGES 1
 extern int arch_setup_additional_pages(struct linux_binprm *bprm,
 				       int executable_stack);
+
+extern int syscall32_setup_pages(struct linux_binprm *, int exstack);
+#define compat_arch_setup_additional_pages	syscall32_setup_pages
 
 extern unsigned long arch_randomize_brk(struct mm_struct *mm);
 #define arch_randomize_brk arch_randomize_brk

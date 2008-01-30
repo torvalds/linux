@@ -1532,6 +1532,7 @@ source "fs/Kconfig.binfmt"
 config IA32_EMULATION
 	bool "IA32 Emulation"
 	depends on X86_64
+	select COMPAT_BINFMT_ELF
 	help
 	  Include code to run 32-bit programs under a 64-bit kernel. You should
 	  likely turn this on, unless you're 100% sure that you don't have any
