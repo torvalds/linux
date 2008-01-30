@@ -38,6 +38,8 @@ SECTIONS
 
   /* read-only */
   .text : AT(ADDR(.text) - LOAD_OFFSET) {
+	. = ALIGN(4096); /* not really needed, already page aligned */
+	*(.text.page_aligned)
 	TEXT_TEXT
 	SCHED_TEXT
 	LOCK_TEXT
