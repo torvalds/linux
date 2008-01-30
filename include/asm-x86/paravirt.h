@@ -101,6 +101,11 @@ struct pv_cpu_ops {
 	unsigned long (*read_cr4)(void);
 	void (*write_cr4)(unsigned long);
 
+#ifdef CONFIG_X86_64
+	unsigned long (*read_cr8)(void);
+	void (*write_cr8)(unsigned long);
+#endif
+
 	/* Segment descriptor handling */
 	void (*load_tr_desc)(void);
 	void (*load_gdt)(const struct desc_ptr *);
@@ -612,6 +617,16 @@ static inline unsigned long read_cr4_safe(void)
 static inline void write_cr4(unsigned long x)
 {
 	PVOP_VCALL1(pv_cpu_ops.write_cr4, x);
+}
+
+static inline unsigned long read_cr8(void)
+{
+	return PVOP_CALL0(unsigned long, pv_cpu_ops.read_cr8);
+}
+
+static inline void write_cr8(unsigned long x)
+{
+	PVOP_VCALL1(pv_cpu_ops.write_cr8, x);
 }
 
 static inline void raw_safe_halt(void)
