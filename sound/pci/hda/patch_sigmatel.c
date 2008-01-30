@@ -2283,15 +2283,23 @@ static int stac92xx_auto_create_multi_out_ctls(struct hda_codec *codec,
 	}
 
 	if (spec->mic_switch) {
+		unsigned int def_conf;
 		nid = cfg->input_pins[AUTO_PIN_MIC];
-		pincap = snd_hda_param_read(codec, nid,
-						AC_PAR_PIN_CAP);
-		if (pincap & AC_PINCAP_OUT) {
-			err = stac92xx_add_control(spec,
-				STAC_CTL_WIDGET_IO_SWITCH,
-				"Mic as Output Switch", (nid << 8) | 1);
-			if (err < 0)
-				return err;
+		def_conf = snd_hda_codec_read(codec, nid, 0,
+						AC_VERB_GET_CONFIG_DEFAULT, 0);
+
+		/* some laptops have an internal analog microphone
+		 * which can't be used as a output */
+		if (get_defcfg_connect(def_conf) != AC_JACK_PORT_FIXED) {
+			pincap = snd_hda_param_read(codec, nid,
+							AC_PAR_PIN_CAP);
+			if (pincap & AC_PINCAP_OUT) {
+				err = stac92xx_add_control(spec,
+					STAC_CTL_WIDGET_IO_SWITCH,
+					"Mic as Output Switch", (nid << 8) | 1);
+				if (err < 0)
+					return err;
+			}
 		}
 	}
 
