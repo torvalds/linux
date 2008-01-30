@@ -281,7 +281,7 @@ static void mwait_idle(void)
 }
 
 
-static int mwait_usable(const struct cpuinfo_x86 *c)
+static int __cpuinit mwait_usable(const struct cpuinfo_x86 *c)
 {
 	if (force_mwait)
 		return 1;
