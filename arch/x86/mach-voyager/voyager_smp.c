@@ -808,7 +808,7 @@ static DEFINE_SPINLOCK(tlbstate_lock);
  * We need to reload %cr3 since the page tables may be going
  * away from under us..
  */
-static inline void leave_mm(unsigned long cpu)
+static inline void voyager_leave_mm(unsigned long cpu)
 {
 	if (per_cpu(cpu_tlbstate, cpu).state == TLBSTATE_OK)
 		BUG();
@@ -838,7 +838,7 @@ static void smp_invalidate_interrupt(void)
 			else
 				__flush_tlb_one(flush_va);
 		} else
-			leave_mm(cpu);
+			voyager_leave_mm(cpu);
 	}
 	smp_mb__before_clear_bit();
 	clear_bit(cpu, &smp_invalidate_needed);
@@ -919,7 +919,7 @@ void flush_tlb_mm(struct mm_struct *mm)
 		if (current->mm)
 			local_flush_tlb();
 		else
-			leave_mm(smp_processor_id());
+			voyager_leave_mm(smp_processor_id());
 	}
 	if (cpu_mask)
 		voyager_flush_tlb_others(cpu_mask, mm, TLB_FLUSH_ALL);
@@ -939,7 +939,7 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long va)
 		if (current->mm)
 			__flush_tlb_one(va);
 		else
-			leave_mm(smp_processor_id());
+			voyager_leave_mm(smp_processor_id());
 	}
 
 	if (cpu_mask)
@@ -1155,7 +1155,7 @@ static void do_flush_tlb_all(void *info)
 
 	__flush_tlb_all();
 	if (per_cpu(cpu_tlbstate, cpu).state == TLBSTATE_LAZY)
-		leave_mm(cpu);
+		voyager_leave_mm(cpu);
 }
 
 /* flush the TLB of every active CPU in the system */
