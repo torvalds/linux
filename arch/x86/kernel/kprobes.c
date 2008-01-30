@@ -494,32 +494,28 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 	preempt_disable();
 	kcb = get_kprobe_ctlblk();
 
-	/* Check we're not actually recursing */
-	if (kprobe_running()) {
-		p = get_kprobe(addr);
-		if (p) {
+	p = get_kprobe(addr);
+	if (p) {
+		/* Check we're not actually recursing */
+		if (kprobe_running()) {
 			ret = reenter_kprobe(p, regs, kcb);
 			if (kcb->kprobe_status == KPROBE_REENTER)
-				return 1;
-		} else {
-			if (*addr != BREAKPOINT_INSTRUCTION) {
-			/* The breakpoint instruction was removed by
-			 * another cpu right after we hit, no further
-			 * handling of this interrupt is appropriate
-			 */
-				regs->ip = (unsigned long)addr;
+			{
 				ret = 1;
-				goto no_kprobe;
+				goto out;
 			}
-			p = __get_cpu_var(current_kprobe);
-			if (p->break_handler && p->break_handler(p, regs))
-				goto ss_probe;
+			goto preempt_out;
+		} else {
+			set_current_kprobe(p, regs, kcb);
+			kcb->kprobe_status = KPROBE_HIT_ACTIVE;
+			if (p->pre_handler && p->pre_handler(p, regs))
+			{
+				/* handler set things up, skip ss setup */
+				ret = 1;
+				goto out;
+			}
 		}
-		goto no_kprobe;
-	}
-
-	p = get_kprobe(addr);
-	if (!p) {
+	} else {
 		if (*addr != BREAKPOINT_INSTRUCTION) {
 			/*
 			 * The breakpoint instruction was removed right
@@ -532,34 +528,34 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 			 */
 			regs->ip = (unsigned long)addr;
 			ret = 1;
+			goto preempt_out;
+		}
+		if (kprobe_running()) {
+			p = __get_cpu_var(current_kprobe);
+			if (p->break_handler && p->break_handler(p, regs))
+				goto ss_probe;
 		}
 		/* Not one of ours: let kernel handle it */
-		goto no_kprobe;
+		goto preempt_out;
 	}
 
-	set_current_kprobe(p, regs, kcb);
-	kcb->kprobe_status = KPROBE_HIT_ACTIVE;
-
-	if (p->pre_handler && p->pre_handler(p, regs))
-		/* handler has already set things up, so skip ss setup */
-		return 1;
-
 ss_probe:
+	ret = 1;
 #if !defined(CONFIG_PREEMPT) || defined(CONFIG_PM)
 	if (p->ainsn.boostable == 1 && !p->post_handler) {
 		/* Boost up -- we can execute copied instructions directly */
 		reset_current_kprobe();
 		regs->ip = (unsigned long)p->ainsn.insn;
-		preempt_enable_no_resched();
-		return 1;
+		goto preempt_out;
 	}
 #endif
 	prepare_singlestep(p, regs);
 	kcb->kprobe_status = KPROBE_HIT_SS;
-	return 1;
+	goto out;
 
-no_kprobe:
+preempt_out:
 	preempt_enable_no_resched();
+out:
 	return ret;
 }
 
