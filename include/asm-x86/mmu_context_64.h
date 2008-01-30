@@ -49,7 +49,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	else {
 		write_pda(mmu_state, TLBSTATE_OK);
 		if (read_pda(active_mm) != next)
-			out_of_line_bug();
+			BUG();
 		if (!cpu_test_and_set(cpu, next->cpu_vm_mask)) {
 			/* We were in lazy tlb mode and leave_mm disabled 
 			 * tlb flush IPI delivery. We must reload CR3

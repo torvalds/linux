@@ -461,14 +461,6 @@ int is_valid_bugaddr(unsigned long rip)
 	return ud2 == 0x0b0f;
 }
 
-#ifdef CONFIG_BUG
-void out_of_line_bug(void)
-{ 
-	BUG(); 
-} 
-EXPORT_SYMBOL(out_of_line_bug);
-#endif
-
 static raw_spinlock_t die_lock = __RAW_SPIN_LOCK_UNLOCKED;
 static int die_owner = -1;
 static unsigned int die_nest_count;

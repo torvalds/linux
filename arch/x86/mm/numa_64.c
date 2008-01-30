@@ -624,7 +624,6 @@ void __init init_cpu_to_node(void)
 
 EXPORT_SYMBOL(cpu_to_node);
 EXPORT_SYMBOL(node_to_cpumask);
-EXPORT_SYMBOL(memnode);
 EXPORT_SYMBOL(node_data);
 
 #ifdef CONFIG_DISCONTIGMEM

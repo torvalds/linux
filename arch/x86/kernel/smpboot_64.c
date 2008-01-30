@@ -78,8 +78,6 @@ EXPORT_SYMBOL(cpu_online_map);
  */
 cpumask_t cpu_callin_map;
 cpumask_t cpu_callout_map;
-EXPORT_SYMBOL(cpu_callout_map);
-
 cpumask_t cpu_possible_map;
 EXPORT_SYMBOL(cpu_possible_map);
 
