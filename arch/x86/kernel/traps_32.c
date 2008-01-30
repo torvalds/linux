@@ -1142,11 +1142,11 @@ void __init trap_init(void)
 	int i;
 
 #ifdef CONFIG_EISA
-	void __iomem *p = ioremap(0x0FFFD9, 4);
+	void __iomem *p = early_ioremap(0x0FFFD9, 4);
 	if (readl(p) == 'E'+('I'<<8)+('S'<<16)+('A'<<24)) {
 		EISA_bus = 1;
 	}
-	iounmap(p);
+	early_iounmap(p, 4);
 #endif
 
 #ifdef CONFIG_X86_LOCAL_APIC
