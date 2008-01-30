@@ -240,7 +240,7 @@ extern struct list_head pgd_list;
 
 extern int kern_addr_valid(unsigned long addr); 
 
-pte_t *lookup_address(unsigned long addr);
+pte_t *lookup_address(unsigned long addr, int *level);
 
 #define io_remap_pfn_range(vma, vaddr, pfn, size, prot)		\
 		remap_pfn_range(vma, vaddr, pfn, size, prot)

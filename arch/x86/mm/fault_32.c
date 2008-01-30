@@ -613,7 +613,8 @@ no_context:
 
 #ifdef CONFIG_X86_PAE
 		if (error_code & PF_INSTR) {
-			pte_t *pte = lookup_address(address);
+			int level;
+			pte_t *pte = lookup_address(address, &level);
 
 			if (pte && pte_present(*pte) && !pte_exec(*pte))
 				printk(KERN_CRIT "kernel tried to execute "

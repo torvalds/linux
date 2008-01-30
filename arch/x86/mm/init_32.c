@@ -535,11 +535,12 @@ int __init set_kernel_exec(unsigned long vaddr, int enable)
 {
 	pte_t *pte;
 	int ret = 1;
+	int level;
 
 	if (!nx_enabled)
 		goto out;
 
-	pte = lookup_address(vaddr);
+	pte = lookup_address(vaddr, &level);
 	BUG_ON(!pte);
 
 	if (!pte_exec(*pte))

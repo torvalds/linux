@@ -18,7 +18,7 @@
 static DEFINE_SPINLOCK(cpa_lock);
 static struct list_head df_list = LIST_HEAD_INIT(df_list);
 
-pte_t *lookup_address(unsigned long address)
+pte_t *lookup_address(unsigned long address, int *level)
 {
 	pgd_t *pgd = pgd_offset_k(address);
 	pud_t *pud;
@@ -32,8 +32,10 @@ pte_t *lookup_address(unsigned long address)
 	pmd = pmd_offset(pud, address);
 	if (pmd_none(*pmd))
 		return NULL;
+	*level = 2;
 	if (pmd_large(*pmd))
 		return (pte_t *)pmd;
+	*level = 3;
 
 	return pte_offset_kernel(pmd, address);
 }
@@ -156,11 +158,12 @@ static int __change_page_attr(struct page *page, pgprot_t prot)
 	struct page *kpte_page;
 	unsigned long address;
 	pte_t *kpte;
+	int level;
 
 	BUG_ON(PageHighMem(page));
 	address = (unsigned long)page_address(page);
 
-	kpte = lookup_address(address);
+	kpte = lookup_address(address, &level);
 	if (!kpte)
 		return -EINVAL;
 

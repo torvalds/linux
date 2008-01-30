@@ -58,7 +58,8 @@
 
 xmaddr_t arbitrary_virt_to_machine(unsigned long address)
 {
-	pte_t *pte = lookup_address(address);
+	int level;
+	pte_t *pte = lookup_address(address, &level);
 	unsigned offset = address & PAGE_MASK;
 
 	BUG_ON(pte == NULL);
@@ -70,8 +71,9 @@ void make_lowmem_page_readonly(void *vaddr)
 {
 	pte_t *pte, ptev;
 	unsigned long address = (unsigned long)vaddr;
+	int level;
 
-	pte = lookup_address(address);
+	pte = lookup_address(address, &level);
 	BUG_ON(pte == NULL);
 
 	ptev = pte_wrprotect(*pte);
@@ -84,8 +86,9 @@ void make_lowmem_page_readwrite(void *vaddr)
 {
 	pte_t *pte, ptev;
 	unsigned long address = (unsigned long)vaddr;
+	int level;
 
-	pte = lookup_address(address);
+	pte = lookup_address(address, &level);
 	BUG_ON(pte == NULL);
 
 	ptev = pte_mkwrite(*pte);

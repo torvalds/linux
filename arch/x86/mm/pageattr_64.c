@@ -14,7 +14,7 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
-pte_t *lookup_address(unsigned long address)
+pte_t *lookup_address(unsigned long address, int *level)
 {
 	pgd_t *pgd = pgd_offset_k(address);
 	pud_t *pud;
@@ -29,8 +29,10 @@ pte_t *lookup_address(unsigned long address)
 	pmd = pmd_offset(pud, address);
 	if (!pmd_present(*pmd))
 		return NULL;
+	*level = 3;
 	if (pmd_large(*pmd))
 		return (pte_t *)pmd;
+	*level = 4;
 
 	pte = pte_offset_kernel(pmd, address);
 	if (pte && !pte_present(*pte))
@@ -140,8 +142,9 @@ __change_page_attr(unsigned long address, unsigned long pfn, pgprot_t prot,
 	struct page *kpte_page;
 	pgprot_t ref_prot2;
 	pte_t *kpte;
+	int level;
 
-	kpte = lookup_address(address);
+	kpte = lookup_address(address, &level);
 	if (!kpte)
 		return 0;
 

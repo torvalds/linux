@@ -182,7 +182,7 @@ static inline void clone_pgd_range(pgd_t *dst, pgd_t *src, int count)
  * NOTE: the return type is pte_t but if the pmd is PSE then we return it
  * as a pte too.
  */
-extern pte_t *lookup_address(unsigned long address);
+extern pte_t *lookup_address(unsigned long address, int *level);
 
 /*
  * Make a given kernel text page executable/non-executable.
