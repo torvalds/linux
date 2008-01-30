@@ -48,19 +48,27 @@ static int putreg32(struct task_struct *child, unsigned regno, u32 val)
 		if (val && (val & 3) != 3)
 			return -EIO;
 		child->thread.fsindex = val & 0xffff;
+		if (child == current)
+			loadsegment(fs, child->thread.fsindex);
 		break;
 	case offsetof(struct user32, regs.gs):
 		if (val && (val & 3) != 3)
 			return -EIO;
 		child->thread.gsindex = val & 0xffff;
+		if (child == current)
+			load_gs_index(child->thread.gsindex);
 		break;
 	case offsetof(struct user32, regs.ds):
 		if (val && (val & 3) != 3)
 			return -EIO;
 		child->thread.ds = val & 0xffff;
+		if (child == current)
+			loadsegment(ds, child->thread.ds);
 		break;
 	case offsetof(struct user32, regs.es):
 		child->thread.es = val & 0xffff;
+		if (child == current)
+			loadsegment(es, child->thread.ds);
 		break;
 	case offsetof(struct user32, regs.ss):
 		if ((val & 3) != 3)
@@ -129,15 +137,23 @@ static int getreg32(struct task_struct *child, unsigned regno, u32 *val)
 	switch (regno) {
 	case offsetof(struct user32, regs.fs):
 		*val = child->thread.fsindex;
+		if (child == current)
+			asm("movl %%fs,%0" : "=r" (*val));
 		break;
 	case offsetof(struct user32, regs.gs):
 		*val = child->thread.gsindex;
+		if (child == current)
+			asm("movl %%gs,%0" : "=r" (*val));
 		break;
 	case offsetof(struct user32, regs.ds):
 		*val = child->thread.ds;
+		if (child == current)
+			asm("movl %%ds,%0" : "=r" (*val));
 		break;
 	case offsetof(struct user32, regs.es):
 		*val = child->thread.es;
+		if (child == current)
+			asm("movl %%es,%0" : "=r" (*val));
 		break;
 
 	R32(cs, cs);
