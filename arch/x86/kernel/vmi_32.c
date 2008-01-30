@@ -475,7 +475,7 @@ static void vmi_set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep
 static void vmi_set_pmd(pmd_t *pmdp, pmd_t pmdval)
 {
 #ifdef CONFIG_X86_PAE
-	const pte_t pte = { pmdval.pmd, pmdval.pmd >> 32 };
+	const pte_t pte = { .pte = pmdval.pmd };
 	vmi_check_page_type(__pa(pmdp) >> PAGE_SHIFT, VMI_PAGE_PMD);
 #else
 	const pte_t pte = { pmdval.pud.pgd.pgd };
@@ -508,21 +508,21 @@ static void vmi_set_pte_present(struct mm_struct *mm, unsigned long addr, pte_t 
 static void vmi_set_pud(pud_t *pudp, pud_t pudval)
 {
 	/* Um, eww */
-	const pte_t pte = { pudval.pgd.pgd, pudval.pgd.pgd >> 32 };
+	const pte_t pte = { .pte = pudval.pgd.pgd };
 	vmi_check_page_type(__pa(pudp) >> PAGE_SHIFT, VMI_PAGE_PGD);
 	vmi_ops.set_pte(pte, (pte_t *)pudp, VMI_PAGE_PDP);
 }
 
 static void vmi_pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
-	const pte_t pte = { 0 };
+	const pte_t pte = { .pte = 0 };
 	vmi_check_page_type(__pa(ptep) >> PAGE_SHIFT, VMI_PAGE_PTE);
 	vmi_ops.set_pte(pte, ptep, vmi_flags_addr(mm, addr, VMI_PAGE_PT, 0));
 }
 
 static void vmi_pmd_clear(pmd_t *pmd)
 {
-	const pte_t pte = { 0 };
+	const pte_t pte = { .pte = 0 };
 	vmi_check_page_type(__pa(pmd) >> PAGE_SHIFT, VMI_PAGE_PMD);
 	vmi_ops.set_pte(pte, (pte_t *)pmd, VMI_PAGE_PD);
 }
