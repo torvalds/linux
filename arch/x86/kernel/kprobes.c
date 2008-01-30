@@ -432,14 +432,32 @@ void __kprobes arch_prepare_kretprobe(struct kretprobe_instance *ri,
  * within the handler. We save the original kprobes variables and just single
  * step on the instruction of the new probe without calling any user handlers.
  */
-static void __kprobes reenter_kprobe(struct kprobe *p, struct pt_regs *regs,
-				     struct kprobe_ctlblk *kcb)
+static int __kprobes reenter_kprobe(struct kprobe *p, struct pt_regs *regs,
+				    struct kprobe_ctlblk *kcb)
 {
+	if (kcb->kprobe_status == KPROBE_HIT_SS &&
+	    *p->ainsn.insn == BREAKPOINT_INSTRUCTION) {
+		regs->flags &= ~X86_EFLAGS_TF;
+		regs->flags |= kcb->kprobe_saved_flags;
+		return 0;
+#ifdef CONFIG_X86_64
+	} else if (kcb->kprobe_status == KPROBE_HIT_SSDONE) {
+		/* TODO: Provide re-entrancy from post_kprobes_handler() and
+		 * avoid exception stack corruption while single-stepping on
+		 * the instruction of the new probe.
+		 */
+		arch_disarm_kprobe(p);
+		regs->ip = (unsigned long)p->addr;
+		reset_current_kprobe();
+		return 1;
+#endif
+	}
 	save_previous_kprobe(kcb);
 	set_current_kprobe(p, regs, kcb);
 	kprobes_inc_nmissed_count(p);
 	prepare_singlestep(p, regs);
 	kcb->kprobe_status = KPROBE_REENTER;
+	return 1;
 }
 
 /*
@@ -466,27 +484,9 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 	if (kprobe_running()) {
 		p = get_kprobe(addr);
 		if (p) {
-			if (kcb->kprobe_status == KPROBE_HIT_SS &&
-				*p->ainsn.insn == BREAKPOINT_INSTRUCTION) {
-				regs->flags &= ~X86_EFLAGS_TF;
-				regs->flags |= kcb->kprobe_saved_flags;
-				goto no_kprobe;
-#ifdef CONFIG_X86_64
-			} else if (kcb->kprobe_status == KPROBE_HIT_SSDONE) {
-				/* TODO: Provide re-entrancy from
-				 * post_kprobes_handler() and avoid exception
-				 * stack corruption while single-stepping on
-				 * the instruction of the new probe.
-				 */
-				arch_disarm_kprobe(p);
-				regs->ip = (unsigned long)p->addr;
-				reset_current_kprobe();
-				ret = 1;
-				goto no_kprobe;
-#endif
-			}
-			reenter_kprobe(p, regs, kcb);
-			return 1;
+			ret = reenter_kprobe(p, regs, kcb);
+			if (kcb->kprobe_status == KPROBE_REENTER)
+				return 1;
 		} else {
 			if (*addr != BREAKPOINT_INSTRUCTION) {
 			/* The breakpoint instruction was removed by
