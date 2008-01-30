@@ -55,6 +55,13 @@ struct efi_memory_map memmap;
 struct efi efi_phys __initdata;
 static efi_system_table_t efi_systab __initdata;
 
+static int __init setup_noefi(char *arg)
+{
+	efi_enabled = 0;
+	return 0;
+}
+early_param("noefi", setup_noefi);
+
 static efi_status_t virt_efi_get_time(efi_time_t *tm, efi_time_cap_t *tc)
 {
 	return efi_call_virt2(get_time, tm, tc);

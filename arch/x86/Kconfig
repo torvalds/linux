@@ -961,21 +961,18 @@ config MTRR
 
 config EFI
 	def_bool n
-	prompt "Boot from EFI support"
+	prompt "EFI runtime service support"
 	depends on ACPI
 	---help---
-	This enables the kernel to boot on EFI platforms using
-	system configuration information passed to it from the firmware.
-	This also enables the kernel to use any EFI runtime services that are
+	This enables the kernel to use EFI runtime services that are
 	available (such as the EFI variable services).
 
-	This option is only useful on systems that have EFI firmware
-	and will result in a kernel image that is ~8k larger.  In addition,
-	you must use the latest ELILO loader available at
-	<http://elilo.sourceforge.net> in order to take advantage of
-	kernel initialization using EFI information (neither GRUB nor LILO know
-	anything about EFI).  However, even with this option, the resultant
-	kernel should continue to boot on existing non-EFI platforms.
+	This option is only useful on systems that have EFI firmware.
+  	In addition, you should use the latest ELILO loader available
+  	at <http://elilo.sourceforge.net> in order to take advantage
+  	of EFI runtime services. However, even with this option, the
+  	resultant kernel should continue to boot on existing non-EFI
+  	platforms.
 
 config IRQBALANCE
 	def_bool y

@@ -306,8 +306,4 @@ Debugging
 		newfallback: use new unwinder but fall back to old if it gets
 			stuck (default)
 
-EFI
-
-  noefi		Disable EFI support
-
 Miscellaneous

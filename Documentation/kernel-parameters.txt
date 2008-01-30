@@ -1169,6 +1169,8 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	nodisconnect	[HW,SCSI,M68K] Disables SCSI disconnects.
 
+	noefi		[X86-32,X86-64] Disable EFI runtime services support.
+
 	noexec		[IA-64]
 
 	noexec		[X86-32,X86-64]

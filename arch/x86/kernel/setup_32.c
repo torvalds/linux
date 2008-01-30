@@ -648,9 +648,6 @@ void __init setup_arch(char **cmdline_p)
 	printk(KERN_INFO "BIOS-provided physical RAM map:\n");
 	print_memory_map(memory_setup());
 
-	if (efi_enabled)
-		efi_init();
-
 	copy_edd();
 
 	if (!boot_params.hdr.root_flags)
@@ -676,6 +673,9 @@ void __init setup_arch(char **cmdline_p)
 
 	strlcpy(command_line, boot_command_line, COMMAND_LINE_SIZE);
 	*cmdline_p = command_line;
+
+	if (efi_enabled)
+		efi_init();
 
 	max_low_pfn = setup_memory();
 

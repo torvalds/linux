@@ -20,26 +20,14 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/mm.h>
 #include <linux/types.h>
-#include <linux/time.h>
-#include <linux/spinlock.h>
-#include <linux/bootmem.h>
 #include <linux/ioport.h>
-#include <linux/module.h>
 #include <linux/efi.h>
-#include <linux/kexec.h>
 
-#include <asm/setup.h>
 #include <asm/io.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
-#include <asm/processor.h>
-#include <asm/desc.h>
 #include <asm/tlbflush.h>
-
-#define PFX 		"EFI: "
 
 /*
  * To make EFI call EFI runtime service in physical addressing mode we need
@@ -49,16 +37,14 @@
  */
 
 static unsigned long efi_rt_eflags;
-static DEFINE_SPINLOCK(efi_rt_lock);
 static pgd_t efi_bak_pg_dir_pointer[2];
 
-void efi_call_phys_prelog(void) __acquires(efi_rt_lock)
+void efi_call_phys_prelog(void)
 {
 	unsigned long cr4;
 	unsigned long temp;
 	struct desc_ptr gdt_descr;
 
-	spin_lock(&efi_rt_lock);
 	local_irq_save(efi_rt_eflags);
 
 	/*
@@ -88,14 +74,14 @@ void efi_call_phys_prelog(void) __acquires(efi_rt_lock)
 	/*
 	 * After the lock is released, the original page table is restored.
 	 */
-	local_flush_tlb();
+	__flush_tlb_all();
 
 	gdt_descr.address = __pa(get_cpu_gdt_table(0));
 	gdt_descr.size = GDT_SIZE - 1;
 	load_gdt(&gdt_descr);
 }
 
-void efi_call_phys_epilog(void) __releases(efi_rt_lock)
+void efi_call_phys_epilog(void)
 {
 	unsigned long cr4;
 	struct desc_ptr gdt_descr;
@@ -119,10 +105,9 @@ void efi_call_phys_epilog(void) __releases(efi_rt_lock)
 	/*
 	 * After the lock is released, the original page table is restored.
 	 */
-	local_flush_tlb();
+	__flush_tlb_all();
 
 	local_irq_restore(efi_rt_eflags);
-	spin_unlock(&efi_rt_lock);
 }
 
 /*
@@ -135,7 +120,7 @@ void __init efi_map_memmap(void)
 	memmap.map = bt_ioremap((unsigned long) memmap.phys_map,
 			(memmap.nr_map * memmap.desc_size));
 	if (memmap.map == NULL)
-		printk(KERN_ERR PFX "Could not remap the EFI memmap!\n");
+		printk(KERN_ERR "Could not remap the EFI memmap!\n");
 
 	memmap.map_end = memmap.map + (memmap.nr_map * memmap.desc_size);
 }

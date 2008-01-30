@@ -40,13 +40,6 @@
 static pgd_t save_pgd __initdata;
 static unsigned long efi_flags __initdata;
 
-static int __init setup_noefi(char *arg)
-{
-	efi_enabled = 0;
-	return 0;
-}
-early_param("noefi", setup_noefi);
-
 static void __init early_mapping_set_exec(unsigned long start,
 					  unsigned long end,
 					  int executable)
