@@ -223,6 +223,7 @@ KERN_ERR "******* Your BIOS seems to not contain a fix for K8 errata #93\n"
 KERN_ERR "******* Working around it, but it may cause SEGVs or burn power.\n"
 KERN_ERR "******* Please consider a BIOS update.\n"
 KERN_ERR "******* Disabling USB legacy in the BIOS may also help.\n";
+#endif
 
 /* Workaround for K8 erratum #93 & buggy BIOS.
    BIOS SMM functions are required to use a specific workaround
@@ -230,10 +231,12 @@ KERN_ERR "******* Disabling USB legacy in the BIOS may also help.\n";
    A lot of BIOS that didn't get tested properly miss this.
    The OS sees this as a page fault with the upper 32bits of RIP cleared.
    Try to work around it here.
-   Note we only handle faults in kernel here. */
-
+   Note we only handle faults in kernel here.
+   Does nothing for X86_32
+ */
 static int is_errata93(struct pt_regs *regs, unsigned long address)
 {
+#ifdef CONFIG_X86_64
 	static int warned;
 	if (address != regs->ip)
 		return 0;
@@ -249,9 +252,9 @@ static int is_errata93(struct pt_regs *regs, unsigned long address)
 		regs->ip = address;
 		return 1;
 	}
+#endif
 	return 0;
 }
-#endif
 
 static noinline void pgtable_bad(unsigned long address, struct pt_regs *regs,
 				 unsigned long error_code)
@@ -278,6 +281,26 @@ static noinline void pgtable_bad(unsigned long address, struct pt_regs *regs,
  */
 static int vmalloc_fault(unsigned long address)
 {
+#ifdef CONFIG_X86_32
+	unsigned long pgd_paddr;
+	pmd_t *pmd_k;
+	pte_t *pte_k;
+	/*
+	 * Synchronize this task's top level page-table
+	 * with the 'reference' page table.
+	 *
+	 * Do _not_ use "current" here. We might be inside
+	 * an interrupt in the middle of a task switch..
+	 */
+	pgd_paddr = read_cr3();
+	pmd_k = vmalloc_sync_one(__va(pgd_paddr), address);
+	if (!pmd_k)
+		return -1;
+	pte_k = pte_offset_kernel(pmd_k, address);
+	if (!pte_present(*pte_k))
+		return -1;
+	return 0;
+#else
 	pgd_t *pgd, *pgd_ref;
 	pud_t *pud, *pud_ref;
 	pmd_t *pmd, *pmd_ref;
@@ -321,6 +344,7 @@ static int vmalloc_fault(unsigned long address)
 	if (!pte_present(*pte) || pte_pfn(*pte) != pte_pfn(*pte_ref))
 		BUG();
 	return 0;
+#endif
 }
 
 int show_unhandled_signals = 1;

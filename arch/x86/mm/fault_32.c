@@ -217,6 +217,7 @@ KERN_ERR "******* Your BIOS seems to not contain a fix for K8 errata #93\n"
 KERN_ERR "******* Working around it, but it may cause SEGVs or burn power.\n"
 KERN_ERR "******* Please consider a BIOS update.\n"
 KERN_ERR "******* Disabling USB legacy in the BIOS may also help.\n";
+#endif
 
 /* Workaround for K8 erratum #93 & buggy BIOS.
    BIOS SMM functions are required to use a specific workaround
@@ -224,10 +225,12 @@ KERN_ERR "******* Disabling USB legacy in the BIOS may also help.\n";
    A lot of BIOS that didn't get tested properly miss this.
    The OS sees this as a page fault with the upper 32bits of RIP cleared.
    Try to work around it here.
-   Note we only handle faults in kernel here. */
-
+   Note we only handle faults in kernel here.
+   Does nothing for X86_32
+ */
 static int is_errata93(struct pt_regs *regs, unsigned long address)
 {
+#ifdef CONFIG_X86_64
 	static int warned;
 	if (address != regs->ip)
 		return 0;
@@ -243,9 +246,10 @@ static int is_errata93(struct pt_regs *regs, unsigned long address)
 		regs->ip = address;
 		return 1;
 	}
+#endif
 	return 0;
 }
-#endif
+
 
 /*
  * Handle a fault on the vmalloc or module mapping area
@@ -254,6 +258,7 @@ static int is_errata93(struct pt_regs *regs, unsigned long address)
  */
 static inline int vmalloc_fault(unsigned long address)
 {
+#ifdef CONFIG_X86_32
 	unsigned long pgd_paddr;
 	pmd_t *pmd_k;
 	pte_t *pte_k;
@@ -272,6 +277,51 @@ static inline int vmalloc_fault(unsigned long address)
 	if (!pte_present(*pte_k))
 		return -1;
 	return 0;
+#else
+	pgd_t *pgd, *pgd_ref;
+	pud_t *pud, *pud_ref;
+	pmd_t *pmd, *pmd_ref;
+	pte_t *pte, *pte_ref;
+
+	/* Copy kernel mappings over when needed. This can also
+	   happen within a race in page table update. In the later
+	   case just flush. */
+
+	pgd = pgd_offset(current->mm ?: &init_mm, address);
+	pgd_ref = pgd_offset_k(address);
+	if (pgd_none(*pgd_ref))
+		return -1;
+	if (pgd_none(*pgd))
+		set_pgd(pgd, *pgd_ref);
+	else
+		BUG_ON(pgd_page_vaddr(*pgd) != pgd_page_vaddr(*pgd_ref));
+
+	/* Below here mismatches are bugs because these lower tables
+	   are shared */
+
+	pud = pud_offset(pgd, address);
+	pud_ref = pud_offset(pgd_ref, address);
+	if (pud_none(*pud_ref))
+		return -1;
+	if (pud_none(*pud) || pud_page_vaddr(*pud) != pud_page_vaddr(*pud_ref))
+		BUG();
+	pmd = pmd_offset(pud, address);
+	pmd_ref = pmd_offset(pud_ref, address);
+	if (pmd_none(*pmd_ref))
+		return -1;
+	if (pmd_none(*pmd) || pmd_page(*pmd) != pmd_page(*pmd_ref))
+		BUG();
+	pte_ref = pte_offset_kernel(pmd_ref, address);
+	if (!pte_present(*pte_ref))
+		return -1;
+	pte = pte_offset_kernel(pmd, address);
+	/* Don't use pte_page here, because the mappings can point
+	   outside mem_map, and the NUMA hash lookup cannot handle
+	   that. */
+	if (!pte_present(*pte) || pte_pfn(*pte) != pte_pfn(*pte_ref))
+		BUG();
+	return 0;
+#endif
 }
 
 int show_unhandled_signals = 1;
@@ -505,6 +555,9 @@ no_context:
 	 * handled it.
 	 */
 	if (is_prefetch(regs, address, error_code))
+		return;
+
+	if (is_errata93(regs, address))
 		return;
 
 /*
