@@ -115,9 +115,6 @@ static inline void hpet_reserve_timer(struct hpet_data *hd, int timer)
 }
 
 int hpet_alloc(struct hpet_data *);
-int hpet_register(struct hpet_task *, int);
-int hpet_unregister(struct hpet_task *);
-int hpet_control(struct hpet_task *, unsigned int, unsigned long);
 
 #endif /* __KERNEL__ */
 

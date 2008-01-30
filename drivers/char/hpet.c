@@ -600,63 +600,6 @@ static int hpet_is_known(struct hpet_data *hdp)
 	return 0;
 }
 
-EXPORT_SYMBOL(hpet_alloc);
-EXPORT_SYMBOL(hpet_register);
-EXPORT_SYMBOL(hpet_unregister);
-EXPORT_SYMBOL(hpet_control);
-
-int hpet_register(struct hpet_task *tp, int periodic)
-{
-	unsigned int i;
-	u64 mask;
-	struct hpet_timer __iomem *timer;
-	struct hpet_dev *devp;
-	struct hpets *hpetp;
-
-	switch (periodic) {
-	case 1:
-		mask = Tn_PER_INT_CAP_MASK;
-		break;
-	case 0:
-		mask = 0;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	tp->ht_opaque = NULL;
-
-	spin_lock_irq(&hpet_task_lock);
-	spin_lock(&hpet_lock);
-
-	for (devp = NULL, hpetp = hpets; hpetp && !devp; hpetp = hpetp->hp_next)
-		for (timer = hpetp->hp_hpet->hpet_timers, i = 0;
-		     i < hpetp->hp_ntimer; i++, timer++) {
-			if ((readq(&timer->hpet_config) & Tn_PER_INT_CAP_MASK)
-			    != mask)
-				continue;
-
-			devp = &hpetp->hp_dev[i];
-
-			if (devp->hd_flags & HPET_OPEN || devp->hd_task) {
-				devp = NULL;
-				continue;
-			}
-
-			tp->ht_opaque = devp;
-			devp->hd_task = tp;
-			break;
-		}
-
-	spin_unlock(&hpet_lock);
-	spin_unlock_irq(&hpet_task_lock);
-
-	if (tp->ht_opaque)
-		return 0;
-	else
-		return -EBUSY;
-}
-
 static inline int hpet_tpcheck(struct hpet_task *tp)
 {
 	struct hpet_dev *devp;
@@ -704,24 +647,6 @@ int hpet_unregister(struct hpet_task *tp)
 	spin_unlock_irq(&hpet_task_lock);
 
 	return 0;
-}
-
-int hpet_control(struct hpet_task *tp, unsigned int cmd, unsigned long arg)
-{
-	struct hpet_dev *devp;
-	int err;
-
-	if ((err = hpet_tpcheck(tp)))
-		return err;
-
-	spin_lock_irq(&hpet_lock);
-	devp = tp->ht_opaque;
-	if (devp->hd_task != tp) {
-		spin_unlock_irq(&hpet_lock);
-		return -ENXIO;
-	}
-	spin_unlock_irq(&hpet_lock);
-	return hpet_ioctl_common(devp, cmd, arg, 1);
 }
 
 static ctl_table hpet_table[] = {
