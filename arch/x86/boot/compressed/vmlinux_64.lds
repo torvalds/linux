@@ -3,8 +3,8 @@ OUTPUT_ARCH(i386:x86-64)
 ENTRY(startup_64)
 SECTIONS
 {
-	/* Be careful parts of head.S assume startup_32 is at
- 	 * address 0.
+	/* Be careful parts of head_64.S assume startup_64 is at
+	 * address 0.
 	 */
 	. = 0;
 	.text :	{
