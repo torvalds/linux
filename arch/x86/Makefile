@@ -234,14 +234,18 @@ archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
 
 define archhelp
-  echo  '* bzImage	- Compressed kernel image (arch/x86/boot/bzImage)'
-  echo  '  install	- Install kernel using'
-  echo  '		   (your) ~/bin/installkernel or'
-  echo  '		   (distribution) /sbin/installkernel or'
-  echo  '		   install to $$(INSTALL_PATH) and run lilo'
-  echo  '  bzdisk       - Create a boot floppy in /dev/fd0'
-  echo  '  fdimage      - Create a boot floppy image'
-  echo  '  isoimage     - Create a boot CD-ROM image'
+  echo  '* bzImage      - Compressed kernel image (arch/x86/boot/bzImage)'
+  echo  '  install      - Install kernel using'
+  echo  '                  (your) ~/bin/installkernel or'
+  echo  '                  (distribution) /sbin/installkernel or'
+  echo  '                  install to $$(INSTALL_PATH) and run lilo'
+  echo  '  fdimage      - Create 1.4MB boot floppy image (arch/x86/boot/fdimage)'
+  echo  '  fdimage144   - Create 1.4MB boot floppy image (arch/x86/boot/fdimage)'
+  echo  '  fdimage288   - Create 2.8MB boot floppy image (arch/x86/boot/fdimage)'
+  echo  '  isoimage     - Create a boot CD-ROM image (arch/x86/boot/image.iso)'
+  echo  '                  bzdisk/fdimage*/isoimage also accept:'
+  echo  '                  FDARGS="..."  arguments for the booted kernel'
+  echo  '                  FDINITRD=file initrd for the booted kernel'
 endef
 
 CLEAN_FILES += arch/x86/boot/fdimage \
