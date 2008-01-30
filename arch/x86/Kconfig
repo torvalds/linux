@@ -310,15 +310,6 @@ config SCHED_NO_NO_OMIT_FRAME_POINTER
 
 	  If in doubt, say "Y".
 
-config PARAVIRT
-	bool
-	depends on X86_32 && !(X86_VISWS || X86_VOYAGER)
-	help
-	  This changes the kernel so it can modify itself when it is run
-	  under a hypervisor, potentially improving performance significantly
-	  over full virtualization.  However, when run without a hypervisor
-	  the kernel is theoretically slower and slightly larger.
-
 menuconfig PARAVIRT_GUEST
 	bool "Paravirtualized guest support"
 	depends on X86_32
@@ -343,6 +334,15 @@ config VMI
 	  provided by the hypervisor.
 
 source "arch/x86/lguest/Kconfig"
+
+config PARAVIRT
+	bool "Enable paravirtualization code"
+	depends on X86_32 && !(X86_VISWS || X86_VOYAGER)
+	help
+	  This changes the kernel so it can modify itself when it is run
+	  under a hypervisor, potentially improving performance significantly
+	  over full virtualization.  However, when run without a hypervisor
+	  the kernel is theoretically slower and slightly larger.
 
 endif
 
