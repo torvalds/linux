@@ -1,6 +1,14 @@
 #ifndef _ASM_X86_SEGMENT_H_
 #define _ASM_X86_SEGMENT_H_
 
+/* Simple and small GDT entries for booting only */
+
+#define GDT_ENTRY_BOOT_CS	2
+#define __BOOT_CS		(GDT_ENTRY_BOOT_CS * 8)
+
+#define GDT_ENTRY_BOOT_DS	(GDT_ENTRY_BOOT_CS + 1)
+#define __BOOT_DS		(GDT_ENTRY_BOOT_DS * 8)
+
 #ifdef CONFIG_X86_32
 /*
  * The layout of the per-CPU GDT under Linux:
@@ -86,14 +94,6 @@
  */
 #define GDT_ENTRIES 32
 
-/* Simple and small GDT entries for booting only */
-
-#define GDT_ENTRY_BOOT_CS		2
-#define __BOOT_CS	(GDT_ENTRY_BOOT_CS * 8)
-
-#define GDT_ENTRY_BOOT_DS		(GDT_ENTRY_BOOT_CS + 1)
-#define __BOOT_DS	(GDT_ENTRY_BOOT_DS * 8)
-
 /* The PnP BIOS entries in the GDT */
 #define GDT_ENTRY_PNPBIOS_CS32		(GDT_ENTRY_PNPBIOS_BASE + 0)
 #define GDT_ENTRY_PNPBIOS_CS16		(GDT_ENTRY_PNPBIOS_BASE + 1)
@@ -135,14 +135,6 @@
 
 #else
 #include <asm/cache.h>
-
-/* Simple and small GDT entries for booting only */
-
-#define GDT_ENTRY_BOOT_CS		2
-#define __BOOT_CS	(GDT_ENTRY_BOOT_CS * 8)
-
-#define GDT_ENTRY_BOOT_DS		(GDT_ENTRY_BOOT_CS + 1)
-#define __BOOT_DS	(GDT_ENTRY_BOOT_DS * 8)
 
 #define __KERNEL_CS	0x10
 #define __KERNEL_DS	0x18
