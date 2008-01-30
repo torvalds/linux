@@ -347,7 +347,8 @@ restart:
 				break;
 			}
 			retry = __process_buffer(journal, jh, bhs,&batch_count);
-			if (!retry && lock_need_resched(&journal->j_list_lock)){
+			if (!retry && (need_resched() ||
+				spin_needbreak(&journal->j_list_lock))) {
 				spin_unlock(&journal->j_list_lock);
 				retry = 1;
 				break;

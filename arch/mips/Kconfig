@@ -694,6 +694,11 @@ source "arch/mips/vr41xx/Kconfig"
 
 endmenu
 
+config GENERIC_LOCKBREAK
+	bool
+	default y
+	depends on SMP && PREEMPT
+
 config RWSEM_GENERIC_SPINLOCK
 	bool
 	default y

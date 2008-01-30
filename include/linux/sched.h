@@ -1922,23 +1922,16 @@ extern int cond_resched_softirq(void);
 
 /*
  * Does a critical section need to be broken due to another
- * task waiting?:
+ * task waiting?: (technically does not depend on CONFIG_PREEMPT,
+ * but a general need for low latency)
  */
-#if defined(CONFIG_PREEMPT) && defined(CONFIG_SMP)
-# define need_lockbreak(lock) ((lock)->break_lock)
-#else
-# define need_lockbreak(lock) 0
-#endif
-
-/*
- * Does a critical section need to be broken due to another
- * task waiting or preemption being signalled:
- */
-static inline int lock_need_resched(spinlock_t *lock)
+static inline int spin_needbreak(spinlock_t *lock)
 {
-	if (need_lockbreak(lock) || need_resched())
-		return 1;
+#ifdef CONFIG_PREEMPT
+	return spin_is_contended(lock);
+#else
 	return 0;
+#endif
 }
 
 /*

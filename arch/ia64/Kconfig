@@ -42,6 +42,11 @@ config MMU
 config SWIOTLB
        bool
 
+config GENERIC_LOCKBREAK
+	bool
+	default y
+	depends on SMP && PREEMPT
+
 config RWSEM_XCHGADD_ALGORITHM
 	bool
 	default y
