@@ -7,17 +7,6 @@
 
 #ifndef __ASSEMBLY__
 
-#ifdef __KERNEL__
-
-/* the DS BTS struct is used for ptrace as well */
-#include <asm/ds.h>
-
-struct task_struct;
-extern void ptrace_bts_take_timestamp(struct task_struct *, enum bts_qualifier);
-
-#endif /* __KERNEL__ */
-
-
 #ifdef __i386__
 /* this struct defines the way the registers are stored on the
    stack during a system call. */
@@ -69,16 +58,6 @@ struct pt_regs {
 #include <asm/vm86.h>
 #include <asm/segment.h>
 
-struct task_struct;
-
-extern unsigned long
-convert_ip_to_linear(struct task_struct *child, struct pt_regs *regs);
-
-extern void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs, int error_code);
-
-#define regs_return_value(regs) ((regs)->ax)
-
-extern unsigned long profile_pc(struct pt_regs *regs);
 #endif /* __KERNEL__ */
 
 #else /* __i386__ */
@@ -143,20 +122,30 @@ struct pt_regs {
 /* top of stack page */
 };
 
-#define regs_return_value(regs) ((regs)->ax)
-
-extern unsigned long profile_pc(struct pt_regs *regs);
-void signal_fault(struct pt_regs *regs, void __user *frame, char *where);
-
-struct task_struct;
-
-extern unsigned long
-convert_ip_to_linear(struct task_struct *child, struct pt_regs *regs);
-
 #endif /* __KERNEL__ */
 #endif /* !__i386__ */
 
 #ifdef __KERNEL__
+
+/* the DS BTS struct is used for ptrace as well */
+#include <asm/ds.h>
+
+struct task_struct;
+
+extern void ptrace_bts_take_timestamp(struct task_struct *, enum bts_qualifier);
+
+extern unsigned long profile_pc(struct pt_regs *regs);
+
+extern unsigned long
+convert_ip_to_linear(struct task_struct *child, struct pt_regs *regs);
+
+#ifdef CONFIG_X86_32
+extern void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs, int error_code);
+#else
+void signal_fault(struct pt_regs *regs, void __user *frame, char *where);
+#endif
+
+#define regs_return_value(regs) ((regs)->ax)
 
 /*
  * user_mode_vm(regs) determines whether a register set came from user mode.
