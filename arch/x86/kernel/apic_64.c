@@ -23,32 +23,36 @@
 #include <linux/mc146818rtc.h>
 #include <linux/kernel_stat.h>
 #include <linux/sysdev.h>
-#include <linux/module.h>
 #include <linux/ioport.h>
 #include <linux/clockchips.h>
 #include <linux/acpi_pmtmr.h>
+#include <linux/module.h>
 
 #include <asm/atomic.h>
 #include <asm/smp.h>
 #include <asm/mtrr.h>
 #include <asm/mpspec.h>
+#include <asm/hpet.h>
 #include <asm/pgalloc.h>
 #include <asm/mach_apic.h>
 #include <asm/nmi.h>
 #include <asm/idle.h>
 #include <asm/proto.h>
 #include <asm/timex.h>
-#include <asm/hpet.h>
 #include <asm/apic.h>
 
-int apic_verbosity;
 int disable_apic_timer __cpuinitdata;
 static int apic_calibrate_pmtmr __initdata;
 int disable_apic;
 
-/* Local APIC timer works in C2? */
+/* Local APIC timer works in C2 */
 int local_apic_timer_c2_ok;
 EXPORT_SYMBOL_GPL(local_apic_timer_c2_ok);
+
+/*
+ * Debug level, exported for io_apic.c
+ */
+int apic_verbosity;
 
 static struct resource lapic_resource = {
 	.name = "Local APIC",
@@ -355,6 +359,11 @@ static void __init calibrate_APIC_clock(void)
 	calibration_result = result / HZ;
 }
 
+/*
+ * Setup the boot APIC
+ *
+ * Calibrate and verify the result.
+ */
 void __init setup_boot_APIC_clock(void)
 {
 	/*
@@ -1109,8 +1118,8 @@ static struct sysdev_class lapic_sysclass = {
 };
 
 static struct sys_device device_lapic = {
-	.id		= 0,
-	.cls		= &lapic_sysclass,
+	.id	= 0,
+	.cls	= &lapic_sysclass,
 };
 
 static void __cpuinit apic_pm_activate(void)
@@ -1121,9 +1130,11 @@ static void __cpuinit apic_pm_activate(void)
 static int __init init_lapic_sysfs(void)
 {
 	int error;
+
 	if (!cpu_has_apic)
 		return 0;
 	/* XXX: remove suspend/resume procs if !apic_pm_state.active? */
+
 	error = sysdev_class_register(&lapic_sysclass);
 	if (!error)
 		error = sysdev_register(&device_lapic);

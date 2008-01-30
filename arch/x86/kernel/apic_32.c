@@ -577,7 +577,6 @@ static void local_apic_timer_interrupt(void)
  * [ if a single-CPU system runs an SMP kernel then we call the local
  *   interrupt as well. Thus we cannot inline the local irq ... ]
  */
-
 void smp_apic_timer_interrupt(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
@@ -1021,7 +1020,7 @@ void __cpuinit setup_local_APIC(void)
 /*
  * Detect and initialize APIC
  */
-static int __init detect_init_APIC (void)
+static int __init detect_init_APIC(void)
 {
 	u32 h, l, features;
 
@@ -1165,7 +1164,7 @@ fake_ioapic_page:
  * This initializes the IO-APIC and APIC hardware if this is
  * a UP kernel.
  */
-int __init APIC_init_uniprocessor (void)
+int __init APIC_init_uniprocessor(void)
 {
 	if (enable_local_apic < 0)
 		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_APIC);
