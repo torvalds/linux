@@ -7,7 +7,9 @@
 #include <asm/pda.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
+#ifndef CONFIG_PARAVIRT
 #include <asm-generic/mm_hooks.h>
+#endif
 
 /*
  * possibly do the LDT unload here?
