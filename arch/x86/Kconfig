@@ -871,7 +871,7 @@ config HAVE_ARCH_ALLOC_REMAP
 
 config ARCH_FLATMEM_ENABLE
 	def_bool y
-	depends on X86_32 && ARCH_SELECT_MEMORY_MODEL && X86_PC
+	depends on X86_32 && ARCH_SELECT_MEMORY_MODEL && X86_PC && !NUMA
 
 config ARCH_DISCONTIGMEM_ENABLE
 	def_bool y
