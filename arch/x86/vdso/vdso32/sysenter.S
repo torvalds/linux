@@ -1,11 +1,10 @@
 /*
- * Code for the vsyscall page.  This version uses the sysenter instruction.
+ * Code for the vDSO.  This version uses the sysenter instruction.
  *
- * NOTE:
- * 1) __kernel_vsyscall _must_ be first in this page.
- * 2) there are alignment constraints on this stub, see vsyscall-sigreturn.S
- *    for details.
+ * First get the common code for the sigreturn entry points.
+ * This must come first.
  */
+#include "sigreturn.S"
 
 /*
  * The caller puts arg2 in %ecx, which gets pushed. The kernel will use
@@ -23,11 +22,12 @@
  * arg6 from the stack.
  *
  * You can not use this vsyscall for the clone() syscall because the
- * three dwords on the parent stack do not get copied to the child.
+ * three words on the parent stack do not get copied to the child.
  */
 	.text
 	.globl __kernel_vsyscall
 	.type __kernel_vsyscall,@function
+	ALIGN
 __kernel_vsyscall:
 .LSTART_vsyscall:
 	push %ecx
@@ -115,7 +115,8 @@ VDSO32_SYSENTER_RETURN:	/* Symbol used by sysenter.c via vdso32-syms.h */
 .LENDFDEDLSI:
 	.previous
 
-/*
- * Get the common code for the sigreturn entry points.
- */
-#include "sigreturn.S"
+	/*
+	 * Emit a symbol with the size of this .eh_frame data,
+	 * to verify it matches the other versions.
+	 */
+VDSO32_vsyscall_eh_frame_size = (.LENDFDEDLSI-.LSTARTFRAMEDLSI)

@@ -1,13 +1,18 @@
 /*
- * Code for the vsyscall page.  This version uses the syscall instruction.
+ * Code for the vDSO.  This version uses the syscall instruction.
+ *
+ * First get the common code for the sigreturn entry points.
+ * This must come first.
  */
+#define SYSCALL_ENTER_KERNEL	syscall
+#include "sigreturn.S"
 
-#include <asm/asm-offsets.h>
 #include <asm/segment.h>
 
 	.text
 	.globl __kernel_vsyscall
 	.type __kernel_vsyscall,@function
+	ALIGN
 __kernel_vsyscall:
 .LSTART_vsyscall:
 	push	%ebp
@@ -61,9 +66,12 @@ __kernel_vsyscall:
 	.uleb128 4
 	.align 4
 .LENDFDE1:
+	.previous
 
-/*
- * Get the common code for the sigreturn entry points.
- */
-#define SYSCALL_ENTER_KERNEL	syscall
-#include "sigreturn.S"
+	/*
+	 * Pad out the segment to match the size of the sysenter.S version.
+	 */
+VDSO32_vsyscall_eh_frame_size = 0x44
+	.section .data,"aw",@progbits
+	.space VDSO32_vsyscall_eh_frame_size-(.LENDFDE1-.LSTARTFRAME), 0
+	.previous

@@ -1,11 +1,12 @@
 /*
- * Common code for the sigreturn entry points on the vsyscall page.
+ * Common code for the sigreturn entry points in vDSO images.
  * So far this code is the same for both int80 and sysenter versions.
- * This file is #include'd by vsyscall-*.S to define them after the
- * vsyscall entry point.  The kernel assumes that the addresses of these
- * routines are constant for all vsyscall implementations.
+ * This file is #include'd by int80.S et al to define them first thing.
+ * The kernel assumes that the addresses of these routines are constant
+ * for all vDSO implementations.
  */
 
+#include <linux/linkage.h>
 #include <asm/unistd_32.h>
 #include <asm/asm-offsets.h>
 
@@ -13,32 +14,29 @@
 #define	SYSCALL_ENTER_KERNEL	int $0x80
 #endif
 
-/* XXX
-   Should these be named "_sigtramp" or something?
-*/
-
 	.text
-	.org __kernel_vsyscall+32,0x90
 	.globl __kernel_sigreturn
 	.type __kernel_sigreturn,@function
+	ALIGN
 __kernel_sigreturn:
 .LSTART_sigreturn:
 	popl %eax		/* XXX does this mean it needs unwind info? */
 	movl $__NR_sigreturn, %eax
 	SYSCALL_ENTER_KERNEL
 .LEND_sigreturn:
+	nop
 	.size __kernel_sigreturn,.-.LSTART_sigreturn
 
-	.balign 32
 	.globl __kernel_rt_sigreturn
 	.type __kernel_rt_sigreturn,@function
+	ALIGN
 __kernel_rt_sigreturn:
 .LSTART_rt_sigreturn:
 	movl $__NR_rt_sigreturn, %eax
 	SYSCALL_ENTER_KERNEL
 .LEND_rt_sigreturn:
+	nop
 	.size __kernel_rt_sigreturn,.-.LSTART_rt_sigreturn
-	.balign 32
 	.previous
 
 	.section .eh_frame,"a",@progbits
