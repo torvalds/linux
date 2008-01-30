@@ -1,6 +1,4 @@
 /*
- * linux/include/asm-i386/topology.h
- *
  * Written by: Matthew Dobson, IBM Corporation
  *
  * Copyright (C) 2002, IBM Corp.

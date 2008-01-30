@@ -1,6 +1,4 @@
 /*
- *  include/asm-i386/mach-default/mach_timer.h
- *
  *  Machine specific calibrate_tsc() for generic.
  *  Split out from timer_tsc.c by Osamu Tomita <tomita@cinet.co.jp>
  */

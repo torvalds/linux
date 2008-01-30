@@ -1,6 +1,4 @@
 /*
- * include/asm-i386/irqflags.h
- *
  * IRQ flags handling
  *
  * This file gets included from lowlevel asm headers too, to provide

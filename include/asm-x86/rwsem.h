@@ -2,7 +2,7 @@
  *
  * Written by David Howells (dhowells@redhat.com).
  *
- * Derived from asm-i386/semaphore.h
+ * Derived from asm-x86/semaphore.h
  *
  *
  * The MSW of the count is the negated number of active writers and waiting
