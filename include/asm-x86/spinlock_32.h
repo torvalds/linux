@@ -5,16 +5,6 @@
 #include <asm/rwlock.h>
 #include <asm/page.h>
 #include <asm/processor.h>
-#include <linux/compiler.h>
-
-#ifdef CONFIG_PARAVIRT
-#include <asm/paravirt.h>
-#else
-#define CLI_STRING	"cli"
-#define STI_STRING	"sti"
-#define CLI_STI_CLOBBERS
-#define CLI_STI_INPUT_ARGS
-#endif /* CONFIG_PARAVIRT */
 
 /*
  * Your basic SMP spinlocks, allowing only a single CPU anywhere
@@ -27,23 +17,24 @@
  * (the type definitions are in asm/spinlock_types.h)
  */
 
-static inline int __raw_spin_is_locked(raw_spinlock_t *x)
+static inline int __raw_spin_is_locked(raw_spinlock_t *lock)
 {
-	return *(volatile signed char *)(&(x)->slock) <= 0;
+	return *(volatile signed char *)(&(lock)->slock) <= 0;
 }
 
 static inline void __raw_spin_lock(raw_spinlock_t *lock)
 {
-	asm volatile("\n1:\t"
-		     LOCK_PREFIX " ; decb %0\n\t"
-		     "jns 3f\n"
-		     "2:\t"
-		     "rep;nop\n\t"
-		     "cmpb $0,%0\n\t"
-		     "jle 2b\n\t"
-		     "jmp 1b\n"
-		     "3:\n\t"
-		     : "+m" (lock->slock) : : "memory");
+	asm volatile(
+		"\n1:\t"
+		LOCK_PREFIX " ; decb %0\n\t"
+		"jns 3f\n"
+		"2:\t"
+		"rep;nop\n\t"
+		"cmpb $0,%0\n\t"
+		"jle 2b\n\t"
+		"jmp 1b\n"
+		"3:\n\t"
+		: "+m" (lock->slock) : : "memory");
 }
 
 /*
@@ -55,7 +46,8 @@ static inline void __raw_spin_lock(raw_spinlock_t *lock)
  * irq-traced, but on CONFIG_TRACE_IRQFLAGS we never use this variant.
  */
 #ifndef CONFIG_PROVE_LOCKING
-static inline void __raw_spin_lock_flags(raw_spinlock_t *lock, unsigned long flags)
+static inline void __raw_spin_lock_flags(raw_spinlock_t *lock,
+					 unsigned long flags)
 {
 	asm volatile(
 		"\n1:\t"
@@ -79,18 +71,20 @@ static inline void __raw_spin_lock_flags(raw_spinlock_t *lock, unsigned long fla
 		"5:\n\t"
 		: [slock] "+m" (lock->slock)
 		: [flags] "r" (flags)
-	 	  CLI_STI_INPUT_ARGS
+		  CLI_STI_INPUT_ARGS
 		: "memory" CLI_STI_CLOBBERS);
 }
 #endif
 
 static inline int __raw_spin_trylock(raw_spinlock_t *lock)
 {
-	char oldval;
+	signed char oldval;
+
 	asm volatile(
 		"xchgb %b0,%1"
 		:"=q" (oldval), "+m" (lock->slock)
 		:"0" (0) : "memory");
+
 	return oldval > 0;
 }
 
@@ -112,7 +106,7 @@ static inline void __raw_spin_unlock(raw_spinlock_t *lock)
 
 static inline void __raw_spin_unlock(raw_spinlock_t *lock)
 {
-	char oldval = 1;
+	unsigned char oldval = 1;
 
 	asm volatile("xchgb %b0, %1"
 		     : "=q" (oldval), "+m" (lock->slock)
@@ -139,31 +133,16 @@ static inline void __raw_spin_unlock_wait(raw_spinlock_t *lock)
  *
  * On x86, we implement read-write locks as a 32-bit counter
  * with the high bit (sign) being the "contended" bit.
- *
- * The inline assembly is non-obvious. Think about it.
- *
- * Changed to use the same technique as rw semaphores.  See
- * semaphore.h for details.  -ben
- *
- * the helpers are in arch/i386/kernel/semaphore.c
  */
 
-/**
- * read_can_lock - would read_trylock() succeed?
- * @lock: the rwlock in question.
- */
-static inline int __raw_read_can_lock(raw_rwlock_t *x)
+static inline int __raw_read_can_lock(raw_rwlock_t *lock)
 {
-	return (int)(x)->lock > 0;
+	return (int)(lock)->lock > 0;
 }
 
-/**
- * write_can_lock - would write_trylock() succeed?
- * @lock: the rwlock in question.
- */
-static inline int __raw_write_can_lock(raw_rwlock_t *x)
+static inline int __raw_write_can_lock(raw_rwlock_t *lock)
 {
-	return (x)->lock == RW_LOCK_BIAS;
+	return (lock)->lock == RW_LOCK_BIAS;
 }
 
 static inline void __raw_read_lock(raw_rwlock_t *rw)
@@ -187,6 +166,7 @@ static inline void __raw_write_lock(raw_rwlock_t *rw)
 static inline int __raw_read_trylock(raw_rwlock_t *lock)
 {
 	atomic_t *count = (atomic_t *)lock;
+
 	atomic_dec(count);
 	if (atomic_read(count) >= 0)
 		return 1;
@@ -197,6 +177,7 @@ static inline int __raw_read_trylock(raw_rwlock_t *lock)
 static inline int __raw_write_trylock(raw_rwlock_t *lock)
 {
 	atomic_t *count = (atomic_t *)lock;
+
 	if (atomic_sub_and_test(RW_LOCK_BIAS, count))
 		return 1;
 	atomic_add(RW_LOCK_BIAS, count);
