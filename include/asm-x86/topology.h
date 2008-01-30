@@ -31,7 +31,7 @@
 
 /* Mappings between logical cpu number and node number */
 DECLARE_PER_CPU(u16, x86_cpu_to_node_map);
-extern u16 __initdata x86_cpu_to_node_map_init[];
+extern u16 x86_cpu_to_node_map_init[];
 extern void *x86_cpu_to_node_map_early_ptr;
 extern cpumask_t node_to_cpumask_map[];
 

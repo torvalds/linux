@@ -31,7 +31,7 @@ bootmem_data_t plat_node_bdata[MAX_NUMNODES];
 
 struct memnode memnode;
 
-u16 x86_cpu_to_node_map_init[NR_CPUS] __initdata = {
+u16 x86_cpu_to_node_map_init[NR_CPUS] = {
 	[0 ... NR_CPUS-1] = NUMA_NO_NODE
 };
 void *x86_cpu_to_node_map_early_ptr;
