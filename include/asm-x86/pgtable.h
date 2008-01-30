@@ -147,17 +147,17 @@ static inline int pmd_large(pmd_t pte) {
 		(_PAGE_PSE|_PAGE_PRESENT);
 }
 
-static inline pte_t pte_mkclean(pte_t pte)	{ return __pte(pte_val(pte) & ~_PAGE_DIRTY); }
-static inline pte_t pte_mkold(pte_t pte)	{ return __pte(pte_val(pte) & ~_PAGE_ACCESSED); }
-static inline pte_t pte_wrprotect(pte_t pte)	{ return __pte(pte_val(pte) & ~_PAGE_RW); }
-static inline pte_t pte_mkexec(pte_t pte)	{ return __pte(pte_val(pte) & ~_PAGE_NX); }
+static inline pte_t pte_mkclean(pte_t pte)	{ return __pte(pte_val(pte) & ~(pteval_t)_PAGE_DIRTY); }
+static inline pte_t pte_mkold(pte_t pte)	{ return __pte(pte_val(pte) & ~(pteval_t)_PAGE_ACCESSED); }
+static inline pte_t pte_wrprotect(pte_t pte)	{ return __pte(pte_val(pte) & ~(pteval_t)_PAGE_RW); }
+static inline pte_t pte_mkexec(pte_t pte)	{ return __pte(pte_val(pte) & ~(pteval_t)_PAGE_NX); }
 static inline pte_t pte_mkdirty(pte_t pte)	{ return __pte(pte_val(pte) | _PAGE_DIRTY); }
 static inline pte_t pte_mkyoung(pte_t pte)	{ return __pte(pte_val(pte) | _PAGE_ACCESSED); }
 static inline pte_t pte_mkwrite(pte_t pte)	{ return __pte(pte_val(pte) | _PAGE_RW); }
 static inline pte_t pte_mkhuge(pte_t pte)	{ return __pte(pte_val(pte) | _PAGE_PSE); }
-static inline pte_t pte_clrhuge(pte_t pte)	{ return __pte(pte_val(pte) & ~_PAGE_PSE); }
+static inline pte_t pte_clrhuge(pte_t pte)	{ return __pte(pte_val(pte) & ~(pteval_t)_PAGE_PSE); }
 static inline pte_t pte_mkglobal(pte_t pte)	{ return __pte(pte_val(pte) | _PAGE_GLOBAL); }
-static inline pte_t pte_clrglobal(pte_t pte)	{ return __pte(pte_val(pte) & ~_PAGE_GLOBAL); }
+static inline pte_t pte_clrglobal(pte_t pte)	{ return __pte(pte_val(pte) & ~(pteval_t)_PAGE_GLOBAL); }
 
 extern pteval_t __supported_pte_mask;
 
