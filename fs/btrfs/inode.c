@@ -823,6 +823,8 @@ search_again:
 					btrfs_file_extent_num_bytes(leaf, fi);
 				extent_num_bytes = inode->i_size -
 					found_key.offset + root->sectorsize - 1;
+				extent_num_bytes = extent_num_bytes &
+					~((u64)root->sectorsize - 1);
 				btrfs_set_file_extent_num_bytes(leaf, fi,
 							 extent_num_bytes);
 				num_dec = (orig_num_bytes -
