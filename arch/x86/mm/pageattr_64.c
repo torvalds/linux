@@ -45,34 +45,91 @@ pte_t *lookup_address(unsigned long address, int *level)
 	return pte_offset_kernel(pmd, address);
 }
 
-static struct page *
-split_large_page(unsigned long address, pgprot_t ref_prot)
+static void __set_pmd_pte(pte_t *kpte, unsigned long address, pte_t pte)
 {
-	unsigned long addr;
-	struct page *base;
-	pte_t *pbase;
-	int i;
+	/* change init_mm */
+	set_pte_atomic(kpte, pte);
+#ifdef CONFIG_X86_32
+	if (SHARED_KERNEL_PMD)
+		return;
+	{
+		struct page *page;
 
-	base = alloc_pages(GFP_KERNEL, 0);
+		for (page = pgd_list; page; page = (struct page *)page->index) {
+			pgd_t *pgd;
+			pud_t *pud;
+			pmd_t *pmd;
+
+			pgd = (pgd_t *)page_address(page) + pgd_index(address);
+			pud = pud_offset(pgd, address);
+			pmd = pmd_offset(pud, address);
+			set_pte_atomic((pte_t *)pmd, pte);
+		}
+	}
+#endif
+}
+
+static int split_large_page(pte_t *kpte, unsigned long address)
+{
+	pgprot_t ref_prot = pte_pgprot(pte_clrhuge(*kpte));
+	gfp_t gfp_flags = GFP_KERNEL;
+	unsigned long flags;
+	unsigned long addr;
+	pte_t *pbase, *tmp;
+	struct page *base;
+	int i, level;
+
+
+#ifdef CONFIG_DEBUG_PAGEALLOC
+	gfp_flags = GFP_ATOMIC;
+#endif
+	base = alloc_pages(gfp_flags, 0);
 	if (!base)
-		return NULL;
+		return -ENOMEM;
+
+	spin_lock_irqsave(&pgd_lock, flags);
+	/*
+	 * Check for races, another CPU might have split this page
+	 * up for us already:
+	 */
+	tmp = lookup_address(address, &level);
+	if (tmp != kpte) {
+		WARN_ON_ONCE(1);
+		goto out_unlock;
+	}
 
 	address = __pa(address);
 	addr = address & LARGE_PAGE_MASK;
 	pbase = (pte_t *)page_address(base);
-	for (i = 0; i < PTRS_PER_PTE; i++, addr += PAGE_SIZE)
-		pbase[i] = pfn_pte(addr >> PAGE_SHIFT, ref_prot);
+#ifdef CONFIG_X86_32
+	paravirt_alloc_pt(&init_mm, page_to_pfn(base));
+#endif
 
-	return base;
+	for (i = 0; i < PTRS_PER_PTE; i++, addr += PAGE_SIZE)
+		set_pte(&pbase[i], pfn_pte(addr >> PAGE_SHIFT, ref_prot));
+
+	/*
+	 * Install the new, split up pagetable:
+	 */
+	__set_pmd_pte(kpte, address, mk_pte(base, ref_prot));
+	base = NULL;
+
+out_unlock:
+	spin_unlock_irqrestore(&pgd_lock, flags);
+
+	if (base)
+		__free_pages(base, 0);
+
+	return 0;
 }
 
 static int
 __change_page_attr(unsigned long address, struct page *page, pgprot_t prot)
 {
-	struct page *kpte_page;
-	pte_t *kpte;
 	pgprot_t ref_prot2, oldprot;
-	int level;
+	struct page *kpte_page;
+	int level, err = 0;
+	pte_t *kpte;
 
 repeat:
 	kpte = lookup_address(address, &level);
@@ -88,22 +145,12 @@ repeat:
 	if (level == 4) {
 		set_pte_atomic(kpte, mk_pte(page, prot));
 	} else {
-		/*
-		 * split_large_page will take the reference for this
-		 * change_page_attr on the split page.
-		 */
-		struct page *split;
-
-		ref_prot2 = pte_pgprot(pte_clrhuge(*kpte));
-		split = split_large_page(address, ref_prot2);
-		if (!split)
-			return -ENOMEM;
-		pgprot_val(ref_prot2) &= ~_PAGE_NX;
-		set_pte_atomic(kpte, mk_pte(split, ref_prot2));
-		goto repeat;
+		err = split_large_page(kpte, address);
+		if (!err)
+			goto repeat;
 	}
 
-	return 0;
+	return err;
 }
 
 /**
