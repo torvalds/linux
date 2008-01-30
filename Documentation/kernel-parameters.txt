@@ -416,8 +416,8 @@ and is between 256 and 4096 characters. It is defined in the file
 			[SPARC64] tick
 			[X86-64] hpet,tsc
 
-	code_bytes	[IA32] How many bytes of object code to print in an
-			oops report.
+	code_bytes	[IA32/X86_64] How many bytes of object code to print
+			in an oops report.
 			Range: 0 - 8192
 			Default: 64
 

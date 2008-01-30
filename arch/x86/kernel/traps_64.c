@@ -74,6 +74,8 @@ asmlinkage void alignment_check(void);
 asmlinkage void machine_check(void);
 asmlinkage void spurious_interrupt_bug(void);
 
+static unsigned int code_bytes = 64;
+
 static inline void conditional_sti(struct pt_regs *regs)
 {
 	if (regs->flags & X86_EFLAGS_IF)
@@ -459,12 +461,15 @@ EXPORT_SYMBOL(dump_stack);
 void show_registers(struct pt_regs *regs)
 {
 	int i;
-	int in_kernel = !user_mode(regs);
 	unsigned long sp;
 	const int cpu = smp_processor_id();
 	struct task_struct *cur = cpu_pda(cpu)->pcurrent;
+	u8 *ip;
+	unsigned int code_prologue = code_bytes * 43 / 64;
+	unsigned int code_len = code_bytes;
 
 	sp = regs->sp;
+	ip = (u8 *) regs->ip - code_prologue;
 	printk("CPU %d ", cpu);
 	__show_regs(regs);
 	printk("Process %s (pid: %d, threadinfo %p, task %p)\n",
@@ -474,22 +479,28 @@ void show_registers(struct pt_regs *regs)
 	 * When in-kernel, we also print out the stack and code at the
 	 * time of the fault..
 	 */
-	if (in_kernel) {
+	if (!user_mode(regs)) {
+		unsigned char c;
 		printk("Stack: ");
 		_show_stack(NULL, regs, (unsigned long *)sp, regs->bp);
+		printk("\n");
 
-		printk("\nCode: ");
-		if (regs->ip < PAGE_OFFSET)
-			goto bad;
-
-		for (i=0; i<20; i++) {
-			unsigned char c;
-			if (__get_user(c, &((unsigned char*)regs->ip)[i])) {
-bad:
+		printk(KERN_EMERG "Code: ");
+		if (ip < (u8 *)PAGE_OFFSET || probe_kernel_address(ip, c)) {
+			/* try starting at RIP */
+			ip = (u8 *) regs->ip;
+			code_len = code_len - code_prologue + 1;
+		}
+		for (i = 0; i < code_len; i++, ip++) {
+			if (ip < (u8 *)PAGE_OFFSET ||
+					probe_kernel_address(ip, c)) {
 				printk(" Bad RIP value.");
 				break;
 			}
-			printk("%02x ", c);
+			if (ip == (u8 *)regs->ip)
+				printk("<%02x> ", c);
+			else
+				printk("%02x ", c);
 		}
 	}
 	printk("\n");
@@ -1164,3 +1175,14 @@ static int __init kstack_setup(char *s)
 	return 0;
 }
 early_param("kstack", kstack_setup);
+
+
+static int __init code_bytes_setup(char *s)
+{
+	code_bytes = simple_strtoul(s, NULL, 0);
+	if (code_bytes > 8192)
+		code_bytes = 8192;
+
+	return 1;
+}
+__setup("code_bytes=", code_bytes_setup);
