@@ -306,12 +306,15 @@ void __init *early_ioremap(unsigned long phys_addr, unsigned long size)
 
 	/* Don't allow wraparound or zero size */
 	last_addr = phys_addr + size - 1;
-	if (!size || last_addr < phys_addr)
+	if (!size || last_addr < phys_addr) {
+		WARN_ON(1);
 		return NULL;
+	}
 
-	if (nesting >= FIX_BTMAPS_NESTING)
+	if (nesting >= FIX_BTMAPS_NESTING) {
+		WARN_ON(1);
 		return NULL;
-
+	}
 	early_ioremap_nested++;
 	/*
 	 * Mappings have to be page-aligned
@@ -324,8 +327,10 @@ void __init *early_ioremap(unsigned long phys_addr, unsigned long size)
 	 * Mappings have to fit in the FIX_BTMAP area.
 	 */
 	nrpages = size >> PAGE_SHIFT;
-	if (nrpages > NR_FIX_BTMAPS)
+	if (nrpages > NR_FIX_BTMAPS) {
+		WARN_ON(1);
 		return NULL;
+	}
 
 	/*
 	 * Ok, go for it..
@@ -351,11 +356,13 @@ void __init early_iounmap(void *addr, unsigned long size)
 	unsigned int nesting;
 
 	nesting = --early_ioremap_nested;
+	WARN_ON(nesting < 0);
 
 	virt_addr = (unsigned long)addr;
-	if (virt_addr < fix_to_virt(FIX_BTMAP_BEGIN))
+	if (virt_addr < fix_to_virt(FIX_BTMAP_BEGIN)) {
+		WARN_ON(1);
 		return;
-
+	}
 	offset = virt_addr & ~PAGE_MASK;
 	nrpages = PAGE_ALIGN(offset + size - 1) >> PAGE_SHIFT;
 
