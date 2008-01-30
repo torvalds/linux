@@ -100,15 +100,15 @@ static inline void preempt_conditional_cli(struct pt_regs *regs)
 
 int kstack_depth_to_print = 12;
 
-#ifdef CONFIG_KALLSYMS
 void printk_address(unsigned long address, int reliable)
 {
+#ifdef CONFIG_KALLSYMS
 	unsigned long offset = 0, symsize;
 	const char *symname;
 	char *modname;
 	char *delim = ":";
 	char namebuf[128];
-	char reliab[4] = "";;
+	char reliab[4] = "";
 
 	symname = kallsyms_lookup(address, &symsize, &offset,
 					&modname, namebuf);
@@ -120,16 +120,13 @@ void printk_address(unsigned long address, int reliable)
 		strcpy(reliab, "? ");
 
 	if (!modname)
-		modname = delim = ""; 		
+		modname = delim = "";
 	printk(" [<%016lx>] %s%s%s%s%s+0x%lx/0x%lx\n",
 		address, reliab, delim, modname, delim, symname, offset, symsize);
-}
 #else
-void printk_address(unsigned long address, int reliable)
-{
 	printk(" [<%016lx>]\n", address);
-}
 #endif
+}
 
 static unsigned long *in_exception_stack(unsigned cpu, unsigned long stack,
 					unsigned *usedp, char **idp)

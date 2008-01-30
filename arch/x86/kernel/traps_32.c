@@ -102,6 +102,34 @@ asmlinkage void machine_check(void);
 int kstack_depth_to_print = 24;
 static unsigned int code_bytes = 64;
 
+void printk_address(unsigned long address, int reliable)
+{
+#ifdef CONFIG_KALLSYMS
+	unsigned long offset = 0, symsize;
+	const char *symname;
+	char *modname;
+	char *delim = ":";
+	char namebuf[128];
+	char reliab[4] = "";
+
+	symname = kallsyms_lookup(address, &symsize, &offset,
+					&modname, namebuf);
+	if (!symname) {
+		printk(" [<%08lx>]\n", address);
+		return;
+	}
+	if (!reliable)
+		strcpy(reliab, "? ");
+
+	if (!modname)
+		modname = delim = "";
+	printk(" [<%08lx>] %s%s%s%s%s+0x%lx/0x%lx\n",
+		address, reliab, delim, modname, delim, symname, offset, symsize);
+#else
+	printk(" [<%08lx>]\n", address);
+#endif
+}
+
 static inline int valid_stack_ptr(struct thread_info *tinfo, void *p, unsigned size)
 {
 	return	p > (void *)tinfo &&
