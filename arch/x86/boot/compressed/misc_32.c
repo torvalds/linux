@@ -377,8 +377,8 @@ asmlinkage void decompress_kernel(void *rmode, unsigned long end,
 #endif
 
 	makecrc();
-	putstr("Uncompressing Linux... ");
+	putstr("\nDecompressing Linux... ");
 	gunzip();
-	putstr("Ok, booting the kernel.\n");
+	putstr("done.\nBooting the kernel.\n");
 	return;
 }
