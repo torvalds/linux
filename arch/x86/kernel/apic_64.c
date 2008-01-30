@@ -1180,14 +1180,26 @@ __cpuinit int apic_is_clustered_box(void)
 	bitmap_zero(clustermap, NUM_APIC_CLUSTERS);
 
 	for (i = 0; i < NR_CPUS; i++) {
-		id = bios_cpu_apicid[i];
+		/* are we being called early in kernel startup? */
+		if (x86_bios_cpu_apicid_early_ptr) {
+			id = ((u16 *)x86_bios_cpu_apicid_early_ptr)[i];
+		}
+		else if (i < nr_cpu_ids) {
+			if (cpu_present(i))
+				id = per_cpu(x86_bios_cpu_apicid, i);
+			else
+				continue;
+		}
+		else
+			break;
+
 		if (id != BAD_APICID)
 			__set_bit(APIC_CLUSTERID(id), clustermap);
 	}
 
 	/* Problem:  Partially populated chassis may not have CPUs in some of
 	 * the APIC clusters they have been allocated.  Only present CPUs have
-	 * bios_cpu_apicid entries, thus causing zeroes in the bitmap.  Since
+	 * x86_bios_cpu_apicid entries, thus causing zeroes in the bitmap.  Since
 	 * clusters are allocated sequentially, count zeros only if they are
 	 * bounded by ones.
 	 */

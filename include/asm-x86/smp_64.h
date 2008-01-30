@@ -27,18 +27,20 @@ extern int smp_call_function_mask(cpumask_t mask, void (*func)(void *),
 				  void *info, int wait);
 
 extern u16 __initdata x86_cpu_to_apicid_init[];
+extern u16 __initdata x86_bios_cpu_apicid_init[];
 extern void *x86_cpu_to_apicid_early_ptr;
-extern u16 bios_cpu_apicid[];
+extern void *x86_bios_cpu_apicid_early_ptr;
 
 DECLARE_PER_CPU(cpumask_t, cpu_sibling_map);
 DECLARE_PER_CPU(cpumask_t, cpu_core_map);
 DECLARE_PER_CPU(u16, cpu_llc_id);
 DECLARE_PER_CPU(u16, x86_cpu_to_apicid);
+DECLARE_PER_CPU(u16, x86_bios_cpu_apicid);
 
 static inline int cpu_present_to_apicid(int mps_cpu)
 {
-	if (mps_cpu < NR_CPUS)
-		return (int)bios_cpu_apicid[mps_cpu];
+	if (cpu_present(mps_cpu))
+		return (int)per_cpu(x86_bios_cpu_apicid, mps_cpu);
 	else
 		return BAD_APICID;
 }

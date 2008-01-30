@@ -864,8 +864,12 @@ void __init smp_set_apicids(void)
 		if (per_cpu_offset(cpu)) {
 			per_cpu(x86_cpu_to_apicid, cpu) =
 						x86_cpu_to_apicid_init[cpu];
+#ifdef CONFIG_NUMA
 			per_cpu(x86_cpu_to_node_map, cpu) =
 						x86_cpu_to_node_map_init[cpu];
+#endif
+			per_cpu(x86_bios_cpu_apicid, cpu) =
+						x86_bios_cpu_apicid_init[cpu];
 		}
 		else
 			printk(KERN_NOTICE "per_cpu_offset zero for cpu %d\n",
@@ -874,7 +878,10 @@ void __init smp_set_apicids(void)
 
 	/* indicate the early static arrays are gone */
 	x86_cpu_to_apicid_early_ptr = NULL;
+#ifdef CONFIG_NUMA
 	x86_cpu_to_node_map_early_ptr = NULL;
+#endif
+	x86_bios_cpu_apicid_early_ptr = NULL;
 }
 
 static void __init smp_cpu_index_default(void)

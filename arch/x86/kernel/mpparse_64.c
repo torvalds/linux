@@ -67,7 +67,11 @@ unsigned disabled_cpus __cpuinitdata;
 /* Bitmask of physically existing CPUs */
 physid_mask_t phys_cpu_present_map = PHYSID_MASK_NONE;
 
-u16 bios_cpu_apicid[NR_CPUS] = { [0 ... NR_CPUS-1] = BAD_APICID };
+u16 x86_bios_cpu_apicid_init[NR_CPUS] __initdata
+				= { [0 ... NR_CPUS-1] = BAD_APICID };
+void *x86_bios_cpu_apicid_early_ptr;
+DEFINE_PER_CPU(u16, x86_bios_cpu_apicid) = BAD_APICID;
+EXPORT_PER_CPU_SYMBOL(x86_bios_cpu_apicid);
 
 
 /*
@@ -118,19 +122,22 @@ static void __cpuinit MP_processor_info(struct mpc_config_processor *m)
 	physid_set(m->mpc_apicid, phys_cpu_present_map);
  	if (m->mpc_cpuflag & CPU_BOOTPROCESSOR) {
  		/*
- 		 * bios_cpu_apicid is required to have processors listed
+ 		 * x86_bios_cpu_apicid is required to have processors listed
  		 * in same order as logical cpu numbers. Hence the first
  		 * entry is BSP, and so on.
  		 */
 		cpu = 0;
  	}
-	bios_cpu_apicid[cpu] = m->mpc_apicid;
 	/* are we being called early in kernel startup? */
 	if (x86_cpu_to_apicid_early_ptr) {
-		u16 *x86_cpu_to_apicid = (u16 *)x86_cpu_to_apicid_early_ptr;
-		x86_cpu_to_apicid[cpu] = m->mpc_apicid;
+		u16 *cpu_to_apicid = (u16 *)x86_cpu_to_apicid_early_ptr;
+		u16 *bios_cpu_apicid = (u16 *)x86_bios_cpu_apicid_early_ptr;
+
+		cpu_to_apicid[cpu] = m->mpc_apicid;
+		bios_cpu_apicid[cpu] = m->mpc_apicid;
 	} else {
 		per_cpu(x86_cpu_to_apicid, cpu) = m->mpc_apicid;
+		per_cpu(x86_bios_cpu_apicid, cpu) = m->mpc_apicid;
 	}
 
 	cpu_set(cpu, cpu_possible_map);
