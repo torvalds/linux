@@ -166,7 +166,7 @@ extern void __iomem *ioremap_cache(unsigned long offset, unsigned long size);
  */
 static inline void __iomem *ioremap(unsigned long offset, unsigned long size)
 {
-	return ioremap_cache(offset, size);
+	return ioremap_nocache(offset, size);
 }
 
 extern void iounmap(volatile void __iomem *addr);
