@@ -63,10 +63,26 @@ static int __init dmi_io_delay_0xed_port(const struct dmi_system_id *id)
 static struct dmi_system_id __initdata io_delay_0xed_port_dmi_table[] = {
 	{
 		.callback	= dmi_io_delay_0xed_port,
+		.ident		= "Compaq Presario V6000",
+		.matches	= {
+			DMI_MATCH(DMI_BOARD_VENDOR, "Quanta"),
+			DMI_MATCH(DMI_BOARD_NAME, "30B7")
+		}
+	},
+	{
+		.callback	= dmi_io_delay_0xed_port,
 		.ident		= "HP Pavilion dv9000z",
 		.matches	= {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Quanta"),
 			DMI_MATCH(DMI_BOARD_NAME, "30B9")
+		}
+	},
+	{
+		.callback	= dmi_io_delay_0xed_port,
+		.ident		= "HP Pavilion tx1000",
+		.matches	= {
+			DMI_MATCH(DMI_BOARD_VENDOR, "Quanta"),
+			DMI_MATCH(DMI_BOARD_NAME, "30BF")
 		}
 	},
 	{ }
