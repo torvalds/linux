@@ -16,14 +16,12 @@
 
 enum {
 	NTEST			= 400,
+	LOWEST_LEVEL		= PG_LEVEL_4K,
 #ifdef CONFIG_X86_64
-	LOWEST_LEVEL		= 4,
 	LPS			= (1 << PMD_SHIFT),
 #elif defined(CONFIG_X86_PAE)
-	LOWEST_LEVEL		= 4,
 	LPS			= (1 << PMD_SHIFT),
 #else
-	LOWEST_LEVEL		= 4, /* lookup_address lies here */
 	LPS			= (1 << 22),
 #endif
 	GPS			= (1<<30)

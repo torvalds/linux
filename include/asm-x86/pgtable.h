@@ -234,6 +234,12 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 
 #ifndef __ASSEMBLY__
 
+enum {
+	PG_LEVEL_NONE,
+	PG_LEVEL_4K,
+	PG_LEVEL_2M,
+};
+
 /*
  * Helper function that returns the kernel pagetable entry controlling
  * the virtual address 'address'. NULL means no pagetable entry present.
