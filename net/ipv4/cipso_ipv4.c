@@ -348,6 +348,7 @@ static int cipso_v4_cache_check(const unsigned char *key,
 			atomic_inc(&entry->lsm_data->refcount);
 			secattr->cache = entry->lsm_data;
 			secattr->flags |= NETLBL_SECATTR_CACHE;
+			secattr->type = NETLBL_NLTYPE_CIPSOV4;
 			if (prev_entry == NULL) {
 				spin_unlock_bh(&cipso_v4_cache[bkt].lock);
 				return 0;
@@ -865,7 +866,7 @@ static int cipso_v4_map_cat_rbm_hton(const struct cipso_v4_doi *doi_def,
 	}
 
 	for (;;) {
-		host_spot = netlbl_secattr_catmap_walk(secattr->mls_cat,
+		host_spot = netlbl_secattr_catmap_walk(secattr->attr.mls.cat,
 						       host_spot + 1);
 		if (host_spot < 0)
 			break;
@@ -948,7 +949,7 @@ static int cipso_v4_map_cat_rbm_ntoh(const struct cipso_v4_doi *doi_def,
 				return -EPERM;
 			break;
 		}
-		ret_val = netlbl_secattr_catmap_setbit(secattr->mls_cat,
+		ret_val = netlbl_secattr_catmap_setbit(secattr->attr.mls.cat,
 						       host_spot,
 						       GFP_ATOMIC);
 		if (ret_val != 0)
@@ -1014,7 +1015,8 @@ static int cipso_v4_map_cat_enum_hton(const struct cipso_v4_doi *doi_def,
 	u32 cat_iter = 0;
 
 	for (;;) {
-		cat = netlbl_secattr_catmap_walk(secattr->mls_cat, cat + 1);
+		cat = netlbl_secattr_catmap_walk(secattr->attr.mls.cat,
+						 cat + 1);
 		if (cat < 0)
 			break;
 		if ((cat_iter + 2) > net_cat_len)
@@ -1049,7 +1051,7 @@ static int cipso_v4_map_cat_enum_ntoh(const struct cipso_v4_doi *doi_def,
 	u32 iter;
 
 	for (iter = 0; iter < net_cat_len; iter += 2) {
-		ret_val = netlbl_secattr_catmap_setbit(secattr->mls_cat,
+		ret_val = netlbl_secattr_catmap_setbit(secattr->attr.mls.cat,
 				ntohs(get_unaligned((__be16 *)&net_cat[iter])),
 				GFP_ATOMIC);
 		if (ret_val != 0)
@@ -1130,7 +1132,8 @@ static int cipso_v4_map_cat_rng_hton(const struct cipso_v4_doi *doi_def,
 		return -ENOSPC;
 
 	for (;;) {
-		iter = netlbl_secattr_catmap_walk(secattr->mls_cat, iter + 1);
+		iter = netlbl_secattr_catmap_walk(secattr->attr.mls.cat,
+						  iter + 1);
 		if (iter < 0)
 			break;
 		cat_size += (iter == 0 ? 0 : sizeof(u16));
@@ -1138,7 +1141,8 @@ static int cipso_v4_map_cat_rng_hton(const struct cipso_v4_doi *doi_def,
 			return -ENOSPC;
 		array[array_cnt++] = iter;
 
-		iter = netlbl_secattr_catmap_walk_rng(secattr->mls_cat, iter);
+		iter = netlbl_secattr_catmap_walk_rng(secattr->attr.mls.cat,
+						      iter);
 		if (iter < 0)
 			return -EFAULT;
 		cat_size += sizeof(u16);
@@ -1191,7 +1195,7 @@ static int cipso_v4_map_cat_rng_ntoh(const struct cipso_v4_doi *doi_def,
 		else
 			cat_low = 0;
 
-		ret_val = netlbl_secattr_catmap_setrng(secattr->mls_cat,
+		ret_val = netlbl_secattr_catmap_setrng(secattr->attr.mls.cat,
 						       cat_low,
 						       cat_high,
 						       GFP_ATOMIC);
@@ -1251,7 +1255,9 @@ static int cipso_v4_gentag_rbm(const struct cipso_v4_doi *doi_def,
 	if ((secattr->flags & NETLBL_SECATTR_MLS_LVL) == 0)
 		return -EPERM;
 
-	ret_val = cipso_v4_map_lvl_hton(doi_def, secattr->mls_lvl, &level);
+	ret_val = cipso_v4_map_lvl_hton(doi_def,
+					secattr->attr.mls.lvl,
+					&level);
 	if (ret_val != 0)
 		return ret_val;
 
@@ -1303,12 +1309,13 @@ static int cipso_v4_parsetag_rbm(const struct cipso_v4_doi *doi_def,
 	ret_val = cipso_v4_map_lvl_ntoh(doi_def, tag[3], &level);
 	if (ret_val != 0)
 		return ret_val;
-	secattr->mls_lvl = level;
+	secattr->attr.mls.lvl = level;
 	secattr->flags |= NETLBL_SECATTR_MLS_LVL;
 
 	if (tag_len > 4) {
-		secattr->mls_cat = netlbl_secattr_catmap_alloc(GFP_ATOMIC);
-		if (secattr->mls_cat == NULL)
+		secattr->attr.mls.cat =
+		                       netlbl_secattr_catmap_alloc(GFP_ATOMIC);
+		if (secattr->attr.mls.cat == NULL)
 			return -ENOMEM;
 
 		ret_val = cipso_v4_map_cat_rbm_ntoh(doi_def,
@@ -1316,7 +1323,7 @@ static int cipso_v4_parsetag_rbm(const struct cipso_v4_doi *doi_def,
 						    tag_len - 4,
 						    secattr);
 		if (ret_val != 0) {
-			netlbl_secattr_catmap_free(secattr->mls_cat);
+			netlbl_secattr_catmap_free(secattr->attr.mls.cat);
 			return ret_val;
 		}
 
@@ -1350,7 +1357,9 @@ static int cipso_v4_gentag_enum(const struct cipso_v4_doi *doi_def,
 	if (!(secattr->flags & NETLBL_SECATTR_MLS_LVL))
 		return -EPERM;
 
-	ret_val = cipso_v4_map_lvl_hton(doi_def, secattr->mls_lvl, &level);
+	ret_val = cipso_v4_map_lvl_hton(doi_def,
+					secattr->attr.mls.lvl,
+					&level);
 	if (ret_val != 0)
 		return ret_val;
 
@@ -1396,12 +1405,13 @@ static int cipso_v4_parsetag_enum(const struct cipso_v4_doi *doi_def,
 	ret_val = cipso_v4_map_lvl_ntoh(doi_def, tag[3], &level);
 	if (ret_val != 0)
 		return ret_val;
-	secattr->mls_lvl = level;
+	secattr->attr.mls.lvl = level;
 	secattr->flags |= NETLBL_SECATTR_MLS_LVL;
 
 	if (tag_len > 4) {
-		secattr->mls_cat = netlbl_secattr_catmap_alloc(GFP_ATOMIC);
-		if (secattr->mls_cat == NULL)
+		secattr->attr.mls.cat =
+			               netlbl_secattr_catmap_alloc(GFP_ATOMIC);
+		if (secattr->attr.mls.cat == NULL)
 			return -ENOMEM;
 
 		ret_val = cipso_v4_map_cat_enum_ntoh(doi_def,
@@ -1409,7 +1419,7 @@ static int cipso_v4_parsetag_enum(const struct cipso_v4_doi *doi_def,
 						     tag_len - 4,
 						     secattr);
 		if (ret_val != 0) {
-			netlbl_secattr_catmap_free(secattr->mls_cat);
+			netlbl_secattr_catmap_free(secattr->attr.mls.cat);
 			return ret_val;
 		}
 
@@ -1443,7 +1453,9 @@ static int cipso_v4_gentag_rng(const struct cipso_v4_doi *doi_def,
 	if (!(secattr->flags & NETLBL_SECATTR_MLS_LVL))
 		return -EPERM;
 
-	ret_val = cipso_v4_map_lvl_hton(doi_def, secattr->mls_lvl, &level);
+	ret_val = cipso_v4_map_lvl_hton(doi_def,
+					secattr->attr.mls.lvl,
+					&level);
 	if (ret_val != 0)
 		return ret_val;
 
@@ -1488,12 +1500,13 @@ static int cipso_v4_parsetag_rng(const struct cipso_v4_doi *doi_def,
 	ret_val = cipso_v4_map_lvl_ntoh(doi_def, tag[3], &level);
 	if (ret_val != 0)
 		return ret_val;
-	secattr->mls_lvl = level;
+	secattr->attr.mls.lvl = level;
 	secattr->flags |= NETLBL_SECATTR_MLS_LVL;
 
 	if (tag_len > 4) {
-		secattr->mls_cat = netlbl_secattr_catmap_alloc(GFP_ATOMIC);
-		if (secattr->mls_cat == NULL)
+		secattr->attr.mls.cat =
+			               netlbl_secattr_catmap_alloc(GFP_ATOMIC);
+		if (secattr->attr.mls.cat == NULL)
 			return -ENOMEM;
 
 		ret_val = cipso_v4_map_cat_rng_ntoh(doi_def,
@@ -1501,7 +1514,7 @@ static int cipso_v4_parsetag_rng(const struct cipso_v4_doi *doi_def,
 						    tag_len - 4,
 						    secattr);
 		if (ret_val != 0) {
-			netlbl_secattr_catmap_free(secattr->mls_cat);
+			netlbl_secattr_catmap_free(secattr->attr.mls.cat);
 			return ret_val;
 		}
 
@@ -1850,6 +1863,8 @@ static int cipso_v4_getattr(const unsigned char *cipso,
 		ret_val = cipso_v4_parsetag_rng(doi_def, &cipso[6], secattr);
 		break;
 	}
+	if (ret_val == 0)
+		secattr->type = NETLBL_NLTYPE_CIPSOV4;
 
 getattr_return:
 	rcu_read_unlock();

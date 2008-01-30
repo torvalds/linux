@@ -16,12 +16,13 @@
  * Updated: Hewlett-Packard <paul.moore@hp.com>
  *
  *      Added support for NetLabel
+ *      Added support for the policy capability bitmap
  *
  * Updated: Chad Sellers <csellers@tresys.com>
  *
  *  Added validation of kernel classes and permissions
  *
- * Copyright (C) 2006 Hewlett-Packard Development Company, L.P.
+ * Copyright (C) 2006, 2007 Hewlett-Packard Development Company, L.P.
  * Copyright (C) 2004-2006 Trusted Computer Solutions, Inc.
  * Copyright (C) 2003 - 2004, 2006 Tresys Technology, LLC
  * Copyright (C) 2003 Red Hat, Inc., James Morris <jmorris@redhat.com>
@@ -58,6 +59,8 @@
 
 extern void selnl_notify_policyload(u32 seqno);
 unsigned int policydb_loaded_version;
+
+int selinux_policycap_netpeer;
 
 /*
  * This is declared in avc.c
@@ -1299,6 +1302,12 @@ bad:
 	goto out;
 }
 
+static void security_load_policycaps(void)
+{
+	selinux_policycap_netpeer = ebitmap_get_bit(&policydb.policycaps,
+						  POLICYDB_CAPABILITY_NETPEER);
+}
+
 extern void selinux_complete_init(void);
 static int security_preserve_bools(struct policydb *p);
 
@@ -1346,6 +1355,7 @@ int security_load_policy(void *data, size_t len)
 			avtab_cache_destroy();
 			return -EINVAL;
 		}
+		security_load_policycaps();
 		policydb_loaded_version = policydb.policyvers;
 		ss_initialized = 1;
 		seqno = ++latest_granting;
@@ -1404,6 +1414,7 @@ int security_load_policy(void *data, size_t len)
 	POLICY_WRLOCK;
 	memcpy(&policydb, &newpolicydb, sizeof policydb);
 	sidtab_set(&sidtab, &newsidtab);
+	security_load_policycaps();
 	seqno = ++latest_granting;
 	policydb_loaded_version = policydb.policyvers;
 	POLICY_WRUNLOCK;
@@ -1478,11 +1489,8 @@ out:
  * security_netif_sid - Obtain the SID for a network interface.
  * @name: interface name
  * @if_sid: interface SID
- * @msg_sid: default SID for received packets
  */
-int security_netif_sid(char *name,
-		       u32 *if_sid,
-		       u32 *msg_sid)
+int security_netif_sid(char *name, u32 *if_sid)
 {
 	int rc = 0;
 	struct ocontext *c;
@@ -1510,11 +1518,8 @@ int security_netif_sid(char *name,
 				goto out;
 		}
 		*if_sid = c->sid[0];
-		*msg_sid = c->sid[1];
-	} else {
+	} else
 		*if_sid = SECINITSID_NETIF;
-		*msg_sid = SECINITSID_NETMSG;
-	}
 
 out:
 	POLICY_RDUNLOCK;
@@ -2049,6 +2054,91 @@ out:
 	return rc;
 }
 
+/**
+ * security_net_peersid_resolve - Compare and resolve two network peer SIDs
+ * @nlbl_sid: NetLabel SID
+ * @nlbl_type: NetLabel labeling protocol type
+ * @xfrm_sid: XFRM SID
+ *
+ * Description:
+ * Compare the @nlbl_sid and @xfrm_sid values and if the two SIDs can be
+ * resolved into a single SID it is returned via @peer_sid and the function
+ * returns zero.  Otherwise @peer_sid is set to SECSID_NULL and the function
+ * returns a negative value.  A table summarizing the behavior is below:
+ *
+ *                                 | function return |      @sid
+ *   ------------------------------+-----------------+-----------------
+ *   no peer labels                |        0        |    SECSID_NULL
+ *   single peer label             |        0        |    <peer_label>
+ *   multiple, consistent labels   |        0        |    <peer_label>
+ *   multiple, inconsistent labels |    -<errno>     |    SECSID_NULL
+ *
+ */
+int security_net_peersid_resolve(u32 nlbl_sid, u32 nlbl_type,
+				 u32 xfrm_sid,
+				 u32 *peer_sid)
+{
+	int rc;
+	struct context *nlbl_ctx;
+	struct context *xfrm_ctx;
+
+	/* handle the common (which also happens to be the set of easy) cases
+	 * right away, these two if statements catch everything involving a
+	 * single or absent peer SID/label */
+	if (xfrm_sid == SECSID_NULL) {
+		*peer_sid = nlbl_sid;
+		return 0;
+	}
+	/* NOTE: an nlbl_type == NETLBL_NLTYPE_UNLABELED is a "fallback" label
+	 * and is treated as if nlbl_sid == SECSID_NULL when a XFRM SID/label
+	 * is present */
+	if (nlbl_sid == SECSID_NULL || nlbl_type == NETLBL_NLTYPE_UNLABELED) {
+		*peer_sid = xfrm_sid;
+		return 0;
+	}
+
+	/* we don't need to check ss_initialized here since the only way both
+	 * nlbl_sid and xfrm_sid are not equal to SECSID_NULL would be if the
+	 * security server was initialized and ss_initialized was true */
+	if (!selinux_mls_enabled) {
+		*peer_sid = SECSID_NULL;
+		return 0;
+	}
+
+	POLICY_RDLOCK;
+
+	nlbl_ctx = sidtab_search(&sidtab, nlbl_sid);
+	if (!nlbl_ctx) {
+		printk(KERN_ERR
+		       "security_sid_mls_cmp:  unrecognized SID %d\n",
+		       nlbl_sid);
+		rc = -EINVAL;
+		goto out_slowpath;
+	}
+	xfrm_ctx = sidtab_search(&sidtab, xfrm_sid);
+	if (!xfrm_ctx) {
+		printk(KERN_ERR
+		       "security_sid_mls_cmp:  unrecognized SID %d\n",
+		       xfrm_sid);
+		rc = -EINVAL;
+		goto out_slowpath;
+	}
+	rc = (mls_context_cmp(nlbl_ctx, xfrm_ctx) ? 0 : -EACCES);
+
+out_slowpath:
+	POLICY_RDUNLOCK;
+	if (rc == 0)
+		/* at present NetLabel SIDs/labels really only carry MLS
+		 * information so if the MLS portion of the NetLabel SID
+		 * matches the MLS portion of the labeled XFRM SID/label
+		 * then pass along the XFRM SID as it is the most
+		 * expressive */
+		*peer_sid = xfrm_sid;
+	else
+		*peer_sid = SECSID_NULL;
+	return rc;
+}
+
 static int get_classes_callback(void *k, void *d, void *args)
 {
 	struct class_datum *datum = d;
@@ -2152,6 +2242,60 @@ int security_get_reject_unknown(void)
 int security_get_allow_unknown(void)
 {
 	return policydb.allow_unknown;
+}
+
+/**
+ * security_get_policycaps - Query the loaded policy for its capabilities
+ * @len: the number of capability bits
+ * @values: the capability bit array
+ *
+ * Description:
+ * Get an array of the policy capabilities in @values where each entry in
+ * @values is either true (1) or false (0) depending the policy's support of
+ * that feature.  The policy capabilities are defined by the
+ * POLICYDB_CAPABILITY_* enums.  The size of the array is stored in @len and it
+ * is up to the caller to free the array in @values.  Returns zero on success,
+ * negative values on failure.
+ *
+ */
+int security_get_policycaps(int *len, int **values)
+{
+	int rc = -ENOMEM;
+	unsigned int iter;
+
+	POLICY_RDLOCK;
+
+	*values = kcalloc(POLICYDB_CAPABILITY_MAX, sizeof(int), GFP_ATOMIC);
+	if (*values == NULL)
+		goto out;
+	for (iter = 0; iter < POLICYDB_CAPABILITY_MAX; iter++)
+		(*values)[iter] = ebitmap_get_bit(&policydb.policycaps, iter);
+	*len = POLICYDB_CAPABILITY_MAX;
+
+out:
+	POLICY_RDUNLOCK;
+	return rc;
+}
+
+/**
+ * security_policycap_supported - Check for a specific policy capability
+ * @req_cap: capability
+ *
+ * Description:
+ * This function queries the currently loaded policy to see if it supports the
+ * capability specified by @req_cap.  Returns true (1) if the capability is
+ * supported, false (0) if it isn't supported.
+ *
+ */
+int security_policycap_supported(unsigned int req_cap)
+{
+	int rc;
+
+	POLICY_RDLOCK;
+	rc = ebitmap_get_bit(&policydb.policycaps, req_cap);
+	POLICY_RDUNLOCK;
+
+	return rc;
 }
 
 struct selinux_audit_rule {
@@ -2403,50 +2547,10 @@ void selinux_audit_set_callback(int (*callback)(void))
 }
 
 #ifdef CONFIG_NETLABEL
-/*
- * NetLabel cache structure
- */
-#define NETLBL_CACHE(x)           ((struct selinux_netlbl_cache *)(x))
-#define NETLBL_CACHE_T_NONE       0
-#define NETLBL_CACHE_T_SID        1
-#define NETLBL_CACHE_T_MLS        2
-struct selinux_netlbl_cache {
-	u32 type;
-	union {
-		u32 sid;
-		struct mls_range mls_label;
-	} data;
-};
-
-/**
- * security_netlbl_cache_free - Free the NetLabel cached data
- * @data: the data to free
- *
- * Description:
- * This function is intended to be used as the free() callback inside the
- * netlbl_lsm_cache structure.
- *
- */
-static void security_netlbl_cache_free(const void *data)
-{
-	struct selinux_netlbl_cache *cache;
-
-	if (data == NULL)
-		return;
-
-	cache = NETLBL_CACHE(data);
-	switch (cache->type) {
-	case NETLBL_CACHE_T_MLS:
-		ebitmap_destroy(&cache->data.mls_label.level[0].cat);
-		break;
-	}
-	kfree(data);
-}
-
 /**
  * security_netlbl_cache_add - Add an entry to the NetLabel cache
  * @secattr: the NetLabel packet security attributes
- * @ctx: the SELinux context
+ * @sid: the SELinux SID
  *
  * Description:
  * Attempt to cache the context in @ctx, which was derived from the packet in
@@ -2455,60 +2559,46 @@ static void security_netlbl_cache_free(const void *data)
  *
  */
 static void security_netlbl_cache_add(struct netlbl_lsm_secattr *secattr,
-				      struct context *ctx)
+				      u32 sid)
 {
-	struct selinux_netlbl_cache *cache = NULL;
+	u32 *sid_cache;
 
+	sid_cache = kmalloc(sizeof(*sid_cache), GFP_ATOMIC);
+	if (sid_cache == NULL)
+		return;
 	secattr->cache = netlbl_secattr_cache_alloc(GFP_ATOMIC);
-	if (secattr->cache == NULL)
-		return;
-
-	cache = kzalloc(sizeof(*cache),	GFP_ATOMIC);
-	if (cache == NULL)
-		return;
-
-	cache->type = NETLBL_CACHE_T_MLS;
-	if (ebitmap_cpy(&cache->data.mls_label.level[0].cat,
-			&ctx->range.level[0].cat) != 0) {
-		kfree(cache);
+	if (secattr->cache == NULL) {
+		kfree(sid_cache);
 		return;
 	}
-	cache->data.mls_label.level[1].cat.highbit =
-		cache->data.mls_label.level[0].cat.highbit;
-	cache->data.mls_label.level[1].cat.node =
-		cache->data.mls_label.level[0].cat.node;
-	cache->data.mls_label.level[0].sens = ctx->range.level[0].sens;
-	cache->data.mls_label.level[1].sens = ctx->range.level[0].sens;
 
-	secattr->cache->free = security_netlbl_cache_free;
-	secattr->cache->data = (void *)cache;
+	*sid_cache = sid;
+	secattr->cache->free = kfree;
+	secattr->cache->data = sid_cache;
 	secattr->flags |= NETLBL_SECATTR_CACHE;
 }
 
 /**
  * security_netlbl_secattr_to_sid - Convert a NetLabel secattr to a SELinux SID
  * @secattr: the NetLabel packet security attributes
- * @base_sid: the SELinux SID to use as a context for MLS only attributes
  * @sid: the SELinux SID
  *
  * Description:
  * Convert the given NetLabel security attributes in @secattr into a
  * SELinux SID.  If the @secattr field does not contain a full SELinux
- * SID/context then use the context in @base_sid as the foundation.  If
- * possibile the 'cache' field of @secattr is set and the CACHE flag is set;
- * this is to allow the @secattr to be used by NetLabel to cache the secattr to
- * SID conversion for future lookups.  Returns zero on success, negative
- * values on failure.
+ * SID/context then use SECINITSID_NETMSG as the foundation.  If possibile the
+ * 'cache' field of @secattr is set and the CACHE flag is set; this is to
+ * allow the @secattr to be used by NetLabel to cache the secattr to SID
+ * conversion for future lookups.  Returns zero on success, negative values on
+ * failure.
  *
  */
 int security_netlbl_secattr_to_sid(struct netlbl_lsm_secattr *secattr,
-				   u32 base_sid,
 				   u32 *sid)
 {
 	int rc = -EIDRM;
 	struct context *ctx;
 	struct context ctx_new;
-	struct selinux_netlbl_cache *cache;
 
 	if (!ss_initialized) {
 		*sid = SECSID_NULL;
@@ -2518,40 +2608,13 @@ int security_netlbl_secattr_to_sid(struct netlbl_lsm_secattr *secattr,
 	POLICY_RDLOCK;
 
 	if (secattr->flags & NETLBL_SECATTR_CACHE) {
-		cache = NETLBL_CACHE(secattr->cache->data);
-		switch (cache->type) {
-		case NETLBL_CACHE_T_SID:
-			*sid = cache->data.sid;
-			rc = 0;
-			break;
-		case NETLBL_CACHE_T_MLS:
-			ctx = sidtab_search(&sidtab, base_sid);
-			if (ctx == NULL)
-				goto netlbl_secattr_to_sid_return;
-
-			ctx_new.user = ctx->user;
-			ctx_new.role = ctx->role;
-			ctx_new.type = ctx->type;
-			ctx_new.range.level[0].sens =
-				cache->data.mls_label.level[0].sens;
-			ctx_new.range.level[0].cat.highbit =
-				cache->data.mls_label.level[0].cat.highbit;
-			ctx_new.range.level[0].cat.node =
-				cache->data.mls_label.level[0].cat.node;
-			ctx_new.range.level[1].sens =
-				cache->data.mls_label.level[1].sens;
-			ctx_new.range.level[1].cat.highbit =
-				cache->data.mls_label.level[1].cat.highbit;
-			ctx_new.range.level[1].cat.node =
-				cache->data.mls_label.level[1].cat.node;
-
-			rc = sidtab_context_to_sid(&sidtab, &ctx_new, sid);
-			break;
-		default:
-			goto netlbl_secattr_to_sid_return;
-		}
+		*sid = *(u32 *)secattr->cache->data;
+		rc = 0;
+	} else if (secattr->flags & NETLBL_SECATTR_SECID) {
+		*sid = secattr->attr.secid;
+		rc = 0;
 	} else if (secattr->flags & NETLBL_SECATTR_MLS_LVL) {
-		ctx = sidtab_search(&sidtab, base_sid);
+		ctx = sidtab_search(&sidtab, SECINITSID_NETMSG);
 		if (ctx == NULL)
 			goto netlbl_secattr_to_sid_return;
 
@@ -2561,7 +2624,7 @@ int security_netlbl_secattr_to_sid(struct netlbl_lsm_secattr *secattr,
 		mls_import_netlbl_lvl(&ctx_new, secattr);
 		if (secattr->flags & NETLBL_SECATTR_MLS_CAT) {
 			if (ebitmap_netlbl_import(&ctx_new.range.level[0].cat,
-						  secattr->mls_cat) != 0)
+						  secattr->attr.mls.cat) != 0)
 				goto netlbl_secattr_to_sid_return;
 			ctx_new.range.level[1].cat.highbit =
 				ctx_new.range.level[0].cat.highbit;
@@ -2578,7 +2641,7 @@ int security_netlbl_secattr_to_sid(struct netlbl_lsm_secattr *secattr,
 		if (rc != 0)
 			goto netlbl_secattr_to_sid_return_cleanup;
 
-		security_netlbl_cache_add(secattr, &ctx_new);
+		security_netlbl_cache_add(secattr, *sid);
 
 		ebitmap_destroy(&ctx_new.range.level[0].cat);
 	} else {

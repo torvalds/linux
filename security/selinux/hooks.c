@@ -12,8 +12,8 @@
  *  Copyright (C) 2003 Red Hat, Inc., James Morris <jmorris@redhat.com>
  *  Copyright (C) 2004-2005 Trusted Computer Solutions, Inc.
  *                          <dgoeddel@trustedcs.com>
- *  Copyright (C) 2006 Hewlett-Packard Development Company, L.P.
- *                     Paul Moore, <paul.moore@hp.com>
+ *  Copyright (C) 2006, 2007 Hewlett-Packard Development Company, L.P.
+ *                Paul Moore <paul.moore@hp.com>
  *  Copyright (C) 2007 Hitachi Software Engineering Co., Ltd.
  *                     Yuichi Nakamura <ynakam@hitachisoft.jp>
  *
@@ -50,8 +50,11 @@
 #include <net/icmp.h>
 #include <net/ip.h>		/* for local_port_range[] */
 #include <net/tcp.h>		/* struct or_callable used in sock_rcv_skb */
+#include <net/net_namespace.h>
+#include <net/netlabel.h>
 #include <asm/uaccess.h>
 #include <asm/ioctls.h>
+#include <asm/atomic.h>
 #include <linux/bitops.h>
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>	/* for network interface checks */
@@ -76,6 +79,7 @@
 #include "avc.h"
 #include "objsec.h"
 #include "netif.h"
+#include "netnode.h"
 #include "xfrm.h"
 #include "netlabel.h"
 
@@ -88,6 +92,9 @@ extern unsigned int policydb_loaded_version;
 extern int selinux_nlmsg_lookup(u16 sclass, u16 nlmsg_type, u32 *perm);
 extern int selinux_compat_net;
 extern struct security_operations *security_ops;
+
+/* SECMARK reference count */
+atomic_t selinux_secmark_refcount = ATOMIC_INIT(0);
 
 #ifdef CONFIG_SECURITY_SELINUX_DEVELOP
 int selinux_enforcing = 0;
@@ -153,6 +160,21 @@ static int selinux_getsecurity(u32 sid, void *buffer, size_t size)
 getsecurity_exit:
 	kfree(context);
 	return len;
+}
+
+/**
+ * selinux_secmark_enabled - Check to see if SECMARK is currently enabled
+ *
+ * Description:
+ * This function checks the SECMARK reference counter to see if any SECMARK
+ * targets are currently configured, if the reference counter is greater than
+ * zero SECMARK is considered to be enabled.  Returns true (1) if SECMARK is
+ * enabled, false (0) if SECMARK is disabled.
+ *
+ */
+static int selinux_secmark_enabled(void)
+{
+	return (atomic_read(&selinux_secmark_refcount) > 0);
 }
 
 /* Allocate and free functions for each kind of security blob. */
@@ -561,8 +583,8 @@ static int bad_option(struct superblock_security_struct *sbsec, char flag,
  * Allow filesystems with binary mount data to explicitly set mount point
  * labeling information.
  */
-int selinux_set_mnt_opts(struct super_block *sb, char **mount_options,
-				 int *flags, int num_opts)
+static int selinux_set_mnt_opts(struct super_block *sb, char **mount_options,
+				int *flags, int num_opts)
 {
 	int rc = 0, i;
 	struct task_security_struct *tsec = current->security;
@@ -3395,7 +3417,7 @@ out:
 #endif /* IPV6 */
 
 static int selinux_parse_skb(struct sk_buff *skb, struct avc_audit_data *ad,
-			     char **addrp, int *len, int src, u8 *proto)
+			     char **addrp, int src, u8 *proto)
 {
 	int ret = 0;
 
@@ -3404,7 +3426,6 @@ static int selinux_parse_skb(struct sk_buff *skb, struct avc_audit_data *ad,
 		ret = selinux_parse_skb_ipv4(skb, ad, proto);
 		if (ret || !addrp)
 			break;
-		*len = 4;
 		*addrp = (char *)(src ? &ad->u.net.v4info.saddr :
 					&ad->u.net.v4info.daddr);
 		break;
@@ -3414,7 +3435,6 @@ static int selinux_parse_skb(struct sk_buff *skb, struct avc_audit_data *ad,
 		ret = selinux_parse_skb_ipv6(skb, ad, proto);
 		if (ret || !addrp)
 			break;
-		*len = 16;
 		*addrp = (char *)(src ? &ad->u.net.v6info.saddr :
 					&ad->u.net.v6info.daddr);
 		break;
@@ -3423,36 +3443,48 @@ static int selinux_parse_skb(struct sk_buff *skb, struct avc_audit_data *ad,
 		break;
 	}
 
+	if (unlikely(ret))
+		printk(KERN_WARNING
+		       "SELinux: failure in selinux_parse_skb(),"
+		       " unable to parse packet\n");
+
 	return ret;
 }
 
 /**
- * selinux_skb_extlbl_sid - Determine the external label of a packet
+ * selinux_skb_peerlbl_sid - Determine the peer label of a packet
  * @skb: the packet
- * @sid: the packet's SID
+ * @family: protocol family
+ * @sid: the packet's peer label SID
  *
  * Description:
- * Check the various different forms of external packet labeling and determine
- * the external SID for the packet.  If only one form of external labeling is
- * present then it is used, if both labeled IPsec and NetLabel labels are
- * present then the SELinux type information is taken from the labeled IPsec
- * SA and the MLS sensitivity label information is taken from the NetLabel
- * security attributes.  This bit of "magic" is done in the call to
- * selinux_netlbl_skbuff_getsid().
+ * Check the various different forms of network peer labeling and determine
+ * the peer label/SID for the packet; most of the magic actually occurs in
+ * the security server function security_net_peersid_cmp().  The function
+ * returns zero if the value in @sid is valid (although it may be SECSID_NULL)
+ * or -EACCES if @sid is invalid due to inconsistencies with the different
+ * peer labels.
  *
  */
-static void selinux_skb_extlbl_sid(struct sk_buff *skb, u32 *sid)
+static int selinux_skb_peerlbl_sid(struct sk_buff *skb, u16 family, u32 *sid)
 {
+	int err;
 	u32 xfrm_sid;
 	u32 nlbl_sid;
+	u32 nlbl_type;
 
 	selinux_skb_xfrm_sid(skb, &xfrm_sid);
-	if (selinux_netlbl_skbuff_getsid(skb,
-					 (xfrm_sid == SECSID_NULL ?
-					  SECINITSID_NETMSG : xfrm_sid),
-					 &nlbl_sid) != 0)
-		nlbl_sid = SECSID_NULL;
-	*sid = (nlbl_sid == SECSID_NULL ? xfrm_sid : nlbl_sid);
+	selinux_netlbl_skbuff_getsid(skb, family, &nlbl_type, &nlbl_sid);
+
+	err = security_net_peersid_resolve(nlbl_sid, nlbl_type, xfrm_sid, sid);
+	if (unlikely(err)) {
+		printk(KERN_WARNING
+		       "SELinux: failure in selinux_skb_peerlbl_sid(),"
+		       " unable to determine packet's peer label\n");
+		return -EACCES;
+	}
+
+	return 0;
 }
 
 /* socket security operations */
@@ -3518,6 +3550,7 @@ static int selinux_socket_post_create(struct socket *sock, int family,
 	if (sock->sk) {
 		sksec = sock->sk->sk_security;
 		sksec->sid = isec->sid;
+		sksec->sclass = isec->sclass;
 		err = selinux_netlbl_socket_post_create(sock);
 	}
 
@@ -3610,7 +3643,7 @@ static int selinux_socket_bind(struct socket *sock, struct sockaddr *address, in
 			break;
 		}
 		
-		err = security_node_sid(family, addrp, addrlen, &sid);
+		err = sel_netnode_sid(addrp, family, &sid);
 		if (err)
 			goto out;
 		
@@ -3821,131 +3854,182 @@ static int selinux_socket_unix_may_send(struct socket *sock,
 	return 0;
 }
 
-static int selinux_sock_rcv_skb_compat(struct sock *sk, struct sk_buff *skb,
-		struct avc_audit_data *ad, u16 family, char *addrp, int len)
+static int selinux_inet_sys_rcv_skb(int ifindex, char *addrp, u16 family,
+				    u32 peer_sid,
+				    struct avc_audit_data *ad)
 {
-	int err = 0;
-	u32 netif_perm, node_perm, node_sid, if_sid, recv_perm = 0;
-	struct socket *sock;
-	u16 sock_class = 0;
-	u32 sock_sid = 0;
+	int err;
+	u32 if_sid;
+	u32 node_sid;
 
- 	read_lock_bh(&sk->sk_callback_lock);
- 	sock = sk->sk_socket;
- 	if (sock) {
- 		struct inode *inode;
- 		inode = SOCK_INODE(sock);
- 		if (inode) {
- 			struct inode_security_struct *isec;
- 			isec = inode->i_security;
- 			sock_sid = isec->sid;
- 			sock_class = isec->sclass;
- 		}
- 	}
- 	read_unlock_bh(&sk->sk_callback_lock);
- 	if (!sock_sid)
-  		goto out;
-
-	if (!skb->dev)
-		goto out;
-
-	err = sel_netif_sids(skb->dev, &if_sid, NULL);
+	err = sel_netif_sid(ifindex, &if_sid);
 	if (err)
-		goto out;
+		return err;
+	err = avc_has_perm(peer_sid, if_sid,
+			   SECCLASS_NETIF, NETIF__INGRESS, ad);
+	if (err)
+		return err;
 
-	switch (sock_class) {
+	err = sel_netnode_sid(addrp, family, &node_sid);
+	if (err)
+		return err;
+	return avc_has_perm(peer_sid, node_sid,
+			    SECCLASS_NODE, NODE__RECVFROM, ad);
+}
+
+static int selinux_sock_rcv_skb_iptables_compat(struct sock *sk,
+						struct sk_buff *skb,
+						struct avc_audit_data *ad,
+						u16 family,
+						char *addrp)
+{
+	int err;
+	struct sk_security_struct *sksec = sk->sk_security;
+	u16 sk_class;
+	u32 netif_perm, node_perm, recv_perm;
+	u32 port_sid, node_sid, if_sid, sk_sid;
+
+	sk_sid = sksec->sid;
+	sk_class = sksec->sclass;
+
+	switch (sk_class) {
 	case SECCLASS_UDP_SOCKET:
 		netif_perm = NETIF__UDP_RECV;
 		node_perm = NODE__UDP_RECV;
 		recv_perm = UDP_SOCKET__RECV_MSG;
 		break;
-	
 	case SECCLASS_TCP_SOCKET:
 		netif_perm = NETIF__TCP_RECV;
 		node_perm = NODE__TCP_RECV;
 		recv_perm = TCP_SOCKET__RECV_MSG;
 		break;
-
 	case SECCLASS_DCCP_SOCKET:
 		netif_perm = NETIF__DCCP_RECV;
 		node_perm = NODE__DCCP_RECV;
 		recv_perm = DCCP_SOCKET__RECV_MSG;
 		break;
-
 	default:
 		netif_perm = NETIF__RAWIP_RECV;
 		node_perm = NODE__RAWIP_RECV;
+		recv_perm = 0;
 		break;
 	}
 
-	err = avc_has_perm(sock_sid, if_sid, SECCLASS_NETIF, netif_perm, ad);
+	err = sel_netif_sid(skb->iif, &if_sid);
 	if (err)
-		goto out;
+		return err;
+	err = avc_has_perm(sk_sid, if_sid, SECCLASS_NETIF, netif_perm, ad);
+	if (err)
+		return err;
 	
-	err = security_node_sid(family, addrp, len, &node_sid);
+	err = sel_netnode_sid(addrp, family, &node_sid);
 	if (err)
-		goto out;
-	
-	err = avc_has_perm(sock_sid, node_sid, SECCLASS_NODE, node_perm, ad);
+		return err;
+	err = avc_has_perm(sk_sid, node_sid, SECCLASS_NODE, node_perm, ad);
 	if (err)
-		goto out;
+		return err;
 
-	if (recv_perm) {
-		u32 port_sid;
+	if (!recv_perm)
+		return 0;
+	err = security_port_sid(sk->sk_family, sk->sk_type,
+				sk->sk_protocol, ntohs(ad->u.net.sport),
+				&port_sid);
+	if (unlikely(err)) {
+		printk(KERN_WARNING
+		       "SELinux: failure in"
+		       " selinux_sock_rcv_skb_iptables_compat(),"
+		       " network port label not found\n");
+		return err;
+	}
+	return avc_has_perm(sk_sid, port_sid, sk_class, recv_perm, ad);
+}
 
-		err = security_port_sid(sk->sk_family, sk->sk_type,
-		                        sk->sk_protocol, ntohs(ad->u.net.sport),
-		                        &port_sid);
+static int selinux_sock_rcv_skb_compat(struct sock *sk, struct sk_buff *skb,
+				       struct avc_audit_data *ad,
+				       u16 family, char *addrp)
+{
+	int err;
+	struct sk_security_struct *sksec = sk->sk_security;
+	u32 peer_sid;
+	u32 sk_sid = sksec->sid;
+
+	if (selinux_compat_net)
+		err = selinux_sock_rcv_skb_iptables_compat(sk, skb, ad,
+							   family, addrp);
+	else
+		err = avc_has_perm(sk_sid, skb->secmark, SECCLASS_PACKET,
+				   PACKET__RECV, ad);
+	if (err)
+		return err;
+
+	if (selinux_policycap_netpeer) {
+		err = selinux_skb_peerlbl_sid(skb, family, &peer_sid);
 		if (err)
-			goto out;
-
-		err = avc_has_perm(sock_sid, port_sid,
-				   sock_class, recv_perm, ad);
+			return err;
+		err = avc_has_perm(sk_sid, peer_sid,
+				   SECCLASS_PEER, PEER__RECV, ad);
+	} else {
+		err = selinux_netlbl_sock_rcv_skb(sksec, skb, family, ad);
+		if (err)
+			return err;
+		err = selinux_xfrm_sock_rcv_skb(sksec->sid, skb, ad);
 	}
 
-out:
 	return err;
 }
 
 static int selinux_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 {
-	u16 family;
-	char *addrp;
-	int len, err = 0;
-	struct avc_audit_data ad;
+	int err;
 	struct sk_security_struct *sksec = sk->sk_security;
+	u16 family = sk->sk_family;
+	u32 sk_sid = sksec->sid;
+	struct avc_audit_data ad;
+	char *addrp;
 
-	family = sk->sk_family;
 	if (family != PF_INET && family != PF_INET6)
-		goto out;
+		return 0;
 
 	/* Handle mapped IPv4 packets arriving via IPv6 sockets */
 	if (family == PF_INET6 && skb->protocol == htons(ETH_P_IP))
 		family = PF_INET;
 
 	AVC_AUDIT_DATA_INIT(&ad, NET);
-	ad.u.net.netif = skb->dev ? skb->dev->name : "[unknown]";
+	ad.u.net.netif = skb->iif;
 	ad.u.net.family = family;
-
-	err = selinux_parse_skb(skb, &ad, &addrp, &len, 1, NULL);
+	err = selinux_parse_skb(skb, &ad, &addrp, 1, NULL);
 	if (err)
-		goto out;
+		return err;
 
-	if (selinux_compat_net)
-		err = selinux_sock_rcv_skb_compat(sk, skb, &ad, family,
-						  addrp, len);
-	else
-		err = avc_has_perm(sksec->sid, skb->secmark, SECCLASS_PACKET,
+	/* If any sort of compatibility mode is enabled then handoff processing
+	 * to the selinux_sock_rcv_skb_compat() function to deal with the
+	 * special handling.  We do this in an attempt to keep this function
+	 * as fast and as clean as possible. */
+	if (selinux_compat_net || !selinux_policycap_netpeer)
+		return selinux_sock_rcv_skb_compat(sk, skb, &ad,
+						   family, addrp);
+
+	if (netlbl_enabled() || selinux_xfrm_enabled()) {
+		u32 peer_sid;
+
+		err = selinux_skb_peerlbl_sid(skb, family, &peer_sid);
+		if (err)
+			return err;
+		err = selinux_inet_sys_rcv_skb(skb->iif, addrp, family,
+					       peer_sid, &ad);
+		if (err)
+			return err;
+		err = avc_has_perm(sk_sid, peer_sid, SECCLASS_PEER,
+				   PEER__RECV, &ad);
+	}
+
+	if (selinux_secmark_enabled()) {
+		err = avc_has_perm(sk_sid, skb->secmark, SECCLASS_PACKET,
 				   PACKET__RECV, &ad);
-	if (err)
-		goto out;
+		if (err)
+			return err;
+	}
 
-	err = selinux_netlbl_sock_rcv_skb(sksec, skb, &ad);
-	if (err)
-		goto out;
-
-	err = selinux_xfrm_sock_rcv_skb(sksec->sid, skb, &ad);
-out:	
 	return err;
 }
 
@@ -3996,18 +4080,25 @@ out:
 static int selinux_socket_getpeersec_dgram(struct socket *sock, struct sk_buff *skb, u32 *secid)
 {
 	u32 peer_secid = SECSID_NULL;
-	int err = 0;
+	u16 family;
 
-	if (sock && sock->sk->sk_family == PF_UNIX)
+	if (sock)
+		family = sock->sk->sk_family;
+	else if (skb && skb->sk)
+		family = skb->sk->sk_family;
+	else
+		goto out;
+
+	if (sock && family == PF_UNIX)
 		selinux_get_inode_sid(SOCK_INODE(sock), &peer_secid);
 	else if (skb)
-		selinux_skb_extlbl_sid(skb, &peer_secid);
+		selinux_skb_peerlbl_sid(skb, family, &peer_secid);
 
-	if (peer_secid == SECSID_NULL)
-		err = -EINVAL;
+out:
 	*secid = peer_secid;
-
-	return err;
+	if (peer_secid == SECSID_NULL)
+		return -EINVAL;
+	return 0;
 }
 
 static int selinux_sk_alloc_security(struct sock *sk, int family, gfp_t priority)
@@ -4027,6 +4118,7 @@ static void selinux_sk_clone_security(const struct sock *sk, struct sock *newsk)
 
 	newssec->sid = ssec->sid;
 	newssec->peer_sid = ssec->peer_sid;
+	newssec->sclass = ssec->sclass;
 
 	selinux_netlbl_sk_security_clone(ssec, newssec);
 }
@@ -4050,6 +4142,7 @@ static void selinux_sock_graft(struct sock* sk, struct socket *parent)
 	if (sk->sk_family == PF_INET || sk->sk_family == PF_INET6 ||
 	    sk->sk_family == PF_UNIX)
 		isec->sid = sksec->sid;
+	sksec->sclass = isec->sclass;
 
 	selinux_netlbl_sock_graft(sk, parent);
 }
@@ -4062,7 +4155,9 @@ static int selinux_inet_conn_request(struct sock *sk, struct sk_buff *skb,
 	u32 newsid;
 	u32 peersid;
 
-	selinux_skb_extlbl_sid(skb, &peersid);
+	err = selinux_skb_peerlbl_sid(skb, sk->sk_family, &peersid);
+	if (err)
+		return err;
 	if (peersid == SECSID_NULL) {
 		req->secid = sksec->sid;
 		req->peer_secid = SECSID_NULL;
@@ -4100,7 +4195,7 @@ static void selinux_inet_conn_established(struct sock *sk,
 {
 	struct sk_security_struct *sksec = sk->sk_security;
 
-	selinux_skb_extlbl_sid(skb, &sksec->peer_sid);
+	selinux_skb_peerlbl_sid(skb, sk->sk_family, &sksec->peer_sid);
 }
 
 static void selinux_req_classify_flow(const struct request_sock *req,
@@ -4147,149 +4242,260 @@ out:
 
 #ifdef CONFIG_NETFILTER
 
-static int selinux_ip_postroute_last_compat(struct sock *sk, struct net_device *dev,
-					    struct avc_audit_data *ad,
-					    u16 family, char *addrp, int len)
+static unsigned int selinux_ip_forward(struct sk_buff *skb, int ifindex,
+				       u16 family)
 {
-	int err = 0;
-	u32 netif_perm, node_perm, node_sid, if_sid, send_perm = 0;
-	struct socket *sock;
-	struct inode *inode;
-	struct inode_security_struct *isec;
+	char *addrp;
+	u32 peer_sid;
+	struct avc_audit_data ad;
+	u8 secmark_active;
+	u8 peerlbl_active;
 
-	sock = sk->sk_socket;
-	if (!sock)
-		goto out;
+	if (!selinux_policycap_netpeer)
+		return NF_ACCEPT;
 
-	inode = SOCK_INODE(sock);
-	if (!inode)
-		goto out;
+	secmark_active = selinux_secmark_enabled();
+	peerlbl_active = netlbl_enabled() || selinux_xfrm_enabled();
+	if (!secmark_active && !peerlbl_active)
+		return NF_ACCEPT;
 
-	isec = inode->i_security;
-	
-	err = sel_netif_sids(dev, &if_sid, NULL);
-	if (err)
-		goto out;
+	AVC_AUDIT_DATA_INIT(&ad, NET);
+	ad.u.net.netif = ifindex;
+	ad.u.net.family = family;
+	if (selinux_parse_skb(skb, &ad, &addrp, 1, NULL) != 0)
+		return NF_DROP;
 
-	switch (isec->sclass) {
+	if (selinux_skb_peerlbl_sid(skb, family, &peer_sid) != 0)
+		return NF_DROP;
+
+	if (peerlbl_active)
+		if (selinux_inet_sys_rcv_skb(ifindex, addrp, family,
+					     peer_sid, &ad) != 0)
+			return NF_DROP;
+
+	if (secmark_active)
+		if (avc_has_perm(peer_sid, skb->secmark,
+				 SECCLASS_PACKET, PACKET__FORWARD_IN, &ad))
+			return NF_DROP;
+
+	return NF_ACCEPT;
+}
+
+static unsigned int selinux_ipv4_forward(unsigned int hooknum,
+					 struct sk_buff *skb,
+					 const struct net_device *in,
+					 const struct net_device *out,
+					 int (*okfn)(struct sk_buff *))
+{
+	return selinux_ip_forward(skb, in->ifindex, PF_INET);
+}
+
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+static unsigned int selinux_ipv6_forward(unsigned int hooknum,
+					 struct sk_buff *skb,
+					 const struct net_device *in,
+					 const struct net_device *out,
+					 int (*okfn)(struct sk_buff *))
+{
+	return selinux_ip_forward(skb, in->ifindex, PF_INET6);
+}
+#endif	/* IPV6 */
+
+static int selinux_ip_postroute_iptables_compat(struct sock *sk,
+						int ifindex,
+						struct avc_audit_data *ad,
+						u16 family, char *addrp)
+{
+	int err;
+	struct sk_security_struct *sksec = sk->sk_security;
+	u16 sk_class;
+	u32 netif_perm, node_perm, send_perm;
+	u32 port_sid, node_sid, if_sid, sk_sid;
+
+	sk_sid = sksec->sid;
+	sk_class = sksec->sclass;
+
+	switch (sk_class) {
 	case SECCLASS_UDP_SOCKET:
 		netif_perm = NETIF__UDP_SEND;
 		node_perm = NODE__UDP_SEND;
 		send_perm = UDP_SOCKET__SEND_MSG;
 		break;
-	
 	case SECCLASS_TCP_SOCKET:
 		netif_perm = NETIF__TCP_SEND;
 		node_perm = NODE__TCP_SEND;
 		send_perm = TCP_SOCKET__SEND_MSG;
 		break;
-
 	case SECCLASS_DCCP_SOCKET:
 		netif_perm = NETIF__DCCP_SEND;
 		node_perm = NODE__DCCP_SEND;
 		send_perm = DCCP_SOCKET__SEND_MSG;
 		break;
-
 	default:
 		netif_perm = NETIF__RAWIP_SEND;
 		node_perm = NODE__RAWIP_SEND;
+		send_perm = 0;
 		break;
 	}
 
-	err = avc_has_perm(isec->sid, if_sid, SECCLASS_NETIF, netif_perm, ad);
+	err = sel_netif_sid(ifindex, &if_sid);
 	if (err)
-		goto out;
+		return err;
+	err = avc_has_perm(sk_sid, if_sid, SECCLASS_NETIF, netif_perm, ad);
+		return err;
 		
-	err = security_node_sid(family, addrp, len, &node_sid);
+	err = sel_netnode_sid(addrp, family, &node_sid);
 	if (err)
-		goto out;
-	
-	err = avc_has_perm(isec->sid, node_sid, SECCLASS_NODE, node_perm, ad);
+		return err;
+	err = avc_has_perm(sk_sid, node_sid, SECCLASS_NODE, node_perm, ad);
 	if (err)
-		goto out;
+		return err;
 
-	if (send_perm) {
-		u32 port_sid;
-		
-		err = security_port_sid(sk->sk_family,
-		                        sk->sk_type,
-		                        sk->sk_protocol,
-		                        ntohs(ad->u.net.dport),
-		                        &port_sid);
-		if (err)
-			goto out;
+	if (send_perm != 0)
+		return 0;
 
-		err = avc_has_perm(isec->sid, port_sid, isec->sclass,
-				   send_perm, ad);
+	err = security_port_sid(sk->sk_family, sk->sk_type,
+				sk->sk_protocol, ntohs(ad->u.net.dport),
+				&port_sid);
+	if (unlikely(err)) {
+		printk(KERN_WARNING
+		       "SELinux: failure in"
+		       " selinux_ip_postroute_iptables_compat(),"
+		       " network port label not found\n");
+		return err;
 	}
-out:
-	return err;
+	return avc_has_perm(sk_sid, port_sid, sk_class, send_perm, ad);
 }
 
-static unsigned int selinux_ip_postroute_last(unsigned int hooknum,
-                                              struct sk_buff *skb,
-                                              const struct net_device *in,
-                                              const struct net_device *out,
-                                              int (*okfn)(struct sk_buff *),
-                                              u16 family)
+static unsigned int selinux_ip_postroute_compat(struct sk_buff *skb,
+						int ifindex,
+						struct avc_audit_data *ad,
+						u16 family,
+						char *addrp,
+						u8 proto)
 {
-	char *addrp;
-	int len, err = 0;
-	struct sock *sk;
-	struct avc_audit_data ad;
-	struct net_device *dev = (struct net_device *)out;
+	struct sock *sk = skb->sk;
 	struct sk_security_struct *sksec;
-	u8 proto;
 
-	sk = skb->sk;
-	if (!sk)
-		goto out;
-
+	if (sk == NULL)
+		return NF_ACCEPT;
 	sksec = sk->sk_security;
 
-	AVC_AUDIT_DATA_INIT(&ad, NET);
-	ad.u.net.netif = dev->name;
-	ad.u.net.family = family;
+	if (selinux_compat_net) {
+		if (selinux_ip_postroute_iptables_compat(skb->sk, ifindex,
+							 ad, family, addrp))
+			return NF_DROP;
+	} else {
+		if (avc_has_perm(sksec->sid, skb->secmark,
+				 SECCLASS_PACKET, PACKET__SEND, ad))
+			return NF_DROP;
+	}
 
-	err = selinux_parse_skb(skb, &ad, &addrp, &len, 0, &proto);
-	if (err)
-		goto out;
+	if (selinux_policycap_netpeer)
+		if (selinux_xfrm_postroute_last(sksec->sid, skb, ad, proto))
+			return NF_DROP;
 
-	if (selinux_compat_net)
-		err = selinux_ip_postroute_last_compat(sk, dev, &ad,
-						       family, addrp, len);
-	else
-		err = avc_has_perm(sksec->sid, skb->secmark, SECCLASS_PACKET,
-				   PACKET__SEND, &ad);
-
-	if (err)
-		goto out;
-
-	err = selinux_xfrm_postroute_last(sksec->sid, skb, &ad, proto);
-out:
-	return err ? NF_DROP : NF_ACCEPT;
+	return NF_ACCEPT;
 }
 
-static unsigned int selinux_ipv4_postroute_last(unsigned int hooknum,
-						struct sk_buff *skb,
-						const struct net_device *in,
-						const struct net_device *out,
-						int (*okfn)(struct sk_buff *))
+static unsigned int selinux_ip_postroute(struct sk_buff *skb, int ifindex,
+					 u16 family)
 {
-	return selinux_ip_postroute_last(hooknum, skb, in, out, okfn, PF_INET);
+	u32 secmark_perm;
+	u32 peer_sid;
+	struct sock *sk;
+	struct avc_audit_data ad;
+	char *addrp;
+	u8 proto;
+	u8 secmark_active;
+	u8 peerlbl_active;
+
+	AVC_AUDIT_DATA_INIT(&ad, NET);
+	ad.u.net.netif = ifindex;
+	ad.u.net.family = family;
+	if (selinux_parse_skb(skb, &ad, &addrp, 0, &proto))
+		return NF_DROP;
+
+	/* If any sort of compatibility mode is enabled then handoff processing
+	 * to the selinux_ip_postroute_compat() function to deal with the
+	 * special handling.  We do this in an attempt to keep this function
+	 * as fast and as clean as possible. */
+	if (selinux_compat_net || !selinux_policycap_netpeer)
+		return selinux_ip_postroute_compat(skb, ifindex, &ad,
+						   family, addrp, proto);
+
+	/* If skb->dst->xfrm is non-NULL then the packet is undergoing an IPsec
+	 * packet transformation so allow the packet to pass without any checks
+	 * since we'll have another chance to perform access control checks
+	 * when the packet is on it's final way out.
+	 * NOTE: there appear to be some IPv6 multicast cases where skb->dst
+	 *       is NULL, in this case go ahead and apply access control. */
+	if (skb->dst != NULL && skb->dst->xfrm != NULL)
+		return NF_ACCEPT;
+
+	secmark_active = selinux_secmark_enabled();
+	peerlbl_active = netlbl_enabled() || selinux_xfrm_enabled();
+	if (!secmark_active && !peerlbl_active)
+		return NF_ACCEPT;
+
+	/* if the packet is locally generated (skb->sk != NULL) then use the
+	 * socket's label as the peer label, otherwise the packet is being
+	 * forwarded through this system and we need to fetch the peer label
+	 * directly from the packet */
+	sk = skb->sk;
+	if (sk) {
+		struct sk_security_struct *sksec = sk->sk_security;
+		peer_sid = sksec->sid;
+		secmark_perm = PACKET__SEND;
+	} else {
+		if (selinux_skb_peerlbl_sid(skb, family, &peer_sid))
+				return NF_DROP;
+		secmark_perm = PACKET__FORWARD_OUT;
+	}
+
+	if (secmark_active)
+		if (avc_has_perm(peer_sid, skb->secmark,
+				 SECCLASS_PACKET, secmark_perm, &ad))
+			return NF_DROP;
+
+	if (peerlbl_active) {
+		u32 if_sid;
+		u32 node_sid;
+
+		if (sel_netif_sid(ifindex, &if_sid))
+			return NF_DROP;
+		if (avc_has_perm(peer_sid, if_sid,
+				 SECCLASS_NETIF, NETIF__EGRESS, &ad))
+			return NF_DROP;
+
+		if (sel_netnode_sid(addrp, family, &node_sid))
+			return NF_DROP;
+		if (avc_has_perm(peer_sid, node_sid,
+				 SECCLASS_NODE, NODE__SENDTO, &ad))
+			return NF_DROP;
+	}
+
+	return NF_ACCEPT;
+}
+
+static unsigned int selinux_ipv4_postroute(unsigned int hooknum,
+					   struct sk_buff *skb,
+					   const struct net_device *in,
+					   const struct net_device *out,
+					   int (*okfn)(struct sk_buff *))
+{
+	return selinux_ip_postroute(skb, out->ifindex, PF_INET);
 }
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-
-static unsigned int selinux_ipv6_postroute_last(unsigned int hooknum,
-						struct sk_buff *skb,
-						const struct net_device *in,
-						const struct net_device *out,
-						int (*okfn)(struct sk_buff *))
+static unsigned int selinux_ipv6_postroute(unsigned int hooknum,
+					   struct sk_buff *skb,
+					   const struct net_device *in,
+					   const struct net_device *out,
+					   int (*okfn)(struct sk_buff *))
 {
-	return selinux_ip_postroute_last(hooknum, skb, in, out, okfn, PF_INET6);
+	return selinux_ip_postroute(skb, out->ifindex, PF_INET6);
 }
-
 #endif	/* IPV6 */
 
 #endif	/* CONFIG_NETFILTER */
@@ -5277,22 +5483,40 @@ security_initcall(selinux_init);
 
 #if defined(CONFIG_NETFILTER)
 
-static struct nf_hook_ops selinux_ipv4_op = {
-	.hook =		selinux_ipv4_postroute_last,
-	.owner =	THIS_MODULE,
-	.pf =		PF_INET,
-	.hooknum =	NF_INET_POST_ROUTING,
-	.priority =	NF_IP_PRI_SELINUX_LAST,
+static struct nf_hook_ops selinux_ipv4_ops[] = {
+	{
+		.hook =		selinux_ipv4_postroute,
+		.owner =	THIS_MODULE,
+		.pf =		PF_INET,
+		.hooknum =	NF_INET_POST_ROUTING,
+		.priority =	NF_IP_PRI_SELINUX_LAST,
+	},
+	{
+		.hook =		selinux_ipv4_forward,
+		.owner =	THIS_MODULE,
+		.pf =		PF_INET,
+		.hooknum =	NF_INET_FORWARD,
+		.priority =	NF_IP_PRI_SELINUX_FIRST,
+	}
 };
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 
-static struct nf_hook_ops selinux_ipv6_op = {
-	.hook =		selinux_ipv6_postroute_last,
-	.owner =	THIS_MODULE,
-	.pf =		PF_INET6,
-	.hooknum =	NF_INET_POST_ROUTING,
-	.priority =	NF_IP6_PRI_SELINUX_LAST,
+static struct nf_hook_ops selinux_ipv6_ops[] = {
+	{
+		.hook =		selinux_ipv6_postroute,
+		.owner =	THIS_MODULE,
+		.pf =		PF_INET6,
+		.hooknum =	NF_INET_POST_ROUTING,
+		.priority =	NF_IP6_PRI_SELINUX_LAST,
+	},
+	{
+		.hook =		selinux_ipv6_forward,
+		.owner =	THIS_MODULE,
+		.pf =		PF_INET6,
+		.hooknum =	NF_INET_FORWARD,
+		.priority =	NF_IP6_PRI_SELINUX_FIRST,
+	}
 };
 
 #endif	/* IPV6 */
@@ -5300,22 +5524,27 @@ static struct nf_hook_ops selinux_ipv6_op = {
 static int __init selinux_nf_ip_init(void)
 {
 	int err = 0;
+	u32 iter;
 
 	if (!selinux_enabled)
 		goto out;
 
 	printk(KERN_DEBUG "SELinux:  Registering netfilter hooks\n");
 
-	err = nf_register_hook(&selinux_ipv4_op);
-	if (err)
-		panic("SELinux: nf_register_hook for IPv4: error %d\n", err);
+	for (iter = 0; iter < ARRAY_SIZE(selinux_ipv4_ops); iter++) {
+		err = nf_register_hook(&selinux_ipv4_ops[iter]);
+		if (err)
+			panic("SELinux: nf_register_hook for IPv4: error %d\n",
+			      err);
+	}
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-
-	err = nf_register_hook(&selinux_ipv6_op);
-	if (err)
-		panic("SELinux: nf_register_hook for IPv6: error %d\n", err);
-
+	for (iter = 0; iter < ARRAY_SIZE(selinux_ipv6_ops); iter++) {
+		err = nf_register_hook(&selinux_ipv6_ops[iter]);
+		if (err)
+			panic("SELinux: nf_register_hook for IPv6: error %d\n",
+			      err);
+	}
 #endif	/* IPV6 */
 
 out:
@@ -5327,11 +5556,15 @@ __initcall(selinux_nf_ip_init);
 #ifdef CONFIG_SECURITY_SELINUX_DISABLE
 static void selinux_nf_ip_exit(void)
 {
+	u32 iter;
+
 	printk(KERN_DEBUG "SELinux:  Unregistering netfilter hooks\n");
 
-	nf_unregister_hook(&selinux_ipv4_op);
+	for (iter = 0; iter < ARRAY_SIZE(selinux_ipv4_ops); iter++)
+		nf_unregister_hook(&selinux_ipv4_ops[iter]);
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-	nf_unregister_hook(&selinux_ipv6_op);
+	for (iter = 0; iter < ARRAY_SIZE(selinux_ipv6_ops); iter++)
+		nf_unregister_hook(&selinux_ipv6_ops[iter]);
 #endif	/* IPV6 */
 }
 #endif

@@ -72,12 +72,13 @@ static bool checkentry_selinux(struct xt_secmark_target_info *info)
 		return false;
 	}
 
-	err = selinux_relabel_packet_permission(sel->selsid);
+	err = selinux_secmark_relabel_packet_permission(sel->selsid);
 	if (err) {
 		printk(KERN_INFO PFX "unable to obtain relabeling permission\n");
 		return false;
 	}
 
+	selinux_secmark_refcount_inc();
 	return true;
 }
 
@@ -110,11 +111,20 @@ secmark_tg_check(const char *tablename, const void *entry,
 	return true;
 }
 
+void secmark_tg_destroy(const struct xt_target *target, void *targinfo)
+{
+	switch (mode) {
+	case SECMARK_MODE_SEL:
+		selinux_secmark_refcount_dec();
+	}
+}
+
 static struct xt_target secmark_tg_reg[] __read_mostly = {
 	{
 		.name		= "SECMARK",
 		.family		= AF_INET,
 		.checkentry	= secmark_tg_check,
+		.destroy	= secmark_tg_destroy,
 		.target		= secmark_tg,
 		.targetsize	= sizeof(struct xt_secmark_target_info),
 		.table		= "mangle",
@@ -124,6 +134,7 @@ static struct xt_target secmark_tg_reg[] __read_mostly = {
 		.name		= "SECMARK",
 		.family		= AF_INET6,
 		.checkentry	= secmark_tg_check,
+		.destroy	= secmark_tg_destroy,
 		.target		= secmark_tg,
 		.targetsize	= sizeof(struct xt_secmark_target_info),
 		.table		= "mangle",
