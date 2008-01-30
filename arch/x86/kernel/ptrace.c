@@ -479,26 +479,33 @@ static int ptrace_bts_get_buffer_size(struct task_struct *child)
 	return ds_get_bts_size((void *)child->thread.ds_area_msr);
 }
 
-static int ptrace_bts_get_index(struct task_struct *child)
-{
-	if (!child->thread.ds_area_msr)
-		return -ENXIO;
-
-	return ds_get_bts_index((void *)child->thread.ds_area_msr);
-}
-
 static int ptrace_bts_read_record(struct task_struct *child,
 				  long index,
 				  struct bts_struct __user *out)
 {
 	struct bts_struct ret;
 	int retval;
+	int bts_size;
+	int bts_index;
 
 	if (!child->thread.ds_area_msr)
 		return -ENXIO;
 
+	if (index < 0)
+		return -EINVAL;
+
+	bts_size = ds_get_bts_size((void *)child->thread.ds_area_msr);
+	if (bts_size <= index)
+		return -EINVAL;
+
+	/* translate the ptrace bts index into the ds bts index */
+	bts_index = ds_get_bts_index((void *)child->thread.ds_area_msr);
+	bts_index -= (index + 1);
+	if (bts_index < 0)
+		bts_index += bts_size;
+
 	retval = ds_read_bts((void *)child->thread.ds_area_msr,
-			     index, &ret);
+			     bts_index, &ret);
 	if (retval)
 		return retval;
 
@@ -813,10 +820,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		ret = ptrace_bts_get_buffer_size(child);
 		break;
 
-	case PTRACE_BTS_GET_INDEX:
-		ret = ptrace_bts_get_index(child);
-		break;
-
 	case PTRACE_BTS_READ_RECORD:
 		ret = ptrace_bts_read_record
 			(child, data,
@@ -1017,7 +1020,6 @@ asmlinkage long sys32_ptrace(long request, u32 pid, u32 addr, u32 data)
 	case PTRACE_BTS_MAX_BUFFER_SIZE:
 	case PTRACE_BTS_ALLOCATE_BUFFER:
 	case PTRACE_BTS_GET_BUFFER_SIZE:
-	case PTRACE_BTS_GET_INDEX:
 	case PTRACE_BTS_READ_RECORD:
 	case PTRACE_BTS_CONFIG:
 	case PTRACE_BTS_STATUS:

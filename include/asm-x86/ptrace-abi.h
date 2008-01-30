@@ -99,32 +99,27 @@
    ENXIO........no buffer allocated */
 #define PTRACE_BTS_GET_BUFFER_SIZE 42
 
-/* Return the index of the next bts record to be written,
-   if successful; -1, otherwise.
-   EOPNOTSUPP...processor does not support bts tracing
-   ENXIO........no buffer allocated
-   After the first warp-around, this is the start of the circular bts buffer. */
-#define PTRACE_BTS_GET_INDEX 43
-
-/* Read the DATA'th bts record into a ptrace_bts_record buffer provided in ADDR.
+/* Read the DATA'th bts record into a ptrace_bts_record buffer
+   provided in ADDR.
+   Records are ordered from newest to oldest.
    Return 0, if successful; -1, otherwise
    EOPNOTSUPP...processor does not support bts tracing
    ENXIO........no buffer allocated
    EINVAL.......invalid index */
-#define PTRACE_BTS_READ_RECORD 44
+#define PTRACE_BTS_READ_RECORD 43
 
 /* Configure last branch trace; the configuration is given as a bit-mask of
    PTRACE_BTS_O_* options in DATA; parameter ADDR is ignored.
    Return 0, if successful; -1, otherwise
    EOPNOTSUPP...processor does not support bts tracing
    ENXIO........no buffer allocated */
-#define PTRACE_BTS_CONFIG 45
+#define PTRACE_BTS_CONFIG 44
 
 /* Return the configuration as bit-mask of PTRACE_BTS_O_* options
    if successful; -1, otherwise.
    EOPNOTSUPP...processor does not support bts tracing
    ENXIO........no buffer allocated */
-#define PTRACE_BTS_STATUS 46
+#define PTRACE_BTS_STATUS 45
 
 /* Trace configuration options */
 /* Collect last branch trace */
