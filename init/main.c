@@ -318,6 +318,10 @@ static int __init unknown_bootoption(char *param, char *val)
 	return 0;
 }
 
+#ifdef CONFIG_DEBUG_PAGEALLOC
+int __read_mostly debug_pagealloc_enabled = 0;
+#endif
+
 static int __init init_setup(char *str)
 {
 	unsigned int i;
@@ -552,6 +556,7 @@ asmlinkage void __init start_kernel(void)
 	preempt_disable();
 	build_all_zonelists();
 	page_alloc_init();
+	enable_debug_pagealloc();
 	printk(KERN_NOTICE "Kernel command line: %s\n", boot_command_line);
 	parse_early_param();
 	parse_args("Booting kernel", static_command_line, __start___param,

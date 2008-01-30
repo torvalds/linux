@@ -61,13 +61,17 @@ static void __set_pmd_pte(pte_t *kpte, unsigned long address, pte_t pte)
 static int split_large_page(pte_t *kpte, unsigned long address)
 {
 	pgprot_t ref_prot = pte_pgprot(pte_clrhuge(*kpte));
+	gfp_t gfp_flags = GFP_KERNEL;
 	unsigned long flags;
 	unsigned long addr;
 	pte_t *pbase, *tmp;
 	struct page *base;
 	int i, level;
 
-	base = alloc_pages(GFP_KERNEL, 0);
+#ifdef CONFIG_DEBUG_PAGEALLOC
+	gfp_flags = GFP_ATOMIC;
+#endif
+	base = alloc_pages(gfp_flags, 0);
 	if (!base)
 		return -ENOMEM;
 
@@ -217,6 +221,12 @@ void kernel_map_pages(struct page *page, int numpages, int enable)
 		debug_check_no_locks_freed(page_address(page),
 					   numpages * PAGE_SIZE);
 	}
+
+	/*
+	 * If page allocator is not up yet then do not call c_p_a():
+	 */
+	if (!debug_pagealloc_enabled)
+		return;
 
 	/*
 	 * the return value is ignored - the calls cannot fail,

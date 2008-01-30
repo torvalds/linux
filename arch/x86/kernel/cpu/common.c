@@ -641,13 +641,6 @@ void __init early_cpu_init(void)
 	nexgen_init_cpu();
 	umc_init_cpu();
 	early_cpu_detect();
-
-#ifdef CONFIG_DEBUG_PAGEALLOC
-	/* pse is not compatible with on-the-fly unmapping,
-	 * disable it even if the cpus claim to support it.
-	 */
-	setup_clear_cpu_cap(X86_FEATURE_PSE);
-#endif
 }
 
 /* Make sure %fs is initialized properly in idle threads */

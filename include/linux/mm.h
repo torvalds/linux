@@ -1118,9 +1118,21 @@ static inline void vm_stat_account(struct mm_struct *mm,
 }
 #endif /* CONFIG_PROC_FS */
 
-#ifndef CONFIG_DEBUG_PAGEALLOC
+#ifdef CONFIG_DEBUG_PAGEALLOC
+extern int debug_pagealloc_enabled;
+
+extern void kernel_map_pages(struct page *page, int numpages, int enable);
+
+static inline void enable_debug_pagealloc(void)
+{
+	debug_pagealloc_enabled = 1;
+}
+#else
 static inline void
 kernel_map_pages(struct page *page, int numpages, int enable) {}
+static inline void enable_debug_pagealloc(void)
+{
+}
 #endif
 
 extern struct vm_area_struct *get_gate_vma(struct task_struct *tsk);
