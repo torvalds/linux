@@ -742,8 +742,7 @@ int __meminit vmemmap_populate(struct page *start_page,
 			if (!p)
 				return -ENOMEM;
 
-			entry = pfn_pte(__pa(p) >> PAGE_SHIFT, PAGE_KERNEL);
-			mk_pte_huge(entry);
+			entry = pfn_pte(__pa(p) >> PAGE_SHIFT, PAGE_KERNEL_LARGE);
 			set_pmd(pmd, __pmd(pte_val(entry)));
 
 			printk(KERN_DEBUG " [%lx-%lx] PMD ->%p on node %d\n",
