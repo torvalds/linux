@@ -241,8 +241,10 @@ unsigned long long xen_pgd_val(pgd_t pgd)
 
 pte_t xen_make_pte(unsigned long long pte)
 {
-	if (pte & 1)
+	if (pte & _PAGE_PRESENT) {
 		pte = phys_to_machine(XPADDR(pte)).maddr;
+		pte &= ~(_PAGE_PCD | _PAGE_PWT);
+	}
 
 	return (pte_t){ .pte = pte };
 }
@@ -288,10 +290,10 @@ unsigned long xen_pgd_val(pgd_t pgd)
 
 pte_t xen_make_pte(unsigned long pte)
 {
-	if (pte & _PAGE_PRESENT)
+	if (pte & _PAGE_PRESENT) {
 		pte = phys_to_machine(XPADDR(pte)).maddr;
-
-	pte &= ~(_PAGE_PCD | _PAGE_PWT);
+		pte &= ~(_PAGE_PCD | _PAGE_PWT);
+	}
 
 	return (pte_t){ pte };
 }
