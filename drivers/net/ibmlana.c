@@ -906,7 +906,7 @@ static char *ibmlana_adapter_names[] __devinitdata = {
 	NULL
 };
 
-static int ibmlana_init_one(struct device *kdev)
+static int __devinit ibmlana_init_one(struct device *kdev)
 {
 	struct mca_device *mdev = to_mca_device(kdev);
 	struct net_device *dev;
