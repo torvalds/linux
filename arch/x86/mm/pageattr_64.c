@@ -67,8 +67,7 @@ split_large_page(unsigned long address, pgprot_t ref_prot)
 }
 
 static int
-__change_page_attr(unsigned long address, unsigned long pfn, pgprot_t prot,
-		   pgprot_t ref_prot)
+__change_page_attr(unsigned long address, unsigned long pfn, pgprot_t prot)
 {
 	struct page *kpte_page;
 	pte_t *kpte;
@@ -84,32 +83,24 @@ repeat:
 	oldprot = pte_pgprot(*kpte);
 	BUG_ON(PageLRU(kpte_page));
 	BUG_ON(PageCompound(kpte_page));
-	ref_prot = canon_pgprot(ref_prot);
 	prot = canon_pgprot(prot);
 
-	if (pgprot_val(prot) != pgprot_val(ref_prot)) {
-		if (level == 4) {
-			set_pte(kpte, pfn_pte(pfn, prot));
-		} else {
-			/*
-			 * split_large_page will take the reference for this
-			 * change_page_attr on the split page.
-			 */
-			struct page *split;
-
-			ref_prot2 = pte_pgprot(pte_clrhuge(*kpte));
-			split = split_large_page(address, ref_prot2);
-			if (!split)
-				return -ENOMEM;
-			pgprot_val(ref_prot2) &= ~_PAGE_NX;
-			set_pte(kpte, mk_pte(split, ref_prot2));
-			goto repeat;
-		}
+	if (level == 4) {
+		set_pte(kpte, pfn_pte(pfn, prot));
 	} else {
-		if (level == 4) {
-			set_pte(kpte, pfn_pte(pfn, ref_prot));
-		} else
-			BUG();
+		/*
+		 * split_large_page will take the reference for this
+		 * change_page_attr on the split page.
+		 */
+		struct page *split;
+
+		ref_prot2 = pte_pgprot(pte_clrhuge(*kpte));
+		split = split_large_page(address, ref_prot2);
+		if (!split)
+			return -ENOMEM;
+		pgprot_val(ref_prot2) &= ~_PAGE_NX;
+		set_pte(kpte, mk_pte(split, ref_prot2));
+		goto repeat;
 	}
 
 	return 0;
@@ -144,8 +135,7 @@ int change_page_attr_addr(unsigned long address, int numpages, pgprot_t prot)
 		unsigned long pfn = __pa(address) >> PAGE_SHIFT;
 
 		if (!kernel_map || pte_present(pfn_pte(0, prot))) {
-			err = __change_page_attr(address, pfn, prot,
-						PAGE_KERNEL);
+			err = __change_page_attr(address, pfn, prot);
 			if (err)
 				break;
 		}
@@ -158,8 +148,7 @@ int change_page_attr_addr(unsigned long address, int numpages, pgprot_t prot)
 			addr2 = __START_KERNEL_map + __pa(address);
 			/* Make sure the kernel mappings stay executable */
 			prot2 = pte_pgprot(pte_mkexec(pfn_pte(0, prot)));
-			err = __change_page_attr(addr2, pfn, prot2,
-						 PAGE_KERNEL_EXEC);
+			err = __change_page_attr(addr2, pfn, prot2);
 		}
 	}
 	up_write(&init_mm.mmap_sem);
