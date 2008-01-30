@@ -120,6 +120,7 @@ struct pv_cpu_ops {
 
 	u64 (*read_tsc)(void);
 	u64 (*read_pmc)(int counter);
+	unsigned long long (*read_tscp)(unsigned int *aux);
 
 	/* These two are jmp to, not actually called. */
 	void (*irq_enable_syscall_ret)(void);
@@ -667,6 +668,27 @@ static inline unsigned long long paravirt_read_pmc(int counter)
 	low = (u32)_l;				\
 	high = _l >> 32;			\
 } while(0)
+
+static inline unsigned long long paravirt_rdtscp(unsigned int *aux)
+{
+	return PVOP_CALL1(u64, pv_cpu_ops.read_tscp, aux);
+}
+
+#define rdtscp(low, high, aux)				\
+do {							\
+	int __aux;					\
+	unsigned long __val = paravirt_rdtscp(&__aux);	\
+	(low) = (u32)__val;				\
+	(high) = (u32)(__val >> 32);			\
+	(aux) = __aux;					\
+} while (0)
+
+#define rdtscpll(val, aux)				\
+do {							\
+	unsigned long __aux; 				\
+	val = paravirt_rdtscp(&__aux);			\
+	(aux) = __aux;					\
+} while (0)
 
 static inline void load_TR_desc(void)
 {
