@@ -165,16 +165,25 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base)
 		pmd = one_md_table_init(pgd);
 		if (pfn >= max_low_pfn)
 			continue;
-		for (pmd_idx = 0; pmd_idx < PTRS_PER_PMD && pfn < max_low_pfn; pmd++, pmd_idx++) {
+		for (pmd_idx = 0;
+		     pmd_idx < PTRS_PER_PMD && pfn < max_low_pfn;
+		     pmd++, pmd_idx++) {
 			unsigned int address = pfn * PAGE_SIZE + PAGE_OFFSET;
 
-			/* Map with big pages if possible, otherwise create normal page tables. */
+			/* Map with big pages if possible, otherwise
+			   create normal page tables. */
 			if (cpu_has_pse) {
-				unsigned int address2 = (pfn + PTRS_PER_PTE - 1) * PAGE_SIZE + PAGE_OFFSET + PAGE_SIZE-1;
-				if (is_kernel_text(address) || is_kernel_text(address2))
-					set_pmd(pmd, pfn_pmd(pfn, PAGE_KERNEL_LARGE_EXEC));
-				else
-					set_pmd(pmd, pfn_pmd(pfn, PAGE_KERNEL_LARGE));
+				unsigned int address2;
+				pgprot_t prot = PAGE_KERNEL_LARGE;
+
+				address2 = (pfn + PTRS_PER_PTE - 1) * PAGE_SIZE +
+					PAGE_OFFSET + PAGE_SIZE-1;
+
+				if (is_kernel_text(address) ||
+				    is_kernel_text(address2))
+					prot = PAGE_KERNEL_LARGE_EXEC;
+
+				set_pmd(pmd, pfn_pmd(pfn, prot));
 
 				pfn += PTRS_PER_PTE;
 			} else {
@@ -183,10 +192,12 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base)
 				for (pte_ofs = 0;
 				     pte_ofs < PTRS_PER_PTE && pfn < max_low_pfn;
 				     pte++, pfn++, pte_ofs++, address += PAGE_SIZE) {
+					pgprot_t prot = PAGE_KERNEL;
+
 					if (is_kernel_text(address))
-						set_pte(pte, pfn_pte(pfn, PAGE_KERNEL_EXEC));
-					else
-						set_pte(pte, pfn_pte(pfn, PAGE_KERNEL));
+						prot = PAGE_KERNEL_EXEC;
+
+					set_pte(pte, pfn_pte(pfn, prot));
 				}
 			}
 		}
