@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2002, IBM Corp.
  *
- * All rights reserved.          
+ * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,34 +22,27 @@
  *
  * Send feedback to <colpatch@us.ibm.com>
  */
-#ifndef _ASM_I386_TOPOLOGY_H
-#define _ASM_I386_TOPOLOGY_H
-
-#ifdef CONFIG_X86_HT
-#define topology_physical_package_id(cpu)	(cpu_data(cpu).phys_proc_id)
-#define topology_core_id(cpu)			(cpu_data(cpu).cpu_core_id)
-#define topology_core_siblings(cpu)		(per_cpu(cpu_core_map, cpu))
-#define topology_thread_siblings(cpu)		(per_cpu(cpu_sibling_map, cpu))
-#endif
+#ifndef _ASM_X86_TOPOLOGY_H
+#define _ASM_X86_TOPOLOGY_H
 
 #ifdef CONFIG_NUMA
-
+#include <linux/cpumask.h>
 #include <asm/mpspec.h>
 
-#include <linux/cpumask.h>
-
 /* Mappings between logical cpu number and node number */
-extern cpumask_t node_to_cpumask_map[];
 extern int cpu_to_node_map[];
+extern cpumask_t node_to_cpumask_map[];
 
 /* Returns the number of the node containing CPU 'cpu' */
 static inline int cpu_to_node(int cpu)
-{ 
+{
 	return cpu_to_node_map[cpu];
 }
 
-/* Returns the number of the node containing Node 'node'.  This architecture is flat, 
-   so it is a pretty simple function! */
+/*
+ * Returns the number of the node containing Node 'node'. This
+ * architecture is flat, so it is a pretty simple function!
+ */
 #define parent_node(node) (node)
 
 /* Returns a bitmask of CPUs on Node 'node'. */
@@ -60,13 +53,14 @@ static inline cpumask_t node_to_cpumask(int node)
 
 /* Returns the number of the first CPU on Node 'node'. */
 static inline int node_to_first_cpu(int node)
-{ 
+{
 	cpumask_t mask = node_to_cpumask(node);
+
 	return first_cpu(mask);
 }
 
-#define pcibus_to_node(bus) ((struct pci_sysdata *)((bus)->sysdata))->node
-#define pcibus_to_cpumask(bus) node_to_cpumask(pcibus_to_node(bus))
+#define pcibus_to_node(bus) __pcibus_to_node(bus)
+#define pcibus_to_cpumask(bus) __pcibus_to_cpumask(bus)
 
 /* sched_domains SD_NODE_INIT for NUMAQ machines */
 #define SD_NODE_INIT (struct sched_domain) {		\
@@ -99,21 +93,24 @@ extern unsigned long node_remap_size[];
 
 #define node_has_online_mem(nid) (node_start_pfn[nid] != node_end_pfn[nid])
 
-#else /* !CONFIG_NUMA */
-/*
- * Other i386 platforms should define their own version of the 
- * above macros here.
- */
+#else /* CONFIG_NUMA */
 
 #include <asm-generic/topology.h>
 
-#endif /* CONFIG_NUMA */
+#endif
 
 extern cpumask_t cpu_coregroup_map(int cpu);
 
-#ifdef CONFIG_SMP
-#define mc_capable()	(boot_cpu_data.x86_max_cores > 1)
-#define smt_capable()	(smp_num_siblings > 1)
+#ifdef CONFIG_X86_HT
+#define topology_physical_package_id(cpu)	(cpu_data(cpu).phys_proc_id)
+#define topology_core_id(cpu)			(cpu_data(cpu).cpu_core_id)
+#define topology_core_siblings(cpu)		(per_cpu(cpu_core_map, cpu))
+#define topology_thread_siblings(cpu)		(per_cpu(cpu_sibling_map, cpu))
 #endif
 
-#endif /* _ASM_I386_TOPOLOGY_H */
+#ifdef CONFIG_SMP
+#define mc_capable()			(boot_cpu_data.x86_max_cores > 1)
+#define smt_capable()			(smp_num_siblings > 1)
+#endif
+
+#endif
