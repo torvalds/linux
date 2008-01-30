@@ -248,7 +248,7 @@ static inline void __init reserve_crashkernel(void)
 unsigned __initdata ebda_addr;
 unsigned __initdata ebda_size;
 
-static void discover_ebda(void)
+static void __init discover_ebda(void)
 {
 	/*
 	 * there is a real-mode segmented pointer pointing to the
