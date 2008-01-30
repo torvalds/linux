@@ -42,7 +42,7 @@ int set_memory_ro(unsigned long addr, int numpages);
 int set_memory_rw(unsigned long addr, int numpages);
 int set_memory_np(unsigned long addr, int numpages);
 
-void clflush_cache_range(void *addr, int size);
+void clflush_cache_range(void *addr, unsigned int size);
 
 #ifdef CONFIG_DEBUG_RODATA
 void mark_rodata_ro(void);

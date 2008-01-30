@@ -26,7 +26,6 @@ within(unsigned long addr, unsigned long start, unsigned long end)
  * Flushing functions
  */
 
-
 /**
  * clflush_cache_range - flush a cache range with clflush
  * @addr:	virtual start address
@@ -35,13 +34,19 @@ within(unsigned long addr, unsigned long start, unsigned long end)
  * clflush is an unordered instruction which needs fencing with mfence
  * to avoid ordering issues.
  */
-void clflush_cache_range(void *addr, int size)
+void clflush_cache_range(void *vaddr, unsigned int size)
 {
-	int i;
+	void *vend = vaddr + size - 1;
 
 	mb();
-	for (i = 0; i < size; i += boot_cpu_data.x86_clflush_size)
-		clflush(addr+i);
+
+	for (; vaddr < vend; vaddr += boot_cpu_data.x86_clflush_size)
+		clflush(vaddr);
+	/*
+	 * Flush any possible final partial cacheline:
+	 */
+	clflush(vend);
+
 	mb();
 }
 
@@ -74,9 +79,13 @@ static void __cpa_flush_range(void *arg)
 	__flush_tlb_all();
 }
 
-static void cpa_flush_range(unsigned long addr, int numpages)
+static void cpa_flush_range(unsigned long start, int numpages)
 {
+	unsigned int i, level;
+	unsigned long addr;
+
 	BUG_ON(irqs_disabled());
+	WARN_ON(PAGE_ALIGN(start) != start);
 
 	on_each_cpu(__cpa_flush_range, NULL, 1, 1);
 
@@ -86,7 +95,15 @@ static void cpa_flush_range(unsigned long addr, int numpages)
 	 * will cause all other CPUs to flush the same
 	 * cachelines:
 	 */
-	clflush_cache_range((void *) addr, numpages * PAGE_SIZE);
+	for (i = 0, addr = start; i < numpages; i++, addr += PAGE_SIZE) {
+		pte_t *pte = lookup_address(addr, &level);
+
+		/*
+		 * Only flush present addresses:
+		 */
+		if (pte && pte_present(*pte))
+			clflush_cache_range((void *) addr, PAGE_SIZE);
+	}
 }
 
 /*
