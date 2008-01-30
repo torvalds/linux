@@ -33,6 +33,9 @@ struct thread_info {
 
 	mm_segment_t		addr_limit;	
 	struct restart_block    restart_block;
+#ifdef CONFIG_IA32_EMULATION
+	void __user		*sysenter_return;
+#endif
 };
 #endif
 

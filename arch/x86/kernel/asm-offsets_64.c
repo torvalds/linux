@@ -46,6 +46,9 @@ int main(void)
 	ENTRY(addr_limit);
 	ENTRY(preempt_count);
 	ENTRY(status);
+#ifdef CONFIG_IA32_EMULATION
+	ENTRY(sysenter_return);
+#endif
 	BLANK();
 #undef ENTRY
 #define ENTRY(entry) DEFINE(pda_ ## entry, offsetof(struct x8664_pda, entry))

@@ -46,6 +46,10 @@ int syscall32_setup_pages(struct linux_binprm *bprm, int exstack)
 				      VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC|
 				      VM_ALWAYSDUMP,
 				      syscall32_pages);
+	if (ret == 0) {
+		current->mm->context.vdso = (void __user *)VSYSCALL32_BASE;
+		current_thread_info()->sysenter_return = VSYSCALL32_SYSEXIT;
+	}
 	up_write(&mm->mmap_sem);
 	return ret;
 }
