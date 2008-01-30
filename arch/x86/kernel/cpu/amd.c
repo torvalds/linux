@@ -301,6 +301,9 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 	/* K6s reports MCEs but don't actually have all the MSRs */
 	if (c->x86 < 6)
 		clear_bit(X86_FEATURE_MCE, c->x86_capability);
+
+	if (cpu_has_xmm)
+		set_bit(X86_FEATURE_MFENCE_RDTSC, c->x86_capability);
 }
 
 static unsigned int __cpuinit amd_size_cache(struct cpuinfo_x86 * c, unsigned int size)

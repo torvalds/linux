@@ -746,8 +746,8 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 	if (c->x86 == 0xf || c->x86 == 0x10 || c->x86 == 0x11)
 		set_cpu_cap(c, X86_FEATURE_K8);
 
-	/* RDTSC can be speculated around */
-	clear_cpu_cap(c, X86_FEATURE_SYNC_RDTSC);
+	/* MFENCE stops RDTSC speculation */
+	set_cpu_cap(c, X86_FEATURE_MFENCE_RDTSC);
 
 	/* Family 10 doesn't support C states in MWAIT so don't use it */
 	if (c->x86 == 0x10 && !force_mwait)
