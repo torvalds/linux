@@ -619,6 +619,7 @@ static inline void write_cr4(unsigned long x)
 	PVOP_VCALL1(pv_cpu_ops.write_cr4, x);
 }
 
+#ifdef CONFIG_X86_64
 static inline unsigned long read_cr8(void)
 {
 	return PVOP_CALL0(unsigned long, pv_cpu_ops.read_cr8);
@@ -628,6 +629,7 @@ static inline void write_cr8(unsigned long x)
 {
 	PVOP_VCALL1(pv_cpu_ops.write_cr8, x);
 }
+#endif
 
 static inline void raw_safe_halt(void)
 {
