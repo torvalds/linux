@@ -6,18 +6,17 @@
  * (C) Copyright 1995 1996 Linus Torvalds
  */
 
-#include <linux/vmalloc.h>
 #include <linux/init.h>
-#include <linux/slab.h>
-#include <linux/module.h>
 #include <linux/io.h>
-#include <asm/fixmap.h>
-#include <asm/cacheflush.h>
-#include <asm/tlbflush.h>
-#include <asm/pgtable.h>
+#include <linux/module.h>
+#include <linux/slab.h>
+#include <linux/vmalloc.h>
 
-#define ISA_START_ADDRESS	0xa0000
-#define ISA_END_ADDRESS		0x100000
+#include <asm/cacheflush.h>
+#include <asm/e820.h>
+#include <asm/fixmap.h>
+#include <asm/pgtable.h>
+#include <asm/tlbflush.h>
 
 /*
  * Remap an arbitrary physical address space into the kernel virtual
