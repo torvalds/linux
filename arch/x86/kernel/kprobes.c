@@ -427,6 +427,20 @@ void __kprobes arch_prepare_kretprobe(struct kretprobe_instance *ri,
 	/* Replace the return addr with trampoline addr */
 	*sara = (unsigned long) &kretprobe_trampoline;
 }
+/*
+ * We have reentered the kprobe_handler(), since another probe was hit while
+ * within the handler. We save the original kprobes variables and just single
+ * step on the instruction of the new probe without calling any user handlers.
+ */
+static void __kprobes reenter_kprobe(struct kprobe *p, struct pt_regs *regs,
+				     struct kprobe_ctlblk *kcb)
+{
+	save_previous_kprobe(kcb);
+	set_current_kprobe(p, regs, kcb);
+	kprobes_inc_nmissed_count(p);
+	prepare_singlestep(p, regs);
+	kcb->kprobe_status = KPROBE_REENTER;
+}
 
 /*
  * Interrupts are disabled on entry as trap3 is an interrupt gate and they
@@ -471,17 +485,7 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 				goto no_kprobe;
 #endif
 			}
-			/* We have reentered the kprobe_handler(), since
-			 * another probe was hit while within the handler.
-			 * We here save the original kprobes variables and
-			 * just single step on the instruction of the new probe
-			 * without calling any user handlers.
-			 */
-			save_previous_kprobe(kcb);
-			set_current_kprobe(p, regs, kcb);
-			kprobes_inc_nmissed_count(p);
-			prepare_singlestep(p, regs);
-			kcb->kprobe_status = KPROBE_REENTER;
+			reenter_kprobe(p, regs, kcb);
 			return 1;
 		} else {
 			if (*addr != BREAKPOINT_INSTRUCTION) {
