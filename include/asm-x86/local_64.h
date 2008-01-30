@@ -4,21 +4,21 @@
 static inline void local_inc(local_t *l)
 {
 	__asm__ __volatile__(
-		"incq %0"
+		_ASM_INC "%0"
 		:"+m" (l->a.counter));
 }
 
 static inline void local_dec(local_t *l)
 {
 	__asm__ __volatile__(
-		"decq %0"
+		_ASM_DEC "%0"
 		:"+m" (l->a.counter));
 }
 
 static inline void local_add(long i, local_t *l)
 {
 	__asm__ __volatile__(
-		"addq %1,%0"
+		_ASM_ADD "%1,%0"
 		:"+m" (l->a.counter)
 		:"ir" (i));
 }
@@ -26,7 +26,7 @@ static inline void local_add(long i, local_t *l)
 static inline void local_sub(long i, local_t *l)
 {
 	__asm__ __volatile__(
-		"subq %1,%0"
+		_ASM_SUB "%1,%0"
 		:"+m" (l->a.counter)
 		:"ir" (i));
 }
@@ -45,7 +45,7 @@ static inline int local_sub_and_test(long i, local_t *l)
 	unsigned char c;
 
 	__asm__ __volatile__(
-		"subq %2,%0; sete %1"
+		_ASM_SUB "%2,%0; sete %1"
 		:"+m" (l->a.counter), "=qm" (c)
 		:"ir" (i) : "memory");
 	return c;
@@ -64,7 +64,7 @@ static inline int local_dec_and_test(local_t *l)
 	unsigned char c;
 
 	__asm__ __volatile__(
-		"decq %0; sete %1"
+		_ASM_DEC "%0; sete %1"
 		:"+m" (l->a.counter), "=qm" (c)
 		: : "memory");
 	return c != 0;
@@ -83,7 +83,7 @@ static inline int local_inc_and_test(local_t *l)
 	unsigned char c;
 
 	__asm__ __volatile__(
-		"incq %0; sete %1"
+		_ASM_INC "%0; sete %1"
 		:"+m" (l->a.counter), "=qm" (c)
 		: : "memory");
 	return c != 0;
@@ -103,7 +103,7 @@ static inline int local_add_negative(long i, local_t *l)
 	unsigned char c;
 
 	__asm__ __volatile__(
-		"addq %2,%0; sets %1"
+		_ASM_ADD "%2,%0; sets %1"
 		:"+m" (l->a.counter), "=qm" (c)
 		:"ir" (i) : "memory");
 	return c;
@@ -120,7 +120,7 @@ static inline long local_add_return(long i, local_t *l)
 {
 	long __i = i;
 	__asm__ __volatile__(
-		"xaddq %0, %1;"
+		_ASM_XADD "%0, %1;"
 		:"+r" (i), "+m" (l->a.counter)
 		: : "memory");
 	return i + __i;
