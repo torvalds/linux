@@ -148,7 +148,7 @@ __change_page_attr(unsigned long address, unsigned long pfn, pgprot_t prot,
 	if (!kpte)
 		return 0;
 
-	kpte_page = virt_to_page(((unsigned long)kpte) & PAGE_MASK);
+	kpte_page = virt_to_page(kpte);
 	BUG_ON(PageLRU(kpte_page));
 	BUG_ON(PageCompound(kpte_page));
 	if (pgprot_val(prot) != pgprot_val(ref_prot)) {
