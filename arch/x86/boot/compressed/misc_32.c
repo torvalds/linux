@@ -348,7 +348,7 @@ static void error(char *x)
 		asm("hlt");
 }
 
-asmlinkage void decompress_kernel(void *rmode, unsigned long end,
+asmlinkage void decompress_kernel(void *rmode, unsigned long heap,
 				  uch *input_data, unsigned long input_len,
 				  uch *output)
 {
@@ -366,15 +366,15 @@ asmlinkage void decompress_kernel(void *rmode, unsigned long end,
 	cols = RM_SCREEN_INFO.orig_video_cols;
 
 	window = output;		/* Output buffer (Normally at 1M) */
-	free_mem_ptr     = end;		/* Heap */
-	free_mem_end_ptr = end + HEAP_SIZE;
+	free_mem_ptr     = heap;	/* Heap */
+	free_mem_end_ptr = heap + HEAP_SIZE;
 	inbuf  = input_data;		/* Input buffer */
 	insize = input_len;
 	inptr  = 0;
 
 	if ((u32)output & (CONFIG_PHYSICAL_ALIGN -1))
 		error("Destination address not CONFIG_PHYSICAL_ALIGN aligned");
-	if (end > ((-__PAGE_OFFSET-(512 <<20)-1) & 0x7fffffff))
+	if (heap > ((-__PAGE_OFFSET-(512<<20)-1) & 0x7fffffff))
 		error("Destination address too large");
 #ifndef CONFIG_RELOCATABLE
 	if ((u32)output != LOAD_PHYSICAL_ADDR)
