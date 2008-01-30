@@ -185,4 +185,11 @@ config DEFAULT_IO_DELAY_TYPE
 	default IO_DELAY_TYPE_NONE
 endif
 
+config DEBUG_BOOT_PARAMS
+	bool "Debug boot parameters"
+	depends on DEBUG_KERNEL
+	depends on DEBUG_FS
+	help
+	  This option will cause struct boot_params to be exported via debugfs.
+
 endmenu

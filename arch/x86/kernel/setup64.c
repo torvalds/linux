@@ -24,7 +24,11 @@
 #include <asm/sections.h>
 #include <asm/setup.h>
 
+#ifndef CONFIG_DEBUG_BOOT_PARAMS
 struct boot_params __initdata boot_params;
+#else
+struct boot_params boot_params;
+#endif
 
 cpumask_t cpu_initialized __cpuinitdata = CPU_MASK_NONE;
 
