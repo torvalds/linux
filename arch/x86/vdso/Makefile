@@ -3,8 +3,7 @@
 #
 
 # files to link into the vdso
-# vdso-start.o has to be first
-vobjs-y := vdso-start.o vdso-note.o vclock_gettime.o vgetcpu.o vvar.o
+vobjs-y := vdso-note.o vclock_gettime.o vgetcpu.o vvar.o
 
 # files to link into kernel
 obj-y := vma.o vdso.o vdso-syms.o
