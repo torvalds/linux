@@ -578,7 +578,7 @@ no_context:
 	else
 		printk(KERN_ALERT "Unable to handle kernel paging request");
 	printk(" at %016lx RIP: \n" KERN_ALERT, address);
-	printk_address(regs->ip);
+	printk_address(regs->ip, regs->bp);
 	dump_pagetable(address);
 	tsk->thread.cr2 = address;
 	tsk->thread.trap_no = 14;

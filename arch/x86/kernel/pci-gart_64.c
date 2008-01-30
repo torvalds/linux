@@ -167,7 +167,7 @@ static void dump_leak(void)
 	       iommu_leak_pages);
 	for (i = 0; i < iommu_leak_pages; i += 2) {
 		printk(KERN_DEBUG "%lu: ", iommu_pages-i);
-		printk_address((unsigned long) iommu_leak_tab[iommu_pages-i]);
+		printk_address((unsigned long) iommu_leak_tab[iommu_pages-i], 0);
 		printk(KERN_CONT "%c", (i+1)%2 == 0 ? '\n' : ' ');
 	}
 	printk(KERN_DEBUG "\n");

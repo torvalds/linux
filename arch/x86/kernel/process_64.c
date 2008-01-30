@@ -329,7 +329,7 @@ void __show_regs(struct pt_regs * regs)
 		(int)strcspn(init_utsname()->version, " "),
 		init_utsname()->version);
 	printk("RIP: %04lx:[<%016lx>] ", regs->cs & 0xffff, regs->ip);
-	printk_address(regs->ip);
+	printk_address(regs->ip, regs->bp);
 	printk("RSP: %04lx:%016lx  EFLAGS: %08lx\n", regs->ss, regs->sp,
 		regs->flags);
 	printk("RAX: %016lx RBX: %016lx RCX: %016lx\n",
@@ -377,7 +377,7 @@ void show_regs(struct pt_regs *regs)
 {
 	printk("CPU %d:", smp_processor_id());
 	__show_regs(regs);
-	show_trace(NULL, regs, (void *)(regs + 1));
+	show_trace(NULL, regs, (void *)(regs + 1), regs->bp);
 }
 
 /*

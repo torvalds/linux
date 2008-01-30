@@ -99,13 +99,14 @@ static inline void preempt_conditional_cli(struct pt_regs *regs)
 int kstack_depth_to_print = 12;
 
 #ifdef CONFIG_KALLSYMS
-void printk_address(unsigned long address)
+void printk_address(unsigned long address, int reliable)
 {
 	unsigned long offset = 0, symsize;
 	const char *symname;
 	char *modname;
 	char *delim = ":";
 	char namebuf[128];
+	char reliab[4] = "";;
 
 	symname = kallsyms_lookup(address, &symsize, &offset,
 					&modname, namebuf);
@@ -113,13 +114,16 @@ void printk_address(unsigned long address)
 		printk(" [<%016lx>]\n", address);
 		return;
 	}
+	if (!reliable)
+		strcpy(reliab, "? ");
+
 	if (!modname)
 		modname = delim = ""; 		
-	printk(" [<%016lx>] %s%s%s%s+0x%lx/0x%lx\n",
-		address, delim, modname, delim, symname, offset, symsize);
+	printk(" [<%016lx>] %s%s%s%s%s+0x%lx/0x%lx\n",
+		address, reliab, delim, modname, delim, symname, offset, symsize);
 }
 #else
-void printk_address(unsigned long address)
+void printk_address(unsigned long address, int reliable)
 {
 	printk(" [<%016lx>]\n", address);
 }
@@ -215,7 +219,7 @@ static inline int valid_stack_ptr(struct thread_info *tinfo, void *p)
 }
 
 void dump_trace(struct task_struct *tsk, struct pt_regs *regs,
-		unsigned long *stack,
+		unsigned long *stack, unsigned long bp,
 		const struct stacktrace_ops *ops, void *data)
 {
 	const unsigned cpu = get_cpu();
@@ -252,7 +256,7 @@ void dump_trace(struct task_struct *tsk, struct pt_regs *regs,
 			 * down the cause of the crash will be able to figure \
 			 * out the call path that was taken. \
 			 */ \
-			ops->address(data, addr);   \
+			ops->address(data, addr, 1);   \
 		} \
 	} while (0)
 
@@ -331,10 +335,10 @@ static int print_trace_stack(void *data, char *name)
 	return 0;
 }
 
-static void print_trace_address(void *data, unsigned long addr)
+static void print_trace_address(void *data, unsigned long addr, int reliable)
 {
 	touch_nmi_watchdog();
-	printk_address(addr);
+	printk_address(addr, reliable);
 }
 
 static const struct stacktrace_ops print_trace_ops = {
@@ -345,15 +349,17 @@ static const struct stacktrace_ops print_trace_ops = {
 };
 
 void
-show_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long *stack)
+show_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long *stack,
+		unsigned long bp)
 {
 	printk("\nCall Trace:\n");
-	dump_trace(tsk, regs, stack, &print_trace_ops, NULL);
+	dump_trace(tsk, regs, stack, bp, &print_trace_ops, NULL);
 	printk("\n");
 }
 
 static void
-_show_stack(struct task_struct *tsk, struct pt_regs *regs, unsigned long *sp)
+_show_stack(struct task_struct *tsk, struct pt_regs *regs, unsigned long *sp,
+							unsigned long bp)
 {
 	unsigned long *stack;
 	int i;
@@ -387,12 +393,12 @@ _show_stack(struct task_struct *tsk, struct pt_regs *regs, unsigned long *sp)
 		printk(" %016lx", *stack++);
 		touch_nmi_watchdog();
 	}
-	show_trace(tsk, regs, sp);
+	show_trace(tsk, regs, sp, bp);
 }
 
 void show_stack(struct task_struct *tsk, unsigned long * sp)
 {
-	_show_stack(tsk, NULL, sp);
+	_show_stack(tsk, NULL, sp, 0);
 }
 
 /*
@@ -401,13 +407,14 @@ void show_stack(struct task_struct *tsk, unsigned long * sp)
 void dump_stack(void)
 {
 	unsigned long dummy;
+	unsigned long bp = 0;
 
 	printk("Pid: %d, comm: %.20s %s %s %.*s\n",
 		current->pid, current->comm, print_tainted(),
 		init_utsname()->release,
 		(int)strcspn(init_utsname()->version, " "),
 		init_utsname()->version);
-	show_trace(NULL, NULL, &dummy);
+	show_trace(NULL, NULL, &dummy, bp);
 }
 
 EXPORT_SYMBOL(dump_stack);
@@ -432,7 +439,7 @@ void show_registers(struct pt_regs *regs)
 	 */
 	if (in_kernel) {
 		printk("Stack: ");
-		_show_stack(NULL, regs, (unsigned long*)sp);
+		_show_stack(NULL, regs, (unsigned long *)sp, regs->bp);
 
 		printk("\nCode: ");
 		if (regs->ip < PAGE_OFFSET)
@@ -527,7 +534,7 @@ int __kprobes __die(const char * str, struct pt_regs * regs, long err)
 	add_taint(TAINT_DIE);
 	/* Executive summary in case the oops scrolled away */
 	printk(KERN_ALERT "RIP ");
-	printk_address(regs->ip);
+	printk_address(regs->ip, regs->bp);
 	printk(" RSP <%016lx>\n", regs->sp);
 	if (kexec_should_crash(current))
 		crash_kexec(regs);

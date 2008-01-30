@@ -126,7 +126,7 @@ static inline unsigned long print_context_stack(struct thread_info *tinfo,
 
 		addr = frame->return_address;
 		if (__kernel_text_address(addr))
-			ops->address(data, addr);
+			ops->address(data, addr, 1);
 		/*
 		 * break out of recursive entries (such as
 		 * end_of_stack_stop_unwind_function). Also,
@@ -145,7 +145,7 @@ static inline unsigned long print_context_stack(struct thread_info *tinfo,
 
 		addr = *stack++;
 		if (__kernel_text_address(addr))
-			ops->address(data, addr);
+			ops->address(data, addr, 1);
 	}
 #endif
 	return bp;
@@ -220,9 +220,11 @@ static int print_trace_stack(void *data, char *name)
 /*
  * Print one address/symbol entries per line.
  */
-static void print_trace_address(void *data, unsigned long addr)
+static void print_trace_address(void *data, unsigned long addr, int reliable)
 {
 	printk("%s [<%08lx>] ", (char *)data, addr);
+	if (!reliable)
+		printk("? ");
 	print_symbol("%s\n", addr);
 	touch_nmi_watchdog();
 }
