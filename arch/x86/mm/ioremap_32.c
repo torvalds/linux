@@ -119,7 +119,7 @@ EXPORT_SYMBOL(__ioremap);
 void __iomem *ioremap_nocache (unsigned long phys_addr, unsigned long size)
 {
 	unsigned long last_addr;
-	void __iomem *p = __ioremap(phys_addr, size, _PAGE_PCD);
+	void __iomem *p = __ioremap(phys_addr, size, _PAGE_PCD | _PAGE_PWT);
 	if (!p) 
 		return p; 
 
