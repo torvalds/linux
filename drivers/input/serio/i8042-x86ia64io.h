@@ -310,6 +310,13 @@ static struct dmi_system_id __initdata i8042_dmi_dritek_table[] = {
 		},
 	},
 	{
+		.ident = "Acer Aspire 9110",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 9110"),
+		},
+	},
+	{
 		.ident = "Acer TravelMate 2490",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
