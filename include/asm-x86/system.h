@@ -39,6 +39,27 @@ __asm__ __volatile__ ("movw %%dx,%1\n\t" \
 #define set_limit(ldt, limit) _set_limit(((char *)&(ldt)) , ((limit)-1))
 
 /*
+ * Load a segment. Fall back on loading the zero
+ * segment if something goes wrong..
+ */
+#define loadsegment(seg, value)			\
+	asm volatile("\n"			\
+		"1:\t"				\
+		"movl %k0,%%" #seg "\n"		\
+		"2:\n"				\
+		".section .fixup,\"ax\"\n"	\
+		"3:\t"				\
+		"movl %k1, %%" #seg "\n\t"	\
+		"jmp 2b\n"			\
+		".previous\n"			\
+		".section __ex_table,\"a\"\n\t"	\
+		_ASM_ALIGN "\n\t"		\
+		_ASM_PTR " 1b,3b\n"		\
+		".previous"			\
+		: :"r" (value), "r" (0))
+
+
+/*
  * Save a segment register away
  */
 #define savesegment(seg, value) \

@@ -34,28 +34,6 @@ extern struct task_struct * FASTCALL(__switch_to(struct task_struct *prev, struc
 		      "2" (prev), "d" (next));				\
 } while (0)
 
-/*
- * Load a segment. Fall back on loading the zero
- * segment if something goes wrong..
- */
-#define loadsegment(seg,value)			\
-	asm volatile("\n"			\
-		"1:\t"				\
-		"mov %0,%%" #seg "\n"		\
-		"2:\n"				\
-		".section .fixup,\"ax\"\n"	\
-		"3:\t"				\
-		"pushl $0\n\t"			\
-		"popl %%" #seg "\n\t"		\
-		"jmp 2b\n"			\
-		".previous\n"			\
-		".section __ex_table,\"a\"\n\t"	\
-		".align 4\n\t"			\
-		".long 1b,3b\n"			\
-		".previous"			\
-		: :"rm" (value))
-
-
 static inline void native_clts(void)
 {
 	asm volatile ("clts");

@@ -50,26 +50,6 @@
 extern void load_gs_index(unsigned); 
 
 /*
- * Load a segment. Fall back on loading the zero
- * segment if something goes wrong..
- */
-#define loadsegment(seg,value)	\
-	asm volatile("\n"			\
-		"1:\t"				\
-		"movl %k0,%%" #seg "\n"		\
-		"2:\n"				\
-		".section .fixup,\"ax\"\n"	\
-		"3:\t"				\
-		"movl %1,%%" #seg "\n\t" 	\
-		"jmp 2b\n"			\
-		".previous\n"			\
-		".section __ex_table,\"a\"\n\t"	\
-		".align 8\n\t"			\
-		".quad 1b,3b\n"			\
-		".previous"			\
-		: :"r" (value), "r" (0))
-
-/*
  * Clear and set 'TS' bit respectively
  */
 #define clts() __asm__ __volatile__ ("clts")
