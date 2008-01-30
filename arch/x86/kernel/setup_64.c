@@ -141,6 +141,8 @@ struct resource bss_resource = {
 	.flags = IORESOURCE_RAM,
 };
 
+static void __cpuinit early_identify_cpu(struct cpuinfo_x86 *c);
+
 #ifdef CONFIG_PROC_VMCORE
 /* elfcorehdr= specifies the location of elf core header
  * stored by the crashed kernel. This option will be passed
@@ -844,7 +846,7 @@ struct cpu_model_info {
 /* Do some early cpuid on the boot CPU to get some parameter that are
    needed before check_bugs. Everything advanced is in identify_cpu
    below. */
-void __cpuinit early_identify_cpu(struct cpuinfo_x86 *c)
+static void __cpuinit early_identify_cpu(struct cpuinfo_x86 *c)
 {
 	u32 tfms;
 

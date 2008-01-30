@@ -40,8 +40,6 @@ extern int nohpet;
 
 extern void early_printk(const char *fmt, ...) __attribute__((format(printf,1,2)));
 
-extern void early_identify_cpu(struct cpuinfo_x86 *c);
-
 extern int k8_scan_nodes(unsigned long start, unsigned long end);
 
 extern void numa_initmem_init(unsigned long start_pfn, unsigned long end_pfn);
