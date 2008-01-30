@@ -80,6 +80,9 @@
 void clear_page(void *page);
 void copy_page(void *to, void *from);
 
+extern unsigned long __phys_addr(unsigned long);
+#define __phys_reloc_hide(x)	(x)
+
 /*
  * These are used to make use of C type-checking..
  */
@@ -174,6 +177,13 @@ static inline pte_t native_make_pte(unsigned long val)
 #endif
 
 #ifndef __ASSEMBLY__
+#define __phys_addr(x)		((x)-PAGE_OFFSET)
+#define __phys_reloc_hide(x)	RELOC_HIDE((x), 0)
+
+#ifdef CONFIG_FLATMEM
+#define pfn_valid(pfn)		((pfn) < max_mapnr)
+#endif /* CONFIG_FLATMEM */
+
 #ifdef CONFIG_X86_USE_3DNOW
 #include <asm/mmx.h>
 
@@ -298,6 +308,20 @@ static inline pmdval_t native_pmd_val(pmd_t pmd)
 #define __pte(x)	native_make_pte(x)
 
 #endif	/* CONFIG_PARAVIRT */
+
+#define __pa(x)		__phys_addr((unsigned long)(x))
+/* __pa_symbol should be used for C visible symbols.
+   This seems to be the official gcc blessed way to do such arithmetic. */
+#define __pa_symbol(x)	__pa(__phys_reloc_hide((unsigned long)(x)))
+
+#define __va(x)			((void *)((unsigned long)(x)+PAGE_OFFSET))
+
+#define __boot_va(x)		__va(x)
+#define __boot_pa(x)		__pa(x)
+
+#define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
+#define pfn_to_kaddr(pfn)      __va((pfn) << PAGE_SHIFT)
+#define virt_addr_valid(kaddr)	pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
 
 #endif	/* __ASSEMBLY__ */
 
