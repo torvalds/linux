@@ -884,10 +884,10 @@ static int bf537mac_open(struct net_device *dev)
 		return retval;
 
 	phy_start(lp->phydev);
+	phy_write(lp->phydev, MII_BMCR, BMCR_RESET);
 	setup_system_regs(dev);
 	bf537mac_disable();
 	bf537mac_enable();
-
 	pr_debug("hardware init finished\n");
 	netif_start_queue(dev);
 	netif_carrier_on(dev);
@@ -910,6 +910,7 @@ static int bf537mac_close(struct net_device *dev)
 	netif_carrier_off(dev);
 
 	phy_stop(lp->phydev);
+	phy_write(lp->phydev, MII_BMCR, BMCR_PDOWN);
 
 	/* clear everything */
 	bf537mac_shutdown(dev);
