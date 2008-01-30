@@ -55,6 +55,12 @@ static int putreg(struct task_struct *child,
 		if (value && (value & 3) != 3)
 			return -EIO;
 		child->thread.gs = value;
+		if (child == current)
+			/*
+			 * The user-mode %gs is not affected by
+			 * kernel entry, so we must update the CPU.
+			 */
+			loadsegment(gs, value);
 		return 0;
 	case DS:
 	case ES:
@@ -104,6 +110,8 @@ static unsigned long getreg(struct task_struct *child, unsigned long regno)
 		break;
 	case GS:
 		retval = child->thread.gs;
+		if (child == current)
+			savesegment(gs, retval);
 		break;
 	case DS:
 	case ES:
