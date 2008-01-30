@@ -3,10 +3,10 @@
 #
 
 CC = gcc-cris -mlinux -march=v32 $(LINUXINCLUDE)
-AFLAGS += -I $(srctree)/include/asm/mach/ -I $(srctree)/include/asm/arch
-KBUILD_CFLAGS += -O2 -I $(srctree)/include/asm/mach/ -I $(srctree)/include/asm/arch
+asflags-y += -I $(srctree)/include/asm/mach/ -I $(srctree)/include/asm/arch
+ccflags-y += -O2 -I $(srctree)/include/asm/mach/ -I $(srctree)/include/asm/arch
 LD = gcc-cris -mlinux -march=v32 -nostdlib
-LDFLAGS = -T $(obj)/decompress.ld
+ldflags-y += -T $(obj)/decompress.ld
 obj-y = head.o misc.o
 OBJECTS = $(obj)/head.o $(obj)/misc.o
 OBJCOPY = objcopy-cris
