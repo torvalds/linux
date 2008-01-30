@@ -59,5 +59,5 @@ LDFLAGS_piggy.o := -r --format binary --oformat elf64-x86-64 -T
 endif
 
 
-$(obj)/piggy.o: $(obj)/vmlinux_$(BITS).scr $(obj)/vmlinux.bin.gz FORCE
+$(obj)/piggy.o: $(obj)/vmlinux.scr $(obj)/vmlinux.bin.gz FORCE
 	$(call if_changed,ld)
