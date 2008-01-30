@@ -5,32 +5,30 @@ static inline void local_inc(local_t *l)
 {
 	__asm__ __volatile__(
 		"incq %0"
-		:"=m" (l->a.counter)
-		:"m" (l->a.counter));
+		:"+m" (l->a.counter));
 }
 
 static inline void local_dec(local_t *l)
 {
 	__asm__ __volatile__(
 		"decq %0"
-		:"=m" (l->a.counter)
-		:"m" (l->a.counter));
+		:"+m" (l->a.counter));
 }
 
 static inline void local_add(long i, local_t *l)
 {
 	__asm__ __volatile__(
 		"addq %1,%0"
-		:"=m" (l->a.counter)
-		:"ir" (i), "m" (l->a.counter));
+		:"+m" (l->a.counter)
+		:"ir" (i));
 }
 
 static inline void local_sub(long i, local_t *l)
 {
 	__asm__ __volatile__(
 		"subq %1,%0"
-		:"=m" (l->a.counter)
-		:"ir" (i), "m" (l->a.counter));
+		:"+m" (l->a.counter)
+		:"ir" (i));
 }
 
 /**
@@ -48,8 +46,8 @@ static inline int local_sub_and_test(long i, local_t *l)
 
 	__asm__ __volatile__(
 		"subq %2,%0; sete %1"
-		:"=m" (l->a.counter), "=qm" (c)
-		:"ir" (i), "m" (l->a.counter) : "memory");
+		:"+m" (l->a.counter), "=qm" (c)
+		:"ir" (i) : "memory");
 	return c;
 }
 
@@ -67,8 +65,8 @@ static inline int local_dec_and_test(local_t *l)
 
 	__asm__ __volatile__(
 		"decq %0; sete %1"
-		:"=m" (l->a.counter), "=qm" (c)
-		:"m" (l->a.counter) : "memory");
+		:"+m" (l->a.counter), "=qm" (c)
+		: : "memory");
 	return c != 0;
 }
 
@@ -86,8 +84,8 @@ static inline int local_inc_and_test(local_t *l)
 
 	__asm__ __volatile__(
 		"incq %0; sete %1"
-		:"=m" (l->a.counter), "=qm" (c)
-		:"m" (l->a.counter) : "memory");
+		:"+m" (l->a.counter), "=qm" (c)
+		: : "memory");
 	return c != 0;
 }
 
@@ -106,8 +104,8 @@ static inline int local_add_negative(long i, local_t *l)
 
 	__asm__ __volatile__(
 		"addq %2,%0; sets %1"
-		:"=m" (l->a.counter), "=qm" (c)
-		:"ir" (i), "m" (l->a.counter) : "memory");
+		:"+m" (l->a.counter), "=qm" (c)
+		:"ir" (i) : "memory");
 	return c;
 }
 
