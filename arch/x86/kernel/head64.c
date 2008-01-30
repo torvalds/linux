@@ -59,7 +59,7 @@ void __init x86_64_start_kernel(char * real_mode_data)
 	zap_identity_mappings();
 
 	for (i = 0; i < IDT_ENTRIES; i++)
-		set_intr_gate(i, early_idt_handler);
+		set_intr_gate(i, &early_idt_handlers[i]);
 	load_idt((const struct desc_ptr *)&idt_descr);
 
 	early_printk("Kernel alive\n");

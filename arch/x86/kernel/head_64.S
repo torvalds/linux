@@ -267,14 +267,40 @@ init_rsp:
 bad_address:
 	jmp bad_address
 
+.macro early_idt_tramp first, last
+	.ifgt \last-\first
+	early_idt_tramp \first, \last-1
+	.endif
+	movl $\last,%esi
+	jmp early_idt_handler
+.endm
+
+	.globl early_idt_handlers
+early_idt_handlers:
+	early_idt_tramp 0, 63
+	early_idt_tramp 64, 127
+	early_idt_tramp 128, 191
+	early_idt_tramp 192, 255
+
 ENTRY(early_idt_handler)
 	cmpl $2,early_recursion_flag(%rip)
 	jz  1f
 	incl early_recursion_flag(%rip)
-	xorl %eax,%eax
-	movq 8(%rsp),%rsi	# get rip
-	movq (%rsp),%rdx
 	GET_CR2_INTO_RCX
+	movq %rcx,%r9
+	xorl %r8d,%r8d		# zero for error code
+	movl %esi,%ecx		# get vector number
+	# Test %ecx against mask of vectors that push error code.
+	cmpl $31,%ecx
+	ja 0f
+	movl $1,%eax
+	salq %cl,%rax
+	testl $0x27d00,%eax
+	je 0f
+	popq %r8		# get error code
+0:	movq 0(%rsp),%rcx	# get ip
+	movq 8(%rsp),%rdx	# get cs
+	xorl %eax,%eax
 	leaq early_idt_msg(%rip),%rdi
 	call early_printk
 	cmpl $2,early_recursion_flag(%rip)
@@ -291,7 +317,7 @@ early_recursion_flag:
 	.long 0
 
 early_idt_msg:
-	.asciz "PANIC: early exception rip %lx error %lx cr2 %lx\n"
+	.asciz "PANIC: early exception %02lx rip %lx:%lx error %lx cr2 %lx\n"
 early_idt_ripmsg:
 	.asciz "RIP %s\n"
 

@@ -195,4 +195,10 @@
 #define GDT_ENTRY_TLS_ENTRIES 3
 #define TLS_SIZE (GDT_ENTRY_TLS_ENTRIES * 8)
 
+#ifdef __KERNEL__
+#ifndef __ASSEMBLY__
+extern const char early_idt_handlers[IDT_ENTRIES][10];
+#endif
+#endif
+
 #endif
