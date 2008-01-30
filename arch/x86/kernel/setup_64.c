@@ -542,18 +542,7 @@ static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
 	int node = 0;
 	unsigned apicid = hard_smp_processor_id();
 #endif
-	unsigned ecx = cpuid_ecx(0x80000008);
-
-	c->x86_max_cores = (ecx & 0xff) + 1;
-
-	/* CPU telling us the core id bits shift? */
-	bits = (ecx >> 12) & 0xF;
-
-	/* Otherwise recompute */
-	if (bits == 0) {
-		while ((1 << bits) < c->x86_max_cores)
-			bits++;
-	}
+	bits = c->x86_coreid_bits;
 
 	/* Low order bits define the core id (index of core in socket) */
 	c->cpu_core_id = c->phys_proc_id & ((1 << bits)-1);
@@ -588,6 +577,33 @@ static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
 
 	printk(KERN_INFO "CPU %d/%x -> Node %d\n", cpu, apicid, node);
 #endif
+#endif
+}
+
+static void __cpuinit early_init_amd(struct cpuinfo_x86 *c)
+{
+#ifdef CONFIG_SMP
+	unsigned bits, ecx;
+
+	/* Multi core CPU? */
+	if (c->extended_cpuid_level < 0x80000008)
+		return;
+
+	ecx = cpuid_ecx(0x80000008);
+
+	c->x86_max_cores = (ecx & 0xff) + 1;
+
+	/* CPU telling us the core id bits shift? */
+	bits = (ecx >> 12) & 0xF;
+
+	/* Otherwise recompute */
+	if (bits == 0) {
+		while ((1 << bits) < c->x86_max_cores)
+			bits++;
+	}
+
+	c->x86_coreid_bits = bits;
+
 #endif
 }
 
@@ -858,7 +874,7 @@ struct cpu_model_info {
    below. */
 static void __cpuinit early_identify_cpu(struct cpuinfo_x86 *c)
 {
-	u32 tfms;
+	u32 tfms, xlvl;
 
 	c->loops_per_jiffy = loops_per_jiffy;
 	c->x86_cache_size = -1;
@@ -869,6 +885,7 @@ static void __cpuinit early_identify_cpu(struct cpuinfo_x86 *c)
 	c->x86_clflush_size = 64;
 	c->x86_cache_alignment = c->x86_clflush_size;
 	c->x86_max_cores = 1;
+	c->x86_coreid_bits = 0;
 	c->extended_cpuid_level = 0;
 	memset(&c->x86_capability, 0, sizeof c->x86_capability);
 
@@ -905,18 +922,6 @@ static void __cpuinit early_identify_cpu(struct cpuinfo_x86 *c)
 #ifdef CONFIG_SMP
 	c->phys_proc_id = (cpuid_ebx(1) >> 24) & 0xff;
 #endif
-}
-
-/*
- * This does the hard work of actually picking apart the CPU stuff...
- */
-void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
-{
-	int i;
-	u32 xlvl;
-
-	early_identify_cpu(c);
-
 	/* AMD-defined flags: level 0x80000001 */
 	xlvl = cpuid_eax(0x80000000);
 	c->extended_cpuid_level = xlvl;
@@ -936,6 +941,23 @@ void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 		if (xlvl >= 0x80860001)
 			c->x86_capability[2] = cpuid_edx(0x80860001);
 	}
+
+	switch (c->x86_vendor) {
+	case X86_VENDOR_AMD:
+		early_init_amd(c);
+		break;
+	}
+
+}
+
+/*
+ * This does the hard work of actually picking apart the CPU stuff...
+ */
+void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
+{
+	int i;
+
+	early_identify_cpu(c);
 
 	init_scattered_cpuid_features(c);
 
