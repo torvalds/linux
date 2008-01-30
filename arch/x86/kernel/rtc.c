@@ -6,6 +6,7 @@
 #include <linux/mc146818rtc.h>
 
 #include <asm/time.h>
+#include <asm/vsyscall.h>
 
 #ifdef CONFIG_X86_32
 # define CMOS_YEARS_OFFS 1900
@@ -194,3 +195,12 @@ int update_persistent_clock(struct timespec now)
 {
 	return set_rtc_mmss(now.tv_sec);
 }
+
+unsigned long long __vsyscall_fn native_read_tsc(void)
+{
+	DECLARE_ARGS(val, low, high);
+
+	asm volatile("rdtsc" : EAX_EDX_RET(val, low, high));
+	return EAX_EDX_VAL(val, low, high);
+}
+EXPORT_SYMBOL_GPL(native_read_tsc);
