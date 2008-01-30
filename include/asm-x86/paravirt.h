@@ -99,7 +99,7 @@ struct pv_cpu_ops {
 	void (*write_ldt_entry)(struct desc_struct *,
 				int entrynum, u32 low, u32 high);
 	void (*write_gdt_entry)(struct desc_struct *,
-				int entrynum, u32 low, u32 high);
+				int entrynum, const void *desc, int size);
 	void (*write_idt_entry)(gate_desc *,
 				int entrynum, const gate_desc *gate);
 	void (*load_sp0)(struct tss_struct *tss, struct thread_struct *t);
@@ -664,10 +664,13 @@ static inline void write_ldt_entry(void *dt, int entry, u32 low, u32 high)
 {
 	PVOP_VCALL4(pv_cpu_ops.write_ldt_entry, dt, entry, low, high);
 }
-static inline void write_gdt_entry(void *dt, int entry, u32 low, u32 high)
+
+static inline void write_gdt_entry(struct desc_struct *dt, int entry,
+				   void *desc, int type)
 {
-	PVOP_VCALL4(pv_cpu_ops.write_gdt_entry, dt, entry, low, high);
+	PVOP_VCALL4(pv_cpu_ops.write_gdt_entry, dt, entry, desc, type);
 }
+
 static inline void write_idt_entry(gate_desc *dt, int entry, const gate_desc *g)
 {
 	PVOP_VCALL3(pv_cpu_ops.write_idt_entry, dt, entry, g);

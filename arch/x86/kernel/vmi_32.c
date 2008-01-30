@@ -63,6 +63,7 @@ static struct {
 	void (*_set_ldt)(u32 selector);
 	void (*set_tr)(u32 selector);
 	void (*write_idt_entry)(struct desc_struct *, int, u32, u32);
+	void (*write_gdt_entry)(struct desc_struct *, int, u32, u32);
 	void (*set_kernel_stack)(u32 selector, u32 sp0);
 	void (*allocate_page)(u32, u32, u32, u32, u32);
 	void (*release_page)(u32, u32);
@@ -187,7 +188,7 @@ static void vmi_cpuid(unsigned int *ax, unsigned int *bx,
 static inline void vmi_maybe_load_tls(struct desc_struct *gdt, int nr, struct desc_struct *new)
 {
 	if (gdt[nr].a != new->a || gdt[nr].b != new->b)
-		write_gdt_entry(gdt, nr, new->a, new->b);
+		write_gdt_entry(gdt, nr, new, 0);
 }
 
 static void vmi_load_tls(struct thread_struct *t, unsigned int cpu)
@@ -201,12 +202,12 @@ static void vmi_load_tls(struct thread_struct *t, unsigned int cpu)
 static void vmi_set_ldt(const void *addr, unsigned entries)
 {
 	unsigned cpu = smp_processor_id();
-	u32 low, high;
+	struct desc_struct desc;
 
-	pack_descriptor(&low, &high, (unsigned long)addr,
+	pack_descriptor(&desc, (unsigned long)addr,
 			entries * sizeof(struct desc_struct) - 1,
-			DESCTYPE_LDT, 0);
-	write_gdt_entry(get_cpu_gdt_table(cpu), GDT_ENTRY_LDT, low, high);
+			DESC_LDT, 0);
+	write_gdt_entry(get_cpu_gdt_table(cpu), GDT_ENTRY_LDT, &desc, DESC_LDT);
 	vmi_ops._set_ldt(entries ? GDT_ENTRY_LDT*sizeof(struct desc_struct) : 0);
 }
 
@@ -219,6 +220,13 @@ static void vmi_write_idt_entry(gate_desc *dt, int entry, const gate_desc *g)
 {
 	u32 *idt_entry = (u32 *)g;
 	vmi_ops.write_idt_entry(dt, entry, idt_entry[0], idt_entry[2]);
+}
+
+static void vmi_write_gdt_entry(struct desc_struct *dt, int entry,
+				const void *desc, int type)
+{
+	u32 *gdt_entry = (u32 *)desc;
+	vmi_ops.write_gdt_entry(dt, entry, gdt_entry[0], gdt_entry[2]);
 }
 
 static void vmi_load_sp0(struct tss_struct *tss,
@@ -798,7 +806,8 @@ static inline int __init activate_vmi(void)
 	para_fill(pv_cpu_ops.store_tr, GetTR);
 	pv_cpu_ops.load_tls = vmi_load_tls;
 	para_fill(pv_cpu_ops.write_ldt_entry, WriteLDTEntry);
-	para_fill(pv_cpu_ops.write_gdt_entry, WriteGDTEntry);
+	para_wrap(pv_cpu_ops.write_gdt_entry, vmi_write_gdt_entry,
+		  write_gdt_entry, WriteGDTEntry);
 	para_wrap(pv_cpu_ops.write_idt_entry, vmi_write_idt_entry,
 		  write_idt_entry, WriteIDTEntry);
 	para_wrap(pv_cpu_ops.load_sp0, vmi_load_sp0, set_kernel_stack, UpdateKernelStack);

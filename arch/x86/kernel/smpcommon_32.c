@@ -14,10 +14,11 @@ __cpuinit void init_gdt(int cpu)
 {
 	struct desc_struct *gdt = get_cpu_gdt_table(cpu);
 
-	pack_descriptor((u32 *)&gdt[GDT_ENTRY_PERCPU].a,
-			(u32 *)&gdt[GDT_ENTRY_PERCPU].b,
+	pack_descriptor(&gdt[GDT_ENTRY_PERCPU],
 			__per_cpu_offset[cpu], 0xFFFFF,
-			0x80 | DESCTYPE_S | 0x2, 0x8);
+			0x2 | DESCTYPE_S, 0x8);
+
+	gdt[GDT_ENTRY_PERCPU].s = 1;
 
 	per_cpu(this_cpu_off, cpu) = __per_cpu_offset[cpu];
 	per_cpu(cpu_number, cpu) = cpu;

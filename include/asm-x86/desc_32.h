@@ -28,12 +28,13 @@ extern struct desc_ptr idt_descr;
 extern gate_desc idt_table[];
 extern void set_intr_gate(unsigned int irq, void * addr);
 
-static inline void pack_descriptor(__u32 *a, __u32 *b,
+static inline void pack_descriptor(struct desc_struct *desc,
 	unsigned long base, unsigned long limit, unsigned char type, unsigned char flags)
 {
-	*a = ((base & 0xffff) << 16) | (limit & 0xffff);
-	*b = (base & 0xff000000) | ((base & 0xff0000) >> 16) |
+	desc->a = ((base & 0xffff) << 16) | (limit & 0xffff);
+	desc->b = (base & 0xff000000) | ((base & 0xff0000) >> 16) |
 		(limit & 0x000f0000) | ((type & 0xff) << 8) | ((flags & 0xf) << 20);
+	desc->p = 1;
 }
 
 static inline void pack_gate(gate_desc *gate,
@@ -69,7 +70,8 @@ static inline void pack_gate(gate_desc *gate,
 #define set_ldt native_set_ldt
 
 #define write_ldt_entry(dt, entry, a, b) write_dt_entry(dt, entry, a, b)
-#define write_gdt_entry(dt, entry, a, b) write_dt_entry(dt, entry, a, b)
+#define write_gdt_entry(dt, entry, desc, type) \
+				native_write_gdt_entry(dt, entry, desc, type)
 #define write_idt_entry(dt, entry, g) native_write_idt_entry(dt, entry, g)
 #endif
 
@@ -79,6 +81,12 @@ static inline void native_write_idt_entry(gate_desc *idt, int entry,
 	memcpy(&idt[entry], gate, sizeof(*gate));
 }
 
+static inline void native_write_gdt_entry(struct desc_struct *gdt, int entry,
+					  const void *desc, int type)
+{
+	memcpy(&gdt[entry], desc, sizeof(struct desc_struct));
+}
+
 static inline void write_dt_entry(struct desc_struct *dt,
 				  int entry, u32 entry_low, u32 entry_high)
 {
@@ -86,18 +94,20 @@ static inline void write_dt_entry(struct desc_struct *dt,
 	dt[entry].b = entry_high;
 }
 
+
 static inline void native_set_ldt(const void *addr, unsigned int entries)
 {
 	if (likely(entries == 0))
 		__asm__ __volatile__("lldt %w0"::"q" (0));
 	else {
 		unsigned cpu = smp_processor_id();
-		__u32 a, b;
+		ldt_desc ldt;
 
-		pack_descriptor(&a, &b, (unsigned long)addr,
+		pack_descriptor(&ldt, (unsigned long)addr,
 				entries * sizeof(struct desc_struct) - 1,
-				DESCTYPE_LDT, 0);
-		write_gdt_entry(get_cpu_gdt_table(cpu), GDT_ENTRY_LDT, a, b);
+				DESC_LDT, 0);
+		write_gdt_entry(get_cpu_gdt_table(cpu), GDT_ENTRY_LDT,
+				&ldt, DESC_LDT);
 		__asm__ __volatile__("lldt %w0"::"q" (GDT_ENTRY_LDT*8));
 	}
 }
@@ -153,11 +163,11 @@ static inline void _set_gate(int gate, unsigned int type, void *addr, unsigned s
 
 static inline void __set_tss_desc(unsigned int cpu, unsigned int entry, const void *addr)
 {
-	__u32 a, b;
-	pack_descriptor(&a, &b, (unsigned long)addr,
+	tss_desc tss;
+	pack_descriptor(&tss, (unsigned long)addr,
 			offsetof(struct tss_struct, __cacheline_filler) - 1,
-			DESCTYPE_TSS, 0);
-	write_gdt_entry(get_cpu_gdt_table(cpu), entry, a, b);
+			DESC_TSS, 0);
+	write_gdt_entry(get_cpu_gdt_table(cpu), entry, &tss, DESC_TSS);
 }
 
 

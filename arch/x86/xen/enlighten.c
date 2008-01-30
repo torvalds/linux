@@ -475,22 +475,21 @@ static void xen_load_idt(const struct desc_ptr *desc)
 /* Write a GDT descriptor entry.  Ignore LDT descriptors, since
    they're handled differently. */
 static void xen_write_gdt_entry(struct desc_struct *dt, int entry,
-				u32 low, u32 high)
+				const void *desc, int type)
 {
 	preempt_disable();
 
-	switch ((high >> 8) & 0xff) {
-	case DESCTYPE_LDT:
-	case DESCTYPE_TSS:
+	switch (type) {
+	case DESC_LDT:
+	case DESC_TSS:
 		/* ignore */
 		break;
 
 	default: {
 		xmaddr_t maddr = virt_to_machine(&dt[entry]);
-		u64 desc = (u64)high << 32 | low;
 
 		xen_mc_flush();
-		if (HYPERVISOR_update_descriptor(maddr.maddr, desc))
+		if (HYPERVISOR_update_descriptor(maddr.maddr, *(u64 *)desc))
 			BUG();
 	}
 

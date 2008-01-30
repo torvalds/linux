@@ -262,10 +262,10 @@ static void lguest_load_gdt(const struct desc_ptr *desc)
 /* For a single GDT entry which changes, we do the lazy thing: alter our GDT,
  * then tell the Host to reload the entire thing.  This operation is so rare
  * that this naive implementation is reasonable. */
-static void lguest_write_gdt_entry(struct desc_struct *dt,
-				   int entrynum, u32 low, u32 high)
+static void lguest_write_gdt_entry(struct desc_struct *dt, int entrynum,
+				   const void *desc, int type)
 {
-	write_dt_entry(dt, entrynum, low, high);
+	native_write_gdt_entry(dt, entrynum, desc, type);
 	hcall(LHCALL_LOAD_GDT, __pa(dt), GDT_ENTRIES, 0);
 }
 
