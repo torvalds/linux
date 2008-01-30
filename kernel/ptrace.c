@@ -366,6 +366,50 @@ static int ptrace_setsiginfo(struct task_struct *child, siginfo_t __user * data)
 	return error;
 }
 
+
+#ifdef PTRACE_SINGLESTEP
+#define is_singlestep(request)		((request) == PTRACE_SINGLESTEP)
+#else
+#define is_singlestep(request)		0
+#endif
+
+#ifdef PTRACE_SYSEMU
+#define is_sysemu_singlestep(request)	((request) == PTRACE_SYSEMU_SINGLESTEP)
+#else
+#define is_sysemu_singlestep(request)	0
+#endif
+
+static int ptrace_resume(struct task_struct *child, long request, long data)
+{
+	if (!valid_signal(data))
+		return -EIO;
+
+	if (request == PTRACE_SYSCALL)
+		set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
+	else
+		clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
+
+#ifdef TIF_SYSCALL_EMU
+	if (request == PTRACE_SYSEMU || request == PTRACE_SYSEMU_SINGLESTEP)
+		set_tsk_thread_flag(child, TIF_SYSCALL_EMU);
+	else
+		clear_tsk_thread_flag(child, TIF_SYSCALL_EMU);
+#endif
+
+	if (is_singlestep(request) || is_sysemu_singlestep(request)) {
+		if (unlikely(!arch_has_single_step()))
+			return -EIO;
+		user_enable_single_step(child);
+	}
+	else
+		user_disable_single_step(child);
+
+	child->exit_code = data;
+	wake_up_process(child);
+
+	return 0;
+}
+
 int ptrace_request(struct task_struct *child, long request,
 		   long addr, long data)
 {
@@ -390,6 +434,23 @@ int ptrace_request(struct task_struct *child, long request,
 	case PTRACE_DETACH:	 /* detach a process that was attached. */
 		ret = ptrace_detach(child, data);
 		break;
+
+#ifdef PTRACE_SINGLESTEP
+	case PTRACE_SINGLESTEP:
+#endif
+#ifdef PTRACE_SYSEMU
+	case PTRACE_SYSEMU:
+	case PTRACE_SYSEMU_SINGLESTEP:
+#endif
+	case PTRACE_SYSCALL:
+	case PTRACE_CONT:
+		return ptrace_resume(child, request, data);
+
+	case PTRACE_KILL:
+		if (child->exit_state)	/* already dead */
+			return 0;
+		return ptrace_resume(child, request, SIGKILL);
+
 	default:
 		break;
 	}
