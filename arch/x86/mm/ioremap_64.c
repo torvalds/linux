@@ -70,7 +70,7 @@ static int ioremap_change_attr(unsigned long phys_addr, unsigned long size,
 void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
 			unsigned long flags)
 {
-	void *addr;
+	void __iomem *addr;
 	struct vm_struct *area;
 	unsigned long offset, last_addr;
 	pgprot_t pgprot;
@@ -101,7 +101,7 @@ void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
 	if (!area)
 		return NULL;
 	area->phys_addr = phys_addr;
-	addr = area->addr;
+	addr = (void __iomem *) area->addr;
 	if (ioremap_page_range((unsigned long)addr, (unsigned long)addr + size,
 			       phys_addr, pgprot)) {
 		remove_vm_area((void *)(PAGE_MASK & (unsigned long) addr));
@@ -111,7 +111,7 @@ void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
 		vunmap(addr);
 		return NULL;
 	}
-	return (__force void __iomem *) (offset + (char *)addr);
+	return (void __iomem *) (offset + (char __iomem *)addr);
 }
 EXPORT_SYMBOL(__ioremap);
 
@@ -152,7 +152,7 @@ void iounmap(volatile void __iomem *addr)
 {
 	struct vm_struct *p, *o;
 
-	if (addr <= high_memory)
+	if ((void __force *)addr <= high_memory)
 		return;
 	if (addr >= phys_to_virt(ISA_START_ADDRESS) &&
 	    addr < phys_to_virt(ISA_END_ADDRESS))

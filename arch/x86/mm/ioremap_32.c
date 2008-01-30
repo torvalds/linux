@@ -81,7 +81,7 @@ void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
 	 * Don't remap the low PCI/ISA area, it's always mapped..
 	 */
 	if (phys_addr >= ISA_START_ADDRESS && last_addr < ISA_END_ADDRESS)
-		return (void __iomem *) phys_to_virt(phys_addr);
+		return (__force void __iomem *)phys_to_virt(phys_addr);
 
 	/*
 	 * Don't allow anybody to remap normal RAM that we're using..
