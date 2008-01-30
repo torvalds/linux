@@ -2443,13 +2443,16 @@ int btrfs_insert_empty_items(struct btrfs_trans_handle *trans,
 	btrfs_mark_buffer_dirty(leaf);
 
 	ret = 0;
-	if (slot == 0)
+	if (slot == 0) {
+		btrfs_cpu_key_to_disk(&disk_key, cpu_key);
 		ret = fixup_low_keys(trans, root, path, &disk_key, 1);
+	}
 
 	if (btrfs_leaf_free_space(root, leaf) < 0) {
 		btrfs_print_leaf(root, leaf);
 		BUG();
 	}
+
 out:
 	return ret;
 }
