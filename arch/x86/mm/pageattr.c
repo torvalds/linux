@@ -282,6 +282,45 @@ static int change_page_attr_addr(unsigned long address, pgprot_t prot)
 	return err;
 }
 
+static int __change_page_attr_set_clr(unsigned long addr, int numpages,
+				      pgprot_t mask_set, pgprot_t mask_clr)
+{
+	pgprot_t new_prot;
+	int level;
+	pte_t *pte;
+	int i, ret;
+
+	for (i = 0; i < numpages ; i++) {
+
+		pte = lookup_address(addr, &level);
+		if (!pte)
+			return -EINVAL;
+
+		new_prot = pte_pgprot(*pte);
+
+		pgprot_val(new_prot) &= ~pgprot_val(mask_clr);
+		pgprot_val(new_prot) |= pgprot_val(mask_set);
+
+		ret = change_page_attr_addr(addr, new_prot);
+		if (ret)
+			return ret;
+		addr += PAGE_SIZE;
+	}
+
+	return 0;
+}
+
+static int change_page_attr_set_clr(unsigned long addr, int numpages,
+				    pgprot_t mask_set, pgprot_t mask_clr)
+{
+	int ret = __change_page_attr_set_clr(addr, numpages, mask_set,
+					     mask_clr);
+
+	global_flush_tlb();
+
+	return ret;
+}
+
 /**
  * change_page_attr_set - Change page table attributes in the linear mapping.
  * @addr: Virtual address in linear mapping.
