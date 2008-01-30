@@ -90,14 +90,14 @@ struct cpuinfo_x86 {
 #ifdef CONFIG_SMP
 	cpumask_t llc_shared_map;	/* cpus sharing the last level cache */
 #endif
-	unsigned char x86_max_cores;	/* cpuid returned max cores value */
-	unsigned char apicid;
-	unsigned short x86_clflush_size;
+	u16 x86_max_cores;		/* cpuid returned max cores value */
+	u16 apicid;
+	u16 x86_clflush_size;
 #ifdef CONFIG_SMP
-	unsigned char booted_cores;	/* number of cores as seen by OS */
-	__u8 phys_proc_id; 		/* Physical processor id. */
-	__u8 cpu_core_id;  		/* Core id */
-	__u8 cpu_index;			/* index into per_cpu list */
+	u16 booted_cores;		/* number of cores as seen by OS */
+	u16 phys_proc_id; 		/* Physical processor id. */
+	u16 cpu_core_id;  		/* Core id */
+	u16 cpu_index;			/* index into per_cpu list */
 #endif
 } __attribute__((__aligned__(SMP_CACHE_BYTES)));
 

@@ -130,6 +130,9 @@ void __init
 acpi_numa_processor_affinity_init(struct acpi_srat_cpu_affinity *pa)
 {
 	int pxm, node;
+	int apic_id;
+
+	apic_id = pa->apic_id;
 	if (srat_disabled())
 		return;
 	if (pa->header.length != sizeof(struct acpi_srat_cpu_affinity)) {
@@ -145,10 +148,10 @@ acpi_numa_processor_affinity_init(struct acpi_srat_cpu_affinity *pa)
 		bad_srat();
 		return;
 	}
-	apicid_to_node[pa->apic_id] = node;
+	apicid_to_node[apic_id] = node;
 	acpi_numa = 1;
 	printk(KERN_INFO "SRAT: PXM %u -> APIC %u -> Node %u\n",
-	       pxm, pa->apic_id, node);
+	       pxm, apic_id, node);
 }
 
 int update_end_of_memory(unsigned long end) {return -1;}
@@ -343,7 +346,8 @@ int __init acpi_scan_nodes(unsigned long start, unsigned long end)
 	/* First clean up the node list */
 	for (i = 0; i < MAX_NUMNODES; i++) {
 		cutoff_node(i, start, end);
-		if ((nodes[i].end - nodes[i].start) < NODE_MIN_SIZE) {
+		/* ZZZ why was this needed. At least add a comment */
+		if (nodes[i].end && (nodes[i].end - nodes[i].start) < NODE_MIN_SIZE) {
 			unparse_node(i);
 			node_set_offline(i);
 		}
@@ -384,6 +388,12 @@ int __init acpi_scan_nodes(unsigned long start, unsigned long end)
 }
 
 #ifdef CONFIG_NUMA_EMU
+static int fake_node_to_pxm_map[MAX_NUMNODES] __initdata = {
+	[0 ... MAX_NUMNODES-1] = PXM_INVAL
+};
+static unsigned char fake_apicid_to_node[MAX_LOCAL_APIC] __initdata = {
+	[0 ... MAX_LOCAL_APIC-1] = NUMA_NO_NODE
+};
 static int __init find_node_by_addr(unsigned long addr)
 {
 	int ret = NUMA_NO_NODE;
@@ -414,12 +424,6 @@ static int __init find_node_by_addr(unsigned long addr)
 void __init acpi_fake_nodes(const struct bootnode *fake_nodes, int num_nodes)
 {
 	int i, j;
-	int fake_node_to_pxm_map[MAX_NUMNODES] = {
-		[0 ... MAX_NUMNODES-1] = PXM_INVAL
-	};
-	unsigned char fake_apicid_to_node[MAX_LOCAL_APIC] = {
-		[0 ... MAX_LOCAL_APIC-1] = NUMA_NO_NODE
-	};
 
 	printk(KERN_INFO "Faking PXM affinity for fake nodes on real "
 			 "topology.\n");

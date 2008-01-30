@@ -26,14 +26,14 @@ extern void unlock_ipi_call_lock(void);
 extern int smp_call_function_mask(cpumask_t mask, void (*func)(void *),
 				  void *info, int wait);
 
-extern u8 __initdata x86_cpu_to_apicid_init[];
+extern u16 __initdata x86_cpu_to_apicid_init[];
 extern void *x86_cpu_to_apicid_ptr;
-extern u8 bios_cpu_apicid[];
+extern u16 bios_cpu_apicid[];
 
 DECLARE_PER_CPU(cpumask_t, cpu_sibling_map);
 DECLARE_PER_CPU(cpumask_t, cpu_core_map);
-DECLARE_PER_CPU(u8, cpu_llc_id);
-DECLARE_PER_CPU(u8, x86_cpu_to_apicid);
+DECLARE_PER_CPU(u16, cpu_llc_id);
+DECLARE_PER_CPU(u16, x86_cpu_to_apicid);
 
 static inline int cpu_present_to_apicid(int mps_cpu)
 {

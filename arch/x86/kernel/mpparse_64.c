@@ -67,7 +67,7 @@ unsigned disabled_cpus __cpuinitdata;
 /* Bitmask of physically existing CPUs */
 physid_mask_t phys_cpu_present_map = PHYSID_MASK_NONE;
 
-u8 bios_cpu_apicid[NR_CPUS] = { [0 ... NR_CPUS-1] = BAD_APICID };
+u16 bios_cpu_apicid[NR_CPUS] = { [0 ... NR_CPUS-1] = BAD_APICID };
 
 
 /*
@@ -132,7 +132,7 @@ static void __cpuinit MP_processor_info(struct mpc_config_processor *m)
 	 * area is created.
 	 */
 	if (x86_cpu_to_apicid_ptr) {
-		u8 *x86_cpu_to_apicid = (u8 *)x86_cpu_to_apicid_ptr;
+		u16 *x86_cpu_to_apicid = (u16 *)x86_cpu_to_apicid_ptr;
 		x86_cpu_to_apicid[cpu] = m->mpc_apicid;
 	} else {
 		per_cpu(x86_cpu_to_apicid, cpu) = m->mpc_apicid;
