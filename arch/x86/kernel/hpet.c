@@ -16,7 +16,8 @@
 #define HPET_MASK	CLOCKSOURCE_MASK(32)
 #define HPET_SHIFT	22
 
-/* FSEC = 10^-15 NSEC = 10^-9 */
+/* FSEC = 10^-15
+   NSEC = 10^-9 */
 #define FSEC_PER_NSEC	1000000
 
 /*
