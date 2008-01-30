@@ -176,43 +176,6 @@ typedef struct {
 
 #define ARCH_MIN_TASKALIGN	16
 
-struct thread_struct {
-/* cached TLS descriptors. */
-	struct desc_struct tls_array[GDT_ENTRY_TLS_ENTRIES];
-	unsigned long	sp0;
-	unsigned long	sysenter_cs;
-	unsigned long	ip;
-	unsigned long	sp;
-	unsigned long	fs;
-	unsigned long	gs;
-/* Hardware debugging registers */
-	unsigned long	debugreg0;
-	unsigned long	debugreg1;
-	unsigned long	debugreg2;
-	unsigned long	debugreg3;
-	unsigned long	debugreg6;
-	unsigned long	debugreg7;
-/* fault info */
-	unsigned long	cr2, trap_no, error_code;
-/* floating point info */
-	union i387_union	i387;
-/* virtual 86 mode info */
-	struct vm86_struct __user * vm86_info;
-	unsigned long		screen_bitmap;
-	unsigned long		v86flags, v86mask, saved_sp0;
-	unsigned int		saved_fs, saved_gs;
-/* IO permissions */
-	unsigned long	*io_bitmap_ptr;
- 	unsigned long	iopl;
-/* max allowed port in the bitmap, in bytes: */
-	unsigned long	io_bitmap_max;
-/* MSR_IA32_DEBUGCTLMSR value to switch in if TIF_DEBUGCTLMSR is set.  */
-	unsigned long	debugctlmsr;
-/* Debug Store - if not 0 points to a DS Save Area configuration;
- *               goes into MSR_IA32_DS_AREA */
-	unsigned long	ds_area_msr;
-};
-
 #define INIT_THREAD  {							\
 	.sp0 = sizeof(init_stack) + (long)&init_stack,			\
 	.vm86_info = NULL,						\

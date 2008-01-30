@@ -125,38 +125,6 @@ DECLARE_PER_CPU(struct orig_ist, orig_ist);
 #define ARCH_MIN_MMSTRUCT_ALIGN	0
 #endif
 
-struct thread_struct {
-	unsigned long	sp0;
-	unsigned long	sp;
-	unsigned long 	usersp;	/* Copy from PDA */
-	unsigned long	fs;
-	unsigned long	gs;
-	unsigned short	es, ds, fsindex, gsindex;	
-/* Hardware debugging registers */
-	unsigned long	debugreg0;  
-	unsigned long	debugreg1;  
-	unsigned long	debugreg2;  
-	unsigned long	debugreg3;  
-	unsigned long	debugreg6;  
-	unsigned long	debugreg7;  
-/* fault info */
-	unsigned long	cr2, trap_no, error_code;
-/* floating point info */
-	union i387_union	i387  __attribute__((aligned(16)));
-/* IO permissions. the bitmap could be moved into the GDT, that would make
-   switch faster for a limited number of ioperm using tasks. -AK */
-	int		ioperm;
-	unsigned long	*io_bitmap_ptr;
-	unsigned io_bitmap_max;
-/* MSR_IA32_DEBUGCTLMSR value to switch in if TIF_DEBUGCTLMSR is set.  */
-	unsigned long	debugctlmsr;
-/* Debug Store - if not 0 points to a DS Save Area configuration;
- *               goes into MSR_IA32_DS_AREA */
-	unsigned long	ds_area_msr;
-/* cached TLS descriptors. */
-	struct desc_struct tls_array[GDT_ENTRY_TLS_ENTRIES];
-} __attribute__((aligned(16)));
-
 #define INIT_THREAD  { \
 	.sp0 = (unsigned long)&init_stack + sizeof(init_stack) \
 }

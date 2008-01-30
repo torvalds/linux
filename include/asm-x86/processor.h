@@ -126,6 +126,50 @@ extern void init_scattered_cpuid_features(struct cpuinfo_x86 *c);
 extern unsigned int init_intel_cacheinfo(struct cpuinfo_x86 *c);
 extern unsigned short num_cache_leaves;
 
+struct thread_struct {
+/* cached TLS descriptors. */
+	struct desc_struct tls_array[GDT_ENTRY_TLS_ENTRIES];
+	unsigned long	sp0;
+	unsigned long	sp;
+#ifdef CONFIG_X86_32
+	unsigned long	sysenter_cs;
+#else
+	unsigned long 	usersp;	/* Copy from PDA */
+	unsigned short	es, ds, fsindex, gsindex;
+#endif
+	unsigned long	ip;
+	unsigned long	fs;
+	unsigned long	gs;
+/* Hardware debugging registers */
+	unsigned long	debugreg0;
+	unsigned long	debugreg1;
+	unsigned long	debugreg2;
+	unsigned long	debugreg3;
+	unsigned long	debugreg6;
+	unsigned long	debugreg7;
+/* fault info */
+	unsigned long	cr2, trap_no, error_code;
+/* floating point info */
+	union i387_union	i387 __attribute__((aligned(16)));;
+#ifdef CONFIG_X86_32
+/* virtual 86 mode info */
+	struct vm86_struct __user *vm86_info;
+	unsigned long		screen_bitmap;
+	unsigned long		v86flags, v86mask, saved_sp0;
+	unsigned int		saved_fs, saved_gs;
+#endif
+/* IO permissions */
+	unsigned long	*io_bitmap_ptr;
+	unsigned long	iopl;
+/* max allowed port in the bitmap, in bytes: */
+	unsigned io_bitmap_max;
+/* MSR_IA32_DEBUGCTLMSR value to switch in if TIF_DEBUGCTLMSR is set.  */
+	unsigned long	debugctlmsr;
+/* Debug Store - if not 0 points to a DS Save Area configuration;
+ *               goes into MSR_IA32_DS_AREA */
+	unsigned long	ds_area_msr;
+};
+
 static inline unsigned long native_get_debugreg(int regno)
 {
 	unsigned long val = 0; 	/* Damn you, gcc! */
