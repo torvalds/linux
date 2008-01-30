@@ -40,6 +40,10 @@ extern void native_io_delay(void);
 extern int io_delay_type;
 extern void io_delay_init(void);
 
+#if defined(CONFIG_PARAVIRT)
+#include <asm/paravirt.h>
+#else
+
 static inline void slow_down_io(void)
 {
 	native_io_delay();
@@ -49,6 +53,7 @@ static inline void slow_down_io(void)
 	native_io_delay();
 #endif
 }
+#endif
 
 /*
  * Talk about misusing macros..
@@ -57,21 +62,32 @@ static inline void slow_down_io(void)
 static inline void out##s(unsigned x value, unsigned short port) {
 
 #define __OUT2(s,s1,s2) \
-__asm__ __volatile__ ("out" #s " %" s1 "0,%" s2 "1" : : "a" (value), "Nd" (port))
+__asm__ __volatile__ ("out" #s " %" s1 "0,%" s2 "1"
+
+#ifndef REALLY_SLOW_IO
+#define REALLY_SLOW_IO
+#define UNSET_REALLY_SLOW_IO
+#endif
 
 #define __OUT(s,s1,x) \
-__OUT1(s,x) __OUT2(s,s1,"w"); } \
-__OUT1(s##_p,x) __OUT2(s,s1,"w"); slow_down_io(); }
+__OUT1(s,x) __OUT2(s,s1,"w") : : "a" (value), "Nd" (port)); } \
+__OUT1(s##_p, x) __OUT2(s, s1, "w") : : "a" (value), "Nd" (port)); \
+		slow_down_io(); }
 
 #define __IN1(s) \
 static inline RETURN_TYPE in##s(unsigned short port) { RETURN_TYPE _v;
 
 #define __IN2(s,s1,s2) \
-__asm__ __volatile__ ("in" #s " %" s2 "1,%" s1 "0" : "=a" (_v) : "Nd" (port))
+__asm__ __volatile__ ("in" #s " %" s2 "1,%" s1 "0"
 
-#define __IN(s,s1) \
-__IN1(s) __IN2(s,s1,"w"); return _v; } \
-__IN1(s##_p) __IN2(s,s1,"w"); slow_down_io(); return _v; }
+#define __IN(s,s1,i...) \
+__IN1(s) __IN2(s, s1, "w") : "=a" (_v) : "Nd" (port), ##i); return _v; } \
+__IN1(s##_p) __IN2(s, s1, "w") : "=a" (_v) : "Nd" (port), ##i);	  \
+				slow_down_io(); return _v; }
+
+#ifdef UNSET_REALLY_SLOW_IO
+#undef REALLY_SLOW_IO
+#endif
 
 #define __INS(s) \
 static inline void ins##s(unsigned short port, void * addr, unsigned long count) \
