@@ -4,6 +4,7 @@
 
 obj-y	:= init_32.o pgtable_32.o fault_32.o ioremap_32.o extable.o pageattr_32.o mmap.o
 
+obj-$(CONFIG_CPA_DEBUG) += pageattr-test.o
 obj-$(CONFIG_NUMA) += discontig_32.o
 obj-$(CONFIG_HUGETLB_PAGE) += hugetlbpage.o
 obj-$(CONFIG_HIGHMEM) += highmem_32.o
