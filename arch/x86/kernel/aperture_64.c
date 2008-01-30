@@ -312,6 +312,7 @@ void __init gart_iommu_hole_init(void)
 	u32 aper_size, aper_alloc = 0, aper_order = 0, last_aper_order = 0;
 	u64 aper_base, last_aper_base = 0;
 	int fix, num, valid_agp = 0;
+	int node;
 
 	if (gart_iommu_aperture_disabled || !fix_aperture ||
 	    !early_pci_allowed())
@@ -320,6 +321,7 @@ void __init gart_iommu_hole_init(void)
 	printk(KERN_INFO  "Checking aperture...\n");
 
 	fix = 0;
+	node = 0;
 	for (num = 24; num < 32; num++) {
 		if (!early_is_k8_nb(read_pci_config(0, num, 3, 0x00)))
 			continue;
@@ -332,8 +334,9 @@ void __init gart_iommu_hole_init(void)
 		aper_base = read_pci_config(0, num, 3, 0x94) & 0x7fff;
 		aper_base <<= 25;
 
-		printk(KERN_INFO "CPU %d: aperture @ %Lx size %u MB\n",
-				num-24, aper_base, aper_size>>20);
+		printk(KERN_INFO "Node %d: aperture @ %Lx size %u MB\n",
+				node, aper_base, aper_size >> 20);
+		node++;
 
 		if (!aperture_valid(aper_base, aper_size)) {
 			fix = 1;
