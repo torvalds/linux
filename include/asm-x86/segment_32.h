@@ -45,11 +45,8 @@
  *  30 - unused
  *  31 - TSS for double fault handler
  */
-#define GDT_ENTRY_TLS_ENTRIES	3
 #define GDT_ENTRY_TLS_MIN	6
 #define GDT_ENTRY_TLS_MAX 	(GDT_ENTRY_TLS_MIN + GDT_ENTRY_TLS_ENTRIES - 1)
-
-#define TLS_SIZE (GDT_ENTRY_TLS_ENTRIES * 8)
 
 #define GDT_ENTRY_DEFAULT_USER_CS	14
 #define __USER_CS (GDT_ENTRY_DEFAULT_USER_CS * 8 + 3)
@@ -87,7 +84,6 @@
  * The GDT has 32 entries
  */
 #define GDT_ENTRIES 32
-#define GDT_SIZE (GDT_ENTRIES * 8)
 
 /* Simple and small GDT entries for booting only */
 
@@ -110,24 +106,6 @@
 #define PNP_DS     (GDT_ENTRY_PNPBIOS_DS * 8)	/* data segment for BIOS */
 #define PNP_TS1    (GDT_ENTRY_PNPBIOS_TS1 * 8)	/* transfer data segment */
 #define PNP_TS2    (GDT_ENTRY_PNPBIOS_TS2 * 8)	/* another data segment */
-
-/*
- * The interrupt descriptor table has room for 256 idt's,
- * the global descriptor table is dependent on the number
- * of tasks we can have..
- */
-#define IDT_ENTRIES 256
-
-/* Bottom two bits of selector give the ring privilege level */
-#define SEGMENT_RPL_MASK	0x3
-/* Bit 2 is table indicator (LDT/GDT) */
-#define SEGMENT_TI_MASK		0x4
-
-/* User mode is privilege level 3 */
-#define USER_RPL		0x3
-/* LDT segment has TI set, GDT has it cleared */
-#define SEGMENT_LDT		0x4
-#define SEGMENT_GDT		0x0
 
 /*
  * Matching rules for certain types of segments.
