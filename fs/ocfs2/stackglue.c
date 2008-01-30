@@ -252,6 +252,11 @@ void *ocfs2_dlm_lvb(union ocfs2_dlm_lksb *lksb)
 	return (void *)(lksb->lksb_o2dlm.lvb);
 }
 
+void ocfs2_dlm_dump_lksb(union ocfs2_dlm_lksb *lksb)
+{
+	dlm_print_one_lock(lksb->lksb_o2dlm.lockid);
+}
+
 /*
  * Called from the dlm when it's about to evict a node. This is how the
  * classic stack signals node death.

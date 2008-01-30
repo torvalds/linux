@@ -2803,8 +2803,7 @@ static int ocfs2_drop_lock(struct ocfs2_super *osb,
 	if (ret) {
 		ocfs2_log_dlm_error("ocfs2_dlm_unlock", ret, lockres);
 		mlog(ML_ERROR, "lockres flags: %lu\n", lockres->l_flags);
-		/* XXX Need to abstract this */
-		dlm_print_one_lock(lockres->l_lksb.lksb_o2dlm.lockid);
+		ocfs2_dlm_dump_lksb(&lockres->l_lksb);
 		BUG();
 	}
 	mlog(0, "lock %s, successfull return from ocfs2_dlm_unlock\n",
