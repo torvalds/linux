@@ -211,6 +211,8 @@ repeat:
  * mem_map entry (pfn_valid() is false).
  *
  * See change_page_attr() documentation for more details.
+ *
+ * Modules and drivers should use the set_memory_* APIs instead.
  */
 
 int change_page_attr_addr(unsigned long address, int numpages, pgprot_t prot)
@@ -273,6 +275,8 @@ int change_page_attr_addr(unsigned long address, int numpages, pgprot_t prot)
  * (e.g. in user space) * This function only deals with the kernel linear map.
  *
  * For MMIO areas without mem_map use change_page_attr_addr() instead.
+ *
+ * Modules and drivers should use the set_pages_* APIs instead.
  */
 int change_page_attr(struct page *page, int numpages, pgprot_t prot)
 {
@@ -281,6 +285,199 @@ int change_page_attr(struct page *page, int numpages, pgprot_t prot)
 	return change_page_attr_addr(addr, numpages, prot);
 }
 EXPORT_SYMBOL(change_page_attr);
+
+/**
+ * change_page_attr_set - Change page table attributes in the linear mapping.
+ * @addr: Virtual address in linear mapping.
+ * @numpages: Number of pages to change
+ * @prot: Protection/caching type bits to set (PAGE_*)
+ *
+ * Returns 0 on success, otherwise a negated errno.
+ *
+ * This should be used when a page is mapped with a different caching policy
+ * than write-back somewhere - some CPUs do not like it when mappings with
+ * different caching policies exist. This changes the page attributes of the
+ * in kernel linear mapping too.
+ *
+ * Caller must call global_flush_tlb() later to make the changes active.
+ *
+ * The caller needs to ensure that there are no conflicting mappings elsewhere
+ * (e.g. in user space) * This function only deals with the kernel linear map.
+ *
+ * This function is different from change_page_attr() in that only selected bits
+ * are impacted, all other bits remain as is.
+ */
+int change_page_attr_set(unsigned long addr, int numpages, pgprot_t prot)
+{
+	pgprot_t current_prot;
+	int level;
+	pte_t *pte;
+
+	pte = lookup_address(addr, &level);
+	if (pte)
+		current_prot = pte_pgprot(*pte);
+	else
+		pgprot_val(current_prot) = 0;
+
+	pgprot_val(prot) = pgprot_val(current_prot) | pgprot_val(prot);
+
+	return change_page_attr_addr(addr, numpages, prot);
+}
+
+/**
+ * change_page_attr_clear - Change page table attributes in the linear mapping.
+ * @addr: Virtual address in linear mapping.
+ * @numpages: Number of pages to change
+ * @prot: Protection/caching type bits to clear (PAGE_*)
+ *
+ * Returns 0 on success, otherwise a negated errno.
+ *
+ * This should be used when a page is mapped with a different caching policy
+ * than write-back somewhere - some CPUs do not like it when mappings with
+ * different caching policies exist. This changes the page attributes of the
+ * in kernel linear mapping too.
+ *
+ * Caller must call global_flush_tlb() later to make the changes active.
+ *
+ * The caller needs to ensure that there are no conflicting mappings elsewhere
+ * (e.g. in user space) * This function only deals with the kernel linear map.
+ *
+ * This function is different from change_page_attr() in that only selected bits
+ * are impacted, all other bits remain as is.
+ */
+int change_page_attr_clear(unsigned long addr, int numpages, pgprot_t prot)
+{
+	pgprot_t current_prot;
+	int level;
+	pte_t *pte;
+
+	pte = lookup_address(addr, &level);
+	if (pte)
+		current_prot = pte_pgprot(*pte);
+	else
+		pgprot_val(current_prot) = 0;
+
+	pgprot_val(prot) = pgprot_val(current_prot) & ~pgprot_val(prot);
+
+	return change_page_attr_addr(addr, numpages, prot);
+}
+
+
+
+int set_memory_uc(unsigned long addr, int numpages)
+{
+	pgprot_t uncached;
+
+	pgprot_val(uncached) = _PAGE_PCD | _PAGE_PWT;
+	return change_page_attr_set(addr, numpages, uncached);
+}
+EXPORT_SYMBOL(set_memory_uc);
+
+int set_memory_wb(unsigned long addr, int numpages)
+{
+	pgprot_t uncached;
+
+	pgprot_val(uncached) = _PAGE_PCD | _PAGE_PWT;
+	return change_page_attr_clear(addr, numpages, uncached);
+}
+EXPORT_SYMBOL(set_memory_wb);
+
+int set_memory_x(unsigned long addr, int numpages)
+{
+	pgprot_t nx;
+
+	pgprot_val(nx) = _PAGE_NX;
+	return change_page_attr_clear(addr, numpages, nx);
+}
+EXPORT_SYMBOL(set_memory_x);
+
+int set_memory_nx(unsigned long addr, int numpages)
+{
+	pgprot_t nx;
+
+	pgprot_val(nx) = _PAGE_NX;
+	return change_page_attr_set(addr, numpages, nx);
+}
+EXPORT_SYMBOL(set_memory_nx);
+
+int set_memory_ro(unsigned long addr, int numpages)
+{
+	pgprot_t rw;
+
+	pgprot_val(rw) = _PAGE_RW;
+	return change_page_attr_clear(addr, numpages, rw);
+}
+EXPORT_SYMBOL(set_memory_ro);
+
+int set_memory_rw(unsigned long addr, int numpages)
+{
+	pgprot_t rw;
+
+	pgprot_val(rw) = _PAGE_RW;
+	return change_page_attr_set(addr, numpages, rw);
+}
+EXPORT_SYMBOL(set_memory_rw);
+
+int set_pages_uc(struct page *page, int numpages)
+{
+	unsigned long addr = (unsigned long)page_address(page);
+	pgprot_t uncached;
+
+	pgprot_val(uncached) = _PAGE_PCD | _PAGE_PWT;
+	return change_page_attr_set(addr, numpages, uncached);
+}
+EXPORT_SYMBOL(set_pages_uc);
+
+int set_pages_wb(struct page *page, int numpages)
+{
+	unsigned long addr = (unsigned long)page_address(page);
+	pgprot_t uncached;
+
+	pgprot_val(uncached) = _PAGE_PCD | _PAGE_PWT;
+	return change_page_attr_clear(addr, numpages, uncached);
+}
+EXPORT_SYMBOL(set_pages_wb);
+
+int set_pages_x(struct page *page, int numpages)
+{
+	unsigned long addr = (unsigned long)page_address(page);
+	pgprot_t nx;
+
+	pgprot_val(nx) = _PAGE_NX;
+	return change_page_attr_clear(addr, numpages, nx);
+}
+EXPORT_SYMBOL(set_pages_x);
+
+int set_pages_nx(struct page *page, int numpages)
+{
+	unsigned long addr = (unsigned long)page_address(page);
+	pgprot_t nx;
+
+	pgprot_val(nx) = _PAGE_NX;
+	return change_page_attr_set(addr, numpages, nx);
+}
+EXPORT_SYMBOL(set_pages_nx);
+
+int set_pages_ro(struct page *page, int numpages)
+{
+	unsigned long addr = (unsigned long)page_address(page);
+	pgprot_t rw;
+
+	pgprot_val(rw) = _PAGE_RW;
+	return change_page_attr_clear(addr, numpages, rw);
+}
+EXPORT_SYMBOL(set_pages_ro);
+
+int set_pages_rw(struct page *page, int numpages)
+{
+	unsigned long addr = (unsigned long)page_address(page);
+	pgprot_t rw;
+
+	pgprot_val(rw) = _PAGE_RW;
+	return change_page_attr_set(addr, numpages, rw);
+}
+EXPORT_SYMBOL(set_pages_rw);
+
 
 void clflush_cache_range(void *addr, int size)
 {
