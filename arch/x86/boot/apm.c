@@ -19,8 +19,6 @@
 
 #include "boot.h"
 
-#if defined(CONFIG_APM) || defined(CONFIG_APM_MODULE)
-
 int query_apm_bios(void)
 {
 	u16 ax, bx, cx, dx, di;
@@ -95,4 +93,3 @@ int query_apm_bios(void)
 	return 0;
 }
 
-#endif
