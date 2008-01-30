@@ -43,7 +43,7 @@
  * Note that @nr may be almost arbitrarily large; this function is not
  * restricted to acting on a single-word quantity.
  */
-static inline void set_bit(int nr, volatile unsigned long *addr)
+static inline void set_bit(int nr, volatile void *addr)
 {
 	asm volatile(LOCK_PREFIX "bts %1,%0"
 		     : ADDR
@@ -59,7 +59,7 @@ static inline void set_bit(int nr, volatile unsigned long *addr)
  * If it's called on the same region of memory simultaneously, the effect
  * may be that only one operation succeeds.
  */
-static inline void __set_bit(int nr, volatile unsigned long *addr)
+static inline void __set_bit(int nr, volatile void *addr)
 {
 	asm volatile("bts %1,%0"
 		     : ADDR
@@ -77,7 +77,7 @@ static inline void __set_bit(int nr, volatile unsigned long *addr)
  * you should call smp_mb__before_clear_bit() and/or smp_mb__after_clear_bit()
  * in order to ensure changes are visible on other processors.
  */
-static inline void clear_bit(int nr, volatile unsigned long *addr)
+static inline void clear_bit(int nr, volatile void *addr)
 {
 	asm volatile(LOCK_PREFIX "btr %1,%0"
 		     : ADDR
@@ -92,13 +92,13 @@ static inline void clear_bit(int nr, volatile unsigned long *addr)
  * clear_bit() is atomic and implies release semantics before the memory
  * operation. It can be used for an unlock.
  */
-static inline void clear_bit_unlock(unsigned nr, volatile unsigned long *addr)
+static inline void clear_bit_unlock(unsigned nr, volatile void *addr)
 {
 	barrier();
 	clear_bit(nr, addr);
 }
 
-static inline void __clear_bit(int nr, volatile unsigned long *addr)
+static inline void __clear_bit(int nr, volatile void *addr)
 {
 	asm volatile("btr %1,%0" : ADDR : "Ir" (nr));
 }
@@ -115,7 +115,7 @@ static inline void __clear_bit(int nr, volatile unsigned long *addr)
  * No memory barrier is required here, because x86 cannot reorder stores past
  * older loads. Same principle as spin_unlock.
  */
-static inline void __clear_bit_unlock(unsigned nr, volatile unsigned long *addr)
+static inline void __clear_bit_unlock(unsigned nr, volatile void *addr)
 {
 	barrier();
 	__clear_bit(nr, addr);
@@ -133,7 +133,7 @@ static inline void __clear_bit_unlock(unsigned nr, volatile unsigned long *addr)
  * If it's called on the same region of memory simultaneously, the effect
  * may be that only one operation succeeds.
  */
-static inline void __change_bit(int nr, volatile unsigned long *addr)
+static inline void __change_bit(int nr, volatile void *addr)
 {
 	asm volatile("btc %1,%0" : ADDR : "Ir" (nr));
 }
@@ -147,7 +147,7 @@ static inline void __change_bit(int nr, volatile unsigned long *addr)
  * Note that @nr may be almost arbitrarily large; this function is not
  * restricted to acting on a single-word quantity.
  */
-static inline void change_bit(int nr, volatile unsigned long *addr)
+static inline void change_bit(int nr, volatile void *addr)
 {
 	asm volatile(LOCK_PREFIX "btc %1,%0"
 		     : ADDR : "Ir" (nr));
@@ -161,7 +161,7 @@ static inline void change_bit(int nr, volatile unsigned long *addr)
  * This operation is atomic and cannot be reordered.
  * It also implies a memory barrier.
  */
-static inline int test_and_set_bit(int nr, volatile unsigned long *addr)
+static inline int test_and_set_bit(int nr, volatile void *addr)
 {
 	int oldbit;
 
@@ -180,7 +180,7 @@ static inline int test_and_set_bit(int nr, volatile unsigned long *addr)
  *
  * This is the same as test_and_set_bit on x86.
  */
-static inline int test_and_set_bit_lock(int nr, volatile unsigned long *addr)
+static inline int test_and_set_bit_lock(int nr, volatile void *addr)
 {
 	return test_and_set_bit(nr, addr);
 }
@@ -194,7 +194,7 @@ static inline int test_and_set_bit_lock(int nr, volatile unsigned long *addr)
  * If two examples of this operation race, one can appear to succeed
  * but actually fail.  You must protect multiple accesses with a lock.
  */
-static inline int __test_and_set_bit(int nr, volatile unsigned long *addr)
+static inline int __test_and_set_bit(int nr, volatile void *addr)
 {
 	int oldbit;
 
@@ -213,7 +213,7 @@ static inline int __test_and_set_bit(int nr, volatile unsigned long *addr)
  * This operation is atomic and cannot be reordered.
  * It also implies a memory barrier.
  */
-static inline int test_and_clear_bit(int nr, volatile unsigned long *addr)
+static inline int test_and_clear_bit(int nr, volatile void *addr)
 {
 	int oldbit;
 
@@ -234,7 +234,7 @@ static inline int test_and_clear_bit(int nr, volatile unsigned long *addr)
  * If two examples of this operation race, one can appear to succeed
  * but actually fail.  You must protect multiple accesses with a lock.
  */
-static inline int __test_and_clear_bit(int nr, volatile unsigned long *addr)
+static inline int __test_and_clear_bit(int nr, volatile void *addr)
 {
 	int oldbit;
 
@@ -246,7 +246,7 @@ static inline int __test_and_clear_bit(int nr, volatile unsigned long *addr)
 }
 
 /* WARNING: non atomic and it can be reordered! */
-static inline int __test_and_change_bit(int nr, volatile unsigned long *addr)
+static inline int __test_and_change_bit(int nr, volatile void *addr)
 {
 	int oldbit;
 
@@ -266,7 +266,7 @@ static inline int __test_and_change_bit(int nr, volatile unsigned long *addr)
  * This operation is atomic and cannot be reordered.
  * It also implies a memory barrier.
  */
-static inline int test_and_change_bit(int nr, volatile unsigned long *addr)
+static inline int test_and_change_bit(int nr, volatile void *addr)
 {
 	int oldbit;
 
@@ -278,19 +278,20 @@ static inline int test_and_change_bit(int nr, volatile unsigned long *addr)
 	return oldbit;
 }
 
-static inline int constant_test_bit(int nr, const volatile unsigned long *addr)
+static inline int constant_test_bit(int nr, const volatile void *addr)
 {
-	return ((1UL << (nr % BITS_PER_LONG)) & (addr[nr / BITS_PER_LONG])) != 0;
+	return ((1UL << (nr % BITS_PER_LONG)) &
+		(((unsigned long *)addr)[nr / BITS_PER_LONG])) != 0;
 }
 
-static inline int variable_test_bit(int nr, volatile const unsigned long *addr)
+static inline int variable_test_bit(int nr, volatile const void *addr)
 {
 	int oldbit;
 
 	asm volatile("bt %2,%1\n\t"
 		     "sbb %0,%0"
 		     : "=r" (oldbit)
-		     : "m" (*addr), "Ir" (nr));
+		     : "m" (*(unsigned long *)addr), "Ir" (nr));
 
 	return oldbit;
 }
