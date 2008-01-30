@@ -461,14 +461,14 @@ static int pirq_vlsi_set(struct pci_dev *router, struct pci_dev *dev, int pirq, 
  */
 static int pirq_serverworks_get(struct pci_dev *router, struct pci_dev *dev, int pirq)
 {
-	outb_p(pirq, 0xc00);
+	outb(pirq, 0xc00);
 	return inb(0xc01) & 0xf;
 }
 
 static int pirq_serverworks_set(struct pci_dev *router, struct pci_dev *dev, int pirq, int irq)
 {
-	outb_p(pirq, 0xc00);
-	outb_p(irq, 0xc01);
+	outb(pirq, 0xc00);
+	outb(irq, 0xc01);
 	return 1;
 }
 
