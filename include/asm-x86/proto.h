@@ -37,9 +37,6 @@ extern u32 pmtmr_ioport;
 #endif
 extern int nohpet;
 
-extern void numa_initmem_init(unsigned long start_pfn, unsigned long end_pfn);
-extern unsigned long numa_free_all_bootmem(void);
-
 extern void reserve_bootmem_generic(unsigned long phys, unsigned len);
 
 extern void load_gs_index(unsigned gs);
@@ -51,8 +48,6 @@ extern void exception_table_check(void);
 extern void swap_low_mappings(void);
 
 extern void syscall32_cpu_init(void);
-
-extern void setup_node_bootmem(int nodeid, unsigned long start, unsigned long end);
 
 extern void check_efer(void);
 

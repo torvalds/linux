@@ -44,6 +44,7 @@
 #include <asm/smp.h>
 #include <asm/sections.h>
 #include <asm/kdebug.h>
+#include <asm/numa.h>
 
 #ifndef Dprintk
 #define Dprintk(x...)
