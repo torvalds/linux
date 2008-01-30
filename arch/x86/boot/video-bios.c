@@ -104,6 +104,7 @@ static int bios_probe(void)
 
 		mi = GET_HEAP(struct mode_info, 1);
 		mi->mode = VIDEO_FIRST_BIOS+mode;
+		mi->depth = 0;	/* text */
 		mi->x = rdfs16(0x44a);
 		mi->y = rdfs8(0x484)+1;
 		nmodes++;
@@ -116,7 +117,7 @@ static int bios_probe(void)
 
 __videocard video_bios =
 {
-	.card_name	= "BIOS (scanned)",
+	.card_name	= "BIOS",
 	.probe		= bios_probe,
 	.set_mode	= bios_set_mode,
 	.unsafe		= 1,
