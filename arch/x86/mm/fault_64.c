@@ -98,7 +98,7 @@ static int is_prefetch(struct pt_regs *regs, unsigned long addr,
 	/* If it was a exec fault ignore */
 	if (error_code & PF_INSTR)
 		return 0;
-	instr = (unsigned char __user *)convert_rip_to_linear(current, regs);
+	instr = (unsigned char __user *)convert_ip_to_linear(current, regs);
 #endif
 
 	max_instr = instr + 15;

@@ -177,7 +177,7 @@ void signal_fault(struct pt_regs *regs, void __user *frame, char *where);
 struct task_struct;
 
 extern unsigned long
-convert_rip_to_linear(struct task_struct *child, struct pt_regs *regs);
+convert_ip_to_linear(struct task_struct *child, struct pt_regs *regs);
 
 #endif /* __KERNEL__ */
 #endif /* !__i386__ */
