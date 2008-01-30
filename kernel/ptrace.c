@@ -426,6 +426,13 @@ int ptrace_request(struct task_struct *child, long request,
 	int ret = -EIO;
 
 	switch (request) {
+	case PTRACE_PEEKTEXT:
+	case PTRACE_PEEKDATA:
+		return generic_ptrace_peekdata(child, addr, data);
+	case PTRACE_POKETEXT:
+	case PTRACE_POKEDATA:
+		return generic_ptrace_pokedata(child, addr, data);
+
 #ifdef PTRACE_OLDSETOPTIONS
 	case PTRACE_OLDSETOPTIONS:
 #endif
