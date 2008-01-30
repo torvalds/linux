@@ -217,13 +217,14 @@ static void irq_enable(void)
  * address of the handler, and... well, who cares?  The Guest just asks the
  * Host to make the change anyway, because the Host controls the real IDT.
  */
-static void lguest_write_idt_entry(struct desc_struct *dt,
-				   int entrynum, u32 low, u32 high)
+static void lguest_write_idt_entry(gate_desc *dt,
+				   int entrynum, const gate_desc *g)
 {
+	u32 *desc = (u32 *)g;
 	/* Keep the local copy up to date. */
-	write_dt_entry(dt, entrynum, low, high);
+	native_write_idt_entry(dt, entrynum, g);
 	/* Tell Host about this new entry. */
-	hcall(LHCALL_LOAD_IDT_ENTRY, entrynum, low, high);
+	hcall(LHCALL_LOAD_IDT_ENTRY, entrynum, desc[0], desc[1]);
 }
 
 /* Changing to a different IDT is very rare: we keep the IDT up-to-date every

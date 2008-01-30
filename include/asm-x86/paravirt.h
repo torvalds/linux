@@ -17,6 +17,7 @@
 #include <linux/types.h>
 #include <linux/cpumask.h>
 #include <asm/kmap_types.h>
+#include <asm/desc_defs.h>
 
 struct page;
 struct thread_struct;
@@ -99,8 +100,8 @@ struct pv_cpu_ops {
 				int entrynum, u32 low, u32 high);
 	void (*write_gdt_entry)(struct desc_struct *,
 				int entrynum, u32 low, u32 high);
-	void (*write_idt_entry)(struct desc_struct *,
-				int entrynum, u32 low, u32 high);
+	void (*write_idt_entry)(gate_desc *,
+				int entrynum, const gate_desc *gate);
 	void (*load_sp0)(struct tss_struct *tss, struct thread_struct *t);
 
 	void (*set_iopl_mask)(unsigned mask);
@@ -667,9 +668,9 @@ static inline void write_gdt_entry(void *dt, int entry, u32 low, u32 high)
 {
 	PVOP_VCALL4(pv_cpu_ops.write_gdt_entry, dt, entry, low, high);
 }
-static inline void write_idt_entry(void *dt, int entry, u32 low, u32 high)
+static inline void write_idt_entry(gate_desc *dt, int entry, const gate_desc *g)
 {
-	PVOP_VCALL4(pv_cpu_ops.write_idt_entry, dt, entry, low, high);
+	PVOP_VCALL3(pv_cpu_ops.write_idt_entry, dt, entry, g);
 }
 static inline void set_iopl_mask(unsigned mask)
 {

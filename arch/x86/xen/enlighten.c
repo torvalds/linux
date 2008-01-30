@@ -399,8 +399,7 @@ static DEFINE_PER_CPU(struct desc_ptr, idt_desc);
 
 /* Set an IDT entry.  If the entry is part of the current IDT, then
    also update Xen. */
-static void xen_write_idt_entry(struct desc_struct *dt, int entrynum,
-				u32 low, u32 high)
+static void xen_write_idt_entry(gate_desc *dt, int entrynum, const gate_desc *g)
 {
 	unsigned long p = (unsigned long)&dt[entrynum];
 	unsigned long start, end;
@@ -412,14 +411,15 @@ static void xen_write_idt_entry(struct desc_struct *dt, int entrynum,
 
 	xen_mc_flush();
 
-	write_dt_entry(dt, entrynum, low, high);
+	native_write_idt_entry(dt, entrynum, g);
 
 	if (p >= start && (p + 8) <= end) {
 		struct trap_info info[2];
+		u32 *desc = (u32 *)g;
 
 		info[1].address = 0;
 
-		if (cvt_gate_to_trap(entrynum, low, high, &info[0]))
+		if (cvt_gate_to_trap(entrynum, desc[0], desc[1], &info[0]))
 			if (HYPERVISOR_set_trap_table(info))
 				BUG();
 	}

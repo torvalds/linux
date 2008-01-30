@@ -70,8 +70,14 @@ static inline void pack_gate(gate_desc *gate,
 
 #define write_ldt_entry(dt, entry, a, b) write_dt_entry(dt, entry, a, b)
 #define write_gdt_entry(dt, entry, a, b) write_dt_entry(dt, entry, a, b)
-#define write_idt_entry(dt, entry, a, b) write_dt_entry(dt, entry, a, b)
+#define write_idt_entry(dt, entry, g) native_write_idt_entry(dt, entry, g)
 #endif
+
+static inline void native_write_idt_entry(gate_desc *idt, int entry,
+					  const gate_desc *gate)
+{
+	memcpy(&idt[entry], gate, sizeof(*gate));
+}
 
 static inline void write_dt_entry(struct desc_struct *dt,
 				  int entry, u32 entry_low, u32 entry_high)
@@ -142,7 +148,7 @@ static inline void _set_gate(int gate, unsigned int type, void *addr, unsigned s
 {
 	gate_desc g;
 	pack_gate(&g, (unsigned long)addr, seg, type, 0);
-	write_idt_entry(idt_table, gate, g.a, g.b);
+	write_idt_entry(idt_table, gate, &g);
 }
 
 static inline void __set_tss_desc(unsigned int cpu, unsigned int entry, const void *addr)
