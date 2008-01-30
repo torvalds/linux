@@ -288,8 +288,8 @@ unsigned long __init setup_memory(void)
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	/* Numa kva area is below the initrd */
-	if (boot_params.hdr.type_of_loader && boot_params.hdr.ramdisk_image)
-		kva_start_pfn = PFN_DOWN(boot_params.hdr.ramdisk_image)
+	if (initrd_start)
+		kva_start_pfn = PFN_DOWN(initrd_start - PAGE_OFFSET)
 			- kva_pages;
 #endif
 	kva_start_pfn -= kva_start_pfn & (PTRS_PER_PTE-1);

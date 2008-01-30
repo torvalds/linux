@@ -188,9 +188,9 @@ extern int root_mountflags;
 
 unsigned long saved_videomode;
 
-#define RAMDISK_IMAGE_START_MASK  	0x07FF
+#define RAMDISK_IMAGE_START_MASK	0x07FF
 #define RAMDISK_PROMPT_FLAG		0x8000
-#define RAMDISK_LOAD_FLAG		0x4000	
+#define RAMDISK_LOAD_FLAG		0x4000
 
 static char __initdata command_line[COMMAND_LINE_SIZE];
 
@@ -252,7 +252,7 @@ static int __init parse_mem(char *arg)
 		 * trim the existing memory map.
 		 */
 		unsigned long long mem_size;
- 
+
 		mem_size = memparse(arg, &arg);
 		limit_regions(mem_size);
 		user_defined_memmap = 1;
@@ -391,7 +391,7 @@ static void __init reserve_ebda_region(void)
 	unsigned int addr;
 	addr = get_bios_ebda();
 	if (addr)
-		reserve_bootmem(addr, PAGE_SIZE);	
+		reserve_bootmem(addr, PAGE_SIZE);
 }
 
 #ifndef CONFIG_NEED_MULTIPLE_NODES
@@ -496,6 +496,100 @@ static inline void __init reserve_crashkernel(void)
 {}
 #endif
 
+#ifdef CONFIG_BLK_DEV_INITRD
+
+static bool do_relocate_initrd = false;
+
+static void __init reserve_initrd(void)
+{
+	unsigned long ramdisk_image = boot_params.hdr.ramdisk_image;
+	unsigned long ramdisk_size  = boot_params.hdr.ramdisk_size;
+	unsigned long ramdisk_end   = ramdisk_image + ramdisk_size;
+	unsigned long end_of_lowmem = max_low_pfn << PAGE_SHIFT;
+	unsigned long ramdisk_here;
+
+	initrd_start = 0;
+
+	if (!boot_params.hdr.type_of_loader ||
+	    !ramdisk_image || !ramdisk_size)
+		return;		/* No initrd provided by bootloader */
+
+	if (ramdisk_end < ramdisk_image) {
+		printk(KERN_ERR "initrd wraps around end of memory, "
+		       "disabling initrd\n");
+		return;
+	}
+	if (ramdisk_size >= end_of_lowmem/2) {
+		printk(KERN_ERR "initrd too large to handle, "
+		       "disabling initrd\n");
+		return;
+	}
+	if (ramdisk_end <= end_of_lowmem) {
+		/* All in lowmem, easy case */
+		reserve_bootmem(ramdisk_image, ramdisk_size);
+		initrd_start = ramdisk_image + PAGE_OFFSET;
+		initrd_end = initrd_start+ramdisk_size;
+		return;
+	}
+
+	/* We need to move the initrd down into lowmem */
+	ramdisk_here = (end_of_lowmem - ramdisk_size) & PAGE_MASK;
+
+	/* Note: this includes all the lowmem currently occupied by
+	   the initrd, we rely on that fact to keep the data intact. */
+	reserve_bootmem(ramdisk_here, ramdisk_size);
+	initrd_start = ramdisk_here + PAGE_OFFSET;
+	initrd_end   = initrd_start + ramdisk_size;
+
+	do_relocate_initrd = true;
+}
+
+#define MAX_MAP_CHUNK	(NR_FIX_BTMAPS << PAGE_SHIFT)
+
+static void __init relocate_initrd(void)
+{
+	unsigned long ramdisk_image = boot_params.hdr.ramdisk_image;
+	unsigned long ramdisk_size  = boot_params.hdr.ramdisk_size;
+	unsigned long end_of_lowmem = max_low_pfn << PAGE_SHIFT;
+	unsigned long ramdisk_here;
+	unsigned long slop, clen, mapaddr;
+	char *p, *q;
+
+	if (!do_relocate_initrd)
+		return;
+
+	ramdisk_here = initrd_start - PAGE_OFFSET;
+
+	q = (char *)initrd_start;
+
+	/* Copy any lowmem portion of the initrd */
+	if (ramdisk_image < end_of_lowmem) {
+		clen = end_of_lowmem - ramdisk_image;
+		p = (char *)__va(ramdisk_image);
+		memcpy(q, p, clen);
+		q += clen;
+		ramdisk_image += clen;
+		ramdisk_size  -= clen;
+	}
+
+	/* Copy the highmem portion of the initrd */
+	while (ramdisk_size) {
+		slop = ramdisk_image & ~PAGE_MASK;
+		clen = ramdisk_size;
+		if (clen > MAX_MAP_CHUNK-slop)
+			clen = MAX_MAP_CHUNK-slop;
+		mapaddr = ramdisk_image & PAGE_MASK;
+		p = bt_ioremap(mapaddr, clen+slop);
+		memcpy(q, p+slop, clen);
+		bt_iounmap(p, clen+slop);
+		q += clen;
+		ramdisk_image += clen;
+		ramdisk_size  -= clen;
+	}
+}
+
+#endif /* CONFIG_BLK_DEV_INITRD */
+
 void __init setup_bootmem_allocator(void)
 {
 	unsigned long bootmap_size;
@@ -551,26 +645,10 @@ void __init setup_bootmem_allocator(void)
 	 */
 	find_smp_config();
 #endif
-	numa_kva_reserve();
 #ifdef CONFIG_BLK_DEV_INITRD
-	if (boot_params.hdr.type_of_loader && boot_params.hdr.ramdisk_image) {
-		unsigned long ramdisk_image = boot_params.hdr.ramdisk_image;
-		unsigned long ramdisk_size  = boot_params.hdr.ramdisk_size;
-		unsigned long ramdisk_end   = ramdisk_image + ramdisk_size;
-		unsigned long end_of_lowmem = max_low_pfn << PAGE_SHIFT;
-
-		if (ramdisk_end <= end_of_lowmem) {
-			reserve_bootmem(ramdisk_image, ramdisk_size);
-			initrd_start = ramdisk_image + PAGE_OFFSET;
-			initrd_end = initrd_start+ramdisk_size;
-		} else {
-			printk(KERN_ERR "initrd extends beyond end of memory "
-			       "(0x%08lx > 0x%08lx)\ndisabling initrd\n",
-			       ramdisk_end, end_of_lowmem);
-			initrd_start = 0;
-		}
-	}
+	reserve_initrd();
 #endif
+	numa_kva_reserve();
 	reserve_crashkernel();
 }
 
@@ -713,15 +791,19 @@ void __init setup_arch(char **cmdline_p)
 	 * NOTE: at this point the bootmem allocator is fully available.
 	 */
 
+#ifdef CONFIG_BLK_DEV_INITRD
+	relocate_initrd();
+#endif
+
 	paravirt_post_allocator_init();
 
 	dmi_scan_machine();
 
-	io_delay_init();;
+	io_delay_init();
 
 #ifdef CONFIG_X86_GENERICARCH
 	generic_apic_probe();
-#endif	
+#endif
 	if (efi_enabled)
 		efi_map_memmap();
 
