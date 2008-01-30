@@ -64,14 +64,10 @@ else
         KBUILD_CFLAGS += -mno-red-zone
         KBUILD_CFLAGS += -mcmodel=kernel
 
-        KBUILD_CFLAGS += -Wno-sign-compare
-        KBUILD_CFLAGS += -fno-asynchronous-unwind-tables
         # -funit-at-a-time shrinks the kernel .text considerably
         # unfortunately it makes reading oopses harder.
         KBUILD_CFLAGS += $(call cc-option,-funit-at-a-time)
 
-        # prevent gcc from generating any FP code by mistake
-        KBUILD_CFLAGS += $(call cc-option,-mno-sse -mno-mmx -mno-sse2 -mno-3dnow,)
         # this works around some issues with generating unwind tables in older gccs
         # newer gccs do it by default
         KBUILD_CFLAGS += -maccumulate-outgoing-args
@@ -98,7 +94,15 @@ KBUILD_CFLAGS += $(cfi) $(cfi-sigframe)
 
 LDFLAGS := -m elf_$(UTS_MACHINE)
 OBJCOPYFLAGS := -O binary -R .note -R .comment -S
+
+# Speed up the build
 KBUILD_CFLAGS += -pipe
+# Workaround for a gcc prelease that unfortunately was shipped in a suse release
+KBUILD_CFLAGS += -Wno-sign-compare
+#
+KBUILD_CFLAGS += -fno-asynchronous-unwind-tables
+# prevent gcc from generating any FP code by mistake
+KBUILD_CFLAGS += $(call cc-option,-mno-sse -mno-mmx -mno-sse2 -mno-3dnow,)
 
 ###
 # Sub architecture support
