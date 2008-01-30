@@ -228,7 +228,6 @@ repeat:
 /**
  * change_page_attr_addr - Change page table attributes in linear mapping
  * @address: Virtual address in linear mapping.
- * @numpages: Number of pages to change
  * @prot:    New page table attribute (PAGE_*)
  *
  * Change page attributes of a page in the direct mapping. This is a variant
@@ -240,10 +239,10 @@ repeat:
  * Modules and drivers should use the set_memory_* APIs instead.
  */
 
-static int change_page_attr_addr(unsigned long address, int numpages,
-								pgprot_t prot)
+static int change_page_attr_addr(unsigned long address, pgprot_t prot)
 {
-	int err = 0, kernel_map = 0, i;
+	int err = 0, kernel_map = 0;
+	unsigned long pfn = __pa(address) >> PAGE_SHIFT;
 
 #ifdef CONFIG_X86_64
 	if (address >= __START_KERNEL_map &&
@@ -254,30 +253,27 @@ static int change_page_attr_addr(unsigned long address, int numpages,
 	}
 #endif
 
-	for (i = 0; i < numpages; i++, address += PAGE_SIZE) {
-		unsigned long pfn = __pa(address) >> PAGE_SHIFT;
-
-		if (!kernel_map || pte_present(pfn_pte(0, prot))) {
-			err = __change_page_attr(address, pfn, prot);
-			if (err)
-				break;
-		}
-#ifdef CONFIG_X86_64
-		/*
-		 * Handle kernel mapping too which aliases part of
-		 * lowmem:
-		 */
-		if (__pa(address) < KERNEL_TEXT_SIZE) {
-			unsigned long addr2;
-			pgprot_t prot2;
-
-			addr2 = __START_KERNEL_map + __pa(address);
-			/* Make sure the kernel mappings stay executable */
-			prot2 = pte_pgprot(pte_mkexec(pfn_pte(0, prot)));
-			err = __change_page_attr(addr2, pfn, prot2);
-		}
-#endif
+	if (!kernel_map || pte_present(pfn_pte(0, prot))) {
+		err = __change_page_attr(address, pfn, prot);
+		if (err)
+			return err;
 	}
+
+#ifdef CONFIG_X86_64
+	/*
+	 * Handle kernel mapping too which aliases part of
+	 * lowmem:
+	 */
+	if (__pa(address) < KERNEL_TEXT_SIZE) {
+		unsigned long addr2;
+		pgprot_t prot2;
+
+		addr2 = __START_KERNEL_map + __pa(address);
+		/* Make sure the kernel mappings stay executable */
+		prot2 = pte_pgprot(pte_mkexec(pfn_pte(0, prot)));
+		err = __change_page_attr(addr2, pfn, prot2);
+	}
+#endif
 
 	return err;
 }
@@ -307,16 +303,24 @@ static int change_page_attr_set(unsigned long addr, int numpages,
 	pgprot_t current_prot;
 	int level;
 	pte_t *pte;
+	int i, ret;
 
-	pte = lookup_address(addr, &level);
-	if (pte)
-		current_prot = pte_pgprot(*pte);
-	else
-		pgprot_val(current_prot) = 0;
+	for (i = 0; i < numpages ; i++) {
 
-	pgprot_val(prot) = pgprot_val(current_prot) | pgprot_val(prot);
+		pte = lookup_address(addr, &level);
+		if (pte)
+			current_prot = pte_pgprot(*pte);
+		else
+			pgprot_val(current_prot) = 0;
 
-	return change_page_attr_addr(addr, numpages, prot);
+		pgprot_val(prot) = pgprot_val(current_prot) | pgprot_val(prot);
+
+		ret = change_page_attr_addr(addr, prot);
+		if (ret)
+			return ret;
+		addr += PAGE_SIZE;
+	}
+	return 0;
 }
 
 /**
@@ -344,16 +348,24 @@ static int change_page_attr_clear(unsigned long addr, int numpages,
 	pgprot_t current_prot;
 	int level;
 	pte_t *pte;
+	int i, ret;
 
-	pte = lookup_address(addr, &level);
-	if (pte)
-		current_prot = pte_pgprot(*pte);
-	else
-		pgprot_val(current_prot) = 0;
+	for (i = 0; i < numpages; i++) {
+		pte = lookup_address(addr, &level);
+		if (pte)
+			current_prot = pte_pgprot(*pte);
+		else
+			pgprot_val(current_prot) = 0;
 
-	pgprot_val(prot) = pgprot_val(current_prot) & ~pgprot_val(prot);
+		pgprot_val(prot) =
+				pgprot_val(current_prot) & ~pgprot_val(prot);
 
-	return change_page_attr_addr(addr, numpages, prot);
+		ret = change_page_attr_addr(addr, prot);
+		if (ret)
+			return ret;
+		addr += PAGE_SIZE;
+	}
+	return 0;
 }
 
 int set_memory_uc(unsigned long addr, int numpages)
