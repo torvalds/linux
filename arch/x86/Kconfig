@@ -291,6 +291,18 @@ config X86_ES7000
 	  Only choose this option if you have such a system, otherwise you
 	  should say N here.
 
+config X86_RDC321X
+	bool "RDC R-321x SoC"
+	depends on X86_32
+	select M486
+	select X86_REBOOTFIXUPS
+	select GENERIC_GPIO
+	select LEDS_GPIO
+	help
+	  This option is needed for RDC R-321x system-on-chip, also known
+	  as R-8610-(G).
+	  If you don't have one of these chips, you should say N here.
+
 config X86_VSMP
 	bool "Support for ScaleMP vSMP"
 	depends on X86_64 && PCI
@@ -637,7 +649,7 @@ config X86_REBOOTFIXUPS
 	  system.
 
 	  Currently, the only fixup is for the Geode machines using
-	  CS5530A and CS5536 chipsets.
+	  CS5530A and CS5536 chipsets and the RDC R-321x SoC.
 
 	  Say Y if you want to enable the fixup. Currently, it's safe to
 	  enable this option even if you don't need it.

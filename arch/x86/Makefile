@@ -139,6 +139,11 @@ mflags-$(CONFIG_X86_ES7000)	:= -Iinclude/asm-x86/mach-es7000
 fcore-$(CONFIG_X86_ES7000)	:= arch/x86/mach-es7000/
 mcore-$(CONFIG_X86_ES7000)	:= arch/x86/mach-default/
 
+# RDC R-321x subarch support
+mflags-$(CONFIG_X86_RDC321X)	:= -Iinclude/asm-x86/mach-rdc321x
+mcore-$(CONFIG_X86_RDC321X)	:= arch/x86/mach-default
+core-$(CONFIG_X86_RDC321X)	+= arch/x86/mach-rdc321x/
+
 # default subarch .h files
 mflags-y += -Iinclude/asm-x86/mach-default
 
