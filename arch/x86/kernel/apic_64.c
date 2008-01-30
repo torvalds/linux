@@ -81,6 +81,8 @@ static struct clock_event_device lapic_clockevent = {
 };
 static DEFINE_PER_CPU(struct clock_event_device, lapic_events);
 
+static unsigned long apic_phys;
+
 /*
  * Get the LAPIC version
  */
@@ -525,6 +527,11 @@ void clear_local_APIC(void)
 	int maxlvt = lapic_get_maxlvt();
 	u32 v;
 
+	/* APIC hasn't been mapped yet */
+	if (!apic_phys)
+		return;
+
+	maxlvt = lapic_get_maxlvt();
 	/*
 	 * Masking an LVT entry can trigger a local APIC error
 	 * if the vector is zero. Mask LVTERR first to prevent this.
@@ -859,8 +866,6 @@ static int __init detect_init_APIC(void)
  */
 void __init init_apic_mappings(void)
 {
-	unsigned long apic_phys;
-
 	/*
 	 * If no local APIC can be found then set up a fake all
 	 * zeroes page to simulate the local APIC and another
