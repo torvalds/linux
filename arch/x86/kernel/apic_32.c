@@ -578,7 +578,7 @@ static void local_apic_timer_interrupt(void)
  *   interrupt as well. Thus we cannot inline the local irq ... ]
  */
 
-void fastcall smp_apic_timer_interrupt(struct pt_regs *regs)
+void smp_apic_timer_interrupt(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 

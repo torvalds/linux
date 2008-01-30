@@ -716,7 +716,7 @@ __switch_to_xtra(struct task_struct *prev_p, struct task_struct *next_p,
  * the task-switch, and shows up in ret_from_fork in entry.S,
  * for example.
  */
-struct task_struct fastcall * __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
+struct task_struct * __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 {
 	struct thread_struct *prev = &prev_p->thread,
 				 *next = &next_p->thread;

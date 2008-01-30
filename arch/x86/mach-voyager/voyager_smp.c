@@ -755,7 +755,7 @@ void __init initialize_secondary(void)
  * System interrupts occur because some problem was detected on the
  * various busses.  To find out what you have to probe all the
  * hardware via the CAT bus.  FIXME: At the moment we do nothing. */
-fastcall void smp_vic_sys_interrupt(struct pt_regs *regs)
+void smp_vic_sys_interrupt(struct pt_regs *regs)
 {
 	ack_CPI(VIC_SYS_INT);
 	printk("Voyager SYSTEM INTERRUPT\n");
@@ -764,7 +764,7 @@ fastcall void smp_vic_sys_interrupt(struct pt_regs *regs)
 /* Handle a voyager CMN_INT; These interrupts occur either because of
  * a system status change or because a single bit memory error
  * occurred.  FIXME: At the moment, ignore all this. */
-fastcall void smp_vic_cmn_interrupt(struct pt_regs *regs)
+void smp_vic_cmn_interrupt(struct pt_regs *regs)
 {
 	static __u8 in_cmn_int = 0;
 	static DEFINE_SPINLOCK(cmn_int_lock);
@@ -1086,7 +1086,7 @@ voyager_smp_call_function_mask(cpumask_t cpumask,
  * no local APIC, so I can't do this
  *
  * This function is currently a placeholder and is unused in the code */
-fastcall void smp_apic_timer_interrupt(struct pt_regs *regs)
+void smp_apic_timer_interrupt(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 	wrapper_smp_local_timer_interrupt();
@@ -1094,7 +1094,7 @@ fastcall void smp_apic_timer_interrupt(struct pt_regs *regs)
 }
 
 /* All of the QUAD interrupt GATES */
-fastcall void smp_qic_timer_interrupt(struct pt_regs *regs)
+void smp_qic_timer_interrupt(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 	ack_QIC_CPI(QIC_TIMER_CPI);
@@ -1102,31 +1102,31 @@ fastcall void smp_qic_timer_interrupt(struct pt_regs *regs)
 	set_irq_regs(old_regs);
 }
 
-fastcall void smp_qic_invalidate_interrupt(struct pt_regs *regs)
+void smp_qic_invalidate_interrupt(struct pt_regs *regs)
 {
 	ack_QIC_CPI(QIC_INVALIDATE_CPI);
 	smp_invalidate_interrupt();
 }
 
-fastcall void smp_qic_reschedule_interrupt(struct pt_regs *regs)
+void smp_qic_reschedule_interrupt(struct pt_regs *regs)
 {
 	ack_QIC_CPI(QIC_RESCHEDULE_CPI);
 	smp_reschedule_interrupt();
 }
 
-fastcall void smp_qic_enable_irq_interrupt(struct pt_regs *regs)
+void smp_qic_enable_irq_interrupt(struct pt_regs *regs)
 {
 	ack_QIC_CPI(QIC_ENABLE_IRQ_CPI);
 	smp_enable_irq_interrupt();
 }
 
-fastcall void smp_qic_call_function_interrupt(struct pt_regs *regs)
+void smp_qic_call_function_interrupt(struct pt_regs *regs)
 {
 	ack_QIC_CPI(QIC_CALL_FUNCTION_CPI);
 	smp_call_function_interrupt();
 }
 
-fastcall void smp_vic_cpi_interrupt(struct pt_regs *regs)
+void smp_vic_cpi_interrupt(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 	__u8 cpu = smp_processor_id();
@@ -1333,7 +1333,7 @@ int setup_profiling_timer(unsigned int multiplier)
 /* This is a bit of a mess, but forced on us by the genirq changes
  * there's no genirq handler that really does what voyager wants
  * so hack it up with the simple IRQ handler */
-static void fastcall handle_vic_irq(unsigned int irq, struct irq_desc *desc)
+static void handle_vic_irq(unsigned int irq, struct irq_desc *desc)
 {
 	before_handle_vic_irq(irq);
 	handle_simple_irq(irq, desc);

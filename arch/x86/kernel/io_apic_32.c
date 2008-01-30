@@ -725,7 +725,7 @@ late_initcall(balanced_irq_init);
 #endif /* CONFIG_SMP */
 
 #ifndef CONFIG_SMP
-void fastcall send_IPI_self(int vector)
+void send_IPI_self(int vector)
 {
 	unsigned int cfg;
 

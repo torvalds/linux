@@ -57,7 +57,7 @@ static void intel_thermal_interrupt(struct pt_regs *regs)
 /* Thermal interrupt handler for this CPU setup */
 static void (*vendor_thermal_interrupt)(struct pt_regs *regs) = unexpected_thermal_interrupt;
 
-fastcall void smp_thermal_interrupt(struct pt_regs *regs)
+void smp_thermal_interrupt(struct pt_regs *regs)
 {
 	irq_enter();
 	vendor_thermal_interrupt(regs);
@@ -141,7 +141,7 @@ static inline void intel_get_extended_msrs(struct intel_mce_extended_msrs *r)
 	rdmsr (MSR_IA32_MCG_EIP, r->eip, h);
 }
 
-static fastcall void intel_machine_check(struct pt_regs * regs, long error_code)
+static void intel_machine_check(struct pt_regs * regs, long error_code)
 {
 	int recover=1;
 	u32 alow, ahigh, high, low;

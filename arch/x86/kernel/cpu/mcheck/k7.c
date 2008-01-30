@@ -16,7 +16,7 @@
 #include "mce.h"
 
 /* Machine Check Handler For AMD Athlon/Duron */
-static fastcall void k7_machine_check(struct pt_regs * regs, long error_code)
+static void k7_machine_check(struct pt_regs * regs, long error_code)
 {
 	int recover=1;
 	u32 alow, ahigh, high, low;

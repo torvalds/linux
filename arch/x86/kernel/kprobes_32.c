@@ -403,7 +403,7 @@ no_kprobe:
 /*
  * Called from kretprobe_trampoline
  */
-fastcall void *__kprobes trampoline_handler(struct pt_regs *regs)
+void *__kprobes trampoline_handler(struct pt_regs *regs)
 {
 	struct kretprobe_instance *ri = NULL;
 	struct hlist_head *head, empty_rp;
