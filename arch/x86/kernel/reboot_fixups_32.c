@@ -30,6 +30,19 @@ static void cs5536_warm_reset(struct pci_dev *dev)
 	udelay(50); /* shouldn't get here but be safe and spin a while */
 }
 
+static void rdc321x_reset(struct pci_dev *dev)
+{
+	unsigned i;
+	/* Voluntary reset the watchdog timer */
+	outl(0x80003840, 0xCF8);
+	/* Generate a CPU reset on next tick */
+	i = inl(0xCFC);
+	/* Use the minimum timer resolution */
+	i |= 0x1600;
+	outl(i, 0xCFC);
+	outb(1, 0x92);
+}
+
 struct device_fixup {
 	unsigned int vendor;
 	unsigned int device;
@@ -40,6 +53,7 @@ static struct device_fixup fixups_table[] = {
 { PCI_VENDOR_ID_CYRIX, PCI_DEVICE_ID_CYRIX_5530_LEGACY, cs5530a_warm_reset },
 { PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_CS5536_ISA, cs5536_warm_reset },
 { PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_SC1100_BRIDGE, cs5530a_warm_reset },
+{ PCI_VENDOR_ID_RDC, PCI_DEVICE_ID_RDC_R6030, rdc321x_reset },
 };
 
 /*
