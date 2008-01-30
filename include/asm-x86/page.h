@@ -116,9 +116,57 @@ typedef struct { pteval_t pte; } pte_t;
 #ifdef CONFIG_X86_PAE
 #define __PHYSICAL_MASK_SHIFT	36
 #define __VIRTUAL_MASK_SHIFT	32
+#define PAGETABLE_LEVELS	3
+
+#ifndef __ASSEMBLY__
+typedef u64	pteval_t;
+typedef u64	pmdval_t;
+typedef u64	pudval_t;
+typedef u64	pgdval_t;
+typedef u64	pgprotval_t;
+typedef u64	phys_addr_t;
+
+typedef struct { unsigned long pte_low, pte_high; } pte_t;
+
+static inline unsigned long long native_pte_val(pte_t pte)
+{
+	return pte.pte_low | ((unsigned long long)pte.pte_high << 32);
+}
+
+static inline pte_t native_make_pte(unsigned long long val)
+{
+	return (pte_t) { .pte_low = val, .pte_high = (val >> 32) } ;
+}
+
+#endif	/* __ASSEMBLY__
+ */
 #else  /* !CONFIG_X86_PAE */
 #define __PHYSICAL_MASK_SHIFT	32
 #define __VIRTUAL_MASK_SHIFT	32
+#define PAGETABLE_LEVELS	2
+
+#ifndef __ASSEMBLY__
+typedef unsigned long	pteval_t;
+typedef unsigned long	pmdval_t;
+typedef unsigned long	pudval_t;
+typedef unsigned long	pgdval_t;
+typedef unsigned long	pgprotval_t;
+typedef unsigned long	phys_addr_t;
+
+typedef struct { pteval_t pte_low; } pte_t;
+typedef pte_t boot_pte_t;
+
+static inline unsigned long native_pte_val(pte_t pte)
+{
+	return pte.pte_low;
+}
+
+static inline pte_t native_make_pte(unsigned long val)
+{
+	return (pte_t) { .pte_low = val };
+}
+
+#endif	/* __ASSEMBLY__ */
 #endif	/* CONFIG_X86_PAE */
 
 #ifdef CONFIG_HUGETLB_PAGE
@@ -181,7 +229,6 @@ static void inline copy_user_page(void *to, void *from, unsigned long vaddr,
 	alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO | movableflags, vma, vaddr)
 #define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
 
-#ifdef CONFIG_X86_64
 typedef struct { pgdval_t pgd; } pgd_t;
 typedef struct { pgprotval_t pgprot; } pgprot_t;
 
@@ -252,7 +299,6 @@ static inline pmdval_t native_pmd_val(pmd_t pmd)
 
 #endif	/* CONFIG_PARAVIRT */
 
-#endif /* CONFIG_X86_64 */
 #endif	/* __ASSEMBLY__ */
 
 
