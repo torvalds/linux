@@ -1313,6 +1313,7 @@ static const struct user_regset x86_32_regsets[] = {
 		.active = xfpregs_active, .get = xfpregs_get, .set = xfpregs_set
 	},
 	[REGSET_TLS] = {
+		.core_note_type = NT_386_TLS,
 		.n = GDT_ENTRY_TLS_ENTRIES, .bias = GDT_ENTRY_TLS_MIN,
 		.size = sizeof(struct user_desc),
 		.align = sizeof(struct user_desc),
