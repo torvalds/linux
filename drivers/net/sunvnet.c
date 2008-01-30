@@ -1130,7 +1130,7 @@ static struct vio_driver_ops vnet_vio_ops = {
 	.handshake_complete	= vnet_handshake_complete,
 };
 
-static void print_version(void)
+static void __devinit print_version(void)
 {
 	static int version_printed;
 
