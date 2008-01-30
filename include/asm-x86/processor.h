@@ -78,6 +78,24 @@ static inline void native_set_debugreg(int regno, unsigned long value)
 	}
 }
 
+/*
+ * Set IOPL bits in EFLAGS from given mask
+ */
+static inline void native_set_iopl_mask(unsigned mask)
+{
+#ifdef CONFIG_X86_32
+	unsigned int reg;
+	__asm__ __volatile__ ("pushfl;"
+			      "popl %0;"
+			      "andl %1, %0;"
+			      "orl %2, %0;"
+			      "pushl %0;"
+			      "popfl"
+				: "=&r" (reg)
+				: "i" (~X86_EFLAGS_IOPL), "r" (mask));
+#endif
+}
+
 
 #ifndef CONFIG_PARAVIRT
 #define __cpuid native_cpuid
@@ -91,6 +109,7 @@ static inline void native_set_debugreg(int regno, unsigned long value)
 #define set_debugreg(value, register)				\
 	native_set_debugreg(register, value)
 
+#define set_iopl_mask native_set_iopl_mask
 #endif /* CONFIG_PARAVIRT */
 
 /*

@@ -455,21 +455,6 @@ static inline void native_load_sp0(struct tss_struct *tss, struct thread_struct 
 		wrmsr(MSR_IA32_SYSENTER_CS, thread->sysenter_cs, 0);
 	}
 }
-/*
- * Set IOPL bits in EFLAGS from given mask
- */
-static inline void native_set_iopl_mask(unsigned mask)
-{
-	unsigned int reg;
-	__asm__ __volatile__ ("pushfl;"
-			      "popl %0;"
-			      "andl %1, %0;"
-			      "orl %2, %0;"
-			      "pushl %0;"
-			      "popfl"
-				: "=&r" (reg)
-				: "i" (~X86_EFLAGS_IOPL), "r" (mask));
-}
 
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
@@ -479,8 +464,6 @@ static inline void load_sp0(struct tss_struct *tss, struct thread_struct *thread
 {
 	native_load_sp0(tss, thread);
 }
-
-#define set_iopl_mask native_set_iopl_mask
 #endif /* CONFIG_PARAVIRT */
 
 /* generic versions from gas */
