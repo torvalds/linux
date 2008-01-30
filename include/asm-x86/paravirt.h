@@ -1077,27 +1077,6 @@ static inline unsigned long __raw_local_irq_save(void)
 	return f;
 }
 
-#define CLI_STRING							\
-	_paravirt_alt("pushl %%ecx; pushl %%edx;"			\
-		      "call *%[paravirt_cli_opptr];"			\
-		      "popl %%edx; popl %%ecx",				\
-		      "%c[paravirt_cli_type]", "%c[paravirt_clobber]")
-
-#define STI_STRING							\
-	_paravirt_alt("pushl %%ecx; pushl %%edx;"			\
-		      "call *%[paravirt_sti_opptr];"			\
-		      "popl %%edx; popl %%ecx",				\
-		      "%c[paravirt_sti_type]", "%c[paravirt_clobber]")
-
-#define CLI_STI_CLOBBERS , "%eax"
-#define CLI_STI_INPUT_ARGS						\
-	,								\
-	[paravirt_cli_type] "i" (PARAVIRT_PATCH(pv_irq_ops.irq_disable)),		\
-	[paravirt_cli_opptr] "m" (pv_irq_ops.irq_disable),		\
-	[paravirt_sti_type] "i" (PARAVIRT_PATCH(pv_irq_ops.irq_enable)),		\
-	[paravirt_sti_opptr] "m" (pv_irq_ops.irq_enable),		\
-	paravirt_clobber(CLBR_EAX)
-
 /* Make sure as little as possible of this mess escapes. */
 #undef PARAVIRT_CALL
 #undef __PVOP_CALL

@@ -5,6 +5,7 @@
 #include <asm/rwlock.h>
 #include <asm/page.h>
 #include <asm/processor.h>
+#include <linux/compiler.h>
 
 /*
  * Your basic SMP spinlocks, allowing only a single CPU anywhere
@@ -12,7 +13,8 @@
  * Simple spin lock operations.  There are two variants, one clears IRQ's
  * on the local processor, one does not.
  *
- * We make no fairness assumptions. They have a cost.
+ * These are fair FIFO ticket locks, which are currently limited to 256
+ * CPUs.
  *
  * (the type definitions are in asm/spinlock_types.h)
  */
@@ -42,102 +44,101 @@ typedef int _slock_t;
 # define LOCK_PTR_REG "D"
 #endif
 
+#if (NR_CPUS > 256)
+#error spinlock supports a maximum of 256 CPUs
+#endif
+
 static inline int __raw_spin_is_locked(raw_spinlock_t *lock)
 {
-	return *(volatile _slock_t *)(&(lock)->slock) <= 0;
+	int tmp = *(volatile signed int *)(&(lock)->slock);
+
+	return (((tmp >> 8) & 0xff) != (tmp & 0xff));
+}
+
+static inline int __raw_spin_is_contended(raw_spinlock_t *lock)
+{
+	int tmp = *(volatile signed int *)(&(lock)->slock);
+
+	return (((tmp >> 8) & 0xff) - (tmp & 0xff)) > 1;
 }
 
 static inline void __raw_spin_lock(raw_spinlock_t *lock)
 {
-	asm volatile(
-		"\n1:\t"
-		LOCK_PREFIX " ; " LOCK_INS_DEC " %0\n\t"
-		"jns 3f\n"
-		"2:\t"
-		"rep;nop\n\t"
-		LOCK_INS_CMP " $0,%0\n\t"
-		"jle 2b\n\t"
+	short inc = 0x0100;
+
+	/*
+	 * Ticket locks are conceptually two bytes, one indicating the current
+	 * head of the queue, and the other indicating the current tail. The
+	 * lock is acquired by atomically noting the tail and incrementing it
+	 * by one (thus adding ourself to the queue and noting our position),
+	 * then waiting until the head becomes equal to the the initial value
+	 * of the tail.
+	 *
+	 * This uses a 16-bit xadd to increment the tail and also load the
+	 * position of the head, which takes care of memory ordering issues
+	 * and should be optimal for the uncontended case. Note the tail must
+	 * be in the high byte, otherwise the 16-bit wide increment of the low
+	 * byte would carry up and contaminate the high byte.
+	 */
+
+	__asm__ __volatile__ (
+		LOCK_PREFIX "xaddw %w0, %1\n"
+		"1:\t"
+		"cmpb %h0, %b0\n\t"
+		"je 2f\n\t"
+		"rep ; nop\n\t"
+		"movb %1, %b0\n\t"
+		/* don't need lfence here, because loads are in-order */
 		"jmp 1b\n"
-		"3:\n\t"
-		: "+m" (lock->slock) : : "memory");
+		"2:"
+		:"+Q" (inc), "+m" (lock->slock)
+		:
+		:"memory", "cc");
 }
 
-/*
- * It is easier for the lock validator if interrupts are not re-enabled
- * in the middle of a lock-acquire. This is a performance feature anyway
- * so we turn it off:
- *
- * NOTE: there's an irqs-on section here, which normally would have to be
- * irq-traced, but on CONFIG_TRACE_IRQFLAGS we never use this variant.
- */
-#ifndef CONFIG_PROVE_LOCKING
-static inline void __raw_spin_lock_flags(raw_spinlock_t *lock,
-					 unsigned long flags)
-{
-	asm volatile(
-		"\n1:\t"
-		LOCK_PREFIX " ; " LOCK_INS_DEC " %[slock]\n\t"
-		"jns 5f\n"
-		"testl $0x200, %[flags]\n\t"
-		"jz 4f\n\t"
-		STI_STRING "\n"
-		"3:\t"
-		"rep;nop\n\t"
-		LOCK_INS_CMP " $0, %[slock]\n\t"
-		"jle 3b\n\t"
-		CLI_STRING "\n\t"
-		"jmp 1b\n"
-		"4:\t"
-		"rep;nop\n\t"
-		LOCK_INS_CMP " $0, %[slock]\n\t"
-		"jg 1b\n\t"
-		"jmp 4b\n"
-		"5:\n\t"
-		: [slock] "+m" (lock->slock)
-		: [flags] "r" ((u32)flags)
-		  CLI_STI_INPUT_ARGS
-		: "memory" CLI_STI_CLOBBERS);
-}
-#endif
+#define __raw_spin_lock_flags(lock, flags) __raw_spin_lock(lock)
 
 static inline int __raw_spin_trylock(raw_spinlock_t *lock)
 {
-	_slock_t oldval;
+	int tmp;
+	short new;
 
 	asm volatile(
-		LOCK_INS_XCH " %0,%1"
-		:"=q" (oldval), "+m" (lock->slock)
-		:"0" (0) : "memory");
+		"movw %2,%w0\n\t"
+		"cmpb %h0,%b0\n\t"
+		"jne 1f\n\t"
+		"movw %w0,%w1\n\t"
+		"incb %h1\n\t"
+		"lock ; cmpxchgw %w1,%2\n\t"
+		"1:"
+		"sete %b1\n\t"
+		"movzbl %b1,%0\n\t"
+		:"=&a" (tmp), "=Q" (new), "+m" (lock->slock)
+		:
+		: "memory", "cc");
 
-	return oldval > 0;
+	return tmp;
 }
 
+#if defined(CONFIG_X86_32) && \
+	(defined(CONFIG_X86_OOSTORE) || defined(CONFIG_X86_PPRO_FENCE))
 /*
- * __raw_spin_unlock based on writing $1 to the low byte.
- * This method works. Despite all the confusion.
- * (except on PPro SMP or if we are using OOSTORE, so we use xchgb there)
+ * On PPro SMP or if we are using OOSTORE, we use a locked operation to unlock
  * (PPro errata 66, 92)
  */
-#if defined(X86_64) || \
-	(!defined(CONFIG_X86_OOSTORE) && !defined(CONFIG_X86_PPRO_FENCE))
-
-static inline void __raw_spin_unlock(raw_spinlock_t *lock)
-{
-	asm volatile(LOCK_INS_MOV " $1,%0" : "=m" (lock->slock) :: "memory");
-}
-
+# define UNLOCK_LOCK_PREFIX LOCK_PREFIX
 #else
+# define UNLOCK_LOCK_PREFIX
+#endif
 
 static inline void __raw_spin_unlock(raw_spinlock_t *lock)
 {
-	unsigned char oldval = 1;
-
-	asm volatile("xchgb %b0, %1"
-		     : "=q" (oldval), "+m" (lock->slock)
-		     : "0" (oldval) : "memory");
+	__asm__ __volatile__(
+		UNLOCK_LOCK_PREFIX "incb %0"
+		:"+m" (lock->slock)
+		:
+		:"memory", "cc");
 }
-
-#endif
 
 static inline void __raw_spin_unlock_wait(raw_spinlock_t *lock)
 {
@@ -159,11 +160,19 @@ static inline void __raw_spin_unlock_wait(raw_spinlock_t *lock)
  * with the high bit (sign) being the "contended" bit.
  */
 
+/**
+ * read_can_lock - would read_trylock() succeed?
+ * @lock: the rwlock in question.
+ */
 static inline int __raw_read_can_lock(raw_rwlock_t *lock)
 {
 	return (int)(lock)->lock > 0;
 }
 
+/**
+ * write_can_lock - would write_trylock() succeed?
+ * @lock: the rwlock in question.
+ */
 static inline int __raw_write_can_lock(raw_rwlock_t *lock)
 {
 	return (lock)->lock == RW_LOCK_BIAS;
