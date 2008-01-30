@@ -223,7 +223,7 @@ void send_IPI_mask_sequence(cpumask_t mask, int vector)
 	 */ 
 
 	local_irq_save(flags);
-	for (query_cpu = 0; query_cpu < NR_CPUS; ++query_cpu) {
+	for_each_possible_cpu(query_cpu) {
 		if (cpu_isset(query_cpu, mask)) {
 			__send_IPI_dest_field(cpu_to_logical_apicid(query_cpu),
 					      vector);
@@ -675,7 +675,7 @@ static int convert_apicid_to_cpu(int apic_id)
 {
 	int i;
 
-	for (i = 0; i < NR_CPUS; i++) {
+	for_each_possible_cpu(i) {
 		if (per_cpu(x86_cpu_to_apicid, i) == apic_id)
 			return i;
 	}
