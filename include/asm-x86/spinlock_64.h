@@ -17,20 +17,27 @@
  * (the type definitions are in asm/spinlock_types.h)
  */
 
+typedef int _slock_t;
+#define LOCK_INS_DEC "decl"
+#define LOCK_INS_XCH "xchgl"
+#define LOCK_INS_MOV "movl"
+#define LOCK_INS_CMP "cmpl"
+#define LOCK_PTR_REG "D"
+
 static inline int __raw_spin_is_locked(raw_spinlock_t *lock)
 {
-	return *(volatile signed int *)(&(lock)->slock) <= 0;
+	return *(volatile _slock_t *)(&(lock)->slock) <= 0;
 }
 
 static inline void __raw_spin_lock(raw_spinlock_t *lock)
 {
 	asm volatile(
 		"\n1:\t"
-		LOCK_PREFIX " ; decl %0\n\t"
+		LOCK_PREFIX " ; " LOCK_INS_DEC " %0\n\t"
 		"jns 3f\n"
 		"2:\t"
 		"rep;nop\n\t"
-		"cmpl $0,%0\n\t"
+		LOCK_INS_CMP " $0,%0\n\t"
 		"jle 2b\n\t"
 		"jmp 1b\n"
 		"3:\n\t"
@@ -51,25 +58,25 @@ static inline void __raw_spin_lock_flags(raw_spinlock_t *lock,
 {
 	asm volatile(
 		"\n1:\t"
-		LOCK_PREFIX " ; decl %[slock]\n\t"
+		LOCK_PREFIX " ; " LOCK_INS_DEC " %[slock]\n\t"
 		"jns 5f\n"
 		"testl $0x200, %[flags]\n\t"
 		"jz 4f\n\t"
 		STI_STRING "\n"
 		"3:\t"
 		"rep;nop\n\t"
-		"cmpl $0, %[slock]\n\t"
+		LOCK_INS_CMP " $0, %[slock]\n\t"
 		"jle 3b\n\t"
 		CLI_STRING "\n\t"
 		"jmp 1b\n"
 		"4:\t"
 		"rep;nop\n\t"
-		"cmpl $0, %[slock]\n\t"
+		LOCK_INS_CMP " $0, %[slock]\n\t"
 		"jg 1b\n\t"
 		"jmp 4b\n"
 		"5:\n\t"
 		: [slock] "+m" (lock->slock)
-		: [flags] "r" ((unsigned)flags)
+		: [flags] "r" ((u32)flags)
 		  CLI_STI_INPUT_ARGS
 		: "memory" CLI_STI_CLOBBERS);
 }
@@ -77,10 +84,10 @@ static inline void __raw_spin_lock_flags(raw_spinlock_t *lock,
 
 static inline int __raw_spin_trylock(raw_spinlock_t *lock)
 {
-	int oldval;
+	_slock_t oldval;
 
 	asm volatile(
-		"xchgl %0,%1"
+		LOCK_INS_XCH " %0,%1"
 		:"=q" (oldval), "+m" (lock->slock)
 		:"0" (0) : "memory");
 
@@ -89,7 +96,7 @@ static inline int __raw_spin_trylock(raw_spinlock_t *lock)
 
 static inline void __raw_spin_unlock(raw_spinlock_t *lock)
 {
-	asm volatile("movl $1,%0" : "=m" (lock->slock) :: "memory");
+	asm volatile(LOCK_INS_MOV " $1,%0" : "=m" (lock->slock) :: "memory");
 }
 
 static inline void __raw_spin_unlock_wait(raw_spinlock_t *lock)
@@ -128,7 +135,7 @@ static inline void __raw_read_lock(raw_rwlock_t *rw)
 		     "jns 1f\n"
 		     "call __read_lock_failed\n\t"
 		     "1:\n"
-		     ::"D" (rw) : "memory");
+		     ::LOCK_PTR_REG (rw) : "memory");
 }
 
 static inline void __raw_write_lock(raw_rwlock_t *rw)
@@ -137,7 +144,7 @@ static inline void __raw_write_lock(raw_rwlock_t *rw)
 		     "jz 1f\n"
 		     "call __write_lock_failed\n\t"
 		     "1:\n"
-		     ::"D" (rw), "i" (RW_LOCK_BIAS) : "memory");
+		     ::LOCK_PTR_REG (rw), "i" (RW_LOCK_BIAS) : "memory");
 }
 
 static inline int __raw_read_trylock(raw_rwlock_t *lock)
