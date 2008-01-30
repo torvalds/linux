@@ -223,34 +223,29 @@ void udf_truncate_extents(struct inode *inode)
 				if (indirect_ext_len) {
 					/* We managed to free all extents in the
 					 * indirect extent - free it too */
-					if (!epos.bh)
-						BUG();
+					BUG_ON(!epos.bh);
 					udf_free_blocks(sb, inode, epos.block,
 							0, indirect_ext_len);
+				} else if (!epos.bh) {
+					iinfo->i_lenAlloc = lenalloc;
+					mark_inode_dirty(inode);
 				} else {
-					if (!epos.bh) {
-						iinfo->i_lenAlloc =
-								lenalloc;
-						mark_inode_dirty(inode);
-					} else {
-						struct allocExtDesc *aed =
-							(struct allocExtDesc *)
-							(epos.bh->b_data);
-						int len =
-						    sizeof(struct allocExtDesc);
+					struct allocExtDesc *aed =
+						(struct allocExtDesc *)
+						(epos.bh->b_data);
+					int len = sizeof(struct allocExtDesc);
 
-						aed->lengthAllocDescs =
-						    cpu_to_le32(lenalloc);
-						if (!UDF_QUERY_FLAG(sb,
-							UDF_FLAG_STRICT) ||
-						    sbi->s_udfrev >= 0x0201)
-							len += lenalloc;
+					aed->lengthAllocDescs =
+						cpu_to_le32(lenalloc);
+					if (!UDF_QUERY_FLAG(sb,
+						UDF_FLAG_STRICT) ||
+						sbi->s_udfrev >= 0x0201)
+						len += lenalloc;
 
-						udf_update_tag(epos.bh->b_data,
-								len);
-						mark_buffer_dirty_inode(
-								epos.bh, inode);
-					}
+					udf_update_tag(epos.bh->b_data,
+							len);
+					mark_buffer_dirty_inode(
+							epos.bh, inode);
 				}
 				brelse(epos.bh);
 				epos.offset = sizeof(struct allocExtDesc);
@@ -271,28 +266,25 @@ void udf_truncate_extents(struct inode *inode)
 		}
 
 		if (indirect_ext_len) {
-			if (!epos.bh)
-				BUG();
+			BUG_ON(!epos.bh);
 			udf_free_blocks(sb, inode, epos.block, 0,
 					indirect_ext_len);
+		} else if (!epos.bh) {
+			iinfo->i_lenAlloc = lenalloc;
+			mark_inode_dirty(inode);
 		} else {
-			if (!epos.bh) {
-				iinfo->i_lenAlloc = lenalloc;
-				mark_inode_dirty(inode);
-			} else {
-				struct allocExtDesc *aed =
-				    (struct allocExtDesc *)(epos.bh->b_data);
-				aed->lengthAllocDescs = cpu_to_le32(lenalloc);
-				if (!UDF_QUERY_FLAG(sb, UDF_FLAG_STRICT) ||
-				    sbi->s_udfrev >= 0x0201)
-					udf_update_tag(epos.bh->b_data,
-						lenalloc +
-						sizeof(struct allocExtDesc));
-				else
-					udf_update_tag(epos.bh->b_data,
-						sizeof(struct allocExtDesc));
-				mark_buffer_dirty_inode(epos.bh, inode);
-			}
+			struct allocExtDesc *aed =
+				(struct allocExtDesc *)(epos.bh->b_data);
+			aed->lengthAllocDescs = cpu_to_le32(lenalloc);
+			if (!UDF_QUERY_FLAG(sb, UDF_FLAG_STRICT) ||
+				sbi->s_udfrev >= 0x0201)
+				udf_update_tag(epos.bh->b_data,
+					lenalloc +
+					sizeof(struct allocExtDesc));
+			else
+				udf_update_tag(epos.bh->b_data,
+					sizeof(struct allocExtDesc));
+			mark_buffer_dirty_inode(epos.bh, inode);
 		}
 	} else if (inode->i_size) {
 		if (byte_offset) {
