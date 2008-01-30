@@ -91,14 +91,6 @@ extern void identify_cpu(struct cpuinfo_x86 *);
 #define TASK_SIZE 		(test_thread_flag(TIF_IA32) ? IA32_PAGE_OFFSET : TASK_SIZE64)
 #define TASK_SIZE_OF(child) 	((test_tsk_thread_flag(child, TIF_IA32)) ? IA32_PAGE_OFFSET : TASK_SIZE64)
 
-/*
- * Size of io_bitmap.
- */
-#define IO_BITMAP_BITS  65536
-#define IO_BITMAP_BYTES (IO_BITMAP_BITS/8)
-#define IO_BITMAP_LONGS (IO_BITMAP_BYTES/sizeof(long))
-#define IO_BITMAP_OFFSET offsetof(struct tss_struct,io_bitmap)
-#define INVALID_IO_BITMAP_OFFSET 0x8000
 
 struct i387_fxsave_struct {
 	u16	cwd;
@@ -118,32 +110,7 @@ union i387_union {
 	struct i387_fxsave_struct	fxsave;
 };
 
-struct tss_struct {
-	u32 reserved1;
-	u64 sp0;
-	u64 sp1;
-	u64 sp2;
-	u64 reserved2;
-	u64 ist[7];
-	u32 reserved3;
-	u32 reserved4;
-	u16 reserved5;
-	u16 io_bitmap_base;
-	/*
-	 * The extra 1 is there because the CPU will access an
-	 * additional byte beyond the end of the IO permission
-	 * bitmap. The extra byte must be all 1 bits, and must
-	 * be within the limit. Thus we have:
-	 *
-	 * 128 bytes, the bitmap itself, for ports 0..0x3ff
-	 * 8 bytes, for an extra "long" of ~0UL
-	 */
-	unsigned long io_bitmap[IO_BITMAP_LONGS + 1];
-} __attribute__((packed)) ____cacheline_aligned;
-
-
 extern struct cpuinfo_x86 boot_cpu_data;
-DECLARE_PER_CPU(struct tss_struct,init_tss);
 /* Save the original ist values for checking stack pointers during debugging */
 struct orig_ist {
 	unsigned long ist[7];
@@ -195,7 +162,7 @@ struct thread_struct {
 }
 
 #define INIT_TSS  { \
-	.sp0 = (unsigned long)&init_stack + sizeof(init_stack) \
+	.x86_tss.sp0 = (unsigned long)&init_stack + sizeof(init_stack) \
 }
 
 #define INIT_MMAP \

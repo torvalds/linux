@@ -614,7 +614,7 @@ do_rest:
 	start_rip = setup_trampoline();
 
 	init_rsp = c_idle.idle->thread.sp;
-	per_cpu(init_tss,cpu).sp0 = init_rsp;
+	per_cpu(init_tss, cpu).x86_tss.sp0 = init_rsp;
 	initial_code = start_secondary;
 	clear_tsk_thread_flag(c_idle.idle, TIF_FORK);
 

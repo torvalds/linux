@@ -639,7 +639,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	/*
 	 * Reload esp0, LDT and the page table pointer:
 	 */
-	tss->sp0 = next->sp0;
+	tss->x86_tss.sp0 = next->sp0;
 
 	/* 
 	 * Switch DS and ES.

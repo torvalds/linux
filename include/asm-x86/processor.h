@@ -8,6 +8,7 @@ struct task_struct;
 struct mm_struct;
 
 #include <asm/page.h>
+#include <asm/percpu.h>
 #include <asm/system.h>
 
 /*
@@ -37,6 +38,82 @@ static inline void load_cr3(pgd_t *pgdir)
 {
 	write_cr3(__pa(pgdir));
 }
+
+#ifdef CONFIG_X86_32
+/* This is the TSS defined by the hardware. */
+struct x86_hw_tss {
+	unsigned short	back_link, __blh;
+	unsigned long	sp0;
+	unsigned short	ss0, __ss0h;
+	unsigned long	sp1;
+	unsigned short	ss1, __ss1h;	/* ss1 caches MSR_IA32_SYSENTER_CS */
+	unsigned long	sp2;
+	unsigned short	ss2, __ss2h;
+	unsigned long	__cr3;
+	unsigned long	ip;
+	unsigned long	flags;
+	unsigned long	ax, cx, dx, bx;
+	unsigned long	sp, bp, si, di;
+	unsigned short	es, __esh;
+	unsigned short	cs, __csh;
+	unsigned short	ss, __ssh;
+	unsigned short	ds, __dsh;
+	unsigned short	fs, __fsh;
+	unsigned short	gs, __gsh;
+	unsigned short	ldt, __ldth;
+	unsigned short	trace, io_bitmap_base;
+} __attribute__((packed));
+#else
+struct x86_hw_tss {
+	u32 reserved1;
+	u64 sp0;
+	u64 sp1;
+	u64 sp2;
+	u64 reserved2;
+	u64 ist[7];
+	u32 reserved3;
+	u32 reserved4;
+	u16 reserved5;
+	u16 io_bitmap_base;
+} __attribute__((packed)) ____cacheline_aligned;
+#endif
+
+/*
+ * Size of io_bitmap.
+ */
+#define IO_BITMAP_BITS  65536
+#define IO_BITMAP_BYTES (IO_BITMAP_BITS/8)
+#define IO_BITMAP_LONGS (IO_BITMAP_BYTES/sizeof(long))
+#define IO_BITMAP_OFFSET offsetof(struct tss_struct, io_bitmap)
+#define INVALID_IO_BITMAP_OFFSET 0x8000
+#define INVALID_IO_BITMAP_OFFSET_LAZY 0x9000
+
+struct tss_struct {
+	struct x86_hw_tss x86_tss;
+
+	/*
+	 * The extra 1 is there because the CPU will access an
+	 * additional byte beyond the end of the IO permission
+	 * bitmap. The extra byte must be all 1 bits, and must
+	 * be within the limit.
+	 */
+	unsigned long	io_bitmap[IO_BITMAP_LONGS + 1];
+	/*
+	 * Cache the current maximum and the last task that used the bitmap:
+	 */
+	unsigned long io_bitmap_max;
+	struct thread_struct *io_bitmap_owner;
+	/*
+	 * pads the TSS to be cacheline-aligned (size is 0x100)
+	 */
+	unsigned long __cacheline_filler[35];
+	/*
+	 * .. and then another 0x100 bytes for emergency kernel stack
+	 */
+	unsigned long stack[64];
+} __attribute__((packed));
+
+DECLARE_PER_CPU(struct tss_struct, init_tss);
 
 #ifdef CONFIG_X86_32
 # include "processor_32.h"

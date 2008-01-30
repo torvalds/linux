@@ -258,10 +258,10 @@ void __cpuinit cpu_init (void)
 				      v, cpu); 
 		}
 		estacks += PAGE_SIZE << order[v];
-		orig_ist->ist[v] = t->ist[v] = (unsigned long)estacks;
+		orig_ist->ist[v] = t->x86_tss.ist[v] = (unsigned long)estacks;
 	}
 
-	t->io_bitmap_base = offsetof(struct tss_struct, io_bitmap);
+	t->x86_tss.io_bitmap_base = offsetof(struct tss_struct, io_bitmap);
 	/*
 	 * <= is required because the CPU will access up to
 	 * 8 bits beyond the end of the IO permission bitmap.

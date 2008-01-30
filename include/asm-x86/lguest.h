@@ -51,7 +51,7 @@ struct lguest_ro_state
 	/* Fields which are used when guest is running. */
 	struct desc_ptr guest_idt_desc;
 	struct desc_ptr guest_gdt_desc;
-	struct i386_hw_tss guest_tss;
+	struct x86_hw_tss guest_tss;
 	struct desc_struct guest_idt[IDT_ENTRIES];
 	struct desc_struct guest_gdt[GDT_ENTRIES];
 };

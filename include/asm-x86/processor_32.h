@@ -81,7 +81,6 @@ struct cpuinfo_x86 {
 extern struct cpuinfo_x86 boot_cpu_data;
 extern struct cpuinfo_x86 new_cpu_data;
 extern struct tss_struct doublefault_tss;
-DECLARE_PER_CPU(struct tss_struct, init_tss);
 
 #ifdef CONFIG_SMP
 DECLARE_PER_CPU(struct cpuinfo_x86, cpu_info);
@@ -122,16 +121,6 @@ extern unsigned int mca_pentium_flag;
  */
 #define TASK_SIZE	(PAGE_OFFSET)
 
-
-/*
- * Size of io_bitmap.
- */
-#define IO_BITMAP_BITS  65536
-#define IO_BITMAP_BYTES (IO_BITMAP_BITS/8)
-#define IO_BITMAP_LONGS (IO_BITMAP_BYTES/sizeof(long))
-#define IO_BITMAP_OFFSET offsetof(struct tss_struct,io_bitmap)
-#define INVALID_IO_BITMAP_OFFSET 0x8000
-#define INVALID_IO_BITMAP_OFFSET_LAZY 0x9000
 
 struct i387_fsave_struct {
 	long	cwd;
@@ -184,57 +173,6 @@ union i387_union {
 typedef struct {
 	unsigned long seg;
 } mm_segment_t;
-
-struct thread_struct;
-
-/* This is the TSS defined by the hardware. */
-struct i386_hw_tss {
-	unsigned short	back_link,__blh;
-	unsigned long	sp0;
-	unsigned short	ss0,__ss0h;
-	unsigned long	sp1;
-	unsigned short	ss1,__ss1h;	/* ss1 is used to cache MSR_IA32_SYSENTER_CS */
-	unsigned long	sp2;
-	unsigned short	ss2,__ss2h;
-	unsigned long	__cr3;
-	unsigned long	ip;
-	unsigned long	flags;
-	unsigned long	ax, cx, dx, bx;
-	unsigned long	sp, bp, si, di;
-	unsigned short	es, __esh;
-	unsigned short	cs, __csh;
-	unsigned short	ss, __ssh;
-	unsigned short	ds, __dsh;
-	unsigned short	fs, __fsh;
-	unsigned short	gs, __gsh;
-	unsigned short	ldt, __ldth;
-	unsigned short	trace, io_bitmap_base;
-} __attribute__((packed));
-
-struct tss_struct {
-	struct i386_hw_tss x86_tss;
-
-	/*
-	 * The extra 1 is there because the CPU will access an
-	 * additional byte beyond the end of the IO permission
-	 * bitmap. The extra byte must be all 1 bits, and must
-	 * be within the limit.
-	 */
-	unsigned long	io_bitmap[IO_BITMAP_LONGS + 1];
-	/*
-	 * Cache the current maximum and the last task that used the bitmap:
-	 */
-	unsigned long io_bitmap_max;
-	struct thread_struct *io_bitmap_owner;
-	/*
-	 * pads the TSS to be cacheline-aligned (size is 0x100)
-	 */
-	unsigned long __cacheline_filler[35];
-	/*
-	 * .. and then another 0x100 bytes for emergency kernel stack
-	 */
-	unsigned long stack[64];
-} __attribute__((packed));
 
 #define ARCH_MIN_TASKALIGN	16
 

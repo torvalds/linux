@@ -33,7 +33,7 @@ static void doublefault_fn(void)
 		printk(KERN_EMERG "double fault, tss at %08lx\n", tss);
 
 		if (ptr_ok(tss)) {
-			struct i386_hw_tss *t = (struct i386_hw_tss *)tss;
+			struct x86_hw_tss *t = (struct x86_hw_tss *)tss;
 
 			printk(KERN_EMERG "eip = %08lx, esp = %08lx\n",
 			       t->ip, t->sp);
