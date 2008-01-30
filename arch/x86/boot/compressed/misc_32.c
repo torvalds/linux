@@ -16,7 +16,6 @@
  */
 #undef CONFIG_PARAVIRT
 #include <linux/linkage.h>
-#include <linux/vmalloc.h>
 #include <linux/screen_info.h>
 #include <asm/io.h>
 #include <asm/page.h>

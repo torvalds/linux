@@ -22,6 +22,7 @@
 #include <linux/screen_info.h>
 #include <asm/io.h>
 #include <asm/page.h>
+#include <asm/boot.h>
 
 /* WARNING!!
  * This code is compiled with -fPIC and it is relocated dynamically
