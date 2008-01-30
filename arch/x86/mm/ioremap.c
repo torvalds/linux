@@ -293,7 +293,7 @@ void __init early_ioremap_init(void)
 	unsigned long *pgd;
 
 	if (early_ioremap_debug)
-		printk(KERN_DEBUG "early_ioremap_init()\n");
+		printk(KERN_INFO "early_ioremap_init()\n");
 
 	pgd = early_ioremap_pgd(fix_to_virt(FIX_BTMAP_BEGIN));
 	*pgd = __pa(bm_pte) | _PAGE_TABLE;
@@ -322,7 +322,7 @@ void __init early_ioremap_clear(void)
 	unsigned long *pgd;
 
 	if (early_ioremap_debug)
-		printk(KERN_DEBUG "early_ioremap_clear()\n");
+		printk(KERN_INFO "early_ioremap_clear()\n");
 
 	pgd = early_ioremap_pgd(fix_to_virt(FIX_BTMAP_BEGIN));
 	*pgd = 0;
@@ -408,7 +408,7 @@ void __init *early_ioremap(unsigned long phys_addr, unsigned long size)
 
 	nesting = early_ioremap_nested;
 	if (early_ioremap_debug) {
-		printk(KERN_DEBUG "early_ioremap(%08lx, %08lx) [%d] => ",
+		printk(KERN_INFO "early_ioremap(%08lx, %08lx) [%d] => ",
 		       phys_addr, size, nesting);
 		dump_stack();
 	}
@@ -470,7 +470,7 @@ void __init early_iounmap(void *addr, unsigned long size)
 	WARN_ON(nesting < 0);
 
 	if (early_ioremap_debug) {
-		printk(KERN_DEBUG "early_iounmap(%p, %08lx) [%d]\n", addr,
+		printk(KERN_INFO "early_iounmap(%p, %08lx) [%d]\n", addr,
 		       size, nesting);
 		dump_stack();
 	}
