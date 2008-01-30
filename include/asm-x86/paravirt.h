@@ -1025,6 +1025,48 @@ static inline void set_pmd(pmd_t *pmdp, pmd_t pmd)
 		PVOP_VCALL2(pv_mmu_ops.set_pmd, pmdp, val);
 }
 
+#if PAGETABLE_LEVELS >= 3
+static inline pmd_t __pmd(pmdval_t val)
+{
+	pmdval_t ret;
+
+	if (sizeof(pmdval_t) > sizeof(long))
+		ret = PVOP_CALL2(pmdval_t, pv_mmu_ops.make_pmd,
+				 val, (u64)val >> 32);
+	else
+		ret = PVOP_CALL1(pmdval_t, pv_mmu_ops.make_pmd,
+				 val);
+
+	return (pmd_t) { ret };
+}
+
+static inline pmdval_t pmd_val(pmd_t pmd)
+{
+	pmdval_t ret;
+
+	if (sizeof(pmdval_t) > sizeof(long))
+		ret =  PVOP_CALL2(pmdval_t, pv_mmu_ops.pmd_val,
+				  pmd.pmd, (u64)pmd.pmd >> 32);
+	else
+		ret =  PVOP_CALL1(pmdval_t, pv_mmu_ops.pmd_val,
+				  pmd.pmd);
+
+	return ret;
+}
+
+static inline void set_pud(pud_t *pudp, pud_t pud)
+{
+	pudval_t val = native_pud_val(pud);
+
+	if (sizeof(pudval_t) > sizeof(long))
+		PVOP_VCALL3(pv_mmu_ops.set_pud, pudp,
+			    val, (u64)val >> 32);
+	else
+		PVOP_VCALL2(pv_mmu_ops.set_pud, pudp,
+			    val);
+}
+#endif	/* PAGETABLE_LEVELS >= 3 */
+
 #ifdef CONFIG_X86_PAE
 /* Special-case pte-setting operations for PAE, which can't update a
    64-bit pte atomically */
@@ -1074,48 +1116,6 @@ static inline void pmd_clear(pmd_t *pmdp)
 	set_pmd(pmdp, __pmd(0));
 }
 #endif	/* CONFIG_X86_PAE */
-
-#if PAGETABLE_LEVELS >= 3
-static inline pmd_t __pmd(pmdval_t val)
-{
-	pmdval_t ret;
-
-	if (sizeof(pmdval_t) > sizeof(long))
-		ret = PVOP_CALL2(pmdval_t, pv_mmu_ops.make_pmd,
-				 val, (u64)val >> 32);
-	else
-		ret = PVOP_CALL1(pmdval_t, pv_mmu_ops.make_pmd,
-				 val);
-
-	return (pmd_t) { ret };
-}
-
-static inline pmdval_t pmd_val(pmd_t pmd)
-{
-	pmdval_t ret;
-
-	if (sizeof(pmdval_t) > sizeof(long))
-		ret =  PVOP_CALL2(pmdval_t, pv_mmu_ops.pmd_val,
-				  pmd.pmd, (u64)pmd.pmd >> 32);
-	else
-		ret =  PVOP_CALL1(pmdval_t, pv_mmu_ops.pmd_val,
-				  pmd.pmd);
-
-	return ret;
-}
-
-static inline void set_pud(pud_t *pudp, pud_t pud)
-{
-	pudval_t val = native_pud_val(pud);
-
-	if (sizeof(pudval_t) > sizeof(long))
-		PVOP_VCALL3(pv_mmu_ops.set_pud, pudp,
-			    val, (u64)val >> 32);
-	else
-		PVOP_VCALL2(pv_mmu_ops.set_pud, pudp,
-			    val);
-}
-#endif	/* PAGETABLE_LEVELS >= 3 */
 
 /* Lazy mode for batching updates / context switch */
 enum paravirt_lazy_mode {
