@@ -373,7 +373,7 @@ unsigned long __init e820_hole_size(unsigned long start, unsigned long end)
 	return end - start - (ram << PAGE_SHIFT);
 }
 
-void __init e820_print_map(char *who)
+static void __init e820_print_map(char *who)
 {
 	int i;
 
@@ -633,7 +633,7 @@ static int __init copy_e820_map(struct e820entry *biosmap, int nr_map)
 	return 0;
 }
 
-void early_panic(char *msg)
+static void early_panic(char *msg)
 {
 	early_printk(msg);
 	panic(msg);
