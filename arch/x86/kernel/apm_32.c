@@ -227,6 +227,7 @@
 #include <linux/dmi.h>
 #include <linux/suspend.h>
 #include <linux/kthread.h>
+#include <linux/jiffies.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -1287,7 +1288,7 @@ static void check_events(void)
 				       "event 0x%02x\n", event);
 		}
 		if (ignore_bounce
-		    && ((jiffies - last_resume) > bounce_interval))
+		    && (time_after(jiffies, last_resume + bounce_interval)))
 			ignore_bounce = 0;
 
 		switch (event) {
