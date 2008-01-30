@@ -227,9 +227,9 @@ static noinline void pgtable_bad(unsigned long address, struct pt_regs *regs,
 	tsk->thread.cr2 = address;
 	tsk->thread.trap_no = 14;
 	tsk->thread.error_code = error_code;
-	__die("Bad pagetable", regs, error_code);
-	oops_end(flags);
-	do_exit(SIGKILL);
+	if (__die("Bad pagetable", regs, error_code))
+		regs = NULL;
+	oops_end(flags, regs, SIGKILL);
 }
 
 /*
@@ -541,11 +541,11 @@ no_context:
 	tsk->thread.cr2 = address;
 	tsk->thread.trap_no = 14;
 	tsk->thread.error_code = error_code;
-	__die("Oops", regs, error_code);
+	if (__die("Oops", regs, error_code))
+		regs = NULL;
 	/* Executive summary in case the body of the oops scrolled away */
 	printk(KERN_EMERG "CR2: %016lx\n", address);
-	oops_end(flags);
-	do_exit(SIGKILL);
+	oops_end(flags, regs, SIGKILL);
 
 /*
  * We ran out of memory, or some other thing happened to us that made

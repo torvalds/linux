@@ -488,7 +488,7 @@ unsigned __kprobes long oops_begin(void)
 	return flags;
 }
 
-void __kprobes oops_end(unsigned long flags)
+void __kprobes oops_end(unsigned long flags, struct pt_regs *regs, int signr)
 { 
 	die_owner = -1;
 	bust_spinlocks(0);
@@ -497,12 +497,17 @@ void __kprobes oops_end(unsigned long flags)
 		/* Nest count reaches zero, release the lock. */
 		__raw_spin_unlock(&die_lock);
 	raw_local_irq_restore(flags);
+	if (!regs) {
+		oops_exit();
+		return;
+	}
 	if (panic_on_oops)
 		panic("Fatal exception");
 	oops_exit();
+	do_exit(signr);
 }
 
-void __kprobes __die(const char * str, struct pt_regs * regs, long err)
+int __kprobes __die(const char * str, struct pt_regs * regs, long err)
 {
 	static int die_counter;
 	printk(KERN_EMERG "%s: %04lx [%u] ", str, err & 0xffff,++die_counter);
@@ -516,7 +521,8 @@ void __kprobes __die(const char * str, struct pt_regs * regs, long err)
 	printk("DEBUG_PAGEALLOC");
 #endif
 	printk("\n");
-	notify_die(DIE_OOPS, str, regs, err, current->thread.trap_no, SIGSEGV);
+	if (notify_die(DIE_OOPS, str, regs, err, current->thread.trap_no, SIGSEGV) == NOTIFY_STOP)
+		return 1;
 	show_registers(regs);
 	add_taint(TAINT_DIE);
 	/* Executive summary in case the oops scrolled away */
@@ -525,6 +531,7 @@ void __kprobes __die(const char * str, struct pt_regs * regs, long err)
 	printk(" RSP <%016lx>\n", regs->sp);
 	if (kexec_should_crash(current))
 		crash_kexec(regs);
+	return 0;
 }
 
 void die(const char * str, struct pt_regs * regs, long err)
@@ -534,9 +541,9 @@ void die(const char * str, struct pt_regs * regs, long err)
 	if (!user_mode(regs))
 		report_bug(regs->ip, regs);
 
-	__die(str, regs, err);
-	oops_end(flags);
-	do_exit(SIGSEGV); 
+	if (__die(str, regs, err))
+		regs = NULL;
+	oops_end(flags, regs, SIGSEGV);
 }
 
 void __kprobes die_nmi(char *str, struct pt_regs *regs, int do_panic)
@@ -553,10 +560,10 @@ void __kprobes die_nmi(char *str, struct pt_regs *regs, int do_panic)
 		crash_kexec(regs);
 	if (do_panic || panic_on_oops)
 		panic("Non maskable interrupt");
-	oops_end(flags);
+	oops_end(flags, NULL, SIGBUS);
 	nmi_exit();
 	local_irq_enable();
-	do_exit(SIGSEGV);
+	do_exit(SIGBUS);
 }
 
 static void __kprobes do_trap(int trapnr, int signr, char *str,

@@ -192,10 +192,10 @@ void do_machine_check(struct pt_regs * regs, long error_code)
 
 	atomic_inc(&mce_entry);
 
-	if (regs)
-		notify_die(DIE_NMI, "machine check", regs, error_code, 18,
-			   SIGKILL);
-	if (!banks)
+	if ((regs
+	     && notify_die(DIE_NMI, "machine check", regs, error_code,
+			   18, SIGKILL) == NOTIFY_STOP)
+	    || !banks)
 		goto out2;
 
 	memset(&m, 0, sizeof(struct mce));
