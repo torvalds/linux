@@ -42,7 +42,7 @@
 #define DRV_NAME	"bfin_mac"
 #define DRV_VERSION	"1.1"
 #define DRV_AUTHOR	"Bryan Wu, Luke Yang"
-#define DRV_DESC	"Blackfin BF53[67] on-chip Ethernet MAC driver"
+#define DRV_DESC	"Blackfin BF53[67] BF527 on-chip Ethernet MAC driver"
 
 MODULE_AUTHOR(DRV_AUTHOR);
 MODULE_LICENSE("GPL");
@@ -752,7 +752,7 @@ static void bf537mac_enable(void)
 
 #if defined(CONFIG_BFIN_MAC_RMII)
 	opmode |= RMII; /* For Now only 100MBit are supported */
-#ifdef CONFIG_BF_REV_0_2
+#if (defined(CONFIG_BF537) || defined(CONFIG_BF536)) && CONFIG_BF_REV_0_2
 	opmode |= TE;
 #endif
 #endif
@@ -994,7 +994,7 @@ static int __init bf537mac_probe(struct net_device *dev)
 	/* register irq handler */
 	if (request_irq
 	    (IRQ_MAC_RX, bf537mac_interrupt, IRQF_DISABLED | IRQF_SHARED,
-	     "BFIN537_MAC_RX", dev)) {
+	     "EMAC_RX", dev)) {
 		printk(KERN_WARNING DRV_NAME
 		       ": Unable to attach BlackFin MAC RX interrupt\n");
 		return -EBUSY;
