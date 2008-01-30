@@ -85,11 +85,6 @@ asmlinkage long sys32_set_thread_area(struct user_desc __user *u_info)
  * Get the current Thread-Local Storage area:
  */
 
-#define GET_BASE(desc) ( \
-	(((desc)->a >> 16) & 0x0000ffff) | \
-	(((desc)->b << 16) & 0x00ff0000) | \
-	( (desc)->b        & 0xff000000)   )
-
 #define GET_LIMIT(desc) ( \
 	((desc)->a & 0x0ffff) | \
 	 ((desc)->b & 0xf0000) )
@@ -117,7 +112,7 @@ int do_get_thread_area(struct thread_struct *t, struct user_desc __user *u_info)
 
 	memset(&info, 0, sizeof(struct user_desc));
 	info.entry_number = idx;
-	info.base_addr = GET_BASE(desc);
+	info.base_addr = get_desc_base(desc);
 	info.limit = GET_LIMIT(desc);
 	info.seg_32bit = GET_32BIT(desc);
 	info.contents = GET_CONTENTS(desc);

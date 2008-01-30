@@ -464,11 +464,7 @@ static inline void set_32bit_tls(struct task_struct *t, int tls, u32 addr)
 
 static inline u32 read_32bit_tls(struct task_struct *t, int tls)
 {
-	struct desc_struct *desc = (void *)t->thread.tls_array;
-	desc += tls;
-	return desc->base0 | 
-		(((u32)desc->base1) << 16) | 
-		(((u32)desc->base2) << 24);
+	return get_desc_base(&t->thread.tls_array[tls]);
 }
 
 /*
