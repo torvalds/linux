@@ -26,7 +26,7 @@
 #include <asm/i387.h>
 #include <asm/uaccess.h>
 #include <asm/ia32.h>
-#include <asm/vsyscall32.h>
+#include <asm/vdso.h>
 
 #undef	ELF_ARCH
 #undef	ELF_CLASS
@@ -47,14 +47,13 @@
 #define AT_SYSINFO 32
 #define AT_SYSINFO_EHDR		33
 
-int sysctl_vsyscall32 = 1;
+extern int sysctl_vsyscall32;
 
 #undef ARCH_DLINFO
 #define ARCH_DLINFO do {  \
 	if (sysctl_vsyscall32) { \
-		current->mm->context.vdso = (void *)VSYSCALL32_BASE;	\
-		NEW_AUX_ENT(AT_SYSINFO, (u32)(u64)VSYSCALL32_VSYSCALL); \
-		NEW_AUX_ENT(AT_SYSINFO_EHDR, VSYSCALL32_BASE);    \
+		NEW_AUX_ENT(AT_SYSINFO, (u32)VDSO_ENTRY);		\
+		NEW_AUX_ENT(AT_SYSINFO_EHDR, (u32)VDSO_CURRENT_BASE);	\
 	}	\
 } while(0)
 

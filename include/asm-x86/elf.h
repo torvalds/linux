@@ -74,17 +74,19 @@ typedef struct user_fxsr_struct elf_fpxregset_t;
 
 #ifdef __KERNEL__
 
+/*
+ * This is used to ensure we don't load something for the wrong architecture.
+ */
+#define elf_check_arch_ia32(x) \
+	(((x)->e_machine == EM_386) || ((x)->e_machine == EM_486))
+
 #ifdef CONFIG_X86_32
 #include <asm/processor.h>
 #include <asm/system.h>		/* for savesegment */
 #include <asm/desc.h>
 #include <asm/vdso.h>
 
-/*
- * This is used to ensure we don't load something for the wrong architecture.
- */
-#define elf_check_arch(x) \
-	(((x)->e_machine == EM_386) || ((x)->e_machine == EM_486))
+#define elf_check_arch(x)	elf_check_arch_ia32(x)
 
 /* SVR4/i386 ABI (pages 3-31, 3-32) says that when the program starts %edx
    contains a pointer to a function which might be registered using `atexit'.
@@ -247,10 +249,6 @@ extern int dump_task_extended_fpu (struct task_struct *,
 #define ELF_CORE_XFPREG_TYPE NT_PRXFPREG
 
 #define VDSO_HIGH_BASE		(__fix_to_virt(FIX_VDSO))
-#define VDSO_CURRENT_BASE	((unsigned long)current->mm->context.vdso)
-
-#define VDSO_ENTRY \
-	((unsigned long) VDSO32_SYMBOL(VDSO_CURRENT_BASE, vsyscall))
 
 /* update AT_VECTOR_SIZE_ARCH if the number of NEW_AUX_ENT entries changes */
 
@@ -262,6 +260,8 @@ do if (vdso_enabled) {							\
 
 #else /* CONFIG_X86_32 */
 
+#define VDSO_HIGH_BASE		0xffffe000U /* CONFIG_COMPAT_VDSO address */
+
 /* 1GB for 64bit, 8MB for 32bit */
 #define STACK_RND_MASK (test_thread_flag(TIF_IA32) ? 0x7ff : 0x3fffff)
 
@@ -271,6 +271,11 @@ do if (vdso_enabled) {						\
 } while (0)
 
 #endif /* !CONFIG_X86_32 */
+
+#define VDSO_CURRENT_BASE	((unsigned long)current->mm->context.vdso)
+
+#define VDSO_ENTRY \
+	((unsigned long) VDSO32_SYMBOL(VDSO_CURRENT_BASE, vsyscall))
 
 struct linux_binprm;
 

@@ -24,6 +24,7 @@
 #include <asm/elf.h>
 #include <asm/tlbflush.h>
 #include <asm/vdso.h>
+#include <asm/proto.h>
 
 enum {
 	VDSO_DISABLED = 0,
@@ -37,13 +38,23 @@ enum {
 #define VDSO_DEFAULT	VDSO_ENABLED
 #endif
 
+#ifdef CONFIG_X86_64
+#define vdso_enabled			sysctl_vsyscall32
+#define arch_setup_additional_pages	syscall32_setup_pages
+#endif
+
+/*
+ * This is the difference between the prelinked addresses in the vDSO images
+ * and the VDSO_HIGH_BASE address where CONFIG_COMPAT_VDSO places the vDSO
+ * in the user address space.
+ */
+#define VDSO_ADDR_ADJUST	(VDSO_HIGH_BASE - (unsigned long)VDSO32_PRELINK)
+
 /*
  * Should the kernel map a VDSO page into processes and pass its
  * address down to glibc upon exec()?
  */
 unsigned int __read_mostly vdso_enabled = VDSO_DEFAULT;
-
-EXPORT_SYMBOL_GPL(vdso_enabled);
 
 static int __init vdso_setup(char *s)
 {
@@ -52,9 +63,18 @@ static int __init vdso_setup(char *s)
 	return 1;
 }
 
-__setup("vdso=", vdso_setup);
+/*
+ * For consistency, the argument vdso32=[012] affects the 32-bit vDSO
+ * behavior on both 64-bit and 32-bit kernels.
+ * On 32-bit kernels, vdso=[012] means the same thing.
+ */
+__setup("vdso32=", vdso_setup);
 
-extern asmlinkage void ia32_sysenter_target(void);
+#ifdef CONFIG_X86_32
+__setup_param("vdso=", vdso32_setup, vdso_setup, 0);
+
+EXPORT_SYMBOL_GPL(vdso_enabled);
+#endif
 
 static __init void reloc_symtab(Elf32_Ehdr *ehdr,
 				unsigned offset, unsigned size)
@@ -79,7 +99,7 @@ static __init void reloc_symtab(Elf32_Ehdr *ehdr,
 		case STT_FUNC:
 		case STT_SECTION:
 		case STT_FILE:
-			sym->st_value += VDSO_HIGH_BASE;
+			sym->st_value += VDSO_ADDR_ADJUST;
 		}
 	}
 }
@@ -105,7 +125,7 @@ static __init void reloc_dyn(Elf32_Ehdr *ehdr, unsigned offset)
 		case DT_VERNEED:
 		case DT_ADDRRNGLO ... DT_ADDRRNGHI:
 			/* definitely pointers needing relocation */
-			dyn->d_un.d_ptr += VDSO_HIGH_BASE;
+			dyn->d_un.d_ptr += VDSO_ADDR_ADJUST;
 			break;
 
 		case DT_ENCODING ... OLD_DT_LOOS-1:
@@ -114,7 +134,7 @@ static __init void reloc_dyn(Elf32_Ehdr *ehdr, unsigned offset)
 			   they're even */
 			if (dyn->d_tag >= DT_ENCODING &&
 			    (dyn->d_tag & 1) == 0)
-				dyn->d_un.d_ptr += VDSO_HIGH_BASE;
+				dyn->d_un.d_ptr += VDSO_ADDR_ADJUST;
 			break;
 
 		case DT_VERDEFNUM:
@@ -143,15 +163,15 @@ static __init void relocate_vdso(Elf32_Ehdr *ehdr)
 	int i;
 
 	BUG_ON(memcmp(ehdr->e_ident, ELFMAG, 4) != 0 ||
-	       !elf_check_arch(ehdr) ||
+	       !elf_check_arch_ia32(ehdr) ||
 	       ehdr->e_type != ET_DYN);
 
-	ehdr->e_entry += VDSO_HIGH_BASE;
+	ehdr->e_entry += VDSO_ADDR_ADJUST;
 
 	/* rebase phdrs */
 	phdr = (void *)ehdr + ehdr->e_phoff;
 	for (i = 0; i < ehdr->e_phnum; i++) {
-		phdr[i].p_vaddr += VDSO_HIGH_BASE;
+		phdr[i].p_vaddr += VDSO_ADDR_ADJUST;
 
 		/* relocate dynamic stuff */
 		if (phdr[i].p_type == PT_DYNAMIC)
@@ -164,7 +184,7 @@ static __init void relocate_vdso(Elf32_Ehdr *ehdr)
 		if (!(shdr[i].sh_flags & SHF_ALLOC))
 			continue;
 
-		shdr[i].sh_addr += VDSO_HIGH_BASE;
+		shdr[i].sh_addr += VDSO_ADDR_ADJUST;
 
 		if (shdr[i].sh_type == SHT_SYMTAB ||
 		    shdr[i].sh_type == SHT_DYNSYM)
@@ -172,6 +192,45 @@ static __init void relocate_vdso(Elf32_Ehdr *ehdr)
 				     shdr[i].sh_size);
 	}
 }
+
+/*
+ * These symbols are defined by vdso32.S to mark the bounds
+ * of the ELF DSO images included therein.
+ */
+extern const char vdso32_default_start, vdso32_default_end;
+extern const char vdso32_sysenter_start, vdso32_sysenter_end;
+static struct page *vdso32_pages[1];
+
+#ifdef CONFIG_X86_64
+
+static int use_sysenter __read_mostly = -1;
+
+#define	vdso32_sysenter()	(use_sysenter > 0)
+
+/* May not be __init: called during resume */
+void syscall32_cpu_init(void)
+{
+	if (use_sysenter < 0)
+		use_sysenter = (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL);
+
+	/* Load these always in case some future AMD CPU supports
+	   SYSENTER from compat mode too. */
+	checking_wrmsrl(MSR_IA32_SYSENTER_CS, (u64)__KERNEL_CS);
+	checking_wrmsrl(MSR_IA32_SYSENTER_ESP, 0ULL);
+	checking_wrmsrl(MSR_IA32_SYSENTER_EIP, (u64)ia32_sysenter_target);
+
+	wrmsrl(MSR_CSTAR, ia32_cstar_target);
+}
+
+#define compat_uses_vma		1
+
+static inline void map_compat_vdso(int map)
+{
+}
+
+#else  /* CONFIG_X86_32 */
+
+#define vdso32_sysenter()	(boot_cpu_has(X86_FEATURE_SEP))
 
 void enable_sep_cpu(void)
 {
@@ -210,13 +269,7 @@ static int __init gate_vma_init(void)
 	return 0;
 }
 
-/*
- * These symbols are defined by vsyscall.o to mark the bounds
- * of the ELF DSO images included therein.
- */
-extern const char vsyscall_int80_start, vsyscall_int80_end;
-extern const char vsyscall_sysenter_start, vsyscall_sysenter_end;
-static struct page *syscall_pages[1];
+#define compat_uses_vma		0
 
 static void map_compat_vdso(int map)
 {
@@ -227,12 +280,14 @@ static void map_compat_vdso(int map)
 
 	vdso_mapped = map;
 
-	__set_fixmap(FIX_VDSO, page_to_pfn(syscall_pages[0]) << PAGE_SHIFT,
+	__set_fixmap(FIX_VDSO, page_to_pfn(vdso32_pages[0]) << PAGE_SHIFT,
 		     map ? PAGE_READONLY_EXEC : PAGE_NONE);
 
 	/* flush stray tlbs */
 	flush_tlb_all();
 }
+
+#endif	/* CONFIG_X86_64 */
 
 int __init sysenter_setup(void)
 {
@@ -240,18 +295,20 @@ int __init sysenter_setup(void)
 	const void *vsyscall;
 	size_t vsyscall_len;
 
-	syscall_pages[0] = virt_to_page(syscall_page);
+	vdso32_pages[0] = virt_to_page(syscall_page);
 
+#ifdef CONFIG_X86_32
 	gate_vma_init();
 
 	printk("Compat vDSO mapped to %08lx.\n", __fix_to_virt(FIX_VDSO));
+#endif
 
-	if (!boot_cpu_has(X86_FEATURE_SEP)) {
-		vsyscall = &vsyscall_int80_start;
-		vsyscall_len = &vsyscall_int80_end - &vsyscall_int80_start;
+	if (!vdso32_sysenter()) {
+		vsyscall = &vdso32_default_start;
+		vsyscall_len = &vdso32_default_end - &vdso32_default_start;
 	} else {
-		vsyscall = &vsyscall_sysenter_start;
-		vsyscall_len = &vsyscall_sysenter_end - &vsyscall_sysenter_start;
+		vsyscall = &vdso32_sysenter_start;
+		vsyscall_len = &vdso32_sysenter_end - &vdso32_sysenter_start;
 	}
 
 	memcpy(syscall_page, vsyscall, vsyscall_len);
@@ -284,7 +341,9 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int exstack)
 			ret = addr;
 			goto up_fail;
 		}
+	}
 
+	if (compat_uses_vma || !compat) {
 		/*
 		 * MAYWRITE to allow gdb to COW and set breakpoints
 		 *
@@ -298,7 +357,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int exstack)
 					      VM_READ|VM_EXEC|
 					      VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC|
 					      VM_ALWAYSDUMP,
-					      syscall_pages);
+					      vdso32_pages);
 
 		if (ret)
 			goto up_fail;
@@ -313,6 +372,12 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int exstack)
 
 	return ret;
 }
+
+#ifdef CONFIG_X86_64
+
+__initcall(sysenter_setup);
+
+#else  /* CONFIG_X86_32 */
 
 const char *arch_vma_name(struct vm_area_struct *vma)
 {
@@ -342,3 +407,5 @@ int in_gate_area_no_task(unsigned long addr)
 {
 	return 0;
 }
+
+#endif	/* CONFIG_X86_64 */

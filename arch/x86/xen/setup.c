@@ -62,8 +62,8 @@ static void xen_idle(void)
  */
 static void fiddle_vdso(void)
 {
-	extern char vsyscall_int80_start;
-	u32 *mask = VDSO32_SYMBOL(&vsyscall_int80_start, NOTE_MASK);
+	extern const char vdso32_default_start;
+	u32 *mask = VDSO32_SYMBOL(&vdso32_default_start, NOTE_MASK);
 	*mask |= 1 << VDSO_NOTE_NONEGSEG_BIT;
 }
 

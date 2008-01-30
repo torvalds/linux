@@ -31,7 +31,7 @@
 #include <asm/sigcontext32.h>
 #include <asm/fpu32.h>
 #include <asm/proto.h>
-#include <asm/vsyscall32.h>
+#include <asm/vdso.h>
 
 #define DEBUG_SIG 0
 
@@ -465,13 +465,16 @@ int ia32_setup_frame(int sig, struct k_sigaction *ka,
 			goto give_sigsegv;
 	}
 
-	/* Return stub is in 32bit vsyscall page */
-	if (current->binfmt->hasvdso)
-		restorer = VSYSCALL32_SIGRETURN;
-	else
-		restorer = (void *)&frame->retcode;
-	if (ka->sa.sa_flags & SA_RESTORER)
+	if (ka->sa.sa_flags & SA_RESTORER) {
 		restorer = ka->sa.sa_restorer;
+	} else {
+		/* Return stub is in 32bit vsyscall page */
+		if (current->binfmt->hasvdso)
+			restorer = VDSO32_SYMBOL(current->mm->context.vdso,
+						 sigreturn);
+		else
+			restorer = (void *)&frame->retcode;
+	}
 	err |= __put_user(ptr_to_compat(restorer), &frame->pretcode);
 
 	/*
@@ -519,7 +522,7 @@ int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 {
 	struct rt_sigframe __user *frame;
 	struct exec_domain *ed = current_thread_info()->exec_domain;
-	void __user *restorer = VSYSCALL32_RTSIGRETURN;
+	void __user *restorer;
 	int err = 0;
 
 	/* __copy_to_user optimizes that into a single 8 byte store */
@@ -564,6 +567,9 @@ int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 
 	if (ka->sa.sa_flags & SA_RESTORER)
 		restorer = ka->sa.sa_restorer;
+	else
+		restorer = VDSO32_SYMBOL(current->mm->context.vdso,
+					 rt_sigreturn);
 	err |= __put_user(ptr_to_compat(restorer), &frame->pretcode);
 
 	/*

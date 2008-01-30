@@ -1191,9 +1191,9 @@ config HOTPLUG_CPU
 config COMPAT_VDSO
 	bool "Compat VDSO support"
 	default y
-	depends on X86_32
+	depends on X86_32 || IA32_EMULATION
 	help
-	  Map the VDSO to the predictable old-style address too.
+	  Map the 32-bit VDSO to the predictable old-style address too.
 	---help---
 	  Say N here if you are running a sufficiently recent glibc
 	  version (2.3.3 or later), to remove the high-mapped

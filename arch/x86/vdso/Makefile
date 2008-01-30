@@ -15,7 +15,7 @@ vobjs-y := vdso-note.o vclock_gettime.o vgetcpu.o vvar.o
 
 # files to link into kernel
 obj-$(VDSO64-y)			+= vma.o vdso.o
-obj-$(CONFIG_X86_32)		+= vdso32.o vdso32-setup.o
+obj-$(VDSO32-y)			+= vdso32.o vdso32-setup.o
 
 vobjs := $(foreach F,$(vobjs-y),$(obj)/$F)
 

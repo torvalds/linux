@@ -2,14 +2,18 @@
 
 __INITDATA
 
-	.globl vsyscall_int80_start, vsyscall_int80_end
-vsyscall_int80_start:
+	.globl vdso32_default_start, vdso32_default_end
+vdso32_default_start:
+#ifdef CONFIG_X86_32
 	.incbin "arch/x86/vdso/vdso32-int80.so"
-vsyscall_int80_end:
+#else
+	.incbin "arch/x86/vdso/vdso32-syscall.so"
+#endif
+vdso32_default_end:
 
-	.globl vsyscall_sysenter_start, vsyscall_sysenter_end
-vsyscall_sysenter_start:
+	.globl vdso32_sysenter_start, vdso32_sysenter_end
+vdso32_sysenter_start:
 	.incbin "arch/x86/vdso/vdso32-sysenter.so"
-vsyscall_sysenter_end:
+vdso32_sysenter_end:
 
 __FINIT
