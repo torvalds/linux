@@ -783,6 +783,16 @@ void free_init_pages(char *what, unsigned long begin, unsigned long end)
 {
 	unsigned long addr;
 
+#ifdef CONFIG_DEBUG_PAGEALLOC
+	/*
+	 * If debugging page accesses then do not free this memory but
+	 * mark them not present - any buggy init-section access will
+	 * create a kernel page fault:
+	 */
+	printk(KERN_INFO "debug: unmapping init memory %08lx..%08lx\n",
+		begin, PAGE_ALIGN(end));
+	set_memory_np(begin, (end - begin) >> PAGE_SHIFT);
+#else
 	/*
 	 * We just marked the kernel text read only above, now that
 	 * we are going to free part of that, we need to make that
@@ -798,6 +808,7 @@ void free_init_pages(char *what, unsigned long begin, unsigned long end)
 		totalram_pages++;
 	}
 	printk(KERN_INFO "Freeing %s: %luk freed\n", what, (end - begin) >> 10);
+#endif
 }
 
 void free_initmem(void)
