@@ -22,9 +22,6 @@
 #include <asm/processor-flags.h>
 #include <asm/desc_defs.h>
 
-/* flag for disabling the tsc */
-extern int tsc_disable;
-
 static inline int desc_empty(const void *ptr)
 {
 	const u32 *desc = ptr;
@@ -205,8 +202,6 @@ extern int bootloader_type;
 #define TASK_UNMAPPED_BASE	(PAGE_ALIGN(TASK_SIZE / 3))
 
 #define HAVE_ARCH_PICK_MMAP_LAYOUT
-
-extern void disable_TSC(void);
 
 /*
  * Size of io_bitmap.
