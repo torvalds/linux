@@ -149,7 +149,7 @@ void FPU_printall(void)
 		printk("SW: invalid operation\n");
 #endif /* DEBUGGING */
 
-	printk(" SW: b=%d st=%ld es=%d sf=%d cc=%d%d%d%d ef=%d%d%d%d%d%d\n", partial_status & 0x8000 ? 1 : 0,	/* busy */
+	printk(" SW: b=%d st=%d es=%d sf=%d cc=%d%d%d%d ef=%d%d%d%d%d%d\n", partial_status & 0x8000 ? 1 : 0,	/* busy */
 	       (partial_status & 0x3800) >> 11,	/* stack top pointer */
 	       partial_status & 0x80 ? 1 : 0,	/* Error summary status */
 	       partial_status & 0x40 ? 1 : 0,	/* Stack flag */
@@ -162,7 +162,7 @@ void FPU_printall(void)
 	       partial_status & SW_Denorm_Op ? 1 : 0,
 	       partial_status & SW_Invalid ? 1 : 0);
 
-	printk(" CW: ic=%d rc=%ld%ld pc=%ld%ld iem=%d     ef=%d%d%d%d%d%d\n",
+	printk(" CW: ic=%d rc=%d%d pc=%d%d iem=%d     ef=%d%d%d%d%d%d\n",
 	       control_word & 0x1000 ? 1 : 0,
 	       (control_word & 0x800) >> 11, (control_word & 0x400) >> 10,
 	       (control_word & 0x200) >> 9, (control_word & 0x100) >> 8,
