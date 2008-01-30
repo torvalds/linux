@@ -15,29 +15,31 @@ static inline void native_set_pte(pte_t *ptep , pte_t pte)
 {
 	*ptep = pte;
 }
-static inline void native_set_pte_at(struct mm_struct *mm, unsigned long addr,
-				     pte_t *ptep , pte_t pte)
-{
-	native_set_pte(ptep, pte);
-}
+
 static inline void native_set_pmd(pmd_t *pmdp, pmd_t pmd)
 {
 	*pmdp = pmd;
 }
-#ifndef CONFIG_PARAVIRT
-#define set_pte(pteptr, pteval)		native_set_pte(pteptr, pteval)
-#define set_pte_at(mm,addr,ptep,pteval) native_set_pte_at(mm, addr, ptep, pteval)
-#define set_pmd(pmdptr, pmdval)		native_set_pmd(pmdptr, pmdval)
-#endif
 
-#define set_pte_atomic(pteptr, pteval) set_pte(pteptr,pteval)
-#define set_pte_present(mm,addr,ptep,pteval) set_pte_at(mm,addr,ptep,pteval)
+static inline void native_set_pte_atomic(pte_t *ptep, pte_t pte)
+{
+	native_set_pte(ptep, pte);
+}
 
-#define pmd_clear(xp)	do { set_pmd(xp, __pmd(0)); } while (0)
+static inline void native_set_pte_present(struct mm_struct *mm, unsigned long addr,
+					  pte_t *ptep, pte_t pte)
+{
+	native_set_pte(ptep, pte);
+}
+
+static inline void native_pmd_clear(pmd_t *pmdp)
+{
+	native_set_pmd(pmdp, __pmd(0));
+}
 
 static inline void native_pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *xp)
 {
-	*xp = __pte(0);
+	*xp = native_make_pte(0);
 }
 
 #ifdef CONFIG_SMP

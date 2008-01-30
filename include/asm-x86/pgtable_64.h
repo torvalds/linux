@@ -63,51 +63,59 @@ extern void clear_kernel_mapping(unsigned long addr, unsigned long size);
 #define pgd_none(x)	(!pgd_val(x))
 #define pud_none(x)	(!pud_val(x))
 
-static inline void set_pte(pte_t *dst, pte_t val)
-{
-	*dst = val;
-} 
-#define set_pte_at(mm,addr,ptep,pteval) set_pte(ptep,pteval)
-
-static inline void set_pmd(pmd_t *dst, pmd_t val)
-{
-	*dst = val;
-} 
-
-static inline void set_pud(pud_t *dst, pud_t val)
-{
-	*dst = val;
-}
-
-static inline void pud_clear (pud_t *pud)
-{
-	set_pud(pud, __pud(0));
-}
-
-static inline void set_pgd(pgd_t *dst, pgd_t val)
-{
-	*dst = val;
-} 
-
-static inline void pgd_clear (pgd_t * pgd)
-{
-	set_pgd(pgd, __pgd(0));
-}
-
-#define native_ptep_get_and_clear(xp) __pte(xchg(&(xp)->pte, 0))
-
 struct mm_struct;
 
-static inline pte_t native_ptep_get_and_clear_full(struct mm_struct *mm, unsigned long addr, pte_t *ptep, int full)
+static inline void native_pte_clear(struct mm_struct *mm, unsigned long addr,
+				    pte_t *ptep)
 {
-	pte_t pte;
-	if (full) {
-		pte = *ptep;
-		*ptep = __pte(0);
-	} else {
-		pte = native_ptep_get_and_clear(ptep);
-	}
-	return pte;
+	*ptep = native_make_pte(0);
+}
+
+static inline void native_set_pte(pte_t *ptep, pte_t pte)
+{
+	*ptep = pte;
+}
+
+static inline pte_t native_ptep_get_and_clear(pte_t *xp)
+{
+#ifdef CONFIG_SMP
+	return native_make_pte(xchg(&xp->pte, 0));
+#else
+	/* native_local_ptep_get_and_clear, but duplicated because of cyclic dependency */
+	pte_t ret = *xp;
+	native_pte_clear(NULL, 0, xp);
+	return ret;
+#endif
+}
+
+static inline void native_set_pmd(pmd_t *pmdp, pmd_t pmd)
+{
+	*pmdp = pmd;
+}
+
+static inline void native_pmd_clear(pmd_t *pmd)
+{
+	native_set_pmd(pmd, native_make_pmd(0));
+}
+
+static inline void native_set_pud(pud_t *pudp, pud_t pud)
+{
+	*pudp = pud;
+}
+
+static inline void native_pud_clear(pud_t *pud)
+{
+	native_set_pud(pud, native_make_pud(0));
+}
+
+static inline void native_set_pgd(pgd_t *pgdp, pgd_t pgd)
+{
+	*pgdp = pgd;
+}
+
+static inline void native_pgd_clear(pgd_t * pgd)
+{
+	native_set_pgd(pgd, native_make_pgd(0));
 }
 
 #define pte_same(a, b)		((a).pte == (b).pte)
@@ -151,7 +159,6 @@ static inline unsigned long pmd_bad(pmd_t pmd)
 
 #define pte_none(x)	(!pte_val(x))
 #define pte_present(x)	(pte_val(x) & (_PAGE_PRESENT | _PAGE_PROTNONE))
-#define native_pte_clear(mm,addr,xp)	do { set_pte_at(mm, addr, xp, __pte(0)); } while (0)
 
 #define pages_to_mb(x) ((x) >> (20-PAGE_SHIFT))	/* FIXME: is this right? */
 #define pte_page(x)	pfn_to_page(pte_pfn(x))
@@ -196,7 +203,6 @@ static inline unsigned long pmd_bad(pmd_t pmd)
 			pmd_index(address))
 #define pmd_none(x)	(!pmd_val(x))
 #define pmd_present(x)	(pmd_val(x) & _PAGE_PRESENT)
-#define pmd_clear(xp)	do { set_pmd(xp, __pmd(0)); } while (0)
 #define pfn_pmd(nr,prot) (__pmd(((nr) << PAGE_SHIFT) | pgprot_val(prot)))
 #define pmd_pfn(x)  ((pmd_val(x) & __PHYSICAL_MASK) >> PAGE_SHIFT)
 

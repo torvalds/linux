@@ -39,11 +39,6 @@ static inline void native_set_pte(pte_t *ptep, pte_t pte)
 	smp_wmb();
 	ptep->pte_low = pte.pte_low;
 }
-static inline void native_set_pte_at(struct mm_struct *mm, unsigned long addr,
-				     pte_t *ptep , pte_t pte)
-{
-	native_set_pte(ptep, pte);
-}
 
 /*
  * Since this is only called on user PTEs, and the page fault handler
@@ -93,16 +88,6 @@ static inline void native_pmd_clear(pmd_t *pmd)
 	smp_wmb();
 	*(tmp + 1) = 0;
 }
-
-#ifndef CONFIG_PARAVIRT
-#define set_pte(ptep, pte)			native_set_pte(ptep, pte)
-#define set_pte_at(mm, addr, ptep, pte)		native_set_pte_at(mm, addr, ptep, pte)
-#define set_pte_present(mm, addr, ptep, pte)	native_set_pte_present(mm, addr, ptep, pte)
-#define set_pte_atomic(ptep, pte)		native_set_pte_atomic(ptep, pte)
-#define set_pmd(pmdp, pmd)			native_set_pmd(pmdp, pmd)
-#define set_pud(pudp, pud)			native_set_pud(pudp, pud)
-#define pmd_clear(pmd)				native_pmd_clear(pmd)
-#endif
 
 /*
  * Pentium-II erratum A13: in PAE mode we explicitly have to flush

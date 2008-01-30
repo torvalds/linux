@@ -1039,6 +1039,27 @@ static inline void set_pmd(pmd_t *pmdp, pmd_t pmdval)
 {
 	PVOP_VCALL2(pv_mmu_ops.set_pmd, pmdp, pmdval.pud.pgd.pgd);
 }
+
+static inline void pmd_clear(pmd_t *pmdp)
+{
+	set_pmd(pmdp, __pmd(0));
+}
+
+static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
+{
+	set_pte_at(mm, addr, ptep, __pte(0));
+}
+
+static inline void set_pte_atomic(pte_t *ptep, pte_t pte)
+{
+	set_pte(ptep, pte);
+}
+
+static inline void set_pte_present(struct mm_struct *mm, unsigned long addr,
+				   pte_t *ptep, pte_t pte)
+{
+	set_pte(ptep, pte);
+}
 #endif	/* CONFIG_X86_PAE */
 
 /* Lazy mode for batching updates / context switch */

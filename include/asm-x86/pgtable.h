@@ -178,6 +178,39 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 	return __pte(val);
 }
 
+#ifdef CONFIG_PARAVIRT
+#include <asm/paravirt.h>
+#else  /* !CONFIG_PARAVIRT */
+#define set_pte(ptep, pte)		native_set_pte(ptep, pte)
+#define set_pte_at(mm, addr, ptep, pte)	native_set_pte_at(mm, addr, ptep, pte)
+
+#define set_pte_present(mm, addr, ptep, pte)				\
+	native_set_pte_present(mm, addr, ptep, pte)
+#define set_pte_atomic(ptep, pte)					\
+	native_set_pte_atomic(ptep, pte)
+
+#define set_pmd(pmdp, pmd)		native_set_pmd(pmdp, pmd)
+
+#ifndef __PAGETABLE_PUD_FOLDED
+#define set_pgd(pgdp, pgd)		native_set_pgd(pgdp, pgd)
+#define pgd_clear(pgd)			native_pgd_clear(pgd)
+#endif
+
+#ifndef set_pud
+# define set_pud(pudp, pud)		native_set_pud(pudp, pud)
+#endif
+
+#ifndef __PAGETABLE_PMD_FOLDED
+#define pud_clear(pud)			native_pud_clear(pud)
+#endif
+
+#define pte_clear(mm, addr, ptep)	native_pte_clear(mm, addr, ptep)
+#define pmd_clear(pmd)			native_pmd_clear(pmd)
+
+#define pte_update(mm, addr, ptep)              do { } while (0)
+#define pte_update_defer(mm, addr, ptep)        do { } while (0)
+#endif	/* CONFIG_PARAVIRT */
+
 #endif	/* __ASSEMBLY__ */
 
 #ifdef CONFIG_X86_32
@@ -187,6 +220,22 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 #endif
 
 #ifndef __ASSEMBLY__
+
+/* local pte updates need not use xchg for locking */
+static inline pte_t native_local_ptep_get_and_clear(pte_t *ptep)
+{
+	pte_t res = *ptep;
+
+	/* Pure native function needs no input for mm, addr */
+	native_pte_clear(NULL, 0, ptep);
+	return res;
+}
+
+static inline void native_set_pte_at(struct mm_struct *mm, unsigned long addr,
+				     pte_t *ptep , pte_t pte)
+{
+	native_set_pte(ptep, pte);
+}
 
 #ifndef CONFIG_PARAVIRT
 /*
@@ -205,16 +254,6 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 #define pte_update(mm, addr, ptep)		do { } while (0)
 #define pte_update_defer(mm, addr, ptep)	do { } while (0)
 #endif
-
-/* local pte updates need not use xchg for locking */
-static inline pte_t native_local_ptep_get_and_clear(pte_t *ptep)
-{
-	pte_t res = *ptep;
-
-	/* Pure native function needs no input for mm, addr */
-	native_pte_clear(NULL, 0, ptep);
-	return res;
-}
 
 /*
  * We only update the dirty/accessed state if we set
@@ -286,10 +325,6 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, 
 	clear_bit(_PAGE_BIT_RW, (unsigned long *)&ptep->pte);
 	pte_update(mm, addr, ptep);
 }
-
-#ifndef CONFIG_PARAVIRT
-#define pte_clear(mm, addr, ptep)		native_pte_clear(mm, addr, ptep)
-#endif	/* !CONFIG_PARAVIRT */
 
 #include <asm-generic/pgtable.h>
 #endif	/* __ASSEMBLY__ */
