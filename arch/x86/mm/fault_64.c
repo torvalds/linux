@@ -296,11 +296,14 @@ static int is_f00f_bug(struct pt_regs *regs, unsigned long address)
 static void show_fault_oops(struct pt_regs *regs, unsigned long error_code,
 			    unsigned long address)
 {
+	printk(KERN_ALERT "BUG: unable to handle kernel ");
 	if (address < PAGE_SIZE)
-		printk(KERN_ALERT "Unable to handle kernel NULL pointer dereference");
+		printk(KERN_CONT "NULL pointer dereference");
 	else
-		printk(KERN_ALERT "Unable to handle kernel paging request");
-	printk(" at %016lx RIP: \n" KERN_ALERT, address);
+		printk(KERN_CONT "paging request");
+	printk(KERN_CONT " at %016lx\n", address);
+
+	printk(KERN_ALERT "IP:");
 	printk_address(regs->ip, 1);
 	dump_pagetable(address);
 }

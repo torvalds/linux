@@ -340,15 +340,15 @@ static void show_fault_oops(struct pt_regs *regs, unsigned long error_code,
 				"(uid: %d)\n", current->uid);
 	}
 #endif
+	printk(KERN_ALERT "BUG: unable to handle kernel ");
 	if (address < PAGE_SIZE)
-		printk(KERN_ALERT "BUG: unable to handle kernel NULL "
-				"pointer dereference");
+		printk(KERN_CONT "NULL pointer dereference");
 	else
-		printk(KERN_ALERT "BUG: unable to handle kernel paging"
-				" request");
-	printk(" at virtual address %08lx\n", address);
-	printk(KERN_ALERT "printing ip: %08lx ", regs->ip);
+		printk(KERN_CONT "paging request");
+	printk(KERN_CONT " at %08lx\n", address);
 
+	printk(KERN_ALERT "IP:");
+	printk_address(regs->ip, 1);
 	dump_pagetable(address);
 }
 
