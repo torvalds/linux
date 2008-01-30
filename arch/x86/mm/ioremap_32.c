@@ -1,6 +1,4 @@
 /*
- * arch/i386/mm/ioremap.c
- *
  * Re-map IO memory to kernel address space so that we can access it.
  * This is needed for high PCI addresses that aren't mapped in the
  * 640k-1MB IO memory area on PC's
@@ -22,10 +20,6 @@
 #define ISA_END_ADDRESS		0x100000
 
 /*
- * Generic mapping function (not visible outside):
- */
-
-/*
  * Remap an arbitrary physical address space into the kernel virtual
  * address space. Needed when the kernel wants to access high addresses
  * directly.
@@ -34,10 +28,11 @@
  * have to convert them into an offset in a page-aligned mapping, but the
  * caller shouldn't need to know that small detail.
  */
-void __iomem * __ioremap(unsigned long phys_addr, unsigned long size, unsigned long flags)
+void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
+			unsigned long flags)
 {
-	void __iomem * addr;
-	struct vm_struct * area;
+	void __iomem *addr;
+	struct vm_struct *area;
 	unsigned long offset, last_addr;
 	pgprot_t prot;
 
@@ -61,9 +56,10 @@ void __iomem * __ioremap(unsigned long phys_addr, unsigned long size, unsigned l
 
 		t_addr = __va(phys_addr);
 		t_end = t_addr + (size - 1);
-	   
-		for(page = virt_to_page(t_addr); page <= virt_to_page(t_end); page++)
-			if(!PageReserved(page))
+
+		for (page = virt_to_page(t_addr);
+		     page <= virt_to_page(t_end); page++)
+			if (!PageReserved(page))
 				return NULL;
 	}
 
@@ -85,7 +81,7 @@ void __iomem * __ioremap(unsigned long phys_addr, unsigned long size, unsigned l
 	area->phys_addr = phys_addr;
 	addr = (void __iomem *) area->addr;
 	if (ioremap_page_range((unsigned long) addr,
-			(unsigned long) addr + size, phys_addr, prot)) {
+			       (unsigned long) addr + size, phys_addr, prot)) {
 		vunmap((void __force *) addr);
 		return NULL;
 	}
@@ -102,31 +98,31 @@ EXPORT_SYMBOL(__ioremap);
  * make bus memory CPU accessible via the readb/readw/readl/writeb/
  * writew/writel functions and the other mmio helpers. The returned
  * address is not guaranteed to be usable directly as a virtual
- * address. 
+ * address.
  *
  * This version of ioremap ensures that the memory is marked uncachable
  * on the CPU as well as honouring existing caching rules from things like
- * the PCI bus. Note that there are other caches and buffers on many 
+ * the PCI bus. Note that there are other caches and buffers on many
  * busses. In particular driver authors should read up on PCI writes
  *
  * It's useful if some control registers are in such an area and
  * write combining or read caching is not desirable:
- * 
+ *
  * Must be freed with iounmap.
  */
-
-void __iomem *ioremap_nocache (unsigned long phys_addr, unsigned long size)
+void __iomem *ioremap_nocache(unsigned long phys_addr, unsigned long size)
 {
 	unsigned long last_addr;
 	void __iomem *p = __ioremap(phys_addr, size, _PAGE_PCD | _PAGE_PWT);
-	if (!p) 
-		return p; 
+
+	if (!p)
+		return p;
 
 	/* Guaranteed to be > phys_addr, as per __ioremap() */
 	last_addr = phys_addr + size - 1;
 
 	if (last_addr < virt_to_phys(high_memory) - 1) {
-		struct page *ppage = virt_to_page(__va(phys_addr));		
+		struct page *ppage = virt_to_page(__va(phys_addr));
 		unsigned long npages;
 
 		phys_addr &= PAGE_MASK;
@@ -135,18 +131,18 @@ void __iomem *ioremap_nocache (unsigned long phys_addr, unsigned long size)
 		last_addr = PAGE_ALIGN(last_addr);
 
 		/* .. but that's ok, because modulo-2**n arithmetic will make
-	 	* the page-aligned "last - first" come out right.
-	 	*/
+		 * the page-aligned "last - first" come out right.
+		 */
 		npages = (last_addr - phys_addr) >> PAGE_SHIFT;
 
-		if (change_page_attr(ppage, npages, PAGE_KERNEL_NOCACHE) < 0) { 
-			iounmap(p); 
+		if (change_page_attr(ppage, npages, PAGE_KERNEL_NOCACHE) < 0) {
+			iounmap(p);
 			p = NULL;
 		}
 		global_flush_tlb();
 	}
 
-	return p;					
+	return p;
 }
 EXPORT_SYMBOL(ioremap_nocache);
 
@@ -169,10 +165,11 @@ void iounmap(volatile void __iomem *addr)
 	 * of ISA space.   So handle that here.
 	 */
 	if (addr >= phys_to_virt(ISA_START_ADDRESS) &&
-			addr < phys_to_virt(ISA_END_ADDRESS))
+	    addr < phys_to_virt(ISA_END_ADDRESS))
 		return;
 
-	addr = (volatile void __iomem *)(PAGE_MASK & (unsigned long __force)addr);
+	addr = (volatile void __iomem *)
+		(PAGE_MASK & (unsigned long __force)addr);
 
 	/* Use the vm area unlocked, assuming the caller
 	   ensures there isn't another iounmap for the same address
@@ -187,7 +184,7 @@ void iounmap(volatile void __iomem *addr)
 	read_unlock(&vmlist_lock);
 
 	if (!p) {
-		printk("iounmap: bad address %p\n", addr);
+		printk(KERN_ERR "iounmap: bad address %p\n", addr);
 		dump_stack();
 		return;
 	}
@@ -198,12 +195,12 @@ void iounmap(volatile void __iomem *addr)
 				 get_vm_area_size(p) >> PAGE_SHIFT,
 				 PAGE_KERNEL);
 		global_flush_tlb();
-	} 
+	}
 
 	/* Finally remove it */
 	o = remove_vm_area((void *)addr);
 	BUG_ON(p != o || o == NULL);
-	kfree(p); 
+	kfree(p);
 }
 EXPORT_SYMBOL(iounmap);
 
@@ -237,7 +234,7 @@ void __init early_ioremap_init(void)
 	unsigned long *pgd;
 
 	if (early_ioremap_debug)
-		printk("early_ioremap_init()\n");
+		printk(KERN_DEBUG "early_ioremap_init()\n");
 
 	pgd = early_ioremap_pgd(fix_to_virt(FIX_BTMAP_BEGIN));
 	*pgd = __pa(bm_pte) | _PAGE_TABLE;
@@ -248,15 +245,16 @@ void __init early_ioremap_init(void)
 	 */
 	if (pgd != early_ioremap_pgd(fix_to_virt(FIX_BTMAP_END))) {
 		WARN_ON(1);
-		printk("pgd %p != %p\n",
-			pgd, early_ioremap_pgd(fix_to_virt(FIX_BTMAP_END)));
-		printk("fix_to_virt(FIX_BTMAP_BEGIN): %08lx\n",
-			fix_to_virt(FIX_BTMAP_BEGIN));
-		printk("fix_to_virt(FIX_BTMAP_END):   %08lx\n",
-			fix_to_virt(FIX_BTMAP_END));
+		printk(KERN_WARNING "pgd %p != %p\n",
+		       pgd, early_ioremap_pgd(fix_to_virt(FIX_BTMAP_END)));
+		printk(KERN_WARNING "fix_to_virt(FIX_BTMAP_BEGIN): %08lx\n",
+		       fix_to_virt(FIX_BTMAP_BEGIN));
+		printk(KERN_WARNING "fix_to_virt(FIX_BTMAP_END):   %08lx\n",
+		       fix_to_virt(FIX_BTMAP_END));
 
-		printk("FIX_BTMAP_END:       %d\n", FIX_BTMAP_END);
-		printk("FIX_BTMAP_BEGIN:     %d\n", FIX_BTMAP_BEGIN);
+		printk(KERN_WARNING "FIX_BTMAP_END:       %d\n", FIX_BTMAP_END);
+		printk(KERN_WARNING "FIX_BTMAP_BEGIN:     %d\n",
+		       FIX_BTMAP_BEGIN);
 	}
 }
 
@@ -265,7 +263,7 @@ void __init early_ioremap_clear(void)
 	unsigned long *pgd;
 
 	if (early_ioremap_debug)
-		printk("early_ioremap_clear()\n");
+		printk(KERN_DEBUG "early_ioremap_clear()\n");
 
 	pgd = early_ioremap_pgd(fix_to_virt(FIX_BTMAP_BEGIN));
 	*pgd = 0;
@@ -331,10 +329,10 @@ static int __init check_early_ioremap_leak(void)
 		return 0;
 
 	printk(KERN_WARNING
-		"Debug warning: early ioremap leak of %d areas detected.\n",
-			early_ioremap_nested);
+	       "Debug warning: early ioremap leak of %d areas detected.\n",
+	       early_ioremap_nested);
 	printk(KERN_WARNING
-		"please boot with early_ioremap_debug and report the dmesg.\n");
+	       "please boot with early_ioremap_debug and report the dmesg.\n");
 	WARN_ON(1);
 
 	return 1;
@@ -351,8 +349,8 @@ void __init *early_ioremap(unsigned long phys_addr, unsigned long size)
 
 	nesting = early_ioremap_nested;
 	if (early_ioremap_debug) {
-		printk("early_ioremap(%08lx, %08lx) [%d] => ",
-				phys_addr, size, nesting);
+		printk(KERN_DEBUG "early_ioremap(%08lx, %08lx) [%d] => ",
+		       phys_addr, size, nesting);
 		dump_stack();
 	}
 
@@ -398,7 +396,7 @@ void __init *early_ioremap(unsigned long phys_addr, unsigned long size)
 	if (early_ioremap_debug)
 		printk(KERN_CONT "%08lx + %08lx\n", offset, fix_to_virt(idx0));
 
-	return (void*) (offset + fix_to_virt(idx0));
+	return (void *) (offset + fix_to_virt(idx0));
 }
 
 void __init early_iounmap(void *addr, unsigned long size)
@@ -413,7 +411,8 @@ void __init early_iounmap(void *addr, unsigned long size)
 	WARN_ON(nesting < 0);
 
 	if (early_ioremap_debug) {
-		printk("early_iounmap(%p, %08lx) [%d]\n", addr, size, nesting);
+		printk(KERN_DEBUG "early_iounmap(%p, %08lx) [%d]\n", addr,
+		       size, nesting);
 		dump_stack();
 	}
 
