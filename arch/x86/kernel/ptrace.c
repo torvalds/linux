@@ -760,12 +760,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	unsigned long __user *datap = (unsigned long __user *)data;
 
 	switch (request) {
-	/* when I and D space are separate, these will need to be fixed. */
-	case PTRACE_PEEKTEXT: /* read word at location addr. */
-	case PTRACE_PEEKDATA:
-		ret = generic_ptrace_peekdata(child, addr, data);
-		break;
-
 	/* read the word at location addr in the USER area. */
 	case PTRACE_PEEKUSR: {
 		unsigned long tmp;
@@ -786,12 +780,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		ret = put_user(tmp, datap);
 		break;
 	}
-
-	/* when I and D space are separate, this will have to be fixed. */
-	case PTRACE_POKETEXT: /* write the word at location addr. */
-	case PTRACE_POKEDATA:
-		ret = generic_ptrace_pokedata(child, addr, data);
-		break;
 
 	case PTRACE_POKEUSR: /* write the word at location addr in the USER area */
 		ret = -EIO;
@@ -1183,24 +1171,6 @@ asmlinkage long sys32_ptrace(long request, u32 pid, u32 addr, u32 data)
 	childregs = task_pt_regs(child);
 
 	switch (request) {
-	case PTRACE_PEEKDATA:
-	case PTRACE_PEEKTEXT:
-		ret = 0;
-		if (access_process_vm(child, addr, &val, sizeof(u32), 0) !=
-		    sizeof(u32))
-			ret = -EIO;
-		else
-			ret = put_user(val, (unsigned int __user *)datap);
-		break;
-
-	case PTRACE_POKEDATA:
-	case PTRACE_POKETEXT:
-		ret = 0;
-		if (access_process_vm(child, addr, &data, sizeof(u32), 1) !=
-		    sizeof(u32))
-			ret = -EIO;
-		break;
-
 	case PTRACE_PEEKUSR:
 		ret = getreg32(child, addr, &val);
 		if (ret == 0)
@@ -1246,13 +1216,8 @@ asmlinkage long sys32_ptrace(long request, u32 pid, u32 addr, u32 data)
 					     sizeof(struct user32_fxsr_struct),
 					     datap);
 
-	case PTRACE_GETEVENTMSG:
-		ret = put_user(child->ptrace_message,
-			       (unsigned int __user *)compat_ptr(data));
-		break;
-
 	default:
-		BUG();
+		return compat_ptrace_request(child, request, addr, data);
 	}
 
  out:
