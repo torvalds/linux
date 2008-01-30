@@ -25,8 +25,6 @@ extern void ia32_sysenter_target(void);
 extern void config_acpi_tables(void);
 extern void ia32_syscall(void);
 
-extern int nohpet;
-
 extern void reserve_bootmem_generic(unsigned long phys, unsigned len);
 
 extern void load_gs_index(unsigned gs);
