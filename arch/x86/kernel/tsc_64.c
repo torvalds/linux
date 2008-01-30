@@ -181,12 +181,12 @@ static unsigned long __init tsc_read_refs(unsigned long *pm,
 	int i;
 
 	for (i = 0; i < MAX_RETRIES; i++) {
-		t1 = get_cycles_sync();
+		t1 = get_cycles();
 		if (hpet)
 			*hpet = hpet_readl(HPET_COUNTER) & 0xFFFFFFFF;
 		else
 			*pm = acpi_pm_read_early();
-		t2 = get_cycles_sync();
+		t2 = get_cycles();
 		if ((t2 - t1) < SMI_TRESHOLD)
 			return t2;
 	}
@@ -210,9 +210,9 @@ void __init tsc_calibrate(void)
 	outb(0xb0, 0x43);
 	outb((CLOCK_TICK_RATE / (1000 / 50)) & 0xff, 0x42);
 	outb((CLOCK_TICK_RATE / (1000 / 50)) >> 8, 0x42);
-	tr1 = get_cycles_sync();
+	tr1 = get_cycles();
 	while ((inb(0x61) & 0x20) == 0);
-	tr2 = get_cycles_sync();
+	tr2 = get_cycles();
 
 	tsc2 = tsc_read_refs(&pm2, hpet ? &hpet2 : NULL);
 
@@ -300,13 +300,13 @@ __setup("notsc", notsc_setup);
 /* clock source code: */
 static cycle_t read_tsc(void)
 {
-	cycle_t ret = (cycle_t)get_cycles_sync();
+	cycle_t ret = (cycle_t)get_cycles();
 	return ret;
 }
 
 static cycle_t __vsyscall_fn vread_tsc(void)
 {
-	cycle_t ret = (cycle_t)vget_cycles_sync();
+	cycle_t ret = (cycle_t)vget_cycles();
 	return ret;
 }
 

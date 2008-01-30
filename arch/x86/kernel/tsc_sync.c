@@ -46,7 +46,7 @@ static __cpuinit void check_tsc_warp(void)
 	cycles_t start, now, prev, end;
 	int i;
 
-	start = get_cycles_sync();
+	start = get_cycles();
 	/*
 	 * The measurement runs for 20 msecs:
 	 */
@@ -61,7 +61,7 @@ static __cpuinit void check_tsc_warp(void)
 		 */
 		__raw_spin_lock(&sync_lock);
 		prev = last_tsc;
-		now = get_cycles_sync();
+		now = get_cycles();
 		last_tsc = now;
 		__raw_spin_unlock(&sync_lock);
 

@@ -83,7 +83,7 @@ unsigned long __init native_calculate_cpu_khz(void)
 	rdtscl(tsc_start);
 	do {
 		rdmsrl(MSR_K7_PERFCTR0 + i, pmc_now);
-		tsc_now = get_cycles_sync();
+		tsc_now = get_cycles();
 	} while ((tsc_now - tsc_start) < TICK_COUNT);
 
 	local_irq_restore(flags);
