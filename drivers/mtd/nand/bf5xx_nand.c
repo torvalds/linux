@@ -760,9 +760,6 @@ static int bf5xx_nand_resume(struct platform_device *dev)
 {
 	struct bf5xx_nand_info *info = platform_get_drvdata(dev);
 
-	if (info)
-		bf5xx_nand_hw_init(info);
-
 	return 0;
 }
 
