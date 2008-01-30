@@ -542,7 +542,7 @@ int __init set_kernel_exec(unsigned long vaddr, int enable)
 	pte = lookup_address(vaddr);
 	BUG_ON(!pte);
 
-	if (!pte_exec_kernel(*pte))
+	if (!pte_exec(*pte))
 		ret = 0;
 
 	if (enable)

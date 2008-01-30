@@ -19,14 +19,6 @@
 #define pud_bad(pud)				0
 #define pud_present(pud)			1
 
-/*
- * All present pages with !NX bit are kernel-executable:
- */
-static inline int pte_exec_kernel(pte_t pte)
-{
-	return !(pte_val(pte) & _PAGE_NX);
-}
-
 /* Rules for using set_pte: the pte being assigned *must* be
  * either not present or in a state where the hardware will
  * not attempt to update the pte.  In places where this is

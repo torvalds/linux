@@ -615,7 +615,7 @@ no_context:
 		if (error_code & PF_INSTR) {
 			pte_t *pte = lookup_address(address);
 
-			if (pte && pte_present(*pte) && !pte_exec_kernel(*pte))
+			if (pte && pte_present(*pte) && !pte_exec(*pte))
 				printk(KERN_CRIT "kernel tried to execute "
 					"NX-protected page - exploit attempt? "
 					"(uid: %d)\n", current->uid);

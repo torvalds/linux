@@ -56,14 +56,6 @@ static inline pte_t native_ptep_get_and_clear(pte_t *xp)
 #define pte_pfn(x)		(pte_val(x) >> PAGE_SHIFT)
 
 /*
- * All present pages are kernel-executable:
- */
-static inline int pte_exec_kernel(pte_t pte)
-{
-	return 1;
-}
-
-/*
  * Bits 0, 6 and 7 are taken, split up the 29 bits of offset
  * into this range:
  */
