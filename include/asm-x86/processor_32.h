@@ -353,7 +353,12 @@ struct thread_struct {
 	unsigned long	fs;
 	unsigned long	gs;
 /* Hardware debugging registers */
-	unsigned long	debugreg[8];  /* %%db0-7 debug registers */
+	unsigned long	debugreg0;
+	unsigned long	debugreg1;
+	unsigned long	debugreg2;
+	unsigned long	debugreg3;
+	unsigned long	debugreg6;
+	unsigned long	debugreg7;
 /* fault info */
 	unsigned long	cr2, trap_no, error_code;
 /* floating point info */

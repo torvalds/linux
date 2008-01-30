@@ -133,19 +133,39 @@ static unsigned long getreg(struct task_struct *child, unsigned long regno)
  */
 static unsigned long ptrace_get_debugreg(struct task_struct *child, int n)
 {
-	return child->thread.debugreg[n];
+	switch (n) {
+	case 0:		return child->thread.debugreg0;
+	case 1:		return child->thread.debugreg1;
+	case 2:		return child->thread.debugreg2;
+	case 3:		return child->thread.debugreg3;
+	case 6:		return child->thread.debugreg6;
+	case 7:		return child->thread.debugreg7;
+	}
+	return 0;
 }
 
 static int ptrace_set_debugreg(struct task_struct *child,
 			       int n, unsigned long data)
 {
+	int i;
+
 	if (unlikely(n == 4 || n == 5))
 		return -EIO;
 
 	if (n < 4 && unlikely(data >= TASK_SIZE - 3))
 		return -EIO;
 
-	if (n == 7) {
+	switch (n) {
+	case 0:		child->thread.debugreg0 = data; break;
+	case 1:		child->thread.debugreg1 = data; break;
+	case 2:		child->thread.debugreg2 = data; break;
+	case 3:		child->thread.debugreg3 = data; break;
+
+	case 6:
+		child->thread.debugreg6 = data;
+		break;
+
+	case 7:
 		/*
 		 * Sanity-check data. Take one half-byte at once with
 		 * check = (val >> (16 + 4*i)) & 0xf. It contains the
@@ -176,18 +196,17 @@ static int ptrace_set_debugreg(struct task_struct *child,
 		 * 64-bit kernel), so the x86_64 mask value is 0x5454.
 		 * See the AMD manual no. 24593 (AMD64 System Programming)
 		 */
-		int i;
 		data &= ~DR_CONTROL_RESERVED;
 		for (i = 0; i < 4; i++)
 			if ((0x5f54 >> ((data >> (16 + 4*i)) & 0xf)) & 1)
 				return -EIO;
+		child->thread.debugreg7 = data;
 		if (data)
 			set_tsk_thread_flag(child, TIF_DEBUG);
 		else
 			clear_tsk_thread_flag(child, TIF_DEBUG);
+		break;
 	}
-
-	child->thread.debugreg[n] = data;
 
 	return 0;
 }

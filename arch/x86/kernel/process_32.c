@@ -445,7 +445,12 @@ void flush_thread(void)
 {
 	struct task_struct *tsk = current;
 
-	memset(tsk->thread.debugreg, 0, sizeof(unsigned long)*8);
+	tsk->thread.debugreg0 = 0;
+	tsk->thread.debugreg1 = 0;
+	tsk->thread.debugreg2 = 0;
+	tsk->thread.debugreg3 = 0;
+	tsk->thread.debugreg6 = 0;
+	tsk->thread.debugreg7 = 0;
 	memset(tsk->thread.tls_array, 0, sizeof(tsk->thread.tls_array));	
 	clear_tsk_thread_flag(tsk, TIF_DEBUG);
 	/*
@@ -522,7 +527,6 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
  */
 void dump_thread(struct pt_regs * regs, struct user * dump)
 {
-	int i;
 	u16 gs;
 
 /* changed the size calculations - should hopefully work better. lbt */
@@ -533,8 +537,14 @@ void dump_thread(struct pt_regs * regs, struct user * dump)
 	dump->u_dsize = ((unsigned long) (current->mm->brk + (PAGE_SIZE-1))) >> PAGE_SHIFT;
 	dump->u_dsize -= dump->u_tsize;
 	dump->u_ssize = 0;
-	for (i = 0; i < 8; i++)
-		dump->u_debugreg[i] = current->thread.debugreg[i];  
+	dump->u_debugreg[0] = current->thread.debugreg0;
+	dump->u_debugreg[1] = current->thread.debugreg1;
+	dump->u_debugreg[2] = current->thread.debugreg2;
+	dump->u_debugreg[3] = current->thread.debugreg3;
+	dump->u_debugreg[4] = 0;
+	dump->u_debugreg[5] = 0;
+	dump->u_debugreg[6] = current->thread.debugreg6;
+	dump->u_debugreg[7] = current->thread.debugreg7;
 
 	if (dump->start_stack < TASK_SIZE)
 		dump->u_ssize = ((unsigned long) (TASK_SIZE - dump->start_stack)) >> PAGE_SHIFT;
@@ -612,13 +622,13 @@ __switch_to_xtra(struct task_struct *prev_p, struct task_struct *next_p,
 		wrmsr(MSR_IA32_DEBUGCTLMSR, next->debugctlmsr, 0);
 
 	if (test_tsk_thread_flag(next_p, TIF_DEBUG)) {
-		set_debugreg(next->debugreg[0], 0);
-		set_debugreg(next->debugreg[1], 1);
-		set_debugreg(next->debugreg[2], 2);
-		set_debugreg(next->debugreg[3], 3);
+		set_debugreg(next->debugreg0, 0);
+		set_debugreg(next->debugreg1, 1);
+		set_debugreg(next->debugreg2, 2);
+		set_debugreg(next->debugreg3, 3);
 		/* no 4 and 5 */
-		set_debugreg(next->debugreg[6], 6);
-		set_debugreg(next->debugreg[7], 7);
+		set_debugreg(next->debugreg6, 6);
+		set_debugreg(next->debugreg7, 7);
 	}
 
 #ifdef CONFIG_SECCOMP
@@ -869,4 +879,3 @@ unsigned long arch_randomize_brk(struct mm_struct *mm)
 	unsigned long range_end = mm->brk + 0x02000000;
 	return randomize_range(mm->brk, range_end, 0) ? : mm->brk;
 }
-

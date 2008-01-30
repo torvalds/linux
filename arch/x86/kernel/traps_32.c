@@ -852,7 +852,7 @@ fastcall void __kprobes do_debug(struct pt_regs * regs, long error_code)
 
 	/* Mask out spurious debug traps due to lazy DR7 setting */
 	if (condition & (DR_TRAP0|DR_TRAP1|DR_TRAP2|DR_TRAP3)) {
-		if (!tsk->thread.debugreg[7])
+		if (!tsk->thread.debugreg7)
 			goto clear_dr7;
 	}
 
@@ -860,7 +860,7 @@ fastcall void __kprobes do_debug(struct pt_regs * regs, long error_code)
 		goto debug_vm86;
 
 	/* Save debug status register where ptrace can see it */
-	tsk->thread.debugreg[6] = condition;
+	tsk->thread.debugreg6 = condition;
 
 	/*
 	 * Single-stepping through TF: make sure we ignore any events in
