@@ -120,8 +120,6 @@ static inline void native_pgd_clear(pgd_t * pgd)
 
 #define pte_same(a, b)		((a).pte == (b).pte)
 
-#define pte_pgprot(a)	(__pgprot((a).pte & ~PHYSICAL_PAGE_MASK))
-
 #endif /* !__ASSEMBLY__ */
 
 #define PMD_SIZE	(_AC(1,UL) << PMD_SHIFT)
