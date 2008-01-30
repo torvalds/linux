@@ -188,7 +188,7 @@ static inline void k8_enable_fixed_iorrs(void)
  * \param changed pointer which indicates whether the MTRR needed to be changed
  * \param msrwords pointer to the MSR values which the MSR should have
  */
-static void set_fixed_range(int msr, int * changed, unsigned int * msrwords)
+static void set_fixed_range(int msr, bool *changed, unsigned int *msrwords)
 {
 	unsigned lo, hi;
 
@@ -200,7 +200,7 @@ static void set_fixed_range(int msr, int * changed, unsigned int * msrwords)
 		    ((msrwords[0] | msrwords[1]) & K8_MTRR_RDMEM_WRMEM_MASK))
 			k8_enable_fixed_iorrs();
 		mtrr_wrmsr(msr, msrwords[0], msrwords[1]);
-		*changed = TRUE;
+		*changed = true;
 	}
 }
 
@@ -260,7 +260,7 @@ static void generic_get_mtrr(unsigned int reg, unsigned long *base,
 static int set_fixed_ranges(mtrr_type * frs)
 {
 	unsigned long long *saved = (unsigned long long *) frs;
-	int changed = FALSE;
+	bool changed = false;
 	int block=-1, range;
 
 	while (fixed_range_blocks[++block].ranges)
@@ -273,17 +273,17 @@ static int set_fixed_ranges(mtrr_type * frs)
 
 /*  Set the MSR pair relating to a var range. Returns TRUE if
     changes are made  */
-static int set_mtrr_var_ranges(unsigned int index, struct mtrr_var_range *vr)
+static bool set_mtrr_var_ranges(unsigned int index, struct mtrr_var_range *vr)
 {
 	unsigned int lo, hi;
-	int changed = FALSE;
+	bool changed = false;
 
 	rdmsr(MTRRphysBase_MSR(index), lo, hi);
 	if ((vr->base_lo & 0xfffff0ffUL) != (lo & 0xfffff0ffUL)
 	    || (vr->base_hi & (size_and_mask >> (32 - PAGE_SHIFT))) !=
 		(hi & (size_and_mask >> (32 - PAGE_SHIFT)))) {
 		mtrr_wrmsr(MTRRphysBase_MSR(index), vr->base_lo, vr->base_hi);
-		changed = TRUE;
+		changed = true;
 	}
 
 	rdmsr(MTRRphysMask_MSR(index), lo, hi);
@@ -292,7 +292,7 @@ static int set_mtrr_var_ranges(unsigned int index, struct mtrr_var_range *vr)
 	    || (vr->mask_hi & (size_and_mask >> (32 - PAGE_SHIFT))) !=
 		(hi & (size_and_mask >> (32 - PAGE_SHIFT)))) {
 		mtrr_wrmsr(MTRRphysMask_MSR(index), vr->mask_lo, vr->mask_hi);
-		changed = TRUE;
+		changed = true;
 	}
 	return changed;
 }
@@ -417,8 +417,6 @@ static void generic_set_mtrr(unsigned int reg, unsigned long base,
     <base> The base address of the region.
     <size> The size of the region. If this is 0 the region is disabled.
     <type> The type of the region.
-    <do_safe> If TRUE, do the change safely. If FALSE, safety measures should
-    be done externally.
     [RETURNS] Nothing.
 */
 {

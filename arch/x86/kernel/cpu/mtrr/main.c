@@ -311,7 +311,7 @@ static void set_mtrr(unsigned int reg, unsigned long base,
  */
 
 int mtrr_add_page(unsigned long base, unsigned long size, 
-		  unsigned int type, char increment)
+		  unsigned int type, bool increment)
 {
 	int i, replace, error;
 	mtrr_type ltype;
@@ -394,7 +394,9 @@ int mtrr_add_page(unsigned long base, unsigned long size,
 		if (likely(replace < 0))
 			usage_table[i] = 1;
 		else {
-			usage_table[i] = usage_table[replace] + !!increment;
+			usage_table[i] = usage_table[replace];
+			if (increment)
+				usage_table[i]++;
 			if (unlikely(replace != i)) {
 				set_mtrr(replace, 0, 0, 0);
 				usage_table[replace] = 0;
@@ -460,7 +462,7 @@ static int mtrr_check(unsigned long base, unsigned long size)
 
 int
 mtrr_add(unsigned long base, unsigned long size, unsigned int type,
-	 char increment)
+	 bool increment)
 {
 	if (mtrr_check(base, size))
 		return -EINVAL;

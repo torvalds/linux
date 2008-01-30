@@ -2,10 +2,8 @@
  * local mtrr defines.
  */
 
-#ifndef TRUE
-#define TRUE  1
-#define FALSE 0
-#endif
+#include <linux/types.h>
+#include <linux/stddef.h>
 
 #define MTRRcap_MSR     0x0fe
 #define MTRRdefType_MSR 0x2ff

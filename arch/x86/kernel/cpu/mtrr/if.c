@@ -37,7 +37,7 @@ const char *mtrr_attrib_to_str(int x)
 
 static int
 mtrr_file_add(unsigned long base, unsigned long size,
-	      unsigned int type, char increment, struct file *file, int page)
+	      unsigned int type, bool increment, struct file *file, int page)
 {
 	int reg, max;
 	unsigned int *fcount = FILE_FCOUNT(file); 
@@ -55,7 +55,7 @@ mtrr_file_add(unsigned long base, unsigned long size,
 		base >>= PAGE_SHIFT;
 		size >>= PAGE_SHIFT;
 	}
-	reg = mtrr_add_page(base, size, type, 1);
+	reg = mtrr_add_page(base, size, type, true);
 	if (reg >= 0)
 		++fcount[reg];
 	return reg;
@@ -141,7 +141,7 @@ mtrr_write(struct file *file, const char __user *buf, size_t len, loff_t * ppos)
 		size >>= PAGE_SHIFT;
 		err =
 		    mtrr_add_page((unsigned long) base, (unsigned long) size, i,
-				  1);
+				  true);
 		if (err < 0)
 			return err;
 		return len;
@@ -217,7 +217,7 @@ mtrr_ioctl(struct file *file, unsigned int cmd, unsigned long __arg)
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 		err =
-		    mtrr_file_add(sentry.base, sentry.size, sentry.type, 1,
+		    mtrr_file_add(sentry.base, sentry.size, sentry.type, true,
 				  file, 0);
 		break;
 	case MTRRIOC_SET_ENTRY:
@@ -226,7 +226,7 @@ mtrr_ioctl(struct file *file, unsigned int cmd, unsigned long __arg)
 #endif
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
-		err = mtrr_add(sentry.base, sentry.size, sentry.type, 0);
+		err = mtrr_add(sentry.base, sentry.size, sentry.type, false);
 		break;
 	case MTRRIOC_DEL_ENTRY:
 #ifdef CONFIG_COMPAT
@@ -270,7 +270,7 @@ mtrr_ioctl(struct file *file, unsigned int cmd, unsigned long __arg)
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 		err =
-		    mtrr_file_add(sentry.base, sentry.size, sentry.type, 1,
+		    mtrr_file_add(sentry.base, sentry.size, sentry.type, true,
 				  file, 1);
 		break;
 	case MTRRIOC_SET_PAGE_ENTRY:
@@ -279,7 +279,8 @@ mtrr_ioctl(struct file *file, unsigned int cmd, unsigned long __arg)
 #endif
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
-		err = mtrr_add_page(sentry.base, sentry.size, sentry.type, 0);
+		err =
+		    mtrr_add_page(sentry.base, sentry.size, sentry.type, false);
 		break;
 	case MTRRIOC_DEL_PAGE_ENTRY:
 #ifdef CONFIG_COMPAT
