@@ -41,6 +41,8 @@ struct desc_ptr idt_descr = { 256 * 16 - 1, (unsigned long) idt_table };
 char boot_cpu_stack[IRQSTACKSIZE] __attribute__((section(".bss.page_aligned")));
 
 unsigned long __supported_pte_mask __read_mostly = ~0UL;
+EXPORT_SYMBOL_GPL(__supported_pte_mask);
+
 static int do_not_nx __cpuinitdata = 0;
 
 /* noexec=on|off
