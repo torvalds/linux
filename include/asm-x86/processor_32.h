@@ -103,11 +103,6 @@ union i387_union {
 	struct i387_soft_struct soft;
 };
 
-typedef struct {
-	unsigned long seg;
-} mm_segment_t;
-
-
 #define INIT_THREAD  {							\
 	.sp0 = sizeof(init_stack) + (long)&init_stack,			\
 	.vm86_info = NULL,						\

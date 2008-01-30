@@ -424,6 +424,11 @@ struct extended_sigtable {
 	struct extended_signature sigs[0];
 };
 
+typedef struct {
+	unsigned long seg;
+} mm_segment_t;
+
+
 /*
  * create a kernel thread without removing it from tasklists
  */
