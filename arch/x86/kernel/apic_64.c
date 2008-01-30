@@ -169,26 +169,6 @@ int lapic_get_maxlvt(void)
 	return maxlvt;
 }
 
-/*
- * 'what should we do if we get a hw irq event on an illegal vector'.
- * each architecture has to answer this themselves.
- */
-void ack_bad_irq(unsigned int irq)
-{
-	printk("unexpected IRQ trap at vector %02x\n", irq);
-	/*
-	 * Currently unexpected vectors happen only on SMP and APIC.
-	 * We _must_ ack these because every local APIC has only N
-	 * irq slots per priority level, and a 'hanging, unacked' IRQ
-	 * holds up an irq slot - in excessive cases (when multiple
-	 * unexpected vectors occur) that might lock up the APIC
-	 * completely.
-	 * But don't ack when the APIC is disabled. -AK
-	 */
-	if (!disable_apic)
-		ack_APIC_irq();
-}
-
 void clear_local_APIC(void)
 {
 	int maxlvt;
