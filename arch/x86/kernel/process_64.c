@@ -126,8 +126,8 @@ static void default_idle(void)
 		t1 = ktime_get();
 		t1n = ktime_to_ns(t1);
 		sched_clock_idle_wakeup_event(t1n - t0n);
-	} else
-		local_irq_enable();
+	}
+	local_irq_enable();
 	current_thread_info()->status |= TS_POLLING;
 }
 
