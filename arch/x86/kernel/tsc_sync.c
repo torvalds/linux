@@ -129,22 +129,22 @@ void __cpuinit check_tsc_sync_source(int cpu)
 	while (atomic_read(&stop_count) != cpus-1)
 		cpu_relax();
 
-	/*
-	 * Reset it - just in case we boot another CPU later:
-	 */
-	atomic_set(&start_count, 0);
-
 	if (nr_warps) {
 		printk("\n");
 		printk(KERN_WARNING "Measured %Ld cycles TSC warp between CPUs,"
 				    " turning off TSC clock.\n", max_warp);
 		mark_tsc_unstable("check_tsc_sync_source failed");
-		nr_warps = 0;
-		max_warp = 0;
-		last_tsc = 0;
 	} else {
 		printk(" passed.\n");
 	}
+
+	/*
+	 * Reset it - just in case we boot another CPU later:
+	 */
+	atomic_set(&start_count, 0);
+	nr_warps = 0;
+	max_warp = 0;
+	last_tsc = 0;
 
 	/*
 	 * Let the target continue with the bootup:
