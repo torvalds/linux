@@ -19,6 +19,7 @@
 #include <asm/tlbflush.h>
 #include <asm/cacheflush.h>
 #include <asm/proto.h>
+#include <asm/e820.h>
 
 unsigned long __phys_addr(unsigned long x)
 {
@@ -27,9 +28,6 @@ unsigned long __phys_addr(unsigned long x)
 	return x - PAGE_OFFSET;
 }
 EXPORT_SYMBOL(__phys_addr);
-
-#define ISA_START_ADDRESS      0xa0000
-#define ISA_END_ADDRESS                0x100000
 
 /*
  * Fix up the linear direct mapping of the kernel to avoid cache attribute
