@@ -93,6 +93,17 @@ static inline int native_write_msr_safe(unsigned int msr,
 
 extern unsigned long long native_read_tsc(void);
 
+static __always_inline unsigned long long __native_read_tsc(void)
+{
+	DECLARE_ARGS(val, low, high);
+
+	rdtsc_barrier();
+	asm volatile("rdtsc" : EAX_EDX_RET(val, low, high));
+	rdtsc_barrier();
+
+	return EAX_EDX_VAL(val, low, high);
+}
+
 static inline unsigned long long native_read_pmc(int counter)
 {
 	DECLARE_ARGS(val, low, high);

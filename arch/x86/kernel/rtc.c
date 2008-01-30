@@ -196,14 +196,9 @@ int update_persistent_clock(struct timespec now)
 	return set_rtc_mmss(now.tv_sec);
 }
 
-unsigned long long __vsyscall_fn native_read_tsc(void)
+unsigned long long native_read_tsc(void)
 {
-	DECLARE_ARGS(val, low, high);
-
-	rdtsc_barrier();
-	asm volatile("rdtsc" : EAX_EDX_RET(val, low, high));
-	rdtsc_barrier();
-
-	return EAX_EDX_VAL(val, low, high);
+	return __native_read_tsc();
 }
-EXPORT_SYMBOL_GPL(native_read_tsc);
+EXPORT_SYMBOL(native_read_tsc);
+
