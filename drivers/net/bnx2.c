@@ -992,6 +992,42 @@ bnx2_copper_linkup(struct bnx2 *bp)
 	return 0;
 }
 
+static void
+bnx2_init_rx_context0(struct bnx2 *bp)
+{
+	u32 val, rx_cid_addr = GET_CID_ADDR(RX_CID);
+
+	val = BNX2_L2CTX_CTX_TYPE_CTX_BD_CHN_TYPE_VALUE;
+	val |= BNX2_L2CTX_CTX_TYPE_SIZE_L2;
+	val |= 0x02 << 8;
+
+	if (CHIP_NUM(bp) == CHIP_NUM_5709) {
+		u32 lo_water, hi_water;
+
+		if (bp->flow_ctrl & FLOW_CTRL_TX)
+			lo_water = BNX2_L2CTX_LO_WATER_MARK_DEFAULT;
+		else
+			lo_water = BNX2_L2CTX_LO_WATER_MARK_DIS;
+		if (lo_water >= bp->rx_ring_size)
+			lo_water = 0;
+
+		hi_water = bp->rx_ring_size / 4;
+
+		if (hi_water <= lo_water)
+			lo_water = 0;
+
+		hi_water /= BNX2_L2CTX_HI_WATER_MARK_SCALE;
+		lo_water /= BNX2_L2CTX_LO_WATER_MARK_SCALE;
+
+		if (hi_water > 0xf)
+			hi_water = 0xf;
+		else if (hi_water == 0)
+			lo_water = 0;
+		val |= lo_water | (hi_water << BNX2_L2CTX_HI_WATER_MARK_SHIFT);
+	}
+	bnx2_ctx_wr(bp, rx_cid_addr, BNX2_L2CTX_CTX_TYPE, val);
+}
+
 static int
 bnx2_set_mac_link(struct bnx2 *bp)
 {
@@ -1055,6 +1091,9 @@ bnx2_set_mac_link(struct bnx2 *bp)
 
 	/* Acknowledge the interrupt. */
 	REG_WR(bp, BNX2_EMAC_STATUS, BNX2_EMAC_STATUS_LINK_CHANGE);
+
+	if (CHIP_NUM(bp) == CHIP_NUM_5709)
+		bnx2_init_rx_context0(bp);
 
 	return 0;
 }
@@ -4616,6 +4655,13 @@ bnx2_init_rx_ring(struct bnx2 *bp)
 	bnx2_init_rxbd_rings(bp->rx_desc_ring, bp->rx_desc_mapping,
 			     bp->rx_buf_use_size, bp->rx_max_ring);
 
+	bnx2_init_rx_context0(bp);
+
+	if (CHIP_NUM(bp) == CHIP_NUM_5709) {
+		val = REG_RD(bp, BNX2_MQ_MAP_L2_5);
+		REG_WR(bp, BNX2_MQ_MAP_L2_5, val | BNX2_MQ_MAP_L2_5_ARM);
+	}
+
 	bnx2_ctx_wr(bp, rx_cid_addr, BNX2_L2CTX_PG_BUF_SIZE, 0);
 	if (bp->rx_pg_ring_size) {
 		bnx2_init_rxbd_rings(bp->rx_pg_desc_ring,
@@ -4635,11 +4681,6 @@ bnx2_init_rx_ring(struct bnx2 *bp)
 		if (CHIP_NUM(bp) == CHIP_NUM_5709)
 			REG_WR(bp, BNX2_MQ_MAP_L2_3, BNX2_MQ_MAP_L2_3_DEFAULT);
 	}
-
-	val = BNX2_L2CTX_CTX_TYPE_CTX_BD_CHN_TYPE_VALUE;
-	val |= BNX2_L2CTX_CTX_TYPE_SIZE_L2;
-	val |= 0x02 << 8;
-	bnx2_ctx_wr(bp, rx_cid_addr, BNX2_L2CTX_CTX_TYPE, val);
 
 	val = (u64) bp->rx_desc_mapping[0] >> 32;
 	bnx2_ctx_wr(bp, rx_cid_addr, BNX2_L2CTX_NX_BDHADDR_HI, val);

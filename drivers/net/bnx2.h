@@ -348,6 +348,12 @@ struct l2_fhdr {
 #define BNX2_L2CTX_BD_PRE_READ				0x00000000
 #define BNX2_L2CTX_CTX_SIZE				0x00000000
 #define BNX2_L2CTX_CTX_TYPE				0x00000000
+#define BNX2_L2CTX_LO_WATER_MARK_DEFAULT		 32
+#define BNX2_L2CTX_LO_WATER_MARK_SCALE			 4
+#define BNX2_L2CTX_LO_WATER_MARK_DIS			 0
+#define BNX2_L2CTX_HI_WATER_MARK_SHIFT			 4
+#define BNX2_L2CTX_HI_WATER_MARK_SCALE			 16
+#define BNX2_L2CTX_WATER_MARKS_MSK			 0x000000ff
 #define BNX2_L2CTX_CTX_TYPE_SIZE_L2			 ((0x20/20)<<16)
 #define BNX2_L2CTX_CTX_TYPE_CTX_BD_CHN_TYPE		 (0xf<<28)
 #define BNX2_L2CTX_CTX_TYPE_CTX_BD_CHN_TYPE_UNDEFINED	 (0<<28)
@@ -4494,6 +4500,9 @@ struct l2_fhdr {
 #define BNX2_MQ_MAP_L2_3_ENA				 (0x1L<<31)
 #define BNX2_MQ_MAP_L2_3_DEFAULT			 0x82004646
 
+#define BNX2_MQ_MAP_L2_5				0x00003d34
+#define BNX2_MQ_MAP_L2_5_ARM				 (0x3L<<26)
+
 /*
  *  tsch_reg definition
  *  offset: 0x4c00
@@ -6405,7 +6414,7 @@ struct l2_fhdr {
 
 #define RX_COPY_THRESH			128
 
-#define BNX2_MISC_ENABLE_DEFAULT	0x7ffffff
+#define BNX2_MISC_ENABLE_DEFAULT	0x17ffffff
 
 #define DMA_READ_CHANS	5
 #define DMA_WRITE_CHANS	3
