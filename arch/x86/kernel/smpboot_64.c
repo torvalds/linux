@@ -861,6 +861,18 @@ void __init smp_set_apicids(void)
 	x86_cpu_to_apicid_ptr = NULL;
 }
 
+static void __init smp_cpu_index_default(void)
+{
+	int i;
+	struct cpuinfo_x86 *c;
+
+	for_each_cpu_mask(i, cpu_possible_map) {
+		c = &cpu_data(i);
+		/* mark all to hotplug */
+		c->cpu_index = NR_CPUS;
+	}
+}
+
 /*
  * Prepare for SMP bootup.  The MP table or ACPI has been read
  * earlier.  Just do some sanity checking here and enable APIC mode.
@@ -868,6 +880,7 @@ void __init smp_set_apicids(void)
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
 	nmi_watchdog_default();
+	smp_cpu_index_default();
 	current_cpu_data = boot_cpu_data;
 	current_thread_info()->cpu = 0;  /* needed? */
 	smp_set_apicids();
