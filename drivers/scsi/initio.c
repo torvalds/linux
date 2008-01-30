@@ -2833,7 +2833,6 @@ static struct scsi_host_template initio_template = {
 	.sg_tablesize		= SG_ALL,
 	.cmd_per_lun		= 1,
 	.use_clustering		= ENABLE_CLUSTERING,
-	.use_sg_chaining	= ENABLE_SG_CHAINING,
 };
 
 static int initio_probe_one(struct pci_dev *pdev,

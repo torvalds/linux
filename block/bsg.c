@@ -279,6 +279,7 @@ bsg_map_hdr(struct bsg_device *bd, struct sg_io_v4 *hdr)
 			goto out;
 		}
 		rq->next_rq = next_rq;
+		next_rq->cmd_type = rq->cmd_type;
 
 		dxferp = (void*)(unsigned long)hdr->din_xferp;
 		ret =  blk_rq_map_user(q, next_rq, dxferp, hdr->din_xfer_len);

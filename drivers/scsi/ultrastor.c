@@ -1204,6 +1204,5 @@ static struct scsi_host_template driver_template = {
 	.cmd_per_lun       = ULTRASTOR_MAX_CMDS_PER_LUN,
 	.unchecked_isa_dma = 1,
 	.use_clustering    = ENABLE_CLUSTERING,
-	.use_sg_chaining   = ENABLE_SG_CHAINING,
 };
 #include "scsi_module.c"

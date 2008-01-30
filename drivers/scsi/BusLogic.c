@@ -3575,7 +3575,6 @@ static struct scsi_host_template Bus_Logic_template = {
 	.unchecked_isa_dma = 1,
 	.max_sectors = 128,
 	.use_clustering = ENABLE_CLUSTERING,
-	.use_sg_chaining = ENABLE_SG_CHAINING,
 };
 
 /*

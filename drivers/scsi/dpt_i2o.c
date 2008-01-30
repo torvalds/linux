@@ -3340,7 +3340,6 @@ static struct scsi_host_template driver_template = {
 	.this_id		= 7,
 	.cmd_per_lun		= 1,
 	.use_clustering		= ENABLE_CLUSTERING,
-	.use_sg_chaining	= ENABLE_SG_CHAINING,
 };
 #include "scsi_module.c"
 MODULE_LICENSE("GPL");

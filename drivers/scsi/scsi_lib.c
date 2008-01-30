@@ -8,6 +8,7 @@
  */
 
 #include <linux/bio.h>
+#include <linux/bitops.h>
 #include <linux/blkdev.h>
 #include <linux/completion.h>
 #include <linux/kernel.h>
@@ -34,13 +35,6 @@
 #define SG_MEMPOOL_NR		ARRAY_SIZE(scsi_sg_pools)
 #define SG_MEMPOOL_SIZE		2
 
-/*
- * The maximum number of SG segments that we will put inside a scatterlist
- * (unless chaining is used). Should ideally fit inside a single page, to
- * avoid a higher order allocation.
- */
-#define SCSI_MAX_SG_SEGMENTS	128
-
 struct scsi_host_sg_pool {
 	size_t		size;
 	char		*name;
@@ -48,21 +42,30 @@ struct scsi_host_sg_pool {
 	mempool_t	*pool;
 };
 
-#define SP(x) { x, "sgpool-" #x }
+#define SP(x) { x, "sgpool-" __stringify(x) }
+#if (SCSI_MAX_SG_SEGMENTS < 32)
+#error SCSI_MAX_SG_SEGMENTS is too small (must be 32 or greater)
+#endif
 static struct scsi_host_sg_pool scsi_sg_pools[] = {
 	SP(8),
 	SP(16),
-#if (SCSI_MAX_SG_SEGMENTS > 16)
-	SP(32),
 #if (SCSI_MAX_SG_SEGMENTS > 32)
-	SP(64),
+	SP(32),
 #if (SCSI_MAX_SG_SEGMENTS > 64)
+	SP(64),
+#if (SCSI_MAX_SG_SEGMENTS > 128)
 	SP(128),
+#if (SCSI_MAX_SG_SEGMENTS > 256)
+#error SCSI_MAX_SG_SEGMENTS is too large (256 MAX)
 #endif
 #endif
 #endif
+#endif
+	SP(SCSI_MAX_SG_SEGMENTS)
 };
 #undef SP
+
+static struct kmem_cache *scsi_bidi_sdb_cache;
 
 static void scsi_run_queue(struct request_queue *q);
 
@@ -440,7 +443,7 @@ EXPORT_SYMBOL_GPL(scsi_execute_async);
 static void scsi_init_cmd_errh(struct scsi_cmnd *cmd)
 {
 	cmd->serial_number = 0;
-	cmd->resid = 0;
+	scsi_set_resid(cmd, 0);
 	memset(cmd->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
 	if (cmd->cmd_len == 0)
 		cmd->cmd_len = COMMAND_SIZE(cmd->cmnd[0]);
@@ -690,42 +693,16 @@ static struct scsi_cmnd *scsi_end_request(struct scsi_cmnd *cmd, int error,
 	return NULL;
 }
 
-/*
- * Like SCSI_MAX_SG_SEGMENTS, but for archs that have sg chaining. This limit
- * is totally arbitrary, a setting of 2048 will get you at least 8mb ios.
- */
-#define SCSI_MAX_SG_CHAIN_SEGMENTS	2048
-
 static inline unsigned int scsi_sgtable_index(unsigned short nents)
 {
 	unsigned int index;
 
-	switch (nents) {
-	case 1 ... 8:
+	BUG_ON(nents > SCSI_MAX_SG_SEGMENTS);
+
+	if (nents <= 8)
 		index = 0;
-		break;
-	case 9 ... 16:
-		index = 1;
-		break;
-#if (SCSI_MAX_SG_SEGMENTS > 16)
-	case 17 ... 32:
-		index = 2;
-		break;
-#if (SCSI_MAX_SG_SEGMENTS > 32)
-	case 33 ... 64:
-		index = 3;
-		break;
-#if (SCSI_MAX_SG_SEGMENTS > 64)
-	case 65 ... 128:
-		index = 4;
-		break;
-#endif
-#endif
-#endif
-	default:
-		printk(KERN_ERR "scsi: bad segment count=%d\n", nents);
-		BUG();
-	}
+	else
+		index = get_count_order(nents) - 3;
 
 	return index;
 }
@@ -746,30 +723,26 @@ static struct scatterlist *scsi_sg_alloc(unsigned int nents, gfp_t gfp_mask)
 	return mempool_alloc(sgp->pool, gfp_mask);
 }
 
-int scsi_alloc_sgtable(struct scsi_cmnd *cmd, gfp_t gfp_mask)
+static int scsi_alloc_sgtable(struct scsi_data_buffer *sdb, int nents,
+			      gfp_t gfp_mask)
 {
 	int ret;
 
-	BUG_ON(!cmd->use_sg);
+	BUG_ON(!nents);
 
-	ret = __sg_alloc_table(&cmd->sg_table, cmd->use_sg,
-			       SCSI_MAX_SG_SEGMENTS, gfp_mask, scsi_sg_alloc);
+	ret = __sg_alloc_table(&sdb->table, nents, SCSI_MAX_SG_SEGMENTS,
+			       gfp_mask, scsi_sg_alloc);
 	if (unlikely(ret))
-		__sg_free_table(&cmd->sg_table, SCSI_MAX_SG_SEGMENTS,
+		__sg_free_table(&sdb->table, SCSI_MAX_SG_SEGMENTS,
 				scsi_sg_free);
 
-	cmd->request_buffer = cmd->sg_table.sgl;
 	return ret;
 }
 
-EXPORT_SYMBOL(scsi_alloc_sgtable);
-
-void scsi_free_sgtable(struct scsi_cmnd *cmd)
+static void scsi_free_sgtable(struct scsi_data_buffer *sdb)
 {
-	__sg_free_table(&cmd->sg_table, SCSI_MAX_SG_SEGMENTS, scsi_sg_free);
+	__sg_free_table(&sdb->table, SCSI_MAX_SG_SEGMENTS, scsi_sg_free);
 }
-
-EXPORT_SYMBOL(scsi_free_sgtable);
 
 /*
  * Function:    scsi_release_buffers()
@@ -788,17 +761,49 @@ EXPORT_SYMBOL(scsi_free_sgtable);
  *		the scatter-gather table, and potentially any bounce
  *		buffers.
  */
-static void scsi_release_buffers(struct scsi_cmnd *cmd)
+void scsi_release_buffers(struct scsi_cmnd *cmd)
 {
-	if (cmd->use_sg)
-		scsi_free_sgtable(cmd);
+	if (cmd->sdb.table.nents)
+		scsi_free_sgtable(&cmd->sdb);
+
+	memset(&cmd->sdb, 0, sizeof(cmd->sdb));
+
+	if (scsi_bidi_cmnd(cmd)) {
+		struct scsi_data_buffer *bidi_sdb =
+			cmd->request->next_rq->special;
+		scsi_free_sgtable(bidi_sdb);
+		kmem_cache_free(scsi_bidi_sdb_cache, bidi_sdb);
+		cmd->request->next_rq->special = NULL;
+	}
+}
+EXPORT_SYMBOL(scsi_release_buffers);
+
+/*
+ * Bidi commands Must be complete as a whole, both sides at once.
+ * If part of the bytes were written and lld returned
+ * scsi_in()->resid and/or scsi_out()->resid this information will be left
+ * in req->data_len and req->next_rq->data_len. The upper-layer driver can
+ * decide what to do with this information.
+ */
+void scsi_end_bidi_request(struct scsi_cmnd *cmd)
+{
+	struct request *req = cmd->request;
+	unsigned int dlen = req->data_len;
+	unsigned int next_dlen = req->next_rq->data_len;
+
+	req->data_len = scsi_out(cmd)->resid;
+	req->next_rq->data_len = scsi_in(cmd)->resid;
+
+	/* The req and req->next_rq have not been completed */
+	BUG_ON(blk_end_bidi_request(req, 0, dlen, next_dlen));
+
+	scsi_release_buffers(cmd);
 
 	/*
-	 * Zero these out.  They now point to freed memory, and it is
-	 * dangerous to hang onto the pointers.
+	 * This will goose the queue request function at the end, so we don't
+	 * need to worry about launching another command.
 	 */
-	cmd->request_buffer = NULL;
-	cmd->request_bufflen = 0;
+	scsi_next_command(cmd);
 }
 
 /*
@@ -832,15 +837,13 @@ static void scsi_release_buffers(struct scsi_cmnd *cmd)
 void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 {
 	int result = cmd->result;
-	int this_count = cmd->request_bufflen;
+	int this_count = scsi_bufflen(cmd);
 	struct request_queue *q = cmd->device->request_queue;
 	struct request *req = cmd->request;
 	int clear_errors = 1;
 	struct scsi_sense_hdr sshdr;
 	int sense_valid = 0;
 	int sense_deferred = 0;
-
-	scsi_release_buffers(cmd);
 
 	if (result) {
 		sense_valid = scsi_command_normalize_sense(cmd, &sshdr);
@@ -864,8 +867,16 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 				req->sense_len = len;
 			}
 		}
-		req->data_len = cmd->resid;
+		if (scsi_bidi_cmnd(cmd)) {
+			/* will also release_buffers */
+			scsi_end_bidi_request(cmd);
+			return;
+		}
+		req->data_len = scsi_get_resid(cmd);
 	}
+
+	BUG_ON(blk_bidi_rq(req)); /* bidi not support for !blk_pc_request yet */
+	scsi_release_buffers(cmd);
 
 	/*
 	 * Next deal with any sectors which we were able to correctly
@@ -874,7 +885,6 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	SCSI_LOG_HLCOMPLETE(1, printk("%ld sectors total, "
 				      "%d bytes done.\n",
 				      req->nr_sectors, good_bytes));
-	SCSI_LOG_HLCOMPLETE(1, printk("use_sg is %d\n", cmd->use_sg));
 
 	if (clear_errors)
 		req->errors = 0;
@@ -991,6 +1001,35 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	scsi_end_request(cmd, -EIO, this_count, !result);
 }
 
+static int scsi_init_sgtable(struct request *req, struct scsi_data_buffer *sdb,
+			     gfp_t gfp_mask)
+{
+	int count;
+
+	/*
+	 * If sg table allocation fails, requeue request later.
+	 */
+	if (unlikely(scsi_alloc_sgtable(sdb, req->nr_phys_segments,
+					gfp_mask))) {
+		return BLKPREP_DEFER;
+	}
+
+	req->buffer = NULL;
+	if (blk_pc_request(req))
+		sdb->length = req->data_len;
+	else
+		sdb->length = req->nr_sectors << 9;
+
+	/* 
+	 * Next, walk the list, and fill in the addresses and sizes of
+	 * each segment.
+	 */
+	count = blk_rq_map_sg(req->q, req, sdb->table.sgl);
+	BUG_ON(count > sdb->table.nents);
+	sdb->table.nents = count;
+	return BLKPREP_OK;
+}
+
 /*
  * Function:    scsi_init_io()
  *
@@ -1000,42 +1039,41 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
  *
  * Returns:     0 on success
  *		BLKPREP_DEFER if the failure is retryable
+ *		BLKPREP_KILL if the failure is fatal
  */
-static int scsi_init_io(struct scsi_cmnd *cmd)
+int scsi_init_io(struct scsi_cmnd *cmd, gfp_t gfp_mask)
 {
-	struct request     *req = cmd->request;
-	int		   count;
+	int error = scsi_init_sgtable(cmd->request, &cmd->sdb, gfp_mask);
+	if (error)
+		goto err_exit;
 
-	/*
-	 * We used to not use scatter-gather for single segment request,
-	 * but now we do (it makes highmem I/O easier to support without
-	 * kmapping pages)
-	 */
-	cmd->use_sg = req->nr_phys_segments;
+	if (blk_bidi_rq(cmd->request)) {
+		struct scsi_data_buffer *bidi_sdb = kmem_cache_zalloc(
+			scsi_bidi_sdb_cache, GFP_ATOMIC);
+		if (!bidi_sdb) {
+			error = BLKPREP_DEFER;
+			goto err_exit;
+		}
 
-	/*
-	 * If sg table allocation fails, requeue request later.
-	 */
-	if (unlikely(scsi_alloc_sgtable(cmd, GFP_ATOMIC))) {
-		scsi_unprep_request(req);
-		return BLKPREP_DEFER;
+		cmd->request->next_rq->special = bidi_sdb;
+		error = scsi_init_sgtable(cmd->request->next_rq, bidi_sdb,
+								    GFP_ATOMIC);
+		if (error)
+			goto err_exit;
 	}
 
-	req->buffer = NULL;
-	if (blk_pc_request(req))
-		cmd->request_bufflen = req->data_len;
-	else
-		cmd->request_bufflen = req->nr_sectors << 9;
+	return BLKPREP_OK ;
 
-	/* 
-	 * Next, walk the list, and fill in the addresses and sizes of
-	 * each segment.
-	 */
-	count = blk_rq_map_sg(req->q, req, cmd->request_buffer);
-	BUG_ON(count > cmd->use_sg);
-	cmd->use_sg = count;
-	return BLKPREP_OK;
+err_exit:
+	scsi_release_buffers(cmd);
+	if (error == BLKPREP_KILL)
+		scsi_put_command(cmd);
+	else /* BLKPREP_DEFER */
+		scsi_unprep_request(cmd->request);
+
+	return error;
 }
+EXPORT_SYMBOL(scsi_init_io);
 
 static struct scsi_cmnd *scsi_get_cmd_from_req(struct scsi_device *sdev,
 		struct request *req)
@@ -1081,16 +1119,14 @@ int scsi_setup_blk_pc_cmnd(struct scsi_device *sdev, struct request *req)
 
 		BUG_ON(!req->nr_phys_segments);
 
-		ret = scsi_init_io(cmd);
+		ret = scsi_init_io(cmd, GFP_ATOMIC);
 		if (unlikely(ret))
 			return ret;
 	} else {
 		BUG_ON(req->data_len);
 		BUG_ON(req->data);
 
-		cmd->request_bufflen = 0;
-		cmd->request_buffer = NULL;
-		cmd->use_sg = 0;
+		memset(&cmd->sdb, 0, sizeof(cmd->sdb));
 		req->buffer = NULL;
 	}
 
@@ -1132,7 +1168,7 @@ int scsi_setup_fs_cmnd(struct scsi_device *sdev, struct request *req)
 	if (unlikely(!cmd))
 		return BLKPREP_DEFER;
 
-	return scsi_init_io(cmd);
+	return scsi_init_io(cmd, GFP_ATOMIC);
 }
 EXPORT_SYMBOL(scsi_setup_fs_cmnd);
 
@@ -1542,20 +1578,7 @@ struct request_queue *__scsi_alloc_queue(struct Scsi_Host *shost,
 	 * this limit is imposed by hardware restrictions
 	 */
 	blk_queue_max_hw_segments(q, shost->sg_tablesize);
-
-	/*
-	 * In the future, sg chaining support will be mandatory and this
-	 * ifdef can then go away. Right now we don't have all archs
-	 * converted, so better keep it safe.
-	 */
-#ifdef ARCH_HAS_SG_CHAIN
-	if (shost->use_sg_chaining)
-		blk_queue_max_phys_segments(q, SCSI_MAX_SG_CHAIN_SEGMENTS);
-	else
-		blk_queue_max_phys_segments(q, SCSI_MAX_SG_SEGMENTS);
-#else
-	blk_queue_max_phys_segments(q, SCSI_MAX_SG_SEGMENTS);
-#endif
+	blk_queue_max_phys_segments(q, SCSI_MAX_SG_CHAIN_SEGMENTS);
 
 	blk_queue_max_sectors(q, shost->max_sectors);
 	blk_queue_bounce_limit(q, scsi_calculate_bounce_limit(shost));
@@ -1654,6 +1677,14 @@ int __init scsi_init_queue(void)
 		return -ENOMEM;
 	}
 
+	scsi_bidi_sdb_cache = kmem_cache_create("scsi_bidi_sdb",
+					sizeof(struct scsi_data_buffer),
+					0, 0, NULL);
+	if (!scsi_bidi_sdb_cache) {
+		printk(KERN_ERR "SCSI: can't init scsi bidi sdb cache\n");
+		goto cleanup_io_context;
+	}
+
 	for (i = 0; i < SG_MEMPOOL_NR; i++) {
 		struct scsi_host_sg_pool *sgp = scsi_sg_pools + i;
 		int size = sgp->size * sizeof(struct scatterlist);
@@ -1663,6 +1694,7 @@ int __init scsi_init_queue(void)
 		if (!sgp->slab) {
 			printk(KERN_ERR "SCSI: can't init sg slab %s\n",
 					sgp->name);
+			goto cleanup_bidi_sdb;
 		}
 
 		sgp->pool = mempool_create_slab_pool(SG_MEMPOOL_SIZE,
@@ -1670,10 +1702,25 @@ int __init scsi_init_queue(void)
 		if (!sgp->pool) {
 			printk(KERN_ERR "SCSI: can't init sg mempool %s\n",
 					sgp->name);
+			goto cleanup_bidi_sdb;
 		}
 	}
 
 	return 0;
+
+cleanup_bidi_sdb:
+	for (i = 0; i < SG_MEMPOOL_NR; i++) {
+		struct scsi_host_sg_pool *sgp = scsi_sg_pools + i;
+		if (sgp->pool)
+			mempool_destroy(sgp->pool);
+		if (sgp->slab)
+			kmem_cache_destroy(sgp->slab);
+	}
+	kmem_cache_destroy(scsi_bidi_sdb_cache);
+cleanup_io_context:
+	kmem_cache_destroy(scsi_io_context_cache);
+
+	return -ENOMEM;
 }
 
 void scsi_exit_queue(void)
@@ -1681,6 +1728,7 @@ void scsi_exit_queue(void)
 	int i;
 
 	kmem_cache_destroy(scsi_io_context_cache);
+	kmem_cache_destroy(scsi_bidi_sdb_cache);
 
 	for (i = 0; i < SG_MEMPOOL_NR; i++) {
 		struct scsi_host_sg_pool *sgp = scsi_sg_pools + i;

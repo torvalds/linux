@@ -207,7 +207,7 @@ void sym_set_cam_result_error(struct sym_hcb *np, struct sym_ccb *cp, int resid)
 			/*
 			 *  Bounce back the sense data to user.
 			 */
-			memset(&cmd->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
+			memset(cmd->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
 			memcpy(cmd->sense_buffer, cp->sns_bbuf,
 			       min(SCSI_SENSE_BUFFERSIZE, SYM_SNS_BBUF_LEN));
 #if 0
@@ -1681,7 +1681,6 @@ static struct scsi_host_template sym2_template = {
 	.eh_host_reset_handler	= sym53c8xx_eh_host_reset_handler,
 	.this_id		= 7,
 	.use_clustering		= ENABLE_CLUSTERING,
-	.use_sg_chaining	= ENABLE_SG_CHAINING,
 	.max_sectors		= 0xFFFF,
 #ifdef SYM_LINUX_PROC_INFO_SUPPORT
 	.proc_info		= sym53c8xx_proc_info,
