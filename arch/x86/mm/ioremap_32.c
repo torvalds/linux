@@ -215,9 +215,9 @@ static int __init early_ioremap_debug_setup(char *str)
 {
 	early_ioremap_debug = 1;
 
-	return 1;
+	return 0;
 }
-__setup("early_ioremap_debug", early_ioremap_debug_setup);
+early_param("early_ioremap_debug", early_ioremap_debug_setup);
 
 static __initdata int after_paging_init;
 static __initdata unsigned long bm_pte[1024]
