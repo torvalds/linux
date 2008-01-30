@@ -37,26 +37,6 @@ unsigned long pci_mem_start = 0x10000000;
 EXPORT_SYMBOL(pci_mem_start);
 #endif
 extern int user_defined_memmap;
-struct resource data_resource = {
-	.name	= "Kernel data",
-	.start	= 0,
-	.end	= 0,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
-};
-
-struct resource code_resource = {
-	.name	= "Kernel code",
-	.start	= 0,
-	.end	= 0,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
-};
-
-struct resource bss_resource = {
-	.name	= "Kernel bss",
-	.start	= 0,
-	.end	= 0,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
-};
 
 static struct resource system_rom_resource = {
 	.name	= "System ROM",
@@ -110,60 +90,6 @@ static struct resource video_rom_resource = {
 	.end	= 0xc7fff,
 	.flags	= IORESOURCE_BUSY | IORESOURCE_READONLY | IORESOURCE_MEM
 };
-
-static struct resource video_ram_resource = {
-	.name	= "Video RAM area",
-	.start	= 0xa0000,
-	.end	= 0xbffff,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
-};
-
-static struct resource standard_io_resources[] = { {
-	.name	= "dma1",
-	.start	= 0x0000,
-	.end	= 0x001f,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
-}, {
-	.name	= "pic1",
-	.start	= 0x0020,
-	.end	= 0x0021,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
-}, {
-	.name   = "timer0",
-	.start	= 0x0040,
-	.end    = 0x0043,
-	.flags  = IORESOURCE_BUSY | IORESOURCE_IO
-}, {
-	.name   = "timer1",
-	.start  = 0x0050,
-	.end    = 0x0053,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
-}, {
-	.name	= "keyboard",
-	.start	= 0x0060,
-	.end	= 0x006f,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
-}, {
-	.name	= "dma page reg",
-	.start	= 0x0080,
-	.end	= 0x008f,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
-}, {
-	.name	= "pic2",
-	.start	= 0x00a0,
-	.end	= 0x00a1,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
-}, {
-	.name	= "dma2",
-	.start	= 0x00c0,
-	.end	= 0x00df,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
-}, {
-	.name	= "fpu",
-	.start	= 0x00f0,
-	.end	= 0x00ff,
-	.flags	= IORESOURCE_BUSY | IORESOURCE_IO
-} };
 
 #define ROMSIGNATURE 0xaa55
 
@@ -260,10 +186,9 @@ static void __init probe_roms(void)
  * Request address space for all standard RAM and ROM resources
  * and also for regions reported as reserved by the e820.
  */
-static void __init
-legacy_init_iomem_resources(struct resource *code_resource,
-			    struct resource *data_resource,
-			    struct resource *bss_resource)
+void __init legacy_init_iomem_resources(struct resource *code_resource,
+		struct resource *data_resource,
+		struct resource *bss_resource)
 {
 	int i;
 
@@ -304,35 +229,6 @@ legacy_init_iomem_resources(struct resource *code_resource,
 		}
 	}
 }
-
-/*
- * Request address space for all standard resources
- *
- * This is called just before pcibios_init(), which is also a
- * subsys_initcall, but is linked in later (in arch/i386/pci/common.c).
- */
-static int __init request_standard_resources(void)
-{
-	int i;
-
-	printk("Setting up standard PCI resources\n");
-	if (efi_enabled)
-		efi_initialize_iomem_resources(&code_resource,
-				&data_resource, &bss_resource);
-	else
-		legacy_init_iomem_resources(&code_resource,
-				&data_resource, &bss_resource);
-
-	/* EFI systems may still have VGA */
-	request_resource(&iomem_resource, &video_ram_resource);
-
-	/* request I/O space for devices used on all i[345]86 PCs */
-	for (i = 0; i < ARRAY_SIZE(standard_io_resources); i++)
-		request_resource(&ioport_resource, &standard_io_resources[i]);
-	return 0;
-}
-
-subsys_initcall(request_standard_resources);
 
 #if defined(CONFIG_PM) && defined(CONFIG_HIBERNATION)
 /**

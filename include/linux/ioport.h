@@ -8,6 +8,7 @@
 #ifndef _LINUX_IOPORT_H
 #define _LINUX_IOPORT_H
 
+#ifndef __ASSEMBLY__
 #include <linux/compiler.h>
 #include <linux/types.h>
 /*
@@ -153,4 +154,5 @@ extern struct resource * __devm_request_region(struct device *dev,
 extern void __devm_release_region(struct device *dev, struct resource *parent,
 				  resource_size_t start, resource_size_t n);
 
+#endif /* __ASSEMBLY__ */
 #endif	/* _LINUX_IOPORT_H */

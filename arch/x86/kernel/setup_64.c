@@ -123,19 +123,19 @@ struct resource standard_io_resources[] = {
 
 #define IORESOURCE_RAM (IORESOURCE_BUSY | IORESOURCE_MEM)
 
-struct resource data_resource = {
+static struct resource data_resource = {
 	.name = "Kernel data",
 	.start = 0,
 	.end = 0,
 	.flags = IORESOURCE_RAM,
 };
-struct resource code_resource = {
+static struct resource code_resource = {
 	.name = "Kernel code",
 	.start = 0,
 	.end = 0,
 	.flags = IORESOURCE_RAM,
 };
-struct resource bss_resource = {
+static struct resource bss_resource = {
 	.name = "Kernel bss",
 	.start = 0,
 	.end = 0,
@@ -438,7 +438,7 @@ void __init setup_arch(char **cmdline_p)
 	/*
 	 * We trust e820 completely. No explicit ROM probing in memory.
  	 */
-	e820_reserve_resources(); 
+	e820_reserve_resources(&code_resource, &data_resource, &bss_resource);
 	e820_mark_nosave_regions();
 
 	{

@@ -47,8 +47,6 @@ unsigned long end_pfn_map;
  */
 static unsigned long __initdata end_user_pfn = MAXMEM>>PAGE_SHIFT;
 
-extern struct resource code_resource, data_resource, bss_resource;
-
 /* Check for some hardcoded bad areas that early boot is not allowed to touch */
 static inline int bad_addr(unsigned long *addrp, unsigned long size)
 {
@@ -213,7 +211,8 @@ unsigned long __init e820_end_of_ram(void)
 /*
  * Mark e820 reserved areas as busy for the resource manager.
  */
-void __init e820_reserve_resources(void)
+void __init e820_reserve_resources(struct resource *code_resource,
+		struct resource *data_resource, struct resource *bss_resource)
 {
 	int i;
 	for (i = 0; i < e820.nr_map; i++) {
@@ -235,9 +234,9 @@ void __init e820_reserve_resources(void)
 			 * so we try it repeatedly and let the resource manager
 			 * test it.
 			 */
-			request_resource(res, &code_resource);
-			request_resource(res, &data_resource);
-			request_resource(res, &bss_resource);
+			request_resource(res, code_resource);
+			request_resource(res, data_resource);
+			request_resource(res, bss_resource);
 #ifdef CONFIG_KEXEC
 			if (crashk_res.start != crashk_res.end)
 				request_resource(res, &crashk_res);
