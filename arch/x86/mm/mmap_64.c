@@ -16,11 +16,14 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
 #endif
 	mm->mmap_base = TASK_UNMAPPED_BASE;
 	if (current->flags & PF_RANDOMIZE) {
-		/* Add 28bit randomness which is about 40bits of address space
-		   because mmap base has to be page aligned.
- 		   or ~1/128 of the total user VM
-	   	   (total user address space is 47bits) */
+		/*
+		 * Add 28bit randomness which is about 40bits of
+		 * address space because mmap base has to be page
+		 * aligned.  or ~1/128 of the total user VM (total
+		 * user address space is 47bits)
+		 */
 		unsigned rnd = get_random_int() & 0xfffffff;
+
 		mm->mmap_base += ((unsigned long)rnd) << PAGE_SHIFT;
 	}
 	mm->get_unmapped_area = arch_get_unmapped_area;
