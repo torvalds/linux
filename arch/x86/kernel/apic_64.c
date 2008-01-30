@@ -26,6 +26,7 @@
 #include <linux/module.h>
 #include <linux/ioport.h>
 #include <linux/clockchips.h>
+#include <linux/acpi_pmtmr.h>
 
 #include <asm/atomic.h>
 #include <asm/smp.h>

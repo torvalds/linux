@@ -25,15 +25,6 @@ extern void ia32_sysenter_target(void);
 extern void config_acpi_tables(void);
 extern void ia32_syscall(void);
 
-extern int pmtimer_mark_offset(void);
-extern void pmtimer_resume(void);
-extern void pmtimer_wait(unsigned);
-extern unsigned int do_gettimeoffset_pm(void);
-#ifdef CONFIG_X86_PM_TIMER
-extern u32 pmtmr_ioport;
-#else
-#define pmtmr_ioport 0
-#endif
 extern int nohpet;
 
 extern void reserve_bootmem_generic(unsigned long phys, unsigned len);

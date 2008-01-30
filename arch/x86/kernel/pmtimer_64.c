@@ -19,12 +19,12 @@
 #include <linux/time.h>
 #include <linux/init.h>
 #include <linux/cpumask.h>
+#include <linux/acpi_pmtmr.h>
+
 #include <asm/io.h>
 #include <asm/proto.h>
 #include <asm/msr.h>
 #include <asm/vsyscall.h>
-
-#define ACPI_PM_MASK 0xFFFFFF /* limit it to 24 bits */
 
 static inline u32 cyc2us(u32 cycles)
 {
