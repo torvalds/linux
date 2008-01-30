@@ -77,7 +77,7 @@ void
 x86_backtrace(struct pt_regs * const regs, unsigned int depth)
 {
 	struct frame_head *head = (struct frame_head *)frame_pointer(regs);
-	unsigned long stack = stack_pointer(regs);
+	unsigned long stack = kernel_trap_sp(regs);
 
 	if (!user_mode_vm(regs)) {
 		if (depth)

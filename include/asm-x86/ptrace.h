@@ -182,7 +182,13 @@ static inline int v8086_mode(struct pt_regs *regs)
 #endif
 }
 
-static inline unsigned long stack_pointer(struct pt_regs *regs)
+/*
+ * X86_32 CPUs don't save ss and esp if the CPU is already in kernel mode
+ * when it traps.  So regs will be the current sp.
+ *
+ * This is valid only for kernel mode traps.
+ */
+static inline unsigned long kernel_trap_sp(struct pt_regs *regs)
 {
 #ifdef CONFIG_X86_32
 	return (unsigned long)regs;
