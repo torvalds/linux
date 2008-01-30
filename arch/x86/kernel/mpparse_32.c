@@ -1050,7 +1050,7 @@ int mp_register_gsi(u32 gsi, int triggering, int polarity)
 	int idx, bit = 0;
 	static int pci_irq = IRQ_COMPRESSION_START;
 	/*
-	 * Mapping between Global System Interrups, which
+	 * Mapping between Global System Interrupts, which
 	 * represent all possible interrupts, and IRQs
 	 * assigned to actual devices.
 	 */
