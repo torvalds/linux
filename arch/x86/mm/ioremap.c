@@ -125,23 +125,14 @@ void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
 	if (phys_addr >= ISA_START_ADDRESS && last_addr < ISA_END_ADDRESS)
 		return (__force void __iomem *)phys_to_virt(phys_addr);
 
-#ifdef CONFIG_X86_32
 	/*
 	 * Don't allow anybody to remap normal RAM that we're using..
 	 */
-	if (phys_addr <= virt_to_phys(high_memory - 1)) {
-		char *t_addr, *t_end;
-		struct page *page;
-
-		t_addr = __va(phys_addr);
-		t_end = t_addr + (size - 1);
-
-		for (page = virt_to_page(t_addr);
-		     page <= virt_to_page(t_end); page++)
-			if (!PageReserved(page))
-				return NULL;
+	for (offset = phys_addr >> PAGE_SHIFT; offset < max_pfn_mapped &&
+	     (offset << PAGE_SHIFT) < last_addr; offset++) {
+		if (page_is_ram(offset))
+			return NULL;
 	}
-#endif
 
 	pgprot = MAKE_GLOBAL(__PAGE_KERNEL | flags);
 
