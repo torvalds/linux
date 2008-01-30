@@ -46,10 +46,6 @@
 #include <asm/kdebug.h>
 #include <asm/numa.h>
 
-#ifndef Dprintk
-# define Dprintk(x...)
-#endif
-
 const struct dma_mapping_ops *dma_ops;
 EXPORT_SYMBOL(dma_ops);
 
@@ -119,7 +115,7 @@ static __init void *spp_getpage(void)
 			after_bootmem ? "after bootmem" : "");
 	}
 
-	Dprintk("spp_getpage %p\n", ptr);
+	pr_debug("spp_getpage %p\n", ptr);
 
 	return ptr;
 }
@@ -132,11 +128,12 @@ set_pte_phys(unsigned long vaddr, unsigned long phys, pgprot_t prot)
 	pmd_t *pmd;
 	pte_t *pte, new_pte;
 
-	Dprintk("set_pte_phys %lx to %lx\n", vaddr, phys);
+	pr_debug("set_pte_phys %lx to %lx\n", vaddr, phys);
 
 	pgd = pgd_offset_k(vaddr);
 	if (pgd_none(*pgd)) {
-		printk("PGD FIXMAP MISSING, it should be setup in head.S!\n");
+		printk(KERN_ERR
+			"PGD FIXMAP MISSING, it should be setup in head.S!\n");
 		return;
 	}
 	pud = pud_offset(pgd, vaddr);
@@ -144,7 +141,7 @@ set_pte_phys(unsigned long vaddr, unsigned long phys, pgprot_t prot)
 		pmd = (pmd_t *) spp_getpage();
 		set_pud(pud, __pud(__pa(pmd) | _KERNPG_TABLE | _PAGE_USER));
 		if (pmd != pmd_offset(pud, 0)) {
-			printk("PAGETABLE BUG #01! %p <-> %p\n",
+			printk(KERN_ERR "PAGETABLE BUG #01! %p <-> %p\n",
 				pmd, pmd_offset(pud, 0));
 			return;
 		}
@@ -154,7 +151,7 @@ set_pte_phys(unsigned long vaddr, unsigned long phys, pgprot_t prot)
 		pte = (pte_t *) spp_getpage();
 		set_pmd(pmd, __pmd(__pa(pte) | _KERNPG_TABLE | _PAGE_USER));
 		if (pte != pte_offset_kernel(pmd, 0)) {
-			printk("PAGETABLE BUG #02!\n");
+			printk(KERN_ERR "PAGETABLE BUG #02!\n");
 			return;
 		}
 	}
@@ -180,7 +177,7 @@ __set_fixmap(enum fixed_addresses idx, unsigned long phys, pgprot_t prot)
 	unsigned long address = __fix_to_virt(idx);
 
 	if (idx >= __end_of_fixed_addresses) {
-		printk("Invalid __set_fixmap\n");
+		printk(KERN_ERR "Invalid __set_fixmap\n");
 		return;
 	}
 	set_pte_phys(address, phys, prot);
@@ -246,7 +243,7 @@ __meminit void *early_ioremap(unsigned long addr, unsigned long size)
 continue_outer_loop:
 		;
 	}
-	printk("early_ioremap(0x%lx, %lu) failed\n", addr, size);
+	printk(KERN_ERR "early_ioremap(0x%lx, %lu) failed\n", addr, size);
 
 	return NULL;
 }
@@ -378,7 +375,7 @@ void __init_refok init_memory_mapping(unsigned long start, unsigned long end)
 {
 	unsigned long next;
 
-	Dprintk("init_memory_mapping\n");
+	pr_debug("init_memory_mapping\n");
 
 	/*
 	 * Find space for the kernel direct mapping tables.
@@ -506,8 +503,7 @@ int arch_add_memory(int nid, u64 start, u64 size)
 	init_memory_mapping(start, start + size-1);
 
 	ret = __add_pages(zone, start_pfn, nr_pages);
-	if (ret)
-		printk("%s: Problem encountered in __add_pages!\n", __func__);
+	WARN_ON(1);
 
 	return ret;
 }
@@ -567,7 +563,7 @@ void __init mem_init(void)
 	kclist_add(&kcore_vsyscall, (void *)VSYSCALL_START,
 				 VSYSCALL_END - VSYSCALL_START);
 
-	printk("Memory: %luk/%luk available (%ldk kernel code, "
+	printk(KERN_INFO "Memory: %luk/%luk available (%ldk kernel code, "
 				"%ldk reserved, %ldk data, %ldk init)\n",
 		(unsigned long) nr_free_pages() << (PAGE_SHIFT-10),
 		end_pfn << (PAGE_SHIFT-10),
@@ -646,10 +642,10 @@ void mark_rodata_ro(void)
 	rodata_test();
 
 #ifdef CONFIG_CPA_DEBUG
-	printk("Testing CPA: undo %lx-%lx\n", start, end);
+	printk(KERN_INFO "Testing CPA: undo %lx-%lx\n", start, end);
 	set_memory_rw(start, (end-start) >> PAGE_SHIFT);
 
-	printk("Testing CPA: again\n");
+	printk(KERN_INFO "Testing CPA: again\n");
 	set_memory_ro(start, (end-start) >> PAGE_SHIFT);
 #endif
 }
