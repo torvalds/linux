@@ -13,7 +13,10 @@ extern int quad_local_to_mp_bus_id[NR_CPUS/4][4];
 
 extern unsigned int def_to_bigsmp;
 extern int apic_version[MAX_APICS];
+extern u8 apicid_2_node[];
 extern int pic_mode;
+
+#define MAX_APICID 256
 
 #else
 

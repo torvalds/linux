@@ -7,8 +7,6 @@
 #include <asm/mpspec.h>
 #include <linux/bitops.h>
 
-extern cpumask_t cpu_online_map;
-
 extern unsigned char cpu_to_node[];
 extern cpumask_t     node_to_cpumask[];
 
