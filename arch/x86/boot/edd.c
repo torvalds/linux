@@ -154,7 +154,7 @@ void query_edd(void)
 	 */
 
 	if (!be_quiet)
-		printf("Probing EDD... ");
+		printf("Probing EDD (edd=off to disable)... ");
 
 	for (devno = 0x80; devno < 0x80+EDD_MBR_SIG_MAX; devno++) {
 		/*
