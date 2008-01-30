@@ -14,82 +14,15 @@
 #include <asm/cpufeature.h>
 #include <asm/msr.h>
 #include <asm/system.h>
-#include <linux/cache.h>
 #include <linux/threads.h>
-#include <asm/percpu.h>
-#include <linux/cpumask.h>
 #include <linux/init.h>
 #include <asm/desc_defs.h>
 
 /*
- *  CPU type and hardware bug flags. Kept separately for each CPU.
- *  Members of this structure are referenced in head.S, so think twice
- *  before touching them. [mj]
- */
-
-struct cpuinfo_x86 {
-	__u8	x86;		/* CPU family */
-	__u8	x86_vendor;	/* CPU vendor */
-	__u8	x86_model;
-	__u8	x86_mask;
-	char	wp_works_ok;	/* It doesn't on 386's */
-	char	hlt_works_ok;	/* Problems on some 486Dx4's and old 386's */
-	char	hard_math;
-	char	rfu;
-       	int	cpuid_level;	/* Maximum supported CPUID level, -1=no CPUID */
-	unsigned long	x86_capability[NCAPINTS];
-	char	x86_vendor_id[16];
-	char	x86_model_id[64];
-	int 	x86_cache_size;  /* in KB - valid for CPUS which support this
-				    call  */
-	int 	x86_cache_alignment;	/* In bytes */
-	char	fdiv_bug;
-	char	f00f_bug;
-	char	coma_bug;
-	char	pad0;
-	int	x86_power;
-	unsigned long loops_per_jiffy;
-#ifdef CONFIG_SMP
-	cpumask_t llc_shared_map;	/* cpus sharing the last level cache */
-#endif
-	unsigned char x86_max_cores;	/* cpuid returned max cores value */
-	unsigned char apicid;
-	unsigned short x86_clflush_size;
-#ifdef CONFIG_SMP
-	unsigned char booted_cores;	/* number of cores as seen by OS */
-	__u8 phys_proc_id; 		/* Physical processor id. */
-	__u8 cpu_core_id;  		/* Core id */
-	__u8 cpu_index;			/* index into per_cpu list */
-#endif
-} __attribute__((__aligned__(SMP_CACHE_BYTES)));
-
-#define X86_VENDOR_INTEL 0
-#define X86_VENDOR_CYRIX 1
-#define X86_VENDOR_AMD 2
-#define X86_VENDOR_UMC 3
-#define X86_VENDOR_NEXGEN 4
-#define X86_VENDOR_CENTAUR 5
-#define X86_VENDOR_TRANSMETA 7
-#define X86_VENDOR_NSC 8
-#define X86_VENDOR_NUM 9
-#define X86_VENDOR_UNKNOWN 0xff
-
-/*
  * capabilities of CPUs
  */
-
-extern struct cpuinfo_x86 boot_cpu_data;
 extern struct cpuinfo_x86 new_cpu_data;
 extern struct tss_struct doublefault_tss;
-
-#ifdef CONFIG_SMP
-DECLARE_PER_CPU(struct cpuinfo_x86, cpu_info);
-#define cpu_data(cpu)		per_cpu(cpu_info, cpu)
-#define current_cpu_data	cpu_data(smp_processor_id())
-#else
-#define cpu_data(cpu)		boot_cpu_data
-#define current_cpu_data	boot_cpu_data
-#endif
 
 /*
  * the following now lives in the per cpu area:

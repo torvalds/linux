@@ -15,64 +15,8 @@
 #include <asm/current.h>
 #include <asm/system.h>
 #include <asm/mmsegment.h>
-#include <asm/percpu.h>
 #include <linux/personality.h>
-#include <linux/cpumask.h>
 #include <asm/desc_defs.h>
-
-/*
- *  CPU type and hardware bug flags. Kept separately for each CPU.
- */
-
-struct cpuinfo_x86 {
-	__u8	x86;		/* CPU family */
-	__u8	x86_vendor;	/* CPU vendor */
-	__u8	x86_model;
-	__u8	x86_mask;
-	int	cpuid_level;	/* Maximum supported CPUID level, -1=no CPUID */
-	__u32	x86_capability[NCAPINTS];
-	char	x86_vendor_id[16];
-	char	x86_model_id[64];
-	int 	x86_cache_size;  /* in KB */
-	int	x86_clflush_size;
-	int	x86_cache_alignment;
-	int	x86_tlbsize;	/* number of 4K pages in DTLB/ITLB combined(in pages)*/
-        __u8    x86_virt_bits, x86_phys_bits;
-	__u8	x86_max_cores;	/* cpuid returned max cores value */
-	__u8	x86_coreid_bits; /* cpuid returned core id bits */
-        __u32   x86_power; 	
-	__u32   extended_cpuid_level;	/* Max extended CPUID function supported */
-	unsigned long loops_per_jiffy;
-#ifdef CONFIG_SMP
-	cpumask_t llc_shared_map;	/* cpus sharing the last level cache */
-#endif
-	__u8	apicid;
-#ifdef CONFIG_SMP
-	__u8	booted_cores;	/* number of cores as seen by OS */
-	__u8	phys_proc_id;	/* Physical Processor id. */
-	__u8	cpu_core_id;	/* Core id. */
-	__u8	cpu_index;	/* index into per_cpu list */
-#endif
-} ____cacheline_aligned;
-
-#define X86_VENDOR_INTEL 0
-#define X86_VENDOR_CYRIX 1
-#define X86_VENDOR_AMD 2
-#define X86_VENDOR_UMC 3
-#define X86_VENDOR_NEXGEN 4
-#define X86_VENDOR_CENTAUR 5
-#define X86_VENDOR_TRANSMETA 7
-#define X86_VENDOR_NUM 8
-#define X86_VENDOR_UNKNOWN 0xff
-
-#ifdef CONFIG_SMP
-DECLARE_PER_CPU(struct cpuinfo_x86, cpu_info);
-#define cpu_data(cpu)		per_cpu(cpu_info, cpu)
-#define current_cpu_data	cpu_data(smp_processor_id())
-#else
-#define cpu_data(cpu)		boot_cpu_data
-#define current_cpu_data	boot_cpu_data
-#endif
 
 extern char ignore_irq13;
 
@@ -110,7 +54,6 @@ union i387_union {
 	struct i387_fxsave_struct	fxsave;
 };
 
-extern struct cpuinfo_x86 boot_cpu_data;
 /* Save the original ist values for checking stack pointers during debugging */
 struct orig_ist {
 	unsigned long ist[7];

@@ -427,7 +427,7 @@ static void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 
 	printk(KERN_DEBUG "CPU: After generic identify, caps:");
 	for (i = 0; i < NCAPINTS; i++)
-		printk(" %08lx", c->x86_capability[i]);
+		printk(" %08x", c->x86_capability[i]);
 	printk("\n");
 
 	if (this_cpu->c_identify) {
@@ -435,7 +435,7 @@ static void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 
 		printk(KERN_DEBUG "CPU: After vendor identify, caps:");
 		for (i = 0; i < NCAPINTS; i++)
-			printk(" %08lx", c->x86_capability[i]);
+			printk(" %08x", c->x86_capability[i]);
 		printk("\n");
 	}
 
@@ -493,7 +493,7 @@ static void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 
 	printk(KERN_DEBUG "CPU: After all inits, caps:");
 	for (i = 0; i < NCAPINTS; i++)
-		printk(" %08lx", c->x86_capability[i]);
+		printk(" %08x", c->x86_capability[i]);
 	printk("\n");
 
 	/*
