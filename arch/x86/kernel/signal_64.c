@@ -62,11 +62,10 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc, unsigned 
 	/* Always make any pending restarted system calls return -EINTR */
 	current_thread_info()->restart_block.fn = do_no_restart_syscall;
 
-#define COPYR(x)	err |= __get_user(regs->x, &sc->r ## x)
 #define COPY(x)		err |= __get_user(regs->x, &sc->x)
 
-	COPYR(di); COPYR(si); COPYR(bp); COPYR(sp); COPYR(bx);
-	COPYR(dx); COPYR(cx); COPYR(ip);
+	COPY(di); COPY(si); COPY(bp); COPY(sp); COPY(bx);
+	COPY(dx); COPY(cx); COPY(ip);
 	COPY(r8);
 	COPY(r9);
 	COPY(r10);
@@ -87,7 +86,7 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc, unsigned 
 
 	{
 		unsigned int tmpflags;
-		err |= __get_user(tmpflags, &sc->eflags);
+		err |= __get_user(tmpflags, &sc->flags);
 		regs->flags = (regs->flags & ~0x40DD5) | (tmpflags & 0x40DD5);
 		regs->orig_ax = -1;		/* disable syscall checks */
 	}
@@ -109,7 +108,7 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc, unsigned 
 		}
 	}
 
-	err |= __get_user(*prax, &sc->rax);
+	err |= __get_user(*prax, &sc->ax);
 	return err;
 
 badframe:
@@ -166,14 +165,14 @@ setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs, unsigned lo
 	err |= __put_user(0, &sc->gs);
 	err |= __put_user(0, &sc->fs);
 
-	err |= __put_user(regs->di, &sc->rdi);
-	err |= __put_user(regs->si, &sc->rsi);
-	err |= __put_user(regs->bp, &sc->rbp);
-	err |= __put_user(regs->sp, &sc->rsp);
-	err |= __put_user(regs->bx, &sc->rbx);
-	err |= __put_user(regs->dx, &sc->rdx);
-	err |= __put_user(regs->cx, &sc->rcx);
-	err |= __put_user(regs->ax, &sc->rax);
+	err |= __put_user(regs->di, &sc->di);
+	err |= __put_user(regs->si, &sc->si);
+	err |= __put_user(regs->bp, &sc->bp);
+	err |= __put_user(regs->sp, &sc->sp);
+	err |= __put_user(regs->bx, &sc->bx);
+	err |= __put_user(regs->dx, &sc->dx);
+	err |= __put_user(regs->cx, &sc->cx);
+	err |= __put_user(regs->ax, &sc->ax);
 	err |= __put_user(regs->r8, &sc->r8);
 	err |= __put_user(regs->r9, &sc->r9);
 	err |= __put_user(regs->r10, &sc->r10);
@@ -184,8 +183,8 @@ setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs, unsigned lo
 	err |= __put_user(regs->r15, &sc->r15);
 	err |= __put_user(me->thread.trap_no, &sc->trapno);
 	err |= __put_user(me->thread.error_code, &sc->err);
-	err |= __put_user(regs->ip, &sc->rip);
-	err |= __put_user(regs->flags, &sc->eflags);
+	err |= __put_user(regs->ip, &sc->ip);
+	err |= __put_user(regs->flags, &sc->flags);
 	err |= __put_user(mask, &sc->oldmask);
 	err |= __put_user(me->thread.cr2, &sc->cr2);
 

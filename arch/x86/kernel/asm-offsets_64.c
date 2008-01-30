@@ -63,15 +63,15 @@ int main(void)
 #undef ENTRY
 #ifdef CONFIG_IA32_EMULATION
 #define ENTRY(entry) DEFINE(IA32_SIGCONTEXT_ ## entry, offsetof(struct sigcontext_ia32, entry))
-	ENTRY(eax);
-	ENTRY(ebx);
-	ENTRY(ecx);
-	ENTRY(edx);
-	ENTRY(esi);
-	ENTRY(edi);
-	ENTRY(ebp);
-	ENTRY(esp);
-	ENTRY(eip);
+	ENTRY(ax);
+	ENTRY(bx);
+	ENTRY(cx);
+	ENTRY(dx);
+	ENTRY(si);
+	ENTRY(di);
+	ENTRY(bp);
+	ENTRY(sp);
+	ENTRY(ip);
 	BLANK();
 #undef ENTRY
 	DEFINE(IA32_RT_SIGFRAME_sigcontext,

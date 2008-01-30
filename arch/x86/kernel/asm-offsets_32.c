@@ -38,15 +38,15 @@ void foo(void);
 
 void foo(void)
 {
-	OFFSET(IA32_SIGCONTEXT_eax, sigcontext, eax);
-	OFFSET(IA32_SIGCONTEXT_ebx, sigcontext, ebx);
-	OFFSET(IA32_SIGCONTEXT_ecx, sigcontext, ecx);
-	OFFSET(IA32_SIGCONTEXT_edx, sigcontext, edx);
-	OFFSET(IA32_SIGCONTEXT_esi, sigcontext, esi);
-	OFFSET(IA32_SIGCONTEXT_edi, sigcontext, edi);
-	OFFSET(IA32_SIGCONTEXT_ebp, sigcontext, ebp);
-	OFFSET(IA32_SIGCONTEXT_esp, sigcontext, esp);
-	OFFSET(IA32_SIGCONTEXT_eip, sigcontext, eip);
+	OFFSET(IA32_SIGCONTEXT_ax, sigcontext, ax);
+	OFFSET(IA32_SIGCONTEXT_bx, sigcontext, bx);
+	OFFSET(IA32_SIGCONTEXT_cx, sigcontext, cx);
+	OFFSET(IA32_SIGCONTEXT_dx, sigcontext, dx);
+	OFFSET(IA32_SIGCONTEXT_si, sigcontext, si);
+	OFFSET(IA32_SIGCONTEXT_di, sigcontext, di);
+	OFFSET(IA32_SIGCONTEXT_bp, sigcontext, bp);
+	OFFSET(IA32_SIGCONTEXT_sp, sigcontext, sp);
+	OFFSET(IA32_SIGCONTEXT_ip, sigcontext, ip);
 	BLANK();
 
 	OFFSET(CPUINFO_x86, cpuinfo_x86, x86);

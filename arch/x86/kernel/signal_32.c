@@ -105,7 +105,7 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc, int *peax
 	/* Always make any pending restarted system calls return -EINTR */
 	current_thread_info()->restart_block.fn = do_no_restart_syscall;
 
-#define COPY(x)		err |= __get_user(regs->x, &sc->e ## x)
+#define COPY(x)		err |= __get_user(regs->x, &sc->x)
 
 #define COPY_SEG(seg)							\
 	{ unsigned short tmp;						\
@@ -144,7 +144,7 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc, int *peax
 	
 	{
 		unsigned int tmpflags;
-		err |= __get_user(tmpflags, &sc->eflags);
+		err |= __get_user(tmpflags, &sc->flags);
 		regs->flags = (regs->flags & ~FIX_EFLAGS) | (tmpflags & FIX_EFLAGS);
 		regs->orig_ax = -1;		/* disable syscall checks */
 	}
@@ -165,7 +165,7 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc, int *peax
 		}
 	}
 
-	err |= __get_user(*peax, &sc->eax);
+	err |= __get_user(*peax, &sc->ax);
 	return err;
 
 badframe:
@@ -256,20 +256,20 @@ setup_sigcontext(struct sigcontext __user *sc, struct _fpstate __user *fpstate,
 
 	err |= __put_user(regs->es, (unsigned int __user *)&sc->es);
 	err |= __put_user(regs->ds, (unsigned int __user *)&sc->ds);
-	err |= __put_user(regs->di, &sc->edi);
-	err |= __put_user(regs->si, &sc->esi);
-	err |= __put_user(regs->bp, &sc->ebp);
-	err |= __put_user(regs->sp, &sc->esp);
-	err |= __put_user(regs->bx, &sc->ebx);
-	err |= __put_user(regs->dx, &sc->edx);
-	err |= __put_user(regs->cx, &sc->ecx);
-	err |= __put_user(regs->ax, &sc->eax);
+	err |= __put_user(regs->di, &sc->di);
+	err |= __put_user(regs->si, &sc->si);
+	err |= __put_user(regs->bp, &sc->bp);
+	err |= __put_user(regs->sp, &sc->sp);
+	err |= __put_user(regs->bx, &sc->bx);
+	err |= __put_user(regs->dx, &sc->dx);
+	err |= __put_user(regs->cx, &sc->cx);
+	err |= __put_user(regs->ax, &sc->ax);
 	err |= __put_user(current->thread.trap_no, &sc->trapno);
 	err |= __put_user(current->thread.error_code, &sc->err);
-	err |= __put_user(regs->ip, &sc->eip);
+	err |= __put_user(regs->ip, &sc->ip);
 	err |= __put_user(regs->cs, (unsigned int __user *)&sc->cs);
-	err |= __put_user(regs->flags, &sc->eflags);
-	err |= __put_user(regs->sp, &sc->esp_at_signal);
+	err |= __put_user(regs->flags, &sc->flags);
+	err |= __put_user(regs->sp, &sc->sp_at_signal);
 	err |= __put_user(regs->ss, (unsigned int __user *)&sc->ss);
 
 	tmp = save_i387(fpstate);

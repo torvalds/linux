@@ -192,9 +192,9 @@ struct rt_sigframe
 	char retcode[8];
 };
 
-#define COPY(x)		{ \
-	unsigned int reg;			\
-	err |= __get_user(reg, &sc->e ##x);	\
+#define COPY(x)		{ 		\
+	unsigned int reg;		\
+	err |= __get_user(reg, &sc->x);	\
 	regs->x = reg;			\
 }
 
@@ -248,7 +248,7 @@ static int ia32_restore_sigcontext(struct pt_regs *regs,
 	err |= __get_user(regs->ss, &sc->ss);
 	regs->ss |= 3;
 
-	err |= __get_user(tmpflags, &sc->eflags);
+	err |= __get_user(tmpflags, &sc->flags);
 	regs->flags = (regs->flags & ~0x40DD5) | (tmpflags & 0x40DD5);
 	/* disable syscall checks */
 	regs->orig_ax = -1;
@@ -268,7 +268,7 @@ static int ia32_restore_sigcontext(struct pt_regs *regs,
 		}
 	}
 
-	err |= __get_user(tmp, &sc->eax);
+	err |= __get_user(tmp, &sc->ax);
 	*peax = tmp;
 
 	return err;
@@ -361,21 +361,21 @@ static int ia32_setup_sigcontext(struct sigcontext_ia32 __user *sc,
 	__asm__("movl %%es,%0" : "=r"(tmp): "0"(tmp));
 	err |= __put_user(tmp, (unsigned int __user *)&sc->es);
 
-	err |= __put_user((u32)regs->di, &sc->edi);
-	err |= __put_user((u32)regs->si, &sc->esi);
-	err |= __put_user((u32)regs->bp, &sc->ebp);
-	err |= __put_user((u32)regs->sp, &sc->esp);
-	err |= __put_user((u32)regs->bx, &sc->ebx);
-	err |= __put_user((u32)regs->dx, &sc->edx);
-	err |= __put_user((u32)regs->cx, &sc->ecx);
-	err |= __put_user((u32)regs->ax, &sc->eax);
+	err |= __put_user((u32)regs->di, &sc->di);
+	err |= __put_user((u32)regs->si, &sc->si);
+	err |= __put_user((u32)regs->bp, &sc->bp);
+	err |= __put_user((u32)regs->sp, &sc->sp);
+	err |= __put_user((u32)regs->bx, &sc->bx);
+	err |= __put_user((u32)regs->dx, &sc->dx);
+	err |= __put_user((u32)regs->cx, &sc->cx);
+	err |= __put_user((u32)regs->ax, &sc->ax);
 	err |= __put_user((u32)regs->cs, &sc->cs);
 	err |= __put_user((u32)regs->ss, &sc->ss);
 	err |= __put_user(current->thread.trap_no, &sc->trapno);
 	err |= __put_user(current->thread.error_code, &sc->err);
-	err |= __put_user((u32)regs->ip, &sc->eip);
-	err |= __put_user((u32)regs->flags, &sc->eflags);
-	err |= __put_user((u32)regs->sp, &sc->esp_at_signal);
+	err |= __put_user((u32)regs->ip, &sc->ip);
+	err |= __put_user((u32)regs->flags, &sc->flags);
+	err |= __put_user((u32)regs->sp, &sc->sp_at_signal);
 
 	tmp = save_i387_ia32(current, fpstate, regs, 0);
 	if (tmp < 0)
