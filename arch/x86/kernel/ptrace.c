@@ -750,9 +750,13 @@ void ptrace_disable(struct task_struct *child)
 	}
 }
 
+#if defined CONFIG_X86_32 || defined CONFIG_IA32_EMULATION
+static const struct user_regset_view user_x86_32_view; /* Initialized below. */
+#endif
+
 long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 {
-	int i, ret;
+	int ret;
 	unsigned long __user *datap = (unsigned long __user *)data;
 
 	switch (request) {
@@ -805,82 +809,46 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		}
 		break;
 
-	case PTRACE_GETREGS: { /* Get all gp regs from the child. */
-		if (!access_ok(VERIFY_WRITE, datap, sizeof(struct user_regs_struct))) {
-			ret = -EIO;
-			break;
-		}
-		for (i = 0; i < sizeof(struct user_regs_struct); i += sizeof(long)) {
-			__put_user(getreg(child, i), datap);
-			datap++;
-		}
-		ret = 0;
-		break;
-	}
+	case PTRACE_GETREGS:	/* Get all gp regs from the child. */
+		return copy_regset_to_user(child,
+					   task_user_regset_view(current),
+					   REGSET_GENERAL,
+					   0, sizeof(struct user_regs_struct),
+					   datap);
 
-	case PTRACE_SETREGS: { /* Set all gp regs in the child. */
-		unsigned long tmp;
-		if (!access_ok(VERIFY_READ, datap, sizeof(struct user_regs_struct))) {
-			ret = -EIO;
-			break;
-		}
-		for (i = 0; i < sizeof(struct user_regs_struct); i += sizeof(long)) {
-			__get_user(tmp, datap);
-			putreg(child, i, tmp);
-			datap++;
-		}
-		ret = 0;
-		break;
-	}
+	case PTRACE_SETREGS:	/* Set all gp regs in the child. */
+		return copy_regset_from_user(child,
+					     task_user_regset_view(current),
+					     REGSET_GENERAL,
+					     0, sizeof(struct user_regs_struct),
+					     datap);
 
-	case PTRACE_GETFPREGS: { /* Get the child FPU state. */
-		if (!access_ok(VERIFY_WRITE, datap,
-			       sizeof(struct user_i387_struct))) {
-			ret = -EIO;
-			break;
-		}
-		ret = 0;
-		if (!tsk_used_math(child))
-			init_fpu(child);
-		get_fpregs((struct user_i387_struct __user *)data, child);
-		break;
-	}
+	case PTRACE_GETFPREGS:	/* Get the child FPU state. */
+		return copy_regset_to_user(child,
+					   task_user_regset_view(current),
+					   REGSET_FP,
+					   0, sizeof(struct user_i387_struct),
+					   datap);
 
-	case PTRACE_SETFPREGS: { /* Set the child FPU state. */
-		if (!access_ok(VERIFY_READ, datap,
-			       sizeof(struct user_i387_struct))) {
-			ret = -EIO;
-			break;
-		}
-		set_stopped_child_used_math(child);
-		set_fpregs(child, (struct user_i387_struct __user *)data);
-		ret = 0;
-		break;
-	}
+	case PTRACE_SETFPREGS:	/* Set the child FPU state. */
+		return copy_regset_from_user(child,
+					     task_user_regset_view(current),
+					     REGSET_FP,
+					     0, sizeof(struct user_i387_struct),
+					     datap);
 
 #ifdef CONFIG_X86_32
-	case PTRACE_GETFPXREGS: { /* Get the child extended FPU state. */
-		if (!access_ok(VERIFY_WRITE, datap,
-			       sizeof(struct user_fxsr_struct))) {
-			ret = -EIO;
-			break;
-		}
-		if (!tsk_used_math(child))
-			init_fpu(child);
-		ret = get_fpxregs((struct user_fxsr_struct __user *)data, child);
-		break;
-	}
+	case PTRACE_GETFPXREGS:	/* Get the child extended FPU state. */
+		return copy_regset_to_user(child, &user_x86_32_view,
+					   REGSET_XFP,
+					   0, sizeof(struct user_fxsr_struct),
+					   datap);
 
-	case PTRACE_SETFPXREGS: { /* Set the child extended FPU state. */
-		if (!access_ok(VERIFY_READ, datap,
-			       sizeof(struct user_fxsr_struct))) {
-			ret = -EIO;
-			break;
-		}
-		set_stopped_child_used_math(child);
-		ret = set_fpxregs(child, (struct user_fxsr_struct __user *)data);
-		break;
-	}
+	case PTRACE_SETFPXREGS:	/* Set the child extended FPU state. */
+		return copy_regset_from_user(child, &user_x86_32_view,
+					     REGSET_XFP,
+					     0, sizeof(struct user_fxsr_struct),
+					     datap);
 #endif
 
 #if defined CONFIG_X86_32 || defined CONFIG_IA32_EMULATION
@@ -1243,90 +1211,40 @@ asmlinkage long sys32_ptrace(long request, u32 pid, u32 addr, u32 data)
 		ret = putreg32(child, addr, data);
 		break;
 
-	case PTRACE_GETREGS: { /* Get all gp regs from the child. */
-		int i;
+	case PTRACE_GETREGS:	/* Get all gp regs from the child. */
+		return copy_regset_to_user(child, &user_x86_32_view,
+					   REGSET_GENERAL,
+					   0, sizeof(struct user_regs_struct32),
+					   datap);
 
-		if (!access_ok(VERIFY_WRITE, datap, 16*4)) {
-			ret = -EIO;
-			break;
-		}
-		ret = 0;
-		for (i = 0; i < sizeof(struct user_regs_struct32); i += sizeof(__u32)) {
-			getreg32(child, i, &val);
-			ret |= __put_user(val, (u32 __user *)datap);
-			datap += sizeof(u32);
-		}
-		break;
-	}
+	case PTRACE_SETREGS:	/* Set all gp regs in the child. */
+		return copy_regset_from_user(child, &user_x86_32_view,
+					     REGSET_GENERAL, 0,
+					     sizeof(struct user_regs_struct32),
+					     datap);
 
-	case PTRACE_SETREGS: { /* Set all gp regs in the child. */
-		unsigned long tmp;
-		int i;
+	case PTRACE_GETFPREGS:	/* Get the child FPU state. */
+		return copy_regset_to_user(child, &user_x86_32_view,
+					   REGSET_FP, 0,
+					   sizeof(struct user_i387_ia32_struct),
+					   datap);
 
-		if (!access_ok(VERIFY_READ, datap, 16*4)) {
-			ret = -EIO;
-			break;
-		}
-		ret = 0;
-		for (i = 0; i < sizeof(struct user_regs_struct32); i += sizeof(u32)) {
-			ret |= __get_user(tmp, (u32 __user *)datap);
-			putreg32(child, i, tmp);
-			datap += sizeof(u32);
-		}
-		break;
-	}
+	case PTRACE_SETFPREGS:	/* Set the child FPU state. */
+		return copy_regset_from_user(
+			child, &user_x86_32_view, REGSET_FP,
+			0, sizeof(struct user_i387_ia32_struct), datap);
 
-	case PTRACE_GETFPREGS:
-		ret = -EIO;
-		if (!access_ok(VERIFY_READ, compat_ptr(data),
-			       sizeof(struct user_i387_struct)))
-			break;
-		save_i387_ia32(child, datap, childregs, 1);
-		ret = 0;
-			break;
+	case PTRACE_GETFPXREGS:	/* Get the child extended FPU state. */
+		return copy_regset_to_user(child, &user_x86_32_view,
+					   REGSET_XFP, 0,
+					   sizeof(struct user32_fxsr_struct),
+					   datap);
 
-	case PTRACE_SETFPREGS:
-		ret = -EIO;
-		if (!access_ok(VERIFY_WRITE, datap,
-			       sizeof(struct user_i387_struct)))
-			break;
-		ret = 0;
-		/* don't check EFAULT to be bug-to-bug compatible to i386 */
-		restore_i387_ia32(child, datap, 1);
-		break;
-
-	case PTRACE_GETFPXREGS: {
-		struct user32_fxsr_struct __user *u = datap;
-
-		init_fpu(child);
-		ret = -EIO;
-		if (!access_ok(VERIFY_WRITE, u, sizeof(*u)))
-			break;
-			ret = -EFAULT;
-		if (__copy_to_user(u, &child->thread.i387.fxsave, sizeof(*u)))
-			break;
-		ret = __put_user(childregs->cs, &u->fcs);
-		ret |= __put_user(child->thread.ds, &u->fos);
-		break;
-	}
-	case PTRACE_SETFPXREGS: {
-		struct user32_fxsr_struct __user *u = datap;
-
-		unlazy_fpu(child);
-		ret = -EIO;
-		if (!access_ok(VERIFY_READ, u, sizeof(*u)))
-			break;
-		/*
-		 * no checking to be bug-to-bug compatible with i386.
-		 * but silence warning
-		 */
-		if (__copy_from_user(&child->thread.i387.fxsave, u, sizeof(*u)))
-			;
-		set_stopped_child_used_math(child);
-		child->thread.i387.fxsave.mxcsr &= mxcsr_feature_mask;
-		ret = 0;
-		break;
-	}
+	case PTRACE_SETFPXREGS:	/* Set the child extended FPU state. */
+		return copy_regset_from_user(child, &user_x86_32_view,
+					     REGSET_XFP, 0,
+					     sizeof(struct user32_fxsr_struct),
+					     datap);
 
 	case PTRACE_GETEVENTMSG:
 		ret = put_user(child->ptrace_message,
