@@ -229,11 +229,7 @@ static void write_debugctlmsr(struct task_struct *child, unsigned long val)
 	if (child != current)
 		return;
 
-#ifdef CONFIG_X86_64
 	wrmsrl(MSR_IA32_DEBUGCTLMSR, val);
-#else
-	wrmsr(MSR_IA32_DEBUGCTLMSR, val, 0);
-#endif
 }
 
 /*
