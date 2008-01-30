@@ -691,6 +691,8 @@ static int __init parse_memmap_opt(char *p)
 	mem_size = memparse(p, &p);
 	if (p == oldp)
 		return -EINVAL;
+
+	userdef = 1;
 	if (*p == '@') {
 		start_at = memparse(p+1, &p);
 		add_memory_region(start_at, mem_size, E820_RAM);
@@ -710,6 +712,12 @@ early_param("memmap", parse_memmap_opt);
 void __init finish_e820_parsing(void)
 {
 	if (userdef) {
+		char nr = e820.nr_map;
+
+		if (sanitize_e820_map(e820.map, &nr) < 0)
+			early_panic("Invalid user supplied memory map");
+		e820.nr_map = nr;
+
 		printk(KERN_INFO "user-defined physical RAM map:\n");
 		e820_print_map("user");
 	}
