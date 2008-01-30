@@ -13,6 +13,7 @@
 #include <linux/smp.h>
 #include <linux/errno.h>
 #include <linux/ptrace.h>
+#include <linux/regset.h>
 #include <linux/user.h>
 #include <linux/security.h>
 #include <linux/audit.h>
@@ -366,6 +367,59 @@ static unsigned long getreg(struct task_struct *task, unsigned long offset)
 	}
 
 	return *pt_regs_access(task_pt_regs(task), offset);
+}
+
+static int genregs_get(struct task_struct *target,
+		       const struct user_regset *regset,
+		       unsigned int pos, unsigned int count,
+		       void *kbuf, void __user *ubuf)
+{
+	if (kbuf) {
+		unsigned long *k = kbuf;
+		while (count > 0) {
+			*k++ = getreg(target, pos);
+			count -= sizeof(*k);
+			pos += sizeof(*k);
+		}
+	} else {
+		unsigned long __user *u = ubuf;
+		while (count > 0) {
+			if (__put_user(getreg(target, pos), u++))
+				return -EFAULT;
+			count -= sizeof(*u);
+			pos += sizeof(*u);
+		}
+	}
+
+	return 0;
+}
+
+static int genregs_set(struct task_struct *target,
+		       const struct user_regset *regset,
+		       unsigned int pos, unsigned int count,
+		       const void *kbuf, const void __user *ubuf)
+{
+	int ret = 0;
+	if (kbuf) {
+		const unsigned long *k = kbuf;
+		while (count > 0 && !ret) {
+			ret = putreg(target, pos, *k++);
+			count -= sizeof(*k);
+			pos += sizeof(*k);
+		}
+	} else {
+		const unsigned long  __user *u = ubuf;
+		while (count > 0 && !ret) {
+			unsigned long word;
+			ret = __get_user(word, u++);
+			if (ret)
+				break;
+			ret = putreg(target, pos, word);
+			count -= sizeof(*u);
+			pos += sizeof(*u);
+		}
+	}
+	return ret;
 }
 
 /*
@@ -1007,6 +1061,61 @@ static int getreg32(struct task_struct *child, unsigned regno, u32 *val)
 
 #undef R32
 #undef SEG32
+
+static int genregs32_get(struct task_struct *target,
+			 const struct user_regset *regset,
+			 unsigned int pos, unsigned int count,
+			 void *kbuf, void __user *ubuf)
+{
+	if (kbuf) {
+		compat_ulong_t *k = kbuf;
+		while (count > 0) {
+			getreg32(target, pos, k++);
+			count -= sizeof(*k);
+			pos += sizeof(*k);
+		}
+	} else {
+		compat_ulong_t __user *u = ubuf;
+		while (count > 0) {
+			compat_ulong_t word;
+			getreg32(target, pos, &word);
+			if (__put_user(word, u++))
+				return -EFAULT;
+			count -= sizeof(*u);
+			pos += sizeof(*u);
+		}
+	}
+
+	return 0;
+}
+
+static int genregs32_set(struct task_struct *target,
+			 const struct user_regset *regset,
+			 unsigned int pos, unsigned int count,
+			 const void *kbuf, const void __user *ubuf)
+{
+	int ret = 0;
+	if (kbuf) {
+		const compat_ulong_t *k = kbuf;
+		while (count > 0 && !ret) {
+			ret = putreg(target, pos, *k++);
+			count -= sizeof(*k);
+			pos += sizeof(*k);
+		}
+	} else {
+		const compat_ulong_t __user *u = ubuf;
+		while (count > 0 && !ret) {
+			compat_ulong_t word;
+			ret = __get_user(word, u++);
+			if (ret)
+				break;
+			ret = putreg(target, pos, word);
+			count -= sizeof(*u);
+			pos += sizeof(*u);
+		}
+	}
+	return ret;
+}
 
 static long ptrace32_siginfo(unsigned request, u32 pid, u32 addr, u32 data)
 {
