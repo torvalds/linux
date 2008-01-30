@@ -53,6 +53,7 @@
 #include "heartbeat.h"
 #include "inode.h"
 #include "journal.h"
+#include "stackglue.h"
 #include "slot_map.h"
 #include "super.h"
 #include "uptodate.h"
@@ -888,22 +889,21 @@ static int ocfs2_lock_create(struct ocfs2_super *osb,
 	lockres_or_flags(lockres, OCFS2_LOCK_BUSY);
 	spin_unlock_irqrestore(&lockres->l_lock, flags);
 
-	status = dlmlock(osb->dlm,
-			 level,
-			 &lockres->l_lksb,
-			 dlm_flags,
-			 lockres->l_name,
-			 OCFS2_LOCK_ID_MAX_LEN - 1,
-			 ocfs2_locking_ast,
-			 lockres,
-			 ocfs2_blocking_ast);
+	status = ocfs2_dlm_lock(osb->dlm,
+				level,
+				&lockres->l_lksb,
+				dlm_flags,
+				lockres->l_name,
+				OCFS2_LOCK_ID_MAX_LEN - 1,
+				lockres);
 	if (status != DLM_NORMAL) {
-		ocfs2_log_dlm_error("dlmlock", status, lockres);
+		ocfs2_log_dlm_error("ocfs2_dlm_lock", status, lockres);
 		ret = -EINVAL;
 		ocfs2_recover_from_dlm_error(lockres, 1);
 	}
 
-	mlog(0, "lock %s, successfull return from dlmlock\n", lockres->l_name);
+	mlog(0, "lock %s, successfull return from ocfs2_dlm_lock\n",
+	     lockres->l_name);
 
 bail:
 	mlog_exit(ret);
@@ -1091,29 +1091,27 @@ again:
 		     lockres->l_name, lockres->l_level, level);
 
 		/* call dlm_lock to upgrade lock now */
-		status = dlmlock(osb->dlm,
-				 level,
-				 &lockres->l_lksb,
-				 lkm_flags,
-				 lockres->l_name,
-				 OCFS2_LOCK_ID_MAX_LEN - 1,
-				 ocfs2_locking_ast,
-				 lockres,
-				 ocfs2_blocking_ast);
+		status = ocfs2_dlm_lock(osb->dlm,
+					level,
+					&lockres->l_lksb,
+					lkm_flags,
+					lockres->l_name,
+					OCFS2_LOCK_ID_MAX_LEN - 1,
+					lockres);
 		if (status != DLM_NORMAL) {
 			if ((lkm_flags & LKM_NOQUEUE) &&
 			    (status == DLM_NOTQUEUED))
 				ret = -EAGAIN;
 			else {
-				ocfs2_log_dlm_error("dlmlock", status,
-						    lockres);
+				ocfs2_log_dlm_error("ocfs2_dlm_lock",
+						    status, lockres);
 				ret = -EINVAL;
 			}
 			ocfs2_recover_from_dlm_error(lockres, 1);
 			goto out;
 		}
 
-		mlog(0, "lock %s, successfull return from dlmlock\n",
+		mlog(0, "lock %s, successfull return from ocfs2_dlm_lock\n",
 		     lockres->l_name);
 
 		/* At this point we've gone inside the dlm and need to
@@ -1503,14 +1501,14 @@ int ocfs2_file_lock(struct file *file, int ex, int trylock)
 	lockres_add_mask_waiter(lockres, &mw, OCFS2_LOCK_BUSY, 0);
 	spin_unlock_irqrestore(&lockres->l_lock, flags);
 
-	ret = dlmlock(osb->dlm, level, &lockres->l_lksb, lkm_flags,
-		      lockres->l_name, OCFS2_LOCK_ID_MAX_LEN - 1,
-		      ocfs2_locking_ast, lockres, ocfs2_blocking_ast);
+	ret = ocfs2_dlm_lock(osb->dlm, level, &lockres->l_lksb, lkm_flags,
+			     lockres->l_name, OCFS2_LOCK_ID_MAX_LEN - 1,
+			     lockres);
 	if (ret != DLM_NORMAL) {
 		if (trylock && ret == DLM_NOTQUEUED)
 			ret = -EAGAIN;
 		else {
-			ocfs2_log_dlm_error("dlmlock", ret, lockres);
+			ocfs2_log_dlm_error("ocfs2_dlm_lock", ret, lockres);
 			ret = -EINVAL;
 		}
 
@@ -2699,15 +2697,15 @@ static int ocfs2_drop_lock(struct ocfs2_super *osb,
 
 	mlog(0, "lock %s\n", lockres->l_name);
 
-	status = dlmunlock(osb->dlm, &lockres->l_lksb, lkm_flags,
-			   ocfs2_unlock_ast, lockres);
+	status = ocfs2_dlm_unlock(osb->dlm, &lockres->l_lksb, lkm_flags,
+				  lockres);
 	if (status != DLM_NORMAL) {
-		ocfs2_log_dlm_error("dlmunlock", status, lockres);
+		ocfs2_log_dlm_error("ocfs2_dlm_unlock", status, lockres);
 		mlog(ML_ERROR, "lockres flags: %lu\n", lockres->l_flags);
 		dlm_print_one_lock(lockres->l_lksb.lockid);
 		BUG();
 	}
-	mlog(0, "lock %s, successfull return from dlmunlock\n",
+	mlog(0, "lock %s, successfull return from ocfs2_dlm_unlock\n",
 	     lockres->l_name);
 
 	ocfs2_wait_on_busy_lock(lockres);
@@ -2832,17 +2830,15 @@ static int ocfs2_downconvert_lock(struct ocfs2_super *osb,
 	if (lvb)
 		dlm_flags |= LKM_VALBLK;
 
-	status = dlmlock(osb->dlm,
-			 new_level,
-			 &lockres->l_lksb,
-			 dlm_flags,
-			 lockres->l_name,
-			 OCFS2_LOCK_ID_MAX_LEN - 1,
-			 ocfs2_locking_ast,
-			 lockres,
-			 ocfs2_blocking_ast);
+	status = ocfs2_dlm_lock(osb->dlm,
+				new_level,
+				&lockres->l_lksb,
+				dlm_flags,
+				lockres->l_name,
+				OCFS2_LOCK_ID_MAX_LEN - 1,
+				lockres);
 	if (status != DLM_NORMAL) {
-		ocfs2_log_dlm_error("dlmlock", status, lockres);
+		ocfs2_log_dlm_error("ocfs2_dlm_lock", status, lockres);
 		ret = -EINVAL;
 		ocfs2_recover_from_dlm_error(lockres, 1);
 		goto bail;
@@ -2854,7 +2850,7 @@ bail:
 	return ret;
 }
 
-/* returns 1 when the caller should unlock and call dlmunlock */
+/* returns 1 when the caller should unlock and call ocfs2_dlm_unlock */
 static int ocfs2_prepare_cancel_convert(struct ocfs2_super *osb,
 				        struct ocfs2_lock_res *lockres)
 {
@@ -2896,18 +2892,17 @@ static int ocfs2_cancel_convert(struct ocfs2_super *osb,
 	mlog(0, "lock %s\n", lockres->l_name);
 
 	ret = 0;
-	status = dlmunlock(osb->dlm,
-			   &lockres->l_lksb,
-			   LKM_CANCEL,
-			   ocfs2_unlock_ast,
-			   lockres);
+	status = ocfs2_dlm_unlock(osb->dlm,
+				  &lockres->l_lksb,
+				  LKM_CANCEL,
+				  lockres);
 	if (status != DLM_NORMAL) {
-		ocfs2_log_dlm_error("dlmunlock", status, lockres);
+		ocfs2_log_dlm_error("ocfs2_dlm_unlock", status, lockres);
 		ret = -EINVAL;
 		ocfs2_recover_from_dlm_error(lockres, 0);
 	}
 
-	mlog(0, "lock %s return from dlmunlock\n", lockres->l_name);
+	mlog(0, "lock %s return from ocfs2_dlm_unlock\n", lockres->l_name);
 
 	mlog_exit(ret);
 	return ret;
@@ -3209,6 +3204,23 @@ static int ocfs2_dentry_convert_worker(struct ocfs2_lock_res *lockres,
 		return UNBLOCK_STOP_POST;
 
 	return UNBLOCK_CONTINUE_POST;
+}
+
+static struct ocfs2_locking_protocol lproto = {
+	.lp_lock_ast		= ocfs2_locking_ast,
+	.lp_blocking_ast	= ocfs2_blocking_ast,
+	.lp_unlock_ast		= ocfs2_unlock_ast,
+};
+
+/* This interface isn't the final one, hence the less-than-perfect names */
+void dlmglue_init_stack(void)
+{
+	o2cb_get_stack(&lproto);
+}
+
+void dlmglue_exit_stack(void)
+{
+	o2cb_put_stack();
 }
 
 static void ocfs2_process_blocked_lock(struct ocfs2_super *osb,

@@ -933,6 +933,8 @@ static int __init ocfs2_init(void)
 
 	ocfs2_print_version();
 
+	dlmglue_init_stack();
+
 	status = init_ocfs2_uptodate_cache();
 	if (status < 0) {
 		mlog_errno(status);
@@ -987,6 +989,8 @@ static void __exit ocfs2_exit(void)
 	unregister_filesystem(&ocfs2_fs_type);
 
 	exit_ocfs2_uptodate_cache();
+
+	dlmglue_exit_stack();
 
 	mlog_exit_void();
 }

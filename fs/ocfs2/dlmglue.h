@@ -114,5 +114,8 @@ void ocfs2_wake_downconvert_thread(struct ocfs2_super *osb);
 struct ocfs2_dlm_debug *ocfs2_new_dlm_debug(void);
 void ocfs2_put_dlm_debug(struct ocfs2_dlm_debug *dlm_debug);
 
+void dlmglue_init_stack(void);
+void dlmglue_exit_stack(void);
+
 extern const struct dlm_protocol_version ocfs2_locking_protocol;
 #endif	/* DLMGLUE_H */

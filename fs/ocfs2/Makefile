@@ -24,6 +24,7 @@ ocfs2-objs := \
 	namei.o 		\
 	resize.o		\
 	slot_map.o 		\
+	stackglue.o		\
 	suballoc.o 		\
 	super.o 		\
 	symlink.o 		\
