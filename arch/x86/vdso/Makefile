@@ -23,25 +23,15 @@ $(obj)/vdso.o: $(obj)/vdso.so
 
 targets += vdso.so vdso.so.dbg vdso.lds $(vobjs-y)
 
-# The DSO images are built using a special linker script.
-quiet_cmd_syscall = SYSCALL $@
-      cmd_syscall = $(CC) -m elf_x86_64 -nostdlib $(SYSCFLAGS_$(@F)) \
-		          -Wl,-T,$(filter-out FORCE,$^) -o $@
-
 export CPPFLAGS_vdso.lds += -P -C
 
-vdso-flags = -fPIC -shared -Wl,-soname=linux-vdso.so.1 \
-		 $(call ld-option, -Wl$(comma)--hash-style=sysv) \
-		-Wl,-z,max-page-size=4096 -Wl,-z,common-page-size=4096
-SYSCFLAGS_vdso.so = $(vdso-flags)
-SYSCFLAGS_vdso.so.dbg = $(vdso-flags)
+VDSO_LDFLAGS_vdso.lds = -m elf_x86_64 -Wl,-soname=linux-vdso.so.1 \
+		      	-Wl,-z,max-page-size=4096 -Wl,-z,common-page-size=4096
 
 $(obj)/vdso.o: $(src)/vdso.S $(obj)/vdso.so
 
-$(obj)/vdso.so: $(src)/vdso.lds $(vobjs) FORCE
-
 $(obj)/vdso.so.dbg: $(src)/vdso.lds $(vobjs) FORCE
-	$(call if_changed,syscall)
+	$(call if_changed,vdso)
 
 $(obj)/%.so: OBJCOPYFLAGS := -S
 $(obj)/%.so: $(obj)/%.so.dbg FORCE
@@ -49,8 +39,7 @@ $(obj)/%.so: $(obj)/%.so.dbg FORCE
 
 CFL := $(PROFILING) -mcmodel=small -fPIC -g0 -O2 -fasynchronous-unwind-tables -m64
 
-$(obj)/vclock_gettime.o: KBUILD_CFLAGS = $(CFL)
-$(obj)/vgetcpu.o: KBUILD_CFLAGS = $(CFL)
+$(vobjs): KBUILD_CFLAGS = $(CFL)
 
 targets += vdso-syms.lds
 obj-$(VDSO64-y)			+= vdso-syms.lds
