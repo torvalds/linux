@@ -8,8 +8,6 @@
 struct cpuinfo_x86; 
 struct pt_regs;
 
-extern void start_kernel(void);
-
 extern void early_idt_handler(void);
 
 extern void init_memory_mapping(unsigned long start, unsigned long end);
