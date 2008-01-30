@@ -293,7 +293,6 @@ static int bf5xx_nand_calculate_ecc(struct mtd_info *mtd,
 	u16 ecc0, ecc1;
 	u32 code[2];
 	u8 *p;
-	int bytes = 3, i;
 
 	/* first 4 bytes ECC code for 256 page size */
 	ecc0 = bfin_read_NFC_ECC0();
@@ -303,18 +302,23 @@ static int bf5xx_nand_calculate_ecc(struct mtd_info *mtd,
 
 	dev_dbg(info->device, "returning ecc 0x%08x\n", code[0]);
 
+	/* first 3 bytes in ecc_code for 256 page size */
+	p = (u8 *) code;
+	memcpy(ecc_code, p, 3);
+
 	/* second 4 bytes ECC code for 512 page size */
 	if (page_size == 512) {
 		ecc0 = bfin_read_NFC_ECC2();
 		ecc1 = bfin_read_NFC_ECC3();
 		code[1] = (ecc0 & 0x3FF) | ((ecc1 & 0x3FF) << 11);
-		bytes = 6;
+
+		/* second 3 bytes in ecc_code for second 256
+		 * bytes of 512 page size
+		 */
+		p = (u8 *) (code + 1);
+		memcpy((ecc_code + 3), p, 3);
 		dev_dbg(info->device, "returning ecc 0x%08x\n", code[1]);
 	}
-
-	p = (u8 *)code;
-	for (i = 0; i < bytes; i++)
-		ecc_code[i] = p[i];
 
 	return 0;
 }
