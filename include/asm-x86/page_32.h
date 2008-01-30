@@ -1,14 +1,6 @@
 #ifndef _I386_PAGE_H
 #define _I386_PAGE_H
 
-/* PAGE_SHIFT determines the page size */
-#define PAGE_SHIFT	12
-#define PAGE_SIZE	(1UL << PAGE_SHIFT)
-#define PAGE_MASK	(~(PAGE_SIZE-1))
-
-#define LARGE_PAGE_MASK (~(LARGE_PAGE_SIZE-1))
-#define LARGE_PAGE_SIZE (1UL << PMD_SHIFT)
-
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__
 
@@ -111,7 +103,6 @@ static inline pte_t native_make_pte(unsigned long long val)
 #define __pmd(x)	native_make_pmd(x)
 #endif
 
-#define HPAGE_SHIFT	21
 #include <asm-generic/pgtable-nopud.h>
 #else  /* !CONFIG_X86_PAE */
 typedef struct { unsigned long pte_low; } pte_t;
@@ -139,18 +130,10 @@ static inline pte_t native_make_pte(unsigned long val)
 	return (pte_t) { .pte_low = val };
 }
 
-#define HPAGE_SHIFT	22
 #include <asm-generic/pgtable-nopmd.h>
 #endif	/* CONFIG_X86_PAE */
 
 #define PTE_MASK	PAGE_MASK
-
-#ifdef CONFIG_HUGETLB_PAGE
-#define HPAGE_SIZE	((1UL) << HPAGE_SHIFT)
-#define HPAGE_MASK	(~(HPAGE_SIZE - 1))
-#define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
-#define HAVE_ARCH_HUGETLB_UNMAPPED_AREA
-#endif
 
 #define pgprot_val(x)	((x).pgprot)
 #define __pgprot(x)	((pgprot_t) { (x) } )
@@ -163,22 +146,6 @@ static inline pte_t native_make_pte(unsigned long val)
 #endif
 
 #endif /* !__ASSEMBLY__ */
-
-/* to align the pointer to the (next) page boundary */
-#define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
-
-/*
- * This handles the memory map.. We could make this a config
- * option, but too many people screw it up, and too few need
- * it.
- *
- * A __PAGE_OFFSET of 0xC0000000 means that the kernel has
- * a virtual address space of one gigabyte, which limits the
- * amount of physical memory you can use to about 950MB. 
- *
- * If you want more physical memory than this then see the CONFIG_HIGHMEM4G
- * and CONFIG_HIGHMEM64G options in the kernel configuration.
- */
 
 #ifndef __ASSEMBLY__
 
@@ -196,14 +163,6 @@ extern int page_is_ram(unsigned long pagenr);
 
 #endif /* __ASSEMBLY__ */
 
-#ifdef __ASSEMBLY__
-#define __PAGE_OFFSET		CONFIG_PAGE_OFFSET
-#else
-#define __PAGE_OFFSET		((unsigned long)CONFIG_PAGE_OFFSET)
-#endif
-
-
-#define PAGE_OFFSET		((unsigned long)__PAGE_OFFSET)
 #define VMALLOC_RESERVE		((unsigned long)__VMALLOC_RESERVE)
 #define MAXMEM			(-__PAGE_OFFSET-__VMALLOC_RESERVE)
 #define __pa(x)			((unsigned long)(x)-PAGE_OFFSET)
@@ -218,11 +177,6 @@ extern int page_is_ram(unsigned long pagenr);
 #define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
 
 #define virt_addr_valid(kaddr)	pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
-
-#define VM_DATA_DEFAULT_FLAGS \
-	(VM_READ | VM_WRITE | \
-	((current->personality & READ_IMPLIES_EXEC) ? VM_EXEC : 0 ) | \
-		 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/page.h>
