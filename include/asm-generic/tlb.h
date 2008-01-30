@@ -15,7 +15,6 @@
 
 #include <linux/swap.h>
 #include <linux/quicklist.h>
-#include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 
 /*

@@ -41,6 +41,7 @@
 #include <asm/apic.h>
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
+#include <asm/pgalloc.h>
 #include <asm/sections.h>
 #include <asm/paravirt.h>
 
