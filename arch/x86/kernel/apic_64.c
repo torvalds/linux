@@ -923,7 +923,7 @@ void setup_APIC_extended_lvt(unsigned char lvt_off, unsigned char vector,
  * value into /proc/profile.
  */
 
-void smp_local_timer_interrupt(void)
+static void smp_local_timer_interrupt(void)
 {
 	int cpu = smp_processor_id();
 	struct clock_event_device *evt = &per_cpu(lapic_events, cpu);
