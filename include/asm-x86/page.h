@@ -92,6 +92,9 @@ typedef unsigned long	phys_addr_t;
 
 typedef struct { pteval_t pte; } pte_t;
 
+#define native_pte_val(x)	((x).pte)
+#define native_make_pte(x) ((pte_t) { (x) } )
+
 #endif	/* !__ASSEMBLY__ */
 
 #endif	/* CONFIG_X86_64 */
