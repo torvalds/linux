@@ -959,7 +959,7 @@ config MTRR
 config EFI
 	def_bool n
 	prompt "Boot from EFI support"
-	depends on X86_32 && ACPI
+	depends on ACPI
 	---help---
 	This enables the kernel to boot on EFI platforms using
 	system configuration information passed to it from the firmware.

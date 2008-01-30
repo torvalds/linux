@@ -30,6 +30,7 @@
 #include <linux/crash_dump.h>
 #include <linux/root_dev.h>
 #include <linux/pci.h>
+#include <linux/efi.h>
 #include <linux/acpi.h>
 #include <linux/kallsyms.h>
 #include <linux/edd.h>
@@ -299,6 +300,11 @@ void __init setup_arch(char **cmdline_p)
 	rd_prompt = ((boot_params.hdr.ram_size & RAMDISK_PROMPT_FLAG) != 0);
 	rd_doload = ((boot_params.hdr.ram_size & RAMDISK_LOAD_FLAG) != 0);
 #endif
+#ifdef CONFIG_EFI
+	if (!strncmp((char *)&boot_params.efi_info.efi_loader_signature,
+		     "EL64", 4))
+		efi_enabled = 1;
+#endif
 
 	ARCH_SETUP
 
@@ -341,6 +347,8 @@ void __init setup_arch(char **cmdline_p)
 	discover_ebda();
 
 	init_memory_mapping(0, (end_pfn_map << PAGE_SHIFT));
+	if (efi_enabled)
+		efi_init();
 
 	dmi_scan_machine();
 
@@ -414,6 +422,12 @@ void __init setup_arch(char **cmdline_p)
 	 */
        acpi_reserve_bootmem();
 #endif
+
+	if (efi_enabled) {
+		efi_map_memmap();
+		efi_reserve_bootmem();
+	}
+
        /*
 	* Find and reserve possible boot-time SMP configuration:
 	*/
@@ -479,7 +493,8 @@ void __init setup_arch(char **cmdline_p)
 
 #ifdef CONFIG_VT
 #if defined(CONFIG_VGA_CONSOLE)
-	conswitchp = &vga_con;
+	if (!efi_enabled || (efi_mem_type(0xa0000) != EFI_CONVENTIONAL_MEMORY))
+		conswitchp = &vga_con;
 #elif defined(CONFIG_DUMMY_CONSOLE)
 	conswitchp = &dummy_con;
 #endif
