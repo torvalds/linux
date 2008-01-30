@@ -38,7 +38,6 @@ int main(void)
 #define ENTRY(entry) DEFINE(tsk_ ## entry, offsetof(struct task_struct, entry))
 	ENTRY(state);
 	ENTRY(flags); 
-	ENTRY(thread); 
 	ENTRY(pid);
 	BLANK();
 #undef ENTRY
