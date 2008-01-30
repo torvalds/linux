@@ -19,26 +19,21 @@ pte_t *lookup_address(unsigned long address, int *level)
 	pgd_t *pgd = pgd_offset_k(address);
 	pud_t *pud;
 	pmd_t *pmd;
-	pte_t *pte;
 
 	if (pgd_none(*pgd))
 		return NULL;
 	pud = pud_offset(pgd, address);
-	if (!pud_present(*pud))
+	if (pud_none(*pud))
 		return NULL;
 	pmd = pmd_offset(pud, address);
-	if (!pmd_present(*pmd))
+	if (pmd_none(*pmd))
 		return NULL;
 	*level = 3;
 	if (pmd_large(*pmd))
 		return (pte_t *)pmd;
 	*level = 4;
 
-	pte = pte_offset_kernel(pmd, address);
-	if (pte && !pte_present(*pte))
-		pte = NULL;
-
-	return pte;
+	return pte_offset_kernel(pmd, address);
 }
 
 static struct page *
