@@ -49,7 +49,7 @@ static __inline unsigned int apic_read(unsigned long reg)
 }
 
 extern void apic_wait_icr_idle(void);
-extern unsigned int safe_apic_wait_icr_idle(void);
+extern u32 safe_apic_wait_icr_idle(void);
 
 static inline void ack_APIC_irq(void)
 {
