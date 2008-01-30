@@ -210,13 +210,11 @@ static void *i8xx_alloc_pages(void)
 	if (page == NULL)
 		return NULL;
 
-	if (change_page_attr(page, 4, PAGE_KERNEL_NOCACHE) < 0) {
-		change_page_attr(page, 4, PAGE_KERNEL);
-		global_flush_tlb();
+	if (set_pages_uc(page, 4) < 0) {
+		set_pages_wb(page, 4);
 		__free_pages(page, 2);
 		return NULL;
 	}
-	global_flush_tlb();
 	get_page(page);
 	atomic_inc(&agp_bridge->current_memory_agp);
 	return page_address(page);
@@ -230,8 +228,7 @@ static void i8xx_destroy_pages(void *addr)
 		return;
 
 	page = virt_to_page(addr);
-	change_page_attr(page, 4, PAGE_KERNEL);
-	global_flush_tlb();
+	set_pages_wb(page, 4);
 	put_page(page);
 	__free_pages(page, 2);
 	atomic_dec(&agp_bridge->current_memory_agp);
@@ -341,7 +338,6 @@ static struct agp_memory *alloc_agpphysmem_i8xx(size_t pg_count, int type)
 
 	switch (pg_count) {
 	case 1: addr = agp_bridge->driver->agp_alloc_page(agp_bridge);
-		global_flush_tlb();
 		break;
 	case 4:
 		/* kludge to get 4 physical pages for ARGB cursor */
@@ -404,7 +400,6 @@ static void intel_i810_free_by_type(struct agp_memory *curr)
 		else {
 			agp_bridge->driver->agp_destroy_page(gart_to_virt(curr->memory[0]),
 							     AGP_PAGE_DESTROY_UNMAP);
-			global_flush_tlb();
 			agp_bridge->driver->agp_destroy_page(gart_to_virt(curr->memory[0]),
 							     AGP_PAGE_DESTROY_FREE);
 		}

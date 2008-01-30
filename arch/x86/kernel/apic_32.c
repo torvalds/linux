@@ -43,12 +43,10 @@
 #include <mach_apicdef.h>
 #include <mach_ipi.h>
 
-#include "io_ports.h"
-
 /*
  * Sanity check
  */
-#if (SPURIOUS_APIC_VECTOR & 0x0F) != 0x0F
+#if ((SPURIOUS_APIC_VECTOR & 0x0F) != 0x0F)
 # error SPURIOUS_APIC_VECTOR definition error
 #endif
 
@@ -57,7 +55,7 @@
  *
  * -1=force-disable, +1=force-enable
  */
-static int enable_local_apic __initdata = 0;
+static int enable_local_apic __initdata;
 
 /* Local APIC timer verification ok */
 static int local_apic_timer_verify_ok;
@@ -101,6 +99,8 @@ static DEFINE_PER_CPU(struct clock_event_device, lapic_events);
 /* Local APIC was disabled by the BIOS and enabled by the kernel */
 static int enabled_via_apicbase;
 
+static unsigned long apic_phys;
+
 /*
  * Get the LAPIC version
  */
@@ -110,7 +110,7 @@ static inline int lapic_get_version(void)
 }
 
 /*
- * Check, if the APIC is integrated or a seperate chip
+ * Check, if the APIC is integrated or a separate chip
  */
 static inline int lapic_is_integrated(void)
 {
@@ -135,9 +135,9 @@ void apic_wait_icr_idle(void)
 		cpu_relax();
 }
 
-unsigned long safe_apic_wait_icr_idle(void)
+u32 safe_apic_wait_icr_idle(void)
 {
-	unsigned long send_status;
+	u32 send_status;
 	int timeout;
 
 	timeout = 0;
@@ -154,7 +154,7 @@ unsigned long safe_apic_wait_icr_idle(void)
 /**
  * enable_NMI_through_LVT0 - enable NMI through local vector table 0
  */
-void enable_NMI_through_LVT0 (void * dummy)
+void __cpuinit enable_NMI_through_LVT0(void)
 {
 	unsigned int v = APIC_DM_NMI;
 
@@ -379,8 +379,10 @@ void __init setup_boot_APIC_clock(void)
 	 */
 	if (local_apic_timer_disabled) {
 		/* No broadcast on UP ! */
-		if (num_possible_cpus() > 1)
+		if (num_possible_cpus() > 1) {
+			lapic_clockevent.mult = 1;
 			setup_APIC_timer();
+		}
 		return;
 	}
 
@@ -434,7 +436,7 @@ void __init setup_boot_APIC_clock(void)
 			       "with PM Timer: %ldms instead of 100ms\n",
 			       (long)res);
 			/* Correct the lapic counter value */
-			res = (((u64) delta ) * pm_100ms);
+			res = (((u64) delta) * pm_100ms);
 			do_div(res, deltapm);
 			printk(KERN_INFO "APIC delta adjusted to PM-Timer: "
 			       "%lu (%ld)\n", (unsigned long) res, delta);
@@ -471,6 +473,19 @@ void __init setup_boot_APIC_clock(void)
 		    calibration_result % (1000000 / HZ));
 
 	local_apic_timer_verify_ok = 1;
+
+	/*
+	 * Do a sanity check on the APIC calibration result
+	 */
+	if (calibration_result < (1000000 / HZ)) {
+		local_irq_enable();
+		printk(KERN_WARNING
+		       "APIC frequency too slow, disabling apic timer\n");
+		/* No broadcast on UP ! */
+		if (num_possible_cpus() > 1)
+			setup_APIC_timer();
+		return;
+	}
 
 	/* We trust the pm timer based calibration */
 	if (!pm_referenced) {
@@ -563,6 +578,9 @@ static void local_apic_timer_interrupt(void)
 		return;
 	}
 
+	/*
+	 * the NMI deadlock-detector uses this.
+	 */
 	per_cpu(irq_stat, cpu).apic_timer_irqs++;
 
 	evt->event_handler(evt);
@@ -576,8 +594,7 @@ static void local_apic_timer_interrupt(void)
  * [ if a single-CPU system runs an SMP kernel then we call the local
  *   interrupt as well. Thus we cannot inline the local irq ... ]
  */
-
-void fastcall smp_apic_timer_interrupt(struct pt_regs *regs)
+void smp_apic_timer_interrupt(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
@@ -616,9 +633,14 @@ int setup_profiling_timer(unsigned int multiplier)
  */
 void clear_local_APIC(void)
 {
-	int maxlvt = lapic_get_maxlvt();
-	unsigned long v;
+	int maxlvt;
+	u32 v;
 
+	/* APIC hasn't been mapped yet */
+	if (!apic_phys)
+		return;
+
+	maxlvt = lapic_get_maxlvt();
 	/*
 	 * Masking an LVT entry can trigger a local APIC error
 	 * if the vector is zero. Mask LVTERR first to prevent this.
@@ -976,7 +998,8 @@ void __cpuinit setup_local_APIC(void)
 		value |= APIC_LVT_LEVEL_TRIGGER;
 	apic_write_around(APIC_LVT1, value);
 
-	if (integrated && !esr_disable) {		/* !82489DX */
+	if (integrated && !esr_disable) {
+		/* !82489DX */
 		maxlvt = lapic_get_maxlvt();
 		if (maxlvt > 3)		/* Due to the Pentium erratum 3AP. */
 			apic_write(APIC_ESR, 0);
@@ -1020,7 +1043,7 @@ void __cpuinit setup_local_APIC(void)
 /*
  * Detect and initialize APIC
  */
-static int __init detect_init_APIC (void)
+static int __init detect_init_APIC(void)
 {
 	u32 h, l, features;
 
@@ -1077,7 +1100,7 @@ static int __init detect_init_APIC (void)
 		printk(KERN_WARNING "Could not enable APIC!\n");
 		return -1;
 	}
-	set_bit(X86_FEATURE_APIC, boot_cpu_data.x86_capability);
+	set_cpu_cap(&boot_cpu_data, X86_FEATURE_APIC);
 	mp_lapic_addr = APIC_DEFAULT_PHYS_BASE;
 
 	/* The BIOS may have set up the APIC at some other address */
@@ -1104,8 +1127,6 @@ no_apic:
  */
 void __init init_apic_mappings(void)
 {
-	unsigned long apic_phys;
-
 	/*
 	 * If no local APIC can be found then set up a fake all
 	 * zeroes page to simulate the local APIC and another
@@ -1164,10 +1185,10 @@ fake_ioapic_page:
  * This initializes the IO-APIC and APIC hardware if this is
  * a UP kernel.
  */
-int __init APIC_init_uniprocessor (void)
+int __init APIC_init_uniprocessor(void)
 {
 	if (enable_local_apic < 0)
-		clear_bit(X86_FEATURE_APIC, boot_cpu_data.x86_capability);
+		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_APIC);
 
 	if (!smp_found_config && !cpu_has_apic)
 		return -1;
@@ -1179,7 +1200,7 @@ int __init APIC_init_uniprocessor (void)
 	    APIC_INTEGRATED(apic_version[boot_cpu_physical_apicid])) {
 		printk(KERN_ERR "BIOS bug, local APIC #%d not detected!...\n",
 		       boot_cpu_physical_apicid);
-		clear_bit(X86_FEATURE_APIC, boot_cpu_data.x86_capability);
+		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_APIC);
 		return -1;
 	}
 
@@ -1208,50 +1229,6 @@ int __init APIC_init_uniprocessor (void)
 
 	return 0;
 }
-
-/*
- * APIC command line parameters
- */
-static int __init parse_lapic(char *arg)
-{
-	enable_local_apic = 1;
-	return 0;
-}
-early_param("lapic", parse_lapic);
-
-static int __init parse_nolapic(char *arg)
-{
-	enable_local_apic = -1;
-	clear_bit(X86_FEATURE_APIC, boot_cpu_data.x86_capability);
-	return 0;
-}
-early_param("nolapic", parse_nolapic);
-
-static int __init parse_disable_lapic_timer(char *arg)
-{
-	local_apic_timer_disabled = 1;
-	return 0;
-}
-early_param("nolapic_timer", parse_disable_lapic_timer);
-
-static int __init parse_lapic_timer_c2_ok(char *arg)
-{
-	local_apic_timer_c2_ok = 1;
-	return 0;
-}
-early_param("lapic_timer_c2_ok", parse_lapic_timer_c2_ok);
-
-static int __init apic_set_verbosity(char *str)
-{
-	if (strcmp("debug", str) == 0)
-		apic_verbosity = APIC_DEBUG;
-	else if (strcmp("verbose", str) == 0)
-		apic_verbosity = APIC_VERBOSE;
-	return 1;
-}
-
-__setup("apic=", apic_set_verbosity);
-
 
 /*
  * Local APIC interrupts
@@ -1306,7 +1283,7 @@ void smp_error_interrupt(struct pt_regs *regs)
 	   6: Received illegal vector
 	   7: Illegal register address
 	*/
-	printk (KERN_DEBUG "APIC error on CPU%d: %02lx(%02lx)\n",
+	printk(KERN_DEBUG "APIC error on CPU%d: %02lx(%02lx)\n",
 		smp_processor_id(), v , v1);
 	irq_exit();
 }
@@ -1393,7 +1370,7 @@ void disconnect_bsp_APIC(int virt_wire_setup)
 			value = apic_read(APIC_LVT0);
 			value &= ~(APIC_MODE_MASK | APIC_SEND_PENDING |
 				APIC_INPUT_POLARITY | APIC_LVT_REMOTE_IRR |
-				APIC_LVT_LEVEL_TRIGGER | APIC_LVT_MASKED );
+				APIC_LVT_LEVEL_TRIGGER | APIC_LVT_MASKED);
 			value |= APIC_LVT_REMOTE_IRR | APIC_SEND_PENDING;
 			value = SET_APIC_DELIVERY_MODE(value, APIC_MODE_EXTINT);
 			apic_write_around(APIC_LVT0, value);
@@ -1565,3 +1542,46 @@ device_initcall(init_lapic_sysfs);
 static void apic_pm_activate(void) { }
 
 #endif	/* CONFIG_PM */
+
+/*
+ * APIC command line parameters
+ */
+static int __init parse_lapic(char *arg)
+{
+	enable_local_apic = 1;
+	return 0;
+}
+early_param("lapic", parse_lapic);
+
+static int __init parse_nolapic(char *arg)
+{
+	enable_local_apic = -1;
+	clear_cpu_cap(&boot_cpu_data, X86_FEATURE_APIC);
+	return 0;
+}
+early_param("nolapic", parse_nolapic);
+
+static int __init parse_disable_lapic_timer(char *arg)
+{
+	local_apic_timer_disabled = 1;
+	return 0;
+}
+early_param("nolapic_timer", parse_disable_lapic_timer);
+
+static int __init parse_lapic_timer_c2_ok(char *arg)
+{
+	local_apic_timer_c2_ok = 1;
+	return 0;
+}
+early_param("lapic_timer_c2_ok", parse_lapic_timer_c2_ok);
+
+static int __init apic_set_verbosity(char *str)
+{
+	if (strcmp("debug", str) == 0)
+		apic_verbosity = APIC_DEBUG;
+	else if (strcmp("verbose", str) == 0)
+		apic_verbosity = APIC_VERBOSE;
+	return 1;
+}
+__setup("apic=", apic_set_verbosity);
+

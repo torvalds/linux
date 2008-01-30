@@ -9,15 +9,13 @@ header-y += prctl.h
 header-y += ptrace-abi.h
 header-y += sigcontext32.h
 header-y += ucontext.h
-header-y += vsyscall32.h
 
 unifdef-y += e820.h
 unifdef-y += ist.h
 unifdef-y += mce.h
 unifdef-y += msr.h
 unifdef-y += mtrr.h
-unifdef-y += page_32.h
-unifdef-y += page_64.h
+unifdef-y += page.h
 unifdef-y += posix_types_32.h
 unifdef-y += posix_types_64.h
 unifdef-y += ptrace.h

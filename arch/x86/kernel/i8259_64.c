@@ -21,6 +21,7 @@
 #include <asm/delay.h>
 #include <asm/desc.h>
 #include <asm/apic.h>
+#include <asm/i8259.h>
 
 /*
  * Common place to define all x86 IRQ vectors
@@ -48,7 +49,7 @@
  */
 
 /*
- * The IO-APIC gives us many more interrupt sources. Most of these 
+ * The IO-APIC gives us many more interrupt sources. Most of these
  * are unused but an SMP system is supposed to have enough memory ...
  * sometimes (mostly wrt. hw bugs) we get corrupted vectors all
  * across the spectrum, so we really want to be prepared to get all
@@ -76,7 +77,7 @@ BUILD_16_IRQS(0xc) BUILD_16_IRQS(0xd) BUILD_16_IRQS(0xe) BUILD_16_IRQS(0xf)
 	IRQ(x,c), IRQ(x,d), IRQ(x,e), IRQ(x,f)
 
 /* for the irq vectors */
-static void (*interrupt[NR_VECTORS - FIRST_EXTERNAL_VECTOR])(void) = {
+static void (*__initdata interrupt[NR_VECTORS - FIRST_EXTERNAL_VECTOR])(void) = {
 					  IRQLIST_16(0x2), IRQLIST_16(0x3),
 	IRQLIST_16(0x4), IRQLIST_16(0x5), IRQLIST_16(0x6), IRQLIST_16(0x7),
 	IRQLIST_16(0x8), IRQLIST_16(0x9), IRQLIST_16(0xa), IRQLIST_16(0xb),
@@ -114,11 +115,7 @@ static struct irq_chip i8259A_chip = {
 /*
  * This contains the irq mask for both 8259A irq controllers,
  */
-static unsigned int cached_irq_mask = 0xffff;
-
-#define __byte(x,y) 	(((unsigned char *)&(y))[x])
-#define cached_21	(__byte(0,cached_irq_mask))
-#define cached_A1	(__byte(1,cached_irq_mask))
+unsigned int cached_irq_mask = 0xffff;
 
 /*
  * Not all IRQs can be routed through the IO-APIC, eg. on certain (older)
@@ -139,9 +136,9 @@ void disable_8259A_irq(unsigned int irq)
 	spin_lock_irqsave(&i8259A_lock, flags);
 	cached_irq_mask |= mask;
 	if (irq & 8)
-		outb(cached_A1,0xA1);
+		outb(cached_slave_mask, PIC_SLAVE_IMR);
 	else
-		outb(cached_21,0x21);
+		outb(cached_master_mask, PIC_MASTER_IMR);
 	spin_unlock_irqrestore(&i8259A_lock, flags);
 }
 
@@ -153,9 +150,9 @@ void enable_8259A_irq(unsigned int irq)
 	spin_lock_irqsave(&i8259A_lock, flags);
 	cached_irq_mask &= mask;
 	if (irq & 8)
-		outb(cached_A1,0xA1);
+		outb(cached_slave_mask, PIC_SLAVE_IMR);
 	else
-		outb(cached_21,0x21);
+		outb(cached_master_mask, PIC_MASTER_IMR);
 	spin_unlock_irqrestore(&i8259A_lock, flags);
 }
 
@@ -167,9 +164,9 @@ int i8259A_irq_pending(unsigned int irq)
 
 	spin_lock_irqsave(&i8259A_lock, flags);
 	if (irq < 8)
-		ret = inb(0x20) & mask;
+		ret = inb(PIC_MASTER_CMD) & mask;
 	else
-		ret = inb(0xA0) & (mask >> 8);
+		ret = inb(PIC_SLAVE_CMD) & (mask >> 8);
 	spin_unlock_irqrestore(&i8259A_lock, flags);
 
 	return ret;
@@ -196,14 +193,14 @@ static inline int i8259A_irq_real(unsigned int irq)
 	int irqmask = 1<<irq;
 
 	if (irq < 8) {
-		outb(0x0B,0x20);		/* ISR register */
-		value = inb(0x20) & irqmask;
-		outb(0x0A,0x20);		/* back to the IRR register */
+		outb(0x0B,PIC_MASTER_CMD);	/* ISR register */
+		value = inb(PIC_MASTER_CMD) & irqmask;
+		outb(0x0A,PIC_MASTER_CMD);	/* back to the IRR register */
 		return value;
 	}
-	outb(0x0B,0xA0);		/* ISR register */
-	value = inb(0xA0) & (irqmask >> 8);
-	outb(0x0A,0xA0);		/* back to the IRR register */
+	outb(0x0B,PIC_SLAVE_CMD);	/* ISR register */
+	value = inb(PIC_SLAVE_CMD) & (irqmask >> 8);
+	outb(0x0A,PIC_SLAVE_CMD);	/* back to the IRR register */
 	return value;
 }
 
@@ -240,14 +237,17 @@ static void mask_and_ack_8259A(unsigned int irq)
 
 handle_real_irq:
 	if (irq & 8) {
-		inb(0xA1);		/* DUMMY - (do we need this?) */
-		outb(cached_A1,0xA1);
-		outb(0x60+(irq&7),0xA0);/* 'Specific EOI' to slave */
-		outb(0x62,0x20);	/* 'Specific EOI' to master-IRQ2 */
+		inb(PIC_SLAVE_IMR);	/* DUMMY - (do we need this?) */
+		outb(cached_slave_mask, PIC_SLAVE_IMR);
+		/* 'Specific EOI' to slave */
+		outb(0x60+(irq&7),PIC_SLAVE_CMD);
+		 /* 'Specific EOI' to master-IRQ2 */
+		outb(0x60+PIC_CASCADE_IR,PIC_MASTER_CMD);
 	} else {
-		inb(0x21);		/* DUMMY - (do we need this?) */
-		outb(cached_21,0x21);
-		outb(0x60+irq,0x20);	/* 'Specific EOI' to master */
+		inb(PIC_MASTER_IMR);	/* DUMMY - (do we need this?) */
+		outb(cached_master_mask, PIC_MASTER_IMR);
+		/* 'Specific EOI' to master */
+		outb(0x60+irq,PIC_MASTER_CMD);
 	}
 	spin_unlock_irqrestore(&i8259A_lock, flags);
 	return;
@@ -270,7 +270,8 @@ spurious_8259A_irq:
 		 * lets ACK and report it. [once per IRQ]
 		 */
 		if (!(spurious_irq_mask & irqmask)) {
-			printk(KERN_DEBUG "spurious 8259A interrupt: IRQ%d.\n", irq);
+			printk(KERN_DEBUG
+			       "spurious 8259A interrupt: IRQ%d.\n", irq);
 			spurious_irq_mask |= irqmask;
 		}
 		atomic_inc(&irq_err_count);
@@ -281,51 +282,6 @@ spurious_8259A_irq:
 		 */
 		goto handle_real_irq;
 	}
-}
-
-void init_8259A(int auto_eoi)
-{
-	unsigned long flags;
-
-	i8259A_auto_eoi = auto_eoi;
-
-	spin_lock_irqsave(&i8259A_lock, flags);
-
-	outb(0xff, 0x21);	/* mask all of 8259A-1 */
-	outb(0xff, 0xA1);	/* mask all of 8259A-2 */
-
-	/*
-	 * outb_p - this has to work on a wide range of PC hardware.
-	 */
-	outb_p(0x11, 0x20);	/* ICW1: select 8259A-1 init */
-	outb_p(IRQ0_VECTOR, 0x21);	/* ICW2: 8259A-1 IR0-7 mapped to 0x30-0x37 */
-	outb_p(0x04, 0x21);	/* 8259A-1 (the master) has a slave on IR2 */
-	if (auto_eoi)
-		outb_p(0x03, 0x21);	/* master does Auto EOI */
-	else
-		outb_p(0x01, 0x21);	/* master expects normal EOI */
-
-	outb_p(0x11, 0xA0);	/* ICW1: select 8259A-2 init */
-	outb_p(IRQ8_VECTOR, 0xA1);	/* ICW2: 8259A-2 IR0-7 mapped to 0x38-0x3f */
-	outb_p(0x02, 0xA1);	/* 8259A-2 is a slave on master's IR2 */
-	outb_p(0x01, 0xA1);	/* (slave's support for AEOI in flat mode
-				    is to be investigated) */
-
-	if (auto_eoi)
-		/*
-		 * in AEOI mode we just have to mask the interrupt
-		 * when acking.
-		 */
-		i8259A_chip.mask_ack = disable_8259A_irq;
-	else
-		i8259A_chip.mask_ack = mask_and_ack_8259A;
-
-	udelay(100);		/* wait for 8259A to initialize */
-
-	outb(cached_21, 0x21);	/* restore master IRQ mask */
-	outb(cached_A1, 0xA1);	/* restore slave IRQ mask */
-
-	spin_unlock_irqrestore(&i8259A_lock, flags);
 }
 
 static char irq_trigger[2];
@@ -364,8 +320,8 @@ static int i8259A_shutdown(struct sys_device *dev)
 	 * the kernel initialization code can get it
 	 * out of.
 	 */
-	outb(0xff, 0x21);	/* mask all of 8259A-1 */
-	outb(0xff, 0xA1);	/* mask all of 8259A-1 */
+	outb(0xff, PIC_MASTER_IMR);	/* mask all of 8259A-1 */
+	outb(0xff, PIC_SLAVE_IMR);	/* mask all of 8259A-1 */
 	return 0;
 }
 
@@ -390,6 +346,58 @@ static int __init i8259A_init_sysfs(void)
 }
 
 device_initcall(i8259A_init_sysfs);
+
+void init_8259A(int auto_eoi)
+{
+	unsigned long flags;
+
+	i8259A_auto_eoi = auto_eoi;
+
+	spin_lock_irqsave(&i8259A_lock, flags);
+
+	outb(0xff, PIC_MASTER_IMR);	/* mask all of 8259A-1 */
+	outb(0xff, PIC_SLAVE_IMR);	/* mask all of 8259A-2 */
+
+	/*
+	 * outb_pic - this has to work on a wide range of PC hardware.
+	 */
+	outb_pic(0x11, PIC_MASTER_CMD);	/* ICW1: select 8259A-1 init */
+	/* ICW2: 8259A-1 IR0-7 mapped to 0x30-0x37 */
+	outb_pic(IRQ0_VECTOR, PIC_MASTER_IMR);
+	/* 8259A-1 (the master) has a slave on IR2 */
+	outb_pic(0x04, PIC_MASTER_IMR);
+	if (auto_eoi)	/* master does Auto EOI */
+		outb_pic(MASTER_ICW4_DEFAULT | PIC_ICW4_AEOI, PIC_MASTER_IMR);
+	else		/* master expects normal EOI */
+		outb_pic(MASTER_ICW4_DEFAULT, PIC_MASTER_IMR);
+
+	outb_pic(0x11, PIC_SLAVE_CMD);	/* ICW1: select 8259A-2 init */
+	/* ICW2: 8259A-2 IR0-7 mapped to 0x38-0x3f */
+	outb_pic(IRQ8_VECTOR, PIC_SLAVE_IMR);
+	/* 8259A-2 is a slave on master's IR2 */
+	outb_pic(PIC_CASCADE_IR, PIC_SLAVE_IMR);
+	/* (slave's support for AEOI in flat mode is to be investigated) */
+	outb_pic(SLAVE_ICW4_DEFAULT, PIC_SLAVE_IMR);
+
+	if (auto_eoi)
+		/*
+		 * In AEOI mode we just have to mask the interrupt
+		 * when acking.
+		 */
+		i8259A_chip.mask_ack = disable_8259A_irq;
+	else
+		i8259A_chip.mask_ack = mask_and_ack_8259A;
+
+	udelay(100);		/* wait for 8259A to initialize */
+
+	outb(cached_master_mask, PIC_MASTER_IMR); /* restore master IRQ mask */
+	outb(cached_slave_mask, PIC_SLAVE_IMR);	  /* restore slave IRQ mask */
+
+	spin_unlock_irqrestore(&i8259A_lock, flags);
+}
+
+
+
 
 /*
  * IRQ2 is cascade interrupt to second interrupt controller
@@ -448,7 +456,9 @@ void __init init_ISA_irqs (void)
 	}
 }
 
-void __init init_IRQ(void)
+void init_IRQ(void) __attribute__((weak, alias("native_init_IRQ")));
+
+void __init native_init_IRQ(void)
 {
 	int i;
 

@@ -36,19 +36,19 @@ unsigned int __initdata maxcpus = NR_CPUS;
 
 static void __init MP_processor_info (struct mpc_config_processor *m)
 {
- 	int ver, logical_apicid;
+	int ver, logical_apicid;
 	physid_mask_t apic_cpus;
- 	
+
 	if (!(m->mpc_cpuflag & CPU_ENABLED))
 		return;
 
 	logical_apicid = m->mpc_apicid;
-	printk(KERN_INFO "%sCPU #%d %ld:%ld APIC version %d\n",
-		m->mpc_cpuflag & CPU_BOOTPROCESSOR ? "Bootup " : "",
-		m->mpc_apicid,
-		(m->mpc_cpufeature & CPU_FAMILY_MASK) >> 8,
-		(m->mpc_cpufeature & CPU_MODEL_MASK) >> 4,
-		m->mpc_apicver);
+	printk(KERN_INFO "%sCPU #%d %u:%u APIC version %d\n",
+	       m->mpc_cpuflag & CPU_BOOTPROCESSOR ? "Bootup " : "",
+	       m->mpc_apicid,
+	       (m->mpc_cpufeature & CPU_FAMILY_MASK) >> 8,
+	       (m->mpc_cpufeature & CPU_MODEL_MASK) >> 4,
+	       m->mpc_apicver);
 
 	if (m->mpc_cpuflag & CPU_BOOTPROCESSOR)
 		boot_cpu_physical_apicid = m->mpc_apicid;

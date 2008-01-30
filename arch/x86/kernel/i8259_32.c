@@ -21,8 +21,6 @@
 #include <asm/arch_hooks.h>
 #include <asm/i8259.h>
 
-#include <io_ports.h>
-
 /*
  * This is the 'legacy' 8259A Programmable Interrupt Controller,
  * present in the majority of PC/AT boxes.
@@ -291,20 +289,20 @@ void init_8259A(int auto_eoi)
 	outb(0xff, PIC_SLAVE_IMR);	/* mask all of 8259A-2 */
 
 	/*
-	 * outb_p - this has to work on a wide range of PC hardware.
+	 * outb_pic - this has to work on a wide range of PC hardware.
 	 */
-	outb_p(0x11, PIC_MASTER_CMD);	/* ICW1: select 8259A-1 init */
-	outb_p(0x20 + 0, PIC_MASTER_IMR);	/* ICW2: 8259A-1 IR0-7 mapped to 0x20-0x27 */
-	outb_p(1U << PIC_CASCADE_IR, PIC_MASTER_IMR);	/* 8259A-1 (the master) has a slave on IR2 */
+	outb_pic(0x11, PIC_MASTER_CMD);	/* ICW1: select 8259A-1 init */
+	outb_pic(0x20 + 0, PIC_MASTER_IMR);	/* ICW2: 8259A-1 IR0-7 mapped to 0x20-0x27 */
+	outb_pic(1U << PIC_CASCADE_IR, PIC_MASTER_IMR);	/* 8259A-1 (the master) has a slave on IR2 */
 	if (auto_eoi)	/* master does Auto EOI */
-		outb_p(MASTER_ICW4_DEFAULT | PIC_ICW4_AEOI, PIC_MASTER_IMR);
+		outb_pic(MASTER_ICW4_DEFAULT | PIC_ICW4_AEOI, PIC_MASTER_IMR);
 	else		/* master expects normal EOI */
-		outb_p(MASTER_ICW4_DEFAULT, PIC_MASTER_IMR);
+		outb_pic(MASTER_ICW4_DEFAULT, PIC_MASTER_IMR);
 
-	outb_p(0x11, PIC_SLAVE_CMD);	/* ICW1: select 8259A-2 init */
-	outb_p(0x20 + 8, PIC_SLAVE_IMR);	/* ICW2: 8259A-2 IR0-7 mapped to 0x28-0x2f */
-	outb_p(PIC_CASCADE_IR, PIC_SLAVE_IMR);	/* 8259A-2 is a slave on master's IR2 */
-	outb_p(SLAVE_ICW4_DEFAULT, PIC_SLAVE_IMR); /* (slave's support for AEOI in flat mode is to be investigated) */
+	outb_pic(0x11, PIC_SLAVE_CMD);	/* ICW1: select 8259A-2 init */
+	outb_pic(0x20 + 8, PIC_SLAVE_IMR);	/* ICW2: 8259A-2 IR0-7 mapped to 0x28-0x2f */
+	outb_pic(PIC_CASCADE_IR, PIC_SLAVE_IMR);	/* 8259A-2 is a slave on master's IR2 */
+	outb_pic(SLAVE_ICW4_DEFAULT, PIC_SLAVE_IMR); /* (slave's support for AEOI in flat mode is to be investigated) */
 	if (auto_eoi)
 		/*
 		 * In AEOI mode we just have to mask the interrupt
@@ -341,7 +339,7 @@ static irqreturn_t math_error_irq(int cpl, void *dev_id)
 	outb(0,0xF0);
 	if (ignore_fpu_irq || !boot_cpu_data.hard_math)
 		return IRQ_NONE;
-	math_error((void __user *)get_irq_regs()->eip);
+	math_error((void __user *)get_irq_regs()->ip);
 	return IRQ_HANDLED;
 }
 

@@ -19,7 +19,6 @@
 #include <asm/hpet.h>
 #include <asm/unistd.h>
 #include <asm/io.h>
-#include <asm/vgtod.h>
 #include "vextern.h"
 
 #define gtod vdso_vsyscall_gtod_data

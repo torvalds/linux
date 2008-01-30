@@ -175,8 +175,8 @@ static void lguest_leave_lazy_mode(void)
  * check there when it wants to deliver an interrupt.
  */
 
-/* save_flags() is expected to return the processor state (ie. "eflags").  The
- * eflags word contains all kind of stuff, but in practice Linux only cares
+/* save_flags() is expected to return the processor state (ie. "flags").  The
+ * flags word contains all kind of stuff, but in practice Linux only cares
  * about the interrupt flag.  Our "save_flags()" just returns that. */
 static unsigned long save_fl(void)
 {
@@ -217,19 +217,20 @@ static void irq_enable(void)
  * address of the handler, and... well, who cares?  The Guest just asks the
  * Host to make the change anyway, because the Host controls the real IDT.
  */
-static void lguest_write_idt_entry(struct desc_struct *dt,
-				   int entrynum, u32 low, u32 high)
+static void lguest_write_idt_entry(gate_desc *dt,
+				   int entrynum, const gate_desc *g)
 {
+	u32 *desc = (u32 *)g;
 	/* Keep the local copy up to date. */
-	write_dt_entry(dt, entrynum, low, high);
+	native_write_idt_entry(dt, entrynum, g);
 	/* Tell Host about this new entry. */
-	hcall(LHCALL_LOAD_IDT_ENTRY, entrynum, low, high);
+	hcall(LHCALL_LOAD_IDT_ENTRY, entrynum, desc[0], desc[1]);
 }
 
 /* Changing to a different IDT is very rare: we keep the IDT up-to-date every
  * time it is written, so we can simply loop through all entries and tell the
  * Host about them. */
-static void lguest_load_idt(const struct Xgt_desc_struct *desc)
+static void lguest_load_idt(const struct desc_ptr *desc)
 {
 	unsigned int i;
 	struct desc_struct *idt = (void *)desc->address;
@@ -252,7 +253,7 @@ static void lguest_load_idt(const struct Xgt_desc_struct *desc)
  * hypercall and use that repeatedly to load a new IDT.  I don't think it
  * really matters, but wouldn't it be nice if they were the same?
  */
-static void lguest_load_gdt(const struct Xgt_desc_struct *desc)
+static void lguest_load_gdt(const struct desc_ptr *desc)
 {
 	BUG_ON((desc->size+1)/8 != GDT_ENTRIES);
 	hcall(LHCALL_LOAD_GDT, __pa(desc->address), GDT_ENTRIES, 0);
@@ -261,10 +262,10 @@ static void lguest_load_gdt(const struct Xgt_desc_struct *desc)
 /* For a single GDT entry which changes, we do the lazy thing: alter our GDT,
  * then tell the Host to reload the entire thing.  This operation is so rare
  * that this naive implementation is reasonable. */
-static void lguest_write_gdt_entry(struct desc_struct *dt,
-				   int entrynum, u32 low, u32 high)
+static void lguest_write_gdt_entry(struct desc_struct *dt, int entrynum,
+				   const void *desc, int type)
 {
-	write_dt_entry(dt, entrynum, low, high);
+	native_write_gdt_entry(dt, entrynum, desc, type);
 	hcall(LHCALL_LOAD_GDT, __pa(dt), GDT_ENTRIES, 0);
 }
 
@@ -323,30 +324,30 @@ static void lguest_load_tr_desc(void)
  * anyone (including userspace) can just use the raw "cpuid" instruction and
  * the Host won't even notice since it isn't privileged.  So we try not to get
  * too worked up about it. */
-static void lguest_cpuid(unsigned int *eax, unsigned int *ebx,
-			 unsigned int *ecx, unsigned int *edx)
+static void lguest_cpuid(unsigned int *ax, unsigned int *bx,
+			 unsigned int *cx, unsigned int *dx)
 {
-	int function = *eax;
+	int function = *ax;
 
-	native_cpuid(eax, ebx, ecx, edx);
+	native_cpuid(ax, bx, cx, dx);
 	switch (function) {
 	case 1:	/* Basic feature request. */
 		/* We only allow kernel to see SSE3, CMPXCHG16B and SSSE3 */
-		*ecx &= 0x00002201;
+		*cx &= 0x00002201;
 		/* SSE, SSE2, FXSR, MMX, CMOV, CMPXCHG8B, FPU. */
-		*edx &= 0x07808101;
+		*dx &= 0x07808101;
 		/* The Host can do a nice optimization if it knows that the
 		 * kernel mappings (addresses above 0xC0000000 or whatever
 		 * PAGE_OFFSET is set to) haven't changed.  But Linux calls
 		 * flush_tlb_user() for both user and kernel mappings unless
 		 * the Page Global Enable (PGE) feature bit is set. */
-		*edx |= 0x00002000;
+		*dx |= 0x00002000;
 		break;
 	case 0x80000000:
 		/* Futureproof this a little: if they ask how much extended
 		 * processor information there is, limit it to known fields. */
-		if (*eax > 0x80000008)
-			*eax = 0x80000008;
+		if (*ax > 0x80000008)
+			*ax = 0x80000008;
 		break;
 	}
 }
@@ -755,10 +756,10 @@ static void lguest_time_init(void)
  * segment), the privilege level (we're privilege level 1, the Host is 0 and
  * will not tolerate us trying to use that), the stack pointer, and the number
  * of pages in the stack. */
-static void lguest_load_esp0(struct tss_struct *tss,
+static void lguest_load_sp0(struct tss_struct *tss,
 				     struct thread_struct *thread)
 {
-	lazy_hcall(LHCALL_SET_STACK, __KERNEL_DS|0x1, thread->esp0,
+	lazy_hcall(LHCALL_SET_STACK, __KERNEL_DS|0x1, thread->sp0,
 		   THREAD_SIZE/PAGE_SIZE);
 }
 
@@ -788,11 +789,11 @@ static void lguest_wbinvd(void)
  * code qualifies for Advanced.  It will also never interrupt anything.  It
  * does, however, allow us to get through the Linux boot code. */
 #ifdef CONFIG_X86_LOCAL_APIC
-static void lguest_apic_write(unsigned long reg, unsigned long v)
+static void lguest_apic_write(unsigned long reg, u32 v)
 {
 }
 
-static unsigned long lguest_apic_read(unsigned long reg)
+static u32 lguest_apic_read(unsigned long reg)
 {
 	return 0;
 }
@@ -957,7 +958,7 @@ __init void lguest_init(void)
 	pv_cpu_ops.cpuid = lguest_cpuid;
 	pv_cpu_ops.load_idt = lguest_load_idt;
 	pv_cpu_ops.iret = lguest_iret;
-	pv_cpu_ops.load_esp0 = lguest_load_esp0;
+	pv_cpu_ops.load_sp0 = lguest_load_sp0;
 	pv_cpu_ops.load_tr_desc = lguest_load_tr_desc;
 	pv_cpu_ops.set_ldt = lguest_set_ldt;
 	pv_cpu_ops.load_tls = lguest_load_tls;

@@ -94,7 +94,7 @@ static void copy_in_guest_info(struct lguest *lg, struct lguest_pages *pages)
 	/* Set up the two "TSS" members which tell the CPU what stack to use
 	 * for traps which do directly into the Guest (ie. traps at privilege
 	 * level 1). */
-	pages->state.guest_tss.esp1 = lg->esp1;
+	pages->state.guest_tss.sp1 = lg->esp1;
 	pages->state.guest_tss.ss1 = lg->ss1;
 
 	/* Copy direct-to-Guest trap entries. */
@@ -416,7 +416,7 @@ void __init lguest_arch_host_init(void)
 		/* We know where we want the stack to be when the Guest enters
 		 * the switcher: in pages->regs.  The stack grows upwards, so
 		 * we start it at the end of that structure. */
-		state->guest_tss.esp0 = (long)(&pages->regs + 1);
+		state->guest_tss.sp0 = (long)(&pages->regs + 1);
 		/* And this is the GDT entry to use for the stack: we keep a
 		 * couple of special LGUEST entries. */
 		state->guest_tss.ss0 = LGUEST_DS;

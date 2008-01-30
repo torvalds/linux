@@ -357,6 +357,26 @@ int acpi_processor_resume(struct acpi_device * device)
 	return 0;
 }
 
+#if defined (CONFIG_GENERIC_TIME) && defined (CONFIG_X86_TSC)
+static int tsc_halts_in_c(int state)
+{
+	switch (boot_cpu_data.x86_vendor) {
+	case X86_VENDOR_AMD:
+		/*
+		 * AMD Fam10h TSC will tick in all
+		 * C/P/S0/S1 states when this bit is set.
+		 */
+		if (boot_cpu_has(X86_FEATURE_CONSTANT_TSC))
+			return 0;
+		/*FALL THROUGH*/
+	case X86_VENDOR_INTEL:
+		/* Several cases known where TSC halts in C2 too */
+	default:
+		return state > ACPI_STATE_C1;
+	}
+}
+#endif
+
 #ifndef CONFIG_CPU_IDLE
 static void acpi_processor_idle(void)
 {
@@ -516,7 +536,8 @@ static void acpi_processor_idle(void)
 
 #if defined (CONFIG_GENERIC_TIME) && defined (CONFIG_X86_TSC)
 		/* TSC halts in C2, so notify users */
-		mark_tsc_unstable("possible TSC halt in C2");
+		if (tsc_halts_in_c(ACPI_STATE_C2))
+			mark_tsc_unstable("possible TSC halt in C2");
 #endif
 		/* Compute time (ticks) that we were actually asleep */
 		sleep_ticks = ticks_elapsed(t1, t2);
@@ -534,6 +555,7 @@ static void acpi_processor_idle(void)
 		break;
 
 	case ACPI_STATE_C3:
+		acpi_unlazy_tlb(smp_processor_id());
 		/*
 		 * Must be done before busmaster disable as we might
 		 * need to access HPET !
@@ -579,7 +601,8 @@ static void acpi_processor_idle(void)
 
 #if defined (CONFIG_GENERIC_TIME) && defined (CONFIG_X86_TSC)
 		/* TSC halts in C3, so notify users */
-		mark_tsc_unstable("TSC halts in C3");
+		if (tsc_halts_in_c(ACPI_STATE_C3))
+			mark_tsc_unstable("TSC halts in C3");
 #endif
 		/* Compute time (ticks) that we were actually asleep */
 		sleep_ticks = ticks_elapsed(t1, t2);
@@ -1423,6 +1446,7 @@ static int acpi_idle_enter_simple(struct cpuidle_device *dev,
 		return 0;
 	}
 
+	acpi_unlazy_tlb(smp_processor_id());
 	/*
 	 * Must be done before busmaster disable as we might need to
 	 * access HPET !
@@ -1443,7 +1467,8 @@ static int acpi_idle_enter_simple(struct cpuidle_device *dev,
 
 #if defined (CONFIG_GENERIC_TIME) && defined (CONFIG_X86_TSC)
 	/* TSC could halt in idle, so notify users */
-	mark_tsc_unstable("TSC halts in idle");;
+	if (tsc_halts_in_c(cx->type))
+		mark_tsc_unstable("TSC halts in idle");;
 #endif
 	sleep_ticks = ticks_elapsed(t1, t2);
 
@@ -1554,7 +1579,8 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 
 #if defined (CONFIG_GENERIC_TIME) && defined (CONFIG_X86_TSC)
 	/* TSC could halt in idle, so notify users */
-	mark_tsc_unstable("TSC halts in idle");
+	if (tsc_halts_in_c(ACPI_STATE_C3))
+		mark_tsc_unstable("TSC halts in idle");
 #endif
 	sleep_ticks = ticks_elapsed(t1, t2);
 	/* Tell the scheduler how much we idled: */

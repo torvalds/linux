@@ -25,6 +25,8 @@ static inline u32 acpi_pm_read_early(void)
 	return acpi_pm_read_verified() & ACPI_PM_MASK;
 }
 
+extern void pmtimer_wait(unsigned);
+
 #else
 
 static inline u32 acpi_pm_read_early(void)

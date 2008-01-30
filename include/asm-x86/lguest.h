@@ -44,14 +44,14 @@ struct lguest_ro_state
 {
 	/* Host information we need to restore when we switch back. */
 	u32 host_cr3;
-	struct Xgt_desc_struct host_idt_desc;
-	struct Xgt_desc_struct host_gdt_desc;
+	struct desc_ptr host_idt_desc;
+	struct desc_ptr host_gdt_desc;
 	u32 host_sp;
 
 	/* Fields which are used when guest is running. */
-	struct Xgt_desc_struct guest_idt_desc;
-	struct Xgt_desc_struct guest_gdt_desc;
-	struct i386_hw_tss guest_tss;
+	struct desc_ptr guest_idt_desc;
+	struct desc_ptr guest_gdt_desc;
+	struct x86_hw_tss guest_tss;
 	struct desc_struct guest_idt[IDT_ENTRIES];
 	struct desc_struct guest_gdt[GDT_ENTRIES];
 };
@@ -78,8 +78,8 @@ static inline void lguest_set_ts(void)
 }
 
 /* Full 4G segment descriptors, suitable for CS and DS. */
-#define FULL_EXEC_SEGMENT ((struct desc_struct){0x0000ffff, 0x00cf9b00})
-#define FULL_SEGMENT ((struct desc_struct){0x0000ffff, 0x00cf9300})
+#define FULL_EXEC_SEGMENT ((struct desc_struct){ { {0x0000ffff, 0x00cf9b00} } })
+#define FULL_SEGMENT ((struct desc_struct){ { {0x0000ffff, 0x00cf9300} } })
 
 #endif /* __ASSEMBLY__ */
 

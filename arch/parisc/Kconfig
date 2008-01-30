@@ -19,6 +19,11 @@ config MMU
 config STACK_GROWSUP
 	def_bool y
 
+config GENERIC_LOCKBREAK
+	bool
+	default y
+	depends on SMP && PREEMPT
+
 config RWSEM_GENERIC_SPINLOCK
 	def_bool y
 

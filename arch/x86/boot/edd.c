@@ -129,6 +129,7 @@ void query_edd(void)
 	char eddarg[8];
 	int do_mbr = 1;
 	int do_edd = 1;
+	int be_quiet;
 	int devno;
 	struct edd_info ei, *edp;
 	u32 *mbrptr;
@@ -140,11 +141,20 @@ void query_edd(void)
 			do_edd = 0;
 	}
 
+	be_quiet = cmdline_find_option_bool("quiet");
+
 	edp    = boot_params.eddbuf;
 	mbrptr = boot_params.edd_mbr_sig_buffer;
 
 	if (!do_edd)
 		return;
+
+	/* Bugs in OnBoard or AddOnCards Bios may hang the EDD probe,
+	 * so give a hint if this happens.
+	 */
+
+	if (!be_quiet)
+		printf("Probing EDD (edd=off to disable)... ");
 
 	for (devno = 0x80; devno < 0x80+EDD_MBR_SIG_MAX; devno++) {
 		/*
@@ -162,6 +172,9 @@ void query_edd(void)
 		if (do_mbr && !read_mbr_sig(devno, &ei, mbrptr++))
 			boot_params.edd_mbr_sig_buf_entries = devno-0x80+1;
 	}
+
+	if (!be_quiet)
+		printf("ok\n");
 }
 
 #endif

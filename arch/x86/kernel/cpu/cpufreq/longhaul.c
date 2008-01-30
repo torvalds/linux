@@ -694,7 +694,7 @@ static acpi_status longhaul_walk_callback(acpi_handle obj_handle,
 	if ( acpi_bus_get_device(obj_handle, &d) ) {
 		return 0;
 	}
-	*return_value = (void *)acpi_driver_data(d);
+	*return_value = acpi_driver_data(d);
 	return 1;
 }
 

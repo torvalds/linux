@@ -51,13 +51,13 @@ static int unknown_nmi_panic_callback(struct pt_regs *regs, int cpu);
 
 static int endflag __initdata = 0;
 
+#ifdef CONFIG_SMP
 /* The performance counters used by NMI_LOCAL_APIC don't trigger when
  * the CPU is idle. To make sure the NMI watchdog really ticks on all
  * CPUs during the test make them busy.
  */
 static __init void nmi_cpu_busy(void *data)
 {
-#ifdef CONFIG_SMP
 	local_irq_enable_in_hardirq();
 	/* Intentionally don't use cpu_relax here. This is
 	   to make sure that the performance counter really ticks,
@@ -67,8 +67,8 @@ static __init void nmi_cpu_busy(void *data)
 	   care if they get somewhat less cycles. */
 	while (endflag == 0)
 		mb();
-#endif
 }
+#endif
 
 static int __init check_nmi_watchdog(void)
 {
@@ -87,11 +87,13 @@ static int __init check_nmi_watchdog(void)
 
 	printk(KERN_INFO "Testing NMI watchdog ... ");
 
+#ifdef CONFIG_SMP
 	if (nmi_watchdog == NMI_LOCAL_APIC)
 		smp_call_function(nmi_cpu_busy, (void *)&endflag, 0, 0);
+#endif
 
 	for_each_possible_cpu(cpu)
-		prev_nmi_count[cpu] = per_cpu(irq_stat, cpu).__nmi_count;
+		prev_nmi_count[cpu] = nmi_count(cpu);
 	local_irq_enable();
 	mdelay((20*1000)/nmi_hz); // wait 20 ticks
 
@@ -237,10 +239,10 @@ void acpi_nmi_disable(void)
 		on_each_cpu(__acpi_nmi_disable, NULL, 0, 1);
 }
 
-void setup_apic_nmi_watchdog (void *unused)
+void setup_apic_nmi_watchdog(void *unused)
 {
 	if (__get_cpu_var(wd_enabled))
- 		return;
+		return;
 
 	/* cheap hack to support suspend/resume */
 	/* if cpu0 is not active neither should the other cpus */
@@ -329,7 +331,7 @@ __kprobes int nmi_watchdog_tick(struct pt_regs * regs, unsigned reason)
 	unsigned int sum;
 	int touched = 0;
 	int cpu = smp_processor_id();
-	int rc=0;
+	int rc = 0;
 
 	/* check for other users first */
 	if (notify_die(DIE_NMI, "nmi", regs, reason, 2, SIGINT)

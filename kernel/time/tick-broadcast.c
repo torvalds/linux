@@ -126,9 +126,9 @@ int tick_device_uses_broadcast(struct clock_event_device *dev, int cpu)
 /*
  * Broadcast the event to the cpus, which are set in the mask
  */
-int tick_do_broadcast(cpumask_t mask)
+static void tick_do_broadcast(cpumask_t mask)
 {
-	int ret = 0, cpu = smp_processor_id();
+	int cpu = smp_processor_id();
 	struct tick_device *td;
 
 	/*
@@ -138,7 +138,6 @@ int tick_do_broadcast(cpumask_t mask)
 		cpu_clear(cpu, mask);
 		td = &per_cpu(tick_cpu_device, cpu);
 		td->evtdev->event_handler(td->evtdev);
-		ret = 1;
 	}
 
 	if (!cpus_empty(mask)) {
@@ -151,9 +150,7 @@ int tick_do_broadcast(cpumask_t mask)
 		cpu = first_cpu(mask);
 		td = &per_cpu(tick_cpu_device, cpu);
 		td->evtdev->broadcast(mask);
-		ret = 1;
 	}
-	return ret;
 }
 
 /*

@@ -4,6 +4,7 @@
 #include <asm/msr.h>
 #include <asm/io.h>
 #include <asm/processor-cyrix.h>
+#include <asm/processor-flags.h>
 #include "mtrr.h"
 
 int arr3_protected;
@@ -142,7 +143,7 @@ static void prepare_set(void)
 
 	/*  Disable and flush caches. Note that wbinvd flushes the TLBs as
 	    a side-effect  */
-	cr0 = read_cr0() | 0x40000000;
+	cr0 = read_cr0() | X86_CR0_CD;
 	wbinvd();
 	write_cr0(cr0);
 	wbinvd();

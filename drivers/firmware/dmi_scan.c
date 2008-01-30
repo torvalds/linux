@@ -8,6 +8,8 @@
 #include <linux/slab.h>
 #include <asm/dmi.h>
 
+static char dmi_empty_string[] = "        ";
+
 static char * __init dmi_string(const struct dmi_header *dm, u8 s)
 {
 	const u8 *bp = ((u8 *) dm) + dm->length;
@@ -21,11 +23,16 @@ static char * __init dmi_string(const struct dmi_header *dm, u8 s)
 		}
 
 		if (*bp != 0) {
-			str = dmi_alloc(strlen(bp) + 1);
+			size_t len = strlen(bp)+1;
+			size_t cmp_len = len > 8 ? 8 : len;
+
+			if (!memcmp(bp, dmi_empty_string, cmp_len))
+				return dmi_empty_string;
+			str = dmi_alloc(len);
 			if (str != NULL)
 				strcpy(str, bp);
 			else
-				printk(KERN_ERR "dmi_string: out of memory.\n");
+				printk(KERN_ERR "dmi_string: cannot allocate %Zu bytes.\n", len);
 		}
 	}
 
@@ -175,12 +182,23 @@ static void __init dmi_save_devices(const struct dmi_header *dm)
 	}
 }
 
+static struct dmi_device empty_oem_string_dev = {
+	.name = dmi_empty_string,
+};
+
 static void __init dmi_save_oem_strings_devices(const struct dmi_header *dm)
 {
 	int i, count = *(u8 *)(dm + 1);
 	struct dmi_device *dev;
 
 	for (i = 1; i <= count; i++) {
+		char *devname = dmi_string(dm, i);
+
+		if (!strcmp(devname, dmi_empty_string)) {
+			list_add(&empty_oem_string_dev.list, &dmi_devices);
+			continue;
+		}
+
 		dev = dmi_alloc(sizeof(*dev));
 		if (!dev) {
 			printk(KERN_ERR
@@ -189,7 +207,7 @@ static void __init dmi_save_oem_strings_devices(const struct dmi_header *dm)
 		}
 
 		dev->type = DMI_DEV_TYPE_OEM_STRING;
-		dev->name = dmi_string(dm, i);
+		dev->name = devname;
 		dev->device_data = NULL;
 
 		list_add(&dev->list, &dmi_devices);
@@ -331,9 +349,11 @@ void __init dmi_scan_machine(void)
 			rc = dmi_present(q);
 			if (!rc) {
 				dmi_available = 1;
+				dmi_iounmap(p, 0x10000);
 				return;
 			}
 		}
+		dmi_iounmap(p, 0x10000);
 	}
  out:	printk(KERN_INFO "DMI not present or invalid.\n");
 }

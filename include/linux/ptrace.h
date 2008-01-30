@@ -129,6 +129,81 @@ int generic_ptrace_pokedata(struct task_struct *tsk, long addr, long data);
 #define force_successful_syscall_return() do { } while (0)
 #endif
 
+/*
+ * <asm/ptrace.h> should define the following things inside #ifdef __KERNEL__.
+ *
+ * These do-nothing inlines are used when the arch does not
+ * implement single-step.  The kerneldoc comments are here
+ * to document the interface for all arch definitions.
+ */
+
+#ifndef arch_has_single_step
+/**
+ * arch_has_single_step - does this CPU support user-mode single-step?
+ *
+ * If this is defined, then there must be function declarations or
+ * inlines for user_enable_single_step() and user_disable_single_step().
+ * arch_has_single_step() should evaluate to nonzero iff the machine
+ * supports instruction single-step for user mode.
+ * It can be a constant or it can test a CPU feature bit.
+ */
+#define arch_has_single_step()		(0)
+
+/**
+ * user_enable_single_step - single-step in user-mode task
+ * @task: either current or a task stopped in %TASK_TRACED
+ *
+ * This can only be called when arch_has_single_step() has returned nonzero.
+ * Set @task so that when it returns to user mode, it will trap after the
+ * next single instruction executes.  If arch_has_block_step() is defined,
+ * this must clear the effects of user_enable_block_step() too.
+ */
+static inline void user_enable_single_step(struct task_struct *task)
+{
+	BUG();			/* This can never be called.  */
+}
+
+/**
+ * user_disable_single_step - cancel user-mode single-step
+ * @task: either current or a task stopped in %TASK_TRACED
+ *
+ * Clear @task of the effects of user_enable_single_step() and
+ * user_enable_block_step().  This can be called whether or not either
+ * of those was ever called on @task, and even if arch_has_single_step()
+ * returned zero.
+ */
+static inline void user_disable_single_step(struct task_struct *task)
+{
+}
+#endif	/* arch_has_single_step */
+
+#ifndef arch_has_block_step
+/**
+ * arch_has_block_step - does this CPU support user-mode block-step?
+ *
+ * If this is defined, then there must be a function declaration or inline
+ * for user_enable_block_step(), and arch_has_single_step() must be defined
+ * too.  arch_has_block_step() should evaluate to nonzero iff the machine
+ * supports step-until-branch for user mode.  It can be a constant or it
+ * can test a CPU feature bit.
+ */
+#define arch_has_block_step()		(0)
+
+/**
+ * user_enable_block_step - step until branch in user-mode task
+ * @task: either current or a task stopped in %TASK_TRACED
+ *
+ * This can only be called when arch_has_block_step() has returned nonzero,
+ * and will never be called when single-instruction stepping is being used.
+ * Set @task so that when it returns to user mode, it will trap after the
+ * next branch or trap taken.
+ */
+static inline void user_enable_block_step(struct task_struct *task)
+{
+	BUG();			/* This can never be called.  */
+}
+#endif	/* arch_has_block_step */
+
 #endif
 
 #endif

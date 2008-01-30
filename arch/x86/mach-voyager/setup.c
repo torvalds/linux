@@ -37,14 +37,14 @@ void __init pre_setup_arch_hook(void)
 {
 	/* Voyagers run their CPUs from independent clocks, so disable
 	 * the TSC code because we can't sync them */
-	tsc_disable = 1;
+	setup_clear_cpu_cap(X86_FEATURE_TSC);
 }
 
 void __init trap_init_hook(void)
 {
 }
 
-static struct irqaction irq0  = {
+static struct irqaction irq0 = {
 	.handler = timer_interrupt,
 	.flags = IRQF_DISABLED | IRQF_NOBALANCING | IRQF_IRQPOLL,
 	.mask = CPU_MASK_NONE,
@@ -59,44 +59,47 @@ void __init time_init_hook(void)
 
 /* Hook for machine specific memory setup. */
 
-char * __init machine_specific_memory_setup(void)
+char *__init machine_specific_memory_setup(void)
 {
 	char *who;
 
 	who = "NOT VOYAGER";
 
-	if(voyager_level == 5) {
+	if (voyager_level == 5) {
 		__u32 addr, length;
 		int i;
 
 		who = "Voyager-SUS";
 
 		e820.nr_map = 0;
-		for(i=0; voyager_memory_detect(i, &addr, &length); i++) {
+		for (i = 0; voyager_memory_detect(i, &addr, &length); i++) {
 			add_memory_region(addr, length, E820_RAM);
 		}
 		return who;
-	} else if(voyager_level == 4) {
+	} else if (voyager_level == 4) {
 		__u32 tom;
-		__u16 catbase = inb(VOYAGER_SSPB_RELOCATION_PORT)<<8;
+		__u16 catbase = inb(VOYAGER_SSPB_RELOCATION_PORT) << 8;
 		/* select the DINO config space */
 		outb(VOYAGER_DINO, VOYAGER_CAT_CONFIG_PORT);
 		/* Read DINO top of memory register */
 		tom = ((inb(catbase + 0x4) & 0xf0) << 16)
-			+ ((inb(catbase + 0x5) & 0x7f) << 24);
+		    + ((inb(catbase + 0x5) & 0x7f) << 24);
 
-		if(inb(catbase) != VOYAGER_DINO) {
-			printk(KERN_ERR "Voyager: Failed to get DINO for L4, setting tom to EXT_MEM_K\n");
-			tom = (boot_params.screen_info.ext_mem_k)<<10;
+		if (inb(catbase) != VOYAGER_DINO) {
+			printk(KERN_ERR
+			       "Voyager: Failed to get DINO for L4, setting tom to EXT_MEM_K\n");
+			tom = (boot_params.screen_info.ext_mem_k) << 10;
 		}
 		who = "Voyager-TOM";
 		add_memory_region(0, 0x9f000, E820_RAM);
 		/* map from 1M to top of memory */
-		add_memory_region(1*1024*1024, tom - 1*1024*1024, E820_RAM);
+		add_memory_region(1 * 1024 * 1024, tom - 1 * 1024 * 1024,
+				  E820_RAM);
 		/* FIXME: Should check the ASICs to see if I need to
 		 * take out the 8M window.  Just do it at the moment
 		 * */
-		add_memory_region(8*1024*1024, 8*1024*1024, E820_RESERVED);
+		add_memory_region(8 * 1024 * 1024, 8 * 1024 * 1024,
+				  E820_RESERVED);
 		return who;
 	}
 
@@ -114,8 +117,7 @@ char * __init machine_specific_memory_setup(void)
 		unsigned long mem_size;
 
 		/* compare results from other methods and take the greater */
-		if (boot_params.alt_mem_k
-		    < boot_params.screen_info.ext_mem_k) {
+		if (boot_params.alt_mem_k < boot_params.screen_info.ext_mem_k) {
 			mem_size = boot_params.screen_info.ext_mem_k;
 			who = "BIOS-88";
 		} else {
@@ -126,6 +128,6 @@ char * __init machine_specific_memory_setup(void)
 		e820.nr_map = 0;
 		add_memory_region(0, LOWMEMSIZE(), E820_RAM);
 		add_memory_region(HIGH_MEMORY, mem_size << 10, E820_RAM);
-  	}
+	}
 	return who;
 }

@@ -65,6 +65,8 @@ struct exception_table_entry
 	unsigned long insn, fixup;
 };
 
+extern int fixup_exception(struct pt_regs *regs);
+
 #define ARCH_HAS_SEARCH_EXTABLE
 
 /*

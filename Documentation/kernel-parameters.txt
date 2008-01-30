@@ -416,8 +416,21 @@ and is between 256 and 4096 characters. It is defined in the file
 			[SPARC64] tick
 			[X86-64] hpet,tsc
 
-	code_bytes	[IA32] How many bytes of object code to print in an
-			oops report.
+	clearcpuid=BITNUM [X86]
+			Disable CPUID feature X for the kernel. See
+			include/asm-x86/cpufeature.h for the valid bit numbers.
+			Note the Linux specific bits are not necessarily
+			stable over kernel options, but the vendor specific
+			ones should be.
+			Also note that user programs calling CPUID directly
+			or using the feature without checking anything
+			will still see it. This just prevents it from
+			being used by the kernel or shown in /proc/cpuinfo.
+			Also note the kernel might malfunction if you disable
+			some critical bits.
+
+	code_bytes	[IA32/X86_64] How many bytes of object code to print
+			in an oops report.
 			Range: 0 - 8192
 			Default: 64
 
@@ -570,6 +583,12 @@ and is between 256 and 4096 characters. It is defined in the file
 			See drivers/char/README.epca and
 			Documentation/digiepca.txt.
 
+	disable_mtrr_trim [X86, Intel and AMD only]
+			By default the kernel will trim any uncacheable
+			memory out of your available memory pool based on
+			MTRR settings.  This parameter disables that behavior,
+			possibly causing your machine to run very slowly.
+
 	dmasound=	[HW,OSS] Sound subsystem buffers
 
 	dscc4.setup=	[NET]
@@ -659,6 +678,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			See also Documentation/input/joystick-parport.txt
 
 	gamma=		[HW,DRM]
+
+	gart_fix_e820=  [X86_64] disable the fix e820 for K8 GART
+			Format: off | on
+			default: on
 
 	gdth=		[HW,SCSI]
 			See header of drivers/scsi/gdth.c.
@@ -793,6 +816,16 @@ and is between 256 and 4096 characters. It is defined in the file
 			than 32 bit addressing. The default is to look
 			for translation below 32 bit and if not available
 			then look in the higher range.
+
+	io_delay=	[X86-32,X86-64] I/O delay method
+		0x80
+			Standard port 0x80 based delay
+		0xed
+			Alternate port 0xed based delay (needed on some systems)
+		udelay
+			Simple two microseconds delay
+		none
+			No delay
 
 	io7=		[HW] IO7 for Marvel based alpha systems
 			See comment before marvel_specify_io7 in
@@ -1059,6 +1092,11 @@ and is between 256 and 4096 characters. It is defined in the file
 			Multi-Function General Purpose Timers on AMD Geode
 			platforms.
 
+	mfgptfix	[X86-32] Fix MFGPT timers on AMD Geode platforms when
+			the BIOS has incorrectly applied a workaround. TinyBIOS
+			version 0.98 is known to be affected, 0.99 fixes the
+			problem by letting the user disable the workaround.
+
 	mga=		[HW,DRM]
 
 	mousedev.tap_time=
@@ -1159,6 +1197,8 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	nodisconnect	[HW,SCSI,M68K] Disables SCSI disconnects.
 
+	noefi		[X86-32,X86-64] Disable EFI runtime services support.
+
 	noexec		[IA-64]
 
 	noexec		[X86-32,X86-64]
@@ -1168,6 +1208,8 @@ and is between 256 and 4096 characters. It is defined in the file
 	nofxsr		[BUGS=X86-32] Disables x86 floating point extended
 			register save and restore. The kernel will only save
 			legacy floating-point registers on task switch.
+
+	noclflush	[BUGS=X86] Don't use the CLFLUSH instruction
 
 	nohlt		[BUGS=ARM]
 
@@ -1977,6 +2019,11 @@ and is between 256 and 4096 characters. It is defined in the file
 			vdso=2: enable compat VDSO (default with COMPAT_VDSO)
 			vdso=1: enable VDSO (default)
 			vdso=0: disable VDSO mapping
+
+	vdso32=		[X86-32,X86-64]
+			vdso32=2: enable compat VDSO (default with COMPAT_VDSO)
+			vdso32=1: enable 32-bit VDSO (default)
+			vdso32=0: disable 32-bit VDSO mapping
 
 	vector=		[IA-64,SMP]
 			vector=percpu: enable percpu vector domain

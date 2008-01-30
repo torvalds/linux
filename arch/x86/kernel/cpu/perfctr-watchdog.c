@@ -167,7 +167,6 @@ void release_evntsel_nmi(unsigned int msr)
 	clear_bit(counter, evntsel_nmi_owner);
 }
 
-EXPORT_SYMBOL(avail_to_resrv_perfctr_nmi);
 EXPORT_SYMBOL(avail_to_resrv_perfctr_nmi_bit);
 EXPORT_SYMBOL(reserve_perfctr_nmi);
 EXPORT_SYMBOL(release_perfctr_nmi);

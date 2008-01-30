@@ -4,7 +4,7 @@
 /* 
  * Checksums for x86-64 
  * Copyright 2002 by Andi Kleen, SuSE Labs 
- * with some code from asm-i386/checksum.h
+ * with some code from asm-x86/checksum.h
  */ 
 
 #include <linux/compiler.h>

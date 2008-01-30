@@ -38,8 +38,8 @@
 #include <linux/cpu.h>
 #include <linux/mutex.h>
 
+#include <asm/e820.h>
 #include <asm/mtrr.h>
-
 #include <asm/uaccess.h>
 #include <asm/processor.h>
 #include <asm/msr.h>
@@ -47,7 +47,7 @@
 
 u32 num_var_ranges = 0;
 
-unsigned int *usage_table;
+unsigned int mtrr_usage_table[MAX_VAR_RANGES];
 static DEFINE_MUTEX(mtrr_mutex);
 
 u64 size_or_mask, size_and_mask;
@@ -121,13 +121,8 @@ static void __init init_table(void)
 	int i, max;
 
 	max = num_var_ranges;
-	if ((usage_table = kmalloc(max * sizeof *usage_table, GFP_KERNEL))
-	    == NULL) {
-		printk(KERN_ERR "mtrr: could not allocate\n");
-		return;
-	}
 	for (i = 0; i < max; i++)
-		usage_table[i] = 1;
+		mtrr_usage_table[i] = 1;
 }
 
 struct set_mtrr_data {
@@ -311,7 +306,7 @@ static void set_mtrr(unsigned int reg, unsigned long base,
  */
 
 int mtrr_add_page(unsigned long base, unsigned long size, 
-		  unsigned int type, char increment)
+		  unsigned int type, bool increment)
 {
 	int i, replace, error;
 	mtrr_type ltype;
@@ -383,7 +378,7 @@ int mtrr_add_page(unsigned long base, unsigned long size,
 			goto out;
 		}
 		if (increment)
-			++usage_table[i];
+			++mtrr_usage_table[i];
 		error = i;
 		goto out;
 	}
@@ -391,13 +386,15 @@ int mtrr_add_page(unsigned long base, unsigned long size,
 	i = mtrr_if->get_free_region(base, size, replace);
 	if (i >= 0) {
 		set_mtrr(i, base, size, type);
-		if (likely(replace < 0))
-			usage_table[i] = 1;
-		else {
-			usage_table[i] = usage_table[replace] + !!increment;
+		if (likely(replace < 0)) {
+			mtrr_usage_table[i] = 1;
+		} else {
+			mtrr_usage_table[i] = mtrr_usage_table[replace];
+			if (increment)
+				mtrr_usage_table[i]++;
 			if (unlikely(replace != i)) {
 				set_mtrr(replace, 0, 0, 0);
-				usage_table[replace] = 0;
+				mtrr_usage_table[replace] = 0;
 			}
 		}
 	} else
@@ -460,7 +457,7 @@ static int mtrr_check(unsigned long base, unsigned long size)
 
 int
 mtrr_add(unsigned long base, unsigned long size, unsigned int type,
-	 char increment)
+	 bool increment)
 {
 	if (mtrr_check(base, size))
 		return -EINVAL;
@@ -527,11 +524,11 @@ int mtrr_del_page(int reg, unsigned long base, unsigned long size)
 		printk(KERN_WARNING "mtrr: MTRR %d not used\n", reg);
 		goto out;
 	}
-	if (usage_table[reg] < 1) {
+	if (mtrr_usage_table[reg] < 1) {
 		printk(KERN_WARNING "mtrr: reg: %d has count=0\n", reg);
 		goto out;
 	}
-	if (--usage_table[reg] < 1)
+	if (--mtrr_usage_table[reg] < 1)
 		set_mtrr(reg, 0, 0, 0);
 	error = reg;
  out:
@@ -591,16 +588,11 @@ struct mtrr_value {
 	unsigned long	lsize;
 };
 
-static struct mtrr_value * mtrr_state;
+static struct mtrr_value mtrr_state[MAX_VAR_RANGES];
 
 static int mtrr_save(struct sys_device * sysdev, pm_message_t state)
 {
 	int i;
-	int size = num_var_ranges * sizeof(struct mtrr_value);
-
-	mtrr_state = kzalloc(size,GFP_ATOMIC);
-	if (!mtrr_state)
-		return -ENOMEM;
 
 	for (i = 0; i < num_var_ranges; i++) {
 		mtrr_if->get(i,
@@ -622,7 +614,6 @@ static int mtrr_restore(struct sys_device * sysdev)
 				 mtrr_state[i].lsize,
 				 mtrr_state[i].ltype);
 	}
-	kfree(mtrr_state);
 	return 0;
 }
 
@@ -633,6 +624,112 @@ static struct sysdev_driver mtrr_sysdev_driver = {
 	.resume		= mtrr_restore,
 };
 
+static int disable_mtrr_trim;
+
+static int __init disable_mtrr_trim_setup(char *str)
+{
+	disable_mtrr_trim = 1;
+	return 0;
+}
+early_param("disable_mtrr_trim", disable_mtrr_trim_setup);
+
+/*
+ * Newer AMD K8s and later CPUs have a special magic MSR way to force WB
+ * for memory >4GB. Check for that here.
+ * Note this won't check if the MTRRs < 4GB where the magic bit doesn't
+ * apply to are wrong, but so far we don't know of any such case in the wild.
+ */
+#define Tom2Enabled (1U << 21)
+#define Tom2ForceMemTypeWB (1U << 22)
+
+static __init int amd_special_default_mtrr(void)
+{
+	u32 l, h;
+
+	if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD)
+		return 0;
+	if (boot_cpu_data.x86 < 0xf || boot_cpu_data.x86 > 0x11)
+		return 0;
+	/* In case some hypervisor doesn't pass SYSCFG through */
+	if (rdmsr_safe(MSR_K8_SYSCFG, &l, &h) < 0)
+		return 0;
+	/*
+	 * Memory between 4GB and top of mem is forced WB by this magic bit.
+	 * Reserved before K8RevF, but should be zero there.
+	 */
+	if ((l & (Tom2Enabled | Tom2ForceMemTypeWB)) ==
+		 (Tom2Enabled | Tom2ForceMemTypeWB))
+		return 1;
+	return 0;
+}
+
+/**
+ * mtrr_trim_uncached_memory - trim RAM not covered by MTRRs
+ *
+ * Some buggy BIOSes don't setup the MTRRs properly for systems with certain
+ * memory configurations.  This routine checks that the highest MTRR matches
+ * the end of memory, to make sure the MTRRs having a write back type cover
+ * all of the memory the kernel is intending to use. If not, it'll trim any
+ * memory off the end by adjusting end_pfn, removing it from the kernel's
+ * allocation pools, warning the user with an obnoxious message.
+ */
+int __init mtrr_trim_uncached_memory(unsigned long end_pfn)
+{
+	unsigned long i, base, size, highest_addr = 0, def, dummy;
+	mtrr_type type;
+	u64 trim_start, trim_size;
+
+	/*
+	 * Make sure we only trim uncachable memory on machines that
+	 * support the Intel MTRR architecture:
+	 */
+	if (!is_cpu(INTEL) || disable_mtrr_trim)
+		return 0;
+	rdmsr(MTRRdefType_MSR, def, dummy);
+	def &= 0xff;
+	if (def != MTRR_TYPE_UNCACHABLE)
+		return 0;
+
+	if (amd_special_default_mtrr())
+		return 0;
+
+	/* Find highest cached pfn */
+	for (i = 0; i < num_var_ranges; i++) {
+		mtrr_if->get(i, &base, &size, &type);
+		if (type != MTRR_TYPE_WRBACK)
+			continue;
+		base <<= PAGE_SHIFT;
+		size <<= PAGE_SHIFT;
+		if (highest_addr < base + size)
+			highest_addr = base + size;
+	}
+
+	/* kvm/qemu doesn't have mtrr set right, don't trim them all */
+	if (!highest_addr) {
+		printk(KERN_WARNING "WARNING: strange, CPU MTRRs all blank?\n");
+		WARN_ON(1);
+		return 0;
+	}
+
+	if ((highest_addr >> PAGE_SHIFT) < end_pfn) {
+		printk(KERN_WARNING "WARNING: BIOS bug: CPU MTRRs don't cover"
+			" all of memory, losing %LdMB of RAM.\n",
+			(((u64)end_pfn << PAGE_SHIFT) - highest_addr) >> 20);
+
+		WARN_ON(1);
+
+		printk(KERN_INFO "update e820 for mtrr\n");
+		trim_start = highest_addr;
+		trim_size = end_pfn;
+		trim_size <<= PAGE_SHIFT;
+		trim_size -= trim_start;
+		add_memory_region(trim_start, trim_size, E820_RESERVED);
+		update_e820();
+		return 1;
+	}
+
+	return 0;
+}
 
 /**
  * mtrr_bp_init - initialize mtrrs on the boot CPU

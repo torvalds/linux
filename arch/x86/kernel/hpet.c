@@ -6,7 +6,6 @@
 #include <linux/init.h>
 #include <linux/sysdev.h>
 #include <linux/pm.h>
-#include <linux/delay.h>
 
 #include <asm/fixmap.h>
 #include <asm/hpet.h>
@@ -16,7 +15,8 @@
 #define HPET_MASK	CLOCKSOURCE_MASK(32)
 #define HPET_SHIFT	22
 
-/* FSEC = 10^-15 NSEC = 10^-9 */
+/* FSEC = 10^-15
+   NSEC = 10^-9 */
 #define FSEC_PER_NSEC	1000000
 
 /*
@@ -107,6 +107,7 @@ int is_hpet_enabled(void)
 {
 	return is_hpet_capable() && hpet_legacy_int_enabled;
 }
+EXPORT_SYMBOL_GPL(is_hpet_enabled);
 
 /*
  * When the hpet driver (/dev/hpet) is enabled, we need to reserve
@@ -132,16 +133,13 @@ static void hpet_reserve_platform_timers(unsigned long id)
 #ifdef CONFIG_HPET_EMULATE_RTC
 	hpet_reserve_timer(&hd, 1);
 #endif
-
 	hd.hd_irq[0] = HPET_LEGACY_8254;
 	hd.hd_irq[1] = HPET_LEGACY_RTC;
 
-	for (i = 2; i < nrtimers; timer++, i++)
-		hd.hd_irq[i] = (timer->hpet_config & Tn_INT_ROUTE_CNF_MASK) >>
-			Tn_INT_ROUTE_CNF_SHIFT;
-
+       for (i = 2; i < nrtimers; timer++, i++)
+	       hd.hd_irq[i] = (timer->hpet_config & Tn_INT_ROUTE_CNF_MASK) >>
+		       Tn_INT_ROUTE_CNF_SHIFT;
 	hpet_alloc(&hd);
-
 }
 #else
 static void hpet_reserve_platform_timers(unsigned long id) { }
@@ -478,6 +476,7 @@ void hpet_disable(void)
  */
 #include <linux/mc146818rtc.h>
 #include <linux/rtc.h>
+#include <asm/rtc.h>
 
 #define DEFAULT_RTC_INT_FREQ	64
 #define DEFAULT_RTC_SHIFT	6
@@ -491,6 +490,38 @@ static unsigned long hpet_t1_cmp;
 static unsigned long hpet_default_delta;
 static unsigned long hpet_pie_delta;
 static unsigned long hpet_pie_limit;
+
+static rtc_irq_handler irq_handler;
+
+/*
+ * Registers a IRQ handler.
+ */
+int hpet_register_irq_handler(rtc_irq_handler handler)
+{
+	if (!is_hpet_enabled())
+		return -ENODEV;
+	if (irq_handler)
+		return -EBUSY;
+
+	irq_handler = handler;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(hpet_register_irq_handler);
+
+/*
+ * Deregisters the IRQ handler registered with hpet_register_irq_handler()
+ * and does cleanup.
+ */
+void hpet_unregister_irq_handler(rtc_irq_handler handler)
+{
+	if (!is_hpet_enabled())
+		return;
+
+	irq_handler = NULL;
+	hpet_rtc_flags = 0;
+}
+EXPORT_SYMBOL_GPL(hpet_unregister_irq_handler);
 
 /*
  * Timer 1 for RTC emulation. We use one shot mode, as periodic mode
@@ -533,6 +564,7 @@ int hpet_rtc_timer_init(void)
 
 	return 1;
 }
+EXPORT_SYMBOL_GPL(hpet_rtc_timer_init);
 
 /*
  * The functions below are called from rtc driver.
@@ -547,6 +579,7 @@ int hpet_mask_rtc_irq_bit(unsigned long bit_mask)
 	hpet_rtc_flags &= ~bit_mask;
 	return 1;
 }
+EXPORT_SYMBOL_GPL(hpet_mask_rtc_irq_bit);
 
 int hpet_set_rtc_irq_bit(unsigned long bit_mask)
 {
@@ -562,6 +595,7 @@ int hpet_set_rtc_irq_bit(unsigned long bit_mask)
 
 	return 1;
 }
+EXPORT_SYMBOL_GPL(hpet_set_rtc_irq_bit);
 
 int hpet_set_alarm_time(unsigned char hrs, unsigned char min,
 			unsigned char sec)
@@ -575,6 +609,7 @@ int hpet_set_alarm_time(unsigned char hrs, unsigned char min,
 
 	return 1;
 }
+EXPORT_SYMBOL_GPL(hpet_set_alarm_time);
 
 int hpet_set_periodic_freq(unsigned long freq)
 {
@@ -593,11 +628,13 @@ int hpet_set_periodic_freq(unsigned long freq)
 	}
 	return 1;
 }
+EXPORT_SYMBOL_GPL(hpet_set_periodic_freq);
 
 int hpet_rtc_dropped_irq(void)
 {
 	return is_hpet_enabled();
 }
+EXPORT_SYMBOL_GPL(hpet_rtc_dropped_irq);
 
 static void hpet_rtc_timer_reinit(void)
 {
@@ -641,9 +678,10 @@ irqreturn_t hpet_rtc_interrupt(int irq, void *dev_id)
 	unsigned long rtc_int_flag = 0;
 
 	hpet_rtc_timer_reinit();
+	memset(&curr_time, 0, sizeof(struct rtc_time));
 
 	if (hpet_rtc_flags & (RTC_UIE | RTC_AIE))
-		rtc_get_rtc_time(&curr_time);
+		get_rtc_time(&curr_time);
 
 	if (hpet_rtc_flags & RTC_UIE &&
 	    curr_time.tm_sec != hpet_prev_update_sec) {
@@ -665,8 +703,10 @@ irqreturn_t hpet_rtc_interrupt(int irq, void *dev_id)
 
 	if (rtc_int_flag) {
 		rtc_int_flag |= (RTC_IRQF | (RTC_NUM_INTS << 8));
-		rtc_interrupt(rtc_int_flag, dev_id);
+		if (irq_handler)
+			irq_handler(rtc_int_flag, dev_id);
 	}
 	return IRQ_HANDLED;
 }
+EXPORT_SYMBOL_GPL(hpet_rtc_interrupt);
 #endif

@@ -100,20 +100,32 @@ static void set_bios_mode(void)
 #endif
 }
 
+static void init_heap(void)
+{
+	char *stack_end;
+
+	if (boot_params.hdr.loadflags & CAN_USE_HEAP) {
+		asm("leal %P1(%%esp),%0"
+		    : "=r" (stack_end) : "i" (-STACK_SIZE));
+
+		heap_end = (char *)
+			((size_t)boot_params.hdr.heap_end_ptr + 0x200);
+		if (heap_end > stack_end)
+			heap_end = stack_end;
+	} else {
+		/* Boot protocol 2.00 only, no heap available */
+		puts("WARNING: Ancient bootloader, some functionality "
+		     "may be limited!\n");
+	}
+}
+
 void main(void)
 {
 	/* First, copy the boot header into the "zeropage" */
 	copy_boot_params();
 
 	/* End of heap check */
-	if (boot_params.hdr.loadflags & CAN_USE_HEAP) {
-		heap_end = (char *)(boot_params.hdr.heap_end_ptr
-				    +0x200-STACK_SIZE);
-	} else {
-		/* Boot protocol 2.00 only, no heap available */
-		puts("WARNING: Ancient bootloader, some functionality "
-		     "may be limited!\n");
-	}
+	init_heap();
 
 	/* Make sure we have all the proper CPU support */
 	if (validate_cpu()) {
@@ -130,9 +142,6 @@ void main(void)
 
 	/* Set keyboard repeat rate (why?) */
 	keyboard_set_repeat();
-
-	/* Set the video mode */
-	set_video();
 
 	/* Query MCA information */
 	query_mca();
@@ -154,6 +163,10 @@ void main(void)
 #if defined(CONFIG_EDD) || defined(CONFIG_EDD_MODULE)
 	query_edd();
 #endif
+
+	/* Set the video mode */
+	set_video();
+
 	/* Do the last things and invoke protected mode */
 	go_to_protected_mode();
 }

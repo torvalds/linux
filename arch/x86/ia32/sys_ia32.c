@@ -1,29 +1,29 @@
 /*
  * sys_ia32.c: Conversion between 32bit and 64bit native syscalls. Based on
- *             sys_sparc32 
+ *             sys_sparc32
  *
  * Copyright (C) 2000		VA Linux Co
  * Copyright (C) 2000		Don Dugger <n0ano@valinux.com>
- * Copyright (C) 1999 		Arun Sharma <arun.sharma@intel.com>
- * Copyright (C) 1997,1998 	Jakub Jelinek (jj@sunsite.mff.cuni.cz)
- * Copyright (C) 1997 		David S. Miller (davem@caip.rutgers.edu)
+ * Copyright (C) 1999		Arun Sharma <arun.sharma@intel.com>
+ * Copyright (C) 1997,1998	Jakub Jelinek (jj@sunsite.mff.cuni.cz)
+ * Copyright (C) 1997		David S. Miller (davem@caip.rutgers.edu)
  * Copyright (C) 2000		Hewlett-Packard Co.
  * Copyright (C) 2000		David Mosberger-Tang <davidm@hpl.hp.com>
- * Copyright (C) 2000,2001,2002	Andi Kleen, SuSE Labs (x86-64 port) 
+ * Copyright (C) 2000,2001,2002	Andi Kleen, SuSE Labs (x86-64 port)
  *
  * These routines maintain argument size conversion between 32bit and 64bit
- * environment. In 2.5 most of this should be moved to a generic directory. 
+ * environment. In 2.5 most of this should be moved to a generic directory.
  *
  * This file assumes that there is a hole at the end of user address space.
- * 
- * Some of the functions are LE specific currently. These are hopefully all marked.
- * This should be fixed.
+ *
+ * Some of the functions are LE specific currently. These are
+ * hopefully all marked.  This should be fixed.
  */
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/fs.h> 
-#include <linux/file.h> 
+#include <linux/fs.h>
+#include <linux/file.h>
 #include <linux/signal.h>
 #include <linux/syscalls.h>
 #include <linux/resource.h>
@@ -90,43 +90,44 @@ int cp_compat_stat(struct kstat *kbuf, struct compat_stat __user *ubuf)
 	if (sizeof(ino) < sizeof(kbuf->ino) && ino != kbuf->ino)
 		return -EOVERFLOW;
 	if (!access_ok(VERIFY_WRITE, ubuf, sizeof(struct compat_stat)) ||
-	    __put_user (old_encode_dev(kbuf->dev), &ubuf->st_dev) ||
-	    __put_user (ino, &ubuf->st_ino) ||
-	    __put_user (kbuf->mode, &ubuf->st_mode) ||
-	    __put_user (kbuf->nlink, &ubuf->st_nlink) ||
-	    __put_user (uid, &ubuf->st_uid) ||
-	    __put_user (gid, &ubuf->st_gid) ||
-	    __put_user (old_encode_dev(kbuf->rdev), &ubuf->st_rdev) ||
-	    __put_user (kbuf->size, &ubuf->st_size) ||
-	    __put_user (kbuf->atime.tv_sec, &ubuf->st_atime) ||
-	    __put_user (kbuf->atime.tv_nsec, &ubuf->st_atime_nsec) ||
-	    __put_user (kbuf->mtime.tv_sec, &ubuf->st_mtime) ||
-	    __put_user (kbuf->mtime.tv_nsec, &ubuf->st_mtime_nsec) ||
-	    __put_user (kbuf->ctime.tv_sec, &ubuf->st_ctime) ||
-	    __put_user (kbuf->ctime.tv_nsec, &ubuf->st_ctime_nsec) ||
-	    __put_user (kbuf->blksize, &ubuf->st_blksize) ||
-	    __put_user (kbuf->blocks, &ubuf->st_blocks))
+	    __put_user(old_encode_dev(kbuf->dev), &ubuf->st_dev) ||
+	    __put_user(ino, &ubuf->st_ino) ||
+	    __put_user(kbuf->mode, &ubuf->st_mode) ||
+	    __put_user(kbuf->nlink, &ubuf->st_nlink) ||
+	    __put_user(uid, &ubuf->st_uid) ||
+	    __put_user(gid, &ubuf->st_gid) ||
+	    __put_user(old_encode_dev(kbuf->rdev), &ubuf->st_rdev) ||
+	    __put_user(kbuf->size, &ubuf->st_size) ||
+	    __put_user(kbuf->atime.tv_sec, &ubuf->st_atime) ||
+	    __put_user(kbuf->atime.tv_nsec, &ubuf->st_atime_nsec) ||
+	    __put_user(kbuf->mtime.tv_sec, &ubuf->st_mtime) ||
+	    __put_user(kbuf->mtime.tv_nsec, &ubuf->st_mtime_nsec) ||
+	    __put_user(kbuf->ctime.tv_sec, &ubuf->st_ctime) ||
+	    __put_user(kbuf->ctime.tv_nsec, &ubuf->st_ctime_nsec) ||
+	    __put_user(kbuf->blksize, &ubuf->st_blksize) ||
+	    __put_user(kbuf->blocks, &ubuf->st_blocks))
 		return -EFAULT;
 	return 0;
 }
 
-asmlinkage long
-sys32_truncate64(char __user * filename, unsigned long offset_low, unsigned long offset_high)
+asmlinkage long sys32_truncate64(char __user *filename,
+				 unsigned long offset_low,
+				 unsigned long offset_high)
 {
        return sys_truncate(filename, ((loff_t) offset_high << 32) | offset_low);
 }
 
-asmlinkage long
-sys32_ftruncate64(unsigned int fd, unsigned long offset_low, unsigned long offset_high)
+asmlinkage long sys32_ftruncate64(unsigned int fd, unsigned long offset_low,
+				  unsigned long offset_high)
 {
        return sys_ftruncate(fd, ((loff_t) offset_high << 32) | offset_low);
 }
 
-/* Another set for IA32/LFS -- x86_64 struct stat is different due to 
-   support for 64bit inode numbers. */
-
-static int
-cp_stat64(struct stat64 __user *ubuf, struct kstat *stat)
+/*
+ * Another set for IA32/LFS -- x86_64 struct stat is different due to
+ * support for 64bit inode numbers.
+ */
+static int cp_stat64(struct stat64 __user *ubuf, struct kstat *stat)
 {
 	typeof(ubuf->st_uid) uid = 0;
 	typeof(ubuf->st_gid) gid = 0;
@@ -134,38 +135,39 @@ cp_stat64(struct stat64 __user *ubuf, struct kstat *stat)
 	SET_GID(gid, stat->gid);
 	if (!access_ok(VERIFY_WRITE, ubuf, sizeof(struct stat64)) ||
 	    __put_user(huge_encode_dev(stat->dev), &ubuf->st_dev) ||
-	    __put_user (stat->ino, &ubuf->__st_ino) ||
-	    __put_user (stat->ino, &ubuf->st_ino) ||
-	    __put_user (stat->mode, &ubuf->st_mode) ||
-	    __put_user (stat->nlink, &ubuf->st_nlink) ||
-	    __put_user (uid, &ubuf->st_uid) ||
-	    __put_user (gid, &ubuf->st_gid) ||
-	    __put_user (huge_encode_dev(stat->rdev), &ubuf->st_rdev) ||
-	    __put_user (stat->size, &ubuf->st_size) ||
-	    __put_user (stat->atime.tv_sec, &ubuf->st_atime) ||
-	    __put_user (stat->atime.tv_nsec, &ubuf->st_atime_nsec) ||
-	    __put_user (stat->mtime.tv_sec, &ubuf->st_mtime) ||
-	    __put_user (stat->mtime.tv_nsec, &ubuf->st_mtime_nsec) ||
-	    __put_user (stat->ctime.tv_sec, &ubuf->st_ctime) ||
-	    __put_user (stat->ctime.tv_nsec, &ubuf->st_ctime_nsec) ||
-	    __put_user (stat->blksize, &ubuf->st_blksize) ||
-	    __put_user (stat->blocks, &ubuf->st_blocks))
+	    __put_user(stat->ino, &ubuf->__st_ino) ||
+	    __put_user(stat->ino, &ubuf->st_ino) ||
+	    __put_user(stat->mode, &ubuf->st_mode) ||
+	    __put_user(stat->nlink, &ubuf->st_nlink) ||
+	    __put_user(uid, &ubuf->st_uid) ||
+	    __put_user(gid, &ubuf->st_gid) ||
+	    __put_user(huge_encode_dev(stat->rdev), &ubuf->st_rdev) ||
+	    __put_user(stat->size, &ubuf->st_size) ||
+	    __put_user(stat->atime.tv_sec, &ubuf->st_atime) ||
+	    __put_user(stat->atime.tv_nsec, &ubuf->st_atime_nsec) ||
+	    __put_user(stat->mtime.tv_sec, &ubuf->st_mtime) ||
+	    __put_user(stat->mtime.tv_nsec, &ubuf->st_mtime_nsec) ||
+	    __put_user(stat->ctime.tv_sec, &ubuf->st_ctime) ||
+	    __put_user(stat->ctime.tv_nsec, &ubuf->st_ctime_nsec) ||
+	    __put_user(stat->blksize, &ubuf->st_blksize) ||
+	    __put_user(stat->blocks, &ubuf->st_blocks))
 		return -EFAULT;
 	return 0;
 }
 
-asmlinkage long
-sys32_stat64(char __user * filename, struct stat64 __user *statbuf)
+asmlinkage long sys32_stat64(char __user *filename,
+			     struct stat64 __user *statbuf)
 {
 	struct kstat stat;
 	int ret = vfs_stat(filename, &stat);
+
 	if (!ret)
 		ret = cp_stat64(statbuf, &stat);
 	return ret;
 }
 
-asmlinkage long
-sys32_lstat64(char __user * filename, struct stat64 __user *statbuf)
+asmlinkage long sys32_lstat64(char __user *filename,
+			      struct stat64 __user *statbuf)
 {
 	struct kstat stat;
 	int ret = vfs_lstat(filename, &stat);
@@ -174,8 +176,7 @@ sys32_lstat64(char __user * filename, struct stat64 __user *statbuf)
 	return ret;
 }
 
-asmlinkage long
-sys32_fstat64(unsigned int fd, struct stat64 __user *statbuf)
+asmlinkage long sys32_fstat64(unsigned int fd, struct stat64 __user *statbuf)
 {
 	struct kstat stat;
 	int ret = vfs_fstat(fd, &stat);
@@ -184,9 +185,8 @@ sys32_fstat64(unsigned int fd, struct stat64 __user *statbuf)
 	return ret;
 }
 
-asmlinkage long
-sys32_fstatat(unsigned int dfd, char __user *filename,
-	      struct stat64 __user* statbuf, int flag)
+asmlinkage long sys32_fstatat(unsigned int dfd, char __user *filename,
+			      struct stat64 __user *statbuf, int flag)
 {
 	struct kstat stat;
 	int error = -EINVAL;
@@ -221,8 +221,7 @@ struct mmap_arg_struct {
 	unsigned int offset;
 };
 
-asmlinkage long
-sys32_mmap(struct mmap_arg_struct __user *arg)
+asmlinkage long sys32_mmap(struct mmap_arg_struct __user *arg)
 {
 	struct mmap_arg_struct a;
 	struct file *file = NULL;
@@ -233,33 +232,33 @@ sys32_mmap(struct mmap_arg_struct __user *arg)
 		return -EFAULT;
 
 	if (a.offset & ~PAGE_MASK)
-		return -EINVAL; 
+		return -EINVAL;
 
 	if (!(a.flags & MAP_ANONYMOUS)) {
 		file = fget(a.fd);
 		if (!file)
 			return -EBADF;
 	}
-	
-	mm = current->mm; 
-	down_write(&mm->mmap_sem); 
-	retval = do_mmap_pgoff(file, a.addr, a.len, a.prot, a.flags, a.offset>>PAGE_SHIFT);
+
+	mm = current->mm;
+	down_write(&mm->mmap_sem);
+	retval = do_mmap_pgoff(file, a.addr, a.len, a.prot, a.flags,
+			       a.offset>>PAGE_SHIFT);
 	if (file)
 		fput(file);
 
-	up_write(&mm->mmap_sem); 
+	up_write(&mm->mmap_sem);
 
 	return retval;
 }
 
-asmlinkage long 
-sys32_mprotect(unsigned long start, size_t len, unsigned long prot)
+asmlinkage long sys32_mprotect(unsigned long start, size_t len,
+			       unsigned long prot)
 {
-	return sys_mprotect(start,len,prot); 
+	return sys_mprotect(start, len, prot);
 }
 
-asmlinkage long
-sys32_pipe(int __user *fd)
+asmlinkage long sys32_pipe(int __user *fd)
 {
 	int retval;
 	int fds[2];
@@ -269,13 +268,13 @@ sys32_pipe(int __user *fd)
 		goto out;
 	if (copy_to_user(fd, fds, sizeof(fds)))
 		retval = -EFAULT;
-  out:
+out:
 	return retval;
 }
 
-asmlinkage long
-sys32_rt_sigaction(int sig, struct sigaction32 __user *act,
-		   struct sigaction32 __user *oact,  unsigned int sigsetsize)
+asmlinkage long sys32_rt_sigaction(int sig, struct sigaction32 __user *act,
+				   struct sigaction32 __user *oact,
+				   unsigned int sigsetsize)
 {
 	struct k_sigaction new_ka, old_ka;
 	int ret;
@@ -291,12 +290,17 @@ sys32_rt_sigaction(int sig, struct sigaction32 __user *act,
 		if (!access_ok(VERIFY_READ, act, sizeof(*act)) ||
 		    __get_user(handler, &act->sa_handler) ||
 		    __get_user(new_ka.sa.sa_flags, &act->sa_flags) ||
-		    __get_user(restorer, &act->sa_restorer)||
-		    __copy_from_user(&set32, &act->sa_mask, sizeof(compat_sigset_t)))
+		    __get_user(restorer, &act->sa_restorer) ||
+		    __copy_from_user(&set32, &act->sa_mask,
+				     sizeof(compat_sigset_t)))
 			return -EFAULT;
 		new_ka.sa.sa_handler = compat_ptr(handler);
 		new_ka.sa.sa_restorer = compat_ptr(restorer);
-		/* FIXME: here we rely on _COMPAT_NSIG_WORS to be >= than _NSIG_WORDS << 1 */
+
+		/*
+		 * FIXME: here we rely on _COMPAT_NSIG_WORS to be >=
+		 * than _NSIG_WORDS << 1
+		 */
 		switch (_NSIG_WORDS) {
 		case 4: new_ka.sa.sa_mask.sig[3] = set32.sig[6]
 				| (((long)set32.sig[7]) << 32);
@@ -312,7 +316,10 @@ sys32_rt_sigaction(int sig, struct sigaction32 __user *act,
 	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
 
 	if (!ret && oact) {
-		/* FIXME: here we rely on _COMPAT_NSIG_WORS to be >= than _NSIG_WORDS << 1 */
+		/*
+		 * FIXME: here we rely on _COMPAT_NSIG_WORS to be >=
+		 * than _NSIG_WORDS << 1
+		 */
 		switch (_NSIG_WORDS) {
 		case 4:
 			set32.sig[7] = (old_ka.sa.sa_mask.sig[3] >> 32);
@@ -328,23 +335,26 @@ sys32_rt_sigaction(int sig, struct sigaction32 __user *act,
 			set32.sig[0] = old_ka.sa.sa_mask.sig[0];
 		}
 		if (!access_ok(VERIFY_WRITE, oact, sizeof(*oact)) ||
-		    __put_user(ptr_to_compat(old_ka.sa.sa_handler), &oact->sa_handler) ||
-		    __put_user(ptr_to_compat(old_ka.sa.sa_restorer), &oact->sa_restorer) ||
+		    __put_user(ptr_to_compat(old_ka.sa.sa_handler),
+			       &oact->sa_handler) ||
+		    __put_user(ptr_to_compat(old_ka.sa.sa_restorer),
+			       &oact->sa_restorer) ||
 		    __put_user(old_ka.sa.sa_flags, &oact->sa_flags) ||
-		    __copy_to_user(&oact->sa_mask, &set32, sizeof(compat_sigset_t)))
+		    __copy_to_user(&oact->sa_mask, &set32,
+				   sizeof(compat_sigset_t)))
 			return -EFAULT;
 	}
 
 	return ret;
 }
 
-asmlinkage long
-sys32_sigaction (int sig, struct old_sigaction32 __user *act, struct old_sigaction32 __user *oact)
+asmlinkage long sys32_sigaction(int sig, struct old_sigaction32 __user *act,
+				struct old_sigaction32 __user *oact)
 {
-        struct k_sigaction new_ka, old_ka;
-        int ret;
+	struct k_sigaction new_ka, old_ka;
+	int ret;
 
-        if (act) {
+	if (act) {
 		compat_old_sigset_t mask;
 		compat_uptr_t handler, restorer;
 
@@ -359,33 +369,35 @@ sys32_sigaction (int sig, struct old_sigaction32 __user *act, struct old_sigacti
 		new_ka.sa.sa_restorer = compat_ptr(restorer);
 
 		siginitset(&new_ka.sa.sa_mask, mask);
-        }
+	}
 
-        ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
+	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
 
 	if (!ret && oact) {
 		if (!access_ok(VERIFY_WRITE, oact, sizeof(*oact)) ||
-		    __put_user(ptr_to_compat(old_ka.sa.sa_handler), &oact->sa_handler) ||
-		    __put_user(ptr_to_compat(old_ka.sa.sa_restorer), &oact->sa_restorer) ||
+		    __put_user(ptr_to_compat(old_ka.sa.sa_handler),
+			       &oact->sa_handler) ||
+		    __put_user(ptr_to_compat(old_ka.sa.sa_restorer),
+			       &oact->sa_restorer) ||
 		    __put_user(old_ka.sa.sa_flags, &oact->sa_flags) ||
 		    __put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask))
 			return -EFAULT;
-        }
+	}
 
 	return ret;
 }
 
-asmlinkage long
-sys32_rt_sigprocmask(int how, compat_sigset_t __user *set,
-			compat_sigset_t __user *oset, unsigned int sigsetsize)
+asmlinkage long sys32_rt_sigprocmask(int how, compat_sigset_t __user *set,
+				     compat_sigset_t __user *oset,
+				     unsigned int sigsetsize)
 {
 	sigset_t s;
 	compat_sigset_t s32;
 	int ret;
 	mm_segment_t old_fs = get_fs();
-	
+
 	if (set) {
-		if (copy_from_user (&s32, set, sizeof(compat_sigset_t)))
+		if (copy_from_user(&s32, set, sizeof(compat_sigset_t)))
 			return -EFAULT;
 		switch (_NSIG_WORDS) {
 		case 4: s.sig[3] = s32.sig[6] | (((long)s32.sig[7]) << 32);
@@ -394,13 +406,14 @@ sys32_rt_sigprocmask(int how, compat_sigset_t __user *set,
 		case 1: s.sig[0] = s32.sig[0] | (((long)s32.sig[1]) << 32);
 		}
 	}
-	set_fs (KERNEL_DS);
+	set_fs(KERNEL_DS);
 	ret = sys_rt_sigprocmask(how,
 				 set ? (sigset_t __user *)&s : NULL,
 				 oset ? (sigset_t __user *)&s : NULL,
-				 sigsetsize); 
-	set_fs (old_fs);
-	if (ret) return ret;
+				 sigsetsize);
+	set_fs(old_fs);
+	if (ret)
+		return ret;
 	if (oset) {
 		switch (_NSIG_WORDS) {
 		case 4: s32.sig[7] = (s.sig[3] >> 32); s32.sig[6] = s.sig[3];
@@ -408,52 +421,49 @@ sys32_rt_sigprocmask(int how, compat_sigset_t __user *set,
 		case 2: s32.sig[3] = (s.sig[1] >> 32); s32.sig[2] = s.sig[1];
 		case 1: s32.sig[1] = (s.sig[0] >> 32); s32.sig[0] = s.sig[0];
 		}
-		if (copy_to_user (oset, &s32, sizeof(compat_sigset_t)))
+		if (copy_to_user(oset, &s32, sizeof(compat_sigset_t)))
 			return -EFAULT;
 	}
 	return 0;
 }
 
-static inline long
-get_tv32(struct timeval *o, struct compat_timeval __user *i)
+static inline long get_tv32(struct timeval *o, struct compat_timeval __user *i)
 {
-	int err = -EFAULT; 
-	if (access_ok(VERIFY_READ, i, sizeof(*i))) { 
+	int err = -EFAULT;
+
+	if (access_ok(VERIFY_READ, i, sizeof(*i))) {
 		err = __get_user(o->tv_sec, &i->tv_sec);
 		err |= __get_user(o->tv_usec, &i->tv_usec);
 	}
-	return err; 
+	return err;
 }
 
-static inline long
-put_tv32(struct compat_timeval __user *o, struct timeval *i)
+static inline long put_tv32(struct compat_timeval __user *o, struct timeval *i)
 {
 	int err = -EFAULT;
-	if (access_ok(VERIFY_WRITE, o, sizeof(*o))) { 
+
+	if (access_ok(VERIFY_WRITE, o, sizeof(*o))) {
 		err = __put_user(i->tv_sec, &o->tv_sec);
 		err |= __put_user(i->tv_usec, &o->tv_usec);
-	} 
-	return err; 
+	}
+	return err;
 }
 
-extern unsigned int alarm_setitimer(unsigned int seconds);
-
-asmlinkage long
-sys32_alarm(unsigned int seconds)
+asmlinkage long sys32_alarm(unsigned int seconds)
 {
 	return alarm_setitimer(seconds);
 }
 
-/* Translations due to time_t size differences.  Which affects all
-   sorts of things, like timeval and itimerval.  */
-
-extern struct timezone sys_tz;
-
-asmlinkage long
-sys32_gettimeofday(struct compat_timeval __user *tv, struct timezone __user *tz)
+/*
+ * Translations due to time_t size differences. Which affects all
+ * sorts of things, like timeval and itimerval.
+ */
+asmlinkage long sys32_gettimeofday(struct compat_timeval __user *tv,
+				   struct timezone __user *tz)
 {
 	if (tv) {
 		struct timeval ktv;
+
 		do_gettimeofday(&ktv);
 		if (put_tv32(tv, &ktv))
 			return -EFAULT;
@@ -465,14 +475,14 @@ sys32_gettimeofday(struct compat_timeval __user *tv, struct timezone __user *tz)
 	return 0;
 }
 
-asmlinkage long
-sys32_settimeofday(struct compat_timeval __user *tv, struct timezone __user *tz)
+asmlinkage long sys32_settimeofday(struct compat_timeval __user *tv,
+				   struct timezone __user *tz)
 {
 	struct timeval ktv;
 	struct timespec kts;
 	struct timezone ktz;
 
- 	if (tv) {
+	if (tv) {
 		if (get_tv32(&ktv, tv))
 			return -EFAULT;
 		kts.tv_sec = ktv.tv_sec;
@@ -494,8 +504,7 @@ struct sel_arg_struct {
 	unsigned int tvp;
 };
 
-asmlinkage long
-sys32_old_select(struct sel_arg_struct __user *arg)
+asmlinkage long sys32_old_select(struct sel_arg_struct __user *arg)
 {
 	struct sel_arg_struct a;
 
@@ -505,50 +514,45 @@ sys32_old_select(struct sel_arg_struct __user *arg)
 				 compat_ptr(a.exp), compat_ptr(a.tvp));
 }
 
-extern asmlinkage long
-compat_sys_wait4(compat_pid_t pid, compat_uint_t * stat_addr, int options,
-		 struct compat_rusage *ru);
-
-asmlinkage long
-sys32_waitpid(compat_pid_t pid, unsigned int *stat_addr, int options)
+asmlinkage long sys32_waitpid(compat_pid_t pid, unsigned int *stat_addr,
+			      int options)
 {
 	return compat_sys_wait4(pid, stat_addr, options, NULL);
 }
 
 /* 32-bit timeval and related flotsam.  */
 
-asmlinkage long
-sys32_sysfs(int option, u32 arg1, u32 arg2)
+asmlinkage long sys32_sysfs(int option, u32 arg1, u32 arg2)
 {
 	return sys_sysfs(option, arg1, arg2);
 }
 
-asmlinkage long
-sys32_sched_rr_get_interval(compat_pid_t pid, struct compat_timespec __user *interval)
+asmlinkage long sys32_sched_rr_get_interval(compat_pid_t pid,
+				    struct compat_timespec __user *interval)
 {
 	struct timespec t;
 	int ret;
-	mm_segment_t old_fs = get_fs ();
-	
-	set_fs (KERNEL_DS);
+	mm_segment_t old_fs = get_fs();
+
+	set_fs(KERNEL_DS);
 	ret = sys_sched_rr_get_interval(pid, (struct timespec __user *)&t);
-	set_fs (old_fs);
+	set_fs(old_fs);
 	if (put_compat_timespec(&t, interval))
 		return -EFAULT;
 	return ret;
 }
 
-asmlinkage long
-sys32_rt_sigpending(compat_sigset_t __user *set, compat_size_t sigsetsize)
+asmlinkage long sys32_rt_sigpending(compat_sigset_t __user *set,
+				    compat_size_t sigsetsize)
 {
 	sigset_t s;
 	compat_sigset_t s32;
 	int ret;
 	mm_segment_t old_fs = get_fs();
-		
-	set_fs (KERNEL_DS);
+
+	set_fs(KERNEL_DS);
 	ret = sys_rt_sigpending((sigset_t __user *)&s, sigsetsize);
-	set_fs (old_fs);
+	set_fs(old_fs);
 	if (!ret) {
 		switch (_NSIG_WORDS) {
 		case 4: s32.sig[7] = (s.sig[3] >> 32); s32.sig[6] = s.sig[3];
@@ -556,30 +560,29 @@ sys32_rt_sigpending(compat_sigset_t __user *set, compat_size_t sigsetsize)
 		case 2: s32.sig[3] = (s.sig[1] >> 32); s32.sig[2] = s.sig[1];
 		case 1: s32.sig[1] = (s.sig[0] >> 32); s32.sig[0] = s.sig[0];
 		}
-		if (copy_to_user (set, &s32, sizeof(compat_sigset_t)))
+		if (copy_to_user(set, &s32, sizeof(compat_sigset_t)))
 			return -EFAULT;
 	}
 	return ret;
 }
 
-asmlinkage long
-sys32_rt_sigqueueinfo(int pid, int sig, compat_siginfo_t __user *uinfo)
+asmlinkage long sys32_rt_sigqueueinfo(int pid, int sig,
+				      compat_siginfo_t __user *uinfo)
 {
 	siginfo_t info;
 	int ret;
 	mm_segment_t old_fs = get_fs();
-	
+
 	if (copy_siginfo_from_user32(&info, uinfo))
 		return -EFAULT;
-	set_fs (KERNEL_DS);
+	set_fs(KERNEL_DS);
 	ret = sys_rt_sigqueueinfo(pid, sig, (siginfo_t __user *)&info);
-	set_fs (old_fs);
+	set_fs(old_fs);
 	return ret;
 }
 
 /* These are here just in case some old ia32 binary calls it. */
-asmlinkage long
-sys32_pause(void)
+asmlinkage long sys32_pause(void)
 {
 	current->state = TASK_INTERRUPTIBLE;
 	schedule();
@@ -599,25 +602,25 @@ struct sysctl_ia32 {
 };
 
 
-asmlinkage long
-sys32_sysctl(struct sysctl_ia32 __user *args32)
+asmlinkage long sys32_sysctl(struct sysctl_ia32 __user *args32)
 {
 	struct sysctl_ia32 a32;
-	mm_segment_t old_fs = get_fs ();
+	mm_segment_t old_fs = get_fs();
 	void __user *oldvalp, *newvalp;
 	size_t oldlen;
 	int __user *namep;
 	long ret;
 
-	if (copy_from_user(&a32, args32, sizeof (a32)))
+	if (copy_from_user(&a32, args32, sizeof(a32)))
 		return -EFAULT;
 
 	/*
-	 * We need to pre-validate these because we have to disable address checking
-	 * before calling do_sysctl() because of OLDLEN but we can't run the risk of the
-	 * user specifying bad addresses here.  Well, since we're dealing with 32 bit
-	 * addresses, we KNOW that access_ok() will always succeed, so this is an
-	 * expensive NOP, but so what...
+	 * We need to pre-validate these because we have to disable
+	 * address checking before calling do_sysctl() because of
+	 * OLDLEN but we can't run the risk of the user specifying bad
+	 * addresses here.  Well, since we're dealing with 32 bit
+	 * addresses, we KNOW that access_ok() will always succeed, so
+	 * this is an expensive NOP, but so what...
 	 */
 	namep = compat_ptr(a32.name);
 	oldvalp = compat_ptr(a32.oldval);
@@ -636,34 +639,34 @@ sys32_sysctl(struct sysctl_ia32 __user *args32)
 	unlock_kernel();
 	set_fs(old_fs);
 
-	if (oldvalp && put_user (oldlen, (int __user *)compat_ptr(a32.oldlenp)))
+	if (oldvalp && put_user(oldlen, (int __user *)compat_ptr(a32.oldlenp)))
 		return -EFAULT;
 
 	return ret;
 }
 #endif
 
-/* warning: next two assume little endian */ 
-asmlinkage long
-sys32_pread(unsigned int fd, char __user *ubuf, u32 count, u32 poslo, u32 poshi)
+/* warning: next two assume little endian */
+asmlinkage long sys32_pread(unsigned int fd, char __user *ubuf, u32 count,
+			    u32 poslo, u32 poshi)
 {
 	return sys_pread64(fd, ubuf, count,
 			 ((loff_t)AA(poshi) << 32) | AA(poslo));
 }
 
-asmlinkage long
-sys32_pwrite(unsigned int fd, char __user *ubuf, u32 count, u32 poslo, u32 poshi)
+asmlinkage long sys32_pwrite(unsigned int fd, char __user *ubuf, u32 count,
+			     u32 poslo, u32 poshi)
 {
 	return sys_pwrite64(fd, ubuf, count,
 			  ((loff_t)AA(poshi) << 32) | AA(poslo));
 }
 
 
-asmlinkage long
-sys32_personality(unsigned long personality)
+asmlinkage long sys32_personality(unsigned long personality)
 {
 	int ret;
-	if (personality(current->personality) == PER_LINUX32 && 
+
+	if (personality(current->personality) == PER_LINUX32 &&
 		personality == PER_LINUX)
 		personality = PER_LINUX32;
 	ret = sys_personality(personality);
@@ -672,34 +675,33 @@ sys32_personality(unsigned long personality)
 	return ret;
 }
 
-asmlinkage long
-sys32_sendfile(int out_fd, int in_fd, compat_off_t __user *offset, s32 count)
+asmlinkage long sys32_sendfile(int out_fd, int in_fd,
+			       compat_off_t __user *offset, s32 count)
 {
 	mm_segment_t old_fs = get_fs();
 	int ret;
 	off_t of;
-	
+
 	if (offset && get_user(of, offset))
 		return -EFAULT;
-		
+
 	set_fs(KERNEL_DS);
 	ret = sys_sendfile(out_fd, in_fd, offset ? (off_t __user *)&of : NULL,
 			   count);
 	set_fs(old_fs);
-	
+
 	if (offset && put_user(of, offset))
 		return -EFAULT;
-		
 	return ret;
 }
 
 asmlinkage long sys32_mmap2(unsigned long addr, unsigned long len,
-	unsigned long prot, unsigned long flags,
-	unsigned long fd, unsigned long pgoff)
+			    unsigned long prot, unsigned long flags,
+			    unsigned long fd, unsigned long pgoff)
 {
 	struct mm_struct *mm = current->mm;
 	unsigned long error;
-	struct file * file = NULL;
+	struct file *file = NULL;
 
 	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
 	if (!(flags & MAP_ANONYMOUS)) {
@@ -717,36 +719,35 @@ asmlinkage long sys32_mmap2(unsigned long addr, unsigned long len,
 	return error;
 }
 
-asmlinkage long sys32_olduname(struct oldold_utsname __user * name)
+asmlinkage long sys32_olduname(struct oldold_utsname __user *name)
 {
+	char *arch = "x86_64";
 	int err;
 
 	if (!name)
 		return -EFAULT;
 	if (!access_ok(VERIFY_WRITE, name, sizeof(struct oldold_utsname)))
 		return -EFAULT;
-  
-  	down_read(&uts_sem);
 
-	err = __copy_to_user(&name->sysname,&utsname()->sysname,
-				__OLD_UTS_LEN);
-	err |= __put_user(0,name->sysname+__OLD_UTS_LEN);
-	err |= __copy_to_user(&name->nodename,&utsname()->nodename,
-				__OLD_UTS_LEN);
-	err |= __put_user(0,name->nodename+__OLD_UTS_LEN);
-	err |= __copy_to_user(&name->release,&utsname()->release,
-				__OLD_UTS_LEN);
-	err |= __put_user(0,name->release+__OLD_UTS_LEN);
-	err |= __copy_to_user(&name->version,&utsname()->version,
-				__OLD_UTS_LEN);
-	err |= __put_user(0,name->version+__OLD_UTS_LEN);
-	{
-		char *arch = "x86_64";
-		if (personality(current->personality) == PER_LINUX32)
-			arch = "i686";
-		 
-		err |= __copy_to_user(&name->machine, arch, strlen(arch)+1);
-	}
+	down_read(&uts_sem);
+
+	err = __copy_to_user(&name->sysname, &utsname()->sysname,
+			     __OLD_UTS_LEN);
+	err |= __put_user(0, name->sysname+__OLD_UTS_LEN);
+	err |= __copy_to_user(&name->nodename, &utsname()->nodename,
+			      __OLD_UTS_LEN);
+	err |= __put_user(0, name->nodename+__OLD_UTS_LEN);
+	err |= __copy_to_user(&name->release, &utsname()->release,
+			      __OLD_UTS_LEN);
+	err |= __put_user(0, name->release+__OLD_UTS_LEN);
+	err |= __copy_to_user(&name->version, &utsname()->version,
+			      __OLD_UTS_LEN);
+	err |= __put_user(0, name->version+__OLD_UTS_LEN);
+
+	if (personality(current->personality) == PER_LINUX32)
+		arch = "i686";
+
+	err |= __copy_to_user(&name->machine, arch, strlen(arch) + 1);
 
 	up_read(&uts_sem);
 
@@ -755,17 +756,19 @@ asmlinkage long sys32_olduname(struct oldold_utsname __user * name)
 	return err;
 }
 
-long sys32_uname(struct old_utsname __user * name)
+long sys32_uname(struct old_utsname __user *name)
 {
 	int err;
+
 	if (!name)
 		return -EFAULT;
 	down_read(&uts_sem);
-	err = copy_to_user(name, utsname(), sizeof (*name));
+	err = copy_to_user(name, utsname(), sizeof(*name));
 	up_read(&uts_sem);
-	if (personality(current->personality) == PER_LINUX32) 
+	if (personality(current->personality) == PER_LINUX32)
 		err |= copy_to_user(&name->machine, "i686", 5);
-	return err?-EFAULT:0;
+
+	return err ? -EFAULT : 0;
 }
 
 long sys32_ustat(unsigned dev, struct ustat32 __user *u32p)
@@ -773,27 +776,28 @@ long sys32_ustat(unsigned dev, struct ustat32 __user *u32p)
 	struct ustat u;
 	mm_segment_t seg;
 	int ret;
-	
-	seg = get_fs(); 
-	set_fs(KERNEL_DS); 
+
+	seg = get_fs();
+	set_fs(KERNEL_DS);
 	ret = sys_ustat(dev, (struct ustat __user *)&u);
 	set_fs(seg);
-	if (ret >= 0) { 
-		if (!access_ok(VERIFY_WRITE,u32p,sizeof(struct ustat32)) || 
-		    __put_user((__u32) u.f_tfree, &u32p->f_tfree) ||
-		    __put_user((__u32) u.f_tinode, &u32p->f_tfree) ||
-		    __copy_to_user(&u32p->f_fname, u.f_fname, sizeof(u.f_fname)) ||
-		    __copy_to_user(&u32p->f_fpack, u.f_fpack, sizeof(u.f_fpack)))
-			ret = -EFAULT;
-	}
+	if (ret < 0)
+		return ret;
+
+	if (!access_ok(VERIFY_WRITE, u32p, sizeof(struct ustat32)) ||
+	    __put_user((__u32) u.f_tfree, &u32p->f_tfree) ||
+	    __put_user((__u32) u.f_tinode, &u32p->f_tfree) ||
+	    __copy_to_user(&u32p->f_fname, u.f_fname, sizeof(u.f_fname)) ||
+	    __copy_to_user(&u32p->f_fpack, u.f_fpack, sizeof(u.f_fpack)))
+		ret = -EFAULT;
 	return ret;
-} 
+}
 
 asmlinkage long sys32_execve(char __user *name, compat_uptr_t __user *argv,
 			     compat_uptr_t __user *envp, struct pt_regs *regs)
 {
 	long error;
-	char * filename;
+	char *filename;
 
 	filename = getname(name);
 	error = PTR_ERR(filename);
@@ -812,18 +816,19 @@ asmlinkage long sys32_execve(char __user *name, compat_uptr_t __user *argv,
 asmlinkage long sys32_clone(unsigned int clone_flags, unsigned int newsp,
 			    struct pt_regs *regs)
 {
-	void __user *parent_tid = (void __user *)regs->rdx;
-	void __user *child_tid = (void __user *)regs->rdi;
+	void __user *parent_tid = (void __user *)regs->dx;
+	void __user *child_tid = (void __user *)regs->di;
+
 	if (!newsp)
-		newsp = regs->rsp;
-        return do_fork(clone_flags, newsp, regs, 0, parent_tid, child_tid);
+		newsp = regs->sp;
+	return do_fork(clone_flags, newsp, regs, 0, parent_tid, child_tid);
 }
 
 /*
- * Some system calls that need sign extended arguments. This could be done by a generic wrapper.
- */ 
-
-long sys32_lseek (unsigned int fd, int offset, unsigned int whence)
+ * Some system calls that need sign extended arguments. This could be
+ * done by a generic wrapper.
+ */
+long sys32_lseek(unsigned int fd, int offset, unsigned int whence)
 {
 	return sys_lseek(fd, offset, whence);
 }
@@ -832,49 +837,52 @@ long sys32_kill(int pid, int sig)
 {
 	return sys_kill(pid, sig);
 }
- 
-long sys32_fadvise64_64(int fd, __u32 offset_low, __u32 offset_high, 
+
+long sys32_fadvise64_64(int fd, __u32 offset_low, __u32 offset_high,
 			__u32 len_low, __u32 len_high, int advice)
-{ 
+{
 	return sys_fadvise64_64(fd,
 			       (((u64)offset_high)<<32) | offset_low,
 			       (((u64)len_high)<<32) | len_low,
-			       advice); 
-} 
+				advice);
+}
 
 long sys32_vm86_warning(void)
-{ 
+{
 	struct task_struct *me = current;
 	static char lastcomm[sizeof(me->comm)];
+
 	if (strncmp(lastcomm, me->comm, sizeof(lastcomm))) {
-		compat_printk(KERN_INFO "%s: vm86 mode not supported on 64 bit kernel\n",
-		       me->comm);
+		compat_printk(KERN_INFO
+			      "%s: vm86 mode not supported on 64 bit kernel\n",
+			      me->comm);
 		strncpy(lastcomm, me->comm, sizeof(lastcomm));
-	} 
+	}
 	return -ENOSYS;
-} 
+}
 
 long sys32_lookup_dcookie(u32 addr_low, u32 addr_high,
-			  char __user * buf, size_t len)
+			  char __user *buf, size_t len)
 {
 	return sys_lookup_dcookie(((u64)addr_high << 32) | addr_low, buf, len);
 }
 
-asmlinkage ssize_t sys32_readahead(int fd, unsigned off_lo, unsigned off_hi, size_t count)
+asmlinkage ssize_t sys32_readahead(int fd, unsigned off_lo, unsigned off_hi,
+				   size_t count)
 {
 	return sys_readahead(fd, ((u64)off_hi << 32) | off_lo, count);
 }
 
 asmlinkage long sys32_sync_file_range(int fd, unsigned off_low, unsigned off_hi,
-			   unsigned n_low, unsigned n_hi,  int flags)
+				      unsigned n_low, unsigned n_hi,  int flags)
 {
 	return sys_sync_file_range(fd,
 				   ((u64)off_hi << 32) | off_low,
 				   ((u64)n_hi << 32) | n_low, flags);
 }
 
-asmlinkage long sys32_fadvise64(int fd, unsigned offset_lo, unsigned offset_hi, size_t len,
-		     int advice)
+asmlinkage long sys32_fadvise64(int fd, unsigned offset_lo, unsigned offset_hi,
+				size_t len, int advice)
 {
 	return sys_fadvise64_64(fd, ((u64)offset_hi << 32) | offset_lo,
 				len, advice);

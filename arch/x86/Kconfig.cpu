@@ -219,10 +219,10 @@ config MGEODEGX1
 	  Select this for a Geode GX1 (Cyrix MediaGX) chip.
 
 config MGEODE_LX
-       bool "Geode GX/LX"
+	bool "Geode GX/LX"
 	depends on X86_32
-       help
-         Select this for AMD Geode GX and LX processors.
+	help
+	  Select this for AMD Geode GX and LX processors.
 
 config MCYRIXIII
 	bool "CyrixIII/VIA-C3"
@@ -258,7 +258,7 @@ config MPSC
 	  Optimize for Intel Pentium 4, Pentium D and older Nocona/Dempsey
 	  Xeon CPUs with Intel 64bit which is compatible with x86-64.
 	  Note that the latest Xeons (Xeon 51xx and 53xx) are not based on the
-          Netburst core and shouldn't use this option. You can distinguish them
+	  Netburst core and shouldn't use this option. You can distinguish them
 	  using the cpu family field
 	  in /proc/cpuinfo. Family 15 is an older Xeon, Family 6 a newer one.
 
@@ -317,81 +317,75 @@ config X86_L1_CACHE_SHIFT
 	default "6" if MK7 || MK8 || MPENTIUMM || MCORE2 || MVIAC7
 
 config X86_XADD
-	bool
+	def_bool y
 	depends on X86_32 && !M386
-	default y
 
 config X86_PPRO_FENCE
-	bool
+	bool "PentiumPro memory ordering errata workaround"
 	depends on M686 || M586MMX || M586TSC || M586 || M486 || M386 || MGEODEGX1
-	default y
+	help
+	  Old PentiumPro multiprocessor systems had errata that could cause memory
+	  operations to violate the x86 ordering standard in rare cases. Enabling this
+	  option will attempt to work around some (but not all) occurances of
+	  this problem, at the cost of much heavier spinlock and memory barrier
+	  operations.
+
+	  If unsure, say n here. Even distro kernels should think twice before enabling
+	  this: there are few systems, and an unlikely bug.
 
 config X86_F00F_BUG
-	bool
+	def_bool y
 	depends on M586MMX || M586TSC || M586 || M486 || M386
-	default y
 
 config X86_WP_WORKS_OK
-	bool
+	def_bool y
 	depends on X86_32 && !M386
-	default y
 
 config X86_INVLPG
-	bool
+	def_bool y
 	depends on X86_32 && !M386
-	default y
 
 config X86_BSWAP
-	bool
+	def_bool y
 	depends on X86_32 && !M386
-	default y
 
 config X86_POPAD_OK
-	bool
+	def_bool y
 	depends on X86_32 && !M386
-	default y
 
 config X86_ALIGNMENT_16
-	bool
+	def_bool y
 	depends on MWINCHIP3D || MWINCHIP2 || MWINCHIPC6 || MCYRIXIII || X86_ELAN || MK6 || M586MMX || M586TSC || M586 || M486 || MVIAC3_2 || MGEODEGX1
-	default y
 
 config X86_GOOD_APIC
-	bool
+	def_bool y
 	depends on MK7 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || M586MMX || MK8 || MEFFICEON || MCORE2 || MVIAC7 || X86_64
-	default y
 
 config X86_INTEL_USERCOPY
-	bool
+	def_bool y
 	depends on MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M586MMX || X86_GENERIC || MK8 || MK7 || MEFFICEON || MCORE2
-	default y
 
 config X86_USE_PPRO_CHECKSUM
-	bool
+	def_bool y
 	depends on MWINCHIP3D || MWINCHIP2 || MWINCHIPC6 || MCYRIXIII || MK7 || MK6 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || MK8 || MVIAC3_2 || MEFFICEON || MGEODE_LX || MCORE2
-	default y
 
 config X86_USE_3DNOW
-	bool
+	def_bool y
 	depends on (MCYRIXIII || MK7 || MGEODE_LX) && !UML
-	default y
 
 config X86_OOSTORE
-	bool
+	def_bool y
 	depends on (MWINCHIP3D || MWINCHIP2 || MWINCHIPC6) && MTRR
-	default y
 
 config X86_TSC
-	bool
+	def_bool y
 	depends on ((MWINCHIP3D || MWINCHIP2 || MCRUSOE || MEFFICEON || MCYRIXIII || MK7 || MK6 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || M586MMX || M586TSC || MK8 || MVIAC3_2 || MVIAC7 || MGEODEGX1 || MGEODE_LX || MCORE2) && !X86_NUMAQ) || X86_64
-	default y
 
 # this should be set for all -march=.. options where the compiler
 # generates cmov.
 config X86_CMOV
-	bool
+	def_bool y
 	depends on (MK7 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || MVIAC3_2 || MVIAC7)
-	default y
 
 config X86_MINIMUM_CPU_FAMILY
 	int
@@ -399,3 +393,6 @@ config X86_MINIMUM_CPU_FAMILY
 	default "4" if X86_32 && (X86_XADD || X86_CMPXCHG || X86_BSWAP || X86_WP_WORKS_OK)
 	default "3"
 
+config X86_DEBUGCTLMSR
+	def_bool y
+	depends on !(M586MMX || M586TSC || M586 || M486 || M386)

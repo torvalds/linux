@@ -19,6 +19,13 @@
 #include <asm/msr.h>
 #include <asm/cache.h>
 
+#ifdef CONFIG_PARAVIRT
+#include <asm/asm-offsets.h>
+#include <asm/paravirt.h>
+#else
+#define GET_CR2_INTO_RCX movq %cr2, %rcx
+#endif
+
 /* we are not able to switch in one step to the final KERNEL ADRESS SPACE
  * because we need identity-mapped pages.
  *
@@ -260,14 +267,43 @@ init_rsp:
 bad_address:
 	jmp bad_address
 
+#ifdef CONFIG_EARLY_PRINTK
+.macro early_idt_tramp first, last
+	.ifgt \last-\first
+	early_idt_tramp \first, \last-1
+	.endif
+	movl $\last,%esi
+	jmp early_idt_handler
+.endm
+
+	.globl early_idt_handlers
+early_idt_handlers:
+	early_idt_tramp 0, 63
+	early_idt_tramp 64, 127
+	early_idt_tramp 128, 191
+	early_idt_tramp 192, 255
+#endif
+
 ENTRY(early_idt_handler)
+#ifdef CONFIG_EARLY_PRINTK
 	cmpl $2,early_recursion_flag(%rip)
 	jz  1f
 	incl early_recursion_flag(%rip)
+	GET_CR2_INTO_RCX
+	movq %rcx,%r9
+	xorl %r8d,%r8d		# zero for error code
+	movl %esi,%ecx		# get vector number
+	# Test %ecx against mask of vectors that push error code.
+	cmpl $31,%ecx
+	ja 0f
+	movl $1,%eax
+	salq %cl,%rax
+	testl $0x27d00,%eax
+	je 0f
+	popq %r8		# get error code
+0:	movq 0(%rsp),%rcx	# get ip
+	movq 8(%rsp),%rdx	# get cs
 	xorl %eax,%eax
-	movq 8(%rsp),%rsi	# get rip
-	movq (%rsp),%rdx
-	movq %cr2,%rcx
 	leaq early_idt_msg(%rip),%rdi
 	call early_printk
 	cmpl $2,early_recursion_flag(%rip)
@@ -278,15 +314,19 @@ ENTRY(early_idt_handler)
 	movq 8(%rsp),%rsi	# get rip again
 	call __print_symbol
 #endif
+#endif /* EARLY_PRINTK */
 1:	hlt
 	jmp 1b
+
+#ifdef CONFIG_EARLY_PRINTK
 early_recursion_flag:
 	.long 0
 
 early_idt_msg:
-	.asciz "PANIC: early exception rip %lx error %lx cr2 %lx\n"
+	.asciz "PANIC: early exception %02lx rip %lx:%lx error %lx cr2 %lx\n"
 early_idt_ripmsg:
 	.asciz "RIP %s\n"
+#endif /* CONFIG_EARLY_PRINTK */
 
 .balign PAGE_SIZE
 

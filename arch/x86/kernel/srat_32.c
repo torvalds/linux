@@ -57,8 +57,6 @@ static struct node_memory_chunk_s node_memory_chunk[MAXCHUNKS];
 static int num_memory_chunks;		/* total number of memory chunks */
 static u8 __initdata apicid_to_pxm[MAX_APICID];
 
-extern void * boot_ioremap(unsigned long, unsigned long);
-
 /* Identify CPU proximity domains */
 static void __init parse_cpu_affinity_structure(char *p)
 {
@@ -299,7 +297,7 @@ int __init get_memcfg_from_srat(void)
 	}
 
 	rsdt = (struct acpi_table_rsdt *)
-	    boot_ioremap(rsdp->rsdt_physical_address, sizeof(struct acpi_table_rsdt));
+	    early_ioremap(rsdp->rsdt_physical_address, sizeof(struct acpi_table_rsdt));
 
 	if (!rsdt) {
 		printk(KERN_WARNING
@@ -339,11 +337,11 @@ int __init get_memcfg_from_srat(void)
 	for (i = 0; i < tables; i++) {
 		/* Map in header, then map in full table length. */
 		header = (struct acpi_table_header *)
-			boot_ioremap(saved_rsdt.table.table_offset_entry[i], sizeof(struct acpi_table_header));
+			early_ioremap(saved_rsdt.table.table_offset_entry[i], sizeof(struct acpi_table_header));
 		if (!header)
 			break;
 		header = (struct acpi_table_header *)
-			boot_ioremap(saved_rsdt.table.table_offset_entry[i], header->length);
+			early_ioremap(saved_rsdt.table.table_offset_entry[i], header->length);
 		if (!header)
 			break;
 

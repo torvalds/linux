@@ -8,6 +8,7 @@
 #include <asm/processor.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
+#include <asm/desc.h>
 
 EXPORT_SYMBOL(kernel_thread);
 
@@ -34,13 +35,6 @@ EXPORT_SYMBOL(__copy_from_user_inatomic);
 EXPORT_SYMBOL(copy_page);
 EXPORT_SYMBOL(clear_page);
 
-#ifdef CONFIG_SMP
-extern void  __write_lock_failed(rwlock_t *rw);
-extern void  __read_lock_failed(rwlock_t *rw);
-EXPORT_SYMBOL(__write_lock_failed);
-EXPORT_SYMBOL(__read_lock_failed);
-#endif
-
 /* Export string functions. We normally rely on gcc builtin for most of these,
    but gcc sometimes decides not to inline them. */    
 #undef memcpy
@@ -60,3 +54,8 @@ EXPORT_SYMBOL(init_level4_pgt);
 EXPORT_SYMBOL(load_gs_index);
 
 EXPORT_SYMBOL(_proxy_pda);
+
+#ifdef CONFIG_PARAVIRT
+/* Virtualized guests may want to use it */
+EXPORT_SYMBOL_GPL(cpu_gdt_descr);
+#endif

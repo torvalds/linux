@@ -14,7 +14,6 @@
 
 #define	EXCEPTION	FPU_exception
 
-
 #define PARAM1	8(%ebp)
 #define	PARAM2	12(%ebp)
 #define	PARAM3	16(%ebp)

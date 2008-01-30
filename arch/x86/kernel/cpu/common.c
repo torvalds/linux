@@ -22,42 +22,47 @@
 #include "cpu.h"
 
 DEFINE_PER_CPU(struct gdt_page, gdt_page) = { .gdt = {
-	[GDT_ENTRY_KERNEL_CS] = { 0x0000ffff, 0x00cf9a00 },
-	[GDT_ENTRY_KERNEL_DS] = { 0x0000ffff, 0x00cf9200 },
-	[GDT_ENTRY_DEFAULT_USER_CS] = { 0x0000ffff, 0x00cffa00 },
-	[GDT_ENTRY_DEFAULT_USER_DS] = { 0x0000ffff, 0x00cff200 },
+	[GDT_ENTRY_KERNEL_CS] = { { { 0x0000ffff, 0x00cf9a00 } } },
+	[GDT_ENTRY_KERNEL_DS] = { { { 0x0000ffff, 0x00cf9200 } } },
+	[GDT_ENTRY_DEFAULT_USER_CS] = { { { 0x0000ffff, 0x00cffa00 } } },
+	[GDT_ENTRY_DEFAULT_USER_DS] = { { { 0x0000ffff, 0x00cff200 } } },
 	/*
 	 * Segments used for calling PnP BIOS have byte granularity.
 	 * They code segments and data segments have fixed 64k limits,
 	 * the transfer segment sizes are set at run time.
 	 */
-	[GDT_ENTRY_PNPBIOS_CS32] = { 0x0000ffff, 0x00409a00 },/* 32-bit code */
-	[GDT_ENTRY_PNPBIOS_CS16] = { 0x0000ffff, 0x00009a00 },/* 16-bit code */
-	[GDT_ENTRY_PNPBIOS_DS] = { 0x0000ffff, 0x00009200 }, /* 16-bit data */
-	[GDT_ENTRY_PNPBIOS_TS1] = { 0x00000000, 0x00009200 },/* 16-bit data */
-	[GDT_ENTRY_PNPBIOS_TS2] = { 0x00000000, 0x00009200 },/* 16-bit data */
+	/* 32-bit code */
+	[GDT_ENTRY_PNPBIOS_CS32] = { { { 0x0000ffff, 0x00409a00 } } },
+	/* 16-bit code */
+	[GDT_ENTRY_PNPBIOS_CS16] = { { { 0x0000ffff, 0x00009a00 } } },
+	/* 16-bit data */
+	[GDT_ENTRY_PNPBIOS_DS] = { { { 0x0000ffff, 0x00009200 } } },
+	/* 16-bit data */
+	[GDT_ENTRY_PNPBIOS_TS1] = { { { 0x00000000, 0x00009200 } } },
+	/* 16-bit data */
+	[GDT_ENTRY_PNPBIOS_TS2] = { { { 0x00000000, 0x00009200 } } },
 	/*
 	 * The APM segments have byte granularity and their bases
 	 * are set at run time.  All have 64k limits.
 	 */
-	[GDT_ENTRY_APMBIOS_BASE] = { 0x0000ffff, 0x00409a00 },/* 32-bit code */
+	/* 32-bit code */
+	[GDT_ENTRY_APMBIOS_BASE] = { { { 0x0000ffff, 0x00409a00 } } },
 	/* 16-bit code */
-	[GDT_ENTRY_APMBIOS_BASE+1] = { 0x0000ffff, 0x00009a00 },
-	[GDT_ENTRY_APMBIOS_BASE+2] = { 0x0000ffff, 0x00409200 }, /* data */
+	[GDT_ENTRY_APMBIOS_BASE+1] = { { { 0x0000ffff, 0x00009a00 } } },
+	/* data */
+	[GDT_ENTRY_APMBIOS_BASE+2] = { { { 0x0000ffff, 0x00409200 } } },
 
-	[GDT_ENTRY_ESPFIX_SS] = { 0x00000000, 0x00c09200 },
-	[GDT_ENTRY_PERCPU] = { 0x00000000, 0x00000000 },
+	[GDT_ENTRY_ESPFIX_SS] = { { { 0x00000000, 0x00c09200 } } },
+	[GDT_ENTRY_PERCPU] = { { { 0x00000000, 0x00000000 } } },
 } };
 EXPORT_PER_CPU_SYMBOL_GPL(gdt_page);
 
+__u32 cleared_cpu_caps[NCAPINTS] __cpuinitdata;
+
 static int cachesize_override __cpuinitdata = -1;
-static int disable_x86_fxsr __cpuinitdata;
 static int disable_x86_serial_nr __cpuinitdata = 1;
-static int disable_x86_sep __cpuinitdata;
 
 struct cpu_dev * cpu_devs[X86_VENDOR_NUM] = {};
-
-extern int disable_pse;
 
 static void __cpuinit default_init(struct cpuinfo_x86 * c)
 {
@@ -207,16 +212,8 @@ static void __cpuinit get_cpu_vendor(struct cpuinfo_x86 *c, int early)
 
 static int __init x86_fxsr_setup(char * s)
 {
-	/* Tell all the other CPUs to not use it... */
-	disable_x86_fxsr = 1;
-
-	/*
-	 * ... and clear the bits early in the boot_cpu_data
-	 * so that the bootup process doesn't try to do this
-	 * either.
-	 */
-	clear_bit(X86_FEATURE_FXSR, boot_cpu_data.x86_capability);
-	clear_bit(X86_FEATURE_XMM, boot_cpu_data.x86_capability);
+	setup_clear_cpu_cap(X86_FEATURE_FXSR);
+	setup_clear_cpu_cap(X86_FEATURE_XMM);
 	return 1;
 }
 __setup("nofxsr", x86_fxsr_setup);
@@ -224,7 +221,7 @@ __setup("nofxsr", x86_fxsr_setup);
 
 static int __init x86_sep_setup(char * s)
 {
-	disable_x86_sep = 1;
+	setup_clear_cpu_cap(X86_FEATURE_SEP);
 	return 1;
 }
 __setup("nosep", x86_sep_setup);
@@ -281,6 +278,33 @@ void __init cpu_detect(struct cpuinfo_x86 *c)
 			c->x86_cache_alignment = ((misc >> 8) & 0xff) * 8;
 	}
 }
+static void __cpuinit early_get_cap(struct cpuinfo_x86 *c)
+{
+	u32 tfms, xlvl;
+	int ebx;
+
+	memset(&c->x86_capability, 0, sizeof c->x86_capability);
+	if (have_cpuid_p()) {
+		/* Intel-defined flags: level 0x00000001 */
+		if (c->cpuid_level >= 0x00000001) {
+			u32 capability, excap;
+			cpuid(0x00000001, &tfms, &ebx, &excap, &capability);
+			c->x86_capability[0] = capability;
+			c->x86_capability[4] = excap;
+		}
+
+		/* AMD-defined flags: level 0x80000001 */
+		xlvl = cpuid_eax(0x80000000);
+		if ((xlvl & 0xffff0000) == 0x80000000) {
+			if (xlvl >= 0x80000001) {
+				c->x86_capability[1] = cpuid_edx(0x80000001);
+				c->x86_capability[6] = cpuid_ecx(0x80000001);
+			}
+		}
+
+	}
+
+}
 
 /* Do minimum CPU detection early.
    Fields really needed: vendor, cpuid_level, family, model, mask, cache alignment.
@@ -300,6 +324,17 @@ static void __init early_cpu_detect(void)
 	cpu_detect(c);
 
 	get_cpu_vendor(c, 1);
+
+	switch (c->x86_vendor) {
+	case X86_VENDOR_AMD:
+		early_init_amd(c);
+		break;
+	case X86_VENDOR_INTEL:
+		early_init_intel(c);
+		break;
+	}
+
+	early_get_cap(c);
 }
 
 static void __cpuinit generic_identify(struct cpuinfo_x86 * c)
@@ -357,8 +392,6 @@ static void __cpuinit generic_identify(struct cpuinfo_x86 * c)
 		init_scattered_cpuid_features(c);
 	}
 
-	early_intel_workaround(c);
-
 #ifdef CONFIG_X86_HT
 	c->phys_proc_id = (cpuid_ebx(1) >> 24) & 0xff;
 #endif
@@ -392,7 +425,7 @@ __setup("serialnumber", x86_serial_nr_setup);
 /*
  * This does the hard work of actually picking apart the CPU stuff...
  */
-static void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
+void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 {
 	int i;
 
@@ -418,19 +451,8 @@ static void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 
 	generic_identify(c);
 
-	printk(KERN_DEBUG "CPU: After generic identify, caps:");
-	for (i = 0; i < NCAPINTS; i++)
-		printk(" %08lx", c->x86_capability[i]);
-	printk("\n");
-
-	if (this_cpu->c_identify) {
+	if (this_cpu->c_identify)
 		this_cpu->c_identify(c);
-
-		printk(KERN_DEBUG "CPU: After vendor identify, caps:");
-		for (i = 0; i < NCAPINTS; i++)
-			printk(" %08lx", c->x86_capability[i]);
-		printk("\n");
-	}
 
 	/*
 	 * Vendor-specific initialization.  In this section we
@@ -453,23 +475,6 @@ static void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 	 * we do "generic changes."
 	 */
 
-	/* TSC disabled? */
-	if ( tsc_disable )
-		clear_bit(X86_FEATURE_TSC, c->x86_capability);
-
-	/* FXSR disabled? */
-	if (disable_x86_fxsr) {
-		clear_bit(X86_FEATURE_FXSR, c->x86_capability);
-		clear_bit(X86_FEATURE_XMM, c->x86_capability);
-	}
-
-	/* SEP disabled? */
-	if (disable_x86_sep)
-		clear_bit(X86_FEATURE_SEP, c->x86_capability);
-
-	if (disable_pse)
-		clear_bit(X86_FEATURE_PSE, c->x86_capability);
-
 	/* If the model name is still unset, do table lookup. */
 	if ( !c->x86_model_id[0] ) {
 		char *p;
@@ -481,13 +486,6 @@ static void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 			sprintf(c->x86_model_id, "%02x/%02x",
 				c->x86, c->x86_model);
 	}
-
-	/* Now the feature flags better reflect actual CPU features! */
-
-	printk(KERN_DEBUG "CPU: After all inits, caps:");
-	for (i = 0; i < NCAPINTS; i++)
-		printk(" %08lx", c->x86_capability[i]);
-	printk("\n");
 
 	/*
 	 * On SMP, boot_cpu_data holds the common feature set between
@@ -501,8 +499,14 @@ static void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 			boot_cpu_data.x86_capability[i] &= c->x86_capability[i];
 	}
 
+	/* Clear all flags overriden by options */
+	for (i = 0; i < NCAPINTS; i++)
+		c->x86_capability[i] ^= cleared_cpu_caps[i];
+
 	/* Init Machine Check Exception if available. */
 	mcheck_init(c);
+
+	select_idle_routine(c);
 }
 
 void __init identify_boot_cpu(void)
@@ -510,7 +514,6 @@ void __init identify_boot_cpu(void)
 	identify_cpu(&boot_cpu_data);
 	sysenter_setup();
 	enable_sep_cpu();
-	mtrr_bp_init();
 }
 
 void __cpuinit identify_secondary_cpu(struct cpuinfo_x86 *c)
@@ -567,6 +570,13 @@ void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 }
 #endif
 
+static __init int setup_noclflush(char *arg)
+{
+	setup_clear_cpu_cap(X86_FEATURE_CLFLSH);
+	return 1;
+}
+__setup("noclflush", setup_noclflush);
+
 void __cpuinit print_cpu_info(struct cpuinfo_x86 *c)
 {
 	char *vendor = NULL;
@@ -589,6 +599,17 @@ void __cpuinit print_cpu_info(struct cpuinfo_x86 *c)
 	else
 		printk("\n");
 }
+
+static __init int setup_disablecpuid(char *arg)
+{
+	int bit;
+	if (get_option(&arg, &bit) && bit < NCAPINTS*32)
+		setup_clear_cpu_cap(bit);
+	else
+		return 0;
+	return 1;
+}
+__setup("clearcpuid=", setup_disablecpuid);
 
 cpumask_t cpu_initialized __cpuinitdata = CPU_MASK_NONE;
 
@@ -620,21 +641,13 @@ void __init early_cpu_init(void)
 	nexgen_init_cpu();
 	umc_init_cpu();
 	early_cpu_detect();
-
-#ifdef CONFIG_DEBUG_PAGEALLOC
-	/* pse is not compatible with on-the-fly unmapping,
-	 * disable it even if the cpus claim to support it.
-	 */
-	clear_bit(X86_FEATURE_PSE, boot_cpu_data.x86_capability);
-	disable_pse = 1;
-#endif
 }
 
 /* Make sure %fs is initialized properly in idle threads */
 struct pt_regs * __devinit idle_regs(struct pt_regs *regs)
 {
 	memset(regs, 0, sizeof(struct pt_regs));
-	regs->xfs = __KERNEL_PERCPU;
+	regs->fs = __KERNEL_PERCPU;
 	return regs;
 }
 
@@ -642,7 +655,7 @@ struct pt_regs * __devinit idle_regs(struct pt_regs *regs)
  * it's on the real one. */
 void switch_to_new_gdt(void)
 {
-	struct Xgt_desc_struct gdt_descr;
+	struct desc_ptr gdt_descr;
 
 	gdt_descr.address = (long)get_cpu_gdt_table(smp_processor_id());
 	gdt_descr.size = GDT_SIZE - 1;
@@ -672,12 +685,6 @@ void __cpuinit cpu_init(void)
 
 	if (cpu_has_vme || cpu_has_tsc || cpu_has_de)
 		clear_in_cr4(X86_CR4_VME|X86_CR4_PVI|X86_CR4_TSD|X86_CR4_DE);
-	if (tsc_disable && cpu_has_tsc) {
-		printk(KERN_NOTICE "Disabling TSC...\n");
-		/**** FIX-HPA: DOES THIS REALLY BELONG HERE? ****/
-		clear_bit(X86_FEATURE_TSC, boot_cpu_data.x86_capability);
-		set_in_cr4(X86_CR4_TSD);
-	}
 
 	load_idt(&idt_descr);
 	switch_to_new_gdt();
@@ -691,7 +698,7 @@ void __cpuinit cpu_init(void)
 		BUG();
 	enter_lazy_tlb(&init_mm, curr);
 
-	load_esp0(t, thread);
+	load_sp0(t, thread);
 	set_tss_desc(cpu,t);
 	load_TR_desc();
 	load_LDT(&init_mm.context);

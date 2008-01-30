@@ -22,9 +22,9 @@ static int save_stack_stack(void *data, char *name)
 	return -1;
 }
 
-static void save_stack_address(void *data, unsigned long addr)
+static void save_stack_address(void *data, unsigned long addr, int reliable)
 {
-	struct stack_trace *trace = (struct stack_trace *)data;
+	struct stack_trace *trace = data;
 	if (trace->skip > 0) {
 		trace->skip--;
 		return;
@@ -33,7 +33,8 @@ static void save_stack_address(void *data, unsigned long addr)
 		trace->entries[trace->nr_entries++] = addr;
 }
 
-static void save_stack_address_nosched(void *data, unsigned long addr)
+static void
+save_stack_address_nosched(void *data, unsigned long addr, int reliable)
 {
 	struct stack_trace *trace = (struct stack_trace *)data;
 	if (in_sched_functions(addr))
@@ -65,15 +66,14 @@ static const struct stacktrace_ops save_stack_ops_nosched = {
  */
 void save_stack_trace(struct stack_trace *trace)
 {
-	dump_trace(current, NULL, NULL, &save_stack_ops, trace);
+	dump_trace(current, NULL, NULL, 0, &save_stack_ops, trace);
 	if (trace->nr_entries < trace->max_entries)
 		trace->entries[trace->nr_entries++] = ULONG_MAX;
 }
-EXPORT_SYMBOL(save_stack_trace);
 
 void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
 {
-	dump_trace(tsk, NULL, NULL, &save_stack_ops_nosched, trace);
+	dump_trace(tsk, NULL, NULL, 0, &save_stack_ops_nosched, trace);
 	if (trace->nr_entries < trace->max_entries)
 		trace->entries[trace->nr_entries++] = ULONG_MAX;
 }

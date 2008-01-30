@@ -11,6 +11,8 @@
 #ifndef __E820_HEADER
 #define __E820_HEADER
 
+#include <linux/ioport.h>
+
 #ifndef __ASSEMBLY__
 extern unsigned long find_e820_area(unsigned long start, unsigned long end, 
 				    unsigned size);
@@ -19,11 +21,15 @@ extern void add_memory_region(unsigned long start, unsigned long size,
 extern void setup_memory_region(void);
 extern void contig_e820_setup(void); 
 extern unsigned long e820_end_of_ram(void);
-extern void e820_reserve_resources(void);
+extern void e820_reserve_resources(struct resource *code_resource,
+		struct resource *data_resource, struct resource *bss_resource);
 extern void e820_mark_nosave_regions(void);
-extern void e820_print_map(char *who);
 extern int e820_any_mapped(unsigned long start, unsigned long end, unsigned type);
 extern int e820_all_mapped(unsigned long start, unsigned long end, unsigned type);
+extern int e820_any_non_reserved(unsigned long start, unsigned long end);
+extern int is_memory_any_valid(unsigned long start, unsigned long end);
+extern int e820_all_non_reserved(unsigned long start, unsigned long end);
+extern int is_memory_all_valid(unsigned long start, unsigned long end);
 extern unsigned long e820_hole_size(unsigned long start, unsigned long end);
 
 extern void e820_setup_gap(void);
@@ -33,9 +39,11 @@ extern void e820_register_active_regions(int nid,
 extern void finish_e820_parsing(void);
 
 extern struct e820map e820;
+extern void update_e820(void);
 
-extern unsigned ebda_addr, ebda_size;
-extern unsigned long nodemap_addr, nodemap_size;
+extern void reserve_early(unsigned long start, unsigned long end);
+extern void early_res_to_bootmem(void);
+
 #endif/*!__ASSEMBLY__*/
 
 #endif/*__E820_HEADER*/

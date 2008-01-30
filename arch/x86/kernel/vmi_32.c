@@ -62,7 +62,10 @@ static struct {
 	void (*cpuid)(void /* non-c */);
 	void (*_set_ldt)(u32 selector);
 	void (*set_tr)(u32 selector);
-	void (*set_kernel_stack)(u32 selector, u32 esp0);
+	void (*write_idt_entry)(struct desc_struct *, int, u32, u32);
+	void (*write_gdt_entry)(struct desc_struct *, int, u32, u32);
+	void (*write_ldt_entry)(struct desc_struct *, int, u32, u32);
+	void (*set_kernel_stack)(u32 selector, u32 sp0);
 	void (*allocate_page)(u32, u32, u32, u32, u32);
 	void (*release_page)(u32, u32);
 	void (*set_pte)(pte_t, pte_t *, unsigned);
@@ -88,13 +91,13 @@ struct vmi_timer_ops vmi_timer_ops;
 #define IRQ_PATCH_DISABLE  5
 
 static inline void patch_offset(void *insnbuf,
-				unsigned long eip, unsigned long dest)
+				unsigned long ip, unsigned long dest)
 {
-        *(unsigned long *)(insnbuf+1) = dest-eip-5;
+        *(unsigned long *)(insnbuf+1) = dest-ip-5;
 }
 
 static unsigned patch_internal(int call, unsigned len, void *insnbuf,
-			       unsigned long eip)
+			       unsigned long ip)
 {
 	u64 reloc;
 	struct vmi_relocation_info *const rel = (struct vmi_relocation_info *)&reloc;
@@ -103,13 +106,13 @@ static unsigned patch_internal(int call, unsigned len, void *insnbuf,
 		case VMI_RELOCATION_CALL_REL:
 			BUG_ON(len < 5);
 			*(char *)insnbuf = MNEM_CALL;
-			patch_offset(insnbuf, eip, (unsigned long)rel->eip);
+			patch_offset(insnbuf, ip, (unsigned long)rel->eip);
 			return 5;
 
 		case VMI_RELOCATION_JUMP_REL:
 			BUG_ON(len < 5);
 			*(char *)insnbuf = MNEM_JMP;
-			patch_offset(insnbuf, eip, (unsigned long)rel->eip);
+			patch_offset(insnbuf, ip, (unsigned long)rel->eip);
 			return 5;
 
 		case VMI_RELOCATION_NOP:
@@ -131,25 +134,25 @@ static unsigned patch_internal(int call, unsigned len, void *insnbuf,
  * sequence.  The callee does nop padding for us.
  */
 static unsigned vmi_patch(u8 type, u16 clobbers, void *insns,
-			  unsigned long eip, unsigned len)
+			  unsigned long ip, unsigned len)
 {
 	switch (type) {
 		case PARAVIRT_PATCH(pv_irq_ops.irq_disable):
 			return patch_internal(VMI_CALL_DisableInterrupts, len,
-					      insns, eip);
+					      insns, ip);
 		case PARAVIRT_PATCH(pv_irq_ops.irq_enable):
 			return patch_internal(VMI_CALL_EnableInterrupts, len,
-					      insns, eip);
+					      insns, ip);
 		case PARAVIRT_PATCH(pv_irq_ops.restore_fl):
 			return patch_internal(VMI_CALL_SetInterruptMask, len,
-					      insns, eip);
+					      insns, ip);
 		case PARAVIRT_PATCH(pv_irq_ops.save_fl):
 			return patch_internal(VMI_CALL_GetInterruptMask, len,
-					      insns, eip);
+					      insns, ip);
 		case PARAVIRT_PATCH(pv_cpu_ops.iret):
-			return patch_internal(VMI_CALL_IRET, len, insns, eip);
-		case PARAVIRT_PATCH(pv_cpu_ops.irq_enable_sysexit):
-			return patch_internal(VMI_CALL_SYSEXIT, len, insns, eip);
+			return patch_internal(VMI_CALL_IRET, len, insns, ip);
+		case PARAVIRT_PATCH(pv_cpu_ops.irq_enable_syscall_ret):
+			return patch_internal(VMI_CALL_SYSEXIT, len, insns, ip);
 		default:
 			break;
 	}
@@ -157,36 +160,36 @@ static unsigned vmi_patch(u8 type, u16 clobbers, void *insns,
 }
 
 /* CPUID has non-C semantics, and paravirt-ops API doesn't match hardware ISA */
-static void vmi_cpuid(unsigned int *eax, unsigned int *ebx,
-                               unsigned int *ecx, unsigned int *edx)
+static void vmi_cpuid(unsigned int *ax, unsigned int *bx,
+                               unsigned int *cx, unsigned int *dx)
 {
 	int override = 0;
-	if (*eax == 1)
+	if (*ax == 1)
 		override = 1;
         asm volatile ("call *%6"
-                      : "=a" (*eax),
-                        "=b" (*ebx),
-                        "=c" (*ecx),
-                        "=d" (*edx)
-                      : "0" (*eax), "2" (*ecx), "r" (vmi_ops.cpuid));
+                      : "=a" (*ax),
+                        "=b" (*bx),
+                        "=c" (*cx),
+                        "=d" (*dx)
+                      : "0" (*ax), "2" (*cx), "r" (vmi_ops.cpuid));
 	if (override) {
 		if (disable_pse)
-			*edx &= ~X86_FEATURE_PSE;
+			*dx &= ~X86_FEATURE_PSE;
 		if (disable_pge)
-			*edx &= ~X86_FEATURE_PGE;
+			*dx &= ~X86_FEATURE_PGE;
 		if (disable_sep)
-			*edx &= ~X86_FEATURE_SEP;
+			*dx &= ~X86_FEATURE_SEP;
 		if (disable_tsc)
-			*edx &= ~X86_FEATURE_TSC;
+			*dx &= ~X86_FEATURE_TSC;
 		if (disable_mtrr)
-			*edx &= ~X86_FEATURE_MTRR;
+			*dx &= ~X86_FEATURE_MTRR;
 	}
 }
 
 static inline void vmi_maybe_load_tls(struct desc_struct *gdt, int nr, struct desc_struct *new)
 {
 	if (gdt[nr].a != new->a || gdt[nr].b != new->b)
-		write_gdt_entry(gdt, nr, new->a, new->b);
+		write_gdt_entry(gdt, nr, new, 0);
 }
 
 static void vmi_load_tls(struct thread_struct *t, unsigned int cpu)
@@ -200,12 +203,12 @@ static void vmi_load_tls(struct thread_struct *t, unsigned int cpu)
 static void vmi_set_ldt(const void *addr, unsigned entries)
 {
 	unsigned cpu = smp_processor_id();
-	u32 low, high;
+	struct desc_struct desc;
 
-	pack_descriptor(&low, &high, (unsigned long)addr,
+	pack_descriptor(&desc, (unsigned long)addr,
 			entries * sizeof(struct desc_struct) - 1,
-			DESCTYPE_LDT, 0);
-	write_gdt_entry(get_cpu_gdt_table(cpu), GDT_ENTRY_LDT, low, high);
+			DESC_LDT, 0);
+	write_gdt_entry(get_cpu_gdt_table(cpu), GDT_ENTRY_LDT, &desc, DESC_LDT);
 	vmi_ops._set_ldt(entries ? GDT_ENTRY_LDT*sizeof(struct desc_struct) : 0);
 }
 
@@ -214,17 +217,37 @@ static void vmi_set_tr(void)
 	vmi_ops.set_tr(GDT_ENTRY_TSS*sizeof(struct desc_struct));
 }
 
-static void vmi_load_esp0(struct tss_struct *tss,
+static void vmi_write_idt_entry(gate_desc *dt, int entry, const gate_desc *g)
+{
+	u32 *idt_entry = (u32 *)g;
+	vmi_ops.write_idt_entry(dt, entry, idt_entry[0], idt_entry[2]);
+}
+
+static void vmi_write_gdt_entry(struct desc_struct *dt, int entry,
+				const void *desc, int type)
+{
+	u32 *gdt_entry = (u32 *)desc;
+	vmi_ops.write_gdt_entry(dt, entry, gdt_entry[0], gdt_entry[2]);
+}
+
+static void vmi_write_ldt_entry(struct desc_struct *dt, int entry,
+				const void *desc)
+{
+	u32 *ldt_entry = (u32 *)desc;
+	vmi_ops.write_idt_entry(dt, entry, ldt_entry[0], ldt_entry[2]);
+}
+
+static void vmi_load_sp0(struct tss_struct *tss,
 				   struct thread_struct *thread)
 {
-	tss->x86_tss.esp0 = thread->esp0;
+	tss->x86_tss.sp0 = thread->sp0;
 
 	/* This can only happen when SEP is enabled, no need to test "SEP"arately */
 	if (unlikely(tss->x86_tss.ss1 != thread->sysenter_cs)) {
 		tss->x86_tss.ss1 = thread->sysenter_cs;
 		wrmsr(MSR_IA32_SYSENTER_CS, thread->sysenter_cs, 0);
 	}
-	vmi_ops.set_kernel_stack(__KERNEL_DS, tss->x86_tss.esp0);
+	vmi_ops.set_kernel_stack(__KERNEL_DS, tss->x86_tss.sp0);
 }
 
 static void vmi_flush_tlb_user(void)
@@ -375,7 +398,7 @@ static void vmi_allocate_pt(struct mm_struct *mm, u32 pfn)
 	vmi_ops.allocate_page(pfn, VMI_PAGE_L1, 0, 0, 0);
 }
 
-static void vmi_allocate_pd(u32 pfn)
+static void vmi_allocate_pd(struct mm_struct *mm, u32 pfn)
 {
  	/*
 	 * This call comes in very early, before mem_map is setup.
@@ -452,7 +475,7 @@ static void vmi_set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep
 static void vmi_set_pmd(pmd_t *pmdp, pmd_t pmdval)
 {
 #ifdef CONFIG_X86_PAE
-	const pte_t pte = { pmdval.pmd, pmdval.pmd >> 32 };
+	const pte_t pte = { .pte = pmdval.pmd };
 	vmi_check_page_type(__pa(pmdp) >> PAGE_SHIFT, VMI_PAGE_PMD);
 #else
 	const pte_t pte = { pmdval.pud.pgd.pgd };
@@ -485,21 +508,21 @@ static void vmi_set_pte_present(struct mm_struct *mm, unsigned long addr, pte_t 
 static void vmi_set_pud(pud_t *pudp, pud_t pudval)
 {
 	/* Um, eww */
-	const pte_t pte = { pudval.pgd.pgd, pudval.pgd.pgd >> 32 };
+	const pte_t pte = { .pte = pudval.pgd.pgd };
 	vmi_check_page_type(__pa(pudp) >> PAGE_SHIFT, VMI_PAGE_PGD);
 	vmi_ops.set_pte(pte, (pte_t *)pudp, VMI_PAGE_PDP);
 }
 
 static void vmi_pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
-	const pte_t pte = { 0 };
+	const pte_t pte = { .pte = 0 };
 	vmi_check_page_type(__pa(ptep) >> PAGE_SHIFT, VMI_PAGE_PTE);
 	vmi_ops.set_pte(pte, ptep, vmi_flags_addr(mm, addr, VMI_PAGE_PT, 0));
 }
 
 static void vmi_pmd_clear(pmd_t *pmd)
 {
-	const pte_t pte = { 0 };
+	const pte_t pte = { .pte = 0 };
 	vmi_check_page_type(__pa(pmd) >> PAGE_SHIFT, VMI_PAGE_PMD);
 	vmi_ops.set_pte(pte, (pte_t *)pmd, VMI_PAGE_PD);
 }
@@ -790,10 +813,13 @@ static inline int __init activate_vmi(void)
 	para_fill(pv_cpu_ops.store_idt, GetIDT);
 	para_fill(pv_cpu_ops.store_tr, GetTR);
 	pv_cpu_ops.load_tls = vmi_load_tls;
-	para_fill(pv_cpu_ops.write_ldt_entry, WriteLDTEntry);
-	para_fill(pv_cpu_ops.write_gdt_entry, WriteGDTEntry);
-	para_fill(pv_cpu_ops.write_idt_entry, WriteIDTEntry);
-	para_wrap(pv_cpu_ops.load_esp0, vmi_load_esp0, set_kernel_stack, UpdateKernelStack);
+	para_wrap(pv_cpu_ops.write_ldt_entry, vmi_write_ldt_entry,
+		  write_ldt_entry, WriteLDTEntry);
+	para_wrap(pv_cpu_ops.write_gdt_entry, vmi_write_gdt_entry,
+		  write_gdt_entry, WriteGDTEntry);
+	para_wrap(pv_cpu_ops.write_idt_entry, vmi_write_idt_entry,
+		  write_idt_entry, WriteIDTEntry);
+	para_wrap(pv_cpu_ops.load_sp0, vmi_load_sp0, set_kernel_stack, UpdateKernelStack);
 	para_fill(pv_cpu_ops.set_iopl_mask, SetIOPLMask);
 	para_fill(pv_cpu_ops.io_delay, IODelay);
 
@@ -870,7 +896,7 @@ static inline int __init activate_vmi(void)
 	 * the backend.  They are performance critical anyway, so requiring
 	 * a patch is not a big problem.
 	 */
-	pv_cpu_ops.irq_enable_sysexit = (void *)0xfeedbab0;
+	pv_cpu_ops.irq_enable_syscall_ret = (void *)0xfeedbab0;
 	pv_cpu_ops.iret = (void *)0xbadbab0;
 
 #ifdef CONFIG_SMP
@@ -963,19 +989,19 @@ static int __init parse_vmi(char *arg)
 		return -EINVAL;
 
 	if (!strcmp(arg, "disable_pge")) {
-		clear_bit(X86_FEATURE_PGE, boot_cpu_data.x86_capability);
+		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_PGE);
 		disable_pge = 1;
 	} else if (!strcmp(arg, "disable_pse")) {
-		clear_bit(X86_FEATURE_PSE, boot_cpu_data.x86_capability);
+		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_PSE);
 		disable_pse = 1;
 	} else if (!strcmp(arg, "disable_sep")) {
-		clear_bit(X86_FEATURE_SEP, boot_cpu_data.x86_capability);
+		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_SEP);
 		disable_sep = 1;
 	} else if (!strcmp(arg, "disable_tsc")) {
-		clear_bit(X86_FEATURE_TSC, boot_cpu_data.x86_capability);
+		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_TSC);
 		disable_tsc = 1;
 	} else if (!strcmp(arg, "disable_mtrr")) {
-		clear_bit(X86_FEATURE_MTRR, boot_cpu_data.x86_capability);
+		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_MTRR);
 		disable_mtrr = 1;
 	} else if (!strcmp(arg, "disable_timer")) {
 		disable_vmi_timer = 1;

@@ -11,8 +11,8 @@ void *memmove(void * dest,const void *src,size_t count)
 	if (dest < src) { 
 		return memcpy(dest,src,count);
 	} else {
-		char *p = (char *) dest + count;
-		char *s = (char *) src + count;
+		char *p = dest + count;
+		const char *s = src + count;
 		while (count--)
 			*--p = *--s;
 	}

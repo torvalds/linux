@@ -36,6 +36,13 @@
 
 #include <asm/uaccess.h>
 
+/*
+ * Architectures can override it:
+ */
+void __attribute__((weak)) early_printk(const char *fmt, ...)
+{
+}
+
 #define __LOG_BUF_LEN	(1 << CONFIG_LOG_BUF_SHIFT)
 
 /* printk's without a loglevel use this.. */

@@ -27,7 +27,7 @@ unsigned ia32_signal_class[] = {
 
 int ia32_classify_syscall(unsigned syscall)
 {
-	switch(syscall) {
+	switch (syscall) {
 	case __NR_open:
 		return 2;
 	case __NR_openat:

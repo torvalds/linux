@@ -245,21 +245,14 @@ static __inline__ int sigfindinword(unsigned long word)
 
 struct pt_regs;
 
-#define ptrace_signal_deliver(regs, cookie)		\
-	do {						\
-		if (current->ptrace & PT_DTRACE) {	\
-			current->ptrace &= ~PT_DTRACE;	\
-			(regs)->eflags &= ~TF_MASK;	\
-		}					\
-	} while (0)
-
 #else /* __i386__ */
 
 #undef __HAVE_ARCH_SIG_BITOPS
 
+#endif /* !__i386__ */
+
 #define ptrace_signal_deliver(regs, cookie) do { } while (0)
 
-#endif /* !__i386__ */
 #endif /* __KERNEL__ */
 #endif /* __ASSEMBLY__ */
 

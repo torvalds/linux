@@ -18,13 +18,13 @@
 
 ENTRY(swsusp_arch_suspend)
 	movq	$saved_context, %rax
-	movq	%rsp, pt_regs_rsp(%rax)
-	movq	%rbp, pt_regs_rbp(%rax)
-	movq	%rsi, pt_regs_rsi(%rax)
-	movq	%rdi, pt_regs_rdi(%rax)
-	movq	%rbx, pt_regs_rbx(%rax)
-	movq	%rcx, pt_regs_rcx(%rax)
-	movq	%rdx, pt_regs_rdx(%rax)
+	movq	%rsp, pt_regs_sp(%rax)
+	movq	%rbp, pt_regs_bp(%rax)
+	movq	%rsi, pt_regs_si(%rax)
+	movq	%rdi, pt_regs_di(%rax)
+	movq	%rbx, pt_regs_bx(%rax)
+	movq	%rcx, pt_regs_cx(%rax)
+	movq	%rdx, pt_regs_dx(%rax)
 	movq	%r8, pt_regs_r8(%rax)
 	movq	%r9, pt_regs_r9(%rax)
 	movq	%r10, pt_regs_r10(%rax)
@@ -34,7 +34,7 @@ ENTRY(swsusp_arch_suspend)
 	movq	%r14, pt_regs_r14(%rax)
 	movq	%r15, pt_regs_r15(%rax)
 	pushfq
-	popq	pt_regs_eflags(%rax)
+	popq	pt_regs_flags(%rax)
 
 	/* save the address of restore_registers */
 	movq	$restore_registers, %rax
@@ -115,13 +115,13 @@ ENTRY(restore_registers)
 
 	/* We don't restore %rax, it must be 0 anyway */
 	movq	$saved_context, %rax
-	movq	pt_regs_rsp(%rax), %rsp
-	movq	pt_regs_rbp(%rax), %rbp
-	movq	pt_regs_rsi(%rax), %rsi
-	movq	pt_regs_rdi(%rax), %rdi
-	movq	pt_regs_rbx(%rax), %rbx
-	movq	pt_regs_rcx(%rax), %rcx
-	movq	pt_regs_rdx(%rax), %rdx
+	movq	pt_regs_sp(%rax), %rsp
+	movq	pt_regs_bp(%rax), %rbp
+	movq	pt_regs_si(%rax), %rsi
+	movq	pt_regs_di(%rax), %rdi
+	movq	pt_regs_bx(%rax), %rbx
+	movq	pt_regs_cx(%rax), %rcx
+	movq	pt_regs_dx(%rax), %rdx
 	movq	pt_regs_r8(%rax), %r8
 	movq	pt_regs_r9(%rax), %r9
 	movq	pt_regs_r10(%rax), %r10
@@ -130,7 +130,7 @@ ENTRY(restore_registers)
 	movq	pt_regs_r13(%rax), %r13
 	movq	pt_regs_r14(%rax), %r14
 	movq	pt_regs_r15(%rax), %r15
-	pushq	pt_regs_eflags(%rax)
+	pushq	pt_regs_flags(%rax)
 	popfq
 
 	xorq	%rax, %rax

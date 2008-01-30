@@ -159,7 +159,7 @@ void __send_IPI_shortcut(unsigned int shortcut, int vector)
 	apic_write_around(APIC_ICR, cfg);
 }
 
-void fastcall send_IPI_self(int vector)
+void send_IPI_self(int vector)
 {
 	__send_IPI_shortcut(APIC_DEST_SELF, vector);
 }
@@ -223,7 +223,7 @@ void send_IPI_mask_sequence(cpumask_t mask, int vector)
 	 */ 
 
 	local_irq_save(flags);
-	for (query_cpu = 0; query_cpu < NR_CPUS; ++query_cpu) {
+	for_each_possible_cpu(query_cpu) {
 		if (cpu_isset(query_cpu, mask)) {
 			__send_IPI_dest_field(cpu_to_logical_apicid(query_cpu),
 					      vector);
@@ -256,13 +256,14 @@ static DEFINE_SPINLOCK(tlbstate_lock);
  * We need to reload %cr3 since the page tables may be going
  * away from under us..
  */
-void leave_mm(unsigned long cpu)
+void leave_mm(int cpu)
 {
 	if (per_cpu(cpu_tlbstate, cpu).state == TLBSTATE_OK)
 		BUG();
 	cpu_clear(cpu, per_cpu(cpu_tlbstate, cpu).active_mm->cpu_vm_mask);
 	load_cr3(swapper_pg_dir);
 }
+EXPORT_SYMBOL_GPL(leave_mm);
 
 /*
  *
@@ -310,7 +311,7 @@ void leave_mm(unsigned long cpu)
  * 2) Leave the mm if we are in the lazy tlb mode.
  */
 
-fastcall void smp_invalidate_interrupt(struct pt_regs *regs)
+void smp_invalidate_interrupt(struct pt_regs *regs)
 {
 	unsigned long cpu;
 
@@ -638,13 +639,13 @@ static void native_smp_send_stop(void)
  * all the work is done automatically when
  * we return from the interrupt.
  */
-fastcall void smp_reschedule_interrupt(struct pt_regs *regs)
+void smp_reschedule_interrupt(struct pt_regs *regs)
 {
 	ack_APIC_irq();
 	__get_cpu_var(irq_stat).irq_resched_count++;
 }
 
-fastcall void smp_call_function_interrupt(struct pt_regs *regs)
+void smp_call_function_interrupt(struct pt_regs *regs)
 {
 	void (*func) (void *info) = call_data->func;
 	void *info = call_data->info;
@@ -675,7 +676,7 @@ static int convert_apicid_to_cpu(int apic_id)
 {
 	int i;
 
-	for (i = 0; i < NR_CPUS; i++) {
+	for_each_possible_cpu(i) {
 		if (per_cpu(x86_cpu_to_apicid, i) == apic_id)
 			return i;
 	}

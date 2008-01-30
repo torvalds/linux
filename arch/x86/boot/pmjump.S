@@ -15,6 +15,7 @@
  */
 
 #include <asm/boot.h>
+#include <asm/processor-flags.h>
 #include <asm/segment.h>
 
 	.text
@@ -29,28 +30,55 @@
  */
 protected_mode_jump:
 	movl	%edx, %esi		# Pointer to boot_params table
-	movl	%eax, 2f		# Patch ljmpl instruction
+
+	xorl	%ebx, %ebx
+	movw	%cs, %bx
+	shll	$4, %ebx
+	addl	%ebx, 2f
 
 	movw	$__BOOT_DS, %cx
-	xorl	%ebx, %ebx		# Per the 32-bit boot protocol
-	xorl	%ebp, %ebp		# Per the 32-bit boot protocol
-	xorl	%edi, %edi		# Per the 32-bit boot protocol
+	movw	$__BOOT_TSS, %di
 
 	movl	%cr0, %edx
-	orb	$1, %dl			# Protected mode (PE) bit
+	orb	$X86_CR0_PE, %dl	# Protected mode
 	movl	%edx, %cr0
 	jmp	1f			# Short jump to serialize on 386/486
 1:
 
-	movw	%cx, %ds
-	movw	%cx, %es
-	movw	%cx, %fs
-	movw	%cx, %gs
-	movw	%cx, %ss
-
-	# Jump to the 32-bit entrypoint
+	# Transition to 32-bit mode
 	.byte	0x66, 0xea		# ljmpl opcode
-2:	.long	0			# offset
+2:	.long	in_pm32			# offset
 	.word	__BOOT_CS		# segment
 
 	.size	protected_mode_jump, .-protected_mode_jump
+
+	.code32
+	.type	in_pm32, @function
+in_pm32:
+	# Set up data segments for flat 32-bit mode
+	movl	%ecx, %ds
+	movl	%ecx, %es
+	movl	%ecx, %fs
+	movl	%ecx, %gs
+	movl	%ecx, %ss
+	# The 32-bit code sets up its own stack, but this way we do have
+	# a valid stack if some debugging hack wants to use it.
+	addl	%ebx, %esp
+
+	# Set up TR to make Intel VT happy
+	ltr	%di
+
+	# Clear registers to allow for future extensions to the
+	# 32-bit boot protocol
+	xorl	%ecx, %ecx
+	xorl	%edx, %edx
+	xorl	%ebx, %ebx
+	xorl	%ebp, %ebp
+	xorl	%edi, %edi
+
+	# Set up LDTR to make Intel VT happy
+	lldt	%cx
+
+	jmpl	*%eax			# Jump to the 32-bit entrypoint
+
+	.size	in_pm32, .-in_pm32

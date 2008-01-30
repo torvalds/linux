@@ -63,7 +63,7 @@ static DECLARE_WAIT_QUEUE_HEAD(mce_wait);
  * separate MCEs from kernel messages to avoid bogus bug reports.
  */
 
-struct mce_log mcelog = {
+static struct mce_log mcelog = {
 	MCE_LOG_SIGNATURE,
 	MCE_LOG_LEN,
 };
@@ -80,7 +80,7 @@ void mce_log(struct mce *mce)
 			/* When the buffer fills up discard new entries. Assume
 			   that the earlier errors are the more interesting. */
 			if (entry >= MCE_LOG_LEN) {
-				set_bit(MCE_OVERFLOW, &mcelog.flags);
+				set_bit(MCE_OVERFLOW, (unsigned long *)&mcelog.flags);
 				return;
 			}
 			/* Old left over entry. Skip. */
@@ -110,12 +110,12 @@ static void print_mce(struct mce *m)
 	       KERN_EMERG
 	       "CPU %d: Machine Check Exception: %16Lx Bank %d: %016Lx\n",
 	       m->cpu, m->mcgstatus, m->bank, m->status);
-	if (m->rip) {
+	if (m->ip) {
 		printk(KERN_EMERG "RIP%s %02x:<%016Lx> ",
 		       !(m->mcgstatus & MCG_STATUS_EIPV) ? " !INEXACT!" : "",
-		       m->cs, m->rip);
+		       m->cs, m->ip);
 		if (m->cs == __KERNEL_CS)
-			print_symbol("{%s}", m->rip);
+			print_symbol("{%s}", m->ip);
 		printk("\n");
 	}
 	printk(KERN_EMERG "TSC %Lx ", m->tsc);
@@ -156,16 +156,16 @@ static int mce_available(struct cpuinfo_x86 *c)
 static inline void mce_get_rip(struct mce *m, struct pt_regs *regs)
 {
 	if (regs && (m->mcgstatus & MCG_STATUS_RIPV)) {
-		m->rip = regs->rip;
+		m->ip = regs->ip;
 		m->cs = regs->cs;
 	} else {
-		m->rip = 0;
+		m->ip = 0;
 		m->cs = 0;
 	}
 	if (rip_msr) {
 		/* Assume the RIP in the MSR is exact. Is this true? */
 		m->mcgstatus |= MCG_STATUS_EIPV;
-		rdmsrl(rip_msr, m->rip);
+		rdmsrl(rip_msr, m->ip);
 		m->cs = 0;
 	}
 }
@@ -192,10 +192,10 @@ void do_machine_check(struct pt_regs * regs, long error_code)
 
 	atomic_inc(&mce_entry);
 
-	if (regs)
-		notify_die(DIE_NMI, "machine check", regs, error_code, 18,
-			   SIGKILL);
-	if (!banks)
+	if ((regs
+	     && notify_die(DIE_NMI, "machine check", regs, error_code,
+			   18, SIGKILL) == NOTIFY_STOP)
+	    || !banks)
 		goto out2;
 
 	memset(&m, 0, sizeof(struct mce));
@@ -288,7 +288,7 @@ void do_machine_check(struct pt_regs * regs, long error_code)
 		 * instruction which caused the MCE.
 		 */
 		if (m.mcgstatus & MCG_STATUS_EIPV)
-			user_space = panicm.rip && (panicm.cs & 3);
+			user_space = panicm.ip && (panicm.cs & 3);
 
 		/*
 		 * If we know that the error was in user space, send a
@@ -564,7 +564,7 @@ static ssize_t mce_read(struct file *filp, char __user *ubuf, size_t usize,
 			loff_t *off)
 {
 	unsigned long *cpu_tsc;
-	static DECLARE_MUTEX(mce_read_sem);
+	static DEFINE_MUTEX(mce_read_mutex);
 	unsigned next;
 	char __user *buf = ubuf;
 	int i, err;
@@ -573,12 +573,12 @@ static ssize_t mce_read(struct file *filp, char __user *ubuf, size_t usize,
 	if (!cpu_tsc)
 		return -ENOMEM;
 
-	down(&mce_read_sem);
+	mutex_lock(&mce_read_mutex);
 	next = rcu_dereference(mcelog.next);
 
 	/* Only supports full reads right now */
 	if (*off != 0 || usize < MCE_LOG_LEN*sizeof(struct mce)) {
-		up(&mce_read_sem);
+		mutex_unlock(&mce_read_mutex);
 		kfree(cpu_tsc);
 		return -EINVAL;
 	}
@@ -621,7 +621,7 @@ static ssize_t mce_read(struct file *filp, char __user *ubuf, size_t usize,
 			memset(&mcelog.entry[i], 0, sizeof(struct mce));
 		}
 	}
-	up(&mce_read_sem);
+	mutex_unlock(&mce_read_mutex);
 	kfree(cpu_tsc);
 	return err ? -EFAULT : buf - ubuf;
 }
@@ -634,8 +634,7 @@ static unsigned int mce_poll(struct file *file, poll_table *wait)
 	return 0;
 }
 
-static int mce_ioctl(struct inode *i, struct file *f,unsigned int cmd,
-		     unsigned long arg)
+static long mce_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 {
 	int __user *p = (int __user *)arg;
 
@@ -664,7 +663,7 @@ static const struct file_operations mce_chrdev_ops = {
 	.release = mce_release,
 	.read = mce_read,
 	.poll = mce_poll,
-	.ioctl = mce_ioctl,
+	.unlocked_ioctl = mce_ioctl,
 };
 
 static struct miscdevice mce_log_device = {
@@ -855,8 +854,8 @@ static void mce_remove_device(unsigned int cpu)
 }
 
 /* Get notified when a cpu comes on/off. Be hotplug friendly. */
-static int
-mce_cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
+static int __cpuinit mce_cpu_callback(struct notifier_block *nfb,
+				      unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;
 
@@ -873,7 +872,7 @@ mce_cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 	return NOTIFY_OK;
 }
 
-static struct notifier_block mce_cpu_notifier = {
+static struct notifier_block mce_cpu_notifier __cpuinitdata = {
 	.notifier_call = mce_cpu_callback,
 };
 

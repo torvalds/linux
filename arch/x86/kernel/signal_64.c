@@ -39,7 +39,7 @@ asmlinkage long
 sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
 		struct pt_regs *regs)
 {
-	return do_sigaltstack(uss, uoss, regs->rsp);
+	return do_sigaltstack(uss, uoss, regs->sp);
 }
 
 
@@ -64,8 +64,8 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc, unsigned 
 
 #define COPY(x)		err |= __get_user(regs->x, &sc->x)
 
-	COPY(rdi); COPY(rsi); COPY(rbp); COPY(rsp); COPY(rbx);
-	COPY(rdx); COPY(rcx); COPY(rip);
+	COPY(di); COPY(si); COPY(bp); COPY(sp); COPY(bx);
+	COPY(dx); COPY(cx); COPY(ip);
 	COPY(r8);
 	COPY(r9);
 	COPY(r10);
@@ -86,9 +86,9 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc, unsigned 
 
 	{
 		unsigned int tmpflags;
-		err |= __get_user(tmpflags, &sc->eflags);
-		regs->eflags = (regs->eflags & ~0x40DD5) | (tmpflags & 0x40DD5);
-		regs->orig_rax = -1;		/* disable syscall checks */
+		err |= __get_user(tmpflags, &sc->flags);
+		regs->flags = (regs->flags & ~0x40DD5) | (tmpflags & 0x40DD5);
+		regs->orig_ax = -1;		/* disable syscall checks */
 	}
 
 	{
@@ -108,7 +108,7 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc, unsigned 
 		}
 	}
 
-	err |= __get_user(*prax, &sc->rax);
+	err |= __get_user(*prax, &sc->ax);
 	return err;
 
 badframe:
@@ -119,9 +119,9 @@ asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)
 {
 	struct rt_sigframe __user *frame;
 	sigset_t set;
-	unsigned long eax;
+	unsigned long ax;
 
-	frame = (struct rt_sigframe __user *)(regs->rsp - 8);
+	frame = (struct rt_sigframe __user *)(regs->sp - 8);
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame))) {
 		goto badframe;
 	} 
@@ -135,17 +135,17 @@ asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 	
-	if (restore_sigcontext(regs, &frame->uc.uc_mcontext, &eax))
+	if (restore_sigcontext(regs, &frame->uc.uc_mcontext, &ax))
 		goto badframe;
 
 #ifdef DEBUG_SIG
-	printk("%d sigreturn rip:%lx rsp:%lx frame:%p rax:%lx\n",current->pid,regs->rip,regs->rsp,frame,eax);
+	printk("%d sigreturn ip:%lx sp:%lx frame:%p ax:%lx\n",current->pid,regs->ip,regs->sp,frame,ax);
 #endif
 
-	if (do_sigaltstack(&frame->uc.uc_stack, NULL, regs->rsp) == -EFAULT)
+	if (do_sigaltstack(&frame->uc.uc_stack, NULL, regs->sp) == -EFAULT)
 		goto badframe;
 
-	return eax;
+	return ax;
 
 badframe:
 	signal_fault(regs,frame,"sigreturn");
@@ -165,14 +165,14 @@ setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs, unsigned lo
 	err |= __put_user(0, &sc->gs);
 	err |= __put_user(0, &sc->fs);
 
-	err |= __put_user(regs->rdi, &sc->rdi);
-	err |= __put_user(regs->rsi, &sc->rsi);
-	err |= __put_user(regs->rbp, &sc->rbp);
-	err |= __put_user(regs->rsp, &sc->rsp);
-	err |= __put_user(regs->rbx, &sc->rbx);
-	err |= __put_user(regs->rdx, &sc->rdx);
-	err |= __put_user(regs->rcx, &sc->rcx);
-	err |= __put_user(regs->rax, &sc->rax);
+	err |= __put_user(regs->di, &sc->di);
+	err |= __put_user(regs->si, &sc->si);
+	err |= __put_user(regs->bp, &sc->bp);
+	err |= __put_user(regs->sp, &sc->sp);
+	err |= __put_user(regs->bx, &sc->bx);
+	err |= __put_user(regs->dx, &sc->dx);
+	err |= __put_user(regs->cx, &sc->cx);
+	err |= __put_user(regs->ax, &sc->ax);
 	err |= __put_user(regs->r8, &sc->r8);
 	err |= __put_user(regs->r9, &sc->r9);
 	err |= __put_user(regs->r10, &sc->r10);
@@ -183,8 +183,8 @@ setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs, unsigned lo
 	err |= __put_user(regs->r15, &sc->r15);
 	err |= __put_user(me->thread.trap_no, &sc->trapno);
 	err |= __put_user(me->thread.error_code, &sc->err);
-	err |= __put_user(regs->rip, &sc->rip);
-	err |= __put_user(regs->eflags, &sc->eflags);
+	err |= __put_user(regs->ip, &sc->ip);
+	err |= __put_user(regs->flags, &sc->flags);
 	err |= __put_user(mask, &sc->oldmask);
 	err |= __put_user(me->thread.cr2, &sc->cr2);
 
@@ -198,18 +198,18 @@ setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs, unsigned lo
 static void __user *
 get_stack(struct k_sigaction *ka, struct pt_regs *regs, unsigned long size)
 {
-	unsigned long rsp;
+	unsigned long sp;
 
 	/* Default to using normal stack - redzone*/
-	rsp = regs->rsp - 128;
+	sp = regs->sp - 128;
 
 	/* This is the X/Open sanctioned signal stack switching.  */
 	if (ka->sa.sa_flags & SA_ONSTACK) {
-		if (sas_ss_flags(rsp) == 0)
-			rsp = current->sas_ss_sp + current->sas_ss_size;
+		if (sas_ss_flags(sp) == 0)
+			sp = current->sas_ss_sp + current->sas_ss_size;
 	}
 
-	return (void __user *)round_down(rsp - size, 16); 
+	return (void __user *)round_down(sp - size, 16);
 }
 
 static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
@@ -246,7 +246,7 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	err |= __put_user(0, &frame->uc.uc_flags);
 	err |= __put_user(0, &frame->uc.uc_link);
 	err |= __put_user(me->sas_ss_sp, &frame->uc.uc_stack.ss_sp);
-	err |= __put_user(sas_ss_flags(regs->rsp),
+	err |= __put_user(sas_ss_flags(regs->sp),
 			  &frame->uc.uc_stack.ss_flags);
 	err |= __put_user(me->sas_ss_size, &frame->uc.uc_stack.ss_size);
 	err |= setup_sigcontext(&frame->uc.uc_mcontext, regs, set->sig[0], me);
@@ -271,21 +271,21 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 		goto give_sigsegv;
 
 #ifdef DEBUG_SIG
-	printk("%d old rip %lx old rsp %lx old rax %lx\n", current->pid,regs->rip,regs->rsp,regs->rax);
+	printk("%d old ip %lx old sp %lx old ax %lx\n", current->pid,regs->ip,regs->sp,regs->ax);
 #endif
 
 	/* Set up registers for signal handler */
-	regs->rdi = sig;
+	regs->di = sig;
 	/* In case the signal handler was declared without prototypes */ 
-	regs->rax = 0;	
+	regs->ax = 0;
 
 	/* This also works for non SA_SIGINFO handlers because they expect the
 	   next argument after the signal number on the stack. */
-	regs->rsi = (unsigned long)&frame->info; 
-	regs->rdx = (unsigned long)&frame->uc; 
-	regs->rip = (unsigned long) ka->sa.sa_handler;
+	regs->si = (unsigned long)&frame->info;
+	regs->dx = (unsigned long)&frame->uc;
+	regs->ip = (unsigned long) ka->sa.sa_handler;
 
-	regs->rsp = (unsigned long)frame;
+	regs->sp = (unsigned long)frame;
 
 	/* Set up the CS register to run signal handlers in 64-bit mode,
 	   even if the handler happens to be interrupting 32-bit code. */
@@ -295,12 +295,12 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	   see include/asm-x86_64/uaccess.h for details. */
 	set_fs(USER_DS);
 
-	regs->eflags &= ~TF_MASK;
+	regs->flags &= ~X86_EFLAGS_TF;
 	if (test_thread_flag(TIF_SINGLESTEP))
 		ptrace_notify(SIGTRAP);
 #ifdef DEBUG_SIG
 	printk("SIG deliver (%s:%d): sp=%p pc=%lx ra=%p\n",
-		current->comm, current->pid, frame, regs->rip, frame->pretcode);
+		current->comm, current->pid, frame, regs->ip, frame->pretcode);
 #endif
 
 	return 0;
@@ -321,44 +321,40 @@ handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 	int ret;
 
 #ifdef DEBUG_SIG
-	printk("handle_signal pid:%d sig:%lu rip:%lx rsp:%lx regs=%p\n",
+	printk("handle_signal pid:%d sig:%lu ip:%lx sp:%lx regs=%p\n",
 		current->pid, sig,
-		regs->rip, regs->rsp, regs);
+		regs->ip, regs->sp, regs);
 #endif
 
 	/* Are we from a system call? */
-	if ((long)regs->orig_rax >= 0) {
+	if ((long)regs->orig_ax >= 0) {
 		/* If so, check system call restarting.. */
-		switch (regs->rax) {
+		switch (regs->ax) {
 		        case -ERESTART_RESTARTBLOCK:
 			case -ERESTARTNOHAND:
-				regs->rax = -EINTR;
+				regs->ax = -EINTR;
 				break;
 
 			case -ERESTARTSYS:
 				if (!(ka->sa.sa_flags & SA_RESTART)) {
-					regs->rax = -EINTR;
+					regs->ax = -EINTR;
 					break;
 				}
 				/* fallthrough */
 			case -ERESTARTNOINTR:
-				regs->rax = regs->orig_rax;
-				regs->rip -= 2;
+				regs->ax = regs->orig_ax;
+				regs->ip -= 2;
 				break;
 		}
 	}
 
 	/*
-	 * If TF is set due to a debugger (PT_DTRACE), clear the TF
-	 * flag so that register information in the sigcontext is
-	 * correct.
+	 * If TF is set due to a debugger (TIF_FORCED_TF), clear the TF
+	 * flag so that register information in the sigcontext is correct.
 	 */
-	if (unlikely(regs->eflags & TF_MASK)) {
-		if (likely(current->ptrace & PT_DTRACE)) {
-			current->ptrace &= ~PT_DTRACE;
-			regs->eflags &= ~TF_MASK;
-		}
-	}
+	if (unlikely(regs->flags & X86_EFLAGS_TF) &&
+	    likely(test_and_clear_thread_flag(TIF_FORCED_TF)))
+		regs->flags &= ~X86_EFLAGS_TF;
 
 #ifdef CONFIG_IA32_EMULATION
 	if (test_thread_flag(TIF_IA32)) {
@@ -430,21 +426,21 @@ static void do_signal(struct pt_regs *regs)
 	}
 
 	/* Did we come from a system call? */
-	if ((long)regs->orig_rax >= 0) {
+	if ((long)regs->orig_ax >= 0) {
 		/* Restart the system call - no handlers present */
-		long res = regs->rax;
+		long res = regs->ax;
 		switch (res) {
 		case -ERESTARTNOHAND:
 		case -ERESTARTSYS:
 		case -ERESTARTNOINTR:
-			regs->rax = regs->orig_rax;
-			regs->rip -= 2;
+			regs->ax = regs->orig_ax;
+			regs->ip -= 2;
 			break;
 		case -ERESTART_RESTARTBLOCK:
-			regs->rax = test_thread_flag(TIF_IA32) ?
+			regs->ax = test_thread_flag(TIF_IA32) ?
 					__NR_ia32_restart_syscall :
 					__NR_restart_syscall;
-			regs->rip -= 2;
+			regs->ip -= 2;
 			break;
 		}
 	}
@@ -461,13 +457,13 @@ void
 do_notify_resume(struct pt_regs *regs, void *unused, __u32 thread_info_flags)
 {
 #ifdef DEBUG_SIG
-	printk("do_notify_resume flags:%x rip:%lx rsp:%lx caller:%p pending:%x\n",
-	       thread_info_flags, regs->rip, regs->rsp, __builtin_return_address(0),signal_pending(current)); 
+	printk("do_notify_resume flags:%x ip:%lx sp:%lx caller:%p pending:%x\n",
+	       thread_info_flags, regs->ip, regs->sp, __builtin_return_address(0),signal_pending(current));
 #endif
 	       
 	/* Pending single-step? */
 	if (thread_info_flags & _TIF_SINGLESTEP) {
-		regs->eflags |= TF_MASK;
+		regs->flags |= X86_EFLAGS_TF;
 		clear_thread_flag(TIF_SINGLESTEP);
 	}
 
@@ -488,9 +484,12 @@ do_notify_resume(struct pt_regs *regs, void *unused, __u32 thread_info_flags)
 void signal_fault(struct pt_regs *regs, void __user *frame, char *where)
 { 
 	struct task_struct *me = current; 
-	if (show_unhandled_signals && printk_ratelimit())
-		printk("%s[%d] bad frame in %s frame:%p rip:%lx rsp:%lx orax:%lx\n",
-	       me->comm,me->pid,where,frame,regs->rip,regs->rsp,regs->orig_rax); 
+	if (show_unhandled_signals && printk_ratelimit()) {
+		printk("%s[%d] bad frame in %s frame:%p ip:%lx sp:%lx orax:%lx",
+	       me->comm,me->pid,where,frame,regs->ip,regs->sp,regs->orig_ax);
+		print_vma_addr(" in ", regs->ip);
+		printk("\n");
+	}
 
 	force_sig(SIGSEGV, me); 
 } 

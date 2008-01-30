@@ -600,63 +600,6 @@ static int hpet_is_known(struct hpet_data *hdp)
 	return 0;
 }
 
-EXPORT_SYMBOL(hpet_alloc);
-EXPORT_SYMBOL(hpet_register);
-EXPORT_SYMBOL(hpet_unregister);
-EXPORT_SYMBOL(hpet_control);
-
-int hpet_register(struct hpet_task *tp, int periodic)
-{
-	unsigned int i;
-	u64 mask;
-	struct hpet_timer __iomem *timer;
-	struct hpet_dev *devp;
-	struct hpets *hpetp;
-
-	switch (periodic) {
-	case 1:
-		mask = Tn_PER_INT_CAP_MASK;
-		break;
-	case 0:
-		mask = 0;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	tp->ht_opaque = NULL;
-
-	spin_lock_irq(&hpet_task_lock);
-	spin_lock(&hpet_lock);
-
-	for (devp = NULL, hpetp = hpets; hpetp && !devp; hpetp = hpetp->hp_next)
-		for (timer = hpetp->hp_hpet->hpet_timers, i = 0;
-		     i < hpetp->hp_ntimer; i++, timer++) {
-			if ((readq(&timer->hpet_config) & Tn_PER_INT_CAP_MASK)
-			    != mask)
-				continue;
-
-			devp = &hpetp->hp_dev[i];
-
-			if (devp->hd_flags & HPET_OPEN || devp->hd_task) {
-				devp = NULL;
-				continue;
-			}
-
-			tp->ht_opaque = devp;
-			devp->hd_task = tp;
-			break;
-		}
-
-	spin_unlock(&hpet_lock);
-	spin_unlock_irq(&hpet_task_lock);
-
-	if (tp->ht_opaque)
-		return 0;
-	else
-		return -EBUSY;
-}
-
 static inline int hpet_tpcheck(struct hpet_task *tp)
 {
 	struct hpet_dev *devp;
@@ -704,24 +647,6 @@ int hpet_unregister(struct hpet_task *tp)
 	spin_unlock_irq(&hpet_task_lock);
 
 	return 0;
-}
-
-int hpet_control(struct hpet_task *tp, unsigned int cmd, unsigned long arg)
-{
-	struct hpet_dev *devp;
-	int err;
-
-	if ((err = hpet_tpcheck(tp)))
-		return err;
-
-	spin_lock_irq(&hpet_lock);
-	devp = tp->ht_opaque;
-	if (devp->hd_task != tp) {
-		spin_unlock_irq(&hpet_lock);
-		return -ENXIO;
-	}
-	spin_unlock_irq(&hpet_lock);
-	return hpet_ioctl_common(devp, cmd, arg, 1);
 }
 
 static ctl_table hpet_table[] = {
@@ -806,14 +731,14 @@ static unsigned long hpet_calibrate(struct hpets *hpetp)
 
 int hpet_alloc(struct hpet_data *hdp)
 {
-	u64 cap, mcfg;
+	u64 cap, mcfg, hpet_config;
 	struct hpet_dev *devp;
-	u32 i, ntimer;
+	u32 i, ntimer, irq;
 	struct hpets *hpetp;
 	size_t siz;
 	struct hpet __iomem *hpet;
 	static struct hpets *last = NULL;
-	unsigned long period;
+	unsigned long period, irq_bitmap;
 	unsigned long long temp;
 
 	/*
@@ -840,11 +765,47 @@ int hpet_alloc(struct hpet_data *hdp)
 	hpetp->hp_hpet_phys = hdp->hd_phys_address;
 
 	hpetp->hp_ntimer = hdp->hd_nirqs;
-
-	for (i = 0; i < hdp->hd_nirqs; i++)
-		hpetp->hp_dev[i].hd_hdwirq = hdp->hd_irq[i];
-
 	hpet = hpetp->hp_hpet;
+
+	/* Assign IRQs statically for legacy devices */
+	hpetp->hp_dev[0].hd_hdwirq = hdp->hd_irq[0];
+	hpetp->hp_dev[1].hd_hdwirq = hdp->hd_irq[1];
+
+	/* Assign IRQs dynamically for the others */
+	for (i = 2, devp = &hpetp->hp_dev[2]; i < hdp->hd_nirqs; i++, devp++) {
+		struct hpet_timer __iomem *timer;
+
+		timer = &hpet->hpet_timers[devp - hpetp->hp_dev];
+
+		/* Check if there's already an IRQ assigned to the timer */
+		if (hdp->hd_irq[i]) {
+			hpetp->hp_dev[i].hd_hdwirq = hdp->hd_irq[i];
+			continue;
+		}
+
+		hpet_config = readq(&timer->hpet_config);
+		irq_bitmap = (hpet_config & Tn_INT_ROUTE_CAP_MASK)
+			>> Tn_INT_ROUTE_CAP_SHIFT;
+		if (!irq_bitmap)
+			irq = 0;        /* No valid IRQ Assignable */
+		else {
+			irq = find_first_bit(&irq_bitmap, 32);
+			do {
+				hpet_config |= irq << Tn_INT_ROUTE_CNF_SHIFT;
+				writeq(hpet_config, &timer->hpet_config);
+
+				/*
+				 * Verify whether we have written a valid
+				 * IRQ number by reading it back again
+				 */
+				hpet_config = readq(&timer->hpet_config);
+				if (irq == (hpet_config & Tn_INT_ROUTE_CNF_MASK)
+						>> Tn_INT_ROUTE_CNF_SHIFT)
+					break;  /* Success */
+			} while ((irq = (find_next_bit(&irq_bitmap, 32, irq))));
+		}
+		hpetp->hp_dev[i].hd_hdwirq = irq;
+	}
 
 	cap = readq(&hpet->hpet_cap);
 
@@ -875,7 +836,8 @@ int hpet_alloc(struct hpet_data *hdp)
 		hpetp->hp_which, hdp->hd_phys_address,
 		hpetp->hp_ntimer > 1 ? "s" : "");
 	for (i = 0; i < hpetp->hp_ntimer; i++)
-		printk("%s %d", i > 0 ? "," : "", hdp->hd_irq[i]);
+		printk("%s %d", i > 0 ? "," : "",
+				hpetp->hp_dev[i].hd_hdwirq);
 	printk("\n");
 
 	printk(KERN_INFO "hpet%u: %u %d-bit timers, %Lu Hz\n",

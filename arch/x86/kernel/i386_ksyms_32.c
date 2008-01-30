@@ -22,12 +22,5 @@ EXPORT_SYMBOL(__put_user_8);
 
 EXPORT_SYMBOL(strstr);
 
-#ifdef CONFIG_SMP
-extern void FASTCALL( __write_lock_failed(rwlock_t *rw));
-extern void FASTCALL( __read_lock_failed(rwlock_t *rw));
-EXPORT_SYMBOL(__write_lock_failed);
-EXPORT_SYMBOL(__read_lock_failed);
-#endif
-
 EXPORT_SYMBOL(csum_partial);
 EXPORT_SYMBOL(empty_zero_page);

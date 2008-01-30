@@ -127,6 +127,8 @@ extern int __devinitdata pxm_to_nid_map[MAX_PXM_DOMAINS];
 extern int __initdata nid_to_pxm_map[MAX_NUMNODES];
 #endif
 
+#define acpi_unlazy_tlb(x)
+
 #endif /*__KERNEL__*/
 
 #endif /*_ASM_ACPI_H*/

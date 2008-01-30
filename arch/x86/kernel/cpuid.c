@@ -50,7 +50,7 @@ struct cpuid_command {
 
 static void cpuid_smp_cpuid(void *cmd_block)
 {
-	struct cpuid_command *cmd = (struct cpuid_command *)cmd_block;
+	struct cpuid_command *cmd = cmd_block;
 
 	cpuid(cmd->reg, &cmd->data[0], &cmd->data[1], &cmd->data[2],
 		      &cmd->data[3]);

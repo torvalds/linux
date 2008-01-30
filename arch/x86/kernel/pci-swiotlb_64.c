@@ -10,7 +10,6 @@
 #include <asm/dma.h>
 
 int swiotlb __read_mostly;
-EXPORT_SYMBOL(swiotlb);
 
 const struct dma_mapping_ops swiotlb_dma_ops = {
 	.mapping_error = swiotlb_dma_mapping_error,
