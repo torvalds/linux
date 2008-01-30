@@ -63,13 +63,14 @@ static inline unsigned long long native_read_msr_safe(unsigned int msr,
 	return val;
 }
 
-static inline void native_write_msr(unsigned int msr, unsigned long long val)
+static inline void native_write_msr(unsigned int msr,
+				    unsigned low, unsigned high)
 {
-	asm volatile("wrmsr" : : "c" (msr), "A"(val));
+	asm volatile("wrmsr" : : "c" (msr), "a"(low), "d" (high));
 }
 
 static inline int native_write_msr_safe(unsigned int msr,
-					unsigned long long val)
+					unsigned low, unsigned high)
 {
 	int err;
 	asm volatile("2: wrmsr ; xorl %0,%0\n"
@@ -82,7 +83,7 @@ static inline int native_write_msr_safe(unsigned int msr,
 		     "   .long	2b,3b\n\t"
 		     ".previous"
 		     : "=a" (err)
-		     : "c" (msr), "0" ((u32)val), "d" ((u32)(val>>32)),
+		     : "c" (msr), "0" (low), "d" (high),
 		       "i" (-EFAULT));
 	return err;
 }
@@ -118,20 +119,20 @@ static inline unsigned long long native_read_pmc(int counter)
 		(val2) = (u32)(__val >> 32);				\
 	} while(0)
 
-static inline void wrmsr(u32 __msr, u32 __low, u32 __high)
+static inline void wrmsr(unsigned msr, unsigned low, unsigned high)
 {
-	native_write_msr(__msr, ((u64)__high << 32) | __low);
+	native_write_msr(msr, low, high);
 }
 
 #define rdmsrl(msr,val)							\
 	((val) = native_read_msr(msr))
 
-#define wrmsrl(msr,val)	native_write_msr(msr, val)
+#define wrmsrl(msr, val) native_write_msr(msr, (u32)val, (u32)(val >> 32))
 
 /* wrmsr with exception handling */
-static inline int wrmsr_safe(u32 __msr, u32 __low, u32 __high)
+static inline int wrmsr_safe(unsigned msr, unsigned low, unsigned high)
 {
-	return native_write_msr_safe(__msr, ((u64)__high << 32) | __low);
+	return native_write_msr_safe(msr, low, high);
 }
 
 /* rdmsr with exception handling */
