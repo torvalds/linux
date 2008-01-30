@@ -601,19 +601,12 @@ static void __kprobes do_trap(int trapnr, int signr, char *str,
 	}
 
 
-	/* kernel trap */ 
-	{	     
-		const struct exception_table_entry *fixup;
-		fixup = search_exception_tables(regs->ip);
-		if (fixup)
-			regs->ip = fixup->fixup;
-		else {
-			tsk->thread.error_code = error_code;
-			tsk->thread.trap_no = trapnr;
-			die(str, regs, error_code);
-		}
-		return;
+	if (!fixup_exception(regs)) {
+		tsk->thread.error_code = error_code;
+		tsk->thread.trap_no = trapnr;
+		die(str, regs, error_code);
 	}
+	return;
 }
 
 #define DO_ERROR(trapnr, signr, str, name) \
@@ -703,22 +696,15 @@ asmlinkage void __kprobes do_general_protection(struct pt_regs * regs,
 		return;
 	} 
 
-	/* kernel gp */
-	{
-		const struct exception_table_entry *fixup;
-		fixup = search_exception_tables(regs->ip);
-		if (fixup) {
-			regs->ip = fixup->fixup;
-			return;
-		}
+	if (fixup_exception(regs))
+		return;
 
-		tsk->thread.error_code = error_code;
-		tsk->thread.trap_no = 13;
-		if (notify_die(DIE_GPF, "general protection fault", regs,
-					error_code, 13, SIGSEGV) == NOTIFY_STOP)
-			return;
-		die("general protection fault", regs, error_code);
-	}
+	tsk->thread.error_code = error_code;
+	tsk->thread.trap_no = 13;
+	if (notify_die(DIE_GPF, "general protection fault", regs,
+				error_code, 13, SIGSEGV) == NOTIFY_STOP)
+		return;
+	die("general protection fault", regs, error_code);
 }
 
 static __kprobes void
@@ -910,12 +896,9 @@ clear_TF_reenable:
 
 static int kernel_math_error(struct pt_regs *regs, const char *str, int trapnr)
 {
-	const struct exception_table_entry *fixup;
-	fixup = search_exception_tables(regs->ip);
-	if (fixup) {
-		regs->ip = fixup->fixup;
+	if (fixup_exception(regs))
 		return 1;
-	}
+
 	notify_die(DIE_GPF, str, regs, 0, trapnr, SIGFPE);
 	/* Illegal floating point operation in the kernel */
 	current->thread.trap_no = trapnr;
