@@ -19,8 +19,9 @@ void clflush_cache_range(void *addr, int size)
 
 #include <asm/processor.h>
 #include <asm/tlbflush.h>
+#include <asm/sections.h>
 #include <asm/uaccess.h>
-#include <asm/io.h>
+#include <asm/pgalloc.h>
 
 pte_t *lookup_address(unsigned long address, int *level)
 {
