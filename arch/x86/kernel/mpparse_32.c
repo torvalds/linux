@@ -1041,13 +1041,14 @@ void __init mp_config_acpi_legacy_irqs (void)
 }
 
 #define MAX_GSI_NUM	4096
+#define IRQ_COMPRESSION_START	64
 
 int mp_register_gsi(u32 gsi, int triggering, int polarity)
 {
 	int ioapic = -1;
 	int ioapic_pin = 0;
 	int idx, bit = 0;
-	static int pci_irq = 16;
+	static int pci_irq = IRQ_COMPRESSION_START;
 	/*
 	 * Mapping between Global System Interrups, which
 	 * represent all possible interrupts, and IRQs
@@ -1086,12 +1087,16 @@ int mp_register_gsi(u32 gsi, int triggering, int polarity)
 	if ((1<<bit) & mp_ioapic_routing[ioapic].pin_programmed[idx]) {
 		Dprintk(KERN_DEBUG "Pin %d-%d already programmed\n",
 			mp_ioapic_routing[ioapic].apic_id, ioapic_pin);
-		return gsi_to_irq[gsi];
+		return (gsi < IRQ_COMPRESSION_START ? gsi : gsi_to_irq[gsi]);
 	}
 
 	mp_ioapic_routing[ioapic].pin_programmed[idx] |= (1<<bit);
 
-	if (triggering == ACPI_LEVEL_SENSITIVE) {
+	/*
+	 * For GSI >= 64, use IRQ compression
+	 */
+	if ((gsi >= IRQ_COMPRESSION_START)
+		&& (triggering == ACPI_LEVEL_SENSITIVE)) {
 		/*
 		 * For PCI devices assign IRQs in order, avoiding gaps
 		 * due to unused I/O APIC pins.
