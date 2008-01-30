@@ -79,6 +79,19 @@
 #ifndef __ASSEMBLY__
 void clear_page(void *page);
 void copy_page(void *to, void *from);
+
+/*
+ * These are used to make use of C type-checking..
+ */
+typedef unsigned long	pteval_t;
+typedef unsigned long	pmdval_t;
+typedef unsigned long	pudval_t;
+typedef unsigned long	pgdval_t;
+typedef unsigned long	pgprotval_t;
+typedef unsigned long	phys_addr_t;
+
+typedef struct { pteval_t pte; } pte_t;
+
 #endif	/* !__ASSEMBLY__ */
 
 #endif	/* CONFIG_X86_64 */
