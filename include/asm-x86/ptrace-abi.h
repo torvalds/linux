@@ -80,51 +80,53 @@
 
 #define PTRACE_SINGLEBLOCK	33	/* resume execution until next branch */
 
-/* Return maximal BTS buffer size in number of records,
-   if successuf; -1, otherwise.
-   EOPNOTSUPP...processor does not support bts tracing */
-#define PTRACE_BTS_MAX_BUFFER_SIZE 40
+/* configuration/status structure used in PTRACE_BTS_CONFIG and
+   PTRACE_BTS_STATUS commands.
+*/
+struct ptrace_bts_config {
+	/* requested or actual size of BTS buffer in bytes */
+	unsigned long size;
+	/* bitmask of below flags */
+	unsigned long flags;
+};
 
-/* Allocate new bts buffer (free old one, if exists) of size DATA bts records;
-   parameter ADDR is ignored.
-   Return 0, if successful; -1, otherwise.
-   EOPNOTSUPP...processor does not support bts tracing
-   EINVAL.......invalid size in records
-   ENOMEM.......out of memory */
-#define PTRACE_BTS_ALLOCATE_BUFFER 41
+#define PTRACE_BTS_O_TRACE	0x1 /* branch trace */
+#define PTRACE_BTS_O_SCHED	0x2 /* scheduling events w/ jiffies */
+#define PTRACE_BTS_O_SIGNAL     0x4 /* send SIG? on buffer overflow
+				       instead of wrapping around */
+#define PTRACE_BTS_O_CUT_SIZE	0x8 /* cut requested size to max available
+				       instead of failing */
 
-/* Return the size of the bts buffer in number of bts records,
-   if successful; -1, otherwise.
-   EOPNOTSUPP...processor does not support bts tracing
-   ENXIO........no buffer allocated */
-#define PTRACE_BTS_GET_BUFFER_SIZE 42
-
-/* Read the DATA'th bts record into a ptrace_bts_record buffer
-   provided in ADDR.
-   Records are ordered from newest to oldest.
-   Return 0, if successful; -1, otherwise
-   EOPNOTSUPP...processor does not support bts tracing
-   ENXIO........no buffer allocated
-   EINVAL.......invalid index */
-#define PTRACE_BTS_READ_RECORD 43
-
-/* Configure last branch trace; the configuration is given as a bit-mask of
-   PTRACE_BTS_O_* options in DATA; parameter ADDR is ignored.
-   Return 0, if successful; -1, otherwise
-   EOPNOTSUPP...processor does not support bts tracing
-   ENXIO........no buffer allocated */
-#define PTRACE_BTS_CONFIG 44
-
-/* Return the configuration as bit-mask of PTRACE_BTS_O_* options
-   if successful; -1, otherwise.
-   EOPNOTSUPP...processor does not support bts tracing
-   ENXIO........no buffer allocated */
-#define PTRACE_BTS_STATUS 45
-
-/* Trace configuration options */
-/* Collect last branch trace */
-#define PTRACE_BTS_O_TRACE_TASK 0x1
-/* Take timestamps when the task arrives and departs */
-#define PTRACE_BTS_O_TIMESTAMPS 0x2
+#define PTRACE_BTS_CONFIG	40
+/* Configure branch trace recording.
+   DATA is ignored, ADDR points to a struct ptrace_bts_config.
+   A new buffer is allocated, iff the size changes.
+*/
+#define PTRACE_BTS_STATUS	41
+/* Return the current configuration.
+   DATA is ignored, ADDR points to a struct ptrace_bts_config
+   that will contain the result.
+*/
+#define PTRACE_BTS_SIZE		42
+/* Return the number of available BTS records.
+   DATA and ADDR are ignored.
+*/
+#define PTRACE_BTS_GET		43
+/* Get a single BTS record.
+   DATA defines the index into the BTS array, where 0 is the newest
+   entry, and higher indices refer to older entries.
+   ADDR is pointing to struct bts_struct (see asm/ds.h).
+*/
+#define PTRACE_BTS_CLEAR	44
+/* Clear the BTS buffer.
+   DATA and ADDR are ignored.
+*/
+#define PTRACE_BTS_DRAIN	45
+/* Read all available BTS records and clear the buffer.
+   DATA is ignored. ADDR points to an array of struct bts_struct of
+   suitable size.
+   BTS records are read from oldest to newest.
+   Returns number of BTS records drained.
+*/
 
 #endif

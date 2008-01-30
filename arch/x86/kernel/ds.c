@@ -177,18 +177,20 @@ static inline void set_info_data(char *base, unsigned long value)
 }
 
 
-int ds_allocate(void **dsp, size_t bts_size_in_records)
+int ds_allocate(void **dsp, size_t bts_size_in_bytes)
 {
-	size_t bts_size_in_bytes = 0;
-	void *bts = 0;
-	void *ds = 0;
+	size_t bts_size_in_records;
+	void *bts;
+	void *ds;
 
 	if (!ds_cfg.sizeof_ds || !ds_cfg.sizeof_bts)
 		return -EOPNOTSUPP;
 
-	if (bts_size_in_records < 0)
+	if (bts_size_in_bytes < 0)
 		return -EINVAL;
 
+	bts_size_in_records =
+		bts_size_in_bytes / ds_cfg.sizeof_bts;
 	bts_size_in_bytes =
 		bts_size_in_records * ds_cfg.sizeof_bts;
 
@@ -233,9 +235,21 @@ int ds_get_bts_size(void *ds)
 	if (!ds_cfg.sizeof_ds || !ds_cfg.sizeof_bts)
 		return -EOPNOTSUPP;
 
+	if (!ds)
+		return 0;
+
 	size_in_bytes =
 		get_bts_absolute_maximum(ds) -
 		get_bts_buffer_base(ds);
+	return size_in_bytes;
+}
+
+int ds_get_bts_end(void *ds)
+{
+	size_t size_in_bytes = ds_get_bts_size(ds);
+
+	if (size_in_bytes <= 0)
+		return size_in_bytes;
 
 	return size_in_bytes / ds_cfg.sizeof_bts;
 }
@@ -252,6 +266,38 @@ int ds_get_bts_index(void *ds)
 		get_bts_buffer_base(ds);
 
 	return index_offset_in_bytes / ds_cfg.sizeof_bts;
+}
+
+int ds_set_overflow(void *ds, int method)
+{
+	switch (method) {
+	case DS_O_SIGNAL:
+		return -EOPNOTSUPP;
+	case DS_O_WRAP:
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
+int ds_get_overflow(void *ds)
+{
+	return DS_O_WRAP;
+}
+
+int ds_clear(void *ds)
+{
+	int bts_size = ds_get_bts_size(ds);
+	void *bts_base;
+
+	if (bts_size <= 0)
+		return bts_size;
+
+	bts_base = get_bts_buffer_base(ds);
+	memset(bts_base, 0, bts_size);
+
+	set_bts_index(ds, bts_base);
+	return 0;
 }
 
 int ds_read_bts(void *ds, size_t index, struct bts_struct *out)

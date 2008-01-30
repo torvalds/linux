@@ -9,6 +9,7 @@
 
 #ifdef __KERNEL__
 
+/* the DS BTS struct is used for ptrace as well */
 #include <asm/ds.h>
 
 struct task_struct;

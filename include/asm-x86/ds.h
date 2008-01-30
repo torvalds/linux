@@ -52,11 +52,18 @@ struct bts_struct {
 	} variant;
 };
 
+/* Overflow handling mechanisms */
+#define DS_O_SIGNAL	1 /* send overflow signal */
+#define DS_O_WRAP	2 /* wrap around */
 
 extern int ds_allocate(void **, size_t);
 extern int ds_free(void **);
 extern int ds_get_bts_size(void *);
+extern int ds_get_bts_end(void *);
 extern int ds_get_bts_index(void *);
+extern int ds_set_overflow(void *, int);
+extern int ds_get_overflow(void *);
+extern int ds_clear(void *);
 extern int ds_read_bts(void *, size_t, struct bts_struct *);
 extern int ds_write_bts(void *, const struct bts_struct *);
 extern unsigned long ds_debugctl_mask(void);
