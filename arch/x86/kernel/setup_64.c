@@ -310,6 +310,13 @@ void __init setup_arch(char **cmdline_p)
 	 * we are rounding upwards:
 	 */
 	end_pfn = e820_end_of_ram();
+	/* update e820 for memory not covered by WB MTRRs */
+	mtrr_bp_init();
+	if (mtrr_trim_uncached_memory(end_pfn)) {
+		e820_register_active_regions(0, 0, -1UL);
+		end_pfn = e820_end_of_ram();
+	}
+
 	num_physpages = end_pfn;
 
 	check_efer();
