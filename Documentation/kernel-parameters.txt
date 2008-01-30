@@ -660,6 +660,10 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	gamma=		[HW,DRM]
 
+	gart_fix_e820=  [X86_64] disable the fix e820 for K8 GART
+			Format: off | on
+			default: on
+
 	gdth=		[HW,SCSI]
 			See header of drivers/scsi/gdth.c.
 

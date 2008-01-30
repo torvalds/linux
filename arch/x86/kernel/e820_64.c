@@ -728,6 +728,18 @@ void __init finish_e820_parsing(void)
 	}
 }
 
+void __init update_e820(void)
+{
+	u8 nr_map;
+
+	nr_map = e820.nr_map;
+	if (sanitize_e820_map(e820.map, &nr_map))
+		return;
+	e820.nr_map = nr_map;
+	printk(KERN_INFO "modified physical RAM map:\n");
+	e820_print_map("modified");
+}
+
 unsigned long pci_mem_start = 0xaeedbabe;
 EXPORT_SYMBOL(pci_mem_start);
 

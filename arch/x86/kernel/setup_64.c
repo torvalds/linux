@@ -53,6 +53,7 @@
 #include <video/edid.h>
 #include <asm/e820.h>
 #include <asm/dma.h>
+#include <asm/gart.h>
 #include <asm/mpspec.h>
 #include <asm/mmu_context.h>
 #include <asm/proto.h>
@@ -334,6 +335,8 @@ void __init setup_arch(char **cmdline_p)
 	parse_early_param();
 
 	finish_e820_parsing();
+
+	early_gart_iommu_check();
 
 	e820_register_active_regions(0, 0, -1UL);
 	/*

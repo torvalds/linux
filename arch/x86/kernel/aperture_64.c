@@ -218,6 +218,95 @@ static __u32 __init search_agp_bridge(u32 *order, int *valid_agp)
 	return 0;
 }
 
+static int gart_fix_e820 __initdata = 1;
+
+static int __init parse_gart_mem(char *p)
+{
+	if (!p)
+		return -EINVAL;
+
+	if (!strncmp(p, "off", 3))
+		gart_fix_e820 = 0;
+	else if (!strncmp(p, "on", 2))
+		gart_fix_e820 = 1;
+
+	return 0;
+}
+early_param("gart_fix_e820", parse_gart_mem);
+
+void __init early_gart_iommu_check(void)
+{
+	/*
+	 * in case it is enabled before, esp for kexec/kdump,
+	 * previous kernel already enable that. memset called
+	 * by allocate_aperture/__alloc_bootmem_nopanic cause restart.
+	 * or second kernel have different position for GART hole. and new
+	 * kernel could use hole as RAM that is still used by GART set by
+	 * first kernel
+	 * or BIOS forget to put that in reserved.
+	 * try to update e820 to make that region as reserved.
+	 */
+	int fix, num;
+	u32 ctl;
+	u32 aper_size = 0, aper_order = 0, last_aper_order = 0;
+	u64 aper_base = 0, last_aper_base = 0;
+	int aper_enabled = 0, last_aper_enabled = 0;
+
+	if (!early_pci_allowed())
+		return;
+
+	fix = 0;
+	for (num = 24; num < 32; num++) {
+		if (!early_is_k8_nb(read_pci_config(0, num, 3, 0x00)))
+			continue;
+
+		ctl = read_pci_config(0, num, 3, 0x90);
+		aper_enabled = ctl & 1;
+		aper_order = (ctl >> 1) & 7;
+		aper_size = (32 * 1024 * 1024) << aper_order;
+		aper_base = read_pci_config(0, num, 3, 0x94) & 0x7fff;
+		aper_base <<= 25;
+
+		if ((last_aper_order && aper_order != last_aper_order) ||
+		    (last_aper_base && aper_base != last_aper_base) ||
+		    (last_aper_enabled && aper_enabled != last_aper_enabled)) {
+			fix = 1;
+			break;
+		}
+		last_aper_order = aper_order;
+		last_aper_base = aper_base;
+		last_aper_enabled = aper_enabled;
+	}
+
+	if (!fix && !aper_enabled)
+		return;
+
+	if (!aper_base || !aper_size || aper_base + aper_size > 0x100000000UL)
+		fix = 1;
+
+	if (gart_fix_e820 && !fix && aper_enabled) {
+		if (e820_any_mapped(aper_base, aper_base + aper_size,
+				    E820_RAM)) {
+			/* reserved it, so we can resuse it in second kernel */
+			printk(KERN_INFO "update e820 for GART\n");
+			add_memory_region(aper_base, aper_size, E820_RESERVED);
+			update_e820();
+		}
+		return;
+	}
+
+	/* different nodes have different setting, disable them all at first*/
+	for (num = 24; num < 32; num++) {
+		if (!early_is_k8_nb(read_pci_config(0, num, 3, 0x00)))
+			continue;
+
+		ctl = read_pci_config(0, num, 3, 0x90);
+		ctl &= ~1;
+		write_pci_config(0, num, 3, 0x90, ctl);
+	}
+
+}
+
 void __init gart_iommu_hole_init(void)
 {
 	u32 aper_size, aper_alloc = 0, aper_order = 0, last_aper_order = 0;

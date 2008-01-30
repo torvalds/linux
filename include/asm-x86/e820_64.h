@@ -39,6 +39,7 @@ extern void e820_register_active_regions(int nid,
 extern void finish_e820_parsing(void);
 
 extern struct e820map e820;
+extern void update_e820(void);
 
 extern unsigned ebda_addr, ebda_size;
 extern unsigned long nodemap_addr, nodemap_size;
