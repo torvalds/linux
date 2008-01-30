@@ -81,7 +81,7 @@ x86_backtrace(struct pt_regs * const regs, unsigned int depth)
 
 	if (!user_mode_vm(regs)) {
 		if (depth)
-			dump_trace(NULL, regs, (unsigned long *)stack,
+			dump_trace(NULL, regs, (unsigned long *)stack, 0,
 				   &backtrace_ops, &depth);
 		return;
 	}

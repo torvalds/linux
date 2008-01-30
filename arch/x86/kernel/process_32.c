@@ -379,7 +379,7 @@ void __show_registers(struct pt_regs *regs, int all)
 void show_regs(struct pt_regs *regs)
 {
 	__show_registers(regs, 1);
-	show_trace(NULL, regs, &regs->sp);
+	show_trace(NULL, regs, &regs->sp, regs->bp);
 }
 
 /*

@@ -120,15 +120,6 @@ static inline unsigned long print_context_stack(struct thread_info *tinfo,
 {
 	struct stack_frame *frame = (struct stack_frame *)bp;
 
-	/*
-	 * if EBP is "deeper" into the stack than the actual stack pointer,
-	 * we need to rewind the stack pointer a little to start at the
-	 * first stack frame, but only if EBP is in this stack frame.
-	 */
-	if (stack > (unsigned long *) bp
-			&& valid_stack_ptr(tinfo, frame, sizeof(*frame)))
-		stack = (unsigned long *) bp;
-
 	while (valid_stack_ptr(tinfo, stack, sizeof(*stack))) {
 		unsigned long addr;
 
@@ -139,7 +130,7 @@ static inline unsigned long print_context_stack(struct thread_info *tinfo,
 				frame = frame->next_frame;
 				bp = (unsigned long) frame;
 			} else {
-				ops->address(data, addr, 0);
+				ops->address(data, addr, bp == 0);
 			}
 		}
 		stack++;
@@ -150,11 +141,9 @@ static inline unsigned long print_context_stack(struct thread_info *tinfo,
 #define MSG(msg) ops->warning(data, msg)
 
 void dump_trace(struct task_struct *task, struct pt_regs *regs,
-	        unsigned long *stack,
+		unsigned long *stack, unsigned long bp,
 		const struct stacktrace_ops *ops, void *data)
 {
-	unsigned long bp = 0;
-
 	if (!task)
 		task = current;
 
@@ -234,20 +223,20 @@ static const struct stacktrace_ops print_trace_ops = {
 
 static void
 show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
-		   unsigned long * stack, char *log_lvl)
+		unsigned long *stack, unsigned long bp, char *log_lvl)
 {
-	dump_trace(task, regs, stack, &print_trace_ops, log_lvl);
+	dump_trace(task, regs, stack, bp, &print_trace_ops, log_lvl);
 	printk("%s =======================\n", log_lvl);
 }
 
 void show_trace(struct task_struct *task, struct pt_regs *regs,
-		unsigned long * stack)
+		unsigned long *stack, unsigned long bp)
 {
-	show_trace_log_lvl(task, regs, stack, "");
+	show_trace_log_lvl(task, regs, stack, bp, "");
 }
 
 static void show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
-			       unsigned long *sp, char *log_lvl)
+		       unsigned long *sp, unsigned long bp, char *log_lvl)
 {
 	unsigned long *stack;
 	int i;
@@ -268,13 +257,13 @@ static void show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
 		printk("%08lx ", *stack++);
 	}
 	printk("\n%sCall Trace:\n", log_lvl);
-	show_trace_log_lvl(task, regs, sp, log_lvl);
+	show_trace_log_lvl(task, regs, sp, bp, log_lvl);
 }
 
 void show_stack(struct task_struct *task, unsigned long *sp)
 {
 	printk("       ");
-	show_stack_log_lvl(task, NULL, sp, "");
+	show_stack_log_lvl(task, NULL, sp, 0, "");
 }
 
 /*
@@ -283,13 +272,19 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 void dump_stack(void)
 {
 	unsigned long stack;
+	unsigned long bp = 0;
+
+#ifdef CONFIG_FRAME_POINTER
+	if (!bp)
+		asm("movl %%ebp, %0" : "=r" (bp):);
+#endif
 
 	printk("Pid: %d, comm: %.20s %s %s %.*s\n",
 		current->pid, current->comm, print_tainted(),
 		init_utsname()->release,
 		(int)strcspn(init_utsname()->version, " "),
 		init_utsname()->version);
-	show_trace(current, NULL, &stack);
+	show_trace(current, NULL, &stack, bp);
 }
 
 EXPORT_SYMBOL(dump_stack);
@@ -314,7 +309,7 @@ void show_registers(struct pt_regs *regs)
 		unsigned char c;
 
 		printk("\n" KERN_EMERG "Stack: ");
-		show_stack_log_lvl(NULL, regs, &regs->sp, KERN_EMERG);
+		show_stack_log_lvl(NULL, regs, &regs->sp, 0, KERN_EMERG);
 
 		printk(KERN_EMERG "Code: ");
 
