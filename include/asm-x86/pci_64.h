@@ -26,7 +26,6 @@ extern int (*pci_config_write)(int seg, int bus, int dev, int fn, int reg, int l
 
 
 extern void pci_iommu_alloc(void);
-extern int iommu_setup(char *opt);
 
 /* The PCI address space does equal the physical memory
  * address space.  The networking and block device layers use
