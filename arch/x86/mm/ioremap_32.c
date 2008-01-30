@@ -19,6 +19,18 @@
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 
+#ifdef CONFIG_X86_64
+
+unsigned long __phys_addr(unsigned long x)
+{
+	if (x >= __START_KERNEL_map)
+		return x - __START_KERNEL_map + phys_base;
+	return x - PAGE_OFFSET;
+}
+EXPORT_SYMBOL(__phys_addr);
+
+#endif
+
 /*
  * Fix up the linear direct mapping of the kernel to avoid cache attribute
  * conflicts.
@@ -49,6 +61,7 @@ static int ioremap_change_attr(unsigned long phys_addr, unsigned long size,
 	 * memmap entry.
 	 */
 	err = change_page_attr_addr(vaddr, npages, prot);
+
 	if (!err)
 		global_flush_tlb();
 
@@ -83,6 +96,7 @@ void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
 	if (phys_addr >= ISA_START_ADDRESS && last_addr < ISA_END_ADDRESS)
 		return (__force void __iomem *)phys_to_virt(phys_addr);
 
+#ifdef CONFIG_X86_32
 	/*
 	 * Don't allow anybody to remap normal RAM that we're using..
 	 */
@@ -98,6 +112,7 @@ void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
 			if (!PageReserved(page))
 				return NULL;
 	}
+#endif
 
 	pgprot = MAKE_GLOBAL(__PAGE_KERNEL | flags);
 
@@ -211,6 +226,7 @@ void iounmap(volatile void __iomem *addr)
 }
 EXPORT_SYMBOL(iounmap);
 
+#ifdef CONFIG_X86_32
 
 int __initdata early_ioremap_debug;
 
@@ -443,3 +459,5 @@ void __this_fixmap_does_not_exist(void)
 {
 	WARN_ON(1);
 }
+
+#endif /* CONFIG_X86_32 */
