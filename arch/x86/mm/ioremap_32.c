@@ -6,6 +6,7 @@
  * (C) Copyright 1995 1996 Linus Torvalds
  */
 
+#include <linux/bootmem.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -17,6 +18,42 @@
 #include <asm/fixmap.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
+
+/*
+ * Fix up the linear direct mapping of the kernel to avoid cache attribute
+ * conflicts.
+ */
+static int ioremap_change_attr(unsigned long phys_addr, unsigned long size,
+			       pgprot_t prot)
+{
+	unsigned long npages, vaddr, last_addr = phys_addr + size - 1;
+	int err, level;
+
+	/* No change for pages after the last mapping */
+	if (last_addr >= (max_pfn_mapped << PAGE_SHIFT))
+		return 0;
+
+	npages = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	vaddr = (unsigned long) __va(phys_addr);
+
+	/*
+	 * If there is no identity map for this address,
+	 * change_page_attr_addr is unnecessary
+	 */
+	if (!lookup_address(vaddr, &level))
+		return 0;
+
+	/*
+	 * Must use an address here and not struct page because the
+	 * phys addr can be a in hole between nodes and not have a
+	 * memmap entry.
+	 */
+	err = change_page_attr_addr(vaddr, npages, prot);
+	if (!err)
+		global_flush_tlb();
+
+	return err;
+}
 
 /*
  * Remap an arbitrary physical address space into the kernel virtual
@@ -33,7 +70,7 @@ void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
 	void __iomem *addr;
 	struct vm_struct *area;
 	unsigned long offset, last_addr;
-	pgprot_t prot;
+	pgprot_t pgprot;
 
 	/* Don't allow wraparound or zero size */
 	last_addr = phys_addr + size - 1;
@@ -62,7 +99,7 @@ void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
 				return NULL;
 	}
 
-	prot = MAKE_GLOBAL(__PAGE_KERNEL | flags);
+	pgprot = MAKE_GLOBAL(__PAGE_KERNEL | flags);
 
 	/*
 	 * Mappings have to be page-aligned
@@ -79,11 +116,17 @@ void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
 		return NULL;
 	area->phys_addr = phys_addr;
 	addr = (void __iomem *) area->addr;
-	if (ioremap_page_range((unsigned long) addr,
-			       (unsigned long) addr + size, phys_addr, prot)) {
+	if (ioremap_page_range((unsigned long)addr, (unsigned long)addr + size,
+			       phys_addr, pgprot)) {
 		vunmap((void __force *) addr);
 		return NULL;
 	}
+
+	if (ioremap_change_attr(phys_addr, size, pgprot) < 0) {
+		vunmap(addr);
+		return NULL;
+	}
+
 	return (void __iomem *) (offset + (char __iomem *)addr);
 }
 EXPORT_SYMBOL(__ioremap);
@@ -111,37 +154,7 @@ EXPORT_SYMBOL(__ioremap);
  */
 void __iomem *ioremap_nocache(unsigned long phys_addr, unsigned long size)
 {
-	unsigned long last_addr;
-	void __iomem *p = __ioremap(phys_addr, size, _PAGE_PCD | _PAGE_PWT);
-
-	if (!p)
-		return p;
-
-	/* Guaranteed to be > phys_addr, as per __ioremap() */
-	last_addr = phys_addr + size - 1;
-
-	if (last_addr < virt_to_phys(high_memory) - 1) {
-		struct page *ppage = virt_to_page(__va(phys_addr));
-		unsigned long npages;
-
-		phys_addr &= PAGE_MASK;
-
-		/* This might overflow and become zero.. */
-		last_addr = PAGE_ALIGN(last_addr);
-
-		/* .. but that's ok, because modulo-2**n arithmetic will make
-		 * the page-aligned "last - first" come out right.
-		 */
-		npages = (last_addr - phys_addr) >> PAGE_SHIFT;
-
-		if (change_page_attr(ppage, npages, PAGE_KERNEL_NOCACHE) < 0) {
-			iounmap(p);
-			p = NULL;
-		}
-		global_flush_tlb();
-	}
-
-	return p;
+	return __ioremap(phys_addr, size, _PAGE_PCD | _PAGE_PWT);
 }
 EXPORT_SYMBOL(ioremap_nocache);
 
@@ -189,12 +202,7 @@ void iounmap(volatile void __iomem *addr)
 	}
 
 	/* Reset the direct mapping. Can block */
-	if (p->phys_addr < virt_to_phys(high_memory) - 1) {
-		change_page_attr(virt_to_page(__va(p->phys_addr)),
-				 get_vm_area_size(p) >> PAGE_SHIFT,
-				 PAGE_KERNEL);
-		global_flush_tlb();
-	}
+	ioremap_change_attr(p->phys_addr, p->size, PAGE_KERNEL);
 
 	/* Finally remove it */
 	o = remove_vm_area((void *)addr);
