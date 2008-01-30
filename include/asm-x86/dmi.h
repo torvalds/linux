@@ -22,8 +22,9 @@ extern char dmi_alloc_data[DMI_MAX_DATA];
 static inline void *dmi_alloc(unsigned len)
 {
 	int idx = dmi_alloc_index;
-	if ((dmi_alloc_index += len) > DMI_MAX_DATA)
+	if ((dmi_alloc_index + len) > DMI_MAX_DATA)
 		return NULL;
+	dmi_alloc_index += len;
 	return dmi_alloc_data + idx;
 }
 
