@@ -279,7 +279,7 @@ static void discover_ebda(void)
 }
 
 /* Overridden in paravirt.c if CONFIG_PARAVIRT */
-void __attribute__((weak)) memory_setup(void)
+void __attribute__((weak)) __init memory_setup(void)
 {
        machine_specific_memory_setup();
 }
