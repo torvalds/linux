@@ -64,35 +64,29 @@ static void cpa_flush_all(void)
 	on_each_cpu(__cpa_flush_all, NULL, 1, 1);
 }
 
-struct clflush_data {
-	unsigned long addr;
-	int numpages;
-};
-
 static void __cpa_flush_range(void *arg)
 {
-	struct clflush_data *cld = arg;
-
 	/*
 	 * We could optimize that further and do individual per page
 	 * tlb invalidates for a low number of pages. Caveat: we must
 	 * flush the high aliases on 64bit as well.
 	 */
 	__flush_tlb_all();
-
-	clflush_cache_range((void *) cld->addr, cld->numpages * PAGE_SIZE);
 }
 
 static void cpa_flush_range(unsigned long addr, int numpages)
 {
-	struct clflush_data cld;
-
 	BUG_ON(irqs_disabled());
 
-	cld.addr = addr;
-	cld.numpages = numpages;
+	on_each_cpu(__cpa_flush_range, NULL, 1, 1);
 
-	on_each_cpu(__cpa_flush_range, &cld, 1, 1);
+	/*
+	 * We only need to flush on one CPU,
+	 * clflush is a MESI-coherent instruction that
+	 * will cause all other CPUs to flush the same
+	 * cachelines:
+	 */
+	clflush_cache_range((void *) addr, numpages * PAGE_SIZE);
 }
 
 /*
