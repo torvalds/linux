@@ -7,8 +7,8 @@
 #include <asm/mpspec.h>
 #include <linux/bitops.h>
 
-extern unsigned char cpu_to_node[];
-extern cpumask_t     node_to_cpumask[];
+extern int cpu_to_node_map[];
+extern cpumask_t node_to_cpumask_map[];
 
 #ifdef CONFIG_ACPI_NUMA
 extern int __node_distance(int, int);
@@ -16,10 +16,10 @@ extern int __node_distance(int, int);
 /* #else fallback version */
 #endif
 
-#define cpu_to_node(cpu)		(cpu_to_node[cpu])
+#define cpu_to_node(cpu)		(cpu_to_node_map[cpu])
 #define parent_node(node)		(node)
-#define node_to_first_cpu(node) 	(first_cpu(node_to_cpumask[node]))
-#define node_to_cpumask(node)		(node_to_cpumask[node])
+#define node_to_first_cpu(node)		(first_cpu(node_to_cpumask_map[node]))
+#define node_to_cpumask(node)		(node_to_cpumask_map[node])
 #define pcibus_to_node(bus)	((struct pci_sysdata *)((bus)->sysdata))->node
 #define pcibus_to_cpumask(bus)		node_to_cpumask(pcibus_to_node(bus));
 

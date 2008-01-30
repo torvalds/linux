@@ -30,17 +30,17 @@ bootmem_data_t plat_node_bdata[MAX_NUMNODES];
 
 struct memnode memnode;
 
-unsigned char cpu_to_node[NR_CPUS] __read_mostly = {
+int cpu_to_node_map[NR_CPUS] __read_mostly = {
 	[0 ... NR_CPUS-1] = NUMA_NO_NODE
 };
-EXPORT_SYMBOL(cpu_to_node);
+EXPORT_SYMBOL(cpu_to_node_map);
 
 unsigned char apicid_to_node[MAX_LOCAL_APIC] __cpuinitdata = {
 	[0 ... MAX_LOCAL_APIC-1] = NUMA_NO_NODE
 };
 
-cpumask_t node_to_cpumask[MAX_NUMNODES] __read_mostly;
-EXPORT_SYMBOL(node_to_cpumask);
+cpumask_t node_to_cpumask_map[MAX_NUMNODES] __read_mostly;
+EXPORT_SYMBOL(node_to_cpumask_map);
 
 int numa_off __initdata;
 unsigned long __initdata nodemap_addr;
@@ -542,20 +542,20 @@ void __init numa_initmem_init(unsigned long start_pfn, unsigned long end_pfn)
 	node_set(0, node_possible_map);
 	for (i = 0; i < NR_CPUS; i++)
 		numa_set_node(i, 0);
-	node_to_cpumask[0] = cpumask_of_cpu(0);
+	node_to_cpumask_map[0] = cpumask_of_cpu(0);
 	e820_register_active_regions(0, start_pfn, end_pfn);
 	setup_node_bootmem(0, start_pfn << PAGE_SHIFT, end_pfn << PAGE_SHIFT);
 }
 
 __cpuinit void numa_add_cpu(int cpu)
 {
-	set_bit(cpu, &node_to_cpumask[cpu_to_node(cpu)]);
+	set_bit(cpu, &node_to_cpumask_map[cpu_to_node(cpu)]);
 }
 
 void __cpuinit numa_set_node(int cpu, int node)
 {
 	cpu_pda(cpu)->nodenumber = node;
-	cpu_to_node(cpu) = node;
+	cpu_to_node_map[cpu] = node;
 }
 
 unsigned long __init numa_free_all_bootmem(void)

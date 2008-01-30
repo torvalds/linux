@@ -32,7 +32,7 @@ extern void __init init_cpu_to_node(void);
 
 static inline void clear_node_cpumask(int cpu)
 {
-	clear_bit(cpu, &node_to_cpumask[cpu_to_node(cpu)]);
+	clear_bit(cpu, &node_to_cpumask_map[cpu_to_node(cpu)]);
 }
 
 #else
