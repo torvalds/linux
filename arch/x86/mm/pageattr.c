@@ -321,116 +321,16 @@ static int change_page_attr_set_clr(unsigned long addr, int numpages,
 	return ret;
 }
 
-/**
- * change_page_attr_set - Change page table attributes in the linear mapping.
- * @addr: Virtual address in linear mapping.
- * @numpages: Number of pages to change
- * @prot: Protection/caching type bits to set (PAGE_*)
- *
- * Returns 0 on success, otherwise a negated errno.
- *
- * This should be used when a page is mapped with a different caching policy
- * than write-back somewhere - some CPUs do not like it when mappings with
- * different caching policies exist. This changes the page attributes of the
- * in kernel linear mapping too.
- *
- * The caller needs to ensure that there are no conflicting mappings elsewhere
- * (e.g. in user space) * This function only deals with the kernel linear map.
- *
- * This function is different from change_page_attr() in that only selected bits
- * are impacted, all other bits remain as is.
- */
-static int __change_page_attr_set(unsigned long addr, int numpages,
-				  pgprot_t prot)
+static inline int change_page_attr_set(unsigned long addr, int numpages,
+				       pgprot_t mask)
 {
-	pgprot_t current_prot, new_prot;
-	int level;
-	pte_t *pte;
-	int i, ret;
-
-	for (i = 0; i < numpages ; i++) {
-
-		pte = lookup_address(addr, &level);
-		if (!pte)
-			return -EINVAL;
-
-		current_prot = pte_pgprot(*pte);
-
-		pgprot_val(new_prot) =
-			pgprot_val(current_prot) | pgprot_val(prot);
-
-		ret = change_page_attr_addr(addr, new_prot);
-		if (ret)
-			return ret;
-		addr += PAGE_SIZE;
-	}
-
-	return 0;
+	return change_page_attr_set_clr(addr, numpages, mask, __pgprot(0));
 }
 
-static int change_page_attr_set(unsigned long addr, int numpages, pgprot_t prot)
+static inline int change_page_attr_clear(unsigned long addr, int numpages,
+					 pgprot_t mask)
 {
-	int ret = __change_page_attr_set(addr, numpages, prot);
-
-	global_flush_tlb();
-	return ret;
-
-}
-
-/**
- * change_page_attr_clear - Change page table attributes in the linear mapping.
- * @addr: Virtual address in linear mapping.
- * @numpages: Number of pages to change
- * @prot: Protection/caching type bits to clear (PAGE_*)
- *
- * Returns 0 on success, otherwise a negated errno.
- *
- * This should be used when a page is mapped with a different caching policy
- * than write-back somewhere - some CPUs do not like it when mappings with
- * different caching policies exist. This changes the page attributes of the
- * in kernel linear mapping too.
- *
- * The caller needs to ensure that there are no conflicting mappings elsewhere
- * (e.g. in user space) * This function only deals with the kernel linear map.
- *
- * This function is different from change_page_attr() in that only selected bits
- * are impacted, all other bits remain as is.
- */
-static int __change_page_attr_clear(unsigned long addr, int numpages,
-				    pgprot_t prot)
-{
-	pgprot_t current_prot, new_prot;
-	int level;
-	pte_t *pte;
-	int i, ret;
-
-	for (i = 0; i < numpages; i++) {
-
-		pte = lookup_address(addr, &level);
-		if (!pte)
-			return -EINVAL;
-
-		current_prot = pte_pgprot(*pte);
-
-		pgprot_val(new_prot) =
-				pgprot_val(current_prot) & ~pgprot_val(prot);
-
-		ret = change_page_attr_addr(addr, new_prot);
-		if (ret)
-			return ret;
-		addr += PAGE_SIZE;
-	}
-
-	return 0;
-}
-
-static int change_page_attr_clear(unsigned long addr, int numpages,
-				  pgprot_t prot)
-{
-	int ret = __change_page_attr_clear(addr, numpages, prot);
-
-	global_flush_tlb();
-	return ret;
+	return __change_page_attr_set_clr(addr, numpages, __pgprot(0), mask);
 
 }
 
@@ -521,6 +421,20 @@ int set_pages_rw(struct page *page, int numpages)
 	return set_memory_rw(addr, numpages);
 }
 
+
+#if defined(CONFIG_DEBUG_PAGEALLOC) || defined(CONFIG_CPA_DEBUG)
+static inline int __change_page_attr_set(unsigned long addr, int numpages,
+					 pgprot_t mask)
+{
+	return __change_page_attr_set_clr(addr, numpages, mask, __pgprot(0));
+}
+
+static inline int __change_page_attr_clear(unsigned long addr, int numpages,
+					   pgprot_t mask)
+{
+	return __change_page_attr_set_clr(addr, numpages, __pgprot(0), mask);
+}
+#endif
 
 #ifdef CONFIG_DEBUG_PAGEALLOC
 
