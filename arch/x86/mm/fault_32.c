@@ -1,6 +1,4 @@
 /*
- *  linux/arch/i386/mm/fault.c
- *
  *  Copyright (C) 1995  Linus Torvalds
  */
 
@@ -30,11 +28,25 @@
 #include <asm/desc.h>
 #include <asm/segment.h>
 
-extern void die(const char *,struct pt_regs *,long);
+/*
+ * Page fault error code bits
+ *	bit 0 == 0 means no page found, 1 means protection fault
+ *	bit 1 == 0 means read, 1 means write
+ *	bit 2 == 0 means kernel, 1 means user-mode
+ *	bit 3 == 1 means use of reserved bit detected
+ *	bit 4 == 1 means fault was an instruction fetch
+ */
+#define PF_PROT	(1<<0)
+#define PF_WRITE	(1<<1)
+#define PF_USER	(1<<2)
+#define PF_RSVD	(1<<3)
+#define PF_INSTR	(1<<4)
 
-#ifdef CONFIG_KPROBES
+extern void die(const char *, struct pt_regs *, long);
+
 static inline int notify_page_fault(struct pt_regs *regs)
 {
+#ifdef CONFIG_KPROBES
 	int ret = 0;
 
 	/* kprobe_running() needs smp_processor_id() */
@@ -46,13 +58,10 @@ static inline int notify_page_fault(struct pt_regs *regs)
 	}
 
 	return ret;
-}
 #else
-static inline int notify_page_fault(struct pt_regs *regs)
-{
 	return 0;
-}
 #endif
+}
 
 /*
  * Return EIP plus the CS segment base.  The segment limit is also
@@ -65,7 +74,7 @@ static inline int notify_page_fault(struct pt_regs *regs)
  * If CS is no longer a valid code segment, or if EIP is beyond the
  * limit, or if it is a kernel address when CS is not a kernel segment,
  * then the returned value will be greater than *eip_limit.
- * 
+ *
  * This is slow, but is very rarely executed.
  */
 static inline unsigned long get_segment_eip(struct pt_regs *regs,
@@ -84,7 +93,7 @@ static inline unsigned long get_segment_eip(struct pt_regs *regs,
 
 	/* The standard kernel/user address space limit. */
 	*eip_limit = user_mode(regs) ? USER_DS.seg : KERNEL_DS.seg;
-	
+
 	/* By far the most common cases. */
 	if (likely(SEGMENT_IS_FLAT_CODE(seg)))
 		return ip;
@@ -99,7 +108,7 @@ static inline unsigned long get_segment_eip(struct pt_regs *regs,
 		return 1;	 /* So that returned ip > *eip_limit. */
 	}
 
-	/* Get the GDT/LDT descriptor base. 
+	/* Get the GDT/LDT descriptor base.
 	   When you look for races in this code remember that
 	   LDT and other horrors are only used in user space. */
 	if (seg & (1<<2)) {
@@ -109,16 +118,16 @@ static inline unsigned long get_segment_eip(struct pt_regs *regs,
 		desc = (void *)desc + (seg & ~7);
 	} else {
 		/* Must disable preemption while reading the GDT. */
- 		desc = (u32 *)get_cpu_gdt_table(get_cpu());
+		desc = (u32 *)get_cpu_gdt_table(get_cpu());
 		desc = (void *)desc + (seg & ~7);
 	}
 
 	/* Decode the code segment base from the descriptor */
 	base = get_desc_base((struct desc_struct *)desc);
 
-	if (seg & (1<<2)) { 
+	if (seg & (1<<2))
 		mutex_unlock(&current->mm->context.lock);
-	} else
+	else
 		put_cpu();
 
 	/* Adjust EIP and segment limit, and clamp at the kernel limit.
@@ -129,19 +138,19 @@ static inline unsigned long get_segment_eip(struct pt_regs *regs,
 	return ip + base;
 }
 
-/* 
+/*
  * Sometimes AMD Athlon/Opteron CPUs report invalid exceptions on prefetch.
  * Check that here and ignore it.
  */
 static int __is_prefetch(struct pt_regs *regs, unsigned long addr)
-{ 
+{
 	unsigned long limit;
-	unsigned char *instr = (unsigned char *)get_segment_eip (regs, &limit);
+	unsigned char *instr = (unsigned char *)get_segment_eip(regs, &limit);
 	int scan_more = 1;
-	int prefetch = 0; 
+	int prefetch = 0;
 	int i;
 
-	for (i = 0; scan_more && i < 15; i++) { 
+	for (i = 0; scan_more && i < 15; i++) {
 		unsigned char opcode;
 		unsigned char instr_hi;
 		unsigned char instr_lo;
@@ -149,27 +158,43 @@ static int __is_prefetch(struct pt_regs *regs, unsigned long addr)
 		if (instr > (unsigned char *)limit)
 			break;
 		if (probe_kernel_address(instr, opcode))
-			break; 
+			break;
 
-		instr_hi = opcode & 0xf0; 
-		instr_lo = opcode & 0x0f; 
+		instr_hi = opcode & 0xf0;
+		instr_lo = opcode & 0x0f;
 		instr++;
 
-		switch (instr_hi) { 
+		switch (instr_hi) {
 		case 0x20:
 		case 0x30:
-			/* Values 0x26,0x2E,0x36,0x3E are valid x86 prefixes. */
+			/*
+			 * Values 0x26,0x2E,0x36,0x3E are valid x86 prefixes.
+			 * In X86_64 long mode, the CPU will signal invalid
+			 * opcode if some of these prefixes are present so
+			 * X86_64 will never get here anyway
+			 */
 			scan_more = ((instr_lo & 7) == 0x6);
 			break;
-			
+#ifdef CONFIG_X86_64
+		case 0x40:
+			/*
+			 * In AMD64 long mode 0x40..0x4F are valid REX prefixes
+			 * Need to figure out under what instruction mode the
+			 * instruction was issued. Could check the LDT for lm,
+			 * but for now it's good enough to assume that long
+			 * mode only uses well known segments or kernel.
+			 */
+			scan_more = (!user_mode(regs)) || (regs->cs == __USER_CS);
+			break;
+#endif
 		case 0x60:
 			/* 0x64 thru 0x67 are valid prefixes in all modes. */
 			scan_more = (instr_lo & 0xC) == 0x4;
-			break;		
+			break;
 		case 0xF0:
-			/* 0xF0, 0xF2, and 0xF3 are valid prefixes */
+			/* 0xF0, 0xF2, 0xF3 are valid prefixes in all modes. */
 			scan_more = !instr_lo || (instr_lo>>1) == 1;
-			break;			
+			break;
 		case 0x00:
 			/* Prefetch instruction is 0x0F0D or 0x0F18 */
 			scan_more = 0;
@@ -179,11 +204,11 @@ static int __is_prefetch(struct pt_regs *regs, unsigned long addr)
 				break;
 			prefetch = (instr_lo == 0xF) &&
 				(opcode == 0x0D || opcode == 0x18);
-			break;			
+			break;
 		default:
 			scan_more = 0;
 			break;
-		} 
+		}
 	}
 	return prefetch;
 }
@@ -199,7 +224,7 @@ static inline int is_prefetch(struct pt_regs *regs, unsigned long addr,
 		return __is_prefetch(regs, addr);
 	}
 	return 0;
-} 
+}
 
 static noinline void force_sig_info_fault(int si_signo, int si_code,
 	unsigned long address, struct task_struct *tsk)
@@ -284,19 +309,12 @@ int show_unhandled_signals = 1;
  * This routine handles page faults.  It determines the address,
  * and the problem, and then passes it off to one of the appropriate
  * routines.
- *
- * error_code:
- *	bit 0 == 0 means no page found, 1 means protection fault
- *	bit 1 == 0 means read, 1 means write
- *	bit 2 == 0 means kernel, 1 means user-mode
- *	bit 3 == 1 means use of reserved bit detected
- *	bit 4 == 1 means fault was an instruction fetch
  */
 void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
 {
 	struct task_struct *tsk;
 	struct mm_struct *mm;
-	struct vm_area_struct * vma;
+	struct vm_area_struct *vma;
 	unsigned long address;
 	int write, si_code;
 	int fault;
@@ -307,7 +325,7 @@ void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
 	trace_hardirqs_fixup();
 
 	/* get the address */
-        address = read_cr2();
+	address = read_cr2();
 
 	tsk = current;
 
@@ -350,7 +368,7 @@ void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
 
 	/*
 	 * If we're in an interrupt, have no user context or are running in an
-	 * atomic region then we must not take the fault..
+	 * atomic region then we must not take the fault.
 	 */
 	if (in_atomic() || !mm)
 		goto bad_area_nosemaphore;
@@ -371,7 +389,7 @@ void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
 	 * thus avoiding the deadlock.
 	 */
 	if (!down_read_trylock(&mm->mmap_sem)) {
-		if ((error_code & 4) == 0 &&
+		if ((error_code & PF_USER) == 0 &&
 		    !search_exception_tables(regs->ip))
 			goto bad_area_nosemaphore;
 		down_read(&mm->mmap_sem);
@@ -384,7 +402,7 @@ void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
 		goto good_area;
 	if (!(vma->vm_flags & VM_GROWSDOWN))
 		goto bad_area;
-	if (error_code & 4) {
+	if (error_code & PF_USER) {
 		/*
 		 * Accessing the stack below %sp is always a bug.
 		 * The large cushion allows instructions like enter
@@ -403,19 +421,19 @@ void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
 good_area:
 	si_code = SEGV_ACCERR;
 	write = 0;
-	switch (error_code & 3) {
-		default:	/* 3: write, present */
-				/* fall through */
-		case 2:		/* write, not present */
-			if (!(vma->vm_flags & VM_WRITE))
-				goto bad_area;
-			write++;
-			break;
-		case 1:		/* read, present */
+	switch (error_code & (PF_PROT|PF_WRITE)) {
+	default:	/* 3: write, present */
+		/* fall through */
+	case PF_WRITE:		/* write, not present */
+		if (!(vma->vm_flags & VM_WRITE))
 			goto bad_area;
-		case 0:		/* read, not present */
-			if (!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE)))
-				goto bad_area;
+		write++;
+		break;
+	case PF_PROT:		/* read, present */
+		goto bad_area;
+	case 0:			/* read, not present */
+		if (!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE)))
+			goto bad_area;
 	}
 
  survive:
@@ -457,14 +475,14 @@ bad_area:
 
 bad_area_nosemaphore:
 	/* User mode accesses just cause a SIGSEGV */
-	if (error_code & 4) {
+	if (error_code & PF_USER) {
 		/*
 		 * It's possible to have interrupts off here.
 		 */
 		local_irq_enable();
 
-		/* 
-		 * Valid to do another page fault here because this one came 
+		/*
+		 * Valid to do another page fault here because this one came
 		 * from user space.
 		 */
 		if (is_prefetch(regs, address, error_code))
@@ -492,7 +510,7 @@ bad_area_nosemaphore:
 	 */
 	if (boot_cpu_data.f00f_bug) {
 		unsigned long nr;
-		
+
 		nr = (address - idt_descr.address) >> 3;
 
 		if (nr == 6) {
@@ -507,13 +525,13 @@ no_context:
 	if (fixup_exception(regs))
 		return;
 
-	/* 
+	/*
 	 * Valid to do another page fault here, because if this fault
-	 * had been triggered by is_prefetch fixup_exception would have 
+	 * had been triggered by is_prefetch fixup_exception would have
 	 * handled it.
 	 */
- 	if (is_prefetch(regs, address, error_code))
- 		return;
+	if (is_prefetch(regs, address, error_code))
+		return;
 
 /*
  * Oops. The kernel tried to access some bad page. We'll have to
@@ -541,7 +559,7 @@ no_context:
 		else
 			printk(KERN_ALERT "BUG: unable to handle kernel paging"
 					" request");
-		printk(" at virtual address %08lx\n",address);
+		printk(" at virtual address %08lx\n", address);
 		printk(KERN_ALERT "printing ip: %08lx ", regs->ip);
 
 		page = read_cr3();
@@ -605,7 +623,7 @@ do_sigbus:
 	up_read(&mm->mmap_sem);
 
 	/* Kernel mode? Handle exceptions or die */
-	if (!(error_code & 4))
+	if (!(error_code & PF_USER))
 		goto no_context;
 
 	/* User space => ok to do another page fault */
