@@ -9,7 +9,6 @@ struct cpuinfo_x86;
 struct pt_regs;
 
 extern void start_kernel(void);
-extern void pda_init(int); 
 
 extern void early_idt_handler(void);
 

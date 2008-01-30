@@ -40,6 +40,7 @@ struct x8664_pda {
 
 extern struct x8664_pda *_cpu_pda[];
 extern struct x8664_pda boot_cpu_pda[];
+extern void pda_init(int);
 
 #define cpu_pda(i) (_cpu_pda[i])
 
