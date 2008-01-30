@@ -32,11 +32,11 @@ struct bug_entry {
 #endif
 
 #ifndef __WARN
-#define __WARN() do {							\
-	printk("WARNING: at %s:%d %s()\n", __FILE__,			\
-		__LINE__, __FUNCTION__);				\
-	dump_stack();							\
-} while (0)
+#ifndef __ASSEMBLY__
+extern void warn_on_slowpath(const char *file, const int line);
+#define WANT_WARN_ON_SLOWPATH
+#endif
+#define __WARN() warn_on_slowpath(__FILE__, __LINE__)
 #endif
 
 #ifndef WARN_ON

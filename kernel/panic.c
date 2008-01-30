@@ -20,6 +20,7 @@
 #include <linux/kexec.h>
 #include <linux/debug_locks.h>
 #include <linux/random.h>
+#include <linux/kallsyms.h>
 
 int panic_on_oops;
 int tainted;
@@ -291,6 +292,20 @@ void oops_exit(void)
 	printk(KERN_WARNING "---[ end trace %016llx ]---\n",
 		(unsigned long long)oops_id);
 }
+
+#ifdef WANT_WARN_ON_SLOWPATH
+void warn_on_slowpath(const char *file, int line)
+{
+	char function[KSYM_SYMBOL_LEN];
+	unsigned long caller = (unsigned long) __builtin_return_address(0);
+
+	sprint_symbol(function, caller);
+	printk(KERN_WARNING "WARNING: at %s:%d %s()\n", file,
+		line, function);
+	dump_stack();
+}
+EXPORT_SYMBOL(warn_on_slowpath);
+#endif
 
 #ifdef CONFIG_CC_STACKPROTECTOR
 /*
