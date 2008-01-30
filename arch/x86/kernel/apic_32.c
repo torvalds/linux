@@ -135,9 +135,9 @@ void apic_wait_icr_idle(void)
 		cpu_relax();
 }
 
-unsigned long safe_apic_wait_icr_idle(void)
+u32 safe_apic_wait_icr_idle(void)
 {
-	unsigned long send_status;
+	u32 send_status;
 	int timeout;
 
 	timeout = 0;

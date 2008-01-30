@@ -38,14 +38,14 @@ struct pt_regs;
  * Basic functions accessing APICs.
  */
 
-static __inline void apic_write(unsigned long reg, unsigned int v)
+static __inline void apic_write(unsigned long reg, u32 v)
 {
 	*((volatile unsigned int *)(APIC_BASE+reg)) = v;
 }
 
-static __inline unsigned int apic_read(unsigned long reg)
+static __inline u32 apic_read(unsigned long reg)
 {
-	return *((volatile unsigned int *)(APIC_BASE+reg));
+	return *((volatile u32 *)(APIC_BASE+reg));
 }
 
 extern void apic_wait_icr_idle(void);

@@ -521,12 +521,12 @@ static void xen_io_delay(void)
 }
 
 #ifdef CONFIG_X86_LOCAL_APIC
-static unsigned long xen_apic_read(unsigned long reg)
+static u32 xen_apic_read(unsigned long reg)
 {
 	return 0;
 }
 
-static void xen_apic_write(unsigned long reg, unsigned long val)
+static void xen_apic_write(unsigned long reg, u32 val)
 {
 	/* Warn to see if there's any stray references */
 	WARN_ON(1);

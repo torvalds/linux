@@ -51,25 +51,23 @@ extern int local_apic_timer_disabled;
 #define setup_secondary_clock setup_secondary_APIC_clock
 #endif
 
-static __inline fastcall void native_apic_write(unsigned long reg,
-						unsigned long v)
+static __inline fastcall void native_apic_write(unsigned long reg, u32 v)
 {
-	*((volatile unsigned long *)(APIC_BASE+reg)) = v;
+	*((volatile u32 *)(APIC_BASE + reg)) = v;
 }
 
-static __inline fastcall void native_apic_write_atomic(unsigned long reg,
-						       unsigned long v)
+static __inline fastcall void native_apic_write_atomic(unsigned long reg, u32 v)
 {
-	xchg((volatile unsigned long *)(APIC_BASE+reg), v);
+	(void) xchg((u32 *)(APIC_BASE + reg), v);
 }
 
-static __inline fastcall unsigned long native_apic_read(unsigned long reg)
+static __inline fastcall u32 native_apic_read(unsigned long reg)
 {
-	return *((volatile unsigned long *)(APIC_BASE+reg));
+	return *((volatile u32 *)(APIC_BASE + reg));
 }
 
 extern void apic_wait_icr_idle(void);
-extern unsigned long safe_apic_wait_icr_idle(void);
+extern u32 safe_apic_wait_icr_idle(void);
 extern int get_physical_broadcast(void);
 
 #ifdef CONFIG_X86_GOOD_APIC
