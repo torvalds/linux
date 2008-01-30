@@ -155,6 +155,21 @@ static inline pmd_t pfn_pmd(unsigned long page_nr, pgprot_t pgprot)
 		      pgprot_val(pgprot)) & __supported_pte_mask);
 }
 
+static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
+{
+	pteval_t val = pte_val(pte);
+
+	/*
+	 * Chop off the NX bit (if present), and add the NX portion of
+	 * the newprot (if present):
+	 */
+	val &= _PAGE_CHG_MASK & ~_PAGE_NX;
+	val |= pgprot_val(newprot) & __supported_pte_mask;
+
+	return __pte(val);
+}
+
+
 #endif	/* __ASSEMBLY__ */
 
 #ifdef CONFIG_X86_32

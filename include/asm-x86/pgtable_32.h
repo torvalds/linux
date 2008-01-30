@@ -235,22 +235,6 @@ static inline void clone_pgd_range(pgd_t *dst, pgd_t *src, int count)
 
 #define mk_pte(page, pgprot)	pfn_pte(page_to_pfn(page), (pgprot))
 
-static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
-{
-	pte.pte_low &= _PAGE_CHG_MASK;
-	pte.pte_low |= pgprot_val(newprot);
-#ifdef CONFIG_X86_PAE
-	/*
-	 * Chop off the NX bit (if present), and add the NX portion of
-	 * the newprot (if present):
-	 */
-	pte.pte_high &= ~(1 << (_PAGE_BIT_NX - 32));
-	pte.pte_high |= (pgprot_val(newprot) >> 32) & \
-					(__supported_pte_mask >> 32);
-#endif
-	return pte;
-}
-
 /*
  * the pgd page can be thought of an array like this: pgd_t[PTRS_PER_PGD]
  *
