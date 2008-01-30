@@ -5,12 +5,24 @@
 #include <linux/mm.h>
 #include <linux/ptrace.h>
 
+#ifdef CONFIG_X86_32
+static
+#endif
 unsigned long convert_rip_to_linear(struct task_struct *child, struct pt_regs *regs)
 {
 	unsigned long addr, seg;
 
+#ifdef CONFIG_X86_64
 	addr = regs->rip;
 	seg = regs->cs & 0xffff;
+#else
+	addr = regs->eip;
+	seg = regs->xcs & 0xffff;
+	if (regs->eflags & X86_EFLAGS_VM) {
+		addr = (addr & 0xffff) + (seg << 4);
+		return addr;
+	}
+#endif
 
 	/*
 	 * We'll assume that the code segments in the GDT
@@ -69,12 +81,14 @@ static int is_setting_trap_flag(struct task_struct *child, struct pt_regs *regs)
 		case 0xf0: case 0xf2: case 0xf3:
 			continue;
 
+#ifdef CONFIG_X86_64
 		case 0x40 ... 0x4f:
 			if (regs->cs != __USER_CS)
 				/* 32-bit mode: register increment */
 				return 0;
 			/* 64-bit mode: REX prefix */
 			continue;
+#endif
 
 			/* CHECKME: f2, f3 */
 
