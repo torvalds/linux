@@ -41,7 +41,6 @@
 
 static int putreg32(struct task_struct *child, unsigned regno, u32 val)
 {
-	int i;
 	__u64 *stack = (__u64 *)task_pt_regs(child);
 
 	switch (regno) {
@@ -102,43 +101,10 @@ static int putreg32(struct task_struct *child, unsigned regno, u32 val)
 		break;
 	}
 
-	case offsetof(struct user32, u_debugreg[4]):
-	case offsetof(struct user32, u_debugreg[5]):
-		return -EIO;
-
-	case offsetof(struct user32, u_debugreg[0]):
-		child->thread.debugreg0 = val;
-		break;
-
-	case offsetof(struct user32, u_debugreg[1]):
-		child->thread.debugreg1 = val;
-		break;
-
-	case offsetof(struct user32, u_debugreg[2]):
-		child->thread.debugreg2 = val;
-		break;
-
-	case offsetof(struct user32, u_debugreg[3]):
-		child->thread.debugreg3 = val;
-		break;
-
-	case offsetof(struct user32, u_debugreg[6]):
-		child->thread.debugreg6 = val;
-		break;
-
-	case offsetof(struct user32, u_debugreg[7]):
-		val &= ~DR_CONTROL_RESERVED;
-		/* See arch/i386/kernel/ptrace.c for an explanation of
-		 * this awkward check.*/
-		for (i = 0; i < 4; i++)
-			if ((0x5454 >> ((val >> (16 + 4*i)) & 0xf)) & 1)
-			       return -EIO;
-		child->thread.debugreg7 = val;
-		if (val)
-			set_tsk_thread_flag(child, TIF_DEBUG);
-		else
-			clear_tsk_thread_flag(child, TIF_DEBUG);
-		break;
+	case offsetof(struct user32, u_debugreg[0]) ...
+		offsetof(struct user32, u_debugreg[7]):
+		regno -= offsetof(struct user32, u_debugreg[0]);
+		return ptrace_set_debugreg(child, regno / 4, val);
 
 	default:
 		if (regno > sizeof(struct user32) || (regno & 3))
@@ -199,23 +165,10 @@ static int getreg32(struct task_struct *child, unsigned regno, u32 *val)
 			*val &= ~X86_EFLAGS_TF;
 		break;
 
-	case offsetof(struct user32, u_debugreg[0]):
-		*val = child->thread.debugreg0;
-		break;
-	case offsetof(struct user32, u_debugreg[1]):
-		*val = child->thread.debugreg1;
-		break;
-	case offsetof(struct user32, u_debugreg[2]):
-		*val = child->thread.debugreg2;
-		break;
-	case offsetof(struct user32, u_debugreg[3]):
-		*val = child->thread.debugreg3;
-		break;
-	case offsetof(struct user32, u_debugreg[6]):
-		*val = child->thread.debugreg6;
-		break;
-	case offsetof(struct user32, u_debugreg[7]):
-		*val = child->thread.debugreg7;
+	case offsetof(struct user32, u_debugreg[0]) ...
+		offsetof(struct user32, u_debugreg[7]):
+		regno -= offsetof(struct user32, u_debugreg[0]);
+		*val = ptrace_get_debugreg(child, regno / 4);
 		break;
 
 	default:
