@@ -869,12 +869,6 @@ static void __cpuinit get_cpu_vendor(struct cpuinfo_x86 *c)
 		c->x86_vendor = X86_VENDOR_UNKNOWN;
 }
 
-struct cpu_model_info {
-	int vendor;
-	int family;
-	char *model_names[16];
-};
-
 /* Do some early cpuid on the boot CPU to get some parameter that are
    needed before check_bugs. Everything advanced is in identify_cpu
    below. */
