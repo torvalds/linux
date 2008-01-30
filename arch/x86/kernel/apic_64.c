@@ -375,8 +375,10 @@ void __init setup_boot_APIC_clock(void)
 	if (disable_apic_timer) {
 		printk(KERN_INFO "Disabling APIC timer\n");
 		/* No broadcast on UP ! */
-		if (num_possible_cpus() > 1)
+		if (num_possible_cpus() > 1) {
+			lapic_clockevent.mult = 1;
 			setup_APIC_timer();
+		}
 		return;
 	}
 

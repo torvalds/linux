@@ -377,8 +377,10 @@ void __init setup_boot_APIC_clock(void)
 	 */
 	if (local_apic_timer_disabled) {
 		/* No broadcast on UP ! */
-		if (num_possible_cpus() > 1)
+		if (num_possible_cpus() > 1) {
+			lapic_clockevent.mult = 1;
 			setup_APIC_timer();
+		}
 		return;
 	}
 
