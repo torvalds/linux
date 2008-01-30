@@ -17,6 +17,7 @@
 #include <asm/dma.h>
 #include <asm/numa.h>
 #include <asm/acpi.h>
+#include <asm/k8.h>
 
 #ifndef Dprintk
 #define Dprintk(x...)

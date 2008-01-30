@@ -40,8 +40,6 @@ extern int nohpet;
 
 extern void early_printk(const char *fmt, ...) __attribute__((format(printf,1,2)));
 
-extern int k8_scan_nodes(unsigned long start, unsigned long end);
-
 extern void numa_initmem_init(unsigned long start_pfn, unsigned long end_pfn);
 extern unsigned long numa_free_all_bootmem(void);
 
