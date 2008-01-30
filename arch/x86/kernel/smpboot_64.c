@@ -921,7 +921,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 void __init smp_prepare_boot_cpu(void)
 {
 	int me = smp_processor_id();
-	cpu_set(me, cpu_online_map);
+	/* already set me in cpu_online_map in boot_cpu_init() */
 	cpu_set(me, cpu_callout_map);
 	per_cpu(cpu_state, me) = CPU_ONLINE;
 }
