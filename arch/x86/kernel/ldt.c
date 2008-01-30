@@ -50,7 +50,11 @@ static int alloc_ldt(mm_context_t *pc, int mincount, int reload)
 	oldldt = pc->ldt;
 	memset(newldt + oldsize * LDT_ENTRY_SIZE, 0,
 	       (mincount - oldsize) * LDT_ENTRY_SIZE);
+
+#ifdef CONFIG_X86_64
+	/* CHECKME: Do we really need this ? */
 	wmb();
+#endif
 	pc->ldt = newldt;
 	wmb();
 	pc->size = mincount;
@@ -110,11 +114,18 @@ int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 }
 
 /*
- * Don't touch the LDT register - we're already in the next thread.
+ * No need to lock the MM as we are the last user
+ *
+ * 64bit: Don't touch the LDT register - we're already in the next thread.
  */
 void destroy_context(struct mm_struct *mm)
 {
 	if (mm->context.size) {
+#ifdef CONFIG_X86_32
+		/* CHECKME: Can this ever happen ? */
+		if (mm == current->active_mm)
+			clear_LDT();
+#endif
 		if (mm->context.size * LDT_ENTRY_SIZE > PAGE_SIZE)
 			vfree(mm->context.ldt);
 		else
@@ -159,10 +170,14 @@ error_return:
 
 static int read_default_ldt(void __user *ptr, unsigned long bytecount)
 {
-	/* Arbitrary number */
-	/* x86-64 default LDT is all zeros */
-	if (bytecount > 128)
-		bytecount = 128;
+	/* CHECKME: Can we use _one_ random number ? */
+#ifdef CONFIG_X86_32
+	unsigned long size = 5 * sizeof(struct desc_struct);
+#else
+	unsigned long size = 128;
+#endif
+	if (bytecount > size)
+		bytecount = size;
 	if (clear_user(ptr, bytecount))
 		return -EFAULT;
 	return bytecount;
