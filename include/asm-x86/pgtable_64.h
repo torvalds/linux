@@ -79,12 +79,12 @@ static inline void set_pte(pte_t *dst, pte_t val)
 
 static inline void set_pmd(pmd_t *dst, pmd_t val)
 {
-        pmd_val(*dst) = pmd_val(val); 
+	*dst = val;
 } 
 
 static inline void set_pud(pud_t *dst, pud_t val)
 {
-	pud_val(*dst) = pud_val(val);
+	*dst = val;
 }
 
 static inline void pud_clear (pud_t *pud)
@@ -94,7 +94,7 @@ static inline void pud_clear (pud_t *pud)
 
 static inline void set_pgd(pgd_t *dst, pgd_t val)
 {
-	pgd_val(*dst) = pgd_val(val); 
+	*dst = val;
 } 
 
 static inline void pgd_clear (pgd_t * pgd)
