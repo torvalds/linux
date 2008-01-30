@@ -278,6 +278,33 @@ void __init cpu_detect(struct cpuinfo_x86 *c)
 			c->x86_cache_alignment = ((misc >> 8) & 0xff) * 8;
 	}
 }
+static void __cpuinit early_get_cap(struct cpuinfo_x86 *c)
+{
+	u32 tfms, xlvl;
+	int ebx;
+
+	memset(&c->x86_capability, 0, sizeof c->x86_capability);
+	if (have_cpuid_p()) {
+		/* Intel-defined flags: level 0x00000001 */
+		if (c->cpuid_level >= 0x00000001) {
+			u32 capability, excap;
+			cpuid(0x00000001, &tfms, &ebx, &excap, &capability);
+			c->x86_capability[0] = capability;
+			c->x86_capability[4] = excap;
+		}
+
+		/* AMD-defined flags: level 0x80000001 */
+		xlvl = cpuid_eax(0x80000000);
+		if ((xlvl & 0xffff0000) == 0x80000000) {
+			if (xlvl >= 0x80000001) {
+				c->x86_capability[1] = cpuid_edx(0x80000001);
+				c->x86_capability[6] = cpuid_ecx(0x80000001);
+			}
+		}
+
+	}
+
+}
 
 /* Do minimum CPU detection early.
    Fields really needed: vendor, cpuid_level, family, model, mask, cache alignment.
@@ -306,6 +333,8 @@ static void __init early_cpu_detect(void)
 		early_init_intel(c);
 		break;
 	}
+
+	early_get_cap(c);
 }
 
 static void __cpuinit generic_identify(struct cpuinfo_x86 * c)
@@ -485,7 +514,6 @@ void __init identify_boot_cpu(void)
 	identify_cpu(&boot_cpu_data);
 	sysenter_setup();
 	enable_sep_cpu();
-	mtrr_bp_init();
 }
 
 void __cpuinit identify_secondary_cpu(struct cpuinfo_x86 *c)

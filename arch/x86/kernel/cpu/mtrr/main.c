@@ -624,7 +624,6 @@ static struct sysdev_driver mtrr_sysdev_driver = {
 	.resume		= mtrr_restore,
 };
 
-#ifdef CONFIG_X86_64
 static int disable_mtrr_trim;
 
 static int __init disable_mtrr_trim_setup(char *str)
@@ -643,13 +642,10 @@ early_param("disable_mtrr_trim", disable_mtrr_trim_setup);
 #define Tom2Enabled (1U << 21)
 #define Tom2ForceMemTypeWB (1U << 22)
 
-static __init int amd_special_default_mtrr(unsigned long end_pfn)
+static __init int amd_special_default_mtrr(void)
 {
 	u32 l, h;
 
-	/* Doesn't apply to memory < 4GB */
-	if (end_pfn <= (0xffffffff >> PAGE_SHIFT))
-		return 0;
 	if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD)
 		return 0;
 	if (boot_cpu_data.x86 < 0xf || boot_cpu_data.x86 > 0x11)
@@ -687,9 +683,14 @@ int __init mtrr_trim_uncached_memory(unsigned long end_pfn)
 	 * Make sure we only trim uncachable memory on machines that
 	 * support the Intel MTRR architecture:
 	 */
+	if (!is_cpu(INTEL) || disable_mtrr_trim)
+		return 0;
 	rdmsr(MTRRdefType_MSR, def, dummy);
 	def &= 0xff;
-	if (!is_cpu(INTEL) || disable_mtrr_trim || def != MTRR_TYPE_UNCACHABLE)
+	if (def != MTRR_TYPE_UNCACHABLE)
+		return 0;
+
+	if (amd_special_default_mtrr())
 		return 0;
 
 	/* Find highest cached pfn */
@@ -703,8 +704,14 @@ int __init mtrr_trim_uncached_memory(unsigned long end_pfn)
 			highest_addr = base + size;
 	}
 
-	if (amd_special_default_mtrr(end_pfn))
+	/* kvm/qemu doesn't have mtrr set right, don't trim them all */
+	if (!highest_addr) {
+		printk(KERN_WARNING "***************\n");
+		printk(KERN_WARNING "**** WARNING: likely strange cpu\n");
+		printk(KERN_WARNING "**** MTRRs all blank, cpu in qemu?\n");
+		printk(KERN_WARNING "***************\n");
 		return 0;
+	}
 
 	if ((highest_addr >> PAGE_SHIFT) < end_pfn) {
 		printk(KERN_WARNING "***************\n");
@@ -726,7 +733,6 @@ int __init mtrr_trim_uncached_memory(unsigned long end_pfn)
 
 	return 0;
 }
-#endif
 
 /**
  * mtrr_bp_init - initialize mtrrs on the boot CPU

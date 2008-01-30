@@ -48,6 +48,7 @@
 
 #include <video/edid.h>
 
+#include <asm/mtrr.h>
 #include <asm/apic.h>
 #include <asm/e820.h>
 #include <asm/mpspec.h>
@@ -757,6 +758,11 @@ void __init setup_arch(char **cmdline_p)
 		efi_init();
 
 	max_low_pfn = setup_memory();
+
+	/* update e820 for memory not covered by WB MTRRs */
+	mtrr_bp_init();
+	if (mtrr_trim_uncached_memory(max_pfn))
+		max_low_pfn = setup_memory();
 
 #ifdef CONFIG_VMI
 	/*
