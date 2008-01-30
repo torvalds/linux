@@ -29,16 +29,14 @@ static void set_bitmap(unsigned long *bitmap, unsigned int base,
 	}
 }
 
-
 /*
  * this changes the io permissions bitmap in the current task.
  */
 asmlinkage long sys_ioperm(unsigned long from, unsigned long num, int turn_on)
 {
-	unsigned long i, max_long, bytes, bytes_updated;
 	struct thread_struct * t = &current->thread;
 	struct tss_struct * tss;
-	unsigned long *bitmap;
+	unsigned long i, max_long;
 
 	if ((from + num <= from) || (from + num > IO_BITMAP_BITS))
 		return -EINVAL;
@@ -51,7 +49,8 @@ asmlinkage long sys_ioperm(unsigned long from, unsigned long num, int turn_on)
 	 * this is why we delay this operation until now:
 	 */
 	if (!t->io_bitmap_ptr) {
-		bitmap = kmalloc(IO_BITMAP_BYTES, GFP_KERNEL);
+		unsigned long *bitmap = kmalloc(IO_BITMAP_BYTES, GFP_KERNEL);
+
 		if (!bitmap)
 			return -ENOMEM;
 
@@ -80,10 +79,7 @@ asmlinkage long sys_ioperm(unsigned long from, unsigned long num, int turn_on)
 		if (t->io_bitmap_ptr[i] != ~0UL)
 			max_long = i;
 
-	bytes = (max_long + 1) * sizeof(long);
-	bytes_updated = max(bytes, t->io_bitmap_max);
-
-	t->io_bitmap_max = bytes;
+	t->io_bitmap_max = (max_long + 1) * sizeof(unsigned long);
 
 	/*
 	 * Sets the lazy trigger so that the next I/O operation will
@@ -110,9 +106,9 @@ asmlinkage long sys_ioperm(unsigned long from, unsigned long num, int turn_on)
  * code.
  */
 
-asmlinkage long sys_iopl(unsigned long unused)
+asmlinkage long sys_iopl(unsigned long regsp)
 {
-	volatile struct pt_regs * regs = (struct pt_regs *) &unused;
+	volatile struct pt_regs *regs = (struct pt_regs *)&regsp;
 	unsigned int level = regs->ebx;
 	unsigned int old = (regs->eflags >> 12) & 3;
 	struct thread_struct *t = &current->thread;
@@ -124,8 +120,10 @@ asmlinkage long sys_iopl(unsigned long unused)
 		if (!capable(CAP_SYS_RAWIO))
 			return -EPERM;
 	}
+
 	t->iopl = level << 12;
 	regs->eflags = (regs->eflags & ~X86_EFLAGS_IOPL) | t->iopl;
 	set_iopl_mask(t->iopl);
+
 	return 0;
 }
