@@ -155,7 +155,7 @@ static inline int pte_none(pte_t pte)
 
 static inline unsigned long pte_pfn(pte_t pte)
 {
-	return pte_val(pte) >> PAGE_SHIFT;
+	return (pte_val(pte) & ~_PAGE_NX) >> PAGE_SHIFT;
 }
 
 extern unsigned long long __supported_pte_mask;
