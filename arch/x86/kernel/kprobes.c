@@ -442,6 +442,34 @@ void __kprobes arch_prepare_kretprobe(struct kretprobe_instance *ri,
 	/* Replace the return addr with trampoline addr */
 	*sara = (unsigned long) &kretprobe_trampoline;
 }
+
+static void __kprobes recursive_singlestep(struct kprobe *p,
+					   struct pt_regs *regs,
+					   struct kprobe_ctlblk *kcb)
+{
+	save_previous_kprobe(kcb);
+	set_current_kprobe(p, regs, kcb);
+	kprobes_inc_nmissed_count(p);
+	prepare_singlestep(p, regs);
+	kcb->kprobe_status = KPROBE_REENTER;
+}
+
+static void __kprobes setup_singlestep(struct kprobe *p, struct pt_regs *regs,
+				       struct kprobe_ctlblk *kcb)
+{
+#if !defined(CONFIG_PREEMPT) || defined(CONFIG_PM)
+	if (p->ainsn.boostable == 1 && !p->post_handler) {
+		/* Boost up -- we can execute copied instructions directly */
+		reset_current_kprobe();
+		regs->ip = (unsigned long)p->ainsn.insn;
+		preempt_enable_no_resched();
+		return;
+	}
+#endif
+	prepare_singlestep(p, regs);
+	kcb->kprobe_status = KPROBE_HIT_SS;
+}
+
 /*
  * We have reentered the kprobe_handler(), since another probe was hit while
  * within the handler. We save the original kprobes variables and just single
@@ -450,13 +478,9 @@ void __kprobes arch_prepare_kretprobe(struct kretprobe_instance *ri,
 static int __kprobes reenter_kprobe(struct kprobe *p, struct pt_regs *regs,
 				    struct kprobe_ctlblk *kcb)
 {
-	if (kcb->kprobe_status == KPROBE_HIT_SS &&
-	    *p->ainsn.insn == BREAKPOINT_INSTRUCTION) {
-		regs->flags &= ~X86_EFLAGS_TF;
-		regs->flags |= kcb->kprobe_saved_flags;
-		return 0;
+	switch (kcb->kprobe_status) {
+	case KPROBE_HIT_SSDONE:
 #ifdef CONFIG_X86_64
-	} else if (kcb->kprobe_status == KPROBE_HIT_SSDONE) {
 		/* TODO: Provide re-entrancy from post_kprobes_handler() and
 		 * avoid exception stack corruption while single-stepping on
 		 * the instruction of the new probe.
@@ -464,14 +488,26 @@ static int __kprobes reenter_kprobe(struct kprobe *p, struct pt_regs *regs,
 		arch_disarm_kprobe(p);
 		regs->ip = (unsigned long)p->addr;
 		reset_current_kprobe();
-		return 1;
+		preempt_enable_no_resched();
+		break;
 #endif
+	case KPROBE_HIT_ACTIVE:
+		recursive_singlestep(p, regs, kcb);
+		break;
+	case KPROBE_HIT_SS:
+		if (*p->ainsn.insn == BREAKPOINT_INSTRUCTION) {
+			regs->flags &= ~TF_MASK;
+			regs->flags |= kcb->kprobe_saved_flags;
+			return 0;
+		} else {
+			recursive_singlestep(p, regs, kcb);
+		}
+		break;
+	default:
+		/* impossible cases */
+		WARN_ON(1);
 	}
-	save_previous_kprobe(kcb);
-	set_current_kprobe(p, regs, kcb);
-	kprobes_inc_nmissed_count(p);
-	prepare_singlestep(p, regs);
-	kcb->kprobe_status = KPROBE_REENTER;
+
 	return 1;
 }
 
@@ -481,83 +517,66 @@ static int __kprobes reenter_kprobe(struct kprobe *p, struct pt_regs *regs,
  */
 static int __kprobes kprobe_handler(struct pt_regs *regs)
 {
-	struct kprobe *p;
-	int ret = 0;
 	kprobe_opcode_t *addr;
+	struct kprobe *p;
 	struct kprobe_ctlblk *kcb;
 
 	addr = (kprobe_opcode_t *)(regs->ip - sizeof(kprobe_opcode_t));
+	if (*addr != BREAKPOINT_INSTRUCTION) {
+		/*
+		 * The breakpoint instruction was removed right
+		 * after we hit it.  Another cpu has removed
+		 * either a probepoint or a debugger breakpoint
+		 * at this address.  In either case, no further
+		 * handling of this interrupt is appropriate.
+		 * Back up over the (now missing) int3 and run
+		 * the original instruction.
+		 */
+		regs->ip = (unsigned long)addr;
+		return 1;
+	}
 
 	/*
 	 * We don't want to be preempted for the entire
-	 * duration of kprobe processing
+	 * duration of kprobe processing. We conditionally
+	 * re-enable preemption at the end of this function,
+	 * and also in reenter_kprobe() and setup_singlestep().
 	 */
 	preempt_disable();
-	kcb = get_kprobe_ctlblk();
 
+	kcb = get_kprobe_ctlblk();
 	p = get_kprobe(addr);
+
 	if (p) {
-		/* Check we're not actually recursing */
 		if (kprobe_running()) {
-			ret = reenter_kprobe(p, regs, kcb);
-			if (kcb->kprobe_status == KPROBE_REENTER)
-			{
-				ret = 1;
-				goto out;
-			}
-			goto preempt_out;
+			if (reenter_kprobe(p, regs, kcb))
+				return 1;
 		} else {
 			set_current_kprobe(p, regs, kcb);
 			kcb->kprobe_status = KPROBE_HIT_ACTIVE;
-			if (p->pre_handler && p->pre_handler(p, regs))
-			{
-				/* handler set things up, skip ss setup */
-				ret = 1;
-				goto out;
-			}
-		}
-	} else {
-		if (*addr != BREAKPOINT_INSTRUCTION) {
+
 			/*
-			 * The breakpoint instruction was removed right
-			 * after we hit it.  Another cpu has removed
-			 * either a probepoint or a debugger breakpoint
-			 * at this address.  In either case, no further
-			 * handling of this interrupt is appropriate.
-			 * Back up over the (now missing) int3 and run
-			 * the original instruction.
+			 * If we have no pre-handler or it returned 0, we
+			 * continue with normal processing.  If we have a
+			 * pre-handler and it returned non-zero, it prepped
+			 * for calling the break_handler below on re-entry
+			 * for jprobe processing, so get out doing nothing
+			 * more here.
 			 */
-			regs->ip = (unsigned long)addr;
-			ret = 1;
-			goto preempt_out;
+			if (!p->pre_handler || !p->pre_handler(p, regs))
+				setup_singlestep(p, regs, kcb);
+			return 1;
 		}
-		if (kprobe_running()) {
-			p = __get_cpu_var(current_kprobe);
-			if (p->break_handler && p->break_handler(p, regs))
-				goto ss_probe;
+	} else if (kprobe_running()) {
+		p = __get_cpu_var(current_kprobe);
+		if (p->break_handler && p->break_handler(p, regs)) {
+			setup_singlestep(p, regs, kcb);
+			return 1;
 		}
-		/* Not one of ours: let kernel handle it */
-		goto preempt_out;
-	}
+	} /* else: not a kprobe fault; let the kernel handle it */
 
-ss_probe:
-	ret = 1;
-#if !defined(CONFIG_PREEMPT) || defined(CONFIG_PM)
-	if (p->ainsn.boostable == 1 && !p->post_handler) {
-		/* Boost up -- we can execute copied instructions directly */
-		reset_current_kprobe();
-		regs->ip = (unsigned long)p->ainsn.insn;
-		goto preempt_out;
-	}
-#endif
-	prepare_singlestep(p, regs);
-	kcb->kprobe_status = KPROBE_HIT_SS;
-	goto out;
-
-preempt_out:
 	preempt_enable_no_resched();
-out:
-	return ret;
+	return 0;
 }
 
 /*
