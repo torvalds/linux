@@ -224,10 +224,12 @@ static __init int exercise_pageattr(void)
 
 	failed += print_split(&sc);
 
-	if (failed)
+	if (failed) {
 		printk(KERN_ERR "CPA selftests NOT PASSED. Please report.\n");
-	else
+		WARN_ON(1);
+	} else {
 		printk(KERN_INFO "CPA selftests PASSED\n");
+	}
 
 	return 0;
 }
