@@ -131,9 +131,6 @@ void main(void)
 	/* Set keyboard repeat rate (why?) */
 	keyboard_set_repeat();
 
-	/* Set the video mode */
-	set_video();
-
 	/* Query MCA information */
 	query_mca();
 
@@ -154,6 +151,10 @@ void main(void)
 #if defined(CONFIG_EDD) || defined(CONFIG_EDD_MODULE)
 	query_edd();
 #endif
+
+	/* Set the video mode */
+	set_video();
+
 	/* Do the last things and invoke protected mode */
 	go_to_protected_mode();
 }
