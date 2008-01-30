@@ -163,6 +163,12 @@
 #define cpu_has_clflush		boot_cpu_has(X86_FEATURE_CLFLSH)
 #define cpu_has_bts		boot_cpu_has(X86_FEATURE_BTS)
 
+#if defined(CONFIG_X86_INVLPG) || defined(CONFIG_X86_64)
+# define cpu_has_invlpg		1
+#else
+# define cpu_has_invlpg		(boot_cpu_data.x86 > 3)
+#endif
+
 #ifdef CONFIG_X86_64
 
 #undef  cpu_has_vme
@@ -182,6 +188,9 @@
 
 #undef  cpu_has_centaur_mcr
 #define cpu_has_centaur_mcr	0
+
+#undef  cpu_has_pge
+#define cpu_has_pge		1
 
 #endif /* CONFIG_X86_64 */
 

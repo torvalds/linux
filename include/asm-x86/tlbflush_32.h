@@ -1,8 +1,11 @@
-#ifndef _I386_TLBFLUSH_H
-#define _I386_TLBFLUSH_H
+#ifndef _X86_TLBFLUSH_H
+#define _X86_TLBFLUSH_H
 
 #include <linux/mm.h>
+#include <linux/sched.h>
+
 #include <asm/processor.h>
+#include <asm/system.h>
 
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
@@ -12,62 +15,41 @@
 #define __flush_tlb_single(addr) __native_flush_tlb_single(addr)
 #endif
 
-#define __native_flush_tlb()						\
-	do {								\
-		unsigned int tmpreg;					\
-									\
-		__asm__ __volatile__(					\
-			"movl %%cr3, %0;              \n"		\
-			"movl %0, %%cr3;  # flush TLB \n"		\
-			: "=r" (tmpreg)					\
-			:: "memory");					\
-	} while (0)
+static inline void __native_flush_tlb(void)
+{
+	write_cr3(read_cr3());
+}
 
-/*
- * Global pages have to be flushed a bit differently. Not a real
- * performance problem because this does not happen often.
- */
-#define __native_flush_tlb_global()					\
-	do {								\
-		unsigned int tmpreg, cr4, cr4_orig;			\
-									\
-		__asm__ __volatile__(					\
-			"movl %%cr4, %2;  # turn off PGE     \n"	\
-			"movl %2, %1;                        \n"	\
-			"andl %3, %1;                        \n"	\
-			"movl %1, %%cr4;                     \n"	\
-			"movl %%cr3, %0;                     \n"	\
-			"movl %0, %%cr3;  # flush TLB        \n"	\
-			"movl %2, %%cr4;  # turn PGE back on \n"	\
-			: "=&r" (tmpreg), "=&r" (cr4), "=&r" (cr4_orig)	\
-			: "i" (~X86_CR4_PGE)				\
-			: "memory");					\
-	} while (0)
+static inline void __native_flush_tlb_global(void)
+{
+	unsigned long cr4 = read_cr4();
 
-#define __native_flush_tlb_single(addr) 				\
-	__asm__ __volatile__("invlpg (%0)" ::"r" (addr) : "memory")
+	/* clear PGE */
+	write_cr4(cr4 & ~X86_CR4_PGE);
+	/* write old PGE again and flush TLBs */
+	write_cr4(cr4);
+}
 
-# define __flush_tlb_all()						\
-	do {								\
-		if (cpu_has_pge)					\
-			__flush_tlb_global();				\
-		else							\
-			__flush_tlb();					\
-	} while (0)
+static inline void __native_flush_tlb_single(unsigned long addr)
+{
+	__asm__ __volatile__("invlpg (%0)" ::"r" (addr) : "memory");
+}
 
-#define cpu_has_invlpg	(boot_cpu_data.x86 > 3)
+static inline void __flush_tlb_all(void)
+{
+	if (cpu_has_pge)
+		__flush_tlb_global();
+	else
+		__flush_tlb();
+}
 
-#ifdef CONFIG_X86_INVLPG
-# define __flush_tlb_one(addr) __flush_tlb_single(addr)
-#else
-# define __flush_tlb_one(addr)						\
-	do {								\
-		if (cpu_has_invlpg)					\
-			__flush_tlb_single(addr);			\
-		else							\
-			__flush_tlb();					\
-	} while (0)
-#endif
+static inline void __flush_tlb_one(unsigned long addr)
+{
+	if (cpu_has_invlpg)
+		__flush_tlb_single(addr);
+	else
+		__flush_tlb();
+}
 
 /*
  * TLB flushing:
@@ -86,10 +68,7 @@
 
 #define TLB_FLUSH_ALL	0xffffffff
 
-
 #ifndef CONFIG_SMP
-
-#include <linux/sched.h>
 
 #define flush_tlb() __flush_tlb()
 #define flush_tlb_all() __flush_tlb_all()
@@ -102,21 +81,22 @@ static inline void flush_tlb_mm(struct mm_struct *mm)
 }
 
 static inline void flush_tlb_page(struct vm_area_struct *vma,
-	unsigned long addr)
+				  unsigned long addr)
 {
 	if (vma->vm_mm == current->active_mm)
 		__flush_tlb_one(addr);
 }
 
 static inline void flush_tlb_range(struct vm_area_struct *vma,
-	unsigned long start, unsigned long end)
+				   unsigned long start, unsigned long end)
 {
 	if (vma->vm_mm == current->active_mm)
 		__flush_tlb();
 }
 
 static inline void native_flush_tlb_others(const cpumask_t *cpumask,
-					   struct mm_struct *mm, unsigned long va)
+					   struct mm_struct *mm,
+					   unsigned long va)
 {
 }
 
@@ -124,8 +104,7 @@ static inline void native_flush_tlb_others(const cpumask_t *cpumask,
 
 #include <asm/smp.h>
 
-#define local_flush_tlb() \
-	__flush_tlb()
+#define local_flush_tlb() __flush_tlb()
 
 extern void flush_tlb_all(void);
 extern void flush_tlb_current_task(void);
@@ -134,7 +113,8 @@ extern void flush_tlb_page(struct vm_area_struct *, unsigned long);
 
 #define flush_tlb()	flush_tlb_current_task()
 
-static inline void flush_tlb_range(struct vm_area_struct * vma, unsigned long start, unsigned long end)
+static inline void flush_tlb_range(struct vm_area_struct *vma,
+				   unsigned long start, unsigned long end)
 {
 	flush_tlb_mm(vma->vm_mm);
 }
@@ -152,17 +132,17 @@ struct tlb_state
 	char __cacheline_padding[L1_CACHE_BYTES-8];
 };
 DECLARE_PER_CPU(struct tlb_state, cpu_tlbstate);
+
 #endif	/* SMP */
 
 #ifndef CONFIG_PARAVIRT
-#define flush_tlb_others(mask, mm, va)		\
-	native_flush_tlb_others(&mask, mm, va)
+#define flush_tlb_others(mask, mm, va)	native_flush_tlb_others(&mask, mm, va)
 #endif
 
 static inline void flush_tlb_kernel_range(unsigned long start,
-					unsigned long end)
+					  unsigned long end)
 {
 	flush_tlb_all();
 }
 
-#endif /* _I386_TLBFLUSH_H */
+#endif /* _X86_TLBFLUSH_H */

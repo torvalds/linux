@@ -55,7 +55,6 @@ union smp_flush_state {
 		cpumask_t flush_cpumask;
 		struct mm_struct *flush_mm;
 		unsigned long flush_va;
-#define FLUSH_ALL	-1ULL
 		spinlock_t tlbstate_lock;
 	};
 	char pad[SMP_CACHE_BYTES];
@@ -153,7 +152,7 @@ asmlinkage void smp_invalidate_interrupt(struct pt_regs *regs)
 
 	if (f->flush_mm == read_pda(active_mm)) {
 		if (read_pda(mmu_state) == TLBSTATE_OK) {
-			if (f->flush_va == FLUSH_ALL)
+			if (f->flush_va == TLB_FLUSH_ALL)
 				local_flush_tlb();
 			else
 				__flush_tlb_one(f->flush_va);
@@ -166,11 +165,12 @@ out:
 	add_pda(irq_tlb_count, 1);
 }
 
-static void flush_tlb_others(cpumask_t cpumask, struct mm_struct *mm,
-						unsigned long va)
+void native_flush_tlb_others(const cpumask_t *cpumaskp, struct mm_struct *mm,
+			     unsigned long va)
 {
 	int sender;
 	union smp_flush_state *f;
+	cpumask_t cpumask = *cpumaskp;
 
 	/* Caller has disabled preemption */
 	sender = smp_processor_id() % NUM_INVALIDATE_TLB_VECTORS;
@@ -223,7 +223,7 @@ void flush_tlb_current_task(void)
 
 	local_flush_tlb();
 	if (!cpus_empty(cpu_mask))
-		flush_tlb_others(cpu_mask, mm, FLUSH_ALL);
+		flush_tlb_others(cpu_mask, mm, TLB_FLUSH_ALL);
 	preempt_enable();
 }
 
@@ -242,7 +242,7 @@ void flush_tlb_mm (struct mm_struct * mm)
 			leave_mm(smp_processor_id());
 	}
 	if (!cpus_empty(cpu_mask))
-		flush_tlb_others(cpu_mask, mm, FLUSH_ALL);
+		flush_tlb_others(cpu_mask, mm, TLB_FLUSH_ALL);
 
 	preempt_enable();
 }

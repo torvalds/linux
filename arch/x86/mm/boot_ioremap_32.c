@@ -57,7 +57,7 @@ static void __boot_ioremap(unsigned long phys_addr, unsigned long nrpages,
 	pte = boot_vaddr_to_pte(virtual_source);
 	for (i=0; i < nrpages; i++, phys_addr += PAGE_SIZE, pte++) {
 		set_pte(pte, pfn_pte(phys_addr>>PAGE_SHIFT, PAGE_KERNEL));
-		__flush_tlb_one(&vaddr[i*PAGE_SIZE]);
+		__flush_tlb_one((unsigned long) &vaddr[i*PAGE_SIZE]);
 	}
 }
 

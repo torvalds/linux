@@ -1,26 +1,55 @@
-#ifndef _X8664_TLBFLUSH_H
-#define _X8664_TLBFLUSH_H
+#ifndef _X86_TLBFLUSH_H
+#define _X86_TLBFLUSH_H
 
 #include <linux/mm.h>
 #include <linux/sched.h>
+
 #include <asm/processor.h>
 #include <asm/system.h>
 
-static inline void __flush_tlb(void)
+#ifdef CONFIG_PARAVIRT
+#include <asm/paravirt.h>
+#else
+#define __flush_tlb() __native_flush_tlb()
+#define __flush_tlb_global() __native_flush_tlb_global()
+#define __flush_tlb_single(addr) __native_flush_tlb_single(addr)
+#endif
+
+static inline void __native_flush_tlb(void)
 {
 	write_cr3(read_cr3());
 }
 
-static inline void __flush_tlb_all(void)
+static inline void __native_flush_tlb_global(void)
 {
 	unsigned long cr4 = read_cr4();
-	write_cr4(cr4 & ~X86_CR4_PGE);	/* clear PGE */
-	write_cr4(cr4);			/* write old PGE again and flush TLBs */
+
+	/* clear PGE */
+	write_cr4(cr4 & ~X86_CR4_PGE);
+	/* write old PGE again and flush TLBs */
+	write_cr4(cr4);
 }
 
-#define __flush_tlb_one(addr) \
-	__asm__ __volatile__("invlpg (%0)" :: "r" (addr) : "memory")
+static inline void __native_flush_tlb_single(unsigned long addr)
+{
+	__asm__ __volatile__("invlpg (%0)" ::"r" (addr) : "memory");
+}
 
+static inline void __flush_tlb_all(void)
+{
+	if (cpu_has_pge)
+		__flush_tlb_global();
+	else
+		__flush_tlb();
+}
+
+static inline void __flush_tlb_one(unsigned long addr)
+{
+	if (cpu_has_invlpg)
+		__flush_tlb_single(addr);
+	else
+		__flush_tlb();
+}
 
 /*
  * TLB flushing:
@@ -37,6 +66,8 @@ static inline void __flush_tlb_all(void)
  * range a few INVLPGs in a row are a win.
  */
 
+#define TLB_FLUSH_ALL	-1ULL
+
 #ifndef CONFIG_SMP
 
 #define flush_tlb() __flush_tlb()
@@ -50,25 +81,30 @@ static inline void flush_tlb_mm(struct mm_struct *mm)
 }
 
 static inline void flush_tlb_page(struct vm_area_struct *vma,
-	unsigned long addr)
+				  unsigned long addr)
 {
 	if (vma->vm_mm == current->active_mm)
 		__flush_tlb_one(addr);
 }
 
 static inline void flush_tlb_range(struct vm_area_struct *vma,
-	unsigned long start, unsigned long end)
+				   unsigned long start, unsigned long end)
 {
 	if (vma->vm_mm == current->active_mm)
 		__flush_tlb();
 }
 
-#else
+static inline void native_flush_tlb_others(const cpumask_t *cpumask,
+					   struct mm_struct *mm,
+					   unsigned long va)
+{
+}
+
+#else  /* SMP */
 
 #include <asm/smp.h>
 
-#define local_flush_tlb() \
-	__flush_tlb()
+#define local_flush_tlb() __flush_tlb()
 
 extern void flush_tlb_all(void);
 extern void flush_tlb_current_task(void);
@@ -77,24 +113,28 @@ extern void flush_tlb_page(struct vm_area_struct *, unsigned long);
 
 #define flush_tlb()	flush_tlb_current_task()
 
-static inline void flush_tlb_range(struct vm_area_struct * vma, unsigned long start, unsigned long end)
+static inline void flush_tlb_range(struct vm_area_struct *vma,
+				   unsigned long start, unsigned long end)
 {
 	flush_tlb_mm(vma->vm_mm);
 }
 
+void native_flush_tlb_others(const cpumask_t *cpumask, struct mm_struct *mm,
+			     unsigned long va);
+
 #define TLBSTATE_OK	1
 #define TLBSTATE_LAZY	2
 
-/* Roughly an IPI every 20MB with 4k pages for freeing page table
-   ranges. Cost is about 42k of memory for each CPU. */
-#define ARCH_FREE_PTE_NR 5350	
+#endif	/* SMP */
 
+#ifndef CONFIG_PARAVIRT
+#define flush_tlb_others(mask, mm, va)	native_flush_tlb_others(&mask, mm, va)
 #endif
 
 static inline void flush_tlb_kernel_range(unsigned long start,
-					unsigned long end)
+					  unsigned long end)
 {
 	flush_tlb_all();
 }
 
-#endif /* _X8664_TLBFLUSH_H */
+#endif /* _X86_TLBFLUSH_H */
