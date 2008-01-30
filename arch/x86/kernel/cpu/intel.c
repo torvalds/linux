@@ -29,13 +29,14 @@
 struct movsl_mask movsl_mask __read_mostly;
 #endif
 
-void __cpuinit early_intel_workaround(struct cpuinfo_x86 *c)
+void __cpuinit early_init_intel(struct cpuinfo_x86 *c)
 {
-	if (c->x86_vendor != X86_VENDOR_INTEL)
-		return;
 	/* Netburst reports 64 bytes clflush size, but does IO in 128 bytes */
 	if (c->x86 == 15 && c->x86_cache_alignment == 64)
 		c->x86_cache_alignment = 128;
+	if ((c->x86 == 0xf && c->x86_model >= 0x03) ||
+		(c->x86 == 0x6 && c->x86_model >= 0x0e))
+		set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
 }
 
 /*
@@ -114,6 +115,8 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 {
 	unsigned int l2 = 0;
 	char *p = NULL;
+
+	early_init_intel(c);
 
 #ifdef CONFIG_X86_F00F_BUG
 	/*
@@ -210,10 +213,6 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 	}
 	if (c->x86 == 6) 
 		set_bit(X86_FEATURE_P3, c->x86_capability);
-	if ((c->x86 == 0xf && c->x86_model >= 0x03) ||
-		(c->x86 == 0x6 && c->x86_model >= 0x0e))
-		set_bit(X86_FEATURE_CONSTANT_TSC, c->x86_capability);
-
 	if (cpu_has_ds) {
 		unsigned int l1;
 		rdmsr(MSR_IA32_MISC_ENABLE, l1, l2);

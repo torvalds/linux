@@ -63,6 +63,15 @@ static __cpuinit int amd_apic_timer_broken(void)
 
 int force_mwait __cpuinitdata;
 
+void __cpuinit early_init_amd(struct cpuinfo_x86 *c)
+{
+	if (cpuid_eax(0x80000000) >= 0x80000007) {
+		c->x86_power = cpuid_edx(0x80000007);
+		if (c->x86_power & (1<<8))
+			set_bit(X86_FEATURE_CONSTANT_TSC, c->x86_capability);
+	}
+}
+
 static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 {
 	u32 l, h;
@@ -84,6 +93,8 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 		wrmsrl(MSR_K7_HWCR, value);
 	}
 #endif
+
+	early_init_amd(c);
 
 	/*
 	 *	FIXME: We should handle the K5 here. Set up the write
@@ -255,12 +266,6 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 
 	if (cpuid_eax(0x80000000) >= 0x80000008) {
 		c->x86_max_cores = (cpuid_ecx(0x80000008) & 0xff) + 1;
-	}
-
-	if (cpuid_eax(0x80000000) >= 0x80000007) {
-		c->x86_power = cpuid_edx(0x80000007);
-		if (c->x86_power & (1<<8))
-			set_bit(X86_FEATURE_CONSTANT_TSC, c->x86_capability);
 	}
 
 #ifdef CONFIG_X86_HT

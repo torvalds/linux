@@ -307,6 +307,15 @@ static void __init early_cpu_detect(void)
 	cpu_detect(c);
 
 	get_cpu_vendor(c, 1);
+
+	switch (c->x86_vendor) {
+	case X86_VENDOR_AMD:
+		early_init_amd(c);
+		break;
+	case X86_VENDOR_INTEL:
+		early_init_intel(c);
+		break;
+	}
 }
 
 static void __cpuinit generic_identify(struct cpuinfo_x86 * c)
@@ -363,8 +372,6 @@ static void __cpuinit generic_identify(struct cpuinfo_x86 * c)
 
 		init_scattered_cpuid_features(c);
 	}
-
-	early_intel_workaround(c);
 
 #ifdef CONFIG_X86_HT
 	c->phys_proc_id = (cpuid_ebx(1) >> 24) & 0xff;

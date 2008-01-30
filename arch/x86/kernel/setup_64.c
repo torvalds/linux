@@ -544,9 +544,6 @@ static void __cpuinit display_cacheinfo(struct cpuinfo_x86 *c)
 		printk(KERN_INFO "CPU: L2 Cache: %dK (%d bytes/line)\n",
 		c->x86_cache_size, ecx & 0xFF);
 	}
-
-	if (n >= 0x80000007)
-		cpuid(0x80000007, &dummy, &dummy, &dummy, &c->x86_power);
 	if (n >= 0x80000008) {
 		cpuid(0x80000008, &eax, &dummy, &dummy, &dummy);
 		c->x86_virt_bits = (eax >> 8) & 0xff;
@@ -624,7 +621,7 @@ static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
 #endif
 }
 
-static void __cpuinit early_init_amd(struct cpuinfo_x86 *c)
+static void __cpuinit early_init_amd_mc(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_SMP
 	unsigned bits, ecx;
@@ -682,6 +679,15 @@ static __cpuinit int amd_apic_timer_broken(void)
 	return 0;
 }
 
+static void __cpuinit early_init_amd(struct cpuinfo_x86 *c)
+{
+	early_init_amd_mc(c);
+
+ 	/* c->x86_power is 8000_0007 edx. Bit 8 is constant TSC */
+	if (c->x86_power & (1<<8))
+		set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
+}
+
 static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 {
 	unsigned level;
@@ -730,10 +736,6 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 		}
 	}
 	display_cacheinfo(c);
-
-	/* c->x86_power is 8000_0007 edx. Bit 8 is constant TSC */
-	if (c->x86_power & (1<<8))
-		set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
 
 	/* Multi core CPU? */
 	if (c->extended_cpuid_level >= 0x80000008)
@@ -843,6 +845,13 @@ static void srat_detect_node(void)
 
 	printk(KERN_INFO "CPU %d/%x -> Node %d\n", cpu, apicid, node);
 #endif
+}
+
+static void __cpuinit early_init_intel(struct cpuinfo_x86 *c)
+{
+	if ((c->x86 == 0xf && c->x86_model >= 0x03) ||
+	    (c->x86 == 0x6 && c->x86_model >= 0x0e))
+		set_bit(X86_FEATURE_CONSTANT_TSC, &c->x86_capability);
 }
 
 static void __cpuinit init_intel(struct cpuinfo_x86 *c)
@@ -1056,6 +1065,20 @@ void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 #ifdef CONFIG_NUMA
 	numa_add_cpu(smp_processor_id());
 #endif
+
+	c->extended_cpuid_level = cpuid_eax(0x80000000);
+
+	if (c->extended_cpuid_level >= 0x80000007)
+		c->x86_power = cpuid_edx(0x80000007);
+
+	switch (c->x86_vendor) {
+	case X86_VENDOR_AMD:
+		early_init_amd(c);
+		break;
+	case X86_VENDOR_INTEL:
+		early_init_intel(c);
+		break;
+	}
 }
 
 void __cpuinit print_cpu_info(struct cpuinfo_x86 *c)
