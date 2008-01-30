@@ -37,53 +37,20 @@
  */
 #define FLAG_MASK 0x00050dd5
 
-/*
- * Offset of eflags on child stack..
- */
-#define EFL_OFFSET offsetof(struct pt_regs, eflags)
-
-static inline struct pt_regs *get_child_regs(struct task_struct *task)
+static long *pt_regs_access(struct pt_regs *regs, unsigned long regno)
 {
-	void *stack_top = (void *)task->thread.esp0;
-	return stack_top - sizeof(struct pt_regs);
-}
-
-/*
- * This routine will get a word off of the processes privileged stack.
- * the offset is bytes into the pt_regs structure on the stack.
- * This routine assumes that all the privileged stacks are in our
- * data space.
- */   
-static inline int get_stack_long(struct task_struct *task, int offset)
-{
-	unsigned char *stack;
-
-	stack = (unsigned char *)task->thread.esp0 - sizeof(struct pt_regs);
-	stack += offset;
-	return (*((int *)stack));
-}
-
-/*
- * This routine will put a word on the processes privileged stack.
- * the offset is bytes into the pt_regs structure on the stack.
- * This routine assumes that all the privileged stacks are in our
- * data space.
- */
-static inline int put_stack_long(struct task_struct *task, int offset,
-	unsigned long data)
-{
-	unsigned char * stack;
-
-	stack = (unsigned char *)task->thread.esp0 - sizeof(struct pt_regs);
-	stack += offset;
-	*(unsigned long *) stack = data;
-	return 0;
+	BUILD_BUG_ON(offsetof(struct pt_regs, ebx) != 0);
+	if (regno > FS)
+		--regno;
+	return &regs->ebx + regno;
 }
 
 static int putreg(struct task_struct *child,
 	unsigned long regno, unsigned long value)
 {
-	switch (regno >> 2) {
+	struct pt_regs *regs = task_pt_regs(child);
+	regno >>= 2;
+	switch (regno) {
 		case GS:
 			if (value && (value & 3) != 3)
 				return -EIO;
@@ -113,26 +80,25 @@ static int putreg(struct task_struct *child,
 				clear_tsk_thread_flag(child, TIF_FORCED_TF);
 			else if (test_tsk_thread_flag(child, TIF_FORCED_TF))
 				value |= X86_EFLAGS_TF;
-			value |= get_stack_long(child, EFL_OFFSET) & ~FLAG_MASK;
+			value |= regs->eflags & ~FLAG_MASK;
 			break;
 	}
-	if (regno > FS*4)
-		regno -= 1*4;
-	put_stack_long(child, regno, value);
+	*pt_regs_access(regs, regno) = value;
 	return 0;
 }
 
-static unsigned long getreg(struct task_struct *child,
-	unsigned long regno)
+static unsigned long getreg(struct task_struct *child, unsigned long regno)
 {
+	struct pt_regs *regs = task_pt_regs(child);
 	unsigned long retval = ~0UL;
 
-	switch (regno >> 2) {
+	regno >>= 2;
+	switch (regno) {
 		case EFL:
 			/*
 			 * If the debugger set TF, hide it from the readout.
 			 */
-			retval = get_stack_long(child, EFL_OFFSET);
+			retval = regs->eflags;
 			if (test_tsk_thread_flag(child, TIF_FORCED_TF))
 				retval &= ~X86_EFLAGS_TF;
 			break;
@@ -147,9 +113,7 @@ static unsigned long getreg(struct task_struct *child,
 			retval = 0xffff;
 			/* fall through */
 		default:
-			if (regno > FS*4)
-				regno -= 1*4;
-			retval &= get_stack_long(child, regno);
+			retval &= *pt_regs_access(regs, regno);
 	}
 	return retval;
 }
