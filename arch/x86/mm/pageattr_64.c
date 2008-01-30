@@ -123,14 +123,15 @@ int change_page_attr_addr(unsigned long address, int numpages, pgprot_t prot)
 {
 	int err = 0, kernel_map = 0, i;
 
+#ifdef CONFIG_X86_64
 	if (address >= __START_KERNEL_map &&
 			address < __START_KERNEL_map + KERNEL_TEXT_SIZE) {
 
 		address = (unsigned long)__va(__pa(address));
 		kernel_map = 1;
 	}
+#endif
 
-	down_write(&init_mm.mmap_sem);
 	for (i = 0; i < numpages; i++, address += PAGE_SIZE) {
 		unsigned long pfn = __pa(address) >> PAGE_SHIFT;
 
@@ -139,8 +140,11 @@ int change_page_attr_addr(unsigned long address, int numpages, pgprot_t prot)
 			if (err)
 				break;
 		}
-		/* Handle kernel mapping too which aliases part of the
-		 * lowmem */
+#ifdef CONFIG_X86_64
+		/*
+		 * Handle kernel mapping too which aliases part of
+		 * lowmem:
+		 */
 		if (__pa(address) < KERNEL_TEXT_SIZE) {
 			unsigned long addr2;
 			pgprot_t prot2;
@@ -150,8 +154,8 @@ int change_page_attr_addr(unsigned long address, int numpages, pgprot_t prot)
 			prot2 = pte_pgprot(pte_mkexec(pfn_pte(0, prot)));
 			err = __change_page_attr(addr2, pfn_to_page(pfn), prot2);
 		}
+#endif
 	}
-	up_write(&init_mm.mmap_sem);
 
 	return err;
 }
