@@ -260,3 +260,33 @@ void global_flush_tlb(void)
 	on_each_cpu(flush_kernel_map, NULL, 1, 1);
 }
 EXPORT_SYMBOL(global_flush_tlb);
+
+#ifdef CONFIG_DEBUG_PAGEALLOC
+void kernel_map_pages(struct page *page, int numpages, int enable)
+{
+	if (PageHighMem(page))
+		return;
+	if (!enable) {
+		debug_check_no_locks_freed(page_address(page),
+					   numpages * PAGE_SIZE);
+	}
+
+	/*
+	 * If page allocator is not up yet then do not call c_p_a():
+	 */
+	if (!debug_pagealloc_enabled)
+		return;
+
+	/*
+	 * the return value is ignored - the calls cannot fail,
+	 * large pages are disabled at boot time.
+	 */
+	change_page_attr(page, numpages, enable ? PAGE_KERNEL : __pgprot(0));
+
+	/*
+	 * we should perform an IPI and flush all tlbs,
+	 * but that can deadlock->flush only current cpu.
+	 */
+	__flush_tlb_all();
+}
+#endif
