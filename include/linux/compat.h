@@ -191,6 +191,10 @@ asmlinkage long compat_sys_select(int n, compat_ulong_t __user *inp,
 		compat_ulong_t __user *outp, compat_ulong_t __user *exp,
 		struct compat_timeval __user *tvp);
 
+asmlinkage long compat_sys_wait4(compat_pid_t pid,
+				 compat_uint_t *stat_addr, int options,
+				 struct compat_rusage *ru);
+
 #define BITS_PER_COMPAT_LONG    (8*sizeof(compat_long_t))
 
 #define BITS_TO_COMPAT_LONGS(bits) \
