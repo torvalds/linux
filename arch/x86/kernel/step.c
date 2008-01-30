@@ -66,7 +66,7 @@ static int is_setting_trap_flag(struct task_struct *child, struct pt_regs *regs)
 		case 0x26: case 0x2e:
 		case 0x36: case 0x3e:
 		case 0x64: case 0x65:
-		case 0xf2: case 0xf3:
+		case 0xf0: case 0xf2: case 0xf3:
 			continue;
 
 		case 0x40 ... 0x4f:
