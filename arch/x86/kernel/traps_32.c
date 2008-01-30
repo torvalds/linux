@@ -352,6 +352,45 @@ int is_valid_bugaddr(unsigned long ip)
 	return ud2 == 0x0b0f;
 }
 
+static int die_counter;
+
+int __kprobes __die(const char * str, struct pt_regs * regs, long err)
+{
+	unsigned long sp;
+	unsigned short ss;
+
+	printk(KERN_EMERG "%s: %04lx [#%d] ", str, err & 0xffff, ++die_counter);
+#ifdef CONFIG_PREEMPT
+	printk("PREEMPT ");
+#endif
+#ifdef CONFIG_SMP
+	printk("SMP ");
+#endif
+#ifdef CONFIG_DEBUG_PAGEALLOC
+	printk("DEBUG_PAGEALLOC");
+#endif
+	printk("\n");
+
+	if (notify_die(DIE_OOPS, str, regs, err,
+				current->thread.trap_no, SIGSEGV) !=
+			NOTIFY_STOP) {
+		show_registers(regs);
+		/* Executive summary in case the oops scrolled away */
+		sp = (unsigned long) (&regs->sp);
+		savesegment(ss, ss);
+		if (user_mode(regs)) {
+			sp = regs->sp;
+			ss = regs->ss & 0xffff;
+		}
+		printk(KERN_EMERG "EIP: [<%08lx>] ", regs->ip);
+		print_symbol("%s", regs->ip);
+		printk(" SS:ESP %04x:%08lx\n", ss, sp);
+		return 0;
+	} else {
+		return 1;
+	}
+}
+
 /*
  * This is gone through when something in the kernel has done something bad and
  * is about to be terminated.
@@ -367,7 +406,6 @@ void die(const char * str, struct pt_regs * regs, long err)
 		.lock_owner =		-1,
 		.lock_owner_depth =	0
 	};
-	static int die_counter;
 	unsigned long flags;
 
 	oops_enter();
@@ -383,43 +421,13 @@ void die(const char * str, struct pt_regs * regs, long err)
 		raw_local_irq_save(flags);
 
 	if (++die.lock_owner_depth < 3) {
-		unsigned long sp;
-		unsigned short ss;
-
 		report_bug(regs->ip, regs);
 
-		printk(KERN_EMERG "%s: %04lx [#%d] ", str, err & 0xffff,
-		       ++die_counter);
-#ifdef CONFIG_PREEMPT
-		printk("PREEMPT ");
-#endif
-#ifdef CONFIG_SMP
-		printk("SMP ");
-#endif
-#ifdef CONFIG_DEBUG_PAGEALLOC
-		printk("DEBUG_PAGEALLOC");
-#endif
-		printk("\n");
-
-		if (notify_die(DIE_OOPS, str, regs, err,
-					current->thread.trap_no, SIGSEGV) !=
-				NOTIFY_STOP) {
-			show_registers(regs);
-			/* Executive summary in case the oops scrolled away */
-			sp = (unsigned long) (&regs->sp);
-			savesegment(ss, ss);
-			if (user_mode(regs)) {
-				sp = regs->sp;
-				ss = regs->ss & 0xffff;
-			}
-			printk(KERN_EMERG "EIP: [<%08lx>] ", regs->ip);
-			print_symbol("%s", regs->ip);
-			printk(" SS:ESP %04x:%08lx\n", ss, sp);
-		}
-		else
+		if (__die(str, regs, err))
 			regs = NULL;
-  	} else
+	} else {
 		printk(KERN_EMERG "Recursive die() failure, output suppressed\n");
+	}
 
 	bust_spinlocks(0);
 	die.lock_owner = -1;
