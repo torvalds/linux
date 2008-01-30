@@ -150,19 +150,23 @@ static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm, unsigned long 
 #define _PAGE_BIT_ACCESSED	5
 #define _PAGE_BIT_DIRTY		6
 #define _PAGE_BIT_PSE		7	/* 4 MB (or 2MB) page */
+#define _PAGE_BIT_FILE		6
 #define _PAGE_BIT_GLOBAL	8	/* Global TLB entry PPro+ */
 #define _PAGE_BIT_NX           63       /* No execute: only valid after cpuid check */
 
-#define _PAGE_PRESENT	0x001
-#define _PAGE_RW	0x002
-#define _PAGE_USER	0x004
-#define _PAGE_PWT	0x008
-#define _PAGE_PCD	0x010
-#define _PAGE_ACCESSED	0x020
-#define _PAGE_DIRTY	0x040
-#define _PAGE_PSE	0x080	/* 2MB page */
-#define _PAGE_FILE	0x040	/* nonlinear file mapping, saved PTE; unset:swap */
-#define _PAGE_GLOBAL	0x100	/* Global TLB entry */
+#define _PAGE_PRESENT	(_AC(1,UL)<<_PAGE_BIT_PRESENT)
+#define _PAGE_RW	(_AC(1,UL)<<_PAGE_BIT_RW)
+#define _PAGE_USER	(_AC(1,UL)<<_PAGE_BIT_USER)
+#define _PAGE_PWT	(_AC(1,UL)<<_PAGE_BIT_PWT)
+#define _PAGE_PCD	(_AC(1,UL)<<_PAGE_BIT_PCD)
+#define _PAGE_ACCESSED	(_AC(1,UL)<<_PAGE_BIT_ACCESSED)
+#define _PAGE_DIRTY	(_AC(1,UL)<<_PAGE_BIT_DIRTY)
+/* 2MB page */
+#define _PAGE_PSE	(_AC(1,UL)<<_PAGE_BIT_PSE)
+/* nonlinear file mapping, saved PTE; unset:swap */
+#define _PAGE_FILE	(_AC(1,UL)<<_PAGE_BIT_FILE)
+/* Global TLB entry */
+#define _PAGE_GLOBAL	(_AC(1,UL)<<_PAGE_BIT_GLOBAL)
 
 #define _PAGE_PROTNONE	0x080	/* If not present */
 #define _PAGE_NX        (_AC(1,UL)<<_PAGE_BIT_NX)
@@ -248,8 +252,7 @@ static inline unsigned long pmd_bad(pmd_t pmd)
 #define pte_present(x)	(pte_val(x) & (_PAGE_PRESENT | _PAGE_PROTNONE))
 #define pte_clear(mm,addr,xp)	do { set_pte_at(mm, addr, xp, __pte(0)); } while (0)
 
-#define pages_to_mb(x) ((x) >> (20-PAGE_SHIFT))	/* FIXME: is this
-						   right? */
+#define pages_to_mb(x) ((x) >> (20-PAGE_SHIFT))	/* FIXME: is this right? */
 #define pte_page(x)	pfn_to_page(pte_pfn(x))
 #define pte_pfn(x)  ((pte_val(x) & __PHYSICAL_MASK) >> PAGE_SHIFT)
 
