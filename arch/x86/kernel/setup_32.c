@@ -45,6 +45,7 @@
 #include <linux/dmi.h>
 #include <linux/pfn.h>
 #include <linux/pci.h>
+#include <linux/init_ohci1394_dma.h>
 
 #include <video/edid.h>
 
@@ -787,6 +788,16 @@ void __init setup_arch(char **cmdline_p)
 	smp_alloc_memory(); /* AP processor realmode stacks in low memory*/
 #endif
 	paging_init();
+
+	/*
+	 * NOTE: On x86-32, only from this point on, fixmaps are ready for use.
+	 */
+
+#ifdef CONFIG_PROVIDE_OHCI1394_DMA_INIT
+	if (init_ohci1394_dma_early)
+		init_ohci1394_dma_on_all_controllers();
+#endif
+
 	remapped_pgdat_init();
 	sparse_init();
 	zone_sizes_init();
