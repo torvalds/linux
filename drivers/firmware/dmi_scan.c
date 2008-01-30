@@ -353,6 +353,7 @@ void __init dmi_scan_machine(void)
 				return;
 			}
 		}
+		dmi_iounmap(p, 0x10000);
 	}
  out:	printk(KERN_INFO "DMI not present or invalid.\n");
 }
