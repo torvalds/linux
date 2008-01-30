@@ -215,14 +215,14 @@ static int set_segment_reg(struct task_struct *task,
 #ifdef CONFIG_IA32_EMULATION
 		if (test_tsk_thread_flag(task, TIF_IA32))
 			task_pt_regs(task)->cs = value;
-		break;
 #endif
+		break;
 	case offsetof(struct user_regs_struct,ss):
 #ifdef CONFIG_IA32_EMULATION
 		if (test_tsk_thread_flag(task, TIF_IA32))
 			task_pt_regs(task)->ss = value;
-		break;
 #endif
+		break;
 	}
 
 	return 0;
@@ -633,6 +633,132 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 	return ret;
 }
+
+#ifdef CONFIG_IA32_EMULATION
+
+#include <asm/user32.h>
+
+#define R32(l,q)							\
+	case offsetof(struct user32, regs.l):				\
+		regs->q = value; break
+
+#define SEG32(rs)							\
+	case offsetof(struct user32, regs.rs):				\
+		return set_segment_reg(child,				\
+				       offsetof(struct user_regs_struct, rs), \
+				       value);				\
+		break
+
+static int putreg32(struct task_struct *child, unsigned regno, u32 value)
+{
+	struct pt_regs *regs = task_pt_regs(child);
+
+	switch (regno) {
+
+	SEG32(cs);
+	SEG32(ds);
+	SEG32(es);
+	SEG32(fs);
+	SEG32(gs);
+	SEG32(ss);
+
+	R32(ebx, bx);
+	R32(ecx, cx);
+	R32(edx, dx);
+	R32(edi, di);
+	R32(esi, si);
+	R32(ebp, bp);
+	R32(eax, ax);
+	R32(orig_eax, orig_ax);
+	R32(eip, ip);
+	R32(esp, sp);
+
+	case offsetof(struct user32, regs.eflags):
+		return set_flags(child, value);
+
+	case offsetof(struct user32, u_debugreg[0]) ...
+		offsetof(struct user32, u_debugreg[7]):
+		regno -= offsetof(struct user32, u_debugreg[0]);
+		return ptrace_set_debugreg(child, regno / 4, value);
+
+	default:
+		if (regno > sizeof(struct user32) || (regno & 3))
+			return -EIO;
+
+		/*
+		 * Other dummy fields in the virtual user structure
+		 * are ignored
+		 */
+		break;
+	}
+	return 0;
+}
+
+#undef R32
+#undef SEG32
+
+#define R32(l,q)							\
+	case offsetof(struct user32, regs.l):				\
+		*val = regs->q; break
+
+#define SEG32(rs)							\
+	case offsetof(struct user32, regs.rs):				\
+		*val = get_segment_reg(child,				\
+				       offsetof(struct user_regs_struct, rs)); \
+		break
+
+static int getreg32(struct task_struct *child, unsigned regno, u32 *val)
+{
+	struct pt_regs *regs = task_pt_regs(child);
+
+	switch (regno) {
+
+	SEG32(ds);
+	SEG32(es);
+	SEG32(fs);
+	SEG32(gs);
+
+	R32(cs, cs);
+	R32(ss, ss);
+	R32(ebx, bx);
+	R32(ecx, cx);
+	R32(edx, dx);
+	R32(edi, di);
+	R32(esi, si);
+	R32(ebp, bp);
+	R32(eax, ax);
+	R32(orig_eax, orig_ax);
+	R32(eip, ip);
+	R32(esp, sp);
+
+	case offsetof(struct user32, regs.eflags):
+		*val = get_flags(child);
+		break;
+
+	case offsetof(struct user32, u_debugreg[0]) ...
+		offsetof(struct user32, u_debugreg[7]):
+		regno -= offsetof(struct user32, u_debugreg[0]);
+		*val = ptrace_get_debugreg(child, regno / 4);
+		break;
+
+	default:
+		if (regno > sizeof(struct user32) || (regno & 3))
+			return -EIO;
+
+		/*
+		 * Other dummy fields in the virtual user structure
+		 * are ignored
+		 */
+		*val = 0;
+		break;
+	}
+	return 0;
+}
+
+#undef R32
+#undef SEG32
+
+#endif	/* CONFIG_IA32_EMULATION */
 
 #ifdef CONFIG_X86_32
 
