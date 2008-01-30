@@ -530,7 +530,7 @@ static int nearby_node(int apicid)
  * On a AMD dual core setup the lower bits of the APIC id distingush the cores.
  * Assumes number of cores is a power of two.
  */
-static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
+static void __cpuinit amd_detect_cmp(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_SMP
 	unsigned bits;
