@@ -172,7 +172,7 @@ static int __change_page_attr(struct page *page, pgprot_t prot)
 	BUG_ON(PageCompound(kpte_page));
 
 	if (pgprot_val(prot) != pgprot_val(PAGE_KERNEL)) {
-		if (!pte_huge(*kpte)) {
+		if (level == 3) {
 			set_pte_atomic(kpte, mk_pte(page, prot));
 		} else {
 			struct page *split;
@@ -190,7 +190,7 @@ static int __change_page_attr(struct page *page, pgprot_t prot)
 		}
 		page_private(kpte_page)++;
 	} else {
-		if (!pte_huge(*kpte)) {
+		if (level == 3) {
 			set_pte_atomic(kpte, mk_pte(page, PAGE_KERNEL));
 			BUG_ON(page_private(kpte_page) == 0);
 			page_private(kpte_page)--;

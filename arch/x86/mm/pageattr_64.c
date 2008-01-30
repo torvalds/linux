@@ -153,7 +153,7 @@ __change_page_attr(unsigned long address, unsigned long pfn, pgprot_t prot,
 	BUG_ON(PageLRU(kpte_page));
 	BUG_ON(PageCompound(kpte_page));
 	if (pgprot_val(prot) != pgprot_val(ref_prot)) {
-		if (!pte_huge(*kpte)) {
+		if (level == 4) {
 			set_pte(kpte, pfn_pte(pfn, prot));
 		} else {
 			/*
@@ -172,7 +172,7 @@ __change_page_attr(unsigned long address, unsigned long pfn, pgprot_t prot,
 		}
 		page_private(kpte_page)++;
 	} else {
-		if (!pte_huge(*kpte)) {
+		if (level == 4) {
 			set_pte(kpte, pfn_pte(pfn, ref_prot));
 			BUG_ON(page_private(kpte_page) == 0);
 			page_private(kpte_page)--;
