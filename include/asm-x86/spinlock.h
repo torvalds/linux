@@ -35,10 +35,35 @@ typedef int _slock_t;
 # define LOCK_PTR_REG "D"
 #endif
 
-#if (NR_CPUS > 256)
-#error spinlock supports a maximum of 256 CPUs
+#if defined(CONFIG_X86_32) && \
+	(defined(CONFIG_X86_OOSTORE) || defined(CONFIG_X86_PPRO_FENCE))
+/*
+ * On PPro SMP or if we are using OOSTORE, we use a locked operation to unlock
+ * (PPro errata 66, 92)
+ */
+# define UNLOCK_LOCK_PREFIX LOCK_PREFIX
+#else
+# define UNLOCK_LOCK_PREFIX
 #endif
 
+/*
+ * Ticket locks are conceptually two parts, one indicating the current head of
+ * the queue, and the other indicating the current tail. The lock is acquired
+ * by atomically noting the tail and incrementing it by one (thus adding
+ * ourself to the queue and noting our position), then waiting until the head
+ * becomes equal to the the initial value of the tail.
+ *
+ * We use an xadd covering *both* parts of the lock, to increment the tail and
+ * also load the position of the head, which takes care of memory ordering
+ * issues and should be optimal for the uncontended case. Note the tail must be
+ * in the high part, because a wide xadd increment of the low part would carry
+ * up and contaminate the high part.
+ *
+ * With fewer than 2^8 possible CPUs, we can use x86's partial registers to
+ * save some instructions and make the code more elegant. There really isn't
+ * much between them in performance though, especially as locks are out of line.
+ */
+#if (NR_CPUS < 256)
 static inline int __raw_spin_is_locked(raw_spinlock_t *lock)
 {
 	int tmp = *(volatile signed int *)(&(lock)->slock);
@@ -56,21 +81,6 @@ static inline int __raw_spin_is_contended(raw_spinlock_t *lock)
 static inline void __raw_spin_lock(raw_spinlock_t *lock)
 {
 	short inc = 0x0100;
-
-	/*
-	 * Ticket locks are conceptually two bytes, one indicating the current
-	 * head of the queue, and the other indicating the current tail. The
-	 * lock is acquired by atomically noting the tail and incrementing it
-	 * by one (thus adding ourself to the queue and noting our position),
-	 * then waiting until the head becomes equal to the the initial value
-	 * of the tail.
-	 *
-	 * This uses a 16-bit xadd to increment the tail and also load the
-	 * position of the head, which takes care of memory ordering issues
-	 * and should be optimal for the uncontended case. Note the tail must
-	 * be in the high byte, otherwise the 16-bit wide increment of the low
-	 * byte would carry up and contaminate the high byte.
-	 */
 
 	__asm__ __volatile__ (
 		LOCK_PREFIX "xaddw %w0, %1\n"
@@ -111,17 +121,6 @@ static inline int __raw_spin_trylock(raw_spinlock_t *lock)
 	return tmp;
 }
 
-#if defined(CONFIG_X86_32) && \
-	(defined(CONFIG_X86_OOSTORE) || defined(CONFIG_X86_PPRO_FENCE))
-/*
- * On PPro SMP or if we are using OOSTORE, we use a locked operation to unlock
- * (PPro errata 66, 92)
- */
-# define UNLOCK_LOCK_PREFIX LOCK_PREFIX
-#else
-# define UNLOCK_LOCK_PREFIX
-#endif
-
 static inline void __raw_spin_unlock(raw_spinlock_t *lock)
 {
 	__asm__ __volatile__(
@@ -130,6 +129,77 @@ static inline void __raw_spin_unlock(raw_spinlock_t *lock)
 		:
 		:"memory", "cc");
 }
+#else
+static inline int __raw_spin_is_locked(raw_spinlock_t *lock)
+{
+	int tmp = *(volatile signed int *)(&(lock)->slock);
+
+	return (((tmp >> 16) & 0xffff) != (tmp & 0xffff));
+}
+
+static inline int __raw_spin_is_contended(raw_spinlock_t *lock)
+{
+	int tmp = *(volatile signed int *)(&(lock)->slock);
+
+	return (((tmp >> 16) & 0xffff) - (tmp & 0xffff)) > 1;
+}
+
+static inline void __raw_spin_lock(raw_spinlock_t *lock)
+{
+	int inc = 0x00010000;
+	int tmp;
+
+	__asm__ __volatile__ (
+		"lock ; xaddl %0, %1\n"
+		"movzwl %w0, %2\n\t"
+		"shrl $16, %0\n\t"
+		"1:\t"
+		"cmpl %0, %2\n\t"
+		"je 2f\n\t"
+		"rep ; nop\n\t"
+		"movzwl %1, %2\n\t"
+		/* don't need lfence here, because loads are in-order */
+		"jmp 1b\n"
+		"2:"
+		:"+Q" (inc), "+m" (lock->slock), "=r" (tmp)
+		:
+		:"memory", "cc");
+}
+
+#define __raw_spin_lock_flags(lock, flags) __raw_spin_lock(lock)
+
+static inline int __raw_spin_trylock(raw_spinlock_t *lock)
+{
+	int tmp;
+	int new;
+
+	asm volatile(
+		"movl %2,%0\n\t"
+		"movl %0,%1\n\t"
+		"roll $16, %0\n\t"
+		"cmpl %0,%1\n\t"
+		"jne 1f\n\t"
+		"addl $0x00010000, %1\n\t"
+		"lock ; cmpxchgl %1,%2\n\t"
+		"1:"
+		"sete %b1\n\t"
+		"movzbl %b1,%0\n\t"
+		:"=&a" (tmp), "=r" (new), "+m" (lock->slock)
+		:
+		: "memory", "cc");
+
+	return tmp;
+}
+
+static inline void __raw_spin_unlock(raw_spinlock_t *lock)
+{
+	__asm__ __volatile__(
+		UNLOCK_LOCK_PREFIX "incw %0"
+		:"+m" (lock->slock)
+		:
+		:"memory", "cc");
+}
+#endif
 
 static inline void __raw_spin_unlock_wait(raw_spinlock_t *lock)
 {
