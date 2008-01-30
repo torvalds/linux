@@ -31,10 +31,14 @@ bootmem_data_t plat_node_bdata[MAX_NUMNODES];
 
 struct memnode memnode;
 
-u16 cpu_to_node_map[NR_CPUS] __read_mostly = {
+u16 x86_cpu_to_node_map_init[NR_CPUS] __initdata = {
 	[0 ... NR_CPUS-1] = NUMA_NO_NODE
 };
-EXPORT_SYMBOL(cpu_to_node_map);
+void *x86_cpu_to_node_map_early_ptr;
+EXPORT_SYMBOL(x86_cpu_to_node_map_init);
+EXPORT_SYMBOL(x86_cpu_to_node_map_early_ptr);
+DEFINE_PER_CPU(u16, x86_cpu_to_node_map) = NUMA_NO_NODE;
+EXPORT_PER_CPU_SYMBOL(x86_cpu_to_node_map);
 
 u16 apicid_to_node[MAX_LOCAL_APIC] __cpuinitdata = {
 	[0 ... MAX_LOCAL_APIC-1] = NUMA_NO_NODE
@@ -544,7 +548,7 @@ void __init numa_initmem_init(unsigned long start_pfn, unsigned long end_pfn)
 	node_set(0, node_possible_map);
 	for (i = 0; i < NR_CPUS; i++)
 		numa_set_node(i, 0);
-	/* we can't use cpumask_of_cpu() yet */
+	/* cpumask_of_cpu() may not be available during early startup */
 	memset(&node_to_cpumask_map[0], 0, sizeof(node_to_cpumask_map[0]));
 	cpu_set(0, node_to_cpumask_map[0]);
 	e820_register_active_regions(0, start_pfn, end_pfn);
@@ -558,8 +562,16 @@ __cpuinit void numa_add_cpu(int cpu)
 
 void __cpuinit numa_set_node(int cpu, int node)
 {
+	u16 *cpu_to_node_map = (u16 *)x86_cpu_to_node_map_early_ptr;
+
 	cpu_pda(cpu)->nodenumber = node;
-	cpu_to_node_map[cpu] = node;
+
+	if(cpu_to_node_map)
+		cpu_to_node_map[cpu] = node;
+	else if(per_cpu_offset(cpu))
+		per_cpu(x86_cpu_to_node_map, cpu) = node;
+	else
+		Dprintk(KERN_INFO "Setting node for non-present cpu %d\n", cpu);
 }
 
 unsigned long __init numa_free_all_bootmem(void)

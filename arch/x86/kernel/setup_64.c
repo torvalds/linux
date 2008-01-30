@@ -65,6 +65,7 @@
 #include <asm/cacheflush.h>
 #include <asm/mce.h>
 #include <asm/ds.h>
+#include <asm/topology.h>
 
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
@@ -359,8 +360,9 @@ void __init setup_arch(char **cmdline_p)
 	io_delay_init();
 
 #ifdef CONFIG_SMP
-	/* setup to use the static apicid table during kernel startup */
+	/* setup to use the early static init tables during kernel startup */
 	x86_cpu_to_apicid_early_ptr = (void *)&x86_cpu_to_apicid_init;
+	x86_cpu_to_node_map_early_ptr = (void *)&x86_cpu_to_node_map_init;
 #endif
 
 #ifdef CONFIG_ACPI
