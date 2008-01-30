@@ -408,7 +408,7 @@ static int mii_probe(struct net_device *dev)
 	mdc_div = ((sclk / MDC_CLK) / 2) - 1;
 
 	sysctl = bfin_read_EMAC_SYSCTL();
-	sysctl |= SET_MDCDIV(mdc_div);
+	sysctl = (sysctl & ~MDCDIV) | SET_MDCDIV(mdc_div);
 	bfin_write_EMAC_SYSCTL(sysctl);
 
 	/* search for connect PHY device */
