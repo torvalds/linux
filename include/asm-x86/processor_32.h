@@ -120,7 +120,6 @@ extern void detect_ht(struct cpuinfo_x86 *c);
 static inline void detect_ht(struct cpuinfo_x86 *c) {}
 #endif
 
-#define load_cr3(pgdir) write_cr3(__pa(pgdir))
 
 /*
  * Save the cr4 feature set we're using (ie

@@ -3,6 +3,9 @@
 
 #include <asm/processor-flags.h>
 
+#include <asm/page.h>
+#include <asm/system.h>
+
 static inline void native_cpuid(unsigned int *eax, unsigned int *ebx,
 					 unsigned int *ecx, unsigned int *edx)
 {
@@ -15,6 +18,10 @@ static inline void native_cpuid(unsigned int *eax, unsigned int *ebx,
 		: "0" (*eax), "2" (*ecx));
 }
 
+static inline void load_cr3(pgd_t *pgdir)
+{
+	write_cr3(__pa(pgdir));
+}
 
 #ifdef CONFIG_X86_32
 # include "processor_32.h"
