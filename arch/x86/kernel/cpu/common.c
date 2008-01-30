@@ -499,6 +499,8 @@ void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 
 	/* Init Machine Check Exception if available. */
 	mcheck_init(c);
+
+	select_idle_routine(c);
 }
 
 void __init identify_boot_cpu(void)
