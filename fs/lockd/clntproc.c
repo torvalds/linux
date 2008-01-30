@@ -145,34 +145,21 @@ static void nlmclnt_release_lockargs(struct nlm_rqst *req)
 	BUG_ON(req->a_args.lock.fl.fl_ops != NULL);
 }
 
-/*
- * This is the main entry point for the NLM client.
+/**
+ * nlmclnt_proc - Perform a single client-side lock request
+ * @host: address of a valid nlm_host context representing the NLM server
+ * @cmd: fcntl-style file lock operation to perform
+ * @fl: address of arguments for the lock operation
+ *
  */
-int
-nlmclnt_proc(struct inode *inode, int cmd, struct file_lock *fl)
+int nlmclnt_proc(struct nlm_host *host, int cmd, struct file_lock *fl)
 {
-	struct rpc_clnt		*client = NFS_CLIENT(inode);
-	struct sockaddr_in	addr;
-	struct nfs_server	*nfssrv = NFS_SERVER(inode);
-	struct nlm_host		*host;
 	struct nlm_rqst		*call;
 	sigset_t		oldset;
 	unsigned long		flags;
-	int			status, vers;
+	int			status;
 
-	vers = (NFS_PROTO(inode)->version == 3) ? 4 : 1;
-	if (NFS_PROTO(inode)->version > 3) {
-		printk(KERN_NOTICE "NFSv4 file locking not implemented!\n");
-		return -ENOLCK;
-	}
-
-	rpc_peeraddr(client, (struct sockaddr *) &addr, sizeof(addr));
-	host = nlmclnt_lookup_host(&addr, client->cl_xprt->prot, vers,
-				   nfssrv->nfs_client->cl_hostname,
-				   strlen(nfssrv->nfs_client->cl_hostname));
-	if (host == NULL)
-		return -ENOLCK;
-
+	nlm_get_host(host);
 	call = nlm_alloc_call(host);
 	if (call == NULL)
 		return -ENOMEM;
@@ -219,7 +206,7 @@ nlmclnt_proc(struct inode *inode, int cmd, struct file_lock *fl)
 	dprintk("lockd: clnt proc returns %d\n", status);
 	return status;
 }
-EXPORT_SYMBOL(nlmclnt_proc);
+EXPORT_SYMBOL_GPL(nlmclnt_proc);
 
 /*
  * Allocate an NLM RPC call struct
@@ -257,7 +244,7 @@ void nlm_release_call(struct nlm_rqst *call)
 
 static void nlmclnt_rpc_release(void *data)
 {
-	return nlm_release_call(data);
+	nlm_release_call(data);
 }
 
 static int nlm_wait_on_grace(wait_queue_head_t *queue)

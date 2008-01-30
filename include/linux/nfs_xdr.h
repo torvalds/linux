@@ -666,16 +666,17 @@ struct nfs4_rename_res {
 	struct nfs_fattr *		new_fattr;
 };
 
+#define NFS4_SETCLIENTID_NAMELEN	(56)
 struct nfs4_setclientid {
-	const nfs4_verifier *		sc_verifier;      /* request */
+	const nfs4_verifier *		sc_verifier;
 	unsigned int			sc_name_len;
-	char				sc_name[48];	  /* request */
-	u32				sc_prog;          /* request */
+	char				sc_name[NFS4_SETCLIENTID_NAMELEN];
+	u32				sc_prog;
 	unsigned int			sc_netid_len;
-	char				sc_netid[4];	  /* request */
+	char				sc_netid[RPCBIND_MAXNETIDLEN];
 	unsigned int			sc_uaddr_len;
-	char				sc_uaddr[24];     /* request */
-	u32				sc_cb_ident;      /* request */
+	char				sc_uaddr[RPCBIND_MAXUADDRLEN];
+	u32				sc_cb_ident;
 };
 
 struct nfs4_statfs_arg {
@@ -773,7 +774,7 @@ struct nfs_access_entry;
  * RPC procedure vector for NFSv2/NFSv3 demuxing
  */
 struct nfs_rpc_ops {
-	int	version;		/* Protocol version */
+	u32	version;		/* Protocol version */
 	struct dentry_operations *dentry_ops;
 	const struct inode_operations *dir_inode_ops;
 	const struct inode_operations *file_inode_ops;
@@ -816,11 +817,11 @@ struct nfs_rpc_ops {
 			     struct nfs_pathconf *);
 	int	(*set_capabilities)(struct nfs_server *, struct nfs_fh *);
 	__be32 *(*decode_dirent)(__be32 *, struct nfs_entry *, int plus);
-	void	(*read_setup)   (struct nfs_read_data *);
+	void	(*read_setup)   (struct nfs_read_data *, struct rpc_message *);
 	int	(*read_done)  (struct rpc_task *, struct nfs_read_data *);
-	void	(*write_setup)  (struct nfs_write_data *, int how);
+	void	(*write_setup)  (struct nfs_write_data *, struct rpc_message *);
 	int	(*write_done)  (struct rpc_task *, struct nfs_write_data *);
-	void	(*commit_setup) (struct nfs_write_data *, int how);
+	void	(*commit_setup) (struct nfs_write_data *, struct rpc_message *);
 	int	(*commit_done) (struct rpc_task *, struct nfs_write_data *);
 	int	(*file_open)   (struct inode *, struct file *);
 	int	(*file_release) (struct inode *, struct file *);

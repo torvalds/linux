@@ -72,7 +72,7 @@ ssize_t xdr_partial_copy_from_skb(struct xdr_buf *xdr, unsigned int base, struct
 	struct page	**ppage = xdr->pages;
 	unsigned int	len, pglen = xdr->page_len;
 	ssize_t		copied = 0;
-	int		ret;
+	size_t		ret;
 
 	len = xdr->head[0].iov_len;
 	if (base < len) {

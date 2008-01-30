@@ -192,7 +192,7 @@ void nfs_invalidate_atime(struct inode *inode)
  */
 static void nfs_invalidate_inode(struct inode *inode)
 {
-	set_bit(NFS_INO_STALE, &NFS_FLAGS(inode));
+	set_bit(NFS_INO_STALE, &NFS_I(inode)->flags);
 	nfs_zap_caches_locked(inode);
 }
 
@@ -229,7 +229,7 @@ nfs_init_locked(struct inode *inode, void *opaque)
 	struct nfs_find_desc	*desc = (struct nfs_find_desc *)opaque;
 	struct nfs_fattr	*fattr = desc->fattr;
 
-	NFS_FILEID(inode) = fattr->fileid;
+	set_nfs_fileid(inode, fattr->fileid);
 	nfs_copy_fh(NFS_FH(inode), desc->fh);
 	return 0;
 }
@@ -291,7 +291,7 @@ nfs_fhget(struct super_block *sb, struct nfs_fh *fh, struct nfs_fattr *fattr)
 			inode->i_fop = &nfs_dir_operations;
 			if (nfs_server_capable(inode, NFS_CAP_READDIRPLUS)
 			    && fattr->size <= NFS_LIMIT_READDIRPLUS)
-				set_bit(NFS_INO_ADVISE_RDPLUS, &NFS_FLAGS(inode));
+				set_bit(NFS_INO_ADVISE_RDPLUS, &NFS_I(inode)->flags);
 			/* Deal with crossing mountpoints */
 			if (!nfs_fsid_equal(&NFS_SB(sb)->fsid, &fattr->fsid)) {
 				if (fattr->valid & NFS_ATTR_FATTR_V4_REFERRAL)
@@ -461,9 +461,18 @@ int nfs_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
 	int need_atime = NFS_I(inode)->cache_validity & NFS_INO_INVALID_ATIME;
 	int err;
 
-	/* Flush out writes to the server in order to update c/mtime */
-	if (S_ISREG(inode->i_mode))
+	/*
+	 * Flush out writes to the server in order to update c/mtime.
+	 *
+	 * Hold the i_mutex to suspend application writes temporarily;
+	 * this prevents long-running writing applications from blocking
+	 * nfs_wb_nocommit.
+	 */
+	if (S_ISREG(inode->i_mode)) {
+		mutex_lock(&inode->i_mutex);
 		nfs_wb_nocommit(inode);
+		mutex_unlock(&inode->i_mutex);
+	}
 
 	/*
 	 * We may force a getattr if the user cares about atime.
@@ -659,7 +668,7 @@ __nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
 		if (status == -ESTALE) {
 			nfs_zap_caches(inode);
 			if (!S_ISDIR(inode->i_mode))
-				set_bit(NFS_INO_STALE, &NFS_FLAGS(inode));
+				set_bit(NFS_INO_STALE, &NFS_I(inode)->flags);
 		}
 		goto out;
 	}
@@ -814,8 +823,9 @@ static void nfs_wcc_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 			if (S_ISDIR(inode->i_mode))
 				nfsi->cache_validity |= NFS_INO_INVALID_DATA;
 		}
-		if (inode->i_size == fattr->pre_size && nfsi->npages == 0)
-			inode->i_size = fattr->size;
+		if (inode->i_size == nfs_size_to_loff_t(fattr->pre_size) &&
+		    nfsi->npages == 0)
+			inode->i_size = nfs_size_to_loff_t(fattr->size);
 	}
 }
 
@@ -1019,7 +1029,8 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 			dprintk("NFS: mtime change on server for file %s/%ld\n",
 					inode->i_sb->s_id, inode->i_ino);
 			invalid |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA;
-			nfsi->cache_change_attribute = now;
+			if (S_ISDIR(inode->i_mode))
+				nfs_force_lookup_revalidate(inode);
 		}
 		/* If ctime has changed we should definitely clear access+acl caches */
 		if (!timespec_equal(&inode->i_ctime, &fattr->ctime))
@@ -1028,7 +1039,8 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 		dprintk("NFS: change_attr change on server for file %s/%ld\n",
 				inode->i_sb->s_id, inode->i_ino);
 		invalid |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA|NFS_INO_INVALID_ACCESS|NFS_INO_INVALID_ACL;
-		nfsi->cache_change_attribute = now;
+		if (S_ISDIR(inode->i_mode))
+			nfs_force_lookup_revalidate(inode);
 	}
 
 	/* Check if our cached file size is stale */
@@ -1133,7 +1145,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 void nfs4_clear_inode(struct inode *inode)
 {
 	/* If we are holding a delegation, return it! */
-	nfs_inode_return_delegation(inode);
+	nfs_inode_return_delegation_noreclaim(inode);
 	/* First call standard NFS clear_inode() code */
 	nfs_clear_inode(inode);
 }

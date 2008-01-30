@@ -21,7 +21,8 @@ struct nfs_clone_mount {
 	struct nfs_fattr *fattr;
 	char *hostname;
 	char *mnt_path;
-	struct sockaddr_in *addr;
+	struct sockaddr *addr;
+	size_t addrlen;
 	rpc_authflavor_t authflavor;
 };
 
@@ -41,19 +42,19 @@ struct nfs_parsed_mount_data {
 	char			*client_address;
 
 	struct {
-		struct sockaddr_in	address;
+		struct sockaddr_storage	address;
+		size_t			addrlen;
 		char			*hostname;
-		unsigned int		program;
 		unsigned int		version;
 		unsigned short		port;
 		int			protocol;
 	} mount_server;
 
 	struct {
-		struct sockaddr_in	address;
+		struct sockaddr_storage	address;
+		size_t			addrlen;
 		char			*hostname;
 		char			*export_path;
-		unsigned int		program;
 		int			protocol;
 	} nfs_server;
 };
@@ -62,7 +63,8 @@ struct nfs_parsed_mount_data {
 extern struct rpc_program nfs_program;
 
 extern void nfs_put_client(struct nfs_client *);
-extern struct nfs_client *nfs_find_client(const struct sockaddr_in *, int);
+extern struct nfs_client *nfs_find_client(const struct sockaddr *, u32);
+extern struct nfs_client *nfs_find_client_next(struct nfs_client *);
 extern struct nfs_server *nfs_create_server(
 					const struct nfs_parsed_mount_data *,
 					struct nfs_fh *);
@@ -160,6 +162,8 @@ extern struct rpc_stat nfs_rpcstat;
 
 extern int __init register_nfs_fs(void);
 extern void __exit unregister_nfs_fs(void);
+extern void nfs_sb_active(struct nfs_server *server);
+extern void nfs_sb_deactive(struct nfs_server *server);
 
 /* namespace.c */
 extern char *nfs_path(const char *base,

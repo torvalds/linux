@@ -46,6 +46,7 @@ struct rpc_clnt {
 				cl_autobind : 1;/* use getport() */
 
 	struct rpc_rtt *	cl_rtt;		/* RTO estimator data */
+	const struct rpc_timeout *cl_timeout;	/* Timeout strategy */
 
 	int			cl_nodelen;	/* nodename length */
 	char 			cl_nodename[UNX_MAXNODENAME];
@@ -54,6 +55,7 @@ struct rpc_clnt {
 	struct dentry *		cl_dentry;	/* inode */
 	struct rpc_clnt *	cl_parent;	/* Points to parent of clones */
 	struct rpc_rtt		cl_rtt_default;
+	struct rpc_timeout	cl_timeout_default;
 	struct rpc_program *	cl_program;
 	char			cl_inline_name[32];
 };
@@ -99,7 +101,7 @@ struct rpc_create_args {
 	struct sockaddr		*address;
 	size_t			addrsize;
 	struct sockaddr		*saddress;
-	struct rpc_timeout	*timeout;
+	const struct rpc_timeout *timeout;
 	char			*servername;
 	struct rpc_program	*program;
 	u32			version;
@@ -123,11 +125,10 @@ void		rpc_shutdown_client(struct rpc_clnt *);
 void		rpc_release_client(struct rpc_clnt *);
 
 int		rpcb_register(u32, u32, int, unsigned short, int *);
-int		rpcb_getport_sync(struct sockaddr_in *, __u32, __u32, int);
+int		rpcb_getport_sync(struct sockaddr_in *, u32, u32, int);
 void		rpcb_getport_async(struct rpc_task *);
 
-void		rpc_call_setup(struct rpc_task *, struct rpc_message *, int);
-
+void		rpc_call_start(struct rpc_task *);
 int		rpc_call_async(struct rpc_clnt *clnt, struct rpc_message *msg,
 			       int flags, const struct rpc_call_ops *tk_ops,
 			       void *calldata);
@@ -142,7 +143,7 @@ void		rpc_setbufsize(struct rpc_clnt *, unsigned int, unsigned int);
 size_t		rpc_max_payload(struct rpc_clnt *);
 void		rpc_force_rebind(struct rpc_clnt *);
 size_t		rpc_peeraddr(struct rpc_clnt *, struct sockaddr *, size_t);
-char *		rpc_peeraddr2str(struct rpc_clnt *, enum rpc_display_format_t);
+const char	*rpc_peeraddr2str(struct rpc_clnt *, enum rpc_display_format_t);
 
 #endif /* __KERNEL__ */
 #endif /* _LINUX_SUNRPC_CLNT_H */

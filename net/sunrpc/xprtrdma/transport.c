@@ -212,12 +212,16 @@ xprt_rdma_format_addresses(struct rpc_xprt *xprt)
 static void
 xprt_rdma_free_addresses(struct rpc_xprt *xprt)
 {
-	kfree(xprt->address_strings[RPC_DISPLAY_ADDR]);
-	kfree(xprt->address_strings[RPC_DISPLAY_PORT]);
-	kfree(xprt->address_strings[RPC_DISPLAY_ALL]);
-	kfree(xprt->address_strings[RPC_DISPLAY_HEX_ADDR]);
-	kfree(xprt->address_strings[RPC_DISPLAY_HEX_PORT]);
-	kfree(xprt->address_strings[RPC_DISPLAY_UNIVERSAL_ADDR]);
+	unsigned int i;
+
+	for (i = 0; i < RPC_DISPLAY_MAX; i++)
+		switch (i) {
+		case RPC_DISPLAY_PROTO:
+		case RPC_DISPLAY_NETID:
+			continue;
+		default:
+			kfree(xprt->address_strings[i]);
+		}
 }
 
 static void
@@ -289,6 +293,11 @@ xprt_rdma_destroy(struct rpc_xprt *xprt)
 	module_put(THIS_MODULE);
 }
 
+static const struct rpc_timeout xprt_rdma_default_timeout = {
+	.to_initval = 60 * HZ,
+	.to_maxval = 60 * HZ,
+};
+
 /**
  * xprt_setup_rdma - Set up transport to use RDMA
  *
@@ -327,7 +336,7 @@ xprt_setup_rdma(struct xprt_create *args)
 	}
 
 	/* 60 second timeout, no retries */
-	xprt_set_timeout(&xprt->timeout, 0, 60UL * HZ);
+	xprt->timeout = &xprt_rdma_default_timeout;
 	xprt->bind_timeout = (60U * HZ);
 	xprt->connect_timeout = (60U * HZ);
 	xprt->reestablish_timeout = (5U * HZ);
@@ -449,7 +458,7 @@ xprt_rdma_close(struct rpc_xprt *xprt)
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
 
 	dprintk("RPC:       %s: closing\n", __func__);
-	xprt_disconnect(xprt);
+	xprt_disconnect_done(xprt);
 	(void) rpcrdma_ep_disconnect(&r_xprt->rx_ep, &r_xprt->rx_ia);
 }
 
@@ -682,7 +691,7 @@ xprt_rdma_send_request(struct rpc_task *task)
 	}
 
 	if (rpcrdma_ep_post(&r_xprt->rx_ia, &r_xprt->rx_ep, req)) {
-		xprt_disconnect(xprt);
+		xprt_disconnect_done(xprt);
 		return -ENOTCONN;	/* implies disconnect */
 	}
 

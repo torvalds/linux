@@ -349,7 +349,9 @@ static int nfs_write_end(struct file *file, struct address_space *mapping,
 	unlock_page(page);
 	page_cache_release(page);
 
-	return status < 0 ? status : copied;
+	if (status < 0)
+		return status;
+	return copied;
 }
 
 static void nfs_invalidate_page(struct page *page, unsigned long offset)
@@ -392,35 +394,27 @@ static int nfs_vm_page_mkwrite(struct vm_area_struct *vma, struct page *page)
 	struct file *filp = vma->vm_file;
 	unsigned pagelen;
 	int ret = -EINVAL;
-	void *fsdata;
 	struct address_space *mapping;
-	loff_t offset;
 
 	lock_page(page);
 	mapping = page->mapping;
-	if (mapping != vma->vm_file->f_path.dentry->d_inode->i_mapping) {
-		unlock_page(page);
-		return -EINVAL;
-	}
+	if (mapping != vma->vm_file->f_path.dentry->d_inode->i_mapping)
+		goto out_unlock;
+
+	ret = 0;
 	pagelen = nfs_page_length(page);
-	offset = (loff_t)page->index << PAGE_CACHE_SHIFT;
+	if (pagelen == 0)
+		goto out_unlock;
+
+	ret = nfs_flush_incompatible(filp, page);
+	if (ret != 0)
+		goto out_unlock;
+
+	ret = nfs_updatepage(filp, page, 0, pagelen);
+	if (ret == 0)
+		ret = pagelen;
+out_unlock:
 	unlock_page(page);
-
-	/*
-	 * we can use mapping after releasing the page lock, because:
-	 * we hold mmap_sem on the fault path, which should pin the vma
-	 * which should pin the file, which pins the dentry which should
-	 * hold a reference on inode.
-	 */
-
-	if (pagelen) {
-		struct page *page2 = NULL;
-		ret = nfs_write_begin(filp, mapping, offset, pagelen,
-			       	0, &page2, &fsdata);
-		if (!ret)
-			ret = nfs_write_end(filp, mapping, offset, pagelen,
-				       	pagelen, page2, fsdata);
-	}
 	return ret;
 }
 

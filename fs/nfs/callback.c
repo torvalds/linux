@@ -73,8 +73,6 @@ static void nfs_callback_svc(struct svc_rqst *rqstp)
 	complete(&nfs_callback_info.started);
 
 	for(;;) {
-		char buf[RPC_MAX_ADDRBUFLEN];
-
 		if (signalled()) {
 			if (nfs_callback_info.users == 0)
 				break;
@@ -92,8 +90,6 @@ static void nfs_callback_svc(struct svc_rqst *rqstp)
 					__FUNCTION__, -err);
 			break;
 		}
-		dprintk("%s: request from %s\n", __FUNCTION__,
-				svc_print_addr(rqstp, buf, sizeof(buf)));
 		svc_process(rqstp);
 	}
 
@@ -168,12 +164,11 @@ void nfs_callback_down(void)
 
 static int nfs_callback_authenticate(struct svc_rqst *rqstp)
 {
-	struct sockaddr_in *addr = svc_addr_in(rqstp);
 	struct nfs_client *clp;
 	char buf[RPC_MAX_ADDRBUFLEN];
 
 	/* Don't talk to strangers */
-	clp = nfs_find_client(addr, 4);
+	clp = nfs_find_client(svc_addr(rqstp), 4);
 	if (clp == NULL)
 		return SVC_DROP;
 

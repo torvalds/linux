@@ -472,16 +472,15 @@ gss_pipe_upcall(struct file *filp, struct rpc_pipe_msg *msg,
 		char __user *dst, size_t buflen)
 {
 	char *data = (char *)msg->data + msg->copied;
-	ssize_t mlen = msg->len;
-	ssize_t left;
+	size_t mlen = min(msg->len, buflen);
+	unsigned long left;
 
-	if (mlen > buflen)
-		mlen = buflen;
 	left = copy_to_user(dst, data, mlen);
-	if (left < 0) {
-		msg->errno = left;
-		return left;
+	if (left == mlen) {
+		msg->errno = -EFAULT;
+		return -EFAULT;
 	}
+
 	mlen -= left;
 	msg->copied += mlen;
 	msg->errno = 0;

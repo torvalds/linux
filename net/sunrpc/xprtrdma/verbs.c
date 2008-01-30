@@ -522,7 +522,7 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 				struct rpcrdma_create_data_internal *cdata)
 {
 	struct ib_device_attr devattr;
-	int rc;
+	int rc, err;
 
 	rc = ib_query_device(ia->ri_id->device, &devattr);
 	if (rc) {
@@ -648,8 +648,10 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 	return 0;
 
 out2:
-	if (ib_destroy_cq(ep->rep_cq))
-		;
+	err = ib_destroy_cq(ep->rep_cq);
+	if (err)
+		dprintk("RPC:       %s: ib_destroy_cq returned %i\n",
+			__func__, err);
 out1:
 	return rc;
 }

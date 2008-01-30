@@ -51,6 +51,7 @@ rpcauth_register(const struct rpc_authops *ops)
 	spin_unlock(&rpc_authflavor_lock);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(rpcauth_register);
 
 int
 rpcauth_unregister(const struct rpc_authops *ops)
@@ -68,6 +69,7 @@ rpcauth_unregister(const struct rpc_authops *ops)
 	spin_unlock(&rpc_authflavor_lock);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(rpcauth_unregister);
 
 struct rpc_auth *
 rpcauth_create(rpc_authflavor_t pseudoflavor, struct rpc_clnt *clnt)
@@ -102,6 +104,7 @@ rpcauth_create(rpc_authflavor_t pseudoflavor, struct rpc_clnt *clnt)
 out:
 	return auth;
 }
+EXPORT_SYMBOL_GPL(rpcauth_create);
 
 void
 rpcauth_release(struct rpc_auth *auth)
@@ -151,6 +154,7 @@ rpcauth_init_credcache(struct rpc_auth *auth)
 	auth->au_credcache = new;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(rpcauth_init_credcache);
 
 /*
  * Destroy a list of credentials
@@ -213,6 +217,7 @@ rpcauth_destroy_credcache(struct rpc_auth *auth)
 		kfree(cache);
 	}
 }
+EXPORT_SYMBOL_GPL(rpcauth_destroy_credcache);
 
 /*
  * Remove stale credentials. Avoid sleeping inside the loop.
@@ -332,6 +337,7 @@ found:
 out:
 	return cred;
 }
+EXPORT_SYMBOL_GPL(rpcauth_lookup_credcache);
 
 struct rpc_cred *
 rpcauth_lookupcred(struct rpc_auth *auth, int flags)
@@ -350,6 +356,7 @@ rpcauth_lookupcred(struct rpc_auth *auth, int flags)
 	put_group_info(acred.group_info);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(rpcauth_lookupcred);
 
 void
 rpcauth_init_cred(struct rpc_cred *cred, const struct auth_cred *acred,
@@ -366,7 +373,7 @@ rpcauth_init_cred(struct rpc_cred *cred, const struct auth_cred *acred,
 #endif
 	cred->cr_uid = acred->uid;
 }
-EXPORT_SYMBOL(rpcauth_init_cred);
+EXPORT_SYMBOL_GPL(rpcauth_init_cred);
 
 struct rpc_cred *
 rpcauth_bindcred(struct rpc_task *task)
@@ -378,6 +385,7 @@ rpcauth_bindcred(struct rpc_task *task)
 		.group_info = current->group_info,
 	};
 	struct rpc_cred *ret;
+	sigset_t oldset;
 	int flags = 0;
 
 	dprintk("RPC: %5u looking up %s cred\n",
@@ -385,7 +393,9 @@ rpcauth_bindcred(struct rpc_task *task)
 	get_group_info(acred.group_info);
 	if (task->tk_flags & RPC_TASK_ROOTCREDS)
 		flags |= RPCAUTH_LOOKUP_ROOTCREDS;
+	rpc_clnt_sigmask(task->tk_client, &oldset);
 	ret = auth->au_ops->lookup_cred(auth, &acred, flags);
+	rpc_clnt_sigunmask(task->tk_client, &oldset);
 	if (!IS_ERR(ret))
 		task->tk_msg.rpc_cred = ret;
 	else
@@ -435,6 +445,7 @@ need_lock:
 out_destroy:
 	cred->cr_ops->crdestroy(cred);
 }
+EXPORT_SYMBOL_GPL(put_rpccred);
 
 void
 rpcauth_unbindcred(struct rpc_task *task)

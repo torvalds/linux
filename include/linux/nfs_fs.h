@@ -196,28 +196,67 @@ struct nfs_inode {
 #define NFS_INO_STALE		(2)		/* possible stale inode */
 #define NFS_INO_ACL_LRU_SET	(3)		/* Inode is on the LRU list */
 
-static inline struct nfs_inode *NFS_I(struct inode *inode)
+static inline struct nfs_inode *NFS_I(const struct inode *inode)
 {
 	return container_of(inode, struct nfs_inode, vfs_inode);
 }
-#define NFS_SB(s)		((struct nfs_server *)(s->s_fs_info))
 
-#define NFS_FH(inode)			(&NFS_I(inode)->fh)
-#define NFS_SERVER(inode)		(NFS_SB(inode->i_sb))
-#define NFS_CLIENT(inode)		(NFS_SERVER(inode)->client)
-#define NFS_PROTO(inode)		(NFS_SERVER(inode)->nfs_client->rpc_ops)
-#define NFS_COOKIEVERF(inode)		(NFS_I(inode)->cookieverf)
-#define NFS_MINATTRTIMEO(inode) \
-	(S_ISDIR(inode->i_mode)? NFS_SERVER(inode)->acdirmin \
-			       : NFS_SERVER(inode)->acregmin)
-#define NFS_MAXATTRTIMEO(inode) \
-	(S_ISDIR(inode->i_mode)? NFS_SERVER(inode)->acdirmax \
-			       : NFS_SERVER(inode)->acregmax)
+static inline struct nfs_server *NFS_SB(const struct super_block *s)
+{
+	return (struct nfs_server *)(s->s_fs_info);
+}
 
-#define NFS_FLAGS(inode)		(NFS_I(inode)->flags)
-#define NFS_STALE(inode)		(test_bit(NFS_INO_STALE, &NFS_FLAGS(inode)))
+static inline struct nfs_fh *NFS_FH(const struct inode *inode)
+{
+	return &NFS_I(inode)->fh;
+}
 
-#define NFS_FILEID(inode)		(NFS_I(inode)->fileid)
+static inline struct nfs_server *NFS_SERVER(const struct inode *inode)
+{
+	return NFS_SB(inode->i_sb);
+}
+
+static inline struct rpc_clnt *NFS_CLIENT(const struct inode *inode)
+{
+	return NFS_SERVER(inode)->client;
+}
+
+static inline const struct nfs_rpc_ops *NFS_PROTO(const struct inode *inode)
+{
+	return NFS_SERVER(inode)->nfs_client->rpc_ops;
+}
+
+static inline __be32 *NFS_COOKIEVERF(const struct inode *inode)
+{
+	return NFS_I(inode)->cookieverf;
+}
+
+static inline unsigned NFS_MINATTRTIMEO(const struct inode *inode)
+{
+	struct nfs_server *nfss = NFS_SERVER(inode);
+	return S_ISDIR(inode->i_mode) ? nfss->acdirmin : nfss->acregmin;
+}
+
+static inline unsigned NFS_MAXATTRTIMEO(const struct inode *inode)
+{
+	struct nfs_server *nfss = NFS_SERVER(inode);
+	return S_ISDIR(inode->i_mode) ? nfss->acdirmax : nfss->acregmax;
+}
+
+static inline int NFS_STALE(const struct inode *inode)
+{
+	return test_bit(NFS_INO_STALE, &NFS_I(inode)->flags);
+}
+
+static inline __u64 NFS_FILEID(const struct inode *inode)
+{
+	return NFS_I(inode)->fileid;
+}
+
+static inline void set_nfs_fileid(struct inode *inode, __u64 fileid)
+{
+	NFS_I(inode)->fileid = fileid;
+}
 
 static inline void nfs_mark_for_revalidate(struct inode *inode)
 {
@@ -237,7 +276,7 @@ static inline int nfs_server_capable(struct inode *inode, int cap)
 
 static inline int NFS_USE_READDIRPLUS(struct inode *inode)
 {
-	return test_bit(NFS_INO_ADVISE_RDPLUS, &NFS_FLAGS(inode));
+	return test_bit(NFS_INO_ADVISE_RDPLUS, &NFS_I(inode)->flags);
 }
 
 static inline void nfs_set_verifier(struct dentry * dentry, unsigned long verf)
@@ -366,6 +405,7 @@ extern const struct inode_operations nfs3_dir_inode_operations;
 extern const struct file_operations nfs_dir_operations;
 extern struct dentry_operations nfs_dentry_operations;
 
+extern void nfs_force_lookup_revalidate(struct inode *dir);
 extern int nfs_instantiate(struct dentry *dentry, struct nfs_fh *fh, struct nfs_fattr *fattr);
 extern int nfs_may_open(struct inode *inode, struct rpc_cred *cred, int openflags);
 extern void nfs_access_zap_cache(struct inode *inode);

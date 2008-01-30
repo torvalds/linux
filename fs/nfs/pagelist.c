@@ -111,13 +111,14 @@ void nfs_unlock_request(struct nfs_page *req)
  * nfs_set_page_tag_locked - Tag a request as locked
  * @req:
  */
-static int nfs_set_page_tag_locked(struct nfs_page *req)
+int nfs_set_page_tag_locked(struct nfs_page *req)
 {
 	struct nfs_inode *nfsi = NFS_I(req->wb_context->path.dentry->d_inode);
 
-	if (!nfs_lock_request(req))
+	if (!nfs_lock_request_dontget(req))
 		return 0;
-	radix_tree_tag_set(&nfsi->nfs_page_tree, req->wb_index, NFS_PAGE_TAG_LOCKED);
+	if (req->wb_page != NULL)
+		radix_tree_tag_set(&nfsi->nfs_page_tree, req->wb_index, NFS_PAGE_TAG_LOCKED);
 	return 1;
 }
 
@@ -132,9 +133,10 @@ void nfs_clear_page_tag_locked(struct nfs_page *req)
 	if (req->wb_page != NULL) {
 		spin_lock(&inode->i_lock);
 		radix_tree_tag_clear(&nfsi->nfs_page_tree, req->wb_index, NFS_PAGE_TAG_LOCKED);
+		nfs_unlock_request(req);
 		spin_unlock(&inode->i_lock);
-	}
-	nfs_unlock_request(req);
+	} else
+		nfs_unlock_request(req);
 }
 
 /**
@@ -421,6 +423,7 @@ int nfs_scan_list(struct nfs_inode *nfsi,
 				goto out;
 			idx_start = req->wb_index + 1;
 			if (nfs_set_page_tag_locked(req)) {
+				kref_get(&req->wb_kref);
 				nfs_list_remove_request(req);
 				radix_tree_tag_clear(&nfsi->nfs_page_tree,
 						req->wb_index, tag);
