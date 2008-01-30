@@ -1,7 +1,7 @@
 /*
  * misc.c
- * 
- * This is a collection of several routines from gzip-1.0.3 
+ *
+ * This is a collection of several routines from gzip-1.0.3
  * adapted for Linux.
  *
  * malloc by Hannu Savolainen 1993 and Matthias Urlichs 1994
@@ -260,7 +260,7 @@ static void putstr(const char *s)
 				y--;
 			}
 		} else {
-			vidmem [ ( x + cols * y ) * 2 ] = c; 
+			vidmem [(x + cols * y) * 2] = c;
 			if ( ++x >= cols ) {
 				x = 0;
 				if ( ++y >= lines ) {
@@ -344,7 +344,8 @@ static void error(char *x)
 }
 
 asmlinkage void decompress_kernel(void *rmode, unsigned long heap,
-	uch *input_data, unsigned long input_len, uch *output)
+				  uch *input_data, unsigned long input_len,
+				  uch *output)
 {
 	real_mode = rmode;
 
@@ -359,8 +360,8 @@ asmlinkage void decompress_kernel(void *rmode, unsigned long heap,
 	lines = RM_SCREEN_INFO.orig_video_lines;
 	cols = RM_SCREEN_INFO.orig_video_cols;
 
-	window = output;  		/* Output buffer (Normally at 1M) */
-	free_mem_ptr     = heap;	/* Heap  */
+	window = output;		/* Output buffer (Normally at 1M) */
+	free_mem_ptr     = heap;	/* Heap */
 	free_mem_end_ptr = heap + HEAP_SIZE;
 	inbuf  = input_data;		/* Input buffer */
 	insize = input_len;
