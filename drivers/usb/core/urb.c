@@ -103,7 +103,7 @@ EXPORT_SYMBOL_GPL(usb_free_urb);
  *
  * A pointer to the urb with the incremented reference counter is returned.
  */
-struct urb * usb_get_urb(struct urb *urb)
+struct urb *usb_get_urb(struct urb *urb)
 {
 	if (urb)
 		kref_get(&urb->kref);
@@ -176,7 +176,7 @@ EXPORT_SYMBOL_GPL(usb_unanchor_urb);
  * describing that request to the USB subsystem.  Request completion will
  * be indicated later, asynchronously, by calling the completion handler.
  * The three types of completion are success, error, and unlink
- * (a software-induced fault, also called "request cancellation").  
+ * (a software-induced fault, also called "request cancellation").
  *
  * URBs may be submitted in interrupt context.
  *
@@ -259,7 +259,7 @@ EXPORT_SYMBOL_GPL(usb_unanchor_urb);
  *       semaphores), or
  *   (c) current->state != TASK_RUNNING, this is the case only after
  *       you've changed it.
- * 
+ *
  * GFP_NOIO is used in the block io path and error handling of storage
  * devices.
  *
@@ -288,7 +288,8 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 
 	if (!urb || urb->hcpriv || !urb->complete)
 		return -EINVAL;
-	if (!(dev = urb->dev) || dev->state < USB_STATE_DEFAULT)
+	dev = urb->dev;
+	if ((!dev) || (dev->state < USB_STATE_DEFAULT))
 		return -ENODEV;
 
 	/* For now, get the endpoint from the pipe.  Eventually drivers
@@ -351,11 +352,11 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 			max *= mult;
 		}
 
-		if (urb->number_of_packets <= 0)		    
+		if (urb->number_of_packets <= 0)
 			return -EINVAL;
 		for (n = 0; n < urb->number_of_packets; n++) {
 			len = urb->iso_frame_desc[n].length;
-			if (len < 0 || len > max) 
+			if (len < 0 || len > max)
 				return -EMSGSIZE;
 			urb->iso_frame_desc[n].status = -EXDEV;
 			urb->iso_frame_desc[n].actual_length = 0;
@@ -420,7 +421,7 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 		/* too big? */
 		switch (dev->speed) {
 		case USB_SPEED_HIGH:	/* units are microframes */
-			// NOTE usb handles 2^15
+			/* NOTE usb handles 2^15 */
 			if (urb->interval > (1024 * 8))
 				urb->interval = 1024 * 8;
 			max = 1024 * 8;
@@ -430,12 +431,12 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 			if (xfertype == USB_ENDPOINT_XFER_INT) {
 				if (urb->interval > 255)
 					return -EINVAL;
-				// NOTE ohci only handles up to 32
+				/* NOTE ohci only handles up to 32 */
 				max = 128;
 			} else {
 				if (urb->interval > 1024)
 					urb->interval = 1024;
-				// NOTE usb and ohci handle up to 2^15
+				/* NOTE usb and ohci handle up to 2^15 */
 				max = 1024;
 			}
 			break;
@@ -574,7 +575,8 @@ void usb_kill_anchored_urbs(struct usb_anchor *anchor)
 
 	spin_lock_irq(&anchor->lock);
 	while (!list_empty(&anchor->urb_list)) {
-		victim = list_entry(anchor->urb_list.prev, struct urb, anchor_list);
+		victim = list_entry(anchor->urb_list.prev, struct urb,
+				    anchor_list);
 		/* we must make sure the URB isn't freed before we kill it*/
 		usb_get_urb(victim);
 		spin_unlock_irq(&anchor->lock);

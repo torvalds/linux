@@ -72,7 +72,7 @@ set_bConfigurationValue(struct device *dev, struct device_attribute *attr,
 	return (value < 0) ? value : count;
 }
 
-static DEVICE_ATTR(bConfigurationValue, S_IRUGO | S_IWUSR, 
+static DEVICE_ATTR(bConfigurationValue, S_IRUGO | S_IWUSR,
 		show_bConfigurationValue, set_bConfigurationValue);
 
 /* String fields */
@@ -650,21 +650,21 @@ void usb_remove_sysfs_dev_files(struct usb_device *udev)
 /* Interface Accociation Descriptor fields */
 #define usb_intf_assoc_attr(field, format_string)			\
 static ssize_t								\
-show_iad_##field (struct device *dev, struct device_attribute *attr,	\
+show_iad_##field(struct device *dev, struct device_attribute *attr,	\
 		char *buf)						\
 {									\
-	struct usb_interface *intf = to_usb_interface (dev);		\
+	struct usb_interface *intf = to_usb_interface(dev);		\
 									\
-	return sprintf (buf, format_string,				\
-			intf->intf_assoc->field); 		\
+	return sprintf(buf, format_string,				\
+			intf->intf_assoc->field); 			\
 }									\
 static DEVICE_ATTR(iad_##field, S_IRUGO, show_iad_##field, NULL);
 
-usb_intf_assoc_attr (bFirstInterface, "%02x\n")
-usb_intf_assoc_attr (bInterfaceCount, "%02d\n")
-usb_intf_assoc_attr (bFunctionClass, "%02x\n")
-usb_intf_assoc_attr (bFunctionSubClass, "%02x\n")
-usb_intf_assoc_attr (bFunctionProtocol, "%02x\n")
+usb_intf_assoc_attr(bFirstInterface, "%02x\n")
+usb_intf_assoc_attr(bInterfaceCount, "%02d\n")
+usb_intf_assoc_attr(bFunctionClass, "%02x\n")
+usb_intf_assoc_attr(bFunctionSubClass, "%02x\n")
+usb_intf_assoc_attr(bFunctionProtocol, "%02x\n")
 
 /* Interface fields */
 #define usb_intf_attr(field, format_string)				\

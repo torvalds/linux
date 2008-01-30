@@ -116,8 +116,9 @@ EXPORT_SYMBOL_GPL(usb_ifnum_to_if);
  * Don't call this function unless you are bound to the intf interface
  * or you have locked the device!
  */
-struct usb_host_interface *usb_altnum_to_altsetting(const struct usb_interface *intf,
-						    unsigned int altnum)
+struct usb_host_interface *usb_altnum_to_altsetting(
+					const struct usb_interface *intf,
+					unsigned int altnum)
 {
 	int i;
 
@@ -134,7 +135,7 @@ struct find_interface_arg {
 	struct usb_interface *interface;
 };
 
-static int __find_interface(struct device * dev, void * data)
+static int __find_interface(struct device *dev, void *data)
 {
 	struct find_interface_arg *arg = data;
 	struct usb_interface *intf;
@@ -156,7 +157,7 @@ static int __find_interface(struct device * dev, void * data)
  * @drv: the driver whose current configuration is considered
  * @minor: the minor number of the desired device
  *
- * This walks the driver device list and returns a pointer to the interface 
+ * This walks the driver device list and returns a pointer to the interface
  * with the matching minor.  Note, this only works for devices that share the
  * USB major number.
  */
@@ -272,8 +273,8 @@ static unsigned usb_bus_is_wusb(struct usb_bus *bus)
  *
  * This call may not be used in a non-sleeping context.
  */
-struct usb_device *
-usb_alloc_dev(struct usb_device *parent, struct usb_bus *bus, unsigned port1)
+struct usb_device *usb_alloc_dev(struct usb_device *parent,
+				 struct usb_bus *bus, unsigned port1)
 {
 	struct usb_device *dev;
 	struct usb_hcd *usb_hcd = container_of(bus, struct usb_hcd, self);
@@ -469,11 +470,11 @@ int usb_lock_device_for_reset(struct usb_device *udev,
 		return -EHOSTUNREACH;
 	if (iface) {
 		switch (iface->condition) {
-		  case USB_INTERFACE_BINDING:
+		case USB_INTERFACE_BINDING:
 			return 0;
-		  case USB_INTERFACE_BOUND:
+		case USB_INTERFACE_BOUND:
 			break;
-		  default:
+		default:
 			return -EINTR;
 		}
 	}
@@ -548,10 +549,10 @@ struct usb_device *usb_find_device(u16 vendor_id, u16 product_id)
 	struct list_head *buslist;
 	struct usb_bus *bus;
 	struct usb_device *dev = NULL;
-	
+
 	mutex_lock(&usb_bus_list_lock);
 	for (buslist = usb_bus_list.next;
-	     buslist != &usb_bus_list; 
+	     buslist != &usb_bus_list;
 	     buslist = buslist->next) {
 		bus = container_of(buslist, struct usb_bus, bus_list);
 		if (!bus->root_hub)
@@ -593,7 +594,7 @@ EXPORT_SYMBOL_GPL(usb_get_current_frame_number);
  */
 
 int __usb_get_extra_descriptor(char *buffer, unsigned size,
-	unsigned char type, void **ptr)
+			       unsigned char type, void **ptr)
 {
 	struct usb_descriptor_header *header;
 
@@ -604,7 +605,7 @@ int __usb_get_extra_descriptor(char *buffer, unsigned size,
 			printk(KERN_ERR
 				"%s: bogus descriptor, type %d length %d\n",
 				usbcore_name,
-				header->bDescriptorType, 
+				header->bDescriptorType,
 				header->bLength);
 			return -1;
 		}
@@ -643,12 +644,8 @@ EXPORT_SYMBOL_GPL(__usb_get_extra_descriptor);
  *
  * When the buffer is no longer used, free it with usb_buffer_free().
  */
-void *usb_buffer_alloc(
-	struct usb_device *dev,
-	size_t size,
-	gfp_t mem_flags,
-	dma_addr_t *dma
-)
+void *usb_buffer_alloc(struct usb_device *dev, size_t size, gfp_t mem_flags,
+		       dma_addr_t *dma)
 {
 	if (!dev || !dev->bus)
 		return NULL;
@@ -667,12 +664,8 @@ EXPORT_SYMBOL_GPL(usb_buffer_alloc);
  * been allocated using usb_buffer_alloc(), and the parameters must match
  * those provided in that allocation request.
  */
-void usb_buffer_free(
-	struct usb_device *dev,
-	size_t size,
-	void *addr,
-	dma_addr_t dma
-)
+void usb_buffer_free(struct usb_device *dev, size_t size, void *addr,
+		     dma_addr_t dma)
 {
 	if (!dev || !dev->bus)
 		return;
@@ -720,8 +713,8 @@ struct urb *usb_buffer_map(struct urb *urb)
 					urb->setup_packet,
 					sizeof(struct usb_ctrlrequest),
 					DMA_TO_DEVICE);
-	// FIXME generic api broken like pci, can't report errors
-	// if (urb->transfer_dma == DMA_ADDR_INVALID) return 0;
+	/* FIXME generic api broken like pci, can't report errors */
+	/* if (urb->transfer_dma == DMA_ADDR_INVALID) return 0; */
 	} else
 		urb->transfer_dma = ~0;
 	urb->transfer_flags |= (URB_NO_TRANSFER_DMA_MAP
@@ -843,7 +836,7 @@ int usb_buffer_map_sg(const struct usb_device *dev, int is_in,
 			|| !controller->dma_mask)
 		return -1;
 
-	// FIXME generic api broken like pci, can't report errors
+	/* FIXME generic api broken like pci, can't report errors */
 	return dma_map_sg(controller, sg, nents,
 			is_in ? DMA_FROM_DEVICE : DMA_TO_DEVICE);
 }
@@ -937,7 +930,7 @@ static int __init usb_init(void)
 	if (retval)
 		goto out;
 	retval = bus_register(&usb_bus_type);
-	if (retval) 
+	if (retval)
 		goto bus_register_failed;
 	retval = usb_host_init();
 	if (retval)
