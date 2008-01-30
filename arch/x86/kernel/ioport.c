@@ -116,9 +116,10 @@ asmlinkage long sys_ioperm(unsigned long from, unsigned long num, int turn_on)
 #ifdef CONFIG_X86_32
 asmlinkage long sys_iopl(unsigned long regsp)
 {
-	volatile struct pt_regs *regs = (struct pt_regs *)&regsp;
+	struct pt_regs *regs = (struct pt_regs *)&regsp;
 	unsigned int level = regs->bx;
 	unsigned int old = (regs->flags >> 12) & 3;
+	struct thread_struct *t = &current->thread;
 
 	if (level > 3)
 		return -EINVAL;
@@ -127,8 +128,9 @@ asmlinkage long sys_iopl(unsigned long regsp)
 		if (!capable(CAP_SYS_RAWIO))
 			return -EPERM;
 	}
+	t->iopl = level << 12;
 	regs->flags = (regs->flags & ~X86_EFLAGS_IOPL) | (level << 12);
-
+	set_iopl_mask(t->iopl);
 	return 0;
 }
 #else
