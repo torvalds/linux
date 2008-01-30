@@ -269,10 +269,16 @@ static void fixup_use_write_buffers(struct mtd_info *mtd, void *param)
 /*
  * Some chips power-up with all sectors locked by default.
  */
-static void fixup_use_powerup_lock(struct mtd_info *mtd, void *param)
+static void fixup_unlock_powerup_lock(struct mtd_info *mtd, void *param)
 {
-	printk(KERN_INFO "Using auto-unlock on power-up/resume\n" );
-	mtd->flags |= MTD_STUPID_LOCK;
+	struct map_info *map = mtd->priv;
+	struct cfi_private *cfi = map->fldrv_priv;
+	struct cfi_pri_intelext *cfip = cfi->cmdset_priv;
+
+	if (cfip->FeatureSupport&32) {
+		printk(KERN_INFO "Using auto-unlock on power-up/resume\n" );
+		mtd->flags |= MTD_POWERUP_LOCK;
+	}
 }
 
 static struct cfi_fixup cfi_fixup_table[] = {
@@ -288,7 +294,7 @@ static struct cfi_fixup cfi_fixup_table[] = {
 #endif
 	{ CFI_MFR_ST, 0x00ba, /* M28W320CT */ fixup_st_m28w320ct, NULL },
 	{ CFI_MFR_ST, 0x00bb, /* M28W320CB */ fixup_st_m28w320cb, NULL },
-	{ MANUFACTURER_INTEL, 0x891c,	      fixup_use_powerup_lock, NULL, },
+	{ MANUFACTURER_INTEL, CFI_ID_ANY, fixup_unlock_powerup_lock, NULL, },
 	{ 0, 0, NULL, NULL }
 };
 
@@ -2349,7 +2355,7 @@ static int cfi_intelext_suspend(struct mtd_info *mtd)
 	struct flchip *chip;
 	int ret = 0;
 
-	if ((mtd->flags & MTD_STUPID_LOCK)
+	if ((mtd->flags & MTD_POWERUP_LOCK)
 	    && extp && (extp->FeatureSupport & (1 << 5)))
 		cfi_intelext_save_locks(mtd);
 
@@ -2460,7 +2466,7 @@ static void cfi_intelext_resume(struct mtd_info *mtd)
 		spin_unlock(chip->mutex);
 	}
 
-	if ((mtd->flags & MTD_STUPID_LOCK)
+	if ((mtd->flags & MTD_POWERUP_LOCK)
 	    && extp && (extp->FeatureSupport & (1 << 5)))
 		cfi_intelext_restore_locks(mtd);
 }
