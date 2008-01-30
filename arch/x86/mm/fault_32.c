@@ -48,7 +48,11 @@ static inline int notify_page_fault(struct pt_regs *regs)
 	int ret = 0;
 
 	/* kprobe_running() needs smp_processor_id() */
+#ifdef CONFIG_X86_32
 	if (!user_mode_vm(regs)) {
+#else
+	if (!user_mode(regs)) {
+#endif
 		preempt_disable();
 		if (kprobe_running() && kprobe_fault_handler(regs, 14))
 			ret = 1;
@@ -430,11 +434,15 @@ static noinline void pgtable_bad(unsigned long address, struct pt_regs *regs,
 #endif
 
 /*
+ * X86_32
  * Handle a fault on the vmalloc or module mapping area
+ *
+ * X86_64
+ * Handle a fault on the vmalloc area
  *
  * This assumes no large pages in there.
  */
-static inline int vmalloc_fault(unsigned long address)
+static int vmalloc_fault(unsigned long address)
 {
 #ifdef CONFIG_X86_32
 	unsigned long pgd_paddr;
@@ -509,6 +517,9 @@ int show_unhandled_signals = 1;
  * and the problem, and then passes it off to one of the appropriate
  * routines.
  */
+#ifdef CONFIG_X86_64
+asmlinkage
+#endif
 void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
 {
 	struct task_struct *tsk;
@@ -517,6 +528,9 @@ void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
 	unsigned long address;
 	int write, si_code;
 	int fault;
+#ifdef CONFIG_X86_64
+	unsigned long flags;
+#endif
 
 	/*
 	 * We can fault from pretty much anywhere, with unknown IRQ state.
@@ -548,6 +562,7 @@ void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
 	 * (error_code & 4) == 0, and that the fault was not a
 	 * protection error (error_code & 9) == 0.
 	 */
+#ifdef CONFIG_X86_32
 	if (unlikely(address >= TASK_SIZE)) {
 		if (!(error_code & (PF_RSVD|PF_USER|PF_PROT)) &&
 		    vmalloc_fault(address) >= 0)
@@ -570,7 +585,45 @@ void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
 	 */
 	if (in_atomic() || !mm)
 		goto bad_area_nosemaphore;
+#else /* CONFIG_X86_64 */
+	if (unlikely(address >= TASK_SIZE64)) {
+		/*
+		 * Don't check for the module range here: its PML4
+		 * is always initialized because it's shared with the main
+		 * kernel text. Only vmalloc may need PML4 syncups.
+		 */
+		if (!(error_code & (PF_RSVD|PF_USER|PF_PROT)) &&
+		      ((address >= VMALLOC_START && address < VMALLOC_END))) {
+			if (vmalloc_fault(address) >= 0)
+				return;
+		}
+		/*
+		 * Don't take the mm semaphore here. If we fixup a prefetch
+		 * fault we could otherwise deadlock.
+		 */
+		goto bad_area_nosemaphore;
+	}
+	if (likely(regs->flags & X86_EFLAGS_IF))
+		local_irq_enable();
 
+	if (unlikely(error_code & PF_RSVD))
+		pgtable_bad(address, regs, error_code);
+
+	/*
+	 * If we're in an interrupt, have no user context or are running in an
+	 * atomic region then we must not take the fault.
+	 */
+	if (unlikely(in_atomic() || !mm))
+		goto bad_area_nosemaphore;
+
+	/*
+	 * User-mode registers count as a user access even for any
+	 * potential system fault or CPU buglet.
+	 */
+	if (user_mode_vm(regs))
+		error_code |= PF_USER;
+again:
+#endif
 	/* When running in the kernel we expect faults to occur only to
 	 * addresses in user space.  All other faults represent errors in the
 	 * kernel and should generate an OOPS.  Unfortunately, in the case of an
@@ -596,7 +649,11 @@ void __kprobes do_page_fault(struct pt_regs *regs, unsigned long error_code)
 	vma = find_vma(mm, address);
 	if (!vma)
 		goto bad_area;
+#ifdef CONFIG_X86_32
 	if (vma->vm_start <= address)
+#else
+	if (likely(vma->vm_start <= address))
+#endif
 		goto good_area;
 	if (!(vma->vm_flags & VM_GROWSDOWN))
 		goto bad_area;
@@ -634,7 +691,9 @@ good_area:
 			goto bad_area;
 	}
 
- survive:
+#ifdef CONFIG_X86_32
+survive:
+#endif
 	/*
 	 * If for any reason at all we couldn't handle the fault,
 	 * make sure we exit gracefully rather than endlessly redo
@@ -705,6 +764,7 @@ bad_area_nosemaphore:
 			print_vma_addr(" in ", regs->ip);
 			printk("\n");
 		}
+
 		tsk->thread.cr2 = address;
 		/* Kernel addresses are always protection faults */
 		tsk->thread.error_code = error_code | (address >= TASK_SIZE);
@@ -722,9 +782,13 @@ no_context:
 		return;
 
 	/*
+	 * X86_32
 	 * Valid to do another page fault here, because if this fault
 	 * had been triggered by is_prefetch fixup_exception would have
 	 * handled it.
+	 *
+	 * X86_64
+	 * Hall of shame of CPU/BIOS bugs.
 	 */
 	if (is_prefetch(regs, address, error_code))
 		return;
@@ -736,7 +800,7 @@ no_context:
  * Oops. The kernel tried to access some bad page. We'll have to
  * terminate things with extreme prejudice.
  */
-
+#ifdef CONFIG_X86_32
 	bust_spinlocks(1);
 
 	show_fault_oops(regs, error_code, address);
@@ -747,6 +811,20 @@ no_context:
 	die("Oops", regs, error_code);
 	bust_spinlocks(0);
 	do_exit(SIGKILL);
+#else /* CONFIG_X86_64 */
+	flags = oops_begin();
+
+	show_fault_oops(regs, error_code, address);
+
+	tsk->thread.cr2 = address;
+	tsk->thread.trap_no = 14;
+	tsk->thread.error_code = error_code;
+	if (__die("Oops", regs, error_code))
+		regs = NULL;
+	/* Executive summary in case the body of the oops scrolled away */
+	printk(KERN_EMERG "CR2: %016lx\n", address);
+	oops_end(flags, regs, SIGKILL);
+#endif
 
 /*
  * We ran out of memory, or some other thing happened to us that made
@@ -754,11 +832,18 @@ no_context:
  */
 out_of_memory:
 	up_read(&mm->mmap_sem);
+#ifdef CONFIG_X86_32
 	if (is_global_init(tsk)) {
 		yield();
 		down_read(&mm->mmap_sem);
 		goto survive;
 	}
+#else
+	if (is_global_init(current)) {
+		yield();
+		goto again;
+	}
+#endif
 	printk("VM: killing process %s\n", tsk->comm);
 	if (error_code & PF_USER)
 		do_group_exit(SIGKILL);
@@ -770,16 +855,21 @@ do_sigbus:
 	/* Kernel mode? Handle exceptions or die */
 	if (!(error_code & PF_USER))
 		goto no_context;
-
+#ifdef CONFIG_X86_32
 	/* User space => ok to do another page fault */
 	if (is_prefetch(regs, address, error_code))
 		return;
-
+#endif
 	tsk->thread.cr2 = address;
 	tsk->thread.error_code = error_code;
 	tsk->thread.trap_no = 14;
 	force_sig_info_fault(SIGBUS, BUS_ADRERR, address, tsk);
 }
+
+#ifdef CONFIG_X86_64
+DEFINE_SPINLOCK(pgd_lock);
+LIST_HEAD(pgd_list);
+#endif
 
 void vmalloc_sync_all(void)
 {
