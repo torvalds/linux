@@ -212,10 +212,46 @@ static unsigned long *in_exception_stack(unsigned cpu, unsigned long stack,
  * severe exception (double fault, nmi, stack fault, debug, mce) hardware stack
  */
 
-static inline int valid_stack_ptr(struct thread_info *tinfo, void *p)
+static inline int valid_stack_ptr(struct thread_info *tinfo,
+			void *p, unsigned int size, void *end)
 {
 	void *t = (void *)tinfo;
-        return p > t && p < t + THREAD_SIZE - 3;
+	if (end) {
+		if (p < end && p >= (end-THREAD_SIZE))
+			return 1;
+		else
+			return 0;
+	}
+	return p > t && p < t + THREAD_SIZE - size;
+}
+
+static inline unsigned long print_context_stack(struct thread_info *tinfo,
+				unsigned long *stack, unsigned long bp,
+				const struct stacktrace_ops *ops, void *data,
+				unsigned long *end)
+{
+	/*
+	 * Print function call entries within a stack. 'cond' is the
+	 * "end of stackframe" condition, that the 'stack++'
+	 * iteration will eventually trigger.
+	 */
+	while (valid_stack_ptr(tinfo, stack, 3, end)) {
+		unsigned long addr = *stack++;
+		/* Use unlocked access here because except for NMIs
+		   we should be already protected against module unloads */
+		if (__kernel_text_address(addr)) {
+			/*
+			 * If the address is either in the text segment of the
+			 * kernel, or in the region which contains vmalloc'ed
+			 * memory, it *may* be the address of a calling
+			 * routine; if so, print it so that someone tracing
+			 * down the cause of the crash will be able to figure
+			 * out the call path that was taken.
+			 */
+			ops->address(data, addr, 1);
+		}
+	}
+	return bp;
 }
 
 void dump_trace(struct task_struct *tsk, struct pt_regs *regs,
@@ -229,6 +265,7 @@ void dump_trace(struct task_struct *tsk, struct pt_regs *regs,
 
 	if (!tsk)
 		tsk = current;
+	tinfo = task_thread_info(tsk);
 
 	if (!stack) {
 		unsigned long dummy;
@@ -237,28 +274,6 @@ void dump_trace(struct task_struct *tsk, struct pt_regs *regs,
 			stack = (unsigned long *)tsk->thread.sp;
 	}
 
-	/*
-	 * Print function call entries within a stack. 'cond' is the
-	 * "end of stackframe" condition, that the 'stack++'
-	 * iteration will eventually trigger.
-	 */
-#define HANDLE_STACK(cond) \
-	do while (cond) { \
-		unsigned long addr = *stack++; \
-		/* Use unlocked access here because except for NMIs	\
-		   we should be already protected against module unloads */ \
-		if (__kernel_text_address(addr)) { \
-			/* \
-			 * If the address is either in the text segment of the \
-			 * kernel, or in the region which contains vmalloc'ed \
-			 * memory, it *may* be the address of a calling \
-			 * routine; if so, print it so that someone tracing \
-			 * down the cause of the crash will be able to figure \
-			 * out the call path that was taken. \
-			 */ \
-			ops->address(data, addr, 1);   \
-		} \
-	} while (0)
 
 	/*
 	 * Print function call entries in all stacks, starting at the
@@ -274,7 +289,9 @@ void dump_trace(struct task_struct *tsk, struct pt_regs *regs,
 		if (estack_end) {
 			if (ops->stack(data, id) < 0)
 				break;
-			HANDLE_STACK (stack < estack_end);
+
+			print_context_stack(tinfo, stack, 0, ops,
+						data, estack_end);
 			ops->stack(data, "<EOE>");
 			/*
 			 * We link to the next stack via the
@@ -292,7 +309,8 @@ void dump_trace(struct task_struct *tsk, struct pt_regs *regs,
 			if (stack >= irqstack && stack < irqstack_end) {
 				if (ops->stack(data, "IRQ") < 0)
 					break;
-				HANDLE_STACK (stack < irqstack_end);
+				print_context_stack(tinfo, stack, 0, ops,
+							 data, irqstack_end);
 				/*
 				 * We link to the next stack (which would be
 				 * the process stack normally) the last
@@ -310,9 +328,7 @@ void dump_trace(struct task_struct *tsk, struct pt_regs *regs,
 	/*
 	 * This handles the process stack:
 	 */
-	tinfo = task_thread_info(tsk);
-	HANDLE_STACK (valid_stack_ptr(tinfo, stack));
-#undef HANDLE_STACK
+	print_context_stack(tinfo, stack, 0, ops, data, NULL);
 	put_cpu();
 }
 EXPORT_SYMBOL(dump_trace);
