@@ -432,19 +432,8 @@ void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 
 	generic_identify(c);
 
-	printk(KERN_DEBUG "CPU: After generic identify, caps:");
-	for (i = 0; i < NCAPINTS; i++)
-		printk(" %08x", c->x86_capability[i]);
-	printk("\n");
-
-	if (this_cpu->c_identify) {
+	if (this_cpu->c_identify)
 		this_cpu->c_identify(c);
-
-		printk(KERN_DEBUG "CPU: After vendor identify, caps:");
-		for (i = 0; i < NCAPINTS; i++)
-			printk(" %08x", c->x86_capability[i]);
-		printk("\n");
-	}
 
 	/*
 	 * Vendor-specific initialization.  In this section we
@@ -495,13 +484,6 @@ void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 			sprintf(c->x86_model_id, "%02x/%02x",
 				c->x86, c->x86_model);
 	}
-
-	/* Now the feature flags better reflect actual CPU features! */
-
-	printk(KERN_DEBUG "CPU: After all inits, caps:");
-	for (i = 0; i < NCAPINTS; i++)
-		printk(" %08x", c->x86_capability[i]);
-	printk("\n");
 
 	/*
 	 * On SMP, boot_cpu_data holds the common feature set between
