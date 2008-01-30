@@ -950,6 +950,34 @@ static inline pteval_t pte_val(pte_t pte)
 	return ret;
 }
 
+static inline pgd_t __pgd(pgdval_t val)
+{
+	pgdval_t ret;
+
+	if (sizeof(pgdval_t) > sizeof(long))
+		ret = PVOP_CALL2(pgdval_t, pv_mmu_ops.make_pgd,
+				 val, (u64)val >> 32);
+	else
+		ret = PVOP_CALL1(pgdval_t, pv_mmu_ops.make_pgd,
+				 val);
+
+	return (pgd_t) { ret };
+}
+
+static inline pgdval_t pgd_val(pgd_t pgd)
+{
+	pgdval_t ret;
+
+	if (sizeof(pgdval_t) > sizeof(long))
+		ret =  PVOP_CALL2(pgdval_t, pv_mmu_ops.pgd_val,
+				  pgd.pgd, (u64)pgd.pgd >> 32);
+	else
+		ret =  PVOP_CALL1(pgdval_t, pv_mmu_ops.pgd_val,
+				  pgd.pgd);
+
+	return ret;
+}
+
 #ifdef CONFIG_X86_PAE
 static inline pmd_t __pmd(unsigned long long val)
 {
@@ -957,22 +985,10 @@ static inline pmd_t __pmd(unsigned long long val)
 				    val, val >> 32) };
 }
 
-static inline pgd_t __pgd(unsigned long long val)
-{
-	return (pgd_t) { PVOP_CALL2(unsigned long long, pv_mmu_ops.make_pgd,
-				    val, val >> 32) };
-}
-
 static inline unsigned long long pmd_val(pmd_t x)
 {
 	return PVOP_CALL2(unsigned long long, pv_mmu_ops.pmd_val,
 			  x.pmd, x.pmd >> 32);
-}
-
-static inline unsigned long long pgd_val(pgd_t x)
-{
-	return PVOP_CALL2(unsigned long long, pv_mmu_ops.pgd_val,
-			  x.pgd, x.pgd >> 32);
 }
 
 static inline void set_pte(pte_t *ptep, pte_t pteval)
@@ -1023,16 +1039,6 @@ static inline void pmd_clear(pmd_t *pmdp)
 }
 
 #else  /* !CONFIG_X86_PAE */
-
-static inline pgd_t __pgd(unsigned long val)
-{
-	return (pgd_t) { PVOP_CALL1(unsigned long, pv_mmu_ops.make_pgd, val) };
-}
-
-static inline unsigned long pgd_val(pgd_t x)
-{
-	return PVOP_CALL1(unsigned long, pv_mmu_ops.pgd_val, x.pgd);
-}
 
 static inline void set_pte(pte_t *ptep, pte_t pteval)
 {
