@@ -443,17 +443,6 @@ void __kprobes arch_prepare_kretprobe(struct kretprobe_instance *ri,
 	*sara = (unsigned long) &kretprobe_trampoline;
 }
 
-static void __kprobes recursive_singlestep(struct kprobe *p,
-					   struct pt_regs *regs,
-					   struct kprobe_ctlblk *kcb)
-{
-	save_previous_kprobe(kcb);
-	set_current_kprobe(p, regs, kcb);
-	kprobes_inc_nmissed_count(p);
-	prepare_singlestep(p, regs);
-	kcb->kprobe_status = KPROBE_REENTER;
-}
-
 static void __kprobes setup_singlestep(struct kprobe *p, struct pt_regs *regs,
 				       struct kprobe_ctlblk *kcb)
 {
@@ -492,20 +481,29 @@ static int __kprobes reenter_kprobe(struct kprobe *p, struct pt_regs *regs,
 		break;
 #endif
 	case KPROBE_HIT_ACTIVE:
-		recursive_singlestep(p, regs, kcb);
+		save_previous_kprobe(kcb);
+		set_current_kprobe(p, regs, kcb);
+		kprobes_inc_nmissed_count(p);
+		prepare_singlestep(p, regs);
+		kcb->kprobe_status = KPROBE_REENTER;
 		break;
 	case KPROBE_HIT_SS:
-		if (*p->ainsn.insn == BREAKPOINT_INSTRUCTION) {
+		if (p == kprobe_running()) {
 			regs->flags &= ~TF_MASK;
 			regs->flags |= kcb->kprobe_saved_flags;
 			return 0;
 		} else {
-			recursive_singlestep(p, regs, kcb);
+			/* A probe has been hit in the codepath leading up
+			 * to, or just after, single-stepping of a probed
+			 * instruction. This entire codepath should strictly
+			 * reside in .kprobes.text section. Raise a warning
+			 * to highlight this peculiar case.
+			 */
 		}
-		break;
 	default:
 		/* impossible cases */
 		WARN_ON(1);
+		return 0;
 	}
 
 	return 1;
