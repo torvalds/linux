@@ -645,7 +645,7 @@ static void threshold_remove_device(unsigned int cpu)
 }
 
 /* get notified when a cpu comes on/off */
-static int threshold_cpu_callback(struct notifier_block *nfb,
+static int __cpuinit threshold_cpu_callback(struct notifier_block *nfb,
 					    unsigned long action, void *hcpu)
 {
 	/* cpu was unsigned int to begin with */
@@ -670,7 +670,7 @@ static int threshold_cpu_callback(struct notifier_block *nfb,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block threshold_cpu_notifier = {
+static struct notifier_block threshold_cpu_notifier __cpuinitdata = {
 	.notifier_call = threshold_cpu_callback,
 };
 
