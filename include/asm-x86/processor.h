@@ -10,6 +10,17 @@ struct mm_struct;
 #include <asm/page.h>
 #include <asm/system.h>
 
+/*
+ * Default implementation of macro that returns current
+ * instruction pointer ("program counter").
+ */
+static inline void *current_text_addr(void)
+{
+	void *pc;
+	asm volatile("mov $1f,%0\n1:":"=r" (pc));
+	return pc;
+}
+
 static inline void native_cpuid(unsigned int *eax, unsigned int *ebx,
 					 unsigned int *ecx, unsigned int *edx)
 {

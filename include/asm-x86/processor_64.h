@@ -21,12 +21,6 @@
 #include <asm/desc_defs.h>
 
 /*
- * Default implementation of macro that returns current
- * instruction pointer ("program counter").
- */
-#define current_text_addr() ({ void *pc; asm volatile("leaq 1f(%%rip),%0\n1:":"=r"(pc)); pc; })
-
-/*
  *  CPU type and hardware bug flags. Kept separately for each CPU.
  */
 
