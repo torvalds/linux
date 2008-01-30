@@ -5315,7 +5315,7 @@ bnx2_5706_serdes_has_link(struct bnx2 *bp)
 	bnx2_read_phy(bp, MII_BNX2_MISC_SHADOW, &an_dbg);
 	bnx2_read_phy(bp, MII_BNX2_MISC_SHADOW, &an_dbg);
 
-	if (an_dbg & MISC_SHDW_AN_DBG_NOSYNC)
+	if (an_dbg & (MISC_SHDW_AN_DBG_NOSYNC | MISC_SHDW_AN_DBG_RUDI_INVALID))
 		return 0;
 
 	bnx2_write_phy(bp, MII_BNX2_DSP_ADDRESS, MII_EXPAND_REG1);
