@@ -495,8 +495,7 @@ void __init mem_init(void)
 
 	pci_iommu_alloc();
 
-	/* clear the zero-page */
-	memset(empty_zero_page, 0, PAGE_SIZE);
+	/* clear_bss() already clear the empty_zero_page */
 
 	reservedpages = 0;
 
