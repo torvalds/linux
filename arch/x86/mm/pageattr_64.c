@@ -135,7 +135,7 @@ __change_page_attr(unsigned long address, struct page *page, pgprot_t prot)
 repeat:
 	kpte = lookup_address(address, &level);
 	if (!kpte)
-		return 0;
+		return -EINVAL;
 
 	kpte_page = virt_to_page(kpte);
 	BUG_ON(PageLRU(kpte_page));
