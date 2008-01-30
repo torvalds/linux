@@ -81,8 +81,6 @@ int __acpi_release_global_lock(unsigned int *lock);
         :"=r"(n_hi), "=r"(n_lo)     \
         :"0"(n_hi), "1"(n_lo))
 
-extern void early_quirks(void);
-
 #ifdef CONFIG_ACPI
 extern int acpi_lapic;
 extern int acpi_ioapic;

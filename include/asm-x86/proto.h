@@ -58,8 +58,6 @@ extern void show_registers(struct pt_regs *regs);
 
 extern void exception_table_check(void);
 
-extern void acpi_reserve_bootmem(void);
-
 extern void swap_low_mappings(void);
 
 extern void __show_regs(struct pt_regs * regs);
@@ -69,7 +67,6 @@ extern void syscall32_cpu_init(void);
 
 extern void setup_node_bootmem(int nodeid, unsigned long start, unsigned long end);
 
-extern void early_quirks(void);
 extern void check_efer(void);
 
 extern void select_idle_routine(const struct cpuinfo_x86 *c);

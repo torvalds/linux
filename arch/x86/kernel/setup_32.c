@@ -44,6 +44,7 @@
 #include <linux/crash_dump.h>
 #include <linux/dmi.h>
 #include <linux/pfn.h>
+#include <linux/pci.h>
 
 #include <video/edid.h>
 
@@ -663,9 +664,7 @@ void __init setup_arch(char **cmdline_p)
 	acpi_boot_table_init();
 #endif
 
-#ifdef CONFIG_PCI
 	early_quirks();
-#endif
 
 #ifdef CONFIG_ACPI
 	acpi_boot_init();
