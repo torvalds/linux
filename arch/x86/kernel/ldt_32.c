@@ -27,8 +27,7 @@ static void flush_ldt(void *null)
 
 static int alloc_ldt(mm_context_t *pc, int mincount, int reload)
 {
-	void *oldldt;
-	void *newldt;
+	void *oldldt, *newldt;
 	int oldsize;
 
 	if (mincount <= pc->size)

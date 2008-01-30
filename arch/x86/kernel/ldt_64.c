@@ -18,7 +18,7 @@
 #include <asm/system.h>
 #include <asm/ldt.h>
 #include <asm/desc.h>
-#include <asm/proto.h>
+#include <asm/mmu_context.h>
 
 #ifdef CONFIG_SMP
 static void flush_ldt(void *null)
@@ -28,13 +28,12 @@ static void flush_ldt(void *null)
 }
 #endif
 
-static int alloc_ldt(mm_context_t *pc, unsigned mincount, int reload)
+static int alloc_ldt(mm_context_t *pc, int mincount, int reload)
 {
-	void *oldldt;
-	void *newldt;
-	unsigned oldsize;
+	void *oldldt, *newldt;
+	int oldsize;
 
-	if (mincount <= (unsigned)pc->size)
+	if (mincount <= pc->size)
 		return 0;
 	oldsize = pc->size;
 	mincount = (mincount + 511) & (~511);
@@ -56,13 +55,14 @@ static int alloc_ldt(mm_context_t *pc, unsigned mincount, int reload)
 	wmb();
 	pc->size = mincount;
 	wmb();
+
 	if (reload) {
 #ifdef CONFIG_SMP
 		cpumask_t mask;
 
 		preempt_disable();
-		mask = cpumask_of_cpu(smp_processor_id());
 		load_LDT(pc);
+		mask = cpumask_of_cpu(smp_processor_id());
 		if (!cpus_equal(current->mm->cpu_vm_mask, mask))
 			smp_call_function(flush_ldt, NULL, 1, 1);
 		preempt_enable();
@@ -115,7 +115,7 @@ int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 void destroy_context(struct mm_struct *mm)
 {
 	if (mm->context.size) {
-		if ((unsigned)mm->context.size * LDT_ENTRY_SIZE > PAGE_SIZE)
+		if (mm->context.size * LDT_ENTRY_SIZE > PAGE_SIZE)
 			vfree(mm->context.ldt);
 		else
 			kfree(mm->context.ldt);
@@ -170,18 +170,16 @@ static int read_default_ldt(void __user *ptr, unsigned long bytecount)
 
 static int write_ldt(void __user *ptr, unsigned long bytecount, int oldmode)
 {
-	struct task_struct *me = current;
-	struct mm_struct *mm = me->mm;
+	struct mm_struct *mm = current->mm;
 	__u32 entry_1, entry_2;
 	int error;
 	struct user_desc ldt_info;
 
 	error = -EINVAL;
-
 	if (bytecount != sizeof(ldt_info))
 		goto out;
 	error = -EFAULT;
-	if (copy_from_user(&ldt_info, ptr, bytecount))
+	if (copy_from_user(&ldt_info, ptr, sizeof(ldt_info)))
 		goto out;
 
 	error = -EINVAL;
@@ -195,7 +193,7 @@ static int write_ldt(void __user *ptr, unsigned long bytecount, int oldmode)
 	}
 
 	mutex_lock(&mm->context.lock);
-	if (ldt_info.entry_number >= (unsigned)mm->context.size) {
+	if (ldt_info.entry_number >= mm->context.size) {
 		error = alloc_ldt(&current->mm->context,
 				  ldt_info.entry_number + 1, 1);
 		if (error < 0)
