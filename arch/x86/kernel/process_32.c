@@ -198,6 +198,9 @@ void cpu_idle(void)
 			rmb();
 			idle = pm_idle;
 
+			if (rcu_pending(cpu))
+				rcu_check_callbacks(cpu, 0);
+
 			if (!idle)
 				idle = default_idle;
 
