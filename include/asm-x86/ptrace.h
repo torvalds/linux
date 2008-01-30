@@ -184,6 +184,8 @@ convert_rip_to_linear(struct task_struct *child, struct pt_regs *regs);
 
 #ifdef __KERNEL__
 
+unsigned long get_segment_eip(struct pt_regs *regs, unsigned long *eip_limit);
+
 /*
  * These are defined as per linux/ptrace.h, which see.
  */
