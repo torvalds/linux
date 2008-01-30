@@ -163,7 +163,7 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 		unsigned long dummy;
 		stack = &dummy;
 		if (task != current)
-			stack = (unsigned long *)task->thread.esp;
+			stack = (unsigned long *)task->thread.sp;
 	}
 
 #ifdef CONFIG_FRAME_POINTER
@@ -173,7 +173,7 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 			asm ("movl %%ebp, %0" : "=r" (bp) : );
 		} else {
 			/* bp is the last reg pushed by switch_to */
-			bp = *(unsigned long *) task->thread.esp;
+			bp = *(unsigned long *) task->thread.sp;
 		}
 	}
 #endif
@@ -253,7 +253,7 @@ static void show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
 
 	if (sp == NULL) {
 		if (task)
-			sp = (unsigned long*)task->thread.esp;
+			sp = (unsigned long*)task->thread.sp;
 		else
 			sp = (unsigned long *)&sp;
 	}

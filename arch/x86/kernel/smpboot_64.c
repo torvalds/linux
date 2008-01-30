@@ -577,7 +577,7 @@ static int __cpuinit do_boot_cpu(int cpu, int apicid)
 	c_idle.idle = get_idle_for_cpu(cpu);
 
 	if (c_idle.idle) {
-		c_idle.idle->thread.rsp = (unsigned long) (((struct pt_regs *)
+		c_idle.idle->thread.sp = (unsigned long) (((struct pt_regs *)
 			(THREAD_SIZE +  task_stack_page(c_idle.idle))) - 1);
 		init_idle(c_idle.idle, cpu);
 		goto do_rest;
@@ -613,8 +613,8 @@ do_rest:
 
 	start_rip = setup_trampoline();
 
-	init_rsp = c_idle.idle->thread.rsp;
-	per_cpu(init_tss,cpu).rsp0 = init_rsp;
+	init_rsp = c_idle.idle->thread.sp;
+	per_cpu(init_tss,cpu).sp0 = init_rsp;
 	initial_code = start_secondary;
 	clear_tsk_thread_flag(c_idle.idle, TIF_FORK);
 

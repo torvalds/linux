@@ -28,9 +28,9 @@ extern struct task_struct * FASTCALL(__switch_to(struct task_struct *prev, struc
 		     "1:\t"						\
 		     "popl %%ebp\n\t"					\
 		     "popfl"						\
-		     :"=m" (prev->thread.esp),"=m" (prev->thread.eip),	\
+		     :"=m" (prev->thread.sp),"=m" (prev->thread.ip),	\
 		      "=a" (last),"=S" (esi),"=D" (edi)			\
-		     :"m" (next->thread.esp),"m" (next->thread.eip),	\
+		     :"m" (next->thread.sp),"m" (next->thread.ip),	\
 		      "2" (prev), "d" (next));				\
 } while (0)
 

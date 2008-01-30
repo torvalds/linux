@@ -62,7 +62,7 @@ static struct {
 	void (*cpuid)(void /* non-c */);
 	void (*_set_ldt)(u32 selector);
 	void (*set_tr)(u32 selector);
-	void (*set_kernel_stack)(u32 selector, u32 esp0);
+	void (*set_kernel_stack)(u32 selector, u32 sp0);
 	void (*allocate_page)(u32, u32, u32, u32, u32);
 	void (*release_page)(u32, u32);
 	void (*set_pte)(pte_t, pte_t *, unsigned);
@@ -214,17 +214,17 @@ static void vmi_set_tr(void)
 	vmi_ops.set_tr(GDT_ENTRY_TSS*sizeof(struct desc_struct));
 }
 
-static void vmi_load_esp0(struct tss_struct *tss,
+static void vmi_load_sp0(struct tss_struct *tss,
 				   struct thread_struct *thread)
 {
-	tss->x86_tss.esp0 = thread->esp0;
+	tss->x86_tss.sp0 = thread->sp0;
 
 	/* This can only happen when SEP is enabled, no need to test "SEP"arately */
 	if (unlikely(tss->x86_tss.ss1 != thread->sysenter_cs)) {
 		tss->x86_tss.ss1 = thread->sysenter_cs;
 		wrmsr(MSR_IA32_SYSENTER_CS, thread->sysenter_cs, 0);
 	}
-	vmi_ops.set_kernel_stack(__KERNEL_DS, tss->x86_tss.esp0);
+	vmi_ops.set_kernel_stack(__KERNEL_DS, tss->x86_tss.sp0);
 }
 
 static void vmi_flush_tlb_user(void)
@@ -793,7 +793,7 @@ static inline int __init activate_vmi(void)
 	para_fill(pv_cpu_ops.write_ldt_entry, WriteLDTEntry);
 	para_fill(pv_cpu_ops.write_gdt_entry, WriteGDTEntry);
 	para_fill(pv_cpu_ops.write_idt_entry, WriteIDTEntry);
-	para_wrap(pv_cpu_ops.load_esp0, vmi_load_esp0, set_kernel_stack, UpdateKernelStack);
+	para_wrap(pv_cpu_ops.load_sp0, vmi_load_sp0, set_kernel_stack, UpdateKernelStack);
 	para_fill(pv_cpu_ops.set_iopl_mask, SetIOPLMask);
 	para_fill(pv_cpu_ops.io_delay, IODelay);
 

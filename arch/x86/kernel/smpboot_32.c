@@ -454,7 +454,7 @@ void __devinit initialize_secondary(void)
 		"movl %0,%%esp\n\t"
 		"jmp *%1"
 		:
-		:"m" (current->thread.esp),"m" (current->thread.eip));
+		:"m" (current->thread.sp),"m" (current->thread.ip));
 }
 
 /* Static state in head.S used to set up a CPU */
@@ -753,7 +753,7 @@ static inline struct task_struct * __cpuinit alloc_idle_task(int cpu)
 		/* initialize thread_struct.  we really want to avoid destroy
 		 * idle tread
 		 */
-		idle->thread.esp = (unsigned long)task_pt_regs(idle);
+		idle->thread.sp = (unsigned long)task_pt_regs(idle);
 		init_idle(idle, cpu);
 		return idle;
 	}
@@ -798,7 +798,7 @@ static int __cpuinit do_boot_cpu(int apicid, int cpu)
  	per_cpu(current_task, cpu) = idle;
 	early_gdt_descr.address = (unsigned long)get_cpu_gdt_table(cpu);
 
-	idle->thread.eip = (unsigned long) start_secondary;
+	idle->thread.ip = (unsigned long) start_secondary;
 	/* start_eip had better be page-aligned! */
 	start_eip = setup_trampoline();
 
@@ -808,7 +808,7 @@ static int __cpuinit do_boot_cpu(int apicid, int cpu)
 	/* So we see what's up   */
 	printk("Booting processor %d/%d ip %lx\n", cpu, apicid, start_eip);
 	/* Stack for startup_32 can be just as for start_secondary onwards */
-	stack_start.sp = (void *) idle->thread.esp;
+	stack_start.sp = (void *) idle->thread.sp;
 
 	irq_ctx_init(cpu);
 

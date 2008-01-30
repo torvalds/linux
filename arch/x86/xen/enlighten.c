@@ -499,11 +499,11 @@ static void xen_write_gdt_entry(struct desc_struct *dt, int entry,
 	preempt_enable();
 }
 
-static void xen_load_esp0(struct tss_struct *tss,
+static void xen_load_sp0(struct tss_struct *tss,
 			  struct thread_struct *thread)
 {
 	struct multicall_space mcs = xen_mc_entry(0);
-	MULTI_stack_switch(mcs.mc, __KERNEL_DS, thread->esp0);
+	MULTI_stack_switch(mcs.mc, __KERNEL_DS, thread->sp0);
 	xen_mc_issue(PARAVIRT_LAZY_CPU);
 }
 
@@ -968,7 +968,7 @@ static const struct pv_cpu_ops xen_cpu_ops __initdata = {
 	.write_ldt_entry = xen_write_ldt_entry,
 	.write_gdt_entry = xen_write_gdt_entry,
 	.write_idt_entry = xen_write_idt_entry,
-	.load_esp0 = xen_load_esp0,
+	.load_sp0 = xen_load_sp0,
 
 	.set_iopl_mask = xen_set_iopl_mask,
 	.io_delay = xen_io_delay,

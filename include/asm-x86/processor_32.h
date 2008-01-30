@@ -292,20 +292,17 @@ struct thread_struct;
 /* This is the TSS defined by the hardware. */
 struct i386_hw_tss {
 	unsigned short	back_link,__blh;
-	unsigned long	esp0;
+	unsigned long	sp0;
 	unsigned short	ss0,__ss0h;
-	unsigned long	esp1;
+	unsigned long	sp1;
 	unsigned short	ss1,__ss1h;	/* ss1 is used to cache MSR_IA32_SYSENTER_CS */
-	unsigned long	esp2;
+	unsigned long	sp2;
 	unsigned short	ss2,__ss2h;
 	unsigned long	__cr3;
-	unsigned long	eip;
-	unsigned long	eflags;
-	unsigned long	eax,ecx,edx,ebx;
-	unsigned long	esp;
-	unsigned long	ebp;
-	unsigned long	esi;
-	unsigned long	edi;
+	unsigned long	ip;
+	unsigned long	flags;
+	unsigned long	ax, cx, dx, bx;
+	unsigned long	sp, bp, si, di;
 	unsigned short	es, __esh;
 	unsigned short	cs, __csh;
 	unsigned short	ss, __ssh;
@@ -346,10 +343,10 @@ struct tss_struct {
 struct thread_struct {
 /* cached TLS descriptors. */
 	struct desc_struct tls_array[GDT_ENTRY_TLS_ENTRIES];
-	unsigned long	esp0;
+	unsigned long	sp0;
 	unsigned long	sysenter_cs;
-	unsigned long	eip;
-	unsigned long	esp;
+	unsigned long	ip;
+	unsigned long	sp;
 	unsigned long	fs;
 	unsigned long	gs;
 /* Hardware debugging registers */
@@ -366,7 +363,7 @@ struct thread_struct {
 /* virtual 86 mode info */
 	struct vm86_struct __user * vm86_info;
 	unsigned long		screen_bitmap;
-	unsigned long		v86flags, v86mask, saved_esp0;
+	unsigned long		v86flags, v86mask, saved_sp0;
 	unsigned int		saved_fs, saved_gs;
 /* IO permissions */
 	unsigned long	*io_bitmap_ptr;
@@ -378,7 +375,7 @@ struct thread_struct {
 };
 
 #define INIT_THREAD  {							\
-	.esp0 = sizeof(init_stack) + (long)&init_stack,			\
+	.sp0 = sizeof(init_stack) + (long)&init_stack,			\
 	.vm86_info = NULL,						\
 	.sysenter_cs = __KERNEL_CS,					\
 	.io_bitmap_ptr = NULL,						\
@@ -393,7 +390,7 @@ struct thread_struct {
  */
 #define INIT_TSS  {							\
 	.x86_tss = {							\
-		.esp0		= sizeof(init_stack) + (long)&init_stack, \
+		.sp0		= sizeof(init_stack) + (long)&init_stack, \
 		.ss0		= __KERNEL_DS,				\
 		.ss1		= __KERNEL_CS,				\
 		.io_bitmap_base	= INVALID_IO_BITMAP_OFFSET,		\
@@ -503,9 +500,9 @@ static inline void rep_nop(void)
 
 #define cpu_relax()	rep_nop()
 
-static inline void native_load_esp0(struct tss_struct *tss, struct thread_struct *thread)
+static inline void native_load_sp0(struct tss_struct *tss, struct thread_struct *thread)
 {
-	tss->x86_tss.esp0 = thread->esp0;
+	tss->x86_tss.sp0 = thread->sp0;
 	/* This can only happen when SEP is enabled, no need to test "SEP"arately */
 	if (unlikely(tss->x86_tss.ss1 != thread->sysenter_cs)) {
 		tss->x86_tss.ss1 = thread->sysenter_cs;
@@ -585,9 +582,9 @@ static inline void native_set_iopl_mask(unsigned mask)
 #define paravirt_enabled() 0
 #define __cpuid native_cpuid
 
-static inline void load_esp0(struct tss_struct *tss, struct thread_struct *thread)
+static inline void load_sp0(struct tss_struct *tss, struct thread_struct *thread)
 {
-	native_load_esp0(tss, thread);
+	native_load_sp0(tss, thread);
 }
 
 /*

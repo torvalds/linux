@@ -230,7 +230,7 @@ void dump_trace(struct task_struct *tsk, struct pt_regs *regs,
 		unsigned long dummy;
 		stack = &dummy;
 		if (tsk && tsk != current)
-			stack = (unsigned long *)tsk->thread.rsp;
+			stack = (unsigned long *)tsk->thread.sp;
 	}
 
 	/*
@@ -366,7 +366,7 @@ _show_stack(struct task_struct *tsk, struct pt_regs *regs, unsigned long *sp)
 
 	if (sp == NULL) {
 		if (tsk)
-			sp = (unsigned long *)tsk->thread.rsp;
+			sp = (unsigned long *)tsk->thread.sp;
 		else
 			sp = (unsigned long *)&sp;
 	}

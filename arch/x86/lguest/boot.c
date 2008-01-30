@@ -755,10 +755,10 @@ static void lguest_time_init(void)
  * segment), the privilege level (we're privilege level 1, the Host is 0 and
  * will not tolerate us trying to use that), the stack pointer, and the number
  * of pages in the stack. */
-static void lguest_load_esp0(struct tss_struct *tss,
+static void lguest_load_sp0(struct tss_struct *tss,
 				     struct thread_struct *thread)
 {
-	lazy_hcall(LHCALL_SET_STACK, __KERNEL_DS|0x1, thread->esp0,
+	lazy_hcall(LHCALL_SET_STACK, __KERNEL_DS|0x1, thread->sp0,
 		   THREAD_SIZE/PAGE_SIZE);
 }
 
@@ -957,7 +957,7 @@ __init void lguest_init(void)
 	pv_cpu_ops.cpuid = lguest_cpuid;
 	pv_cpu_ops.load_idt = lguest_load_idt;
 	pv_cpu_ops.iret = lguest_iret;
-	pv_cpu_ops.load_esp0 = lguest_load_esp0;
+	pv_cpu_ops.load_sp0 = lguest_load_sp0;
 	pv_cpu_ops.load_tr_desc = lguest_load_tr_desc;
 	pv_cpu_ops.set_ldt = lguest_set_ldt;
 	pv_cpu_ops.load_tls = lguest_load_tls;

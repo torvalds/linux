@@ -493,9 +493,9 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
 	if (sp == ~0UL)
 		childregs->sp = (unsigned long)childregs;
 
-	p->thread.rsp = (unsigned long) childregs;
-	p->thread.rsp0 = (unsigned long) (childregs+1);
-	p->thread.userrsp = me->thread.userrsp; 
+	p->thread.sp = (unsigned long) childregs;
+	p->thread.sp0 = (unsigned long) (childregs+1);
+	p->thread.usersp = me->thread.usersp;
 
 	set_tsk_thread_flag(p, TIF_FORK);
 
@@ -607,7 +607,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	/*
 	 * Reload esp0, LDT and the page table pointer:
 	 */
-	tss->rsp0 = next->rsp0;
+	tss->sp0 = next->sp0;
 
 	/* 
 	 * Switch DS and ES.
@@ -666,8 +666,8 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	/* 
 	 * Switch the PDA and FPU contexts.
 	 */
-	prev->userrsp = read_pda(oldrsp); 
-	write_pda(oldrsp, next->userrsp); 
+	prev->usersp = read_pda(oldrsp);
+	write_pda(oldrsp, next->usersp);
 	write_pda(pcurrent, next_p); 
 
 	write_pda(kernelstack,
@@ -769,9 +769,9 @@ unsigned long get_wchan(struct task_struct *p)
 	if (!p || p == current || p->state==TASK_RUNNING)
 		return 0; 
 	stack = (unsigned long)task_stack_page(p);
-	if (p->thread.rsp < stack || p->thread.rsp > stack+THREAD_SIZE)
+	if (p->thread.sp < stack || p->thread.sp > stack+THREAD_SIZE)
 		return 0;
-	fp = *(u64 *)(p->thread.rsp);
+	fp = *(u64 *)(p->thread.sp);
 	do { 
 		if (fp < (unsigned long)stack ||
 		    fp > (unsigned long)stack+THREAD_SIZE)

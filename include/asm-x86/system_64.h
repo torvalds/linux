@@ -40,7 +40,7 @@
 		     RESTORE_CONTEXT						    \
 		     : "=a" (last)					  	  \
 		     : [next] "S" (next), [prev] "D" (prev),			  \
-		       [threadrsp] "i" (offsetof(struct task_struct, thread.rsp)), \
+		       [threadrsp] "i" (offsetof(struct task_struct, thread.sp)), \
 		       [ti_flags] "i" (offsetof(struct thread_info, flags)),\
 		       [tif_fork] "i" (TIF_FORK),			  \
 		       [thread_info] "i" (offsetof(struct task_struct, stack)), \

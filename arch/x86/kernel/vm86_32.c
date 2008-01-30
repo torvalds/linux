@@ -147,10 +147,10 @@ struct pt_regs * fastcall save_v86_state(struct kernel_vm86_regs * regs)
 	}
 
 	tss = &per_cpu(init_tss, get_cpu());
-	current->thread.esp0 = current->thread.saved_esp0;
+	current->thread.sp0 = current->thread.saved_sp0;
 	current->thread.sysenter_cs = __KERNEL_CS;
-	load_esp0(tss, &current->thread);
-	current->thread.saved_esp0 = 0;
+	load_sp0(tss, &current->thread);
+	current->thread.saved_sp0 = 0;
 	put_cpu();
 
 	ret = KVM86->regs32;
@@ -207,7 +207,7 @@ asmlinkage int sys_vm86old(struct pt_regs regs)
 	int tmp, ret = -EPERM;
 
 	tsk = current;
-	if (tsk->thread.saved_esp0)
+	if (tsk->thread.saved_sp0)
 		goto out;
 	tmp = copy_vm86_regs_from_user(&info.regs, &v86->regs,
 				       offsetof(struct kernel_vm86_struct, vm86plus) -
@@ -256,7 +256,7 @@ asmlinkage int sys_vm86(struct pt_regs regs)
 
 	/* we come here only for functions VM86_ENTER, VM86_ENTER_NO_BYPASS */
 	ret = -EPERM;
-	if (tsk->thread.saved_esp0)
+	if (tsk->thread.saved_sp0)
 		goto out;
 	v86 = (struct vm86plus_struct __user *)regs.cx;
 	tmp = copy_vm86_regs_from_user(&info.regs, &v86->regs,
@@ -318,15 +318,15 @@ static void do_sys_vm86(struct kernel_vm86_struct *info, struct task_struct *tsk
  * Save old state, set default return value (%ax) to 0
  */
 	info->regs32->ax = 0;
-	tsk->thread.saved_esp0 = tsk->thread.esp0;
+	tsk->thread.saved_sp0 = tsk->thread.sp0;
 	tsk->thread.saved_fs = info->regs32->fs;
 	savesegment(gs, tsk->thread.saved_gs);
 
 	tss = &per_cpu(init_tss, get_cpu());
-	tsk->thread.esp0 = (unsigned long) &info->VM86_TSS_ESP0;
+	tsk->thread.sp0 = (unsigned long) &info->VM86_TSS_ESP0;
 	if (cpu_has_sep)
 		tsk->thread.sysenter_cs = 0;
-	load_esp0(tss, &tsk->thread);
+	load_sp0(tss, &tsk->thread);
 	put_cpu();
 
 	tsk->thread.screen_bitmap = info->screen_bitmap;

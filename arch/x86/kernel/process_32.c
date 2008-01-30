@@ -75,7 +75,7 @@ EXPORT_PER_CPU_SYMBOL(cpu_number);
  */
 unsigned long thread_saved_pc(struct task_struct *tsk)
 {
-	return ((unsigned long *)tsk->thread.esp)[3];
+	return ((unsigned long *)tsk->thread.sp)[3];
 }
 
 /*
@@ -488,10 +488,10 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
 	childregs->ax = 0;
 	childregs->sp = sp;
 
-	p->thread.esp = (unsigned long) childregs;
-	p->thread.esp0 = (unsigned long) (childregs+1);
+	p->thread.sp = (unsigned long) childregs;
+	p->thread.sp0 = (unsigned long) (childregs+1);
 
-	p->thread.eip = (unsigned long) ret_from_fork;
+	p->thread.ip = (unsigned long) ret_from_fork;
 
 	savesegment(gs,p->thread.gs);
 
@@ -718,7 +718,7 @@ struct task_struct fastcall * __switch_to(struct task_struct *prev_p, struct tas
 	/*
 	 * Reload esp0.
 	 */
-	load_esp0(tss, next);
+	load_sp0(tss, next);
 
 	/*
 	 * Save away %gs. No need to save %fs, as it was saved on the
@@ -851,7 +851,7 @@ unsigned long get_wchan(struct task_struct *p)
 	if (!p || p == current || p->state == TASK_RUNNING)
 		return 0;
 	stack_page = (unsigned long)task_stack_page(p);
-	sp = p->thread.esp;
+	sp = p->thread.sp;
 	if (!stack_page || sp < stack_page || sp > top_esp+stack_page)
 		return 0;
 	/* include/asm-i386/system.h:switch_to() pushes bp last. */

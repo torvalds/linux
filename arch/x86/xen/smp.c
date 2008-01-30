@@ -239,10 +239,10 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 	ctxt->gdt_ents      = ARRAY_SIZE(gdt->gdt);
 
 	ctxt->user_regs.cs = __KERNEL_CS;
-	ctxt->user_regs.esp = idle->thread.esp0 - sizeof(struct pt_regs);
+	ctxt->user_regs.esp = idle->thread.sp0 - sizeof(struct pt_regs);
 
 	ctxt->kernel_ss = __KERNEL_DS;
-	ctxt->kernel_sp = idle->thread.esp0;
+	ctxt->kernel_sp = idle->thread.sp0;
 
 	ctxt->event_callback_cs     = __KERNEL_CS;
 	ctxt->event_callback_eip    = (unsigned long)xen_hypervisor_callback;

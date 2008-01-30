@@ -101,7 +101,7 @@ struct pv_cpu_ops {
 				int entrynum, u32 low, u32 high);
 	void (*write_idt_entry)(struct desc_struct *,
 				int entrynum, u32 low, u32 high);
-	void (*load_esp0)(struct tss_struct *tss, struct thread_struct *t);
+	void (*load_sp0)(struct tss_struct *tss, struct thread_struct *t);
 
 	void (*set_iopl_mask)(unsigned mask);
 
@@ -449,10 +449,10 @@ static inline int paravirt_enabled(void)
 	return pv_info.paravirt_enabled;
 }
 
-static inline void load_esp0(struct tss_struct *tss,
+static inline void load_sp0(struct tss_struct *tss,
 			     struct thread_struct *thread)
 {
-	PVOP_VCALL2(pv_cpu_ops.load_esp0, tss, thread);
+	PVOP_VCALL2(pv_cpu_ops.load_sp0, tss, thread);
 }
 
 #define ARCH_SETUP			pv_init_ops.arch_setup();

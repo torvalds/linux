@@ -382,7 +382,7 @@ struct pv_cpu_ops pv_cpu_ops = {
 	.write_ldt_entry = write_dt_entry,
 	.write_gdt_entry = write_dt_entry,
 	.write_idt_entry = write_dt_entry,
-	.load_esp0 = native_load_esp0,
+	.load_sp0 = native_load_sp0,
 
 	.irq_enable_syscall_ret = native_irq_enable_syscall_ret,
 	.iret = native_iret,

@@ -177,9 +177,9 @@ union i387_union {
 
 struct tss_struct {
 	u32 reserved1;
-	u64 rsp0;	
-	u64 rsp1;
-	u64 rsp2;
+	u64 sp0;
+	u64 sp1;
+	u64 sp2;
 	u64 reserved2;
 	u64 ist[7];
 	u32 reserved3;
@@ -216,9 +216,9 @@ DECLARE_PER_CPU(struct orig_ist, orig_ist);
 #endif
 
 struct thread_struct {
-	unsigned long	rsp0;
-	unsigned long	rsp;
-	unsigned long 	userrsp;	/* Copy from PDA */ 
+	unsigned long	sp0;
+	unsigned long	sp;
+	unsigned long 	usersp;	/* Copy from PDA */
 	unsigned long	fs;
 	unsigned long	gs;
 	unsigned short	es, ds, fsindex, gsindex;	
@@ -245,11 +245,11 @@ struct thread_struct {
 } __attribute__((aligned(16)));
 
 #define INIT_THREAD  { \
-	.rsp0 = (unsigned long)&init_stack + sizeof(init_stack) \
+	.sp0 = (unsigned long)&init_stack + sizeof(init_stack) \
 }
 
 #define INIT_TSS  { \
-	.rsp0 = (unsigned long)&init_stack + sizeof(init_stack) \
+	.sp0 = (unsigned long)&init_stack + sizeof(init_stack) \
 }
 
 #define INIT_MMAP \
@@ -293,10 +293,10 @@ extern long kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
  * Return saved PC of a blocked thread.
  * What is this good for? it will be always the scheduler or ret_from_fork.
  */
-#define thread_saved_pc(t) (*(unsigned long *)((t)->thread.rsp - 8))
+#define thread_saved_pc(t) (*(unsigned long *)((t)->thread.sp - 8))
 
 extern unsigned long get_wchan(struct task_struct *p);
-#define task_pt_regs(tsk) ((struct pt_regs *)(tsk)->thread.rsp0 - 1)
+#define task_pt_regs(tsk) ((struct pt_regs *)(tsk)->thread.sp0 - 1)
 #define KSTK_EIP(tsk) (task_pt_regs(tsk)->ip)
 #define KSTK_ESP(tsk) -1 /* sorry. doesn't work for syscall. */
 

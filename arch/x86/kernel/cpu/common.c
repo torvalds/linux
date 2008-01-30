@@ -691,7 +691,7 @@ void __cpuinit cpu_init(void)
 		BUG();
 	enter_lazy_tlb(&init_mm, curr);
 
-	load_esp0(t, thread);
+	load_sp0(t, thread);
 	set_tss_desc(cpu,t);
 	load_TR_desc();
 	load_LDT(&init_mm.context);
