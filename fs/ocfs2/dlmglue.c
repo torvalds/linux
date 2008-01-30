@@ -2459,8 +2459,10 @@ int ocfs2_dlm_init(struct ocfs2_super *osb)
 
 	mlog_entry_void();
 
-	if (ocfs2_mount_local(osb))
+	if (ocfs2_mount_local(osb)) {
+		osb->node_num = 0;
 		goto local;
+	}
 
 	status = ocfs2_dlm_init_debug(osb);
 	if (status < 0) {
@@ -2484,6 +2486,15 @@ int ocfs2_dlm_init(struct ocfs2_super *osb)
 				       &conn);
 	if (status) {
 		mlog_errno(status);
+		goto bail;
+	}
+
+	status = ocfs2_cluster_this_node(&osb->node_num);
+	if (status < 0) {
+		mlog_errno(status);
+		mlog(ML_ERROR,
+		     "could not find this host's node number\n");
+		ocfs2_cluster_disconnect(conn);
 		goto bail;
 	}
 
