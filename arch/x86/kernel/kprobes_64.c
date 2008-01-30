@@ -256,8 +256,21 @@ static void __kprobes set_current_kprobe(struct kprobe *p, struct pt_regs *regs,
 		kcb->kprobe_saved_rflags &= ~IF_MASK;
 }
 
+static __always_inline void clear_btf(void)
+{
+	if (test_thread_flag(TIF_DEBUGCTLMSR))
+		wrmsrl(MSR_IA32_DEBUGCTLMSR, 0);
+}
+
+static __always_inline void restore_btf(void)
+{
+	if (test_thread_flag(TIF_DEBUGCTLMSR))
+		wrmsrl(MSR_IA32_DEBUGCTLMSR, current->thread.debugctlmsr);
+}
+
 static void __kprobes prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
 {
+	clear_btf();
 	regs->eflags |= TF_MASK;
 	regs->eflags &= ~IF_MASK;
 	/*single step inline if the instruction is an int3*/
@@ -527,6 +540,7 @@ static void __kprobes resume_execution(struct kprobe *p,
 
 	regs->rip = orig_rip + (regs->rip - copy_rip);
 no_change:
+	restore_btf();
 
 	return;
 }
