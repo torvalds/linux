@@ -251,7 +251,7 @@ void __init numa_init_array(void)
 
 	rr = first_node(node_online_map);
 	for (i = 0; i < NR_CPUS; i++) {
-		if (cpu_to_node(i) != NUMA_NO_NODE)
+		if (early_cpu_to_node(i) != NUMA_NO_NODE)
 			continue;
 		numa_set_node(i, rr);
 		rr = next_node(rr, node_online_map);
@@ -528,7 +528,8 @@ void __init numa_initmem_init(unsigned long start_pfn, unsigned long end_pfn)
 
 __cpuinit void numa_add_cpu(int cpu)
 {
-	set_bit(cpu, (unsigned long *)&node_to_cpumask_map[cpu_to_node(cpu)]);
+	set_bit(cpu,
+		(unsigned long *)&node_to_cpumask_map[early_cpu_to_node(cpu)]);
 }
 
 void __cpuinit numa_set_node(int cpu, int node)
