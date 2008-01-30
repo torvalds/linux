@@ -3,6 +3,7 @@
  * Thanks to Ben LaHaise for precious feedback.
  */
 #include <linux/highmem.h>
+#include <linux/bootmem.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
@@ -144,13 +145,15 @@ out_unlock:
 }
 
 static int
-__change_page_attr(unsigned long address, struct page *page, pgprot_t prot)
+__change_page_attr(unsigned long address, unsigned long pfn, pgprot_t prot)
 {
 	struct page *kpte_page;
 	int level, err = 0;
 	pte_t *kpte;
 
-	BUG_ON(PageHighMem(page));
+#ifdef CONFIG_X86_32
+	BUG_ON(pfn > max_low_pfn);
+#endif
 
 repeat:
 	kpte = lookup_address(address, &level);
@@ -164,7 +167,7 @@ repeat:
 	prot = check_exec(prot, address);
 
 	if (level == PG_LEVEL_4K) {
-		set_pte_atomic(kpte, mk_pte(page, canon_pgprot(prot)));
+		set_pte_atomic(kpte, pfn_pte(pfn, canon_pgprot(prot)));
 	} else {
 		err = split_large_page(kpte, address);
 		if (!err)
@@ -203,7 +206,7 @@ int change_page_attr_addr(unsigned long address, int numpages, pgprot_t prot)
 		unsigned long pfn = __pa(address) >> PAGE_SHIFT;
 
 		if (!kernel_map || pte_present(pfn_pte(0, prot))) {
-			err = __change_page_attr(address, pfn_to_page(pfn), prot);
+			err = __change_page_attr(address, pfn, prot);
 			if (err)
 				break;
 		}
@@ -219,7 +222,7 @@ int change_page_attr_addr(unsigned long address, int numpages, pgprot_t prot)
 			addr2 = __START_KERNEL_map + __pa(address);
 			/* Make sure the kernel mappings stay executable */
 			prot2 = pte_pgprot(pte_mkexec(pfn_pte(0, prot)));
-			err = __change_page_attr(addr2, pfn_to_page(pfn), prot2);
+			err = __change_page_attr(addr2, pfn, prot2);
 		}
 #endif
 	}
