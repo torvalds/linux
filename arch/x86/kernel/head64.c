@@ -27,7 +27,7 @@ static void __init zap_identity_mappings(void)
 {
 	pgd_t *pgd = pgd_offset_k(0UL);
 	pgd_clear(pgd);
-	__flush_tlb();
+	__flush_tlb_all();
 }
 
 /* Don't add a printk in there. printk relies on the PDA which is not initialized 
