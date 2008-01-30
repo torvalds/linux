@@ -305,7 +305,7 @@ static void pgd_mop_up_pmds(pgd_t *pgdp)
 {
 	int i;
 
-	for(i = 0; i < USER_PTRS_PER_PGD; i++) {
+	for(i = 0; i < UNSHARED_PTRS_PER_PGD; i++) {
 		pgd_t pgd = pgdp[i];
 
 		if (pgd_val(pgd) != 0) {
@@ -325,6 +325,10 @@ static void pgd_mop_up_pmds(pgd_t *pgdp)
  * processor notices the update.  Since this is expensive, and
  * all 4 top-level entries are used almost immediately in a
  * new process's life, we just pre-populate them here.
+ *
+ * Also, if we're in a paravirt environment where the kernel pmd is
+ * not shared between pagetables (!SHARED_KERNEL_PMDS), we allocate
+ * and initialize the kernel pmds here.
  */
 static int pgd_prepopulate_pmd(struct mm_struct *mm, pgd_t *pgd)
 {
@@ -333,13 +337,18 @@ static int pgd_prepopulate_pmd(struct mm_struct *mm, pgd_t *pgd)
 	int i;
 
 	pud = pud_offset(pgd, 0);
- 	for (addr = i = 0; i < USER_PTRS_PER_PGD; i++, pud++, addr += PUD_SIZE) {
+ 	for (addr = i = 0; i < UNSHARED_PTRS_PER_PGD;
+	     i++, pud++, addr += PUD_SIZE) {
 		pmd_t *pmd = pmd_alloc_one(mm, addr);
 
 		if (!pmd) {
 			pgd_mop_up_pmds(pgd);
 			return 0;
 		}
+
+		if (i >= USER_PTRS_PER_PGD)
+			memcpy(pmd, (pmd_t *)pgd_page_vaddr(swapper_pg_dir[i]),
+			       sizeof(pmd_t) * PTRS_PER_PMD);
 
 		pud_populate(mm, pud, pmd);
 	}
@@ -444,4 +453,3 @@ void check_pgt_cache(void)
 {
 	quicklist_trim(0, pgd_dtor, 25, 16);
 }
-
