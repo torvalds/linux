@@ -329,7 +329,7 @@ void __show_regs(struct pt_regs * regs)
 		(int)strcspn(init_utsname()->version, " "),
 		init_utsname()->version);
 	printk("RIP: %04lx:[<%016lx>] ", regs->cs & 0xffff, regs->ip);
-	printk_address(regs->ip, regs->bp);
+	printk_address(regs->ip, 1);
 	printk("RSP: %04lx:%016lx  EFLAGS: %08lx\n", regs->ss, regs->sp,
 		regs->flags);
 	printk("RAX: %016lx RBX: %016lx RCX: %016lx\n",

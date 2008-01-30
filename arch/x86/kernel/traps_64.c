@@ -582,7 +582,7 @@ int __kprobes __die(const char * str, struct pt_regs * regs, long err)
 	add_taint(TAINT_DIE);
 	/* Executive summary in case the oops scrolled away */
 	printk(KERN_ALERT "RIP ");
-	printk_address(regs->ip, regs->bp);
+	printk_address(regs->ip, 1);
 	printk(" RSP <%016lx>\n", regs->sp);
 	if (kexec_should_crash(current))
 		crash_kexec(regs);
