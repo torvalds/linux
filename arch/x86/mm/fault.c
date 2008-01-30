@@ -18,6 +18,8 @@
 #include <linux/tty.h>
 #include <linux/vt_kern.h>		/* For unblank_screen() */
 #include <linux/compiler.h>
+#include <linux/highmem.h>
+#include <linux/bootmem.h>		/* for max_low_pfn */
 #include <linux/vmalloc.h>
 #include <linux/module.h>
 #include <linux/kprobes.h>
@@ -25,6 +27,8 @@
 #include <linux/kdebug.h>
 
 #include <asm/system.h>
+#include <asm/desc.h>
+#include <asm/segment.h>
 #include <asm/pgalloc.h>
 #include <asm/smp.h>
 #include <asm/tlbflush.h>
@@ -88,16 +92,15 @@ static int is_prefetch(struct pt_regs *regs, unsigned long addr,
 	unsigned char *max_instr;
 
 #ifdef CONFIG_X86_32
-	if (unlikely(boot_cpu_data.x86_vendor == X86_VENDOR_AMD &&
-		     boot_cpu_data.x86 >= 6)) {
-		/* Catch an obscure case of prefetch inside an NX page. */
-		if (nx_enabled && (error_code & PF_INSTR))
-			return 0;
-	} else {
+# ifdef CONFIG_X86_PAE
+	/* If it was a exec fault on NX page, ignore */
+	if (nx_enabled && (error_code & PF_INSTR))
 		return 0;
-	}
-#else
-	/* If it was a exec fault ignore */
+# else
+	return 0;
+# endif
+#else /* CONFIG_X86_64 */
+	/* If it was a exec fault on NX page, ignore */
 	if (error_code & PF_INSTR)
 		return 0;
 #endif
