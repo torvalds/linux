@@ -103,15 +103,6 @@ void __init efi_call_phys_epilog(void)
 	local_irq_restore(efi_flags);
 }
 
-/*
- * We need to map the EFI memory map again after init_memory_mapping().
- */
-void __init efi_map_memmap(void)
-{
-	memmap.map = __va(memmap.phys_map);
-	memmap.map_end = memmap.map + (memmap.nr_map * memmap.desc_size);
-}
-
 void __init efi_reserve_bootmem(void)
 {
 	reserve_bootmem_generic((unsigned long)memmap.phys_map,

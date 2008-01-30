@@ -109,18 +109,3 @@ void efi_call_phys_epilog(void)
 
 	local_irq_restore(efi_rt_eflags);
 }
-
-/*
- * We need to map the EFI memory map again after paging_init().
- */
-void __init efi_map_memmap(void)
-{
-	memmap.map = NULL;
-
-	memmap.map = early_ioremap((unsigned long) memmap.phys_map,
-			(memmap.nr_map * memmap.desc_size));
-	if (memmap.map == NULL)
-		printk(KERN_ERR "Could not remap the EFI memmap!\n");
-
-	memmap.map_end = memmap.map + (memmap.nr_map * memmap.desc_size);
-}

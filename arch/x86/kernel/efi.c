@@ -474,6 +474,8 @@ void __init efi_enter_virtual_mode(void)
 	efi.reset_system = virt_efi_reset_system;
 	efi.set_virtual_address_map = virt_efi_set_virtual_address_map;
 	runtime_code_page_mkexec();
+	early_iounmap(memmap.map, memmap.nr_map * memmap.desc_size);
+	memmap.map = NULL;
 }
 
 /*

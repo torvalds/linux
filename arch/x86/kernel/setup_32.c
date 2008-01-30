@@ -808,8 +808,6 @@ void __init setup_arch(char **cmdline_p)
 #ifdef CONFIG_X86_GENERICARCH
 	generic_apic_probe();
 #endif
-	if (efi_enabled)
-		efi_map_memmap();
 
 #ifdef CONFIG_ACPI
 	/*

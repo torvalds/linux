@@ -378,10 +378,8 @@ void __init setup_arch(char **cmdline_p)
        acpi_reserve_bootmem();
 #endif
 
-	if (efi_enabled) {
-		efi_map_memmap();
+	if (efi_enabled)
 		efi_reserve_bootmem();
-	}
 
        /*
 	* Find and reserve possible boot-time SMP configuration:
