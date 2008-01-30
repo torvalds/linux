@@ -52,6 +52,37 @@ static void global_flush_tlb(void)
 	on_each_cpu(flush_kernel_map, NULL, 1, 1);
 }
 
+struct clflush_data {
+	unsigned long addr;
+	int numpages;
+};
+
+static void __cpa_flush_range(void *arg)
+{
+	struct clflush_data *cld = arg;
+
+	/*
+	 * We could optimize that further and do individual per page
+	 * tlb invalidates for a low number of pages. Caveat: we must
+	 * flush the high aliases on 64bit as well.
+	 */
+	__flush_tlb_all();
+
+	clflush_cache_range((void *) cld->addr, cld->numpages * PAGE_SIZE);
+}
+
+static void cpa_flush_range(unsigned long addr, int numpages)
+{
+	struct clflush_data cld;
+
+	BUG_ON(irqs_disabled());
+
+	cld.addr = addr;
+	cld.numpages = numpages;
+
+	on_each_cpu(__cpa_flush_range, &cld, 1, 1);
+}
+
 /*
  * Certain areas of memory on x86 require very specific protection flags,
  * for example the BIOS area or kernel text. Callers don't always get this
@@ -316,7 +347,16 @@ static int change_page_attr_set_clr(unsigned long addr, int numpages,
 	int ret = __change_page_attr_set_clr(addr, numpages, mask_set,
 					     mask_clr);
 
-	global_flush_tlb();
+	/*
+	 * On success we use clflush, when the CPU supports it to
+	 * avoid the wbindv. If the CPU does not support it and in the
+	 * error case we fall back to global_flush_tlb (which uses
+	 * wbindv):
+	 */
+	if (!ret && cpu_has_clflush)
+		cpa_flush_range(addr, numpages);
+	else
+		global_flush_tlb();
 
 	return ret;
 }
