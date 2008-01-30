@@ -787,6 +787,8 @@ static int ptrace_bts_status(struct task_struct *child,
 			cfg.flags |= PTRACE_BTS_O_SCHED;
 	}
 
+	cfg.bts_size = sizeof(struct bts_struct);
+
 	if (copy_to_user(ucfg, &cfg, sizeof(cfg)))
 		return -EFAULT;
 

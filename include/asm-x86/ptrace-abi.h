@@ -81,16 +81,21 @@
 #define PTRACE_SINGLEBLOCK	33	/* resume execution until next branch */
 
 #ifndef __ASSEMBLY__
+
+#include <asm/types.h>
+
 /* configuration/status structure used in PTRACE_BTS_CONFIG and
    PTRACE_BTS_STATUS commands.
 */
 struct ptrace_bts_config {
 	/* requested or actual size of BTS buffer in bytes */
-	unsigned int size;
+	u32 size;
 	/* bitmask of below flags */
-	unsigned int flags;
+	u32 flags;
 	/* buffer overflow signal */
-	unsigned int signal;
+	u32 signal;
+	/* actual size of bts_struct in bytes */
+	u32 bts_size;
 };
 #endif
 
