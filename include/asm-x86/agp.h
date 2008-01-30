@@ -12,13 +12,9 @@
  * page. This avoids data corruption on some CPUs.
  */
 
-/*
- * Caller's responsibility to call global_flush_tlb() for performance
- * reasons
- */
 #define map_page_into_agp(page) set_pages_uc(page, 1)
 #define unmap_page_from_agp(page) set_pages_wb(page, 1)
-#define flush_agp_mappings() global_flush_tlb()
+#define flush_agp_mappings() do { } while (0)
 
 /*
  * Could use CLFLUSH here if the cpu supports it. But then it would

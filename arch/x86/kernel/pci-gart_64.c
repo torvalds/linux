@@ -572,7 +572,6 @@ static __init int init_k8_gatt(struct agp_kern_info *info)
 		panic("Cannot allocate GATT table");
 	if (set_memory_uc((unsigned long)gatt, gatt_size >> PAGE_SHIFT))
 		panic("Could not set GART PTEs to uncacheable pages");
-	global_flush_tlb();
 
 	memset(gatt, 0, gatt_size);
 	agp_gatt_table = gatt;

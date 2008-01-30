@@ -124,13 +124,8 @@ static int vmlfb_alloc_vram_area(struct vram_area *va, unsigned max_order,
 	/*
 	 * Change caching policy of the linear kernel map to avoid
 	 * mapping type conflicts with user-space mappings.
-	 * The first global_flush_tlb() is really only there to do a global
-	 * wbinvd().
 	 */
-
-	global_flush_tlb();
 	set_pages_uc(virt_to_page(va->logical), va->size >> PAGE_SHIFT);
-	global_flush_tlb();
 
 	printk(KERN_DEBUG MODULE_NAME
 	       ": Allocated %ld bytes vram area at 0x%08lx\n",
@@ -156,7 +151,6 @@ static void vmlfb_free_vram_area(struct vram_area *va)
 
 		set_pages_wb(virt_to_page(va->logical),
 				 va->size >> PAGE_SHIFT);
-		global_flush_tlb();
 
 		/*
 		 * Decrease the usage count on the pages we've used

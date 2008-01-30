@@ -610,22 +610,12 @@ void mark_rodata_ro(void)
 	printk(KERN_INFO "Write protecting the kernel read-only data: %luk\n",
 	       (end - start) >> 10);
 
-	/*
-	 * set_memory_*() requires a global_flush_tlb() call after it.
-	 * We do this after the printk so that if something went wrong in the
-	 * change, the printk gets out at least to give a better debug hint
-	 * of who is the culprit.
-	 */
-	global_flush_tlb();
-
 #ifdef CONFIG_CPA_DEBUG
 	printk("Testing CPA: undo %lx-%lx\n", start, end);
 	set_memory_rw(start, (end-start) >> PAGE_SHIFT);
-	global_flush_tlb();
 
 	printk("Testing CPA: again\n");
 	set_memory_ro(start, (end-start) >> PAGE_SHIFT);
-	global_flush_tlb();
 #endif
 }
 #endif

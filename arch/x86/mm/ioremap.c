@@ -96,8 +96,6 @@ static int ioremap_change_attr(unsigned long paddr, unsigned long size,
 		err = set_memory_wb(vaddr, nrpages);
 		break;
 	}
-	if (!err)
-		global_flush_tlb();
 
 	return err;
 }

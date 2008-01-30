@@ -715,7 +715,6 @@ static void fill_nocache(void *buf, int size, int nocache)
 		set_pages_uc(virt_to_page(buf), size);
 	else
 		set_pages_wb(virt_to_page(buf), size);
-	global_flush_tlb();
 }
 #else
 #define fill_nocache(buf, size, nocache) do { ; } while (0)

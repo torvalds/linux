@@ -23,6 +23,36 @@ within(unsigned long addr, unsigned long start, unsigned long end)
 }
 
 /*
+ * Flushing functions
+ */
+void clflush_cache_range(void *addr, int size)
+{
+	int i;
+
+	for (i = 0; i < size; i += boot_cpu_data.x86_clflush_size)
+		clflush(addr+i);
+}
+
+static void flush_kernel_map(void *arg)
+{
+	/*
+	 * Flush all to work around Errata in early athlons regarding
+	 * large page flushing.
+	 */
+	__flush_tlb_all();
+
+	if (boot_cpu_data.x86_model >= 4)
+		wbinvd();
+}
+
+static void global_flush_tlb(void)
+{
+	BUG_ON(irqs_disabled());
+
+	on_each_cpu(flush_kernel_map, NULL, 1, 1);
+}
+
+/*
  * Certain areas of memory on x86 require very specific protection flags,
  * for example the BIOS area or kernel text. Callers don't always get this
  * right (again, ioremap() on BIOS memory is not uncommon) so this function
@@ -328,149 +358,124 @@ static int change_page_attr_clear(unsigned long addr, int numpages,
 
 int set_memory_uc(unsigned long addr, int numpages)
 {
-	pgprot_t uncached;
+	int err;
 
-	pgprot_val(uncached) = _PAGE_PCD | _PAGE_PWT;
-	return change_page_attr_set(addr, numpages, uncached);
+	err = change_page_attr_set(addr, numpages,
+				__pgprot(_PAGE_PCD | _PAGE_PWT));
+	global_flush_tlb();
+	return err;
 }
 EXPORT_SYMBOL(set_memory_uc);
 
 int set_memory_wb(unsigned long addr, int numpages)
 {
-	pgprot_t uncached;
+	int err;
 
-	pgprot_val(uncached) = _PAGE_PCD | _PAGE_PWT;
-	return change_page_attr_clear(addr, numpages, uncached);
+	err = change_page_attr_clear(addr, numpages,
+				__pgprot(_PAGE_PCD | _PAGE_PWT));
+	global_flush_tlb();
+	return err;
 }
 EXPORT_SYMBOL(set_memory_wb);
 
 int set_memory_x(unsigned long addr, int numpages)
 {
-	pgprot_t nx;
+	int err;
 
-	pgprot_val(nx) = _PAGE_NX;
-	return change_page_attr_clear(addr, numpages, nx);
+	err = change_page_attr_clear(addr, numpages,
+				__pgprot(_PAGE_NX));
+	global_flush_tlb();
+	return err;
 }
 EXPORT_SYMBOL(set_memory_x);
 
 int set_memory_nx(unsigned long addr, int numpages)
 {
-	pgprot_t nx;
+	int err;
 
-	pgprot_val(nx) = _PAGE_NX;
-	return change_page_attr_set(addr, numpages, nx);
+	err = change_page_attr_set(addr, numpages,
+				__pgprot(_PAGE_NX));
+	global_flush_tlb();
+	return err;
 }
 EXPORT_SYMBOL(set_memory_nx);
 
 int set_memory_ro(unsigned long addr, int numpages)
 {
-	pgprot_t rw;
+	int err;
 
-	pgprot_val(rw) = _PAGE_RW;
-	return change_page_attr_clear(addr, numpages, rw);
+	err = change_page_attr_clear(addr, numpages,
+				__pgprot(_PAGE_RW));
+	global_flush_tlb();
+	return err;
 }
 
 int set_memory_rw(unsigned long addr, int numpages)
 {
-	pgprot_t rw;
+	int err;
 
-	pgprot_val(rw) = _PAGE_RW;
-	return change_page_attr_set(addr, numpages, rw);
+	err = change_page_attr_set(addr, numpages,
+				__pgprot(_PAGE_RW));
+	global_flush_tlb();
+	return err;
 }
 
 int set_memory_np(unsigned long addr, int numpages)
 {
-	pgprot_t present;
+	int err;
 
-	pgprot_val(present) = _PAGE_PRESENT;
-	return change_page_attr_clear(addr, numpages, present);
+	err = change_page_attr_clear(addr, numpages,
+				__pgprot(_PAGE_PRESENT));
+	global_flush_tlb();
+	return err;
 }
 
 int set_pages_uc(struct page *page, int numpages)
 {
 	unsigned long addr = (unsigned long)page_address(page);
-	pgprot_t uncached;
 
-	pgprot_val(uncached) = _PAGE_PCD | _PAGE_PWT;
-	return change_page_attr_set(addr, numpages, uncached);
+	return set_memory_uc(addr, numpages);
 }
 EXPORT_SYMBOL(set_pages_uc);
 
 int set_pages_wb(struct page *page, int numpages)
 {
 	unsigned long addr = (unsigned long)page_address(page);
-	pgprot_t uncached;
 
-	pgprot_val(uncached) = _PAGE_PCD | _PAGE_PWT;
-	return change_page_attr_clear(addr, numpages, uncached);
+	return set_memory_wb(addr, numpages);
 }
 EXPORT_SYMBOL(set_pages_wb);
 
 int set_pages_x(struct page *page, int numpages)
 {
 	unsigned long addr = (unsigned long)page_address(page);
-	pgprot_t nx;
 
-	pgprot_val(nx) = _PAGE_NX;
-	return change_page_attr_clear(addr, numpages, nx);
+	return set_memory_x(addr, numpages);
 }
 EXPORT_SYMBOL(set_pages_x);
 
 int set_pages_nx(struct page *page, int numpages)
 {
 	unsigned long addr = (unsigned long)page_address(page);
-	pgprot_t nx;
 
-	pgprot_val(nx) = _PAGE_NX;
-	return change_page_attr_set(addr, numpages, nx);
+	return set_memory_nx(addr, numpages);
 }
 EXPORT_SYMBOL(set_pages_nx);
 
 int set_pages_ro(struct page *page, int numpages)
 {
 	unsigned long addr = (unsigned long)page_address(page);
-	pgprot_t rw;
 
-	pgprot_val(rw) = _PAGE_RW;
-	return change_page_attr_clear(addr, numpages, rw);
+	return set_memory_ro(addr, numpages);
 }
 
 int set_pages_rw(struct page *page, int numpages)
 {
 	unsigned long addr = (unsigned long)page_address(page);
-	pgprot_t rw;
 
-	pgprot_val(rw) = _PAGE_RW;
-	return change_page_attr_set(addr, numpages, rw);
+	return set_memory_rw(addr, numpages);
 }
 
-void clflush_cache_range(void *addr, int size)
-{
-	int i;
-
-	for (i = 0; i < size; i += boot_cpu_data.x86_clflush_size)
-		clflush(addr+i);
-}
-
-static void flush_kernel_map(void *arg)
-{
-	/*
-	 * Flush all to work around Errata in early athlons regarding
-	 * large page flushing.
-	 */
-	__flush_tlb_all();
-
-	if (boot_cpu_data.x86_model >= 4)
-		wbinvd();
-}
-
-void global_flush_tlb(void)
-{
-	BUG_ON(irqs_disabled());
-
-	on_each_cpu(flush_kernel_map, NULL, 1, 1);
-}
-EXPORT_SYMBOL(global_flush_tlb);
 
 #ifdef CONFIG_DEBUG_PAGEALLOC
 

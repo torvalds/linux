@@ -752,15 +752,11 @@ void mark_rodata_ro(void)
 		printk("Write protecting the kernel text: %luk\n", size >> 10);
 
 #ifdef CONFIG_CPA_DEBUG
-		global_flush_tlb();
-
 		printk("Testing CPA: Reverting %lx-%lx\n", start, start+size);
 		set_pages_rw(virt_to_page(start), size>>PAGE_SHIFT);
-		global_flush_tlb();
 
 		printk("Testing CPA: write protecting again\n");
 		set_pages_ro(virt_to_page(start), size>>PAGE_SHIFT);
-		global_flush_tlb();
 #endif
 	}
 #endif
@@ -770,22 +766,12 @@ void mark_rodata_ro(void)
 	printk("Write protecting the kernel read-only data: %luk\n",
 	       size >> 10);
 
-	/*
-	 * set_pages_*() requires a global_flush_tlb() call after it.
-	 * We do this after the printk so that if something went wrong in the
-	 * change, the printk gets out at least to give a better debug hint
-	 * of who is the culprit.
-	 */
-	global_flush_tlb();
-
 #ifdef CONFIG_CPA_DEBUG
 	printk("Testing CPA: undo %lx-%lx\n", start, start + size);
 	set_pages_rw(virt_to_page(start), size >> PAGE_SHIFT);
-	global_flush_tlb();
 
 	printk("Testing CPA: write protecting again\n");
 	set_pages_ro(virt_to_page(start), size >> PAGE_SHIFT);
-	global_flush_tlb();
 #endif
 }
 #endif

@@ -24,7 +24,6 @@
 #define copy_from_user_page(vma, page, vaddr, dst, src, len) \
 	memcpy(dst, src, len)
 
-void global_flush_tlb(void);
 int __deprecated_for_modules change_page_attr(struct page *page, int numpages,
 								pgprot_t prot);
 
