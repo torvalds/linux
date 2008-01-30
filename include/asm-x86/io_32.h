@@ -111,18 +111,27 @@ extern void __iomem * __ioremap(unsigned long offset, unsigned long size, unsign
  * make bus memory CPU accessible via the readb/readw/readl/writeb/
  * writew/writel functions and the other mmio helpers. The returned
  * address is not guaranteed to be usable directly as a virtual
- * address. 
+ * address.
  *
  * If the area you are trying to map is a PCI BAR you should have a
  * look at pci_iomap().
  */
+extern void __iomem * ioremap_nocache(unsigned long offset, unsigned long size);
 
-static inline void __iomem * ioremap(unsigned long offset, unsigned long size)
+static inline void __iomem *
+ioremap_cache(unsigned long offset, unsigned long size)
 {
 	return __ioremap(offset, size, 0);
 }
 
-extern void __iomem * ioremap_nocache(unsigned long offset, unsigned long size);
+/*
+ * The default ioremap() behavior is non-cached:
+ */
+static inline void __iomem * ioremap(unsigned long offset, unsigned long size)
+{
+	return ioremap_nocache(offset, size);
+}
+
 extern void iounmap(volatile void __iomem *addr);
 
 /*

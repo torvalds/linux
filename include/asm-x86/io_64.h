@@ -152,11 +152,6 @@ static inline void * phys_to_virt(unsigned long address)
 
 extern void __iomem *__ioremap(unsigned long offset, unsigned long size, unsigned long flags);
 
-static inline void __iomem * ioremap (unsigned long offset, unsigned long size)
-{
-	return __ioremap(offset, size, 0);
-}
-
 extern void *early_ioremap(unsigned long addr, unsigned long size);
 extern void early_iounmap(void *addr, unsigned long size);
 
@@ -165,8 +160,24 @@ extern void early_iounmap(void *addr, unsigned long size);
  * it's useful if some control registers are in such an area and write combining
  * or read caching is not desirable:
  */
-extern void __iomem * ioremap_nocache (unsigned long offset, unsigned long size);
+extern void __iomem * ioremap_nocache(unsigned long offset, unsigned long size);
+
+static inline void __iomem *
+ioremap_cache(unsigned long offset, unsigned long size)
+{
+	return __ioremap(offset, size, 0);
+}
+
+/*
+ * The default ioremap() behavior is non-cached:
+ */
+static inline void __iomem * ioremap(unsigned long offset, unsigned long size)
+{
+	return ioremap_cache(offset, size);
+}
+
 extern void iounmap(volatile void __iomem *addr);
+
 extern void __iomem *fix_ioremap(unsigned idx, unsigned long phys);
 
 /*
