@@ -523,6 +523,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
 void dump_thread(struct pt_regs * regs, struct user * dump)
 {
 	int i;
+	u16 gs;
 
 /* changed the size calculations - should hopefully work better. lbt */
 	dump->magic = CMAGIC;
@@ -538,23 +539,23 @@ void dump_thread(struct pt_regs * regs, struct user * dump)
 	if (dump->start_stack < TASK_SIZE)
 		dump->u_ssize = ((unsigned long) (TASK_SIZE - dump->start_stack)) >> PAGE_SHIFT;
 
-	dump->regs.ebx = regs->bx;
-	dump->regs.ecx = regs->cx;
-	dump->regs.edx = regs->dx;
-	dump->regs.esi = regs->si;
-	dump->regs.edi = regs->di;
-	dump->regs.ebp = regs->bp;
-	dump->regs.eax = regs->ax;
-	dump->regs.ds = regs->ds;
-	dump->regs.es = regs->es;
-	dump->regs.fs = regs->fs;
-	savesegment(gs,dump->regs.gs);
-	dump->regs.orig_eax = regs->orig_ax;
-	dump->regs.eip = regs->ip;
-	dump->regs.cs = regs->cs;
-	dump->regs.eflags = regs->flags;
-	dump->regs.esp = regs->sp;
-	dump->regs.ss = regs->ss;
+	dump->regs.bx = regs->bx;
+	dump->regs.cx = regs->cx;
+	dump->regs.dx = regs->dx;
+	dump->regs.si = regs->si;
+	dump->regs.di = regs->di;
+	dump->regs.bp = regs->bp;
+	dump->regs.ax = regs->ax;
+	dump->regs.ds = (u16)regs->ds;
+	dump->regs.es = (u16)regs->es;
+	dump->regs.fs = (u16)regs->fs;
+	savesegment(gs,gs);
+	dump->regs.orig_ax = regs->orig_ax;
+	dump->regs.ip = regs->ip;
+	dump->regs.cs = (u16)regs->cs;
+	dump->regs.flags = regs->flags;
+	dump->regs.sp = regs->sp;
+	dump->regs.ss = (u16)regs->ss;
 
 	dump->u_fpvalid = dump_fpu (regs, &dump->i387);
 }

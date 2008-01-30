@@ -108,7 +108,7 @@ static int putreg(struct task_struct *child,
 			if (child->thread.gs != value)
 				return do_arch_prctl(child, ARCH_SET_GS, value);
 			return 0;
-		case offsetof(struct user_regs_struct, eflags):
+		case offsetof(struct user_regs_struct,flags):
 			value &= FLAG_MASK;
 			/*
 			 * If the user value contains TF, mark that
@@ -164,7 +164,7 @@ static unsigned long getreg(struct task_struct *child, unsigned long regno)
 			if (child->thread.gsindex != GS_TLS_SEL)
 				return 0;
 			return get_desc_base(&child->thread.tls_array[GS_TLS]);
-		case offsetof(struct user_regs_struct, eflags):
+		case offsetof(struct user_regs_struct, flags):
 			/*
 			 * If the debugger set TF, hide it from the readout.
 			 */
