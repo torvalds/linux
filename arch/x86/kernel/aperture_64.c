@@ -85,16 +85,16 @@ static int __init aperture_valid(u64 aper_base, u32 aper_size)
 	if (!aper_base)
 		return 0;
 
-	if (aper_size < 64*1024*1024) {
-		printk(KERN_ERR "Aperture too small (%d MB)\n", aper_size>>20);
-		return 0;
-	}
 	if (aper_base + aper_size > 0x100000000UL) {
 		printk(KERN_ERR "Aperture beyond 4GB. Ignoring.\n");
 		return 0;
 	}
 	if (e820_any_mapped(aper_base, aper_base + aper_size, E820_RAM)) {
 		printk(KERN_ERR "Aperture pointing to e820 RAM. Ignoring.\n");
+		return 0;
+	}
+	if (aper_size < 64*1024*1024) {
+		printk(KERN_ERR "Aperture too small (%d MB)\n", aper_size>>20);
 		return 0;
 	}
 
