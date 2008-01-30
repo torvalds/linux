@@ -24,8 +24,6 @@ static int tsc_enabled;
 unsigned int tsc_khz;
 EXPORT_SYMBOL_GPL(tsc_khz);
 
-int tsc_disable;
-
 #ifdef CONFIG_X86_TSC
 static int __init tsc_setup(char *str)
 {
@@ -40,8 +38,7 @@ static int __init tsc_setup(char *str)
  */
 static int __init tsc_setup(char *str)
 {
-	tsc_disable = 1;
-
+	setup_clear_cpu_cap(X86_FEATURE_TSC);
 	return 1;
 }
 #endif
@@ -395,7 +392,7 @@ void __init tsc_init(void)
 {
 	int cpu;
 
-	if (!cpu_has_tsc || tsc_disable)
+	if (!cpu_has_tsc)
 		goto out_no_tsc;
 
 	cpu_khz = calculate_cpu_khz();
@@ -439,10 +436,5 @@ void __init tsc_init(void)
 	return;
 
 out_no_tsc:
-	/*
-	 * Set the tsc_disable flag if there's no TSC support, this
-	 * makes it a fast flag for the kernel to see whether it
-	 * should be using the TSC.
-	 */
-	tsc_disable = 1;
+	setup_clear_cpu_cap(X86_FEATURE_TSC);
 }

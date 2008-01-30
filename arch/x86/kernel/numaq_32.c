@@ -82,7 +82,7 @@ static int __init numaq_tsc_disable(void)
 {
 	if (num_online_nodes() > 1) {
 		printk(KERN_DEBUG "NUMAQ: disabling TSC\n");
-		tsc_disable = 1;
+		setup_clear_cpu_cap(X86_FEATURE_TSC);
 	}
 	return 0;
 }

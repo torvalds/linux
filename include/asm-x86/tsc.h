@@ -16,8 +16,6 @@ typedef unsigned long long cycles_t;
 
 extern unsigned int cpu_khz;
 extern unsigned int tsc_khz;
-/* flag for disabling the tsc */
-extern int tsc_disable;
 
 extern void disable_TSC(void);
 

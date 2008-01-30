@@ -154,7 +154,7 @@ static void __init check_config(void)
  * If we configured ourselves for a TSC, we'd better have one!
  */
 #ifdef CONFIG_X86_TSC
-	if (!cpu_has_tsc && !tsc_disable)
+	if (!cpu_has_tsc)
 		panic("Kernel compiled for Pentium+, requires TSC feature!");
 #endif
 

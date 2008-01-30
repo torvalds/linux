@@ -446,10 +446,6 @@ void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 	 * we do "generic changes."
 	 */
 
-	/* TSC disabled? */
-	if ( tsc_disable )
-		clear_bit(X86_FEATURE_TSC, c->x86_capability);
-
 	/* If the model name is still unset, do table lookup. */
 	if ( !c->x86_model_id[0] ) {
 		char *p;
@@ -650,11 +646,6 @@ void __cpuinit cpu_init(void)
 
 	if (cpu_has_vme || cpu_has_tsc || cpu_has_de)
 		clear_in_cr4(X86_CR4_VME|X86_CR4_PVI|X86_CR4_TSD|X86_CR4_DE);
-	if (tsc_disable && cpu_has_tsc) {
-		printk(KERN_NOTICE "Disabling TSC...\n");
-		/**** FIX-HPA: DOES THIS REALLY BELONG HERE? ****/
-		clear_bit(X86_FEATURE_TSC, boot_cpu_data.x86_capability);
-	}
 
 	load_idt(&idt_descr);
 	switch_to_new_gdt();
