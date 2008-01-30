@@ -85,10 +85,10 @@ __setup("noexec32=", nonx32_setup);
 
 /*
  * Copy data used in early init routines from the initial arrays to the
- * per cpu data areas.  These arrays then become expendable and the *_ptrs
- * are zeroed indicating that the static arrays are gone.
+ * per cpu data areas.  These arrays then become expendable and the
+ * *_early_ptr's are zeroed indicating that the static arrays are gone.
  */
-void __init setup_percpu_maps(void)
+static void __init setup_per_cpu_maps(void)
 {
 	int cpu;
 
@@ -98,6 +98,8 @@ void __init setup_percpu_maps(void)
 #endif
 			per_cpu(x86_cpu_to_apicid, cpu) =
 						x86_cpu_to_apicid_init[cpu];
+			per_cpu(x86_bios_cpu_apicid, cpu) =
+						x86_bios_cpu_apicid_init[cpu];
 #ifdef CONFIG_NUMA
 			per_cpu(x86_cpu_to_node_map, cpu) =
 						x86_cpu_to_node_map_init[cpu];
@@ -110,8 +112,9 @@ void __init setup_percpu_maps(void)
 #endif
 	}
 
-	/* indicate the early static arrays are gone */
+	/* indicate the early static arrays will soon be gone */
 	x86_cpu_to_apicid_early_ptr = NULL;
+	x86_bios_cpu_apicid_early_ptr = NULL;
 #ifdef CONFIG_NUMA
 	x86_cpu_to_node_map_early_ptr = NULL;
 #endif
@@ -152,7 +155,7 @@ void __init setup_per_cpu_areas(void)
 	}
 
 	/* setup percpu data maps early */
-	setup_percpu_maps();
+	setup_per_cpu_maps();
 } 
 
 void pda_init(int cpu)

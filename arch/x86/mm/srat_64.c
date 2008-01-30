@@ -397,7 +397,7 @@ int __init acpi_scan_nodes(unsigned long start, unsigned long end)
 static int fake_node_to_pxm_map[MAX_NUMNODES] __initdata = {
 	[0 ... MAX_NUMNODES-1] = PXM_INVAL
 };
-static u16 fake_apicid_to_node[MAX_LOCAL_APIC] __initdata = {
+static s16 fake_apicid_to_node[MAX_LOCAL_APIC] __initdata = {
 	[0 ... MAX_LOCAL_APIC-1] = NUMA_NO_NODE
 };
 static int __init find_node_by_addr(unsigned long addr)
