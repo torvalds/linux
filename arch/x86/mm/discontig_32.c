@@ -268,6 +268,7 @@ unsigned long __init setup_memory(void)
 {
 	int nid;
 	unsigned long system_start_pfn, system_max_low_pfn;
+	unsigned long wasted_pages;
 
 	/*
 	 * When mapping a NUMA machine we allocate the node_mem_map arrays
@@ -292,7 +293,14 @@ unsigned long __init setup_memory(void)
 		kva_start_pfn = PFN_DOWN(initrd_start - PAGE_OFFSET)
 			- kva_pages;
 #endif
-	kva_start_pfn -= kva_start_pfn & (PTRS_PER_PTE-1);
+
+	/*
+	 * We waste pages past at the end of the KVA for no good reason other
+	 * than how it is located. This is bad.
+	 */
+	wasted_pages = kva_start_pfn & (PTRS_PER_PTE-1);
+	kva_start_pfn -= wasted_pages;
+	kva_pages += wasted_pages;
 
 	system_max_low_pfn = max_low_pfn = find_max_low_pfn();
 	printk("kva_start_pfn ~ %ld find_max_low_pfn() ~ %ld\n",
@@ -345,7 +353,8 @@ unsigned long __init setup_memory(void)
 
 void __init numa_kva_reserve(void)
 {
-	reserve_bootmem(PFN_PHYS(kva_start_pfn),PFN_PHYS(kva_pages));
+	if (kva_pages)
+		reserve_bootmem(PFN_PHYS(kva_start_pfn), PFN_PHYS(kva_pages));
 }
 
 void __init zone_sizes_init(void)
