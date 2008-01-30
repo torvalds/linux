@@ -84,7 +84,6 @@ static int is_prefetch(struct pt_regs *regs, unsigned long addr,
 	unsigned char *max_instr;
 
 #ifdef CONFIG_X86_32
-	unsigned long limit;
 	if (unlikely(boot_cpu_data.x86_vendor == X86_VENDOR_AMD &&
 		     boot_cpu_data.x86 >= 6)) {
 		/* Catch an obscure case of prefetch inside an NX page. */
@@ -93,30 +92,23 @@ static int is_prefetch(struct pt_regs *regs, unsigned long addr,
 	} else {
 		return 0;
 	}
-	instr = (unsigned char *)get_segment_eip(regs, &limit);
 #else
 	/* If it was a exec fault ignore */
 	if (error_code & PF_INSTR)
 		return 0;
-	instr = (unsigned char __user *)convert_ip_to_linear(current, regs);
 #endif
 
+	instr = (unsigned char *)convert_ip_to_linear(current, regs);
 	max_instr = instr + 15;
 
-#ifdef CONFIG_X86_64
 	if (user_mode(regs) && instr >= (unsigned char *)TASK_SIZE)
 		return 0;
-#endif
 
 	while (scan_more && instr < max_instr) {
 		unsigned char opcode;
 		unsigned char instr_hi;
 		unsigned char instr_lo;
 
-#ifdef CONFIG_X86_32
-		if (instr > (unsigned char *)limit)
-			break;
-#endif
 		if (probe_kernel_address(instr, opcode))
 			break;
 
@@ -158,10 +150,7 @@ static int is_prefetch(struct pt_regs *regs, unsigned long addr,
 		case 0x00:
 			/* Prefetch instruction is 0x0F0D or 0x0F18 */
 			scan_more = 0;
-#ifdef CONFIG_X86_32
-			if (instr > (unsigned char *)limit)
-				break;
-#endif
+
 			if (probe_kernel_address(instr, opcode))
 				break;
 			prefetch = (instr_lo == 0xF) &&

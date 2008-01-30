@@ -70,6 +70,10 @@ struct pt_regs {
 #include <asm/segment.h>
 
 struct task_struct;
+
+extern unsigned long
+convert_ip_to_linear(struct task_struct *child, struct pt_regs *regs);
+
 extern void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs, int error_code);
 
 /*
@@ -183,8 +187,6 @@ convert_ip_to_linear(struct task_struct *child, struct pt_regs *regs);
 #endif /* !__i386__ */
 
 #ifdef __KERNEL__
-
-unsigned long get_segment_eip(struct pt_regs *regs, unsigned long *eip_limit);
 
 /*
  * These are defined as per linux/ptrace.h, which see.
