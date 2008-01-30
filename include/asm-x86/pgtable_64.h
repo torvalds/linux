@@ -25,6 +25,8 @@ extern void clear_kernel_mapping(unsigned long addr, unsigned long size);
 
 #endif /* !__ASSEMBLY__ */
 
+#define SHARED_KERNEL_PMD	1
+
 /*
  * PGDIR_SHIFT determines what a top-level page table entry can map
  */

@@ -2,7 +2,6 @@
  * Copyright 2002 Andi Kleen, SuSE Labs.
  * Thanks to Ben LaHaise for precious feedback.
  */
-
 #include <linux/highmem.h>
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -50,9 +49,7 @@ static void __set_pmd_pte(pte_t *kpte, unsigned long address, pte_t pte)
 	/* change init_mm */
 	set_pte_atomic(kpte, pte);
 #ifdef CONFIG_X86_32
-	if (SHARED_KERNEL_PMD)
-		return;
-	{
+	if (!SHARED_KERNEL_PMD) {
 		struct page *page;
 
 		for (page = pgd_list; page; page = (struct page *)page->index) {
@@ -277,14 +274,14 @@ void kernel_map_pages(struct page *page, int numpages, int enable)
 		return;
 
 	/*
-	 * the return value is ignored - the calls cannot fail,
-	 * large pages are disabled at boot time.
+	 * The return value is ignored - the calls cannot fail,
+	 * large pages are disabled at boot time:
 	 */
 	change_page_attr(page, numpages, enable ? PAGE_KERNEL : __pgprot(0));
 
 	/*
-	 * we should perform an IPI and flush all tlbs,
-	 * but that can deadlock->flush only current cpu.
+	 * We should perform an IPI and flush all tlbs,
+	 * but that can deadlock->flush only current cpu:
 	 */
 	__flush_tlb_all();
 }
