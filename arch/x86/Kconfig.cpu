@@ -321,8 +321,17 @@ config X86_XADD
 	depends on X86_32 && !M386
 
 config X86_PPRO_FENCE
-	def_bool y
+	bool "PentiumPro memory ordering errata workaround"
 	depends on M686 || M586MMX || M586TSC || M586 || M486 || M386 || MGEODEGX1
+	help
+	  Old PentiumPro multiprocessor systems had errata that could cause memory
+	  operations to violate the x86 ordering standard in rare cases. Enabling this
+	  option will attempt to work around some (but not all) occurances of
+	  this problem, at the cost of much heavier spinlock and memory barrier
+	  operations.
+
+	  If unsure, say n here. Even distro kernels should think twice before enabling
+	  this: there are few systems, and an unlikely bug.
 
 config X86_F00F_BUG
 	def_bool y
