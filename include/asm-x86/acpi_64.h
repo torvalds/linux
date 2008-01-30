@@ -24,8 +24,6 @@
 #ifndef _ASM_ACPI_H
 #define _ASM_ACPI_H
 
-#ifdef __KERNEL__
-
 #include <acpi/pdc_intel.h>
 #include <asm/numa.h>
 
@@ -66,17 +64,17 @@ int __acpi_release_global_lock(unsigned int *lock);
  * Math helper asm macros
  */
 #define ACPI_DIV_64_BY_32(n_hi, n_lo, d32, q32, r32) \
-        asm("divl %2;"        \
-        :"=a"(q32), "=d"(r32) \
-        :"r"(d32),            \
-        "0"(n_lo), "1"(n_hi))
+	asm("divl %2;"				     \
+	    :"=a"(q32), "=d"(r32)		     \
+	    :"r"(d32),				     \
+	     "0"(n_lo), "1"(n_hi))
 
 
 #define ACPI_SHIFT_RIGHT_64(n_hi, n_lo) \
-    asm("shrl   $1,%2;"             \
-        "rcrl   $1,%3;"             \
-        :"=r"(n_hi), "=r"(n_lo)     \
-        :"0"(n_hi), "1"(n_lo))
+	asm("shrl   $1,%2	;"	\
+	    "rcrl   $1,%3;"		\
+	    :"=r"(n_hi), "=r"(n_lo)	\
+	    :"0"(n_hi), "1"(n_lo))
 
 #ifdef CONFIG_ACPI
 extern int acpi_lapic;
@@ -84,8 +82,11 @@ extern int acpi_ioapic;
 extern int acpi_noirq;
 extern int acpi_strict;
 extern int acpi_disabled;
-extern int acpi_pci_disabled;
 extern int acpi_ht;
+extern int acpi_pci_disabled;
+extern int acpi_skip_timer_override;
+extern int acpi_use_timer_override;
+
 static inline void disable_acpi(void)
 {
 	acpi_disabled = 1;
@@ -98,6 +99,7 @@ static inline void disable_acpi(void)
 #define FIX_ACPI_PAGES 4
 
 extern int acpi_gsi_to_irq(u32 gsi, unsigned int *irq);
+
 static inline void acpi_noirq_set(void) { acpi_noirq = 1; }
 static inline void acpi_disable_pci(void)
 {
@@ -115,7 +117,7 @@ extern unsigned long acpi_wakeup_address;
 /* early initialization routine */
 extern void acpi_reserve_bootmem(void);
 
-#else	/* !CONFIG_ACPI */
+#else /* !CONFIG_ACPI */
 
 #define acpi_lapic 0
 #define acpi_ioapic 0
@@ -124,19 +126,12 @@ static inline void acpi_disable_pci(void) { }
 
 #endif /* !CONFIG_ACPI */
 
+#define ARCH_HAS_POWER_INIT	1
+
+#ifdef CONFIG_ACPI_NUMA
 extern int acpi_numa;
 extern int acpi_scan_nodes(unsigned long start, unsigned long end);
 #define NR_NODE_MEMBLKS (MAX_NUMNODES*2)
-
-extern int acpi_disabled;
-extern int acpi_pci_disabled;
-
-#define ARCH_HAS_POWER_INIT 1
-
-extern int acpi_skip_timer_override;
-extern int acpi_use_timer_override;
-
-#ifdef CONFIG_ACPI_NUMA
 extern void __init acpi_fake_nodes(const struct bootnode *fake_nodes,
 				   int num_nodes);
 #else
@@ -145,7 +140,5 @@ static inline void acpi_fake_nodes(const struct bootnode *fake_nodes,
 {
 }
 #endif
-
-#endif /*__KERNEL__*/
 
 #endif /*_ASM_ACPI_H*/
