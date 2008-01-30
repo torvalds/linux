@@ -216,8 +216,12 @@ repeat:
 	prot = static_protections(prot, address);
 
 	if (level == PG_LEVEL_4K) {
+		WARN_ON_ONCE(pgprot_val(prot) & _PAGE_PSE);
 		set_pte_atomic(kpte, pfn_pte(pfn, canon_pgprot(prot)));
 	} else {
+		/* Clear the PSE bit for the 4k level pages ! */
+		pgprot_val(prot) = pgprot_val(prot) & ~_PAGE_PSE;
+
 		err = split_large_page(kpte, address);
 		if (!err)
 			goto repeat;
