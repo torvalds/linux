@@ -63,7 +63,7 @@ static inline void i8042_write_command(int val)
 	outb(val, I8042_COMMAND_REG);
 }
 
-#if defined(__i386__)
+#if defined(__i386__) || defined(__x86_64__)
 
 #include <linux/dmi.h>
 
@@ -563,7 +563,7 @@ static int __init i8042_platform_init(void)
         i8042_reset = 1;
 #endif
 
-#if defined(__i386__)
+#if defined(__i386__) || defined(__x86_64__)
 	if (dmi_check_system(i8042_dmi_noloop_table))
 		i8042_noloop = 1;
 
