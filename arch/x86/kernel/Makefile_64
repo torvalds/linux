@@ -13,6 +13,7 @@ obj-y	:= process_64.o signal_64.o entry_64.o traps_64.o irq_64.o \
 		i8253.o io_delay.o rtc.o
 
 obj-y				+= ptrace.o
+obj-y				+= ds.o
 obj-y				+= step.o
 
 obj-$(CONFIG_IA32_EMULATION)	+= tls.o

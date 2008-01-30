@@ -2,6 +2,9 @@
 /*
  * Pentium III FXSR, SSE support
  *	Gareth Hughes <gareth@valinux.com>, May 2000
+ *
+ * BTS tracing
+ *	Markus Metzger <markus.t.metzger@intel.com>, Dec 2007
  */
 
 #include <linux/kernel.h>
@@ -26,6 +29,14 @@
 #include <asm/desc.h>
 #include <asm/prctl.h>
 #include <asm/proto.h>
+#include <asm/ds.h>
+
+
+/*
+ * The maximal size of a BTS buffer per traced task in number of BTS
+ * records.
+ */
+#define PTRACE_BTS_BUFFER_MAX 4000
 
 /*
  * does not yet catch signals sent when the child dies.
@@ -455,6 +466,165 @@ static int ptrace_set_debugreg(struct task_struct *child,
 	return 0;
 }
 
+static int ptrace_bts_max_buffer_size(void)
+{
+	return PTRACE_BTS_BUFFER_MAX;
+}
+
+static int ptrace_bts_get_buffer_size(struct task_struct *child)
+{
+	if (!child->thread.ds_area_msr)
+		return -ENXIO;
+
+	return ds_get_bts_size((void *)child->thread.ds_area_msr);
+}
+
+static int ptrace_bts_get_index(struct task_struct *child)
+{
+	if (!child->thread.ds_area_msr)
+		return -ENXIO;
+
+	return ds_get_bts_index((void *)child->thread.ds_area_msr);
+}
+
+static int ptrace_bts_read_record(struct task_struct *child,
+				  long index,
+				  struct bts_struct __user *out)
+{
+	struct bts_struct ret;
+	int retval;
+
+	if (!child->thread.ds_area_msr)
+		return -ENXIO;
+
+	retval = ds_read_bts((void *)child->thread.ds_area_msr,
+			     index, &ret);
+	if (retval)
+		return retval;
+
+	if (copy_to_user(out, &ret, sizeof(ret)))
+		return -EFAULT;
+
+	return sizeof(ret);
+}
+
+static int ptrace_bts_write_record(struct task_struct *child,
+				   const struct bts_struct *in)
+{
+	int retval;
+
+	if (!child->thread.ds_area_msr)
+		return -ENXIO;
+
+	retval = ds_write_bts((void *)child->thread.ds_area_msr, in);
+	if (retval)
+		return retval;
+
+	return sizeof(*in);
+}
+
+static int ptrace_bts_config(struct task_struct *child,
+			     unsigned long options)
+{
+	unsigned long debugctl_mask = ds_debugctl_mask();
+	int retval;
+
+	retval = ptrace_bts_get_buffer_size(child);
+	if (retval < 0)
+		return retval;
+	if (retval == 0)
+		return -ENXIO;
+
+	if (options & PTRACE_BTS_O_TRACE_TASK) {
+		child->thread.debugctlmsr |= debugctl_mask;
+		set_tsk_thread_flag(child, TIF_DEBUGCTLMSR);
+	} else {
+		/* there is no way for us to check whether we 'own'
+		 * the respective bits in the DEBUGCTL MSR, we're
+		 * about to clear */
+		child->thread.debugctlmsr &= ~debugctl_mask;
+
+		if (!child->thread.debugctlmsr)
+			clear_tsk_thread_flag(child, TIF_DEBUGCTLMSR);
+	}
+
+	if (options & PTRACE_BTS_O_TIMESTAMPS)
+		set_tsk_thread_flag(child, TIF_BTS_TRACE_TS);
+	else
+		clear_tsk_thread_flag(child, TIF_BTS_TRACE_TS);
+
+	return 0;
+}
+
+static int ptrace_bts_status(struct task_struct *child)
+{
+	unsigned long debugctl_mask = ds_debugctl_mask();
+	int retval, status = 0;
+
+	retval = ptrace_bts_get_buffer_size(child);
+	if (retval < 0)
+		return retval;
+	if (retval == 0)
+		return -ENXIO;
+
+	if (ptrace_bts_get_buffer_size(child) <= 0)
+		return -ENXIO;
+
+	if (test_tsk_thread_flag(child, TIF_DEBUGCTLMSR) &&
+	    child->thread.debugctlmsr & debugctl_mask)
+		status |= PTRACE_BTS_O_TRACE_TASK;
+	if (test_tsk_thread_flag(child, TIF_BTS_TRACE_TS))
+		status |= PTRACE_BTS_O_TIMESTAMPS;
+
+	return status;
+}
+
+static int ptrace_bts_allocate_bts(struct task_struct *child,
+				   int size_in_records)
+{
+	int retval = 0;
+	void *ds;
+
+	if (size_in_records < 0)
+		return -EINVAL;
+
+	if (size_in_records > ptrace_bts_max_buffer_size())
+		return -EINVAL;
+
+	if (size_in_records == 0) {
+		ptrace_bts_config(child, /* options = */ 0);
+	} else {
+		retval = ds_allocate(&ds, size_in_records);
+		if (retval)
+			return retval;
+	}
+
+	if (child->thread.ds_area_msr)
+		ds_free((void **)&child->thread.ds_area_msr);
+
+	child->thread.ds_area_msr = (unsigned long)ds;
+	if (child->thread.ds_area_msr)
+		set_tsk_thread_flag(child, TIF_DS_AREA_MSR);
+	else
+		clear_tsk_thread_flag(child, TIF_DS_AREA_MSR);
+
+	return retval;
+}
+
+void ptrace_bts_take_timestamp(struct task_struct *tsk,
+			       enum bts_qualifier qualifier)
+{
+	struct bts_struct rec = {
+		.qualifier = qualifier,
+		.variant.timestamp = sched_clock()
+	};
+
+	if (ptrace_bts_get_buffer_size(tsk) <= 0)
+		return;
+
+	ptrace_bts_write_record(tsk, &rec);
+}
+
 /*
  * Called by kernel/ptrace.c when detaching..
  *
@@ -466,6 +636,11 @@ void ptrace_disable(struct task_struct *child)
 #ifdef TIF_SYSCALL_EMU
 	clear_tsk_thread_flag(child, TIF_SYSCALL_EMU);
 #endif
+	ptrace_bts_config(child, /* options = */ 0);
+	if (child->thread.ds_area_msr) {
+	    ds_free((void **)&child->thread.ds_area_msr);
+	    clear_tsk_thread_flag(child, TIF_DS_AREA_MSR);
+	}
 }
 
 long arch_ptrace(struct task_struct *child, long request, long addr, long data)
@@ -625,6 +800,36 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		ret = do_arch_prctl(child, data, addr);
 		break;
 #endif
+
+	case PTRACE_BTS_MAX_BUFFER_SIZE:
+		ret = ptrace_bts_max_buffer_size();
+		break;
+
+	case PTRACE_BTS_ALLOCATE_BUFFER:
+		ret = ptrace_bts_allocate_bts(child, data);
+		break;
+
+	case PTRACE_BTS_GET_BUFFER_SIZE:
+		ret = ptrace_bts_get_buffer_size(child);
+		break;
+
+	case PTRACE_BTS_GET_INDEX:
+		ret = ptrace_bts_get_index(child);
+		break;
+
+	case PTRACE_BTS_READ_RECORD:
+		ret = ptrace_bts_read_record
+			(child, data,
+			 (struct bts_struct __user *) addr);
+		break;
+
+	case PTRACE_BTS_CONFIG:
+		ret = ptrace_bts_config(child, data);
+		break;
+
+	case PTRACE_BTS_STATUS:
+		ret = ptrace_bts_status(child);
+		break;
 
 	default:
 		ret = ptrace_request(child, request, addr, data);
@@ -809,6 +1014,13 @@ asmlinkage long sys32_ptrace(long request, u32 pid, u32 addr, u32 data)
 	case PTRACE_SETOPTIONS:
 	case PTRACE_SET_THREAD_AREA:
 	case PTRACE_GET_THREAD_AREA:
+	case PTRACE_BTS_MAX_BUFFER_SIZE:
+	case PTRACE_BTS_ALLOCATE_BUFFER:
+	case PTRACE_BTS_GET_BUFFER_SIZE:
+	case PTRACE_BTS_GET_INDEX:
+	case PTRACE_BTS_READ_RECORD:
+	case PTRACE_BTS_CONFIG:
+	case PTRACE_BTS_STATUS:
 		return sys_ptrace(request, pid, addr, data);
 
 	default:

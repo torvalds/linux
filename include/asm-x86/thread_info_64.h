@@ -123,6 +123,8 @@ static inline struct thread_info *stack_thread_info(void)
 #define TIF_FREEZE		23	/* is freezing for suspend */
 #define TIF_FORCED_TF		24	/* true if TF in eflags artificially */
 #define TIF_DEBUGCTLMSR		25	/* uses thread_struct.debugctlmsr */
+#define TIF_DS_AREA_MSR	25      /* uses thread_struct.ds_area_msr */
+#define TIF_BTS_TRACE_TS	26      /* record scheduling event timestamps */
 
 #define _TIF_SYSCALL_TRACE	(1<<TIF_SYSCALL_TRACE)
 #define _TIF_SIGPENDING		(1<<TIF_SIGPENDING)
@@ -142,6 +144,8 @@ static inline struct thread_info *stack_thread_info(void)
 #define _TIF_FREEZE		(1<<TIF_FREEZE)
 #define _TIF_FORCED_TF		(1<<TIF_FORCED_TF)
 #define _TIF_DEBUGCTLMSR	(1<<TIF_DEBUGCTLMSR)
+#define _TIF_DS_AREA_MSR	(1<<TIF_DS_AREA_MSR)
+#define _TIF_BTS_TRACE_TS	(1<<TIF_BTS_TRACE_TS)
 
 /* work to do on interrupt/exception return */
 #define _TIF_WORK_MASK \
@@ -153,7 +157,10 @@ static inline struct thread_info *stack_thread_info(void)
 	(_TIF_SIGPENDING|_TIF_SINGLESTEP|_TIF_MCE_NOTIFY|_TIF_HRTICK_RESCHED)
 
 /* flags to check in __switch_to() */
-#define _TIF_WORK_CTXSW (_TIF_DEBUG|_TIF_IO_BITMAP|_TIF_DEBUGCTLMSR)
+#define _TIF_WORK_CTXSW \
+    (_TIF_IO_BITMAP|_TIF_DEBUGCTLMSR|_TIF_DS_AREA_MSR|_TIF_BTS_TRACE_TS)
+#define _TIF_WORK_CTXSW_PREV _TIF_WORK_CTXSW
+#define _TIF_WORK_CTXSW_NEXT (_TIF_WORK_CTXSW|_TIF_DEBUG)
 
 #define PREEMPT_ACTIVE     0x10000000
 

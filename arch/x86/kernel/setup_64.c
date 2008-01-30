@@ -60,6 +60,7 @@
 #include <asm/dmi.h>
 #include <asm/cacheflush.h>
 #include <asm/mce.h>
+#include <asm/ds.h>
 
 /*
  * Machine setup..
@@ -822,6 +823,10 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 		if (!(l1 & (1<<12)))
 			set_cpu_cap(c, X86_FEATURE_PEBS);
 	}
+
+
+	if (cpu_has_bts)
+		ds_init_intel(c);
 
 	n = c->extended_cpuid_level;
 	if (n >= 0x80000008) {

@@ -11,6 +11,8 @@
 #include <asm/pgtable.h>
 #include <asm/msr.h>
 #include <asm/uaccess.h>
+#include <asm/ptrace.h>
+#include <asm/ds.h>
 
 #include "cpu.h"
 
@@ -219,6 +221,9 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 		if (!(l1 & (1<<12)))
 			set_bit(X86_FEATURE_PEBS, c->x86_capability);
 	}
+
+	if (cpu_has_bts)
+		ds_init_intel(c);
 }
 
 static unsigned int __cpuinit intel_size_cache(struct cpuinfo_x86 * c, unsigned int size)

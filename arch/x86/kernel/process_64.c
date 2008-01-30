@@ -568,11 +568,21 @@ static inline void __switch_to_xtra(struct task_struct *prev_p,
 				    struct tss_struct *tss)
 {
 	struct thread_struct *prev, *next;
+	unsigned long debugctl;
 
 	prev = &prev_p->thread,
 	next = &next_p->thread;
 
-	if (next->debugctlmsr != prev->debugctlmsr)
+	debugctl = prev->debugctlmsr;
+	if (next->ds_area_msr != prev->ds_area_msr) {
+		/* we clear debugctl to make sure DS
+		 * is not in use when we change it */
+		debugctl = 0;
+		wrmsrl(MSR_IA32_DEBUGCTLMSR, 0);
+		wrmsrl(MSR_IA32_DS_AREA, next->ds_area_msr);
+	}
+
+	if (next->debugctlmsr != debugctl)
 		wrmsrl(MSR_IA32_DEBUGCTLMSR, next->debugctlmsr);
 
 	if (test_tsk_thread_flag(next_p, TIF_DEBUG)) {
@@ -598,6 +608,16 @@ static inline void __switch_to_xtra(struct task_struct *prev_p,
 		 */
 		memset(tss->io_bitmap, 0xff, prev->io_bitmap_max);
 	}
+
+	/*
+	 * Last branch recording recofiguration of trace hardware and
+	 * disentangling of trace data per task.
+	 */
+	if (test_tsk_thread_flag(prev_p, TIF_BTS_TRACE_TS))
+		ptrace_bts_take_timestamp(prev_p, BTS_TASK_DEPARTS);
+
+	if (test_tsk_thread_flag(next_p, TIF_BTS_TRACE_TS))
+		ptrace_bts_take_timestamp(next_p, BTS_TASK_ARRIVES);
 }
 
 /*
@@ -701,8 +721,8 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	/*
 	 * Now maybe reload the debug registers and handle I/O bitmaps
 	 */
-	if (unlikely((task_thread_info(next_p)->flags & _TIF_WORK_CTXSW))
-	    || test_tsk_thread_flag(prev_p, TIF_IO_BITMAP))
+	if (unlikely(task_thread_info(next_p)->flags & _TIF_WORK_CTXSW_NEXT ||
+		     task_thread_info(prev_p)->flags & _TIF_WORK_CTXSW_PREV))
 		__switch_to_xtra(prev_p, next_p, tss);
 
 	/* If the task has used fpu the last 5 timeslices, just do a full

@@ -80,4 +80,56 @@
 
 #define PTRACE_SINGLEBLOCK	33	/* resume execution until next branch */
 
+/* Return maximal BTS buffer size in number of records,
+   if successuf; -1, otherwise.
+   EOPNOTSUPP...processor does not support bts tracing */
+#define PTRACE_BTS_MAX_BUFFER_SIZE 40
+
+/* Allocate new bts buffer (free old one, if exists) of size DATA bts records;
+   parameter ADDR is ignored.
+   Return 0, if successful; -1, otherwise.
+   EOPNOTSUPP...processor does not support bts tracing
+   EINVAL.......invalid size in records
+   ENOMEM.......out of memory */
+#define PTRACE_BTS_ALLOCATE_BUFFER 41
+
+/* Return the size of the bts buffer in number of bts records,
+   if successful; -1, otherwise.
+   EOPNOTSUPP...processor does not support bts tracing
+   ENXIO........no buffer allocated */
+#define PTRACE_BTS_GET_BUFFER_SIZE 42
+
+/* Return the index of the next bts record to be written,
+   if successful; -1, otherwise.
+   EOPNOTSUPP...processor does not support bts tracing
+   ENXIO........no buffer allocated
+   After the first warp-around, this is the start of the circular bts buffer. */
+#define PTRACE_BTS_GET_INDEX 43
+
+/* Read the DATA'th bts record into a ptrace_bts_record buffer provided in ADDR.
+   Return 0, if successful; -1, otherwise
+   EOPNOTSUPP...processor does not support bts tracing
+   ENXIO........no buffer allocated
+   EINVAL.......invalid index */
+#define PTRACE_BTS_READ_RECORD 44
+
+/* Configure last branch trace; the configuration is given as a bit-mask of
+   PTRACE_BTS_O_* options in DATA; parameter ADDR is ignored.
+   Return 0, if successful; -1, otherwise
+   EOPNOTSUPP...processor does not support bts tracing
+   ENXIO........no buffer allocated */
+#define PTRACE_BTS_CONFIG 45
+
+/* Return the configuration as bit-mask of PTRACE_BTS_O_* options
+   if successful; -1, otherwise.
+   EOPNOTSUPP...processor does not support bts tracing
+   ENXIO........no buffer allocated */
+#define PTRACE_BTS_STATUS 46
+
+/* Trace configuration options */
+/* Collect last branch trace */
+#define PTRACE_BTS_O_TRACE_TASK 0x1
+/* Take timestamps when the task arrives and departs */
+#define PTRACE_BTS_O_TIMESTAMPS 0x2
+
 #endif

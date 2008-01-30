@@ -4,7 +4,18 @@
 #include <linux/compiler.h>	/* For __user */
 #include <asm/ptrace-abi.h>
 
+
 #ifndef __ASSEMBLY__
+
+#ifdef __KERNEL__
+
+#include <asm/ds.h>
+
+struct task_struct;
+extern void ptrace_bts_take_timestamp(struct task_struct *, enum bts_qualifier);
+
+#endif /* __KERNEL__ */
+
 
 #ifdef __i386__
 /* this struct defines the way the registers are stored on the

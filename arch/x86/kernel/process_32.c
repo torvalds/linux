@@ -614,11 +614,21 @@ __switch_to_xtra(struct task_struct *prev_p, struct task_struct *next_p,
 		 struct tss_struct *tss)
 {
 	struct thread_struct *prev, *next;
+	unsigned long debugctl;
 
 	prev = &prev_p->thread;
 	next = &next_p->thread;
 
-	if (next->debugctlmsr != prev->debugctlmsr)
+	debugctl = prev->debugctlmsr;
+	if (next->ds_area_msr != prev->ds_area_msr) {
+		/* we clear debugctl to make sure DS
+		 * is not in use when we change it */
+		debugctl = 0;
+		wrmsrl(MSR_IA32_DEBUGCTLMSR, 0);
+		wrmsr(MSR_IA32_DS_AREA, next->ds_area_msr, 0);
+	}
+
+	if (next->debugctlmsr != debugctl)
 		wrmsr(MSR_IA32_DEBUGCTLMSR, next->debugctlmsr, 0);
 
 	if (test_tsk_thread_flag(next_p, TIF_DEBUG)) {
@@ -641,6 +651,13 @@ __switch_to_xtra(struct task_struct *prev_p, struct task_struct *next_p,
 			hard_enable_TSC();
 	}
 #endif
+
+	if (test_tsk_thread_flag(prev_p, TIF_BTS_TRACE_TS))
+		ptrace_bts_take_timestamp(prev_p, BTS_TASK_DEPARTS);
+
+	if (test_tsk_thread_flag(next_p, TIF_BTS_TRACE_TS))
+		ptrace_bts_take_timestamp(next_p, BTS_TASK_ARRIVES);
+
 
 	if (!test_tsk_thread_flag(next_p, TIF_IO_BITMAP)) {
 		/*
