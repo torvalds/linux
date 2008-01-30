@@ -607,3 +607,41 @@ int generic_ptrace_pokedata(struct task_struct *tsk, long addr, long data)
 	copied = access_process_vm(tsk, addr, &data, sizeof(data), 1);
 	return (copied == sizeof(data)) ? 0 : -EIO;
 }
+
+#ifdef CONFIG_COMPAT
+#include <linux/compat.h>
+
+int compat_ptrace_request(struct task_struct *child, compat_long_t request,
+			  compat_ulong_t addr, compat_ulong_t data)
+{
+	compat_ulong_t __user *datap = compat_ptr(data);
+	compat_ulong_t word;
+	int ret;
+
+	switch (request) {
+	case PTRACE_PEEKTEXT:
+	case PTRACE_PEEKDATA:
+		ret = access_process_vm(child, addr, &word, sizeof(word), 0);
+		if (ret != sizeof(word))
+			ret = -EIO;
+		else
+			ret = put_user(word, datap);
+		break;
+
+	case PTRACE_POKETEXT:
+	case PTRACE_POKEDATA:
+		ret = access_process_vm(child, addr, &data, sizeof(data), 1);
+		ret = (ret != sizeof(data) ? -EIO : 0);
+		break;
+
+	case PTRACE_GETEVENTMSG:
+		ret = put_user((compat_ulong_t) child->ptrace_message, datap);
+		break;
+
+	default:
+		ret = ptrace_request(child, request, addr, data);
+	}
+
+	return ret;
+}
+#endif	/* CONFIG_COMPAT */

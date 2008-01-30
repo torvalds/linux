@@ -243,6 +243,10 @@ asmlinkage long compat_sys_migrate_pages(compat_pid_t pid,
 		compat_ulong_t maxnode, const compat_ulong_t __user *old_nodes,
 		const compat_ulong_t __user *new_nodes);
 
+extern int compat_ptrace_request(struct task_struct *child,
+				 compat_long_t request,
+				 compat_ulong_t addr, compat_ulong_t data);
+
 /*
  * epoll (fs/eventpoll.c) compat bits follow ...
  */
