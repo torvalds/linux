@@ -467,7 +467,8 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 				arch_disarm_kprobe(p);
 				regs->ip = (unsigned long)p->addr;
 				reset_current_kprobe();
-				return 1;
+				ret = 1;
+				goto no_kprobe;
 #endif
 			}
 			/* We have reentered the kprobe_handler(), since
