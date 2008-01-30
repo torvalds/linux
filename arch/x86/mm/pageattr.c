@@ -9,14 +9,6 @@
 #include <linux/slab.h>
 #include <linux/mm.h>
 
-void clflush_cache_range(void *addr, int size)
-{
-	int i;
-
-	for (i = 0; i < size; i += boot_cpu_data.x86_clflush_size)
-		clflush(addr+i);
-}
-
 #include <asm/processor.h>
 #include <asm/tlbflush.h>
 #include <asm/sections.h>
@@ -289,6 +281,14 @@ int change_page_attr(struct page *page, int numpages, pgprot_t prot)
 	return change_page_attr_addr(addr, numpages, prot);
 }
 EXPORT_SYMBOL(change_page_attr);
+
+void clflush_cache_range(void *addr, int size)
+{
+	int i;
+
+	for (i = 0; i < size; i += boot_cpu_data.x86_clflush_size)
+		clflush(addr+i);
+}
 
 static void flush_kernel_map(void *arg)
 {
