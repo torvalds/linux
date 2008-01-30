@@ -76,6 +76,11 @@ static inline void native_set_pte(pte_t *ptep, pte_t pte)
 	*ptep = pte;
 }
 
+static inline void native_set_pte_atomic(pte_t *ptep, pte_t pte)
+{
+	native_set_pte(ptep, pte);
+}
+
 static inline pte_t native_ptep_get_and_clear(pte_t *xp)
 {
 #ifdef CONFIG_SMP
