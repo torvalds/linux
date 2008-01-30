@@ -371,11 +371,9 @@ void __init efi_init(void)
 		printk(KERN_WARNING "Kernel-defined memdesc"
 		       "doesn't match the one from EFI!\n");
 
-#ifdef CONFIG_X86_64
 	/* Setup for EFI runtime service */
 	reboot_type = BOOT_EFI;
 
-#endif
 #if EFI_DEBUG
 	print_efi_memmap();
 #endif
