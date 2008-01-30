@@ -42,8 +42,6 @@
 #define PF_RSVD	(1<<3)
 #define PF_INSTR	(1<<4)
 
-extern void die(const char *, struct pt_regs *, long);
-
 static inline int notify_page_fault(struct pt_regs *regs)
 {
 #ifdef CONFIG_KPROBES
