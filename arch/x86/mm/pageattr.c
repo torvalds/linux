@@ -24,22 +24,49 @@ void clflush_cache_range(void *addr, int size)
 #include <asm/pgalloc.h>
 
 /*
- * We allow the BIOS range to be executable:
+ * We must allow the BIOS range to be executable:
  */
 #define BIOS_BEGIN		0x000a0000
 #define BIOS_END		0x00100000
 
-static inline pgprot_t check_exec(pgprot_t prot, unsigned long address)
+static inline int
+within(unsigned long addr, unsigned long start, unsigned long end)
 {
-	if (__pa(address) >= BIOS_BEGIN && __pa(address) < BIOS_END)
-		pgprot_val(prot) &= ~_PAGE_NX;
+	return addr >= start && addr < end;
+}
+
+/*
+ * Certain areas of memory on x86 require very specific protection flags,
+ * for example the BIOS area or kernel text. Callers don't always get this
+ * right (again, ioremap() on BIOS memory is not uncommon) so this function
+ * checks and fixes these known static required protection bits.
+ */
+static inline pgprot_t static_protections(pgprot_t prot, unsigned long address)
+{
+	pgprot_t forbidden = __pgprot(0);
+
 	/*
-	 * Better fail early if someone sets the kernel text to NX.
-	 * Does not cover __inittext
+	 * The BIOS area between 640k and 1Mb needs to be executable for
+	 * PCI BIOS based config access (CONFIG_PCI_GOBIOS) support.
 	 */
-	BUG_ON(address >= (unsigned long)&_text &&
-		address < (unsigned long)&_etext &&
-	       (pgprot_val(prot) & _PAGE_NX));
+	if (within(__pa(address), BIOS_BEGIN, BIOS_END))
+		pgprot_val(forbidden) |= _PAGE_NX;
+
+	/*
+	 * The kernel text needs to be executable for obvious reasons
+	 * Does not cover __inittext since that is gone later on
+	 */
+	if (within(address, (unsigned long)_text, (unsigned long)_etext))
+		pgprot_val(forbidden) |= _PAGE_NX;
+
+#ifdef CONFIG_DEBUG_RODATA
+	/* The .rodata section needs to be read-only */
+	if (within(address, (unsigned long)__start_rodata,
+				(unsigned long)__end_rodata))
+		pgprot_val(forbidden) |= _PAGE_RW;
+#endif
+
+	prot = __pgprot(pgprot_val(prot) & ~pgprot_val(forbidden));
 
 	return prot;
 }
@@ -169,7 +196,7 @@ repeat:
 	BUG_ON(PageLRU(kpte_page));
 	BUG_ON(PageCompound(kpte_page));
 
-	prot = check_exec(prot, address);
+	prot = static_protections(prot, address);
 
 	if (level == PG_LEVEL_4K) {
 		set_pte_atomic(kpte, pfn_pte(pfn, canon_pgprot(prot)));
