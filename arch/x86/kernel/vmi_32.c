@@ -64,6 +64,7 @@ static struct {
 	void (*set_tr)(u32 selector);
 	void (*write_idt_entry)(struct desc_struct *, int, u32, u32);
 	void (*write_gdt_entry)(struct desc_struct *, int, u32, u32);
+	void (*write_ldt_entry)(struct desc_struct *, int, u32, u32);
 	void (*set_kernel_stack)(u32 selector, u32 sp0);
 	void (*allocate_page)(u32, u32, u32, u32, u32);
 	void (*release_page)(u32, u32);
@@ -227,6 +228,13 @@ static void vmi_write_gdt_entry(struct desc_struct *dt, int entry,
 {
 	u32 *gdt_entry = (u32 *)desc;
 	vmi_ops.write_gdt_entry(dt, entry, gdt_entry[0], gdt_entry[2]);
+}
+
+static void vmi_write_ldt_entry(struct desc_struct *dt, int entry,
+				const void *desc)
+{
+	u32 *ldt_entry = (u32 *)desc;
+	vmi_ops.write_idt_entry(dt, entry, ldt_entry[0], ldt_entry[2]);
 }
 
 static void vmi_load_sp0(struct tss_struct *tss,
@@ -805,7 +813,8 @@ static inline int __init activate_vmi(void)
 	para_fill(pv_cpu_ops.store_idt, GetIDT);
 	para_fill(pv_cpu_ops.store_tr, GetTR);
 	pv_cpu_ops.load_tls = vmi_load_tls;
-	para_fill(pv_cpu_ops.write_ldt_entry, WriteLDTEntry);
+	para_wrap(pv_cpu_ops.write_ldt_entry, vmi_write_ldt_entry,
+		  write_ldt_entry, WriteLDTEntry);
 	para_wrap(pv_cpu_ops.write_gdt_entry, vmi_write_gdt_entry,
 		  write_gdt_entry, WriteGDTEntry);
 	para_wrap(pv_cpu_ops.write_idt_entry, vmi_write_idt_entry,

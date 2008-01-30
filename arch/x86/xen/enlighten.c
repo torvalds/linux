@@ -357,11 +357,11 @@ static void xen_load_tls(struct thread_struct *t, unsigned int cpu)
 }
 
 static void xen_write_ldt_entry(struct desc_struct *dt, int entrynum,
-				u32 low, u32 high)
+				const void *ptr)
 {
 	unsigned long lp = (unsigned long)&dt[entrynum];
 	xmaddr_t mach_lp = virt_to_machine(lp);
-	u64 entry = (u64)high << 32 | low;
+	u64 entry = *(u64 *)ptr;
 
 	preempt_disable();
 

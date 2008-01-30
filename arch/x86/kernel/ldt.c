@@ -229,8 +229,7 @@ static int write_ldt(void __user *ptr, unsigned long bytecount, int oldmode)
 
 	/* Install the new entry ...  */
 install:
-	write_ldt_entry(mm->context.ldt, ldt_info.entry_number,
-			ldt.a, ldt.b);
+	write_ldt_entry(mm->context.ldt, ldt_info.entry_number, &ldt);
 	error = 0;
 
 out_unlock:

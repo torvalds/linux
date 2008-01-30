@@ -34,12 +34,9 @@ extern gate_desc idt_table[];
 extern struct desc_ptr cpu_gdt_descr[];
 
 static inline void write_ldt_entry(struct desc_struct *ldt,
-				   int entry, u32 entry_low, u32 entry_high)
+				   int entry, void *ptr)
 {
-	__u32 *lp = (__u32 *)((entry << 3) + (char *)ldt);
-
-	lp[0] = entry_low;
-	lp[1] = entry_high;
+	memcpy(&ldt[entry], ptr, 8);
 }
 
 /* the cpu gdt accessor */

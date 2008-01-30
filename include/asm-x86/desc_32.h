@@ -69,11 +69,18 @@ static inline void pack_gate(gate_desc *gate,
 #define load_TLS(t, cpu) native_load_tls(t, cpu)
 #define set_ldt native_set_ldt
 
-#define write_ldt_entry(dt, entry, a, b) write_dt_entry(dt, entry, a, b)
+#define write_ldt_entry(dt, entry, desc) \
+				native_write_ldt_entry(dt, entry, desc)
 #define write_gdt_entry(dt, entry, desc, type) \
 				native_write_gdt_entry(dt, entry, desc, type)
 #define write_idt_entry(dt, entry, g) native_write_idt_entry(dt, entry, g)
 #endif
+
+static inline void native_write_ldt_entry(struct desc_struct *ldt, int entry,
+					  const void *desc)
+{
+	memcpy(&ldt[entry], desc, sizeof(struct desc_struct));
+}
 
 static inline void native_write_idt_entry(gate_desc *idt, int entry,
 					  const gate_desc *gate)

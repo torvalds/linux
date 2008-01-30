@@ -96,8 +96,8 @@ struct pv_cpu_ops {
 	void (*set_ldt)(const void *desc, unsigned entries);
 	unsigned long (*store_tr)(void);
 	void (*load_tls)(struct thread_struct *t, unsigned int cpu);
-	void (*write_ldt_entry)(struct desc_struct *,
-				int entrynum, u32 low, u32 high);
+	void (*write_ldt_entry)(struct desc_struct *ldt, int entrynum,
+				const void *desc);
 	void (*write_gdt_entry)(struct desc_struct *,
 				int entrynum, const void *desc, int size);
 	void (*write_idt_entry)(gate_desc *,
@@ -660,9 +660,11 @@ static inline void load_TLS(struct thread_struct *t, unsigned cpu)
 {
 	PVOP_VCALL2(pv_cpu_ops.load_tls, t, cpu);
 }
-static inline void write_ldt_entry(void *dt, int entry, u32 low, u32 high)
+
+static inline void write_ldt_entry(struct desc_struct *dt, int entry,
+				   const void *desc)
 {
-	PVOP_VCALL4(pv_cpu_ops.write_ldt_entry, dt, entry, low, high);
+	PVOP_VCALL3(pv_cpu_ops.write_ldt_entry, dt, entry, desc);
 }
 
 static inline void write_gdt_entry(struct desc_struct *dt, int entry,
