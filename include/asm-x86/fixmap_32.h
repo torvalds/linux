@@ -91,7 +91,7 @@ enum fixed_addresses {
 #endif
 	__end_of_permanent_fixed_addresses,
 	/* temporary boot-time mappings, used before ioremap() is functional */
-#define NR_FIX_BTMAPS		16
+#define NR_FIX_BTMAPS		64
 #define FIX_BTMAPS_NESTING	4
 	FIX_BTMAP_END = __end_of_permanent_fixed_addresses,
 	FIX_BTMAP_BEGIN = FIX_BTMAP_END + NR_FIX_BTMAPS*FIX_BTMAPS_NESTING - 1,
