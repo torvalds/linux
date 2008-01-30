@@ -378,6 +378,7 @@ static void show_fault_oops(struct pt_regs *regs, unsigned long error_code,
 #ifdef CONFIG_X86_32
 	if (!oops_may_print())
 		return;
+#endif
 
 #ifdef CONFIG_X86_PAE
 	if (error_code & PF_INSTR) {
@@ -390,28 +391,20 @@ static void show_fault_oops(struct pt_regs *regs, unsigned long error_code,
 				"(uid: %d)\n", current->uid);
 	}
 #endif
+
 	printk(KERN_ALERT "BUG: unable to handle kernel ");
 	if (address < PAGE_SIZE)
 		printk(KERN_CONT "NULL pointer dereference");
 	else
 		printk(KERN_CONT "paging request");
+#ifdef CONFIG_X86_32
 	printk(KERN_CONT " at %08lx\n", address);
-
-	printk(KERN_ALERT "IP:");
-	printk_address(regs->ip, 1);
-	dump_pagetable(address);
-#else /* CONFIG_X86_64 */
-	printk(KERN_ALERT "BUG: unable to handle kernel ");
-	if (address < PAGE_SIZE)
-		printk(KERN_CONT "NULL pointer dereference");
-	else
-		printk(KERN_CONT "paging request");
+#else
 	printk(KERN_CONT " at %016lx\n", address);
-
+#endif
 	printk(KERN_ALERT "IP:");
 	printk_address(regs->ip, 1);
 	dump_pagetable(address);
-#endif
 }
 
 #ifdef CONFIG_X86_64
@@ -705,11 +698,7 @@ again:
 	vma = find_vma(mm, address);
 	if (!vma)
 		goto bad_area;
-#ifdef CONFIG_X86_32
 	if (vma->vm_start <= address)
-#else
-	if (likely(vma->vm_start <= address))
-#endif
 		goto good_area;
 	if (!(vma->vm_flags & VM_GROWSDOWN))
 		goto bad_area;
@@ -858,23 +847,21 @@ no_context:
  */
 #ifdef CONFIG_X86_32
 	bust_spinlocks(1);
+#else
+	flags = oops_begin();
+#endif
 
 	show_fault_oops(regs, error_code, address);
 
 	tsk->thread.cr2 = address;
 	tsk->thread.trap_no = 14;
 	tsk->thread.error_code = error_code;
+
+#ifdef CONFIG_X86_32
 	die("Oops", regs, error_code);
 	bust_spinlocks(0);
 	do_exit(SIGKILL);
-#else /* CONFIG_X86_64 */
-	flags = oops_begin();
-
-	show_fault_oops(regs, error_code, address);
-
-	tsk->thread.cr2 = address;
-	tsk->thread.trap_no = 14;
-	tsk->thread.error_code = error_code;
+#else
 	if (__die("Oops", regs, error_code))
 		regs = NULL;
 	/* Executive summary in case the body of the oops scrolled away */
@@ -888,18 +875,16 @@ no_context:
  */
 out_of_memory:
 	up_read(&mm->mmap_sem);
-#ifdef CONFIG_X86_32
 	if (is_global_init(tsk)) {
 		yield();
+#ifdef CONFIG_X86_32
 		down_read(&mm->mmap_sem);
 		goto survive;
-	}
 #else
-	if (is_global_init(current)) {
-		yield();
 		goto again;
-	}
 #endif
+	}
+
 	printk("VM: killing process %s\n", tsk->comm);
 	if (error_code & PF_USER)
 		do_group_exit(SIGKILL);
