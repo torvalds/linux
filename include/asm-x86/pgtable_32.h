@@ -123,6 +123,14 @@ static inline pte_t pte_mkyoung(pte_t pte)	{ return __pte(pte_val(pte) | _PAGE_A
 static inline pte_t pte_mkwrite(pte_t pte)	{ return __pte(pte_val(pte) | _PAGE_RW); }
 static inline pte_t pte_mkhuge(pte_t pte)	{ return __pte(pte_val(pte) | _PAGE_PSE); }
 
+static inline pte_t pte_clrhuge(pte_t pte)	{ return __pte(pte_val(pte) & ~_PAGE_PSE); }
+static inline pte_t pte_mkexec(pte_t pte)	{ return __pte(pte_val(pte) & ~_PAGE_NX); }
+
+static inline int pmd_large(pmd_t pte) {
+	return (pmd_val(pte) & (_PAGE_PSE|_PAGE_PRESENT)) ==
+		(_PAGE_PSE|_PAGE_PRESENT);
+}
+
 #ifdef CONFIG_X86_PAE
 # include <asm/pgtable-3level.h>
 #else
