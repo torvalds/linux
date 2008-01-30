@@ -22,6 +22,27 @@ void clflush_cache_range(void *addr, int size)
 #include <asm/uaccess.h>
 #include <asm/pgalloc.h>
 
+/*
+ * We allow the BIOS range to be executable:
+ */
+#define BIOS_BEGIN		0x000a0000
+#define BIOS_END		0x00100000
+
+static inline pgprot_t check_exec(pgprot_t prot, unsigned long address)
+{
+	if (__pa(address) >= BIOS_BEGIN && __pa(address) < BIOS_END)
+		pgprot_val(prot) &= ~_PAGE_NX;
+	/*
+	 * Better fail early if someone sets the kernel text to NX.
+	 * Does not cover __inittext
+	 */
+	BUG_ON(address >= (unsigned long)&_text &&
+		address < (unsigned long)&_etext &&
+	       (pgprot_val(prot) & _PAGE_NX));
+
+	return prot;
+}
+
 pte_t *lookup_address(unsigned long address, int *level)
 {
 	pgd_t *pgd = pgd_offset_k(address);
@@ -140,13 +161,7 @@ repeat:
 	BUG_ON(PageLRU(kpte_page));
 	BUG_ON(PageCompound(kpte_page));
 
-	/*
-	 * Better fail early if someone sets the kernel text to NX.
-	 * Does not cover __inittext
-	 */
-	BUG_ON(address >= (unsigned long)&_text &&
-		address < (unsigned long)&_etext &&
-	       (pgprot_val(prot) & _PAGE_NX));
+	prot = check_exec(prot, address);
 
 	if (level == PG_LEVEL_4K) {
 		set_pte_atomic(kpte, mk_pte(page, canon_pgprot(prot)));
