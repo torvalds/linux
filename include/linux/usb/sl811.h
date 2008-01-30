@@ -19,8 +19,8 @@ struct sl811_platform_data {
 	/* pulse sl811 nRST (probably with a GPIO) */
 	void		(*reset)(struct device *dev);
 
-	// some boards need something like these:
-	// int		(*check_overcurrent)(struct device *dev);
-	// void		(*clock_enable)(struct device *dev, int is_on);
+	/* some boards need something like these: */
+	/* int		(*check_overcurrent)(struct device *dev); */
+	/* void		(*clock_enable)(struct device *dev, int is_on); */
 };
 

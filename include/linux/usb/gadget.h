@@ -70,9 +70,10 @@ struct usb_ep;
  *
  * Bulk endpoints can use any size buffers, and can also be used for interrupt
  * transfers. interrupt-only endpoints can be much less functional.
+ *
+ * NOTE:  this is analagous to 'struct urb' on the host side, except that
+ * it's thinner and promotes more pre-allocation.
  */
-	// NOTE this is analagous to 'struct urb' on the host side,
-	// except that it's thinner and promotes more pre-allocation.
 
 struct usb_request {
 	void			*buf;
@@ -168,10 +169,10 @@ struct usb_ep {
  *
  * returns zero, or a negative error code.
  */
-static inline int
-usb_ep_enable (struct usb_ep *ep, const struct usb_endpoint_descriptor *desc)
+static inline int usb_ep_enable(struct usb_ep *ep,
+				const struct usb_endpoint_descriptor *desc)
 {
-	return ep->ops->enable (ep, desc);
+	return ep->ops->enable(ep, desc);
 }
 
 /**
@@ -186,10 +187,9 @@ usb_ep_enable (struct usb_ep *ep, const struct usb_endpoint_descriptor *desc)
  *
  * returns zero, or a negative error code.
  */
-static inline int
-usb_ep_disable (struct usb_ep *ep)
+static inline int usb_ep_disable(struct usb_ep *ep)
 {
-	return ep->ops->disable (ep);
+	return ep->ops->disable(ep);
 }
 
 /**
@@ -206,10 +206,10 @@ usb_ep_disable (struct usb_ep *ep)
  *
  * Returns the request, or null if one could not be allocated.
  */
-static inline struct usb_request *
-usb_ep_alloc_request (struct usb_ep *ep, gfp_t gfp_flags)
+static inline struct usb_request *usb_ep_alloc_request(struct usb_ep *ep,
+						       gfp_t gfp_flags)
 {
-	return ep->ops->alloc_request (ep, gfp_flags);
+	return ep->ops->alloc_request(ep, gfp_flags);
 }
 
 /**
@@ -221,10 +221,10 @@ usb_ep_alloc_request (struct usb_ep *ep, gfp_t gfp_flags)
  * Caller guarantees the request is not queued, and that it will
  * no longer be requeued (or otherwise used).
  */
-static inline void
-usb_ep_free_request (struct usb_ep *ep, struct usb_request *req)
+static inline void usb_ep_free_request(struct usb_ep *ep,
+				       struct usb_request *req)
 {
-	ep->ops->free_request (ep, req);
+	ep->ops->free_request(ep, req);
 }
 
 /**
@@ -281,10 +281,10 @@ usb_ep_free_request (struct usb_ep *ep, struct usb_request *req)
  * report errors; errors will also be
  * reported when the usb peripheral is disconnected.
  */
-static inline int
-usb_ep_queue (struct usb_ep *ep, struct usb_request *req, gfp_t gfp_flags)
+static inline int usb_ep_queue(struct usb_ep *ep,
+			       struct usb_request *req, gfp_t gfp_flags)
 {
-	return ep->ops->queue (ep, req, gfp_flags);
+	return ep->ops->queue(ep, req, gfp_flags);
 }
 
 /**
@@ -301,9 +301,9 @@ usb_ep_queue (struct usb_ep *ep, struct usb_request *req, gfp_t gfp_flags)
  * restrictions prevent drivers from supporting configuration changes,
  * even to configuration zero (a "chapter 9" requirement).
  */
-static inline int usb_ep_dequeue (struct usb_ep *ep, struct usb_request *req)
+static inline int usb_ep_dequeue(struct usb_ep *ep, struct usb_request *req)
 {
-	return ep->ops->dequeue (ep, req);
+	return ep->ops->dequeue(ep, req);
 }
 
 /**
@@ -327,10 +327,9 @@ static inline int usb_ep_dequeue (struct usb_ep *ep, struct usb_request *req)
  * transfer requests are still queued, or if the controller hardware
  * (usually a FIFO) still holds bytes that the host hasn't collected.
  */
-static inline int
-usb_ep_set_halt (struct usb_ep *ep)
+static inline int usb_ep_set_halt(struct usb_ep *ep)
 {
-	return ep->ops->set_halt (ep, 1);
+	return ep->ops->set_halt(ep, 1);
 }
 
 /**
@@ -346,10 +345,9 @@ usb_ep_set_halt (struct usb_ep *ep)
  * Note that some hardware can't support this request (like pxa2xx_udc),
  * and accordingly can't correctly implement interface altsettings.
  */
-static inline int
-usb_ep_clear_halt (struct usb_ep *ep)
+static inline int usb_ep_clear_halt(struct usb_ep *ep)
 {
-	return ep->ops->set_halt (ep, 0);
+	return ep->ops->set_halt(ep, 0);
 }
 
 /**
@@ -367,11 +365,10 @@ usb_ep_clear_halt (struct usb_ep *ep)
  * errno if the endpoint doesn't use a FIFO or doesn't support such
  * precise handling.
  */
-static inline int
-usb_ep_fifo_status (struct usb_ep *ep)
+static inline int usb_ep_fifo_status(struct usb_ep *ep)
 {
 	if (ep->ops->fifo_status)
-		return ep->ops->fifo_status (ep);
+		return ep->ops->fifo_status(ep);
 	else
 		return -EOPNOTSUPP;
 }
@@ -385,11 +382,10 @@ usb_ep_fifo_status (struct usb_ep *ep)
  * must never be used except when endpoint is not being used for any
  * protocol translation.
  */
-static inline void
-usb_ep_fifo_flush (struct usb_ep *ep)
+static inline void usb_ep_fifo_flush(struct usb_ep *ep)
 {
 	if (ep->ops->fifo_flush)
-		ep->ops->fifo_flush (ep);
+		ep->ops->fifo_flush(ep);
 }
 
 
@@ -469,10 +465,10 @@ struct usb_gadget {
 	struct device			dev;
 };
 
-static inline void set_gadget_data (struct usb_gadget *gadget, void *data)
-	{ dev_set_drvdata (&gadget->dev, data); }
-static inline void *get_gadget_data (struct usb_gadget *gadget)
-	{ return dev_get_drvdata (&gadget->dev); }
+static inline void set_gadget_data(struct usb_gadget *gadget, void *data)
+	{ dev_set_drvdata(&gadget->dev, data); }
+static inline void *get_gadget_data(struct usb_gadget *gadget)
+	{ return dev_get_drvdata(&gadget->dev); }
 
 /* iterates the non-control endpoints; 'tmp' is a struct usb_ep pointer */
 #define gadget_for_each_ep(tmp,gadget) \
@@ -511,7 +507,6 @@ static inline int gadget_is_otg(struct usb_gadget *g)
 #endif
 }
 
-
 /**
  * usb_gadget_frame_number - returns the current frame number
  * @gadget: controller that reports the frame number
@@ -519,9 +514,9 @@ static inline int gadget_is_otg(struct usb_gadget *g)
  * Returns the usb frame number, normally eleven bits from a SOF packet,
  * or negative errno if this device doesn't support this capability.
  */
-static inline int usb_gadget_frame_number (struct usb_gadget *gadget)
+static inline int usb_gadget_frame_number(struct usb_gadget *gadget)
 {
-	return gadget->ops->get_frame (gadget);
+	return gadget->ops->get_frame(gadget);
 }
 
 /**
@@ -537,11 +532,11 @@ static inline int usb_gadget_frame_number (struct usb_gadget *gadget)
  * even if OTG isn't otherwise in use.  OTG devices may also start
  * remote wakeup even when hosts don't explicitly enable it.
  */
-static inline int usb_gadget_wakeup (struct usb_gadget *gadget)
+static inline int usb_gadget_wakeup(struct usb_gadget *gadget)
 {
 	if (!gadget->ops->wakeup)
 		return -EOPNOTSUPP;
-	return gadget->ops->wakeup (gadget);
+	return gadget->ops->wakeup(gadget);
 }
 
 /**
@@ -553,12 +548,11 @@ static inline int usb_gadget_wakeup (struct usb_gadget *gadget)
  *
  * returns zero on success, else negative errno.
  */
-static inline int
-usb_gadget_set_selfpowered (struct usb_gadget *gadget)
+static inline int usb_gadget_set_selfpowered(struct usb_gadget *gadget)
 {
 	if (!gadget->ops->set_selfpowered)
 		return -EOPNOTSUPP;
-	return gadget->ops->set_selfpowered (gadget, 1);
+	return gadget->ops->set_selfpowered(gadget, 1);
 }
 
 /**
@@ -571,12 +565,11 @@ usb_gadget_set_selfpowered (struct usb_gadget *gadget)
  *
  * returns zero on success, else negative errno.
  */
-static inline int
-usb_gadget_clear_selfpowered (struct usb_gadget *gadget)
+static inline int usb_gadget_clear_selfpowered(struct usb_gadget *gadget)
 {
 	if (!gadget->ops->set_selfpowered)
 		return -EOPNOTSUPP;
-	return gadget->ops->set_selfpowered (gadget, 0);
+	return gadget->ops->set_selfpowered(gadget, 0);
 }
 
 /**
@@ -591,12 +584,11 @@ usb_gadget_clear_selfpowered (struct usb_gadget *gadget)
  *
  * Returns zero on success, else negative errno.
  */
-static inline int
-usb_gadget_vbus_connect(struct usb_gadget *gadget)
+static inline int usb_gadget_vbus_connect(struct usb_gadget *gadget)
 {
 	if (!gadget->ops->vbus_session)
 		return -EOPNOTSUPP;
-	return gadget->ops->vbus_session (gadget, 1);
+	return gadget->ops->vbus_session(gadget, 1);
 }
 
 /**
@@ -611,12 +603,11 @@ usb_gadget_vbus_connect(struct usb_gadget *gadget)
  *
  * Returns zero on success, else negative errno.
  */
-static inline int
-usb_gadget_vbus_draw(struct usb_gadget *gadget, unsigned mA)
+static inline int usb_gadget_vbus_draw(struct usb_gadget *gadget, unsigned mA)
 {
 	if (!gadget->ops->vbus_draw)
 		return -EOPNOTSUPP;
-	return gadget->ops->vbus_draw (gadget, mA);
+	return gadget->ops->vbus_draw(gadget, mA);
 }
 
 /**
@@ -629,12 +620,11 @@ usb_gadget_vbus_draw(struct usb_gadget *gadget, unsigned mA)
  *
  * Returns zero on success, else negative errno.
  */
-static inline int
-usb_gadget_vbus_disconnect(struct usb_gadget *gadget)
+static inline int usb_gadget_vbus_disconnect(struct usb_gadget *gadget)
 {
 	if (!gadget->ops->vbus_session)
 		return -EOPNOTSUPP;
-	return gadget->ops->vbus_session (gadget, 0);
+	return gadget->ops->vbus_session(gadget, 0);
 }
 
 /**
@@ -648,12 +638,11 @@ usb_gadget_vbus_disconnect(struct usb_gadget *gadget)
  *
  * Returns zero on success, else negative errno.
  */
-static inline int
-usb_gadget_connect (struct usb_gadget *gadget)
+static inline int usb_gadget_connect(struct usb_gadget *gadget)
 {
 	if (!gadget->ops->pullup)
 		return -EOPNOTSUPP;
-	return gadget->ops->pullup (gadget, 1);
+	return gadget->ops->pullup(gadget, 1);
 }
 
 /**
@@ -671,14 +660,12 @@ usb_gadget_connect (struct usb_gadget *gadget)
  *
  * Returns zero on success, else negative errno.
  */
-static inline int
-usb_gadget_disconnect (struct usb_gadget *gadget)
+static inline int usb_gadget_disconnect(struct usb_gadget *gadget)
 {
 	if (!gadget->ops->pullup)
 		return -EOPNOTSUPP;
-	return gadget->ops->pullup (gadget, 0);
+	return gadget->ops->pullup(gadget, 0);
 }
-
 
 
 /*-------------------------------------------------------------------------*/
@@ -764,7 +751,7 @@ struct usb_gadget_driver {
 	void			(*suspend)(struct usb_gadget *);
 	void			(*resume)(struct usb_gadget *);
 
-	// FIXME support safe rmmod
+	/* FIXME support safe rmmod */
 	struct device_driver	driver;
 };
 
@@ -790,7 +777,7 @@ struct usb_gadget_driver {
  * the bind() functions will be in init sections.
  * This function must be called in a context that can sleep.
  */
-int usb_gadget_register_driver (struct usb_gadget_driver *driver);
+int usb_gadget_register_driver(struct usb_gadget_driver *driver);
 
 /**
  * usb_gadget_unregister_driver - unregister a gadget driver
@@ -805,7 +792,7 @@ int usb_gadget_register_driver (struct usb_gadget_driver *driver);
  * will in in exit sections, so may not be linked in some kernels.
  * This function must be called in a context that can sleep.
  */
-int usb_gadget_unregister_driver (struct usb_gadget_driver *driver);
+int usb_gadget_unregister_driver(struct usb_gadget_driver *driver);
 
 /*-------------------------------------------------------------------------*/
 
@@ -838,7 +825,7 @@ struct usb_gadget_strings {
 };
 
 /* put descriptor for string with that id into buf (buflen >= 256) */
-int usb_gadget_get_string (struct usb_gadget_strings *table, int id, u8 *buf);
+int usb_gadget_get_string(struct usb_gadget_strings *table, int id, u8 *buf);
 
 /*-------------------------------------------------------------------------*/
 
@@ -856,10 +843,10 @@ int usb_gadget_config_buf(const struct usb_config_descriptor *config,
 
 /* utility wrapping a simple endpoint selection policy */
 
-extern struct usb_ep *usb_ep_autoconfig (struct usb_gadget *,
+extern struct usb_ep *usb_ep_autoconfig(struct usb_gadget *,
 			struct usb_endpoint_descriptor *) __devinit;
 
-extern void usb_ep_autoconfig_reset (struct usb_gadget *) __devinit;
+extern void usb_ep_autoconfig_reset(struct usb_gadget *) __devinit;
 
 #endif  /* __KERNEL__ */
 

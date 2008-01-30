@@ -47,9 +47,9 @@ struct usb_ms_header_descriptor {
 /* 6.1.2.2  MIDI IN Jack Descriptor */
 struct usb_midi_in_jack_descriptor {
 	__u8  bLength;
-	__u8  bDescriptorType;		// USB_DT_CS_INTERFACE
-	__u8  bDescriptorSubtype;	// USB_MS_MIDI_IN_JACK
-	__u8  bJackType;		// USB_MS_EMBEDDED/EXTERNAL
+	__u8  bDescriptorType;		/* USB_DT_CS_INTERFACE */
+	__u8  bDescriptorSubtype;	/* USB_MS_MIDI_IN_JACK */
+	__u8  bJackType;		/* USB_MS_EMBEDDED/EXTERNAL */
 	__u8  bJackID;
 	__u8  iJack;
 } __attribute__ ((packed));
@@ -64,12 +64,12 @@ struct usb_midi_source_pin {
 /* 6.1.2.3  MIDI OUT Jack Descriptor */
 struct usb_midi_out_jack_descriptor {
 	__u8  bLength;
-	__u8  bDescriptorType;		// USB_DT_CS_INTERFACE
-	__u8  bDescriptorSubtype;	// USB_MS_MIDI_OUT_JACK
-	__u8  bJackType;		// USB_MS_EMBEDDED/EXTERNAL
+	__u8  bDescriptorType;		/* USB_DT_CS_INTERFACE */
+	__u8  bDescriptorSubtype;	/* USB_MS_MIDI_OUT_JACK */
+	__u8  bJackType;		/* USB_MS_EMBEDDED/EXTERNAL */
 	__u8  bJackID;
-	__u8  bNrInputPins;		// p
-	struct usb_midi_source_pin pins[]; // [p]
+	__u8  bNrInputPins;		/* p */
+	struct usb_midi_source_pin pins[]; /* [p] */
 	/*__u8  iJack;  -- ommitted due to variable-sized pins[] */
 } __attribute__ ((packed));
 
@@ -90,11 +90,11 @@ struct usb_midi_out_jack_descriptor_##p {			\
 
 /* 6.2.2  Class-Specific MS Bulk Data Endpoint Descriptor */
 struct usb_ms_endpoint_descriptor {
-	__u8  bLength;			// 4+n
-	__u8  bDescriptorType;		// USB_DT_CS_ENDPOINT
-	__u8  bDescriptorSubtype;	// USB_MS_GENERAL
-	__u8  bNumEmbMIDIJack;		// n
-	__u8  baAssocJackID[];		// [n]
+	__u8  bLength;			/* 4+n */
+	__u8  bDescriptorType;		/* USB_DT_CS_ENDPOINT */
+	__u8  bDescriptorSubtype;	/* USB_MS_GENERAL */
+	__u8  bNumEmbMIDIJack;		/* n */
+	__u8  baAssocJackID[];		/* [n] */
 } __attribute__ ((packed));
 
 #define USB_DT_MS_ENDPOINT_SIZE(n)	(4 + (n))

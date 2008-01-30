@@ -1,4 +1,4 @@
-// include/linux/usb/otg.h
+/* USB OTG (On The Go) defines */
 
 /*
  * These APIs may be used between USB controllers.  USB device drivers
