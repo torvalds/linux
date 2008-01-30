@@ -8,11 +8,24 @@
 #include <asm/asm.h>
 
 /* Bitmask of what can be clobbered: usually at least eax. */
-#define CLBR_NONE 0x0
-#define CLBR_EAX 0x1
-#define CLBR_ECX 0x2
-#define CLBR_EDX 0x4
-#define CLBR_ANY 0x7
+#define CLBR_NONE 0
+#define CLBR_EAX  (1 << 0)
+#define CLBR_ECX  (1 << 1)
+#define CLBR_EDX  (1 << 2)
+
+#ifdef CONFIG_X86_64
+#define CLBR_RSI  (1 << 3)
+#define CLBR_RDI  (1 << 4)
+#define CLBR_R8   (1 << 5)
+#define CLBR_R9   (1 << 6)
+#define CLBR_R10  (1 << 7)
+#define CLBR_R11  (1 << 8)
+#define CLBR_ANY  ((1 << 9) - 1)
+#include <asm/desc_defs.h>
+#else
+/* CLBR_ANY should match all regs platform has. For i386, that's just it */
+#define CLBR_ANY  ((1 << 3) - 1)
+#endif /* X86_64 */
 
 #ifndef __ASSEMBLY__
 #include <linux/types.h>
