@@ -120,7 +120,7 @@ static int copy_vm86_regs_from_user(struct kernel_vm86_regs *regs,
 	return ret;
 }
 
-struct pt_regs * FASTCALL(save_v86_state(struct kernel_vm86_regs * regs));
+struct pt_regs * save_v86_state(struct kernel_vm86_regs * regs);
 struct pt_regs * fastcall save_v86_state(struct kernel_vm86_regs * regs)
 {
 	struct tss_struct *tss;
