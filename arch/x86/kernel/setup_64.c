@@ -338,7 +338,6 @@ void __init setup_arch(char **cmdline_p)
 #ifdef CONFIG_NUMA
 	x86_cpu_to_node_map_early_ptr = (void *)&x86_cpu_to_node_map_init;
 #endif
-	x86_bios_cpu_apicid_early_ptr = (void *)&x86_bios_cpu_apicid_init;
 #endif
 
 #ifdef CONFIG_ACPI
