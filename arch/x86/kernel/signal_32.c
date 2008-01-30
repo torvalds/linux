@@ -295,6 +295,13 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs * regs, size_t frame_size)
 	/* Default to using normal stack */
 	esp = regs->esp;
 
+	/*
+	 * If we are on the alternate signal stack and would overflow it, don't.
+	 * Return an always-bogus address instead so we will die with SIGSEGV.
+	 */
+	if (on_sig_stack(esp) && !likely(on_sig_stack(esp - frame_size)))
+		return (void __user *) -1L;
+
 	/* This is the X/Open sanctioned signal stack switching.  */
 	if (ka->sa.sa_flags & SA_ONSTACK) {
 		if (sas_ss_flags(esp) == 0)
