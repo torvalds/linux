@@ -15,6 +15,7 @@
 
 #include <linux/compiler.h>
 #include <linux/types.h>
+#include <linux/uaccess.h>
 struct task_struct;
 struct user_regset;
 
@@ -201,6 +202,121 @@ struct user_regset_view {
  * Throughout the life of the process, this only changes at exec.
  */
 const struct user_regset_view *task_user_regset_view(struct task_struct *tsk);
+
+
+/*
+ * These are helpers for writing regset get/set functions in arch code.
+ * Because @start_pos and @end_pos are always compile-time constants,
+ * these are inlined into very little code though they look large.
+ *
+ * Use one or more calls sequentially for each chunk of regset data stored
+ * contiguously in memory.  Call with constants for @start_pos and @end_pos,
+ * giving the range of byte positions in the regset that data corresponds
+ * to; @end_pos can be -1 if this chunk is at the end of the regset layout.
+ * Each call updates the arguments to point past its chunk.
+ */
+
+static inline int user_regset_copyout(unsigned int *pos, unsigned int *count,
+				      void **kbuf,
+				      void __user **ubuf, const void *data,
+				      const int start_pos, const int end_pos)
+{
+	if (*count == 0)
+		return 0;
+	BUG_ON(*pos < start_pos);
+	if (end_pos < 0 || *pos < end_pos) {
+		unsigned int copy = (end_pos < 0 ? *count
+				     : min(*count, end_pos - *pos));
+		data += *pos - start_pos;
+		if (*kbuf) {
+			memcpy(*kbuf, data, copy);
+			*kbuf += copy;
+		} else if (__copy_to_user(*ubuf, data, copy))
+			return -EFAULT;
+		else
+			*ubuf += copy;
+		*pos += copy;
+		*count -= copy;
+	}
+	return 0;
+}
+
+static inline int user_regset_copyin(unsigned int *pos, unsigned int *count,
+				     const void **kbuf,
+				     const void __user **ubuf, void *data,
+				     const int start_pos, const int end_pos)
+{
+	if (*count == 0)
+		return 0;
+	BUG_ON(*pos < start_pos);
+	if (end_pos < 0 || *pos < end_pos) {
+		unsigned int copy = (end_pos < 0 ? *count
+				     : min(*count, end_pos - *pos));
+		data += *pos - start_pos;
+		if (*kbuf) {
+			memcpy(data, *kbuf, copy);
+			*kbuf += copy;
+		} else if (__copy_from_user(data, *ubuf, copy))
+			return -EFAULT;
+		else
+			*ubuf += copy;
+		*pos += copy;
+		*count -= copy;
+	}
+	return 0;
+}
+
+/*
+ * These two parallel the two above, but for portions of a regset layout
+ * that always read as all-zero or for which writes are ignored.
+ */
+static inline int user_regset_copyout_zero(unsigned int *pos,
+					   unsigned int *count,
+					   void **kbuf, void __user **ubuf,
+					   const int start_pos,
+					   const int end_pos)
+{
+	if (*count == 0)
+		return 0;
+	BUG_ON(*pos < start_pos);
+	if (end_pos < 0 || *pos < end_pos) {
+		unsigned int copy = (end_pos < 0 ? *count
+				     : min(*count, end_pos - *pos));
+		if (*kbuf) {
+			memset(*kbuf, 0, copy);
+			*kbuf += copy;
+		} else if (__clear_user(*ubuf, copy))
+			return -EFAULT;
+		else
+			*ubuf += copy;
+		*pos += copy;
+		*count -= copy;
+	}
+	return 0;
+}
+
+static inline int user_regset_copyin_ignore(unsigned int *pos,
+					    unsigned int *count,
+					    const void **kbuf,
+					    const void __user **ubuf,
+					    const int start_pos,
+					    const int end_pos)
+{
+	if (*count == 0)
+		return 0;
+	BUG_ON(*pos < start_pos);
+	if (end_pos < 0 || *pos < end_pos) {
+		unsigned int copy = (end_pos < 0 ? *count
+				     : min(*count, end_pos - *pos));
+		if (*kbuf)
+			*kbuf += copy;
+		else
+			*ubuf += copy;
+		*pos += copy;
+		*count -= copy;
+	}
+	return 0;
+}
 
 
 #endif	/* <linux/regset.h> */
