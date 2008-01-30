@@ -107,7 +107,7 @@ void printk_address(unsigned long address, int reliable)
 	const char *symname;
 	char *modname;
 	char *delim = ":";
-	char namebuf[128];
+	char namebuf[KSYM_NAME_LEN];
 	char reliab[4] = "";
 
 	symname = kallsyms_lookup(address, &symsize, &offset,
