@@ -167,23 +167,13 @@ static inline void set_info_type(char *base, unsigned char value)
 {
 	(*(unsigned char *)(base + ds_cfg.info_type.offset)) = value;
 }
-/*
- * The info data might overlap with the info type on some architectures.
- * We therefore read and write the exact number of bytes.
- */
-static inline unsigned long long get_info_data(char *base)
+static inline unsigned long get_info_data(char *base)
 {
-	unsigned long long value = 0;
-	memcpy(&value,
-	       base + ds_cfg.info_data.offset,
-	       ds_cfg.info_data.size);
-	return value;
+	return *(unsigned long *)(base + ds_cfg.info_data.offset);
 }
-static inline void set_info_data(char *base, unsigned long long value)
+static inline void set_info_data(char *base, unsigned long value)
 {
-	memcpy(base + ds_cfg.info_data.offset,
-	       &value,
-	       ds_cfg.info_data.size);
+	(*(unsigned long *)(base + ds_cfg.info_data.offset)) = value;
 }
 
 
@@ -282,8 +272,8 @@ int ds_read_bts(void *ds, size_t index, struct bts_struct *out)
 
 	memset(out, 0, sizeof(*out));
 	if (get_from_ip(bts) == BTS_ESCAPE_ADDRESS) {
-		out->qualifier         = get_info_type(bts);
-		out->variant.timestamp = get_info_data(bts);
+		out->qualifier       = get_info_type(bts);
+		out->variant.jiffies = get_info_data(bts);
 	} else {
 		out->qualifier = BTS_BRANCH;
 		out->variant.lbr.from_ip = get_from_ip(bts);
@@ -319,7 +309,7 @@ int ds_write_bts(void *ds, const struct bts_struct *in)
 	case BTS_TASK_DEPARTS:
 		set_from_ip(bts, BTS_ESCAPE_ADDRESS);
 		set_info_type(bts, in->qualifier);
-		set_info_data(bts, in->variant.timestamp);
+		set_info_data(bts, in->variant.jiffies);
 		break;
 
 	default:
@@ -350,7 +340,7 @@ static const struct ds_configuration ds_cfg_netburst = {
 	.from_ip = { 0, 4 },
 	.to_ip = { 4, 4 },
 	.info_type = { 4, 1 },
-	.info_data = { 5, 7 },
+	.info_data = { 8, 4 },
 	.debugctl_mask = (1<<2)|(1<<3)
 };
 
@@ -364,7 +354,7 @@ static const struct ds_configuration ds_cfg_pentium_m = {
 	.from_ip = { 0, 4 },
 	.to_ip = { 4, 4 },
 	.info_type = { 4, 1 },
-	.info_data = { 5, 7 },
+	.info_data = { 8, 4 },
 	.debugctl_mask = (1<<6)|(1<<7)
 };
 #endif /* _i386_ */
@@ -379,7 +369,7 @@ static const struct ds_configuration ds_cfg_core2 = {
 	.from_ip = { 0, 8 },
 	.to_ip = { 8, 8 },
 	.info_type = { 8, 1 },
-	.info_data = { 9, 7 },
+	.info_data = { 16, 8 },
 	.debugctl_mask = (1<<6)|(1<<7)|(1<<9)
 };
 

@@ -616,7 +616,7 @@ void ptrace_bts_take_timestamp(struct task_struct *tsk,
 {
 	struct bts_struct rec = {
 		.qualifier = qualifier,
-		.variant.timestamp = sched_clock()
+		.variant.jiffies = jiffies
 	};
 
 	if (ptrace_bts_get_buffer_size(tsk) <= 0)

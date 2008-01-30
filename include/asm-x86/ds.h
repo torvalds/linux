@@ -48,7 +48,7 @@ struct bts_struct {
 		} lbr;
 		/* BTS_TASK_ARRIVES or
 		   BTS_TASK_DEPARTS */
-		unsigned long long timestamp;
+		unsigned long jiffies;
 	} variant;
 };
 
