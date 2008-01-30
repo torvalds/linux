@@ -657,8 +657,6 @@ static inline unsigned long long paravirt_sched_clock(void)
 }
 #define calculate_cpu_khz() (pv_time_ops.get_cpu_khz())
 
-#define write_tsc(val1,val2) wrmsr(0x10, val1, val2)
-
 static inline unsigned long long paravirt_read_pmc(int counter)
 {
 	return PVOP_CALL1(u64, pv_cpu_ops.read_pmc, counter);

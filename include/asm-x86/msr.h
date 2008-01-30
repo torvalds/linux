@@ -157,8 +157,6 @@ static inline int wrmsr_safe(unsigned msr, unsigned low, unsigned high)
 #define rdtscll(val)						\
 	((val) = native_read_tsc())
 
-#define write_tsc(val1,val2) wrmsr(0x10, val1, val2)
-
 #define rdpmc(counter,low,high)					\
 	do {							\
 		u64 _l = native_read_pmc(counter);		\
