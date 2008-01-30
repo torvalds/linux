@@ -17,7 +17,6 @@ extern pud_t level3_kernel_pgt[512];
 extern pud_t level3_ident_pgt[512];
 extern pmd_t level2_kernel_pgt[512];
 extern pgd_t init_level4_pgt[];
-extern unsigned long __supported_pte_mask;
 
 #define swapper_pg_dir init_level4_pgt
 
@@ -165,14 +164,6 @@ static inline unsigned long pmd_bad(pmd_t pmd)
 #define pte_page(x)	pfn_to_page(pte_pfn(x))
 #define pte_pfn(x)  ((pte_val(x) & __PHYSICAL_MASK) >> PAGE_SHIFT)
 
-static inline pte_t pfn_pte(unsigned long page_nr, pgprot_t pgprot)
-{
-	pte_t pte;
-	pte_val(pte) = (page_nr << PAGE_SHIFT);
-	pte_val(pte) |= pgprot_val(pgprot);
-	pte_val(pte) &= __supported_pte_mask;
-	return pte;
-}
 struct vm_area_struct;
 
 static inline int ptep_test_and_clear_young(struct vm_area_struct *vma, unsigned long addr, pte_t *ptep)
@@ -239,15 +230,6 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, 
 /* page, protection -> pte */
 #define mk_pte(page, pgprot)	pfn_pte(page_to_pfn(page), (pgprot))
  
-/* Change flags of a PTE */
-static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
-{ 
-	pte_val(pte) &= _PAGE_CHG_MASK;
-	pte_val(pte) |= pgprot_val(newprot);
-	pte_val(pte) &= __supported_pte_mask;
-       return pte; 
-}
-
 #define pte_index(address) \
 		(((address) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
 #define pte_offset_kernel(dir, address) ((pte_t *) pmd_page_vaddr(*(dir)) + \

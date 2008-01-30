@@ -53,8 +53,6 @@ static inline pte_t native_ptep_get_and_clear(pte_t *xp)
 #define pte_page(x)		pfn_to_page(pte_pfn(x))
 #define pte_none(x)		(!(x).pte_low)
 #define pte_pfn(x)		(pte_val(x) >> PAGE_SHIFT)
-#define pfn_pte(pfn, prot)	__pte(((pfn) << PAGE_SHIFT) | pgprot_val(prot))
-#define pfn_pmd(pfn, prot)	__pmd(((pfn) << PAGE_SHIFT) | pgprot_val(prot))
 
 /*
  * All present pages are kernel-executable:
