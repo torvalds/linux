@@ -29,7 +29,7 @@
  * registers (%eax, %edx and %ecx) except %eax whish is either a return
  * value or just clobbered..
  */
-	.section .sched.text
+	.section .sched.text, "ax"
 ENTRY(__down_failed)
 	CFI_STARTPROC
 	FRAME
