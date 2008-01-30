@@ -53,11 +53,11 @@ static inline void stack_overflow_check(struct pt_regs *regs)
 	u64 curbase = (u64)task_stack_page(current);
 	static unsigned long warned = -60*HZ;
 
-	if (regs->rsp >= curbase && regs->rsp <= curbase + THREAD_SIZE &&
-	    regs->rsp <  curbase + sizeof(struct thread_info) + 128 &&
+	if (regs->sp >= curbase && regs->sp <= curbase + THREAD_SIZE &&
+	    regs->sp <  curbase + sizeof(struct thread_info) + 128 &&
 	    time_after(jiffies, warned + 60*HZ)) {
-		printk("do_IRQ: %s near stack overflow (cur:%Lx,rsp:%lx)\n",
-		       current->comm, curbase, regs->rsp);
+		printk("do_IRQ: %s near stack overflow (cur:%Lx,sp:%lx)\n",
+		       current->comm, curbase, regs->sp);
 		show_stack(NULL,NULL);
 		warned = jiffies;
 	}
@@ -162,7 +162,7 @@ asmlinkage unsigned int do_IRQ(struct pt_regs *regs)
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
 	/* high bit used in ret_from_ code  */
-	unsigned vector = ~regs->orig_rax;
+	unsigned vector = ~regs->orig_ax;
 	unsigned irq;
 
 	exit_idle();

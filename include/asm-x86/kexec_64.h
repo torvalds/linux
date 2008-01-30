@@ -60,14 +60,14 @@ static inline void crash_setup_regs(struct pt_regs *newregs,
 	if (oldregs)
 		memcpy(newregs, oldregs, sizeof(*newregs));
 	else {
-		__asm__ __volatile__("movq %%rbx,%0" : "=m"(newregs->rbx));
-		__asm__ __volatile__("movq %%rcx,%0" : "=m"(newregs->rcx));
-		__asm__ __volatile__("movq %%rdx,%0" : "=m"(newregs->rdx));
-		__asm__ __volatile__("movq %%rsi,%0" : "=m"(newregs->rsi));
-		__asm__ __volatile__("movq %%rdi,%0" : "=m"(newregs->rdi));
-		__asm__ __volatile__("movq %%rbp,%0" : "=m"(newregs->rbp));
-		__asm__ __volatile__("movq %%rax,%0" : "=m"(newregs->rax));
-		__asm__ __volatile__("movq %%rsp,%0" : "=m"(newregs->rsp));
+		__asm__ __volatile__("movq %%rbx,%0" : "=m"(newregs->bx));
+		__asm__ __volatile__("movq %%rcx,%0" : "=m"(newregs->cx));
+		__asm__ __volatile__("movq %%rdx,%0" : "=m"(newregs->dx));
+		__asm__ __volatile__("movq %%rsi,%0" : "=m"(newregs->si));
+		__asm__ __volatile__("movq %%rdi,%0" : "=m"(newregs->di));
+		__asm__ __volatile__("movq %%rbp,%0" : "=m"(newregs->bp));
+		__asm__ __volatile__("movq %%rax,%0" : "=m"(newregs->ax));
+		__asm__ __volatile__("movq %%rsp,%0" : "=m"(newregs->sp));
 		__asm__ __volatile__("movq %%r8,%0" : "=m"(newregs->r8));
 		__asm__ __volatile__("movq %%r9,%0" : "=m"(newregs->r9));
 		__asm__ __volatile__("movq %%r10,%0" : "=m"(newregs->r10));
@@ -78,9 +78,9 @@ static inline void crash_setup_regs(struct pt_regs *newregs,
 		__asm__ __volatile__("movq %%r15,%0" : "=m"(newregs->r15));
 		__asm__ __volatile__("movl %%ss, %%eax;" :"=a"(newregs->ss));
 		__asm__ __volatile__("movl %%cs, %%eax;" :"=a"(newregs->cs));
-		__asm__ __volatile__("pushfq; popq %0" :"=m"(newregs->eflags));
+		__asm__ __volatile__("pushfq; popq %0" :"=m"(newregs->flags));
 
-		newregs->rip = (unsigned long)current_text_addr();
+		newregs->ip = (unsigned long)current_text_addr();
 	}
 }
 

@@ -634,7 +634,7 @@ void __init early_cpu_init(void)
 struct pt_regs * __devinit idle_regs(struct pt_regs *regs)
 {
 	memset(regs, 0, sizeof(struct pt_regs));
-	regs->xfs = __KERNEL_PERCPU;
+	regs->fs = __KERNEL_PERCPU;
 	return regs;
 }
 

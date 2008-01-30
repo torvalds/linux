@@ -447,7 +447,7 @@ void __devinit initialize_secondary(void)
 {
 	/*
 	 * We don't actually need to load the full TSS,
-	 * basically just the stack pointer and the eip.
+	 * basically just the stack pointer and the ip.
 	 */
 
 	asm volatile(
@@ -459,7 +459,7 @@ void __devinit initialize_secondary(void)
 
 /* Static state in head.S used to set up a CPU */
 extern struct {
-	void * esp;
+	void * sp;
 	unsigned short ss;
 } stack_start;
 
@@ -667,7 +667,7 @@ wakeup_secondary_cpu(int phys_apicid, unsigned long start_eip)
 	 * target processor state.
 	 */
 	startup_ipi_hook(phys_apicid, (unsigned long) start_secondary,
-		         (unsigned long) stack_start.esp);
+		         (unsigned long) stack_start.sp);
 
 	/*
 	 * Run STARTUP IPI loop.
@@ -806,9 +806,9 @@ static int __cpuinit do_boot_cpu(int apicid, int cpu)
 	alternatives_smp_switch(1);
 
 	/* So we see what's up   */
-	printk("Booting processor %d/%d eip %lx\n", cpu, apicid, start_eip);
+	printk("Booting processor %d/%d ip %lx\n", cpu, apicid, start_eip);
 	/* Stack for startup_32 can be just as for start_secondary onwards */
-	stack_start.esp = (void *) idle->thread.esp;
+	stack_start.sp = (void *) idle->thread.esp;
 
 	irq_ctx_init(cpu);
 

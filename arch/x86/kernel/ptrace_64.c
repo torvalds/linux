@@ -119,7 +119,7 @@ static int putreg(struct task_struct *child,
 				clear_tsk_thread_flag(child, TIF_FORCED_TF);
 			else if (test_tsk_thread_flag(child, TIF_FORCED_TF))
 				value |= X86_EFLAGS_TF;
-			value |= regs->eflags & ~FLAG_MASK;
+			value |= regs->flags & ~FLAG_MASK;
 			break;
 		case offsetof(struct user_regs_struct,cs): 
 			if ((value & 3) != 3)
@@ -168,7 +168,7 @@ static unsigned long getreg(struct task_struct *child, unsigned long regno)
 			/*
 			 * If the debugger set TF, hide it from the readout.
 			 */
-			val = regs->eflags;
+			val = regs->flags;
 			if (test_tsk_thread_flag(child, TIF_IA32))
 				val &= 0xffffffff;
 			if (test_tsk_thread_flag(child, TIF_FORCED_TF))
@@ -383,9 +383,9 @@ static void syscall_trace(struct pt_regs *regs)
 {
 
 #if 0
-	printk("trace %s rip %lx rsp %lx rax %d origrax %d caller %lx tiflags %x ptrace %x\n",
+	printk("trace %s ip %lx sp %lx ax %d origrax %d caller %lx tiflags %x ptrace %x\n",
 	       current->comm,
-	       regs->rip, regs->rsp, regs->rax, regs->orig_rax, __builtin_return_address(0),
+	       regs->ip, regs->sp, regs->ax, regs->orig_ax, __builtin_return_address(0),
 	       current_thread_info()->flags, current->ptrace); 
 #endif
 
@@ -405,7 +405,7 @@ static void syscall_trace(struct pt_regs *regs)
 asmlinkage void syscall_trace_enter(struct pt_regs *regs)
 {
 	/* do the secure computing check first */
-	secure_computing(regs->orig_rax);
+	secure_computing(regs->orig_ax);
 
 	if (test_thread_flag(TIF_SYSCALL_TRACE)
 	    && (current->ptrace & PT_PTRACED))
@@ -414,14 +414,14 @@ asmlinkage void syscall_trace_enter(struct pt_regs *regs)
 	if (unlikely(current->audit_context)) {
 		if (test_thread_flag(TIF_IA32)) {
 			audit_syscall_entry(AUDIT_ARCH_I386,
-					    regs->orig_rax,
-					    regs->rbx, regs->rcx,
-					    regs->rdx, regs->rsi);
+					    regs->orig_ax,
+					    regs->bx, regs->cx,
+					    regs->dx, regs->si);
 		} else {
 			audit_syscall_entry(AUDIT_ARCH_X86_64,
-					    regs->orig_rax,
-					    regs->rdi, regs->rsi,
-					    regs->rdx, regs->r10);
+					    regs->orig_ax,
+					    regs->di, regs->si,
+					    regs->dx, regs->r10);
 		}
 	}
 }
@@ -429,7 +429,7 @@ asmlinkage void syscall_trace_enter(struct pt_regs *regs)
 asmlinkage void syscall_trace_leave(struct pt_regs *regs)
 {
 	if (unlikely(current->audit_context))
-		audit_syscall_exit(AUDITSC_RESULT(regs->rax), regs->rax);
+		audit_syscall_exit(AUDITSC_RESULT(regs->ax), regs->ax);
 
 	if ((test_thread_flag(TIF_SYSCALL_TRACE)
 	     || test_thread_flag(TIF_SINGLESTEP))

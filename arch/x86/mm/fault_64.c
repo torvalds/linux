@@ -198,7 +198,7 @@ KERN_ERR "******* Disabling USB legacy in the BIOS may also help.\n";
 static int is_errata93(struct pt_regs *regs, unsigned long address) 
 {
 	static int warned;
-	if (address != regs->rip)
+	if (address != regs->ip)
 		return 0;
 	if ((address >> 32) != 0) 
 		return 0;
@@ -209,7 +209,7 @@ static int is_errata93(struct pt_regs *regs, unsigned long address)
 			printk(errata93_warning); 		
 			warned = 1;
 		}
-		regs->rip = address;
+		regs->ip = address;
 		return 1;
 	}
 	return 0;
@@ -355,7 +355,7 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 	if (notify_page_fault(regs))
 		return;
 
-	if (likely(regs->eflags & X86_EFLAGS_IF))
+	if (likely(regs->flags & X86_EFLAGS_IF))
 		local_irq_enable();
 
 	if (unlikely(error_code & PF_RSVD))
@@ -393,7 +393,7 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 	 */
 	if (!down_read_trylock(&mm->mmap_sem)) {
 		if ((error_code & PF_USER) == 0 &&
-		    !search_exception_tables(regs->rip))
+		    !search_exception_tables(regs->ip))
 			goto bad_area_nosemaphore;
 		down_read(&mm->mmap_sem);
 	}
@@ -409,7 +409,7 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 		/* Allow userspace just enough access below the stack pointer
 		 * to let the 'enter' instruction work.
 		 */
-		if (address + 65536 + 32 * sizeof(unsigned long) < regs->rsp)
+		if (address + 65536 + 32 * sizeof(unsigned long) < regs->sp)
 			goto bad_area;
 	}
 	if (expand_stack(vma, address))
@@ -488,10 +488,10 @@ bad_area_nosemaphore:
 		if (show_unhandled_signals && unhandled_signal(tsk, SIGSEGV) &&
 		    printk_ratelimit()) {
 			printk(
-		       "%s%s[%d]: segfault at %lx rip %lx rsp %lx error %lx\n",
+		       "%s%s[%d]: segfault at %lx ip %lx sp %lx error %lx\n",
 					tsk->pid > 1 ? KERN_INFO : KERN_EMERG,
-					tsk->comm, tsk->pid, address, regs->rip,
-					regs->rsp, error_code);
+					tsk->comm, tsk->pid, address, regs->ip,
+					regs->sp, error_code);
 		}
        
 		tsk->thread.cr2 = address;
@@ -509,9 +509,9 @@ bad_area_nosemaphore:
 no_context:
 	
 	/* Are we prepared to handle this kernel fault?  */
-	fixup = search_exception_tables(regs->rip);
+	fixup = search_exception_tables(regs->ip);
 	if (fixup) {
-		regs->rip = fixup->fixup;
+		regs->ip = fixup->fixup;
 		return;
 	}
 
@@ -537,7 +537,7 @@ no_context:
 	else
 		printk(KERN_ALERT "Unable to handle kernel paging request");
 	printk(" at %016lx RIP: \n" KERN_ALERT,address);
-	printk_address(regs->rip);
+	printk_address(regs->ip);
 	dump_pagetable(address);
 	tsk->thread.cr2 = address;
 	tsk->thread.trap_no = 14;

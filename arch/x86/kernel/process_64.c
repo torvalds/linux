@@ -257,13 +257,13 @@ void cpu_idle(void)
  * New with Core Duo processors, MWAIT can take some hints based on CPU
  * capability.
  */
-void mwait_idle_with_hints(unsigned long eax, unsigned long ecx)
+void mwait_idle_with_hints(unsigned long ax, unsigned long cx)
 {
 	if (!need_resched()) {
 		__monitor((void *)&current_thread_info()->flags, 0, 0);
 		smp_mb();
 		if (!need_resched())
-			__mwait(eax, ecx);
+			__mwait(ax, cx);
 	}
 }
 
@@ -330,16 +330,16 @@ void __show_regs(struct pt_regs * regs)
 		init_utsname()->release,
 		(int)strcspn(init_utsname()->version, " "),
 		init_utsname()->version);
-	printk("RIP: %04lx:[<%016lx>] ", regs->cs & 0xffff, regs->rip);
-	printk_address(regs->rip); 
-	printk("RSP: %04lx:%016lx  EFLAGS: %08lx\n", regs->ss, regs->rsp,
-		regs->eflags);
+	printk("RIP: %04lx:[<%016lx>] ", regs->cs & 0xffff, regs->ip);
+	printk_address(regs->ip);
+	printk("RSP: %04lx:%016lx  EFLAGS: %08lx\n", regs->ss, regs->sp,
+		regs->flags);
 	printk("RAX: %016lx RBX: %016lx RCX: %016lx\n",
-	       regs->rax, regs->rbx, regs->rcx);
+	       regs->ax, regs->bx, regs->cx);
 	printk("RDX: %016lx RSI: %016lx RDI: %016lx\n",
-	       regs->rdx, regs->rsi, regs->rdi); 
+	       regs->dx, regs->si, regs->di);
 	printk("RBP: %016lx R08: %016lx R09: %016lx\n",
-	       regs->rbp, regs->r8, regs->r9); 
+	       regs->bp, regs->r8, regs->r9);
 	printk("R10: %016lx R11: %016lx R12: %016lx\n",
 	       regs->r10, regs->r11, regs->r12); 
 	printk("R13: %016lx R14: %016lx R15: %016lx\n",
@@ -476,7 +476,7 @@ void prepare_to_copy(struct task_struct *tsk)
 	unlazy_fpu(tsk);
 }
 
-int copy_thread(int nr, unsigned long clone_flags, unsigned long rsp, 
+int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
 		unsigned long unused,
 	struct task_struct * p, struct pt_regs * regs)
 {
@@ -488,10 +488,10 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long rsp,
 			(THREAD_SIZE + task_stack_page(p))) - 1;
 	*childregs = *regs;
 
-	childregs->rax = 0;
-	childregs->rsp = rsp;
-	if (rsp == ~0UL)
-		childregs->rsp = (unsigned long)childregs;
+	childregs->ax = 0;
+	childregs->sp = sp;
+	if (sp == ~0UL)
+		childregs->sp = (unsigned long)childregs;
 
 	p->thread.rsp = (unsigned long) childregs;
 	p->thread.rsp0 = (unsigned long) (childregs+1);
@@ -525,7 +525,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long rsp,
 #ifdef CONFIG_IA32_EMULATION
 		if (test_thread_flag(TIF_IA32))
 			err = do_set_thread_area(p, -1,
-				(struct user_desc __user *)childregs->rsi, 0);
+				(struct user_desc __user *)childregs->si, 0);
 		else 			
 #endif	 
 			err = do_arch_prctl(p, ARCH_SET_FS, childregs->r8); 
@@ -732,7 +732,7 @@ void set_personality_64bit(void)
 
 asmlinkage long sys_fork(struct pt_regs *regs)
 {
-	return do_fork(SIGCHLD, regs->rsp, regs, 0, NULL, NULL);
+	return do_fork(SIGCHLD, regs->sp, regs, 0, NULL, NULL);
 }
 
 asmlinkage long
@@ -740,7 +740,7 @@ sys_clone(unsigned long clone_flags, unsigned long newsp,
 	  void __user *parent_tid, void __user *child_tid, struct pt_regs *regs)
 {
 	if (!newsp)
-		newsp = regs->rsp;
+		newsp = regs->sp;
 	return do_fork(clone_flags, newsp, regs, 0, parent_tid, child_tid);
 }
 
@@ -756,14 +756,14 @@ sys_clone(unsigned long clone_flags, unsigned long newsp,
  */
 asmlinkage long sys_vfork(struct pt_regs *regs)
 {
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs->rsp, regs, 0,
+	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs->sp, regs, 0,
 		    NULL, NULL);
 }
 
 unsigned long get_wchan(struct task_struct *p)
 {
 	unsigned long stack;
-	u64 fp,rip;
+	u64 fp,ip;
 	int count = 0;
 
 	if (!p || p == current || p->state==TASK_RUNNING)
@@ -776,9 +776,9 @@ unsigned long get_wchan(struct task_struct *p)
 		if (fp < (unsigned long)stack ||
 		    fp > (unsigned long)stack+THREAD_SIZE)
 			return 0; 
-		rip = *(u64 *)(fp+8); 
-		if (!in_sched_functions(rip))
-			return rip; 
+		ip = *(u64 *)(fp+8);
+		if (!in_sched_functions(ip))
+			return ip;
 		fp = *(u64 *)fp; 
 	} while (count++ < 16); 
 	return 0;

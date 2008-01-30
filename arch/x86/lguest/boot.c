@@ -175,8 +175,8 @@ static void lguest_leave_lazy_mode(void)
  * check there when it wants to deliver an interrupt.
  */
 
-/* save_flags() is expected to return the processor state (ie. "eflags").  The
- * eflags word contains all kind of stuff, but in practice Linux only cares
+/* save_flags() is expected to return the processor state (ie. "flags").  The
+ * flags word contains all kind of stuff, but in practice Linux only cares
  * about the interrupt flag.  Our "save_flags()" just returns that. */
 static unsigned long save_fl(void)
 {
@@ -323,30 +323,30 @@ static void lguest_load_tr_desc(void)
  * anyone (including userspace) can just use the raw "cpuid" instruction and
  * the Host won't even notice since it isn't privileged.  So we try not to get
  * too worked up about it. */
-static void lguest_cpuid(unsigned int *eax, unsigned int *ebx,
-			 unsigned int *ecx, unsigned int *edx)
+static void lguest_cpuid(unsigned int *ax, unsigned int *bx,
+			 unsigned int *cx, unsigned int *dx)
 {
-	int function = *eax;
+	int function = *ax;
 
-	native_cpuid(eax, ebx, ecx, edx);
+	native_cpuid(ax, bx, cx, dx);
 	switch (function) {
 	case 1:	/* Basic feature request. */
 		/* We only allow kernel to see SSE3, CMPXCHG16B and SSSE3 */
-		*ecx &= 0x00002201;
+		*cx &= 0x00002201;
 		/* SSE, SSE2, FXSR, MMX, CMOV, CMPXCHG8B, FPU. */
-		*edx &= 0x07808101;
+		*dx &= 0x07808101;
 		/* The Host can do a nice optimization if it knows that the
 		 * kernel mappings (addresses above 0xC0000000 or whatever
 		 * PAGE_OFFSET is set to) haven't changed.  But Linux calls
 		 * flush_tlb_user() for both user and kernel mappings unless
 		 * the Page Global Enable (PGE) feature bit is set. */
-		*edx |= 0x00002000;
+		*dx |= 0x00002000;
 		break;
 	case 0x80000000:
 		/* Futureproof this a little: if they ask how much extended
 		 * processor information there is, limit it to known fields. */
-		if (*eax > 0x80000008)
-			*eax = 0x80000008;
+		if (*ax > 0x80000008)
+			*ax = 0x80000008;
 		break;
 	}
 }

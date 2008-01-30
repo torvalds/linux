@@ -99,32 +99,32 @@ typedef struct user_fxsr_struct elf_fpxregset_t;
    just to make things more deterministic.
  */
 #define ELF_PLAT_INIT(_r, load_addr)	do { \
-	_r->ebx = 0; _r->ecx = 0; _r->edx = 0; \
-	_r->esi = 0; _r->edi = 0; _r->ebp = 0; \
-	_r->eax = 0; \
+	_r->bx = 0; _r->cx = 0; _r->dx = 0; \
+	_r->si = 0; _r->di = 0; _r->bp = 0; \
+	_r->ax = 0; \
 } while (0)
 
 /* regs is struct pt_regs, pr_reg is elf_gregset_t (which is
    now struct_user_regs, they are different) */
 
 #define ELF_CORE_COPY_REGS(pr_reg, regs)		\
-	pr_reg[0] = regs->ebx;				\
-	pr_reg[1] = regs->ecx;				\
-	pr_reg[2] = regs->edx;				\
-	pr_reg[3] = regs->esi;				\
-	pr_reg[4] = regs->edi;				\
-	pr_reg[5] = regs->ebp;				\
-	pr_reg[6] = regs->eax;				\
-	pr_reg[7] = regs->xds & 0xffff;			\
-	pr_reg[8] = regs->xes & 0xffff;			\
-	pr_reg[9] = regs->xfs & 0xffff;			\
+	pr_reg[0] = regs->bx;				\
+	pr_reg[1] = regs->cx;				\
+	pr_reg[2] = regs->dx;				\
+	pr_reg[3] = regs->si;				\
+	pr_reg[4] = regs->di;				\
+	pr_reg[5] = regs->bp;				\
+	pr_reg[6] = regs->ax;				\
+	pr_reg[7] = regs->ds & 0xffff;			\
+	pr_reg[8] = regs->es & 0xffff;			\
+	pr_reg[9] = regs->fs & 0xffff;			\
 	savesegment(gs,pr_reg[10]);			\
-	pr_reg[11] = regs->orig_eax;			\
-	pr_reg[12] = regs->eip;				\
-	pr_reg[13] = regs->xcs & 0xffff;		\
-	pr_reg[14] = regs->eflags;			\
-	pr_reg[15] = regs->esp;				\
-	pr_reg[16] = regs->xss & 0xffff;
+	pr_reg[11] = regs->orig_ax;			\
+	pr_reg[12] = regs->ip;				\
+	pr_reg[13] = regs->cs & 0xffff;			\
+	pr_reg[14] = regs->flags;			\
+	pr_reg[15] = regs->sp;				\
+	pr_reg[16] = regs->ss & 0xffff;
 
 #define ELF_PLATFORM	(utsname()->machine)
 #define set_personality_64bit()	do { } while (0)
@@ -142,9 +142,9 @@ extern unsigned int vdso_enabled;
 
 #define ELF_PLAT_INIT(_r, load_addr)	do {		  \
 	struct task_struct *cur = current;		  \
-	(_r)->rbx = 0; (_r)->rcx = 0; (_r)->rdx = 0;	  \
-	(_r)->rsi = 0; (_r)->rdi = 0; (_r)->rbp = 0;	  \
-	(_r)->rax = 0;					  \
+	(_r)->bx = 0; (_r)->cx = 0; (_r)->dx = 0;	  \
+	(_r)->si = 0; (_r)->di = 0; (_r)->bp = 0;	  \
+	(_r)->ax = 0;					  \
 	(_r)->r8 = 0;					  \
 	(_r)->r9 = 0;					  \
 	(_r)->r10 = 0;					  \
@@ -169,22 +169,22 @@ extern unsigned int vdso_enabled;
 	(pr_reg)[1] = (regs)->r14;				\
 	(pr_reg)[2] = (regs)->r13;				\
 	(pr_reg)[3] = (regs)->r12;				\
-	(pr_reg)[4] = (regs)->rbp;				\
-	(pr_reg)[5] = (regs)->rbx;				\
+	(pr_reg)[4] = (regs)->bp;				\
+	(pr_reg)[5] = (regs)->bx;				\
 	(pr_reg)[6] = (regs)->r11;				\
 	(pr_reg)[7] = (regs)->r10;				\
 	(pr_reg)[8] = (regs)->r9;				\
 	(pr_reg)[9] = (regs)->r8;				\
-	(pr_reg)[10] = (regs)->rax;				\
-	(pr_reg)[11] = (regs)->rcx;				\
-	(pr_reg)[12] = (regs)->rdx;				\
-	(pr_reg)[13] = (regs)->rsi;				\
-	(pr_reg)[14] = (regs)->rdi;				\
-	(pr_reg)[15] = (regs)->orig_rax;			\
-	(pr_reg)[16] = (regs)->rip;				\
+	(pr_reg)[10] = (regs)->ax;				\
+	(pr_reg)[11] = (regs)->cx;				\
+	(pr_reg)[12] = (regs)->dx;				\
+	(pr_reg)[13] = (regs)->si;				\
+	(pr_reg)[14] = (regs)->di;				\
+	(pr_reg)[15] = (regs)->orig_ax;			\
+	(pr_reg)[16] = (regs)->ip;				\
 	(pr_reg)[17] = (regs)->cs;				\
-	(pr_reg)[18] = (regs)->eflags;				\
-	(pr_reg)[19] = (regs)->rsp;				\
+	(pr_reg)[18] = (regs)->flags;				\
+	(pr_reg)[19] = (regs)->sp;				\
 	(pr_reg)[20] = (regs)->ss;				\
 	(pr_reg)[21] = current->thread.fs;			\
 	(pr_reg)[22] = current->thread.gs;			\

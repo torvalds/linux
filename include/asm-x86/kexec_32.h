@@ -45,7 +45,7 @@
 /* We can also handle crash dumps from 64 bit kernel. */
 #define vmcore_elf_check_arch_cross(x) ((x)->e_machine == EM_X86_64)
 
-/* CPU does not save ss and esp on stack if execution is already
+/* CPU does not save ss and sp on stack if execution is already
  * running in kernel mode at the time of NMI occurrence. This code
  * fixes it.
  */
@@ -53,16 +53,16 @@ static inline void crash_fixup_ss_esp(struct pt_regs *newregs,
 					struct pt_regs *oldregs)
 {
 	memcpy(newregs, oldregs, sizeof(*newregs));
-	newregs->esp = (unsigned long)&(oldregs->esp);
+	newregs->sp = (unsigned long)&(oldregs->sp);
 	__asm__ __volatile__(
 			"xorl %%eax, %%eax\n\t"
 			"movw %%ss, %%ax\n\t"
-			:"=a"(newregs->xss));
+			:"=a"(newregs->ss));
 }
 
 /*
  * This function is responsible for capturing register states if coming
- * via panic otherwise just fix up the ss and esp if coming via kernel
+ * via panic otherwise just fix up the ss and sp if coming via kernel
  * mode exception.
  */
 static inline void crash_setup_regs(struct pt_regs *newregs,
@@ -71,21 +71,21 @@ static inline void crash_setup_regs(struct pt_regs *newregs,
        if (oldregs)
                crash_fixup_ss_esp(newregs, oldregs);
        else {
-               __asm__ __volatile__("movl %%ebx,%0" : "=m"(newregs->ebx));
-               __asm__ __volatile__("movl %%ecx,%0" : "=m"(newregs->ecx));
-               __asm__ __volatile__("movl %%edx,%0" : "=m"(newregs->edx));
-               __asm__ __volatile__("movl %%esi,%0" : "=m"(newregs->esi));
-               __asm__ __volatile__("movl %%edi,%0" : "=m"(newregs->edi));
-               __asm__ __volatile__("movl %%ebp,%0" : "=m"(newregs->ebp));
-               __asm__ __volatile__("movl %%eax,%0" : "=m"(newregs->eax));
-               __asm__ __volatile__("movl %%esp,%0" : "=m"(newregs->esp));
-               __asm__ __volatile__("movw %%ss, %%ax;" :"=a"(newregs->xss));
-               __asm__ __volatile__("movw %%cs, %%ax;" :"=a"(newregs->xcs));
-               __asm__ __volatile__("movw %%ds, %%ax;" :"=a"(newregs->xds));
-               __asm__ __volatile__("movw %%es, %%ax;" :"=a"(newregs->xes));
-               __asm__ __volatile__("pushfl; popl %0" :"=m"(newregs->eflags));
+               __asm__ __volatile__("movl %%ebx,%0" : "=m"(newregs->bx));
+               __asm__ __volatile__("movl %%ecx,%0" : "=m"(newregs->cx));
+               __asm__ __volatile__("movl %%edx,%0" : "=m"(newregs->dx));
+               __asm__ __volatile__("movl %%esi,%0" : "=m"(newregs->si));
+               __asm__ __volatile__("movl %%edi,%0" : "=m"(newregs->di));
+               __asm__ __volatile__("movl %%ebp,%0" : "=m"(newregs->bp));
+               __asm__ __volatile__("movl %%eax,%0" : "=m"(newregs->ax));
+               __asm__ __volatile__("movl %%esp,%0" : "=m"(newregs->sp));
+               __asm__ __volatile__("movl %%ss, %%eax;" :"=a"(newregs->ss));
+               __asm__ __volatile__("movl %%cs, %%eax;" :"=a"(newregs->cs));
+               __asm__ __volatile__("movl %%ds, %%eax;" :"=a"(newregs->ds));
+               __asm__ __volatile__("movl %%es, %%eax;" :"=a"(newregs->es));
+               __asm__ __volatile__("pushfl; popl %0" :"=m"(newregs->flags));
 
-               newregs->eip = (unsigned long)current_text_addr();
+               newregs->ip = (unsigned long)current_text_addr();
        }
 }
 asmlinkage NORET_TYPE void

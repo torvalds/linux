@@ -10,6 +10,8 @@
 /* this struct defines the way the registers are stored on the
    stack during a system call. */
 
+#ifndef __KERNEL__
+
 struct pt_regs {
 	long ebx;
 	long ecx;
@@ -21,7 +23,7 @@ struct pt_regs {
 	int  xds;
 	int  xes;
 	int  xfs;
-	/* int  xgs; */
+	/* int  gs; */
 	long orig_eax;
 	long eip;
 	int  xcs;
@@ -30,7 +32,27 @@ struct pt_regs {
 	int  xss;
 };
 
-#ifdef __KERNEL__
+#else /* __KERNEL__ */
+
+struct pt_regs {
+	long bx;
+	long cx;
+	long dx;
+	long si;
+	long di;
+	long bp;
+	long ax;
+	int  ds;
+	int  es;
+	int  fs;
+	/* int  gs; */
+	long orig_ax;
+	long ip;
+	int  cs;
+	long flags;
+	long sp;
+	int  ss;
+};
 
 #include <asm/vm86.h>
 #include <asm/segment.h>
@@ -47,26 +69,29 @@ extern void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs, int erro
  */
 static inline int user_mode(struct pt_regs *regs)
 {
-	return (regs->xcs & SEGMENT_RPL_MASK) == USER_RPL;
+	return (regs->cs & SEGMENT_RPL_MASK) == USER_RPL;
 }
 static inline int user_mode_vm(struct pt_regs *regs)
 {
-	return ((regs->xcs & SEGMENT_RPL_MASK) | (regs->eflags & VM_MASK)) >= USER_RPL;
+	return ((regs->cs & SEGMENT_RPL_MASK) |
+		(regs->flags & VM_MASK)) >= USER_RPL;
 }
 static inline int v8086_mode(struct pt_regs *regs)
 {
-	return (regs->eflags & VM_MASK);
+	return (regs->flags & VM_MASK);
 }
 
-#define instruction_pointer(regs) ((regs)->eip)
-#define frame_pointer(regs) ((regs)->ebp)
+#define instruction_pointer(regs) ((regs)->ip)
+#define frame_pointer(regs) ((regs)->bp)
 #define stack_pointer(regs) ((unsigned long)(regs))
-#define regs_return_value(regs) ((regs)->eax)
+#define regs_return_value(regs) ((regs)->ax)
 
 extern unsigned long profile_pc(struct pt_regs *regs);
 #endif /* __KERNEL__ */
 
 #else /* __i386__ */
+
+#ifndef __KERNEL__
 
 struct pt_regs {
 	unsigned long r15;
@@ -96,14 +121,43 @@ struct pt_regs {
 /* top of stack page */
 };
 
-#ifdef __KERNEL__
+#else /* __KERNEL__ */
+
+struct pt_regs {
+	unsigned long r15;
+	unsigned long r14;
+	unsigned long r13;
+	unsigned long r12;
+	unsigned long bp;
+	unsigned long bx;
+/* arguments: non interrupts/non tracing syscalls only save upto here*/
+	unsigned long r11;
+	unsigned long r10;
+	unsigned long r9;
+	unsigned long r8;
+	unsigned long ax;
+	unsigned long cx;
+	unsigned long dx;
+	unsigned long si;
+	unsigned long di;
+	unsigned long orig_ax;
+/* end of arguments */
+/* cpu exception frame or undefined */
+	unsigned long ip;
+	unsigned long cs;
+	unsigned long flags;
+	unsigned long sp;
+	unsigned long ss;
+/* top of stack page */
+};
 
 #define user_mode(regs) (!!((regs)->cs & 3))
 #define user_mode_vm(regs) user_mode(regs)
-#define instruction_pointer(regs) ((regs)->rip)
-#define frame_pointer(regs) ((regs)->rbp)
-#define stack_pointer(regs) ((regs)->rsp)
-#define regs_return_value(regs) ((regs)->rax)
+#define v8086_mode(regs) 0	/* No V86 mode support in long mode */
+#define instruction_pointer(regs) ((regs)->ip)
+#define frame_pointer(regs) ((regs)->bp)
+#define stack_pointer(regs) ((regs)->sp)
+#define regs_return_value(regs) ((regs)->ax)
 
 extern unsigned long profile_pc(struct pt_regs *regs);
 void signal_fault(struct pt_regs *regs, void __user *frame, char *where);

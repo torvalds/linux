@@ -526,7 +526,7 @@ static void __init do_boot_cpu(__u8 cpu)
 	 * initial kernel stack.  We need to alter this to give the
 	 * booting CPU a new stack (taken from its idle process) */
 	extern struct {
-		__u8 *esp;
+		__u8 *sp;
 		unsigned short ss;
 	} stack_start;
 	/* This is the format of the CPI IDT gate (in real mode) which
@@ -555,9 +555,9 @@ static void __init do_boot_cpu(__u8 cpu)
 	idle = fork_idle(cpu);
 	if (IS_ERR(idle))
 		panic("failed fork for CPU%d", cpu);
-	idle->thread.eip = (unsigned long)start_secondary;
+	idle->thread.ip = (unsigned long)start_secondary;
 	/* init_tasks (in sched.c) is indexed logically */
-	stack_start.esp = (void *)idle->thread.esp;
+	stack_start.sp = (void *)idle->thread.sp;
 
 	init_gdt(cpu);
 	per_cpu(current_task, cpu) = idle;
@@ -567,7 +567,7 @@ static void __init do_boot_cpu(__u8 cpu)
 	/* Note: Don't modify initial ss override */
 	VDEBUG(("VOYAGER SMP: Booting CPU%d at 0x%lx[%x:%x], stack %p\n", cpu,
 		(unsigned long)hijack_source.val, hijack_source.idt.Segment,
-		hijack_source.idt.Offset, stack_start.esp));
+		hijack_source.idt.Offset, stack_start.sp));
 
 	/* init lowmem identity mapping */
 	clone_pgd_range(swapper_pg_dir, swapper_pg_dir + USER_PGD_PTRS,
@@ -745,8 +745,8 @@ void __init initialize_secondary(void)
 	 */
 
 	asm volatile ("movl %0,%%esp\n\t"
-		      "jmp *%1"::"r" (current->thread.esp),
-		      "r"(current->thread.eip));
+		      "jmp *%1"::"r" (current->thread.sp),
+		      "r"(current->thread.ip));
 }
 
 /* handle a Voyager SYS_INT -- If we don't, the base board will

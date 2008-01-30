@@ -72,15 +72,15 @@ static inline int notify_page_fault(struct pt_regs *regs)
 static inline unsigned long get_segment_eip(struct pt_regs *regs,
 					    unsigned long *eip_limit)
 {
-	unsigned long eip = regs->eip;
-	unsigned seg = regs->xcs & 0xffff;
+	unsigned long ip = regs->ip;
+	unsigned seg = regs->cs & 0xffff;
 	u32 seg_ar, seg_limit, base, *desc;
 
 	/* Unlikely, but must come before segment checks. */
-	if (unlikely(regs->eflags & VM_MASK)) {
+	if (unlikely(regs->flags & VM_MASK)) {
 		base = seg << 4;
 		*eip_limit = base + 0xffff;
-		return base + (eip & 0xffff);
+		return base + (ip & 0xffff);
 	}
 
 	/* The standard kernel/user address space limit. */
@@ -88,16 +88,16 @@ static inline unsigned long get_segment_eip(struct pt_regs *regs,
 	
 	/* By far the most common cases. */
 	if (likely(SEGMENT_IS_FLAT_CODE(seg)))
-		return eip;
+		return ip;
 
 	/* Check the segment exists, is within the current LDT/GDT size,
 	   that kernel/user (ring 0..3) has the appropriate privilege,
 	   that it's a code segment, and get the limit. */
 	__asm__ ("larl %3,%0; lsll %3,%1"
 		 : "=&r" (seg_ar), "=r" (seg_limit) : "0" (0), "rm" (seg));
-	if ((~seg_ar & 0x9800) || eip > seg_limit) {
+	if ((~seg_ar & 0x9800) || ip > seg_limit) {
 		*eip_limit = 0;
-		return 1;	 /* So that returned eip > *eip_limit. */
+		return 1;	 /* So that returned ip > *eip_limit. */
 	}
 
 	/* Get the GDT/LDT descriptor base. 
@@ -127,7 +127,7 @@ static inline unsigned long get_segment_eip(struct pt_regs *regs,
 	seg_limit += base;
 	if (seg_limit < *eip_limit && seg_limit >= base)
 		*eip_limit = seg_limit;
-	return eip + base;
+	return ip + base;
 }
 
 /* 
@@ -345,7 +345,7 @@ fastcall void __kprobes do_page_fault(struct pt_regs *regs,
 
 	/* It's safe to allow irq's after cr2 has been saved and the vmalloc
 	   fault has been handled. */
-	if (regs->eflags & (X86_EFLAGS_IF|VM_MASK))
+	if (regs->flags & (X86_EFLAGS_IF|VM_MASK))
 		local_irq_enable();
 
 	mm = tsk->mm;
@@ -374,7 +374,7 @@ fastcall void __kprobes do_page_fault(struct pt_regs *regs,
 	 */
 	if (!down_read_trylock(&mm->mmap_sem)) {
 		if ((error_code & 4) == 0 &&
-		    !search_exception_tables(regs->eip))
+		    !search_exception_tables(regs->ip))
 			goto bad_area_nosemaphore;
 		down_read(&mm->mmap_sem);
 	}
@@ -388,12 +388,12 @@ fastcall void __kprobes do_page_fault(struct pt_regs *regs,
 		goto bad_area;
 	if (error_code & 4) {
 		/*
-		 * Accessing the stack below %esp is always a bug.
+		 * Accessing the stack below %sp is always a bug.
 		 * The large cushion allows instructions like enter
 		 * and pusha to work.  ("enter $65535,$31" pushes
-		 * 32 pointers and then decrements %esp by 65535.)
+		 * 32 pointers and then decrements %sp by 65535.)
 		 */
-		if (address + 65536 + 32 * sizeof(unsigned long) < regs->esp)
+		if (address + 65536 + 32 * sizeof(unsigned long) < regs->sp)
 			goto bad_area;
 	}
 	if (expand_stack(vma, address))
@@ -442,7 +442,7 @@ good_area:
 	/*
 	 * Did it hit the DOS screen memory VA from vm86 mode?
 	 */
-	if (regs->eflags & VM_MASK) {
+	if (regs->flags & VM_MASK) {
 		unsigned long bit = (address - 0xA0000) >> PAGE_SHIFT;
 		if (bit < 32)
 			tsk->thread.screen_bitmap |= 1 << bit;
@@ -474,11 +474,11 @@ bad_area_nosemaphore:
 
 		if (show_unhandled_signals && unhandled_signal(tsk, SIGSEGV) &&
 		    printk_ratelimit()) {
-			printk("%s%s[%d]: segfault at %08lx eip %08lx "
-			    "esp %08lx error %lx\n",
+			printk("%s%s[%d]: segfault at %08lx ip %08lx "
+			    "sp %08lx error %lx\n",
 			    task_pid_nr(tsk) > 1 ? KERN_INFO : KERN_EMERG,
-			    tsk->comm, task_pid_nr(tsk), address, regs->eip,
-			    regs->esp, error_code);
+			    tsk->comm, task_pid_nr(tsk), address, regs->ip,
+			    regs->sp, error_code);
 		}
 		tsk->thread.cr2 = address;
 		/* Kernel addresses are always protection faults */
@@ -544,7 +544,7 @@ no_context:
 			printk(KERN_ALERT "BUG: unable to handle kernel paging"
 					" request");
 		printk(" at virtual address %08lx\n",address);
-		printk(KERN_ALERT "printing eip: %08lx ", regs->eip);
+		printk(KERN_ALERT "printing ip: %08lx ", regs->ip);
 
 		page = read_cr3();
 		page = ((__typeof__(page) *) __va(page))[address >> PGDIR_SHIFT];

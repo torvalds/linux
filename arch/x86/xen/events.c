@@ -487,7 +487,7 @@ fastcall void xen_evtchn_do_upcall(struct pt_regs *regs)
 			int irq = evtchn_to_irq[port];
 
 			if (irq != -1) {
-				regs->orig_eax = ~irq;
+				regs->orig_ax = ~irq;
 				do_IRQ(regs);
 			}
 		}

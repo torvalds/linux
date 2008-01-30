@@ -12,17 +12,12 @@ unsigned long convert_rip_to_linear(struct task_struct *child, struct pt_regs *r
 {
 	unsigned long addr, seg;
 
-#ifdef CONFIG_X86_64
-	addr = regs->rip;
+	addr = regs->ip;
 	seg = regs->cs & 0xffff;
-#else
-	addr = regs->eip;
-	seg = regs->xcs & 0xffff;
-	if (regs->eflags & X86_EFLAGS_VM) {
+	if (v8086_mode(regs)) {
 		addr = (addr & 0xffff) + (seg << 4);
 		return addr;
 	}
-#endif
 
 	/*
 	 * We'll assume that the code segments in the GDT
@@ -124,11 +119,11 @@ static int enable_single_step(struct task_struct *child)
 	/*
 	 * If TF was already set, don't do anything else
 	 */
-	if (regs->eflags & X86_EFLAGS_TF)
+	if (regs->flags & X86_EFLAGS_TF)
 		return 0;
 
 	/* Set TF on the kernel stack.. */
-	regs->eflags |= X86_EFLAGS_TF;
+	regs->flags |= X86_EFLAGS_TF;
 
 	/*
 	 * ..but if TF is changed by the instruction we will trace,
@@ -203,5 +198,5 @@ void user_disable_single_step(struct task_struct *child)
 
 	/* But touch TF only if it was set by us.. */
 	if (test_and_clear_tsk_thread_flag(child, TIF_FORCED_TF))
-		task_pt_regs(child)->eflags &= ~X86_EFLAGS_TF;
+		task_pt_regs(child)->flags &= ~X86_EFLAGS_TF;
 }

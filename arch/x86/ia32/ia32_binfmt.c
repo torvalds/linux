@@ -73,22 +73,22 @@ struct file;
 /* Assumes current==process to be dumped */
 #undef	ELF_CORE_COPY_REGS
 #define ELF_CORE_COPY_REGS(pr_reg, regs)       		\
-	pr_reg[0] = regs->rbx;				\
-	pr_reg[1] = regs->rcx;				\
-	pr_reg[2] = regs->rdx;				\
-	pr_reg[3] = regs->rsi;				\
-	pr_reg[4] = regs->rdi;				\
-	pr_reg[5] = regs->rbp;				\
-	pr_reg[6] = regs->rax;				\
+	pr_reg[0] = regs->bx;				\
+	pr_reg[1] = regs->cx;				\
+	pr_reg[2] = regs->dx;				\
+	pr_reg[3] = regs->si;				\
+	pr_reg[4] = regs->di;				\
+	pr_reg[5] = regs->bp;				\
+	pr_reg[6] = regs->ax;				\
 	pr_reg[7] = _GET_SEG(ds);   			\
 	pr_reg[8] = _GET_SEG(es);			\
 	pr_reg[9] = _GET_SEG(fs);			\
 	pr_reg[10] = _GET_SEG(gs);			\
-	pr_reg[11] = regs->orig_rax;			\
-	pr_reg[12] = regs->rip;				\
+	pr_reg[11] = regs->orig_ax;			\
+	pr_reg[12] = regs->ip;				\
 	pr_reg[13] = regs->cs;				\
-	pr_reg[14] = regs->eflags;			\
-	pr_reg[15] = regs->rsp;				\
+	pr_reg[14] = regs->flags;			\
+	pr_reg[15] = regs->sp;				\
 	pr_reg[16] = regs->ss;
 
 
@@ -205,9 +205,9 @@ do {							\
 	asm volatile("movl %0,%%fs" :: "r" (0)); \
 	asm volatile("movl %0,%%es; movl %0,%%ds": :"r" (__USER32_DS)); \
 	load_gs_index(0); \
-	(regs)->rip = (new_rip); \
-	(regs)->rsp = (new_rsp); \
-	(regs)->eflags = 0x200; \
+	(regs)->ip = (new_rip); \
+	(regs)->sp = (new_rsp); \
+	(regs)->flags = X86_EFLAGS_IF; \
 	(regs)->cs = __USER32_CS; \
 	(regs)->ss = __USER32_DS; \
 	set_fs(USER_DS); \
@@ -233,13 +233,13 @@ extern int syscall32_setup_pages(struct linux_binprm *, int exstack);
 static void elf32_init(struct pt_regs *regs)
 {
 	struct task_struct *me = current; 
-	regs->rdi = 0;
-	regs->rsi = 0;
-	regs->rdx = 0;
-	regs->rcx = 0;
-	regs->rax = 0;
-	regs->rbx = 0; 
-	regs->rbp = 0; 
+	regs->di = 0;
+	regs->si = 0;
+	regs->dx = 0;
+	regs->cx = 0;
+	regs->ax = 0;
+	regs->bx = 0;
+	regs->bp = 0;
 	regs->r8 = regs->r9 = regs->r10 = regs->r11 = regs->r12 =
 		regs->r13 = regs->r14 = regs->r15 = 0; 
     me->thread.fs = 0; 

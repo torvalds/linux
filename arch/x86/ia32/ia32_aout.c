@@ -53,7 +53,7 @@ static void dump_thread32(struct pt_regs *regs, struct user32 *dump)
 /* changed the size calculations - should hopefully work better. lbt */
 	dump->magic = CMAGIC;
 	dump->start_code = 0;
-	dump->start_stack = regs->rsp & ~(PAGE_SIZE - 1);
+	dump->start_stack = regs->sp & ~(PAGE_SIZE - 1);
 	dump->u_tsize = ((unsigned long) current->mm->end_code) >> PAGE_SHIFT;
 	dump->u_dsize = ((unsigned long)
 			 (current->mm->brk + (PAGE_SIZE-1))) >> PAGE_SHIFT;
@@ -75,22 +75,22 @@ static void dump_thread32(struct pt_regs *regs, struct user32 *dump)
 		dump->u_ssize = tmp >> PAGE_SHIFT;
 	}
 
-	dump->regs.ebx = regs->rbx;
-	dump->regs.ecx = regs->rcx;
-	dump->regs.edx = regs->rdx;
-	dump->regs.esi = regs->rsi;
-	dump->regs.edi = regs->rdi;
-	dump->regs.ebp = regs->rbp;
-	dump->regs.eax = regs->rax;
+	dump->regs.bx = regs->bx;
+	dump->regs.cx = regs->cx;
+	dump->regs.dx = regs->dx;
+	dump->regs.si = regs->si;
+	dump->regs.di = regs->di;
+	dump->regs.bp = regs->bp;
+	dump->regs.ax = regs->ax;
 	dump->regs.ds = current->thread.ds;
 	dump->regs.es = current->thread.es;
 	asm("movl %%fs,%0" : "=r" (fs)); dump->regs.fs = fs;
 	asm("movl %%gs,%0" : "=r" (gs)); dump->regs.gs = gs;
-	dump->regs.orig_eax = regs->orig_rax;
-	dump->regs.eip = regs->rip;
+	dump->regs.orig_ax = regs->orig_ax;
+	dump->regs.ip = regs->ip;
 	dump->regs.cs = regs->cs;
-	dump->regs.eflags = regs->eflags;
-	dump->regs.esp = regs->rsp;
+	dump->regs.flags = regs->flags;
+	dump->regs.sp = regs->sp;
 	dump->regs.ss = regs->ss;
 
 #if 1 /* FIXME */
@@ -432,9 +432,9 @@ beyond_if:
 	asm volatile("movl %0,%%fs" :: "r" (0)); \
 	asm volatile("movl %0,%%es; movl %0,%%ds": :"r" (__USER32_DS));
 	load_gs_index(0);
-	(regs)->rip = ex.a_entry;
-	(regs)->rsp = current->mm->start_stack;
-	(regs)->eflags = 0x200;
+	(regs)->ip = ex.a_entry;
+	(regs)->sp = current->mm->start_stack;
+	(regs)->flags = 0x200;
 	(regs)->cs = __USER32_CS;
 	(regs)->ss = __USER32_DS;
 	regs->r8 = regs->r9 = regs->r10 = regs->r11 =

@@ -141,8 +141,8 @@ static void __init xen_banner(void)
 	printk(KERN_INFO "Hypervisor signature: %s\n", xen_start_info->magic);
 }
 
-static void xen_cpuid(unsigned int *eax, unsigned int *ebx,
-		      unsigned int *ecx, unsigned int *edx)
+static void xen_cpuid(unsigned int *ax, unsigned int *bx,
+		      unsigned int *cx, unsigned int *dx)
 {
 	unsigned maskedx = ~0;
 
@@ -150,18 +150,18 @@ static void xen_cpuid(unsigned int *eax, unsigned int *ebx,
 	 * Mask out inconvenient features, to try and disable as many
 	 * unsupported kernel subsystems as possible.
 	 */
-	if (*eax == 1)
+	if (*ax == 1)
 		maskedx = ~((1 << X86_FEATURE_APIC) |  /* disable APIC */
 			    (1 << X86_FEATURE_ACPI) |  /* disable ACPI */
 			    (1 << X86_FEATURE_ACC));   /* thermal monitoring */
 
 	asm(XEN_EMULATE_PREFIX "cpuid"
-		: "=a" (*eax),
-		  "=b" (*ebx),
-		  "=c" (*ecx),
-		  "=d" (*edx)
-		: "0" (*eax), "2" (*ecx));
-	*edx &= maskedx;
+		: "=a" (*ax),
+		  "=b" (*bx),
+		  "=c" (*cx),
+		  "=d" (*dx)
+		: "0" (*ax), "2" (*cx));
+	*dx &= maskedx;
 }
 
 static void xen_set_debugreg(int reg, unsigned long val)

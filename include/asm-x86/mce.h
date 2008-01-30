@@ -13,7 +13,7 @@
 #define MCG_CTL_P	 (1UL<<8)   /* MCG_CAP register available */
 
 #define MCG_STATUS_RIPV  (1UL<<0)   /* restart ip valid */
-#define MCG_STATUS_EIPV  (1UL<<1)   /* eip points to correct instruction */
+#define MCG_STATUS_EIPV  (1UL<<1)   /* ip points to correct instruction */
 #define MCG_STATUS_MCIP  (1UL<<2)   /* machine check in progress */
 
 #define MCI_STATUS_VAL   (1UL<<63)  /* valid error */
@@ -30,7 +30,7 @@ struct mce {
 	__u64 misc;
 	__u64 addr;
 	__u64 mcgstatus;
-	__u64 rip;
+	__u64 ip;
 	__u64 tsc;	/* cpu time stamp counter */
 	__u64 res1;	/* for future extension */
 	__u64 res2;	/* dito. */

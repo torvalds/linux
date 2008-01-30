@@ -114,11 +114,11 @@ struct stack_frame {
 };
 
 static inline unsigned long print_context_stack(struct thread_info *tinfo,
-				unsigned long *stack, unsigned long ebp,
+				unsigned long *stack, unsigned long bp,
 				const struct stacktrace_ops *ops, void *data)
 {
 #ifdef	CONFIG_FRAME_POINTER
-	struct stack_frame *frame = (struct stack_frame *)ebp;
+	struct stack_frame *frame = (struct stack_frame *)bp;
 	while (valid_stack_ptr(tinfo, frame, sizeof(*frame))) {
 		struct stack_frame *next;
 		unsigned long addr;
@@ -145,7 +145,7 @@ static inline unsigned long print_context_stack(struct thread_info *tinfo,
 			ops->address(data, addr);
 	}
 #endif
-	return ebp;
+	return bp;
 }
 
 #define MSG(msg) ops->warning(data, msg)
@@ -154,7 +154,7 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 	        unsigned long *stack,
 		const struct stacktrace_ops *ops, void *data)
 {
-	unsigned long ebp = 0;
+	unsigned long bp = 0;
 
 	if (!task)
 		task = current;
@@ -167,13 +167,13 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 	}
 
 #ifdef CONFIG_FRAME_POINTER
-	if (!ebp) {
+	if (!bp) {
 		if (task == current) {
-			/* Grab ebp right from our regs */
-			asm ("movl %%ebp, %0" : "=r" (ebp) : );
+			/* Grab bp right from our regs */
+			asm ("movl %%ebp, %0" : "=r" (bp) : );
 		} else {
-			/* ebp is the last reg pushed by switch_to */
-			ebp = *(unsigned long *) task->thread.esp;
+			/* bp is the last reg pushed by switch_to */
+			bp = *(unsigned long *) task->thread.esp;
 		}
 	}
 #endif
@@ -182,7 +182,7 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 		struct thread_info *context;
 		context = (struct thread_info *)
 			((unsigned long)stack & (~(THREAD_SIZE - 1)));
-		ebp = print_context_stack(context, stack, ebp, ops, data);
+		bp = print_context_stack(context, stack, bp, ops, data);
 		/* Should be after the line below, but somewhere
 		   in early boot context comes out corrupted and we
 		   can't reference it -AK */
@@ -246,19 +246,19 @@ void show_trace(struct task_struct *task, struct pt_regs *regs,
 }
 
 static void show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
-			       unsigned long *esp, char *log_lvl)
+			       unsigned long *sp, char *log_lvl)
 {
 	unsigned long *stack;
 	int i;
 
-	if (esp == NULL) {
+	if (sp == NULL) {
 		if (task)
-			esp = (unsigned long*)task->thread.esp;
+			sp = (unsigned long*)task->thread.esp;
 		else
-			esp = (unsigned long *)&esp;
+			sp = (unsigned long *)&sp;
 	}
 
-	stack = esp;
+	stack = sp;
 	for(i = 0; i < kstack_depth_to_print; i++) {
 		if (kstack_end(stack))
 			break;
@@ -267,13 +267,13 @@ static void show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
 		printk("%08lx ", *stack++);
 	}
 	printk("\n%sCall Trace:\n", log_lvl);
-	show_trace_log_lvl(task, regs, esp, log_lvl);
+	show_trace_log_lvl(task, regs, sp, log_lvl);
 }
 
-void show_stack(struct task_struct *task, unsigned long *esp)
+void show_stack(struct task_struct *task, unsigned long *sp)
 {
 	printk("       ");
-	show_stack_log_lvl(task, NULL, esp, "");
+	show_stack_log_lvl(task, NULL, sp, "");
 }
 
 /*
@@ -307,30 +307,30 @@ void show_registers(struct pt_regs *regs)
 	 * time of the fault..
 	 */
 	if (!user_mode_vm(regs)) {
-		u8 *eip;
+		u8 *ip;
 		unsigned int code_prologue = code_bytes * 43 / 64;
 		unsigned int code_len = code_bytes;
 		unsigned char c;
 
 		printk("\n" KERN_EMERG "Stack: ");
-		show_stack_log_lvl(NULL, regs, &regs->esp, KERN_EMERG);
+		show_stack_log_lvl(NULL, regs, &regs->sp, KERN_EMERG);
 
 		printk(KERN_EMERG "Code: ");
 
-		eip = (u8 *)regs->eip - code_prologue;
-		if (eip < (u8 *)PAGE_OFFSET ||
-			probe_kernel_address(eip, c)) {
+		ip = (u8 *)regs->ip - code_prologue;
+		if (ip < (u8 *)PAGE_OFFSET ||
+			probe_kernel_address(ip, c)) {
 			/* try starting at EIP */
-			eip = (u8 *)regs->eip;
+			ip = (u8 *)regs->ip;
 			code_len = code_len - code_prologue + 1;
 		}
-		for (i = 0; i < code_len; i++, eip++) {
-			if (eip < (u8 *)PAGE_OFFSET ||
-				probe_kernel_address(eip, c)) {
+		for (i = 0; i < code_len; i++, ip++) {
+			if (ip < (u8 *)PAGE_OFFSET ||
+				probe_kernel_address(ip, c)) {
 				printk(" Bad EIP value.");
 				break;
 			}
-			if (eip == (u8 *)regs->eip)
+			if (ip == (u8 *)regs->ip)
 				printk("<%02x> ", c);
 			else
 				printk("%02x ", c);
@@ -339,13 +339,13 @@ void show_registers(struct pt_regs *regs)
 	printk("\n");
 }	
 
-int is_valid_bugaddr(unsigned long eip)
+int is_valid_bugaddr(unsigned long ip)
 {
 	unsigned short ud2;
 
-	if (eip < PAGE_OFFSET)
+	if (ip < PAGE_OFFSET)
 		return 0;
-	if (probe_kernel_address((unsigned short *)eip, ud2))
+	if (probe_kernel_address((unsigned short *)ip, ud2))
 		return 0;
 
 	return ud2 == 0x0b0f;
@@ -382,10 +382,10 @@ void die(const char * str, struct pt_regs * regs, long err)
 		raw_local_irq_save(flags);
 
 	if (++die.lock_owner_depth < 3) {
-		unsigned long esp;
+		unsigned long sp;
 		unsigned short ss;
 
-		report_bug(regs->eip, regs);
+		report_bug(regs->ip, regs);
 
 		printk(KERN_EMERG "%s: %04lx [#%d] ", str, err & 0xffff,
 		       ++die_counter);
@@ -405,15 +405,15 @@ void die(const char * str, struct pt_regs * regs, long err)
 				NOTIFY_STOP) {
 			show_registers(regs);
 			/* Executive summary in case the oops scrolled away */
-			esp = (unsigned long) (&regs->esp);
+			sp = (unsigned long) (&regs->sp);
 			savesegment(ss, ss);
 			if (user_mode(regs)) {
-				esp = regs->esp;
-				ss = regs->xss & 0xffff;
+				sp = regs->sp;
+				ss = regs->ss & 0xffff;
 			}
-			printk(KERN_EMERG "EIP: [<%08lx>] ", regs->eip);
-			print_symbol("%s", regs->eip);
-			printk(" SS:ESP %04x:%08lx\n", ss, esp);
+			printk(KERN_EMERG "EIP: [<%08lx>] ", regs->ip);
+			print_symbol("%s", regs->ip);
+			printk(" SS:ESP %04x:%08lx\n", ss, sp);
 		}
 		else
 			regs = NULL;
@@ -454,7 +454,7 @@ static void __kprobes do_trap(int trapnr, int signr, char *str, int vm86,
 {
 	struct task_struct *tsk = current;
 
-	if (regs->eflags & VM_MASK) {
+	if (regs->flags & VM_MASK) {
 		if (vm86)
 			goto vm86_trap;
 		goto trap_signal;
@@ -548,13 +548,13 @@ fastcall void do_##name(struct pt_regs * regs, long error_code) \
 	do_trap(trapnr, signr, str, 1, regs, error_code, &info); \
 }
 
-DO_VM86_ERROR_INFO( 0, SIGFPE,  "divide error", divide_error, FPE_INTDIV, regs->eip)
+DO_VM86_ERROR_INFO( 0, SIGFPE,  "divide error", divide_error, FPE_INTDIV, regs->ip)
 #ifndef CONFIG_KPROBES
 DO_VM86_ERROR( 3, SIGTRAP, "int3", int3)
 #endif
 DO_VM86_ERROR( 4, SIGSEGV, "overflow", overflow)
 DO_VM86_ERROR( 5, SIGSEGV, "bounds", bounds)
-DO_ERROR_INFO( 6, SIGILL,  "invalid opcode", invalid_op, ILL_ILLOPN, regs->eip, 0)
+DO_ERROR_INFO( 6, SIGILL,  "invalid opcode", invalid_op, ILL_ILLOPN, regs->ip, 0)
 DO_ERROR( 9, SIGFPE,  "coprocessor segment overrun", coprocessor_segment_overrun)
 DO_ERROR(10, SIGSEGV, "invalid TSS", invalid_TSS)
 DO_ERROR(11, SIGBUS,  "segment not present", segment_not_present)
@@ -596,7 +596,7 @@ fastcall void __kprobes do_general_protection(struct pt_regs * regs,
 	}
 	put_cpu();
 
-	if (regs->eflags & VM_MASK)
+	if (regs->flags & VM_MASK)
 		goto gp_in_vm86;
 
 	if (!user_mode(regs))
@@ -607,9 +607,9 @@ fastcall void __kprobes do_general_protection(struct pt_regs * regs,
 	if (show_unhandled_signals && unhandled_signal(current, SIGSEGV) &&
 	    printk_ratelimit())
 		printk(KERN_INFO
-		    "%s[%d] general protection eip:%lx esp:%lx error:%lx\n",
+		    "%s[%d] general protection ip:%lx sp:%lx error:%lx\n",
 		    current->comm, task_pid_nr(current),
-		    regs->eip, regs->esp, error_code);
+		    regs->ip, regs->sp, error_code);
 
 	force_sig(SIGSEGV, current);
 	return;
@@ -705,8 +705,8 @@ void __kprobes die_nmi(struct pt_regs *regs, const char *msg)
 	*/
 	bust_spinlocks(1);
 	printk(KERN_EMERG "%s", msg);
-	printk(" on CPU%d, eip %08lx, registers:\n",
-		smp_processor_id(), regs->eip);
+	printk(" on CPU%d, ip %08lx, registers:\n",
+		smp_processor_id(), regs->ip);
 	show_registers(regs);
 	console_silent();
 	spin_unlock(&nmi_print_lock);
@@ -847,7 +847,7 @@ fastcall void __kprobes do_debug(struct pt_regs * regs, long error_code)
 					SIGTRAP) == NOTIFY_STOP)
 		return;
 	/* It's safe to allow irq's after DR6 has been saved */
-	if (regs->eflags & X86_EFLAGS_IF)
+	if (regs->flags & X86_EFLAGS_IF)
 		local_irq_enable();
 
 	/* Mask out spurious debug traps due to lazy DR7 setting */
@@ -856,7 +856,7 @@ fastcall void __kprobes do_debug(struct pt_regs * regs, long error_code)
 			goto clear_dr7;
 	}
 
-	if (regs->eflags & VM_MASK)
+	if (regs->flags & VM_MASK)
 		goto debug_vm86;
 
 	/* Save debug status register where ptrace can see it */
@@ -892,7 +892,7 @@ debug_vm86:
 
 clear_TF_reenable:
 	set_tsk_thread_flag(tsk, TIF_SINGLESTEP);
-	regs->eflags &= ~TF_MASK;
+	regs->flags &= ~TF_MASK;
 	return;
 }
 
@@ -901,7 +901,7 @@ clear_TF_reenable:
  * the correct behaviour even in the presence of the asynchronous
  * IRQ13 behaviour
  */
-void math_error(void __user *eip)
+void math_error(void __user *ip)
 {
 	struct task_struct * task;
 	siginfo_t info;
@@ -917,7 +917,7 @@ void math_error(void __user *eip)
 	info.si_signo = SIGFPE;
 	info.si_errno = 0;
 	info.si_code = __SI_FAULT;
-	info.si_addr = eip;
+	info.si_addr = ip;
 	/*
 	 * (~cwd & swd) will mask out exceptions that are not set to unmasked
 	 * status.  0x3f is the exception bits in these regs, 0x200 is the
@@ -963,10 +963,10 @@ void math_error(void __user *eip)
 fastcall void do_coprocessor_error(struct pt_regs * regs, long error_code)
 {
 	ignore_fpu_irq = 1;
-	math_error((void __user *)regs->eip);
+	math_error((void __user *)regs->ip);
 }
 
-static void simd_math_error(void __user *eip)
+static void simd_math_error(void __user *ip)
 {
 	struct task_struct * task;
 	siginfo_t info;
@@ -982,7 +982,7 @@ static void simd_math_error(void __user *eip)
 	info.si_signo = SIGFPE;
 	info.si_errno = 0;
 	info.si_code = __SI_FAULT;
-	info.si_addr = eip;
+	info.si_addr = ip;
 	/*
 	 * The SIMD FPU exceptions are handled a little differently, as there
 	 * is only a single status/control register.  Thus, to determine which
@@ -1020,13 +1020,13 @@ fastcall void do_simd_coprocessor_error(struct pt_regs * regs,
 	if (cpu_has_xmm) {
 		/* Handle SIMD FPU exceptions on PIII+ processors. */
 		ignore_fpu_irq = 1;
-		simd_math_error((void __user *)regs->eip);
+		simd_math_error((void __user *)regs->ip);
 	} else {
 		/*
 		 * Handle strange cache flush from user space exception
 		 * in all other cases.  This is undocumented behaviour.
 		 */
-		if (regs->eflags & VM_MASK) {
+		if (regs->flags & VM_MASK) {
 			handle_vm86_fault((struct kernel_vm86_regs *)regs,
 					  error_code);
 			return;

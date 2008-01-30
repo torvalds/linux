@@ -88,13 +88,13 @@ struct vmi_timer_ops vmi_timer_ops;
 #define IRQ_PATCH_DISABLE  5
 
 static inline void patch_offset(void *insnbuf,
-				unsigned long eip, unsigned long dest)
+				unsigned long ip, unsigned long dest)
 {
-        *(unsigned long *)(insnbuf+1) = dest-eip-5;
+        *(unsigned long *)(insnbuf+1) = dest-ip-5;
 }
 
 static unsigned patch_internal(int call, unsigned len, void *insnbuf,
-			       unsigned long eip)
+			       unsigned long ip)
 {
 	u64 reloc;
 	struct vmi_relocation_info *const rel = (struct vmi_relocation_info *)&reloc;
@@ -103,13 +103,13 @@ static unsigned patch_internal(int call, unsigned len, void *insnbuf,
 		case VMI_RELOCATION_CALL_REL:
 			BUG_ON(len < 5);
 			*(char *)insnbuf = MNEM_CALL;
-			patch_offset(insnbuf, eip, (unsigned long)rel->eip);
+			patch_offset(insnbuf, ip, (unsigned long)rel->eip);
 			return 5;
 
 		case VMI_RELOCATION_JUMP_REL:
 			BUG_ON(len < 5);
 			*(char *)insnbuf = MNEM_JMP;
-			patch_offset(insnbuf, eip, (unsigned long)rel->eip);
+			patch_offset(insnbuf, ip, (unsigned long)rel->eip);
 			return 5;
 
 		case VMI_RELOCATION_NOP:
@@ -131,25 +131,25 @@ static unsigned patch_internal(int call, unsigned len, void *insnbuf,
  * sequence.  The callee does nop padding for us.
  */
 static unsigned vmi_patch(u8 type, u16 clobbers, void *insns,
-			  unsigned long eip, unsigned len)
+			  unsigned long ip, unsigned len)
 {
 	switch (type) {
 		case PARAVIRT_PATCH(pv_irq_ops.irq_disable):
 			return patch_internal(VMI_CALL_DisableInterrupts, len,
-					      insns, eip);
+					      insns, ip);
 		case PARAVIRT_PATCH(pv_irq_ops.irq_enable):
 			return patch_internal(VMI_CALL_EnableInterrupts, len,
-					      insns, eip);
+					      insns, ip);
 		case PARAVIRT_PATCH(pv_irq_ops.restore_fl):
 			return patch_internal(VMI_CALL_SetInterruptMask, len,
-					      insns, eip);
+					      insns, ip);
 		case PARAVIRT_PATCH(pv_irq_ops.save_fl):
 			return patch_internal(VMI_CALL_GetInterruptMask, len,
-					      insns, eip);
+					      insns, ip);
 		case PARAVIRT_PATCH(pv_cpu_ops.iret):
-			return patch_internal(VMI_CALL_IRET, len, insns, eip);
+			return patch_internal(VMI_CALL_IRET, len, insns, ip);
 		case PARAVIRT_PATCH(pv_cpu_ops.irq_enable_syscall_ret):
-			return patch_internal(VMI_CALL_SYSEXIT, len, insns, eip);
+			return patch_internal(VMI_CALL_SYSEXIT, len, insns, ip);
 		default:
 			break;
 	}
@@ -157,29 +157,29 @@ static unsigned vmi_patch(u8 type, u16 clobbers, void *insns,
 }
 
 /* CPUID has non-C semantics, and paravirt-ops API doesn't match hardware ISA */
-static void vmi_cpuid(unsigned int *eax, unsigned int *ebx,
-                               unsigned int *ecx, unsigned int *edx)
+static void vmi_cpuid(unsigned int *ax, unsigned int *bx,
+                               unsigned int *cx, unsigned int *dx)
 {
 	int override = 0;
-	if (*eax == 1)
+	if (*ax == 1)
 		override = 1;
         asm volatile ("call *%6"
-                      : "=a" (*eax),
-                        "=b" (*ebx),
-                        "=c" (*ecx),
-                        "=d" (*edx)
-                      : "0" (*eax), "2" (*ecx), "r" (vmi_ops.cpuid));
+                      : "=a" (*ax),
+                        "=b" (*bx),
+                        "=c" (*cx),
+                        "=d" (*dx)
+                      : "0" (*ax), "2" (*cx), "r" (vmi_ops.cpuid));
 	if (override) {
 		if (disable_pse)
-			*edx &= ~X86_FEATURE_PSE;
+			*dx &= ~X86_FEATURE_PSE;
 		if (disable_pge)
-			*edx &= ~X86_FEATURE_PGE;
+			*dx &= ~X86_FEATURE_PGE;
 		if (disable_sep)
-			*edx &= ~X86_FEATURE_SEP;
+			*dx &= ~X86_FEATURE_SEP;
 		if (disable_tsc)
-			*edx &= ~X86_FEATURE_TSC;
+			*dx &= ~X86_FEATURE_TSC;
 		if (disable_mtrr)
-			*edx &= ~X86_FEATURE_MTRR;
+			*dx &= ~X86_FEATURE_MTRR;
 	}
 }
 

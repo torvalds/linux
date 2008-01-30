@@ -73,19 +73,19 @@ static int putreg32(struct task_struct *child, unsigned regno, u32 val)
 		stack[offsetof(struct pt_regs, cs)/8] = val & 0xffff;
 		break;
 
-	R32(ebx, rbx);
-	R32(ecx, rcx);
-	R32(edx, rdx);
-	R32(edi, rdi);
-	R32(esi, rsi);
-	R32(ebp, rbp);
-	R32(eax, rax);
-	R32(orig_eax, orig_rax);
-	R32(eip, rip);
-	R32(esp, rsp);
+	R32(ebx, bx);
+	R32(ecx, cx);
+	R32(edx, dx);
+	R32(edi, di);
+	R32(esi, si);
+	R32(ebp, bp);
+	R32(eax, ax);
+	R32(orig_eax, orig_ax);
+	R32(eip, ip);
+	R32(esp, sp);
 
 	case offsetof(struct user32, regs.eflags): {
-		__u64 *flags = &stack[offsetof(struct pt_regs, eflags)/8];
+		__u64 *flags = &stack[offsetof(struct pt_regs, flags)/8];
 
 		val &= FLAG_MASK;
 		/*
@@ -145,22 +145,22 @@ static int getreg32(struct task_struct *child, unsigned regno, u32 *val)
 
 	R32(cs, cs);
 	R32(ss, ss);
-	R32(ebx, rbx);
-	R32(ecx, rcx);
-	R32(edx, rdx);
-	R32(edi, rdi);
-	R32(esi, rsi);
-	R32(ebp, rbp);
-	R32(eax, rax);
-	R32(orig_eax, orig_rax);
-	R32(eip, rip);
-	R32(esp, rsp);
+	R32(ebx, bx);
+	R32(ecx, cx);
+	R32(edx, dx);
+	R32(edi, di);
+	R32(esi, si);
+	R32(ebp, bp);
+	R32(eax, ax);
+	R32(orig_eax, orig_ax);
+	R32(eip, ip);
+	R32(esp, sp);
 
 	case offsetof(struct user32, regs.eflags):
 		/*
 		 * If the debugger set TF, hide it from the readout.
 		 */
-		*val = stack[offsetof(struct pt_regs, eflags)/8];
+		*val = stack[offsetof(struct pt_regs, flags)/8];
 		if (test_tsk_thread_flag(child, TIF_FORCED_TF))
 			*val &= ~X86_EFLAGS_TF;
 		break;

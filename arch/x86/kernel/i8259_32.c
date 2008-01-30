@@ -339,7 +339,7 @@ static irqreturn_t math_error_irq(int cpl, void *dev_id)
 	outb(0,0xF0);
 	if (ignore_fpu_irq || !boot_cpu_data.hard_math)
 		return IRQ_NONE;
-	math_error((void __user *)get_irq_regs()->eip);
+	math_error((void __user *)get_irq_regs()->ip);
 	return IRQ_HANDLED;
 }
 

@@ -75,22 +75,22 @@ void foo(void)
 	OFFSET(GDS_pad, Xgt_desc_struct, pad);
 	BLANK();
 
-	OFFSET(PT_EBX, pt_regs, ebx);
-	OFFSET(PT_ECX, pt_regs, ecx);
-	OFFSET(PT_EDX, pt_regs, edx);
-	OFFSET(PT_ESI, pt_regs, esi);
-	OFFSET(PT_EDI, pt_regs, edi);
-	OFFSET(PT_EBP, pt_regs, ebp);
-	OFFSET(PT_EAX, pt_regs, eax);
-	OFFSET(PT_DS,  pt_regs, xds);
-	OFFSET(PT_ES,  pt_regs, xes);
-	OFFSET(PT_FS,  pt_regs, xfs);
-	OFFSET(PT_ORIG_EAX, pt_regs, orig_eax);
-	OFFSET(PT_EIP, pt_regs, eip);
-	OFFSET(PT_CS,  pt_regs, xcs);
-	OFFSET(PT_EFLAGS, pt_regs, eflags);
-	OFFSET(PT_OLDESP, pt_regs, esp);
-	OFFSET(PT_OLDSS,  pt_regs, xss);
+	OFFSET(PT_EBX, pt_regs, bx);
+	OFFSET(PT_ECX, pt_regs, cx);
+	OFFSET(PT_EDX, pt_regs, dx);
+	OFFSET(PT_ESI, pt_regs, si);
+	OFFSET(PT_EDI, pt_regs, di);
+	OFFSET(PT_EBP, pt_regs, bp);
+	OFFSET(PT_EAX, pt_regs, ax);
+	OFFSET(PT_DS,  pt_regs, ds);
+	OFFSET(PT_ES,  pt_regs, es);
+	OFFSET(PT_FS,  pt_regs, fs);
+	OFFSET(PT_ORIG_EAX, pt_regs, orig_ax);
+	OFFSET(PT_EIP, pt_regs, ip);
+	OFFSET(PT_CS,  pt_regs, cs);
+	OFFSET(PT_EFLAGS, pt_regs, flags);
+	OFFSET(PT_OLDESP, pt_regs, sp);
+	OFFSET(PT_OLDSS,  pt_regs, ss);
 	BLANK();
 
 	OFFSET(EXEC_DOMAIN_handler, exec_domain, handler);

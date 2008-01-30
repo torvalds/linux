@@ -11,7 +11,7 @@ int fixup_exception(struct pt_regs *regs)
 	const struct exception_table_entry *fixup;
 
 #ifdef CONFIG_PNPBIOS
-	if (unlikely(SEGMENT_IS_PNP_CODE(regs->xcs)))
+	if (unlikely(SEGMENT_IS_PNP_CODE(regs->cs)))
 	{
 		extern u32 pnp_bios_fault_eip, pnp_bios_fault_esp;
 		extern u32 pnp_bios_is_utter_crap;
@@ -25,9 +25,9 @@ int fixup_exception(struct pt_regs *regs)
 	}
 #endif
 
-	fixup = search_exception_tables(regs->eip);
+	fixup = search_exception_tables(regs->ip);
 	if (fixup) {
-		regs->eip = fixup->fixup;
+		regs->ip = fixup->fixup;
 		return 1;
 	}
 

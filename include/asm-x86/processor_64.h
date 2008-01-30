@@ -258,12 +258,12 @@ struct thread_struct {
 #define start_thread(regs,new_rip,new_rsp) do { \
 	asm volatile("movl %0,%%fs; movl %0,%%es; movl %0,%%ds": :"r" (0));	 \
 	load_gs_index(0);							\
-	(regs)->rip = (new_rip);						 \
-	(regs)->rsp = (new_rsp);						 \
+	(regs)->ip = (new_rip);						 \
+	(regs)->sp = (new_rsp);						 \
 	write_pda(oldrsp, (new_rsp));						 \
 	(regs)->cs = __USER_CS;							 \
 	(regs)->ss = __USER_DS;							 \
-	(regs)->eflags = 0x200;							 \
+	(regs)->flags = 0x200;							 \
 	set_fs(USER_DS);							 \
 } while(0) 
 
@@ -297,7 +297,7 @@ extern long kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
 
 extern unsigned long get_wchan(struct task_struct *p);
 #define task_pt_regs(tsk) ((struct pt_regs *)(tsk)->thread.rsp0 - 1)
-#define KSTK_EIP(tsk) (task_pt_regs(tsk)->rip)
+#define KSTK_EIP(tsk) (task_pt_regs(tsk)->ip)
 #define KSTK_ESP(tsk) -1 /* sorry. doesn't work for syscall. */
 
 

@@ -154,7 +154,7 @@ asmlinkage long sys32_sigaltstack(const stack_ia32_t __user *uss_ptr,
 	}
 	seg = get_fs();
 	set_fs(KERNEL_DS);
-	ret = do_sigaltstack(uss_ptr ? &uss : NULL, &uoss, regs->rsp);
+	ret = do_sigaltstack(uss_ptr ? &uss : NULL, &uoss, regs->sp);
 	set_fs(seg);
 	if (ret >= 0 && uoss_ptr)  {
 		if (!access_ok(VERIFY_WRITE, uoss_ptr, sizeof(stack_ia32_t)) ||
@@ -195,7 +195,7 @@ struct rt_sigframe
 #define COPY(x)		{ \
 	unsigned int reg;			\
 	err |= __get_user(reg, &sc->e ##x);	\
-	regs->r ## x = reg;			\
+	regs->x = reg;			\
 }
 
 #define RELOAD_SEG(seg,mask)						\
@@ -220,7 +220,7 @@ static int ia32_restore_sigcontext(struct pt_regs *regs,
 #if DEBUG_SIG
 	printk(KERN_DEBUG "SIG restore_sigcontext: "
 	       "sc=%p err(%x) eip(%x) cs(%x) flg(%x)\n",
-	       sc, sc->err, sc->eip, sc->cs, sc->eflags);
+	       sc, sc->err, sc->ip, sc->cs, sc->flags);
 #endif
 
 	/*
@@ -249,9 +249,9 @@ static int ia32_restore_sigcontext(struct pt_regs *regs,
 	regs->ss |= 3;
 
 	err |= __get_user(tmpflags, &sc->eflags);
-	regs->eflags = (regs->eflags & ~0x40DD5) | (tmpflags & 0x40DD5);
+	regs->flags = (regs->flags & ~0x40DD5) | (tmpflags & 0x40DD5);
 	/* disable syscall checks */
-	regs->orig_rax = -1;
+	regs->orig_ax = -1;
 
 	err |= __get_user(tmp, &sc->fpstate);
 	buf = compat_ptr(tmp);
@@ -279,9 +279,9 @@ badframe:
 
 asmlinkage long sys32_sigreturn(struct pt_regs *regs)
 {
-	struct sigframe __user *frame = (struct sigframe __user *)(regs->rsp-8);
+	struct sigframe __user *frame = (struct sigframe __user *)(regs->sp-8);
 	sigset_t set;
-	unsigned int eax;
+	unsigned int ax;
 
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
@@ -298,9 +298,9 @@ asmlinkage long sys32_sigreturn(struct pt_regs *regs)
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
-	if (ia32_restore_sigcontext(regs, &frame->sc, &eax))
+	if (ia32_restore_sigcontext(regs, &frame->sc, &ax))
 		goto badframe;
-	return eax;
+	return ax;
 
 badframe:
 	signal_fault(regs, frame, "32bit sigreturn");
@@ -311,10 +311,10 @@ asmlinkage long sys32_rt_sigreturn(struct pt_regs *regs)
 {
 	struct rt_sigframe __user *frame;
 	sigset_t set;
-	unsigned int eax;
+	unsigned int ax;
 	struct pt_regs tregs;
 
-	frame = (struct rt_sigframe __user *)(regs->rsp - 4);
+	frame = (struct rt_sigframe __user *)(regs->sp - 4);
 
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
@@ -327,14 +327,14 @@ asmlinkage long sys32_rt_sigreturn(struct pt_regs *regs)
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
-	if (ia32_restore_sigcontext(regs, &frame->uc.uc_mcontext, &eax))
+	if (ia32_restore_sigcontext(regs, &frame->uc.uc_mcontext, &ax))
 		goto badframe;
 
 	tregs = *regs;
 	if (sys32_sigaltstack(&frame->uc.uc_stack, NULL, &tregs) == -EFAULT)
 		goto badframe;
 
-	return eax;
+	return ax;
 
 badframe:
 	signal_fault(regs, frame, "32bit rt sigreturn");
@@ -361,21 +361,21 @@ static int ia32_setup_sigcontext(struct sigcontext_ia32 __user *sc,
 	__asm__("movl %%es,%0" : "=r"(tmp): "0"(tmp));
 	err |= __put_user(tmp, (unsigned int __user *)&sc->es);
 
-	err |= __put_user((u32)regs->rdi, &sc->edi);
-	err |= __put_user((u32)regs->rsi, &sc->esi);
-	err |= __put_user((u32)regs->rbp, &sc->ebp);
-	err |= __put_user((u32)regs->rsp, &sc->esp);
-	err |= __put_user((u32)regs->rbx, &sc->ebx);
-	err |= __put_user((u32)regs->rdx, &sc->edx);
-	err |= __put_user((u32)regs->rcx, &sc->ecx);
-	err |= __put_user((u32)regs->rax, &sc->eax);
+	err |= __put_user((u32)regs->di, &sc->edi);
+	err |= __put_user((u32)regs->si, &sc->esi);
+	err |= __put_user((u32)regs->bp, &sc->ebp);
+	err |= __put_user((u32)regs->sp, &sc->esp);
+	err |= __put_user((u32)regs->bx, &sc->ebx);
+	err |= __put_user((u32)regs->dx, &sc->edx);
+	err |= __put_user((u32)regs->cx, &sc->ecx);
+	err |= __put_user((u32)regs->ax, &sc->eax);
 	err |= __put_user((u32)regs->cs, &sc->cs);
 	err |= __put_user((u32)regs->ss, &sc->ss);
 	err |= __put_user(current->thread.trap_no, &sc->trapno);
 	err |= __put_user(current->thread.error_code, &sc->err);
-	err |= __put_user((u32)regs->rip, &sc->eip);
-	err |= __put_user((u32)regs->eflags, &sc->eflags);
-	err |= __put_user((u32)regs->rsp, &sc->esp_at_signal);
+	err |= __put_user((u32)regs->ip, &sc->eip);
+	err |= __put_user((u32)regs->flags, &sc->eflags);
+	err |= __put_user((u32)regs->sp, &sc->esp_at_signal);
 
 	tmp = save_i387_ia32(current, fpstate, regs, 0);
 	if (tmp < 0)
@@ -400,28 +400,28 @@ static int ia32_setup_sigcontext(struct sigcontext_ia32 __user *sc,
 static void __user *get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
 				 size_t frame_size)
 {
-	unsigned long rsp;
+	unsigned long sp;
 
 	/* Default to using normal stack */
-	rsp = regs->rsp;
+	sp = regs->sp;
 
 	/* This is the X/Open sanctioned signal stack switching.  */
 	if (ka->sa.sa_flags & SA_ONSTACK) {
-		if (sas_ss_flags(rsp) == 0)
-			rsp = current->sas_ss_sp + current->sas_ss_size;
+		if (sas_ss_flags(sp) == 0)
+			sp = current->sas_ss_sp + current->sas_ss_size;
 	}
 
 	/* This is the legacy signal stack switching. */
 	else if ((regs->ss & 0xffff) != __USER_DS &&
 		!(ka->sa.sa_flags & SA_RESTORER) &&
 		 ka->sa.sa_restorer)
-		rsp = (unsigned long) ka->sa.sa_restorer;
+		sp = (unsigned long) ka->sa.sa_restorer;
 
-	rsp -= frame_size;
+	sp -= frame_size;
 	/* Align the stack pointer according to the i386 ABI,
 	 * i.e. so that on function entry ((sp + 4) & 15) == 0. */
-	rsp = ((rsp + 4) & -16ul) - 4;
-	return (void __user *) rsp;
+	sp = ((sp + 4) & -16ul) - 4;
+	return (void __user *) sp;
 }
 
 int ia32_setup_frame(int sig, struct k_sigaction *ka,
@@ -486,13 +486,13 @@ int ia32_setup_frame(int sig, struct k_sigaction *ka,
 		goto give_sigsegv;
 
 	/* Set up registers for signal handler */
-	regs->rsp = (unsigned long) frame;
-	regs->rip = (unsigned long) ka->sa.sa_handler;
+	regs->sp = (unsigned long) frame;
+	regs->ip = (unsigned long) ka->sa.sa_handler;
 
 	/* Make -mregparm=3 work */
-	regs->rax = sig;
-	regs->rdx = 0;
-	regs->rcx = 0;
+	regs->ax = sig;
+	regs->dx = 0;
+	regs->cx = 0;
 
 	asm volatile("movl %0,%%ds" :: "r" (__USER32_DS));
 	asm volatile("movl %0,%%es" :: "r" (__USER32_DS));
@@ -501,13 +501,13 @@ int ia32_setup_frame(int sig, struct k_sigaction *ka,
 	regs->ss = __USER32_DS;
 
 	set_fs(USER_DS);
-	regs->eflags &= ~TF_MASK;
+	regs->flags &= ~TF_MASK;
 	if (test_thread_flag(TIF_SINGLESTEP))
 		ptrace_notify(SIGTRAP);
 
 #if DEBUG_SIG
 	printk(KERN_DEBUG "SIG deliver (%s:%d): sp=%p pc=%lx ra=%u\n",
-	       current->comm, current->pid, frame, regs->rip, frame->pretcode);
+	       current->comm, current->pid, frame, regs->ip, frame->pretcode);
 #endif
 
 	return 0;
@@ -556,7 +556,7 @@ int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	err |= __put_user(0, &frame->uc.uc_flags);
 	err |= __put_user(0, &frame->uc.uc_link);
 	err |= __put_user(current->sas_ss_sp, &frame->uc.uc_stack.ss_sp);
-	err |= __put_user(sas_ss_flags(regs->rsp),
+	err |= __put_user(sas_ss_flags(regs->sp),
 			  &frame->uc.uc_stack.ss_flags);
 	err |= __put_user(current->sas_ss_size, &frame->uc.uc_stack.ss_size);
 	err |= ia32_setup_sigcontext(&frame->uc.uc_mcontext, &frame->fpstate,
@@ -581,18 +581,18 @@ int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 		goto give_sigsegv;
 
 	/* Set up registers for signal handler */
-	regs->rsp = (unsigned long) frame;
-	regs->rip = (unsigned long) ka->sa.sa_handler;
+	regs->sp = (unsigned long) frame;
+	regs->ip = (unsigned long) ka->sa.sa_handler;
 
 	/* Make -mregparm=3 work */
-	regs->rax = sig;
-	regs->rdx = (unsigned long) &frame->info;
-	regs->rcx = (unsigned long) &frame->uc;
+	regs->ax = sig;
+	regs->dx = (unsigned long) &frame->info;
+	regs->cx = (unsigned long) &frame->uc;
 
 	/* Make -mregparm=3 work */
-	regs->rax = sig;
-	regs->rdx = (unsigned long) &frame->info;
-	regs->rcx = (unsigned long) &frame->uc;
+	regs->ax = sig;
+	regs->dx = (unsigned long) &frame->info;
+	regs->cx = (unsigned long) &frame->uc;
 
 	asm volatile("movl %0,%%ds" :: "r" (__USER32_DS));
 	asm volatile("movl %0,%%es" :: "r" (__USER32_DS));
@@ -601,13 +601,13 @@ int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	regs->ss = __USER32_DS;
 
 	set_fs(USER_DS);
-	regs->eflags &= ~TF_MASK;
+	regs->flags &= ~TF_MASK;
 	if (test_thread_flag(TIF_SINGLESTEP))
 		ptrace_notify(SIGTRAP);
 
 #if DEBUG_SIG
 	printk(KERN_DEBUG "SIG deliver (%s:%d): sp=%p pc=%lx ra=%u\n",
-	       current->comm, current->pid, frame, regs->rip, frame->pretcode);
+	       current->comm, current->pid, frame, regs->ip, frame->pretcode);
 #endif
 
 	return 0;

@@ -110,12 +110,12 @@ static void print_mce(struct mce *m)
 	       KERN_EMERG
 	       "CPU %d: Machine Check Exception: %16Lx Bank %d: %016Lx\n",
 	       m->cpu, m->mcgstatus, m->bank, m->status);
-	if (m->rip) {
+	if (m->ip) {
 		printk(KERN_EMERG "RIP%s %02x:<%016Lx> ",
 		       !(m->mcgstatus & MCG_STATUS_EIPV) ? " !INEXACT!" : "",
-		       m->cs, m->rip);
+		       m->cs, m->ip);
 		if (m->cs == __KERNEL_CS)
-			print_symbol("{%s}", m->rip);
+			print_symbol("{%s}", m->ip);
 		printk("\n");
 	}
 	printk(KERN_EMERG "TSC %Lx ", m->tsc);
@@ -156,16 +156,16 @@ static int mce_available(struct cpuinfo_x86 *c)
 static inline void mce_get_rip(struct mce *m, struct pt_regs *regs)
 {
 	if (regs && (m->mcgstatus & MCG_STATUS_RIPV)) {
-		m->rip = regs->rip;
+		m->ip = regs->ip;
 		m->cs = regs->cs;
 	} else {
-		m->rip = 0;
+		m->ip = 0;
 		m->cs = 0;
 	}
 	if (rip_msr) {
 		/* Assume the RIP in the MSR is exact. Is this true? */
 		m->mcgstatus |= MCG_STATUS_EIPV;
-		rdmsrl(rip_msr, m->rip);
+		rdmsrl(rip_msr, m->ip);
 		m->cs = 0;
 	}
 }
@@ -288,7 +288,7 @@ void do_machine_check(struct pt_regs * regs, long error_code)
 		 * instruction which caused the MCE.
 		 */
 		if (m.mcgstatus & MCG_STATUS_EIPV)
-			user_space = panicm.rip && (panicm.cs & 3);
+			user_space = panicm.ip && (panicm.cs & 3);
 
 		/*
 		 * If we know that the error was in user space, send a

@@ -76,20 +76,20 @@ asmlinkage void spurious_interrupt_bug(void);
 
 static inline void conditional_sti(struct pt_regs *regs)
 {
-	if (regs->eflags & X86_EFLAGS_IF)
+	if (regs->flags & X86_EFLAGS_IF)
 		local_irq_enable();
 }
 
 static inline void preempt_conditional_sti(struct pt_regs *regs)
 {
 	preempt_disable();
-	if (regs->eflags & X86_EFLAGS_IF)
+	if (regs->flags & X86_EFLAGS_IF)
 		local_irq_enable();
 }
 
 static inline void preempt_conditional_cli(struct pt_regs *regs)
 {
-	if (regs->eflags & X86_EFLAGS_IF)
+	if (regs->flags & X86_EFLAGS_IF)
 		local_irq_disable();
 	/* Make sure to not schedule here because we could be running
 	   on an exception stack. */
@@ -353,7 +353,7 @@ show_trace(struct task_struct *tsk, struct pt_regs *regs, unsigned long *stack)
 }
 
 static void
-_show_stack(struct task_struct *tsk, struct pt_regs *regs, unsigned long *rsp)
+_show_stack(struct task_struct *tsk, struct pt_regs *regs, unsigned long *sp)
 {
 	unsigned long *stack;
 	int i;
@@ -364,14 +364,14 @@ _show_stack(struct task_struct *tsk, struct pt_regs *regs, unsigned long *rsp)
 	// debugging aid: "show_stack(NULL, NULL);" prints the
 	// back trace for this cpu.
 
-	if (rsp == NULL) {
+	if (sp == NULL) {
 		if (tsk)
-			rsp = (unsigned long *)tsk->thread.rsp;
+			sp = (unsigned long *)tsk->thread.rsp;
 		else
-			rsp = (unsigned long *)&rsp;
+			sp = (unsigned long *)&sp;
 	}
 
-	stack = rsp;
+	stack = sp;
 	for(i=0; i < kstack_depth_to_print; i++) {
 		if (stack >= irqstack && stack <= irqstack_end) {
 			if (stack == irqstack_end) {
@@ -387,12 +387,12 @@ _show_stack(struct task_struct *tsk, struct pt_regs *regs, unsigned long *rsp)
 		printk(" %016lx", *stack++);
 		touch_nmi_watchdog();
 	}
-	show_trace(tsk, regs, rsp);
+	show_trace(tsk, regs, sp);
 }
 
-void show_stack(struct task_struct *tsk, unsigned long * rsp)
+void show_stack(struct task_struct *tsk, unsigned long * sp)
 {
-	_show_stack(tsk, NULL, rsp);
+	_show_stack(tsk, NULL, sp);
 }
 
 /*
@@ -416,11 +416,11 @@ void show_registers(struct pt_regs *regs)
 {
 	int i;
 	int in_kernel = !user_mode(regs);
-	unsigned long rsp;
+	unsigned long sp;
 	const int cpu = smp_processor_id();
 	struct task_struct *cur = cpu_pda(cpu)->pcurrent;
 
-	rsp = regs->rsp;
+	sp = regs->sp;
 	printk("CPU %d ", cpu);
 	__show_regs(regs);
 	printk("Process %s (pid: %d, threadinfo %p, task %p)\n",
@@ -432,15 +432,15 @@ void show_registers(struct pt_regs *regs)
 	 */
 	if (in_kernel) {
 		printk("Stack: ");
-		_show_stack(NULL, regs, (unsigned long*)rsp);
+		_show_stack(NULL, regs, (unsigned long*)sp);
 
 		printk("\nCode: ");
-		if (regs->rip < PAGE_OFFSET)
+		if (regs->ip < PAGE_OFFSET)
 			goto bad;
 
 		for (i=0; i<20; i++) {
 			unsigned char c;
-			if (__get_user(c, &((unsigned char*)regs->rip)[i])) {
+			if (__get_user(c, &((unsigned char*)regs->ip)[i])) {
 bad:
 				printk(" Bad RIP value.");
 				break;
@@ -451,11 +451,11 @@ bad:
 	printk("\n");
 }	
 
-int is_valid_bugaddr(unsigned long rip)
+int is_valid_bugaddr(unsigned long ip)
 {
 	unsigned short ud2;
 
-	if (__copy_from_user(&ud2, (const void __user *) rip, sizeof(ud2)))
+	if (__copy_from_user(&ud2, (const void __user *) ip, sizeof(ud2)))
 		return 0;
 
 	return ud2 == 0x0b0f;
@@ -521,8 +521,8 @@ void __kprobes __die(const char * str, struct pt_regs * regs, long err)
 	add_taint(TAINT_DIE);
 	/* Executive summary in case the oops scrolled away */
 	printk(KERN_ALERT "RIP ");
-	printk_address(regs->rip); 
-	printk(" RSP <%016lx>\n", regs->rsp); 
+	printk_address(regs->ip);
+	printk(" RSP <%016lx>\n", regs->sp);
 	if (kexec_should_crash(current))
 		crash_kexec(regs);
 }
@@ -532,7 +532,7 @@ void die(const char * str, struct pt_regs * regs, long err)
 	unsigned long flags = oops_begin();
 
 	if (!user_mode(regs))
-		report_bug(regs->rip, regs);
+		report_bug(regs->ip, regs);
 
 	__die(str, regs, err);
 	oops_end(flags);
@@ -582,9 +582,9 @@ static void __kprobes do_trap(int trapnr, int signr, char *str,
 		if (show_unhandled_signals && unhandled_signal(tsk, signr) &&
 		    printk_ratelimit())
 			printk(KERN_INFO
-			       "%s[%d] trap %s rip:%lx rsp:%lx error:%lx\n",
+			       "%s[%d] trap %s ip:%lx sp:%lx error:%lx\n",
 			       tsk->comm, tsk->pid, str,
-			       regs->rip, regs->rsp, error_code); 
+			       regs->ip, regs->sp, error_code);
 
 		if (info)
 			force_sig_info(signr, info, tsk);
@@ -597,9 +597,9 @@ static void __kprobes do_trap(int trapnr, int signr, char *str,
 	/* kernel trap */ 
 	{	     
 		const struct exception_table_entry *fixup;
-		fixup = search_exception_tables(regs->rip);
+		fixup = search_exception_tables(regs->ip);
 		if (fixup)
-			regs->rip = fixup->fixup;
+			regs->ip = fixup->fixup;
 		else {
 			tsk->thread.error_code = error_code;
 			tsk->thread.trap_no = trapnr;
@@ -635,10 +635,10 @@ asmlinkage void do_##name(struct pt_regs * regs, long error_code) \
 	do_trap(trapnr, signr, str, regs, error_code, &info); \
 }
 
-DO_ERROR_INFO( 0, SIGFPE,  "divide error", divide_error, FPE_INTDIV, regs->rip)
+DO_ERROR_INFO( 0, SIGFPE,  "divide error", divide_error, FPE_INTDIV, regs->ip)
 DO_ERROR( 4, SIGSEGV, "overflow", overflow)
 DO_ERROR( 5, SIGSEGV, "bounds", bounds)
-DO_ERROR_INFO( 6, SIGILL,  "invalid opcode", invalid_op, ILL_ILLOPN, regs->rip)
+DO_ERROR_INFO( 6, SIGILL,  "invalid opcode", invalid_op, ILL_ILLOPN, regs->ip)
 DO_ERROR( 7, SIGSEGV, "device not available", device_not_available)
 DO_ERROR( 9, SIGFPE,  "coprocessor segment overrun", coprocessor_segment_overrun)
 DO_ERROR(10, SIGSEGV, "invalid TSS", invalid_TSS)
@@ -688,9 +688,9 @@ asmlinkage void __kprobes do_general_protection(struct pt_regs * regs,
 		if (show_unhandled_signals && unhandled_signal(tsk, SIGSEGV) &&
 		    printk_ratelimit())
 			printk(KERN_INFO
-		       "%s[%d] general protection rip:%lx rsp:%lx error:%lx\n",
+		       "%s[%d] general protection ip:%lx sp:%lx error:%lx\n",
 			       tsk->comm, tsk->pid,
-			       regs->rip, regs->rsp, error_code); 
+			       regs->ip, regs->sp, error_code);
 
 		force_sig(SIGSEGV, tsk);
 		return;
@@ -699,9 +699,9 @@ asmlinkage void __kprobes do_general_protection(struct pt_regs * regs,
 	/* kernel gp */
 	{
 		const struct exception_table_entry *fixup;
-		fixup = search_exception_tables(regs->rip);
+		fixup = search_exception_tables(regs->ip);
 		if (fixup) {
-			regs->rip = fixup->fixup;
+			regs->ip = fixup->fixup;
 			return;
 		}
 
@@ -824,15 +824,15 @@ asmlinkage __kprobes struct pt_regs *sync_regs(struct pt_regs *eregs)
 {
 	struct pt_regs *regs = eregs;
 	/* Did already sync */
-	if (eregs == (struct pt_regs *)eregs->rsp)
+	if (eregs == (struct pt_regs *)eregs->sp)
 		;
 	/* Exception from user space */
 	else if (user_mode(eregs))
 		regs = task_pt_regs(current);
 	/* Exception from kernel and interrupts are enabled. Move to
  	   kernel process stack. */
-	else if (eregs->eflags & X86_EFLAGS_IF)
-		regs = (struct pt_regs *)(eregs->rsp -= sizeof(struct pt_regs));
+	else if (eregs->flags & X86_EFLAGS_IF)
+		regs = (struct pt_regs *)(eregs->sp -= sizeof(struct pt_regs));
 	if (eregs != regs)
 		*regs = *eregs;
 	return regs;
@@ -887,7 +887,7 @@ asmlinkage void __kprobes do_debug(struct pt_regs * regs,
 	info.si_signo = SIGTRAP;
 	info.si_errno = 0;
 	info.si_code = TRAP_BRKPT;
-	info.si_addr = user_mode(regs) ? (void __user *)regs->rip : NULL;
+	info.si_addr = user_mode(regs) ? (void __user *)regs->ip : NULL;
 	force_sig_info(SIGTRAP, &info, tsk);
 
 clear_dr7:
@@ -897,16 +897,16 @@ clear_dr7:
 
 clear_TF_reenable:
 	set_tsk_thread_flag(tsk, TIF_SINGLESTEP);
-	regs->eflags &= ~TF_MASK;
+	regs->flags &= ~TF_MASK;
 	preempt_conditional_cli(regs);
 }
 
 static int kernel_math_error(struct pt_regs *regs, const char *str, int trapnr)
 {
 	const struct exception_table_entry *fixup;
-	fixup = search_exception_tables(regs->rip);
+	fixup = search_exception_tables(regs->ip);
 	if (fixup) {
-		regs->rip = fixup->fixup;
+		regs->ip = fixup->fixup;
 		return 1;
 	}
 	notify_die(DIE_GPF, str, regs, 0, trapnr, SIGFPE);
@@ -923,7 +923,7 @@ static int kernel_math_error(struct pt_regs *regs, const char *str, int trapnr)
  */
 asmlinkage void do_coprocessor_error(struct pt_regs *regs)
 {
-	void __user *rip = (void __user *)(regs->rip);
+	void __user *ip = (void __user *)(regs->ip);
 	struct task_struct * task;
 	siginfo_t info;
 	unsigned short cwd, swd;
@@ -943,7 +943,7 @@ asmlinkage void do_coprocessor_error(struct pt_regs *regs)
 	info.si_signo = SIGFPE;
 	info.si_errno = 0;
 	info.si_code = __SI_FAULT;
-	info.si_addr = rip;
+	info.si_addr = ip;
 	/*
 	 * (~cwd & swd) will mask out exceptions that are not set to unmasked
 	 * status.  0x3f is the exception bits in these regs, 0x200 is the
@@ -992,7 +992,7 @@ asmlinkage void bad_intr(void)
 
 asmlinkage void do_simd_coprocessor_error(struct pt_regs *regs)
 {
-	void __user *rip = (void __user *)(regs->rip);
+	void __user *ip = (void __user *)(regs->ip);
 	struct task_struct * task;
 	siginfo_t info;
 	unsigned short mxcsr;
@@ -1012,7 +1012,7 @@ asmlinkage void do_simd_coprocessor_error(struct pt_regs *regs)
 	info.si_signo = SIGFPE;
 	info.si_errno = 0;
 	info.si_code = __SI_FAULT;
-	info.si_addr = rip;
+	info.si_addr = ip;
 	/*
 	 * The SIMD FPU exceptions are handled a little differently, as there
 	 * is only a single status/control register.  Thus, to determine which

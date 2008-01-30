@@ -39,10 +39,10 @@
 
 static long *pt_regs_access(struct pt_regs *regs, unsigned long regno)
 {
-	BUILD_BUG_ON(offsetof(struct pt_regs, ebx) != 0);
+	BUILD_BUG_ON(offsetof(struct pt_regs, bx) != 0);
 	if (regno > FS)
 		--regno;
-	return &regs->ebx + regno;
+	return &regs->bx + regno;
 }
 
 static int putreg(struct task_struct *child,
@@ -80,7 +80,7 @@ static int putreg(struct task_struct *child,
 				clear_tsk_thread_flag(child, TIF_FORCED_TF);
 			else if (test_tsk_thread_flag(child, TIF_FORCED_TF))
 				value |= X86_EFLAGS_TF;
-			value |= regs->eflags & ~FLAG_MASK;
+			value |= regs->flags & ~FLAG_MASK;
 			break;
 	}
 	*pt_regs_access(regs, regno) = value;
@@ -98,7 +98,7 @@ static unsigned long getreg(struct task_struct *child, unsigned long regno)
 			/*
 			 * If the debugger set TF, hide it from the readout.
 			 */
-			retval = regs->eflags;
+			retval = regs->flags;
 			if (test_tsk_thread_flag(child, TIF_FORCED_TF))
 				retval &= ~X86_EFLAGS_TF;
 			break;
@@ -369,8 +369,8 @@ void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs, int error_code)
 	info.si_signo = SIGTRAP;
 	info.si_code = TRAP_BRKPT;
 
-	/* User-mode eip? */
-	info.si_addr = user_mode_vm(regs) ? (void __user *) regs->eip : NULL;
+	/* User-mode ip? */
+	info.si_addr = user_mode_vm(regs) ? (void __user *) regs->ip : NULL;
 
 	/* Send us the fake SIGTRAP */
 	force_sig_info(SIGTRAP, &info, tsk);
@@ -392,12 +392,12 @@ int do_syscall_trace(struct pt_regs *regs, int entryexit)
 
 	/* do the secure computing check first */
 	if (!entryexit)
-		secure_computing(regs->orig_eax);
+		secure_computing(regs->orig_ax);
 
 	if (unlikely(current->audit_context)) {
 		if (entryexit)
-			audit_syscall_exit(AUDITSC_RESULT(regs->eax),
-						regs->eax);
+			audit_syscall_exit(AUDITSC_RESULT(regs->ax),
+						regs->ax);
 		/* Debug traps, when using PTRACE_SINGLESTEP, must be sent only
 		 * on the syscall exit path. Normally, when TIF_SYSCALL_AUDIT is
 		 * not used, entry.S will call us only on syscall exit, not
@@ -445,13 +445,13 @@ int do_syscall_trace(struct pt_regs *regs, int entryexit)
 	ret = is_sysemu;
 out:
 	if (unlikely(current->audit_context) && !entryexit)
-		audit_syscall_entry(AUDIT_ARCH_I386, regs->orig_eax,
-				    regs->ebx, regs->ecx, regs->edx, regs->esi);
+		audit_syscall_entry(AUDIT_ARCH_I386, regs->orig_ax,
+				    regs->bx, regs->cx, regs->dx, regs->si);
 	if (ret == 0)
 		return 0;
 
-	regs->orig_eax = -1; /* force skip of syscall restarting */
+	regs->orig_ax = -1; /* force skip of syscall restarting */
 	if (unlikely(current->audit_context))
-		audit_syscall_exit(AUDITSC_RESULT(regs->eax), regs->eax);
+		audit_syscall_exit(AUDITSC_RESULT(regs->ax), regs->ax);
 	return 1;
 }

@@ -100,7 +100,7 @@ asmlinkage long sys_ioperm(unsigned long from, unsigned long num, int turn_on)
  * beyond the 0x3ff range: to get the full 65536 ports bitmapped
  * you'd need 8kB of bitmaps/process, which is a bit excessive.
  *
- * Here we just change the eflags value on the stack: we allow
+ * Here we just change the flags value on the stack: we allow
  * only the super-user to do it. This depends on the stack-layout
  * on system-call entry - see also fork() and the signal handling
  * code.
@@ -109,8 +109,8 @@ asmlinkage long sys_ioperm(unsigned long from, unsigned long num, int turn_on)
 asmlinkage long sys_iopl(unsigned long regsp)
 {
 	volatile struct pt_regs *regs = (struct pt_regs *)&regsp;
-	unsigned int level = regs->ebx;
-	unsigned int old = (regs->eflags >> 12) & 3;
+	unsigned int level = regs->bx;
+	unsigned int old = (regs->flags >> 12) & 3;
 	struct thread_struct *t = &current->thread;
 
 	if (level > 3)
@@ -122,7 +122,7 @@ asmlinkage long sys_iopl(unsigned long regsp)
 	}
 
 	t->iopl = level << 12;
-	regs->eflags = (regs->eflags & ~X86_EFLAGS_IOPL) | t->iopl;
+	regs->flags = (regs->flags & ~X86_EFLAGS_IOPL) | t->iopl;
 	set_iopl_mask(t->iopl);
 
 	return 0;

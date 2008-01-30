@@ -83,14 +83,14 @@ int main(void)
 	DEFINE(pbe_next, offsetof(struct pbe, next));
 	BLANK();
 #define ENTRY(entry) DEFINE(pt_regs_ ## entry, offsetof(struct pt_regs, entry))
-	ENTRY(rbx);
-	ENTRY(rbx);
-	ENTRY(rcx);
-	ENTRY(rdx);
-	ENTRY(rsp);
-	ENTRY(rbp);
-	ENTRY(rsi);
-	ENTRY(rdi);
+	ENTRY(bx);
+	ENTRY(bx);
+	ENTRY(cx);
+	ENTRY(dx);
+	ENTRY(sp);
+	ENTRY(bp);
+	ENTRY(si);
+	ENTRY(di);
 	ENTRY(r8);
 	ENTRY(r9);
 	ENTRY(r10);
@@ -99,7 +99,7 @@ int main(void)
 	ENTRY(r13);
 	ENTRY(r14);
 	ENTRY(r15);
-	ENTRY(eflags);
+	ENTRY(flags);
 	BLANK();
 #undef ENTRY
 #define ENTRY(entry) DEFINE(saved_context_ ## entry, offsetof(struct saved_context, entry))

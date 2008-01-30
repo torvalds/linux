@@ -265,13 +265,13 @@ EXPORT_SYMBOL_GPL(cpu_idle_wait);
  * New with Core Duo processors, MWAIT can take some hints based on CPU
  * capability.
  */
-void mwait_idle_with_hints(unsigned long eax, unsigned long ecx)
+void mwait_idle_with_hints(unsigned long ax, unsigned long cx)
 {
 	if (!need_resched()) {
 		__monitor((void *)&current_thread_info()->flags, 0, 0);
 		smp_mb();
 		if (!need_resched())
-			__mwait(eax, ecx);
+			__mwait(ax, cx);
 	}
 }
 
@@ -320,15 +320,15 @@ void __show_registers(struct pt_regs *regs, int all)
 {
 	unsigned long cr0 = 0L, cr2 = 0L, cr3 = 0L, cr4 = 0L;
 	unsigned long d0, d1, d2, d3, d6, d7;
-	unsigned long esp;
+	unsigned long sp;
 	unsigned short ss, gs;
 
 	if (user_mode_vm(regs)) {
-		esp = regs->esp;
-		ss = regs->xss & 0xffff;
+		sp = regs->sp;
+		ss = regs->ss & 0xffff;
 		savesegment(gs, gs);
 	} else {
-		esp = (unsigned long) (&regs->esp);
+		sp = (unsigned long) (&regs->sp);
 		savesegment(ss, ss);
 		savesegment(gs, gs);
 	}
@@ -341,17 +341,17 @@ void __show_registers(struct pt_regs *regs, int all)
 			init_utsname()->version);
 
 	printk("EIP: %04x:[<%08lx>] EFLAGS: %08lx CPU: %d\n",
-			0xffff & regs->xcs, regs->eip, regs->eflags,
+			0xffff & regs->cs, regs->ip, regs->flags,
 			smp_processor_id());
-	print_symbol("EIP is at %s\n", regs->eip);
+	print_symbol("EIP is at %s\n", regs->ip);
 
 	printk("EAX: %08lx EBX: %08lx ECX: %08lx EDX: %08lx\n",
-		regs->eax, regs->ebx, regs->ecx, regs->edx);
+		regs->ax, regs->bx, regs->cx, regs->dx);
 	printk("ESI: %08lx EDI: %08lx EBP: %08lx ESP: %08lx\n",
-		regs->esi, regs->edi, regs->ebp, esp);
+		regs->si, regs->di, regs->bp, sp);
 	printk(" DS: %04x ES: %04x FS: %04x GS: %04x SS: %04x\n",
-	       regs->xds & 0xffff, regs->xes & 0xffff,
-	       regs->xfs & 0xffff, gs, ss);
+	       regs->ds & 0xffff, regs->es & 0xffff,
+	       regs->fs & 0xffff, gs, ss);
 
 	if (!all)
 		return;
@@ -379,12 +379,12 @@ void __show_registers(struct pt_regs *regs, int all)
 void show_regs(struct pt_regs *regs)
 {
 	__show_registers(regs, 1);
-	show_trace(NULL, regs, &regs->esp);
+	show_trace(NULL, regs, &regs->sp);
 }
 
 /*
- * This gets run with %ebx containing the
- * function to call, and %edx containing
+ * This gets run with %bx containing the
+ * function to call, and %dx containing
  * the "args".
  */
 extern void kernel_thread_helper(void);
@@ -398,16 +398,16 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 
 	memset(&regs, 0, sizeof(regs));
 
-	regs.ebx = (unsigned long) fn;
-	regs.edx = (unsigned long) arg;
+	regs.bx = (unsigned long) fn;
+	regs.dx = (unsigned long) arg;
 
-	regs.xds = __USER_DS;
-	regs.xes = __USER_DS;
-	regs.xfs = __KERNEL_PERCPU;
-	regs.orig_eax = -1;
-	regs.eip = (unsigned long) kernel_thread_helper;
-	regs.xcs = __KERNEL_CS | get_kernel_rpl();
-	regs.eflags = X86_EFLAGS_IF | X86_EFLAGS_SF | X86_EFLAGS_PF | 0x2;
+	regs.ds = __USER_DS;
+	regs.es = __USER_DS;
+	regs.fs = __KERNEL_PERCPU;
+	regs.orig_ax = -1;
+	regs.ip = (unsigned long) kernel_thread_helper;
+	regs.cs = __KERNEL_CS | get_kernel_rpl();
+	regs.flags = X86_EFLAGS_IF | X86_EFLAGS_SF | X86_EFLAGS_PF | 0x2;
 
 	/* Ok, create the new process.. */
 	return do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0, &regs, 0, NULL, NULL);
@@ -470,7 +470,7 @@ void prepare_to_copy(struct task_struct *tsk)
 	unlazy_fpu(tsk);
 }
 
-int copy_thread(int nr, unsigned long clone_flags, unsigned long esp,
+int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
 	unsigned long unused,
 	struct task_struct * p, struct pt_regs * regs)
 {
@@ -480,8 +480,8 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long esp,
 
 	childregs = task_pt_regs(p);
 	*childregs = *regs;
-	childregs->eax = 0;
-	childregs->esp = esp;
+	childregs->ax = 0;
+	childregs->sp = sp;
 
 	p->thread.esp = (unsigned long) childregs;
 	p->thread.esp0 = (unsigned long) (childregs+1);
@@ -508,7 +508,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long esp,
 	 */
 	if (clone_flags & CLONE_SETTLS)
 		err = do_set_thread_area(p, -1,
-			(struct user_desc __user *)childregs->esi, 0);
+			(struct user_desc __user *)childregs->si, 0);
 
 	if (err && p->thread.io_bitmap_ptr) {
 		kfree(p->thread.io_bitmap_ptr);
@@ -527,7 +527,7 @@ void dump_thread(struct pt_regs * regs, struct user * dump)
 /* changed the size calculations - should hopefully work better. lbt */
 	dump->magic = CMAGIC;
 	dump->start_code = 0;
-	dump->start_stack = regs->esp & ~(PAGE_SIZE - 1);
+	dump->start_stack = regs->sp & ~(PAGE_SIZE - 1);
 	dump->u_tsize = ((unsigned long) current->mm->end_code) >> PAGE_SHIFT;
 	dump->u_dsize = ((unsigned long) (current->mm->brk + (PAGE_SIZE-1))) >> PAGE_SHIFT;
 	dump->u_dsize -= dump->u_tsize;
@@ -538,23 +538,23 @@ void dump_thread(struct pt_regs * regs, struct user * dump)
 	if (dump->start_stack < TASK_SIZE)
 		dump->u_ssize = ((unsigned long) (TASK_SIZE - dump->start_stack)) >> PAGE_SHIFT;
 
-	dump->regs.ebx = regs->ebx;
-	dump->regs.ecx = regs->ecx;
-	dump->regs.edx = regs->edx;
-	dump->regs.esi = regs->esi;
-	dump->regs.edi = regs->edi;
-	dump->regs.ebp = regs->ebp;
-	dump->regs.eax = regs->eax;
-	dump->regs.ds = regs->xds;
-	dump->regs.es = regs->xes;
-	dump->regs.fs = regs->xfs;
+	dump->regs.ebx = regs->bx;
+	dump->regs.ecx = regs->cx;
+	dump->regs.edx = regs->dx;
+	dump->regs.esi = regs->si;
+	dump->regs.edi = regs->di;
+	dump->regs.ebp = regs->bp;
+	dump->regs.eax = regs->ax;
+	dump->regs.ds = regs->ds;
+	dump->regs.es = regs->es;
+	dump->regs.fs = regs->fs;
 	savesegment(gs,dump->regs.gs);
-	dump->regs.orig_eax = regs->orig_eax;
-	dump->regs.eip = regs->eip;
-	dump->regs.cs = regs->xcs;
-	dump->regs.eflags = regs->eflags;
-	dump->regs.esp = regs->esp;
-	dump->regs.ss = regs->xss;
+	dump->regs.orig_eax = regs->orig_ax;
+	dump->regs.eip = regs->ip;
+	dump->regs.cs = regs->cs;
+	dump->regs.eflags = regs->flags;
+	dump->regs.esp = regs->sp;
+	dump->regs.ss = regs->ss;
 
 	dump->u_fpvalid = dump_fpu (regs, &dump->i387);
 }
@@ -566,10 +566,10 @@ EXPORT_SYMBOL(dump_thread);
 int dump_task_regs(struct task_struct *tsk, elf_gregset_t *regs)
 {
 	struct pt_regs ptregs = *task_pt_regs(tsk);
-	ptregs.xcs &= 0xffff;
-	ptregs.xds &= 0xffff;
-	ptregs.xes &= 0xffff;
-	ptregs.xss &= 0xffff;
+	ptregs.cs &= 0xffff;
+	ptregs.ds &= 0xffff;
+	ptregs.es &= 0xffff;
+	ptregs.ss &= 0xffff;
 
 	elf_core_copy_regs(regs, &ptregs);
 
@@ -684,7 +684,7 @@ __switch_to_xtra(struct task_struct *prev_p, struct task_struct *next_p,
  * More important, however, is the fact that this allows us much
  * more flexibility.
  *
- * The return value (in %eax) will be the "prev" task after
+ * The return value (in %ax) will be the "prev" task after
  * the task-switch, and shows up in ret_from_fork in entry.S,
  * for example.
  */
@@ -771,7 +771,7 @@ struct task_struct fastcall * __switch_to(struct task_struct *prev_p, struct tas
 
 asmlinkage int sys_fork(struct pt_regs regs)
 {
-	return do_fork(SIGCHLD, regs.esp, &regs, 0, NULL, NULL);
+	return do_fork(SIGCHLD, regs.sp, &regs, 0, NULL, NULL);
 }
 
 asmlinkage int sys_clone(struct pt_regs regs)
@@ -780,12 +780,12 @@ asmlinkage int sys_clone(struct pt_regs regs)
 	unsigned long newsp;
 	int __user *parent_tidptr, *child_tidptr;
 
-	clone_flags = regs.ebx;
-	newsp = regs.ecx;
-	parent_tidptr = (int __user *)regs.edx;
-	child_tidptr = (int __user *)regs.edi;
+	clone_flags = regs.bx;
+	newsp = regs.cx;
+	parent_tidptr = (int __user *)regs.dx;
+	child_tidptr = (int __user *)regs.di;
 	if (!newsp)
-		newsp = regs.esp;
+		newsp = regs.sp;
 	return do_fork(clone_flags, newsp, &regs, 0, parent_tidptr, child_tidptr);
 }
 
@@ -801,7 +801,7 @@ asmlinkage int sys_clone(struct pt_regs regs)
  */
 asmlinkage int sys_vfork(struct pt_regs regs)
 {
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs.esp, &regs, 0, NULL, NULL);
+	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs.sp, &regs, 0, NULL, NULL);
 }
 
 /*
@@ -812,13 +812,13 @@ asmlinkage int sys_execve(struct pt_regs regs)
 	int error;
 	char * filename;
 
-	filename = getname((char __user *) regs.ebx);
+	filename = getname((char __user *) regs.bx);
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		goto out;
 	error = do_execve(filename,
-			(char __user * __user *) regs.ecx,
-			(char __user * __user *) regs.edx,
+			(char __user * __user *) regs.cx,
+			(char __user * __user *) regs.dx,
 			&regs);
 	if (error == 0) {
 		/* Make sure we don't return using sysenter.. */
@@ -834,24 +834,24 @@ out:
 
 unsigned long get_wchan(struct task_struct *p)
 {
-	unsigned long ebp, esp, eip;
+	unsigned long bp, sp, ip;
 	unsigned long stack_page;
 	int count = 0;
 	if (!p || p == current || p->state == TASK_RUNNING)
 		return 0;
 	stack_page = (unsigned long)task_stack_page(p);
-	esp = p->thread.esp;
-	if (!stack_page || esp < stack_page || esp > top_esp+stack_page)
+	sp = p->thread.esp;
+	if (!stack_page || sp < stack_page || sp > top_esp+stack_page)
 		return 0;
-	/* include/asm-i386/system.h:switch_to() pushes ebp last. */
-	ebp = *(unsigned long *) esp;
+	/* include/asm-i386/system.h:switch_to() pushes bp last. */
+	bp = *(unsigned long *) sp;
 	do {
-		if (ebp < stack_page || ebp > top_ebp+stack_page)
+		if (bp < stack_page || bp > top_ebp+stack_page)
 			return 0;
-		eip = *(unsigned long *) (ebp+4);
-		if (!in_sched_functions(eip))
-			return eip;
-		ebp = *(unsigned long *) ebp;
+		ip = *(unsigned long *) (bp+4);
+		if (!in_sched_functions(ip))
+			return ip;
+		bp = *(unsigned long *) bp;
 	} while (count++ < 16);
 	return 0;
 }

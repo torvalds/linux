@@ -43,7 +43,7 @@
 #include <asm/vgtod.h>
 
 #define __vsyscall(nr) __attribute__ ((unused,__section__(".vsyscall_" #nr)))
-#define __syscall_clobber "r11","rcx","memory"
+#define __syscall_clobber "r11","cx","memory"
 #define __pa_vsymbol(x)			\
 	({unsigned long v;  		\
 	extern char __vsyscall_0; 	\

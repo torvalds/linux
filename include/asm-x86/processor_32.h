@@ -398,14 +398,14 @@ struct thread_struct {
 
 #define start_thread(regs, new_eip, new_esp) do {		\
 	__asm__("movl %0,%%gs": :"r" (0));			\
-	regs->xfs = 0;						\
+	regs->fs = 0;						\
 	set_fs(USER_DS);					\
-	regs->xds = __USER_DS;					\
-	regs->xes = __USER_DS;					\
-	regs->xss = __USER_DS;					\
-	regs->xcs = __USER_CS;					\
-	regs->eip = new_eip;					\
-	regs->esp = new_esp;					\
+	regs->ds = __USER_DS;					\
+	regs->es = __USER_DS;					\
+	regs->ss = __USER_DS;					\
+	regs->cs = __USER_CS;					\
+	regs->ip = new_eip;					\
+	regs->sp = new_esp;					\
 } while (0)
 
 /* Forward declaration, a strange C thing */
@@ -440,7 +440,7 @@ unsigned long get_wchan(struct task_struct *p);
  * is accessable even if the CPU haven't stored the SS/ESP registers
  * on the stack (interrupt gate does not save these registers
  * when switching to the same priv ring).
- * Therefore beware: accessing the xss/esp fields of the
+ * Therefore beware: accessing the ss/esp fields of the
  * "struct pt_regs" is possible, but they may contain the
  * completely wrong values.
  */
@@ -451,8 +451,8 @@ unsigned long get_wchan(struct task_struct *p);
        __regs__ - 1;                                                   \
 })
 
-#define KSTK_EIP(task) (task_pt_regs(task)->eip)
-#define KSTK_ESP(task) (task_pt_regs(task)->esp)
+#define KSTK_EIP(task) (task_pt_regs(task)->ip)
+#define KSTK_ESP(task) (task_pt_regs(task)->sp)
 
 
 struct microcode_header {

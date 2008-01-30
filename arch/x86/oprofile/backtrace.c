@@ -48,7 +48,7 @@ static struct stacktrace_ops backtrace_ops = {
 };
 
 struct frame_head {
-	struct frame_head *ebp;
+	struct frame_head *bp;
 	unsigned long ret;
 } __attribute__((packed));
 
@@ -67,10 +67,10 @@ dump_user_backtrace(struct frame_head * head)
 
 	/* frame pointers should strictly progress back up the stack
 	 * (towards higher addresses) */
-	if (head >= bufhead[0].ebp)
+	if (head >= bufhead[0].bp)
 		return NULL;
 
-	return bufhead[0].ebp;
+	return bufhead[0].bp;
 }
 
 void
