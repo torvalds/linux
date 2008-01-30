@@ -596,6 +596,36 @@ extern char ignore_fpu_irq;
 #define ARCH_HAS_PREFETCHW
 #define ARCH_HAS_SPINLOCK_PREFETCH
 
+#ifdef CONFIG_X86_32
+#define BASE_PREFETCH	ASM_NOP4
+#define ARCH_HAS_PREFETCH
+#else
+#define BASE_PREFETCH	"prefetcht0 (%1)"
+#endif
+
+/* Prefetch instructions for Pentium III and AMD Athlon */
+/* It's not worth to care about 3dnow! prefetches for the K6
+   because they are microcoded there and very slow.
+   However we don't do prefetches for pre XP Athlons currently
+   That should be fixed. */
+static inline void prefetch(const void *x)
+{
+	alternative_input(BASE_PREFETCH,
+			  "prefetchnta (%1)",
+			  X86_FEATURE_XMM,
+			  "r" (x));
+}
+
+/* 3dnow! prefetch to get an exclusive cache line. Useful for
+   spinlocks to avoid one state transition in the cache coherency protocol. */
+static inline void prefetchw(const void *x)
+{
+	alternative_input(BASE_PREFETCH,
+			  "prefetchw (%1)",
+			  X86_FEATURE_3DNOW,
+			  "r" (x));
+}
+
 #define spin_lock_prefetch(x)	prefetchw(x)
 /* This decides where the kernel will search for a free chunk of vm
  * space during mmap's.

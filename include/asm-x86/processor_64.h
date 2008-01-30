@@ -124,12 +124,4 @@ DECLARE_PER_CPU(struct orig_ist, orig_ist);
 
 #define ASM_NOP_MAX 8
 
-static inline void prefetchw(void *x) 
-{ 
-	alternative_input("prefetcht0 (%1)",
-			  "prefetchw (%1)",
-			  X86_FEATURE_3DNOW,
-			  "r" (x));
-} 
-
 #endif /* __ASM_X86_64_PROCESSOR_H */

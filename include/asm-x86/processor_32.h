@@ -228,29 +228,4 @@ extern unsigned long thread_saved_pc(struct task_struct *tsk);
 
 #define ASM_NOP_MAX 8
 
-/* Prefetch instructions for Pentium III and AMD Athlon */
-/* It's not worth to care about 3dnow! prefetches for the K6
-   because they are microcoded there and very slow.
-   However we don't do prefetches for pre XP Athlons currently
-   That should be fixed. */
-static inline void prefetch(const void *x)
-{
-	alternative_input(ASM_NOP4,
-			  "prefetchnta (%1)",
-			  X86_FEATURE_XMM,
-			  "r" (x));
-}
-
-#define ARCH_HAS_PREFETCH
-
-/* 3dnow! prefetch to get an exclusive cache line. Useful for 
-   spinlocks to avoid one state transition in the cache coherency protocol. */
-static inline void prefetchw(const void *x)
-{
-	alternative_input(ASM_NOP4,
-			  "prefetchw (%1)",
-			  X86_FEATURE_3DNOW,
-			  "r" (x));
-}
-
 #endif /* __ASM_I386_PROCESSOR_H */
