@@ -1,18 +1,10 @@
 /*
- *  include/asm-i386/mach-default/mach_time.h
- *
- *  Machine specific set RTC function for generic.
- *  Split out from time.c by Osamu Tomita <tomita@cinet.co.jp>
+ * RTC related functions
  */
-#ifndef _MACH_TIME_H
-#define _MACH_TIME_H
-
+#include <linux/bcd.h>
 #include <linux/mc146818rtc.h>
 
-/* for check timing call set_rtc_mmss() 500ms     */
-/* used in arch/i386/time.c::do_timer_interrupt() */
-#define USEC_AFTER	500000
-#define USEC_BEFORE	500000
+#include <asm/time.h>
 
 /*
  * In order to set the CMOS clock precisely, set_rtc_mmss has to be
@@ -24,7 +16,7 @@
  * BUG: This routine does not handle hour overflow properly; it just
  *      sets the minutes. Usually you'll only notice that after reboot!
  */
-static inline int mach_set_rtc_mmss(unsigned long nowtime)
+int mach_set_rtc_mmss(unsigned long nowtime)
 {
 	int retval = 0;
 	int real_seconds, real_minutes, cmos_minutes;
@@ -79,7 +71,7 @@ static inline int mach_set_rtc_mmss(unsigned long nowtime)
 	return retval;
 }
 
-static inline unsigned long mach_get_cmos_time(void)
+unsigned long mach_get_cmos_time(void)
 {
 	unsigned int year, mon, day, hour, min, sec;
 
@@ -108,4 +100,67 @@ static inline unsigned long mach_get_cmos_time(void)
 	return mktime(year, mon, day, hour, min, sec);
 }
 
-#endif /* !_MACH_TIME_H */
+DEFINE_SPINLOCK(rtc_lock);
+EXPORT_SYMBOL(rtc_lock);
+
+/*
+ * This is a special lock that is owned by the CPU and holds the index
+ * register we are working with.  It is required for NMI access to the
+ * CMOS/RTC registers.  See include/asm-i386/mc146818rtc.h for details.
+ */
+volatile unsigned long cmos_lock = 0;
+EXPORT_SYMBOL(cmos_lock);
+
+/* Routines for accessing the CMOS RAM/RTC. */
+unsigned char rtc_cmos_read(unsigned char addr)
+{
+	unsigned char val;
+
+	lock_cmos_prefix(addr);
+	outb_p(addr, RTC_PORT(0));
+	val = inb_p(RTC_PORT(1));
+	lock_cmos_suffix(addr);
+	return val;
+}
+EXPORT_SYMBOL(rtc_cmos_read);
+
+void rtc_cmos_write(unsigned char val, unsigned char addr)
+{
+	lock_cmos_prefix(addr);
+	outb_p(addr, RTC_PORT(0));
+	outb_p(val, RTC_PORT(1));
+	lock_cmos_suffix(addr);
+}
+EXPORT_SYMBOL(rtc_cmos_write);
+
+static int set_rtc_mmss(unsigned long nowtime)
+{
+	int retval;
+	unsigned long flags;
+
+	/* gets recalled with irq locally disabled */
+	/* XXX - does irqsave resolve this? -johnstul */
+	spin_lock_irqsave(&rtc_lock, flags);
+	retval = set_wallclock(nowtime);
+	spin_unlock_irqrestore(&rtc_lock, flags);
+
+	return retval;
+}
+
+/* not static: needed by APM */
+unsigned long read_persistent_clock(void)
+{
+	unsigned long retval;
+	unsigned long flags;
+
+	spin_lock_irqsave(&rtc_lock, flags);
+	retval = get_wallclock();
+	spin_unlock_irqrestore(&rtc_lock, flags);
+
+	return retval;
+}
+
+int update_persistent_clock(struct timespec now)
+{
+	return set_rtc_mmss(now.tv_sec);
+}

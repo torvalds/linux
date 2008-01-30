@@ -2,7 +2,7 @@
 #define _ASMi386_TIME_H
 
 #include <linux/efi.h>
-#include "mach_time.h"
+#include <asm/mc146818rtc.h>
 
 static inline unsigned long native_get_wallclock(void)
 {
