@@ -555,7 +555,7 @@ static __cpuinit int threshold_create_device(unsigned int cpu)
 	int err = 0;
 
 	for (bank = 0; bank < NR_BANKS; ++bank) {
-		if (!(per_cpu(bank_map, cpu) & 1 << bank))
+		if (!(per_cpu(bank_map, cpu) & (1 << bank)))
 			continue;
 		err = threshold_create_bank(cpu, bank);
 		if (err)
@@ -638,7 +638,7 @@ static void threshold_remove_device(unsigned int cpu)
 	unsigned int bank;
 
 	for (bank = 0; bank < NR_BANKS; ++bank) {
-		if (!(per_cpu(bank_map, cpu) & 1 << bank))
+		if (!(per_cpu(bank_map, cpu) & (1 << bank)))
 			continue;
 		threshold_remove_bank(cpu, bank);
 	}
