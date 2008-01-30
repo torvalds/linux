@@ -215,6 +215,7 @@ static inline void clocksource_calculate_interval(struct clocksource *c,
 
 /* used to install a new clocksource */
 extern int clocksource_register(struct clocksource*);
+extern void clocksource_unregister(struct clocksource*);
 extern struct clocksource* clocksource_get_next(void);
 extern void clocksource_change_rating(struct clocksource *cs, int rating);
 extern void clocksource_resume(void);

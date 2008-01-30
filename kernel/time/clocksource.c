@@ -337,6 +337,21 @@ void clocksource_change_rating(struct clocksource *cs, int rating)
 	spin_unlock_irqrestore(&clocksource_lock, flags);
 }
 
+/**
+ * clocksource_unregister - remove a registered clocksource
+ */
+void clocksource_unregister(struct clocksource *cs)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&clocksource_lock, flags);
+	list_del(&cs->list);
+	if (clocksource_override == cs)
+		clocksource_override = NULL;
+	next_clocksource = select_clocksource();
+	spin_unlock_irqrestore(&clocksource_lock, flags);
+}
+
 #ifdef CONFIG_SYSFS
 /**
  * sysfs_show_current_clocksources - sysfs interface for current clocksource
