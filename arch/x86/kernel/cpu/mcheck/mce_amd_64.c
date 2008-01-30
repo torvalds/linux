@@ -118,6 +118,7 @@ void __cpuinit mce_amd_feature_init(struct cpuinfo_x86 *c)
 {
 	unsigned int bank, block;
 	unsigned int cpu = smp_processor_id();
+	u8 lvt_off;
 	u32 low = 0, high = 0, address = 0;
 
 	for (bank = 0; bank < NR_BANKS; ++bank) {
@@ -153,13 +154,12 @@ void __cpuinit mce_amd_feature_init(struct cpuinfo_x86 *c)
 			if (shared_bank[bank] && c->cpu_core_id)
 				break;
 #endif
-			high &= ~MASK_LVTOFF_HI;
-			high |= K8_APIC_EXT_LVT_ENTRY_THRESHOLD << 20;
-			wrmsr(address, low, high);
+			lvt_off = setup_APIC_eilvt_mce(THRESHOLD_APIC_VECTOR,
+						       APIC_EILVT_MSG_FIX, 0);
 
-			setup_APIC_extended_lvt(K8_APIC_EXT_LVT_ENTRY_THRESHOLD,
-						THRESHOLD_APIC_VECTOR,
-						K8_APIC_EXT_INT_MSG_FIX, 0);
+			high &= ~MASK_LVTOFF_HI;
+			high |= lvt_off << 20;
+			wrmsr(address, low, high);
 
 			threshold_defaults.address = address;
 			threshold_restart_bank(&threshold_defaults, 0, 0);

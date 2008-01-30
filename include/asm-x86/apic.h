@@ -126,8 +126,8 @@ extern void enable_NMI_through_LVT0(void *dummy);
 extern void setup_apic_routing(void);
 #endif
 
-extern void setup_APIC_extended_lvt(unsigned char lvt_off, unsigned char vector,
-				    unsigned char msg_type, unsigned char mask);
+extern u8 setup_APIC_eilvt_mce(u8 vector, u8 msg_type, u8 mask);
+extern u8 setup_APIC_eilvt_ibs(u8 vector, u8 msg_type, u8 mask);
 
 extern int apic_is_clustered_box(void);
 

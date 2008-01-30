@@ -116,13 +116,18 @@
 #define		APIC_TDR_DIV_32		0x8
 #define		APIC_TDR_DIV_64		0x9
 #define		APIC_TDR_DIV_128	0xA
-
-#define K8_APIC_EXT_LVT_BASE		0x500
-#define K8_APIC_EXT_INT_MSG_FIX		0x0
-#define K8_APIC_EXT_INT_MSG_SMI		0x2
-#define K8_APIC_EXT_INT_MSG_NMI		0x4
-#define K8_APIC_EXT_INT_MSG_EXT		0x7
-#define K8_APIC_EXT_LVT_ENTRY_THRESHOLD	0
+#define	APIC_EILVT0     0x500
+#define		APIC_EILVT_NR_AMD_K8	1	/* Number of extended interrupts */
+#define		APIC_EILVT_NR_AMD_10H	4
+#define		APIC_EILVT_LVTOFF(x)	(((x)>>4)&0xF)
+#define		APIC_EILVT_MSG_FIX	0x0
+#define		APIC_EILVT_MSG_SMI	0x2
+#define		APIC_EILVT_MSG_NMI	0x4
+#define		APIC_EILVT_MSG_EXT	0x7
+#define		APIC_EILVT_MASKED	(1<<16)
+#define	APIC_EILVT1     0x510
+#define	APIC_EILVT2     0x520
+#define	APIC_EILVT3     0x530
 
 #define APIC_BASE (fix_to_virt(FIX_APIC_BASE))
 
