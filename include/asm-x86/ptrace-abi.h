@@ -80,6 +80,7 @@
 
 #define PTRACE_SINGLEBLOCK	33	/* resume execution until next branch */
 
+#ifndef __ASSEMBLY__
 /* configuration/status structure used in PTRACE_BTS_CONFIG and
    PTRACE_BTS_STATUS commands.
 */
@@ -91,6 +92,7 @@ struct ptrace_bts_config {
 	/* buffer overflow signal */
 	unsigned int signal;
 };
+#endif
 
 #define PTRACE_BTS_O_TRACE	0x1 /* branch trace */
 #define PTRACE_BTS_O_SCHED	0x2 /* scheduling events w/ jiffies */
