@@ -654,7 +654,6 @@ void __cpuinit cpu_init(void)
 		printk(KERN_NOTICE "Disabling TSC...\n");
 		/**** FIX-HPA: DOES THIS REALLY BELONG HERE? ****/
 		clear_bit(X86_FEATURE_TSC, boot_cpu_data.x86_capability);
-		set_in_cr4(X86_CR4_TSD);
 	}
 
 	load_idt(&idt_descr);
