@@ -354,6 +354,11 @@ __cpuinit int unsynchronized_tsc(void)
 {
 	if (!cpu_has_tsc || tsc_unstable)
 		return 1;
+
+	/* Anything with constant TSC should be synchronized */
+	if (boot_cpu_has(X86_FEATURE_CONSTANT_TSC))
+		return 0;
+
 	/*
 	 * Intel systems are normally all synchronized.
 	 * Exceptions must mark TSC as unstable:

@@ -272,9 +272,8 @@ __cpuinit int unsynchronized_tsc(void)
 	if (apic_is_clustered_box())
 		return 1;
 #endif
-	/* Most intel systems have synchronized TSCs except for
-	   multi node systems */
-	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL) {
+
+	if (boot_cpu_has(X86_FEATURE_CONSTANT_TSC)) {
 #ifdef CONFIG_ACPI
 		/* But TSC doesn't tick in C3 so don't use it there */
 		if (acpi_gbl_FADT.header.length > 0 &&
