@@ -3,7 +3,7 @@
  *
  *  Pentium III FXSR, SSE support
  *	Gareth Hughes <gareth@valinux.com>, May 2000
- * 
+ *
  *  X86-64 port
  *	Andi Kleen.
  *
@@ -19,19 +19,19 @@
 #include <linux/cpu.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
+#include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/fs.h>
 #include <linux/elfcore.h>
 #include <linux/smp.h>
 #include <linux/slab.h>
 #include <linux/user.h>
-#include <linux/module.h>
 #include <linux/a.out.h>
 #include <linux/interrupt.h>
-#include <linux/delay.h>
-#include <linux/ptrace.h>
 #include <linux/utsname.h>
+#include <linux/delay.h>
+#include <linux/module.h>
+#include <linux/ptrace.h>
 #include <linux/random.h>
 #include <linux/notifier.h>
 #include <linux/kprobes.h>
@@ -129,53 +129,11 @@ static void default_idle(void)
  * to poll the ->need_resched flag instead of waiting for the
  * cross-CPU IPI to arrive. Use this option with caution.
  */
-static void poll_idle (void)
+static void poll_idle(void)
 {
 	local_irq_enable();
 	cpu_relax();
 }
-
-static void do_nothing(void *unused)
-{
-}
-
-void cpu_idle_wait(void)
-{
-	unsigned int cpu, this_cpu = get_cpu();
-	cpumask_t map, tmp = current->cpus_allowed;
-
-	set_cpus_allowed(current, cpumask_of_cpu(this_cpu));
-	put_cpu();
-
-	cpus_clear(map);
-	for_each_online_cpu(cpu) {
-		per_cpu(cpu_idle_state, cpu) = 1;
-		cpu_set(cpu, map);
-	}
-
-	__get_cpu_var(cpu_idle_state) = 0;
-
-	wmb();
-	do {
-		ssleep(1);
-		for_each_online_cpu(cpu) {
-			if (cpu_isset(cpu, map) &&
-					!per_cpu(cpu_idle_state, cpu))
-				cpu_clear(cpu, map);
-		}
-		cpus_and(map, map, cpu_online_map);
-		/*
-		 * We waited 1 sec, if a CPU still did not call idle
-		 * it may be because it is in idle and not waking up
-		 * because it has nothing to do.
-		 * Give all the remaining CPUS a kick.
-		 */
-		smp_call_function_mask(map, do_nothing, 0, 0);
-	} while (!cpus_empty(map));
-
-	set_cpus_allowed(current, tmp);
-}
-EXPORT_SYMBOL_GPL(cpu_idle_wait);
 
 #ifdef CONFIG_HOTPLUG_CPU
 DECLARE_PER_CPU(int, cpu_state);
@@ -247,6 +205,47 @@ void cpu_idle(void)
 	}
 }
 
+static void do_nothing(void *unused)
+{
+}
+
+void cpu_idle_wait(void)
+{
+	unsigned int cpu, this_cpu = get_cpu();
+	cpumask_t map, tmp = current->cpus_allowed;
+
+	set_cpus_allowed(current, cpumask_of_cpu(this_cpu));
+	put_cpu();
+
+	cpus_clear(map);
+	for_each_online_cpu(cpu) {
+		per_cpu(cpu_idle_state, cpu) = 1;
+		cpu_set(cpu, map);
+	}
+
+	__get_cpu_var(cpu_idle_state) = 0;
+
+	wmb();
+	do {
+		ssleep(1);
+		for_each_online_cpu(cpu) {
+			if (cpu_isset(cpu, map) && !per_cpu(cpu_idle_state, cpu))
+				cpu_clear(cpu, map);
+		}
+		cpus_and(map, map, cpu_online_map);
+		/*
+		 * We waited 1 sec, if a CPU still did not call idle
+		 * it may be because it is in idle and not waking up
+		 * because it has nothing to do.
+		 * Give all the remaining CPUS a kick.
+		 */
+		smp_call_function_mask(map, do_nothing, 0, 0);
+	} while (!cpus_empty(map));
+
+	set_cpus_allowed(current, tmp);
+}
+EXPORT_SYMBOL_GPL(cpu_idle_wait);
+
 /*
  * This uses new MONITOR/MWAIT instructions on P4 processors with PNI,
  * which can obviate IPI to trigger checking of need_resched.
@@ -300,7 +299,7 @@ void __cpuinit select_idle_routine(const struct cpuinfo_x86 *c)
 	}
 }
 
-static int __init idle_setup (char *str)
+static int __init idle_setup(char *str)
 {
 	if (!strcmp(str, "poll")) {
 		printk("using polling idle threads.\n");
@@ -315,13 +314,13 @@ static int __init idle_setup (char *str)
 }
 early_param("idle", idle_setup);
 
-/* Prints also some state that isn't saved in the pt_regs */ 
+/* Prints also some state that isn't saved in the pt_regs */
 void __show_regs(struct pt_regs * regs)
 {
 	unsigned long cr0 = 0L, cr2 = 0L, cr3 = 0L, cr4 = 0L, fs, gs, shadowgs;
 	unsigned long d0, d1, d2, d3, d6, d7;
-	unsigned int fsindex,gsindex;
-	unsigned int ds,cs,es; 
+	unsigned int fsindex, gsindex;
+	unsigned int ds, cs, es;
 
 	printk("\n");
 	print_modules();
@@ -390,7 +389,7 @@ void exit_thread(void)
 	struct task_struct *me = current;
 	struct thread_struct *t = &me->thread;
 
-	if (me->thread.io_bitmap_ptr) { 
+	if (me->thread.io_bitmap_ptr) {
 		struct tss_struct *tss = &per_cpu(init_tss, get_cpu());
 
 		kfree(t->io_bitmap_ptr);
@@ -426,7 +425,7 @@ void flush_thread(void)
 	tsk->thread.debugreg3 = 0;
 	tsk->thread.debugreg6 = 0;
 	tsk->thread.debugreg7 = 0;
-	memset(tsk->thread.tls_array, 0, sizeof(tsk->thread.tls_array));	
+	memset(tsk->thread.tls_array, 0, sizeof(tsk->thread.tls_array));
 	/*
 	 * Forget coprocessor state..
 	 */
@@ -449,7 +448,7 @@ void release_thread(struct task_struct *dead_task)
 
 static inline void set_32bit_tls(struct task_struct *t, int tls, u32 addr)
 {
-	struct user_desc ud = { 
+	struct user_desc ud = {
 		.base_addr = addr,
 		.limit = 0xfffff,
 		.seg_32bit = 1,
@@ -458,8 +457,8 @@ static inline void set_32bit_tls(struct task_struct *t, int tls, u32 addr)
 	};
 	struct n_desc_struct *desc = (void *)t->thread.tls_array;
 	desc += tls;
-	desc->a = LDT_entry_a(&ud); 
-	desc->b = LDT_entry_b(&ud); 
+	desc->a = LDT_entry_a(&ud);
+	desc->b = LDT_entry_b(&ud);
 }
 
 static inline u32 read_32bit_tls(struct task_struct *t, int tls)
@@ -516,7 +515,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
 		memcpy(p->thread.io_bitmap_ptr, me->thread.io_bitmap_ptr,
 				IO_BITMAP_BYTES);
 		set_tsk_thread_flag(p, TIF_IO_BITMAP);
-	} 
+	}
 
 	/*
 	 * Set a new TLS for the child thread?
@@ -544,11 +543,29 @@ out:
 /*
  * This special macro can be used to load a debugging register
  */
-#define loaddebug(thread,r) set_debugreg(thread->debugreg ## r, r)
+#define loaddebug(thread, r) set_debugreg(thread->debugreg ## r, r)
+
+/*
+ * Capture the user space registers if the task is not running (in user space)
+ */
+int dump_task_regs(struct task_struct *tsk, elf_gregset_t *regs)
+{
+	struct pt_regs *pp, ptregs;
+
+	pp = task_pt_regs(tsk);
+
+	ptregs = *pp;
+	ptregs.cs &= 0xffff;
+	ptregs.ss &= 0xffff;
+
+	elf_core_copy_regs(regs, &ptregs);
+
+	return 1;
+}
 
 static inline void __switch_to_xtra(struct task_struct *prev_p,
-			     	    struct task_struct *next_p,
-			     	    struct tss_struct *tss)
+				    struct task_struct *next_p,
+				    struct tss_struct *tss)
 {
 	struct thread_struct *prev, *next;
 
@@ -586,7 +603,7 @@ static inline void __switch_to_xtra(struct task_struct *prev_p,
 /*
  *	switch_to(x,y) should switch tasks from x to y.
  *
- * This could still be optimized: 
+ * This could still be optimized:
  * - fold all the options into a flag word and test it with a single test.
  * - could test fs/gs bitsliced
  *
@@ -597,7 +614,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 {
 	struct thread_struct *prev = &prev_p->thread,
 				 *next = &next_p->thread;
-	int cpu = smp_processor_id();  
+	int cpu = smp_processor_id();
 	struct tss_struct *tss = &per_cpu(init_tss, cpu);
 
 	/* we're going to use this soon, after a few expensive things */
@@ -700,7 +717,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 /*
  * sys_execve() executes a new program.
  */
-asmlinkage 
+asmlinkage
 long sys_execve(char __user *name, char __user * __user *argv,
 		char __user * __user *envp, struct pt_regs regs)
 {
@@ -721,12 +738,12 @@ void set_personality_64bit(void)
 	/* inherit personality from parent */
 
 	/* Make sure to be in 64bit mode */
-	clear_thread_flag(TIF_IA32); 
+	clear_thread_flag(TIF_IA32);
 
 	/* TBD: overwrites user setup. Should have two bits.
 	   But 64bit processes have always behaved this way,
 	   so it's not too bad. The main problem is just that
-   	   32bit childs are affected again. */
+	   32bit childs are affected again. */
 	current->personality &= ~READ_IMPLIES_EXEC;
 }
 
@@ -819,19 +836,19 @@ long do_arch_prctl(struct task_struct *task, int code, unsigned long addr)
 		/* Not strictly needed for fs, but do it for symmetry
 		   with gs */
 		if (addr >= TASK_SIZE_OF(task))
-			return -EPERM; 
+			return -EPERM;
 		cpu = get_cpu();
-		/* handle small bases via the GDT because that's faster to 
+		/* handle small bases via the GDT because that's faster to
 		   switch. */
-		if (addr <= 0xffffffff) { 
+		if (addr <= 0xffffffff) {
 			set_32bit_tls(task, FS_TLS, addr);
-			if (doit) { 
-				load_TLS(&task->thread, cpu); 
+			if (doit) {
+				load_TLS(&task->thread, cpu);
 				asm volatile("movl %0,%%fs" :: "r"(FS_TLS_SEL));
 			}
 			task->thread.fsindex = FS_TLS_SEL;
 			task->thread.fs = 0;
-		} else { 
+		} else {
 			task->thread.fsindex = 0;
 			task->thread.fs = addr;
 			if (doit) {
@@ -843,24 +860,24 @@ long do_arch_prctl(struct task_struct *task, int code, unsigned long addr)
 		}
 		put_cpu();
 		break;
-	case ARCH_GET_FS: { 
-		unsigned long base; 
+	case ARCH_GET_FS: {
+		unsigned long base;
 		if (task->thread.fsindex == FS_TLS_SEL)
 			base = read_32bit_tls(task, FS_TLS);
 		else if (doit)
 			rdmsrl(MSR_FS_BASE, base);
 		else
 			base = task->thread.fs;
-		ret = put_user(base, (unsigned long __user *)addr); 
-		break; 
+		ret = put_user(base, (unsigned long __user *)addr);
+		break;
 	}
-	case ARCH_GET_GS: { 
+	case ARCH_GET_GS: {
 		unsigned long base;
 		unsigned gsindex;
 		if (task->thread.gsindex == GS_TLS_SEL)
 			base = read_32bit_tls(task, GS_TLS);
 		else if (doit) {
- 			asm("movl %%gs,%0" : "=r" (gsindex));
+			asm("movl %%gs,%0" : "=r" (gsindex));
 			if (gsindex)
 				rdmsrl(MSR_KERNEL_GS_BASE, base);
 			else
@@ -868,39 +885,21 @@ long do_arch_prctl(struct task_struct *task, int code, unsigned long addr)
 		}
 		else
 			base = task->thread.gs;
-		ret = put_user(base, (unsigned long __user *)addr); 
+		ret = put_user(base, (unsigned long __user *)addr);
 		break;
 	}
 
 	default:
 		ret = -EINVAL;
 		break;
-	} 
+	}
 
-	return ret;	
-} 
+	return ret;
+}
 
 long sys_arch_prctl(int code, unsigned long addr)
 {
 	return do_arch_prctl(current, code, addr);
-} 
-
-/* 
- * Capture the user space registers if the task is not running (in user space)
- */
-int dump_task_regs(struct task_struct *tsk, elf_gregset_t *regs)
-{
-	struct pt_regs *pp, ptregs;
-
-	pp = task_pt_regs(tsk);
-
-	ptregs = *pp; 
-	ptregs.cs &= 0xffff;
-	ptregs.ss &= 0xffff;
-
-	elf_core_copy_regs(regs, &ptregs);
- 
-	return 1;
 }
 
 unsigned long arch_align_stack(unsigned long sp)

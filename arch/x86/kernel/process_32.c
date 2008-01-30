@@ -142,7 +142,7 @@ EXPORT_SYMBOL(default_idle);
  * to poll the ->work.need_resched flag instead of waiting for the
  * cross-CPU IPI to arrive. Use this option with caution.
  */
-static void poll_idle (void)
+static void poll_idle(void)
 {
 	cpu_relax();
 }
@@ -493,7 +493,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
 
 	p->thread.ip = (unsigned long) ret_from_fork;
 
-	savesegment(gs,p->thread.gs);
+	savesegment(gs, p->thread.gs);
 
 	tsk = current;
 	if (unlikely(test_tsk_thread_flag(tsk, TIF_IO_BITMAP))) {
@@ -571,7 +571,7 @@ void dump_thread(struct pt_regs * regs, struct user * dump)
 }
 EXPORT_SYMBOL(dump_thread);
 
-/* 
+/*
  * Capture the user space registers if the task is not running (in user space)
  */
 int dump_task_regs(struct task_struct *tsk, elf_gregset_t *regs)
