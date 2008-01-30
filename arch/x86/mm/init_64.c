@@ -358,6 +358,13 @@ static void __init find_early_table_space(unsigned long end)
 	if (table_start == -1UL)
 		panic("Cannot find space for the kernel page tables");
 
+	/*
+	 * When you have a lot of RAM like 256GB, early_table will not fit
+	 * into 0x8000 range, find_e820_area() will find area after kernel
+	 * bss but the table_start is not page aligned, so need to round it
+	 * up to avoid overlap with bss:
+	 */
+	table_start = round_up(table_start, PAGE_SIZE);
 	table_start >>= PAGE_SHIFT;
 	table_end = table_start;
 

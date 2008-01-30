@@ -70,8 +70,8 @@ void __init reserve_early(unsigned long start, unsigned long end)
 	for (i = 0; i < MAX_EARLY_RES && early_res[i].end; i++) {
 		r = &early_res[i];
 		if (end > r->start && start < r->end)
-			panic("Duplicated early reservation %lx-%lx\n",
-			      start, end);
+			panic("Overlapping early reservations %lx-%lx to %lx-%lx\n",
+			      start, end, r->start, r->end);
 	}
 	if (i >= MAX_EARLY_RES)
 		panic("Too many early reservations");
