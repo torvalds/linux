@@ -187,7 +187,7 @@ static inline void user_disable_single_step(struct task_struct *task)
  * supports step-until-branch for user mode.  It can be a constant or it
  * can test a CPU feature bit.
  */
-#define arch_has_single_step()		(0)
+#define arch_has_block_step()		(0)
 
 /**
  * user_enable_block_step - step until branch in user-mode task

@@ -373,6 +373,12 @@ static int ptrace_setsiginfo(struct task_struct *child, siginfo_t __user * data)
 #define is_singlestep(request)		0
 #endif
 
+#ifdef PTRACE_SINGLEBLOCK
+#define is_singleblock(request)		((request) == PTRACE_SINGLEBLOCK)
+#else
+#define is_singleblock(request)		0
+#endif
+
 #ifdef PTRACE_SYSEMU
 #define is_sysemu_singlestep(request)	((request) == PTRACE_SYSEMU_SINGLESTEP)
 #else
@@ -396,7 +402,11 @@ static int ptrace_resume(struct task_struct *child, long request, long data)
 		clear_tsk_thread_flag(child, TIF_SYSCALL_EMU);
 #endif
 
-	if (is_singlestep(request) || is_sysemu_singlestep(request)) {
+	if (is_singleblock(request)) {
+		if (unlikely(!arch_has_block_step()))
+			return -EIO;
+		user_enable_block_step(child);
+	} else if (is_singlestep(request) || is_sysemu_singlestep(request)) {
 		if (unlikely(!arch_has_single_step()))
 			return -EIO;
 		user_enable_single_step(child);
@@ -437,6 +447,9 @@ int ptrace_request(struct task_struct *child, long request,
 
 #ifdef PTRACE_SINGLESTEP
 	case PTRACE_SINGLESTEP:
+#endif
+#ifdef PTRACE_SINGLEBLOCK
+	case PTRACE_SINGLEBLOCK:
 #endif
 #ifdef PTRACE_SYSEMU
 	case PTRACE_SYSEMU:
