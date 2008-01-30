@@ -123,7 +123,8 @@ endif
 	$(Q)$(MAKE) $(build)=arch/x86/vdso $@
 
 archclean:
-	$(Q)rm -rf $(objtree)/arch/x86_64/boot
+	$(Q)rm -rf $(objtree)/arch/i386
+	$(Q)rm -rf $(objtree)/arch/x86_64
 	$(Q)$(MAKE) $(clean)=$(boot)
 
 define archhelp

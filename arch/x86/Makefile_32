@@ -156,7 +156,8 @@ install:
 	$(Q)$(MAKE) $(build)=$(boot) BOOTIMAGE=$(KBUILD_IMAGE) install
 
 archclean:
-	$(Q)rm -rf $(objtree)/arch/i386/boot
+	$(Q)rm -rf $(objtree)/arch/i386
+	$(Q)rm -rf $(objtree)/arch/x86_64
 	$(Q)$(MAKE) $(clean)=arch/x86/boot
 
 define archhelp
