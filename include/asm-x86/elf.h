@@ -201,6 +201,7 @@ extern int vdso_enabled;
 
 #endif /* !CONFIG_X86_32 */
 
+#define CORE_DUMP_USE_REGSET
 #define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE	4096
 
