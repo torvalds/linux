@@ -52,7 +52,7 @@
 /* serialize freq changes  */
 static DEFINE_MUTEX(fidvid_mutex);
 
-static struct powernow_k8_data *powernow_data[NR_CPUS];
+static DEFINE_PER_CPU(struct powernow_k8_data *, powernow_data);
 
 static int cpu_family = CPU_OPTERON;
 
@@ -1018,7 +1018,7 @@ static int transition_frequency_pstate(struct powernow_k8_data *data, unsigned i
 static int powernowk8_target(struct cpufreq_policy *pol, unsigned targfreq, unsigned relation)
 {
 	cpumask_t oldmask = CPU_MASK_ALL;
-	struct powernow_k8_data *data = powernow_data[pol->cpu];
+	struct powernow_k8_data *data = per_cpu(powernow_data, pol->cpu);
 	u32 checkfid;
 	u32 checkvid;
 	unsigned int newstate;
@@ -1094,7 +1094,7 @@ err_out:
 /* Driver entry point to verify the policy and range of frequencies */
 static int powernowk8_verify(struct cpufreq_policy *pol)
 {
-	struct powernow_k8_data *data = powernow_data[pol->cpu];
+	struct powernow_k8_data *data = per_cpu(powernow_data, pol->cpu);
 
 	if (!data)
 		return -EINVAL;
@@ -1202,7 +1202,7 @@ static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 		dprintk("cpu_init done, current fid 0x%x, vid 0x%x\n",
 			data->currfid, data->currvid);
 
-	powernow_data[pol->cpu] = data;
+	per_cpu(powernow_data, pol->cpu) = data;
 
 	return 0;
 
@@ -1216,7 +1216,7 @@ err_out:
 
 static int __devexit powernowk8_cpu_exit (struct cpufreq_policy *pol)
 {
-	struct powernow_k8_data *data = powernow_data[pol->cpu];
+	struct powernow_k8_data *data = per_cpu(powernow_data, pol->cpu);
 
 	if (!data)
 		return -EINVAL;
@@ -1237,7 +1237,7 @@ static unsigned int powernowk8_get (unsigned int cpu)
 	cpumask_t oldmask = current->cpus_allowed;
 	unsigned int khz = 0;
 
-	data = powernow_data[first_cpu(per_cpu(cpu_core_map, cpu))];
+	data = per_cpu(powernow_data, first_cpu(per_cpu(cpu_core_map, cpu)));
 
 	if (!data)
 		return -EINVAL;
