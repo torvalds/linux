@@ -20,7 +20,7 @@
 
 struct page;
 struct thread_struct;
-struct Xgt_desc_struct;
+struct desc_ptr;
 struct tss_struct;
 struct mm_struct;
 struct desc_struct;
@@ -88,10 +88,10 @@ struct pv_cpu_ops {
 
 	/* Segment descriptor handling */
 	void (*load_tr_desc)(void);
-	void (*load_gdt)(const struct Xgt_desc_struct *);
-	void (*load_idt)(const struct Xgt_desc_struct *);
-	void (*store_gdt)(struct Xgt_desc_struct *);
-	void (*store_idt)(struct Xgt_desc_struct *);
+	void (*load_gdt)(const struct desc_ptr *);
+	void (*load_idt)(const struct desc_ptr *);
+	void (*store_gdt)(struct desc_ptr *);
+	void (*store_idt)(struct desc_ptr *);
 	void (*set_ldt)(const void *desc, unsigned entries);
 	unsigned long (*store_tr)(void);
 	void (*load_tls)(struct thread_struct *t, unsigned int cpu);
@@ -630,11 +630,11 @@ static inline void load_TR_desc(void)
 {
 	PVOP_VCALL0(pv_cpu_ops.load_tr_desc);
 }
-static inline void load_gdt(const struct Xgt_desc_struct *dtr)
+static inline void load_gdt(const struct desc_ptr *dtr)
 {
 	PVOP_VCALL1(pv_cpu_ops.load_gdt, dtr);
 }
-static inline void load_idt(const struct Xgt_desc_struct *dtr)
+static inline void load_idt(const struct desc_ptr *dtr)
 {
 	PVOP_VCALL1(pv_cpu_ops.load_idt, dtr);
 }
@@ -642,11 +642,11 @@ static inline void set_ldt(const void *addr, unsigned entries)
 {
 	PVOP_VCALL2(pv_cpu_ops.set_ldt, addr, entries);
 }
-static inline void store_gdt(struct Xgt_desc_struct *dtr)
+static inline void store_gdt(struct desc_ptr *dtr)
 {
 	PVOP_VCALL1(pv_cpu_ops.store_gdt, dtr);
 }
-static inline void store_idt(struct Xgt_desc_struct *dtr)
+static inline void store_idt(struct desc_ptr *dtr)
 {
 	PVOP_VCALL1(pv_cpu_ops.store_idt, dtr);
 }

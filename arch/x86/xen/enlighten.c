@@ -295,7 +295,7 @@ static void xen_set_ldt(const void *addr, unsigned entries)
 	xen_mc_issue(PARAVIRT_LAZY_CPU);
 }
 
-static void xen_load_gdt(const struct Xgt_desc_struct *dtr)
+static void xen_load_gdt(const struct desc_ptr *dtr)
 {
 	unsigned long *frames;
 	unsigned long va = dtr->address;
@@ -395,7 +395,7 @@ static int cvt_gate_to_trap(int vector, u32 low, u32 high,
 }
 
 /* Locations of each CPU's IDT */
-static DEFINE_PER_CPU(struct Xgt_desc_struct, idt_desc);
+static DEFINE_PER_CPU(struct desc_ptr, idt_desc);
 
 /* Set an IDT entry.  If the entry is part of the current IDT, then
    also update Xen. */
@@ -427,7 +427,7 @@ static void xen_write_idt_entry(struct desc_struct *dt, int entrynum,
 	preempt_enable();
 }
 
-static void xen_convert_trap_info(const struct Xgt_desc_struct *desc,
+static void xen_convert_trap_info(const struct desc_ptr *desc,
 				  struct trap_info *traps)
 {
 	unsigned in, out, count;
@@ -446,7 +446,7 @@ static void xen_convert_trap_info(const struct Xgt_desc_struct *desc,
 
 void xen_copy_trap_info(struct trap_info *traps)
 {
-	const struct Xgt_desc_struct *desc = &__get_cpu_var(idt_desc);
+	const struct desc_ptr *desc = &__get_cpu_var(idt_desc);
 
 	xen_convert_trap_info(desc, traps);
 }
@@ -454,7 +454,7 @@ void xen_copy_trap_info(struct trap_info *traps)
 /* Load a new IDT into Xen.  In principle this can be per-CPU, so we
    hold a spinlock to protect the static traps[] array (static because
    it avoids allocation, and saves stack space). */
-static void xen_load_idt(const struct Xgt_desc_struct *desc)
+static void xen_load_idt(const struct desc_ptr *desc)
 {
 	static DEFINE_SPINLOCK(lock);
 	static struct trap_info traps[257];

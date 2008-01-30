@@ -649,7 +649,7 @@ struct pt_regs * __devinit idle_regs(struct pt_regs *regs)
  * it's on the real one. */
 void switch_to_new_gdt(void)
 {
-	struct Xgt_desc_struct gdt_descr;
+	struct desc_ptr gdt_descr;
 
 	gdt_descr.address = (long)get_cpu_gdt_table(smp_processor_id());
 	gdt_descr.size = GDT_SIZE - 1;

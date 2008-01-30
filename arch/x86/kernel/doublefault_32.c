@@ -17,7 +17,7 @@ static unsigned long doublefault_stack[DOUBLEFAULT_STACKSIZE];
 
 static void doublefault_fn(void)
 {
-	struct Xgt_desc_struct gdt_desc = {0, 0};
+	struct desc_ptr gdt_desc = {0, 0};
 	unsigned long gdt, tss;
 
 	store_gdt(&gdt_desc);

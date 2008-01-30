@@ -70,9 +70,8 @@ void foo(void)
 	OFFSET(TI_cpu, thread_info, cpu);
 	BLANK();
 
-	OFFSET(GDS_size, Xgt_desc_struct, size);
-	OFFSET(GDS_address, Xgt_desc_struct, address);
-	OFFSET(GDS_pad, Xgt_desc_struct, pad);
+	OFFSET(GDS_size, desc_ptr, size);
+	OFFSET(GDS_address, desc_ptr, address);
 	BLANK();
 
 	OFFSET(PT_EBX, pt_regs, bx);

@@ -12,12 +12,6 @@
 
 #include <asm/mmu.h>
 
-struct Xgt_desc_struct {
-	unsigned short size;
-	unsigned long address __attribute__((packed));
-	unsigned short pad;
-} __attribute__ ((packed));
-
 struct gdt_page
 {
 	struct desc_struct gdt[GDT_ENTRIES];
@@ -29,7 +23,7 @@ static inline struct desc_struct *get_cpu_gdt_table(unsigned int cpu)
 	return per_cpu(gdt_page, cpu).gdt;
 }
 
-extern struct Xgt_desc_struct idt_descr;
+extern struct desc_ptr idt_descr;
 extern struct desc_struct idt_table[];
 extern void set_intr_gate(unsigned int irq, void * addr);
 
@@ -107,22 +101,22 @@ static inline void native_load_tr_desc(void)
 	asm volatile("ltr %w0"::"q" (GDT_ENTRY_TSS*8));
 }
 
-static inline void native_load_gdt(const struct Xgt_desc_struct *dtr)
+static inline void native_load_gdt(const struct desc_ptr *dtr)
 {
 	asm volatile("lgdt %0"::"m" (*dtr));
 }
 
-static inline void native_load_idt(const struct Xgt_desc_struct *dtr)
+static inline void native_load_idt(const struct desc_ptr *dtr)
 {
 	asm volatile("lidt %0"::"m" (*dtr));
 }
 
-static inline void native_store_gdt(struct Xgt_desc_struct *dtr)
+static inline void native_store_gdt(struct desc_ptr *dtr)
 {
 	asm ("sgdt %0":"=m" (*dtr));
 }
 
-static inline void native_store_idt(struct Xgt_desc_struct *dtr)
+static inline void native_store_idt(struct desc_ptr *dtr)
 {
 	asm ("sidt %0":"=m" (*dtr));
 }

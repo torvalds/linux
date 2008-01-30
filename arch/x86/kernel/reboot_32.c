@@ -161,7 +161,7 @@ real_mode_gdt_entries [3] =
 	0x000092000100ffffULL	/* 16-bit real-mode 64k data at 0x00000100 */
 };
 
-static struct Xgt_desc_struct
+static struct desc_ptr
 real_mode_gdt = { sizeof (real_mode_gdt_entries) - 1, (long)real_mode_gdt_entries },
 real_mode_idt = { 0x3ff, 0 },
 no_idt = { 0, 0 };

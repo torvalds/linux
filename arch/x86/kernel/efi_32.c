@@ -69,7 +69,7 @@ static void efi_call_phys_prelog(void) __acquires(efi_rt_lock)
 {
 	unsigned long cr4;
 	unsigned long temp;
-	struct Xgt_desc_struct gdt_descr;
+	struct desc_ptr gdt_descr;
 
 	spin_lock(&efi_rt_lock);
 	local_irq_save(efi_rt_eflags);
@@ -111,7 +111,7 @@ static void efi_call_phys_prelog(void) __acquires(efi_rt_lock)
 static void efi_call_phys_epilog(void) __releases(efi_rt_lock)
 {
 	unsigned long cr4;
-	struct Xgt_desc_struct gdt_descr;
+	struct desc_ptr gdt_descr;
 
 	gdt_descr.address = (unsigned long)get_cpu_gdt_table(0);
 	gdt_descr.size = GDT_SIZE - 1;

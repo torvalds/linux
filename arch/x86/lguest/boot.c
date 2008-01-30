@@ -229,7 +229,7 @@ static void lguest_write_idt_entry(struct desc_struct *dt,
 /* Changing to a different IDT is very rare: we keep the IDT up-to-date every
  * time it is written, so we can simply loop through all entries and tell the
  * Host about them. */
-static void lguest_load_idt(const struct Xgt_desc_struct *desc)
+static void lguest_load_idt(const struct desc_ptr *desc)
 {
 	unsigned int i;
 	struct desc_struct *idt = (void *)desc->address;
@@ -252,7 +252,7 @@ static void lguest_load_idt(const struct Xgt_desc_struct *desc)
  * hypercall and use that repeatedly to load a new IDT.  I don't think it
  * really matters, but wouldn't it be nice if they were the same?
  */
-static void lguest_load_gdt(const struct Xgt_desc_struct *desc)
+static void lguest_load_gdt(const struct desc_ptr *desc)
 {
 	BUG_ON((desc->size+1)/8 != GDT_ENTRIES);
 	hcall(LHCALL_LOAD_GDT, __pa(desc->address), GDT_ENTRIES, 0);
