@@ -88,11 +88,13 @@ struct ptrace_bts_config {
 	unsigned int size;
 	/* bitmask of below flags */
 	unsigned int flags;
+	/* buffer overflow signal */
+	unsigned int signal;
 };
 
 #define PTRACE_BTS_O_TRACE	0x1 /* branch trace */
 #define PTRACE_BTS_O_SCHED	0x2 /* scheduling events w/ jiffies */
-#define PTRACE_BTS_O_SIGNAL     0x4 /* send SIG? on buffer overflow
+#define PTRACE_BTS_O_SIGNAL     0x4 /* send SIG<signal> on buffer overflow
 				       instead of wrapping around */
 #define PTRACE_BTS_O_CUT_SIZE	0x8 /* cut requested size to max available
 				       instead of failing */
