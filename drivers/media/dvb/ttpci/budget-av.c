@@ -911,6 +911,7 @@ static u8 read_pwm(struct budget_av *budget_av)
 #define SUBID_DVBC_CINERGY1200		0x1156
 #define SUBID_DVBC_CINERGY1200_MK3	0x1176
 
+#define SUBID_DVBT_EASYWATCH		0x003a
 #define SUBID_DVBT_KNC1_PLUS		0x0031
 #define SUBID_DVBT_KNC1			0x0030
 #define SUBID_DVBT_CINERGY1200		0x1157
@@ -1020,6 +1021,7 @@ static void frontend_init(struct budget_av *budget_av)
 		}
 		break;
 
+	case SUBID_DVBT_EASYWATCH:
 	case SUBID_DVBT_KNC1:
 	case SUBID_DVBT_KNC1_PLUS:
 	case SUBID_DVBT_CINERGY1200:
@@ -1250,6 +1252,7 @@ MAKE_BUDGET_INFO(satewpls1, "Satelco EasyWatch DVB-S light", BUDGET_KNC1S);
 MAKE_BUDGET_INFO(satewps, "Satelco EasyWatch DVB-S", BUDGET_KNC1S);
 MAKE_BUDGET_INFO(satewplc, "Satelco EasyWatch DVB-C", BUDGET_KNC1CP);
 MAKE_BUDGET_INFO(satewcmk3, "Satelco EasyWatch DVB-C MK3", BUDGET_KNC1C_MK3);
+MAKE_BUDGET_INFO(satewt, "Satelco EasyWatch DVB-T", BUDGET_KNC1T);
 MAKE_BUDGET_INFO(knc1sp, "KNC1 DVB-S Plus", BUDGET_KNC1SP);
 MAKE_BUDGET_INFO(knc1spx4, "KNC1 DVB-S Plus X4", BUDGET_KNC1SP);
 MAKE_BUDGET_INFO(knc1cp, "KNC1 DVB-C Plus", BUDGET_KNC1CP);
@@ -1276,6 +1279,7 @@ static struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(satewps, 0x1894, 0x001b),
 	MAKE_EXTENSION_PCI(satewplc, 0x1894, 0x002a),
 	MAKE_EXTENSION_PCI(satewcmk3, 0x1894, 0x002c),
+	MAKE_EXTENSION_PCI(satewt, 0x1894, 0x003a),
 	MAKE_EXTENSION_PCI(knc1c, 0x1894, 0x0020),
 	MAKE_EXTENSION_PCI(knc1cp, 0x1894, 0x0021),
 	MAKE_EXTENSION_PCI(knc1cmk3, 0x1894, 0x0022),
