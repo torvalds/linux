@@ -18,36 +18,12 @@
 #include <linux/init.h>
 #include <asm/desc_defs.h>
 
-/*
- * capabilities of CPUs
- */
-extern struct cpuinfo_x86 new_cpu_data;
-extern struct tss_struct doublefault_tss;
 
 /*
  * the following now lives in the per cpu area:
  * extern	int cpu_llc_id[NR_CPUS];
  */
 DECLARE_PER_CPU(u8, cpu_llc_id);
-extern char ignore_fpu_irq;
-
-void __init cpu_detect(struct cpuinfo_x86 *c);
-
-extern void identify_boot_cpu(void);
-extern void identify_secondary_cpu(struct cpuinfo_x86 *);
-
-#ifdef CONFIG_X86_HT
-extern void detect_ht(struct cpuinfo_x86 *c);
-#else
-static inline void detect_ht(struct cpuinfo_x86 *c) {}
-#endif
-
-/* from system description table in BIOS.  Mostly for MCA use, but
-others may find it useful. */
-extern unsigned int machine_id;
-extern unsigned int machine_submodel_id;
-extern unsigned int BIOS_revision;
-extern unsigned int mca_pentium_flag;
 
 /*
  * User space process size: 3GB (default).
@@ -276,16 +252,5 @@ static inline void prefetchw(const void *x)
 			  X86_FEATURE_3DNOW,
 			  "r" (x));
 }
-
-extern void enable_sep_cpu(void);
-extern int sysenter_setup(void);
-
-/* Defined in head.S */
-extern struct desc_ptr early_gdt_descr;
-
-extern void cpu_set_gdt(int);
-extern void switch_to_new_gdt(void);
-extern void cpu_init(void);
-extern void init_gdt(int cpu);
 
 #endif /* __ASM_I386_PROCESSOR_H */

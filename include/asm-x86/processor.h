@@ -96,7 +96,12 @@ struct cpuinfo_x86 {
 #define X86_VENDOR_NUM 9
 #define X86_VENDOR_UNKNOWN 0xff
 
+/*
+ * capabilities of CPUs
+ */
 extern struct cpuinfo_x86 boot_cpu_data;
+extern struct cpuinfo_x86 new_cpu_data;
+extern struct tss_struct doublefault_tss;
 
 #ifdef CONFIG_SMP
 DECLARE_PER_CPU(struct cpuinfo_x86, cpu_info);
@@ -107,10 +112,21 @@ DECLARE_PER_CPU(struct cpuinfo_x86, cpu_info);
 #define current_cpu_data	boot_cpu_data
 #endif
 
+void cpu_detect(struct cpuinfo_x86 *c);
+
+extern void identify_cpu(struct cpuinfo_x86 *);
+extern void identify_boot_cpu(void);
+extern void identify_secondary_cpu(struct cpuinfo_x86 *);
 extern void print_cpu_info(struct cpuinfo_x86 *);
 extern void init_scattered_cpuid_features(struct cpuinfo_x86 *c);
 extern unsigned int init_intel_cacheinfo(struct cpuinfo_x86 *c);
 extern unsigned short num_cache_leaves;
+
+#if defined(CONFIG_X86_HT) || defined(CONFIG_X86_64)
+extern void detect_ht(struct cpuinfo_x86 *c);
+#else
+static inline void detect_ht(struct cpuinfo_x86 *c) {}
+#endif
 
 static inline void native_cpuid(unsigned int *eax, unsigned int *ebx,
 					 unsigned int *ecx, unsigned int *edx)
@@ -204,6 +220,11 @@ struct tss_struct {
 } __attribute__((packed));
 
 DECLARE_PER_CPU(struct tss_struct, init_tss);
+
+/* Save the original ist values for checking stack pointers during debugging */
+struct orig_ist {
+	unsigned long ist[7];
+};
 
 #ifdef CONFIG_X86_32
 # include "processor_32.h"
@@ -547,8 +568,28 @@ extern void select_idle_routine(const struct cpuinfo_x86 *c);
 
 extern unsigned long boot_option_idle_override;
 
+extern void enable_sep_cpu(void);
+extern int sysenter_setup(void);
+
+/* Defined in head.S */
+extern struct desc_ptr early_gdt_descr;
+
+extern void cpu_set_gdt(int);
+extern void switch_to_new_gdt(void);
+extern void cpu_init(void);
+extern void init_gdt(int cpu);
+
+/* from system description table in BIOS.  Mostly for MCA use, but
+ * others may find it useful. */
+extern unsigned int machine_id;
+extern unsigned int machine_submodel_id;
+extern unsigned int BIOS_revision;
+extern unsigned int mca_pentium_flag;
+
 /* Boot loader type from the setup header */
 extern int bootloader_type;
+
+extern char ignore_fpu_irq;
 #define cache_line_size() (boot_cpu_data.x86_cache_alignment)
 
 #define HAVE_ARCH_PICK_MMAP_LAYOUT 1

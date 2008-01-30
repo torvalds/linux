@@ -757,7 +757,7 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 		disable_apic_timer = 1;
 }
 
-static void __cpuinit detect_ht(struct cpuinfo_x86 *c)
+void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_SMP
 	u32 eax, ebx, ecx, edx;

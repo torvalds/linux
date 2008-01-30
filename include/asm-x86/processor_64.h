@@ -17,8 +17,6 @@
 #include <linux/personality.h>
 #include <asm/desc_defs.h>
 
-extern void identify_cpu(struct cpuinfo_x86 *);
-
 /*
  * User space process size. 47bits minus one guard page.
  */
@@ -51,10 +49,6 @@ union i387_union {
 	struct i387_fxsave_struct	fxsave;
 };
 
-/* Save the original ist values for checking stack pointers during debugging */
-struct orig_ist {
-	unsigned long ist[7];
-};
 DECLARE_PER_CPU(struct orig_ist, orig_ist);
 
 #define INIT_THREAD  { \
