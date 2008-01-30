@@ -886,7 +886,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 #include <linux/compat.h>
 #include <linux/syscalls.h>
 #include <asm/ia32.h>
-#include <asm/fpu32.h>
 #include <asm/user32.h>
 
 #define R32(l,q)							\

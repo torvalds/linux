@@ -29,7 +29,6 @@
 #include <asm/ia32_unistd.h>
 #include <asm/user32.h>
 #include <asm/sigcontext32.h>
-#include <asm/fpu32.h>
 #include <asm/proto.h>
 #include <asm/vdso.h>
 
@@ -258,7 +257,7 @@ static int ia32_restore_sigcontext(struct pt_regs *regs,
 	if (buf) {
 		if (!access_ok(VERIFY_READ, buf, sizeof(*buf)))
 			goto badframe;
-		err |= restore_i387_ia32(current, buf, 0);
+		err |= restore_i387_ia32(buf);
 	} else {
 		struct task_struct *me = current;
 
@@ -377,7 +376,7 @@ static int ia32_setup_sigcontext(struct sigcontext_ia32 __user *sc,
 	err |= __put_user((u32)regs->flags, &sc->flags);
 	err |= __put_user((u32)regs->sp, &sc->sp_at_signal);
 
-	tmp = save_i387_ia32(current, fpstate, regs, 0);
+	tmp = save_i387_ia32(fpstate);
 	if (tmp < 0)
 		err = -EFAULT;
 	else {

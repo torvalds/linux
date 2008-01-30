@@ -12,6 +12,7 @@
 
 #include <linux/sched.h>
 #include <linux/kernel_stat.h>
+#include <linux/regset.h>
 #include <asm/processor.h>
 #include <asm/sigcontext.h>
 #include <asm/user.h>
@@ -22,6 +23,16 @@ extern unsigned int mxcsr_feature_mask;
 extern void mxcsr_feature_mask_init(void);
 extern void init_fpu(struct task_struct *child);
 extern asmlinkage void math_state_restore(void);
+
+extern user_regset_active_fn fpregs_active, xfpregs_active;
+extern user_regset_get_fn fpregs_get, xfpregs_get, fpregs_soft_get;
+extern user_regset_set_fn fpregs_set, xfpregs_set, fpregs_soft_set;
+
+#ifdef CONFIG_IA32_EMULATION
+struct _fpstate_ia32;
+extern int save_i387_ia32(struct _fpstate_ia32 __user *buf);
+extern int restore_i387_ia32(struct _fpstate_ia32 __user *buf);
+#endif
 
 #ifdef CONFIG_X86_64
 
