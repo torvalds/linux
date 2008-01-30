@@ -100,7 +100,7 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
 		/* ia32_pick_mmap_layout has its own. */
 		return ia32_pick_mmap_layout(mm);
 #endif
-	} else if(mmap_is_legacy()) {
+	} else if (mmap_is_legacy()) {
 		mm->mmap_base = TASK_UNMAPPED_BASE;
 		mm->get_unmapped_area = arch_get_unmapped_area;
 		mm->unmap_area = arch_unmap_area;
@@ -111,7 +111,6 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
 		if (current->flags & PF_RANDOMIZE)
 			rnd = -rnd;
 	}
-	if (current->flags & PF_RANDOMIZE) {
+	if (current->flags & PF_RANDOMIZE)
 		mm->mmap_base += ((long)rnd) << PAGE_SHIFT;
-	}
 }
