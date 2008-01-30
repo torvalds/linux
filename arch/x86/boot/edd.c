@@ -154,7 +154,7 @@ void query_edd(void)
 	 */
 
 	if (!be_quiet)
-		printf("Probing EDD...");
+		printf("Probing EDD... ");
 
 	for (devno = 0x80; devno < 0x80+EDD_MBR_SIG_MAX; devno++) {
 		/*
@@ -174,7 +174,7 @@ void query_edd(void)
 	}
 
 	if (!be_quiet)
-		printf("OK\n");
+		printf("ok\n");
 }
 
 #endif
