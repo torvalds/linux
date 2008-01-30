@@ -69,8 +69,6 @@ void __init x86_64_start_kernel(char * real_mode_data)
 
 	pda_init(0);
 	copy_bootdata(__va(real_mode_data));
-#ifdef CONFIG_SMP
-	cpu_set(0, cpu_online_map);
-#endif
+
 	start_kernel();
 }
