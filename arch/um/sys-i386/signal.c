@@ -3,10 +3,10 @@
  * Licensed under the GPL
  */
 
-#include "linux/ptrace.h"
-#include "asm/unistd.h"
-#include "asm/uaccess.h"
-#include "asm/ucontext.h"
+#include <linux/ptrace.h>
+#include <asm/unistd.h>
+#include <asm/uaccess.h>
+#include <asm/ucontext.h>
 #include "frame_kern.h"
 #include "skas.h"
 
@@ -18,17 +18,17 @@ void copy_sc(struct uml_pt_regs *regs, void *from)
 	REGS_FS(regs->gp) = sc->fs;
 	REGS_ES(regs->gp) = sc->es;
 	REGS_DS(regs->gp) = sc->ds;
-	REGS_EDI(regs->gp) = sc->edi;
-	REGS_ESI(regs->gp) = sc->esi;
-	REGS_EBP(regs->gp) = sc->ebp;
-	REGS_SP(regs->gp) = sc->esp;
-	REGS_EBX(regs->gp) = sc->ebx;
-	REGS_EDX(regs->gp) = sc->edx;
-	REGS_ECX(regs->gp) = sc->ecx;
-	REGS_EAX(regs->gp) = sc->eax;
-	REGS_IP(regs->gp) = sc->eip;
+	REGS_EDI(regs->gp) = sc->di;
+	REGS_ESI(regs->gp) = sc->si;
+	REGS_EBP(regs->gp) = sc->bp;
+	REGS_SP(regs->gp) = sc->sp;
+	REGS_EBX(regs->gp) = sc->bx;
+	REGS_EDX(regs->gp) = sc->dx;
+	REGS_ECX(regs->gp) = sc->cx;
+	REGS_EAX(regs->gp) = sc->ax;
+	REGS_IP(regs->gp) = sc->ip;
 	REGS_CS(regs->gp) = sc->cs;
-	REGS_EFLAGS(regs->gp) = sc->eflags;
+	REGS_EFLAGS(regs->gp) = sc->flags;
 	REGS_SS(regs->gp) = sc->ss;
 }
 
@@ -229,18 +229,18 @@ static int copy_sc_to_user(struct sigcontext __user *to,
 	sc.fs = REGS_FS(regs->regs.gp);
 	sc.es = REGS_ES(regs->regs.gp);
 	sc.ds = REGS_DS(regs->regs.gp);
-	sc.edi = REGS_EDI(regs->regs.gp);
-	sc.esi = REGS_ESI(regs->regs.gp);
-	sc.ebp = REGS_EBP(regs->regs.gp);
-	sc.esp = sp;
-	sc.ebx = REGS_EBX(regs->regs.gp);
-	sc.edx = REGS_EDX(regs->regs.gp);
-	sc.ecx = REGS_ECX(regs->regs.gp);
-	sc.eax = REGS_EAX(regs->regs.gp);
-	sc.eip = REGS_IP(regs->regs.gp);
+	sc.di = REGS_EDI(regs->regs.gp);
+	sc.si = REGS_ESI(regs->regs.gp);
+	sc.bp = REGS_EBP(regs->regs.gp);
+	sc.sp = sp;
+	sc.bx = REGS_EBX(regs->regs.gp);
+	sc.dx = REGS_EDX(regs->regs.gp);
+	sc.cx = REGS_ECX(regs->regs.gp);
+	sc.ax = REGS_EAX(regs->regs.gp);
+	sc.ip = REGS_IP(regs->regs.gp);
 	sc.cs = REGS_CS(regs->regs.gp);
-	sc.eflags = REGS_EFLAGS(regs->regs.gp);
-	sc.esp_at_signal = regs->regs.gp[UESP];
+	sc.flags = REGS_EFLAGS(regs->regs.gp);
+	sc.sp_at_signal = regs->regs.gp[UESP];
 	sc.ss = regs->regs.gp[SS];
 	sc.cr2 = fi->cr2;
 	sc.err = fi->error_code;

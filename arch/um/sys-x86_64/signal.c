@@ -4,11 +4,11 @@
  * Licensed under the GPL
  */
 
-#include "linux/personality.h"
-#include "linux/ptrace.h"
-#include "asm/unistd.h"
-#include "asm/uaccess.h"
-#include "asm/ucontext.h"
+#include <linux/personality.h>
+#include <linux/ptrace.h>
+#include <asm/unistd.h>
+#include <asm/uaccess.h>
+#include <asm/ucontext.h>
 #include "frame_kern.h"
 #include "skas.h"
 
@@ -27,16 +27,16 @@ void copy_sc(struct uml_pt_regs *regs, void *from)
 	GETREG(regs, R13, sc, r13);
 	GETREG(regs, R14, sc, r14);
 	GETREG(regs, R15, sc, r15);
-	GETREG(regs, RDI, sc, rdi);
-	GETREG(regs, RSI, sc, rsi);
-	GETREG(regs, RBP, sc, rbp);
-	GETREG(regs, RBX, sc, rbx);
-	GETREG(regs, RDX, sc, rdx);
-	GETREG(regs, RAX, sc, rax);
-	GETREG(regs, RCX, sc, rcx);
-	GETREG(regs, RSP, sc, rsp);
-	GETREG(regs, RIP, sc, rip);
-	GETREG(regs, EFLAGS, sc, eflags);
+	GETREG(regs, RDI, sc, di);
+	GETREG(regs, RSI, sc, si);
+	GETREG(regs, RBP, sc, bp);
+	GETREG(regs, RBX, sc, bx);
+	GETREG(regs, RDX, sc, dx);
+	GETREG(regs, RAX, sc, ax);
+	GETREG(regs, RCX, sc, cx);
+	GETREG(regs, RSP, sc, sp);
+	GETREG(regs, RIP, sc, ip);
+	GETREG(regs, EFLAGS, sc, flags);
 	GETREG(regs, CS, sc, cs);
 
 #undef GETREG
@@ -61,16 +61,16 @@ static int copy_sc_from_user(struct pt_regs *regs,
 	err |= GETREG(regs, R13, from, r13);
 	err |= GETREG(regs, R14, from, r14);
 	err |= GETREG(regs, R15, from, r15);
-	err |= GETREG(regs, RDI, from, rdi);
-	err |= GETREG(regs, RSI, from, rsi);
-	err |= GETREG(regs, RBP, from, rbp);
-	err |= GETREG(regs, RBX, from, rbx);
-	err |= GETREG(regs, RDX, from, rdx);
-	err |= GETREG(regs, RAX, from, rax);
-	err |= GETREG(regs, RCX, from, rcx);
-	err |= GETREG(regs, RSP, from, rsp);
-	err |= GETREG(regs, RIP, from, rip);
-	err |= GETREG(regs, EFLAGS, from, eflags);
+	err |= GETREG(regs, RDI, from, di);
+	err |= GETREG(regs, RSI, from, si);
+	err |= GETREG(regs, RBP, from, bp);
+	err |= GETREG(regs, RBX, from, bx);
+	err |= GETREG(regs, RDX, from, dx);
+	err |= GETREG(regs, RAX, from, ax);
+	err |= GETREG(regs, RCX, from, cx);
+	err |= GETREG(regs, RSP, from, sp);
+	err |= GETREG(regs, RIP, from, ip);
+	err |= GETREG(regs, EFLAGS, from, flags);
 	err |= GETREG(regs, CS, from, cs);
 	if (err)
 		return 1;
@@ -108,19 +108,19 @@ static int copy_sc_to_user(struct sigcontext __user *to,
 	__put_user((regs)->regs.gp[(regno) / sizeof(unsigned long)],	\
 		   &(sc)->regname)
 
-	err |= PUTREG(regs, RDI, to, rdi);
-	err |= PUTREG(regs, RSI, to, rsi);
-	err |= PUTREG(regs, RBP, to, rbp);
+	err |= PUTREG(regs, RDI, to, di);
+	err |= PUTREG(regs, RSI, to, si);
+	err |= PUTREG(regs, RBP, to, bp);
 	/*
 	 * Must use orignal RSP, which is passed in, rather than what's in
 	 * the pt_regs, because that's already been updated to point at the
 	 * signal frame.
 	 */
-	err |= __put_user(sp, &to->rsp);
-	err |= PUTREG(regs, RBX, to, rbx);
-	err |= PUTREG(regs, RDX, to, rdx);
-	err |= PUTREG(regs, RCX, to, rcx);
-	err |= PUTREG(regs, RAX, to, rax);
+	err |= __put_user(sp, &to->sp);
+	err |= PUTREG(regs, RBX, to, bx);
+	err |= PUTREG(regs, RDX, to, dx);
+	err |= PUTREG(regs, RCX, to, cx);
+	err |= PUTREG(regs, RAX, to, ax);
 	err |= PUTREG(regs, R8, to, r8);
 	err |= PUTREG(regs, R9, to, r9);
 	err |= PUTREG(regs, R10, to, r10);
@@ -135,8 +135,8 @@ static int copy_sc_to_user(struct sigcontext __user *to,
 	err |= __put_user(fi->error_code, &to->err);
 	err |= __put_user(fi->trap_no, &to->trapno);
 
-	err |= PUTREG(regs, RIP, to, rip);
-	err |= PUTREG(regs, EFLAGS, to, eflags);
+	err |= PUTREG(regs, RIP, to, ip);
+	err |= PUTREG(regs, EFLAGS, to, flags);
 #undef PUTREG
 
 	err |= __put_user(mask, &to->oldmask);
