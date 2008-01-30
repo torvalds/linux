@@ -86,7 +86,7 @@ static void flush_kernel_map(void *arg)
 	   much cheaper than WBINVD. */
 	/* clflush is still broken. Disable for now. */
 	if (1 || !cpu_has_clflush) {
-		asm volatile("wbinvd" ::: "memory");
+		wbinvd();
 	} else {
 		list_for_each_entry(pg, l, lru) {
 			void *addr = page_address(pg);
