@@ -25,7 +25,8 @@
 	memcpy(dst, src, len)
 
 void global_flush_tlb(void);
-int change_page_attr(struct page *page, int numpages, pgprot_t prot);
+int __deprecated_for_modules change_page_attr(struct page *page, int numpages,
+								pgprot_t prot);
 int change_page_attr_addr(unsigned long addr, int numpages, pgprot_t prot);
 
 int set_pages_uc(struct page *page, int numpages);

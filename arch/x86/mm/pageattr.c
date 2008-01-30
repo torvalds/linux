@@ -284,7 +284,7 @@ int change_page_attr(struct page *page, int numpages, pgprot_t prot)
 
 	return change_page_attr_addr(addr, numpages, prot);
 }
-EXPORT_SYMBOL(change_page_attr);
+EXPORT_UNUSED_SYMBOL(change_page_attr); /* to be removed in 2.6.27 */
 
 /**
  * change_page_attr_set - Change page table attributes in the linear mapping.
