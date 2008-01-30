@@ -233,8 +233,9 @@ void __init setup_node_bootmem(int nodeid, unsigned long start,
 	node_set_online(nodeid);
 }
 
+#ifdef CONFIG_FLAT_NODE_MEM_MAP
 /* Initialize final allocator for a zone */
-void __init setup_node_zones(int nodeid)
+static void __init flat_setup_node_zones(int nodeid)
 {
 	unsigned long start_pfn, end_pfn, memmapsize, limit;
 
@@ -250,14 +251,16 @@ void __init setup_node_zones(int nodeid)
 	 */
 	memmapsize = sizeof(struct page) * (end_pfn-start_pfn);
 	limit = end_pfn << PAGE_SHIFT;
-#ifdef CONFIG_FLAT_NODE_MEM_MAP
+
 	NODE_DATA(nodeid)->node_mem_map =
 		__alloc_bootmem_core(NODE_DATA(nodeid)->bdata,
 				     memmapsize, SMP_CACHE_BYTES,
 				     round_down(limit - memmapsize, PAGE_SIZE),
 				     limit);
-#endif
 }
+#else
+#define flat_setup_node_zones(i) do {} while (0)
+#endif
 
 /*
  * There are unfortunately some poorly designed mainboards around that
@@ -581,7 +584,7 @@ void __init paging_init(void)
 	sparse_init();
 
 	for_each_online_node(i)
-		setup_node_zones(i);
+		flat_setup_node_zones(i);
 
 	free_area_init_nodes(max_zone_pfns);
 }
