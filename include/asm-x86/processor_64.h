@@ -31,23 +31,6 @@
 #define TASK_SIZE_OF(child) 	((test_tsk_thread_flag(child, TIF_IA32)) ? IA32_PAGE_OFFSET : TASK_SIZE64)
 
 
-struct i387_fxsave_struct {
-	u16	cwd;
-	u16	swd;
-	u16	twd;
-	u16	fop;
-	u64	rip;
-	u64	rdp; 
-	u32	mxcsr;
-	u32	mxcsr_mask;
-	u32	st_space[32];	/* 8*16 bytes for each FP-reg = 128 bytes */
-	u32	xmm_space[64];	/* 16*16 bytes for each XMM-reg = 256 bytes */
-	u32	padding[24];
-} __attribute__ ((aligned (16)));
-
-union i387_union {
-	struct i387_fxsave_struct	fxsave;
-};
 
 DECLARE_PER_CPU(struct orig_ist, orig_ist);
 

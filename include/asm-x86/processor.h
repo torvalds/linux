@@ -227,8 +227,74 @@ struct orig_ist {
 };
 
 #ifdef CONFIG_X86_32
+struct i387_fsave_struct {
+	long	cwd;
+	long	swd;
+	long	twd;
+	long	fip;
+	long	fcs;
+	long	foo;
+	long	fos;
+	long	st_space[20];	/* 8*10 bytes for each FP-reg = 80 bytes */
+	long	status;		/* software status information */
+};
+
+struct i387_fxsave_struct {
+	unsigned short	cwd;
+	unsigned short	swd;
+	unsigned short	twd;
+	unsigned short	fop;
+	long	fip;
+	long	fcs;
+	long	foo;
+	long	fos;
+	long	mxcsr;
+	long	mxcsr_mask;
+	long	st_space[32];	/* 8*16 bytes for each FP-reg = 128 bytes */
+	long	xmm_space[32];	/* 8*16 bytes for each XMM-reg = 128 bytes */
+	long	padding[56];
+} __attribute__((aligned(16)));
+
+struct i387_soft_struct {
+	long	cwd;
+	long	swd;
+	long	twd;
+	long	fip;
+	long	fcs;
+	long	foo;
+	long	fos;
+	long	st_space[20];	/* 8*10 bytes for each FP-reg = 80 bytes */
+	unsigned char	ftop, changed, lookahead, no_update, rm, alimit;
+	struct info	*info;
+	unsigned long	entry_eip;
+};
+
+union i387_union {
+	struct i387_fsave_struct	fsave;
+	struct i387_fxsave_struct	fxsave;
+	struct i387_soft_struct soft;
+};
+
 # include "processor_32.h"
 #else
+struct i387_fxsave_struct {
+	u16	cwd;
+	u16	swd;
+	u16	twd;
+	u16	fop;
+	u64	rip;
+	u64	rdp;
+	u32	mxcsr;
+	u32	mxcsr_mask;
+	u32	st_space[32];	/* 8*16 bytes for each FP-reg = 128 bytes */
+	u32	xmm_space[64];	/* 16*16 bytes for each XMM-reg = 256 bytes */
+	u32	padding[24];
+} __attribute__((aligned(16)));
+
+union i387_union {
+	struct i387_fxsave_struct	fxsave;
+};
+
 # include "processor_64.h"
 #endif
 
