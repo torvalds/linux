@@ -94,10 +94,10 @@ static inline unsigned long long native_read_tsc(void)
 	return val;
 }
 
-static inline unsigned long long native_read_pmc(void)
+static inline unsigned long long native_read_pmc(int counter)
 {
 	unsigned long long val;
-	asm volatile("rdpmc" : "=A" (val));
+	asm volatile("rdpmc" : "=A" (val) : "c" (counter));
 	return val;
 }
 
@@ -154,7 +154,7 @@ static inline int wrmsr_safe(u32 __msr, u32 __low, u32 __high)
 
 #define rdpmc(counter,low,high)					\
 	do {							\
-		u64 _l = native_read_pmc();			\
+		u64 _l = native_read_pmc(counter);		\
 		(low)  = (u32)_l;				\
 		(high) = (u32)(_l >> 32);			\
 	} while(0)

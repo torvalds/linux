@@ -118,7 +118,7 @@ struct pv_cpu_ops {
 	int (*write_msr)(unsigned int msr, u64 val);
 
 	u64 (*read_tsc)(void);
-	u64 (*read_pmc)(void);
+	u64 (*read_pmc)(int counter);
 
 	/* These two are jmp to, not actually called. */
 	void (*irq_enable_syscall_ret)(void);
