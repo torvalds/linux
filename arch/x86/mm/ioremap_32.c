@@ -118,7 +118,7 @@ void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
 	addr = (void __iomem *) area->addr;
 	if (ioremap_page_range((unsigned long)addr, (unsigned long)addr + size,
 			       phys_addr, pgprot)) {
-		vunmap((void __force *) addr);
+		remove_vm_area((void *)(PAGE_MASK & (unsigned long) addr));
 		return NULL;
 	}
 
