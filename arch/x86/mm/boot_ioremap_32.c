@@ -1,7 +1,7 @@
 /*
  * arch/i386/mm/boot_ioremap.c
- * 
- * Re-map functions for early boot-time before paging_init() when the 
+ *
+ * Re-map functions for early boot-time before paging_init() when the
  * boot-time pagetables are still in use
  *
  * Written by Dave Hansen <haveblue@us.ibm.com>
@@ -23,15 +23,15 @@
 #include <linux/init.h>
 #include <linux/stddef.h>
 
-/* 
- * I'm cheating here.  It is known that the two boot PTE pages are 
+/*
+ * I'm cheating here.  It is known that the two boot PTE pages are
  * allocated next to each other.  I'm pretending that they're just
- * one big array. 
+ * one big array.
  */
 
 #define BOOT_PTE_PTRS (PTRS_PER_PTE*2)
 
-static unsigned long boot_pte_index(unsigned long vaddr) 
+static unsigned long boot_pte_index(unsigned long vaddr)
 {
 	return __pa(vaddr) >> PAGE_SHIFT;
 }
@@ -47,7 +47,7 @@ static inline boot_pte_t* boot_vaddr_to_pte(void *address)
  * phys_addr and virtual_source, and who also has a preference
  * about which virtual address from which to steal ptes
  */
-static void __boot_ioremap(unsigned long phys_addr, unsigned long nrpages, 
+static void __boot_ioremap(unsigned long phys_addr, unsigned long nrpages,
 		    void* virtual_source)
 {
 	boot_pte_t* pte;
@@ -70,7 +70,7 @@ static __initdata char boot_ioremap_space[BOOT_IOREMAP_SIZE]
 /*
  * This only applies to things which need to ioremap before paging_init()
  * bt_ioremap() and plain ioremap() are both useless at this point.
- * 
+ *
  * When used, we're still using the boot-time pagetables, which only
  * have 2 PTE pages mapping the first 8MB
  *
@@ -82,18 +82,18 @@ __init void* boot_ioremap(unsigned long phys_addr, unsigned long size)
 {
 	unsigned long last_addr, offset;
 	unsigned int nrpages;
-	
+
 	last_addr = phys_addr + size - 1;
 
 	/* page align the requested address */
 	offset = phys_addr & ~PAGE_MASK;
 	phys_addr &= PAGE_MASK;
 	size = PAGE_ALIGN(last_addr) - phys_addr;
-	
+
 	nrpages = size >> PAGE_SHIFT;
 	if (nrpages > BOOT_IOREMAP_PAGES)
 		return NULL;
-	
+
 	__boot_ioremap(phys_addr, nrpages, boot_ioremap_space);
 
 	return &boot_ioremap_space[offset];
