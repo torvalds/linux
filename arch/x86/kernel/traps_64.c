@@ -225,31 +225,34 @@ static inline int valid_stack_ptr(struct thread_info *tinfo,
 	return p > t && p < t + THREAD_SIZE - size;
 }
 
+/* The form of the top of the frame on the stack */
+struct stack_frame {
+	struct stack_frame *next_frame;
+	unsigned long return_address;
+};
+
+
 static inline unsigned long print_context_stack(struct thread_info *tinfo,
 				unsigned long *stack, unsigned long bp,
 				const struct stacktrace_ops *ops, void *data,
 				unsigned long *end)
 {
-	/*
-	 * Print function call entries within a stack. 'cond' is the
-	 * "end of stackframe" condition, that the 'stack++'
-	 * iteration will eventually trigger.
-	 */
-	while (valid_stack_ptr(tinfo, stack, 3, end)) {
-		unsigned long addr = *stack++;
-		/* Use unlocked access here because except for NMIs
-		   we should be already protected against module unloads */
+	struct stack_frame *frame = (struct stack_frame *)bp;
+
+	while (valid_stack_ptr(tinfo, stack, sizeof(*stack), end)) {
+		unsigned long addr;
+
+		addr = *stack;
 		if (__kernel_text_address(addr)) {
-			/*
-			 * If the address is either in the text segment of the
-			 * kernel, or in the region which contains vmalloc'ed
-			 * memory, it *may* be the address of a calling
-			 * routine; if so, print it so that someone tracing
-			 * down the cause of the crash will be able to figure
-			 * out the call path that was taken.
-			 */
-			ops->address(data, addr, 1);
+			if ((unsigned long) stack == bp + 8) {
+				ops->address(data, addr, 1);
+				frame = frame->next_frame;
+				bp = (unsigned long) frame;
+			} else {
+				ops->address(data, addr, bp == 0);
+			}
 		}
+		stack++;
 	}
 	return bp;
 }
@@ -274,6 +277,19 @@ void dump_trace(struct task_struct *tsk, struct pt_regs *regs,
 			stack = (unsigned long *)tsk->thread.sp;
 	}
 
+#ifdef CONFIG_FRAME_POINTER
+	if (!bp) {
+		if (tsk == current) {
+			/* Grab bp right from our regs */
+			asm("movq %%rbp, %0" : "=r" (bp):);
+		} else {
+			/* bp is the last reg pushed by switch_to */
+			bp = *(unsigned long *) tsk->thread.sp;
+		}
+	}
+#endif
+
+
 
 	/*
 	 * Print function call entries in all stacks, starting at the
@@ -290,8 +306,8 @@ void dump_trace(struct task_struct *tsk, struct pt_regs *regs,
 			if (ops->stack(data, id) < 0)
 				break;
 
-			print_context_stack(tinfo, stack, 0, ops,
-						data, estack_end);
+			bp = print_context_stack(tinfo, stack, bp, ops,
+							data, estack_end);
 			ops->stack(data, "<EOE>");
 			/*
 			 * We link to the next stack via the
@@ -309,8 +325,8 @@ void dump_trace(struct task_struct *tsk, struct pt_regs *regs,
 			if (stack >= irqstack && stack < irqstack_end) {
 				if (ops->stack(data, "IRQ") < 0)
 					break;
-				print_context_stack(tinfo, stack, 0, ops,
-							 data, irqstack_end);
+				bp = print_context_stack(tinfo, stack, bp,
+						ops, data, irqstack_end);
 				/*
 				 * We link to the next stack (which would be
 				 * the process stack normally) the last
@@ -328,7 +344,7 @@ void dump_trace(struct task_struct *tsk, struct pt_regs *regs,
 	/*
 	 * This handles the process stack:
 	 */
-	print_context_stack(tinfo, stack, 0, ops, data, NULL);
+	bp = print_context_stack(tinfo, stack, bp, ops, data, NULL);
 	put_cpu();
 }
 EXPORT_SYMBOL(dump_trace);
@@ -424,6 +440,11 @@ void dump_stack(void)
 {
 	unsigned long dummy;
 	unsigned long bp = 0;
+
+#ifdef CONFIG_FRAME_POINTER
+	if (!bp)
+		asm("movq %%rbp, %0" : "=r" (bp):);
+#endif
 
 	printk("Pid: %d, comm: %.20s %s %s %.*s\n",
 		current->pid, current->comm, print_tainted(),
