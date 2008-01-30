@@ -38,7 +38,7 @@ pte_t *lookup_address(unsigned long address, int *level)
 }
 
 static struct page *
-split_large_page(unsigned long address, pgprot_t prot, pgprot_t ref_prot)
+split_large_page(unsigned long address, pgprot_t ref_prot)
 {
 	unsigned long addr;
 	struct page *base;
@@ -58,10 +58,9 @@ split_large_page(unsigned long address, pgprot_t prot, pgprot_t ref_prot)
 	pbase = (pte_t *)page_address(base);
 	paravirt_alloc_pt(&init_mm, page_to_pfn(base));
 
-	for (i = 0; i < PTRS_PER_PTE; i++, addr += PAGE_SIZE) {
-		set_pte(&pbase[i], pfn_pte(addr >> PAGE_SHIFT,
-					   addr == address ? prot : ref_prot));
-	}
+	for (i = 0; i < PTRS_PER_PTE; i++, addr += PAGE_SIZE)
+		set_pte(&pbase[i], pfn_pte(addr >> PAGE_SHIFT, ref_prot));
+
 	return base;
 }
 
@@ -101,6 +100,7 @@ static int __change_page_attr(struct page *page, pgprot_t prot)
 	BUG_ON(PageHighMem(page));
 	address = (unsigned long)page_address(page);
 
+repeat:
 	kpte = lookup_address(address, &level);
 	if (!kpte)
 		return -EINVAL;
@@ -128,7 +128,8 @@ static int __change_page_attr(struct page *page, pgprot_t prot)
 		set_pte_atomic(kpte, mk_pte(page, prot));
 	} else {
 		struct page *split;
-		split = split_large_page(address, prot, ref_prot);
+
+		split = split_large_page(address, ref_prot);
 		if (!split)
 			return -ENOMEM;
 
@@ -136,6 +137,7 @@ static int __change_page_attr(struct page *page, pgprot_t prot)
 		 * There's a small window here to waste a bit of RAM:
 		 */
 		set_pmd_pte(kpte, address, mk_pte(split, ref_prot));
+		goto repeat;
 	}
 	return 0;
 }
