@@ -41,8 +41,8 @@ extern void finish_e820_parsing(void);
 extern struct e820map e820;
 extern void update_e820(void);
 
-extern unsigned ebda_addr, ebda_size;
-extern unsigned long nodemap_addr, nodemap_size;
+extern void reserve_early(unsigned long start, unsigned long end);
+extern void early_res_to_bootmem(void);
 
 #endif/*!__ASSEMBLY__*/
 

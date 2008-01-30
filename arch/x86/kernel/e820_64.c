@@ -47,56 +47,65 @@ unsigned long end_pfn_map;
  */
 static unsigned long __initdata end_user_pfn = MAXMEM>>PAGE_SHIFT;
 
-/* Check for some hardcoded bad areas that early boot is not allowed to touch */
+/*
+ * Early reserved memory areas.
+ */
+#define MAX_EARLY_RES 20
+
+struct early_res {
+	unsigned long start, end;
+};
+static struct early_res early_res[MAX_EARLY_RES] __initdata = {
+	{ 0, PAGE_SIZE },			/* BIOS data page */
+#ifdef CONFIG_SMP
+	{ SMP_TRAMPOLINE_BASE, SMP_TRAMPOLINE_BASE + 2*PAGE_SIZE },
+#endif
+	{}
+};
+
+void __init reserve_early(unsigned long start, unsigned long end)
+{
+	int i;
+	struct early_res *r;
+	for (i = 0; i < MAX_EARLY_RES && early_res[i].end; i++) {
+		r = &early_res[i];
+		if (end > r->start && start < r->end)
+			panic("Duplicated early reservation %lx-%lx\n",
+			      start, end);
+	}
+	if (i >= MAX_EARLY_RES)
+		panic("Too many early reservations");
+	r = &early_res[i];
+	r->start = start;
+	r->end = end;
+}
+
+void __init early_res_to_bootmem(void)
+{
+	int i;
+	for (i = 0; i < MAX_EARLY_RES && early_res[i].end; i++) {
+		struct early_res *r = &early_res[i];
+		reserve_bootmem_generic(r->start, r->end - r->start);
+	}
+}
+
+/* Check for already reserved areas */
 static inline int bad_addr(unsigned long *addrp, unsigned long size)
 {
-	unsigned long addr = *addrp, last = addr + size;
-
-	/* various gunk below that needed for SMP startup */
-	if (addr < 0x8000) {
-		*addrp = PAGE_ALIGN(0x8000);
-		return 1;
-	}
-
-	/* direct mapping tables of the kernel */
-	if (last >= table_start<<PAGE_SHIFT && addr < table_end<<PAGE_SHIFT) {
-		*addrp = PAGE_ALIGN(table_end << PAGE_SHIFT);
-		return 1;
-	}
-
-	/* initrd */
-#ifdef CONFIG_BLK_DEV_INITRD
-	if (boot_params.hdr.type_of_loader && boot_params.hdr.ramdisk_image) {
-		unsigned long ramdisk_image = boot_params.hdr.ramdisk_image;
-		unsigned long ramdisk_size  = boot_params.hdr.ramdisk_size;
-		unsigned long ramdisk_end   = ramdisk_image+ramdisk_size;
-
-		if (last >= ramdisk_image && addr < ramdisk_end) {
-			*addrp = PAGE_ALIGN(ramdisk_end);
-			return 1;
+	int i;
+	unsigned long addr = *addrp, last;
+	int changed = 0;
+again:
+	last = addr + size;
+	for (i = 0; i < MAX_EARLY_RES && early_res[i].end; i++) {
+		struct early_res *r = &early_res[i];
+		if (last >= r->start && addr < r->end) {
+			*addrp = addr = r->end;
+			changed = 1;
+			goto again;
 		}
 	}
-#endif
-	/* kernel code */
-	if (last >= __pa_symbol(&_text) && addr < __pa_symbol(&_end)) {
-		*addrp = PAGE_ALIGN(__pa_symbol(&_end));
-		return 1;
-	}
-
-	if (last >= ebda_addr && addr < ebda_addr + ebda_size) {
-		*addrp = PAGE_ALIGN(ebda_addr + ebda_size);
-		return 1;
-	}
-
-#ifdef CONFIG_NUMA
-	/* NUMA memory to node map */
-	if (last >= nodemap_addr && addr < nodemap_addr + nodemap_size) {
-		*addrp = nodemap_addr + nodemap_size;
-		return 1;
-	}
-#endif
-	/* XXX ramdisk image here? */
-	return 0;
+	return changed;
 }
 
 /*

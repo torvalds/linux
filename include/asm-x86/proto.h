@@ -22,8 +22,6 @@ extern void syscall32_cpu_init(void);
 
 extern void check_efer(void);
 
-extern unsigned long table_start, table_end;
-
 extern int reboot_force;
 
 long do_arch_prctl(struct task_struct *task, int code, unsigned long addr);

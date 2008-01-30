@@ -102,6 +102,7 @@ static int __init allocate_cachealigned_memnodemap(void)
 	}
 	pad_addr = (nodemap_addr + pad) & ~pad;
 	memnodemap = phys_to_virt(pad_addr);
+	reserve_early(nodemap_addr, nodemap_addr + nodemap_size);
 
 	printk(KERN_DEBUG "NUMA: Allocated memnodemap from %lx - %lx\n",
 	       nodemap_addr, nodemap_addr + nodemap_size);

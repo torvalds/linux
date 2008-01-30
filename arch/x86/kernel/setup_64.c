@@ -245,41 +245,6 @@ static inline void __init reserve_crashkernel(void)
 {}
 #endif
 
-#define EBDA_ADDR_POINTER 0x40E
-
-unsigned __initdata ebda_addr;
-unsigned __initdata ebda_size;
-
-static void __init discover_ebda(void)
-{
-	/*
-	 * there is a real-mode segmented pointer pointing to the
-	 * 4K EBDA area at 0x40E
-	 */
-	ebda_addr = *(unsigned short *)__va(EBDA_ADDR_POINTER);
-	/*
-	 * There can be some situations, like paravirtualized guests,
-	 * in which there is no available ebda information. In such
-	 * case, just skip it
-	 */
-	if (!ebda_addr) {
-		ebda_size = 0;
-		return;
-	}
-
-	ebda_addr <<= 4;
-
-	ebda_size = *(unsigned short *)__va(ebda_addr);
-
-	/* Round EBDA up to pages */
-	if (ebda_size == 0)
-		ebda_size = 1;
-	ebda_size <<= 10;
-	ebda_size = round_up(ebda_size + (ebda_addr & ~PAGE_MASK), PAGE_SIZE);
-	if (ebda_size > 64*1024)
-		ebda_size = 64*1024;
-}
-
 /* Overridden in paravirt.c if CONFIG_PARAVIRT */
 void __attribute__((weak)) __init memory_setup(void)
 {
@@ -349,8 +314,6 @@ void __init setup_arch(char **cmdline_p)
 
 	check_efer();
 
-	discover_ebda();
-
 	init_memory_mapping(0, (end_pfn_map << PAGE_SHIFT));
 	if (efi_enabled)
 		efi_init();
@@ -397,33 +360,7 @@ void __init setup_arch(char **cmdline_p)
 	contig_initmem_init(0, end_pfn);
 #endif
 
-	/* Reserve direct mapping */
-	reserve_bootmem_generic(table_start << PAGE_SHIFT,
-				(table_end - table_start) << PAGE_SHIFT);
-
-	/* reserve kernel */
-	reserve_bootmem_generic(__pa_symbol(&_text),
-				__pa_symbol(&_end) - __pa_symbol(&_text));
-
-	/*
-	 * reserve physical page 0 - it's a special BIOS page on many boxes,
-	 * enabling clean reboots, SMP operation, laptop functions.
-	 */
-	reserve_bootmem_generic(0, PAGE_SIZE);
-
-	/* reserve ebda region */
-	if (ebda_addr)
-		reserve_bootmem_generic(ebda_addr, ebda_size);
-#ifdef CONFIG_NUMA
-	/* reserve nodemap region */
-	if (nodemap_addr)
-		reserve_bootmem_generic(nodemap_addr, nodemap_size);
-#endif
-
-#ifdef CONFIG_SMP
-	/* Reserve SMP trampoline */
-	reserve_bootmem_generic(SMP_TRAMPOLINE_BASE, 2*PAGE_SIZE);
-#endif
+	early_res_to_bootmem();
 
 #ifdef CONFIG_ACPI_SLEEP
 	/*
@@ -453,6 +390,8 @@ void __init setup_arch(char **cmdline_p)
 			initrd_start = ramdisk_image + PAGE_OFFSET;
 			initrd_end = initrd_start+ramdisk_size;
 		} else {
+			/* Assumes everything on node 0 */
+			free_bootmem(ramdisk_image, ramdisk_size);
 			printk(KERN_ERR "initrd extends beyond end of memory "
 			       "(0x%08lx > 0x%08lx)\ndisabling initrd\n",
 			       ramdisk_end, end_of_mem);

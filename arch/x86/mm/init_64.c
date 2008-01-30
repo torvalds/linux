@@ -176,7 +176,8 @@ __set_fixmap (enum fixed_addresses idx, unsigned long phys, pgprot_t prot)
 	set_pte_phys(address, phys, prot);
 }
 
-unsigned long __meminitdata table_start, table_end;
+static unsigned long __initdata table_start;
+static unsigned long __meminitdata table_end;
 
 static __meminit void *alloc_low_page(unsigned long *phys)
 { 
@@ -387,6 +388,8 @@ void __init_refok init_memory_mapping(unsigned long start, unsigned long end)
 	if (!after_bootmem)
 		mmu_cr4_features = read_cr4();
 	__flush_tlb_all();
+
+	reserve_early(table_start << PAGE_SHIFT, table_end << PAGE_SHIFT);
 }
 
 #ifndef CONFIG_NUMA
