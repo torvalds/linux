@@ -28,11 +28,12 @@ struct desc_struct {
 	unsigned long a,b;
 };
 
-#define desc_empty(desc) \
-		(!((desc)->a | (desc)->b))
+static inline int desc_empty(const void *ptr)
+{
+	const u32 *desc = ptr;
+	return !(desc[0] | desc[1]);
+}
 
-#define desc_equal(desc1, desc2) \
-		(((desc1)->a == (desc2)->a) && ((desc1)->b == (desc2)->b))
 /*
  * Default implementation of macro that returns current
  * instruction pointer ("program counter").

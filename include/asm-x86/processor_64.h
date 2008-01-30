@@ -30,11 +30,11 @@
 #define VIP_MASK	0x00100000	/* virtual interrupt pending */
 #define ID_MASK		0x00200000
 
-#define desc_empty(desc) \
-               (!((desc)->a | (desc)->b))
-
-#define desc_equal(desc1, desc2) \
-               (((desc1)->a == (desc2)->a) && ((desc1)->b == (desc2)->b))
+static inline int desc_empty(const void *ptr)
+{
+	const u32 *desc = ptr;
+	return !(desc[0] | desc[1]);
+}
 
 /*
  * Default implementation of macro that returns current
