@@ -57,7 +57,11 @@ static inline unsigned long mmap_base(struct mm_struct *mm)
  * This function, called very early during the creation of a new
  * process VM image, sets up which VM layout function to use:
  */
+#ifdef CONFIG_X86_32
 void arch_pick_mmap_layout(struct mm_struct *mm)
+#else
+void ia32_pick_mmap_layout(struct mm_struct *mm)
+#endif
 {
 	/*
 	 * Fall back to the standard layout if the personality
