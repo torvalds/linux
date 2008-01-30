@@ -323,6 +323,35 @@ static int is_f00f_bug(struct pt_regs *regs, unsigned long address)
 	return 0;
 }
 
+static void show_fault_oops(struct pt_regs *regs, unsigned long error_code,
+			    unsigned long address)
+{
+	if (!oops_may_print())
+		return;
+
+#ifdef CONFIG_X86_PAE
+	if (error_code & PF_INSTR) {
+		int level;
+		pte_t *pte = lookup_address(address, &level);
+
+		if (pte && pte_present(*pte) && !pte_exec(*pte))
+			printk(KERN_CRIT "kernel tried to execute "
+				"NX-protected page - exploit attempt? "
+				"(uid: %d)\n", current->uid);
+	}
+#endif
+	if (address < PAGE_SIZE)
+		printk(KERN_ALERT "BUG: unable to handle kernel NULL "
+				"pointer dereference");
+	else
+		printk(KERN_ALERT "BUG: unable to handle kernel paging"
+				" request");
+	printk(" at virtual address %08lx\n", address);
+	printk(KERN_ALERT "printing ip: %08lx ", regs->ip);
+
+	dump_pagetable(address);
+}
+
 /*
  * Handle a fault on the vmalloc or module mapping area
  *
@@ -633,30 +662,7 @@ no_context:
 
 	bust_spinlocks(1);
 
-	if (oops_may_print()) {
-
-#ifdef CONFIG_X86_PAE
-		if (error_code & PF_INSTR) {
-			int level;
-			pte_t *pte = lookup_address(address, &level);
-
-			if (pte && pte_present(*pte) && !pte_exec(*pte))
-				printk(KERN_CRIT "kernel tried to execute "
-					"NX-protected page - exploit attempt? "
-					"(uid: %d)\n", current->uid);
-		}
-#endif
-		if (address < PAGE_SIZE)
-			printk(KERN_ALERT "BUG: unable to handle kernel NULL "
-					"pointer dereference");
-		else
-			printk(KERN_ALERT "BUG: unable to handle kernel paging"
-					" request");
-		printk(" at virtual address %08lx\n", address);
-		printk(KERN_ALERT "printing ip: %08lx ", regs->ip);
-
-		dump_pagetable(address);
-	}
+	show_fault_oops(regs, error_code, address);
 
 	tsk->thread.cr2 = address;
 	tsk->thread.trap_no = 14;
