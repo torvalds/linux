@@ -39,10 +39,10 @@
  *	bit 3 == 1 means use of reserved bit detected
  *	bit 4 == 1 means fault was an instruction fetch
  */
-#define PF_PROT	(1<<0)
+#define PF_PROT		(1<<0)
 #define PF_WRITE	(1<<1)
-#define PF_USER	(1<<2)
-#define PF_RSVD	(1<<3)
+#define PF_USER		(1<<2)
+#define PF_RSVD		(1<<3)
 #define PF_INSTR	(1<<4)
 
 static inline int notify_page_fault(struct pt_regs *regs)
