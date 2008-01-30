@@ -384,6 +384,18 @@ void __init setup_boot_APIC_clock(void)
 	calibrate_APIC_clock();
 
 	/*
+	 * Do a sanity check on the APIC calibration result
+	 */
+	if (calibration_result < (1000000 / HZ)) {
+		printk(KERN_WARNING
+		       "APIC frequency too slow, disabling apic timer\n");
+		/* No broadcast on UP ! */
+		if (num_possible_cpus() > 1)
+			setup_APIC_timer();
+		return;
+	}
+
+	/*
 	 * If nmi_watchdog is set to IO_APIC, we need the
 	 * PIT/HPET going.  Otherwise register lapic as a dummy
 	 * device.

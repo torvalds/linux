@@ -470,6 +470,19 @@ void __init setup_boot_APIC_clock(void)
 
 	local_apic_timer_verify_ok = 1;
 
+	/*
+	 * Do a sanity check on the APIC calibration result
+	 */
+	if (calibration_result < (1000000 / HZ)) {
+		local_irq_enable();
+		printk(KERN_WARNING
+		       "APIC frequency too slow, disabling apic timer\n");
+		/* No broadcast on UP ! */
+		if (num_possible_cpus() > 1)
+			setup_APIC_timer();
+		return;
+	}
+
 	/* We trust the pm timer based calibration */
 	if (!pm_referenced) {
 		apic_printk(APIC_VERBOSE, "... verify APIC timer\n");
