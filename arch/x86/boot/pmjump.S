@@ -15,6 +15,7 @@
  */
 
 #include <asm/boot.h>
+#include <asm/processor-flags.h>
 #include <asm/segment.h>
 
 	.text
@@ -39,7 +40,7 @@ protected_mode_jump:
 	movw	$__BOOT_TSS, %di
 
 	movl	%cr0, %edx
-	orb	$1, %dl			# Protected mode (PE) bit
+	orb	$X86_CR0_PE, %dl	# Protected mode
 	movl	%edx, %cr0
 	jmp	1f			# Short jump to serialize on 386/486
 1:
