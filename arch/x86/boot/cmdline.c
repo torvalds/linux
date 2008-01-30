@@ -107,7 +107,7 @@ int cmdline_find_option_bool(const char *option)
 	u32 cmdline_ptr = boot_params.hdr.cmd_line_ptr;
 	addr_t cptr;
 	char c;
-	int pos =0 , wstart = 0;
+	int pos = 0, wstart = 0;
 	const char *opptr = NULL;
 	enum {
 		st_wordstart,	/* Start of word/after whitespace */
