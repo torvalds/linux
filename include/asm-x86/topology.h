@@ -37,6 +37,8 @@ extern u8 cpu_to_node_map[];
 DECLARE_PER_CPU(u16, x86_cpu_to_node_map);
 extern u16 x86_cpu_to_node_map_init[];
 extern void *x86_cpu_to_node_map_early_ptr;
+/* Returns the number of the current Node. */
+#define numa_node_id()		(early_cpu_to_node(raw_smp_processor_id()))
 #endif
 
 extern cpumask_t node_to_cpumask_map[];

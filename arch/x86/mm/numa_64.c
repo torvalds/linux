@@ -37,9 +37,7 @@ u16 x86_cpu_to_node_map_init[NR_CPUS] = {
 void *x86_cpu_to_node_map_early_ptr;
 DEFINE_PER_CPU(u16, x86_cpu_to_node_map) = NUMA_NO_NODE;
 EXPORT_PER_CPU_SYMBOL(x86_cpu_to_node_map);
-#ifdef	CONFIG_DEBUG_PER_CPU_MAPS
 EXPORT_SYMBOL(x86_cpu_to_node_map_early_ptr);
-#endif
 
 u16 apicid_to_node[MAX_LOCAL_APIC] __cpuinitdata = {
 	[0 ... MAX_LOCAL_APIC-1] = NUMA_NO_NODE
