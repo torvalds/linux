@@ -92,7 +92,7 @@ static int __init allocate_cachealigned_memnodemap(void)
 
 	pad = L1_CACHE_BYTES - 1;
 	pad_addr = 0x8000;
-	nodemap_size = pad + memnodemapsize;
+	nodemap_size = pad + sizeof(s16) * memnodemapsize;
 	nodemap_addr = find_e820_area(pad_addr, end_pfn<<PAGE_SHIFT,
 				      nodemap_size);
 	if (nodemap_addr == -1UL) {
