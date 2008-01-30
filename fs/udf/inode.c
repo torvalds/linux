@@ -1748,9 +1748,7 @@ int8_t udf_add_aext(struct inode *inode, struct extent_position *epos,
 
 			if (epos->bh) {
 				aed = (struct allocExtDesc *)epos->bh->b_data;
-				aed->lengthAllocDescs =
-					cpu_to_le32(le32_to_cpu(
-					aed->lengthAllocDescs) + adsize);
+				le32_add_cpu(&aed->lengthAllocDescs, adsize);
 			} else {
 				iinfo->i_lenAlloc += adsize;
 				mark_inode_dirty(inode);
@@ -1800,9 +1798,7 @@ int8_t udf_add_aext(struct inode *inode, struct extent_position *epos,
 		mark_inode_dirty(inode);
 	} else {
 		aed = (struct allocExtDesc *)epos->bh->b_data;
-		aed->lengthAllocDescs =
-			cpu_to_le32(le32_to_cpu(aed->lengthAllocDescs) +
-				    adsize);
+		le32_add_cpu(&aed->lengthAllocDescs, adsize);
 		if (!UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_STRICT) ||
 				UDF_SB(inode->i_sb)->s_udfrev >= 0x0201)
 			udf_update_tag(epos->bh->b_data,
@@ -2016,9 +2012,7 @@ int8_t udf_delete_aext(struct inode *inode, struct extent_position epos,
 			mark_inode_dirty(inode);
 		} else {
 			aed = (struct allocExtDesc *)oepos.bh->b_data;
-			aed->lengthAllocDescs =
-				cpu_to_le32(le32_to_cpu(aed->lengthAllocDescs) -
-					    (2 * adsize));
+			le32_add_cpu(&aed->lengthAllocDescs, -(2 * adsize));
 			if (!UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_STRICT) ||
 			    UDF_SB(inode->i_sb)->s_udfrev >= 0x0201)
 				udf_update_tag(oepos.bh->b_data,
@@ -2035,9 +2029,7 @@ int8_t udf_delete_aext(struct inode *inode, struct extent_position epos,
 			mark_inode_dirty(inode);
 		} else {
 			aed = (struct allocExtDesc *)oepos.bh->b_data;
-			aed->lengthAllocDescs =
-				cpu_to_le32(le32_to_cpu(aed->lengthAllocDescs) -
-					    adsize);
+			le32_add_cpu(&aed->lengthAllocDescs, -adsize);
 			if (!UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_STRICT) ||
 			    UDF_SB(inode->i_sb)->s_udfrev >= 0x0201)
 				udf_update_tag(oepos.bh->b_data,
