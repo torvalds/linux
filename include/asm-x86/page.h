@@ -80,6 +80,10 @@
 void clear_page(void *page);
 void copy_page(void *to, void *from);
 
+extern unsigned long end_pfn;
+extern unsigned long end_pfn_map;
+extern unsigned long phys_base;
+
 extern unsigned long __phys_addr(unsigned long);
 #define __phys_reloc_hide(x)	(x)
 
@@ -97,6 +101,8 @@ typedef struct { pteval_t pte; } pte_t;
 
 #define native_pte_val(x)	((x).pte)
 #define native_make_pte(x) ((pte_t) { (x) } )
+
+#define vmemmap ((struct page *)VMEMMAP_START)
 
 #endif	/* !__ASSEMBLY__ */
 
@@ -183,6 +189,19 @@ static inline pte_t native_make_pte(unsigned long val)
 #ifdef CONFIG_FLATMEM
 #define pfn_valid(pfn)		((pfn) < max_mapnr)
 #endif /* CONFIG_FLATMEM */
+
+extern int nx_enabled;
+
+/*
+ * This much address space is reserved for vmalloc() and iomap()
+ * as well as fixmap mappings.
+ */
+extern unsigned int __VMALLOC_RESERVE;
+extern int sysctl_legacy_va_layout;
+extern int page_is_ram(unsigned long pagenr);
+
+#define VMALLOC_RESERVE		((unsigned long)__VMALLOC_RESERVE)
+#define MAXMEM			(-__PAGE_OFFSET-__VMALLOC_RESERVE)
 
 #ifdef CONFIG_X86_USE_3DNOW
 #include <asm/mmx.h>
@@ -325,6 +344,10 @@ static inline pmdval_t native_pmd_val(pmd_t pmd)
 
 #endif	/* __ASSEMBLY__ */
 
+#include <asm-generic/memory_model.h>
+#include <asm-generic/page.h>
+
+#define __HAVE_ARCH_GATE_AREA 1
 
 #ifdef CONFIG_X86_32
 # include "page_32.h"
