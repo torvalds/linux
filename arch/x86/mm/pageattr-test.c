@@ -183,7 +183,7 @@ static __init int exercise_pageattr(void)
 
 	}
 	vfree(bm);
-	global_flush_tlb();
+	cpa_flush_all();
 
 	failed += print_split(&sb);
 
@@ -211,7 +211,7 @@ static __init int exercise_pageattr(void)
 		}
 
 	}
-	global_flush_tlb();
+	cpa_flush_all();
 
 	failed += print_split(&sc);
 

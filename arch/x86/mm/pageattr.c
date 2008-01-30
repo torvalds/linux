@@ -33,7 +33,7 @@ void clflush_cache_range(void *addr, int size)
 		clflush(addr+i);
 }
 
-static void flush_kernel_map(void *arg)
+static void __cpa_flush_all(void *arg)
 {
 	/*
 	 * Flush all to work around Errata in early athlons regarding
@@ -45,11 +45,11 @@ static void flush_kernel_map(void *arg)
 		wbinvd();
 }
 
-static void global_flush_tlb(void)
+static void cpa_flush_all(void)
 {
 	BUG_ON(irqs_disabled());
 
-	on_each_cpu(flush_kernel_map, NULL, 1, 1);
+	on_each_cpu(__cpa_flush_all, NULL, 1, 1);
 }
 
 struct clflush_data {
@@ -350,13 +350,13 @@ static int change_page_attr_set_clr(unsigned long addr, int numpages,
 	/*
 	 * On success we use clflush, when the CPU supports it to
 	 * avoid the wbindv. If the CPU does not support it and in the
-	 * error case we fall back to global_flush_tlb (which uses
+	 * error case we fall back to cpa_flush_all (which uses
 	 * wbindv):
 	 */
 	if (!ret && cpu_has_clflush)
 		cpa_flush_range(addr, numpages);
 	else
-		global_flush_tlb();
+		cpa_flush_all();
 
 	return ret;
 }
