@@ -26,18 +26,12 @@ typedef u64	pgdval_t;
 typedef u64	pgprotval_t;
 typedef u64	phys_addr_t;
 
-typedef struct { unsigned long pte_low, pte_high; } pte_t;
-
-static inline unsigned long long native_pte_val(pte_t pte)
-{
-	return pte.pte_low | ((unsigned long long)pte.pte_high << 32);
-}
-
-static inline pte_t native_make_pte(unsigned long long val)
-{
-	return (pte_t) { .pte_low = val, .pte_high = (val >> 32) } ;
-}
-
+typedef union {
+	struct {
+		unsigned long pte_low, pte_high;
+	};
+	pteval_t pte;
+} pte_t;
 #endif	/* __ASSEMBLY__
  */
 #else  /* !CONFIG_X86_PAE */
@@ -53,18 +47,8 @@ typedef unsigned long	pgdval_t;
 typedef unsigned long	pgprotval_t;
 typedef unsigned long	phys_addr_t;
 
-typedef struct { pteval_t pte_low; } pte_t;
+typedef union { pteval_t pte, pte_low; } pte_t;
 typedef pte_t boot_pte_t;
-
-static inline unsigned long native_pte_val(pte_t pte)
-{
-	return pte.pte_low;
-}
-
-static inline pte_t native_make_pte(unsigned long val)
-{
-	return (pte_t) { .pte_low = val };
-}
 
 #endif	/* __ASSEMBLY__ */
 #endif	/* CONFIG_X86_PAE */

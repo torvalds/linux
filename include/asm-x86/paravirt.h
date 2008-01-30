@@ -922,7 +922,7 @@ static inline pte_t __pte(unsigned long long val)
 	unsigned long long ret = PVOP_CALL2(unsigned long long,
 					    pv_mmu_ops.make_pte,
 					    val, val >> 32);
-	return (pte_t) { ret, ret >> 32 };
+	return (pte_t) { .pte = ret };
 }
 
 static inline pmd_t __pmd(unsigned long long val)

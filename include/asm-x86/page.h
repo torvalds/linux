@@ -108,6 +108,16 @@ static inline pmdval_t native_pmd_val(pmd_t pmd)
 #include <asm-generic/pgtable-nopmd.h>
 #endif	/* PAGETABLE_LEVELS >= 3 */
 
+static inline pte_t native_make_pte(pteval_t val)
+{
+	return (pte_t) { .pte = val };
+}
+
+static inline pteval_t native_pte_val(pte_t pte)
+{
+	return pte.pte;
+}
+
 #define pgprot_val(x)	((x).pgprot)
 #define __pgprot(x)	((pgprot_t) { (x) } )
 

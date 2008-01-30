@@ -70,9 +70,6 @@ typedef unsigned long	phys_addr_t;
 
 typedef struct { pteval_t pte; } pte_t;
 
-#define native_pte_val(x)	((x).pte)
-#define native_make_pte(x) ((pte_t) { (x) } )
-
 #define vmemmap ((struct page *)VMEMMAP_START)
 
 #endif	/* !__ASSEMBLY__ */

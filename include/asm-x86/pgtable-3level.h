@@ -163,7 +163,7 @@ static inline unsigned long pte_pfn(pte_t pte)
  * put the 32 bits of offset into the high part.
  */
 #define pte_to_pgoff(pte) ((pte).pte_high)
-#define pgoff_to_pte(off) ((pte_t) { _PAGE_FILE, (off) })
+#define pgoff_to_pte(off) ((pte_t) { { .pte_low = _PAGE_FILE, .pte_high = (off) } })
 #define PTE_FILE_MAX_BITS       32
 
 /* Encode and de-code a swap entry */
@@ -171,7 +171,7 @@ static inline unsigned long pte_pfn(pte_t pte)
 #define __swp_offset(x)			((x).val >> 5)
 #define __swp_entry(type, offset)	((swp_entry_t){(type) | (offset) << 5})
 #define __pte_to_swp_entry(pte)		((swp_entry_t){ (pte).pte_high })
-#define __swp_entry_to_pte(x)		((pte_t){ 0, (x).val })
+#define __swp_entry_to_pte(x)		((pte_t){ { .pte_high = (x).val } })
 
 #define __pmd_free_tlb(tlb, x)		do { } while (0)
 
