@@ -256,7 +256,7 @@ static int set_evrregs(struct task_struct *task, unsigned long *data)
 #endif /* CONFIG_SPE */
 
 
-static void set_single_step(struct task_struct *task)
+void user_enable_single_step(struct task_struct *task)
 {
 	struct pt_regs *regs = task->thread.regs;
 
@@ -271,7 +271,7 @@ static void set_single_step(struct task_struct *task)
 	set_tsk_thread_flag(task, TIF_SINGLESTEP);
 }
 
-static void clear_single_step(struct task_struct *task)
+void user_disable_single_step(struct task_struct *task)
 {
 	struct pt_regs *regs = task->thread.regs;
 
@@ -313,7 +313,7 @@ static int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
 void ptrace_disable(struct task_struct *child)
 {
 	/* make sure the single step bit is not set. */
-	clear_single_step(child);
+	user_disable_single_step(child);
 }
 
 /*
@@ -456,7 +456,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
 		child->exit_code = data;
 		/* make sure the single step bit is not set. */
-		clear_single_step(child);
+		user_disable_single_step(child);
 		wake_up_process(child);
 		ret = 0;
 		break;
@@ -473,7 +473,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			break;
 		child->exit_code = SIGKILL;
 		/* make sure the single step bit is not set. */
-		clear_single_step(child);
+		user_disable_single_step(child);
 		wake_up_process(child);
 		break;
 	}
@@ -483,7 +483,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		if (!valid_signal(data))
 			break;
 		clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		set_single_step(child);
+		user_enable_single_step(child);
 		child->exit_code = data;
 		/* give it a chance to run. */
 		wake_up_process(child);
