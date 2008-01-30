@@ -25,12 +25,24 @@ within(unsigned long addr, unsigned long start, unsigned long end)
 /*
  * Flushing functions
  */
+
+
+/**
+ * clflush_cache_range - flush a cache range with clflush
+ * @addr:	virtual start address
+ * @size:	number of bytes to flush
+ *
+ * clflush is an unordered instruction which needs fencing with mfence
+ * to avoid ordering issues.
+ */
 void clflush_cache_range(void *addr, int size)
 {
 	int i;
 
+	mb();
 	for (i = 0; i < size; i += boot_cpu_data.x86_clflush_size)
 		clflush(addr+i);
+	mb();
 }
 
 static void __cpa_flush_all(void *arg)
