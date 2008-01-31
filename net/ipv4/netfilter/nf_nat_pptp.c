@@ -40,11 +40,11 @@ MODULE_ALIAS("ip_nat_pptp");
 static void pptp_nat_expected(struct nf_conn *ct,
 			      struct nf_conntrack_expect *exp)
 {
-	struct nf_conn *master = ct->master;
+	const struct nf_conn *master = ct->master;
 	struct nf_conntrack_expect *other_exp;
 	struct nf_conntrack_tuple t;
-	struct nf_ct_pptp_master *ct_pptp_info;
-	struct nf_nat_pptp *nat_pptp_info;
+	const struct nf_ct_pptp_master *ct_pptp_info;
+	const struct nf_nat_pptp *nat_pptp_info;
 	struct nf_nat_range range;
 
 	ct_pptp_info = &nfct_help(master)->help.ct_pptp_info;
@@ -186,7 +186,7 @@ static void
 pptp_exp_gre(struct nf_conntrack_expect *expect_orig,
 	     struct nf_conntrack_expect *expect_reply)
 {
-	struct nf_conn *ct = expect_orig->master;
+	const struct nf_conn *ct = expect_orig->master;
 	struct nf_ct_pptp_master *ct_pptp_info;
 	struct nf_nat_pptp *nat_pptp_info;
 
@@ -217,7 +217,7 @@ pptp_inbound_pkt(struct sk_buff *skb,
 		 struct PptpControlHeader *ctlh,
 		 union pptp_ctrl_union *pptpReq)
 {
-	struct nf_nat_pptp *nat_pptp_info;
+	const struct nf_nat_pptp *nat_pptp_info;
 	u_int16_t msg;
 	__be16 new_pcid;
 	unsigned int pcid_off;
