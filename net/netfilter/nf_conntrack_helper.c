@@ -138,7 +138,7 @@ void nf_conntrack_helper_unregister(struct nf_conntrack_helper *me)
 	 */
 	synchronize_rcu();
 
-	write_lock_bh(&nf_conntrack_lock);
+	spin_lock_bh(&nf_conntrack_lock);
 
 	/* Get rid of expectations */
 	for (i = 0; i < nf_ct_expect_hsize; i++) {
@@ -160,7 +160,7 @@ void nf_conntrack_helper_unregister(struct nf_conntrack_helper *me)
 		hlist_for_each_entry(h, n, &nf_conntrack_hash[i], hnode)
 			unhelp(h, me);
 	}
-	write_unlock_bh(&nf_conntrack_lock);
+	spin_unlock_bh(&nf_conntrack_lock);
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_helper_unregister);
 

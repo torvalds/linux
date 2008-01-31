@@ -40,7 +40,7 @@
 
 #define NF_CONNTRACK_VERSION	"0.5.0"
 
-DEFINE_RWLOCK(nf_conntrack_lock);
+DEFINE_SPINLOCK(nf_conntrack_lock);
 EXPORT_SYMBOL_GPL(nf_conntrack_lock);
 
 /* nf_conntrack_standalone needs this */
@@ -199,7 +199,7 @@ destroy_conntrack(struct nf_conntrack *nfct)
 
 	rcu_read_unlock();
 
-	write_lock_bh(&nf_conntrack_lock);
+	spin_lock_bh(&nf_conntrack_lock);
 	/* Expectations will have been removed in clean_from_lists,
 	 * except TFTP can create an expectation on the first packet,
 	 * before connection is in the list, so we need to clean here,
@@ -213,7 +213,7 @@ destroy_conntrack(struct nf_conntrack *nfct)
 	}
 
 	NF_CT_STAT_INC(delete);
-	write_unlock_bh(&nf_conntrack_lock);
+	spin_unlock_bh(&nf_conntrack_lock);
 
 	if (ct->master)
 		nf_ct_put(ct->master);
@@ -236,12 +236,12 @@ static void death_by_timeout(unsigned long ul_conntrack)
 		rcu_read_unlock();
 	}
 
-	write_lock_bh(&nf_conntrack_lock);
+	spin_lock_bh(&nf_conntrack_lock);
 	/* Inside lock so preempt is disabled on module removal path.
 	 * Otherwise we can get spurious warnings. */
 	NF_CT_STAT_INC(delete_list);
 	clean_from_lists(ct);
-	write_unlock_bh(&nf_conntrack_lock);
+	spin_unlock_bh(&nf_conntrack_lock);
 	nf_ct_put(ct);
 }
 
@@ -303,9 +303,9 @@ void nf_conntrack_hash_insert(struct nf_conn *ct)
 	hash = hash_conntrack(&ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
 	repl_hash = hash_conntrack(&ct->tuplehash[IP_CT_DIR_REPLY].tuple);
 
-	write_lock_bh(&nf_conntrack_lock);
+	spin_lock_bh(&nf_conntrack_lock);
 	__nf_conntrack_hash_insert(ct, hash, repl_hash);
-	write_unlock_bh(&nf_conntrack_lock);
+	spin_unlock_bh(&nf_conntrack_lock);
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_hash_insert);
 
@@ -342,7 +342,7 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 	NF_CT_ASSERT(!nf_ct_is_confirmed(ct));
 	pr_debug("Confirming conntrack %p\n", ct);
 
-	write_lock_bh(&nf_conntrack_lock);
+	spin_lock_bh(&nf_conntrack_lock);
 
 	/* See if there's one in the list already, including reverse:
 	   NAT could have grabbed it without realizing, since we're
@@ -368,7 +368,7 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 	atomic_inc(&ct->ct_general.use);
 	set_bit(IPS_CONFIRMED_BIT, &ct->status);
 	NF_CT_STAT_INC(insert);
-	write_unlock_bh(&nf_conntrack_lock);
+	spin_unlock_bh(&nf_conntrack_lock);
 	help = nfct_help(ct);
 	if (help && help->helper)
 		nf_conntrack_event_cache(IPCT_HELPER, skb);
@@ -383,7 +383,7 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 
 out:
 	NF_CT_STAT_INC(insert_failed);
-	write_unlock_bh(&nf_conntrack_lock);
+	spin_unlock_bh(&nf_conntrack_lock);
 	return NF_DROP;
 }
 EXPORT_SYMBOL_GPL(__nf_conntrack_confirm);
@@ -538,7 +538,7 @@ init_conntrack(const struct nf_conntrack_tuple *tuple,
 		return NULL;
 	}
 
-	write_lock_bh(&nf_conntrack_lock);
+	spin_lock_bh(&nf_conntrack_lock);
 	exp = nf_ct_find_expectation(tuple);
 	if (exp) {
 		pr_debug("conntrack: expectation arrives ct=%p exp=%p\n",
@@ -576,7 +576,7 @@ init_conntrack(const struct nf_conntrack_tuple *tuple,
 	hlist_add_head(&conntrack->tuplehash[IP_CT_DIR_ORIGINAL].hnode,
 		       &unconfirmed);
 
-	write_unlock_bh(&nf_conntrack_lock);
+	spin_unlock_bh(&nf_conntrack_lock);
 
 	if (exp) {
 		if (exp->expectfn)
@@ -787,7 +787,7 @@ void __nf_ct_refresh_acct(struct nf_conn *ct,
 	NF_CT_ASSERT(ct->timeout.data == (unsigned long)ct);
 	NF_CT_ASSERT(skb);
 
-	write_lock_bh(&nf_conntrack_lock);
+	spin_lock_bh(&nf_conntrack_lock);
 
 	/* Only update if this is not a fixed timeout */
 	if (test_bit(IPS_FIXED_TIMEOUT_BIT, &ct->status))
@@ -824,7 +824,7 @@ acct:
 	}
 #endif
 
-	write_unlock_bh(&nf_conntrack_lock);
+	spin_unlock_bh(&nf_conntrack_lock);
 
 	/* must be unlocked when calling event cache */
 	if (event)
@@ -909,7 +909,7 @@ get_next_corpse(int (*iter)(struct nf_conn *i, void *data),
 	struct nf_conn *ct;
 	struct hlist_node *n;
 
-	write_lock_bh(&nf_conntrack_lock);
+	spin_lock_bh(&nf_conntrack_lock);
 	for (; *bucket < nf_conntrack_htable_size; (*bucket)++) {
 		hlist_for_each_entry(h, n, &nf_conntrack_hash[*bucket], hnode) {
 			ct = nf_ct_tuplehash_to_ctrack(h);
@@ -922,11 +922,11 @@ get_next_corpse(int (*iter)(struct nf_conn *i, void *data),
 		if (iter(ct, data))
 			set_bit(IPS_DYING_BIT, &ct->status);
 	}
-	write_unlock_bh(&nf_conntrack_lock);
+	spin_unlock_bh(&nf_conntrack_lock);
 	return NULL;
 found:
 	atomic_inc(&ct->ct_general.use);
-	write_unlock_bh(&nf_conntrack_lock);
+	spin_unlock_bh(&nf_conntrack_lock);
 	return ct;
 }
 
@@ -1055,7 +1055,7 @@ int nf_conntrack_set_hashsize(const char *val, struct kernel_param *kp)
 	 * created because of a false negative won't make it into the hash
 	 * though since that required taking the lock.
 	 */
-	write_lock_bh(&nf_conntrack_lock);
+	spin_lock_bh(&nf_conntrack_lock);
 	for (i = 0; i < nf_conntrack_htable_size; i++) {
 		while (!hlist_empty(&nf_conntrack_hash[i])) {
 			h = hlist_entry(nf_conntrack_hash[i].first,
@@ -1073,7 +1073,7 @@ int nf_conntrack_set_hashsize(const char *val, struct kernel_param *kp)
 	nf_conntrack_vmalloc = vmalloced;
 	nf_conntrack_hash = hash;
 	nf_conntrack_hash_rnd = rnd;
-	write_unlock_bh(&nf_conntrack_lock);
+	spin_unlock_bh(&nf_conntrack_lock);
 
 	nf_ct_free_hashtable(old_hash, old_vmalloced, old_size);
 	return 0;

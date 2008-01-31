@@ -72,7 +72,7 @@ print_tuple(struct seq_file *s, const struct nf_conntrack_tuple *tuple,
 	    struct nf_conntrack_l4proto *proto);
 
 extern struct hlist_head *nf_conntrack_hash;
-extern rwlock_t nf_conntrack_lock ;
+extern spinlock_t nf_conntrack_lock ;
 extern struct hlist_head unconfirmed;
 
 #endif /* _NF_CONNTRACK_CORE_H */
