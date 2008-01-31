@@ -345,6 +345,7 @@ struct ieee80211_sub_if_data {
 		struct ieee80211_if_wds wds;
 		struct ieee80211_if_vlan vlan;
 		struct ieee80211_if_sta sta;
+		u32 mntr_flags;
 	} u;
 	int channel_use;
 	int channel_use_raw;
@@ -425,6 +426,8 @@ struct ieee80211_local {
 	struct net_device *mdev; /* wmaster# - "master" 802.11 device */
 	int open_count;
 	int monitors;
+	/* number of interfaces with corresponding FIF_ flags */
+	int fif_fcsfail, fif_plcpfail, fif_control, fif_other_bss;
 	unsigned int filter_flags; /* FIF_* */
 	struct iw_statistics wstats;
 	u8 wstats_flags;

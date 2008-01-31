@@ -38,6 +38,9 @@ static int ieee80211_add_iface(struct wiphy *wiphy, char *name,
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
 	enum ieee80211_if_types itype;
+	struct net_device *dev;
+	struct ieee80211_sub_if_data *sdata;
+	int err;
 
 	if (unlikely(local->reg_state != IEEE80211_DEV_REGISTERED))
 		return -ENODEV;
@@ -46,7 +49,13 @@ static int ieee80211_add_iface(struct wiphy *wiphy, char *name,
 	if (itype == IEEE80211_IF_TYPE_INVALID)
 		return -EINVAL;
 
-	return ieee80211_if_add(local->mdev, name, NULL, itype);
+	err = ieee80211_if_add(local->mdev, name, &dev, itype);
+	if (err || itype != IEEE80211_IF_TYPE_MNTR || !flags)
+		return err;
+
+	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	sdata->u.mntr_flags = *flags;
+	return 0;
 }
 
 static int ieee80211_del_iface(struct wiphy *wiphy, int ifindex)
@@ -99,6 +108,10 @@ static int ieee80211_change_iface(struct wiphy *wiphy, int ifindex,
 	ieee80211_if_reinit(dev);
 	ieee80211_if_set_type(dev, itype);
 
+	if (sdata->vif.type != IEEE80211_IF_TYPE_MNTR || !flags)
+		return 0;
+
+	sdata->u.mntr_flags = *flags;
 	return 0;
 }
 

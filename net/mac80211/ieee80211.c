@@ -67,9 +67,19 @@ static void ieee80211_configure_filter(struct ieee80211_local *local)
 		new_flags |= FIF_ALLMULTI;
 
 	if (local->monitors)
-		new_flags |= FIF_CONTROL |
-			     FIF_OTHER_BSS |
-			     FIF_BCN_PRBRESP_PROMISC;
+		new_flags |= FIF_BCN_PRBRESP_PROMISC;
+
+	if (local->fif_fcsfail)
+		new_flags |= FIF_FCSFAIL;
+
+	if (local->fif_plcpfail)
+		new_flags |= FIF_PLCPFAIL;
+
+	if (local->fif_control)
+		new_flags |= FIF_CONTROL;
+
+	if (local->fif_other_bss)
+		new_flags |= FIF_OTHER_BSS;
 
 	changed_flags = local->filter_flags ^ new_flags;
 
@@ -231,13 +241,21 @@ static int ieee80211_open(struct net_device *dev)
 	case IEEE80211_IF_TYPE_MNTR:
 		/* must be before the call to ieee80211_configure_filter */
 		local->monitors++;
-		if (local->monitors == 1) {
-			netif_tx_lock_bh(local->mdev);
-			ieee80211_configure_filter(local);
-			netif_tx_unlock_bh(local->mdev);
-
+		if (local->monitors == 1)
 			local->hw.conf.flags |= IEEE80211_CONF_RADIOTAP;
-		}
+
+		if (sdata->u.mntr_flags & MONITOR_FLAG_FCSFAIL)
+			local->fif_fcsfail++;
+		if (sdata->u.mntr_flags & MONITOR_FLAG_PLCPFAIL)
+			local->fif_plcpfail++;
+		if (sdata->u.mntr_flags & MONITOR_FLAG_CONTROL)
+			local->fif_control++;
+		if (sdata->u.mntr_flags & MONITOR_FLAG_OTHER_BSS)
+			local->fif_other_bss++;
+
+		netif_tx_lock_bh(local->mdev);
+		ieee80211_configure_filter(local);
+		netif_tx_unlock_bh(local->mdev);
 		break;
 	case IEEE80211_IF_TYPE_STA:
 	case IEEE80211_IF_TYPE_IBSS:
@@ -353,13 +371,21 @@ static int ieee80211_stop(struct net_device *dev)
 		break;
 	case IEEE80211_IF_TYPE_MNTR:
 		local->monitors--;
-		if (local->monitors == 0) {
-			netif_tx_lock_bh(local->mdev);
-			ieee80211_configure_filter(local);
-			netif_tx_unlock_bh(local->mdev);
-
+		if (local->monitors == 0)
 			local->hw.conf.flags &= ~IEEE80211_CONF_RADIOTAP;
-		}
+
+		if (sdata->u.mntr_flags & MONITOR_FLAG_FCSFAIL)
+			local->fif_fcsfail--;
+		if (sdata->u.mntr_flags & MONITOR_FLAG_PLCPFAIL)
+			local->fif_plcpfail--;
+		if (sdata->u.mntr_flags & MONITOR_FLAG_CONTROL)
+			local->fif_control--;
+		if (sdata->u.mntr_flags & MONITOR_FLAG_OTHER_BSS)
+			local->fif_other_bss--;
+
+		netif_tx_lock_bh(local->mdev);
+		ieee80211_configure_filter(local);
+		netif_tx_unlock_bh(local->mdev);
 		break;
 	case IEEE80211_IF_TYPE_STA:
 	case IEEE80211_IF_TYPE_IBSS:
