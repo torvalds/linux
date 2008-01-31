@@ -4,7 +4,6 @@
  *
  *	(C) 2001  Marc Boucher (marc@mbsi.ca).
  *	Copyright © CC Computer Consultants GmbH, 2007 - 2008
- *	Jan Engelhardt <jengelh@computergmbh.de>
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License version 2 as
@@ -20,6 +19,7 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Marc Boucher <marc@mbsi.ca>");
+MODULE_AUTHOR("Jan Engelhardt <jengelh@computergmbh.de>");
 MODULE_DESCRIPTION("Xtables: connection tracking state match");
 MODULE_ALIAS("ipt_conntrack");
 MODULE_ALIAS("ip6t_conntrack");
@@ -166,6 +166,44 @@ conntrack_mt_repldst(const struct nf_conn *ct,
 	       &info->repldst_addr, &info->repldst_mask, family);
 }
 
+static inline bool
+ct_proto_port_check(const struct xt_conntrack_mtinfo1 *info,
+                    const struct nf_conn *ct)
+{
+	const struct nf_conntrack_tuple *tuple;
+
+	tuple = &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple;
+	if ((info->match_flags & XT_CONNTRACK_PROTO) &&
+	    (tuple->dst.protonum == info->l4proto) ^
+	    !(info->invert_flags & XT_CONNTRACK_PROTO))
+		return false;
+
+	/* Shortcut to match all recognized protocols by using ->src.all. */
+	if ((info->match_flags & XT_CONNTRACK_ORIGSRC_PORT) &&
+	    (tuple->src.u.all == info->origsrc_port) ^
+	    !(info->invert_flags & XT_CONNTRACK_ORIGSRC_PORT))
+		return false;
+
+	if ((info->match_flags & XT_CONNTRACK_ORIGDST_PORT) &&
+	    (tuple->dst.u.all == info->origdst_port) ^
+	    !(info->invert_flags & XT_CONNTRACK_ORIGDST_PORT))
+		return false;
+
+	tuple = &ct->tuplehash[IP_CT_DIR_REPLY].tuple;
+
+	if ((info->match_flags & XT_CONNTRACK_REPLSRC_PORT) &&
+	    (tuple->src.u.all == info->replsrc_port) ^
+	    !(info->invert_flags & XT_CONNTRACK_REPLSRC_PORT))
+		return false;
+
+	if ((info->match_flags & XT_CONNTRACK_REPLDST_PORT) &&
+	    (tuple->dst.u.all == info->repldst_port) ^
+	    !(info->invert_flags & XT_CONNTRACK_REPLDST_PORT))
+		return false;
+
+	return true;
+}
+
 static bool
 conntrack_mt(const struct sk_buff *skb, const struct net_device *in,
              const struct net_device *out, const struct xt_match *match,
@@ -200,10 +238,9 @@ conntrack_mt(const struct sk_buff *skb, const struct net_device *in,
 
 	if (ct == NULL)
 		return info->match_flags & XT_CONNTRACK_STATE;
-
-	if ((info->match_flags & XT_CONNTRACK_PROTO) &&
-	    ((ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum ==
-	    info->l4proto) ^ !(info->invert_flags & XT_CONNTRACK_PROTO)))
+	if ((info->match_flags & XT_CONNTRACK_DIRECTION) &&
+	    (CTINFO2DIR(ctinfo) == IP_CT_DIR_ORIGINAL) ^
+	    !!(info->invert_flags & XT_CONNTRACK_DIRECTION))
 		return false;
 
 	if (info->match_flags & XT_CONNTRACK_ORIGSRC)
@@ -225,6 +262,9 @@ conntrack_mt(const struct sk_buff *skb, const struct net_device *in,
 		if (conntrack_mt_repldst(ct, info, match->family) ^
 		    !(info->invert_flags & XT_CONNTRACK_REPLDST))
 			return false;
+
+	if (!ct_proto_port_check(info, ct))
+		return false;
 
 	if ((info->match_flags & XT_CONNTRACK_STATUS) &&
 	    (!!(info->status_mask & ct->status) ^
