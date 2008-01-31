@@ -19,6 +19,9 @@
  *
  * 3. rotary can be either interpreted as a relative input event (e.g.
  *    REL_WHEEL/REL_HWHEEL) or specific keys (e.g. UP/DOWN/LEFT/RIGHT)
+ *
+ * 4. matrix key and direct key will use the same debounce_interval by
+ *    default, which should be sufficient in most cases
  */
 struct pxa27x_keypad_platform_data {
 
@@ -43,6 +46,9 @@ struct pxa27x_keypad_platform_data {
 	int		rotary1_rel_code;
 	int		rotary1_up_key;
 	int		rotary1_down_key;
+
+	/* key debounce interval */
+	unsigned int	debounce_interval;
 };
 
 #define KEY(row, col, val)	(((row) << 28) | ((col) << 24) | (val))

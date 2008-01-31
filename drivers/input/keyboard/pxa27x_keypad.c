@@ -357,6 +357,7 @@ static void pxa27x_keypad_config(struct pxa27x_keypad *keypad)
 
 	keypad_writel(KPC, kpc | KPC_RE_ZERO_DEB);
 	keypad_writel(KPREC, DEFAULT_KPREC);
+	keypad_writel(KPKDI, pdata->debounce_interval);
 }
 
 static int pxa27x_keypad_open(struct input_dev *dev)
