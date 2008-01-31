@@ -136,4 +136,5 @@ static void __exit ebt_arp_fini(void)
 
 module_init(ebt_arp_init);
 module_exit(ebt_arp_fini);
+MODULE_DESCRIPTION("Ebtables: ARP protocol packet match");
 MODULE_LICENSE("GPL");

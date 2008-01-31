@@ -212,4 +212,5 @@ static void __exit ebt_log_fini(void)
 
 module_init(ebt_log_init);
 module_exit(ebt_log_fini);
+MODULE_DESCRIPTION("Ebtables: Packet logging to syslog");
 MODULE_LICENSE("GPL");

@@ -231,4 +231,5 @@ static void __exit ebt_among_fini(void)
 
 module_init(ebt_among_init);
 module_exit(ebt_among_fini);
+MODULE_DESCRIPTION("Ebtables: Combined MAC/IP address list matching");
 MODULE_LICENSE("GPL");

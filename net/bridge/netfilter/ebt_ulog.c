@@ -340,5 +340,4 @@ module_init(ebt_ulog_init);
 module_exit(ebt_ulog_fini);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Bart De Schuymer <bdschuym@pandora.be>");
-MODULE_DESCRIPTION("ebtables userspace logging module for bridged Ethernet"
-		   " frames");
+MODULE_DESCRIPTION("Ebtables: Packet logging to netlink using ULOG");

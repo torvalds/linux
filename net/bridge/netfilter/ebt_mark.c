@@ -77,4 +77,5 @@ static void __exit ebt_mark_fini(void)
 
 module_init(ebt_mark_init);
 module_exit(ebt_mark_fini);
+MODULE_DESCRIPTION("Ebtables: Packet mark modification");
 MODULE_LICENSE("GPL");

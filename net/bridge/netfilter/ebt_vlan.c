@@ -31,8 +31,7 @@ static int debug;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "debug=1 is turn on debug messages");
 MODULE_AUTHOR("Nick Fedchik <nick@fedchik.org.ua>");
-MODULE_DESCRIPTION("802.1Q match module (ebtables extension), v"
-		   MODULE_VERS);
+MODULE_DESCRIPTION("Ebtables: 802.1Q VLAN tag match");
 MODULE_LICENSE("GPL");
 
 

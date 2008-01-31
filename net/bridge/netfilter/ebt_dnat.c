@@ -66,4 +66,5 @@ static void __exit ebt_dnat_fini(void)
 
 module_init(ebt_dnat_init);
 module_exit(ebt_dnat_fini);
+MODULE_DESCRIPTION("Ebtables: Destination MAC address translation");
 MODULE_LICENSE("GPL");
