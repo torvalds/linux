@@ -98,8 +98,8 @@ static int ct_seq_show(struct seq_file *s, void *v)
 {
 	const struct nf_conntrack_tuple_hash *hash = v;
 	const struct nf_conn *ct = nf_ct_tuplehash_to_ctrack(hash);
-	struct nf_conntrack_l3proto *l3proto;
-	struct nf_conntrack_l4proto *l4proto;
+	const struct nf_conntrack_l3proto *l3proto;
+	const struct nf_conntrack_l4proto *l4proto;
 
 	NF_CT_ASSERT(ct);
 
@@ -251,7 +251,7 @@ static void exp_seq_stop(struct seq_file *seq, void *v)
 static int exp_seq_show(struct seq_file *s, void *v)
 {
 	struct nf_conntrack_expect *exp;
-	struct hlist_node *n = v;
+	const struct hlist_node *n = v;
 
 	exp = hlist_entry(n, struct nf_conntrack_expect, hnode);
 
@@ -332,7 +332,7 @@ static void ct_cpu_seq_stop(struct seq_file *seq, void *v)
 static int ct_cpu_seq_show(struct seq_file *seq, void *v)
 {
 	unsigned int nr_conntracks = atomic_read(&nf_conntrack_count);
-	struct ip_conntrack_stat *st = v;
+	const struct ip_conntrack_stat *st = v;
 
 	if (v == SEQ_START_TOKEN) {
 		seq_printf(seq, "entries  searched found new invalid ignore delete delete_list insert insert_failed drop early_drop icmp_error  expect_new expect_create expect_delete\n");
