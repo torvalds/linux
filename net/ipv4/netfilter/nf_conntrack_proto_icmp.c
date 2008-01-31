@@ -26,7 +26,8 @@ static int icmp_pkt_to_tuple(const struct sk_buff *skb,
 			     unsigned int dataoff,
 			     struct nf_conntrack_tuple *tuple)
 {
-	struct icmphdr _hdr, *hp;
+	const struct icmphdr *hp;
+	struct icmphdr _hdr;
 
 	hp = skb_header_pointer(skb, dataoff, sizeof(_hdr), &_hdr);
 	if (hp == NULL)
@@ -129,8 +130,8 @@ icmp_error_message(struct sk_buff *skb,
 		 unsigned int hooknum)
 {
 	struct nf_conntrack_tuple innertuple, origtuple;
-	struct nf_conntrack_l4proto *innerproto;
-	struct nf_conntrack_tuple_hash *h;
+	const struct nf_conntrack_l4proto *innerproto;
+	const struct nf_conntrack_tuple_hash *h;
 
 	NF_CT_ASSERT(skb->nfct == NULL);
 
@@ -176,7 +177,8 @@ static int
 icmp_error(struct sk_buff *skb, unsigned int dataoff,
 	   enum ip_conntrack_info *ctinfo, int pf, unsigned int hooknum)
 {
-	struct icmphdr _ih, *icmph;
+	const struct icmphdr *icmph;
+	struct icmphdr _ih;
 
 	/* Not enough header? */
 	icmph = skb_header_pointer(skb, ip_hdrlen(skb), sizeof(_ih), &_ih);
