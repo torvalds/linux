@@ -274,8 +274,10 @@ void __init cpu_detect(struct cpuinfo_x86 *c)
 		if (c->x86 >= 0x6)
 			c->x86_model += ((tfms >> 16) & 0xF) << 4;
 		c->x86_mask = tfms & 15;
-		if (cap0 & (1<<19))
+		if (cap0 & (1<<19)) {
 			c->x86_cache_alignment = ((misc >> 8) & 0xff) * 8;
+			c->x86_clflush_size = ((misc >> 8) & 0xff) * 8;
+		}
 	}
 }
 static void __cpuinit early_get_cap(struct cpuinfo_x86 *c)
@@ -317,6 +319,7 @@ static void __init early_cpu_detect(void)
 	struct cpuinfo_x86 *c = &boot_cpu_data;
 
 	c->x86_cache_alignment = 32;
+	c->x86_clflush_size = 32;
 
 	if (!have_cpuid_p())
 		return;
