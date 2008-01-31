@@ -154,8 +154,8 @@ find_appropriate_src(const struct nf_conntrack_tuple *tuple,
 	struct nf_conn *ct;
 	struct hlist_node *n;
 
-	read_lock_bh(&nf_nat_lock);
-	hlist_for_each_entry(nat, n, &bysource[h], bysource) {
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(nat, n, &bysource[h], bysource) {
 		ct = nat->ct;
 		if (same_src(ct, tuple)) {
 			/* Copy source part from reply tuple. */
@@ -164,12 +164,12 @@ find_appropriate_src(const struct nf_conntrack_tuple *tuple,
 			result->dst = tuple->dst;
 
 			if (in_range(result, range)) {
-				read_unlock_bh(&nf_nat_lock);
+				rcu_read_unlock();
 				return 1;
 			}
 		}
 	}
-	read_unlock_bh(&nf_nat_lock);
+	rcu_read_unlock();
 	return 0;
 }
 
@@ -334,7 +334,7 @@ nf_nat_setup_info(struct nf_conn *ct,
 		/* nf_conntrack_alter_reply might re-allocate exntension aera */
 		nat = nfct_nat(ct);
 		nat->ct = ct;
-		hlist_add_head(&nat->bysource, &bysource[srchash]);
+		hlist_add_head_rcu(&nat->bysource, &bysource[srchash]);
 		write_unlock_bh(&nf_nat_lock);
 	}
 
@@ -595,7 +595,7 @@ static void nf_nat_cleanup_conntrack(struct nf_conn *ct)
 	NF_CT_ASSERT(nat->ct->status & IPS_NAT_DONE_MASK);
 
 	write_lock_bh(&nf_nat_lock);
-	hlist_del(&nat->bysource);
+	hlist_del_rcu(&nat->bysource);
 	nat->ct = NULL;
 	write_unlock_bh(&nf_nat_lock);
 }
