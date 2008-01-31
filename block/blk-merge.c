@@ -32,7 +32,7 @@ void blk_recalc_rq_sectors(struct request *rq, int nsect)
 		 * size, something has gone terribly wrong
 		 */
 		if (rq->nr_sectors < rq->current_nr_sectors) {
-			printk("blk: request botched\n");
+			printk(KERN_ERR "blk: request botched\n");
 			rq->nr_sectors = rq->current_nr_sectors;
 		}
 	}
@@ -235,7 +235,6 @@ new_segment:
 
 	return nsegs;
 }
-
 EXPORT_SYMBOL(blk_rq_map_sg);
 
 static inline int ll_new_mergeable(struct request_queue *q,
@@ -305,8 +304,8 @@ int ll_back_merge_fn(struct request_queue *q, struct request *req,
 	if (unlikely(!bio_flagged(bio, BIO_SEG_VALID)))
 		blk_recount_segments(q, bio);
 	len = req->biotail->bi_hw_back_size + bio->bi_hw_front_size;
-	if (BIOVEC_VIRT_MERGEABLE(__BVEC_END(req->biotail), __BVEC_START(bio)) &&
-	    !BIOVEC_VIRT_OVERSIZE(len)) {
+	if (BIOVEC_VIRT_MERGEABLE(__BVEC_END(req->biotail), __BVEC_START(bio))
+	    && !BIOVEC_VIRT_OVERSIZE(len)) {
 		int mergeable =  ll_new_mergeable(q, req, bio);
 
 		if (mergeable) {
@@ -321,7 +320,7 @@ int ll_back_merge_fn(struct request_queue *q, struct request *req,
 	return ll_new_hw_segment(q, req, bio);
 }
 
-int ll_front_merge_fn(struct request_queue *q, struct request *req, 
+int ll_front_merge_fn(struct request_queue *q, struct request *req,
 		      struct bio *bio)
 {
 	unsigned short max_sectors;
@@ -388,7 +387,8 @@ static int ll_merge_requests_fn(struct request_queue *q, struct request *req,
 
 	total_hw_segments = req->nr_hw_segments + next->nr_hw_segments;
 	if (blk_hw_contig_segment(q, req->biotail, next->bio)) {
-		int len = req->biotail->bi_hw_back_size + next->bio->bi_hw_front_size;
+		int len = req->biotail->bi_hw_back_size +
+				next->bio->bi_hw_front_size;
 		/*
 		 * propagate the combined length to the end of the requests
 		 */

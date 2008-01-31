@@ -207,12 +207,13 @@ queue_attr_store(struct kobject *kobj, struct attribute *attr,
 		    const char *page, size_t length)
 {
 	struct queue_sysfs_entry *entry = to_queue(attr);
-	struct request_queue *q = container_of(kobj, struct request_queue, kobj);
-
+	struct request_queue *q;
 	ssize_t res;
 
 	if (!entry->store)
 		return -EIO;
+
+	q = container_of(kobj, struct request_queue, kobj);
 	mutex_lock(&q->sysfs_lock);
 	if (test_bit(QUEUE_FLAG_DEAD, &q->queue_flags)) {
 		mutex_unlock(&q->sysfs_lock);

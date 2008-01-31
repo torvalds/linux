@@ -101,5 +101,4 @@ int blk_execute_rq(struct request_queue *q, struct gendisk *bd_disk,
 
 	return err;
 }
-
 EXPORT_SYMBOL(blk_execute_rq);

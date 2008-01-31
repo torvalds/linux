@@ -21,7 +21,6 @@ struct request *blk_queue_find_tag(struct request_queue *q, int tag)
 {
 	return blk_map_queue_find_tag(q->queue_tags, tag);
 }
-
 EXPORT_SYMBOL(blk_queue_find_tag);
 
 /**
@@ -99,7 +98,6 @@ void blk_queue_free_tags(struct request_queue *q)
 {
 	clear_bit(QUEUE_FLAG_QUEUED, &q->queue_flags);
 }
-
 EXPORT_SYMBOL(blk_queue_free_tags);
 
 static int
@@ -185,7 +183,8 @@ int blk_queue_init_tags(struct request_queue *q, int depth,
 		if (!tags)
 			goto fail;
 	} else if (q->queue_tags) {
-		if ((rc = blk_queue_resize_tags(q, depth)))
+		rc = blk_queue_resize_tags(q, depth);
+		if (rc)
 			return rc;
 		set_bit(QUEUE_FLAG_QUEUED, &q->queue_flags);
 		return 0;
@@ -203,7 +202,6 @@ fail:
 	kfree(tags);
 	return -ENOMEM;
 }
-
 EXPORT_SYMBOL(blk_queue_init_tags);
 
 /**
@@ -260,7 +258,6 @@ int blk_queue_resize_tags(struct request_queue *q, int new_depth)
 	kfree(tag_map);
 	return 0;
 }
-
 EXPORT_SYMBOL(blk_queue_resize_tags);
 
 /**
@@ -313,7 +310,6 @@ void blk_queue_end_tag(struct request_queue *q, struct request *rq)
 	clear_bit_unlock(tag, bqt->tag_map);
 	bqt->busy--;
 }
-
 EXPORT_SYMBOL(blk_queue_end_tag);
 
 /**
@@ -340,7 +336,7 @@ int blk_queue_start_tag(struct request_queue *q, struct request *rq)
 	int tag;
 
 	if (unlikely((rq->cmd_flags & REQ_QUEUED))) {
-		printk(KERN_ERR 
+		printk(KERN_ERR
 		       "%s: request %p for device [%s] already tagged %d",
 		       __FUNCTION__, rq,
 		       rq->rq_disk ? rq->rq_disk->disk_name : "?", rq->tag);
@@ -370,7 +366,6 @@ int blk_queue_start_tag(struct request_queue *q, struct request *rq)
 	bqt->busy++;
 	return 0;
 }
-
 EXPORT_SYMBOL(blk_queue_start_tag);
 
 /**
@@ -392,5 +387,4 @@ void blk_queue_invalidate_tags(struct request_queue *q)
 	list_for_each_safe(tmp, n, &q->tag_busy_list)
 		blk_requeue_request(q, list_entry_rq(tmp));
 }
-
 EXPORT_SYMBOL(blk_queue_invalidate_tags);
