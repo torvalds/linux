@@ -866,6 +866,7 @@ static struct hlist_node *get_idx(struct iter_state *st, loff_t pos)
 }
 
 static void *seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(instances_lock)
 {
 	read_lock_bh(&instances_lock);
 	return get_idx(seq->private, *pos);
@@ -878,6 +879,7 @@ static void *seq_next(struct seq_file *s, void *v, loff_t *pos)
 }
 
 static void seq_stop(struct seq_file *s, void *v)
+	__releases(instances_lock)
 {
 	read_unlock_bh(&instances_lock);
 }
