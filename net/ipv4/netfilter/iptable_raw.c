@@ -14,7 +14,7 @@ static struct
 	struct ipt_replace repl;
 	struct ipt_standard entries[2];
 	struct ipt_error term;
-} initial_table __initdata = {
+} initial_table __net_initdata = {
 	.repl = {
 		.name = "raw",
 		.valid_hooks = RAW_VALID_HOOKS,
@@ -36,14 +36,13 @@ static struct
 	.term = IPT_ERROR_INIT,			/* ERROR */
 };
 
-static struct xt_table __packet_raw = {
+static struct xt_table packet_raw = {
 	.name = "raw",
 	.valid_hooks =  RAW_VALID_HOOKS,
 	.lock = RW_LOCK_UNLOCKED,
 	.me = THIS_MODULE,
 	.af = AF_INET,
 };
-static struct xt_table *packet_raw;
 
 /* The work comes in here from netfilter.c. */
 static unsigned int
@@ -53,7 +52,7 @@ ipt_hook(unsigned int hook,
 	 const struct net_device *out,
 	 int (*okfn)(struct sk_buff *))
 {
-	return ipt_do_table(skb, hook, in, out, packet_raw);
+	return ipt_do_table(skb, hook, in, out, init_net.ipv4.iptable_raw);
 }
 
 static unsigned int
@@ -71,7 +70,7 @@ ipt_local_hook(unsigned int hook,
 			       "packet.\n");
 		return NF_ACCEPT;
 	}
-	return ipt_do_table(skb, hook, in, out, packet_raw);
+	return ipt_do_table(skb, hook, in, out, init_net.ipv4.iptable_raw);
 }
 
 /* 'raw' is the very first table. */
@@ -92,15 +91,33 @@ static struct nf_hook_ops ipt_ops[] __read_mostly = {
 	},
 };
 
+static int __net_init iptable_raw_net_init(struct net *net)
+{
+	/* Register table */
+	net->ipv4.iptable_raw =
+		ipt_register_table(net, &packet_raw, &initial_table.repl);
+	if (IS_ERR(net->ipv4.iptable_raw))
+		return PTR_ERR(net->ipv4.iptable_raw);
+	return 0;
+}
+
+static void __net_exit iptable_raw_net_exit(struct net *net)
+{
+	ipt_unregister_table(net->ipv4.iptable_raw);
+}
+
+static struct pernet_operations iptable_raw_net_ops = {
+	.init = iptable_raw_net_init,
+	.exit = iptable_raw_net_exit,
+};
+
 static int __init iptable_raw_init(void)
 {
 	int ret;
 
-	/* Register table */
-	packet_raw = ipt_register_table(&init_net, &__packet_raw,
-					&initial_table.repl);
-	if (IS_ERR(packet_raw))
-		return PTR_ERR(packet_raw);
+	ret = register_pernet_subsys(&iptable_raw_net_ops);
+	if (ret < 0)
+		return ret;
 
 	/* Register hooks */
 	ret = nf_register_hooks(ipt_ops, ARRAY_SIZE(ipt_ops));
@@ -110,14 +127,14 @@ static int __init iptable_raw_init(void)
 	return ret;
 
  cleanup_table:
-	ipt_unregister_table(packet_raw);
+	unregister_pernet_subsys(&iptable_raw_net_ops);
 	return ret;
 }
 
 static void __exit iptable_raw_fini(void)
 {
 	nf_unregister_hooks(ipt_ops, ARRAY_SIZE(ipt_ops));
-	ipt_unregister_table(packet_raw);
+	unregister_pernet_subsys(&iptable_raw_net_ops);
 }
 
 module_init(iptable_raw_init);
