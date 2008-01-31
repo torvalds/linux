@@ -1167,11 +1167,12 @@ ctnetlink_create_conntrack(struct nlattr *cda[],
 		ct->mark = ntohl(nla_get_be32(cda[CTA_MARK]));
 #endif
 
-	helper = nf_ct_helper_find_get(rtuple);
+	rcu_read_lock();
+	helper = __nf_ct_helper_find(rtuple);
 	if (helper) {
 		help = nf_ct_helper_ext_add(ct, GFP_KERNEL);
 		if (help == NULL) {
-			nf_ct_helper_put(helper);
+			rcu_read_unlock();
 			err = -ENOMEM;
 			goto err;
 		}
@@ -1187,9 +1188,7 @@ ctnetlink_create_conntrack(struct nlattr *cda[],
 
 	add_timer(&ct->timeout);
 	nf_conntrack_hash_insert(ct);
-
-	if (helper)
-		nf_ct_helper_put(helper);
+	rcu_read_unlock();
 
 	return 0;
 
