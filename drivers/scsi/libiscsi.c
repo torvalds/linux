@@ -1384,14 +1384,11 @@ static void iscsi_check_transport_timeouts(unsigned long data)
 			iscsi_send_nopout(conn, NULL);
 		}
 		next_timeout = last_recv + timeout + (conn->ping_timeout * HZ);
-	} else {
+	} else
 		next_timeout = last_recv + timeout;
-	}
 
-	if (next_timeout) {
-		debug_scsi("Setting next tmo %lu\n", next_timeout);
-		mod_timer(&conn->transport_timer, next_timeout);
-	}
+	debug_scsi("Setting next tmo %lu\n", next_timeout);
+	mod_timer(&conn->transport_timer, next_timeout);
 done:
 	spin_unlock(&session->lock);
 }
