@@ -70,8 +70,6 @@ enum {
 #define ISCSI_SUSPEND_BIT		1
 
 #define ISCSI_ITT_MASK			(0xfff)
-#define ISCSI_CID_SHIFT			12
-#define ISCSI_CID_MASK			(0xffff << ISCSI_CID_SHIFT)
 #define ISCSI_AGE_SHIFT			28
 #define ISCSI_AGE_MASK			(0xf << ISCSI_AGE_SHIFT)
 

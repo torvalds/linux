@@ -160,7 +160,7 @@ static int iscsi_prep_scsi_cmd_pdu(struct iscsi_cmd_task *ctask)
 	hdr->opcode = ISCSI_OP_SCSI_CMD;
 	hdr->flags = ISCSI_ATTR_SIMPLE;
 	int_to_scsilun(sc->device->lun, (struct scsi_lun *)hdr->lun);
-	hdr->itt = build_itt(ctask->itt, conn->id, session->age);
+	hdr->itt = build_itt(ctask->itt, session->age);
 	hdr->data_length = cpu_to_be32(scsi_bufflen(sc));
 	hdr->cmdsn = cpu_to_be32(session->cmdsn);
 	session->cmdsn++;
@@ -705,14 +705,6 @@ int iscsi_verify_itt(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 			return ISCSI_ERR_BAD_ITT;
 		}
 
-		if (((__force u32)hdr->itt & ISCSI_CID_MASK) !=
-		    (conn->id << ISCSI_CID_SHIFT)) {
-			iscsi_conn_printk(KERN_ERR, conn,
-					  "iscsi: received itt %x, expected "
-					  "CID (%x)\n",
-					  (__force u32)hdr->itt, conn->id);
-			return ISCSI_ERR_BAD_ITT;
-		}
 		itt = get_itt(hdr->itt);
 	} else
 		itt = ~0U;
@@ -776,7 +768,7 @@ static void iscsi_prep_mtask(struct iscsi_conn *conn,
 	 */
 	nop->cmdsn = cpu_to_be32(session->cmdsn);
 	if (hdr->itt != RESERVED_ITT) {
-		hdr->itt = build_itt(mtask->itt, conn->id, session->age);
+		hdr->itt = build_itt(mtask->itt, session->age);
 		/*
 		 * TODO: We always use immediate, so we never hit this.
 		 * If we start to send tmfs or nops as non-immediate then
@@ -2036,6 +2028,8 @@ int iscsi_conn_start(struct iscsi_cls_conn *cls_conn)
 		conn->stop_stage = 0;
 		conn->tmf_state = TMF_INITIAL;
 		session->age++;
+		if (session->age == 16)
+			session->age = 0;
 		break;
 	case STOP_CONN_TERM:
 		conn->stop_stage = 0;
