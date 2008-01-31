@@ -223,7 +223,7 @@ int ds_free(void **dsp)
 	if (*dsp)
 		kfree((void *)get_bts_buffer_base(*dsp));
 	kfree(*dsp);
-	*dsp = 0;
+	*dsp = NULL;
 
 	return 0;
 }
