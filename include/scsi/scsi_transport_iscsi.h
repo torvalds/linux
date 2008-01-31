@@ -203,6 +203,7 @@ struct iscsi_cls_session {
 
 struct iscsi_host {
 	struct list_head sessions;
+	atomic_t nr_scans;
 	struct mutex mutex;
 	struct workqueue_struct *scan_workq;
 	char scan_workq_name[KOBJ_NAME_LEN];
@@ -229,6 +230,6 @@ extern struct iscsi_cls_conn *iscsi_create_conn(struct iscsi_cls_session *sess,
 extern int iscsi_destroy_conn(struct iscsi_cls_conn *conn);
 extern void iscsi_unblock_session(struct iscsi_cls_session *session);
 extern void iscsi_block_session(struct iscsi_cls_session *session);
-
+extern int iscsi_scan_finished(struct Scsi_Host *shost, unsigned long time);
 
 #endif
