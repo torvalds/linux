@@ -166,8 +166,8 @@ static void
 clean_from_lists(struct nf_conn *ct)
 {
 	pr_debug("clean_from_lists(%p)\n", ct);
-	hlist_del(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnode);
-	hlist_del(&ct->tuplehash[IP_CT_DIR_REPLY].hnode);
+	hlist_del_rcu(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnode);
+	hlist_del_rcu(&ct->tuplehash[IP_CT_DIR_REPLY].hnode);
 
 	/* Destroy all pending expectations */
 	nf_ct_remove_expectations(ct);
@@ -253,7 +253,7 @@ __nf_conntrack_find(const struct nf_conntrack_tuple *tuple,
 	struct hlist_node *n;
 	unsigned int hash = hash_conntrack(tuple);
 
-	hlist_for_each_entry(h, n, &nf_conntrack_hash[hash], hnode) {
+	hlist_for_each_entry_rcu(h, n, &nf_conntrack_hash[hash], hnode) {
 		if (nf_ct_tuplehash_to_ctrack(h) != ignored_conntrack &&
 		    nf_ct_tuple_equal(tuple, &h->tuple)) {
 			NF_CT_STAT_INC(found);
@@ -271,12 +271,16 @@ struct nf_conntrack_tuple_hash *
 nf_conntrack_find_get(const struct nf_conntrack_tuple *tuple)
 {
 	struct nf_conntrack_tuple_hash *h;
+	struct nf_conn *ct;
 
-	read_lock_bh(&nf_conntrack_lock);
+	rcu_read_lock();
 	h = __nf_conntrack_find(tuple, NULL);
-	if (h)
-		atomic_inc(&nf_ct_tuplehash_to_ctrack(h)->ct_general.use);
-	read_unlock_bh(&nf_conntrack_lock);
+	if (h) {
+		ct = nf_ct_tuplehash_to_ctrack(h);
+		if (unlikely(!atomic_inc_not_zero(&ct->ct_general.use)))
+			h = NULL;
+	}
+	rcu_read_unlock();
 
 	return h;
 }
@@ -286,10 +290,10 @@ static void __nf_conntrack_hash_insert(struct nf_conn *ct,
 				       unsigned int hash,
 				       unsigned int repl_hash)
 {
-	hlist_add_head(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnode,
-		       &nf_conntrack_hash[hash]);
-	hlist_add_head(&ct->tuplehash[IP_CT_DIR_REPLY].hnode,
-		       &nf_conntrack_hash[repl_hash]);
+	hlist_add_head_rcu(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnode,
+			   &nf_conntrack_hash[hash]);
+	hlist_add_head_rcu(&ct->tuplehash[IP_CT_DIR_REPLY].hnode,
+			   &nf_conntrack_hash[repl_hash]);
 }
 
 void nf_conntrack_hash_insert(struct nf_conn *ct)
@@ -392,9 +396,9 @@ nf_conntrack_tuple_taken(const struct nf_conntrack_tuple *tuple,
 {
 	struct nf_conntrack_tuple_hash *h;
 
-	read_lock_bh(&nf_conntrack_lock);
+	rcu_read_lock();
 	h = __nf_conntrack_find(tuple, ignored_conntrack);
-	read_unlock_bh(&nf_conntrack_lock);
+	rcu_read_unlock();
 
 	return h != NULL;
 }
@@ -413,21 +417,23 @@ static int early_drop(unsigned int hash)
 	unsigned int i, cnt = 0;
 	int dropped = 0;
 
-	read_lock_bh(&nf_conntrack_lock);
+	rcu_read_lock();
 	for (i = 0; i < nf_conntrack_htable_size; i++) {
-		hlist_for_each_entry(h, n, &nf_conntrack_hash[hash], hnode) {
+		hlist_for_each_entry_rcu(h, n, &nf_conntrack_hash[hash],
+					 hnode) {
 			tmp = nf_ct_tuplehash_to_ctrack(h);
 			if (!test_bit(IPS_ASSURED_BIT, &tmp->status))
 				ct = tmp;
 			cnt++;
 		}
+
+		if (ct && unlikely(!atomic_inc_not_zero(&ct->ct_general.use)))
+			ct = NULL;
 		if (ct || cnt >= NF_CT_EVICTION_RANGE)
 			break;
 		hash = (hash + 1) % nf_conntrack_htable_size;
 	}
-	if (ct)
-		atomic_inc(&ct->ct_general.use);
-	read_unlock_bh(&nf_conntrack_lock);
+	rcu_read_unlock();
 
 	if (!ct)
 		return dropped;
@@ -480,16 +486,24 @@ struct nf_conn *nf_conntrack_alloc(const struct nf_conntrack_tuple *orig,
 	/* Don't set timer yet: wait for confirmation */
 	setup_timer(&conntrack->timeout, death_by_timeout,
 		    (unsigned long)conntrack);
+	INIT_RCU_HEAD(&conntrack->rcu);
 
 	return conntrack;
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_alloc);
 
+static void nf_conntrack_free_rcu(struct rcu_head *head)
+{
+	struct nf_conn *ct = container_of(head, struct nf_conn, rcu);
+
+	nf_ct_ext_free(ct);
+	kmem_cache_free(nf_conntrack_cachep, ct);
+	atomic_dec(&nf_conntrack_count);
+}
+
 void nf_conntrack_free(struct nf_conn *conntrack)
 {
-	nf_ct_ext_free(conntrack);
-	kmem_cache_free(nf_conntrack_cachep, conntrack);
-	atomic_dec(&nf_conntrack_count);
+	call_rcu(&conntrack->rcu, nf_conntrack_free_rcu);
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_free);
 
@@ -1036,12 +1050,17 @@ int nf_conntrack_set_hashsize(const char *val, struct kernel_param *kp)
 	 * use a newrandom seed */
 	get_random_bytes(&rnd, 4);
 
+	/* Lookups in the old hash might happen in parallel, which means we
+	 * might get false negatives during connection lookup. New connections
+	 * created because of a false negative won't make it into the hash
+	 * though since that required taking the lock.
+	 */
 	write_lock_bh(&nf_conntrack_lock);
 	for (i = 0; i < nf_conntrack_htable_size; i++) {
 		while (!hlist_empty(&nf_conntrack_hash[i])) {
 			h = hlist_entry(nf_conntrack_hash[i].first,
 					struct nf_conntrack_tuple_hash, hnode);
-			hlist_del(&h->hnode);
+			hlist_del_rcu(&h->hnode);
 			bucket = __hash_conntrack(&h->tuple, hashsize, rnd);
 			hlist_add_head(&h->hnode, &hash[bucket]);
 		}

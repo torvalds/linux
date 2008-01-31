@@ -129,6 +129,8 @@ struct nf_conn
 
 	/* Extensions */
 	struct nf_ct_ext *ext;
+
+	struct rcu_head rcu;
 };
 
 static inline struct nf_conn *

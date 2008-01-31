@@ -58,12 +58,14 @@ struct ct_iter_state {
 static struct hlist_node *ct_get_first(struct seq_file *seq)
 {
 	struct ct_iter_state *st = seq->private;
+	struct hlist_node *n;
 
 	for (st->bucket = 0;
 	     st->bucket < nf_conntrack_htable_size;
 	     st->bucket++) {
-		if (!hlist_empty(&nf_conntrack_hash[st->bucket]))
-			return nf_conntrack_hash[st->bucket].first;
+		n = rcu_dereference(nf_conntrack_hash[st->bucket].first);
+		if (n)
+			return n;
 	}
 	return NULL;
 }
@@ -73,11 +75,11 @@ static struct hlist_node *ct_get_next(struct seq_file *seq,
 {
 	struct ct_iter_state *st = seq->private;
 
-	head = head->next;
+	head = rcu_dereference(head->next);
 	while (head == NULL) {
 		if (++st->bucket >= nf_conntrack_htable_size)
 			return NULL;
-		head = nf_conntrack_hash[st->bucket].first;
+		head = rcu_dereference(nf_conntrack_hash[st->bucket].first);
 	}
 	return head;
 }
@@ -93,9 +95,9 @@ static struct hlist_node *ct_get_idx(struct seq_file *seq, loff_t pos)
 }
 
 static void *ct_seq_start(struct seq_file *seq, loff_t *pos)
-	__acquires(nf_conntrack_lock)
+	__acquires(RCU)
 {
-	read_lock_bh(&nf_conntrack_lock);
+	rcu_read_lock();
 	return ct_get_idx(seq, *pos);
 }
 
@@ -106,9 +108,9 @@ static void *ct_seq_next(struct seq_file *s, void *v, loff_t *pos)
 }
 
 static void ct_seq_stop(struct seq_file *s, void *v)
-	__releases(nf_conntrack_lock)
+	__releases(RCU)
 {
-	read_unlock_bh(&nf_conntrack_lock);
+	rcu_read_unlock();
 }
 
 /* return 0 on success, 1 in case of error */

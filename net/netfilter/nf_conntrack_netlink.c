@@ -545,12 +545,12 @@ ctnetlink_dump_table(struct sk_buff *skb, struct netlink_callback *cb)
 	struct nfgenmsg *nfmsg = NLMSG_DATA(cb->nlh);
 	u_int8_t l3proto = nfmsg->nfgen_family;
 
-	read_lock_bh(&nf_conntrack_lock);
+	rcu_read_lock();
 	last = (struct nf_conn *)cb->args[1];
 	for (; cb->args[0] < nf_conntrack_htable_size; cb->args[0]++) {
 restart:
-		hlist_for_each_entry(h, n, &nf_conntrack_hash[cb->args[0]],
-				     hnode) {
+		hlist_for_each_entry_rcu(h, n, &nf_conntrack_hash[cb->args[0]],
+					 hnode) {
 			if (NF_CT_DIRECTION(h) != IP_CT_DIR_ORIGINAL)
 				continue;
 			ct = nf_ct_tuplehash_to_ctrack(h);
@@ -568,7 +568,8 @@ restart:
 						cb->nlh->nlmsg_seq,
 						IPCTNL_MSG_CT_NEW,
 						1, ct) < 0) {
-				nf_conntrack_get(&ct->ct_general);
+				if (!atomic_inc_not_zero(&ct->ct_general.use))
+					continue;
 				cb->args[1] = (unsigned long)ct;
 				goto out;
 			}
@@ -584,7 +585,7 @@ restart:
 		}
 	}
 out:
-	read_unlock_bh(&nf_conntrack_lock);
+	rcu_read_unlock();
 	if (last)
 		nf_ct_put(last);
 
