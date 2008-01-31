@@ -232,7 +232,7 @@ static int inline is_ieee80211_device(struct net_device *dev,
 
 /* tx handlers */
 
-static ieee80211_txrx_result
+static ieee80211_tx_result
 ieee80211_tx_h_check_assoc(struct ieee80211_txrx_data *tx)
 {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
@@ -242,15 +242,15 @@ ieee80211_tx_h_check_assoc(struct ieee80211_txrx_data *tx)
 	u32 sta_flags;
 
 	if (unlikely(tx->flags & IEEE80211_TXRXD_TX_INJECTED))
-		return TXRX_CONTINUE;
+		return TX_CONTINUE;
 
 	if (unlikely(tx->local->sta_sw_scanning) &&
 	    ((tx->fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_MGMT ||
 	     (tx->fc & IEEE80211_FCTL_STYPE) != IEEE80211_STYPE_PROBE_REQ))
-		return TXRX_DROP;
+		return TX_DROP;
 
 	if (tx->flags & IEEE80211_TXRXD_TXPS_BUFFERED)
-		return TXRX_CONTINUE;
+		return TX_CONTINUE;
 
 	sta_flags = tx->sta ? tx->sta->flags : 0;
 
@@ -265,7 +265,7 @@ ieee80211_tx_h_check_assoc(struct ieee80211_txrx_data *tx)
 			       tx->dev->name, print_mac(mac, hdr->addr1));
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 			I802_DEBUG_INC(tx->local->tx_handlers_drop_not_assoc);
-			return TXRX_DROP;
+			return TX_DROP;
 		}
 	} else {
 		if (unlikely((tx->fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA &&
@@ -275,15 +275,15 @@ ieee80211_tx_h_check_assoc(struct ieee80211_txrx_data *tx)
 			 * No associated STAs - no need to send multicast
 			 * frames.
 			 */
-			return TXRX_DROP;
+			return TX_DROP;
 		}
-		return TXRX_CONTINUE;
+		return TX_CONTINUE;
 	}
 
-	return TXRX_CONTINUE;
+	return TX_CONTINUE;
 }
 
-static ieee80211_txrx_result
+static ieee80211_tx_result
 ieee80211_tx_h_sequence(struct ieee80211_txrx_data *tx)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx->skb->data;
@@ -291,7 +291,7 @@ ieee80211_tx_h_sequence(struct ieee80211_txrx_data *tx)
 	if (ieee80211_get_hdrlen(le16_to_cpu(hdr->frame_control)) >= 24)
 		ieee80211_include_sequence(tx->sdata, hdr);
 
-	return TXRX_CONTINUE;
+	return TX_CONTINUE;
 }
 
 /* This function is called whenever the AP is about to exceed the maximum limit
@@ -341,7 +341,7 @@ static void purge_old_ps_buffers(struct ieee80211_local *local)
 	       wiphy_name(local->hw.wiphy), purged);
 }
 
-static ieee80211_txrx_result
+static ieee80211_tx_result
 ieee80211_tx_h_multicast_ps_buf(struct ieee80211_txrx_data *tx)
 {
 	/*
@@ -354,11 +354,11 @@ ieee80211_tx_h_multicast_ps_buf(struct ieee80211_txrx_data *tx)
 
 	/* not AP/IBSS or ordered frame */
 	if (!tx->sdata->bss || (tx->fc & IEEE80211_FCTL_ORDER))
-		return TXRX_CONTINUE;
+		return TX_CONTINUE;
 
 	/* no stations in PS mode */
 	if (!atomic_read(&tx->sdata->bss->num_sta_ps))
-		return TXRX_CONTINUE;
+		return TX_CONTINUE;
 
 	/* buffered in mac80211 */
 	if (tx->local->hw.flags & IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING) {
@@ -375,16 +375,16 @@ ieee80211_tx_h_multicast_ps_buf(struct ieee80211_txrx_data *tx)
 		} else
 			tx->local->total_ps_buffered++;
 		skb_queue_tail(&tx->sdata->bss->ps_bc_buf, tx->skb);
-		return TXRX_QUEUED;
+		return TX_QUEUED;
 	}
 
 	/* buffered in hardware */
 	tx->u.tx.control->flags |= IEEE80211_TXCTL_SEND_AFTER_DTIM;
 
-	return TXRX_CONTINUE;
+	return TX_CONTINUE;
 }
 
-static ieee80211_txrx_result
+static ieee80211_tx_result
 ieee80211_tx_h_unicast_ps_buf(struct ieee80211_txrx_data *tx)
 {
 	struct sta_info *sta = tx->sta;
@@ -393,7 +393,7 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_txrx_data *tx)
 	if (unlikely(!sta ||
 		     ((tx->fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_MGMT &&
 		      (tx->fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_PROBE_RESP)))
-		return TXRX_CONTINUE;
+		return TX_CONTINUE;
 
 	if (unlikely((sta->flags & WLAN_STA_PS) && !sta->pspoll)) {
 		struct ieee80211_tx_packet_data *pkt_data;
@@ -427,7 +427,7 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_txrx_data *tx)
 		pkt_data = (struct ieee80211_tx_packet_data *)tx->skb->cb;
 		pkt_data->jiffies = jiffies;
 		skb_queue_tail(&sta->ps_tx_buf, tx->skb);
-		return TXRX_QUEUED;
+		return TX_QUEUED;
 	}
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 	else if (unlikely(sta->flags & WLAN_STA_PS)) {
@@ -438,14 +438,14 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_txrx_data *tx)
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 	sta->pspoll = 0;
 
-	return TXRX_CONTINUE;
+	return TX_CONTINUE;
 }
 
-static ieee80211_txrx_result
+static ieee80211_tx_result
 ieee80211_tx_h_ps_buf(struct ieee80211_txrx_data *tx)
 {
 	if (unlikely(tx->flags & IEEE80211_TXRXD_TXPS_BUFFERED))
-		return TXRX_CONTINUE;
+		return TX_CONTINUE;
 
 	if (tx->flags & IEEE80211_TXRXD_TXUNICAST)
 		return ieee80211_tx_h_unicast_ps_buf(tx);
@@ -453,7 +453,7 @@ ieee80211_tx_h_ps_buf(struct ieee80211_txrx_data *tx)
 		return ieee80211_tx_h_multicast_ps_buf(tx);
 }
 
-static ieee80211_txrx_result
+static ieee80211_tx_result
 ieee80211_tx_h_select_key(struct ieee80211_txrx_data *tx)
 {
 	struct ieee80211_key *key;
@@ -469,7 +469,7 @@ ieee80211_tx_h_select_key(struct ieee80211_txrx_data *tx)
 		 !(tx->u.tx.control->flags & IEEE80211_TXCTL_EAPOL_FRAME) &&
 		 !(tx->flags & IEEE80211_TXRXD_TX_INJECTED)) {
 		I802_DEBUG_INC(tx->local->tx_handlers_drop_unencrypted);
-		return TXRX_DROP;
+		return TX_DROP;
 	} else
 		tx->key = NULL;
 
@@ -498,10 +498,10 @@ ieee80211_tx_h_select_key(struct ieee80211_txrx_data *tx)
 	if (!tx->key || !(tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE))
 		tx->u.tx.control->flags |= IEEE80211_TXCTL_DO_NOT_ENCRYPT;
 
-	return TXRX_CONTINUE;
+	return TX_CONTINUE;
 }
 
-static ieee80211_txrx_result
+static ieee80211_tx_result
 ieee80211_tx_h_fragment(struct ieee80211_txrx_data *tx)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) tx->skb->data;
@@ -513,7 +513,7 @@ ieee80211_tx_h_fragment(struct ieee80211_txrx_data *tx)
 	int frag_threshold = tx->local->fragmentation_threshold;
 
 	if (!(tx->flags & IEEE80211_TXRXD_FRAGMENTED))
-		return TXRX_CONTINUE;
+		return TX_CONTINUE;
 
 	first = tx->skb;
 
@@ -567,7 +567,7 @@ ieee80211_tx_h_fragment(struct ieee80211_txrx_data *tx)
 	tx->u.tx.num_extra_frag = num_fragm - 1;
 	tx->u.tx.extra_frag = frags;
 
-	return TXRX_CONTINUE;
+	return TX_CONTINUE;
 
  fail:
 	printk(KERN_DEBUG "%s: failed to fragment frame\n", tx->dev->name);
@@ -578,14 +578,14 @@ ieee80211_tx_h_fragment(struct ieee80211_txrx_data *tx)
 		kfree(frags);
 	}
 	I802_DEBUG_INC(tx->local->tx_handlers_drop_fragment);
-	return TXRX_DROP;
+	return TX_DROP;
 }
 
-static ieee80211_txrx_result
+static ieee80211_tx_result
 ieee80211_tx_h_encrypt(struct ieee80211_txrx_data *tx)
 {
 	if (!tx->key)
-		return TXRX_CONTINUE;
+		return TX_CONTINUE;
 
 	switch (tx->key->conf.alg) {
 	case ALG_WEP:
@@ -598,10 +598,10 @@ ieee80211_tx_h_encrypt(struct ieee80211_txrx_data *tx)
 
 	/* not reached */
 	WARN_ON(1);
-	return TXRX_DROP;
+	return TX_DROP;
 }
 
-static ieee80211_txrx_result
+static ieee80211_tx_result
 ieee80211_tx_h_rate_ctrl(struct ieee80211_txrx_data *tx)
 {
 	struct rate_selection rsel;
@@ -622,7 +622,7 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_txrx_data *tx)
 			tx->u.tx.control->alt_retry_rate = NULL;
 
 		if (!tx->u.tx.rate)
-			return TXRX_DROP;
+			return TX_DROP;
 	} else
 		tx->u.tx.control->alt_retry_rate = NULL;
 
@@ -642,10 +642,10 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_txrx_data *tx)
 	}
 	tx->u.tx.control->tx_rate = tx->u.tx.rate;
 
-	return TXRX_CONTINUE;
+	return TX_CONTINUE;
 }
 
-static ieee80211_txrx_result
+static ieee80211_tx_result
 ieee80211_tx_h_misc(struct ieee80211_txrx_data *tx)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) tx->skb->data;
@@ -754,10 +754,10 @@ ieee80211_tx_h_misc(struct ieee80211_txrx_data *tx)
 		}
 	}
 
-	return TXRX_CONTINUE;
+	return TX_CONTINUE;
 }
 
-static ieee80211_txrx_result
+static ieee80211_tx_result
 ieee80211_tx_h_load_stats(struct ieee80211_txrx_data *tx)
 {
 	struct ieee80211_local *local = tx->local;
@@ -810,7 +810,7 @@ ieee80211_tx_h_load_stats(struct ieee80211_txrx_data *tx)
 		tx->sta->channel_use_raw += load;
 	tx->sdata->channel_use_raw += load;
 
-	return TXRX_CONTINUE;
+	return TX_CONTINUE;
 }
 
 /* TODO: implement register/unregister functions for adding TX/RX handlers
@@ -837,7 +837,7 @@ ieee80211_tx_handler ieee80211_tx_handlers[] =
  * deal with packet injection down monitor interface
  * with Radiotap Header -- only called for monitor mode interface
  */
-static ieee80211_txrx_result
+static ieee80211_tx_result
 __ieee80211_parse_tx_radiotap(struct ieee80211_txrx_data *tx,
 			      struct sk_buff *skb)
 {
@@ -926,7 +926,7 @@ __ieee80211_parse_tx_radiotap(struct ieee80211_txrx_data *tx,
 				 * on transmission
 				 */
 				if (skb->len < (iterator.max_length + FCS_LEN))
-					return TXRX_DROP;
+					return TX_DROP;
 
 				skb_trim(skb, skb->len - FCS_LEN);
 			}
@@ -949,7 +949,7 @@ __ieee80211_parse_tx_radiotap(struct ieee80211_txrx_data *tx,
 	}
 
 	if (ret != -ENOENT) /* ie, if we didn't simply run out of fields */
-		return TXRX_DROP;
+		return TX_DROP;
 
 	/*
 	 * remove the radiotap header
@@ -958,13 +958,13 @@ __ieee80211_parse_tx_radiotap(struct ieee80211_txrx_data *tx,
 	 */
 	skb_pull(skb, iterator.max_length);
 
-	return TXRX_CONTINUE;
+	return TX_CONTINUE;
 }
 
 /*
  * initialises @tx
  */
-static ieee80211_txrx_result
+static ieee80211_tx_result
 __ieee80211_tx_prepare(struct ieee80211_txrx_data *tx,
 		       struct sk_buff *skb,
 		       struct net_device *dev,
@@ -991,8 +991,8 @@ __ieee80211_tx_prepare(struct ieee80211_txrx_data *tx,
 	/* process and remove the injection radiotap header */
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	if (unlikely(sdata->vif.type == IEEE80211_IF_TYPE_MNTR)) {
-		if (__ieee80211_parse_tx_radiotap(tx, skb) == TXRX_DROP)
-			return TXRX_DROP;
+		if (__ieee80211_parse_tx_radiotap(tx, skb) == TX_DROP)
+			return TX_DROP;
 
 		/*
 		 * __ieee80211_parse_tx_radiotap has now removed
@@ -1037,7 +1037,7 @@ __ieee80211_tx_prepare(struct ieee80211_txrx_data *tx,
 	}
 	control->flags |= IEEE80211_TXCTL_FIRST_FRAGMENT;
 
-	return TXRX_CONTINUE;
+	return TX_CONTINUE;
 }
 
 /*
@@ -1131,7 +1131,7 @@ static int ieee80211_tx(struct net_device *dev, struct sk_buff *skb,
 	struct sta_info *sta;
 	ieee80211_tx_handler *handler;
 	struct ieee80211_txrx_data tx;
-	ieee80211_txrx_result res = TXRX_DROP, res_prepare;
+	ieee80211_tx_result res = TX_DROP, res_prepare;
 	int ret, i;
 
 	WARN_ON(__ieee80211_queue_pending(local, control->queue));
@@ -1144,7 +1144,7 @@ static int ieee80211_tx(struct net_device *dev, struct sk_buff *skb,
 	/* initialises tx */
 	res_prepare = __ieee80211_tx_prepare(&tx, skb, dev, control);
 
-	if (res_prepare == TXRX_DROP) {
+	if (res_prepare == TX_DROP) {
 		dev_kfree_skb(skb);
 		return 0;
 	}
@@ -1161,7 +1161,7 @@ static int ieee80211_tx(struct net_device *dev, struct sk_buff *skb,
 	for (handler = local->tx_handlers; *handler != NULL;
 	     handler++) {
 		res = (*handler)(&tx);
-		if (res != TXRX_CONTINUE)
+		if (res != TX_CONTINUE)
 			break;
 	}
 
@@ -1170,12 +1170,12 @@ static int ieee80211_tx(struct net_device *dev, struct sk_buff *skb,
 	if (sta)
 		sta_info_put(sta);
 
-	if (unlikely(res == TXRX_DROP)) {
+	if (unlikely(res == TX_DROP)) {
 		I802_DEBUG_INC(local->tx_handlers_drop);
 		goto drop;
 	}
 
-	if (unlikely(res == TXRX_QUEUED)) {
+	if (unlikely(res == TX_QUEUED)) {
 		I802_DEBUG_INC(local->tx_handlers_queued);
 		rcu_read_unlock();
 		return 0;
@@ -1864,7 +1864,7 @@ ieee80211_get_buffered_bc(struct ieee80211_hw *hw,
 	struct sta_info *sta;
 	ieee80211_tx_handler *handler;
 	struct ieee80211_txrx_data tx;
-	ieee80211_txrx_result res = TXRX_DROP;
+	ieee80211_tx_result res = TX_DROP;
 	struct net_device *bdev;
 	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_if_ap *bss = NULL;
@@ -1916,16 +1916,16 @@ ieee80211_get_buffered_bc(struct ieee80211_hw *hw,
 
 	for (handler = local->tx_handlers; *handler != NULL; handler++) {
 		res = (*handler)(&tx);
-		if (res == TXRX_DROP || res == TXRX_QUEUED)
+		if (res == TX_DROP || res == TX_QUEUED)
 			break;
 	}
 	skb = tx.skb; /* handlers are allowed to change skb */
 
-	if (res == TXRX_DROP) {
+	if (res == TX_DROP) {
 		I802_DEBUG_INC(local->tx_handlers_drop);
 		dev_kfree_skb(skb);
 		skb = NULL;
-	} else if (res == TXRX_QUEUED) {
+	} else if (res == TX_QUEUED) {
 		I802_DEBUG_INC(local->tx_handlers_queued);
 		skb = NULL;
 	}

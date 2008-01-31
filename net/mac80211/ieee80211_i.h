@@ -108,9 +108,16 @@ struct ieee80211_sta_bss {
 };
 
 
-typedef enum {
-	TXRX_CONTINUE, TXRX_DROP, TXRX_QUEUED
-} ieee80211_txrx_result;
+typedef unsigned __bitwise__ ieee80211_tx_result;
+#define TX_CONTINUE	((__force ieee80211_tx_result) 0u)
+#define TX_DROP		((__force ieee80211_tx_result) 1u)
+#define TX_QUEUED	((__force ieee80211_tx_result) 2u)
+
+typedef unsigned __bitwise__ ieee80211_rx_result;
+#define RX_CONTINUE	((__force ieee80211_rx_result) 0u)
+#define RX_DROP		((__force ieee80211_rx_result) 1u)
+#define RX_QUEUED	((__force ieee80211_rx_result) 2u)
+
 
 /* flags used in struct ieee80211_txrx_data.flags */
 /* whether the MSDU was fragmented */
@@ -182,10 +189,10 @@ struct ieee80211_tx_stored_packet {
 	unsigned int last_frag_rate_ctrl_probe;
 };
 
-typedef ieee80211_txrx_result (*ieee80211_tx_handler)
+typedef ieee80211_tx_result (*ieee80211_tx_handler)
 (struct ieee80211_txrx_data *tx);
 
-typedef ieee80211_txrx_result (*ieee80211_rx_handler)
+typedef ieee80211_rx_result (*ieee80211_rx_handler)
 (struct ieee80211_txrx_data *rx);
 
 struct beacon_data {
@@ -729,9 +736,9 @@ int ieee80211_sta_req_scan(struct net_device *dev, u8 *ssid, size_t ssid_len);
 void ieee80211_sta_req_auth(struct net_device *dev,
 			    struct ieee80211_if_sta *ifsta);
 int ieee80211_sta_scan_results(struct net_device *dev, char *buf, size_t len);
-ieee80211_txrx_result ieee80211_sta_rx_scan(struct net_device *dev,
-					    struct sk_buff *skb,
-			   struct ieee80211_rx_status *rx_status);
+ieee80211_rx_result ieee80211_sta_rx_scan(
+	struct net_device *dev, struct sk_buff *skb,
+	struct ieee80211_rx_status *rx_status);
 void ieee80211_rx_bss_list_init(struct net_device *dev);
 void ieee80211_rx_bss_list_deinit(struct net_device *dev);
 int ieee80211_sta_set_extra_ie(struct net_device *dev, char *ie, size_t len);

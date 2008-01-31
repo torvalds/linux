@@ -305,13 +305,13 @@ u8 * ieee80211_wep_is_weak_iv(struct sk_buff *skb, struct ieee80211_key *key)
 	return NULL;
 }
 
-ieee80211_txrx_result
+ieee80211_rx_result
 ieee80211_crypto_wep_decrypt(struct ieee80211_txrx_data *rx)
 {
 	if ((rx->fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA &&
 	    ((rx->fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_MGMT ||
 	     (rx->fc & IEEE80211_FCTL_STYPE) != IEEE80211_STYPE_AUTH))
-		return TXRX_CONTINUE;
+		return RX_CONTINUE;
 
 	if (!(rx->u.rx.status->flag & RX_FLAG_DECRYPTED)) {
 		if (ieee80211_wep_decrypt(rx->local, rx->skb, rx->key)) {
@@ -320,7 +320,7 @@ ieee80211_crypto_wep_decrypt(struct ieee80211_txrx_data *rx)
 				printk(KERN_DEBUG "%s: RX WEP frame, decrypt "
 				       "failed\n", rx->dev->name);
 #endif /* CONFIG_MAC80211_DEBUG */
-			return TXRX_DROP;
+			return RX_DROP;
 		}
 	} else if (!(rx->u.rx.status->flag & RX_FLAG_IV_STRIPPED)) {
 		ieee80211_wep_remove_iv(rx->local, rx->skb, rx->key);
@@ -328,7 +328,7 @@ ieee80211_crypto_wep_decrypt(struct ieee80211_txrx_data *rx)
 		skb_trim(rx->skb, rx->skb->len - 4);
 	}
 
-	return TXRX_CONTINUE;
+	return RX_CONTINUE;
 }
 
 static int wep_encrypt_skb(struct ieee80211_txrx_data *tx, struct sk_buff *skb)
@@ -346,7 +346,7 @@ static int wep_encrypt_skb(struct ieee80211_txrx_data *tx, struct sk_buff *skb)
 	return 0;
 }
 
-ieee80211_txrx_result
+ieee80211_tx_result
 ieee80211_crypto_wep_encrypt(struct ieee80211_txrx_data *tx)
 {
 	tx->u.tx.control->iv_len = WEP_IV_LEN;
@@ -355,7 +355,7 @@ ieee80211_crypto_wep_encrypt(struct ieee80211_txrx_data *tx)
 
 	if (wep_encrypt_skb(tx, tx->skb) < 0) {
 		I802_DEBUG_INC(tx->local->tx_handlers_drop_wep);
-		return TXRX_DROP;
+		return TX_DROP;
 	}
 
 	if (tx->u.tx.extra_frag) {
@@ -364,10 +364,10 @@ ieee80211_crypto_wep_encrypt(struct ieee80211_txrx_data *tx)
 			if (wep_encrypt_skb(tx, tx->u.tx.extra_frag[i]) < 0) {
 				I802_DEBUG_INC(tx->local->
 					       tx_handlers_drop_wep);
-				return TXRX_DROP;
+				return TX_DROP;
 			}
 		}
 	}
 
-	return TXRX_CONTINUE;
+	return TX_CONTINUE;
 }

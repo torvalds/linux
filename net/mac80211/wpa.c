@@ -70,7 +70,7 @@ static int ieee80211_get_hdr_info(const struct sk_buff *skb, u8 **sa, u8 **da,
 }
 
 
-ieee80211_txrx_result
+ieee80211_tx_result
 ieee80211_tx_h_michael_mic_add(struct ieee80211_txrx_data *tx)
 {
 	u8 *data, *sa, *da, *key, *mic, qos_tid;
@@ -84,10 +84,10 @@ ieee80211_tx_h_michael_mic_add(struct ieee80211_txrx_data *tx)
 
 	if (!tx->key || tx->key->conf.alg != ALG_TKIP || skb->len < 24 ||
 	    !WLAN_FC_DATA_PRESENT(fc))
-		return TXRX_CONTINUE;
+		return TX_CONTINUE;
 
 	if (ieee80211_get_hdr_info(skb, &sa, &da, &qos_tid, &data, &data_len))
-		return TXRX_DROP;
+		return TX_DROP;
 
 	if ((tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE) &&
 	    !(tx->flags & IEEE80211_TXRXD_FRAGMENTED) &&
@@ -95,7 +95,7 @@ ieee80211_tx_h_michael_mic_add(struct ieee80211_txrx_data *tx)
 	    !wpa_test) {
 		/* hwaccel - with no need for preallocated room for Michael MIC
 		 */
-		return TXRX_CONTINUE;
+		return TX_CONTINUE;
 	}
 
 	if (skb_tailroom(skb) < MICHAEL_MIC_LEN) {
@@ -105,7 +105,7 @@ ieee80211_tx_h_michael_mic_add(struct ieee80211_txrx_data *tx)
 					      GFP_ATOMIC))) {
 			printk(KERN_DEBUG "%s: failed to allocate more memory "
 			       "for Michael MIC\n", tx->dev->name);
-			return TXRX_DROP;
+			return TX_DROP;
 		}
 	}
 
@@ -119,11 +119,11 @@ ieee80211_tx_h_michael_mic_add(struct ieee80211_txrx_data *tx)
 	mic = skb_put(skb, MICHAEL_MIC_LEN);
 	michael_mic(key, da, sa, qos_tid & 0x0f, data, data_len, mic);
 
-	return TXRX_CONTINUE;
+	return TX_CONTINUE;
 }
 
 
-ieee80211_txrx_result
+ieee80211_rx_result
 ieee80211_rx_h_michael_mic_verify(struct ieee80211_txrx_data *rx)
 {
 	u8 *data, *sa, *da, *key = NULL, qos_tid;
@@ -140,15 +140,15 @@ ieee80211_rx_h_michael_mic_verify(struct ieee80211_txrx_data *rx)
 	 * No way to verify the MIC if the hardware stripped it
 	 */
 	if (rx->u.rx.status->flag & RX_FLAG_MMIC_STRIPPED)
-		return TXRX_CONTINUE;
+		return RX_CONTINUE;
 
 	if (!rx->key || rx->key->conf.alg != ALG_TKIP ||
 	    !(rx->fc & IEEE80211_FCTL_PROTECTED) || !WLAN_FC_DATA_PRESENT(fc))
-		return TXRX_CONTINUE;
+		return RX_CONTINUE;
 
 	if (ieee80211_get_hdr_info(skb, &sa, &da, &qos_tid, &data, &data_len)
 	    || data_len < MICHAEL_MIC_LEN)
-		return TXRX_DROP;
+		return RX_DROP;
 
 	data_len -= MICHAEL_MIC_LEN;
 
@@ -162,14 +162,14 @@ ieee80211_rx_h_michael_mic_verify(struct ieee80211_txrx_data *rx)
 	michael_mic(key, da, sa, qos_tid & 0x0f, data, data_len, mic);
 	if (memcmp(mic, data + data_len, MICHAEL_MIC_LEN) != 0 || wpa_test) {
 		if (!(rx->flags & IEEE80211_TXRXD_RXRA_MATCH))
-			return TXRX_DROP;
+			return RX_DROP;
 
 		printk(KERN_DEBUG "%s: invalid Michael MIC in data frame from "
 		       "%s\n", rx->dev->name, print_mac(mac, sa));
 
 		mac80211_ev_michael_mic_failure(rx->dev, rx->key->conf.keyidx,
 						(void *) skb->data);
-		return TXRX_DROP;
+		return RX_DROP;
 	}
 
 	/* remove Michael MIC from payload */
@@ -179,7 +179,7 @@ ieee80211_rx_h_michael_mic_verify(struct ieee80211_txrx_data *rx)
 	rx->key->u.tkip.iv32_rx[rx->u.rx.queue] = rx->u.rx.tkip_iv32;
 	rx->key->u.tkip.iv16_rx[rx->u.rx.queue] = rx->u.rx.tkip_iv16;
 
-	return TXRX_CONTINUE;
+	return RX_CONTINUE;
 }
 
 
@@ -242,7 +242,7 @@ static int tkip_encrypt_skb(struct ieee80211_txrx_data *tx,
 }
 
 
-ieee80211_txrx_result
+ieee80211_tx_result
 ieee80211_crypto_tkip_encrypt(struct ieee80211_txrx_data *tx)
 {
 	struct sk_buff *skb = tx->skb;
@@ -257,26 +257,26 @@ ieee80211_crypto_tkip_encrypt(struct ieee80211_txrx_data *tx)
 	    !wpa_test) {
 		/* hwaccel - with no need for preallocated room for IV/ICV */
 		tx->u.tx.control->key_idx = tx->key->conf.hw_key_idx;
-		return TXRX_CONTINUE;
+		return TX_CONTINUE;
 	}
 
 	if (tkip_encrypt_skb(tx, skb, test) < 0)
-		return TXRX_DROP;
+		return TX_DROP;
 
 	if (tx->u.tx.extra_frag) {
 		int i;
 		for (i = 0; i < tx->u.tx.num_extra_frag; i++) {
 			if (tkip_encrypt_skb(tx, tx->u.tx.extra_frag[i], test)
 			    < 0)
-				return TXRX_DROP;
+				return TX_DROP;
 		}
 	}
 
-	return TXRX_CONTINUE;
+	return TX_CONTINUE;
 }
 
 
-ieee80211_txrx_result
+ieee80211_rx_result
 ieee80211_crypto_tkip_decrypt(struct ieee80211_txrx_data *rx)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) rx->skb->data;
@@ -290,10 +290,10 @@ ieee80211_crypto_tkip_decrypt(struct ieee80211_txrx_data *rx)
 	hdrlen = ieee80211_get_hdrlen(fc);
 
 	if ((rx->fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA)
-		return TXRX_CONTINUE;
+		return RX_CONTINUE;
 
 	if (!rx->sta || skb->len - hdrlen < 12)
-		return TXRX_DROP;
+		return RX_DROP;
 
 	if (rx->u.rx.status->flag & RX_FLAG_DECRYPTED) {
 		if (rx->u.rx.status->flag & RX_FLAG_IV_STRIPPED) {
@@ -302,7 +302,7 @@ ieee80211_crypto_tkip_decrypt(struct ieee80211_txrx_data *rx)
 			 * replay protection, and stripped the ICV/IV so
 			 * we cannot do any checks here.
 			 */
-			return TXRX_CONTINUE;
+			return RX_CONTINUE;
 		}
 
 		/* let TKIP code verify IV, but skip decryption */
@@ -322,7 +322,7 @@ ieee80211_crypto_tkip_decrypt(struct ieee80211_txrx_data *rx)
 			       "frame from %s (res=%d)\n", rx->dev->name,
 			       print_mac(mac, rx->sta->addr), res);
 #endif /* CONFIG_MAC80211_DEBUG */
-		return TXRX_DROP;
+		return RX_DROP;
 	}
 
 	/* Trim ICV */
@@ -332,7 +332,7 @@ ieee80211_crypto_tkip_decrypt(struct ieee80211_txrx_data *rx)
 	memmove(skb->data + TKIP_IV_LEN, skb->data, hdrlen);
 	skb_pull(skb, TKIP_IV_LEN);
 
-	return TXRX_CONTINUE;
+	return RX_CONTINUE;
 }
 
 
@@ -491,7 +491,7 @@ static int ccmp_encrypt_skb(struct ieee80211_txrx_data *tx,
 }
 
 
-ieee80211_txrx_result
+ieee80211_tx_result
 ieee80211_crypto_ccmp_encrypt(struct ieee80211_txrx_data *tx)
 {
 	struct sk_buff *skb = tx->skb;
@@ -506,26 +506,26 @@ ieee80211_crypto_ccmp_encrypt(struct ieee80211_txrx_data *tx)
 		/* hwaccel - with no need for preallocated room for CCMP "
 		 * header or MIC fields */
 		tx->u.tx.control->key_idx = tx->key->conf.hw_key_idx;
-		return TXRX_CONTINUE;
+		return TX_CONTINUE;
 	}
 
 	if (ccmp_encrypt_skb(tx, skb, test) < 0)
-		return TXRX_DROP;
+		return TX_DROP;
 
 	if (tx->u.tx.extra_frag) {
 		int i;
 		for (i = 0; i < tx->u.tx.num_extra_frag; i++) {
 			if (ccmp_encrypt_skb(tx, tx->u.tx.extra_frag[i], test)
 			    < 0)
-				return TXRX_DROP;
+				return TX_DROP;
 		}
 	}
 
-	return TXRX_CONTINUE;
+	return TX_CONTINUE;
 }
 
 
-ieee80211_txrx_result
+ieee80211_rx_result
 ieee80211_crypto_ccmp_decrypt(struct ieee80211_txrx_data *rx)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) rx->skb->data;
@@ -541,15 +541,15 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_txrx_data *rx)
 	hdrlen = ieee80211_get_hdrlen(fc);
 
 	if ((rx->fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA)
-		return TXRX_CONTINUE;
+		return RX_CONTINUE;
 
 	data_len = skb->len - hdrlen - CCMP_HDR_LEN - CCMP_MIC_LEN;
 	if (!rx->sta || data_len < 0)
-		return TXRX_DROP;
+		return RX_DROP;
 
 	if ((rx->u.rx.status->flag & RX_FLAG_DECRYPTED) &&
 	    (rx->u.rx.status->flag & RX_FLAG_IV_STRIPPED))
-		return TXRX_CONTINUE;
+		return RX_CONTINUE;
 
 	(void) ccmp_hdr2pn(pn, skb->data + hdrlen);
 
@@ -565,7 +565,7 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_txrx_data *rx)
 		       ppn[0], ppn[1], ppn[2], ppn[3], ppn[4], ppn[5]);
 #endif /* CONFIG_MAC80211_DEBUG */
 		key->u.ccmp.replays++;
-		return TXRX_DROP;
+		return RX_DROP;
 	}
 
 	if (!(rx->u.rx.status->flag & RX_FLAG_DECRYPTED)) {
@@ -589,7 +589,7 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_txrx_data *rx)
 				       "for RX frame from %s\n", rx->dev->name,
 				       print_mac(mac, rx->sta->addr));
 #endif /* CONFIG_MAC80211_DEBUG */
-			return TXRX_DROP;
+			return RX_DROP;
 		}
 	}
 
@@ -600,5 +600,5 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_txrx_data *rx)
 	memmove(skb->data + CCMP_HDR_LEN, skb->data, hdrlen);
 	skb_pull(skb, CCMP_HDR_LEN);
 
-	return TXRX_CONTINUE;
+	return RX_CONTINUE;
 }

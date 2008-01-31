@@ -2559,7 +2559,7 @@ static void ieee80211_sta_rx_queued_mgmt(struct net_device *dev,
 }
 
 
-ieee80211_txrx_result
+ieee80211_rx_result
 ieee80211_sta_rx_scan(struct net_device *dev, struct sk_buff *skb,
 		      struct ieee80211_rx_status *rx_status)
 {
@@ -2567,31 +2567,31 @@ ieee80211_sta_rx_scan(struct net_device *dev, struct sk_buff *skb,
 	u16 fc;
 
 	if (skb->len < 2)
-		return TXRX_DROP;
+		return RX_DROP;
 
 	mgmt = (struct ieee80211_mgmt *) skb->data;
 	fc = le16_to_cpu(mgmt->frame_control);
 
 	if ((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_CTL)
-		return TXRX_CONTINUE;
+		return RX_CONTINUE;
 
 	if (skb->len < 24)
-		return TXRX_DROP;
+		return RX_DROP;
 
 	if ((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_MGMT) {
 		if ((fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_PROBE_RESP) {
 			ieee80211_rx_mgmt_probe_resp(dev, mgmt,
 						     skb->len, rx_status);
 			dev_kfree_skb(skb);
-			return TXRX_QUEUED;
+			return RX_QUEUED;
 		} else if ((fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_BEACON) {
 			ieee80211_rx_mgmt_beacon(dev, mgmt, skb->len,
 						 rx_status);
 			dev_kfree_skb(skb);
-			return TXRX_QUEUED;
+			return RX_QUEUED;
 		}
 	}
-	return TXRX_CONTINUE;
+	return RX_CONTINUE;
 }
 
 
