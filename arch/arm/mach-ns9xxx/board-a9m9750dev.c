@@ -8,8 +8,6 @@
  * under the terms of the GNU General Public License version 2 as published by
  * the Free Software Foundation.
  */
-#include <linux/platform_device.h>
-#include <linux/serial_8250.h>
 #include <linux/irq.h>
 
 #include <asm/mach/map.h>
@@ -126,59 +124,6 @@ void __init board_a9m9750dev_init_irq(void)
 			a9m9750dev_fpga_demux_handler);
 }
 
-static struct plat_serial8250_port board_a9m9750dev_serial8250_port[] = {
-	{
-		.iobase         = FPGA_UARTA_BASE,
-		.membase        = (unsigned char*)FPGA_UARTA_BASE,
-		.mapbase        = FPGA_UARTA_BASE,
-		.irq            = IRQ_FPGA_UARTA,
-		.iotype         = UPIO_MEM,
-		.uartclk        = 18432000,
-		.regshift       = 0,
-		.flags          = UPF_BOOT_AUTOCONF | UPF_SHARE_IRQ,
-	}, {
-		.iobase         = FPGA_UARTB_BASE,
-		.membase        = (unsigned char*)FPGA_UARTB_BASE,
-		.mapbase        = FPGA_UARTB_BASE,
-		.irq            = IRQ_FPGA_UARTB,
-		.iotype         = UPIO_MEM,
-		.uartclk        = 18432000,
-		.regshift       = 0,
-		.flags          = UPF_BOOT_AUTOCONF | UPF_SHARE_IRQ,
-	}, {
-		.iobase         = FPGA_UARTC_BASE,
-		.membase        = (unsigned char*)FPGA_UARTC_BASE,
-		.mapbase        = FPGA_UARTC_BASE,
-		.irq            = IRQ_FPGA_UARTC,
-		.iotype         = UPIO_MEM,
-		.uartclk        = 18432000,
-		.regshift       = 0,
-		.flags          = UPF_BOOT_AUTOCONF | UPF_SHARE_IRQ,
-	}, {
-		.iobase         = FPGA_UARTD_BASE,
-		.membase        = (unsigned char*)FPGA_UARTD_BASE,
-		.mapbase        = FPGA_UARTD_BASE,
-		.irq            = IRQ_FPGA_UARTD,
-		.iotype         = UPIO_MEM,
-		.uartclk        = 18432000,
-		.regshift       = 0,
-		.flags          = UPF_BOOT_AUTOCONF | UPF_SHARE_IRQ,
-	}, {
-		/* end marker */
-	},
-};
-
-static struct platform_device board_a9m9750dev_serial_device = {
-	.name = "serial8250",
-	.dev = {
-		.platform_data = board_a9m9750dev_serial8250_port,
-	},
-};
-
-static struct platform_device *board_a9m9750dev_devices[] __initdata = {
-	&board_a9m9750dev_serial_device,
-};
-
 void __init board_a9m9750dev_init_machine(void)
 {
 	u32 reg;
@@ -210,7 +155,4 @@ void __init board_a9m9750dev_init_machine(void)
 	__raw_writel(0x2, MEM_SMOED(0));
 	__raw_writel(0x6, MEM_SMRD(0));
 	__raw_writel(0x6, MEM_SMWD(0));
-
-	platform_add_devices(board_a9m9750dev_devices,
-			ARRAY_SIZE(board_a9m9750dev_devices));
 }
