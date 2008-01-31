@@ -2227,6 +2227,9 @@ qla2x00_do_dpc(void *data)
 	fc_port_t	*fcport;
 	uint8_t		status;
 	uint16_t	next_loopid;
+	struct scsi_qla_host *vha;
+	int             i;
+
 
 	ha = (scsi_qla_host_t *)data;
 
@@ -2269,6 +2272,18 @@ qla2x00_do_dpc(void *data)
 				}
 				clear_bit(ABORT_ISP_ACTIVE, &ha->dpc_flags);
 			}
+
+			for_each_mapped_vp_idx(ha, i) {
+				list_for_each_entry(vha, &ha->vp_list,
+				    vp_list) {
+					if (i == vha->vp_idx) {
+						set_bit(ISP_ABORT_NEEDED,
+						    &vha->dpc_flags);
+						break;
+					}
+				}
+			}
+
 			DEBUG(printk("scsi(%ld): dpc: qla2x00_abort_isp end\n",
 			    ha->host_no));
 		}
