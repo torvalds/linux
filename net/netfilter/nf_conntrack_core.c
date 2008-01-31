@@ -246,16 +246,14 @@ static void death_by_timeout(unsigned long ul_conntrack)
 }
 
 struct nf_conntrack_tuple_hash *
-__nf_conntrack_find(const struct nf_conntrack_tuple *tuple,
-		    const struct nf_conn *ignored_conntrack)
+__nf_conntrack_find(const struct nf_conntrack_tuple *tuple)
 {
 	struct nf_conntrack_tuple_hash *h;
 	struct hlist_node *n;
 	unsigned int hash = hash_conntrack(tuple);
 
 	hlist_for_each_entry_rcu(h, n, &nf_conntrack_hash[hash], hnode) {
-		if (nf_ct_tuplehash_to_ctrack(h) != ignored_conntrack &&
-		    nf_ct_tuple_equal(tuple, &h->tuple)) {
+		if (nf_ct_tuple_equal(tuple, &h->tuple)) {
 			NF_CT_STAT_INC(found);
 			return h;
 		}
@@ -274,7 +272,7 @@ nf_conntrack_find_get(const struct nf_conntrack_tuple *tuple)
 	struct nf_conn *ct;
 
 	rcu_read_lock();
-	h = __nf_conntrack_find(tuple, NULL);
+	h = __nf_conntrack_find(tuple);
 	if (h) {
 		ct = nf_ct_tuplehash_to_ctrack(h);
 		if (unlikely(!atomic_inc_not_zero(&ct->ct_general.use)))
@@ -395,12 +393,22 @@ nf_conntrack_tuple_taken(const struct nf_conntrack_tuple *tuple,
 			 const struct nf_conn *ignored_conntrack)
 {
 	struct nf_conntrack_tuple_hash *h;
+	struct hlist_node *n;
+	unsigned int hash = hash_conntrack(tuple);
 
 	rcu_read_lock();
-	h = __nf_conntrack_find(tuple, ignored_conntrack);
+	hlist_for_each_entry_rcu(h, n, &nf_conntrack_hash[hash], hnode) {
+		if (nf_ct_tuplehash_to_ctrack(h) != ignored_conntrack &&
+		    nf_ct_tuple_equal(tuple, &h->tuple)) {
+			NF_CT_STAT_INC(found);
+			rcu_read_unlock();
+			return 1;
+		}
+		NF_CT_STAT_INC(searched);
+	}
 	rcu_read_unlock();
 
-	return h != NULL;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_tuple_taken);
 

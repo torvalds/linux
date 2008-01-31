@@ -1222,9 +1222,9 @@ ctnetlink_new_conntrack(struct sock *ctnl, struct sk_buff *skb,
 
 	spin_lock_bh(&nf_conntrack_lock);
 	if (cda[CTA_TUPLE_ORIG])
-		h = __nf_conntrack_find(&otuple, NULL);
+		h = __nf_conntrack_find(&otuple);
 	else if (cda[CTA_TUPLE_REPLY])
-		h = __nf_conntrack_find(&rtuple, NULL);
+		h = __nf_conntrack_find(&rtuple);
 
 	if (h == NULL) {
 		struct nf_conntrack_tuple master;
@@ -1239,7 +1239,7 @@ ctnetlink_new_conntrack(struct sock *ctnl, struct sk_buff *skb,
 			if (err < 0)
 				goto out_unlock;
 
-			master_h = __nf_conntrack_find(&master, NULL);
+			master_h = __nf_conntrack_find(&master);
 			if (master_h == NULL) {
 				err = -ENOENT;
 				goto out_unlock;

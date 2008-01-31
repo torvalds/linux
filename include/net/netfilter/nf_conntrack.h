@@ -178,8 +178,7 @@ extern void nf_ct_free_hashtable(struct hlist_head *hash, int vmalloced,
 				 unsigned int size);
 
 extern struct nf_conntrack_tuple_hash *
-__nf_conntrack_find(const struct nf_conntrack_tuple *tuple,
-		    const struct nf_conn *ignored_conntrack);
+__nf_conntrack_find(const struct nf_conntrack_tuple *tuple);
 
 extern void nf_conntrack_hash_insert(struct nf_conn *ct);
 
