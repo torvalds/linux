@@ -41,7 +41,7 @@
 			  | X86_CR4_OSXMMEXCPT | X86_CR4_VMXE))
 
 #define CR8_RESERVED_BITS (~(unsigned long)X86_CR8_TPR)
-#define EFER_RESERVED_BITS 0xfffffffffffff2fe
+static u64 __read_mostly efer_reserved_bits = 0xfffffffffffff2fe;
 
 #define VM_STAT(x) offsetof(struct kvm, stat.x), KVM_STAT_VM
 #define VCPU_STAT(x) offsetof(struct kvm_vcpu, stat.x), KVM_STAT_VCPU
@@ -428,7 +428,7 @@ static u32 emulated_msrs[] = {
 
 static void set_efer(struct kvm_vcpu *vcpu, u64 efer)
 {
-	if (efer & EFER_RESERVED_BITS) {
+	if (efer & efer_reserved_bits) {
 		printk(KERN_DEBUG "set_efer: 0x%llx #GP, reserved bits\n",
 		       efer);
 		kvm_inject_gp(vcpu, 0);
@@ -451,6 +451,13 @@ static void set_efer(struct kvm_vcpu *vcpu, u64 efer)
 }
 
 #endif
+
+void kvm_enable_efer_bits(u64 mask)
+{
+       efer_reserved_bits &= ~mask;
+}
+EXPORT_SYMBOL_GPL(kvm_enable_efer_bits);
+
 
 /*
  * Writes msr value into into the appropriate "register".
