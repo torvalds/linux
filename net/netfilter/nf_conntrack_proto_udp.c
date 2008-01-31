@@ -30,7 +30,8 @@ static int udp_pkt_to_tuple(const struct sk_buff *skb,
 			     unsigned int dataoff,
 			     struct nf_conntrack_tuple *tuple)
 {
-	struct udphdr _hdr, *hp;
+	const struct udphdr *hp;
+	struct udphdr _hdr;
 
 	/* Actually only need first 8 bytes. */
 	hp = skb_header_pointer(skb, dataoff, sizeof(_hdr), &_hdr);
@@ -94,7 +95,8 @@ static int udp_error(struct sk_buff *skb, unsigned int dataoff,
 		     unsigned int hooknum)
 {
 	unsigned int udplen = skb->len - dataoff;
-	struct udphdr _hdr, *hdr;
+	const struct udphdr *hdr;
+	struct udphdr _hdr;
 
 	/* Header is too small? */
 	hdr = skb_header_pointer(skb, dataoff, sizeof(_hdr), &_hdr);

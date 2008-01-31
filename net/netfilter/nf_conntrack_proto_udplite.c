@@ -31,7 +31,8 @@ static int udplite_pkt_to_tuple(const struct sk_buff *skb,
 				unsigned int dataoff,
 				struct nf_conntrack_tuple *tuple)
 {
-	struct udphdr _hdr, *hp;
+	const struct udphdr *hp;
+	struct udphdr _hdr;
 
 	hp = skb_header_pointer(skb, dataoff, sizeof(_hdr), &_hdr);
 	if (hp == NULL)
@@ -94,7 +95,8 @@ static int udplite_error(struct sk_buff *skb, unsigned int dataoff,
 			 unsigned int hooknum)
 {
 	unsigned int udplen = skb->len - dataoff;
-	struct udphdr _hdr, *hdr;
+	const struct udphdr *hdr;
+	struct udphdr _hdr;
 	unsigned int cscov;
 
 	/* Header is too small? */
