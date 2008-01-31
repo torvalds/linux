@@ -168,6 +168,7 @@ int ip_build_and_send_pkt(struct sk_buff *skb, struct sock *sk,
 	}
 
 	skb->priority = sk->sk_priority;
+	skb->mark = sk->sk_mark;
 
 	/* Send it out. */
 	return ip_local_out(skb);
@@ -385,6 +386,7 @@ packet_routed:
 			     (skb_shinfo(skb)->gso_segs ?: 1) - 1);
 
 	skb->priority = sk->sk_priority;
+	skb->mark = sk->sk_mark;
 
 	return ip_local_out(skb);
 
@@ -1286,6 +1288,7 @@ int ip_push_pending_frames(struct sock *sk)
 	iph->daddr = rt->rt_dst;
 
 	skb->priority = sk->sk_priority;
+	skb->mark = sk->sk_mark;
 	skb->dst = dst_clone(&rt->u.dst);
 
 	if (iph->protocol == IPPROTO_ICMP)

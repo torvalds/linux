@@ -352,6 +352,7 @@ static int raw_send_hdrinc(struct sock *sk, void *from, size_t length,
 	skb_reserve(skb, hh_len);
 
 	skb->priority = sk->sk_priority;
+	skb->mark = sk->sk_mark;
 	skb->dst = dst_clone(&rt->u.dst);
 
 	skb_reset_network_header(skb);
@@ -544,6 +545,7 @@ static int raw_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 
 	{
 		struct flowi fl = { .oif = ipc.oif,
+				    .mark = sk->sk_mark,
 				    .nl_u = { .ip4_u =
 					      { .daddr = daddr,
 						.saddr = saddr,

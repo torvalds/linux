@@ -52,4 +52,6 @@
 #define SO_TIMESTAMPNS		35
 #define SCM_TIMESTAMPNS		SO_TIMESTAMPNS
 
+#define SO_MARK			36
+
 #endif /* __V850_SOCKET_H__ */

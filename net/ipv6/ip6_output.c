@@ -257,6 +257,7 @@ int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl,
 	ipv6_addr_copy(&hdr->daddr, first_hop);
 
 	skb->priority = sk->sk_priority;
+	skb->mark = sk->sk_mark;
 
 	mtu = dst_mtu(dst);
 	if ((skb->len <= mtu) || ipfragok || skb_is_gso(skb)) {
@@ -1439,6 +1440,7 @@ int ip6_push_pending_frames(struct sock *sk)
 	ipv6_addr_copy(&hdr->daddr, final_dst);
 
 	skb->priority = sk->sk_priority;
+	skb->mark = sk->sk_mark;
 
 	skb->dst = dst_clone(&rt->u.dst);
 	IP6_INC_STATS(rt->rt6i_idev, IPSTATS_MIB_OUTREQUESTS);

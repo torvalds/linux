@@ -667,6 +667,13 @@ set_rcvbuf:
 		else
 			clear_bit(SOCK_PASSSEC, &sock->flags);
 		break;
+	case SO_MARK:
+		if (!capable(CAP_NET_ADMIN))
+			ret = -EPERM;
+		else {
+			sk->sk_mark = val;
+		}
+		break;
 
 		/* We implement the SO_SNDLOWAT etc to
 		   not be settable (1003.1g 5.3) */
@@ -835,6 +842,10 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 
 	case SO_PEERSEC:
 		return security_socket_getpeersec_stream(sock, optval, optlen, len);
+
+	case SO_MARK:
+		v.val = sk->sk_mark;
+		break;
 
 	default:
 		return -ENOPROTOOPT;
