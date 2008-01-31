@@ -3819,6 +3819,7 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 	int err, ucc_num, max_speed = 0;
 	const phandle *ph;
 	const unsigned int *prop;
+	const char *sprop;
 	const void *mac_addr;
 	phy_interface_t phy_interface;
 	static const int enet_to_speed[] = {
@@ -3851,10 +3852,56 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 
 	ug_info->uf_info.ucc_num = ucc_num;
 
-	prop = of_get_property(np, "rx-clock", NULL);
-	ug_info->uf_info.rx_clock = *prop;
-	prop = of_get_property(np, "tx-clock", NULL);
-	ug_info->uf_info.tx_clock = *prop;
+	sprop = of_get_property(np, "rx-clock-name", NULL);
+	if (sprop) {
+		ug_info->uf_info.rx_clock = qe_clock_source(sprop);
+		if ((ug_info->uf_info.rx_clock < QE_CLK_NONE) ||
+		    (ug_info->uf_info.rx_clock > QE_CLK24)) {
+			printk(KERN_ERR
+				"ucc_geth: invalid rx-clock-name property\n");
+			return -EINVAL;
+		}
+	} else {
+		prop = of_get_property(np, "rx-clock", NULL);
+		if (!prop) {
+			/* If both rx-clock-name and rx-clock are missing,
+			   we want to tell people to use rx-clock-name. */
+			printk(KERN_ERR
+				"ucc_geth: missing rx-clock-name property\n");
+			return -EINVAL;
+		}
+		if ((*prop < QE_CLK_NONE) || (*prop > QE_CLK24)) {
+			printk(KERN_ERR
+				"ucc_geth: invalid rx-clock propperty\n");
+			return -EINVAL;
+		}
+		ug_info->uf_info.rx_clock = *prop;
+	}
+
+	sprop = of_get_property(np, "tx-clock-name", NULL);
+	if (sprop) {
+		ug_info->uf_info.tx_clock = qe_clock_source(sprop);
+		if ((ug_info->uf_info.tx_clock < QE_CLK_NONE) ||
+		    (ug_info->uf_info.tx_clock > QE_CLK24)) {
+			printk(KERN_ERR
+				"ucc_geth: invalid tx-clock-name property\n");
+			return -EINVAL;
+		}
+	} else {
+		prop = of_get_property(np, "rx-clock", NULL);
+		if (!prop) {
+			printk(KERN_ERR
+				"ucc_geth: mising tx-clock-name property\n");
+			return -EINVAL;
+		}
+		if ((*prop < QE_CLK_NONE) || (*prop > QE_CLK24)) {
+			printk(KERN_ERR
+				"ucc_geth: invalid tx-clock property\n");
+			return -EINVAL;
+		}
+		ug_info->uf_info.tx_clock = *prop;
+	}
+
 	err = of_address_to_resource(np, 0, &res);
 	if (err)
 		return -EINVAL;

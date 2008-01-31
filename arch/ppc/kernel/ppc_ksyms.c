@@ -45,7 +45,7 @@
 #include <asm/dcr.h>
 
 #ifdef  CONFIG_8xx
-#include <asm/commproc.h>
+#include <asm/cpm1.h>
 #endif
 
 extern void transfer_to_handler(void);
@@ -166,12 +166,6 @@ EXPORT_SYMBOL(last_task_used_altivec);
 #endif
 EXPORT_SYMBOL(giveup_altivec);
 #endif /* CONFIG_ALTIVEC */
-#ifdef CONFIG_SPE
-#ifndef CONFIG_SMP
-EXPORT_SYMBOL(last_task_used_spe);
-#endif
-EXPORT_SYMBOL(giveup_spe);
-#endif /* CONFIG_SPE */
 #ifdef CONFIG_SMP
 EXPORT_SYMBOL(smp_call_function);
 EXPORT_SYMBOL(smp_hw_index);
@@ -244,8 +238,7 @@ EXPORT_SYMBOL(debugger_fault_handler);
 EXPORT_SYMBOL(cpm_install_handler);
 EXPORT_SYMBOL(cpm_free_handler);
 #endif /* CONFIG_8xx */
-#if defined(CONFIG_8xx) || defined(CONFIG_40x) || defined(CONFIG_85xx) ||\
-	defined(CONFIG_83xx)
+#if defined(CONFIG_8xx) || defined(CONFIG_40x)
 EXPORT_SYMBOL(__res);
 #endif
 

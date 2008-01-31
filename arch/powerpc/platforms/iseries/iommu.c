@@ -163,8 +163,10 @@ static struct iommu_table *iommu_table_find(struct iommu_table * tbl)
 		    (it->it_type == TCE_PCI) &&
 		    (it->it_offset == tbl->it_offset) &&
 		    (it->it_index == tbl->it_index) &&
-		    (it->it_size == tbl->it_size))
+		    (it->it_size == tbl->it_size)) {
+			of_node_put(node);
 			return it;
+		}
 	}
 	return NULL;
 }

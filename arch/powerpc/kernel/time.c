@@ -116,9 +116,12 @@ static struct clock_event_device decrementer_clockevent = {
        .features       = CLOCK_EVT_FEAT_ONESHOT,
 };
 
-static DEFINE_PER_CPU(struct clock_event_device, decrementers);
-void init_decrementer_clockevent(void);
-static DEFINE_PER_CPU(u64, decrementer_next_tb);
+struct decrementer_clock {
+	struct clock_event_device event;
+	u64 next_tb;
+};
+
+static DEFINE_PER_CPU(struct decrementer_clock, decrementers);
 
 #ifdef CONFIG_PPC_ISERIES
 static unsigned long __initdata iSeries_recal_titan;
@@ -216,7 +219,11 @@ static u64 read_purr(void)
  */
 static u64 read_spurr(u64 purr)
 {
-	if (cpu_has_feature(CPU_FTR_SPURR))
+	/*
+	 * cpus without PURR won't have a SPURR
+	 * We already know the former when we use this, so tell gcc
+	 */
+	if (cpu_has_feature(CPU_FTR_PURR) && cpu_has_feature(CPU_FTR_SPURR))
 		return mfspr(SPRN_SPURR);
 	return purr;
 }
@@ -227,29 +234,30 @@ static u64 read_spurr(u64 purr)
  */
 void account_system_vtime(struct task_struct *tsk)
 {
-	u64 now, nowscaled, delta, deltascaled;
+	u64 now, nowscaled, delta, deltascaled, sys_time;
 	unsigned long flags;
 
 	local_irq_save(flags);
 	now = read_purr();
-	delta = now - get_paca()->startpurr;
-	get_paca()->startpurr = now;
 	nowscaled = read_spurr(now);
+	delta = now - get_paca()->startpurr;
 	deltascaled = nowscaled - get_paca()->startspurr;
+	get_paca()->startpurr = now;
 	get_paca()->startspurr = nowscaled;
 	if (!in_interrupt()) {
 		/* deltascaled includes both user and system time.
 		 * Hence scale it based on the purr ratio to estimate
 		 * the system time */
+		sys_time = get_paca()->system_time;
 		if (get_paca()->user_time)
-			deltascaled = deltascaled * get_paca()->system_time /
-			     (get_paca()->system_time + get_paca()->user_time);
-		delta += get_paca()->system_time;
+			deltascaled = deltascaled * sys_time /
+			     (sys_time + get_paca()->user_time);
+		delta += sys_time;
 		get_paca()->system_time = 0;
 	}
 	account_system_time(tsk, 0, delta);
-	get_paca()->purrdelta = delta;
 	account_system_time_scaled(tsk, deltascaled);
+	get_paca()->purrdelta = delta;
 	get_paca()->spurrdelta = deltascaled;
 	local_irq_restore(flags);
 }
@@ -326,11 +334,9 @@ void calculate_steal_time(void)
 	s64 stolen;
 	struct cpu_purr_data *pme;
 
-	if (!cpu_has_feature(CPU_FTR_PURR))
-		return;
-	pme = &per_cpu(cpu_purr_data, smp_processor_id());
+	pme = &__get_cpu_var(cpu_purr_data);
 	if (!pme->initialized)
-		return;		/* this can happen in early boot */
+		return;		/* !CPU_FTR_PURR or early in early boot */
 	tb = mftb();
 	purr = mfspr(SPRN_PURR);
 	stolen = (tb - pme->tb) - (purr - pme->purr);
@@ -353,7 +359,7 @@ static void snapshot_purr(void)
 	if (!cpu_has_feature(CPU_FTR_PURR))
 		return;
 	local_irq_save(flags);
-	pme = &per_cpu(cpu_purr_data, smp_processor_id());
+	pme = &__get_cpu_var(cpu_purr_data);
 	pme->tb = mftb();
 	pme->purr = mfspr(SPRN_PURR);
 	pme->initialized = 1;
@@ -556,8 +562,8 @@ void __init iSeries_time_init_early(void)
 void timer_interrupt(struct pt_regs * regs)
 {
 	struct pt_regs *old_regs;
-	int cpu = smp_processor_id();
-	struct clock_event_device *evt = &per_cpu(decrementers, cpu);
+	struct decrementer_clock *decrementer =  &__get_cpu_var(decrementers);
+	struct clock_event_device *evt = &decrementer->event;
 	u64 now;
 
 	/* Ensure a positive value is written to the decrementer, or else
@@ -570,9 +576,9 @@ void timer_interrupt(struct pt_regs * regs)
 #endif
 
 	now = get_tb_or_rtc();
-	if (now < per_cpu(decrementer_next_tb, cpu)) {
+	if (now < decrementer->next_tb) {
 		/* not time for this event yet */
-		now = per_cpu(decrementer_next_tb, cpu) - now;
+		now = decrementer->next_tb - now;
 		if (now <= DECREMENTER_MAX)
 			set_dec((int)now);
 		return;
@@ -622,6 +628,45 @@ void wakeup_decrementer(void)
 		ticks = 1;
 	set_dec(ticks);
 }
+
+#ifdef CONFIG_SUSPEND
+void generic_suspend_disable_irqs(void)
+{
+	preempt_disable();
+
+	/* Disable the decrementer, so that it doesn't interfere
+	 * with suspending.
+	 */
+
+	set_dec(0x7fffffff);
+	local_irq_disable();
+	set_dec(0x7fffffff);
+}
+
+void generic_suspend_enable_irqs(void)
+{
+	wakeup_decrementer();
+
+	local_irq_enable();
+	preempt_enable();
+}
+
+/* Overrides the weak version in kernel/power/main.c */
+void arch_suspend_disable_irqs(void)
+{
+	if (ppc_md.suspend_disable_irqs)
+		ppc_md.suspend_disable_irqs();
+	generic_suspend_disable_irqs();
+}
+
+/* Overrides the weak version in kernel/power/main.c */
+void arch_suspend_enable_irqs(void)
+{
+	generic_suspend_enable_irqs();
+	if (ppc_md.suspend_enable_irqs)
+		ppc_md.suspend_enable_irqs();
+}
+#endif
 
 #ifdef CONFIG_SMP
 void __init smp_space_timers(unsigned int max_cpus)
@@ -811,7 +856,7 @@ void __init clocksource_init(void)
 static int decrementer_set_next_event(unsigned long evt,
 				      struct clock_event_device *dev)
 {
-	__get_cpu_var(decrementer_next_tb) = get_tb_or_rtc() + evt;
+	__get_cpu_var(decrementers).next_tb = get_tb_or_rtc() + evt;
 	set_dec(evt);
 	return 0;
 }
@@ -825,7 +870,7 @@ static void decrementer_set_mode(enum clock_event_mode mode,
 
 static void register_decrementer_clockevent(int cpu)
 {
-	struct clock_event_device *dec = &per_cpu(decrementers, cpu);
+	struct clock_event_device *dec = &per_cpu(decrementers, cpu).event;
 
 	*dec = decrementer_clockevent;
 	dec->cpumask = cpumask_of_cpu(cpu);
@@ -836,7 +881,7 @@ static void register_decrementer_clockevent(int cpu)
 	clockevents_register_device(dec);
 }
 
-void init_decrementer_clockevent(void)
+static void __init init_decrementer_clockevent(void)
 {
 	int cpu = smp_processor_id();
 

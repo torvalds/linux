@@ -104,6 +104,7 @@
 
 struct spu_context;
 struct spu_runqueue;
+struct spu_lscsa;
 struct device_node;
 
 enum spu_utilization_state {
@@ -145,7 +146,6 @@ struct spu {
 	void (* ibox_callback)(struct spu *spu);
 	void (* stop_callback)(struct spu *spu);
 	void (* mfc_callback)(struct spu *spu);
-	void (* dma_callback)(struct spu *spu, int type);
 
 	char irq_c0[8];
 	char irq_c1[8];
@@ -196,9 +196,10 @@ struct cbe_spu_info {
 extern struct cbe_spu_info cbe_spu_info[];
 
 void spu_init_channels(struct spu *spu);
-int spu_irq_class_0_bottom(struct spu *spu);
-int spu_irq_class_1_bottom(struct spu *spu);
 void spu_irq_setaffinity(struct spu *spu, int cpu);
+
+void spu_setup_kernel_slbs(struct spu *spu, struct spu_lscsa *lscsa,
+		void *code, int code_size);
 
 #ifdef CONFIG_KEXEC
 void crash_register_spus(struct list_head *list);
@@ -210,6 +211,7 @@ static inline void crash_register_spus(struct list_head *list)
 
 extern void spu_invalidate_slbs(struct spu *spu);
 extern void spu_associate_mm(struct spu *spu, struct mm_struct *mm);
+int spu_64k_pages_available(void);
 
 /* Calls from the memory management to the SPU */
 struct mm_struct;
@@ -279,6 +281,8 @@ void spu_remove_sysdev_attr(struct sysdev_attribute *attr);
 int spu_add_sysdev_attr_group(struct attribute_group *attrs);
 void spu_remove_sysdev_attr_group(struct attribute_group *attrs);
 
+int spu_handle_mm_fault(struct mm_struct *mm, unsigned long ea,
+		unsigned long dsisr, unsigned *flt);
 
 /*
  * Notifier blocks:
@@ -303,7 +307,7 @@ extern void notify_spus_active(void);
 extern void do_notify_spus_active(void);
 
 /*
- * This defines the Local Store, Problem Area and Privlege Area of an SPU.
+ * This defines the Local Store, Problem Area and Privilege Area of an SPU.
  */
 
 union mfc_tag_size_class_cmd {
@@ -524,8 +528,24 @@ struct spu_priv1 {
 #define CLASS2_ENABLE_SPU_STOP_INTR			0x2L
 #define CLASS2_ENABLE_SPU_HALT_INTR			0x4L
 #define CLASS2_ENABLE_SPU_DMA_TAG_GROUP_COMPLETE_INTR	0x8L
+#define CLASS2_ENABLE_MAILBOX_THRESHOLD_INTR		0x10L
 	u8  pad_0x118_0x140[0x28];				/* 0x118 */
 	u64 int_stat_RW[3];					/* 0x140 */
+#define CLASS0_DMA_ALIGNMENT_INTR			0x1L
+#define CLASS0_INVALID_DMA_COMMAND_INTR			0x2L
+#define CLASS0_SPU_ERROR_INTR				0x4L
+#define CLASS0_INTR_MASK				0x7L
+#define CLASS1_SEGMENT_FAULT_INTR			0x1L
+#define CLASS1_STORAGE_FAULT_INTR			0x2L
+#define CLASS1_LS_COMPARE_SUSPEND_ON_GET_INTR		0x4L
+#define CLASS1_LS_COMPARE_SUSPEND_ON_PUT_INTR		0x8L
+#define CLASS1_INTR_MASK				0xfL
+#define CLASS2_MAILBOX_INTR				0x1L
+#define CLASS2_SPU_STOP_INTR				0x2L
+#define CLASS2_SPU_HALT_INTR				0x4L
+#define CLASS2_SPU_DMA_TAG_GROUP_COMPLETE_INTR		0x8L
+#define CLASS2_MAILBOX_THRESHOLD_INTR			0x10L
+#define CLASS2_INTR_MASK				0x1fL
 	u8  pad_0x158_0x180[0x28];				/* 0x158 */
 	u64 int_route_RW;					/* 0x180 */
 

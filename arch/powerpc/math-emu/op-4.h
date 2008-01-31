@@ -194,19 +194,39 @@
   (X##_f[3] = I3, X##_f[2] = I2, X##_f[1] = I1, X##_f[0] = I0)
 
 #ifndef __FP_FRAC_ADD_4
-#define __FP_FRAC_ADD_4(r3,r2,r1,r0,x3,x2,x1,x0,y3,y2,y1,y0)		\
-  (r0 = x0 + y0,							\
-   r1 = x1 + y1 + (r0 < x0),						\
-   r2 = x2 + y2 + (r1 < x1),						\
-   r3 = x3 + y3 + (r2 < x2))
+#define __FP_FRAC_ADD_4(r3,r2,r1,r0,x3,x2,x1,x0,y3,y2,y1,y0)	\
+  do {								\
+    int _c1, _c2, _c3;						\
+    r0 = x0 + y0;						\
+    _c1 = r0 < x0;						\
+    r1 = x1 + y1;						\
+    _c2 = r1 < x1;						\
+    r1 += _c1;							\
+    _c2 |= r1 < _c1;						\
+    r2 = x2 + y2;						\
+    _c3 = r2 < x2;						\
+    r2 += _c2;							\
+    _c3 |= r2 < _c2;						\
+    r3 = x3 + y3 + _c3;						\
+  } while (0)
 #endif
 
 #ifndef __FP_FRAC_SUB_4
-#define __FP_FRAC_SUB_4(r3,r2,r1,r0,x3,x2,x1,x0,y3,y2,y1,y0)		\
-  (r0 = x0 - y0,                                                        \
-   r1 = x1 - y1 - (r0 > x0),                                            \
-   r2 = x2 - y2 - (r1 > x1),                                            \
-   r3 = x3 - y3 - (r2 > x2))
+#define __FP_FRAC_SUB_4(r3,r2,r1,r0,x3,x2,x1,x0,y3,y2,y1,y0)	\
+  do {								\
+    int _c1, _c2, _c3;						\
+    r0 = x0 - y0;						\
+    _c1 = r0 > x0;						\
+    r1 = x1 - y1;						\
+    _c2 = r1 > x1;						\
+    r1 -= _c1;							\
+    _c2 |= r1 > _c1;						\
+    r2 = x2 - y2;						\
+    _c3 = r2 > x2;						\
+    r2 -= _c2;							\
+    _c3 |= r2 > _c2;						\
+    r3 = x3 - y3 - _c3;						\
+  } while (0)
 #endif
 
 #ifndef __FP_FRAC_ADDI_4

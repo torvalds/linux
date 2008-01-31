@@ -585,8 +585,7 @@ static void __init kw_i2c_probe(void)
 	struct device_node *np, *child, *parent;
 
 	/* Probe keywest-i2c busses */
-	for (np = NULL;
-	     (np = of_find_compatible_node(np, "i2c","keywest-i2c")) != NULL;){
+	for_each_compatible_node(np, "i2c","keywest-i2c") {
 		struct pmac_i2c_host_kw *host;
 		int multibus, chans, i;
 
@@ -1462,9 +1461,6 @@ int __init pmac_i2c_init(void)
 		return 0;
 	i2c_inited = 1;
 
-	if (!machine_is(powermac))
-		return 0;
-
 	/* Probe keywest-i2c busses */
 	kw_i2c_probe();
 
@@ -1483,7 +1479,7 @@ int __init pmac_i2c_init(void)
 
 	return 0;
 }
-arch_initcall(pmac_i2c_init);
+machine_arch_initcall(powermac, pmac_i2c_init);
 
 /* Since pmac_i2c_init can be called too early for the platform device
  * registration, we need to do it at a later time. In our case, subsys
@@ -1515,4 +1511,4 @@ static int __init pmac_i2c_create_platform_devices(void)
 
 	return 0;
 }
-subsys_initcall(pmac_i2c_create_platform_devices);
+machine_subsys_initcall(powermac, pmac_i2c_create_platform_devices);

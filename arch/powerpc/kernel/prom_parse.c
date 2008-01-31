@@ -273,7 +273,7 @@ int of_irq_map_pci(struct pci_dev *pdev, struct of_irq *out_irq)
 #else
 			struct pci_controller *host;
 			host = pci_bus_to_host(pdev->bus);
-			ppnode = host ? host->arch_data : NULL;
+			ppnode = host ? host->dn : NULL;
 #endif
 			/* No node for host bridge ? give up */
 			if (ppnode == NULL)
@@ -419,7 +419,7 @@ static struct of_bus *of_match_bus(struct device_node *np)
 
 static int of_translate_one(struct device_node *parent, struct of_bus *bus,
 			    struct of_bus *pbus, u32 *addr,
-			    int na, int ns, int pna)
+			    int na, int ns, int pna, const char *rprop)
 {
 	const u32 *ranges;
 	unsigned int rlen;
@@ -438,7 +438,7 @@ static int of_translate_one(struct device_node *parent, struct of_bus *bus,
 	 * to translate addresses that aren't supposed to be translated in
 	 * the first place. --BenH.
 	 */
-	ranges = of_get_property(parent, "ranges", &rlen);
+	ranges = of_get_property(parent, rprop, &rlen);
 	if (ranges == NULL || rlen == 0) {
 		offset = of_read_number(addr, na);
 		memset(addr, 0, pna * 4);
@@ -481,7 +481,8 @@ static int of_translate_one(struct device_node *parent, struct of_bus *bus,
  * that can be mapped to a cpu physical address). This is not really specified
  * that way, but this is traditionally the way IBM at least do things
  */
-u64 of_translate_address(struct device_node *dev, const u32 *in_addr)
+u64 __of_translate_address(struct device_node *dev, const u32 *in_addr,
+			   const char *rprop)
 {
 	struct device_node *parent = NULL;
 	struct of_bus *bus, *pbus;
@@ -540,7 +541,7 @@ u64 of_translate_address(struct device_node *dev, const u32 *in_addr)
 		    pbus->name, pna, pns, parent->full_name);
 
 		/* Apply bus translation */
-		if (of_translate_one(dev, bus, pbus, addr, na, ns, pna))
+		if (of_translate_one(dev, bus, pbus, addr, na, ns, pna, rprop))
 			break;
 
 		/* Complete the move up one level */
@@ -556,7 +557,18 @@ u64 of_translate_address(struct device_node *dev, const u32 *in_addr)
 
 	return result;
 }
+
+u64 of_translate_address(struct device_node *dev, const u32 *in_addr)
+{
+	return __of_translate_address(dev, in_addr, "ranges");
+}
 EXPORT_SYMBOL(of_translate_address);
+
+u64 of_translate_dma_address(struct device_node *dev, const u32 *in_addr)
+{
+	return __of_translate_address(dev, in_addr, "dma-ranges");
+}
+EXPORT_SYMBOL(of_translate_dma_address);
 
 const u32 *of_get_address(struct device_node *dev, int index, u64 *size,
 		    unsigned int *flags)

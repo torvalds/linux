@@ -20,55 +20,6 @@
 
 BSS_STACK(4096);
 
-void ibm405gp_fixup_clocks(unsigned int sysclk, unsigned int ser_clk)
-{
-	u32 pllmr = mfdcr(DCRN_CPC0_PLLMR);
-	u32 cpc0_cr0 = mfdcr(DCRN_405_CPC0_CR0);
-	u32 cpc0_cr1 = mfdcr(DCRN_405_CPC0_CR1);
-	u32 cpu, plb, opb, ebc, tb, uart0, uart1, m;
-	u32 fwdv, fbdv, cbdv, opdv, epdv, udiv;
-
-	fwdv = (8 - ((pllmr & 0xe0000000) >> 29));
-	fbdv = (pllmr & 0x1e000000) >> 25;
-	cbdv = ((pllmr & 0x00060000) >> 17) + 1;
-	opdv = ((pllmr & 0x00018000) >> 15) + 1;
-	epdv = ((pllmr & 0x00001800) >> 13) + 2;
-	udiv = ((cpc0_cr0 & 0x3e) >> 1) + 1;
-
-	m = fwdv * fbdv * cbdv;
-
-	cpu = sysclk * m / fwdv;
-	plb = cpu / cbdv;
-	opb = plb / opdv;
-	ebc = plb / epdv;
-
-	if (cpc0_cr0 & 0x80) {
-		/* uart0 uses the external clock */
-		uart0 = ser_clk;
-	} else {
-		uart0 = cpu / udiv;
-	}
-
-	if (cpc0_cr0 & 0x40) {
-		/* uart1 uses the external clock */
-		uart1 = ser_clk;
-	} else {
-		uart1 = cpu / udiv;
-	}
-
-	/* setup the timebase clock to tick at the cpu frequency */
-	cpc0_cr1 = cpc0_cr1 & ~0x00800000;
-	mtdcr(DCRN_405_CPC0_CR1, cpc0_cr1);
-	tb = cpu;
-
-	dt_fixup_cpu_clocks(cpu, tb, 0);
-	dt_fixup_clock("/plb", plb);
-	dt_fixup_clock("/plb/opb", opb);
-	dt_fixup_clock("/plb/ebc", ebc);
-	dt_fixup_clock("/plb/opb/serial@ef600300", uart0);
-	dt_fixup_clock("/plb/opb/serial@ef600400", uart1);
-}
-
 static void walnut_flashsel_fixup(void)
 {
 	void *devp, *sram;
@@ -112,7 +63,7 @@ static void walnut_flashsel_fixup(void)
 #define WALNUT_OPENBIOS_MAC_OFF 0xfffffe0b
 static void walnut_fixups(void)
 {
-	ibm4xx_fixup_memsize();
+	ibm4xx_sdram_fixup_memsize();
 	ibm405gp_fixup_clocks(33330000, 0xa8c000);
 	ibm4xx_quiesce_eth((u32 *)0xef600800, NULL);
 	ibm4xx_fixup_ebc_ranges("/plb/ebc");
@@ -128,6 +79,6 @@ void platform_init(void)
 	simple_alloc_init(_end, avail_ram, 32, 32);
 	platform_ops.fixups = walnut_fixups;
 	platform_ops.exit = ibm40x_dbcr_reset;
-	ft_init(_dtb_start, _dtb_end - _dtb_start, 32);
+	fdt_init(_dtb_start);
 	serial_console_init();
 }

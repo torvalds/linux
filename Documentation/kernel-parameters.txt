@@ -717,6 +717,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			See Documentation/isdn/README.HiSax.
 
 	hugepages=	[HW,X86-32,IA-64] Maximal number of HugeTLB pages.
+	hugepagesz=	[HW,IA-64,PPC] The size of the HugeTLB pages.
 
 	i8042.direct	[HW] Put keyboard port into non-translated mode
 	i8042.dumbkbd	[HW] Pretend that controller can only read data from

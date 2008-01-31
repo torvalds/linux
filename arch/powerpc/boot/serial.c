@@ -126,9 +126,10 @@ int serial_console_init(void)
 	         dt_is_compatible(devp, "fsl,cpm2-scc-uart") ||
 	         dt_is_compatible(devp, "fsl,cpm2-smc-uart"))
 		rc = cpm_console_init(devp, &serial_cd);
-	else if (dt_is_compatible(devp, "mpc5200-psc-uart"))
+	else if (dt_is_compatible(devp, "fsl,mpc5200-psc-uart"))
 		rc = mpc5200_psc_console_init(devp, &serial_cd);
-	else if (dt_is_compatible(devp, "xilinx,uartlite"))
+	else if (dt_is_compatible(devp, "xlnx,opb-uartlite-1.00.b") ||
+		 dt_is_compatible(devp, "xlnx,xps-uartlite-1.00.a"))
 		rc = uartlite_console_init(devp, &serial_cd);
 
 	/* Add other serial console driver calls here */

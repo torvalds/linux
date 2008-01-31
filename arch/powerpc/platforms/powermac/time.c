@@ -84,12 +84,14 @@ long __init pmac_time_init(void)
 	return delta;
 }
 
+#if defined(CONFIG_ADB_CUDA) || defined(CONFIG_ADB_PMU)
 static void to_rtc_time(unsigned long now, struct rtc_time *tm)
 {
 	to_tm(now, tm);
 	tm->tm_year -= 1900;
 	tm->tm_mon -= 1;
 }
+#endif
 
 static unsigned long from_rtc_time(struct rtc_time *tm)
 {

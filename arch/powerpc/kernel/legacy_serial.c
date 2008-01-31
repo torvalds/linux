@@ -4,6 +4,7 @@
 #include <linux/serial_core.h>
 #include <linux/console.h>
 #include <linux/pci.h>
+#include <linux/of_device.h>
 #include <asm/io.h>
 #include <asm/mmu.h>
 #include <asm/prom.h>
@@ -31,6 +32,15 @@ static struct legacy_serial_info {
 	int				irq_check_parent;
 	phys_addr_t			taddr;
 } legacy_serial_infos[MAX_LEGACY_SERIAL_PORTS];
+
+static struct __initdata of_device_id parents[] = {
+	{.type = "soc",},
+	{.type = "tsi-bridge",},
+	{.type = "opb", .compatible = "ibm,opb",},
+	{.compatible = "simple-bus",},
+	{.compatible = "wrs,epld-localbus",},
+};
+
 static unsigned int legacy_serial_count;
 static int legacy_serial_console = -1;
 
@@ -306,19 +316,21 @@ void __init find_legacy_serial_ports(void)
 		DBG(" no linux,stdout-path !\n");
 	}
 
-	/* First fill our array with SOC ports */
-	for (np = NULL; (np = of_find_compatible_node(np, "serial", "ns16550")) != NULL;) {
-		struct device_node *soc = of_get_parent(np);
-		if (soc && !strcmp(soc->type, "soc")) {
+	/* Iterate over all the 16550 ports, looking for known parents */
+	for_each_compatible_node(np, "serial", "ns16550") {
+		struct device_node *parent = of_get_parent(np);
+		if (!parent)
+			continue;
+		if (of_match_node(parents, parent) != NULL) {
 			index = add_legacy_soc_port(np, np);
 			if (index >= 0 && np == stdout)
 				legacy_serial_console = index;
 		}
-		of_node_put(soc);
+		of_node_put(parent);
 	}
 
-	/* First fill our array with ISA ports */
-	for (np = NULL; (np = of_find_node_by_type(np, "serial"));) {
+	/* Next, fill our array with ISA ports */
+	for_each_node_by_type(np, "serial") {
 		struct device_node *isa = of_get_parent(np);
 		if (isa && !strcmp(isa->name, "isa")) {
 			index = add_legacy_isa_port(np, isa);
@@ -326,29 +338,6 @@ void __init find_legacy_serial_ports(void)
 				legacy_serial_console = index;
 		}
 		of_node_put(isa);
-	}
-
-	/* First fill our array with tsi-bridge ports */
-	for (np = NULL; (np = of_find_compatible_node(np, "serial", "ns16550")) != NULL;) {
-		struct device_node *tsi = of_get_parent(np);
-		if (tsi && !strcmp(tsi->type, "tsi-bridge")) {
-			index = add_legacy_soc_port(np, np);
-			if (index >= 0 && np == stdout)
-				legacy_serial_console = index;
-		}
-		of_node_put(tsi);
-	}
-
-	/* First fill our array with opb bus ports */
-	for (np = NULL; (np = of_find_compatible_node(np, "serial", "ns16550")) != NULL;) {
-		struct device_node *opb = of_get_parent(np);
-		if (opb && (!strcmp(opb->type, "opb") ||
-			    of_device_is_compatible(opb, "ibm,opb"))) {
-			index = add_legacy_soc_port(np, np);
-			if (index >= 0 && np == stdout)
-				legacy_serial_console = index;
-		}
-		of_node_put(opb);
 	}
 
 #ifdef CONFIG_PCI
@@ -474,7 +463,7 @@ static int __init serial_dev_init(void)
 
 	/*
 	 * Before we register the platfrom serial devices, we need
-	 * to fixup their interrutps and their IO ports.
+	 * to fixup their interrupts and their IO ports.
 	 */
 	DBG("Fixing serial ports interrupts and IO ports ...\n");
 

@@ -532,16 +532,14 @@ struct iommu_table *iommu_init_table(struct iommu_table *tbl, int nid)
 	return tbl;
 }
 
-void iommu_free_table(struct device_node *dn)
+void iommu_free_table(struct iommu_table *tbl, const char *node_name)
 {
-	struct pci_dn *pdn = dn->data;
-	struct iommu_table *tbl = pdn->iommu_table;
 	unsigned long bitmap_sz, i;
 	unsigned int order;
 
 	if (!tbl || !tbl->it_map) {
 		printk(KERN_ERR "%s: expected TCE map for %s\n", __FUNCTION__,
-				dn->full_name);
+				node_name);
 		return;
 	}
 
@@ -550,7 +548,7 @@ void iommu_free_table(struct device_node *dn)
 	for (i = 0; i < (tbl->it_size/64); i++) {
 		if (tbl->it_map[i] != 0) {
 			printk(KERN_WARNING "%s: Unexpected TCEs for %s\n",
-				__FUNCTION__, dn->full_name);
+				__FUNCTION__, node_name);
 			break;
 		}
 	}

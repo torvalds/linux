@@ -2356,7 +2356,7 @@ config GELIC_NET
 
 config GIANFAR
 	tristate "Gianfar Ethernet"
-	depends on 85xx || 83xx || PPC_86xx
+	depends on FSL_SOC
 	select PHYLIB
 	select CRC32
 	help

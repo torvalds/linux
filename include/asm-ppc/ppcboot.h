@@ -38,8 +38,7 @@ typedef struct bd_info {
 	unsigned long	bi_flashoffset; /* reserved area for startup monitor */
 	unsigned long	bi_sramstart;	/* start of SRAM memory */
 	unsigned long	bi_sramsize;	/* size	 of SRAM memory */
-#if defined(CONFIG_8xx) || defined(CONFIG_CPM2) || defined(CONFIG_85xx) ||\
-	defined(CONFIG_83xx)
+#if defined(CONFIG_8xx) || defined(CONFIG_CPM2)
 	unsigned long	bi_immr_base;	/* base of IMMR register */
 #endif
 #if defined(CONFIG_PPC_MPC52xx)
@@ -73,12 +72,11 @@ typedef struct bd_info {
 #if defined(CONFIG_HYMOD)
 	hymod_conf_t	bi_hymod_conf;	/* hymod configuration information */
 #endif
-#if defined(CONFIG_EVB64260) || defined(CONFIG_405EP) || defined(CONFIG_44x) || \
-	defined(CONFIG_85xx) ||	defined(CONFIG_83xx)
+#if defined(CONFIG_EVB64260) || defined(CONFIG_405EP) || defined(CONFIG_44x)
 	/* second onboard ethernet port */
 	unsigned char	bi_enet1addr[6];
 #endif
-#if defined(CONFIG_EVB64260) || defined(CONFIG_440GX) || defined(CONFIG_85xx)
+#if defined(CONFIG_EVB64260) || defined(CONFIG_440GX)
 	/* third onboard ethernet ports */
 	unsigned char	bi_enet2addr[6];
 #endif

@@ -21,9 +21,11 @@
 #include <asm/udbg.h>
 #include <asm/time.h>
 #include <asm/uic.h>
+#include <asm/pci-bridge.h>
+
 #include "44x.h"
 
-static struct of_device_id bamboo_of_bus[] = {
+static __initdata struct of_device_id bamboo_of_bus[] = {
 	{ .compatible = "ibm,plb4", },
 	{ .compatible = "ibm,opb", },
 	{ .compatible = "ibm,ebc", },
@@ -32,14 +34,11 @@ static struct of_device_id bamboo_of_bus[] = {
 
 static int __init bamboo_device_probe(void)
 {
-	if (!machine_is(bamboo))
-		return 0;
-
 	of_platform_bus_probe(NULL, bamboo_of_bus, NULL);
 
 	return 0;
 }
-device_initcall(bamboo_device_probe);
+machine_device_initcall(bamboo, bamboo_device_probe);
 
 static int __init bamboo_probe(void)
 {
@@ -47,6 +46,8 @@ static int __init bamboo_probe(void)
 
 	if (!of_flat_dt_is_compatible(root, "amcc,bamboo"))
 		return 0;
+
+	ppc_pci_flags = PPC_PCI_REASSIGN_ALL_RSRC;
 
 	return 1;
 }

@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.24-rc4
-# Thu Dec  6 16:48:11 2007
+# Linux kernel version: 2.6.24-rc6
+# Mon Dec 24 11:16:26 2007
 #
 # CONFIG_PPC64 is not set
 
@@ -130,6 +130,7 @@ CONFIG_DEFAULT_AS=y
 # CONFIG_DEFAULT_CFQ is not set
 # CONFIG_DEFAULT_NOOP is not set
 CONFIG_DEFAULT_IOSCHED="anticipatory"
+# CONFIG_PPC4xx_PCI_EXPRESS is not set
 
 #
 # Platform support
@@ -142,6 +143,9 @@ CONFIG_DEFAULT_IOSCHED="anticipatory"
 # CONFIG_BAMBOO is not set
 CONFIG_EBONY=y
 # CONFIG_SEQUOIA is not set
+# CONFIG_TAISHAN is not set
+# CONFIG_KATMAI is not set
+# CONFIG_RAINIER is not set
 CONFIG_440GP=y
 # CONFIG_MPIC is not set
 # CONFIG_MPIC_WEIRD is not set

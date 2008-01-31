@@ -81,16 +81,8 @@
 static inline int fcc_cr_cmd(struct fs_enet_private *fep, u32 op)
 {
 	const struct fs_platform_info *fpi = fep->fpi;
-	int i;
 
-	W32(cpmp, cp_cpcr, fpi->cp_command | op | CPM_CR_FLG);
-	for (i = 0; i < MAX_CR_CMD_LOOPS; i++)
-		if ((R32(cpmp, cp_cpcr) & CPM_CR_FLG) == 0)
-			return 0;
-
-	printk(KERN_ERR "%s(): Not able to issue CPM command\n",
-	       __FUNCTION__);
-	return 1;
+	return cpm_command(fpi->cp_command, op);
 }
 
 static int do_pd_setup(struct fs_enet_private *fep)

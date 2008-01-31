@@ -16,6 +16,14 @@ static inline u32 mfpvr(void)
 	return pvr;
 }
 
+#define __stringify_1(x)	#x
+#define __stringify(x)		__stringify_1(x)
+
+#define mfspr(rn)	({unsigned long rval; \
+			asm volatile("mfspr %0," __stringify(rn) \
+				: "=r" (rval)); rval; })
+#define mtspr(rn, v)	asm volatile("mtspr " __stringify(rn) ",%0" : : "r" (v))
+
 register void *__stack_pointer asm("r1");
 #define get_sp()	(__stack_pointer)
 

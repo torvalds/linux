@@ -73,8 +73,8 @@ _ENTRY(_start);
 /* We try to not make any assumptions about how the boot loader
  * setup or used the TLBs.  We invalidate all mappings from the
  * boot loader and load a single entry in TLB1[0] to map the
- * first 16M of kernel memory.  Any boot info passed from the
- * bootloader needs to live in this first 16M.
+ * first 64M of kernel memory.  Any boot info passed from the
+ * bootloader needs to live in this first 64M.
  *
  * Requirement on bootloader:
  *  - The page we're executing in needs to reside in TLB1 and
@@ -167,7 +167,7 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	mtspr	SPRN_MAS0,r7
 	tlbre
 
-	/* Just modify the entry ID and EPN for the temp mapping */
+	/* Just modify the entry ID, EPN and RPN for the temp mapping */
 	lis	r7,0x1000	/* Set MAS0(TLBSEL) = 1 */
 	rlwimi	r7,r5,16,4,15	/* Setup MAS0 = TLBSEL | ESEL(r5) */
 	mtspr	SPRN_MAS0,r7
@@ -177,9 +177,12 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	ori	r6,r6,(MAS1_TSIZE(BOOKE_PAGESZ_4K))@l
 	mtspr	SPRN_MAS1,r6
 	mfspr	r6,SPRN_MAS2
-	li	r7,0		/* temp EPN = 0 */
+	lis	r7,PHYSICAL_START@h
 	rlwimi	r7,r6,0,20,31
 	mtspr	SPRN_MAS2,r7
+	mfspr	r6,SPRN_MAS3
+	rlwimi	r7,r6,0,20,31
+	mtspr	SPRN_MAS3,r7
 	tlbwe
 
 	xori	r6,r4,1
@@ -222,11 +225,11 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	lis	r6,0x1000		/* Set MAS0(TLBSEL) = TLB1(1), ESEL = 0 */
 	mtspr	SPRN_MAS0,r6
 	lis	r6,(MAS1_VALID|MAS1_IPROT)@h
-	ori	r6,r6,(MAS1_TSIZE(BOOKE_PAGESZ_16M))@l
+	ori	r6,r6,(MAS1_TSIZE(BOOKE_PAGESZ_64M))@l
 	mtspr	SPRN_MAS1,r6
 	li	r7,0
-	lis	r6,KERNELBASE@h
-	ori	r6,r6,KERNELBASE@l
+	lis	r6,PAGE_OFFSET@h
+	ori	r6,r6,PAGE_OFFSET@l
 	rlwimi	r6,r7,0,20,31
 	mtspr	SPRN_MAS2,r6
 	li	r7,(MAS3_SX|MAS3_SW|MAS3_SR)
@@ -234,6 +237,9 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	tlbwe
 
 /* 7. Jump to KERNELBASE mapping */
+	lis	r6,KERNELBASE@h
+	ori	r6,r6,KERNELBASE@l
+	rlwimi	r6,r7,0,20,31
 	lis	r7,MSR_KERNEL@h
 	ori	r7,r7,MSR_KERNEL@l
 	bl	1f			/* Find our address */

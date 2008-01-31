@@ -22,6 +22,7 @@
 
 #undef DEBUG
 
+#include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/irq.h>
 
@@ -222,7 +223,7 @@ void __init celleb_pci_add_one(struct pci_controller *phb,
 			       void (*dummy_read)(struct pci_controller *))
 {
 	struct celleb_pci_bus *bus = &celleb_pci_busses[celleb_pci_count];
-	struct device_node *np = phb->arch_data;
+	struct device_node *np = phb->dn;
 
 	if (celleb_pci_count >= MAX_CELLEB_PCI_BUS) {
 		printk(KERN_ERR "Too many pci bridges, workarounds"
@@ -256,13 +257,13 @@ int __init celleb_pci_workaround_init(void)
 
 	celleb_dummy_page_va = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!celleb_dummy_page_va) {
-		printk(KERN_ERR "Celleb: dummy read disabled."
+		printk(KERN_ERR "Celleb: dummy read disabled. "
 			"Alloc celleb_dummy_page_va failed\n");
 		return 1;
 	}
 
 	list_for_each_entry(phb, &hose_list, list_node) {
-		node = phb->arch_data;
+		node = phb->dn;
 		match = of_match_node(celleb_pci_workaround_match, node);
 
 		if (match) {

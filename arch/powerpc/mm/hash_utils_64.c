@@ -96,6 +96,7 @@ int mmu_vmalloc_psize = MMU_PAGE_4K;
 int mmu_io_psize = MMU_PAGE_4K;
 int mmu_kernel_ssize = MMU_SEGSIZE_256M;
 int mmu_highuser_ssize = MMU_SEGSIZE_256M;
+u16 mmu_slb_size = 64;
 #ifdef CONFIG_HUGETLB_PAGE
 int mmu_huge_psize = MMU_PAGE_16M;
 unsigned int HPAGE_SHIFT;
@@ -368,18 +369,11 @@ static void __init htab_init_page_sizes(void)
 	 * on what is available
 	 */
 	if (mmu_psize_defs[MMU_PAGE_16M].shift)
-		mmu_huge_psize = MMU_PAGE_16M;
+		set_huge_psize(MMU_PAGE_16M);
 	/* With 4k/4level pagetables, we can't (for now) cope with a
 	 * huge page size < PMD_SIZE */
 	else if (mmu_psize_defs[MMU_PAGE_1M].shift)
-		mmu_huge_psize = MMU_PAGE_1M;
-
-	/* Calculate HPAGE_SHIFT and sanity check it */
-	if (mmu_psize_defs[mmu_huge_psize].shift > MIN_HUGEPTE_SHIFT &&
-	    mmu_psize_defs[mmu_huge_psize].shift < SID_SHIFT)
-		HPAGE_SHIFT = mmu_psize_defs[mmu_huge_psize].shift;
-	else
-		HPAGE_SHIFT = 0; /* No huge pages dude ! */
+		set_huge_psize(MMU_PAGE_1M);
 #endif /* CONFIG_HUGETLB_PAGE */
 }
 
@@ -477,7 +471,7 @@ void __init htab_initialize(void)
 	unsigned long table;
 	unsigned long pteg_count;
 	unsigned long mode_rw;
-	unsigned long base = 0, size = 0;
+	unsigned long base = 0, size = 0, limit;
 	int i;
 
 	extern unsigned long tce_alloc_start, tce_alloc_end;
@@ -511,9 +505,15 @@ void __init htab_initialize(void)
 		_SDR1 = 0; 
 	} else {
 		/* Find storage for the HPT.  Must be contiguous in
-		 * the absolute address space.
+		 * the absolute address space. On cell we want it to be
+		 * in the first 1 Gig.
 		 */
-		table = lmb_alloc(htab_size_bytes, htab_size_bytes);
+		if (machine_is(cell))
+			limit = 0x40000000;
+		else
+			limit = 0;
+
+		table = lmb_alloc_base(htab_size_bytes, htab_size_bytes, limit);
 
 		DBG("Hash table allocated at %lx, size: %lx\n", table,
 		    htab_size_bytes);
@@ -643,7 +643,7 @@ unsigned int hash_page_do_lazy_icache(unsigned int pp, pte_t pte, int trap)
  * For now this makes the whole process use 4k pages.
  */
 #ifdef CONFIG_PPC_64K_PAGES
-static void demote_segment_4k(struct mm_struct *mm, unsigned long addr)
+void demote_segment_4k(struct mm_struct *mm, unsigned long addr)
 {
 	if (mm->context.user_psize == MMU_PAGE_4K)
 		return;
@@ -651,13 +651,62 @@ static void demote_segment_4k(struct mm_struct *mm, unsigned long addr)
 #ifdef CONFIG_SPU_BASE
 	spu_flush_all_slbs(mm);
 #endif
+	if (get_paca()->context.user_psize != MMU_PAGE_4K) {
+		get_paca()->context = mm->context;
+		slb_flush_and_rebolt();
+	}
 }
 #endif /* CONFIG_PPC_64K_PAGES */
+
+#ifdef CONFIG_PPC_SUBPAGE_PROT
+/*
+ * This looks up a 2-bit protection code for a 4k subpage of a 64k page.
+ * Userspace sets the subpage permissions using the subpage_prot system call.
+ *
+ * Result is 0: full permissions, _PAGE_RW: read-only,
+ * _PAGE_USER or _PAGE_USER|_PAGE_RW: no access.
+ */
+static int subpage_protection(pgd_t *pgdir, unsigned long ea)
+{
+	struct subpage_prot_table *spt = pgd_subpage_prot(pgdir);
+	u32 spp = 0;
+	u32 **sbpm, *sbpp;
+
+	if (ea >= spt->maxaddr)
+		return 0;
+	if (ea < 0x100000000) {
+		/* addresses below 4GB use spt->low_prot */
+		sbpm = spt->low_prot;
+	} else {
+		sbpm = spt->protptrs[ea >> SBP_L3_SHIFT];
+		if (!sbpm)
+			return 0;
+	}
+	sbpp = sbpm[(ea >> SBP_L2_SHIFT) & (SBP_L2_COUNT - 1)];
+	if (!sbpp)
+		return 0;
+	spp = sbpp[(ea >> PAGE_SHIFT) & (SBP_L1_COUNT - 1)];
+
+	/* extract 2-bit bitfield for this 4k subpage */
+	spp >>= 30 - 2 * ((ea >> 12) & 0xf);
+
+	/* turn 0,1,2,3 into combination of _PAGE_USER and _PAGE_RW */
+	spp = ((spp & 2) ? _PAGE_USER : 0) | ((spp & 1) ? _PAGE_RW : 0);
+	return spp;
+}
+
+#else /* CONFIG_PPC_SUBPAGE_PROT */
+static inline int subpage_protection(pgd_t *pgdir, unsigned long ea)
+{
+	return 0;
+}
+#endif
 
 /* Result code is:
  *  0 - handled
  *  1 - normal page fault
  * -1 - critical hash insertion error
+ * -2 - access not permitted by subpage protection mechanism
  */
 int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 {
@@ -808,7 +857,14 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 		rc = __hash_page_64K(ea, access, vsid, ptep, trap, local, ssize);
 	else
 #endif /* CONFIG_PPC_HAS_HASH_64K */
-		rc = __hash_page_4K(ea, access, vsid, ptep, trap, local, ssize);
+	{
+		int spp = subpage_protection(pgdir, ea);
+		if (access & spp)
+			rc = -2;
+		else
+			rc = __hash_page_4K(ea, access, vsid, ptep, trap,
+					    local, ssize, spp);
+	}
 
 #ifndef CONFIG_PPC_64K_PAGES
 	DBG_LOW(" o-pte: %016lx\n", pte_val(*ptep));
@@ -880,7 +936,8 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
 		__hash_page_64K(ea, access, vsid, ptep, trap, local, ssize);
 	else
 #endif /* CONFIG_PPC_HAS_HASH_64K */
-		__hash_page_4K(ea, access, vsid, ptep, trap, local, ssize);
+		__hash_page_4K(ea, access, vsid, ptep, trap, local, ssize,
+			       subpage_protection(pgdir, ea));
 
 	local_irq_restore(flags);
 }
@@ -925,19 +982,17 @@ void flush_hash_range(unsigned long number, int local)
  * low_hash_fault is called when we the low level hash code failed
  * to instert a PTE due to an hypervisor error
  */
-void low_hash_fault(struct pt_regs *regs, unsigned long address)
+void low_hash_fault(struct pt_regs *regs, unsigned long address, int rc)
 {
 	if (user_mode(regs)) {
-		siginfo_t info;
-
-		info.si_signo = SIGBUS;
-		info.si_errno = 0;
-		info.si_code = BUS_ADRERR;
-		info.si_addr = (void __user *)address;
-		force_sig_info(SIGBUS, &info, current);
-		return;
-	}
-	bad_page_fault(regs, address, SIGBUS);
+#ifdef CONFIG_PPC_SUBPAGE_PROT
+		if (rc == -2)
+			_exception(SIGSEGV, regs, SEGV_ACCERR, address);
+		else
+#endif
+			_exception(SIGBUS, regs, BUS_ADRERR, address);
+	} else
+		bad_page_fault(regs, address, SIGBUS);
 }
 
 #ifdef CONFIG_DEBUG_PAGEALLOC

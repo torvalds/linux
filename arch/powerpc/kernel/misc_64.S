@@ -518,13 +518,6 @@ _GLOBAL(giveup_altivec)
 
 #endif /* CONFIG_ALTIVEC */
 
-_GLOBAL(kernel_execve)
-	li	r0,__NR_execve
-	sc
-	bnslr
-	neg	r3,r3
-	blr
-
 /* kexec_wait(phys_cpu)
  *
  * wait for the flag to change, indicating this kernel is going away but

@@ -8,6 +8,7 @@
 #ifndef __ASM_POWERPC_MPC8260_H__
 #define __ASM_POWERPC_MPC8260_H__
 
+#define MPC82XX_BCR_PLDP 0x00800000 /* Pipeline Maximum Depth */
 
 #ifdef CONFIG_8260
 

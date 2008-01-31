@@ -164,8 +164,8 @@ static int __init mv64x60_add_bridge(struct device_node *dev)
 
 void __init mv64x60_pci_init(void)
 {
-	struct device_node *np = NULL;
+	struct device_node *np;
 
-	while ((np = of_find_compatible_node(np, "pci", "marvell,mv64x60-pci")))
+	for_each_compatible_node(np, "pci", "marvell,mv64x60-pci")
 		mv64x60_add_bridge(np);
 }

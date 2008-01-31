@@ -1284,4 +1284,14 @@ config SERIAL_OF_PLATFORM
 	  Currently, only 8250 compatible ports are supported, but
 	  others can easily be added.
 
+config SERIAL_QE
+	tristate "Freescale QUICC Engine serial port support"
+	depends on QUICC_ENGINE
+	select SERIAL_CORE
+	select FW_LOADER
+	default n
+	help
+	  This driver supports the QE serial ports on Freescale embedded
+	  PowerPC that contain a QUICC Engine.
+
 endmenu

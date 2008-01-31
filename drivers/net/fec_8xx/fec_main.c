@@ -35,7 +35,7 @@
 #include <asm/mpc8xx.h>
 #include <asm/irq.h>
 #include <asm/uaccess.h>
-#include <asm/commproc.h>
+#include <asm/cpm1.h>
 
 #include "fec_8xx.h"
 

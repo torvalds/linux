@@ -22,7 +22,7 @@
 #include "mpc83xx.h"
 
 
-#ifdef CONFIG_MPC834x
+#ifdef CONFIG_PPC_MPC834x
 int mpc834x_usb_cfg(void)
 {
 	unsigned long sccr, sicrl, sicrh;
@@ -41,7 +41,7 @@ int mpc834x_usb_cfg(void)
 	sicrl = in_be32(immap + MPC83XX_SICRL_OFFS) & ~MPC834X_SICRL_USB_MASK;
 	sicrh = in_be32(immap + MPC83XX_SICRH_OFFS) & ~MPC834X_SICRH_USB_UTMI;
 
-	np = of_find_compatible_node(NULL, "usb", "fsl-usb2-dr");
+	np = of_find_compatible_node(NULL, NULL, "fsl-usb2-dr");
 	if (np) {
 		sccr |= MPC83XX_SCCR_USB_DRCM_11;  /* 1:3 */
 
@@ -67,7 +67,7 @@ int mpc834x_usb_cfg(void)
 		port0_is_dr = 1;
 		of_node_put(np);
 	}
-	np = of_find_compatible_node(NULL, "usb", "fsl-usb2-mph");
+	np = of_find_compatible_node(NULL, NULL, "fsl-usb2-mph");
 	if (np) {
 		sccr |= MPC83XX_SCCR_USB_MPHCM_11; /* 1:3 */
 
@@ -96,7 +96,7 @@ int mpc834x_usb_cfg(void)
 	iounmap(immap);
 	return 0;
 }
-#endif /* CONFIG_MPC834x */
+#endif /* CONFIG_PPC_MPC834x */
 
 #ifdef CONFIG_PPC_MPC831x
 int mpc831x_usb_cfg(void)
@@ -111,7 +111,7 @@ int mpc831x_usb_cfg(void)
 	const void *dr_mode;
 #endif
 
-	np = of_find_compatible_node(NULL, "usb", "fsl-usb2-dr");
+	np = of_find_compatible_node(NULL, NULL, "fsl-usb2-dr");
 	if (!np)
 		return -ENODEV;
 	prop = of_get_property(np, "phy_type", NULL);
@@ -179,3 +179,43 @@ int mpc831x_usb_cfg(void)
 	return ret;
 }
 #endif /* CONFIG_PPC_MPC831x */
+
+#ifdef CONFIG_PPC_MPC837x
+int mpc837x_usb_cfg(void)
+{
+	void __iomem *immap;
+	struct device_node *np = NULL;
+	const void *prop;
+	int ret = 0;
+
+	np = of_find_compatible_node(NULL, NULL, "fsl-usb2-dr");
+	if (!np)
+		return -ENODEV;
+	prop = of_get_property(np, "phy_type", NULL);
+
+	if (!prop || (strcmp(prop, "ulpi") && strcmp(prop, "serial"))) {
+		printk(KERN_WARNING "837x USB PHY type not supported\n");
+		of_node_put(np);
+		return -EINVAL;
+	}
+
+	/* Map IMMR space for pin and clock settings */
+	immap = ioremap(get_immrbase(), 0x1000);
+	if (!immap) {
+		of_node_put(np);
+		return -ENOMEM;
+	}
+
+	/* Configure clock */
+	clrsetbits_be32(immap + MPC83XX_SCCR_OFFS, MPC837X_SCCR_USB_DRCM_11,
+			MPC837X_SCCR_USB_DRCM_11);
+
+	/* Configure pin mux for ULPI/serial */
+	clrsetbits_be32(immap + MPC83XX_SICRL_OFFS, MPC837X_SICRL_USB_MASK,
+			MPC837X_SICRL_USB_ULPI);
+
+	iounmap(immap);
+	of_node_put(np);
+	return ret;
+}
+#endif /* CONFIG_PPC_MPC837x */

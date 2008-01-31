@@ -23,6 +23,7 @@
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
+#include <linux/interrupt.h>
 
 #include "rio.h"
 
@@ -476,8 +477,8 @@ int rio_init_mports(void)
 					port->iores.end - port->iores.start,
 					port->name)) {
 			printk(KERN_ERR
-			       "RIO: Error requesting master port region %8.8lx-%8.8lx\n",
-			       port->iores.start, port->iores.end - 1);
+			       "RIO: Error requesting master port region 0x%016llx-0x%016llx\n",
+			       (u64)port->iores.start, (u64)port->iores.end - 1);
 			rc = -ENOMEM;
 			goto out;
 		}

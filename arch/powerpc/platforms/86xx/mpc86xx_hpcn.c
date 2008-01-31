@@ -18,6 +18,7 @@
 #include <linux/kdev_t.h>
 #include <linux/delay.h>
 #include <linux/seq_file.h>
+#include <linux/of_platform.h>
 
 #include <asm/system.h>
 #include <asm/time.h>
@@ -116,7 +117,7 @@ static int mpc86xx_exclude_device(struct pci_controller *hose,
 	struct device_node* node;	
 	struct resource rsrc;
 
-	node = (struct device_node *)hose->arch_data;
+	node = hose->dn;
 	of_address_to_resource(node, 0, &rsrc);
 
 	if ((rsrc.start & 0xfffff) == 0x8000) {
@@ -211,6 +212,19 @@ mpc86xx_time_init(void)
 
 	return 0;
 }
+
+static __initdata struct of_device_id of_bus_ids[] = {
+	{ .compatible = "simple-bus", },
+	{},
+};
+
+static int __init declare_of_platform_devices(void)
+{
+	of_platform_bus_probe(NULL, of_bus_ids, NULL);
+
+	return 0;
+}
+machine_device_initcall(mpc86xx_hpcn, declare_of_platform_devices);
 
 define_machine(mpc86xx_hpcn) {
 	.name			= "MPC86xx HPCN",

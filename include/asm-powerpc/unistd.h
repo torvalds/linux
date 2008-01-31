@@ -332,10 +332,11 @@
 #define __NR_eventfd		307
 #define __NR_sync_file_range2	308
 #define __NR_fallocate		309
+#define __NR_subpage_prot	310
 
 #ifdef __KERNEL__
 
-#define __NR_syscalls		310
+#define __NR_syscalls		311
 
 #define __NR__exit __NR_exit
 #define NR_syscalls	__NR_syscalls

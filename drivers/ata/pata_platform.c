@@ -93,14 +93,9 @@ static struct ata_port_operations pata_platform_port_ops = {
 };
 
 static void pata_platform_setup_port(struct ata_ioports *ioaddr,
-				     struct pata_platform_info *info)
+				     unsigned int shift)
 {
-	unsigned int shift = 0;
-
 	/* Fixup the port shift for platforms that need it */
-	if (info && info->ioport_shift)
-		shift = info->ioport_shift;
-
 	ioaddr->data_addr	= ioaddr->cmd_addr + (ATA_REG_DATA    << shift);
 	ioaddr->error_addr	= ioaddr->cmd_addr + (ATA_REG_ERR     << shift);
 	ioaddr->feature_addr	= ioaddr->cmd_addr + (ATA_REG_FEATURE << shift);
@@ -114,8 +109,13 @@ static void pata_platform_setup_port(struct ata_ioports *ioaddr,
 }
 
 /**
- *	pata_platform_probe		-	attach a platform interface
- *	@pdev: platform device
+ *	__pata_platform_probe		-	attach a platform interface
+ *	@dev: device
+ *	@io_res: Resource representing I/O base
+ *	@ctl_res: Resource representing CTL base
+ *	@irq_res: Resource representing IRQ and its flags
+ *	@ioport_shift: I/O port shift
+ *	@__pio_mask: PIO mask
  *
  *	Register a platform bus IDE interface. Such interfaces are PIO and we
  *	assume do not support IRQ sharing.
@@ -135,14 +135,109 @@ static void pata_platform_setup_port(struct ata_ioports *ioaddr,
  *
  *	If no IRQ resource is present, PIO polling mode is used instead.
  */
-static int __devinit pata_platform_probe(struct platform_device *pdev)
+int __devinit __pata_platform_probe(struct device *dev,
+				    struct resource *io_res,
+				    struct resource *ctl_res,
+				    struct resource *irq_res,
+				    unsigned int ioport_shift,
+				    int __pio_mask)
 {
-	struct resource *io_res, *ctl_res;
 	struct ata_host *host;
 	struct ata_port *ap;
-	struct pata_platform_info *pp_info;
 	unsigned int mmio;
-	int irq;
+	int irq = 0;
+	int irq_flags = 0;
+
+	/*
+	 * Check for MMIO
+	 */
+	mmio = (( io_res->flags == IORESOURCE_MEM) &&
+		(ctl_res->flags == IORESOURCE_MEM));
+
+	/*
+	 * And the IRQ
+	 */
+	if (irq_res && irq_res->start > 0) {
+		irq = irq_res->start;
+		irq_flags = irq_res->flags;
+	}
+
+	/*
+	 * Now that that's out of the way, wire up the port..
+	 */
+	host = ata_host_alloc(dev, 1);
+	if (!host)
+		return -ENOMEM;
+	ap = host->ports[0];
+
+	ap->ops = &pata_platform_port_ops;
+	ap->pio_mask = __pio_mask;
+	ap->flags |= ATA_FLAG_SLAVE_POSS;
+
+	/*
+	 * Use polling mode if there's no IRQ
+	 */
+	if (!irq) {
+		ap->flags |= ATA_FLAG_PIO_POLLING;
+		ata_port_desc(ap, "no IRQ, using PIO polling");
+	}
+
+	/*
+	 * Handle the MMIO case
+	 */
+	if (mmio) {
+		ap->ioaddr.cmd_addr = devm_ioremap(dev, io_res->start,
+				io_res->end - io_res->start + 1);
+		ap->ioaddr.ctl_addr = devm_ioremap(dev, ctl_res->start,
+				ctl_res->end - ctl_res->start + 1);
+	} else {
+		ap->ioaddr.cmd_addr = devm_ioport_map(dev, io_res->start,
+				io_res->end - io_res->start + 1);
+		ap->ioaddr.ctl_addr = devm_ioport_map(dev, ctl_res->start,
+				ctl_res->end - ctl_res->start + 1);
+	}
+	if (!ap->ioaddr.cmd_addr || !ap->ioaddr.ctl_addr) {
+		dev_err(dev, "failed to map IO/CTL base\n");
+		return -ENOMEM;
+	}
+
+	ap->ioaddr.altstatus_addr = ap->ioaddr.ctl_addr;
+
+	pata_platform_setup_port(&ap->ioaddr, ioport_shift);
+
+	ata_port_desc(ap, "%s cmd 0x%llx ctl 0x%llx", mmio ? "mmio" : "ioport",
+		      (unsigned long long)io_res->start,
+		      (unsigned long long)ctl_res->start);
+
+	/* activate */
+	return ata_host_activate(host, irq, irq ? ata_interrupt : NULL,
+				 irq_flags, &pata_platform_sht);
+}
+EXPORT_SYMBOL_GPL(__pata_platform_probe);
+
+/**
+ *	__pata_platform_remove		-	unplug a platform interface
+ *	@dev: device
+ *
+ *	A platform bus ATA device has been unplugged. Perform the needed
+ *	cleanup. Also called on module unload for any active devices.
+ */
+int __devexit __pata_platform_remove(struct device *dev)
+{
+	struct ata_host *host = dev_get_drvdata(dev);
+
+	ata_host_detach(host);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(__pata_platform_remove);
+
+static int __devinit pata_platform_probe(struct platform_device *pdev)
+{
+	struct resource *io_res;
+	struct resource *ctl_res;
+	struct resource *irq_res;
+	struct pata_platform_info *pp_info = pdev->dev.platform_data;
 
 	/*
 	 * Simple resource validation ..
@@ -173,87 +268,20 @@ static int __devinit pata_platform_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * Check for MMIO
-	 */
-	mmio = (( io_res->flags == IORESOURCE_MEM) &&
-		(ctl_res->flags == IORESOURCE_MEM));
-
-	/*
 	 * And the IRQ
 	 */
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0)
-		irq = 0;	/* no irq */
+	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	if (irq_res)
+		irq_res->flags = pp_info ? pp_info->irq_flags : 0;
 
-	/*
-	 * Now that that's out of the way, wire up the port..
-	 */
-	host = ata_host_alloc(&pdev->dev, 1);
-	if (!host)
-		return -ENOMEM;
-	ap = host->ports[0];
-
-	ap->ops = &pata_platform_port_ops;
-	ap->pio_mask = pio_mask;
-	ap->flags |= ATA_FLAG_SLAVE_POSS;
-
-	/*
-	 * Use polling mode if there's no IRQ
-	 */
-	if (!irq) {
-		ap->flags |= ATA_FLAG_PIO_POLLING;
-		ata_port_desc(ap, "no IRQ, using PIO polling");
-	}
-
-	/*
-	 * Handle the MMIO case
-	 */
-	if (mmio) {
-		ap->ioaddr.cmd_addr = devm_ioremap(&pdev->dev, io_res->start,
-				io_res->end - io_res->start + 1);
-		ap->ioaddr.ctl_addr = devm_ioremap(&pdev->dev, ctl_res->start,
-				ctl_res->end - ctl_res->start + 1);
-	} else {
-		ap->ioaddr.cmd_addr = devm_ioport_map(&pdev->dev, io_res->start,
-				io_res->end - io_res->start + 1);
-		ap->ioaddr.ctl_addr = devm_ioport_map(&pdev->dev, ctl_res->start,
-				ctl_res->end - ctl_res->start + 1);
-	}
-	if (!ap->ioaddr.cmd_addr || !ap->ioaddr.ctl_addr) {
-		dev_err(&pdev->dev, "failed to map IO/CTL base\n");
-		return -ENOMEM;
-	}
-
-	ap->ioaddr.altstatus_addr = ap->ioaddr.ctl_addr;
-
-	pp_info = pdev->dev.platform_data;
-	pata_platform_setup_port(&ap->ioaddr, pp_info);
-
-	ata_port_desc(ap, "%s cmd 0x%llx ctl 0x%llx", mmio ? "mmio" : "ioport",
-		      (unsigned long long)io_res->start,
-		      (unsigned long long)ctl_res->start);
-
-	/* activate */
-	return ata_host_activate(host, irq, irq ? ata_interrupt : NULL,
-				 pp_info ? pp_info->irq_flags : 0,
-				 &pata_platform_sht);
+	return __pata_platform_probe(&pdev->dev, io_res, ctl_res, irq_res,
+				     pp_info ? pp_info->ioport_shift : 0,
+				     pio_mask);
 }
 
-/**
- *	pata_platform_remove	-	unplug a platform interface
- *	@pdev: platform device
- *
- *	A platform bus ATA device has been unplugged. Perform the needed
- *	cleanup. Also called on module unload for any active devices.
- */
 static int __devexit pata_platform_remove(struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
-	struct ata_host *host = dev_get_drvdata(dev);
-
-	ata_host_detach(host);
-
-	return 0;
+	return __pata_platform_remove(&pdev->dev);
 }
 
 static struct platform_driver pata_platform_driver = {

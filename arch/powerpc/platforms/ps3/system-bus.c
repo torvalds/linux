@@ -42,8 +42,8 @@ struct {
 	int gpu;
 } static usage_hack;
 
-static int ps3_is_device(struct ps3_system_bus_device *dev,
-			 unsigned int bus_id, unsigned int dev_id)
+static int ps3_is_device(struct ps3_system_bus_device *dev, u64 bus_id,
+			 u64 dev_id)
 {
 	return dev->bus_id == bus_id && dev->dev_id == dev_id;
 }
@@ -182,8 +182,8 @@ int ps3_open_hv_device(struct ps3_system_bus_device *dev)
 	case PS3_MATCH_ID_SYSTEM_MANAGER:
 		pr_debug("%s:%d: unsupported match_id: %u\n", __func__,
 			__LINE__, dev->match_id);
-		pr_debug("%s:%d: bus_id: %u\n", __func__,
-			__LINE__, dev->bus_id);
+		pr_debug("%s:%d: bus_id: %lu\n", __func__, __LINE__,
+			dev->bus_id);
 		BUG();
 		return -EINVAL;
 
@@ -220,8 +220,8 @@ int ps3_close_hv_device(struct ps3_system_bus_device *dev)
 	case PS3_MATCH_ID_SYSTEM_MANAGER:
 		pr_debug("%s:%d: unsupported match_id: %u\n", __func__,
 			__LINE__, dev->match_id);
-		pr_debug("%s:%d: bus_id: %u\n", __func__,
-			__LINE__, dev->bus_id);
+		pr_debug("%s:%d: bus_id: %lu\n", __func__, __LINE__,
+			dev->bus_id);
 		BUG();
 		return -EINVAL;
 
@@ -240,7 +240,7 @@ EXPORT_SYMBOL_GPL(ps3_close_hv_device);
 static void _dump_mmio_region(const struct ps3_mmio_region* r,
 	const char* func, int line)
 {
-	pr_debug("%s:%d: dev       %u:%u\n", func, line, r->dev->bus_id,
+	pr_debug("%s:%d: dev       %lu:%lu\n", func, line, r->dev->bus_id,
 		r->dev->dev_id);
 	pr_debug("%s:%d: bus_addr  %lxh\n", func, line, r->bus_addr);
 	pr_debug("%s:%d: len       %lxh\n", func, line, r->len);
@@ -715,6 +715,7 @@ int ps3_system_bus_device_register(struct ps3_system_bus_device *dev)
 	static unsigned int dev_ioc0_count;
 	static unsigned int dev_sb_count;
 	static unsigned int dev_vuart_count;
+	static unsigned int dev_lpm_count;
 
 	if (!dev->core.parent)
 		dev->core.parent = &ps3_system_bus;
@@ -736,6 +737,10 @@ int ps3_system_bus_device_register(struct ps3_system_bus_device *dev)
 	case PS3_DEVICE_TYPE_VUART:
 		snprintf(dev->core.bus_id, sizeof(dev->core.bus_id),
 			"vuart_%02x", ++dev_vuart_count);
+		break;
+	case PS3_DEVICE_TYPE_LPM:
+		snprintf(dev->core.bus_id, sizeof(dev->core.bus_id),
+			"lpm_%02x", ++dev_lpm_count);
 		break;
 	default:
 		BUG();

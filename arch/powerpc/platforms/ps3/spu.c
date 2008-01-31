@@ -28,6 +28,7 @@
 #include <asm/spu_priv1.h>
 #include <asm/lv1call.h>
 
+#include "../cell/spufs/spufs.h"
 #include "platform.h"
 
 /* spu_management_ops */
@@ -419,10 +420,34 @@ static int ps3_init_affinity(void)
 	return 0;
 }
 
+/**
+ * ps3_enable_spu - Enable SPU run control.
+ *
+ * An outstanding enhancement for the PS3 would be to add a guard to check
+ * for incorrect access to the spu problem state when the spu context is
+ * disabled.  This check could be implemented with a flag added to the spu
+ * context that would inhibit mapping problem state pages, and a routine
+ * to unmap spu problem state pages.  When the spu is enabled with
+ * ps3_enable_spu() the flag would be set allowing pages to be mapped,
+ * and when the spu is disabled with ps3_disable_spu() the flag would be
+ * cleared and the mapped problem state pages would be unmapped.
+ */
+
+static void ps3_enable_spu(struct spu_context *ctx)
+{
+}
+
+static void ps3_disable_spu(struct spu_context *ctx)
+{
+	ctx->ops->runcntl_stop(ctx);
+}
+
 const struct spu_management_ops spu_management_ps3_ops = {
 	.enumerate_spus = ps3_enumerate_spus,
 	.create_spu = ps3_create_spu,
 	.destroy_spu = ps3_destroy_spu,
+	.enable_spu = ps3_enable_spu,
+	.disable_spu = ps3_disable_spu,
 	.init_affinity = ps3_init_affinity,
 };
 
@@ -504,8 +529,6 @@ static void mfc_sr1_set(struct spu *spu, u64 sr1)
 
 	static const u64 allowed = ~(MFC_STATE1_LOCAL_STORAGE_DECODE_MASK
 		| MFC_STATE1_PROBLEM_STATE_MASK);
-
-	sr1 |= MFC_STATE1_MASTER_RUN_CONTROL_MASK;
 
 	BUG_ON((sr1 & allowed) != (spu_pdata(spu)->cache.sr1 & allowed));
 

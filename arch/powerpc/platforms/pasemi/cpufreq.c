@@ -32,6 +32,7 @@
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/time.h>
+#include <asm/smp.h>
 
 #define SDCASR_REG		0x0100
 #define SDCASR_REG_STRIDE	0x1000
@@ -124,6 +125,11 @@ static void set_astate(int cpu, unsigned int astate)
 	local_irq_restore(flags);
 }
 
+int check_astate(void)
+{
+	return get_cur_astate(hard_smp_processor_id());
+}
+
 void restore_astate(int cpu)
 {
 	set_astate(cpu, current_astate);
@@ -147,7 +153,10 @@ static int pas_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	if (!cpu)
 		goto out;
 
-	dn = of_find_compatible_node(NULL, "sdc", "1682m-sdc");
+	dn = of_find_compatible_node(NULL, NULL, "1682m-sdc");
+	if (!dn)
+		dn = of_find_compatible_node(NULL, NULL,
+					     "pasemi,pwrficient-sdc");
 	if (!dn)
 		goto out;
 	err = of_address_to_resource(dn, 0, &res);
@@ -160,7 +169,10 @@ static int pas_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		goto out;
 	}
 
-	dn = of_find_compatible_node(NULL, "gizmo", "1682m-gizmo");
+	dn = of_find_compatible_node(NULL, NULL, "1682m-gizmo");
+	if (!dn)
+		dn = of_find_compatible_node(NULL, NULL,
+					     "pasemi,pwrficient-gizmo");
 	if (!dn) {
 		err = -ENODEV;
 		goto out_unmap_sdcasr;
@@ -292,7 +304,8 @@ static struct cpufreq_driver pas_cpufreq_driver = {
 
 static int __init pas_cpufreq_init(void)
 {
-	if (!machine_is_compatible("PA6T-1682M"))
+	if (!machine_is_compatible("PA6T-1682M") &&
+	    !machine_is_compatible("pasemi,pwrficient"))
 		return -ENODEV;
 
 	return cpufreq_register_driver(&pas_cpufreq_driver);

@@ -33,11 +33,14 @@ ifeq ($(call cc-option-yn, -fstack-protector),y)
 BOOTCFLAGS	+= -fno-stack-protector
 endif
 
-BOOTCFLAGS	+= -I$(obj) -I$(srctree)/$(obj)
+BOOTCFLAGS	+= -I$(obj) -I$(srctree)/$(obj) -I$(srctree)/$(src)/libfdt
 
 $(obj)/4xx.o: BOOTCFLAGS += -mcpu=440
 $(obj)/ebony.o: BOOTCFLAGS += -mcpu=440
+$(obj)/cuboot-taishan.o: BOOTCFLAGS += -mcpu=440
+$(obj)/cuboot-katmai.o: BOOTCFLAGS += -mcpu=440
 $(obj)/treeboot-walnut.o: BOOTCFLAGS += -mcpu=405
+
 
 zlib       := inffast.c inflate.c inftrees.c
 zlibheader := inffast.h inffixed.h inflate.h inftrees.h infutil.h
@@ -46,17 +49,21 @@ zliblinuxheader := zlib.h zconf.h zutil.h
 $(addprefix $(obj)/,$(zlib) gunzip_util.o main.o): \
 	$(addprefix $(obj)/,$(zliblinuxheader)) $(addprefix $(obj)/,$(zlibheader))
 
-src-wlib := string.S crt0.S stdio.c main.c flatdevtree.c flatdevtree_misc.c \
+src-libfdt := fdt.c fdt_ro.c fdt_wip.c fdt_sw.c fdt_rw.c fdt_strerror.c
+src-wlib := string.S crt0.S stdio.c main.c \
+		$(addprefix libfdt/,$(src-libfdt)) libfdt-wrapper.c \
 		ns16550.c serial.c simple_alloc.c div64.S util.S \
 		gunzip_util.c elf_util.c $(zlib) devtree.c oflib.c ofconsole.c \
 		4xx.c ebony.c mv64x60.c mpsc.c mv64x60_i2c.c cuboot.c bamboo.c \
 		cpm-serial.c stdlib.c mpc52xx-psc.c planetcore.c uartlite.c \
 		fsl-soc.c mpc8xx.c pq2.c
-src-plat := of.c cuboot-52xx.c cuboot-83xx.c cuboot-85xx.c holly.c \
+src-plat := of.c cuboot-52xx.c cuboot-824x.c cuboot-83xx.c cuboot-85xx.c holly.c \
 		cuboot-ebony.c treeboot-ebony.c prpmc2800.c \
 		ps3-head.S ps3-hvcall.S ps3.c treeboot-bamboo.c cuboot-8xx.c \
 		cuboot-pq2.c cuboot-sequoia.c treeboot-walnut.c cuboot-bamboo.c \
-		fixed-head.S ep88xc.c cuboot-hpc2.c
+		fixed-head.S ep88xc.c cuboot-hpc2.c ep405.c cuboot-taishan.c \
+		cuboot-katmai.c cuboot-rainier.c redboot-8xx.c ep8248e.c \
+		cuboot-warp.c cuboot-85xx-cpm2.c
 src-boot := $(src-wlib) $(src-plat) empty.c
 
 src-boot := $(addprefix $(obj)/, $(src-boot))
@@ -101,22 +108,59 @@ quiet_cmd_bootar = BOOTAR  $@
       cmd_bootar = $(CROSS32AR) -cr $@.$$$$ $(filter-out FORCE,$^); mv $@.$$$$ $@
 
 $(patsubst %.c,%.o, $(filter %.c, $(src-boot))): %.o: %.c FORCE
+	$(Q)mkdir -p $(dir $@)
 	$(call if_changed_dep,bootcc)
 $(patsubst %.S,%.o, $(filter %.S, $(src-boot))): %.o: %.S FORCE
+	$(Q)mkdir -p $(dir $@)
 	$(call if_changed_dep,bootas)
 
 $(obj)/wrapper.a: $(obj-wlib) FORCE
 	$(call if_changed,bootar)
 
-hostprogs-y	:= addnote addRamDisk hack-coff mktree
+hostprogs-y	:= addnote addRamDisk hack-coff mktree dtc
 
 targets		+= $(patsubst $(obj)/%,%,$(obj-boot) wrapper.a)
 extra-y		:= $(obj)/wrapper.a $(obj-plat) $(obj)/empty.o \
 		   $(obj)/zImage.lds $(obj)/zImage.coff.lds $(obj)/zImage.ps3.lds
 
 wrapper		:=$(srctree)/$(src)/wrapper
-wrapperbits	:= $(extra-y) $(addprefix $(obj)/,addnote hack-coff mktree) \
+wrapperbits	:= $(extra-y) $(addprefix $(obj)/,addnote hack-coff mktree dtc) \
 			$(wrapper) FORCE
+
+#############
+# Bits for building dtc
+# DTC_GENPARSER      := 1    # Uncomment to rebuild flex/bison output
+
+dtc-objs := dtc.o flattree.o fstree.o data.o livetree.o treesource.o srcpos.o checks.o
+dtc-objs += dtc-lexer.lex.o dtc-parser.tab.o
+dtc-objs := $(addprefix dtc-src/, $(dtc-objs))
+
+# prerequisites on generated files needs to be explicit
+$(obj)/dtc-src/dtc-parser.tab.o: $(obj)/dtc-src/dtc-parser.tab.c $(obj)/dtc-src/dtc-parser.tab.h
+$(obj)/dtc-src/dtc-lexer.lex.o:  $(obj)/dtc-src/dtc-lexer.lex.c $(obj)/dtc-src/dtc-parser.tab.h
+
+HOSTCFLAGS += -I$(src)/dtc-src/ -I$(src)/libfdt/
+
+targets += dtc-src/dtc-parser.tab.c
+targets += dtc-src/dtc-lexer.lex.c
+
+ifdef DTC_GENPARSER
+BISON = bison
+FLEX = flex
+
+quiet_cmd_bison = BISON   $@
+      cmd_bison = $(BISON) -o$@ -d $<; cp $@ $@_shipped
+quiet_cmd_flex = FLEX    $@
+      cmd_flex = $(FLEX) -o$@ $<; cp $@ $@_shipped
+
+$(obj)/dtc-src/dtc-parser.tab.c: $(src)/dtc-src/dtc-parser.y FORCE
+     $(call if_changed,bison)
+
+$(obj)/dtc-src/dtc-parser.tab.h: $(obj)/dtc-src/dtc-parser.tab.c
+
+$(obj)/dtc-src/dtc-lexer.lex.c: $(src)/dtc-src/dtc-lexer.l FORCE
+     $(call if_changed,flex)
+endif
 
 #############
 # Bits for building various flavours of zImage
@@ -150,15 +194,29 @@ image-$(CONFIG_DEFAULT_UIMAGE)		+= uImage
 ifneq ($(CONFIG_DEVICE_TREE),"")
 image-$(CONFIG_PPC_8xx)			+= cuImage.8xx
 image-$(CONFIG_PPC_EP88XC)		+= zImage.ep88xc
+image-$(CONFIG_EP405)			+= zImage.ep405
 image-$(CONFIG_8260)			+= cuImage.pq2
+image-$(CONFIG_EP8248E)			+= zImage.ep8248e
 image-$(CONFIG_PPC_MPC52xx)		+= cuImage.52xx
+image-$(CONFIG_STORCENTER)		+= cuImage.824x
 image-$(CONFIG_PPC_83xx)		+= cuImage.83xx
 image-$(CONFIG_PPC_85xx)		+= cuImage.85xx
+ifeq ($(CONFIG_CPM2),y)
+image-$(CONFIG_PPC_85xx)		+= cuImage.85xx-cpm2
+endif
 image-$(CONFIG_MPC7448HPC2)		+= cuImage.hpc2
 image-$(CONFIG_EBONY)			+= treeImage.ebony cuImage.ebony
 image-$(CONFIG_BAMBOO)			+= treeImage.bamboo cuImage.bamboo
 image-$(CONFIG_SEQUOIA)			+= cuImage.sequoia
+image-$(CONFIG_RAINIER)			+= cuImage.rainier
 image-$(CONFIG_WALNUT)			+= treeImage.walnut
+image-$(CONFIG_TAISHAN)			+= cuImage.taishan
+image-$(CONFIG_KATMAI)			+= cuImage.katmai
+image-$(CONFIG_WARP)			+= cuImage.warp
+endif
+
+ifneq ($(CONFIG_REDBOOT),"")
+image-$(CONFIG_PPC_8xx)			+= zImage.redboot-8xx
 endif
 
 # For 32-bit powermacs, build the COFF and miboot images
@@ -243,3 +301,51 @@ clean-kernel := vmlinux.strip vmlinux.bin
 clean-kernel += $(addsuffix .gz,$(clean-kernel))
 # If not absolute clean-files are relative to $(obj).
 clean-files += $(addprefix $(objtree)/, $(clean-kernel))
+
+WRAPPER_OBJDIR := /usr/lib/kernel-wrapper
+WRAPPER_DTSDIR := /usr/lib/kernel-wrapper/dts
+WRAPPER_BINDIR := /usr/sbin
+INSTALL := install
+
+extra-installed		:= $(patsubst $(obj)/%, $(DESTDIR)$(WRAPPER_OBJDIR)/%, $(extra-y))
+hostprogs-installed	:= $(patsubst %, $(DESTDIR)$(WRAPPER_BINDIR)/%, $(hostprogs-y))
+wrapper-installed	:= $(DESTDIR)$(WRAPPER_BINDIR)/wrapper
+dts-installed		:= $(patsubst $(obj)/dts/%, $(DESTDIR)$(WRAPPER_DTSDIR)/%, $(wildcard $(obj)/dts/*.dts))
+
+all-installed		:= $(extra-installed) $(hostprogs-installed) $(wrapper-installed) $(dts-installed)
+
+quiet_cmd_mkdir           = MKDIR   $(patsubst $(INSTALL_HDR_PATH)/%,%,$@)
+      cmd_mkdir           = mkdir -p $@
+
+quiet_cmd_install	  = INSTALL $(patsubst $(DESTDIR)$(WRAPPER_OBJDIR)/%,%,$@)
+      cmd_install	  = $(INSTALL)  -m0644 $(patsubst $(DESTDIR)$(WRAPPER_OBJDIR)/%,$(obj)/%,$@) $@
+
+quiet_cmd_install_dts	  = INSTALL $(patsubst $(DESTDIR)$(WRAPPER_DTSDIR)/%,dts/%,$@)
+      cmd_install_dts	  = $(INSTALL)  -m0644 $(patsubst $(DESTDIR)$(WRAPPER_DTSDIR)/%,$(srctree)/$(obj)/dts/%,$@) $@
+
+quiet_cmd_install_exe	  = INSTALL $(patsubst $(DESTDIR)$(WRAPPER_BINDIR)/%,%,$@)
+      cmd_install_exe	  = $(INSTALL)  -m0755 $(patsubst $(DESTDIR)$(WRAPPER_BINDIR)/%,$(obj)/%,$@) $@
+
+quiet_cmd_install_wrapper = INSTALL $(patsubst $(DESTDIR)$(WRAPPER_BINDIR)/%,%,$@)
+      cmd_install_wrapper = $(INSTALL)  -m0755 $(patsubst $(DESTDIR)$(WRAPPER_BINDIR)/%,$(srctree)/$(obj)/%,$@) $@ ;\
+				sed -i $@ -e 's%^object=.*%object=$(WRAPPER_OBJDIR)%' \
+					  -e 's%^objbin=.*%objbin=$(WRAPPER_BINDIR)%' \
+
+
+$(DESTDIR)$(WRAPPER_OBJDIR) $(DESTDIR)$(WRAPPER_DTSDIR) $(DESTDIR)$(WRAPPER_BINDIR):
+	$(call cmd,mkdir)
+
+$(extra-installed)	: $(DESTDIR)$(WRAPPER_OBJDIR)/% : $(obj)/% | $(DESTDIR)$(WRAPPER_OBJDIR)
+	$(call cmd,install)
+
+$(hostprogs-installed)  : $(DESTDIR)$(WRAPPER_BINDIR)/% : $(obj)/% | $(DESTDIR)$(WRAPPER_BINDIR)
+	$(call cmd,install_exe)
+
+$(dts-installed)	: $(DESTDIR)$(WRAPPER_DTSDIR)/% : $(srctree)/$(obj)/dts/% | $(DESTDIR)$(WRAPPER_DTSDIR)
+	$(call cmd,install_dts)
+
+$(wrapper-installed): $(DESTDIR)$(WRAPPER_BINDIR) $(srctree)/$(obj)/wrapper | $(DESTDIR)$(WRAPPER_BINDIR)
+	$(call cmd,install_wrapper)
+
+$(obj)/bootwrapper_install: $(all-installed)
+

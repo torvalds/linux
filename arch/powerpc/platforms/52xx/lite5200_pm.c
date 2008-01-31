@@ -42,6 +42,15 @@ static int lite5200_pm_set_target(suspend_state_t state)
 
 static int lite5200_pm_prepare(void)
 {
+	struct device_node *np;
+	const struct of_device_id immr_ids[] = {
+		{ .compatible = "fsl,mpc5200-immr", },
+		{ .compatible = "fsl,mpc5200b-immr", },
+		{ .type = "soc", .compatible = "mpc5200", }, /* lite5200 */
+		{ .type = "builtin", .compatible = "mpc5200", }, /* efika */
+		{}
+	};
+
 	/* deep sleep? let mpc52xx code handle that */
 	if (lite5200_pm_target_state == PM_SUSPEND_STANDBY)
 		return mpc52xx_pm_prepare();
@@ -50,7 +59,9 @@ static int lite5200_pm_prepare(void)
 		return -EINVAL;
 
 	/* map registers */
-	mbar = mpc52xx_find_and_map("mpc5200");
+	np = of_find_matching_node(NULL, immr_ids);
+	mbar = of_iomap(np, 0);
+	of_node_put(np);
 	if (!mbar) {
 		printk(KERN_ERR "%s:%i Error mapping registers\n", __func__, __LINE__);
 		return -ENOSYS;

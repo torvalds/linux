@@ -241,7 +241,7 @@ static int __init mv64x60_eth_device_setup(struct device_node *np, int id)
 
 	/* only register the shared platform device the first time through */
 	if (id == 0 && (err = eth_register_shared_pdev(np)))
-		return err;;
+		return err;
 
 	memset(r, 0, sizeof(r));
 	of_irq_to_resource(np, 0, &r[0]);
@@ -445,22 +445,19 @@ static int __init mv64x60_device_setup(void)
 	int id;
 	int err;
 
-	for (id = 0;
-	     (np = of_find_compatible_node(np, "serial", "marvell,mpsc")); id++)
-		if ((err = mv64x60_mpsc_device_setup(np, id)))
+	id = 0;
+	for_each_compatible_node(np, "serial", "marvell,mpsc")
+		if ((err = mv64x60_mpsc_device_setup(np, id++)))
 			goto error;
 
-	for (id = 0;
-	     (np = of_find_compatible_node(np, "network",
-					   "marvell,mv64x60-eth"));
-	     id++)
-		if ((err = mv64x60_eth_device_setup(np, id)))
+	id = 0;
+	for_each_compatible_node(np, "network", "marvell,mv64x60-eth")
+		if ((err = mv64x60_eth_device_setup(np, id++)))
 			goto error;
 
-	for (id = 0;
-	     (np = of_find_compatible_node(np, "i2c", "marvell,mv64x60-i2c"));
-	     id++)
-		if ((err = mv64x60_i2c_device_setup(np, id)))
+	id = 0;
+	for_each_compatible_node(np, "i2c", "marvell,mv64x60-i2c")
+		if ((err = mv64x60_i2c_device_setup(np, id++)))
 			goto error;
 
 	/* support up to one watchdog timer */
@@ -470,7 +467,6 @@ static int __init mv64x60_device_setup(void)
 			goto error;
 		of_node_put(np);
 	}
-
 
 	return 0;
 

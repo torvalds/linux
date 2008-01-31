@@ -14,12 +14,20 @@
 #define DCRN_SDRAM0_CFGADDR				0x010
 #define DCRN_SDRAM0_CFGDATA				0x011
 
+#define SDRAM0_READ(offset) ({\
+	mtdcr(DCRN_SDRAM0_CFGADDR, offset); \
+	mfdcr(DCRN_SDRAM0_CFGDATA); })
+#define SDRAM0_WRITE(offset, data) ({\
+	mtdcr(DCRN_SDRAM0_CFGADDR, offset); \
+	mtdcr(DCRN_SDRAM0_CFGDATA, data); })
+
 #define 	SDRAM0_B0CR				0x40
 #define 	SDRAM0_B1CR				0x44
 #define 	SDRAM0_B2CR				0x48
 #define 	SDRAM0_B3CR				0x4c
 
-static const unsigned long sdram_bxcr[] = { SDRAM0_B0CR, SDRAM0_B1CR, SDRAM0_B2CR, SDRAM0_B3CR };
+static const unsigned long sdram_bxcr[] = { SDRAM0_B0CR, SDRAM0_B1CR,
+					    SDRAM0_B2CR, SDRAM0_B3CR };
 
 #define			SDRAM_CONFIG_BANK_ENABLE        0x00000001
 #define			SDRAM_CONFIG_SIZE_MASK          0x000e0000
@@ -138,5 +146,54 @@ static const unsigned long sdram_bxcr[] = { SDRAM0_B0CR, SDRAM0_B1CR, SDRAM0_B2C
 #define DCRN_CPC0_PLLMR 0xb0
 #define DCRN_405_CPC0_CR0 0xb1
 #define DCRN_405_CPC0_CR1 0xb2
+#define DCRN_405_CPC0_PSR 0xb4
+
+/* 405EP Clocking/Power Management/Chip Control regs */
+#define DCRN_CPC0_PLLMR0  0xf0
+#define DCRN_CPC0_PLLMR1  0xf4
+#define DCRN_CPC0_UCR     0xf5
+
+/* 440GX Clock control etc */
+
+
+#define DCRN_CPR0_CLKUPD				0x020
+#define DCRN_CPR0_PLLC					0x040
+#define DCRN_CPR0_PLLD					0x060
+#define DCRN_CPR0_PRIMAD				0x080
+#define DCRN_CPR0_PRIMBD				0x0a0
+#define DCRN_CPR0_OPBD					0x0c0
+#define DCRN_CPR0_PERD					0x0e0
+#define DCRN_CPR0_MALD					0x100
+
+#define DCRN_SDR0_CONFIG_ADDR 	0xe
+#define DCRN_SDR0_CONFIG_DATA	0xf
+
+/* SDR read/write helper macros */
+#define SDR0_READ(offset) ({\
+	mtdcr(DCRN_SDR0_CONFIG_ADDR, offset); \
+	mfdcr(DCRN_SDR0_CONFIG_DATA); })
+#define SDR0_WRITE(offset, data) ({\
+	mtdcr(DCRN_SDR0_CONFIG_ADDR, offset); \
+	mtdcr(DCRN_SDR0_CONFIG_DATA, data); })
+
+#define DCRN_SDR0_UART0		0x0120
+#define DCRN_SDR0_UART1		0x0121
+#define DCRN_SDR0_UART2		0x0122
+#define DCRN_SDR0_UART3		0x0123
+
+
+/* CPRs read/write helper macros - based off include/asm-ppc/ibm44x.h */
+
+#define DCRN_CPR0_CFGADDR				0xc
+#define DCRN_CPR0_CFGDATA				0xd
+
+#define CPR0_READ(offset) ({\
+	mtdcr(DCRN_CPR0_CFGADDR, offset); \
+	mfdcr(DCRN_CPR0_CFGDATA); })
+#define CPR0_WRITE(offset, data) ({\
+	mtdcr(DCRN_CPR0_CFGADDR, offset); \
+	mtdcr(DCRN_CPR0_CFGDATA, data); })
+
+
 
 #endif	/* _PPC_BOOT_DCR_H_ */

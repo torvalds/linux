@@ -17,8 +17,14 @@ extern void idle_doze(void);
 
 /* Restore astate to last set */
 #ifdef CONFIG_PPC_PASEMI_CPUFREQ
+extern int check_astate(void);
 extern void restore_astate(int cpu);
 #else
+static inline int check_astate(void)
+{
+	/* Always return >0 so we never power save */
+	return 1;
+}
 static inline void restore_astate(int cpu)
 {
 }

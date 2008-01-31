@@ -30,6 +30,7 @@
 #include <linux/console.h>
 #include <linux/mutex.h>
 #include <linux/memory_hotplug.h>
+#include <linux/of_platform.h>
 
 #include <asm/mmu.h>
 #include <asm/processor.h>
@@ -51,7 +52,6 @@
 #include <asm/spu_priv1.h>
 #include <asm/udbg.h>
 #include <asm/mpic.h>
-#include <asm/of_platform.h>
 #include <asm/cell-regs.h>
 
 #include "interrupt.h"
@@ -85,9 +85,6 @@ static int __init cell_publish_devices(void)
 {
 	int node;
 
-	if (!machine_is(cell))
-		return 0;
-
 	/* Publish OF platform devices for southbridge IOs */
 	of_platform_bus_probe(NULL, NULL, NULL);
 
@@ -101,7 +98,7 @@ static int __init cell_publish_devices(void)
 	}
 	return 0;
 }
-device_initcall(cell_publish_devices);
+machine_device_initcall(cell, cell_publish_devices);
 
 static void cell_mpic_cascade(unsigned int irq, struct irq_desc *desc)
 {

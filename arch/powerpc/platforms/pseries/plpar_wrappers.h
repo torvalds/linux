@@ -8,11 +8,6 @@ static inline long poll_pending(void)
 	return plpar_hcall_norets(H_POLL_PENDING);
 }
 
-static inline long prod_processor(void)
-{
-	return plpar_hcall_norets(H_PROD);
-}
-
 static inline long cede_processor(void)
 {
 	return plpar_hcall_norets(H_CEDE);

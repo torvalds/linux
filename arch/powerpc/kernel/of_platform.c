@@ -19,6 +19,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
+#include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
 
@@ -40,7 +41,7 @@
  * a bus type in the list
  */
 
-static struct of_device_id of_default_bus_ids[] = {
+static const struct of_device_id of_default_bus_ids[] = {
 	{ .type = "soc", },
 	{ .compatible = "soc", },
 	{ .type = "spider", },
@@ -63,26 +64,6 @@ static int __init of_bus_driver_init(void)
 }
 
 postcore_initcall(of_bus_driver_init);
-
-int of_register_platform_driver(struct of_platform_driver *drv)
-{
-	/* initialize common driver fields */
-	if (!drv->driver.name)
-		drv->driver.name = drv->name;
-	if (!drv->driver.owner)
-		drv->driver.owner = drv->owner;
-	drv->driver.bus = &of_platform_bus_type;
-
-	/* register with core */
-	return driver_register(&drv->driver);
-}
-EXPORT_SYMBOL(of_register_platform_driver);
-
-void of_unregister_platform_driver(struct of_platform_driver *drv)
-{
-	driver_unregister(&drv->driver);
-}
-EXPORT_SYMBOL(of_unregister_platform_driver);
 
 struct of_device* of_platform_device_create(struct device_node *np,
 					    const char *bus_id,
@@ -120,15 +101,15 @@ EXPORT_SYMBOL(of_platform_device_create);
  * @matches: match table, NULL to use the default, OF_NO_DEEP_PROBE to
  * disallow recursive creation of child busses
  */
-static int of_platform_bus_create(struct device_node *bus,
-				  struct of_device_id *matches,
+static int of_platform_bus_create(const struct device_node *bus,
+				  const struct of_device_id *matches,
 				  struct device *parent)
 {
 	struct device_node *child;
 	struct of_device *dev;
 	int rc = 0;
 
-	for (child = NULL; (child = of_get_next_child(bus, child)); ) {
+	for_each_child_of_node(bus, child) {
 		pr_debug("   create child: %s\n", child->full_name);
 		dev = of_platform_device_create(child, NULL, parent);
 		if (dev == NULL)
@@ -157,7 +138,7 @@ static int of_platform_bus_create(struct device_node *bus,
  */
 
 int of_platform_bus_probe(struct device_node *root,
-			  struct of_device_id *matches,
+			  const struct of_device_id *matches,
 			  struct device *parent)
 {
 	struct device_node *child;
@@ -190,7 +171,7 @@ int of_platform_bus_probe(struct device_node *root,
 		rc = of_platform_bus_create(root, matches, &dev->dev);
 		goto bail;
 	}
-	for (child = NULL; (child = of_get_next_child(root, child)); ) {
+	for_each_child_of_node(root, child) {
 		if (!of_match_node(matches, child))
 			continue;
 

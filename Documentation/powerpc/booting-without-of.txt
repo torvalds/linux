@@ -52,7 +52,11 @@ Table of Contents
       i) Freescale QUICC Engine module (QE)
       j) CFI or JEDEC memory-mapped NOR flash
       k) Global Utilities Block
-      l) Xilinx IP cores
+      l) Freescale Communications Processor Module
+      m) Chipselect/Local Bus
+      n) 4xx/Axon EMAC ethernet nodes
+      o) Xilinx IP cores
+      p) Freescale Synchronous Serial Interface
 
   VII - Specifying interrupt information for devices
     1) interrupts property
@@ -671,10 +675,10 @@ device or bus to be described by the device tree.
 
 In general, the format of an address for a device is defined by the
 parent bus type, based on the #address-cells and #size-cells
-property. In the absence of such a property, the parent's parent
-values are used, etc... The kernel requires the root node to have
-those properties defining addresses format for devices directly mapped
-on the processor bus.
+properties.  Note that the parent's parent definitions of #address-cells
+and #size-cells are not inhereted so every node with children must specify
+them.  The kernel requires the root node to have those properties defining
+addresses format for devices directly mapped on the processor bus.
 
 Those 2 properties define 'cells' for representing an address and a
 size. A "cell" is a 32-bit number. For example, if both contain 2
@@ -711,13 +715,14 @@ define a bus type with a more complex address format, including things
 like address space bits, you'll have to add a bus translator to the
 prom_parse.c file of the recent kernels for your bus type.
 
-The "reg" property only defines addresses and sizes (if #size-cells
-is non-0) within a given bus. In order to translate addresses upward
+The "reg" property only defines addresses and sizes (if #size-cells is
+non-0) within a given bus. In order to translate addresses upward
 (that is into parent bus addresses, and possibly into CPU physical
 addresses), all busses must contain a "ranges" property. If the
 "ranges" property is missing at a given level, it's assumed that
-translation isn't possible. The format of the "ranges" property for a
-bus is a list of:
+translation isn't possible, i.e., the registers are not visible on the
+parent bus.  The format of the "ranges" property for a bus is a list
+of:
 
 	bus address, parent bus address, size
 
@@ -735,6 +740,10 @@ fit in a single 32-bit word.   New 32-bit powerpc boards should use a
 1/1 format, unless the processor supports physical addresses greater
 than 32-bits, in which case a 2/1 format is recommended.
 
+Alternatively, the "ranges" property may be empty, indicating that the
+registers are visible on the parent bus using an identity mapping
+translation.  In other words, the parent bus address space is the same
+as the child bus address space.
 
 2) Note about "compatible" properties
 -------------------------------------
@@ -1218,16 +1227,14 @@ platforms are moved over to use the flattened-device-tree model.
 
   Required properties:
     - reg : Offset and length of the register set for the device
-    - device_type : Should be "mdio"
     - compatible : Should define the compatible device type for the
-      mdio.  Currently, this is most likely to be "gianfar"
+      mdio.  Currently, this is most likely to be "fsl,gianfar-mdio"
 
   Example:
 
 	mdio@24520 {
 		reg = <24520 20>;
-		device_type = "mdio"; 
-		compatible = "gianfar";
+		compatible = "fsl,gianfar-mdio";
 
 		ethernet-phy@0 {
 			......
@@ -1254,6 +1261,10 @@ platforms are moved over to use the flattened-device-tree model.
       services interrupts for this device.
     - phy-handle : The phandle for the PHY connected to this ethernet
       controller.
+    - fixed-link : <a b c d e> where a is emulated phy id - choose any,
+      but unique to the all specified fixed-links, b is duplex - 0 half,
+      1 full, c is link speed - d#10/d#100/d#1000, d is pause - 0 no
+      pause, 1 pause, e is asym_pause - 0 no asym_pause, 1 asym_pause.
 
   Recommended properties:
 
@@ -1408,7 +1419,6 @@ platforms are moved over to use the flattened-device-tree model.
 
    Example multi port host USB controller device node :
 	usb@22000 {
-	        device_type = "usb";
 		compatible = "fsl-usb2-mph";
 		reg = <22000 1000>;
 		#address-cells = <1>;
@@ -1422,7 +1432,6 @@ platforms are moved over to use the flattened-device-tree model.
 
    Example dual role USB controller device node :
 	usb@23000 {
-		device_type = "usb";
 		compatible = "fsl-usb2-dr";
 		reg = <23000 1000>;
 		#address-cells = <1>;
@@ -1534,7 +1543,7 @@ platforms are moved over to use the flattened-device-tree model.
    i) Root QE device
 
    Required properties:
-   - device_type : should be "qe";
+   - compatible : should be "fsl,qe";
    - model : precise model of the QE, Can be "QE", "CPM", or "CPM2"
    - reg : offset and length of the device registers.
    - bus-frequency : the clock frequency for QUICC Engine.
@@ -1548,8 +1557,7 @@ platforms are moved over to use the flattened-device-tree model.
 		#address-cells = <1>;
 		#size-cells = <1>;
 		#interrupt-cells = <2>;
-		device_type = "qe";
-		model = "QE";
+		compatible = "fsl,qe";
 		ranges = <0 e0100000 00100000>;
 		reg = <e0100000 480>;
 		brg-frequency = <0>;
@@ -1560,8 +1568,8 @@ platforms are moved over to use the flattened-device-tree model.
    ii) SPI (Serial Peripheral Interface)
 
    Required properties:
-   - device_type : should be "spi".
-   - compatible : should be "fsl_spi".
+   - cell-index : SPI controller index.
+   - compatible : should be "fsl,spi".
    - mode : the SPI operation mode, it can be "cpu" or "cpu-qe".
    - reg : Offset and length of the register set for the device
    - interrupts : <a b> where a is the interrupt number and b is a
@@ -1574,8 +1582,8 @@ platforms are moved over to use the flattened-device-tree model.
 
    Example:
 	spi@4c0 {
-		device_type = "spi";
-		compatible = "fsl_spi";
+		cell-index = <0>;
+		compatible = "fsl,spi";
 		reg = <4c0 40>;
 		interrupts = <82 0>;
 		interrupt-parent = <700>;
@@ -1586,7 +1594,6 @@ platforms are moved over to use the flattened-device-tree model.
    iii) USB (Universal Serial Bus Controller)
 
    Required properties:
-   - device_type : should be "usb".
    - compatible : could be "qe_udc" or "fhci-hcd".
    - mode : the could be "host" or "slave".
    - reg : Offset and length of the register set for the device
@@ -1600,7 +1607,6 @@ platforms are moved over to use the flattened-device-tree model.
 
    Example(slave):
 	usb@6c0 {
-		device_type = "usb";
 		compatible = "qe_udc";
 		reg = <6c0 40>;
 		interrupts = <8b 0>;
@@ -1613,7 +1619,7 @@ platforms are moved over to use the flattened-device-tree model.
 
    Required properties:
    - device_type : should be "network", "hldc", "uart", "transparent"
-    "bisync" or "atm".
+     "bisync", "atm", or "serial".
    - compatible : could be "ucc_geth" or "fsl_atm" and so on.
    - model : should be "UCC".
    - device-id : the ucc number(1-8), corresponding to UCCx in UM.
@@ -1626,6 +1632,26 @@ platforms are moved over to use the flattened-device-tree model.
    - interrupt-parent : the phandle for the interrupt controller that
      services interrupts for this device.
    - pio-handle : The phandle for the Parallel I/O port configuration.
+   - port-number : for UART drivers, the port number to use, between 0 and 3.
+     This usually corresponds to the /dev/ttyQE device, e.g. <0> = /dev/ttyQE0.
+     The port number is added to the minor number of the device.  Unlike the
+     CPM UART driver, the port-number is required for the QE UART driver.
+   - soft-uart : for UART drivers, if specified this means the QE UART device
+     driver should use "Soft-UART" mode, which is needed on some SOCs that have
+     broken UART hardware.  Soft-UART is provided via a microcode upload.
+   - rx-clock-name: the UCC receive clock source
+     "none": clock source is disabled
+     "brg1" through "brg16": clock source is BRG1-BRG16, respectively
+     "clk1" through "clk24": clock source is CLK1-CLK24, respectively
+   - tx-clock-name: the UCC transmit clock source
+     "none": clock source is disabled
+     "brg1" through "brg16": clock source is BRG1-BRG16, respectively
+     "clk1" through "clk24": clock source is CLK1-CLK24, respectively
+   The following two properties are deprecated.  rx-clock has been replaced
+   with rx-clock-name, and tx-clock has been replaced with tx-clock-name.
+   Drivers that currently use the deprecated properties should continue to
+   do so, in order to support older device trees, but they should be updated
+   to check for the new properties first.
    - rx-clock : represents the UCC receive clock source.
      0x00 : clock source is disabled;
      0x1~0x10 : clock source is BRG1~BRG16 respectively;
@@ -1754,7 +1780,7 @@ platforms are moved over to use the flattened-device-tree model.
    vii) Multi-User RAM (MURAM)
 
    Required properties:
-   - device_type : should be "muram".
+   - compatible : should be "fsl,qe-muram", "fsl,cpm-muram".
    - mode : the could be "host" or "slave".
    - ranges : Should be defined as specified in 1) to describe the
       translation of MURAM addresses.
@@ -1764,13 +1790,41 @@ platforms are moved over to use the flattened-device-tree model.
    Example:
 
 	muram@10000 {
-		device_type = "muram";
+		compatible = "fsl,qe-muram", "fsl,cpm-muram";
 		ranges = <0 00010000 0000c000>;
 
 		data-only@0{
+			compatible = "fsl,qe-muram-data",
+				     "fsl,cpm-muram-data";
 			reg = <0 c000>;
 		};
 	};
+
+   viii) Uploaded QE firmware
+
+	 If a new firwmare has been uploaded to the QE (usually by the
+	 boot loader), then a 'firmware' child node should be added to the QE
+	 node.  This node provides information on the uploaded firmware that
+	 device drivers may need.
+
+	 Required properties:
+	 - id: The string name of the firmware.  This is taken from the 'id'
+	       member of the qe_firmware structure of the uploaded firmware.
+	       Device drivers can search this string to determine if the
+	       firmware they want is already present.
+	 - extended-modes: The Extended Modes bitfield, taken from the
+			   firmware binary.  It is a 64-bit number represented
+			   as an array of two 32-bit numbers.
+	 - virtual-traps: The virtual traps, taken from the firmware binary.
+			  It is an array of 8 32-bit numbers.
+
+	 Example:
+
+		firmware {
+			id = "Soft-UART";
+			extended-modes = <0 0>;
+			virtual-traps = <0 0 0 0 0 0 0 0>;
+		}
 
    j) CFI or JEDEC memory-mapped NOR flash
 
@@ -2075,8 +2129,7 @@ platforms are moved over to use the flattened-device-tree model.
 
    Example:
 	localbus@f0010100 {
-		compatible = "fsl,mpc8272ads-localbus",
-		             "fsl,mpc8272-localbus",
+		compatible = "fsl,mpc8272-localbus",
 		             "fsl,pq2-localbus";
 		#address-cells = <2>;
 		#size-cells = <1>;
@@ -2254,7 +2307,7 @@ platforms are moved over to use the flattened-device-tree model.
 			   available.
 			   For Axon: 0x0000012a
 
-   l) Xilinx IP cores
+   o) Xilinx IP cores
 
    The Xilinx EDK toolchain ships with a set of IP cores (devices) for use
    in Xilinx Spartan and Virtex FPGAs.  The devices cover the whole range
@@ -2276,7 +2329,7 @@ platforms are moved over to use the flattened-device-tree model.
    properties of the device node.  In general, device nodes for IP-cores
    will take the following form:
 
-	(name)@(base-address) {
+	(name): (generic-name)@(base-address) {
 		compatible = "xlnx,(ip-core-name)-(HW_VER)"
 			     [, (list of compatible devices), ...];
 		reg = <(baseaddr) (size)>;
@@ -2286,6 +2339,9 @@ platforms are moved over to use the flattened-device-tree model.
 		xlnx,(parameter2) = <(int-value)>;
 	};
 
+	(generic-name):   an open firmware-style name that describes the
+			generic class of device.  Preferably, this is one word, such
+			as 'serial' or 'ethernet'.
 	(ip-core-name):	the name of the ip block (given after the BEGIN
 			directive in system.mhs).  Should be in lowercase
 			and all underscores '_' converted to dashes '-'.
@@ -2294,9 +2350,9 @@ platforms are moved over to use the flattened-device-tree model.
 			dropped from the parameter name, the name is converted
 			to lowercase and all underscore '_' characters are
 			converted to dashes '-'.
-	(baseaddr):	the C_BASEADDR parameter.
+	(baseaddr):	the baseaddr parameter value (often named C_BASEADDR).
 	(HW_VER):	from the HW_VER parameter.
-	(size):		equals C_HIGHADDR - C_BASEADDR + 1
+	(size):		the address range size (often C_HIGHADDR - C_BASEADDR + 1).
 
    Typically, the compatible list will include the exact IP core version
    followed by an older IP core version which implements the same
@@ -2326,11 +2382,11 @@ platforms are moved over to use the flattened-device-tree model.
 
    becomes the following device tree node:
 
-	opb-uartlite-0@ec100000 {
+	opb_uartlite_0: serial@ec100000 {
 		device_type = "serial";
 		compatible = "xlnx,opb-uartlite-1.00.b";
 		reg = <ec100000 10000>;
-		interrupt-parent = <&opb-intc>;
+		interrupt-parent = <&opb_intc_0>;
 		interrupts = <1 0>; // got this from the opb_intc parameters
 		current-speed = <d#115200>;	// standard serial device prop
 		clock-frequency = <d#50000000>;	// standard serial device prop
@@ -2339,16 +2395,19 @@ platforms are moved over to use the flattened-device-tree model.
 		xlnx,use-parity = <0>;
 	};
 
-   Some IP cores actually implement 2 or more logical devices.  In this case,
-   the device should still describe the whole IP core with a single node
-   and add a child node for each logical device.  The ranges property can
-   be used to translate from parent IP-core to the registers of each device.
-   (Note: this makes the assumption that both logical devices have the same
-   bus binding.  If this is not true, then separate nodes should be used for
-   each logical device).  The 'cell-index' property can be used to enumerate
-   logical devices within an IP core.  For example, the following is the
-   system.mhs entry for the dual ps2 controller found on the ml403 reference
-   design.
+   Some IP cores actually implement 2 or more logical devices.  In
+   this case, the device should still describe the whole IP core with
+   a single node and add a child node for each logical device.  The
+   ranges property can be used to translate from parent IP-core to the
+   registers of each device.  In addition, the parent node should be
+   compatible with the bus type 'xlnx,compound', and should contain
+   #address-cells and #size-cells, as with any other bus.  (Note: this
+   makes the assumption that both logical devices have the same bus
+   binding.  If this is not true, then separate nodes should be used
+   for each logical device).  The 'cell-index' property can be used to
+   enumerate logical devices within an IP core.  For example, the
+   following is the system.mhs entry for the dual ps2 controller found
+   on the ml403 reference design.
 
 	BEGIN opb_ps2_dual_ref
 		PARAMETER INSTANCE = opb_ps2_dual_ref_0
@@ -2370,21 +2429,24 @@ platforms are moved over to use the flattened-device-tree model.
 
    It would result in the following device tree nodes:
 
-	opb_ps2_dual_ref_0@a9000000 {
+	opb_ps2_dual_ref_0: opb-ps2-dual-ref@a9000000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "xlnx,compound";
 		ranges = <0 a9000000 2000>;
 		// If this device had extra parameters, then they would
 		// go here.
 		ps2@0 {
 			compatible = "xlnx,opb-ps2-dual-ref-1.00.a";
 			reg = <0 40>;
-			interrupt-parent = <&opb-intc>;
+			interrupt-parent = <&opb_intc_0>;
 			interrupts = <3 0>;
 			cell-index = <0>;
 		};
 		ps2@1000 {
 			compatible = "xlnx,opb-ps2-dual-ref-1.00.a";
 			reg = <1000 40>;
-			interrupt-parent = <&opb-intc>;
+			interrupt-parent = <&opb_intc_0>;
 			interrupts = <3 0>;
 			cell-index = <0>;
 		};
@@ -2447,17 +2509,18 @@ platforms are moved over to use the flattened-device-tree model.
 
    Gives this device tree (some properties removed for clarity):
 
-	plb-v34-0 {
+	plb@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
+		compatible = "xlnx,plb-v34-1.02.a";
 		device_type = "ibm,plb";
 		ranges; // 1:1 translation
 
-		plb-bram-if-cntrl-0@ffff0000 {
+		plb_bram_if_cntrl_0: bram@ffff0000 {
 			reg = <ffff0000 10000>;
 		}
 
-		opb-v20-0 {
+		opb@20000000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <20000000 20000000 20000000
@@ -2465,11 +2528,11 @@ platforms are moved over to use the flattened-device-tree model.
 				  80000000 80000000 40000000
 				  c0000000 c0000000 20000000>;
 
-			opb-uart16550-0@a0000000 {
+			opb_uart16550_0: serial@a0000000 {
 				reg = <a00000000 2000>;
 			};
 
-			opb-intc-0@d1000fc0 {
+			opb_intc_0: interrupt-controller@d1000fc0 {
 				reg = <d1000fc0 20>;
 			};
 		};
@@ -2513,6 +2576,204 @@ platforms are moved over to use the flattened-device-tree model.
 
       Requred properties:
        - current-speed : Baud rate of uartlite
+
+    p) Freescale Synchronous Serial Interface
+
+       The SSI is a serial device that communicates with audio codecs.  It can
+       be programmed in AC97, I2S, left-justified, or right-justified modes.
+
+       Required properties:
+       - compatible	  : compatible list, containing "fsl,ssi"
+       - cell-index	  : the SSI, <0> = SSI1, <1> = SSI2, and so on
+       - reg		  : offset and length of the register set for the device
+       - interrupts	  : <a b> where a is the interrupt number and b is a
+                            field that represents an encoding of the sense and
+			    level information for the interrupt.  This should be
+			    encoded based on the information in section 2)
+			    depending on the type of interrupt controller you
+			    have.
+       - interrupt-parent : the phandle for the interrupt controller that
+                            services interrupts for this device.
+       - fsl,mode	  : the operating mode for the SSI interface
+			    "i2s-slave" - I2S mode, SSI is clock slave
+			    "i2s-master" - I2S mode, SSI is clock master
+			    "lj-slave" - left-justified mode, SSI is clock slave
+			    "lj-master" - l.j. mode, SSI is clock master
+			    "rj-slave" - right-justified mode, SSI is clock slave
+			    "rj-master" - r.j., SSI is clock master
+			    "ac97-slave" - AC97 mode, SSI is clock slave
+			    "ac97-master" - AC97 mode, SSI is clock master
+
+       Optional properties:
+       - codec-handle	  : phandle to a 'codec' node that defines an audio
+			    codec connected to this SSI.  This node is typically
+			    a child of an I2C or other control node.
+
+       Child 'codec' node required properties:
+       - compatible	  : compatible list, contains the name of the codec
+
+       Child 'codec' node optional properties:
+       - clock-frequency  : The frequency of the input clock, which typically
+                            comes from an on-board dedicated oscillator.
+
+    * Freescale 83xx DMA Controller
+
+    Freescale PowerPC 83xx have on chip general purpose DMA controllers.
+
+    Required properties:
+
+    - compatible        : compatible list, contains 2 entries, first is
+			 "fsl,CHIP-dma", where CHIP is the processor
+			 (mpc8349, mpc8360, etc.) and the second is
+			 "fsl,elo-dma"
+    - reg               : <registers mapping for DMA general status reg>
+    - ranges 		: Should be defined as specified in 1) to describe the
+			  DMA controller channels.
+    - cell-index        : controller index.  0 for controller @ 0x8100
+    - interrupts        : <interrupt mapping for DMA IRQ>
+    - interrupt-parent  : optional, if needed for interrupt mapping
+
+
+    - DMA channel nodes:
+	    - compatible        : compatible list, contains 2 entries, first is
+				 "fsl,CHIP-dma-channel", where CHIP is the processor
+				 (mpc8349, mpc8350, etc.) and the second is
+				 "fsl,elo-dma-channel"
+	    - reg               : <registers mapping for channel>
+	    - cell-index        : dma channel index starts at 0.
+
+    Optional properties:
+	    - interrupts        : <interrupt mapping for DMA channel IRQ>
+				  (on 83xx this is expected to be identical to
+				   the interrupts property of the parent node)
+	    - interrupt-parent  : optional, if needed for interrupt mapping
+
+  Example:
+	dma@82a8 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "fsl,mpc8349-dma", "fsl,elo-dma";
+		reg = <82a8 4>;
+		ranges = <0 8100 1a4>;
+		interrupt-parent = <&ipic>;
+		interrupts = <47 8>;
+		cell-index = <0>;
+		dma-channel@0 {
+			compatible = "fsl,mpc8349-dma-channel", "fsl,elo-dma-channel";
+			cell-index = <0>;
+			reg = <0 80>;
+		};
+		dma-channel@80 {
+			compatible = "fsl,mpc8349-dma-channel", "fsl,elo-dma-channel";
+			cell-index = <1>;
+			reg = <80 80>;
+		};
+		dma-channel@100 {
+			compatible = "fsl,mpc8349-dma-channel", "fsl,elo-dma-channel";
+			cell-index = <2>;
+			reg = <100 80>;
+		};
+		dma-channel@180 {
+			compatible = "fsl,mpc8349-dma-channel", "fsl,elo-dma-channel";
+			cell-index = <3>;
+			reg = <180 80>;
+		};
+	};
+
+   * Freescale 85xx/86xx DMA Controller
+
+    Freescale PowerPC 85xx/86xx have on chip general purpose DMA controllers.
+
+    Required properties:
+
+    - compatible        : compatible list, contains 2 entries, first is
+			 "fsl,CHIP-dma", where CHIP is the processor
+			 (mpc8540, mpc8540, etc.) and the second is
+			 "fsl,eloplus-dma"
+    - reg               : <registers mapping for DMA general status reg>
+    - cell-index        : controller index.  0 for controller @ 0x21000,
+                                             1 for controller @ 0xc000
+    - ranges 		: Should be defined as specified in 1) to describe the
+			  DMA controller channels.
+
+    - DMA channel nodes:
+	    - compatible        : compatible list, contains 2 entries, first is
+				 "fsl,CHIP-dma-channel", where CHIP is the processor
+				 (mpc8540, mpc8560, etc.) and the second is
+				 "fsl,eloplus-dma-channel"
+	    - cell-index        : dma channel index starts at 0.
+	    - reg               : <registers mapping for channel>
+	    - interrupts        : <interrupt mapping for DMA channel IRQ>
+	    - interrupt-parent  : optional, if needed for interrupt mapping
+
+  Example:
+	dma@21300 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "fsl,mpc8540-dma", "fsl,eloplus-dma";
+		reg = <21300 4>;
+		ranges = <0 21100 200>;
+		cell-index = <0>;
+		dma-channel@0 {
+			compatible = "fsl,mpc8540-dma-channel", "fsl,eloplus-dma-channel";
+			reg = <0 80>;
+			cell-index = <0>;
+			interrupt-parent = <&mpic>;
+			interrupts = <14 2>;
+		};
+		dma-channel@80 {
+			compatible = "fsl,mpc8540-dma-channel", "fsl,eloplus-dma-channel";
+			reg = <80 80>;
+			cell-index = <1>;
+			interrupt-parent = <&mpic>;
+			interrupts = <15 2>;
+		};
+		dma-channel@100 {
+			compatible = "fsl,mpc8540-dma-channel", "fsl,eloplus-dma-channel";
+			reg = <100 80>;
+			cell-index = <2>;
+			interrupt-parent = <&mpic>;
+			interrupts = <16 2>;
+		};
+		dma-channel@180 {
+			compatible = "fsl,mpc8540-dma-channel", "fsl,eloplus-dma-channel";
+			reg = <180 80>;
+			cell-index = <3>;
+			interrupt-parent = <&mpic>;
+			interrupts = <17 2>;
+		};
+	};
+
+    * Freescale 8xxx/3.0 Gb/s SATA nodes
+
+    SATA nodes are defined to describe on-chip Serial ATA controllers.
+    Each SATA port should have its own node.
+
+    Required properties:
+    - compatible        : compatible list, contains 2 entries, first is
+			 "fsl,CHIP-sata", where CHIP is the processor
+			 (mpc8315, mpc8379, etc.) and the second is
+			 "fsl,pq-sata"
+    - interrupts        : <interrupt mapping for SATA IRQ>
+    - cell-index        : controller index.
+                              1 for controller @ 0x18000
+                              2 for controller @ 0x19000
+                              3 for controller @ 0x1a000
+                              4 for controller @ 0x1b000
+
+    Optional properties:
+    - interrupt-parent  : optional, if needed for interrupt mapping
+    - reg               : <registers mapping>
+
+   Example:
+
+	sata@18000 {
+		compatible = "fsl,mpc8379-sata", "fsl,pq-sata";
+		reg = <0x18000 0x1000>;
+		cell-index = <1>;
+		interrupts = <2c 8>;
+		interrupt-parent = < &ipic >;
+        };
 
    More devices will be defined as this spec matures.
 

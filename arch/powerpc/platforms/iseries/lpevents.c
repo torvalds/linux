@@ -239,7 +239,7 @@ int HvLpEvent_unregisterHandler(HvLpEvent_Type eventType)
 			 * other CPUs, and that the deleted handler isn't
 			 * still running on another CPU when we return.
 			 */
-			synchronize_rcu();
+			synchronize_sched();
 			return 0;
 		}
 	}

@@ -1,4 +1,5 @@
 addnote
+dtc
 empty.c
 hack-coff
 infblock.c
@@ -30,6 +31,7 @@ zImage.*lds
 zImage.miboot
 zImage.pmac
 zImage.pseries
+zImage.redboot*
 zImage.sandpoint
 zImage.vmode
 zconf.h

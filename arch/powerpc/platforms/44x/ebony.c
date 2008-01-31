@@ -18,16 +18,18 @@
 
 #include <linux/init.h>
 #include <linux/of_platform.h>
+#include <linux/rtc.h>
 
 #include <asm/machdep.h>
 #include <asm/prom.h>
 #include <asm/udbg.h>
 #include <asm/time.h>
 #include <asm/uic.h>
+#include <asm/pci-bridge.h>
 
 #include "44x.h"
 
-static struct of_device_id ebony_of_bus[] = {
+static __initdata struct of_device_id ebony_of_bus[] = {
 	{ .compatible = "ibm,plb4", },
 	{ .compatible = "ibm,opb", },
 	{ .compatible = "ibm,ebc", },
@@ -36,14 +38,12 @@ static struct of_device_id ebony_of_bus[] = {
 
 static int __init ebony_device_probe(void)
 {
-	if (!machine_is(ebony))
-		return 0;
-
 	of_platform_bus_probe(NULL, ebony_of_bus, NULL);
+	of_instantiate_rtc();
 
 	return 0;
 }
-device_initcall(ebony_device_probe);
+machine_device_initcall(ebony, ebony_device_probe);
 
 /*
  * Called very early, MMU is off, device-tree isn't unflattened
@@ -54,6 +54,8 @@ static int __init ebony_probe(void)
 
 	if (!of_flat_dt_is_compatible(root, "ibm,ebony"))
 		return 0;
+
+	ppc_pci_flags = PPC_PCI_REASSIGN_ALL_RSRC;
 
 	return 1;
 }

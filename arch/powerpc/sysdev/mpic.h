@@ -17,6 +17,7 @@ extern int mpic_msi_init_allocator(struct mpic *mpic);
 extern irq_hw_number_t mpic_msi_alloc_hwirqs(struct mpic *mpic, int num);
 extern void mpic_msi_free_hwirqs(struct mpic *mpic, int offset, int num);
 extern int mpic_u3msi_init(struct mpic *mpic);
+extern int mpic_pasemi_msi_init(struct mpic *mpic);
 #else
 static inline void mpic_msi_reserve_hwirq(struct mpic *mpic,
 					  irq_hw_number_t hwirq)
@@ -28,12 +29,15 @@ static inline int mpic_u3msi_init(struct mpic *mpic)
 {
 	return -1;
 }
+
+static inline int mpic_pasemi_msi_init(struct mpic *mpic)
+{
+	return -1;
+}
 #endif
 
 extern int mpic_set_irq_type(unsigned int virq, unsigned int flow_type);
-extern void mpic_end_irq(unsigned int irq);
-extern void mpic_mask_irq(unsigned int irq);
-extern void mpic_unmask_irq(unsigned int irq);
+extern void mpic_set_vector(unsigned int virq, unsigned int vector);
 extern void mpic_set_affinity(unsigned int irq, cpumask_t cpumask);
 
 #endif /* _POWERPC_SYSDEV_MPIC_H */

@@ -206,6 +206,45 @@ _GLOBAL(_nmask_and_or_msr)
 	isync
 	blr			/* Done */
 
+#ifdef CONFIG_40x
+
+/*
+ * Do an IO access in real mode
+ */
+_GLOBAL(real_readb)
+	mfmsr	r7
+	ori	r0,r7,MSR_DR
+	xori	r0,r0,MSR_DR
+	sync
+	mtmsr	r0
+	sync
+	isync
+	lbz	r3,0(r3)
+	sync
+	mtmsr	r7
+	sync
+	isync
+	blr
+
+	/*
+ * Do an IO access in real mode
+ */
+_GLOBAL(real_writeb)
+	mfmsr	r7
+	ori	r0,r7,MSR_DR
+	xori	r0,r0,MSR_DR
+	sync
+	mtmsr	r0
+	sync
+	isync
+	stb	r3,0(r4)
+	sync
+	mtmsr	r7
+	sync
+	isync
+	blr
+
+#endif /* CONFIG_40x */
 
 /*
  * Flush MMU TLB
@@ -235,12 +274,6 @@ _GLOBAL(_tlbia)
 	tlbivax	0,3
 	/* Invalidate all entries in TLB1 */
 	li	r3, 0x0c
-	tlbivax	0,3
-	/* Invalidate all entries in TLB2 */
-	li	r3, 0x14
-	tlbivax	0,3
-	/* Invalidate all entries in TLB3 */
-	li	r3, 0x1c
 	tlbivax	0,3
 	msync
 #ifdef CONFIG_SMP
@@ -336,12 +369,8 @@ _GLOBAL(_tlbie)
 #elif defined(CONFIG_FSL_BOOKE)
 	rlwinm	r4, r3, 0, 0, 19
 	ori	r5, r4, 0x08	/* TLBSEL = 1 */
-	ori	r6, r4, 0x10	/* TLBSEL = 2 */
-	ori	r7, r4, 0x18	/* TLBSEL = 3 */
 	tlbivax	0, r4
 	tlbivax	0, r5
-	tlbivax	0, r6
-	tlbivax	0, r7
 	msync
 #if defined(CONFIG_SMP)
 	tlbsync
@@ -791,13 +820,6 @@ _GLOBAL(kernel_thread)
 1:	lwz	r30,8(r1)
 	lwz	r31,12(r1)
 	addi	r1,r1,16
-	blr
-
-_GLOBAL(kernel_execve)
-	li	r0,__NR_execve
-	sc
-	bnslr
-	neg	r3,r3
 	blr
 
 /*

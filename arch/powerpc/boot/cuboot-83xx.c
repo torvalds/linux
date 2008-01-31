@@ -24,7 +24,8 @@ static void platform_fixups(void)
 	void *soc;
 
 	dt_fixup_memory(bd.bi_memstart, bd.bi_memsize);
-	dt_fixup_mac_addresses(bd.bi_enetaddr, bd.bi_enet1addr);
+	dt_fixup_mac_address_by_alias("ethernet0", bd.bi_enetaddr);
+	dt_fixup_mac_address_by_alias("ethernet1", bd.bi_enet1addr);
 	dt_fixup_cpu_clocks(bd.bi_intfreq, bd.bi_busfreq / 4, bd.bi_busfreq);
 
 	/* Unfortunately, the specific model number is encoded in the
@@ -52,7 +53,7 @@ void platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
                    unsigned long r6, unsigned long r7)
 {
 	CUBOOT_INIT();
-	ft_init(_dtb_start, _dtb_end - _dtb_start, 32);
+	fdt_init(_dtb_start);
 	serial_console_init();
 	platform_ops.fixups = platform_fixups;
 }

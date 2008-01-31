@@ -40,6 +40,120 @@
 
 #define SPUFS_MMAP_4K (PAGE_SIZE == 0x1000)
 
+/* Simple attribute files */
+struct spufs_attr {
+	int (*get)(void *, u64 *);
+	int (*set)(void *, u64);
+	char get_buf[24];       /* enough to store a u64 and "\n\0" */
+	char set_buf[24];
+	void *data;
+	const char *fmt;        /* format for read operation */
+	struct mutex mutex;     /* protects access to these buffers */
+};
+
+static int spufs_attr_open(struct inode *inode, struct file *file,
+		int (*get)(void *, u64 *), int (*set)(void *, u64),
+		const char *fmt)
+{
+	struct spufs_attr *attr;
+
+	attr = kmalloc(sizeof(*attr), GFP_KERNEL);
+	if (!attr)
+		return -ENOMEM;
+
+	attr->get = get;
+	attr->set = set;
+	attr->data = inode->i_private;
+	attr->fmt = fmt;
+	mutex_init(&attr->mutex);
+	file->private_data = attr;
+
+	return nonseekable_open(inode, file);
+}
+
+static int spufs_attr_release(struct inode *inode, struct file *file)
+{
+       kfree(file->private_data);
+	return 0;
+}
+
+static ssize_t spufs_attr_read(struct file *file, char __user *buf,
+		size_t len, loff_t *ppos)
+{
+	struct spufs_attr *attr;
+	size_t size;
+	ssize_t ret;
+
+	attr = file->private_data;
+	if (!attr->get)
+		return -EACCES;
+
+	ret = mutex_lock_interruptible(&attr->mutex);
+	if (ret)
+		return ret;
+
+	if (*ppos) {		/* continued read */
+		size = strlen(attr->get_buf);
+	} else {		/* first read */
+		u64 val;
+		ret = attr->get(attr->data, &val);
+		if (ret)
+			goto out;
+
+		size = scnprintf(attr->get_buf, sizeof(attr->get_buf),
+				 attr->fmt, (unsigned long long)val);
+	}
+
+	ret = simple_read_from_buffer(buf, len, ppos, attr->get_buf, size);
+out:
+	mutex_unlock(&attr->mutex);
+	return ret;
+}
+
+static ssize_t spufs_attr_write(struct file *file, const char __user *buf,
+		size_t len, loff_t *ppos)
+{
+	struct spufs_attr *attr;
+	u64 val;
+	size_t size;
+	ssize_t ret;
+
+	attr = file->private_data;
+	if (!attr->set)
+		return -EACCES;
+
+	ret = mutex_lock_interruptible(&attr->mutex);
+	if (ret)
+		return ret;
+
+	ret = -EFAULT;
+	size = min(sizeof(attr->set_buf) - 1, len);
+	if (copy_from_user(attr->set_buf, buf, size))
+		goto out;
+
+	ret = len; /* claim we got the whole input */
+	attr->set_buf[size] = '\0';
+	val = simple_strtol(attr->set_buf, NULL, 0);
+	attr->set(attr->data, val);
+out:
+	mutex_unlock(&attr->mutex);
+	return ret;
+}
+
+#define DEFINE_SPUFS_SIMPLE_ATTRIBUTE(__fops, __get, __set, __fmt)	\
+static int __fops ## _open(struct inode *inode, struct file *file)	\
+{									\
+	__simple_attr_check_format(__fmt, 0ull);			\
+	return spufs_attr_open(inode, file, __get, __set, __fmt);	\
+}									\
+static struct file_operations __fops = {				\
+	.owner	 = THIS_MODULE,						\
+	.open	 = __fops ## _open,					\
+	.release = spufs_attr_release,					\
+	.read	 = spufs_attr_read,					\
+	.write	 = spufs_attr_write,					\
+};
+
 
 static int
 spufs_mem_open(struct inode *inode, struct file *file)
@@ -84,9 +198,12 @@ spufs_mem_read(struct file *file, char __user *buffer,
 	struct spu_context *ctx = file->private_data;
 	ssize_t ret;
 
-	spu_acquire(ctx);
+	ret = spu_acquire(ctx);
+	if (ret)
+		return ret;
 	ret = __spufs_mem_read(ctx, buffer, size, pos);
 	spu_release(ctx);
+
 	return ret;
 }
 
@@ -106,7 +223,10 @@ spufs_mem_write(struct file *file, const char __user *buffer,
 	if (size > LS_SIZE - pos)
 		size = LS_SIZE - pos;
 
-	spu_acquire(ctx);
+	ret = spu_acquire(ctx);
+	if (ret)
+		return ret;
+
 	local_store = ctx->ops->get_ls(ctx);
 	ret = copy_from_user(local_store + pos, buffer, size);
 	spu_release(ctx);
@@ -146,7 +266,8 @@ static unsigned long spufs_mem_mmap_nopfn(struct vm_area_struct *vma,
 	pr_debug("spufs_mem_mmap_nopfn address=0x%lx -> 0x%lx, offset=0x%lx\n",
 		 addr0, address, offset);
 
-	spu_acquire(ctx);
+	if (spu_acquire(ctx))
+		return NOPFN_REFAULT;
 
 	if (ctx->state == SPU_STATE_SAVED) {
 		vma->vm_page_prot = __pgprot(pgprot_val(vma->vm_page_prot)
@@ -236,23 +357,32 @@ static unsigned long spufs_ps_nopfn(struct vm_area_struct *vma,
 {
 	struct spu_context *ctx = vma->vm_file->private_data;
 	unsigned long area, offset = address - vma->vm_start;
-	int ret;
 
 	offset += vma->vm_pgoff << PAGE_SHIFT;
 	if (offset >= ps_size)
 		return NOPFN_SIGBUS;
 
-	/* error here usually means a signal.. we might want to test
-	 * the error code more precisely though
+	/*
+	 * We have to wait for context to be loaded before we have
+	 * pages to hand out to the user, but we don't want to wait
+	 * with the mmap_sem held.
+	 * It is possible to drop the mmap_sem here, but then we need
+	 * to return NOPFN_REFAULT because the mappings may have
+	 * hanged.
 	 */
-	ret = spu_acquire_runnable(ctx, 0);
-	if (ret)
+	if (spu_acquire(ctx))
 		return NOPFN_REFAULT;
 
-	area = ctx->spu->problem_phys + ps_offs;
-	vm_insert_pfn(vma, address, (area + offset) >> PAGE_SHIFT);
-	spu_release(ctx);
+	if (ctx->state == SPU_STATE_SAVED) {
+		up_read(&current->mm->mmap_sem);
+		spufs_wait(ctx->run_wq, ctx->state == SPU_STATE_RUNNABLE);
+		down_read(&current->mm->mmap_sem);
+	} else {
+		area = ctx->spu->problem_phys + ps_offs;
+		vm_insert_pfn(vma, address, (area + offset) >> PAGE_SHIFT);
+	}
 
+	spu_release(ctx);
 	return NOPFN_REFAULT;
 }
 
@@ -286,25 +416,32 @@ static int spufs_cntl_mmap(struct file *file, struct vm_area_struct *vma)
 #define spufs_cntl_mmap NULL
 #endif /* !SPUFS_MMAP_4K */
 
-static u64 spufs_cntl_get(void *data)
+static int spufs_cntl_get(void *data, u64 *val)
 {
 	struct spu_context *ctx = data;
-	u64 val;
+	int ret;
 
-	spu_acquire(ctx);
-	val = ctx->ops->status_read(ctx);
+	ret = spu_acquire(ctx);
+	if (ret)
+		return ret;
+	*val = ctx->ops->status_read(ctx);
 	spu_release(ctx);
 
-	return val;
+	return 0;
 }
 
-static void spufs_cntl_set(void *data, u64 val)
+static int spufs_cntl_set(void *data, u64 val)
 {
 	struct spu_context *ctx = data;
+	int ret;
 
-	spu_acquire(ctx);
+	ret = spu_acquire(ctx);
+	if (ret)
+		return ret;
 	ctx->ops->runcntl_write(ctx, val);
 	spu_release(ctx);
+
+	return 0;
 }
 
 static int spufs_cntl_open(struct inode *inode, struct file *file)
@@ -317,7 +454,7 @@ static int spufs_cntl_open(struct inode *inode, struct file *file)
 	if (!i->i_openers++)
 		ctx->cntl = inode->i_mapping;
 	mutex_unlock(&ctx->mapping_lock);
-	return simple_attr_open(inode, file, spufs_cntl_get,
+	return spufs_attr_open(inode, file, spufs_cntl_get,
 					spufs_cntl_set, "0x%08lx");
 }
 
@@ -327,7 +464,7 @@ spufs_cntl_release(struct inode *inode, struct file *file)
 	struct spufs_inode_info *i = SPUFS_I(inode);
 	struct spu_context *ctx = i->i_ctx;
 
-	simple_attr_close(inode, file);
+	spufs_attr_release(inode, file);
 
 	mutex_lock(&ctx->mapping_lock);
 	if (!--i->i_openers)
@@ -339,8 +476,8 @@ spufs_cntl_release(struct inode *inode, struct file *file)
 static const struct file_operations spufs_cntl_fops = {
 	.open = spufs_cntl_open,
 	.release = spufs_cntl_release,
-	.read = simple_attr_read,
-	.write = simple_attr_write,
+	.read = spufs_attr_read,
+	.write = spufs_attr_write,
 	.mmap = spufs_cntl_mmap,
 };
 
@@ -368,7 +505,9 @@ spufs_regs_read(struct file *file, char __user *buffer,
 	int ret;
 	struct spu_context *ctx = file->private_data;
 
-	spu_acquire_saved(ctx);
+	ret = spu_acquire_saved(ctx);
+	if (ret)
+		return ret;
 	ret = __spufs_regs_read(ctx, buffer, size, pos);
 	spu_release_saved(ctx);
 	return ret;
@@ -387,7 +526,9 @@ spufs_regs_write(struct file *file, const char __user *buffer,
 		return -EFBIG;
 	*pos += size;
 
-	spu_acquire_saved(ctx);
+	ret = spu_acquire_saved(ctx);
+	if (ret)
+		return ret;
 
 	ret = copy_from_user(lscsa->gprs + *pos - size,
 			     buffer, size) ? -EFAULT : size;
@@ -419,7 +560,9 @@ spufs_fpcr_read(struct file *file, char __user * buffer,
 	int ret;
 	struct spu_context *ctx = file->private_data;
 
-	spu_acquire_saved(ctx);
+	ret = spu_acquire_saved(ctx);
+	if (ret)
+		return ret;
 	ret = __spufs_fpcr_read(ctx, buffer, size, pos);
 	spu_release_saved(ctx);
 	return ret;
@@ -436,10 +579,12 @@ spufs_fpcr_write(struct file *file, const char __user * buffer,
 	size = min_t(ssize_t, sizeof(lscsa->fpcr) - *pos, size);
 	if (size <= 0)
 		return -EFBIG;
+
+	ret = spu_acquire_saved(ctx);
+	if (ret)
+		return ret;
+
 	*pos += size;
-
-	spu_acquire_saved(ctx);
-
 	ret = copy_from_user((char *)&lscsa->fpcr + *pos - size,
 			     buffer, size) ? -EFAULT : size;
 
@@ -486,7 +631,10 @@ static ssize_t spufs_mbox_read(struct file *file, char __user *buf,
 
 	udata = (void __user *)buf;
 
-	spu_acquire(ctx);
+	count = spu_acquire(ctx);
+	if (count)
+		return count;
+
 	for (count = 0; (count + 4) <= len; count += 4, udata++) {
 		int ret;
 		ret = ctx->ops->mbox_read(ctx, &mbox_data);
@@ -522,12 +670,15 @@ static ssize_t spufs_mbox_stat_read(struct file *file, char __user *buf,
 			size_t len, loff_t *pos)
 {
 	struct spu_context *ctx = file->private_data;
+	ssize_t ret;
 	u32 mbox_stat;
 
 	if (len < 4)
 		return -EINVAL;
 
-	spu_acquire(ctx);
+	ret = spu_acquire(ctx);
+	if (ret)
+		return ret;
 
 	mbox_stat = ctx->ops->mbox_stat_read(ctx) & 0xff;
 
@@ -562,6 +713,9 @@ void spufs_ibox_callback(struct spu *spu)
 {
 	struct spu_context *ctx = spu->ctx;
 
+	if (!ctx)
+		return;
+
 	wake_up_all(&ctx->ibox_wq);
 	kill_fasync(&ctx->ibox_fasync, SIGIO, POLLIN);
 }
@@ -593,7 +747,9 @@ static ssize_t spufs_ibox_read(struct file *file, char __user *buf,
 
 	udata = (void __user *)buf;
 
-	spu_acquire(ctx);
+	count = spu_acquire(ctx);
+	if (count)
+		return count;
 
 	/* wait only for the first element */
 	count = 0;
@@ -639,7 +795,11 @@ static unsigned int spufs_ibox_poll(struct file *file, poll_table *wait)
 
 	poll_wait(file, &ctx->ibox_wq, wait);
 
-	spu_acquire(ctx);
+	/*
+	 * For now keep this uninterruptible and also ignore the rule
+	 * that poll should not sleep.  Will be fixed later.
+	 */
+	mutex_lock(&ctx->state_mutex);
 	mask = ctx->ops->mbox_stat_poll(ctx, POLLIN | POLLRDNORM);
 	spu_release(ctx);
 
@@ -657,12 +817,15 @@ static ssize_t spufs_ibox_stat_read(struct file *file, char __user *buf,
 			size_t len, loff_t *pos)
 {
 	struct spu_context *ctx = file->private_data;
+	ssize_t ret;
 	u32 ibox_stat;
 
 	if (len < 4)
 		return -EINVAL;
 
-	spu_acquire(ctx);
+	ret = spu_acquire(ctx);
+	if (ret)
+		return ret;
 	ibox_stat = (ctx->ops->mbox_stat_read(ctx) >> 16) & 0xff;
 	spu_release(ctx);
 
@@ -698,6 +861,9 @@ void spufs_wbox_callback(struct spu *spu)
 {
 	struct spu_context *ctx = spu->ctx;
 
+	if (!ctx)
+		return;
+
 	wake_up_all(&ctx->wbox_wq);
 	kill_fasync(&ctx->wbox_fasync, SIGIO, POLLOUT);
 }
@@ -731,7 +897,9 @@ static ssize_t spufs_wbox_write(struct file *file, const char __user *buf,
 	if (__get_user(wbox_data, udata))
 		return -EFAULT;
 
-	spu_acquire(ctx);
+	count = spu_acquire(ctx);
+	if (count)
+		return count;
 
 	/*
 	 * make sure we can at least write one element, by waiting
@@ -772,7 +940,11 @@ static unsigned int spufs_wbox_poll(struct file *file, poll_table *wait)
 
 	poll_wait(file, &ctx->wbox_wq, wait);
 
-	spu_acquire(ctx);
+	/*
+	 * For now keep this uninterruptible and also ignore the rule
+	 * that poll should not sleep.  Will be fixed later.
+	 */
+	mutex_lock(&ctx->state_mutex);
 	mask = ctx->ops->mbox_stat_poll(ctx, POLLOUT | POLLWRNORM);
 	spu_release(ctx);
 
@@ -790,12 +962,15 @@ static ssize_t spufs_wbox_stat_read(struct file *file, char __user *buf,
 			size_t len, loff_t *pos)
 {
 	struct spu_context *ctx = file->private_data;
+	ssize_t ret;
 	u32 wbox_stat;
 
 	if (len < 4)
 		return -EINVAL;
 
-	spu_acquire(ctx);
+	ret = spu_acquire(ctx);
+	if (ret)
+		return ret;
 	wbox_stat = (ctx->ops->mbox_stat_read(ctx) >> 8) & 0xff;
 	spu_release(ctx);
 
@@ -866,7 +1041,9 @@ static ssize_t spufs_signal1_read(struct file *file, char __user *buf,
 	int ret;
 	struct spu_context *ctx = file->private_data;
 
-	spu_acquire_saved(ctx);
+	ret = spu_acquire_saved(ctx);
+	if (ret)
+		return ret;
 	ret = __spufs_signal1_read(ctx, buf, len, pos);
 	spu_release_saved(ctx);
 
@@ -877,6 +1054,7 @@ static ssize_t spufs_signal1_write(struct file *file, const char __user *buf,
 			size_t len, loff_t *pos)
 {
 	struct spu_context *ctx;
+	ssize_t ret;
 	u32 data;
 
 	ctx = file->private_data;
@@ -887,7 +1065,9 @@ static ssize_t spufs_signal1_write(struct file *file, const char __user *buf,
 	if (copy_from_user(&data, buf, 4))
 		return -EFAULT;
 
-	spu_acquire(ctx);
+	ret = spu_acquire(ctx);
+	if (ret)
+		return ret;
 	ctx->ops->signal1_write(ctx, data);
 	spu_release(ctx);
 
@@ -997,7 +1177,9 @@ static ssize_t spufs_signal2_read(struct file *file, char __user *buf,
 	struct spu_context *ctx = file->private_data;
 	int ret;
 
-	spu_acquire_saved(ctx);
+	ret = spu_acquire_saved(ctx);
+	if (ret)
+		return ret;
 	ret = __spufs_signal2_read(ctx, buf, len, pos);
 	spu_release_saved(ctx);
 
@@ -1008,6 +1190,7 @@ static ssize_t spufs_signal2_write(struct file *file, const char __user *buf,
 			size_t len, loff_t *pos)
 {
 	struct spu_context *ctx;
+	ssize_t ret;
 	u32 data;
 
 	ctx = file->private_data;
@@ -1018,7 +1201,9 @@ static ssize_t spufs_signal2_write(struct file *file, const char __user *buf,
 	if (copy_from_user(&data, buf, 4))
 		return -EFAULT;
 
-	spu_acquire(ctx);
+	ret = spu_acquire(ctx);
+	if (ret)
+		return ret;
 	ctx->ops->signal2_write(ctx, data);
 	spu_release(ctx);
 
@@ -1086,33 +1271,42 @@ static const struct file_operations spufs_signal2_nosched_fops = {
 #define SPU_ATTR_ACQUIRE_SAVED	2
 
 #define DEFINE_SPUFS_ATTRIBUTE(__name, __get, __set, __fmt, __acquire)	\
-static u64 __##__get(void *data)					\
+static int __##__get(void *data, u64 *val)				\
 {									\
 	struct spu_context *ctx = data;					\
-	u64 ret;							\
+	int ret = 0;							\
 									\
 	if (__acquire == SPU_ATTR_ACQUIRE) {				\
-		spu_acquire(ctx);					\
-		ret = __get(ctx);					\
+		ret = spu_acquire(ctx);					\
+		if (ret)						\
+			return ret;					\
+		*val = __get(ctx);					\
 		spu_release(ctx);					\
 	} else if (__acquire == SPU_ATTR_ACQUIRE_SAVED)	{		\
-		spu_acquire_saved(ctx);					\
-		ret = __get(ctx);					\
+		ret = spu_acquire_saved(ctx);				\
+		if (ret)						\
+			return ret;					\
+		*val = __get(ctx);					\
 		spu_release_saved(ctx);					\
 	} else								\
-		ret = __get(ctx);					\
+		*val = __get(ctx);					\
 									\
-	return ret;							\
+	return 0;							\
 }									\
-DEFINE_SIMPLE_ATTRIBUTE(__name, __##__get, __set, __fmt);
+DEFINE_SPUFS_SIMPLE_ATTRIBUTE(__name, __##__get, __set, __fmt);
 
-static void spufs_signal1_type_set(void *data, u64 val)
+static int spufs_signal1_type_set(void *data, u64 val)
 {
 	struct spu_context *ctx = data;
+	int ret;
 
-	spu_acquire(ctx);
+	ret = spu_acquire(ctx);
+	if (ret)
+		return ret;
 	ctx->ops->signal1_type_set(ctx, val);
 	spu_release(ctx);
+
+	return 0;
 }
 
 static u64 spufs_signal1_type_get(struct spu_context *ctx)
@@ -1123,13 +1317,18 @@ DEFINE_SPUFS_ATTRIBUTE(spufs_signal1_type, spufs_signal1_type_get,
 		       spufs_signal1_type_set, "%llu", SPU_ATTR_ACQUIRE);
 
 
-static void spufs_signal2_type_set(void *data, u64 val)
+static int spufs_signal2_type_set(void *data, u64 val)
 {
 	struct spu_context *ctx = data;
+	int ret;
 
-	spu_acquire(ctx);
+	ret = spu_acquire(ctx);
+	if (ret)
+		return ret;
 	ctx->ops->signal2_type_set(ctx, val);
 	spu_release(ctx);
+
+	return 0;
 }
 
 static u64 spufs_signal2_type_get(struct spu_context *ctx)
@@ -1329,6 +1528,9 @@ void spufs_mfc_callback(struct spu *spu)
 {
 	struct spu_context *ctx = spu->ctx;
 
+	if (!ctx)
+		return;
+
 	wake_up_all(&ctx->mfc_wq);
 
 	pr_debug("%s %s\n", __FUNCTION__, spu->name);
@@ -1375,12 +1577,17 @@ static ssize_t spufs_mfc_read(struct file *file, char __user *buffer,
 	if (size != 4)
 		goto out;
 
-	spu_acquire(ctx);
+	ret = spu_acquire(ctx);
+	if (ret)
+		return ret;
+
+	ret = -EINVAL;
 	if (file->f_flags & O_NONBLOCK) {
 		status = ctx->ops->read_mfc_tagstatus(ctx);
 		if (!(status & ctx->tagwait))
 			ret = -EAGAIN;
 		else
+			/* XXX(hch): shouldn't we clear ret here? */
 			ctx->tagwait &= ~status;
 	} else {
 		ret = spufs_wait(ctx->mfc_wq,
@@ -1505,7 +1712,11 @@ static ssize_t spufs_mfc_write(struct file *file, const char __user *buffer,
 	if (ret)
 		goto out;
 
-	ret = spu_acquire_runnable(ctx, 0);
+	ret = spu_acquire(ctx);
+	if (ret)
+		goto out;
+
+	ret = spufs_wait(ctx->run_wq, ctx->state == SPU_STATE_RUNNABLE);
 	if (ret)
 		goto out;
 
@@ -1539,7 +1750,11 @@ static unsigned int spufs_mfc_poll(struct file *file,poll_table *wait)
 
 	poll_wait(file, &ctx->mfc_wq, wait);
 
-	spu_acquire(ctx);
+	/*
+	 * For now keep this uninterruptible and also ignore the rule
+	 * that poll should not sleep.  Will be fixed later.
+	 */
+	mutex_lock(&ctx->state_mutex);
 	ctx->ops->set_mfc_query(ctx, ctx->tagwait, 2);
 	free_elements = ctx->ops->get_mfc_free_elements(ctx);
 	tagstatus = ctx->ops->read_mfc_tagstatus(ctx);
@@ -1562,7 +1777,9 @@ static int spufs_mfc_flush(struct file *file, fl_owner_t id)
 	struct spu_context *ctx = file->private_data;
 	int ret;
 
-	spu_acquire(ctx);
+	ret = spu_acquire(ctx);
+	if (ret)
+		return ret;
 #if 0
 /* this currently hangs */
 	ret = spufs_wait(ctx->mfc_wq,
@@ -1605,12 +1822,18 @@ static const struct file_operations spufs_mfc_fops = {
 	.mmap	 = spufs_mfc_mmap,
 };
 
-static void spufs_npc_set(void *data, u64 val)
+static int spufs_npc_set(void *data, u64 val)
 {
 	struct spu_context *ctx = data;
-	spu_acquire(ctx);
+	int ret;
+
+	ret = spu_acquire(ctx);
+	if (ret)
+		return ret;
 	ctx->ops->npc_write(ctx, val);
 	spu_release(ctx);
+
+	return 0;
 }
 
 static u64 spufs_npc_get(struct spu_context *ctx)
@@ -1620,13 +1843,19 @@ static u64 spufs_npc_get(struct spu_context *ctx)
 DEFINE_SPUFS_ATTRIBUTE(spufs_npc_ops, spufs_npc_get, spufs_npc_set,
 		       "0x%llx\n", SPU_ATTR_ACQUIRE);
 
-static void spufs_decr_set(void *data, u64 val)
+static int spufs_decr_set(void *data, u64 val)
 {
 	struct spu_context *ctx = data;
 	struct spu_lscsa *lscsa = ctx->csa.lscsa;
-	spu_acquire_saved(ctx);
+	int ret;
+
+	ret = spu_acquire_saved(ctx);
+	if (ret)
+		return ret;
 	lscsa->decr.slot[0] = (u32) val;
 	spu_release_saved(ctx);
+
+	return 0;
 }
 
 static u64 spufs_decr_get(struct spu_context *ctx)
@@ -1637,15 +1866,21 @@ static u64 spufs_decr_get(struct spu_context *ctx)
 DEFINE_SPUFS_ATTRIBUTE(spufs_decr_ops, spufs_decr_get, spufs_decr_set,
 		       "0x%llx\n", SPU_ATTR_ACQUIRE_SAVED);
 
-static void spufs_decr_status_set(void *data, u64 val)
+static int spufs_decr_status_set(void *data, u64 val)
 {
 	struct spu_context *ctx = data;
-	spu_acquire_saved(ctx);
+	int ret;
+
+	ret = spu_acquire_saved(ctx);
+	if (ret)
+		return ret;
 	if (val)
 		ctx->csa.priv2.mfc_control_RW |= MFC_CNTL_DECREMENTER_RUNNING;
 	else
 		ctx->csa.priv2.mfc_control_RW &= ~MFC_CNTL_DECREMENTER_RUNNING;
 	spu_release_saved(ctx);
+
+	return 0;
 }
 
 static u64 spufs_decr_status_get(struct spu_context *ctx)
@@ -1659,13 +1894,19 @@ DEFINE_SPUFS_ATTRIBUTE(spufs_decr_status_ops, spufs_decr_status_get,
 		       spufs_decr_status_set, "0x%llx\n",
 		       SPU_ATTR_ACQUIRE_SAVED);
 
-static void spufs_event_mask_set(void *data, u64 val)
+static int spufs_event_mask_set(void *data, u64 val)
 {
 	struct spu_context *ctx = data;
 	struct spu_lscsa *lscsa = ctx->csa.lscsa;
-	spu_acquire_saved(ctx);
+	int ret;
+
+	ret = spu_acquire_saved(ctx);
+	if (ret)
+		return ret;
 	lscsa->event_mask.slot[0] = (u32) val;
 	spu_release_saved(ctx);
+
+	return 0;
 }
 
 static u64 spufs_event_mask_get(struct spu_context *ctx)
@@ -1690,13 +1931,19 @@ static u64 spufs_event_status_get(struct spu_context *ctx)
 DEFINE_SPUFS_ATTRIBUTE(spufs_event_status_ops, spufs_event_status_get,
 		       NULL, "0x%llx\n", SPU_ATTR_ACQUIRE_SAVED)
 
-static void spufs_srr0_set(void *data, u64 val)
+static int spufs_srr0_set(void *data, u64 val)
 {
 	struct spu_context *ctx = data;
 	struct spu_lscsa *lscsa = ctx->csa.lscsa;
-	spu_acquire_saved(ctx);
+	int ret;
+
+	ret = spu_acquire_saved(ctx);
+	if (ret)
+		return ret;
 	lscsa->srr0.slot[0] = (u32) val;
 	spu_release_saved(ctx);
+
+	return 0;
 }
 
 static u64 spufs_srr0_get(struct spu_context *ctx)
@@ -1727,10 +1974,12 @@ static u64 spufs_object_id_get(struct spu_context *ctx)
 	return ctx->object_id;
 }
 
-static void spufs_object_id_set(void *data, u64 id)
+static int spufs_object_id_set(void *data, u64 id)
 {
 	struct spu_context *ctx = data;
 	ctx->object_id = id;
+
+	return 0;
 }
 
 DEFINE_SPUFS_ATTRIBUTE(spufs_object_id_ops, spufs_object_id_get,
@@ -1777,13 +2026,13 @@ static const struct file_operations spufs_caps_fops = {
 static ssize_t __spufs_mbox_info_read(struct spu_context *ctx,
 			char __user *buf, size_t len, loff_t *pos)
 {
-	u32 mbox_stat;
 	u32 data;
 
-	mbox_stat = ctx->csa.prob.mb_stat_R;
-	if (mbox_stat & 0x0000ff) {
-		data = ctx->csa.prob.pu_mb_R;
-	}
+	/* EOF if there's no entry in the mbox */
+	if (!(ctx->csa.prob.mb_stat_R & 0x0000ff))
+		return 0;
+
+	data = ctx->csa.prob.pu_mb_R;
 
 	return simple_read_from_buffer(buf, len, pos, &data, sizeof data);
 }
@@ -1797,7 +2046,9 @@ static ssize_t spufs_mbox_info_read(struct file *file, char __user *buf,
 	if (!access_ok(VERIFY_WRITE, buf, len))
 		return -EFAULT;
 
-	spu_acquire_saved(ctx);
+	ret = spu_acquire_saved(ctx);
+	if (ret)
+		return ret;
 	spin_lock(&ctx->csa.register_lock);
 	ret = __spufs_mbox_info_read(ctx, buf, len, pos);
 	spin_unlock(&ctx->csa.register_lock);
@@ -1815,13 +2066,13 @@ static const struct file_operations spufs_mbox_info_fops = {
 static ssize_t __spufs_ibox_info_read(struct spu_context *ctx,
 				char __user *buf, size_t len, loff_t *pos)
 {
-	u32 ibox_stat;
 	u32 data;
 
-	ibox_stat = ctx->csa.prob.mb_stat_R;
-	if (ibox_stat & 0xff0000) {
-		data = ctx->csa.priv2.puint_mb_R;
-	}
+	/* EOF if there's no entry in the ibox */
+	if (!(ctx->csa.prob.mb_stat_R & 0xff0000))
+		return 0;
+
+	data = ctx->csa.priv2.puint_mb_R;
 
 	return simple_read_from_buffer(buf, len, pos, &data, sizeof data);
 }
@@ -1835,7 +2086,9 @@ static ssize_t spufs_ibox_info_read(struct file *file, char __user *buf,
 	if (!access_ok(VERIFY_WRITE, buf, len))
 		return -EFAULT;
 
-	spu_acquire_saved(ctx);
+	ret = spu_acquire_saved(ctx);
+	if (ret)
+		return ret;
 	spin_lock(&ctx->csa.register_lock);
 	ret = __spufs_ibox_info_read(ctx, buf, len, pos);
 	spin_unlock(&ctx->csa.register_lock);
@@ -1876,7 +2129,9 @@ static ssize_t spufs_wbox_info_read(struct file *file, char __user *buf,
 	if (!access_ok(VERIFY_WRITE, buf, len))
 		return -EFAULT;
 
-	spu_acquire_saved(ctx);
+	ret = spu_acquire_saved(ctx);
+	if (ret)
+		return ret;
 	spin_lock(&ctx->csa.register_lock);
 	ret = __spufs_wbox_info_read(ctx, buf, len, pos);
 	spin_unlock(&ctx->csa.register_lock);
@@ -1926,7 +2181,9 @@ static ssize_t spufs_dma_info_read(struct file *file, char __user *buf,
 	if (!access_ok(VERIFY_WRITE, buf, len))
 		return -EFAULT;
 
-	spu_acquire_saved(ctx);
+	ret = spu_acquire_saved(ctx);
+	if (ret)
+		return ret;
 	spin_lock(&ctx->csa.register_lock);
 	ret = __spufs_dma_info_read(ctx, buf, len, pos);
 	spin_unlock(&ctx->csa.register_lock);
@@ -1977,7 +2234,9 @@ static ssize_t spufs_proxydma_info_read(struct file *file, char __user *buf,
 	struct spu_context *ctx = file->private_data;
 	int ret;
 
-	spu_acquire_saved(ctx);
+	ret = spu_acquire_saved(ctx);
+	if (ret)
+		return ret;
 	spin_lock(&ctx->csa.register_lock);
 	ret = __spufs_proxydma_info_read(ctx, buf, len, pos);
 	spin_unlock(&ctx->csa.register_lock);
@@ -2066,8 +2325,12 @@ static unsigned long long spufs_class2_intrs(struct spu_context *ctx)
 static int spufs_show_stat(struct seq_file *s, void *private)
 {
 	struct spu_context *ctx = s->private;
+	int ret;
 
-	spu_acquire(ctx);
+	ret = spu_acquire(ctx);
+	if (ret)
+		return ret;
+
 	seq_printf(s, "%s %llu %llu %llu %llu "
 		      "%llu %llu %llu %llu %llu %llu %llu %llu\n",
 		ctx_state_names[ctx->stats.util_state],

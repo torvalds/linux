@@ -51,6 +51,8 @@
 #include <linux/root_dev.h>
 #include <linux/bitops.h>
 #include <linux/suspend.h>
+#include <linux/of_device.h>
+#include <linux/of_platform.h>
 
 #include <asm/reg.h>
 #include <asm/sections.h>
@@ -68,8 +70,6 @@
 #include <asm/btext.h>
 #include <asm/pmac_feature.h>
 #include <asm/time.h>
-#include <asm/of_device.h>
-#include <asm/of_platform.h>
 #include <asm/mmu_context.h>
 #include <asm/iommu.h>
 #include <asm/smu.h>
@@ -94,7 +94,6 @@ extern struct machdep_calls pmac_md;
 #define DEFAULT_ROOT_DEVICE Root_SDA1	/* sda1 - slightly silly choice */
 
 #ifdef CONFIG_PPC64
-#include <asm/udbg.h>
 int sccdbg;
 #endif
 
@@ -398,17 +397,13 @@ static int initializing = 1;
 
 static int pmac_late_init(void)
 {
-	if (!machine_is(powermac))
-		return -ENODEV;
-
 	initializing = 0;
 	/* this is udbg (which is __init) and we can later use it during
 	 * cpu hotplug (in smp_core99_kick_cpu) */
 	ppc_md.progress = NULL;
 	return 0;
 }
-
-late_initcall(pmac_late_init);
+machine_late_initcall(powermac, pmac_late_init);
 
 /*
  * This is __init_refok because we check for "initializing" before
@@ -535,9 +530,6 @@ static int __init pmac_declare_of_platform_devices(void)
 	if (machine_is(chrp))
 		return -1;
 
-	if (!machine_is(powermac))
-		return 0;
-
 	np = of_find_node_by_name(NULL, "valkyrie");
 	if (np)
 		of_platform_device_create(np, "valkyrie", NULL);
@@ -552,8 +544,7 @@ static int __init pmac_declare_of_platform_devices(void)
 
 	return 0;
 }
-
-device_initcall(pmac_declare_of_platform_devices);
+machine_device_initcall(powermac, pmac_declare_of_platform_devices);
 
 /*
  * Called very early, MMU is off, device-tree isn't unflattened
@@ -613,9 +604,11 @@ static int pmac_pci_probe_mode(struct pci_bus *bus)
 
 	/* We need to use normal PCI probing for the AGP bus,
 	 * since the device for the AGP bridge isn't in the tree.
+	 * Same for the PCIe host on U4 and the HT host bridge.
 	 */
 	if (bus->self == NULL && (of_device_is_compatible(node, "u3-agp") ||
-				  of_device_is_compatible(node, "u4-pcie")))
+				  of_device_is_compatible(node, "u4-pcie") ||
+				  of_device_is_compatible(node, "u3-ht")))
 		return PCI_PROBE_NORMAL;
 	return PCI_PROBE_DEVTREE;
 }

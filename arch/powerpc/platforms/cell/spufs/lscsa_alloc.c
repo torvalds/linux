@@ -28,6 +28,8 @@
 #include <asm/spu_csa.h>
 #include <asm/mmu.h>
 
+#include "spufs.h"
+
 static int spu_alloc_lscsa_std(struct spu_state *csa)
 {
 	struct spu_lscsa *lscsa;
@@ -73,7 +75,7 @@ int spu_alloc_lscsa(struct spu_state *csa)
 	int		i, j, n_4k;
 
 	/* Check availability of 64K pages */
-	if (mmu_psize_defs[MMU_PAGE_64K].shift == 0)
+	if (!spu_64k_pages_available())
 		goto fail;
 
 	csa->use_big_pages = 1;

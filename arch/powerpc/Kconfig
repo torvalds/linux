@@ -148,6 +148,9 @@ config DEFAULT_UIMAGE
 	  Used to allow a board to specify it wants a uImage built by default
 	default n
 
+config REDBOOT
+	bool
+
 config PPC64_SWSUSP
 	bool
 	depends on PPC64 && (BROKEN || (PPC_PMAC64 && EXPERIMENTAL))
@@ -168,11 +171,13 @@ config PPC_DCR
 
 config PPC_OF_PLATFORM_PCI
 	bool
+	depends on PCI
 	depends on PPC64 # not supported on 32 bits yet
 	default n
 
 source "init/Kconfig"
 
+source "arch/powerpc/sysdev/Kconfig"
 source "arch/powerpc/platforms/Kconfig"
 
 menu "Kernel options"
@@ -348,6 +353,14 @@ config PPC_64K_PAGES
 	  while on hardware with such support, it will be used to map
 	  normal application pages.
 
+config PPC_SUBPAGE_PROT
+	bool "Support setting protections for 4k subpages"
+	depends on PPC_64K_PAGES
+	help
+	  This option adds support for a system call to allow user programs
+	  to set access permissions (read/write, readonly, or no access)
+	  on the 4k subpages of each 64k page.
+
 config SCHED_SMT
 	bool "SMT (Hyperthreading) scheduler support"
 	depends on PPC64 && SMP
@@ -425,7 +438,7 @@ endmenu
 
 config ISA_DMA_API
 	bool
-	default y
+	default !PPC_ISERIES || PCI
 
 menu "Bus options"
 
@@ -475,7 +488,7 @@ config MCA
 config PCI
 	bool "PCI support" if 40x || CPM2 || PPC_83xx || PPC_85xx || PPC_86xx \
 		|| PPC_MPC52xx || (EMBEDDED && (PPC_PSERIES || PPC_ISERIES)) \
-		|| PPC_PS3
+		|| PPC_PS3 || 44x
 	default y if !40x && !CPM2 && !8xx && !PPC_83xx \
 		&& !PPC_85xx && !PPC_86xx
 	default PCI_PERMEDIA if !4xx && !CPM2 && !8xx

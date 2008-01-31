@@ -46,6 +46,8 @@ struct dt_ops {
 	void *(*find_node_by_prop_value)(const void *prev,
 	                                 const char *propname,
 	                                 const char *propval, int proplen);
+	void *(*find_node_by_compatible)(const void *prev,
+	                                 const char *compat);
 	unsigned long (*finalize)(void);
 	char *(*get_path)(const void *phandle, char *buf, int len);
 };
@@ -79,7 +81,7 @@ struct loader_info {
 extern struct loader_info loader_info;
 
 void start(void);
-int ft_init(void *dt_blob, unsigned int max_size, unsigned int max_find_device);
+void fdt_init(void *blob);
 int serial_console_init(void);
 int ns16550_console_init(void *devp, struct serial_console_data *scdp);
 int mpsc_console_init(void *devp, struct serial_console_data *scdp);
@@ -159,9 +161,32 @@ static inline void *find_node_by_devtype(const void *prev,
 	return find_node_by_prop_value_str(prev, "device_type", type);
 }
 
+static inline void *find_node_by_alias(const char *alias)
+{
+	void *devp = finddevice("/aliases");
+
+	if (devp) {
+		char path[MAX_PATH_LEN];
+		if (getprop(devp, alias, path, MAX_PATH_LEN) > 0)
+			return finddevice(path);
+	}
+
+	return NULL;
+}
+
+static inline void *find_node_by_compatible(const void *prev,
+                                            const char *compat)
+{
+	if (dt_ops.find_node_by_compatible)
+		return dt_ops.find_node_by_compatible(prev, compat);
+
+	return NULL;
+}
+
 void dt_fixup_memory(u64 start, u64 size);
 void dt_fixup_cpu_clocks(u32 cpufreq, u32 tbfreq, u32 busfreq);
 void dt_fixup_clock(const char *path, u32 freq);
+void dt_fixup_mac_address_by_alias(const char *alias, const u8 *addr);
 void dt_fixup_mac_address(u32 index, const u8 *addr);
 void __dt_fixup_mac_addresses(u32 startindex, ...);
 #define dt_fixup_mac_addresses(...) \

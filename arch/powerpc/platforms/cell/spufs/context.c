@@ -52,6 +52,7 @@ struct spu_context *alloc_spu_context(struct spu_gang *gang)
 	init_waitqueue_head(&ctx->wbox_wq);
 	init_waitqueue_head(&ctx->stop_wq);
 	init_waitqueue_head(&ctx->mfc_wq);
+	init_waitqueue_head(&ctx->run_wq);
 	ctx->state = SPU_STATE_SAVED;
 	ctx->ops = &spu_backing_ops;
 	ctx->owner = get_task_mm(current);
@@ -105,7 +106,17 @@ int put_spu_context(struct spu_context *ctx)
 void spu_forget(struct spu_context *ctx)
 {
 	struct mm_struct *mm;
-	spu_acquire_saved(ctx);
+
+	/*
+	 * This is basically an open-coded spu_acquire_saved, except that
+	 * we don't acquire the state mutex interruptible.
+	 */
+	mutex_lock(&ctx->state_mutex);
+	if (ctx->state != SPU_STATE_SAVED) {
+		set_bit(SPU_SCHED_WAS_ACTIVE, &ctx->sched_flags);
+		spu_deactivate(ctx);
+	}
+
 	mm = ctx->owner;
 	ctx->owner = NULL;
 	mmput(mm);
@@ -133,47 +144,23 @@ void spu_unmap_mappings(struct spu_context *ctx)
 }
 
 /**
- * spu_acquire_runnable - lock spu contex and make sure it is in runnable state
- * @ctx:	spu contex to lock
- *
- * Note:
- *	Returns 0 and with the context locked on success
- *	Returns negative error and with the context _unlocked_ on failure.
- */
-int spu_acquire_runnable(struct spu_context *ctx, unsigned long flags)
-{
-	int ret = -EINVAL;
-
-	spu_acquire(ctx);
-	if (ctx->state == SPU_STATE_SAVED) {
-		/*
-		 * Context is about to be freed, so we can't acquire it anymore.
-		 */
-		if (!ctx->owner)
-			goto out_unlock;
-		ret = spu_activate(ctx, flags);
-		if (ret)
-			goto out_unlock;
-	}
-
-	return 0;
-
- out_unlock:
-	spu_release(ctx);
-	return ret;
-}
-
-/**
  * spu_acquire_saved - lock spu contex and make sure it is in saved state
  * @ctx:	spu contex to lock
  */
-void spu_acquire_saved(struct spu_context *ctx)
+int spu_acquire_saved(struct spu_context *ctx)
 {
-	spu_acquire(ctx);
+	int ret;
+
+	ret = spu_acquire(ctx);
+	if (ret)
+		return ret;
+
 	if (ctx->state != SPU_STATE_SAVED) {
 		set_bit(SPU_SCHED_WAS_ACTIVE, &ctx->sched_flags);
 		spu_deactivate(ctx);
 	}
+
+	return 0;
 }
 
 /**

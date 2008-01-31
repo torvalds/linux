@@ -5,10 +5,10 @@
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/slab.h>
+#include <linux/of_device.h>
 
 #include <asm/errno.h>
 #include <asm/dcr.h>
-#include <asm/of_device.h>
 
 static void of_device_make_bus_id(struct of_device *dev)
 {

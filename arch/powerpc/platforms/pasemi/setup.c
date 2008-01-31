@@ -27,6 +27,7 @@
 #include <linux/delay.h>
 #include <linux/console.h>
 #include <linux/pci.h>
+#include <linux/of_platform.h>
 
 #include <asm/prom.h>
 #include <asm/system.h>
@@ -35,13 +36,17 @@
 #include <asm/mpic.h>
 #include <asm/smp.h>
 #include <asm/time.h>
-#include <asm/of_platform.h>
+#include <asm/mmu.h>
 
 #include <pcmcia/ss.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
 
 #include "pasemi.h"
+
+#if !defined(CONFIG_SMP)
+static void smp_send_stop(void) {}
+#endif
 
 /* SDC reset register, must be pre-mapped at reset time */
 static void __iomem *reset_reg;
@@ -56,10 +61,14 @@ struct mce_regs {
 
 static struct mce_regs mce_regs[MAX_MCE_REGS];
 static int num_mce_regs;
+static int nmi_virq = NO_IRQ;
 
 
 static void pas_restart(char *cmd)
 {
+	/* Need to put others cpu in hold loop so they're not sleeping */
+	smp_send_stop();
+	udelay(10000);
 	printk("Restarting...\n");
 	while (1)
 		out_le32(reset_reg, 0x6000000);
@@ -126,9 +135,6 @@ static int __init pas_setup_mce_regs(void)
 	struct pci_dev *dev;
 	int reg;
 
-	if (!machine_is(pasemi))
-		return -ENODEV;
-
 	/* Remap various SoC status registers for use by the MCE handler */
 
 	reg = 0;
@@ -172,7 +178,7 @@ static int __init pas_setup_mce_regs(void)
 
 	return 0;
 }
-device_initcall(pas_setup_mce_regs);
+machine_device_initcall(pasemi, pas_setup_mce_regs);
 
 static __init void pas_init_IRQ(void)
 {
@@ -181,6 +187,8 @@ static __init void pas_init_IRQ(void)
 	unsigned long openpic_addr;
 	const unsigned int *opprop;
 	int naddr, opplen;
+	int mpic_flags;
+	const unsigned int *nmiprop;
 	struct mpic *mpic;
 
 	mpic_node = NULL;
@@ -213,13 +221,26 @@ static __init void pas_init_IRQ(void)
 	openpic_addr = of_read_number(opprop, naddr);
 	printk(KERN_DEBUG "OpenPIC addr: %lx\n", openpic_addr);
 
+	mpic_flags = MPIC_PRIMARY | MPIC_LARGE_VECTORS | MPIC_NO_BIAS;
+
+	nmiprop = of_get_property(mpic_node, "nmi-source", NULL);
+	if (nmiprop)
+		mpic_flags |= MPIC_ENABLE_MCK;
+
 	mpic = mpic_alloc(mpic_node, openpic_addr,
-			  MPIC_PRIMARY|MPIC_LARGE_VECTORS,
-			  0, 0, " PAS-OPIC  ");
+			  mpic_flags, 0, 0, "PASEMI-OPIC");
 	BUG_ON(!mpic);
 
 	mpic_assign_isu(mpic, 0, openpic_addr + 0x10000);
 	mpic_init(mpic);
+	/* The NMI/MCK source needs to be prio 15 */
+	if (nmiprop) {
+		nmi_virq = irq_create_mapping(NULL, *nmiprop);
+		mpic_irq_set_priority(nmi_virq, 15);
+		set_irq_type(nmi_virq, IRQ_TYPE_EDGE_RISING);
+		mpic_unmask_irq(nmi_virq);
+	}
+
 	of_node_put(mpic_node);
 	of_node_put(root);
 }
@@ -239,6 +260,14 @@ static int pas_machine_check_handler(struct pt_regs *regs)
 
 	srr0 = regs->nip;
 	srr1 = regs->msr;
+
+	if (nmi_virq != NO_IRQ && mpic_get_mcirq() == nmi_virq) {
+		printk(KERN_ERR "NMI delivered\n");
+		debugger(regs);
+		mpic_end_irq(nmi_virq);
+		goto out;
+	}
+
 	dsisr = mfspr(SPRN_DSISR);
 	printk(KERN_ERR "Machine Check on CPU %d\n", cpu);
 	printk(KERN_ERR "SRR0  0x%016lx SRR1 0x%016lx\n", srr0, srr1);
@@ -295,14 +324,14 @@ static int pas_machine_check_handler(struct pt_regs *regs)
 		int i;
 
 		printk(KERN_ERR "slb contents:\n");
-		for (i = 0; i < SLB_NUM_ENTRIES; i++) {
+		for (i = 0; i < mmu_slb_size; i++) {
 			asm volatile("slbmfee  %0,%1" : "=r" (e) : "r" (i));
 			asm volatile("slbmfev  %0,%1" : "=r" (v) : "r" (i));
 			printk(KERN_ERR "%02d %016lx %016lx\n", i, e, v);
 		}
 	}
 
-
+out:
 	/* SRR1[62] is from MSR[62] if recoverable, so pass that back */
 	return !!(srr1 & 0x2);
 }
@@ -362,16 +391,17 @@ static inline void pasemi_pcmcia_init(void)
 
 
 static struct of_device_id pasemi_bus_ids[] = {
+	/* Unfortunately needed for legacy firmwares */
 	{ .type = "localbus", },
 	{ .type = "sdc", },
+	/* These are the proper entries, which newer firmware uses */
+	{ .compatible = "pasemi,localbus", },
+	{ .compatible = "pasemi,sdc", },
 	{},
 };
 
 static int __init pasemi_publish_devices(void)
 {
-	if (!machine_is(pasemi))
-		return 0;
-
 	pasemi_pcmcia_init();
 
 	/* Publish OF platform devices for SDC and other non-PCI devices */
@@ -379,7 +409,7 @@ static int __init pasemi_publish_devices(void)
 
 	return 0;
 }
-device_initcall(pasemi_publish_devices);
+machine_device_initcall(pasemi, pasemi_publish_devices);
 
 
 /*
@@ -389,7 +419,8 @@ static int __init pas_probe(void)
 {
 	unsigned long root = of_get_flat_dt_root();
 
-	if (!of_flat_dt_is_compatible(root, "PA6T-1682M"))
+	if (!of_flat_dt_is_compatible(root, "PA6T-1682M") &&
+	    !of_flat_dt_is_compatible(root, "pasemi,pwrficient"))
 		return 0;
 
 	hpte_init_native();
@@ -400,7 +431,7 @@ static int __init pas_probe(void)
 }
 
 define_machine(pasemi) {
-	.name			= "PA Semi PA6T-1682M",
+	.name			= "PA Semi PWRficient",
 	.probe			= pas_probe,
 	.setup_arch		= pas_setup_arch,
 	.init_early		= pas_init_early,

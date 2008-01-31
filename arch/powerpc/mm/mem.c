@@ -213,15 +213,30 @@ void __init do_init_bootmem(void)
 	 */
 #ifdef CONFIG_HIGHMEM
 	free_bootmem_with_active_regions(0, total_lowmem >> PAGE_SHIFT);
+
+	/* reserve the sections we're already using */
+	for (i = 0; i < lmb.reserved.cnt; i++) {
+		unsigned long addr = lmb.reserved.region[i].base +
+				     lmb_size_bytes(&lmb.reserved, i) - 1;
+		if (addr < total_lowmem)
+			reserve_bootmem(lmb.reserved.region[i].base,
+					lmb_size_bytes(&lmb.reserved, i));
+		else if (lmb.reserved.region[i].base < total_lowmem) {
+			unsigned long adjusted_size = total_lowmem -
+				      lmb.reserved.region[i].base;
+			reserve_bootmem(lmb.reserved.region[i].base,
+					adjusted_size);
+		}
+	}
 #else
 	free_bootmem_with_active_regions(0, max_pfn);
-#endif
 
 	/* reserve the sections we're already using */
 	for (i = 0; i < lmb.reserved.cnt; i++)
 		reserve_bootmem(lmb.reserved.region[i].base,
 				lmb_size_bytes(&lmb.reserved, i));
 
+#endif
 	/* XXX need to clip this if using highmem? */
 	sparse_memory_present_with_active_regions(0);
 
@@ -334,11 +349,13 @@ void __init mem_init(void)
 		highmem_mapnr = total_lowmem >> PAGE_SHIFT;
 		for (pfn = highmem_mapnr; pfn < max_mapnr; ++pfn) {
 			struct page *page = pfn_to_page(pfn);
-
+			if (lmb_is_reserved(pfn << PAGE_SHIFT))
+				continue;
 			ClearPageReserved(page);
 			init_page_count(page);
 			__free_page(page);
 			totalhigh_pages++;
+			reservedpages--;
 		}
 		totalram_pages += totalhigh_pages;
 		printk(KERN_DEBUG "High memory: %luk\n",

@@ -37,10 +37,8 @@
 #include <asm/nvram.h>
 #include <asm/xmon.h>
 #include <asm/ocp.h>
-#include <asm/prom.h>
 
-#define USES_PPC_SYS (defined(CONFIG_85xx) || defined(CONFIG_83xx) || \
-		      defined(CONFIG_MPC10X_BRIDGE) || defined(CONFIG_8260) || \
+#define USES_PPC_SYS (defined(CONFIG_MPC10X_BRIDGE) || defined(CONFIG_8260) || \
 		      defined(CONFIG_PPC_MPC52xx))
 
 #if USES_PPC_SYS

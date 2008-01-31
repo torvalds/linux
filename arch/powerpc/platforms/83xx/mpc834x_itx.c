@@ -23,6 +23,7 @@
 #include <linux/delay.h>
 #include <linux/seq_file.h>
 #include <linux/root_dev.h>
+#include <linux/of_platform.h>
 
 #include <asm/system.h>
 #include <asm/atomic.h>
@@ -36,6 +37,17 @@
 #include <sysdev/fsl_soc.h>
 
 #include "mpc83xx.h"
+
+static struct of_device_id __initdata mpc834x_itx_ids[] = {
+	{ .compatible = "fsl,pq2pro-localbus", },
+	{},
+};
+
+static int __init mpc834x_itx_declare_of_platform_devices(void)
+{
+	return of_platform_bus_probe(NULL, mpc834x_itx_ids, NULL);
+}
+machine_device_initcall(mpc834x_itx, mpc834x_itx_declare_of_platform_devices);
 
 /* ************************************************************************
  *

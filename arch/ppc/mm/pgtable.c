@@ -42,10 +42,6 @@ int io_bat_index;
 #define HAVE_BATS	1
 #endif
 
-#if defined(CONFIG_FSL_BOOKE)
-#define HAVE_TLBCAM	1
-#endif
-
 extern char etext[], _stext[];
 
 #ifdef CONFIG_SMP
@@ -62,15 +58,6 @@ void setbat(int index, unsigned long virt, unsigned long phys,
 #define v_mapped_by_bats(x)	(0UL)
 #define p_mapped_by_bats(x)	(0UL)
 #endif /* HAVE_BATS */
-
-#ifdef HAVE_TLBCAM
-extern unsigned int tlbcam_index;
-extern unsigned long v_mapped_by_tlbcam(unsigned long va);
-extern unsigned long p_mapped_by_tlbcam(unsigned long pa);
-#else /* !HAVE_TLBCAM */
-#define v_mapped_by_tlbcam(x)	(0UL)
-#define p_mapped_by_tlbcam(x)	(0UL)
-#endif /* HAVE_TLBCAM */
 
 #ifdef CONFIG_PTE_64BIT
 /* 44x uses an 8kB pgdir because it has 8-byte Linux PTEs. */
@@ -213,9 +200,6 @@ __ioremap(phys_addr_t addr, unsigned long size, unsigned long flags)
 	if ((v = p_mapped_by_bats(p)) /*&& p_mapped_by_bats(p+size-1)*/ )
 		goto out;
 
-	if ((v = p_mapped_by_tlbcam(p)))
-		goto out;
-
 	if (mem_init_done) {
 		struct vm_struct *area;
 		area = get_vm_area(size, VM_IOREMAP);
@@ -340,18 +324,6 @@ void __init io_block_mapping(unsigned long virt, phys_addr_t phys,
 		return;
 	}
 #endif /* HAVE_BATS */
-
-#ifdef HAVE_TLBCAM
-	/*
-	 * Use a CAM for this if possible...
-	 */
-	if (tlbcam_index < num_tlbcam_entries && is_power_of_4(size)
-	    && (virt & (size - 1)) == 0 && (phys & (size - 1)) == 0) {
-		settlbcam(tlbcam_index, virt, phys, size, flags, 0);
-		++tlbcam_index;
-		return;
-	}
-#endif /* HAVE_TLBCAM */
 
 	/* No BATs available, put it in the page tables. */
 	for (i = 0; i < size; i += PAGE_SIZE)

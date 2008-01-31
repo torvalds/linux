@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.24-rc4
-# Thu Dec  6 16:48:04 2007
+# Linux kernel version: 2.6.24-rc6
+# Mon Dec 24 10:49:50 2007
 #
 # CONFIG_PPC64 is not set
 
@@ -131,6 +131,7 @@ CONFIG_DEFAULT_AS=y
 # CONFIG_DEFAULT_CFQ is not set
 # CONFIG_DEFAULT_NOOP is not set
 CONFIG_DEFAULT_IOSCHED="anticipatory"
+# CONFIG_PPC4xx_PCI_EXPRESS is not set
 
 #
 # Platform support
@@ -143,6 +144,9 @@ CONFIG_DEFAULT_IOSCHED="anticipatory"
 CONFIG_BAMBOO=y
 # CONFIG_EBONY is not set
 # CONFIG_SEQUOIA is not set
+# CONFIG_TAISHAN is not set
+# CONFIG_KATMAI is not set
+# CONFIG_RAINIER is not set
 CONFIG_440EP=y
 CONFIG_IBM440EP_ERR42=y
 # CONFIG_MPIC is not set
@@ -372,9 +376,7 @@ CONFIG_MISC_DEVICES=y
 # CONFIG_FIREWIRE is not set
 # CONFIG_IEEE1394 is not set
 # CONFIG_I2O is not set
-CONFIG_MACINTOSH_DRIVERS=y
-# CONFIG_MAC_EMUMOUSEBTN is not set
-# CONFIG_WINDFARM is not set
+# CONFIG_MACINTOSH_DRIVERS is not set
 CONFIG_NETDEVICES=y
 # CONFIG_NETDEVICES_MULTIQUEUE is not set
 # CONFIG_DUMMY is not set
@@ -736,19 +738,7 @@ CONFIG_DEBUGGER=y
 # CONFIG_KGDB is not set
 # CONFIG_XMON is not set
 # CONFIG_BDI_SWITCH is not set
-CONFIG_PPC_EARLY_DEBUG=y
-# CONFIG_PPC_EARLY_DEBUG_LPAR is not set
-# CONFIG_PPC_EARLY_DEBUG_G5 is not set
-# CONFIG_PPC_EARLY_DEBUG_RTAS_PANEL is not set
-# CONFIG_PPC_EARLY_DEBUG_RTAS_CONSOLE is not set
-# CONFIG_PPC_EARLY_DEBUG_MAPLE is not set
-# CONFIG_PPC_EARLY_DEBUG_ISERIES is not set
-# CONFIG_PPC_EARLY_DEBUG_PAS_REALMODE is not set
-# CONFIG_PPC_EARLY_DEBUG_BEAT is not set
-CONFIG_PPC_EARLY_DEBUG_44x=y
-# CONFIG_PPC_EARLY_DEBUG_CPM is not set
-CONFIG_PPC_EARLY_DEBUG_44x_PHYSLOW=0xef600300
-CONFIG_PPC_EARLY_DEBUG_44x_PHYSHIGH=0x0
+# CONFIG_PPC_EARLY_DEBUG is not set
 
 #
 # Security options

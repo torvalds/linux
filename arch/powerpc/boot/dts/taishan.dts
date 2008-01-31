@@ -1,0 +1,383 @@
+/*
+ * Device Tree Source for IBM/AMCC Taishan
+ *
+ * Copyright 2007 IBM Corp.
+ * Hugh Blemings <hugh@au.ibm.com> based off code by
+ * Josh Boyer <jwboyer@linux.vnet.ibm.com>, David Gibson <dwg@au1.ibm.com>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without
+ * any warranty of any kind, whether express or implied.
+ */
+
+/ {
+	#address-cells = <2>;
+	#size-cells = <1>;
+	model = "amcc,taishan";
+	compatible = "amcc,taishan";
+	dcr-parent = <&/cpus/cpu@0>;
+
+	aliases {
+		ethernet0 = &EMAC2;
+		ethernet1 = &EMAC3;
+		serial0 = &UART0;
+		serial1 = &UART1;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			model = "PowerPC,440GX";
+			reg = <0>;
+			clock-frequency = <2FAF0800>; // 800MHz
+			timebase-frequency = <0>; // Filled in by zImage
+			i-cache-line-size = <32>;
+			d-cache-line-size = <32>;
+			i-cache-size = <8000>; /* 32 kB */
+			d-cache-size = <8000>; /* 32 kB */
+			dcr-controller;
+			dcr-access-method = "native";
+		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0 0 0>; // Filled in by zImage
+	};
+
+
+	UICB0: interrupt-controller-base {
+		compatible = "ibm,uic-440gx", "ibm,uic";
+		interrupt-controller;
+		cell-index = <3>;
+		dcr-reg = <200 009>;
+		#address-cells = <0>;
+		#size-cells = <0>;
+		#interrupt-cells = <2>;
+	};
+
+
+	UIC0: interrupt-controller0 {
+		compatible = "ibm,uic-440gx", "ibm,uic";
+		interrupt-controller;
+		cell-index = <0>;
+		dcr-reg = <0c0 009>;
+		#address-cells = <0>;
+		#size-cells = <0>;
+		#interrupt-cells = <2>;
+		interrupts = <01 4 00 4>; /* cascade - first non-critical */
+		interrupt-parent = <&UICB0>;
+
+	};
+
+	UIC1: interrupt-controller1 {
+		compatible = "ibm,uic-440gx", "ibm,uic";
+		interrupt-controller;
+		cell-index = <1>;
+		dcr-reg = <0d0 009>;
+		#address-cells = <0>;
+		#size-cells = <0>;
+		#interrupt-cells = <2>;
+		interrupts = <03 4 02 4>; /* cascade */
+		interrupt-parent = <&UICB0>;
+	};
+
+	UIC2: interrupt-controller2 {
+		compatible = "ibm,uic-440gx", "ibm,uic";
+		interrupt-controller;
+		cell-index = <2>; /* was 1 */
+		dcr-reg = <210 009>;
+		#address-cells = <0>;
+		#size-cells = <0>;
+		#interrupt-cells = <2>;
+		interrupts = <05 4 04 4>; /* cascade */
+		interrupt-parent = <&UICB0>;
+	};
+
+
+	CPC0: cpc {
+		compatible = "ibm,cpc-440gp";
+		dcr-reg = <0b0 003 0e0 010>;
+		// FIXME: anything else?
+	};
+
+	plb {
+		compatible = "ibm,plb-440gx", "ibm,plb4";
+		#address-cells = <2>;
+		#size-cells = <1>;
+		ranges;
+		clock-frequency = <9896800>; // 160MHz
+
+		SDRAM0: memory-controller {
+			compatible = "ibm,sdram-440gp";
+			dcr-reg = <010 2>;
+			// FIXME: anything else?
+		};
+
+		SRAM0: sram {
+			compatible = "ibm,sram-440gp";
+			dcr-reg = <020 8 00a 1>;
+		};
+
+		DMA0: dma {
+			// FIXME: ???
+			compatible = "ibm,dma-440gp";
+			dcr-reg = <100 027>;
+		};
+
+		MAL0: mcmal {
+			compatible = "ibm,mcmal-440gx", "ibm,mcmal2";
+			dcr-reg = <180 62>;
+			num-tx-chans = <4>;
+			num-rx-chans = <4>;
+			interrupt-parent = <&MAL0>;
+			interrupts = <0 1 2 3 4>;
+			#interrupt-cells = <1>;
+			#address-cells = <0>;
+			#size-cells = <0>;
+			interrupt-map = </*TXEOB*/ 0 &UIC0 a 4
+					 /*RXEOB*/ 1 &UIC0 b 4
+					 /*SERR*/  2 &UIC1 0 4
+					 /*TXDE*/  3 &UIC1 1 4
+					 /*RXDE*/  4 &UIC1 2 4>;
+			interrupt-map-mask = <ffffffff>;
+		};
+
+		POB0: opb {
+			compatible = "ibm,opb-440gx", "ibm,opb";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			/* Wish there was a nicer way of specifying a full 32-bit
+			   range */
+			ranges = <00000000 1 00000000 80000000
+				  80000000 1 80000000 80000000>;
+			dcr-reg = <090 00b>;
+			interrupt-parent = <&UIC1>;
+			interrupts = <7 4>;
+			clock-frequency = <4C4B400>; // 80MHz
+
+
+			EBC0: ebc {
+				compatible = "ibm,ebc-440gx", "ibm,ebc";
+				dcr-reg = <012 2>;
+				#address-cells = <2>;
+				#size-cells = <1>;
+				clock-frequency = <4C4B400>; // 80MHz
+
+				/* ranges property is supplied by zImage
+				 * based on firmware's configuration of the
+				 * EBC bridge */
+
+				interrupts = <5 4>;
+				interrupt-parent = <&UIC1>;
+
+				/* TODO: Add other EBC devices */
+			};
+
+
+
+			UART0: serial@40000200 {
+				device_type = "serial";
+				compatible = "ns16550";
+				reg = <40000200 8>;
+				virtual-reg = <e0000200>;
+ 				clock-frequency = <A8C000>;
+				current-speed = <1C200>; /* 115200 */
+				interrupt-parent = <&UIC0>;
+				interrupts = <0 4>;
+			};
+
+			UART1: serial@40000300 {
+				device_type = "serial";
+				compatible = "ns16550";
+				reg = <40000300 8>;
+				virtual-reg = <e0000300>;
+				clock-frequency = <A8C000>;
+				current-speed = <1C200>; /* 115200 */
+				interrupt-parent = <&UIC0>;
+				interrupts = <1 4>;
+			};
+
+			IIC0: i2c@40000400 {
+				/* FIXME */
+				device_type = "i2c";
+				compatible = "ibm,iic-440gp", "ibm,iic";
+				reg = <40000400 14>;
+				interrupt-parent = <&UIC0>;
+				interrupts = <2 4>;
+			};
+			IIC1: i2c@40000500 {
+				/* FIXME */
+				device_type = "i2c";
+				compatible = "ibm,iic-440gp", "ibm,iic";
+				reg = <40000500 14>;
+				interrupt-parent = <&UIC0>;
+				interrupts = <3 4>;
+			};
+
+			GPIO0: gpio@40000700 {
+				/* FIXME */
+				compatible = "ibm,gpio-440gp";
+				reg = <40000700 20>;
+			};
+
+			ZMII0: emac-zmii@40000780 {
+				device_type = "zgmii-interface";
+				compatible = "ibm,zmii-440gx", "ibm,zmii";
+				reg = <40000780 c>;
+			};
+
+			RGMII0: emac-rgmii@40000790 {
+				device_type = "rgmii-interface";
+				compatible = "ibm,rgmii";
+				reg = <40000790 8>;
+			};
+
+
+			EMAC0: ethernet@40000800 {
+				unused = <1>;
+				linux,network-index = <2>;
+				device_type = "network";
+				compatible = "ibm,emac-440gx", "ibm,emac4";
+				interrupt-parent = <&UIC1>;
+				interrupts = <1c 4 1d 4>;
+				reg = <40000800 70>;
+				local-mac-address = [000000000000]; // Filled in by zImage
+				mal-device = <&MAL0>;
+				mal-tx-channel = <0>;
+				mal-rx-channel = <0>;
+				cell-index = <0>;
+				max-frame-size = <5dc>;
+				rx-fifo-size = <1000>;
+				tx-fifo-size = <800>;
+				phy-mode = "rmii";
+				phy-map = <00000001>;
+				zmii-device = <&ZMII0>;
+				zmii-channel = <0>;
+			};
+		 	EMAC1: ethernet@40000900 {
+				unused = <1>;
+				linux,network-index = <3>;
+				device_type = "network";
+				compatible = "ibm,emac-440gx", "ibm,emac4";
+				interrupt-parent = <&UIC1>;
+				interrupts = <1e 4 1f 4>;
+				reg = <40000900 70>;
+				local-mac-address = [000000000000]; // Filled in by zImage
+				mal-device = <&MAL0>;
+				mal-tx-channel = <1>;
+				mal-rx-channel = <1>;
+				cell-index = <1>;
+				max-frame-size = <5dc>;
+				rx-fifo-size = <1000>;
+				tx-fifo-size = <800>;
+				phy-mode = "rmii";
+				phy-map = <00000001>;
+ 				zmii-device = <&ZMII0>;
+				zmii-channel = <1>;
+			};
+
+		 	EMAC2: ethernet@40000c00 {
+				linux,network-index = <0>;
+				device_type = "network";
+				compatible = "ibm,emac-440gx", "ibm,emac4";
+				interrupt-parent = <&UIC2>;
+				interrupts = <0 4 1 4>;
+				reg = <40000c00 70>;
+				local-mac-address = [000000000000]; // Filled in by zImage
+				mal-device = <&MAL0>;
+				mal-tx-channel = <2>;
+				mal-rx-channel = <2>;
+				cell-index = <2>;
+				max-frame-size = <5dc>;
+				rx-fifo-size = <1000>;
+				tx-fifo-size = <800>;
+				phy-mode = "rgmii";
+				phy-map = <00000001>;
+				rgmii-device = <&RGMII0>;
+				rgmii-channel = <0>;
+ 				zmii-device = <&ZMII0>;
+				zmii-channel = <2>;
+			};
+
+		 	EMAC3: ethernet@40000e00 {
+				linux,network-index = <1>;
+				device_type = "network";
+				compatible = "ibm,emac-440gx", "ibm,emac4";
+				interrupt-parent = <&UIC2>;
+				interrupts = <2 4 3 4>;
+				reg = <40000e00 70>;
+				local-mac-address = [000000000000]; // Filled in by zImage
+				mal-device = <&MAL0>;
+				mal-tx-channel = <3>;
+				mal-rx-channel = <3>;
+				cell-index = <3>;
+				max-frame-size = <5dc>;
+				rx-fifo-size = <1000>;
+				tx-fifo-size = <800>;
+				phy-mode = "rgmii";
+				phy-map = <00000003>;
+				rgmii-device = <&RGMII0>;
+				rgmii-channel = <1>;
+ 				zmii-device = <&ZMII0>;
+				zmii-channel = <3>;
+			};
+
+
+			GPT0: gpt@40000a00 {
+				/* FIXME */
+				reg = <40000a00 d4>;
+				interrupt-parent = <&UIC0>;
+				interrupts = <12 4 13 4 14 4 15 4 16 4>;
+			};
+
+		};
+
+		PCIX0: pci@20ec00000 {
+			device_type = "pci";
+			#interrupt-cells = <1>;
+			#size-cells = <2>;
+			#address-cells = <3>;
+			compatible = "ibm,plb440gp-pcix", "ibm,plb-pcix";
+			primary;
+			large-inbound-windows;
+			enable-msi-hole;
+			reg = <2 0ec00000   8	/* Config space access */
+			       0 0 0		/* no IACK cycles */
+			       2 0ed00000   4   /* Special cycles */
+			       2 0ec80000 100	/* Internal registers */
+			       2 0ec80100  fc>;	/* Internal messaging registers */
+
+			/* Outbound ranges, one memory and one IO,
+			 * later cannot be changed
+			 */
+			ranges = <02000000 0 80000000 00000003 80000000 0 80000000
+				  01000000 0 00000000 00000002 08000000 0 00010000>;
+
+			/* Inbound 2GB range starting at 0 */
+			dma-ranges = <42000000 0 0 0 0 0 80000000>;
+
+			interrupt-map-mask = <f800 0 0 7>;
+			interrupt-map = <
+				/* IDSEL 1 */
+				0800 0 0 1 &UIC0 17 8
+				0800 0 0 2 &UIC0 18 8
+				0800 0 0 3 &UIC0 19 8
+				0800 0 0 4 &UIC0 1a 8
+
+				/* IDSEL 2 */
+				1000 0 0 1 &UIC0 18 8
+				1000 0 0 2 &UIC0 19 8
+				1000 0 0 3 &UIC0 1a 8
+				1000 0 0 4 &UIC0 17 8
+			>;
+		};
+	};
+
+	chosen {
+		linux,stdout-path = "/plb/opb/serial@40000300";
+	};
+};

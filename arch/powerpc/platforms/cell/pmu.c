@@ -213,7 +213,7 @@ u32 cbe_read_pm(u32 cpu, enum pm_reg_name reg)
 		break;
 
 	case pm_interval:
-		READ_SHADOW_REG(val, pm_interval);
+		READ_MMIO_UPPER32(val, pm_interval);
 		break;
 
 	case pm_start_stop:
@@ -381,9 +381,6 @@ static int __init cbe_init_pm_irq(void)
 	unsigned int irq;
 	int rc, node;
 
-	if (!machine_is(cell))
-		return 0;
-
 	for_each_node(node) {
 		irq = irq_create_mapping(NULL, IIC_IRQ_IOEX_PMI |
 					       (node << IIC_IRQ_NODE_SHIFT));
@@ -404,7 +401,7 @@ static int __init cbe_init_pm_irq(void)
 
 	return 0;
 }
-arch_initcall(cbe_init_pm_irq);
+machine_arch_initcall(cell, cbe_init_pm_irq);
 
 void cbe_sync_irq(int node)
 {

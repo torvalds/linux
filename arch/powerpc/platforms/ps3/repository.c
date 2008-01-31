@@ -33,7 +33,7 @@ enum ps3_lpar_id {
 };
 
 #define dump_field(_a, _b) _dump_field(_a, _b, __func__, __LINE__)
-static void _dump_field(const char *hdr, u64 n, const char* func, int line)
+static void _dump_field(const char *hdr, u64 n, const char *func, int line)
 {
 #if defined(DEBUG)
 	char s[16];
@@ -50,8 +50,8 @@ static void _dump_field(const char *hdr, u64 n, const char* func, int line)
 
 #define dump_node_name(_a, _b, _c, _d, _e) \
 	_dump_node_name(_a, _b, _c, _d, _e, __func__, __LINE__)
-static void _dump_node_name (unsigned int lpar_id, u64 n1, u64 n2, u64 n3,
-	u64 n4, const char* func, int line)
+static void _dump_node_name(unsigned int lpar_id, u64 n1, u64 n2, u64 n3,
+	u64 n4, const char *func, int line)
 {
 	pr_debug("%s:%d: lpar: %u\n", func, line, lpar_id);
 	_dump_field("n1: ", n1, func, line);
@@ -63,7 +63,7 @@ static void _dump_node_name (unsigned int lpar_id, u64 n1, u64 n2, u64 n3,
 #define dump_node(_a, _b, _c, _d, _e, _f, _g) \
 	_dump_node(_a, _b, _c, _d, _e, _f, _g, __func__, __LINE__)
 static void _dump_node(unsigned int lpar_id, u64 n1, u64 n2, u64 n3, u64 n4,
-	u64 v1, u64 v2, const char* func, int line)
+	u64 v1, u64 v2, const char *func, int line)
 {
 	pr_debug("%s:%d: lpar: %u\n", func, line, lpar_id);
 	_dump_field("n1: ", n1, func, line);
@@ -165,21 +165,18 @@ int ps3_repository_read_bus_str(unsigned int bus_index, const char *bus_str,
 		make_first_field("bus", bus_index),
 		make_field(bus_str, 0),
 		0, 0,
-		value, 0);
+		value, NULL);
 }
 
-int ps3_repository_read_bus_id(unsigned int bus_index, unsigned int *bus_id)
+int ps3_repository_read_bus_id(unsigned int bus_index, u64 *bus_id)
 {
 	int result;
-	u64 v1;
-	u64 v2; /* unused */
 
 	result = read_node(PS3_LPAR_ID_PME,
 		make_first_field("bus", bus_index),
 		make_field("id", 0),
 		0, 0,
-		&v1, &v2);
-	*bus_id = v1;
+		bus_id, NULL);
 	return result;
 }
 
@@ -193,7 +190,7 @@ int ps3_repository_read_bus_type(unsigned int bus_index,
 		make_first_field("bus", bus_index),
 		make_field("type", 0),
 		0, 0,
-		&v1, 0);
+		&v1, NULL);
 	*bus_type = v1;
 	return result;
 }
@@ -208,7 +205,7 @@ int ps3_repository_read_bus_num_dev(unsigned int bus_index,
 		make_first_field("bus", bus_index),
 		make_field("num_dev", 0),
 		0, 0,
-		&v1, 0);
+		&v1, NULL);
 	*num_dev = v1;
 	return result;
 }
@@ -221,22 +218,20 @@ int ps3_repository_read_dev_str(unsigned int bus_index,
 		make_field("dev", dev_index),
 		make_field(dev_str, 0),
 		0,
-		value, 0);
+		value, NULL);
 }
 
 int ps3_repository_read_dev_id(unsigned int bus_index, unsigned int dev_index,
-	unsigned int *dev_id)
+	u64 *dev_id)
 {
 	int result;
-	u64 v1;
 
 	result = read_node(PS3_LPAR_ID_PME,
 		make_first_field("bus", bus_index),
 		make_field("dev", dev_index),
 		make_field("id", 0),
 		0,
-		&v1, 0);
-	*dev_id = v1;
+		dev_id, NULL);
 	return result;
 }
 
@@ -251,14 +246,14 @@ int ps3_repository_read_dev_type(unsigned int bus_index,
 		make_field("dev", dev_index),
 		make_field("type", 0),
 		0,
-		&v1, 0);
+		&v1, NULL);
 	*dev_type = v1;
 	return result;
 }
 
 int ps3_repository_read_dev_intr(unsigned int bus_index,
 	unsigned int dev_index, unsigned int intr_index,
-	enum ps3_interrupt_type *intr_type, unsigned int* interrupt_id)
+	enum ps3_interrupt_type *intr_type, unsigned int *interrupt_id)
 {
 	int result;
 	u64 v1;
@@ -287,7 +282,7 @@ int ps3_repository_read_dev_reg_type(unsigned int bus_index,
 		make_field("dev", dev_index),
 		make_field("reg", reg_index),
 		make_field("type", 0),
-		&v1, 0);
+		&v1, NULL);
 	*reg_type = v1;
 	return result;
 }
@@ -332,7 +327,7 @@ int ps3_repository_find_device(struct ps3_repository_device *repo)
 		return result;
 	}
 
-	pr_debug("%s:%d: bus_type %u, bus_index %u, bus_id %u, num_dev %u\n",
+	pr_debug("%s:%d: bus_type %u, bus_index %u, bus_id %lu, num_dev %u\n",
 		__func__, __LINE__, tmp.bus_type, tmp.bus_index, tmp.bus_id,
 		num_dev);
 
@@ -349,35 +344,6 @@ int ps3_repository_find_device(struct ps3_repository_device *repo)
 		return result;
 	}
 
-	if (tmp.bus_type == PS3_BUS_TYPE_STORAGE) {
-		/*
-		 * A storage device may show up in the repository before the
-		 * hypervisor has finished probing its type and regions
-		 */
-		unsigned int num_regions;
-
-		if (tmp.dev_type == PS3_DEV_TYPE_STOR_DUMMY) {
-			pr_debug("%s:%u storage device not ready\n", __func__,
-				 __LINE__);
-			return -ENODEV;
-		}
-
-		result = ps3_repository_read_stor_dev_num_regions(tmp.bus_index,
-								  tmp.dev_index,
-								  &num_regions);
-		if (result) {
-			pr_debug("%s:%d read_stor_dev_num_regions failed\n",
-				 __func__, __LINE__);
-			return result;
-		}
-
-		if (!num_regions) {
-			pr_debug("%s:%u storage device has no regions yet\n",
-				 __func__, __LINE__);
-			return -ENODEV;
-		}
-	}
-
 	result = ps3_repository_read_dev_id(tmp.bus_index, tmp.dev_index,
 		&tmp.dev_id);
 
@@ -387,9 +353,86 @@ int ps3_repository_find_device(struct ps3_repository_device *repo)
 		return result;
 	}
 
-	pr_debug("%s:%d: found: dev_type %u, dev_index %u, dev_id %u\n",
+	pr_debug("%s:%d: found: dev_type %u, dev_index %u, dev_id %lu\n",
 		__func__, __LINE__, tmp.dev_type, tmp.dev_index, tmp.dev_id);
 
+	*repo = tmp;
+	return 0;
+}
+
+int ps3_repository_find_device_by_id(struct ps3_repository_device *repo,
+				     u64 bus_id, u64 dev_id)
+{
+	int result = -ENODEV;
+	struct ps3_repository_device tmp;
+	unsigned int num_dev;
+
+	pr_debug(" -> %s:%u: find device by id %lu:%lu\n", __func__, __LINE__,
+		 bus_id, dev_id);
+
+	for (tmp.bus_index = 0; tmp.bus_index < 10; tmp.bus_index++) {
+		result = ps3_repository_read_bus_id(tmp.bus_index,
+						    &tmp.bus_id);
+		if (result) {
+			pr_debug("%s:%u read_bus_id(%u) failed\n", __func__,
+				 __LINE__, tmp.bus_index);
+			return result;
+		}
+
+		if (tmp.bus_id == bus_id)
+			goto found_bus;
+
+		pr_debug("%s:%u: skip, bus_id %lu\n", __func__, __LINE__,
+			 tmp.bus_id);
+	}
+	pr_debug(" <- %s:%u: bus not found\n", __func__, __LINE__);
+	return result;
+
+found_bus:
+	result = ps3_repository_read_bus_type(tmp.bus_index, &tmp.bus_type);
+	if (result) {
+		pr_debug("%s:%u read_bus_type(%u) failed\n", __func__,
+			 __LINE__, tmp.bus_index);
+		return result;
+	}
+
+	result = ps3_repository_read_bus_num_dev(tmp.bus_index, &num_dev);
+	if (result) {
+		pr_debug("%s:%u read_bus_num_dev failed\n", __func__,
+			 __LINE__);
+		return result;
+	}
+
+	for (tmp.dev_index = 0; tmp.dev_index < num_dev; tmp.dev_index++) {
+		result = ps3_repository_read_dev_id(tmp.bus_index,
+						    tmp.dev_index,
+						    &tmp.dev_id);
+		if (result) {
+			pr_debug("%s:%u read_dev_id(%u:%u) failed\n", __func__,
+				 __LINE__, tmp.bus_index, tmp.dev_index);
+			return result;
+		}
+
+		if (tmp.dev_id == dev_id)
+			goto found_dev;
+
+		pr_debug("%s:%u: skip, dev_id %lu\n", __func__, __LINE__,
+			 tmp.dev_id);
+	}
+	pr_debug(" <- %s:%u: dev not found\n", __func__, __LINE__);
+	return result;
+
+found_dev:
+	result = ps3_repository_read_dev_type(tmp.bus_index, tmp.dev_index,
+					      &tmp.dev_type);
+	if (result) {
+		pr_debug("%s:%u read_dev_type failed\n", __func__, __LINE__);
+		return result;
+	}
+
+	pr_debug(" <- %s:%u: found: type (%u:%u) index (%u:%u) id (%lu:%lu)\n",
+		 __func__, __LINE__, tmp.bus_type, tmp.dev_type, tmp.bus_index,
+		 tmp.dev_index, tmp.bus_id, tmp.dev_id);
 	*repo = tmp;
 	return 0;
 }
@@ -402,50 +445,34 @@ int __devinit ps3_repository_find_devices(enum ps3_bus_type bus_type,
 
 	pr_debug(" -> %s:%d: find bus_type %u\n", __func__, __LINE__, bus_type);
 
-	for (repo.bus_index = 0; repo.bus_index < 10; repo.bus_index++) {
+	repo.bus_type = bus_type;
+	result = ps3_repository_find_bus(repo.bus_type, 0, &repo.bus_index);
+	if (result) {
+		pr_debug(" <- %s:%u: bus not found\n", __func__, __LINE__);
+		return result;
+	}
 
-		result = ps3_repository_read_bus_type(repo.bus_index,
-			&repo.bus_type);
+	result = ps3_repository_read_bus_id(repo.bus_index, &repo.bus_id);
+	if (result) {
+		pr_debug("%s:%d read_bus_id(%u) failed\n", __func__, __LINE__,
+			 repo.bus_index);
+		return result;
+	}
 
+	for (repo.dev_index = 0; ; repo.dev_index++) {
+		result = ps3_repository_find_device(&repo);
+		if (result == -ENODEV) {
+			result = 0;
+			break;
+		} else if (result)
+			break;
+
+		result = callback(&repo);
 		if (result) {
-			pr_debug("%s:%d read_bus_type(%u) failed\n",
-				__func__, __LINE__, repo.bus_index);
+			pr_debug("%s:%d: abort at callback\n", __func__,
+				__LINE__);
 			break;
 		}
-
-		if (repo.bus_type != bus_type) {
-			pr_debug("%s:%d: skip, bus_type %u\n", __func__,
-				__LINE__, repo.bus_type);
-			continue;
-		}
-
-		result = ps3_repository_read_bus_id(repo.bus_index,
-			&repo.bus_id);
-
-		if (result) {
-			pr_debug("%s:%d read_bus_id(%u) failed\n",
-				__func__, __LINE__, repo.bus_index);
-			continue;
-		}
-
-		for (repo.dev_index = 0; ; repo.dev_index++) {
-			result = ps3_repository_find_device(&repo);
-
-			if (result == -ENODEV) {
-				result = 0;
-				break;
-			} else if (result)
-				break;
-
-			result = callback(&repo);
-
-			if (result) {
-				pr_debug("%s:%d: abort at callback\n", __func__,
-					__LINE__);
-				break;
-			}
-		}
-		break;
 	}
 
 	pr_debug(" <- %s:%d\n", __func__, __LINE__);
@@ -561,7 +588,7 @@ int ps3_repository_read_stor_dev_port(unsigned int bus_index,
 		make_first_field("bus", bus_index),
 		make_field("dev", dev_index),
 		make_field("port", 0),
-		0, port, 0);
+		0, port, NULL);
 }
 
 int ps3_repository_read_stor_dev_blk_size(unsigned int bus_index,
@@ -571,7 +598,7 @@ int ps3_repository_read_stor_dev_blk_size(unsigned int bus_index,
 		make_first_field("bus", bus_index),
 		make_field("dev", dev_index),
 		make_field("blk_size", 0),
-		0, blk_size, 0);
+		0, blk_size, NULL);
 }
 
 int ps3_repository_read_stor_dev_num_blocks(unsigned int bus_index,
@@ -581,7 +608,7 @@ int ps3_repository_read_stor_dev_num_blocks(unsigned int bus_index,
 		make_first_field("bus", bus_index),
 		make_field("dev", dev_index),
 		make_field("n_blocks", 0),
-		0, num_blocks, 0);
+		0, num_blocks, NULL);
 }
 
 int ps3_repository_read_stor_dev_num_regions(unsigned int bus_index,
@@ -594,7 +621,7 @@ int ps3_repository_read_stor_dev_num_regions(unsigned int bus_index,
 		make_first_field("bus", bus_index),
 		make_field("dev", dev_index),
 		make_field("n_regs", 0),
-		0, &v1, 0);
+		0, &v1, NULL);
 	*num_regions = v1;
 	return result;
 }
@@ -611,7 +638,7 @@ int ps3_repository_read_stor_dev_region_id(unsigned int bus_index,
 	    make_field("dev", dev_index),
 	    make_field("region", region_index),
 	    make_field("id", 0),
-	    &v1, 0);
+	    &v1, NULL);
 	*region_id = v1;
 	return result;
 }
@@ -624,7 +651,7 @@ int ps3_repository_read_stor_dev_region_size(unsigned int bus_index,
 	    make_field("dev", dev_index),
 	    make_field("region", region_index),
 	    make_field("size", 0),
-	    region_size, 0);
+	    region_size, NULL);
 }
 
 int ps3_repository_read_stor_dev_region_start(unsigned int bus_index,
@@ -635,7 +662,7 @@ int ps3_repository_read_stor_dev_region_start(unsigned int bus_index,
 	    make_field("dev", dev_index),
 	    make_field("region", region_index),
 	    make_field("start", 0),
-	    region_start, 0);
+	    region_start, NULL);
 }
 
 int ps3_repository_read_stor_dev_info(unsigned int bus_index,
@@ -684,6 +711,35 @@ int ps3_repository_read_stor_dev_region(unsigned int bus_index,
 	return result;
 }
 
+/**
+ * ps3_repository_read_num_pu - Number of logical PU processors for this lpar.
+ */
+
+int ps3_repository_read_num_pu(u64 *num_pu)
+{
+	*num_pu = 0;
+	return read_node(PS3_LPAR_ID_CURRENT,
+			   make_first_field("bi", 0),
+			   make_field("pun", 0),
+			   0, 0,
+			   num_pu, NULL);
+}
+
+/**
+ * ps3_repository_read_pu_id - Read the logical PU id.
+ * @pu_index: Zero based index.
+ * @pu_id: The logical PU id.
+ */
+
+int ps3_repository_read_pu_id(unsigned int pu_index, u64 *pu_id)
+{
+	return read_node(PS3_LPAR_ID_CURRENT,
+		make_first_field("bi", 0),
+		make_field("pu", pu_index),
+		0, 0,
+		pu_id, NULL);
+}
+
 int ps3_repository_read_rm_size(unsigned int ppe_id, u64 *rm_size)
 {
 	return read_node(PS3_LPAR_ID_CURRENT,
@@ -691,7 +747,7 @@ int ps3_repository_read_rm_size(unsigned int ppe_id, u64 *rm_size)
 		make_field("pu", 0),
 		ppe_id,
 		make_field("rm_size", 0),
-		rm_size, 0);
+		rm_size, NULL);
 }
 
 int ps3_repository_read_region_total(u64 *region_total)
@@ -700,7 +756,7 @@ int ps3_repository_read_region_total(u64 *region_total)
 		make_first_field("bi", 0),
 		make_field("rgntotal", 0),
 		0, 0,
-		region_total, 0);
+		region_total, NULL);
 }
 
 /**
@@ -736,7 +792,7 @@ int ps3_repository_read_num_spu_reserved(unsigned int *num_spu_reserved)
 		make_first_field("bi", 0),
 		make_field("spun", 0),
 		0, 0,
-		&v1, 0);
+		&v1, NULL);
 	*num_spu_reserved = v1;
 	return result;
 }
@@ -755,7 +811,7 @@ int ps3_repository_read_num_spu_resource_id(unsigned int *num_resource_id)
 		make_first_field("bi", 0),
 		make_field("spursvn", 0),
 		0, 0,
-		&v1, 0);
+		&v1, NULL);
 	*num_resource_id = v1;
 	return result;
 }
@@ -768,7 +824,7 @@ int ps3_repository_read_num_spu_resource_id(unsigned int *num_resource_id)
  */
 
 int ps3_repository_read_spu_resource_id(unsigned int res_index,
-	enum ps3_spu_resource_type* resource_type, unsigned int *resource_id)
+	enum ps3_spu_resource_type *resource_type, unsigned int *resource_id)
 {
 	int result;
 	u64 v1;
@@ -785,14 +841,14 @@ int ps3_repository_read_spu_resource_id(unsigned int res_index,
 	return result;
 }
 
-int ps3_repository_read_boot_dat_address(u64 *address)
+static int ps3_repository_read_boot_dat_address(u64 *address)
 {
 	return read_node(PS3_LPAR_ID_CURRENT,
 		make_first_field("bi", 0),
 		make_field("boot_dat", 0),
 		make_field("address", 0),
 		0,
-		address, 0);
+		address, NULL);
 }
 
 int ps3_repository_read_boot_dat_size(unsigned int *size)
@@ -805,7 +861,7 @@ int ps3_repository_read_boot_dat_size(unsigned int *size)
 		make_field("boot_dat", 0),
 		make_field("size", 0),
 		0,
-		&v1, 0);
+		&v1, NULL);
 	*size = v1;
 	return result;
 }
@@ -820,7 +876,7 @@ int ps3_repository_read_vuart_av_port(unsigned int *port)
 		make_field("vir_uart", 0),
 		make_field("port", 0),
 		make_field("avset", 0),
-		&v1, 0);
+		&v1, NULL);
 	*port = v1;
 	return result;
 }
@@ -835,7 +891,7 @@ int ps3_repository_read_vuart_sysmgr_port(unsigned int *port)
 		make_field("vir_uart", 0),
 		make_field("port", 0),
 		make_field("sysmgr", 0),
-		&v1, 0);
+		&v1, NULL);
 	*port = v1;
 	return result;
 }
@@ -856,6 +912,10 @@ int ps3_repository_read_boot_dat_info(u64 *lpar_addr, unsigned int *size)
 		: ps3_repository_read_boot_dat_size(size);
 }
 
+/**
+ * ps3_repository_read_num_be - Number of physical BE processors in the system.
+ */
+
 int ps3_repository_read_num_be(unsigned int *num_be)
 {
 	int result;
@@ -866,10 +926,16 @@ int ps3_repository_read_num_be(unsigned int *num_be)
 		0,
 		0,
 		0,
-		&v1, 0);
+		&v1, NULL);
 	*num_be = v1;
 	return result;
 }
+
+/**
+ * ps3_repository_read_be_node_id - Read the physical BE processor node id.
+ * @be_index: Zero based index.
+ * @node_id: The BE processor node id.
+ */
 
 int ps3_repository_read_be_node_id(unsigned int be_index, u64 *node_id)
 {
@@ -878,7 +944,23 @@ int ps3_repository_read_be_node_id(unsigned int be_index, u64 *node_id)
 		0,
 		0,
 		0,
-		node_id, 0);
+		node_id, NULL);
+}
+
+/**
+ * ps3_repository_read_be_id - Read the physical BE processor id.
+ * @node_id: The BE processor node id.
+ * @be_id: The BE processor id.
+ */
+
+int ps3_repository_read_be_id(u64 node_id, u64 *be_id)
+{
+	return read_node(PS3_LPAR_ID_PME,
+		make_first_field("be", 0),
+		node_id,
+		0,
+		0,
+		be_id, NULL);
 }
 
 int ps3_repository_read_tb_freq(u64 node_id, u64 *tb_freq)
@@ -888,7 +970,7 @@ int ps3_repository_read_tb_freq(u64 node_id, u64 *tb_freq)
 		node_id,
 		make_field("clock", 0),
 		0,
-		tb_freq, 0);
+		tb_freq, NULL);
 }
 
 int ps3_repository_read_be_tb_freq(unsigned int be_index, u64 *tb_freq)
@@ -897,9 +979,27 @@ int ps3_repository_read_be_tb_freq(unsigned int be_index, u64 *tb_freq)
 	u64 node_id;
 
 	*tb_freq = 0;
-	result = ps3_repository_read_be_node_id(0, &node_id);
+	result = ps3_repository_read_be_node_id(be_index, &node_id);
 	return result ? result
 		: ps3_repository_read_tb_freq(node_id, tb_freq);
+}
+
+int ps3_repository_read_lpm_privileges(unsigned int be_index, u64 *lpar,
+	u64 *rights)
+{
+	int result;
+	u64 node_id;
+
+	*lpar = 0;
+	*rights = 0;
+	result = ps3_repository_read_be_node_id(be_index, &node_id);
+	return result ? result
+		: read_node(PS3_LPAR_ID_PME,
+			    make_first_field("be", 0),
+			    node_id,
+			    make_field("lpm", 0),
+			    make_field("priv", 0),
+			    lpar, rights);
 }
 
 #if defined(DEBUG)
@@ -1034,7 +1134,7 @@ static int dump_device_info(struct ps3_repository_device *repo,
 			continue;
 		}
 
-		pr_debug("%s:%d  (%u:%u): dev_type %u, dev_id %u\n", __func__,
+		pr_debug("%s:%d  (%u:%u): dev_type %u, dev_id %lu\n", __func__,
 			__LINE__, repo->bus_index, repo->dev_index,
 			repo->dev_type, repo->dev_id);
 
@@ -1091,7 +1191,7 @@ int ps3_repository_dump_bus_info(void)
 			continue;
 		}
 
-		pr_debug("%s:%d bus_%u: bus_type %u, bus_id %u, num_dev %u\n",
+		pr_debug("%s:%d bus_%u: bus_type %u, bus_id %lu, num_dev %u\n",
 			__func__, __LINE__, repo.bus_index, repo.bus_type,
 			repo.bus_id, num_dev);
 

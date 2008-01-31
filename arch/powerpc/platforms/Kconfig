@@ -21,7 +21,8 @@ config PPC_83xx
 	bool "Freescale 83xx"
 	depends on 6xx
 	select FSL_SOC
-	select 83xx
+	select MPC83xx
+	select IPIC
 	select WANT_DEVICE_TREE
 
 config PPC_86xx
@@ -79,6 +80,10 @@ config XICS
 	depends on PPC_PSERIES
 	bool
 	default y
+
+config IPIC
+	bool
+	default n
 
 config MPIC
 	bool
@@ -265,6 +270,7 @@ config TAU_AVERAGE
 config QUICC_ENGINE
 	bool
 	select PPC_LIB_RHEAP
+	select CRC32
 	help
 	  The QUICC Engine (QE) is a new generation of communications
 	  coprocessors on Freescale embedded CPUs (akin to CPM in older chips).
@@ -272,8 +278,8 @@ config QUICC_ENGINE
 	  for a machine with a QE coprocessor.
 
 config CPM2
-	bool
-	default n
+	bool "Enable support for the CPM2 (Communications Processor Module)"
+	depends on MPC85xx || 8260
 	select CPM
 	select PPC_LIB_RHEAP
 	help
@@ -314,6 +320,12 @@ config FSL_ULI1575
 
 config CPM
 	bool
+
+config OF_RTC
+	bool
+	help
+	  Uses information from the OF or flattened device tree to instatiate
+	  platform devices for direct mapped RTC chips like the DS1742 or DS1743.
 
 source "arch/powerpc/sysdev/bestcomm/Kconfig"
 

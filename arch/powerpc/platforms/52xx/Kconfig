@@ -1,38 +1,48 @@
 config PPC_MPC52xx
-	bool
+	bool "52xx-based boards"
+	depends on PPC_MULTIPLATFORM && PPC32
 	select FSL_SOC
 	select PPC_CLOCK
-	default n
 
-config PPC_MPC5200
-	bool
-	select PPC_MPC52xx
-	default n
+config PPC_MPC5200_SIMPLE
+	bool "Generic support for simple MPC5200 based boards"
+	depends on PPC_MPC52xx
+	select DEFAULT_UIMAGE
+	select WANT_DEVICE_TREE
+	help
+	  This option enables support for a simple MPC52xx based boards which
+	  do not need a custom platform specific setup. Such boards are
+	  supported assuming the following:
+
+	  - GPIO pins are configured by the firmware,
+	  - CDM configuration (clocking) is setup correctly by firmware,
+	  - if the 'fsl,has-wdt' property is present in one of the
+	    gpt nodes, then it is safe to use such gpt to reset the board,
+	  - PCI is supported if enabled in the kernel configuration
+	    and if there is a PCI bus node defined in the device tree.
+
+	  Boards that are compatible with this generic platform support
+	  are: 'tqc,tqm5200', 'promess,motionpro', 'schindler,cm5200'.
+
+config PPC_EFIKA
+	bool "bPlan Efika 5k2. MPC5200B based computer"
+	depends on PPC_MPC52xx
+	select PPC_RTAS
+	select RTAS_PROC
+	select PPC_NATIVE
+
+config PPC_LITE5200
+	bool "Freescale Lite5200 Eval Board"
+	depends on PPC_MPC52xx
+	select DEFAULT_UIMAGE
+	select WANT_DEVICE_TREE
 
 config PPC_MPC5200_BUGFIX
 	bool "MPC5200 (L25R) bugfix support"
-	depends on PPC_MPC5200
-	default n
+	depends on PPC_MPC52xx
 	help
 	  Enable workarounds for original MPC5200 errata.  This is not required
 	  for MPC5200B based boards.
 
 	  It is safe to say 'Y' here
-
-config PPC_EFIKA
-	bool "bPlan Efika 5k2. MPC5200B based computer"
-	depends on PPC_MULTIPLATFORM && PPC32
-	select PPC_RTAS
-	select RTAS_PROC
-	select PPC_MPC52xx
-	select PPC_NATIVE
-	default n
-
-config PPC_LITE5200
-	bool "Freescale Lite5200 Eval Board"
-	depends on PPC_MULTIPLATFORM && PPC32
-	select WANT_DEVICE_TREE
-	select PPC_MPC5200
-	default n
-
 

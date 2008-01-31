@@ -16,7 +16,6 @@
 #include "stdio.h"
 #include "ops.h"
 #include "gunzip_util.h"
-#include "flatdevtree.h"
 #include "reg.h"
 
 static struct gunzip_state gzstate;

@@ -45,6 +45,7 @@ CROSS=
 
 # directory for object and other files used by this script
 object=arch/powerpc/boot
+objbin=$object
 
 # directory for working files
 tmpdir=.
@@ -95,6 +96,7 @@ while [ "$#" -gt 0 ]; do
 	shift
 	[ "$#" -gt 0 ] || usage
 	object="$1"
+	objbin="$1"
 	;;
     -W)
 	shift
@@ -116,10 +118,13 @@ while [ "$#" -gt 0 ]; do
 done
 
 if [ -n "$dts" ]; then
+    if [ ! -r "$dts" -a -r "$object/dts/$dts" ]; then
+	dts="$object/dts/$dts"
+    fi
     if [ -z "$dtb" ]; then
 	dtb="$platform.dtb"
     fi
-    dtc -O dtb -o "$dtb" -b 0 -V 16 "$dts"
+    $object/dtc -O dtb -o "$dtb" -b 0 "$dts"
 fi
 
 if [ -z "$kernel" ]; then
@@ -163,7 +168,7 @@ ps3)
     ksection=.kernel:vmlinux.bin
     isection=.kernel:initrd
     ;;
-ep88xc)
+ep88xc|ep405|redboot*|ep8248e)
     platformo="$object/fixed-head.o $object/$platform.o"
     binary=y
     ;;
@@ -246,11 +251,11 @@ fi
 # post-processing needed for some platforms
 case "$platform" in
 pseries|chrp)
-    $object/addnote "$ofile"
+    $objbin/addnote "$ofile"
     ;;
 coff)
     ${CROSS}objcopy -O aixcoff-rs6000 --set-start "$entry" "$ofile"
-    $object/hack-coff "$ofile"
+    $objbin/hack-coff "$ofile"
     ;;
 cuboot*)
     gzip -f -9 "$ofile"
@@ -259,7 +264,7 @@ cuboot*)
     ;;
 treeboot*)
     mv "$ofile" "$ofile.elf"
-    $object/mktree "$ofile.elf" "$ofile" "$base" "$entry"
+    $objbin/mktree "$ofile.elf" "$ofile" "$base" "$entry"
     if [ -z "$cacheit" ]; then
 	rm -f "$ofile.elf"
     fi
@@ -287,8 +292,6 @@ ps3)
     overlay_dest="256"
     overlay_size="256"
 
-    rm -f "$object/otheros.bld"
-
     ${CROSS}objcopy -O binary "$ofile" "$ofile.bin"
 
     dd if="$ofile.bin" of="$ofile.bin" conv=notrunc   \
@@ -299,6 +302,8 @@ ps3)
         skip=$system_reset_overlay seek=$overlay_dest \
         count=$overlay_size bs=1
 
-    gzip --force -9 --stdout "$ofile.bin" > "$object/otheros.bld"
+    odir="$(dirname "$ofile.bin")"
+    rm -f "$odir/otheros.bld"
+    gzip --force -9 --stdout "$ofile.bin" > "$odir/otheros.bld"
     ;;
 esac

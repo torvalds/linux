@@ -40,6 +40,7 @@
 #include <asm/spu.h>
 #include <asm/spu_priv1.h>
 #include <asm/firmware.h>
+#include <asm/setjmp.h>
 
 #ifdef CONFIG_PPC64
 #include <asm/hvcall.h>
@@ -71,12 +72,9 @@ static unsigned long ncsum = 4096;
 static int termch;
 static char tmpstr[128];
 
-#define JMP_BUF_LEN	23
 static long bus_error_jmp[JMP_BUF_LEN];
 static int catch_memory_errors;
 static long *xmon_fault_jmp[NR_CPUS];
-#define setjmp xmon_setjmp
-#define longjmp xmon_longjmp
 
 /* Breakpoint stuff */
 struct bpt {
@@ -153,13 +151,15 @@ static const char *getvecname(unsigned long vec);
 
 static int do_spu_cmd(void);
 
+#ifdef CONFIG_44x
+static void dump_tlb_44x(void);
+#endif
+
 int xmon_no_auto_backtrace;
 
 extern void xmon_enter(void);
 extern void xmon_leave(void);
 
-extern long setjmp(long *);
-extern void longjmp(long *, long);
 extern void xmon_save_regs(struct pt_regs *);
 
 #ifdef CONFIG_PPC64
@@ -230,6 +230,9 @@ Commands:\n\
 #endif
 #ifdef CONFIG_PPC_STD_MMU_32
 "  u	dump segment registers\n"
+#endif
+#ifdef CONFIG_44x
+"  u	dump TLB\n"
 #endif
 "  ?	help\n"
 "  zr	reboot\n\
@@ -854,6 +857,11 @@ cmds(struct pt_regs *excp)
 #ifdef CONFIG_PPC_STD_MMU
 		case 'u':
 			dump_segments();
+			break;
+#endif
+#ifdef CONFIG_4xx
+		case 'u':
+			dump_tlb_44x();
 			break;
 #endif
 		default:
@@ -2527,16 +2535,33 @@ static void xmon_print_symbol(unsigned long address, const char *mid,
 static void dump_slb(void)
 {
 	int i;
-	unsigned long tmp;
+	unsigned long esid,vsid,valid;
+	unsigned long llp;
 
 	printf("SLB contents of cpu %x\n", smp_processor_id());
 
-	for (i = 0; i < SLB_NUM_ENTRIES; i++) {
-		asm volatile("slbmfee  %0,%1" : "=r" (tmp) : "r" (i));
-		printf("%02d %016lx ", i, tmp);
-
-		asm volatile("slbmfev  %0,%1" : "=r" (tmp) : "r" (i));
-		printf("%016lx\n", tmp);
+	for (i = 0; i < mmu_slb_size; i++) {
+		asm volatile("slbmfee  %0,%1" : "=r" (esid) : "r" (i));
+		asm volatile("slbmfev  %0,%1" : "=r" (vsid) : "r" (i));
+		valid = (esid & SLB_ESID_V);
+		if (valid | esid | vsid) {
+			printf("%02d %016lx %016lx", i, esid, vsid);
+			if (valid) {
+				llp = vsid & SLB_VSID_LLP;
+				if (vsid & SLB_VSID_B_1T) {
+					printf("  1T  ESID=%9lx  VSID=%13lx LLP:%3lx \n",
+						GET_ESID_1T(esid),
+						(vsid & ~SLB_VSID_B) >> SLB_VSID_SHIFT_1T,
+						llp);
+				} else {
+					printf(" 256M ESID=%9lx  VSID=%13lx LLP:%3lx \n",
+						GET_ESID(esid),
+						(vsid & ~SLB_VSID_B) >> SLB_VSID_SHIFT,
+						llp);
+				}
+			} else
+				printf("\n");
+		}
 	}
 }
 
@@ -2581,6 +2606,32 @@ void dump_segments(void)
 }
 #endif
 
+#ifdef CONFIG_44x
+static void dump_tlb_44x(void)
+{
+	int i;
+
+	for (i = 0; i < PPC44x_TLB_SIZE; i++) {
+		unsigned long w0,w1,w2;
+		asm volatile("tlbre  %0,%1,0" : "=r" (w0) : "r" (i));
+		asm volatile("tlbre  %0,%1,1" : "=r" (w1) : "r" (i));
+		asm volatile("tlbre  %0,%1,2" : "=r" (w2) : "r" (i));
+		printf("[%02x] %08x %08x %08x ", i, w0, w1, w2);
+		if (w0 & PPC44x_TLB_VALID) {
+			printf("V %08x -> %01x%08x %c%c%c%c%c",
+			       w0 & PPC44x_TLB_EPN_MASK,
+			       w1 & PPC44x_TLB_ERPN_MASK,
+			       w1 & PPC44x_TLB_RPN_MASK,
+			       (w2 & PPC44x_TLB_W) ? 'W' : 'w',
+			       (w2 & PPC44x_TLB_I) ? 'I' : 'i',
+			       (w2 & PPC44x_TLB_M) ? 'M' : 'm',
+			       (w2 & PPC44x_TLB_G) ? 'G' : 'g',
+			       (w2 & PPC44x_TLB_E) ? 'E' : 'e');
+		}
+		printf("\n");
+	}
+}
+#endif /* CONFIG_44x */
 void xmon_init(int enable)
 {
 #ifdef CONFIG_PPC_ISERIES

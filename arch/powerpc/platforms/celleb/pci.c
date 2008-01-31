@@ -31,6 +31,7 @@
 #include <linux/init.h>
 #include <linux/bootmem.h>
 #include <linux/pci_regs.h>
+#include <linux/of.h>
 #include <linux/of_device.h>
 
 #include <asm/io.h>
@@ -138,8 +139,6 @@ static void celleb_config_read_fake(unsigned char *config, int where,
 		*val = celleb_fake_config_readl(p);
 		break;
 	}
-
-	return;
 }
 
 static void celleb_config_write_fake(unsigned char *config, int where,
@@ -158,7 +157,6 @@ static void celleb_config_write_fake(unsigned char *config, int where,
 		celleb_fake_config_writel(val, p);
 		break;
 	}
-	return;
 }
 
 static int celleb_fake_pci_read_config(struct pci_bus *bus,
@@ -351,6 +349,10 @@ static int __init celleb_setup_fake_pci_device(struct device_node *node,
 	wi1 = of_get_property(node, "vendor-id", NULL);
 	wi2 = of_get_property(node, "class-code", NULL);
 	wi3 = of_get_property(node, "revision-id", NULL);
+	if (!wi0 || !wi1 || !wi2 || !wi3) {
+		printk(KERN_ERR "PCI: Missing device tree properties.\n");
+		goto error;
+	}
 
 	celleb_config_write_fake(*config, PCI_DEVICE_ID, 2, wi0[0] & 0xffff);
 	celleb_config_write_fake(*config, PCI_VENDOR_ID, 2, wi1[0] & 0xffff);
@@ -372,6 +374,10 @@ static int __init celleb_setup_fake_pci_device(struct device_node *node,
 	celleb_setup_pci_base_addrs(hose, devno, fn, num_base_addr);
 
 	li = of_get_property(node, "interrupts", &rlen);
+	if (!li) {
+		printk(KERN_ERR "PCI: interrupts not found.\n");
+		goto error;
+	}
 	val = li[0];
 	celleb_config_write_fake(*config, PCI_INTERRUPT_PIN, 1, 1);
 	celleb_config_write_fake(*config, PCI_INTERRUPT_LINE, 1, val);
@@ -475,7 +481,7 @@ static struct of_device_id celleb_phb_match[] __initdata = {
 
 int __init celleb_setup_phb(struct pci_controller *phb)
 {
-	struct device_node *dev = phb->arch_data;
+	struct device_node *dev = phb->dn;
 	const struct of_device_id *match;
 	int (*setup_func)(struct device_node *, struct pci_controller *);
 

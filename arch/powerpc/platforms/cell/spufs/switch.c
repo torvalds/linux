@@ -48,6 +48,8 @@
 #include <asm/spu_csa.h>
 #include <asm/mmu_context.h>
 
+#include "spufs.h"
+
 #include "spu_save_dump.h"
 #include "spu_restore_dump.h"
 
@@ -691,35 +693,9 @@ static inline void resume_mfc_queue(struct spu_state *csa, struct spu *spu)
 	out_be64(&priv2->mfc_control_RW, MFC_CNTL_RESUME_DMA_QUEUE);
 }
 
-static inline void get_kernel_slb(u64 ea, u64 slb[2])
+static inline void setup_mfc_slbs(struct spu_state *csa, struct spu *spu,
+		unsigned int *code, int code_size)
 {
-	u64 llp;
-
-	if (REGION_ID(ea) == KERNEL_REGION_ID)
-		llp = mmu_psize_defs[mmu_linear_psize].sllp;
-	else
-		llp = mmu_psize_defs[mmu_virtual_psize].sllp;
-	slb[0] = (get_kernel_vsid(ea, MMU_SEGSIZE_256M) << SLB_VSID_SHIFT) |
-		SLB_VSID_KERNEL | llp;
-	slb[1] = (ea & ESID_MASK) | SLB_ESID_V;
-}
-
-static inline void load_mfc_slb(struct spu *spu, u64 slb[2], int slbe)
-{
-	struct spu_priv2 __iomem *priv2 = spu->priv2;
-
-	out_be64(&priv2->slb_index_W, slbe);
-	eieio();
-	out_be64(&priv2->slb_vsid_RW, slb[0]);
-	out_be64(&priv2->slb_esid_RW, slb[1]);
-	eieio();
-}
-
-static inline void setup_mfc_slbs(struct spu_state *csa, struct spu *spu)
-{
-	u64 code_slb[2];
-	u64 lscsa_slb[2];
-
 	/* Save, Step 47:
 	 * Restore, Step 30.
 	 *     If MFC_SR1[R]=1, write 0 to SLB_Invalidate_All
@@ -735,11 +711,7 @@ static inline void setup_mfc_slbs(struct spu_state *csa, struct spu *spu)
 	 *     translation is desired by OS environment).
 	 */
 	spu_invalidate_slbs(spu);
-	get_kernel_slb((unsigned long)&spu_save_code[0], code_slb);
-	get_kernel_slb((unsigned long)csa->lscsa, lscsa_slb);
-	load_mfc_slb(spu, code_slb, 0);
-	if ((lscsa_slb[0] != code_slb[0]) || (lscsa_slb[1] != code_slb[1]))
-		load_mfc_slb(spu, lscsa_slb, 1);
+	spu_setup_kernel_slbs(spu, csa->lscsa, code, code_size);
 }
 
 static inline void set_switch_active(struct spu_state *csa, struct spu *spu)
@@ -768,9 +740,9 @@ static inline void enable_interrupts(struct spu_state *csa, struct spu *spu)
 	 *     (translation) interrupts.
 	 */
 	spin_lock_irq(&spu->register_lock);
-	spu_int_stat_clear(spu, 0, ~0ul);
-	spu_int_stat_clear(spu, 1, ~0ul);
-	spu_int_stat_clear(spu, 2, ~0ul);
+	spu_int_stat_clear(spu, 0, CLASS0_INTR_MASK);
+	spu_int_stat_clear(spu, 1, CLASS1_INTR_MASK);
+	spu_int_stat_clear(spu, 2, CLASS2_INTR_MASK);
 	spu_int_mask_set(spu, 0, 0ul);
 	spu_int_mask_set(spu, 1, class1_mask);
 	spu_int_mask_set(spu, 2, 0ul);
@@ -927,8 +899,8 @@ static inline void wait_tag_complete(struct spu_state *csa, struct spu *spu)
 	POLL_WHILE_FALSE(in_be32(&prob->dma_tagstatus_R) & mask);
 
 	local_irq_save(flags);
-	spu_int_stat_clear(spu, 0, ~(0ul));
-	spu_int_stat_clear(spu, 2, ~(0ul));
+	spu_int_stat_clear(spu, 0, CLASS0_INTR_MASK);
+	spu_int_stat_clear(spu, 2, CLASS2_INTR_MASK);
 	local_irq_restore(flags);
 }
 
@@ -946,8 +918,8 @@ static inline void wait_spu_stopped(struct spu_state *csa, struct spu *spu)
 	POLL_WHILE_TRUE(in_be32(&prob->spu_status_R) & SPU_STATUS_RUNNING);
 
 	local_irq_save(flags);
-	spu_int_stat_clear(spu, 0, ~(0ul));
-	spu_int_stat_clear(spu, 2, ~(0ul));
+	spu_int_stat_clear(spu, 0, CLASS0_INTR_MASK);
+	spu_int_stat_clear(spu, 2, CLASS2_INTR_MASK);
 	local_irq_restore(flags);
 }
 
@@ -1423,9 +1395,9 @@ static inline void clear_interrupts(struct spu_state *csa, struct spu *spu)
 	spu_int_mask_set(spu, 0, 0ul);
 	spu_int_mask_set(spu, 1, 0ul);
 	spu_int_mask_set(spu, 2, 0ul);
-	spu_int_stat_clear(spu, 0, ~0ul);
-	spu_int_stat_clear(spu, 1, ~0ul);
-	spu_int_stat_clear(spu, 2, ~0ul);
+	spu_int_stat_clear(spu, 0, CLASS0_INTR_MASK);
+	spu_int_stat_clear(spu, 1, CLASS1_INTR_MASK);
+	spu_int_stat_clear(spu, 2, CLASS2_INTR_MASK);
 	spin_unlock_irq(&spu->register_lock);
 }
 
@@ -1866,7 +1838,8 @@ static void save_lscsa(struct spu_state *prev, struct spu *spu)
 	 */
 
 	resume_mfc_queue(prev, spu);	/* Step 46. */
-	setup_mfc_slbs(prev, spu);	/* Step 47. */
+	/* Step 47. */
+	setup_mfc_slbs(prev, spu, spu_save_code, sizeof(spu_save_code));
 	set_switch_active(prev, spu);	/* Step 48. */
 	enable_interrupts(prev, spu);	/* Step 49. */
 	save_ls_16kb(prev, spu);	/* Step 50. */
@@ -1971,7 +1944,8 @@ static void restore_lscsa(struct spu_state *next, struct spu *spu)
 	setup_spu_status_part1(next, spu);	/* Step 27. */
 	setup_spu_status_part2(next, spu);	/* Step 28. */
 	restore_mfc_rag(next, spu);	        /* Step 29. */
-	setup_mfc_slbs(next, spu);	        /* Step 30. */
+	/* Step 30. */
+	setup_mfc_slbs(next, spu, spu_restore_code, sizeof(spu_restore_code));
 	set_spu_npc(next, spu);	                /* Step 31. */
 	set_signot1(next, spu);	                /* Step 32. */
 	set_signot2(next, spu);	                /* Step 33. */
@@ -2103,10 +2077,6 @@ int spu_save(struct spu_state *prev, struct spu *spu)
 	int rc;
 
 	acquire_spu_lock(spu);	        /* Step 1.     */
-	prev->dar = spu->dar;
-	prev->dsisr = spu->dsisr;
-	spu->dar = 0;
-	spu->dsisr = 0;
 	rc = __do_spu_save(prev, spu);	/* Steps 2-53. */
 	release_spu_lock(spu);
 	if (rc != 0 && rc != 2 && rc != 6) {
@@ -2133,9 +2103,6 @@ int spu_restore(struct spu_state *new, struct spu *spu)
 	acquire_spu_lock(spu);
 	harvest(NULL, spu);
 	spu->slb_replace = 0;
-	new->dar = 0;
-	new->dsisr = 0;
-	spu->class_0_pending = 0;
 	rc = __do_spu_restore(new, spu);
 	release_spu_lock(spu);
 	if (rc) {
@@ -2215,10 +2182,8 @@ int spu_init_csa(struct spu_state *csa)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(spu_init_csa);
 
 void spu_fini_csa(struct spu_state *csa)
 {
 	spu_free_lscsa(csa);
 }
-EXPORT_SYMBOL_GPL(spu_fini_csa);

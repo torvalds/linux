@@ -76,6 +76,11 @@ static inline struct dma_mapping_ops *get_dma_ops(struct device *dev)
 	return dev->archdata.dma_ops;
 }
 
+static inline void set_dma_ops(struct device *dev, struct dma_mapping_ops *ops)
+{
+	dev->archdata.dma_ops = ops;
+}
+
 static inline int dma_supported(struct device *dev, u64 mask)
 {
 	struct dma_mapping_ops *dma_ops = get_dma_ops(dev);
@@ -86,6 +91,9 @@ static inline int dma_supported(struct device *dev, u64 mask)
 		return 1;
 	return dma_ops->dma_supported(dev, mask);
 }
+
+/* We have our own implementation of pci_set_dma_mask() */
+#define HAVE_ARCH_PCI_SET_DMA_MASK
 
 static inline int dma_set_mask(struct device *dev, u64 dma_mask)
 {
@@ -185,8 +193,6 @@ static inline void dma_unmap_sg(struct device *dev, struct scatterlist *sg,
  */
 extern struct dma_mapping_ops dma_iommu_ops;
 extern struct dma_mapping_ops dma_direct_ops;
-
-extern unsigned long dma_direct_offset;
 
 #else /* CONFIG_PPC64 */
 

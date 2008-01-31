@@ -23,6 +23,7 @@
 #include <linux/delay.h>
 #include <linux/seq_file.h>
 #include <linux/root_dev.h>
+#include <linux/of_platform.h>
 
 #include <asm/system.h>
 #include <asm/atomic.h>
@@ -106,14 +107,27 @@ static void __init mpc834x_mds_init_IRQ(void)
 	ipic_set_default_priority();
 }
 
+static struct of_device_id mpc834x_ids[] = {
+	{ .type = "soc", },
+	{ .compatible = "soc", },
+	{},
+};
+
+static int __init mpc834x_declare_of_platform_devices(void)
+{
+	of_platform_bus_probe(NULL, mpc834x_ids, NULL);
+	return 0;
+}
+machine_device_initcall(mpc834x_mds, mpc834x_declare_of_platform_devices);
+
 /*
  * Called very early, MMU is off, device-tree isn't unflattened
  */
 static int __init mpc834x_mds_probe(void)
 {
-        unsigned long root = of_get_flat_dt_root();
+	unsigned long root = of_get_flat_dt_root();
 
-        return of_flat_dt_is_compatible(root, "MPC834xMDS");
+	return of_flat_dt_is_compatible(root, "MPC834xMDS");
 }
 
 define_machine(mpc834x_mds) {

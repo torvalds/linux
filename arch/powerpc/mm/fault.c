@@ -167,10 +167,8 @@ int __kprobes do_page_fault(struct pt_regs *regs, unsigned long address,
 	if (notify_page_fault(regs))
 		return 0;
 
-	if (trap == 0x300) {
-		if (debugger_fault_handler(regs))
-			return 0;
-	}
+	if (unlikely(debugger_fault_handler(regs)))
+		return 0;
 
 	/* On a kernel SLB miss we can only check for a valid exception entry */
 	if (!user_mode(regs) && (address >= TASK_SIZE))
@@ -189,7 +187,7 @@ int __kprobes do_page_fault(struct pt_regs *regs, unsigned long address,
 			return SIGSEGV;
 		/* in_atomic() in user mode is really bad,
 		   as is current->mm == NULL. */
-		printk(KERN_EMERG "Page fault in user mode with"
+		printk(KERN_EMERG "Page fault in user mode with "
 		       "in_atomic() = %d mm = %p\n", in_atomic(), mm);
 		printk(KERN_EMERG "NIP = %lx  MSR = %lx\n",
 		       regs->nip, regs->msr);

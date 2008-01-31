@@ -15,6 +15,17 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 
+	aliases {
+		ethernet0 = &enet0;
+		ethernet1 = &enet1;
+		serial0 = &serial0;
+		serial1 = &serial1;
+		pci0 = &pci0;
+		pci1 = &pci1;
+		pci2 = &pci2;
+		pci3 = &pci3;
+	};
+
 	cpus {
 		#cpus = <1>;
 		#address-cells = <1>;
@@ -64,9 +75,22 @@
 		};
 
 		i2c@3000 {
-			device_type = "i2c";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			cell-index = <0>;
 			compatible = "fsl-i2c";
 			reg = <3000 100>;
+			interrupts = <2b 2>;
+			interrupt-parent = <&mpic>;
+			dfsrr;
+		};
+
+		i2c@3100 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			cell-index = <1>;
+			compatible = "fsl-i2c";
+			reg = <3100 100>;
 			interrupts = <2b 2>;
 			interrupt-parent = <&mpic>;
 			dfsrr;
@@ -75,9 +99,9 @@
 		mdio@24520 {
 			#address-cells = <1>;
 			#size-cells = <0>;
-			device_type = "mdio";
-			compatible = "gianfar";
+			compatible = "fsl,gianfar-mdio";
 			reg = <24520 20>;
+
 			phy0: ethernet-phy@0 {
 				interrupt-parent = <&mpic>;
 				interrupts = <a 1>;
@@ -92,9 +116,8 @@
 			};
 		};
 
-		ethernet@24000 {
-			#address-cells = <1>;
-			#size-cells = <0>;
+		enet0: ethernet@24000 {
+			cell-index = <0>;
 			device_type = "network";
 			model = "TSEC";
 			compatible = "gianfar";
@@ -106,9 +129,8 @@
 			phy-connection-type = "rgmii-id";
 		};
 
-		ethernet@26000 {
-			#address-cells = <1>;
-			#size-cells = <0>;
+		enet1: ethernet@26000 {
+			cell-index = <1>;
 			device_type = "network";
 			model = "TSEC";
 			compatible = "gianfar";
@@ -120,7 +142,8 @@
 			phy-connection-type = "rgmii-id";
 		};
 
-		serial@4500 {
+		serial0: serial@4500 {
+			cell-index = <0>;
 			device_type = "serial";
 			compatible = "ns16550";
 			reg = <4500 100>;
@@ -129,7 +152,8 @@
 			interrupt-parent = <&mpic>;
 		};
 
-		serial@4600 {
+		serial1: serial@4600 {
+			cell-index = <1>;
 			device_type = "serial";
 			compatible = "ns16550";
 			reg = <4600 100>;
@@ -156,7 +180,8 @@
 		};
 	};
 
-	pci@e0008000 {
+	pci0: pci@e0008000 {
+		cell-index = <0>;
 		compatible = "fsl,mpc8540-pci";
 		device_type = "pci";
 		interrupt-map-mask = <f800 0 0 7>;
@@ -187,7 +212,8 @@
 		reg = <e0008000 1000>;
 	};
 
-	pcie@e0009000 {
+	pci1: pcie@e0009000 {
+		cell-index = <1>;
 		compatible = "fsl,mpc8548-pcie";
 		device_type = "pci";
 		#interrupt-cells = <1>;
@@ -223,7 +249,8 @@
 		};
 	};
 
-	pcie@e000a000 {
+	pci2: pcie@e000a000 {
+		cell-index = <2>;
 		compatible = "fsl,mpc8548-pcie";
 		device_type = "pci";
 		#interrupt-cells = <1>;
@@ -259,7 +286,8 @@
 		};
 	};
 
-	pcie@e000b000 {
+	pci3: pcie@e000b000 {
+		cell-index = <3>;
 		compatible = "fsl,mpc8548-pcie";
 		device_type = "pci";
 		#interrupt-cells = <1>;
@@ -276,9 +304,9 @@
 		interrupt-map = <
 			// IDSEL 0x1c  USB
 			e000 0 0 1 &i8259 c 2
-			e100 0 0 1 &i8259 9 2
-			e200 0 0 1 &i8259 a 2
-			e300 0 0 1 &i8259 b 2
+			e100 0 0 2 &i8259 9 2
+			e200 0 0 3 &i8259 a 2
+			e300 0 0 4 &i8259 b 2
 
 			// IDSEL 0x1d  Audio
 			e800 0 0 1 &i8259 6 2
@@ -369,6 +397,5 @@
 				};
 			};
 		};
-
 	};
 };

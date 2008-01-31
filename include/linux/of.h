@@ -17,6 +17,7 @@
  */
 #include <linux/types.h>
 #include <linux/bitops.h>
+#include <linux/mod_devicetable.h>
 
 #include <asm/prom.h>
 
@@ -41,11 +42,20 @@ extern struct device_node *of_find_compatible_node(struct device_node *from,
 #define for_each_compatible_node(dn, type, compatible) \
 	for (dn = of_find_compatible_node(NULL, type, compatible); dn; \
 	     dn = of_find_compatible_node(dn, type, compatible))
+extern struct device_node *of_find_matching_node(struct device_node *from,
+	const struct of_device_id *matches);
+#define for_each_matching_node(dn, matches) \
+	for (dn = of_find_matching_node(NULL, matches); dn; \
+	     dn = of_find_matching_node(dn, matches))
 extern struct device_node *of_find_node_by_path(const char *path);
 extern struct device_node *of_find_node_by_phandle(phandle handle);
 extern struct device_node *of_get_parent(const struct device_node *node);
 extern struct device_node *of_get_next_child(const struct device_node *node,
 					     struct device_node *prev);
+#define for_each_child_of_node(parent, child) \
+	for (child = of_get_next_child(parent, NULL); child != NULL; \
+	     child = of_get_next_child(parent, child))
+
 extern struct property *of_find_property(const struct device_node *np,
 					 const char *name,
 					 int *lenp);
@@ -56,5 +66,7 @@ extern const void *of_get_property(const struct device_node *node,
 				int *lenp);
 extern int of_n_addr_cells(struct device_node *np);
 extern int of_n_size_cells(struct device_node *np);
+extern const struct of_device_id *of_match_node(
+	const struct of_device_id *matches, const struct device_node *node);
 
 #endif /* _LINUX_OF_H */

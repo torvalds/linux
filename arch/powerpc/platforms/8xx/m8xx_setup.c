@@ -16,6 +16,7 @@
 #include <linux/init.h>
 #include <linux/time.h>
 #include <linux/rtc.h>
+#include <linux/fsl_devices.h>
 
 #include <asm/io.h>
 #include <asm/mpc8xx.h>
@@ -25,13 +26,11 @@
 #include <mm/mmu_decl.h>
 
 #include <sysdev/mpc8xx_pic.h>
-#include <sysdev/commproc.h>
 
-#ifdef CONFIG_PCMCIA_M8XX
+#include "mpc8xx.h"
+
 struct mpc8xx_pcmcia_ops m8xx_pcmcia_ops;
-#endif
 
-void m8xx_calibrate_decr(void);
 extern int cpm_pic_init(void);
 extern int cpm_get_irq(void);
 
@@ -120,7 +119,7 @@ void __init mpc8xx_calibrate_decr(void)
 	ppc_tb_freq /= 16;
 	ppc_proc_freq = 50000000;
 	if (!get_freq("clock-frequency", &ppc_proc_freq))
-		printk(KERN_ERR "WARNING: Estimating processor frequency"
+		printk(KERN_ERR "WARNING: Estimating processor frequency "
 		                "(not found)\n");
 
 	printk("Decrementer Frequency = 0x%lx\n", ppc_tb_freq);
@@ -237,13 +236,13 @@ static void cpm_cascade(unsigned int irq, struct irq_desc *desc)
 	desc->chip->eoi(irq);
 }
 
-/* Initialize the internal interrupt controller.  The number of
+/* Initialize the internal interrupt controllers.  The number of
  * interrupts supported can vary with the processor type, and the
  * 82xx family can have up to 64.
  * External interrupts can be either edge or level triggered, and
  * need to be initialized by the appropriate driver.
  */
-void __init m8xx_pic_init(void)
+void __init mpc8xx_pics_init(void)
 {
 	int irq;
 

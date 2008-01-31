@@ -14,7 +14,7 @@
 #include <linux/kernel.h>
 #include <asm/8xx_immap.h>
 #include <asm/mpc8xx.h>
-#include <asm/commproc.h>
+#include <asm/cpm1.h>
 
 extern void xmon_printf(const char *fmt, ...);
 extern int xmon_8xx_write(char *str, int nb);

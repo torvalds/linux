@@ -40,7 +40,7 @@
 #include <asm/8xx_immap.h>
 #include <asm/pgtable.h>
 #include <asm/mpc8xx.h>
-#include <asm/commproc.h>
+#include <asm/cpm1.h>
 #endif
 
 #ifdef CONFIG_PPC_CPM_NEW_BINDING
@@ -89,21 +89,12 @@
  * Delay to wait for SCC reset command to complete (in us)
  */
 #define SCC_RESET_DELAY		50
-#define MAX_CR_CMD_LOOPS	10000
 
 static inline int scc_cr_cmd(struct fs_enet_private *fep, u32 op)
 {
 	const struct fs_platform_info *fpi = fep->fpi;
-	int i;
 
-	W16(cpmp, cp_cpcr, fpi->cp_command | CPM_CR_FLG | (op << 8));
-	for (i = 0; i < MAX_CR_CMD_LOOPS; i++)
-		if ((R16(cpmp, cp_cpcr) & CPM_CR_FLG) == 0)
-			return 0;
-
-	printk(KERN_ERR "%s(): Not able to issue CPM command\n",
-		__FUNCTION__);
-	return 1;
+	return cpm_command(fpi->cp_command, op);
 }
 
 static int do_pd_setup(struct fs_enet_private *fep)

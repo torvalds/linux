@@ -58,6 +58,7 @@ static unsigned long spu_avenrun[3];
 static struct spu_prio_array *spu_prio;
 static struct task_struct *spusched_task;
 static struct timer_list spusched_timer;
+static struct timer_list spuloadavg_timer;
 
 /*
  * Priority of a normal, non-rt, non-niced'd process (aka nice level 0).
@@ -105,15 +106,21 @@ void spu_set_timeslice(struct spu_context *ctx)
 void __spu_update_sched_info(struct spu_context *ctx)
 {
 	/*
-	 * 32-Bit assignment are atomic on powerpc, and we don't care about
-	 * memory ordering here because retriving the controlling thread is
-	 * per defintion racy.
+	 * assert that the context is not on the runqueue, so it is safe
+	 * to change its scheduling parameters.
+	 */
+	BUG_ON(!list_empty(&ctx->rq));
+
+	/*
+	 * 32-Bit assignments are atomic on powerpc, and we don't care about
+	 * memory ordering here because retrieving the controlling thread is
+	 * per definition racy.
 	 */
 	ctx->tid = current->pid;
 
 	/*
 	 * We do our own priority calculations, so we normally want
-	 * ->static_prio to start with. Unfortunately thies field
+	 * ->static_prio to start with. Unfortunately this field
 	 * contains junk for threads with a realtime scheduling
 	 * policy so we have to look at ->prio in this case.
 	 */
@@ -124,23 +131,32 @@ void __spu_update_sched_info(struct spu_context *ctx)
 	ctx->policy = current->policy;
 
 	/*
-	 * A lot of places that don't hold list_mutex poke into
-	 * cpus_allowed, including grab_runnable_context which
-	 * already holds the runq_lock.  So abuse runq_lock
-	 * to protect this field aswell.
+	 * TO DO: the context may be loaded, so we may need to activate
+	 * it again on a different node. But it shouldn't hurt anything
+	 * to update its parameters, because we know that the scheduler
+	 * is not actively looking at this field, since it is not on the
+	 * runqueue. The context will be rescheduled on the proper node
+	 * if it is timesliced or preempted.
 	 */
-	spin_lock(&spu_prio->runq_lock);
 	ctx->cpus_allowed = current->cpus_allowed;
-	spin_unlock(&spu_prio->runq_lock);
 }
 
 void spu_update_sched_info(struct spu_context *ctx)
 {
-	int node = ctx->spu->node;
+	int node;
 
-	mutex_lock(&cbe_spu_info[node].list_mutex);
-	__spu_update_sched_info(ctx);
-	mutex_unlock(&cbe_spu_info[node].list_mutex);
+	if (ctx->state == SPU_STATE_RUNNABLE) {
+		node = ctx->spu->node;
+
+		/*
+		 * Take list_mutex to sync with find_victim().
+		 */
+		mutex_lock(&cbe_spu_info[node].list_mutex);
+		__spu_update_sched_info(ctx);
+		mutex_unlock(&cbe_spu_info[node].list_mutex);
+	} else {
+		__spu_update_sched_info(ctx);
+	}
 }
 
 static int __node_allowed(struct spu_context *ctx, int node)
@@ -174,7 +190,7 @@ void do_notify_spus_active(void)
 	 * Wake up the active spu_contexts.
 	 *
 	 * When the awakened processes see their "notify_active" flag is set,
-	 * they will call spu_switch_notify();
+	 * they will call spu_switch_notify().
 	 */
 	for_each_online_node(node) {
 		struct spu *spu;
@@ -221,7 +237,6 @@ static void spu_bind_context(struct spu *spu, struct spu_context *ctx)
 	spu->wbox_callback = spufs_wbox_callback;
 	spu->stop_callback = spufs_stop_callback;
 	spu->mfc_callback = spufs_mfc_callback;
-	spu->dma_callback = spufs_dma_callback;
 	mb();
 	spu_unmap_mappings(ctx);
 	spu_restore(&ctx->csa, spu);
@@ -409,7 +424,6 @@ static void spu_unbind_context(struct spu *spu, struct spu_context *ctx)
 	spu->wbox_callback = NULL;
 	spu->stop_callback = NULL;
 	spu->mfc_callback = NULL;
-	spu->dma_callback = NULL;
 	spu_associate_mm(spu, NULL);
 	spu->pid = 0;
 	spu->tgid = 0;
@@ -454,6 +468,13 @@ static void __spu_add_to_rq(struct spu_context *ctx)
 	}
 }
 
+static void spu_add_to_rq(struct spu_context *ctx)
+{
+	spin_lock(&spu_prio->runq_lock);
+	__spu_add_to_rq(ctx);
+	spin_unlock(&spu_prio->runq_lock);
+}
+
 static void __spu_del_from_rq(struct spu_context *ctx)
 {
 	int prio = ctx->prio;
@@ -468,9 +489,23 @@ static void __spu_del_from_rq(struct spu_context *ctx)
 	}
 }
 
+void spu_del_from_rq(struct spu_context *ctx)
+{
+	spin_lock(&spu_prio->runq_lock);
+	__spu_del_from_rq(ctx);
+	spin_unlock(&spu_prio->runq_lock);
+}
+
 static void spu_prio_wait(struct spu_context *ctx)
 {
 	DEFINE_WAIT(wait);
+
+	/*
+	 * The caller must explicitly wait for a context to be loaded
+	 * if the nosched flag is set.  If NOSCHED is not set, the caller
+	 * queues the context and waits for an spu event or error.
+	 */
+	BUG_ON(!(ctx->flags & SPU_CREATE_NOSCHED));
 
 	spin_lock(&spu_prio->runq_lock);
 	prepare_to_wait_exclusive(&ctx->stop_wq, &wait, TASK_INTERRUPTIBLE);
@@ -555,7 +590,7 @@ static struct spu *find_victim(struct spu_context *ctx)
 	/*
 	 * Look for a possible preemption candidate on the local node first.
 	 * If there is no candidate look at the other nodes.  This isn't
-	 * exactly fair, but so far the whole spu schedule tries to keep
+	 * exactly fair, but so far the whole spu scheduler tries to keep
 	 * a strong node affinity.  We might want to fine-tune this in
 	 * the future.
 	 */
@@ -571,6 +606,7 @@ static struct spu *find_victim(struct spu_context *ctx)
 			struct spu_context *tmp = spu->ctx;
 
 			if (tmp && tmp->prio > ctx->prio &&
+			    !(tmp->flags & SPU_CREATE_NOSCHED) &&
 			    (!victim || tmp->prio > victim->prio))
 				victim = spu->ctx;
 		}
@@ -582,6 +618,10 @@ static struct spu *find_victim(struct spu_context *ctx)
 			 * higher priority contexts before lower priority
 			 * ones, so this is safe until we introduce
 			 * priority inheritance schemes.
+			 *
+			 * XXX if the highest priority context is locked,
+			 * this can loop a long time.  Might be better to
+			 * look at another context or give up after X retries.
 			 */
 			if (!mutex_trylock(&victim->state_mutex)) {
 				victim = NULL;
@@ -589,10 +629,10 @@ static struct spu *find_victim(struct spu_context *ctx)
 			}
 
 			spu = victim->spu;
-			if (!spu) {
+			if (!spu || victim->prio <= ctx->prio) {
 				/*
 				 * This race can happen because we've dropped
-				 * the active list mutex.  No a problem, just
+				 * the active list mutex.  Not a problem, just
 				 * restart the search.
 				 */
 				mutex_unlock(&victim->state_mutex);
@@ -607,18 +647,59 @@ static struct spu *find_victim(struct spu_context *ctx)
 
 			victim->stats.invol_ctx_switch++;
 			spu->stats.invol_ctx_switch++;
+			spu_add_to_rq(victim);
+
 			mutex_unlock(&victim->state_mutex);
-			/*
-			 * We need to break out of the wait loop in spu_run
-			 * manually to ensure this context gets put on the
-			 * runqueue again ASAP.
-			 */
-			wake_up(&victim->stop_wq);
+
 			return spu;
 		}
 	}
 
 	return NULL;
+}
+
+static void __spu_schedule(struct spu *spu, struct spu_context *ctx)
+{
+	int node = spu->node;
+	int success = 0;
+
+	spu_set_timeslice(ctx);
+
+	mutex_lock(&cbe_spu_info[node].list_mutex);
+	if (spu->ctx == NULL) {
+		spu_bind_context(spu, ctx);
+		cbe_spu_info[node].nr_active++;
+		spu->alloc_state = SPU_USED;
+		success = 1;
+	}
+	mutex_unlock(&cbe_spu_info[node].list_mutex);
+
+	if (success)
+		wake_up_all(&ctx->run_wq);
+	else
+		spu_add_to_rq(ctx);
+}
+
+static void spu_schedule(struct spu *spu, struct spu_context *ctx)
+{
+	/* not a candidate for interruptible because it's called either
+	   from the scheduler thread or from spu_deactivate */
+	mutex_lock(&ctx->state_mutex);
+	__spu_schedule(spu, ctx);
+	spu_release(ctx);
+}
+
+static void spu_unschedule(struct spu *spu, struct spu_context *ctx)
+{
+	int node = spu->node;
+
+	mutex_lock(&cbe_spu_info[node].list_mutex);
+	cbe_spu_info[node].nr_active--;
+	spu->alloc_state = SPU_FREE;
+	spu_unbind_context(spu, ctx);
+	ctx->stats.invol_ctx_switch++;
+	spu->stats.invol_ctx_switch++;
+	mutex_unlock(&cbe_spu_info[node].list_mutex);
 }
 
 /**
@@ -632,39 +713,47 @@ static struct spu *find_victim(struct spu_context *ctx)
  */
 int spu_activate(struct spu_context *ctx, unsigned long flags)
 {
-	do {
-		struct spu *spu;
+	struct spu *spu;
 
-		/*
-		 * If there are multiple threads waiting for a single context
-		 * only one actually binds the context while the others will
-		 * only be able to acquire the state_mutex once the context
-		 * already is in runnable state.
-		 */
-		if (ctx->spu)
-			return 0;
+	/*
+	 * If there are multiple threads waiting for a single context
+	 * only one actually binds the context while the others will
+	 * only be able to acquire the state_mutex once the context
+	 * already is in runnable state.
+	 */
+	if (ctx->spu)
+		return 0;
 
-		spu = spu_get_idle(ctx);
-		/*
-		 * If this is a realtime thread we try to get it running by
-		 * preempting a lower priority thread.
-		 */
-		if (!spu && rt_prio(ctx->prio))
-			spu = find_victim(ctx);
-		if (spu) {
-			int node = spu->node;
+spu_activate_top:
+	if (signal_pending(current))
+		return -ERESTARTSYS;
 
-			mutex_lock(&cbe_spu_info[node].list_mutex);
-			spu_bind_context(spu, ctx);
-			cbe_spu_info[node].nr_active++;
-			mutex_unlock(&cbe_spu_info[node].list_mutex);
-			return 0;
-		}
+	spu = spu_get_idle(ctx);
+	/*
+	 * If this is a realtime thread we try to get it running by
+	 * preempting a lower priority thread.
+	 */
+	if (!spu && rt_prio(ctx->prio))
+		spu = find_victim(ctx);
+	if (spu) {
+		unsigned long runcntl;
 
+		runcntl = ctx->ops->runcntl_read(ctx);
+		__spu_schedule(spu, ctx);
+		if (runcntl & SPU_RUNCNTL_RUNNABLE)
+			spuctx_switch_state(ctx, SPU_UTIL_USER);
+
+		return 0;
+	}
+
+	if (ctx->flags & SPU_CREATE_NOSCHED) {
 		spu_prio_wait(ctx);
-	} while (!signal_pending(current));
+		goto spu_activate_top;
+	}
 
-	return -ERESTARTSYS;
+	spu_add_to_rq(ctx);
+
+	return 0;
 }
 
 /**
@@ -706,21 +795,19 @@ static int __spu_deactivate(struct spu_context *ctx, int force, int max_prio)
 	if (spu) {
 		new = grab_runnable_context(max_prio, spu->node);
 		if (new || force) {
-			int node = spu->node;
-
-			mutex_lock(&cbe_spu_info[node].list_mutex);
-			spu_unbind_context(spu, ctx);
-			spu->alloc_state = SPU_FREE;
-			cbe_spu_info[node].nr_active--;
-			mutex_unlock(&cbe_spu_info[node].list_mutex);
-
-			ctx->stats.vol_ctx_switch++;
-			spu->stats.vol_ctx_switch++;
-
-			if (new)
-				wake_up(&new->stop_wq);
+			spu_unschedule(spu, ctx);
+			if (new) {
+				if (new->flags & SPU_CREATE_NOSCHED)
+					wake_up(&new->stop_wq);
+				else {
+					spu_release(ctx);
+					spu_schedule(spu, new);
+					/* this one can't easily be made
+					   interruptible */
+					mutex_lock(&ctx->state_mutex);
+				}
+			}
 		}
-
 	}
 
 	return new != NULL;
@@ -757,43 +844,38 @@ void spu_yield(struct spu_context *ctx)
 
 static noinline void spusched_tick(struct spu_context *ctx)
 {
+	struct spu_context *new = NULL;
+	struct spu *spu = NULL;
+	u32 status;
+
+	if (spu_acquire(ctx))
+		BUG();	/* a kernel thread never has signals pending */
+
+	if (ctx->state != SPU_STATE_RUNNABLE)
+		goto out;
+	if (spu_stopped(ctx, &status))
+		goto out;
 	if (ctx->flags & SPU_CREATE_NOSCHED)
-		return;
+		goto out;
 	if (ctx->policy == SCHED_FIFO)
-		return;
+		goto out;
 
 	if (--ctx->time_slice)
-		return;
+		goto out;
 
-	/*
-	 * Unfortunately list_mutex ranks outside of state_mutex, so
-	 * we have to trylock here.  If we fail give the context another
-	 * tick and try again.
-	 */
-	if (mutex_trylock(&ctx->state_mutex)) {
-		struct spu *spu = ctx->spu;
-		struct spu_context *new;
-
-		new = grab_runnable_context(ctx->prio + 1, spu->node);
-		if (new) {
-			spu_unbind_context(spu, ctx);
-			ctx->stats.invol_ctx_switch++;
-			spu->stats.invol_ctx_switch++;
-			spu->alloc_state = SPU_FREE;
-			cbe_spu_info[spu->node].nr_active--;
-			wake_up(&new->stop_wq);
-			/*
-			 * We need to break out of the wait loop in
-			 * spu_run manually to ensure this context
-			 * gets put on the runqueue again ASAP.
-			 */
-			wake_up(&ctx->stop_wq);
-		}
-		spu_set_timeslice(ctx);
-		mutex_unlock(&ctx->state_mutex);
+	spu = ctx->spu;
+	new = grab_runnable_context(ctx->prio + 1, spu->node);
+	if (new) {
+		spu_unschedule(spu, ctx);
+		spu_add_to_rq(ctx);
 	} else {
 		ctx->time_slice++;
 	}
+out:
+	spu_release(ctx);
+
+	if (new)
+		spu_schedule(spu, new);
 }
 
 /**
@@ -817,35 +899,31 @@ static unsigned long count_active_contexts(void)
 }
 
 /**
- * spu_calc_load - given tick count, update the avenrun load estimates.
- * @tick:	tick count
+ * spu_calc_load - update the avenrun load estimates.
  *
  * No locking against reading these values from userspace, as for
  * the CPU loadavg code.
  */
-static void spu_calc_load(unsigned long ticks)
+static void spu_calc_load(void)
 {
 	unsigned long active_tasks; /* fixed-point */
-	static int count = LOAD_FREQ;
 
-	count -= ticks;
-
-	if (unlikely(count < 0)) {
-		active_tasks = count_active_contexts() * FIXED_1;
-		do {
-			CALC_LOAD(spu_avenrun[0], EXP_1, active_tasks);
-			CALC_LOAD(spu_avenrun[1], EXP_5, active_tasks);
-			CALC_LOAD(spu_avenrun[2], EXP_15, active_tasks);
-			count += LOAD_FREQ;
-		} while (count < 0);
-	}
+	active_tasks = count_active_contexts() * FIXED_1;
+	CALC_LOAD(spu_avenrun[0], EXP_1, active_tasks);
+	CALC_LOAD(spu_avenrun[1], EXP_5, active_tasks);
+	CALC_LOAD(spu_avenrun[2], EXP_15, active_tasks);
 }
 
 static void spusched_wake(unsigned long data)
 {
 	mod_timer(&spusched_timer, jiffies + SPUSCHED_TICK);
 	wake_up_process(spusched_task);
-	spu_calc_load(SPUSCHED_TICK);
+}
+
+static void spuloadavg_wake(unsigned long data)
+{
+	mod_timer(&spuloadavg_timer, jiffies + LOAD_FREQ);
+	spu_calc_load();
 }
 
 static int spusched_thread(void *unused)
@@ -857,15 +935,56 @@ static int spusched_thread(void *unused)
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule();
 		for (node = 0; node < MAX_NUMNODES; node++) {
-			mutex_lock(&cbe_spu_info[node].list_mutex);
-			list_for_each_entry(spu, &cbe_spu_info[node].spus, cbe_list)
-				if (spu->ctx)
-					spusched_tick(spu->ctx);
-			mutex_unlock(&cbe_spu_info[node].list_mutex);
+			struct mutex *mtx = &cbe_spu_info[node].list_mutex;
+
+			mutex_lock(mtx);
+			list_for_each_entry(spu, &cbe_spu_info[node].spus,
+					cbe_list) {
+				struct spu_context *ctx = spu->ctx;
+
+				if (ctx) {
+					mutex_unlock(mtx);
+					spusched_tick(ctx);
+					mutex_lock(mtx);
+				}
+			}
+			mutex_unlock(mtx);
 		}
 	}
 
 	return 0;
+}
+
+void spuctx_switch_state(struct spu_context *ctx,
+		enum spu_utilization_state new_state)
+{
+	unsigned long long curtime;
+	signed long long delta;
+	struct timespec ts;
+	struct spu *spu;
+	enum spu_utilization_state old_state;
+
+	ktime_get_ts(&ts);
+	curtime = timespec_to_ns(&ts);
+	delta = curtime - ctx->stats.tstamp;
+
+	WARN_ON(!mutex_is_locked(&ctx->state_mutex));
+	WARN_ON(delta < 0);
+
+	spu = ctx->spu;
+	old_state = ctx->stats.util_state;
+	ctx->stats.util_state = new_state;
+	ctx->stats.tstamp = curtime;
+
+	/*
+	 * Update the physical SPU utilization statistics.
+	 */
+	if (spu) {
+		ctx->stats.times[old_state] += delta;
+		spu->stats.times[old_state] += delta;
+		spu->stats.util_state = new_state;
+		spu->stats.tstamp = curtime;
+	}
 }
 
 #define LOAD_INT(x) ((x) >> FSHIFT)
@@ -881,7 +1000,7 @@ static int show_spu_loadavg(struct seq_file *s, void *private)
 
 	/*
 	 * Note that last_pid doesn't really make much sense for the
-	 * SPU loadavg (it even seems very odd on the CPU side..),
+	 * SPU loadavg (it even seems very odd on the CPU side...),
 	 * but we include it here to have a 100% compatible interface.
 	 */
 	seq_printf(s, "%d.%02d %d.%02d %d.%02d %ld/%d %d\n",
@@ -922,12 +1041,15 @@ int __init spu_sched_init(void)
 	spin_lock_init(&spu_prio->runq_lock);
 
 	setup_timer(&spusched_timer, spusched_wake, 0);
+	setup_timer(&spuloadavg_timer, spuloadavg_wake, 0);
 
 	spusched_task = kthread_run(spusched_thread, NULL, "spusched");
 	if (IS_ERR(spusched_task)) {
 		err = PTR_ERR(spusched_task);
 		goto out_free_spu_prio;
 	}
+
+	mod_timer(&spuloadavg_timer, 0);
 
 	entry = create_proc_entry("spu_loadavg", 0, NULL);
 	if (!entry)
@@ -954,6 +1076,7 @@ void spu_sched_exit(void)
 	remove_proc_entry("spu_loadavg", NULL);
 
 	del_timer_sync(&spusched_timer);
+	del_timer_sync(&spuloadavg_timer);
 	kthread_stop(spusched_task);
 
 	for (node = 0; node < MAX_NUMNODES; node++) {

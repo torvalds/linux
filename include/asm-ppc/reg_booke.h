@@ -207,7 +207,7 @@
 #define	CCR1_TCS	0x00000080 /* Timer Clock Select */
 
 /* Bit definitions for the MCSR. */
-#ifdef CONFIG_440A
+#ifdef CONFIG_4xx
 #define MCSR_MCS	0x80000000 /* Machine Check Summary */
 #define MCSR_IB		0x40000000 /* Instruction PLB Error */
 #define MCSR_DRB	0x20000000 /* Data Read PLB Error */
@@ -217,32 +217,6 @@
 #define MCSR_DCSP	0x02000000 /* D-Cache Search Parity Error */
 #define MCSR_DCFP	0x01000000 /* D-Cache Flush Parity Error */
 #define MCSR_IMPE	0x00800000 /* Imprecise Machine Check Exception */
-#endif
-#ifdef CONFIG_E500
-#define MCSR_MCP 	0x80000000UL /* Machine Check Input Pin */
-#define MCSR_ICPERR 	0x40000000UL /* I-Cache Parity Error */
-#define MCSR_DCP_PERR 	0x20000000UL /* D-Cache Push Parity Error */
-#define MCSR_DCPERR 	0x10000000UL /* D-Cache Parity Error */
-#define MCSR_GL_CI 	0x00010000UL /* Guarded Load or Cache-Inhibited stwcx. */
-#define MCSR_BUS_IAERR 	0x00000080UL /* Instruction Address Error */
-#define MCSR_BUS_RAERR 	0x00000040UL /* Read Address Error */
-#define MCSR_BUS_WAERR 	0x00000020UL /* Write Address Error */
-#define MCSR_BUS_IBERR 	0x00000010UL /* Instruction Data Error */
-#define MCSR_BUS_RBERR 	0x00000008UL /* Read Data Bus Error */
-#define MCSR_BUS_WBERR 	0x00000004UL /* Write Data Bus Error */
-#define MCSR_BUS_IPERR 	0x00000002UL /* Instruction parity Error */
-#define MCSR_BUS_RPERR 	0x00000001UL /* Read parity Error */
-#endif
-#ifdef CONFIG_E200
-#define MCSR_MCP 	0x80000000UL /* Machine Check Input Pin */
-#define MCSR_CP_PERR 	0x20000000UL /* Cache Push Parity Error */
-#define MCSR_CPERR 	0x10000000UL /* Cache Parity Error */
-#define MCSR_EXCP_ERR 	0x08000000UL /* ISI, ITLB, or Bus Error on 1st insn
-					fetch for an exception handler */
-#define MCSR_BUS_IRERR 	0x00000010UL /* Read Bus Error on instruction fetch*/
-#define MCSR_BUS_DRERR 	0x00000008UL /* Read Bus Error on data load */
-#define MCSR_BUS_WRERR 	0x00000004UL /* Write Bus Error on buffered
-					store or cache line push */
 #endif
 
 /* Bit definitions for the DBSR. */
@@ -283,7 +257,7 @@
 #define ESR_IMCB	0x20000000	/* Instr. Machine Check - Bus error */
 #define ESR_IMCT	0x10000000	/* Instr. Machine Check - Timeout */
 #define ESR_PIL		0x08000000	/* Program Exception - Illegal */
-#define ESR_PPR		0x04000000	/* Program Exception - Priveleged */
+#define ESR_PPR		0x04000000	/* Program Exception - Privileged */
 #define ESR_PTR		0x02000000	/* Program Exception - Trap */
 #define ESR_FP		0x01000000	/* Floating Point Operation */
 #define ESR_DST		0x00800000	/* Storage Exception - Data miss */

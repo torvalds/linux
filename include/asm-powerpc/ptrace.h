@@ -106,7 +106,8 @@ extern int ptrace_put_reg(struct task_struct *task, int regno,
  */
 #define FULL_REGS(regs)		(((regs)->trap & 1) == 0)
 #ifndef __powerpc64__
-#define IS_CRITICAL_EXC(regs)	(((regs)->trap & 2) == 0)
+#define IS_CRITICAL_EXC(regs)	(((regs)->trap & 2) != 0)
+#define IS_MCHECK_EXC(regs)	(((regs)->trap & 4) != 0)
 #endif /* ! __powerpc64__ */
 #define TRAP(regs)		((regs)->trap & ~0xF)
 #ifdef __powerpc64__

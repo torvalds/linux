@@ -19,8 +19,9 @@
 #include <asm/udbg.h>
 #include <asm/time.h>
 #include <asm/uic.h>
+#include <asm/pci-bridge.h>
 
-static struct of_device_id kilauea_of_bus[] = {
+static __initdata struct of_device_id kilauea_of_bus[] = {
 	{ .compatible = "ibm,plb4", },
 	{ .compatible = "ibm,opb", },
 	{ .compatible = "ibm,ebc", },
@@ -29,14 +30,11 @@ static struct of_device_id kilauea_of_bus[] = {
 
 static int __init kilauea_device_probe(void)
 {
-	if (!machine_is(kilauea))
-		return 0;
-
 	of_platform_bus_probe(NULL, kilauea_of_bus, NULL);
 
 	return 0;
 }
-device_initcall(kilauea_device_probe);
+machine_device_initcall(kilauea, kilauea_device_probe);
 
 static int __init kilauea_probe(void)
 {
@@ -44,6 +42,8 @@ static int __init kilauea_probe(void)
 
 	if (!of_flat_dt_is_compatible(root, "amcc,kilauea"))
 		return 0;
+
+	ppc_pci_flags = PPC_PCI_REASSIGN_ALL_RSRC;
 
 	return 1;
 }

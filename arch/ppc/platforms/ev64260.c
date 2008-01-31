@@ -336,7 +336,7 @@ ev64260_early_serial_map(void)
 #endif
 
 		if (early_serial_setup(&port) != 0)
-			printk(KERN_WARNING "Early serial init of port 0"
+			printk(KERN_WARNING "Early serial init of port 0 "
 				"failed\n");
 
 		first_time = 0;
@@ -388,7 +388,7 @@ ev64260_setup_arch(void)
 	ev64260_early_serial_map();
 #endif
 
-	printk(KERN_INFO "%s %s port (C) 2001 MontaVista Software, Inc."
+	printk(KERN_INFO "%s %s port (C) 2001 MontaVista Software, Inc. "
 		"(source@mvista.com)\n", BOARD_VENDOR, BOARD_MACHINE);
 
 	if (ppc_md.progress)

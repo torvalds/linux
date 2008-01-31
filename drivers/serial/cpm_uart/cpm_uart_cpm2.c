@@ -52,13 +52,7 @@
 #ifdef CONFIG_PPC_CPM_NEW_BINDING
 void cpm_line_cr_cmd(struct uart_cpm_port *port, int cmd)
 {
-	cpm_cpm2_t __iomem *cp = cpm2_map(im_cpm);
-
-	out_be32(&cp->cp_cpcr, port->command | cmd | CPM_CR_FLG);
-	while (in_be32(&cp->cp_cpcr) & CPM_CR_FLG)
-		;
-
-	cpm2_unmap(cp);
+	cpm_command(port->command, cmd);
 }
 #else
 void cpm_line_cr_cmd(struct uart_cpm_port *port, int cmd)
@@ -171,9 +165,9 @@ void scc2_lineif(struct uart_cpm_port *pinfo)
 	 * really has to get out of the driver so boards can
 	 * be supported in a sane fashion.
 	 */
+	volatile cpmux_t *cpmux = cpm2_map(im_cpmux);
 #ifndef CONFIG_STX_GP3
 	volatile iop_cpm2_t *io = cpm2_map(im_ioport);
-	volatile cpmux_t *cpmux = cpm2_map(im_cpmux);
 
 	io->iop_pparb |= 0x008b0000;
 	io->iop_pdirb |= 0x00880000;

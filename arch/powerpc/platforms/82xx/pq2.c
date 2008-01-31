@@ -53,13 +53,13 @@ static void __init pq2_pci_add_bridge(struct device_node *np)
 	if (of_address_to_resource(np, 0, &r) || r.end - r.start < 0x10b)
 		goto err;
 
-	pci_assign_all_buses = 1;
+	ppc_pci_flags |= PPC_PCI_REASSIGN_ALL_BUS;
 
 	hose = pcibios_alloc_controller(np);
 	if (!hose)
 		return;
 
-	hose->arch_data = np;
+	hose->dn = np;
 
 	setup_indirect_pci(hose, r.start + 0x100, r.start + 0x104, 0);
 	pci_process_bridge_OF_ranges(hose, np, 1);

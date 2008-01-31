@@ -24,6 +24,7 @@
 #include <linux/platform_device.h>
 #include <linux/of_platform.h>
 #include <linux/phy.h>
+#include <linux/phy_fixed.h>
 #include <linux/spi/spi.h>
 #include <linux/fsl_devices.h>
 #include <linux/fs_enet_pd.h>
@@ -54,10 +55,18 @@ phys_addr_t get_immrbase(void)
 	soc = of_find_node_by_type(NULL, "soc");
 	if (soc) {
 		int size;
-		const void *prop = of_get_property(soc, "reg", &size);
+		u32 naddr;
+		const u32 *prop = of_get_property(soc, "#address-cells", &size);
 
+		if (prop && size == 4)
+			naddr = *prop;
+		else
+			naddr = 2;
+
+		prop = of_get_property(soc, "ranges", &size);
 		if (prop)
-			immrbase = of_translate_address(soc, prop);
+			immrbase = of_translate_address(soc, prop + naddr);
+
 		of_node_put(soc);
 	}
 
@@ -66,7 +75,7 @@ phys_addr_t get_immrbase(void)
 
 EXPORT_SYMBOL(get_immrbase);
 
-#if defined(CONFIG_CPM2) || defined(CONFIG_8xx)
+#if defined(CONFIG_CPM2) || defined(CONFIG_QUICC_ENGINE) || defined(CONFIG_8xx)
 
 static u32 brgfreq = -1;
 
@@ -91,11 +100,21 @@ u32 get_brgfreq(void)
 
 	/* Legacy device binding -- will go away when no users are left. */
 	node = of_find_node_by_type(NULL, "cpm");
+	if (!node)
+		node = of_find_compatible_node(NULL, NULL, "fsl,qe");
+	if (!node)
+		node = of_find_node_by_type(NULL, "qe");
+
 	if (node) {
 		prop = of_get_property(node, "brg-frequency", &size);
 		if (prop && size == 4)
 			brgfreq = *prop;
 
+		if (brgfreq == -1 || brgfreq == 0) {
+			prop = of_get_property(node, "bus-frequency", &size);
+			if (prop && size == 4)
+				brgfreq = *prop / 2;
+		}
 		of_node_put(node);
 	}
 
@@ -130,17 +149,51 @@ u32 get_baudrate(void)
 EXPORT_SYMBOL(get_baudrate);
 #endif /* CONFIG_CPM2 */
 
+#ifdef CONFIG_FIXED_PHY
+static int __init of_add_fixed_phys(void)
+{
+	int ret;
+	struct device_node *np;
+	u32 *fixed_link;
+	struct fixed_phy_status status = {};
+
+	for_each_node_by_name(np, "ethernet") {
+		fixed_link  = (u32 *)of_get_property(np, "fixed-link", NULL);
+		if (!fixed_link)
+			continue;
+
+		status.link = 1;
+		status.duplex = fixed_link[1];
+		status.speed = fixed_link[2];
+		status.pause = fixed_link[3];
+		status.asym_pause = fixed_link[4];
+
+		ret = fixed_phy_add(PHY_POLL, fixed_link[0], &status);
+		if (ret) {
+			of_node_put(np);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+arch_initcall(of_add_fixed_phys);
+#endif /* CONFIG_FIXED_PHY */
+
 static int __init gfar_mdio_of_init(void)
 {
-	struct device_node *np;
-	unsigned int i;
+	struct device_node *np = NULL;
 	struct platform_device *mdio_dev;
 	struct resource res;
 	int ret;
 
-	for (np = NULL, i = 0;
-	     (np = of_find_compatible_node(np, "mdio", "gianfar")) != NULL;
-	     i++) {
+	np = of_find_compatible_node(np, NULL, "fsl,gianfar-mdio");
+
+	/* try the deprecated version */
+	if (!np)
+		np = of_find_compatible_node(np, "mdio", "gianfar");
+
+	if (np) {
 		int k;
 		struct device_node *child = NULL;
 		struct gianfar_mdio_data mdio_data;
@@ -179,11 +232,13 @@ static int __init gfar_mdio_of_init(void)
 			goto unreg;
 	}
 
+	of_node_put(np);
 	return 0;
 
 unreg:
 	platform_device_unregister(mdio_dev);
 err:
+	of_node_put(np);
 	return ret;
 }
 
@@ -192,7 +247,6 @@ arch_initcall(gfar_mdio_of_init);
 static const char *gfar_tx_intr = "tx";
 static const char *gfar_rx_intr = "rx";
 static const char *gfar_err_intr = "error";
-
 
 static int __init gfar_of_init(void)
 {
@@ -277,28 +331,42 @@ static int __init gfar_of_init(void)
 			gfar_data.interface = PHY_INTERFACE_MODE_MII;
 
 		ph = of_get_property(np, "phy-handle", NULL);
-		phy = of_find_node_by_phandle(*ph);
+		if (ph == NULL) {
+			u32 *fixed_link;
 
-		if (phy == NULL) {
-			ret = -ENODEV;
-			goto unreg;
-		}
+			fixed_link = (u32 *)of_get_property(np, "fixed-link",
+							   NULL);
+			if (!fixed_link) {
+				ret = -ENODEV;
+				goto unreg;
+			}
 
-		mdio = of_get_parent(phy);
+			gfar_data.bus_id = 0;
+			gfar_data.phy_id = fixed_link[0];
+		} else {
+			phy = of_find_node_by_phandle(*ph);
 
-		id = of_get_property(phy, "reg", NULL);
-		ret = of_address_to_resource(mdio, 0, &res);
-		if (ret) {
+			if (phy == NULL) {
+				ret = -ENODEV;
+				goto unreg;
+			}
+
+			mdio = of_get_parent(phy);
+
+			id = of_get_property(phy, "reg", NULL);
+			ret = of_address_to_resource(mdio, 0, &res);
+			if (ret) {
+				of_node_put(phy);
+				of_node_put(mdio);
+				goto unreg;
+			}
+
+			gfar_data.phy_id = *id;
+			gfar_data.bus_id = res.start;
+
 			of_node_put(phy);
 			of_node_put(mdio);
-			goto unreg;
 		}
-
-		gfar_data.phy_id = *id;
-		gfar_data.bus_id = res.start;
-
-		of_node_put(phy);
-		of_node_put(mdio);
 
 		ret =
 		    platform_device_add_data(gfar_dev, &gfar_data,
@@ -390,13 +458,11 @@ static void __init of_register_i2c_devices(struct device_node *adap_node,
 static int __init fsl_i2c_of_init(void)
 {
 	struct device_node *np;
-	unsigned int i;
+	unsigned int i = 0;
 	struct platform_device *i2c_dev;
 	int ret;
 
-	for (np = NULL, i = 0;
-	     (np = of_find_compatible_node(np, "i2c", "fsl-i2c")) != NULL;
-	     i++) {
+	for_each_compatible_node(np, NULL, "fsl-i2c") {
 		struct resource r[2];
 		struct fsl_i2c_platform_data i2c_data;
 		const unsigned char *flags = NULL;
@@ -432,7 +498,7 @@ static int __init fsl_i2c_of_init(void)
 		if (ret)
 			goto unreg;
 
-		of_register_i2c_devices(np, i);
+		of_register_i2c_devices(np, i++);
 	}
 
 	return 0;
@@ -528,14 +594,12 @@ static enum fsl_usb2_phy_modes determine_usb_phy(const char *phy_type)
 static int __init fsl_usb_of_init(void)
 {
 	struct device_node *np;
-	unsigned int i;
+	unsigned int i = 0;
 	struct platform_device *usb_dev_mph = NULL, *usb_dev_dr_host = NULL,
 		*usb_dev_dr_client = NULL;
 	int ret;
 
-	for (np = NULL, i = 0;
-	     (np = of_find_compatible_node(np, "usb", "fsl-usb2-mph")) != NULL;
-	     i++) {
+	for_each_compatible_node(np, NULL, "fsl-usb2-mph") {
 		struct resource r[2];
 		struct fsl_usb2_platform_data usb_data;
 		const unsigned char *prop = NULL;
@@ -578,11 +642,10 @@ static int __init fsl_usb_of_init(void)
 						    fsl_usb2_platform_data));
 		if (ret)
 			goto unreg_mph;
+		i++;
 	}
 
-	for (np = NULL;
-	     (np = of_find_compatible_node(np, "usb", "fsl-usb2-dr")) != NULL;
-	     i++) {
+	for_each_compatible_node(np, NULL, "fsl-usb2-dr") {
 		struct resource r[2];
 		struct fsl_usb2_platform_data usb_data;
 		const unsigned char *prop = NULL;
@@ -654,6 +717,7 @@ static int __init fsl_usb_of_init(void)
 						fsl_usb2_platform_data))))
 				goto unreg_dr;
 		}
+		i++;
 	}
 	return 0;
 
@@ -1125,13 +1189,12 @@ arch_initcall(fs_enet_of_init);
 
 static int __init fsl_pcmcia_of_init(void)
 {
-	struct device_node *np = NULL;
+	struct device_node *np;
 	/*
 	 * Register all the devices which type is "pcmcia"
 	 */
-	while ((np = of_find_compatible_node(np,
-			"pcmcia", "fsl,pq-pcmcia")) != NULL)
-			    of_platform_device_create(np, "m8xx-pcmcia", NULL);
+	for_each_compatible_node(np, "pcmcia", "fsl,pq-pcmcia")
+		of_platform_device_create(np, "m8xx-pcmcia", NULL);
 	return 0;
 }
 
@@ -1213,31 +1276,17 @@ arch_initcall(cpm_smc_uart_of_init);
 #endif /* CONFIG_8xx */
 #endif /* CONFIG_PPC_CPM_NEW_BINDING */
 
-int __init fsl_spi_init(struct spi_board_info *board_infos,
-			unsigned int num_board_infos,
-			void (*activate_cs)(u8 cs, u8 polarity),
-			void (*deactivate_cs)(u8 cs, u8 polarity))
+static int __init of_fsl_spi_probe(char *type, char *compatible, u32 sysclk,
+				   struct spi_board_info *board_infos,
+				   unsigned int num_board_infos,
+				   void (*activate_cs)(u8 cs, u8 polarity),
+				   void (*deactivate_cs)(u8 cs, u8 polarity))
 {
 	struct device_node *np;
-	unsigned int i;
-	const u32 *sysclk;
+	unsigned int i = 0;
 
-	/* SPI controller is either clocked from QE or SoC clock */
-	np = of_find_node_by_type(NULL, "qe");
-	if (!np)
-		np = of_find_node_by_type(NULL, "soc");
-
-	if (!np)
-		return -ENODEV;
-
-	sysclk = of_get_property(np, "bus-frequency", NULL);
-	if (!sysclk)
-		return -ENODEV;
-
-	for (np = NULL, i = 1;
-	     (np = of_find_compatible_node(np, "spi", "fsl_spi")) != NULL;
-	     i++) {
-		int ret = 0;
+	for_each_compatible_node(np, type, compatible) {
+		int ret;
 		unsigned int j;
 		const void *prop;
 		struct resource res[2];
@@ -1249,12 +1298,16 @@ int __init fsl_spi_init(struct spi_board_info *board_infos,
 
 		memset(res, 0, sizeof(res));
 
-		pdata.sysclk = *sysclk;
+		pdata.sysclk = sysclk;
 
 		prop = of_get_property(np, "reg", NULL);
 		if (!prop)
 			goto err;
 		pdata.bus_num = *(u32 *)prop;
+
+		prop = of_get_property(np, "cell-index", NULL);
+		if (prop)
+			i = *(u32 *)prop;
 
 		prop = of_get_property(np, "mode", NULL);
 		if (prop && !strcmp(prop, "cpu-qe"))
@@ -1266,7 +1319,7 @@ int __init fsl_spi_init(struct spi_board_info *board_infos,
 		}
 
 		if (!pdata.max_chipselect)
-			goto err;
+			continue;
 
 		ret = of_address_to_resource(np, 0, &res[0]);
 		if (ret)
@@ -1293,12 +1346,57 @@ int __init fsl_spi_init(struct spi_board_info *board_infos,
 		if (ret)
 			goto unreg;
 
-		continue;
+		goto next;
 unreg:
 		platform_device_del(pdev);
 err:
-		continue;
+		pr_err("%s: registration failed\n", np->full_name);
+next:
+		i++;
 	}
+
+	return i;
+}
+
+int __init fsl_spi_init(struct spi_board_info *board_infos,
+			unsigned int num_board_infos,
+			void (*activate_cs)(u8 cs, u8 polarity),
+			void (*deactivate_cs)(u8 cs, u8 polarity))
+{
+	u32 sysclk = -1;
+	int ret;
+
+#ifdef CONFIG_QUICC_ENGINE
+	/* SPI controller is either clocked from QE or SoC clock */
+	sysclk = get_brgfreq();
+#endif
+	if (sysclk == -1) {
+		struct device_node *np;
+		const u32 *freq;
+		int size;
+
+		np = of_find_node_by_type(NULL, "soc");
+		if (!np)
+			return -ENODEV;
+
+		freq = of_get_property(np, "clock-frequency", &size);
+		if (!freq || size != sizeof(*freq) || *freq == 0) {
+			freq = of_get_property(np, "bus-frequency", &size);
+			if (!freq || size != sizeof(*freq) || *freq == 0) {
+				of_node_put(np);
+				return -ENODEV;
+			}
+		}
+
+		sysclk = *freq;
+		of_node_put(np);
+	}
+
+	ret = of_fsl_spi_probe(NULL, "fsl,spi", sysclk, board_infos,
+			       num_board_infos, activate_cs, deactivate_cs);
+	if (!ret)
+		of_fsl_spi_probe("spi", "fsl_spi", sysclk, board_infos,
+				 num_board_infos, activate_cs, deactivate_cs);
 
 	return spi_register_board_info(board_infos, num_board_infos);
 }

@@ -1,0 +1,228 @@
+/*
+ * Device Tree Source for EP405
+ *
+ * Copyright 2007 IBM Corp.
+ * Benjamin Herrenschmidt <benh@kernel.crashing.org>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without
+ * any warranty of any kind, whether express or implied.
+ */
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	model = "ep405";
+	compatible = "ep405";
+	dcr-parent = <&/cpus/cpu@0>;
+
+	aliases {
+		ethernet0 = &EMAC;
+		serial0 = &UART0;
+		serial1 = &UART1;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			model = "PowerPC,405GP";
+			reg = <0>;
+			clock-frequency = <bebc200>; /* Filled in by zImage */
+			timebase-frequency = <0>; /* Filled in by zImage */
+			i-cache-line-size = <20>;
+			d-cache-line-size = <20>;
+			i-cache-size = <4000>;
+			d-cache-size = <4000>;
+			dcr-controller;
+			dcr-access-method = "native";
+		};
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0 0>; /* Filled in by zImage */
+	};
+
+	UIC0: interrupt-controller {
+		compatible = "ibm,uic";
+		interrupt-controller;
+		cell-index = <0>;
+		dcr-reg = <0c0 9>;
+		#address-cells = <0>;
+		#size-cells = <0>;
+		#interrupt-cells = <2>;
+	};
+
+	plb {
+		compatible = "ibm,plb3";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+		clock-frequency = <0>; /* Filled in by zImage */
+
+		SDRAM0: memory-controller {
+			compatible = "ibm,sdram-405gp";
+			dcr-reg = <010 2>;
+		};
+
+		MAL: mcmal {
+			compatible = "ibm,mcmal-405gp", "ibm,mcmal";
+			dcr-reg = <180 62>;
+			num-tx-chans = <1>;
+			num-rx-chans = <1>;
+			interrupt-parent = <&UIC0>;
+			interrupts = <
+				b 4 /* TXEOB */
+				c 4 /* RXEOB */
+				a 4 /* SERR */
+				d 4 /* TXDE */
+				e 4 /* RXDE */>;
+		};
+
+		POB0: opb {
+			compatible = "ibm,opb-405gp", "ibm,opb";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <ef600000 ef600000 a00000>;
+			dcr-reg = <0a0 5>;
+			clock-frequency = <0>; /* Filled in by zImage */
+
+			UART0: serial@ef600300 {
+				device_type = "serial";
+				compatible = "ns16550";
+				reg = <ef600300 8>;
+				virtual-reg = <ef600300>;
+				clock-frequency = <0>; /* Filled in by zImage */
+				current-speed = <2580>;
+				interrupt-parent = <&UIC0>;
+				interrupts = <0 4>;
+			};
+
+			UART1: serial@ef600400 {
+				device_type = "serial";
+				compatible = "ns16550";
+				reg = <ef600400 8>;
+				virtual-reg = <ef600400>;
+				clock-frequency = <0>; /* Filled in by zImage */
+				current-speed = <2580>;
+				interrupt-parent = <&UIC0>;
+				interrupts = <1 4>;
+			};
+
+			IIC: i2c@ef600500 {
+				compatible = "ibm,iic-405gp", "ibm,iic";
+				reg = <ef600500 11>;
+				interrupt-parent = <&UIC0>;
+				interrupts = <2 4>;
+			};
+
+			GPIO: gpio@ef600700 {
+				compatible = "ibm,gpio-405gp";
+				reg = <ef600700 20>;
+			};
+
+			EMAC: ethernet@ef600800 {
+				linux,network-index = <0>;
+				device_type = "network";
+				compatible = "ibm,emac-405gp", "ibm,emac";
+				interrupt-parent = <&UIC0>;
+				interrupts = <
+					f 4 /* Ethernet */
+					9 4 /* Ethernet Wake Up */>;
+				local-mac-address = [000000000000]; /* Filled in by zImage */
+				reg = <ef600800 70>;
+				mal-device = <&MAL>;
+				mal-tx-channel = <0>;
+				mal-rx-channel = <0>;
+				cell-index = <0>;
+				max-frame-size = <5dc>;
+				rx-fifo-size = <1000>;
+				tx-fifo-size = <800>;
+				phy-mode = "rmii";
+				phy-map = <00000000>;
+			};
+
+		};
+
+		EBC0: ebc {
+			compatible = "ibm,ebc-405gp", "ibm,ebc";
+			dcr-reg = <012 2>;
+			#address-cells = <2>;
+			#size-cells = <1>;
+
+
+			/* The ranges property is supplied by the bootwrapper
+			 * and is based on the firmware's configuration of the
+			 * EBC bridge
+			 */
+			clock-frequency = <0>; /* Filled in by zImage */
+
+			/* NVRAM and RTC */
+			nvrtc@4,200000 {
+				compatible = "ds1742";
+				reg = <4 200000 0>; /* size fixed up by zImage */
+			};
+
+			/* "BCSR" CPLD contains a PCI irq controller */
+			bcsr@4,0 {
+				compatible = "ep405-bcsr";
+				reg = <4 0 10>;
+				interrupt-controller;
+				/* Routing table */
+				irq-routing = [	00	/* SYSERR */
+						01	/* STTM */
+						01	/* RTC */
+						01	/* FENET */
+						02	/* NB PCIIRQ mux ? */
+						03	/* SB Winbond 8259 ? */
+						04	/* Serial Ring */
+						05	/* USB (ep405pc) */
+						06	/* XIRQ 0 */
+						06	/* XIRQ 1 */
+						06	/* XIRQ 2 */
+						06	/* XIRQ 3 */
+						06	/* XIRQ 4 */
+						06	/* XIRQ 5 */
+						06	/* XIRQ 6 */
+						07];	/* Reserved */
+			};
+		};
+
+		PCI0: pci@ec000000 {
+			device_type = "pci";
+			#interrupt-cells = <1>;
+			#size-cells = <2>;
+			#address-cells = <3>;
+			compatible = "ibm,plb405gp-pci", "ibm,plb-pci";
+			primary;
+			reg = <eec00000 8	/* Config space access */
+			       eed80000 4	/* IACK */
+			       eed80000 4	/* Special cycle */
+			       ef480000 40>;	/* Internal registers */
+
+			/* Outbound ranges, one memory and one IO,
+			 * later cannot be changed. Chip supports a second
+			 * IO range but we don't use it for now
+			 */
+			ranges = <02000000 0 80000000 80000000 0 20000000
+				  01000000 0 00000000 e8000000 0 00010000>;
+
+			/* Inbound 2GB range starting at 0 */
+			dma-ranges = <42000000 0 0 0 0 80000000>;
+
+			/* That's all I know about IRQs on that thing ... */
+			interrupt-map-mask = <f800 0 0 0>;
+			interrupt-map = <
+				/* USB */
+				7000 0 0 0 &UIC0 1e 8 /* IRQ5 */
+			>;
+		};
+	};
+
+	chosen {
+		linux,stdout-path = "/plb/opb/serial@ef600300";
+	};
+};

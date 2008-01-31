@@ -34,7 +34,7 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/8xx_immap.h>
-#include <asm/commproc.h>
+#include <asm/cpm1.h>
 #include <asm/io.h>
 #include <asm/tlbflush.h>
 #include <asm/rheap.h>
@@ -55,8 +55,6 @@
 })
 
 static void m8xx_cpm_dpinit(void);
-static	uint	host_buffer;	/* One page of host buffer */
-static	uint	host_end;	/* end + 1 */
 cpm8xx_t	*cpmp;		/* Pointer to comm processor space */
 
 /* CPM interrupt vector functions.
@@ -68,7 +66,6 @@ struct	cpm_action {
 static	struct	cpm_action cpm_vecs[CPMVEC_NR];
 static	irqreturn_t cpm_interrupt(int irq, void * dev);
 static	irqreturn_t cpm_error_interrupt(int irq, void *dev);
-static	void	alloc_host_memory(void);
 /* Define a table of names to identify CPM interrupt handlers in
  * /proc/interrupts.
  */
@@ -156,21 +153,6 @@ m8xx_cpm_reset(void)
 	/* Tell everyone where the comm processor resides.
 	*/
 	cpmp = (cpm8xx_t *)commproc;
-}
-
-/* We used to do this earlier, but have to postpone as long as possible
- * to ensure the kernel VM is now running.
- */
-static void
-alloc_host_memory(void)
-{
-	dma_addr_t	physaddr;
-
-	/* Set the host page for allocation.
-	*/
-	host_buffer = (uint)dma_alloc_coherent(NULL, PAGE_SIZE, &physaddr,
-			GFP_KERNEL);
-	host_end = host_buffer + PAGE_SIZE;
 }
 
 /* This is called during init_IRQ.  We used to do it above, but this
@@ -317,26 +299,6 @@ cpm_free_handler(int cpm_vec)
 
 	cpm_vecs[cpm_vec].handler = NULL;
 	cpm_vecs[cpm_vec].dev_id = NULL;
-}
-
-/* We also own one page of host buffer space for the allocation of
- * UART "fifos" and the like.
- */
-uint
-m8xx_cpm_hostalloc(uint size)
-{
-	uint	retloc;
-
-	if (host_buffer == 0)
-		alloc_host_memory();
-
-	if ((host_buffer + size) >= host_end)
-		return(0);
-
-	retloc = host_buffer;
-	host_buffer += size;
-
-	return(retloc);
 }
 
 /* Set a baud rate generator.  This needs lots of work.  There are

@@ -121,6 +121,7 @@
 #include <linux/reboot.h>
 #include <linux/kmod.h>
 #include <linux/i2c.h>
+#include <linux/kthread.h>
 #include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/io.h>
@@ -161,7 +162,7 @@ static struct slots_pid_state		slots_state;
 static int				state;
 static int				cpu_count;
 static int				cpu_pid_type;
-static pid_t				ctrl_task;
+static struct task_struct		*ctrl_task;
 static struct completion		ctrl_complete;
 static int				critical_state;
 static int				rackmac;
@@ -1156,6 +1157,8 @@ static void do_monitor_cpu_rack(struct cpu_pid_state *state)
  */
 static int init_cpu_state(struct cpu_pid_state *state, int index)
 {
+	int err;
+
 	state->index = index;
 	state->first = 1;
 	state->rpm = (cpu_pid_type == CPU_PID_TYPE_RACKMAC) ? 4000 : 1000;
@@ -1181,18 +1184,21 @@ static int init_cpu_state(struct cpu_pid_state *state, int index)
 	DBG("CPU %d Using %d power history entries\n", index, state->count_power);
 
 	if (index == 0) {
-		device_create_file(&of_dev->dev, &dev_attr_cpu0_temperature);
-		device_create_file(&of_dev->dev, &dev_attr_cpu0_voltage);
-		device_create_file(&of_dev->dev, &dev_attr_cpu0_current);
-		device_create_file(&of_dev->dev, &dev_attr_cpu0_exhaust_fan_rpm);
-		device_create_file(&of_dev->dev, &dev_attr_cpu0_intake_fan_rpm);
+		err = device_create_file(&of_dev->dev, &dev_attr_cpu0_temperature);
+		err |= device_create_file(&of_dev->dev, &dev_attr_cpu0_voltage);
+		err |= device_create_file(&of_dev->dev, &dev_attr_cpu0_current);
+		err |= device_create_file(&of_dev->dev, &dev_attr_cpu0_exhaust_fan_rpm);
+		err |= device_create_file(&of_dev->dev, &dev_attr_cpu0_intake_fan_rpm);
 	} else {
-		device_create_file(&of_dev->dev, &dev_attr_cpu1_temperature);
-		device_create_file(&of_dev->dev, &dev_attr_cpu1_voltage);
-		device_create_file(&of_dev->dev, &dev_attr_cpu1_current);
-		device_create_file(&of_dev->dev, &dev_attr_cpu1_exhaust_fan_rpm);
-		device_create_file(&of_dev->dev, &dev_attr_cpu1_intake_fan_rpm);
+		err = device_create_file(&of_dev->dev, &dev_attr_cpu1_temperature);
+		err |= device_create_file(&of_dev->dev, &dev_attr_cpu1_voltage);
+		err |= device_create_file(&of_dev->dev, &dev_attr_cpu1_current);
+		err |= device_create_file(&of_dev->dev, &dev_attr_cpu1_exhaust_fan_rpm);
+		err |= device_create_file(&of_dev->dev, &dev_attr_cpu1_intake_fan_rpm);
 	}
+	if (err)
+		printk(KERN_WARNING "Failed to create some of the atribute"
+			"files for CPU %d\n", index);
 
 	return 0;
  fail:
@@ -1328,6 +1334,7 @@ static int init_backside_state(struct backside_pid_state *state)
 {
 	struct device_node *u3;
 	int u3h = 1; /* conservative by default */
+	int err;
 
 	/*
 	 * There are different PID params for machines with U3 and machines
@@ -1379,8 +1386,11 @@ static int init_backside_state(struct backside_pid_state *state)
 	if (state->monitor == NULL)
 		return -ENODEV;
 
-	device_create_file(&of_dev->dev, &dev_attr_backside_temperature);
-	device_create_file(&of_dev->dev, &dev_attr_backside_fan_pwm);
+	err = device_create_file(&of_dev->dev, &dev_attr_backside_temperature);
+	err |= device_create_file(&of_dev->dev, &dev_attr_backside_fan_pwm);
+	if (err)
+		printk(KERN_WARNING "Failed to create attribute file(s)"
+			" for backside fan\n");
 
 	return 0;
 }
@@ -1491,6 +1501,8 @@ static void do_monitor_drives(struct drives_pid_state *state)
  */
 static int init_drives_state(struct drives_pid_state *state)
 {
+	int err;
+
 	state->ticks = 1;
 	state->first = 1;
 	state->rpm = 1000;
@@ -1499,8 +1511,11 @@ static int init_drives_state(struct drives_pid_state *state)
 	if (state->monitor == NULL)
 		return -ENODEV;
 
-	device_create_file(&of_dev->dev, &dev_attr_drives_temperature);
-	device_create_file(&of_dev->dev, &dev_attr_drives_fan_rpm);
+	err = device_create_file(&of_dev->dev, &dev_attr_drives_temperature);
+	err |= device_create_file(&of_dev->dev, &dev_attr_drives_fan_rpm);
+	if (err)
+		printk(KERN_WARNING "Failed to create attribute file(s)"
+			" for drives bay fan\n");
 
 	return 0;
 }
@@ -1621,7 +1636,9 @@ static int init_dimms_state(struct dimm_pid_state *state)
 	if (state->monitor == NULL)
 		return -ENODEV;
 
-       	device_create_file(&of_dev->dev, &dev_attr_dimms_temperature);
+	if (device_create_file(&of_dev->dev, &dev_attr_dimms_temperature))
+		printk(KERN_WARNING "Failed to create attribute file"
+			" for DIMM temperature\n");
 
 	return 0;
 }
@@ -1731,6 +1748,8 @@ static void do_monitor_slots(struct slots_pid_state *state)
  */
 static int init_slots_state(struct slots_pid_state *state)
 {
+	int err;
+
 	state->ticks = 1;
 	state->first = 1;
 	state->pwm = 50;
@@ -1739,8 +1758,11 @@ static int init_slots_state(struct slots_pid_state *state)
 	if (state->monitor == NULL)
 		return -ENODEV;
 
-	device_create_file(&of_dev->dev, &dev_attr_slots_temperature);
-	device_create_file(&of_dev->dev, &dev_attr_slots_fan_pwm);
+	err = device_create_file(&of_dev->dev, &dev_attr_slots_temperature);
+	err |= device_create_file(&of_dev->dev, &dev_attr_slots_fan_pwm);
+	if (err)
+		printk(KERN_WARNING "Failed to create attribute file(s)"
+			" for slots bay fan\n");
 
 	return 0;
 }
@@ -1779,8 +1801,6 @@ static int call_critical_overtemp(void)
  */
 static int main_control_loop(void *x)
 {
-	daemonize("kfand");
-
 	DBG("main_control_loop started\n");
 
 	down(&driver_lock);
@@ -1956,7 +1976,7 @@ static void start_control_loops(void)
 {
 	init_completion(&ctrl_complete);
 
-	ctrl_task = kernel_thread(main_control_loop, NULL, SIGCHLD | CLONE_KERNEL);
+	ctrl_task = kthread_run(main_control_loop, NULL, "kfand");
 }
 
 /*
@@ -1964,7 +1984,7 @@ static void start_control_loops(void)
  */
 static void stop_control_loops(void)
 {
-	if (ctrl_task != 0)
+	if (ctrl_task)
 		wait_for_completion(&ctrl_complete);
 }
 

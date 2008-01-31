@@ -12,7 +12,7 @@
 #include <asm/fs_pd.h>
 
 #ifdef CONFIG_CPM1
-#include <asm/commproc.h>
+#include <asm/cpm1.h>
 
 struct fec_info {
 	fec_t __iomem *fecp;

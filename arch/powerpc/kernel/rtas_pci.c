@@ -260,7 +260,7 @@ static int phb_set_bus_ranges(struct device_node *dev,
 
 int __devinit rtas_setup_phb(struct pci_controller *phb)
 {
-	struct device_node *dev = phb->arch_data;
+	struct device_node *dev = phb->dn;
 
 	if (is_python(dev))
 		python_countermeasures(dev);
@@ -280,10 +280,7 @@ void __init find_and_init_phbs(void)
 	struct pci_controller *phb;
 	struct device_node *root = of_find_node_by_path("/");
 
-	for (node = of_get_next_child(root, NULL);
-	     node != NULL;
-	     node = of_get_next_child(root, node)) {
-
+	for_each_child_of_node(root, node) {
 		if (node->type == NULL || (strcmp(node->type, "pci") != 0 &&
 					   strcmp(node->type, "pciex") != 0))
 			continue;
@@ -311,10 +308,12 @@ void __init find_and_init_phbs(void)
 		if (prop)
 			pci_probe_only = *prop;
 
+#ifdef CONFIG_PPC32 /* Will be made generic soon */
 		prop = of_get_property(of_chosen,
 				"linux,pci-assign-all-buses", NULL);
-		if (prop)
-			pci_assign_all_buses = *prop;
+		if (prop && *prop)
+			ppc_pci_flags |= PPC_PCI_REASSIGN_ALL_BUS;
+#endif /* CONFIG_PPC32 */
 	}
 }
 

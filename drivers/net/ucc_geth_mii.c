@@ -256,6 +256,9 @@ static struct of_device_id uec_mdio_match[] = {
 		.type = "mdio",
 		.compatible = "ucc_geth_phy",
 	},
+	{
+		.compatible = "fsl,ucc-mdio",
+	},
 	{},
 };
 

@@ -61,7 +61,7 @@ static unsigned int spu_cycle_reset;
 #define NUM_THREADS 2         /* number of physical threads in
 			       * physical processor
 			       */
-#define NUM_TRACE_BUS_WORDS 4
+#define NUM_DEBUG_BUS_WORDS 4
 #define NUM_INPUT_BUS_WORDS 2
 
 #define MAX_SPU_COUNT 0xFFFFFF	/* maximum 24 bit LFSR value */
@@ -169,7 +169,6 @@ static DEFINE_SPINLOCK(virt_cntr_lock);
 
 static u32 ctr_enabled;
 
-static unsigned char trace_bus[NUM_TRACE_BUS_WORDS];
 static unsigned char input_bus[NUM_INPUT_BUS_WORDS];
 
 /*
@@ -298,7 +297,7 @@ static void set_pm_event(u32 ctr, int event, u32 unit_mask)
 
 	p->signal_group = event / 100;
 	p->bus_word = bus_word;
-	p->sub_unit = (unit_mask & 0x0000f000) >> 12;
+	p->sub_unit = GET_SUB_UNIT(unit_mask);
 
 	pm_regs.pm07_cntrl[ctr] = 0;
 	pm_regs.pm07_cntrl[ctr] |= PM07_CTR_COUNT_CYCLES(count_cycles);
@@ -334,16 +333,16 @@ static void set_pm_event(u32 ctr, int event, u32 unit_mask)
 		p->bit = signal_bit;
 	}
 
-	for (i = 0; i < NUM_TRACE_BUS_WORDS; i++) {
+	for (i = 0; i < NUM_DEBUG_BUS_WORDS; i++) {
 		if (bus_word & (1 << i)) {
 			pm_regs.debug_bus_control |=
-			    (bus_type << (31 - (2 * i) + 1));
+			    (bus_type << (30 - (2 * i)));
 
 			for (j = 0; j < NUM_INPUT_BUS_WORDS; j++) {
 				if (input_bus[j] == 0xff) {
 					input_bus[j] = i;
 					pm_regs.group_control |=
-					    (i << (31 - i));
+					    (i << (30 - (2 * j)));
 
 					break;
 				}
@@ -449,6 +448,12 @@ static void cell_virtual_cntr(unsigned long data)
 	/* switch the cpu handling the interrupts */
 	hdw_thread = 1 ^ hdw_thread;
 	next_hdw_thread = hdw_thread;
+
+	pm_regs.group_control = 0;
+	pm_regs.debug_bus_control = 0;
+
+	for (i = 0; i < NUM_INPUT_BUS_WORDS; i++)
+		input_bus[i] = 0xff;
 
 	/*
 	 * There are some per thread events.  Must do the
@@ -618,9 +623,6 @@ static int cell_reg_setup(struct op_counter_config *ctr,
 		pmc_cntrl[1][i].enabled = ctr[i].enabled;
 		pmc_cntrl[1][i].vcntr = i;
 	}
-
-	for (i = 0; i < NUM_TRACE_BUS_WORDS; i++)
-		trace_bus[i] = 0xff;
 
 	for (i = 0; i < NUM_INPUT_BUS_WORDS; i++)
 		input_bus[i] = 0xff;

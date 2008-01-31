@@ -16,7 +16,7 @@ extern int cpm_get_irq(void);
  * the only interrupt controller.  Some boards, like the MBX and
  * Sandpoint have the 8259 as a secondary controller.  Depending
  * upon the processor type, the internal controller can have as
- * few as 16 interrups or as many as 64.  We could use  the
+ * few as 16 interrupts or as many as 64.  We could use  the
  * "clear_bit()" and "set_bit()" functions like other platforms,
  * but they are overkill for us.
  */

@@ -334,18 +334,25 @@ static inline int check_io_access(struct pt_regs *regs)
 #define clear_single_step(regs)	((regs)->msr &= ~MSR_SE)
 #endif
 
-static int generic_machine_check_exception(struct pt_regs *regs)
+#if defined(CONFIG_4xx)
+int machine_check_4xx(struct pt_regs *regs)
 {
 	unsigned long reason = get_mc_reason(regs);
 
-#if defined(CONFIG_4xx) && !defined(CONFIG_440A)
 	if (reason & ESR_IMCP) {
 		printk("Instruction");
 		mtspr(SPRN_ESR, reason & ~ESR_IMCP);
 	} else
 		printk("Data");
 	printk(" machine check in kernel mode.\n");
-#elif defined(CONFIG_440A)
+
+	return 0;
+}
+
+int machine_check_440A(struct pt_regs *regs)
+{
+	unsigned long reason = get_mc_reason(regs);
+
 	printk("Machine check in kernel mode.\n");
 	if (reason & ESR_IMCP){
 		printk("Instruction Synchronous Machine Check exception\n");
@@ -375,7 +382,13 @@ static int generic_machine_check_exception(struct pt_regs *regs)
 		/* Clear MCSR */
 		mtspr(SPRN_MCSR, mcsr);
 	}
-#elif defined (CONFIG_E500)
+	return 0;
+}
+#elif defined(CONFIG_E500)
+int machine_check_e500(struct pt_regs *regs)
+{
+	unsigned long reason = get_mc_reason(regs);
+
 	printk("Machine check in kernel mode.\n");
 	printk("Caused by (from MCSR=%lx): ", reason);
 
@@ -403,7 +416,14 @@ static int generic_machine_check_exception(struct pt_regs *regs)
 		printk("Bus - Instruction Parity Error\n");
 	if (reason & MCSR_BUS_RPERR)
 		printk("Bus - Read Parity Error\n");
-#elif defined (CONFIG_E200)
+
+	return 0;
+}
+#elif defined(CONFIG_E200)
+int machine_check_e200(struct pt_regs *regs)
+{
+	unsigned long reason = get_mc_reason(regs);
+
 	printk("Machine check in kernel mode.\n");
 	printk("Caused by (from MCSR=%lx): ", reason);
 
@@ -421,7 +441,14 @@ static int generic_machine_check_exception(struct pt_regs *regs)
 		printk("Bus - Read Bus Error on data load\n");
 	if (reason & MCSR_BUS_WRERR)
 		printk("Bus - Write Bus Error on buffered store or cache line push\n");
-#else /* !CONFIG_4xx && !CONFIG_E500 && !CONFIG_E200 */
+
+	return 0;
+}
+#else
+int machine_check_generic(struct pt_regs *regs)
+{
+	unsigned long reason = get_mc_reason(regs);
+
 	printk("Machine check in kernel mode.\n");
 	printk("Caused by (from SRR1=%lx): ", reason);
 	switch (reason & 0x601F0000) {
@@ -451,22 +478,26 @@ static int generic_machine_check_exception(struct pt_regs *regs)
 	default:
 		printk("Unknown values in msr\n");
 	}
-#endif /* CONFIG_4xx */
-
 	return 0;
 }
+#endif /* everything else */
 
 void machine_check_exception(struct pt_regs *regs)
 {
 	int recover = 0;
 
-	/* See if any machine dependent calls */
+	/* See if any machine dependent calls. In theory, we would want
+	 * to call the CPU first, and call the ppc_md. one if the CPU
+	 * one returns a positive number. However there is existing code
+	 * that assumes the board gets a first chance, so let's keep it
+	 * that way for now and fix things later. --BenH.
+	 */
 	if (ppc_md.machine_check_exception)
 		recover = ppc_md.machine_check_exception(regs);
-	else
-		recover = generic_machine_check_exception(regs);
+	else if (cur_cpu_spec->machine_check)
+		recover = cur_cpu_spec->machine_check(regs);
 
-	if (recover)
+	if (recover > 0)
 		return;
 
 	if (user_mode(regs)) {
@@ -476,7 +507,12 @@ void machine_check_exception(struct pt_regs *regs)
 	}
 
 #if defined(CONFIG_8xx) && defined(CONFIG_PCI)
-	/* the qspan pci read routines can cause machine checks -- Cort */
+	/* the qspan pci read routines can cause machine checks -- Cort
+	 *
+	 * yuck !!! that totally needs to go away ! There are better ways
+	 * to deal with that than having a wart in the mcheck handler.
+	 * -- BenH
+	 */
 	bad_page_fault(regs, regs->dar, SIGBUS);
 	return;
 #endif
@@ -622,6 +658,9 @@ static void parse_fpe(struct pt_regs *regs)
 #define INST_POPCNTB		0x7c0000f4
 #define INST_POPCNTB_MASK	0xfc0007fe
 
+#define INST_ISEL		0x7c00001e
+#define INST_ISEL_MASK		0xfc00003e
+
 static int emulate_string_inst(struct pt_regs *regs, u32 instword)
 {
 	u8 rT = (instword >> 21) & 0x1f;
@@ -707,6 +746,23 @@ static int emulate_popcntb_inst(struct pt_regs *regs, u32 instword)
 	return 0;
 }
 
+static int emulate_isel(struct pt_regs *regs, u32 instword)
+{
+	u8 rT = (instword >> 21) & 0x1f;
+	u8 rA = (instword >> 16) & 0x1f;
+	u8 rB = (instword >> 11) & 0x1f;
+	u8 BC = (instword >> 6) & 0x1f;
+	u8 bit;
+	unsigned long tmp;
+
+	tmp = (rA == 0) ? 0 : regs->gpr[rA];
+	bit = (regs->ccr >> (31 - BC)) & 0x1;
+
+	regs->gpr[rT] = bit ? tmp : regs->gpr[rB];
+
+	return 0;
+}
+
 static int emulate_instruction(struct pt_regs *regs)
 {
 	u32 instword;
@@ -747,6 +803,11 @@ static int emulate_instruction(struct pt_regs *regs)
 	/* Emulate the popcntb (Population Count Bytes) instruction. */
 	if ((instword & INST_POPCNTB_MASK) == INST_POPCNTB) {
 		return emulate_popcntb_inst(regs, instword);
+	}
+
+	/* Emulate isel (Integer Select) instruction */
+	if ((instword & INST_ISEL_MASK) == INST_ISEL) {
+		return emulate_isel(regs, instword);
 	}
 
 	return -EINVAL;

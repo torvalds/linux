@@ -78,18 +78,18 @@ choice
 	default 6xx
 
 config 6xx
-	bool "6xx/7xx/74xx/52xx/82xx/83xx"
+	bool "6xx/7xx/74xx/52xx/82xx"
 	select PPC_FPU
 	help
 	  There are four types of PowerPC chips supported.  The more common
 	  types (601, 603, 604, 740, 750, 7400), the older Freescale
 	  (formerly Motorola) embedded versions (821, 823, 850, 855, 860,
-	  52xx, 82xx, 83xx), the IBM embedded versions (403 and 405) and
+	  52xx, 82xx), the IBM embedded versions (403 and 405) and
 	  the Book E embedded processors from IBM (44x) and Freescale (85xx).
 	  For support for 64-bit processors, set ARCH=powerpc.
 	  Unless you are building a kernel for one of the embedded processor
 	  systems, choose 6xx.
-	  Also note that because the 52xx, 82xx, & 83xx family have a 603e
+	  Also note that because the 52xx, 82xx family have a 603e
 	  core, specific support for that chipset is asked later on.
 
 config 40x
@@ -103,12 +103,6 @@ config 44x
 config 8xx
 	bool "8xx"
 	select PPC_LIB_RHEAP
-
-config E200
-	bool "e200"
-
-config E500
-	bool "e500"
 
 endchoice
 
@@ -124,25 +118,14 @@ config PPC_DCR
 	depends on PPC_DCR_NATIVE
 	default y
 
-config BOOKE
-	bool
-	depends on E200 || E500
-	default y
-
-config FSL_BOOKE
-	bool
-	depends on E200 || E500
-	default y
-
 config PTE_64BIT
 	bool
-	depends on 44x || E500
+	depends on 44x
 	default y if 44x
-	default y if E500 && PHYS_64BIT
 
 config PHYS_64BIT
-	bool 'Large physical address support' if E500
-	depends on 44x || E500
+	bool
+	depends on 44x
 	default y if 44x
 	---help---
 	  This option enables kernel support for larger than 32-bit physical
@@ -153,7 +136,7 @@ config PHYS_64BIT
 config ALTIVEC
 	bool "AltiVec Support"
 	depends on 6xx
-	depends on !8260 && !83xx
+	depends on !8260
 	---help---
 	  This option enables kernel support for the Altivec extensions to the
 	  PowerPC processor. The kernel currently supports saving and restoring
@@ -167,24 +150,9 @@ config ALTIVEC
 
 	  If in doubt, say Y here.
 
-config SPE
-	bool "SPE Support"
-	depends on E200 || E500
-	---help---
-	  This option enables kernel support for the Signal Processing
-	  Extensions (SPE) to the PowerPC processor. The kernel currently
-	  supports saving and restoring SPE registers, and turning on the
-	  'spe enable' bit so user processes can execute SPE instructions.
-
-	  This option is only useful if you have a processor that supports
-	  SPE (e500, otherwise known as 85xx series), but does not have any
-	  effect on a non-spe cpu (it does, however add code to the kernel).
-
-	  If in doubt, say Y here.
-
 config TAU
 	bool "Thermal Management Support"
-	depends on 6xx && !8260 && !83xx
+	depends on 6xx && !8260
 	help
 	  G3 and G4 processors have an on-chip temperature sensor called the
 	  'Thermal Assist Unit (TAU)', which, in theory, can measure the on-die
@@ -228,7 +196,7 @@ config TAU_AVERAGE
 
 config MATH_EMULATION
 	bool "Math emulation"
-	depends on 4xx || 8xx || E200 || E500
+	depends on 4xx || 8xx
 	---help---
 	  Some PowerPC chips designed for embedded applications do not have
 	  a floating-point unit and therefore do not implement the
@@ -279,7 +247,6 @@ config PPC601_SYNC_FIX
 	  If in doubt, say Y here.
 
 source arch/ppc/platforms/4xx/Kconfig
-source arch/ppc/platforms/85xx/Kconfig
 
 config PPC_STD_MMU
 	bool
@@ -288,7 +255,7 @@ config PPC_STD_MMU
 
 config NOT_COHERENT_CACHE
 	bool
-	depends on 4xx || 8xx || E200
+	depends on 4xx || 8xx
 	default y
 
 endmenu
@@ -721,16 +688,6 @@ config LITE5200B
 	  Support for the LITE5200B dev board for the MPC5200 from Freescale.
 	  This is the new board with 2 PCI slots.
 
-config MPC834x_SYS
-	bool "Freescale MPC834x SYS"
-	help
-	  This option enables support for the MPC 834x SYS evaluation board.
-
-	  Be aware that PCI buses can only function when SYS board is plugged
-	  into the PIB (Platform IO Board) board from Freescale which provide
-	  3 PCI slots.  The PIBs PCI initialization is the bootloader's
-	  responsibility.
-
 config EV64360
 	bool "Marvell-EV64360BP"
 	help
@@ -774,18 +731,6 @@ config 8272
 	  The MPC8272 CPM has a different internal dpram setup than other CPM2
 	  devices
 
-config 83xx
-	bool
-	default y if MPC834x_SYS
-
-config MPC834x
-	bool
-	default y if MPC834x_SYS
-
-config PPC_83xx
-	bool
-	default y if 83xx
-
 config CPM1
 	bool
 	depends on 8xx
@@ -811,8 +756,7 @@ config PPC_GEN550
 	bool
 	depends on SANDPOINT || SPRUCE || PPLUS || \
 		PRPMC750 || PRPMC800 || LOPEC || \
-		(EV64260 && !SERIAL_MPSC) || CHESTNUT || RADSTONE_PPC7D || \
-		83xx
+		(EV64260 && !SERIAL_MPSC) || CHESTNUT || RADSTONE_PPC7D
 	default y
 
 config FORCE
@@ -1068,13 +1012,13 @@ config GENERIC_ISA_DMA
 
 config PPC_I8259
 	bool
-	default y if 85xx || PPC_PREP
+	default y if PPC_PREP
 	default n
 
 config PPC_INDIRECT_PCI
 	bool
 	depends on PCI
-	default y if 40x || 44x || 85xx || 83xx || PPC_PREP
+	default y if 40x || 44x || PPC_PREP
 	default n
 
 config EISA
@@ -1091,8 +1035,8 @@ config MCA
 	bool
 
 config PCI
-	bool "PCI support" if 40x || CPM2 || 83xx || 85xx || PPC_MPC52xx
-	default y if !40x && !CPM2 && !8xx && !83xx && !85xx
+	bool "PCI support" if 40x || CPM2 || PPC_MPC52xx
+	default y if !40x && !CPM2 && !8xx
 	default PCI_QSPAN if !4xx && !CPM2 && 8xx
 	help
 	  Find out whether your system includes a PCI bus. PCI is the name of
@@ -1105,11 +1049,6 @@ config PCI_DOMAINS
 
 config PCI_SYSCALL
 	def_bool PCI
-
-config MPC83xx_PCI2
-	bool "Support for 2nd PCI host controller"
-	depends on PCI && MPC834x
-	default y if MPC834x_SYS
 
 config PCI_QSPAN
 	bool "QSpan PCI"

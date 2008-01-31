@@ -36,11 +36,6 @@
 #endif
 
 enum {
-#if defined(CONFIG_PS3_USE_LPAR_ADDR)
-	USE_LPAR_ADDR = 1,
-#else
-	USE_LPAR_ADDR = 0,
-#endif
 #if defined(CONFIG_PS3_DYNAMIC_DMA)
 	USE_DYNAMIC_DMA = 1,
 #else
@@ -137,11 +132,8 @@ static struct map map;
 unsigned long ps3_mm_phys_to_lpar(unsigned long phys_addr)
 {
 	BUG_ON(is_kernel_addr(phys_addr));
-	if (USE_LPAR_ADDR)
-		return phys_addr;
-	else
-		return (phys_addr < map.rm.size || phys_addr >= map.total)
-			? phys_addr : phys_addr + map.r1.offset;
+	return (phys_addr < map.rm.size || phys_addr >= map.total)
+		? phys_addr : phys_addr + map.r1.offset;
 }
 
 EXPORT_SYMBOL(ps3_mm_phys_to_lpar);
@@ -309,7 +301,7 @@ static int __init ps3_mm_add_memory(void)
 
 	BUG_ON(!mem_init_done);
 
-	start_addr = USE_LPAR_ADDR ? map.r1.base : map.rm.size;
+	start_addr = map.rm.size;
 	start_pfn = start_addr >> PAGE_SHIFT;
 	nr_pages = (map.r1.size + PAGE_SIZE - 1) >> PAGE_SHIFT;
 
@@ -359,7 +351,7 @@ static unsigned long dma_sb_lpar_to_bus(struct ps3_dma_region *r,
 static void  __maybe_unused _dma_dump_region(const struct ps3_dma_region *r,
 	const char *func, int line)
 {
-	DBG("%s:%d: dev        %u:%u\n", func, line, r->dev->bus_id,
+	DBG("%s:%d: dev        %lu:%lu\n", func, line, r->dev->bus_id,
 		r->dev->dev_id);
 	DBG("%s:%d: page_size  %u\n", func, line, r->page_size);
 	DBG("%s:%d: bus_addr   %lxh\n", func, line, r->bus_addr);
@@ -394,7 +386,7 @@ struct dma_chunk {
 static void _dma_dump_chunk (const struct dma_chunk* c, const char* func,
 	int line)
 {
-	DBG("%s:%d: r.dev        %u:%u\n", func, line,
+	DBG("%s:%d: r.dev        %lu:%lu\n", func, line,
 		c->region->dev->bus_id, c->region->dev->dev_id);
 	DBG("%s:%d: r.bus_addr   %lxh\n", func, line, c->region->bus_addr);
 	DBG("%s:%d: r.page_size  %u\n", func, line, c->region->page_size);
@@ -658,7 +650,7 @@ static int dma_sb_region_create(struct ps3_dma_region *r)
 	BUG_ON(!r);
 
 	if (!r->dev->bus_id) {
-		pr_info("%s:%d: %u:%u no dma\n", __func__, __LINE__,
+		pr_info("%s:%d: %lu:%lu no dma\n", __func__, __LINE__,
 			r->dev->bus_id, r->dev->dev_id);
 		return 0;
 	}
@@ -724,7 +716,7 @@ static int dma_sb_region_free(struct ps3_dma_region *r)
 	BUG_ON(!r);
 
 	if (!r->dev->bus_id) {
-		pr_info("%s:%d: %u:%u no dma\n", __func__, __LINE__,
+		pr_info("%s:%d: %lu:%lu no dma\n", __func__, __LINE__,
 			r->dev->bus_id, r->dev->dev_id);
 		return 0;
 	}
@@ -1007,7 +999,7 @@ static int dma_sb_region_create_linear(struct ps3_dma_region *r)
 
 	if (r->offset + r->len > map.rm.size) {
 		/* Map (part of) 2nd RAM chunk */
-		virt_addr = USE_LPAR_ADDR ? map.r1.base : map.rm.size;
+		virt_addr = map.rm.size;
 		len = r->len;
 		if (r->offset >= map.rm.size)
 			virt_addr += r->offset - map.rm.size;

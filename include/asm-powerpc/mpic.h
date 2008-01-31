@@ -22,7 +22,9 @@
 #define MPIC_GREG_GLOBAL_CONF_0		0x00020
 #define		MPIC_GREG_GCONF_RESET			0x80000000
 #define		MPIC_GREG_GCONF_8259_PTHROU_DIS		0x20000000
+#define		MPIC_GREG_GCONF_NO_BIAS			0x10000000
 #define		MPIC_GREG_GCONF_BASE_MASK		0x000fffff
+#define		MPIC_GREG_GCONF_MCK			0x08000000
 #define MPIC_GREG_GLOBAL_CONF_1		0x00030
 #define		MPIC_GREG_GLOBAL_CONF_1_SIE		0x08000000
 #define		MPIC_GREG_GLOBAL_CONF_1_CLK_RATIO_MASK	0x70000000
@@ -78,6 +80,7 @@
 #define 	MPIC_CPU_WHOAMI_MASK			0x0000001f
 #define MPIC_CPU_INTACK			0x000a0
 #define MPIC_CPU_EOI			0x000b0
+#define MPIC_CPU_MCACK			0x000c0
 
 /*
  * Per-source registers
@@ -141,6 +144,7 @@
 #define TSI108_CPU_WHOAMI		0xffffffff
 #define TSI108_CPU_INTACK		0x00004
 #define TSI108_CPU_EOI			0x00008
+#define TSI108_CPU_MCACK		0x00004 /* Doesn't really exist here */
 
 /*
  * Per-source registers
@@ -183,6 +187,7 @@ enum {
 	MPIC_IDX_CPU_WHOAMI,
 	MPIC_IDX_CPU_INTACK,
 	MPIC_IDX_CPU_EOI,
+	MPIC_IDX_CPU_MCACK,
 
 	MPIC_IDX_IRQ_BASE,
 	MPIC_IDX_IRQ_STRIDE,
@@ -344,6 +349,10 @@ struct mpic
 #define MPIC_USES_DCR			0x00000080
 /* MPIC has 11-bit vector fields (or larger) */
 #define MPIC_LARGE_VECTORS		0x00000100
+/* Enable delivery of prio 15 interrupts as MCK instead of EE */
+#define MPIC_ENABLE_MCK			0x00000200
+/* Disable bias among target selection, spread interrupts evenly */
+#define MPIC_NO_BIAS			0x00000400
 
 /* MPIC HW modification ID */
 #define MPIC_REGSET_MASK		0xf0000000
@@ -447,10 +456,19 @@ extern void mpic_send_ipi(unsigned int ipi_no, unsigned int cpu_mask);
 /* Send a message (IPI) to a given target (cpu number or MSG_*) */
 void smp_mpic_message_pass(int target, int msg);
 
+/* Unmask a specific virq */
+extern void mpic_unmask_irq(unsigned int irq);
+/* Mask a specific virq */
+extern void mpic_mask_irq(unsigned int irq);
+/* EOI a specific virq */
+extern void mpic_end_irq(unsigned int irq);
+
 /* Fetch interrupt from a given mpic */
 extern unsigned int mpic_get_one_irq(struct mpic *mpic);
-/* This one gets to the primary mpic */
+/* This one gets from the primary mpic */
 extern unsigned int mpic_get_irq(void);
+/* Fetch Machine Check interrupt from primary mpic */
+extern unsigned int mpic_get_mcirq(void);
 
 /* Set the EPIC clock ratio */
 void mpic_set_clk_ratio(struct mpic *mpic, u32 clock_ratio);
