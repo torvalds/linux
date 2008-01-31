@@ -171,9 +171,9 @@ static inline void nf_ct_put(struct nf_conn *ct)
 extern int nf_ct_l3proto_try_module_get(unsigned short l3proto);
 extern void nf_ct_l3proto_module_put(unsigned short l3proto);
 
-extern struct hlist_head *nf_ct_alloc_hashtable(int *sizep, int *vmalloced);
+extern struct hlist_head *nf_ct_alloc_hashtable(unsigned int *sizep, int *vmalloced);
 extern void nf_ct_free_hashtable(struct hlist_head *hash, int vmalloced,
-				 int size);
+				 unsigned int size);
 
 extern struct nf_conntrack_tuple_hash *
 __nf_conntrack_find(const struct nf_conntrack_tuple *tuple,

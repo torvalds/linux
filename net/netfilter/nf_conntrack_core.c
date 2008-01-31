@@ -939,7 +939,7 @@ static int kill_all(struct nf_conn *i, void *data)
 	return 1;
 }
 
-void nf_ct_free_hashtable(struct hlist_head *hash, int vmalloced, int size)
+void nf_ct_free_hashtable(struct hlist_head *hash, int vmalloced, unsigned int size)
 {
 	if (vmalloced)
 		vfree(hash);
@@ -988,7 +988,7 @@ void nf_conntrack_cleanup(void)
 	nf_conntrack_expect_fini();
 }
 
-struct hlist_head *nf_ct_alloc_hashtable(int *sizep, int *vmalloced)
+struct hlist_head *nf_ct_alloc_hashtable(unsigned int *sizep, int *vmalloced)
 {
 	struct hlist_head *hash;
 	unsigned int size, i;
@@ -1015,8 +1015,8 @@ EXPORT_SYMBOL_GPL(nf_ct_alloc_hashtable);
 
 int nf_conntrack_set_hashsize(const char *val, struct kernel_param *kp)
 {
-	int i, bucket, hashsize, vmalloced;
-	int old_vmalloced, old_size;
+	int i, bucket, vmalloced, old_vmalloced;
+	unsigned int hashsize, old_size;
 	int rnd;
 	struct hlist_head *hash, *old_hash;
 	struct nf_conntrack_tuple_hash *h;
@@ -1025,7 +1025,7 @@ int nf_conntrack_set_hashsize(const char *val, struct kernel_param *kp)
 	if (!nf_conntrack_htable_size)
 		return param_set_uint(val, kp);
 
-	hashsize = simple_strtol(val, NULL, 0);
+	hashsize = simple_strtoul(val, NULL, 0);
 	if (!hashsize)
 		return -EINVAL;
 
