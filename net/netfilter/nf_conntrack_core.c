@@ -776,10 +776,8 @@ void __nf_ct_refresh_acct(struct nf_conn *ct,
 	write_lock_bh(&nf_conntrack_lock);
 
 	/* Only update if this is not a fixed timeout */
-	if (test_bit(IPS_FIXED_TIMEOUT_BIT, &ct->status)) {
-		write_unlock_bh(&nf_conntrack_lock);
-		return;
-	}
+	if (test_bit(IPS_FIXED_TIMEOUT_BIT, &ct->status))
+		goto acct;
 
 	/* If not in hash table, timer will not be active yet */
 	if (!nf_ct_is_confirmed(ct)) {
@@ -799,6 +797,7 @@ void __nf_ct_refresh_acct(struct nf_conn *ct,
 		}
 	}
 
+acct:
 #ifdef CONFIG_NF_CT_ACCT
 	if (do_acct) {
 		ct->counters[CTINFO2DIR(ctinfo)].packets++;
