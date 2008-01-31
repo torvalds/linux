@@ -428,6 +428,19 @@ qla2x00_sysfs_read_sfp(struct kobject *kobj,
 	if (!capable(CAP_SYS_ADMIN) || off != 0 || count != SFP_DEV_SIZE * 2)
 		return 0;
 
+	if (ha->sfp_data)
+		goto do_read;
+
+	ha->sfp_data = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL,
+	    &ha->sfp_data_dma);
+	if (!ha->sfp_data) {
+		qla_printk(KERN_WARNING, ha,
+		    "Unable to allocate memory for SFP read-data.\n");
+		return 0;
+	}
+
+do_read:
+	memset(ha->sfp_data, 0, SFP_BLOCK_SIZE);
 	addr = 0xa0;
 	for (iter = 0, offset = 0; iter < (SFP_DEV_SIZE * 2) / SFP_BLOCK_SIZE;
 	    iter++, offset += SFP_BLOCK_SIZE) {
