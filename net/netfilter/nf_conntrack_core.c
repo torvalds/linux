@@ -902,14 +902,6 @@ static void nf_conntrack_attach(struct sk_buff *nskb, struct sk_buff *skb)
 	nf_conntrack_get(nskb->nfct);
 }
 
-static inline int
-do_iter(const struct nf_conntrack_tuple_hash *i,
-	int (*iter)(struct nf_conn *i, void *data),
-	void *data)
-{
-	return iter(nf_ct_tuplehash_to_ctrack(i), data);
-}
-
 /* Bring out ya dead! */
 static struct nf_conn *
 get_next_corpse(int (*iter)(struct nf_conn *i, void *data),
