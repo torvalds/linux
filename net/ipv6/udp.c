@@ -56,7 +56,8 @@ static inline int udp_v6_get_port(struct sock *sk, unsigned short snum)
 	return udp_get_port(sk, snum, ipv6_rcv_saddr_equal);
 }
 
-static struct sock *__udp6_lib_lookup(struct in6_addr *saddr, __be16 sport,
+static struct sock *__udp6_lib_lookup(struct net *net,
+				      struct in6_addr *saddr, __be16 sport,
 				      struct in6_addr *daddr, __be16 dport,
 				      int dif, struct hlist_head udptable[])
 {
@@ -69,7 +70,8 @@ static struct sock *__udp6_lib_lookup(struct in6_addr *saddr, __be16 sport,
 	sk_for_each(sk, node, &udptable[hnum & (UDP_HTABLE_SIZE - 1)]) {
 		struct inet_sock *inet = inet_sk(sk);
 
-		if (sk->sk_hash == hnum && sk->sk_family == PF_INET6) {
+		if (sk->sk_net == net && sk->sk_hash == hnum &&
+				sk->sk_family == PF_INET6) {
 			struct ipv6_pinfo *np = inet6_sk(sk);
 			int score = 0;
 			if (inet->dport) {
@@ -233,7 +235,7 @@ void __udp6_lib_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	struct sock *sk;
 	int err;
 
-	sk = __udp6_lib_lookup(daddr, uh->dest,
+	sk = __udp6_lib_lookup(skb->dev->nd_net, daddr, uh->dest,
 			       saddr, uh->source, inet6_iif(skb), udptable);
 	if (sk == NULL)
 		return;
@@ -478,7 +480,7 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct hlist_head udptable[],
 	 * check socket cache ... must talk to Alan about his plans
 	 * for sock caches... i'll skip this for now.
 	 */
-	sk = __udp6_lib_lookup(saddr, uh->source,
+	sk = __udp6_lib_lookup(skb->dev->nd_net, saddr, uh->source,
 			       daddr, uh->dest, inet6_iif(skb), udptable);
 
 	if (sk == NULL) {
