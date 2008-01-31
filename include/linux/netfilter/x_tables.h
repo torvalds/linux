@@ -335,7 +335,8 @@ extern int xt_check_target(const struct xt_target *target, unsigned short family
 			   unsigned int size, const char *table, unsigned int hook,
 			   unsigned short proto, int inv_proto);
 
-extern struct xt_table *xt_register_table(struct xt_table *table,
+extern struct xt_table *xt_register_table(struct net *net,
+					  struct xt_table *table,
 					  struct xt_table_info *bootstrap,
 					  struct xt_table_info *newinfo);
 extern void *xt_unregister_table(struct xt_table *table);
@@ -352,7 +353,8 @@ extern struct xt_target *xt_request_find_target(int af, const char *name,
 extern int xt_find_revision(int af, const char *name, u8 revision, int target,
 			    int *err);
 
-extern struct xt_table *xt_find_table_lock(int af, const char *name);
+extern struct xt_table *xt_find_table_lock(struct net *net, int af,
+					   const char *name);
 extern void xt_table_unlock(struct xt_table *t);
 
 extern int xt_proto_init(int af);

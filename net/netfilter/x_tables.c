@@ -44,7 +44,6 @@ struct xt_af {
 	struct mutex mutex;
 	struct list_head match;
 	struct list_head target;
-	struct list_head tables;
 #ifdef CONFIG_COMPAT
 	struct mutex compat_mutex;
 	struct compat_delta *compat_offsets;
@@ -597,14 +596,14 @@ void xt_free_table_info(struct xt_table_info *info)
 EXPORT_SYMBOL(xt_free_table_info);
 
 /* Find table by name, grabs mutex & ref.  Returns ERR_PTR() on error. */
-struct xt_table *xt_find_table_lock(int af, const char *name)
+struct xt_table *xt_find_table_lock(struct net *net, int af, const char *name)
 {
 	struct xt_table *t;
 
 	if (mutex_lock_interruptible(&xt[af].mutex) != 0)
 		return ERR_PTR(-EINTR);
 
-	list_for_each_entry(t, &xt[af].tables, list)
+	list_for_each_entry(t, &net->xt.tables[af], list)
 		if (strcmp(t->name, name) == 0 && try_module_get(t->me))
 			return t;
 	mutex_unlock(&xt[af].mutex);
@@ -660,7 +659,7 @@ xt_replace_table(struct xt_table *table,
 }
 EXPORT_SYMBOL_GPL(xt_replace_table);
 
-struct xt_table *xt_register_table(struct xt_table *table,
+struct xt_table *xt_register_table(struct net *net, struct xt_table *table,
 				   struct xt_table_info *bootstrap,
 				   struct xt_table_info *newinfo)
 {
@@ -673,7 +672,7 @@ struct xt_table *xt_register_table(struct xt_table *table,
 		goto out;
 
 	/* Don't autoload: we'd eat our tail... */
-	list_for_each_entry(t, &xt[table->af].tables, list) {
+	list_for_each_entry(t, &net->xt.tables[table->af], list) {
 		if (strcmp(t->name, table->name) == 0) {
 			ret = -EEXIST;
 			goto unlock;
@@ -692,7 +691,7 @@ struct xt_table *xt_register_table(struct xt_table *table,
 	/* save number of initial entries */
 	private->initial_entries = private->number;
 
-	list_add(&table->list, &xt[table->af].tables);
+	list_add(&table->list, &net->xt.tables[table->af]);
 	mutex_unlock(&xt[table->af].mutex);
 	return table;
 
@@ -744,7 +743,7 @@ static struct list_head *type2list(u_int16_t af, u_int16_t type)
 		list = &xt[af].match;
 		break;
 	case TABLE:
-		list = &xt[af].tables;
+		list = &init_net.xt.tables[af];
 		break;
 	default:
 		list = NULL;
@@ -919,10 +918,22 @@ void xt_proto_fini(int af)
 }
 EXPORT_SYMBOL_GPL(xt_proto_fini);
 
+static int __net_init xt_net_init(struct net *net)
+{
+	int i;
+
+	for (i = 0; i < NPROTO; i++)
+		INIT_LIST_HEAD(&net->xt.tables[i]);
+	return 0;
+}
+
+static struct pernet_operations xt_net_ops = {
+	.init = xt_net_init,
+};
 
 static int __init xt_init(void)
 {
-	int i;
+	int i, rv;
 
 	xt = kmalloc(sizeof(struct xt_af) * NPROTO, GFP_KERNEL);
 	if (!xt)
@@ -936,13 +947,16 @@ static int __init xt_init(void)
 #endif
 		INIT_LIST_HEAD(&xt[i].target);
 		INIT_LIST_HEAD(&xt[i].match);
-		INIT_LIST_HEAD(&xt[i].tables);
 	}
-	return 0;
+	rv = register_pernet_subsys(&xt_net_ops);
+	if (rv < 0)
+		kfree(xt);
+	return rv;
 }
 
 static void __exit xt_fini(void)
 {
+	unregister_pernet_subsys(&xt_net_ops);
 	kfree(xt);
 }
 

@@ -870,7 +870,7 @@ static int get_info(void __user *user, int *len, int compat)
 	if (compat)
 		xt_compat_lock(NF_ARP);
 #endif
-	t = try_then_request_module(xt_find_table_lock(NF_ARP, name),
+	t = try_then_request_module(xt_find_table_lock(&init_net, NF_ARP, name),
 				    "arptable_%s", name);
 	if (t && !IS_ERR(t)) {
 		struct arpt_getinfo info;
@@ -926,7 +926,7 @@ static int get_entries(struct arpt_get_entries __user *uptr, int *len)
 		return -EINVAL;
 	}
 
-	t = xt_find_table_lock(NF_ARP, get.name);
+	t = xt_find_table_lock(&init_net, NF_ARP, get.name);
 	if (t && !IS_ERR(t)) {
 		struct xt_table_info *private = t->private;
 		duprintf("t->private->number = %u\n",
@@ -966,7 +966,7 @@ static int __do_replace(const char *name, unsigned int valid_hooks,
 		goto out;
 	}
 
-	t = try_then_request_module(xt_find_table_lock(NF_ARP, name),
+	t = try_then_request_module(xt_find_table_lock(&init_net, NF_ARP, name),
 				    "arptable_%s", name);
 	if (!t || IS_ERR(t)) {
 		ret = t ? PTR_ERR(t) : -ENOENT;
@@ -1132,7 +1132,7 @@ static int do_add_counters(void __user *user, unsigned int len, int compat)
 		goto free;
 	}
 
-	t = xt_find_table_lock(NF_ARP, name);
+	t = xt_find_table_lock(&init_net, NF_ARP, name);
 	if (!t || IS_ERR(t)) {
 		ret = t ? PTR_ERR(t) : -ENOENT;
 		goto free;
@@ -1604,7 +1604,7 @@ static int compat_get_entries(struct compat_arpt_get_entries __user *uptr,
 	}
 
 	xt_compat_lock(NF_ARP);
-	t = xt_find_table_lock(NF_ARP, get.name);
+	t = xt_find_table_lock(&init_net, NF_ARP, get.name);
 	if (t && !IS_ERR(t)) {
 		struct xt_table_info *private = t->private;
 		struct xt_table_info info;
@@ -1751,7 +1751,7 @@ int arpt_register_table(struct arpt_table *table,
 		return ret;
 	}
 
-	new_table = xt_register_table(table, &bootstrap, newinfo);
+	new_table = xt_register_table(&init_net, table, &bootstrap, newinfo);
 	if (IS_ERR(new_table)) {
 		xt_free_table_info(newinfo);
 		return PTR_ERR(new_table);
