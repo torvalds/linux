@@ -1780,18 +1780,6 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		WRT_REG_WORD(&reg->isp.semaphore, 0);
 		WRT_REG_WORD(&reg->isp.hccr, HCCR_CLR_RISC_INT);
 		WRT_REG_WORD(&reg->isp.hccr, HCCR_CLR_HOST_INT);
-
-		/* Enable proper parity */
-		if (!IS_QLA2100(ha) && !IS_QLA2200(ha)) {
-			if (IS_QLA2300(ha))
-				/* SRAM parity */
-				WRT_REG_WORD(&reg->isp.hccr,
-				    (HCCR_ENABLE_PARITY + 0x1));
-			else
-				/* SRAM, Instruction RAM and GP RAM parity */
-				WRT_REG_WORD(&reg->isp.hccr,
-				    (HCCR_ENABLE_PARITY + 0x7));
-		}
 	}
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
