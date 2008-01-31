@@ -41,19 +41,19 @@ static int generic_print_tuple(struct seq_file *s,
 }
 
 /* Returns verdict for packet, or -1 for invalid. */
-static int packet(struct nf_conn *conntrack,
+static int packet(struct nf_conn *ct,
 		  const struct sk_buff *skb,
 		  unsigned int dataoff,
 		  enum ip_conntrack_info ctinfo,
 		  int pf,
 		  unsigned int hooknum)
 {
-	nf_ct_refresh_acct(conntrack, ctinfo, skb, nf_ct_generic_timeout);
+	nf_ct_refresh_acct(ct, ctinfo, skb, nf_ct_generic_timeout);
 	return NF_ACCEPT;
 }
 
 /* Called when a new connection for this protocol found. */
-static int new(struct nf_conn *conntrack, const struct sk_buff *skb,
+static int new(struct nf_conn *ct, const struct sk_buff *skb,
 	       unsigned int dataoff)
 {
 	return 1;

@@ -60,7 +60,7 @@ static int udplite_print_tuple(struct seq_file *s,
 }
 
 /* Returns verdict for packet, and may modify conntracktype */
-static int udplite_packet(struct nf_conn *conntrack,
+static int udplite_packet(struct nf_conn *ct,
 			  const struct sk_buff *skb,
 			  unsigned int dataoff,
 			  enum ip_conntrack_info ctinfo,
@@ -69,21 +69,20 @@ static int udplite_packet(struct nf_conn *conntrack,
 {
 	/* If we've seen traffic both ways, this is some kind of UDP
 	   stream.  Extend timeout. */
-	if (test_bit(IPS_SEEN_REPLY_BIT, &conntrack->status)) {
-		nf_ct_refresh_acct(conntrack, ctinfo, skb,
+	if (test_bit(IPS_SEEN_REPLY_BIT, &ct->status)) {
+		nf_ct_refresh_acct(ct, ctinfo, skb,
 				   nf_ct_udplite_timeout_stream);
 		/* Also, more likely to be important, and not a probe */
-		if (!test_and_set_bit(IPS_ASSURED_BIT, &conntrack->status))
+		if (!test_and_set_bit(IPS_ASSURED_BIT, &ct->status))
 			nf_conntrack_event_cache(IPCT_STATUS, skb);
 	} else
-		nf_ct_refresh_acct(conntrack, ctinfo, skb,
-				   nf_ct_udplite_timeout);
+		nf_ct_refresh_acct(ct, ctinfo, skb, nf_ct_udplite_timeout);
 
 	return NF_ACCEPT;
 }
 
 /* Called when a new connection for this protocol found. */
-static int udplite_new(struct nf_conn *conntrack, const struct sk_buff *skb,
+static int udplite_new(struct nf_conn *ct, const struct sk_buff *skb,
 		       unsigned int dataoff)
 {
 	return 1;

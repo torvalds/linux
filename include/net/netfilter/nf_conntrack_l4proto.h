@@ -36,7 +36,7 @@ struct nf_conntrack_l4proto
 			    const struct nf_conntrack_tuple *orig);
 
 	/* Returns verdict for packet, or -1 for invalid. */
-	int (*packet)(struct nf_conn *conntrack,
+	int (*packet)(struct nf_conn *ct,
 		      const struct sk_buff *skb,
 		      unsigned int dataoff,
 		      enum ip_conntrack_info ctinfo,
@@ -45,11 +45,11 @@ struct nf_conntrack_l4proto
 
 	/* Called when a new connection for this protocol found;
 	 * returns TRUE if it's OK.  If so, packet() called next. */
-	int (*new)(struct nf_conn *conntrack, const struct sk_buff *skb,
+	int (*new)(struct nf_conn *ct, const struct sk_buff *skb,
 		   unsigned int dataoff);
 
 	/* Called when a conntrack entry is destroyed */
-	void (*destroy)(struct nf_conn *conntrack);
+	void (*destroy)(struct nf_conn *ct);
 
 	int (*error)(struct sk_buff *skb, unsigned int dataoff,
 		     enum ip_conntrack_info *ctinfo,

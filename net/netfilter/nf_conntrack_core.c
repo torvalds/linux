@@ -462,7 +462,7 @@ static noinline int early_drop(unsigned int hash)
 struct nf_conn *nf_conntrack_alloc(const struct nf_conntrack_tuple *orig,
 				   const struct nf_conntrack_tuple *repl)
 {
-	struct nf_conn *conntrack = NULL;
+	struct nf_conn *ct = NULL;
 
 	if (unlikely(!nf_conntrack_hash_rnd_initted)) {
 		get_random_bytes(&nf_conntrack_hash_rnd, 4);
@@ -485,22 +485,21 @@ struct nf_conn *nf_conntrack_alloc(const struct nf_conntrack_tuple *orig,
 		}
 	}
 
-	conntrack = kmem_cache_zalloc(nf_conntrack_cachep, GFP_ATOMIC);
-	if (conntrack == NULL) {
+	ct = kmem_cache_zalloc(nf_conntrack_cachep, GFP_ATOMIC);
+	if (ct == NULL) {
 		pr_debug("nf_conntrack_alloc: Can't alloc conntrack.\n");
 		atomic_dec(&nf_conntrack_count);
 		return ERR_PTR(-ENOMEM);
 	}
 
-	atomic_set(&conntrack->ct_general.use, 1);
-	conntrack->tuplehash[IP_CT_DIR_ORIGINAL].tuple = *orig;
-	conntrack->tuplehash[IP_CT_DIR_REPLY].tuple = *repl;
+	atomic_set(&ct->ct_general.use, 1);
+	ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple = *orig;
+	ct->tuplehash[IP_CT_DIR_REPLY].tuple = *repl;
 	/* Don't set timer yet: wait for confirmation */
-	setup_timer(&conntrack->timeout, death_by_timeout,
-		    (unsigned long)conntrack);
-	INIT_RCU_HEAD(&conntrack->rcu);
+	setup_timer(&ct->timeout, death_by_timeout, (unsigned long)ct);
+	INIT_RCU_HEAD(&ct->rcu);
 
-	return conntrack;
+	return ct;
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_alloc);
 
@@ -513,9 +512,9 @@ static void nf_conntrack_free_rcu(struct rcu_head *head)
 	atomic_dec(&nf_conntrack_count);
 }
 
-void nf_conntrack_free(struct nf_conn *conntrack)
+void nf_conntrack_free(struct nf_conn *ct)
 {
-	call_rcu(&conntrack->rcu, nf_conntrack_free_rcu);
+	call_rcu(&ct->rcu, nf_conntrack_free_rcu);
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_free);
 
@@ -528,7 +527,7 @@ init_conntrack(const struct nf_conntrack_tuple *tuple,
 	       struct sk_buff *skb,
 	       unsigned int dataoff)
 {
-	struct nf_conn *conntrack;
+	struct nf_conn *ct;
 	struct nf_conn_help *help;
 	struct nf_conntrack_tuple repl_tuple;
 	struct nf_conntrack_expect *exp;
@@ -538,14 +537,14 @@ init_conntrack(const struct nf_conntrack_tuple *tuple,
 		return NULL;
 	}
 
-	conntrack = nf_conntrack_alloc(tuple, &repl_tuple);
-	if (conntrack == NULL || IS_ERR(conntrack)) {
+	ct = nf_conntrack_alloc(tuple, &repl_tuple);
+	if (ct == NULL || IS_ERR(ct)) {
 		pr_debug("Can't allocate conntrack.\n");
-		return (struct nf_conntrack_tuple_hash *)conntrack;
+		return (struct nf_conntrack_tuple_hash *)ct;
 	}
 
-	if (!l4proto->new(conntrack, skb, dataoff)) {
-		nf_conntrack_free(conntrack);
+	if (!l4proto->new(ct, skb, dataoff)) {
+		nf_conntrack_free(ct);
 		pr_debug("init conntrack: can't track with proto module\n");
 		return NULL;
 	}
@@ -554,30 +553,30 @@ init_conntrack(const struct nf_conntrack_tuple *tuple,
 	exp = nf_ct_find_expectation(tuple);
 	if (exp) {
 		pr_debug("conntrack: expectation arrives ct=%p exp=%p\n",
-			 conntrack, exp);
+			 ct, exp);
 		/* Welcome, Mr. Bond.  We've been expecting you... */
-		__set_bit(IPS_EXPECTED_BIT, &conntrack->status);
-		conntrack->master = exp->master;
+		__set_bit(IPS_EXPECTED_BIT, &ct->status);
+		ct->master = exp->master;
 		if (exp->helper) {
-			help = nf_ct_helper_ext_add(conntrack, GFP_ATOMIC);
+			help = nf_ct_helper_ext_add(ct, GFP_ATOMIC);
 			if (help)
 				rcu_assign_pointer(help->helper, exp->helper);
 		}
 
 #ifdef CONFIG_NF_CONNTRACK_MARK
-		conntrack->mark = exp->master->mark;
+		ct->mark = exp->master->mark;
 #endif
 #ifdef CONFIG_NF_CONNTRACK_SECMARK
-		conntrack->secmark = exp->master->secmark;
+		ct->secmark = exp->master->secmark;
 #endif
-		nf_conntrack_get(&conntrack->master->ct_general);
+		nf_conntrack_get(&ct->master->ct_general);
 		NF_CT_STAT_INC(expect_new);
 	} else {
 		struct nf_conntrack_helper *helper;
 
 		helper = __nf_ct_helper_find(&repl_tuple);
 		if (helper) {
-			help = nf_ct_helper_ext_add(conntrack, GFP_ATOMIC);
+			help = nf_ct_helper_ext_add(ct, GFP_ATOMIC);
 			if (help)
 				rcu_assign_pointer(help->helper, helper);
 		}
@@ -585,18 +584,17 @@ init_conntrack(const struct nf_conntrack_tuple *tuple,
 	}
 
 	/* Overload tuple linked list to put us in unconfirmed list. */
-	hlist_add_head(&conntrack->tuplehash[IP_CT_DIR_ORIGINAL].hnode,
-		       &unconfirmed);
+	hlist_add_head(&ct->tuplehash[IP_CT_DIR_ORIGINAL].hnode, &unconfirmed);
 
 	spin_unlock_bh(&nf_conntrack_lock);
 
 	if (exp) {
 		if (exp->expectfn)
-			exp->expectfn(conntrack, exp);
+			exp->expectfn(ct, exp);
 		nf_ct_expect_put(exp);
 	}
 
-	return &conntrack->tuplehash[IP_CT_DIR_ORIGINAL];
+	return &ct->tuplehash[IP_CT_DIR_ORIGINAL];
 }
 
 /* On success, returns conntrack ptr, sets skb->nfct and ctinfo */

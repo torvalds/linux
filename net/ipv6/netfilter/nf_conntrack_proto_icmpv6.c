@@ -101,7 +101,7 @@ static int icmpv6_packet(struct nf_conn *ct,
 }
 
 /* Called when a new connection for this protocol found. */
-static int icmpv6_new(struct nf_conn *conntrack,
+static int icmpv6_new(struct nf_conn *ct,
 		      const struct sk_buff *skb,
 		      unsigned int dataoff)
 {
@@ -109,16 +109,16 @@ static int icmpv6_new(struct nf_conn *conntrack,
 		[ICMPV6_ECHO_REQUEST - 128] = 1,
 		[ICMPV6_NI_QUERY - 128] = 1
 	};
-	int type = conntrack->tuplehash[0].tuple.dst.u.icmp.type - 128;
+	int type = ct->tuplehash[0].tuple.dst.u.icmp.type - 128;
 
 	if (type < 0 || type >= sizeof(valid_new) || !valid_new[type]) {
 		/* Can't create a new ICMPv6 `conn' with this. */
 		pr_debug("icmpv6: can't create new conn with type %u\n",
 			 type + 128);
-		NF_CT_DUMP_TUPLE(&conntrack->tuplehash[0].tuple);
+		NF_CT_DUMP_TUPLE(&ct->tuplehash[0].tuple);
 		return 0;
 	}
-	atomic_set(&conntrack->proto.icmp.count, 0);
+	atomic_set(&ct->proto.icmp.count, 0);
 	return 1;
 }
 

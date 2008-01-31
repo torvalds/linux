@@ -43,7 +43,7 @@ struct nf_conntrack_l3proto
 			   const struct nf_conntrack_tuple *);
 
 	/* Returns verdict for packet, or -1 for invalid. */
-	int (*packet)(struct nf_conn *conntrack,
+	int (*packet)(struct nf_conn *ct,
 		      const struct sk_buff *skb,
 		      enum ip_conntrack_info ctinfo);
 
@@ -51,7 +51,7 @@ struct nf_conntrack_l3proto
 	 * Called when a new connection for this protocol found;
 	 * returns TRUE if it's OK.  If so, packet() called next.
 	 */
-	int (*new)(struct nf_conn *conntrack, const struct sk_buff *skb);
+	int (*new)(struct nf_conn *ct, const struct sk_buff *skb);
 
 	/*
 	 * Called before tracking. 

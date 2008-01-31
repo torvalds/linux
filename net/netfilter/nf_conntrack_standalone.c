@@ -117,71 +117,71 @@ static void ct_seq_stop(struct seq_file *s, void *v)
 static int ct_seq_show(struct seq_file *s, void *v)
 {
 	const struct nf_conntrack_tuple_hash *hash = v;
-	const struct nf_conn *conntrack = nf_ct_tuplehash_to_ctrack(hash);
+	const struct nf_conn *ct = nf_ct_tuplehash_to_ctrack(hash);
 	struct nf_conntrack_l3proto *l3proto;
 	struct nf_conntrack_l4proto *l4proto;
 
-	NF_CT_ASSERT(conntrack);
+	NF_CT_ASSERT(ct);
 
 	/* we only want to print DIR_ORIGINAL */
 	if (NF_CT_DIRECTION(hash))
 		return 0;
 
-	l3proto = __nf_ct_l3proto_find(conntrack->tuplehash[IP_CT_DIR_ORIGINAL]
+	l3proto = __nf_ct_l3proto_find(ct->tuplehash[IP_CT_DIR_ORIGINAL]
 				       .tuple.src.l3num);
 
 	NF_CT_ASSERT(l3proto);
-	l4proto = __nf_ct_l4proto_find(conntrack->tuplehash[IP_CT_DIR_ORIGINAL]
+	l4proto = __nf_ct_l4proto_find(ct->tuplehash[IP_CT_DIR_ORIGINAL]
 				   .tuple.src.l3num,
-				   conntrack->tuplehash[IP_CT_DIR_ORIGINAL]
+				   ct->tuplehash[IP_CT_DIR_ORIGINAL]
 				   .tuple.dst.protonum);
 	NF_CT_ASSERT(l4proto);
 
 	if (seq_printf(s, "%-8s %u %-8s %u %ld ",
 		       l3proto->name,
-		       conntrack->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.l3num,
+		       ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.l3num,
 		       l4proto->name,
-		       conntrack->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum,
-		       timer_pending(&conntrack->timeout)
-		       ? (long)(conntrack->timeout.expires - jiffies)/HZ : 0) != 0)
+		       ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum,
+		       timer_pending(&ct->timeout)
+		       ? (long)(ct->timeout.expires - jiffies)/HZ : 0) != 0)
 		return -ENOSPC;
 
-	if (l4proto->print_conntrack && l4proto->print_conntrack(s, conntrack))
+	if (l4proto->print_conntrack && l4proto->print_conntrack(s, ct))
 		return -ENOSPC;
 
-	if (print_tuple(s, &conntrack->tuplehash[IP_CT_DIR_ORIGINAL].tuple,
+	if (print_tuple(s, &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple,
 			l3proto, l4proto))
 		return -ENOSPC;
 
-	if (seq_print_counters(s, &conntrack->counters[IP_CT_DIR_ORIGINAL]))
+	if (seq_print_counters(s, &ct->counters[IP_CT_DIR_ORIGINAL]))
 		return -ENOSPC;
 
-	if (!(test_bit(IPS_SEEN_REPLY_BIT, &conntrack->status)))
+	if (!(test_bit(IPS_SEEN_REPLY_BIT, &ct->status)))
 		if (seq_printf(s, "[UNREPLIED] "))
 			return -ENOSPC;
 
-	if (print_tuple(s, &conntrack->tuplehash[IP_CT_DIR_REPLY].tuple,
+	if (print_tuple(s, &ct->tuplehash[IP_CT_DIR_REPLY].tuple,
 			l3proto, l4proto))
 		return -ENOSPC;
 
-	if (seq_print_counters(s, &conntrack->counters[IP_CT_DIR_REPLY]))
+	if (seq_print_counters(s, &ct->counters[IP_CT_DIR_REPLY]))
 		return -ENOSPC;
 
-	if (test_bit(IPS_ASSURED_BIT, &conntrack->status))
+	if (test_bit(IPS_ASSURED_BIT, &ct->status))
 		if (seq_printf(s, "[ASSURED] "))
 			return -ENOSPC;
 
 #if defined(CONFIG_NF_CONNTRACK_MARK)
-	if (seq_printf(s, "mark=%u ", conntrack->mark))
+	if (seq_printf(s, "mark=%u ", ct->mark))
 		return -ENOSPC;
 #endif
 
 #ifdef CONFIG_NF_CONNTRACK_SECMARK
-	if (seq_printf(s, "secmark=%u ", conntrack->secmark))
+	if (seq_printf(s, "secmark=%u ", ct->secmark))
 		return -ENOSPC;
 #endif
 
-	if (seq_printf(s, "use=%u\n", atomic_read(&conntrack->ct_general.use)))
+	if (seq_printf(s, "use=%u\n", atomic_read(&ct->ct_general.use)))
 		return -ENOSPC;
 
 	return 0;

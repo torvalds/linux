@@ -59,7 +59,7 @@ static int
 gre_unique_tuple(struct nf_conntrack_tuple *tuple,
 		 const struct nf_nat_range *range,
 		 enum nf_nat_manip_type maniptype,
-		 const struct nf_conn *conntrack)
+		 const struct nf_conn *ct)
 {
 	static u_int16_t key;
 	__be16 *keyptr;
@@ -67,7 +67,7 @@ gre_unique_tuple(struct nf_conntrack_tuple *tuple,
 
 	/* If there is no master conntrack we are not PPTP,
 	   do not change tuples */
-	if (!conntrack->master)
+	if (!ct->master)
 		return 0;
 
 	if (maniptype == IP_NAT_MANIP_SRC)
@@ -76,7 +76,7 @@ gre_unique_tuple(struct nf_conntrack_tuple *tuple,
 		keyptr = &tuple->dst.u.gre.key;
 
 	if (!(range->flags & IP_NAT_RANGE_PROTO_SPECIFIED)) {
-		pr_debug("%p: NATing GRE PPTP\n", conntrack);
+		pr_debug("%p: NATing GRE PPTP\n", ct);
 		min = 1;
 		range_size = 0xffff;
 	} else {
@@ -88,11 +88,11 @@ gre_unique_tuple(struct nf_conntrack_tuple *tuple,
 
 	for (i = 0; i < range_size; i++, key++) {
 		*keyptr = htons(min + key % range_size);
-		if (!nf_nat_used_tuple(tuple, conntrack))
+		if (!nf_nat_used_tuple(tuple, ct))
 			return 1;
 	}
 
-	pr_debug("%p: no NAT mapping\n", conntrack);
+	pr_debug("%p: no NAT mapping\n", ct);
 	return 0;
 }
 

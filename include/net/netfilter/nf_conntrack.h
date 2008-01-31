@@ -145,7 +145,7 @@ nf_ct_tuplehash_to_ctrack(const struct nf_conntrack_tuple_hash *hash)
 
 /* Alter reply tuple (maybe alter helper). */
 extern void
-nf_conntrack_alter_reply(struct nf_conn *conntrack,
+nf_conntrack_alter_reply(struct nf_conn *ct,
 			 const struct nf_conntrack_tuple *newreply);
 
 /* Is this tuple taken? (ignoring any belonging to the given
@@ -218,7 +218,7 @@ static inline void nf_ct_refresh(struct nf_conn *ct,
 /* Update TCP window tracking data when NAT mangles the packet */
 extern void nf_conntrack_tcp_update(struct sk_buff *skb,
 				    unsigned int dataoff,
-				    struct nf_conn *conntrack,
+				    struct nf_conn *ct,
 				    int dir);
 
 /* Fake conntrack entry for untracked connections */
