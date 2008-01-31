@@ -688,6 +688,7 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	fs_info->closing = 0;
 	fs_info->total_pinned = 0;
 	fs_info->last_alloc = 0;
+	fs_info->last_data_alloc = 0;
 
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
 	INIT_WORK(&fs_info->trans_work, btrfs_transaction_cleaner, fs_info);

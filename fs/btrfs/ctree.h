@@ -354,6 +354,7 @@ struct btrfs_fs_info {
 	spinlock_t new_trans_lock;
 	u64 delalloc_bytes;
 	u64 last_alloc;
+	u64 last_data_alloc;
 };
 /*
  * in ram representation of the tree.  extent_root is used for all allocations
