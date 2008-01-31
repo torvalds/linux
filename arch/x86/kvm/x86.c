@@ -41,7 +41,15 @@
 			  | X86_CR4_OSXMMEXCPT | X86_CR4_VMXE))
 
 #define CR8_RESERVED_BITS (~(unsigned long)X86_CR8_TPR)
-static u64 __read_mostly efer_reserved_bits = 0xfffffffffffff2fe;
+/* EFER defaults:
+ * - enable syscall per default because its emulated by KVM
+ * - enable LME and LMA per default on 64 bit KVM
+ */
+#ifdef CONFIG_X86_64
+static u64 __read_mostly efer_reserved_bits = 0xfffffffffffffafeULL;
+#else
+static u64 __read_mostly efer_reserved_bits = 0xfffffffffffffffeULL;
+#endif
 
 #define VM_STAT(x) offsetof(struct kvm, stat.x), KVM_STAT_VM
 #define VCPU_STAT(x) offsetof(struct kvm_vcpu, stat.x), KVM_STAT_VCPU

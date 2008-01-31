@@ -403,6 +403,9 @@ static __init int svm_hardware_setup(void)
 	set_msr_interception(msrpm_va, MSR_IA32_SYSENTER_ESP, 1, 1);
 	set_msr_interception(msrpm_va, MSR_IA32_SYSENTER_EIP, 1, 1);
 
+	if (boot_cpu_has(X86_FEATURE_NX))
+		kvm_enable_efer_bits(EFER_NX);
+
 	for_each_online_cpu(cpu) {
 		r = svm_cpu_init(cpu);
 		if (r)
