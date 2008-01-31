@@ -453,7 +453,7 @@ error:
 	goto out;
 }
 
-static struct xfrm_type ipcomp6_type =
+static const struct xfrm_type ipcomp6_type =
 {
 	.description	= "IPCOMP6",
 	.owner		= THIS_MODULE,

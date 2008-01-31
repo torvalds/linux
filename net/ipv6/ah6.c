@@ -515,7 +515,7 @@ static void ah6_destroy(struct xfrm_state *x)
 	kfree(ahp);
 }
 
-static struct xfrm_type ah6_type =
+static const struct xfrm_type ah6_type =
 {
 	.description	= "AH6",
 	.owner		= THIS_MODULE,

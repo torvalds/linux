@@ -437,7 +437,7 @@ error:
 	goto out;
 }
 
-static struct xfrm_type ipcomp_type = {
+static const struct xfrm_type ipcomp_type = {
 	.description	= "IPCOMP4",
 	.owner		= THIS_MODULE,
 	.proto	     	= IPPROTO_COMP,

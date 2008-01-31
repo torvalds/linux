@@ -202,7 +202,7 @@ struct xfrm_state
 
 	/* Reference to data common to all the instances of this
 	 * transformer. */
-	struct xfrm_type	*type;
+	const struct xfrm_type	*type;
 	struct xfrm_mode	*inner_mode;
 	struct xfrm_mode	*outer_mode;
 
@@ -279,7 +279,7 @@ struct xfrm_state_afinfo {
 	unsigned int		proto;
 	unsigned int		eth_proto;
 	struct module		*owner;
-	struct xfrm_type	*type_map[IPPROTO_MAX];
+	const struct xfrm_type	*type_map[IPPROTO_MAX];
 	struct xfrm_mode	*mode_map[XFRM_MODE_MAX];
 	int			(*init_flags)(struct xfrm_state *x);
 	void			(*init_tempsel)(struct xfrm_state *x, struct flowi *fl,
@@ -322,8 +322,8 @@ struct xfrm_type
 	u32			(*get_mtu)(struct xfrm_state *, int size);
 };
 
-extern int xfrm_register_type(struct xfrm_type *type, unsigned short family);
-extern int xfrm_unregister_type(struct xfrm_type *type, unsigned short family);
+extern int xfrm_register_type(const struct xfrm_type *type, unsigned short family);
+extern int xfrm_unregister_type(const struct xfrm_type *type, unsigned short family);
 
 struct xfrm_mode {
 	/*

@@ -216,10 +216,10 @@ static void xfrm_state_unlock_afinfo(struct xfrm_state_afinfo *afinfo)
 	write_unlock_bh(&xfrm_state_afinfo_lock);
 }
 
-int xfrm_register_type(struct xfrm_type *type, unsigned short family)
+int xfrm_register_type(const struct xfrm_type *type, unsigned short family)
 {
 	struct xfrm_state_afinfo *afinfo = xfrm_state_lock_afinfo(family);
-	struct xfrm_type **typemap;
+	const struct xfrm_type **typemap;
 	int err = 0;
 
 	if (unlikely(afinfo == NULL))
@@ -235,10 +235,10 @@ int xfrm_register_type(struct xfrm_type *type, unsigned short family)
 }
 EXPORT_SYMBOL(xfrm_register_type);
 
-int xfrm_unregister_type(struct xfrm_type *type, unsigned short family)
+int xfrm_unregister_type(const struct xfrm_type *type, unsigned short family)
 {
 	struct xfrm_state_afinfo *afinfo = xfrm_state_lock_afinfo(family);
-	struct xfrm_type **typemap;
+	const struct xfrm_type **typemap;
 	int err = 0;
 
 	if (unlikely(afinfo == NULL))
@@ -254,11 +254,11 @@ int xfrm_unregister_type(struct xfrm_type *type, unsigned short family)
 }
 EXPORT_SYMBOL(xfrm_unregister_type);
 
-static struct xfrm_type *xfrm_get_type(u8 proto, unsigned short family)
+static const struct xfrm_type *xfrm_get_type(u8 proto, unsigned short family)
 {
 	struct xfrm_state_afinfo *afinfo;
-	struct xfrm_type **typemap;
-	struct xfrm_type *type;
+	const struct xfrm_type **typemap;
+	const struct xfrm_type *type;
 	int modload_attempted = 0;
 
 retry:
@@ -281,7 +281,7 @@ retry:
 	return type;
 }
 
-static void xfrm_put_type(struct xfrm_type *type)
+static void xfrm_put_type(const struct xfrm_type *type)
 {
 	module_put(type->owner);
 }

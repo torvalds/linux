@@ -538,7 +538,7 @@ error:
 	return err;
 }
 
-static struct xfrm_type esp6_type =
+static const struct xfrm_type esp6_type =
 {
 	.description	= "ESP6",
 	.owner	     	= THIS_MODULE,

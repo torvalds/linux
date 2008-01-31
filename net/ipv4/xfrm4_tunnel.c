@@ -38,7 +38,7 @@ static void ipip_destroy(struct xfrm_state *x)
 {
 }
 
-static struct xfrm_type ipip_type = {
+static const struct xfrm_type ipip_type = {
 	.description	= "IPIP",
 	.owner		= THIS_MODULE,
 	.proto	     	= IPPROTO_IPIP,
