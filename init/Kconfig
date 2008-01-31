@@ -775,6 +775,14 @@ config PREEMPT_NOTIFIERS
 choice
 	prompt "RCU implementation type:"
 	default CLASSIC_RCU
+	help
+	  This allows you to choose either the classic RCU implementation
+	  that is designed for best read-side performance on non-realtime
+	  systems, or the preemptible RCU implementation for best latency
+	  on realtime systems.  Note that some kernel preemption modes
+	  will restrict your choice.
+
+	  Select the default if you are unsure.
 
 config CLASSIC_RCU
 	bool "Classic RCU"
