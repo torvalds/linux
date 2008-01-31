@@ -81,7 +81,6 @@ MODULE_LICENSE("GPL");
  *  Video Standard Operations (contributed by Michael Schimek)
  */
 
-
 char *v4l2_norm_to_name(v4l2_std_id id)
 {
 	char *name;
@@ -270,9 +269,6 @@ char *v4l2_type_names[] = {
 	[V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY] = "video-out-over",
 };
 
-
-#define prt_names(a,arr) (((a)>=0)&&((a)<ARRAY_SIZE(arr)))?arr[a]:"unknown"
-
 /* ------------------------------------------------------------------ */
 /* debug help functions                                               */
 
@@ -421,7 +417,6 @@ static const char *v4l2_int_ioctls[] = {
 };
 #define V4L2_INT_IOCTLS ARRAY_SIZE(v4l2_int_ioctls)
 
-
 /* Common ioctl debug function. This function can be used by
    external ioctl messages as well as internal V4L ioctl */
 void v4l_printk_ioctl(unsigned int cmd)
@@ -459,7 +454,6 @@ void v4l_printk_ioctl(unsigned int cmd)
 		       _IOC_TYPE(cmd), dir, _IOC_NR(cmd), cmd);
 	}
 }
-
 
 /* ----------------------------------------------------------------- */
 
