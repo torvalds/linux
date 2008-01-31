@@ -63,8 +63,6 @@ static int qla4xxx_sess_get_param(struct iscsi_cls_session *sess,
 				  enum iscsi_param param, char *buf);
 static int qla4xxx_host_get_param(struct Scsi_Host *shost,
 				  enum iscsi_host_param param, char *buf);
-static void qla4xxx_conn_stop(struct iscsi_cls_conn *conn, int flag);
-static int qla4xxx_conn_start(struct iscsi_cls_conn *conn);
 static void qla4xxx_recovery_timedout(struct iscsi_cls_session *session);
 
 /*
@@ -116,8 +114,6 @@ static struct iscsi_transport qla4xxx_iscsi_transport = {
 	.get_conn_param		= qla4xxx_conn_get_param,
 	.get_session_param	= qla4xxx_sess_get_param,
 	.get_host_param		= qla4xxx_host_get_param,
-	.start_conn		= qla4xxx_conn_start,
-	.stop_conn		= qla4xxx_conn_stop,
 	.session_recovery_timedout = qla4xxx_recovery_timedout,
 };
 
@@ -138,38 +134,6 @@ static void qla4xxx_recovery_timedout(struct iscsi_cls_session *session)
 	DEBUG2(printk("scsi%ld: %s: scheduling dpc routine - dpc flags = "
 		      "0x%lx\n", ha->host_no, __func__, ha->dpc_flags));
 	queue_work(ha->dpc_thread, &ha->dpc_work);
-}
-
-static int qla4xxx_conn_start(struct iscsi_cls_conn *conn)
-{
-	struct iscsi_cls_session *session;
-	struct ddb_entry *ddb_entry;
-
-	session = iscsi_dev_to_session(conn->dev.parent);
-	ddb_entry = session->dd_data;
-
-	DEBUG2(printk("scsi%ld: %s: index [%d] starting conn\n",
-		      ddb_entry->ha->host_no, __func__,
-		      ddb_entry->fw_ddb_index));
-	iscsi_unblock_session(session);
-	return 0;
-}
-
-static void qla4xxx_conn_stop(struct iscsi_cls_conn *conn, int flag)
-{
-	struct iscsi_cls_session *session;
-	struct ddb_entry *ddb_entry;
-
-	session = iscsi_dev_to_session(conn->dev.parent);
-	ddb_entry = session->dd_data;
-
-	DEBUG2(printk("scsi%ld: %s: index [%d] stopping conn\n",
-		      ddb_entry->ha->host_no, __func__,
-		      ddb_entry->fw_ddb_index));
-	if (flag == STOP_CONN_RECOVER)
-		iscsi_block_session(session);
-	else
-		printk(KERN_ERR "iscsi: invalid stop flag %d\n", flag);
 }
 
 static int qla4xxx_host_get_param(struct Scsi_Host *shost,
@@ -308,6 +272,9 @@ int qla4xxx_add_sess(struct ddb_entry *ddb_entry)
 		DEBUG2(printk(KERN_ERR "Could not add connection.\n"));
 		return -ENOMEM;
 	}
+
+	/* finally ready to go */
+	iscsi_unblock_session(ddb_entry->sess);
 	return 0;
 }
 
@@ -364,6 +331,7 @@ void qla4xxx_mark_device_missing(struct scsi_qla_host *ha,
 	DEBUG3(printk("scsi%d:%d:%d: index [%d] marked MISSING\n",
 		      ha->host_no, ddb_entry->bus, ddb_entry->target,
 		      ddb_entry->fw_ddb_index));
+	iscsi_block_session(ddb_entry->sess);
 	iscsi_conn_error(ddb_entry->conn, ISCSI_ERR_CONN_FAILED);
 }
 

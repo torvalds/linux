@@ -1306,6 +1306,7 @@ int qla4xxx_process_ddb_changed(struct scsi_qla_host *ha,
 		atomic_set(&ddb_entry->relogin_timer, 0);
 		clear_bit(DF_RELOGIN, &ddb_entry->flags);
 		clear_bit(DF_NO_RELOGIN, &ddb_entry->flags);
+		iscsi_unblock_session(ddb_entry->sess);
 		iscsi_session_event(ddb_entry->sess,
 				    ISCSI_KEVENT_CREATE_SESSION);
 		/*
