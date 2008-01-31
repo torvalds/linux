@@ -8,8 +8,8 @@ enum {
 };
 
 struct xt_owner_match_info {
-	u_int32_t uid;
-	u_int32_t gid;
+	u_int32_t uid_min, uid_max;
+	u_int32_t gid_min, gid_max;
 	u_int8_t match, invert;
 };
 

@@ -4,8 +4,8 @@
  *
  * (C) 2000 Marc Boucher <marc@mbsi.ca>
  *
- * Copyright © CC Computer Consultants GmbH, 2007
- * Contact: <jengelh@computergmbh.de>
+ * Copyright © CC Computer Consultants GmbH, 2007 - 2008
+ * <jengelh@computergmbh.de>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -102,13 +102,15 @@ owner_mt(const struct sk_buff *skb, const struct net_device *in,
 		       (XT_OWNER_UID | XT_OWNER_GID)) == 0;
 
 	if (info->match & XT_OWNER_UID)
-		if ((filp->f_uid != info->uid) ^
-		    !!(info->invert & XT_OWNER_UID))
+		if ((filp->f_uid >= info->uid_min &&
+		    filp->f_uid <= info->uid_max) ^
+		    !(info->invert & XT_OWNER_UID))
 			return false;
 
 	if (info->match & XT_OWNER_GID)
-		if ((filp->f_gid != info->gid) ^
-		    !!(info->invert & XT_OWNER_GID))
+		if ((filp->f_gid >= info->gid_min &&
+		    filp->f_gid <= info->gid_max) ^
+		    !(info->invert & XT_OWNER_GID))
 			return false;
 
 	return true;
