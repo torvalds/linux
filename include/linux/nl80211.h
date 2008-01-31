@@ -164,6 +164,9 @@ enum nl80211_commands {
  * @NL80211_ATTR_WIPHY_BANDS: Information about an operating bands,
  *	consisting of a nested array.
  *
+ * @NL80211_ATTR_MNTR_FLAGS: flags, nested element with NLA_FLAG attributes of
+ *      &enum nl80211_mntr_flags.
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -199,6 +202,8 @@ enum nl80211_attrs {
 	NL80211_ATTR_STA_STATS,
 
 	NL80211_ATTR_WIPHY_BANDS,
+
+	NL80211_ATTR_MNTR_FLAGS,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -342,6 +347,36 @@ enum nl80211_bitrate_attr {
 	/* keep last */
 	__NL80211_BITRATE_ATTR_AFTER_LAST,
 	NL80211_BITRATE_ATTR_MAX = __NL80211_BITRATE_ATTR_AFTER_LAST - 1
+};
+
+/**
+ * enum nl80211_mntr_flags - monitor configuration flags
+ *
+ * Monitor configuration flags.
+ *
+ * @__NL80211_MNTR_FLAG_INVALID: reserved
+ *
+ * @NL80211_MNTR_FLAG_FCSFAIL: pass frames with bad FCS
+ * @NL80211_MNTR_FLAG_PLCPFAIL: pass frames with bad PLCP
+ * @NL80211_MNTR_FLAG_CONTROL: pass control frames
+ * @NL80211_MNTR_FLAG_OTHER_BSS: disable BSSID filtering
+ * @NL80211_MNTR_FLAG_COOK_FRAMES: report frames after processing.
+ *	overrides all other flags.
+ *
+ * @__NL80211_MNTR_FLAG_AFTER_LAST: internal use
+ * @NL80211_MNTR_FLAG_MAX: highest possible monitor flag
+ */
+enum nl80211_mntr_flags {
+	__NL80211_MNTR_FLAG_INVALID,
+	NL80211_MNTR_FLAG_FCSFAIL,
+	NL80211_MNTR_FLAG_PLCPFAIL,
+	NL80211_MNTR_FLAG_CONTROL,
+	NL80211_MNTR_FLAG_OTHER_BSS,
+	NL80211_MNTR_FLAG_COOK_FRAMES,
+
+	/* keep last */
+	__NL80211_MNTR_FLAG_AFTER_LAST,
+	NL80211_MNTR_FLAG_MAX = __NL80211_MNTR_FLAG_AFTER_LAST - 1
 };
 
 #endif /* __LINUX_NL80211_H */

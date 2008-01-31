@@ -82,6 +82,7 @@ static struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] __read_mostly = {
 	[NL80211_ATTR_STA_SUPPORTED_RATES] = { .type = NLA_BINARY,
 					       .len = NL80211_MAX_SUPP_RATES },
 	[NL80211_ATTR_STA_VLAN] = { .type = NLA_U32 },
+	[NL80211_ATTR_MNTR_FLAGS] = { .type = NLA_NESTED },
 };
 
 /* message building helper */
@@ -336,12 +337,42 @@ static int nl80211_get_interface(struct sk_buff *skb, struct genl_info *info)
 	return -ENOBUFS;
 }
 
+static const struct nla_policy mntr_flags_policy[NL80211_MNTR_FLAG_MAX + 1] = {
+	[NL80211_MNTR_FLAG_FCSFAIL] = { .type = NLA_FLAG },
+	[NL80211_MNTR_FLAG_PLCPFAIL] = { .type = NLA_FLAG },
+	[NL80211_MNTR_FLAG_CONTROL] = { .type = NLA_FLAG },
+	[NL80211_MNTR_FLAG_OTHER_BSS] = { .type = NLA_FLAG },
+	[NL80211_MNTR_FLAG_COOK_FRAMES] = { .type = NLA_FLAG },
+};
+
+static int parse_monitor_flags(struct nlattr *nla, u32 *mntrflags)
+{
+	struct nlattr *flags[NL80211_MNTR_FLAG_MAX + 1];
+	int flag;
+
+	*mntrflags = 0;
+
+	if (!nla)
+		return -EINVAL;
+
+	if (nla_parse_nested(flags, NL80211_MNTR_FLAG_MAX,
+			     nla, mntr_flags_policy))
+		return -EINVAL;
+
+	for (flag = 1; flag <= NL80211_MNTR_FLAG_MAX; flag++)
+		if (flags[flag])
+			*mntrflags |= (1<<flag);
+
+	return 0;
+}
+
 static int nl80211_set_interface(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg80211_registered_device *drv;
 	int err, ifindex;
 	enum nl80211_iftype type;
 	struct net_device *dev;
+	u32 flags;
 
 	if (info->attrs[NL80211_ATTR_IFTYPE]) {
 		type = nla_get_u32(info->attrs[NL80211_ATTR_IFTYPE]);
@@ -362,7 +393,11 @@ static int nl80211_set_interface(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	rtnl_lock();
-	err = drv->ops->change_virtual_intf(&drv->wiphy, ifindex, type);
+	err = parse_monitor_flags(type == NL80211_IFTYPE_MONITOR ?
+				  info->attrs[NL80211_ATTR_MNTR_FLAGS] : NULL,
+				  &flags);
+	err = drv->ops->change_virtual_intf(&drv->wiphy, ifindex,
+					    type, err ? NULL : &flags);
 	rtnl_unlock();
 
  unlock:
@@ -375,6 +410,7 @@ static int nl80211_new_interface(struct sk_buff *skb, struct genl_info *info)
 	struct cfg80211_registered_device *drv;
 	int err;
 	enum nl80211_iftype type = NL80211_IFTYPE_UNSPECIFIED;
+	u32 flags;
 
 	if (!info->attrs[NL80211_ATTR_IFNAME])
 		return -EINVAL;
@@ -395,8 +431,12 @@ static int nl80211_new_interface(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	rtnl_lock();
+	err = parse_monitor_flags(type == NL80211_IFTYPE_MONITOR ?
+				  info->attrs[NL80211_ATTR_MNTR_FLAGS] : NULL,
+				  &flags);
 	err = drv->ops->add_virtual_intf(&drv->wiphy,
-		nla_data(info->attrs[NL80211_ATTR_IFNAME]), type);
+		nla_data(info->attrs[NL80211_ATTR_IFNAME]),
+		type, err ? NULL : &flags);
 	rtnl_unlock();
 
  unlock:

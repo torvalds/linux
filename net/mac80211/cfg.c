@@ -34,7 +34,7 @@ nl80211_type_to_mac80211_type(enum nl80211_iftype type)
 }
 
 static int ieee80211_add_iface(struct wiphy *wiphy, char *name,
-			       enum nl80211_iftype type)
+			       enum nl80211_iftype type, u32 *flags)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
 	enum ieee80211_if_types itype;
@@ -69,7 +69,7 @@ static int ieee80211_del_iface(struct wiphy *wiphy, int ifindex)
 }
 
 static int ieee80211_change_iface(struct wiphy *wiphy, int ifindex,
-				  enum nl80211_iftype type)
+				  enum nl80211_iftype type, u32 *flags)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
 	struct net_device *dev;
