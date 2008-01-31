@@ -3366,16 +3366,11 @@ static struct ocfs2_locking_protocol lproto = {
 	.lp_unlock_ast		= ocfs2_unlock_ast,
 };
 
-/* This interface isn't the final one, hence the less-than-perfect names */
-void dlmglue_init_stack(void)
+void ocfs2_set_locking_protocol(void)
 {
-	o2cb_get_stack(&lproto);
+	ocfs2_stack_glue_set_locking_protocol(&lproto);
 }
 
-void dlmglue_exit_stack(void)
-{
-	o2cb_put_stack();
-}
 
 static void ocfs2_process_blocked_lock(struct ocfs2_super *osb,
 				       struct ocfs2_lock_res *lockres)

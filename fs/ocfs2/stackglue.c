@@ -429,14 +429,10 @@ int ocfs2_cluster_this_node(unsigned int *node)
 	return 0;
 }
 
-void o2cb_get_stack(struct ocfs2_locking_protocol *proto)
+void ocfs2_stack_glue_set_locking_protocol(struct ocfs2_locking_protocol *proto)
 {
-	BUG_ON(proto == NULL);
+	BUG_ON(proto != NULL);
 
 	lproto = proto;
 }
 
-void o2cb_put_stack(void)
-{
-	lproto = NULL;
-}

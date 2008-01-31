@@ -93,7 +93,6 @@ int ocfs2_dlm_lock_status(union ocfs2_dlm_lksb *lksb);
 void *ocfs2_dlm_lvb(union ocfs2_dlm_lksb *lksb);
 void ocfs2_dlm_dump_lksb(union ocfs2_dlm_lksb *lksb);
 
-void o2cb_get_stack(struct ocfs2_locking_protocol *proto);
-void o2cb_put_stack(void);
+void ocfs2_stack_glue_set_locking_protocol(struct ocfs2_locking_protocol *proto);
 
 #endif  /* STACKGLUE_H */
