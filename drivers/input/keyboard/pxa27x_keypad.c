@@ -208,10 +208,6 @@ static int __devinit pxa27x_keypad_probe(struct platform_device *pdev)
 	if (error)
 		goto err_free_irq;
 
-	/* Setup GPIOs. */
-	for (i = 0; i < pdata->nr_rows + pdata->nr_cols; i++)
-		pxa_gpio_mode(pdata->gpio_modes[i]);
-
 	/*
 	 * Store rows/cols info into keyboard registers.
 	 */

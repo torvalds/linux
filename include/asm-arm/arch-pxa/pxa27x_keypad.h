@@ -4,7 +4,6 @@
 struct pxa27x_keypad_platform_data {
 	int nr_rows, nr_cols;
 	int keycodes[PXAKBD_MAXROW][PXAKBD_MAXCOL];
-	int gpio_modes[PXAKBD_MAXROW + PXAKBD_MAXCOL];
 
 #ifdef CONFIG_PM
 	u32 reg_kpc;
