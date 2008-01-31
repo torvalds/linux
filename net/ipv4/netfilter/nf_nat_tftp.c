@@ -24,7 +24,7 @@ static unsigned int help(struct sk_buff *skb,
 			 enum ip_conntrack_info ctinfo,
 			 struct nf_conntrack_expect *exp)
 {
-	struct nf_conn *ct = exp->master;
+	const struct nf_conn *ct = exp->master;
 
 	exp->saved_proto.udp.port
 		= ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.u.udp.port;

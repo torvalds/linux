@@ -39,7 +39,8 @@ static int tftp_help(struct sk_buff *skb,
 		     struct nf_conn *ct,
 		     enum ip_conntrack_info ctinfo)
 {
-	struct tftphdr _tftph, *tfh;
+	const struct tftphdr *tfh;
+	struct tftphdr _tftph;
 	struct nf_conntrack_expect *exp;
 	struct nf_conntrack_tuple *tuple;
 	unsigned int ret = NF_ACCEPT;
