@@ -31,5 +31,10 @@ struct netns_ipv6 {
 	struct ipv6_devconf	*devconf_all;
 	struct ipv6_devconf	*devconf_dflt;
 	struct netns_frags	frags;
+#ifdef CONFIG_NETFILTER
+	struct xt_table		*ip6table_filter;
+	struct xt_table		*ip6table_mangle;
+	struct xt_table		*ip6table_raw;
+#endif
 };
 #endif
