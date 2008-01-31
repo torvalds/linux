@@ -94,7 +94,7 @@ static void copy_in_guest_info(struct lg_cpu *cpu, struct lguest_pages *pages)
 	/* Set up the two "TSS" members which tell the CPU what stack to use
 	 * for traps which do directly into the Guest (ie. traps at privilege
 	 * level 1). */
-	pages->state.guest_tss.esp1 = cpu->esp1;
+	pages->state.guest_tss.sp1 = cpu->esp1;
 	pages->state.guest_tss.ss1 = cpu->ss1;
 
 	/* Copy direct-to-Guest trap entries. */
