@@ -655,15 +655,18 @@ static inline void blk_run_address_space(struct address_space *mapping)
  * blk_end_request() for parts of the original function.
  * This prevents code duplication in drivers.
  */
-extern int blk_end_request(struct request *rq, int error, int nr_bytes);
-extern int __blk_end_request(struct request *rq, int error, int nr_bytes);
-extern int blk_end_bidi_request(struct request *rq, int error, int nr_bytes,
-				int bidi_bytes);
+extern int blk_end_request(struct request *rq, int error,
+				unsigned int nr_bytes);
+extern int __blk_end_request(struct request *rq, int error,
+				unsigned int nr_bytes);
+extern int blk_end_bidi_request(struct request *rq, int error,
+				unsigned int nr_bytes, unsigned int bidi_bytes);
 extern void end_request(struct request *, int);
 extern void end_queued_request(struct request *, int);
 extern void end_dequeued_request(struct request *, int);
-extern int blk_end_request_callback(struct request *rq, int error, int nr_bytes,
-				    int (drv_callback)(struct request *));
+extern int blk_end_request_callback(struct request *rq, int error,
+				unsigned int nr_bytes,
+				int (drv_callback)(struct request *));
 extern void blk_complete_request(struct request *);
 
 /*

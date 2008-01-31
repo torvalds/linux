@@ -1846,8 +1846,9 @@ EXPORT_SYMBOL(end_request);
  *     0 - we are done with this request
  *     1 - this request is not freed yet, it still has pending buffers.
  **/
-static int blk_end_io(struct request *rq, int error, int nr_bytes,
-		      int bidi_bytes, int (drv_callback)(struct request *))
+static int blk_end_io(struct request *rq, int error, unsigned int nr_bytes,
+		      unsigned int bidi_bytes,
+		      int (drv_callback)(struct request *))
 {
 	struct request_queue *q = rq->q;
 	unsigned long flags = 0UL;
@@ -1889,7 +1890,7 @@ static int blk_end_io(struct request *rq, int error, int nr_bytes,
  *     0 - we are done with this request
  *     1 - still buffers pending for this request
  **/
-int blk_end_request(struct request *rq, int error, int nr_bytes)
+int blk_end_request(struct request *rq, int error, unsigned int nr_bytes)
 {
 	return blk_end_io(rq, error, nr_bytes, 0, NULL);
 }
@@ -1908,7 +1909,7 @@ EXPORT_SYMBOL_GPL(blk_end_request);
  *     0 - we are done with this request
  *     1 - still buffers pending for this request
  **/
-int __blk_end_request(struct request *rq, int error, int nr_bytes)
+int __blk_end_request(struct request *rq, int error, unsigned int nr_bytes)
 {
 	if (blk_fs_request(rq) || blk_pc_request(rq)) {
 		if (__end_that_request_first(rq, error, nr_bytes))
@@ -1937,8 +1938,8 @@ EXPORT_SYMBOL_GPL(__blk_end_request);
  *     0 - we are done with this request
  *     1 - still buffers pending for this request
  **/
-int blk_end_bidi_request(struct request *rq, int error, int nr_bytes,
-			 int bidi_bytes)
+int blk_end_bidi_request(struct request *rq, int error, unsigned int nr_bytes,
+			 unsigned int bidi_bytes)
 {
 	return blk_end_io(rq, error, nr_bytes, bidi_bytes, NULL);
 }
@@ -1969,7 +1970,8 @@ EXPORT_SYMBOL_GPL(blk_end_bidi_request);
  *         this request still has pending buffers or
  *         the driver doesn't want to finish this request yet.
  **/
-int blk_end_request_callback(struct request *rq, int error, int nr_bytes,
+int blk_end_request_callback(struct request *rq, int error,
+			     unsigned int nr_bytes,
 			     int (drv_callback)(struct request *))
 {
 	return blk_end_io(rq, error, nr_bytes, 0, drv_callback);
