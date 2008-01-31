@@ -89,6 +89,8 @@ static struct scsi_host_template qla4xxx_driver_template = {
 	.slave_alloc		= qla4xxx_slave_alloc,
 	.slave_destroy		= qla4xxx_slave_destroy,
 
+	.scan_finished		= iscsi_scan_finished,
+
 	.this_id		= -1,
 	.cmd_per_lun		= 3,
 	.use_clustering		= ENABLE_CLUSTERING,
@@ -1306,7 +1308,7 @@ static int __devinit qla4xxx_probe_adapter(struct pci_dev *pdev,
 	       qla4xxx_version_str, ha->pdev->device, pci_name(ha->pdev),
 	       ha->host_no, ha->firmware_version[0], ha->firmware_version[1],
 	       ha->patch_number, ha->build_number);
-
+	scsi_scan_host(host);
 	return 0;
 
 remove_host:
