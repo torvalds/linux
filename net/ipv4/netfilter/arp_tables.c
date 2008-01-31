@@ -1822,11 +1822,26 @@ static struct nf_sockopt_ops arpt_sockopts = {
 	.owner		= THIS_MODULE,
 };
 
+static int __net_init arp_tables_net_init(struct net *net)
+{
+	return xt_proto_init(net, NF_ARP);
+}
+
+static void __net_exit arp_tables_net_exit(struct net *net)
+{
+	xt_proto_fini(net, NF_ARP);
+}
+
+static struct pernet_operations arp_tables_net_ops = {
+	.init = arp_tables_net_init,
+	.exit = arp_tables_net_exit,
+};
+
 static int __init arp_tables_init(void)
 {
 	int ret;
 
-	ret = xt_proto_init(NF_ARP);
+	ret = register_pernet_subsys(&arp_tables_net_ops);
 	if (ret < 0)
 		goto err1;
 
@@ -1851,7 +1866,7 @@ err4:
 err3:
 	xt_unregister_target(&arpt_standard_target);
 err2:
-	xt_proto_fini(NF_ARP);
+	unregister_pernet_subsys(&arp_tables_net_ops);
 err1:
 	return ret;
 }
@@ -1861,7 +1876,7 @@ static void __exit arp_tables_fini(void)
 	nf_unregister_sockopt(&arpt_sockopts);
 	xt_unregister_target(&arpt_error_target);
 	xt_unregister_target(&arpt_standard_target);
-	xt_proto_fini(NF_ARP);
+	unregister_pernet_subsys(&arp_tables_net_ops);
 }
 
 EXPORT_SYMBOL(arpt_register_table);

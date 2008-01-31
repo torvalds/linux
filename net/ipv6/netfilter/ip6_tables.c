@@ -2238,11 +2238,26 @@ static struct xt_match icmp6_matchstruct __read_mostly = {
 	.family		= AF_INET6,
 };
 
+static int __net_init ip6_tables_net_init(struct net *net)
+{
+	return xt_proto_init(net, AF_INET6);
+}
+
+static void __net_exit ip6_tables_net_exit(struct net *net)
+{
+	xt_proto_fini(net, AF_INET6);
+}
+
+static struct pernet_operations ip6_tables_net_ops = {
+	.init = ip6_tables_net_init,
+	.exit = ip6_tables_net_exit,
+};
+
 static int __init ip6_tables_init(void)
 {
 	int ret;
 
-	ret = xt_proto_init(AF_INET6);
+	ret = register_pernet_subsys(&ip6_tables_net_ops);
 	if (ret < 0)
 		goto err1;
 
@@ -2272,7 +2287,7 @@ err4:
 err3:
 	xt_unregister_target(&ip6t_standard_target);
 err2:
-	xt_proto_fini(AF_INET6);
+	unregister_pernet_subsys(&ip6_tables_net_ops);
 err1:
 	return ret;
 }
@@ -2284,7 +2299,8 @@ static void __exit ip6_tables_fini(void)
 	xt_unregister_match(&icmp6_matchstruct);
 	xt_unregister_target(&ip6t_error_target);
 	xt_unregister_target(&ip6t_standard_target);
-	xt_proto_fini(AF_INET6);
+
+	unregister_pernet_subsys(&ip6_tables_net_ops);
 }
 
 /*

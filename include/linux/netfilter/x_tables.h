@@ -357,8 +357,8 @@ extern struct xt_table *xt_find_table_lock(struct net *net, int af,
 					   const char *name);
 extern void xt_table_unlock(struct xt_table *t);
 
-extern int xt_proto_init(int af);
-extern void xt_proto_fini(int af);
+extern int xt_proto_init(struct net *net, int af);
+extern void xt_proto_fini(struct net *net, int af);
 
 extern struct xt_table_info *xt_alloc_table_info(unsigned int size);
 extern void xt_free_table_info(struct xt_table_info *info);

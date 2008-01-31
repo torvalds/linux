@@ -2213,11 +2213,26 @@ static struct xt_match icmp_matchstruct __read_mostly = {
 	.family		= AF_INET,
 };
 
+static int __net_init ip_tables_net_init(struct net *net)
+{
+	return xt_proto_init(net, AF_INET);
+}
+
+static void __net_exit ip_tables_net_exit(struct net *net)
+{
+	xt_proto_fini(net, AF_INET);
+}
+
+static struct pernet_operations ip_tables_net_ops = {
+	.init = ip_tables_net_init,
+	.exit = ip_tables_net_exit,
+};
+
 static int __init ip_tables_init(void)
 {
 	int ret;
 
-	ret = xt_proto_init(AF_INET);
+	ret = register_pernet_subsys(&ip_tables_net_ops);
 	if (ret < 0)
 		goto err1;
 
@@ -2247,7 +2262,7 @@ err4:
 err3:
 	xt_unregister_target(&ipt_standard_target);
 err2:
-	xt_proto_fini(AF_INET);
+	unregister_pernet_subsys(&ip_tables_net_ops);
 err1:
 	return ret;
 }
@@ -2260,7 +2275,7 @@ static void __exit ip_tables_fini(void)
 	xt_unregister_target(&ipt_error_target);
 	xt_unregister_target(&ipt_standard_target);
 
-	xt_proto_fini(AF_INET);
+	unregister_pernet_subsys(&ip_tables_net_ops);
 }
 
 EXPORT_SYMBOL(ipt_register_table);
