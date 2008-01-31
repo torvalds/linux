@@ -35,6 +35,18 @@ struct fw_attribute_group {
 	struct attribute *attrs[11];
 };
 
+/*
+ * Note, fw_device.generation always has to be read before fw_device.node_id.
+ * Use SMP memory barriers to ensure this.  Otherwise requests will be sent
+ * to an outdated node_id if the generation was updated in the meantime due
+ * to a bus reset.
+ *
+ * Likewise, fw-core will take care to update .node_id before .generation so
+ * that whenever fw_device.generation is current WRT the actual bus generation,
+ * fw_device.node_id is guaranteed to be current too.
+ *
+ * The same applies to fw_device.card->node_id vs. fw_device.generation.
+ */
 struct fw_device {
 	atomic_t state;
 	struct fw_node *node;

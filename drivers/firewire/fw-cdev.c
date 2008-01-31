@@ -206,12 +206,13 @@ fill_bus_reset_event(struct fw_cdev_event_bus_reset *event,
 
 	event->closure	     = client->bus_reset_closure;
 	event->type          = FW_CDEV_EVENT_BUS_RESET;
+	event->generation    = client->device->generation;
+	smp_rmb();           /* node_id must not be older than generation */
 	event->node_id       = client->device->node_id;
 	event->local_node_id = card->local_node->node_id;
 	event->bm_node_id    = 0; /* FIXME: We don't track the BM. */
 	event->irm_node_id   = card->irm_node->node_id;
 	event->root_node_id  = card->root_node->node_id;
-	event->generation    = card->generation;
 }
 
 static void

@@ -231,37 +231,24 @@ void dma_region_sync_for_device(struct dma_region *dma, unsigned long offset,
 
 #ifdef CONFIG_MMU
 
-/* nopage() handler for mmap access */
-
-static struct page *dma_region_pagefault(struct vm_area_struct *area,
-					 unsigned long address, int *type)
+static int dma_region_pagefault(struct vm_area_struct *vma,
+				struct vm_fault *vmf)
 {
-	unsigned long offset;
-	unsigned long kernel_virt_addr;
-	struct page *ret = NOPAGE_SIGBUS;
-
-	struct dma_region *dma = (struct dma_region *)area->vm_private_data;
+	struct dma_region *dma = (struct dma_region *)vma->vm_private_data;
 
 	if (!dma->kvirt)
-		goto out;
+		return VM_FAULT_SIGBUS;
 
-	if ((address < (unsigned long)area->vm_start) ||
-	    (address >
-	     (unsigned long)area->vm_start + (dma->n_pages << PAGE_SHIFT)))
-		goto out;
+	if (vmf->pgoff >= dma->n_pages)
+		return VM_FAULT_SIGBUS;
 
-	if (type)
-		*type = VM_FAULT_MINOR;
-	offset = address - area->vm_start;
-	kernel_virt_addr = (unsigned long)dma->kvirt + offset;
-	ret = vmalloc_to_page((void *)kernel_virt_addr);
-	get_page(ret);
-      out:
-	return ret;
+	vmf->page = vmalloc_to_page(dma->kvirt + (vmf->pgoff << PAGE_SHIFT));
+	get_page(vmf->page);
+	return 0;
 }
 
 static struct vm_operations_struct dma_region_vm_ops = {
-	.nopage = dma_region_pagefault,
+	.fault = dma_region_pagefault,
 };
 
 /**
@@ -275,7 +262,7 @@ int dma_region_mmap(struct dma_region *dma, struct file *file,
 	if (!dma->kvirt)
 		return -EINVAL;
 
-	/* must be page-aligned */
+	/* must be page-aligned (XXX: comment is wrong, we could allow pgoff) */
 	if (vma->vm_pgoff != 0)
 		return -EINVAL;
 

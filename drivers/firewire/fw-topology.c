@@ -21,6 +21,7 @@
 #include <linux/module.h>
 #include <linux/wait.h>
 #include <linux/errno.h>
+#include <asm/system.h>
 #include "fw-transaction.h"
 #include "fw-topology.h"
 
@@ -518,6 +519,11 @@ fw_core_handle_bus_reset(struct fw_card *card,
 		card->bm_retries = 0;
 
 	card->node_id = node_id;
+	/*
+	 * Update node_id before generation to prevent anybody from using
+	 * a stale node_id together with a current generation.
+	 */
+	smp_wmb();
 	card->generation = generation;
 	card->reset_jiffies = jiffies;
 	schedule_delayed_work(&card->work, 0);

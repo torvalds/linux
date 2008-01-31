@@ -98,17 +98,48 @@ struct context;
 typedef int (*descriptor_callback_t)(struct context *ctx,
 				     struct descriptor *d,
 				     struct descriptor *last);
+
+/*
+ * A buffer that contains a block of DMA-able coherent memory used for
+ * storing a portion of a DMA descriptor program.
+ */
+struct descriptor_buffer {
+	struct list_head list;
+	dma_addr_t buffer_bus;
+	size_t buffer_size;
+	size_t used;
+	struct descriptor buffer[0];
+};
+
 struct context {
 	struct fw_ohci *ohci;
 	u32 regs;
+	int total_allocation;
 
-	struct descriptor *buffer;
-	dma_addr_t buffer_bus;
-	size_t buffer_size;
-	struct descriptor *head_descriptor;
-	struct descriptor *tail_descriptor;
-	struct descriptor *tail_descriptor_last;
-	struct descriptor *prev_descriptor;
+	/*
+	 * List of page-sized buffers for storing DMA descriptors.
+	 * Head of list contains buffers in use and tail of list contains
+	 * free buffers.
+	 */
+	struct list_head buffer_list;
+
+	/*
+	 * Pointer to a buffer inside buffer_list that contains the tail
+	 * end of the current DMA program.
+	 */
+	struct descriptor_buffer *buffer_tail;
+
+	/*
+	 * The descriptor containing the branch address of the first
+	 * descriptor that has not yet been filled by the device.
+	 */
+	struct descriptor *last;
+
+	/*
+	 * The last descriptor in the DMA program.  It contains the branch
+	 * address that must be updated upon appending a new descriptor.
+	 */
+	struct descriptor *prev;
 
 	descriptor_callback_t callback;
 
@@ -125,6 +156,7 @@ struct context {
 struct iso_context {
 	struct fw_iso_context base;
 	struct context context;
+	int excess_bytes;
 	void *header;
 	size_t header_length;
 };
@@ -197,8 +229,6 @@ static inline struct fw_ohci *fw_ohci(struct fw_card *card)
 #define SELF_ID_BUF_SIZE		0x800
 #define OHCI_TCODE_PHY_PACKET		0x0e
 #define OHCI_VERSION_1_1		0x010010
-#define ISO_BUFFER_SIZE			(64 * 1024)
-#define AT_BUFFER_SIZE			4096
 
 static char ohci_driver_name[] = KBUILD_MODNAME;
 
@@ -455,71 +485,108 @@ find_branch_descriptor(struct descriptor *d, int z)
 static void context_tasklet(unsigned long data)
 {
 	struct context *ctx = (struct context *) data;
-	struct fw_ohci *ohci = ctx->ohci;
 	struct descriptor *d, *last;
 	u32 address;
 	int z;
+	struct descriptor_buffer *desc;
 
-	dma_sync_single_for_cpu(ohci->card.device, ctx->buffer_bus,
-				ctx->buffer_size, DMA_TO_DEVICE);
-
-	d    = ctx->tail_descriptor;
-	last = ctx->tail_descriptor_last;
-
+	desc = list_entry(ctx->buffer_list.next,
+			struct descriptor_buffer, list);
+	last = ctx->last;
 	while (last->branch_address != 0) {
+		struct descriptor_buffer *old_desc = desc;
 		address = le32_to_cpu(last->branch_address);
 		z = address & 0xf;
-		d = ctx->buffer + (address - ctx->buffer_bus) / sizeof(*d);
+		address &= ~0xf;
+
+		/* If the branch address points to a buffer outside of the
+		 * current buffer, advance to the next buffer. */
+		if (address < desc->buffer_bus ||
+				address >= desc->buffer_bus + desc->used)
+			desc = list_entry(desc->list.next,
+					struct descriptor_buffer, list);
+		d = desc->buffer + (address - desc->buffer_bus) / sizeof(*d);
 		last = find_branch_descriptor(d, z);
 
 		if (!ctx->callback(ctx, d, last))
 			break;
 
-		ctx->tail_descriptor      = d;
-		ctx->tail_descriptor_last = last;
+		if (old_desc != desc) {
+			/* If we've advanced to the next buffer, move the
+			 * previous buffer to the free list. */
+			unsigned long flags;
+			old_desc->used = 0;
+			spin_lock_irqsave(&ctx->ohci->lock, flags);
+			list_move_tail(&old_desc->list, &ctx->buffer_list);
+			spin_unlock_irqrestore(&ctx->ohci->lock, flags);
+		}
+		ctx->last = last;
 	}
+}
+
+/*
+ * Allocate a new buffer and add it to the list of free buffers for this
+ * context.  Must be called with ohci->lock held.
+ */
+static int
+context_add_buffer(struct context *ctx)
+{
+	struct descriptor_buffer *desc;
+	dma_addr_t bus_addr;
+	int offset;
+
+	/*
+	 * 16MB of descriptors should be far more than enough for any DMA
+	 * program.  This will catch run-away userspace or DoS attacks.
+	 */
+	if (ctx->total_allocation >= 16*1024*1024)
+		return -ENOMEM;
+
+	desc = dma_alloc_coherent(ctx->ohci->card.device, PAGE_SIZE,
+			&bus_addr, GFP_ATOMIC);
+	if (!desc)
+		return -ENOMEM;
+
+	offset = (void *)&desc->buffer - (void *)desc;
+	desc->buffer_size = PAGE_SIZE - offset;
+	desc->buffer_bus = bus_addr + offset;
+	desc->used = 0;
+
+	list_add_tail(&desc->list, &ctx->buffer_list);
+	ctx->total_allocation += PAGE_SIZE;
+
+	return 0;
 }
 
 static int
 context_init(struct context *ctx, struct fw_ohci *ohci,
-	     size_t buffer_size, u32 regs,
-	     descriptor_callback_t callback)
+	     u32 regs, descriptor_callback_t callback)
 {
 	ctx->ohci = ohci;
 	ctx->regs = regs;
-	ctx->buffer_size = buffer_size;
-	ctx->buffer = kmalloc(buffer_size, GFP_KERNEL);
-	if (ctx->buffer == NULL)
+	ctx->total_allocation = 0;
+
+	INIT_LIST_HEAD(&ctx->buffer_list);
+	if (context_add_buffer(ctx) < 0)
 		return -ENOMEM;
+
+	ctx->buffer_tail = list_entry(ctx->buffer_list.next,
+			struct descriptor_buffer, list);
 
 	tasklet_init(&ctx->tasklet, context_tasklet, (unsigned long)ctx);
 	ctx->callback = callback;
 
-	ctx->buffer_bus =
-		dma_map_single(ohci->card.device, ctx->buffer,
-			       buffer_size, DMA_TO_DEVICE);
-	if (dma_mapping_error(ctx->buffer_bus)) {
-		kfree(ctx->buffer);
-		return -ENOMEM;
-	}
-
-	ctx->head_descriptor      = ctx->buffer;
-	ctx->prev_descriptor      = ctx->buffer;
-	ctx->tail_descriptor      = ctx->buffer;
-	ctx->tail_descriptor_last = ctx->buffer;
-
 	/*
 	 * We put a dummy descriptor in the buffer that has a NULL
 	 * branch address and looks like it's been sent.  That way we
-	 * have a descriptor to append DMA programs to.  Also, the
-	 * ring buffer invariant is that it always has at least one
-	 * element so that head == tail means buffer full.
+	 * have a descriptor to append DMA programs to.
 	 */
-
-	memset(ctx->head_descriptor, 0, sizeof(*ctx->head_descriptor));
-	ctx->head_descriptor->control = cpu_to_le16(DESCRIPTOR_OUTPUT_LAST);
-	ctx->head_descriptor->transfer_status = cpu_to_le16(0x8011);
-	ctx->head_descriptor++;
+	memset(ctx->buffer_tail->buffer, 0, sizeof(*ctx->buffer_tail->buffer));
+	ctx->buffer_tail->buffer->control = cpu_to_le16(DESCRIPTOR_OUTPUT_LAST);
+	ctx->buffer_tail->buffer->transfer_status = cpu_to_le16(0x8011);
+	ctx->buffer_tail->used += sizeof(*ctx->buffer_tail->buffer);
+	ctx->last = ctx->buffer_tail->buffer;
+	ctx->prev = ctx->buffer_tail->buffer;
 
 	return 0;
 }
@@ -528,35 +595,42 @@ static void
 context_release(struct context *ctx)
 {
 	struct fw_card *card = &ctx->ohci->card;
+	struct descriptor_buffer *desc, *tmp;
 
-	dma_unmap_single(card->device, ctx->buffer_bus,
-			 ctx->buffer_size, DMA_TO_DEVICE);
-	kfree(ctx->buffer);
+	list_for_each_entry_safe(desc, tmp, &ctx->buffer_list, list)
+		dma_free_coherent(card->device, PAGE_SIZE, desc,
+			desc->buffer_bus -
+			((void *)&desc->buffer - (void *)desc));
 }
 
+/* Must be called with ohci->lock held */
 static struct descriptor *
 context_get_descriptors(struct context *ctx, int z, dma_addr_t *d_bus)
 {
-	struct descriptor *d, *tail, *end;
+	struct descriptor *d = NULL;
+	struct descriptor_buffer *desc = ctx->buffer_tail;
 
-	d = ctx->head_descriptor;
-	tail = ctx->tail_descriptor;
-	end = ctx->buffer + ctx->buffer_size / sizeof(*d);
+	if (z * sizeof(*d) > desc->buffer_size)
+		return NULL;
 
-	if (d + z <= tail) {
-		goto has_space;
-	} else if (d > tail && d + z <= end) {
-		goto has_space;
-	} else if (d > tail && ctx->buffer + z <= tail) {
-		d = ctx->buffer;
-		goto has_space;
+	if (z * sizeof(*d) > desc->buffer_size - desc->used) {
+		/* No room for the descriptor in this buffer, so advance to the
+		 * next one. */
+
+		if (desc->list.next == &ctx->buffer_list) {
+			/* If there is no free buffer next in the list,
+			 * allocate one. */
+			if (context_add_buffer(ctx) < 0)
+				return NULL;
+		}
+		desc = list_entry(desc->list.next,
+				struct descriptor_buffer, list);
+		ctx->buffer_tail = desc;
 	}
 
-	return NULL;
-
- has_space:
+	d = desc->buffer + desc->used / sizeof(*d);
 	memset(d, 0, z * sizeof(*d));
-	*d_bus = ctx->buffer_bus + (d - ctx->buffer) * sizeof(*d);
+	*d_bus = desc->buffer_bus + desc->used;
 
 	return d;
 }
@@ -566,7 +640,7 @@ static void context_run(struct context *ctx, u32 extra)
 	struct fw_ohci *ohci = ctx->ohci;
 
 	reg_write(ohci, COMMAND_PTR(ctx->regs),
-		  le32_to_cpu(ctx->tail_descriptor_last->branch_address));
+		  le32_to_cpu(ctx->last->branch_address));
 	reg_write(ohci, CONTROL_CLEAR(ctx->regs), ~0);
 	reg_write(ohci, CONTROL_SET(ctx->regs), CONTEXT_RUN | extra);
 	flush_writes(ohci);
@@ -576,15 +650,13 @@ static void context_append(struct context *ctx,
 			   struct descriptor *d, int z, int extra)
 {
 	dma_addr_t d_bus;
+	struct descriptor_buffer *desc = ctx->buffer_tail;
 
-	d_bus = ctx->buffer_bus + (d - ctx->buffer) * sizeof(*d);
+	d_bus = desc->buffer_bus + (d - desc->buffer) * sizeof(*d);
 
-	ctx->head_descriptor = d + z + extra;
-	ctx->prev_descriptor->branch_address = cpu_to_le32(d_bus | z);
-	ctx->prev_descriptor = find_branch_descriptor(d, z);
-
-	dma_sync_single_for_device(ctx->ohci->card.device, ctx->buffer_bus,
-				   ctx->buffer_size, DMA_TO_DEVICE);
+	desc->used += (z + extra) * sizeof(*d);
+	ctx->prev->branch_address = cpu_to_le32(d_bus | z);
+	ctx->prev = find_branch_descriptor(d, z);
 
 	reg_write(ctx->ohci, CONTROL_SET(ctx->regs), CONTEXT_WAKE);
 	flush_writes(ctx->ohci);
@@ -1078,6 +1150,13 @@ static irqreturn_t irq_handler(int irq, void *data)
 	if (unlikely(event & OHCI1394_postedWriteErr))
 		fw_error("PCI posted write error\n");
 
+	if (unlikely(event & OHCI1394_cycleTooLong)) {
+		if (printk_ratelimit())
+			fw_notify("isochronous cycle too long\n");
+		reg_write(ohci, OHCI1394_LinkControlSet,
+			  OHCI1394_LinkControl_cycleMaster);
+	}
+
 	if (event & OHCI1394_cycle64Seconds) {
 		cycle_time = reg_read(ohci, OHCI1394_IsochronousCycleTimer);
 		if ((cycle_time & 0x80000000) == 0)
@@ -1151,8 +1230,8 @@ static int ohci_enable(struct fw_card *card, u32 *config_rom, size_t length)
 		  OHCI1394_RQPkt | OHCI1394_RSPkt |
 		  OHCI1394_reqTxComplete | OHCI1394_respTxComplete |
 		  OHCI1394_isochRx | OHCI1394_isochTx |
-		  OHCI1394_postedWriteErr | OHCI1394_cycle64Seconds |
-		  OHCI1394_masterIntEnable);
+		  OHCI1394_postedWriteErr | OHCI1394_cycleTooLong |
+		  OHCI1394_cycle64Seconds | OHCI1394_masterIntEnable);
 
 	/* Activate link_on bit and contender bit in our self ID packets.*/
 	if (ohci_update_phy_reg(card, 4, 0,
@@ -1408,9 +1487,13 @@ static int handle_ir_dualbuffer_packet(struct context *context,
 	void *p, *end;
 	int i;
 
-	if (db->first_res_count > 0 && db->second_res_count > 0)
-		/* This descriptor isn't done yet, stop iteration. */
-		return 0;
+	if (db->first_res_count > 0 && db->second_res_count > 0) {
+		if (ctx->excess_bytes <= le16_to_cpu(db->second_req_count)) {
+			/* This descriptor isn't done yet, stop iteration. */
+			return 0;
+		}
+		ctx->excess_bytes -= le16_to_cpu(db->second_req_count);
+	}
 
 	header_length = le16_to_cpu(db->first_req_count) -
 		le16_to_cpu(db->first_res_count);
@@ -1429,10 +1512,14 @@ static int handle_ir_dualbuffer_packet(struct context *context,
 		*(u32 *) (ctx->header + i) = __swab32(*(u32 *) (p + 4));
 		memcpy(ctx->header + i + 4, p + 8, ctx->base.header_size - 4);
 		i += ctx->base.header_size;
+		ctx->excess_bytes +=
+			(le32_to_cpu(*(u32 *)(p + 4)) >> 16) & 0xffff;
 		p += ctx->base.header_size + 4;
 	}
-
 	ctx->header_length = i;
+
+	ctx->excess_bytes -= le16_to_cpu(db->second_req_count) -
+		le16_to_cpu(db->second_res_count);
 
 	if (le16_to_cpu(db->control) & DESCRIPTOR_IRQ_ALWAYS) {
 		ir_header = (__le32 *) (db + 1);
@@ -1452,24 +1539,24 @@ static int handle_ir_packet_per_buffer(struct context *context,
 {
 	struct iso_context *ctx =
 		container_of(context, struct iso_context, context);
-	struct descriptor *pd = d + 1;
+	struct descriptor *pd;
 	__le32 *ir_header;
-	size_t header_length;
-	void *p, *end;
-	int i, z;
+	void *p;
+	int i;
 
-	if (pd->res_count == pd->req_count)
+	for (pd = d; pd <= last; pd++) {
+		if (pd->transfer_status)
+			break;
+	}
+	if (pd > last)
 		/* Descriptor(s) not done yet, stop iteration */
 		return 0;
 
-	header_length = le16_to_cpu(d->req_count);
-
 	i   = ctx->header_length;
-	z   = le32_to_cpu(pd->branch_address) & 0xf;
-	p   = d + z;
-	end = p + header_length;
+	p   = last + 1;
 
-	while (p < end && i + ctx->base.header_size <= PAGE_SIZE) {
+	if (ctx->base.header_size > 0 &&
+			i + ctx->base.header_size <= PAGE_SIZE) {
 		/*
 		 * The iso header is byteswapped to little endian by
 		 * the controller, but the remaining header quadlets
@@ -1478,21 +1565,17 @@ static int handle_ir_packet_per_buffer(struct context *context,
 		 */
 		*(u32 *) (ctx->header + i) = __swab32(*(u32 *) (p + 4));
 		memcpy(ctx->header + i + 4, p + 8, ctx->base.header_size - 4);
-		i += ctx->base.header_size;
-		p += ctx->base.header_size + 4;
+		ctx->header_length += ctx->base.header_size;
 	}
 
-	ctx->header_length = i;
-
-	if (le16_to_cpu(pd->control) & DESCRIPTOR_IRQ_ALWAYS) {
-		ir_header = (__le32 *) (d + z);
+	if (le16_to_cpu(last->control) & DESCRIPTOR_IRQ_ALWAYS) {
+		ir_header = (__le32 *) p;
 		ctx->base.callback(&ctx->base,
 				   le32_to_cpu(ir_header[0]) & 0xffff,
 				   ctx->header_length, ctx->header,
 				   ctx->base.callback_data);
 		ctx->header_length = 0;
 	}
-
 
 	return 1;
 }
@@ -1559,8 +1642,7 @@ ohci_allocate_iso_context(struct fw_card *card, int type, size_t header_size)
 	if (ctx->header == NULL)
 		goto out;
 
-	retval = context_init(&ctx->context, ohci, ISO_BUFFER_SIZE,
-			      regs, callback);
+	retval = context_init(&ctx->context, ohci, regs, callback);
 	if (retval < 0)
 		goto out_with_header;
 
@@ -1775,19 +1857,6 @@ ohci_queue_iso_receive_dualbuffer(struct fw_iso_context *base,
 	 * packet, retransmit or terminate..
 	 */
 
-	if (packet->skip) {
-		d = context_get_descriptors(&ctx->context, 2, &d_bus);
-		if (d == NULL)
-			return -ENOMEM;
-
-		db = (struct db_descriptor *) d;
-		db->control = cpu_to_le16(DESCRIPTOR_STATUS |
-					  DESCRIPTOR_BRANCH_ALWAYS |
-					  DESCRIPTOR_WAIT);
-		db->first_size = cpu_to_le16(ctx->base.header_size + 4);
-		context_append(&ctx->context, d, 2, 0);
-	}
-
 	p = packet;
 	z = 2;
 
@@ -1815,11 +1884,18 @@ ohci_queue_iso_receive_dualbuffer(struct fw_iso_context *base,
 		db->control = cpu_to_le16(DESCRIPTOR_STATUS |
 					  DESCRIPTOR_BRANCH_ALWAYS);
 		db->first_size = cpu_to_le16(ctx->base.header_size + 4);
-		db->first_req_count = cpu_to_le16(header_size);
+		if (p->skip && rest == p->payload_length) {
+			db->control |= cpu_to_le16(DESCRIPTOR_WAIT);
+			db->first_req_count = db->first_size;
+		} else {
+			db->first_req_count = cpu_to_le16(header_size);
+		}
 		db->first_res_count = db->first_req_count;
 		db->first_buffer = cpu_to_le32(d_bus + sizeof(*db));
 
-		if (offset + rest < PAGE_SIZE)
+		if (p->skip && rest == p->payload_length)
+			length = 4;
+		else if (offset + rest < PAGE_SIZE)
 			length = rest;
 		else
 			length = PAGE_SIZE - offset;
@@ -1835,7 +1911,8 @@ ohci_queue_iso_receive_dualbuffer(struct fw_iso_context *base,
 		context_append(&ctx->context, d, z, header_z);
 		offset = (offset + length) & ~PAGE_MASK;
 		rest -= length;
-		page++;
+		if (offset == 0)
+			page++;
 	}
 
 	return 0;
@@ -1849,66 +1926,69 @@ ohci_queue_iso_receive_packet_per_buffer(struct fw_iso_context *base,
 {
 	struct iso_context *ctx = container_of(base, struct iso_context, base);
 	struct descriptor *d = NULL, *pd = NULL;
-	struct fw_iso_packet *p;
+	struct fw_iso_packet *p = packet;
 	dma_addr_t d_bus, page_bus;
 	u32 z, header_z, rest;
-	int i, page, offset, packet_count, header_size;
-
-	if (packet->skip) {
-		d = context_get_descriptors(&ctx->context, 1, &d_bus);
-		if (d == NULL)
-			return -ENOMEM;
-
-		d->control = cpu_to_le16(DESCRIPTOR_STATUS |
-					 DESCRIPTOR_INPUT_LAST |
-					 DESCRIPTOR_BRANCH_ALWAYS |
-					 DESCRIPTOR_WAIT);
-		context_append(&ctx->context, d, 1, 0);
-	}
-
-	/* one descriptor for header, one for payload */
-	/* FIXME: handle cases where we need multiple desc. for payload */
-	z = 2;
-	p = packet;
+	int i, j, length;
+	int page, offset, packet_count, header_size, payload_per_buffer;
 
 	/*
 	 * The OHCI controller puts the status word in the
 	 * buffer too, so we need 4 extra bytes per packet.
 	 */
 	packet_count = p->header_length / ctx->base.header_size;
-	header_size  = packet_count * (ctx->base.header_size + 4);
+	header_size  = ctx->base.header_size + 4;
 
 	/* Get header size in number of descriptors. */
 	header_z = DIV_ROUND_UP(header_size, sizeof(*d));
 	page     = payload >> PAGE_SHIFT;
 	offset   = payload & ~PAGE_MASK;
-	rest     = p->payload_length;
+	payload_per_buffer = p->payload_length / packet_count;
 
 	for (i = 0; i < packet_count; i++) {
 		/* d points to the header descriptor */
+		z = DIV_ROUND_UP(payload_per_buffer + offset, PAGE_SIZE) + 1;
 		d = context_get_descriptors(&ctx->context,
-					    z + header_z, &d_bus);
+				z + header_z, &d_bus);
 		if (d == NULL)
 			return -ENOMEM;
 
-		d->control      = cpu_to_le16(DESCRIPTOR_INPUT_MORE);
+		d->control      = cpu_to_le16(DESCRIPTOR_STATUS |
+					      DESCRIPTOR_INPUT_MORE);
+		if (p->skip && i == 0)
+			d->control |= cpu_to_le16(DESCRIPTOR_WAIT);
 		d->req_count    = cpu_to_le16(header_size);
 		d->res_count    = d->req_count;
+		d->transfer_status = 0;
 		d->data_address = cpu_to_le32(d_bus + (z * sizeof(*d)));
 
-		/* pd points to the payload descriptor */
-		pd = d + 1;
+		rest = payload_per_buffer;
+		for (j = 1; j < z; j++) {
+			pd = d + j;
+			pd->control = cpu_to_le16(DESCRIPTOR_STATUS |
+						  DESCRIPTOR_INPUT_MORE);
+
+			if (offset + rest < PAGE_SIZE)
+				length = rest;
+			else
+				length = PAGE_SIZE - offset;
+			pd->req_count = cpu_to_le16(length);
+			pd->res_count = pd->req_count;
+			pd->transfer_status = 0;
+
+			page_bus = page_private(buffer->pages[page]);
+			pd->data_address = cpu_to_le32(page_bus + offset);
+
+			offset = (offset + length) & ~PAGE_MASK;
+			rest -= length;
+			if (offset == 0)
+				page++;
+		}
 		pd->control = cpu_to_le16(DESCRIPTOR_STATUS |
 					  DESCRIPTOR_INPUT_LAST |
 					  DESCRIPTOR_BRANCH_ALWAYS);
-		if (p->interrupt)
+		if (p->interrupt && i == packet_count - 1)
 			pd->control |= cpu_to_le16(DESCRIPTOR_IRQ_ALWAYS);
-
-		pd->req_count = cpu_to_le16(rest);
-		pd->res_count = pd->req_count;
-
-		page_bus = page_private(buffer->pages[page]);
-		pd->data_address = cpu_to_le32(page_bus + offset);
 
 		context_append(&ctx->context, d, z, header_z);
 	}
@@ -1923,16 +2003,22 @@ ohci_queue_iso(struct fw_iso_context *base,
 	       unsigned long payload)
 {
 	struct iso_context *ctx = container_of(base, struct iso_context, base);
+	unsigned long flags;
+	int retval;
 
+	spin_lock_irqsave(&ctx->context.ohci->lock, flags);
 	if (base->type == FW_ISO_CONTEXT_TRANSMIT)
-		return ohci_queue_iso_transmit(base, packet, buffer, payload);
+		retval = ohci_queue_iso_transmit(base, packet, buffer, payload);
 	else if (ctx->context.ohci->version >= OHCI_VERSION_1_1)
-		return ohci_queue_iso_receive_dualbuffer(base, packet,
+		retval = ohci_queue_iso_receive_dualbuffer(base, packet,
 							 buffer, payload);
 	else
-		return ohci_queue_iso_receive_packet_per_buffer(base, packet,
+		retval = ohci_queue_iso_receive_packet_per_buffer(base, packet,
 								buffer,
 								payload);
+	spin_unlock_irqrestore(&ctx->context.ohci->lock, flags);
+
+	return retval;
 }
 
 static const struct fw_card_driver ohci_driver = {
@@ -2004,10 +2090,10 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	ar_context_init(&ohci->ar_response_ctx, ohci,
 			OHCI1394_AsRspRcvContextControlSet);
 
-	context_init(&ohci->at_request_ctx, ohci, AT_BUFFER_SIZE,
+	context_init(&ohci->at_request_ctx, ohci,
 		     OHCI1394_AsReqTrContextControlSet, handle_at_packet);
 
-	context_init(&ohci->at_response_ctx, ohci, AT_BUFFER_SIZE,
+	context_init(&ohci->at_response_ctx, ohci,
 		     OHCI1394_AsRspTrContextControlSet, handle_at_packet);
 
 	reg_write(ohci, OHCI1394_IsoRecvIntMaskSet, ~0);

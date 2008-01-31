@@ -222,7 +222,6 @@ struct sbp2_status_block {
  */
 
 #define SBP2_MAX_SG_ELEMENT_LENGTH		0xf000
-#define SBP2_MAX_SECTORS			255
 /* There is no real limitation of the queue depth (i.e. length of the linked
  * list of command ORBs) at the target. The chosen depth is merely an
  * implementation detail of the sbp2 driver. */
