@@ -1779,6 +1779,7 @@ config SUN3_SCSI
 config SUN3X_ESP
 	bool "Sun3x ESP SCSI"
 	depends on SUN3X && SCSI=y
+	select SCSI_SPI_ATTRS
 	help
 	  The ESP was an on-board SCSI controller used on Sun 3/80
 	  machines.  Say Y here to compile in support for it.
