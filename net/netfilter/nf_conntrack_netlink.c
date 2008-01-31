@@ -1471,7 +1471,7 @@ ctnetlink_exp_dump_table(struct sk_buff *skb, struct netlink_callback *cb)
 	struct hlist_node *n;
 	u_int8_t l3proto = nfmsg->nfgen_family;
 
-	read_lock_bh(&nf_conntrack_lock);
+	rcu_read_lock();
 	last = (struct nf_conntrack_expect *)cb->args[1];
 	for (; cb->args[0] < nf_ct_expect_hsize; cb->args[0]++) {
 restart:
@@ -1488,7 +1488,8 @@ restart:
 						    cb->nlh->nlmsg_seq,
 						    IPCTNL_MSG_EXP_NEW,
 						    1, exp) < 0) {
-				atomic_inc(&exp->use);
+				if (!atomic_inc_not_zero(&exp->use))
+					continue;
 				cb->args[1] = (unsigned long)exp;
 				goto out;
 			}
@@ -1499,7 +1500,7 @@ restart:
 		}
 	}
 out:
-	read_unlock_bh(&nf_conntrack_lock);
+	rcu_read_unlock();
 	if (last)
 		nf_ct_expect_put(last);
 
