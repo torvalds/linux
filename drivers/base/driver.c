@@ -97,10 +97,9 @@ int driver_create_file(struct device_driver *drv,
 		       struct driver_attribute *attr)
 {
 	int error;
-	if (get_driver(drv)) {
+	if (drv)
 		error = sysfs_create_file(&drv->p->kobj, &attr->attr);
-		put_driver(drv);
-	} else
+	else
 		error = -EINVAL;
 	return error;
 }
@@ -114,10 +113,8 @@ EXPORT_SYMBOL_GPL(driver_create_file);
 void driver_remove_file(struct device_driver *drv,
 			struct driver_attribute *attr)
 {
-	if (get_driver(drv)) {
+	if (drv)
 		sysfs_remove_file(&drv->p->kobj, &attr->attr);
-		put_driver(drv);
-	}
 }
 EXPORT_SYMBOL_GPL(driver_remove_file);
 

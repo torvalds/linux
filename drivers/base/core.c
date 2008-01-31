@@ -423,10 +423,8 @@ struct kset *devices_kset;
 int device_create_file(struct device *dev, struct device_attribute *attr)
 {
 	int error = 0;
-	if (get_device(dev)) {
+	if (dev)
 		error = sysfs_create_file(&dev->kobj, &attr->attr);
-		put_device(dev);
-	}
 	return error;
 }
 
@@ -437,10 +435,8 @@ int device_create_file(struct device *dev, struct device_attribute *attr)
  */
 void device_remove_file(struct device *dev, struct device_attribute *attr)
 {
-	if (get_device(dev)) {
+	if (dev)
 		sysfs_remove_file(&dev->kobj, &attr->attr);
-		put_device(dev);
-	}
 }
 
 /**
