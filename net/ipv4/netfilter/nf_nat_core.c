@@ -654,10 +654,6 @@ static int __init nf_nat_init(void)
 	rcu_assign_pointer(nf_nat_protos[IPPROTO_ICMP], &nf_nat_protocol_icmp);
 	write_unlock_bh(&nf_nat_lock);
 
-	for (i = 0; i < nf_nat_htable_size; i++) {
-		INIT_HLIST_HEAD(&bysource[i]);
-	}
-
 	/* Initialize fake conntrack so that NAT will skip it */
 	nf_conntrack_untracked.status |= IPS_NAT_DONE_MASK;
 
