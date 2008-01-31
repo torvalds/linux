@@ -87,7 +87,7 @@ typedef struct field_t {
 	unsigned char ub;
 	unsigned short attr;
 	unsigned short offset;
-	struct field_t *fields;
+	const struct field_t *fields;
 } field_t;
 
 /* Bit Stream */
@@ -111,21 +111,21 @@ static unsigned int get_bitmap(bitstr_t *bs, unsigned int b);
 static unsigned int get_uint(bitstr_t *bs, int b);
 
 /* Decoder Functions */
-static int decode_nul(bitstr_t *bs, field_t *f, char *base, int level);
-static int decode_bool(bitstr_t *bs, field_t *f, char *base, int level);
-static int decode_oid(bitstr_t *bs, field_t *f, char *base, int level);
-static int decode_int(bitstr_t *bs, field_t *f, char *base, int level);
-static int decode_enum(bitstr_t *bs, field_t *f, char *base, int level);
-static int decode_bitstr(bitstr_t *bs, field_t *f, char *base, int level);
-static int decode_numstr(bitstr_t *bs, field_t *f, char *base, int level);
-static int decode_octstr(bitstr_t *bs, field_t *f, char *base, int level);
-static int decode_bmpstr(bitstr_t *bs, field_t *f, char *base, int level);
-static int decode_seq(bitstr_t *bs, field_t *f, char *base, int level);
-static int decode_seqof(bitstr_t *bs, field_t *f, char *base, int level);
-static int decode_choice(bitstr_t *bs, field_t *f, char *base, int level);
+static int decode_nul(bitstr_t *bs, const struct field_t *f, char *base, int level);
+static int decode_bool(bitstr_t *bs, const struct field_t *f, char *base, int level);
+static int decode_oid(bitstr_t *bs, const struct field_t *f, char *base, int level);
+static int decode_int(bitstr_t *bs, const struct field_t *f, char *base, int level);
+static int decode_enum(bitstr_t *bs, const struct field_t *f, char *base, int level);
+static int decode_bitstr(bitstr_t *bs, const struct field_t *f, char *base, int level);
+static int decode_numstr(bitstr_t *bs, const struct field_t *f, char *base, int level);
+static int decode_octstr(bitstr_t *bs, const struct field_t *f, char *base, int level);
+static int decode_bmpstr(bitstr_t *bs, const struct field_t *f, char *base, int level);
+static int decode_seq(bitstr_t *bs, const struct field_t *f, char *base, int level);
+static int decode_seqof(bitstr_t *bs, const struct field_t *f, char *base, int level);
+static int decode_choice(bitstr_t *bs, const struct field_t *f, char *base, int level);
 
 /* Decoder Functions Vector */
-typedef int (*decoder_t)(bitstr_t *, field_t *, char *, int);
+typedef int (*decoder_t)(bitstr_t *, const struct field_t *, char *, int);
 static const decoder_t Decoders[] = {
 	decode_nul,
 	decode_bool,
@@ -264,7 +264,8 @@ static unsigned int get_uint(bitstr_t *bs, int b)
 }
 
 /****************************************************************************/
-static int decode_nul(bitstr_t *bs, field_t *f, char *base, int level)
+static int decode_nul(bitstr_t *bs, const struct field_t *f,
+                      char *base, int level)
 {
 	PRINT("%*.s%s\n", level * TAB_SIZE, " ", f->name);
 
@@ -272,7 +273,8 @@ static int decode_nul(bitstr_t *bs, field_t *f, char *base, int level)
 }
 
 /****************************************************************************/
-static int decode_bool(bitstr_t *bs, field_t *f, char *base, int level)
+static int decode_bool(bitstr_t *bs, const struct field_t *f,
+                       char *base, int level)
 {
 	PRINT("%*.s%s\n", level * TAB_SIZE, " ", f->name);
 
@@ -283,7 +285,8 @@ static int decode_bool(bitstr_t *bs, field_t *f, char *base, int level)
 }
 
 /****************************************************************************/
-static int decode_oid(bitstr_t *bs, field_t *f, char *base, int level)
+static int decode_oid(bitstr_t *bs, const struct field_t *f,
+                      char *base, int level)
 {
 	int len;
 
@@ -299,7 +302,8 @@ static int decode_oid(bitstr_t *bs, field_t *f, char *base, int level)
 }
 
 /****************************************************************************/
-static int decode_int(bitstr_t *bs, field_t *f, char *base, int level)
+static int decode_int(bitstr_t *bs, const struct field_t *f,
+                      char *base, int level)
 {
 	unsigned int len;
 
@@ -342,7 +346,8 @@ static int decode_int(bitstr_t *bs, field_t *f, char *base, int level)
 }
 
 /****************************************************************************/
-static int decode_enum(bitstr_t *bs, field_t *f, char *base, int level)
+static int decode_enum(bitstr_t *bs, const struct field_t *f,
+                       char *base, int level)
 {
 	PRINT("%*.s%s\n", level * TAB_SIZE, " ", f->name);
 
@@ -357,7 +362,8 @@ static int decode_enum(bitstr_t *bs, field_t *f, char *base, int level)
 }
 
 /****************************************************************************/
-static int decode_bitstr(bitstr_t *bs, field_t *f, char *base, int level)
+static int decode_bitstr(bitstr_t *bs, const struct field_t *f,
+                         char *base, int level)
 {
 	unsigned int len;
 
@@ -390,7 +396,8 @@ static int decode_bitstr(bitstr_t *bs, field_t *f, char *base, int level)
 }
 
 /****************************************************************************/
-static int decode_numstr(bitstr_t *bs, field_t *f, char *base, int level)
+static int decode_numstr(bitstr_t *bs, const struct field_t *f,
+                         char *base, int level)
 {
 	unsigned int len;
 
@@ -407,7 +414,8 @@ static int decode_numstr(bitstr_t *bs, field_t *f, char *base, int level)
 }
 
 /****************************************************************************/
-static int decode_octstr(bitstr_t *bs, field_t *f, char *base, int level)
+static int decode_octstr(bitstr_t *bs, const struct field_t *f,
+                         char *base, int level)
 {
 	unsigned int len;
 
@@ -455,7 +463,8 @@ static int decode_octstr(bitstr_t *bs, field_t *f, char *base, int level)
 }
 
 /****************************************************************************/
-static int decode_bmpstr(bitstr_t *bs, field_t *f, char *base, int level)
+static int decode_bmpstr(bitstr_t *bs, const struct field_t *f,
+                         char *base, int level)
 {
 	unsigned int len;
 
@@ -480,11 +489,12 @@ static int decode_bmpstr(bitstr_t *bs, field_t *f, char *base, int level)
 }
 
 /****************************************************************************/
-static int decode_seq(bitstr_t *bs, field_t *f, char *base, int level)
+static int decode_seq(bitstr_t *bs, const struct field_t *f,
+                      char *base, int level)
 {
 	unsigned int ext, bmp, i, opt, len = 0, bmp2, bmp2_len;
 	int err;
-	field_t *son;
+	const struct field_t *son;
 	unsigned char *beg = NULL;
 
 	PRINT("%*.s%s\n", level * TAB_SIZE, " ", f->name);
@@ -596,11 +606,12 @@ static int decode_seq(bitstr_t *bs, field_t *f, char *base, int level)
 }
 
 /****************************************************************************/
-static int decode_seqof(bitstr_t *bs, field_t *f, char *base, int level)
+static int decode_seqof(bitstr_t *bs, const struct field_t *f,
+                        char *base, int level)
 {
 	unsigned int count, effective_count = 0, i, len = 0;
 	int err;
-	field_t *son;
+	const struct field_t *son;
 	unsigned char *beg = NULL;
 
 	PRINT("%*.s%s\n", level * TAB_SIZE, " ", f->name);
@@ -685,11 +696,12 @@ static int decode_seqof(bitstr_t *bs, field_t *f, char *base, int level)
 
 
 /****************************************************************************/
-static int decode_choice(bitstr_t *bs, field_t *f, char *base, int level)
+static int decode_choice(bitstr_t *bs, const struct field_t *f,
+                         char *base, int level)
 {
 	unsigned int type, ext, len = 0;
 	int err;
-	field_t *son;
+	const struct field_t *son;
 	unsigned char *beg = NULL;
 
 	PRINT("%*.s%s\n", level * TAB_SIZE, " ", f->name);
@@ -756,7 +768,7 @@ static int decode_choice(bitstr_t *bs, field_t *f, char *base, int level)
 /****************************************************************************/
 int DecodeRasMessage(unsigned char *buf, size_t sz, RasMessage *ras)
 {
-	static field_t ras_message = {
+	static const struct field_t ras_message = {
 		FNAME("RasMessage") CHOICE, 5, 24, 32, DECODE | EXT,
 		0, _RasMessage
 	};
@@ -773,7 +785,7 @@ int DecodeRasMessage(unsigned char *buf, size_t sz, RasMessage *ras)
 static int DecodeH323_UserInformation(unsigned char *buf, unsigned char *beg,
 				      size_t sz, H323_UserInformation *uuie)
 {
-	static field_t h323_userinformation = {
+	static const struct field_t h323_userinformation = {
 		FNAME("H323-UserInformation") SEQ, 1, 2, 2, DECODE | EXT,
 		0, _H323_UserInformation
 	};
@@ -792,7 +804,7 @@ int DecodeMultimediaSystemControlMessage(unsigned char *buf, size_t sz,
 					 MultimediaSystemControlMessage *
 					 mscm)
 {
-	static field_t multimediasystemcontrolmessage = {
+	static const struct field_t multimediasystemcontrolmessage = {
 		FNAME("MultimediaSystemControlMessage") CHOICE, 2, 4, 4,
 		DECODE | EXT, 0, _MultimediaSystemControlMessage
 	};
