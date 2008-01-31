@@ -46,7 +46,7 @@ static int nf_ct_tcp_max_retrans __read_mostly = 3;
   /* FIXME: Examine ipfilter's timeouts and conntrack transitions more
      closely.  They're more complex. --RR */
 
-static const char *tcp_conntrack_names[] = {
+static const char *const tcp_conntrack_names[] = {
 	"NONE",
 	"SYN_SENT",
 	"SYN_RECV",
@@ -261,7 +261,8 @@ static int tcp_pkt_to_tuple(const struct sk_buff *skb,
 			    unsigned int dataoff,
 			    struct nf_conntrack_tuple *tuple)
 {
-	struct tcphdr _hdr, *hp;
+	const struct tcphdr *hp;
+	struct tcphdr _hdr;
 
 	/* Actually only need first 8 bytes. */
 	hp = skb_header_pointer(skb, dataoff, 8, &_hdr);
@@ -343,7 +344,7 @@ static unsigned int get_conntrack_index(const struct tcphdr *tcph)
 static inline __u32 segment_seq_plus_len(__u32 seq,
 					 size_t len,
 					 unsigned int dataoff,
-					 struct tcphdr *tcph)
+					 const struct tcphdr *tcph)
 {
 	/* XXX Should I use payload length field in IP/IPv6 header ?
 	 * - YK */
@@ -362,11 +363,11 @@ static inline __u32 segment_seq_plus_len(__u32 seq,
  */
 static void tcp_options(const struct sk_buff *skb,
 			unsigned int dataoff,
-			struct tcphdr *tcph,
+			const struct tcphdr *tcph,
 			struct ip_ct_tcp_state *state)
 {
 	unsigned char buff[(15 * 4) - sizeof(struct tcphdr)];
-	unsigned char *ptr;
+	const unsigned char *ptr;
 	int length = (tcph->doff*4) - sizeof(struct tcphdr);
 
 	if (!length)
@@ -417,10 +418,10 @@ static void tcp_options(const struct sk_buff *skb,
 }
 
 static void tcp_sack(const struct sk_buff *skb, unsigned int dataoff,
-		     struct tcphdr *tcph, __u32 *sack)
+                     const struct tcphdr *tcph, __u32 *sack)
 {
 	unsigned char buff[(15 * 4) - sizeof(struct tcphdr)];
-	unsigned char *ptr;
+	const unsigned char *ptr;
 	int length = (tcph->doff*4) - sizeof(struct tcphdr);
 	__u32 tmp;
 
@@ -477,18 +478,18 @@ static void tcp_sack(const struct sk_buff *skb, unsigned int dataoff,
 	}
 }
 
-static int tcp_in_window(struct nf_conn *ct,
+static int tcp_in_window(const struct nf_conn *ct,
 			 struct ip_ct_tcp *state,
 			 enum ip_conntrack_dir dir,
 			 unsigned int index,
 			 const struct sk_buff *skb,
 			 unsigned int dataoff,
-			 struct tcphdr *tcph,
+			 const struct tcphdr *tcph,
 			 int pf)
 {
 	struct ip_ct_tcp_state *sender = &state->seen[dir];
 	struct ip_ct_tcp_state *receiver = &state->seen[!dir];
-	struct nf_conntrack_tuple *tuple = &ct->tuplehash[dir].tuple;
+	const struct nf_conntrack_tuple *tuple = &ct->tuplehash[dir].tuple;
 	__u32 seq, ack, sack, end, win, swin;
 	int res;
 
@@ -686,14 +687,14 @@ static int tcp_in_window(struct nf_conn *ct,
 #ifdef CONFIG_NF_NAT_NEEDED
 /* Update sender->td_end after NAT successfully mangled the packet */
 /* Caller must linearize skb at tcp header. */
-void nf_conntrack_tcp_update(struct sk_buff *skb,
+void nf_conntrack_tcp_update(const struct sk_buff *skb,
 			     unsigned int dataoff,
 			     struct nf_conn *ct,
 			     int dir)
 {
-	struct tcphdr *tcph = (void *)skb->data + dataoff;
-	struct ip_ct_tcp_state *sender = &ct->proto.tcp.seen[dir];
-	struct ip_ct_tcp_state *receiver = &ct->proto.tcp.seen[!dir];
+	const struct tcphdr *tcph = (const void *)skb->data + dataoff;
+	const struct ip_ct_tcp_state *sender = &ct->proto.tcp.seen[dir];
+	const struct ip_ct_tcp_state *receiver = &ct->proto.tcp.seen[!dir];
 	__u32 end;
 
 	end = segment_seq_plus_len(ntohl(tcph->seq), skb->len, dataoff, tcph);
@@ -726,7 +727,7 @@ EXPORT_SYMBOL_GPL(nf_conntrack_tcp_update);
 #define	TH_CWR	0x80
 
 /* table of valid flag combinations - PUSH, ECE and CWR are always valid */
-static u8 tcp_valid_flags[(TH_FIN|TH_SYN|TH_RST|TH_ACK|TH_URG) + 1] =
+static const u8 tcp_valid_flags[(TH_FIN|TH_SYN|TH_RST|TH_ACK|TH_URG) + 1] =
 {
 	[TH_SYN]			= 1,
 	[TH_SYN|TH_URG]			= 1,
@@ -746,7 +747,8 @@ static int tcp_error(struct sk_buff *skb,
 		     int pf,
 		     unsigned int hooknum)
 {
-	struct tcphdr _tcph, *th;
+	const struct tcphdr *th;
+	struct tcphdr _tcph;
 	unsigned int tcplen = skb->len - dataoff;
 	u_int8_t tcpflags;
 
@@ -803,7 +805,8 @@ static int tcp_packet(struct nf_conn *ct,
 	struct nf_conntrack_tuple *tuple;
 	enum tcp_conntrack new_state, old_state;
 	enum ip_conntrack_dir dir;
-	struct tcphdr *th, _tcph;
+	const struct tcphdr *th;
+	struct tcphdr _tcph;
 	unsigned long timeout;
 	unsigned int index;
 
@@ -964,9 +967,10 @@ static int tcp_new(struct nf_conn *ct,
 		   unsigned int dataoff)
 {
 	enum tcp_conntrack new_state;
-	struct tcphdr *th, _tcph;
-	struct ip_ct_tcp_state *sender = &ct->proto.tcp.seen[0];
-	struct ip_ct_tcp_state *receiver = &ct->proto.tcp.seen[1];
+	const struct tcphdr *th;
+	struct tcphdr _tcph;
+	const struct ip_ct_tcp_state *sender = &ct->proto.tcp.seen[0];
+	const struct ip_ct_tcp_state *receiver = &ct->proto.tcp.seen[1];
 
 	th = skb_header_pointer(skb, dataoff, sizeof(_tcph), &_tcph);
 	BUG_ON(th == NULL);

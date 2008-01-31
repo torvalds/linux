@@ -216,7 +216,7 @@ static inline void nf_ct_refresh(struct nf_conn *ct,
 
 /* These are for NAT.  Icky. */
 /* Update TCP window tracking data when NAT mangles the packet */
-extern void nf_conntrack_tcp_update(struct sk_buff *skb,
+extern void nf_conntrack_tcp_update(const struct sk_buff *skb,
 				    unsigned int dataoff,
 				    struct nf_conn *ct,
 				    int dir);
