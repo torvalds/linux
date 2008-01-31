@@ -1457,7 +1457,7 @@ struct compat_ip6t_replace {
 
 static int
 compat_copy_entry_to_user(struct ip6t_entry *e, void __user **dstptr,
-			  compat_uint_t *size, struct xt_counters *counters,
+			  unsigned int *size, struct xt_counters *counters,
 			  unsigned int *i)
 {
 	struct ip6t_entry_target *t;
@@ -1504,7 +1504,7 @@ compat_find_calc_match(struct ip6t_entry_match *m,
 		       const char *name,
 		       const struct ip6t_ip6 *ipv6,
 		       unsigned int hookmask,
-		       int *size, int *i)
+		       int *size, unsigned int *i)
 {
 	struct xt_match *match;
 
@@ -1562,7 +1562,8 @@ check_compat_entry_size_and_hooks(struct compat_ip6t_entry *e,
 	struct ip6t_entry_target *t;
 	struct xt_target *target;
 	unsigned int entry_offset;
-	int ret, off, h, j;
+	unsigned int j;
+	int ret, off, h;
 
 	duprintf("check_compat_entry_size_and_hooks %p\n", e);
 	if ((unsigned long)e % __alignof__(struct compat_ip6t_entry) != 0
@@ -1674,7 +1675,8 @@ compat_copy_entry_from_user(struct compat_ip6t_entry *e, void **dstptr,
 static int compat_check_entry(struct ip6t_entry *e, const char *name,
 				     unsigned int *i)
 {
-	int j, ret;
+	unsigned int j;
+	int ret;
 
 	j = 0;
 	ret = IP6T_MATCH_ITERATE(e, check_match, name, &e->ipv6,

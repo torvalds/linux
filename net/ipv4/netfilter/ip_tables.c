@@ -1429,7 +1429,7 @@ struct compat_ipt_replace {
 
 static int
 compat_copy_entry_to_user(struct ipt_entry *e, void __user **dstptr,
-			  compat_uint_t *size, struct xt_counters *counters,
+			  unsigned int *size, struct xt_counters *counters,
 			  unsigned int *i)
 {
 	struct ipt_entry_target *t;
@@ -1476,7 +1476,7 @@ compat_find_calc_match(struct ipt_entry_match *m,
 		       const char *name,
 		       const struct ipt_ip *ip,
 		       unsigned int hookmask,
-		       int *size, int *i)
+		       int *size, unsigned int *i)
 {
 	struct xt_match *match;
 
@@ -1534,7 +1534,8 @@ check_compat_entry_size_and_hooks(struct compat_ipt_entry *e,
 	struct ipt_entry_target *t;
 	struct xt_target *target;
 	unsigned int entry_offset;
-	int ret, off, h, j;
+	unsigned int j;
+	int ret, off, h;
 
 	duprintf("check_compat_entry_size_and_hooks %p\n", e);
 	if ((unsigned long)e % __alignof__(struct compat_ipt_entry) != 0
@@ -1647,7 +1648,8 @@ static int
 compat_check_entry(struct ipt_entry *e, const char *name,
 				     unsigned int *i)
 {
-	int j, ret;
+	unsigned int j;
+	int ret;
 
 	j = 0;
 	ret = IPT_MATCH_ITERATE(e, check_match, name, &e->ip,

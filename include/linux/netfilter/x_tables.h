@@ -432,15 +432,15 @@ extern short xt_compat_calc_jump(int af, unsigned int offset);
 
 extern int xt_compat_match_offset(struct xt_match *match);
 extern int xt_compat_match_from_user(struct xt_entry_match *m,
-				     void **dstptr, int *size);
+				     void **dstptr, unsigned int *size);
 extern int xt_compat_match_to_user(struct xt_entry_match *m,
-				   void __user **dstptr, int *size);
+				   void __user **dstptr, unsigned int *size);
 
 extern int xt_compat_target_offset(struct xt_target *target);
 extern void xt_compat_target_from_user(struct xt_entry_target *t,
-				       void **dstptr, int *size);
+				       void **dstptr, unsigned int *size);
 extern int xt_compat_target_to_user(struct xt_entry_target *t,
-				    void __user **dstptr, int *size);
+				    void __user **dstptr, unsigned int *size);
 
 #endif /* CONFIG_COMPAT */
 #endif /* __KERNEL__ */

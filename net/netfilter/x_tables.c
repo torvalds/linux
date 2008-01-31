@@ -399,7 +399,7 @@ int xt_compat_match_offset(struct xt_match *match)
 EXPORT_SYMBOL_GPL(xt_compat_match_offset);
 
 int xt_compat_match_from_user(struct xt_entry_match *m, void **dstptr,
-			      int *size)
+			      unsigned int *size)
 {
 	struct xt_match *match = m->u.kernel.match;
 	struct compat_xt_entry_match *cm = (struct compat_xt_entry_match *)m;
@@ -426,7 +426,7 @@ int xt_compat_match_from_user(struct xt_entry_match *m, void **dstptr,
 EXPORT_SYMBOL_GPL(xt_compat_match_from_user);
 
 int xt_compat_match_to_user(struct xt_entry_match *m, void __user **dstptr,
-			    int *size)
+			    unsigned int *size)
 {
 	struct xt_match *match = m->u.kernel.match;
 	struct compat_xt_entry_match __user *cm = *dstptr;
@@ -493,7 +493,7 @@ int xt_compat_target_offset(struct xt_target *target)
 EXPORT_SYMBOL_GPL(xt_compat_target_offset);
 
 void xt_compat_target_from_user(struct xt_entry_target *t, void **dstptr,
-				int *size)
+				unsigned int *size)
 {
 	struct xt_target *target = t->u.kernel.target;
 	struct compat_xt_entry_target *ct = (struct compat_xt_entry_target *)t;
@@ -519,7 +519,7 @@ void xt_compat_target_from_user(struct xt_entry_target *t, void **dstptr,
 EXPORT_SYMBOL_GPL(xt_compat_target_from_user);
 
 int xt_compat_target_to_user(struct xt_entry_target *t, void __user **dstptr,
-			     int *size)
+			     unsigned int *size)
 {
 	struct xt_target *target = t->u.kernel.target;
 	struct compat_xt_entry_target __user *ct = *dstptr;
