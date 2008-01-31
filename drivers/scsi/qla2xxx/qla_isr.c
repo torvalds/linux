@@ -1815,6 +1815,8 @@ int
 qla2x00_request_irqs(scsi_qla_host_t *ha)
 {
 	int ret;
+	device_reg_t __iomem *reg = ha->iobase;
+	unsigned long flags;
 
 	/* If possible, enable MSI-X. */
 	if (!IS_QLA2432(ha) && !IS_QLA2532(ha))
@@ -1846,7 +1848,7 @@ qla2x00_request_irqs(scsi_qla_host_t *ha)
 		DEBUG2(qla_printk(KERN_INFO, ha,
 		    "MSI-X: Enabled (0x%X, 0x%X).\n", ha->chip_revision,
 		    ha->fw_attributes));
-		return ret;
+		goto clear_risc_ints;
 	}
 	qla_printk(KERN_WARNING, ha,
 	    "MSI-X: Falling back-to INTa mode -- %d.\n", ret);
@@ -1864,15 +1866,30 @@ skip_msi:
 
 	ret = request_irq(ha->pdev->irq, ha->isp_ops->intr_handler,
 	    IRQF_DISABLED|IRQF_SHARED, QLA2XXX_DRIVER_NAME, ha);
-	if (!ret) {
-		ha->flags.inta_enabled = 1;
-		ha->host->irq = ha->pdev->irq;
-	} else {
+	if (ret) {
 		qla_printk(KERN_WARNING, ha,
 		    "Failed to reserve interrupt %d already in use.\n",
 		    ha->pdev->irq);
+		goto fail;
 	}
+	ha->flags.inta_enabled = 1;
+	ha->host->irq = ha->pdev->irq;
+clear_risc_ints:
 
+	ha->isp_ops->disable_intrs(ha);
+	spin_lock_irqsave(&ha->hardware_lock, flags);
+	if (IS_FWI2_CAPABLE(ha)) {
+		WRT_REG_DWORD(&reg->isp24.hccr, HCCRX_CLR_HOST_INT);
+		WRT_REG_DWORD(&reg->isp24.hccr, HCCRX_CLR_RISC_INT);
+	} else {
+		WRT_REG_WORD(&reg->isp.semaphore, 0);
+		WRT_REG_WORD(&reg->isp.hccr, HCCR_CLR_RISC_INT);
+		WRT_REG_WORD(&reg->isp.hccr, HCCR_CLR_HOST_INT);
+	}
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+	ha->isp_ops->enable_intrs(ha);
+
+fail:
 	return ret;
 }
 

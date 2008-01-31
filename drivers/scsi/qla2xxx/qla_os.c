@@ -1576,10 +1576,8 @@ static int __devinit
 qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	int	ret = -ENODEV;
-	device_reg_t __iomem *reg;
 	struct Scsi_Host *host;
 	scsi_qla_host_t *ha;
-	unsigned long	flags = 0;
 	char pci_info[30];
 	char fw_str[30];
 	struct scsi_host_template *sht;
@@ -1768,22 +1766,6 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	DEBUG2(printk("DEBUG: detect hba %ld at address = %p\n",
 	    ha->host_no, ha));
-
-	ha->isp_ops->disable_intrs(ha);
-
-	spin_lock_irqsave(&ha->hardware_lock, flags);
-	reg = ha->iobase;
-	if (IS_FWI2_CAPABLE(ha)) {
-		WRT_REG_DWORD(&reg->isp24.hccr, HCCRX_CLR_HOST_INT);
-		WRT_REG_DWORD(&reg->isp24.hccr, HCCRX_CLR_RISC_INT);
-	} else {
-		WRT_REG_WORD(&reg->isp.semaphore, 0);
-		WRT_REG_WORD(&reg->isp.hccr, HCCR_CLR_RISC_INT);
-		WRT_REG_WORD(&reg->isp.hccr, HCCR_CLR_HOST_INT);
-	}
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
-
-	ha->isp_ops->enable_intrs(ha);
 
 	pci_set_drvdata(pdev, ha);
 
