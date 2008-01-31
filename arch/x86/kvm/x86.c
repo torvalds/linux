@@ -432,8 +432,6 @@ static u32 emulated_msrs[] = {
 	MSR_IA32_MISC_ENABLE,
 };
 
-#ifdef CONFIG_X86_64
-
 static void set_efer(struct kvm_vcpu *vcpu, u64 efer)
 {
 	if (efer & efer_reserved_bits) {
@@ -457,8 +455,6 @@ static void set_efer(struct kvm_vcpu *vcpu, u64 efer)
 
 	vcpu->arch.shadow_efer = efer;
 }
-
-#endif
 
 void kvm_enable_efer_bits(u64 mask)
 {
@@ -489,11 +485,9 @@ static int do_set_msr(struct kvm_vcpu *vcpu, unsigned index, u64 *data)
 int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 {
 	switch (msr) {
-#ifdef CONFIG_X86_64
 	case MSR_EFER:
 		set_efer(vcpu, data);
 		break;
-#endif
 	case MSR_IA32_MC0_STATUS:
 		pr_unimpl(vcpu, "%s: MSR_IA32_MC0_STATUS 0x%llx, nop\n",
 		       __FUNCTION__, data);
@@ -571,11 +565,9 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 	case MSR_IA32_MISC_ENABLE:
 		data = vcpu->arch.ia32_misc_enable_msr;
 		break;
-#ifdef CONFIG_X86_64
 	case MSR_EFER:
 		data = vcpu->arch.shadow_efer;
 		break;
-#endif
 	default:
 		pr_unimpl(vcpu, "unhandled rdmsr: 0x%x\n", msr);
 		return 1;
@@ -2880,9 +2872,7 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 	set_cr8(vcpu, sregs->cr8);
 
 	mmu_reset_needed |= vcpu->arch.shadow_efer != sregs->efer;
-#ifdef CONFIG_X86_64
 	kvm_x86_ops->set_efer(vcpu, sregs->efer);
-#endif
 	kvm_set_apic_base(vcpu, sregs->apic_base);
 
 	kvm_x86_ops->decache_cr4_guest_bits(vcpu);
