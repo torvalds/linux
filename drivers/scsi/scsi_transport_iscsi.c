@@ -31,7 +31,7 @@
 #include <scsi/iscsi_if.h>
 
 #define ISCSI_SESSION_ATTRS 19
-#define ISCSI_CONN_ATTRS 11
+#define ISCSI_CONN_ATTRS 13
 #define ISCSI_HOST_ATTRS 4
 #define ISCSI_TRANSPORT_VERSION "2.0-867"
 
