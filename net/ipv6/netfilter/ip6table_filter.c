@@ -132,7 +132,7 @@ static int __init ip6table_filter_init(void)
 	initial_table.entries[1].target.verdict = -forward - 1;
 
 	/* Register table */
-	packet_filter = ip6t_register_table(&__packet_filter, &initial_table.repl);
+	packet_filter = ip6t_register_table(&init_net, &__packet_filter, &initial_table.repl);
 	if (IS_ERR(packet_filter))
 		return PTR_ERR(packet_filter);
 

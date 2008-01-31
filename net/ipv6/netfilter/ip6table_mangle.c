@@ -164,7 +164,7 @@ static int __init ip6table_mangle_init(void)
 	int ret;
 
 	/* Register table */
-	packet_mangler = ip6t_register_table(&__packet_mangler, &initial_table.repl);
+	packet_mangler = ip6t_register_table(&init_net, &__packet_mangler, &initial_table.repl);
 	if (IS_ERR(packet_mangler))
 		return PTR_ERR(packet_mangler);
 

@@ -77,7 +77,7 @@ static int __init ip6table_raw_init(void)
 	int ret;
 
 	/* Register table */
-	packet_raw = ip6t_register_table(&__packet_raw, &initial_table.repl);
+	packet_raw = ip6t_register_table(&init_net, &__packet_raw, &initial_table.repl);
 	if (IS_ERR(packet_raw))
 		return PTR_ERR(packet_raw);
 
