@@ -1448,42 +1448,6 @@ ieee80211_rx_h_mgmt(struct ieee80211_txrx_data *rx)
 	return RX_QUEUED;
 }
 
-static void ieee80211_invoke_rx_handlers(struct ieee80211_local *local,
-					 ieee80211_rx_handler *handlers,
-					 struct ieee80211_txrx_data *rx,
-					 struct sta_info *sta)
-{
-	ieee80211_rx_handler *handler;
-	ieee80211_rx_result res = RX_DROP_MONITOR;
-
-	for (handler = handlers; *handler != NULL; handler++) {
-		res = (*handler)(rx);
-
-		switch (res) {
-		case RX_CONTINUE:
-			continue;
-		case RX_DROP_UNUSABLE:
-		case RX_DROP_MONITOR:
-			I802_DEBUG_INC(local->rx_handlers_drop);
-			if (sta)
-				sta->rx_dropped++;
-			break;
-		case RX_QUEUED:
-			I802_DEBUG_INC(local->rx_handlers_queued);
-			break;
-		}
-		break;
-	}
-
-	switch (res) {
-	case RX_DROP_MONITOR:
-	case RX_DROP_UNUSABLE:
-	case RX_CONTINUE:
-		dev_kfree_skb(rx->skb);
-		break;
-	}
-}
-
 static void ieee80211_rx_michael_mic_report(struct net_device *dev,
 					    struct ieee80211_hdr *hdr,
 					    struct sta_info *sta,
@@ -1557,7 +1521,8 @@ static void ieee80211_rx_michael_mic_report(struct net_device *dev,
 	rx->skb = NULL;
 }
 
-ieee80211_rx_handler ieee80211_rx_handlers[] =
+typedef ieee80211_rx_result (*ieee80211_rx_handler)(struct ieee80211_txrx_data *);
+static ieee80211_rx_handler ieee80211_rx_handlers[] =
 {
 	ieee80211_rx_h_if_stats,
 	ieee80211_rx_h_passive_scan,
@@ -1578,6 +1543,41 @@ ieee80211_rx_handler ieee80211_rx_handlers[] =
 	ieee80211_rx_h_mgmt,
 	NULL
 };
+
+static void ieee80211_invoke_rx_handlers(struct ieee80211_local *local,
+					 struct ieee80211_txrx_data *rx,
+					 struct sta_info *sta)
+{
+	ieee80211_rx_handler *handler;
+	ieee80211_rx_result res = RX_DROP_MONITOR;
+
+	for (handler = ieee80211_rx_handlers; *handler != NULL; handler++) {
+		res = (*handler)(rx);
+
+		switch (res) {
+		case RX_CONTINUE:
+			continue;
+		case RX_DROP_UNUSABLE:
+		case RX_DROP_MONITOR:
+			I802_DEBUG_INC(local->rx_handlers_drop);
+			if (sta)
+				sta->rx_dropped++;
+			break;
+		case RX_QUEUED:
+			I802_DEBUG_INC(local->rx_handlers_queued);
+			break;
+		}
+		break;
+	}
+
+	switch (res) {
+	case RX_DROP_MONITOR:
+	case RX_DROP_UNUSABLE:
+	case RX_CONTINUE:
+		dev_kfree_skb(rx->skb);
+		break;
+	}
+}
 
 /* main receive path */
 
@@ -1756,8 +1756,7 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 		rx.skb = skb_new;
 		rx.dev = prev->dev;
 		rx.sdata = prev;
-		ieee80211_invoke_rx_handlers(local, local->rx_handlers,
-					     &rx, sta);
+		ieee80211_invoke_rx_handlers(local, &rx, sta);
 		prev = sdata;
 	}
 	if (prev) {
@@ -1765,8 +1764,7 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 		rx.skb = skb;
 		rx.dev = prev->dev;
 		rx.sdata = prev;
-		ieee80211_invoke_rx_handlers(local, local->rx_handlers,
-					     &rx, sta);
+		ieee80211_invoke_rx_handlers(local, &rx, sta);
 	} else
 		dev_kfree_skb(skb);
 

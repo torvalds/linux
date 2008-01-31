@@ -190,12 +190,6 @@ struct ieee80211_tx_stored_packet {
 	unsigned int last_frag_rate_ctrl_probe;
 };
 
-typedef ieee80211_tx_result (*ieee80211_tx_handler)
-(struct ieee80211_txrx_data *tx);
-
-typedef ieee80211_rx_result (*ieee80211_rx_handler)
-(struct ieee80211_txrx_data *rx);
-
 struct beacon_data {
 	u8 *head, *tail;
 	int head_len, tail_len;
@@ -476,9 +470,6 @@ struct ieee80211_local {
 	int bridge_packets; /* bridge packets between associated stations and
 			     * deliver multicast frames both back to wireless
 			     * media and to the local net stack */
-
-	ieee80211_rx_handler *rx_handlers;
-	ieee80211_tx_handler *tx_handlers;
 
 	struct list_head interfaces;
 
@@ -779,11 +770,7 @@ int ieee80211_if_remove(struct net_device *dev, const char *name, int id);
 void ieee80211_if_free(struct net_device *dev);
 void ieee80211_if_sdata_init(struct ieee80211_sub_if_data *sdata);
 
-/* rx handling */
-extern ieee80211_rx_handler ieee80211_rx_handlers[];
-
 /* tx handling */
-extern ieee80211_tx_handler ieee80211_tx_handlers[];
 void ieee80211_clear_tx_pending(struct ieee80211_local *local);
 void ieee80211_tx_pending(unsigned long data);
 int ieee80211_master_start_xmit(struct sk_buff *skb, struct net_device *dev);

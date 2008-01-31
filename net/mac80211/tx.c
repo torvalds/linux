@@ -813,10 +813,9 @@ ieee80211_tx_h_load_stats(struct ieee80211_txrx_data *tx)
 	return TX_CONTINUE;
 }
 
-/* TODO: implement register/unregister functions for adding TX/RX handlers
- * into ordered list */
 
-ieee80211_tx_handler ieee80211_tx_handlers[] =
+typedef ieee80211_tx_result (*ieee80211_tx_handler)(struct ieee80211_txrx_data *);
+static ieee80211_tx_handler ieee80211_tx_handlers[] =
 {
 	ieee80211_tx_h_check_assoc,
 	ieee80211_tx_h_sequence,
@@ -1158,7 +1157,7 @@ static int ieee80211_tx(struct net_device *dev, struct sk_buff *skb,
 	sta = tx.sta;
 	tx.u.tx.channel = local->hw.conf.channel;
 
-	for (handler = local->tx_handlers; *handler != NULL;
+	for (handler = ieee80211_tx_handlers; *handler != NULL;
 	     handler++) {
 		res = (*handler)(&tx);
 		if (res != TX_CONTINUE)
@@ -1914,7 +1913,7 @@ ieee80211_get_buffered_bc(struct ieee80211_hw *hw,
 	tx.flags |= IEEE80211_TXRXD_TXPS_BUFFERED;
 	tx.u.tx.channel = local->hw.conf.channel;
 
-	for (handler = local->tx_handlers; *handler != NULL; handler++) {
+	for (handler = ieee80211_tx_handlers; *handler != NULL; handler++) {
 		res = (*handler)(&tx);
 		if (res == TX_DROP || res == TX_QUEUED)
 			break;

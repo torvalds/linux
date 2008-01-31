@@ -1429,8 +1429,6 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	local->hw.queues = 1; /* default */
 
 	local->mdev = mdev;
-	local->rx_handlers = ieee80211_rx_handlers;
-	local->tx_handlers = ieee80211_tx_handlers;
 
 	local->bridge_packets = 1;
 
