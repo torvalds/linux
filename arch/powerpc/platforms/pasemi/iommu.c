@@ -184,7 +184,7 @@ static void pci_dma_dev_setup_pasemi(struct pci_dev *dev)
 	if (dev->vendor == 0x1959 && dev->device == 0xa007 &&
 	    !firmware_has_feature(FW_FEATURE_LPAR)) {
 		dev->dev.archdata.dma_ops = &dma_direct_ops;
-		dev->dev.archdata.dma_data = 0;
+		return;
 	}
 #endif
 
