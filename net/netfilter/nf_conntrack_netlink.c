@@ -1237,7 +1237,7 @@ ctnetlink_new_conntrack(struct sock *ctnl, struct sk_buff *skb,
 						    CTA_TUPLE_MASTER,
 						    u3);
 			if (err < 0)
-				return err;
+				goto out_unlock;
 
 			master_h = __nf_conntrack_find(&master, NULL);
 			if (master_h == NULL) {
