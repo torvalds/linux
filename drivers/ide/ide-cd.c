@@ -1722,7 +1722,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	 */
 	if ((stat & DRQ_STAT) == 0) {
 		spin_lock_irqsave(&ide_lock, flags);
-		if (__blk_end_request(rq, 0, 0))
+		if (__blk_end_request(rq, 0, rq->data_len))
 			BUG();
 		HWGROUP(drive)->rq = NULL;
 		spin_unlock_irqrestore(&ide_lock, flags);
