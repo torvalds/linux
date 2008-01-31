@@ -421,7 +421,6 @@ efi_map_pal_code (void)
 		 pte_val(pfn_pte(__pa(pal_vaddr) >> PAGE_SHIFT, PAGE_KERNEL)),
 		 IA64_GRANULE_SHIFT);
 	ia64_set_psr(psr);		/* restore psr */
-	ia64_srlz_i();
 }
 
 void __init
