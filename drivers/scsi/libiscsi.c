@@ -416,8 +416,9 @@ static void iscsi_scsi_cmd_rsp(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 
 		if (datalen < 2) {
 invalid_datalen:
-			printk(KERN_ERR "iscsi: Got CHECK_CONDITION but "
-			       "invalid data buffer size of %d\n", datalen);
+			iscsi_conn_printk(KERN_ERR,  conn,
+					 "Got CHECK_CONDITION but invalid data "
+					 "buffer size of %d\n", datalen);
 			sc->result = DID_BAD_TARGET << 16;
 			goto out;
 		}
@@ -494,7 +495,7 @@ static void iscsi_send_nopout(struct iscsi_conn *conn, struct iscsi_nopin *rhdr)
 
 	mtask = __iscsi_conn_send_pdu(conn, (struct iscsi_hdr *)&hdr, NULL, 0);
 	if (!mtask) {
-		printk(KERN_ERR "Could not send nopout\n");
+		iscsi_conn_printk(KERN_ERR, conn, "Could not send nopout\n");
 		return;
 	}
 
@@ -522,9 +523,10 @@ static int iscsi_handle_reject(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 		if (ntoh24(reject->dlength) >= sizeof(struct iscsi_hdr)) {
 			memcpy(&rejected_pdu, data, sizeof(struct iscsi_hdr));
 			itt = get_itt(rejected_pdu.itt);
-			printk(KERN_ERR "itt 0x%x had pdu (op 0x%x) rejected "
-				"due to DataDigest error.\n", itt,
-				rejected_pdu.opcode);
+			iscsi_conn_printk(KERN_ERR, conn,
+					  "itt 0x%x had pdu (op 0x%x) rejected "
+					  "due to DataDigest error.\n", itt,
+					  rejected_pdu.opcode);
 		}
 	}
 	return 0;
@@ -696,16 +698,19 @@ int iscsi_verify_itt(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 	if (hdr->itt != RESERVED_ITT) {
 		if (((__force u32)hdr->itt & ISCSI_AGE_MASK) !=
 		    (session->age << ISCSI_AGE_SHIFT)) {
-			printk(KERN_ERR "iscsi: received itt %x expected "
-				"session age (%x)\n", (__force u32)hdr->itt,
-				session->age & ISCSI_AGE_MASK);
+			iscsi_conn_printk(KERN_ERR, conn,
+					  "received itt %x expected session "
+					  "age (%x)\n", (__force u32)hdr->itt,
+					  session->age & ISCSI_AGE_MASK);
 			return ISCSI_ERR_BAD_ITT;
 		}
 
 		if (((__force u32)hdr->itt & ISCSI_CID_MASK) !=
 		    (conn->id << ISCSI_CID_SHIFT)) {
-			printk(KERN_ERR "iscsi: received itt %x, expected "
-				"CID (%x)\n", (__force u32)hdr->itt, conn->id);
+			iscsi_conn_printk(KERN_ERR, conn,
+					  "iscsi: received itt %x, expected "
+					  "CID (%x)\n",
+					  (__force u32)hdr->itt, conn->id);
 			return ISCSI_ERR_BAD_ITT;
 		}
 		itt = get_itt(hdr->itt);
@@ -716,16 +721,17 @@ int iscsi_verify_itt(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 		ctask = session->cmds[itt];
 
 		if (!ctask->sc) {
-			printk(KERN_INFO "iscsi: dropping ctask with "
-			       "itt 0x%x\n", ctask->itt);
+			iscsi_conn_printk(KERN_INFO, conn, "dropping ctask "
+					  "with itt 0x%x\n", ctask->itt);
 			/* force drop */
 			return ISCSI_ERR_NO_SCSI_CMD;
 		}
 
 		if (ctask->sc->SCp.phase != session->age) {
-			printk(KERN_ERR "iscsi: ctask's session age %d, "
-				"expected %d\n", ctask->sc->SCp.phase,
-				session->age);
+			iscsi_conn_printk(KERN_ERR, conn,
+					  "iscsi: ctask's session age %d, "
+					  "expected %d\n", ctask->sc->SCp.phase,
+					  session->age);
 			return ISCSI_ERR_SESSION_FAILED;
 		}
 	}
@@ -1170,7 +1176,8 @@ failed:
 	mutex_lock(&session->eh_mutex);
 	spin_lock_bh(&session->lock);
 	if (session->state == ISCSI_STATE_LOGGED_IN)
-		printk(KERN_INFO "iscsi: host reset succeeded\n");
+		iscsi_session_printk(KERN_INFO, session,
+				     "host reset succeeded\n");
 	else
 		goto failed;
 	spin_unlock_bh(&session->lock);
@@ -1368,10 +1375,10 @@ static void iscsi_check_transport_timeouts(unsigned long data)
 	last_recv = conn->last_recv;
 	if (time_before_eq(last_recv + timeout + (conn->ping_timeout * HZ),
 			   jiffies)) {
-		printk(KERN_ERR "ping timeout of %d secs expired, "
-		       "last rx %lu, last ping %lu, now %lu\n",
-		       conn->ping_timeout, last_recv,
-		       conn->last_ping, jiffies);
+		iscsi_conn_printk(KERN_ERR, conn, "ping timeout of %d secs "
+				  "expired, last rx %lu, last ping %lu, "
+				  "now %lu\n", conn->ping_timeout, last_recv,
+				  conn->last_ping, jiffies);
 		spin_unlock(&session->lock);
 		iscsi_conn_failure(conn, ISCSI_ERR_CONN_FAILED);
 		return;
@@ -1952,9 +1959,10 @@ void iscsi_conn_teardown(struct iscsi_cls_conn *cls_conn)
 		}
 		spin_unlock_irqrestore(session->host->host_lock, flags);
 		msleep_interruptible(500);
-		printk(KERN_INFO "iscsi: scsi conn_destroy(): host_busy %d "
-		       "host_failed %d\n", session->host->host_busy,
-		       session->host->host_failed);
+		iscsi_conn_printk(KERN_INFO, conn, "iscsi conn_destroy(): "
+				  "host_busy %d host_failed %d\n",
+				  session->host->host_busy,
+				  session->host->host_failed);
 		/*
 		 * force eh_abort() to unblock
 		 */
@@ -1983,27 +1991,28 @@ int iscsi_conn_start(struct iscsi_cls_conn *cls_conn)
 	struct iscsi_session *session = conn->session;
 
 	if (!session) {
-		printk(KERN_ERR "iscsi: can't start unbound connection\n");
+		iscsi_conn_printk(KERN_ERR, conn,
+				  "can't start unbound connection\n");
 		return -EPERM;
 	}
 
 	if ((session->imm_data_en || !session->initial_r2t_en) &&
 	     session->first_burst > session->max_burst) {
-		printk("iscsi: invalid burst lengths: "
-		       "first_burst %d max_burst %d\n",
-		       session->first_burst, session->max_burst);
+		iscsi_conn_printk(KERN_INFO, conn, "invalid burst lengths: "
+				  "first_burst %d max_burst %d\n",
+				  session->first_burst, session->max_burst);
 		return -EINVAL;
 	}
 
 	if (conn->ping_timeout && !conn->recv_timeout) {
-		printk(KERN_ERR "iscsi: invalid recv timeout of zero "
-		      "Using 5 seconds\n.");
+		iscsi_conn_printk(KERN_ERR, conn, "invalid recv timeout of "
+				  "zero. Using 5 seconds\n.");
 		conn->recv_timeout = 5;
 	}
 
 	if (conn->recv_timeout && !conn->ping_timeout) {
-		printk(KERN_ERR "iscsi: invalid ping timeout of zero "
-		      "Using 5 seconds.\n");
+		iscsi_conn_printk(KERN_ERR, conn, "invalid ping timeout of "
+				  "zero. Using 5 seconds.\n");
 		conn->ping_timeout = 5;
 	}
 
@@ -2147,7 +2156,8 @@ void iscsi_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
 		iscsi_start_session_recovery(session, conn, flag);
 		break;
 	default:
-		printk(KERN_ERR "iscsi: invalid stop flag %d\n", flag);
+		iscsi_conn_printk(KERN_ERR, conn,
+				  "invalid stop flag %d\n", flag);
 	}
 }
 EXPORT_SYMBOL_GPL(iscsi_conn_stop);

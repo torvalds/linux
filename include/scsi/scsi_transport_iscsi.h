@@ -212,6 +212,12 @@ struct iscsi_host {
 /*
  * session and connection functions that can be used by HW iSCSI LLDs
  */
+#define iscsi_cls_session_printk(prefix, _cls_session, fmt, a...) \
+	dev_printk(prefix, &(_cls_session)->dev, fmt, ##a)
+
+#define iscsi_cls_conn_printk(prefix, _cls_conn, fmt, a...) \
+	dev_printk(prefix, &(_cls_conn)->dev, fmt, ##a)
+
 extern int iscsi_session_chkready(struct iscsi_cls_session *session);
 extern struct iscsi_cls_session *iscsi_alloc_session(struct Scsi_Host *shost,
 					struct iscsi_transport *transport);

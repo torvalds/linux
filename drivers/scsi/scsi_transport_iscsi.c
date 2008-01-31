@@ -350,8 +350,9 @@ static void session_recovery_timedout(struct work_struct *work)
 			     recovery_work.work);
 	unsigned long flags;
 
-	dev_printk(KERN_INFO, &session->dev, "iscsi: session recovery timed "
-		  "out after %d secs\n", session->recovery_tmo);
+	iscsi_cls_session_printk(KERN_INFO, session,
+				 "session recovery timed out after %d secs\n",
+				 session->recovery_tmo);
 
 	spin_lock_irqsave(&session->lock, flags);
 	switch (session->state) {
@@ -492,8 +493,8 @@ int iscsi_add_session(struct iscsi_cls_session *session, unsigned int target_id)
 		 session->sid);
 	err = device_add(&session->dev);
 	if (err) {
-		dev_printk(KERN_ERR, &session->dev, "iscsi: could not "
-			   "register session's dev\n");
+		iscsi_cls_session_printk(KERN_ERR, session,
+					 "could not register session's dev\n");
 		goto release_host;
 	}
 	transport_register_device(&session->dev);
@@ -597,8 +598,9 @@ void iscsi_remove_session(struct iscsi_cls_session *session)
 	err = device_for_each_child(&session->dev, NULL,
 				    iscsi_iter_destroy_conn_fn);
 	if (err)
-		dev_printk(KERN_ERR, &session->dev, "iscsi: Could not delete "
-			   "all connections for session. Error %d.\n", err);
+		iscsi_cls_session_printk(KERN_ERR, session,
+					 "Could not delete all connections "
+					 "for session. Error %d.\n", err);
 
 	transport_unregister_device(&session->dev);
 	device_del(&session->dev);
@@ -670,8 +672,8 @@ iscsi_create_conn(struct iscsi_cls_session *session, uint32_t cid)
 	conn->dev.release = iscsi_conn_release;
 	err = device_register(&conn->dev);
 	if (err) {
-		dev_printk(KERN_ERR, &conn->dev, "iscsi: could not register "
-			   "connection's dev\n");
+		iscsi_cls_session_printk(KERN_ERR, session, "could not "
+					 "register connection's dev\n");
 		goto release_parent_ref;
 	}
 	transport_register_device(&conn->dev);
@@ -778,8 +780,8 @@ int iscsi_recv_pdu(struct iscsi_cls_conn *conn, struct iscsi_hdr *hdr,
 	skb = alloc_skb(len, GFP_ATOMIC);
 	if (!skb) {
 		iscsi_conn_error(conn, ISCSI_ERR_CONN_FAILED);
-		dev_printk(KERN_ERR, &conn->dev, "iscsi: can not deliver "
-			   "control PDU: OOM\n");
+		iscsi_cls_conn_printk(KERN_ERR, conn, "can not deliver "
+				      "control PDU: OOM\n");
 		return -ENOMEM;
 	}
 
@@ -819,8 +821,8 @@ void iscsi_conn_error(struct iscsi_cls_conn *conn, enum iscsi_err error)
 
 	skb = alloc_skb(len, GFP_ATOMIC);
 	if (!skb) {
-		dev_printk(KERN_ERR, &conn->dev, "iscsi: gracefully ignored "
-			  "conn error (%d)\n", error);
+		iscsi_cls_conn_printk(KERN_ERR, conn, "gracefully ignored "
+				      "conn error (%d)\n", error);
 		return;
 	}
 
@@ -834,8 +836,8 @@ void iscsi_conn_error(struct iscsi_cls_conn *conn, enum iscsi_err error)
 
 	iscsi_broadcast_skb(skb, GFP_ATOMIC);
 
-	dev_printk(KERN_INFO, &conn->dev, "iscsi: detected conn error (%d)\n",
-		   error);
+	iscsi_cls_conn_printk(KERN_INFO, conn, "detected conn error (%d)\n",
+			      error);
 }
 EXPORT_SYMBOL_GPL(iscsi_conn_error);
 
@@ -890,8 +892,8 @@ iscsi_if_get_stats(struct iscsi_transport *transport, struct nlmsghdr *nlh)
 
 		skbstat = alloc_skb(len, GFP_ATOMIC);
 		if (!skbstat) {
-			dev_printk(KERN_ERR, &conn->dev, "iscsi: can not "
-				   "deliver stats: OOM\n");
+			iscsi_cls_conn_printk(KERN_ERR, conn, "can not "
+					      "deliver stats: OOM\n");
 			return -ENOMEM;
 		}
 
@@ -947,8 +949,9 @@ int iscsi_session_event(struct iscsi_cls_session *session,
 
 	skb = alloc_skb(len, GFP_KERNEL);
 	if (!skb) {
-		dev_printk(KERN_ERR, &session->dev, "Cannot notify userspace "
-			  "of session event %u\n", event);
+		iscsi_cls_session_printk(KERN_ERR, session,
+					 "Cannot notify userspace of session "
+					 "event %u\n", event);
 		return -ENOMEM;
 	}
 
@@ -971,8 +974,8 @@ int iscsi_session_event(struct iscsi_cls_session *session,
 		ev->r.unbind_session.sid = session->sid;
 		break;
 	default:
-		dev_printk(KERN_ERR, &session->dev, "Invalid event %u.\n",
-			   event);
+		iscsi_cls_session_printk(KERN_ERR, session, "Invalid event "
+					 "%u.\n", event);
 		kfree_skb(skb);
 		return -EINVAL;
 	}
@@ -983,8 +986,10 @@ int iscsi_session_event(struct iscsi_cls_session *session,
 	 */
 	rc = iscsi_broadcast_skb(skb, GFP_KERNEL);
 	if (rc < 0)
-		dev_printk(KERN_ERR, &session->dev, "Cannot notify userspace "
-			  "of session event %u. Check iscsi daemon\n", event);
+		iscsi_cls_session_printk(KERN_ERR, session,
+					 "Cannot notify userspace of session "
+					 "event %u. Check iscsi daemon\n",
+					 event);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(iscsi_session_event);
@@ -1017,16 +1022,15 @@ iscsi_if_create_conn(struct iscsi_transport *transport, struct iscsi_uevent *ev)
 
 	session = iscsi_session_lookup(ev->u.c_conn.sid);
 	if (!session) {
-		printk(KERN_ERR "iscsi: invalid session %d\n",
+		printk(KERN_ERR "iscsi: invalid session %d.\n",
 		       ev->u.c_conn.sid);
 		return -EINVAL;
 	}
 
 	conn = transport->create_conn(session, ev->u.c_conn.cid);
 	if (!conn) {
-		printk(KERN_ERR "iscsi: couldn't create a new "
-			   "connection for session %d\n",
-			   session->sid);
+		iscsi_cls_session_printk(KERN_ERR, session,
+					 "couldn't create a new connection.");
 		return -ENOMEM;
 	}
 

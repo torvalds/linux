@@ -344,6 +344,10 @@ extern int iscsi_session_get_param(struct iscsi_cls_session *cls_session,
 #define session_to_cls(_sess) \
 	hostdata_session(_sess->host->hostdata)
 
+#define iscsi_session_printk(prefix, _sess, fmt, a...)	\
+	iscsi_cls_session_printk(prefix,		\
+		(struct iscsi_cls_session *)session_to_cls(_sess), fmt, ##a)
+
 /*
  * connection management
  */
@@ -357,6 +361,9 @@ extern int iscsi_conn_bind(struct iscsi_cls_session *, struct iscsi_cls_conn *,
 extern void iscsi_conn_failure(struct iscsi_conn *conn, enum iscsi_err err);
 extern int iscsi_conn_get_param(struct iscsi_cls_conn *cls_conn,
 				enum iscsi_param param, char *buf);
+
+#define iscsi_conn_printk(prefix, _c, fmt, a...) \
+	iscsi_cls_conn_printk(prefix, _c->cls_conn, fmt, ##a)
 
 /*
  * pdu and task processing
