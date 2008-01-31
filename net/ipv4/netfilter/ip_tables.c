@@ -2048,7 +2048,8 @@ do_ipt_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 	return ret;
 }
 
-int ipt_register_table(struct xt_table *table, const struct ipt_replace *repl)
+struct xt_table *ipt_register_table(struct net *net, struct xt_table *table,
+				    const struct ipt_replace *repl)
 {
 	int ret;
 	struct xt_table_info *newinfo;
@@ -2058,8 +2059,10 @@ int ipt_register_table(struct xt_table *table, const struct ipt_replace *repl)
 	struct xt_table *new_table;
 
 	newinfo = xt_alloc_table_info(repl->size);
-	if (!newinfo)
-		return -ENOMEM;
+	if (!newinfo) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	/* choose the copy on our node/cpu, but dont care about preemption */
 	loc_cpu_entry = newinfo->entries[raw_smp_processor_id()];
@@ -2070,18 +2073,21 @@ int ipt_register_table(struct xt_table *table, const struct ipt_replace *repl)
 			      repl->num_entries,
 			      repl->hook_entry,
 			      repl->underflow);
-	if (ret != 0) {
-		xt_free_table_info(newinfo);
-		return ret;
-	}
+	if (ret != 0)
+		goto out_free;
 
-	new_table = xt_register_table(&init_net, table, &bootstrap, newinfo);
+	new_table = xt_register_table(net, table, &bootstrap, newinfo);
 	if (IS_ERR(new_table)) {
-		xt_free_table_info(newinfo);
-		return PTR_ERR(new_table);
+		ret = PTR_ERR(new_table);
+		goto out_free;
 	}
 
-	return 0;
+	return new_table;
+
+out_free:
+	xt_free_table_info(newinfo);
+out:
+	return ERR_PTR(ret);
 }
 
 void ipt_unregister_table(struct xt_table *table)

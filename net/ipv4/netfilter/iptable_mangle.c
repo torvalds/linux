@@ -64,13 +64,14 @@ static struct
 	.term = IPT_ERROR_INIT,			/* ERROR */
 };
 
-static struct xt_table packet_mangler = {
+static struct xt_table __packet_mangler = {
 	.name		= "mangle",
 	.valid_hooks	= MANGLE_VALID_HOOKS,
 	.lock		= RW_LOCK_UNLOCKED,
 	.me		= THIS_MODULE,
 	.af		= AF_INET,
 };
+static struct xt_table *packet_mangler;
 
 /* The work comes in here from netfilter.c. */
 static unsigned int
@@ -80,7 +81,7 @@ ipt_route_hook(unsigned int hook,
 	 const struct net_device *out,
 	 int (*okfn)(struct sk_buff *))
 {
-	return ipt_do_table(skb, hook, in, out, &packet_mangler);
+	return ipt_do_table(skb, hook, in, out, packet_mangler);
 }
 
 static unsigned int
@@ -112,7 +113,7 @@ ipt_local_hook(unsigned int hook,
 	daddr = iph->daddr;
 	tos = iph->tos;
 
-	ret = ipt_do_table(skb, hook, in, out, &packet_mangler);
+	ret = ipt_do_table(skb, hook, in, out, packet_mangler);
 	/* Reroute for ANY change. */
 	if (ret != NF_DROP && ret != NF_STOLEN && ret != NF_QUEUE) {
 		iph = ip_hdr(skb);
@@ -171,9 +172,10 @@ static int __init iptable_mangle_init(void)
 	int ret;
 
 	/* Register table */
-	ret = ipt_register_table(&packet_mangler, &initial_table.repl);
-	if (ret < 0)
-		return ret;
+	packet_mangler = ipt_register_table(&init_net, &__packet_mangler,
+					    &initial_table.repl);
+	if (IS_ERR(packet_mangler))
+		return PTR_ERR(packet_mangler);
 
 	/* Register hooks */
 	ret = nf_register_hooks(ipt_ops, ARRAY_SIZE(ipt_ops));
@@ -183,14 +185,14 @@ static int __init iptable_mangle_init(void)
 	return ret;
 
  cleanup_table:
-	ipt_unregister_table(&packet_mangler);
+	ipt_unregister_table(packet_mangler);
 	return ret;
 }
 
 static void __exit iptable_mangle_fini(void)
 {
 	nf_unregister_hooks(ipt_ops, ARRAY_SIZE(ipt_ops));
-	ipt_unregister_table(&packet_mangler);
+	ipt_unregister_table(packet_mangler);
 }
 
 module_init(iptable_mangle_init);

@@ -45,7 +45,7 @@ static struct
 	.term = ARPT_ERROR_INIT,
 };
 
-static struct arpt_table packet_filter = {
+static struct arpt_table __packet_filter = {
 	.name		= "filter",
 	.valid_hooks	= FILTER_VALID_HOOKS,
 	.lock		= RW_LOCK_UNLOCKED,
@@ -53,6 +53,7 @@ static struct arpt_table packet_filter = {
 	.me		= THIS_MODULE,
 	.af		= NF_ARP,
 };
+static struct arpt_table *packet_filter;
 
 /* The work comes in here from netfilter.c */
 static unsigned int arpt_hook(unsigned int hook,
@@ -61,7 +62,7 @@ static unsigned int arpt_hook(unsigned int hook,
 			      const struct net_device *out,
 			      int (*okfn)(struct sk_buff *))
 {
-	return arpt_do_table(skb, hook, in, out, &packet_filter);
+	return arpt_do_table(skb, hook, in, out, packet_filter);
 }
 
 static struct nf_hook_ops arpt_ops[] __read_mostly = {
@@ -90,9 +91,9 @@ static int __init arptable_filter_init(void)
 	int ret;
 
 	/* Register table */
-	ret = arpt_register_table(&packet_filter, &initial_table.repl);
-	if (ret < 0)
-		return ret;
+	packet_filter = arpt_register_table(&__packet_filter, &initial_table.repl);
+	if (IS_ERR(packet_filter))
+		return PTR_ERR(packet_filter);
 
 	ret = nf_register_hooks(arpt_ops, ARRAY_SIZE(arpt_ops));
 	if (ret < 0)
@@ -100,14 +101,14 @@ static int __init arptable_filter_init(void)
 	return ret;
 
 cleanup_table:
-	arpt_unregister_table(&packet_filter);
+	arpt_unregister_table(packet_filter);
 	return ret;
 }
 
 static void __exit arptable_filter_fini(void)
 {
 	nf_unregister_hooks(arpt_ops, ARRAY_SIZE(arpt_ops));
-	arpt_unregister_table(&packet_filter);
+	arpt_unregister_table(packet_filter);
 }
 
 module_init(arptable_filter_init);

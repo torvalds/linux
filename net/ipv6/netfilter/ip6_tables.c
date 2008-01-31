@@ -2074,7 +2074,7 @@ do_ip6t_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 	return ret;
 }
 
-int ip6t_register_table(struct xt_table *table, const struct ip6t_replace *repl)
+struct xt_table *ip6t_register_table(struct xt_table *table, const struct ip6t_replace *repl)
 {
 	int ret;
 	struct xt_table_info *newinfo;
@@ -2084,8 +2084,10 @@ int ip6t_register_table(struct xt_table *table, const struct ip6t_replace *repl)
 	struct xt_table *new_table;
 
 	newinfo = xt_alloc_table_info(repl->size);
-	if (!newinfo)
-		return -ENOMEM;
+	if (!newinfo) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	/* choose the copy on our node/cpu, but dont care about preemption */
 	loc_cpu_entry = newinfo->entries[raw_smp_processor_id()];
@@ -2096,18 +2098,20 @@ int ip6t_register_table(struct xt_table *table, const struct ip6t_replace *repl)
 			      repl->num_entries,
 			      repl->hook_entry,
 			      repl->underflow);
-	if (ret != 0) {
-		xt_free_table_info(newinfo);
-		return ret;
-	}
+	if (ret != 0)
+		goto out_free;
 
 	new_table = xt_register_table(&init_net, table, &bootstrap, newinfo);
 	if (IS_ERR(new_table)) {
-		xt_free_table_info(newinfo);
-		return PTR_ERR(new_table);
+		ret = PTR_ERR(new_table);
+		goto out_free;
 	}
+	return new_table;
 
-	return 0;
+out_free:
+	xt_free_table_info(newinfo);
+out:
+	return ERR_PTR(ret);
 }
 
 void ip6t_unregister_table(struct xt_table *table)

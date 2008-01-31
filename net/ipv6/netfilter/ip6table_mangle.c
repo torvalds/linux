@@ -57,13 +57,14 @@ static struct
 	.term = IP6T_ERROR_INIT,		/* ERROR */
 };
 
-static struct xt_table packet_mangler = {
+static struct xt_table __packet_mangler = {
 	.name		= "mangle",
 	.valid_hooks	= MANGLE_VALID_HOOKS,
 	.lock		= RW_LOCK_UNLOCKED,
 	.me		= THIS_MODULE,
 	.af		= AF_INET6,
 };
+static struct xt_table *packet_mangler;
 
 /* The work comes in here from netfilter.c. */
 static unsigned int
@@ -73,7 +74,7 @@ ip6t_route_hook(unsigned int hook,
 	 const struct net_device *out,
 	 int (*okfn)(struct sk_buff *))
 {
-	return ip6t_do_table(skb, hook, in, out, &packet_mangler);
+	return ip6t_do_table(skb, hook, in, out, packet_mangler);
 }
 
 static unsigned int
@@ -108,7 +109,7 @@ ip6t_local_hook(unsigned int hook,
 	/* flowlabel and prio (includes version, which shouldn't change either */
 	flowlabel = *((u_int32_t *)ipv6_hdr(skb));
 
-	ret = ip6t_do_table(skb, hook, in, out, &packet_mangler);
+	ret = ip6t_do_table(skb, hook, in, out, packet_mangler);
 
 	if (ret != NF_DROP && ret != NF_STOLEN
 		&& (memcmp(&ipv6_hdr(skb)->saddr, &saddr, sizeof(saddr))
@@ -163,9 +164,9 @@ static int __init ip6table_mangle_init(void)
 	int ret;
 
 	/* Register table */
-	ret = ip6t_register_table(&packet_mangler, &initial_table.repl);
-	if (ret < 0)
-		return ret;
+	packet_mangler = ip6t_register_table(&__packet_mangler, &initial_table.repl);
+	if (IS_ERR(packet_mangler))
+		return PTR_ERR(packet_mangler);
 
 	/* Register hooks */
 	ret = nf_register_hooks(ip6t_ops, ARRAY_SIZE(ip6t_ops));
@@ -175,14 +176,14 @@ static int __init ip6table_mangle_init(void)
 	return ret;
 
  cleanup_table:
-	ip6t_unregister_table(&packet_mangler);
+	ip6t_unregister_table(packet_mangler);
 	return ret;
 }
 
 static void __exit ip6table_mangle_fini(void)
 {
 	nf_unregister_hooks(ip6t_ops, ARRAY_SIZE(ip6t_ops));
-	ip6t_unregister_table(&packet_mangler);
+	ip6t_unregister_table(packet_mangler);
 }
 
 module_init(ip6table_mangle_init);

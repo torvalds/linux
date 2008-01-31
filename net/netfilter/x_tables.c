@@ -667,9 +667,16 @@ struct xt_table *xt_register_table(struct net *net, struct xt_table *table,
 	struct xt_table_info *private;
 	struct xt_table *t;
 
+	/* Don't add one object to multiple lists. */
+	table = kmemdup(table, sizeof(struct xt_table), GFP_KERNEL);
+	if (!table) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
 	ret = mutex_lock_interruptible(&xt[table->af].mutex);
 	if (ret != 0)
-		goto out;
+		goto out_free;
 
 	/* Don't autoload: we'd eat our tail... */
 	list_for_each_entry(t, &net->xt.tables[table->af], list) {
@@ -697,6 +704,8 @@ struct xt_table *xt_register_table(struct net *net, struct xt_table *table,
 
  unlock:
 	mutex_unlock(&xt[table->af].mutex);
+out_free:
+	kfree(table);
 out:
 	return ERR_PTR(ret);
 }
@@ -710,6 +719,7 @@ void *xt_unregister_table(struct xt_table *table)
 	private = table->private;
 	list_del(&table->list);
 	mutex_unlock(&xt[table->af].mutex);
+	kfree(table);
 
 	return private;
 }

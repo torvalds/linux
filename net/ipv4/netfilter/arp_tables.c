@@ -1719,8 +1719,8 @@ static int do_arpt_get_ctl(struct sock *sk, int cmd, void __user *user, int *len
 	return ret;
 }
 
-int arpt_register_table(struct arpt_table *table,
-			const struct arpt_replace *repl)
+struct arpt_table *arpt_register_table(struct arpt_table *table,
+				       const struct arpt_replace *repl)
 {
 	int ret;
 	struct xt_table_info *newinfo;
@@ -1732,7 +1732,7 @@ int arpt_register_table(struct arpt_table *table,
 	newinfo = xt_alloc_table_info(repl->size);
 	if (!newinfo) {
 		ret = -ENOMEM;
-		return ret;
+		goto out;
 	}
 
 	/* choose the copy on our node/cpu */
@@ -1746,18 +1746,20 @@ int arpt_register_table(struct arpt_table *table,
 			      repl->underflow);
 
 	duprintf("arpt_register_table: translate table gives %d\n", ret);
-	if (ret != 0) {
-		xt_free_table_info(newinfo);
-		return ret;
-	}
+	if (ret != 0)
+		goto out_free;
 
 	new_table = xt_register_table(&init_net, table, &bootstrap, newinfo);
 	if (IS_ERR(new_table)) {
-		xt_free_table_info(newinfo);
-		return PTR_ERR(new_table);
+		ret = PTR_ERR(new_table);
+		goto out_free;
 	}
+	return new_table;
 
-	return 0;
+out_free:
+	xt_free_table_info(newinfo);
+out:
+	return ERR_PTR(ret);
 }
 
 void arpt_unregister_table(struct arpt_table *table)

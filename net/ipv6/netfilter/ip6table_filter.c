@@ -51,13 +51,14 @@ static struct
 	.term = IP6T_ERROR_INIT,		/* ERROR */
 };
 
-static struct xt_table packet_filter = {
+static struct xt_table __packet_filter = {
 	.name		= "filter",
 	.valid_hooks	= FILTER_VALID_HOOKS,
 	.lock		= RW_LOCK_UNLOCKED,
 	.me		= THIS_MODULE,
 	.af		= AF_INET6,
 };
+static struct xt_table *packet_filter;
 
 /* The work comes in here from netfilter.c. */
 static unsigned int
@@ -67,7 +68,7 @@ ip6t_hook(unsigned int hook,
 	 const struct net_device *out,
 	 int (*okfn)(struct sk_buff *))
 {
-	return ip6t_do_table(skb, hook, in, out, &packet_filter);
+	return ip6t_do_table(skb, hook, in, out, packet_filter);
 }
 
 static unsigned int
@@ -87,7 +88,7 @@ ip6t_local_out_hook(unsigned int hook,
 	}
 #endif
 
-	return ip6t_do_table(skb, hook, in, out, &packet_filter);
+	return ip6t_do_table(skb, hook, in, out, packet_filter);
 }
 
 static struct nf_hook_ops ip6t_ops[] __read_mostly = {
@@ -131,9 +132,9 @@ static int __init ip6table_filter_init(void)
 	initial_table.entries[1].target.verdict = -forward - 1;
 
 	/* Register table */
-	ret = ip6t_register_table(&packet_filter, &initial_table.repl);
-	if (ret < 0)
-		return ret;
+	packet_filter = ip6t_register_table(&__packet_filter, &initial_table.repl);
+	if (IS_ERR(packet_filter))
+		return PTR_ERR(packet_filter);
 
 	/* Register hooks */
 	ret = nf_register_hooks(ip6t_ops, ARRAY_SIZE(ip6t_ops));
@@ -143,14 +144,14 @@ static int __init ip6table_filter_init(void)
 	return ret;
 
  cleanup_table:
-	ip6t_unregister_table(&packet_filter);
+	ip6t_unregister_table(packet_filter);
 	return ret;
 }
 
 static void __exit ip6table_filter_fini(void)
 {
 	nf_unregister_hooks(ip6t_ops, ARRAY_SIZE(ip6t_ops));
-	ip6t_unregister_table(&packet_filter);
+	ip6t_unregister_table(packet_filter);
 }
 
 module_init(ip6table_filter_init);

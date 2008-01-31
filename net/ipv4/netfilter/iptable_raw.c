@@ -36,13 +36,14 @@ static struct
 	.term = IPT_ERROR_INIT,			/* ERROR */
 };
 
-static struct xt_table packet_raw = {
+static struct xt_table __packet_raw = {
 	.name = "raw",
 	.valid_hooks =  RAW_VALID_HOOKS,
 	.lock = RW_LOCK_UNLOCKED,
 	.me = THIS_MODULE,
 	.af = AF_INET,
 };
+static struct xt_table *packet_raw;
 
 /* The work comes in here from netfilter.c. */
 static unsigned int
@@ -52,7 +53,7 @@ ipt_hook(unsigned int hook,
 	 const struct net_device *out,
 	 int (*okfn)(struct sk_buff *))
 {
-	return ipt_do_table(skb, hook, in, out, &packet_raw);
+	return ipt_do_table(skb, hook, in, out, packet_raw);
 }
 
 static unsigned int
@@ -70,7 +71,7 @@ ipt_local_hook(unsigned int hook,
 			       "packet.\n");
 		return NF_ACCEPT;
 	}
-	return ipt_do_table(skb, hook, in, out, &packet_raw);
+	return ipt_do_table(skb, hook, in, out, packet_raw);
 }
 
 /* 'raw' is the very first table. */
@@ -96,9 +97,10 @@ static int __init iptable_raw_init(void)
 	int ret;
 
 	/* Register table */
-	ret = ipt_register_table(&packet_raw, &initial_table.repl);
-	if (ret < 0)
-		return ret;
+	packet_raw = ipt_register_table(&init_net, &__packet_raw,
+					&initial_table.repl);
+	if (IS_ERR(packet_raw))
+		return PTR_ERR(packet_raw);
 
 	/* Register hooks */
 	ret = nf_register_hooks(ipt_ops, ARRAY_SIZE(ipt_ops));
@@ -108,14 +110,14 @@ static int __init iptable_raw_init(void)
 	return ret;
 
  cleanup_table:
-	ipt_unregister_table(&packet_raw);
+	ipt_unregister_table(packet_raw);
 	return ret;
 }
 
 static void __exit iptable_raw_fini(void)
 {
 	nf_unregister_hooks(ipt_ops, ARRAY_SIZE(ipt_ops));
-	ipt_unregister_table(&packet_raw);
+	ipt_unregister_table(packet_raw);
 }
 
 module_init(iptable_raw_init);
