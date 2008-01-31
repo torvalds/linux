@@ -348,11 +348,11 @@ void __inet_hash(struct inet_hashinfo *hashinfo, struct sock *sk)
 }
 EXPORT_SYMBOL_GPL(__inet_hash);
 
-/*
- * Bind a port for a connect operation and hash it.
- */
-int inet_hash_connect(struct inet_timewait_death_row *death_row,
-		      struct sock *sk)
+int __inet_hash_connect(struct inet_timewait_death_row *death_row,
+		struct sock *sk,
+		int (*check_established)(struct inet_timewait_death_row *,
+			struct sock *, __u16, struct inet_timewait_sock **),
+		void (*hash)(struct inet_hashinfo *, struct sock *))
 {
 	struct inet_hashinfo *hinfo = death_row->hashinfo;
 	const unsigned short snum = inet_sk(sk)->num;
@@ -385,9 +385,8 @@ int inet_hash_connect(struct inet_timewait_death_row *death_row,
 					BUG_TRAP(!hlist_empty(&tb->owners));
 					if (tb->fastreuse >= 0)
 						goto next_port;
-					if (!__inet_check_established(death_row,
-								      sk, port,
-								      &tw))
+					if (!check_established(death_row, sk,
+								port, &tw))
 						goto ok;
 					goto next_port;
 				}
@@ -415,7 +414,7 @@ ok:
 		inet_bind_hash(sk, tb, port);
 		if (sk_unhashed(sk)) {
 			inet_sk(sk)->sport = htons(port);
-			__inet_hash_nolisten(hinfo, sk);
+			hash(hinfo, sk);
 		}
 		spin_unlock(&head->lock);
 
@@ -432,17 +431,28 @@ ok:
 	tb  = inet_csk(sk)->icsk_bind_hash;
 	spin_lock_bh(&head->lock);
 	if (sk_head(&tb->owners) == sk && !sk->sk_bind_node.next) {
-		__inet_hash_nolisten(hinfo, sk);
+		hash(hinfo, sk);
 		spin_unlock_bh(&head->lock);
 		return 0;
 	} else {
 		spin_unlock(&head->lock);
 		/* No definite answer... Walk to established hash table */
-		ret = __inet_check_established(death_row, sk, snum, NULL);
+		ret = check_established(death_row, sk, snum, NULL);
 out:
 		local_bh_enable();
 		return ret;
 	}
+}
+EXPORT_SYMBOL_GPL(__inet_hash_connect);
+
+/*
+ * Bind a port for a connect operation and hash it.
+ */
+int inet_hash_connect(struct inet_timewait_death_row *death_row,
+		      struct sock *sk)
+{
+	return __inet_hash_connect(death_row, sk,
+			__inet_check_established, __inet_hash_nolisten);
 }
 
 EXPORT_SYMBOL_GPL(inet_hash_connect);

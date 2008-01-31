@@ -413,6 +413,11 @@ static inline struct sock *inet_lookup(struct inet_hashinfo *hashinfo,
 	return sk;
 }
 
+extern int __inet_hash_connect(struct inet_timewait_death_row *death_row,
+		struct sock *sk,
+		int (*check_established)(struct inet_timewait_death_row *,
+			struct sock *, __u16, struct inet_timewait_sock **),
+		void (*hash)(struct inet_hashinfo *, struct sock *));
 extern int inet_hash_connect(struct inet_timewait_death_row *death_row,
 			     struct sock *sk);
 #endif /* _INET_HASHTABLES_H */
