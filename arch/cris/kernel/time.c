@@ -207,7 +207,7 @@ cris_do_profile(struct pt_regs* regs)
 #endif
 
 #ifdef CONFIG_PROFILING
-	profile_tick(CPU_PROFILING, regs);
+	profile_tick(CPU_PROFILING);
 #endif
 }
 
