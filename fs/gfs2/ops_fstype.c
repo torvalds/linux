@@ -1,6 +1,6 @@
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
- * Copyright (C) 2004-2007 Red Hat, Inc.  All rights reserved.
+ * Copyright (C) 2004-2008 Red Hat, Inc.  All rights reserved.
  *
  * This copyrighted material is made available to anyone wishing to use,
  * modify, copy, or redistribute it subject to the terms and conditions
@@ -548,7 +548,7 @@ static int init_inodes(struct gfs2_sbd *sdp, int undo)
 	}
 	ip = GFS2_I(sdp->sd_rindex);
 	set_bit(GLF_STICKY, &ip->i_gl->gl_flags);
-	sdp->sd_rindex_vn = ip->i_gl->gl_vn - 1;
+	sdp->sd_rindex_uptodate = 0;
 
 	/* Read in the quota inode */
 	sdp->sd_quota_inode = gfs2_lookup_simple(sdp->sd_master_dir, "quota");

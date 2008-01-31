@@ -85,7 +85,6 @@ struct gfs2_rgrpd {
 	u32 rd_data;			/* num of data blocks in rgrp */
 	u32 rd_bitbytes;		/* number of bytes in data bitmaps */
 	struct gfs2_rgrp_host rd_rg;
-	u64 rd_rg_vn;
 	struct gfs2_bitmap *rd_bits;
 	unsigned int rd_bh_count;
 	struct mutex rd_mutex;
@@ -97,6 +96,7 @@ struct gfs2_rgrpd {
 	unsigned char rd_flags;
 #define GFS2_RDF_CHECK        0x01      /* Need to check for unlinked inodes */
 #define GFS2_RDF_NOALLOC      0x02      /* rg prohibits allocation */
+#define GFS2_RDF_UPTODATE     0x04      /* rg is up to date */
 };
 
 enum gfs2_state_bits {
@@ -196,7 +196,6 @@ struct gfs2_glock {
 	char *gl_lvb;
 	atomic_t gl_lvb_count;
 
-	u64 gl_vn;
 	unsigned long gl_stamp;
 	unsigned long gl_tchange;
 	void *gl_object;
@@ -533,7 +532,7 @@ struct gfs2_sbd {
 
 	/* Resource group stuff */
 
-	u64 sd_rindex_vn;
+	int sd_rindex_uptodate;
 	spinlock_t sd_rindex_spin;
 	struct mutex sd_rindex_mutex;
 	struct list_head sd_rindex_list;

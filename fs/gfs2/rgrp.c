@@ -540,7 +540,7 @@ static int read_rindex_entry(struct gfs2_inode *ip,
 		return error;
 
 	rgd->rd_gl->gl_object = rgd;
-	rgd->rd_rg_vn = rgd->rd_gl->gl_vn - 1;
+	rgd->rd_flags &= ~GFS2_RDF_UPTODATE;
 	rgd->rd_flags |= GFS2_RDF_CHECK;
 	return error;
 }
@@ -576,7 +576,7 @@ static int gfs2_ri_update(struct gfs2_inode *ip)
 		}
 	}
 
-	sdp->sd_rindex_vn = ip->i_gl->gl_vn;
+	sdp->sd_rindex_uptodate = 1;
 	return 0;
 }
 
@@ -610,7 +610,7 @@ static int gfs2_ri_update_special(struct gfs2_inode *ip)
 		}
 	}
 
-	sdp->sd_rindex_vn = ip->i_gl->gl_vn;
+	sdp->sd_rindex_uptodate = 1;
 	return 0;
 }
 
@@ -643,9 +643,9 @@ int gfs2_rindex_hold(struct gfs2_sbd *sdp, struct gfs2_holder *ri_gh)
 		return error;
 
 	/* Read new copy from disk if we don't have the latest */
-	if (sdp->sd_rindex_vn != gl->gl_vn) {
+	if (!sdp->sd_rindex_uptodate) {
 		mutex_lock(&sdp->sd_rindex_mutex);
-		if (sdp->sd_rindex_vn != gl->gl_vn) {
+		if (!sdp->sd_rindex_uptodate) {
 			error = gfs2_ri_update(ip);
 			if (error)
 				gfs2_glock_dq_uninit(ri_gh);
@@ -737,9 +737,9 @@ int gfs2_rgrp_bh_get(struct gfs2_rgrpd *rgd)
 		}
 	}
 
-	if (rgd->rd_rg_vn != gl->gl_vn) {
+	if (!(rgd->rd_flags & GFS2_RDF_UPTODATE)) {
 		gfs2_rgrp_in(rgd, (rgd->rd_bits[0].bi_bh)->b_data);
-		rgd->rd_rg_vn = gl->gl_vn;
+		rgd->rd_flags |= GFS2_RDF_UPTODATE;
 	}
 
 	spin_lock(&sdp->sd_rindex_spin);
