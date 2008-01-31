@@ -2041,8 +2041,6 @@ typedef struct vport_params {
 #define VP_RET_CODE_NO_MEM		5
 #define VP_RET_CODE_NOT_FOUND		6
 
-#define to_qla_parent(x) (((x)->parent) ? (x)->parent : (x))
-
 /*
  * ISP operations
  */
