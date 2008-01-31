@@ -817,6 +817,7 @@ unsigned long __copy_from_user_ll_nocache(void *to, const void __user *from,
 #endif
 	return n;
 }
+EXPORT_SYMBOL(__copy_from_user_ll_nocache);
 
 unsigned long __copy_from_user_ll_nocache_nozero(void *to, const void __user *from,
 					unsigned long n)
@@ -831,6 +832,7 @@ unsigned long __copy_from_user_ll_nocache_nozero(void *to, const void __user *fr
 #endif
 	return n;
 }
+EXPORT_SYMBOL(__copy_from_user_ll_nocache_nozero);
 
 /**
  * copy_to_user: - Copy a block of data into user space.
