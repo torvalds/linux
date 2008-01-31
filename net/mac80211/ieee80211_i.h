@@ -131,6 +131,7 @@ typedef unsigned __bitwise__ ieee80211_rx_result;
 #define IEEE80211_TXRXD_RXRA_MATCH		BIT(5)
 #define IEEE80211_TXRXD_TX_INJECTED		BIT(6)
 #define IEEE80211_TXRXD_RX_AMSDU		BIT(7)
+#define IEEE80211_TXRXD_RX_CMNTR_REPORTED	BIT(8)
 struct ieee80211_txrx_data {
 	struct sk_buff *skb;
 	struct net_device *dev;
@@ -419,7 +420,7 @@ struct ieee80211_local {
 
 	struct net_device *mdev; /* wmaster# - "master" 802.11 device */
 	int open_count;
-	int monitors;
+	int monitors, cooked_mntrs;
 	/* number of interfaces with corresponding FIF_ flags */
 	int fif_fcsfail, fif_plcpfail, fif_control, fif_other_bss;
 	unsigned int filter_flags; /* FIF_* */

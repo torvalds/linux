@@ -239,6 +239,11 @@ static int ieee80211_open(struct net_device *dev)
 		/* no need to tell driver */
 		break;
 	case IEEE80211_IF_TYPE_MNTR:
+		if (sdata->u.mntr_flags & MONITOR_FLAG_COOK_FRAMES) {
+			local->cooked_mntrs++;
+			break;
+		}
+
 		/* must be before the call to ieee80211_configure_filter */
 		local->monitors++;
 		if (local->monitors == 1)
@@ -370,6 +375,11 @@ static int ieee80211_stop(struct net_device *dev)
 		/* no need to tell driver */
 		break;
 	case IEEE80211_IF_TYPE_MNTR:
+		if (sdata->u.mntr_flags & MONITOR_FLAG_COOK_FRAMES) {
+			local->cooked_mntrs--;
+			break;
+		}
+
 		local->monitors--;
 		if (local->monitors == 0)
 			local->hw.conf.flags &= ~IEEE80211_CONF_RADIOTAP;
@@ -1177,7 +1187,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb,
 	u16 frag, type;
 	struct ieee80211_tx_status_rtap_hdr *rthdr;
 	struct ieee80211_sub_if_data *sdata;
-	int monitors;
+	struct net_device *prev_dev = NULL;
 
 	if (!status) {
 		printk(KERN_ERR
@@ -1290,7 +1300,11 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb,
 	/* this was a transmitted frame, but now we want to reuse it */
 	skb_orphan(skb);
 
-	if (!local->monitors) {
+	/*
+	 * This is a bit racy but we can avoid a lot of work
+	 * with this test...
+	 */
+	if (!local->monitors && !local->cooked_mntrs) {
 		dev_kfree_skb(skb);
 		return;
 	}
@@ -1324,42 +1338,37 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb,
 
 	rthdr->data_retries = status->retry_count;
 
-	rcu_read_lock();
-	monitors = local->monitors;
-	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
-		/*
-		 * Using the monitors counter is possibly racy, but
-		 * if the value is wrong we simply either clone the skb
-		 * once too much or forget sending it to one monitor iface
-		 * The latter case isn't nice but fixing the race is much
-		 * more complicated.
-		 */
-		if (!monitors || !skb)
-			goto out;
+	/* XXX: is this sufficient for BPF? */
+	skb_set_mac_header(skb, 0);
+	skb->ip_summed = CHECKSUM_UNNECESSARY;
+	skb->pkt_type = PACKET_OTHERHOST;
+	skb->protocol = htons(ETH_P_802_2);
+	memset(skb->cb, 0, sizeof(skb->cb));
 
+	rcu_read_lock();
+	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 		if (sdata->vif.type == IEEE80211_IF_TYPE_MNTR) {
 			if (!netif_running(sdata->dev))
 				continue;
-			monitors--;
-			if (monitors)
+
+			if (prev_dev) {
 				skb2 = skb_clone(skb, GFP_ATOMIC);
-			else
-				skb2 = NULL;
-			skb->dev = sdata->dev;
-			/* XXX: is this sufficient for BPF? */
-			skb_set_mac_header(skb, 0);
-			skb->ip_summed = CHECKSUM_UNNECESSARY;
-			skb->pkt_type = PACKET_OTHERHOST;
-			skb->protocol = htons(ETH_P_802_2);
-			memset(skb->cb, 0, sizeof(skb->cb));
-			netif_rx(skb);
-			skb = skb2;
+				if (skb2) {
+					skb2->dev = prev_dev;
+					netif_rx(skb2);
+				}
+			}
+
+			prev_dev = sdata->dev;
 		}
 	}
- out:
+	if (prev_dev) {
+		skb->dev = prev_dev;
+		netif_rx(skb);
+		skb = NULL;
+	}
 	rcu_read_unlock();
-	if (skb)
-		dev_kfree_skb(skb);
+	dev_kfree_skb(skb);
 }
 EXPORT_SYMBOL(ieee80211_tx_status);
 
