@@ -996,6 +996,7 @@ enum {
 	FAILURE_SESSION_IN_RECOVERY,
 	FAILURE_SESSION_RECOVERY_TIMEOUT,
 	FAILURE_SESSION_LOGGING_OUT,
+	FAILURE_SESSION_NOT_READY,
 };
 
 int iscsi_queuecommand(struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
@@ -1016,6 +1017,12 @@ int iscsi_queuecommand(struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 	session = iscsi_hostdata(host->hostdata);
 	spin_lock(&session->lock);
 
+	reason = iscsi_session_chkready(session_to_cls(session));
+	if (reason) {
+		sc->result = reason;
+		goto fault;
+	}
+
 	/*
 	 * ISCSI_STATE_FAILED is a temp. state. The recovery
 	 * code will decide what is best to do with command queued
@@ -1032,18 +1039,23 @@ int iscsi_queuecommand(struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 		switch (session->state) {
 		case ISCSI_STATE_IN_RECOVERY:
 			reason = FAILURE_SESSION_IN_RECOVERY;
-			goto reject;
+			sc->result = DID_IMM_RETRY << 16;
+			break;
 		case ISCSI_STATE_LOGGING_OUT:
 			reason = FAILURE_SESSION_LOGGING_OUT;
-			goto reject;
+			sc->result = DID_IMM_RETRY << 16;
+			break;
 		case ISCSI_STATE_RECOVERY_FAILED:
 			reason = FAILURE_SESSION_RECOVERY_TIMEOUT;
+			sc->result = DID_NO_CONNECT << 16;
 			break;
 		case ISCSI_STATE_TERMINATE:
 			reason = FAILURE_SESSION_TERMINATE;
+			sc->result = DID_NO_CONNECT << 16;
 			break;
 		default:
 			reason = FAILURE_SESSION_FREED;
+			sc->result = DID_NO_CONNECT << 16;
 		}
 		goto fault;
 	}
@@ -1051,6 +1063,7 @@ int iscsi_queuecommand(struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 	conn = session->leadconn;
 	if (!conn) {
 		reason = FAILURE_SESSION_FREED;
+		sc->result = DID_NO_CONNECT << 16;
 		goto fault;
 	}
 
@@ -1090,9 +1103,7 @@ reject:
 
 fault:
 	spin_unlock(&session->lock);
-	printk(KERN_ERR "iscsi: cmd 0x%x is not queued (%d)\n",
-	       sc->cmnd[0], reason);
-	sc->result = (DID_NO_CONNECT << 16);
+	debug_scsi("iscsi: cmd 0x%x is not queued (%d)\n", sc->cmnd[0], reason);
 	scsi_set_resid(sc, scsi_bufflen(sc));
 	sc->scsi_done(sc);
 	spin_lock(host->host_lock);
@@ -1238,7 +1249,8 @@ static int iscsi_exec_task_mgmt_fn(struct iscsi_conn *conn,
  * Fail commands. session lock held and recv side suspended and xmit
  * thread flushed
  */
-static void fail_all_commands(struct iscsi_conn *conn, unsigned lun)
+static void fail_all_commands(struct iscsi_conn *conn, unsigned lun,
+			      int error)
 {
 	struct iscsi_cmd_task *ctask, *tmp;
 
@@ -1250,7 +1262,7 @@ static void fail_all_commands(struct iscsi_conn *conn, unsigned lun)
 		if (lun == ctask->sc->device->lun || lun == -1) {
 			debug_scsi("failing pending sc %p itt 0x%x\n",
 				   ctask->sc, ctask->itt);
-			fail_command(conn, ctask, DID_BUS_BUSY << 16);
+			fail_command(conn, ctask, error << 16);
 		}
 	}
 
@@ -1258,7 +1270,7 @@ static void fail_all_commands(struct iscsi_conn *conn, unsigned lun)
 		if (lun == ctask->sc->device->lun || lun == -1) {
 			debug_scsi("failing requeued sc %p itt 0x%x\n",
 				   ctask->sc, ctask->itt);
-			fail_command(conn, ctask, DID_BUS_BUSY << 16);
+			fail_command(conn, ctask, error << 16);
 		}
 	}
 
@@ -1572,7 +1584,7 @@ int iscsi_eh_device_reset(struct scsi_cmnd *sc)
 	/* need to grab the recv lock then session lock */
 	write_lock_bh(conn->recv_lock);
 	spin_lock(&session->lock);
-	fail_all_commands(conn, sc->device->lun);
+	fail_all_commands(conn, sc->device->lun, DID_ERROR);
 	conn->tmf_state = TMF_INITIAL;
 	spin_unlock(&session->lock);
 	write_unlock_bh(conn->recv_lock);
@@ -2018,11 +2030,7 @@ int iscsi_conn_start(struct iscsi_cls_conn *cls_conn)
 		conn->stop_stage = 0;
 		conn->tmf_state = TMF_INITIAL;
 		session->age++;
-		spin_unlock_bh(&session->lock);
-
-		iscsi_unblock_session(session_to_cls(session));
-		wake_up(&conn->ehwait);
-		return 0;
+		break;
 	case STOP_CONN_TERM:
 		conn->stop_stage = 0;
 		break;
@@ -2031,6 +2039,8 @@ int iscsi_conn_start(struct iscsi_cls_conn *cls_conn)
 	}
 	spin_unlock_bh(&session->lock);
 
+	iscsi_unblock_session(session_to_cls(session));
+	wake_up(&conn->ehwait);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(iscsi_conn_start);
@@ -2122,7 +2132,8 @@ static void iscsi_start_session_recovery(struct iscsi_session *session,
 	 * flush queues.
 	 */
 	spin_lock_bh(&session->lock);
-	fail_all_commands(conn, -1);
+	fail_all_commands(conn, -1,
+			STOP_CONN_RECOVER ? DID_BUS_BUSY : DID_ERROR);
 	flush_control_queues(session, conn);
 	spin_unlock_bh(&session->lock);
 	mutex_unlock(&session->eh_mutex);

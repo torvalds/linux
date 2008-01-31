@@ -135,6 +135,14 @@ static inline void* iscsi_next_hdr(struct iscsi_cmd_task *ctask)
 	return (void*)ctask->hdr + ctask->hdr_len;
 }
 
+/* Connection's states */
+enum {
+	ISCSI_CONN_INITIAL_STAGE,
+	ISCSI_CONN_STARTED,
+	ISCSI_CONN_STOPPED,
+	ISCSI_CONN_CLEANUP_WAIT,
+};
+
 struct iscsi_conn {
 	struct iscsi_cls_conn	*cls_conn;	/* ptr to class connection */
 	void			*dd_data;	/* iscsi_transport data */
@@ -225,6 +233,17 @@ struct iscsi_pool {
 	struct kfifo		*queue;		/* FIFO Queue */
 	void			**pool;		/* Pool of elements */
 	int			max;		/* Max number of elements */
+};
+
+/* Session's states */
+enum {
+	ISCSI_STATE_FREE = 1,
+	ISCSI_STATE_LOGGED_IN,
+	ISCSI_STATE_FAILED,
+	ISCSI_STATE_TERMINATE,
+	ISCSI_STATE_IN_RECOVERY,
+	ISCSI_STATE_RECOVERY_FAILED,
+	ISCSI_STATE_LOGGING_OUT,
 };
 
 struct iscsi_session {
