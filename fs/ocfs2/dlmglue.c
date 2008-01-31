@@ -880,13 +880,20 @@ static void ocfs2_locking_ast(void *opaque)
 	struct ocfs2_lock_res *lockres = opaque;
 	struct ocfs2_super *osb = ocfs2_get_lockres_osb(lockres);
 	unsigned long flags;
+	int status;
 
 	spin_lock_irqsave(&lockres->l_lock, flags);
 
-	if (ocfs2_dlm_lock_status(&lockres->l_lksb)) {
+	status = ocfs2_dlm_lock_status(&lockres->l_lksb);
+
+	if (status == -EAGAIN) {
+		lockres_clear_flags(lockres, OCFS2_LOCK_BUSY);
+		goto out;
+	}
+
+	if (status) {
 		mlog(ML_ERROR, "lockres %s: lksb status value of %d!\n",
-		     lockres->l_name,
-		     ocfs2_dlm_lock_status(&lockres->l_lksb));
+		     lockres->l_name, status);
 		spin_unlock_irqrestore(&lockres->l_lock, flags);
 		return;
 	}
@@ -909,7 +916,7 @@ static void ocfs2_locking_ast(void *opaque)
 		     lockres->l_unlock_action);
 		BUG();
 	}
-
+out:
 	/* set it to something invalid so if we get called again we
 	 * can catch it. */
 	lockres->l_action = OCFS2_AST_INVALID;
@@ -1113,6 +1120,7 @@ static int ocfs2_cluster_lock(struct ocfs2_super *osb,
 	int ret = 0; /* gcc doesn't realize wait = 1 guarantees ret is set */
 	unsigned long flags;
 	unsigned int gen;
+	int noqueue_attempted = 0;
 
 	mlog_entry_void();
 
@@ -1157,6 +1165,13 @@ again:
 	}
 
 	if (level > lockres->l_level) {
+		if (noqueue_attempted > 0) {
+			ret = -EAGAIN;
+			goto unlock;
+		}
+		if (lkm_flags & DLM_LKF_NOQUEUE)
+			noqueue_attempted = 1;
+
 		if (lockres->l_action != OCFS2_AST_INVALID)
 			mlog(ML_ERROR, "lockres %s has action %u pending\n",
 			     lockres->l_name, lockres->l_action);
@@ -1621,6 +1636,10 @@ int ocfs2_file_lock(struct file *file, int ex, int trylock)
 		 * to just bubble sucess back up to the user.
 		 */
 		ret = ocfs2_flock_handle_signal(lockres, level);
+	} else if (!ret && (level > lockres->l_level)) {
+		/* Trylock failed asynchronously */
+		BUG_ON(!trylock);
+		ret = -EAGAIN;
 	}
 
 out:
