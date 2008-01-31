@@ -3390,7 +3390,7 @@ static void process_slab(struct loc_track *t, struct kmem_cache *s,
 static int list_locations(struct kmem_cache *s, char *buf,
 					enum track_item alloc)
 {
-	int n = 0;
+	int len = 0;
 	unsigned long i;
 	struct loc_track t = { 0, 0, NULL };
 	int node;
@@ -3421,54 +3421,54 @@ static int list_locations(struct kmem_cache *s, char *buf,
 	for (i = 0; i < t.count; i++) {
 		struct location *l = &t.loc[i];
 
-		if (n > PAGE_SIZE - 100)
+		if (len > PAGE_SIZE - 100)
 			break;
-		n += sprintf(buf + n, "%7ld ", l->count);
+		len += sprintf(buf + len, "%7ld ", l->count);
 
 		if (l->addr)
-			n += sprint_symbol(buf + n, (unsigned long)l->addr);
+			len += sprint_symbol(buf + len, (unsigned long)l->addr);
 		else
-			n += sprintf(buf + n, "<not-available>");
+			len += sprintf(buf + len, "<not-available>");
 
 		if (l->sum_time != l->min_time) {
 			unsigned long remainder;
 
-			n += sprintf(buf + n, " age=%ld/%ld/%ld",
+			len += sprintf(buf + len, " age=%ld/%ld/%ld",
 			l->min_time,
 			div_long_long_rem(l->sum_time, l->count, &remainder),
 			l->max_time);
 		} else
-			n += sprintf(buf + n, " age=%ld",
+			len += sprintf(buf + len, " age=%ld",
 				l->min_time);
 
 		if (l->min_pid != l->max_pid)
-			n += sprintf(buf + n, " pid=%ld-%ld",
+			len += sprintf(buf + len, " pid=%ld-%ld",
 				l->min_pid, l->max_pid);
 		else
-			n += sprintf(buf + n, " pid=%ld",
+			len += sprintf(buf + len, " pid=%ld",
 				l->min_pid);
 
 		if (num_online_cpus() > 1 && !cpus_empty(l->cpus) &&
-				n < PAGE_SIZE - 60) {
-			n += sprintf(buf + n, " cpus=");
-			n += cpulist_scnprintf(buf + n, PAGE_SIZE - n - 50,
+				len < PAGE_SIZE - 60) {
+			len += sprintf(buf + len, " cpus=");
+			len += cpulist_scnprintf(buf + len, PAGE_SIZE - len - 50,
 					l->cpus);
 		}
 
 		if (num_online_nodes() > 1 && !nodes_empty(l->nodes) &&
-				n < PAGE_SIZE - 60) {
-			n += sprintf(buf + n, " nodes=");
-			n += nodelist_scnprintf(buf + n, PAGE_SIZE - n - 50,
+				len < PAGE_SIZE - 60) {
+			len += sprintf(buf + len, " nodes=");
+			len += nodelist_scnprintf(buf + len, PAGE_SIZE - len - 50,
 					l->nodes);
 		}
 
-		n += sprintf(buf + n, "\n");
+		len += sprintf(buf + len, "\n");
 	}
 
 	free_loc_track(&t);
 	if (!t.count)
-		n += sprintf(buf, "No data\n");
-	return n;
+		len += sprintf(buf, "No data\n");
+	return len;
 }
 
 enum slab_stat_type {
@@ -3498,7 +3498,6 @@ static unsigned long slab_objects(struct kmem_cache *s,
 
 	for_each_possible_cpu(cpu) {
 		struct page *page;
-		int node;
 		struct kmem_cache_cpu *c = get_cpu_slab(s, cpu);
 
 		if (!c)
@@ -3510,8 +3509,6 @@ static unsigned long slab_objects(struct kmem_cache *s,
 			continue;
 		if (page) {
 			if (flags & SO_CPU) {
-				int x = 0;
-
 				if (flags & SO_OBJECTS)
 					x = page->inuse;
 				else
