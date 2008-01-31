@@ -28,12 +28,14 @@
  * The bindhash mutex for snum's hash chain must be held here.
  */
 struct inet_bind_bucket *inet_bind_bucket_create(struct kmem_cache *cachep,
+						 struct net *net,
 						 struct inet_bind_hashbucket *head,
 						 const unsigned short snum)
 {
 	struct inet_bind_bucket *tb = kmem_cache_alloc(cachep, GFP_ATOMIC);
 
 	if (tb != NULL) {
+		tb->ib_net       = net;
 		tb->port      = snum;
 		tb->fastreuse = 0;
 		INIT_HLIST_HEAD(&tb->owners);
@@ -359,6 +361,7 @@ int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 	struct inet_bind_hashbucket *head;
 	struct inet_bind_bucket *tb;
 	int ret;
+	struct net *net = sk->sk_net;
 
 	if (!snum) {
 		int i, remaining, low, high, port;
@@ -381,7 +384,7 @@ int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 			 * unique enough.
 			 */
 			inet_bind_bucket_for_each(tb, node, &head->chain) {
-				if (tb->port == port) {
+				if (tb->ib_net == net && tb->port == port) {
 					BUG_TRAP(!hlist_empty(&tb->owners));
 					if (tb->fastreuse >= 0)
 						goto next_port;
@@ -392,7 +395,8 @@ int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 				}
 			}
 
-			tb = inet_bind_bucket_create(hinfo->bind_bucket_cachep, head, port);
+			tb = inet_bind_bucket_create(hinfo->bind_bucket_cachep,
+					net, head, port);
 			if (!tb) {
 				spin_unlock(&head->lock);
 				break;
