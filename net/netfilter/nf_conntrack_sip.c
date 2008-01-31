@@ -28,7 +28,7 @@ MODULE_ALIAS("ip_conntrack_sip");
 
 #define MAX_PORTS	8
 static unsigned short ports[MAX_PORTS];
-static int ports_c;
+static unsigned int ports_c;
 module_param_array(ports, ushort, &ports_c, 0400);
 MODULE_PARM_DESC(ports, "port numbers of SIP servers");
 
@@ -407,7 +407,7 @@ static int sip_help(struct sk_buff *skb,
 	unsigned int dataoff, datalen;
 	const char *dptr;
 	int ret = NF_ACCEPT;
-	int matchoff, matchlen;
+	unsigned int matchoff, matchlen;
 	u_int16_t port;
 	enum sip_header_pos pos;
 	typeof(nf_nat_sip_hook) nf_nat_sip;

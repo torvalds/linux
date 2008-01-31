@@ -1098,16 +1098,16 @@ static const struct nla_policy tcp_nla_policy[CTA_PROTOINFO_TCP_MAX+1] = {
 
 static int nlattr_to_tcp(struct nlattr *cda[], struct nf_conn *ct)
 {
-	struct nlattr *attr = cda[CTA_PROTOINFO_TCP];
+	struct nlattr *pattr = cda[CTA_PROTOINFO_TCP];
 	struct nlattr *tb[CTA_PROTOINFO_TCP_MAX+1];
 	int err;
 
 	/* updates could not contain anything about the private
 	 * protocol info, in that case skip the parsing */
-	if (!attr)
+	if (!pattr)
 		return 0;
 
-	err = nla_parse_nested(tb, CTA_PROTOINFO_TCP_MAX, attr, tcp_nla_policy);
+	err = nla_parse_nested(tb, CTA_PROTOINFO_TCP_MAX, pattr, tcp_nla_policy);
 	if (err < 0)
 		return err;
 

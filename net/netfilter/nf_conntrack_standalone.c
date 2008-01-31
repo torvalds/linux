@@ -93,6 +93,7 @@ static struct hlist_node *ct_get_idx(struct seq_file *seq, loff_t pos)
 }
 
 static void *ct_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(nf_conntrack_lock)
 {
 	read_lock_bh(&nf_conntrack_lock);
 	return ct_get_idx(seq, *pos);
@@ -105,6 +106,7 @@ static void *ct_seq_next(struct seq_file *s, void *v, loff_t *pos)
 }
 
 static void ct_seq_stop(struct seq_file *s, void *v)
+	__releases(nf_conntrack_lock)
 {
 	read_unlock_bh(&nf_conntrack_lock);
 }
