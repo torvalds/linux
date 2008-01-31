@@ -399,8 +399,7 @@ static inline int change_page_attr_set(unsigned long addr, int numpages,
 static inline int change_page_attr_clear(unsigned long addr, int numpages,
 					 pgprot_t mask)
 {
-	return __change_page_attr_set_clr(addr, numpages, __pgprot(0), mask);
-
+	return change_page_attr_set_clr(addr, numpages, __pgprot(0), mask);
 }
 
 int set_memory_uc(unsigned long addr, int numpages)
