@@ -624,6 +624,7 @@ static struct xt_match hashlimit_mt_reg[] __read_mostly = {
 
 /* PROC stuff */
 static void *dl_seq_start(struct seq_file *s, loff_t *pos)
+	__acquires(htable->lock)
 {
 	struct proc_dir_entry *pde = s->private;
 	struct xt_hashlimit_htable *htable = pde->data;
@@ -656,6 +657,7 @@ static void *dl_seq_next(struct seq_file *s, void *v, loff_t *pos)
 }
 
 static void dl_seq_stop(struct seq_file *s, void *v)
+	__releases(htable->lock)
 {
 	struct proc_dir_entry *pde = s->private;
 	struct xt_hashlimit_htable *htable = pde->data;

@@ -148,12 +148,12 @@ static const struct nf_nat_protocol gre = {
 #endif
 };
 
-int __init nf_nat_proto_gre_init(void)
+static int __init nf_nat_proto_gre_init(void)
 {
 	return nf_nat_protocol_register(&gre);
 }
 
-void __exit nf_nat_proto_gre_fini(void)
+static void __exit nf_nat_proto_gre_fini(void)
 {
 	nf_nat_protocol_unregister(&gre);
 }
