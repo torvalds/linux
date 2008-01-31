@@ -398,8 +398,20 @@ static int qla4xxx_queuecommand(struct scsi_cmnd *cmd,
 {
 	struct scsi_qla_host *ha = to_qla_host(cmd->device->host);
 	struct ddb_entry *ddb_entry = cmd->device->hostdata;
+	struct iscsi_cls_session *sess = ddb_entry->sess;
 	struct srb *srb;
 	int rval;
+
+	if (!sess) {
+		cmd->result = DID_IMM_RETRY << 16;
+		goto qc_fail_command;
+	}
+
+	rval = iscsi_session_chkready(sess);
+	if (rval) {
+		cmd->result = rval;
+		goto qc_fail_command;
+	}
 
 	if (atomic_read(&ddb_entry->state) != DDB_STATE_ONLINE) {
 		if (atomic_read(&ddb_entry->state) == DDB_STATE_DEAD) {
