@@ -110,7 +110,6 @@ static int ts_release(struct inode *inode, struct file *file)
 {
 	struct saa7134_dev *dev = file->private_data;
 
-	mutex_lock(&dev->empress_tsq.vb_lock);
 	videobuf_stop(&dev->empress_tsq);
 	videobuf_mmap_free(&dev->empress_tsq);
 	dev->empress_users--;
@@ -122,7 +121,6 @@ static int ts_release(struct inode *inode, struct file *file)
 	saa_writeb(SAA7134_AUDIO_MUTE_CTRL,
 		saa_readb(SAA7134_AUDIO_MUTE_CTRL) | (1 << 6));
 
-	mutex_unlock(&dev->empress_tsq.vb_lock);
 	return 0;
 }
 
