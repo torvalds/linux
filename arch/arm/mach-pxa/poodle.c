@@ -164,7 +164,7 @@ static struct resource poodlets_resources[] = {
 	},
 };
 
-static unsigned long poodle_get_hsync_len(void)
+static unsigned long poodle_get_hsync_invperiod(void)
 {
 	return 0;
 }
@@ -174,9 +174,9 @@ static void poodle_null_hsync(void)
 }
 
 static struct corgits_machinfo  poodle_ts_machinfo = {
-	.get_hsync_len   = poodle_get_hsync_len,
-	.put_hsync       = poodle_null_hsync,
-	.wait_hsync      = poodle_null_hsync,
+	.get_hsync_invperiod	= poodle_get_hsync_invperiod,
+	.put_hsync       	= poodle_null_hsync,
+	.wait_hsync      	= poodle_null_hsync,
 };
 
 static struct platform_device poodle_ts_device = {
