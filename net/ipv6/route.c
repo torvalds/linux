@@ -107,6 +107,7 @@ static struct dst_ops ip6_dst_ops = {
 	.update_pmtu		=	ip6_rt_update_pmtu,
 	.local_out		=	ip6_local_out,
 	.entry_size		=	sizeof(struct rt6_info),
+	.entries		=	ATOMIC_INIT(0),
 };
 
 static void ip6_rt_blackhole_update_pmtu(struct dst_entry *dst, u32 mtu)
@@ -120,6 +121,7 @@ static struct dst_ops ip6_dst_blackhole_ops = {
 	.check			=	ip6_dst_check,
 	.update_pmtu		=	ip6_rt_blackhole_update_pmtu,
 	.entry_size		=	sizeof(struct rt6_info),
+	.entries		=	ATOMIC_INIT(0),
 };
 
 struct rt6_info ip6_null_entry = {

@@ -169,6 +169,7 @@ static struct dst_ops ipv4_dst_ops = {
 	.update_pmtu =		ip_rt_update_pmtu,
 	.local_out =		ip_local_out,
 	.entry_size =		sizeof(struct rtable),
+	.entries =		ATOMIC_INIT(0),
 };
 
 #define ECN_OR_COST(class)	TC_PRIO_##class
@@ -2498,6 +2499,7 @@ static struct dst_ops ipv4_dst_blackhole_ops = {
 	.check			=	ipv4_dst_check,
 	.update_pmtu		=	ipv4_rt_blackhole_update_pmtu,
 	.entry_size		=	sizeof(struct rtable),
+	.entries		=	ATOMIC_INIT(0),
 };
 
 
