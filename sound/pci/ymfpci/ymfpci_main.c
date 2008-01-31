@@ -18,7 +18,6 @@
  *
  */
 
-#include <sound/driver.h>
 #include <linux/delay.h>
 #include <linux/firmware.h>
 #include <linux/init.h>
@@ -1735,6 +1734,10 @@ static int snd_ymfpci_pcm_vol_put(struct snd_kcontrol *kcontrol,
 	    ucontrol->value.integer.value[1] != chip->pcm_mixer[subs].right) {
 		chip->pcm_mixer[subs].left = ucontrol->value.integer.value[0];
 		chip->pcm_mixer[subs].right = ucontrol->value.integer.value[1];
+		if (chip->pcm_mixer[subs].left > 0x8000)
+			chip->pcm_mixer[subs].left = 0x8000;
+		if (chip->pcm_mixer[subs].right > 0x8000)
+			chip->pcm_mixer[subs].right = 0x8000;
 
 		substream = (struct snd_pcm_substream *)kcontrol->private_value;
 		spin_lock_irqsave(&chip->voice_lock, flags);

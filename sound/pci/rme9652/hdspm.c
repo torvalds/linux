@@ -23,7 +23,6 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
  */
-#include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -3348,7 +3347,7 @@ static int snd_hdspm_set_defaults(struct hdspm * hdspm)
 	unsigned int i;
 
 	/* ASSUMPTION: hdspm->lock is either held, or there is no need to
-	   hold it (e.g. during module initalization).
+	   hold it (e.g. during module initialization).
 	 */
 
 	/* set defaults:       */
@@ -3416,7 +3415,7 @@ static int snd_hdspm_set_defaults(struct hdspm * hdspm)
 
 
 /*------------------------------------------------------------
-   interupt 
+   interrupt 
  ------------------------------------------------------------*/
 
 static irqreturn_t snd_hdspm_interrupt(int irq, void *dev_id)

@@ -26,7 +26,6 @@
 #define OSS_DEBUG
 #endif
 
-#include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/time.h>
@@ -985,10 +984,8 @@ static int snd_pcm_oss_change_params(struct snd_pcm_substream *substream)
 		sw_params->stop_threshold = runtime->buffer_size;
 	sw_params->tstamp_mode = SNDRV_PCM_TSTAMP_NONE;
 	sw_params->period_step = 1;
-	sw_params->sleep_min = 0;
 	sw_params->avail_min = substream->stream == SNDRV_PCM_STREAM_PLAYBACK ?
 		1 : runtime->period_size;
-	sw_params->xfer_align = 1;
 	if (atomic_read(&substream->mmap_count) ||
 	    substream->oss.setup.nosilence) {
 		sw_params->silence_threshold = 0;
@@ -1624,6 +1621,7 @@ static int snd_pcm_oss_sync(struct snd_pcm_oss_file *pcm_oss_file)
 					snd_pcm_format_set_silence(runtime->format,
 								   runtime->oss.buffer,
 								   size1);
+					size1 /= runtime->channels; /* frames */
 					fs = snd_enter_user();
 					snd_pcm_lib_write(substream, (void __user *)runtime->oss.buffer, size1);
 					snd_leave_user(fs);

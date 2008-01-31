@@ -16,38 +16,63 @@
 #include <linux/platform_device.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
-#include <sound/driver.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/control.h>
 #include <sound/ac97_codec.h>
 
-#define SND_SOC_VERSION "0.13.1"
+#define SND_SOC_VERSION "0.13.2"
 
 /*
  * Convenience kcontrol builders
  */
-#define SOC_SINGLE_VALUE(reg,shift,mask,invert) ((reg) | ((shift) << 8) |\
-	((shift) << 12) | ((mask) << 16) | ((invert) << 24))
-#define SOC_SINGLE_VALUE_EXT(reg,mask,invert) ((reg) | ((mask) << 16) |\
+#define SOC_SINGLE_VALUE(reg, shift, max, invert) ((reg) | ((shift) << 8) |\
+	((shift) << 12) | ((max) << 16) | ((invert) << 24))
+#define SOC_SINGLE_VALUE_EXT(reg, max, invert) ((reg) | ((max) << 16) |\
 	((invert) << 31))
-#define SOC_SINGLE(xname, reg, shift, mask, invert) \
+#define SOC_SINGLE(xname, reg, shift, max, invert) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
 	.info = snd_soc_info_volsw, .get = snd_soc_get_volsw,\
 	.put = snd_soc_put_volsw, \
-	.private_value =  SOC_SINGLE_VALUE(reg, shift, mask, invert) }
-#define SOC_DOUBLE(xname, reg, shift_left, shift_right, mask, invert) \
+	.private_value =  SOC_SINGLE_VALUE(reg, shift, max, invert) }
+#define SOC_SINGLE_TLV(xname, reg, shift, max, invert, tlv_array) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
+	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ |\
+		 SNDRV_CTL_ELEM_ACCESS_READWRITE,\
+	.tlv.p = (tlv_array), \
+	.info = snd_soc_info_volsw, .get = snd_soc_get_volsw,\
+	.put = snd_soc_put_volsw, \
+	.private_value =  SOC_SINGLE_VALUE(reg, shift, max, invert) }
+#define SOC_DOUBLE(xname, reg, shift_left, shift_right, max, invert) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname),\
 	.info = snd_soc_info_volsw, .get = snd_soc_get_volsw, \
 	.put = snd_soc_put_volsw, \
 	.private_value = (reg) | ((shift_left) << 8) | \
-		((shift_right) << 12) | ((mask) << 16) | ((invert) << 24) }
-#define SOC_DOUBLE_R(xname, reg_left, reg_right, shift, mask, invert) \
+		((shift_right) << 12) | ((max) << 16) | ((invert) << 24) }
+#define SOC_DOUBLE_R(xname, reg_left, reg_right, shift, max, invert) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname), \
 	.info = snd_soc_info_volsw_2r, \
 	.get = snd_soc_get_volsw_2r, .put = snd_soc_put_volsw_2r, \
 	.private_value = (reg_left) | ((shift) << 8)  | \
-		((mask) << 12) | ((invert) << 20) | ((reg_right) << 24) }
+		((max) << 12) | ((invert) << 20) | ((reg_right) << 24) }
+#define SOC_DOUBLE_TLV(xname, reg, shift_left, shift_right, max, invert, tlv_array) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname),\
+	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ |\
+		 SNDRV_CTL_ELEM_ACCESS_READWRITE,\
+	.tlv.p = (tlv_array), \
+	.info = snd_soc_info_volsw, .get = snd_soc_get_volsw, \
+	.put = snd_soc_put_volsw, \
+	.private_value = (reg) | ((shift_left) << 8) | \
+		((shift_right) << 12) | ((max) << 16) | ((invert) << 24) }
+#define SOC_DOUBLE_R_TLV(xname, reg_left, reg_right, shift, max, invert, tlv_array) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname),\
+	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ |\
+		 SNDRV_CTL_ELEM_ACCESS_READWRITE,\
+	.tlv.p = (tlv_array), \
+	.info = snd_soc_info_volsw_2r, \
+	.get = snd_soc_get_volsw_2r, .put = snd_soc_put_volsw_2r, \
+	.private_value = (reg_left) | ((shift) << 8)  | \
+		((max) << 12) | ((invert) << 20) | ((reg_right) << 24) }
 #define SOC_ENUM_DOUBLE(xreg, xshift_l, xshift_r, xmask, xtexts) \
 {	.reg = xreg, .shift_l = xshift_l, .shift_r = xshift_r, \
 	.mask = xmask, .texts = xtexts }
@@ -105,9 +130,21 @@
 #define SND_SOC_DAIFMT_GATED		(1 << 4)	/* clock is gated when not Tx/Rx */
 
 /*
+ * DAI Sync
+ * Synchronous LR (Left Right) clocks and Frame signals.
+ */
+#define SND_SOC_DAIFMT_SYNC		(0 << 5)	/* Tx FRM = Rx FRM */
+#define SND_SOC_DAIFMT_ASYNC		(1 << 5)	/* Tx FRM ~ Rx FRM */
+
+/*
+ * TDM
+ */
+#define SND_SOC_DAIFMT_TDM		(1 << 6)
+
+/*
  * DAI hardware signal inversions
  */
-#define SND_SOC_DAIFMT_NB_NF		(0 << 8)	/* normal bit clock + frame */
+#define SND_SOC_DAIFMT_NB_NF		(0 << 8)	/* normal bclk + frm */
 #define SND_SOC_DAIFMT_NB_IF		(1 << 8)	/* normal bclk + inv frm */
 #define SND_SOC_DAIFMT_IB_NF		(2 << 8)	/* invert bclk + nor frm */
 #define SND_SOC_DAIFMT_IB_IF		(3 << 8)	/* invert bclk + frm */
@@ -410,6 +447,9 @@ struct snd_soc_dai_link  {
 
 	/* codec/machine specific init - e.g. add machine controls */
 	int (*init)(struct snd_soc_codec *codec);
+
+	/* DAI pcm */
+	struct snd_pcm *pcm;
 };
 
 /* SoC machine */
@@ -425,6 +465,9 @@ struct snd_soc_machine {
 	int (*suspend_post)(struct platform_device *pdev, pm_message_t state);
 	int (*resume_pre)(struct platform_device *pdev);
 	int (*resume_post)(struct platform_device *pdev);
+
+	/* callbacks */
+	int (*dapm_event)(struct snd_soc_machine *, int event);
 
 	/* CPU <--> Codec DAI links  */
 	struct snd_soc_dai_link *dai_link;

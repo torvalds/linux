@@ -28,7 +28,6 @@
  *
  */
 
-#include <sound/driver.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <sound/core.h>
@@ -245,7 +244,7 @@ static void snd_emu10k1_proc_spdif_read(struct snd_info_entry *entry,
 	unsigned long flags;
 	u32 rate;
 
-	if (emu->card_capabilities->emu1010) {
+	if (emu->card_capabilities->emu_model) {
 		spin_lock_irqsave(&emu->emu_lock, flags);
 		snd_emu1010_fpga_read(emu, 0x38, &value);
 		spin_unlock_irqrestore(&emu->emu_lock, flags);
@@ -585,7 +584,7 @@ int __devinit snd_emu10k1_proc_init(struct snd_emu10k1 * emu)
 {
 	struct snd_info_entry *entry;
 #ifdef CONFIG_SND_DEBUG
-	if (emu->card_capabilities->emu1010) {
+	if (emu->card_capabilities->emu_model) {
 		if (! snd_card_proc_new(emu->card, "emu1010_regs", &entry)) 
 			snd_info_set_text_ops(entry, emu, snd_emu_proc_emu1010_reg_read);
 	}

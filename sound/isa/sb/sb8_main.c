@@ -30,7 +30,6 @@
  *   Cleaned up and rewrote lowlevel routines.
  */
 
-#include <sound/driver.h>
 #include <asm/io.h>
 #include <asm/dma.h>
 #include <linux/init.h>

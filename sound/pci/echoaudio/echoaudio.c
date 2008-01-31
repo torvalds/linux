@@ -378,7 +378,7 @@ static int pcm_digital_in_open(struct snd_pcm_substream *substream)
 
 	DE_ACT(("pcm_digital_in_open\n"));
 	max_channels = num_digital_busses_in(chip) - substream->number;
-	down(&chip->mode_mutex);
+	mutex_lock(&chip->mode_mutex);
 	if (chip->digital_mode == DIGITAL_MODE_ADAT)
 		err = pcm_open(substream, max_channels);
 	else	/* If the card has ADAT, subtract the 6 channels
@@ -405,7 +405,7 @@ static int pcm_digital_in_open(struct snd_pcm_substream *substream)
 		chip->can_set_rate=0;
 
 din_exit:
-	up(&chip->mode_mutex);
+	mutex_unlock(&chip->mode_mutex);
 	return err;
 }
 
@@ -420,7 +420,7 @@ static int pcm_digital_out_open(struct snd_pcm_substream *substream)
 
 	DE_ACT(("pcm_digital_out_open\n"));
 	max_channels = num_digital_busses_out(chip) - substream->number;
-	down(&chip->mode_mutex);
+	mutex_lock(&chip->mode_mutex);
 	if (chip->digital_mode == DIGITAL_MODE_ADAT)
 		err = pcm_open(substream, max_channels);
 	else	/* If the card has ADAT, subtract the 6 channels
@@ -447,7 +447,7 @@ static int pcm_digital_out_open(struct snd_pcm_substream *substream)
 	if (atomic_read(&chip->opencount) > 1 && chip->rate_set)
 		chip->can_set_rate=0;
 dout_exit:
-	up(&chip->mode_mutex);
+	mutex_unlock(&chip->mode_mutex);
 	return err;
 }
 
@@ -1420,7 +1420,7 @@ static int snd_echo_digital_mode_put(struct snd_kcontrol *kcontrol,
 	if (dmode != chip->digital_mode) {
 		/* mode_mutex is required to make this operation atomic wrt
 		pcm_digital_*_open() and set_input_clock() functions. */
-		down(&chip->mode_mutex);
+		mutex_lock(&chip->mode_mutex);
 
 		/* Do not allow the user to change the digital mode when a pcm
 		device is open because it also changes the number of channels
@@ -1439,7 +1439,7 @@ static int snd_echo_digital_mode_put(struct snd_kcontrol *kcontrol,
 			if (changed >= 0)
 				changed = 1;	/* No errors */
 		}
-		up(&chip->mode_mutex);
+		mutex_unlock(&chip->mode_mutex);
 	}
 	return changed;
 }
@@ -1566,12 +1566,12 @@ static int snd_echo_clock_source_put(struct snd_kcontrol *kcontrol,
 		return -EINVAL;
 	dclock = chip->clock_source_list[eclock];
 	if (chip->input_clock != dclock) {
-		down(&chip->mode_mutex);
+		mutex_lock(&chip->mode_mutex);
 		spin_lock_irq(&chip->lock);
 		if ((changed = set_input_clock(chip, dclock)) == 0)
 			changed = 1;	/* no errors */
 		spin_unlock_irq(&chip->lock);
-		up(&chip->mode_mutex);
+		mutex_unlock(&chip->mode_mutex);
 	}
 
 	if (changed < 0)
@@ -1972,7 +1972,7 @@ static __devinit int snd_echo_create(struct snd_card *card,
 		return err;
 	}
 	atomic_set(&chip->opencount, 0);
-	init_MUTEX(&chip->mode_mutex);
+	mutex_init(&chip->mode_mutex);
 	chip->can_set_rate = 1;
 	*rchip = chip;
 	/* Init done ! */

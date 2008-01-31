@@ -7,7 +7,8 @@
 
 #define USB_PID_RIGKONTROL2	0x1969
 #define USB_PID_RIGKONTROL3	0x1940
-#define USB_PID_KORECONTROLLER 	0x4711
+#define USB_PID_KORECONTROLLER	0x4711
+#define USB_PID_KORECONTROLLER2	0x4712
 #define USB_PID_AK1		0x0815
 #define USB_PID_AUDIO8DJ	0x1978
 
@@ -35,6 +36,7 @@
 #define EP1_CMD_MIDI_WRITE	0x7
 #define EP1_CMD_AUDIO_PARAMS	0x9
 #define EP1_CMD_AUTO_MSG	0xb
+#define EP1_CMD_DIMM_LEDS       0xc
 
 struct caiaq_device_spec {
 	unsigned short fw_version;
@@ -62,7 +64,7 @@ struct snd_usb_caiaqdev {
 	struct urb **data_urbs_in;
 	struct urb **data_urbs_out;
 	struct snd_usb_caiaq_cb_info *data_cb_info;
-	
+
 	unsigned char ep1_in_buf[EP1_BUFSIZE];
 	unsigned char ep1_out_buf[EP1_BUFSIZE];
 	unsigned char midi_out_buf[EP1_BUFSIZE];
@@ -72,7 +74,7 @@ struct snd_usb_caiaqdev {
 	wait_queue_head_t ep1_wait_queue;
 	wait_queue_head_t prepare_wait_queue;
 	int spec_received, audio_parm_answer;
-	
+
 	char vendor_name[CAIAQ_USB_STR_LEN];
 	char product_name[CAIAQ_USB_STR_LEN];
 	char serial[CAIAQ_USB_STR_LEN];
@@ -90,11 +92,16 @@ struct snd_usb_caiaqdev {
 	struct snd_pcm_substream *sub_playback[MAX_STREAMS];
 	struct snd_pcm_substream *sub_capture[MAX_STREAMS];
 
+	/* Controls */
+	unsigned char control_state[64];
+
 	/* Linux input */
 #ifdef CONFIG_SND_USB_CAIAQ_INPUT
 	struct input_dev *input_dev;
+	char phys[64];			/* physical device path */
+	unsigned short keycode[64];
 #endif
-	
+
 	/* ALSA */
 	struct snd_pcm *pcm;
 	struct snd_pcm_hardware pcm_info;
@@ -112,6 +119,9 @@ struct snd_usb_caiaq_cb_info {
 
 int snd_usb_caiaq_set_audio_params (struct snd_usb_caiaqdev *dev, int rate, int depth, int bbp);
 int snd_usb_caiaq_set_auto_msg (struct snd_usb_caiaqdev *dev, int digital, int analog, int erp);
-
+int snd_usb_caiaq_send_command(struct snd_usb_caiaqdev *dev,
+			       unsigned char command,
+			       const unsigned char *buffer,
+			       int len);
 
 #endif /* CAIAQ_DEVICE_H */

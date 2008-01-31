@@ -95,7 +95,7 @@ enum {
 	SNDRV_HWDEP_IFACE_HDA,		/* HD-audio */
 
 	/* Don't forget to change the following: */
-	SNDRV_HWDEP_IFACE_LAST = SNDRV_HWDEP_IFACE_SB_RC
+	SNDRV_HWDEP_IFACE_LAST = SNDRV_HWDEP_IFACE_HDA
 };
 
 struct snd_hwdep_info {
@@ -138,7 +138,7 @@ enum {
  *                                                                           *
  *****************************************************************************/
 
-#define SNDRV_PCM_VERSION		SNDRV_PROTOCOL_VERSION(2, 0, 8)
+#define SNDRV_PCM_VERSION		SNDRV_PROTOCOL_VERSION(2, 0, 9)
 
 typedef unsigned long snd_pcm_uframes_t;
 typedef signed long snd_pcm_sframes_t;
@@ -354,8 +354,8 @@ struct snd_pcm_hw_params {
 
 enum {
 	SNDRV_PCM_TSTAMP_NONE = 0,
-	SNDRV_PCM_TSTAMP_MMAP,
-	SNDRV_PCM_TSTAMP_LAST = SNDRV_PCM_TSTAMP_MMAP,
+	SNDRV_PCM_TSTAMP_ENABLE,
+	SNDRV_PCM_TSTAMP_LAST = SNDRV_PCM_TSTAMP_ENABLE,
 };
 
 struct snd_pcm_sw_params {
@@ -363,7 +363,7 @@ struct snd_pcm_sw_params {
 	unsigned int period_step;
 	unsigned int sleep_min;			/* min ticks to sleep */
 	snd_pcm_uframes_t avail_min;		/* min avail frames for wakeup */
-	snd_pcm_uframes_t xfer_align;		/* xfer size need to be a multiple */
+	snd_pcm_uframes_t xfer_align;		/* obsolete: xfer size need to be a multiple */
 	snd_pcm_uframes_t start_threshold;	/* min hw_avail frames for automatic start */
 	snd_pcm_uframes_t stop_threshold;	/* min avail frames for automatic stop */
 	snd_pcm_uframes_t silence_threshold;	/* min distance from noise for silence filling */
@@ -435,9 +435,16 @@ struct snd_xfern {
 };
 
 enum {
+	SNDRV_PCM_TSTAMP_TYPE_GETTIMEOFDAY = 0,	/* gettimeofday equivalent */
+	SNDRV_PCM_TSTAMP_TYPE_MONOTONIC,	/* posix_clock_monotonic equivalent */
+	SNDRV_PCM_TSTAMP_TYPE_LAST = SNDRV_PCM_TSTAMP_TYPE_MONOTONIC,
+};
+
+enum {
 	SNDRV_PCM_IOCTL_PVERSION = _IOR('A', 0x00, int),
 	SNDRV_PCM_IOCTL_INFO = _IOR('A', 0x01, struct snd_pcm_info),
 	SNDRV_PCM_IOCTL_TSTAMP = _IOW('A', 0x02, int),
+	SNDRV_PCM_IOCTL_TTSTAMP = _IOW('A', 0x03, int),
 	SNDRV_PCM_IOCTL_HW_REFINE = _IOWR('A', 0x10, struct snd_pcm_hw_params),
 	SNDRV_PCM_IOCTL_HW_PARAMS = _IOWR('A', 0x11, struct snd_pcm_hw_params),
 	SNDRV_PCM_IOCTL_HW_FREE = _IO('A', 0x12),
@@ -689,7 +696,7 @@ struct snd_timer_tread {
  *                                                                          *
  ****************************************************************************/
 
-#define SNDRV_CTL_VERSION		SNDRV_PROTOCOL_VERSION(2, 0, 4)
+#define SNDRV_CTL_VERSION		SNDRV_PROTOCOL_VERSION(2, 0, 5)
 
 struct snd_ctl_card_info {
 	int card;			/* card number */
@@ -738,8 +745,7 @@ typedef int __bitwise snd_ctl_elem_iface_t;
 #define SNDRV_CTL_ELEM_ACCESS_OWNER		(1<<10)	/* write lock owner */
 #define SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK	(1<<28)	/* kernel use a TLV callback */ 
 #define SNDRV_CTL_ELEM_ACCESS_USER		(1<<29) /* user space element */
-#define SNDRV_CTL_ELEM_ACCESS_DINDIRECT		(1<<30)	/* indirect access for matrix dimensions in the info structure */
-#define SNDRV_CTL_ELEM_ACCESS_INDIRECT		(1<<31)	/* indirect access for element value in the value structure */
+/* bits 30 and 31 are obsoleted (for indirect access) */
 
 /* for further details see the ACPI and PCI power management specification */
 #define SNDRV_CTL_POWER_D0		0x0000	/* full On */
@@ -793,30 +799,30 @@ struct snd_ctl_elem_info {
 	} value;
 	union {
 		unsigned short d[4];		/* dimensions */
-		unsigned short *d_ptr;		/* indirect */
+		unsigned short *d_ptr;		/* indirect - obsoleted */
 	} dimen;
 	unsigned char reserved[64-4*sizeof(unsigned short)];
 };
 
 struct snd_ctl_elem_value {
 	struct snd_ctl_elem_id id;	/* W: element ID */
-	unsigned int indirect: 1;	/* W: use indirect pointer (xxx_ptr member) */
+	unsigned int indirect: 1;	/* W: indirect access - obsoleted */
         union {
 		union {
 			long value[128];
-			long *value_ptr;
+			long *value_ptr;	/* obsoleted */
 		} integer;
 		union {
 			long long value[64];
-			long long *value_ptr;
+			long long *value_ptr;	/* obsoleted */
 		} integer64;
 		union {
 			unsigned int item[128];
-			unsigned int *item_ptr;
+			unsigned int *item_ptr;	/* obsoleted */
 		} enumerated;
 		union {
 			unsigned char data[512];
-			unsigned char *data_ptr;
+			unsigned char *data_ptr;	/* obsoleted */
 		} bytes;
 		struct snd_aes_iec958 iec958;
         } value;                /* RO */

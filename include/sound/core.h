@@ -22,11 +22,21 @@
  *
  */
 
+#include <linux/module.h>
 #include <linux/sched.h>		/* wake_up() */
 #include <linux/mutex.h>		/* struct mutex */
 #include <linux/rwsem.h>		/* struct rw_semaphore */
 #include <linux/pm.h>			/* pm_message_t */
 #include <linux/device.h>
+
+/* number of supported soundcards */
+#ifdef CONFIG_SND_DYNAMIC_MINORS
+#define SNDRV_CARDS 32
+#else
+#define SNDRV_CARDS 8		/* don't change - minor numbers */
+#endif
+
+#define CONFIG_SND_MAJOR	116	/* standard configuration */
 
 /* forward declarations */
 #ifdef CONFIG_PCI

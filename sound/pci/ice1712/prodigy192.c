@@ -54,7 +54,6 @@
  *
  */      
 
-#include <sound/driver.h>
 #include <asm/io.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -67,6 +66,12 @@
 #include "prodigy192.h"
 #include "stac946x.h"
 #include <sound/tlv.h>
+
+struct prodigy192_spec {
+	struct ak4114 *ak4114;
+	/* rate change needs atomic mute/unmute of all dacs*/
+	struct mutex mute_mutex;
+};
 
 static inline void stac9460_put(struct snd_ice1712 *ice, int reg, unsigned char val)
 {
@@ -81,6 +86,24 @@ static inline unsigned char stac9460_get(struct snd_ice1712 *ice, int reg)
 /*
  * DAC mute control
  */
+
+/*
+ * idx = STAC9460 volume register number, mute: 0 = mute, 1 = unmute
+ */
+static int stac9460_dac_mute(struct snd_ice1712 *ice, int idx,
+		unsigned char mute)
+{
+	unsigned char new, old;
+	int change;
+	old = stac9460_get(ice, idx);
+	new = (~mute << 7 & 0x80) | (old & ~0x80);
+	change = (new != old);
+	if (change)
+		/*printk ("Volume register 0x%02x: 0x%02x\n", idx, new);*/
+		stac9460_put(ice, idx, new);
+	return change;
+}
+
 #define stac9460_dac_mute_info		snd_ctl_boolean_mono_info
 
 static int stac9460_dac_mute_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
@@ -101,20 +124,19 @@ static int stac9460_dac_mute_get(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 static int stac9460_dac_mute_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
-	unsigned char new, old;
-	int idx;
-	int change;
+	struct prodigy192_spec *spec = ice->spec;
+	int idx, change;
 
 	if (kcontrol->private_value)
 		idx = STAC946X_MASTER_VOLUME;
 	else
 		idx  = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id) + STAC946X_LF_VOLUME;
-	old = stac9460_get(ice, idx);
-	new = (~ucontrol->value.integer.value[0]<< 7 & 0x80) | (old & ~0x80);
-	change = (new != old);
-	if (change)
-		stac9460_put(ice, idx, new);
-
+	/* due to possible conflicts with stac9460_set_rate_val, mutexing */
+	mutex_lock(&spec->mute_mutex);
+	/*printk("Mute put: reg 0x%02x, ctrl value: 0x%02x\n", idx,
+		ucontrol->value.integer.value[0]);*/
+	change = stac9460_dac_mute(ice, idx, ucontrol->value.integer.value[0]);
+	mutex_unlock(&spec->mute_mutex);
 	return change;
 }
 
@@ -162,6 +184,8 @@ static int stac9460_dac_vol_put(struct snd_kcontrol *kcontrol, struct snd_ctl_el
 	ovol = 0x7f - (tmp & 0x7f);
 	change = (ovol != nvol);
 	if (change) {
+		ovol =  (0x7f - nvol) | (tmp & 0x80);
+		/*printk("DAC Volume: reg 0x%02x: 0x%02x\n", idx, ovol);*/
 		stac9460_put(ice, idx, (0x7f - nvol) | (tmp & 0x80));
 	}
 	return change;
@@ -241,7 +265,7 @@ static int stac9460_adc_vol_put(struct snd_kcontrol *kcontrol, struct snd_ctl_el
 
 	for (i = 0; i < 2; ++i) {
 		reg = STAC946X_MIC_L_VOLUME + i;
-		nvol = ucontrol->value.integer.value[i];
+		nvol = ucontrol->value.integer.value[i] & 0x0f;
 		ovol = 0x0f - stac9460_get(ice, reg);
 		change = ((ovol & 0x0f)  != nvol);
 		if (change)
@@ -251,121 +275,6 @@ static int stac9460_adc_vol_put(struct snd_kcontrol *kcontrol, struct snd_ctl_el
 	return change;
 }
 
-#if 0
-/*
- * Headphone Amplifier
- */
-static int aureon_set_headphone_amp(struct snd_ice1712 *ice, int enable)
-{
-	unsigned int tmp, tmp2;
-
-	tmp2 = tmp = snd_ice1712_gpio_read(ice);
-	if (enable)
-		tmp |= AUREON_HP_SEL;
-	else
-		tmp &= ~ AUREON_HP_SEL;
-	if (tmp != tmp2) {
-		snd_ice1712_gpio_write(ice, tmp);
-		return 1;
-	}
-	return 0;
-}
-
-static int aureon_get_headphone_amp(struct snd_ice1712 *ice)
-{
-	unsigned int tmp = snd_ice1712_gpio_read(ice);
-
-	return ( tmp & AUREON_HP_SEL )!= 0;
-}
-
-#define aureon_bool_info	snd_ctl_boolean_mono_info
-
-static int aureon_hpamp_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
-
-	ucontrol->value.integer.value[0] = aureon_get_headphone_amp(ice);
-	return 0;
-}
-
-
-static int aureon_hpamp_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
-
-	return aureon_set_headphone_amp(ice,ucontrol->value.integer.value[0]);
-}
-
-/*
- * Deemphasis
- */
-static int aureon_deemp_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
-	ucontrol->value.integer.value[0] = (wm_get(ice, WM_DAC_CTRL2) & 0xf) == 0xf;
-	return 0;
-}
-
-static int aureon_deemp_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
-	int temp, temp2;
-	temp2 = temp = wm_get(ice, WM_DAC_CTRL2);
-	if (ucontrol->value.integer.value[0])
-		temp |= 0xf;
-	else
-		temp &= ~0xf;
-	if (temp != temp2) {
-		wm_put(ice, WM_DAC_CTRL2, temp);
-		return 1;
-	}
-	return 0;
-}
-
-/*
- * ADC Oversampling
- */
-static int aureon_oversampling_info(struct snd_kcontrol *k, struct snd_ctl_elem_info *uinfo)
-{
-	static char *texts[2] = { "128x", "64x"	};
-
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 2;
-
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]);
-
-        return 0;
-}
-
-static int aureon_oversampling_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
-	ucontrol->value.enumerated.item[0] = (wm_get(ice, WM_MASTER) & 0x8) == 0x8;
-	return 0;
-}
-
-static int aureon_oversampling_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
-{
-	int temp, temp2;
-	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
-
-	temp2 = temp = wm_get(ice, WM_MASTER);
-
-	if (ucontrol->value.enumerated.item[0])
-		temp |= 0x8;
-	else
-		temp &= ~0x8;
-
-	if (temp != temp2) {
-		wm_put(ice, WM_MASTER, temp);
-		return 1;
-	}
-	return 0;
-}
-#endif
 static int stac9460_mic_sw_info(struct snd_kcontrol *kcontrol,
 	       			struct snd_ctl_elem_info *uinfo)
 {
@@ -407,6 +316,57 @@ static int stac9460_mic_sw_put(struct snd_kcontrol *kcontrol,
 		stac9460_put(ice, STAC946X_GENERAL_PURPOSE, new);
 	return change;
 }
+/*
+ * Handler for setting correct codec rate - called when rate change is detected
+ */
+static void stac9460_set_rate_val(struct snd_akm4xxx *ak, unsigned int rate)
+{
+	unsigned char old, new;
+	int idx;
+	unsigned char changed[7];
+	struct snd_ice1712 *ice = ak->private_data[0];
+	struct prodigy192_spec *spec = ice->spec;
+
+	if (rate == 0)  /* no hint - S/PDIF input is master, simply return */
+		return;
+	else if (rate <= 48000)
+		new = 0x08;	/* 256x, base rate mode */
+	else if (rate <= 96000)
+		new = 0x11;	/* 256x, mid rate mode */
+	else
+		new = 0x12;	/* 128x, high rate mode */
+	old = stac9460_get(ice, STAC946X_MASTER_CLOCKING);
+	if (old == new)
+		return;
+	/* change detected, setting master clock, muting first */
+	/* due to possible conflicts with mute controls - mutexing */
+	mutex_lock(&spec->mute_mutex);
+	/* we have to remember current mute status for each DAC */
+	for (idx = 0; idx < 7 ; ++idx)
+		changed[idx] = stac9460_dac_mute(ice,
+				STAC946X_MASTER_VOLUME + idx, 0);
+	/*printk("Rate change: %d, new MC: 0x%02x\n", rate, new);*/
+	stac9460_put(ice, STAC946X_MASTER_CLOCKING, new);
+	udelay(10);
+	/* unmuting - only originally unmuted dacs -
+	 * i.e. those changed when muting */
+	for (idx = 0; idx < 7 ; ++idx) {
+		if (changed[idx])
+			stac9460_dac_mute(ice, STAC946X_MASTER_VOLUME + idx, 1);
+	}
+	mutex_unlock(&spec->mute_mutex);
+}
+
+/* using akm infrastructure for setting rate of the codec */
+static struct snd_akm4xxx akmlike_stac9460 __devinitdata = {
+	.type = NON_AKM,	/* special value */
+	.num_adcs = 6,		/* not used in any way, just for completeness */
+	.num_dacs = 2,
+	.ops = {
+		.set_rate_val = stac9460_set_rate_val
+	}
+};
+
 
 static const DECLARE_TLV_DB_SCALE(db_scale_dac, -19125, 75, 0);
 static const DECLARE_TLV_DB_SCALE(db_scale_adc, 0, 150, 0);
@@ -483,38 +443,7 @@ static struct snd_kcontrol_new stac_controls[] __devinitdata = {
 		.put = stac9460_mic_sw_put,
 
 	},
-#if 0
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Capture Route",
-		.info = wm_adc_mux_info,
-		.get = wm_adc_mux_get,
-		.put = wm_adc_mux_put,
-	},
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Headphone Amplifier Switch",
-		.info = aureon_bool_info,
-		.get = aureon_hpamp_get,
-		.put = aureon_hpamp_put
-	},
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "DAC Deemphasis Switch",
-		.info = aureon_bool_info,
-		.get = aureon_deemp_get,
-		.put = aureon_deemp_put
-	},
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "ADC Oversampling",
-		.info = aureon_oversampling_info,
-		.get = aureon_oversampling_get,
-		.put = aureon_oversampling_put
-	},
-#endif
 };
-
 
 /* AK4114 - ICE1724 connections on Prodigy192 + MI/ODI/O */
 /* CDTO (pin 32) -- GPIO11 pin 86
@@ -712,16 +641,39 @@ static int prodigy192_ak4114_init(struct snd_ice1712 *ice)
 	static const unsigned char ak4114_init_txcsb[] = {
 		0x41, 0x02, 0x2c, 0x00, 0x00
 	};
+	struct prodigy192_spec *spec = ice->spec;
 
 	return snd_ak4114_create(ice->card,
 				 prodigy192_ak4114_read,
 				 prodigy192_ak4114_write,
 				 ak4114_init_vals, ak4114_init_txcsb,
-				 ice, &ice->spec.prodigy192.ak4114);
+				 ice, &spec->ak4114);
 }
+
+static void stac9460_proc_regs_read(struct snd_info_entry *entry,
+		struct snd_info_buffer *buffer)
+{
+	struct snd_ice1712 *ice = (struct snd_ice1712 *)entry->private_data;
+	int reg, val;
+	/* registers 0x0 - 0x14 */
+	for (reg = 0; reg <= 0x15; reg++) {
+		val = stac9460_get(ice, reg);
+		snd_iprintf(buffer, "0x%02x = 0x%02x\n", reg, val);
+	}
+}
+
+
+static void stac9460_proc_init(struct snd_ice1712 *ice)
+{
+	struct snd_info_entry *entry;
+	if (!snd_card_proc_new(ice->card, "stac9460_codec", &entry))
+		snd_info_set_text_ops(entry, ice, stac9460_proc_regs_read);
+}
+
 
 static int __devinit prodigy192_add_controls(struct snd_ice1712 *ice)
 {
+	struct prodigy192_spec *spec = ice->spec;
 	unsigned int i;
 	int err;
 
@@ -731,7 +683,7 @@ static int __devinit prodigy192_add_controls(struct snd_ice1712 *ice)
 		if (err < 0)
 			return err;
 	}
-	if (ice->spec.prodigy192.ak4114) {
+	if (spec->ak4114) {
 		/* ak4114 is connected */
 		for (i = 0; i < ARRAY_SIZE(ak4114_controls); i++) {
 			err = snd_ctl_add(ice->card,
@@ -740,12 +692,13 @@ static int __devinit prodigy192_add_controls(struct snd_ice1712 *ice)
 			if (err < 0)
 				return err;
 		}
-		err = snd_ak4114_build(ice->spec.prodigy192.ak4114,
+		err = snd_ak4114_build(spec->ak4114,
 				NULL, /* ak4114 in MIO/DI/O handles no IEC958 output */
 				ice->pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream);
 		if (err < 0)
 			return err;
 	}
+	stac9460_proc_init(ice);
 	return 0;
 }
 
@@ -778,6 +731,7 @@ static int __devinit prodigy192_init(struct snd_ice1712 *ice)
 {
 	static const unsigned short stac_inits_prodigy[] = {
 		STAC946X_RESET, 0,
+		STAC946X_MASTER_CLOCKING, 0x11,
 /*		STAC946X_MASTER_VOLUME, 0,
 		STAC946X_LF_VOLUME, 0,
 		STAC946X_RF_VOLUME, 0,
@@ -789,22 +743,39 @@ static int __devinit prodigy192_init(struct snd_ice1712 *ice)
 	};
 	const unsigned short *p;
 	int err = 0;
+	struct snd_akm4xxx *ak;
+	struct prodigy192_spec *spec;
 
 	/* prodigy 192 */
 	ice->num_total_dacs = 6;
 	ice->num_total_adcs = 2;
 	ice->vt1720 = 0;  /* ice1724, e.g. 23 GPIOs */
 	
+	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	if (!spec)
+		return -ENOMEM;
+	ice->spec = spec;
+	mutex_init(&spec->mute_mutex);
+
 	/* initialize codec */
 	p = stac_inits_prodigy;
 	for (; *p != (unsigned short)-1; p += 2)
 		stac9460_put(ice, p[0], p[1]);
+	/* reusing the akm codecs infrastructure,
+	 * for setting rate on stac9460 */
+	ak = ice->akm = kmalloc(sizeof(struct snd_akm4xxx), GFP_KERNEL);
+	if (!ak)
+		return -ENOMEM;
+	ice->akm_codecs = 1;
+	err = snd_ice1712_akm4xxx_init(ak, &akmlike_stac9460, NULL, ice);
+	if (err < 0)
+		return err;
 
 	/* MI/ODI/O add on card with AK4114 */
 	if (prodigy192_miodio_exists(ice)) {
 		err = prodigy192_ak4114_init(ice);
 		/* from this moment if err = 0 then
-		 * ice->spec.prodigy192.ak4114 should not be null
+		 * spec->ak4114 should not be null
 		 */
 		snd_printdd("AK4114 initialized with status %d\n", err);
 	} else
@@ -854,6 +825,10 @@ struct snd_ice1712_card_info snd_vt1724_prodigy192_cards[] __devinitdata = {
 		.build_controls = prodigy192_add_controls,
 		.eeprom_size = sizeof(prodigy71_eeprom),
 		.eeprom_data = prodigy71_eeprom,
+		/* the current MPU401 code loops infinitely
+		 * when opening midi device
+		 */
+		.no_mpu401 = 1,
 	},
 	{ } /* terminator */
 };

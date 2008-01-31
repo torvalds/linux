@@ -19,7 +19,6 @@
  *
  */
 
-#include <sound/driver.h>
 #include <asm/io.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -560,7 +559,7 @@ static int snd_atiixp_aclink_down(struct atiixp *chip)
 	     ATI_REG_ISR_CODEC2_NOT_READY)
 #define CODEC_CHECK_BITS (ALL_CODEC_NOT_READY|ATI_REG_ISR_NEW_FRAME)
 
-static int ac97_probing_bugs(struct pci_dev *pci)
+static int __devinit ac97_probing_bugs(struct pci_dev *pci)
 {
 	const struct snd_pci_quirk *q;
 
@@ -574,7 +573,7 @@ static int ac97_probing_bugs(struct pci_dev *pci)
 	return -1;
 }
 
-static int snd_atiixp_codec_detect(struct atiixp *chip)
+static int __devinit snd_atiixp_codec_detect(struct atiixp *chip)
 {
 	int timeout;
 

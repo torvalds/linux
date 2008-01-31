@@ -36,7 +36,6 @@
  *	same manner.
  */
 
-#include <sound/driver.h>
 #include <linux/delay.h>
 #include <linux/moduleparam.h>
 #include <linux/pci.h>

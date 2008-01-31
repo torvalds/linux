@@ -683,30 +683,24 @@ static void snd_usX2Y_hwdep_pcm_vm_close(struct vm_area_struct *area)
 }
 
 
-static struct page * snd_usX2Y_hwdep_pcm_vm_nopage(struct vm_area_struct *area, unsigned long address, int *type)
+static int snd_usX2Y_hwdep_pcm_vm_fault(struct vm_area_struct *area,
+					struct vm_fault *vmf)
 {
 	unsigned long offset;
-	struct page *page;
 	void *vaddr;
 
-	offset = area->vm_pgoff << PAGE_SHIFT;
-	offset += address - area->vm_start;
-	snd_assert((offset % PAGE_SIZE) == 0, return NOPAGE_OOM);
+	offset = vmf->pgoff << PAGE_SHIFT;
 	vaddr = (char*)((struct usX2Ydev *)area->vm_private_data)->hwdep_pcm_shm + offset;
-	page = virt_to_page(vaddr);
-	get_page(page);
-
-	if (type)
-		*type = VM_FAULT_MINOR;
-
-	return page;
+	vmf->page = virt_to_page(vaddr);
+	get_page(vmf->page);
+	return 0;
 }
 
 
 static struct vm_operations_struct snd_usX2Y_hwdep_pcm_vm_ops = {
 	.open = snd_usX2Y_hwdep_pcm_vm_open,
 	.close = snd_usX2Y_hwdep_pcm_vm_close,
-	.nopage = snd_usX2Y_hwdep_pcm_vm_nopage,
+	.fault = snd_usX2Y_hwdep_pcm_vm_fault,
 };
 
 

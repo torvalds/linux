@@ -19,8 +19,6 @@
  *
  */
 
-#include <sound/driver.h>
-
 #ifdef CONFIG_SND_OSSEMUL
 
 #if !defined(CONFIG_SOUND) && !(defined(MODULE) && defined(CONFIG_SOUND_MODULE))

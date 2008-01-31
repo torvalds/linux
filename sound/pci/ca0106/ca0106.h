@@ -272,7 +272,6 @@
 #define SPCS_WORD_LENGTH_20A	0x0000000a	/* Word Length 20 bit				*/
 #define SPCS_WORD_LENGTH_20	0x00000009	/* Word Length 20 bit (both 0xa and 0x9 are 20 bit) */
 #define SPCS_WORD_LENGTH_21	0x00000007	/* Word Length 21 bit				*/
-#define SPCS_WORD_LENGTH_21	0x00000007	/* Word Length 21 bit				*/
 #define SPCS_WORD_LENGTH_22	0x00000005	/* Word Length 22 bit				*/
 #define SPCS_WORD_LENGTH_23	0x00000003	/* Word Length 23 bit				*/
 #define SPCS_WORD_LENGTH_24	0x0000000b	/* Word Length 24 bit				*/

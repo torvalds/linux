@@ -138,6 +138,13 @@ static int onyx_snd_vol_put(struct snd_kcontrol *kcontrol,
 	struct onyx *onyx = snd_kcontrol_chip(kcontrol);
 	s8 l, r;
 
+	if (ucontrol->value.integer.value[0] < -128 + VOLUME_RANGE_SHIFT ||
+	    ucontrol->value.integer.value[0] > -1 + VOLUME_RANGE_SHIFT)
+		return -EINVAL;
+	if (ucontrol->value.integer.value[1] < -128 + VOLUME_RANGE_SHIFT ||
+	    ucontrol->value.integer.value[1] > -1 + VOLUME_RANGE_SHIFT)
+		return -EINVAL;
+
 	mutex_lock(&onyx->mutex);
 	onyx_read_register(onyx, ONYX_REG_DAC_ATTEN_LEFT, &l);
 	onyx_read_register(onyx, ONYX_REG_DAC_ATTEN_RIGHT, &r);
@@ -206,6 +213,9 @@ static int onyx_snd_inputgain_put(struct snd_kcontrol *kcontrol,
 	struct onyx *onyx = snd_kcontrol_chip(kcontrol);
 	u8 v, n;
 
+	if (ucontrol->value.integer.value[0] < 3 + INPUTGAIN_RANGE_SHIFT ||
+	    ucontrol->value.integer.value[0] > 28 + INPUTGAIN_RANGE_SHIFT)
+		return -EINVAL;
 	mutex_lock(&onyx->mutex);
 	onyx_read_register(onyx, ONYX_REG_ADC_CONTROL, &v);
 	n = v;
@@ -272,6 +282,8 @@ static void onyx_set_capture_source(struct onyx *onyx, int mic)
 static int onyx_snd_capture_source_put(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
+	if (ucontrol->value.enumerated.item[0] > 1)
+		return -EINVAL;
 	onyx_set_capture_source(snd_kcontrol_chip(kcontrol),
 				ucontrol->value.enumerated.item[0]);
 	return 1;

@@ -26,18 +26,11 @@
 #include "pcm.h"
 #include "mpu401.h"
 #include "ac97_codec.h"
-#include "seq_midi_emul.h"
-#include "seq_device.h"
 #include "util_mem.h"
-//#include "ainstr_iw.h"
-//#include "ainstr_gf1.h"
-#include "ainstr_simple.h"
 
 #define TRIDENT_DEVICE_ID_DX		((PCI_VENDOR_ID_TRIDENT<<16)|PCI_DEVICE_ID_TRIDENT_4DWAVE_DX)
 #define TRIDENT_DEVICE_ID_NX		((PCI_VENDOR_ID_TRIDENT<<16)|PCI_DEVICE_ID_TRIDENT_4DWAVE_NX)
 #define TRIDENT_DEVICE_ID_SI7018	((PCI_VENDOR_ID_SI<<16)|PCI_DEVICE_ID_SI_7018)
-
-#define SNDRV_SEQ_DEV_ID_TRIDENT			"trident-synth"
 
 #define SNDRV_TRIDENT_VOICE_TYPE_PCM		0
 #define SNDRV_TRIDENT_VOICE_TYPE_SYNTH		1
@@ -257,16 +250,6 @@ struct snd_trident;
 struct snd_trident_voice;
 struct snd_trident_pcm_mixer;
 
-struct snd_trident_sample_ops {
-	void (*sample_start)(struct snd_trident *gus, struct snd_trident_voice *voice, snd_seq_position_t position);
-	void (*sample_stop)(struct snd_trident *gus, struct snd_trident_voice *voice, int mode);
-	void (*sample_freq)(struct snd_trident *gus, struct snd_trident_voice *voice, snd_seq_frequency_t freq);
-	void (*sample_volume)(struct snd_trident *gus, struct snd_trident_voice *voice, struct snd_seq_ev_volume *volume);
-	void (*sample_loop)(struct snd_trident *card, struct snd_trident_voice *voice, struct snd_seq_ev_loop *loop);
-	void (*sample_pos)(struct snd_trident *card, struct snd_trident_voice *voice, snd_seq_position_t position);
-	void (*sample_private1)(struct snd_trident *card, struct snd_trident_voice *voice, unsigned char *data);
-};
-
 struct snd_trident_port {
 	struct snd_midi_channel_set * chset;
 	struct snd_trident * trident;
@@ -300,7 +283,6 @@ struct snd_trident_voice {
 	unsigned char port;
 	unsigned char index;
 
-	struct snd_seq_instr instr;
 	struct snd_trident_sample_ops *sample_ops;
 
 	/* channel parameters */
@@ -354,9 +336,6 @@ struct snd_4dwave {
 	int seq_client;
 
 	struct snd_trident_port seq_ports[4];
-	struct snd_simple_ops simple_ops;
-	struct snd_seq_kinstr_list *ilist;
-
 	struct snd_trident_voice voices[64];	
 
 	int ChanSynthCount;		/* number of allocated synth channels */
@@ -416,7 +395,6 @@ struct snd_trident {
 	struct snd_pcm *foldback;	/* Foldback PCM */
 	struct snd_pcm *spdif;	/* SPDIF PCM */
 	struct snd_rawmidi *rmidi;
-	struct snd_seq_device *seq_dev;
 
 	struct snd_ac97_bus *ac97_bus;
 	struct snd_ac97 *ac97;

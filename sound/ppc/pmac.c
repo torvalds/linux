@@ -20,7 +20,6 @@
  */
 
 
-#include <sound/driver.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <linux/init.h>
@@ -44,6 +43,18 @@ static int awacs_freqs[8] = {
 static int tumbler_freqs[1] = {
 	44100
 };
+
+
+/*
+ * we will allocate a single 'emergency' dbdma cmd block to use if the
+ * tx status comes up "DEAD".  This happens on some PowerComputing Pmac
+ * clones, either owing to a bug in dbdma or some interaction between
+ * IDE and sound.  However, this measure would deal with DEAD status if
+ * it appeared elsewhere.
+ */
+static struct pmac_dbdma emergency_dbdma;
+static int emergency_in_use;
+
 
 /*
  * allocate DBDMA command arrays
@@ -376,6 +387,75 @@ static snd_pcm_uframes_t snd_pmac_capture_pointer(struct snd_pcm_substream *subs
 
 
 /*
+ * Handle DEAD DMA transfers:
+ * if the TX status comes up "DEAD" - reported on some Power Computing machines
+ * we need to re-start the dbdma - but from a different physical start address
+ * and with a different transfer length.  It would get very messy to do this
+ * with the normal dbdma_cmd blocks - we would have to re-write the buffer start
+ * addresses each time.  So, we will keep a single dbdma_cmd block which can be
+ * fiddled with.
+ * When DEAD status is first reported the content of the faulted dbdma block is
+ * copied into the emergency buffer and we note that the buffer is in use.
+ * we then bump the start physical address by the amount that was successfully
+ * output before it died.
+ * On any subsequent DEAD result we just do the bump-ups (we know that we are
+ * already using the emergency dbdma_cmd).
+ * CHECK: this just tries to "do it".  It is possible that we should abandon
+ * xfers when the number of residual bytes gets below a certain value - I can
+ * see that this might cause a loop-forever if a too small transfer causes
+ * DEAD status.  However this is a TODO for now - we'll see what gets reported.
+ * When we get a successful transfer result with the emergency buffer we just
+ * pretend that it completed using the original dmdma_cmd and carry on.  The
+ * 'next_cmd' field will already point back to the original loop of blocks.
+ */
+static inline void snd_pmac_pcm_dead_xfer(struct pmac_stream *rec,
+					  volatile struct dbdma_cmd __iomem *cp)
+{
+	unsigned short req, res ;
+	unsigned int phy ;
+
+	/* printk(KERN_WARNING "snd-powermac: DMA died - patching it up!\n"); */
+
+	/* to clear DEAD status we must first clear RUN
+	   set it to quiescent to be on the safe side */
+	(void)in_le32(&rec->dma->status);
+	out_le32(&rec->dma->control, (RUN|PAUSE|FLUSH|WAKE) << 16);
+
+	if (!emergency_in_use) { /* new problem */
+		memcpy((void *)emergency_dbdma.cmds, (void *)cp,
+		       sizeof(struct dbdma_cmd));
+		emergency_in_use = 1;
+		st_le16(&cp->xfer_status, 0);
+		st_le16(&cp->req_count, rec->period_size);
+		cp = emergency_dbdma.cmds;
+	}
+
+	/* now bump the values to reflect the amount
+	   we haven't yet shifted */
+	req = ld_le16(&cp->req_count);
+	res = ld_le16(&cp->res_count);
+	phy = ld_le32(&cp->phy_addr);
+	phy += (req - res);
+	st_le16(&cp->req_count, res);
+	st_le16(&cp->res_count, 0);
+	st_le16(&cp->xfer_status, 0);
+	st_le32(&cp->phy_addr, phy);
+
+	st_le32(&cp->cmd_dep, rec->cmd.addr
+		+ sizeof(struct dbdma_cmd)*((rec->cur_period+1)%rec->nperiods));
+
+	st_le16(&cp->command, OUTPUT_MORE | BR_ALWAYS | INTR_ALWAYS);
+
+	/* point at our patched up command block */
+	out_le32(&rec->dma->cmdptr, emergency_dbdma.addr);
+
+	/* we must re-start the controller */
+	(void)in_le32(&rec->dma->status);
+	/* should complete clearing the DEAD status */
+	out_le32(&rec->dma->control, ((RUN|WAKE) << 16) + (RUN|WAKE));
+}
+
+/*
  * update playback/capture pointer from interrupts
  */
 static void snd_pmac_pcm_update(struct snd_pmac *chip, struct pmac_stream *rec)
@@ -386,11 +466,26 @@ static void snd_pmac_pcm_update(struct snd_pmac *chip, struct pmac_stream *rec)
 
 	spin_lock(&chip->reg_lock);
 	if (rec->running) {
-		cp = &rec->cmd.cmds[rec->cur_period];
 		for (c = 0; c < rec->nperiods; c++) { /* at most all fragments */
+
+			if (emergency_in_use)   /* already using DEAD xfer? */
+				cp = emergency_dbdma.cmds;
+			else
+				cp = &rec->cmd.cmds[rec->cur_period];
+
 			stat = ld_le16(&cp->xfer_status);
+
+			if (stat & DEAD) {
+				snd_pmac_pcm_dead_xfer(rec, cp);
+				break; /* this block is still going */
+			}
+
+			if (emergency_in_use)
+				emergency_in_use = 0 ; /* done that */
+
 			if (! (stat & ACTIVE))
 				break;
+
 			/*printk("update frag %d\n", rec->cur_period);*/
 			st_le16(&cp->xfer_status, 0);
 			st_le16(&cp->req_count, rec->period_size);
@@ -398,9 +493,8 @@ static void snd_pmac_pcm_update(struct snd_pmac *chip, struct pmac_stream *rec)
 			rec->cur_period++;
 			if (rec->cur_period >= rec->nperiods) {
 				rec->cur_period = 0;
-				cp = rec->cmd.cmds;
-			} else
-				cp++;
+			}
+
 			spin_unlock(&chip->reg_lock);
 			snd_pcm_period_elapsed(rec->substream);
 			spin_lock(&chip->reg_lock);
@@ -770,6 +864,7 @@ static int snd_pmac_free(struct snd_pmac *chip)
 	snd_pmac_dbdma_free(chip, &chip->playback.cmd);
 	snd_pmac_dbdma_free(chip, &chip->capture.cmd);
 	snd_pmac_dbdma_free(chip, &chip->extra_dma);
+	snd_pmac_dbdma_free(chip, &emergency_dbdma);
 	if (chip->macio_base)
 		iounmap(chip->macio_base);
 	if (chip->latch_base)
@@ -1028,7 +1123,7 @@ static int pmac_auto_mute_put(struct snd_kcontrol *kcontrol,
 {
 	struct snd_pmac *chip = snd_kcontrol_chip(kcontrol);
 	if (ucontrol->value.integer.value[0] != chip->auto_mute) {
-		chip->auto_mute = ucontrol->value.integer.value[0];
+		chip->auto_mute = !!ucontrol->value.integer.value[0];
 		if (chip->update_automute)
 			chip->update_automute(chip, 1);
 		return 1;
@@ -1108,7 +1203,8 @@ int __init snd_pmac_new(struct snd_card *card, struct snd_pmac **chip_return)
 
 	if (snd_pmac_dbdma_alloc(chip, &chip->playback.cmd, PMAC_MAX_FRAGS + 1) < 0 ||
 	    snd_pmac_dbdma_alloc(chip, &chip->capture.cmd, PMAC_MAX_FRAGS + 1) < 0 ||
-	    snd_pmac_dbdma_alloc(chip, &chip->extra_dma, 2) < 0) {
+	    snd_pmac_dbdma_alloc(chip, &chip->extra_dma, 2) < 0 ||
+	    snd_pmac_dbdma_alloc(chip, &emergency_dbdma, 2) < 0) {
 		err = -ENOMEM;
 		goto __error;
 	}

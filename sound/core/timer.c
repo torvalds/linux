@@ -19,7 +19,6 @@
  *
  */
 
-#include <sound/driver.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -44,11 +43,14 @@
 #endif
 
 static int timer_limit = DEFAULT_TIMER_LIMIT;
+static int timer_tstamp_monotonic = 1;
 MODULE_AUTHOR("Jaroslav Kysela <perex@perex.cz>, Takashi Iwai <tiwai@suse.de>");
 MODULE_DESCRIPTION("ALSA timer interface");
 MODULE_LICENSE("GPL");
 module_param(timer_limit, int, 0444);
 MODULE_PARM_DESC(timer_limit, "Maximum global timers in system.");
+module_param(timer_tstamp_monotonic, int, 0444);
+MODULE_PARM_DESC(timer_tstamp_monotonic, "Use posix monotonic clock source for timestamps (default).");
 
 struct snd_timer_user {
 	struct snd_timer_instance *timeri;
@@ -381,7 +383,10 @@ static void snd_timer_notify1(struct snd_timer_instance *ti, int event)
 	struct snd_timer_instance *ts;
 	struct timespec tstamp;
 
-	getnstimeofday(&tstamp);
+	if (timer_tstamp_monotonic)
+		do_posix_clock_monotonic_gettime(&tstamp);
+	else
+		getnstimeofday(&tstamp);
 	snd_assert(event >= SNDRV_TIMER_EVENT_START &&
 		   event <= SNDRV_TIMER_EVENT_PAUSE, return);
 	if (event == SNDRV_TIMER_EVENT_START ||
@@ -1182,8 +1187,12 @@ static void snd_timer_user_tinterrupt(struct snd_timer_instance *timeri,
 		spin_unlock(&tu->qlock);
 		return;
 	}
-	if (tu->last_resolution != resolution || ticks > 0)
-		getnstimeofday(&tstamp);
+	if (tu->last_resolution != resolution || ticks > 0) {
+		if (timer_tstamp_monotonic)
+			do_posix_clock_monotonic_gettime(&tstamp);
+		else
+			getnstimeofday(&tstamp);
+	}
 	if ((tu->filter & (1 << SNDRV_TIMER_EVENT_RESOLUTION)) &&
 	    tu->last_resolution != resolution) {
 		r1.event = SNDRV_TIMER_EVENT_RESOLUTION;

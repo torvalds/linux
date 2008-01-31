@@ -76,16 +76,6 @@ static int snd_opl3_set_connection(struct snd_opl3 * opl3, int connection);
  */
 int snd_opl3_open(struct snd_hwdep * hw, struct file *file)
 {
-	struct snd_opl3 *opl3 = hw->private_data;
-
-	mutex_lock(&opl3->access_mutex);
-	if (opl3->used) {
-		mutex_unlock(&opl3->access_mutex);
-		return -EAGAIN;
-	}
-	opl3->used++;
-	mutex_unlock(&opl3->access_mutex);
-
 	return 0;
 }
 
@@ -165,6 +155,10 @@ int snd_opl3_ioctl(struct snd_hwdep * hw, struct file *file,
 #endif
 		return snd_opl3_set_connection(opl3, (int) arg);
 
+	case SNDRV_DM_FM_IOCTL_CLEAR_PATCHES:
+		snd_opl3_clear_patches(opl3);
+		return 0;
+
 #ifdef CONFIG_SND_DEBUG
 	default:
 		snd_printk("unknown IOCTL: 0x%x\n", cmd);
@@ -181,11 +175,171 @@ int snd_opl3_release(struct snd_hwdep * hw, struct file *file)
 	struct snd_opl3 *opl3 = hw->private_data;
 
 	snd_opl3_reset(opl3);
-	mutex_lock(&opl3->access_mutex);
-	opl3->used--;
-	mutex_unlock(&opl3->access_mutex);
+	return 0;
+}
+
+/*
+ * write the device - load patches
+ */
+long snd_opl3_write(struct snd_hwdep *hw, const char __user *buf, long count,
+		    loff_t *offset)
+{
+	struct snd_opl3 *opl3 = hw->private_data;
+	long result = 0;
+	int err = 0;
+	struct sbi_patch inst;
+
+	while (count >= sizeof(inst)) {
+		unsigned char type;
+		if (copy_from_user(&inst, buf, sizeof(inst)))
+			return -EFAULT;
+		if (!memcmp(inst.key, FM_KEY_SBI, 4) ||
+		    !memcmp(inst.key, FM_KEY_2OP, 4))
+			type = FM_PATCH_OPL2;
+		else if (!memcmp(inst.key, FM_KEY_4OP, 4))
+			type = FM_PATCH_OPL3;
+		else /* invalid type */
+			break;
+		err = snd_opl3_load_patch(opl3, inst.prog, inst.bank, type,
+					  inst.name, inst.extension,
+					  inst.data);
+		if (err < 0)
+			break;
+		result += sizeof(inst);
+		count -= sizeof(inst);
+	}
+	return result > 0 ? result : err;
+}
+
+
+/*
+ * Patch management
+ */
+
+/* offsets for SBI params */
+#define AM_VIB		0
+#define KSL_LEVEL	2
+#define ATTACK_DECAY	4
+#define SUSTAIN_RELEASE	6
+#define WAVE_SELECT	8
+
+/* offset for SBI instrument */
+#define CONNECTION	10
+#define OFFSET_4OP	11
+
+/*
+ * load a patch, obviously.
+ *
+ * loaded on the given program and bank numbers with the given type
+ * (FM_PATCH_OPLx).
+ * data is the pointer of SBI record _without_ header (key and name).
+ * name is the name string of the patch.
+ * ext is the extension data of 7 bytes long (stored in name of SBI
+ * data up to offset 25), or NULL to skip.
+ * return 0 if successful or a negative error code.
+ */
+int snd_opl3_load_patch(struct snd_opl3 *opl3,
+			int prog, int bank, int type,
+			const char *name,
+			const unsigned char *ext,
+			const unsigned char *data)
+{
+	struct fm_patch *patch;
+	int i;
+
+	patch = snd_opl3_find_patch(opl3, prog, bank, 1);
+	if (!patch)
+		return -ENOMEM;
+
+	patch->type = type;
+
+	for (i = 0; i < 2; i++) {
+		patch->inst.op[i].am_vib = data[AM_VIB + i];
+		patch->inst.op[i].ksl_level = data[KSL_LEVEL + i];
+		patch->inst.op[i].attack_decay = data[ATTACK_DECAY + i];
+		patch->inst.op[i].sustain_release = data[SUSTAIN_RELEASE + i];
+		patch->inst.op[i].wave_select = data[WAVE_SELECT + i];
+	}
+	patch->inst.feedback_connection[0] = data[CONNECTION];
+
+	if (type == FM_PATCH_OPL3) {
+		for (i = 0; i < 2; i++) {
+			patch->inst.op[i+2].am_vib =
+				data[OFFSET_4OP + AM_VIB + i];
+			patch->inst.op[i+2].ksl_level =
+				data[OFFSET_4OP + KSL_LEVEL + i];
+			patch->inst.op[i+2].attack_decay =
+				data[OFFSET_4OP + ATTACK_DECAY + i];
+			patch->inst.op[i+2].sustain_release =
+				data[OFFSET_4OP + SUSTAIN_RELEASE + i];
+			patch->inst.op[i+2].wave_select =
+				data[OFFSET_4OP + WAVE_SELECT + i];
+		}
+		patch->inst.feedback_connection[1] =
+			data[OFFSET_4OP + CONNECTION];
+	}
+
+	if (ext) {
+		patch->inst.echo_delay = ext[0];
+		patch->inst.echo_atten = ext[1];
+		patch->inst.chorus_spread = ext[2];
+		patch->inst.trnsps = ext[3];
+		patch->inst.fix_dur = ext[4];
+		patch->inst.modes = ext[5];
+		patch->inst.fix_key = ext[6];
+	}
+
+	if (name)
+		strlcpy(patch->name, name, sizeof(patch->name));
 
 	return 0;
+}
+EXPORT_SYMBOL(snd_opl3_load_patch);
+
+/*
+ * find a patch with the given program and bank numbers, returns its pointer
+ * if no matching patch is found and create_patch is set, it creates a
+ * new patch object.
+ */
+struct fm_patch *snd_opl3_find_patch(struct snd_opl3 *opl3, int prog, int bank,
+				     int create_patch)
+{
+	/* pretty dumb hash key */
+	unsigned int key = (prog + bank) % OPL3_PATCH_HASH_SIZE;
+	struct fm_patch *patch;
+
+	for (patch = opl3->patch_table[key]; patch; patch = patch->next) {
+		if (patch->prog == prog && patch->bank == bank)
+			return patch;
+	}
+	if (!create_patch)
+		return NULL;
+
+	patch = kzalloc(sizeof(*patch), GFP_KERNEL);
+	if (!patch)
+		return NULL;
+	patch->prog = prog;
+	patch->bank = bank;
+	patch->next = opl3->patch_table[key];
+	opl3->patch_table[key] = patch;
+	return patch;
+}
+EXPORT_SYMBOL(snd_opl3_find_patch);
+
+/*
+ * Clear all patches of the given OPL3 instance
+ */
+void snd_opl3_clear_patches(struct snd_opl3 *opl3)
+{
+	int i;
+	for (i = 0; i <  OPL3_PATCH_HASH_SIZE; i++) {
+		struct fm_patch *patch, *next;
+		for (patch = opl3->patch_table[i]; patch; patch = next) {
+			next = patch->next;
+			kfree(patch);
+		}
+	}
+	memset(opl3->patch_table, 0, sizeof(opl3->patch_table));
 }
 
 /* ------------------------------ */

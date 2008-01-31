@@ -24,7 +24,6 @@
 #include <linux/utsname.h>
 #include <linux/device.h>
 
-#include <sound/driver.h>
 #include <sound/core.h>
 #include <sound/initval.h>
 #include <sound/rawmidi.h>

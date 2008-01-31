@@ -19,7 +19,6 @@
 #include <linux/io.h>
 
 
-#include <sound/driver.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/info.h>

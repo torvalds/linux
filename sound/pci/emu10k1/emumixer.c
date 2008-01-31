@@ -30,7 +30,6 @@
  *
  */
 
-#include <sound/driver.h>
 #include <linux/time.h>
 #include <linux/init.h>
 #include <sound/core.h>
@@ -140,6 +139,61 @@ static char *emu1010_src_texts[] = {
 	"DSP 31",
 };
 
+/* 1616(m) cardbus */
+
+static char *emu1616_src_texts[] = {
+	"Silence",
+	"Dock Mic A",
+	"Dock Mic B",
+	"Dock ADC1 Left",
+	"Dock ADC1 Right",
+	"Dock ADC2 Left",
+	"Dock ADC2 Right",
+	"Dock SPDIF Left",
+	"Dock SPDIF Right",
+	"ADAT 0",
+	"ADAT 1",
+	"ADAT 2",
+	"ADAT 3",
+	"ADAT 4",
+	"ADAT 5",
+	"ADAT 6",
+	"ADAT 7",
+	"DSP 0",
+	"DSP 1",
+	"DSP 2",
+	"DSP 3",
+	"DSP 4",
+	"DSP 5",
+	"DSP 6",
+	"DSP 7",
+	"DSP 8",
+	"DSP 9",
+	"DSP 10",
+	"DSP 11",
+	"DSP 12",
+	"DSP 13",
+	"DSP 14",
+	"DSP 15",
+	"DSP 16",
+	"DSP 17",
+	"DSP 18",
+	"DSP 19",
+	"DSP 20",
+	"DSP 21",
+	"DSP 22",
+	"DSP 23",
+	"DSP 24",
+	"DSP 25",
+	"DSP 26",
+	"DSP 27",
+	"DSP 28",
+	"DSP 29",
+	"DSP 30",
+	"DSP 31",
+};
+
+
 /*
  * List of data sources available for each destination
  */
@@ -199,6 +253,59 @@ static unsigned int emu1010_src_regs[] = {
 	EMU_SRC_ALICE_EMU32B+0xf, /* 52 */
 };
 
+/* 1616(m) cardbus */
+static unsigned int emu1616_src_regs[] = {
+	EMU_SRC_SILENCE,
+	EMU_SRC_DOCK_MIC_A1,
+	EMU_SRC_DOCK_MIC_B1,
+	EMU_SRC_DOCK_ADC1_LEFT1,
+	EMU_SRC_DOCK_ADC1_RIGHT1,
+	EMU_SRC_DOCK_ADC2_LEFT1,
+	EMU_SRC_DOCK_ADC2_RIGHT1,
+	EMU_SRC_MDOCK_SPDIF_LEFT1,
+	EMU_SRC_MDOCK_SPDIF_RIGHT1,
+	EMU_SRC_MDOCK_ADAT,
+	EMU_SRC_MDOCK_ADAT+1,
+	EMU_SRC_MDOCK_ADAT+2,
+	EMU_SRC_MDOCK_ADAT+3,
+	EMU_SRC_MDOCK_ADAT+4,
+	EMU_SRC_MDOCK_ADAT+5,
+	EMU_SRC_MDOCK_ADAT+6,
+	EMU_SRC_MDOCK_ADAT+7,
+	EMU_SRC_ALICE_EMU32A,
+	EMU_SRC_ALICE_EMU32A+1,
+	EMU_SRC_ALICE_EMU32A+2,
+	EMU_SRC_ALICE_EMU32A+3,
+	EMU_SRC_ALICE_EMU32A+4,
+	EMU_SRC_ALICE_EMU32A+5,
+	EMU_SRC_ALICE_EMU32A+6,
+	EMU_SRC_ALICE_EMU32A+7,
+	EMU_SRC_ALICE_EMU32A+8,
+	EMU_SRC_ALICE_EMU32A+9,
+	EMU_SRC_ALICE_EMU32A+0xa,
+	EMU_SRC_ALICE_EMU32A+0xb,
+	EMU_SRC_ALICE_EMU32A+0xc,
+	EMU_SRC_ALICE_EMU32A+0xd,
+	EMU_SRC_ALICE_EMU32A+0xe,
+	EMU_SRC_ALICE_EMU32A+0xf,
+	EMU_SRC_ALICE_EMU32B,
+	EMU_SRC_ALICE_EMU32B+1,
+	EMU_SRC_ALICE_EMU32B+2,
+	EMU_SRC_ALICE_EMU32B+3,
+	EMU_SRC_ALICE_EMU32B+4,
+	EMU_SRC_ALICE_EMU32B+5,
+	EMU_SRC_ALICE_EMU32B+6,
+	EMU_SRC_ALICE_EMU32B+7,
+	EMU_SRC_ALICE_EMU32B+8,
+	EMU_SRC_ALICE_EMU32B+9,
+	EMU_SRC_ALICE_EMU32B+0xa,
+	EMU_SRC_ALICE_EMU32B+0xb,
+	EMU_SRC_ALICE_EMU32B+0xc,
+	EMU_SRC_ALICE_EMU32B+0xd,
+	EMU_SRC_ALICE_EMU32B+0xe,
+	EMU_SRC_ALICE_EMU32B+0xf,
+};
+
 /*
  * Data destinations - physical EMU outputs.
  * Each destination has an enum mixer control to choose a data source
@@ -228,6 +335,28 @@ static unsigned int emu1010_output_dst[] = {
 	EMU_DST_HANA_ADAT+5, /* 21 */
 	EMU_DST_HANA_ADAT+6, /* 22 */
 	EMU_DST_HANA_ADAT+7, /* 23 */
+};
+
+/* 1616(m) cardbus */
+static unsigned int emu1616_output_dst[] = {
+	EMU_DST_DOCK_DAC1_LEFT1,
+	EMU_DST_DOCK_DAC1_RIGHT1,
+	EMU_DST_DOCK_DAC2_LEFT1,
+	EMU_DST_DOCK_DAC2_RIGHT1,
+	EMU_DST_DOCK_DAC3_LEFT1,
+	EMU_DST_DOCK_DAC3_RIGHT1,
+	EMU_DST_MDOCK_SPDIF_LEFT1,
+	EMU_DST_MDOCK_SPDIF_RIGHT1,
+	EMU_DST_MDOCK_ADAT,
+	EMU_DST_MDOCK_ADAT+1,
+	EMU_DST_MDOCK_ADAT+2,
+	EMU_DST_MDOCK_ADAT+3,
+	EMU_DST_MDOCK_ADAT+4,
+	EMU_DST_MDOCK_ADAT+5,
+	EMU_DST_MDOCK_ADAT+6,
+	EMU_DST_MDOCK_ADAT+7,
+	EMU_DST_MANA_DAC_LEFT,
+	EMU_DST_MANA_DAC_RIGHT,
 };
 
 /*
@@ -260,14 +389,26 @@ static unsigned int emu1010_input_dst[] = {
 	EMU_DST_ALICE_I2S2_RIGHT,
 };
 
-static int snd_emu1010_input_output_source_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
+static int snd_emu1010_input_output_source_info(struct snd_kcontrol *kcontrol,
+						struct snd_ctl_elem_info *uinfo)
 {
+	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
+	char **items;
+
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	uinfo->count = 1;
-	uinfo->value.enumerated.items = 53;
+	if (emu->card_capabilities->emu_model == EMU_MODEL_EMU1616) {
+		uinfo->value.enumerated.items = 49;
+		items = emu1616_src_texts;
+	} else {
+		uinfo->value.enumerated.items = 53;
+		items = emu1010_src_texts;
+	}
 	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name, emu1010_src_texts[uinfo->value.enumerated.item]);
+		uinfo->value.enumerated.item =
+			uinfo->value.enumerated.items - 1;
+	strcpy(uinfo->value.enumerated.name,
+	       items[uinfo->value.enumerated.item]);
 	return 0;
 }
 
@@ -279,7 +420,9 @@ static int snd_emu1010_output_source_get(struct snd_kcontrol *kcontrol,
 
 	channel = (kcontrol->private_value) & 0xff;
 	/* Limit: emu1010_output_dst, emu->emu1010.output_source */
-	if (channel >= 24)
+	if (channel >= 24 ||
+	    (emu->card_capabilities->emu_model == EMU_MODEL_EMU1616 &&
+	     channel >= 18))
 		return -EINVAL;
 	ucontrol->value.enumerated.item[0] = emu->emu1010.output_source[channel];
 	return 0;
@@ -289,24 +432,30 @@ static int snd_emu1010_output_source_put(struct snd_kcontrol *kcontrol,
                                  struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
-	int change = 0;
 	unsigned int val;
 	unsigned int channel;
 
 	val = ucontrol->value.enumerated.item[0];
-	if (val >= 53)
+	if (val >= 53 ||
+	    (emu->card_capabilities->emu_model == EMU_MODEL_EMU1616 &&
+	     val >= 49))
 		return -EINVAL;
 	channel = (kcontrol->private_value) & 0xff;
 	/* Limit: emu1010_output_dst, emu->emu1010.output_source */
-	if (channel >= 24)
+	if (channel >= 24 ||
+	    (emu->card_capabilities->emu_model == EMU_MODEL_EMU1616 &&
+	     channel >= 18))
 		return -EINVAL;
-	if (emu->emu1010.output_source[channel] != val) {
-		emu->emu1010.output_source[channel] = val;
-		change = 1;
+	if (emu->emu1010.output_source[channel] == val)
+		return 0;
+	emu->emu1010.output_source[channel] = val;
+	if (emu->card_capabilities->emu_model == EMU_MODEL_EMU1616)
+		snd_emu1010_fpga_link_dst_src_write(emu,
+			emu1616_output_dst[channel], emu1616_src_regs[val]);
+	else
 		snd_emu1010_fpga_link_dst_src_write(emu,
 			emu1010_output_dst[channel], emu1010_src_regs[val]);
-	}
-	return change;
+	return 1;
 }
 
 static int snd_emu1010_input_source_get(struct snd_kcontrol *kcontrol,
@@ -327,24 +476,28 @@ static int snd_emu1010_input_source_put(struct snd_kcontrol *kcontrol,
                                  struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
-	int change = 0;
 	unsigned int val;
 	unsigned int channel;
 
 	val = ucontrol->value.enumerated.item[0];
-	if (val >= 53)
+	if (val >= 53 ||
+	    (emu->card_capabilities->emu_model == EMU_MODEL_EMU1616 &&
+	     val >= 49))
 		return -EINVAL;
 	channel = (kcontrol->private_value) & 0xff;
 	/* Limit: emu1010_input_dst, emu->emu1010.input_source */
 	if (channel >= 22)
 		return -EINVAL;
-	if (emu->emu1010.input_source[channel] != val) {
-		emu->emu1010.input_source[channel] = val;
-		change = 1;
+	if (emu->emu1010.input_source[channel] == val)
+		return 0;
+	emu->emu1010.input_source[channel] = val;
+	if (emu->card_capabilities->emu_model == EMU_MODEL_EMU1616)
+		snd_emu1010_fpga_link_dst_src_write(emu,
+			emu1010_input_dst[channel], emu1616_src_regs[val]);
+	else
 		snd_emu1010_fpga_link_dst_src_write(emu,
 			emu1010_input_dst[channel], emu1010_src_regs[val]);
-	}
-	return change;
+	return 1;
 }
 
 #define EMU1010_SOURCE_OUTPUT(xname,chid) \
@@ -383,6 +536,30 @@ static struct snd_kcontrol_new snd_emu1010_output_enum_ctls[] __devinitdata = {
 	EMU1010_SOURCE_OUTPUT("1010 ADAT 6 Playback Enum", 0x16),
 	EMU1010_SOURCE_OUTPUT("1010 ADAT 7 Playback Enum", 0x17),
 };
+
+
+/* 1616(m) cardbus */
+static struct snd_kcontrol_new snd_emu1616_output_enum_ctls[] __devinitdata = {
+	EMU1010_SOURCE_OUTPUT("Dock DAC1 Left Playback Enum", 0),
+	EMU1010_SOURCE_OUTPUT("Dock DAC1 Right Playback Enum", 1),
+	EMU1010_SOURCE_OUTPUT("Dock DAC2 Left Playback Enum", 2),
+	EMU1010_SOURCE_OUTPUT("Dock DAC2 Right Playback Enum", 3),
+	EMU1010_SOURCE_OUTPUT("Dock DAC3 Left Playback Enum", 4),
+	EMU1010_SOURCE_OUTPUT("Dock DAC3 Right Playback Enum", 5),
+	EMU1010_SOURCE_OUTPUT("Dock SPDIF Left Playback Enum", 6),
+	EMU1010_SOURCE_OUTPUT("Dock SPDIF Right Playback Enum", 7),
+	EMU1010_SOURCE_OUTPUT("Dock ADAT 0 Playback Enum", 8),
+	EMU1010_SOURCE_OUTPUT("Dock ADAT 1 Playback Enum", 9),
+	EMU1010_SOURCE_OUTPUT("Dock ADAT 2 Playback Enum", 0xa),
+	EMU1010_SOURCE_OUTPUT("Dock ADAT 3 Playback Enum", 0xb),
+	EMU1010_SOURCE_OUTPUT("Dock ADAT 4 Playback Enum", 0xc),
+	EMU1010_SOURCE_OUTPUT("Dock ADAT 5 Playback Enum", 0xd),
+	EMU1010_SOURCE_OUTPUT("Dock ADAT 6 Playback Enum", 0xe),
+	EMU1010_SOURCE_OUTPUT("Dock ADAT 7 Playback Enum", 0xf),
+	EMU1010_SOURCE_OUTPUT("Mana DAC Left Playback Enum", 0x10),
+	EMU1010_SOURCE_OUTPUT("Mana DAC Right Playback Enum", 0x11),
+};
+
 
 #define EMU1010_SOURCE_INPUT(xname,chid) \
 {								\
@@ -1793,7 +1970,7 @@ int __devinit snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 			return err;
 	}
 
-	if ( emu->card_capabilities->emu1010) {
+	if (emu->card_capabilities->emu_model) {
 		;  /* Disable the snd_audigy_spdif_shared_spdif */
 	} else if (emu->audigy) {
 		if ((kctl = snd_ctl_new1(&snd_audigy_shared_spdif, emu)) == NULL)
@@ -1818,30 +1995,73 @@ int __devinit snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 			return err;
 	}
 
-	if ( emu->card_capabilities->emu1010) {
+	if (emu->card_capabilities->emu_model == EMU_MODEL_EMU1616) {
+		/* 1616(m) cardbus */
 		int i;
 
-		for (i = 0; i < ARRAY_SIZE(snd_emu1010_output_enum_ctls); i++) {
-			err = snd_ctl_add(card, snd_ctl_new1(&snd_emu1010_output_enum_ctls[i], emu));
+		for (i = 0; i < ARRAY_SIZE(snd_emu1616_output_enum_ctls); i++) {
+			err = snd_ctl_add(card,
+				snd_ctl_new1(&snd_emu1616_output_enum_ctls[i],
+					     emu));
 			if (err < 0)
 				return err;
 		}
 		for (i = 0; i < ARRAY_SIZE(snd_emu1010_input_enum_ctls); i++) {
-			err = snd_ctl_add(card, snd_ctl_new1(&snd_emu1010_input_enum_ctls[i], emu));
+			err = snd_ctl_add(card,
+				snd_ctl_new1(&snd_emu1010_input_enum_ctls[i],
+					     emu));
+			if (err < 0)
+				return err;
+		}
+		for (i = 0; i < ARRAY_SIZE(snd_emu1010_adc_pads) - 2; i++) {
+			err = snd_ctl_add(card,
+				snd_ctl_new1(&snd_emu1010_adc_pads[i], emu));
+			if (err < 0)
+				return err;
+		}
+		for (i = 0; i < ARRAY_SIZE(snd_emu1010_dac_pads) - 2; i++) {
+			err = snd_ctl_add(card,
+				snd_ctl_new1(&snd_emu1010_dac_pads[i], emu));
+			if (err < 0)
+				return err;
+		}
+		err = snd_ctl_add(card,
+			snd_ctl_new1(&snd_emu1010_internal_clock, emu));
+		if (err < 0)
+			return err;
+
+	} else if (emu->card_capabilities->emu_model) {
+		/* all other e-mu cards for now */
+		int i;
+
+		for (i = 0; i < ARRAY_SIZE(snd_emu1010_output_enum_ctls); i++) {
+			err = snd_ctl_add(card,
+				snd_ctl_new1(&snd_emu1010_output_enum_ctls[i],
+					     emu));
+			if (err < 0)
+				return err;
+		}
+		for (i = 0; i < ARRAY_SIZE(snd_emu1010_input_enum_ctls); i++) {
+			err = snd_ctl_add(card,
+				snd_ctl_new1(&snd_emu1010_input_enum_ctls[i],
+					     emu));
 			if (err < 0)
 				return err;
 		}
 		for (i = 0; i < ARRAY_SIZE(snd_emu1010_adc_pads); i++) {
-			err = snd_ctl_add(card, snd_ctl_new1(&snd_emu1010_adc_pads[i], emu));
+			err = snd_ctl_add(card,
+				snd_ctl_new1(&snd_emu1010_adc_pads[i], emu));
 			if (err < 0)
 				return err;
 		}
 		for (i = 0; i < ARRAY_SIZE(snd_emu1010_dac_pads); i++) {
-			err = snd_ctl_add(card, snd_ctl_new1(&snd_emu1010_dac_pads[i], emu));
+			err = snd_ctl_add(card,
+				snd_ctl_new1(&snd_emu1010_dac_pads[i], emu));
 			if (err < 0)
 				return err;
 		}
-		err = snd_ctl_add(card, snd_ctl_new1(&snd_emu1010_internal_clock, emu));
+		err = snd_ctl_add(card,
+			snd_ctl_new1(&snd_emu1010_internal_clock, emu));
 		if (err < 0)
 			return err;
 	}

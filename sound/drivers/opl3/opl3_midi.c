@@ -289,8 +289,6 @@ static int snd_opl3_oss_map[MAX_OPL3_VOICES] = {
 void snd_opl3_note_on(void *p, int note, int vel, struct snd_midi_channel *chan)
 {
 	struct snd_opl3 *opl3;
-	struct snd_seq_instr wanted;
-	struct snd_seq_kinstr *kinstr;
 	int instr_4op;
 
 	int voice;
@@ -306,11 +304,13 @@ void snd_opl3_note_on(void *p, int note, int vel, struct snd_midi_channel *chan)
 	unsigned char voice_offset;
 	unsigned short opl3_reg;
 	unsigned char reg_val;
+	unsigned char prg, bank;
 
 	int key = note;
 	unsigned char fnum, blocknum;
 	int i;
 
+	struct fm_patch *patch;
 	struct fm_instrument *fm;
 	unsigned long flags;
 
@@ -320,19 +320,17 @@ void snd_opl3_note_on(void *p, int note, int vel, struct snd_midi_channel *chan)
 	snd_printk("Note on, ch %i, inst %i, note %i, vel %i\n",
 		   chan->number, chan->midi_program, note, vel);
 #endif
-	wanted.cluster = 0;
-	wanted.std = SNDRV_SEQ_INSTR_TYPE2_OPL2_3;
 
 	/* in SYNTH mode, application takes care of voices */
 	/* in SEQ mode, drum voice numbers are notes on drum channel */
 	if (opl3->synth_mode == SNDRV_OPL3_MODE_SEQ) {
 		if (chan->drum_channel) {
 			/* percussion instruments are located in bank 128 */
-			wanted.bank = 128;
-			wanted.prg = note;
+			bank = 128;
+			prg = note;
 		} else {
-			wanted.bank = chan->gm_bank_select;
-			wanted.prg = chan->midi_program;
+			bank = chan->gm_bank_select;
+			prg = chan->midi_program;
 		}
 	} else {
 		/* Prepare for OSS mode */
@@ -340,8 +338,8 @@ void snd_opl3_note_on(void *p, int note, int vel, struct snd_midi_channel *chan)
 			return;
 
 		/* OSS instruments are located in bank 127 */
-		wanted.bank = 127;
-		wanted.prg = chan->midi_program;
+		bank = 127;
+		prg = chan->midi_program;
 	}
 
 	spin_lock_irqsave(&opl3->voice_lock, flags);
@@ -353,15 +351,14 @@ void snd_opl3_note_on(void *p, int note, int vel, struct snd_midi_channel *chan)
 	}
 
  __extra_prg:
-	kinstr = snd_seq_instr_find(opl3->ilist, &wanted, 1, 0);
-	if (kinstr == NULL) {
+	patch = snd_opl3_find_patch(opl3, prg, bank, 0);
+	if (!patch) {
 		spin_unlock_irqrestore(&opl3->voice_lock, flags);
 		return;
 	}
 
-	fm = KINSTR_DATA(kinstr);
-
-	switch (fm->type) {
+	fm = &patch->inst;
+	switch (patch->type) {
 	case FM_PATCH_OPL2:
 		instr_4op = 0;
 		break;
@@ -371,14 +368,12 @@ void snd_opl3_note_on(void *p, int note, int vel, struct snd_midi_channel *chan)
 			break;
 		}
 	default:
-		snd_seq_instr_free_use(opl3->ilist, kinstr);
 		spin_unlock_irqrestore(&opl3->voice_lock, flags);
 		return;
 	}
-
 #ifdef DEBUG_MIDI
 	snd_printk("  --> OPL%i instrument: %s\n",
-		   instr_4op ? 3 : 2, kinstr->name);
+		   instr_4op ? 3 : 2, patch->name);
 #endif
 	/* in SYNTH mode, application takes care of voices */
 	/* in SEQ mode, allocate voice on free OPL3 channel */
@@ -569,8 +564,6 @@ void snd_opl3_note_on(void *p, int note, int vel, struct snd_midi_channel *chan)
 	/* get extra pgm, but avoid possible loops */
 	extra_prg = (extra_prg) ? 0 : fm->modes;
 
-	snd_seq_instr_free_use(opl3->ilist, kinstr);
-
 	/* do the bookkeeping */
 	vp->time = opl3->use_time++;
 	vp->note = key;
@@ -601,12 +594,12 @@ void snd_opl3_note_on(void *p, int note, int vel, struct snd_midi_channel *chan)
 	/* allocate extra program if specified in patch library */
 	if (extra_prg) {
 		if (extra_prg > 128) {
-			wanted.bank = 128;
+			bank = 128;
 			/* percussions start at 35 */
-			wanted.prg = extra_prg - 128 + 35 - 1;
+			prg = extra_prg - 128 + 35 - 1;
 		} else {
-			wanted.bank = 0;
-			wanted.prg = extra_prg - 1;
+			bank = 0;
+			prg = extra_prg - 1;
 		}
 #ifdef DEBUG_MIDI
 		snd_printk(" *** allocating extra program\n");

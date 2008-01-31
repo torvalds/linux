@@ -28,7 +28,6 @@
  *
  */
 
-#include <sound/driver.h>
 #include <linux/pci.h>
 #include <linux/capability.h>
 #include <linux/delay.h>
@@ -666,7 +665,7 @@ static unsigned int *copy_tlv(const unsigned int __user *_tlv)
 		return NULL;
 	if (data[1] >= MAX_TLV_SIZE)
 		return NULL;
-	tlv = kmalloc(data[1] * 4 + sizeof(data), GFP_KERNEL);
+	tlv = kmalloc(data[1] + sizeof(data), GFP_KERNEL);
 	if (!tlv)
 		return NULL;
 	memcpy(tlv, data, sizeof(data));
@@ -1262,7 +1261,7 @@ static int __devinit _snd_emu10k1_audigy_init_efx(struct snd_emu10k1 *emu)
 A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 
 	/* emu1212 DSP 0 and DSP 1 Capture */
-	if (emu->card_capabilities->emu1010) {
+	if (emu->card_capabilities->emu_model) {
 		if (emu->card_capabilities->ca0108_chip) {
 			/* Note:JCD:No longer bit shift lower 16bits to upper 16bits of 32bit value. */
 			A_OP(icode, &ptr, iMACINT0, A_GPR(tmp), A_C_00000000, A3_EMU32IN(0x0), A_C_00000001);
@@ -1516,7 +1515,7 @@ A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 
 	/* digital outputs */
 	/* A_PUT_STEREO_OUTPUT(A_EXTOUT_FRONT_L, A_EXTOUT_FRONT_R, playback + SND_EMU10K1_PLAYBACK_CHANNELS); */
-	if (emu->card_capabilities->emu1010) {
+	if (emu->card_capabilities->emu_model) {
 		/* EMU1010 Outputs from PCM Front, Rear, Center, LFE, Side */
 		snd_printk("EMU outputs on\n");
 		for (z = 0; z < 8; z++) {
@@ -1564,7 +1563,7 @@ A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 	A_PUT_OUTPUT(A_EXTOUT_ADC_CAP_R, capture+1);
 #endif
 
-	if (emu->card_capabilities->emu1010) {
+	if (emu->card_capabilities->emu_model) {
 		if (emu->card_capabilities->ca0108_chip) {
 			snd_printk("EMU2 inputs on\n");
 			for (z = 0; z < 0x10; z++) {

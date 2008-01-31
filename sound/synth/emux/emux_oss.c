@@ -22,7 +22,6 @@
  * 				midi emulation.
  */
 
-#include <sound/driver.h>
 
 #ifdef CONFIG_SND_SEQUENCER_OSS
 

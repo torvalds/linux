@@ -19,7 +19,6 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-#include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -79,6 +78,11 @@ struct ad198x_spec {
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	struct hda_loopback_check loopback;
 #endif
+	/* for virtual master */
+	hda_nid_t vmaster_nid;
+	u32 vmaster_tlv[4];
+	const char **slave_vols;
+	const char **slave_sws;
 };
 
 /*
@@ -126,6 +130,32 @@ static int ad198x_init(struct hda_codec *codec)
 	return 0;
 }
 
+static const char *ad_slave_vols[] = {
+	"Front Playback Volume",
+	"Surround Playback Volume",
+	"Center Playback Volume",
+	"LFE Playback Volume",
+	"Side Playback Volume",
+	"Headphone Playback Volume",
+	"Mono Playback Volume",
+	"Speaker Playback Volume",
+	"IEC958 Playback Volume",
+	NULL
+};
+
+static const char *ad_slave_sws[] = {
+	"Front Playback Switch",
+	"Surround Playback Switch",
+	"Center Playback Switch",
+	"LFE Playback Switch",
+	"Side Playback Switch",
+	"Headphone Playback Switch",
+	"Mono Playback Switch",
+	"Speaker Playback Switch",
+	"IEC958 Playback Switch",
+	NULL
+};
+
 static int ad198x_build_controls(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec = codec->spec;
@@ -147,6 +177,27 @@ static int ad198x_build_controls(struct hda_codec *codec)
 		if (err < 0)
 			return err;
 	}
+
+	/* if we have no master control, let's create it */
+	if (!snd_hda_find_mixer_ctl(codec, "Master Playback Volume")) {
+		snd_hda_set_vmaster_tlv(codec, spec->vmaster_nid,
+					HDA_OUTPUT, spec->vmaster_tlv);
+		err = snd_hda_add_vmaster(codec, "Master Playback Volume",
+					  spec->vmaster_tlv,
+					  (spec->slave_vols ?
+					   spec->slave_vols : ad_slave_vols));
+		if (err < 0)
+			return err;
+	}
+	if (!snd_hda_find_mixer_ctl(codec, "Master Playback Switch")) {
+		err = snd_hda_add_vmaster(codec, "Master Playback Switch",
+					  NULL,
+					  (spec->slave_sws ?
+					   spec->slave_sws : ad_slave_sws));
+		if (err < 0)
+			return err;
+	}
+
 	return 0;
 }
 
@@ -370,7 +421,7 @@ static int ad198x_eapd_put(struct snd_kcontrol *kcontrol,
 	int invert = (kcontrol->private_value >> 8) & 1;
 	hda_nid_t nid = kcontrol->private_value & 0xff;
 	unsigned int eapd;
-	eapd = ucontrol->value.integer.value[0];
+	eapd = !!ucontrol->value.integer.value[0];
 	if (invert)
 		eapd = !eapd;
 	if (eapd == spec->cur_eapd)
@@ -833,27 +884,29 @@ static const char *ad1986a_models[AD1986A_MODELS] = {
 
 static struct snd_pci_quirk ad1986a_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x103c, 0x30af, "HP B2800", AD1986A_LAPTOP_EAPD),
-	SND_PCI_QUIRK(0x10de, 0xcb84, "ASUS A8N-VM", AD1986A_3STACK),
 	SND_PCI_QUIRK(0x1043, 0x1153, "ASUS M9", AD1986A_LAPTOP_EAPD),
-	SND_PCI_QUIRK(0x1043, 0x1213, "ASUS A6J", AD1986A_LAPTOP_EAPD),
 	SND_PCI_QUIRK(0x1043, 0x11f7, "ASUS U5A", AD1986A_LAPTOP_EAPD),
+	SND_PCI_QUIRK(0x1043, 0x1213, "ASUS A6J", AD1986A_LAPTOP_EAPD),
 	SND_PCI_QUIRK(0x1043, 0x1263, "ASUS U5F", AD1986A_LAPTOP_EAPD),
 	SND_PCI_QUIRK(0x1043, 0x1297, "ASUS Z62F", AD1986A_LAPTOP_EAPD),
 	SND_PCI_QUIRK(0x1043, 0x12b3, "ASUS V1j", AD1986A_LAPTOP_EAPD),
 	SND_PCI_QUIRK(0x1043, 0x1302, "ASUS W3j", AD1986A_LAPTOP_EAPD),
+	SND_PCI_QUIRK(0x1043, 0x1443, "ASUS VX1", AD1986A_LAPTOP),
 	SND_PCI_QUIRK(0x1043, 0x1447, "ASUS A8J", AD1986A_3STACK),
 	SND_PCI_QUIRK(0x1043, 0x817f, "ASUS P5", AD1986A_3STACK),
 	SND_PCI_QUIRK(0x1043, 0x818f, "ASUS P5", AD1986A_LAPTOP),
 	SND_PCI_QUIRK(0x1043, 0x81b3, "ASUS P5", AD1986A_3STACK),
 	SND_PCI_QUIRK(0x1043, 0x81cb, "ASUS M2N", AD1986A_3STACK),
 	SND_PCI_QUIRK(0x1043, 0x8234, "ASUS M2N", AD1986A_3STACK),
+	SND_PCI_QUIRK(0x10de, 0xcb84, "ASUS A8N-VM", AD1986A_3STACK),
+	SND_PCI_QUIRK(0x1179, 0xff40, "Toshiba", AD1986A_LAPTOP_EAPD),
 	SND_PCI_QUIRK(0x144d, 0xb03c, "Samsung R55", AD1986A_3STACK),
 	SND_PCI_QUIRK(0x144d, 0xc01e, "FSC V2060", AD1986A_LAPTOP),
 	SND_PCI_QUIRK(0x144d, 0xc023, "Samsung X60", AD1986A_LAPTOP_EAPD),
 	SND_PCI_QUIRK(0x144d, 0xc024, "Samsung R65", AD1986A_LAPTOP_EAPD),
 	SND_PCI_QUIRK(0x144d, 0xc026, "Samsung X11", AD1986A_LAPTOP_EAPD),
-	SND_PCI_QUIRK(0x144d, 0xc504, "Samsung Q35", AD1986A_3STACK),
 	SND_PCI_QUIRK(0x144d, 0xc027, "Samsung Q1", AD1986A_ULTRA),
+	SND_PCI_QUIRK(0x144d, 0xc504, "Samsung Q35", AD1986A_3STACK),
 	SND_PCI_QUIRK(0x17aa, 0x1011, "Lenovo M55", AD1986A_LAPTOP),
 	SND_PCI_QUIRK(0x17aa, 0x1017, "Lenovo A60", AD1986A_3STACK),
 	SND_PCI_QUIRK(0x17aa, 0x2066, "Lenovo N100", AD1986A_LAPTOP_AUTOMUTE),
@@ -871,6 +924,13 @@ static struct hda_amp_list ad1986a_loopbacks[] = {
 	{ } /* end */
 };
 #endif
+
+static int is_jack_available(struct hda_codec *codec, hda_nid_t nid)
+{
+	unsigned int conf = snd_hda_codec_read(codec, nid, 0,
+					       AC_VERB_GET_CONFIG_DEFAULT, 0);
+	return get_defcfg_connect(conf) != AC_JACK_PORT_NONE;
+}
 
 static int patch_ad1986a(struct hda_codec *codec)
 {
@@ -898,6 +958,7 @@ static int patch_ad1986a(struct hda_codec *codec)
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = ad1986a_loopbacks;
 #endif
+	spec->vmaster_nid = 0x1b;
 
 	codec->patch_ops = ad198x_patch_ops;
 
@@ -930,7 +991,8 @@ static int patch_ad1986a(struct hda_codec *codec)
 		spec->multiout.max_channels = 2;
 		spec->multiout.num_dacs = 1;
 		spec->multiout.dac_nids = ad1986a_laptop_dac_nids;
-		spec->multiout.dig_out_nid = 0;
+		if (!is_jack_available(codec, 0x25))
+			spec->multiout.dig_out_nid = 0;
 		spec->input_mux = &ad1986a_laptop_eapd_capture_source;
 		break;
 	case AD1986A_LAPTOP_AUTOMUTE:
@@ -941,7 +1003,8 @@ static int patch_ad1986a(struct hda_codec *codec)
 		spec->multiout.max_channels = 2;
 		spec->multiout.num_dacs = 1;
 		spec->multiout.dac_nids = ad1986a_laptop_dac_nids;
-		spec->multiout.dig_out_nid = 0;
+		if (!is_jack_available(codec, 0x25))
+			spec->multiout.dig_out_nid = 0;
 		spec->input_mux = &ad1986a_laptop_eapd_capture_source;
 		codec->patch_ops.unsol_event = ad1986a_hp_unsol_event;
 		codec->patch_ops.init = ad1986a_hp_init;
@@ -1020,6 +1083,8 @@ static int ad1983_spdif_route_put(struct snd_kcontrol *kcontrol, struct snd_ctl_
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct ad198x_spec *spec = codec->spec;
 
+	if (ucontrol->value.enumerated.item[0] > 1)
+		return -EINVAL;
 	if (spec->spdif_route != ucontrol->value.enumerated.item[0]) {
 		spec->spdif_route = ucontrol->value.enumerated.item[0];
 		snd_hda_codec_write_cache(codec, spec->multiout.dig_out_nid, 0,
@@ -1138,6 +1203,7 @@ static int patch_ad1983(struct hda_codec *codec)
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = ad1983_loopbacks;
 #endif
+	spec->vmaster_nid = 0x05;
 
 	codec->patch_ops = ad198x_patch_ops;
 
@@ -1496,14 +1562,14 @@ static const char *ad1981_models[AD1981_MODELS] = {
 };
 
 static struct snd_pci_quirk ad1981_cfg_tbl[] = {
+	SND_PCI_QUIRK(0x1014, 0x0597, "Lenovo Z60", AD1981_THINKPAD),
 	/* All HP models */
 	SND_PCI_QUIRK(0x103c, 0, "HP nx", AD1981_HP),
-	/* HP nx6320 (reversed SSID, H/W bug) */
-	SND_PCI_QUIRK(0x30b0, 0x103c, "HP nx6320", AD1981_HP),
+	SND_PCI_QUIRK(0x1179, 0x0001, "Toshiba U205", AD1981_TOSHIBA),
 	/* Lenovo Thinkpad T60/X60/Z6xx */
 	SND_PCI_QUIRK(0x17aa, 0, "Lenovo Thinkpad", AD1981_THINKPAD),
-	SND_PCI_QUIRK(0x1014, 0x0597, "Lenovo Z60", AD1981_THINKPAD),
-	SND_PCI_QUIRK(0x1179, 0x0001, "Toshiba U205", AD1981_TOSHIBA),
+	/* HP nx6320 (reversed SSID, H/W bug) */
+	SND_PCI_QUIRK(0x30b0, 0x103c, "HP nx6320", AD1981_HP),
 	{}
 };
 
@@ -1534,6 +1600,7 @@ static int patch_ad1981(struct hda_codec *codec)
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = ad1981_loopbacks;
 #endif
+	spec->vmaster_nid = 0x05;
 
 	codec->patch_ops = ad198x_patch_ops;
 
@@ -1908,7 +1975,6 @@ static struct snd_kcontrol_new ad1988_capture_mixers[] = {
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		/* The multiple "Capture Source" controls confuse alsamixer
 		 * So call somewhat different..
-		 * FIXME: the controls appear in the "playback" view!
 		 */
 		/* .name = "Capture Source", */
 		.name = "Input Source",
@@ -1965,6 +2031,8 @@ static int ad1988_spdif_playback_source_put(struct snd_kcontrol *kcontrol,
 	int change;
 
 	val = ucontrol->value.enumerated.item[0];
+	if (val > 3)
+		return -EINVAL;
 	if (!val) {
 		sel = snd_hda_codec_read(codec, 0x1d, 0,
 					 AC_VERB_GET_AMP_GAIN_MUTE,
@@ -2079,6 +2147,8 @@ static struct hda_verb ad1988_6stack_init_verbs[] = {
 	{0x17, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
 	{0x3c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
 	{0x34, AC_VERB_SET_CONNECT_SEL, 0x0},
+	/* Analog CD Input */
+	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
 
 	{ }
 };
@@ -2720,8 +2790,8 @@ static const char *ad1988_models[AD1988_MODEL_LAST] = {
 };
 
 static struct snd_pci_quirk ad1988_cfg_tbl[] = {
-	SND_PCI_QUIRK(0x1043, 0x81f6, "Asus M2N-SLI", AD1988_6STACK_DIG),
 	SND_PCI_QUIRK(0x1043, 0x81ec, "Asus P5B-DLX", AD1988_6STACK_DIG),
+	SND_PCI_QUIRK(0x1043, 0x81f6, "Asus M2N-SLI", AD1988_6STACK_DIG),
 	{}
 };
 
@@ -2843,6 +2913,7 @@ static int patch_ad1988(struct hda_codec *codec)
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = ad1988_loopbacks;
 #endif
+	spec->vmaster_nid = 0x04;
 
 	return 0;
 }
@@ -2919,7 +2990,6 @@ static struct snd_kcontrol_new ad1884_base_mixers[] = {
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		/* The multiple "Capture Source" controls confuse alsamixer
 		 * So call somewhat different..
-		 * FIXME: the controls appear in the "playback" view!
 		 */
 		/* .name = "Capture Source", */
 		.name = "Input Source",
@@ -3009,6 +3079,20 @@ static struct hda_amp_list ad1884_loopbacks[] = {
 };
 #endif
 
+static const char *ad1884_slave_vols[] = {
+	"PCM Playback Volume",
+	"Mic Playback Volume",
+	"Mono Playback Volume",
+	"Front Mic Playback Volume",
+	"Mic Playback Volume",
+	"CD Playback Volume",
+	"Internal Mic Playback Volume",
+	"Docking Mic Playback Volume"
+	"Beep Playback Volume",
+	"IEC958 Playback Volume",
+	NULL
+};
+
 static int patch_ad1884(struct hda_codec *codec)
 {
 	struct ad198x_spec *spec;
@@ -3036,6 +3120,9 @@ static int patch_ad1884(struct hda_codec *codec)
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = ad1884_loopbacks;
 #endif
+	spec->vmaster_nid = 0x04;
+	/* we need to cover all playback volumes */
+	spec->slave_vols = ad1884_slave_vols;
 
 	codec->patch_ops = ad198x_patch_ops;
 
@@ -3053,6 +3140,20 @@ static struct hda_input_mux ad1984_thinkpad_capture_source = {
 		{ "Mix", 0x3 },
 	},
 };
+
+
+/*
+ * Dell Precision T3400
+ */
+static struct hda_input_mux ad1984_dell_desktop_capture_source = {
+	.num_items = 3,
+	.items = {
+		{ "Front Mic", 0x0 },
+		{ "Line-In", 0x1 },
+		{ "Mix", 0x3 },
+	},
+};
+
 
 static struct snd_kcontrol_new ad1984_thinkpad_mixers[] = {
 	HDA_CODEC_VOLUME("PCM Playback Volume", 0x04, 0x0, HDA_OUTPUT),
@@ -3078,7 +3179,6 @@ static struct snd_kcontrol_new ad1984_thinkpad_mixers[] = {
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		/* The multiple "Capture Source" controls confuse alsamixer
 		 * So call somewhat different..
-		 * FIXME: the controls appear in the "playback" view!
 		 */
 		/* .name = "Capture Source", */
 		.name = "Input Source",
@@ -3086,6 +3186,16 @@ static struct snd_kcontrol_new ad1984_thinkpad_mixers[] = {
 		.info = ad198x_mux_enum_info,
 		.get = ad198x_mux_enum_get,
 		.put = ad198x_mux_enum_put,
+	},
+	/* SPDIF controls */
+	HDA_CODEC_VOLUME("IEC958 Playback Volume", 0x1b, 0x0, HDA_OUTPUT),
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = SNDRV_CTL_NAME_IEC958("",PLAYBACK,NONE) "Source",
+		/* identical with ad1983 */
+		.info = ad1983_spdif_route_info,
+		.get = ad1983_spdif_route_get,
+		.put = ad1983_spdif_route_put,
 	},
 	{ } /* end */
 };
@@ -3101,6 +3211,44 @@ static struct hda_verb ad1984_thinkpad_init_verbs[] = {
 	{0x20, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(4)},
 	/* enable EAPD bit */
 	{0x12, AC_VERB_SET_EAPD_BTLENABLE, 0x02},
+	{ } /* end */
+};
+
+/*
+ * Dell Precision T3400
+ */
+static struct snd_kcontrol_new ad1984_dell_desktop_mixers[] = {
+	HDA_CODEC_VOLUME("PCM Playback Volume", 0x04, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Headphone Playback Switch", 0x11, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Speaker Playback Switch", 0x12, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME_MONO("Mono Playback Volume", 0x13, 1, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE_MONO("Mono Playback Switch", 0x13, 1, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Front Mic Playback Volume", 0x20, 0x00, HDA_INPUT),
+	HDA_CODEC_MUTE("Front Mic Playback Switch", 0x20, 0x00, HDA_INPUT),
+	HDA_CODEC_VOLUME("Line-In Playback Volume", 0x20, 0x01, HDA_INPUT),
+	HDA_CODEC_MUTE("Line-In Playback Switch", 0x20, 0x01, HDA_INPUT),
+	/*
+	HDA_CODEC_VOLUME("PC Speaker Playback Volume", 0x20, 0x03, HDA_INPUT),
+	HDA_CODEC_MUTE("PC Speaker Playback Switch", 0x20, 0x03, HDA_INPUT),
+	*/
+	HDA_CODEC_VOLUME("Line-In Boost", 0x15, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Front Mic Boost", 0x14, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Capture Volume", 0x0c, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Capture Switch", 0x0c, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x0d, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE_IDX("Capture Switch", 1, 0x0d, 0x0, HDA_OUTPUT),
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		/* The multiple "Capture Source" controls confuse alsamixer
+		 * So call somewhat different..
+		 */
+		/* .name = "Capture Source", */
+		.name = "Input Source",
+		.count = 2,
+		.info = ad198x_mux_enum_info,
+		.get = ad198x_mux_enum_get,
+		.put = ad198x_mux_enum_put,
+	},
 	{ } /* end */
 };
 
@@ -3157,17 +3305,20 @@ static int ad1984_build_pcms(struct hda_codec *codec)
 enum {
 	AD1984_BASIC,
 	AD1984_THINKPAD,
+	AD1984_DELL_DESKTOP,
 	AD1984_MODELS
 };
 
 static const char *ad1984_models[AD1984_MODELS] = {
 	[AD1984_BASIC]		= "basic",
 	[AD1984_THINKPAD]	= "thinkpad",
+	[AD1984_DELL_DESKTOP]	= "dell_desktop",
 };
 
 static struct snd_pci_quirk ad1984_cfg_tbl[] = {
 	/* Lenovo Thinkpad T61/X61 */
 	SND_PCI_QUIRK(0x17aa, 0, "Lenovo Thinkpad", AD1984_THINKPAD),
+	SND_PCI_QUIRK(0x1028, 0x0214, "Dell T3400", AD1984_DELL_DESKTOP),
 	{}
 };
 
@@ -3189,10 +3340,15 @@ static int patch_ad1984(struct hda_codec *codec)
 		codec->patch_ops.build_pcms = ad1984_build_pcms;
 		break;
 	case AD1984_THINKPAD:
-		spec->multiout.dig_out_nid = 0;
+		spec->multiout.dig_out_nid = AD1884_SPDIF_OUT;
 		spec->input_mux = &ad1984_thinkpad_capture_source;
 		spec->mixers[0] = ad1984_thinkpad_mixers;
 		spec->init_verbs[spec->num_init_verbs++] = ad1984_thinkpad_init_verbs;
+		break;
+	case AD1984_DELL_DESKTOP:
+		spec->multiout.dig_out_nid = 0;
+		spec->input_mux = &ad1984_dell_desktop_capture_source;
+		spec->mixers[0] = ad1984_dell_desktop_mixers;
 		break;
 	}
 	return 0;
@@ -3267,7 +3423,6 @@ static struct snd_kcontrol_new ad1882_base_mixers[] = {
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		/* The multiple "Capture Source" controls confuse alsamixer
 		 * So call somewhat different..
-		 * FIXME: the controls appear in the "playback" view!
 		 */
 		/* .name = "Capture Source", */
 		.name = "Input Source",
@@ -3468,6 +3623,7 @@ static int patch_ad1882(struct hda_codec *codec)
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = ad1882_loopbacks;
 #endif
+	spec->vmaster_nid = 0x04;
 
 	codec->patch_ops = ad198x_patch_ops;
 

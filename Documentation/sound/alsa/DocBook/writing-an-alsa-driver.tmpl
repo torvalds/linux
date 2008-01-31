@@ -18,7 +18,7 @@
       </affiliation>
      </author>
 
-     <date>September 10, 2007</date>
+     <date>Oct 15, 2007</date>
      <edition>0.3.7</edition>
 
     <abstract>
@@ -67,7 +67,7 @@
       This document describes how to write an
       <ulink url="http://www.alsa-project.org/"><citetitle>
       ALSA (Advanced Linux Sound Architecture)</citetitle></ulink>
-      driver. The document focuses mainly on the PCI soundcard.
+      driver. The document focuses mainly on PCI soundcards.
       In the case of other device types, the API might
       be different, too. However, at least the ALSA kernel API is
       consistent, and therefore it would be still a bit help for
@@ -75,23 +75,23 @@
     </para>
 
     <para>
-    The target of this document is ones who already have enough
-    skill of C language and have the basic knowledge of linux
-    kernel programming.  This document doesn't explain the general
-    topics of linux kernel codes and doesn't cover the detail of
-    implementation of each low-level driver.  It describes only how is
+    This document targets people who already have enough
+    C language skills and have basic linux kernel programming
+    knowledge.  This document doesn't explain the general
+    topic of linux kernel coding and doesn't cover low-level
+    driver implementation details. It only describes
     the standard way to write a PCI sound driver on ALSA.
     </para>
 
     <para>
-      If you are already familiar with the older ALSA ver.0.5.x, you
-    can check the drivers such as <filename>es1938.c</filename> or
-    <filename>maestro3.c</filename> which have also almost the same
+      If you are already familiar with the older ALSA ver.0.5.x API, you
+    can check the drivers such as <filename>sound/pci/es1938.c</filename> or
+    <filename>sound/pci/maestro3.c</filename> which have also almost the same
     code-base in the ALSA 0.5.x tree, so you can compare the differences.
     </para>
 
     <para>
-      This document is still a draft version. Any feedbacks and
+      This document is still a draft version. Any feedback and
     corrections, please!!
     </para>
   </preface>
@@ -106,7 +106,7 @@
     <section id="file-tree-general">
       <title>General</title>
       <para>
-        The ALSA drivers are provided in the two ways.
+        The ALSA drivers are provided in two ways.
       </para>
 
       <para>
@@ -114,15 +114,14 @@
       ALSA's ftp site, and another is the 2.6 (or later) Linux kernel
       tree. To synchronize both, the ALSA driver tree is split into
       two different trees: alsa-kernel and alsa-driver. The former
-      contains purely the source codes for the Linux 2.6 (or later)
+      contains purely the source code for the Linux 2.6 (or later)
       tree. This tree is designed only for compilation on 2.6 or
       later environment. The latter, alsa-driver, contains many subtle
-      files for compiling the ALSA driver on the outside of Linux
-      kernel like configure script, the wrapper functions for older,
-      2.2 and 2.4 kernels, to adapt the latest kernel API,
+      files for compiling ALSA drivers outside of the Linux kernel tree,
+      wrapper functions for older 2.2 and 2.4 kernels, to adapt the latest kernel API,
       and additional drivers which are still in development or in
       tests.  The drivers in alsa-driver tree will be moved to
-      alsa-kernel (eventually 2.6 kernel tree) once when they are
+      alsa-kernel (and eventually to the 2.6 kernel tree) when they are
       finished and confirmed to work fine.
       </para>
 
@@ -168,7 +167,7 @@
     <section id="file-tree-core-directory">
       <title>core directory</title>
       <para>
-        This directory contains the middle layer, that is, the heart
+        This directory contains the middle layer which is the heart
       of ALSA drivers. In this directory, the native ALSA modules are
       stored. The sub-directories contain different modules and are
       dependent upon the kernel config. 
@@ -181,7 +180,7 @@
           The codes for PCM and mixer OSS emulation modules are stored
         in this directory. The rawmidi OSS emulation is included in
         the ALSA rawmidi code since it's quite small. The sequencer
-        code is stored in core/seq/oss directory (see
+        code is stored in <filename>core/seq/oss</filename> directory (see
         <link linkend="file-tree-core-directory-seq-oss"><citetitle>
         below</citetitle></link>).
         </para>
@@ -200,7 +199,7 @@
       <section id="file-tree-core-directory-seq">
         <title>core/seq</title>
         <para>
-          This and its sub-directories are for the ALSA
+          This directory and its sub-directories are for the ALSA
         sequencer. This directory contains the sequencer core and
         primary sequencer modules such like snd-seq-midi,
         snd-seq-virmidi, etc. They are compiled only when
@@ -229,22 +228,22 @@
       <title>include directory</title>
       <para>
         This is the place for the public header files of ALSA drivers,
-      which are to be exported to the user-space, or included by
+      which are to be exported to user-space, or included by
       several files at different directories. Basically, the private
       header files should not be placed in this directory, but you may
-      still find files there, due to historical reason :) 
+      still find files there, due to historical reasons :) 
       </para>
     </section>
 
     <section id="file-tree-drivers-directory">
       <title>drivers directory</title>
       <para>
-        This directory contains the codes shared among different drivers
-      on the different architectures.  They are hence supposed not to be
+        This directory contains code shared among different drivers
+      on different architectures.  They are hence supposed not to be
       architecture-specific.
       For example, the dummy pcm driver and the serial MIDI
       driver are found in this directory. In the sub-directories,
-      there are the codes for components which are independent from
+      there is code for components which are independent from
       bus and cpu architectures. 
       </para>
 
@@ -271,7 +270,7 @@
 
       <para>
         Although there is a standard i2c layer on Linux, ALSA has its
-      own i2c codes for some cards, because the soundcard needs only a
+      own i2c code for some cards, because the soundcard needs only a
       simple operation and the standard i2c API is too complicated for
       such a purpose. 
       </para>
@@ -292,28 +291,28 @@
 
         <para>
           So far, there is only Emu8000/Emu10k1 synth driver under
-        synth/emux sub-directory. 
+        the <filename>synth/emux</filename> sub-directory. 
         </para>
     </section>
 
     <section id="file-tree-pci-directory">
       <title>pci directory</title>
       <para>
-        This and its sub-directories hold the top-level card modules
-      for PCI soundcards and the codes specific to the PCI BUS.
+        This directory and its sub-directories hold the top-level card modules
+      for PCI soundcards and the code specific to the PCI BUS.
       </para>
 
       <para>
-        The drivers compiled from a single file is stored directly on
-      pci directory, while the drivers with several source files are
-      stored on its own sub-directory (e.g. emu10k1, ice1712). 
+        The drivers compiled from a single file are stored directly
+      in the pci directory, while the drivers with several source files are
+      stored on their own sub-directory (e.g. emu10k1, ice1712). 
       </para>
     </section>
 
     <section id="file-tree-isa-directory">
       <title>isa directory</title>
       <para>
-        This and its sub-directories hold the top-level card modules
+        This directory and its sub-directories hold the top-level card modules
       for ISA soundcards. 
       </para>
     </section>
@@ -321,16 +320,16 @@
     <section id="file-tree-arm-ppc-sparc-directories">
       <title>arm, ppc, and sparc directories</title>
       <para>
-        These are for the top-level card modules which are
-      specific to each given architecture. 
+        They are used for top-level card modules which are
+      specific to one of these architectures. 
       </para>
     </section>
 
     <section id="file-tree-usb-directory">
       <title>usb directory</title>
       <para>
-        This contains the USB-audio driver. On the latest version, the
-      USB MIDI driver is integrated together with usb-audio driver. 
+        This directory contains the USB-audio driver. In the latest version, the
+      USB MIDI driver is integrated in the usb-audio driver. 
       </para>
     </section>
 
@@ -338,16 +337,17 @@
       <title>pcmcia directory</title>
       <para>
         The PCMCIA, especially PCCard drivers will go here. CardBus
-      drivers will be on pci directory, because its API is identical
-      with the standard PCI cards. 
+      drivers will be in the pci directory, because their API is identical
+      to that of standard PCI cards. 
       </para>
     </section>
 
     <section id="file-tree-oss-directory">
       <title>oss directory</title>
       <para>
-        The OSS/Lite source files are stored here on Linux 2.6 (or
-      later) tree. (In the ALSA driver tarball, it's empty, of course :) 
+        The OSS/Lite source files are stored here in Linux 2.6 (or
+      later) tree. In the ALSA driver tarball, this directory is empty,
+      of course :) 
       </para>
     </section>
   </chapter>
@@ -362,7 +362,7 @@
     <section id="basic-flow-outline">
       <title>Outline</title>
       <para>
-        The minimum flow of PCI soundcard is like the following:
+        The minimum flow for PCI soundcards is as follows:
 
         <itemizedlist>
           <listitem><para>define the PCI ID table (see the section
@@ -370,9 +370,13 @@
           </citetitle></link>).</para></listitem> 
           <listitem><para>create <function>probe()</function> callback.</para></listitem>
           <listitem><para>create <function>remove()</function> callback.</para></listitem>
-          <listitem><para>create pci_driver table which contains the three pointers above.</para></listitem>
-          <listitem><para>create <function>init()</function> function just calling <function>pci_register_driver()</function> to register the pci_driver table defined above.</para></listitem>
-          <listitem><para>create <function>exit()</function> function to call <function>pci_unregister_driver()</function> function.</para></listitem>
+          <listitem><para>create a <structname>pci_driver</structname> structure
+	  containing the three pointers above.</para></listitem>
+          <listitem><para>create an <function>init()</function> function just calling
+	  the <function>pci_register_driver()</function> to register the pci_driver table
+	  defined above.</para></listitem>
+          <listitem><para>create an <function>exit()</function> function to call
+	  the <function>pci_unregister_driver()</function> function.</para></listitem>
         </itemizedlist>
       </para>
     </section>
@@ -382,15 +386,14 @@
       <para>
         The code example is shown below. Some parts are kept
       unimplemented at this moment but will be filled in the
-      succeeding sections. The numbers in comment lines of
-      <function>snd_mychip_probe()</function> function are the
-      markers. 
+      next sections. The numbers in the comment lines of the
+      <function>snd_mychip_probe()</function> function
+      refer to details explained in the following section. 
 
         <example>
-          <title>Basic Flow for PCI Drivers Example</title>
+          <title>Basic Flow for PCI Drivers - Example</title>
           <programlisting>
 <![CDATA[
-  #include <sound/driver.h>
   #include <linux/init.h>
   #include <linux/pci.h>
   #include <linux/slab.h>
@@ -398,6 +401,7 @@
   #include <sound/initval.h>
 
   /* module parameters (see "Module Parameters") */
+  /* SNDRV_CARDS: maximum number of cards supported by this module */
   static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
   static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;
   static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
@@ -405,13 +409,13 @@
   /* definition of the chip-specific record */
   struct mychip {
           struct snd_card *card;
-          /* rest of implementation will be in the section
-           * "PCI Resource Managements"
+          /* the rest of the implementation will be in section
+           * "PCI Resource Management"
            */
   };
 
   /* chip-specific destructor
-   * (see "PCI Resource Managements")
+   * (see "PCI Resource Management")
    */
   static int snd_mychip_free(struct mychip *chip)
   {
@@ -442,7 +446,7 @@
           *rchip = NULL;
 
           /* check PCI availability here
-           * (see "PCI Resource Managements")
+           * (see "PCI Resource Management")
            */
           ....
 
@@ -454,7 +458,7 @@
           chip->card = card;
 
           /* rest of initialization here; will be implemented
-           * later, see "PCI Resource Managements"
+           * later, see "PCI Resource Management"
            */
           ....
 
@@ -521,7 +525,7 @@
           return 0;
   }
 
-  /* destructor -- see "Destructor" sub-section */
+  /* destructor -- see the "Destructor" sub-section */
   static void __devexit snd_mychip_remove(struct pci_dev *pci)
   {
           snd_card_free(pci_get_drvdata(pci));
@@ -536,16 +540,16 @@
     <section id="basic-flow-constructor">
       <title>Constructor</title>
       <para>
-        The real constructor of PCI drivers is probe callback. The
-      probe callback and other component-constructors which are called
-      from probe callback should be defined with
-      <parameter>__devinit</parameter> prefix. You 
-      cannot use <parameter>__init</parameter> prefix for them,
+        The real constructor of PCI drivers is the <function>probe</function> callback.
+      The <function>probe</function> callback and other component-constructors which are called
+      from the <function>probe</function> callback should be defined with
+      the <parameter>__devinit</parameter> prefix. You 
+      cannot use the <parameter>__init</parameter> prefix for them,
       because any PCI device could be a hotplug device. 
       </para>
 
       <para>
-        In the probe callback, the following scheme is often used.
+        In the <function>probe</function> callback, the following scheme is often used.
       </para>
 
       <section id="basic-flow-constructor-device-index">
@@ -570,7 +574,7 @@
         </para>
 
         <para>
-          At each time probe callback is called, check the
+          Each time the <function>probe</function> callback is called, check the
         availability of the device. If not available, simply increment
         the device index and returns. dev will be incremented also
         later (<link
@@ -594,7 +598,7 @@
         </para>
 
         <para>
-          The detail will be explained in the section
+          The details will be explained in the section
           <link linkend="card-management-card-instance"><citetitle>
           Management of Cards and Components</citetitle></link>.
         </para>
@@ -619,9 +623,9 @@
             </programlisting>
           </informalexample>
 
-          The detail will be explained in the section <link
+          The details will be explained in the section <link
         linkend="pci-resource"><citetitle>PCI Resource
-        Managements</citetitle></link>.
+        Management</citetitle></link>.
         </para>
       </section>
 
@@ -640,7 +644,7 @@
           </informalexample>
 
           The driver field holds the minimal ID string of the
-        chip. This is referred by alsa-lib's configurator, so keep it
+        chip. This is used by alsa-lib's configurator, so keep it
         simple but unique. 
           Even the same driver can have different driver IDs to
         distinguish the functionality of each chip type. 
@@ -648,7 +652,7 @@
 
         <para>
           The shortname field is a string shown as more verbose
-        name. The longname field contains the information which is
+        name. The longname field contains the information
         shown in <filename>/proc/asound/cards</filename>. 
         </para>
       </section>
@@ -703,7 +707,7 @@
           </informalexample>
 
           In the above, the card record is stored. This pointer is
-        referred in the remove callback and power-management
+        used in the remove callback and power-management
         callbacks, too. 
         </para>
       </section>
@@ -746,7 +750,6 @@
         <informalexample>
           <programlisting>
 <![CDATA[
-  #include <sound/driver.h>
   #include <linux/init.h>
   #include <linux/pci.h>
   #include <linux/slab.h>
@@ -757,22 +760,22 @@
         </informalexample>
 
 	where the last one is necessary only when module options are
-      defined in the source file.  If the codes are split to several
-      files, the file without module options don't need them.
+      defined in the source file.  If the code is split into several
+      files, the files without module options don't need them.
       </para>
 
       <para>
-        In addition to them, you'll need
-      <filename>&lt;linux/interrupt.h&gt;</filename> for the interrupt
-      handling, and <filename>&lt;asm/io.h&gt;</filename> for the i/o
-      access. If you use <function>mdelay()</function> or
+        In addition to these headers, you'll need
+      <filename>&lt;linux/interrupt.h&gt;</filename> for interrupt
+      handling, and <filename>&lt;asm/io.h&gt;</filename> for I/O
+      access. If you use the <function>mdelay()</function> or
       <function>udelay()</function> functions, you'll need to include
-      <filename>&lt;linux/delay.h&gt;</filename>, too. 
+      <filename>&lt;linux/delay.h&gt;</filename> too. 
       </para>
 
       <para>
-      The ALSA interfaces like PCM or control API are defined in other
-      header files as <filename>&lt;sound/xxx.h&gt;</filename>.
+      The ALSA interfaces like the PCM and control APIs are defined in other
+      <filename>&lt;sound/xxx.h&gt;</filename> header files.
       They have to be included after
       <filename>&lt;sound/core.h&gt;</filename>.
       </para>
@@ -795,12 +798,12 @@
 
       <para>
       A card record is the headquarters of the soundcard.  It manages
-      the list of whole devices (components) on the soundcard, such as
+      the whole list of devices (components) on the soundcard, such as
       PCM, mixers, MIDI, synthesizer, and so on.  Also, the card
       record holds the ID and the name strings of the card, manages
       the root of proc files, and controls the power-management states
       and hotplug disconnections.  The component list on the card
-      record is used to manage the proper releases of resources at
+      record is used to manage the correct release of resources at
       destruction. 
       </para>
 
@@ -824,9 +827,8 @@
         <constant>THIS_MODULE</constant>),
         and the size of extra-data space.  The last argument is used to
         allocate card-&gt;private_data for the
-        chip-specific data.  Note that this data
-        <emphasis>is</emphasis> allocated by
-        <function>snd_card_new()</function>.
+        chip-specific data.  Note that these data
+        are allocated by <function>snd_card_new()</function>.
       </para>
     </section>
 
@@ -834,10 +836,10 @@
       <title>Components</title>
       <para>
         After the card is created, you can attach the components
-      (devices) to the card instance. On ALSA driver, a component is
+      (devices) to the card instance. In an ALSA driver, a component is
       represented as a struct <structname>snd_device</structname> object.
       A component can be a PCM instance, a control interface, a raw
-      MIDI interface, etc.  Each of such instances has one component
+      MIDI interface, etc.  Each such instance has one component
       entry.
       </para>
 
@@ -859,7 +861,7 @@
       (<constant>SNDRV_DEV_XXX</constant>), the data pointer, and the
       callback pointers (<parameter>&amp;ops</parameter>). The
       device-level defines the type of components and the order of
-      registration and de-registration.  For most of components, the
+      registration and de-registration.  For most components, the
       device-level is already defined.  For a user-defined component,
       you can use <constant>SNDRV_DEV_LOWLEVEL</constant>.
       </para>
@@ -867,13 +869,13 @@
       <para>
       This function itself doesn't allocate the data space. The data
       must be allocated manually beforehand, and its pointer is passed
-      as the argument. This pointer is used as the identifier
-      (<parameter>chip</parameter> in the above example) for the
-      instance. 
+      as the argument. This pointer is used as the
+      (<parameter>chip</parameter> identifier in the above example)
+      for the instance. 
       </para>
 
       <para>
-        Each ALSA pre-defined component such as ac97 or pcm calls
+        Each pre-defined ALSA component such as ac97 and pcm calls
       <function>snd_device_new()</function> inside its
       constructor. The destructor for each component is defined in the
       callback pointers.  Hence, you don't need to take care of
@@ -881,19 +883,19 @@
       </para>
 
       <para>
-        If you would like to create your own component, you need to
-      set the destructor function to dev_free callback in
-      <parameter>ops</parameter>, so that it can be released
-      automatically via <function>snd_card_free()</function>. The
-      example will be shown later as an implementation of a
-      chip-specific data. 
+        If you wish to create your own component, you need to
+      set the destructor function to the dev_free callback in
+      the <parameter>ops</parameter>, so that it can be released
+      automatically via <function>snd_card_free()</function>.
+      The next example will show an implementation of chip-specific
+      data.
       </para>
     </section>
 
     <section id="card-management-chip-specific">
       <title>Chip-Specific Data</title>
       <para>
-      The chip-specific information, e.g. the i/o port address, its
+      Chip-specific information, e.g. the I/O port address, its
       resource pointer, or the irq number, is stored in the
       chip-specific record.
 
@@ -909,13 +911,14 @@
       </para>
 
       <para>
-        In general, there are two ways to allocate the chip record.
+        In general, there are two ways of allocating the chip record.
       </para>
 
       <section id="card-management-chip-specific-snd-card-new">
         <title>1. Allocating via <function>snd_card_new()</function>.</title>
         <para>
-          As mentioned above, you can pass the extra-data-length to the 4th argument of <function>snd_card_new()</function>, i.e.
+          As mentioned above, you can pass the extra-data-length
+	  to the 4th argument of <function>snd_card_new()</function>, i.e.
 
           <informalexample>
             <programlisting>
@@ -925,7 +928,7 @@
             </programlisting>
           </informalexample>
 
-          whether struct <structname>mychip</structname> is the type of the chip record.
+          struct <structname>mychip</structname> is the type of the chip record.
         </para>
 
         <para>
@@ -1037,8 +1040,8 @@
       <title>Registration and Release</title>
       <para>
         After all components are assigned, register the card instance
-      by calling <function>snd_card_register()</function>. The access
-      to the device files are enabled at this point. That is, before
+      by calling <function>snd_card_register()</function>. Access
+      to the device files is enabled at this point. That is, before
       <function>snd_card_register()</function> is called, the
       components are safely inaccessible from external side. If this
       call fails, exit the probe function after releasing the card via
@@ -1047,7 +1050,7 @@
 
       <para>
         For releasing the card instance, you can call simply
-      <function>snd_card_free()</function>. As already mentioned, all
+      <function>snd_card_free()</function>. As mentioned earlier, all
       components are released automatically by this call. 
       </para>
 
@@ -1055,7 +1058,7 @@
         As further notes, the destructors (both
       <function>snd_mychip_dev_free</function> and
       <function>snd_mychip_free</function>) cannot be defined with
-      <parameter>__devexit</parameter> prefix, because they may be
+      the <parameter>__devexit</parameter> prefix, because they may be
       called from the constructor, too, at the false path. 
       </para>
 
@@ -1071,20 +1074,20 @@
 
 
 <!-- ****************************************************** -->
-<!-- PCI Resource Managements  -->
+<!-- PCI Resource Management  -->
 <!-- ****************************************************** -->
   <chapter id="pci-resource">
-    <title>PCI Resource Managements</title>
+    <title>PCI Resource Management</title>
 
     <section id="pci-resource-example">
       <title>Full Code Example</title>
       <para>
-        In this section, we'll finish the chip-specific constructor,
-      destructor and PCI entries. The example code is shown first,
+        In this section, we'll complete the chip-specific constructor,
+      destructor and PCI entries. Example code is shown first,
       below. 
 
         <example>
-          <title>PCI Resource Managements Example</title>
+          <title>PCI Resource Management Example</title>
           <programlisting>
 <![CDATA[
   struct mychip {
@@ -1103,7 +1106,7 @@
           /* release the irq */
           if (chip->irq >= 0)
                   free_irq(chip->irq, chip);
-          /* release the i/o ports & memory */
+          /* release the I/O ports & memory */
           pci_release_regions(chip->pci);
           /* disable the PCI entry */
           pci_disable_device(chip->pci);
@@ -1196,13 +1199,13 @@
           .remove = __devexit_p(snd_mychip_remove),
   };
 
-  /* initialization of the module */
+  /* module initialization */
   static int __init alsa_card_mychip_init(void)
   {
           return pci_register_driver(&driver);
   }
 
-  /* clean up the module */
+  /* module clean up */
   static void __exit alsa_card_mychip_exit(void)
   {
           pci_unregister_driver(&driver);
@@ -1228,10 +1231,10 @@
       </para>
 
       <para>
-        In the case of PCI devices, you have to call at first
-      <function>pci_enable_device()</function> function before
+        In the case of PCI devices, you first have to call
+      the <function>pci_enable_device()</function> function before
       allocating resources. Also, you need to set the proper PCI DMA
-      mask to limit the accessed i/o range. In some cases, you might
+      mask to limit the accessed I/O range. In some cases, you might
       need to call <function>pci_set_master()</function> function,
       too.
       </para>
@@ -1261,15 +1264,15 @@
     <section id="pci-resource-resource-allocation">
       <title>Resource Allocation</title>
       <para>
-        The allocation of I/O ports and irqs are done via standard kernel
+        The allocation of I/O ports and irqs is done via standard kernel
       functions. Unlike ALSA ver.0.5.x., there are no helpers for
       that. And these resources must be released in the destructor
       function (see below). Also, on ALSA 0.9.x, you don't need to
-      allocate (pseudo-)DMA for PCI like ALSA 0.5.x.
+      allocate (pseudo-)DMA for PCI like in ALSA 0.5.x.
       </para>
 
       <para>
-        Now assume that this PCI device has an I/O port with 8 bytes
+        Now assume that the PCI device has an I/O port with 8 bytes
         and an interrupt. Then struct <structname>mychip</structname> will have the
         following fields:
 
@@ -1288,7 +1291,7 @@
       </para>
 
       <para>
-        For an i/o port (and also a memory region), you need to have
+        For an I/O port (and also a memory region), you need to have
       the resource pointer for the standard resource management. For
       an irq, you have to keep only the irq number (integer). But you
       need to initialize this number as -1 before actual allocation,
@@ -1299,7 +1302,7 @@
       </para>
 
       <para>
-        The allocation of an i/o port is done like this:
+        The allocation of an I/O port is done like this:
 
         <informalexample>
           <programlisting>
@@ -1318,12 +1321,12 @@
 
       <para>
         <!-- obsolete -->
-        It will reserve the i/o port region of 8 bytes of the given
+        It will reserve the I/O port region of 8 bytes of the given
       PCI device. The returned value, chip-&gt;res_port, is allocated
       via <function>kmalloc()</function> by
       <function>request_region()</function>. The pointer must be
-      released via <function>kfree()</function>, but there is some
-      problem regarding this. This issue will be explained more below.
+      released via <function>kfree()</function>, but there is a
+      problem with this. This issue will be explained later.
       </para>
 
       <para>
@@ -1351,8 +1354,8 @@
       </para>
 
       <para>
-      On the PCI bus, the interrupts can be shared. Thus,
-      <constant>IRQF_SHARED</constant> is given as the interrupt flag of
+      On the PCI bus, interrupts can be shared. Thus,
+      <constant>IRQF_SHARED</constant> is used as the interrupt flag of
       <function>request_irq()</function>. 
       </para>
 
@@ -1364,7 +1367,7 @@
       </para>
 
       <para>
-        I won't define the detail of the interrupt handler at this
+        I won't give details about the interrupt handler at this
         point, but at least its appearance can be explained now. The
         interrupt handler looks usually like the following: 
 
@@ -1386,11 +1389,11 @@
         Now let's write the corresponding destructor for the resources
       above. The role of destructor is simple: disable the hardware
       (if already activated) and release the resources. So far, we
-      have no hardware part, so the disabling is not written here. 
+      have no hardware part, so the disabling code is not written here. 
       </para>
 
       <para>
-        For releasing the resources, <quote>check-and-release</quote>
+        To release the resources, the <quote>check-and-release</quote>
         method is a safer way. For the interrupt, do like this: 
 
         <informalexample>
@@ -1410,7 +1413,7 @@
       <para>
         When you requested I/O ports or memory regions via
 	<function>pci_request_region()</function> or
-	<function>pci_request_regions()</function> like this example,
+	<function>pci_request_regions()</function> like in this example,
 	release the resource(s) using the corresponding function,
 	<function>pci_release_region()</function> or
 	<function>pci_release_regions()</function>.
@@ -1429,7 +1432,7 @@
 	or <function>request_mem_region</function>, you can release it via
 	<function>release_resource()</function>.  Suppose that you keep
 	the resource pointer returned from <function>request_region()</function>
-	in chip-&gt;res_port, the release procedure looks like below:
+	in chip-&gt;res_port, the release procedure looks like:
 
         <informalexample>
           <programlisting>
@@ -1442,7 +1445,7 @@
 
       <para>
       Don't forget to call <function>pci_disable_device()</function>
-      before all finished.
+      before the end.
       </para>
 
       <para>
@@ -1459,14 +1462,14 @@
 
       <para>
       Again, remember that you cannot
-      set <parameter>__devexit</parameter> prefix for this destructor. 
+      use the <parameter>__devexit</parameter> prefix for this destructor. 
       </para>
 
       <para>
-      We didn't implement the hardware-disabling part in the above.
+      We didn't implement the hardware disabling part in the above.
       If you need to do this, please note that the destructor may be
       called even before the initialization of the chip is completed.
-      It would be better to have a flag to skip the hardware-disabling
+      It would be better to have a flag to skip hardware disabling
       if the hardware was not initialized yet.
       </para>
 
@@ -1475,14 +1478,14 @@
       <function>snd_device_new()</function> with
       <constant>SNDRV_DEV_LOWLELVEL</constant> , its destructor is 
       called at the last.  That is, it is assured that all other
-      components like PCMs and controls have been already released.
-      You don't have to call stopping PCMs, etc. explicitly, but just
-      stop the hardware in the low-level.
+      components like PCMs and controls have already been released.
+      You don't have to stop PCMs, etc. explicitly, but just
+      call low-level hardware stopping.
       </para>
 
       <para>
         The management of a memory-mapped region is almost as same as
-        the management of an i/o port. You'll need three fields like
+        the management of an I/O port. You'll need three fields like
         the following: 
 
         <informalexample>
@@ -1561,8 +1564,8 @@
     <section id="pci-resource-entries">
       <title>PCI Entries</title>
       <para>
-        So far, so good. Let's finish the rest of missing PCI
-      stuffs. At first, we need a
+        So far, so good. Let's finish the missing PCI
+      stuff. At first, we need a
       <structname>pci_device_id</structname> table for this
       chipset. It's a table of PCI vendor/device ID number, and some
       masks. 
@@ -1588,13 +1591,13 @@
 
       <para>
         The first and second fields of
-      <structname>pci_device_id</structname> struct are the vendor and
-      device IDs. If you have nothing special to filter the matching
-      devices, you can use the rest of fields like above. The last
-      field of <structname>pci_device_id</structname> struct is a
+      the <structname>pci_device_id</structname> structure are the vendor and
+      device IDs. If you have no reason to filter the matching
+      devices, you can leave the remaining fields as above. The last
+      field of the <structname>pci_device_id</structname> struct contains
       private data for this entry. You can specify any value here, for
-      example, to tell the type of different operations per each
-      device IDs. Such an example is found in intel8x0 driver. 
+      example, to define specific operations for supported device IDs.
+      Such an example is found in the intel8x0 driver. 
       </para>
 
       <para>
@@ -1621,10 +1624,10 @@
 
       <para>
         The <structfield>probe</structfield> and
-      <structfield>remove</structfield> functions are what we already
-      defined in 
-      the previous sections. The <structfield>remove</structfield> should
-      be defined with 
+      <structfield>remove</structfield> functions have already
+      been defined in the previous sections.
+      The <structfield>remove</structfield> function should
+      be defined with the 
       <function>__devexit_p()</function> macro, so that it's not
       defined for built-in (and non-hot-pluggable) case. The
       <structfield>name</structfield> 
@@ -1665,8 +1668,7 @@
 
       <para>
         Oh, one thing was forgotten. If you have no exported symbols,
-        you need to declare it on 2.2 or 2.4 kernels (on 2.6 kernels
-        it's not necessary, though).
+        you need to declare it in 2.2 or 2.4 kernels (it's not necessary in 2.6 kernels).
 
         <informalexample>
           <programlisting>
@@ -1698,7 +1700,7 @@
 
       <para>
         For accessing to the PCM layer, you need to include
-      <filename>&lt;sound/pcm.h&gt;</filename> above all. In addition,
+      <filename>&lt;sound/pcm.h&gt;</filename> first. In addition,
       <filename>&lt;sound/pcm_params.h&gt;</filename> might be needed
       if you access to some functions related with hw_param. 
       </para>
@@ -1707,21 +1709,21 @@
         Each card device can have up to four pcm instances. A pcm
       instance corresponds to a pcm device file. The limitation of
       number of instances comes only from the available bit size of
-      the linux's device number. Once when 64bit device number is
-      used, we'll have more available pcm instances. 
+      the Linux's device numbers. Once when 64bit device number is
+      used, we'll have more pcm instances available. 
       </para>
 
       <para>
         A pcm instance consists of pcm playback and capture streams,
       and each pcm stream consists of one or more pcm substreams. Some
-      soundcard supports the multiple-playback function. For example,
+      soundcards support multiple playback functions. For example,
       emu10k1 has a PCM playback of 32 stereo substreams. In this case, at
       each open, a free substream is (usually) automatically chosen
       and opened. Meanwhile, when only one substream exists and it was
-      already opened, the succeeding open will result in the blocking
-      or the error with <constant>EAGAIN</constant> according to the
-      file open mode. But you don't have to know the detail in your
-      driver. The PCM middle layer will take all such jobs. 
+      already opened, the successful open will either block
+      or error with <constant>EAGAIN</constant> according to the
+      file open mode. But you don't have to care about such details in your
+      driver. The PCM middle layer will take care of such work.
       </para>
     </section>
 
@@ -1944,7 +1946,7 @@
     <section id="pcm-interface-constructor">
       <title>Constructor</title>
       <para>
-        A pcm instance is allocated by <function>snd_pcm_new()</function>
+        A pcm instance is allocated by the <function>snd_pcm_new()</function>
       function. It would be better to create a constructor for pcm,
       namely, 
 
@@ -1971,23 +1973,23 @@
       </para>
 
       <para>
-        The <function>snd_pcm_new()</function> function takes the four
+        The <function>snd_pcm_new()</function> function takes four
       arguments. The first argument is the card pointer to which this
       pcm is assigned, and the second is the ID string. 
       </para>
 
       <para>
         The third argument (<parameter>index</parameter>, 0 in the
-      above) is the index of this new pcm. It begins from zero. When
-      you will create more than one pcm instances, specify the
+      above) is the index of this new pcm. It begins from zero. If
+      you create more than one pcm instances, specify the
       different numbers in this argument. For example,
       <parameter>index</parameter> = 1 for the second PCM device.  
       </para>
 
       <para>
         The fourth and fifth arguments are the number of substreams
-      for playback and capture, respectively. Here both 1 are given in
-      the above example.  When no playback or no capture is available,
+      for playback and capture, respectively. Here 1 is used for
+      both arguments. When no playback or capture substreams are available,
       pass 0 to the corresponding argument.
       </para>
 
@@ -2045,13 +2047,13 @@
           </programlisting>
         </informalexample>
 
-        Each of callbacks is explained in the subsection 
+        All the callbacks are described in the
         <link linkend="pcm-interface-operators"><citetitle>
-        Operators</citetitle></link>.
+        Operators</citetitle></link> subsection.
       </para>
 
       <para>
-        After setting the operators, most likely you'd like to
+        After setting the operators, you probably will want to
         pre-allocate the buffer. For the pre-allocation, simply call
         the following: 
 
@@ -2065,8 +2067,8 @@
           </programlisting>
         </informalexample>
 
-        It will allocate up to 64kB buffer as default. The details of
-      buffer management will be described in the later section <link
+        It will allocate a buffer up to 64kB as default.
+      Buffer management details will be described in the later section <link
       linkend="buffer-and-memory"><citetitle>Buffer and Memory
       Management</citetitle></link>. 
       </para>
@@ -2095,13 +2097,13 @@
       <para>
         The destructor for a pcm instance is not always
       necessary. Since the pcm device will be released by the middle
-      layer code automatically, you don't have to call destructor
+      layer code automatically, you don't have to call the destructor
       explicitly.
       </para>
 
       <para>
-        The destructor would be necessary when you created some
-        special records internally and need to release them. In such a
+        The destructor would be necessary if you created
+        special records internally and needed to release them. In such a
         case, set the destructor function to
         pcm-&gt;private_free: 
 
@@ -2141,16 +2143,15 @@
 	  When the PCM substream is opened, a PCM runtime instance is
 	allocated and assigned to the substream. This pointer is
 	accessible via <constant>substream-&gt;runtime</constant>.
-	This runtime pointer holds the various information; it holds
-	the copy of hw_params and sw_params configurations, the buffer
-	pointers, mmap records, spinlocks, etc.  Almost everything you
-	need for controlling the PCM can be found there.
+	This runtime pointer holds most information you need
+	to control the PCM: the copy of hw_params and sw_params configurations, the buffer
+	pointers, mmap records, spinlocks, etc.
 	</para>
 
 	<para>
 	The definition of runtime instance is found in
-	<filename>&lt;sound/pcm.h&gt;</filename>.  Here is the
-	copy from the file.
+	<filename>&lt;sound/pcm.h&gt;</filename>.  Here are
+       the contents of this file:
           <informalexample>
             <programlisting>
 <![CDATA[
@@ -2185,7 +2186,6 @@ struct _snd_pcm_runtime {
 	struct timespec tstamp_mode;	/* mmap timestamp is updated */
   	unsigned int period_step;
 	unsigned int sleep_min;		/* min ticks to sleep */
-	snd_pcm_uframes_t xfer_align;	/* xfer size need to be a multiple */
 	snd_pcm_uframes_t start_threshold;
 	snd_pcm_uframes_t stop_threshold;
 	snd_pcm_uframes_t silence_threshold; /* Silence filling happens when
@@ -2244,7 +2244,7 @@ struct _snd_pcm_runtime {
 	<para>
 	  For the operators (callbacks) of each sound driver, most of
 	these records are supposed to be read-only.  Only the PCM
-	middle-layer changes / updates these info.  The exceptions are
+	middle-layer changes / updates them.  The exceptions are
 	the hardware description (hw), interrupt callbacks
 	(transfer_ack_xxx), DMA buffer information, and the private
 	data.  Besides, if you use the standard buffer allocation
@@ -2285,7 +2285,7 @@ struct _snd_pcm_runtime {
 	</para>
 
 	<para>
-	  Typically, you'll have a hardware descriptor like below:
+	  Typically, you'll have a hardware descriptor as below:
           <informalexample>
             <programlisting>
 <![CDATA[
@@ -2320,10 +2320,10 @@ struct _snd_pcm_runtime {
         <constant>SNDRV_PCM_INFO_XXX</constant>. Here, at least, you
         have to specify whether the mmap is supported and which
         interleaved format is supported.
-        When the mmap is supported, add
+        When the is supported, add the
         <constant>SNDRV_PCM_INFO_MMAP</constant> flag here. When the
         hardware supports the interleaved or the non-interleaved
-        format, <constant>SNDRV_PCM_INFO_INTERLEAVED</constant> or
+        formats, <constant>SNDRV_PCM_INFO_INTERLEAVED</constant> or
         <constant>SNDRV_PCM_INFO_NONINTERLEAVED</constant> flag must
         be set, respectively. If both are supported, you can set both,
         too. 
@@ -2331,7 +2331,7 @@ struct _snd_pcm_runtime {
 
         <para>
           In the above example, <constant>MMAP_VALID</constant> and
-        <constant>BLOCK_TRANSFER</constant> are specified for OSS mmap
+        <constant>BLOCK_TRANSFER</constant> are specified for the OSS mmap
         mode. Usually both are set. Of course,
         <constant>MMAP_VALID</constant> is set only if the mmap is
         really supported. 
@@ -2345,11 +2345,11 @@ struct _snd_pcm_runtime {
         <quote>pause</quote> operation, while the
         <constant>RESUME</constant> bit means that the pcm supports
         the full <quote>suspend/resume</quote> operation.
-	If <constant>PAUSE</constant> flag is set,
+	If the <constant>PAUSE</constant> flag is set,
 	the <structfield>trigger</structfield> callback below
         must handle the corresponding (pause push/release) commands.
 	The suspend/resume trigger commands can be defined even without
-	<constant>RESUME</constant> flag.  See <link
+	the <constant>RESUME</constant> flag.  See <link
 	linkend="power-management"><citetitle>
 	Power Management</citetitle></link> section for details.
         </para>
@@ -2382,7 +2382,7 @@ struct _snd_pcm_runtime {
         <constant>CONTINUOUS</constant> bit additionally.
         The pre-defined rate bits are provided only for typical
 	rates. If your chip supports unconventional rates, you need to add
-        <constant>KNOT</constant> bit and set up the hardware
+        the <constant>KNOT</constant> bit and set up the hardware
         constraint manually (explained later).
         </para>
 	</listitem>
@@ -2390,8 +2390,8 @@ struct _snd_pcm_runtime {
 	<listitem>
 	<para>
 	<structfield>rate_min</structfield> and
-	<structfield>rate_max</structfield> define the minimal and
-	maximal sample rate.  This should correspond somehow to
+	<structfield>rate_max</structfield> define the minimum and
+	maximum sample rate.  This should correspond somehow to
 	<structfield>rates</structfield> bits.
 	</para>
 	</listitem>
@@ -2400,7 +2400,7 @@ struct _snd_pcm_runtime {
 	<para>
 	<structfield>channel_min</structfield> and
 	<structfield>channel_max</structfield> 
-	define, as you might already expected, the minimal and maximal
+	define, as you might already expected, the minimum and maximum
 	number of channels.
 	</para>
 	</listitem>
@@ -2408,21 +2408,21 @@ struct _snd_pcm_runtime {
 	<listitem>
 	<para>
 	<structfield>buffer_bytes_max</structfield> defines the
-	maximal buffer size in bytes.  There is no
+	maximum buffer size in bytes.  There is no
 	<structfield>buffer_bytes_min</structfield> field, since
-	it can be calculated from the minimal period size and the
-	minimal number of periods.
+	it can be calculated from the minimum period size and the
+	minimum number of periods.
 	Meanwhile, <structfield>period_bytes_min</structfield> and
-	define the minimal and maximal size of the period in bytes.
+	define the minimum and maximum size of the period in bytes.
 	<structfield>periods_max</structfield> and
-	<structfield>periods_min</structfield> define the maximal and
-	minimal number of periods in the buffer.
+	<structfield>periods_min</structfield> define the maximum and
+	minimum number of periods in the buffer.
         </para>
 
 	<para>
-	The <quote>period</quote> is a term, that corresponds to
-	fragment in the OSS world.  The period defines the size at
-	which the PCM interrupt is generated. This size strongly
+	The <quote>period</quote> is a term that corresponds to
+	a fragment in the OSS world. The period defines the size at
+	which a PCM interrupt is generated. This size strongly
 	depends on the hardware. 
 	Generally, the smaller period size will give you more
 	interrupts, that is, more controls. 
@@ -2435,8 +2435,8 @@ struct _snd_pcm_runtime {
 	<listitem>
 	<para>
 	There is also a field <structfield>fifo_size</structfield>.
-	This specifies the size of the hardware FIFO, but it's not
-	used currently in the driver nor in the alsa-lib.  So, you
+	This specifies the size of the hardware FIFO, but currently it
+	is neither used in the driver nor in the alsa-lib.  So, you
 	can ignore this field.
 	</para>
 	</listitem>
@@ -2450,7 +2450,7 @@ struct _snd_pcm_runtime {
 	Ok, let's go back again to the PCM runtime records.
 	The most frequently referred records in the runtime instance are
 	the PCM configurations.
-	The PCM configurations are stored on runtime instance
+	The PCM configurations are stored in the runtime instance
 	after the application sends <type>hw_params</type> data via
 	alsa-lib.  There are many fields copied from hw_params and
 	sw_params structs.  For example,
@@ -2461,11 +2461,11 @@ struct _snd_pcm_runtime {
 
 	<para>
 	One thing to be noted is that the configured buffer and period
-	sizes are stored in <quote>frames</quote> in the runtime
+	sizes are stored in <quote>frames</quote> in the runtime.
         In the ALSA world, 1 frame = channels * samples-size.
 	For conversion between frames and bytes, you can use the
-	helper functions, <function>frames_to_bytes()</function> and
-          <function>bytes_to_frames()</function>. 
+	<function>frames_to_bytes()</function> and
+          <function>bytes_to_frames()</function> helper functions. 
           <informalexample>
             <programlisting>
 <![CDATA[
@@ -2515,7 +2515,7 @@ struct _snd_pcm_runtime {
 	<structfield>dma_area</structfield> is necessary when the
 	buffer is mmapped.  If your driver doesn't support mmap, this
 	field is not necessary.  <structfield>dma_addr</structfield>
-	is also not mandatory.  You can use
+	is also optional.  You can use
 	<structfield>dma_private</structfield> as you like, too.
 	</para>
 	</section>
@@ -2524,14 +2524,14 @@ struct _snd_pcm_runtime {
 	<title>Running Status</title>
 	<para>
 	The running status can be referred via <constant>runtime-&gt;status</constant>.
-	This is the pointer to struct <structname>snd_pcm_mmap_status</structname>
+	This is the pointer to the struct <structname>snd_pcm_mmap_status</structname>
 	record.  For example, you can get the current DMA hardware
 	pointer via <constant>runtime-&gt;status-&gt;hw_ptr</constant>.
 	</para>
 
 	<para>
 	The DMA application pointer can be referred via
-	<constant>runtime-&gt;control</constant>, which points
+	<constant>runtime-&gt;control</constant>, which points to the
 	struct <structname>snd_pcm_mmap_control</structname> record.
 	However, accessing directly to this value is not recommended.
 	</para>
@@ -2542,14 +2542,14 @@ struct _snd_pcm_runtime {
 	<para>
 	You can allocate a record for the substream and store it in
 	<constant>runtime-&gt;private_data</constant>.  Usually, this
-	done in
+	is done in
 	<link linkend="pcm-interface-operators-open-callback"><citetitle>
 	the open callback</citetitle></link>.
 	Don't mix this with <constant>pcm-&gt;private_data</constant>.
-	The <constant>pcm-&gt;private_data</constant> usually points the
+	The <constant>pcm-&gt;private_data</constant> usually points to the
 	chip instance assigned statically at the creation of PCM, while the 
-	<constant>runtime-&gt;private_data</constant> points a dynamic
-	data created at the PCM open callback.
+	<constant>runtime-&gt;private_data</constant> points to a dynamic
+	data structure created at the PCM open callback.
 
           <informalexample>
             <programlisting>
@@ -2579,7 +2579,7 @@ struct _snd_pcm_runtime {
 	<para>
 	The field <structfield>transfer_ack_begin</structfield> and
 	<structfield>transfer_ack_end</structfield> are called at
-	the beginning and the end of
+	the beginning and at the end of
 	<function>snd_pcm_period_elapsed()</function>, respectively. 
 	</para>
 	</section>
@@ -2589,17 +2589,18 @@ struct _snd_pcm_runtime {
     <section id="pcm-interface-operators">
       <title>Operators</title>
       <para>
-        OK, now let me explain the detail of each pcm callback
+        OK, now let me give details about each pcm callback
       (<parameter>ops</parameter>). In general, every callback must
-      return 0 if successful, or a negative number with the error
-      number such as <constant>-EINVAL</constant> at any
-      error. 
+      return 0 if successful, or a negative error number
+      such as <constant>-EINVAL</constant>. To choose an appropriate
+      error number, it is advised to check what value other parts of
+      the kernel return when the same kind of request fails.
       </para>
 
       <para>
         The callback function takes at least the argument with
-        <structname>snd_pcm_substream</structname> pointer. For retrieving the
-        chip record from the given substream instance, you can use the
+        <structname>snd_pcm_substream</structname> pointer. To retrieve
+        the chip record from the given substream instance, you can use the
         following macro. 
 
         <informalexample>
@@ -2616,7 +2617,7 @@ struct _snd_pcm_runtime {
 	The macro reads <constant>substream-&gt;private_data</constant>,
 	which is a copy of <constant>pcm-&gt;private_data</constant>.
 	You can override the former if you need to assign different data
-	records per PCM substream.  For example, cmi8330 driver assigns
+	records per PCM substream.  For example, the cmi8330 driver assigns
 	different private_data for playback and capture directions,
 	because it uses two different codecs (SB- and AD-compatible) for
 	different directions.
@@ -2709,7 +2710,7 @@ struct _snd_pcm_runtime {
       <section id="pcm-interface-operators-ioctl-callback">
         <title>ioctl callback</title>
         <para>
-          This is used for any special action to pcm ioctls. But
+          This is used for any special call to pcm ioctls. But
         usually you can pass a generic ioctl callback, 
         <function>snd_pcm_lib_ioctl</function>.
         </para>
@@ -2726,9 +2727,6 @@ struct _snd_pcm_runtime {
 ]]>
             </programlisting>
           </informalexample>
-
-          This and <structfield>hw_free</structfield> callbacks exist
-        only on ALSA 0.9.x. 
         </para>
 
         <para>
@@ -2740,13 +2738,13 @@ struct _snd_pcm_runtime {
         </para>
 
         <para>
-          Many hardware set-up should be done in this callback,
+          Many hardware setups should be done in this callback,
         including the allocation of buffers. 
         </para>
 
         <para>
           Parameters to be initialized are retrieved by
-          <function>params_xxx()</function> macros. For allocating a
+          <function>params_xxx()</function> macros. To allocate
           buffer, you can call a helper function, 
 
           <informalexample>
@@ -2772,8 +2770,8 @@ struct _snd_pcm_runtime {
         </para>
 
         <para>
-          Thus, you need to take care not to allocate the same buffers
-        many times, which will lead to memory leak!  Calling the
+          Thus, you need to be careful not to allocate the same buffers
+        many times, which will lead to memory leaks!  Calling the
         helper function above many times is OK. It will release the
         previous buffer automatically when it was already allocated. 
         </para>
@@ -2782,7 +2780,7 @@ struct _snd_pcm_runtime {
           Another note is that this callback is non-atomic
         (schedulable). This is important, because the
         <structfield>trigger</structfield> callback 
-        is atomic (non-schedulable). That is, mutex or any
+        is atomic (non-schedulable). That is, mutexes or any
         schedule-related functions are not available in
         <structfield>trigger</structfield> callback.
 	Please see the subsection
@@ -2843,15 +2841,15 @@ struct _snd_pcm_runtime {
         <quote>prepared</quote>. You can set the format type, sample
         rate, etc. here. The difference from
         <structfield>hw_params</structfield> is that the 
-        <structfield>prepare</structfield> callback will be called at each
+        <structfield>prepare</structfield> callback will be called each
         time 
         <function>snd_pcm_prepare()</function> is called, i.e. when
-        recovered after underruns, etc. 
+        recovering after underruns, etc. 
         </para>
 
         <para>
-	Note that this callback became non-atomic since the recent version.
-	You can use schedule-related functions safely in this callback now.
+	Note that this callback is now non-atomic.
+	You can use schedule-related functions safely in this callback.
         </para>
 
         <para>
@@ -2871,7 +2869,7 @@ struct _snd_pcm_runtime {
 
         <para>
           Be careful that this callback will be called many times at
-        each set up, too. 
+        each setup, too. 
         </para>
       </section>
 
@@ -2893,7 +2891,7 @@ struct _snd_pcm_runtime {
           Which action is specified in the second argument,
           <constant>SNDRV_PCM_TRIGGER_XXX</constant> in
           <filename>&lt;sound/pcm.h&gt;</filename>. At least,
-          <constant>START</constant> and <constant>STOP</constant>
+          the <constant>START</constant> and <constant>STOP</constant>
           commands must be defined in this callback. 
 
           <informalexample>
@@ -2915,8 +2913,8 @@ struct _snd_pcm_runtime {
         </para>
 
         <para>
-          When the pcm supports the pause operation (given in info
-        field of the hardware table), <constant>PAUSE_PUSE</constant>
+          When the pcm supports the pause operation (given in the info
+        field of the hardware table), the <constant>PAUSE_PUSE</constant>
         and <constant>PAUSE_RELEASE</constant> commands must be
         handled here, too. The former is the command to pause the pcm,
         and the latter to restart the pcm again. 
@@ -2925,21 +2923,21 @@ struct _snd_pcm_runtime {
         <para>
           When the pcm supports the suspend/resume operation,
 	regardless of full or partial suspend/resume support,
-        <constant>SUSPEND</constant> and <constant>RESUME</constant>
+        the <constant>SUSPEND</constant> and <constant>RESUME</constant>
         commands must be handled, too.
         These commands are issued when the power-management status is
         changed.  Obviously, the <constant>SUSPEND</constant> and
-        <constant>RESUME</constant>
-        do suspend and resume of the pcm substream, and usually, they
-        are identical with <constant>STOP</constant> and
+        <constant>RESUME</constant> commands
+        suspend and resume the pcm substream, and usually, they
+        are identical to the <constant>STOP</constant> and
         <constant>START</constant> commands, respectively.
-	  See <link linkend="power-management"><citetitle>
+	  See the <link linkend="power-management"><citetitle>
 	Power Management</citetitle></link> section for details.
         </para>
 
         <para>
           As mentioned, this callback is atomic.  You cannot call
-	  the function going to sleep.
+	  functions which may sleep.
 	  The trigger callback should be as minimal as possible,
 	  just really triggering the DMA.  The other stuff should be
 	  initialized hw_params and prepare callbacks properly
@@ -2960,8 +2958,8 @@ struct _snd_pcm_runtime {
 
           This callback is called when the PCM middle layer inquires
         the current hardware position on the buffer. The position must
-        be returned in frames (which was in bytes on ALSA 0.5.x),
-        ranged from 0 to buffer_size - 1.
+        be returned in frames,
+        ranging from 0 to buffer_size - 1.
         </para>
 
         <para>
@@ -2983,7 +2981,7 @@ struct _snd_pcm_runtime {
         <para>
           These callbacks are not mandatory, and can be omitted in
         most cases. These callbacks are used when the hardware buffer
-        cannot be on the normal memory space. Some chips have their
+        cannot be in the normal memory space. Some chips have their
         own buffer on the hardware which is not mappable. In such a
         case, you have to transfer the data manually from the memory
         buffer to the hardware buffer. Or, if the buffer is
@@ -3018,8 +3016,8 @@ struct _snd_pcm_runtime {
         <title>page callback</title>
 
         <para>
-          This callback is also not mandatory. This callback is used
-        mainly for the non-contiguous buffer. The mmap calls this
+          This callback is optional too. This callback is used
+        mainly for non-contiguous buffers. The mmap calls this
         callback to get the page address. Some examples will be
         explained in the later section <link
         linkend="buffer-and-memory"><citetitle>Buffer and Memory
@@ -3035,7 +3033,7 @@ struct _snd_pcm_runtime {
       role of PCM interrupt handler in the sound driver is to update
       the buffer position and to tell the PCM middle layer when the
       buffer position goes across the prescribed period size. To
-      inform this, call <function>snd_pcm_period_elapsed()</function>
+      inform this, call the <function>snd_pcm_period_elapsed()</function>
       function. 
       </para>
 
@@ -3072,7 +3070,7 @@ struct _snd_pcm_runtime {
         </para>
 
         <para>
-          A typical coding would be like:
+          Typical code would be like:
 
           <example>
 	    <title>Interrupt Handler Case #1</title>
@@ -3101,21 +3099,21 @@ struct _snd_pcm_runtime {
       </section>
 
       <section id="pcm-interface-interrupt-handler-timer">
-        <title>High-frequent timer interrupts</title>
+        <title>High frequency timer interrupts</title>
         <para>
-	This is the case when the hardware doesn't generate interrupts
-        at the period boundary but do timer-interrupts at the fixed
+	This happense when the hardware doesn't generate interrupts
+        at the period boundary but issues timer interrupts at a fixed
         timer rate (e.g. es1968 or ymfpci drivers). 
         In this case, you need to check the current hardware
-        position and accumulates the processed sample length at each
-        interrupt.  When the accumulated size overcomes the period
+        position and accumulate the processed sample length at each
+        interrupt.  When the accumulated size exceeds the period
         size, call 
         <function>snd_pcm_period_elapsed()</function> and reset the
         accumulator. 
         </para>
 
         <para>
-          A typical coding would be like the following.
+          Typical code would be like the following.
 
           <example>
 	    <title>Interrupt Handler Case #2</title>
@@ -3178,32 +3176,33 @@ struct _snd_pcm_runtime {
     <section id="pcm-interface-atomicity">
       <title>Atomicity</title>
       <para>
-      One of the most important (and thus difficult to debug) problem
-      on the kernel programming is the race condition.
-      On linux kernel, usually it's solved via spin-locks or
-      semaphores.  In general, if the race condition may
-      happen in the interrupt handler, it's handled as atomic, and you
-      have to use spinlock for protecting the critical session.  If it
-      never happens in the interrupt and it may take relatively long
-      time, you should use semaphore.
+      One of the most important (and thus difficult to debug) problems
+      in kernel programming are race conditions.
+      In the Linux kernel, they are usually avoided via spin-locks, mutexes
+      or semaphores.  In general, if a race condition can happen
+      in an interrupt handler, it has to be managed atomically, and you
+      have to use a spinlock to protect the critical session. If the
+      critical section is not in interrupt handler code and
+      if taking a relatively long time to execute is acceptable, you
+      should use mutexes or semaphores instead.
       </para>
 
       <para>
       As already seen, some pcm callbacks are atomic and some are
-      not.  For example, <parameter>hw_params</parameter> callback is
+      not.  For example, the <parameter>hw_params</parameter> callback is
       non-atomic, while <parameter>trigger</parameter> callback is
       atomic.  This means, the latter is called already in a spinlock
       held by the PCM middle layer. Please take this atomicity into
-      account when you use a spinlock or a semaphore in the callbacks.
+      account when you choose a locking scheme in the callbacks.
       </para>
 
       <para>
       In the atomic callbacks, you cannot use functions which may call
       <function>schedule</function> or go to
-      <function>sleep</function>.  The semaphore and mutex do sleep,
+      <function>sleep</function>.  Semaphores and mutexes can sleep,
       and hence they cannot be used inside the atomic callbacks
       (e.g. <parameter>trigger</parameter> callback).
-      For taking a certain delay in such a callback, please use
+      To implement some delay in such a callback, please use
       <function>udelay()</function> or <function>mdelay()</function>.
       </para>
 
@@ -3257,7 +3256,7 @@ struct _snd_pcm_runtime {
 
       <para>
         There are many different constraints.
-        Look in <filename>sound/pcm.h</filename> for a complete list.
+        Look at <filename>sound/pcm.h</filename> for a complete list.
         You can even define your own constraint rules.
         For example, let's suppose my_chip can manage a substream of 1 channel
         if and only if the format is S16_LE, otherwise it supports any format
@@ -3346,7 +3345,7 @@ struct _snd_pcm_runtime {
       </para>
 
       <para>
-        I won't explain more details here, rather I
+        I won't give more details here, rather I
         would like to say, <quote>Luke, use the source.</quote>
       </para>
     </section>
@@ -3364,10 +3363,9 @@ struct _snd_pcm_runtime {
       <title>General</title>
       <para>
         The control interface is used widely for many switches,
-      sliders, etc. which are accessed from the user-space. Its most
-      important use is the mixer interface. In other words, on ALSA
-      0.9.x, all the mixer stuff is implemented on the control kernel
-      API (while there was an independent mixer kernel API on 0.5.x). 
+      sliders, etc. which are accessed from user-space. Its most
+      important use is the mixer interface. In other words, since ALSA
+      0.9.x, all the mixer stuff is implemented on the control kernel API.
       </para>
 
       <para>
@@ -3379,14 +3377,15 @@ struct _snd_pcm_runtime {
       <para>
         The control API is defined in
       <filename>&lt;sound/control.h&gt;</filename>.
-      Include this file if you add your own controls.
+      Include this file if you want to add your own controls.
       </para>
     </section>
 
     <section id="control-interface-definition">
       <title>Definition of Controls</title>
       <para>
-        For creating a new control, you need to define the three
+        To create a new control, you need to define the
+	following three
       callbacks: <structfield>info</structfield>,
       <structfield>get</structfield> and
       <structfield>put</structfield>. Then, define a
@@ -3414,13 +3413,13 @@ struct _snd_pcm_runtime {
       <para>
         Most likely the control is created via
       <function>snd_ctl_new1()</function>, and in such a case, you can
-      add <parameter>__devinitdata</parameter> prefix to the
-      definition like above. 
+      add the <parameter>__devinitdata</parameter> prefix to the
+      definition as above. 
       </para>
 
       <para>
-        The <structfield>iface</structfield> field specifies the type of
-      the control, <constant>SNDRV_CTL_ELEM_IFACE_XXX</constant>, which
+        The <structfield>iface</structfield> field specifies the control
+      type, <constant>SNDRV_CTL_ELEM_IFACE_XXX</constant>, which
       is usually <constant>MIXER</constant>.
       Use <constant>CARD</constant> for global controls that are not
       logically part of the mixer.
@@ -3435,12 +3434,11 @@ struct _snd_pcm_runtime {
 
       <para>
         The <structfield>name</structfield> is the name identifier
-      string. On ALSA 0.9.x, the control name is very important,
+      string. Since ALSA 0.9.x, the control name is very important,
       because its role is classified from its name. There are
       pre-defined standard control names. The details are described in
-      the subsection
-      <link linkend="control-interface-control-names"><citetitle>
-      Control Names</citetitle></link>.
+      the <link linkend="control-interface-control-names"><citetitle>
+      Control Names</citetitle></link> subsection.
       </para>
 
       <para>
@@ -3456,15 +3454,15 @@ struct _snd_pcm_runtime {
         The <structfield>access</structfield> field contains the access
       type of this control. Give the combination of bit masks,
       <constant>SNDRV_CTL_ELEM_ACCESS_XXX</constant>, there.
-      The detailed will be explained in the subsection
-      <link linkend="control-interface-access-flags"><citetitle>
-      Access Flags</citetitle></link>.
+      The details will be explained in
+      the <link linkend="control-interface-access-flags"><citetitle>
+      Access Flags</citetitle></link> subsection.
       </para>
 
       <para>
         The <structfield>private_value</structfield> field contains
       an arbitrary long integer value for this record. When using
-      generic <structfield>info</structfield>,
+      the generic <structfield>info</structfield>,
       <structfield>get</structfield> and
       <structfield>put</structfield> callbacks, you can pass a value 
       through this field. If several small numbers are necessary, you can
@@ -3489,7 +3487,7 @@ struct _snd_pcm_runtime {
     <section id="control-interface-control-names">
       <title>Control Names</title>
       <para>
-        There are some standards for defining the control names. A
+        There are some standards to define the control names. A
       control is usually defined from the three parts as
       <quote>SOURCE DIRECTION FUNCTION</quote>. 
       </para>
@@ -3497,7 +3495,7 @@ struct _snd_pcm_runtime {
       <para>
         The first, <constant>SOURCE</constant>, specifies the source
       of the control, and is a string such as <quote>Master</quote>,
-      <quote>PCM</quote>, <quote>CD</quote> or
+      <quote>PCM</quote>, <quote>CD</quote> and
       <quote>Line</quote>. There are many pre-defined sources. 
       </para>
 
@@ -3575,22 +3573,22 @@ struct _snd_pcm_runtime {
       <title>Access Flags</title>
 
       <para>
-      The access flag is the bit-flags which specifies the access type
+      The access flag is the bitmask which specifies the access type
       of the given control.  The default access type is
       <constant>SNDRV_CTL_ELEM_ACCESS_READWRITE</constant>, 
       which means both read and write are allowed to this control.
       When the access flag is omitted (i.e. = 0), it is
-      regarded as <constant>READWRITE</constant> access as default. 
+      considered as <constant>READWRITE</constant> access as default. 
       </para>
 
       <para>
       When the control is read-only, pass
       <constant>SNDRV_CTL_ELEM_ACCESS_READ</constant> instead.
       In this case, you don't have to define
-      <structfield>put</structfield> callback.
+      the <structfield>put</structfield> callback.
       Similarly, when the control is write-only (although it's a rare
-      case), you can use <constant>WRITE</constant> flag instead, and
-      you don't need <structfield>get</structfield> callback.
+      case), you can use the <constant>WRITE</constant> flag instead, and
+      you don't need the <structfield>get</structfield> callback.
       </para>
 
       <para>
@@ -3598,15 +3596,15 @@ struct _snd_pcm_runtime {
       <constant>VOLATILE</constant> flag should be given.  This means
       that the control may be changed without
       <link linkend="control-interface-change-notification"><citetitle>
-      notification</citetitle></link>.  Applications should poll such
+      notification</citetitle></link>. Applications should poll such
       a control constantly.
       </para>
 
       <para>
       When the control is inactive, set
-      <constant>INACTIVE</constant> flag, too.
+      the <constant>INACTIVE</constant> flag, too.
       There are <constant>LOCK</constant> and
-      <constant>OWNER</constant> flags for changing the write
+      <constant>OWNER</constant> flags to change the write
       permissions.
       </para>
 
@@ -3619,10 +3617,10 @@ struct _snd_pcm_runtime {
         <title>info callback</title>
         <para>
           The <structfield>info</structfield> callback is used to get
-        the detailed information of this control. This must store the
+        detailed information on this control. This must store the
         values of the given struct <structname>snd_ctl_elem_info</structname>
         object. For example, for a boolean control with a single
-        element will be: 
+        element: 
 
           <example>
 	    <title>Example of info callback</title>
@@ -3653,7 +3651,7 @@ struct _snd_pcm_runtime {
         volume would have count = 2. The
         <structfield>value</structfield> field is a union, and 
         the values stored are depending on the type. The boolean and
-        integer are identical. 
+        integer types are identical. 
         </para>
 
         <para>
@@ -3684,7 +3682,7 @@ struct _snd_pcm_runtime {
         </para>
 
         <para>
-	  Some common info callbacks are prepared for easy use:
+	  Some common info callbacks are available for your convenience:
 	<function>snd_ctl_boolean_mono_info()</function> and
 	<function>snd_ctl_boolean_stereo_info()</function>.
 	Obviously, the former is an info callback for a mono channel
@@ -3699,7 +3697,7 @@ struct _snd_pcm_runtime {
 
         <para>
           This callback is used to read the current value of the
-        control and to return to the user-space. 
+        control and to return to user-space. 
         </para>
 
         <para>
@@ -3722,11 +3720,11 @@ struct _snd_pcm_runtime {
         </para>
 
         <para>
-	The <structfield>value</structfield> field is depending on
-        the type of control as well as on info callback.  For example,
+	The <structfield>value</structfield> field depends on 
+        the type of control as well as on the info callback.  For example,
 	the sb driver uses this field to store the register offset,
         the bit-shift and the bit-mask.  The
-        <structfield>private_value</structfield> is set like
+        <structfield>private_value</structfield> field is set as follows:
           <informalexample>
             <programlisting>
 <![CDATA[
@@ -3752,7 +3750,8 @@ struct _snd_pcm_runtime {
 	</para>
 
 	<para>
-	In <structfield>get</structfield> callback, you have to fill all the elements if the
+	In the <structfield>get</structfield> callback,
+	you have to fill all the elements if the
         control has more than one elements,
         i.e. <structfield>count</structfield> &gt; 1.
 	In the example above, we filled only one element
@@ -3765,7 +3764,7 @@ struct _snd_pcm_runtime {
         <title>put callback</title>
 
         <para>
-          This callback is used to write a value from the user-space.
+          This callback is used to write a value from user-space.
         </para>
 
         <para>
@@ -3799,7 +3798,7 @@ struct _snd_pcm_runtime {
         </para>
 
         <para>
-	Like <structfield>get</structfield> callback,
+	As in the <structfield>get</structfield> callback,
 	when the control has more than one elements,
 	all elements must be evaluated in this callback, too.
         </para>
@@ -3817,7 +3816,7 @@ struct _snd_pcm_runtime {
       <title>Constructor</title>
       <para>
         When everything is ready, finally we can create a new
-      control. For creating a control, there are two functions to be
+      control. To create a control, there are two functions to be
       called, <function>snd_ctl_new1()</function> and
       <function>snd_ctl_add()</function>. 
       </para>
@@ -3839,14 +3838,14 @@ struct _snd_pcm_runtime {
       struct <structname>snd_kcontrol_new</structname> object defined above, and chip
       is the object pointer to be passed to
       kcontrol-&gt;private_data 
-      which can be referred in callbacks. 
+      which can be referred to in callbacks. 
       </para>
 
       <para>
         <function>snd_ctl_new1()</function> allocates a new
       <structname>snd_kcontrol</structname> instance (that's why the definition
       of <parameter>my_control</parameter> can be with
-      <parameter>__devinitdata</parameter> 
+      the <parameter>__devinitdata</parameter> 
       prefix), and <function>snd_ctl_add</function> assigns the given
       control component to the card. 
       </para>
@@ -3941,7 +3940,7 @@ struct _snd_pcm_runtime {
       <title>General</title>
       <para>
         The ALSA AC97 codec layer is a well-defined one, and you don't
-      have to write many codes to control it. Only low-level control
+      have to write much code to control it. Only low-level control
       routines are necessary. The AC97 codec API is defined in
       <filename>&lt;sound/ac97_codec.h&gt;</filename>. 
       </para>
@@ -4004,7 +4003,7 @@ struct _snd_pcm_runtime {
     <section id="api-ac97-constructor">
       <title>Constructor</title>
       <para>
-        For creating an ac97 instance, first call <function>snd_ac97_bus</function>
+        To create an ac97 instance, first call <function>snd_ac97_bus</function>
       with an <type>ac97_bus_ops_t</type> record with callback functions.
 
         <informalexample>
@@ -4042,12 +4041,12 @@ struct _snd_pcm_runtime {
           </programlisting>
         </informalexample>
 
-        where chip-&gt;ac97 is the pointer of a newly created
+        where chip-&gt;ac97 is a pointer to a newly created
         <type>ac97_t</type> instance.
         In this case, the chip pointer is set as the private data, so that
         the read/write callback functions can refer to this chip instance.
         This instance is not necessarily stored in the chip
-	record.  When you need to change the register values from the
+	record.  If you need to change the register values from the
         driver, or need the suspend/resume of ac97 codecs, keep this
         pointer to pass to the corresponding functions.
       </para>
@@ -4098,7 +4097,7 @@ struct _snd_pcm_runtime {
       </para>
 
       <para>
-      These callbacks are non-atomic like the callbacks of control API.
+      These callbacks are non-atomic like the control API callbacks.
       </para>
 
       <para>
@@ -4110,14 +4109,14 @@ struct _snd_pcm_runtime {
 
       <para>
         The <structfield>reset</structfield> callback is used to reset
-      the codec. If the chip requires a special way of reset, you can
+      the codec. If the chip requires a special kind of reset, you can
       define this callback. 
       </para>
 
       <para>
-        The <structfield>wait</structfield> callback is used for a
-      certain wait at the standard initialization of the codec. If the
-      chip requires the extra wait-time, define this callback. 
+        The <structfield>wait</structfield> callback is used to
+      add some waiting time in the standard initialization of the codec. If the
+      chip requires the extra waiting time, define this callback. 
       </para>
 
       <para>
@@ -4172,7 +4171,7 @@ struct _snd_pcm_runtime {
 
       <para>
         <function>snd_ac97_update_bits()</function> is used to update
-        some bits of the given register.  
+        some bits in the given register.  
 
         <informalexample>
           <programlisting>
@@ -4185,7 +4184,7 @@ struct _snd_pcm_runtime {
 
       <para>
         Also, there is a function to change the sample rate (of a
-        certain register such as
+        given register such as
         <constant>AC97_PCM_FRONT_DAC_RATE</constant>) when VRA or
         DRA is supported by the codec:
         <function>snd_ac97_set_rate()</function>. 
@@ -4200,11 +4199,11 @@ struct _snd_pcm_runtime {
       </para>
 
       <para>
-        The following registers are available for setting the rate:
+        The following registers are available to set the rate:
       <constant>AC97_PCM_MIC_ADC_RATE</constant>,
       <constant>AC97_PCM_FRONT_DAC_RATE</constant>,
       <constant>AC97_PCM_LR_ADC_RATE</constant>,
-      <constant>AC97_SPDIF</constant>. When the
+      <constant>AC97_SPDIF</constant>. When
       <constant>AC97_SPDIF</constant> is specified, the register is
       not really changed but the corresponding IEC958 status bits will
       be updated. 
@@ -4214,12 +4213,11 @@ struct _snd_pcm_runtime {
     <section id="api-ac97-clock-adjustment">
       <title>Clock Adjustment</title>
       <para>
-        On some chip, the clock of the codec isn't 48000 but using a
+        In some chips, the clock of the codec isn't 48000 but using a
       PCI clock (to save a quartz!). In this case, change the field
       bus-&gt;clock to the corresponding
       value. For example, intel8x0 
-      and es1968 drivers have the auto-measurement function of the
-      clock. 
+      and es1968 drivers have their own function to read from the clock.
       </para>
     </section>
 
@@ -4239,15 +4237,13 @@ struct _snd_pcm_runtime {
         When there are several codecs on the same card, you need to
       call <function>snd_ac97_mixer()</function> multiple times with
       ac97.num=1 or greater. The <structfield>num</structfield> field
-      specifies the codec 
-      number. 
+      specifies the codec number. 
       </para>
 
       <para>
-        If you have set up multiple codecs, you need to either write
+        If you set up multiple codecs, you either need to write
       different callbacks for each codec or check
-      ac97-&gt;num in the 
-      callback routines. 
+      ac97-&gt;num in the callback routines. 
       </para>
     </section>
 
@@ -4271,7 +4267,7 @@ struct _snd_pcm_runtime {
       </para>
 
       <para>
-        Some soundchips have similar but a little bit different
+        Some soundchips have a similar but slightly different
       implementation of mpu401 stuff. For example, emu10k1 has its own
       mpu401 routines. 
       </para>
@@ -4280,7 +4276,7 @@ struct _snd_pcm_runtime {
     <section id="midi-interface-constructor">
       <title>Constructor</title>
       <para>
-        For creating a rawmidi object, call
+        To create a rawmidi object, call
       <function>snd_mpu401_uart_new()</function>. 
 
         <informalexample>
@@ -4307,25 +4303,24 @@ struct _snd_pcm_runtime {
       </para>
 
       <para>
-        The 4th argument is the i/o port address. Many
-      backward-compatible MPU401 has an i/o port such as 0x330. Or, it
-      might be a part of its own PCI i/o region. It depends on the
+        The 4th argument is the I/O port address. Many
+      backward-compatible MPU401 have an I/O port such as 0x330. Or, it
+      might be a part of its own PCI I/O region. It depends on the
       chip design. 
       </para>
 
       <para>
-	The 5th argument is bitflags for additional information.
-        When the i/o port address above is a part of the PCI i/o
-      region, the MPU401 i/o port might have been already allocated
+	The 5th argument is a bitflag for additional information.
+        When the I/O port address above is part of the PCI I/O
+      region, the MPU401 I/O port might have been already allocated
       (reserved) by the driver itself. In such a case, pass a bit flag
       <constant>MPU401_INFO_INTEGRATED</constant>,
-      and 
-      the mpu401-uart layer will allocate the i/o ports by itself. 
+      and the mpu401-uart layer will allocate the I/O ports by itself. 
       </para>
 
 	<para>
 	When the controller supports only the input or output MIDI stream,
-	pass <constant>MPU401_INFO_INPUT</constant> or
+	pass the <constant>MPU401_INFO_INPUT</constant> or
 	<constant>MPU401_INFO_OUTPUT</constant> bitflag, respectively.
 	Then the rawmidi instance is created as a single stream.
 	</para>
@@ -4333,7 +4328,7 @@ struct _snd_pcm_runtime {
 	<para>
 	<constant>MPU401_INFO_MMIO</constant> bitflag is used to change
 	the access method to MMIO (via readb and writeb) instead of
-	iob and outb.  In this case, you have to pass the iomapped address
+	iob and outb. In this case, you have to pass the iomapped address
 	to <function>snd_mpu401_uart_new()</function>.
 	</para>
 
@@ -4341,7 +4336,7 @@ struct _snd_pcm_runtime {
 	When <constant>MPU401_INFO_TX_IRQ</constant> is set, the output
 	stream isn't checked in the default interrupt handler.  The driver
 	needs to call <function>snd_mpu401_uart_interrupt_tx()</function>
-	by itself to start processing the output stream in irq handler.
+	by itself to start processing the output stream in the irq handler.
 	</para>
 
       <para>
@@ -4381,7 +4376,7 @@ struct _snd_pcm_runtime {
       (<parameter>irq_flags</parameter>). Otherwise, pass the flags
       for irq allocation 
       (<constant>SA_XXX</constant> bits) to it, and the irq will be
-      reserved by the mpu401-uart layer. If the card doesn't generates
+      reserved by the mpu401-uart layer. If the card doesn't generate
       UART interrupts, pass -1 as the irq number. Then a timer
       interrupt will be invoked for polling. 
       </para>
@@ -4392,8 +4387,8 @@ struct _snd_pcm_runtime {
       <para>
         When the interrupt is allocated in
       <function>snd_mpu401_uart_new()</function>, the private
-      interrupt handler is used, hence you don't have to do nothing
-      else than creating the mpu401 stuff. Otherwise, you have to call
+      interrupt handler is used, hence you don't have anything else to do
+      than creating the mpu401 stuff. Otherwise, you have to call
       <function>snd_mpu401_uart_interrupt()</function> explicitly when
       a UART interrupt is invoked and checked in your own interrupt
       handler.  
@@ -4480,8 +4475,8 @@ struct _snd_pcm_runtime {
 
       <para>
       The fourth and fifth arguments are the number of output and
-      input substreams, respectively, of this device.  (A substream is
-      the equivalent of a MIDI port.)
+      input substreams, respectively, of this device (a substream is
+      the equivalent of a MIDI port).
       </para>
 
       <para>
@@ -4498,7 +4493,7 @@ struct _snd_pcm_runtime {
       <para>
       After the rawmidi device is created, you need to set the
       operators (callbacks) for each substream.  There are helper
-      functions to set the operators for all substream of a device:
+      functions to set the operators for all the substreams of a device:
         <informalexample>
           <programlisting>
 <![CDATA[
@@ -4528,8 +4523,8 @@ struct _snd_pcm_runtime {
       </para>
 
       <para>
-      If there is more than one substream, you should give each one a
-      unique name:
+      If there are more than one substream, you should give a
+      unique name to each of them:
         <informalexample>
           <programlisting>
 <![CDATA[
@@ -4550,7 +4545,7 @@ struct _snd_pcm_runtime {
       <title>Callbacks</title>
 
       <para>
-      In all callbacks, the private data that you've set for the
+      In all the callbacks, the private data that you've set for the
       rawmidi device can be accessed as
       substream-&gt;rmidi-&gt;private_data.
       <!-- <code> isn't available before DocBook 4.3 -->
@@ -4583,8 +4578,8 @@ struct _snd_pcm_runtime {
 
         <para>
         This is called when a substream is opened.
-        You can initialize the hardware here, but you should not yet
-        start transmitting/receiving data.
+        You can initialize the hardware here, but you shouldn't
+        start transmitting/receiving data yet.
         </para>
       </section>
 
@@ -4632,9 +4627,9 @@ struct _snd_pcm_runtime {
         To read data from the buffer, call
         <function>snd_rawmidi_transmit_peek</function>.  It will
         return the number of bytes that have been read; this will be
-        less than the number of bytes requested when there is no more
+        less than the number of bytes requested when there are no more
         data in the buffer.
-        After the data has been transmitted successfully, call
+        After the data have been transmitted successfully, call
         <function>snd_rawmidi_transmit_ack</function> to remove the
         data from the substream buffer:
           <informalexample>
@@ -4655,7 +4650,7 @@ struct _snd_pcm_runtime {
         <para>
         If you know beforehand that the hardware will accept data, you
         can use the <function>snd_rawmidi_transmit</function> function
-        which reads some data and removes it from the buffer at once:
+        which reads some data and removes them from the buffer at once:
           <informalexample>
             <programlisting>
 <![CDATA[
@@ -4749,13 +4744,13 @@ struct _snd_pcm_runtime {
 
         <para>
         This is only used with output substreams.  This function should wait
-        until all data read from the substream buffer has been transmitted.
+        until all data read from the substream buffer have been transmitted.
         This ensures that the device can be closed and the driver unloaded
         without losing data.
         </para>
 
         <para>
-        This callback is optional.  If you do not set
+        This callback is optional. If you do not set
         <structfield>drain</structfield> in the struct snd_rawmidi_ops
         structure, ALSA will simply wait for 50&nbsp;milliseconds
         instead.
@@ -4775,24 +4770,24 @@ struct _snd_pcm_runtime {
     <section id="misc-devices-opl3">
       <title>FM OPL3</title>
       <para>
-        The FM OPL3 is still used on many chips (mainly for backward
+        The FM OPL3 is still used in many chips (mainly for backward
       compatibility). ALSA has a nice OPL3 FM control layer, too. The
       OPL3 API is defined in
       <filename>&lt;sound/opl3.h&gt;</filename>. 
       </para>
 
       <para>
-        FM registers can be directly accessed through direct-FM API,
+        FM registers can be directly accessed through the direct-FM API,
       defined in <filename>&lt;sound/asound_fm.h&gt;</filename>. In
       ALSA native mode, FM registers are accessed through
-      Hardware-Dependant Device direct-FM extension API, whereas in
-      OSS compatible mode, FM registers can be accessed with OSS
-      direct-FM compatible API on <filename>/dev/dmfmX</filename> device. 
+      the Hardware-Dependant Device direct-FM extension API, whereas in
+      OSS compatible mode, FM registers can be accessed with the OSS
+      direct-FM compatible API in <filename>/dev/dmfmX</filename> device. 
       </para>
 
       <para>
-        For creating the OPL3 component, you have two functions to
-        call. The first one is a constructor for <type>opl3_t</type>
+        To create the OPL3 component, you have two functions to
+        call. The first one is a constructor for the <type>opl3_t</type>
         instance. 
 
         <informalexample>
@@ -4819,12 +4814,12 @@ struct _snd_pcm_runtime {
       <para>
         When the left and right ports have been already allocated by
       the card driver, pass non-zero to the fifth argument
-      (<parameter>integrated</parameter>). Otherwise, opl3 module will
+      (<parameter>integrated</parameter>). Otherwise, the opl3 module will
       allocate the specified ports by itself. 
       </para>
 
       <para>
-        When the accessing to the hardware requires special method
+        When the accessing the hardware requires special method
         instead of the standard I/O access, you can create opl3 instance
         separately with <function>snd_opl3_new()</function>.
 
@@ -4845,13 +4840,13 @@ struct _snd_pcm_runtime {
 	access function, the private data and the destructor.
 	The l_port and r_port are not necessarily set.  Only the
 	command must be set properly.  You can retrieve the data
-	from opl3-&gt;private_data field.
+	from the opl3-&gt;private_data field.
       </para>
 
       <para>
 	After creating the opl3 instance via <function>snd_opl3_new()</function>,
 	call <function>snd_opl3_init()</function> to initialize the chip to the
-	proper state.  Note that <function>snd_opl3_create()</function> always
+	proper state. Note that <function>snd_opl3_create()</function> always
 	calls it internally.
       </para>
 
@@ -4884,7 +4879,7 @@ struct _snd_pcm_runtime {
     <section id="misc-devices-hardware-dependent">
       <title>Hardware-Dependent Devices</title>
       <para>
-        Some chips need the access from the user-space for special
+        Some chips need user-space access for special
       controls or for loading the micro code. In such a case, you can
       create a hwdep (hardware-dependent) device. The hwdep API is
       defined in <filename>&lt;sound/hwdep.h&gt;</filename>. You can
@@ -4893,7 +4888,7 @@ struct _snd_pcm_runtime {
       </para>
 
       <para>
-        Creation of the <type>hwdep</type> instance is done via
+        The creation of the <type>hwdep</type> instance is done via
         <function>snd_hwdep_new()</function>. 
 
         <informalexample>
@@ -4912,8 +4907,8 @@ struct _snd_pcm_runtime {
         You can then pass any pointer value to the
         <parameter>private_data</parameter>.
         If you assign a private data, you should define the
-        destructor, too. The destructor function is set to
-        <structfield>private_free</structfield> field.  
+        destructor, too. The destructor function is set in
+        the <structfield>private_free</structfield> field.  
 
         <informalexample>
           <programlisting>
@@ -4925,7 +4920,7 @@ struct _snd_pcm_runtime {
           </programlisting>
         </informalexample>
 
-        and the implementation of destructor would be:
+        and the implementation of the destructor would be:
 
         <informalexample>
           <programlisting>
@@ -4943,7 +4938,7 @@ struct _snd_pcm_runtime {
       <para>
         The arbitrary file operations can be defined for this
         instance. The file operators are defined in
-        <parameter>ops</parameter> table. For example, assume that
+        the <parameter>ops</parameter> table. For example, assume that
         this chip needs an ioctl. 
 
         <informalexample>
@@ -4964,7 +4959,7 @@ struct _snd_pcm_runtime {
       <title>IEC958 (S/PDIF)</title>
       <para>
         Usually the controls for IEC958 devices are implemented via
-      control interface. There is a macro to compose a name string for
+      the control interface. There is a macro to compose a name string for
       IEC958 controls, <function>SNDRV_CTL_NAME_IEC958()</function>
       defined in <filename>&lt;include/asound.h&gt;</filename>.  
       </para>
@@ -4973,7 +4968,7 @@ struct _snd_pcm_runtime {
         There are some standard controls for IEC958 status bits. These
       controls use the type <type>SNDRV_CTL_ELEM_TYPE_IEC958</type>,
       and the size of element is fixed as 4 bytes array
-      (value.iec958.status[x]). For <structfield>info</structfield>
+      (value.iec958.status[x]). For the <structfield>info</structfield>
       callback, you don't specify 
       the value field for this type (the count field must be set,
       though). 
@@ -5001,7 +4996,7 @@ struct _snd_pcm_runtime {
       enable/disable or to set the raw bit mode. The implementation
       will depend on the chip, but the control should be named as
       <quote>IEC958 xxx</quote>, preferably using
-      <function>SNDRV_CTL_NAME_IEC958()</function> macro. 
+      the <function>SNDRV_CTL_NAME_IEC958()</function> macro. 
       </para>
 
       <para>
@@ -5036,12 +5031,12 @@ struct _snd_pcm_runtime {
         The allocation of pages with fallback is
       <function>snd_malloc_xxx_pages_fallback()</function>. This
       function tries to allocate the specified pages but if the pages
-      are not available, it tries to reduce the page sizes until the
+      are not available, it tries to reduce the page sizes until
       enough space is found.
       </para>
 
       <para>
-      For releasing the space, call
+      The release the pages, call
       <function>snd_free_xxx_pages()</function> function. 
       </para>
 
@@ -5050,8 +5045,8 @@ struct _snd_pcm_runtime {
        a large contiguous physical space
        at the time the module is loaded for the later use.
        This is called <quote>pre-allocation</quote>.
-       As already written, you can call the following function at the
-       construction of pcm instance (in the case of PCI bus). 
+       As already written, you can call the following function at 
+       pcm instance construction time (in the case of PCI bus). 
 
         <informalexample>
           <programlisting>
@@ -5063,34 +5058,34 @@ struct _snd_pcm_runtime {
         </informalexample>
 
         where <parameter>size</parameter> is the byte size to be
-      pre-allocated and the <parameter>max</parameter> is the maximal
-      size to be changed via <filename>prealloc</filename> proc file.
-      The allocator will try to get as large area as possible
+      pre-allocated and the <parameter>max</parameter> is the maximum
+      size to be changed via the <filename>prealloc</filename> proc file.
+      The allocator will try to get an area as large as possible
       within the given size. 
       </para>
 
       <para>
       The second argument (type) and the third argument (device pointer)
       are dependent on the bus.
-      In the case of ISA bus, pass <function>snd_dma_isa_data()</function>
+      In the case of the ISA bus, pass <function>snd_dma_isa_data()</function>
       as the third argument with <constant>SNDRV_DMA_TYPE_DEV</constant> type.
       For the continuous buffer unrelated to the bus can be pre-allocated
       with <constant>SNDRV_DMA_TYPE_CONTINUOUS</constant> type and the
       <function>snd_dma_continuous_data(GFP_KERNEL)</function> device pointer,
-      whereh <constant>GFP_KERNEL</constant> is the kernel allocation flag to
+      where <constant>GFP_KERNEL</constant> is the kernel allocation flag to
       use.  For the SBUS, <constant>SNDRV_DMA_TYPE_SBUS</constant> and
       <function>snd_dma_sbus_data(sbus_dev)</function> are used instead.
       For the PCI scatter-gather buffers, use
       <constant>SNDRV_DMA_TYPE_DEV_SG</constant> with
       <function>snd_dma_pci_data(pci)</function>
-      (see the section
+      (see the 
           <link linkend="buffer-and-memory-non-contiguous"><citetitle>Non-Contiguous Buffers
-          </citetitle></link>).
+          </citetitle></link> section).
       </para>
 
       <para>
-        Once when the buffer is pre-allocated, you can use the
-        allocator in the <structfield>hw_params</structfield> callback 
+        Once the buffer is pre-allocated, you can use the
+        allocator in the <structfield>hw_params</structfield> callback: 
 
         <informalexample>
           <programlisting>
@@ -5116,8 +5111,8 @@ struct _snd_pcm_runtime {
       </para>
 
       <para>
-        The first case works fine if the external hardware buffer is enough
-      large.  This method doesn't need any extra buffers and thus is
+        The first case works fine if the external hardware buffer is large
+      enough.  This method doesn't need any extra buffers and thus is
       more effective. You need to define the
       <structfield>copy</structfield> and
       <structfield>silence</structfield> callbacks for 
@@ -5127,25 +5122,25 @@ struct _snd_pcm_runtime {
       </para>
 
       <para>
-        The second case allows the mmap of the buffer, although you have
-      to handle an interrupt or a tasklet for transferring the data
+        The second case allows for mmap on the buffer, although you have
+      to handle an interrupt or a tasklet to transfer the data
       from the intermediate buffer to the hardware buffer. You can find an
-      example in vxpocket driver. 
+      example in the vxpocket driver. 
       </para>
 
       <para>
-        Another case is that the chip uses a PCI memory-map
+        Another case is when the chip uses a PCI memory-map
       region for the buffer instead of the host memory. In this case,
-      mmap is available only on certain architectures like intel. In
-      non-mmap mode, the data cannot be transferred as the normal
-      way. Thus you need to define <structfield>copy</structfield> and
-      <structfield>silence</structfield> callbacks as well 
+      mmap is available only on certain architectures like the Intel one.
+      In non-mmap mode, the data cannot be transferred as in the normal
+      way. Thus you need to define the <structfield>copy</structfield> and
+      <structfield>silence</structfield> callbacks as well, 
       as in the cases above. The examples are found in
       <filename>rme32.c</filename> and <filename>rme96.c</filename>. 
       </para>
 
       <para>
-        The implementation of <structfield>copy</structfield> and
+        The implementation of the <structfield>copy</structfield> and
         <structfield>silence</structfield> callbacks depends upon 
         whether the hardware supports interleaved or non-interleaved
         samples. The <structfield>copy</structfield> callback is
@@ -5184,8 +5179,8 @@ struct _snd_pcm_runtime {
 
       <para>
         What you have to do in this callback is again different
-        between playback and capture directions. In the case of
-        playback, you do: copy the given amount of data
+        between playback and capture directions. In the
+        playback case, you copy the given amount of data
         (<parameter>count</parameter>) at the specified pointer
         (<parameter>src</parameter>) to the specified offset
         (<parameter>pos</parameter>) on the hardware buffer. When
@@ -5202,7 +5197,7 @@ struct _snd_pcm_runtime {
       </para>
 
       <para>
-        For the capture direction, you do: copy the given amount of
+        For the capture direction, you copy the given amount of
         data (<parameter>count</parameter>) at the specified offset
         (<parameter>pos</parameter>) on the hardware buffer to the
         specified pointer (<parameter>dst</parameter>). 
@@ -5216,7 +5211,7 @@ struct _snd_pcm_runtime {
           </programlisting>
         </informalexample>
 
-        Note that both of the position and the data amount are given
+        Note that both the position and the amount of data are given
       in frames. 
       </para>
 
@@ -5247,7 +5242,7 @@ struct _snd_pcm_runtime {
       </para>
 
       <para>
-        The meanings of arguments are identical with the
+        The meanings of arguments are the same as in the
       <structfield>copy</structfield> 
       callback, although there is no <parameter>src/dst</parameter>
       argument. In the case of interleaved samples, the channel
@@ -5284,8 +5279,8 @@ struct _snd_pcm_runtime {
     <section id="buffer-and-memory-non-contiguous">
       <title>Non-Contiguous Buffers</title>
       <para>
-        If your hardware supports the page table like emu10k1 or the
-      buffer descriptors like via82xx, you can use the scatter-gather
+        If your hardware supports the page table as in emu10k1 or the
+      buffer descriptors as in via82xx, you can use the scatter-gather
       (SG) DMA. ALSA provides an interface for handling SG-buffers.
       The API is provided in <filename>&lt;sound/pcm.h&gt;</filename>. 
       </para>
@@ -5296,7 +5291,7 @@ struct _snd_pcm_runtime {
         <function>snd_pcm_lib_preallocate_pages_for_all()</function>
         with <constant>SNDRV_DMA_TYPE_DEV_SG</constant>
 	in the PCM constructor like other PCI pre-allocator.
-        You need to pass the <function>snd_dma_pci_data(pci)</function>,
+        You need to pass <function>snd_dma_pci_data(pci)</function>,
         where pci is the struct <structname>pci_dev</structname> pointer
         of the chip as well.
         The <type>struct snd_sg_buf</type> instance is created as
@@ -5314,7 +5309,7 @@ struct _snd_pcm_runtime {
 
       <para>
         Then call <function>snd_pcm_lib_malloc_pages()</function>
-      in <structfield>hw_params</structfield> callback
+      in the <structfield>hw_params</structfield> callback
       as well as in the case of normal PCI buffer.
       The SG-buffer handler will allocate the non-contiguous kernel
       pages of the given size and map them onto the virtually contiguous
@@ -5335,7 +5330,7 @@ struct _snd_pcm_runtime {
       </para>
 
       <para>
-        For releasing the data, call
+        To release the data, call
       <function>snd_pcm_lib_free_pages()</function> in the
       <structfield>hw_free</structfield> callback as usual.
       </para>
@@ -5390,7 +5385,7 @@ struct _snd_pcm_runtime {
     </para>
 
     <para>
-      For creating a proc file, call
+      To create a proc file, call
       <function>snd_card_proc_new()</function>. 
 
       <informalexample>
@@ -5402,7 +5397,7 @@ struct _snd_pcm_runtime {
         </programlisting>
       </informalexample>
 
-      where the second argument specifies the proc-file name to be
+      where the second argument specifies the name of the proc file to be
     created. The above example will create a file
     <filename>my-file</filename> under the card directory,
     e.g. <filename>/proc/asound/card0/my-file</filename>. 
@@ -5417,8 +5412,8 @@ struct _snd_pcm_runtime {
 
     <para>
       When the creation is successful, the function stores a new
-    instance at the pointer given in the third argument.
-    It is initialized as a text proc file for read only.  For using
+    instance in the pointer given in the third argument.
+    It is initialized as a text proc file for read only.  To use
     this proc file as a read-only text file as it is, set the read
     callback with a private data via 
      <function>snd_info_set_text_ops()</function>.
@@ -5470,9 +5465,9 @@ struct _snd_pcm_runtime {
     </para>
 
     <para>
-    The file permission can be changed afterwards.  As default, it's
-    set as read only for all users.  If you want to add the write
-    permission to the user (root as default), set like below:
+    The file permissions can be changed afterwards.  As default, it's
+    set as read only for all users.  If you want to add write
+    permission for the user (root as default), do as follows:
 
       <informalexample>
         <programlisting>
@@ -5503,7 +5498,7 @@ struct _snd_pcm_runtime {
     </para>
 
     <para>
-      For a raw-data proc-file, set the attributes like the following:
+      For a raw-data proc-file, set the attributes as follows:
 
       <informalexample>
         <programlisting>
@@ -5524,7 +5519,7 @@ struct _snd_pcm_runtime {
 
     <para>
       The callback is much more complicated than the text-file
-      version. You need to use a low-level i/o functions such as
+      version. You need to use a low-level I/O functions such as
       <function>copy_from/to_user()</function> to transfer the
       data.
 
@@ -5560,28 +5555,28 @@ struct _snd_pcm_runtime {
     <title>Power Management</title>
     <para>
       If the chip is supposed to work with suspend/resume
-      functions, you need to add the power-management codes to the
-      driver. The additional codes for the power-management should be
+      functions, you need to add power-management code to the
+      driver. The additional code for power-management should be
       <function>ifdef</function>'ed with
       <constant>CONFIG_PM</constant>. 
     </para>
 
 	<para>
-	If the driver supports the suspend/resume
-	<emphasis>fully</emphasis>, that is, the device can be
-	properly resumed to the status at the suspend is called,
-	you can set <constant>SNDRV_PCM_INFO_RESUME</constant> flag
-	to pcm info field.  Usually, this is possible when the
-	registers of ths chip can be safely saved and restored to the
-	RAM.  If this is set, the trigger callback is called with
-	<constant>SNDRV_PCM_TRIGGER_RESUME</constant> after resume
-	callback is finished. 
+	If the driver <emphasis>fully</emphasis> supports suspend/resume
+	that is, the device can be
+	properly resumed to its state when suspend was called,
+	you can set the <constant>SNDRV_PCM_INFO_RESUME</constant> flag
+	in the pcm info field.  Usually, this is possible when the
+	registers of the chip can be safely saved and restored to
+	RAM. If this is set, the trigger callback is called with
+	<constant>SNDRV_PCM_TRIGGER_RESUME</constant> after the resume
+	callback completes. 
 	</para>
 
 	<para>
-	Even if the driver doesn't support PM fully but only the
-	partial suspend/resume is possible, it's still worthy to
-	implement suspend/resume callbacks.  In such a case, applications
+	Even if the driver doesn't support PM fully but 
+	partial suspend/resume is still possible, it's still worthy to
+	implement suspend/resume callbacks. In such a case, applications
 	would reset the status by calling
 	<function>snd_pcm_prepare()</function> and restart the stream
 	appropriately.  Hence, you can define suspend/resume callbacks
@@ -5590,22 +5585,22 @@ struct _snd_pcm_runtime {
 	</para>
 	
 	<para>
-	Note that the trigger with SUSPEND can be always called when
+	Note that the trigger with SUSPEND can always be called when
 	<function>snd_pcm_suspend_all</function> is called,
-	regardless of <constant>SNDRV_PCM_INFO_RESUME</constant> flag.
+	regardless of the <constant>SNDRV_PCM_INFO_RESUME</constant> flag.
 	The <constant>RESUME</constant> flag affects only the behavior
 	of <function>snd_pcm_resume()</function>.
 	(Thus, in theory,
 	<constant>SNDRV_PCM_TRIGGER_RESUME</constant> isn't needed
 	to be handled in the trigger callback when no
 	<constant>SNDRV_PCM_INFO_RESUME</constant> flag is set.  But,
-	it's better to keep it for compatibility reason.)
+	it's better to keep it for compatibility reasons.)
 	</para>
     <para>
       In the earlier version of ALSA drivers, a common
       power-management layer was provided, but it has been removed.
       The driver needs to define the suspend/resume hooks according to
-      the bus the device is assigned.  In the case of PCI driver, the
+      the bus the device is connected to.  In the case of PCI drivers, the
       callbacks look like below:
 
       <informalexample>
@@ -5629,7 +5624,7 @@ struct _snd_pcm_runtime {
     </para>
 
     <para>
-      The scheme of the real suspend job is as following.
+      The scheme of the real suspend job is as follows.
 
       <orderedlist>
         <listitem><para>Retrieve the card and the chip data.</para></listitem>
@@ -5679,11 +5674,11 @@ struct _snd_pcm_runtime {
     </para>
 
     <para>
-    The scheme of the real resume job is as following.
+    The scheme of the real resume job is as follows.
 
     <orderedlist>
     <listitem><para>Retrieve the card and the chip data.</para></listitem>
-    <listitem><para>Set up PCI.  First, call <function>pci_restore_state()</function>.
+    <listitem><para>Set up PCI. First, call <function>pci_restore_state()</function>.
     	Then enable the pci device again by calling <function>pci_enable_device()</function>.
 	Call <function>pci_set_master()</function> if necessary, too.</para></listitem>
     <listitem><para>Re-initialize the chip.</para></listitem>
@@ -5734,7 +5729,7 @@ struct _snd_pcm_runtime {
 	<function>snd_pcm_suspend_all()</function> or
 	<function>snd_pcm_suspend()</function>.  It means that the PCM
 	streams are already stoppped when the register snapshot is
-	taken.  But, remind that you don't have to restart the PCM
+	taken.  But, remember that you don't have to restart the PCM
 	stream in the resume callback. It'll be restarted via 
 	trigger call with <constant>SNDRV_PCM_TRIGGER_RESUME</constant>
 	when necessary.
@@ -5795,7 +5790,7 @@ struct _snd_pcm_runtime {
     </para>
 
     <para>
-      If you need a space for saving the registers, allocate the
+      If you need a space to save the registers, allocate the
 	buffer for it here, too, since it would be fatal
     if you cannot allocate a memory in the suspend phase.
     The allocated buffer should be released in the corresponding
@@ -5833,7 +5828,7 @@ struct _snd_pcm_runtime {
     <title>Module Parameters</title>
     <para>
       There are standard module options for ALSA. At least, each
-      module should have <parameter>index</parameter>,
+      module should have the <parameter>index</parameter>,
       <parameter>id</parameter> and <parameter>enable</parameter>
       options. 
     </para>
@@ -5841,8 +5836,8 @@ struct _snd_pcm_runtime {
     <para>
       If the module supports multiple cards (usually up to
       8 = <constant>SNDRV_CARDS</constant> cards), they should be
-      arrays.  The default initial values are defined already as
-      constants for ease of programming:
+      arrays. The default initial values are defined already as
+      constants for easier programming:
 
       <informalexample>
         <programlisting>
@@ -5858,7 +5853,7 @@ struct _snd_pcm_runtime {
     <para>
       If the module supports only a single card, they could be single
     variables, instead.  <parameter>enable</parameter> option is not
-    always necessary in this case, but it wouldn't be so bad to have a
+    always necessary in this case, but it would be better to have a
     dummy option for compatibility.
     </para>
 
@@ -5923,22 +5918,22 @@ struct _snd_pcm_runtime {
 	</para>
 
 	<para>
-	Suppose that you'll create a new PCI driver for the card
+	Suppose that you create a new PCI driver for the card
 	<quote>xyz</quote>.  The card module name would be
-	snd-xyz.  The new driver is usually put into alsa-driver
+	snd-xyz.  The new driver is usually put into the alsa-driver
 	tree, <filename>alsa-driver/pci</filename> directory in
 	the case of PCI cards.
 	Then the driver is evaluated, audited and tested
 	by developers and users.  After a certain time, the driver
-	will go to alsa-kernel tree (to the corresponding directory,
+	will go to the alsa-kernel tree (to the corresponding directory,
 	such as <filename>alsa-kernel/pci</filename>) and eventually
-	integrated into Linux 2.6 tree (the directory would be
+ 	will be integrated into the Linux 2.6 tree (the directory would be
 	<filename>linux/sound/pci</filename>).
 	</para>
 
 	<para>
 	In the following sections, the driver code is supposed
-	to be put into alsa-driver tree.  The two cases are assumed:
+	to be put into alsa-driver tree. The two cases are covered:
 	a driver consisting of a single source file and one consisting
 	of several source files.
 	</para>
@@ -6033,7 +6028,7 @@ struct _snd_pcm_runtime {
 	<listitem>
 	<para>
 	Add a new directory (<filename>xyz</filename>) in
-	<filename>alsa-driver/pci/Makefile</filename> like below
+	<filename>alsa-driver/pci/Makefile</filename> as below
 
       <informalexample>
         <programlisting>
@@ -6102,7 +6097,7 @@ struct _snd_pcm_runtime {
     <section id="useful-functions-snd-printk">
       <title><function>snd_printk()</function> and friends</title>
       <para>
-        ALSA provides a verbose version of
+        ALSA provides a verbose version of the
       <function>printk()</function> function. If a kernel config
       <constant>CONFIG_SND_VERBOSE_PRINTK</constant> is set, this
       function prints the given message together with the file name
@@ -6170,7 +6165,7 @@ struct _snd_pcm_runtime {
     <section id="useful-functions-snd-bug">
       <title><function>snd_BUG()</function></title>
       <para>
-        It shows <computeroutput>BUG?</computeroutput> message and
+        It shows the <computeroutput>BUG?</computeroutput> message and
       stack trace as well as <function>snd_assert</function> at the point.
       It's useful to show that a fatal error happens there. 
       </para>
@@ -6199,6 +6194,4 @@ struct _snd_pcm_runtime {
     in the hardware constraints section.
     </para>
   </chapter>
-
-
 </book>

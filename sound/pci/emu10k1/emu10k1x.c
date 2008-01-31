@@ -29,7 +29,6 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
  */
-#include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
@@ -1582,6 +1581,8 @@ static int __devinit snd_emu10k1x_probe(struct pci_dev *pci,
 	strcpy(card->shortname, "Dell Sound Blaster Live!");
 	sprintf(card->longname, "%s at 0x%lx irq %i",
 		card->shortname, chip->port, chip->irq);
+
+	snd_card_set_dev(card, &pci->dev);
 
 	if ((err = snd_card_register(card)) < 0) {
 		snd_card_free(card);

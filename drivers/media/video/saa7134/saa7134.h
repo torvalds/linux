@@ -38,7 +38,6 @@
 #include <media/ir-common.h>
 #include <media/ir-kbd-i2c.h>
 #include <media/videobuf-dma-sg.h>
-#include <sound/driver.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #if defined(CONFIG_VIDEO_SAA7134_DVB) || defined(CONFIG_VIDEO_SAA7134_DVB_MODULE)

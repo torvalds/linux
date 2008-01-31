@@ -20,7 +20,6 @@
  *
  */
 
-#include <sound/driver.h>
 #include <linux/slab.h>
 #include <linux/time.h>
 #include <sound/core.h>
@@ -145,11 +144,11 @@ static inline snd_pcm_uframes_t snd_pcm_update_hw_ptr_pos(struct snd_pcm_substre
 {
 	snd_pcm_uframes_t pos;
 
+	if (runtime->tstamp_mode == SNDRV_PCM_TSTAMP_ENABLE)
+		snd_pcm_gettime(runtime, (struct timespec *)&runtime->status->tstamp);
 	pos = substream->ops->pointer(substream);
 	if (pos == SNDRV_PCM_POS_XRUN)
 		return pos; /* XRUN */
-	if (runtime->tstamp_mode & SNDRV_PCM_TSTAMP_MMAP)
-		getnstimeofday((struct timespec *)&runtime->status->tstamp);
 #ifdef CONFIG_SND_DEBUG
 	if (pos >= runtime->buffer_size) {
 		snd_printk(KERN_ERR  "BUG: stream = %i, pos = 0x%lx, buffer size = 0x%lx, period size = 0x%lx\n", substream->stream, pos, runtime->buffer_size, runtime->period_size);
@@ -1139,7 +1138,7 @@ EXPORT_SYMBOL(snd_pcm_hw_constraint_step);
 
 static int snd_pcm_hw_rule_pow2(struct snd_pcm_hw_params *params, struct snd_pcm_hw_rule *rule)
 {
-	static int pow2_sizes[] = {
+	static unsigned int pow2_sizes[] = {
 		1<<0, 1<<1, 1<<2, 1<<3, 1<<4, 1<<5, 1<<6, 1<<7,
 		1<<8, 1<<9, 1<<10, 1<<11, 1<<12, 1<<13, 1<<14, 1<<15,
 		1<<16, 1<<17, 1<<18, 1<<19, 1<<20, 1<<21, 1<<22, 1<<23,
@@ -1451,108 +1450,13 @@ int snd_pcm_lib_ioctl(struct snd_pcm_substream *substream,
 
 EXPORT_SYMBOL(snd_pcm_lib_ioctl);
 
-/*
- *  Conditions
- */
-
-static void snd_pcm_system_tick_set(struct snd_pcm_substream *substream, 
-				    unsigned long ticks)
-{
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	if (ticks == 0)
-		del_timer(&runtime->tick_timer);
-	else {
-		ticks += (1000000 / HZ) - 1;
-		ticks /= (1000000 / HZ);
-		mod_timer(&runtime->tick_timer, jiffies + ticks);
-	}
-}
-
-/* Temporary alias */
-void snd_pcm_tick_set(struct snd_pcm_substream *substream, unsigned long ticks)
-{
-	snd_pcm_system_tick_set(substream, ticks);
-}
-
-void snd_pcm_tick_prepare(struct snd_pcm_substream *substream)
-{
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	snd_pcm_uframes_t frames = ULONG_MAX;
-	snd_pcm_uframes_t avail, dist;
-	unsigned int ticks;
-	u_int64_t n;
-	u_int32_t r;
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		if (runtime->silence_size >= runtime->boundary) {
-			frames = 1;
-		} else if (runtime->silence_size > 0 &&
-			   runtime->silence_filled < runtime->buffer_size) {
-			snd_pcm_sframes_t noise_dist;
-			noise_dist = snd_pcm_playback_hw_avail(runtime) + runtime->silence_filled;
-			if (noise_dist > (snd_pcm_sframes_t)runtime->silence_threshold)
-				frames = noise_dist - runtime->silence_threshold;
-		}
-		avail = snd_pcm_playback_avail(runtime);
-	} else {
-		avail = snd_pcm_capture_avail(runtime);
-	}
-	if (avail < runtime->control->avail_min) {
-		snd_pcm_sframes_t n = runtime->control->avail_min - avail;
-		if (n > 0 && frames > (snd_pcm_uframes_t)n)
-			frames = n;
-	}
-	if (avail < runtime->buffer_size) {
-		snd_pcm_sframes_t n = runtime->buffer_size - avail;
-		if (n > 0 && frames > (snd_pcm_uframes_t)n)
-			frames = n;
-	}
-	if (frames == ULONG_MAX) {
-		snd_pcm_tick_set(substream, 0);
-		return;
-	}
-	dist = runtime->status->hw_ptr - runtime->hw_ptr_base;
-	/* Distance to next interrupt */
-	dist = runtime->period_size - dist % runtime->period_size;
-	if (dist <= frames) {
-		snd_pcm_tick_set(substream, 0);
-		return;
-	}
-	/* the base time is us */
-	n = frames;
-	n *= 1000000;
-	div64_32(&n, runtime->tick_time * runtime->rate, &r);
-	ticks = n + (r > 0 ? 1 : 0);
-	if (ticks < runtime->sleep_min)
-		ticks = runtime->sleep_min;
-	snd_pcm_tick_set(substream, (unsigned long) ticks);
-}
-
-void snd_pcm_tick_elapsed(struct snd_pcm_substream *substream)
-{
-	struct snd_pcm_runtime *runtime;
-	unsigned long flags;
-	
-	snd_assert(substream != NULL, return);
-	runtime = substream->runtime;
-	snd_assert(runtime != NULL, return);
-
-	snd_pcm_stream_lock_irqsave(substream, flags);
-	if (!snd_pcm_running(substream) ||
-	    snd_pcm_update_hw_ptr(substream) < 0)
-		goto _end;
-	if (runtime->sleep_min)
-		snd_pcm_tick_prepare(substream);
- _end:
-	snd_pcm_stream_unlock_irqrestore(substream, flags);
-}
-
 /**
  * snd_pcm_period_elapsed - update the pcm status for the next period
  * @substream: the pcm substream instance
  *
  * This function is called from the interrupt handler when the
  * PCM has processed the period size.  It will update the current
- * pointer, set up the tick, wake up sleepers, etc.
+ * pointer, wake up sleepers, etc.
  *
  * Even if more than one periods have elapsed since the last call, you
  * have to call this only once.
@@ -1576,8 +1480,6 @@ void snd_pcm_period_elapsed(struct snd_pcm_substream *substream)
 
 	if (substream->timer_running)
 		snd_timer_interrupt(substream->timer, 1);
-	if (runtime->sleep_min)
-		snd_pcm_tick_prepare(substream);
  _end:
 	snd_pcm_stream_unlock_irqrestore(substream, flags);
 	if (runtime->transfer_ack_end)
@@ -1587,6 +1489,71 @@ void snd_pcm_period_elapsed(struct snd_pcm_substream *substream)
 
 EXPORT_SYMBOL(snd_pcm_period_elapsed);
 
+/*
+ * Wait until avail_min data becomes available
+ * Returns a negative error code if any error occurs during operation.
+ * The available space is stored on availp.  When err = 0 and avail = 0
+ * on the capture stream, it indicates the stream is in DRAINING state.
+ */
+static int wait_for_avail_min(struct snd_pcm_substream *substream,
+			      snd_pcm_uframes_t *availp)
+{
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	int is_playback = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
+	wait_queue_t wait;
+	int err = 0;
+	snd_pcm_uframes_t avail = 0;
+	long tout;
+
+	init_waitqueue_entry(&wait, current);
+	add_wait_queue(&runtime->sleep, &wait);
+	for (;;) {
+		if (signal_pending(current)) {
+			err = -ERESTARTSYS;
+			break;
+		}
+		set_current_state(TASK_INTERRUPTIBLE);
+		snd_pcm_stream_unlock_irq(substream);
+		tout = schedule_timeout(msecs_to_jiffies(10000));
+		snd_pcm_stream_lock_irq(substream);
+		switch (runtime->status->state) {
+		case SNDRV_PCM_STATE_SUSPENDED:
+			err = -ESTRPIPE;
+			goto _endloop;
+		case SNDRV_PCM_STATE_XRUN:
+			err = -EPIPE;
+			goto _endloop;
+		case SNDRV_PCM_STATE_DRAINING:
+			if (is_playback)
+				err = -EPIPE;
+			else 
+				avail = 0; /* indicate draining */
+			goto _endloop;
+		case SNDRV_PCM_STATE_OPEN:
+		case SNDRV_PCM_STATE_SETUP:
+		case SNDRV_PCM_STATE_DISCONNECTED:
+			err = -EBADFD;
+			goto _endloop;
+		}
+		if (!tout) {
+			snd_printd("%s write error (DMA or IRQ trouble?)\n",
+				   is_playback ? "playback" : "capture");
+			err = -EIO;
+			break;
+		}
+		if (is_playback)
+			avail = snd_pcm_playback_avail(runtime);
+		else
+			avail = snd_pcm_capture_avail(runtime);
+		if (avail >= runtime->control->avail_min)
+			break;
+	}
+ _endloop:
+	remove_wait_queue(&runtime->sleep, &wait);
+	*availp = avail;
+	return err;
+}
+	
 static int snd_pcm_lib_write_transfer(struct snd_pcm_substream *substream,
 				      unsigned int hwoff,
 				      unsigned long data, unsigned int off,
@@ -1624,8 +1591,6 @@ static snd_pcm_sframes_t snd_pcm_lib_write1(struct snd_pcm_substream *substream,
 
 	if (size == 0)
 		return 0;
-	if (size > runtime->xfer_align)
-		size -= size % runtime->xfer_align;
 
 	snd_pcm_stream_lock_irq(substream);
 	switch (runtime->status->state) {
@@ -1648,84 +1613,18 @@ static snd_pcm_sframes_t snd_pcm_lib_write1(struct snd_pcm_substream *substream,
 		snd_pcm_uframes_t frames, appl_ptr, appl_ofs;
 		snd_pcm_uframes_t avail;
 		snd_pcm_uframes_t cont;
-		if (runtime->sleep_min == 0 && runtime->status->state == SNDRV_PCM_STATE_RUNNING)
+		if (runtime->status->state == SNDRV_PCM_STATE_RUNNING)
 			snd_pcm_update_hw_ptr(substream);
 		avail = snd_pcm_playback_avail(runtime);
-		if (((avail < runtime->control->avail_min && size > avail) ||
-		   (size >= runtime->xfer_align && avail < runtime->xfer_align))) {
-			wait_queue_t wait;
-			enum { READY, SIGNALED, ERROR, SUSPENDED, EXPIRED, DROPPED } state;
-			long tout;
-
+		if (!avail) {
 			if (nonblock) {
 				err = -EAGAIN;
 				goto _end_unlock;
 			}
-
-			init_waitqueue_entry(&wait, current);
-			add_wait_queue(&runtime->sleep, &wait);
-			while (1) {
-				if (signal_pending(current)) {
-					state = SIGNALED;
-					break;
-				}
-				set_current_state(TASK_INTERRUPTIBLE);
-				snd_pcm_stream_unlock_irq(substream);
-				tout = schedule_timeout(10 * HZ);
-				snd_pcm_stream_lock_irq(substream);
-				if (tout == 0) {
-					if (runtime->status->state != SNDRV_PCM_STATE_PREPARED &&
-					    runtime->status->state != SNDRV_PCM_STATE_PAUSED) {
-						state = runtime->status->state == SNDRV_PCM_STATE_SUSPENDED ? SUSPENDED : EXPIRED;
-						break;
-					}
-				}
-				switch (runtime->status->state) {
-				case SNDRV_PCM_STATE_XRUN:
-				case SNDRV_PCM_STATE_DRAINING:
-					state = ERROR;
-					goto _end_loop;
-				case SNDRV_PCM_STATE_SUSPENDED:
-					state = SUSPENDED;
-					goto _end_loop;
-				case SNDRV_PCM_STATE_SETUP:
-					state = DROPPED;
-					goto _end_loop;
-				default:
-					break;
-				}
-				avail = snd_pcm_playback_avail(runtime);
-				if (avail >= runtime->control->avail_min) {
-					state = READY;
-					break;
-				}
-			}
-		       _end_loop:
-			remove_wait_queue(&runtime->sleep, &wait);
-
-			switch (state) {
-			case ERROR:
-				err = -EPIPE;
+			err = wait_for_avail_min(substream, &avail);
+			if (err < 0)
 				goto _end_unlock;
-			case SUSPENDED:
-				err = -ESTRPIPE;
-				goto _end_unlock;
-			case SIGNALED:
-				err = -ERESTARTSYS;
-				goto _end_unlock;
-			case EXPIRED:
-				snd_printd("playback write error (DMA or IRQ trouble?)\n");
-				err = -EIO;
-				goto _end_unlock;
-			case DROPPED:
-				err = -EBADFD;
-				goto _end_unlock;
-			default:
-				break;
-			}
 		}
-		if (avail > runtime->xfer_align)
-			avail -= avail % runtime->xfer_align;
 		frames = size > avail ? avail : size;
 		cont = runtime->buffer_size - runtime->control->appl_ptr % runtime->buffer_size;
 		if (frames > cont)
@@ -1763,9 +1662,6 @@ static snd_pcm_sframes_t snd_pcm_lib_write1(struct snd_pcm_substream *substream,
 			if (err < 0)
 				goto _end_unlock;
 		}
-		if (runtime->sleep_min &&
-		    runtime->status->state == SNDRV_PCM_STATE_RUNNING)
-			snd_pcm_tick_prepare(substream);
 	}
  _end_unlock:
 	snd_pcm_stream_unlock_irq(substream);
@@ -1893,8 +1789,6 @@ static snd_pcm_sframes_t snd_pcm_lib_read1(struct snd_pcm_substream *substream,
 
 	if (size == 0)
 		return 0;
-	if (size > runtime->xfer_align)
-		size -= size % runtime->xfer_align;
 
 	snd_pcm_stream_lock_irq(substream);
 	switch (runtime->status->state) {
@@ -1924,91 +1818,25 @@ static snd_pcm_sframes_t snd_pcm_lib_read1(struct snd_pcm_substream *substream,
 		snd_pcm_uframes_t frames, appl_ptr, appl_ofs;
 		snd_pcm_uframes_t avail;
 		snd_pcm_uframes_t cont;
-		if (runtime->sleep_min == 0 && runtime->status->state == SNDRV_PCM_STATE_RUNNING)
+		if (runtime->status->state == SNDRV_PCM_STATE_RUNNING)
 			snd_pcm_update_hw_ptr(substream);
-	      __draining:
 		avail = snd_pcm_capture_avail(runtime);
-		if (runtime->status->state == SNDRV_PCM_STATE_DRAINING) {
-			if (avail < runtime->xfer_align) {
-				err = -EPIPE;
+		if (!avail) {
+			if (runtime->status->state ==
+			    SNDRV_PCM_STATE_DRAINING) {
+				snd_pcm_stop(substream, SNDRV_PCM_STATE_SETUP);
 				goto _end_unlock;
 			}
-		} else if ((avail < runtime->control->avail_min && size > avail) ||
-			   (size >= runtime->xfer_align && avail < runtime->xfer_align)) {
-			wait_queue_t wait;
-			enum { READY, SIGNALED, ERROR, SUSPENDED, EXPIRED, DROPPED } state;
-			long tout;
-
 			if (nonblock) {
 				err = -EAGAIN;
 				goto _end_unlock;
 			}
-
-			init_waitqueue_entry(&wait, current);
-			add_wait_queue(&runtime->sleep, &wait);
-			while (1) {
-				if (signal_pending(current)) {
-					state = SIGNALED;
-					break;
-				}
-				set_current_state(TASK_INTERRUPTIBLE);
-				snd_pcm_stream_unlock_irq(substream);
-				tout = schedule_timeout(10 * HZ);
-				snd_pcm_stream_lock_irq(substream);
-				if (tout == 0) {
-					if (runtime->status->state != SNDRV_PCM_STATE_PREPARED &&
-					    runtime->status->state != SNDRV_PCM_STATE_PAUSED) {
-						state = runtime->status->state == SNDRV_PCM_STATE_SUSPENDED ? SUSPENDED : EXPIRED;
-						break;
-					}
-				}
-				switch (runtime->status->state) {
-				case SNDRV_PCM_STATE_XRUN:
-					state = ERROR;
-					goto _end_loop;
-				case SNDRV_PCM_STATE_SUSPENDED:
-					state = SUSPENDED;
-					goto _end_loop;
-				case SNDRV_PCM_STATE_DRAINING:
-					goto __draining;
-				case SNDRV_PCM_STATE_SETUP:
-					state = DROPPED;
-					goto _end_loop;
-				default:
-					break;
-				}
-				avail = snd_pcm_capture_avail(runtime);
-				if (avail >= runtime->control->avail_min) {
-					state = READY;
-					break;
-				}
-			}
-		       _end_loop:
-			remove_wait_queue(&runtime->sleep, &wait);
-
-			switch (state) {
-			case ERROR:
-				err = -EPIPE;
+			err = wait_for_avail_min(substream, &avail);
+			if (err < 0)
 				goto _end_unlock;
-			case SUSPENDED:
-				err = -ESTRPIPE;
-				goto _end_unlock;
-			case SIGNALED:
-				err = -ERESTARTSYS;
-				goto _end_unlock;
-			case EXPIRED:
-				snd_printd("capture read error (DMA or IRQ trouble?)\n");
-				err = -EIO;
-				goto _end_unlock;
-			case DROPPED:
-				err = -EBADFD;
-				goto _end_unlock;
-			default:
-				break;
-			}
+			if (!avail)
+				continue; /* draining */
 		}
-		if (avail > runtime->xfer_align)
-			avail -= avail % runtime->xfer_align;
 		frames = size > avail ? avail : size;
 		cont = runtime->buffer_size - runtime->control->appl_ptr % runtime->buffer_size;
 		if (frames > cont)
@@ -2040,9 +1868,6 @@ static snd_pcm_sframes_t snd_pcm_lib_read1(struct snd_pcm_substream *substream,
 		offset += frames;
 		size -= frames;
 		xfer += frames;
-		if (runtime->sleep_min &&
-		    runtime->status->state == SNDRV_PCM_STATE_RUNNING)
-			snd_pcm_tick_prepare(substream);
 	}
  _end_unlock:
 	snd_pcm_stream_unlock_irq(substream);

@@ -19,7 +19,6 @@
  */
 
 #include <linux/mutex.h>
-#include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <sound/core.h>

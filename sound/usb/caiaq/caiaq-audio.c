@@ -16,7 +16,6 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 */
 
-#include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -27,9 +26,7 @@
 #include <sound/initval.h>
 #include <sound/pcm.h>
 #include <sound/rawmidi.h>
-#ifdef CONFIG_SND_USB_CAIAQ_INPUT
 #include <linux/input.h>
-#endif
 
 #include "caiaq-device.h"
 #include "caiaq-audio.h"
@@ -60,7 +57,7 @@ static struct snd_pcm_hardware snd_usb_caiaq_pcm_hardware = {
 	.channels_min	= CHANNELS_PER_STREAM,
 	.channels_max	= CHANNELS_PER_STREAM,
 	.buffer_bytes_max = MAX_BUFFER_SIZE,
-	.period_bytes_min = 4096,
+	.period_bytes_min = 128,
 	.period_bytes_max = MAX_BUFFER_SIZE,
 	.periods_min	= 1,
 	.periods_max	= 1024,
@@ -606,7 +603,7 @@ static void free_urbs(struct urb **urbs)
 	kfree(urbs);
 }
 
-int __devinit snd_usb_caiaq_audio_init(struct snd_usb_caiaqdev *dev)
+int snd_usb_caiaq_audio_init(struct snd_usb_caiaqdev *dev)
 {
 	int i, ret;
 

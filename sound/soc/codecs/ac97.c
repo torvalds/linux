@@ -19,7 +19,6 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
-#include <sound/driver.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/ac97_codec.h>

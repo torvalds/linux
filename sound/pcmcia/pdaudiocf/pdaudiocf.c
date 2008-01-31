@@ -18,7 +18,6 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-#include <sound/driver.h>
 #include <sound/core.h>
 #include <linux/slab.h>
 #include <linux/moduleparam.h>
@@ -128,6 +127,8 @@ static int snd_pdacf_probe(struct pcmcia_device *link)
 		snd_card_free(card);
 		return -ENODEV;
 	}
+
+	snd_card_set_dev(card, &handle_to_dev(link));
 
 	pdacf->index = i;
 	card_list[i] = card;

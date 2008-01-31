@@ -21,7 +21,6 @@
  *
  */
 
-#include <sound/driver.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
@@ -145,7 +144,7 @@ static unsigned short snd_cs5535audio_ac97_codec_read(struct snd_ac97 *ac97,
 	return snd_cs5535audio_codec_read(cs5535au, reg);
 }
 
-static int snd_cs5535audio_mixer(struct cs5535audio *cs5535au)
+static int __devinit snd_cs5535audio_mixer(struct cs5535audio *cs5535au)
 {
 	struct snd_card *card = cs5535au->card;
 	struct snd_ac97_bus *pbus;

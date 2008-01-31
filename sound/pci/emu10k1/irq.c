@@ -25,7 +25,6 @@
  *
  */
 
-#include <sound/driver.h>
 #include <linux/time.h>
 #include <sound/core.h>
 #include <sound/emu10k1.h>
@@ -35,9 +34,10 @@ irqreturn_t snd_emu10k1_interrupt(int irq, void *dev_id)
 	struct snd_emu10k1 *emu = dev_id;
 	unsigned int status, status2, orig_status, orig_status2;
 	int handled = 0;
+	int timeout = 0;
 
-	while ((status = inl(emu->port + IPR)) != 0) {
-		//snd_printk(KERN_INFO "emu10k1 irq - status = 0x%x\n", status);
+	while (((status = inl(emu->port + IPR)) != 0) && (timeout < 1000)) {
+		timeout++;
 		orig_status = status;
 		handled = 1;
 		if ((status & 0xffffffff) == 0xffffffff) {
@@ -201,5 +201,8 @@ irqreturn_t snd_emu10k1_interrupt(int irq, void *dev_id)
 		}
 		outl(orig_status, emu->port + IPR); /* ack all */
 	}
+	if (timeout == 1000)
+		snd_printk(KERN_INFO "emu10k1 irq routine failure\n");
+
 	return IRQ_RETVAL(handled);
 }

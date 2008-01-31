@@ -27,7 +27,6 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 
-#include <sound/driver.h>
 #include <sound/core.h>
 #include <sound/ac97_codec.h>
 

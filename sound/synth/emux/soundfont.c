@@ -25,7 +25,6 @@
  * of doing things so that the old sfxload utility can be used.
  * Everything may change when there is an alsa way of doing things.
  */
-#include <sound/driver.h>
 #include <asm/uaccess.h>
 #include <linux/slab.h>
 #include <sound/core.h>

@@ -26,26 +26,28 @@
 #include <linux/usb.h>
 #include <linux/input.h>
 #include <linux/spinlock.h>
-#include <sound/driver.h>
 #include <sound/core.h>
 #include <sound/initval.h>
 #include <sound/pcm.h>
 #include <sound/rawmidi.h>
+#include <sound/control.h>
 
 #include "caiaq-device.h"
 #include "caiaq-audio.h"
 #include "caiaq-midi.h"
+#include "caiaq-control.h"
 
 #ifdef CONFIG_SND_USB_CAIAQ_INPUT
 #include "caiaq-input.h"
 #endif
 
 MODULE_AUTHOR("Daniel Mack <daniel@caiaq.de>");
-MODULE_DESCRIPTION("caiaq USB audio, version 1.2.0");
+MODULE_DESCRIPTION("caiaq USB audio, version 1.3.2");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{Native Instruments, RigKontrol2},"
 			 "{Native Instruments, RigKontrol3},"
 			 "{Native Instruments, Kore Controller},"
+			 "{Native Instruments, Kore Controller 2},"
 			 "{Native Instruments, Audio Kontrol 1}"
 			 "{Native Instruments, Audio 8 DJ}}");
 
@@ -94,6 +96,11 @@ static struct usb_device_id snd_usb_id_table[] = {
 		.idProduct =	USB_PID_KORECONTROLLER
 	},
 	{
+		.match_flags =	USB_DEVICE_ID_MATCH_DEVICE,
+		.idVendor =	USB_VID_NATIVEINSTRUMENTS,
+		.idProduct =	USB_PID_KORECONTROLLER2
+	},
+	{
 		.match_flags =  USB_DEVICE_ID_MATCH_DEVICE,
 		.idVendor =     USB_VID_NATIVEINSTRUMENTS,
 		.idProduct =    USB_PID_AK1
@@ -140,14 +147,21 @@ static void usb_ep1_command_reply_dispatch (struct urb* urb)
 	case EP1_CMD_MIDI_READ:
 		snd_usb_caiaq_midi_handle_input(dev, buf[1], buf + 3, buf[2]);
 		break;
-
+	case EP1_CMD_READ_IO:
+		if (dev->chip.usb_id ==
+			USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_AUDIO8DJ)) {
+			if (urb->actual_length > sizeof(dev->control_state))
+				urb->actual_length = sizeof(dev->control_state);
+			memcpy(dev->control_state, buf + 1, urb->actual_length);
+			wake_up(&dev->ep1_wait_queue);
+			break;
+		}
 #ifdef CONFIG_SND_USB_CAIAQ_INPUT
 	case EP1_CMD_READ_ERP:
 	case EP1_CMD_READ_ANALOG:
-	case EP1_CMD_READ_IO:
 		snd_usb_caiaq_input_dispatch(dev, buf, urb->actual_length);
-		break;
 #endif
+		break;
 	}
 
 	dev->ep1_in_urb.actual_length = 0;
@@ -156,10 +170,10 @@ static void usb_ep1_command_reply_dispatch (struct urb* urb)
 		log("unable to submit urb. OOM!?\n");
 }
 
-static int send_command (struct snd_usb_caiaqdev *dev,
-			 unsigned char command, 
-			 const unsigned char *buffer,
-			 int len)
+int snd_usb_caiaq_send_command(struct snd_usb_caiaqdev *dev,
+			       unsigned char command,
+			       const unsigned char *buffer,
+			       int len)
 {
 	int actual_len;
 	struct usb_device *usb_dev = dev->chip.dev;
@@ -207,7 +221,8 @@ int snd_usb_caiaq_set_audio_params (struct snd_usb_caiaqdev *dev,
 		rate, depth, bpp);
 
 	dev->audio_parm_answer = -1;
-	ret = send_command(dev, EP1_CMD_AUDIO_PARAMS, tmp, sizeof(tmp));
+	ret = snd_usb_caiaq_send_command(dev, EP1_CMD_AUDIO_PARAMS,
+					 tmp, sizeof(tmp));
 
 	if (ret)
 		return ret;
@@ -226,7 +241,8 @@ int snd_usb_caiaq_set_auto_msg (struct snd_usb_caiaqdev *dev,
 				int digital, int analog, int erp)
 {
 	char tmp[3] = { digital, analog, erp };
-	return send_command(dev, EP1_CMD_AUTO_MSG, tmp, sizeof(tmp));
+	return snd_usb_caiaq_send_command(dev, EP1_CMD_AUTO_MSG,
+					  tmp, sizeof(tmp));
 }
 
 static void setup_card(struct snd_usb_caiaqdev *dev)
@@ -241,7 +257,7 @@ static void setup_card(struct snd_usb_caiaqdev *dev)
 		val[0] = 0x00;
 		val[1] = 0x00;
 		val[2] = 0x01;
-		send_command(dev, EP1_CMD_WRITE_IO, val, 3);
+		snd_usb_caiaq_send_command(dev, EP1_CMD_WRITE_IO, val, 3);
 		break;
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_RIGKONTROL3):
 		/* RigKontrol2 - display two centered dashes ('--') */
@@ -249,22 +265,52 @@ static void setup_card(struct snd_usb_caiaqdev *dev)
 		val[1] = 0x40;
 		val[2] = 0x40;
 		val[3] = 0x00;
-		send_command(dev, EP1_CMD_WRITE_IO, val, 4);
+		snd_usb_caiaq_send_command(dev, EP1_CMD_WRITE_IO, val, 4);
 		break;
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_AK1):
 		/* Audio Kontrol 1 - make USB-LED stop blinking */
 		val[0] = 0x00;
-		send_command(dev, EP1_CMD_WRITE_IO, val, 1);
+		snd_usb_caiaq_send_command(dev, EP1_CMD_WRITE_IO, val, 1);
+		break;
+	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_AUDIO8DJ):
+		/* Audio 8 DJ - trigger read of current settings */
+		dev->control_state[0] = 0xff;
+		snd_usb_caiaq_set_auto_msg(dev, 1, 0, 0);
+		snd_usb_caiaq_send_command(dev, EP1_CMD_READ_IO, NULL, 0);
+
+		if (!wait_event_timeout(dev->ep1_wait_queue,
+					dev->control_state[0] != 0xff, HZ))
+			return;
+
+		/* fix up some defaults */
+		if ((dev->control_state[1] != 2) ||
+		    (dev->control_state[2] != 3) ||
+		    (dev->control_state[4] != 2)) {
+			dev->control_state[1] = 2;
+			dev->control_state[2] = 3;
+			dev->control_state[4] = 2;
+			snd_usb_caiaq_send_command(dev,
+				EP1_CMD_WRITE_IO, dev->control_state, 6);
+		}
+
 		break;
 	}
 	
-	ret = snd_usb_caiaq_audio_init(dev);
-	if (ret < 0)
-		log("Unable to set up audio system (ret=%d)\n", ret);
+	if (dev->spec.num_analog_audio_out +
+	    dev->spec.num_analog_audio_in +
+	    dev->spec.num_digital_audio_out +
+	    dev->spec.num_digital_audio_in > 0) {
+		ret = snd_usb_caiaq_audio_init(dev);
+		if (ret < 0)
+			log("Unable to set up audio system (ret=%d)\n", ret);
+	}
 	
-	ret = snd_usb_caiaq_midi_init(dev);
-	if (ret < 0)
-		log("Unable to set up MIDI system (ret=%d)\n", ret);
+	if (dev->spec.num_midi_in +
+	    dev->spec.num_midi_out > 0) {
+		ret = snd_usb_caiaq_midi_init(dev);
+		if (ret < 0)
+			log("Unable to set up MIDI system (ret=%d)\n", ret);
+	}
 
 #ifdef CONFIG_SND_USB_CAIAQ_INPUT
 	ret = snd_usb_caiaq_input_init(dev);
@@ -278,6 +324,10 @@ static void setup_card(struct snd_usb_caiaqdev *dev)
 		log("snd_card_register() returned %d\n", ret);
 		snd_card_free(dev->chip.card);
 	}
+
+	ret = snd_usb_caiaq_control_init(dev);
+	if (ret < 0)
+		log("Unable to set up control system (ret=%d)\n", ret);
 }
 
 static struct snd_card* create_card(struct usb_device* usb_dev)
@@ -340,7 +390,7 @@ static int init_card(struct snd_usb_caiaqdev *dev)
 	if (usb_submit_urb(&dev->ep1_in_urb, GFP_KERNEL) != 0)
 		return -EIO;
 
-	err = send_command(dev, EP1_CMD_GET_DEVICE_INFO, NULL, 0);
+	err = snd_usb_caiaq_send_command(dev, EP1_CMD_GET_DEVICE_INFO, NULL, 0);
 	if (err)
 		return err;
 

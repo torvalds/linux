@@ -21,7 +21,6 @@
  *
  */      
 
-#include <sound/driver.h>
 #include <asm/io.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -32,6 +31,12 @@
 #include "ice1712.h"
 #include "envy24ht.h"
 #include "revo.h"
+
+/* a non-standard I2C device for revo51 */
+struct revo51_spec {
+	struct snd_i2c_device *dev;
+	struct snd_pt2258 *pt2258;
+} revo51;
 
 static void revo_i2s_mclk_changed(struct snd_ice1712 *ice)
 {
@@ -153,7 +158,13 @@ static struct snd_i2c_bit_ops revo51_bit_ops = {
 static int revo51_i2c_init(struct snd_ice1712 *ice,
 			   struct snd_pt2258 *pt)
 {
+	struct revo51_spec *spec;
 	int err;
+
+	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	if (!spec)
+		return -ENOMEM;
+	ice->spec = spec;
 
 	/* create the I2C bus */
 	err = snd_i2c_bus_create(ice->card, "ICE1724 GPIO6", NULL, &ice->i2c);
@@ -164,15 +175,14 @@ static int revo51_i2c_init(struct snd_ice1712 *ice,
 	ice->i2c->hw_ops.bit = &revo51_bit_ops;
 
 	/* create the I2C device */
-	err = snd_i2c_device_create(ice->i2c, "PT2258", 0x40,
-				    &ice->spec.revo51.dev);
+	err = snd_i2c_device_create(ice->i2c, "PT2258", 0x40, &spec->dev);
 	if (err < 0)
 		return err;
 
 	pt->card = ice->card;
 	pt->i2c_bus = ice->i2c;
-	pt->i2c_dev = ice->spec.revo51.dev;
-	ice->spec.revo51.pt2258 = pt;
+	pt->i2c_dev = spec->dev;
+	spec->pt2258 = pt;
 
 	snd_pt2258_reset(pt);
 
@@ -556,6 +566,7 @@ static int __devinit revo_init(struct snd_ice1712 *ice)
 
 static int __devinit revo_add_controls(struct snd_ice1712 *ice)
 {
+	struct revo51_spec *spec;
 	int err;
 
 	switch (ice->eeprom.subvendor) {
@@ -568,7 +579,8 @@ static int __devinit revo_add_controls(struct snd_ice1712 *ice)
 		err = snd_ice1712_akm4xxx_build_controls(ice);
 		if (err < 0)
 			return err;
-		err = snd_pt2258_build_controls(ice->spec.revo51.pt2258);
+		spec = ice->spec;
+		err = snd_pt2258_build_controls(spec->pt2258);
 		if (err < 0)
 			return err;
 		break;

@@ -36,7 +36,6 @@
 #include <linux/interrupt.h>
 #include <linux/moduleparam.h>
 
-#include <sound/driver.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/info.h>
@@ -859,7 +858,7 @@ static int snd_amd7930_put_volume(struct snd_kcontrol *kctl, struct snd_ctl_elem
 	spin_lock_irqsave(&amd->lock, flags);
 
 	if (*swval != ucontrol->value.integer.value[0]) {
-		*swval = ucontrol->value.integer.value[0];
+		*swval = ucontrol->value.integer.value[0] & 0xff;
 		__amd7930_update_map(amd);
 		change = 1;
 	} else

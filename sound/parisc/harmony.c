@@ -45,7 +45,6 @@
 #include <linux/spinlock.h>
 #include <linux/dma-mapping.h>
 
-#include <sound/driver.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/control.h>

@@ -35,7 +35,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sound/driver.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/bitops.h>

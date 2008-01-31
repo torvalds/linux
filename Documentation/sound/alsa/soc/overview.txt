@@ -1,25 +1,26 @@
 ALSA SoC Layer
 ==============
 
-The overall project goal of the ALSA System on Chip (ASoC) layer is to provide
-better ALSA support for embedded system-on-chip processors (e.g. pxa2xx, au1x00,
-iMX, etc) and portable audio codecs. Currently there is some support in the
-kernel for SoC audio, however it has some limitations:-
+The overall project goal of the ALSA System on Chip (ASoC) layer is to
+provide better ALSA support for embedded system-on-chip processors (e.g.
+pxa2xx, au1x00, iMX, etc) and portable audio codecs.  Prior to the ASoC
+subsystem there was some support in the kernel for SoC audio, however it
+had some limitations:-
 
-  * Currently, codec drivers are often tightly coupled to the underlying SoC
-    CPU. This is not ideal and leads to code duplication i.e. Linux now has 4
-    different wm8731 drivers for 4 different SoC platforms.
+  * Codec drivers were often tightly coupled to the underlying SoC
+    CPU. This is not ideal and leads to code duplication - for example,
+    Linux had different wm8731 drivers for 4 different SoC platforms.
 
-  * There is no standard method to signal user initiated audio events (e.g.
+  * There was no standard method to signal user initiated audio events (e.g.
     Headphone/Mic insertion, Headphone/Mic detection after an insertion
     event). These are quite common events on portable devices and often require
     machine specific code to re-route audio, enable amps, etc., after such an
     event.
 
-  * Current drivers tend to power up the entire codec when playing
-    (or recording) audio. This is fine for a PC, but tends to waste a lot of
-    power on portable devices. There is also no support for saving power via
-    changing codec oversampling rates, bias currents, etc.
+  * Drivers tended to power up the entire codec when playing (or
+    recording) audio. This is fine for a PC, but tends to waste a lot of
+    power on portable devices. There was also no support for saving
+    power via changing codec oversampling rates, bias currents, etc.
 
 
 ASoC Design
@@ -31,12 +32,13 @@ features :-
   * Codec independence. Allows reuse of codec drivers on other platforms
     and machines.
 
-  * Easy I2S/PCM audio interface setup between codec and SoC. Each SoC interface
-    and codec registers it's audio interface capabilities with the core and are
-    subsequently matched and configured when the application hw params are known.
+  * Easy I2S/PCM audio interface setup between codec and SoC. Each SoC
+    interface and codec registers it's audio interface capabilities with the
+    core and are subsequently matched and configured when the application
+    hardware parameters are known.
 
   * Dynamic Audio Power Management (DAPM). DAPM automatically sets the codec to
-    it's minimum power state at all times. This includes powering up/down
+    its minimum power state at all times. This includes powering up/down
     internal power blocks depending on the internal codec audio routing and any
     active streams.
 
@@ -45,16 +47,16 @@ features :-
     signals the codec when to change power states.
 
   * Machine specific controls: Allow machines to add controls to the sound card
-    (e.g. volume control for speaker amp).
+    (e.g. volume control for speaker amplifier).
 
 To achieve all this, ASoC basically splits an embedded audio system into 3
 components :-
 
   * Codec driver: The codec driver is platform independent and contains audio
-    controls, audio interface capabilities, codec dapm definition and codec IO
+    controls, audio interface capabilities, codec DAPM definition and codec IO
     functions.
 
-  * Platform driver: The platform driver contains the audio dma engine and audio
+  * Platform driver: The platform driver contains the audio DMA engine and audio
     interface drivers (e.g. I2S, AC97, PCM) for that platform.
 
   * Machine driver: The machine driver handles any machine specific controls and

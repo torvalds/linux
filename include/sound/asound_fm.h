@@ -104,6 +104,8 @@ struct snd_dm_fm_params {
 #define SNDRV_DM_FM_IOCTL_SET_MODE	_IOW('H', 0x25, int)
 /* for OPL3 only */
 #define SNDRV_DM_FM_IOCTL_SET_CONNECTION	_IOW('H', 0x26, int)
+/* SBI patch management */
+#define SNDRV_DM_FM_IOCTL_CLEAR_PATCHES	_IO ('H', 0x40)
 
 #define SNDRV_DM_FM_OSS_IOCTL_RESET		0x20
 #define SNDRV_DM_FM_OSS_IOCTL_PLAY_NOTE		0x21
@@ -111,5 +113,22 @@ struct snd_dm_fm_params {
 #define SNDRV_DM_FM_OSS_IOCTL_SET_PARAMS	0x23
 #define SNDRV_DM_FM_OSS_IOCTL_SET_MODE		0x24
 #define SNDRV_DM_FM_OSS_IOCTL_SET_OPL		0x25
+
+/*
+ * Patch Record - fixed size for write
+ */
+
+#define FM_KEY_SBI	"SBI\032"
+#define FM_KEY_2OP	"2OP\032"
+#define FM_KEY_4OP	"4OP\032"
+
+struct sbi_patch {
+	unsigned char prog;
+	unsigned char bank;
+	char key[4];
+	char name[25];
+	char extension[7];
+	unsigned char data[32];
+};
 
 #endif /* __SOUND_ASOUND_FM_H */

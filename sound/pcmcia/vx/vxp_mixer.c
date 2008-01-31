@@ -20,7 +20,6 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-#include <sound/driver.h>
 #include <sound/core.h>
 #include <sound/control.h>
 #include <sound/tlv.h>
@@ -53,6 +52,10 @@ static int vx_mic_level_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_v
 {
 	struct vx_core *_chip = snd_kcontrol_chip(kcontrol);
 	struct snd_vxpocket *chip = (struct snd_vxpocket *)_chip;
+	unsigned int val = ucontrol->value.integer.value[0];
+
+	if (val > MIC_LEVEL_MAX)
+		return -EINVAL;
 	mutex_lock(&_chip->mixer_mutex);
 	if (chip->mic_level != ucontrol->value.integer.value[0]) {
 		vx_set_mic_level(_chip, ucontrol->value.integer.value[0]);
@@ -94,10 +97,11 @@ static int vx_mic_boost_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_v
 {
 	struct vx_core *_chip = snd_kcontrol_chip(kcontrol);
 	struct snd_vxpocket *chip = (struct snd_vxpocket *)_chip;
+	int val = !!ucontrol->value.integer.value[0];
 	mutex_lock(&_chip->mixer_mutex);
-	if (chip->mic_level != ucontrol->value.integer.value[0]) {
-		vx_set_mic_boost(_chip, ucontrol->value.integer.value[0]);
-		chip->mic_level = ucontrol->value.integer.value[0];
+	if (chip->mic_level != val) {
+		vx_set_mic_boost(_chip, val);
+		chip->mic_level = val;
 		mutex_unlock(&_chip->mixer_mutex);
 		return 1;
 	}

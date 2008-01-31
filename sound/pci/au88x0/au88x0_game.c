@@ -30,7 +30,6 @@
  * driver. (email: mjander@embedded.cl).
  */
 
-#include <sound/driver.h>
 #include <linux/time.h>
 #include <linux/delay.h>
 #include <linux/init.h>

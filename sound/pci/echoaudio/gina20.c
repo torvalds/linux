@@ -40,7 +40,6 @@
 #define BX_NUM		14
 
 
-#include <sound/driver.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>

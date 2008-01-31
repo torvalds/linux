@@ -24,7 +24,6 @@
  */
 
 
-#include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
@@ -275,14 +274,20 @@ static int tumbler_put_master_volume(struct snd_kcontrol *kcontrol,
 {
 	struct snd_pmac *chip = snd_kcontrol_chip(kcontrol);
 	struct pmac_tumbler *mix = chip->mixer_data;
+	unsigned int vol[2];
 	int change;
 
 	snd_assert(mix, return -ENODEV);
-	change = mix->master_vol[0] != ucontrol->value.integer.value[0] ||
-		mix->master_vol[1] != ucontrol->value.integer.value[1];
+	vol[0] = ucontrol->value.integer.value[0];
+	vol[1] = ucontrol->value.integer.value[1];
+	if (vol[0] >= ARRAY_SIZE(master_volume_table) ||
+	    vol[1] >= ARRAY_SIZE(master_volume_table))
+		return -EINVAL;
+	change = mix->master_vol[0] != vol[0] ||
+		mix->master_vol[1] != vol[1];
 	if (change) {
-		mix->master_vol[0] = ucontrol->value.integer.value[0];
-		mix->master_vol[1] = ucontrol->value.integer.value[1];
+		mix->master_vol[0] = vol[0];
+		mix->master_vol[1] = vol[1];
 		tumbler_set_master_volume(mix);
 	}
 	return change;
@@ -417,13 +422,22 @@ static int tumbler_put_drc_value(struct snd_kcontrol *kcontrol,
 {
 	struct snd_pmac *chip = snd_kcontrol_chip(kcontrol);
 	struct pmac_tumbler *mix;
+	unsigned int val;
 	int change;
 
 	if (! (mix = chip->mixer_data))
 		return -ENODEV;
-	change = mix->drc_range != ucontrol->value.integer.value[0];
+	val = ucontrol->value.integer.value[0];
+	if (chip->model == PMAC_TUMBLER) {
+		if (val > TAS3001_DRC_MAX)
+			return -EINVAL;
+	} else {
+		if (val > TAS3004_DRC_MAX)
+			return -EINVAL;
+	}
+	change = mix->drc_range != val;
 	if (change) {
-		mix->drc_range = ucontrol->value.integer.value[0];
+		mix->drc_range = val;
 		if (chip->model == PMAC_TUMBLER)
 			tumbler_set_drc(mix);
 		else
@@ -530,13 +544,17 @@ static int tumbler_put_mono(struct snd_kcontrol *kcontrol,
 	struct tumbler_mono_vol *info = (struct tumbler_mono_vol *)kcontrol->private_value;
 	struct snd_pmac *chip = snd_kcontrol_chip(kcontrol);
 	struct pmac_tumbler *mix;
+	unsigned int vol;
 	int change;
 
 	if (! (mix = chip->mixer_data))
 		return -ENODEV;
-	change = mix->mono_vol[info->index] != ucontrol->value.integer.value[0];
+	vol = ucontrol->value.integer.value[0];
+	if (vol >= info->max)
+		return -EINVAL;
+	change = mix->mono_vol[info->index] != vol;
 	if (change) {
-		mix->mono_vol[info->index] = ucontrol->value.integer.value[0];
+		mix->mono_vol[info->index] = vol;
 		tumbler_set_mono_volume(mix, info);
 	}
 	return change;
@@ -672,15 +690,21 @@ static int snapper_put_mix(struct snd_kcontrol *kcontrol,
 	int idx = (int)kcontrol->private_value;
 	struct snd_pmac *chip = snd_kcontrol_chip(kcontrol);
 	struct pmac_tumbler *mix;
+	unsigned int vol[2];
 	int change;
 
 	if (! (mix = chip->mixer_data))
 		return -ENODEV;
-	change = mix->mix_vol[idx][0] != ucontrol->value.integer.value[0] ||
-		mix->mix_vol[idx][1] != ucontrol->value.integer.value[1];
+	vol[0] = ucontrol->value.integer.value[0];
+	vol[1] = ucontrol->value.integer.value[1];
+	if (vol[0] >= ARRAY_SIZE(mixer_volume_table) ||
+	    vol[1] >= ARRAY_SIZE(mixer_volume_table))
+		return -EINVAL;
+	change = mix->mix_vol[idx][0] != vol[0] ||
+		mix->mix_vol[idx][1] != vol[1];
 	if (change) {
-		mix->mix_vol[idx][0] = ucontrol->value.integer.value[0];
-		mix->mix_vol[idx][1] = ucontrol->value.integer.value[1];
+		mix->mix_vol[idx][0] = vol[0];
+		mix->mix_vol[idx][1] = vol[1];
 		snapper_set_mix_vol(mix, idx);
 	}
 	return change;
@@ -784,7 +808,7 @@ static int snapper_get_capture_source(struct snd_kcontrol *kcontrol,
 	struct pmac_tumbler *mix = chip->mixer_data;
 
 	snd_assert(mix, return -ENODEV);
-	ucontrol->value.integer.value[0] = mix->capture_source;
+	ucontrol->value.enumerated.item[0] = mix->capture_source;
 	return 0;
 }
 
@@ -796,9 +820,9 @@ static int snapper_put_capture_source(struct snd_kcontrol *kcontrol,
 	int change;
 
 	snd_assert(mix, return -ENODEV);
-	change = ucontrol->value.integer.value[0] != mix->capture_source;
+	change = ucontrol->value.enumerated.item[0] != mix->capture_source;
 	if (change) {
-		mix->capture_source = !!ucontrol->value.integer.value[0];
+		mix->capture_source = !!ucontrol->value.enumerated.item[0];
 		snapper_set_capture_source(mix);
 	}
 	return change;

@@ -20,7 +20,6 @@
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 */
 
-#include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/wait.h>
 #include <linux/time.h>
@@ -63,20 +62,6 @@ module_param_array(id, charp, NULL, 0444);
 MODULE_PARM_DESC(id, "ID string for als100 based soundcard.");
 module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable als100 based soundcard.");
-module_param_array(port, long, NULL, 0444);
-MODULE_PARM_DESC(port, "Port # for als100 driver.");
-module_param_array(mpu_port, long, NULL, 0444);
-MODULE_PARM_DESC(mpu_port, "MPU-401 port # for als100 driver.");
-module_param_array(fm_port, long, NULL, 0444);
-MODULE_PARM_DESC(fm_port, "FM port # for als100 driver.");
-module_param_array(irq, int, NULL, 0444);
-MODULE_PARM_DESC(irq, "IRQ # for als100 driver.");
-module_param_array(mpu_irq, int, NULL, 0444);
-MODULE_PARM_DESC(mpu_irq, "MPU-401 IRQ # for als100 driver.");
-module_param_array(dma8, int, NULL, 0444);
-MODULE_PARM_DESC(dma8, "8-bit DMA # for als100 driver.");
-module_param_array(dma16, int, NULL, 0444);
-MODULE_PARM_DESC(dma16, "16-bit DMA # for als100 driver.");
 
 struct snd_card_als100 {
 	int dev_no;
@@ -111,38 +96,20 @@ static int __devinit snd_card_als100_pnp(int dev, struct snd_card_als100 *acard,
 					 const struct pnp_card_device_id *id)
 {
 	struct pnp_dev *pdev;
-	struct pnp_resource_table *cfg = kmalloc(sizeof(*cfg), GFP_KERNEL);
 	int err;
 
-	if (!cfg)
-		return -ENOMEM;
 	acard->dev = pnp_request_card_device(card, id->devs[0].id, NULL);
-	if (acard->dev == NULL) {
-		kfree(cfg);
+	if (acard->dev == NULL)
 		return -ENODEV;
-	}
+
 	acard->devmpu = pnp_request_card_device(card, id->devs[1].id, acard->dev);
 	acard->devopl = pnp_request_card_device(card, id->devs[2].id, acard->dev);
 
 	pdev = acard->dev;
 
-	pnp_init_resource_table(cfg);
-
-	/* override resources */
-	if (port[dev] != SNDRV_AUTO_PORT)
-		pnp_resource_change(&cfg->port_resource[0], port[dev], 16);
-	if (dma8[dev] != SNDRV_AUTO_DMA)
-		pnp_resource_change(&cfg->dma_resource[0], dma8[dev], 1);
-	if (dma16[dev] != SNDRV_AUTO_DMA)
-		pnp_resource_change(&cfg->dma_resource[1], dma16[dev], 1);
-	if (irq[dev] != SNDRV_AUTO_IRQ)
-		pnp_resource_change(&cfg->irq_resource[0], irq[dev], 1);
-	if (pnp_manual_config_dev(pdev, cfg, 0) < 0)
-		snd_printk(KERN_ERR PFX "AUDIO the requested resources are invalid, using auto config\n");
 	err = pnp_activate_dev(pdev);
 	if (err < 0) {
 		snd_printk(KERN_ERR PFX "AUDIO pnp configure failure\n");
-		kfree(cfg);
 		return err;
 	}
 	port[dev] = pnp_port_start(pdev, 0);
@@ -152,13 +119,6 @@ static int __devinit snd_card_als100_pnp(int dev, struct snd_card_als100 *acard,
 
 	pdev = acard->devmpu;
 	if (pdev != NULL) {
-		pnp_init_resource_table(cfg);
-		if (mpu_port[dev] != SNDRV_AUTO_PORT)
-			pnp_resource_change(&cfg->port_resource[0], mpu_port[dev], 2);
-		if (mpu_irq[dev] != SNDRV_AUTO_IRQ)
-			pnp_resource_change(&cfg->irq_resource[0], mpu_irq[dev], 1);
-		if ((pnp_manual_config_dev(pdev, cfg, 0)) < 0)
-			snd_printk(KERN_ERR PFX "MPU401 the requested resources are invalid, using auto config\n");
 		err = pnp_activate_dev(pdev);
 		if (err < 0)
 			goto __mpu_error;
@@ -176,11 +136,6 @@ static int __devinit snd_card_als100_pnp(int dev, struct snd_card_als100 *acard,
 
 	pdev = acard->devopl;
 	if (pdev != NULL) {
-		pnp_init_resource_table(cfg);
-		if (fm_port[dev] != SNDRV_AUTO_PORT)
-			pnp_resource_change(&cfg->port_resource[0], fm_port[dev], 4);
-		if ((pnp_manual_config_dev(pdev, cfg, 0)) < 0)
-			snd_printk(KERN_ERR PFX "OPL3 the requested resources are invalid, using auto config\n");
 		err = pnp_activate_dev(pdev);
 		if (err < 0)
 			goto __fm_error;
@@ -195,7 +150,6 @@ static int __devinit snd_card_als100_pnp(int dev, struct snd_card_als100 *acard,
 	     	fm_port[dev] = -1;
 	}
 
-	kfree(cfg);
 	return 0;
 }
 

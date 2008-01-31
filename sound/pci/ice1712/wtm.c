@@ -25,7 +25,6 @@
 
 
 
-#include <sound/driver.h>
 #include <asm/io.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -178,7 +177,7 @@ static int stac9460_dac_vol_put(struct snd_kcontrol *kcontrol,
 
 	if (kcontrol->private_value) {
 		idx = STAC946X_MASTER_VOLUME;
-		nvol = ucontrol->value.integer.value[0];
+		nvol = ucontrol->value.integer.value[0] & 0x7f;
 		tmp = stac9460_get(ice, idx);
 		ovol = 0x7f - (tmp & 0x7f);
 		change = (ovol != nvol);
@@ -189,7 +188,7 @@ static int stac9460_dac_vol_put(struct snd_kcontrol *kcontrol,
 	} else {
 		id = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
 		idx = id + STAC946X_LF_VOLUME;
-		nvol = ucontrol->value.integer.value[0];
+		nvol = ucontrol->value.integer.value[0] & 0x7f;
 		if (id < 6)
 			tmp = stac9460_get(ice, idx);
 		else 
@@ -317,7 +316,7 @@ static int stac9460_adc_vol_put(struct snd_kcontrol *kcontrol,
 	if (id == 0) {
 		for (i = 0; i < 2; ++i) {
 			reg = STAC946X_MIC_L_VOLUME + i;
-			nvol = ucontrol->value.integer.value[i];
+			nvol = ucontrol->value.integer.value[i] & 0x0f;
 			ovol = 0x0f - stac9460_get(ice, reg);
 			change = ((ovol & 0x0f) != nvol);
 			if (change)
@@ -327,7 +326,7 @@ static int stac9460_adc_vol_put(struct snd_kcontrol *kcontrol,
 	} else {
 		for (i = 0; i < 2; ++i) {
 			reg = STAC946X_MIC_L_VOLUME + i;
-			nvol = ucontrol->value.integer.value[i];
+			nvol = ucontrol->value.integer.value[i] & 0x0f;
 			ovol = 0x0f - stac9460_2_get(ice, reg);
 			change = ((ovol & 0x0f) != nvol);
 			if (change)

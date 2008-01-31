@@ -24,7 +24,6 @@
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
 
-#include <sound/driver.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -49,7 +48,9 @@ static const struct snd_pcm_hardware s3c24xx_pcm_hardware = {
 	.info			= SNDRV_PCM_INFO_INTERLEAVED |
 				    SNDRV_PCM_INFO_BLOCK_TRANSFER |
 				    SNDRV_PCM_INFO_MMAP |
-				    SNDRV_PCM_INFO_MMAP_VALID,
+				    SNDRV_PCM_INFO_MMAP_VALID |
+				    SNDRV_PCM_INFO_PAUSE |
+				    SNDRV_PCM_INFO_RESUME,
 	.formats		= SNDRV_PCM_FMTBIT_S16_LE |
 				    SNDRV_PCM_FMTBIT_U16_LE |
 				    SNDRV_PCM_FMTBIT_U8 |
@@ -176,28 +177,6 @@ static int s3c24xx_pcm_hw_params(struct snd_pcm_substream *substream,
 		}
 	}
 
-	/* channel needs configuring for mem=>device, increment memory addr,
-	 * sync to pclk, half-word transfers to the IIS-FIFO. */
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		s3c2410_dma_devconfig(prtd->params->channel,
-				S3C2410_DMASRC_MEM, S3C2410_DISRCC_INC |
-				S3C2410_DISRCC_APB, prtd->params->dma_addr);
-
-		s3c2410_dma_config(prtd->params->channel,
-				prtd->params->dma_size,
-				S3C2410_DCON_SYNC_PCLK | 
-				S3C2410_DCON_HANDSHAKE);
-	} else {
-		s3c2410_dma_config(prtd->params->channel,
-				prtd->params->dma_size,
-				S3C2410_DCON_HANDSHAKE | 
-				S3C2410_DCON_SYNC_PCLK);
-
-		s3c2410_dma_devconfig(prtd->params->channel,
-					S3C2410_DMASRC_HW, 0x3,
-					prtd->params->dma_addr);
-	}
-
 	s3c2410_dma_set_buffdone_fn(prtd->params->channel,
 				    s3c24xx_audio_buffdone);
 
@@ -245,6 +224,28 @@ static int s3c24xx_pcm_prepare(struct snd_pcm_substream *substream)
 	 * codec <--> BT codec or GSM modem -- lg FIXME */
 	if (!prtd->params)
 	 	return 0;
+
+	/* channel needs configuring for mem=>device, increment memory addr,
+	 * sync to pclk, half-word transfers to the IIS-FIFO. */
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		s3c2410_dma_devconfig(prtd->params->channel,
+				S3C2410_DMASRC_MEM, S3C2410_DISRCC_INC |
+				S3C2410_DISRCC_APB, prtd->params->dma_addr);
+
+		s3c2410_dma_config(prtd->params->channel,
+				prtd->params->dma_size,
+				S3C2410_DCON_SYNC_PCLK |
+				S3C2410_DCON_HANDSHAKE);
+	} else {
+		s3c2410_dma_config(prtd->params->channel,
+				prtd->params->dma_size,
+				S3C2410_DCON_HANDSHAKE |
+				S3C2410_DCON_SYNC_PCLK);
+
+		s3c2410_dma_devconfig(prtd->params->channel,
+					S3C2410_DMASRC_HW, 0x3,
+					prtd->params->dma_addr);
+	}
 
 	/* flush the DMA channel */
 	s3c2410_dma_ctrl(prtd->params->channel, S3C2410_DMAOP_FLUSH);

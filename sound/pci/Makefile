@@ -23,6 +23,7 @@ snd-intel8x0m-objs := intel8x0m.o
 snd-maestro3-objs := maestro3.o
 snd-rme32-objs := rme32.o
 snd-rme96-objs := rme96.o
+snd-sis7019-objs := sis7019.o
 snd-sonicvibes-objs := sonicvibes.o
 snd-via82xx-objs := via82xx.o
 snd-via82xx-modem-objs := via82xx_modem.o
@@ -48,6 +49,7 @@ obj-$(CONFIG_SND_INTEL8X0M) += snd-intel8x0m.o
 obj-$(CONFIG_SND_MAESTRO3) += snd-maestro3.o
 obj-$(CONFIG_SND_RME32) += snd-rme32.o
 obj-$(CONFIG_SND_RME96) += snd-rme96.o
+obj-$(CONFIG_SND_SIS7019) += snd-sis7019.o
 obj-$(CONFIG_SND_SONICVIBES) += snd-sonicvibes.o
 obj-$(CONFIG_SND_VIA82XX) += snd-via82xx.o
 obj-$(CONFIG_SND_VIA82XX_MODEM) += snd-via82xx-modem.o
@@ -66,6 +68,7 @@ obj-$(CONFIG_SND) += \
 	korg1212/ \
 	mixart/ \
 	nm256/ \
+	oxygen/ \
 	pcxhr/ \
 	riptide/ \
 	rme9652/ \

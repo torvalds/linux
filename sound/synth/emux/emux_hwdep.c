@@ -19,7 +19,6 @@
  *
  */
 
-#include <sound/driver.h>
 #include <sound/core.h>
 #include <sound/hwdep.h>
 #include <asm/uaccess.h>

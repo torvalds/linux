@@ -28,7 +28,6 @@
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <sound/driver.h>
 #include <sound/core.h>
 #include <sound/soc.h>
 #include <sound/initval.h>
@@ -47,112 +46,6 @@ struct cs4270_private {
 	unsigned int mclk; /* Input frequency of the MCLK pin */
 	unsigned int mode; /* The mode (I2S or left-justified) */
 };
-
-/* The number of MCLK/LRCK ratios supported by the CS4270 */
-#define NUM_MCLK_RATIOS		9
-
-/* The actual MCLK/LRCK ratios, in increasing numerical order */
-static unsigned int mclk_ratios[NUM_MCLK_RATIOS] =
-	{64, 96, 128, 192, 256, 384, 512, 768, 1024};
-
-/*
- * Determine the CS4270 samples rates.
- *
- * 'freq' is the input frequency to MCLK.  The other parameters are ignored.
- *
- * The value of MCLK is used to determine which sample rates are supported
- * by the CS4270.  The ratio of MCLK / Fs must be equal to one of nine
- * support values: 64, 96, 128, 192, 256, 384, 512, 768, and 1024.
- *
- * This function calculates the nine ratios and determines which ones match
- * a standard sample rate.  If there's a match, then it is added to the list
- * of support sample rates.
- *
- * This function must be called by the machine driver's 'startup' function,
- * otherwise the list of supported sample rates will not be available in
- * time for ALSA.
- *
- * Note that in stand-alone mode, the sample rate is determined by input
- * pins M0, M1, MDIV1, and MDIV2.  Also in stand-alone mode, divide-by-3
- * is not a programmable option.  However, divide-by-3 is not an available
- * option in stand-alone mode.  This cases two problems: a ratio of 768 is
- * not available (it requires divide-by-3) and B) ratios 192 and 384 can
- * only be selected with divide-by-1.5, but there is an errate that make
- * this selection difficult.
- *
- * In addition, there is no mechanism for communicating with the machine
- * driver what the input settings can be.  This would need to be implemented
- * for stand-alone mode to work.
- */
-static int cs4270_set_dai_sysclk(struct snd_soc_codec_dai *codec_dai,
-				 int clk_id, unsigned int freq, int dir)
-{
-	struct snd_soc_codec *codec = codec_dai->codec;
-	struct cs4270_private *cs4270 = codec->private_data;
-	unsigned int rates = 0;
-	unsigned int rate_min = -1;
-	unsigned int rate_max = 0;
-	unsigned int i;
-
-	cs4270->mclk = freq;
-
-	for (i = 0; i < NUM_MCLK_RATIOS; i++) {
-		unsigned int rate = freq / mclk_ratios[i];
-		rates |= snd_pcm_rate_to_rate_bit(rate);
-		if (rate < rate_min)
-			rate_min = rate;
-		if (rate > rate_max)
-			rate_max = rate;
-	}
-	/* FIXME: soc should support a rate list */
-	rates &= ~SNDRV_PCM_RATE_KNOT;
-
-	if (!rates) {
-		printk(KERN_ERR "cs4270: could not find a valid sample rate\n");
-		return -EINVAL;
-	}
-
-	codec_dai->playback.rates = rates;
-	codec_dai->playback.rate_min = rate_min;
-	codec_dai->playback.rate_max = rate_max;
-
-	codec_dai->capture.rates = rates;
-	codec_dai->capture.rate_min = rate_min;
-	codec_dai->capture.rate_max = rate_max;
-
-	return 0;
-}
-
-/*
- * Configure the codec for the selected audio format
- *
- * This function takes a bitmask of SND_SOC_DAIFMT_x bits and programs the
- * codec accordingly.
- *
- * Currently, this function only supports SND_SOC_DAIFMT_I2S and
- * SND_SOC_DAIFMT_LEFT_J.  The CS4270 codec also supports right-justified
- * data for playback only, but ASoC currently does not support different
- * formats for playback vs. record.
- */
-static int cs4270_set_dai_fmt(struct snd_soc_codec_dai *codec_dai,
-			      unsigned int format)
-{
-	struct snd_soc_codec *codec = codec_dai->codec;
-	struct cs4270_private *cs4270 = codec->private_data;
-	int ret = 0;
-
-	switch (format & SND_SOC_DAIFMT_FORMAT_MASK) {
-	case SND_SOC_DAIFMT_I2S:
-	case SND_SOC_DAIFMT_LEFT_J:
-		cs4270->mode = format & SND_SOC_DAIFMT_FORMAT_MASK;
-		break;
-	default:
-		printk(KERN_ERR "cs4270: invalid DAI format\n");
-		ret = -EINVAL;
-	}
-
-	return ret;
-}
 
 /*
  * The codec isn't really big-endian or little-endian, since the I2S
@@ -227,6 +120,156 @@ static int cs4270_set_dai_fmt(struct snd_soc_codec_dai *codec_dai,
 #define CS4270_MUTE_POLARITY	0x04
 #define CS4270_MUTE_DAC_A	0x01
 #define CS4270_MUTE_DAC_B	0x02
+
+/*
+ * Clock Ratio Selection for Master Mode with I2C enabled
+ *
+ * The data for this chart is taken from Table 5 of the CS4270 reference
+ * manual.
+ *
+ * This table is used to determine how to program the Mode Control register.
+ * It is also used by cs4270_set_dai_sysclk() to tell ALSA which sampling
+ * rates the CS4270 currently supports.
+ *
+ * Each element in this array corresponds to the ratios in mclk_ratios[].
+ * These two arrays need to be in sync.
+ *
+ * 'speed_mode' is the corresponding bit pattern to be written to the
+ * MODE bits of the Mode Control Register
+ *
+ * 'mclk' is the corresponding bit pattern to be wirten to the MCLK bits of
+ * the Mode Control Register.
+ *
+ * In situations where a single ratio is represented by multiple speed
+ * modes, we favor the slowest speed.  E.g, for a ratio of 128, we pick
+ * double-speed instead of quad-speed.  However, the CS4270 errata states
+ * that Divide-By-1.5 can cause failures, so we avoid that mode where
+ * possible.
+ *
+ * ERRATA: There is an errata for the CS4270 where divide-by-1.5 does not
+ * work if VD = 3.3V.  If this effects you, select the
+ * CONFIG_SND_SOC_CS4270_VD33_ERRATA Kconfig option, and the driver will
+ * never select any sample rates that require divide-by-1.5.
+ */
+static struct {
+	unsigned int ratio;
+	u8 speed_mode;
+	u8 mclk;
+} cs4270_mode_ratios[] = {
+	{64, CS4270_MODE_4X, CS4270_MODE_DIV1},
+#ifndef CONFIG_SND_SOC_CS4270_VD33_ERRATA
+	{96, CS4270_MODE_4X, CS4270_MODE_DIV15},
+#endif
+	{128, CS4270_MODE_2X, CS4270_MODE_DIV1},
+	{192, CS4270_MODE_4X, CS4270_MODE_DIV3},
+	{256, CS4270_MODE_1X, CS4270_MODE_DIV1},
+	{384, CS4270_MODE_2X, CS4270_MODE_DIV3},
+	{512, CS4270_MODE_1X, CS4270_MODE_DIV2},
+	{768, CS4270_MODE_1X, CS4270_MODE_DIV3},
+	{1024, CS4270_MODE_1X, CS4270_MODE_DIV4}
+};
+
+/* The number of MCLK/LRCK ratios supported by the CS4270 */
+#define NUM_MCLK_RATIOS		ARRAY_SIZE(cs4270_mode_ratios)
+
+/*
+ * Determine the CS4270 samples rates.
+ *
+ * 'freq' is the input frequency to MCLK.  The other parameters are ignored.
+ *
+ * The value of MCLK is used to determine which sample rates are supported
+ * by the CS4270.  The ratio of MCLK / Fs must be equal to one of nine
+ * support values: 64, 96, 128, 192, 256, 384, 512, 768, and 1024.
+ *
+ * This function calculates the nine ratios and determines which ones match
+ * a standard sample rate.  If there's a match, then it is added to the list
+ * of support sample rates.
+ *
+ * This function must be called by the machine driver's 'startup' function,
+ * otherwise the list of supported sample rates will not be available in
+ * time for ALSA.
+ *
+ * Note that in stand-alone mode, the sample rate is determined by input
+ * pins M0, M1, MDIV1, and MDIV2.  Also in stand-alone mode, divide-by-3
+ * is not a programmable option.  However, divide-by-3 is not an available
+ * option in stand-alone mode.  This cases two problems: a ratio of 768 is
+ * not available (it requires divide-by-3) and B) ratios 192 and 384 can
+ * only be selected with divide-by-1.5, but there is an errate that make
+ * this selection difficult.
+ *
+ * In addition, there is no mechanism for communicating with the machine
+ * driver what the input settings can be.  This would need to be implemented
+ * for stand-alone mode to work.
+ */
+static int cs4270_set_dai_sysclk(struct snd_soc_codec_dai *codec_dai,
+				 int clk_id, unsigned int freq, int dir)
+{
+	struct snd_soc_codec *codec = codec_dai->codec;
+	struct cs4270_private *cs4270 = codec->private_data;
+	unsigned int rates = 0;
+	unsigned int rate_min = -1;
+	unsigned int rate_max = 0;
+	unsigned int i;
+
+	cs4270->mclk = freq;
+
+	for (i = 0; i < NUM_MCLK_RATIOS; i++) {
+		unsigned int rate = freq / cs4270_mode_ratios[i].ratio;
+		rates |= snd_pcm_rate_to_rate_bit(rate);
+		if (rate < rate_min)
+			rate_min = rate;
+		if (rate > rate_max)
+			rate_max = rate;
+	}
+	/* FIXME: soc should support a rate list */
+	rates &= ~SNDRV_PCM_RATE_KNOT;
+
+	if (!rates) {
+		printk(KERN_ERR "cs4270: could not find a valid sample rate\n");
+		return -EINVAL;
+	}
+
+	codec_dai->playback.rates = rates;
+	codec_dai->playback.rate_min = rate_min;
+	codec_dai->playback.rate_max = rate_max;
+
+	codec_dai->capture.rates = rates;
+	codec_dai->capture.rate_min = rate_min;
+	codec_dai->capture.rate_max = rate_max;
+
+	return 0;
+}
+
+/*
+ * Configure the codec for the selected audio format
+ *
+ * This function takes a bitmask of SND_SOC_DAIFMT_x bits and programs the
+ * codec accordingly.
+ *
+ * Currently, this function only supports SND_SOC_DAIFMT_I2S and
+ * SND_SOC_DAIFMT_LEFT_J.  The CS4270 codec also supports right-justified
+ * data for playback only, but ASoC currently does not support different
+ * formats for playback vs. record.
+ */
+static int cs4270_set_dai_fmt(struct snd_soc_codec_dai *codec_dai,
+			      unsigned int format)
+{
+	struct snd_soc_codec *codec = codec_dai->codec;
+	struct cs4270_private *cs4270 = codec->private_data;
+	int ret = 0;
+
+	switch (format & SND_SOC_DAIFMT_FORMAT_MASK) {
+	case SND_SOC_DAIFMT_I2S:
+	case SND_SOC_DAIFMT_LEFT_J:
+		cs4270->mode = format & SND_SOC_DAIFMT_FORMAT_MASK;
+		break;
+	default:
+		printk(KERN_ERR "cs4270: invalid DAI format\n");
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
 
 /*
  * A list of addresses on which this CS4270 could use.  I2C addresses are
@@ -315,53 +358,6 @@ static int cs4270_i2c_write(struct snd_soc_codec *codec, unsigned int reg,
 }
 
 /*
- * Clock Ratio Selection for Master Mode with I2C enabled
- *
- * The data for this chart is taken from Table 5 of the CS4270 reference
- * manual.
- *
- * This table is used to determine how to program the Mode Control register.
- * It is also used by cs4270_set_dai_sysclk() to tell ALSA which sampling
- * rates the CS4270 currently supports.
- *
- * Each element in this array corresponds to the ratios in mclk_ratios[].
- * These two arrays need to be in sync.
- *
- * 'speed_mode' is the corresponding bit pattern to be written to the
- * MODE bits of the Mode Control Register
- *
- * 'mclk' is the corresponding bit pattern to be wirten to the MCLK bits of
- * the Mode Control Register.
- *
- * In situations where a single ratio is represented by multiple speed
- * modes, we favor the slowest speed.  E.g, for a ratio of 128, we pick
- * double-speed instead of quad-speed.  However, the CS4270 errata states
- * that Divide-By-1.5 can cause failures, so we avoid that mode where
- * possible.
- *
- * ERRATA: There is an errata for the CS4270 where divide-by-1.5 does not
- * work if VD = 3.3V.  If this effects you, select the
- * CONFIG_SND_SOC_CS4270_VD33_ERRATA Kconfig option, and the driver will
- * never select any sample rates that require divide-by-1.5.
- */
-static struct {
-	u8 speed_mode;
-	u8 mclk;
-} cs4270_mode_ratios[NUM_MCLK_RATIOS] = {
-	{CS4270_MODE_4X, CS4270_MODE_DIV1},	/* 64 */
-#ifndef CONFIG_SND_SOC_CS4270_VD33_ERRATA
-	{CS4270_MODE_4X, CS4270_MODE_DIV15},    /* 96 */
-#endif
-	{CS4270_MODE_2X, CS4270_MODE_DIV1},     /* 128 */
-	{CS4270_MODE_4X, CS4270_MODE_DIV3},     /* 192 */
-	{CS4270_MODE_1X, CS4270_MODE_DIV1},     /* 256 */
-	{CS4270_MODE_2X, CS4270_MODE_DIV3},     /* 384 */
-	{CS4270_MODE_1X, CS4270_MODE_DIV2},     /* 512 */
-	{CS4270_MODE_1X, CS4270_MODE_DIV3},     /* 768 */
-	{CS4270_MODE_1X, CS4270_MODE_DIV4}      /* 1024 */
-};
-
-/*
  * Program the CS4270 with the given hardware parameters.
  *
  * The .dai_ops functions are used to provide board-specific data, like
@@ -388,7 +384,7 @@ static int cs4270_hw_params(struct snd_pcm_substream *substream,
 	ratio = cs4270->mclk / rate;	/* MCLK/LRCK ratio */
 
 	for (i = 0; i < NUM_MCLK_RATIOS; i++) {
-		if (mclk_ratios[i] == ratio)
+		if (cs4270_mode_ratios[i].ratio == ratio)
 			break;
 	}
 
@@ -669,7 +665,7 @@ error:
 	return ret;
 }
 
-#endif
+#endif /* USE_I2C*/
 
 struct snd_soc_codec_dai cs4270_dai = {
 	.name = "CS4270",
@@ -687,10 +683,6 @@ struct snd_soc_codec_dai cs4270_dai = {
 		.rates = 0,
 		.formats = CS4270_FORMATS,
 	},
-	.dai_ops = {
-		.set_sysclk = cs4270_set_dai_sysclk,
-		.set_fmt = cs4270_set_dai_fmt,
-	}
 };
 EXPORT_SYMBOL_GPL(cs4270_dai);
 
@@ -752,6 +744,8 @@ static int cs4270_probe(struct platform_device *pdev)
 	if (codec->control_data) {
 		/* Initialize codec ops */
 		cs4270_dai.ops.hw_params = cs4270_hw_params;
+		cs4270_dai.dai_ops.set_sysclk = cs4270_set_dai_sysclk;
+		cs4270_dai.dai_ops.set_fmt = cs4270_set_dai_fmt;
 #ifdef CONFIG_SND_SOC_CS4270_HWMUTE
 		cs4270_dai.dai_ops.digital_mute = cs4270_mute;
 #endif

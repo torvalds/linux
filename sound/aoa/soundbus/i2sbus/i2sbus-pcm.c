@@ -8,9 +8,6 @@
 
 #include <asm/io.h>
 #include <linux/delay.h>
-/* So apparently there's a reason for requiring driver.h
- * to be included first, even if I don't know it... */
-#include <sound/driver.h>
 #include <sound/core.h>
 #include <asm/macio.h>
 #include <linux/pci.h>
@@ -194,6 +191,12 @@ static int i2sbus_pcm_open(struct i2sbus_dev *i2sdev, int in)
 	hw->period_bytes_max = 16384;
 	hw->periods_min = 3;
 	hw->periods_max = MAX_DBDMA_COMMANDS;
+	err = snd_pcm_hw_constraint_integer(pi->substream->runtime,
+					    SNDRV_PCM_HW_PARAM_PERIODS);
+	if (err < 0) {
+		result = err;
+		goto out_unlock;
+	}
 	list_for_each_entry(cii, &sdev->codec_list, list) {
 		if (cii->codec->open) {
 			err = cii->codec->open(cii, pi->substream);
@@ -990,6 +993,7 @@ i2sbus_attach_codec(struct soundbus_dev *dev, struct snd_card *card,
 		if (dev->pcm->card != card) {
 			printk(KERN_ERR
 			       "Can't attach same bus to different cards!\n");
+			err = -EINVAL;
 			goto out_put_ci_module;
 		}
 		err = snd_pcm_new_stream(dev->pcm, SNDRV_PCM_STREAM_CAPTURE, 1);

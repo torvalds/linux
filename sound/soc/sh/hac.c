@@ -21,7 +21,6 @@
 #include <linux/interrupt.h>
 #include <linux/wait.h>
 #include <linux/delay.h>
-#include <sound/driver.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/ac97_codec.h>
@@ -105,7 +104,7 @@ static int hac_get_codec_data(struct hac_priv *hac, unsigned short r,
 	unsigned int to1, to2, i;
 	unsigned short adr;
 
-	for (i = 0; i < AC97_READ_RETRY; ++i) {
+	for (i = AC97_READ_RETRY; i; i--) {
 		*v = 0;
 		/* wait for HAC to receive something from the codec */
 		for (to1 = TMO_E4;
@@ -132,7 +131,7 @@ static int hac_get_codec_data(struct hac_priv *hac, unsigned short r,
 		udelay(21);
 	}
 	HACREG(HACRSR) &= ~(RSR_STDRY | RSR_STARY);
-	return (i < AC97_READ_RETRY);
+	return i;
 }
 
 static unsigned short hac_read_codec_aux(struct hac_priv *hac,
@@ -141,7 +140,7 @@ static unsigned short hac_read_codec_aux(struct hac_priv *hac,
 	unsigned short val;
 	unsigned int i, to;
 
-	for (i = 0; i < AC97_READ_RETRY; i++) {
+	for (i = AC97_READ_RETRY; i; i--) {
 		/* send_read_request */
 		local_irq_disable();
 		HACREG(HACTSR) &= ~(TSR_CMDAMT);
@@ -159,10 +158,7 @@ static unsigned short hac_read_codec_aux(struct hac_priv *hac,
 			break;
 	}
 
-	if (i == AC97_READ_RETRY)
-		return ~0;
-
-	return val;
+	return i ? val : ~0;
 }
 
 static void hac_ac97_write(struct snd_ac97 *ac97, unsigned short reg,
@@ -172,7 +168,7 @@ static void hac_ac97_write(struct snd_ac97 *ac97, unsigned short reg,
 	struct hac_priv *hac = &hac_cpu_data[unit_id];
 	unsigned int i, to;
 	/* write_codec_aux */
-	for (i = 0; i < AC97_WRITE_RETRY; i++) {
+	for (i = AC97_WRITE_RETRY; i; i--) {
 		/* send_write_request */
 		local_irq_disable();
 		HACREG(HACTSR) &= ~(TSR_CMDDMT | TSR_CMDAMT);

@@ -16,7 +16,7 @@ struct snd_soc_machine {
 	int (*remove)(struct platform_device *pdev);
 
 	/* the pre and post PM functions are used to do any PM work before and
-	 * after the codec and DAI's do any PM work. */
+	 * after the codec and DAIs do any PM work. */
 	int (*suspend_pre)(struct platform_device *pdev, pm_message_t state);
 	int (*suspend_post)(struct platform_device *pdev, pm_message_t state);
 	int (*resume_pre)(struct platform_device *pdev);
@@ -38,7 +38,7 @@ probe/remove are optional. Do any machine specific probe here.
 suspend()/resume()
 ------------------
 The machine driver has pre and post versions of suspend and resume to take care
-of any machine audio tasks that have to be done before or after the codec, DAI's
+of any machine audio tasks that have to be done before or after the codec, DAIs
 and DMA is suspended and resumed. Optional.
 
 
@@ -49,10 +49,10 @@ The machine specific audio operations can be set here. Again this is optional.
 
 Machine DAI Configuration
 -------------------------
-The machine DAI configuration glues all the codec and CPU DAI's together. It can
+The machine DAI configuration glues all the codec and CPU DAIs together. It can
 also be used to set up the DAI system clock and for any machine related DAI
 initialisation e.g. the machine audio map can be connected to the codec audio
-map, unconnnected codec pins can be set as such. Please see corgi.c, spitz.c
+map, unconnected codec pins can be set as such. Please see corgi.c, spitz.c
 for examples.
 
 struct snd_soc_dai_link is used to set up each DAI in your machine. e.g.
@@ -67,7 +67,7 @@ static struct snd_soc_dai_link corgi_dai = {
 	.ops = &corgi_ops,
 };
 
-struct snd_soc_machine then sets up the machine with it's DAI's. e.g.
+struct snd_soc_machine then sets up the machine with it's DAIs. e.g.
 
 /* corgi audio machine driver */
 static struct snd_soc_machine snd_soc_machine_corgi = {
@@ -110,4 +110,4 @@ details.
 Machine Controls
 ----------------
 
-Machine specific audio mixer controls can be added in the dai init function.
+Machine specific audio mixer controls can be added in the DAI init function.

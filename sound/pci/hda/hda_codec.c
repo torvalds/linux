@@ -19,7 +19,6 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-#include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -55,6 +54,7 @@ static struct hda_vendor_id hda_vendor_ids[] = {
 	{ 0x10ec, "Realtek" },
 	{ 0x1057, "Motorola" },
 	{ 0x1106, "VIA" },
+	{ 0x111d, "IDT" },
 	{ 0x11d4, "Analog Devices" },
 	{ 0x13f6, "C-Media" },
 	{ 0x14f1, "Conexant" },
@@ -429,6 +429,10 @@ find_codec_preset(struct hda_codec *codec)
 	for (tbl = hda_preset_tables; *tbl; tbl++) {
 		for (preset = *tbl; preset->id; preset++) {
 			u32 mask = preset->mask;
+			if (preset->afg && preset->afg != codec->afg)
+				continue;
+			if (preset->mfg && preset->mfg != codec->mfg)
+				continue;
 			if (!mask)
 				mask = ~0;
 			if (preset->id == (codec->vendor_id & mask) &&
@@ -765,7 +769,7 @@ get_alloc_amp_hash(struct hda_codec *codec, u32 key)
 /*
  * query AMP capabilities for the given widget and direction
  */
-static u32 query_amp_caps(struct hda_codec *codec, hda_nid_t nid, int direction)
+u32 query_amp_caps(struct hda_codec *codec, hda_nid_t nid, int direction)
 {
 	struct hda_amp_info *info;
 
@@ -933,7 +937,8 @@ int snd_hda_mixer_amp_volume_info(struct snd_kcontrol *kcontrol,
 	caps = (caps & AC_AMPCAP_NUM_STEPS) >> AC_AMPCAP_NUM_STEPS_SHIFT;
 	if (!caps) {
 		printk(KERN_WARNING "hda_codec: "
-		       "num_steps = 0 for NID=0x%x\n", nid);
+		       "num_steps = 0 for NID=0x%x (ctl = %s)\n", nid,
+		       kcontrol->id.name);
 		return -EINVAL;
 	}
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
@@ -1009,6 +1014,66 @@ int snd_hda_mixer_amp_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 		return -EFAULT;
 	if (put_user(val2, _tlv + 3))
 		return -EFAULT;
+	return 0;
+}
+
+/*
+ * set (static) TLV for virtual master volume; recalculated as max 0dB
+ */
+void snd_hda_set_vmaster_tlv(struct hda_codec *codec, hda_nid_t nid, int dir,
+			     unsigned int *tlv)
+{
+	u32 caps;
+	int nums, step;
+
+	caps = query_amp_caps(codec, nid, dir);
+	nums = (caps & AC_AMPCAP_NUM_STEPS) >> AC_AMPCAP_NUM_STEPS_SHIFT;
+	step = (caps & AC_AMPCAP_STEP_SIZE) >> AC_AMPCAP_STEP_SIZE_SHIFT;
+	step = (step + 1) * 25;
+	tlv[0] = SNDRV_CTL_TLVT_DB_SCALE;
+	tlv[1] = 2 * sizeof(unsigned int);
+	tlv[2] = -nums * step;
+	tlv[3] = step;
+}
+
+/* find a mixer control element with the given name */
+struct snd_kcontrol *snd_hda_find_mixer_ctl(struct hda_codec *codec,
+					    const char *name)
+{
+	struct snd_ctl_elem_id id;
+	memset(&id, 0, sizeof(id));
+	id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
+	strcpy(id.name, name);
+	return snd_ctl_find_id(codec->bus->card, &id);
+}
+
+/* create a virtual master control and add slaves */
+int snd_hda_add_vmaster(struct hda_codec *codec, char *name,
+			unsigned int *tlv, const char **slaves)
+{
+	struct snd_kcontrol *kctl;
+	const char **s;
+	int err;
+
+	kctl = snd_ctl_make_virtual_master(name, tlv);
+	if (!kctl)
+		return -ENOMEM;
+	err = snd_ctl_add(codec->bus->card, kctl);
+	if (err < 0)
+		return err;
+	
+	for (s = slaves; *s; s++) {
+		struct snd_kcontrol *sctl;
+
+		sctl = snd_hda_find_mixer_ctl(codec, *s);
+		if (!sctl) {
+			snd_printdd("Cannot find slave %s, skipped\n", *s);
+			continue;
+		}
+		err = snd_ctl_add_slave(kctl, sctl);
+		if (err < 0)
+			return err;
+	}
 	return 0;
 }
 
@@ -1434,7 +1499,8 @@ int snd_hda_create_spdif_out_ctls(struct hda_codec *codec, hda_nid_t nid)
 			return err;
 	}
 	codec->spdif_ctls =
-		snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_DIGI_CONVERT, 0);
+		snd_hda_codec_read(codec, nid, 0,
+				   AC_VERB_GET_DIGI_CONVERT_1, 0);
 	codec->spdif_status = convert_to_spdif_status(codec->spdif_ctls);
 	return 0;
 }
@@ -1481,7 +1547,7 @@ static int snd_hda_spdif_in_status_get(struct snd_kcontrol *kcontrol,
 	unsigned short val;
 	unsigned int sbits;
 
-	val = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_DIGI_CONVERT, 0);
+	val = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_DIGI_CONVERT_1, 0);
 	sbits = convert_to_spdif_status(val);
 	ucontrol->value.iec958.status[0] = sbits;
 	ucontrol->value.iec958.status[1] = sbits >> 8;
@@ -1532,7 +1598,8 @@ int snd_hda_create_spdif_in_ctls(struct hda_codec *codec, hda_nid_t nid)
 			return err;
 	}
 	codec->spdif_in_enable =
-		snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_DIGI_CONVERT, 0) &
+		snd_hda_codec_read(codec, nid, 0,
+				   AC_VERB_GET_DIGI_CONVERT_1, 0) &
 		AC_DIG1_ENABLE;
 	return 0;
 }
@@ -1622,6 +1689,7 @@ static void hda_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 
 	snd_hda_codec_write(codec, fg, 0, AC_VERB_SET_POWER_STATE,
 			    power_state);
+	msleep(10); /* partial workaround for "azx_get_response timeout" */
 
 	nid = codec->start_nid;
 	for (i = 0; i < codec->num_nodes; i++, nid++) {
@@ -2336,7 +2404,8 @@ int snd_hda_ch_mode_put(struct hda_codec *codec,
 	unsigned int mode;
 
 	mode = ucontrol->value.enumerated.item[0];
-	snd_assert(mode < num_chmodes, return -EINVAL);
+	if (mode >= num_chmodes)
+		return -EINVAL;
 	if (*max_channelsp == chmode[mode].channels)
 		return 0;
 	/* change the current channel setting */
@@ -2602,20 +2671,21 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 				 struct auto_pin_cfg *cfg,
 				 hda_nid_t *ignore_nids)
 {
-	hda_nid_t nid, nid_start;
-	int nodes;
+	hda_nid_t nid, end_nid;
 	short seq, assoc_line_out, assoc_speaker;
 	short sequences_line_out[ARRAY_SIZE(cfg->line_out_pins)];
 	short sequences_speaker[ARRAY_SIZE(cfg->speaker_pins)];
+	short sequences_hp[ARRAY_SIZE(cfg->hp_pins)];
 
 	memset(cfg, 0, sizeof(*cfg));
 
 	memset(sequences_line_out, 0, sizeof(sequences_line_out));
 	memset(sequences_speaker, 0, sizeof(sequences_speaker));
+	memset(sequences_hp, 0, sizeof(sequences_hp));
 	assoc_line_out = assoc_speaker = 0;
 
-	nodes = snd_hda_get_sub_nodes(codec, codec->afg, &nid_start);
-	for (nid = nid_start; nid < nodes + nid_start; nid++) {
+	end_nid = codec->start_nid + codec->num_nodes;
+	for (nid = codec->start_nid; nid < end_nid; nid++) {
 		unsigned int wid_caps = get_wcaps(codec, nid);
 		unsigned int wid_type =
 			(wid_caps & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
@@ -2638,6 +2708,10 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 		case AC_JACK_LINE_OUT:
 			seq = get_defcfg_sequence(def_conf);
 			assoc = get_defcfg_association(def_conf);
+
+			if (!(wid_caps & AC_WCAP_STEREO))
+				if (!cfg->mono_out_pin)
+					cfg->mono_out_pin = nid;
 			if (!assoc)
 				continue;
 			if (!assoc_line_out)
@@ -2666,9 +2740,12 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 			cfg->speaker_outs++;
 			break;
 		case AC_JACK_HP_OUT:
+			seq = get_defcfg_sequence(def_conf);
+			assoc = get_defcfg_association(def_conf);
 			if (cfg->hp_outs >= ARRAY_SIZE(cfg->hp_pins))
 				continue;
 			cfg->hp_pins[cfg->hp_outs] = nid;
+			sequences_hp[cfg->hp_outs] = (assoc << 4) | seq;
 			cfg->hp_outs++;
 			break;
 		case AC_JACK_MIC_IN: {
@@ -2712,7 +2789,24 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 			      cfg->line_outs);
 	sort_pins_by_sequence(cfg->speaker_pins, sequences_speaker,
 			      cfg->speaker_outs);
+	sort_pins_by_sequence(cfg->hp_pins, sequences_hp,
+			      cfg->hp_outs);
 	
+	/* if we have only one mic, make it AUTO_PIN_MIC */
+	if (!cfg->input_pins[AUTO_PIN_MIC] &&
+	    cfg->input_pins[AUTO_PIN_FRONT_MIC]) {
+		cfg->input_pins[AUTO_PIN_MIC] =
+			cfg->input_pins[AUTO_PIN_FRONT_MIC];
+		cfg->input_pins[AUTO_PIN_FRONT_MIC] = 0;
+	}
+	/* ditto for line-in */
+	if (!cfg->input_pins[AUTO_PIN_LINE] &&
+	    cfg->input_pins[AUTO_PIN_FRONT_LINE]) {
+		cfg->input_pins[AUTO_PIN_LINE] =
+			cfg->input_pins[AUTO_PIN_FRONT_LINE];
+		cfg->input_pins[AUTO_PIN_FRONT_LINE] = 0;
+	}
+
 	/*
 	 * FIX-UP: if no line-outs are detected, try to use speaker or HP pin
 	 * as a primary output
@@ -2766,6 +2860,7 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 		   cfg->hp_outs, cfg->hp_pins[0],
 		   cfg->hp_pins[1], cfg->hp_pins[2],
 		   cfg->hp_pins[3], cfg->hp_pins[4]);
+	snd_printd("   mono: mono_out=0x%x\n", cfg->mono_out_pin);
 	snd_printd("   inputs: mic=0x%x, fmic=0x%x, line=0x%x, fline=0x%x,"
 		   " cd=0x%x, aux=0x%x\n",
 		   cfg->input_pins[AUTO_PIN_MIC],

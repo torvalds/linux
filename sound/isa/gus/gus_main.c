@@ -19,7 +19,6 @@
  *
  */
 
-#include <sound/driver.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -104,12 +103,6 @@ static int snd_gus_free(struct snd_gus_card *gus)
 {
 	if (gus->gf1.res_port2 == NULL)
 		goto __hw_end;
-#if defined(CONFIG_SND_SEQUENCER) || (defined(MODULE) && defined(CONFIG_SND_SEQUENCER_MODULE))
-	if (gus->seq_dev) {
-		snd_device_free(gus->card, gus->seq_dev);
-		gus->seq_dev = NULL;
-	}
-#endif
 	snd_gf1_stop(gus);
 	snd_gus_init_dma_irq(gus, 0);
       __hw_end:
@@ -408,14 +401,6 @@ static int snd_gus_check_version(struct snd_gus_card * gus)
 	return 0;
 }
 
-#if defined(CONFIG_SND_SEQUENCER) || (defined(MODULE) && defined(CONFIG_SND_SEQUENCER_MODULE))
-static void snd_gus_seq_dev_free(struct snd_seq_device *seq_dev)
-{
-	struct snd_gus_card *gus = seq_dev->private_data;
-	gus->seq_dev = NULL;
-}
-#endif
-
 int snd_gus_initialize(struct snd_gus_card *gus)
 {
 	int err;
@@ -430,15 +415,6 @@ int snd_gus_initialize(struct snd_gus_card *gus)
 	}
 	if ((err = snd_gus_init_dma_irq(gus, 1)) < 0)
 		return err;
-#if defined(CONFIG_SND_SEQUENCER) || (defined(MODULE) && defined(CONFIG_SND_SEQUENCER_MODULE))
-	if (snd_seq_device_new(gus->card, 1, SNDRV_SEQ_DEV_ID_GUS,
-			       sizeof(struct snd_gus_card *), &gus->seq_dev) >= 0) {
-		strcpy(gus->seq_dev->name, "GUS");
-		*(struct snd_gus_card **)SNDRV_SEQ_DEVICE_ARGPTR(gus->seq_dev) = gus;
-		gus->seq_dev->private_data = gus;
-		gus->seq_dev->private_free = snd_gus_seq_dev_free;
-	}
-#endif
 	snd_gf1_start(gus);
 	gus->initialized = 1;
 	return 0;

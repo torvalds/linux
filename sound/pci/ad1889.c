@@ -40,7 +40,6 @@
 #include <linux/compiler.h>
 #include <linux/delay.h>
 
-#include <sound/driver.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/initval.h>
@@ -1055,7 +1054,7 @@ static struct pci_device_id snd_ad1889_ids[] = {
 };
 MODULE_DEVICE_TABLE(pci, snd_ad1889_ids);
 
-static struct pci_driver ad1889_pci = {
+static struct pci_driver ad1889_pci_driver = {
 	.name = "AD1889 Audio",
 	.id_table = snd_ad1889_ids,
 	.probe = snd_ad1889_probe,
@@ -1065,13 +1064,13 @@ static struct pci_driver ad1889_pci = {
 static int __init
 alsa_ad1889_init(void)
 {
-	return pci_register_driver(&ad1889_pci);
+	return pci_register_driver(&ad1889_pci_driver);
 }
 
 static void __exit
 alsa_ad1889_fini(void)
 {
-	pci_unregister_driver(&ad1889_pci);
+	pci_unregister_driver(&ad1889_pci_driver);
 }
 
 module_init(alsa_ad1889_init);

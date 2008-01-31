@@ -17,7 +17,6 @@
 
 #include <linux/module.h>
 #include <linux/device.h>
-#include <sound/driver.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
