@@ -116,8 +116,7 @@ static int ebt_arp_check(const char *tablename, unsigned int hookmask,
 	return 0;
 }
 
-static struct ebt_match filter_arp =
-{
+static struct ebt_match filter_arp __read_mostly = {
 	.name		= EBT_ARP_MATCH,
 	.match		= ebt_filter_arp,
 	.check		= ebt_arp_check,

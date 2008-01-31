@@ -107,8 +107,7 @@ static int ebt_ip_check(const char *tablename, unsigned int hookmask,
 	return 0;
 }
 
-static struct ebt_match filter_ip =
-{
+static struct ebt_match filter_ip __read_mostly = {
 	.name		= EBT_IP_MATCH,
 	.match		= ebt_filter_ip,
 	.check		= ebt_ip_check,

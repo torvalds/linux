@@ -76,8 +76,7 @@ static int ebt_target_reply_check(const char *tablename, unsigned int hookmask,
 	return 0;
 }
 
-static struct ebt_target reply_target =
-{
+static struct ebt_target reply_target __read_mostly = {
 	.name		= EBT_ARPREPLY_TARGET,
 	.target		= ebt_target_reply,
 	.check		= ebt_target_reply_check,

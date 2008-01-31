@@ -39,8 +39,7 @@ static int ebt_mark_check(const char *tablename, unsigned int hookmask,
 	return 0;
 }
 
-static struct ebt_match filter_mark =
-{
+static struct ebt_match filter_mark __read_mostly = {
 	.name		= EBT_MARK_MATCH,
 	.match		= ebt_filter_mark,
 	.check		= ebt_mark_check,

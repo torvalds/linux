@@ -212,7 +212,7 @@ static int ebt_among_check(const char *tablename, unsigned int hookmask,
 	return 0;
 }
 
-static struct ebt_match filter_among = {
+static struct ebt_match filter_among __read_mostly = {
 	.name		= EBT_AMONG_MATCH,
 	.match		= ebt_filter_among,
 	.check		= ebt_among_check,

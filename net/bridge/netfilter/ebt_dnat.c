@@ -46,8 +46,7 @@ static int ebt_target_dnat_check(const char *tablename, unsigned int hookmask,
 	return 0;
 }
 
-static struct ebt_target dnat =
-{
+static struct ebt_target dnat __read_mostly = {
 	.name		= EBT_DNAT_TARGET,
 	.target		= ebt_target_dnat,
 	.check		= ebt_target_dnat_check,

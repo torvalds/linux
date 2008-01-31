@@ -174,8 +174,7 @@ static int ebt_stp_check(const char *tablename, unsigned int hookmask,
 	return 0;
 }
 
-static struct ebt_match filter_stp =
-{
+static struct ebt_match filter_stp __read_mostly = {
 	.name		= EBT_STP_MATCH,
 	.match		= ebt_filter_stp,
 	.check		= ebt_stp_check,

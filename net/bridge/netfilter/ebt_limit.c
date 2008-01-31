@@ -90,8 +90,7 @@ static int ebt_limit_check(const char *tablename, unsigned int hookmask,
 	return 0;
 }
 
-static struct ebt_match ebt_limit_reg =
-{
+static struct ebt_match ebt_limit_reg __read_mostly = {
 	.name		= EBT_LIMIT_MATCH,
 	.match		= ebt_limit_match,
 	.check		= ebt_limit_check,

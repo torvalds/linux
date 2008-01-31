@@ -57,8 +57,7 @@ static int ebt_target_mark_check(const char *tablename, unsigned int hookmask,
 	return 0;
 }
 
-static struct ebt_target mark_target =
-{
+static struct ebt_target mark_target __read_mostly = {
 	.name		= EBT_MARK_TARGET,
 	.target		= ebt_target_mark,
 	.check		= ebt_target_mark_check,

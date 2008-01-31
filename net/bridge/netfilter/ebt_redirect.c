@@ -51,8 +51,7 @@ static int ebt_target_redirect_check(const char *tablename, unsigned int hookmas
 	return 0;
 }
 
-static struct ebt_target redirect_target =
-{
+static struct ebt_target redirect_target __read_mostly = {
 	.name		= EBT_REDIRECT_TARGET,
 	.target		= ebt_target_redirect,
 	.check		= ebt_target_redirect_check,

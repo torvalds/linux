@@ -36,8 +36,7 @@ static int ebt_pkttype_check(const char *tablename, unsigned int hookmask,
 	return 0;
 }
 
-static struct ebt_match filter_pkttype =
-{
+static struct ebt_match filter_pkttype __read_mostly = {
 	.name		= EBT_PKTTYPE_MATCH,
 	.match		= ebt_filter_pkttype,
 	.check		= ebt_pkttype_check,

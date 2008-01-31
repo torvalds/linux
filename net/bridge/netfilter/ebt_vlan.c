@@ -169,7 +169,7 @@ ebt_check_vlan(const char *tablename,
 	return 0;
 }
 
-static struct ebt_match filter_vlan = {
+static struct ebt_match filter_vlan __read_mostly = {
 	.name		= EBT_VLAN_MATCH,
 	.match		= ebt_filter_vlan,
 	.check		= ebt_check_vlan,

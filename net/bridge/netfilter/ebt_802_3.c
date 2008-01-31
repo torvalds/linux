@@ -50,8 +50,7 @@ static int ebt_802_3_check(const char *tablename, unsigned int hookmask,
 	return 0;
 }
 
-static struct ebt_match filter_802_3 =
-{
+static struct ebt_match filter_802_3 __read_mostly = {
 	.name		= EBT_802_3_MATCH,
 	.match		= ebt_filter_802_3,
 	.check		= ebt_802_3_check,
