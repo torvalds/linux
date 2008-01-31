@@ -127,7 +127,8 @@ EXPORT_SYMBOL(inet_listen_wlock);
  * remote address for the connection. So always assume those are both
  * wildcarded during the search since they can never be otherwise.
  */
-static struct sock *inet_lookup_listener_slow(const struct hlist_head *head,
+static struct sock *inet_lookup_listener_slow(struct net *net,
+					      const struct hlist_head *head,
 					      const __be32 daddr,
 					      const unsigned short hnum,
 					      const int dif)
@@ -139,7 +140,8 @@ static struct sock *inet_lookup_listener_slow(const struct hlist_head *head,
 	sk_for_each(sk, node, head) {
 		const struct inet_sock *inet = inet_sk(sk);
 
-		if (inet->num == hnum && !ipv6_only_sock(sk)) {
+		if (sk->sk_net == net && inet->num == hnum &&
+				!ipv6_only_sock(sk)) {
 			const __be32 rcv_saddr = inet->rcv_saddr;
 			int score = sk->sk_family == PF_INET ? 1 : 0;
 
@@ -165,7 +167,8 @@ static struct sock *inet_lookup_listener_slow(const struct hlist_head *head,
 }
 
 /* Optimize the common listener case. */
-struct sock *__inet_lookup_listener(struct inet_hashinfo *hashinfo,
+struct sock *__inet_lookup_listener(struct net *net,
+				    struct inet_hashinfo *hashinfo,
 				    const __be32 daddr, const unsigned short hnum,
 				    const int dif)
 {
@@ -180,9 +183,9 @@ struct sock *__inet_lookup_listener(struct inet_hashinfo *hashinfo,
 		if (inet->num == hnum && !sk->sk_node.next &&
 		    (!inet->rcv_saddr || inet->rcv_saddr == daddr) &&
 		    (sk->sk_family == PF_INET || !ipv6_only_sock(sk)) &&
-		    !sk->sk_bound_dev_if)
+		    !sk->sk_bound_dev_if && sk->sk_net == net)
 			goto sherry_cache;
-		sk = inet_lookup_listener_slow(head, daddr, hnum, dif);
+		sk = inet_lookup_listener_slow(net, head, daddr, hnum, dif);
 	}
 	if (sk) {
 sherry_cache:
@@ -193,7 +196,8 @@ sherry_cache:
 }
 EXPORT_SYMBOL_GPL(__inet_lookup_listener);
 
-struct sock * __inet_lookup_established(struct inet_hashinfo *hashinfo,
+struct sock * __inet_lookup_established(struct net *net,
+				  struct inet_hashinfo *hashinfo,
 				  const __be32 saddr, const __be16 sport,
 				  const __be32 daddr, const u16 hnum,
 				  const int dif)
@@ -212,13 +216,15 @@ struct sock * __inet_lookup_established(struct inet_hashinfo *hashinfo,
 	prefetch(head->chain.first);
 	read_lock(lock);
 	sk_for_each(sk, node, &head->chain) {
-		if (INET_MATCH(sk, hash, acookie, saddr, daddr, ports, dif))
+		if (INET_MATCH(sk, net, hash, acookie,
+					saddr, daddr, ports, dif))
 			goto hit; /* You sunk my battleship! */
 	}
 
 	/* Must check for a TIME_WAIT'er before going to listener hash. */
 	sk_for_each(sk, node, &head->twchain) {
-		if (INET_TW_MATCH(sk, hash, acookie, saddr, daddr, ports, dif))
+		if (INET_TW_MATCH(sk, net, hash, acookie,
+					saddr, daddr, ports, dif))
 			goto hit;
 	}
 	sk = NULL;
@@ -249,6 +255,7 @@ static int __inet_check_established(struct inet_timewait_death_row *death_row,
 	struct sock *sk2;
 	const struct hlist_node *node;
 	struct inet_timewait_sock *tw;
+	struct net *net = sk->sk_net;
 
 	prefetch(head->chain.first);
 	write_lock(lock);
@@ -257,7 +264,8 @@ static int __inet_check_established(struct inet_timewait_death_row *death_row,
 	sk_for_each(sk2, node, &head->twchain) {
 		tw = inet_twsk(sk2);
 
-		if (INET_TW_MATCH(sk2, hash, acookie, saddr, daddr, ports, dif)) {
+		if (INET_TW_MATCH(sk2, net, hash, acookie,
+					saddr, daddr, ports, dif)) {
 			if (twsk_unique(sk, sk2, twp))
 				goto unique;
 			else
@@ -268,7 +276,8 @@ static int __inet_check_established(struct inet_timewait_death_row *death_row,
 
 	/* And established part... */
 	sk_for_each(sk2, node, &head->chain) {
-		if (INET_MATCH(sk2, hash, acookie, saddr, daddr, ports, dif))
+		if (INET_MATCH(sk2, net, hash, acookie,
+					saddr, daddr, ports, dif))
 			goto not_unique;
 	}
 

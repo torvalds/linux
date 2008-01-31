@@ -218,7 +218,7 @@ static void dccp_v4_err(struct sk_buff *skb, u32 info)
 		return;
 	}
 
-	sk = inet_lookup(&dccp_hashinfo, iph->daddr, dh->dccph_dport,
+	sk = inet_lookup(&init_net, &dccp_hashinfo, iph->daddr, dh->dccph_dport,
 			 iph->saddr, dh->dccph_sport, inet_iif(skb));
 	if (sk == NULL) {
 		ICMP_INC_STATS_BH(ICMP_MIB_INERRORS);
@@ -436,7 +436,7 @@ static struct sock *dccp_v4_hnd_req(struct sock *sk, struct sk_buff *skb)
 	if (req != NULL)
 		return dccp_check_req(sk, skb, req, prev);
 
-	nsk = inet_lookup_established(&dccp_hashinfo,
+	nsk = inet_lookup_established(&init_net, &dccp_hashinfo,
 				      iph->saddr, dh->dccph_sport,
 				      iph->daddr, dh->dccph_dport,
 				      inet_iif(skb));
@@ -817,7 +817,7 @@ static int dccp_v4_rcv(struct sk_buff *skb)
 
 	/* Step 2:
 	 *	Look up flow ID in table and get corresponding socket */
-	sk = __inet_lookup(&dccp_hashinfo,
+	sk = __inet_lookup(&init_net, &dccp_hashinfo,
 			   iph->saddr, dh->dccph_sport,
 			   iph->daddr, dh->dccph_dport, inet_iif(skb));
 	/*
