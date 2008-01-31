@@ -3,6 +3,7 @@
 
 #include <linux/threads.h>
 #include <linux/mm.h>		/* for struct page */
+#include <linux/pagemap.h>
 #include <asm/tlb.h>
 #include <asm-generic/tlb.h>
 
@@ -51,11 +52,7 @@ static inline void pte_free(struct page *pte)
 }
 
 
-static inline void __pte_free_tlb(struct mmu_gather *tlb, struct page *pte)
-{
-	paravirt_release_pt(page_to_pfn(pte));
-	tlb_remove_page(tlb, pte);
-}
+extern void __pte_free_tlb(struct mmu_gather *tlb, struct page *pte);
 
 #ifdef CONFIG_X86_PAE
 /*
@@ -72,18 +69,7 @@ static inline void pmd_free(pmd_t *pmd)
 	free_page((unsigned long)pmd);
 }
 
-static inline void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd)
-{
-	/* This is called just after the pmd has been detached from
-	   the pgd, which requires a full tlb flush to be recognized
-	   by the CPU.  Rather than incurring multiple tlb flushes
-	   while the address space is being pulled down, make the tlb
-	   gathering machinery do a full flush when we're done. */
-	tlb->fullmm = 1;
-
-	paravirt_release_pd(__pa(pmd) >> PAGE_SHIFT);
-	tlb_remove_page(tlb, virt_to_page(pmd));
-}
+extern void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd);
 
 static inline void pud_populate(struct mm_struct *mm, pud_t *pudp, pmd_t *pmd)
 {

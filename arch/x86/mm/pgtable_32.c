@@ -376,3 +376,26 @@ void check_pgt_cache(void)
 {
 	quicklist_trim(0, pgd_dtor, 25, 16);
 }
+
+void __pte_free_tlb(struct mmu_gather *tlb, struct page *pte)
+{
+	paravirt_release_pt(page_to_pfn(pte));
+	tlb_remove_page(tlb, pte);
+}
+
+#ifdef CONFIG_X86_PAE
+
+void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd)
+{
+	/* This is called just after the pmd has been detached from
+	   the pgd, which requires a full tlb flush to be recognized
+	   by the CPU.  Rather than incurring multiple tlb flushes
+	   while the address space is being pulled down, make the tlb
+	   gathering machinery do a full flush when we're done. */
+	tlb->fullmm = 1;
+
+	paravirt_release_pd(__pa(pmd) >> PAGE_SHIFT);
+	tlb_remove_page(tlb, virt_to_page(pmd));
+}
+
+#endif

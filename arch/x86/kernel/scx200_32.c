@@ -65,7 +65,7 @@ static int __devinit scx200_probe(struct pci_dev *pdev, const struct pci_device_
 		base = pci_resource_start(pdev, 0);
 		printk(KERN_INFO NAME ": GPIO base 0x%x\n", base);
 
-		if (request_region(base, SCx200_GPIO_SIZE, "NatSemi SCx200 GPIO") == 0) {
+		if (!request_region(base, SCx200_GPIO_SIZE, "NatSemi SCx200 GPIO")) {
 			printk(KERN_ERR NAME ": can't allocate I/O for GPIOs\n");
 			return -EBUSY;
 		}
