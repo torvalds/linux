@@ -80,17 +80,8 @@ struct sock *__inet6_lookup_established(struct inet_hashinfo *hashinfo,
 	}
 	/* Must check for a TIME_WAIT'er before going to listener hash. */
 	sk_for_each(sk, node, &head->twchain) {
-		const struct inet_timewait_sock *tw = inet_twsk(sk);
-
-		if(*((__portpair *)&(tw->tw_dport))	== ports	&&
-		   sk->sk_family		== PF_INET6) {
-			const struct inet6_timewait_sock *tw6 = inet6_twsk(sk);
-
-			if (ipv6_addr_equal(&tw6->tw_v6_daddr, saddr)	&&
-			    ipv6_addr_equal(&tw6->tw_v6_rcv_saddr, daddr)	&&
-			    (!sk->sk_bound_dev_if || sk->sk_bound_dev_if == dif))
-				goto hit;
-		}
+		if (INET6_TW_MATCH(sk, hash, saddr, daddr, ports, dif))
+			goto hit;
 	}
 	read_unlock(lock);
 	return NULL;
@@ -185,15 +176,9 @@ static int __inet6_check_established(struct inet_timewait_death_row *death_row,
 
 	/* Check TIME-WAIT sockets first. */
 	sk_for_each(sk2, node, &head->twchain) {
-		const struct inet6_timewait_sock *tw6 = inet6_twsk(sk2);
-
 		tw = inet_twsk(sk2);
 
-		if(*((__portpair *)&(tw->tw_dport)) == ports		 &&
-		   sk2->sk_family	       == PF_INET6	 &&
-		   ipv6_addr_equal(&tw6->tw_v6_daddr, saddr)	 &&
-		   ipv6_addr_equal(&tw6->tw_v6_rcv_saddr, daddr) &&
-		   (!sk2->sk_bound_dev_if || sk2->sk_bound_dev_if == dif)) {
+		if (INET6_TW_MATCH(sk2, hash, saddr, daddr, ports, dif)) {
 			if (twsk_unique(sk, sk2, twp))
 				goto unique;
 			else
