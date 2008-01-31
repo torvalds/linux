@@ -821,7 +821,7 @@ static int input_devices_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations input_devices_seq_ops = {
+static const struct seq_operations input_devices_seq_ops = {
 	.start	= input_devices_seq_start,
 	.next	= input_devices_seq_next,
 	.stop	= input_devices_seq_stop,
@@ -874,7 +874,7 @@ static int input_handlers_seq_show(struct seq_file *seq, void *v)
 
 	return 0;
 }
-static struct seq_operations input_handlers_seq_ops = {
+static const struct seq_operations input_handlers_seq_ops = {
 	.start	= input_handlers_seq_start,
 	.next	= input_handlers_seq_next,
 	.stop	= input_handlers_seq_stop,
