@@ -291,7 +291,7 @@ static void trace_packet(struct sk_buff *skb,
 			 unsigned int hook,
 			 const struct net_device *in,
 			 const struct net_device *out,
-			 char *tablename,
+			 const char *tablename,
 			 struct xt_table_info *private,
 			 struct ipt_entry *e)
 {

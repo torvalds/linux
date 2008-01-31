@@ -214,7 +214,7 @@ struct xt_match
 	/* Free to use by each match */
 	unsigned long data;
 
-	char *table;
+	const char *table;
 	unsigned int matchsize;
 	unsigned int compatsize;
 	unsigned int hooks;
@@ -261,7 +261,7 @@ struct xt_target
 	/* Set this to THIS_MODULE if you are a module, otherwise NULL */
 	struct module *me;
 
-	char *table;
+	const char *table;
 	unsigned int targetsize;
 	unsigned int compatsize;
 	unsigned int hooks;
@@ -277,7 +277,7 @@ struct xt_table
 	struct list_head list;
 
 	/* A unique name... */
-	char name[XT_TABLE_MAXNAMELEN];
+	const char name[XT_TABLE_MAXNAMELEN];
 
 	/* What hooks you will enter on */
 	unsigned int valid_hooks;
