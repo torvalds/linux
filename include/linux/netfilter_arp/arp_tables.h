@@ -271,7 +271,8 @@ struct arpt_error
  	xt_register_target(tgt); })
 #define arpt_unregister_target(tgt) xt_unregister_target(tgt)
 
-extern struct arpt_table *arpt_register_table(struct arpt_table *table,
+extern struct arpt_table *arpt_register_table(struct net *net,
+					      struct arpt_table *table,
 					      const struct arpt_replace *repl);
 extern void arpt_unregister_table(struct arpt_table *table);
 extern unsigned int arpt_do_table(struct sk_buff *skb,

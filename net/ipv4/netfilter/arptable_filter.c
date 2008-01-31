@@ -91,7 +91,7 @@ static int __init arptable_filter_init(void)
 	int ret;
 
 	/* Register table */
-	packet_filter = arpt_register_table(&__packet_filter, &initial_table.repl);
+	packet_filter = arpt_register_table(&init_net, &__packet_filter, &initial_table.repl);
 	if (IS_ERR(packet_filter))
 		return PTR_ERR(packet_filter);
 
