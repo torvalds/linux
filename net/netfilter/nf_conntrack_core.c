@@ -729,7 +729,6 @@ void nf_conntrack_alter_reply(struct nf_conn *ct,
 	struct nf_conn_help *help = nfct_help(ct);
 	struct nf_conntrack_helper *helper;
 
-	write_lock_bh(&nf_conntrack_lock);
 	/* Should be unconfirmed, so not in hash table yet */
 	NF_CT_ASSERT(!nf_ct_is_confirmed(ct));
 
@@ -738,8 +737,9 @@ void nf_conntrack_alter_reply(struct nf_conn *ct,
 
 	ct->tuplehash[IP_CT_DIR_REPLY].tuple = *newreply;
 	if (ct->master || (help && help->expecting != 0))
-		goto out;
+		return;
 
+	rcu_read_lock();
 	helper = __nf_ct_helper_find(newreply);
 	if (helper == NULL) {
 		if (help)
@@ -757,7 +757,7 @@ void nf_conntrack_alter_reply(struct nf_conn *ct,
 
 	rcu_assign_pointer(help->helper, helper);
 out:
-	write_unlock_bh(&nf_conntrack_lock);
+	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(nf_conntrack_alter_reply);
 
