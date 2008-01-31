@@ -927,7 +927,7 @@ void raw_seq_stop(struct seq_file *seq, void *v)
 }
 EXPORT_SYMBOL_GPL(raw_seq_stop);
 
-static __inline__ char *get_raw_sock(struct sock *sp, char *tmpbuf, int i)
+static void raw_sock_seq_show(struct seq_file *seq, struct sock *sp, int i)
 {
 	struct inet_sock *inet = inet_sk(sp);
 	__be32 dest = inet->daddr,
@@ -935,33 +935,23 @@ static __inline__ char *get_raw_sock(struct sock *sp, char *tmpbuf, int i)
 	__u16 destp = 0,
 	      srcp  = inet->num;
 
-	sprintf(tmpbuf, "%4d: %08X:%04X %08X:%04X"
+	seq_printf(seq, "%4d: %08X:%04X %08X:%04X"
 		" %02X %08X:%08X %02X:%08lX %08X %5d %8d %lu %d %p %d",
 		i, src, srcp, dest, destp, sp->sk_state,
 		atomic_read(&sp->sk_wmem_alloc),
 		atomic_read(&sp->sk_rmem_alloc),
 		0, 0L, 0, sock_i_uid(sp), 0, sock_i_ino(sp),
 		atomic_read(&sp->sk_refcnt), sp, atomic_read(&sp->sk_drops));
-	return tmpbuf;
 }
-
-#define TMPSZ 128
 
 static int raw_seq_show(struct seq_file *seq, void *v)
 {
-	char tmpbuf[TMPSZ+1];
-
 	if (v == SEQ_START_TOKEN)
-		seq_printf(seq, "%-*s\n", TMPSZ-1,
-			       "  sl  local_address rem_address   st tx_queue "
-			       "rx_queue tr tm->when retrnsmt   uid  timeout "
-			       "inode  drops");
-	else {
-		struct raw_iter_state *state = raw_seq_private(seq);
-
-		seq_printf(seq, "%-*s\n", TMPSZ-1,
-			   get_raw_sock(v, tmpbuf, state->bucket));
-	}
+		seq_printf(seq, "  sl  local_address rem_address   st tx_queue "
+				"rx_queue tr tm->when retrnsmt   uid  timeout "
+				"inode  drops\n");
+	else
+		raw_sock_seq_show(seq, v, raw_seq_private(seq)->bucket);
 	return 0;
 }
 
