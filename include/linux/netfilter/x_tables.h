@@ -335,9 +335,9 @@ extern int xt_check_target(const struct xt_target *target, unsigned short family
 			   unsigned int size, const char *table, unsigned int hook,
 			   unsigned short proto, int inv_proto);
 
-extern int xt_register_table(struct xt_table *table,
-			     struct xt_table_info *bootstrap,
-			     struct xt_table_info *newinfo);
+extern struct xt_table *xt_register_table(struct xt_table *table,
+					  struct xt_table_info *bootstrap,
+					  struct xt_table_info *newinfo);
 extern void *xt_unregister_table(struct xt_table *table);
 
 extern struct xt_table_info *xt_replace_table(struct xt_table *table,

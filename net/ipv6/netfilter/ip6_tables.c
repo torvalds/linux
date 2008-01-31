@@ -2081,6 +2081,7 @@ int ip6t_register_table(struct xt_table *table, const struct ip6t_replace *repl)
 	struct xt_table_info bootstrap
 		= { 0, 0, 0, { 0 }, { 0 }, { } };
 	void *loc_cpu_entry;
+	struct xt_table *new_table;
 
 	newinfo = xt_alloc_table_info(repl->size);
 	if (!newinfo)
@@ -2100,10 +2101,10 @@ int ip6t_register_table(struct xt_table *table, const struct ip6t_replace *repl)
 		return ret;
 	}
 
-	ret = xt_register_table(table, &bootstrap, newinfo);
-	if (ret != 0) {
+	new_table = xt_register_table(table, &bootstrap, newinfo);
+	if (IS_ERR(new_table)) {
 		xt_free_table_info(newinfo);
-		return ret;
+		return PTR_ERR(new_table);
 	}
 
 	return 0;

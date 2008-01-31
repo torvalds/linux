@@ -660,9 +660,9 @@ xt_replace_table(struct xt_table *table,
 }
 EXPORT_SYMBOL_GPL(xt_replace_table);
 
-int xt_register_table(struct xt_table *table,
-		      struct xt_table_info *bootstrap,
-		      struct xt_table_info *newinfo)
+struct xt_table *xt_register_table(struct xt_table *table,
+				   struct xt_table_info *bootstrap,
+				   struct xt_table_info *newinfo)
 {
 	int ret;
 	struct xt_table_info *private;
@@ -670,7 +670,7 @@ int xt_register_table(struct xt_table *table,
 
 	ret = mutex_lock_interruptible(&xt[table->af].mutex);
 	if (ret != 0)
-		return ret;
+		goto out;
 
 	/* Don't autoload: we'd eat our tail... */
 	list_for_each_entry(t, &xt[table->af].tables, list) {
@@ -693,11 +693,13 @@ int xt_register_table(struct xt_table *table,
 	private->initial_entries = private->number;
 
 	list_add(&table->list, &xt[table->af].tables);
+	mutex_unlock(&xt[table->af].mutex);
+	return table;
 
-	ret = 0;
  unlock:
 	mutex_unlock(&xt[table->af].mutex);
-	return ret;
+out:
+	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(xt_register_table);
 
